@@ -44,9 +44,9 @@
 
 
 KX_MovementSensor::KX_MovementSensor(SCA_EventManager *eventmgr,
-									 SCA_IObject *gameobj,
-									 int axis, bool localflag,
-									 float threshold)
+                                     SCA_IObject *gameobj,
+                                     int axis, bool localflag,
+                                     float threshold)
 	:SCA_ISensor(gameobj, eventmgr),
 	m_localflag(localflag),
 	m_axis(axis),
@@ -101,13 +101,12 @@ bool KX_MovementSensor::Evaluate()
 
 	bool result = false;
 	bool reset = m_reset && m_level;
-	
+
 	currentposition = GetOwnerPosition(m_localflag);
 
 	m_positionHasChanged = false;
 
-	switch (m_axis)
-	{
+	switch (m_axis) {
 		case SENS_MOVEMENT_X_AXIS: // X
 		{
 			m_positionHasChanged = ((currentposition.x - m_previousPosition.x) > m_threshold);
@@ -141,9 +140,8 @@ bool KX_MovementSensor::Evaluate()
 		case SENS_MOVEMENT_ALL_AXIS: // ALL
 		{
 			if ((fabs(currentposition.x - m_previousPosition.x) > m_threshold) ||
-				(fabs(currentposition.y - m_previousPosition.y) > m_threshold) ||
-				(fabs(currentposition.z - m_previousPosition.z) > m_threshold))
-			{
+			    (fabs(currentposition.y - m_previousPosition.y) > m_threshold) ||
+			    (fabs(currentposition.z - m_previousPosition.z) > m_threshold)) {
 				m_positionHasChanged = true;
 			}
 			break;
@@ -202,14 +200,14 @@ PyTypeObject KX_MovementSensor::Type = {
 	0,
 	0,
 	py_base_repr,
-	0,0,0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0,
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0,
 	Methods,
 	0,
 	0,
 	&SCA_ISensor::Type,
-	0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0,
 	py_base_new
 };
 

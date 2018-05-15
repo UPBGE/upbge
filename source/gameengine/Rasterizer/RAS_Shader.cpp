@@ -302,7 +302,7 @@ bool RAS_Shader::LinkProgram()
 	frag = GetParsedProgram(FRAGMENT_PROGRAM);
 	geom = GetParsedProgram(GEOMETRY_PROGRAM);
 	m_shader = GPU_shader_create(vert.c_str(), frag.c_str(), geom.empty() ? nullptr : geom.c_str(),
-									nullptr, nullptr, 0, 0, 0);
+	                             nullptr, nullptr, 0, 0, 0);
 	if (!m_shader) {
 		m_error = true;
 		return false;
@@ -402,19 +402,19 @@ void RAS_Shader::Update(RAS_Rasterizer *rasty, const mt::mat4 &model)
 			}
 			case MODELVIEWMATRIX_TRANSPOSE:
 			{
-				mt::mat4 mat(view * model);
+				mt::mat4 mat(view *model);
 				SetUniform(uni->m_loc, mat, true);
 				break;
 			}
 			case MODELVIEWMATRIX_INVERSE:
 			{
-				mt::mat4 mat(view * model);
+				mt::mat4 mat(view *model);
 				SetUniform(uni->m_loc, mat.Inverse());
 				break;
 			}
 			case MODELVIEWMATRIX_INVERSETRANSPOSE:
 			{
-				mt::mat4 mat(view * model);
+				mt::mat4 mat(view *model);
 				SetUniform(uni->m_loc, mat.Inverse(), true);
 				break;
 			}
@@ -454,7 +454,9 @@ void RAS_Shader::Update(RAS_Rasterizer *rasty, const mt::mat4 &model)
 				SetUniform(uni->m_loc, (rasty->GetEye() == RAS_Rasterizer::RAS_STEREO_LEFTEYE) ? 0.0f : 0.5f);
 			}
 			default:
+			{
 				break;
+			}
 		}
 	}
 }

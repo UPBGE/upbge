@@ -254,8 +254,7 @@ void BL_ArmatureObject::LoadConstraints(BL_SceneConverter& converter)
 				continue;
 			}
 			// which constraint should we support?
-			switch (pcon->type)
-			{
+			switch (pcon->type) {
 				case CONSTRAINT_TYPE_TRACKTO:
 				case CONSTRAINT_TYPE_DAMPTRACK:
 				case CONSTRAINT_TYPE_KINEMATIC:
@@ -295,7 +294,7 @@ void BL_ArmatureObject::LoadConstraints(BL_SceneConverter& converter)
 							cti->flush_constraint_targets(pcon, &listb, 1);
 						}
 					}
-					BL_ArmatureConstraint* constraint = new BL_ArmatureConstraint(this, pchan, pcon, gametarget, gamesubtarget);
+					BL_ArmatureConstraint *constraint = new BL_ArmatureConstraint(this, pchan, pcon, gametarget, gamesubtarget);
 					m_controlledConstraints->Add(constraint);
 				}
 			}
@@ -316,7 +315,9 @@ size_t BL_ArmatureObject::GetConstraintNumber() const
 BL_ArmatureConstraint *BL_ArmatureObject::GetConstraint(const std::string& posechannel, const std::string& constraintname)
 {
 	return m_controlledConstraints->FindIf(
-		[&posechannel, &constraintname](BL_ArmatureConstraint *constraint) { return constraint->Match(posechannel, constraintname); });
+		[&posechannel, &constraintname](BL_ArmatureConstraint *constraint) {
+		return constraint->Match(posechannel, constraintname);
+	});
 }
 
 BL_ArmatureConstraint *BL_ArmatureObject::GetConstraint(const std::string& posechannelconstraint)
@@ -346,7 +347,9 @@ size_t BL_ArmatureObject::GetChannelNumber() const
 
 BL_ArmatureChannel *BL_ArmatureObject::GetChannel(bPoseChannel *pchan)
 {
-	return m_poseChannels->FindIf([&pchan](BL_ArmatureChannel *channel) { return channel->m_posechannel == pchan; });
+	return m_poseChannels->FindIf([&pchan](BL_ArmatureChannel *channel) {
+		return channel->m_posechannel == pchan;
+	});
 }
 
 BL_ArmatureChannel *BL_ArmatureObject::GetChannel(const std::string& str)
@@ -509,7 +512,7 @@ bool BL_ArmatureObject::GetBoneTransform(Bone *bone, mt::mat3x4& trans)
 	bPoseChannel *pchan = BKE_pose_channel_find_name(m_objArma->pose, bone->name);
 	if (pchan) {
 		trans = mt::mat3x4(mt::vec3(pchan->pose_mat[0]), mt::vec3(pchan->pose_mat[1]),
-						   mt::vec3(pchan->pose_mat[2]), mt::vec3(pchan->pose_mat[3]));
+		                   mt::vec3(pchan->pose_mat[2]), mt::vec3(pchan->pose_mat[3]));
 	}
 
 	return (pchan != nullptr);
@@ -597,17 +600,17 @@ PyObject *BL_ArmatureObject::pyattr_get_channels(EXP_PyObjectPlus *self_v, const
 }
 
 EXP_PYMETHODDEF_DOC_NOARGS(BL_ArmatureObject, update,
-                          "update()\n"
-                          "Make sure that the armature will be updated on next graphic frame.\n"
-                          "This is automatically done if a KX_ArmatureActuator with mode run is active\n"
-                          "or if an action is playing. This function is useful in other cases.\n")
+                           "update()\n"
+                           "Make sure that the armature will be updated on next graphic frame.\n"
+                           "This is automatically done if a KX_ArmatureActuator with mode run is active\n"
+                           "or if an action is playing. This function is useful in other cases.\n")
 {
 	UpdateTimestep(KX_GetActiveEngine()->GetFrameTime());
 	Py_RETURN_NONE;
 }
 
 EXP_PYMETHODDEF_DOC_NOARGS(BL_ArmatureObject, draw,
-                          "Draw Debug Armature")
+                           "Draw Debug Armature")
 {
 	/* Armature bones are updated later, so we only set to true a flag
 	 * to request a debug draw later in ApplyPose after updating bones. */

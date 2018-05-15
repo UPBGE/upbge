@@ -40,47 +40,47 @@
 #include "BLI_math_rotation.h"
 
 /**
- * 	RadarSensor constructor. Creates a near-sensor derived class, with a cone collision shape.
+ *  RadarSensor constructor. Creates a near-sensor derived class, with a cone collision shape.
  */
-KX_RadarSensor::KX_RadarSensor(SCA_EventManager* eventmgr,
-		KX_GameObject* gameobj,
-		PHY_IPhysicsController* physCtrl,
-			double coneradius,
-			double coneheight,
-			int	axis,
-			double margin,
-			double resetmargin,
-			bool bFindMaterial,
-			const std::string& touchedpropname)
+KX_RadarSensor::KX_RadarSensor(SCA_EventManager *eventmgr,
+                               KX_GameObject *gameobj,
+                               PHY_IPhysicsController *physCtrl,
+                               double coneradius,
+                               double coneheight,
+                               int axis,
+                               double margin,
+                               double resetmargin,
+                               bool bFindMaterial,
+                               const std::string& touchedpropname)
 
-			: KX_NearSensor(
-				eventmgr,
-				gameobj,
-				//DT_NewCone(coneradius,coneheight),
-				margin,
-				resetmargin,
-				bFindMaterial,
-				touchedpropname,
-				physCtrl),
+	:KX_NearSensor(
+		eventmgr,
+		gameobj,
+		//DT_NewCone(coneradius,coneheight),
+		margin,
+		resetmargin,
+		bFindMaterial,
+		touchedpropname,
+		physCtrl),
 
-				m_coneradius(coneradius),
-				m_coneheight(coneheight),
-				m_axis(axis)
+	m_coneradius(coneradius),
+	m_coneheight(coneheight),
+	m_axis(axis)
 {
 	m_client_info->m_type = KX_ClientObjectInfo::SENSOR;
 	//m_client_info->m_clientobject = gameobj;
 	//m_client_info->m_auxilary_info = nullptr;
 	//sumoObj->setClientObject(&m_client_info);
 }
-			
+
 KX_RadarSensor::~KX_RadarSensor()
 {
-	
+
 }
 
-EXP_Value* KX_RadarSensor::GetReplica()
+EXP_Value *KX_RadarSensor::GetReplica()
 {
-	KX_RadarSensor* replica = new KX_RadarSensor(*this);
+	KX_RadarSensor *replica = new KX_RadarSensor(*this);
 	replica->ProcessReplica();
 	return replica;
 }
@@ -97,45 +97,44 @@ void KX_RadarSensor::SynchronizeTransform()
 	// is the geometry correctly converted?
 
 	// a collision cone is oriented
-	// center the cone correctly 
+	// center the cone correctly
 	// depends on the radar 'axis'
-	switch (m_axis)
-	{
-	case SENS_RADAR_X_AXIS: // +X Axis
+	switch (m_axis) {
+		case SENS_RADAR_X_AXIS: // +X Axis
 		{
 			rot *= mt::mat3(0.0f, 0.0f, M_PI / 2.0f);
 			break;
 		};
-	case SENS_RADAR_Y_AXIS: // +Y Axis
+		case SENS_RADAR_Y_AXIS: // +Y Axis
 		{
 			rot *= mt::mat3(-M_PI, 0.0f, 0.0f);
 			break;
 		};
-	case SENS_RADAR_Z_AXIS: // +Z Axis
+		case SENS_RADAR_Z_AXIS: // +Z Axis
 		{
 			rot *= mt::mat3(-M_PI / 2.0f, 0.0f, 0.0f);
 			break;
 		};
-	case SENS_RADAR_NEG_X_AXIS: // -X Axis
+		case SENS_RADAR_NEG_X_AXIS: // -X Axis
 		{
 			rot *= mt::mat3(0.0f, 0.0f, -M_PI / 2.0f);
 			break;
 		};
-	case SENS_RADAR_NEG_Y_AXIS: // -Y Axis
+		case SENS_RADAR_NEG_Y_AXIS: // -Y Axis
 		{
 			break;
 		};
-	case SENS_RADAR_NEG_Z_AXIS: // -Z Axis
+		case SENS_RADAR_NEG_Z_AXIS: // -Z Axis
 		{
 			rot *= mt::mat3(M_PI / 2.0f, 0.0f, 0.0f);
 			break;
 		};
-	default:
+		default:
 		{
 		}
 	}
 
-	mt::mat3x4 trans(rot, pos + rot * mt::vec3(0, -m_coneheight/2.0f, 0));
+	mt::mat3x4 trans(rot, pos + rot * mt::vec3(0, -m_coneheight / 2.0f, 0));
 
 	//Using a temp variable to translate mt::vec3 to float[3].
 	//float[3] works better for the Python interface.
@@ -144,14 +143,14 @@ void KX_RadarSensor::SynchronizeTransform()
 	m_cone_origin[1] = temp[1];
 	m_cone_origin[2] = temp[2];
 
-	temp = trans * mt::vec3(0, -m_coneheight/2.0f, 0);
+	temp = trans * mt::vec3(0, -m_coneheight / 2.0f, 0);
 	m_cone_target[0] = temp[0];
 	m_cone_target[1] = temp[1];
 	m_cone_target[2] = temp[2];
 
 
 	if (m_physCtrl) {
-		PHY_IMotionState* motionState = m_physCtrl->GetMotionState();
+		PHY_IMotionState *motionState = m_physCtrl->GetMotionState();
 		motionState->SetWorldPosition(trans.TranslationVector3D());
 		motionState->SetWorldOrientation(trans.RotationMatrix());
 		m_physCtrl->WriteMotionStateToDynamics(true);
@@ -179,14 +178,14 @@ PyTypeObject KX_RadarSensor::Type = {
 	0,
 	0,
 	py_base_repr,
-	0,0,0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0,
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0,
 	Methods,
 	0,
 	0,
 	&KX_NearSensor::Type,
-	0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0,
 	py_base_new
 };
 
@@ -205,12 +204,12 @@ PyAttributeDef KX_RadarSensor::Attributes[] = {
 
 PyObject *KX_RadarSensor::pyattr_get_angle(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_RadarSensor* self = static_cast<KX_RadarSensor*>(self_v);
+	KX_RadarSensor *self = static_cast<KX_RadarSensor *>(self_v);
 
 	// The original angle from the gui was converted, so we recalculate the value here to maintain
 	// consistency between Python and the gui
 	return PyFloat_FromDouble(RAD2DEGF(atan(self->m_coneradius / self->m_coneheight)) * 2);
-	
+
 }
 
 #endif // WITH_PYTHON

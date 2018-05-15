@@ -57,14 +57,14 @@ PyTypeObject KX_CollisionContactPoint::Type = {
 	0,
 	0,
 	py_base_repr,
-	0,0,0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0,
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0,
 	Methods,
 	0,
 	0,
 	&EXP_Value::Type,
-	0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0,
 	py_base_new
 };
 
@@ -148,7 +148,7 @@ KX_CollisionContactPointList::KX_CollisionContactPointList(const PHY_ICollData *
 	:
 #ifdef WITH_PYTHON
 	EXP_ListWrapper(this, nullptr, nullptr, kx_collision_contact_point_list_get_sensors_size_cb,
-		kx_collision_contact_point_list_get_sensors_item_cb, nullptr, nullptr),
+	                kx_collision_contact_point_list_get_sensors_item_cb, nullptr, nullptr),
 #endif  // WITH_PYTHON
 	m_collData(collData),
 	m_firstObject(firstObject)

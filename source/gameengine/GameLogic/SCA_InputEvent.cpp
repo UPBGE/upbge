@@ -100,16 +100,16 @@ PyTypeObject SCA_InputEvent::Type = {
 	0,
 	0,
 	py_base_repr,
-	0,0,0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0,
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0,0,0,
+	0, 0, 0,
 	0,
-	0,0,0,
+	0, 0, 0,
 	Methods,
 	0,
 	0,
 	&EXP_PyObjectPlus::Type,
-	0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0,
 	py_base_new
 };
 
@@ -142,13 +142,13 @@ PyObject *SCA_InputEvent::get_status_item_cb(void *self_v, int index)
 PyObject *SCA_InputEvent::pyattr_get_status(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	return (new EXP_ListWrapper(self_v,
-							 ((SCA_InputEvent *)self_v)->GetProxy(),
-							 nullptr,
-							 SCA_InputEvent::get_status_size_cb,
-							 SCA_InputEvent::get_status_item_cb,
-							 nullptr,
-							 nullptr,
-							 EXP_ListWrapper::FLAG_FIND_VALUE))->NewProxy(true);
+	                            ((SCA_InputEvent *)self_v)->GetProxy(),
+	                            nullptr,
+	                            SCA_InputEvent::get_status_size_cb,
+	                            SCA_InputEvent::get_status_item_cb,
+	                            nullptr,
+	                            nullptr,
+	                            EXP_ListWrapper::FLAG_FIND_VALUE))->NewProxy(true);
 }
 
 int SCA_InputEvent::get_queue_size_cb(void *self_v)
@@ -164,13 +164,13 @@ PyObject *SCA_InputEvent::get_queue_item_cb(void *self_v, int index)
 PyObject *SCA_InputEvent::pyattr_get_queue(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	return (new EXP_ListWrapper(self_v,
-							 ((SCA_InputEvent *)self_v)->GetProxy(),
-							 nullptr,
-							 SCA_InputEvent::get_queue_size_cb,
-							 SCA_InputEvent::get_queue_item_cb,
-							 nullptr,
-							 nullptr,
-							 EXP_ListWrapper::FLAG_FIND_VALUE))->NewProxy(true);
+	                            ((SCA_InputEvent *)self_v)->GetProxy(),
+	                            nullptr,
+	                            SCA_InputEvent::get_queue_size_cb,
+	                            SCA_InputEvent::get_queue_item_cb,
+	                            nullptr,
+	                            nullptr,
+	                            EXP_ListWrapper::FLAG_FIND_VALUE))->NewProxy(true);
 }
 
 int SCA_InputEvent::get_values_size_cb(void *self_v)
@@ -186,13 +186,13 @@ PyObject *SCA_InputEvent::get_values_item_cb(void *self_v, int index)
 PyObject *SCA_InputEvent::pyattr_get_values(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	return (new EXP_ListWrapper(self_v,
-							 ((SCA_InputEvent *)self_v)->GetProxy(),
-							 nullptr,
-							 SCA_InputEvent::get_values_size_cb,
-							 SCA_InputEvent::get_values_item_cb,
-							 nullptr,
-							 nullptr,
-							 EXP_ListWrapper::FLAG_FIND_VALUE))->NewProxy(true);
+	                            ((SCA_InputEvent *)self_v)->GetProxy(),
+	                            nullptr,
+	                            SCA_InputEvent::get_values_size_cb,
+	                            SCA_InputEvent::get_values_item_cb,
+	                            nullptr,
+	                            nullptr,
+	                            EXP_ListWrapper::FLAG_FIND_VALUE))->NewProxy(true);
 }
 
 PyObject *SCA_InputEvent::pyattr_get_inactive(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)

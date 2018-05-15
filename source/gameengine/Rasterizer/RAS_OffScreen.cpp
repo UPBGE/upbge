@@ -29,7 +29,7 @@
 RAS_OffScreen *RAS_OffScreen::lastOffScreen = nullptr;
 
 RAS_OffScreen::RAS_OffScreen(unsigned int width, unsigned int height, int samples, GPUHDRType hdrType, GPUOffScreenMode mode, char errOut[256],
-							 RAS_Rasterizer::OffScreenType type)
+                             RAS_Rasterizer::OffScreenType type)
 	:m_offScreen(GPU_offscreen_create(width, height, samples, hdrType, mode, errOut)),
 	m_type(type)
 {

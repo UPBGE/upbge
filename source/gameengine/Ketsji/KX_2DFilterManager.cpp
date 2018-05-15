@@ -21,8 +21,8 @@
  */
 
 /** \file KX_2DFilterManager.cpp
-*  \ingroup ketsji
-*/
+ *  \ingroup ketsji
+ */
 
 #include "KX_2DFilterManager.h"
 #include "KX_2DFilter.h"
@@ -87,7 +87,7 @@ EXP_PYMETHODDEF_DOC(KX_2DFilterManager, getFilter, " getFilter(index)")
 		return nullptr;
 	}
 
-	KX_2DFilter *filter = (KX_2DFilter*)GetFilterPass(index);
+	KX_2DFilter *filter = (KX_2DFilter *)GetFilterPass(index);
 
 	if (filter) {
 		return filter->GetProxy();

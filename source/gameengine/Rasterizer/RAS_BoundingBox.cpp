@@ -129,7 +129,7 @@ RAS_MeshBoundingBox::RAS_MeshBoundingBox(RAS_BoundingBoxManager *manager, const 
 {
 	for (RAS_IDisplayArray *array : displayArrayList) {
 		m_slots.push_back({array, {RAS_IDisplayArray::POSITION_MODIFIED, RAS_IDisplayArray::NONE_MODIFIED},
-				mt::zero3, mt::zero3});
+		                   mt::zero3, mt::zero3});
 	}
 
 	for (DisplayArraySlot& slot : m_slots) {

@@ -38,7 +38,7 @@ public:
 	SG_ScalarInterpolator() = default;
 	virtual ~SG_ScalarInterpolator() = default;
 
-	virtual float GetValue(float currentTime) const = 0; 
+	virtual float GetValue(float currentTime) const = 0;
 };
 
 #endif  // __SG_SCALAR_INTERPOLATOR_H__

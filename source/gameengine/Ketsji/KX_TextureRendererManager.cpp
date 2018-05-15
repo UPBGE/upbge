@@ -1,24 +1,24 @@
 /*
-* ***** BEGIN GPL LICENSE BLOCK *****
-*
-* This program is free software; you can redistribute it and/or
-* modify it under the terms of the GNU General Public License
-* as published by the Free Software Foundation; either version 2
-* of the License, or (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program; if not, write to the Free Software Foundation,
-* Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-*
-* Contributor(s): Ulysse Martin, Tristan Porteries, Martins Upitis.
-*
-* ***** END GPL LICENSE BLOCK *****
-*/
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * Contributor(s): Ulysse Martin, Tristan Porteries, Martins Upitis.
+ *
+ * ***** END GPL LICENSE BLOCK *****
+ */
 
 /** \file gameengine/Ketsji/KX_TextureRendererManager.cpp
  *  \ingroup ketsji
@@ -82,7 +82,7 @@ void KX_TextureRendererManager::AddRenderer(RendererType type, RAS_Texture *text
 				KX_GameObject *origviewpoint = renderer->GetViewpointObject();
 				if (viewpoint != origviewpoint) {
 					CM_Warning("texture renderer (" << texture->GetName() << ") uses different viewpoint objects (" <<
-							(origviewpoint ? origviewpoint->GetName() : "<None>") << " and " << viewpoint->GetName() << ").");
+					           (origviewpoint ? origviewpoint->GetName() : "<None>") << " and " << viewpoint->GetName() << ").");
 				}
 				return;
 			}
@@ -110,7 +110,7 @@ void KX_TextureRendererManager::AddRenderer(RendererType type, RAS_Texture *text
 }
 
 bool KX_TextureRendererManager::RenderRenderer(RAS_Rasterizer *rasty, KX_TextureRenderer *renderer,
-											   KX_Camera *sceneCamera, const RAS_Rect& viewport, const RAS_Rect& area)
+                                               KX_Camera *sceneCamera, const RAS_Rect& viewport, const RAS_Rect& area)
 {
 	KX_GameObject *viewpoint = renderer->GetViewpointObject();
 	// Doesn't need (or can) update.
@@ -189,7 +189,7 @@ bool KX_TextureRendererManager::RenderRenderer(RAS_Rasterizer *rasty, KX_Texture
 }
 
 void KX_TextureRendererManager::Render(RendererCategory category, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen,
-									   KX_Camera *sceneCamera, const RAS_Rect& viewport, const RAS_Rect& area)
+                                       KX_Camera *sceneCamera, const RAS_Rect& viewport, const RAS_Rect& area)
 {
 	const std::vector<KX_TextureRenderer *>& renderers = m_renderers[category];
 	if (renderers.empty() || rasty->GetDrawingMode() != RAS_Rasterizer::RAS_TEXTURED) {

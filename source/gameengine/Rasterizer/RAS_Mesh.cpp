@@ -85,8 +85,9 @@ std::string RAS_Mesh::GetMaterialName(unsigned int matid) const
 {
 	RAS_MeshMaterial *mmat = GetMeshMaterial(matid);
 
-	if (mmat)
+	if (mmat) {
 		return mmat->GetBucket()->GetPolyMaterial()->GetName();
+	}
 
 	return "";
 }
@@ -145,7 +146,8 @@ RAS_Mesh::PolygonInfo RAS_Mesh::GetPolygon(unsigned int index) const
 				{array->GetTriangleIndex(index),
 				 array->GetTriangleIndex(index + 1),
 				 array->GetTriangleIndex(index + 2)},
-				range.flags, range.matId};
+				range.flags, range.matId
+			};
 
 			return polyInfo;
 		}
@@ -165,8 +167,9 @@ std::string RAS_Mesh::GetTextureName(unsigned int matid) const
 {
 	RAS_MeshMaterial *mmat = GetMeshMaterial(matid);
 
-	if (mmat)
+	if (mmat) {
 		return mmat->GetBucket()->GetPolyMaterial()->GetTextureName();
+	}
 
 	return "";
 }
@@ -188,8 +191,9 @@ RAS_IDisplayArray *RAS_Mesh::GetDisplayArray(unsigned int matid) const
 {
 	RAS_MeshMaterial *mmat = GetMeshMaterial(matid);
 
-	if (!mmat)
+	if (!mmat) {
 		return nullptr;
+	}
 
 	RAS_IDisplayArray *array = mmat->GetDisplayArray();
 
@@ -201,14 +205,14 @@ RAS_BoundingBox *RAS_Mesh::GetBoundingBox() const
 	return m_boundingBox;
 }
 
-RAS_MeshUser* RAS_Mesh::AddMeshUser(void *clientobj, RAS_Deformer *deformer)
+RAS_MeshUser *RAS_Mesh::AddMeshUser(void *clientobj, RAS_Deformer *deformer)
 {
 	RAS_BoundingBox *boundingBox = (deformer) ? deformer->GetBoundingBox() : m_boundingBox;
 	RAS_MeshUser *meshUser = new RAS_MeshUser(clientobj, boundingBox);
 
 	for (unsigned short i = 0, nummat = m_materials.size(); i < nummat; ++i) {
 		RAS_DisplayArrayBucket *arrayBucket = (deformer) ?
-				deformer->GetDisplayArrayBucket(i) : m_materials[i]->GetDisplayArrayBucket();
+		                                      deformer->GetDisplayArrayBucket(i) : m_materials[i]->GetDisplayArrayBucket();
 		RAS_MeshSlot *ms = new RAS_MeshSlot(meshUser, arrayBucket);
 		meshUser->AddMeshSlot(ms);
 	}
@@ -227,7 +231,7 @@ void RAS_Mesh::EndConversion(RAS_BoundingBoxManager *boundingBoxManager)
 		const std::string materialname = meshmat->GetBucket()->GetPolyMaterial()->GetName();
 		if (array->GetVertexCount() == 0) {
 			CM_Warning("mesh \"" << m_name << "\" has no vertices for material \"" << materialname
-				<< "\". It introduces performance decrease for empty render.");
+			                     << "\". It introduces performance decrease for empty render.");
 		}
 		else {
 			// Generate bounding box only for non-empty display arrays.
@@ -236,7 +240,7 @@ void RAS_Mesh::EndConversion(RAS_BoundingBoxManager *boundingBoxManager)
 
 		if (array->GetPrimitiveIndexCount() == 0) {
 			CM_Warning("mesh \"" << m_name << "\" has no primitives for material \"" << materialname
-				<< "\". It introduces performance decrease for empty render.");
+			                     << "\". It introduces performance decrease for empty render.");
 		}
 	}
 
@@ -265,9 +269,9 @@ void RAS_Mesh::EndConversion(RAS_BoundingBoxManager *boundingBoxManager)
 
 		RAS_IPolyMaterial *polymat = meshmat->GetBucket()->GetPolyMaterial();
 		PolygonInfo::Flags flags =
-				((polymat->IsVisible()) ? PolygonInfo::VISIBLE : PolygonInfo::NONE |
-				(polymat->IsCollider()) ? PolygonInfo::COLLIDER : PolygonInfo::NONE |
-				(polymat->IsTwoSided()) ? PolygonInfo::TWOSIDE : PolygonInfo::NONE);
+			((polymat->IsVisible()) ? PolygonInfo::VISIBLE : PolygonInfo::NONE |
+			 (polymat->IsCollider()) ? PolygonInfo::COLLIDER : PolygonInfo::NONE |
+			 (polymat->IsTwoSided()) ? PolygonInfo::TWOSIDE : PolygonInfo::NONE);
 
 		m_polygonRanges.push_back({array, startIndex, endIndex, flags, i});
 

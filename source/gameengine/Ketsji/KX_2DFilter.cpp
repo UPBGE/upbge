@@ -21,8 +21,8 @@
  */
 
 /** \file gameengine/Ketsji/KX_2DFilter.cpp
-*  \ingroup ketsji
-*/
+ *  \ingroup ketsji
+ */
 
 #include "KX_2DFilter.h"
 #include "KX_2DFilterOffScreen.h"
@@ -202,9 +202,8 @@ EXP_PYMETHODDEF_DOC(KX_2DFilter, addOffScreen, " addOffScreen(slots, depth, widt
 	int flag = 0;
 
 	if (!EXP_ParseTupleArgsAndKeywords(args, kwds, "i|iiiii:addOffScreen",
-			{"slots", "depth", "width", "height", "hdr", "mipmap", 0},
-			&slots, &depth, &width, &height, &hdr, &mipmap))
-	{
+	                                   {"slots", "depth", "width", "height", "hdr", "mipmap", 0},
+	                                   &slots, &depth, &width, &height, &hdr, &mipmap)) {
 		return nullptr;
 	}
 
@@ -246,7 +245,7 @@ EXP_PYMETHODDEF_DOC(KX_2DFilter, addOffScreen, " addOffScreen(slots, depth, widt
 	}
 
 	KX_2DFilterOffScreen *offScreen = new KX_2DFilterOffScreen(slots, (RAS_2DFilterOffScreen::Flag)flag, width, height,
-															   (RAS_Rasterizer::HdrType)hdr);
+	                                                           (RAS_Rasterizer::HdrType)hdr);
 
 	SetOffScreen(offScreen);
 

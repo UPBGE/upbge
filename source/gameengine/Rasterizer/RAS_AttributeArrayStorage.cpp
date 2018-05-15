@@ -2,7 +2,7 @@
 #include "RAS_StorageVao.h"
 
 RAS_AttributeArrayStorage::RAS_AttributeArrayStorage(RAS_IDisplayArray *array, RAS_DisplayArrayStorage *arrayStorage,
-													 const RAS_AttributeArray::AttribList& attribList)
+                                                     const RAS_AttributeArray::AttribList& attribList)
 	:m_vao(new RAS_StorageVao(array, arrayStorage, attribList))
 {
 }

@@ -48,7 +48,7 @@ extern "C" {
 
 #include "KX_PythonInit.h"
 
-#include "GPG_Canvas.h" 
+#include "GPG_Canvas.h"
 
 #include "GHOST_ISystem.h"
 
@@ -57,7 +57,7 @@ extern "C" {
 #include "CM_Message.h"
 
 LA_PlayerLauncher::LA_PlayerLauncher(GHOST_ISystem *system, GHOST_IWindow *window, Main *maggie, Scene *scene, GlobalSettings *gs,
-								 RAS_Rasterizer::StereoMode stereoMode, int samples, int argc, char **argv, const std::string& pythonMainLoop)
+                                     RAS_Rasterizer::StereoMode stereoMode, int samples, int argc, char **argv, const std::string& pythonMainLoop)
 	:LA_Launcher(system, maggie, scene, gs, stereoMode, samples, argc, argv),
 	m_mainWindow(window),
 	m_pythonMainLoop(pythonMainLoop)

@@ -41,8 +41,9 @@ static SingletonSystem *_system_instance = nullptr;
 
 SYS_SystemHandle SYS_GetSystem()
 {
-	if (!_system_instance)
+	if (!_system_instance) {
 		_system_instance = new SingletonSystem();
+	}
 
 	return (SYS_SystemHandle)_system_instance;
 }

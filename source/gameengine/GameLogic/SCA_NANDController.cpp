@@ -42,7 +42,7 @@
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
 
-SCA_NANDController::SCA_NANDController(SCA_IObject* gameobj)
+SCA_NANDController::SCA_NANDController(SCA_IObject *gameobj)
 	:
 	SCA_IController(gameobj)
 {
@@ -56,19 +56,18 @@ SCA_NANDController::~SCA_NANDController()
 
 
 
-void SCA_NANDController::Trigger(SCA_LogicManager* logicmgr)
+void SCA_NANDController::Trigger(SCA_LogicManager *logicmgr)
 {
 
 	bool sensorresult = false;
 
 	for (SCA_ISensor *sensor : m_linkedsensors) {
-		if (!sensor->GetState())
-		{
+		if (!sensor->GetState()) {
 			sensorresult = true;
 			break;
 		}
 	}
-	
+
 	for (SCA_IActuator *actuator : m_linkedactuators) {
 		logicmgr->AddActiveActuator(actuator, sensorresult);
 	}
@@ -76,9 +75,9 @@ void SCA_NANDController::Trigger(SCA_LogicManager* logicmgr)
 
 
 
-EXP_Value* SCA_NANDController::GetReplica()
+EXP_Value *SCA_NANDController::GetReplica()
 {
-	EXP_Value* replica = new SCA_NANDController(*this);
+	EXP_Value *replica = new SCA_NANDController(*this);
 	// this will copy properties and so on...
 	replica->ProcessReplica();
 
@@ -103,23 +102,23 @@ PyTypeObject SCA_NANDController::Type = {
 	0,
 	0,
 	py_base_repr,
-	0,0,0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0,
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0,
 	Methods,
 	0,
 	0,
 	&SCA_IController::Type,
-	0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0,
 	py_base_new
 };
 
 PyMethodDef SCA_NANDController::Methods[] = {
-	{nullptr,nullptr} //Sentinel
+	{nullptr, nullptr} //Sentinel
 };
 
 PyAttributeDef SCA_NANDController::Attributes[] = {
-	EXP_PYATTRIBUTE_NULL	//Sentinel
+	EXP_PYATTRIBUTE_NULL    //Sentinel
 };
 
 #endif

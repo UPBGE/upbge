@@ -76,19 +76,18 @@ ExpDesc VideoDeckLinkPinMemoryErrorDesc(VideoDeckLinkPinMemoryError, "Error pinn
 //
 // Sets up a semaphore which is shared between the GPU and CPU and used to
 // synchronise access to DVP buffers.
-#define DVP_CHECK(cmd)	if ((cmd) != DVP_STATUS_OK) THRWEXCP(VideoDeckLinkDvpInternalError, S_OK)
+#define DVP_CHECK(cmd)  if ((cmd) != DVP_STATUS_OK) THRWEXCP(VideoDeckLinkDvpInternalError, S_OK)
 
-struct SyncInfo
-{
+struct SyncInfo {
 	SyncInfo(uint32_t semaphoreAllocSize, uint32_t semaphoreAddrAlignment)
 	{
-		mSemUnaligned = (uint32_t*)malloc(semaphoreAllocSize + semaphoreAddrAlignment - 1);
+		mSemUnaligned = (uint32_t *)malloc(semaphoreAllocSize + semaphoreAddrAlignment - 1);
 
 		// Apply alignment constraints
 		uint64_t val = (uint64_t)mSemUnaligned;
 		val += semaphoreAddrAlignment - 1;
 		val &= ~((uint64_t)semaphoreAddrAlignment - 1);
-		mSem = (uint32_t*)val;
+		mSem = (uint32_t *)val;
 
 		// Initialise
 		mSem[0] = 0;
@@ -98,7 +97,7 @@ struct SyncInfo
 		// Setup DVP sync object and import it
 		DVPSyncObjectDesc syncObjectDesc;
 		syncObjectDesc.externalClientWaitFunc = nullptr;
-		syncObjectDesc.sem = (uint32_t*)mSem;
+		syncObjectDesc.sem = (uint32_t *)mSem;
 
 		DVP_CHECK(dvpImportSyncObject(&syncObjectDesc, &mDvpSync));
 
@@ -106,14 +105,14 @@ struct SyncInfo
 	~SyncInfo()
 	{
 		dvpFreeSyncObject(mDvpSync);
-		free((void*)mSemUnaligned);
+		free((void *)mSemUnaligned);
 	}
 
-	volatile uint32_t*	mSem;
-	volatile uint32_t*	mSemUnaligned;
-	volatile uint32_t	mReleaseValue;
-	volatile uint32_t	mAcquireValue;
-	DVPSyncObjectHandle	mDvpSync;
+	volatile uint32_t *mSem;
+	volatile uint32_t *mSemUnaligned;
+	volatile uint32_t mReleaseValue;
+	volatile uint32_t mAcquireValue;
+	DVPSyncObjectHandle mDvpSync;
 };
 
 ////////////////////////////////////////////
@@ -135,16 +134,17 @@ public:
 		mAllocatedSize = 0;
 		mBuffer = nullptr;
 
-		if (!_PinBuffer(address, allocatedSize))
+		if (!_PinBuffer(address, allocatedSize)) {
 			THRWEXCP(VideoDeckLinkPinMemoryError, S_OK);
+		}
 		mAllocatedSize = allocatedSize;
 		mBuffer = address;
 
 		try {
 			if (!mBufferAddrAlignment) {
 				DVP_CHECK(dvpGetRequiredConstantsGLCtx(&mBufferAddrAlignment, &mBufferGpuStrideAlignment,
-					&mSemaphoreAddrAlignment, &mSemaphoreAllocSize,
-					&mSemaphorePayloadOffset, &mSemaphorePayloadSize));
+				                                       &mSemaphoreAddrAlignment, &mSemaphoreAllocSize,
+				                                       &mSemaphorePayloadOffset, &mSemaphorePayloadSize));
 			}
 			mExtSync = new SyncInfo(mSemaphoreAllocSize, mSemaphoreAddrAlignment);
 			mGpuSync = new SyncInfo(mSemaphoreAllocSize, mSemaphoreAddrAlignment);
@@ -153,28 +153,42 @@ public:
 			sysMemBuffersDesc.stride = pDesc->stride;
 			switch (pDesc->format) {
 				case GL_RED_INTEGER:
+				{
 					sysMemBuffersDesc.format = DVP_RED_INTEGER;
 					break;
+				}
 				default:
+				{
 					sysMemBuffersDesc.format = DVP_BGRA;
 					break;
+				}
 			}
 			switch (pDesc->type) {
 				case GL_UNSIGNED_BYTE:
+				{
 					sysMemBuffersDesc.type = DVP_UNSIGNED_BYTE;
 					break;
+				}
 				case GL_UNSIGNED_INT_2_10_10_10_REV:
+				{
 					sysMemBuffersDesc.type = DVP_UNSIGNED_INT_2_10_10_10_REV;
 					break;
+				}
 				case GL_UNSIGNED_INT_8_8_8_8:
+				{
 					sysMemBuffersDesc.type = DVP_UNSIGNED_INT_8_8_8_8;
 					break;
+				}
 				case GL_UNSIGNED_INT_10_10_10_2:
+				{
 					sysMemBuffersDesc.type = DVP_UNSIGNED_INT_10_10_10_2;
 					break;
+				}
 				default:
+				{
 					sysMemBuffersDesc.type = DVP_UNSIGNED_INT;
 					break;
+				}
 			}
 			sysMemBuffersDesc.size = pDesc->width * pDesc->height * 4;
 			sysMemBuffersDesc.bufAddr = mBuffer;
@@ -204,7 +218,7 @@ public:
 		// Copy from system memory to GPU texture
 		dvpMapBufferWaitDVP(mDvpTextureHandle);
 		dvpMemcpyLined(mDvpSysMemHandle, mExtSync->mDvpSync, mExtSync->mAcquireValue, DVP_TIMEOUT_IGNORED,
-			mDvpTextureHandle, mGpuSync->mDvpSync, mGpuSync->mReleaseValue, 0, mTextureHeight);
+		               mDvpTextureHandle, mGpuSync->mDvpSync, mGpuSync->mReleaseValue, 0, mTextureHeight);
 		dvpMapBufferEndDVP(mDvpTextureHandle);
 		dvpEnd();
 		dvpMapBufferWaitAPI(mDvpTextureHandle);
@@ -212,12 +226,12 @@ public:
 	}
 
 private:
-	static uint32_t			mBufferAddrAlignment;
-	static uint32_t			mBufferGpuStrideAlignment;
-	static uint32_t			mSemaphoreAddrAlignment;
-	static uint32_t			mSemaphoreAllocSize;
-	static uint32_t			mSemaphorePayloadOffset;
-	static uint32_t			mSemaphorePayloadSize;
+	static uint32_t mBufferAddrAlignment;
+	static uint32_t mBufferGpuStrideAlignment;
+	static uint32_t mSemaphoreAddrAlignment;
+	static uint32_t mSemaphoreAllocSize;
+	static uint32_t mSemaphorePayloadOffset;
+	static uint32_t mSemaphorePayloadSize;
 
 	void clean()
 	{
@@ -225,28 +239,31 @@ private:
 			dvpUnbindFromGLCtx(mDvpSysMemHandle);
 			dvpDestroyBuffer(mDvpSysMemHandle);
 		}
-		if (mExtSync)
+		if (mExtSync) {
 			delete mExtSync;
-		if (mGpuSync)
+		}
+		if (mGpuSync) {
 			delete mGpuSync;
-		if (mBuffer)
+		}
+		if (mBuffer) {
 			_UnpinBuffer(mBuffer, mAllocatedSize);
+		}
 	}
-	SyncInfo*				mExtSync;
-	SyncInfo*				mGpuSync;
-	DVPBufferHandle			mDvpSysMemHandle;
-	DVPBufferHandle			mDvpTextureHandle;
-	uint32_t				mTextureHeight;
-	uint32_t				mAllocatedSize;
-	void*					mBuffer;
+	SyncInfo *mExtSync;
+	SyncInfo *mGpuSync;
+	DVPBufferHandle mDvpSysMemHandle;
+	DVPBufferHandle mDvpTextureHandle;
+	uint32_t mTextureHeight;
+	uint32_t mAllocatedSize;
+	void *mBuffer;
 };
 
-uint32_t	TextureTransferDvp::mBufferAddrAlignment;
-uint32_t	TextureTransferDvp::mBufferGpuStrideAlignment;
-uint32_t	TextureTransferDvp::mSemaphoreAddrAlignment;
-uint32_t	TextureTransferDvp::mSemaphoreAllocSize;
-uint32_t	TextureTransferDvp::mSemaphorePayloadOffset;
-uint32_t	TextureTransferDvp::mSemaphorePayloadSize;
+uint32_t TextureTransferDvp::mBufferAddrAlignment;
+uint32_t TextureTransferDvp::mBufferGpuStrideAlignment;
+uint32_t TextureTransferDvp::mSemaphoreAddrAlignment;
+uint32_t TextureTransferDvp::mSemaphoreAllocSize;
+uint32_t TextureTransferDvp::mSemaphorePayloadOffset;
+uint32_t TextureTransferDvp::mSemaphorePayloadSize;
 
 #endif
 
@@ -321,9 +338,10 @@ public:
 	~TextureTransferPMD()
 	{
 		glDeleteBuffers(1, &mPinnedTextureBuffer);
-        if (mBuffer)
-            _UnpinBuffer(mBuffer, mAllocatedSize);
-    }
+		if (mBuffer) {
+			_UnpinBuffer(mBuffer, mAllocatedSize);
+		}
+	}
 
 	virtual void PerformTransfer()
 	{
@@ -333,7 +351,7 @@ public:
 		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, mDesc.width, mDesc.height, mDesc.format, mDesc.type, nullptr);
 		// wait for the trasnfer to complete
 		GLsync fence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
-		glClientWaitSync(fence, GL_SYNC_FLUSH_COMMANDS_BIT, 40 * 1000 * 1000);	// timeout in nanosec
+		glClientWaitSync(fence, GL_SYNC_FLUSH_COMMANDS_BIT, 40 * 1000 * 1000);  // timeout in nanosec
 		glDeleteSync(fence);
 		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 	}
@@ -344,9 +362,9 @@ private:
 	GLuint mTexId;
 	// buffer
 	void *mBuffer;
-    // the allocated size
-    uint32_t mAllocatedSize;
-    // characteristic of the image
+	// the allocated size
+	uint32_t mAllocatedSize;
+	// characteristic of the image
 	TextureDesc mDesc;
 };
 
@@ -355,16 +373,16 @@ bool TextureTransfer::_PinBuffer(void *address, uint32_t size)
 #ifdef WIN32
 	return VirtualLock(address, size);
 #elif defined(_POSIX_MEMLOCK_RANGE)
-    return !mlock(address, size);
+	return !mlock(address, size);
 #endif
 }
 
-void TextureTransfer::_UnpinBuffer(void* address, uint32_t size)
+void TextureTransfer::_UnpinBuffer(void *address, uint32_t size)
 {
 #ifdef WIN32
 	VirtualUnlock(address, size);
 #elif defined(_POSIX_MEMLOCK_RANGE)
-    munlock(address, size);
+	munlock(address, size);
 #endif
 }
 
@@ -376,29 +394,33 @@ void TextureTransfer::_UnpinBuffer(void* address, uint32_t size)
 
 
 // static members
-bool		PinnedMemoryAllocator::mGPUDirectInitialized = false;
-bool		PinnedMemoryAllocator::mHasDvp = false;
-bool		PinnedMemoryAllocator::mHasAMDPinnedMemory = false;
-size_t		PinnedMemoryAllocator::mReservedProcessMemory = 0;
+bool PinnedMemoryAllocator::mGPUDirectInitialized = false;
+bool PinnedMemoryAllocator::mHasDvp = false;
+bool PinnedMemoryAllocator::mHasAMDPinnedMemory = false;
+size_t PinnedMemoryAllocator::mReservedProcessMemory = 0;
 
 bool PinnedMemoryAllocator::ReserveMemory(size_t size)
 {
 #ifdef WIN32
 	// Increase the process working set size to allow pinning of memory.
-	if (size <= mReservedProcessMemory)
+	if (size <= mReservedProcessMemory) {
 		return true;
+	}
 	SIZE_T dwMin = 0, dwMax = 0;
 	HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_SET_QUOTA, FALSE, GetCurrentProcessId());
-	if (!hProcess)
+	if (!hProcess) {
 		return false;
+	}
 
 	// Retrieve the working set size of the process.
-	if (!dwMin && !GetProcessWorkingSetSize(hProcess, &dwMin, &dwMax))
+	if (!dwMin && !GetProcessWorkingSetSize(hProcess, &dwMin, &dwMax)) {
 		return false;
+	}
 
 	BOOL res = SetProcessWorkingSetSize(hProcess, (size - mReservedProcessMemory) + dwMin, (size - mReservedProcessMemory) + dwMax);
-	if (!res)
+	if (!res) {
 		return false;
+	}
 	mReservedProcessMemory = size;
 	CloseHandle(hProcess);
 	return true;
@@ -406,8 +428,9 @@ bool PinnedMemoryAllocator::ReserveMemory(size_t size)
 	struct rlimit rlim;
 	if (getrlimit(RLIMIT_MEMLOCK, &rlim) == 0) {
 		if (rlim.rlim_cur < size) {
-			if (rlim.rlim_max < size)
+			if (rlim.rlim_max < size) {
 				rlim.rlim_max = size;
+			}
 			rlim.rlim_cur = size;
 			return !setrlimit(RLIMIT_MEMLOCK, &rlim);
 		}
@@ -417,20 +440,20 @@ bool PinnedMemoryAllocator::ReserveMemory(size_t size)
 }
 
 PinnedMemoryAllocator::PinnedMemoryAllocator(unsigned cacheSize, size_t memSize) :
-mRefCount(1U),
+	mRefCount(1U),
 #ifdef WIN32
-mDvpCaptureTextureHandle(0),
+	mDvpCaptureTextureHandle(0),
 #endif
-mTexId(0),
-mBufferCacheSize(cacheSize)
+	mTexId(0),
+	mBufferCacheSize(cacheSize)
 {
 	pthread_mutex_init(&mMutex, nullptr);
 	// do it once
 	if (!mGPUDirectInitialized) {
 #ifdef WIN32
-		// In windows, AMD_pinned_memory option is not available, 
+		// In windows, AMD_pinned_memory option is not available,
 		// we must use special DVP API only available for Quadro cards
-		const char* renderer = (const char *)glGetString(GL_RENDERER);
+		const char *renderer = (const char *)glGetString(GL_RENDERER);
 		mHasDvp = (strstr(renderer, "Quadro") != nullptr);
 
 		if (mHasDvp) {
@@ -441,8 +464,9 @@ mBufferCacheSize(cacheSize)
 			}
 		}
 #endif
-		if (GLEW_AMD_pinned_memory)
+		if (GLEW_AMD_pinned_memory) {
 			mHasAMDPinnedMemory = true;
+		}
 
 		mGPUDirectInitialized = true;
 	}
@@ -467,25 +491,27 @@ PinnedMemoryAllocator::~PinnedMemoryAllocator()
 	}
 
 #ifdef WIN32
-	if (mDvpCaptureTextureHandle)
+	if (mDvpCaptureTextureHandle) {
 		dvpDestroyBuffer(mDvpCaptureTextureHandle);
+	}
 #endif
 }
 
-void PinnedMemoryAllocator::TransferBuffer(void* address, TextureDesc* texDesc, GLuint texId)
+void PinnedMemoryAllocator::TransferBuffer(void *address, TextureDesc *texDesc, GLuint texId)
 {
 	uint32_t allocatedSize = 0;
 	TextureTransfer *pTransfer = nullptr;
 
 	Lock();
-	if (mAllocatedSize.count(address) > 0)
+	if (mAllocatedSize.count(address) > 0) {
 		allocatedSize = mAllocatedSize[address];
+	}
 	Unlock();
-	if (!allocatedSize)
+	if (!allocatedSize) {
 		// internal error!!
 		return;
-	if (mTexId != texId)
-	{
+	}
+	if (mTexId != texId) {
 		// first time we try to send data to the GPU, allocate a buffer for the texture
 		glBindTexture(GL_TEXTURE_2D, texId);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -497,26 +523,23 @@ void PinnedMemoryAllocator::TransferBuffer(void* address, TextureDesc* texDesc, 
 		mTexId = texId;
 	}
 #ifdef WIN32
-	if (mHasDvp)
-	{
-		if (!mDvpCaptureTextureHandle)
-		{
+	if (mHasDvp) {
+		if (!mDvpCaptureTextureHandle) {
 			// bind DVP to the OGL texture
 			DVP_CHECK(dvpCreateGPUTextureGL(texId, &mDvpCaptureTextureHandle));
 		}
 	}
 #endif
 	Lock();
-	if (mPinnedBuffer.count(address) > 0)
-	{
+	if (mPinnedBuffer.count(address) > 0) {
 		pTransfer = mPinnedBuffer[address];
 	}
 	Unlock();
-	if (!pTransfer)
-	{
+	if (!pTransfer) {
 #ifdef WIN32
-		if (mHasDvp)
+		if (mHasDvp) {
 			pTransfer = new TextureTransferDvp(mDvpCaptureTextureHandle, texDesc, address, allocatedSize);
+		}
 		else
 #endif
 		if (mHasAMDPinnedMemory) {
@@ -525,54 +548,56 @@ void PinnedMemoryAllocator::TransferBuffer(void* address, TextureDesc* texDesc, 
 		else {
 			pTransfer = new TextureTransferOGL(texId, texDesc, address);
 		}
-		if (pTransfer)
-		{
+		if (pTransfer) {
 			Lock();
 			mPinnedBuffer[address] = pTransfer;
 			Unlock();
 		}
 	}
-	if (pTransfer)
+	if (pTransfer) {
 		pTransfer->PerformTransfer();
+	}
 }
 
 // IUnknown methods
-HRESULT STDMETHODCALLTYPE	PinnedMemoryAllocator::QueryInterface(REFIID /*iid*/, LPVOID* /*ppv*/)
+HRESULT STDMETHODCALLTYPE PinnedMemoryAllocator::QueryInterface(REFIID /*iid*/, LPVOID * /*ppv*/)
 {
 	return E_NOTIMPL;
 }
 
-ULONG STDMETHODCALLTYPE		PinnedMemoryAllocator::AddRef(void)
+ULONG STDMETHODCALLTYPE PinnedMemoryAllocator::AddRef(void)
 {
 	return atomic_add_and_fetch_uint32(&mRefCount, 1U);
 }
 
-ULONG STDMETHODCALLTYPE		PinnedMemoryAllocator::Release(void)
+ULONG STDMETHODCALLTYPE PinnedMemoryAllocator::Release(void)
 {
 	uint32_t newCount = atomic_sub_and_fetch_uint32(&mRefCount, 1U);
-	if (newCount == 0)
+	if (newCount == 0) {
 		delete this;
+	}
 	return (ULONG)newCount;
 }
 
 // IDeckLinkMemoryAllocator methods
-HRESULT STDMETHODCALLTYPE	PinnedMemoryAllocator::AllocateBuffer(dl_size_t bufferSize, void* *allocatedBuffer)
+HRESULT STDMETHODCALLTYPE PinnedMemoryAllocator::AllocateBuffer(dl_size_t bufferSize, void **allocatedBuffer)
 {
 	Lock();
-	if (mBufferCache.empty())
-	{
+	if (mBufferCache.empty()) {
 		// Allocate memory on a page boundary
 		// Note: aligned alloc exist in Blender but only for small alignment, use direct allocation then.
 		// Note: the DeckLink API tries to allocate up to 65 buffer in advance, we will limit this to 3
 		//       because we don't need any caching
-		if (mAllocatedSize.size() >= mBufferCacheSize)
+		if (mAllocatedSize.size() >= mBufferCacheSize) {
 			*allocatedBuffer = nullptr;
+		}
 		else {
 #ifdef WIN32
 			*allocatedBuffer = VirtualAlloc(nullptr, bufferSize, MEM_COMMIT | MEM_RESERVE | MEM_WRITE_WATCH, PAGE_READWRITE);
 #else
-			if (posix_memalign(allocatedBuffer, 4096, bufferSize) != 0)
+			if (posix_memalign(allocatedBuffer, 4096, bufferSize) != 0) {
 				*allocatedBuffer = nullptr;
+			}
 #endif
 			mAllocatedSize[*allocatedBuffer] = bufferSize;
 		}
@@ -586,7 +611,7 @@ HRESULT STDMETHODCALLTYPE	PinnedMemoryAllocator::AllocateBuffer(dl_size_t buffer
 	return (*allocatedBuffer) ? S_OK : E_OUTOFMEMORY;
 }
 
-HRESULT STDMETHODCALLTYPE PinnedMemoryAllocator::ReleaseBuffer(void* buffer)
+HRESULT STDMETHODCALLTYPE PinnedMemoryAllocator::ReleaseBuffer(void *buffer)
 {
 	HRESULT result = S_OK;
 	Lock();
@@ -601,7 +626,7 @@ HRESULT STDMETHODCALLTYPE PinnedMemoryAllocator::ReleaseBuffer(void* buffer)
 }
 
 
-HRESULT PinnedMemoryAllocator::_ReleaseBuffer(void* buffer)
+HRESULT PinnedMemoryAllocator::_ReleaseBuffer(void *buffer)
 {
 	TextureTransfer *pTransfer;
 	if (mAllocatedSize.count(buffer) == 0) {
@@ -625,12 +650,12 @@ HRESULT PinnedMemoryAllocator::_ReleaseBuffer(void* buffer)
 	return S_OK;
 }
 
-HRESULT STDMETHODCALLTYPE	PinnedMemoryAllocator::Commit()
+HRESULT STDMETHODCALLTYPE PinnedMemoryAllocator::Commit()
 {
 	return S_OK;
 }
 
-HRESULT STDMETHODCALLTYPE	PinnedMemoryAllocator::Decommit()
+HRESULT STDMETHODCALLTYPE PinnedMemoryAllocator::Decommit()
 {
 	void *buffer;
 	Lock();
@@ -649,11 +674,11 @@ HRESULT STDMETHODCALLTYPE	PinnedMemoryAllocator::Decommit()
 // Capture Delegate Class
 ////////////////////////////////////////////
 
-CaptureDelegate::CaptureDelegate(VideoDeckLink* pOwner) : mpOwner(pOwner)
+CaptureDelegate::CaptureDelegate(VideoDeckLink *pOwner) :mpOwner(pOwner)
 {
 }
 
-HRESULT	CaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame* inputFrame, IDeckLinkAudioInputPacket* /*audioPacket*/)
+HRESULT CaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame *inputFrame, IDeckLinkAudioInputPacket * /*audioPacket*/)
 {
 	if (!inputFrame) {
 		// It's possible to receive a nullptr inputFrame, but a valid audioPacket. Ignore audio-only frame.
@@ -667,7 +692,7 @@ HRESULT	CaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame* inputF
 	return S_OK;
 }
 
-HRESULT	CaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChangedEvents notificationEvents, IDeckLinkDisplayMode *newDisplayMode, BMDDetectedVideoInputFormatFlags detectedSignalFlags)
+HRESULT CaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChangedEvents notificationEvents, IDeckLinkDisplayMode *newDisplayMode, BMDDetectedVideoInputFormatFlags detectedSignalFlags)
 {
 	return S_OK;
 }
@@ -677,21 +702,21 @@ HRESULT	CaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChangedEvent
 
 // macro for exception handling and logging
 #define CATCH_EXCP catch (Exception & exp) \
-{ exp.report(); m_status = SourceError; }
+	{ exp.report(); m_status = SourceError; }
 
 // class VideoDeckLink
 
 
 // constructor
-VideoDeckLink::VideoDeckLink (HRESULT * hRslt) : VideoBase(),
-mDLInput(nullptr),
-mUse3D(false),
-mFrameWidth(0),
-mFrameHeight(0),
-mpAllocator(nullptr),
-mpCaptureDelegate(nullptr),
-mpCacheFrame(nullptr),
-mClosing(false)
+VideoDeckLink::VideoDeckLink(HRESULT *hRslt) :VideoBase(),
+	mDLInput(nullptr),
+	mUse3D(false),
+	mFrameWidth(0),
+	mFrameHeight(0),
+	mpAllocator(nullptr),
+	mpCaptureDelegate(nullptr),
+	mpCacheFrame(nullptr),
+	mClosing(false)
 {
 	mDisplayMode = (BMDDisplayMode)0;
 	mPixelFormat = (BMDPixelFormat)0;
@@ -699,18 +724,16 @@ mClosing(false)
 }
 
 // destructor
-VideoDeckLink::~VideoDeckLink ()
+VideoDeckLink::~VideoDeckLink()
 {
 	LockCache();
 	mClosing = true;
-	if (mpCacheFrame)
-	{
+	if (mpCacheFrame) {
 		mpCacheFrame->Release();
 		mpCacheFrame = nullptr;
 	}
 	UnlockCache();
-	if (mDLInput != nullptr)
-	{
+	if (mDLInput != nullptr) {
 		// Cleanup for Capture
 		mDLInput->StopStreams();
 		mDLInput->SetCallback(nullptr);
@@ -722,17 +745,15 @@ VideoDeckLink::~VideoDeckLink ()
 		}
 		mDLInput = nullptr;
 	}
-	
-	if (mpAllocator)
-	{
+
+	if (mpAllocator) {
 		// if the device was properly cleared, this should be 0
 		if (mpAllocator->Release() != 0) {
 			printf("Reference count not nullptr on Allocator when closing it, please report!\n");
 		}
 		mpAllocator = nullptr;
 	}
-	if (mpCaptureDelegate)
-	{
+	if (mpCaptureDelegate) {
 		delete mpCaptureDelegate;
 		mpCaptureDelegate = nullptr;
 	}
@@ -751,7 +772,7 @@ bool VideoDeckLink::release()
 }
 
 // open video file
-void VideoDeckLink::openFile (char *filename)
+void VideoDeckLink::openFile(char *filename)
 {
 	// only live capture on this device
 	THRWEXCP(SourceVideoOnlyCapture, S_OK);
@@ -759,16 +780,16 @@ void VideoDeckLink::openFile (char *filename)
 
 
 // open video capture device
-void VideoDeckLink::openCam (char *format, short camIdx)
+void VideoDeckLink::openCam(char *format, short camIdx)
 {
-	IDeckLinkDisplayModeIterator*	pDLDisplayModeIterator;
-	BMDDisplayModeSupport			modeSupport;
-	IDeckLinkDisplayMode*			pDLDisplayMode;
-	IDeckLinkIterator*				pIterator;
-	BMDTimeValue					frameDuration;
-	BMDTimeScale					frameTimescale;
-	IDeckLink*						pDL;
-	uint32_t displayFlags, inputFlags; 
+	IDeckLinkDisplayModeIterator *pDLDisplayModeIterator;
+	BMDDisplayModeSupport modeSupport;
+	IDeckLinkDisplayMode *pDLDisplayMode;
+	IDeckLinkIterator *pIterator;
+	BMDTimeValue frameDuration;
+	BMDTimeScale frameTimescale;
+	IDeckLink *pDL;
+	uint32_t displayFlags, inputFlags;
 	char *pPixel, *p3D, *pEnd, *pSize;
 	size_t len;
 	int i, modeIdx, cacheSize;
@@ -787,19 +808,21 @@ void VideoDeckLink::openCam (char *format, short camIdx)
 	// (this will be the normal capture format for FullHD on the DeckLink 4k extreme)
 
 	if ((pSize = strchr(format, ':')) != nullptr) {
-		cacheSize = strtol(pSize+1, &pEnd, 10);
+		cacheSize = strtol(pSize + 1, &pEnd, 10);
 	}
 	else {
 		cacheSize = 8;
 		pSize = format + strlen(format);
 	}
 	if ((pPixel = strchr(format, '/')) == nullptr ||
-		((p3D = strchr(pPixel + 1, '/')) != nullptr && strncmp(p3D, "/3D", pSize-p3D)))
+	    ((p3D = strchr(pPixel + 1, '/')) != nullptr && strncmp(p3D, "/3D", pSize - p3D))) {
 		THRWEXCP(VideoDeckLinkBadFormat, S_OK);
+	}
 	mUse3D = (p3D) ? true : false;
 	// to simplify pixel format parsing
-	if (!p3D)
+	if (!p3D) {
 		p3D = pSize;
+	}
 
 	// read the mode
 	len = (size_t)(pPixel - format);
@@ -814,9 +837,10 @@ void VideoDeckLink::openCam (char *format, short camIdx)
 	catch (Exception &) {
 		// accept also purely numerical mode as a mode index
 		modeIdx = strtol(format, &pEnd, 10);
-		if (pEnd != pPixel || modeIdx < 0)
+		if (pEnd != pPixel || modeIdx < 0) {
 			// not a pure number, give up
 			throw;
+		}
 	}
 
 	// skip /
@@ -828,12 +852,13 @@ void VideoDeckLink::openCam (char *format, short camIdx)
 	// Caution: DeckLink API used from this point, make sure entity are released before throwing
 	// open the card
 	pIterator = BMD_CreateDeckLinkIterator();
-	if (pIterator)  {
+	if (pIterator) {
 		i = 0;
 		while (pIterator->Next(&pDL) == S_OK) {
 			if (i == camIdx) {
-				if (pDL->QueryInterface(IID_IDeckLinkInput, (void**)&mDLInput) != S_OK)
+				if (pDL->QueryInterface(IID_IDeckLinkInput, (void **)&mDLInput) != S_OK) {
 					mDLInput = nullptr;
+				}
 				pDL->Release();
 				break;
 			}
@@ -842,13 +867,15 @@ void VideoDeckLink::openCam (char *format, short camIdx)
 		}
 		pIterator->Release();
 	}
-	if (!mDLInput)
+	if (!mDLInput) {
 		THRWEXCP(VideoDeckLinkOpenCard, S_OK);
+	}
 
-	
+
 	// check if display mode and pixel format are supported
-	if (mDLInput->GetDisplayModeIterator(&pDLDisplayModeIterator) != S_OK)
+	if (mDLInput->GetDisplayModeIterator(&pDLDisplayModeIterator) != S_OK) {
 		THRWEXCP(DeckLinkInternalError, S_OK);
+	}
 
 	pDLDisplayMode = nullptr;
 	displayFlags = (mUse3D) ? bmdDisplayModeSupports3D : 0;
@@ -860,8 +887,7 @@ void VideoDeckLink::openCam (char *format, short camIdx)
 			mDisplayMode = pDLDisplayMode->GetDisplayMode();
 			if ((pDLDisplayMode->GetFlags() & displayFlags) == displayFlags &&
 			    mDLInput->DoesSupportVideoMode(mDisplayMode, mPixelFormat, inputFlags, &modeSupport, nullptr) == S_OK &&
-			    modeSupport == bmdDisplayModeSupported)
-			{
+			    modeSupport == bmdDisplayModeSupported) {
 				break;
 			}
 		}
@@ -874,8 +900,9 @@ void VideoDeckLink::openCam (char *format, short camIdx)
 	}
 	pDLDisplayModeIterator->Release();
 
-	if (pDLDisplayMode == nullptr)
+	if (pDLDisplayMode == nullptr) {
 		THRWEXCP(VideoDeckLinkBadFormat, S_OK);
+	}
 
 	mFrameWidth = pDLDisplayMode->GetWidth();
 	mFrameHeight = pDLDisplayMode->GetHeight();
@@ -887,86 +914,104 @@ void VideoDeckLink::openCam (char *format, short camIdx)
 	m_size[1] = mTextureDesc.height;
 	m_frameRate = (float)frameTimescale / (float)frameDuration;
 
-	switch (mPixelFormat)
-	{
-	case bmdFormat8BitYUV:
-		// 2 pixels per word
-		mTextureDesc.stride = mFrameWidth * 2;
-		mTextureDesc.width = mFrameWidth / 2;
-		mTextureDesc.internalFormat = GL_RGBA;
-		mTextureDesc.format = GL_BGRA;
-		mTextureDesc.type = GL_UNSIGNED_BYTE;
-		break;
-	case bmdFormat10BitYUV:
-		// 6 pixels in 4 words, rounded to 48 pixels
-		mTextureDesc.stride = ((mFrameWidth + 47) / 48) * 128;
-		mTextureDesc.width = mTextureDesc.stride/4;
-		mTextureDesc.internalFormat = GL_RGB10_A2;
-		mTextureDesc.format = GL_BGRA;
-		mTextureDesc.type = GL_UNSIGNED_INT_2_10_10_10_REV;
-		break;
-	case bmdFormat8BitARGB:
-		mTextureDesc.stride = mFrameWidth * 4;
-		mTextureDesc.width = mFrameWidth;
-		mTextureDesc.internalFormat = GL_RGBA;
-		mTextureDesc.format = GL_BGRA;
-		mTextureDesc.type = GL_UNSIGNED_INT_8_8_8_8;
-		break;
-	case bmdFormat8BitBGRA:
-		mTextureDesc.stride = mFrameWidth * 4;
-		mTextureDesc.width = mFrameWidth;
-		mTextureDesc.internalFormat = GL_RGBA;
-		mTextureDesc.format = GL_BGRA;
-		mTextureDesc.type = GL_UNSIGNED_BYTE;
-		break;
-	case bmdFormat10BitRGBXLE:
-		// 1 pixel per word, rounded to 64 pixels
-		mTextureDesc.stride = ((mFrameWidth + 63) / 64) * 256;
-		mTextureDesc.width = mTextureDesc.stride/4;
-		mTextureDesc.internalFormat = GL_RGB10_A2;
-		mTextureDesc.format = GL_RGBA;
-		mTextureDesc.type = GL_UNSIGNED_INT_10_10_10_2;
-		break;
-	case bmdFormat10BitRGBX:
-	case bmdFormat10BitRGB:
-		// 1 pixel per word, rounded to 64 pixels
-		mTextureDesc.stride = ((mFrameWidth + 63) / 64) * 256;
-		mTextureDesc.width = mTextureDesc.stride/4;
-		mTextureDesc.internalFormat = GL_R32UI;
-		mTextureDesc.format = GL_RED_INTEGER;
-		mTextureDesc.type = GL_UNSIGNED_INT;
-		break;
-	case bmdFormat12BitRGB:
-	case bmdFormat12BitRGBLE:
-		// 8 pixels in 9 word
-		mTextureDesc.stride = (mFrameWidth * 36) / 8;
-		mTextureDesc.width = mTextureDesc.stride/4;
-		mTextureDesc.internalFormat = GL_R32UI;
-		mTextureDesc.format = GL_RED_INTEGER;
-		mTextureDesc.type = GL_UNSIGNED_INT;
-		break;
-	default:
-		// for unknown pixel format, this will be resolved when a frame arrives
-		mTextureDesc.format = GL_RED_INTEGER;
-		mTextureDesc.type = GL_UNSIGNED_INT;
-		break;
+	switch (mPixelFormat) {
+		case bmdFormat8BitYUV:
+		{
+			// 2 pixels per word
+			mTextureDesc.stride = mFrameWidth * 2;
+			mTextureDesc.width = mFrameWidth / 2;
+			mTextureDesc.internalFormat = GL_RGBA;
+			mTextureDesc.format = GL_BGRA;
+			mTextureDesc.type = GL_UNSIGNED_BYTE;
+			break;
+		}
+		case bmdFormat10BitYUV:
+		{
+			// 6 pixels in 4 words, rounded to 48 pixels
+			mTextureDesc.stride = ((mFrameWidth + 47) / 48) * 128;
+			mTextureDesc.width = mTextureDesc.stride / 4;
+			mTextureDesc.internalFormat = GL_RGB10_A2;
+			mTextureDesc.format = GL_BGRA;
+			mTextureDesc.type = GL_UNSIGNED_INT_2_10_10_10_REV;
+			break;
+		}
+		case bmdFormat8BitARGB:
+		{
+			mTextureDesc.stride = mFrameWidth * 4;
+			mTextureDesc.width = mFrameWidth;
+			mTextureDesc.internalFormat = GL_RGBA;
+			mTextureDesc.format = GL_BGRA;
+			mTextureDesc.type = GL_UNSIGNED_INT_8_8_8_8;
+			break;
+		}
+		case bmdFormat8BitBGRA:
+		{
+			mTextureDesc.stride = mFrameWidth * 4;
+			mTextureDesc.width = mFrameWidth;
+			mTextureDesc.internalFormat = GL_RGBA;
+			mTextureDesc.format = GL_BGRA;
+			mTextureDesc.type = GL_UNSIGNED_BYTE;
+			break;
+		}
+		case bmdFormat10BitRGBXLE:
+		{
+			// 1 pixel per word, rounded to 64 pixels
+			mTextureDesc.stride = ((mFrameWidth + 63) / 64) * 256;
+			mTextureDesc.width = mTextureDesc.stride / 4;
+			mTextureDesc.internalFormat = GL_RGB10_A2;
+			mTextureDesc.format = GL_RGBA;
+			mTextureDesc.type = GL_UNSIGNED_INT_10_10_10_2;
+			break;
+		}
+		case bmdFormat10BitRGBX:
+		case bmdFormat10BitRGB:
+		{
+			// 1 pixel per word, rounded to 64 pixels
+			mTextureDesc.stride = ((mFrameWidth + 63) / 64) * 256;
+			mTextureDesc.width = mTextureDesc.stride / 4;
+			mTextureDesc.internalFormat = GL_R32UI;
+			mTextureDesc.format = GL_RED_INTEGER;
+			mTextureDesc.type = GL_UNSIGNED_INT;
+			break;
+		}
+		case bmdFormat12BitRGB:
+		case bmdFormat12BitRGBLE:
+		{
+			// 8 pixels in 9 word
+			mTextureDesc.stride = (mFrameWidth * 36) / 8;
+			mTextureDesc.width = mTextureDesc.stride / 4;
+			mTextureDesc.internalFormat = GL_R32UI;
+			mTextureDesc.format = GL_RED_INTEGER;
+			mTextureDesc.type = GL_UNSIGNED_INT;
+			break;
+		}
+		default:
+		{
+			// for unknown pixel format, this will be resolved when a frame arrives
+			mTextureDesc.format = GL_RED_INTEGER;
+			mTextureDesc.type = GL_UNSIGNED_INT;
+			break;
+		}
 	}
 	// reserve memory for cache frame + 1 to accomodate for pixel format that we don't know yet
 	// note: we can't use stride as it is not yet known if the pixel format is unknown
 	//       use instead the frame width as in worst case it's not much different (e.g. HD720/10BITYUV: 1296 pixels versus 1280)
 	// note: some pixel format take more than 4 bytes take that into account (9/8 versus 1)
-	mpAllocator = new PinnedMemoryAllocator(cacheSize, mFrameWidth*mTextureDesc.height * 4 * (1+cacheSize*9/8));
+	mpAllocator = new PinnedMemoryAllocator(cacheSize, mFrameWidth * mTextureDesc.height * 4 * (1 + cacheSize * 9 / 8));
 
-	if (mDLInput->SetVideoInputFrameMemoryAllocator(mpAllocator) != S_OK)
+	if (mDLInput->SetVideoInputFrameMemoryAllocator(mpAllocator) != S_OK) {
 		THRWEXCP(DeckLinkInternalError, S_OK);
+	}
 
 	mpCaptureDelegate = new CaptureDelegate(this);
-	if (mDLInput->SetCallback(mpCaptureDelegate) != S_OK)
+	if (mDLInput->SetCallback(mpCaptureDelegate) != S_OK) {
 		THRWEXCP(DeckLinkInternalError, S_OK);
+	}
 
-	if (mDLInput->EnableVideoInput(mDisplayMode, mPixelFormat, ((mUse3D) ? bmdVideoInputDualStream3D : bmdVideoInputFlagDefault)) != S_OK)
+	if (mDLInput->EnableVideoInput(mDisplayMode, mPixelFormat, ((mUse3D) ? bmdVideoInputDualStream3D : bmdVideoInputFlagDefault)) != S_OK) {
 		// this shouldn't failed, we tested above
-		THRWEXCP(DeckLinkInternalError, S_OK); 
+		THRWEXCP(DeckLinkInternalError, S_OK);
+	}
 
 	// just in case it is needed to capture from certain cards, we don't check error because we don't need audio
 	mDLInput->EnableAudioInput(bmdAudioSampleRate48kHz, bmdAudioSampleType16bitInteger, 2);
@@ -978,13 +1023,12 @@ void VideoDeckLink::openCam (char *format, short camIdx)
 }
 
 // play video
-bool VideoDeckLink::play (void)
+bool VideoDeckLink::play(void)
 {
 	try
 	{
 		// if object is able to play
-		if (VideoBase::play())
-		{
+		if (VideoBase::play()) {
 			mDLInput->FlushStreams();
 			return (mDLInput->StartStreams() == S_OK);
 		}
@@ -995,12 +1039,11 @@ bool VideoDeckLink::play (void)
 
 
 // pause video
-bool VideoDeckLink::pause (void)
+bool VideoDeckLink::pause(void)
 {
 	try
 	{
-		if (VideoBase::pause())
-		{
+		if (VideoBase::pause()) {
 			mDLInput->PauseStreams();
 			return true;
 		}
@@ -1010,7 +1053,7 @@ bool VideoDeckLink::pause (void)
 }
 
 // stop video
-bool VideoDeckLink::stop (void)
+bool VideoDeckLink::stop(void)
 {
 	try
 	{
@@ -1024,21 +1067,21 @@ bool VideoDeckLink::stop (void)
 
 
 // set video range
-void VideoDeckLink::setRange (double start, double stop)
+void VideoDeckLink::setRange(double start, double stop)
 {
 }
 
 // set framerate
-void VideoDeckLink::setFrameRate (float rate)
+void VideoDeckLink::setFrameRate(float rate)
 {
 }
 
 
 // image calculation
 // send cache frame directly to GPU
-void VideoDeckLink::calcImage (unsigned int texId, double ts, bool mipmap, unsigned int format)
+void VideoDeckLink::calcImage(unsigned int texId, double ts, bool mipmap, unsigned int format)
 {
-	IDeckLinkVideoInputFrame* pFrame;
+	IDeckLinkVideoInputFrame *pFrame;
 	LockCache();
 	pFrame = mpCacheFrame;
 	mpCacheFrame = nullptr;
@@ -1051,8 +1094,8 @@ void VideoDeckLink::calcImage (unsigned int texId, double ts, bool mipmap, unsig
 		try {
 			uint32_t rowSize = pFrame->GetRowBytes();
 			uint32_t textureSize = rowSize * pFrame->GetHeight();
-			void* videoPixels = nullptr;
-			void* rightEyePixels = nullptr;
+			void *videoPixels = nullptr;
+			void *rightEyePixels = nullptr;
 			if (!mTextureDesc.stride) {
 				// we could not compute the texture size earlier (unknown pixel size)
 				// let's do it now
@@ -1069,14 +1112,16 @@ void VideoDeckLink::calcImage (unsigned int texId, double ts, bool mipmap, unsig
 					IDeckLinkVideoFrame3DExtensions *if3DExtensions = nullptr;
 					IDeckLinkVideoFrame *rightEyeFrame = nullptr;
 					if (pFrame->QueryInterface(IID_IDeckLinkVideoFrame3DExtensions, (void **)&if3DExtensions) == S_OK &&
-						if3DExtensions->GetFrameForRightEye(&rightEyeFrame) == S_OK) {
+					    if3DExtensions->GetFrameForRightEye(&rightEyeFrame) == S_OK) {
 						rightEyeFrame->GetBytes(&rightEyePixels);
 						textureSize += ((uint64_t)rightEyePixels - (uint64_t)videoPixels);
 					}
-					if (rightEyeFrame)
+					if (rightEyeFrame) {
 						rightEyeFrame->Release();
-					if (if3DExtensions)
+					}
+					if (if3DExtensions) {
 						if3DExtensions->Release();
+					}
 				}
 				mTextureDesc.size = mTextureDesc.width * mTextureDesc.height * 4;
 				if (mTextureDesc.size == textureSize) {
@@ -1085,7 +1130,7 @@ void VideoDeckLink::calcImage (unsigned int texId, double ts, bool mipmap, unsig
 					mpAllocator->TransferBuffer(videoPixels, &mTextureDesc, texId);
 				}
 			}
-		} 
+		}
 		catch (Exception &) {
 			pFrame->Release();
 			throw;
@@ -1099,20 +1144,20 @@ void VideoDeckLink::calcImage (unsigned int texId, double ts, bool mipmap, unsig
 
 // A frame is available from the board
 // Called from an internal thread, just pass the frame to the main thread
-void VideoDeckLink::VideoFrameArrived(IDeckLinkVideoInputFrame* inputFrame)
+void VideoDeckLink::VideoFrameArrived(IDeckLinkVideoInputFrame *inputFrame)
 {
-	IDeckLinkVideoInputFrame* pOldFrame = nullptr;
+	IDeckLinkVideoInputFrame *pOldFrame = nullptr;
 	LockCache();
-	if (!mClosing)
-	{
+	if (!mClosing) {
 		pOldFrame = mpCacheFrame;
 		mpCacheFrame = inputFrame;
 		inputFrame->AddRef();
 	}
 	UnlockCache();
 	// old frame no longer needed, just release it
-	if (pOldFrame)
+	if (pOldFrame) {
 		pOldFrame->Release();
+	}
 }
 
 // python methods
@@ -1121,9 +1166,9 @@ void VideoDeckLink::VideoFrameArrived(IDeckLinkVideoInputFrame* inputFrame)
 static int VideoDeckLink_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 {
 	static const char *kwlist[] = { "format", "capture", nullptr };
-	PyImage *self = reinterpret_cast<PyImage*>(pySelf);
+	PyImage *self = reinterpret_cast<PyImage *>(pySelf);
 	// see openCam for a description of format
-	char * format = nullptr;
+	char *format = nullptr;
 	// capture device number, i.e. DeckLink card number, default first one
 	short capt = 0;
 
@@ -1133,8 +1178,9 @@ static int VideoDeckLink_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 	}
 	// get parameters
 	if (!PyArg_ParseTupleAndKeywords(args, kwds, "s|h",
-		const_cast<char**>(kwlist), &format, &capt))
-		return -1; 
+	                                 const_cast<char **>(kwlist), &format, &capt)) {
+		return -1;
+	}
 
 	try {
 		// create video object
@@ -1163,21 +1209,21 @@ static PyMethodDef videoMethods[] =
 // attributes structure
 static PyGetSetDef videoGetSets[] =
 { // methods from VideoBase class
-	{(char*)"status", (getter)Video_getStatus, nullptr, (char*)"video status", nullptr},
-	{(char*)"framerate", (getter)Video_getFrameRate, nullptr, (char*)"frame rate", nullptr},
+	{(char *)"status", (getter)Video_getStatus, nullptr, (char *)"video status", nullptr},
+	{(char *)"framerate", (getter)Video_getFrameRate, nullptr, (char *)"frame rate", nullptr},
 	// attributes from ImageBase class
-	{(char*)"valid", (getter)Image_valid, nullptr, (char*)"bool to tell if an image is available", nullptr},
-	{(char*)"image", (getter)Image_getImage, nullptr, (char*)"image data", nullptr},
-	{(char*)"size", (getter)Image_getSize, nullptr, (char*)"image size", nullptr},
-	{(char*)"scale", (getter)Image_getScale, (setter)Image_setScale, (char*)"fast scale of image (near neighbor)", nullptr},
-	{(char*)"flip", (getter)Image_getFlip, (setter)Image_setFlip, (char*)"flip image vertically", nullptr},
-	{(char*)"filter", (getter)Image_getFilter, (setter)Image_setFilter, (char*)"pixel filter", nullptr},
+	{(char *)"valid", (getter)Image_valid, nullptr, (char *)"bool to tell if an image is available", nullptr},
+	{(char *)"image", (getter)Image_getImage, nullptr, (char *)"image data", nullptr},
+	{(char *)"size", (getter)Image_getSize, nullptr, (char *)"image size", nullptr},
+	{(char *)"scale", (getter)Image_getScale, (setter)Image_setScale, (char *)"fast scale of image (near neighbor)", nullptr},
+	{(char *)"flip", (getter)Image_getFlip, (setter)Image_setFlip, (char *)"flip image vertically", nullptr},
+	{(char *)"filter", (getter)Image_getFilter, (setter)Image_setFilter, (char *)"pixel filter", nullptr},
 	{nullptr}
 };
 
 // python type declaration
 PyTypeObject VideoDeckLinkType =
-{ 
+{
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"VideoTexture.VideoDeckLink",   /*tp_name*/
 	sizeof(PyImage),          /*tp_basicsize*/
@@ -1199,12 +1245,12 @@ PyTypeObject VideoDeckLinkType =
 	&imageBufferProcs,         /*tp_as_buffer*/
 	Py_TPFLAGS_DEFAULT,        /*tp_flags*/
 	"DeckLink video source",       /* tp_doc */
-	0,		               /* tp_traverse */
-	0,		               /* tp_clear */
-	0,		               /* tp_richcompare */
-	0,		               /* tp_weaklistoffset */
-	0,		               /* tp_iter */
-	0,		               /* tp_iternext */
+	0,                     /* tp_traverse */
+	0,                     /* tp_clear */
+	0,                     /* tp_richcompare */
+	0,                     /* tp_weaklistoffset */
+	0,                     /* tp_iter */
+	0,                     /* tp_iternext */
 	videoMethods,    /* tp_methods */
 	0,                   /* tp_members */
 	videoGetSets,          /* tp_getset */
@@ -1224,5 +1270,5 @@ PyTypeObject VideoDeckLinkType =
 // DeckLink Capture Delegate Class
 ////////////////////////////////////////////
 
-#endif		// WITH_GAMEENGINE_DECKLINK
+#endif      // WITH_GAMEENGINE_DECKLINK
 

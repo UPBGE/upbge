@@ -34,21 +34,17 @@
 #include "KX_StateActuator.h"
 #include "KX_GameObject.h"
 
-KX_StateActuator::KX_StateActuator(
-	SCA_IObject* gameobj,
-	int operation,
-	unsigned int mask
-	) 
-	: SCA_IActuator(gameobj, KX_ACT_STATE),
-	  m_operation(operation),
-	  m_mask(mask)
+KX_StateActuator::KX_StateActuator(SCA_IObject *gameobj,
+                                   int operation,
+                                   unsigned int mask)
+	:SCA_IActuator(gameobj, KX_ACT_STATE),
+	m_operation(operation),
+	m_mask(mask)
 {
 	// intentionally empty
 }
 
-KX_StateActuator::~KX_StateActuator(
-	void
-	)
+KX_StateActuator::~KX_StateActuator(void)
 {
 	// intentionally empty
 }
@@ -56,18 +52,14 @@ KX_StateActuator::~KX_StateActuator(
 // used to put state actuator to be executed before any other actuators
 SG_QList KX_StateActuator::m_stateActuatorHead;
 
-EXP_Value*
-KX_StateActuator::GetReplica(
-	void
-	)
+EXP_Value *KX_StateActuator::GetReplica(void)
 {
-	KX_StateActuator* replica = new KX_StateActuator(*this);
+	KX_StateActuator *replica = new KX_StateActuator(*this);
 	replica->ProcessReplica();
 	return replica;
 }
 
-bool
-KX_StateActuator::Update()
+bool KX_StateActuator::Update()
 {
 	bool bNegativeEvent = IsNegativeEvent();
 	unsigned int objMask;
@@ -76,28 +68,37 @@ KX_StateActuator::Update()
 	// because all the active actuator of this object will be removed for sure.
 	m_gameobj->SetFirstState(nullptr);
 	RemoveAllEvents();
-	if (bNegativeEvent) return false;
-
-	KX_GameObject *obj = (KX_GameObject*) GetParent();
-	
-	objMask = obj->GetState();
-	switch (m_operation) 
-	{
-	case OP_CPY:
-		objMask = m_mask;
-		break;
-	case OP_SET:
-		objMask |= m_mask;
-		break;
-	case OP_CLR:
-		objMask &= ~m_mask;
-		break;
-	case OP_NEG:
-		objMask ^= m_mask;
-		break;
-	default:
-		// unsupported operation, no  nothing
+	if (bNegativeEvent) {
 		return false;
+	}
+
+	KX_GameObject *obj = (KX_GameObject *)GetParent();
+
+	objMask = obj->GetState();
+	switch (m_operation) {
+		case OP_CPY:
+		{
+			objMask = m_mask;
+			break;
+		}
+		case OP_SET:
+		{
+			objMask |= m_mask;
+			break;
+		}
+		case OP_CLR:
+		{
+			objMask &= ~m_mask;
+			break;
+		}
+		case OP_NEG:
+		{
+			objMask ^= m_mask;
+			break;
+		}
+		default:
+			// unsupported operation, no  nothing
+			return false;
 	}
 	obj->SetState(objMask);
 	return false;
@@ -107,20 +108,19 @@ KX_StateActuator::Update()
 // e.g. when an object is deleted.
 void KX_StateActuator::Deactivate()
 {
-	if (QDelink())
-	{
+	if (QDelink()) {
 		// the actuator was in the active list
-		if (m_stateActuatorHead.QEmpty())
+		if (m_stateActuatorHead.QEmpty()) {
 			// no more state object active
 			m_stateActuatorHead.Delink();
+		}
 	}
 }
 
 void KX_StateActuator::Activate(SG_DList& head)
 {
 	// sort the state actuators per object on the global list
-	if (QEmpty())
-	{
+	if (QEmpty()) {
 		InsertSelfActiveQList(m_stateActuatorHead, m_gameobj->GetFirstState());
 		// add front to make sure it runs before other actuators
 		head.AddFront(&m_stateActuatorHead);
@@ -147,25 +147,25 @@ PyTypeObject KX_StateActuator::Type = {
 	0,
 	0,
 	py_base_repr,
-	0,0,0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0,
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0,
 	Methods,
 	0,
 	0,
 	&SCA_IActuator::Type,
-	0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0,
 	py_base_new
 };
 
 PyMethodDef KX_StateActuator::Methods[] = {
-	{nullptr,nullptr} //Sentinel
+	{nullptr, nullptr} //Sentinel
 };
 
 PyAttributeDef KX_StateActuator::Attributes[] = {
-	EXP_PYATTRIBUTE_INT_RW("operation",KX_StateActuator::OP_NOP+1,KX_StateActuator::OP_COUNT-1,false,KX_StateActuator,m_operation),
-	EXP_PYATTRIBUTE_INT_RW("mask",0,0x3FFFFFFF,false,KX_StateActuator,m_mask),
-	EXP_PYATTRIBUTE_NULL	//Sentinel
+	EXP_PYATTRIBUTE_INT_RW("operation", KX_StateActuator::OP_NOP + 1, KX_StateActuator::OP_COUNT - 1, false, KX_StateActuator, m_operation),
+	EXP_PYATTRIBUTE_INT_RW("mask", 0, 0x3FFFFFFF, false, KX_StateActuator, m_mask),
+	EXP_PYATTRIBUTE_NULL    //Sentinel
 };
 
 #endif // WITH_PYTHON

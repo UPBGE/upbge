@@ -32,7 +32,7 @@
 #include "RAS_OpenGLSync.h"
 
 RAS_OpenGLSync::RAS_OpenGLSync()
-    :m_sync(nullptr)
+	:m_sync(nullptr)
 {
 }
 

@@ -36,13 +36,12 @@
 #include "KX_NetworkMessageScene.h"
 #include "KX_NetworkMessageActuator.h"
 
-KX_NetworkMessageActuator::KX_NetworkMessageActuator(
-	SCA_IObject *gameobj, // the actuator controlling object
-	KX_NetworkMessageScene *networkscene, // needed for replication
-	const std::string &toPropName,
-	const std::string &subject,
-	int bodyType,
-	const std::string &body)
+KX_NetworkMessageActuator::KX_NetworkMessageActuator(SCA_IObject *gameobj, // the actuator controlling object
+                                                     KX_NetworkMessageScene *networkscene, // needed for replication
+                                                     const std::string &toPropName,
+                                                     const std::string &subject,
+                                                     int bodyType,
+                                                     const std::string &body)
 	:SCA_IActuator(gameobj, KX_ACT_MESSAGE),
 	m_networkscene(networkscene),
 	m_toPropName(toPropName),
@@ -69,17 +68,17 @@ bool KX_NetworkMessageActuator::Update()
 	// ACT_MESG_PROP in DNA_actuator_types.h
 	if (m_bPropBody) {
 		m_networkscene->SendMessage(
-		    m_toPropName,
-		    GetParent(),
-		    m_subject,
-		    GetParent()->GetPropertyText(m_body));
+			m_toPropName,
+			GetParent(),
+			m_subject,
+			GetParent()->GetPropertyText(m_body));
 	}
 	else {
 		m_networkscene->SendMessage(
-		    m_toPropName,
-		    GetParent(),
-		    m_subject,
-		    m_body);
+			m_toPropName,
+			GetParent(),
+			m_subject,
+			m_body);
 	}
 	return false;
 }

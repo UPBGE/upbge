@@ -40,8 +40,8 @@
 #include "EXP_ListWrapper.h"
 
 KX_SteeringActuator::KX_SteeringActuator(SCA_IObject *gameobj, int mode, KX_GameObject *target, KX_GameObject *navmesh,
-		float distance, float velocity, float acceleration, float turnspeed, bool isSelfTerminated, int pathUpdatePeriod,
-		KX_ObstacleSimulation *simulation, short facingmode, bool normalup, bool enableVisualization, bool lockzvel)
+                                         float distance, float velocity, float acceleration, float turnspeed, bool isSelfTerminated, int pathUpdatePeriod,
+                                         KX_ObstacleSimulation *simulation, short facingmode, bool normalup, bool enableVisualization, bool lockzvel)
 	:SCA_IActuator(gameobj, KX_ACT_STEERING),
 	m_target(target),
 	m_mode(mode),
@@ -218,8 +218,7 @@ bool KX_SteeringActuator::Update(double curtime)
 				static const float WAYPOINT_RADIUS(0.25f);
 
 				if (m_pathUpdateTime < 0 || (m_pathUpdatePeriod >= 0 &&
-					curtime - m_pathUpdateTime > ((double)m_pathUpdatePeriod / 1000.0)))
-				{
+				                             curtime - m_pathUpdateTime > ((double)m_pathUpdatePeriod / 1000.0))) {
 					m_pathUpdateTime = curtime;
 					m_path = m_navmesh->FindPath(mypos, targpos, MAX_PATH_LENGTH);
 					m_wayPointIdx = m_path.size() > 1 ? 1 : -1;
@@ -559,7 +558,7 @@ int KX_SteeringActuator::pyattr_set_target(EXP_PyObjectPlus *self, const struct 
 	KX_SteeringActuator *actuator = static_cast<KX_SteeringActuator *>(self);
 	KX_GameObject *gameobj;
 
-	if (!ConvertPythonToGameObject(actuator->GetLogicManager(), value, &gameobj, true, "actuator.object = value: KX_SteeringActuator"))  {
+	if (!ConvertPythonToGameObject(actuator->GetLogicManager(), value, &gameobj, true, "actuator.object = value: KX_SteeringActuator")) {
 		return PY_SET_ATTR_FAIL;
 	}
 	if (actuator->m_target) {

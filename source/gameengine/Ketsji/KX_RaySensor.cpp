@@ -49,46 +49,46 @@
 
 #include "CM_Message.h"
 
-KX_RaySensor::KX_RaySensor(class SCA_EventManager* eventmgr,
-					SCA_IObject* gameobj,
-					const std::string& propname,
-					bool bFindMaterial,
-					bool bXRay,
-					double distance,
-					int axis,
-					int mask,
-					KX_Scene* ketsjiScene)
-			: SCA_ISensor(gameobj,eventmgr),
-					m_propertyname(propname),
-					m_bFindMaterial(bFindMaterial),
-					m_bXRay(bXRay),
-					m_distance(distance),
-					m_scene(ketsjiScene),
-					m_axis(axis),
-					m_mask(mask),
-					m_hitMaterial("")
+KX_RaySensor::KX_RaySensor(class SCA_EventManager *eventmgr,
+							   SCA_IObject *gameobj,
+							   const std::string& propname,
+							   bool bFindMaterial,
+							   bool bXRay,
+							   double distance,
+							   int axis,
+							   int mask,
+							   KX_Scene *ketsjiScene)
+	:SCA_ISensor(gameobj, eventmgr),
+	m_propertyname(propname),
+	m_bFindMaterial(bFindMaterial),
+	m_bXRay(bXRay),
+	m_distance(distance),
+	m_scene(ketsjiScene),
+	m_axis(axis),
+	m_mask(mask),
+	m_hitMaterial("")
 {
 	Init();
 }
 
 void KX_RaySensor::Init()
 {
-	m_bTriggered = (m_invert)?true:false;
+	m_bTriggered = (m_invert) ? true : false;
 	m_rayHit = false;
 	m_hitObject = nullptr;
 	m_reset = true;
 }
 
-KX_RaySensor::~KX_RaySensor() 
+KX_RaySensor::~KX_RaySensor()
 {
 	/* Nothing to be done here. */
 }
 
 
 
-EXP_Value* KX_RaySensor::GetReplica()
+EXP_Value *KX_RaySensor::GetReplica()
 {
-	KX_RaySensor* replica = new KX_RaySensor(*this);
+	KX_RaySensor *replica = new KX_RaySensor(*this);
 	replica->ProcessReplica();
 	replica->Init();
 
@@ -101,25 +101,24 @@ bool KX_RaySensor::IsPositiveTrigger()
 {
 	bool result = m_rayHit;
 
-	if (m_invert)
+	if (m_invert) {
 		result = !result;
-	
+	}
+
 	return result;
 }
 
 bool KX_RaySensor::RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, void *UNUSED(data))
 {
 
-	KX_GameObject* hitKXObj = client->m_gameobject;
+	KX_GameObject *hitKXObj = client->m_gameobject;
 	bool bFound = false;
 	bool hitMaterial = false;
 
-	if (m_propertyname.empty())
-	{
+	if (m_propertyname.empty()) {
 		bFound = true;
 	}
-	else
-	{
+	else {
 		if (m_bFindMaterial) {
 			for (RAS_Mesh *meshObj : hitKXObj->GetMeshList()) {
 				bFound = (meshObj->FindMaterialName(m_propertyname) != nullptr);
@@ -134,8 +133,7 @@ bool KX_RaySensor::RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, void 
 		}
 	}
 
-	if (bFound)
-	{
+	if (bFound) {
 		m_rayHit = true;
 		m_hitObject = hitKXObj;
 		m_hitPosition[0] = result->m_hitPoint[0];
@@ -145,7 +143,7 @@ bool KX_RaySensor::RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, void 
 		m_hitNormal[0] = result->m_hitNormal[0];
 		m_hitNormal[1] = result->m_hitNormal[1];
 		m_hitNormal[2] = result->m_hitNormal[2];
-			
+
 		m_hitMaterial = hitMaterial;
 	}
 	// no multi-hit search yet
@@ -159,8 +157,7 @@ bool KX_RaySensor::NeedRayCast(KX_ClientObjectInfo *client, void *UNUSED(data))
 {
 	KX_GameObject *hitKXObj = client->m_gameobject;
 
-	if (client->m_type > KX_ClientObjectInfo::ACTOR)
-	{
+	if (client->m_type > KX_ClientObjectInfo::ACTOR) {
 		// Unknown type of object, skip it.
 		// Should not occur as the sensor objects are filtered in RayTest()
 		CM_Error("invalid client type " << client->m_type << " found ray casting");
@@ -172,8 +169,7 @@ bool KX_RaySensor::NeedRayCast(KX_ClientObjectInfo *client, void *UNUSED(data))
 		return false;
 	}
 
-	if (m_bXRay && m_propertyname.size() != 0)
-	{
+	if (m_bXRay && m_propertyname.size() != 0) {
 		if (m_bFindMaterial) {
 			bool found = false;
 			for (KX_Mesh *meshObj : hitKXObj->GetMeshList()) {
@@ -182,12 +178,14 @@ bool KX_RaySensor::NeedRayCast(KX_ClientObjectInfo *client, void *UNUSED(data))
 					break;
 				}
 			}
-			if (!found)
+			if (!found) {
 				return false;
+			}
 		}
 		else {
-			if (hitKXObj->GetProperty(m_propertyname) == nullptr)
+			if (hitKXObj->GetProperty(m_propertyname) == nullptr) {
 				return false;
+			}
 		}
 	}
 	return true;
@@ -197,7 +195,7 @@ bool KX_RaySensor::Evaluate()
 {
 	bool result = false;
 	bool reset = m_reset && m_level;
-	m_rayHit = false; 
+	m_rayHit = false;
 	m_hitObject = nullptr;
 	m_hitPosition[0] = 0;
 	m_hitPosition[1] = 0;
@@ -206,41 +204,40 @@ bool KX_RaySensor::Evaluate()
 	m_hitNormal[0] = 1;
 	m_hitNormal[1] = 0;
 	m_hitNormal[2] = 0;
-	
-	KX_GameObject* obj = (KX_GameObject*)GetParent();
+
+	KX_GameObject *obj = (KX_GameObject *)GetParent();
 	mt::vec3 frompoint = obj->NodeGetWorldPosition();
 	mt::mat3 mat = obj->NodeGetWorldOrientation();
-	
+
 	mt::vec3 todir;
 	m_reset = false;
-	switch (m_axis)
-	{
-	case SENS_RAY_X_AXIS: // X
+	switch (m_axis) {
+		case SENS_RAY_X_AXIS: // X
 		{
 			todir = mat.GetColumn(0);
 			break;
 		}
-	case SENS_RAY_Y_AXIS: // Y
+		case SENS_RAY_Y_AXIS: // Y
 		{
 			todir = mat.GetColumn(1);
 			break;
 		}
-	case SENS_RAY_Z_AXIS: // Z
+		case SENS_RAY_Z_AXIS: // Z
 		{
 			todir = mat.GetColumn(2);
 			break;
 		}
-	case SENS_RAY_NEG_X_AXIS: // -X
+		case SENS_RAY_NEG_X_AXIS: // -X
 		{
 			todir = -mat.GetColumn(0);
 			break;
 		}
-	case SENS_RAY_NEG_Y_AXIS: // -Y
+		case SENS_RAY_NEG_Y_AXIS: // -Y
 		{
 			todir = -mat.GetColumn(1);
 			break;
 		}
-	case SENS_RAY_NEG_Z_AXIS: // -Z
+		case SENS_RAY_NEG_Z_AXIS: // -Z
 		{
 			todir = -mat.GetColumn(2);
 			break;
@@ -250,59 +247,55 @@ bool KX_RaySensor::Evaluate()
 	todir.Pack(m_rayDirection);
 
 	mt::vec3 topoint = frompoint + (m_distance) * todir;
-	PHY_IPhysicsEnvironment* pe = m_scene->GetPhysicsEnvironment();
+	PHY_IPhysicsEnvironment *pe = m_scene->GetPhysicsEnvironment();
 
 	if (!pe) {
 		CM_LogicBrickWarning(this, "there is no physics environment! Check universe for malfunction.");
 		return false;
-	} 
+	}
 
 	PHY_IPhysicsController *spc = obj->GetPhysicsController();
 	KX_GameObject *parent = obj->GetParent();
-	if (!spc && parent)
+	if (!spc && parent) {
 		spc = parent->GetPhysicsController();
-	
+	}
 
-	PHY_IPhysicsEnvironment* physics_environment = this->m_scene->GetPhysicsEnvironment();
-	
+
+	PHY_IPhysicsEnvironment *physics_environment = this->m_scene->GetPhysicsEnvironment();
+
 
 	KX_RayCast::Callback<KX_RaySensor, void> callback(this, spc);
 	KX_RayCast::RayTest(physics_environment, frompoint, topoint, callback);
 
 	/* now pass this result to some controller */
 
-	if (m_rayHit)
-	{
-		if (!m_bTriggered)
-		{
+	if (m_rayHit) {
+		if (!m_bTriggered) {
 			// notify logicsystem that ray is now hitting
 			result = true;
 			m_bTriggered = true;
 		}
-		else
-		{
+		else {
 			// notify logicsystem that ray is STILL hitting ...
 			result = false;
 
 		}
 	}
-	else
-	{
-		if (m_bTriggered)
-		{
+	else {
+		if (m_bTriggered) {
 			m_bTriggered = false;
 			// notify logicsystem that ray JUST left the Object
 			result = true;
 		}
-		else
-		{
+		else {
 			result = false;
 		}
 
 	}
-	if (reset)
+	if (reset) {
 		// force an event
 		result = true;
+	}
 
 	return result;
 }
@@ -325,20 +318,20 @@ PyTypeObject KX_RaySensor::Type = {
 	0,
 	0,
 	py_base_repr,
-	0,0,0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0,
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0,
 	Methods,
 	0,
 	0,
 	&SCA_ISensor::Type,
-	0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0,
 	py_base_new
 
 };
 
 PyMethodDef KX_RaySensor::Methods[] = {
-	{nullptr,nullptr} //Sentinel
+	{nullptr, nullptr} //Sentinel
 };
 
 PyAttributeDef KX_RaySensor::Attributes[] = {
@@ -353,14 +346,15 @@ PyAttributeDef KX_RaySensor::Attributes[] = {
 	EXP_PYATTRIBUTE_FLOAT_ARRAY_RO("hitNormal", KX_RaySensor, m_hitNormal, 3),
 	EXP_PYATTRIBUTE_STRING_RO("hitMaterial", KX_RaySensor, m_hitMaterial),
 	EXP_PYATTRIBUTE_RO_FUNCTION("hitObject", KX_RaySensor, pyattr_get_hitobject),
-	EXP_PYATTRIBUTE_NULL	//Sentinel
+	EXP_PYATTRIBUTE_NULL    //Sentinel
 };
 
 PyObject *KX_RaySensor::pyattr_get_hitobject(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_RaySensor* self = static_cast<KX_RaySensor*>(self_v);
-	if (self->m_hitObject)
+	KX_RaySensor *self = static_cast<KX_RaySensor *>(self_v);
+	if (self->m_hitObject) {
 		return self->m_hitObject->GetProxy();
+	}
 
 	Py_RETURN_NONE;
 }

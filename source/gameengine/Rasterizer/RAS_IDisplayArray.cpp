@@ -34,8 +34,7 @@
 
 #include <algorithm>
 
-struct PolygonSort
-{
+struct PolygonSort {
 	/// Distance from polygon center to camera near plane.
 	float m_z;
 	/// Index of the first vertex in the polygon.
@@ -49,8 +48,7 @@ struct PolygonSort
 		m_z = mt::dot(pnorm, center);
 	}
 
-	struct BackToFront
-	{
+	struct BackToFront {
 		bool operator()(const PolygonSort &a, const PolygonSort &b) const
 		{
 			return a.m_z < b.m_z;
@@ -72,7 +70,7 @@ RAS_IDisplayArray::RAS_IDisplayArray(const RAS_IDisplayArray& other)
 }
 
 RAS_IDisplayArray::RAS_IDisplayArray(PrimitiveType type, const RAS_VertexFormat& format,
-		const RAS_VertexDataMemoryFormat& memoryFormat)
+                                     const RAS_VertexDataMemoryFormat& memoryFormat)
 	:m_type(type),
 	m_format(format),
 	m_memoryFormat(memoryFormat),

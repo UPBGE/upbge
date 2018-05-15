@@ -38,11 +38,13 @@
 // FilterBase class implementation
 
 // constructor
-FilterBase::FilterBase (void) : m_previous(nullptr) {}
+FilterBase::FilterBase(void) :m_previous(nullptr)
+{
+}
 
 
 // destructor
-FilterBase::~FilterBase (void)
+FilterBase::~FilterBase(void)
 {
 	// release Python objects, if not released yet
 	release();
@@ -50,7 +52,7 @@ FilterBase::~FilterBase (void)
 
 
 // release python objects
-void FilterBase::release (void)
+void FilterBase::release(void)
 {
 	// release previous filter object
 	setPrevious(nullptr);
@@ -61,10 +63,11 @@ void FilterBase::release (void)
 void FilterBase::setPrevious(PyFilter *filt, bool useRefCnt)
 {
 	// if reference counting has to be used
-	if (useRefCnt)
-	{
+	if (useRefCnt) {
 		// reference new filter
-		if (filt != nullptr) Py_INCREF(filt);
+		if (filt != nullptr) {
+			Py_INCREF(filt);
+		}
 		// release old filter
 		Py_XDECREF(m_previous);
 	}
@@ -74,10 +77,10 @@ void FilterBase::setPrevious(PyFilter *filt, bool useRefCnt)
 
 
 // find first filter
-FilterBase * FilterBase::findFirst (void)
+FilterBase *FilterBase::findFirst(void)
 {
 	// find first filter in chain
-	FilterBase * frst;
+	FilterBase *frst;
 	for (frst = this; frst->m_previous != nullptr; frst = frst->m_previous->m_filter) {};
 	// set first filter
 	return frst;
@@ -94,22 +97,21 @@ PyTypeList pyFilterTypes;
 
 
 // object allocation
-PyObject *Filter_allocNew (PyTypeObject *type, PyObject *args, PyObject *kwds)
+PyObject *Filter_allocNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
 	// allocate object
-	PyFilter *self = reinterpret_cast<PyFilter*>(type->tp_alloc(type, 0));
+	PyFilter *self = reinterpret_cast<PyFilter *>(type->tp_alloc(type, 0));
 	// initialize object structure
 	self->m_filter = nullptr;
 	// return allocated object
-	return reinterpret_cast<PyObject*>(self);
+	return reinterpret_cast<PyObject *>(self);
 }
 
 // object deallocation
 void Filter_dealloc(PyFilter *self)
 {
 	// release object attributes
-	if (self->m_filter != nullptr)
-	{
+	if (self->m_filter != nullptr) {
 		self->m_filter->release();
 		delete self->m_filter;
 		self->m_filter = nullptr;
@@ -119,16 +121,14 @@ void Filter_dealloc(PyFilter *self)
 
 
 // get previous pixel filter object
-PyObject *Filter_getPrevious (PyFilter *self, void *closure)
+PyObject *Filter_getPrevious(PyFilter *self, void *closure)
 {
 	// if filter object is available
-	if (self->m_filter != nullptr)
-	{
+	if (self->m_filter != nullptr) {
 		// pixel filter object
-		PyObject *filt = reinterpret_cast<PyObject*>(self->m_filter->getPrevious());
+		PyObject *filt = reinterpret_cast<PyObject *>(self->m_filter->getPrevious());
 		// if filter is present
-		if (filt != nullptr)
-		{
+		if (filt != nullptr) {
 			// return it
 			Py_INCREF(filt);
 			return filt;
@@ -143,17 +143,15 @@ PyObject *Filter_getPrevious (PyFilter *self, void *closure)
 int Filter_setPrevious(PyFilter *self, PyObject *value, void *closure)
 {
 	// if filter object is available
-	if (self->m_filter != nullptr)
-	{
+	if (self->m_filter != nullptr) {
 		// check new value
-		if (value == nullptr || !pyFilterTypes.in(Py_TYPE(value)))
-		{
+		if (value == nullptr || !pyFilterTypes.in(Py_TYPE(value))) {
 			// report value error
 			PyErr_SetString(PyExc_TypeError, "Invalid type of value");
 			return -1;
 		}
 		// set new value
-		self->m_filter->setPrevious(reinterpret_cast<PyFilter*>(value));
+		self->m_filter->setPrevious(reinterpret_cast<PyFilter *>(value));
 	}
 	// return success
 	return 0;

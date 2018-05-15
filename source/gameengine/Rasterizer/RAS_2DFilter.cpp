@@ -1,24 +1,24 @@
 /*
-* ***** BEGIN GPL LICENSE BLOCK *****
-*
-* This program is free software; you can redistribute it and/or
-* modify it under the terms of the GNU General Public License
-* as published by the Free Software Foundation; either version 2
-* of the License, or (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program; if not, write to the Free Software Foundation,
-* Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-*
-* Contributor(s): Pierluigi Grassi, Porteries Tristan.
-*
-* ***** END GPL LICENSE BLOCK *****
-*/
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * Contributor(s): Pierluigi Grassi, Porteries Tristan.
+ *
+ * ***** END GPL LICENSE BLOCK *****
+ */
 
 #include "RAS_2DFilter.h"
 #include "RAS_2DFilterManager.h"
@@ -33,7 +33,7 @@
 #include "GPU_glew.h"
 
 extern "C" {
-	extern char datatoc_RAS_VertexShader2DFilter_glsl[];
+extern char datatoc_RAS_VertexShader2DFilter_glsl[];
 }
 
 static std::string predefinedUniformsName[RAS_2DFilter::MAX_PREDEFINED_UNIFORM_TYPE] = {
@@ -50,7 +50,7 @@ RAS_2DFilter::RAS_2DFilter(RAS_2DFilterData& data)
 	m_uniformInitialized(false),
 	m_mipmap(data.mipmap)
 {
-	for(unsigned int i = 0; i < TEXTURE_OFFSETS_SIZE; i++) {
+	for (unsigned int i = 0; i < TEXTURE_OFFSETS_SIZE; i++) {
 		m_textureOffsets[i] = 0;
 	}
 
@@ -102,7 +102,7 @@ void RAS_2DFilter::Initialize(RAS_ICanvas *canvas)
 }
 
 RAS_OffScreen *RAS_2DFilter::Render(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *depthofs,
-						 RAS_OffScreen *colorofs, RAS_OffScreen *targetofs)
+                                    RAS_OffScreen *colorofs, RAS_OffScreen *targetofs)
 {
 	/* The off screen the filter rendered to. If the filter is invalid or uses a custom
 	 * off screen the output off screen is the same as the input off screen. */
@@ -183,7 +183,7 @@ void RAS_2DFilter::ParseShaderProgram()
 }
 
 /* Fill the textureOffsets array with values used by the shaders to get texture samples
-of nearby fragments. Or vertices or whatever.*/
+   of nearby fragments. Or vertices or whatever.*/
 void RAS_2DFilter::ComputeTextureOffsets(RAS_ICanvas *canvas)
 {
 	const GLfloat texturewidth = (GLfloat)canvas->GetWidth();
@@ -260,7 +260,7 @@ void RAS_2DFilter::BindUniforms(RAS_ICanvas *canvas)
 	if (m_predefinedUniforms[TEXTURE_COORDINATE_OFFSETS_UNIFORM] != -1) {
 		// Bind texture offsets.
 		SetUniformfv(m_predefinedUniforms[TEXTURE_COORDINATE_OFFSETS_UNIFORM], RAS_Uniform::UNI_FLOAT2, m_textureOffsets,
-					 sizeof(float) * TEXTURE_OFFSETS_SIZE, TEXTURE_OFFSETS_SIZE / 2);
+		             sizeof(float) * TEXTURE_OFFSETS_SIZE, TEXTURE_OFFSETS_SIZE / 2);
 	}
 
 	for (unsigned int i = 0, size = m_properties.size(); i < size; ++i) {
@@ -275,13 +275,19 @@ void RAS_2DFilter::BindUniforms(RAS_ICanvas *canvas)
 
 		switch (property->GetValueType()) {
 			case VALUE_INT_TYPE:
+			{
 				SetUniform(uniformLoc, (int)property->GetNumber());
 				break;
+			}
 			case VALUE_FLOAT_TYPE:
+			{
 				SetUniform(uniformLoc, (float)property->GetNumber());
 				break;
+			}
 			default:
+			{
 				break;
+			}
 		}
 	}
 }

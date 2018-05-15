@@ -59,25 +59,25 @@ static int ImageBuff_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 	PyObject *py_scale = Py_False;
 	ImageBuff *image;
 
-	PyImage *self = reinterpret_cast<PyImage*>(pySelf);
+	PyImage *self = reinterpret_cast<PyImage *>(pySelf);
 	// create source object
-	if (self->m_image != nullptr) 
+	if (self->m_image != nullptr) {
 		delete self->m_image;
+	}
 	image = new ImageBuff();
 	self->m_image = image;
 
-	if (PyArg_ParseTuple(args, "hh|bO!:ImageBuff", &width, &height, &color, &PyBool_Type, &py_scale)) 
-	{
+	if (PyArg_ParseTuple(args, "hh|bO!:ImageBuff", &width, &height, &color, &PyBool_Type, &py_scale)) {
 		// initialize image buffer
 		image->setScale(py_scale == Py_True);
 		image->clear(width, height, color);
 	}
-	else
-	{
+	else {
 		// check if at least one argument was passed
-		if (width != -1 || height != -1)
+		if (width != -1 || height != -1) {
 			// yes and they didn't match => it's an error
 			return -1;
+		}
 		// empty argument list is okay
 		PyErr_Clear();
 	}
@@ -86,10 +86,11 @@ static int ImageBuff_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 
 }
 
-ImageBuff::~ImageBuff (void)
+ImageBuff::~ImageBuff(void)
 {
-	if (m_imbuf)
+	if (m_imbuf) {
 		IMB_freeImBuf(m_imbuf);
+	}
 }
 
 
@@ -97,8 +98,7 @@ ImageBuff::~ImageBuff (void)
 void ImageBuff::load(unsigned char *img, short width, short height)
 {
 	// loading a new buffer implies to reset the imbuf if any, because the size may change
-	if (m_imbuf)
-	{
+	if (m_imbuf) {
 		IMB_freeImBuf(m_imbuf);
 		m_imbuf = nullptr;
 	}
@@ -107,12 +107,14 @@ void ImageBuff::load(unsigned char *img, short width, short height)
 	// original size
 	short orgSize[2] = {width, height};
 	// is filter available
-	if (m_pyfilter != nullptr)
+	if (m_pyfilter != nullptr) {
 		// use it to process image
 		convImage(*(m_pyfilter->m_filter), img, orgSize);
-	else
+	}
+	else {
 		// otherwise use default filter
 		convImage(defFilter, img, orgSize);
+	}
 	// image is available
 	m_avail = true;
 }
@@ -123,8 +125,7 @@ void ImageBuff::clear(short width, short height, unsigned char color)
 	int size;
 
 	// loading a new buffer implies to reset the imbuf if any, because the size may change
-	if (m_imbuf)
-	{
+	if (m_imbuf) {
 		IMB_freeImBuf(m_imbuf);
 		m_imbuf = nullptr;
 	}
@@ -133,10 +134,10 @@ void ImageBuff::clear(short width, short height, unsigned char color)
 	// the width/height may be different due to scaling
 	size = (m_size[0] * m_size[1]);
 	// initialize memory with color for all channels
-	memset(m_image, color, size*4);
+	memset(m_image, color, size * 4);
 	// and change the alpha channel
-	p = &((unsigned char*)m_image)[3];
-	for (; size>0; size--)
+	p = &((unsigned char *)m_image)[3];
+	for (; size > 0; size--)
 	{
 		*p = 0xFF;
 		p += 4;
@@ -150,8 +151,9 @@ void ImageBuff::plot(unsigned char *img, short width, short height, short x, sho
 {
 	struct ImBuf *tmpbuf;
 
-	if (m_size[0] == 0 || m_size[1] == 0 || width <= 0 || height <= 0)
+	if (m_size[0] == 0 || m_size[1] == 0 || width <= 0 || height <= 0) {
 		return;
+	}
 
 	if (!m_imbuf) {
 		// allocate most basic imbuf, we will assign the rect buffer on the fly
@@ -161,7 +163,7 @@ void ImageBuff::plot(unsigned char *img, short width, short height, short x, sho
 	tmpbuf = IMB_allocImBuf(width, height, 0, 0);
 
 	// assign temporarily our buffer to the ImBuf buffer, we use the same format
-	tmpbuf->rect = (unsigned int*)img;
+	tmpbuf->rect = (unsigned int *)img;
 	m_imbuf->rect = m_image;
 	IMB_rectblend(m_imbuf, m_imbuf, tmpbuf, nullptr, nullptr, nullptr, 0, x, y, x, y, 0, 0, width, height, (IMB_BlendMode)mode, false);
 	// remove so that MB_freeImBuf will free our buffer
@@ -172,8 +174,9 @@ void ImageBuff::plot(unsigned char *img, short width, short height, short x, sho
 
 void ImageBuff::plot(ImageBuff *img, short x, short y, short mode)
 {
-	if (m_size[0] == 0 || m_size[1] == 0 || img->m_size[0] == 0 || img->m_size[1] == 0)
+	if (m_size[0] == 0 || m_size[1] == 0 || img->m_size[0] == 0 || img->m_size[1] == 0) {
 		return;
+	}
 
 	if (!m_imbuf) {
 		// allocate most basic imbuf, we will assign the rect buffer on the fly
@@ -195,39 +198,38 @@ void ImageBuff::plot(ImageBuff *img, short x, short y, short mode)
 
 // cast Image pointer to ImageBuff
 inline ImageBuff *getImageBuff(PyImage *self)
-{ return static_cast<ImageBuff *>(self->m_image); }
+{
+	return static_cast<ImageBuff *>(self->m_image);
+}
 
 
 // python methods
 
 static bool testPyBuffer(Py_buffer *buffer, int width, int height, unsigned int pixsize)
 {
-	if (buffer->itemsize != 1)
-	{
+	if (buffer->itemsize != 1) {
 		PyErr_SetString(PyExc_ValueError, "Buffer must be an array of bytes");
 		return false;
-	} 
-	if (buffer->len != width*height*pixsize)
-	{
+	}
+	if (buffer->len != width * height * pixsize) {
 		PyErr_SetString(PyExc_ValueError, "Buffer hasn't the correct size");
 		return false;
-	} 
+	}
 	// multi dimension are ok as long as there is no hole in the memory
 	Py_ssize_t size = buffer->itemsize;
-	for (int i=buffer->ndim-1; i>=0 ; i--)
+	for (int i = buffer->ndim - 1; i >= 0; i--)
 	{
-		if (buffer->suboffsets != nullptr && buffer->suboffsets[i] >= 0)
-		{
+		if (buffer->suboffsets != nullptr && buffer->suboffsets[i] >= 0) {
 			PyErr_SetString(PyExc_ValueError, "Buffer must be of one block");
 			return false;
 		}
-		if (buffer->strides != nullptr && buffer->strides[i] != size)
-		{
+		if (buffer->strides != nullptr && buffer->strides[i] != size) {
 			PyErr_SetString(PyExc_ValueError, "Buffer must be of one block");
 			return false;
 		}
-		if (i > 0)
+		if (i > 0) {
 			size *= buffer->shape[i];
+		}
 	}
 	return true;
 }
@@ -235,15 +237,14 @@ static bool testPyBuffer(Py_buffer *buffer, int width, int height, unsigned int 
 static bool testBGLBuffer(Buffer *buffer, int width, int height, unsigned int pixsize)
 {
 	unsigned int size = BGL_typeSize(buffer->type);
-	for (int i=0; i<buffer->ndimensions; i++)
+	for (int i = 0; i < buffer->ndimensions; i++)
 	{
 		size *= buffer->dimensions[i];
 	}
-	if (size != width*height*pixsize)
-	{
+	if (size != width * height * pixsize) {
 		PyErr_SetString(PyExc_ValueError, "Buffer hasn't the correct size");
 		return false;
-	} 
+	}
 	return true;
 }
 
@@ -260,29 +261,27 @@ static PyObject *load(PyImage *self, PyObject *args)
 
 	// calc proper buffer size
 	// use pixel size from filter
-	if (self->m_image->getFilter() != nullptr)
+	if (self->m_image->getFilter() != nullptr) {
 		pixSize = self->m_image->getFilter()->m_filter->firstPixelSize();
-	else
+	}
+	else {
 		pixSize = defFilter.firstPixelSize();
+	}
 
 	// parse parameters
-	if (!PyArg_ParseTuple(args, "s*hh:load", &buffer, &width, &height))
-	{
+	if (!PyArg_ParseTuple(args, "s*hh:load", &buffer, &width, &height)) {
 		PyErr_Clear();
 		// check if it is BGL buffer
-		if (!PyArg_ParseTuple(args, "O!hh:load", &BGL_bufferType, &bglBuffer, &width, &height))
-		{
+		if (!PyArg_ParseTuple(args, "O!hh:load", &BGL_bufferType, &bglBuffer, &width, &height)) {
 			// report error
 			return nullptr;
 		}
-		else
-		{
-			if (testBGLBuffer(bglBuffer, width, height, pixSize))
-			{
+		else {
+			if (testBGLBuffer(bglBuffer, width, height, pixSize)) {
 				try
 				{
 					// if correct, load image
-					getImageBuff(self)->load((unsigned char*)bglBuffer->buf.asvoid, width, height);
+					getImageBuff(self)->load((unsigned char *)bglBuffer->buf.asvoid, width, height);
 				}
 				catch (Exception & exp)
 				{
@@ -291,15 +290,13 @@ static PyObject *load(PyImage *self, PyObject *args)
 			}
 		}
 	}
-	else
-	{
+	else {
 		// check if buffer size is correct
-		if (testPyBuffer(&buffer, width, height, pixSize))
-		{
-			try 
+		if (testPyBuffer(&buffer, width, height, pixSize)) {
+			try
 			{
 				// if correct, load image
-				getImageBuff(self)->load((unsigned char*)buffer.buf, width, height);
+				getImageBuff(self)->load((unsigned char *)buffer.buf, width, height);
 			}
 			catch (Exception & exp)
 			{
@@ -308,15 +305,16 @@ static PyObject *load(PyImage *self, PyObject *args)
 		}
 		PyBuffer_Release(&buffer);
 	}
-	if (PyErr_Occurred())
+	if (PyErr_Occurred()) {
 		return nullptr;
+	}
 	Py_RETURN_NONE;
 }
 
 static PyObject *plot(PyImage *self, PyObject *args)
 {
-	PyImage * other;
-	Buffer* bglBuffer;
+	PyImage *other;
+	Buffer *bglBuffer;
 	Py_buffer buffer;
 	//unsigned char * buff;
 	//unsigned int buffSize;
@@ -325,39 +323,36 @@ static PyObject *plot(PyImage *self, PyObject *args)
 	short x, y;
 	short mode = IMB_BLEND_COPY;
 
-	if (PyArg_ParseTuple(args, "s*hhhh|h:plot", &buffer, &width, &height, &x, &y, &mode))
-	{
+	if (PyArg_ParseTuple(args, "s*hhhh|h:plot", &buffer, &width, &height, &x, &y, &mode)) {
 		// correct decoding, verify that buffer size is correct
 		// we need a continuous memory buffer
-		if (testPyBuffer(&buffer, width, height, 4))
-		{
-			getImageBuff(self)->plot((unsigned char*)buffer.buf, width, height, x, y, mode);
+		if (testPyBuffer(&buffer, width, height, 4)) {
+			getImageBuff(self)->plot((unsigned char *)buffer.buf, width, height, x, y, mode);
 		}
 		PyBuffer_Release(&buffer);
-		if (PyErr_Occurred())
+		if (PyErr_Occurred()) {
 			return nullptr;
+		}
 		Py_RETURN_NONE;
 	}
 	PyErr_Clear();
 	// try the other format
-	if (PyArg_ParseTuple(args, "O!hh|h:plot", &ImageBuffType, &other, &x, &y, &mode))
-	{
+	if (PyArg_ParseTuple(args, "O!hh|h:plot", &ImageBuffType, &other, &x, &y, &mode)) {
 		getImageBuff(self)->plot(getImageBuff(other), x, y, mode);
 		Py_RETURN_NONE;
 	}
 	PyErr_Clear();
 	// try the last format (BGL buffer)
-	if (!PyArg_ParseTuple(args, "O!hhhh|h:plot", &BGL_bufferType, &bglBuffer, &width, &height, &x, &y, &mode))
-	{
+	if (!PyArg_ParseTuple(args, "O!hhhh|h:plot", &BGL_bufferType, &bglBuffer, &width, &height, &x, &y, &mode)) {
 		PyErr_SetString(PyExc_TypeError, "Expecting ImageBuff or Py buffer or BGL buffer as first argument; width, height next; postion x, y and mode as last arguments");
 		return nullptr;
 	}
-	if (testBGLBuffer(bglBuffer, width, height, 4))
-	{
-		getImageBuff(self)->plot((unsigned char*)bglBuffer->buf.asvoid, width, height, x, y, mode);
+	if (testBGLBuffer(bglBuffer, width, height, 4)) {
+		getImageBuff(self)->plot((unsigned char *)bglBuffer->buf.asvoid, width, height, x, y, mode);
 	}
-	if (PyErr_Occurred())
+	if (PyErr_Occurred()) {
 		return nullptr;
+	}
 	Py_RETURN_NONE;
 }
 
@@ -370,12 +365,12 @@ static PyMethodDef imageBuffMethods[] = {
 // attributes structure
 static PyGetSetDef imageBuffGetSets[] = {
 	// attributes from ImageBase class
-	{(char*)"valid", (getter)Image_valid, nullptr, (char*)"bool to tell if an image is available", nullptr},
-	{(char*)"image", (getter)Image_getImage, nullptr, (char*)"image data", nullptr},
-	{(char*)"size", (getter)Image_getSize, nullptr, (char*)"image size", nullptr},
-	{(char*)"scale", (getter)Image_getScale, (setter)Image_setScale, (char*)"fast scale of image (near neighbor)", nullptr},
-	{(char*)"flip", (getter)Image_getFlip, (setter)Image_setFlip, (char*)"flip image vertically", nullptr},
-	{(char*)"filter", (getter)Image_getFilter, (setter)Image_setFilter, (char*)"pixel filter", nullptr},
+	{(char *)"valid", (getter)Image_valid, nullptr, (char *)"bool to tell if an image is available", nullptr},
+	{(char *)"image", (getter)Image_getImage, nullptr, (char *)"image data", nullptr},
+	{(char *)"size", (getter)Image_getSize, nullptr, (char *)"image size", nullptr},
+	{(char *)"scale", (getter)Image_getScale, (setter)Image_setScale, (char *)"fast scale of image (near neighbor)", nullptr},
+	{(char *)"flip", (getter)Image_getFlip, (setter)Image_setFlip, (char *)"flip image vertically", nullptr},
+	{(char *)"filter", (getter)Image_getFilter, (setter)Image_setFilter, (char *)"pixel filter", nullptr},
 	{nullptr}
 };
 
@@ -403,12 +398,12 @@ PyTypeObject ImageBuffType = {
 	&imageBufferProcs,         /*tp_as_buffer*/
 	Py_TPFLAGS_DEFAULT,        /*tp_flags*/
 	"Image source from image buffer",       /* tp_doc */
-	0,		               /* tp_traverse */
-	0,		               /* tp_clear */
-	0,		               /* tp_richcompare */
-	0,		               /* tp_weaklistoffset */
-	0,		               /* tp_iter */
-	0,		               /* tp_iternext */
+	0,                     /* tp_traverse */
+	0,                     /* tp_clear */
+	0,                     /* tp_richcompare */
+	0,                     /* tp_weaklistoffset */
+	0,                     /* tp_iter */
+	0,                     /* tp_iternext */
 	imageBuffMethods,    /* tp_methods */
 	0,                   /* tp_members */
 	imageBuffGetSets,          /* tp_getset */

@@ -85,7 +85,7 @@ _CM_PythonAttributPrefix::_CM_PythonAttributPrefix(std::string className, std::s
 std::ostream& operator<<(std::ostream& stream, const _CM_PythonAttributPrefix& prefix)
 {
 	stream << termcolor::green << prefix.m_className << termcolor::reset << "." << termcolor::green
-		<< termcolor::bold << prefix.m_attributName << termcolor::reset << ", ";
+	       << termcolor::bold << prefix.m_attributName << termcolor::reset << ", ";
 	return stream;
 }
 
@@ -98,7 +98,7 @@ _CM_PythonFunctionPrefix::_CM_PythonFunctionPrefix(std::string className, std::s
 std::ostream& operator<<(std::ostream& stream, const _CM_PythonFunctionPrefix& prefix)
 {
 	stream << termcolor::green << prefix.m_className << termcolor::reset << "." << termcolor::green
-		<< termcolor::bold << prefix.m_attributName << termcolor::reset << "(...), ";
+	       << termcolor::bold << prefix.m_attributName << termcolor::reset << "(...), ";
 	return stream;
 }
 
@@ -118,7 +118,7 @@ _CM_LogicBrickPrefix::_CM_LogicBrickPrefix(SCA_ILogicBrick *brick)
 std::ostream& operator<<(std::ostream& stream, const _CM_LogicBrickPrefix& prefix)
 {
 	stream << termcolor::bold << prefix.m_brickName << termcolor::reset << "(" << termcolor::bold
-		<< prefix.m_objectName << termcolor::reset << "), ";
+	       << prefix.m_objectName << termcolor::reset << "), ";
 	return stream;
 }
 
@@ -134,6 +134,6 @@ std::ostream& operator<<(std::ostream& stream, const _CM_FunctionPrefix& prefix)
 	const size_t begin = functionName.substr(0, colons).rfind(" ") + 1;
 	const size_t end = functionName.rfind("(") - begin;
 
-	stream << termcolor::bold << functionName.substr(begin,end) << termcolor::reset << "(...), ";
+	stream << termcolor::bold << functionName.substr(begin, end) << termcolor::reset << "(...), ";
 	return stream;
 }

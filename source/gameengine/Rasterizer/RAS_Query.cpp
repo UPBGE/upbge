@@ -42,7 +42,7 @@ RAS_Query::RAS_Query(QueryType type)
 RAS_Query::~RAS_Query() = default;
 
 RAS_Query::RAS_Query(RAS_Query&& other)
-: m_impl(std::move(other.m_impl))
+	:m_impl(std::move(other.m_impl))
 {
 }
 

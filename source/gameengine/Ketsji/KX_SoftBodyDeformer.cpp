@@ -83,12 +83,14 @@ void KX_SoftBodyDeformer::Relink(std::map<SCA_IObject *, SCA_IObject *>& map)
 void KX_SoftBodyDeformer::Apply(RAS_IDisplayArray *array)
 {
 	CcdPhysicsController *ctrl = (CcdPhysicsController *)m_gameobj->GetPhysicsController();
-	if (!ctrl)
+	if (!ctrl) {
 		return;
+	}
 
 	btSoftBody *softBody = ctrl->GetSoftBody();
-	if (!softBody)
+	if (!softBody) {
 		return;
+	}
 
 	// update the vertex in m_transverts
 	Update();

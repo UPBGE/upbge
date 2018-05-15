@@ -65,8 +65,8 @@ bool DEV_Joystick::RumblePlay(float strengthLeft, float strengthRight, unsigned 
 		}
 
 		m_private->m_hapticeffect.leftright.length = duration;
-		m_private->m_hapticeffect.leftright.large_magnitude = (unsigned int) (strengthLeft * 0x7FFF);
-		m_private->m_hapticeffect.leftright.small_magnitude = (unsigned int) (strengthRight * 0x7FFF);
+		m_private->m_hapticeffect.leftright.large_magnitude = (unsigned int)(strengthLeft * 0x7FFF);
+		m_private->m_hapticeffect.leftright.small_magnitude = (unsigned int)(strengthRight * 0x7FFF);
 		run_by_effect = true;
 
 	}
@@ -74,8 +74,8 @@ bool DEV_Joystick::RumblePlay(float strengthLeft, float strengthRight, unsigned 
 	else if ((effects & SDL_HAPTIC_CUSTOM) && m_private->m_hapticEffectStatus != JOYHAPTIC_UPDATING_RUMBLE_EFFECT) {
 
 		Uint16 data[2]; // data = channels * samples
-		data[0] = (Uint16) (strengthLeft * 0x7FFF);
-		data[1] = (Uint16) (strengthRight * 0x7FFF);
+		data[0] = (Uint16)(strengthLeft * 0x7FFF);
+		data[1] = (Uint16)(strengthRight * 0x7FFF);
 
 		if (m_private->m_hapticEffectStatus != JOYHAPTIC_UPDATING_EFFECT) {
 			m_private->m_hapticeffect.type = SDL_HAPTIC_CUSTOM;
@@ -110,18 +110,17 @@ bool DEV_Joystick::RumblePlay(float strengthLeft, float strengthRight, unsigned 
 
 		// Run the effect
 		if (m_private->m_hapticEffectId >= 0 &&
-			SDL_HapticRunEffect(m_private->m_haptic, m_private->m_hapticEffectId, 1) != -1) {
-				m_private->m_hapticEffectStatus = JOYHAPTIC_PLAYING_EFFECT;
+		    SDL_HapticRunEffect(m_private->m_haptic, m_private->m_hapticEffectId, 1) != -1) {
+			m_private->m_hapticEffectStatus = JOYHAPTIC_PLAYING_EFFECT;
 		}
 		else {
 			effects_issue = true;
 		}
 	}
-	
+
 	// Initialize simplest rumble effect for both motors if more complex effects are not supported
 	// Most controllers can use SINE effect, but XInput only has LEFTRIGHT.
-	if (effects_issue || m_private->m_hapticEffectStatus == JOYHAPTIC_UPDATING_RUMBLE_EFFECT) 
-	{
+	if (effects_issue || m_private->m_hapticEffectStatus == JOYHAPTIC_UPDATING_RUMBLE_EFFECT) {
 		bool new_effect = true;
 
 		if (m_private->m_hapticEffectStatus != JOYHAPTIC_UPDATING_RUMBLE_EFFECT) {
@@ -153,8 +152,7 @@ bool DEV_Joystick::RumblePlay(float strengthLeft, float strengthRight, unsigned 
 
 		// Run the effect
 		if (m_private->m_hapticEffectId >= 0 &&
-			SDL_HapticRunEffect(m_private->m_haptic, m_private->m_hapticEffectId, 1) != -1) 
-		{
+		    SDL_HapticRunEffect(m_private->m_haptic, m_private->m_hapticEffectId, 1) != -1) {
 			m_private->m_hapticEffectStatus = JOYHAPTIC_PLAYING_RUMBLE_EFFECT;
 		}
 		else {

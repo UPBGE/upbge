@@ -42,7 +42,7 @@
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
 
-SCA_NORController::SCA_NORController(SCA_IObject* gameobj)
+SCA_NORController::SCA_NORController(SCA_IObject *gameobj)
 	:
 	SCA_IController(gameobj)
 {
@@ -56,19 +56,18 @@ SCA_NORController::~SCA_NORController()
 
 
 
-void SCA_NORController::Trigger(SCA_LogicManager* logicmgr)
+void SCA_NORController::Trigger(SCA_LogicManager *logicmgr)
 {
 
 	bool sensorresult = true;
 
 	for (SCA_ISensor *sensor : m_linkedsensors) {
-		if (sensor->GetState())
-		{
+		if (sensor->GetState()) {
 			sensorresult = false;
 			break;
 		}
 	}
-	
+
 	for (SCA_IActuator *actuator : m_linkedactuators) {
 		logicmgr->AddActiveActuator(actuator, sensorresult);
 	}
@@ -76,9 +75,9 @@ void SCA_NORController::Trigger(SCA_LogicManager* logicmgr)
 
 
 
-EXP_Value* SCA_NORController::GetReplica()
+EXP_Value *SCA_NORController::GetReplica()
 {
-	EXP_Value* replica = new SCA_NORController(*this);
+	EXP_Value *replica = new SCA_NORController(*this);
 	// this will copy properties and so on...
 	replica->ProcessReplica();
 
@@ -103,23 +102,23 @@ PyTypeObject SCA_NORController::Type = {
 	0,
 	0,
 	py_base_repr,
-	0,0,0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0,
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0,
 	Methods,
 	0,
 	0,
 	&SCA_IController::Type,
-	0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0,
 	py_base_new
 };
 
 PyMethodDef SCA_NORController::Methods[] = {
-	{nullptr,nullptr} //Sentinel
+	{nullptr, nullptr} //Sentinel
 };
 
 PyAttributeDef SCA_NORController::Attributes[] = {
-	EXP_PYATTRIBUTE_NULL	//Sentinel
+	EXP_PYATTRIBUTE_NULL    //Sentinel
 };
 
 #endif // WITH_PYTHON

@@ -99,7 +99,7 @@ void SCA_IController::UnlinkActuator(SCA_IActuator *actua)
 	}
 	else {
 		CM_LogicBrickWarning(this, "missing link from controller " << m_gameobj->GetName() << ":" << GetName()
-			<< " to actuator " << actua->GetParent()->GetName() << ":" << actua->GetName());
+		                                                           << " to actuator " << actua->GetParent()->GetName() << ":" << actua->GetName());
 	}
 }
 
@@ -120,7 +120,7 @@ void SCA_IController::UnlinkSensor(SCA_ISensor *sensor)
 	}
 	else {
 		CM_LogicBrickWarning(this, "missing link from controller " << m_gameobj->GetName() << ":" << GetName()
-			<< " to sensor " << sensor->GetParent()->GetName() << ":" << sensor->GetName());
+		                                                           << " to sensor " << sensor->GetParent()->GetName() << ":" << sensor->GetName());
 	}
 }
 
@@ -257,12 +257,12 @@ static const std::string sca_icontroller_get_sensors_item_name_cb(void *self_v, 
 PyObject *SCA_IController::pyattr_get_sensors(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	return (new EXP_ListWrapper(self_v,
-	                         ((SCA_IController *)self_v)->GetProxy(),
-	                         nullptr,
-	                         sca_icontroller_get_sensors_size_cb,
-	                         sca_icontroller_get_sensors_item_cb,
-	                         sca_icontroller_get_sensors_item_name_cb,
-	                         nullptr))->NewProxy(true);
+	                            ((SCA_IController *)self_v)->GetProxy(),
+	                            nullptr,
+	                            sca_icontroller_get_sensors_size_cb,
+	                            sca_icontroller_get_sensors_item_cb,
+	                            sca_icontroller_get_sensors_item_name_cb,
+	                            nullptr))->NewProxy(true);
 }
 
 static int sca_icontroller_get_actuators_size_cb(void *self_v)
@@ -283,11 +283,11 @@ static const std::string sca_icontroller_get_actuators_item_name_cb(void *self_v
 PyObject *SCA_IController::pyattr_get_actuators(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	return (new EXP_ListWrapper(self_v,
-	                         ((SCA_IController *)self_v)->GetProxy(),
-	                         nullptr,
-	                         sca_icontroller_get_actuators_size_cb,
-	                         sca_icontroller_get_actuators_item_cb,
-	                         sca_icontroller_get_actuators_item_name_cb,
-	                         nullptr))->NewProxy(true);
+	                            ((SCA_IController *)self_v)->GetProxy(),
+	                            nullptr,
+	                            sca_icontroller_get_actuators_size_cb,
+	                            sca_icontroller_get_actuators_item_cb,
+	                            sca_icontroller_get_actuators_item_name_cb,
+	                            nullptr))->NewProxy(true);
 }
 #endif // WITH_PYTHON

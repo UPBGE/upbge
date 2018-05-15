@@ -152,7 +152,7 @@ bool RAS_BatchGroup::MergeMeshUser(RAS_MeshUser *meshUser, const mt::mat4& mat)
 			RAS_IDisplayArray *origarray = arrayBucket->GetDisplayArray();
 			batch.m_displayArray = RAS_IBatchDisplayArray::ConstructArray(origarray->GetPrimitiveType(), origarray->GetFormat());
 			batch.m_displayArrayBucket = new RAS_DisplayArrayBucket(bucket, batch.m_displayArray, arrayBucket->GetMesh(),
-																	arrayBucket->GetMeshMaterial(), nullptr);
+			                                                        arrayBucket->GetMeshMaterial(), nullptr);
 		}
 
 		if (!MergeMeshSlot(batch, meshSlot, mat)) {

@@ -29,7 +29,7 @@
 #include "CM_Template.h"
 
 RAS_IBatchDisplayArray::RAS_IBatchDisplayArray(PrimitiveType type, const RAS_VertexFormat &format,
-		const RAS_VertexDataMemoryFormat& memoryFormat)
+                                               const RAS_VertexDataMemoryFormat& memoryFormat)
 	:RAS_IDisplayArray(type, format, memoryFormat)
 {
 }

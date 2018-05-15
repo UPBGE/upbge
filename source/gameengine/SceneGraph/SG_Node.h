@@ -71,28 +71,27 @@ typedef bool (*SG_RescheduleUpdateCallback)(SG_Node *sgnode, void *clientobj, vo
  */
 struct SG_Callbacks {
 	SG_Callbacks()
-	:m_replicafunc(nullptr),
-	m_destructionfunc(nullptr),
-	m_updatefunc(nullptr),
-	m_schedulefunc(nullptr),
-	m_reschedulefunc(nullptr)
+		:m_replicafunc(nullptr),
+		m_destructionfunc(nullptr),
+		m_updatefunc(nullptr),
+		m_schedulefunc(nullptr),
+		m_reschedulefunc(nullptr)
 	{
 	}
-	
-	SG_Callbacks(
-		SG_ReplicationNewCallback repfunc,
-		SG_DestructionNewCallback destructfunc,
-		SG_UpdateTransformCallback updatefunc,
-		SG_ScheduleUpdateCallback schedulefunc,
-		SG_RescheduleUpdateCallback reschedulefunc)
-	:m_replicafunc(repfunc),
-	m_destructionfunc(destructfunc),
-	m_updatefunc(updatefunc),
-	m_schedulefunc(schedulefunc),
-	m_reschedulefunc(reschedulefunc)
+
+	SG_Callbacks(SG_ReplicationNewCallback repfunc,
+	             SG_DestructionNewCallback destructfunc,
+	             SG_UpdateTransformCallback updatefunc,
+	             SG_ScheduleUpdateCallback schedulefunc,
+	             SG_RescheduleUpdateCallback reschedulefunc)
+		:m_replicafunc(repfunc),
+		m_destructionfunc(destructfunc),
+		m_updatefunc(updatefunc),
+		m_schedulefunc(schedulefunc),
+		m_reschedulefunc(reschedulefunc)
 	{
 	}
-	
+
 	SG_ReplicationNewCallback m_replicafunc;
 	SG_DestructionNewCallback m_destructionfunc;
 	SG_UpdateTransformCallback m_updatefunc;

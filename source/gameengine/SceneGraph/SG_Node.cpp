@@ -127,8 +127,7 @@ void SG_Node::ProcessSGReplica(SG_Node **replica)
 	// This can happen in partial replication of hierarchy
 	// during group duplication.
 	if ((*replica)->m_children.empty() &&
-	    (*replica)->GetSGClientObject() == nullptr)
-	{
+	    (*replica)->GetSGClientObject() == nullptr) {
 		delete (*replica);
 		*replica = nullptr;
 	}

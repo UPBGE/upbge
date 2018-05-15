@@ -68,7 +68,7 @@ static std::vector<Texture *> textures;
 
 // macro for exception handling and logging
 #define CATCH_EXCP catch (Exception & exp) \
-{ exp.report(); return nullptr; }
+	{ exp.report(); return nullptr; }
 
 PyObject *Texture_close(Texture *self);
 
@@ -116,7 +116,7 @@ std::string Texture::GetName()
 
 void Texture::FreeAllTextures(KX_Scene *scene)
 {
-	for (std::vector<Texture *>::iterator it = textures.begin(); it != textures.end();) {
+	for (std::vector<Texture *>::iterator it = textures.begin(); it != textures.end(); ) {
 		Texture *texture = *it;
 		if (texture->m_scene != scene) {
 			++it;
@@ -130,8 +130,7 @@ void Texture::FreeAllTextures(KX_Scene *scene)
 
 void Texture::Close()
 {
-	if (m_orgSaved)
-	{
+	if (m_orgSaved) {
 		m_orgSaved = false;
 		// restore original texture code
 		if (m_useMatTexture) {
@@ -141,15 +140,13 @@ void Texture::Close()
 				m_imgTexture->bindcode[TEXTARGET_TEXTURE_2D] = m_orgImg;
 			}
 		}
-		else
-		{
+		else {
 			m_imgTexture->bindcode[TEXTARGET_TEXTURE_2D] = m_orgImg;
 			BKE_image_release_ibuf(m_imgTexture, m_imgBuf, nullptr);
 			m_imgBuf = nullptr;
 		}
 		// drop actual texture
-		if (m_actTex != 0)
-		{
+		if (m_actTex != 0) {
 			glDeleteTextures(1, (GLuint *)&m_actTex);
 			m_actTex = 0;
 		}
@@ -170,8 +167,7 @@ void loadTexture(unsigned int texId, unsigned int *texture, short *size,
 {
 	// load texture for rendering
 	glBindTexture(GL_TEXTURE_2D, texId);
-	if (mipmap)
-	{
+	if (mipmap) {
 		int i;
 		ImBuf *ibuf;
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
@@ -187,12 +183,11 @@ void loadTexture(unsigned int texId, unsigned int *texture, short *size,
 			glTexImage2D(GL_TEXTURE_2D, i, internalFormat, mip->x, mip->y, 0, GL_RGBA, GL_UNSIGNED_BYTE, mip->rect);
 		}
 		IMB_freeImBuf(ibuf);
-	} 
-	else
-	{
+	}
+	else {
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexImage2D( GL_TEXTURE_2D, 0, internalFormat, size[0], size[1], 0, GL_RGBA, GL_UNSIGNED_BYTE, texture);
+		glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, size[0], size[1], 0, GL_RGBA, GL_UNSIGNED_BYTE, texture);
 	}
 	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 }
@@ -234,18 +229,21 @@ short getMaterialID(PyObject *obj, const char *name)
 
 		RAS_IPolyMaterial *mat = getMaterial(gameObj, matID);
 		// if material is not available, report that no material was found
-		if (mat == nullptr) 
+		if (mat == nullptr) {
 			break;
+		}
 		// name is a material name if it starts with MA and a UV texture name if it starts with IM
 		if (name[0] == 'I' && name[1] == 'M') {
 			// if texture name matches
-			if (mat->GetTextureName() == name)
+			if (mat->GetTextureName() == name) {
 				return matID;
+			}
 		}
 		else {
 			// if material name matches
-			if (mat->GetName() == name)
+			if (mat->GetName() == name) {
 				return matID;
+			}
 		}
 	}
 	// material was not found
@@ -285,15 +283,16 @@ static int Texture_init(PyObject *self, PyObject *args, PyObject *kwds)
 	// texture ID
 	short texID = 0;
 	// texture object with shared texture ID
-	Texture * texObj = nullptr;
+	Texture *texObj = nullptr;
 
 	static const char *kwlist[] = {"gameObj", "materialID", "textureID", "textureObj", nullptr};
 
 	// get parameters
 	if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|hhO!",
-		const_cast<char**>(kwlist), &obj, &matID, &texID, &Texture::Type,
-		&texObj))
-		return -1; 
+	                                 const_cast<char **>(kwlist), &obj, &matID, &texID, &Texture::Type,
+	                                 &texObj)) {
+		return -1;
+	}
 
 	KX_GameObject *gameObj = nullptr;
 	if (ConvertPythonToGameObject(KX_GetActiveScene()->GetLogicManager(), obj, &gameObj, false, "")) {
@@ -308,8 +307,7 @@ static int Texture_init(PyObject *self, PyObject *args, PyObject *kwds)
 				lamp = (KX_LightObject *)gameObj;
 			}
 
-			if (mat != nullptr)
-			{
+			if (mat != nullptr) {
 				// get blender material texture
 				tex->m_matTexture = mat->GetTexture(texID);
 				if (!tex->m_matTexture) {
@@ -318,29 +316,29 @@ static int Texture_init(PyObject *self, PyObject *args, PyObject *kwds)
 				tex->m_imgTexture = tex->m_matTexture->GetImage();
 				tex->m_useMatTexture = true;
 			}
-			else if (lamp != nullptr)
-			{
+			else if (lamp != nullptr) {
 				tex->m_imgTexture = lamp->GetLightData()->GetTextureImage(texID);
 				tex->m_useMatTexture = false;
 			}
 
 			// check if texture is available, if not, initialization failed
-			if (tex->m_imgTexture == nullptr && tex->m_matTexture == nullptr)
+			if (tex->m_imgTexture == nullptr && tex->m_matTexture == nullptr) {
 				// throw exception if initialization failed
 				THRWEXCP(MaterialNotAvail, S_OK);
+			}
 
 			// if texture object is provided
-			if (texObj != nullptr)
-			{
+			if (texObj != nullptr) {
 				// copy texture code
 				tex->m_actTex = texObj->m_actTex;
 				tex->m_mipmap = texObj->m_mipmap;
-				if (texObj->m_source != nullptr)
+				if (texObj->m_source != nullptr) {
 					tex->SetSource(texObj->m_source);
+				}
 			}
 			else {
 				// otherwise generate texture code
-				glGenTextures(1, (GLuint*)&tex->m_actTex);
+				glGenTextures(1, (GLuint *)&tex->m_actTex);
 			}
 		}
 		catch (Exception & exp)
@@ -368,8 +366,7 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
 	PyObject *param;
 	double ts = -1.0;
 
-	if (!PyArg_ParseTuple(args, "O|d:refresh", &param, &ts) || !PyBool_Check(param))
-	{
+	if (!PyArg_ParseTuple(args, "O|d:refresh", &param, &ts) || !PyBool_Check(param)) {
 		// report error
 		PyErr_SetString(PyExc_TypeError, "The value must be a bool");
 		return nullptr;
@@ -377,9 +374,8 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
 	// some trick here: we are in the business of loading a texture,
 	// no use to do it if we are still in the same rendering frame.
 	// We find this out by looking at the engine current clock time
-	KX_KetsjiEngine* engine = KX_GetActiveEngine();
-	if (engine->GetClockTime() != m_lastClock) 
-	{
+	KX_KetsjiEngine *engine = KX_GetActiveEngine();
+	if (engine->GetClockTime() != m_lastClock) {
 		m_lastClock = engine->GetClockTime();
 		// set source refresh
 		bool refreshSource = (param == Py_True);
@@ -387,11 +383,9 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
 		try
 		{
 			// if source is available
-			if (m_source != nullptr)
-			{
+			if (m_source != nullptr) {
 				// check texture code
-				if (!m_orgSaved)
-				{
+				if (!m_orgSaved) {
 					m_orgSaved = true;
 					// save original image code
 					if (m_useMatTexture) {
@@ -402,8 +396,7 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
 							m_imgTexture->bindcode[TEXTARGET_TEXTURE_2D] = m_actTex;
 						}
 					}
-					else
-					{
+					else {
 						// Swapping will work only if the GPU has already loaded the image.
 						// If not, it will delete and overwrite our texture on next render.
 						// To avoid that, we acquire the image buffer now.
@@ -416,27 +409,23 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
 				}
 
 				// get texture
-				unsigned int * texture = m_source->m_image->getImage(m_actTex, ts, m_mipmap);
+				unsigned int *texture = m_source->m_image->getImage(m_actTex, ts, m_mipmap);
 				// if texture is available
-				if (texture != nullptr)
-				{
+				if (texture != nullptr) {
 					// get texture size
-					short * orgSize = m_source->m_image->getSize();
+					short *orgSize = m_source->m_image->getSize();
 					// calc scaled sizes
 					short size[2];
-					if (GLEW_ARB_texture_non_power_of_two)
-					{
+					if (GLEW_ARB_texture_non_power_of_two) {
 						size[0] = orgSize[0];
 						size[1] = orgSize[1];
 					}
-					else
-					{
+					else {
 						size[0] = ImageBase::calcSize(orgSize[0]);
 						size[1] = ImageBase::calcSize(orgSize[1]);
 					}
 					// scale texture if needed
-					if (size[0] != orgSize[0] || size[1] != orgSize[1])
-					{
+					if (size[0] != orgSize[0] || size[1] != orgSize[1]) {
 						IMB_freeImBuf(m_scaledImBuf);
 						m_scaledImBuf = IMB_allocFromBuffer(texture, nullptr, orgSize[0], orgSize[1]);
 						IMB_scaleImBuf(m_scaledImBuf, size[0], size[1]);
@@ -472,8 +461,12 @@ PyObject *Texture::pyattr_get_mipmap(EXP_PyObjectPlus *self_v, const EXP_PYATTRI
 	Texture *self = (Texture *)self_v;
 
 	// return true if flag is set, otherwise false
-	if (self->m_mipmap) Py_RETURN_TRUE;
-	else Py_RETURN_FALSE;
+	if (self->m_mipmap) {
+		Py_RETURN_TRUE;
+	}
+	else {
+		Py_RETURN_FALSE;
+	}
 }
 
 // set mipmap value
@@ -482,8 +475,7 @@ int Texture::pyattr_set_mipmap(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_D
 	Texture *self = (Texture *)self_v;
 
 	// check parameter, report failure
-	if (value == nullptr || !PyBool_Check(value))
-	{
+	if (value == nullptr || !PyBool_Check(value)) {
 		PyErr_SetString(PyExc_TypeError, "The value must be a bool");
 		return -1;
 	}
@@ -499,10 +491,9 @@ PyObject *Texture::pyattr_get_source(EXP_PyObjectPlus *self_v, const EXP_PYATTRI
 	Texture *self = (Texture *)self_v;
 
 	// if source exists
-	if (self->m_source != nullptr)
-	{
+	if (self->m_source != nullptr) {
 		Py_INCREF(self->m_source);
-		return reinterpret_cast<PyObject*>(self->m_source);
+		return reinterpret_cast<PyObject *>(self->m_source);
 	}
 	// otherwise return None
 	Py_RETURN_NONE;
@@ -513,13 +504,12 @@ int Texture::pyattr_set_source(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_D
 {
 	Texture *self = (Texture *)self_v;
 	// check new value
-	if (value == nullptr || !pyImageTypes.in(Py_TYPE(value)))
-	{
+	if (value == nullptr || !pyImageTypes.in(Py_TYPE(value))) {
 		// report value error
 		PyErr_SetString(PyExc_TypeError, "Invalid type of value");
 		return -1;
 	}
-	self->SetSource(reinterpret_cast<PyImage*>(value));
+	self->SetSource(reinterpret_cast<PyImage *>(value));
 	// return success
 	return 0;
 }
@@ -553,7 +543,7 @@ PyTypeObject Texture::Type =
 	0,
 	0,
 	py_base_repr,
-	0, 0, 0, 0, 0, 0, 0, 0, 
+	0, 0, 0, 0, 0, 0, 0, 0,
 	&imageBufferProcs,
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
 	0, 0, 0, 0, 0, 0, 0,

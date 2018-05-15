@@ -89,8 +89,9 @@ EXP_Value *KX_LightObject::GetReplica()
 	replica->m_lightobj = m_lightobj->Clone();
 	replica->m_lightobj->m_light = replica;
 	m_rasterizer->AddLight(replica->m_lightobj);
-	if (m_base)
+	if (m_base) {
 		m_base = nullptr;
+	}
 
 	return replica;
 }
@@ -206,10 +207,12 @@ int KX_LightObject::pyattr_set_energy(EXP_PyObjectPlus *self_v, const EXP_PYATTR
 
 	if (PyFloat_Check(value)) {
 		float val = PyFloat_AsDouble(value);
-		if (val < 0)
+		if (val < 0) {
 			val = 0;
-		else if (val > 10)
+		}
+		else if (val > 10) {
 			val = 10;
+		}
 
 		self->m_lightobj->m_energy = val;
 		return PY_SET_ATTR_SUCCESS;
@@ -291,10 +294,12 @@ int KX_LightObject::pyattr_set_distance(EXP_PyObjectPlus *self_v, const EXP_PYAT
 
 	if (PyFloat_Check(value)) {
 		float val = PyFloat_AsDouble(value);
-		if (val < 0.01f)
+		if (val < 0.01f) {
 			val = 0.01f;
-		else if (val > 5000.f)
+		}
+		else if (val > 5000.f) {
 			val = 5000.f;
+		}
 
 		self->m_lightobj->m_distance = val;
 		return PY_SET_ATTR_SUCCESS;
@@ -334,10 +339,12 @@ int KX_LightObject::pyattr_set_lin_attenuation(EXP_PyObjectPlus *self_v, const E
 
 	if (PyFloat_Check(value)) {
 		float val = PyFloat_AsDouble(value);
-		if (val < 0.f)
+		if (val < 0.f) {
 			val = 0.f;
-		else if (val > 1.f)
+		}
+		else if (val > 1.f) {
 			val = 1.f;
+		}
 
 		self->m_lightobj->m_att1 = val;
 		return PY_SET_ATTR_SUCCESS;
@@ -359,10 +366,12 @@ int KX_LightObject::pyattr_set_quad_attenuation(EXP_PyObjectPlus *self_v, const 
 
 	if (PyFloat_Check(value)) {
 		float val = PyFloat_AsDouble(value);
-		if (val < 0.f)
+		if (val < 0.f) {
 			val = 0.f;
-		else if (val > 1.f)
+		}
+		else if (val > 1.f) {
 			val = 1.f;
+		}
 
 		self->m_lightobj->m_att2 = val;
 		return PY_SET_ATTR_SUCCESS;
@@ -384,10 +393,12 @@ int KX_LightObject::pyattr_set_spotsize(EXP_PyObjectPlus *self_v, const EXP_PYAT
 
 	if (PyFloat_Check(value)) {
 		double val = PyFloat_AsDouble(value);
-		if (val < 0.0)
+		if (val < 0.0) {
 			val = 0.0;
-		else if (val > 180.0)
+		}
+		else if (val > 180.0) {
 			val = 180.0;
+		}
 
 		self->m_lightobj->m_spotsize = (float)DEG2RAD(val);
 		return PY_SET_ATTR_SUCCESS;
@@ -408,10 +419,12 @@ int KX_LightObject::pyattr_set_spotblend(EXP_PyObjectPlus *self_v, const EXP_PYA
 
 	if (PyFloat_Check(value)) {
 		float val = (float)PyFloat_AsDouble(value);
-		if (val < 0.f)
+		if (val < 0.f) {
 			val = 0.f;
-		else if (val > 1.f)
+		}
+		else if (val > 1.f) {
 			val = 1.f;
+		}
 
 		self->m_lightobj->m_spotblend = val;
 		return PY_SET_ATTR_SUCCESS;
@@ -465,17 +478,25 @@ int KX_LightObject::pyattr_set_type(EXP_PyObjectPlus *self_v, const EXP_PYATTRIB
 
 	switch (val) {
 		case 0:
+		{
 			self->m_lightobj->m_type = self->m_lightobj->LIGHT_SPOT;
 			break;
+		}
 		case 1:
+		{
 			self->m_lightobj->m_type = self->m_lightobj->LIGHT_SUN;
 			break;
+		}
 		case 2:
+		{
 			self->m_lightobj->m_type = self->m_lightobj->LIGHT_NORMAL;
 			break;
+		}
 		case 3:
+		{
 			self->m_lightobj->m_type = self->m_lightobj->LIGHT_HEMI;
 			break;
+		}
 	}
 
 	return PY_SET_ATTR_SUCCESS;

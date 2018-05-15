@@ -43,8 +43,8 @@ BL_Texture::BL_Texture(MTex *mtex)
 	Tex *tex = m_mtex->tex;
 	EnvMap *env = tex->env;
 	m_isCubeMap = (env && tex->type == TEX_ENVMAP &&
-				  (env->stype == ENV_LOAD ||
-				  (env->stype == ENV_REALT && env->type == ENV_CUBE)));
+	               (env->stype == ENV_LOAD ||
+	                (env->stype == ENV_REALT && env->type == ENV_CUBE)));
 
 	Image *ima = tex->ima;
 	ImageUser& iuser = tex->iuser;

@@ -145,8 +145,8 @@ SG_Callbacks KX_Scene::m_callbacks = SG_Callbacks(
 KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
                    const std::string& sceneName,
                    Scene *scene,
-				   RAS_ICanvas *canvas,
-				   KX_NetworkMessageManager *messageManager) :
+                   RAS_ICanvas *canvas,
+                   KX_NetworkMessageManager *messageManager) :
 	m_keyboardmgr(nullptr),
 	m_mousemgr(nullptr),
 	m_physicsEnvironment(0),
@@ -573,7 +573,7 @@ KX_GameObject *KX_Scene::AddNodeReplicaObject(SG_Node *node, KX_GameObject *game
  * have called 'GameObject::ReParentLogic' for each object this
  * hierarchy that's because first ALL bricks must exist in the new
  * replica of the hierarchy in order to make cross-links work properly.
- * 
+ *
  * It is VERY important that the order of sensors and actuators in
  * the replicated object is preserved: it is used to reconnect the logic.
  * This method is more robust then using the bricks name in case of complex
@@ -595,7 +595,7 @@ void KX_Scene::ReplicateLogic(KX_GameObject *newobj)
 		const SCA_ActuatorList linkedactuators = cont->GetLinkedActuators();
 
 		/* Disconnect the sensors and actuators
-		 *do it directly on the list at this controller is not connected to anything at this stage. */
+		 * do it directly on the list at this controller is not connected to anything at this stage. */
 		cont->GetLinkedSensors().clear();
 		cont->GetLinkedActuators().clear();
 
@@ -753,7 +753,7 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
 
 		const mt::vec3 offset(group->dupli_ofs);
 		const mt::vec3 newpos = groupobj->NodeGetWorldPosition() +
-		                  newscale * (groupobj->NodeGetWorldOrientation() * (gameobj->NodeGetWorldPosition() - offset));
+		                        newscale * (groupobj->NodeGetWorldOrientation() * (gameobj->NodeGetWorldPosition() - offset));
 		replica->NodeSetLocalPosition(newpos);
 		// Set the orientation after position for softbody.
 		const mt::mat3 newori = groupobj->NodeGetWorldOrientation() * gameobj->NodeGetWorldOrientation();
@@ -1155,7 +1155,7 @@ void KX_Scene::CalculateVisibleMeshes(std::vector<KX_GameObject *>& objects, con
 }
 
 void KX_Scene::DrawDebug(RAS_DebugDraw& debugDraw, const std::vector<KX_GameObject *>& objects,
-		KX_DebugOption showBoundingBox, KX_DebugOption showArmatures)
+                         KX_DebugOption showBoundingBox, KX_DebugOption showArmatures)
 {
 	if (showBoundingBox != KX_DebugOption::DISABLE) {
 		for (KX_GameObject *gameobj : objects) {
@@ -1170,14 +1170,14 @@ void KX_Scene::DrawDebug(RAS_DebugDraw& debugDraw, const std::vector<KX_GameObje
 
 			// Render center in red, green and blue.
 			debugDraw.DrawLine(orientation * (center * scale) + position,
-				orientation * ((center + mt::axisX3) * scale) + position,
-				mt::vec4(1.0f, 0.0f, 0.0f, 1.0f));
+			                   orientation * ((center + mt::axisX3) * scale) + position,
+			                   mt::vec4(1.0f, 0.0f, 0.0f, 1.0f));
 			debugDraw.DrawLine(orientation * (center * scale) + position,
-				orientation * ((center + mt::axisY3) * scale)  + position,
-				mt::vec4(0.0f, 1.0f, 0.0f, 1.0f));
+			                   orientation * ((center + mt::axisY3) * scale)  + position,
+			                   mt::vec4(0.0f, 1.0f, 0.0f, 1.0f));
 			debugDraw.DrawLine(orientation * (center * scale) + position,
-				orientation * ((center + mt::axisZ3) * scale)  + position,
-				mt::vec4(0.0f, 0.0f, 1.0f, 1.0f));
+			                   orientation * ((center + mt::axisZ3) * scale)  + position,
+			                   mt::vec4(0.0f, 0.0f, 1.0f, 1.0f));
 		}
 	}
 
@@ -1862,7 +1862,7 @@ static int Map_SetItem(PyObject *self_v, PyObject *key, PyObject *val)
 		}
 	}
 	else {
-		// ob["key"] = value 
+		// ob["key"] = value
 		int set = 0;
 
 		// Lazy init.

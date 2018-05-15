@@ -65,66 +65,65 @@ extern "C" {
 #include <fstream>
 
 /* prototype */
-void BL_ConvertTextProperty(Object* object, KX_FontObject* fontobj,SCA_TimeEventManager* timemgr,SCA_IScene* scene, bool isInActiveLayer);
+void BL_ConvertTextProperty(Object *object, KX_FontObject *fontobj, SCA_TimeEventManager *timemgr, SCA_IScene *scene, bool isInActiveLayer);
 
-void BL_ConvertProperties(Object* object,KX_GameObject* gameobj,SCA_TimeEventManager* timemgr,SCA_IScene* scene, bool isInActiveLayer)
+void BL_ConvertProperties(Object *object, KX_GameObject *gameobj, SCA_TimeEventManager *timemgr, SCA_IScene *scene, bool isInActiveLayer)
 {
-	
-	bProperty* prop = (bProperty*)object->prop.first;
-	EXP_Value* propval;
+
+	bProperty *prop = (bProperty *)object->prop.first;
+	EXP_Value *propval;
 	bool show_debug_info;
 
 	while (prop) {
 		propval = nullptr;
-		show_debug_info = bool (prop->flag & PROP_DEBUG);
+		show_debug_info = bool(prop->flag & PROP_DEBUG);
 
 		switch (prop->type) {
 			case GPROP_BOOL:
 			{
 				propval = new EXP_BoolValue((bool)(prop->data != 0));
-				gameobj->SetProperty(prop->name,propval);
+				gameobj->SetProperty(prop->name, propval);
 				//promp->poin= &prop->data;
 				break;
 			}
 			case GPROP_INT:
 			{
 				propval = new EXP_IntValue((int)prop->data);
-				gameobj->SetProperty(prop->name,propval);
+				gameobj->SetProperty(prop->name, propval);
 				break;
 			}
 			case GPROP_FLOAT:
 			{
 				//prop->poin= &prop->data;
-				float floatprop = *((float*)&prop->data);
+				float floatprop = *((float *)&prop->data);
 				propval = new EXP_FloatValue(floatprop);
-				gameobj->SetProperty(prop->name,propval);
+				gameobj->SetProperty(prop->name, propval);
+				break;
 			}
-			break;
 			case GPROP_STRING:
 			{
 				//prop->poin= callocN(MAX_PROPSTRING, "property string");
-				propval = new EXP_StringValue((char*)prop->poin,"");
-				gameobj->SetProperty(prop->name,propval);
+				propval = new EXP_StringValue((char *)prop->poin, "");
+				gameobj->SetProperty(prop->name, propval);
 				break;
 			}
 			case GPROP_TIME:
 			{
-				float floatprop = *((float*)&prop->data);
+				float floatprop = *((float *)&prop->data);
 
-				EXP_Value* timeval = new EXP_FloatValue(floatprop);
-				// set a subproperty called 'timer' so that 
-				// we can register the replica of this property 
+				EXP_Value *timeval = new EXP_FloatValue(floatprop);
+				// set a subproperty called 'timer' so that
+				// we can register the replica of this property
 				// at the time a game object is replicated (AddObjectActuator triggers this)
 				EXP_Value *bval = new EXP_BoolValue(true);
-				timeval->SetProperty("timer",bval);
+				timeval->SetProperty("timer", bval);
 				bval->Release();
-				if (isInActiveLayer)
-				{
+				if (isInActiveLayer) {
 					timemgr->AddTimeProperty(timeval);
 				}
-				
+
 				propval = timeval;
-				gameobj->SetProperty(prop->name,timeval);
+				gameobj->SetProperty(prop->name, timeval);
 
 			}
 			default:
@@ -132,30 +131,28 @@ void BL_ConvertProperties(Object* object,KX_GameObject* gameobj,SCA_TimeEventMan
 				// todo make an assert etc.
 			}
 		}
-		
-		if (propval)
-		{
-			if (show_debug_info && isInActiveLayer)
-			{
-				scene->AddDebugProperty(gameobj,prop->name);
+
+		if (propval) {
+			if (show_debug_info && isInActiveLayer) {
+				scene->AddDebugProperty(gameobj, prop->name);
 			}
 			// done with propval, release it
 			propval->Release();
 		}
-		
+
 #ifdef WITH_PYTHON
 		/* Warn if we double up on attributes, this isn't quite right since it wont find inherited attributes however there arnt many */
 		for (PyAttributeDef *attrdef = KX_GameObject::Attributes; !attrdef->m_name.empty(); attrdef++) {
 			if (prop->name == attrdef->m_name) {
 				CM_Warning("user defined property name \"" << prop->name << "\" is also a python attribute for object \""
-					<< object->id.name+2 << "\". Use ob[\"" << prop->name << "\"] syntax to avoid conflict");
+				                                           << object->id.name + 2 << "\". Use ob[\"" << prop->name << "\"] syntax to avoid conflict");
 				break;
 			}
 		}
 		for (PyMethodDef *methdef = KX_GameObject::Methods; methdef->ml_name; methdef++) {
-			if (strcmp(prop->name, methdef->ml_name)==0) {
+			if (strcmp(prop->name, methdef->ml_name) == 0) {
 				CM_Warning("user defined property name \"" << prop->name << "\" is also a python method for object \""
-					<< object->id.name+2 << "\". Use ob[\"" << prop->name << "\"] syntax to avoid conflict");
+				                                           << object->id.name + 2 << "\". Use ob[\"" << prop->name << "\"] syntax to avoid conflict");
 				break;
 			}
 		}
@@ -165,30 +162,32 @@ void BL_ConvertProperties(Object* object,KX_GameObject* gameobj,SCA_TimeEventMan
 		prop = prop->next;
 	}
 	// check if state needs to be debugged
-	if (object->scaflag & OB_DEBUGSTATE && isInActiveLayer)
-	{
+	if (object->scaflag & OB_DEBUGSTATE && isInActiveLayer) {
 		//  reserve name for object state
 		scene->AddDebugProperty(gameobj, "__state__");
 	}
 
 	/* Font Objects need to 'copy' the Font Object data body to ["Text"] */
-	if (object->type == OB_FONT)
-	{
+	if (object->type == OB_FONT) {
 		BL_ConvertTextProperty(object, (KX_FontObject *)gameobj, timemgr, scene, isInActiveLayer);
 	}
 }
 
-void BL_ConvertTextProperty(Object* object, KX_FontObject* fontobj,SCA_TimeEventManager* timemgr,SCA_IScene* scene, bool isInActiveLayer)
+void BL_ConvertTextProperty(Object *object, KX_FontObject *fontobj, SCA_TimeEventManager *timemgr, SCA_IScene *scene, bool isInActiveLayer)
 {
-	EXP_Value* tprop = fontobj->GetProperty("Text");
-	if (!tprop) return;
-	bProperty* prop = BKE_bproperty_object_get(object, "Text");
-	if (!prop) return;
+	EXP_Value *tprop = fontobj->GetProperty("Text");
+	if (!tprop) {
+		return;
+	}
+	bProperty *prop = BKE_bproperty_object_get(object, "Text");
+	if (!prop) {
+		return;
+	}
 
 	Curve *curve = static_cast<Curve *>(object->data);
 	const std::string str = curve->str;
 	std::stringstream stream(str);
-	EXP_Value* propval = nullptr;
+	EXP_Value *propval = nullptr;
 
 	switch (prop->type) {
 		case GPROP_BOOL:
@@ -227,10 +226,9 @@ void BL_ConvertTextProperty(Object* object, KX_FontObject* fontobj,SCA_TimeEvent
 			// we can register the replica of this property
 			// at the time a game object is replicated (AddObjectActuator triggers this)
 			EXP_Value *bval = new EXP_BoolValue(true);
-			propval->SetProperty("timer",bval);
+			propval->SetProperty("timer", bval);
 			bval->Release();
-			if (isInActiveLayer)
-			{
+			if (isInActiveLayer) {
 				timemgr->AddTimeProperty(propval);
 			}
 		}

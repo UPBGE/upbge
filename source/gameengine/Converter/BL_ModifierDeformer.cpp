@@ -101,20 +101,25 @@ void BL_ModifierDeformer::ProcessReplica()
 
 bool BL_ModifierDeformer::HasCompatibleDeformer(Object *ob)
 {
-	if (!ob->modifiers.first)
+	if (!ob->modifiers.first) {
 		return false;
+	}
 	// soft body cannot use mesh modifiers
-	if ((ob->gameflag & OB_SOFT_BODY) != 0)
+	if ((ob->gameflag & OB_SOFT_BODY) != 0) {
 		return false;
+	}
 	ModifierData *md;
 	for (md = (ModifierData *)ob->modifiers.first; md; md = md->next) {
-		if (modifier_dependsOnTime(md))
+		if (modifier_dependsOnTime(md)) {
 			continue;
-		if (!(md->mode & eModifierMode_Realtime))
+		}
+		if (!(md->mode & eModifierMode_Realtime)) {
 			continue;
+		}
 		/* armature modifier are handled by SkinDeformer, not ModifierDeformer */
-		if (md->type == eModifierType_Armature)
+		if (md->type == eModifierType_Armature) {
 			continue;
+		}
 		return true;
 	}
 	return false;
@@ -122,12 +127,14 @@ bool BL_ModifierDeformer::HasCompatibleDeformer(Object *ob)
 
 bool BL_ModifierDeformer::HasArmatureDeformer(Object *ob)
 {
-	if (!ob->modifiers.first)
+	if (!ob->modifiers.first) {
 		return false;
+	}
 
 	ModifierData *md = (ModifierData *)ob->modifiers.first;
-	if (md->type == eModifierType_Armature)
+	if (md->type == eModifierType_Armature) {
 		return true;
+	}
 
 	return false;
 }
@@ -146,7 +153,7 @@ bool BL_ModifierDeformer::Update(void)
 			Mesh *oldmesh = (Mesh *)blendobj->data;
 			blendobj->data = m_bmesh;
 			/* execute the modifiers */
-			DerivedMesh *dm = mesh_create_derived_no_virtual(m_scene, blendobj, (float (*)[3])m_transverts.data(), CD_MASK_MESH);
+			DerivedMesh *dm = mesh_create_derived_no_virtual(m_scene, blendobj, (float(*)[3])m_transverts.data(), CD_MASK_MESH);
 			/* restore object data */
 			blendobj->data = oldmesh;
 			/* free the current derived mesh and replace, (dm should never be nullptr) */

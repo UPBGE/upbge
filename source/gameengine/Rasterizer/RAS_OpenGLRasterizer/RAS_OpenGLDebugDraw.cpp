@@ -250,7 +250,7 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_
 	rasty->SetMatrixMode(RAS_Rasterizer::RAS_PROJECTION);
 	rasty->PushMatrix();
 	rasty->LoadIdentity();
-	
+
 	glOrtho(0, width, height, 0, -100, 100);
 
 	const std::vector<RAS_DebugDraw::Box2d>& boxes2d = debugDraw->m_boxes2d;

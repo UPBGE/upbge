@@ -322,8 +322,7 @@ bool KX_NavMeshObject::BuildNavMesh()
 	int nverts = 0, npolys = 0, ndvertsuniq = 0, ndtris = 0;
 	int vertsPerPoly = 0;
 	if (!BuildVertIndArrays(vertices, nverts, polys, npolys, dmeshes, dvertices, ndvertsuniq, dtris, ndtris, vertsPerPoly) ||
-		vertsPerPoly < 3)
-	{
+	    vertsPerPoly < 3) {
 		CM_Error("can't build navigation mesh data for object: " << m_name);
 		if (vertices) {
 			delete[] vertices;
@@ -606,7 +605,7 @@ KX_NavMeshObject::PathType KX_NavMeshObject::FindPath(const mt::vec3& from, cons
 		if (npolys > 0) {
 			float(*points)[3] = (float(*)[3])BLI_array_alloca(points, maxPathLen);
 			const unsigned int pathLen = m_navMesh->findStraightPath(localfrom.Data(), localto.Data(), polys, npolys,
-					&points[0][0], maxPathLen);
+			                                                         &points[0][0], maxPathLen);
 
 			path.resize(pathLen);
 			for (unsigned int i = 0; i < pathLen; ++i) {

@@ -35,8 +35,8 @@
 
 
 #ifdef _MSC_VER
-   /* This warning tells us about truncation of __long__ stl-generated names.
-    * It can occasionally cause DevStudio to have internal compiler warnings. */
+/* This warning tells us about truncation of __long__ stl-generated names.
+ * It can occasionally cause DevStudio to have internal compiler warnings. */
 #  pragma warning( disable:4786 )
 #endif
 
@@ -46,10 +46,10 @@
 #include "EXP_IntValue.h"
 
 
-SCA_MouseManager::SCA_MouseManager(SCA_LogicManager* logicmgr,
-								   SCA_IInputDevice* mousedev)
-	:	SCA_EventManager(logicmgr, MOUSE_EVENTMGR),
-		m_mousedevice (mousedev)
+SCA_MouseManager::SCA_MouseManager(SCA_LogicManager *logicmgr,
+                                   SCA_IInputDevice *mousedev)
+	:SCA_EventManager(logicmgr, MOUSE_EVENTMGR),
+	m_mousedevice(mousedev)
 {
 }
 
@@ -61,7 +61,7 @@ SCA_MouseManager::~SCA_MouseManager()
 
 
 
-SCA_IInputDevice* SCA_MouseManager::GetInputDevice()
+SCA_IInputDevice *SCA_MouseManager::GetInputDevice()
 {
 	return m_mousedevice;
 }
@@ -70,25 +70,23 @@ SCA_IInputDevice* SCA_MouseManager::GetInputDevice()
 
 void SCA_MouseManager::NextFrame()
 {
-	if (m_mousedevice)
-	{
+	if (m_mousedevice) {
 		for (SCA_ISensor *sensor : m_sensors) {
-			SCA_MouseSensor* mousesensor = static_cast<SCA_MouseSensor *>(sensor);
+			SCA_MouseSensor *mousesensor = static_cast<SCA_MouseSensor *>(sensor);
 			// (0,0) is the Upper Left corner in our local window
 			// coordinates
-			if (!mousesensor->IsSuspended())
-			{
-				const SCA_InputEvent& event1 = 
+			if (!mousesensor->IsSuspended()) {
+				const SCA_InputEvent& event1 =
 					m_mousedevice->GetInput(SCA_IInputDevice::MOUSEX);
-				const SCA_InputEvent& event2 = 
+				const SCA_InputEvent& event2 =
 					m_mousedevice->GetInput(SCA_IInputDevice::MOUSEY);
 
 				int mx = event1.m_values[event1.m_values.size() - 1];
 				int my = event2.m_values[event2.m_values.size() - 1];
-				
+
 				mousesensor->setX(mx);
 				mousesensor->setY(my);
-				
+
 				mousesensor->Activate(m_logicmgr);
 			}
 		}

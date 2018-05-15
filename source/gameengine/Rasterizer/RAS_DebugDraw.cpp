@@ -46,12 +46,12 @@ RAS_DebugDraw::Aabb::Aabb(const mt::vec3& pos, const mt::mat3& rot, const mt::ve
 	const mt::vec3 diag = (max - min) * 0.5f;
 	const mt::vec3 center = (min + max) * 0.5f;
 
-	const mt::mat3x4 trans(rot, rot * center + pos, diag);
+	const mt::mat3x4 trans(rot, rot *center + pos, diag);
 	trans.PackFromAffineTransform(m_mat);
 }
 
 RAS_DebugDraw::Frustum::Frustum(const mt::mat4& persmat, const mt::vec4& insideColor, const mt::vec4& outsideColor,
-		const mt::vec4& wireColor)
+                                const mt::vec4& wireColor)
 {
 	persmat.Pack(m_persMat);
 	insideColor.Pack(m_insideColor);
@@ -88,7 +88,7 @@ void RAS_DebugDraw::DrawLine(const mt::vec3 &from, const mt::vec3 &to, const mt:
 }
 
 void RAS_DebugDraw::DrawAabb(const mt::vec3& pos, const mt::mat3& rot,
-		const mt::vec3& min, const mt::vec3& max, const mt::vec4& color)
+                             const mt::vec3& min, const mt::vec3& max, const mt::vec4& color)
 {
 	m_aabbs.emplace_back(pos, rot, min, max, color);
 }
@@ -96,7 +96,7 @@ void RAS_DebugDraw::DrawAabb(const mt::vec3& pos, const mt::mat3& rot,
 void RAS_DebugDraw::DrawCameraFrustum(const mt::mat4& persmat)
 {
 	m_frustums.emplace_back(persmat.Inverse(), mt::vec4(0.4f, 0.4f, 0.4f, 0.4f), mt::vec4(0.0f, 0.0f, 0.0f, 0.4f),
-		mt::vec4(0.8f, 0.5f, 0.0f, 1.0f));
+	                        mt::vec4(0.8f, 0.5f, 0.0f, 1.0f));
 }
 
 void RAS_DebugDraw::RenderBox2d(const mt::vec2& pos, const mt::vec2& size, const mt::vec4& color)

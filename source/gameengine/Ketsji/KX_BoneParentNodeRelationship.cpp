@@ -70,7 +70,7 @@ bool KX_BoneParentRelation::UpdateChildCoordinates(SG_Node *child, const SG_Node
 
 				// Get the child's transform, and the bone matrix.
 				const mt::mat3x4 trans = ptrans *
-						mt::mat3x4(crot, cpos + mt::vec3(0.0f, armature->GetBoneLength(m_bone), 0.0f), cscale);
+				                         mt::mat3x4(crot, cpos + mt::vec3(0.0f, armature->GetBoneLength(m_bone), 0.0f), cscale);
 
 				// Recompute the child transform components from the transform.
 				const mt::vec3 scale = trans.ScaleVector3D();

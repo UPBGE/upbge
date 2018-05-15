@@ -94,11 +94,11 @@ public:
 		}
 	};
 
-	SG_QList() : SG_DList()
+	SG_QList() :SG_DList()
 	{
 		m_fqlink = m_bqlink = this;
 	}
-	SG_QList(const SG_QList& other) : SG_DList()
+	SG_QList(const SG_QList& other) :SG_DList()
 	{
 		m_fqlink = m_bqlink = this;
 	}

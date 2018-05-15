@@ -34,47 +34,41 @@
 #include "KX_VisibilityActuator.h"
 #include "KX_GameObject.h"
 
-KX_VisibilityActuator::KX_VisibilityActuator(
-	SCA_IObject* gameobj,
-	bool visible,
-	bool occlusion,
-	bool recursive
-	) 
-	: SCA_IActuator(gameobj, KX_ACT_VISIBILITY),
-	  m_visible(visible),
-	  m_occlusion(occlusion),
-	  m_recursive(recursive)
+KX_VisibilityActuator::KX_VisibilityActuator(SCA_IObject *gameobj,
+                                             bool visible,
+                                             bool occlusion,
+                                             bool recursive)
+	:SCA_IActuator(gameobj, KX_ACT_VISIBILITY),
+	m_visible(visible),
+	m_occlusion(occlusion),
+	m_recursive(recursive)
 {
 	// intentionally empty
 }
 
-KX_VisibilityActuator::~KX_VisibilityActuator(
-	void
-	)
+KX_VisibilityActuator::~KX_VisibilityActuator(void)
 {
 	// intentionally empty
 }
 
-EXP_Value*
-KX_VisibilityActuator::GetReplica(
-	void
-	)
+EXP_Value *KX_VisibilityActuator::GetReplica(void)
 {
-	KX_VisibilityActuator* replica = new KX_VisibilityActuator(*this);
+	KX_VisibilityActuator *replica = new KX_VisibilityActuator(*this);
 	replica->ProcessReplica();
 	return replica;
 }
 
-bool
-KX_VisibilityActuator::Update()
+bool KX_VisibilityActuator::Update()
 {
 	bool bNegativeEvent = IsNegativeEvent();
-	
-	RemoveAllEvents();
-	if (bNegativeEvent) return false;
 
-	KX_GameObject *obj = (KX_GameObject*) GetParent();
-	
+	RemoveAllEvents();
+	if (bNegativeEvent) {
+		return false;
+	}
+
+	KX_GameObject *obj = (KX_GameObject *)GetParent();
+
 	obj->SetVisible(m_visible, m_recursive);
 	obj->SetOccluder(m_occlusion, m_recursive);
 
@@ -101,19 +95,19 @@ PyTypeObject KX_VisibilityActuator::Type = {
 	0,
 	0,
 	py_base_repr,
-	0,0,0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0,
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0,
 	Methods,
 	0,
 	0,
 	&SCA_IActuator::Type,
-	0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0,
 	py_base_new
 };
 
 PyMethodDef KX_VisibilityActuator::Methods[] = {
-	{nullptr,nullptr} //Sentinel
+	{nullptr, nullptr} //Sentinel
 };
 
 PyAttributeDef KX_VisibilityActuator::Attributes[] = {

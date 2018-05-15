@@ -106,7 +106,7 @@ inline RAS_OffScreen *RAS_Rasterizer::OffScreens::GetOffScreen(OffScreenType typ
 
 		// Check if the off screen type can support samples.
 		const bool sampleofs = type == RAS_OFFSCREEN_EYE_LEFT0 ||
-							   type == RAS_OFFSCREEN_EYE_RIGHT0;
+		                       type == RAS_OFFSCREEN_EYE_RIGHT0;
 
 		/* Some GPUs doesn't support high multisample value with GL_RGBA16F or GL_RGBA32F.
 		 * To avoid crashing we check if the off screen was created and if not decremente
@@ -459,7 +459,7 @@ void RAS_Rasterizer::DrawOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *offScreen
 }
 
 void RAS_Rasterizer::DrawStereoOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *leftOffScreen, RAS_OffScreen *rightOffScreen,
-										 StereoMode stereoMode)
+                                         StereoMode stereoMode)
 {
 	if (leftOffScreen->GetSamples() > 0) {
 		// Then leftOffScreen == RAS_OFFSCREEN_EYE_LEFT0.
@@ -528,8 +528,7 @@ RAS_Rect RAS_Rasterizer::GetRenderArea(RAS_ICanvas *canvas, StereoMode stereoMod
 {
 	RAS_Rect area;
 	// only above/below stereo method needs viewport adjustment
-	switch (stereoMode)
-	{
+	switch (stereoMode) {
 		case RAS_STEREO_ABOVEBELOW:
 		{
 			switch (eye) {
@@ -582,8 +581,7 @@ RAS_Rect RAS_Rasterizer::GetRenderArea(RAS_ICanvas *canvas, StereoMode stereoMod
 		}
 		case RAS_STEREO_SIDEBYSIDE:
 		{
-			switch (eye)
-			{
+			switch (eye) {
 				case RAS_STEREO_LEFTEYE:
 				{
 					// Left half of window
@@ -702,7 +700,7 @@ void RAS_Rasterizer::IndexPrimitivesText(RAS_MeshSlot *ms)
 			mat[14] -= spacing[2];
 		}
 		RenderText3D(textUser->GetFontId(), textUser->GetTexts()[i], textUser->GetSize(), textUser->GetDpi(),
-					 textUser->GetColor().Data(), mat, textUser->GetAspect());
+		             textUser->GetColor().Data(), mat, textUser->GetAspect());
 	}
 }
 
@@ -715,7 +713,7 @@ void RAS_Rasterizer::SetProjectionMatrix(const mt::mat4 & mat)
 }
 
 mt::mat4 RAS_Rasterizer::GetFrustumMatrix(StereoMode stereoMode, StereoEye eye, float focallength,
-		float left, float right, float bottom, float top, float frustnear, float frustfar)
+                                          float left, float right, float bottom, float top, float frustnear, float frustfar)
 {
 	// correction for stereo
 	if (stereoMode > RAS_STEREO_NOSTEREO) {
@@ -759,13 +757,12 @@ mt::mat4 RAS_Rasterizer::GetFrustumMatrix(float left, float right, float bottom,
 	return mt::mat4::Perspective(left, right, bottom, top, frustnear, frustfar);
 }
 
-mt::mat4 RAS_Rasterizer::GetOrthoMatrix(
-    float left,
-    float right,
-    float bottom,
-    float top,
-    float frustnear,
-    float frustfar)
+mt::mat4 RAS_Rasterizer::GetOrthoMatrix(float left,
+                                        float right,
+                                        float bottom,
+                                        float top,
+                                        float frustnear,
+                                        float frustfar)
 {
 	return mt::mat4::Ortho(left, right, bottom, top, frustnear, frustfar);
 }
@@ -792,14 +789,14 @@ mt::mat4 RAS_Rasterizer::GetViewMatrix(StereoMode stereoMode, StereoEye eye, con
 			case RAS_STEREO_LEFTEYE:
 			{
 				// translate to left by half the eye distance
-				const mt::mat3x4 transform(mt::mat3::Identity(), -eyeline * m_eyeseparation / 2.0f);
+				const mt::mat3x4 transform(mt::mat3::Identity(), -eyeline *m_eyeseparation / 2.0f);
 				trans *= transform;
 				break;
 			}
 			case RAS_STEREO_RIGHTEYE:
 			{
 				// translate to right by half the eye distance
-				const mt::mat3x4 transform(mt::mat3::Identity(), eyeline * m_eyeseparation / 2.0f);
+				const mt::mat3x4 transform(mt::mat3::Identity(), eyeline *m_eyeseparation / 2.0f);
 				trans *= transform;
 				break;
 			}
@@ -820,7 +817,7 @@ void RAS_Rasterizer::SetViewMatrix(const mt::mat4& viewmat, const mt::vec3& pos,
 		const bool negX = (scale[0] < 0.0f);
 		const bool negY = (scale[1] < 0.0f);
 		const bool negZ = (scale[2] < 0.0f);
-// 		m_viewmatrix.tscale((negX) ? -1.0f : 1.0f, (negY) ? -1.0f : 1.0f, (negZ) ? -1.0f : 1.0f, 1.0f);
+//      m_viewmatrix.tscale((negX) ? -1.0f : 1.0f, (negY) ? -1.0f : 1.0f, (negZ) ? -1.0f : 1.0f, 1.0f);
 		// TODO
 		m_camnegscale = negX ^ negY ^ negZ;
 	}
@@ -886,9 +883,9 @@ void RAS_Rasterizer::SetLines(bool enable)
 }
 
 void RAS_Rasterizer::SetSpecularity(float specX,
-                                          float specY,
-                                          float specZ,
-                                          float specval)
+                                    float specY,
+                                    float specZ,
+                                    float specval)
 {
 	m_impl->SetSpecularity(specX, specY, specZ, specval);
 }
@@ -1210,8 +1207,9 @@ void RAS_Rasterizer::EnableLights()
 
 void RAS_Rasterizer::DisableLights()
 {
-	if (m_lastlighting == false)
+	if (m_lastlighting == false) {
 		return;
+	}
 
 	Disable(RAS_Rasterizer::RAS_LIGHTING);
 	Disable(RAS_Rasterizer::RAS_COLOR_MATERIAL);
@@ -1383,9 +1381,8 @@ void RAS_Rasterizer::DisableForText()
 	m_impl->DisableForText();
 }
 
-void RAS_Rasterizer::RenderText3D(
-        int fontid, const std::string& text, int size, int dpi,
-        const float color[4], const float mat[16], float aspect)
+void RAS_Rasterizer::RenderText3D(int fontid, const std::string& text, int size, int dpi,
+                                  const float color[4], const float mat[16], float aspect)
 {
 	m_impl->RenderText3D(fontid, text, size, dpi, color, mat, aspect);
 }

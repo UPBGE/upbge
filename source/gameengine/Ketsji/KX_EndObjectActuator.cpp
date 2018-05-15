@@ -43,9 +43,9 @@
 #include "KX_GameObject.h"
 
 KX_EndObjectActuator::KX_EndObjectActuator(KX_GameObject *gameobj,
-                                                   KX_Scene *scene):
-    SCA_IActuator(gameobj, KX_ACT_END_OBJECT),
-    m_scene(scene)
+                                           KX_Scene *scene) :
+	SCA_IActuator(gameobj, KX_ACT_END_OBJECT),
+	m_scene(scene)
 {
 	// intentionally empty
 } /* End of constructor */
@@ -53,7 +53,7 @@ KX_EndObjectActuator::KX_EndObjectActuator(KX_GameObject *gameobj,
 
 
 KX_EndObjectActuator::~KX_EndObjectActuator()
-{ 
+{
 	// there's nothing to be done here, really....
 } /* end of destructor */
 
@@ -65,20 +65,23 @@ bool KX_EndObjectActuator::Update()
 	bool bNegativeEvent = IsNegativeEvent();
 	RemoveAllEvents();
 
-	if (bNegativeEvent)
+	if (bNegativeEvent) {
 		return false; // do nothing on negative events
+	}
 	m_scene->DelayedRemoveObject(static_cast<KX_GameObject *>(GetParent()));
-	
+
 	return false;
 }
 
 
 
-EXP_Value* KX_EndObjectActuator::GetReplica()
+EXP_Value *KX_EndObjectActuator::GetReplica()
 {
-	KX_EndObjectActuator* replica = 
+	KX_EndObjectActuator *replica =
 		new KX_EndObjectActuator(*this);
-	if (replica == nullptr) return nullptr;
+	if (replica == nullptr) {
+		return nullptr;
+	}
 
 	replica->ProcessReplica();
 	return replica;
@@ -106,23 +109,23 @@ PyTypeObject KX_EndObjectActuator::Type = {
 	0,
 	0,
 	py_base_repr,
-	0,0,0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0,
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0,
 	Methods,
 	0,
 	0,
 	&SCA_IActuator::Type,
-	0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0,
 	py_base_new
 };
 
 PyMethodDef KX_EndObjectActuator::Methods[] = {
-	{nullptr,nullptr} //Sentinel
+	{nullptr, nullptr} //Sentinel
 };
 
 PyAttributeDef KX_EndObjectActuator::Attributes[] = {
-	EXP_PYATTRIBUTE_NULL	//Sentinel
+	EXP_PYATTRIBUTE_NULL    //Sentinel
 };
 
 #endif // WITH_PYTHON

@@ -54,20 +54,19 @@ void VideoBase::init(short width, short height)
 
 
 // process video frame
-void VideoBase::process (BYTE *sample)
+void VideoBase::process(BYTE *sample)
 {
 	// if scale was changed
-	if (m_scaleChange)
+	if (m_scaleChange) {
 		// reset image
 		init(m_orgSize[0], m_orgSize[1]);
+	}
 	// if image is allocated and is able to store new image
-	if (m_image != nullptr && !m_avail)
-	{
+	if (m_image != nullptr && !m_avail) {
 		// filters used
 		// convert video format to image
-		switch (m_format)
-		{
-		case RGBA32:
+		switch (m_format) {
+			case RGBA32:
 			{
 				FilterRGBA32 filtRGBA;
 				// use filter object for format to convert image
@@ -75,7 +74,7 @@ void VideoBase::process (BYTE *sample)
 				// finish
 				break;
 			}
-		case RGB24:
+			case RGB24:
 			{
 				FilterRGB24 filtRGB;
 				// use filter object for format to convert image
@@ -83,7 +82,7 @@ void VideoBase::process (BYTE *sample)
 				// finish
 				break;
 			}
-		case YV12:
+			case YV12:
 			{
 				// use filter object for format to convert image
 				FilterYV12 filtYUV;
@@ -92,8 +91,10 @@ void VideoBase::process (BYTE *sample)
 				// finish
 				break;
 			}
-		case None:
-			break; /* assert? */
+			case None:
+			{
+				break; /* assert? */
+			}
 		}
 	}
 }
@@ -111,26 +112,51 @@ ExpDesc SourceVideoCreationDesc(SourceVideoCreation, "SourceVideo object was not
 void Video_open(VideoBase *self, char *file, short captureID)
 {
 	// if file is empty, throw exception
-	if (file == nullptr) THRWEXCP(SourceVideoEmpty, S_OK);
+	if (file == nullptr) {
+		THRWEXCP(SourceVideoEmpty, S_OK);
+	}
 
 	// open video file or capture device
-	if (captureID >= 0) 
+	if (captureID >= 0) {
 		self->openCam(file, captureID);
-	else 
+	}
+	else {
 		self->openFile(file);
+	}
 }
 
 
 // play video
 PyObject *Video_play(PyImage *self)
-{ if (getVideo(self)->play()) Py_RETURN_TRUE; else Py_RETURN_FALSE; }
+{
+	if (getVideo(self)->play()) {
+		Py_RETURN_TRUE;
+	}
+	else {
+		Py_RETURN_FALSE;
+	}
+}
 
 // pause video
 PyObject *Video_pause(PyImage *self)
-{ if (getVideo(self)->pause()) Py_RETURN_TRUE; else Py_RETURN_FALSE; }
+{
+	if (getVideo(self)->pause()) {
+		Py_RETURN_TRUE;
+	}
+	else {
+		Py_RETURN_FALSE;
+	}
+}
 
 PyObject *Video_stop(PyImage *self)
-{ if (getVideo(self)->stop()) Py_RETURN_TRUE; else Py_RETURN_FALSE; }
+{
+	if (getVideo(self)->stop()) {
+		Py_RETURN_TRUE;
+	}
+	else {
+		Py_RETURN_FALSE;
+	}
+}
 
 // get status
 PyObject *Video_getStatus(PyImage *self, void *closure)
@@ -162,12 +188,15 @@ PyObject *Video_refresh(PyImage *self, PyObject *args)
 			else {
 				// ready to get the image into our buffer
 				try {
-					if (mode == nullptr || !strcmp(mode, "RGBA"))
+					if (mode == nullptr || !strcmp(mode, "RGBA")) {
 						format = GL_RGBA;
-					else if (!strcmp(mode, "BGRA"))
+					}
+					else if (!strcmp(mode, "BGRA")) {
 						format = GL_BGRA;
-					else
-						THRWEXCP(InvalidImageMode,S_OK);
+					}
+					else {
+						THRWEXCP(InvalidImageMode, S_OK);
+					}
 
 					if (!self->m_image->loadImage((unsigned int *)buffer.buf, buffer.len, false, format, ts)) {
 						PyErr_SetString(PyExc_TypeError, "Could not load the buffer, perhaps size is not compatible");
@@ -178,12 +207,12 @@ PyObject *Video_refresh(PyImage *self, PyObject *args)
 				}
 			}
 			PyBuffer_Release(&buffer);
-			if (PyErr_Occurred())
+			if (PyErr_Occurred()) {
 				return nullptr;
+			}
 		}
 	}
-	else
-	{
+	else {
 		return nullptr;
 	}
 	getVideo(self)->refresh();
@@ -195,7 +224,7 @@ PyObject *Video_refresh(PyImage *self, PyObject *args)
 PyObject *Video_getRange(PyImage *self, void *closure)
 {
 	return Py_BuildValue("[ff]", getVideo(self)->getRange()[0],
-		getVideo(self)->getRange()[1]);
+	                     getVideo(self)->getRange()[1]);
 }
 
 // set range
@@ -205,28 +234,28 @@ int Video_setRange(PyImage *self, PyObject *value, void *closure)
 	if (value == nullptr || !PySequence_Check(value) || PySequence_Size(value) != 2 ||
 	    /* XXX - this is incorrect if the sequence is not a list/tuple! */
 	    !PyFloat_Check(PySequence_Fast_GET_ITEM(value, 0)) ||
-	    !PyFloat_Check(PySequence_Fast_GET_ITEM(value, 1)))
-	{
+	    !PyFloat_Check(PySequence_Fast_GET_ITEM(value, 1))) {
 		PyErr_SetString(PyExc_TypeError, "The value must be a sequence of 2 float");
 		return -1;
 	}
 	// set range
 	getVideo(self)->setRange(PyFloat_AsDouble(PySequence_Fast_GET_ITEM(value, 0)),
-		PyFloat_AsDouble(PySequence_Fast_GET_ITEM(value, 1)));
+	                         PyFloat_AsDouble(PySequence_Fast_GET_ITEM(value, 1)));
 	// success
 	return 0;
 }
 
 // get repeat
-PyObject *Video_getRepeat (PyImage *self, void *closure)
-{ return Py_BuildValue("h", getVideo(self)->getRepeat()); }
+PyObject *Video_getRepeat(PyImage *self, void *closure)
+{
+	return Py_BuildValue("h", getVideo(self)->getRepeat());
+}
 
 // set repeat
 int Video_setRepeat(PyImage *self, PyObject *value, void *closure)
 {
 	// check validity of parameter
-	if (value == nullptr || !PyLong_Check(value))
-	{
+	if (value == nullptr || !PyLong_Check(value)) {
 		PyErr_SetString(PyExc_TypeError, "The value must be an int");
 		return -1;
 	}
@@ -237,15 +266,16 @@ int Video_setRepeat(PyImage *self, PyObject *value, void *closure)
 }
 
 // get frame rate
-PyObject *Video_getFrameRate (PyImage *self, void *closure)
-{ return Py_BuildValue("f", double(getVideo(self)->getFrameRate())); }
+PyObject *Video_getFrameRate(PyImage *self, void *closure)
+{
+	return Py_BuildValue("f", double(getVideo(self)->getFrameRate()));
+}
 
 // set frame rate
 int Video_setFrameRate(PyImage *self, PyObject *value, void *closure)
 {
 	// check validity of parameter
-	if (value == nullptr || !PyFloat_Check(value))
-	{
+	if (value == nullptr || !PyFloat_Check(value)) {
 		PyErr_SetString(PyExc_TypeError, "The value must be a float");
 		return -1;
 	}

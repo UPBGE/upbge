@@ -92,7 +92,7 @@ void SCA_IScene::AddDebugProperty(SCA_IObject *gameobj, const std::string &name)
 
 void SCA_IScene::RemoveDebugProperty(SCA_IObject *gameobj, const std::string &name)
 {
-	for (std::vector<SCA_DebugProp>::iterator it = m_debugList.begin(); it != m_debugList.end();) {
+	for (std::vector<SCA_DebugProp>::iterator it = m_debugList.begin(); it != m_debugList.end(); ) {
 		const SCA_DebugProp& prop = *it;
 
 		if (prop.m_obj == gameobj && prop.m_name == name) {
@@ -107,7 +107,7 @@ void SCA_IScene::RemoveDebugProperty(SCA_IObject *gameobj, const std::string &na
 
 void SCA_IScene::RemoveObjectDebugProperties(SCA_IObject *gameobj)
 {
-	for (std::vector<SCA_DebugProp>::iterator it = m_debugList.begin(); it != m_debugList.end();) {
+	for (std::vector<SCA_DebugProp>::iterator it = m_debugList.begin(); it != m_debugList.end(); ) {
 		const SCA_DebugProp& prop = *it;
 
 		if (prop.m_obj == gameobj) {

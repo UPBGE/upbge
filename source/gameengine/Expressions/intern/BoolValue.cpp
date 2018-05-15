@@ -74,8 +74,7 @@ EXP_Value *EXP_BoolValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, EX
 		case VALUE_EMPTY_TYPE:
 		case VALUE_BOOL_TYPE:
 		{
-			switch (op)
-			{
+			switch (op) {
 				case VALUE_AND_OPERATOR:
 				{
 					ret = new EXP_BoolValue(((EXP_BoolValue *)val)->GetBool() && m_bool);
@@ -104,7 +103,7 @@ EXP_Value *EXP_BoolValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, EX
 				default:
 				{
 					ret =  new EXP_ErrorValue(val->GetText() + op2str(op) +
-					                       "[operator not allowed on booleans]");
+					                          "[operator not allowed on booleans]");
 					break;
 				}
 			}
@@ -112,8 +111,7 @@ EXP_Value *EXP_BoolValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, EX
 		}
 		case VALUE_STRING_TYPE:
 		{
-			switch (op)
-			{
+			switch (op) {
 				case VALUE_ADD_OPERATOR:
 				{
 					ret = new EXP_StringValue(val->GetText() + GetText(), "");

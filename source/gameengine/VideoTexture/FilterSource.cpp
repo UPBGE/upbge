@@ -43,7 +43,7 @@
 
 // define python type
 PyTypeObject FilterRGB24Type =
-{ 
+{
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"VideoTexture.FilterRGB24",   /*tp_name*/
 	sizeof(PyFilter),          /*tp_basicsize*/
@@ -65,12 +65,12 @@ PyTypeObject FilterRGB24Type =
 	0,                         /*tp_as_buffer*/
 	Py_TPFLAGS_DEFAULT,        /*tp_flags*/
 	"Source filter RGB24 objects",       /* tp_doc */
-	0,		               /* tp_traverse */
-	0,		               /* tp_clear */
-	0,		               /* tp_richcompare */
-	0,		               /* tp_weaklistoffset */
-	0,		               /* tp_iter */
-	0,		               /* tp_iternext */
+	0,                     /* tp_traverse */
+	0,                     /* tp_clear */
+	0,                     /* tp_richcompare */
+	0,                     /* tp_weaklistoffset */
+	0,                     /* tp_iter */
+	0,                     /* tp_iternext */
 	nullptr,                /* tp_methods */
 	0,                   /* tp_members */
 	nullptr,             /* tp_getset */
@@ -88,7 +88,7 @@ PyTypeObject FilterRGB24Type =
 
 // define python type
 PyTypeObject FilterRGBA32Type =
-{ 
+{
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"VideoTexture.FilterRGBA32",   /*tp_name*/
 	sizeof(PyFilter),          /*tp_basicsize*/
@@ -110,12 +110,12 @@ PyTypeObject FilterRGBA32Type =
 	0,                         /*tp_as_buffer*/
 	Py_TPFLAGS_DEFAULT,        /*tp_flags*/
 	"Source filter RGBA32 objects",       /* tp_doc */
-	0,		               /* tp_traverse */
-	0,		               /* tp_clear */
-	0,		               /* tp_richcompare */
-	0,		               /* tp_weaklistoffset */
-	0,		               /* tp_iter */
-	0,		               /* tp_iternext */
+	0,                     /* tp_traverse */
+	0,                     /* tp_clear */
+	0,                     /* tp_richcompare */
+	0,                     /* tp_weaklistoffset */
+	0,                     /* tp_iter */
+	0,                     /* tp_iternext */
 	nullptr,                /* tp_methods */
 	0,                   /* tp_members */
 	nullptr,             /* tp_getset */
@@ -133,7 +133,7 @@ PyTypeObject FilterRGBA32Type =
 
 // define python type
 PyTypeObject FilterBGR24Type =
-{ 
+{
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"VideoTexture.FilterBGR24",   /*tp_name*/
 	sizeof(PyFilter),          /*tp_basicsize*/
@@ -155,12 +155,12 @@ PyTypeObject FilterBGR24Type =
 	0,                         /*tp_as_buffer*/
 	Py_TPFLAGS_DEFAULT,        /*tp_flags*/
 	"Source filter BGR24 objects",       /* tp_doc */
-	0,		               /* tp_traverse */
-	0,		               /* tp_clear */
-	0,		               /* tp_richcompare */
-	0,		               /* tp_weaklistoffset */
-	0,		               /* tp_iter */
-	0,		               /* tp_iternext */
+	0,                     /* tp_traverse */
+	0,                     /* tp_clear */
+	0,                     /* tp_richcompare */
+	0,                     /* tp_weaklistoffset */
+	0,                     /* tp_iter */
+	0,                     /* tp_iternext */
 	nullptr,                /* tp_methods */
 	0,                   /* tp_members */
 	nullptr,             /* tp_getset */

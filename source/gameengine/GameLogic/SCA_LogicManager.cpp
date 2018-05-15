@@ -51,7 +51,7 @@ SCA_LogicManager::~SCA_LogicManager()
 	BLI_assert(m_activeActuators.Empty());
 }
 
-void SCA_LogicManager::RegisterEventManager(SCA_EventManager* eventmgr)
+void SCA_LogicManager::RegisterEventManager(SCA_EventManager *eventmgr)
 {
 	m_eventmanagers.emplace_back(eventmgr);
 }
@@ -59,7 +59,7 @@ void SCA_LogicManager::RegisterEventManager(SCA_EventManager* eventmgr)
 
 
 void SCA_LogicManager::RegisterGameObjectName(const std::string& gameobjname,
-											  EXP_Value* gameobj)
+                                              EXP_Value *gameobj)
 {
 	std::string mn = gameobjname;
 	m_mapStringToGameObjects[mn] = gameobj;
@@ -71,7 +71,7 @@ void SCA_LogicManager::UnregisterGameObjectName(const std::string& gameobjname)
 }
 
 
-void SCA_LogicManager::RegisterGameMeshName(const std::string& gamemeshname, void* blendobj)
+void SCA_LogicManager::RegisterGameMeshName(const std::string& gamemeshname, void *blendobj)
 {
 	std::string mn = gamemeshname;
 	m_map_gamemeshname_to_blendobj[mn] = blendobj;
@@ -79,12 +79,12 @@ void SCA_LogicManager::RegisterGameMeshName(const std::string& gamemeshname, voi
 
 
 
-void SCA_LogicManager::RegisterGameObj(void* blendobj, EXP_Value* gameobj) 
+void SCA_LogicManager::RegisterGameObj(void *blendobj, EXP_Value *gameobj)
 {
 	m_map_blendobj_to_gameobj[blendobj] = gameobj;
 }
 
-void SCA_LogicManager::UnregisterGameObj(void* blendobj, EXP_Value* gameobj) 
+void SCA_LogicManager::UnregisterGameObj(void *blendobj, EXP_Value *gameobj)
 {
 	std::map<void *, EXP_Value *>::iterator it = m_map_blendobj_to_gameobj.find(blendobj);
 	if (it != m_map_blendobj_to_gameobj.end() && it->second == gameobj) {
@@ -92,21 +92,21 @@ void SCA_LogicManager::UnregisterGameObj(void* blendobj, EXP_Value* gameobj)
 	}
 }
 
-EXP_Value* SCA_LogicManager::GetGameObjectByName(const std::string& gameobjname)
+EXP_Value *SCA_LogicManager::GetGameObjectByName(const std::string& gameobjname)
 {
 	std::string mn = gameobjname;
 	return m_mapStringToGameObjects[mn];
 }
 
 
-EXP_Value* SCA_LogicManager::FindGameObjByBlendObj(void* blendobj) 
+EXP_Value *SCA_LogicManager::FindGameObjByBlendObj(void *blendobj)
 {
 	return m_map_blendobj_to_gameobj[blendobj];
 }
 
 
 
-void* SCA_LogicManager::FindBlendObjByGameMeshName(const std::string& gamemeshname) 
+void *SCA_LogicManager::FindBlendObjByGameMeshName(const std::string& gamemeshname)
 {
 	std::string mn = gamemeshname;
 	return m_map_gamemeshname_to_blendobj[mn];
@@ -114,13 +114,13 @@ void* SCA_LogicManager::FindBlendObjByGameMeshName(const std::string& gamemeshna
 
 
 
-void SCA_LogicManager::RemoveSensor(SCA_ISensor* sensor)
+void SCA_LogicManager::RemoveSensor(SCA_ISensor *sensor)
 {
 	sensor->UnlinkAllControllers();
 	sensor->UnregisterToManager();
 }
 
-void SCA_LogicManager::RemoveController(SCA_IController* controller)
+void SCA_LogicManager::RemoveController(SCA_IController *controller)
 {
 	controller->UnlinkAllSensors();
 	controller->UnlinkAllActuators();
@@ -128,7 +128,7 @@ void SCA_LogicManager::RemoveController(SCA_IController* controller)
 }
 
 
-void SCA_LogicManager::RemoveActuator(SCA_IActuator* actuator)
+void SCA_LogicManager::RemoveActuator(SCA_IActuator *actuator)
 {
 	actuator->UnlinkAllControllers();
 	actuator->Deactivate();
@@ -137,7 +137,7 @@ void SCA_LogicManager::RemoveActuator(SCA_IActuator* actuator)
 
 
 
-void SCA_LogicManager::RegisterToSensor(SCA_IController* controller,SCA_ISensor* sensor)
+void SCA_LogicManager::RegisterToSensor(SCA_IController *controller, SCA_ISensor *sensor)
 {
 	sensor->LinkToController(controller);
 	controller->LinkToSensor(sensor);
@@ -145,7 +145,7 @@ void SCA_LogicManager::RegisterToSensor(SCA_IController* controller,SCA_ISensor*
 
 
 
-void SCA_LogicManager::RegisterToActuator(SCA_IController* controller,SCA_IActuator* actua)
+void SCA_LogicManager::RegisterToActuator(SCA_IController *controller, SCA_IActuator *actua)
 {
 	actua->LinkToController(controller);
 	controller->LinkToActuator(actua);
@@ -159,13 +159,13 @@ void SCA_LogicManager::BeginFrame(double curtime, double fixedtime)
 		mgr->NextFrame(curtime, fixedtime);
 	}
 
-	for (SG_QList* obj = (SG_QList*)m_triggeredControllerSet.Remove();
-		obj != nullptr;
-		obj = (SG_QList*)m_triggeredControllerSet.Remove())
+	for (SG_QList *obj = (SG_QList *)m_triggeredControllerSet.Remove();
+	     obj != nullptr;
+	     obj = (SG_QList *)m_triggeredControllerSet.Remove())
 	{
-		for (SCA_IController* contr = (SCA_IController*)obj->QRemove();
-			contr != nullptr;
-			contr = (SCA_IController*)obj->QRemove())
+		for (SCA_IController *contr = (SCA_IController *)obj->QRemove();
+		     contr != nullptr;
+		     contr = (SCA_IController *)obj->QRemove())
 		{
 			contr->Trigger(this);
 			contr->ClrJustActivated();
@@ -184,34 +184,32 @@ void SCA_LogicManager::UpdateFrame(double curtime)
 	SG_DList::iterator<SG_QList> io(m_activeActuators);
 	for (io.begin(); !io.end(); )
 	{
-		SG_QList* ahead = *io;
+		SG_QList *ahead = *io;
 		// increment now so that we can remove the current element
 		++io;
 		SG_QList::iterator<SCA_IActuator> ia(*ahead);
-		for (ia.begin(); !ia.end();  )
+		for (ia.begin(); !ia.end(); )
 		{
-			SCA_IActuator* actua = *ia;
+			SCA_IActuator *actua = *ia;
 			// increment first to allow removal of inactive actuators.
 			++ia;
-			if (!actua->Update(curtime))
-			{
+			if (!actua->Update(curtime)) {
 				// this actuator is not active anymore, remove
-				actua->QDelink(); 
-				actua->SetActive(false); 
-			} else if (actua->IsNoLink())
-			{
+				actua->QDelink();
+				actua->SetActive(false);
+			}
+			else if (actua->IsNoLink()) {
 				// This actuator has no more links but it still active
 				// make sure it will get a negative event on next frame to stop it
 				// Do this check after Update() rather than before to make sure
 				// that all the actuators that are activated at same time than a state
-				// actuator have a chance to execute. 
+				// actuator have a chance to execute.
 				bool event = false;
 				actua->RemoveAllEvents();
 				actua->AddEvent(event);
 			}
 		}
-		if (ahead->QEmpty())
-		{
+		if (ahead->QEmpty()) {
 			// no more active controller, remove from main list
 			ahead->Delink();
 		}
@@ -228,7 +226,7 @@ void *SCA_LogicManager::GetActionByName(const std::string& actname)
 
 
 
-void* SCA_LogicManager::GetMeshByName(const std::string& meshname)
+void *SCA_LogicManager::GetMeshByName(const std::string& meshname)
 {
 	std::string mn = meshname;
 	return m_mapStringToMeshes[mn];
@@ -236,20 +234,20 @@ void* SCA_LogicManager::GetMeshByName(const std::string& meshname)
 
 
 
-void SCA_LogicManager::RegisterMeshName(const std::string& meshname,void* mesh)
+void SCA_LogicManager::RegisterMeshName(const std::string& meshname, void *mesh)
 {
 	std::string mn = meshname;
 	m_mapStringToMeshes[mn] = mesh;
 }
 
-void SCA_LogicManager::UnregisterMeshName(const std::string& meshname,void* mesh)
+void SCA_LogicManager::UnregisterMeshName(const std::string& meshname, void *mesh)
 {
 	std::string mn = meshname;
 	m_mapStringToMeshes.erase(mn);
 }
 
 
-void SCA_LogicManager::RegisterActionName(const std::string& actname,void* action)
+void SCA_LogicManager::RegisterActionName(const std::string& actname, void *action)
 {
 	std::string an = actname;
 	m_mapStringToActions[an] = action;
@@ -265,7 +263,7 @@ void SCA_LogicManager::EndFrame()
 }
 
 
-void SCA_LogicManager::AddTriggeredController(SCA_IController* controller, SCA_ISensor* sensor)
+void SCA_LogicManager::AddTriggeredController(SCA_IController *controller, SCA_ISensor *sensor)
 {
 	controller->Activate(m_triggeredControllerSet);
 
@@ -274,22 +272,20 @@ void SCA_LogicManager::AddTriggeredController(SCA_IController* controller, SCA_I
 	// so that the controller knows which sensor has activited it
 	// only needed for python controller
 	// Note that this is safe even if the controller is subclassed.
-	if (controller->GetType() == &SCA_PythonController::Type)
-	{
-		SCA_PythonController* pythonController = (SCA_PythonController*)controller;
+	if (controller->GetType() == &SCA_PythonController::Type) {
+		SCA_PythonController *pythonController = (SCA_PythonController *)controller;
 		pythonController->AddTriggeredSensor(sensor);
 	}
 #endif
 }
 
-SCA_EventManager* SCA_LogicManager::FindEventManager(int eventmgrtype)
+SCA_EventManager *SCA_LogicManager::FindEventManager(int eventmgrtype)
 {
 	// find an eventmanager of a certain type
-	SCA_EventManager* eventmgr = nullptr;
+	SCA_EventManager *eventmgr = nullptr;
 
 	for (std::unique_ptr<SCA_EventManager>& emgr : m_eventmanagers) {
-		if (emgr->GetType() == eventmgrtype)
-		{
+		if (emgr->GetType() == eventmgrtype) {
 			eventmgr = emgr.get();
 			break;
 		}

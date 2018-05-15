@@ -25,8 +25,7 @@
 #include "RAS_StorageVao.h"
 #include "RAS_StorageVbo.h"
 
-struct AttribData
-{
+struct AttribData {
 	int size;
 	GLenum type;
 	bool normalized;
@@ -41,7 +40,7 @@ static const AttribData attribData[RAS_AttributeArray::RAS_ATTRIB_MAX] = {
 };
 
 RAS_StorageVao::RAS_StorageVao(RAS_IDisplayArray *array, RAS_DisplayArrayStorage *arrayStorage,
-							   const RAS_AttributeArray::AttribList& attribList)
+                               const RAS_AttributeArray::AttribList& attribList)
 {
 	glGenVertexArrays(1, &m_id);
 	glBindVertexArray(m_id);

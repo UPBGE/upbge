@@ -137,14 +137,14 @@ PyTypeObject KX_PythonComponent::Type = {
 	0,
 	0,
 	py_base_repr,
-	0,0,0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0,
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0,
 	Methods,
 	0,
 	0,
 	&EXP_PyObjectPlus::Type,
-	0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0,
 	py_component_new
 };
 
@@ -157,7 +157,7 @@ PyAttributeDef KX_PythonComponent::Attributes[] = {
 	EXP_PYATTRIBUTE_NULL // Sentinel
 };
 
-PyObject* KX_PythonComponent::pyattr_get_object(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_PythonComponent::pyattr_get_object(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_PythonComponent *self = static_cast<KX_PythonComponent *>(self_v);
 	KX_GameObject *gameobj = self->GetGameObject();

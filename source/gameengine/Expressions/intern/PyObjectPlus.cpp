@@ -268,7 +268,7 @@ void EXP_PyObjectPlus::py_base_dealloc(PyObject *self)
 			EXP_PROXY_PTR(self) = nullptr; // Not really needed.
 		}
 	}
-	/* is ok normally but not for subtyping, use tp_free instead. 
+	/* is ok normally but not for subtyping, use tp_free instead.
 	 * PyObject_DEL(self);
 	 */
 	Py_TYPE(self)->tp_free(self);
@@ -413,8 +413,8 @@ PyObject *EXP_PyObjectPlus::py_get_attrdef(PyObject *self_py, const PyAttributeD
 					return nullptr;
 				}
 			}
-			ATTR_FALLTHROUGH;
-		case EXP_PYATTRIBUTE_TYPE_INT:
+				ATTR_FALLTHROUGH;
+			case EXP_PYATTRIBUTE_TYPE_INT:
 			{
 				int *val = reinterpret_cast<int *>(ptr);
 				return PyLong_FromLong(*val);

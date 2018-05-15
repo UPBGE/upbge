@@ -1,24 +1,24 @@
 /*
-* ***** BEGIN GPL LICENSE BLOCK *****
-*
-* This program is free software; you can redistribute it and/or
-* modify it under the terms of the GNU General Public License
-* as published by the Free Software Foundation; either version 2
-* of the License, or (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program; if not, write to the Free Software Foundation,
-* Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-*
-* Contributor(s): Ulysse Martin, Tristan Porteries, Martins Upitis.
-*
-* ***** END GPL LICENSE BLOCK *****
-*/
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * Contributor(s): Ulysse Martin, Tristan Porteries, Martins Upitis.
+ *
+ * ***** END GPL LICENSE BLOCK *****
+ */
 
 /** \file RAS_TextureRenderer.cpp
  *  \ingroup bgerast
@@ -53,7 +53,7 @@ void RAS_TextureRenderer::Face::AttachTexture(GPUTexture *tex)
 {
 	m_fbo = GPU_framebuffer_create();
 	m_rb = GPU_renderbuffer_create(GPU_texture_width(tex), GPU_texture_height(tex),
-		0, GPU_HDR_NONE, GPU_RENDERBUFFER_DEPTH, nullptr);
+	                               0, GPU_HDR_NONE, GPU_RENDERBUFFER_DEPTH, nullptr);
 
 	GPU_framebuffer_texture_attach_target(m_fbo, tex, m_target, 0, nullptr);
 	GPU_framebuffer_renderbuffer_attach(m_fbo, m_rb, 0, nullptr);
@@ -101,8 +101,8 @@ RAS_TextureRenderer::~RAS_TextureRenderer()
 	}
 
 	/* This call has for side effect to ask regeneration of all textures
-	* depending of this image.
-	*/
+	 * depending of this image.
+	 */
 	for (RAS_Texture *texture : m_textureUsers) {
 		// Invalidate the renderer in each material texture users.
 		texture->SetRenderer(nullptr);
@@ -115,8 +115,8 @@ void RAS_TextureRenderer::GetValidTexture()
 	BLI_assert(!m_textureUsers.empty());
 
 	/* The gpu texture returned by all material textures are the same.
-	* We can so use the first material texture user.
-	*/
+	 * We can so use the first material texture user.
+	 */
 	RAS_Texture *texture = m_textureUsers[0];
 	texture->CheckValidTexture();
 	GPUTexture *gputex = texture->GetGPUTexture();

@@ -33,16 +33,15 @@
 #include "RAS_FramingManager.h"
 #include "RAS_Rect.h"
 
-void RAS_FramingManager::ComputeDefaultFrustum(
-	const float camnear,
-	const float camfar,
-	const float lens,
-	const float sensor_x, const float sensor_y,
-	const short sensor_fit,
-	const float shift_x,
-	const float shift_y,
-	const float design_aspect_ratio,
-	RAS_FrameFrustum & frustum)
+void RAS_FramingManager::ComputeDefaultFrustum(const float camnear,
+                                               const float camfar,
+                                               const float lens,
+                                               const float sensor_x, const float sensor_y,
+                                               const short sensor_fit,
+                                               const float shift_x,
+                                               const float shift_y,
+                                               const float design_aspect_ratio,
+                                               RAS_FrameFrustum & frustum)
 {
 	float size;
 	float halfSize;
@@ -90,15 +89,14 @@ void RAS_FramingManager::ComputeDefaultFrustum(
 	frustum.camfar = camfar;
 }
 
-void RAS_FramingManager::ComputeDefaultOrtho(
-	const float camnear,
-	const float camfar,
-	const float scale,
-	const float design_aspect_ratio,
-	const short sensor_fit,
-	const float shift_x,
-	const float shift_y,
-	RAS_FrameFrustum & frustum)
+void RAS_FramingManager::ComputeDefaultOrtho(const float camnear,
+                                             const float camfar,
+                                             const float scale,
+                                             const float design_aspect_ratio,
+                                             const short sensor_fit,
+                                             const float shift_x,
+                                             const float shift_y,
+                                             RAS_FrameFrustum & frustum)
 {
 	float halfSize = scale * 0.5f;
 	float sizeX;
@@ -139,10 +137,9 @@ void RAS_FramingManager::ComputeDefaultOrtho(
 }
 
 
-void RAS_FramingManager::ComputeBestFitViewRect(
-	const RAS_Rect &availableViewport,
-	const float design_aspect_ratio,
-	RAS_Rect &viewport)
+void RAS_FramingManager::ComputeBestFitViewRect(const RAS_Rect &availableViewport,
+                                                const float design_aspect_ratio,
+                                                RAS_Rect &viewport)
 {
 	// try and honour the aspect ratio when setting the
 	// drawable area. If we don't do this we are liable
@@ -173,10 +170,9 @@ void RAS_FramingManager::ComputeBestFitViewRect(
 	}
 }
 
-void RAS_FramingManager::ComputeViewport(
-	const RAS_FrameSettings &settings,
-	const RAS_Rect &availableViewport,
-	RAS_Rect &viewport)
+void RAS_FramingManager::ComputeViewport(const RAS_FrameSettings &settings,
+                                         const RAS_Rect &availableViewport,
+                                         RAS_Rect &viewport)
 {
 	RAS_FrameSettings::RAS_FrameType type = settings.FrameType();
 	const int winx = availableViewport.GetWidth();
@@ -220,21 +216,22 @@ void RAS_FramingManager::ComputeViewport(
 			break;
 		}
 		default:
+		{
 			break;
+		}
 	}
 }
 
-void RAS_FramingManager::ComputeFrustum(
-	const RAS_FrameSettings &settings,
-	const RAS_Rect &availableViewport,
-	const RAS_Rect &viewport,
-	const float lens,
-	const float sensor_x, const float sensor_y, const short sensor_fit,
-	const float shift_x,
-	const float shift_y,
-	const float camnear,
-	const float camfar,
-	RAS_FrameFrustum &frustum)
+void RAS_FramingManager::ComputeFrustum(const RAS_FrameSettings &settings,
+                                        const RAS_Rect &availableViewport,
+                                        const RAS_Rect &viewport,
+                                        const float lens,
+                                        const float sensor_x, const float sensor_y, const short sensor_fit,
+                                        const float shift_x,
+                                        const float shift_y,
+                                        const float camnear,
+                                        const float camfar,
+                                        RAS_FrameFrustum &frustum)
 {
 	RAS_FrameSettings::RAS_FrameType type = settings.FrameType();
 
@@ -313,21 +310,22 @@ void RAS_FramingManager::ComputeFrustum(
 		case RAS_FrameSettings::e_frame_scale:
 		case RAS_FrameSettings::e_frame_bars:
 		default:
+		{
 			break;
+		}
 	}
 }
 
-void RAS_FramingManager::ComputeOrtho(
-	const RAS_FrameSettings &settings,
-	const RAS_Rect &availableViewport,
-	const RAS_Rect &viewport,
-	const float scale,
-	const float camnear,
-	const float camfar,
-	const short sensor_fit,
-	const float shift_x,
-	const float shift_y,
-	RAS_FrameFrustum &frustum)
+void RAS_FramingManager::ComputeOrtho(const RAS_FrameSettings &settings,
+                                      const RAS_Rect &availableViewport,
+                                      const RAS_Rect &viewport,
+                                      const float scale,
+                                      const float camnear,
+                                      const float camfar,
+                                      const short sensor_fit,
+                                      const float shift_x,
+                                      const float shift_y,
+                                      RAS_FrameFrustum &frustum)
 {
 	RAS_FrameSettings::RAS_FrameType type = settings.FrameType();
 
@@ -404,6 +402,8 @@ void RAS_FramingManager::ComputeOrtho(
 		case RAS_FrameSettings::e_frame_scale:
 		case RAS_FrameSettings::e_frame_bars:
 		default:
+		{
 			break;
+		}
 	}
 }

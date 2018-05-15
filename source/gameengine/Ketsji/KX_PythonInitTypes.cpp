@@ -120,16 +120,18 @@
 static void PyType_Attr_Set(PyGetSetDef *attr_getset, PyAttributeDef *attr)
 {
 	attr_getset->name = (char *)attr->m_name.c_str();
-	attr_getset->doc= nullptr;
+	attr_getset->doc = nullptr;
 
-	attr_getset->get= reinterpret_cast<getter>(EXP_PyObjectPlus::py_get_attrdef);
+	attr_getset->get = reinterpret_cast<getter>(EXP_PyObjectPlus::py_get_attrdef);
 
-	if (attr->m_access==EXP_PYATTRIBUTE_RO)
-		attr_getset->set= nullptr;
-	else
-		attr_getset->set= reinterpret_cast<setter>(EXP_PyObjectPlus::py_set_attrdef);
+	if (attr->m_access == EXP_PYATTRIBUTE_RO) {
+		attr_getset->set = nullptr;
+	}
+	else {
+		attr_getset->set = reinterpret_cast<setter>(EXP_PyObjectPlus::py_set_attrdef);
+	}
 
-	attr_getset->closure= reinterpret_cast<void *>(attr);
+	attr_getset->closure = reinterpret_cast<void *>(attr);
 }
 
 static void PyType_Ready_ADD(PyObject *dict, PyTypeObject *tp, PyAttributeDef *attributes, PyAttributeDef *attributesPtr, int init_getset)
@@ -140,38 +142,41 @@ static void PyType_Ready_ADD(PyObject *dict, PyTypeObject *tp, PyAttributeDef *a
 		/* we need to do this for all types before calling PyType_Ready
 		 * since they will call the parents PyType_Ready and those might not have initialized vars yet */
 
-		if (tp->tp_getset==nullptr && ((attributes && !attributes->m_name.empty()) || (attributesPtr && !attributesPtr->m_name.empty()))) {
+		if (tp->tp_getset == nullptr && ((attributes && !attributes->m_name.empty()) || (attributesPtr && !attributesPtr->m_name.empty()))) {
 			PyGetSetDef *attr_getset;
-			int attr_tot= 0;
+			int attr_tot = 0;
 
 			if (attributes) {
-				for (attr = attributes; !attr->m_name.empty(); attr++, attr_tot++)
+				for (attr = attributes; !attr->m_name.empty(); attr++, attr_tot++) {
 					attr->m_usePtr = false;
+				}
 			}
 			if (attributesPtr) {
-				for (attr= attributesPtr; !attr->m_name.empty(); attr++, attr_tot++)
+				for (attr = attributesPtr; !attr->m_name.empty(); attr++, attr_tot++) {
 					attr->m_usePtr = true;
+				}
 			}
 
-			tp->tp_getset = attr_getset = reinterpret_cast<PyGetSetDef *>(PyMem_Malloc((attr_tot+1) * sizeof(PyGetSetDef))); // XXX - Todo, free
+			tp->tp_getset = attr_getset = reinterpret_cast<PyGetSetDef *>(PyMem_Malloc((attr_tot + 1) * sizeof(PyGetSetDef))); // XXX - Todo, free
 
 			if (attributes) {
-				for (attr= attributes; !attr->m_name.empty(); attr++, attr_getset++) {
+				for (attr = attributes; !attr->m_name.empty(); attr++, attr_getset++) {
 					PyType_Attr_Set(attr_getset, attr);
 				}
 			}
 			if (attributesPtr) {
-				for (attr= attributesPtr; !attr->m_name.empty(); attr++, attr_getset++) {
+				for (attr = attributesPtr; !attr->m_name.empty(); attr++, attr_getset++) {
 					PyType_Attr_Set(attr_getset, attr);
 				}
 			}
 			memset(attr_getset, 0, sizeof(PyGetSetDef));
 		}
-	} else {
+	}
+	else {
 		PyType_Ready(tp);
 		PyDict_SetItemString(dict, tp->tp_name, reinterpret_cast<PyObject *>(tp));
 	}
-	
+
 }
 
 
@@ -181,8 +186,8 @@ static void PyType_Ready_ADD(PyObject *dict, PyTypeObject *tp, PyAttributeDef *a
 
 
 PyDoc_STRVAR(GameTypes_module_documentation,
-"This module provides access to the game engine data types."
-);
+             "This module provides access to the game engine data types."
+             );
 static struct PyModuleDef GameTypes_module_def = {
 	PyModuleDef_HEAD_INIT,
 	"GameTypes",  /* m_name */
@@ -206,7 +211,7 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
 
 	dict = PyModule_GetDict(m);
 
-	for (int init_getset= 1; init_getset > -1; init_getset--) { /* run twice, once to init the getsets another to run PyType_Ready */
+	for (int init_getset = 1; init_getset > -1; init_getset--) { /* run twice, once to init the getsets another to run PyType_Ready */
 		PyType_Ready_Attr(dict, BL_ActionActuator, init_getset);
 		PyType_Ready_Attr(dict, BL_Shader, init_getset);
 		PyType_Ready_Attr(dict, BL_ArmatureObject, init_getset);

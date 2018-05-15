@@ -53,7 +53,7 @@
 
 #define NUM_PRIORITY 6
 
-EXP_Parser::EXP_Parser() : m_identifierContext(nullptr)
+EXP_Parser::EXP_Parser() :m_identifierContext(nullptr)
 {
 }
 
@@ -125,9 +125,9 @@ void EXP_Parser::CharRep()
 {
 	// Changes the current character to the first character that isn't an alphanumeric character.
 	while (((ch >= '0') && (ch <= '9'))
-		|| ((ch >= 'a') && (ch <= 'z'))
-		|| ((ch >= 'A') && (ch <= 'Z'))
-		|| (ch == '.') || (ch == '_'))
+	       || ((ch >= 'a') && (ch <= 'z'))
+	       || ((ch >= 'A') && (ch <= 'Z'))
+	       || (ch == '.') || (ch == '_'))
 	{
 		NextCh();
 	}
@@ -318,8 +318,7 @@ void EXP_Parser::NextSym()
 				GrabString(start);
 			}
 			else if (((ch >= 'a') && (ch <= 'z'))
-			         || ((ch >= 'A') && (ch <= 'Z')))
-			{
+			         || ((ch >= 'A') && (ch <= 'Z'))) {
 				start = chcount;
 				CharRep();
 				GrabString(start);
@@ -514,7 +513,7 @@ EXP_Expression *EXP_Parser::Ex(int i)
 	}
 	else if (i == NUM_PRIORITY) {
 		if ((sym == opsym)
-		    && ( (opkind == OPminus) || (opkind == OPnot) || (opkind == OPplus) )
+		    && ((opkind == OPminus) || (opkind == OPnot) || (opkind == OPplus))
 		    ) {
 			NextSym();
 			switch (opkind) {
@@ -617,7 +616,7 @@ EXP_Expression *EXP_Parser::Ex(int i)
 
 						//e1 = Error(errmsg->Calculate()->GetText());//new EXP_ConstExpr(errmsg->Calculate());
 
-						if (!(errmsg->Release()) ) {
+						if (!(errmsg->Release())) {
 							errmsg = nullptr;
 						}
 						else {
@@ -675,7 +674,7 @@ EXP_Expression *EXP_Parser::ProcessText(const std::string& intext)
 	if (sym != eolsym) {
 		EXP_Expression *oldexpr = expr;
 		expr = new EXP_Operator2Expr(VALUE_ADD_OPERATOR,
-		                          oldexpr, Error("Extra characters after expression"));//new EXP_ConstExpr(new EXP_ErrorValue("Extra characters after expression")));
+		                             oldexpr, Error("Extra characters after expression"));//new EXP_ConstExpr(new EXP_ErrorValue("Extra characters after expression")));
 	}
 	if (errmsg) {
 		errmsg->Release();

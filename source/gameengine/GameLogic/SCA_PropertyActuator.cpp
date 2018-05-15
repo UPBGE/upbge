@@ -44,8 +44,8 @@
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
 
-SCA_PropertyActuator::SCA_PropertyActuator(SCA_IObject* gameobj,SCA_IObject* sourceObj,const std::string& propname,const std::string& expr,int acttype)
-   :	SCA_IActuator(gameobj, KX_ACT_PROPERTY),
+SCA_PropertyActuator::SCA_PropertyActuator(SCA_IObject *gameobj, SCA_IObject *sourceObj, const std::string& propname, const std::string& expr, int acttype)
+	:SCA_IActuator(gameobj, KX_ACT_PROPERTY),
 	m_type(acttype),
 	m_propname(propname),
 	m_exprtxt(expr),
@@ -53,14 +53,16 @@ SCA_PropertyActuator::SCA_PropertyActuator(SCA_IObject* gameobj,SCA_IObject* sou
 {
 	// protect ourselves against someone else deleting the source object
 	// don't protect against ourselves: it would create a dead lock
-	if (m_sourceObj)
+	if (m_sourceObj) {
 		m_sourceObj->RegisterActuator(this);
+	}
 }
 
 SCA_PropertyActuator::~SCA_PropertyActuator()
 {
-	if (m_sourceObj)
+	if (m_sourceObj) {
 		m_sourceObj->UnregisterActuator(this);
+	}
 }
 
 bool SCA_PropertyActuator::Update()
@@ -69,16 +71,13 @@ bool SCA_PropertyActuator::Update()
 
 	bool bNegativeEvent = IsNegativeEvent();
 	RemoveAllEvents();
-	EXP_Value* propowner = GetParent();
+	EXP_Value *propowner = GetParent();
 
-	if (bNegativeEvent)
-	{
-		if (m_type==KX_ACT_PROP_LEVEL)
-		{
-			EXP_Value* newval = new EXP_BoolValue(false);
-			EXP_Value* oldprop = propowner->GetProperty(m_propname);
-			if (oldprop)
-			{
+	if (bNegativeEvent) {
+		if (m_type == KX_ACT_PROP_LEVEL) {
+			EXP_Value *newval = new EXP_BoolValue(false);
+			EXP_Value *oldprop = propowner->GetProperty(m_propname);
+			if (oldprop) {
 				oldprop->SetValue(newval);
 			}
 			newval->Release();
@@ -88,68 +87,61 @@ bool SCA_PropertyActuator::Update()
 
 
 	EXP_Parser parser;
-	parser.SetContext( propowner->AddRef());
-	
-	EXP_Expression* userexpr= nullptr;
-	
-	if (m_type==KX_ACT_PROP_TOGGLE)
-	{
+	parser.SetContext(propowner->AddRef());
+
+	EXP_Expression *userexpr = nullptr;
+
+	if (m_type == KX_ACT_PROP_TOGGLE) {
 		/* don't use */
-		EXP_Value* newval;
-		EXP_Value* oldprop = propowner->GetProperty(m_propname);
-		if (oldprop)
-		{
-			newval = new EXP_BoolValue((oldprop->GetNumber()==0.0) ? true:false);
+		EXP_Value *newval;
+		EXP_Value *oldprop = propowner->GetProperty(m_propname);
+		if (oldprop) {
+			newval = new EXP_BoolValue((oldprop->GetNumber() == 0.0) ? true : false);
 			oldprop->SetValue(newval);
-		} else
-		{	/* as not been assigned, evaluate as false, so assign true */
+		}
+		else { /* as not been assigned, evaluate as false, so assign true */
 			newval = new EXP_BoolValue(true);
-			propowner->SetProperty(m_propname,newval);
+			propowner->SetProperty(m_propname, newval);
 		}
 		newval->Release();
 	}
-	else if (m_type==KX_ACT_PROP_LEVEL)
-	{
-		EXP_Value* newval = new EXP_BoolValue(true);
-		EXP_Value* oldprop = propowner->GetProperty(m_propname);
-		if (oldprop)
-		{
+	else if (m_type == KX_ACT_PROP_LEVEL) {
+		EXP_Value *newval = new EXP_BoolValue(true);
+		EXP_Value *oldprop = propowner->GetProperty(m_propname);
+		if (oldprop) {
 			oldprop->SetValue(newval);
-		} else
-		{
-			propowner->SetProperty(m_propname,newval);
+		}
+		else {
+			propowner->SetProperty(m_propname, newval);
 		}
 		newval->Release();
 	}
 	else if ((userexpr = parser.ProcessText(m_exprtxt))) {
-		switch (m_type)
-		{
+		switch (m_type) {
 
-		case KX_ACT_PROP_ASSIGN:
+			case KX_ACT_PROP_ASSIGN:
 			{
-				
-				EXP_Value* newval = userexpr->Calculate();
-				EXP_Value* oldprop = propowner->GetProperty(m_propname);
-				if (oldprop)
-				{
+
+				EXP_Value *newval = userexpr->Calculate();
+				EXP_Value *oldprop = propowner->GetProperty(m_propname);
+				if (oldprop) {
 					oldprop->SetValue(newval);
-				} else
-				{
-					propowner->SetProperty(m_propname,newval);
+				}
+				else {
+					propowner->SetProperty(m_propname, newval);
 				}
 				newval->Release();
 				break;
 			}
-		case KX_ACT_PROP_ADD:
+			case KX_ACT_PROP_ADD:
 			{
-				EXP_Value* oldprop = propowner->GetProperty(m_propname);
-				if (oldprop)
-				{
+				EXP_Value *oldprop = propowner->GetProperty(m_propname);
+				if (oldprop) {
 					// int waarde = (int)oldprop->GetNumber();  /*unused*/
-					EXP_Expression* expr = new EXP_Operator2Expr(VALUE_ADD_OPERATOR,new EXP_ConstExpr(oldprop->AddRef()),
-															userexpr->AddRef());
+					EXP_Expression *expr = new EXP_Operator2Expr(VALUE_ADD_OPERATOR, new EXP_ConstExpr(oldprop->AddRef()),
+					                                             userexpr->AddRef());
 
-					EXP_Value* newprop = expr->Calculate();
+					EXP_Value *newprop = expr->Calculate();
 					oldprop->SetValue(newprop);
 					newprop->Release();
 					expr->Release();
@@ -158,25 +150,23 @@ bool SCA_PropertyActuator::Update()
 
 				break;
 			}
-		case KX_ACT_PROP_COPY:
+			case KX_ACT_PROP_COPY:
 			{
-				if (m_sourceObj)
-				{
-					EXP_Value* copyprop = m_sourceObj->GetProperty(m_exprtxt);
-					if (copyprop)
-					{
+				if (m_sourceObj) {
+					EXP_Value *copyprop = m_sourceObj->GetProperty(m_exprtxt);
+					if (copyprop) {
 						EXP_Value *val = copyprop->GetReplica();
 						GetParent()->SetProperty(
-							 m_propname,
-							 val);
+							m_propname,
+							val);
 						val->Release();
 
 					}
 				}
 				break;
 			}
-		/* case KX_ACT_PROP_TOGGLE: */ /* accounted for above, no need for userexpr */
-		default:
+			/* case KX_ACT_PROP_TOGGLE: */ /* accounted for above, no need for userexpr */
+			default:
 			{
 
 			}
@@ -184,18 +174,14 @@ bool SCA_PropertyActuator::Update()
 
 		userexpr->Release();
 	}
-	
+
 	return result;
 }
 
-	EXP_Value* 
-
-SCA_PropertyActuator::
-
-GetReplica()
+EXP_Value *SCA_PropertyActuator::GetReplica()
 {
 
-	SCA_PropertyActuator* replica = new SCA_PropertyActuator(*this);
+	SCA_PropertyActuator *replica = new SCA_PropertyActuator(*this);
 
 	replica->ProcessReplica();
 	return replica;
@@ -206,15 +192,15 @@ void SCA_PropertyActuator::ProcessReplica()
 {
 	// no need to check for self reference like in the constructor:
 	// the replica will always have a different parent
-	if (m_sourceObj)
+	if (m_sourceObj) {
 		m_sourceObj->RegisterActuator(this);
+	}
 	SCA_IActuator::ProcessReplica();
 }
 
-bool SCA_PropertyActuator::UnlinkObject(SCA_IObject* clientobj)
+bool SCA_PropertyActuator::UnlinkObject(SCA_IObject *clientobj)
 {
-	if (clientobj == m_sourceObj)
-	{
+	if (clientobj == m_sourceObj) {
 		// this object is being deleted, we cannot continue to track it.
 		m_sourceObj = nullptr;
 		return true;
@@ -226,8 +212,9 @@ void SCA_PropertyActuator::Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_ma
 {
 	SCA_IObject *obj = obj_map[m_sourceObj];
 	if (obj) {
-		if (m_sourceObj)
+		if (m_sourceObj) {
 			m_sourceObj->UnregisterActuator(this);
+		}
 		m_sourceObj = obj;
 		m_sourceObj->RegisterActuator(this);
 	}
@@ -251,26 +238,26 @@ PyTypeObject SCA_PropertyActuator::Type = {
 	0,
 	0,
 	py_base_repr,
-	0,0,0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0,
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0,
 	Methods,
 	0,
 	0,
 	&SCA_IActuator::Type,
-	0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0,
 	py_base_new
 };
 
 PyMethodDef SCA_PropertyActuator::Methods[] = {
-	{nullptr,nullptr} //Sentinel
+	{nullptr, nullptr} //Sentinel
 };
 
 PyAttributeDef SCA_PropertyActuator::Attributes[] = {
-	EXP_PYATTRIBUTE_STRING_RW_CHECK("propName",0,MAX_PROP_NAME,false,SCA_PropertyActuator,m_propname,CheckProperty),
-	EXP_PYATTRIBUTE_STRING_RW("value",0,100,false,SCA_PropertyActuator,m_exprtxt),
-	EXP_PYATTRIBUTE_INT_RW("mode", KX_ACT_PROP_NODEF+1, KX_ACT_PROP_MAX-1, false, SCA_PropertyActuator, m_type), /* ATTR_TODO add constents to game logic dict */
-	EXP_PYATTRIBUTE_NULL	//Sentinel
+	EXP_PYATTRIBUTE_STRING_RW_CHECK("propName", 0, MAX_PROP_NAME, false, SCA_PropertyActuator, m_propname, CheckProperty),
+	EXP_PYATTRIBUTE_STRING_RW("value", 0, 100, false, SCA_PropertyActuator, m_exprtxt),
+	EXP_PYATTRIBUTE_INT_RW("mode", KX_ACT_PROP_NODEF + 1, KX_ACT_PROP_MAX - 1, false, SCA_PropertyActuator, m_type), /* ATTR_TODO add constents to game logic dict */
+	EXP_PYATTRIBUTE_NULL    //Sentinel
 };
 
 #endif

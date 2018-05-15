@@ -38,12 +38,12 @@
 
 #include "CM_Message.h"
 
-KX_RayCast::KX_RayCast(PHY_IPhysicsController* ignoreController, bool faceNormal, bool faceUV)
+KX_RayCast::KX_RayCast(PHY_IPhysicsController *ignoreController, bool faceNormal, bool faceUV)
 	:PHY_IRayCastFilterCallback(ignoreController, faceNormal, faceUV)
 {
 }
 
-void KX_RayCast::reportHit(PHY_RayCastResult* result)
+void KX_RayCast::reportHit(PHY_RayCastResult *result)
 {
 	m_hitFound = true;
 	m_hitPoint = mt::vec3(result->m_hitPoint);
@@ -54,47 +54,51 @@ void KX_RayCast::reportHit(PHY_RayCastResult* result)
 	m_hitPolygon = result->m_polygon;
 }
 
-bool KX_RayCast::RayTest(PHY_IPhysicsEnvironment* physics_environment, const mt::vec3& _frompoint, const mt::vec3& topoint, KX_RayCast& callback)
+bool KX_RayCast::RayTest(PHY_IPhysicsEnvironment *physics_environment, const mt::vec3& _frompoint, const mt::vec3& topoint, KX_RayCast& callback)
 {
-	if (physics_environment==nullptr) return false; /* prevents crashing in some cases */
-	
+	if (physics_environment == nullptr) {
+		return false;                               /* prevents crashing in some cases */
+
+	}
 	// Loops over all physics objects between frompoint and topoint,
 	// calling callback.RayHit for each one.
 	//
 	// callback.RayHit should return true to stop looking, or false to continue.
 	//
 	// returns true if an object was found, false if not.
-	
+
 	mt::vec3 frompoint(_frompoint);
-	const mt::vec3 todir( (topoint - frompoint).SafeNormalized(mt::axisX3) );
-	mt::vec3 prevpoint(_frompoint+todir*(-1.f));
-	
-	PHY_IPhysicsController* hit_controller;
+	const mt::vec3 todir((topoint - frompoint).SafeNormalized(mt::axisX3));
+	mt::vec3 prevpoint(_frompoint + todir * (-1.f));
+
+	PHY_IPhysicsController *hit_controller;
 
 	while ((hit_controller = physics_environment->RayTest(callback,
-	                                                      frompoint.x,frompoint.y,frompoint.z,
-	                                                      topoint.x,topoint.y,topoint.z)) != nullptr)
+	                                                      frompoint.x, frompoint.y, frompoint.z,
+	                                                      topoint.x, topoint.y, topoint.z)) != nullptr)
 	{
-		KX_ClientObjectInfo *info = static_cast<KX_ClientObjectInfo*>(hit_controller->GetNewClientInfo());
-		
+		KX_ClientObjectInfo *info = static_cast<KX_ClientObjectInfo *>(hit_controller->GetNewClientInfo());
+
 		if (!info) {
 			CM_Error("no info!");
 			BLI_assert(info && "Physics controller with no client object info");
 			break;
 		}
-		
+
 		// The biggest danger to endless loop, prevent this by checking that the
 		// hit point always progresses along the ray direction..
 		prevpoint -= callback.m_hitPoint;
-		if (mt::FuzzyZero(prevpoint.LengthSquared()))
+		if (mt::FuzzyZero(prevpoint.LengthSquared())) {
 			break;
+		}
 
-		if (callback.RayHit(info))
+		if (callback.RayHit(info)) {
 			// caller may decide to stop the loop and still cancel the hit
 			return callback.m_hitFound;
+		}
 
 		// Skip past the object and keep tracing.
-		// Note that retrieving in a single shot multiple hit points would be possible 
+		// Note that retrieving in a single shot multiple hit points would be possible
 		// but it would require some change in Bullet.
 		prevpoint = callback.m_hitPoint;
 		/* We add 0.001 of fudge, so that if the margin && radius == 0.0, we don't endless loop. */
@@ -102,14 +106,16 @@ bool KX_RayCast::RayTest(PHY_IPhysicsEnvironment* physics_environment, const mt:
 		marg *= 2.f;
 		/* Calculate the other side of this object */
 		float h = std::abs(mt::dot(todir, callback.m_hitNormal));
-		if (h <= 0.01f)
+		if (h <= 0.01f) {
 			// the normal is almost orthogonal to the ray direction, cannot compute the other side
 			break;
-		marg /= h; 
+		}
+		marg /= h;
 		frompoint = callback.m_hitPoint + marg * todir;
 		// verify that we are not passed the to point
-		if (mt::dot((topoint - frompoint), todir) < 0.f)
+		if (mt::dot((topoint - frompoint), todir) < 0.f) {
 			break;
+		}
 	}
 	return false;
 }

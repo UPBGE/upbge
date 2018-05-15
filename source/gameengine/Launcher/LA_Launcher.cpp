@@ -80,8 +80,8 @@ extern "C" {
 #endif
 
 LA_Launcher::LA_Launcher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs,
-						 RAS_Rasterizer::StereoMode stereoMode, int samples, int argc, char **argv)
-	:m_startSceneName(scene->id.name + 2), 
+                         RAS_Rasterizer::StereoMode stereoMode, int samples, int argc, char **argv)
+	:m_startSceneName(scene->id.name + 2),
 	m_startScene(scene),
 	m_maggie(maggie),
 	m_kxStartScene(nullptr),
@@ -89,11 +89,11 @@ LA_Launcher::LA_Launcher(GHOST_ISystem *system, Main *maggie, Scene *scene, Glob
 	m_globalSettings(gs),
 	m_system(system),
 	m_ketsjiEngine(nullptr),
-	m_kxsystem(nullptr), 
+	m_kxsystem(nullptr),
 	m_inputDevice(nullptr),
 	m_eventConsumer(nullptr),
 	m_canvas(nullptr),
-	m_rasterizer(nullptr), 
+	m_rasterizer(nullptr),
 	m_converter(nullptr),
 #ifdef WITH_PYTHON
 	m_globalDict(nullptr),
@@ -156,12 +156,12 @@ void LA_Launcher::InitEngine()
 	bool restrictAnimFPS = (gm.flag & GAME_RESTRICT_ANIM_UPDATES) != 0;
 
 	const KX_KetsjiEngine::FlagType flags = (KX_KetsjiEngine::FlagType)
-		((fixed_framerate ? KX_KetsjiEngine::FIXED_FRAMERATE : 0) |
-		(frameRate ? KX_KetsjiEngine::SHOW_FRAMERATE : 0) |
-		(renderQueries ? KX_KetsjiEngine::SHOW_RENDER_QUERIES : 0) |
-		(restrictAnimFPS ? KX_KetsjiEngine::RESTRICT_ANIMATION : 0) |
-		(properties ? KX_KetsjiEngine::SHOW_DEBUG_PROPERTIES : 0) |
-		(profile ? KX_KetsjiEngine::SHOW_PROFILE : 0));
+	                                        ((fixed_framerate ? KX_KetsjiEngine::FIXED_FRAMERATE : 0) |
+	                                         (frameRate ? KX_KetsjiEngine::SHOW_FRAMERATE : 0) |
+	                                         (renderQueries ? KX_KetsjiEngine::SHOW_RENDER_QUERIES : 0) |
+	                                         (restrictAnimFPS ? KX_KetsjiEngine::RESTRICT_ANIMATION : 0) |
+	                                         (properties ? KX_KetsjiEngine::SHOW_DEBUG_PROPERTIES : 0) |
+	                                         (profile ? KX_KetsjiEngine::SHOW_PROFILE : 0));
 
 	// Setup python console keys used as shortcut.
 	for (unsigned short i = 0; i < 4; ++i) {
@@ -236,7 +236,7 @@ void LA_Launcher::InitEngine()
 	m_kxsystem = new LA_System();
 
 	m_networkMessageManager = new KX_NetworkMessageManager();
-	
+
 	// Create the ketsjiengine.
 	m_ketsjiEngine = new KX_KetsjiEngine(m_kxsystem);
 	KX_SetActiveEngine(m_ketsjiEngine);
@@ -307,8 +307,8 @@ void LA_Launcher::InitEngine()
 	m_rasterizer->Init();
 	m_ketsjiEngine->StartEngine();
 
-	/* Set the animation playback rate for ipo's and actions the 
-	 * framerate below should patch with FPS macro defined in blendef.h 
+	/* Set the animation playback rate for ipo's and actions the
+	 * framerate below should patch with FPS macro defined in blendef.h
 	 * Could be in StartEngine set the framerate, we need the scene to do this.
 	 */
 	Scene *scene = m_kxStartScene->GetBlenderScene(); // needed for macro
@@ -400,7 +400,7 @@ void LA_Launcher::HandlePythonConsole()
 	}
 
 #ifdef WIN32 // We Use this function to avoid Blender window freeze when we launch python console from Windows.
-       DisableProcessWindowsGhosting();
+	DisableProcessWindowsGhosting();
 #endif
 
 	// Pop the console window for windows.
@@ -495,14 +495,12 @@ bool LA_Launcher::EngineNextFrame()
 	m_system->dispatchEvents();
 
 	if (m_inputDevice->GetInput((SCA_IInputDevice::SCA_EnumInputs)m_ketsjiEngine->GetExitKey()).Find(SCA_InputEvent::ACTIVE) &&
-		!m_inputDevice->GetHookExitKey())
-	{
+	    !m_inputDevice->GetHookExitKey()) {
 		m_inputDevice->ConvertEvent((SCA_IInputDevice::SCA_EnumInputs)m_ketsjiEngine->GetExitKey(), 0, 0);
 		m_exitRequested = KX_ExitRequest::BLENDER_ESC;
 	}
 	else if (m_inputDevice->GetInput(SCA_IInputDevice::WINCLOSE).Find(SCA_InputEvent::ACTIVE) ||
-		m_inputDevice->GetInput(SCA_IInputDevice::WINQUIT).Find(SCA_InputEvent::ACTIVE))
-	{
+	         m_inputDevice->GetInput(SCA_IInputDevice::WINQUIT).Find(SCA_InputEvent::ACTIVE)) {
 		m_inputDevice->ConvertEvent(SCA_IInputDevice::WINCLOSE, 0, 0);
 		m_inputDevice->ConvertEvent(SCA_IInputDevice::WINQUIT, 0, 0);
 		m_exitRequested = KX_ExitRequest::OUTSIDE;
@@ -533,12 +531,12 @@ void LA_Launcher::EngineMainLoop()
 		pynextframestate.func = nullptr;
 #endif  // WITH_PYTHON
 
-		bool run = true;
-		while (run) {
-			run  = EngineNextFrame();
-		}
+	bool run = true;
+	while (run) {
+		run  = EngineNextFrame();
+	}
 
 #ifdef WITH_PYTHON
-	}
+}
 #endif
 }

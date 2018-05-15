@@ -167,8 +167,9 @@ void KX_BlenderMaterial::GetRGBAColor(unsigned char *rgba) const
 		*rgba++ = (unsigned char)(m_material->b * 255.0f);
 		*rgba++ = (unsigned char)(m_material->alpha * 255.0f);
 	}
-	else
+	else {
 		RAS_IPolyMaterial::GetRGBAColor(rgba);
+	}
 }
 
 const std::string KX_BlenderMaterial::GetTextureName() const
@@ -331,15 +332,19 @@ void KX_BlenderMaterial::ActivateInstancing(RAS_Rasterizer *rasty, void *matrixo
 
 bool KX_BlenderMaterial::UsesLighting() const
 {
-	if (!RAS_IPolyMaterial::UsesLighting())
+	if (!RAS_IPolyMaterial::UsesLighting()) {
 		return false;
+	}
 
-	if (m_shader && m_shader->Ok())
+	if (m_shader && m_shader->Ok()) {
 		return true;
-	else if (m_blenderShader && m_blenderShader->Ok())
+	}
+	else if (m_blenderShader && m_blenderShader->Ok()) {
 		return false;
-	else
+	}
+	else {
 		return true;
+	}
 }
 
 void KX_BlenderMaterial::ActivateMeshSlot(RAS_MeshSlot *ms, RAS_Rasterizer *rasty, const mt::mat3x4& camtrans)
@@ -356,8 +361,9 @@ void KX_BlenderMaterial::ActivateMeshSlot(RAS_MeshSlot *ms, RAS_Rasterizer *rast
 		/* we do blend modes here, because they can change per object
 		 * with the same material due to obcolor/obalpha */
 		int alphablend = m_blenderShader->GetAlphaBlend();
-		if (ELEM(alphablend, GEMAT_SOLID, GEMAT_ALPHA, GEMAT_ALPHA_SORT) && m_alphablend != GEMAT_SOLID)
+		if (ELEM(alphablend, GEMAT_SOLID, GEMAT_ALPHA, GEMAT_ALPHA_SORT) && m_alphablend != GEMAT_SOLID) {
 			alphablend = m_alphablend;
+		}
 
 		rasty->SetAlphaBlend(alphablend);
 	}
@@ -367,26 +373,25 @@ void KX_BlenderMaterial::ActivateGLMaterials(RAS_Rasterizer *rasty) const
 {
 	if (m_shader || !m_blenderShader) {
 		rasty->SetSpecularity(m_material->specr * m_material->spec, m_material->specg * m_material->spec,
-							  m_material->specb * m_material->spec, m_material->spec);
+		                      m_material->specb * m_material->spec, m_material->spec);
 		rasty->SetShinyness(((float)m_material->har) / 4.0f);
 		rasty->SetDiffuse(m_material->r * m_material->ref + m_material->emit, m_material->g * m_material->ref + m_material->emit,
-						  m_material->b * m_material->ref + m_material->emit, 1.0f);
+		                  m_material->b * m_material->ref + m_material->emit, 1.0f);
 		rasty->SetEmissive(m_material->r * m_material->emit, m_material->g * m_material->emit,
-						   m_material->b * m_material->emit, 1.0f);
+		                   m_material->b * m_material->emit, 1.0f);
 		rasty->SetAmbient(m_material->amb);
 	}
 }
 
-void KX_BlenderMaterial::UpdateIPO(
-    const mt::vec4 &rgba,
-    const mt::vec3 &specrgb,
-    float hard,
-    float spec,
-    float ref,
-    float emit,
-	float ambient,
-    float alpha,
-	float specalpha)
+void KX_BlenderMaterial::UpdateIPO(const mt::vec4 &rgba,
+                                   const mt::vec3 &specrgb,
+                                   float hard,
+                                   float spec,
+                                   float ref,
+                                   float emit,
+                                   float ambient,
+                                   float alpha,
+                                   float specalpha)
 {
 	// only works one deep now
 
@@ -433,8 +438,9 @@ static unsigned char mathutils_kxblendermaterial_color_cb_index = -1; /* index f
 static int mathutils_kxblendermaterial_generic_check(BaseMathObject *bmo)
 {
 	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>EXP_PROXY_REF(bmo->cb_user);
-	if (!self)
+	if (!self) {
 		return -1;
+	}
 
 	return 0;
 }
@@ -442,8 +448,9 @@ static int mathutils_kxblendermaterial_generic_check(BaseMathObject *bmo)
 static int mathutils_kxblendermaterial_color_get(BaseMathObject *bmo, int subtype)
 {
 	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>EXP_PROXY_REF(bmo->cb_user);
-	if (!self)
+	if (!self) {
 		return -1;
+	}
 
 	Material *mat = self->GetBlenderMaterial();
 
@@ -470,8 +477,9 @@ static int mathutils_kxblendermaterial_color_get(BaseMathObject *bmo, int subtyp
 static int mathutils_kxblendermaterial_color_set(BaseMathObject *bmo, int subtype)
 {
 	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>EXP_PROXY_REF(bmo->cb_user);
-	if (!self)
+	if (!self) {
 		return -1;
+	}
 
 	Material *mat = self->GetBlenderMaterial();
 
@@ -498,8 +506,9 @@ static int mathutils_kxblendermaterial_color_set(BaseMathObject *bmo, int subtyp
 static int mathutils_kxblendermaterial_color_get_index(BaseMathObject *bmo, int subtype, int index)
 {
 	/* lazy, avoid repeteing the case statement */
-	if (mathutils_kxblendermaterial_color_get(bmo, subtype) == -1)
+	if (mathutils_kxblendermaterial_color_get(bmo, subtype) == -1) {
 		return -1;
+	}
 	return 0;
 }
 
@@ -508,8 +517,9 @@ static int mathutils_kxblendermaterial_color_set_index(BaseMathObject *bmo, int 
 	float f = bmo->data[index];
 
 	/* lazy, avoid repeateing the case statement */
-	if (mathutils_kxblendermaterial_color_get(bmo, subtype) == -1)
+	if (mathutils_kxblendermaterial_color_get(bmo, subtype) == -1) {
 		return -1;
+	}
 
 	bmo->data[index] = f;
 	return mathutils_kxblendermaterial_color_set(bmo, subtype);
@@ -537,7 +547,7 @@ void KX_BlenderMaterial_Mathutils_Callback_Init()
 PyMethodDef KX_BlenderMaterial::Methods[] =
 {
 	EXP_PYMETHODTABLE(KX_BlenderMaterial, getShader),
-	EXP_PYMETHODTABLE( KX_BlenderMaterial, getTextureBindcode),
+	EXP_PYMETHODTABLE(KX_BlenderMaterial, getTextureBindcode),
 	EXP_PYMETHODTABLE(KX_BlenderMaterial, setBlending),
 	{nullptr, nullptr} //Sentinel
 };
@@ -615,12 +625,12 @@ static const std::string kx_blender_material_get_textures_item_name_cb(void *sel
 PyObject *KX_BlenderMaterial::pyattr_get_textures(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	return (new EXP_ListWrapper(self_v,
-							 ((KX_BlenderMaterial *)self_v)->GetProxy(),
-							 nullptr,
-							 kx_blender_material_get_textures_size_cb,
-							 kx_blender_material_get_textures_item_cb,
-							 kx_blender_material_get_textures_item_name_cb,
-							 nullptr))->NewProxy(true);
+	                            ((KX_BlenderMaterial *)self_v)->GetProxy(),
+	                            nullptr,
+	                            kx_blender_material_get_textures_size_cb,
+	                            kx_blender_material_get_textures_item_cb,
+	                            kx_blender_material_get_textures_item_name_cb,
+	                            nullptr))->NewProxy(true);
 }
 
 PyObject *KX_BlenderMaterial::pyattr_get_blending(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
@@ -733,8 +743,9 @@ int KX_BlenderMaterial::pyattr_set_specular_color(EXP_PyObjectPlus *self_v, cons
 {
 	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
 	mt::vec3 color;
-	if (!PyVecTo(value, color))
+	if (!PyVecTo(value, color)) {
 		return PY_SET_ATTR_FAIL;
+	}
 
 	Material *mat = self->GetBlenderMaterial();
 	mat->specr = color[0];
@@ -780,8 +791,9 @@ int KX_BlenderMaterial::pyattr_set_diffuse_color(EXP_PyObjectPlus *self_v, const
 {
 	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
 	mt::vec3 color;
-	if (!PyVecTo(value, color))
+	if (!PyVecTo(value, color)) {
 		return PY_SET_ATTR_FAIL;
+	}
 
 	Material *mat = self->GetBlenderMaterial();
 	mat->r = color[0];
@@ -838,8 +850,7 @@ int KX_BlenderMaterial::pyattr_set_blending(EXP_PyObjectPlus *self_v, const EXP_
 {
 	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
 	PyObject *obj = self->PysetBlending(value, nullptr);
-	if (obj)
-	{
+	if (obj) {
 		Py_DECREF(obj);
 		return 0;
 	}

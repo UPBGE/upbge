@@ -47,7 +47,7 @@ private:
 public:
 	SG_Interpolator(float *target, SG_ScalarInterpolator *interp);
 	virtual ~SG_Interpolator() = default;
-	
+
 	void Execute(float currentTime) const;
 };
 

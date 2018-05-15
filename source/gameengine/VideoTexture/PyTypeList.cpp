@@ -39,44 +39,56 @@
 PyTypeList::~PyTypeList()
 {
 	// if list exists
-	if (m_list.get() != nullptr)
-		for (PyTypeListType::iterator it = m_list->begin(); it != m_list->end(); ++it)
+	if (m_list.get() != nullptr) {
+		for (PyTypeListType::iterator it = m_list->begin(); it != m_list->end(); ++it) {
 			delete *it;
+		}
+	}
 }
 
 /// check, if type is in list
-bool PyTypeList::in (PyTypeObject *type)
+bool PyTypeList::in(PyTypeObject *type)
 {
 	// if list exists
-	if (m_list.get() != nullptr)
+	if (m_list.get() != nullptr) {
 		// iterate items in list
-		for (PyTypeListType::iterator it = m_list->begin(); it != m_list->end(); ++it)
+		for (PyTypeListType::iterator it = m_list->begin(); it != m_list->end(); ++it) {
 			// if item is found, return with success
-			if ((*it)->getType() == type) return true;
+			if ((*it)->getType() == type) {
+				return true;
+			}
+		}
+	}
 	// otherwise return not found
 	return false;
 }
 
 /// add type to list
-void PyTypeList::add (PyTypeObject *type, const char *name)
+void PyTypeList::add(PyTypeObject *type, const char *name)
 {
 	// if list doesn't exist, create it
-	if (m_list.get() == nullptr) 
+	if (m_list.get() == nullptr) {
 		m_list.reset(new PyTypeListType());
-	if (!in(type))
+	}
+	if (!in(type)) {
 		// add new item to list
 		m_list->push_back(new PyTypeListItem(type, name));
+	}
 }
 
 /// prepare types
-bool PyTypeList::ready (void)
+bool PyTypeList::ready(void)
 {
 	// if list exists
-	if (m_list.get() != nullptr)
+	if (m_list.get() != nullptr) {
 		// iterate items in list
-		for (PyTypeListType::iterator it = m_list->begin(); it != m_list->end(); ++it)
+		for (PyTypeListType::iterator it = m_list->begin(); it != m_list->end(); ++it) {
 			// if preparation failed, report it
-			if (PyType_Ready((*it)->getType()) < 0) return false;
+			if (PyType_Ready((*it)->getType()) < 0) {
+				return false;
+			}
+		}
+	}
 	// success
 	return true;
 }
@@ -85,7 +97,7 @@ bool PyTypeList::ready (void)
 void PyTypeList::reg(PyObject *module)
 {
 	// if list exists
-	if (m_list.get() != nullptr)
+	if (m_list.get() != nullptr) {
 		// iterate items in list
 		for (PyTypeListType::iterator it = m_list->begin(); it != m_list->end(); ++it)
 		{
@@ -94,4 +106,5 @@ void PyTypeList::reg(PyObject *module)
 			// add type to module
 			PyModule_AddObject(module, (*it)->getName(), (PyObject *)(*it)->getType());
 		}
+	}
 }

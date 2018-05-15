@@ -326,7 +326,7 @@ EXP_Value *EXP_Value::ConvertPythonToValue(PyObject *pyobj, const bool do_type_e
 	EXP_Value *vallie;
 	// Note: Boolean check should go before Int check [#34677].
 	if (PyBool_Check(pyobj)) {
-		vallie = new EXP_BoolValue( (bool)PyLong_AsLongLong(pyobj) );
+		vallie = new EXP_BoolValue((bool)PyLong_AsLongLong(pyobj));
 	}
 	else if (PyFloat_Check(pyobj)) {
 		const double tval = PyFloat_AsDouble(pyobj);
@@ -339,7 +339,7 @@ EXP_Value *EXP_Value::ConvertPythonToValue(PyObject *pyobj, const bool do_type_e
 		}
 	}
 	else if (PyLong_Check(pyobj)) {
-		vallie = new EXP_IntValue( (cInt)PyLong_AsLongLong(pyobj) );
+		vallie = new EXP_IntValue((cInt)PyLong_AsLongLong(pyobj));
 	}
 	else if (PyUnicode_Check(pyobj)) {
 		vallie = new EXP_StringValue(_PyUnicode_AsString(pyobj), "");

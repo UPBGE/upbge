@@ -84,7 +84,7 @@ const std::string& KX_GetOrigPath()
 	return g_origPath;
 }
 
-void KX_RasterizerDrawDebugLine(const mt::vec3& from,const mt::vec3& to,const mt::vec4& color)
+void KX_RasterizerDrawDebugLine(const mt::vec3& from, const mt::vec3& to, const mt::vec4& color)
 {
 	g_engine->GetRasterizer()->GetDebugDraw(g_scene).DrawLine(from, to, color);
 }

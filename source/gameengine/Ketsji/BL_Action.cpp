@@ -60,8 +60,8 @@ extern "C" {
 #include "BKE_library.h"
 #include "BKE_global.h"
 
-BL_Action::BL_Action(class KX_GameObject* gameobj)
-:
+BL_Action::BL_Action(class KX_GameObject *gameobj)
+	:
 	m_action(nullptr),
 	m_tmpaction(nullptr),
 	m_blendpose(nullptr),
@@ -88,10 +88,12 @@ BL_Action::BL_Action(class KX_GameObject* gameobj)
 
 BL_Action::~BL_Action()
 {
-	if (m_blendpose)
+	if (m_blendpose) {
 		BKE_pose_free(m_blendpose);
-	if (m_blendinpose)
+	}
+	if (m_blendinpose) {
 		BKE_pose_free(m_blendinpose);
+	}
 	ClearControllerList();
 
 	if (m_tmpaction) {
@@ -103,7 +105,7 @@ BL_Action::~BL_Action()
 void BL_Action::ClearControllerList()
 {
 	// Clear out the controller list
-	std::vector<SG_Controller*>::iterator it;
+	std::vector<SG_Controller *>::iterator it;
 	for (it = m_sg_contr_list.begin(); it != m_sg_contr_list.end(); it++)
 	{
 		m_obj->GetSGNode()->RemoveSGController((*it));
@@ -114,30 +116,30 @@ void BL_Action::ClearControllerList()
 }
 
 bool BL_Action::Play(const std::string& name,
-					float start,
-					float end,
-					short priority,
-					float blendin,
-					short play_mode,
-					float layer_weight,
-					short ipo_flags,
-					float playback_speed,
-					short blend_mode)
+                     float start,
+                     float end,
+                     short priority,
+                     float blendin,
+                     short play_mode,
+                     float layer_weight,
+                     short ipo_flags,
+                     float playback_speed,
+                     short blend_mode)
 {
 
 	// Only start playing a new action if we're done, or if
 	// the new action has a higher priority
-	if (!IsDone() && priority > m_priority)
+	if (!IsDone() && priority > m_priority) {
 		return false;
+	}
 	m_priority = priority;
-	bAction* prev_action = m_action;
+	bAction *prev_action = m_action;
 
-	KX_Scene* kxscene = m_obj->GetScene();
+	KX_Scene *kxscene = m_obj->GetScene();
 
 	// First try to load the action
-	m_action = (bAction*)kxscene->GetLogicManager()->GetActionByName(name);
-	if (!m_action)
-	{
+	m_action = (bAction *)kxscene->GetLogicManager()->GetActionByName(name);
+	if (!m_action) {
 		CM_Error("failed to load action: " << name);
 		m_done = true;
 		return false;
@@ -150,8 +152,9 @@ bool BL_Action::Play(const std::string& name,
 	// playing action with the same action and settings. If this becomes an issue,
 	// then this fix may have to be re-evaluated.
 	if (!IsDone() && m_action == prev_action && m_startframe == start && m_endframe == end
-			&& m_priority == priority && m_speed == playback_speed)
+	    && m_priority == priority && m_speed == playback_speed) {
 		return false;
+	}
 
 	// Keep a copy of the action for threading purposes
 	if (m_tmpaction) {
@@ -200,44 +203,40 @@ bool BL_Action::Play(const std::string& name,
 	}
 
 	// Extra controllers
-	if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_LIGHT)
-	{
+	if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_LIGHT) {
 		sg_contr = BL_CreateLampIPO(m_action, m_obj, kxscene);
 		m_sg_contr_list.push_back(sg_contr);
 		m_obj->GetSGNode()->AddSGController(sg_contr);
 		sg_contr->SetNode(m_obj->GetSGNode());
 	}
-	else if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_CAMERA)
-	{
+	else if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_CAMERA) {
 		sg_contr = BL_CreateCameraIPO(m_action, m_obj, kxscene);
 		m_sg_contr_list.push_back(sg_contr);
 		m_obj->GetSGNode()->AddSGController(sg_contr);
 		sg_contr->SetNode(m_obj->GetSGNode());
 	}
-	
+
 	m_ipo_flags = ipo_flags;
 	InitIPO();
 
 	// Setup blendin shapes/poses
-	if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE)
-	{
-		BL_ArmatureObject *obj = (BL_ArmatureObject*)m_obj;
+	if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
+		BL_ArmatureObject *obj = (BL_ArmatureObject *)m_obj;
 		obj->GetPose(&m_blendinpose);
 	}
-	else
-	{
-		BL_DeformableGameObject *obj = (BL_DeformableGameObject*)m_obj;
-		BL_ShapeDeformer *shape_deformer = dynamic_cast<BL_ShapeDeformer*>(obj->GetDeformer());
-		
-		if (shape_deformer && shape_deformer->GetKey())
-		{
+	else {
+		BL_DeformableGameObject *obj = (BL_DeformableGameObject *)m_obj;
+		BL_ShapeDeformer *shape_deformer = dynamic_cast<BL_ShapeDeformer *>(obj->GetDeformer());
+
+		if (shape_deformer && shape_deformer->GetKey()) {
 			obj->GetShape(m_blendinshape);
 
 			// Now that we have the previous blend shape saved, we can clear out the key to avoid any
 			// further interference.
 			KeyBlock *kb;
-			for (kb=(KeyBlock *)shape_deformer->GetKey()->block.first; kb; kb=(KeyBlock *)kb->next)
+			for (kb = (KeyBlock *)shape_deformer->GetKey()->block.first; kb; kb = (KeyBlock *)kb->next) {
 				kb->curval = 0.f;
+			}
 		}
 	}
 
@@ -252,7 +251,7 @@ bool BL_Action::Play(const std::string& name,
 	m_blendstart = 0.f;
 	m_speed = playback_speed;
 	m_layer_weight = layer_weight;
-	
+
 	m_done = false;
 	m_appliedToObject = false;
 	m_requestIpo = false;
@@ -270,7 +269,7 @@ bool BL_Action::IsDone()
 void BL_Action::InitIPO()
 {
 	// Initialize the IPOs
-	std::vector<SG_Controller*>::iterator it;
+	std::vector<SG_Controller *>::iterator it;
 	for (it = m_sg_contr_list.begin(); it != m_sg_contr_list.end(); it++)
 	{
 		(*it)->SetOption(SG_Controller::SG_CONTR_IPO_RESET, true);
@@ -303,11 +302,13 @@ const std::string BL_Action::GetName()
 void BL_Action::SetFrame(float frame)
 {
 	// Clamp the frame to the start and end frame
-	if (frame < std::min(m_startframe, m_endframe))
+	if (frame < std::min(m_startframe, m_endframe)) {
 		frame = std::min(m_startframe, m_endframe);
-	else if (frame > std::max(m_startframe, m_endframe))
+	}
+	else if (frame > std::max(m_startframe, m_endframe)) {
 		frame = std::max(m_startframe, m_endframe);
-	
+	}
+
 	m_localframe = frame;
 	m_calc_localtime = false;
 }
@@ -319,10 +320,11 @@ void BL_Action::SetPlayMode(short play_mode)
 
 void BL_Action::SetLocalTime(float curtime)
 {
-	float dt = (curtime-m_starttime)*(float)KX_GetActiveEngine()->GetAnimFrameRate()*m_speed;
+	float dt = (curtime - m_starttime) * (float)KX_GetActiveEngine()->GetAnimFrameRate() * m_speed;
 
-	if (m_endframe < m_startframe)
+	if (m_endframe < m_startframe) {
 		dt = -dt;
+	}
 
 	m_localframe = m_startframe + dt;
 }
@@ -331,33 +333,35 @@ void BL_Action::ResetStartTime(float curtime)
 {
 	float dt = (m_localframe > m_startframe) ? m_localframe - m_startframe : m_startframe - m_localframe;
 
-	m_starttime = curtime - dt / ((float)KX_GetActiveEngine()->GetAnimFrameRate()*m_speed);
+	m_starttime = curtime - dt / ((float)KX_GetActiveEngine()->GetAnimFrameRate() * m_speed);
 	SetLocalTime(curtime);
 }
 
 void BL_Action::IncrementBlending(float curtime)
 {
 	// Setup m_blendstart if we need to
-	if (m_blendstart == 0.f)
+	if (m_blendstart == 0.f) {
 		m_blendstart = curtime;
-	
+	}
+
 	// Bump the blend frame
-	m_blendframe = (curtime - m_blendstart)*(float)KX_GetActiveEngine()->GetAnimFrameRate();
+	m_blendframe = (curtime - m_blendstart) * (float)KX_GetActiveEngine()->GetAnimFrameRate();
 
 	// Clamp
-	if (m_blendframe>m_blendin)
+	if (m_blendframe > m_blendin) {
 		m_blendframe = m_blendin;
+	}
 }
 
 
-void BL_Action::BlendShape(Key* key, float srcweight, std::vector<float>& blendshape)
+void BL_Action::BlendShape(Key *key, float srcweight, std::vector<float>& blendshape)
 {
 	std::vector<float>::const_iterator it;
 	float dstweight;
 	KeyBlock *kb;
-	
+
 	dstweight = 1.0F - srcweight;
-	for (it=blendshape.begin(), kb = (KeyBlock *)key->block.first; 
+	for (it = blendshape.begin(), kb = (KeyBlock *)key->block.first;
 	     kb && it != blendshape.end();
 	     kb = (KeyBlock *)kb->next, it++)
 	{
@@ -378,10 +382,10 @@ void BL_Action::Update(float curtime, bool applyToObject)
 	KX_Scene *scene = m_obj->GetScene();
 	curtime -= (float)scene->GetSuspendedDelta();
 
-	if (m_calc_localtime)
+	if (m_calc_localtime) {
 		SetLocalTime(curtime);
-	else
-	{
+	}
+	else {
 		ResetStartTime(curtime);
 		m_calc_localtime = true;
 	}
@@ -394,16 +398,21 @@ void BL_Action::Update(float curtime, bool applyToObject)
 	if (m_localframe < minFrame || m_localframe > maxFrame) {
 		switch (m_playmode) {
 			case ACT_MODE_PLAY:
+			{
 				// Clamp
 				m_localframe = m_endframe;
 				m_done = true;
 				break;
+			}
 			case ACT_MODE_LOOP:
+			{
 				// Put the time back to the beginning
 				m_localframe = m_startframe;
 				m_starttime = curtime;
 				break;
+			}
 			case ACT_MODE_PING_PONG:
+			{
 				m_localframe = m_endframe;
 				m_starttime = curtime;
 
@@ -412,6 +421,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
 				m_startframe = m_endframe;
 				m_endframe = temp;
 				break;
+			}
 		}
 	}
 
@@ -425,23 +435,22 @@ void BL_Action::Update(float curtime, bool applyToObject)
 
 	m_requestIpo = true;
 
-	if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE)
-	{
-		BL_ArmatureObject *obj = (BL_ArmatureObject*)m_obj;
+	if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
+		BL_ArmatureObject *obj = (BL_ArmatureObject *)m_obj;
 
-		if (m_layer_weight >= 0)
+		if (m_layer_weight >= 0) {
 			obj->GetPose(&m_blendpose);
+		}
 
 		// Extract the pose from the action
 		obj->SetPoseByAction(m_tmpaction, m_localframe);
 
 		// Handle blending between armature actions
-		if (m_blendin && m_blendframe<m_blendin)
-		{
+		if (m_blendin && m_blendframe < m_blendin) {
 			IncrementBlending(curtime);
 
 			// Calculate weight
-			float weight = 1.f - (m_blendframe/m_blendin);
+			float weight = 1.f - (m_blendframe / m_blendin);
 
 			// Blend the poses
 			obj->BlendInPose(m_blendinpose, weight, ACT_BLEND_BLEND);
@@ -449,19 +458,18 @@ void BL_Action::Update(float curtime, bool applyToObject)
 
 
 		// Handle layer blending
-		if (m_layer_weight >= 0)
+		if (m_layer_weight >= 0) {
 			obj->BlendInPose(m_blendpose, m_layer_weight, m_blendmode);
+		}
 
 		obj->UpdateTimestep(curtime);
 	}
-	else
-	{
-		BL_DeformableGameObject *obj = (BL_DeformableGameObject*)m_obj;
-		BL_ShapeDeformer *shape_deformer = dynamic_cast<BL_ShapeDeformer*>(obj->GetDeformer());
+	else {
+		BL_DeformableGameObject *obj = (BL_DeformableGameObject *)m_obj;
+		BL_ShapeDeformer *shape_deformer = dynamic_cast<BL_ShapeDeformer *>(obj->GetDeformer());
 
 		// Handle shape actions if we have any
-		if (shape_deformer && shape_deformer->GetKey())
-		{
+		if (shape_deformer && shape_deformer->GetKey()) {
 			Key *key = shape_deformer->GetKey();
 
 			PointerRNA ptrrna;
@@ -470,25 +478,24 @@ void BL_Action::Update(float curtime, bool applyToObject)
 			animsys_evaluate_action(&ptrrna, m_tmpaction, nullptr, m_localframe);
 
 			// Handle blending between shape actions
-			if (m_blendin && m_blendframe < m_blendin)
-			{
+			if (m_blendin && m_blendframe < m_blendin) {
 				IncrementBlending(curtime);
 
-				float weight = 1.f - (m_blendframe/m_blendin);
+				float weight = 1.f - (m_blendframe / m_blendin);
 
 				// We go through and clear out the keyblocks so there isn't any interference
 				// from other shape actions
 				KeyBlock *kb;
-				for (kb=(KeyBlock *)key->block.first; kb; kb=(KeyBlock *)kb->next)
+				for (kb = (KeyBlock *)key->block.first; kb; kb = (KeyBlock *)kb->next) {
 					kb->curval = 0.f;
+				}
 
 				// Now blend the shape
 				BlendShape(key, weight, m_blendinshape);
 			}
 
 			// Handle layer blending
-			if (m_layer_weight >= 0)
-			{
+			if (m_layer_weight >= 0) {
 				obj->GetShape(m_blendshape);
 				BlendShape(key, m_layer_weight, m_blendshape);
 			}

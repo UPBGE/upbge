@@ -46,10 +46,10 @@ inline float KX_LodManager::LodLevelIterator::GetHysteresis(unsigned short level
 	if (level < 1 || !m_scene->IsActivedLodHysteresis()) {
 		return 0.0f;
 	}
-	
+
 	const KX_LodLevel& lod = m_levels[level];
 	const KX_LodLevel& prelod = m_levels[level - 1];
-	
+
 	float hysteresis = 0.0f;
 	// if exists, LoD level hysteresis will override scene hysteresis
 	if (lod.GetFlag() & KX_LodLevel::USE_HYSTERESIS) {
@@ -58,7 +58,7 @@ inline float KX_LodManager::LodLevelIterator::GetHysteresis(unsigned short level
 	else {
 		hysteresis = m_scene->GetLodHysteresisValue() / 100.0f;
 	}
-	
+
 	return std::abs(prelod.GetDistance() - lod.GetDistance()) * hysteresis;
 }
 
@@ -83,7 +83,7 @@ inline bool KX_LodManager::LodLevelIterator::operator<=(float distance2) const
 	if (m_index == (m_levels.size() - 1)) {
 		return false;
 	}
-	
+
 	return SQUARE(m_levels[m_index + 1].GetDistance() + GetHysteresis(m_index + 1)) <= distance2;
 }
 
@@ -111,7 +111,7 @@ KX_LodManager::KX_LodManager(Object *ob, KX_Scene *scene, BL_SceneConverter& con
 			}
 
 			if (lod->flags & OB_LOD_USE_MESH) {
-				lodmesh = (Mesh*)lod->source->data;
+				lodmesh = (Mesh *)lod->source->data;
 				flag |= KX_LodLevel::USE_MESH;
 			}
 
@@ -121,7 +121,7 @@ KX_LodManager::KX_LodManager(Object *ob, KX_Scene *scene, BL_SceneConverter& con
 			}
 
 			m_levels.emplace_back(lod->distance, lod->obhysteresis, level++,
-				BL_ConvertMesh(lodmesh, lodmatob, scene, converter), flag);
+			                      BL_ConvertMesh(lodmesh, lodmatob, scene, converter), flag);
 		}
 	}
 }
@@ -219,12 +219,12 @@ static PyObject *kx_lod_manager_get_levels_item_cb(void *self_v, int index)
 PyObject *KX_LodManager::pyattr_get_levels(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	return (new EXP_ListWrapper(self_v,
-							 ((KX_LodManager *)self_v)->GetProxy(),
-							 nullptr,
-							 kx_lod_manager_get_levels_size_cb,
-							 kx_lod_manager_get_levels_item_cb,
-							 nullptr,
-							 nullptr))->NewProxy(true);
+	                            ((KX_LodManager *)self_v)->GetProxy(),
+	                            nullptr,
+	                            kx_lod_manager_get_levels_size_cb,
+	                            kx_lod_manager_get_levels_item_cb,
+	                            nullptr,
+	                            nullptr))->NewProxy(true);
 }
 
 bool ConvertPythonToLodManager(PyObject *value, KX_LodManager **object, bool py_none_ok, const char *error_prefix)

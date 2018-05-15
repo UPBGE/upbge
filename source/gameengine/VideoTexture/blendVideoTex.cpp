@@ -56,21 +56,21 @@ extern "C"
 
 
 // get material id
-static PyObject *getMaterialID (PyObject *self, PyObject *args)
+static PyObject *getMaterialID(PyObject *self, PyObject *args)
 {
 	// parameters - game object with video texture
 	PyObject *obj = nullptr;
 	// material name
-	char * matName;
+	char *matName;
 
 	// get parameters
-	if (!PyArg_ParseTuple(args, "Os:materialID", &obj, &matName))
+	if (!PyArg_ParseTuple(args, "Os:materialID", &obj, &matName)) {
 		return nullptr;
+	}
 	// get material id
 	short matID = getMaterialID(obj, matName);
 	// if material was not found, report errot
-	if (matID < 0)
-	{
+	if (matID < 0) {
 		PyErr_SetString(PyExc_RuntimeError, "VideoTexture.materialID(ob, string): Object doesn't have material with given name");
 		return nullptr;
 	}
@@ -80,17 +80,18 @@ static PyObject *getMaterialID (PyObject *self, PyObject *args)
 
 
 // get last error description
-static PyObject *getLastError (PyObject *self, PyObject *args)
+static PyObject *getLastError(PyObject *self, PyObject *args)
 {
 	return PyUnicode_FromString(Exception::m_lastError.c_str());
 }
 
 // set log file
-static PyObject *setLogFile (PyObject *self, PyObject *args)
+static PyObject *setLogFile(PyObject *self, PyObject *args)
 {
 	// get parameters
-	if (!PyArg_ParseTuple(args, "s:setLogFile", &Exception::m_logFile))
+	if (!PyArg_ParseTuple(args, "s:setLogFile", &Exception::m_logFile)) {
 		return Py_BuildValue("i", -1);
+	}
 	// log file was loaded
 	return Py_BuildValue("i", 0);
 }
@@ -102,14 +103,13 @@ static PyObject *imageToArray(PyObject *self, PyObject *args)
 	// parameter is Image object
 	PyObject *pyImg;
 	char *mode = nullptr;
-	if (!PyArg_ParseTuple(args, "O|s:imageToArray", &pyImg, &mode) || !pyImageTypes.in(Py_TYPE(pyImg)))
-	{
+	if (!PyArg_ParseTuple(args, "O|s:imageToArray", &pyImg, &mode) || !pyImageTypes.in(Py_TYPE(pyImg))) {
 		// if object is incorect, report error
 		PyErr_SetString(PyExc_TypeError, "VideoTexture.imageToArray(image): The value must be a image source object");
 		return nullptr;
 	}
 	// get image structure
-	PyImage * img = reinterpret_cast<PyImage*>(pyImg);
+	PyImage *img = reinterpret_cast<PyImage *>(pyImg);
 	return Image_getImage(img, mode);
 }
 
@@ -169,8 +169,8 @@ static void registerAllTypes(void)
 }
 
 PyDoc_STRVAR(VideoTexture_module_documentation,
-"Module that allows to play video files on textures in GameBlender."
-);
+             "Module that allows to play video files on textures in GameBlender."
+             );
 
 static struct PyModuleDef VideoTexture_module_def = {
 	PyModuleDef_HEAD_INIT,
@@ -187,7 +187,7 @@ static struct PyModuleDef VideoTexture_module_def = {
 PyMODINIT_FUNC initVideoTexturePythonBinding(void)
 {
 	PyObject *m;
-	
+
 	// initialize GL extensions
 	//bgl::InitExtensions(0);
 
@@ -195,20 +195,24 @@ PyMODINIT_FUNC initVideoTexturePythonBinding(void)
 	registerAllTypes();
 	registerAllExceptions();
 
-	if (!pyImageTypes.ready())
+	if (!pyImageTypes.ready()) {
 		return nullptr;
-	if (!pyFilterTypes.ready()) 
+	}
+	if (!pyFilterTypes.ready()) {
 		return nullptr;
+	}
 #ifdef WITH_GAMEENGINE_DECKLINK
-	if (PyType_Ready(&DeckLinkType) < 0)
+	if (PyType_Ready(&DeckLinkType) < 0) {
 		return nullptr;
+	}
 #endif
 
 	m = PyModule_Create(&VideoTexture_module_def);
 	PyDict_SetItemString(PySys_GetObject("modules"), VideoTexture_module_def.m_name, m);
 
-	if (m == nullptr) 
+	if (m == nullptr) {
 		return nullptr;
+	}
 
 	// initialize classes
 	pyImageTypes.reg(m);
@@ -257,7 +261,7 @@ PyMODINIT_FUNC initVideoTexturePythonBinding(void)
 
 	// init last error description
 	Exception::m_lastError = "";
-	
+
 	return m;
 }
 

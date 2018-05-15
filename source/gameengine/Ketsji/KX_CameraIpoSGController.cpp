@@ -40,20 +40,24 @@ bool KX_CameraIpoSGController::Update()
 		return false;
 	}
 
-	KX_Camera* kxcamera = (KX_Camera *)m_node->GetSGClientObject();
-	RAS_CameraData* camdata = kxcamera->GetCameraData();
+	KX_Camera *kxcamera = (KX_Camera *)m_node->GetSGClientObject();
+	RAS_CameraData *camdata = kxcamera->GetCameraData();
 
-	if (m_modify_lens)
+	if (m_modify_lens) {
 		camdata->m_lens = m_lens;
+	}
 
-	if (m_modify_clipstart )
+	if (m_modify_clipstart) {
 		camdata->m_clipstart = m_clipstart;
+	}
 
-	if (m_modify_clipend)
+	if (m_modify_clipend) {
 		camdata->m_clipend = m_clipend;
+	}
 
-	if (m_modify_lens || m_modify_clipstart || m_modify_clipend)
+	if (m_modify_lens || m_modify_clipstart || m_modify_clipend) {
 		kxcamera->InvalidateProjectionMatrix();
+	}
 
 	return true;
 }

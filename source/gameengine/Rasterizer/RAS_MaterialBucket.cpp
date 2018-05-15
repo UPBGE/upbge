@@ -106,7 +106,7 @@ void RAS_MaterialBucket::DesactivateMaterial(RAS_Rasterizer *rasty)
 }
 
 void RAS_MaterialBucket::GenerateTree(RAS_ManagerDownwardNode& downwardRoot, RAS_ManagerUpwardNode& upwardRoot,
-		RAS_UpwardTreeLeafs& upwardLeafs, RAS_Rasterizer::DrawType drawingMode, bool sort)
+                                      RAS_UpwardTreeLeafs& upwardLeafs, RAS_Rasterizer::DrawType drawingMode, bool sort)
 {
 	if (m_displayArrayBucketList.empty()) {
 		return;
@@ -161,7 +161,7 @@ RAS_DisplayArrayBucketList& RAS_MaterialBucket::GetDisplayArrayBucketList()
 
 void RAS_MaterialBucket::MoveDisplayArrayBucket(RAS_MeshMaterial *meshmat, RAS_MaterialBucket *bucket)
 {
-	for (RAS_DisplayArrayBucketList::iterator dit = m_displayArrayBucketList.begin(); dit != m_displayArrayBucketList.end();) {
+	for (RAS_DisplayArrayBucketList::iterator dit = m_displayArrayBucketList.begin(); dit != m_displayArrayBucketList.end(); ) {
 		// In case of deformers, multiple display array bucket can use the same mesh and material.
 		RAS_DisplayArrayBucket *displayArrayBucket = *dit;
 		if (displayArrayBucket->GetMeshMaterial() != meshmat) {

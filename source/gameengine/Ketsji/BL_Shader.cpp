@@ -82,7 +82,7 @@ std::string BL_Shader::GetName()
 std::string BL_Shader::GetText()
 {
 	return (boost::format("BL_Shader\n\tvertex shader:%s\n\n\tfragment shader%s\n\n") %
-			m_progs[VERTEX_PROGRAM] % m_progs[FRAGMENT_PROGRAM]).str();
+	        m_progs[VERTEX_PROGRAM] % m_progs[FRAGMENT_PROGRAM]).str();
 }
 
 
@@ -103,16 +103,16 @@ void BL_Shader::SetCallbacks(BL_Shader::CallbacksType type, PyObject *callbacks)
 #endif  // WITH_PYTHON
 
 RAS_AttributeArray::AttribList BL_Shader::GetAttribs(const RAS_Mesh::LayersInfo& layersInfo,
-		RAS_Texture *const textures[RAS_Texture::MaxUnits]) const
+                                                     RAS_Texture *const textures[RAS_Texture::MaxUnits]) const
 {
 	RAS_AttributeArray::AttribList attribs;
 	// Initialize textures attributes.
 	for (unsigned short i = 0; i < RAS_Texture::MaxUnits; ++i) {
 		RAS_Texture *texture = textures[i];
 		/* Here textures can return false to Ok() because we're looking only at
-		* texture attributes and not texture bind id like for the binding and
-		* unbinding of textures. A nullptr RAS_Texture means that the corresponding
-		* mtex is nullptr too (see KX_BlenderMaterial::InitTextures).*/
+		 * texture attributes and not texture bind id like for the binding and
+		 * unbinding of textures. A nullptr RAS_Texture means that the corresponding
+		 * mtex is nullptr too (see KX_BlenderMaterial::InitTextures).*/
 		if (texture) {
 			MTex *mtex = texture->GetMTex();
 			if (mtex->texco & (TEXCO_OBJECT | TEXCO_REFL)) {
@@ -236,13 +236,13 @@ PyTypeObject BL_Shader::Type = {
 
 PyObject *BL_Shader::pyattr_get_enabled(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
-	BL_Shader* self = static_cast<BL_Shader*>(self_v);
+	BL_Shader *self = static_cast<BL_Shader *>(self_v);
 	return PyBool_FromLong(self->GetEnabled());
 }
 
 int BL_Shader::pyattr_set_enabled(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
-	BL_Shader* self = static_cast<BL_Shader*>(self_v);
+	BL_Shader *self = static_cast<BL_Shader *>(self_v);
 	int param = PyObject_IsTrue(value);
 	if (param == -1) {
 		PyErr_SetString(PyExc_AttributeError, "shader.enabled = bool: BL_Shader, expected True or False");
@@ -808,7 +808,7 @@ EXP_PYMETHODDEF_DOC(BL_Shader, setUniformiv, "setUniformiv(uniform_name, (list2 
 }
 
 EXP_PYMETHODDEF_DOC(BL_Shader, setUniformMatrix4,
-                   "setUniformMatrix4(uniform_name, mat-4x4, transpose(row-major=true, col-major=false)")
+                    "setUniformMatrix4(uniform_name, mat-4x4, transpose(row-major=true, col-major=false)")
 {
 	if (!m_shader) {
 		Py_RETURN_NONE;
@@ -849,7 +849,7 @@ EXP_PYMETHODDEF_DOC(BL_Shader, setUniformMatrix4,
 
 
 EXP_PYMETHODDEF_DOC(BL_Shader, setUniformMatrix3,
-                   "setUniformMatrix3(uniform_name, list[3x3], transpose(row-major=true, col-major=false)")
+                    "setUniformMatrix3(uniform_name, list[3x3], transpose(row-major=true, col-major=false)")
 {
 	if (!m_shader) {
 		Py_RETURN_NONE;

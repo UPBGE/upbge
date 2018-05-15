@@ -1,31 +1,31 @@
 /*
-* ***** BEGIN GPL LICENSE BLOCK *****
-*
-* This program is free software; you can redistribute it and/or
-* modify it under the terms of the GNU General Public License
-* as published by the Free Software Foundation; either version 2
-* of the License, or (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program; if not, write to the Free Software Foundation,
-* Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-*
-*
-* The Original Code is: all of this file.
-*
-* Contributor(s): none yet.
-*
-* ***** END GPL LICENSE BLOCK *****
-*/
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ *
+ * The Original Code is: all of this file.
+ *
+ * Contributor(s): none yet.
+ *
+ * ***** END GPL LICENSE BLOCK *****
+ */
 
 /** \file gameengine/GameLogic/SCA_VibrationActuator.cpp
-*  \ingroup GameLogic
-*/
+ *  \ingroup GameLogic
+ */
 
 
 #include "SCA_VibrationActuator.h"
@@ -33,7 +33,7 @@
 
 
 SCA_VibrationActuator::SCA_VibrationActuator(SCA_IObject *gameobj, short mode, int joyindex, float strengthLeft,  float strengthRight, int duration)
-	: SCA_IActuator(gameobj, KX_ACT_VIBRATION),
+	:SCA_IActuator(gameobj, KX_ACT_VIBRATION),
 	m_joyindex(joyindex),
 	m_mode(mode),
 	m_strengthLeft(strengthLeft),
@@ -46,7 +46,7 @@ SCA_VibrationActuator::~SCA_VibrationActuator(void)
 {
 }
 
-EXP_Value* SCA_VibrationActuator::GetReplica(void)
+EXP_Value *SCA_VibrationActuator::GetReplica(void)
 {
 	SCA_VibrationActuator *replica = new SCA_VibrationActuator(*this);
 	replica->ProcessReplica();
@@ -131,12 +131,12 @@ PyAttributeDef SCA_VibrationActuator::Attributes[] = {
 	EXP_PYATTRIBUTE_FLOAT_RW("strengthRight", 0.0, 1.0, SCA_VibrationActuator, m_strengthRight),
 	EXP_PYATTRIBUTE_RO_FUNCTION("isVibrating", SCA_VibrationActuator, pyattr_get_isVibrating),
 	EXP_PYATTRIBUTE_RO_FUNCTION("hasVibration", SCA_VibrationActuator, pyattr_get_hasVibration),
-	EXP_PYATTRIBUTE_NULL	//Sentinel
+	EXP_PYATTRIBUTE_NULL    //Sentinel
 };
 
 EXP_PYMETHODDEF_DOC_NOARGS(SCA_VibrationActuator, startVibration,
-"startVibration()\n"
-"\tStarts the joystick vibration.\n")
+                           "startVibration()\n"
+                           "\tStarts the joystick vibration.\n")
 {
 	SCA_JoystickManager *mgr = (SCA_JoystickManager *)GetLogicManager();
 	DEV_Joystick *instance = mgr->GetJoystickDevice(m_joyindex);
@@ -151,8 +151,8 @@ EXP_PYMETHODDEF_DOC_NOARGS(SCA_VibrationActuator, startVibration,
 }
 
 EXP_PYMETHODDEF_DOC_NOARGS(SCA_VibrationActuator, stopVibration,
-"StopVibration()\n"
-"\tStops the joystick vibration.\n")
+                           "StopVibration()\n"
+                           "\tStops the joystick vibration.\n")
 {
 	SCA_JoystickManager *mgr = (SCA_JoystickManager *)GetLogicManager();
 	DEV_Joystick *instance = mgr->GetJoystickDevice(m_joyindex);

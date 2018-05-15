@@ -59,9 +59,10 @@ DEV_Joystick::DEV_Joystick(short index)
 	m_istrig_axis(0),
 	m_istrig_button(0)
 {
-	for (int i=0; i < JOYAXIS_MAX; i++)
+	for (int i = 0; i < JOYAXIS_MAX; i++) {
 		m_axis_array[i] = 0;
-	
+	}
+
 #ifdef WITH_SDL
 	m_private = new PrivateData();
 #endif
@@ -81,13 +82,12 @@ void DEV_Joystick::Init()
 
 	if (!(SDL_CHECK(SDL_InitSubSystem)) ||
 	    !(SDL_CHECK(SDL_GameControllerAddMapping)) ||
-	    !(SDL_CHECK(SDL_GameControllerAddMappingsFromRW)))
-	{
+	    !(SDL_CHECK(SDL_GameControllerAddMappingsFromRW))) {
 		return;
 	}
 
 	/* Initializing Game Controller related subsystems */
-	bool success = (SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC) != -1 );
+	bool success = (SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC) != -1);
 
 	if (success) {
 		// Loading mapping file from blender datafiles directory
@@ -118,7 +118,7 @@ void DEV_Joystick::Close()
 	/* Closing SDL Game controller system */
 	if (SDL_CHECK(SDL_QuitSubSystem)) {
 		SDL_QuitSubSystem(SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC);
-}
+	}
 #endif
 }
 
@@ -157,7 +157,7 @@ void DEV_Joystick::cSetPrecision(int val)
 
 bool DEV_Joystick::aAxisPairIsPositive(int axis)
 {
-	return (pAxisTest(axis) > m_prec) ? true:false;
+	return (pAxisTest(axis) > m_prec) ? true : false;
 }
 
 bool DEV_Joystick::aAxisPairDirectionIsPositive(int axis, int dir)
@@ -165,20 +165,24 @@ bool DEV_Joystick::aAxisPairDirectionIsPositive(int axis, int dir)
 
 	int res;
 
-	if (dir==JOYAXIS_UP || dir==JOYAXIS_DOWN)
+	if (dir == JOYAXIS_UP || dir == JOYAXIS_DOWN) {
 		res = pGetAxis(axis, 1);
-	else /* JOYAXIS_LEFT || JOYAXIS_RIGHT */
+	}
+	else { /* JOYAXIS_LEFT || JOYAXIS_RIGHT */
 		res = pGetAxis(axis, 0);
-	
-	if (dir==JOYAXIS_DOWN || dir==JOYAXIS_RIGHT)
+	}
+
+	if (dir == JOYAXIS_DOWN || dir == JOYAXIS_RIGHT) {
 		return (res > m_prec) ? true : false;
-	else /* JOYAXIS_UP || JOYAXIS_LEFT */
+	}
+	else { /* JOYAXIS_UP || JOYAXIS_LEFT */
 		return (res < -m_prec) ? true : false;
+	}
 }
 
 bool DEV_Joystick::aAxisIsPositive(int axis_single)
 {
-	return std::abs(m_axis_array[axis_single]) > m_prec ? true:false;
+	return std::abs(m_axis_array[axis_single]) > m_prec ? true : false;
 }
 
 bool DEV_Joystick::aAnyButtonPressIsPositive(void)
@@ -203,8 +207,7 @@ bool DEV_Joystick::aButtonPressIsPositive(int button)
 {
 #ifdef WITH_SDL
 	if ((SDL_CHECK(SDL_GameControllerGetButton) &&
-		SDL_GameControllerGetButton(m_private->m_gamecontroller, (SDL_GameControllerButton)button)))
-	{
+	     SDL_GameControllerGetButton(m_private->m_gamecontroller, (SDL_GameControllerButton)button))) {
 		return true;
 	}
 #endif
@@ -216,8 +219,7 @@ bool DEV_Joystick::aButtonReleaseIsPositive(int button)
 {
 #ifdef WITH_SDL
 	if (!(SDL_CHECK(SDL_GameControllerGetButton) &&
-		SDL_GameControllerGetButton(m_private->m_gamecontroller, (SDL_GameControllerButton)button)))
-	{
+	      SDL_GameControllerGetButton(m_private->m_gamecontroller, (SDL_GameControllerButton)button))) {
 		return true;
 	}
 #endif
@@ -235,21 +237,20 @@ bool DEV_Joystick::CreateJoystickDevice(void)
 	if (!m_isinit) {
 
 		if (!(SDL_CHECK(SDL_IsGameController) &&
-			SDL_CHECK(SDL_GameControllerOpen) &&
-			SDL_CHECK(SDL_GameControllerEventState) &&
-			SDL_CHECK(SDL_GameControllerGetJoystick) &&
-			SDL_CHECK(SDL_JoystickInstanceID)))
-		{
+		      SDL_CHECK(SDL_GameControllerOpen) &&
+		      SDL_CHECK(SDL_GameControllerEventState) &&
+		      SDL_CHECK(SDL_GameControllerGetJoystick) &&
+		      SDL_CHECK(SDL_JoystickInstanceID))) {
 			joy_error = true;
 		}
 
 		if (!joy_error && !SDL_IsGameController(m_joyindex)) {
 			/* mapping instruccions if joystick is not a game controller */
 			CM_Error("Game Controller index " << m_joyindex << ": Could not be initialized\n"
-			<< "Please, generate Xbox360 compatible mapping using Antimicro (https://github.com/AntiMicro/antimicro)\n"
-			<< "or SDL2 Gamepad Tool (http://www.generalarcade.com/gamepadtool) or Steam big mode applications\n"
-			<< "and after, set the SDL controller variable before you launch the executable, i.e:\n"
-			<< "export SDL_GAMECONTROLLERCONFIG=\"[the string you received from controllermap]\"");
+			                                  << "Please, generate Xbox360 compatible mapping using Antimicro (https://github.com/AntiMicro/antimicro)\n"
+			                                  << "or SDL2 Gamepad Tool (http://www.generalarcade.com/gamepadtool) or Steam big mode applications\n"
+			                                  << "and after, set the SDL controller variable before you launch the executable, i.e:\n"
+			                                  << "export SDL_GAMECONTROLLERCONFIG=\"[the string you received from controllermap]\"");
 			/* Need this so python args can return empty lists */
 			joy_error = true;
 		}
@@ -271,7 +272,7 @@ bool DEV_Joystick::CreateJoystickDevice(void)
 
 		if (!joy_error) {
 			m_private->m_instance_id = SDL_JoystickInstanceID(joy);
-			if (m_private->m_instance_id < 0){
+			if (m_private->m_instance_id < 0) {
 				joy_error = true;
 				CM_Error("joystick instanced failed: " << SDL_GetError());
 			}
@@ -302,7 +303,7 @@ bool DEV_Joystick::CreateJoystickDevice(void)
 			m_private->m_haptic = SDL_HapticOpen(m_joyindex);
 			if (!m_private->m_haptic) {
 				CM_Warning("Game Controller (" << GetName() << ") with index " << m_joyindex
-					<< " has not force feedback (vibration) available");
+				                               << " has not force feedback (vibration) available");
 			}
 		}
 	}
@@ -324,16 +325,16 @@ void DEV_Joystick::DestroyJoystickDevice(void)
 #ifdef WITH_SDL
 	if (m_isinit) {
 
-			if (m_private->m_haptic && SDL_CHECK(SDL_HapticClose)) {
-				SDL_HapticClose(m_private->m_haptic);
-				m_private->m_haptic = nullptr;
-			}
+		if (m_private->m_haptic && SDL_CHECK(SDL_HapticClose)) {
+			SDL_HapticClose(m_private->m_haptic);
+			m_private->m_haptic = nullptr;
+		}
 
-			if (m_private->m_gamecontroller && SDL_CHECK(SDL_GameControllerClose)) {
-				CM_Debug("Game Controller (" << GetName() << ") with index " << m_joyindex << " closed");
-				SDL_GameControllerClose(m_private->m_gamecontroller);
-				m_private->m_gamecontroller = nullptr;
-			}
+		if (m_private->m_gamecontroller && SDL_CHECK(SDL_GameControllerClose)) {
+			CM_Debug("Game Controller (" << GetName() << ") with index " << m_joyindex << " closed");
+			SDL_GameControllerClose(m_private->m_gamecontroller);
+			m_private->m_gamecontroller = nullptr;
+		}
 
 		m_isinit = false;
 	}
@@ -344,9 +345,8 @@ int DEV_Joystick::Connected(void)
 {
 #ifdef WITH_SDL
 	if (m_isinit &&
-		(SDL_CHECK(SDL_GameControllerGetAttached) &&
-		SDL_GameControllerGetAttached(m_private->m_gamecontroller)))
-	{
+	    (SDL_CHECK(SDL_GameControllerGetAttached) &&
+	     SDL_GameControllerGetAttached(m_private->m_gamecontroller))) {
 		return 1;
 	}
 #endif
@@ -356,7 +356,7 @@ int DEV_Joystick::Connected(void)
 int DEV_Joystick::pGetAxis(int axisnum, int udlr)
 {
 #ifdef WITH_SDL
-	return m_axis_array[(axisnum*2)+udlr];
+	return m_axis_array[(axisnum * 2) + udlr];
 #endif
 	return 0;
 }
@@ -369,14 +369,22 @@ int DEV_Joystick::pAxisTest(int axisnum)
 	 * than what a short can hold. In other words, abs(MIN_SHORT) > MAX_SHRT. */
 	int i1 = m_axis_array[(axisnum * 2)];
 	int i2 = m_axis_array[(axisnum * 2) + 1];
-	
+
 	/* long winded way to do:
 	 * return max_ff(absf(i1), absf(i2))
 	 * ...avoid abs from math.h */
-	if (i1 < 0) i1 = -i1;
-	if (i2 < 0) i2 = -i2;
-	if (i1 <i2) return i2;
-	else        return i1;
+	if (i1 < 0) {
+		i1 = -i1;
+	}
+	if (i2 < 0) {
+		i2 = -i2;
+	}
+	if (i1 < i2) {
+		return i2;
+	}
+	else {
+		return i1;
+	}
 #else /* WITH_SDL */
 	return 0;
 #endif /* WITH_SDL */

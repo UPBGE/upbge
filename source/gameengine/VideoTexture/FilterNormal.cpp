@@ -39,23 +39,24 @@
 // implementation FilterNormal
 
 // constructor
-FilterNormal::FilterNormal (void) : m_colIdx(0)
+FilterNormal::FilterNormal(void) :m_colIdx(0)
 {
 	// set default depth
 	setDepth(4);
 }
 
 // set color shift
-void FilterNormal::setColor (unsigned short colIdx)
+void FilterNormal::setColor(unsigned short colIdx)
 {
 	// check validity of index
-	if (colIdx < 3)
+	if (colIdx < 3) {
 		// set color shift
 		m_colIdx = colIdx;
+	}
 }
 
 // set depth
-void FilterNormal::setDepth (float depth)
+void FilterNormal::setDepth(float depth)
 {
 	m_depth = depth;
 	m_depthScale = depth / depthScaleKoef;
@@ -63,14 +64,16 @@ void FilterNormal::setDepth (float depth)
 
 
 // cast Filter pointer to FilterNormal
-inline FilterNormal * getFilter (PyFilter *self)
-{ return static_cast<FilterNormal*>(self->m_filter); }
+inline FilterNormal *getFilter(PyFilter *self)
+{
+	return static_cast<FilterNormal *>(self->m_filter);
+}
 
 
 // python methods and get/sets
 
 // get index of color used to calculate normal
-static PyObject *getColor (PyFilter *self, void *closure)
+static PyObject *getColor(PyFilter *self, void *closure)
 {
 	return Py_BuildValue("H", getFilter(self)->getColor());
 }
@@ -79,8 +82,7 @@ static PyObject *getColor (PyFilter *self, void *closure)
 static int setColor(PyFilter *self, PyObject *value, void *closure)
 {
 	// check validity of parameter
-	if (value == nullptr || !PyLong_Check(value))
-	{
+	if (value == nullptr || !PyLong_Check(value)) {
 		PyErr_SetString(PyExc_TypeError, "filt.colorIdx = int: VideoTexture.FilterNormal, expected the value must be a int");
 		return -1;
 	}
@@ -92,7 +94,7 @@ static int setColor(PyFilter *self, PyObject *value, void *closure)
 
 
 // get depth
-static PyObject *getDepth (PyFilter *self, void *closure)
+static PyObject *getDepth(PyFilter *self, void *closure)
 {
 	return Py_BuildValue("f", getFilter(self)->getDepth());
 }
@@ -101,11 +103,9 @@ static PyObject *getDepth (PyFilter *self, void *closure)
 static int setDepth(PyFilter *self, PyObject *value, void *closure)
 {
 	// check validity of parameter
-	if (value)
-	{
-		float depth= (float)PyFloat_AsDouble(value);
-		if ((depth==-1 && PyErr_Occurred()) == 0) /* no error converting to a float? */
-		{
+	if (value) {
+		float depth = (float)PyFloat_AsDouble(value);
+		if ((depth == -1 && PyErr_Occurred()) == 0) { /* no error converting to a float? */
 			// set depth
 			getFilter(self)->setDepth(depth);
 			// success
@@ -120,17 +120,17 @@ static int setDepth(PyFilter *self, PyObject *value, void *closure)
 
 // attributes structure
 static PyGetSetDef filterNormalGetSets[] =
-{ 
-	{(char*)"colorIdx", (getter)getColor, (setter)setColor, (char*)"index of color used to calculate normal (0 - red, 1 - green, 2 - blue)", nullptr},
-	{(char*)"depth", (getter)getDepth, (setter)setDepth, (char*)"depth of relief", nullptr},
+{
+	{(char *)"colorIdx", (getter)getColor, (setter)setColor, (char *)"index of color used to calculate normal (0 - red, 1 - green, 2 - blue)", nullptr},
+	{(char *)"depth", (getter)getDepth, (setter)setDepth, (char *)"depth of relief", nullptr},
 	// attributes from FilterBase class
-	{(char*)"previous", (getter)Filter_getPrevious, (setter)Filter_setPrevious, (char*)"previous pixel filter", nullptr},
+	{(char *)"previous", (getter)Filter_getPrevious, (setter)Filter_setPrevious, (char *)"previous pixel filter", nullptr},
 	{nullptr}
 };
 
 // define python type
 PyTypeObject FilterNormalType =
-{ 
+{
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"VideoTexture.FilterNormal",   /*tp_name*/
 	sizeof(PyFilter),          /*tp_basicsize*/
@@ -152,12 +152,12 @@ PyTypeObject FilterNormalType =
 	0,                         /*tp_as_buffer*/
 	Py_TPFLAGS_DEFAULT,        /*tp_flags*/
 	"Filter for Blue Screen objects",       /* tp_doc */
-	0,		               /* tp_traverse */
-	0,		               /* tp_clear */
-	0,		               /* tp_richcompare */
-	0,		               /* tp_weaklistoffset */
-	0,		               /* tp_iter */
-	0,		               /* tp_iternext */
+	0,                     /* tp_traverse */
+	0,                     /* tp_clear */
+	0,                     /* tp_richcompare */
+	0,                     /* tp_weaklistoffset */
+	0,                     /* tp_iter */
+	0,                     /* tp_iternext */
 	nullptr,                /* tp_methods */
 	0,                   /* tp_members */
 	filterNormalGetSets,           /* tp_getset */

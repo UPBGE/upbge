@@ -45,7 +45,7 @@
 #include "DNA_space_types.h"
 
 GPG_Canvas::GPG_Canvas(RAS_Rasterizer *rasty, GHOST_IWindow *window)
-	: RAS_ICanvas(rasty),
+	:RAS_ICanvas(rasty),
 	m_window(window),
 	m_width(0),
 	m_height(0)
@@ -184,16 +184,22 @@ void GPG_Canvas::SetMouseState(RAS_MouseState mousestate)
 	if (m_window) {
 		switch (mousestate) {
 			case MOUSE_INVISIBLE:
+			{
 				m_window->setCursorVisibility(false);
 				break;
+			}
 			case MOUSE_WAIT:
+			{
 				m_window->setCursorShape(GHOST_kStandardCursorWait);
 				m_window->setCursorVisibility(true);
 				break;
+			}
 			case MOUSE_NORMAL:
+			{
 				m_window->setCursorShape(GHOST_kStandardCursorDefault);
 				m_window->setCursorVisibility(true);
 				break;
+			}
 		}
 	}
 }

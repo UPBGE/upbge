@@ -31,8 +31,8 @@
 #include "RAS_MeshUser.h"
 
 extern "C" {
-	// To avoid include BKE_DerivedMesh.h.
-	typedef int (*DMSetMaterial)(int mat_nr, void *attribs);
+// To avoid include BKE_DerivedMesh.h.
+typedef int (*DMSetMaterial)(int mat_nr, void *attribs);
 	#include "GPU_buffers.h"
 }
 

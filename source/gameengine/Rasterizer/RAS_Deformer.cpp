@@ -51,8 +51,8 @@ void RAS_Deformer::InitializeDisplayArrays()
 
 		m_slots.push_back(
 			{array, origArray, meshmat, arrayBucket,
-			{RAS_IDisplayArray::TANGENT_MODIFIED | RAS_IDisplayArray::UVS_MODIFIED | RAS_IDisplayArray::COLORS_MODIFIED,
-			 RAS_IDisplayArray::NONE_MODIFIED}});
+			 {RAS_IDisplayArray::TANGENT_MODIFIED | RAS_IDisplayArray::UVS_MODIFIED | RAS_IDisplayArray::COLORS_MODIFIED,
+			  RAS_IDisplayArray::NONE_MODIFIED}});
 	}
 
 	for (DisplayArraySlot& slot : m_slots) {

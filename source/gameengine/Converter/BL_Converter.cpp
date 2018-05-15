@@ -99,17 +99,17 @@ BL_Converter::SceneSlot::~SceneSlot() = default;
 void BL_Converter::SceneSlot::Merge(BL_Converter::SceneSlot& other)
 {
 	m_interpolators.insert(m_interpolators.begin(),
-						   std::make_move_iterator(other.m_interpolators.begin()),
-						   std::make_move_iterator(other.m_interpolators.end()));
+	                       std::make_move_iterator(other.m_interpolators.begin()),
+	                       std::make_move_iterator(other.m_interpolators.end()));
 	m_materials.insert(m_materials.begin(),
-						   std::make_move_iterator(other.m_materials.begin()),
-						   std::make_move_iterator(other.m_materials.end()));
+	                   std::make_move_iterator(other.m_materials.begin()),
+	                   std::make_move_iterator(other.m_materials.end()));
 	m_meshobjects.insert(m_meshobjects.begin(),
-						 std::make_move_iterator(other.m_meshobjects.begin()),
-						 std::make_move_iterator(other.m_meshobjects.end()));
+	                     std::make_move_iterator(other.m_meshobjects.begin()),
+	                     std::make_move_iterator(other.m_meshobjects.end()));
 	m_objectInfos.insert(m_objectInfos.begin(),
-						 std::make_move_iterator(other.m_objectInfos.begin()),
-						 std::make_move_iterator(other.m_objectInfos.end()));
+	                     std::make_move_iterator(other.m_objectInfos.begin()),
+	                     std::make_move_iterator(other.m_objectInfos.end()));
 	m_actionToInterp.insert(other.m_actionToInterp.begin(), other.m_actionToInterp.end());
 }
 
@@ -198,8 +198,7 @@ void BL_Converter::ConvertScene(BL_SceneConverter& converter, bool libloading)
 	// when doing threaded conversion, so it's disabled for now.
 	// SG_SetActiveStage(SG_STAGE_CONVERTER);
 
-	switch (blenderscene->gm.physicsEngine)
-	{
+	switch (blenderscene->gm.physicsEngine) {
 #ifdef WITH_BULLET
 		case WOPHY_BULLET:
 		{
@@ -589,7 +588,7 @@ bool BL_Converter::FreeBlendFile(Main *maggie)
 	}
 
 	// tag all false except the one we remove
-	for (std::vector<Main *>::iterator it = m_DynamicMaggie.begin(); it != m_DynamicMaggie.end();) {
+	for (std::vector<Main *>::iterator it = m_DynamicMaggie.begin(); it != m_DynamicMaggie.end(); ) {
 		Main *main = *it;
 		if (main == maggie) {
 			BKE_main_id_tag_all(maggie, LIB_TAG_DOIT, true);
@@ -616,7 +615,7 @@ bool BL_Converter::FreeBlendFile(Main *maggie)
 		else {
 			// in case the mesh might be refered to later
 			std::map<std::string, void *> &mapStringToMeshes = scene->GetLogicManager()->GetMeshMap();
-			for (std::map<std::string, void *>::iterator it = mapStringToMeshes.begin(), end = mapStringToMeshes.end(); it != end;) {
+			for (std::map<std::string, void *>::iterator it = mapStringToMeshes.begin(), end = mapStringToMeshes.end(); it != end; ) {
 				KX_Mesh *meshobj = (KX_Mesh *)it->second;
 				if (meshobj && IS_TAGGED(meshobj->GetMesh())) {
 					it = mapStringToMeshes.erase(it);
@@ -628,7 +627,7 @@ bool BL_Converter::FreeBlendFile(Main *maggie)
 
 			// Now unregister actions.
 			std::map<std::string, void *> &mapStringToActions = scene->GetLogicManager()->GetActionMap();
-			for (std::map<std::string, void *>::iterator it = mapStringToActions.begin(), end = mapStringToActions.end(); it != end;) {
+			for (std::map<std::string, void *>::iterator it = mapStringToActions.begin(), end = mapStringToActions.end(); it != end; ) {
 				ID *action = (ID *)it->second;
 				if (IS_TAGGED(action)) {
 					it = mapStringToActions.erase(it);
@@ -663,7 +662,7 @@ bool BL_Converter::FreeBlendFile(Main *maggie)
 					else {
 						gameobj->RemoveTaggedActions();
 						// free the mesh, we could be referecing a linked one!
-						
+
 						for (KX_Mesh *meshobj : gameobj->GetMeshList()) {
 							if (IS_TAGGED(meshobj->GetMesh())) {
 								gameobj->RemoveMeshes(); /* XXX - slack, should only remove meshes that are library items but mostly objects only have 1 mesh */

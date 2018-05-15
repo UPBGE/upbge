@@ -1,28 +1,28 @@
 /*
-* ***** BEGIN GPL LICENSE BLOCK *****
-*
-* This program is free software; you can redistribute it and/or
-* modify it under the terms of the GNU General Public License
-* as published by the Free Software Foundation; either version 2
-* of the License, or (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program; if not, write to the Free Software Foundation,
-* Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-*
-* Contributor(s): Ulysse Martin, Tristan Porteries, Martins Upitis.
-*
-* ***** END GPL LICENSE BLOCK *****
-*/
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * Contributor(s): Ulysse Martin, Tristan Porteries, Martins Upitis.
+ *
+ * ***** END GPL LICENSE BLOCK *****
+ */
 
 /** \file KX_PlanarMap.cpp
-*  \ingroup ketsji
-*/
+ *  \ingroup ketsji
+ */
 
 #include "KX_PlanarMap.h"
 #include "KX_Camera.h"
@@ -69,8 +69,8 @@ void KX_PlanarMap::ComputeClipPlane(const mt::vec3& mirrorObjWorldPos, const mt:
 	m_clipPlane.y = normal.y;
 	m_clipPlane.z = normal.z;
 	m_clipPlane.w = -(m_clipPlane.x * mirrorObjWorldPos.x +
-					    m_clipPlane.y * mirrorObjWorldPos.y +
-					    m_clipPlane.z * mirrorObjWorldPos.z);
+	                  m_clipPlane.y * mirrorObjWorldPos.y +
+	                  m_clipPlane.z * mirrorObjWorldPos.z);
 }
 
 void KX_PlanarMap::InvalidateProjectionMatrix()
@@ -79,7 +79,7 @@ void KX_PlanarMap::InvalidateProjectionMatrix()
 }
 
 const mt::mat4& KX_PlanarMap::GetProjectionMatrix(RAS_Rasterizer *rasty, KX_Scene *scene, KX_Camera *sceneCamera,
-													  const RAS_Rect& viewport, const RAS_Rect& area)
+                                                  const RAS_Rect& viewport, const RAS_Rect& area)
 {
 	std::unordered_map<KX_Camera *, mt::mat4>::const_iterator projectionit = m_projections.find(sceneCamera);
 	if (projectionit != m_projections.end()) {
@@ -93,31 +93,31 @@ const mt::mat4& KX_PlanarMap::GetProjectionMatrix(RAS_Rasterizer *rasty, KX_Scen
 
 	if (orthographic) {
 		RAS_FramingManager::ComputeOrtho(
-		    scene->GetFramingType(),
-		    area,
-		    viewport,
-		    sceneCamera->GetScale(),
-		    m_clipStart,
-		    m_clipEnd,
-		    sceneCamera->GetSensorFit(),
-		    sceneCamera->GetShiftHorizontal(),
-		    sceneCamera->GetShiftVertical(),
-		    frustum);
+			scene->GetFramingType(),
+			area,
+			viewport,
+			sceneCamera->GetScale(),
+			m_clipStart,
+			m_clipEnd,
+			sceneCamera->GetSensorFit(),
+			sceneCamera->GetShiftHorizontal(),
+			sceneCamera->GetShiftVertical(),
+			frustum);
 	}
 	else {
 		RAS_FramingManager::ComputeFrustum(
-		    scene->GetFramingType(),
-		    area,
-		    viewport,
-		    sceneCamera->GetLens(),
-		    sceneCamera->GetSensorWidth(),
-		    sceneCamera->GetSensorHeight(),
-		    sceneCamera->GetSensorFit(),
-		    sceneCamera->GetShiftHorizontal(),
-		    sceneCamera->GetShiftVertical(),
-		    m_clipStart,
-		    m_clipEnd,
-		    frustum);
+			scene->GetFramingType(),
+			area,
+			viewport,
+			sceneCamera->GetLens(),
+			sceneCamera->GetSensorWidth(),
+			sceneCamera->GetSensorHeight(),
+			sceneCamera->GetSensorFit(),
+			sceneCamera->GetShiftHorizontal(),
+			sceneCamera->GetShiftVertical(),
+			m_clipStart,
+			m_clipEnd,
+			frustum);
 	}
 
 	if (!sceneCamera->GetViewport()) {
@@ -132,7 +132,7 @@ const mt::mat4& KX_PlanarMap::GetProjectionMatrix(RAS_Rasterizer *rasty, KX_Scen
 
 	if (orthographic) {
 		projection = rasty->GetOrthoMatrix(
-		    frustum.x1, frustum.x2, frustum.y1, frustum.y2, frustum.camnear, frustum.camfar);
+			frustum.x1, frustum.x2, frustum.y1, frustum.y2, frustum.camnear, frustum.camfar);
 	}
 	else {
 		projection = rasty->GetFrustumMatrix(frustum.x1, frustum.x2, frustum.y1, frustum.y2, frustum.camnear, frustum.camfar);
@@ -188,9 +188,9 @@ bool KX_PlanarMap::SetupCamera(KX_Camera *sceneCamera, KX_Camera *camera)
 	ComputeClipPlane(mirrorObjWorldPos, mirrorObjWorldOri);
 
 	const float d = m_clipPlane.x * cameraWorldPos.x +
-			  m_clipPlane.y * cameraWorldPos.y +
-			  m_clipPlane.z * cameraWorldPos.z +
-			  m_clipPlane.w;
+	                m_clipPlane.y * cameraWorldPos.y +
+	                m_clipPlane.z * cameraWorldPos.z +
+	                m_clipPlane.w;
 
 	// Check if the scene camera is in the right plane side.
 	if (d < 0.0) {
@@ -201,8 +201,8 @@ bool KX_PlanarMap::SetupCamera(KX_Camera *sceneCamera, KX_Camera *camera)
 	mt::mat3 cameraWorldOri = sceneCamera->NodeGetWorldOrientation();
 
 	static const mt::mat3 unmir(1.0f, 0.0f, 0.0f,
-									0.0f, 1.0f, 0.0f,
-									0.0f, 0.0f, -1.0f);
+	                            0.0f, 1.0f, 0.0f,
+	                            0.0f, 0.0f, -1.0f);
 
 	if (m_type == REFLECTION) {
 		// Get vector from mirror to camera in mirror space.

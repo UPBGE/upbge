@@ -51,8 +51,8 @@ extern "C" {
 #  include "BLI_rect.h"
 }
 
-LA_BlenderLauncher::LA_BlenderLauncher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs, RAS_Rasterizer::StereoMode stereoMode, 
-									   int argc, char **argv, bContext *context, rcti *camframe, ARegion *ar, int alwaysUseExpandFraming)
+LA_BlenderLauncher::LA_BlenderLauncher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs, RAS_Rasterizer::StereoMode stereoMode,
+                                       int argc, char **argv, bContext *context, rcti *camframe, ARegion *ar, int alwaysUseExpandFraming)
 	:LA_Launcher(system, maggie, scene, gs, stereoMode, scene->gm.aasamples, argc, argv),
 	m_context(context),
 	m_ar(ar),
@@ -84,7 +84,7 @@ RAS_Rasterizer::DrawType LA_BlenderLauncher::GetRasterizerDrawMode()
 	View3D *v3d = CTX_wm_view3d(m_context);
 
 	RAS_Rasterizer::DrawType drawmode = RAS_Rasterizer::RAS_TEXTURED;
-	switch(v3d->drawtype) {
+	switch (v3d->drawtype) {
 		case OB_BOUNDBOX:
 		case OB_WIRE:
 		{
@@ -161,7 +161,7 @@ void LA_BlenderLauncher::ExitEngine()
 	// Lock frame and camera enabled - restoring global values.
 	if (m_view3d->scenelock == 0) {
 		m_startScene->lay = m_savedBlenderData.sceneLayer;
-		m_startScene->camera= m_savedBlenderData.camera;
+		m_startScene->camera = m_savedBlenderData.camera;
 	}
 
 	// Free all window manager events unused.
@@ -176,9 +176,9 @@ void LA_BlenderLauncher::RenderEngine()
 		// itself is unaware of the extra space, so we clear the whole region for it.
 		m_rasterizer->SetClearColor(m_startScene->gm.framing.col[0], m_startScene->gm.framing.col[1], m_startScene->gm.framing.col[2]);
 		m_rasterizer->SetViewport(m_ar->winrct.xmin, m_ar->winrct.ymin,
-		           BLI_rcti_size_x(&m_ar->winrct) + 1, BLI_rcti_size_y(&m_ar->winrct) + 1);
+		                          BLI_rcti_size_x(&m_ar->winrct) + 1, BLI_rcti_size_y(&m_ar->winrct) + 1);
 		m_rasterizer->SetScissor(m_ar->winrct.xmin, m_ar->winrct.ymin,
-		           BLI_rcti_size_x(&m_ar->winrct) + 1, BLI_rcti_size_y(&m_ar->winrct) + 1);
+		                         BLI_rcti_size_x(&m_ar->winrct) + 1, BLI_rcti_size_y(&m_ar->winrct) + 1);
 		m_rasterizer->Clear(RAS_Rasterizer::RAS_COLOR_BUFFER_BIT);
 	}
 	LA_Launcher::RenderEngine();

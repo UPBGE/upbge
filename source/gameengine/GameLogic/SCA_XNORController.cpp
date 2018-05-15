@@ -42,7 +42,7 @@
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
 
-SCA_XNORController::SCA_XNORController(SCA_IObject* gameobj)
+SCA_XNORController::SCA_XNORController(SCA_IObject *gameobj)
 	:
 	SCA_IController(gameobj)
 {
@@ -56,16 +56,14 @@ SCA_XNORController::~SCA_XNORController()
 
 
 
-void SCA_XNORController::Trigger(SCA_LogicManager* logicmgr)
+void SCA_XNORController::Trigger(SCA_LogicManager *logicmgr)
 {
 
 	bool sensorresult = true;
 
 	for (SCA_ISensor *sensor : m_linkedsensors) {
-		if (sensor->GetState())
-		{
-			if (sensorresult == false)
-			{
+		if (sensor->GetState()) {
+			if (sensorresult == false) {
 				sensorresult = true;
 				break;
 			}
@@ -80,9 +78,9 @@ void SCA_XNORController::Trigger(SCA_LogicManager* logicmgr)
 
 
 
-EXP_Value* SCA_XNORController::GetReplica()
+EXP_Value *SCA_XNORController::GetReplica()
 {
-	EXP_Value* replica = new SCA_XNORController(*this);
+	EXP_Value *replica = new SCA_XNORController(*this);
 	// this will copy properties and so on...
 	replica->ProcessReplica();
 
@@ -107,23 +105,23 @@ PyTypeObject SCA_XNORController::Type = {
 	0,
 	0,
 	py_base_repr,
-	0,0,0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0,
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0,
 	Methods,
 	0,
 	0,
 	&SCA_IController::Type,
-	0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0,
 	py_base_new
 };
 
 PyMethodDef SCA_XNORController::Methods[] = {
-	{nullptr,nullptr} //Sentinel
+	{nullptr, nullptr} //Sentinel
 };
 
 PyAttributeDef SCA_XNORController::Attributes[] = {
-	EXP_PYATTRIBUTE_NULL	//Sentinel
+	EXP_PYATTRIBUTE_NULL    //Sentinel
 };
 
 #endif // WITH_PYTHON

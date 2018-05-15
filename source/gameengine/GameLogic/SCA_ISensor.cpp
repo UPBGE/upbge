@@ -221,7 +221,7 @@ void SCA_ISensor::UnlinkController(SCA_IController *controller)
 {
 	if (!CM_ListRemoveIfFound(m_linkedcontrollers, controller)) {
 		CM_LogicBrickWarning(this, "missing link from sensor " << m_gameobj->GetName() << ":" << GetName()
-			<< " to controller " << controller->GetParent()->GetName() << ":" << controller->GetName());
+		                                                       << " to controller " << controller->GetParent()->GetName() << ":" << controller->GetName());
 	}
 }
 
@@ -328,9 +328,9 @@ void SCA_ISensor::Activate(class SCA_LogicManager *logicmgr)
 /* ----------------------------------------------- */
 
 EXP_PYMETHODDEF_DOC_NOARGS(SCA_ISensor, reset,
-                          "reset()\n"
-                          "\tReset sensor internal state, effect depends on the type of sensor and settings.\n"
-                          "\tThe sensor is put in its initial state as if it was just activated.\n")
+                           "reset()\n"
+                           "\tReset sensor internal state, effect depends on the type of sensor and settings.\n"
+                           "\tThe sensor is put in its initial state as if it was just activated.\n")
 {
 	Init();
 	m_prev_state = false;

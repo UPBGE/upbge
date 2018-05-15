@@ -42,7 +42,7 @@
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
 
-SCA_XORController::SCA_XORController(SCA_IObject* gameobj)
+SCA_XORController::SCA_XORController(SCA_IObject *gameobj)
 	:
 	SCA_IController(gameobj)
 {
@@ -56,23 +56,21 @@ SCA_XORController::~SCA_XORController()
 
 
 
-void SCA_XORController::Trigger(SCA_LogicManager* logicmgr)
+void SCA_XORController::Trigger(SCA_LogicManager *logicmgr)
 {
 
 	bool sensorresult = false;
 
 	for (SCA_ISensor *sensor : m_linkedsensors) {
-		if (sensor->GetState())
-		{
-			if (sensorresult == true)
-			{
+		if (sensor->GetState()) {
+			if (sensorresult == true) {
 				sensorresult = false;
 				break;
 			}
 			sensorresult = true;
 		}
 	}
-	
+
 	for (SCA_IActuator *actuator : m_linkedactuators) {
 		logicmgr->AddActiveActuator(actuator, sensorresult);
 	}
@@ -80,9 +78,9 @@ void SCA_XORController::Trigger(SCA_LogicManager* logicmgr)
 
 
 
-EXP_Value* SCA_XORController::GetReplica()
+EXP_Value *SCA_XORController::GetReplica()
 {
-	EXP_Value* replica = new SCA_XORController(*this);
+	EXP_Value *replica = new SCA_XORController(*this);
 	// this will copy properties and so on...
 	replica->ProcessReplica();
 
@@ -107,23 +105,23 @@ PyTypeObject SCA_XORController::Type = {
 	0,
 	0,
 	py_base_repr,
-	0,0,0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0,
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0,
 	Methods,
 	0,
 	0,
 	&SCA_IController::Type,
-	0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0,
 	py_base_new
 };
 
 PyMethodDef SCA_XORController::Methods[] = {
-	{nullptr,nullptr} //Sentinel
+	{nullptr, nullptr} //Sentinel
 };
 
 PyAttributeDef SCA_XORController::Attributes[] = {
-	EXP_PYATTRIBUTE_NULL	//Sentinel
+	EXP_PYATTRIBUTE_NULL    //Sentinel
 };
 #endif // WITH_PYTHON
 

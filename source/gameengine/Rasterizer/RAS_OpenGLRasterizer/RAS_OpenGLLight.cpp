@@ -69,15 +69,18 @@ bool RAS_OpenGLLight::ApplyFixedFunctionLighting(KX_Scene *kxscene, int oblayer,
 	float vec[4];
 	int scenelayer = ~0;
 
-	if (kxscene && kxscene->GetBlenderScene())
+	if (kxscene && kxscene->GetBlenderScene()) {
 		scenelayer = kxscene->GetBlenderScene()->lay;
+	}
 
 	/* only use lights in the same layer as the object */
-	if (!(m_layer & oblayer))
+	if (!(m_layer & oblayer)) {
 		return false;
+	}
 	/* only use lights in the same scene, and in a visible layer */
-	if (kxscene != lightscene || !(m_layer & scenelayer))
+	if (kxscene != lightscene || !(m_layer & scenelayer)) {
 		return false;
+	}
 
 	const mt::mat4 worldmatrix = mt::mat4::FromAffineTransform(kxlight->NodeGetWorldTransform());
 
@@ -163,26 +166,30 @@ bool RAS_OpenGLLight::HasShadowBuffer()
 {
 	GPULamp *lamp;
 
-	if ((lamp = GetGPULamp()))
+	if ((lamp = GetGPULamp())) {
 		return GPU_lamp_has_shadow_buffer(lamp);
-	else
+	}
+	else {
 		return false;
+	}
 }
 
 
 bool RAS_OpenGLLight::NeedShadowUpdate()
 {
-	if (!m_staticShadow)
+	if (!m_staticShadow) {
 		return true;
+	}
 	return m_requestShadowUpdate;
 }
 
 int RAS_OpenGLLight::GetShadowBindCode()
 {
 	GPULamp *lamp;
-	
-	if ((lamp = GetGPULamp()))
+
+	if ((lamp = GetGPULamp())) {
 		return GPU_lamp_shadow_bind_code(lamp);
+	}
 	return -1;
 }
 
@@ -208,8 +215,9 @@ mt::mat4 RAS_OpenGLLight::GetShadowMatrix()
 {
 	GPULamp *lamp;
 
-	if ((lamp = GetGPULamp()))
+	if ((lamp = GetGPULamp())) {
 		return mt::mat4(GPU_lamp_dynpersmat(lamp));
+	}
 
 	return mt::mat4::Identity();
 }
@@ -218,10 +226,12 @@ int RAS_OpenGLLight::GetShadowLayer()
 {
 	GPULamp *lamp;
 
-	if ((lamp = GetGPULamp()))
+	if ((lamp = GetGPULamp())) {
 		return GPU_lamp_shadow_layer(lamp);
-	else
+	}
+	else {
 		return 0;
+	}
 }
 
 void RAS_OpenGLLight::BindShadowBuffer(RAS_ICanvas *canvas, KX_Camera *cam, mt::mat3x4& camtrans)
@@ -283,8 +293,9 @@ Image *RAS_OpenGLLight::GetTextureImage(short texslot)
 		return nullptr;
 	}
 
-	if (la->mtex[texslot])
+	if (la->mtex[texslot]) {
 		return la->mtex[texslot]->tex->ima;
+	}
 
 	return nullptr;
 }

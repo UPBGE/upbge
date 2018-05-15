@@ -35,16 +35,16 @@
 #include "GPU_glew.h"
 
 extern "C" {
-	extern char datatoc_RAS_Blur2DFilter_glsl[];
-	extern char datatoc_RAS_Sharpen2DFilter_glsl[];
-	extern char datatoc_RAS_Dilation2DFilter_glsl[];
-	extern char datatoc_RAS_Erosion2DFilter_glsl[];
-	extern char datatoc_RAS_Laplacian2DFilter_glsl[];
-	extern char datatoc_RAS_Sobel2DFilter_glsl[];
-	extern char datatoc_RAS_Prewitt2DFilter_glsl[];
-	extern char datatoc_RAS_GrayScale2DFilter_glsl[];
-	extern char datatoc_RAS_Sepia2DFilter_glsl[];
-	extern char datatoc_RAS_Invert2DFilter_glsl[];
+extern char datatoc_RAS_Blur2DFilter_glsl[];
+extern char datatoc_RAS_Sharpen2DFilter_glsl[];
+extern char datatoc_RAS_Dilation2DFilter_glsl[];
+extern char datatoc_RAS_Erosion2DFilter_glsl[];
+extern char datatoc_RAS_Laplacian2DFilter_glsl[];
+extern char datatoc_RAS_Sobel2DFilter_glsl[];
+extern char datatoc_RAS_Prewitt2DFilter_glsl[];
+extern char datatoc_RAS_GrayScale2DFilter_glsl[];
+extern char datatoc_RAS_Sepia2DFilter_glsl[];
+extern char datatoc_RAS_Invert2DFilter_glsl[];
 }
 
 RAS_2DFilterManager::RAS_2DFilterManager()
@@ -156,42 +156,64 @@ RAS_2DFilter *RAS_2DFilterManager::CreateFilter(RAS_2DFilterData& filterData)
 {
 	RAS_2DFilter *result = nullptr;
 	std::string shaderSource;
-	switch(filterData.filterMode) {
+	switch (filterData.filterMode) {
 		case RAS_2DFilterManager::FILTER_MOTIONBLUR:
+		{
 			break;
+		}
 		case RAS_2DFilterManager::FILTER_BLUR:
+		{
 			shaderSource = datatoc_RAS_Blur2DFilter_glsl;
 			break;
+		}
 		case RAS_2DFilterManager::FILTER_SHARPEN:
+		{
 			shaderSource = datatoc_RAS_Sharpen2DFilter_glsl;
 			break;
+		}
 		case RAS_2DFilterManager::FILTER_DILATION:
+		{
 			shaderSource = datatoc_RAS_Dilation2DFilter_glsl;
 			break;
+		}
 		case RAS_2DFilterManager::FILTER_EROSION:
+		{
 			shaderSource = datatoc_RAS_Erosion2DFilter_glsl;
 			break;
+		}
 		case RAS_2DFilterManager::FILTER_LAPLACIAN:
+		{
 			shaderSource = datatoc_RAS_Laplacian2DFilter_glsl;
 			break;
+		}
 		case RAS_2DFilterManager::FILTER_SOBEL:
+		{
 			shaderSource = datatoc_RAS_Sobel2DFilter_glsl;
 			break;
+		}
 		case RAS_2DFilterManager::FILTER_PREWITT:
+		{
 			shaderSource = datatoc_RAS_Prewitt2DFilter_glsl;
 			break;
+		}
 		case RAS_2DFilterManager::FILTER_GRAYSCALE:
+		{
 			shaderSource = datatoc_RAS_GrayScale2DFilter_glsl;
 			break;
+		}
 		case RAS_2DFilterManager::FILTER_SEPIA:
+		{
 			shaderSource = datatoc_RAS_Sepia2DFilter_glsl;
 			break;
+		}
 		case RAS_2DFilterManager::FILTER_INVERT:
+		{
 			shaderSource = datatoc_RAS_Invert2DFilter_glsl;
 			break;
+		}
 	}
 	if (shaderSource.empty()) {
-		if(filterData.filterMode == RAS_2DFilterManager::FILTER_CUSTOMFILTER) {
+		if (filterData.filterMode == RAS_2DFilterManager::FILTER_CUSTOMFILTER) {
 			result = NewFilter(filterData);
 		}
 		else {

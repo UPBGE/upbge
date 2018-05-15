@@ -117,7 +117,9 @@ void RAS_BucketManager::RenderSortedBuckets(RAS_Rasterizer *rasty, RAS_BucketMan
 		std::vector<SortedMeshSlot> sortedSlots(leafs.size());
 		// Generate all SortedMeshSlot corresponding to all the leafs nodes.
 		std::transform(leafs.begin(), leafs.end(), sortedSlots.begin(),
-				[&pnorm](RAS_MeshSlotUpwardNode *node) { return SortedMeshSlot(node, pnorm); });
+		               [&pnorm](RAS_MeshSlotUpwardNode *node) {
+			return SortedMeshSlot(node, pnorm);
+		});
 
 		std::sort(sortedSlots.begin(), sortedSlots.end(), backtofront());
 
@@ -143,7 +145,7 @@ void RAS_BucketManager::RenderBasicBuckets(RAS_Rasterizer *rasty, RAS_BucketMana
 }
 
 void RAS_BucketManager::Renderbuckets(RAS_Rasterizer::DrawType drawingMode, const mt::mat3x4& cameratrans, RAS_Rasterizer *rasty,
-		RAS_OffScreen *offScreen)
+                                      RAS_OffScreen *offScreen)
 {
 	m_nodeData.m_rasty = rasty;
 	m_nodeData.m_trans = cameratrans;
@@ -280,7 +282,7 @@ void RAS_BucketManager::Renderbuckets(RAS_Rasterizer::DrawType drawingMode, cons
 			/* Rendering solid and alpha (regular and instancing) materials
 			 * with their shaders.
 			 */
-	
+
 			m_nodeData.m_shaderOverride = false;
 			rasty->SetDepthMask(RAS_Rasterizer::RAS_DEPTHMASK_ENABLED);
 
@@ -369,7 +371,7 @@ void RAS_BucketManager::RemoveMaterial(RAS_IPolyMaterial *mat)
 {
 	for (unsigned short i = 0; i < NUM_BUCKET_TYPE; ++i) {
 		BucketList& buckets = m_buckets[i];
-		for (BucketList::iterator it = buckets.begin(); it != buckets.end();) {
+		for (BucketList::iterator it = buckets.begin(); it != buckets.end(); ) {
 			RAS_MaterialBucket *bucket = *it;
 			if (mat == bucket->GetPolyMaterial()) {
 				it = buckets.erase(it);

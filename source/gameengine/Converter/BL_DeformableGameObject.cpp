@@ -161,7 +161,7 @@ void BL_DeformableGameObject::LoadDeformer()
 	const bool bHasShapeKey = mesh->key && mesh->key->type == KEY_RELATIVE;
 	const bool bHasDvert = mesh->dvert && blenderobj->defbase.first;
 	const bool bHasArmature = BL_ModifierDeformer::HasArmatureDeformer(blenderobj) &&
-			isParentArmature && meshblendobj && bHasDvert;
+	                          isParentArmature && meshblendobj && bHasDvert;
 #ifdef WITH_BULLET
 	const bool bHasSoftBody = (!parentobj && (blenderobj->gameflag & OB_SOFT_BODY));
 #endif
@@ -176,7 +176,7 @@ void BL_DeformableGameObject::LoadDeformer()
 	if (bHasModifier) {
 		if (isParentArmature) {
 			BL_ModifierDeformer *modifierDeformer = new BL_ModifierDeformer(this, blenderScene, meshblendobj, blenderobj,
-					meshobj, static_cast<BL_ArmatureObject *>(parentobj));
+			                                                                meshobj, static_cast<BL_ArmatureObject *>(parentobj));
 			modifierDeformer->LoadShapeDrivers(parentobj);
 			m_deformer = modifierDeformer;
 		}
@@ -187,7 +187,7 @@ void BL_DeformableGameObject::LoadDeformer()
 	else if (bHasShapeKey) {
 		if (isParentArmature) {
 			BL_ShapeDeformer *shapeDeformer = new BL_ShapeDeformer(this, meshblendobj, blenderobj, meshobj,
-					static_cast<BL_ArmatureObject *>(parentobj));
+			                                                       static_cast<BL_ArmatureObject *>(parentobj));
 			shapeDeformer->LoadShapeDrivers(parentobj);
 			m_deformer = shapeDeformer;
 		}
@@ -197,7 +197,7 @@ void BL_DeformableGameObject::LoadDeformer()
 	}
 	else if (bHasArmature) {
 		m_deformer = new BL_SkinDeformer(this, meshblendobj, blenderobj, meshobj,
-				static_cast<BL_ArmatureObject *>(parentobj));
+		                                 static_cast<BL_ArmatureObject *>(parentobj));
 	}
 	else if (bHasDvert) {
 		m_deformer = new BL_MeshDeformer(this, meshblendobj, meshobj);

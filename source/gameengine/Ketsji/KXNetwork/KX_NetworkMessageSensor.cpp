@@ -44,11 +44,10 @@
   #include <iostream>
 #endif
 
-KX_NetworkMessageSensor::KX_NetworkMessageSensor(
-	SCA_EventManager *eventmgr, // our eventmanager
-	class KX_NetworkMessageScene *NetworkScene, // our scene
-	SCA_IObject *gameobj, // the sensor controlling object
-	const std::string &subject)
+KX_NetworkMessageSensor::KX_NetworkMessageSensor(SCA_EventManager *eventmgr, // our eventmanager
+												 class KX_NetworkMessageScene *NetworkScene, // our scene
+													 SCA_IObject *gameobj, // the sensor controlling object
+													 const std::string &subject)
 	:SCA_ISensor(gameobj, eventmgr),
 	m_NetworkScene(NetworkScene),
 	m_subject(subject),
@@ -104,7 +103,7 @@ bool KX_NetworkMessageSensor::Evaluate()
 	std::string& subject = this->m_subject;
 
 	const std::vector<KX_NetworkMessageManager::Message> messages =
-	    m_NetworkScene->FindMessages(toname, subject);
+		m_NetworkScene->FindMessages(toname, subject);
 
 	m_frame_message_count = messages.size();
 
@@ -136,8 +135,9 @@ bool KX_NetworkMessageSensor::Evaluate()
 	result = (WasUp != m_IsUp);
 
 	// Return always true if a message was received otherwise we can loose messages
-	if (m_IsUp)
+	if (m_IsUp) {
 		return true;
+	}
 	// Is it useful to return also true when the first frame without a message??
 	// This will cause a fast on/off cycle that seems useless!
 	return result;

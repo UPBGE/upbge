@@ -43,13 +43,11 @@
 
 bool PyOrientationTo(PyObject *pyval, mt::mat3 &rot, const char *error_prefix)
 {
-	int size= PySequence_Size(pyval);
-	
-	if (size == 4)
-	{
+	int size = PySequence_Size(pyval);
+
+	if (size == 4) {
 		mt::quat qrot;
-		if (PyQuatTo(pyval, qrot))
-		{
+		if (PyQuatTo(pyval, qrot)) {
 			rot = qrot.ToMatrix();
 			return true;
 		}
@@ -57,27 +55,26 @@ bool PyOrientationTo(PyObject *pyval, mt::mat3 &rot, const char *error_prefix)
 	else if (size == 3) {
 		/* 3x3 matrix or euler */
 		mt::vec3 erot;
-		if (PyVecTo(pyval, erot))
-		{
+		if (PyVecTo(pyval, erot)) {
 			rot = mt::mat3(erot);
 			return true;
 		}
 		PyErr_Clear();
-		
-		if (PyMatTo(pyval, rot))
-		{
+
+		if (PyMatTo(pyval, rot)) {
 			return true;
 		}
 	}
-	
+
 	PyErr_Format(PyExc_TypeError, "%s, could not set the orientation from a 3x3 matrix, quaternion or euler sequence", error_prefix);
 	return false;
 }
 
 bool PyQuatTo(PyObject *pyval, mt::quat &qrot)
 {
-	if (!PyVecTo(pyval, qrot))
+	if (!PyVecTo(pyval, qrot)) {
 		return false;
+	}
 
 	/* annoying!, Blender/Mathutils have the W axis first! */
 	float w = qrot[0]; /* from python, this is actually the W */
@@ -97,8 +94,8 @@ PyObject *PyObjectFrom(const mt::mat4 &mat)
 	PyObject *collist = PyList_New(4);
 	PyObject *col;
 	int i;
-	
-	for (i=0; i < 4; i++) {
+
+	for (i = 0; i < 4; i++) {
 		col = PyList_New(4);
 		PyList_SET_ITEM(col, 0, PyFloat_FromDouble(mat[0][i]));
 		PyList_SET_ITEM(col, 1, PyFloat_FromDouble(mat[1][i]));
@@ -106,7 +103,7 @@ PyObject *PyObjectFrom(const mt::mat4 &mat)
 		PyList_SET_ITEM(col, 3, PyFloat_FromDouble(mat[3][i]));
 		PyList_SET_ITEM(collist, i, col);
 	}
-	
+
 	return collist;
 #endif
 }
@@ -121,15 +118,15 @@ PyObject *PyObjectFrom(const mt::mat3 &mat)
 	PyObject *collist = PyList_New(3);
 	PyObject *col;
 	int i;
-	
-	for (i=0; i < 3; i++) {
+
+	for (i = 0; i < 3; i++) {
 		col = PyList_New(3);
 		PyList_SET_ITEM(col, 0, PyFloat_FromDouble(mat[0][i]));
 		PyList_SET_ITEM(col, 1, PyFloat_FromDouble(mat[1][i]));
 		PyList_SET_ITEM(col, 2, PyFloat_FromDouble(mat[2][i]));
 		PyList_SET_ITEM(collist, i, col);
 	}
-	
+
 	return collist;
 #endif
 }

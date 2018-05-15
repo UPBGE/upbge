@@ -31,7 +31,7 @@
  */
 
 #ifdef _MSC_VER
-   /* don't show stl-warnings */
+/* don't show stl-warnings */
 #  pragma warning (disable:4786)
 #endif
 
@@ -56,16 +56,16 @@ extern "C" {
 #  include "BLI_blenlib.h"
 #  include "BLO_readfile.h"
 
-	void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *cam_frame, int always_use_expand_framing);
+void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *cam_frame, int always_use_expand_framing);
 }
 
 static BlendFileData *load_game_data(const char *filename)
 {
 	ReportList reports;
 	BlendFileData *bfd;
-	
+
 	BKE_reports_init(&reports, RPT_STORE);
-	bfd= BLO_read_from_file(filename, &reports, BLO_READ_SKIP_USERDEF);
+	bfd = BLO_read_from_file(filename, &reports, BLO_READ_SKIP_USERDEF);
 
 	if (!bfd) {
 		CM_Error("loading " << filename << " failed: ");
@@ -82,12 +82,12 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 {
 	/* context values */
 	Scene *startscene = CTX_data_scene(C);
-	Main* maggie1 = CTX_data_main(C);
+	Main *maggie1 = CTX_data_main(C);
 
 	KX_ExitRequest exitrequested = KX_ExitRequest::NO_REQUEST;
-	Main* blenderdata = maggie1;
+	Main *blenderdata = maggie1;
 
-	char* startscenename = startscene->id.name + 2;
+	char *startscenename = startscene->id.name + 2;
 	char pathname[FILE_MAXDIR + FILE_MAXFILE];
 	char prevPathName[FILE_MAXDIR + FILE_MAXFILE];
 	std::string exitstring = "";
@@ -111,15 +111,14 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 	GlobalSettings gs;
 	gs.glslflag = startscene->gm.flag;
 
-	do
-	{
+	do {
 		// if we got an exitcode 3 (KX_ExitRequest::START_OTHER_GAME) load a different file
 		if (exitrequested == KX_ExitRequest::START_OTHER_GAME || exitrequested == KX_ExitRequest::RESTART_GAME) {
 			exitrequested = KX_ExitRequest::NO_REQUEST;
 			if (bfd) {
 				BLO_blendfiledata_free(bfd);
 			}
-			
+
 			char basedpath[FILE_MAX];
 			// base the actuator filename with respect
 			// to the original file working directory
@@ -134,17 +133,17 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 			// that happened to be loaded first
 			BLI_path_abs(basedpath, pathname);
 			bfd = load_game_data(basedpath);
-			
+
 			// if it wasn't loaded, try it forced relative
 			if (!bfd) {
 				// just add "//" in front of it
 				char temppath[FILE_MAX] = "//";
 				BLI_strncpy(temppath + 2, basedpath, FILE_MAX - 2);
-				
+
 				BLI_path_abs(temppath, pathname);
 				bfd = load_game_data(temppath);
 			}
-			
+
 			// if we got a loaded blendfile, proceed
 			if (bfd) {
 				blenderdata = bfd->main;
@@ -227,9 +226,9 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 		gs = *launcher.GetGlobalSettings();
 
 		launcher.ExitEngine();
-	
+
 	} while (exitrequested == KX_ExitRequest::RESTART_GAME || exitrequested == KX_ExitRequest::START_OTHER_GAME);
-	
+
 	if (bfd) {
 		BLO_blendfiledata_free(bfd);
 	}

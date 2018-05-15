@@ -33,8 +33,8 @@
  */
 
 #ifdef _MSC_VER
-  /* This warning tells us about truncation of __long__ stl-generated names.
-   * It can occasionally cause DevStudio to have internal compiler warnings. */
+/* This warning tells us about truncation of __long__ stl-generated names.
+ * It can occasionally cause DevStudio to have internal compiler warnings. */
 #  pragma warning( disable:4786 )
 #endif
 
@@ -48,12 +48,12 @@
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
 
-SCA_DelaySensor::SCA_DelaySensor(class SCA_EventManager* eventmgr,
-								 SCA_IObject* gameobj,
-								 int delay,
-								 int duration,
-								 bool repeat)
-	: SCA_ISensor(gameobj,eventmgr),
+SCA_DelaySensor::SCA_DelaySensor(class SCA_EventManager *eventmgr,
+									 SCA_IObject *gameobj,
+									 int delay,
+									 int duration,
+									 bool repeat)
+	:SCA_ISensor(gameobj, eventmgr),
 	m_repeat(repeat),
 	m_delay(delay),
 	m_duration(duration)
@@ -73,9 +73,9 @@ SCA_DelaySensor::~SCA_DelaySensor()
 	/* intentionally empty */
 }
 
-EXP_Value* SCA_DelaySensor::GetReplica()
+EXP_Value *SCA_DelaySensor::GetReplica()
 {
-	EXP_Value* replica = new SCA_DelaySensor(*this);
+	EXP_Value *replica = new SCA_DelaySensor(*this);
 	// this will copy properties and so on...
 	replica->ProcessReplica();
 
@@ -85,7 +85,7 @@ EXP_Value* SCA_DelaySensor::GetReplica()
 
 
 bool SCA_DelaySensor::IsPositiveTrigger()
-{ 
+{
 	return (m_invert ? !m_lastResult : m_lastResult);
 }
 
@@ -94,32 +94,38 @@ bool SCA_DelaySensor::Evaluate()
 	bool trigger = false;
 	bool result;
 
-	if (m_frameCount==-1) {
+	if (m_frameCount == -1) {
 		// this is needed to ensure ON trigger in case delay==0
 		// and avoid spurious OFF trigger when duration==0
 		m_lastResult = false;
 		m_frameCount = 0;
 	}
 
-	if (m_frameCount<m_delay) {
+	if (m_frameCount < m_delay) {
 		m_frameCount++;
 		result = false;
-	} else if (m_duration > 0) {
-		if (m_frameCount < m_delay+m_duration) {
+	}
+	else if (m_duration > 0) {
+		if (m_frameCount < m_delay + m_duration) {
 			m_frameCount++;
 			result = true;
-		} else {
-			result = false;
-			if (m_repeat)
-				m_frameCount = -1;
 		}
-	} else {
-		result = true;
-		if (m_repeat)
-			m_frameCount = -1;
+		else {
+			result = false;
+			if (m_repeat) {
+				m_frameCount = -1;
+			}
+		}
 	}
-	if ((m_reset && m_level) || result != m_lastResult)
+	else {
+		result = true;
+		if (m_repeat) {
+			m_frameCount = -1;
+		}
+	}
+	if ((m_reset && m_level) || result != m_lastResult) {
 		trigger = true;
+	}
 	m_reset = false;
 	m_lastResult = result;
 	return trigger;
@@ -143,26 +149,26 @@ PyTypeObject SCA_DelaySensor::Type = {
 	0,
 	0,
 	py_base_repr,
-	0,0,0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0,
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0,
 	Methods,
 	0,
 	0,
 	&SCA_ISensor::Type,
-	0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0,
 	py_base_new
 };
 
 PyMethodDef SCA_DelaySensor::Methods[] = {
-	{nullptr,nullptr} //Sentinel
+	{nullptr, nullptr} //Sentinel
 };
 
 PyAttributeDef SCA_DelaySensor::Attributes[] = {
-	EXP_PYATTRIBUTE_INT_RW("delay",0,100000,true,SCA_DelaySensor,m_delay),
-	EXP_PYATTRIBUTE_INT_RW("duration",0,100000,true,SCA_DelaySensor,m_duration),
-	EXP_PYATTRIBUTE_BOOL_RW("repeat",SCA_DelaySensor,m_repeat),
-	EXP_PYATTRIBUTE_NULL	//Sentinel
+	EXP_PYATTRIBUTE_INT_RW("delay", 0, 100000, true, SCA_DelaySensor, m_delay),
+	EXP_PYATTRIBUTE_INT_RW("duration", 0, 100000, true, SCA_DelaySensor, m_duration),
+	EXP_PYATTRIBUTE_BOOL_RW("repeat", SCA_DelaySensor, m_repeat),
+	EXP_PYATTRIBUTE_NULL    //Sentinel
 };
 
 #endif // WITH_PYTHON

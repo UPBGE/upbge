@@ -77,7 +77,7 @@ void DEV_EventConsumer::HandleCursorEvent(GHOST_TEventDataPtr data, GHOST_IWindo
 
 void DEV_EventConsumer::HandleWheelEvent(GHOST_TEventDataPtr data)
 {
-	GHOST_TEventWheelData* wheelData = (GHOST_TEventWheelData *)data;
+	GHOST_TEventWheelData *wheelData = (GHOST_TEventWheelData *)data;
 
 	m_device->ConvertWheelEvent(wheelData->z);
 }
@@ -91,7 +91,7 @@ void DEV_EventConsumer::HandleButtonEvent(GHOST_TEventDataPtr data, bool down)
 
 bool DEV_EventConsumer::processEvent(GHOST_IEvent *event)
 {
-	GHOST_TEventDataPtr eventData = ((GHOST_IEvent*)event)->getData();
+	GHOST_TEventDataPtr eventData = ((GHOST_IEvent *)event)->getData();
 	switch (event->getType()) {
 		case GHOST_kEventButtonDown:
 		{
@@ -135,7 +135,9 @@ bool DEV_EventConsumer::processEvent(GHOST_IEvent *event)
 			break;
 		}
 		default:
+		{
 			break;
+		}
 	}
 
 	return true;

@@ -68,22 +68,22 @@ ExpDesc MirrorHorizontalDesc(MirrorHorizontal, "Mirror is horizontal in local sp
 ExpDesc MirrorTooSmallDesc(MirrorTooSmall, "Mirror is too small");
 
 // constructor
-ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int width, unsigned int height, unsigned short samples, int hdr) :
-    ImageViewport(width, height),
-    m_render(true),
-    m_updateShadowBuffer(false),
-    m_done(false),
-    m_scene(scene),
-    m_camera(camera),
-    m_owncamera(false),
-    m_samples(samples),
-    m_finalOffScreen(nullptr),
-    m_sync(nullptr),
-    m_observer(nullptr),
-    m_mirror(nullptr),
-    m_clip(100.f),
-    m_mirrorHalfWidth(0.f),
-    m_mirrorHalfHeight(0.f)
+ImageRender::ImageRender(KX_Scene *scene, KX_Camera *camera, unsigned int width, unsigned int height, unsigned short samples, int hdr) :
+	ImageViewport(width, height),
+	m_render(true),
+	m_updateShadowBuffer(false),
+	m_done(false),
+	m_scene(scene),
+	m_camera(camera),
+	m_owncamera(false),
+	m_samples(samples),
+	m_finalOffScreen(nullptr),
+	m_sync(nullptr),
+	m_observer(nullptr),
+	m_mirror(nullptr),
+	m_clip(100.f),
+	m_mirrorHalfWidth(0.f),
+	m_mirrorHalfHeight(0.f)
 {
 	// initialize background color to scene background color as default
 	setHorizonFromScene(m_scene);
@@ -118,14 +118,16 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
 }
 
 // destructor
-ImageRender::~ImageRender (void)
+ImageRender::~ImageRender(void)
 {
-	if (m_owncamera)
+	if (m_owncamera) {
 		m_camera->Release();
+	}
 
 #ifdef WITH_GAMEENGINE_GPU_SYNC
-	if (m_sync)
+	if (m_sync) {
 		delete m_sync;
+	}
 #endif
 }
 
@@ -177,7 +179,7 @@ void ImageRender::setZenith(float red, float green, float blue, float alpha)
 }
 
 // set horizon color from scene
-void ImageRender::setHorizonFromScene (KX_Scene *scene)
+void ImageRender::setHorizonFromScene(KX_Scene *scene)
 {
 	if (scene) {
 		m_horizon = scene->GetWorldInfo()->m_horizoncolor;
@@ -199,7 +201,7 @@ void ImageRender::setZenithFromScene(KX_Scene *scene)
 }
 
 // capture image from viewport
-void ImageRender::calcViewport (unsigned int texId, double ts, bool mipmap, unsigned int format)
+void ImageRender::calcViewport(unsigned int texId, double ts, bool mipmap, unsigned int format)
 {
 	// render the scene from the camera
 	if (!m_done) {
@@ -224,9 +226,8 @@ bool ImageRender::Render()
 
 	if (!m_render ||
 	    m_rasterizer->GetDrawingMode() != RAS_Rasterizer::RAS_TEXTURED ||   // no need for texture
-        m_camera->GetViewport() ||        // camera must be inactive
-        m_camera == m_scene->GetActiveCamera())
-	{
+	    m_camera->GetViewport() ||        // camera must be inactive
+	    m_camera == m_scene->GetActiveCamera()) {
 		// no need to compute texture in non texture rendering
 		return false;
 	}
@@ -235,15 +236,14 @@ bool ImageRender::Render()
 		m_engine->RenderShadowBuffers(m_scene);
 	}
 
-	if (m_mirror)
-	{
+	if (m_mirror) {
 		// mirror mode, compute camera frustum, position and orientation
 		// convert mirror position and normal in world space
 		const mt::mat3 & mirrorObjWorldOri = m_mirror->GetSGNode()->GetWorldOrientation();
 		const mt::vec3 & mirrorObjWorldPos = m_mirror->GetSGNode()->GetWorldPosition();
 		const mt::vec3 & mirrorObjWorldScale = m_mirror->GetSGNode()->GetWorldScaling();
 		mt::vec3 mirrorWorldPos =
-		        mirrorObjWorldPos + mirrorObjWorldScale * (mirrorObjWorldOri * m_mirrorPos);
+			mirrorObjWorldPos + mirrorObjWorldScale * (mirrorObjWorldOri * m_mirrorPos);
 		mt::vec3 mirrorWorldZ = mirrorObjWorldOri * m_mirrorZ;
 		// get observer world position
 		const mt::vec3 & observerWorldPos = m_observer->GetSGNode()->GetWorldPosition();
@@ -252,18 +252,19 @@ bool ImageRender::Render()
 		// compute distance of observer to mirror = D - observerPos . normal
 		float observerDistance = mirrorPlaneDTerm - mt::dot(observerWorldPos, mirrorWorldZ);
 		// if distance < 0.01 => observer is on wrong side of mirror, don't render
-		if (observerDistance < 0.01)
+		if (observerDistance < 0.01) {
 			return false;
+		}
 		// set camera world position = observerPos + normal * 2 * distance
-		mt::vec3 cameraWorldPos = observerWorldPos + (2.0f * observerDistance)*mirrorWorldZ;
+		mt::vec3 cameraWorldPos = observerWorldPos + (2.0f * observerDistance) * mirrorWorldZ;
 		m_camera->GetSGNode()->SetLocalPosition(cameraWorldPos);
 		// set camera orientation: z=normal, y=mirror_up in world space, x= y x z
 		mt::vec3 mirrorWorldY = mirrorObjWorldOri * m_mirrorY;
 		mt::vec3 mirrorWorldX = mirrorObjWorldOri * m_mirrorX;
 		mt::mat3 cameraWorldOri(
-		            mirrorWorldX[0], mirrorWorldY[0], mirrorWorldZ[0],
-		            mirrorWorldX[1], mirrorWorldY[1], mirrorWorldZ[1],
-		            mirrorWorldX[2], mirrorWorldY[2], mirrorWorldZ[2]);
+			mirrorWorldX[0], mirrorWorldY[0], mirrorWorldZ[0],
+			mirrorWorldX[1], mirrorWorldY[1], mirrorWorldZ[1],
+			mirrorWorldX[2], mirrorWorldY[2], mirrorWorldZ[2]);
 		m_camera->GetSGNode()->SetLocalOrientation(cameraWorldOri);
 		m_camera->GetSGNode()->UpdateWorldData();
 		// compute camera frustum:
@@ -277,13 +278,13 @@ bool ImageRender::Render()
 		x = fabs(m_mirrorY[0]);
 		y = fabs(m_mirrorY[1]);
 		float height = (x > y) ?
-		            ((x > fabs(m_mirrorY[2])) ? mirrorObjWorldScale[0] : mirrorObjWorldScale[2]):
-		            ((y > fabs(m_mirrorY[2])) ? mirrorObjWorldScale[1] : mirrorObjWorldScale[2]);
+		               ((x > fabs(m_mirrorY[2])) ? mirrorObjWorldScale[0] : mirrorObjWorldScale[2]) :
+		               ((y > fabs(m_mirrorY[2])) ? mirrorObjWorldScale[1] : mirrorObjWorldScale[2]);
 		x = fabs(m_mirrorX[0]);
 		y = fabs(m_mirrorX[1]);
 		float width = (x > y) ?
-		            ((x > fabs(m_mirrorX[2])) ? mirrorObjWorldScale[0] : mirrorObjWorldScale[2]):
-		            ((y > fabs(m_mirrorX[2])) ? mirrorObjWorldScale[1] : mirrorObjWorldScale[2]);
+		              ((x > fabs(m_mirrorX[2])) ? mirrorObjWorldScale[0] : mirrorObjWorldScale[2]) :
+		              ((y > fabs(m_mirrorX[2])) ? mirrorObjWorldScale[1] : mirrorObjWorldScale[2]);
 		width *= m_mirrorHalfWidth;
 		height *= m_mirrorHalfHeight;
 		//   left = offsetx-width
@@ -292,12 +293,12 @@ bool ImageRender::Render()
 		//   bottom = offsety-height
 		//   near = -offsetz
 		//   far = near+100
-		frustum.x1 = mirrorOffset[0]-width;
-		frustum.x2 = mirrorOffset[0]+width;
-		frustum.y1 = mirrorOffset[1]-height;
-		frustum.y2 = mirrorOffset[1]+height;
+		frustum.x1 = mirrorOffset[0] - width;
+		frustum.x2 = mirrorOffset[0] + width;
+		frustum.y1 = mirrorOffset[1] - height;
+		frustum.y2 = mirrorOffset[1] + height;
 		frustum.camnear = -mirrorOffset[2];
-		frustum.camfar = -mirrorOffset[2]+m_clip;
+		frustum.camfar = -mirrorOffset[2] + m_clip;
 	}
 
 	// The screen area that ImageViewport will copy is also the rendering zone
@@ -314,8 +315,7 @@ bool ImageRender::Render()
 	m_scene->GetWorldInfo()->UpdateWorldSettings(m_rasterizer);
 	m_rasterizer->SetAuxilaryClientInfo(m_scene);
 
-	if (m_mirror)
-	{
+	if (m_mirror) {
 		// frustum was computed above
 		// get frustum matrix and set projection matrix
 		const mt::mat4 projmat = m_rasterizer->GetFrustumMatrix(frustum.x1, frustum.x2, frustum.y1, frustum.y2, frustum.camnear, frustum.camfar);
@@ -337,38 +337,39 @@ bool ImageRender::Render()
 
 		// compute the aspect ratio from frame blender scene settings so that render to texture
 		// works the same in Blender and in Blender player
-		if (blenderScene->r.ysch != 0)
-			aspect_ratio = float(blenderScene->r.xsch*blenderScene->r.xasp) / float(blenderScene->r.ysch*blenderScene->r.yasp);
+		if (blenderScene->r.ysch != 0) {
+			aspect_ratio = float(blenderScene->r.xsch * blenderScene->r.xasp) / float(blenderScene->r.ysch * blenderScene->r.yasp);
+		}
 
 		if (orthographic) {
 
 			RAS_FramingManager::ComputeDefaultOrtho(
-			            nearfrust,
-			            farfrust,
-			            m_camera->GetScale(),
-			            aspect_ratio,
-						m_camera->GetSensorFit(),
-			            shift_x,
-			            shift_y,
-			            frustum
-			            );
+				nearfrust,
+				farfrust,
+				m_camera->GetScale(),
+				aspect_ratio,
+				m_camera->GetSensorFit(),
+				shift_x,
+				shift_y,
+				frustum
+				);
 
 			projmat = m_rasterizer->GetOrthoMatrix(
-			            frustum.x1, frustum.x2, frustum.y1, frustum.y2, frustum.camnear, frustum.camfar);
+				frustum.x1, frustum.x2, frustum.y1, frustum.y2, frustum.camnear, frustum.camfar);
 		}
 		else {
 			RAS_FramingManager::ComputeDefaultFrustum(
-			            nearfrust,
-			            farfrust,
-			            lens,
-			            sensor_x,
-			            sensor_y,
-			            RAS_SENSORFIT_AUTO,
-			            shift_x,
-			            shift_y,
-			            aspect_ratio,
-			            frustum);
-			
+				nearfrust,
+				farfrust,
+				lens,
+				sensor_x,
+				sensor_y,
+				RAS_SENSORFIT_AUTO,
+				shift_x,
+				shift_y,
+				aspect_ratio,
+				frustum);
+
 			projmat = m_rasterizer->GetFrustumMatrix(frustum.x1, frustum.x2, frustum.y1, frustum.y2, frustum.camnear, frustum.camfar);
 		}
 		m_camera->SetProjectionMatrix(projmat);
@@ -378,7 +379,7 @@ bool ImageRender::Render()
 
 	mt::mat3x4 camtrans(m_camera->GetWorldToCamera());
 	mt::mat4 viewmat = mt::mat4::FromAffineTransform(camtrans);
-	
+
 	m_rasterizer->SetViewMatrix(viewmat, m_camera->NodeGetWorldPosition(), m_camera->NodeGetLocalScaling());
 	m_camera->SetModelviewMatrix(viewmat);
 
@@ -449,8 +450,10 @@ void ImageRender::WaitSync()
 }
 
 // cast Image pointer to ImageRender
-inline ImageRender * getImageRender (PyImage *self)
-{ return static_cast<ImageRender*>(self->m_image); }
+inline ImageRender *getImageRender(PyImage *self)
+{
+	return static_cast<ImageRender *>(self->m_image);
+}
 
 
 // python methods
@@ -472,12 +475,13 @@ static int ImageRender_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 	static const char *kwlist[] = {"sceneObj", "cameraObj", "width", "height", "samples", "hdr", nullptr};
 	// get parameters
 	if (!PyArg_ParseTupleAndKeywords(args, kwds, "OO|iiii",
-		const_cast<char**>(kwlist), &scene, &camera, &width, &height, &samples, &hdr))
+	                                 const_cast<char **>(kwlist), &scene, &camera, &width, &height, &samples, &hdr)) {
 		return -1;
+	}
 	try
 	{
 		// get scene pointer
-		KX_Scene * scenePtr (nullptr);
+		KX_Scene *scenePtr(nullptr);
 		if (!PyObject_TypeCheck(scene, &KX_Scene::Type)) {
 			THRWEXCP(SceneInvalid, S_OK);
 		}
@@ -486,15 +490,17 @@ static int ImageRender_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 		}
 
 		// get camera pointer
-		KX_Camera * cameraPtr (nullptr);
+		KX_Camera *cameraPtr(nullptr);
 		if (!ConvertPythonToCamera(scenePtr, camera, &cameraPtr, false, "")) {
 			THRWEXCP(CameraInvalid, S_OK);
 		}
 
 		// get pointer to image structure
-		PyImage *self = reinterpret_cast<PyImage*>(pySelf);
+		PyImage *self = reinterpret_cast<PyImage *>(pySelf);
 		// create source object
-		if (self->m_image != nullptr) delete self->m_image;
+		if (self->m_image != nullptr) {
+			delete self->m_image;
+		}
 		self->m_image = new ImageRender(scenePtr, cameraPtr, width, height, samples, hdr);
 	}
 	catch (Exception & exp)
@@ -571,20 +577,20 @@ static int setHorizon(PyImage *self, PyObject *value, void *closure)
 {
 	// check validity of parameter
 	if (value == nullptr || !PySequence_Check(value) || PySequence_Size(value) != 4
-		|| (!PyFloat_Check(PySequence_Fast_GET_ITEM(value, 0)) && !PyLong_Check(PySequence_Fast_GET_ITEM(value, 0)))
-		|| (!PyFloat_Check(PySequence_Fast_GET_ITEM(value, 1)) && !PyLong_Check(PySequence_Fast_GET_ITEM(value, 1)))
-		|| (!PyFloat_Check(PySequence_Fast_GET_ITEM(value, 2)) && !PyLong_Check(PySequence_Fast_GET_ITEM(value, 2)))
-		|| (!PyFloat_Check(PySequence_Fast_GET_ITEM(value, 3)) && !PyLong_Check(PySequence_Fast_GET_ITEM(value, 3)))) {
+	    || (!PyFloat_Check(PySequence_Fast_GET_ITEM(value, 0)) && !PyLong_Check(PySequence_Fast_GET_ITEM(value, 0)))
+	    || (!PyFloat_Check(PySequence_Fast_GET_ITEM(value, 1)) && !PyLong_Check(PySequence_Fast_GET_ITEM(value, 1)))
+	    || (!PyFloat_Check(PySequence_Fast_GET_ITEM(value, 2)) && !PyLong_Check(PySequence_Fast_GET_ITEM(value, 2)))
+	    || (!PyFloat_Check(PySequence_Fast_GET_ITEM(value, 3)) && !PyLong_Check(PySequence_Fast_GET_ITEM(value, 3)))) {
 
 		PyErr_SetString(PyExc_TypeError, "The value must be a sequence of 4 floats or ints between 0.0 and 1.0");
 		return -1;
 	}
 	// set horizon color
 	getImageRender(self)->setHorizon(
-	        PyFloat_AsDouble(PySequence_Fast_GET_ITEM(value, 0)),
-	        PyFloat_AsDouble(PySequence_Fast_GET_ITEM(value, 1)),
-	        PyFloat_AsDouble(PySequence_Fast_GET_ITEM(value, 2)),
-	        PyFloat_AsDouble(PySequence_Fast_GET_ITEM(value, 3)));
+		PyFloat_AsDouble(PySequence_Fast_GET_ITEM(value, 0)),
+		PyFloat_AsDouble(PySequence_Fast_GET_ITEM(value, 1)),
+		PyFloat_AsDouble(PySequence_Fast_GET_ITEM(value, 2)),
+		PyFloat_AsDouble(PySequence_Fast_GET_ITEM(value, 3)));
 	// success
 	return 0;
 }
@@ -593,10 +599,10 @@ static int setHorizon(PyImage *self, PyObject *value, void *closure)
 static PyObject *getZenith(PyImage *self, void *closure)
 {
 	return Py_BuildValue("[ffff]",
-		getImageRender(self)->getZenith(0),
-		getImageRender(self)->getZenith(1),
-		getImageRender(self)->getZenith(2),
-		getImageRender(self)->getZenith(3));
+	                     getImageRender(self)->getZenith(0),
+	                     getImageRender(self)->getZenith(1),
+	                     getImageRender(self)->getZenith(2),
+	                     getImageRender(self)->getZenith(3));
 }
 
 // set color
@@ -604,10 +610,10 @@ static int setZenith(PyImage *self, PyObject *value, void *closure)
 {
 	// check validity of parameter
 	if (value == nullptr || !PySequence_Check(value) || PySequence_Size(value) != 4
-		|| (!PyFloat_Check(PySequence_Fast_GET_ITEM(value, 0)) && !PyLong_Check(PySequence_Fast_GET_ITEM(value, 0)))
-		|| (!PyFloat_Check(PySequence_Fast_GET_ITEM(value, 1)) && !PyLong_Check(PySequence_Fast_GET_ITEM(value, 1)))
-		|| (!PyFloat_Check(PySequence_Fast_GET_ITEM(value, 2)) && !PyLong_Check(PySequence_Fast_GET_ITEM(value, 2)))
-		|| (!PyFloat_Check(PySequence_Fast_GET_ITEM(value, 3)) && !PyLong_Check(PySequence_Fast_GET_ITEM(value, 3)))) {
+	    || (!PyFloat_Check(PySequence_Fast_GET_ITEM(value, 0)) && !PyLong_Check(PySequence_Fast_GET_ITEM(value, 0)))
+	    || (!PyFloat_Check(PySequence_Fast_GET_ITEM(value, 1)) && !PyLong_Check(PySequence_Fast_GET_ITEM(value, 1)))
+	    || (!PyFloat_Check(PySequence_Fast_GET_ITEM(value, 2)) && !PyLong_Check(PySequence_Fast_GET_ITEM(value, 2)))
+	    || (!PyFloat_Check(PySequence_Fast_GET_ITEM(value, 3)) && !PyLong_Check(PySequence_Fast_GET_ITEM(value, 3)))) {
 
 		PyErr_SetString(PyExc_TypeError, "The value must be a sequence of 4 floats or ints between 0.0 and 1.0");
 		return -1;
@@ -650,25 +656,25 @@ static PyMethodDef imageRenderMethods[] =
 };
 // attributes structure
 static PyGetSetDef imageRenderGetSets[] =
-{ 
-	{(char*)"horizon", (getter)getHorizon, (setter)setHorizon, (char*)"horizon color", nullptr},
-	{(char*)"background", (getter)getHorizon, (setter)setHorizon, (char*)"horizon color", nullptr}, //DEPRECATED use horizon instead
-	{(char*)"zenith", (getter)getZenith, (setter)setZenith, (char*)"zenith color", nullptr},
+{
+	{(char *)"horizon", (getter)getHorizon, (setter)setHorizon, (char *)"horizon color", nullptr},
+	{(char *)"background", (getter)getHorizon, (setter)setHorizon, (char *)"horizon color", nullptr}, //DEPRECATED use horizon instead
+	{(char *)"zenith", (getter)getZenith, (setter)setZenith, (char *)"zenith color", nullptr},
 	// attribute from ImageViewport
-	{(char*)"capsize", (getter)ImageViewport_getCaptureSize, (setter)ImageViewport_setCaptureSize, (char*)"size of render area", nullptr},
-	{(char*)"alpha", (getter)ImageViewport_getAlpha, (setter)ImageViewport_setAlpha, (char*)"use alpha in texture", nullptr},
-	{(char*)"whole", (getter)ImageViewport_getWhole, (setter)ImageViewport_setWhole, (char*)"use whole viewport to render", nullptr},
+	{(char *)"capsize", (getter)ImageViewport_getCaptureSize, (setter)ImageViewport_setCaptureSize, (char *)"size of render area", nullptr},
+	{(char *)"alpha", (getter)ImageViewport_getAlpha, (setter)ImageViewport_setAlpha, (char *)"use alpha in texture", nullptr},
+	{(char *)"whole", (getter)ImageViewport_getWhole, (setter)ImageViewport_setWhole, (char *)"use whole viewport to render", nullptr},
 	// attributes from ImageBase class
-	{(char*)"valid", (getter)Image_valid, nullptr, (char*)"bool to tell if an image is available", nullptr},
-	{(char*)"image", (getter)Image_getImage, nullptr, (char*)"image data", nullptr},
-	{(char*)"size", (getter)Image_getSize, nullptr, (char*)"image size", nullptr},
-	{(char*)"scale", (getter)Image_getScale, (setter)Image_setScale, (char*)"fast scale of image (near neighbor)",	nullptr},
-	{(char*)"flip", (getter)Image_getFlip, (setter)Image_setFlip, (char*)"flip image vertically", nullptr},
-	{(char*)"zbuff", (getter)Image_getZbuff, (setter)Image_setZbuff, (char*)"use depth buffer as texture", nullptr},
-	{(char*)"depth", (getter)Image_getDepth, (setter)Image_setDepth, (char*)"get depth information from z-buffer using unsigned int precision", nullptr},
-	{(char*)"filter", (getter)Image_getFilter, (setter)Image_setFilter, (char*)"pixel filter", nullptr},
-	{(char*)"updateShadow", (getter)getUpdateShadow, (setter)setUpdateShadow, (char*)"update shadow buffers", nullptr},
-	{(char*)"colorBindCode", (getter)getColorBindCode, nullptr, (char*)"Off-screen color texture bind code", nullptr},
+	{(char *)"valid", (getter)Image_valid, nullptr, (char *)"bool to tell if an image is available", nullptr},
+	{(char *)"image", (getter)Image_getImage, nullptr, (char *)"image data", nullptr},
+	{(char *)"size", (getter)Image_getSize, nullptr, (char *)"image size", nullptr},
+	{(char *)"scale", (getter)Image_getScale, (setter)Image_setScale, (char *)"fast scale of image (near neighbor)",  nullptr},
+	{(char *)"flip", (getter)Image_getFlip, (setter)Image_setFlip, (char *)"flip image vertically", nullptr},
+	{(char *)"zbuff", (getter)Image_getZbuff, (setter)Image_setZbuff, (char *)"use depth buffer as texture", nullptr},
+	{(char *)"depth", (getter)Image_getDepth, (setter)Image_setDepth, (char *)"get depth information from z-buffer using unsigned int precision", nullptr},
+	{(char *)"filter", (getter)Image_getFilter, (setter)Image_setFilter, (char *)"pixel filter", nullptr},
+	{(char *)"updateShadow", (getter)getUpdateShadow, (setter)setUpdateShadow, (char *)"update shadow buffers", nullptr},
+	{(char *)"colorBindCode", (getter)getColorBindCode, nullptr, (char *)"Off-screen color texture bind code", nullptr},
 	{nullptr}
 };
 
@@ -696,12 +702,12 @@ PyTypeObject ImageRenderType = {
 	&imageBufferProcs,         /*tp_as_buffer*/
 	Py_TPFLAGS_DEFAULT,        /*tp_flags*/
 	"Image source from render",       /* tp_doc */
-	0,		               /* tp_traverse */
-	0,		               /* tp_clear */
-	0,		               /* tp_richcompare */
-	0,		               /* tp_weaklistoffset */
-	0,		               /* tp_iter */
-	0,		               /* tp_iternext */
+	0,                     /* tp_traverse */
+	0,                     /* tp_clear */
+	0,                     /* tp_richcompare */
+	0,                     /* tp_weaklistoffset */
+	0,                     /* tp_iter */
+	0,                     /* tp_iternext */
 	imageRenderMethods,    /* tp_methods */
 	0,                   /* tp_members */
 	imageRenderGetSets,          /* tp_getset */
@@ -737,50 +743,56 @@ static int ImageMirror_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 	static const char *kwlist[] = {"scene", "observer", "mirror", "material", "width", "height", "samples", "hdr", nullptr};
 	// get parameters
 	if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOO|hiiii",
-	                                 const_cast<char**>(kwlist), &scene, &observer, &mirror, &materialID,
-									 &width, &height, &samples, &hdr))
+	                                 const_cast<char **>(kwlist), &scene, &observer, &mirror, &materialID,
+	                                 &width, &height, &samples, &hdr)) {
 		return -1;
+	}
 	try
 	{
 		// get scene pointer
-		KX_Scene * scenePtr (nullptr);
-		if (scene != nullptr && PyObject_TypeCheck(scene, &KX_Scene::Type))
-			scenePtr = static_cast<KX_Scene*>EXP_PROXY_REF(scene);
-		else
+		KX_Scene *scenePtr(nullptr);
+		if (scene != nullptr && PyObject_TypeCheck(scene, &KX_Scene::Type)) {
+			scenePtr = static_cast<KX_Scene *>EXP_PROXY_REF(scene);
+		}
+		else {
 			THRWEXCP(SceneInvalid, S_OK);
-		
-		if (scenePtr==nullptr) /* in case the python proxy reference is invalid */
+		}
+
+		if (scenePtr == nullptr) { /* in case the python proxy reference is invalid */
 			THRWEXCP(SceneInvalid, S_OK);
-		
+		}
+
 		// get observer pointer
-		KX_GameObject * observerPtr (nullptr);
+		KX_GameObject *observerPtr(nullptr);
 		if (!ConvertPythonToGameObject(scenePtr->GetLogicManager(), observer, &observerPtr, false, "")) {
 			THRWEXCP(ObserverInvalid, S_OK);
 		}
-		
-		if (observerPtr==nullptr) /* in case the python proxy reference is invalid */
+
+		if (observerPtr == nullptr) { /* in case the python proxy reference is invalid */
 			THRWEXCP(ObserverInvalid, S_OK);
+		}
 
 		// get mirror pointer
-		KX_GameObject * mirrorPtr (nullptr);
+		KX_GameObject *mirrorPtr(nullptr);
 		if (!ConvertPythonToGameObject(scenePtr->GetLogicManager(), mirror, &mirrorPtr, false, "")) {
 			THRWEXCP(MirrorInvalid, S_OK);
 		}
-		
-		if (mirrorPtr==nullptr) /* in case the python proxy reference is invalid */
+
+		if (mirrorPtr == nullptr) { /* in case the python proxy reference is invalid */
 			THRWEXCP(MirrorInvalid, S_OK);
+		}
 
 		// locate the material in the mirror
-		RAS_IPolyMaterial * material = getMaterial(mirrorPtr, materialID);
-		if (material == nullptr)
+		RAS_IPolyMaterial *material = getMaterial(mirrorPtr, materialID);
+		if (material == nullptr) {
 			THRWEXCP(MaterialNotAvail, S_OK);
+		}
 
 		// get pointer to image structure
-		PyImage *self = reinterpret_cast<PyImage*>(pySelf);
+		PyImage *self = reinterpret_cast<PyImage *>(pySelf);
 
 		// create source object
-		if (self->m_image != nullptr)
-		{
+		if (self->m_image != nullptr) {
 			delete self->m_image;
 			self->m_image = nullptr;
 		}
@@ -796,7 +808,7 @@ static int ImageMirror_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 }
 
 // get background color
-static PyObject *getClip (PyImage *self, void *closure)
+static PyObject *getClip(PyImage *self, void *closure)
 {
 	return PyFloat_FromDouble(getImageRender(self)->getClip());
 }
@@ -806,8 +818,7 @@ static int setClip(PyImage *self, PyObject *value, void *closure)
 {
 	// check validity of parameter
 	double clip;
-	if (value == nullptr || !PyFloat_Check(value) || (clip = PyFloat_AsDouble(value)) < 0.01 || clip > 5000.0)
-	{
+	if (value == nullptr || !PyFloat_Check(value) || (clip = PyFloat_AsDouble(value)) < 0.01 || clip > 5000.0) {
 		PyErr_SetString(PyExc_TypeError, "The value must be an float between 0.01 and 5000");
 		return -1;
 	}
@@ -819,43 +830,43 @@ static int setClip(PyImage *self, PyObject *value, void *closure)
 
 // attributes structure
 static PyGetSetDef imageMirrorGetSets[] =
-{ 
-	{(char*)"clip", (getter)getClip, (setter)setClip, (char*)"clipping distance", nullptr},
+{
+	{(char *)"clip", (getter)getClip, (setter)setClip, (char *)"clipping distance", nullptr},
 	// attribute from ImageRender
-	{(char*)"horizon", (getter)getHorizon, (setter)setHorizon, (char*)"horizon color", nullptr},
-	{(char*)"background", (getter)getHorizon, (setter)setHorizon, (char*)"horizon color", nullptr}, //DEPRECATED use horizon/zenith instead.
-	{(char*)"zenith", (getter)getZenith, (setter)setZenith, (char*)"zenith color", nullptr},
+	{(char *)"horizon", (getter)getHorizon, (setter)setHorizon, (char *)"horizon color", nullptr},
+	{(char *)"background", (getter)getHorizon, (setter)setHorizon, (char *)"horizon color", nullptr}, //DEPRECATED use horizon/zenith instead.
+	{(char *)"zenith", (getter)getZenith, (setter)setZenith, (char *)"zenith color", nullptr},
 	// attribute from ImageViewport
-	{(char*)"capsize", (getter)ImageViewport_getCaptureSize, (setter)ImageViewport_setCaptureSize, (char*)"size of render area", nullptr},
-	{(char*)"alpha", (getter)ImageViewport_getAlpha, (setter)ImageViewport_setAlpha, (char*)"use alpha in texture", nullptr},
-	{(char*)"whole", (getter)ImageViewport_getWhole, (setter)ImageViewport_setWhole, (char*)"use whole viewport to render", nullptr},
+	{(char *)"capsize", (getter)ImageViewport_getCaptureSize, (setter)ImageViewport_setCaptureSize, (char *)"size of render area", nullptr},
+	{(char *)"alpha", (getter)ImageViewport_getAlpha, (setter)ImageViewport_setAlpha, (char *)"use alpha in texture", nullptr},
+	{(char *)"whole", (getter)ImageViewport_getWhole, (setter)ImageViewport_setWhole, (char *)"use whole viewport to render", nullptr},
 	// attributes from ImageBase class
-	{(char*)"valid", (getter)Image_valid, nullptr, (char*)"bool to tell if an image is available", nullptr},
-	{(char*)"image", (getter)Image_getImage, nullptr, (char*)"image data", nullptr},
-	{(char*)"size", (getter)Image_getSize, nullptr, (char*)"image size", nullptr},
-	{(char*)"scale", (getter)Image_getScale, (setter)Image_setScale, (char*)"fast scale of image (near neighbor)",	nullptr},
-	{(char*)"flip", (getter)Image_getFlip, (setter)Image_setFlip, (char*)"flip image vertically", nullptr},
-	{(char*)"zbuff", (getter)Image_getZbuff, (setter)Image_setZbuff, (char*)"use depth buffer as texture", nullptr},
-	{(char*)"depth", (getter)Image_getDepth, (setter)Image_setDepth, (char*)"get depth information from z-buffer using unsigned int precision", nullptr},
-	{(char*)"filter", (getter)Image_getFilter, (setter)Image_setFilter, (char*)"pixel filter", nullptr},
-	{(char*)"updateShadow", (getter)getUpdateShadow, (setter)setUpdateShadow, (char*)"update shadow buffers", nullptr},
+	{(char *)"valid", (getter)Image_valid, nullptr, (char *)"bool to tell if an image is available", nullptr},
+	{(char *)"image", (getter)Image_getImage, nullptr, (char *)"image data", nullptr},
+	{(char *)"size", (getter)Image_getSize, nullptr, (char *)"image size", nullptr},
+	{(char *)"scale", (getter)Image_getScale, (setter)Image_setScale, (char *)"fast scale of image (near neighbor)",  nullptr},
+	{(char *)"flip", (getter)Image_getFlip, (setter)Image_setFlip, (char *)"flip image vertically", nullptr},
+	{(char *)"zbuff", (getter)Image_getZbuff, (setter)Image_setZbuff, (char *)"use depth buffer as texture", nullptr},
+	{(char *)"depth", (getter)Image_getDepth, (setter)Image_setDepth, (char *)"get depth information from z-buffer using unsigned int precision", nullptr},
+	{(char *)"filter", (getter)Image_getFilter, (setter)Image_setFilter, (char *)"pixel filter", nullptr},
+	{(char *)"updateShadow", (getter)getUpdateShadow, (setter)setUpdateShadow, (char *)"update shadow buffers", nullptr},
 	{nullptr}
 };
 
 
 // constructor
-ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObject *mirror, RAS_IPolyMaterial *mat, unsigned int width, unsigned int height, unsigned short samples, int hdr) :
-    ImageViewport(width, height),
-    m_render(false),
-    m_updateShadowBuffer(false),
-    m_done(false),
-    m_scene(scene),
-    m_samples(samples),
-    m_finalOffScreen(nullptr),
-    m_sync(nullptr),
-    m_observer(observer),
-    m_mirror(mirror),
-    m_clip(100.f)
+ImageRender::ImageRender(KX_Scene *scene, KX_GameObject *observer, KX_GameObject *mirror, RAS_IPolyMaterial *mat, unsigned int width, unsigned int height, unsigned short samples, int hdr) :
+	ImageViewport(width, height),
+	m_render(false),
+	m_updateShadowBuffer(false),
+	m_done(false),
+	m_scene(scene),
+	m_samples(samples),
+	m_finalOffScreen(nullptr),
+	m_sync(nullptr),
+	m_observer(observer),
+	m_mirror(mirror),
+	m_clip(100.f)
 {
 	GPUHDRType type;
 	if (hdr == RAS_Rasterizer::RAS_HDR_HALF_FLOAT) {
@@ -894,7 +905,7 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
 	float mirrorMat[3][3];
 	float left, right, top, bottom, back;
 	// make sure this camera will delete its node
-	m_camera= new KX_Camera(scene, KX_Scene::m_callbacks, camdata, true);
+	m_camera = new KX_Camera(scene, KX_Scene::m_callbacks, camdata, true);
 	m_camera->SetName("__mirror__cam__");
 	// don't add the camera to the scene object list, it doesn't need to be accessible
 	m_owncamera = true;
@@ -916,7 +927,7 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
 					mirrorVerts.push_back(v1);
 					mirrorVerts.push_back(v2);
 					mirrorVerts.push_back(v3);
-					float area = normal_tri_v3(normal,(float*)v1.GetXYZ(), (float*)v2.GetXYZ(), (float*)v3.GetXYZ());
+					float area = normal_tri_v3(normal, (float *)v1.GetXYZ(), (float *)v2.GetXYZ(), (float *)v3.GetXYZ());
 					area = fabs(area);
 					mirrorArea += area;
 					mul_v3_fl(normal, area);
@@ -926,15 +937,13 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
 		}
 	}
 
-	if (mirrorVerts.empty() || mirrorArea < FLT_EPSILON)
-	{
+	if (mirrorVerts.empty() || mirrorArea < FLT_EPSILON) {
 		// no vertex or zero size mirror
 		THRWEXCP(MirrorSizeInvalid, S_OK);
 	}
 	// compute average normal of mirror faces
-	mul_v3_fl(mirrorNormal, 1.0f/mirrorArea);
-	if (normalize_v3(mirrorNormal) == 0.f)
-	{
+	mul_v3_fl(mirrorNormal, 1.0f / mirrorArea);
+	if (normalize_v3(mirrorNormal) == 0.f) {
 		// no normal
 		THRWEXCP(MirrorNormalInvalid, S_OK);
 	}
@@ -944,30 +953,25 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
 	// If the mirror is not perfectly vertical(horizontal), the Z(Y) axis projection on the mirror
 	// plan by the normal will be the up direction.
 	if (fabsf(mirrorNormal[2]) > fabsf(mirrorNormal[1]) &&
-	    fabsf(mirrorNormal[2]) > fabsf(mirrorNormal[0]))
-	{
+	    fabsf(mirrorNormal[2]) > fabsf(mirrorNormal[0])) {
 		// the mirror is more horizontal than vertical
 		copy_v3_v3(axis, yaxis);
 	}
-	else
-	{
+	else {
 		// the mirror is more vertical than horizontal
 		copy_v3_v3(axis, zaxis);
 	}
 	dist = dot_v3v3(mirrorNormal, axis);
-	if (fabsf(dist) < FLT_EPSILON)
-	{
+	if (fabsf(dist) < FLT_EPSILON) {
 		// the mirror is already fully aligned with up axis
 		copy_v3_v3(mirrorUp, axis);
 	}
-	else
-	{
+	else {
 		// projection of axis to mirror plane through normal
 		copy_v3_v3(vec, mirrorNormal);
 		mul_v3_fl(vec, dist);
 		sub_v3_v3v3(mirrorUp, axis, vec);
-		if (normalize_v3(mirrorUp) == 0.f)
-		{
+		if (normalize_v3(mirrorUp) == 0.f) {
 			// should not happen
 			THRWEXCP(MirrorHorizontal, S_OK);
 			return;
@@ -988,30 +992,34 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
 	back = -FLT_MAX; // most backward vertex (=highest Z coord in mirror space)
 	for (it = mirrorVerts.begin(); it != mirrorVerts.end(); it++)
 	{
-		copy_v3_v3(vec, (float*)(*it).GetXYZ());
+		copy_v3_v3(vec, (float *)(*it).GetXYZ());
 		mul_m3_v3(mirrorMat, vec);
-		if (vec[0] < left)
+		if (vec[0] < left) {
 			left = vec[0];
-		if (vec[0] > right)
+		}
+		if (vec[0] > right) {
 			right = vec[0];
-		if (vec[1] < bottom)
+		}
+		if (vec[1] < bottom) {
 			bottom = vec[1];
-		if (vec[1] > top)
+		}
+		if (vec[1] > top) {
 			top = vec[1];
-		if (vec[2] > back)
+		}
+		if (vec[2] > back) {
 			back = vec[2];
+		}
 	}
 	// now store this information in the object for later rendering
-	m_mirrorHalfWidth = (right-left)*0.5f;
-	m_mirrorHalfHeight = (top-bottom)*0.5f;
-	if (m_mirrorHalfWidth < 0.01f || m_mirrorHalfHeight < 0.01f)
-	{
+	m_mirrorHalfWidth = (right - left) * 0.5f;
+	m_mirrorHalfHeight = (top - bottom) * 0.5f;
+	if (m_mirrorHalfWidth < 0.01f || m_mirrorHalfHeight < 0.01f) {
 		// mirror too small
 		THRWEXCP(MirrorTooSmall, S_OK);
 	}
 	// mirror position in mirror coord
-	vec[0] = (left+right)*0.5f;
-	vec[1] = (top+bottom)*0.5f;
+	vec[0] = (left + right) * 0.5f;
+	vec[1] = (top + bottom) * 0.5f;
 	vec[2] = back;
 	// convert it in local space: transpose again the matrix to get back to mirror to local transform
 	transpose_m3(mirrorMat);
@@ -1055,12 +1063,12 @@ PyTypeObject ImageMirrorType = {
 	&imageBufferProcs,         /*tp_as_buffer*/
 	Py_TPFLAGS_DEFAULT,        /*tp_flags*/
 	"Image source from mirror",       /* tp_doc */
-	0,		               /* tp_traverse */
-	0,		               /* tp_clear */
-	0,		               /* tp_richcompare */
-	0,		               /* tp_weaklistoffset */
-	0,		               /* tp_iter */
-	0,		               /* tp_iternext */
+	0,                     /* tp_traverse */
+	0,                     /* tp_clear */
+	0,                     /* tp_richcompare */
+	0,                     /* tp_weaklistoffset */
+	0,                     /* tp_iter */
+	0,                     /* tp_iternext */
 	imageRenderMethods,    /* tp_methods */
 	0,                   /* tp_members */
 	imageMirrorGetSets,          /* tp_getset */

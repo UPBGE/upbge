@@ -21,15 +21,15 @@
  */
 
 /** \file gameengine/Ketsji/KX_2DFilterOffScreen.cpp
-*  \ingroup ketsji
-*/
+ *  \ingroup ketsji
+ */
 
 #include "KX_2DFilterOffScreen.h"
 
 #include "EXP_ListWrapper.h"
 
 KX_2DFilterOffScreen::KX_2DFilterOffScreen(unsigned short colorSlots, Flag flag, unsigned int width, unsigned int height,
-										   RAS_Rasterizer::HdrType hdr)
+                                           RAS_Rasterizer::HdrType hdr)
 	:RAS_2DFilterOffScreen(colorSlots, flag, width, height, hdr)
 {
 }
@@ -107,12 +107,12 @@ PyObject *KX_2DFilterOffScreen::pyattr_get_colorBindCodes(EXP_PyObjectPlus *self
 	KX_2DFilterOffScreen *self = static_cast<KX_2DFilterOffScreen *>(self_v);
 
 	return (new EXP_ListWrapper(self_v,
-							 self->GetProxy(),
-							 nullptr,
-							 kx_2dfilter_offscreen_get_textures_size_cb,
-							 kx_2dfilter_offscreen_get_textures_item_cb,
-							 nullptr,
-							 nullptr))->NewProxy(true);
+	                            self->GetProxy(),
+	                            nullptr,
+	                            kx_2dfilter_offscreen_get_textures_size_cb,
+	                            kx_2dfilter_offscreen_get_textures_item_cb,
+	                            nullptr,
+	                            nullptr))->NewProxy(true);
 }
 
 PyObject *KX_2DFilterOffScreen::pyattr_get_depthBindCode(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)

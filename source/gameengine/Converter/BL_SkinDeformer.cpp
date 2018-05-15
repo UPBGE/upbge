@@ -80,12 +80,11 @@ static short get_deformflags(Object *bmeshobj)
 	return flags;
 }
 
-BL_SkinDeformer::BL_SkinDeformer(
-	BL_DeformableGameObject *gameobj,
-	Object *bmeshobj_old, // Blender object that owns the new mesh
-	Object *bmeshobj_new, // Blender object that owns the original mesh
-	RAS_Mesh *mesh,
-	BL_ArmatureObject *arma)
+BL_SkinDeformer::BL_SkinDeformer(BL_DeformableGameObject *gameobj,
+                                 Object *bmeshobj_old, // Blender object that owns the new mesh
+                                 Object *bmeshobj_new, // Blender object that owns the original mesh
+                                 RAS_Mesh *mesh,
+                                 BL_ArmatureObject *arma)
 	:BL_MeshDeformer(gameobj, bmeshobj_old, mesh),
 	m_armobj(arma),
 	m_lastArmaUpdate(-1),
@@ -155,7 +154,7 @@ void BL_SkinDeformer::BlenderDeformVerts()
 	// set reference matrix
 	copy_m4_m4(m_objMesh->obmat, m_obmat);
 
-	armature_deform_verts(par_arma, m_objMesh, nullptr, (float (*)[3])m_transverts.data(), nullptr, m_bmesh->totvert, m_deformflags, nullptr, nullptr);
+	armature_deform_verts(par_arma, m_objMesh, nullptr, (float(*)[3])m_transverts.data(), nullptr, m_bmesh->totvert, m_deformflags, nullptr, nullptr);
 
 	// restore matrix
 	copy_m4_m4(m_objMesh->obmat, obmat);
@@ -169,8 +168,9 @@ void BL_SkinDeformer::BGEDeformVerts()
 	MDeformVert *dverts = m_bmesh->dvert;
 	Eigen::Matrix4f pre_mat, post_mat, chan_mat, norm_chan_mat;
 
-	if (!dverts)
+	if (!dverts) {
 		return;
+	}
 
 	const unsigned short defbase_tot = BLI_listbase_count(&m_objMesh->defbase);
 
@@ -204,8 +204,9 @@ void BL_SkinDeformer::BGEDeformVerts()
 		                   m_transverts[i][2],
 		                   1.0f);
 
-		if (!dv->totweight)
+		if (!dv->totweight) {
 			continue;
+		}
 
 		co = pre_mat * co;
 
@@ -224,8 +225,7 @@ void BL_SkinDeformer::BGEDeformVerts()
 					vec.noalias() += (chan_mat * co - co) * weight;
 
 					// Save the most influential channel so we can use it to update the vertex normal
-					if (weight > max_weight)
-					{
+					if (weight > max_weight) {
 						max_weight = weight;
 						norm_chan_mat = chan_mat;
 					}
@@ -289,8 +289,9 @@ void BL_SkinDeformer::UpdateTransverts()
 
 	m_boundingBox->SetAabb(aabbMin, aabbMax);
 
-	if (m_copyNormals)
+	if (m_copyNormals) {
 		m_copyNormals = false;
+	}
 }
 
 bool BL_SkinDeformer::UpdateInternal(bool shape_applied)
@@ -304,10 +305,12 @@ bool BL_SkinDeformer::UpdateInternal(bool shape_applied)
 
 		m_armobj->ApplyPose();
 
-		if (m_armobj->GetVertDeformType() == ARM_VDEF_BGE_CPU)
+		if (m_armobj->GetVertDeformType() == ARM_VDEF_BGE_CPU) {
 			BGEDeformVerts();
-		else
+		}
+		else {
 			BlenderDeformVerts();
+		}
 
 		/* Update the current frame */
 		m_lastArmaUpdate = m_armobj->GetLastFrame();

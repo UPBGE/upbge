@@ -35,25 +35,24 @@
 
 #include "CM_Message.h"
 
-SCA_2DFilterActuator::SCA_2DFilterActuator(
-        SCA_IObject *gameobj,
-        int type,
-        short flag,
-        float float_arg,
-        int int_arg,
-        bool mipmap,
-        RAS_Rasterizer* rasterizer,
-		RAS_2DFilterManager *filterManager,
-        SCA_IScene* scene)
-    : SCA_IActuator(gameobj, KX_ACT_2DFILTER),
-      m_type(type),
-      m_disableMotionBlur(flag),
-      m_float_arg(float_arg),
-      m_int_arg(int_arg),
-      m_mipmap(mipmap),
-      m_rasterizer(rasterizer),
-      m_filterManager(filterManager),
-      m_scene(scene)
+SCA_2DFilterActuator::SCA_2DFilterActuator(SCA_IObject *gameobj,
+                                           int type,
+                                           short flag,
+                                           float float_arg,
+                                           int int_arg,
+                                           bool mipmap,
+                                           RAS_Rasterizer *rasterizer,
+                                           RAS_2DFilterManager *filterManager,
+                                           SCA_IScene *scene)
+	:SCA_IActuator(gameobj, KX_ACT_2DFILTER),
+	m_type(type),
+	m_disableMotionBlur(flag),
+	m_float_arg(float_arg),
+	m_int_arg(int_arg),
+	m_mipmap(mipmap),
+	m_rasterizer(rasterizer),
+	m_filterManager(filterManager),
+	m_scene(scene)
 {
 	m_propNames = m_gameobj->GetPropertyNames();
 }
@@ -62,9 +61,9 @@ SCA_2DFilterActuator::~SCA_2DFilterActuator()
 {
 }
 
-EXP_Value* SCA_2DFilterActuator::GetReplica()
+EXP_Value *SCA_2DFilterActuator::GetReplica()
 {
-	SCA_2DFilterActuator* replica = new SCA_2DFilterActuator(*this);
+	SCA_2DFilterActuator *replica = new SCA_2DFilterActuator(*this);
 	replica->ProcessReplica();
 	return replica;
 }
@@ -76,9 +75,10 @@ bool SCA_2DFilterActuator::Update()
 	RemoveAllEvents();
 
 
-	if (bNegativeEvent)
+	if (bNegativeEvent) {
 		return false; // do nothing on negative events
 
+	}
 	RAS_2DFilter *filter = m_filterManager->GetFilterPass(m_int_arg);
 	switch (m_type) {
 		case RAS_2DFilterManager::FILTER_ENABLED:
@@ -124,8 +124,8 @@ bool SCA_2DFilterActuator::Update()
 				m_filterManager->AddFilter(info);
 			}
 			else {
-				CM_LogicBrickWarning(this, "2D Filter for pass index: " <<  m_int_arg << 
-					" already exists, do nothing.");
+				CM_LogicBrickWarning(this, "2D Filter for pass index: " <<  m_int_arg <<
+				                     " already exists, do nothing.");
 			}
 			break;
 		}
@@ -165,29 +165,29 @@ PyTypeObject SCA_2DFilterActuator::Type = {
 	0,
 	0,
 	py_base_repr,
-	0,0,0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0,
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0,
 	Methods,
 	0,
 	0,
 	&SCA_IActuator::Type,
-	0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0,
 	py_base_new
 };
 
 PyMethodDef SCA_2DFilterActuator::Methods[] = {
 	/* add python functions to deal with m_msg... */
-	{nullptr,nullptr}
+	{nullptr, nullptr}
 };
 
 PyAttributeDef SCA_2DFilterActuator::Attributes[] = {
 	EXP_PYATTRIBUTE_STRING_RW("shaderText", 0, 64000, false, SCA_2DFilterActuator, m_shaderText),
 	EXP_PYATTRIBUTE_SHORT_RW("disableMotionBlur", 0, 1, true, SCA_2DFilterActuator, m_disableMotionBlur),
 	EXP_PYATTRIBUTE_ENUM_RW("mode", RAS_2DFilterManager::FILTER_ENABLED, RAS_2DFilterManager::FILTER_NUMBER_OF_FILTERS, false, SCA_2DFilterActuator, m_type),
-EXP_PYATTRIBUTE_INT_RW("passNumber", 0, 100, true, SCA_2DFilterActuator, m_int_arg),
+	EXP_PYATTRIBUTE_INT_RW("passNumber", 0, 100, true, SCA_2DFilterActuator, m_int_arg),
 	EXP_PYATTRIBUTE_FLOAT_RW("value", 0.0, 100.0, SCA_2DFilterActuator, m_float_arg),
-	EXP_PYATTRIBUTE_NULL	//Sentinel
+	EXP_PYATTRIBUTE_NULL    //Sentinel
 };
 
 #endif

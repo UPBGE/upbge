@@ -54,8 +54,10 @@ EXP_Value *EXP_BaseListValue::GetValue(int i)
 EXP_Value *EXP_BaseListValue::FindValue(const std::string& name) const
 {
 	const VectorTypeConstIterator it = std::find_if(m_valueArray.begin(), m_valueArray.end(),
-										 [&name](EXP_Value *item) { return item->GetName() == name; });
-	
+	                                                [&name](EXP_Value *item) {
+		return item->GetName() == name;
+	});
+
 	if (it != m_valueArray.end()) {
 		return *it;
 	}
@@ -80,7 +82,7 @@ void EXP_BaseListValue::Insert(unsigned int i, EXP_Value *value)
 bool EXP_BaseListValue::RemoveValue(EXP_Value *val)
 {
 	bool result = false;
-	for (VectorTypeIterator it = m_valueArray.begin(); it != m_valueArray.end();) {
+	for (VectorTypeIterator it = m_valueArray.begin(); it != m_valueArray.end(); ) {
 		if (*it == val) {
 			it = m_valueArray.erase(it);
 			result = true;

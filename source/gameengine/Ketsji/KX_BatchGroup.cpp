@@ -21,8 +21,8 @@
  */
 
 /** \file gameengine/Ketsji/KX_BatchGroup.cpp
-*  \ingroup ketsji
-*/
+ *  \ingroup ketsji
+ */
 
 #include "KX_BatchGroup.h"
 #include "KX_GameObject.h"
@@ -109,7 +109,7 @@ static PyObject *py_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
 	PyObject *pylist;
 
-	if (!PyArg_ParseTuple(args,"O:KX_BatchGroup", &pylist)) {
+	if (!PyArg_ParseTuple(args, "O:KX_BatchGroup", &pylist)) {
 		return nullptr;
 	}
 

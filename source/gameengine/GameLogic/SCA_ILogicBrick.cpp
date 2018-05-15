@@ -35,7 +35,7 @@
 #include "SCA_ILogicBrick.h"
 #include "EXP_PyObjectPlus.h"
 
-SCA_ILogicBrick::SCA_ILogicBrick(SCA_IObject* gameobj)
+SCA_ILogicBrick::SCA_ILogicBrick(SCA_IObject *gameobj)
 	:
 	EXP_Value(),
 	m_gameobj(gameobj),
@@ -70,7 +70,7 @@ void SCA_ILogicBrick::SetUeberExecutePriority(int execute_Priority)
 
 
 
-void SCA_ILogicBrick::ReParent(SCA_IObject* parent)
+void SCA_ILogicBrick::ReParent(SCA_IObject *parent)
 {
 	m_gameobj = parent;
 }
@@ -102,8 +102,7 @@ SCA_LogicManager *SCA_ILogicBrick::GetLogicManager()
 
 void SCA_ILogicBrick::RemoveEvent()
 {
-	if (m_eventval)
-	{
+	if (m_eventval) {
 		m_eventval->Release();
 		m_eventval = nullptr;
 	}
@@ -124,24 +123,24 @@ PyTypeObject SCA_ILogicBrick::Type = {
 	0,
 	0,
 	py_base_repr,
-	0,0,0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0,
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0,
 	Methods,
 	0,
 	0,
 	&EXP_Value::Type,
-	0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0,
 	py_base_new
 };
 
 PyMethodDef SCA_ILogicBrick::Methods[] = {
-	{nullptr,nullptr} //Sentinel
+	{nullptr, nullptr} //Sentinel
 };
 
 PyAttributeDef SCA_ILogicBrick::Attributes[] = {
-	EXP_PYATTRIBUTE_RO_FUNCTION("owner",	SCA_ILogicBrick, pyattr_get_owner),
-	EXP_PYATTRIBUTE_INT_RW("executePriority",0,100000,false,SCA_ILogicBrick,m_Execute_Priority),
+	EXP_PYATTRIBUTE_RO_FUNCTION("owner",    SCA_ILogicBrick, pyattr_get_owner),
+	EXP_PYATTRIBUTE_INT_RW("executePriority", 0, 100000, false, SCA_ILogicBrick, m_Execute_Priority),
 	EXP_PYATTRIBUTE_NULL //Sentinel
 };
 
@@ -151,9 +150,9 @@ int SCA_ILogicBrick::CheckProperty(EXP_PyObjectPlus *self, const PyAttributeDef 
 		PyErr_SetString(PyExc_AttributeError, "inconsistent check function for attribute type, report to blender.org");
 		return 1;
 	}
-	SCA_ILogicBrick* brick = reinterpret_cast<SCA_ILogicBrick*>(self);
-	std::string* var = reinterpret_cast<std::string*>((char*)self+attrdef->m_offset);
-	EXP_Value* prop = brick->GetParent()->FindIdentifier(*var);
+	SCA_ILogicBrick *brick = reinterpret_cast<SCA_ILogicBrick *>(self);
+	std::string *var = reinterpret_cast<std::string *>((char *)self + attrdef->m_offset);
+	EXP_Value *prop = brick->GetParent()->FindIdentifier(*var);
 	bool error = prop->IsError();
 	prop->Release();
 	if (error) {
@@ -166,12 +165,13 @@ int SCA_ILogicBrick::CheckProperty(EXP_PyObjectPlus *self, const PyAttributeDef 
 /*Attribute functions */
 PyObject *SCA_ILogicBrick::pyattr_get_owner(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
-	SCA_ILogicBrick* self = static_cast<SCA_ILogicBrick*>(self_v);
-	EXP_Value* parent = self->GetParent();
-	
-	if (parent)
+	SCA_ILogicBrick *self = static_cast<SCA_ILogicBrick *>(self_v);
+	EXP_Value *parent = self->GetParent();
+
+	if (parent) {
 		return parent->GetProxy();
-	
+	}
+
 	Py_RETURN_NONE;
 }
 

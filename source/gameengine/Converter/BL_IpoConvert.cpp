@@ -30,7 +30,7 @@
  */
 
 #ifdef _MSC_VER
-   /* don't show stl-warnings */
+/* don't show stl-warnings */
 #  pragma warning (disable:4786)
 #endif
 
@@ -69,22 +69,22 @@
 static BL_InterpolatorList *GetAdtList(struct bAction *for_act, KX_Scene *scene)
 {
 	BL_Converter *converter = KX_GetActiveEngine()->GetConverter();
-	BL_InterpolatorList *adtList= converter->FindInterpolatorList(scene, for_act);
+	BL_InterpolatorList *adtList = converter->FindInterpolatorList(scene, for_act);
 
 	if (!adtList) {
 		adtList = new BL_InterpolatorList(for_act);
 		converter->RegisterInterpolatorList(scene, adtList, for_act);
 	}
-			
+
 	return adtList;
 }
 
-SG_Controller *BL_CreateIPO(struct bAction *action, KX_GameObject* gameobj, KX_Scene *scene)
+SG_Controller *BL_CreateIPO(struct bAction *action, KX_GameObject *gameobj, KX_Scene *scene)
 {
-	KX_IpoController* ipocontr = new KX_IpoController();
+	KX_IpoController *ipocontr = new KX_IpoController();
 	ipocontr->SetGameObject(gameobj);
 
-	Object* blenderobject = gameobj->GetBlenderObject();
+	Object *blenderobject = gameobj->GetBlenderObject();
 
 	ipocontr->GetIPOTransform().SetPosition(mt::vec3(blenderobject->loc));
 	ipocontr->GetIPOTransform().SetEulerAngles(mt::vec3(blenderobject->rot));
@@ -93,82 +93,86 @@ SG_Controller *BL_CreateIPO(struct bAction *action, KX_GameObject* gameobj, KX_S
 	const char *rotmode, *drotmode;
 
 	switch (blenderobject->rotmode) {
-	case ROT_MODE_AXISANGLE:
-		rotmode = "rotation_axis_angle";
-		drotmode = "delta_rotation_axis_angle";
-		break;
-	case ROT_MODE_QUAT: /* XXX, this isn't working, currently only eulers are supported [#28853] */
-		rotmode = "rotation_quaternion";
-		drotmode = "delta_rotation_quaternion";
-		break;
-	default:
-		rotmode = "rotation_euler";
-		drotmode = "delta_rotation_euler";
-		break;
+		case ROT_MODE_AXISANGLE:
+		{
+			rotmode = "rotation_axis_angle";
+			drotmode = "delta_rotation_axis_angle";
+			break;
+		}
+		case ROT_MODE_QUAT: /* XXX, this isn't working, currently only eulers are supported [#28853] */
+		{rotmode = "rotation_quaternion";
+		 drotmode = "delta_rotation_quaternion";
+		 break;}
+		default:
+		{
+			rotmode = "rotation_euler";
+			drotmode = "delta_rotation_euler";
+			break;
+		}
 	}
 
-	BL_InterpolatorList *adtList= GetAdtList(action, scene);
-		
+	BL_InterpolatorList *adtList = GetAdtList(action, scene);
+
 	// For each active channel in the adtList add an
 	// interpolator to the game object.
-		
+
 	BL_ScalarInterpolator *interp;
-		
-	for (int i=0; i<3; i++) {
+
+	for (int i = 0; i < 3; i++) {
 		if ((interp = adtList->GetScalarInterpolator("location", i))) {
 			SG_Interpolator interpolator(&(ipocontr->GetIPOTransform().GetPosition()[i]), interp);
 			ipocontr->AddInterpolator(interpolator);
-			ipocontr->SetIPOChannelActive(OB_LOC_X+i, true);
+			ipocontr->SetIPOChannelActive(OB_LOC_X + i, true);
 		}
 	}
-	for (int i=0; i<3; i++) {
+	for (int i = 0; i < 3; i++) {
 		if ((interp = adtList->GetScalarInterpolator("delta_location", i))) {
 			SG_Interpolator interpolator(&(ipocontr->GetIPOTransform().GetDeltaPosition()[i]), interp);
 			ipocontr->AddInterpolator(interpolator);
-			ipocontr->SetIPOChannelActive(OB_DLOC_X+i, true);
+			ipocontr->SetIPOChannelActive(OB_DLOC_X + i, true);
 		}
 	}
-	for (int i=0; i<3; i++) {
+	for (int i = 0; i < 3; i++) {
 		if ((interp = adtList->GetScalarInterpolator(rotmode, i))) {
 			SG_Interpolator interpolator(&(ipocontr->GetIPOTransform().GetEulerAngles()[i]), interp);
 			ipocontr->AddInterpolator(interpolator);
-			ipocontr->SetIPOChannelActive(OB_ROT_X+i, true);
+			ipocontr->SetIPOChannelActive(OB_ROT_X + i, true);
 		}
 	}
-	for (int i=0; i<3; i++) {
+	for (int i = 0; i < 3; i++) {
 		if ((interp = adtList->GetScalarInterpolator(drotmode, i))) {
 			SG_Interpolator interpolator(&(ipocontr->GetIPOTransform().GetDeltaEulerAngles()[i]), interp);
 			ipocontr->AddInterpolator(interpolator);
-			ipocontr->SetIPOChannelActive(OB_DROT_X+i, true);
+			ipocontr->SetIPOChannelActive(OB_DROT_X + i, true);
 		}
 	}
-	for (int i=0; i<3; i++) {
+	for (int i = 0; i < 3; i++) {
 		if ((interp = adtList->GetScalarInterpolator("scale", i))) {
 			SG_Interpolator interpolator(&(ipocontr->GetIPOTransform().GetScaling()[i]), interp);
 			ipocontr->AddInterpolator(interpolator);
-			ipocontr->SetIPOChannelActive(OB_SIZE_X+i, true);
+			ipocontr->SetIPOChannelActive(OB_SIZE_X + i, true);
 		}
 	}
-	for (int i=0; i<3; i++) {
+	for (int i = 0; i < 3; i++) {
 		if ((interp = adtList->GetScalarInterpolator("delta_scale", i))) {
 			SG_Interpolator interpolator(&(ipocontr->GetIPOTransform().GetDeltaScaling()[i]), interp);
 			ipocontr->AddInterpolator(interpolator);
-			ipocontr->SetIPOChannelActive(OB_DSIZE_X+i, true);
+			ipocontr->SetIPOChannelActive(OB_DSIZE_X + i, true);
 		}
 	}
-		
+
 
 	return ipocontr;
 }
 
 
-SG_Controller *BL_CreateObColorIPO(struct bAction *action, KX_GameObject* gameobj, KX_Scene *scene)
+SG_Controller *BL_CreateObColorIPO(struct bAction *action, KX_GameObject *gameobj, KX_Scene *scene)
 {
-	KX_ObColorIpoSGController* ipocontr_obcol=nullptr;
+	KX_ObColorIpoSGController *ipocontr_obcol = nullptr;
 	BL_ScalarInterpolator *interp;
-	BL_InterpolatorList *adtList= GetAdtList(action, scene);
+	BL_InterpolatorList *adtList = GetAdtList(action, scene);
 
-	for (int i=0; i<4; i++) {
+	for (int i = 0; i < 4; i++) {
 		if ((interp = adtList->GetScalarInterpolator("color", i))) {
 			if (!ipocontr_obcol) {
 				ipocontr_obcol = new KX_ObColorIpoSGController();
@@ -181,11 +185,11 @@ SG_Controller *BL_CreateObColorIPO(struct bAction *action, KX_GameObject* gameob
 	return ipocontr_obcol;
 }
 
-SG_Controller *BL_CreateLampIPO(struct bAction *action, KX_GameObject*  lightobj, KX_Scene *scene)
+SG_Controller *BL_CreateLampIPO(struct bAction *action, KX_GameObject *lightobj, KX_Scene *scene)
 {
-	KX_LightIpoSGController* ipocontr = new KX_LightIpoSGController();
+	KX_LightIpoSGController *ipocontr = new KX_LightIpoSGController();
 
-	Lamp *blenderlamp = (Lamp*)lightobj->GetBlenderObject()->data;
+	Lamp *blenderlamp = (Lamp *)lightobj->GetBlenderObject()->data;
 
 	ipocontr->m_energy = blenderlamp->energy;
 	ipocontr->m_col_rgb[0] = blenderlamp->r;
@@ -193,14 +197,14 @@ SG_Controller *BL_CreateLampIPO(struct bAction *action, KX_GameObject*  lightobj
 	ipocontr->m_col_rgb[2] = blenderlamp->b;
 	ipocontr->m_dist = blenderlamp->dist;
 
-	BL_InterpolatorList *adtList= GetAdtList(action, scene);
+	BL_InterpolatorList *adtList = GetAdtList(action, scene);
 
 	// For each active channel in the adtList add an
 	// interpolator to the game object.
-		
+
 	BL_ScalarInterpolator *interp;
-		
-	if ((interp= adtList->GetScalarInterpolator("energy", 0))) {
+
+	if ((interp = adtList->GetScalarInterpolator("energy", 0))) {
 		SG_Interpolator interpolator(&ipocontr->m_energy, interp);
 		ipocontr->AddInterpolator(interpolator);
 		ipocontr->SetModifyEnergy(true);
@@ -211,8 +215,8 @@ SG_Controller *BL_CreateLampIPO(struct bAction *action, KX_GameObject*  lightobj
 		ipocontr->AddInterpolator(interpolator);
 		ipocontr->SetModifyDist(true);
 	}
-		
-	for (int i=0; i<3; i++) {
+
+	for (int i = 0; i < 3; i++) {
 		if ((interp = adtList->GetScalarInterpolator("color", i))) {
 			SG_Interpolator interpolator(&ipocontr->m_col_rgb[i], interp);
 			ipocontr->AddInterpolator(interpolator);
@@ -223,23 +227,23 @@ SG_Controller *BL_CreateLampIPO(struct bAction *action, KX_GameObject*  lightobj
 	return ipocontr;
 }
 
-SG_Controller *BL_CreateCameraIPO(struct bAction *action, KX_GameObject*  cameraobj, KX_Scene *scene)
+SG_Controller *BL_CreateCameraIPO(struct bAction *action, KX_GameObject *cameraobj, KX_Scene *scene)
 {
-	KX_CameraIpoSGController* ipocontr = new KX_CameraIpoSGController();
+	KX_CameraIpoSGController *ipocontr = new KX_CameraIpoSGController();
 
-	Camera *blendercamera = (Camera*)cameraobj->GetBlenderObject()->data;
+	Camera *blendercamera = (Camera *)cameraobj->GetBlenderObject()->data;
 
 	ipocontr->m_lens = blendercamera->lens;
 	ipocontr->m_clipstart = blendercamera->clipsta;
 	ipocontr->m_clipend = blendercamera->clipend;
 
-	BL_InterpolatorList *adtList= GetAdtList(action, scene);
+	BL_InterpolatorList *adtList = GetAdtList(action, scene);
 
 	// For each active channel in the adtList add an
 	// interpolator to the game object.
-		
+
 	BL_ScalarInterpolator *interp;
-		
+
 	if ((interp = adtList->GetScalarInterpolator("lens", 0))) {
 		SG_Interpolator interpolator(&ipocontr->m_lens, interp);
 		ipocontr->AddInterpolator(interpolator);
@@ -262,7 +266,7 @@ SG_Controller *BL_CreateCameraIPO(struct bAction *action, KX_GameObject*  camera
 }
 
 
-SG_Controller * BL_CreateWorldIPO( bAction *action, struct World *blenderworld, KX_Scene *scene )
+SG_Controller *BL_CreateWorldIPO(bAction *action, struct World *blenderworld, KX_Scene *scene)
 {
 	KX_WorldIpoController *ipocontr = nullptr;
 
@@ -272,7 +276,7 @@ SG_Controller * BL_CreateWorldIPO( bAction *action, struct World *blenderworld, 
 		// For each active channel in the adtList add an interpolator to the game object.
 		BL_ScalarInterpolator *interp;
 
-		for (int i=0; i<3; i++) {
+		for (int i = 0; i < 3; i++) {
 			if ((interp = adtList->GetScalarInterpolator("ambient_color", i))) {
 				if (!ipocontr) {
 					ipocontr = new KX_WorldIpoController();
@@ -283,7 +287,7 @@ SG_Controller * BL_CreateWorldIPO( bAction *action, struct World *blenderworld, 
 			}
 		}
 
-		for (int i=0; i<3; i++) {
+		for (int i = 0; i < 3; i++) {
 			if ((interp = adtList->GetScalarInterpolator("horizon_color", i))) {
 				if (!ipocontr) {
 					ipocontr = new KX_WorldIpoController();
@@ -294,7 +298,7 @@ SG_Controller * BL_CreateWorldIPO( bAction *action, struct World *blenderworld, 
 			}
 		}
 
-		for (int i = 0; i<3; i++) {
+		for (int i = 0; i < 3; i++) {
 			if ((interp = adtList->GetScalarInterpolator("zenith_color", i))) {
 				if (!ipocontr) {
 					ipocontr = new KX_WorldIpoController();
@@ -347,20 +351,18 @@ SG_Controller * BL_CreateWorldIPO( bAction *action, struct World *blenderworld, 
 	return ipocontr;
 }
 
-SG_Controller *BL_CreateMaterialIpo(
-	struct bAction *action,
-	RAS_IPolyMaterial *polymat,
-	KX_GameObject* gameobj,  
-	KX_Scene *scene
-	)
+SG_Controller *BL_CreateMaterialIpo(struct bAction *action,
+                                    RAS_IPolyMaterial *polymat,
+                                    KX_GameObject *gameobj,
+                                    KX_Scene *scene)
 {
-	KX_MaterialIpoController* ipocontr = nullptr;
+	KX_MaterialIpoController *ipocontr = nullptr;
 
-	BL_InterpolatorList *adtList= GetAdtList(action, scene);
+	BL_InterpolatorList *adtList = GetAdtList(action, scene);
 	BL_ScalarInterpolator *sinterp;
 
 	// --
-	for (int i=0; i<3; i++) {
+	for (int i = 0; i < 3; i++) {
 		if ((sinterp = adtList->GetScalarInterpolator("diffuse_color", i))) {
 			if (!ipocontr) {
 				ipocontr = new KX_MaterialIpoController(polymat);
@@ -378,7 +380,7 @@ SG_Controller *BL_CreateMaterialIpo(
 		ipocontr->AddInterpolator(interpolator);
 	}
 
-	for (int i=0; i<3; i++) {
+	for (int i = 0; i < 3; i++) {
 		if ((sinterp = adtList->GetScalarInterpolator("specular_color", i))) {
 			if (!ipocontr) {
 				ipocontr = new KX_MaterialIpoController(polymat);
@@ -438,21 +440,21 @@ SG_Controller *BL_CreateMaterialIpo(
 
 	if (ipocontr) {
 		Material *blendermaterial = polymat->GetBlenderMaterial();
-		ipocontr->m_rgba[0]	= blendermaterial->r;
-		ipocontr->m_rgba[1]	= blendermaterial->g;
-		ipocontr->m_rgba[2]	= blendermaterial->b;
-		ipocontr->m_rgba[3]	= blendermaterial->alpha;
+		ipocontr->m_rgba[0] = blendermaterial->r;
+		ipocontr->m_rgba[1] = blendermaterial->g;
+		ipocontr->m_rgba[2] = blendermaterial->b;
+		ipocontr->m_rgba[3] = blendermaterial->alpha;
 
-		ipocontr->m_specrgb[0]	= blendermaterial->specr;
-		ipocontr->m_specrgb[1]	= blendermaterial->specg;
-		ipocontr->m_specrgb[2]	= blendermaterial->specb;
+		ipocontr->m_specrgb[0]  = blendermaterial->specr;
+		ipocontr->m_specrgb[1]  = blendermaterial->specg;
+		ipocontr->m_specrgb[2]  = blendermaterial->specb;
 
-		ipocontr->m_hard		= blendermaterial->har;
-		ipocontr->m_spec		= blendermaterial->spec;
-		ipocontr->m_ref			= blendermaterial->ref;
-		ipocontr->m_emit		= blendermaterial->emit;
-		ipocontr->m_ambient		= blendermaterial->amb;
-		ipocontr->m_alpha		= blendermaterial->alpha;
+		ipocontr->m_hard        = blendermaterial->har;
+		ipocontr->m_spec        = blendermaterial->spec;
+		ipocontr->m_ref         = blendermaterial->ref;
+		ipocontr->m_emit        = blendermaterial->emit;
+		ipocontr->m_ambient     = blendermaterial->amb;
+		ipocontr->m_alpha       = blendermaterial->alpha;
 	}
 
 	return ipocontr;

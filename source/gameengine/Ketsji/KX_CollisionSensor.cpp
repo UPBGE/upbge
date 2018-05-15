@@ -202,8 +202,7 @@ bool KX_CollisionSensor::BroadPhaseSensorFilterCollision(PHY_IPhysicsController 
 	if (!otherobj ||
 	    otherobj == myparent ||     // don't interact with our parent
 	    (my_client_info->m_type == KX_ClientObjectInfo::OBACTORSENSOR &&
-	     client_info->m_type != KX_ClientObjectInfo::ACTOR))    // only with actor objects
-	{
+	     client_info->m_type != KX_ClientObjectInfo::ACTOR)) {  // only with actor objects
 		return false;
 	}
 
@@ -231,7 +230,7 @@ bool KX_CollisionSensor::NewHandleCollision(PHY_IPhysicsController *ctrl1, PHY_I
 	// need the mapping from PHY_IPhysicsController to gameobjects now
 
 	KX_ClientObjectInfo *client_info = static_cast<KX_ClientObjectInfo *> (ctrl1 == m_physCtrl ?
-			ctrl2->GetNewClientInfo() : ctrl1->GetNewClientInfo());
+	                                                                       ctrl2->GetNewClientInfo() : ctrl1->GetNewClientInfo());
 
 	KX_GameObject *gameobj = (client_info ?
 	                          client_info->m_gameobject :
@@ -240,8 +239,7 @@ bool KX_CollisionSensor::NewHandleCollision(PHY_IPhysicsController *ctrl1, PHY_I
 	// add the same check as in SCA_ISensor::Activate(),
 	// we don't want to record collision when the sensor is not active.
 	if (m_links && !m_suspended &&
-	    gameobj && (gameobj != parent) && client_info->isActor())
-	{
+	    gameobj && (gameobj != parent) && client_info->isActor()) {
 
 		bool found = m_touchedpropname.empty();
 		bool hitMaterial = false;

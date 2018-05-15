@@ -87,7 +87,7 @@ void RAS_MeshSlot::RunNode(const RAS_MeshSlotNodeTuple& tuple)
 
 		if (materialData->m_zsort && storage) {
 			displayArrayData->m_array->SortPolygons(managerData->m_trans * mt::mat3x4(m_meshUser->GetMatrix()),
-								 storage->GetIndexMap());
+			                                        storage->GetIndexMap());
 			storage->FlushIndexMap();
 		}
 	}

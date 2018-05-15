@@ -344,8 +344,8 @@ SCA_IInputDevice::SCA_EnumInputs BL_ConvertKeyCode(int key_code)
 }
 
 static void BL_GetUvRgba(const RAS_Mesh::LayersInfo& layersInfo, std::vector<MLoopUV *>& uvLayers,
-		std::vector<MLoopCol *>& colorLayers, unsigned int loop, float uvs[RAS_Texture::MaxUnits][2],
-		unsigned int rgba[RAS_Vertex::MAX_UNIT])
+                         std::vector<MLoopCol *>& colorLayers, unsigned int loop, float uvs[RAS_Texture::MaxUnits][2],
+                         unsigned int rgba[RAS_Vertex::MAX_UNIT])
 {
 	// No need to initialize layers to zero as all the converted layer are all the layers needed.
 
@@ -502,9 +502,9 @@ void BL_ConvertDerivedMeshToArray(DerivedMesh *dm, Mesh *me, const std::vector<B
 	if (CustomData_get_layer_index(&dm->loopData, CD_NORMAL) == -1) {
 		dm->calcLoopNormals(dm, (me->flag & ME_AUTOSMOOTH), me->smoothresh);
 	}
-	const float (*normals)[3] = (float(*)[3])dm->getLoopDataArray(dm, CD_NORMAL);
+	const float(*normals)[3] = (float(*)[3])dm->getLoopDataArray(dm, CD_NORMAL);
 
-	float (*tangent)[4] = nullptr;
+	float(*tangent)[4] = nullptr;
 	if (!layersInfo.uvLayers.empty()) {
 		if (CustomData_get_layer_index(&dm->loopData, CD_TANGENT) == -1) {
 			DM_calc_loop_tangents(dm, true, nullptr, 0);
@@ -641,7 +641,7 @@ static void BL_CreateGraphicObjectNew(KX_GameObject *gameobj, KX_Scene *kxscene,
 }
 
 static void BL_CreatePhysicsObjectNew(KX_GameObject *gameobj, Object *blenderobject, KX_Mesh *meshobj,
-		KX_Scene *kxscene, int activeLayerBitInfo, BL_SceneConverter& converter, bool processCompoundChildren)
+                                      KX_Scene *kxscene, int activeLayerBitInfo, BL_SceneConverter& converter, bool processCompoundChildren)
 
 {
 	// Object has physics representation?
@@ -680,7 +680,7 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject *gameobj, Object *blenderobj
 
 	PHY_IPhysicsEnvironment *phyenv = kxscene->GetPhysicsEnvironment();
 	phyenv->ConvertObject(converter, gameobj, meshobj, kxscene, motionstate, activeLayerBitInfo,
-			isCompoundChild, hasCompoundChildren);
+	                      isCompoundChild, hasCompoundChildren);
 
 	bool isActor = (blenderobject->gameflag & OB_ACTOR) != 0;
 	bool isSensor = (blenderobject->gameflag & OB_SENSOR) != 0;
@@ -716,12 +716,12 @@ static KX_GameObject::ActivityCullingInfo activityCullingInfoFromBlenderObject(O
 	if (blenderInfo.flags & OB_ACTIVITY_PHYSICS) {
 		// Enable physics culling.
 		cullingInfo.m_flags = (KX_GameObject::ActivityCullingInfo::Flag)(
-				cullingInfo.m_flags | KX_GameObject::ActivityCullingInfo::ACTIVITY_PHYSICS);
+			cullingInfo.m_flags | KX_GameObject::ActivityCullingInfo::ACTIVITY_PHYSICS);
 	}
 	if (blenderInfo.flags & OB_ACTIVITY_LOGIC) {
 		// Enable logic culling.
 		cullingInfo.m_flags = (KX_GameObject::ActivityCullingInfo::Flag)(
-				cullingInfo.m_flags | KX_GameObject::ActivityCullingInfo::ACTIVITY_LOGIC);
+			cullingInfo.m_flags | KX_GameObject::ActivityCullingInfo::ACTIVITY_LOGIC);
 	}
 
 	// Set culling radius.
@@ -812,7 +812,7 @@ static KX_Camera *BL_GameCameraFromBlenderCamera(Object *ob, KX_Scene *kxscene, 
 			const int maxx = canvas->GetMaxX();
 			const int maxy = canvas->GetMaxY();
 			gamecamera->SetViewport(maxx * settings.leftratio, maxy * settings.bottomratio,
-									maxx * settings.rightratio, maxy * settings.topratio);
+			                        maxx * settings.rightratio, maxy * settings.topratio);
 		}
 	}
 
@@ -835,7 +835,7 @@ static KX_Camera *BL_GameCameraFromBlenderCamera(Object *ob, KX_Scene *kxscene, 
 }
 
 static KX_GameObject *BL_GameObjectFromBlenderObject(Object *ob, KX_Scene *kxscene, RAS_Rasterizer *rendertools,
-                                                    RAS_ICanvas *canvas, BL_SceneConverter &converter)
+                                                     RAS_ICanvas *canvas, BL_SceneConverter &converter)
 {
 	KX_GameObject *gameobj = nullptr;
 	Scene *blenderscene = kxscene->GetBlenderScene();
@@ -915,7 +915,7 @@ static KX_GameObject *BL_GameObjectFromBlenderObject(Object *ob, KX_Scene *kxsce
 			bool do_color_management = BKE_scene_check_color_management_enabled(blenderscene);
 			// Font objects have no bounding box.
 			KX_FontObject *fontobj = new KX_FontObject(kxscene, KX_Scene::m_callbacks, rendertools,
-					kxscene->GetBoundingBoxManager(), ob, do_color_management);
+			                                           kxscene->GetBoundingBoxManager(), ob, do_color_management);
 			gameobj = fontobj;
 
 			kxscene->GetFontList()->Add(CM_AddRef(fontobj));
@@ -961,33 +961,37 @@ struct BL_ParentChildLink {
 
 static bPoseChannel *BL_GetActivePoseChannel(Object *ob)
 {
-	bArmature *arm= (bArmature*)ob->data;
+	bArmature *arm = (bArmature *)ob->data;
 	bPoseChannel *pchan;
-	
+
 	/* find active */
-	for (pchan= (bPoseChannel *)ob->pose->chanbase.first; pchan; pchan= pchan->next) {
-		if (pchan->bone && (pchan->bone == arm->act_bone) && (pchan->bone->layer & arm->layer))
+	for (pchan = (bPoseChannel *)ob->pose->chanbase.first; pchan; pchan = pchan->next) {
+		if (pchan->bone && (pchan->bone == arm->act_bone) && (pchan->bone->layer & arm->layer)) {
 			return pchan;
+		}
 	}
-	
+
 	return nullptr;
 }
 
 static ListBase *BL_GetActiveConstraint(Object *ob)
 {
-	if (!ob)
+	if (!ob) {
 		return nullptr;
+	}
 
-  // XXX - shouldnt we care about the pose data and not the mode???
-	if (ob->mode & OB_MODE_POSE) { 
+	// XXX - shouldnt we care about the pose data and not the mode???
+	if (ob->mode & OB_MODE_POSE) {
 		bPoseChannel *pchan;
 
 		pchan = BL_GetActivePoseChannel(ob);
-		if (pchan)
+		if (pchan) {
 			return &pchan->constraints;
+		}
 	}
-	else 
+	else {
 		return &ob->constraints;
+	}
 
 	return nullptr;
 }

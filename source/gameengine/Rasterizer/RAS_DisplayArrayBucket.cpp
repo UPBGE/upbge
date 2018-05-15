@@ -52,7 +52,7 @@
 #endif // WIN32
 
 RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_IDisplayArray *array,
-		RAS_Mesh *mesh, RAS_MeshMaterial *meshmat, RAS_Deformer *deformer)
+                                               RAS_Mesh *mesh, RAS_MeshMaterial *meshmat, RAS_Deformer *deformer)
 	:m_bucket(bucket),
 	m_displayArray(array),
 	m_mesh(mesh),
@@ -72,7 +72,7 @@ RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_I
 	if (m_displayArray) {
 		m_downwardNode = RAS_DisplayArrayDownwardNode(this, &m_nodeData, &RAS_DisplayArrayBucket::RunDownwardNode, nullptr);
 		m_upwardNode = RAS_DisplayArrayUpwardNode(this, &m_nodeData, &RAS_DisplayArrayBucket::BindUpwardNode,
-				&RAS_DisplayArrayBucket::UnbindUpwardNode);
+		                                          &RAS_DisplayArrayBucket::UnbindUpwardNode);
 
 		m_arrayStorage = m_displayArray->GetStorage();
 		m_displayArray->AddUpdateClient(&m_arrayUpdateClient);
@@ -172,7 +172,7 @@ void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_Rasterizer::DrawType draw
 }
 
 void RAS_DisplayArrayBucket::GenerateTree(RAS_MaterialDownwardNode& downwardRoot, RAS_MaterialUpwardNode& upwardRoot,
-		RAS_UpwardTreeLeafs& upwardLeafs, RAS_Rasterizer::DrawType drawingMode, bool sort, bool instancing)
+                                          RAS_UpwardTreeLeafs& upwardLeafs, RAS_Rasterizer::DrawType drawingMode, bool sort, bool instancing)
 {
 	if (m_activeMeshSlots.empty()) {
 		return;
@@ -238,7 +238,7 @@ void RAS_DisplayArrayBucket::RunInstancingNode(const RAS_DisplayArrayNodeTuple& 
 	RAS_MaterialNodeData *materialData = tuple.m_materialData;
 	RAS_Rasterizer *rasty = managerData->m_rasty;
 
-	const unsigned int nummeshslots = m_activeMeshSlots.size(); 
+	const unsigned int nummeshslots = m_activeMeshSlots.size();
 
 	// Create the instancing buffer only if it needed.
 	if (!m_instancingBuffer) {
@@ -259,7 +259,9 @@ void RAS_DisplayArrayBucket::RunInstancingNode(const RAS_DisplayArrayNodeTuple& 
 		const mt::mat3x4& trans = managerData->m_trans;
 		const mt::vec3 pnorm(trans[2], trans[5], trans[8]);
 		std::transform(m_activeMeshSlots.begin(), m_activeMeshSlots.end(), sortedMeshSlots.end(),
-			[&pnorm](RAS_MeshSlot *slot) { return RAS_BucketManager::SortedMeshSlot(slot, pnorm); });
+		               [&pnorm](RAS_MeshSlot *slot) {
+			return RAS_BucketManager::SortedMeshSlot(slot, pnorm);
+		});
 
 		std::sort(sortedMeshSlots.begin(), sortedMeshSlots.end(), RAS_BucketManager::backtofront());
 		RAS_MeshSlotList meshSlots(nummeshslots);
@@ -337,7 +339,9 @@ void RAS_DisplayArrayBucket::RunBatchingNode(const RAS_DisplayArrayNodeTuple& tu
 		const mt::mat3x4& trans = managerData->m_trans;
 		const mt::vec3 pnorm(trans[2], trans[5], trans[8]);
 		std::transform(m_activeMeshSlots.begin(), m_activeMeshSlots.end(), sortedMeshSlots.begin(),
-					   [&pnorm](RAS_MeshSlot *slot) { return RAS_BucketManager::SortedMeshSlot(slot, pnorm); });
+		               [&pnorm](RAS_MeshSlot *slot) {
+			return RAS_BucketManager::SortedMeshSlot(slot, pnorm);
+		});
 
 		std::sort(sortedMeshSlots.begin(), sortedMeshSlots.end(), RAS_BucketManager::backtofront());
 		for (unsigned int i = 0; i < nummeshslots; ++i) {

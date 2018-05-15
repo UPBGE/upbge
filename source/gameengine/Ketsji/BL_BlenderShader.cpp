@@ -42,7 +42,7 @@
 #include <cstring>
 
 BL_BlenderShader::BL_BlenderShader(KX_Scene *scene, struct Material *ma,
-		int lightlayer, CM_UpdateServer<RAS_IPolyMaterial> *materialUpdateServer)
+                                   int lightlayer, CM_UpdateServer<RAS_IPolyMaterial> *materialUpdateServer)
 	:m_blenderScene(scene->GetBlenderScene()),
 	m_mat(ma),
 	m_lightLayer(lightlayer),
@@ -132,7 +132,7 @@ void BL_BlenderShader::ReloadMaterial()
 void BL_BlenderShader::BindProg(RAS_Rasterizer *rasty)
 {
 	GPU_material_bind(m_gpuMat, m_lightLayer, m_blenderScene->lay, rasty->GetTime(), 1,
-			rasty->GetViewMatrix().Data(), rasty->GetViewInvMatrix().Data(), nullptr, false);
+	                  rasty->GetViewMatrix().Data(), rasty->GetViewInvMatrix().Data(), nullptr, false);
 }
 
 void BL_BlenderShader::UnbindProg()
@@ -149,7 +149,7 @@ void BL_BlenderShader::Update(RAS_MeshSlot *ms, RAS_Rasterizer *rasty)
 	const float *obcol = ms->m_meshUser->GetColor().Data();
 
 	GPU_material_bind_uniforms(m_gpuMat, (float(*)[4])ms->m_meshUser->GetMatrix(), rasty->GetViewMatrix().Data(),
-							   obcol, 1.0f, nullptr, nullptr);
+	                           obcol, 1.0f, nullptr, nullptr);
 
 	m_alphaBlend = GPU_material_alpha_blend(m_gpuMat, obcol);
 }

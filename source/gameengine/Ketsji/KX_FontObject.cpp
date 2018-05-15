@@ -84,7 +84,7 @@ static std::vector<std::string> split_string(std::string str)
 KX_FontObject::KX_FontObject(void *sgReplicationInfo,
                              SG_Callbacks callbacks,
                              RAS_Rasterizer *rasterizer,
-							 RAS_BoundingBoxManager *boundingBoxManager,
+                             RAS_BoundingBoxManager *boundingBoxManager,
                              Object *ob,
                              bool do_color_management)
 	:KX_GameObject(sgReplicationInfo, callbacks),
@@ -345,8 +345,9 @@ PyObject *KX_FontObject::pyattr_get_text(EXP_PyObjectPlus *self_v, const EXP_PYA
 int KX_FontObject::pyattr_set_text(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_FontObject *self = static_cast<KX_FontObject *>(self_v);
-	if (!PyUnicode_Check(value))
+	if (!PyUnicode_Check(value)) {
 		return PY_SET_ATTR_FAIL;
+	}
 	const char *chars = _PyUnicode_AsString(value);
 
 	/* Allow for some logic brick control */

@@ -57,7 +57,7 @@ void KX_CollisionEventManager::RemoveNewCollisions()
 }
 
 bool KX_CollisionEventManager::NewHandleCollision(PHY_IPhysicsController *ctrl1, PHY_IPhysicsController *ctrl2,
-		const PHY_ICollData *coll_data, bool first)
+                                                  const PHY_ICollData *coll_data, bool first)
 {
 	m_newCollisions.insert(NewCollision(ctrl1, ctrl2, coll_data, first));
 
@@ -65,7 +65,7 @@ bool KX_CollisionEventManager::NewHandleCollision(PHY_IPhysicsController *ctrl1,
 }
 
 bool KX_CollisionEventManager::newCollisionResponse(void *client_data, PHY_IPhysicsController *ctrl1,
-		PHY_IPhysicsController *ctrl2, const PHY_ICollData *coll_data, bool first)
+                                                    PHY_IPhysicsController *ctrl2, const PHY_ICollData *coll_data, bool first)
 {
 	KX_CollisionEventManager *collisionmgr = (KX_CollisionEventManager *)client_data;
 	collisionmgr->NewHandleCollision(ctrl1, ctrl2, coll_data, first);
@@ -73,7 +73,7 @@ bool KX_CollisionEventManager::newCollisionResponse(void *client_data, PHY_IPhys
 }
 
 bool KX_CollisionEventManager::newBroadphaseResponse(void *client_data, PHY_IPhysicsController *ctrl1,
-		PHY_IPhysicsController *ctrl2, const PHY_ICollData *coll_data, bool first)
+                                                     PHY_IPhysicsController *ctrl2, const PHY_ICollData *coll_data, bool first)
 {
 	KX_ClientObjectInfo *info1 = (ctrl1) ? static_cast<KX_ClientObjectInfo *>(ctrl1->GetNewClientInfo()) : nullptr;
 	KX_ClientObjectInfo *info2 = (ctrl2) ? static_cast<KX_ClientObjectInfo *>(ctrl2->GetNewClientInfo()) : nullptr;
@@ -222,7 +222,7 @@ PHY_IPhysicsEnvironment *KX_CollisionEventManager::GetPhysicsEnvironment()
 }
 
 KX_CollisionEventManager::NewCollision::NewCollision(PHY_IPhysicsController *_first, PHY_IPhysicsController *_second,
-		const PHY_ICollData *_colldata, bool _isfirst)
+                                                     const PHY_ICollData *_colldata, bool _isfirst)
 	:first(_first),
 	second(_second),
 	colldata(_colldata),

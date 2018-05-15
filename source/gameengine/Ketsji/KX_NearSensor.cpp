@@ -42,31 +42,30 @@
 #include "PHY_IPhysicsController.h"
 #include "PHY_IMotionState.h"
 
-KX_NearSensor::KX_NearSensor(SCA_EventManager* eventmgr,
-							 KX_GameObject* gameobj,
-							 float margin,
-							 float resetmargin,
-							 bool bFindMaterial,
-							 const std::string& touchedpropname,
-							 PHY_IPhysicsController* ctrl)
-							:KX_CollisionSensor(eventmgr,
-							 gameobj,
-							 bFindMaterial,
-							 false,
-							 touchedpropname),
-			 m_Margin(margin),
-			 m_ResetMargin(resetmargin)
+KX_NearSensor::KX_NearSensor(SCA_EventManager *eventmgr,
+                             KX_GameObject *gameobj,
+                             float margin,
+                             float resetmargin,
+                             bool bFindMaterial,
+                             const std::string& touchedpropname,
+                             PHY_IPhysicsController *ctrl)
+	:KX_CollisionSensor(eventmgr,
+	                    gameobj,
+	                    bFindMaterial,
+	                    false,
+	                    touchedpropname),
+	m_Margin(margin),
+	m_ResetMargin(resetmargin)
 
 {
 
 	gameobj->GetClientInfo().m_sensors.remove(this);
 	m_client_info = new KX_ClientObjectInfo(gameobj, KX_ClientObjectInfo::SENSOR);
 	m_client_info->m_sensors.push_back(this);
-	
+
 	//DT_ShapeHandle shape = (DT_ShapeHandle) vshape;
 	m_physCtrl = ctrl;
-	if (m_physCtrl)
-	{
+	if (m_physCtrl) {
 		m_physCtrl->SetMargin(m_Margin);
 		m_physCtrl->SetNewClientInfo(m_client_info);
 	}
@@ -75,21 +74,20 @@ KX_NearSensor::KX_NearSensor(SCA_EventManager* eventmgr,
 
 void KX_NearSensor::SynchronizeTransform()
 {
-	// The near and radar sensors are using a different physical object which is 
+	// The near and radar sensors are using a different physical object which is
 	// not linked to the parent object, must synchronize it.
-	if (m_physCtrl)
-	{
-		PHY_IMotionState* motionState = m_physCtrl->GetMotionState();
-		KX_GameObject* parent = ((KX_GameObject*)GetParent());
+	if (m_physCtrl) {
+		PHY_IMotionState *motionState = m_physCtrl->GetMotionState();
+		KX_GameObject *parent = ((KX_GameObject *)GetParent());
 		motionState->SetWorldPosition(parent->NodeGetWorldPosition());
 		motionState->SetWorldOrientation(parent->NodeGetWorldOrientation());
 		m_physCtrl->WriteMotionStateToDynamics(true);
 	}
 }
 
-EXP_Value* KX_NearSensor::GetReplica()
+EXP_Value *KX_NearSensor::GetReplica()
 {
-	KX_NearSensor* replica = new KX_NearSensor(*this);
+	KX_NearSensor *replica = new KX_NearSensor(*this);
 	replica->ProcessReplica();
 	return replica;
 }
@@ -97,26 +95,24 @@ EXP_Value* KX_NearSensor::GetReplica()
 void KX_NearSensor::ProcessReplica()
 {
 	KX_CollisionSensor::ProcessReplica();
-	
+
 	m_client_info = new KX_ClientObjectInfo(m_client_info->m_gameobject, KX_ClientObjectInfo::SENSOR);
-	
-	if (m_physCtrl)
-	{
+
+	if (m_physCtrl) {
 		m_physCtrl = m_physCtrl->GetReplicaForSensors();
-		if (m_physCtrl)
-		{
+		if (m_physCtrl) {
 			//static_cast<KX_CollisionEventManager*>(m_eventmgr)->GetPhysicsEnvironment()->addSensor(replica->m_physCtrl);
 			m_physCtrl->SetMargin(m_Margin);
 			m_physCtrl->SetNewClientInfo(m_client_info);
 		}
-		
+
 	}
 }
 
-void KX_NearSensor::ReParent(SCA_IObject* parent)
+void KX_NearSensor::ReParent(SCA_IObject *parent)
 {
 	SCA_ISensor::ReParent(parent);
-	m_client_info->m_gameobject = static_cast<KX_GameObject*>(parent); 
+	m_client_info->m_gameobject = static_cast<KX_GameObject *>(parent);
 	m_client_info->m_sensors.push_back(this);
 	//Synchronize here with the actual parent.
 	SynchronizeTransform();
@@ -128,30 +124,27 @@ KX_NearSensor::~KX_NearSensor()
 {
 	// for nearsensor, the sensor is the 'owner' of sumoobj
 	// for collisionsensor, it's the parent
-	if (m_physCtrl)
-	{
+	if (m_physCtrl) {
 		//static_cast<KX_CollisionEventManager*>(m_eventmgr)->GetPhysicsEnvironment()->removeSensor(m_physCtrl);
 		delete m_physCtrl;
 		m_physCtrl = nullptr;
 	}
-	
-		
-	if (m_client_info)
+
+
+	if (m_client_info) {
 		delete m_client_info;
+	}
 }
 
 void KX_NearSensor::SetPhysCtrlRadius()
 {
-	if (m_bTriggered)
-	{
-		if (m_physCtrl)
-		{
+	if (m_bTriggered) {
+		if (m_physCtrl) {
 			m_physCtrl->SetRadius(m_ResetMargin);
 		}
-	} else
-	{
-		if (m_physCtrl)
-		{
+	}
+	else {
+		if (m_physCtrl) {
 			m_physCtrl->SetRadius(m_Margin);
 		}
 	}
@@ -162,12 +155,11 @@ bool KX_NearSensor::Evaluate()
 	bool result = false;
 //	KX_GameObject* parent = static_cast<KX_GameObject*>(GetParent());
 
-	if (m_bTriggered != m_bLastTriggered)
-	{
+	if (m_bTriggered != m_bLastTriggered) {
 		m_bLastTriggered = m_bTriggered;
-		
+
 		SetPhysCtrlRadius();
-		
+
 		result = true;
 	}
 
@@ -177,26 +169,23 @@ bool KX_NearSensor::Evaluate()
 // this function is called at broad phase stage to check if the two controller
 // need to interact at all. It is used for Near/Radar sensor that don't need to
 // check collision with object not included in filter
-bool	KX_NearSensor::BroadPhaseFilterCollision(PHY_IPhysicsController *ctrl1, PHY_IPhysicsController *ctrl2)
+bool KX_NearSensor::BroadPhaseFilterCollision(PHY_IPhysicsController *ctrl1, PHY_IPhysicsController *ctrl2)
 {
-	KX_GameObject* parent = static_cast<KX_GameObject*>(GetParent());
-	
+	KX_GameObject *parent = static_cast<KX_GameObject *>(GetParent());
+
 	// need the mapping from PHY_IPhysicsController to gameobjects now
 	BLI_assert(ctrl1 == m_physCtrl && ctrl2);
-	KX_ClientObjectInfo *client_info = static_cast<KX_ClientObjectInfo*>(ctrl2->GetNewClientInfo());
+	KX_ClientObjectInfo *client_info = static_cast<KX_ClientObjectInfo *>(ctrl2->GetNewClientInfo());
 
-	KX_GameObject* gameobj = ( client_info ? 
-			client_info->m_gameobject :
-			nullptr);
-	
-	if (gameobj && (gameobj != parent))
-	{
+	KX_GameObject *gameobj = (client_info ?
+	                          client_info->m_gameobject :
+	                          nullptr);
+
+	if (gameobj && (gameobj != parent)) {
 		// only take valid colliders
-		if (client_info->m_type == KX_ClientObjectInfo::ACTOR)
-		{
-			if ((m_touchedpropname.empty()) || 
-				(gameobj->GetProperty(m_touchedpropname)))
-			{
+		if (client_info->m_type == KX_ClientObjectInfo::ACTOR) {
+			if ((m_touchedpropname.empty()) ||
+			    (gameobj->GetProperty(m_touchedpropname))) {
 				return true;
 			}
 		}
@@ -205,40 +194,40 @@ bool	KX_NearSensor::BroadPhaseFilterCollision(PHY_IPhysicsController *ctrl1, PHY
 	return false;
 }
 
-bool	KX_NearSensor::NewHandleCollision(PHY_IPhysicsController *ctrl1, PHY_IPhysicsController *ctrl2, const PHY_ICollData *coll_data)
+bool KX_NearSensor::NewHandleCollision(PHY_IPhysicsController *ctrl1, PHY_IPhysicsController *ctrl2, const PHY_ICollData *coll_data)
 {
 //	KX_CollisionEventManager* toucheventmgr = static_cast<KX_CollisionEventManager*>(m_eventmgr);
 //	KX_GameObject* parent = static_cast<KX_GameObject*>(GetParent());
-	
-	// need the mapping from PHY_IPhysicsController to gameobjects now
-	
-	KX_ClientObjectInfo *client_info = static_cast<KX_ClientObjectInfo*> ((ctrl1 == m_physCtrl) ?
-			ctrl2->GetNewClientInfo() : ctrl1->GetNewClientInfo());
 
-	KX_GameObject* gameobj = ( client_info ? 
-			client_info->m_gameobject :
-			nullptr);
-	
-	// Add the same check as in SCA_ISensor::Activate(), 
+	// need the mapping from PHY_IPhysicsController to gameobjects now
+
+	KX_ClientObjectInfo *client_info = static_cast<KX_ClientObjectInfo *> ((ctrl1 == m_physCtrl) ?
+	                                                                       ctrl2->GetNewClientInfo() : ctrl1->GetNewClientInfo());
+
+	KX_GameObject *gameobj = (client_info ?
+	                          client_info->m_gameobject :
+	                          nullptr);
+
+	// Add the same check as in SCA_ISensor::Activate(),
 	// we don't want to record collision when the sensor is not active.
 	if (m_links && !m_suspended &&
-		gameobj /* done in BroadPhaseFilterCollision() && (gameobj != parent)*/)
-	{
-		if (!m_colliders->SearchValue(gameobj))
+	    gameobj /* done in BroadPhaseFilterCollision() && (gameobj != parent)*/) {
+		if (!m_colliders->SearchValue(gameobj)) {
 			m_colliders->Add(CM_AddRef(gameobj));
+		}
 		// only take valid colliders
 		// These checks are done already in BroadPhaseFilterCollision()
 		//if (client_info->m_type == KX_ClientObjectInfo::ACTOR)
 		//{
-		//	if ((m_touchedpropname.empty()) || 
+		//	if ((m_touchedpropname.empty()) ||
 		//		(gameobj->GetProperty(m_touchedpropname)))
 		//	{
-				m_bTriggered = true;
-				m_hitObject = gameobj;
+		m_bTriggered = true;
+		m_hitObject = gameobj;
 		//	}
 		//}
 	}
-	
+
 	return false; // was DT_CONTINUE; but this was defined in Sumo as false
 }
 
@@ -263,20 +252,20 @@ PyTypeObject KX_NearSensor::Type = {
 	0,
 	0,
 	py_base_repr,
-	0,0,0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0,
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0,
 	Methods,
 	0,
 	0,
 	&KX_CollisionSensor::Type,
-	0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0,
 	py_base_new
 };
 
 PyMethodDef KX_NearSensor::Methods[] = {
 	//No methods
-	{nullptr,nullptr} //Sentinel
+	{nullptr, nullptr} //Sentinel
 };
 
 PyAttributeDef KX_NearSensor::Attributes[] = {

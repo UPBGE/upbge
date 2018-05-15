@@ -216,17 +216,16 @@ public:
 		return m_chassis;
 	}
 
-	virtual void AddWheel(
-	    PHY_IMotionState *motionState,
-	    const mt::vec3 &connectionPoint,
-	    const mt::vec3 &downDirection,
-	    const mt::vec3 &axleDirection,
-	    float suspensionRestLength,
-	    float wheelRadius,
-	    bool hasSteering)
+	virtual void AddWheel(PHY_IMotionState *motionState,
+	                      const mt::vec3 &connectionPoint,
+	                      const mt::vec3 &downDirection,
+	                      const mt::vec3 &axleDirection,
+	                      float suspensionRestLength,
+	                      float wheelRadius,
+	                      bool hasSteering)
 	{
 		btWheelInfo& info = m_vehicle->addWheel(ToBullet(connectionPoint), ToBullet(downDirection.Normalized()),
-				ToBullet(axleDirection.Normalized()), suspensionRestLength, wheelRadius, gTuning, hasSteering);
+		                                        ToBullet(axleDirection.Normalized()), suspensionRestLength, wheelRadius, gTuning, hasSteering);
 		info.m_clientInfo = motionState;
 	}
 
@@ -385,8 +384,9 @@ public:
 
 void CcdPhysicsEnvironment::SetDebugDrawer(btIDebugDraw *debugDrawer)
 {
-	if (debugDrawer && m_dynamicsWorld)
+	if (debugDrawer && m_dynamicsWorld) {
 		m_dynamicsWorld->setDebugDrawer(debugDrawer);
+	}
 	m_debugDrawer = debugDrawer;
 }
 
@@ -532,7 +532,7 @@ void CcdPhysicsEnvironment::RemoveVehicle(WrapperVehicle *vehicle, bool free)
 
 void CcdPhysicsEnvironment::RemoveVehicle(CcdPhysicsController *ctrl, bool free)
 {
-	for (std::vector<WrapperVehicle *>::iterator it = m_wrapperVehicles.begin(); it != m_wrapperVehicles.end();) {
+	for (std::vector<WrapperVehicle *>::iterator it = m_wrapperVehicles.begin(); it != m_wrapperVehicles.end(); ) {
 		WrapperVehicle *vehicle = *it;
 		if (vehicle->GetChassis() == ctrl) {
 			m_dynamicsWorld->removeVehicle(vehicle->GetVehicle());
@@ -622,15 +622,15 @@ void CcdPhysicsEnvironment::UpdateCcdPhysicsController(CcdPhysicsController *ctr
 	// remove and add the collistioning object
 	btRigidBody *body = ctrl->GetRigidBody();
 	btSoftBody *softBody = ctrl->GetSoftBody();
-	btCollisionObject* obj = ctrl->GetCollisionObject();
-	if (obj)
-	{
-		btVector3 inertia(0.0,0.0,0.0);
+	btCollisionObject *obj = ctrl->GetCollisionObject();
+	if (obj) {
+		btVector3 inertia(0.0, 0.0, 0.0);
 		m_dynamicsWorld->removeCollisionObject(obj);
 		obj->setCollisionFlags(newCollisionFlags);
 		if (body) {
-			if (newMass)
+			if (newMass) {
 				body->getCollisionShape()->calculateLocalInertia(newMass, inertia);
+			}
 			body->setMassProps(newMass, inertia * ctrl->GetInertiaFactor());
 			m_dynamicsWorld->addRigidBody(body, newCollisionGroup, newCollisionMask);
 		}
@@ -672,14 +672,14 @@ void CcdPhysicsEnvironment::AddCcdGraphicController(CcdGraphicController *ctrl)
 		ctrl->GetAabb(minAabb, maxAabb);
 
 		ctrl->SetBroadphaseHandle(m_cullingTree->createProxy(
-		                          minAabb,
-		                          maxAabb,
-		                          INVALID_SHAPE_PROXYTYPE, // this parameter is not used
-		                          ctrl,
-		                          0,    // this object does not collision with anything
-		                          0,
-		                          nullptr, // dispatcher => this parameter is not used
-		                          0));
+									  minAabb,
+									  maxAabb,
+									  INVALID_SHAPE_PROXYTYPE, // this parameter is not used
+									  ctrl,
+									  0, // this object does not collision with anything
+									  0,
+									  nullptr, // dispatcher => this parameter is not used
+									  0));
 
 		BLI_assert(ctrl->GetBroadphaseHandle());
 	}
@@ -699,8 +699,9 @@ void CcdPhysicsEnvironment::RemoveCcdGraphicController(CcdGraphicController *ctr
 void CcdPhysicsEnvironment::UpdateCcdPhysicsControllerShape(CcdShapeConstructionInfo *shapeInfo)
 {
 	for (CcdPhysicsController *ctrl : m_controllers) {
-		if (ctrl->GetShapeInfo() != shapeInfo)
+		if (ctrl->GetShapeInfo() != shapeInfo) {
 			continue;
+		}
 
 		ctrl->ReplaceControllerShape(nullptr);
 		RefreshCcdPhysicsController(ctrl);
@@ -778,11 +779,13 @@ public:
 	virtual bool needsCollision(btBroadphaseProxy *proxy0) const
 	{
 		//don't collide with self
-		if (proxy0->m_clientObject == m_owner)
+		if (proxy0->m_clientObject == m_owner) {
 			return false;
+		}
 
-		if (proxy0->m_clientObject == m_parent)
+		if (proxy0->m_clientObject == m_parent) {
 			return false;
+		}
 
 		return btCollisionWorld::ClosestRayResultCallback::needsCollision(proxy0);
 	}
@@ -805,8 +808,9 @@ void CcdPhysicsEnvironment::ProcessFhSprings(double curTime, float interval)
 			btRigidBody *parentBody = parentCtrl ? parentCtrl->GetRigidBody() : nullptr;
 			btRigidBody *cl_object = parentBody ? parentBody : body;
 
-			if (body->isStaticOrKinematicObject())
+			if (body->isStaticOrKinematicObject()) {
 				continue;
+			}
 
 			btVector3 rayDirLocal(0.0f, 0.0f, -10.0f);
 
@@ -825,18 +829,21 @@ void CcdPhysicsEnvironment::ProcessFhSprings(double curTime, float interval)
 				CcdPhysicsController *controller = static_cast<CcdPhysicsController *>(resultCallback.m_collisionObject->getUserPointer());
 
 				if (controller) {
-					if (controller->GetConstructionInfo().m_fh_distance < SIMD_EPSILON)
+					if (controller->GetConstructionInfo().m_fh_distance < SIMD_EPSILON) {
 						continue;
+					}
 
 					btRigidBody *hit_object = controller->GetRigidBody();
-					if (!hit_object)
+					if (!hit_object) {
 						continue;
+					}
 
 					CcdConstructionInfo& hitObjShapeProps = controller->GetConstructionInfo();
 
 					float distance = resultCallback.m_closestHitFraction * rayDirLocal.length() - ctrl->GetConstructionInfo().m_radius;
-					if (distance >= hitObjShapeProps.m_fh_distance)
+					if (distance >= hitObjShapeProps.m_fh_distance) {
 						continue;
+					}
 
 					//btVector3 ray_dir = cl_object->getCenterOfMassTransform().getBasis()* rayDirLocal.Normalized();
 					btVector3 ray_dir = rayDirLocal.normalized();
@@ -877,7 +884,7 @@ void CcdPhysicsEnvironment::ProcessFhSprings(double curTime, float interval)
 							btScalar friction_factor = hit_object->getFriction();//cl_object->getFriction();
 
 							btScalar max_friction = friction_factor * btMax(btScalar(0.0), i_spring);
-							
+
 							btScalar rel_mom_lateral = rel_vel_lateral / cl_object->getInvMass();
 
 							btVector3 friction = (rel_mom_lateral > max_friction) ?
@@ -948,8 +955,9 @@ void CcdPhysicsEnvironment::SetDeactivationAngularTreshold(float angTresh)
 
 	// Update from all controllers.
 	for (std::set<CcdPhysicsController *>::iterator it = m_controllers.begin(); it != m_controllers.end(); it++) {
-		if ((*it)->GetRigidBody())
+		if ((*it)->GetRigidBody()) {
 			(*it)->GetRigidBody()->setSleepingThresholds(m_linearDeactivationThreshold, m_angularDeactivationThreshold);
+		}
 	}
 }
 
@@ -993,8 +1001,7 @@ void CcdPhysicsEnvironment::SetSolverType(PHY_SolverType solverType)
 		return;
 	}
 
-	switch (solverType)
-	{
+	switch (solverType) {
 		case PHY_SOLVER_SEQUENTIAL:
 		{
 			m_solver = new btSequentialImpulseConstraintSolver();
@@ -1019,7 +1026,8 @@ void CcdPhysicsEnvironment::SetSolverType(PHY_SolverType solverType)
 		{
 			BLI_assert(false);
 		}
-	};
+	}
+	;
 	m_solverType = solverType;
 }
 
@@ -1043,15 +1051,15 @@ static int gConstraintUid = 1;
 void CcdPhysicsEnvironment::RemoveConstraintById(int constraintId, bool free)
 {
 	// For soft body constraints
-	if (constraintId == 0)
+	if (constraintId == 0) {
 		return;
+	}
 
 	int i;
 	int numConstraints = m_dynamicsWorld->getNumConstraints();
 	for (i = 0; i < numConstraints; i++) {
 		btTypedConstraint *constraint = m_dynamicsWorld->getConstraint(i);
-		if (constraint->getUserConstraintId() == constraintId)
-		{
+		if (constraint->getUserConstraintId() == constraintId) {
 			RemoveConstraint(constraint, free);
 			break;
 		}
@@ -1063,13 +1071,12 @@ void CcdPhysicsEnvironment::RemoveConstraintById(int constraintId, bool free)
 	}
 }
 
-struct  FilterClosestRayResultCallback : public btCollisionWorld::ClosestRayResultCallback
-{
+struct  FilterClosestRayResultCallback : public btCollisionWorld::ClosestRayResultCallback {
 	PHY_IRayCastFilterCallback& m_phyRayFilter;
 	const btCollisionShape *m_hitTriangleShape;
 	int m_hitTriangleIndex;
 
-	FilterClosestRayResultCallback (PHY_IRayCastFilterCallback& phyRayFilter, const btVector3& rayFrom, const btVector3& rayTo)
+	FilterClosestRayResultCallback(PHY_IRayCastFilterCallback& phyRayFilter, const btVector3& rayFrom, const btVector3& rayTo)
 		:btCollisionWorld::ClosestRayResultCallback(rayFrom, rayTo),
 		m_phyRayFilter(phyRayFilter),
 		m_hitTriangleShape(nullptr),
@@ -1083,14 +1090,17 @@ struct  FilterClosestRayResultCallback : public btCollisionWorld::ClosestRayResu
 
 	virtual bool needsCollision(btBroadphaseProxy *proxy0) const
 	{
-		if (!(proxy0->m_collisionFilterGroup & m_collisionFilterMask))
+		if (!(proxy0->m_collisionFilterGroup & m_collisionFilterMask)) {
 			return false;
-		if (!(m_collisionFilterGroup & proxy0->m_collisionFilterMask))
+		}
+		if (!(m_collisionFilterGroup & proxy0->m_collisionFilterMask)) {
 			return false;
+		}
 		btCollisionObject *object = (btCollisionObject *)proxy0->m_clientObject;
 		CcdPhysicsController *phyCtrl = static_cast<CcdPhysicsController *>(object->getUserPointer());
-		if (phyCtrl == m_phyRayFilter.m_ignoreController)
+		if (phyCtrl == m_phyRayFilter.m_ignoreController) {
 			return false;
+		}
 		return m_phyRayFilter.needBroadphaseRayCast(phyCtrl);
 	}
 
@@ -1123,19 +1133,20 @@ static bool GetHitTriangle(btCollisionShape *shape, CcdShapeConstructionInfo *sh
 	PHY_ScalarType indicestype;
 	btStridingMeshInterface *meshInterface = shapeInfo->GetMeshInterface();
 
-	if (!meshInterface)
+	if (!meshInterface) {
 		return false;
+	}
 
 	meshInterface->getLockedReadOnlyVertexIndexBase(
-	    &vertexbase,
-	    numverts,
-	    type,
-	    stride,
-	    &indexbase,
-	    indexstride,
-	    numfaces,
-	    indicestype,
-	    0);
+		&vertexbase,
+		numverts,
+		type,
+		stride,
+		&indexbase,
+		indexstride,
+		numfaces,
+		indicestype,
+		0);
 
 	unsigned int *gfxbase = (unsigned int *)(indexbase + hitTriangleIndex * indexstride);
 	const btVector3& meshScaling = shape->getLocalScaling();
@@ -1190,13 +1201,13 @@ PHY_IPhysicsController *CcdPhysicsEnvironment::RayTest(PHY_IRayCastFilterCallbac
 					for (int i = 0; i < compoundShape->getNumChildShapes(); i++) {
 						shapeInfo = compoundShapeInfo->GetChildShape(i);
 						shape = compoundShape->getChildShape(i);
-						if (shape == rayCallback.m_hitTriangleShape)
+						if (shape == rayCallback.m_hitTriangleShape) {
 							break;
+						}
 					}
 				}
 				if (shape == rayCallback.m_hitTriangleShape &&
-				    rayCallback.m_hitTriangleIndex < shapeInfo->m_polygonIndexArray.size())
-				{
+				    rayCallback.m_hitTriangleIndex < shapeInfo->m_polygonIndexArray.size()) {
 					// save original collision shape triangle for soft body
 					int hitTriangleIndex = rayCallback.m_hitTriangleIndex;
 
@@ -1229,9 +1240,10 @@ PHY_IPhysicsController *CcdPhysicsEnvironment::RayTest(PHY_IRayCastFilterCallbac
 						else {
 							// for rigid body we must apply the world transform
 							triangleOK = GetHitTriangle(shape, shapeInfo, hitTriangleIndex, triangle);
-							if (!triangleOK)
+							if (!triangleOK) {
 								// if we cannot get the triangle, no use to continue
 								goto SKIP_UV_NORMAL;
+							}
 							v1 = rayCallback.m_collisionObject->getWorldTransform()(triangle[0]);
 							v2 = rayCallback.m_collisionObject->getWorldTransform()(triangle[1]);
 							v3 = rayCallback.m_collisionObject->getWorldTransform()(triangle[2]);
@@ -1271,8 +1283,9 @@ PHY_IPhysicsController *CcdPhysicsEnvironment::RayTest(PHY_IRayCastFilterCallbac
 							rayCallback.m_hitNormalWorld = softBody->m_faces[hitTriangleIndex].m_normal;
 						}
 						else {
-							if (!triangleOK)
+							if (!triangleOK) {
 								triangleOK = GetHitTriangle(shape, shapeInfo, hitTriangleIndex, triangle);
+							}
 							if (triangleOK) {
 								btVector3 triangleNormal;
 								triangleNormal = (triangle[1] - triangle[0]).cross(triangle[2] - triangle[0]);
@@ -1837,7 +1850,7 @@ struct  DbvtCullingCallback : btDbvt::ICollide {
 	}
 	bool Descent(const btDbvtNode *node)
 	{
-		return(m_ocb->queryOccluderW(node->volume.Center(), node->volume.Extents()));
+		return (m_ocb->queryOccluderW(node->volume.Center(), node->volume.Extents()));
 	}
 	void Process(const btDbvtNode *node, btScalar depth)
 	{
@@ -1855,7 +1868,7 @@ struct  DbvtCullingCallback : btDbvt::ICollide {
 			if (gameobj && gameobj->GetOccluder()) {
 				float fl[16];
 				gameobj->NodeGetWorldTransform().PackFromAffineTransform(fl);
-				
+
 				// this will create the occlusion buffer if not already done
 				// and compute the transformation from model local space to clip space
 				m_ocb->SetModelMatrix(fl);
@@ -1869,25 +1882,27 @@ struct  DbvtCullingCallback : btDbvt::ICollide {
 
 						for (unsigned int j = 0, size = array->GetTriangleIndexCount(); j < size; j += 3) {
 							m_ocb->appendOccluderM(array->GetVertex(array->GetTriangleIndex(j)).GetXYZ(),
-												   array->GetVertex(array->GetTriangleIndex(j + 1)).GetXYZ(),
-												   array->GetVertex(array->GetTriangleIndex(j + 2)).GetXYZ(),
-												   face);
+							                       array->GetVertex(array->GetTriangleIndex(j + 1)).GetXYZ(),
+							                       array->GetVertex(array->GetTriangleIndex(j + 2)).GetXYZ(),
+							                       face);
 						}
 					}
 				}
 			}
 		}
-		if (info)
+		if (info) {
 			(*m_clientCallback)(info, m_userData);
+		}
 	}
 };
 
 static OcclusionBuffer gOcb;
 bool CcdPhysicsEnvironment::CullingTest(PHY_CullingCallback callback, void *userData, const std::array<mt::vec4, 6>& planes,
-										int occlusionRes, const int *viewport, const mt::mat4& matrix)
+                                        int occlusionRes, const int *viewport, const mt::mat4& matrix)
 {
-	if (!m_cullingTree)
+	if (!m_cullingTree) {
 		return false;
+	}
 	DbvtCullingCallback dispatcher(callback, userData);
 	btVector3 planes_n[6];
 	btScalar planes_o[6];
@@ -1959,39 +1974,49 @@ CcdPhysicsEnvironment::~CcdPhysicsEnvironment()
 	//delete m_dispatcher;
 	delete m_dynamicsWorld;
 
-	if (nullptr != m_ownDispatcher)
+	if (nullptr != m_ownDispatcher) {
 		delete m_ownDispatcher;
+	}
 
-	if (nullptr != m_solver)
+	if (nullptr != m_solver) {
 		delete m_solver;
+	}
 
-	if (nullptr != m_debugDrawer)
+	if (nullptr != m_debugDrawer) {
 		delete m_debugDrawer;
+	}
 
-	if (nullptr != m_filterCallback)
+	if (nullptr != m_filterCallback) {
 		delete m_filterCallback;
+	}
 
-	if (nullptr != m_ghostPairCallback)
+	if (nullptr != m_ghostPairCallback) {
 		delete m_ghostPairCallback;
+	}
 
-	if (nullptr != m_collisionConfiguration)
+	if (nullptr != m_collisionConfiguration) {
 		delete m_collisionConfiguration;
+	}
 
-	if (nullptr != m_broadphase)
+	if (nullptr != m_broadphase) {
 		delete m_broadphase;
+	}
 
-	if (nullptr != m_cullingTree)
+	if (nullptr != m_cullingTree) {
 		delete m_cullingTree;
+	}
 
-	if (nullptr != m_cullingCache)
+	if (nullptr != m_cullingCache) {
 		delete m_cullingCache;
+	}
 }
 
 btTypedConstraint *CcdPhysicsEnvironment::GetConstraintById(int constraintId)
 {
 	// For soft body constraints
-	if (constraintId == 0)
+	if (constraintId == 0) {
 		return nullptr;
+	}
 
 	int numConstraints = m_dynamicsWorld->getNumConstraints();
 	int i;
@@ -2119,10 +2144,9 @@ bool CcdOverlapFilterCallBack::needBroadphaseCollision(btBroadphaseProxy *proxy0
 	CcdPhysicsController *ctrl1 = static_cast<CcdPhysicsController *>(colObj1->getUserPointer());
 
 	if (!((proxy0->m_collisionFilterGroup & proxy1->m_collisionFilterMask) &&
-		  (proxy1->m_collisionFilterGroup & proxy0->m_collisionFilterMask) &&
-		  (ctrl0->GetCollisionGroup() & ctrl1->GetCollisionMask()) &&
-		  (ctrl1->GetCollisionGroup() & ctrl0->GetCollisionMask())))
-	{
+	      (proxy1->m_collisionFilterGroup & proxy0->m_collisionFilterMask) &&
+	      (ctrl0->GetCollisionGroup() & ctrl1->GetCollisionMask()) &&
+	      (ctrl1->GetCollisionGroup() & ctrl0->GetCollisionMask()))) {
 		return false;
 	}
 
@@ -2157,8 +2181,9 @@ PHY_IVehicle *CcdPhysicsEnvironment::GetVehicleConstraint(int constraintId)
 	int numVehicles = m_wrapperVehicles.size();
 	for (i = 0; i < numVehicles; i++) {
 		WrapperVehicle *wrapperVehicle = m_wrapperVehicles[i];
-		if (wrapperVehicle->GetVehicle()->getUserConstraintId() == constraintId)
+		if (wrapperVehicle->GetVehicle()->getUserConstraintId() == constraintId) {
 			return wrapperVehicle;
+		}
 	}
 
 	return nullptr;
@@ -2204,8 +2229,7 @@ int Ccd_FindClosestNode(btSoftBody *sb, const btVector3& worldPoint)
 
 	for (int n = 0; n < nodes.size(); n++) {
 		btScalar distSqr = (nodes[n].m_x - worldPoint).length2();
-		if (distSqr < maxDistSqr)
-		{
+		if (distSqr < maxDistSqr) {
 			maxDistSqr = distSqr;
 			node = n;
 		}
@@ -2214,10 +2238,10 @@ int Ccd_FindClosestNode(btSoftBody *sb, const btVector3& worldPoint)
 }
 
 PHY_IConstraint *CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController *ctrl0, class PHY_IPhysicsController *ctrl1, PHY_ConstraintType type,
-											float pivotX, float pivotY, float pivotZ,
-											float axisX, float axisY, float axisZ,
-											float axis1X, float axis1Y, float axis1Z,
-											float axis2X, float axis2Y, float axis2Z, int flags)
+																 float pivotX, float pivotY, float pivotZ,
+																 float axisX, float axisY, float axisZ,
+																 float axis1X, float axis1Y, float axis1Z,
+																 float axis2X, float axis2Y, float axis2Z, int flags)
 {
 	bool disableCollisionBetweenLinkedBodies = (0 != (flags & CCD_CONSTRAINT_DISABLE_LINKED_COLLISION));
 
@@ -2240,8 +2264,7 @@ PHY_IConstraint *CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsContr
 	//it might be a soft body, let's try
 	btSoftBody *sb0 = c0 ? c0->GetSoftBody() : nullptr;
 	btSoftBody *sb1 = c1 ? c1->GetSoftBody() : nullptr;
-	if (sb0 && sb1)
-	{
+	if (sb0 && sb1) {
 		//not between two soft bodies?
 		return nullptr;
 	}
@@ -2281,8 +2304,9 @@ PHY_IConstraint *CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsContr
 	}
 
 
-	if (!rb0)
+	if (!rb0) {
 		return nullptr;
+	}
 
 	// If either of the controllers is missing, we can't do anything.
 	if (!c0 || !c1) {
@@ -2298,8 +2322,7 @@ PHY_IConstraint *CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsContr
 
 	bool angularOnly = false;
 
-	switch (type)
-	{
+	switch (type) {
 		case PHY_POINT2POINT_CONSTRAINT:
 		{
 			btPoint2PointConstraint *p2p = nullptr;
@@ -2323,11 +2346,10 @@ PHY_IConstraint *CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsContr
 			if (rb1) {
 				btTransform frameInA;
 				btTransform frameInB;
-				
-				btVector3 axis1(axis1X,axis1Y,axis1Z), axis2(axis2X,axis2Y,axis2Z);
-				if (axis1.length() == 0.0)
-				{
-					btPlaneSpace1( axisInA, axis1, axis2 );
+
+				btVector3 axis1(axis1X, axis1Y, axis1Z), axis2(axis2X, axis2Y, axis2Z);
+				if (axis1.length() == 0.0) {
+					btPlaneSpace1(axisInA, axis1, axis2);
 				}
 
 				frameInA.getBasis().setValue(axisInA.x(), axis1.x(), axis2.x(),
@@ -2343,8 +2365,8 @@ PHY_IConstraint *CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsContr
 				bool useReferenceFrameA = true;
 
 				genericConstraint = new btGeneric6DofSpringConstraint(
-				    *rb0, *rb1,
-				    frameInA, frameInB, useReferenceFrameA);
+					*rb0, *rb1,
+					frameInA, frameInB, useReferenceFrameA);
 			}
 			else {
 				static btRigidBody s_fixedObject2(0.0f, nullptr, nullptr);
@@ -2356,7 +2378,7 @@ PHY_IConstraint *CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsContr
 
 				frameInA.getBasis().setValue(axisInA.x(), axis1.x(), axis2.x(),
 				                             axisInA.y(), axis1.y(), axis2.y(),
-				                             axisInA.z(), axis1.z(), axis2.z() );
+				                             axisInA.z(), axis1.z(), axis2.z());
 
 				frameInA.setOrigin(pivotInA);
 
@@ -2365,8 +2387,8 @@ PHY_IConstraint *CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsContr
 
 				bool useReferenceFrameA = true;
 				genericConstraint = new btGeneric6DofSpringConstraint(
-				    *rb0, s_fixedObject2,
-				    frameInA, frameInB, useReferenceFrameA);
+					*rb0, s_fixedObject2,
+					frameInA, frameInB, useReferenceFrameA);
 			}
 
 			con = genericConstraint;
@@ -2380,16 +2402,15 @@ PHY_IConstraint *CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsContr
 			if (rb1) {
 				btTransform frameInA;
 				btTransform frameInB;
-				
-				btVector3 axis1(axis1X,axis1Y,axis1Z), axis2(axis2X,axis2Y,axis2Z);
-				if (axis1.length() == 0.0)
-				{
-					btPlaneSpace1( axisInA, axis1, axis2 );
+
+				btVector3 axis1(axis1X, axis1Y, axis1Z), axis2(axis2X, axis2Y, axis2Z);
+				if (axis1.length() == 0.0) {
+					btPlaneSpace1(axisInA, axis1, axis2);
 				}
 
 				frameInA.getBasis().setValue(axisInA.x(), axis1.x(), axis2.x(),
 				                             axisInA.y(), axis1.y(), axis2.y(),
-				                             axisInA.z(), axis1.z(), axis2.z() );
+				                             axisInA.z(), axis1.z(), axis2.z());
 				frameInA.setOrigin(pivotInA);
 
 				btTransform inv = rb1->getCenterOfMassTransform().inverse();
@@ -2411,7 +2432,7 @@ PHY_IConstraint *CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsContr
 
 				frameInA.getBasis().setValue(axisInA.x(), axis1.x(), axis2.x(),
 				                             axisInA.y(), axis1.y(), axis2.y(),
-				                             axisInA.z(), axis1.z(), axis2.z() );
+				                             axisInA.z(), axis1.z(), axis2.z());
 
 				frameInA.setOrigin(pivotInA);
 
@@ -2419,8 +2440,8 @@ PHY_IConstraint *CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsContr
 				frameInB = rb0->getCenterOfMassTransform() * frameInA;
 
 				coneTwistContraint = new btConeTwistConstraint(
-				    *rb0, s_fixedObject2,
-				    frameInA, frameInB);
+					*rb0, s_fixedObject2,
+					frameInA, frameInB);
 			}
 
 			con = coneTwistContraint;
@@ -2428,8 +2449,10 @@ PHY_IConstraint *CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsContr
 			break;
 		}
 		case PHY_ANGULAR_CONSTRAINT:
+		{
 			angularOnly = true;
 
+		}
 		case PHY_LINEHINGE_CONSTRAINT:
 		{
 			btHingeConstraint *hinge = nullptr;
@@ -2448,7 +2471,7 @@ PHY_IConstraint *CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsContr
 				// Internally btHingeConstraint's hinge-axis is z
 				frameInA.getBasis().setValue(axis1.x(), axis2.x(), axisInA.x(),
 				                             axis1.y(), axis2.y(), axisInA.y(),
-				                             axis1.z(), axis2.z(), axisInA.z() );
+				                             axis1.z(), axis2.z(), axisInA.z());
 
 				frameInA.setOrigin(pivotInA);
 
@@ -2474,7 +2497,7 @@ PHY_IConstraint *CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsContr
 				// Internally btHingeConstraint's hinge-axis is z
 				frameInA.getBasis().setValue(axis1.x(), axis2.x(), axisInA.x(),
 				                             axis1.y(), axis2.y(), axisInA.y(),
-				                             axis1.z(), axis2.z(), axisInA.z() );
+				                             axis1.z(), axis2.z(), axisInA.z());
 				frameInA.setOrigin(pivotInA);
 				frameInB = rb0->getCenterOfMassTransform() * frameInA;
 
@@ -2489,7 +2512,8 @@ PHY_IConstraint *CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsContr
 		default:
 		{
 		}
-	};
+	}
+	;
 
 	if (!con) {
 		return nullptr;
@@ -2550,8 +2574,9 @@ PHY_IPhysicsController *CcdPhysicsEnvironment::CreateConeController(float conera
 float CcdPhysicsEnvironment::getAppliedImpulse(int constraintid)
 {
 	// For soft body constraints
-	if (constraintid == 0)
+	if (constraintid == 0) {
 		return 0.0f;
+	}
 
 	int i;
 	int numConstraints = m_dynamicsWorld->getNumConstraints();
@@ -2590,8 +2615,7 @@ void CcdPhysicsEnvironment::ExportFile(const std::string& filename)
 	}
 }
 
-struct BlenderDebugDraw : public btIDebugDraw
-{
+struct BlenderDebugDraw : public btIDebugDraw {
 	BlenderDebugDraw()
 		:m_debugMode(0)
 	{
@@ -2640,7 +2664,7 @@ CcdPhysicsEnvironment *CcdPhysicsEnvironment::Create(Scene *blenderscene, bool v
 	};
 
 	CcdPhysicsEnvironment *ccdPhysEnv = new CcdPhysicsEnvironment(solverTypeTable[blenderscene->gm.solverType],
-			(blenderscene->gm.mode & WO_DBVT_CULLING) != 0);
+	                                                              (blenderscene->gm.mode & WO_DBVT_CULLING) != 0);
 
 	ccdPhysEnv->SetDebugDrawer(new BlenderDebugDraw());
 	ccdPhysEnv->SetDeactivationLinearTreshold(blenderscene->gm.lineardeactthreshold);
@@ -2649,15 +2673,15 @@ CcdPhysicsEnvironment *CcdPhysicsEnvironment::Create(Scene *blenderscene, bool v
 
 	if (visualizePhysics) {
 		ccdPhysEnv->SetDebugMode(btIDebugDraw::DBG_DrawWireframe | btIDebugDraw::DBG_DrawAabb | btIDebugDraw::DBG_DrawContactPoints |
-				btIDebugDraw::DBG_DrawText | btIDebugDraw::DBG_DrawConstraintLimits | btIDebugDraw::DBG_DrawConstraints);
+		                         btIDebugDraw::DBG_DrawText | btIDebugDraw::DBG_DrawConstraintLimits | btIDebugDraw::DBG_DrawConstraints);
 	}
 
 	return ccdPhysEnv;
 }
 
 void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter& converter, KX_GameObject *gameobj, RAS_Mesh *meshobj,
-										  KX_Scene *kxscene, PHY_IMotionState *motionstate,
-										  int activeLayerBitInfo, bool isCompoundChild, bool hasCompoundChildren)
+                                          KX_Scene *kxscene, PHY_IMotionState *motionstate,
+                                          int activeLayerBitInfo, bool isCompoundChild, bool hasCompoundChildren)
 {
 	Object *blenderobject = gameobj->GetBlenderObject();
 
@@ -2678,8 +2702,7 @@ void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter& converter, KX_GameO
 		while (parentit) {
 			// If the parent is valid for compound parent shape, update blenderCompoundRoot.
 			if ((parentit->gameflag & OB_CHILD) && (blenderobject->gameflag & (OB_COLLISION | OB_DYNAMIC | OB_RIGID_BODY)) &&
-				!(blenderobject->gameflag & OB_SOFT_BODY))
-			{
+			    !(blenderobject->gameflag & OB_SOFT_BODY)) {
 				blenderCompoundRoot = parentit;
 			}
 			// Continue looking for root parent.
@@ -2829,20 +2852,22 @@ void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter& converter, KX_GameO
 
 	char bounds = isbulletdyna ? OB_BOUND_SPHERE : OB_BOUND_TRIANGLE_MESH;
 	if (!(blenderobject->gameflag & OB_BOUNDS)) {
-		if (blenderobject->gameflag & OB_SOFT_BODY)
+		if (blenderobject->gameflag & OB_SOFT_BODY) {
 			bounds = OB_BOUND_TRIANGLE_MESH;
-		else if (blenderobject->gameflag & OB_CHARACTER)
+		}
+		else if (blenderobject->gameflag & OB_CHARACTER) {
 			bounds = OB_BOUND_SPHERE;
+		}
 	}
 	else {
 		if (ELEM(blenderobject->collision_boundtype, OB_BOUND_CONVEX_HULL, OB_BOUND_TRIANGLE_MESH)
-		    && blenderobject->type != OB_MESH)
-		{
+		    && blenderobject->type != OB_MESH) {
 			// Can't use triangle mesh or convex hull on a non-mesh object, fall-back to sphere
 			bounds = OB_BOUND_SPHERE;
 		}
-		else
+		else {
 			bounds = blenderobject->collision_boundtype;
+		}
 	}
 
 	// Get bounds information
@@ -2862,8 +2887,7 @@ void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter& converter, KX_GameO
 		bounds_center[2] = 0.5f * (bb->vec[0][2] + bb->vec[1][2]);
 	}
 
-	switch (bounds)
-	{
+	switch (bounds) {
 		case OB_BOUND_SPHERE:
 		{
 			shapeInfo->m_shapeType = PHY_SHAPE_SPHERE;
@@ -2873,9 +2897,9 @@ void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter& converter, KX_GameO
 		case OB_BOUND_BOX:
 		{
 			shapeInfo->m_halfExtend.setValue(
-			    2.0f * bounds_extends[0],
-			    2.0f * bounds_extends[1],
-			    2.0f * bounds_extends[2]);
+				2.0f * bounds_extends[0],
+				2.0f * bounds_extends[1],
+				2.0f * bounds_extends[2]);
 
 			shapeInfo->m_halfExtend /= 2.0f;
 			shapeInfo->m_halfExtend = shapeInfo->m_halfExtend.absolute();
@@ -2887,10 +2911,10 @@ void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter& converter, KX_GameO
 		{
 			float radius = std::max(bounds_extends[0], bounds_extends[1]);
 			shapeInfo->m_halfExtend.setValue(
-			    radius,
-			    radius,
-			    bounds_extends[2]
-			    );
+				radius,
+				radius,
+				bounds_extends[2]
+				);
 			shapeInfo->m_shapeType = PHY_SHAPE_CYLINDER;
 			bm = shapeInfo->CreateBulletShape(ci.m_margin);
 			break;
@@ -2926,8 +2950,9 @@ void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter& converter, KX_GameO
 		{
 			shapeInfo->m_radius = std::max(bounds_extends[0], bounds_extends[1]);
 			shapeInfo->m_height = 2.0f * bounds_extends[2];
-			if (shapeInfo->m_height < 0.0f)
+			if (shapeInfo->m_height < 0.0f) {
 				shapeInfo->m_height = 0.0f;
+			}
 			shapeInfo->m_shapeType = PHY_SHAPE_CAPSULE;
 			bm = shapeInfo->CreateBulletShape(ci.m_margin);
 			break;
@@ -3073,9 +3098,9 @@ void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter& converter, KX_GameO
 
 	ci.m_do_anisotropic = (blenderobject->gameflag & OB_ANISOTROPIC_FRICTION);
 	ci.m_anisotropicFriction = btVector3(
-			blenderobject->anisotropicFriction[0],
-			blenderobject->anisotropicFriction[1],
-			blenderobject->anisotropicFriction[2]);
+		blenderobject->anisotropicFriction[0],
+		blenderobject->anisotropicFriction[1],
+		blenderobject->anisotropicFriction[2]);
 
 	//do Fh, do Rot Fh
 	ci.m_do_fh = (blenderobject->gameflag & OB_DO_FH);
@@ -3086,15 +3111,15 @@ void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter& converter, KX_GameO
 	ci.m_fh_spring = blenderobject->fh;
 
 	ci.m_collisionFilterGroup =
-	    (isbulletsensor) ? short(CcdConstructionInfo::SensorFilter) :
-	    (isbulletdyna) ? short(CcdConstructionInfo::DefaultFilter) :
-	    (isbulletchar) ? short(CcdConstructionInfo::CharacterFilter) :
-	    short(CcdConstructionInfo::StaticFilter);
+		(isbulletsensor) ? short(CcdConstructionInfo::SensorFilter) :
+		(isbulletdyna) ? short(CcdConstructionInfo::DefaultFilter) :
+		(isbulletchar) ? short(CcdConstructionInfo::CharacterFilter) :
+		short(CcdConstructionInfo::StaticFilter);
 	ci.m_collisionFilterMask =
-	    (isbulletsensor) ? short(CcdConstructionInfo::AllFilter ^ CcdConstructionInfo::SensorFilter) :
-	    (isbulletdyna) ? short(CcdConstructionInfo::AllFilter) :
-	    (isbulletchar) ? short(CcdConstructionInfo::AllFilter) :
-	    short(CcdConstructionInfo::AllFilter ^ CcdConstructionInfo::StaticFilter);
+		(isbulletsensor) ? short(CcdConstructionInfo::AllFilter ^ CcdConstructionInfo::SensorFilter) :
+		(isbulletdyna) ? short(CcdConstructionInfo::AllFilter) :
+		(isbulletchar) ? short(CcdConstructionInfo::AllFilter) :
+		short(CcdConstructionInfo::AllFilter ^ CcdConstructionInfo::StaticFilter);
 	ci.m_bRigid = isbulletdyna && isbulletrigidbody;
 	ci.m_bSoft = isbulletsoftbody;
 	ci.m_bDyna = isbulletdyna;
@@ -3105,8 +3130,9 @@ void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter& converter, KX_GameO
 	ci.m_scaling.setValue(scaling[0], scaling[1], scaling[2]);
 	CcdPhysicsController *physicscontroller = new CcdPhysicsController(ci);
 	// shapeInfo is reference counted, decrement now as we don't use it anymore
-	if (shapeInfo)
+	if (shapeInfo) {
 		shapeInfo->Release();
+	}
 
 	gameobj->SetPhysicsController(physicscontroller);
 
@@ -3159,12 +3185,12 @@ void CcdPhysicsEnvironment::SetupObjectConstraints(KX_GameObject *obj_src, KX_Ga
 	 * this is not working well, if only one or two axis are scaled, but works ok on
 	 * homogeneous scaling. */
 	PHY_IConstraint *constraint = phys_env->CreateConstraint(
-	    phy_src, phy_dest, (PHY_ConstraintType)dat->type,
-	    (float)(dat->pivX * scale.x), (float)(dat->pivY * scale.y), (float)(dat->pivZ * scale.z),
-	    (float)(axis0.x * scale.x), (float)(axis0.y * scale.y), (float)(axis0.z * scale.z),
-	    (float)(axis1.x * scale.x), (float)(axis1.y * scale.y), (float)(axis1.z * scale.z),
-	    (float)(axis2.x * scale.x), (float)(axis2.y * scale.y), (float)(axis2.z * scale.z),
-	    dat->flag);
+		phy_src, phy_dest, (PHY_ConstraintType)dat->type,
+		(float)(dat->pivX * scale.x), (float)(dat->pivY * scale.y), (float)(dat->pivZ * scale.z),
+		(float)(axis0.x * scale.x), (float)(axis0.y * scale.y), (float)(axis0.z * scale.z),
+		(float)(axis1.x * scale.x), (float)(axis1.y * scale.y), (float)(axis1.z * scale.z),
+		(float)(axis2.x * scale.x), (float)(axis2.y * scale.y), (float)(axis2.z * scale.z),
+		dat->flag);
 
 	/* PHY_POINT2POINT_CONSTRAINT = 1,
 	 * PHY_LINEHINGE_CONSTRAINT = 2,
@@ -3173,8 +3199,9 @@ void CcdPhysicsEnvironment::SetupObjectConstraints(KX_GameObject *obj_src, KX_Ga
 	 * PHY_VEHICLE_CONSTRAINT = 11,
 	 * PHY_GENERIC_6DOF_CONSTRAINT = 12 */
 
-	if (!constraint)
+	if (!constraint) {
 		return;
+	}
 
 	int dof = 0;
 	int dof_max = 0;
@@ -3183,24 +3210,32 @@ void CcdPhysicsEnvironment::SetupObjectConstraints(KX_GameObject *obj_src, KX_Ga
 	switch (dat->type) {
 		/* Set all the limits for generic 6DOF constraint. */
 		case PHY_GENERIC_6DOF_CONSTRAINT:
+		{
 			dof_max = 6;
 			dofbit = 1;
 			break;
+		}
 		/* Set XYZ angular limits for cone twist constraint. */
 		case PHY_CONE_TWIST_CONSTRAINT:
+		{
 			dof = 3;
 			dof_max = 6;
 			dofbit = 1 << 3;
 			break;
+		}
 		/* Set only X angular limits for line hinge and angular constraint. */
 		case PHY_LINEHINGE_CONSTRAINT:
 		case PHY_ANGULAR_CONSTRAINT:
+		{
 			dof = 3;
 			dof_max = 4;
 			dofbit = 1 << 3;
 			break;
+		}
 		default:
+		{
 			break;
+		}
 	}
 
 	for (; dof < dof_max; dof++) {

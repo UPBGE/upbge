@@ -118,8 +118,9 @@ bool BL_ShapeDeformer::LoadShapeDrivers(KX_GameObject *parent)
 				DRIVER_TARGETS_USED_LOOPER(dvar)
 				{
 					if (dtar->id) {
-						if ((Object *)dtar->id == m_armobj->GetOrigArmatureObject())
+						if ((Object *)dtar->id == m_armobj->GetOrigArmatureObject()) {
 							dtar->id = (ID *)m_armobj->GetArmatureObject();
+						}
 					}
 				}
 				DRIVER_TARGETS_LOOPER_END

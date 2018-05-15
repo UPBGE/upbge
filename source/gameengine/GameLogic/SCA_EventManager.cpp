@@ -35,7 +35,7 @@
 
 #include "CM_List.h"
 
-SCA_EventManager::SCA_EventManager(SCA_LogicManager* logicmgr, EVENT_MANAGER_TYPE mgrtype)
+SCA_EventManager::SCA_EventManager(SCA_LogicManager *logicmgr, EVENT_MANAGER_TYPE mgrtype)
 	:m_logicmgr(logicmgr),
 	m_mgrtype(mgrtype)
 {
@@ -49,12 +49,12 @@ SCA_EventManager::~SCA_EventManager()
 	BLI_assert(m_sensors.empty());
 }
 
-bool SCA_EventManager::RegisterSensor(class SCA_ISensor* sensor)
+bool SCA_EventManager::RegisterSensor(class SCA_ISensor *sensor)
 {
 	return CM_ListAddIfNotFound(m_sensors, sensor);
 }
 
-bool SCA_EventManager::RemoveSensor(class SCA_ISensor* sensor)
+bool SCA_EventManager::RemoveSensor(class SCA_ISensor *sensor)
 {
 	return CM_ListRemoveIfFound(m_sensors, sensor);
 }
@@ -79,5 +79,5 @@ void SCA_EventManager::UpdateFrame()
 
 int SCA_EventManager::GetType()
 {
-	return (int) m_mgrtype;
+	return (int)m_mgrtype;
 }

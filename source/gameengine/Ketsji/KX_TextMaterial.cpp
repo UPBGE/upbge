@@ -89,7 +89,7 @@ void KX_TextMaterial::ReloadMaterial()
 }
 
 void KX_TextMaterial::UpdateIPO(const mt::vec4 &rgba, const mt::vec3 &specrgb, float hard, float spec, float ref,
-			   float emit, float ambient, float alpha, float specalpha)
+                                float emit, float ambient, float alpha, float specalpha)
 {
 }
 

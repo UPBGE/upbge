@@ -39,7 +39,7 @@
 // implementation FilterBlueScreen
 
 // constructor
-FilterBlueScreen::FilterBlueScreen (void)
+FilterBlueScreen::FilterBlueScreen(void)
 {
 	// set color to blue
 	setColor(0, 0, 255);
@@ -48,7 +48,7 @@ FilterBlueScreen::FilterBlueScreen (void)
 }
 
 // set color
-void FilterBlueScreen::setColor (unsigned char red, unsigned char green, unsigned char blue)
+void FilterBlueScreen::setColor(unsigned char red, unsigned char green, unsigned char blue)
 {
 	m_color[0] = red;
 	m_color[1] = green;
@@ -56,13 +56,14 @@ void FilterBlueScreen::setColor (unsigned char red, unsigned char green, unsigne
 }
 
 // set limits for color variation
-void FilterBlueScreen::setLimits (unsigned short minLimit, unsigned short maxLimit)
+void FilterBlueScreen::setLimits(unsigned short minLimit, unsigned short maxLimit)
 {
 	m_limits[0] = minLimit;
 	m_limits[1] = maxLimit > minLimit ? maxLimit : minLimit;
 	// calculate square values
-	for (short idx = 0; idx < 2; ++idx)
+	for (short idx = 0; idx < 2; ++idx) {
 		m_squareLimits[idx] = m_limits[idx] * m_limits[idx];
+	}
 	// limits distance
 	m_limitDist = m_squareLimits[1] - m_squareLimits[0];
 }
@@ -70,17 +71,19 @@ void FilterBlueScreen::setLimits (unsigned short minLimit, unsigned short maxLim
 
 
 // cast Filter pointer to FilterBlueScreen
-inline FilterBlueScreen * getFilter (PyFilter *self)
-{ return static_cast<FilterBlueScreen*>(self->m_filter); }
+inline FilterBlueScreen *getFilter(PyFilter *self)
+{
+	return static_cast<FilterBlueScreen *>(self->m_filter);
+}
 
 
 // python methods and get/sets
 
 // get color
-static PyObject *getColor (PyFilter *self, void *closure)
+static PyObject *getColor(PyFilter *self, void *closure)
 {
 	return Py_BuildValue("[BBB]", getFilter(self)->getColor()[0],
-		getFilter(self)->getColor()[1], getFilter(self)->getColor()[2]);
+	                     getFilter(self)->getColor()[1], getFilter(self)->getColor()[2]);
 }
 
 // set color
@@ -92,25 +95,24 @@ static int setColor(PyFilter *self, PyObject *value, void *closure)
 	    PySequence_Fast_GET_SIZE(value) != 3 ||
 	    !PyLong_Check(PySequence_Fast_GET_ITEM(value, 0)) ||
 	    !PyLong_Check(PySequence_Fast_GET_ITEM(value, 1)) ||
-	    !PyLong_Check(PySequence_Fast_GET_ITEM(value, 2)))
-	{
+	    !PyLong_Check(PySequence_Fast_GET_ITEM(value, 2))) {
 		PyErr_SetString(PyExc_TypeError, "The value must be a sequence of 3 ints");
 		return -1;
 	}
 	// set color
 	getFilter(self)->setColor(
-	        (unsigned char)(PyLong_AsLong(PySequence_Fast_GET_ITEM(value, 0))),
-	        (unsigned char)(PyLong_AsLong(PySequence_Fast_GET_ITEM(value, 1))),
-	        (unsigned char)(PyLong_AsLong(PySequence_Fast_GET_ITEM(value, 2))));
+		(unsigned char)(PyLong_AsLong(PySequence_Fast_GET_ITEM(value, 0))),
+		(unsigned char)(PyLong_AsLong(PySequence_Fast_GET_ITEM(value, 1))),
+		(unsigned char)(PyLong_AsLong(PySequence_Fast_GET_ITEM(value, 2))));
 	// success
 	return 0;
 }
 
 // get limits
-static PyObject *getLimits (PyFilter *self, void *closure)
+static PyObject *getLimits(PyFilter *self, void *closure)
 {
 	return Py_BuildValue("[II]", getFilter(self)->getLimits()[0],
-		getFilter(self)->getLimits()[1]);
+	                     getFilter(self)->getLimits()[1]);
 }
 
 // set limit
@@ -121,15 +123,14 @@ static int setLimits(PyFilter *self, PyObject *value, void *closure)
 	    !(PyTuple_Check(value) || PyList_Check(value)) ||
 	    PySequence_Fast_GET_SIZE(value) != 2 ||
 	    !PyLong_Check(PySequence_Fast_GET_ITEM(value, 0)) ||
-	    !PyLong_Check(PySequence_Fast_GET_ITEM(value, 1)))
-	{
+	    !PyLong_Check(PySequence_Fast_GET_ITEM(value, 1))) {
 		PyErr_SetString(PyExc_TypeError, "The value must be a sequence of 2 ints");
 		return -1;
 	}
 	// set limits
 	getFilter(self)->setLimits(
-	        (unsigned short)(PyLong_AsLong(PySequence_Fast_GET_ITEM(value, 0))),
-	        (unsigned short)(PyLong_AsLong(PySequence_Fast_GET_ITEM(value, 1))));
+		(unsigned short)(PyLong_AsLong(PySequence_Fast_GET_ITEM(value, 0))),
+		(unsigned short)(PyLong_AsLong(PySequence_Fast_GET_ITEM(value, 1))));
 	// success
 	return 0;
 }
@@ -137,17 +138,17 @@ static int setLimits(PyFilter *self, PyObject *value, void *closure)
 
 // attributes structure
 static PyGetSetDef filterBSGetSets[] =
-{ 
-	{(char*)"color", (getter)getColor, (setter)setColor, (char*)"blue screen color", nullptr},
-	{(char*)"limits", (getter)getLimits, (setter)setLimits, (char*)"blue screen color limits", nullptr},
+{
+	{(char *)"color", (getter)getColor, (setter)setColor, (char *)"blue screen color", nullptr},
+	{(char *)"limits", (getter)getLimits, (setter)setLimits, (char *)"blue screen color limits", nullptr},
 	// attributes from FilterBase class
-	{(char*)"previous", (getter)Filter_getPrevious, (setter)Filter_setPrevious, (char*)"previous pixel filter", nullptr},
+	{(char *)"previous", (getter)Filter_getPrevious, (setter)Filter_setPrevious, (char *)"previous pixel filter", nullptr},
 	{nullptr}
 };
 
 // define python type
 PyTypeObject FilterBlueScreenType =
-{ 
+{
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"VideoTexture.FilterBlueScreen",   /*tp_name*/
 	sizeof(PyFilter),          /*tp_basicsize*/

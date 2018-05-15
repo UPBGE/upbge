@@ -118,8 +118,8 @@ RAS_OpenGLRasterizer::ScreenPlane::ScreenPlane()
 		//   3f position   |   2f UV
 		-1.0f, -1.0f, 1.0f, 0.0f, 0.0f,
 		-1.0f,  1.0f, 1.0f, 0.0f, 1.0f,
-		 1.0f,  1.0f, 1.0f, 1.0f, 1.0f,
-		 1.0f, -1.0f, 1.0f, 1.0f, 0.0f
+		1.0f,  1.0f, 1.0f, 1.0f, 1.0f,
+		1.0f, -1.0f, 1.0f, 1.0f, 0.0f
 	};
 	// Indices for screen plane.
 	static const GLubyte indices[] = {3, 2, 1, 0};
@@ -238,8 +238,9 @@ void RAS_OpenGLRasterizer::SetFog(short type, float start, float dist, float int
 
 void RAS_OpenGLRasterizer::Exit()
 {
-	if (GLEW_EXT_separate_specular_color || GLEW_VERSION_1_2)
+	if (GLEW_EXT_separate_specular_color || GLEW_VERSION_1_2) {
 		glLightModeli(GL_LIGHT_MODEL_COLOR_CONTROL, GL_SINGLE_COLOR);
+	}
 }
 
 void RAS_OpenGLRasterizer::BeginFrame()
@@ -401,9 +402,8 @@ void RAS_OpenGLRasterizer::DisableForText()
 	glActiveTextureARB(GL_TEXTURE0_ARB);
 }
 
-void RAS_OpenGLRasterizer::RenderText3D(
-        int fontid, const std::string& text, int size, int dpi,
-        const float color[4], const float mat[16], float aspect)
+void RAS_OpenGLRasterizer::RenderText3D(int fontid, const std::string& text, int size, int dpi,
+                                        const float color[4], const float mat[16], float aspect)
 {
 	/* gl prepping */
 	m_rasterizer->DisableForText();
@@ -482,67 +482,67 @@ void RAS_OpenGLRasterizer::PrintHardwareInfo()
 	CM_Message("GL_VENDOR: " << glGetString(GL_VENDOR));
 	CM_Message("GL_RENDERER: " << glGetString(GL_RENDERER));
 	CM_Message("GL_VERSION: " << glGetString(GL_VERSION));
-    CM_Message("GL_SHADING_LANGUAGE_VERSION: " << glGetString(GL_SHADING_LANGUAGE_VERSION));
-	bool support=0;
+	CM_Message("GL_SHADING_LANGUAGE_VERSION: " << glGetString(GL_SHADING_LANGUAGE_VERSION));
+	bool support = 0;
 	CM_Message("Supported Extensions...");
-	CM_Message(" GL_ARB_shader_objects supported?       "<< (GLEW_ARB_shader_objects?"yes.":"no."));
-	CM_Message(" GL_ARB_geometry_shader4 supported?     "<< (GLEW_ARB_geometry_shader4 ? "yes." : "no."));
+	CM_Message(" GL_ARB_shader_objects supported?       " << (GLEW_ARB_shader_objects ? "yes." : "no."));
+	CM_Message(" GL_ARB_geometry_shader4 supported?     " << (GLEW_ARB_geometry_shader4 ? "yes." : "no."));
 
-	support= GLEW_ARB_vertex_shader;
-	CM_Message(" GL_ARB_vertex_shader supported?        "<< (support?"yes.":"no."));
+	support = GLEW_ARB_vertex_shader;
+	CM_Message(" GL_ARB_vertex_shader supported?        " << (support ? "yes." : "no."));
 	if (support) {
 		CM_Message(" ----------Details----------");
-		int max=0;
-		glGetIntegerv(GL_MAX_VERTEX_UNIFORM_COMPONENTS_ARB, (GLint*)&max);
+		int max = 0;
+		glGetIntegerv(GL_MAX_VERTEX_UNIFORM_COMPONENTS_ARB, (GLint *)&max);
 		CM_Message("  Max uniform components." << max);
 
-		glGetIntegerv(GL_MAX_VARYING_FLOATS_ARB, (GLint*)&max);
+		glGetIntegerv(GL_MAX_VARYING_FLOATS_ARB, (GLint *)&max);
 		CM_Message("  Max varying floats." << max);
 
-		glGetIntegerv(GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS_ARB, (GLint*)&max);
+		glGetIntegerv(GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS_ARB, (GLint *)&max);
 		CM_Message("  Max vertex texture units." << max);
 
-		glGetIntegerv(GL_MAX_VERTEX_ATTRIBS_ARB, (GLint*)&max);
+		glGetIntegerv(GL_MAX_VERTEX_ATTRIBS_ARB, (GLint *)&max);
 		CM_Message("  Max vertex attribs." << max);
 
-		glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS_ARB, (GLint*)&max);
+		glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS_ARB, (GLint *)&max);
 		CM_Message("  Max combined texture units." << max);
 		CM_Message("");
 	}
 
-	support=GLEW_ARB_fragment_shader;
-	CM_Message(" GL_ARB_fragment_shader supported?      "<< (support?"yes.":"no."));
+	support = GLEW_ARB_fragment_shader;
+	CM_Message(" GL_ARB_fragment_shader supported?      " << (support ? "yes." : "no."));
 	if (support) {
 		CM_Message(" ----------Details----------");
-		int max=0;
-		glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_COMPONENTS_ARB, (GLint*)&max);
+		int max = 0;
+		glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_COMPONENTS_ARB, (GLint *)&max);
 		CM_Message("  Max uniform components." << max);
 		CM_Message("");
 	}
 
 	support = GLEW_ARB_texture_cube_map;
-	CM_Message(" GL_ARB_texture_cube_map supported?     "<< (support?"yes.":"no."));
+	CM_Message(" GL_ARB_texture_cube_map supported?     " << (support ? "yes." : "no."));
 	if (support) {
 		CM_Message(" ----------Details----------");
-		int size=0;
-		glGetIntegerv(GL_MAX_CUBE_MAP_TEXTURE_SIZE_ARB, (GLint*)&size);
+		int size = 0;
+		glGetIntegerv(GL_MAX_CUBE_MAP_TEXTURE_SIZE_ARB, (GLint *)&size);
 		CM_Message("  Max cubemap size." << size);
 		CM_Message("");
 	}
 
 	support = GLEW_ARB_multitexture;
-	CM_Message(" GL_ARB_multitexture supported?         "<< (support?"yes.":"no."));
+	CM_Message(" GL_ARB_multitexture supported?         " << (support ? "yes." : "no."));
 	if (support) {
 		CM_Message(" ----------Details----------");
-		int units=0;
-		glGetIntegerv(GL_MAX_TEXTURE_UNITS_ARB, (GLint*)&units);
+		int units = 0;
+		glGetIntegerv(GL_MAX_TEXTURE_UNITS_ARB, (GLint *)&units);
 		CM_Message("  Max texture units available.  " << units);
 		CM_Message("");
 	}
 
-	CM_Message(" GL_ARB_texture_env_combine supported?  "<< (GLEW_ARB_texture_env_combine?"yes.":"no."));
+	CM_Message(" GL_ARB_texture_env_combine supported?  " << (GLEW_ARB_texture_env_combine ? "yes." : "no."));
 
-	CM_Message(" GL_ARB_texture_non_power_of_two supported?  " << (GPU_full_non_power_of_two_support()?"yes.":"no."));
+	CM_Message(" GL_ARB_texture_non_power_of_two supported?  " << (GPU_full_non_power_of_two_support() ? "yes." : "no."));
 
-	CM_Message(" GL_ARB_draw_instanced supported?  "<< (GLEW_ARB_draw_instanced?"yes.":"no."));
+	CM_Message(" GL_ARB_draw_instanced supported?  " << (GLEW_ARB_draw_instanced ? "yes." : "no."));
 }

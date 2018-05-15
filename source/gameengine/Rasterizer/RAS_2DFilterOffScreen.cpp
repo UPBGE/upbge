@@ -31,7 +31,7 @@
 #include "GPU_texture.h"
 
 RAS_2DFilterOffScreen::RAS_2DFilterOffScreen(unsigned short colorSlots, Flag flag, unsigned int width, unsigned int height,
-											 RAS_Rasterizer::HdrType hdr)
+                                             RAS_Rasterizer::HdrType hdr)
 	:m_flag(flag),
 	m_colorSlots(colorSlots),
 	m_hdr(hdr),

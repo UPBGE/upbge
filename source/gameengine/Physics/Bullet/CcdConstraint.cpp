@@ -49,12 +49,10 @@ void CcdConstraint::SetEnabled(bool enabled)
 
 void CcdConstraint::SetParam(int param, float value0, float value1)
 {
-	switch (m_constraint->getUserConstraintType())
-	{
+	switch (m_constraint->getUserConstraintType()) {
 		case PHY_GENERIC_6DOF_CONSTRAINT:
 		{
-			switch (param)
-			{
+			switch (param) {
 				case 0: case 1: case 2: case 3: case 4: case 5:
 				{
 					//param = 0..5 are constraint limits, with low/high limit value
@@ -107,13 +105,13 @@ void CcdConstraint::SetParam(int param, float value0, float value1)
 				default:
 				{
 				}
-			};
+			}
+			;
 			break;
 		};
 		case PHY_CONE_TWIST_CONSTRAINT:
 		{
-			switch (param)
-			{
+			switch (param) {
 				case 3: case 4: case 5:
 				{
 					//param = 3,4,5 are constraint limits, high limit values
@@ -124,14 +122,14 @@ void CcdConstraint::SetParam(int param, float value0, float value1)
 				default:
 				{
 				}
-			};
+			}
+			;
 			break;
 		};
 		case PHY_ANGULAR_CONSTRAINT:
 		case PHY_LINEHINGE_CONSTRAINT:
 		{
-			switch (param)
-			{
+			switch (param) {
 				case 3:
 				{
 					//param = 3 is a constraint limit, with low/high limit value
@@ -148,17 +146,16 @@ void CcdConstraint::SetParam(int param, float value0, float value1)
 		default:
 		{
 		};
-	};
+	}
+	;
 }
 
 float CcdConstraint::GetParam(int param)
 {
-	switch (m_constraint->getUserConstraintType())
-	{
+	switch (m_constraint->getUserConstraintType()) {
 		case PHY_GENERIC_6DOF_CONSTRAINT:
 		{
-			switch (param)
-			{
+			switch (param) {
 				case 0: case 1: case 2:
 				{
 					//param = 0..2 are linear constraint values
@@ -184,7 +181,8 @@ float CcdConstraint::GetParam(int param)
 		default:
 		{
 		};
-	};
+	}
+	;
 	return 0.0f;
 }
 

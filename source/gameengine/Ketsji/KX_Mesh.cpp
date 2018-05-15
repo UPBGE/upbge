@@ -99,15 +99,15 @@ PyTypeObject KX_Mesh::Type = {
 };
 
 PyMethodDef KX_Mesh::Methods[] = {
-	{"getMaterialName", (PyCFunction) KX_Mesh::sPyGetMaterialName, METH_VARARGS},
-	{"getTextureName", (PyCFunction) KX_Mesh::sPyGetTextureName, METH_VARARGS},
-	{"getVertexArrayLength", (PyCFunction) KX_Mesh::sPyGetVertexArrayLength, METH_VARARGS},
-	{"getVertex", (PyCFunction) KX_Mesh::sPyGetVertex, METH_VARARGS},
-	{"getPolygon", (PyCFunction) KX_Mesh::sPyGetPolygon, METH_VARARGS},
-	{"transform", (PyCFunction) KX_Mesh::sPyTransform, METH_VARARGS},
-	{"transformUV", (PyCFunction) KX_Mesh::sPyTransformUV, METH_VARARGS},
-	{"replaceMaterial", (PyCFunction) KX_Mesh::sPyReplaceMaterial, METH_VARARGS},
-	{"copy", (PyCFunction) KX_Mesh::sPyCopy, METH_NOARGS},
+	{"getMaterialName", (PyCFunction)KX_Mesh::sPyGetMaterialName, METH_VARARGS},
+	{"getTextureName", (PyCFunction)KX_Mesh::sPyGetTextureName, METH_VARARGS},
+	{"getVertexArrayLength", (PyCFunction)KX_Mesh::sPyGetVertexArrayLength, METH_VARARGS},
+	{"getVertex", (PyCFunction)KX_Mesh::sPyGetVertex, METH_VARARGS},
+	{"getPolygon", (PyCFunction)KX_Mesh::sPyGetPolygon, METH_VARARGS},
+	{"transform", (PyCFunction)KX_Mesh::sPyTransform, METH_VARARGS},
+	{"transformUV", (PyCFunction)KX_Mesh::sPyTransformUV, METH_VARARGS},
+	{"replaceMaterial", (PyCFunction)KX_Mesh::sPyReplaceMaterial, METH_VARARGS},
+	{"copy", (PyCFunction)KX_Mesh::sPyCopy, METH_NOARGS},
 	{nullptr, nullptr} //Sentinel
 };
 
@@ -160,8 +160,9 @@ PyObject *KX_Mesh::PyGetVertexArrayLength(PyObject *args, PyObject *kwds)
 	int matid = 0;
 	int length = 0;
 
-	if (!PyArg_ParseTuple(args, "i:getVertexArrayLength", &matid))
+	if (!PyArg_ParseTuple(args, "i:getVertexArrayLength", &matid)) {
 		return nullptr;
+	}
 
 	RAS_IDisplayArray *array = GetDisplayArray(matid);
 	if (array) {
@@ -176,8 +177,9 @@ PyObject *KX_Mesh::PyGetVertex(PyObject *args, PyObject *kwds)
 	int vertexindex;
 	int matindex;
 
-	if (!PyArg_ParseTuple(args, "ii:getVertex", &matindex, &vertexindex))
+	if (!PyArg_ParseTuple(args, "ii:getVertex", &matindex, &vertexindex)) {
 		return nullptr;
+	}
 
 	RAS_IDisplayArray *array = GetDisplayArray(matindex);
 	if (vertexindex < 0 || vertexindex >= array->GetVertexCount()) {
@@ -194,8 +196,9 @@ PyObject *KX_Mesh::PyGetPolygon(PyObject *args, PyObject *kwds)
 {
 	int polyindex = 1;
 
-	if (!PyArg_ParseTuple(args, "i:getPolygon", &polyindex))
+	if (!PyArg_ParseTuple(args, "i:getPolygon", &polyindex)) {
 		return nullptr;
+	}
 
 	if (polyindex < 0 || polyindex >= m_numPolygons) {
 		PyErr_SetString(PyExc_AttributeError, "mesh.getPolygon(int): KX_Mesh, invalid polygon index");
@@ -216,8 +219,7 @@ PyObject *KX_Mesh::PyTransform(PyObject *args, PyObject *kwds)
 	mt::mat4 transform;
 
 	if (!PyArg_ParseTuple(args, "iO:transform", &matindex, &pymat) ||
-	    !PyMatTo(pymat, transform))
-	{
+	    !PyMatTo(pymat, transform)) {
 		return nullptr;
 	}
 
@@ -245,8 +247,8 @@ PyObject *KX_Mesh::PyTransform(PyObject *args, PyObject *kwds)
 		}
 
 		array->NotifyUpdate(RAS_IDisplayArray::POSITION_MODIFIED |
-							RAS_IDisplayArray::NORMAL_MODIFIED |
-							RAS_IDisplayArray::TANGENT_MODIFIED);
+		                    RAS_IDisplayArray::NORMAL_MODIFIED |
+		                    RAS_IDisplayArray::TANGENT_MODIFIED);
 
 		/* if we set a material index, quit when done */
 		if (matindex != -1) {
@@ -274,8 +276,7 @@ PyObject *KX_Mesh::PyTransformUV(PyObject *args, PyObject *kwds)
 	mt::mat4 transform;
 
 	if (!PyArg_ParseTuple(args, "iO|iii:transformUV", &matindex, &pymat, &uvindex, &uvindex_from) ||
-	    !PyMatTo(pymat, transform))
-	{
+	    !PyMatTo(pymat, transform)) {
 		return nullptr;
 	}
 
@@ -348,7 +349,7 @@ PyObject *KX_Mesh::PyReplaceMaterial(PyObject *args, PyObject *kwds)
 	KX_BlenderMaterial *mat;
 
 	if (!PyArg_ParseTuple(args, "hO:replaceMaterial", &matindex, &pymat) ||
-		!ConvertPythonToMaterial(pymat, &mat, false, "mesh.replaceMaterial(...): invalid material")) {
+	    !ConvertPythonToMaterial(pymat, &mat, false, "mesh.replaceMaterial(...): invalid material")) {
 		return nullptr;
 	}
 
@@ -435,12 +436,12 @@ static PyObject *kx_mesh_proxy_get_polygons_item_cb(void *self_v, int index)
 PyObject *KX_Mesh::pyattr_get_polygons(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	return (new EXP_ListWrapper(self_v,
-		((KX_Mesh *)self_v)->GetProxy(),
-		nullptr,
-		kx_mesh_proxy_get_polygons_size_cb,
-		kx_mesh_proxy_get_polygons_item_cb,
-		nullptr,
-		nullptr))->NewProxy(true);
+	                            ((KX_Mesh *)self_v)->GetProxy(),
+	                            nullptr,
+	                            kx_mesh_proxy_get_polygons_size_cb,
+	                            kx_mesh_proxy_get_polygons_item_cb,
+	                            nullptr,
+	                            nullptr))->NewProxy(true);
 }
 
 /* a close copy of ConvertPythonToGameObject but for meshes */
@@ -466,7 +467,7 @@ bool ConvertPythonToMesh(SCA_LogicManager *logicmgr, PyObject *value, KX_Mesh **
 
 	if (PyUnicode_Check(value)) {
 		*object = (KX_Mesh *)logicmgr->GetMeshByName(std::string(_PyUnicode_AsString(value)));
-		
+
 		if (*object) {
 			return true;
 		}

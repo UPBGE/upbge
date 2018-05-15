@@ -29,14 +29,14 @@
 #include "EXP_ListWrapper.h"
 
 EXP_ListWrapper::EXP_ListWrapper(void *client,
-                           PyObject *base,
-                           bool(*checkValid)(void *),
-                           int(*getSize)(void *),
-                           PyObject *(*getItem)(void *, int),
-                           const std::string(*getItemName)(void *, int),
-                           bool(*setItem)(void *, int, PyObject *),
-                           int flag)
-	: m_client(client),
+                                 PyObject *base,
+                                 bool (*checkValid)(void *),
+                                 int (*getSize)(void *),
+                                 PyObject *(*getItem)(void *, int),
+                                 const std::string (*getItemName)(void *, int),
+                                 bool (*setItem)(void *, int, PyObject *),
+                                 int flag)
+	:m_client(client),
 	m_base(base),
 	m_checkValid(checkValid),
 	m_getSize(getSize),

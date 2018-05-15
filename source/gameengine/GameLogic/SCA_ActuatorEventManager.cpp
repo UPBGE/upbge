@@ -35,8 +35,8 @@
 #include "SCA_ActuatorSensor.h"
 
 
-SCA_ActuatorEventManager::SCA_ActuatorEventManager(class SCA_LogicManager* logicmgr)
-	: SCA_EventManager(logicmgr, ACTUATOR_EVENTMGR)
+SCA_ActuatorEventManager::SCA_ActuatorEventManager(class SCA_LogicManager *logicmgr)
+	:SCA_EventManager(logicmgr, ACTUATOR_EVENTMGR)
 {
 }
 

@@ -45,10 +45,10 @@
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
 
-SCA_RandomSensor::SCA_RandomSensor(SCA_EventManager* eventmgr, 
-                                   SCA_IObject* gameobj,
+SCA_RandomSensor::SCA_RandomSensor(SCA_EventManager *eventmgr,
+                                   SCA_IObject *gameobj,
                                    int startseed)
-    : SCA_ISensor(gameobj,eventmgr)
+	:SCA_ISensor(gameobj, eventmgr)
 {
 	m_basegenerator = new SCA_RandomNumberGenerator(startseed);
 	Init();
@@ -56,7 +56,7 @@ SCA_RandomSensor::SCA_RandomSensor(SCA_EventManager* eventmgr,
 
 
 
-SCA_RandomSensor::~SCA_RandomSensor() 
+SCA_RandomSensor::~SCA_RandomSensor()
 {
 	m_basegenerator->Release();
 }
@@ -70,9 +70,9 @@ void SCA_RandomSensor::Init()
 }
 
 
-EXP_Value* SCA_RandomSensor::GetReplica()
+EXP_Value *SCA_RandomSensor::GetReplica()
 {
-	EXP_Value* replica = new SCA_RandomSensor(*this);
+	EXP_Value *replica = new SCA_RandomSensor(*this);
 	// this will copy properties and so on...
 	replica->ProcessReplica();
 
@@ -88,8 +88,8 @@ void SCA_RandomSensor::ProcessReplica()
 
 
 bool SCA_RandomSensor::IsPositiveTrigger()
-{ 
-	return (m_invert !=m_lastdraw);
+{
+	return (m_invert != m_lastdraw);
 }
 
 
@@ -113,7 +113,8 @@ bool SCA_RandomSensor::Evaluate()
 			m_currentDraw = m_basegenerator->Draw();
 			drawResult = (m_currentDraw & 0x1) == 0;
 			m_iteration = 1;
-		} else {
+		}
+		else {
 			drawResult = ((m_currentDraw >> m_iteration) & 0x1) == 0;
 			m_iteration++;
 		}
@@ -143,36 +144,36 @@ PyTypeObject SCA_RandomSensor::Type = {
 	0,
 	0,
 	py_base_repr,
-	0,0,0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0,
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0,
 	Methods,
 	0,
 	0,
 	&SCA_ISensor::Type,
-	0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0,
 	py_base_new
 };
 
 PyMethodDef SCA_RandomSensor::Methods[] = {
-	{nullptr,nullptr} //Sentinel
+	{nullptr, nullptr} //Sentinel
 };
 
 PyAttributeDef SCA_RandomSensor::Attributes[] = {
-	EXP_PYATTRIBUTE_BOOL_RO("lastDraw",SCA_RandomSensor,m_lastdraw),
+	EXP_PYATTRIBUTE_BOOL_RO("lastDraw", SCA_RandomSensor, m_lastdraw),
 	EXP_PYATTRIBUTE_RW_FUNCTION("seed", SCA_RandomSensor, pyattr_get_seed, pyattr_set_seed),
 	EXP_PYATTRIBUTE_NULL //Sentinel
 };
 
 PyObject *SCA_RandomSensor::pyattr_get_seed(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
-	SCA_RandomSensor* self = static_cast<SCA_RandomSensor*>(self_v);
+	SCA_RandomSensor *self = static_cast<SCA_RandomSensor *>(self_v);
 	return PyLong_FromLong(self->m_basegenerator->GetSeed());
 }
 
 int SCA_RandomSensor::pyattr_set_seed(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
-	SCA_RandomSensor* self = static_cast<SCA_RandomSensor*>(self_v);
+	SCA_RandomSensor *self = static_cast<SCA_RandomSensor *>(self_v);
 	if (!PyLong_Check(value)) {
 		PyErr_SetString(PyExc_TypeError, "sensor.seed = int: Random Sensor, expected an integer");
 		return PY_SET_ATTR_FAIL;

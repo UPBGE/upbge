@@ -30,8 +30,8 @@
  */
 
 #ifdef _MSC_VER
-   /* This warning tells us about truncation of __long__ stl-generated names.
-    * It can occasionally cause DevStudio to have internal compiler warnings. */
+/* This warning tells us about truncation of __long__ stl-generated names.
+ * It can occasionally cause DevStudio to have internal compiler warnings. */
 #  pragma warning(disable:4786)
 #endif
 
@@ -42,8 +42,8 @@
 
 #include "CM_List.h"
 
-SCA_TimeEventManager::SCA_TimeEventManager(SCA_LogicManager* logicmgr)
-: SCA_EventManager(nullptr, TIME_EVENTMGR)
+SCA_TimeEventManager::SCA_TimeEventManager(SCA_LogicManager *logicmgr)
+	:SCA_EventManager(nullptr, TIME_EVENTMGR)
 {
 }
 
@@ -58,13 +58,13 @@ SCA_TimeEventManager::~SCA_TimeEventManager()
 
 
 
-bool SCA_TimeEventManager::RegisterSensor(SCA_ISensor* sensor)
+bool SCA_TimeEventManager::RegisterSensor(SCA_ISensor *sensor)
 {
 	// not yet
 	return false;
 }
 
-bool SCA_TimeEventManager::RemoveSensor(SCA_ISensor* sensor)
+bool SCA_TimeEventManager::RemoveSensor(SCA_ISensor *sensor)
 {
 	// empty
 	return false;
@@ -78,7 +78,7 @@ void SCA_TimeEventManager::NextFrame(double curtime, double fixedtime)
 		return;
 	}
 
-	EXP_FloatValue* floatval = new EXP_FloatValue(curtime);
+	EXP_FloatValue *floatval = new EXP_FloatValue(curtime);
 
 	// update sensors, but ... need deltatime !
 	for (EXP_Value *prop : m_timevalues) {
@@ -92,7 +92,7 @@ void SCA_TimeEventManager::NextFrame(double curtime, double fixedtime)
 
 
 
-void SCA_TimeEventManager::AddTimeProperty(EXP_Value* timeval)
+void SCA_TimeEventManager::AddTimeProperty(EXP_Value *timeval)
 {
 	timeval->AddRef();
 	m_timevalues.push_back(timeval);
@@ -100,12 +100,12 @@ void SCA_TimeEventManager::AddTimeProperty(EXP_Value* timeval)
 
 
 
-void SCA_TimeEventManager::RemoveTimeProperty(EXP_Value* timeval)
+void SCA_TimeEventManager::RemoveTimeProperty(EXP_Value *timeval)
 {
 	CM_ListRemoveIfFound(m_timevalues, timeval);
 }
 
-std::vector<EXP_Value*> SCA_TimeEventManager::GetTimeValues()
+std::vector<EXP_Value *> SCA_TimeEventManager::GetTimeValues()
 {
 	return m_timevalues;
 }

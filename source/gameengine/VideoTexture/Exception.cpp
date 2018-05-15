@@ -48,16 +48,18 @@ ExpDesc errNFoundDesc(ErrNotFound, "Error description not found");
 // implementation of ExpDesc
 
 // constructor
-ExpDesc::ExpDesc (ExceptionID & exp, const char *desc, RESULT hres)
-: m_expID(exp), m_hRslt(hres), m_description(desc)
+ExpDesc::ExpDesc(ExceptionID & exp, const char *desc, RESULT hres)
+	:m_expID(exp), m_hRslt(hres), m_description(desc)
 {
 }
 
 // destructor
-ExpDesc::~ExpDesc (void) {}
+ExpDesc::~ExpDesc(void)
+{
+}
 
 // list of descriptions
-std::vector<ExpDesc*> ExpDesc::m_expDescs;
+std::vector<ExpDesc *> ExpDesc::m_expDescs;
 
 
 // class Exception
@@ -67,11 +69,11 @@ std::vector<ExpDesc*> ExpDesc::m_expDescs;
 std::string Exception::m_lastError;
 
 // log file name
-const char * Exception::m_logFile = nullptr;
+const char *Exception::m_logFile = nullptr;
 
 
 // basic constructor
-Exception::Exception ()
+Exception::Exception()
 {
 	// default values
 	m_expID = &ErrNotFound;
@@ -81,21 +83,27 @@ Exception::Exception ()
 
 
 // destructor
-Exception::~Exception () throw() { }
+Exception::~Exception() throw()
+{
+}
 
 
 // copy constructor
-Exception::Exception (const Exception & xpt)
-{ copy (xpt); }
+Exception::Exception(const Exception & xpt)
+{
+	copy(xpt);
+}
 
 
 // assignment operator
-Exception & Exception::operator= (const Exception & xpt)
-{ copy (xpt); return *this; }
+Exception & Exception::operator=(const Exception & xpt)
+{
+	copy(xpt); return *this;
+}
 
 
 // get exception description
-const char * Exception::what()
+const char *Exception::what()
 {
 	// set exception description
 	setXptDesc();
@@ -105,21 +113,25 @@ const char * Exception::what()
 
 
 // debug version - with file and line of exception
-Exception::Exception (ExceptionID & expID, RESULT rslt, const char *fil, int lin)
-: m_expID (&expID), m_hRslt (rslt)
+Exception::Exception(ExceptionID & expID, RESULT rslt, const char *fil, int lin)
+	:m_expID(&expID), m_hRslt(rslt)
 {
 	// set file and line
-	if (fil[0] != '\0' || lin > 0)
-		setFileLine (fil, lin);
-	else
+	if (fil[0] != '\0' || lin > 0) {
+		setFileLine(fil, lin);
+	}
+	else {
 		m_line = -1;
+	}
 }
 
 
 // set file and line
-void Exception::setFileLine (const char *fil, int lin)
+void Exception::setFileLine(const char *fil, int lin)
 {
-	if (fil != nullptr) m_fileName = fil;
+	if (fil != nullptr) {
+		m_fileName = fil;
+	}
 	m_line = lin;
 }
 
@@ -132,10 +144,9 @@ void Exception::report(void)
 	// set python error
 	PyErr_SetString(PyExc_RuntimeError, what());
 	// if log file is set
-	if (m_logFile != nullptr)
-	{
+	if (m_logFile != nullptr) {
 		// write description to log
-		std::ofstream logf (m_logFile, std::ios_base::app);
+		std::ofstream logf(m_logFile, std::ios_base::app);
 		logf << m_fileName << ':' << m_line << ':' << m_desc << std::endl;
 		logf.flush();
 		logf.close();
@@ -144,35 +155,34 @@ void Exception::report(void)
 
 
 // set exception description
-void Exception::setXptDesc (void)
+void Exception::setXptDesc(void)
 {
 	// if description is not set
-	if (m_desc.empty())
-	{
+	if (m_desc.empty()) {
 		// start of search                           -1
 		// found description "NotFound"               0
 		// found description without matching result  1
 		// found description with matching result     2
 		int best = -1;
 		// find exception description
-		for (std::vector<ExpDesc*>::iterator it = ExpDesc::m_expDescs.begin(); it != ExpDesc::m_expDescs.end(); ++it)
+		for (std::vector<ExpDesc *>::iterator it = ExpDesc::m_expDescs.begin(); it != ExpDesc::m_expDescs.end(); ++it)
 		{
 			// use "NotFound", if there is not better
-			if (best < 0 && (*it)->isExp(&ErrNotFound) > 0)
-			{
+			if (best < 0 && (*it)->isExp(&ErrNotFound) > 0) {
 				(*it)->loadDesc(m_desc);
 				best = 0;
 			}
 			// match exception
 			int nBest = (*it)->isExp(m_expID, m_hRslt);
 			// if exception is matching better
-			if (nBest > 0 && best < nBest)
-			{
+			if (nBest > 0 && best < nBest) {
 				// set description
 				(*it)->loadDesc(m_desc);
 				best = nBest;
 				// if matching exactly, finish search
-				if (best == 2) break;
+				if (best == 2) {
+					break;
+				}
 			}
 		}
 		// add result code
@@ -193,7 +203,7 @@ void Exception::setXptDesc (void)
 
 
 // copy exception data
-void Exception::copy (const Exception & xpt)
+void Exception::copy(const Exception & xpt)
 {
 	// standard data
 	m_expID = xpt.m_expID;
