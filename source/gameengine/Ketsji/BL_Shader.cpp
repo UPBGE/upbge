@@ -34,6 +34,7 @@
 #include "KX_GameObject.h"
 
 #include "DNA_material_types.h"
+#include "DNA_texture_types.h"
 
 #ifdef WITH_PYTHON
 #  include "EXP_PythonCallBack.h"

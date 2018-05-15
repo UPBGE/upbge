@@ -31,7 +31,7 @@
 
 #include "KX_BoneParentNodeRelationship.h"
 
-#include "BL_ArmatureObject.h"
+// #include "BL_ArmatureObject.h"
 
 #include "mathfu.h"
 
@@ -48,6 +48,7 @@ KX_BoneParentRelation::~KX_BoneParentRelation()
 
 bool KX_BoneParentRelation::UpdateChildCoordinates(SG_Node *child, const SG_Node *parent, bool& parentUpdated)
 {
+#if 0
 	BLI_assert(child != nullptr);
 
 	// We don't know if the armature has been updated or not, assume yes.
@@ -95,6 +96,8 @@ bool KX_BoneParentRelation::UpdateChildCoordinates(SG_Node *child, const SG_Node
 	// This node must always be updated, so reschedule it for next time.
 	child->ActivateRecheduleUpdateCallback();
 	return valid_parent_transform;
+#endif
+	return true;
 }
 
 SG_ParentRelation *KX_BoneParentRelation::NewCopy()

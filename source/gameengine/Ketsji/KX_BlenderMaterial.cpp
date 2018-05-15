@@ -181,12 +181,7 @@ Material *KX_BlenderMaterial::GetBlenderMaterial() const
 	return m_material;
 }
 
-Scene *KX_BlenderMaterial::GetBlenderScene() const
-{
-	return m_scene->GetBlenderScene();
-}
-
-SCA_IScene *KX_BlenderMaterial::GetScene() const
+KX_Scene *KX_BlenderMaterial::GetScene() const
 {
 	return m_scene;
 }

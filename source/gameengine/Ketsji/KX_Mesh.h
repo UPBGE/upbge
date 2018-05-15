@@ -37,12 +37,11 @@
 #include "EXP_Value.h"
 
 class KX_Mesh;
-class SCA_LogicManager;
 class KX_Scene;
 
 #ifdef WITH_PYTHON
 // utility conversion function
-bool ConvertPythonToMesh(SCA_LogicManager *logicmgr, PyObject *value, KX_Mesh **object, bool py_none_ok, const char *error_prefix);
+bool ConvertPythonToMesh(void *logicmgr, PyObject *value, KX_Mesh **object, bool py_none_ok, const char *error_prefix);
 
 #endif  // WITH_PYTHON
 

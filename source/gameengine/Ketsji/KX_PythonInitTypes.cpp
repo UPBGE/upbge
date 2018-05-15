@@ -36,83 +36,34 @@
 /* Only for Class::Parents */
 #include "BL_BlenderShader.h"
 #include "BL_Shader.h"
-#include "BL_ActionActuator.h"
-#include "BL_ArmatureActuator.h"
-#include "BL_ArmatureConstraint.h"
-#include "BL_ArmatureObject.h"
-#include "BL_ArmatureChannel.h"
 #include "BL_Texture.h"
 #include "KX_2DFilter.h"
 #include "KX_2DFilterManager.h"
 #include "KX_2DFilterOffScreen.h"
 #include "KX_WorldInfo.h"
-#include "KX_ArmatureSensor.h"
 #include "KX_BatchGroup.h"
 #include "KX_BlenderMaterial.h"
 #include "KX_BoundingBox.h"
 #include "KX_Camera.h"
-#include "KX_CameraActuator.h"
 #include "KX_CharacterWrapper.h"
-#include "KX_ConstraintActuator.h"
 #include "KX_ConstraintWrapper.h"
 #include "KX_CubeMap.h"
-#include "KX_GameActuator.h"
 #include "KX_LibLoadStatus.h"
 #include "KX_LightObject.h"
 #include "KX_LodLevel.h"
 #include "KX_LodManager.h"
 #include "KX_FontObject.h"
 #include "KX_Mesh.h"
-#include "KX_MouseFocusSensor.h"
-#include "KX_NetworkMessageActuator.h"
-#include "KX_NetworkMessageSensor.h"
-#include "KX_ObjectActuator.h"
-#include "KX_ParentActuator.h"
 #include "KX_PlanarMap.h"
 #include "KX_PolyProxy.h"
 #include "KX_PythonComponent.h"
-#include "KX_AddObjectActuator.h"
-#include "KX_EndObjectActuator.h"
-#include "KX_ReplaceMeshActuator.h"
-#include "KX_SceneActuator.h"
-#include "KX_StateActuator.h"
-#include "KX_SteeringActuator.h"
-#include "KX_TrackToActuator.h"
 #include "KX_VehicleWrapper.h"
 #include "KX_VertexProxy.h"
-#include "SCA_2DFilterActuator.h"
-#include "SCA_ANDController.h"
-#include "SCA_ActuatorSensor.h"
-#include "SCA_AlwaysSensor.h"
-#include "SCA_DelaySensor.h"
 #include "SCA_InputEvent.h"
-#include "SCA_JoystickSensor.h"
-#include "SCA_KeyboardSensor.h"
-#include "SCA_MouseSensor.h"
-#include "SCA_NANDController.h"
-#include "SCA_NORController.h"
-#include "SCA_ORController.h"
-#include "SCA_RandomSensor.h"
-#include "SCA_XNORController.h"
-#include "SCA_XORController.h"
 #include "SCA_PythonJoystick.h"
 #include "SCA_PythonKeyboard.h"
 #include "SCA_PythonMouse.h"
-#include "KX_NearSensor.h"
-#include "KX_RadarSensor.h"
-#include "KX_RaySensor.h"
-#include "KX_MovementSensor.h"
-#include "KX_DynamicActuator.h"
-#include "KX_SoundActuator.h"
-#include "KX_CollisionSensor.h"
-#include "KX_VisibilityActuator.h"
-#include "SCA_PropertySensor.h"
-#include "SCA_PythonController.h"
-#include "SCA_RandomActuator.h"
-#include "SCA_VibrationActuator.h"
-#include "SCA_IController.h"
 #include "KX_NavMeshObject.h"
-#include "KX_MouseActuator.h"
 #include "KX_CollisionContactPoints.h"
 #include "EXP_ListWrapper.h"
 #include "Texture.h"
@@ -212,32 +163,21 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
 	dict = PyModule_GetDict(m);
 
 	for (int init_getset = 1; init_getset > -1; init_getset--) { /* run twice, once to init the getsets another to run PyType_Ready */
-		PyType_Ready_Attr(dict, BL_ActionActuator, init_getset);
 		PyType_Ready_Attr(dict, BL_Shader, init_getset);
-		PyType_Ready_Attr(dict, BL_ArmatureObject, init_getset);
-		PyType_Ready_Attr(dict, BL_ArmatureActuator, init_getset);
-		PyType_Ready_Attr(dict, BL_ArmatureConstraint, init_getset);
-		PyType_Ready_AttrPtr(dict, BL_ArmatureBone, init_getset);
-		PyType_Ready_AttrPtr(dict, BL_ArmatureChannel, init_getset);
 		PyType_Ready_Attr(dict, BL_Texture, init_getset);
-		// PyType_Ready_Attr(dict, EXP_PropValue, init_getset);  // doesn't use Py_Header
 		PyType_Ready_Attr(dict, EXP_BaseListValue, init_getset);
 		PyType_Ready_Attr(dict, EXP_BaseListWrapper, init_getset);
 		PyType_Ready_Attr(dict, EXP_Value, init_getset);
 		PyType_Ready_Attr(dict, KX_2DFilter, init_getset);
 		PyType_Ready_Attr(dict, KX_2DFilterManager, init_getset);
 		PyType_Ready_Attr(dict, KX_2DFilterOffScreen, init_getset);
-		PyType_Ready_Attr(dict, KX_ArmatureSensor, init_getset);
 		PyType_Ready_Attr(dict, KX_BatchGroup, init_getset);
 		PyType_Ready_Attr(dict, KX_BlenderMaterial, init_getset);
 		PyType_Ready_Attr(dict, KX_BoundingBox, init_getset);
 		PyType_Ready_Attr(dict, KX_Camera, init_getset);
-		PyType_Ready_Attr(dict, KX_CameraActuator, init_getset);
 		PyType_Ready_Attr(dict, KX_CharacterWrapper, init_getset);
-		PyType_Ready_Attr(dict, KX_ConstraintActuator, init_getset);
 		PyType_Ready_Attr(dict, KX_ConstraintWrapper, init_getset);
 		PyType_Ready_Attr(dict, KX_CubeMap, init_getset);
-		PyType_Ready_Attr(dict, KX_GameActuator, init_getset);
 		PyType_Ready_Attr(dict, KX_GameObject, init_getset);
 		PyType_Ready_Attr(dict, KX_LibLoadStatus, init_getset);
 		PyType_Ready_Attr(dict, KX_LightObject, init_getset);
@@ -245,63 +185,18 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
 		PyType_Ready_Attr(dict, KX_LodManager, init_getset);
 		PyType_Ready_Attr(dict, KX_FontObject, init_getset);
 		PyType_Ready_Attr(dict, KX_Mesh, init_getset);
-		PyType_Ready_Attr(dict, KX_MouseFocusSensor, init_getset);
-		PyType_Ready_Attr(dict, KX_MovementSensor, init_getset);
-		PyType_Ready_Attr(dict, KX_NearSensor, init_getset);
-		PyType_Ready_Attr(dict, KX_NetworkMessageActuator, init_getset);
-		PyType_Ready_Attr(dict, KX_NetworkMessageSensor, init_getset);
-		PyType_Ready_Attr(dict, KX_ObjectActuator, init_getset);
-		PyType_Ready_Attr(dict, KX_ParentActuator, init_getset);
 		PyType_Ready_Attr(dict, KX_PlanarMap, init_getset);
 		PyType_Ready_Attr(dict, KX_PolyProxy, init_getset);
 		PyType_Ready_Attr(dict, KX_PythonComponent, init_getset);
-		PyType_Ready_Attr(dict, KX_RadarSensor, init_getset);
-		PyType_Ready_Attr(dict, KX_RaySensor, init_getset);
-		PyType_Ready_Attr(dict, KX_AddObjectActuator, init_getset);
-		PyType_Ready_Attr(dict, KX_DynamicActuator, init_getset);
-		PyType_Ready_Attr(dict, KX_EndObjectActuator, init_getset);
-		PyType_Ready_Attr(dict, KX_ReplaceMeshActuator, init_getset);
 		PyType_Ready_Attr(dict, KX_Scene, init_getset);
 		PyType_Ready_Attr(dict, KX_WorldInfo, init_getset);
 		PyType_Ready_Attr(dict, KX_NavMeshObject, init_getset);
-		PyType_Ready_Attr(dict, KX_SceneActuator, init_getset);
-		PyType_Ready_Attr(dict, KX_SoundActuator, init_getset);
-		PyType_Ready_Attr(dict, KX_StateActuator, init_getset);
-		PyType_Ready_Attr(dict, KX_SteeringActuator, init_getset);
-		PyType_Ready_Attr(dict, KX_CollisionSensor, init_getset);
 		PyType_Ready_Attr(dict, KX_TextureRenderer, init_getset);
-		PyType_Ready_Attr(dict, KX_TrackToActuator, init_getset);
 		PyType_Ready_Attr(dict, KX_VehicleWrapper, init_getset);
 		PyType_Ready_Attr(dict, KX_VertexProxy, init_getset);
-		PyType_Ready_Attr(dict, KX_VisibilityActuator, init_getset);
-		PyType_Ready_Attr(dict, KX_MouseActuator, init_getset);
 		PyType_Ready_Attr(dict, KX_CollisionContactPoint, init_getset);
 		PyType_Ready_Attr(dict, EXP_PyObjectPlus, init_getset);
-		PyType_Ready_Attr(dict, SCA_2DFilterActuator, init_getset);
-		PyType_Ready_Attr(dict, SCA_ANDController, init_getset);
-		// PyType_Ready_Attr(dict, SCA_Actuator, init_getset);  // doesn't use Py_Header
-		PyType_Ready_Attr(dict, SCA_ActuatorSensor, init_getset);
-		PyType_Ready_Attr(dict, SCA_AlwaysSensor, init_getset);
-		PyType_Ready_Attr(dict, SCA_DelaySensor, init_getset);
-		PyType_Ready_Attr(dict, SCA_ILogicBrick, init_getset);
 		PyType_Ready_Attr(dict, SCA_InputEvent, init_getset);
-		PyType_Ready_Attr(dict, SCA_IObject, init_getset);
-		PyType_Ready_Attr(dict, SCA_ISensor, init_getset);
-		PyType_Ready_Attr(dict, SCA_JoystickSensor, init_getset);
-		PyType_Ready_Attr(dict, SCA_KeyboardSensor, init_getset);
-		PyType_Ready_Attr(dict, SCA_MouseSensor, init_getset);
-		PyType_Ready_Attr(dict, SCA_NANDController, init_getset);
-		PyType_Ready_Attr(dict, SCA_NORController, init_getset);
-		PyType_Ready_Attr(dict, SCA_ORController, init_getset);
-		PyType_Ready_Attr(dict, SCA_PropertyActuator, init_getset);
-		PyType_Ready_Attr(dict, SCA_PropertySensor, init_getset);
-		PyType_Ready_Attr(dict, SCA_PythonController, init_getset);
-		PyType_Ready_Attr(dict, SCA_RandomActuator, init_getset);
-		PyType_Ready_Attr(dict, SCA_RandomSensor, init_getset);
-		PyType_Ready_Attr(dict, SCA_VibrationActuator, init_getset);
-		PyType_Ready_Attr(dict, SCA_XNORController, init_getset);
-		PyType_Ready_Attr(dict, SCA_XORController, init_getset);
-		PyType_Ready_Attr(dict, SCA_IController, init_getset);
 		PyType_Ready_Attr(dict, SCA_PythonJoystick, init_getset);
 		PyType_Ready_Attr(dict, SCA_PythonKeyboard, init_getset);
 		PyType_Ready_Attr(dict, SCA_PythonMouse, init_getset);
@@ -311,7 +206,6 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
 #ifdef USE_MATHUTILS
 	/* Init mathutils callbacks */
 	KX_GameObject_Mathutils_Callback_Init();
-	KX_ObjectActuator_Mathutils_Callback_Init();
 	KX_WorldInfo_Mathutils_Callback_Init();
 	KX_BlenderMaterial_Mathutils_Callback_Init();
 	KX_BoundingBox_Mathutils_Callback_Init();

@@ -30,12 +30,6 @@
  *  \ingroup ketsji
  */
 
-#ifdef _MSC_VER
-/* This warning tells us about truncation of __long__ stl-generated names.
- * It can occasionally cause DevStudio to have internal compiler warnings. */
-#  pragma warning( disable:4786 )
-#endif
-
 #include "KX_GameObject.h"
 #include "KX_PythonComponent.h"
 #include "KX_Camera.h" // only for their ::Type
@@ -57,9 +51,6 @@
 #include "KX_RayCast.h"
 #include "KX_Globals.h"
 #include "KX_PyMath.h"
-#include "SCA_IActuator.h"
-#include "SCA_ISensor.h"
-#include "SCA_IController.h"
 #include "KX_NetworkMessageScene.h" //Needed for sendMessage()
 #include "KX_ObstacleSimulation.h"
 #include "KX_Scene.h"
@@ -98,6 +89,8 @@
 
 #include "CM_Message.h"
 
+#define OB_MAX_COL_MASKS 20 // TODO
+
 KX_GameObject::ActivityCullingInfo::ActivityCullingInfo()
 	:m_flags(ACTIVITY_NONE),
 	m_physicsRadius(0.0f),
@@ -108,6 +101,7 @@ KX_GameObject::ActivityCullingInfo::ActivityCullingInfo()
 KX_GameObject::KX_GameObject(void *sgReplicationInfo,
                              SG_Callbacks callbacks)
 	:m_clientInfo(this, KX_ClientObjectInfo::ACTOR),
+	m_suspended(false),
 	m_layer(0),
 	m_lodManager(nullptr),
 	m_currentLodLevel(0),
@@ -135,8 +129,7 @@ KX_GameObject::KX_GameObject(void *sgReplicationInfo,
 }
 
 KX_GameObject::KX_GameObject(const KX_GameObject& other)
-	:SCA_IObject(other),
-	m_clientInfo(this, other.m_clientInfo.m_type),
+	:m_clientInfo(this, other.m_clientInfo.m_type),
 	m_name(other.m_name),
 	m_layer(other.m_layer),
 	m_meshes(other.m_meshes),
@@ -308,7 +301,7 @@ const std::vector<bRigidBodyJointConstraint *>& KX_GameObject::GetConstraints()
 
 void KX_GameObject::ReplicateConstraints(PHY_IPhysicsEnvironment *physEnv, const std::vector<KX_GameObject *>& constobj)
 {
-	if (!m_physicsController || m_convertInfo->m_constraints.empty()) {
+	/*if (!m_physicsController || m_convertInfo->m_constraints.empty()) {
 		return;
 	}
 
@@ -321,7 +314,7 @@ void KX_GameObject::ReplicateConstraints(PHY_IPhysicsEnvironment *physEnv, const
 				physEnv->SetupObjectConstraints(this, member, dat);
 			}
 		}
-	}
+	} TODO */
 }
 
 KX_GameObject *KX_GameObject::GetParent()
@@ -522,11 +515,6 @@ void KX_GameObject::SetActionFrame(short layer, float frame)
 	GetActionManager()->SetActionFrame(layer, frame);
 }
 
-bAction *KX_GameObject::GetCurrentAction(short layer)
-{
-	return GetActionManager()->GetCurrentAction(layer);
-}
-
 void KX_GameObject::SetPlayMode(short layer, short mode)
 {
 	GetActionManager()->SetPlayMode(layer, mode);
@@ -680,17 +668,6 @@ void KX_GameObject::ApplyRotation(const mt::vec3& drot, bool local)
 		m_physicsController->RelativeRotate(rotmat, local);
 	}
 	NodeUpdate();
-}
-
-void KX_GameObject::UpdateBlenderObjectMatrix(Object *blendobj)
-{
-	if (!blendobj) {
-		blendobj = m_convertInfo->m_blenderObject;
-	}
-	if (blendobj) {
-		const mt::mat3x4 trans = NodeGetWorldTransform();
-		trans.PackFromAffineTransform(blendobj->obmat);
-	}
 }
 
 void KX_GameObject::AddMeshUser()
@@ -929,6 +906,25 @@ void KX_GameObject::SetOccluder(bool v,
 	if (recursive) {
 		setOccluder_recursive(m_sgNode.get(), v);
 	}
+}
+
+void KX_GameObject::SuspendLogic()
+{
+	if (!m_suspended) {
+		m_suspended = true;
+	}
+}
+
+void KX_GameObject::ResumeLogic()
+{
+	if (m_suspended) {
+		m_suspended = false;
+	}
+}
+
+KX_GameObject::ObjectTypes KX_GameObject::GetGameObjectType() const
+{
+	return OBJECT_TYPE_OBJECT;
 }
 
 static void setDebug_recursive(KX_Scene *scene, SG_Node *node, bool debug)
@@ -1585,28 +1581,6 @@ KX_Scene *KX_GameObject::GetScene()
 	return static_cast<KX_Scene *>(m_sgNode->GetClientInfo());
 }
 
-/* ---------------------------------------------------------------------
- * Some stuff taken from the header
- * --------------------------------------------------------------------- */
-void KX_GameObject::Relink(std::map<SCA_IObject *, SCA_IObject *>& map_parameter)
-{
-	// we will relink the sensors and actuators that use object references
-	// if the object is part of the replicated hierarchy, use the new
-	// object reference instead
-	SCA_SensorList& sensorlist = GetSensors();
-	SCA_SensorList::iterator sit;
-	for (sit = sensorlist.begin(); sit != sensorlist.end(); sit++)
-	{
-		(*sit)->Relink(map_parameter);
-	}
-	SCA_ActuatorList& actuatorlist = GetActuators();
-	SCA_ActuatorList::iterator ait;
-	for (ait = actuatorlist.begin(); ait != actuatorlist.end(); ait++)
-	{
-		(*ait)->Relink(map_parameter);
-	}
-}
-
 #ifdef WITH_PYTHON
 
 #define PYTHON_CHECK_PHYSICS_CONTROLLER(obj, attr, ret) \
@@ -1989,7 +1963,6 @@ PyAttributeDef KX_GameObject::Attributes[] = {
 	EXP_PYATTRIBUTE_RW_FUNCTION("collisionCallbacks",       KX_GameObject, pyattr_get_collisionCallbacks,   pyattr_set_collisionCallbacks),
 	EXP_PYATTRIBUTE_RW_FUNCTION("collisionGroup",           KX_GameObject, pyattr_get_collisionGroup, pyattr_set_collisionGroup),
 	EXP_PYATTRIBUTE_RW_FUNCTION("collisionMask",                KX_GameObject, pyattr_get_collisionMask, pyattr_set_collisionMask),
-	EXP_PYATTRIBUTE_RW_FUNCTION("state",        KX_GameObject, pyattr_get_state,    pyattr_set_state),
 	EXP_PYATTRIBUTE_RO_FUNCTION("meshes",   KX_GameObject, pyattr_get_meshes),
 	EXP_PYATTRIBUTE_RO_FUNCTION("batchGroup", KX_GameObject, pyattr_get_batchGroup),
 	EXP_PYATTRIBUTE_RW_FUNCTION("localOrientation", KX_GameObject, pyattr_get_localOrientation, pyattr_set_localOrientation),
@@ -2017,17 +1990,11 @@ PyAttributeDef KX_GameObject::Attributes[] = {
 	EXP_PYATTRIBUTE_RW_FUNCTION("debugRecursive",   KX_GameObject, pyattr_get_debugRecursive, pyattr_set_debugRecursive),
 	EXP_PYATTRIBUTE_RW_FUNCTION("gravity", KX_GameObject, pyattr_get_gravity, pyattr_set_gravity),
 
-	/* experimental, don't rely on these yet */
-	EXP_PYATTRIBUTE_RO_FUNCTION("sensors",      KX_GameObject, pyattr_get_sensors),
-	EXP_PYATTRIBUTE_RO_FUNCTION("controllers",  KX_GameObject, pyattr_get_controllers),
-	EXP_PYATTRIBUTE_RO_FUNCTION("actuators",        KX_GameObject, pyattr_get_actuators),
 	EXP_PYATTRIBUTE_NULL //Sentinel
 };
 
 PyObject *KX_GameObject::PyReplaceMesh(PyObject *args, PyObject *kwds)
 {
-	SCA_LogicManager *logicmgr = GetScene()->GetLogicManager();
-
 	PyObject *value;
 	int use_gfx = 1, use_phys = 0;
 	KX_Mesh *new_mesh;
@@ -2037,7 +2004,7 @@ PyObject *KX_GameObject::PyReplaceMesh(PyObject *args, PyObject *kwds)
 		return nullptr;
 	}
 
-	if (!ConvertPythonToMesh(logicmgr, value, &new_mesh, false, "gameOb.replaceMesh(value): KX_GameObject")) {
+	if (!ConvertPythonToMesh(0, value, &new_mesh, false, "gameOb.replaceMesh(value): KX_GameObject")) {
 		return nullptr;
 	}
 
@@ -2056,7 +2023,6 @@ PyObject *KX_GameObject::PyReinstancePhysicsMesh(PyObject *args, PyObject *kwds)
 {
 	KX_GameObject *gameobj = nullptr;
 	KX_Mesh *mesh = nullptr;
-	SCA_LogicManager *logicmgr = GetScene()->GetLogicManager();
 	int dupli = 0;
 
 	PyObject *gameobj_py = nullptr;
@@ -2064,8 +2030,8 @@ PyObject *KX_GameObject::PyReinstancePhysicsMesh(PyObject *args, PyObject *kwds)
 
 	if (!EXP_ParseTupleArgsAndKeywords(args, kwds, "|OOi:reinstancePhysicsMesh",
 	                                   {"gameObject", "meshObject", "dupli", 0}, &gameobj_py, &mesh_py, &dupli) ||
-	    (gameobj_py && !ConvertPythonToGameObject(logicmgr, gameobj_py, &gameobj, true, "gameOb.reinstancePhysicsMesh(obj, mesh, dupli): KX_GameObject")) ||
-	    (mesh_py && !ConvertPythonToMesh(logicmgr, mesh_py, &mesh, true, "gameOb.reinstancePhysicsMesh(obj, mesh, dupli): KX_GameObject"))) {
+	    (gameobj_py && !ConvertPythonToGameObject(0, gameobj_py, &gameobj, true, "gameOb.reinstancePhysicsMesh(obj, mesh, dupli): KX_GameObject")) ||
+	    (mesh_py && !ConvertPythonToMesh(0, mesh_py, &mesh, true, "gameOb.reinstancePhysicsMesh(obj, mesh, dupli): KX_GameObject"))) {
 		return nullptr;
 	}
 
@@ -2080,9 +2046,8 @@ PyObject *KX_GameObject::PyReinstancePhysicsMesh(PyObject *args, PyObject *kwds)
 PyObject *KX_GameObject::PyReplacePhysicsShape(PyObject *value)
 {
 	KX_GameObject *gameobj;
-	SCA_LogicManager *logicmgr = GetScene()->GetLogicManager();
 
-	if (!ConvertPythonToGameObject(logicmgr, value, &gameobj, false, "gameOb.replacePhysicsShape(obj): KX_GameObject")) {
+	if (!ConvertPythonToGameObject(0, value, &gameobj, false, "gameOb.replacePhysicsShape(obj): KX_GameObject")) {
 		return nullptr;
 	}
 
@@ -2298,7 +2263,7 @@ PyTypeObject KX_GameObject::Type = {
 	Methods,
 	0,
 	0,
-	&SCA_IObject::Type,
+	&EXP_Value::Type,
 	0, 0, 0, 0, 0, 0,
 	py_base_new
 };
@@ -2321,11 +2286,11 @@ int KX_GameObject::pyattr_set_name(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBU
 	std::string newname = std::string(_PyUnicode_AsString(value));
 	std::string oldname = self->GetName();
 
-	SCA_LogicManager *manager = self->GetScene()->GetLogicManager();
-
+// TODO
+#if 0
 	// If true, it mean that's this game object is not a replica and was added at conversion time.
 	if (manager->GetGameObjectByName(oldname) == self) {
-		/* Two non-replica objects can have the same name bacause these objects are register in the
+		/* Two non-replica objects can have the same name because these objects are register in the
 		 * logic manager and that the result of GetGameObjectByName will be undefined. */
 		if (manager->GetGameObjectByName(newname)) {
 			PyErr_Format(PyExc_TypeError, "gameOb.name = str: name %s is already used by an other non-replica game object", oldname.c_str());
@@ -2336,6 +2301,7 @@ int KX_GameObject::pyattr_set_name(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBU
 		// Register the object under the new name.
 		manager->RegisterGameObjectName(newname, self);
 	}
+#endif 
 
 	// Change the name
 	self->SetName(newname);
@@ -3160,34 +3126,6 @@ int KX_GameObject::pyattr_set_timeOffset(EXP_PyObjectPlus *self_v, const EXP_PYA
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *KX_GameObject::pyattr_get_state(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
-{
-	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
-	int state = 0;
-	state |= self->GetState();
-	return PyLong_FromLong(state);
-}
-
-int KX_GameObject::pyattr_set_state(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
-{
-	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
-	int state_i = PyLong_AsLong(value);
-	unsigned int state = 0;
-
-	if (state_i == -1 && PyErr_Occurred()) {
-		PyErr_SetString(PyExc_TypeError, "gameOb.state = int: KX_GameObject, expected an int bit field");
-		return PY_SET_ATTR_FAIL;
-	}
-
-	state |= state_i;
-	if ((state & ((1 << 30) - 1)) == 0) {
-		PyErr_SetString(PyExc_AttributeError, "gameOb.state = int: KX_GameObject, state bitfield was not between 0 and 30 (1<<0 and 1<<29)");
-		return PY_SET_ATTR_FAIL;
-	}
-	self->SetState(state);
-	return PY_SET_ATTR_SUCCESS;
-}
-
 PyObject *KX_GameObject::pyattr_get_meshes(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
@@ -3249,69 +3187,6 @@ PyObject *KX_GameObject::pyattr_get_components(EXP_PyObjectPlus *self_v, const E
 	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
 	EXP_ListValue<KX_PythonComponent> *components = self->GetComponents();
 	return components ? components->GetProxy() : (new EXP_ListValue<KX_PythonComponent>())->NewProxy(true);
-}
-
-unsigned int KX_GameObject::py_get_sensors_size()
-{
-	return m_sensors.size();
-}
-
-PyObject *KX_GameObject::py_get_sensors_item(unsigned int index)
-{
-	return m_sensors[index]->GetProxy();
-}
-
-std::string KX_GameObject::py_get_sensors_item_name(unsigned int index)
-{
-	return m_sensors[index]->GetName();
-}
-
-PyObject *KX_GameObject::pyattr_get_sensors(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
-{
-	return (new EXP_ListWrapper<KX_GameObject, &KX_GameObject::py_get_sensors_size, &KX_GameObject::py_get_sensors_item,
-				nullptr, &KX_GameObject::py_get_sensors_item_name>(self_v))->NewProxy(true);
-}
-
-unsigned int KX_GameObject::py_get_controllers_size()
-{
-	return m_controllers.size();
-}
-
-PyObject *KX_GameObject::py_get_controllers_item(unsigned int index)
-{
-	return m_controllers[index]->GetProxy();
-}
-
-std::string KX_GameObject::py_get_controllers_item_name(unsigned int index)
-{
-	return m_controllers[index]->GetName();
-}
-
-PyObject *KX_GameObject::pyattr_get_controllers(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
-{
-	return (new EXP_ListWrapper<KX_GameObject, &KX_GameObject::py_get_controllers_size, &KX_GameObject::py_get_controllers_item,
-				nullptr, &KX_GameObject::py_get_controllers_item_name>(self_v))->NewProxy(true);
-}
-
-unsigned int KX_GameObject::py_get_actuators_size()
-{
-	return m_actuators.size();
-}
-
-PyObject *KX_GameObject::py_get_actuators_item(unsigned int index)
-{
-	return m_actuators[index]->GetProxy();
-}
-
-std::string KX_GameObject::py_get_actuators_item_name(unsigned int index)
-{
-	return m_actuators[index]->GetName();
-}
-
-PyObject *KX_GameObject::pyattr_get_actuators(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
-{
-	return (new EXP_ListWrapper<KX_GameObject, &KX_GameObject::py_get_actuators_size, &KX_GameObject::py_get_actuators_item,
-				nullptr, &KX_GameObject::py_get_actuators_item_name>(self_v))->NewProxy(true);
 }
 
 PyObject *KX_GameObject::pyattr_get_children(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
@@ -3617,7 +3492,6 @@ PyObject *KX_GameObject::PyDisableRigidBody()
 
 PyObject *KX_GameObject::PySetParent(PyObject *args, PyObject *kwds)
 {
-	SCA_LogicManager *logicmgr = GetScene()->GetLogicManager();
 	PyObject *pyobj;
 	KX_GameObject *obj;
 	int addToCompound = 1, ghost = 1;
@@ -3626,7 +3500,7 @@ PyObject *KX_GameObject::PySetParent(PyObject *args, PyObject *kwds)
 	                                   &pyobj, &addToCompound, &ghost)) {
 		return nullptr; // Python sets a simple error
 	}
-	if (!ConvertPythonToGameObject(logicmgr, pyobj, &obj, true, "gameOb.setParent(obj): KX_GameObject")) {
+	if (!ConvertPythonToGameObject(0, pyobj, &obj, true, "gameOb.setParent(obj): KX_GameObject")) {
 		return nullptr;
 	}
 
@@ -3664,7 +3538,7 @@ PyObject *KX_GameObject::PyCollide(PyObject *value)
 	KX_Scene *scene = GetScene();
 	KX_GameObject *other;
 
-	if (!ConvertPythonToGameObject(scene->GetLogicManager(), value, &other, false, "gameOb.collide(obj): KX_GameObject")) {
+	if (!ConvertPythonToGameObject(0, value, &other, false, "gameOb.collide(obj): KX_GameObject")) {
 		return nullptr;
 	}
 
@@ -3831,9 +3705,8 @@ EXP_PYMETHODDEF_DOC_O(KX_GameObject, getDistanceTo,
 	}
 	PyErr_Clear();
 
-	SCA_LogicManager *logicmgr = GetScene()->GetLogicManager();
 	KX_GameObject *other;
-	if (ConvertPythonToGameObject(logicmgr, value, &other, false, "gameOb.getDistanceTo(value): KX_GameObject")) {
+	if (ConvertPythonToGameObject(0, value, &other, false, "gameOb.getDistanceTo(value): KX_GameObject")) {
 		return PyFloat_FromDouble((NodeGetWorldPosition() - other->NodeGetWorldPosition()).Length());
 	}
 
@@ -3848,14 +3721,13 @@ EXP_PYMETHODDEF_DOC_O(KX_GameObject, getVectTo,
 	mt::vec3 toDir, locToDir;
 	float distance;
 
-	SCA_LogicManager *logicmgr = GetScene()->GetLogicManager();
 	PyObject *returnValue;
 
 	if (!PyVecTo(value, toPoint)) {
 		PyErr_Clear();
 
 		KX_GameObject *other;
-		if (ConvertPythonToGameObject(logicmgr, value, &other, false, "")) { /* error will be overwritten */
+		if (ConvertPythonToGameObject(0, value, &other, false, "")) { /* error will be overwritten */
 			toPoint = other->NodeGetWorldPosition();
 		}
 		else {
@@ -3945,7 +3817,6 @@ EXP_PYMETHODDEF_DOC(KX_GameObject, rayCastTo,
 	PyObject *pyarg;
 	float dist = 0.0f;
 	const char *propName = "";
-	SCA_LogicManager *logicmgr = GetScene()->GetLogicManager();
 
 	if (!EXP_ParseTupleArgsAndKeywords(args, kwds, "O|fs:rayCastTo", {"other", "dist", "prop", 0},
 	                                   &pyarg, &dist, &propName)) {
@@ -3956,7 +3827,7 @@ EXP_PYMETHODDEF_DOC(KX_GameObject, rayCastTo,
 		KX_GameObject *other;
 		PyErr_Clear();
 
-		if (ConvertPythonToGameObject(logicmgr, pyarg, &other, false, "")) { /* error will be overwritten */
+		if (ConvertPythonToGameObject(0, pyarg, &other, false, "")) { /* error will be overwritten */
 			toPoint = other->NodeGetWorldPosition();
 		}
 		else {
@@ -4063,7 +3934,6 @@ EXP_PYMETHODDEF_DOC(KX_GameObject, rayCast,
 	KX_GameObject *other;
 	int face = 0, xray = 0, poly = 0;
 	int mask = (1 << OB_MAX_COL_MASKS) - 1;
-	SCA_LogicManager *logicmgr = GetScene()->GetLogicManager();
 
 	if (!EXP_ParseTupleArgsAndKeywords(args, kwds, "O|Ofsiiii:rayCast",
 	                                   {"objto", "objfrom", "dist", "prop", "face", "xray", "poly", "mask", 0},
@@ -4074,7 +3944,7 @@ EXP_PYMETHODDEF_DOC(KX_GameObject, rayCast,
 	if (!PyVecTo(pyto, toPoint)) {
 		PyErr_Clear();
 
-		if (ConvertPythonToGameObject(logicmgr, pyto, &other, false, "")) { /* error will be overwritten */
+		if (ConvertPythonToGameObject(0, pyto, &other, false, "")) { /* error will be overwritten */
 			toPoint = other->NodeGetWorldPosition();
 		}
 		else {
@@ -4088,7 +3958,7 @@ EXP_PYMETHODDEF_DOC(KX_GameObject, rayCast,
 	else if (!PyVecTo(pyfrom, fromPoint)) {
 		PyErr_Clear();
 
-		if (ConvertPythonToGameObject(logicmgr, pyfrom, &other, false, "")) { /* error will be overwritten */
+		if (ConvertPythonToGameObject(0, pyfrom, &other, false, "")) { /* error will be overwritten */
 			fromPoint = other->NodeGetWorldPosition();
 		}
 		else {
@@ -4388,7 +4258,7 @@ PyObject *KX_GameObject::Pyget(PyObject *args)
 	return def;
 }
 
-bool ConvertPythonToGameObject(SCA_LogicManager *manager, PyObject *value, KX_GameObject **object, bool py_none_ok, const char *error_prefix)
+bool ConvertPythonToGameObject(void *manager, PyObject *value, KX_GameObject **object, bool py_none_ok, const char *error_prefix)
 {
 	if (value == nullptr) {
 		PyErr_Format(PyExc_TypeError, "%s, python pointer nullptr, should never happen", error_prefix);
@@ -4408,7 +4278,7 @@ bool ConvertPythonToGameObject(SCA_LogicManager *manager, PyObject *value, KX_Ga
 		}
 	}
 
-	if (PyUnicode_Check(value)) {
+	/*if (PyUnicode_Check(value)) {
 		*object = (KX_GameObject *)manager->GetGameObjectByName(std::string(_PyUnicode_AsString(value)));
 
 		if (*object) {
@@ -4418,7 +4288,7 @@ bool ConvertPythonToGameObject(SCA_LogicManager *manager, PyObject *value, KX_Ga
 			PyErr_Format(PyExc_ValueError, "%s, requested name \"%s\" did not match any KX_GameObject in this scene", error_prefix, _PyUnicode_AsString(value));
 			return false;
 		}
-	}
+	}*/
 
 	if (PyObject_TypeCheck(value, &KX_GameObject::Type) ||
 	    PyObject_TypeCheck(value, &KX_LightObject::Type)    ||

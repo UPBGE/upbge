@@ -48,8 +48,7 @@ public:
 	virtual Material *GetBlenderMaterial() const;
 	virtual bool UsesLighting() const;
 	virtual void GetRGBAColor(unsigned char *rgba) const;
-	virtual Scene *GetBlenderScene() const;
-	virtual SCA_IScene *GetScene() const;
+	KX_Scene *GetScene() const;
 	virtual void ReloadMaterial();
 
 	void ReplaceScene(KX_Scene *scene);

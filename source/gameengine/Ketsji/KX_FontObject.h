@@ -59,9 +59,9 @@ public:
 	 */
 	virtual EXP_Value *GetReplica();
 	virtual void ProcessReplica();
-	virtual int GetGameObjectType() const
+	virtual ObjectTypes GetGameObjectType() const
 	{
-		return OBJ_TEXT;
+		return OBJECT_TYPE_TEXT;
 	}
 
 	// Update text and bounding box.

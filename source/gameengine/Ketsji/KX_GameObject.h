@@ -41,16 +41,12 @@
 #include <stddef.h>
 
 #include "EXP_ListValue.h"
-#include "SCA_IObject.h"
 #include "SG_Node.h"
 #include "SG_CullingNode.h"
 #include "mathfu.h"
 #include "KX_Scene.h"
 #include "KX_KetsjiEngine.h" /* for m_anim_framerate */
 #include "KX_ClientObjectInfo.h"
-#include "DNA_constraint_types.h" /* for constraint replication */
-#include "DNA_object_types.h"
-#include "SCA_LogicManager.h" /* for ConvertPythonToGameObject to search object names */
 
 class KX_RayCast;
 class KX_LodManager;
@@ -63,14 +59,14 @@ class PHY_IPhysicsEnvironment;
 class PHY_IPhysicsController;
 class BL_ActionManager;
 class BL_ConvertObjectInfo;
-struct Object;
 class KX_ObstacleSimulation;
 class KX_CollisionContactPointList;
-struct bAction;
+struct Object;
+struct bRigidBodyJointConstraint;
 
 #ifdef WITH_PYTHON
 /* utility conversion function */
-bool ConvertPythonToGameObject(SCA_LogicManager *logicmgr, PyObject *value, KX_GameObject **object, bool py_none_ok, const char *error_prefix);
+bool ConvertPythonToGameObject(void *logicmgr, PyObject *value, KX_GameObject **object, bool py_none_ok, const char *error_prefix);
 #endif
 
 #ifdef USE_MATHUTILS
@@ -80,7 +76,7 @@ void KX_GameObject_Mathutils_Callback_Init(void);
 /**
  * KX_GameObject is the main class for dynamic objects.
  */
-class KX_GameObject : public SCA_IObject, public mt::SimdClassAllocator
+class KX_GameObject : public EXP_Value, public mt::SimdClassAllocator
 {
 	Py_Header
 public:
@@ -100,9 +96,20 @@ public:
 		float m_logicRadius;
 	};
 
+	enum ObjectTypes
+	{
+		OBJECT_TYPE_OBJECT,
+		OBJECT_TYPE_ARMATURE,
+		OBJECT_TYPE_CAMERA,
+		OBJECT_TYPE_LIGHT,
+		OBJECT_TYPE_TEXT,
+		OBJECT_TYPE_NAVMESH
+	};
+
 protected:
 
 	KX_ClientObjectInfo m_clientInfo;
+	bool m_suspended;
 	std::string							m_name;
 	int									m_layer;
 	std::vector<KX_Mesh *>		m_meshes;
@@ -174,25 +181,11 @@ public:
 	PyObject*							m_collisionCallbacks;
 #endif
 
-	virtual void	/* This function should be virtual - derived classed override it */
-	Relink(
-		std::map<SCA_IObject *, SCA_IObject *>& map
-	);
-
-	/**
-	 * Update the blender object obmat field from the object world position
-	 * if blendobj is nullptr, update the object pointed by m_blenderObject
-	 * The user must take action to restore the matrix before leaving the GE.
-	 * Used in Armature evaluation
-	 */
-		void
-	UpdateBlenderObjectMatrix(Object* blendobj=nullptr);
-
 	/**
 	 * Used for constraint replication for group instances.
 	 * The list of constraints is filled during data conversion.
 	 */
-	const std::vector<bRigidBodyJointConstraint*>& GetConstraints();
+	const std::vector<bRigidBodyJointConstraint *>& GetConstraints();
 
 	void ReplicateConstraints(PHY_IPhysicsEnvironment *physEnv, const std::vector<KX_GameObject *>& constobj);
 
@@ -212,7 +205,7 @@ public:
 	/** 
 	 * Sets the parent of this object to a game object
 	 */
-	void SetParent(KX_GameObject *obj, bool addToCompound=true, bool ghost=true);
+	void SetParent(KX_GameObject *obj, bool addToCompound, bool ghost);
 
 	/** 
 	 * Removes the parent of this object to a game object
@@ -279,11 +272,6 @@ public:
 	 * Sets the current frame of an action
 	 */
 	void SetActionFrame(short layer, float frame);
-
-	/**
-	 * Gets the currently running action on the given layer
-	 */
-	bAction *GetCurrentAction(short layer);
 
 	/**
 	 * Sets play mode of the action on the given layer
@@ -511,10 +499,12 @@ public:
 
 	bool IsDupliGroup()
 	{ 
-		Object *blenderobj = GetBlenderObject();
+		// TODO: store in BL_ConvertObjectInfo.
+		/*Object *blenderobj = GetBlenderObject();
 		return (blenderobj &&
 				(blenderobj->transflag & OB_DUPLIGROUP) &&
-				blenderobj->dup_group != nullptr) ? true : false;
+				blenderobj->dup_group != nullptr) ? true : false;*/
+		return false;
 	}
 
 	/**
@@ -787,15 +777,14 @@ public:
 	void RegisterCollisionCallbacks();
 	void UnregisterCollisionCallbacks();
 	void RunCollisionCallbacks(KX_GameObject *collider, KX_CollisionContactPointList& contactPointList);
-	/**
-	 * Stop making progress
-	 */
-	void Suspend(void);
 
-	/**
-	 * Resume making progress
-	 */
-	void Resume(void);
+	/// Suspend all progress.
+	void SuspendLogic();
+
+	/// Resume progress.
+	void ResumeLogic();
+
+	virtual ObjectTypes GetGameObjectType() const;
 
 	/**
 	 * add debug object to the debuglist.
@@ -840,8 +829,6 @@ public:
 	EXP_PYMETHOD_NOARGS(KX_GameObject,GetVisible);
 	EXP_PYMETHOD_VARARGS(KX_GameObject,SetVisible);
 	EXP_PYMETHOD_VARARGS(KX_GameObject,SetOcclusion);
-	EXP_PYMETHOD_NOARGS(KX_GameObject,GetState);
-	EXP_PYMETHOD_O(KX_GameObject,SetState);
 	EXP_PYMETHOD(KX_GameObject,AlignAxisToVect);
 	EXP_PYMETHOD_O(KX_GameObject,GetAxisVect);
 	EXP_PYMETHOD_VARARGS(KX_GameObject,SuspendPhysics);
@@ -947,8 +934,6 @@ public:
 	static int			pyattr_set_gravity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_timeOffset(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_timeOffset(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_state(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_state(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_meshes(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_batchGroup(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_children(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
@@ -973,22 +958,6 @@ public:
 	static int			pyattr_set_angularDamping(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_lodManager(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_lodManager(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-
-	static PyObject*	pyattr_get_sensors(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_controllers(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_actuators(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-
-	unsigned int py_get_sensors_size();
-	PyObject *py_get_sensors_item(unsigned int index);
-	std::string py_get_sensors_item_name(unsigned int index);
-
-	unsigned int py_get_controllers_size();
-	PyObject *py_get_controllers_item(unsigned int index);
-	std::string py_get_controllers_item_name(unsigned int index);
-
-	unsigned int py_get_actuators_size();
-	PyObject *py_get_actuators_item(unsigned int index);
-	std::string py_get_actuators_item_name(unsigned int index);
 
 	/* getitem/setitem */
 	static PyMappingMethods	Mapping;
