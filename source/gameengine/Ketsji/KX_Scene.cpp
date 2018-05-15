@@ -1522,16 +1522,12 @@ void KX_Scene::SetPhysicsEnvironment(PHY_IPhysicsEnvironment *physEnv)
 
 void KX_Scene::SetGravity(const mt::vec3& gravity)
 {
-	GetPhysicsEnvironment()->SetGravity(gravity[0], gravity[1], gravity[2]);
+	m_physicsEnvironment->SetGravity(gravity[0], gravity[1], gravity[2]);
 }
 
 mt::vec3 KX_Scene::GetGravity() const
 {
-	mt::vec3 gravity;
-
-	GetPhysicsEnvironment()->GetGravity(gravity);
-
-	return gravity;
+	return m_physicsEnvironment->GetGravity();
 }
 
 void KX_Scene::SetSuspendedDelta(double suspendeddelta)
@@ -1646,9 +1642,9 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 		return false;
 	}
 
-	GetBucketManager()->MergeBucketManager(other->GetBucketManager(), this);
-	GetBoundingBoxManager()->Merge(other->GetBoundingBoxManager());
-	GetTextureRendererManager()->Merge(other->GetTextureRendererManager());
+	m_bucketmanager->MergeBucketManager(other->GetBucketManager(), this);
+	m_boundingBoxManager->Merge(other->GetBoundingBoxManager());
+	m_rendererManager->Merge(other->GetTextureRendererManager());
 
 	for (KX_GameObject *gameobj : *other->GetObjectList()) {
 		MergeScene_GameObject(gameobj, this, other);
@@ -1681,22 +1677,22 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 		}
 	}
 
-	GetObjectList()->MergeList(other->GetObjectList());
+	m_objectlist->MergeList(other->GetObjectList());
 	other->GetObjectList()->ReleaseAndRemoveAll();
 
-	GetInactiveList()->MergeList(other->GetInactiveList());
+	m_inactivelist->MergeList(other->GetInactiveList());
 	other->GetInactiveList()->ReleaseAndRemoveAll();
 
-	GetRootParentList()->MergeList(other->GetRootParentList());
+	m_parentlist->MergeList(other->GetRootParentList());
 	other->GetRootParentList()->ReleaseAndRemoveAll();
 
-	GetLightList()->MergeList(other->GetLightList());
+	m_lightlist->MergeList(other->GetLightList());
 	other->GetLightList()->ReleaseAndRemoveAll();
 
-	GetCameraList()->MergeList(other->GetCameraList());
+	m_cameralist->MergeList(other->GetCameraList());
 	other->GetCameraList()->ReleaseAndRemoveAll();
 
-	GetFontList()->MergeList(other->GetFontList());
+	m_fontlist->MergeList(other->GetFontList());
 	other->GetFontList()->ReleaseAndRemoveAll();
 
 	// Grab any timer properties from the other scene.

@@ -190,7 +190,7 @@ public:
 	}
 
 	virtual void SetGravity(float x, float y, float z) = 0;
-	virtual void GetGravity(mt::vec3& grav) = 0;
+	virtual mt::vec3 GetGravity() const = 0;
 
 	virtual PHY_IConstraint *CreateConstraint(class PHY_IPhysicsController *ctrl, class PHY_IPhysicsController *ctrl2, PHY_ConstraintType type,
 								 float pivotX, float pivotY, float pivotZ,

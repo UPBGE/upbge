@@ -283,7 +283,7 @@ bool KX_SteeringActuator::Update(double curtime)
 				newvel.z = curvel.z;
 			}
 
-			obj->setLinearVelocity(newvel, false);
+			obj->SetLinearVelocity(newvel, false);
 		}
 		else {
 			const mt::vec3 movement = ((float)delta) * newvel;

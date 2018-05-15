@@ -23,8 +23,6 @@
 
 #include "CM_RefCount.h"
 
-#include "RAS_IDisplayArray.h"
-
 #include <vector>
 #include <map>
 
@@ -94,11 +92,6 @@ public:
 
 	~CcdShapeConstructionInfo();
 
-	bool IsUnused(void)
-	{
-		return (m_displayArrayList.empty() && m_shapeArray.empty() && m_shapeProxy == nullptr);
-	}
-
 	void AddShape(CcdShapeConstructionInfo *shapeInfo);
 
 	btStridingMeshInterface *GetMeshInterface()
@@ -154,7 +147,6 @@ public:
 	}
 
 	RAS_Mesh *GetMesh() const;
-	RAS_IDisplayArrayList& GetDisplayArrayList();
 
 	btCollisionShape *CreateBulletShape(btScalar margin, bool useGimpact = false, bool useBvh = true);
 
@@ -196,8 +188,6 @@ protected:
 	static MeshShapeMap m_meshShapeMap;
 	/// Converted original mesh.
 	RAS_Mesh *m_mesh;
-	/// Hold pointer to display arrays.
-	RAS_IDisplayArrayList m_displayArrayList;
 	/// The list of vertexes and indexes for the triangle mesh, shared between Bullet shape.
 	btTriangleIndexVertexArray *m_triangleIndexVertexArray;
 	/// for compound shapes
@@ -687,7 +677,7 @@ public:
 	virtual mt::mat3 GetOrientation();
 	virtual void SetOrientation(const mt::mat3& orn);
 	virtual void SetPosition(const mt::vec3& pos);
-	virtual void GetPosition(mt::vec3& pos) const;
+	virtual mt::vec3 GetPosition() const;
 	virtual void SetScaling(const mt::vec3& scale);
 	virtual void SetTransform();
 

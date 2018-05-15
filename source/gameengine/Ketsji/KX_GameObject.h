@@ -592,28 +592,28 @@ public:
 	);
 
 		void
-	addLinearVelocity(
+	AddLinearVelocity(
 		const mt::vec3& lin_vel,
 		bool local
 	);
 
 		void
-	setLinearVelocity(
+	SetLinearVelocity(
 		const mt::vec3& lin_vel,
 		bool local
 	);
 
 		void
-	setAngularVelocity(
+	SetAngularVelocity(
 		const mt::vec3& ang_vel,
 		bool local
 	);
 
-	virtual float	getLinearDamping() const;
-	virtual float	getAngularDamping() const;
-	virtual void	setLinearDamping(float damping);
-	virtual void	setAngularDamping(float damping);
-	virtual void	setDamping(float linear, float angular);
+	virtual float	GetLinearDamping() const;
+	virtual float	GetAngularDamping() const;
+	virtual void	SetLinearDamping(float damping);
+	virtual void	SetAngularDamping(float damping);
+	virtual void	SetDamping(float linear, float angular);
 
 	/**
 	 * Update the physics object transform based upon the current SG_Node

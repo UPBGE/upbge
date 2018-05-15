@@ -1031,12 +1031,9 @@ void CcdPhysicsEnvironment::SetSolverType(PHY_SolverType solverType)
 	m_solverType = solverType;
 }
 
-void CcdPhysicsEnvironment::GetGravity(mt::vec3& grav)
+mt::vec3 CcdPhysicsEnvironment::GetGravity() const
 {
-	const btVector3& gravity = m_dynamicsWorld->getGravity();
-	grav[0] = gravity.getX();
-	grav[1] = gravity.getY();
-	grav[2] = gravity.getZ();
+	return ToMt(m_dynamicsWorld->getGravity());
 }
 
 void CcdPhysicsEnvironment::SetGravity(float x, float y, float z)

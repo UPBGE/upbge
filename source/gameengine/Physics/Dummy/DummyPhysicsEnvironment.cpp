@@ -74,8 +74,9 @@ void DummyPhysicsEnvironment::SetGravity(float x, float y, float z)
 {
 }
 
-void DummyPhysicsEnvironment::GetGravity(mt::vec3& grav)
+mt::vec3 DummyPhysicsEnvironment::GetGravity() const
 {
+	return mt::zero3;
 }
 
 PHY_IConstraint *DummyPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController *ctrl, class PHY_IPhysicsController *ctrl2, PHY_ConstraintType type,

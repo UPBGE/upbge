@@ -73,7 +73,7 @@ public:
 	virtual mt::mat3 GetOrientation() = 0;
 	virtual void SetOrientation(const mt::mat3& orn) = 0;
 	virtual void SetPosition(const mt::vec3& pos) = 0;
-	virtual void GetPosition(mt::vec3& pos) const = 0;
+	virtual mt::vec3 GetPosition() const = 0;
 	virtual void SetScaling(const mt::vec3& scale) = 0;
 	virtual void SetTransform() = 0;
 

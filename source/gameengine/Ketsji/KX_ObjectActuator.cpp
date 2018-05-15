@@ -278,7 +278,7 @@ bool KX_ObjectActuator::Update()
 			}
 			if (!m_bitLocalFlag.ZeroLinearVelocity) {
 				if (m_bitLocalFlag.AddOrSetLinV) {
-					parent->addLinearVelocity(m_linear_velocity, (m_bitLocalFlag.LinearVelocity) != 0);
+					parent->AddLinearVelocity(m_linear_velocity, (m_bitLocalFlag.LinearVelocity) != 0);
 				}
 				else {
 					if (m_damping > 0) {
@@ -297,10 +297,10 @@ bool KX_ObjectActuator::Update()
 							m_current_linear_factor = 1.0f;
 						}
 						linV = m_current_linear_factor * m_linear_velocity;
-						parent->setLinearVelocity(linV, (m_bitLocalFlag.LinearVelocity) != 0);
+						parent->SetLinearVelocity(linV, (m_bitLocalFlag.LinearVelocity) != 0);
 					}
 					else {
-						parent->setLinearVelocity(m_linear_velocity, (m_bitLocalFlag.LinearVelocity) != 0);
+						parent->SetLinearVelocity(m_linear_velocity, (m_bitLocalFlag.LinearVelocity) != 0);
 					}
 				}
 			}
@@ -321,10 +321,10 @@ bool KX_ObjectActuator::Update()
 						m_current_angular_factor = 1.0;
 					}
 					angV = m_current_angular_factor * m_angular_velocity;
-					parent->setAngularVelocity(angV, (m_bitLocalFlag.AngularVelocity) != 0);
+					parent->SetAngularVelocity(angV, (m_bitLocalFlag.AngularVelocity) != 0);
 				}
 				else {
-					parent->setAngularVelocity(m_angular_velocity, (m_bitLocalFlag.AngularVelocity) != 0);
+					parent->SetAngularVelocity(m_angular_velocity, (m_bitLocalFlag.AngularVelocity) != 0);
 				}
 			}
 		}

@@ -333,118 +333,124 @@ KX_GameObject *KX_GameObject::GetParent()
 	}
 
 	return result;
-
 }
 
 void KX_GameObject::SetParent(KX_GameObject *obj, bool addToCompound, bool ghost)
 {
 	// check on valid node in case a python controller holds a reference to a deleted object
-	if (obj &&
-	    GetSGNode()->GetSGParent() != obj->GetSGNode() &&   // not already parented to same object
-	    !GetSGNode()->IsAncessor(obj->GetSGNode()) &&       // no parenting loop
-	    this != obj) { // not the object itself
-		if (!(GetScene()->GetInactiveList()->SearchValue(obj) != GetScene()->GetObjectList()->SearchValue(this))) {
-			CM_FunctionWarning("child and parent are not in the same game objects list (active or inactive). This operation is forbidden.");
-			return;
-		}
-		// Make sure the objects have some scale
-		mt::vec3 scale1 = NodeGetWorldScaling();
-		mt::vec3 scale2 = obj->NodeGetWorldScaling();
-		if (fabs(scale2[0]) < (float)FLT_EPSILON ||
-		    fabs(scale2[1]) < (float)FLT_EPSILON ||
-		    fabs(scale2[2]) < (float)FLT_EPSILON ||
-		    fabs(scale1[0]) < (float)FLT_EPSILON ||
-		    fabs(scale1[1]) < (float)FLT_EPSILON ||
-		    fabs(scale1[2]) < (float)FLT_EPSILON) {
-			return;
-		}
-
-		KX_Scene *scene = GetScene();
-		// Remove us from our old parent and set our new parent
-		RemoveParent();
-		obj->GetSGNode()->AddChild(GetSGNode());
-
-		if (m_physicsController) {
-			m_physicsController->SuspendDynamics(ghost);
-		}
-		// Set us to our new scale, position, and orientation
-		scale2[0] = 1.0f / scale2[0];
-		scale2[1] = 1.0f / scale2[1];
-		scale2[2] = 1.0f / scale2[2];
-		scale1 = scale1 * scale2;
-		mt::mat3 invori = obj->NodeGetWorldOrientation().Inverse();
-		mt::vec3 newpos = invori * (NodeGetWorldPosition() - obj->NodeGetWorldPosition()) * scale2;
-
-		NodeSetLocalScale(scale1);
-		NodeSetLocalPosition(mt::vec3(newpos[0], newpos[1], newpos[2]));
-		NodeSetLocalOrientation(invori * NodeGetWorldOrientation());
-		NodeUpdateGS();
-		// object will now be a child, it must be removed from the parent list
-		EXP_ListValue<KX_GameObject> *rootlist = scene->GetRootParentList();
-		if (rootlist->RemoveValue(this)) {
-			// the object was in parent list, decrement ref count as it's now removed
-			Release();
-		}
-		// if the new parent is a compound object, add this object shape to the compound shape.
-		// step 0: verify this object has physical controller
-		if (m_physicsController && addToCompound) {
-			// step 1: find the top parent (not necessarily obj)
-			KX_GameObject *rootobj = (KX_GameObject *)obj->GetSGNode()->GetRootSGParent()->GetSGClientObject();
-			// step 2: verify it has a physical controller and compound shape
-			if (rootobj != nullptr &&
-			    rootobj->m_physicsController != nullptr &&
-			    rootobj->m_physicsController->IsCompound()) {
-				rootobj->m_physicsController->AddCompoundChild(m_physicsController.get());
-			}
-		}
-		// graphically, the object hasn't change place, no need to update m_graphicController
+	if (!obj) {
+		return;
 	}
+
+	SG_Node *parentSgNode = obj->GetSGNode();
+	KX_Scene *scene = GetScene();
+
+	// Not already parented to same object, no parenting loop, not the object itself
+	if (m_sgNode->GetSGParent() == parentSgNode || !m_sgNode->IsAncessor(parentSgNode) || this != obj) {
+		return;
+	}
+
+	if (!(scene->GetInactiveList()->SearchValue(obj) != scene->GetObjectList()->SearchValue(this))) {
+		CM_FunctionWarning("child and parent are not in the same game objects list (active or inactive). This operation is forbidden.");
+		return;
+	}
+
+	// Make sure the objects have some scale
+	mt::vec3 scale1 = NodeGetWorldScaling();
+	mt::vec3 scale2 = obj->NodeGetWorldScaling();
+	if (mt::FuzzyZero(scale1) || mt::FuzzyZero(scale2)) {
+		return;
+	}
+
+	// Remove us from our old parent and set our new parent
+	RemoveParent();
+	parentSgNode->AddChild(m_sgNode.get());
+
+	if (m_physicsController) {
+		m_physicsController->SuspendDynamics(ghost);
+	}
+	
+	// Set us to our new scale, position, and orientation
+	scale2[0] = 1.0f / scale2[0];
+	scale2[1] = 1.0f / scale2[1];
+	scale2[2] = 1.0f / scale2[2];
+	scale1 = scale1 * scale2;
+
+	const mt::mat3 invori = obj->NodeGetWorldOrientation().Inverse();
+	const mt::vec3 newpos = invori * (NodeGetWorldPosition() - obj->NodeGetWorldPosition()) * scale2;
+
+	NodeSetLocalScale(scale1);
+	NodeSetLocalPosition(newpos);
+	NodeSetLocalOrientation(invori * NodeGetWorldOrientation());
+	NodeUpdateGS();
+
+	// object will now be a child, it must be removed from the parent list
+	EXP_ListValue<KX_GameObject> *rootlist = scene->GetRootParentList();
+	if (rootlist->RemoveValue(this)) {
+		// the object was in parent list, decrement ref count as it's now removed
+		Release();
+	}
+
+	// if the new parent is a compound object, add this object shape to the compound shape.
+	// step 0: verify this object has physical controller
+	if (m_physicsController && addToCompound) {
+		// step 1: find the top parent (not necessarily obj)
+		KX_GameObject *rootobj = (KX_GameObject *)parentSgNode->GetRootSGParent()->GetSGClientObject();
+		// step 2: verify it has a physical controller and compound shape
+		if (rootobj != nullptr &&
+		    rootobj->m_physicsController != nullptr &&
+		    rootobj->m_physicsController->IsCompound()) {
+			rootobj->m_physicsController->AddCompoundChild(m_physicsController.get());
+		}
+	}
+	// graphically, the object hasn't change place, no need to update m_graphicController
 }
 
 void KX_GameObject::RemoveParent()
 {
 	// check on valid node in case a python controller holds a reference to a deleted object
-	if (GetSGNode()->GetSGParent()) {
-		// get the root object to remove us from compound object if needed
-		KX_GameObject *rootobj = (KX_GameObject *)GetSGNode()->GetRootSGParent()->GetSGClientObject();
-		// Set us to the right spot
-		GetSGNode()->SetLocalScale(GetSGNode()->GetWorldScaling());
-		GetSGNode()->SetLocalOrientation(GetSGNode()->GetWorldOrientation());
-		GetSGNode()->SetLocalPosition(GetSGNode()->GetWorldPosition());
-
-		// Remove us from our parent
-		GetSGNode()->DisconnectFromParent();
-		NodeUpdateGS();
-
-		KX_Scene *scene = GetScene();
-		// the object is now a root object, add it to the parentlist
-		EXP_ListValue<KX_GameObject> *rootlist = scene->GetRootParentList();
-		if (!rootlist->SearchValue(this)) {
-			// object was not in root list, add it now and increment ref count
-			rootlist->Add(CM_AddRef(this));
-		}
-		if (m_physicsController) {
-			// in case this controller was added as a child shape to the parent
-			if (rootobj != nullptr &&
-			    rootobj->m_physicsController != nullptr &&
-			    rootobj->m_physicsController->IsCompound()) {
-				rootobj->m_physicsController->RemoveCompoundChild(m_physicsController.get());
-			}
-			m_physicsController->RestoreDynamics();
-			if (m_physicsController->IsDynamic() && (rootobj != nullptr && rootobj->m_physicsController)) {
-				// dynamic object should remember the velocity they had while being parented
-				mt::vec3 childPoint = GetSGNode()->GetWorldPosition();
-				mt::vec3 rootPoint = rootobj->GetSGNode()->GetWorldPosition();
-				mt::vec3 relPoint;
-				relPoint = (childPoint - rootPoint);
-				mt::vec3 linVel = rootobj->m_physicsController->GetVelocity(relPoint);
-				mt::vec3 angVel = rootobj->m_physicsController->GetAngularVelocity();
-				m_physicsController->SetLinearVelocity(linVel, false);
-				m_physicsController->SetAngularVelocity(angVel, false);
-			}
-		}
-		// graphically, the object hasn't change place, no need to update m_graphicController
+	if (m_sgNode->GetSGParent()) {
+		return;
 	}
+
+	// get the root object to remove us from compound object if needed
+	KX_GameObject *rootobj = (KX_GameObject *)m_sgNode->GetRootSGParent()->GetSGClientObject();
+	// Set us to the right spot
+	m_sgNode->SetLocalScale(m_sgNode->GetWorldScaling());
+	m_sgNode->SetLocalOrientation(m_sgNode->GetWorldOrientation());
+	m_sgNode->SetLocalPosition(m_sgNode->GetWorldPosition());
+
+	// Remove us from our parent
+	m_sgNode->DisconnectFromParent();
+	NodeUpdateGS();
+
+	KX_Scene *scene = GetScene();
+	// the object is now a root object, add it to the parentlist
+	EXP_ListValue<KX_GameObject> *rootlist = scene->GetRootParentList();
+	if (!rootlist->SearchValue(this)) {
+		// object was not in root list, add it now and increment ref count
+		rootlist->Add(CM_AddRef(this));
+	}
+	if (m_physicsController) {
+		// in case this controller was added as a child shape to the parent
+		if (rootobj &&
+		    rootobj->m_physicsController &&
+		    rootobj->m_physicsController->IsCompound()) {
+			rootobj->m_physicsController->RemoveCompoundChild(m_physicsController.get());
+		}
+		m_physicsController->RestoreDynamics();
+		if (m_physicsController->IsDynamic() && (rootobj && rootobj->m_physicsController)) {
+			// dynamic object should remember the velocity they had while being parented
+			const mt::vec3 childPoint = m_sgNode->GetWorldPosition();
+			const mt::vec3 rootPoint = rootobj->m_sgNode->GetWorldPosition();
+			const mt::vec3 relPoint = (childPoint - rootPoint);
+			const mt::vec3 linVel = rootobj->m_physicsController->GetVelocity(relPoint);
+			const mt::vec3 angVel = rootobj->m_physicsController->GetAngularVelocity();
+			m_physicsController->SetLinearVelocity(linVel, false);
+			m_physicsController->SetAngularVelocity(angVel, false);
+		}
+	}
+	// graphically, the object hasn't change place, no need to update m_graphicController
 }
 
 BL_ActionManager *KX_GameObject::GetActionManager()
@@ -545,7 +551,7 @@ void KX_GameObject::ActivateGraphicController(bool recurse)
 		m_graphicController->Activate(m_bVisible);
 	}
 	if (recurse) {
-		setGraphicController_recursive(GetSGNode());
+		setGraphicController_recursive(m_sgNode.get());
 	}
 }
 
@@ -599,23 +605,23 @@ bool KX_GameObject::IsDynamicsSuspended() const
 	return false;
 }
 
-float KX_GameObject::getLinearDamping() const
+float KX_GameObject::GetLinearDamping() const
 {
 	if (m_physicsController) {
 		return m_physicsController->GetLinearDamping();
 	}
-	return 0;
+	return 0.0f;
 }
 
-float KX_GameObject::getAngularDamping() const
+float KX_GameObject::GetAngularDamping() const
 {
 	if (m_physicsController) {
 		return m_physicsController->GetAngularDamping();
 	}
-	return 0;
+	return 0.0f;
 }
 
-void KX_GameObject::setLinearDamping(float damping)
+void KX_GameObject::SetLinearDamping(float damping)
 {
 	if (m_physicsController) {
 		m_physicsController->SetLinearDamping(damping);
@@ -623,21 +629,19 @@ void KX_GameObject::setLinearDamping(float damping)
 }
 
 
-void KX_GameObject::setAngularDamping(float damping)
+void KX_GameObject::SetAngularDamping(float damping)
 {
 	if (m_physicsController) {
 		m_physicsController->SetAngularDamping(damping);
 	}
 }
 
-
-void KX_GameObject::setDamping(float linear, float angular)
+void KX_GameObject::SetDamping(float linear, float angular)
 {
 	if (m_physicsController) {
 		m_physicsController->SetDamping(linear, angular);
 	}
 }
-
 
 void KX_GameObject::ApplyForce(const mt::vec3& force, bool local)
 {
@@ -646,8 +650,6 @@ void KX_GameObject::ApplyForce(const mt::vec3& force, bool local)
 	}
 }
 
-
-
 void KX_GameObject::ApplyTorque(const mt::vec3& torque, bool local)
 {
 	if (m_physicsController) {
@@ -655,14 +657,12 @@ void KX_GameObject::ApplyTorque(const mt::vec3& torque, bool local)
 	}
 }
 
-
-
 void KX_GameObject::ApplyMovement(const mt::vec3& dloc, bool local)
 {
 	if (m_physicsController) { // (IsDynamic())
 		m_physicsController->RelativeTranslate(dloc, local);
 	}
-	GetSGNode()->RelativeTranslate(dloc, GetSGNode()->GetSGParent(), local);
+	m_sgNode->RelativeTranslate(dloc, m_sgNode->GetSGParent(), local);
 	NodeUpdateGS();
 }
 
@@ -670,7 +670,7 @@ void KX_GameObject::ApplyRotation(const mt::vec3& drot, bool local)
 {
 	mt::mat3 rotmat(drot);
 
-	GetSGNode()->RelativeRotate(rotmat, local);
+	m_sgNode->RelativeRotate(rotmat, local);
 
 	if (m_physicsController) { // (IsDynamic())
 		m_physicsController->RelativeRotate(rotmat, local);
@@ -882,8 +882,8 @@ void KX_GameObject::UpdateIPO(float curframetime,
                               bool recurse)
 {
 	// just the 'normal' update procedure.
-	GetSGNode()->SetSimulatedTimeThread(curframetime, recurse);
-	GetSGNode()->UpdateWorldDataThread();
+	m_sgNode->SetSimulatedTimeThread(curframetime, recurse);
+	m_sgNode->UpdateWorldDataThread();
 }
 
 bool KX_GameObject::GetVisible(void)
@@ -916,7 +916,7 @@ void KX_GameObject::SetVisible(bool v,
 		m_graphicController->Activate(m_bVisible);
 	}
 	if (recursive) {
-		setVisible_recursive(GetSGNode(), v);
+		setVisible_recursive(m_sgNode.get(), v);
 	}
 }
 
@@ -941,7 +941,7 @@ void KX_GameObject::SetOccluder(bool v,
 {
 	m_bOccluder = v;
 	if (recursive) {
-		setOccluder_recursive(GetSGNode(), v);
+		setOccluder_recursive(m_sgNode.get(), v);
 	}
 }
 
@@ -982,7 +982,7 @@ void KX_GameObject::SetUseDebugProperties(bool debug, bool recursive)
 	}
 
 	if (recursive) {
-		setDebug_recursive(scene, GetSGNode(), debug);
+		setDebug_recursive(scene, m_sgNode.get(), debug);
 	}
 }
 
@@ -996,26 +996,22 @@ int KX_GameObject::GetLayer(void)
 	return m_layer;
 }
 
-void KX_GameObject::addLinearVelocity(const mt::vec3& lin_vel, bool local)
+void KX_GameObject::AddLinearVelocity(const mt::vec3& lin_vel, bool local)
 {
 	if (m_physicsController) {
-		mt::vec3 lv = local ? NodeGetWorldOrientation() * lin_vel : lin_vel;
+		const mt::vec3 lv = local ? NodeGetWorldOrientation() * lin_vel : lin_vel;
 		m_physicsController->SetLinearVelocity(lv + m_physicsController->GetLinearVelocity(), 0);
 	}
 }
 
-
-
-void KX_GameObject::setLinearVelocity(const mt::vec3& lin_vel, bool local)
+void KX_GameObject::SetLinearVelocity(const mt::vec3& lin_vel, bool local)
 {
 	if (m_physicsController) {
 		m_physicsController->SetLinearVelocity(lin_vel, local);
 	}
 }
 
-
-
-void KX_GameObject::setAngularVelocity(const mt::vec3& ang_vel, bool local)
+void KX_GameObject::SetAngularVelocity(const mt::vec3& ang_vel, bool local)
 {
 	if (m_physicsController) {
 		m_physicsController->SetAngularVelocity(ang_vel, local);
@@ -1051,7 +1047,7 @@ void KX_GameObject::AlignAxisToVect(const mt::vec3& dir, int axis, float fac)
 
 	// normalize
 	vect /= len;
-	orimat = GetSGNode()->GetWorldOrientation();
+	orimat = NodeGetWorldOrientation();
 	switch (axis) {
 		case 0: // align x axis of new coord system to vect
 		{ori = orimat.GetColumn(2);    // pivot axis
@@ -1128,10 +1124,10 @@ void KX_GameObject::AlignAxisToVect(const mt::vec3& dir, int axis, float fac)
 	z.Normalize();
 	orimat = mt::mat3(x, y, z);
 
-	if (GetSGNode()->GetSGParent() != nullptr) {
+	if (m_sgNode->GetSGParent() != nullptr) {
 		// the object is a child, adapt its local orientation so that
 		// the global orientation is aligned as we want (cancelling out the parent orientation)
-		mt::mat3 invori = GetSGNode()->GetSGParent()->GetWorldOrientation().Inverse();
+		mt::mat3 invori = m_sgNode->GetSGParent()->GetWorldOrientation().Inverse();
 		NodeSetLocalOrientation(invori * orimat);
 	}
 	else {
@@ -1164,7 +1160,7 @@ mt::vec3 KX_GameObject::GetLinearVelocity(bool local)
 		velocity = m_physicsController->GetLinearVelocity();
 
 		if (local) {
-			ori = GetSGNode()->GetWorldOrientation();
+			ori = NodeGetWorldOrientation();
 
 			locvel = velocity * ori;
 			return locvel;
@@ -1181,7 +1177,7 @@ mt::vec3 KX_GameObject::GetAngularVelocity(bool local)
 		velocity = m_physicsController->GetAngularVelocity();
 
 		if (local) {
-			ori = GetSGNode()->GetWorldOrientation();
+			ori = NodeGetWorldOrientation();
 
 			locvel = velocity * ori;
 			return locvel;
@@ -1214,11 +1210,9 @@ mt::vec3 KX_GameObject::GetVelocity(const mt::vec3& point)
 	return mt::zero3;
 }
 
-// scenegraph node stuff
-
 void KX_GameObject::NodeSetLocalPosition(const mt::vec3& trans)
 {
-	if (m_physicsController && !GetSGNode()->GetSGParent()) {
+	if (m_physicsController && !m_sgNode->GetSGParent()) {
 		// don't update physic controller if the object is a child:
 		// 1) the transformation will not be right
 		// 2) in this case, the physic controller is necessarily a static object
@@ -1226,25 +1220,23 @@ void KX_GameObject::NodeSetLocalPosition(const mt::vec3& trans)
 		m_physicsController->SetPosition(trans);
 	}
 
-	GetSGNode()->SetLocalPosition(trans);
-
+	m_sgNode->SetLocalPosition(trans);
 }
-
-
 
 void KX_GameObject::NodeSetLocalOrientation(const mt::mat3& rot)
 {
-	if (m_physicsController && !GetSGNode()->GetSGParent()) {
+	if (m_physicsController && !m_sgNode->GetSGParent()) {
 		// see note above
 		m_physicsController->SetOrientation(rot);
 	}
-	GetSGNode()->SetLocalOrientation(rot);
+	m_sgNode->SetLocalOrientation(rot);
 }
 
 void KX_GameObject::NodeSetGlobalOrientation(const mt::mat3& rot)
 {
-	if (GetSGNode()->GetSGParent()) {
-		GetSGNode()->SetLocalOrientation(GetSGNode()->GetSGParent()->GetWorldOrientation().Inverse() * rot);
+	SG_Node *parentSgNode = m_sgNode->GetSGParent();
+	if (parentSgNode) {
+		NodeSetLocalOrientation(parentSgNode->GetSGParent()->GetWorldOrientation().Inverse() * rot);
 	}
 	else {
 		NodeSetLocalOrientation(rot);
@@ -1253,42 +1245,37 @@ void KX_GameObject::NodeSetGlobalOrientation(const mt::mat3& rot)
 
 void KX_GameObject::NodeSetLocalScale(const mt::vec3& scale)
 {
-	if (m_physicsController && !GetSGNode()->GetSGParent()) {
-		// see note above
+	if (m_physicsController && !m_sgNode->GetSGParent()) {
 		m_physicsController->SetScaling(scale);
 	}
-	GetSGNode()->SetLocalScale(scale);
+	m_sgNode->SetLocalScale(scale);
 }
-
-
 
 void KX_GameObject::NodeSetRelativeScale(const mt::vec3& scale)
 {
-	GetSGNode()->RelativeScale(scale);
-	if (m_physicsController && (!GetSGNode()->GetSGParent())) {
+	m_sgNode->RelativeScale(scale);
+	if (m_physicsController && (!m_sgNode->GetSGParent())) {
 		// see note above
 		// we can use the local scale: it's the same thing for a root object
 		// and the world scale is not yet updated
-		mt::vec3 newscale = GetSGNode()->GetLocalScale();
+		const mt::vec3& newscale = NodeGetLocalScaling();
 		m_physicsController->SetScaling(newscale);
 	}
 }
 
 void KX_GameObject::NodeSetWorldScale(const mt::vec3& scale)
 {
-	SG_Node *parent = GetSGNode()->GetSGParent();
-	if (parent != nullptr) {
+	SG_Node *parent = m_sgNode->GetSGParent();
+	if (parent) {
 		// Make sure the objects have some scale
 		mt::vec3 p_scale = parent->GetWorldScaling();
-		if (fabs(p_scale[0]) < (float)FLT_EPSILON ||
-		    fabs(p_scale[1]) < (float)FLT_EPSILON ||
-		    fabs(p_scale[2]) < (float)FLT_EPSILON) {
+		if (mt::FuzzyZero(p_scale)) {
 			return;
 		}
 
-		p_scale[0] = 1 / p_scale[0];
-		p_scale[1] = 1 / p_scale[1];
-		p_scale[2] = 1 / p_scale[2];
+		p_scale[0] = 1.0f / p_scale[0];
+		p_scale[1] = 1.0f / p_scale[1];
+		p_scale[2] = 1.0f / p_scale[2];
 
 		NodeSetLocalScale(scale * p_scale);
 	}
@@ -1303,17 +1290,17 @@ void KX_GameObject::NodeSetWorldPosition(const mt::vec3& trans)
 	if (parent != nullptr) {
 		// Make sure the objects have some scale
 		mt::vec3 scale = parent->GetWorldScaling();
-		if (fabs(scale[0]) < (float)FLT_EPSILON ||
-		    fabs(scale[1]) < (float)FLT_EPSILON ||
-		    fabs(scale[2]) < (float)FLT_EPSILON) {
+		if (mt::FuzzyZero(scale)) {
 			return;
 		}
+
 		scale[0] = 1.0f / scale[0];
 		scale[1] = 1.0f / scale[1];
 		scale[2] = 1.0f / scale[2];
-		mt::mat3 invori = parent->GetWorldOrientation().Inverse();
-		mt::vec3 newpos = invori * (trans - parent->GetWorldPosition()) * scale;
-		NodeSetLocalPosition(mt::vec3(newpos[0], newpos[1], newpos[2]));
+
+		const mt::mat3 invori = parent->GetWorldOrientation().Inverse();
+		const mt::vec3 newpos = invori * (trans - parent->GetWorldPosition()) * scale;
+		NodeSetLocalPosition(newpos);
 	}
 	else {
 		NodeSetLocalPosition(trans);
@@ -1458,21 +1445,21 @@ void KX_GameObject::SetActivityCulling(ActivityCullingInfo::Flag flag, bool enab
 
 void KX_GameObject::SuspendPhysics(bool freeConstraints)
 {
-	if (GetPhysicsController()) {
-		GetPhysicsController()->SuspendPhysics((bool)freeConstraints);
+	if (m_physicsController) {
+		m_physicsController->SuspendPhysics((bool)freeConstraints);
 	}
 }
 
 void KX_GameObject::RestorePhysics()
 {
-	if (GetPhysicsController()) {
-		GetPhysicsController()->RestorePhysics();
+	if (m_physicsController) {
+		m_physicsController->RestorePhysics();
 	}
 }
 
 void KX_GameObject::UnregisterCollisionCallbacks()
 {
-	if (!GetPhysicsController()) {
+	if (!m_physicsController) {
 		CM_Warning("trying to unregister collision callbacks for object without collisions: " << GetName());
 		return;
 	}
@@ -1480,7 +1467,7 @@ void KX_GameObject::UnregisterCollisionCallbacks()
 	// Unregister from callbacks
 	KX_Scene *scene = GetScene();
 	PHY_IPhysicsEnvironment *pe = scene->GetPhysicsEnvironment();
-	PHY_IPhysicsController *spc = GetPhysicsController();
+	PHY_IPhysicsController *spc = m_physicsController.get();
 	// If we are the last to unregister on this physics controller
 	if (pe->RemoveCollisionCallback(spc)) {
 		// If we are a sensor object
@@ -1493,7 +1480,7 @@ void KX_GameObject::UnregisterCollisionCallbacks()
 
 void KX_GameObject::RegisterCollisionCallbacks()
 {
-	if (!GetPhysicsController()) {
+	if (!m_physicsController) {
 		CM_Warning("trying to register collision callbacks for object without collisions: " << GetName());
 		return;
 	}
@@ -1501,7 +1488,7 @@ void KX_GameObject::RegisterCollisionCallbacks()
 	// Register from callbacks
 	KX_Scene *scene = GetScene();
 	PHY_IPhysicsEnvironment *pe = scene->GetPhysicsEnvironment();
-	PHY_IPhysicsController *spc = GetPhysicsController();
+	PHY_IPhysicsController *spc = m_physicsController.get();
 	// If we are the first to register on this physics controller
 	if (pe->RequestCollisionCallback(spc)) {
 		// If we are a sensor object
@@ -1531,7 +1518,7 @@ void KX_GameObject::RunCollisionCallbacks(KX_GameObject *collider, KX_CollisionC
 		Py_DECREF(args[i]);
 	}
 
-	// Invalidate the collison contact point to avoid acces to it in next frame
+	// Invalidate the collison contact point to avoid access to it in next frame
 	contactPointList.InvalidateProxy();
 #endif
 }
@@ -1562,14 +1549,14 @@ static void walk_children(const SG_Node *node, std::vector<KX_GameObject *>& lis
 std::vector<KX_GameObject *> KX_GameObject::GetChildren() const
 {
 	std::vector<KX_GameObject *> list;
-	walk_children<false>(GetSGNode(), list);
+	walk_children<false>(m_sgNode.get(), list);
 	return list;
 }
 
 std::vector<KX_GameObject *> KX_GameObject::GetChildrenRecursive() const
 {
 	std::vector<KX_GameObject *> list;
-	walk_children<true>(GetSGNode(), list);
+	walk_children<true>(m_sgNode.get(), list);
 	return list;
 }
 
@@ -1693,7 +1680,7 @@ static int mathutils_kxgameob_vector_get(BaseMathObject *bmo, int subtype)
 		case MATHUTILS_VEC_CB_INERTIA_LOCAL:
 		{
 			PYTHON_CHECK_PHYSICS_CONTROLLER(self, "localInertia", -1);
-			self->GetPhysicsController()->GetLocalInertia().Pack(bmo->data);
+			self->GetLocalInertia().Pack(bmo->data);
 			break;
 		}
 		case MATHUTILS_VEC_CB_OBJECT_COLOR:
@@ -1783,22 +1770,22 @@ static int mathutils_kxgameob_vector_set(BaseMathObject *bmo, int subtype)
 		}
 		case MATHUTILS_VEC_CB_LINVEL_LOCAL:
 		{
-			self->setLinearVelocity(mt::vec3(bmo->data), true);
+			self->SetLinearVelocity(mt::vec3(bmo->data), true);
 			break;
 		}
 		case MATHUTILS_VEC_CB_LINVEL_GLOBAL:
 		{
-			self->setLinearVelocity(mt::vec3(bmo->data), false);
+			self->SetLinearVelocity(mt::vec3(bmo->data), false);
 			break;
 		}
 		case MATHUTILS_VEC_CB_ANGVEL_LOCAL:
 		{
-			self->setAngularVelocity(mt::vec3(bmo->data), true);
+			self->SetAngularVelocity(mt::vec3(bmo->data), true);
 			break;
 		}
 		case MATHUTILS_VEC_CB_ANGVEL_GLOBAL:
 		{
-			self->setAngularVelocity(mt::vec3(bmo->data), false);
+			self->SetAngularVelocity(mt::vec3(bmo->data), false);
 			break;
 		}
 		case MATHUTILS_VEC_CB_GRAVITY:
@@ -2088,7 +2075,7 @@ PyObject *KX_GameObject::PyReinstancePhysicsMesh(PyObject *args, PyObject *kwds)
 	}
 
 	/* gameobj and mesh can be nullptr */
-	if (GetPhysicsController() && GetPhysicsController()->ReinstancePhysicsShape(gameobj, mesh, dupli)) {
+	if (m_physicsController && m_physicsController->ReinstancePhysicsShape(gameobj, mesh, dupli)) {
 		Py_RETURN_TRUE;
 	}
 
@@ -2104,12 +2091,12 @@ PyObject *KX_GameObject::PyReplacePhysicsShape(PyObject *value)
 		return nullptr;
 	}
 
-	if (!GetPhysicsController() || !gameobj->GetPhysicsController()) {
+	if (!m_physicsController || !gameobj->GetPhysicsController()) {
 		PyErr_SetString(PyExc_AttributeError, "gameOb.replacePhysicsShape(obj): function only available for objects with collisions enabled");
 		return nullptr;
 	}
 
-	GetPhysicsController()->ReplacePhysicsShape(gameobj->GetPhysicsController());
+	m_physicsController->ReplacePhysicsShape(gameobj->GetPhysicsController());
 	Py_RETURN_NONE;
 }
 
@@ -2389,7 +2376,7 @@ PyObject *KX_GameObject::pyattr_get_collisionCallbacks(EXP_PyObjectPlus *self_v,
 	PYTHON_CHECK_PHYSICS_CONTROLLER(self, "collisionCallbacks", nullptr);
 
 	// Return the existing callbacks
-	if (self->m_collisionCallbacks == nullptr) {
+	if (!self->m_collisionCallbacks) {
 		self->m_collisionCallbacks = PyList_New(0);
 		// Subscribe to collision update from KX_CollisionEventManager
 		self->RegisterCollisionCallbacks();
@@ -2410,7 +2397,7 @@ int KX_GameObject::pyattr_set_collisionCallbacks(EXP_PyObjectPlus *self_v, const
 		return PY_SET_ATTR_FAIL;
 	}
 
-	if (self->m_collisionCallbacks == nullptr) {
+	if (!self->m_collisionCallbacks) {
 		self->RegisterCollisionCallbacks();
 	}
 	else {
@@ -3017,7 +3004,7 @@ int KX_GameObject::pyattr_set_worldLinearVelocity(EXP_PyObjectPlus *self_v, cons
 		return PY_SET_ATTR_FAIL;
 	}
 
-	self->setLinearVelocity(velocity, false);
+	self->SetLinearVelocity(velocity, false);
 
 	return PY_SET_ATTR_SUCCESS;
 }
@@ -3042,7 +3029,7 @@ int KX_GameObject::pyattr_set_localLinearVelocity(EXP_PyObjectPlus *self_v, cons
 		return PY_SET_ATTR_FAIL;
 	}
 
-	self->setLinearVelocity(velocity, true);
+	self->SetLinearVelocity(velocity, true);
 
 	return PY_SET_ATTR_SUCCESS;
 }
@@ -3067,7 +3054,7 @@ int KX_GameObject::pyattr_set_worldAngularVelocity(EXP_PyObjectPlus *self_v, con
 		return PY_SET_ATTR_FAIL;
 	}
 
-	self->setAngularVelocity(velocity, false);
+	self->SetAngularVelocity(velocity, false);
 
 	return PY_SET_ATTR_SUCCESS;
 }
@@ -3092,7 +3079,7 @@ int KX_GameObject::pyattr_set_localAngularVelocity(EXP_PyObjectPlus *self_v, con
 		return PY_SET_ATTR_FAIL;
 	}
 
-	self->setAngularVelocity(velocity, true);
+	self->SetAngularVelocity(velocity, true);
 
 	return PY_SET_ATTR_SUCCESS;
 }
@@ -3125,28 +3112,28 @@ int KX_GameObject::pyattr_set_gravity(EXP_PyObjectPlus *self_v, const EXP_PYATTR
 PyObject *KX_GameObject::pyattr_get_linearDamping(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
-	return PyFloat_FromDouble(self->getLinearDamping());
+	return PyFloat_FromDouble(self->GetLinearDamping());
 }
 
 int KX_GameObject::pyattr_set_linearDamping(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
 	float val = PyFloat_AsDouble(value);
-	self->setLinearDamping(val);
+	self->SetLinearDamping(val);
 	return PY_SET_ATTR_SUCCESS;
 }
 
 PyObject *KX_GameObject::pyattr_get_angularDamping(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
-	return PyFloat_FromDouble(self->getAngularDamping());
+	return PyFloat_FromDouble(self->GetAngularDamping());
 }
 
 int KX_GameObject::pyattr_set_angularDamping(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
 	float val = PyFloat_AsDouble(value);
-	self->setAngularDamping(val);
+	self->SetAngularDamping(val);
 	return PY_SET_ATTR_SUCCESS;
 }
 
@@ -3155,7 +3142,7 @@ PyObject *KX_GameObject::pyattr_get_timeOffset(EXP_PyObjectPlus *self_v, const E
 {
 	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
 	SG_Node *sg_parent;
-	if ((sg_parent = self->GetSGNode()->GetSGParent()) != nullptr && sg_parent->IsSlowParent()) {
+	if ((sg_parent = self->m_sgNode->GetSGParent()) != nullptr && sg_parent->IsSlowParent()) {
 		return PyFloat_FromDouble(static_cast<KX_SlowParentRelation *>(sg_parent->GetParentRelation())->GetTimeOffset());
 	}
 	else {
@@ -3167,7 +3154,7 @@ int KX_GameObject::pyattr_set_timeOffset(EXP_PyObjectPlus *self_v, const EXP_PYA
 {
 	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
 	float val = PyFloat_AsDouble(value);
-	SG_Node *sg_parent = self->GetSGNode()->GetSGParent();
+	SG_Node *sg_parent = self->m_sgNode->GetSGParent();
 	if (val < 0.0f) { /* also accounts for non float */
 		PyErr_SetString(PyExc_AttributeError, "gameOb.timeOffset = float: KX_GameObject, expected a float zero or above");
 		return PY_SET_ATTR_FAIL;
@@ -3527,7 +3514,7 @@ PyObject *KX_GameObject::PySetLinearVelocity(PyObject *args)
 	if (PyArg_ParseTuple(args, "O|i:setLinearVelocity", &pyvect, &local)) {
 		mt::vec3 velocity;
 		if (PyVecTo(pyvect, velocity)) {
-			setLinearVelocity(velocity, (local != 0));
+			SetLinearVelocity(velocity, (local != 0));
 			Py_RETURN_NONE;
 		}
 	}
@@ -3555,7 +3542,7 @@ PyObject *KX_GameObject::PySetAngularVelocity(PyObject *args)
 	if (PyArg_ParseTuple(args, "O|i:setAngularVelocity", &pyvect, &local)) {
 		mt::vec3 velocity;
 		if (PyVecTo(pyvect, velocity)) {
-			setAngularVelocity(velocity, (local != 0));
+			SetAngularVelocity(velocity, (local != 0));
 			Py_RETURN_NONE;
 		}
 	}
@@ -3571,7 +3558,7 @@ PyObject *KX_GameObject::PySetDamping(PyObject *args)
 		return nullptr;
 	}
 
-	setDamping(linear, angular);
+	SetDamping(linear, angular);
 	Py_RETURN_NONE;
 }
 
@@ -3631,8 +3618,8 @@ PyObject *KX_GameObject::PyGetReactionForce()
 
 PyObject *KX_GameObject::PyEnableRigidBody()
 {
-	if (GetPhysicsController()) {
-		GetPhysicsController()->SetRigidBody(true);
+	if (m_physicsController) {
+		m_physicsController->SetRigidBody(true);
 	}
 
 	Py_RETURN_NONE;
@@ -3642,8 +3629,8 @@ PyObject *KX_GameObject::PyEnableRigidBody()
 
 PyObject *KX_GameObject::PyDisableRigidBody()
 {
-	if (GetPhysicsController()) {
-		GetPhysicsController()->SetRigidBody(false);
+	if (m_physicsController) {
+		m_physicsController->SetRigidBody(false);
 	}
 
 	Py_RETURN_NONE;
@@ -3780,8 +3767,8 @@ PyObject *KX_GameObject::PySuspendDynamics(PyObject *args)
 		return nullptr;
 	}
 
-	if (GetPhysicsController()) {
-		GetPhysicsController()->SuspendDynamics(ghost);
+	if (m_physicsController) {
+		m_physicsController->SuspendDynamics(ghost);
 	}
 
 	Py_RETURN_NONE;
@@ -3792,8 +3779,8 @@ PyObject *KX_GameObject::PySuspendDynamics(PyObject *args)
 PyObject *KX_GameObject::PyRestoreDynamics()
 {
 	// Child objects must be static, so we block changing to dynamic
-	if (GetPhysicsController() && !GetParent()) {
-		GetPhysicsController()->RestoreDynamics();
+	if (m_physicsController && !GetParent()) {
+		m_physicsController->RestoreDynamics();
 	}
 	Py_RETURN_NONE;
 }
@@ -3835,10 +3822,9 @@ PyObject *KX_GameObject::PyGetAxisVect(PyObject *value)
 
 PyObject *KX_GameObject::PyGetPhysicsId()
 {
-	PHY_IPhysicsController *ctrl = GetPhysicsController();
 	unsigned long long physid = 0;
-	if (ctrl) {
-		physid = (unsigned long long)ctrl;
+	if (m_physicsController) {
+		physid = (unsigned long long)m_physicsController.get();
 	}
 	return PyLong_FromUnsignedLongLong(physid);
 }
@@ -4013,7 +3999,7 @@ EXP_PYMETHODDEF_DOC(KX_GameObject, rayCastTo,
 	}
 
 	PHY_IPhysicsEnvironment *pe = GetScene()->GetPhysicsEnvironment();
-	PHY_IPhysicsController *spc = GetPhysicsController();
+	PHY_IPhysicsController *spc = m_physicsController.get();
 	KX_GameObject *parent = GetParent();
 	if (!spc && parent) {
 		spc = parent->GetPhysicsController();
@@ -4159,7 +4145,7 @@ EXP_PYMETHODDEF_DOC(KX_GameObject, rayCast,
 	}
 
 	PHY_IPhysicsEnvironment *pe = GetScene()->GetPhysicsEnvironment();
-	PHY_IPhysicsController *spc = GetPhysicsController();
+	PHY_IPhysicsController *spc = m_physicsController.get();
 	KX_GameObject *parent = GetParent();
 	if (!spc && parent) {
 		spc = parent->GetPhysicsController();

@@ -56,7 +56,7 @@ public:
 	virtual int GetDebugMode() const;
 
 	virtual void SetGravity(float x, float y, float z);
-	virtual void GetGravity(mt::vec3& grav);
+	virtual mt::vec3 GetGravity() const;
 
 	virtual PHY_IConstraint *CreateConstraint(class PHY_IPhysicsController *ctrl, class PHY_IPhysicsController *ctrl2, PHY_ConstraintType type,
 								 float pivotX, float pivotY, float pivotZ,

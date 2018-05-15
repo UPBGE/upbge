@@ -558,11 +558,11 @@ void CcdPhysicsController::CreateRigidbody()
 	//generate loads of static-static collision messages on the console
 	if (m_cci.m_bSensor) {
 		// reset the flags that have been set so far
-		GetCollisionObject()->setCollisionFlags(0);
+		m_object->setCollisionFlags(0);
 		// sensor must never go to sleep: they need to detect continously
-		GetCollisionObject()->setActivationState(DISABLE_DEACTIVATION);
+		m_object->setActivationState(DISABLE_DEACTIVATION);
 	}
-	GetCollisionObject()->setCollisionFlags(m_object->getCollisionFlags() | m_cci.m_collisionFlags);
+	m_object->setCollisionFlags(m_object->getCollisionFlags() | m_cci.m_collisionFlags);
 	btRigidBody *body = GetRigidBody();
 
 	if (body) {
@@ -654,7 +654,7 @@ bool CcdPhysicsController::ReplaceControllerShape(btCollisionShape *newShape)
 
 	btSoftBody *softBody = GetSoftBody();
 	if (softBody) {
-		btSoftRigidDynamicsWorld *world = GetPhysicsEnvironment()->GetDynamicsWorld();
+		btSoftRigidDynamicsWorld *world = m_physicsEnv->GetDynamicsWorld();
 		// remove the old softBody
 		world->removeSoftBody(softBody);
 
@@ -823,7 +823,7 @@ void CcdPhysicsController::PostProcessReplica(class PHY_IMotionState *motionstat
 
 	// load some characterists that are not
 	btRigidBody *oldbody = GetRigidBody();
-	m_object = 0;
+	m_object = nullptr;
 	CreateRigidbody();
 	btRigidBody *body = GetRigidBody();
 	if (body) {
@@ -860,7 +860,7 @@ void CcdPhysicsController::SetPhysicsEnvironment(class PHY_IPhysicsEnvironment *
 			// Set the object to be active so it can at least by evaluated once.
 			// This fixes issues with static objects not having their physics meshes
 			// in the right spot when lib loading.
-			this->GetCollisionObject()->setActivationState(ACTIVE_TAG);
+			m_object->setActivationState(ACTIVE_TAG);
 		}
 		m_cci.m_physicsEnv = physicsEnv;
 	}
@@ -987,16 +987,13 @@ void CcdPhysicsController::SetPosition(const mt::vec3& pos)
 			// kinematic object should not set the transform, it disturbs the velocity interpolation
 			return;
 		}
-		// not required, this function is only used to update the physic controller
-		//m_MotionState->setWorldPosition(posX,posY,posZ);
+
 		btTransform xform  = m_object->getWorldTransform();
 		xform.setOrigin(ToBullet(pos));
 		SetCenterOfMassTransform(xform);
 		if (!m_softBodyTransformInitialized) {
 			m_softbodyStartTrans.setOrigin(xform.getOrigin());
 		}
-		// not required
-		//m_bulletMotionState->setWorldTransform(xform);
 	}
 }
 
@@ -1016,7 +1013,7 @@ void CcdPhysicsController::RefreshCollisions()
 		return;
 	}
 
-	btSoftRigidDynamicsWorld *dw = GetPhysicsEnvironment()->GetDynamicsWorld();
+	btSoftRigidDynamicsWorld *dw = m_physicsEnv->GetDynamicsWorld();
 	btBroadphaseProxy *proxy = m_object->getBroadphaseHandle();
 	btDispatcher *dispatcher = dw->getDispatcher();
 	btOverlappingPairCache *pairCache = dw->getPairCache();
@@ -1026,23 +1023,23 @@ void CcdPhysicsController::RefreshCollisions()
 
 	// Forcibly recreate the physics object
 	btBroadphaseProxy *handle = m_object->getBroadphaseHandle();
-	GetPhysicsEnvironment()->UpdateCcdPhysicsController(this, GetMass(), m_object->getCollisionFlags(), handle->m_collisionFilterGroup, handle->m_collisionFilterMask);
+	m_physicsEnv->UpdateCcdPhysicsController(this, GetMass(), m_object->getCollisionFlags(), handle->m_collisionFilterGroup, handle->m_collisionFilterMask);
 }
 
 void CcdPhysicsController::SuspendPhysics(bool freeConstraints)
 {
-	GetPhysicsEnvironment()->RemoveCcdPhysicsController(this, freeConstraints);
+	m_physicsEnv->RemoveCcdPhysicsController(this, freeConstraints);
 }
 
 void CcdPhysicsController::RestorePhysics()
 {
-	GetPhysicsEnvironment()->AddCcdPhysicsController(this);
+	m_physicsEnv->AddCcdPhysicsController(this);
 }
 
 void CcdPhysicsController::SuspendDynamics(bool ghost)
 {
 	btRigidBody *body = GetRigidBody();
-	if (body && !m_suspended && !GetConstructionInfo().m_bSensor && !IsPhysicsSuspended()) {
+	if (body && !m_suspended && !m_cci.m_bSensor && !IsPhysicsSuspended()) {
 		btBroadphaseProxy *handle = body->getBroadphaseHandle();
 
 		m_savedCollisionFlags = body->getCollisionFlags();
@@ -1051,7 +1048,7 @@ void CcdPhysicsController::SuspendDynamics(bool ghost)
 		m_savedCollisionFilterGroup = handle->m_collisionFilterGroup;
 		m_savedCollisionFilterMask = handle->m_collisionFilterMask;
 		m_suspended = true;
-		GetPhysicsEnvironment()->UpdateCcdPhysicsController(this,
+		m_physicsEnv->UpdateCcdPhysicsController(this,
 		                                                    0.0f,
 		                                                    btCollisionObject::CF_STATIC_OBJECT | ((ghost) ? btCollisionObject::CF_NO_CONTACT_RESPONSE : (m_savedCollisionFlags & btCollisionObject::CF_NO_CONTACT_RESPONSE)),
 		                                                    btBroadphaseProxy::StaticFilter,
@@ -1066,7 +1063,7 @@ void CcdPhysicsController::RestoreDynamics()
 	if (body && m_suspended && !IsPhysicsSuspended()) {
 		// before make sure any position change that was done in this logic frame are accounted for
 		SetTransform();
-		GetPhysicsEnvironment()->UpdateCcdPhysicsController(this,
+		m_physicsEnv->UpdateCcdPhysicsController(this,
 		                                                    m_savedMass,
 		                                                    m_savedCollisionFlags,
 		                                                    m_savedCollisionFilterGroup,
@@ -1077,10 +1074,9 @@ void CcdPhysicsController::RestoreDynamics()
 	}
 }
 
-void CcdPhysicsController::GetPosition(mt::vec3& pos) const
+mt::vec3 CcdPhysicsController::GetPosition() const
 {
-	const btTransform& xform = m_object->getWorldTransform();
-	pos = ToMt(xform.getOrigin());
+	return ToMt(m_object->getWorldTransform().getOrigin());
 }
 
 void CcdPhysicsController::SetScaling(const mt::vec3& scale)
@@ -1109,7 +1105,7 @@ void CcdPhysicsController::SetTransform()
 	const mt::mat3 rot = m_MotionState->GetWorldOrientation();
 	ForceWorldTransform(ToBullet(rot), ToBullet(pos));
 
-	if (!IsDynamic() && !GetConstructionInfo().m_bSensor && !GetCharacterController()) {
+	if (!IsDynamic() && !GetConstructionInfo().m_bSensor && !m_characterController) {
 		btCollisionObject *object = GetRigidBody();
 		object->setActivationState(ACTIVE_TAG);
 		object->setCollisionFlags(object->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
@@ -1137,7 +1133,7 @@ void CcdPhysicsController::SetMass(float newmass)
 	btRigidBody *body = GetRigidBody();
 	if (body && !m_suspended && !IsPhysicsSuspended() && (!mt::FuzzyZero(newmass) && !mt::FuzzyZero(GetMass()))) {
 		btBroadphaseProxy *handle = body->getBroadphaseHandle();
-		GetPhysicsEnvironment()->UpdateCcdPhysicsController(this,
+		m_physicsEnv->UpdateCcdPhysicsController(this,
 		                                                    newmass,
 		                                                    body->getCollisionFlags(),
 		                                                    handle->m_collisionFilterGroup,
@@ -1250,7 +1246,7 @@ void CcdPhysicsController::SetLinearVelocity(const mt::vec3& lin_vel, bool local
 	btVector3 linVel = ToBullet(lin_vel);
 
 	/* Refuse tiny tiny velocities, as they might cause instabilities. */
-	float vel_squared = linVel.length2();
+	const float vel_squared = linVel.length2();
 	if (vel_squared > 0.0f && vel_squared <= (SIMD_EPSILON * SIMD_EPSILON)) {
 		linVel = btVector3(0.0f, 0.0f, 0.0f);
 	}
@@ -1285,7 +1281,6 @@ void CcdPhysicsController::SetLinearVelocity(const mt::vec3& lin_vel, bool local
 }
 void CcdPhysicsController::ApplyImpulse(const mt::vec3& attach, const mt::vec3& impulsein, bool local)
 {
-	btVector3 pos;
 	btVector3 impulse = ToBullet(impulsein);
 
 	if (m_object && impulse.length2() > (SIMD_EPSILON * SIMD_EPSILON)) {
@@ -1297,7 +1292,8 @@ void CcdPhysicsController::ApplyImpulse(const mt::vec3& attach, const mt::vec3& 
 			return;
 		}
 
-		btTransform xform = m_object->getWorldTransform();
+		const btTransform xform = m_object->getWorldTransform();
+		btVector3 pos;
 
 		if (local) {
 			pos = ToBullet(attach);
@@ -1422,10 +1418,10 @@ mt::vec3 CcdPhysicsController::GetVelocity(const mt::vec3 &posin)
 
 mt::vec3 CcdPhysicsController::GetLocalInertia()
 {
+	btRigidBody *body = GetRigidBody();
 	mt::vec3 inertia = mt::zero3;
-	btVector3 inv_inertia;
-	if (GetRigidBody()) {
-		inv_inertia = GetRigidBody()->getInvInertiaDiagLocal();
+	if (body) {
+		const btVector3 inv_inertia = body->getInvInertiaDiagLocal();
 		if (!btFuzzyZero(inv_inertia.getX()) &&
 		    !btFuzzyZero(inv_inertia.getY()) &&
 		    !btFuzzyZero(inv_inertia.getZ())) {
@@ -1456,6 +1452,7 @@ void *CcdPhysicsController::GetNewClientInfo()
 {
 	return m_newClientInfo;
 }
+
 void CcdPhysicsController::SetNewClientInfo(void *clientinfo)
 {
 	m_newClientInfo = clientinfo;
@@ -1510,6 +1507,7 @@ void CcdPhysicsController::AddCompoundChild(PHY_IPhysicsController *child)
 		return;
 	}
 	btCompoundShape *compoundShape = (btCompoundShape *)rootShape;
+
 	// compute relative transformation between parent and child
 	btTransform rootTrans;
 	btTransform childTrans;
@@ -1520,12 +1518,13 @@ void CcdPhysicsController::AddCompoundChild(PHY_IPhysicsController *child)
 	rootScale[1] = 1.0 / rootScale[1];
 	rootScale[2] = 1.0 / rootScale[2];
 	// relative scale = child_scale/parent_scale
-	btVector3 relativeScale = childShape->getLocalScaling() * rootScale;
-	btMatrix3x3 rootRotInverse = rootTrans.getBasis().transpose();
+	const btVector3 relativeScale = childShape->getLocalScaling() * rootScale;
+	const btMatrix3x3 rootRotInverse = rootTrans.getBasis().transpose();
 	// relative pos = parent_rot^-1 * ((parent_pos-child_pos)/parent_scale)
-	btVector3 relativePos = rootRotInverse * ((childTrans.getOrigin() - rootTrans.getOrigin()) * rootScale);
+	const btVector3 relativePos = rootRotInverse * ((childTrans.getOrigin() - rootTrans.getOrigin()) * rootScale);
 	// relative rot = parent_rot^-1 * child_rot
-	btMatrix3x3 relativeRot = rootRotInverse * childTrans.getBasis();
+	const btMatrix3x3 relativeRot = rootRotInverse * childTrans.getBasis();
+
 	// create a proxy shape info to store the transformation
 	CcdShapeConstructionInfo *proxyShapeInfo = new CcdShapeConstructionInfo();
 	// store the transformation to this object shapeinfo
@@ -1550,14 +1549,14 @@ void CcdPhysicsController::AddCompoundChild(PHY_IPhysicsController *child)
 	// Recalculate inertia for object owning compound shape.
 	if (!rootBody->isStaticOrKinematicObject()) {
 		btVector3 localInertia;
-		float mass = 1.0f / rootBody->getInvMass();
+		const float mass = 1.0f / rootBody->getInvMass();
 		compoundShape->calculateLocalInertia(mass, localInertia);
 		rootBody->setMassProps(mass, localInertia * m_cci.m_inertiaFactor);
 	}
 	// must update the broadphase cache,
-	GetPhysicsEnvironment()->RefreshCcdPhysicsController(this);
+	m_physicsEnv->RefreshCcdPhysicsController(this);
 	// remove the children
-	GetPhysicsEnvironment()->RemoveCcdPhysicsController(childCtrl, true);
+	m_physicsEnv->RemoveCcdPhysicsController(childCtrl, true);
 }
 
 /* Reverse function of the above, it will remove a shape from a compound shape
@@ -1565,7 +1564,7 @@ void CcdPhysicsController::AddCompoundChild(PHY_IPhysicsController *child)
  */
 void CcdPhysicsController::RemoveCompoundChild(PHY_IPhysicsController *child)
 {
-	if (child == nullptr || !IsCompound()) {
+	if (!child || !IsCompound()) {
 		return;
 	}
 	// other controller must be a bullet controller too
@@ -1611,9 +1610,9 @@ void CcdPhysicsController::RemoveCompoundChild(PHY_IPhysicsController *child)
 		rootBody->setMassProps(mass, localInertia * m_cci.m_inertiaFactor);
 	}
 	// must update the broadphase cache,
-	GetPhysicsEnvironment()->RefreshCcdPhysicsController(this);
+	m_physicsEnv->RefreshCcdPhysicsController(this);
 	// reactivate the children
-	GetPhysicsEnvironment()->AddCcdPhysicsController(childCtrl);
+	m_physicsEnv->AddCcdPhysicsController(childCtrl);
 }
 
 PHY_IPhysicsController *CcdPhysicsController::GetReplica()
@@ -1694,7 +1693,7 @@ bool CcdPhysicsController::ReinstancePhysicsShape(KX_GameObject *from_gameobj, R
 	m_shapeInfo->UpdateMesh(from_gameobj, from_meshobj);
 
 	/* create the new bullet mesh */
-	GetPhysicsEnvironment()->UpdateCcdPhysicsControllerShape(m_shapeInfo);
+	m_physicsEnv->UpdateCcdPhysicsControllerShape(m_shapeInfo);
 
 	return true;
 }
@@ -1710,7 +1709,7 @@ void CcdPhysicsController::ReplacePhysicsShape(PHY_IPhysicsController *phyctrl)
 	// recreate Bullet shape only for this physics controller
 	ReplaceControllerShape(nullptr);
 	// refresh to remove collision pair
-	GetPhysicsEnvironment()->RefreshCcdPhysicsController(this);
+	m_physicsEnv->RefreshCcdPhysicsController(this);
 }
 
 ///////////////////////////////////////////////////////////
@@ -1830,7 +1829,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(KX_GameObject *gameobj, RAS_Mesh *mesh
 		return false;
 	}
 
-	m_displayArrayList.clear();
+	RAS_DisplayArrayList displayArrays;
 
 	// Indices count.
 	unsigned int numIndices = 0;
@@ -1854,7 +1853,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(KX_GameObject *gameobj, RAS_Mesh *mesh
 			numIndices += indicesCount;
 			numVertices = std::max(numVertices, array->GetMaxOrigIndex() + 1);
 			// Add valid display arrays.
-			m_displayArrayList.push_back(array);
+			displayArrays.push_back(array);
 			polygonStartIndices.push_back(curPolygonStartIndex);
 		}
 
@@ -1863,7 +1862,6 @@ bool CcdShapeConstructionInfo::UpdateMesh(KX_GameObject *gameobj, RAS_Mesh *mesh
 
 	// Detect mesh without triangles.
 	if (numIndices == 0 && m_shapeType == PHY_SHAPE_MESH) {
-		m_displayArrayList.clear();
 		return false;
 	}
 
@@ -1875,7 +1873,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(KX_GameObject *gameobj, RAS_Mesh *mesh
 	// Current vertex written.
 	unsigned int curVert = 0;
 
-	for (RAS_IDisplayArray *array : m_displayArrayList) {
+	for (RAS_IDisplayArray *array : displayArrays) {
 		// Convert location of all vertices and remap if vertices weren't already converted.
 		for (unsigned int j = 0, numvert = array->GetVertexCount(); j < numvert; ++j) {
 			const RAS_VertexInfo& info = array->GetVertexInfo(j);
@@ -1907,8 +1905,8 @@ bool CcdShapeConstructionInfo::UpdateMesh(KX_GameObject *gameobj, RAS_Mesh *mesh
 		// Current triangle written.
 		unsigned int curTri = 0;
 
-		for (unsigned short i = 0, numArray = m_displayArrayList.size(); i < numArray; ++i) {
-			RAS_IDisplayArray *array = m_displayArrayList[i];
+		for (unsigned short i = 0, numArray = displayArrays.size(); i < numArray; ++i) {
+			RAS_IDisplayArray *array = displayArrays[i];
 			const unsigned int polygonStartIndex = polygonStartIndices[i];
 
 			// Convert triangles using remaped vertices index.
@@ -1974,11 +1972,10 @@ bool CcdShapeConstructionInfo::UpdateMesh(KX_GameObject *gameobj, RAS_Mesh *mesh
 
 bool CcdShapeConstructionInfo::SetProxy(CcdShapeConstructionInfo *shapeInfo)
 {
-	if (shapeInfo == nullptr) {
+	if (!shapeInfo) {
 		return false;
 	}
-	// no support for dynamic change
-	BLI_assert(IsUnused());
+
 	m_shapeType = PHY_SHAPE_PROXY;
 	m_shapeProxy = shapeInfo;
 	return true;
@@ -1987,11 +1984,6 @@ bool CcdShapeConstructionInfo::SetProxy(CcdShapeConstructionInfo *shapeInfo)
 RAS_Mesh *CcdShapeConstructionInfo::GetMesh() const
 {
 	return m_mesh;
-}
-
-RAS_IDisplayArrayList& CcdShapeConstructionInfo::GetDisplayArrayList()
-{
-	return m_displayArrayList;
 }
 
 btCollisionShape *CcdShapeConstructionInfo::CreateBulletShape(btScalar margin, bool useGimpact, bool useBvh)
@@ -2181,7 +2173,7 @@ CcdShapeConstructionInfo::~CcdShapeConstructionInfo()
 		}
 	}
 
-	if (m_shapeType == PHY_SHAPE_PROXY && m_shapeProxy != nullptr) {
+	if (m_shapeType == PHY_SHAPE_PROXY && m_shapeProxy) {
 		m_shapeProxy->Release();
 	}
 }
