@@ -349,8 +349,7 @@ typedef enum eSpaceOutliner_Mode {
 typedef enum eSpaceOutliner_StoreFlag {
 	/* cleanup tree */
 	SO_TREESTORE_CLEANUP    = (1 << 0),
-	/* if set, it allows redraws. gets set for some allqueue events */
-	SO_TREESTORE_REDRAW     = (1 << 1),
+	/* SO_TREESTORE_REDRAW     = (1 << 1), */ /* Deprecated */
 	/* rebuild the tree, similar to cleanup,
 	 * but defer a call to BKE_outliner_treehash_rebuild_from_treestore instead */
 	SO_TREESTORE_REBUILD    = (1 << 2),
@@ -1309,7 +1308,6 @@ typedef struct SpaceClip {
 	MaskSpaceInfo mask_info;
 } SpaceClip;
 
-
 /* SpaceClip->flag */
 typedef enum eSpaceClip_Flag {
 	SC_SHOW_MARKER_PATTERN      = (1 << 0),
@@ -1405,7 +1403,7 @@ typedef enum eSpace_Type {
 	SPACE_CLIP     = 20,
 	SPACE_TOPBAR   = 21,
 
-	SPACEICONMAX = SPACE_TOPBAR
+	SPACE_TYPE_LAST = SPACE_TOPBAR
 } eSpace_Type;
 
 /* use for function args */

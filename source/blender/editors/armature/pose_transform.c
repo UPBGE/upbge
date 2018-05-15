@@ -53,6 +53,7 @@
 #include "BKE_report.h"
 
 #include "DEG_depsgraph.h"
+#include "DEG_depsgraph_query.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -75,10 +76,11 @@
 static void applyarmature_fix_boneparents(const bContext *C, Scene *scene, Object *armob)
 {
 	Depsgraph *depsgraph = CTX_data_depsgraph(C);
+	Main *bmain = CTX_data_main(C);
 	Object workob, *ob;
 	
 	/* go through all objects in database */
-	for (ob = G.main->object.first; ob; ob = ob->id.next) {
+	for (ob = bmain->object.first; ob; ob = ob->id.next) {
 		/* if parent is bone in this armature, apply corrections */
 		if ((ob->parent == armob) && (ob->partype == PARBONE)) {
 			/* apply current transform from parent (not yet destroyed), 
@@ -224,15 +226,18 @@ void POSE_OT_armature_apply(wmOperatorType *ot)
 static int pose_visual_transform_apply_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	ViewLayer *view_layer = CTX_data_view_layer(C);
+	Depsgraph *depsgraph = CTX_data_depsgraph(C);
 
-	FOREACH_OBJECT_IN_MODE_BEGIN(view_layer, OB_MODE_POSE, ob_iter)
+	FOREACH_OBJECT_IN_MODE_BEGIN(view_layer, OB_MODE_POSE, ob)
 	{
 		/* loop over all selected pchans
 		 *
 		 * TODO, loop over children before parents if multiple bones
 		 * at once are to be predictable*/
-		FOREACH_PCHAN_SELECTED_IN_OBJECT_BEGIN (ob_iter, pchan)
+		FOREACH_PCHAN_SELECTED_IN_OBJECT_BEGIN (ob, pchan)
 		{
+			const Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+			bPoseChannel *pchan_eval = BKE_pose_channel_find_name(ob_eval->pose, pchan->name);
 			float delta_mat[4][4];
 			
 			/* chan_mat already contains the delta transform from rest pose to pose-mode pose
@@ -243,16 +248,16 @@ static int pose_visual_transform_apply_exec(bContext *C, wmOperator *UNUSED(op))
 			/* XXX For some reason, we can't use pchan->chan_mat here, gives odd rotation/offset (see T38251).
 			 *     Using pchan->pose_mat and bringing it back in bone space seems to work as expected!
 			 */
-			BKE_armature_mat_pose_to_bone(pchan, pchan->pose_mat, delta_mat);
+			BKE_armature_mat_pose_to_bone(pchan_eval, pchan_eval->pose_mat, delta_mat);
 			
 			BKE_pchan_apply_mat4(pchan, delta_mat, true);
 		}
 		FOREACH_PCHAN_SELECTED_IN_OBJECT_END;
 		
-		DEG_id_tag_update(&ob_iter->id, OB_RECALC_DATA);
+		DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
 
 		/* note, notifier might evolve */
-		WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob_iter);
+		WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
 	}
 	FOREACH_OBJECT_IN_MODE_END;
 

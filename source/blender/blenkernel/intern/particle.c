@@ -289,16 +289,55 @@ void psys_enable_all(Object *ob)
 		psys->flag &= ~PSYS_DISABLED;
 }
 
+ParticleSystem *psys_orig_get(ParticleSystem *psys)
+{
+	if (psys->orig_psys == NULL) {
+		return psys;
+	}
+	return psys->orig_psys;
+}
+
+struct ParticleSystem *psys_eval_get(Depsgraph *depsgraph,
+                                     Object *object,
+                                     ParticleSystem *psys)
+{
+	Object *object_eval = DEG_get_evaluated_object(depsgraph, object);
+	if (object_eval == object) {
+		return psys;
+	}
+	ParticleSystem *psys_eval = object_eval->particlesystem.first;
+	while (psys_eval != NULL) {
+		if (psys_eval->orig_psys == psys) {
+			return psys_eval;
+		}
+		psys_eval = psys_eval->next;
+	}
+	return psys_eval;
+}
+
+static PTCacheEdit *psys_orig_edit_get(ParticleSystem *psys)
+{
+	if (psys->orig_psys == NULL) {
+		return psys->edit;
+	}
+	return psys->orig_psys->edit;
+}
+
 bool psys_in_edit_mode(Depsgraph *depsgraph, ParticleSystem *psys)
 {
-	ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
+	const ViewLayer *view_layer = DEG_get_input_view_layer(depsgraph);
+	if (view_layer->basact == NULL) {
+		/* TODO(sergey): Needs double-check with multi-object edit. */
+		return false;
+	}
 	const bool use_render_params = (DEG_get_mode(depsgraph) == DAG_EVAL_RENDER);
-
-	return (view_layer->basact &&
-	        (view_layer->basact->object->mode & OB_MODE_PARTICLE_EDIT) &&
-	        psys == psys_get_current((view_layer->basact)->object) &&
-	        (psys->edit || psys->pointcache->edit) &&
-			!use_render_params);
+	const Object *object = view_layer->basact->object;
+	if (object->mode != OB_MODE_PARTICLE_EDIT) {
+		return false;
+	}
+	ParticleSystem *psys_orig = psys_orig_get(psys);
+	return (psys_orig->edit || psys->pointcache->edit) &&
+	       (use_render_params == false);
 }
 
 bool psys_check_enabled(Object *ob, ParticleSystem *psys, const bool use_render_params)
@@ -1886,7 +1925,7 @@ static bool psys_thread_context_init_path(
 	if (psys_in_edit_mode(sim->depsgraph, psys)) {
 		ParticleEditSettings *pset = &scene->toolsettings->particle;
 
-		if ((use_render_params == 0) && (psys->edit == NULL || pset->flag & PE_DRAW_PART) == 0)
+		if ((use_render_params == 0) && (psys_orig_edit_get(psys) == NULL || pset->flag & PE_DRAW_PART) == 0)
 			totchild = 0;
 
 		segments = 1 << pset->draw_step;
@@ -1980,7 +2019,8 @@ static void psys_thread_create_path(ParticleTask *task, struct ChildParticle *cp
 	ParticleSystem *psys = ctx->sim.psys;
 	ParticleSettings *part = psys->part;
 	ParticleCacheKey **cache = psys->childcache;
-	ParticleCacheKey **pcache = psys_in_edit_mode(ctx->sim.depsgraph, psys) && psys->edit ? psys->edit->pathcache : psys->pathcache;
+	PTCacheEdit *edit = psys_orig_edit_get(psys);
+	ParticleCacheKey **pcache = psys_in_edit_mode(ctx->sim.depsgraph, psys) && edit ? edit->pathcache : psys->pathcache;
 	ParticleCacheKey *child, *key[4];
 	ParticleTexture ptex;
 	float *cpa_fuv = 0, *par_rot = 0, rot[4];
@@ -2006,7 +2046,7 @@ static void psys_thread_create_path(ParticleTask *task, struct ChildParticle *cp
 			needupdate = 0;
 			w = 0;
 			while (w < 4 && cpa->pa[w] >= 0) {
-				if (psys->edit->points[cpa->pa[w]].flag & PEP_EDIT_RECALC) {
+				if (edit->points[cpa->pa[w]].flag & PEP_EDIT_RECALC) {
 					needupdate = 1;
 					break;
 				}
@@ -2080,7 +2120,7 @@ static void psys_thread_create_path(ParticleTask *task, struct ChildParticle *cp
 		cpa_fuv = cpa->fuv;
 		cpa_from = PART_FROM_FACE;
 
-		psys_particle_on_emitter(ctx->sim.psmd, cpa_from, cpa_num, DMCACHE_ISCHILD, cpa->fuv, foffset, co, 0, 0, orco, 0);
+		psys_particle_on_emitter(ctx->sim.psmd, cpa_from, cpa_num, DMCACHE_ISCHILD, cpa->fuv, foffset, co, 0, 0, 0, orco);
 
 		mul_m4_v3(ob->obmat, co);
 
@@ -2093,7 +2133,7 @@ static void psys_thread_create_path(ParticleTask *task, struct ChildParticle *cp
 		ParticleData *pa = psys->particles + cpa->parent;
 		float co[3];
 		if (ctx->editupdate) {
-			if (!(psys->edit->points[cpa->parent].flag & PEP_EDIT_RECALC))
+			if (!(edit->points[cpa->parent].flag & PEP_EDIT_RECALC))
 				return;
 
 			memset(child_keys, 0, sizeof(*child_keys) * (ctx->segments + 1));
@@ -2122,7 +2162,7 @@ static void psys_thread_create_path(ParticleTask *task, struct ChildParticle *cp
 			cpa_num = 0;
 		cpa_fuv = pa->fuv;
 
-		psys_particle_on_emitter(ctx->sim.psmd, cpa_from, cpa_num, DMCACHE_ISCHILD, cpa_fuv, pa->foffset, co, 0, 0, orco, 0);
+		psys_particle_on_emitter(ctx->sim.psmd, cpa_from, cpa_num, DMCACHE_ISCHILD, cpa_fuv, pa->foffset, co, 0, 0, 0, orco);
 
 		psys_mat_hair_to_global(ob, ctx->sim.psmd->dm_final, psys->part->from, pa, hairmat);
 	}
@@ -2369,9 +2409,7 @@ static void cache_key_incremental_rotation(ParticleCacheKey *key0, ParticleCache
 void psys_cache_paths(ParticleSimulationData *sim, float cfra, const bool use_render_params)
 {
 	PARTICLE_PSMD;
-#if 0
 	ParticleEditSettings *pset = &sim->scene->toolsettings->particle;
-#endif
 	ParticleSystem *psys = sim->psys;
 	ParticleSettings *part = psys->part;
 	ParticleCacheKey *ca, **cache;
@@ -2403,11 +2441,9 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra, const bool use_re
 	if ((psys->flag & PSYS_HAIR_DONE || psys->flag & PSYS_KEYED || psys->pointcache) == 0)
 		return;
 
-#if 0 /* TODO(mai): something is very wrong with these conditionals, they dont make sense and the cache isnt updating */
 	if (psys_in_edit_mode(sim->depsgraph, psys))
 		if ((psys->edit == NULL || pset->flag & PE_DRAW_PART) == 0)
 			return;
-#endif
 
 	keyed = psys->flag & PSYS_KEYED;
 	baked = psys->pointcache->mem_cache.first && psys->part->type != PART_HAIR;
@@ -2610,7 +2646,7 @@ void psys_cache_edit_paths(Depsgraph *depsgraph, Scene *scene, Object *ob, PTCac
 
 	if (!cache || edit->totpoint != edit->totcached) {
 		/* clear out old and create new empty path cache */
-		psys_free_path_cache(NULL, edit);
+		psys_free_path_cache(edit->psys, edit);
 		cache = edit->pathcache = psys_alloc_path_cache_buffers(&edit->pathcachebufs, totpart, segments + 1);
 
 		/* set flag for update (child particles check this too) */

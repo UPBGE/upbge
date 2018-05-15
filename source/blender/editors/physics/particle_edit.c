@@ -257,8 +257,12 @@ static PTCacheEdit *pe_get_current(
 						edit = pid->cache->edit;
 					}
 					else {
-						if (create && !psys->edit && psys->flag & PSYS_HAIR_DONE)
-							PE_create_particle_edit(depsgraph, scene, ob, NULL, psys);
+						if (create && !psys->edit) {
+							ParticleSystem *psys_eval = psys_eval_get(depsgraph, ob, psys);
+							if (psys_eval->flag & PSYS_HAIR_DONE) {
+								PE_create_particle_edit(depsgraph, scene, ob, NULL, psys);
+							}
+						}
 						edit = psys->edit;
 					}
 				}
@@ -1097,10 +1101,12 @@ void recalc_lengths(PTCacheEdit *edit)
 }
 
 /* calculate a tree for finding nearest emitter's vertice */
-void recalc_emitter_field(Object *ob, ParticleSystem *psys)
+void recalc_emitter_field(Depsgraph *depsgraph, Object *ob, ParticleSystem *psys)
 {
-	DerivedMesh *dm=psys_get_modifier(ob, psys)->dm_final;
-	PTCacheEdit *edit= psys->edit;
+	Object *object_eval = DEG_get_evaluated_object(depsgraph, ob);
+	ParticleSystem *psys_eval = psys_eval_get(depsgraph, ob, psys);
+	DerivedMesh *dm = psys_get_modifier(object_eval, psys_eval)->dm_final;
+	PTCacheEdit *edit = psys->edit;
 	float *vec, *nor;
 	int i, totface /*, totvert*/;
 
@@ -4002,7 +4008,8 @@ static void brush_edit_apply(bContext *C, wmOperator *op, PointerRNA *itemptr)
 
 		if (edit->psys) {
 			WM_event_add_notifier(C, NC_OBJECT|ND_PARTICLE|NA_EDITED, ob);
-			BKE_particle_batch_cache_dirty(edit->psys, BKE_MESH_BATCH_DIRTY_ALL);
+			BKE_particle_batch_cache_dirty(edit->psys, BKE_PARTICLE_BATCH_DIRTY_ALL);
+			DEG_id_tag_update(&ob->id, DEG_TAG_COPY_ON_WRITE);
 		}
 		else {
 			DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
@@ -4266,6 +4273,8 @@ static int shape_cut_exec(bContext *C, wmOperator *UNUSED(op))
 		
 		if (edit->psys) {
 			WM_event_add_notifier(C, NC_OBJECT|ND_PARTICLE|NA_EDITED, ob);
+			BKE_particle_batch_cache_dirty(edit->psys, BKE_PARTICLE_BATCH_DIRTY_ALL);
+			DEG_id_tag_update(&ob->id, DEG_TAG_COPY_ON_WRITE);
 		}
 		else {
 			DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
@@ -4444,7 +4453,7 @@ void PE_create_particle_edit(
 
 		recalc_lengths(edit);
 		if (psys && !cache)
-			recalc_emitter_field(ob, psys);
+			recalc_emitter_field(depsgraph, ob, psys);
 
 		PE_update_object(depsgraph, scene, ob, 1);
 	}
@@ -4490,7 +4499,7 @@ static int particle_edit_toggle_exec(bContext *C, wmOperator *op)
 		/* mesh may have changed since last entering editmode.
 		 * note, this may have run before if the edit data was just created, so could avoid this and speed up a little */
 		if (edit && edit->psys)
-			recalc_emitter_field(ob, edit->psys);
+			recalc_emitter_field(depsgraph, ob, edit->psys);
 		
 		toggle_particle_cursor(C, 1);
 		WM_event_add_notifier(C, NC_SCENE|ND_MODE|NS_MODE_PARTICLE, NULL);

@@ -970,6 +970,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *main)
 					if (sl->spacetype == SPACE_VIEW3D) {
 						View3D *v3d = (View3D *)sl;
 						v3d->shading.light = V3D_LIGHTING_STUDIO;
+						v3d->shading.flag |= V3D_SHADING_OBJECT_OUTLINE;
 
 						/* Assume (demo) files written with 2.8 want to show
 						 * Eevee renders in the viewport. */
@@ -1125,6 +1126,11 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *main)
 			/* Initialize new scene.SceneDisplay */
 			for (Scene *scene = main->scene.first; scene; scene = scene->id.next) {
 				copy_v3_v3(scene->display.light_direction, (float[3]){-M_SQRT1_3, -M_SQRT1_3, M_SQRT1_3});
+			}
+		}
+		if (!DNA_struct_elem_find(fd->filesdna, "SceneDisplay", "float", "shadow_shift")) {
+			for (Scene *scene = main->scene.first; scene; scene = scene->id.next) {
+				scene->display.shadow_shift = 0.1;
 			}
 		}
 

@@ -30,8 +30,10 @@
 #include "BLI_math.h"
 #include "BLI_string.h"
 
+#include "DNA_camera_types.h"
 #include "DNA_brush_types.h"
 #include "DNA_freestyle_types.h"
+#include "DNA_lamp_types.h"
 #include "DNA_linestyle_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
@@ -56,8 +58,7 @@
  */
 void BLO_update_defaults_userpref_blend(void)
 {
-	/* defaults from T37518 */
-
+	/* Defaults from T37518. */
 	U.uiflag |= USER_DEPTH_CURSOR;
 	U.uiflag |= USER_QUIT_PROMPT;
 	U.uiflag |= USER_CONTINUOUS_MOUSE;
@@ -65,11 +66,17 @@ void BLO_update_defaults_userpref_blend(void)
 	/* See T45301 */
 	U.uiflag |= USER_LOCK_CURSOR_ADJUST;
 
+	/* Default from T47064. */
+	U.audiorate = 48000;
+
+	/* Defaults from T54943 (phase 1). */
+	U.flag &= ~USER_TOOLTIPS_PYTHON;
+	U.uiflag |= USER_AUTOPERSP;
+	U.manipulator_flag |= USER_MANIPULATOR_DRAW_NAVIGATE;
+	U.uiflag2 |= USER_REGION_OVERLAP;
+
 	U.versions = 1;
 	U.savetime = 2;
-
-	/* default from T47064 */
-	U.audiorate = 48000;
 
 	/* Keep this a very small, non-zero number so zero-alpha doesn't mask out objects behind it.
 	 * but take care since some hardware has driver bugs here (T46962).
@@ -343,6 +350,56 @@ void BLO_update_defaults_startup_blend(Main *bmain)
 		br = (Brush *)BKE_libblock_find_name_ex(bmain, ID_BR, "Flatten/Contrast");
 		if (br) {
 			br->flag |= BRUSH_ACCUMULATE;
+		}
+	}
+
+	/* Defaults from T54943. */
+	{
+		for (Scene *scene = bmain->scene.first; scene; scene = scene->id.next) {
+			scene->r.displaymode = R_OUTPUT_WINDOW;
+			scene->r.size = 100;
+			scene->unit.system = USER_UNIT_METRIC;
+			STRNCPY(scene->view_settings.view_transform, "Filmic");
+		}
+
+		for (bScreen *sc = bmain->screen.first; sc; sc = sc->id.next) {
+			for (ScrArea *sa = sc->areabase.first; sa; sa = sa->next) {
+				for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
+					switch (sl->spacetype) {
+						case SPACE_VIEW3D:
+						{
+							View3D *v3d = (View3D *)sl;
+							v3d->lens = 50;
+							break;
+						}
+						case SPACE_BUTS:
+						{
+							SpaceButs *sbuts = (SpaceButs *)sl;
+							sbuts->mainb = sbuts->mainbuser = BCONTEXT_OBJECT;
+							break;
+						}
+					}
+
+					ListBase *lb = (sl == sa->spacedata.first) ? &sa->regionbase : &sl->regionbase;
+					for (ARegion *ar = lb->first; ar; ar = ar->next) {
+						if (ar->regiontype == RGN_TYPE_HEADER) {
+							if (sl->spacetype != SPACE_ACTION) {
+								ar->alignment = RGN_ALIGN_TOP;
+							}
+						}
+					}
+				}
+			}
+		}
+
+		for (Camera *ca = bmain->camera.first; ca; ca = ca->id.next) {
+			ca->lens = 50;
+			ca->sensor_x = DEFAULT_SENSOR_WIDTH;
+			ca->sensor_y = DEFAULT_SENSOR_HEIGHT;
+		}
+
+		for (Lamp *la = bmain->lamp.first; la; la = la->id.next) {
+			la->energy = 10.0;
 		}
 	}
 }
