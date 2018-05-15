@@ -1974,6 +1974,7 @@ bool CcdShapeConstructionInfo::SetProxy(CcdShapeConstructionInfo *shapeInfo)
 	if (!shapeInfo) {
 		return false;
 	}
+	}
 
 	m_shapeType = PHY_SHAPE_PROXY;
 	m_shapeProxy = shapeInfo;
