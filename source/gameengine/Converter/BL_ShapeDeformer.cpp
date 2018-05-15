@@ -102,16 +102,16 @@ void BL_ShapeDeformer::ProcessReplica()
 bool BL_ShapeDeformer::LoadShapeDrivers(KX_GameObject *parent)
 {
 	// Only load shape drivers if we have a key
-	if (GetKey() == nullptr) {
+	if (!m_key) {
 		m_useShapeDrivers = false;
 		return false;
 	}
 
 	// Fix drivers since BL_ArmatureObject makes copies
-	if (m_armobj && GetKey()->adt) {
+	if (m_armobj && m_key->adt) {
 		FCurve *fcu;
 
-		for (fcu = (FCurve *)GetKey()->adt->drivers.first; fcu; fcu = (FCurve *)fcu->next) {
+		for (fcu = (FCurve *)m_key->adt->drivers.first; fcu; fcu = (FCurve *)fcu->next) {
 
 			DriverVar *dvar;
 			for (dvar = (DriverVar *)fcu->driver->variables.first; dvar; dvar = (DriverVar *)dvar->next) {
@@ -140,7 +140,7 @@ bool BL_ShapeDeformer::ExecuteShapeDrivers()
 {
 	if (m_useShapeDrivers && PoseUpdated()) {
 		// We don't need an actual time, just use 0
-		BKE_animsys_evaluate_animdata(nullptr, &GetKey()->id, GetKey()->adt, 0.f, ADT_RECALC_DRIVERS);
+		BKE_animsys_evaluate_animdata(nullptr, &m_key->id, m_key->adt, 0.f, ADT_RECALC_DRIVERS);
 
 		ForceUpdate();
 		m_bDynamic = true;
