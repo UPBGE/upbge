@@ -39,8 +39,6 @@
 #include "RAS_DisplayArray.h"
 #include "RAS_Deformer.h"
 
-#include "SCA_IScene.h"
-
 #include "CM_Message.h"
 
 RAS_Mesh::RAS_Mesh(Mesh *mesh, const LayersInfo& layersInfo)

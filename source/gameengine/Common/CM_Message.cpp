@@ -25,7 +25,6 @@
  */
 
 #include "CM_Message.h"
-#include "SCA_ILogicBrick.h"
 
 #include "BLI_path_util.h"
 
@@ -103,24 +102,6 @@ std::ostream& operator<<(std::ostream& stream, const _CM_PythonFunctionPrefix& p
 }
 
 #endif  // WITH_PYTHON
-
-_CM_LogicBrickPrefix::_CM_LogicBrickPrefix(SCA_ILogicBrick *brick)
-{
-	m_brickName = brick->GetName();
-	if (brick->GetParent()) {
-		m_objectName = brick->GetParent()->GetName();
-	}
-	else {
-		m_objectName = "None";
-	}
-}
-
-std::ostream& operator<<(std::ostream& stream, const _CM_LogicBrickPrefix& prefix)
-{
-	stream << termcolor::bold << prefix.m_brickName << termcolor::reset << "(" << termcolor::bold
-	       << prefix.m_objectName << termcolor::reset << "), ";
-	return stream;
-}
 
 _CM_FunctionPrefix::_CM_FunctionPrefix(std::string functionName)
 	:m_functionName(functionName)

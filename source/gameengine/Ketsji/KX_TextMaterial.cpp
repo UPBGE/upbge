@@ -73,16 +73,6 @@ Material *KX_TextMaterial::GetBlenderMaterial() const
 	return nullptr;
 }
 
-Scene *KX_TextMaterial::GetBlenderScene() const
-{
-	return nullptr;
-}
-
-SCA_IScene *KX_TextMaterial::GetScene() const
-{
-	return nullptr;
-}
-
 bool KX_TextMaterial::UseInstancing() const
 {
 	return false;

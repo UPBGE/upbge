@@ -41,7 +41,7 @@ KX_NetworkMessageScene::~KX_NetworkMessageScene()
 {
 }
 
-void KX_NetworkMessageScene::SendMessage(std::string to, SCA_IObject *from, std::string subject, std::string body)
+void KX_NetworkMessageScene::SendMessage(std::string to, KX_GameObject *from, std::string subject, std::string body)
 {
 	KX_NetworkMessageManager::Message message;
 	message.to = to;

@@ -40,6 +40,7 @@
 
 #include "DNA_lamp_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_object_types.h"
 
 #include "GPU_material.h"
 

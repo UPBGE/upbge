@@ -40,7 +40,6 @@
 
 #include "SG_Node.h"
 #include "SG_Frustum.h"
-#include "SCA_IScene.h"
 
 #include "RAS_Rasterizer.h" // For RAS_Rasterizer::DrawType.
 #include "RAS_DebugDraw.h"
@@ -55,12 +54,7 @@
 template <class T>
 class EXP_ListValue;
 class EXP_Value;
-class SCA_LogicManager;
-class SCA_KeyboardManager;
-class SCA_TimeEventManager;
-class SCA_MouseManager;
 class SCA_IInputDevice;
-class SCA_JoystickManager;
 class KX_NetworkMessageScene;
 class KX_NetworkMessageManager;
 class KX_2DFilterManager;
@@ -86,7 +80,7 @@ class RAS_2DFilterManager;
 struct Scene;
 struct TaskPool;
 
-class KX_Scene : public EXP_Value, public SCA_IScene
+class KX_Scene : public EXP_Value
 {
 public:
 	enum DrawingCallbackType {
@@ -106,12 +100,6 @@ public:
 private:
 	Py_Header
 
-#ifdef WITH_PYTHON
-	PyObject *m_attrDict;
-	PyObject *m_removeCallbacks;
-	PyObject *m_drawCallbacks[MAX_DRAW_CALLBACK];
-#endif
-
 	struct CullingInfo
 	{
 		int m_layer;
@@ -123,6 +111,18 @@ private:
 		{
 		}
 	};
+
+	struct DebugProp
+	{
+		KX_GameObject *m_obj;
+		std::string m_name;
+	};
+
+#ifdef WITH_PYTHON
+	PyObject *m_attrDict;
+	PyObject *m_removeCallbacks;
+	PyObject *m_drawCallbacks[MAX_DRAW_CALLBACK];
+#endif
 
 	KX_TextureRendererManager *m_rendererManager;
 	RAS_BucketManager *m_bucketmanager;
@@ -153,6 +153,8 @@ private:
 	/// The list of fonts for this scene.
 	EXP_ListValue<KX_FontObject> *m_fontlist;
 
+	std::vector<DebugProp> m_debugList;
+
 	/**
 	 * List of nodes that needs scenegraph update
 	 * the Dlist is not object that must be updated
@@ -161,19 +163,13 @@ private:
 	 */
 	SG_QList m_sghead;
 
-	/// Various SCA managers used by the scene
-	SCA_LogicManager *m_logicmgr;
-	SCA_KeyboardManager *m_keyboardmgr;
-	SCA_MouseManager *m_mousemgr;
-	SCA_TimeEventManager *m_timemgr;
-
 	KX_PythonComponentManager m_componentManager;
 
 	/// Physics engine abstraction.
 	PHY_IPhysicsEnvironment *m_physicsEnvironment;
 
 	/// The name of the scene.
-	std::string m_sceneName;
+	std::string m_name;
 
 	/// Stores the world-settings for a scene.
 	KX_WorldInfo *m_worldinfo;
@@ -185,13 +181,6 @@ private:
 	KX_Camera *m_activeCamera;
 	/// The active camera for scene culling.
 	KX_Camera *m_overrideCullingCamera;
-
-	/**
-	 * Another temporary variable outstaying its welcome
-	 * used in AddReplicaObject to map game objects to their
-	 * replicas so pointers can be updated.
-	 */
-	std::map<SCA_IObject *, SCA_IObject *> m_map_gameobject_to_replica;
 
 	/**
 	 * Another temporary variable outstaying its welcome
@@ -299,6 +288,13 @@ public:
 
 	void AddAnimatedObject(KX_GameObject *gameobj);
 
+	bool PropertyInDebugList(KX_GameObject *gameobj, const std::string &name);
+	bool ObjectInDebugList(KX_GameObject *gameobj);
+	void RemoveAllDebugProperties();
+	void AddDebugProperty(KX_GameObject *gameobj, const std::string &name);
+	void RemoveDebugProperty(KX_GameObject *gameobj, const std::string &name);
+	void RemoveObjectDebugProperties(KX_GameObject *gameobj);
+
 	/**
 	 * \section Logic stuff
 	 * Initiate an update of the logic system.
@@ -316,8 +312,6 @@ public:
 	EXP_ListValue<KX_Camera> *GetCameraList() const;
 	EXP_ListValue<KX_FontObject> *GetFontList() const;
 
-	SCA_LogicManager *GetLogicManager() const;
-	SCA_TimeEventManager *GetTimeEventManager() const;
 	KX_PythonComponentManager& GetPythonComponentManager();
 
 	/// Return the currently active camera.
@@ -367,9 +361,6 @@ public:
 			KX_DebugOption showBoundingBox, KX_DebugOption showArmatures);
 	void RenderDebugProperties(RAS_DebugDraw& debugDraw, int xindent, int ysize, int& xcoord, int& ycoord, unsigned short propsMax);
 	void FlushDebugDraw(RAS_Rasterizer *rasty, RAS_ICanvas *canvas);
-
-	/// Replicate the logic bricks associated to this object.
-	void ReplicateLogic(KX_GameObject *newobj);
 
 	// Suspend the entire scene.
 	void Suspend();

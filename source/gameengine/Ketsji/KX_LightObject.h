@@ -73,9 +73,9 @@ public:
 	void UpdateScene(KX_Scene *kxscene);
 	virtual void SetLayer(int layer);
 
-	virtual int GetGameObjectType() const
+	virtual ObjectTypes GetGameObjectType() const
 	{
-		return OBJ_LIGHT;
+		return OBJECT_TYPE_LIGHT;
 	}
 
 #ifdef WITH_PYTHON

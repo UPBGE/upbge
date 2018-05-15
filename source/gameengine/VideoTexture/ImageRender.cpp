@@ -763,7 +763,7 @@ static int ImageMirror_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 
 		// get observer pointer
 		KX_GameObject *observerPtr(nullptr);
-		if (!ConvertPythonToGameObject(scenePtr->GetLogicManager(), observer, &observerPtr, false, "")) {
+		if (!ConvertPythonToGameObject(0, observer, &observerPtr, false, "")) {
 			THRWEXCP(ObserverInvalid, S_OK);
 		}
 
@@ -773,7 +773,7 @@ static int ImageMirror_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 
 		// get mirror pointer
 		KX_GameObject *mirrorPtr(nullptr);
-		if (!ConvertPythonToGameObject(scenePtr->GetLogicManager(), mirror, &mirrorPtr, false, "")) {
+		if (!ConvertPythonToGameObject(0, mirror, &mirrorPtr, false, "")) {
 			THRWEXCP(MirrorInvalid, S_OK);
 		}
 

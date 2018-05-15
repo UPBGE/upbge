@@ -39,7 +39,6 @@
 #include "RAS_IMaterial.h"
 #include "RAS_DisplayArray.h"
 #include "RAS_BucketManager.h"
-#include "SCA_LogicManager.h"
 
 #include "KX_VertexProxy.h"
 #include "KX_PolyProxy.h"
@@ -47,8 +46,6 @@
 #include "KX_BlenderMaterial.h"
 
 #include "KX_PyMath.h"
-
-#include "SCA_LogicManager.h"
 
 #include "EXP_PyObjectPlus.h"
 #include "EXP_ListWrapper.h"
@@ -372,7 +369,7 @@ PyObject *KX_Mesh::PyReplaceMaterial(PyObject *args, PyObject *kwds)
 		return nullptr;
 	}
 
-	KX_Scene *scene = (KX_Scene *)meshmat->GetBucket()->GetMaterial()->GetScene();
+	KX_Scene *scene = static_cast<KX_BlenderMaterial *>(meshmat->GetBucket()->GetMaterial())->GetScene();
 	if (scene != mat->GetScene()) {
 		PyErr_Format(PyExc_ValueError, "Mesh successor scene doesn't match current mesh scene");
 		return nullptr;
@@ -521,7 +518,7 @@ PyObject *KX_Mesh::pyattr_get_polygons(EXP_PyObjectPlus *self_v, const EXP_PYATT
 }
 
 /* a close copy of ConvertPythonToGameObject but for meshes */
-bool ConvertPythonToMesh(SCA_LogicManager *logicmgr, PyObject *value, KX_Mesh **object, bool py_none_ok, const char *error_prefix)
+bool ConvertPythonToMesh(void *logicmgr, PyObject *value, KX_Mesh **object, bool py_none_ok, const char *error_prefix)
 {
 	if (value == nullptr) {
 		PyErr_Format(PyExc_TypeError, "%s, python pointer nullptr, should never happen", error_prefix);
@@ -541,7 +538,7 @@ bool ConvertPythonToMesh(SCA_LogicManager *logicmgr, PyObject *value, KX_Mesh **
 		}
 	}
 
-	if (PyUnicode_Check(value)) {
+	/*if (PyUnicode_Check(value)) {
 		*object = (KX_Mesh *)logicmgr->GetMeshByName(std::string(_PyUnicode_AsString(value)));
 
 		if (*object) {
@@ -551,7 +548,7 @@ bool ConvertPythonToMesh(SCA_LogicManager *logicmgr, PyObject *value, KX_Mesh **
 			PyErr_Format(PyExc_ValueError, "%s, requested name \"%s\" did not match any KX_Mesh in this scene", error_prefix, _PyUnicode_AsString(value));
 			return false;
 		}
-	}
+	}*/
 
 	if (PyObject_TypeCheck(value, &KX_Mesh::Type)) {
 		KX_Mesh *kx_mesh = static_cast<KX_Mesh *>EXP_PROXY_REF(value);

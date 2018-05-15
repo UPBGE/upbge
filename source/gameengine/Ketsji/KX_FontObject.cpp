@@ -50,6 +50,8 @@
 #include "BKE_font.h"
 #include "BKE_main.h"
 #include "DNA_packedFile_types.h"
+#include "DNA_vfont_types.h"
+#include "DNA_object_types.h"
 
 extern "C" {
 #include "BLF_api.h"

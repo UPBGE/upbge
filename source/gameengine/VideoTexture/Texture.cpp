@@ -223,7 +223,7 @@ short getMaterialID(PyObject *obj, const char *name)
 	{
 		// get material
 		KX_GameObject *gameObj;
-		if (!ConvertPythonToGameObject(KX_GetActiveScene()->GetLogicManager(), obj, &gameObj, false, "")) {
+		if (!ConvertPythonToGameObject(0, obj, &gameObj, false, "")) {
 			break;
 		}
 
@@ -295,7 +295,7 @@ static int Texture_init(PyObject *self, PyObject *args, PyObject *kwds)
 	}
 
 	KX_GameObject *gameObj = nullptr;
-	if (ConvertPythonToGameObject(KX_GetActiveScene()->GetLogicManager(), obj, &gameObj, false, "")) {
+	if (ConvertPythonToGameObject(0, obj, &gameObj, false, "")) {
 		// process polygon material or blender material
 		try
 		{
@@ -303,7 +303,7 @@ static int Texture_init(PyObject *self, PyObject *args, PyObject *kwds)
 			// get pointer to texture image
 			RAS_IMaterial *mat = getMaterial(gameObj, matID);
 			KX_LightObject *lamp = nullptr;
-			if (gameObj->GetGameObjectType() == SCA_IObject::OBJ_LIGHT) {
+			if (gameObj->GetGameObjectType() == KX_GameObject::OBJECT_TYPE_LIGHT) {
 				lamp = (KX_LightObject *)gameObj;
 			}
 
