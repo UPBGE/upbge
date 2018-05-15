@@ -43,7 +43,6 @@
 #include <map>
 
 class RAS_Mesh;
-class SCA_IObject;
 
 class RAS_Deformer
 {

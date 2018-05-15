@@ -160,7 +160,7 @@ static PyObject *py_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 		PyObject *pyobj = PyList_GET_ITEM(pylist, i);
 		KX_GameObject *gameobj;
 
-		if (!ConvertPythonToGameObject(KX_GetActiveScene()->GetLogicManager(), pyobj, &gameobj, false, "KX_BatchGroup(objects)")) {
+		if (!ConvertPythonToGameObject(0, pyobj, &gameobj, false, "KX_BatchGroup(objects)")) {
 			return nullptr;
 		}
 
@@ -236,8 +236,8 @@ int KX_BatchGroup::pyattr_set_referenceObject(EXP_PyObjectPlus *self_v, const EX
 	KX_BatchGroup *self = static_cast<KX_BatchGroup *>(self_v);
 
 	KX_GameObject *object;
-	if (!ConvertPythonToGameObject(KX_GetActiveScene()->GetLogicManager(),
-			value, &object, false, "KX_BatchGroup.referenceObject"))
+	if (!ConvertPythonToGameObject(0,
+			value, &object, false, "KX_BatchGroup.referenceObject"))// TODO
 	{
 		return PY_SET_ATTR_FAIL;
 	}
@@ -267,7 +267,7 @@ EXP_PYMETHODDEF_DOC(KX_BatchGroup, merge, "merge(objects)")
 		PyObject *pyobj = PyList_GET_ITEM(pylist, i);
 		KX_GameObject *gameobj;
 
-		if (!ConvertPythonToGameObject(KX_GetActiveScene()->GetLogicManager(), pyobj, &gameobj, false, "batch.merge(objects)")) {
+		if (!ConvertPythonToGameObject(0, pyobj, &gameobj, false, "batch.merge(objects)")) {
 			return nullptr;
 		}
 
@@ -297,7 +297,7 @@ EXP_PYMETHODDEF_DOC(KX_BatchGroup, split, "split(objects)")
 		PyObject *pyobj = PyList_GET_ITEM(pylist, i);
 		KX_GameObject *gameobj;
 
-		if (!ConvertPythonToGameObject(KX_GetActiveScene()->GetLogicManager(), pyobj, &gameobj, false, "batch.split(objects)")) {
+		if (!ConvertPythonToGameObject(0, pyobj, &gameobj, false, "batch.split(objects)")) {
 			return nullptr;
 		}
 

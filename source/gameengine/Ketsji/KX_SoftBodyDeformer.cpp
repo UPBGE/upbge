@@ -44,12 +44,12 @@
 #include "RAS_BoundingBoxManager.h"
 
 #ifdef WITH_BULLET
+#  include "CcdPhysicsEnvironment.h"
+#  include "CcdPhysicsController.h"
 
-#include "CcdPhysicsEnvironment.h"
-#include "CcdPhysicsController.h"
-#include "BulletSoftBody/btSoftBody.h"
-
-#include "btBulletDynamicsCommon.h"
+#  include "BulletSoftBody/btSoftBody.h"
+#  include "btBulletDynamicsCommon.h"
+#endif  // WITH_BULLET
 
 KX_SoftBodyDeformer::KX_SoftBodyDeformer(RAS_Mesh *pMeshObject, KX_GameObject *gameobj)
 	:RAS_Deformer(pMeshObject),
@@ -69,6 +69,7 @@ KX_SoftBodyDeformer::~KX_SoftBodyDeformer()
 
 void KX_SoftBodyDeformer::Apply(RAS_DisplayArray *array)
 {
+#ifdef WITH_BULLET
 	CcdPhysicsController *ctrl = (CcdPhysicsController *)m_gameobj->GetPhysicsController();
 	if (!ctrl) {
 		return;
@@ -131,6 +132,5 @@ void KX_SoftBodyDeformer::Apply(RAS_DisplayArray *array)
 	if (autoUpdate) {
 		m_boundingBox->ExtendAabb(aabbMin, aabbMax);
 	}
+#endif  // WITH_BULLET
 }
-
-#endif

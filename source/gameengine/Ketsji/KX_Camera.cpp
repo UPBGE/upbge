@@ -43,6 +43,8 @@
 
 #include <BLI_math_rotation.h>
 
+#include "DNA_object_types.h" // For OB_MAX_COL_MASKS.
+
 KX_Camera::KX_Camera(void *sgReplicationInfo,
                      SG_Callbacks callbacks,
                      const RAS_CameraData& camdata,
@@ -838,7 +840,7 @@ EXP_PYMETHODDEF_DOC_O(KX_Camera, getScreenPosition,
 	if (!PyVecTo(value, vect)) {
 		PyErr_Clear();
 
-		if (ConvertPythonToGameObject(GetScene()->GetLogicManager(), value, &obj, false, "")) {
+		if (ConvertPythonToGameObject(0, value, &obj, false, "")) {
 			PyErr_Clear();
 			vect = mt::vec3(obj->NodeGetWorldPosition());
 		}

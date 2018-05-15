@@ -46,7 +46,6 @@
 #include "BL_SceneConverter.h"
 #include "BL_BlenderDataConversion.h"
 #include "BL_ConvertObjectInfo.h"
-#include "BL_ActionActuator.h"
 #include "KX_BlenderMaterial.h"
 
 #include "EXP_StringValue.h"
@@ -62,6 +61,7 @@
 extern "C" {
 #  include "DNA_mesh_types.h"
 #  include "DNA_material_types.h"
+#  include "DNA_action_types.h"
 #  include "BLI_blenlib.h"
 #  include "BLI_linklist.h"
 #  include "BLO_readfile.h"
@@ -565,14 +565,14 @@ bool BL_Converter::FreeBlendFileData(Main *maggie)
 	// Free ressources belonging to the library and unregister them.
 	for (auto& pair : m_sceneSlots) {
 		KX_Scene *scene = pair.first;
-		SCA_LogicManager *logicmgr = scene->GetLogicManager();
+// 		SCA_LogicManager *logicmgr = scene->GetLogicManager(); TODO
 		SceneSlot& sceneSlot = pair.second;
 
 		// Free meshes.
 		for (UniquePtrList<KX_Mesh>::iterator it =  sceneSlot.m_meshobjects.begin(); it !=  sceneSlot.m_meshobjects.end(); ) {
 			KX_Mesh *mesh = it->get();
 			if (mesh->Belong(libraryId)) {
-				logicmgr->UnregisterMesh(mesh);
+// 				logicmgr->UnregisterMesh(mesh); TODO
 				it = sceneSlot.m_meshobjects.erase(it);
 			}
 			else {
@@ -596,7 +596,7 @@ bool BL_Converter::FreeBlendFileData(Main *maggie)
 		for (UniquePtrList<BL_ActionData>::iterator it = sceneSlot.m_actions.begin(); it != sceneSlot.m_actions.end(); ) {
 			BL_ActionData *act = it->get();
 			if (act->Belong(libraryId)) {
-				logicmgr->UnregisterAction(act);
+// 				logicmgr->UnregisterAction(act); TODO
 				it = sceneSlot.m_actions.erase(it);
 			}
 			else {

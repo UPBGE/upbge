@@ -65,48 +65,20 @@ set(INC_SYS
 )
 
 set(SRC
-	BL_ActionActuator.cpp
 	BL_ActionData.cpp
-	BL_ArmatureActuator.cpp
-	BL_ArmatureChannel.cpp
-	BL_ArmatureConstraint.cpp
-	BL_ArmatureObject.cpp
 	BL_BlenderDataConversion.cpp
 	BL_Converter.cpp
-	BL_MeshDeformer.cpp
-	BL_ModifierDeformer.cpp
 	BL_Resource.cpp
-	BL_ShapeDeformer.cpp
-	BL_SkinDeformer.cpp
 	BL_ScalarInterpolator.cpp
 	BL_SceneConverter.cpp
-	BL_ConvertActuators.cpp
-	BL_ConvertControllers.cpp
-	BL_ConvertObjectInfo.cpp
-	BL_ConvertProperties.cpp
-	BL_ConvertSensors.cpp
 	BL_IpoConvert.cpp
 
-	BL_ActionActuator.h
 	BL_ActionData.h
-	BL_ArmatureActuator.h
-	BL_ArmatureChannel.h
-	BL_ArmatureConstraint.h
-	BL_ArmatureObject.h
 	BL_BlenderDataConversion.h
 	BL_Converter.h
-	BL_MeshDeformer.h
-	BL_ModifierDeformer.h
 	BL_Resource.h
-	BL_ShapeDeformer.h
-	BL_SkinDeformer.h
 	BL_ScalarInterpolator.h
 	BL_SceneConverter.h
-	BL_ConvertActuators.h
-	BL_ConvertControllers.h
-	BL_ConvertObjectInfo.h
-	BL_ConvertProperties.h
-	BL_ConvertSensors.h
 	BL_IpoConvert.h
 )
 

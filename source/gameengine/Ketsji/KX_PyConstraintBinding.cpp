@@ -443,7 +443,7 @@ static PyObject *gPyGetCharacter(PyObject *self,
 		return nullptr;
 	}
 
-	if (!ConvertPythonToGameObject(KX_GetActiveScene()->GetLogicManager(), pyob, &ob, false, "bge.constraints.getCharacter(value)")) {
+	if (!ConvertPythonToGameObject(0, pyob, &ob, false, "bge.constraints.getCharacter(value)")) {
 		return nullptr;
 	}
 
