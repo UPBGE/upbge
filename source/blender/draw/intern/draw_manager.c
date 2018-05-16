@@ -2398,6 +2398,9 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam, int
 
 	DST.options.is_game_engine = true;
 
+	int taa_samples_backup = scene->eevee.taa_samples;
+	scene->eevee.taa_samples = 0;
+
 	drw_context_state_init();
 	drw_viewport_var_init();
 
@@ -2435,6 +2438,9 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam, int
 	DRW_state_reset();
 
 	DRW_opengl_context_disable();
+
+
+	scene->eevee.taa_samples = taa_samples_backup;
 
 	return finaltex;
 }
