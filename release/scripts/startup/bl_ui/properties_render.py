@@ -488,25 +488,13 @@ class RENDER_PT_stereoscopy(RenderButtonsPanel, Panel):
             row.prop(rv, "camera_suffix", text="")
 
 
-class RENDER_PT_clay_layer_settings(RenderButtonsPanel, Panel):
-    bl_label = "Clay Layer Settings"
+class RENDER_PT_clay_settings(RenderButtonsPanel, Panel):
+    bl_label = "Clay Settings"
     COMPAT_ENGINES = {'BLENDER_CLAY'}
 
     def draw(self, context):
         layout = self.layout
-        props = context.scene.layer_properties['BLENDER_CLAY']
-
-        col = layout.column()
-        col.prop(props, "ssao_samples")
-
-
-class RENDER_PT_clay_collection_settings(RenderButtonsPanel, Panel):
-    bl_label = "Clay Collection Settings"
-    COMPAT_ENGINES = {'BLENDER_CLAY'}
-
-    def draw(self, context):
-        layout = self.layout
-        props = context.scene.collection_properties['BLENDER_CLAY']
+        props = context.scene.display
 
         col = layout.column()
         col.template_icon_view(props, "matcap_icon")
@@ -514,11 +502,12 @@ class RENDER_PT_clay_collection_settings(RenderButtonsPanel, Panel):
         col.prop(props, "matcap_hue")
         col.prop(props, "matcap_saturation")
         col.prop(props, "matcap_value")
-        col.prop(props, "ssao_factor_cavity")
-        col.prop(props, "ssao_factor_edge")
-        col.prop(props, "ssao_distance")
-        col.prop(props, "ssao_attenuation")
-        col.prop(props, "hair_brightness_randomness")
+        col.prop(props, "matcap_ssao_samples")
+        col.prop(props, "matcap_ssao_factor_cavity")
+        col.prop(props, "matcap_ssao_factor_edge")
+        col.prop(props, "matcap_ssao_distance")
+        col.prop(props, "matcap_ssao_attenuation")
+        col.prop(props, "matcap_hair_brightness_randomness")
 
 
 class RENDER_PT_eevee_ambient_occlusion(RenderButtonsPanel, Panel):
@@ -532,13 +521,13 @@ class RENDER_PT_eevee_ambient_occlusion(RenderButtonsPanel, Panel):
 
     def draw_header(self, context):
         scene = context.scene
-        props = scene.layer_properties['BLENDER_EEVEE']
+        props = scene.eevee
         self.layout.prop(props, "gtao_enable", text="")
 
     def draw(self, context):
         layout = self.layout
         scene = context.scene
-        props = scene.layer_properties['BLENDER_EEVEE']
+        props = scene.eevee
 
         layout.active = props.gtao_enable
         col = layout.column()
@@ -560,13 +549,13 @@ class RENDER_PT_eevee_motion_blur(RenderButtonsPanel, Panel):
 
     def draw_header(self, context):
         scene = context.scene
-        props = scene.layer_properties['BLENDER_EEVEE']
+        props = scene.eevee
         self.layout.prop(props, "motion_blur_enable", text="")
 
     def draw(self, context):
         layout = self.layout
         scene = context.scene
-        props = scene.layer_properties['BLENDER_EEVEE']
+        props = scene.eevee
 
         layout.active = props.motion_blur_enable
         col = layout.column()
@@ -585,13 +574,13 @@ class RENDER_PT_eevee_depth_of_field(RenderButtonsPanel, Panel):
 
     def draw_header(self, context):
         scene = context.scene
-        props = scene.layer_properties['BLENDER_EEVEE']
+        props = scene.eevee
         self.layout.prop(props, "dof_enable", text="")
 
     def draw(self, context):
         layout = self.layout
         scene = context.scene
-        props = scene.layer_properties['BLENDER_EEVEE']
+        props = scene.eevee
 
         layout.active = props.dof_enable
         col = layout.column()
@@ -610,13 +599,13 @@ class RENDER_PT_eevee_bloom(RenderButtonsPanel, Panel):
 
     def draw_header(self, context):
         scene = context.scene
-        props = scene.layer_properties['BLENDER_EEVEE']
+        props = scene.eevee
         self.layout.prop(props, "bloom_enable", text="")
 
     def draw(self, context):
         layout = self.layout
         scene = context.scene
-        props = scene.layer_properties['BLENDER_EEVEE']
+        props = scene.eevee
 
         layout.active = props.bloom_enable
         col = layout.column()
@@ -639,13 +628,13 @@ class RENDER_PT_eevee_volumetric(RenderButtonsPanel, Panel):
 
     def draw_header(self, context):
         scene = context.scene
-        props = scene.layer_properties['BLENDER_EEVEE']
+        props = scene.eevee
         self.layout.prop(props, "volumetric_enable", text="")
 
     def draw(self, context):
         layout = self.layout
         scene = context.scene
-        props = scene.layer_properties['BLENDER_EEVEE']
+        props = scene.eevee
 
         layout.active = props.volumetric_enable
         col = layout.column()
@@ -672,13 +661,13 @@ class RENDER_PT_eevee_subsurface_scattering(RenderButtonsPanel, Panel):
 
     def draw_header(self, context):
         scene = context.scene
-        props = scene.layer_properties['BLENDER_EEVEE']
+        props = scene.eevee
         self.layout.prop(props, "sss_enable", text="")
 
     def draw(self, context):
         layout = self.layout
         scene = context.scene
-        props = scene.layer_properties['BLENDER_EEVEE']
+        props = scene.eevee
 
         col = layout.column()
         col.prop(props, "sss_samples")
@@ -697,13 +686,13 @@ class RENDER_PT_eevee_screen_space_reflections(RenderButtonsPanel, Panel):
 
     def draw_header(self, context):
         scene = context.scene
-        props = scene.layer_properties['BLENDER_EEVEE']
+        props = scene.eevee
         self.layout.prop(props, "ssr_enable", text="")
 
     def draw(self, context):
         layout = self.layout
         scene = context.scene
-        props = scene.layer_properties['BLENDER_EEVEE']
+        props = scene.eevee
 
         col = layout.column()
         col.active = props.ssr_enable
@@ -728,7 +717,7 @@ class RENDER_PT_eevee_shadows(RenderButtonsPanel, Panel):
     def draw(self, context):
         layout = self.layout
         scene = context.scene
-        props = scene.layer_properties['BLENDER_EEVEE']
+        props = scene.eevee
 
         col = layout.column()
         col.prop(props, "shadow_method")
@@ -749,7 +738,7 @@ class RENDER_PT_eevee_sampling(RenderButtonsPanel, Panel):
     def draw(self, context):
         layout = self.layout
         scene = context.scene
-        props = scene.layer_properties['BLENDER_EEVEE']
+        props = scene.eevee
 
         col = layout.column()
         col.prop(props, "taa_samples")
@@ -769,7 +758,7 @@ class RENDER_PT_eevee_indirect_lighting(RenderButtonsPanel, Panel):
     def draw(self, context):
         layout = self.layout
         scene = context.scene
-        props = scene.layer_properties['BLENDER_EEVEE']
+        props = scene.eevee
 
         col = layout.column()
         col.prop(props, "gi_diffuse_bounces")
@@ -815,8 +804,7 @@ classes = (
     RENDER_PT_encoding,
     RENDER_UL_renderviews,
     RENDER_PT_stereoscopy,
-    RENDER_PT_clay_layer_settings,
-    RENDER_PT_clay_collection_settings,
+    RENDER_PT_clay_settings,
     RENDER_PT_eevee_sampling,
     RENDER_PT_eevee_film,
     RENDER_PT_eevee_shadows,

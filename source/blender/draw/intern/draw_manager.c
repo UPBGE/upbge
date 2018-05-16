@@ -2026,10 +2026,10 @@ void DRW_engine_register(DrawEngineType *draw_engine_type)
 void DRW_engines_register(void)
 {
 #ifdef WITH_CLAY_ENGINE
-	RE_engines_register(NULL, &DRW_engine_viewport_clay_type);
+	RE_engines_register(&DRW_engine_viewport_clay_type);
 #endif
-	RE_engines_register(NULL, &DRW_engine_viewport_eevee_type);
-	RE_engines_register(NULL, &DRW_engine_viewport_workbench_type);
+	RE_engines_register(&DRW_engine_viewport_eevee_type);
+	RE_engines_register(&DRW_engine_viewport_workbench_type);
 
 	DRW_engine_register(&draw_engine_workbench_solid);
 
@@ -2398,10 +2398,6 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam, int
 
 	DST.options.is_game_engine = true;
 
-	IDProperty *props = BKE_view_layer_engine_evaluated_get(view_layer, RE_engine_id_BLENDER_EEVEE);
-	int taa_samples_backup = BKE_collection_engine_property_value_get_int(props, "taa_samples");
-	BKE_collection_engine_property_value_set_int(props, "taa_samples", 0);
-
 	drw_context_state_init();
 	drw_viewport_var_init();
 
@@ -2439,8 +2435,6 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam, int
 	DRW_state_reset();
 
 	DRW_opengl_context_disable();
-
-	BKE_collection_engine_property_value_set_int(props, "taa_samples", taa_samples_backup);
 
 	return finaltex;
 }

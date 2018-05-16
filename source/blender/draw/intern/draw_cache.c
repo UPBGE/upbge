@@ -116,10 +116,10 @@ void DRW_shape_cache_free(void)
 /** \name Helper functions
  * \{ */
 
-static void add_fancy_edge(
+static void UNUSED_FUNCTION(add_fancy_edge)(
         Gwn_VertBuf *vbo, uint pos_id, uint n1_id, uint n2_id,
         uint *v_idx, const float co1[3], const float co2[3],
-const float n1[3], const float n2[3])
+        const float n1[3], const float n2[3])
 {
 	GWN_vertbuf_attr_set(vbo, n1_id, *v_idx, n1);
 	GWN_vertbuf_attr_set(vbo, n2_id, *v_idx, n2);
@@ -1548,6 +1548,7 @@ static const float bone_octahedral_smooth_normals[6][3] = {
 	{ 0.0f,  1.0f,  0.0f}
 };
 
+#if 0  /* UNUSED */
 static const uint bone_octahedral_wire[24] = {
 	0, 1,  1, 5,  5, 3,  3, 0,
 	0, 4,  4, 5,  5, 2,  2, 0,
@@ -1561,6 +1562,7 @@ static const uint bone_octahedral_wire_adjacent_face[24] = {
 	2, 3,  6, 7,  4, 5,  0, 1,
 	0, 4,  1, 5,  2, 6,  3, 7,
 };
+#endif
 
 static const uint bone_octahedral_solid_tris[8][3] = {
 	{2, 1, 0}, /* bottom */
@@ -1650,37 +1652,6 @@ Gwn_Batch *DRW_cache_bone_octahedral_get(void)
 	return SHC.drw_bone_octahedral;
 }
 
-Gwn_Batch *DRW_cache_bone_octahedral_wire_outline_get(void)
-{
-	if (!SHC.drw_bone_octahedral_wire) {
-		uint v_idx = 0;
-
-		static Gwn_VertFormat format = { 0 };
-		static struct { uint pos, n1, n2; } attr_id;
-		if (format.attrib_ct == 0) {
-			attr_id.pos = GWN_vertformat_attr_add(&format, "pos", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
-			attr_id.n1 = GWN_vertformat_attr_add(&format, "N1", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
-			attr_id.n2 = GWN_vertformat_attr_add(&format, "N2", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
-		}
-
-		/* Vertices */
-		Gwn_VertBuf *vbo = GWN_vertbuf_create_with_format(&format);
-		GWN_vertbuf_data_alloc(vbo, 12 * 2);
-
-		for (int i = 0; i < 12; i++) {
-			const float *co1 = bone_octahedral_verts[bone_octahedral_wire[i * 2]];
-			const float *co2 = bone_octahedral_verts[bone_octahedral_wire[i * 2 + 1]];
-			const float *n1 = bone_octahedral_solid_normals[bone_octahedral_wire_adjacent_face[i * 2]];
-			const float *n2 = bone_octahedral_solid_normals[bone_octahedral_wire_adjacent_face[i * 2 + 1]];
-			add_fancy_edge(vbo, attr_id.pos, attr_id.n1, attr_id.n2, &v_idx, co1, co2, n1, n2);
-		}
-
-		SHC.drw_bone_octahedral_wire = GWN_batch_create_ex(GWN_PRIM_LINES, vbo, NULL, GWN_BATCH_OWNS_VBO);
-	}
-	return SHC.drw_bone_octahedral_wire;
-}
-
-
 /* XXX TODO move that 1 unit cube to more common/generic place? */
 static const float bone_box_verts[8][3] = {
 	{ 1.0f, 0.0f,  1.0f},
@@ -1704,6 +1675,7 @@ static const float bone_box_smooth_normals[8][3] = {
 	{-M_SQRT3,  M_SQRT3,  M_SQRT3},
 };
 
+#if 0 /* UNUSED */
 static const uint bone_box_wire[24] = {
 	0, 1,  1, 2,  2, 3,  3, 0,
 	4, 5,  5, 6,  6, 7,  7, 4,
@@ -1717,6 +1689,7 @@ static const uint bone_box_wire_adjacent_face[24] = {
 	3, 10,   5, 10,   7, 11,   9, 11,
 	3,  8,   2,  5,   4,  7,   6,  9,
 };
+#endif
 
 static const uint bone_box_solid_tris[12][3] = {
 	{0, 2, 1}, /* bottom */
@@ -1818,64 +1791,6 @@ Gwn_Batch *DRW_cache_bone_box_get(void)
 		                                       GWN_BATCH_OWNS_VBO | GWN_BATCH_OWNS_INDEX);
 	}
 	return SHC.drw_bone_box;
-}
-
-Gwn_Batch *DRW_cache_bone_box_wire_outline_get(void)
-{
-	if (!SHC.drw_bone_box_wire) {
-		uint v_idx = 0;
-
-		static Gwn_VertFormat format = { 0 };
-		static struct { uint pos, n1, n2; } attr_id;
-		if (format.attrib_ct == 0) {
-			attr_id.pos = GWN_vertformat_attr_add(&format, "pos", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
-			attr_id.n1 = GWN_vertformat_attr_add(&format, "N1", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
-			attr_id.n2 = GWN_vertformat_attr_add(&format, "N2", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
-		}
-
-		/* Vertices */
-		Gwn_VertBuf *vbo = GWN_vertbuf_create_with_format(&format);
-		GWN_vertbuf_data_alloc(vbo, 12 * 2);
-
-		for (int i = 0; i < 12; i++) {
-			const float *co1 = bone_box_verts[bone_box_wire[i * 2]];
-			const float *co2 = bone_box_verts[bone_box_wire[i * 2 + 1]];
-			const float *n1 = bone_box_solid_normals[bone_box_wire_adjacent_face[i * 2]];
-			const float *n2 = bone_box_solid_normals[bone_box_wire_adjacent_face[i * 2 + 1]];
-			add_fancy_edge(vbo, attr_id.pos, attr_id.n1, attr_id.n2, &v_idx, co1, co2, n1, n2);
-		}
-
-		SHC.drw_bone_box_wire = GWN_batch_create_ex(GWN_PRIM_LINES, vbo, NULL, GWN_BATCH_OWNS_VBO);
-	}
-	return SHC.drw_bone_box_wire;
-}
-
-
-Gwn_Batch *DRW_cache_bone_wire_wire_outline_get(void)
-{
-	if (!SHC.drw_bone_wire_wire) {
-		uint v_idx = 0;
-
-		static Gwn_VertFormat format = { 0 };
-		static struct { uint pos, n1, n2; } attr_id;
-		if (format.attrib_ct == 0) {
-			attr_id.pos = GWN_vertformat_attr_add(&format, "pos", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
-			attr_id.n1 = GWN_vertformat_attr_add(&format, "N1", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
-			attr_id.n2 = GWN_vertformat_attr_add(&format, "N2", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
-		}
-
-		/* Vertices */
-		Gwn_VertBuf *vbo = GWN_vertbuf_create_with_format(&format);
-		GWN_vertbuf_data_alloc(vbo, 2);
-
-		const float co1[3] = {0.0f, 0.0f, 0.0f};
-		const float co2[3] = {0.0f, 1.0f, 0.0f};
-		const float n[3] = {1.0f, 0.0f, 0.0f};
-		add_fancy_edge(vbo, attr_id.pos, attr_id.n1, attr_id.n2, &v_idx, co1, co2, n, n);
-
-		SHC.drw_bone_wire_wire = GWN_batch_create_ex(GWN_PRIM_LINES, vbo, NULL, GWN_BATCH_OWNS_VBO);
-	}
-	return SHC.drw_bone_wire_wire;
 }
 
 /* Helpers for envelope bone's solid sphere-with-hidden-equatorial-cylinder.

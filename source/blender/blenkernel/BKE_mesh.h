@@ -31,6 +31,9 @@
  *  \ingroup bke
  */
 
+/* defines BLI_INLINE */
+#include "BLI_utildefines.h"
+
 struct ID;
 struct BMeshCreateParams;
 struct BMeshFromMeshParams;
@@ -459,6 +462,7 @@ void BKE_mesh_calc_relative_deform(
 /* *** mesh_validate.c *** */
 
 int BKE_mesh_validate(struct Mesh *me, const int do_verbose, const int cddata_check_mask);
+bool BKE_mesh_is_valid(struct Mesh *me);
 int BKE_mesh_validate_material_indices(struct Mesh *me);
 
 bool BKE_mesh_validate_arrays(
@@ -501,6 +505,20 @@ enum {
 };
 void BKE_mesh_batch_cache_dirty(struct Mesh *me, int mode);
 void BKE_mesh_batch_cache_free(struct Mesh *me);
+
+
+/* Inlines */
+
+/* This is a copy of DM_origindex_mface_mpoly().
+ * Instead of -1 that function uses ORIGINDEX_NONE as defined in BKE_customdata.h,
+ * but I don't want to force every user of BKE_mesh.h to also include that file.
+ * ~~ Sybren */
+BLI_INLINE int BKE_mesh_origindex_mface_mpoly(
+        const int *index_mf_to_mpoly, const int *index_mp_to_orig, const int i)
+{
+	const int j = index_mf_to_mpoly[i];
+	return (j != -1) ? (index_mp_to_orig ? index_mp_to_orig[j] : j) : -1;
+}
 
 #ifdef __cplusplus
 }

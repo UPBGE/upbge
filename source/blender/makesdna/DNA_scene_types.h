@@ -1542,7 +1542,67 @@ typedef struct DisplaySafeAreas {
 typedef struct SceneDisplay {
 	float light_direction[3];      /* light direction for shadows/highlight */
 	float shadow_shift;
+
+	int matcap_icon;
+	int matcap_type;
+	float matcap_rotation;
+	float matcap_hue;
+	float matcap_saturation;
+	float matcap_value;
+	float matcap_ssao_distance;
+	float matcap_ssao_attenuation;
+	float matcap_ssao_factor_cavity;
+	float matcap_ssao_factor_edge;
+	float matcap_hair_brightness_randomness;
+	int matcap_ssao_samples;
 } SceneDisplay;
+
+typedef struct SceneEEVEE {
+	int flag;
+	int gi_diffuse_bounces;
+	int gi_cubemap_resolution;
+	int gi_visibility_resolution;
+
+	int taa_samples;
+	int taa_render_samples;
+	int sss_samples;
+	float sss_jitter_threshold;
+
+	float ssr_quality;
+	float ssr_max_roughness;
+	float ssr_thickness;
+	float ssr_border_fade;
+	float ssr_firefly_fac;
+
+	float volumetric_start;
+	float volumetric_end;
+	int volumetric_tile_size;
+	int volumetric_samples;
+	float volumetric_sample_distribution;
+	float volumetric_light_clamp;
+	int volumetric_shadow_samples;
+
+	float gtao_distance;
+	float gtao_factor;
+	float gtao_quality;
+
+	float bokeh_max_size;
+	float bokeh_threshold;
+
+	float bloom_color[3];
+	float bloom_threshold;
+	float bloom_knee;
+	float bloom_intensity;
+	float bloom_radius;
+	float bloom_clamp;
+
+	int motion_blur_samples;
+	float motion_blur_shutter;
+
+	int shadow_method;
+	int shadow_cube_size;
+	int shadow_cascade_size;
+} SceneEEVEE;
 
 /* *************************************************************** */
 /* Scene ID-Block */
@@ -1637,10 +1697,10 @@ typedef struct Scene {
 	ListBase view_layers;
 	struct SceneCollection *collection;
 
-	IDProperty *collection_properties;  /* settings to be overriden by layer collections */
 	IDProperty *layer_properties;  /* settings to be override by workspaces */
 
 	struct SceneDisplay display;
+	struct SceneEEVEE eevee;
 } Scene;
 
 /* **************** RENDERDATA ********************* */
@@ -2222,6 +2282,34 @@ typedef enum eGPencil_Placement_Flags {
 /* UnitSettings.flag */
 #define	USER_UNIT_OPT_SPLIT		1
 #define USER_UNIT_ROT_RADIANS	2
+
+/* SceneEEVEE->flag */
+enum {
+	SCE_EEVEE_VOLUMETRIC_ENABLED	= (1 << 0),
+	SCE_EEVEE_VOLUMETRIC_LIGHTS		= (1 << 1),
+	SCE_EEVEE_VOLUMETRIC_SHADOWS	= (1 << 2),
+	SCE_EEVEE_VOLUMETRIC_COLORED	= (1 << 3),
+	SCE_EEVEE_GTAO_ENABLED			= (1 << 4),
+	SCE_EEVEE_GTAO_BENT_NORMALS		= (1 << 5),
+	SCE_EEVEE_GTAO_BOUNCE			= (1 << 6),
+	SCE_EEVEE_DOF_ENABLED			= (1 << 7),
+	SCE_EEVEE_BLOOM_ENABLED			= (1 << 8),
+	SCE_EEVEE_MOTION_BLUR_ENABLED	= (1 << 9),
+	SCE_EEVEE_SHADOW_HIGH_BITDEPTH	= (1 << 10),
+	SCE_EEVEE_TAA_REPROJECTION		= (1 << 11),
+	SCE_EEVEE_SSS_ENABLED			= (1 << 12),
+	SCE_EEVEE_SSS_SEPARATE_ALBEDO	= (1 << 13),
+	SCE_EEVEE_SSR_ENABLED			= (1 << 14),
+	SCE_EEVEE_SSR_REFRACTION		= (1 << 15),
+	SCE_EEVEE_SSR_HALF_RESOLUTION	= (1 << 16),
+};
+
+/* SceneEEVEE->shadow_method */
+enum {
+	SHADOW_ESM = 1,
+	SHADOW_VSM = 2,
+	SHADOW_METHOD_MAX = 3,
+};
 
 #ifdef __cplusplus
 }

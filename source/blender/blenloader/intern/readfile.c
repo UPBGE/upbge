@@ -4471,7 +4471,7 @@ static void direct_link_particlesystems(FileData *fd, ListBase *particles)
 					psys->clmd->sim_parms->presets = 0;
 			}
 			
-			psys->hair_in_dm = psys->hair_out_dm = NULL;
+			psys->hair_in_mesh = psys->hair_out_mesh = NULL;
 			psys->clmd->solver_result = NULL;
 		}
 
@@ -5365,8 +5365,8 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 		else if (md->type == eModifierType_ParticleSystem) {
 			ParticleSystemModifierData *psmd = (ParticleSystemModifierData *)md;
 			
-			psmd->dm_final = NULL;
-			psmd->dm_deformed = NULL;
+			psmd->mesh_final = NULL;
+			psmd->mesh_deformed = NULL;
 			psmd->psys= newdataadr(fd, psmd->psys);
 			psmd->flag &= ~eParticleSystemFlag_psys_updated;
 			psmd->flag |= eParticleSystemFlag_file_loaded;
@@ -6110,8 +6110,6 @@ static void direct_link_view_layer(FileData *fd, ViewLayer *view_layer)
 	link_list(fd, &(view_layer->freestyle_config.modules));
 	link_list(fd, &(view_layer->freestyle_config.linesets));
 
-	view_layer->properties_evaluated = NULL;
-
 	BLI_listbase_clear(&view_layer->drawdata);
 	view_layer->object_bases_array = NULL;
 }
@@ -6402,14 +6400,8 @@ static void direct_link_scene(FileData *fd, Scene *sce, Main *bmain)
 		direct_link_view_layer(fd, view_layer);
 	}
 
-	sce->collection_properties = newdataadr(fd, sce->collection_properties);
-	IDP_DirectLinkGroup_OrFree(&sce->collection_properties, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
-
 	sce->layer_properties = newdataadr(fd, sce->layer_properties);
 	IDP_DirectLinkGroup_OrFree(&sce->layer_properties, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
-
-	BKE_layer_collection_engine_settings_validate_scene(sce);
-	BKE_view_layer_engine_settings_validate_scene(sce);
 
 	direct_link_workspace_link_scene_data(fd, sce, &bmain->workspaces);
 }

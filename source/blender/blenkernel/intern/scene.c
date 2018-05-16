@@ -252,22 +252,12 @@ void BKE_scene_copy_data(Main *bmain, Scene *sce_dst, const Scene *sce_src, cons
 	/* Recursively creates a new SceneCollection tree. */
 	BKE_collection_copy_data(mc_dst, mc_src, flag_subdata);
 
-	IDPropertyTemplate val = {0};
 	BLI_duplicatelist(&sce_dst->view_layers, &sce_src->view_layers);
 	for (ViewLayer *view_layer_src = sce_src->view_layers.first, *view_layer_dst = sce_dst->view_layers.first;
 	     view_layer_src;
 	     view_layer_src = view_layer_src->next, view_layer_dst = view_layer_dst->next)
 	{
 		BKE_view_layer_copy_data(view_layer_dst, view_layer_src, mc_dst, mc_src, flag_subdata);
-	}
-
-	sce_dst->collection_properties = IDP_New(IDP_GROUP, &val, ROOT_PROP);
-	if (sce_src->collection_properties) {
-		IDP_MergeGroup_ex(sce_dst->collection_properties, sce_src->collection_properties, true, flag_subdata);
-	}
-	sce_dst->layer_properties = IDP_New(IDP_GROUP, &val, ROOT_PROP);
-	if (sce_src->layer_properties) {
-		IDP_MergeGroup_ex(sce_dst->layer_properties, sce_src->layer_properties, true, flag_subdata);
 	}
 
 	BLI_duplicatelist(&(sce_dst->markers), &(sce_src->markers));
@@ -520,19 +510,8 @@ void BKE_scene_free_ex(Scene *sce, const bool do_id_user)
 	MEM_freeN(sce->collection);
 	sce->collection = NULL;
 
-	/* LayerCollection engine settings. */
-	if (sce->collection_properties) {
-		IDP_FreeProperty(sce->collection_properties);
-		MEM_freeN(sce->collection_properties);
-		sce->collection_properties = NULL;
-	}
-
-	/* Render engine setting. */
-	if (sce->layer_properties) {
-		IDP_FreeProperty(sce->layer_properties);
-		MEM_freeN(sce->layer_properties);
-		sce->layer_properties = NULL;
-	}
+	/* These are freed on doversion. */
+	BLI_assert(sce->layer_properties == NULL);
 }
 
 void BKE_scene_free(Scene *sce)
@@ -813,19 +792,76 @@ void BKE_scene_init(Scene *sce)
 	sce->collection = MEM_callocN(sizeof(SceneCollection), "Master Collection");
 	BLI_strncpy(sce->collection->name, "Master Collection", sizeof(sce->collection->name));
 
-	/* Engine settings */
-	IDPropertyTemplate val = {0};
-	sce->collection_properties = IDP_New(IDP_GROUP, &val, ROOT_PROP);
-	BKE_layer_collection_engine_settings_create(sce->collection_properties);
-
-	sce->layer_properties = IDP_New(IDP_GROUP, &val, ROOT_PROP);
-	BKE_view_layer_engine_settings_create(sce->layer_properties);
-
 	BKE_view_layer_add(sce, "View Layer");
 
 	/* SceneDisplay */
 	copy_v3_v3(sce->display.light_direction, (float[3]){-M_SQRT1_3, -M_SQRT1_3, M_SQRT1_3});
 	sce->display.shadow_shift = 0.1;
+
+	sce->display.matcap_icon = 1;
+	sce->display.matcap_type = CLAY_MATCAP_NONE;
+	sce->display.matcap_hue = 0.5f;
+	sce->display.matcap_saturation = 0.5f;
+	sce->display.matcap_value = 0.5f;
+	sce->display.matcap_ssao_distance = 0.2f;
+	sce->display.matcap_ssao_attenuation = 1.0f;
+	sce->display.matcap_ssao_factor_cavity = 1.0f;
+	sce->display.matcap_ssao_factor_edge = 1.0f;
+	sce->display.matcap_ssao_samples = 16;
+
+	/* SceneEEVEE */
+	sce->eevee.gi_diffuse_bounces = 3;
+	sce->eevee.gi_cubemap_resolution = 512;
+	sce->eevee.gi_visibility_resolution = 32;
+
+	sce->eevee.taa_samples = 16;
+	sce->eevee.taa_render_samples = 64;
+
+	sce->eevee.sss_samples = 7;
+	sce->eevee.sss_jitter_threshold = 0.3f;
+
+	sce->eevee.ssr_quality = 0.25f;
+	sce->eevee.ssr_max_roughness = 0.5f;
+	sce->eevee.ssr_thickness = 0.2f;
+	sce->eevee.ssr_border_fade = 0.075f;
+	sce->eevee.ssr_firefly_fac = 10.0f;
+
+	sce->eevee.volumetric_start = 0.1f;
+	sce->eevee.volumetric_end = 100.0f;
+	sce->eevee.volumetric_tile_size = 8;
+	sce->eevee.volumetric_samples = 64;
+	sce->eevee.volumetric_sample_distribution = 0.8f;
+	sce->eevee.volumetric_light_clamp = 0.0f;
+	sce->eevee.volumetric_shadow_samples = 16;
+
+	sce->eevee.gtao_distance = 0.2f;
+	sce->eevee.gtao_factor = 1.0f;
+	sce->eevee.gtao_quality = 0.25f;
+
+	sce->eevee.bokeh_max_size = 100.0f;
+	sce->eevee.bokeh_threshold = 1.0f;
+
+	copy_v3_fl(sce->eevee.bloom_color, 1.0f);
+	sce->eevee.bloom_threshold = 0.8f;
+	sce->eevee.bloom_knee = 0.5f;
+	sce->eevee.bloom_intensity = 0.8f;
+	sce->eevee.bloom_radius = 6.5f;
+	sce->eevee.bloom_clamp = 1.0f;
+
+	sce->eevee.motion_blur_samples = 8;
+	sce->eevee.motion_blur_shutter = 1.0f;
+
+	sce->eevee.shadow_method = SHADOW_ESM;
+	sce->eevee.shadow_cube_size = 512;
+	sce->eevee.shadow_cascade_size = 1024;
+
+	sce->eevee.flag =
+	        SCE_EEVEE_VOLUMETRIC_LIGHTS |
+	        SCE_EEVEE_VOLUMETRIC_COLORED |
+	        SCE_EEVEE_GTAO_BENT_NORMALS |
+	        SCE_EEVEE_GTAO_BOUNCE |
+	        SCE_EEVEE_TAA_REPROJECTION |
+	        SCE_EEVEE_SSR_HALF_RESOLUTION;
 }
 
 Scene *BKE_scene_add(Main *bmain, const char *name)

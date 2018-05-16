@@ -353,7 +353,7 @@ static DRWCallState *drw_call_state_object(DRWShadingGroup *shgroup, float (*obm
 void DRW_shgroup_call_add(DRWShadingGroup *shgroup, Gwn_Batch *geom, float (*obmat)[4])
 {
 	BLI_assert(geom != NULL);
-	BLI_assert(shgroup->type == DRW_SHG_NORMAL);
+	BLI_assert(ELEM(shgroup->type, DRW_SHG_NORMAL, DRW_SHG_FEEDBACK_TRANSFORM));
 
 	DRWCall *call = BLI_mempool_alloc(DST.vmempool->calls);
 	call->state = drw_call_state_create(shgroup, obmat, NULL);
@@ -797,16 +797,21 @@ DRWShadingGroup *DRW_shgroup_point_batch_create(struct GPUShader *shader, DRWPas
 	return shgroup;
 }
 
+DRWShadingGroup *DRW_shgroup_line_batch_create_with_format(struct GPUShader *shader, DRWPass *pass, Gwn_VertFormat *format)
+{
+	DRWShadingGroup *shgroup = drw_shgroup_create_ex(shader, pass);
+	shgroup->type = DRW_SHG_LINE_BATCH;
+
+	drw_shgroup_batching_init(shgroup, shader, format);
+
+	return shgroup;
+}
+
 DRWShadingGroup *DRW_shgroup_line_batch_create(struct GPUShader *shader, DRWPass *pass)
 {
 	DRW_shgroup_instance_format(g_pos_format, {{"pos", DRW_ATTRIB_FLOAT, 3}});
 
-	DRWShadingGroup *shgroup = drw_shgroup_create_ex(shader, pass);
-	shgroup->type = DRW_SHG_LINE_BATCH;
-
-	drw_shgroup_batching_init(shgroup, shader, g_pos_format);
-
-	return shgroup;
+	return DRW_shgroup_line_batch_create_with_format(shader, pass, g_pos_format);
 }
 
 /* Very special batch. Use this if you position
@@ -824,6 +829,18 @@ DRWShadingGroup *DRW_shgroup_empty_tri_batch_create(struct GPUShader *shader, DR
 
 	shgroup->type = DRW_SHG_TRIANGLE_BATCH;
 	shgroup->instance_count = tri_count * 3;
+
+	return shgroup;
+}
+
+DRWShadingGroup *DRW_shgroup_transform_feedback_create(struct GPUShader *shader, DRWPass *pass, Gwn_VertBuf *tf_target)
+{
+	DRWShadingGroup *shgroup = drw_shgroup_create_ex(shader, pass);
+	shgroup->type = DRW_SHG_FEEDBACK_TRANSFORM;
+
+	drw_shgroup_init(shgroup, shader);
+
+	shgroup->tfeedback_target = tf_target;
 
 	return shgroup;
 }
