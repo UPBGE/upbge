@@ -1256,16 +1256,30 @@ static void outliner_add_seq_dup(SpaceOops *soops, Sequence *seq, TreeElement *t
 
 /* ----------------------------------------------- */
 
+static const char *outliner_idcode_to_plural(short idcode)
+{
+	const char *propname = BKE_idcode_to_name_plural(idcode);
+	PropertyRNA *prop = RNA_struct_type_find_property(&RNA_BlendData, propname);
+	return (prop) ? RNA_property_ui_name(prop) : "UNKNOWN";
+}
 
 static void outliner_add_library_contents(Main *mainvar, SpaceOops *soops, TreeElement *te, Library *lib)
 {
 	TreeElement *ten;
 	ListBase *lbarray[MAX_LIBARRAY];
 	int a, tot;
+	short filter_id_type = (soops->filter & SO_FILTER_ID_TYPE) ? soops->filter_id_type : 0;
 	
-	tot = set_listbasepointers(mainvar, lbarray);
+	if (filter_id_type) {
+		lbarray[0] = which_libbase(mainvar, soops->filter_id_type);
+		tot = 1;
+	}
+	else {
+		tot = set_listbasepointers(mainvar, lbarray);
+	}
+
 	for (a = 0; a < tot; a++) {
-		if (lbarray[a]->first) {
+		if (lbarray[a] && lbarray[a]->first) {
 			ID *id = lbarray[a]->first;
 			
 			/* check if there's data in current lib */
@@ -1274,12 +1288,14 @@ static void outliner_add_library_contents(Main *mainvar, SpaceOops *soops, TreeE
 					break;
 			
 			if (id) {
-				ten = outliner_add_element(soops, &te->subtree, lbarray[a], NULL, TSE_ID_BASE, 0);
-				ten->directdata = lbarray[a];
-				
-				ten->name = BKE_idcode_to_name_plural(GS(id->name));
-				if (ten->name == NULL)
-					ten->name = "UNKNOWN";
+				if (filter_id_type) {
+					ten = te;
+				}
+				else {
+					ten = outliner_add_element(soops, &te->subtree, lbarray[a], NULL, TSE_ID_BASE, 0);
+					ten->directdata = lbarray[a];
+					ten->name = outliner_idcode_to_plural(GS(id->name));
+				}
 				
 				for (id = lbarray[a]->first; id; id = id->next) {
 					if (id->lib == lib)
@@ -1296,10 +1312,18 @@ static void outliner_add_orphaned_datablocks(Main *mainvar, SpaceOops *soops)
 	TreeElement *ten;
 	ListBase *lbarray[MAX_LIBARRAY];
 	int a, tot;
+	short filter_id_type = (soops->filter & SO_FILTER_ID_TYPE) ? soops->filter_id_type : 0;
 	
-	tot = set_listbasepointers(mainvar, lbarray);
+	if (filter_id_type) {
+		lbarray[0] = which_libbase(mainvar, soops->filter_id_type);
+		tot = 1;
+	}
+	else {
+		tot = set_listbasepointers(mainvar, lbarray);
+	}
+
 	for (a = 0; a < tot; a++) {
-		if (lbarray[a]->first) {
+		if (lbarray[a] && lbarray[a]->first) {
 			ID *id = lbarray[a]->first;
 			
 			/* check if there are any datablocks of this type which are orphans */
@@ -1310,21 +1334,19 @@ static void outliner_add_orphaned_datablocks(Main *mainvar, SpaceOops *soops)
 			
 			if (id) {
 				/* header for this type of datablock */
-				/* TODO's:
-				 *   - Add a parameter to BKE_idcode_to_name_plural to get a sane "user-visible" name instead?
-				 *   - Ensure that this uses nice icons for the datablock type involved instead of the dot?
-				 */
-				ten = outliner_add_element(soops, &soops->tree, lbarray[a], NULL, TSE_ID_BASE, 0);
-				ten->directdata = lbarray[a];
-				
-				ten->name = BKE_idcode_to_name_plural(GS(id->name));
-				if (ten->name == NULL)
-					ten->name = "UNKNOWN";
+				if (filter_id_type) {
+					ten = NULL;
+				}
+				else {
+					ten = outliner_add_element(soops, &soops->tree, lbarray[a], NULL, TSE_ID_BASE, 0);
+					ten->directdata = lbarray[a];
+					ten->name = outliner_idcode_to_plural(GS(id->name));
+				}
 				
 				/* add the orphaned datablocks - these will not be added with any subtrees attached */
 				for (id = lbarray[a]->first; id; id = id->next) {
 					if (ID_REAL_USERS(id) <= 0)
-						outliner_add_element(soops, &ten->subtree, id, ten, 0, 0);
+						outliner_add_element(soops, (ten) ? &ten->subtree : &soops->tree, id, ten, 0, 0);
 				}
 			}
 		}
@@ -2058,7 +2080,7 @@ void outliner_build_tree(Main *mainvar, Scene *scene, ViewLayer *view_layer, Spa
 	/* Are we looking for something - we want to tag parents to filter child matches
 	 * - NOT in datablocks view - searching all datablocks takes way too long to be useful
 	 * - this variable is only set once per tree build */
-	if (soops->search_string[0] != 0 && soops->outlinevis != SO_DATABLOCKS)
+	if (soops->search_string[0] != 0 && soops->outlinevis != SO_DATA_API)
 		soops->search_flags |= SO_SEARCH_RECURSIVE;
 	else
 		soops->search_flags &= ~SO_SEARCH_RECURSIVE;
@@ -2171,7 +2193,7 @@ void outliner_build_tree(Main *mainvar, Scene *scene, ViewLayer *view_layer, Spa
 			seq = seq->next;
 		}
 	}
-	else if (soops->outlinevis == SO_DATABLOCKS) {
+	else if (soops->outlinevis == SO_DATA_API) {
 		PointerRNA mainptr;
 
 		RNA_main_pointer_create(mainvar, &mainptr);

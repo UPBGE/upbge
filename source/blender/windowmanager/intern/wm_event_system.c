@@ -2818,7 +2818,7 @@ void wm_event_do_handlers(bContext *C)
 				/* Note: setting subwin active should be done here, after modal handlers have been done */
 				if (event->type == MOUSEMOVE) {
 					/* state variables in screen, cursors. Also used in wm_draw.c, fails for modal handlers though */
-					ED_screen_set_active_region(C, &event->x);
+					ED_screen_set_active_region(C, win, &event->x);
 					/* for regions having custom cursors */
 					wm_paintcursor_test(C, event);
 				}
@@ -2875,11 +2875,14 @@ void wm_event_do_handlers(bContext *C)
 									wmEventHandler sneaky_handler = {NULL};
 									if (ar->regiontype == RGN_TYPE_WINDOW) {
 										WorkSpace *workspace = WM_window_get_active_workspace(win);
-										if (workspace->tool.keymap[0] &&
-										    workspace->tool.spacetype == sa->spacetype)
-										{
+										const bToolKey tkey = {
+											.space_type = sa->spacetype,
+											.mode = WM_toolsystem_mode_from_spacetype(workspace, win->scene, sa, sa->spacetype),
+										};
+										bToolRef_Runtime *tref_rt = WM_toolsystem_runtime_find(workspace, &tkey);
+										if (tref_rt && tref_rt->keymap[0]) {
 											wmKeyMap *km = WM_keymap_find_all(
-											        C, workspace->tool.keymap, sa->spacetype, RGN_TYPE_WINDOW);
+											        C, tref_rt->keymap, sa->spacetype, RGN_TYPE_WINDOW);
 											if (km != NULL) {
 												sneaky_handler.keymap = km;
 												/* Handle widgets first. */

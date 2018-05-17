@@ -80,6 +80,8 @@
 
 #include "BLI_threads.h"
 
+#include "DEG_depsgraph.h"
+
 #ifdef WITH_OPENEXR
 const EnumPropertyItem rna_enum_exr_codec_items[] = {
 	{R_IMF_EXR_CODEC_NONE, "NONE", 0, "None", ""},
@@ -1546,6 +1548,8 @@ static void rna_Physics_update(Main *UNUSED(bmain), Scene *UNUSED(scene), Pointe
 		BKE_ptcache_object_reset(scene, ob, PTCACHE_RESET_DEPSGRAPH);
 	}
 	FOREACH_SCENE_OBJECT_END;
+
+	DEG_id_tag_update(&scene->id, DEG_TAG_COPY_ON_WRITE);
 }
 
 static void rna_Scene_editmesh_select_mode_set(PointerRNA *ptr, const int *value)
@@ -6289,6 +6293,7 @@ static void rna_def_scene_display(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 
+#ifdef WITH_CLAY_ENGINE
 	static const EnumPropertyItem clay_matcap_items[] = {
 	    {1, "01", ICON_MATCAP_01, "", ""},
 	    {2, "02", ICON_MATCAP_02, "", ""},
@@ -6316,8 +6321,9 @@ static void rna_def_scene_display(BlenderRNA *brna)
 	    {24, "24", ICON_MATCAP_24, "", ""},
 	    {0, NULL, 0, NULL, NULL}
 	};
+#endif
 
-	static float default_light_direction[3] = {-0.577350269, -0.577350269, 0.577350269};
+	static float default_light_direction[3] = {-M_SQRT1_3, -M_SQRT1_3, M_SQRT1_3};
 
 	srna = RNA_def_struct(brna, "SceneDisplay", NULL);
 	RNA_def_struct_ui_text(srna, "Scene Display", "Scene display settings for 3d viewport");

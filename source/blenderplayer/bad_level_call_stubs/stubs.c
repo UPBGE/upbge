@@ -906,6 +906,10 @@ struct uiLayout *uiLayoutRadial(struct uiLayout *layout) RET_NULL
 int UI_pie_menu_invoke_from_operator_enum(struct bContext *C, const char *title, const char *opname,
                              const char *propname, const struct wmEvent *event) RET_ZERO
 
+void WM_toolsystem_ref_set_from_runtime(struct bContext *C, struct WorkSpace *workspace, struct bToolRef *tref,	const struct bToolRef_Runtime *tool, const char *idname) RET_NONE
+struct bToolRef *WM_toolsystem_ref_find(struct WorkSpace *workspace, const bToolKey *tkey) RET_NULL
+bool WM_toolsystem_ref_ensure(struct WorkSpace *workspace, const bToolKey *tkey, struct bToolRef **r_tref) RET_ZERO
+
 /* RNA COLLADA dependency */
 int collada_export(const struct EvaluationContext *eval_ctx,
                    struct Scene *sce,

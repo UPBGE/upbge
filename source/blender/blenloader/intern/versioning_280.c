@@ -926,7 +926,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *main)
 							          SO_GROUPS,
 							          SO_LIBRARIES,
 							          SO_SEQUENCE,
-							          SO_DATABLOCKS,
+							          SO_DATA_API,
 							          SO_ID_ORPHANS,
 							          SO_COLLECTIONS))
 							{
@@ -1341,6 +1341,19 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *main)
 				scene->display.matcap_ssao_factor_cavity = 1.0f;
 				scene->display.matcap_ssao_factor_edge = 1.0f;
 				scene->display.matcap_ssao_samples = 16;
+			}
+		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "SpaceOops", "short", "filter_id_type")) {
+			for (bScreen *screen = main->screen.first; screen; screen = screen->id.next) {
+				for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
+					for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
+						if (sl->spacetype == SPACE_OUTLINER) {
+							SpaceOops *soops = (SpaceOops *)sl;
+							soops->filter_id_type = ID_GR;
+						}
+					}
+				}
 			}
 		}
 	}

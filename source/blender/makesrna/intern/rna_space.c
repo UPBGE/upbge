@@ -104,6 +104,15 @@ const EnumPropertyItem rna_enum_space_type_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
+
+const EnumPropertyItem rna_enum_space_image_mode_items[] = {
+	{SI_MODE_VIEW, "VIEW", ICON_FILE_IMAGE, "View", "View the image and UV edit in mesh editmode"},
+	{SI_MODE_PAINT, "PAINT", ICON_TPAINT_HLT, "Paint", "2D image painting mode"},
+	{SI_MODE_MASK, "MASK", ICON_MOD_MASK, "Mask", "Mask editing"},
+	{0, NULL, 0, NULL, NULL}
+};
+
+
 #define V3D_S3D_CAMERA_LEFT        {STEREO_LEFT_ID, "LEFT", ICON_RESTRICT_RENDER_OFF, "Left", ""},
 #define V3D_S3D_CAMERA_RIGHT       {STEREO_RIGHT_ID, "RIGHT", ICON_RESTRICT_RENDER_OFF, "Right", ""},
 #define V3D_S3D_CAMERA_S3D         {STEREO_3D_ID, "S3D", ICON_CAMERA_STEREO, "3D", ""},
@@ -2079,7 +2088,7 @@ static void rna_def_space_outliner(BlenderRNA *brna)
 		{SO_GROUPS, "GROUPS", 0, "Groups", "Display groups and their data-blocks"},
 		{SO_SEQUENCE, "SEQUENCE", 0, "Sequence", "Display sequence data-blocks"},
 		{SO_LIBRARIES, "LIBRARIES", 0, "Blender File", "Display data of current file and linked libraries"},
-		{SO_DATABLOCKS, "DATABLOCKS", 0, "Data-Blocks", "Display all raw data-blocks"},
+		{SO_DATA_API, "DATA_API", 0, "Data API", "Display low level Blender data and its properties"},
 		{SO_ID_ORPHANS, "ORPHAN_DATA", 0, "Orphan Data",
 		                "Display data-blocks which are unused and/or will be lost when the file is reloaded"},
 		{0, NULL, 0, NULL, NULL}
@@ -2192,6 +2201,17 @@ static void rna_def_space_outliner(BlenderRNA *brna)
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "filter", SO_FILTER_NO_OB_OTHERS);
 	RNA_def_property_ui_text(prop, "Show Other Objects", "Show curves, lattices, light probes, fonts, ...");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, NULL);
+
+	/* Libraries filter. */
+	prop = RNA_def_property(srna, "use_filter_id_type", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "filter", SO_FILTER_ID_TYPE);
+	RNA_def_property_ui_text(prop, "Filter By Type", "Show only data-blocks of one type");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, NULL);
+
+	prop = RNA_def_property(srna, "filter_id_type", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "filter_id_type");
+	RNA_def_property_enum_items(prop, rna_enum_id_type_items);
+	RNA_def_property_ui_text(prop, "Filter ID Type", "Data-block type to show");
 }
 
 static void rna_def_space_view3d_shading(BlenderRNA *brna)
@@ -2942,13 +2962,6 @@ static void rna_def_space_buttons(BlenderRNA *brna)
 
 static void rna_def_space_image(BlenderRNA *brna)
 {
-	static const EnumPropertyItem image_space_mode_items[] = {
-		{SI_MODE_VIEW, "VIEW", ICON_FILE_IMAGE, "View", "View the image and UV edit in mesh editmode"},
-		{SI_MODE_PAINT, "PAINT", ICON_TPAINT_HLT, "Paint", "2D image painting mode"},
-		{SI_MODE_MASK, "MASK", ICON_MOD_MASK, "Mask", "Mask editing"},
-		{0, NULL, 0, NULL, NULL}
-	};
-
 	StructRNA *srna;
 	PropertyRNA *prop;
 
@@ -3029,7 +3042,7 @@ static void rna_def_space_image(BlenderRNA *brna)
 	/* mode */
 	prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "mode");
-	RNA_def_property_enum_items(prop, image_space_mode_items);
+	RNA_def_property_enum_items(prop, rna_enum_space_image_mode_items);
 	RNA_def_property_ui_text(prop, "Mode", "Editing context being displayed");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, "rna_SpaceImageEditor_mode_update");
 

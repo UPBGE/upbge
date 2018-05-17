@@ -31,16 +31,28 @@ class OUTLINER_HT_header(Header):
         display_mode = space.display_mode
         scene = context.scene
         ks = context.scene.keying_sets.active
-        support_filters = display_mode in {'COLLECTIONS', 'VIEW_LAYER'}
 
         row = layout.row(align=True)
         row.template_header()
 
         layout.prop(space, "display_mode", text="")
 
+        row = layout.row(align=True)
+        if display_mode == 'COLLECTIONS':
+            row.popover(space_type='OUTLINER',
+                        region_type='HEADER',
+                        panel_type="OUTLINER_PT_filter",
+                        text="",
+                        icon='FILTER')
+        elif display_mode in {'LIBRARIES', 'ORPHAN_DATA'}:
+            row.prop(space, "use_filter_id_type", text="", icon='FILTER')
+            sub = row.row(align=True)
+            sub.active = space.use_filter_id_type
+            sub.prop(space, "filter_id_type", text="", icon_only=True)
+
         OUTLINER_MT_editor_menus.draw_collapsible(context, layout)
 
-        if space.display_mode == 'DATABLOCKS':
+        if space.display_mode == 'DATA_API':
             layout.separator()
 
             row = layout.row(align=True)
@@ -65,14 +77,6 @@ class OUTLINER_HT_header(Header):
             row.prop(space, "use_filter_complete", text="")
             row.prop(space, "use_filter_case_sensitive", text="")
 
-        row = layout.row()
-        if support_filters:
-            row.popover(space_type='OUTLINER',
-                        region_type='HEADER',
-                        panel_type="OUTLINER_PT_filter",
-                        text="",
-                        icon='FILTER')
-
 
 class OUTLINER_MT_editor_menus(Menu):
     bl_idname = "OUTLINER_MT_editor_menus"
@@ -87,7 +91,7 @@ class OUTLINER_MT_editor_menus(Menu):
 
         layout.menu("OUTLINER_MT_view")
 
-        if space.display_mode == 'DATABLOCKS':
+        if space.display_mode == 'DATA_API':
             layout.menu("OUTLINER_MT_edit_datablocks")
 
         elif space.display_mode == 'ORPHAN_DATA':
@@ -105,7 +109,7 @@ class OUTLINER_MT_view(Menu):
 
         space = context.space_data
 
-        if space.display_mode != 'DATABLOCKS':
+        if space.display_mode != 'DATA_API':
             layout.prop(space, "use_sort_alpha")
             layout.prop(space, "show_restrict_columns")
             layout.separator()

@@ -916,11 +916,25 @@ static bool test_projected_edge_dist(
         const bool is_persp, const float va[3], const float vb[3],
         float *dist_px_sq, float r_co[3])
 {
-	float near_co[3], dummy_depth;
-	dist_squared_ray_to_seg_v3(
+	float near_co[3], lambda;
+	if (!isect_ray_seg_v3(
 	        precalc->ray_origin,
 	        precalc->ray_direction,
-	        va, vb, near_co, &dummy_depth);
+	        va, vb, &lambda))
+	{
+		copy_v3_v3(near_co, va);
+	}
+	else {
+		if (lambda <= 0.0f) {
+			copy_v3_v3(near_co, va);
+		}
+		else if (lambda >= 1.0f) {
+			copy_v3_v3(near_co, vb);
+		}
+		else {
+			interp_v3_v3v3(near_co, va, vb, lambda);
+		}
+	}
 
 	return test_projected_vert_dist(
 	        precalc, clip_plane, clip_plane_len,
@@ -1184,7 +1198,7 @@ static void cb_walk_leaf_snap_tri(
 
 static bool snapArmature(
         SnapData *snapdata,
-        Object *ob, bArmature *arm, float obmat[4][4],
+        Object *ob, float obmat[4][4], bool use_obedit,
         /* read/write args */
         float *dist_px,
         /* return args */
@@ -1203,16 +1217,18 @@ static bool snapArmature(
 	dist_squared_to_projected_aabb_precalc(
 	        &neasrest_precalc, lpmat, snapdata->win_size, snapdata->mval);
 
-	/* Test BoundBox */
-	BoundBox *bb = BKE_armature_boundbox_get(ob);
-	if (bb) {
-		bool dummy[3];
-		/* In vertex and edges you need to get the pixel distance from ray to BoundBox, see: T46099, T46816 */
-		float bb_dist_px_sq = dist_squared_to_projected_aabb(
-			&neasrest_precalc, bb->vec[0], bb->vec[6], dummy);
+	if (use_obedit == false) {
+		/* Test BoundBox */
+		BoundBox *bb = BKE_armature_boundbox_get(ob);
+		if (bb) {
+			bool dummy[3];
+			/* In vertex and edges you need to get the pixel distance from ray to BoundBox, see: T46099, T46816 */
+			float bb_dist_px_sq = dist_squared_to_projected_aabb(
+			        &neasrest_precalc, bb->vec[0], bb->vec[6], dummy);
 
-		if (bb_dist_px_sq > dist_px_sq) {
-			return retval;
+			if (bb_dist_px_sq > dist_px_sq) {
+				return retval;
+			}
 		}
 	}
 
@@ -1224,6 +1240,7 @@ static bool snapArmature(
 
 	bool is_persp = snapdata->view_proj == VIEW_PROJ_PERSP;
 
+	bArmature *arm = ob->data;
 	if (arm->edbo) {
 		for (EditBone *eBone = arm->edbo->first; eBone; eBone = eBone->next) {
 			if (eBone->layer & arm->layer) {
@@ -1319,19 +1336,20 @@ static bool snapCurve(
 	dist_squared_to_projected_aabb_precalc(
 	        &neasrest_precalc, lpmat, snapdata->win_size, snapdata->mval);
 
-	/* Test BoundBox */
-	BoundBox *bb = BKE_curve_boundbox_get(ob);
-	if (bb) {
-		bool dummy[3];
-		/* In vertex and edges you need to get the pixel distance from ray to BoundBox, see: T46099, T46816 */
-		float bb_dist_px_sq = dist_squared_to_projected_aabb(
-		        &neasrest_precalc, bb->vec[0], bb->vec[6], dummy);
+	if (use_obedit == false) {
+		/* Test BoundBox */
+		BoundBox *bb = BKE_curve_boundbox_get(ob);
+		if (bb) {
+			bool dummy[3];
+			/* In vertex and edges you need to get the pixel distance from ray to BoundBox, see: T46099, T46816 */
+			float bb_dist_px_sq = dist_squared_to_projected_aabb(
+			        &neasrest_precalc, bb->vec[0], bb->vec[6], dummy);
 
-		if (bb_dist_px_sq > dist_px_sq) {
-			return retval;
+			if (bb_dist_px_sq > dist_px_sq) {
+				return retval;
+			}
 		}
 	}
-
 
 	float tobmat[4][4], clip_planes_local[MAX_CLIPPLANE_LEN][4];
 	transpose_m4_m4(tobmat, obmat);
@@ -1343,45 +1361,61 @@ static bool snapCurve(
 
 	for (Nurb *nu = (use_obedit ? cu->editnurb->nurbs.first : cu->nurb.first); nu; nu = nu->next) {
 		for (int u = 0; u < nu->pntsu; u++) {
-			switch (snapdata->snap_to) {
-				case SCE_SNAP_MODE_VERTEX:
-				{
-					if (use_obedit) {
+			if (snapdata->snap_to == SCE_SNAP_MODE_VERTEX) {
+				if (use_obedit) {
+					if (nu->bezt) {
+						/* don't snap to selected (moving) or hidden */
+						if (nu->bezt[u].f2 & SELECT || nu->bezt[u].hide != 0) {
+							break;
+						}
+						retval |= test_projected_vert_dist(
+						        &neasrest_precalc,
+						        clip_planes_local, snapdata->clip_plane_len,
+						        is_persp, nu->bezt[u].vec[1], &dist_px_sq,
+						        r_loc);
+						/* don't snap if handle is selected (moving), or if it is aligning to a moving handle */
+						if (!(nu->bezt[u].f1 & SELECT) &&
+						    !(nu->bezt[u].h1 & HD_ALIGN && nu->bezt[u].f3 & SELECT))
+						{
+						retval |= test_projected_vert_dist(
+						        &neasrest_precalc,
+						        clip_planes_local, snapdata->clip_plane_len,
+						        is_persp, nu->bezt[u].vec[0], &dist_px_sq,
+						        r_loc);
+						}
+						if (!(nu->bezt[u].f3 & SELECT) &&
+						    !(nu->bezt[u].h2 & HD_ALIGN && nu->bezt[u].f1 & SELECT))
+						{
+							retval |= test_projected_vert_dist(
+							        &neasrest_precalc,
+							        clip_planes_local, snapdata->clip_plane_len,
+							        is_persp, nu->bezt[u].vec[2], &dist_px_sq,
+							        r_loc);
+						}
+					}
+					else {
+						/* don't snap to selected (moving) or hidden */
+						if (nu->bp[u].f1 & SELECT || nu->bp[u].hide != 0) {
+							break;
+						}
+						retval |= test_projected_vert_dist(
+						        &neasrest_precalc,
+						        clip_planes_local, snapdata->clip_plane_len,
+						        is_persp, nu->bp[u].vec, &dist_px_sq,
+						        r_loc);
+					}
+				}
+				else {
+					/* curve is not visible outside editmode if nurb length less than two */
+					if (nu->pntsu > 1) {
 						if (nu->bezt) {
-							/* don't snap to selected (moving) or hidden */
-							if (nu->bezt[u].f2 & SELECT || nu->bezt[u].hide != 0) {
-								break;
-							}
 							retval |= test_projected_vert_dist(
 							        &neasrest_precalc,
 							        clip_planes_local, snapdata->clip_plane_len,
 							        is_persp, nu->bezt[u].vec[1], &dist_px_sq,
 							        r_loc);
-							/* don't snap if handle is selected (moving), or if it is aligning to a moving handle */
-							if (!(nu->bezt[u].f1 & SELECT) &&
-							    !(nu->bezt[u].h1 & HD_ALIGN && nu->bezt[u].f3 & SELECT))
-							{
-								retval |= test_projected_vert_dist(
-								        &neasrest_precalc,
-								        clip_planes_local, snapdata->clip_plane_len,
-								        is_persp, nu->bezt[u].vec[0], &dist_px_sq,
-								        r_loc);
-							}
-							if (!(nu->bezt[u].f3 & SELECT) &&
-							    !(nu->bezt[u].h2 & HD_ALIGN && nu->bezt[u].f1 & SELECT))
-							{
-								retval |= test_projected_vert_dist(
-								        &neasrest_precalc,
-								        clip_planes_local, snapdata->clip_plane_len,
-								        is_persp, nu->bezt[u].vec[2], &dist_px_sq,
-								        r_loc);
-							}
 						}
 						else {
-							/* don't snap to selected (moving) or hidden */
-							if (nu->bp[u].f1 & SELECT || nu->bp[u].hide != 0) {
-								break;
-							}
 							retval |= test_projected_vert_dist(
 							        &neasrest_precalc,
 							        clip_planes_local, snapdata->clip_plane_len,
@@ -1389,26 +1423,6 @@ static bool snapCurve(
 							        r_loc);
 						}
 					}
-					else {
-						/* curve is not visible outside editmode if nurb length less than two */
-						if (nu->pntsu > 1) {
-							if (nu->bezt) {
-								retval |= test_projected_vert_dist(
-								        &neasrest_precalc,
-								        clip_planes_local, snapdata->clip_plane_len,
-								        is_persp, nu->bezt[u].vec[1], &dist_px_sq,
-								        r_loc);
-							}
-							else {
-								retval |= test_projected_vert_dist(
-								        &neasrest_precalc,
-								        clip_planes_local, snapdata->clip_plane_len,
-								        is_persp, nu->bp[u].vec, &dist_px_sq,
-								        r_loc);
-							}
-						}
-					}
-					break;
 				}
 			}
 		}
@@ -1470,9 +1484,11 @@ static bool snapEmpty(
 		}
 	}
 
-	if (retval && r_index) {
-		/* Does not support index. */
-		*r_index = -1;
+	if (retval) {
+		if (r_index) {
+			/* Does not support index. */
+			*r_index = -1;
+		}
 		return true;
 	}
 
@@ -1973,7 +1989,7 @@ static bool snapObject(
 		case OB_ARMATURE:
 			retval = snapArmature(
 			        snapdata,
-			        ob, ob->data, obmat,
+			        ob, obmat, use_obedit,
 			        dist_px,
 			        r_loc, r_no, r_index);
 			break;
@@ -2294,7 +2310,7 @@ static bool transform_snap_context_project_view3d_mixed_impl(
 			if (ED_transform_snap_object_project_view3d(
 			        sctx,
 			        elem_type[i], params,
-			        mval, dist_px, NULL,
+			        mval, dist_px,
 			        r_co, r_no))
 			{
 				return true;
@@ -2336,7 +2352,6 @@ bool ED_transform_snap_object_project_view3d_ex(
         const unsigned short snap_to,
         const struct SnapObjectParams *params,
         const float mval[2], float *dist_px,
-        float *ray_depth,
         float r_loc[3], float r_no[3], int *r_index,
         Object **r_ob, float r_obmat[4][4])
 {
@@ -2353,33 +2368,22 @@ bool ED_transform_snap_object_project_view3d_ex(
 	const RegionView3D *rv3d = ar->regiondata;
 
 	if (snap_to == SCE_SNAP_MODE_FACE || params->use_occlusion_test) {
-		float ray_origin[3], ray_end[3], ray_start[3], ray_normal[3], depth_range[2];
+		float ray_start[3], ray_normal[3];
 
-		ED_view3d_win_to_origin(ar, mval, ray_origin);
-		ED_view3d_win_to_vector(ar, mval, ray_normal);
-
-		ED_view3d_clip_range_get(
+		if (!ED_view3d_win_to_ray_ex(
 		        sctx->depsgraph,
-		        sctx->v3d_data.v3d, sctx->v3d_data.ar->regiondata,
-		        &depth_range[0], &depth_range[1], false);
-
-		madd_v3_v3v3fl(ray_start, ray_origin, ray_normal, depth_range[0]);
-		madd_v3_v3v3fl(ray_end, ray_origin, ray_normal, depth_range[1]);
-
-		if (!ED_view3d_clip_segment(rv3d, ray_start, ray_end)) {
+		        sctx->v3d_data.ar, sctx->v3d_data.v3d,
+		        mval, NULL, ray_normal, ray_start, true))
+		{
 			return false;
 		}
 
-		float ray_depth_fallback;
-		if (ray_depth == NULL) {
-			ray_depth_fallback = BVH_RAYCAST_DIST_MAX;
-			ray_depth = &ray_depth_fallback;
-		}
+		float dummy_ray_depth = BVH_RAYCAST_DIST_MAX;
 
 		has_hit = raycastObjects(
 		        sctx, params,
 		        ray_start, ray_normal,
-		        &ray_depth_fallback, loc, no,
+		        &dummy_ray_depth, loc, no,
 		        r_index, &ob, obmat, NULL);
 
 		retval = has_hit && (snap_to == SCE_SNAP_MODE_FACE);
@@ -2447,7 +2451,6 @@ bool ED_transform_snap_object_project_view3d(
         const unsigned short snap_to,
         const struct SnapObjectParams *params,
         const float mval[2], float *dist_px,
-        float *ray_depth,
         float r_loc[3], float r_no[3])
 {
 	return ED_transform_snap_object_project_view3d_ex(
@@ -2455,7 +2458,6 @@ bool ED_transform_snap_object_project_view3d(
 	        snap_to,
 	        params,
 	        mval, dist_px,
-	        ray_depth,
 	        r_loc, r_no, NULL,
 	        NULL, NULL);
 }

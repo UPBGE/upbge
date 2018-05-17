@@ -484,6 +484,8 @@ static int editmode_toggle_exec(bContext *C, wmOperator *op)
 
 	WM_msg_publish_rna_prop(mbus, &obact->id, obact, Object, mode);
 
+	WM_toolsystem_update_from_context_view3d(C);
+
 	return OPERATOR_FINISHED;
 }
 
@@ -581,6 +583,8 @@ static int posemode_exec(bContext *C, wmOperator *op)
 	}
 
 	WM_msg_publish_rna_prop(mbus, &obact->id, obact, Object, mode);
+
+	WM_toolsystem_update_from_context_view3d(C);
 
 	return OPERATOR_FINISHED;
 }

@@ -2916,6 +2916,7 @@ static void direct_link_workspace(FileData *fd, WorkSpace *workspace, const Main
 	link_list(fd, &workspace->hook_layout_relations);
 	link_list(fd, &workspace->scene_viewlayer_relations);
 	link_list(fd, &workspace->owner_ids);
+	link_list(fd, &workspace->tools);
 
 	for (WorkSpaceDataRelation *relation = workspace->hook_layout_relations.first;
 	     relation;
@@ -2940,6 +2941,10 @@ static void direct_link_workspace(FileData *fd, WorkSpace *workspace, const Main
 				BKE_workspace_active_layout_set(win->workspace_hook, act_layout);
 			}
 		}
+	}
+
+	for (bToolRef *tref = workspace->tools.first; tref; tref = tref->next) {
+		tref->runtime = NULL;
 	}
 }
 
