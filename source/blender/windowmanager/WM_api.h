@@ -158,6 +158,7 @@ void        WM_lib_reload(struct Library *lib, struct bContext *C, struct Report
 
 			/* mouse cursors */
 void		WM_cursor_set(struct wmWindow *win, int curs);
+bool		WM_cursor_set_from_tool(struct wmWindow *win, const ScrArea *sa, const ARegion *ar);
 void		WM_cursor_modal_set(struct wmWindow *win, int curs);
 void		WM_cursor_modal_restore(struct wmWindow *win);
 void		WM_cursor_wait		(bool val);
@@ -613,10 +614,12 @@ struct bToolRef_Runtime *WM_toolsystem_runtime_find(struct WorkSpace *workspace,
 void WM_toolsystem_unlink(struct bContext *C, struct WorkSpace *workspace, const bToolKey *tkey);
 void WM_toolsystem_link(struct bContext *C, struct WorkSpace *workspace, const bToolKey *tkey);
 void WM_toolsystem_refresh(struct bContext *C, struct WorkSpace *workspace, const bToolKey *tkey);
+void WM_toolsystem_reinit(struct bContext *C, struct WorkSpace *workspace, const bToolKey *tkey);
 
 void WM_toolsystem_unlink_all(struct bContext *C, struct WorkSpace *workspace);
 void WM_toolsystem_link_all(struct bContext *C, struct WorkSpace *workspace);
 void WM_toolsystem_refresh_all(struct bContext *C, struct WorkSpace *workspace);
+void WM_toolsystem_reinit_all(struct bContext *C, struct WorkSpace *workspace);
 
 void WM_toolsystem_ref_set_from_runtime(
         struct bContext *C, struct WorkSpace *workspace, struct bToolRef *tref,
@@ -651,6 +654,9 @@ void WM_tooltip_timer_clear(struct bContext *C, struct wmWindow *win);
 void WM_tooltip_clear(struct bContext *C, struct wmWindow *win);
 void WM_tooltip_init(struct bContext *C, struct wmWindow *win);
 void WM_tooltip_refresh(struct bContext *C, struct wmWindow *win);
+
+void WM_toolsystem_refresh_screen_area(struct WorkSpace *workspace, struct Scene *scene, struct ScrArea *sa);
+void WM_toolsystem_refresh_screen_all(struct Main *bmain);
 
 #ifdef __cplusplus
 }

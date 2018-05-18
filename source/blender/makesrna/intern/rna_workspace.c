@@ -137,11 +137,11 @@ const EnumPropertyItem *rna_WorkSpace_tools_mode_itemf(
 
 	switch (workspace->tools_space_type) {
 		case SPACE_VIEW3D:
-			return rna_enum_object_mode_items;
+			return rna_enum_context_mode_items;
 		case SPACE_IMAGE:
 			return rna_enum_space_image_mode_items;
 	}
-	return DummyRNA_NULL_items;
+	return DummyRNA_DEFAULT_items;
 }
 
 #else /* RNA_RUNTIME */
@@ -229,7 +229,7 @@ static void rna_def_workspace_tools(BlenderRNA *brna, PropertyRNA *cprop)
 	/* add owner_id */
 	func = RNA_def_function(srna, "from_space_view3d_mode", "rna_WorkSpace_tools_from_space_view3d_mode");
 	RNA_def_function_ui_description(func, "");
-	parm = RNA_def_enum(func, "mode", rna_enum_object_mode_items, 0, "", "");
+	parm = RNA_def_enum(func, "mode", rna_enum_context_mode_items, 0, "", "");
 	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
 	RNA_def_boolean(func, "create", false, "Create", "");
 	/* return type */
@@ -283,7 +283,7 @@ static void rna_def_workspace(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "tools_mode", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "tools_mode");
-	RNA_def_property_enum_items(prop, rna_enum_object_mode_items);  /* value is placeholder, itemf is used. */
+	RNA_def_property_enum_items(prop, DummyRNA_DEFAULT_items);
 	RNA_def_property_enum_funcs(prop, NULL, NULL, "rna_WorkSpace_tools_mode_itemf");
 	RNA_def_property_ui_text(prop, "Active Tool Space", "Tool mode");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);

@@ -72,6 +72,8 @@ ToolDef = namedtuple(
         "text",
         # The name of the icon to use (found in ``release/datafiles/icons``) or None for no icon.
         "icon",
+        # An optional cursor to use when this tool is active.
+        "cursor",
         # An optional manipulator group to activate when the tool is set or None for no widget.
         "widget",
         # Optional keymap for tool, either:
@@ -101,6 +103,7 @@ def from_dict(kw_args):
     """
     kw = {
         "icon": None,
+        "cursor": None,
         "widget": None,
         "keymap": None,
         "data_block": None,
@@ -266,26 +269,10 @@ class ToolSelectPanelHelper:
         return None, -1
 
     @staticmethod
-    def _tool_vars_from_def(item):
-        # For now be strict about whats in this dict
-        # prevent accidental adding unknown keys.
-        text = item.text
-        icon_name = item.icon
-        mp_idname = item.widget
-        datablock_idname = item.data_block
-        keymap = item.keymap
-        if keymap is None:
-            km_idname = None
-        else:
-            km_idname = keymap[0].name
-        return (km_idname, mp_idname, datablock_idname), icon_name
-
-    @staticmethod
     def _tool_active_from_context(context, space_type, mode=None, create=False):
         if space_type == 'VIEW_3D':
             if mode is None:
-                obj = context.active_object
-                mode = obj.mode if obj is not None else 'OBJECT'
+                mode = context.mode
             tool = context.workspace.tools.from_space_view3d_mode(mode, create)
             if tool is not None:
                 return tool
@@ -490,10 +477,8 @@ class ToolSelectPanelHelper:
                 index = -1
                 use_menu = False
 
-            tool_def, icon_name = ToolSelectPanelHelper._tool_vars_from_def(item)
             is_active = (item.text == tool_active_text)
-
-            icon_value = ToolSelectPanelHelper._icon_value_from_icon_handle(icon_name)
+            icon_value = ToolSelectPanelHelper._icon_value_from_icon_handle(item.icon)
 
             sub = ui_gen.send(False)
 
@@ -563,8 +548,7 @@ class WM_MT_toolsystem_submenu(Menu):
             if item is None:
                 layout.separator()
                 continue
-            tool_def, icon_name = ToolSelectPanelHelper._tool_vars_from_def(item)
-            icon_value = ToolSelectPanelHelper._icon_value_from_icon_handle(icon_name)
+            icon_value = ToolSelectPanelHelper._icon_value_from_icon_handle(item.icon)
             layout.operator(
                 "wm.tool_set_by_name",
                 text=item.text,
@@ -576,12 +560,12 @@ def activate_by_name(context, space_type, text):
     item, index = ToolSelectPanelHelper._tool_get_by_name(context, space_type, text)
     if item is not None:
         tool = ToolSelectPanelHelper._tool_active_from_context(context, space_type, create=True)
-        tool_def, icon_name = ToolSelectPanelHelper._tool_vars_from_def(item)
         tool.setup(
             name=text,
-            keymap=tool_def[0] or "",
-            manipulator_group=tool_def[1] or "",
-            data_block=tool_def[2] or "",
+            keymap=item.keymap[0].name if item.keymap is not None else "",
+            cursor=item.cursor or 'DEFAULT',
+            manipulator_group=item.widget or "",
+            data_block=item.data_block or "",
             index=index,
         )
         return True

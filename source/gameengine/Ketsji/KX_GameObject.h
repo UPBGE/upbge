@@ -577,7 +577,7 @@ public:
 	bool IsDupliGroup()
 	{ 
 		return (m_pBlenderObject &&
-				(m_pBlenderObject->transflag & OB_DUPLIGROUP) &&
+				(m_pBlenderObject->transflag & OB_DUPLICOLLECTION) &&
 				m_pBlenderObject->dup_group != nullptr) ? true : false;
 	}
 

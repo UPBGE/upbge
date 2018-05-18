@@ -1958,7 +1958,7 @@ static int wm_handler_operator_call(bContext *C, ListBase *handlers, wmEventHand
 					/* set cursor back to the default for the region */
 					wmWindow *win = CTX_wm_window(C);
 					WM_cursor_grab_disable(win, NULL);
-					ED_region_cursor_set(win, CTX_wm_area(C), CTX_wm_region(C));
+					ED_region_cursor_set(win, area, region);
 
 					BLI_remlink(handlers, handler);
 					wm_event_free_handler(handler);
@@ -2874,12 +2874,7 @@ void wm_event_do_handlers(bContext *C)
 									 */
 									wmEventHandler sneaky_handler = {NULL};
 									if (ar->regiontype == RGN_TYPE_WINDOW) {
-										WorkSpace *workspace = WM_window_get_active_workspace(win);
-										const bToolKey tkey = {
-											.space_type = sa->spacetype,
-											.mode = WM_toolsystem_mode_from_spacetype(workspace, win->scene, sa, sa->spacetype),
-										};
-										bToolRef_Runtime *tref_rt = WM_toolsystem_runtime_find(workspace, &tkey);
+										bToolRef_Runtime *tref_rt = sa->runtime.tool ? sa->runtime.tool->runtime : NULL;
 										if (tref_rt && tref_rt->keymap[0]) {
 											wmKeyMap *km = WM_keymap_find_all(
 											        C, tref_rt->keymap, sa->spacetype, RGN_TYPE_WINDOW);

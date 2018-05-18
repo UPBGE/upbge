@@ -63,9 +63,6 @@ extern const EnumPropertyItem rna_enum_constraint_type_items[];
 extern const EnumPropertyItem rna_enum_boidrule_type_items[];
 extern const EnumPropertyItem rna_enum_sequence_modifier_type_items[];
 
-extern const EnumPropertyItem rna_enum_collection_type_items[];
-extern const EnumPropertyItem rna_enum_layer_collection_mode_settings_type_items[];
-
 extern const EnumPropertyItem rna_enum_modifier_triangulate_quad_method_items[];
 extern const EnumPropertyItem rna_enum_modifier_triangulate_ngon_method_items[];
 
@@ -207,7 +204,7 @@ extern const EnumPropertyItem rna_enum_dt_layers_select_src_items[];
 extern const EnumPropertyItem rna_enum_dt_layers_select_dst_items[];
 
 extern const EnumPropertyItem rna_enum_abc_compression_items[];
-
+extern const EnumPropertyItem rna_enum_context_mode_items[];
 
 /* API calls */
 int rna_node_tree_type_to_enum(struct bNodeTreeType *typeinfo);
@@ -238,8 +235,8 @@ const EnumPropertyItem *rna_Actuator_type_itemf(struct bContext *C, struct Point
  * in the linked list can add more for different types as needed */
 const EnumPropertyItem *RNA_action_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, bool *r_free);
 // EnumPropertyItem *RNA_action_local_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, bool *r_free);
-const EnumPropertyItem *RNA_group_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, bool *r_free);
-const EnumPropertyItem *RNA_group_local_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, bool *r_free);
+const EnumPropertyItem *RNA_collection_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, bool *r_free);
+const EnumPropertyItem *RNA_collection_local_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, bool *r_free);
 const EnumPropertyItem *RNA_image_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, bool *r_free);
 const EnumPropertyItem *RNA_image_local_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, bool *r_free);
 const EnumPropertyItem *RNA_scene_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, bool *r_free);

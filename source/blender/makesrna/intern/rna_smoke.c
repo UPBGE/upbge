@@ -288,20 +288,27 @@ static void rna_SmokeModifier_color_grid_get(PointerRNA *ptr, float *values)
 {
 #ifdef WITH_SMOKE
 	SmokeDomainSettings *sds = (SmokeDomainSettings *)ptr->data;
+	int length[RNA_MAX_ARRAY_DIMENSION];
+	int size = rna_SmokeModifier_grid_get_length(ptr, length);
 
 	BLI_rw_mutex_lock(sds->fluid_mutex, THREAD_LOCK_READ);
 
-	if (sds->flags & MOD_SMOKE_HIGHRES) {
-		if (smoke_turbulence_has_colors(sds->wt))
-			smoke_turbulence_get_rgba(sds->wt, values, 0);
-		else
-			smoke_turbulence_get_rgba_from_density(sds->wt, sds->active_color, values, 0);
+	if (!sds->fluid) {
+		memset(values, 0, size * sizeof(float));
 	}
 	else {
-		if (smoke_has_colors(sds->fluid))
-			smoke_get_rgba(sds->fluid, values, 0);
-		else
-			smoke_get_rgba_from_density(sds->fluid, sds->active_color, values, 0);
+		if (sds->flags & MOD_SMOKE_HIGHRES) {
+			if (smoke_turbulence_has_colors(sds->wt))
+				smoke_turbulence_get_rgba(sds->wt, values, 0);
+			else
+				smoke_turbulence_get_rgba_from_density(sds->wt, sds->active_color, values, 0);
+		}
+		else {
+			if (smoke_has_colors(sds->fluid))
+				smoke_get_rgba(sds->fluid, values, 0);
+			else
+				smoke_get_rgba_from_density(sds->fluid, sds->active_color, values, 0);
+		}
 	}
 
 	BLI_rw_mutex_unlock(sds->fluid_mutex);
@@ -578,23 +585,23 @@ static void rna_def_smoke_domain_settings(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "collision_group", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "coll_group");
-	RNA_def_property_struct_type(prop, "Group");
+	RNA_def_property_struct_type(prop, "Collection");
 	RNA_def_property_flag(prop, PROP_EDITABLE);
-	RNA_def_property_ui_text(prop, "Collision Group", "Limit collisions to this group");
+	RNA_def_property_ui_text(prop, "Collision Collection", "Limit collisions to this collection");
 	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset_dependency");
 
 	prop = RNA_def_property(srna, "fluid_group", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "fluid_group");
-	RNA_def_property_struct_type(prop, "Group");
+	RNA_def_property_struct_type(prop, "Collection");
 	RNA_def_property_flag(prop, PROP_EDITABLE);
-	RNA_def_property_ui_text(prop, "Fluid Group", "Limit fluid objects to this group");
+	RNA_def_property_ui_text(prop, "Fluid Collection", "Limit fluid objects to this collection");
 	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset_dependency");
 
 	prop = RNA_def_property(srna, "effector_group", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "eff_group");
-	RNA_def_property_struct_type(prop, "Group");
+	RNA_def_property_struct_type(prop, "Collection");
 	RNA_def_property_flag(prop, PROP_EDITABLE);
-	RNA_def_property_ui_text(prop, "Effector Group", "Limit effectors to this group");
+	RNA_def_property_ui_text(prop, "Effector Collection", "Limit effectors to this collection");
 	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset_dependency");
 
 	prop = RNA_def_property(srna, "strength", PROP_FLOAT, PROP_NONE);

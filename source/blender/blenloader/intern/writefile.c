@@ -166,9 +166,9 @@
 #include "BKE_blender_version.h"
 #include "BKE_bpath.h"
 #include "BKE_curve.h"
+#include "BKE_collection.h"
 #include "BKE_constraint.h"
 #include "BKE_global.h" // for G
-#include "BKE_group.h"
 #include "BKE_idcode.h"
 #include "BKE_library.h" // for  set_listbasepointers
 #include "BKE_library_override.h"
@@ -1384,13 +1384,13 @@ static void write_particlesettings(WriteData *wd, ParticleSettings *part)
 			if (dw->ob != NULL) {
 				dw->index = 0;
 				if (part->dup_group) { /* can be NULL if lining fails or set to None */
-					FOREACH_GROUP_OBJECT_BEGIN(part->dup_group, object)
+					FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN(part->dup_group, object)
 					{
 						if (object != dw->ob) {
 							dw->index++;
 						}
 					}
-					FOREACH_GROUP_OBJECT_END;
+					FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
 				}
 			}
 			writestruct(wd, DATA, ParticleDupliWeight, 1, dw);
@@ -2539,6 +2539,31 @@ static void write_lamp(WriteData *wd, Lamp *la)
 	}
 }
 
+static void write_collection_nolib(WriteData *wd, Collection *collection)
+{
+	/* Shared function for collection datablocks and scene master collection. */
+	write_previews(wd, collection->preview);
+
+	for (CollectionObject *cob = collection->gobject.first; cob; cob = cob->next) {
+		writestruct(wd, DATA, CollectionObject, 1, cob);
+	}
+
+	for (CollectionChild *child = collection->children.first; child; child = child->next) {
+		writestruct(wd, DATA, CollectionChild, 1, child);
+	}
+}
+
+static void write_collection(WriteData *wd, Collection *collection)
+{
+	if (collection->id.us > 0 || wd->use_memfile) {
+		/* write LibData */
+		writestruct(wd, ID_GR, Collection, 1, collection);
+		write_iddata(wd, &collection->id);
+
+		write_collection_nolib(wd, collection);
+	}
+}
+
 static void write_sequence_modifiers(WriteData *wd, ListBase *modbase)
 {
 	SequenceModifierData *smd;
@@ -2580,23 +2605,10 @@ static void write_paint(WriteData *wd, Paint *p)
 	}
 }
 
-static void write_scene_collection(WriteData *wd, SceneCollection *sc)
-{
-	writestruct(wd, DATA, SceneCollection, 1, sc);
-
-	writelist(wd, DATA, LinkData, &sc->objects);
-
-	for (SceneCollection *nsc = sc->scene_collections.first; nsc; nsc = nsc->next) {
-		write_scene_collection(wd, nsc);
-	}
-}
-
 static void write_layer_collections(WriteData *wd, ListBase *lb)
 {
 	for (LayerCollection *lc = lb->first; lc; lc = lc->next) {
 		writestruct(wd, DATA, LayerCollection, 1, lc);
-
-		writelist(wd, DATA, LinkData, &lc->object_bases);
 
 		write_layer_collections(wd, &lc->layer_collections);
 	}
@@ -2806,10 +2818,14 @@ static void write_scene(WriteData *wd, Scene *sce)
 
 	write_previews(wd, sce->preview);
 	write_curvemapping_curves(wd, &sce->r.mblur_shutter_curve);
-	write_scene_collection(wd, sce->collection);
 
 	for (ViewLayer *view_layer = sce->view_layers.first; view_layer; view_layer = view_layer->next) {
 		write_view_layer(wd, view_layer);
+	}
+
+	if (sce->master_collection) {
+		writestruct(wd, DATA, Collection, 1, sce->master_collection);
+		write_collection_nolib(wd, sce->master_collection);
 	}
 
 	/* Freed on doversion. */
@@ -3229,19 +3245,6 @@ static void write_probe(WriteData *wd, LightProbe *prb)
 		if (prb->adt) {
 			write_animdata(wd, prb->adt);
 		}
-	}
-}
-
-static void write_group(WriteData *wd, Group *group)
-{
-	if (group->id.us > 0 || wd->use_memfile) {
-		/* write LibData */
-		writestruct(wd, ID_GR, Group, 1, group);
-		write_iddata(wd, &group->id);
-
-		write_previews(wd, group->preview);
-		write_scene_collection(wd, group->collection);
-		write_view_layer(wd, group->view_layer);
 	}
 }
 
@@ -4045,7 +4048,7 @@ static bool write_file_handle(
 						write_sound(wd, (bSound *)id);
 						break;
 					case ID_GR:
-						write_group(wd, (Group *)id);
+						write_collection(wd, (Collection *)id);
 						break;
 					case ID_AR:
 						write_armature(wd, (bArmature *)id);

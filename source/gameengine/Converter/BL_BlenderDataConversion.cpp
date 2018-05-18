@@ -92,9 +92,9 @@
 #include "KX_BlenderMaterial.h"
 #include "BL_Texture.h"
 
+#include "BKE_collection.h"
 #include "BKE_main.h"
 #include "BKE_global.h"
-#include "BKE_group.h"
 #include "BKE_object.h"
 #include "BL_ModifierDeformer.h"
 #include "BL_ShapeDeformer.h"
@@ -1356,7 +1356,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	RAS_FrameSettings::RAS_FrameType frame_type;
 	int aspect_width;
 	int aspect_height;
-	std::set<Group*> grouplist;	// list of groups to be converted
+	std::set<Collection *> grouplist;	// list of groups to be converted
 	std::set<Object*> allblobj;	// all objects converted
 	std::set<Object*> groupobj;	// objects from groups (never in active layer)
 
@@ -1481,18 +1481,18 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	{
 		// now convert the group referenced by dupli group object
 		// keep track of all groups already converted
-		std::set<Group*> allgrouplist = grouplist;
-		std::set<Group*> tempglist;
+		std::set<Collection *> allgrouplist = grouplist;
+		std::set<Collection *> tempglist;
 		// recurse
 		while (!grouplist.empty())
 		{
-			std::set<Group*>::iterator git;
+			std::set<Collection *>::iterator git;
 			tempglist.clear();
 			tempglist.swap(grouplist);
 			for (git=tempglist.begin(); git!=tempglist.end(); git++)
 			{
-				Group* group = *git;
-				FOREACH_GROUP_OBJECT_BEGIN(group, blenderobject)
+				Collection *group = *git;
+				FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN(group, blenderobject)
 				{
 					if (converter.FindGameObject(blenderobject) == nullptr)
 					{
@@ -1528,7 +1528,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 						}
 					}
 				}
-				FOREACH_GROUP_OBJECT_END;
+				FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
 			}
 		}
 	}

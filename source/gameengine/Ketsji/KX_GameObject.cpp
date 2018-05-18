@@ -286,7 +286,7 @@ void KX_GameObject::ReplicateBlenderObject()
 		Object *newob = BKE_object_copy(bmain, ob);
 		Scene *scene = GetScene()->GetBlenderScene();
 		ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-		BKE_collection_object_add_from(scene, BKE_view_layer_camera_find(view_layer), newob); //add replica where is the active camera
+		BKE_collection_object_add_from(bmain, scene, BKE_view_layer_camera_find(view_layer), newob); //add replica where is the active camera
 		newob->base_flag |= BASE_VISIBLED;
 		DEG_relations_tag_update(bmain);
 		m_pBlenderObject = newob;

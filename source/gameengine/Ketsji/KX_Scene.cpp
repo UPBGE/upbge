@@ -117,7 +117,7 @@
 /**************************EEVEE INTEGRATION*****************************/
 extern "C" {
 #  include "BKE_camera.h"
-#  include "BKE_group.h"
+#  include "BKE_collection.h"
 #  include "BKE_layer.h"
 #  include "BKE_main.h"
 #  include "BKE_object.h"
@@ -785,7 +785,7 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
 	KX_GameObject* replica;
 	KX_GameObject* gameobj;
 	Object* blgroupobj = groupobj->GetBlenderObject();
-	Group* group;
+	Collection *group;
 	std::vector<KX_GameObject*> duplilist;
 
 	if (!groupobj->GetSGNode() ||
@@ -803,7 +803,7 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
 	m_groupGameObjects.clear();
 
 	group = blgroupobj->dup_group;
-	FOREACH_GROUP_BASE_BEGIN(group, base)
+	FOREACH_COLLECTION_BASE_RECURSIVE_BEGIN(group, base)
 	{
 		Object* blenderobj = base->object;
 		if (blgroupobj == blenderobj)
@@ -827,7 +827,7 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
 		}
 		m_groupGameObjects.insert(gameobj);
 	}
-	FOREACH_GROUP_BASE_END
+	FOREACH_COLLECTION_BASE_RECURSIVE_END;
 
 	for (KX_GameObject *gameobj : m_groupGameObjects) {
 		KX_GameObject *parent = gameobj->GetParent();

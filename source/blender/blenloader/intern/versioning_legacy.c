@@ -1668,7 +1668,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *main)
 		Curve *cu;
 		Material *ma;
 		Mesh *me;
-		Group *group;
+		Collection *collection;
 		Nurb *nu;
 		BezTriple *bezt;
 		BPoint *bp;
@@ -1825,9 +1825,9 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *main)
 		for (me = main->mesh.first; me; me = me->id.next)
 			customdata_version_242(me);
 
-		for (group = main->group.first; group; group = group->id.next)
-			if (group->layer == 0)
-				group->layer = (1 << 20) - 1;
+		for (collection = main->collection.first; collection; collection = collection->id.next)
+			if (collection->layer == 0)
+				collection->layer = (1 << 20) - 1;
 
 		/* now, subversion control! */
 		if (main->subversionfile < 3) {
@@ -2478,7 +2478,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *main)
 		idproperties_fix_group_lengths(main->vfont);
 		idproperties_fix_group_lengths(main->text);
 		idproperties_fix_group_lengths(main->sound);
-		idproperties_fix_group_lengths(main->group);
+		idproperties_fix_group_lengths(main->collection);
 		idproperties_fix_group_lengths(main->armature);
 		idproperties_fix_group_lengths(main->action);
 		idproperties_fix_group_lengths(main->nodetree);
