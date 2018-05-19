@@ -412,6 +412,14 @@ if(WITH_OPENCOLORIO)
 	)
 endif()
 
+# game controller data base
+if(WITH_GAMEENGINE AND WITH_SDL)
+	install(
+		DIRECTORY ${CMAKE_SOURCE_DIR}/release/datafiles/gamecontroller
+		DESTINATION ${TARGETDIR_VER}/datafiles
+	)
+endif()
+
 # helpful tip when using make
 if("${CMAKE_GENERATOR}" MATCHES ".*Makefiles.*")
 	# message after building.

@@ -27,6 +27,7 @@ set(INC
 	../Rasterizer
 	../SceneGraph
 	../../blender/blenlib
+	../../blender/blenkernel
 	../../../intern/ghost
 	../../../intern/string
 	../../../intern/termcolor
@@ -48,7 +49,6 @@ set(SRC
 	DEV_Joystick.h
 	DEV_JoystickDefines.h
 	DEV_JoystickPrivate.h
-	DEV_JoystickMappingdb.h
 )
 
 if(WITH_SDL)

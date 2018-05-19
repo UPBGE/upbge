@@ -31,13 +31,17 @@
 
 #ifdef WITH_SDL
 #  include <SDL.h>
+
+extern "C" {
+#  include "BKE_appdir.h"
+#  include "BLI_path_util.h"
+}
 #endif
 
 #include <cmath>
 
 #include "DEV_Joystick.h"
 #include "DEV_JoystickPrivate.h"
-#include "DEV_JoystickMappingdb.h"
 
 #include "CM_Message.h"
 
@@ -86,19 +90,14 @@ void DEV_Joystick::Init()
 	bool success = (SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC) != -1 );
 
 	if (success) {
-		// First we try loading mapping file from blenderplayer directory
-		int fileMapping = SDL_GameControllerAddMappingsFromFile("gamecontrollerdb.txt");
+		// Loading mapping file from blender datafiles directory
+		const char *path = BKE_appdir_folder_id(BLENDER_DATAFILES, "gamecontroller");
+		if (path) {
+			char fullpath[FILE_MAX];
+			BLI_join_dirfile(fullpath, sizeof(fullpath), path, "gamecontrollerdb.txt");
 
-		// If it doesnt exist we load our internal data base
-		if (fileMapping == -1) {
-			unsigned short i = 0;
-			const char *mapping_string = nullptr;
-			mapping_string = controller_mappings[i];
-
-			while (mapping_string) {
-				SDL_GameControllerAddMapping(mapping_string);
-				i++;
-				mapping_string = controller_mappings[i];
+			if ((SDL_GameControllerAddMappingsFromFile(fullpath)) == -1) {
+				CM_Error("gamecontrollerdb.txt not loaded");
 			}
 		}
 	}
