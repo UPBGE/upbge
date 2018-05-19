@@ -2404,6 +2404,27 @@ class WM_OT_tool_set_by_name(Operator):
             return {'CANCELLED'}
 
 
+class WM_OT_toolbar(Operator):
+    bl_idname = "wm.toolbar"
+    bl_label = "Toolbar"
+
+    def execute(self, context):
+        space_type = context.space_data.type
+        from bl_ui.space_toolsystem_common import ToolSelectPanelHelper
+        cls = ToolSelectPanelHelper._tool_class_from_space_type(space_type)
+        if cls is None:
+            self.report({'WARNING'}, f"Toolbar not found for {space_type!r}")
+            return {'CANCELLED'}
+
+        def draw_menu(popover, context):
+            cls.draw_cls(popover.layout, context, detect_layout=False)
+
+        wm = context.window_manager
+        # wm.popup_menu(draw_menu) # this also works
+        wm.popover(draw_menu)
+        return {'FINISHED'}
+
+
 classes = (
     BRUSH_OT_active_index_set,
     WM_OT_addon_disable,
@@ -2460,4 +2481,5 @@ classes = (
     WM_OT_owner_enable,
     WM_OT_url_open,
     WM_OT_tool_set_by_name,
+    WM_OT_toolbar,
 )

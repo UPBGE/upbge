@@ -59,11 +59,11 @@ def test_get_name(filepath):
     filename = os.path.basename(filepath)
     return os.path.splitext(filename)[0]
 
-def test_get_images(output_dir, filepath):
+def test_get_images(output_dir, filepath, reference_dir):
     testname = test_get_name(filepath)
     dirpath = os.path.dirname(filepath)
 
-    old_dirpath = os.path.join(dirpath, "reference_renders")
+    old_dirpath = os.path.join(dirpath, reference_dir)
     old_img = os.path.join(old_dirpath, testname + ".png")
 
     ref_dirpath = os.path.join(output_dir, os.path.basename(dirpath), "ref")
@@ -90,18 +90,23 @@ class Report:
     __slots__ = (
         'title',
         'output_dir',
+        'reference_dir',
         'idiff',
         'pixelated',
         'verbose',
         'update',
         'failed_tests',
-        'passed_tests'
+        'passed_tests',
+        'compare_tests',
+        'compare_engines'
         )
 
     def __init__(self, title, output_dir, idiff):
         self.title = title
         self.output_dir = output_dir
+        self.reference_dir = 'reference_renders'
         self.idiff = idiff
+        self.compare_engines = None
 
         self.pixelated = False
         self.verbose = os.environ.get("BLENDER_VERBOSE") is not None
@@ -113,6 +118,7 @@ class Report:
 
         self.failed_tests = ""
         self.passed_tests = ""
+        self.compare_tests = ""
 
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
@@ -120,14 +126,23 @@ class Report:
     def set_pixelated(self, pixelated):
         self.pixelated = pixelated
 
+    def set_reference_dir(self, reference_dir):
+        self.reference_dir = reference_dir
+
+    def set_compare_engines(self, engine, other_engine):
+        self.compare_engines = (engine, other_engine)
+
     def run(self, dirpath, render_cb):
         # Run tests and output report.
         dirname = os.path.basename(dirpath)
         ok = self._run_all_tests(dirname, dirpath, render_cb)
-        self._write_html(dirname)
+        self._write_data(dirname)
+        self._write_html()
+        if self.compare_engines:
+            self._write_html(comparison=True)
         return ok
 
-    def _write_html(self, dirname):
+    def _write_data(self, dirname):
         # Write intermediate data for single test.
         outdir = os.path.join(self.output_dir, dirname)
         if not os.path.exists(outdir):
@@ -139,9 +154,18 @@ class Report:
         filepath = os.path.join(outdir, "passed.data")
         pathlib.Path(filepath).write_text(self.passed_tests)
 
+        if self.compare_engines:
+            filepath = os.path.join(outdir, "compare.data")
+            pathlib.Path(filepath).write_text(self.compare_tests)
+
+    def _write_html(self, comparison = False):
         # Gather intermediate data for all tests.
-        failed_data = sorted(glob.glob(os.path.join(self.output_dir, "*/failed.data")))
-        passed_data = sorted(glob.glob(os.path.join(self.output_dir, "*/passed.data")))
+        if comparison:
+            failed_data = []
+            passed_data = sorted(glob.glob(os.path.join(self.output_dir, "*/compare.data")))
+        else:
+            failed_data = sorted(glob.glob(os.path.join(self.output_dir, "*/failed.data")))
+            passed_data = sorted(glob.glob(os.path.join(self.output_dir, "*/passed.data")))
 
         failed_tests = ""
         passed_tests = ""
@@ -165,6 +189,13 @@ class Report:
             message = "<p>Run <tt>BLENDER_TEST_UPDATE=1 ctest</tt> to create or update reference images for failed tests.</p>"
         else:
             message = ""
+
+        if comparison:
+            title = "Render Test Compare"
+            columns_html = "<tr><th>Name</th><th>%s</th><th>%s</th>" % self.compare_engines
+        else:
+            title = self.title
+            columns_html = "<tr><th>Name</th><th>New</th><th>Reference</th><th>Diff</th>"
 
         html = """
 <html>
@@ -203,7 +234,7 @@ class Report:
         <br/>
         <table class="table table-striped">
             <thead class="thead-default">
-                <tr><th>Name</th><th>New</th><th>Reference</th><th>Diff</th>
+                {columns_html}
             </thead>
             {tests_html}
         </table>
@@ -211,12 +242,14 @@ class Report:
     </div>
 </body>
 </html>
-            """ . format(title=self.title,
+            """ . format(title=title,
                          message=message,
                          image_rendering=image_rendering,
-                         tests_html=tests_html)
+                         tests_html=tests_html,
+                         columns_html=columns_html)
 
-        filepath = os.path.join(self.output_dir, "report.html")
+        filename = "report.html" if not comparison else "compare.html"
+        filepath = os.path.join(self.output_dir, filename)
         pathlib.Path(filepath).write_text(html)
 
         print_message("Report saved to: " + pathlib.Path(filepath).as_uri())
@@ -229,7 +262,7 @@ class Report:
         name = test_get_name(filepath)
         name = name.replace('_', ' ')
 
-        old_img, ref_img, new_img, diff_img = test_get_images(self.output_dir, filepath)
+        old_img, ref_img, new_img, diff_img = test_get_images(self.output_dir, filepath, self.reference_dir)
 
         status = error if error else ""
         tr_style = """ style="background-color: #f99;" """ if error else ""
@@ -257,9 +290,26 @@ class Report:
         else:
             self.passed_tests += test_html
 
+        if self.compare_engines:
+            ref_url = os.path.join("..", self.compare_engines[1], new_url)
+
+            test_html = """
+                <tr{tr_style}>
+                    <td><b>{name}</b><br/>{testname}<br/>{status}</td>
+                    <td><img src="{new_url}" onmouseover="this.src='{ref_url}';" onmouseout="this.src='{new_url}';" class="render"></td>
+                    <td><img src="{ref_url}" onmouseover="this.src='{new_url}';" onmouseout="this.src='{ref_url}';" class="render"></td>
+                </tr>""" . format(tr_style=tr_style,
+                                  name=name,
+                                  testname=testname,
+                                  status=status,
+                                  new_url=new_url,
+                                  ref_url=ref_url)
+
+            self.compare_tests += test_html
+
 
     def _diff_output(self, filepath, tmp_filepath):
-        old_img, ref_img, new_img, diff_img = test_get_images(self.output_dir, filepath)
+        old_img, ref_img, new_img, diff_img = test_get_images(self.output_dir, filepath, self.reference_dir)
 
         # Create reference render directory.
         old_dirpath = os.path.dirname(old_img)

@@ -163,7 +163,6 @@ class TOPBAR_HT_lower_bar(Header):
         elif mode == 'PARTICLE':
             layout.popover_group(space_type='VIEW_3D', region_type='TOOLS', context=".paint_common", category="")
 
-
     def draw_right(self, context):
         layout = self.layout
 
@@ -207,7 +206,7 @@ class TOPBAR_HT_lower_bar(Header):
             region_type='HEADER',
             panel_type="TOPBAR_PT_pivot_point",
             icon=act_pivot_point.icon,
-            text=""
+            text="",
         )
 
         if obj:
@@ -217,21 +216,21 @@ class TOPBAR_HT_lower_bar(Header):
                 row.prop(toolsettings, "proportional_edit", icon_only=True)
 
                 sub = row.row(align=True)
-                sub.enabled = toolsettings.proportional_edit != 'DISABLED'
+                sub.active = toolsettings.proportional_edit != 'DISABLED'
                 sub.prop(toolsettings, "proportional_edit_falloff", icon_only=True)
 
             elif object_mode in {'EDIT', 'PARTICLE_EDIT'}:
                 row = layout.row(align=True)
                 row.prop(toolsettings, "proportional_edit", icon_only=True)
                 sub = row.row(align=True)
-                sub.enabled = toolsettings.proportional_edit != 'DISABLED'
+                sub.active = toolsettings.proportional_edit != 'DISABLED'
                 sub.prop(toolsettings, "proportional_edit_falloff", icon_only=True)
 
             elif object_mode == 'OBJECT':
                 row = layout.row(align=True)
                 row.prop(toolsettings, "use_proportional_edit_objects", icon_only=True)
                 sub = row.row(align=True)
-                sub.enabled = toolsettings.use_proportional_edit_objects
+                sub.active = toolsettings.use_proportional_edit_objects
                 sub.prop(toolsettings, "proportional_edit_falloff", icon_only=True)
         else:
             # Proportional editing
@@ -239,7 +238,7 @@ class TOPBAR_HT_lower_bar(Header):
                 row = layout.row(align=True)
                 row.prop(toolsettings, "proportional_edit", icon_only=True)
                 sub = row.row(align=True)
-                sub.enabled = toolsettings.proportional_edit != 'DISABLED'
+                sub.active = toolsettings.proportional_edit != 'DISABLED'
                 sub.prop(toolsettings, "proportional_edit_falloff", icon_only=True)
 
         # Snap
@@ -267,7 +266,6 @@ class TOPBAR_HT_lower_bar(Header):
             row.prop(toolsettings, "use_snap", text="")
 
             sub = row.row(align=True)
-            sub.enabled = toolsettings.use_snap
             sub.popover(
                 space_type='TOPBAR',
                 region_type='HEADER',
@@ -349,16 +347,17 @@ class TOPBAR_PT_pivot_point(Panel):
 
         layout = self.layout
         col = layout.column()
-        col.label(text="Pivot Point")
+        col.label("Pivot Point")
         col.prop(toolsettings, "transform_pivot_point", expand=True)
 
         col.separator()
 
         if (obj is None) or (mode in {'OBJECT', 'POSE', 'WEIGHT_PAINT'}):
             col.prop(
-                    toolsettings,
-                    "use_transform_pivot_point_align",
-                    text="Center Points Only")
+                toolsettings,
+                "use_transform_pivot_point_align",
+                text="Center Points Only",
+            )
 
 
 class TOPBAR_PT_snapping(Panel):
@@ -375,7 +374,7 @@ class TOPBAR_PT_snapping(Panel):
 
         layout = self.layout
         col = layout.column()
-        col.label(text="Snapping")
+        col.label("Snapping")
         col.prop(toolsettings, "snap_element", expand=True)
 
         col.separator()
@@ -383,7 +382,7 @@ class TOPBAR_PT_snapping(Panel):
         if snap_element == 'INCREMENT':
             col.prop(toolsettings, "use_snap_grid_absolute")
         else:
-            col.label(text="Target")
+            col.label("Target")
             row = col.row(align=True)
             row.prop(toolsettings, "snap_target", expand=True)
 
