@@ -14,6 +14,9 @@ __pycache__/
 
 # QtCreator
 CMakeLists.txt.user
+*.config
+*.files
+*.includes
 
 # ms-windows
 Thumbs.db
