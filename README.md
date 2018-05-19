@@ -2,7 +2,9 @@
 
 UPBGE (Uchronia Project Blender Game Engine) is a fork of Blender created by Porteries Tristan (a Blender Game Engine developer) and some of his friends in September 2015.
 
-It's an independant branch, and its aim is to clean up and improve current BGE code, experiment with new features, and implement forgotten  features that currently exist but have not been merged with the official Blender trunk.
+It's an independent branch, and its aim is to clean up and improve current BGE code, experiment with new features, and implement forgotten features that currently exist but have not been merged with the official Blender trunk.
+
+Currently, after the BF decision of delete BGE from next 2.8 release UPBGE becomes, de facto, the only one to follow the development of BGE. This gives us even more freedom, if possible, to make certain decisions, since we will never, in any way, come into conflict with the official version.
 
 Its development cycle spans the course of one month: 3 weeks to add new features, and 1 week to fix bugs. Then a new release is made available for download.
 
