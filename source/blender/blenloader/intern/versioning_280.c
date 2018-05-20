@@ -144,11 +144,11 @@ static void do_version_area_change_space_to_space_action(ScrArea *area, const Sc
 /**
  * \brief After lib-link versioning for new workspace design.
  *
- *  *  Adds a workspace for (almost) each screen of the old file
- *     and adds the needed workspace-layout to wrap the screen.
- *  *  Active screen isn't stored directly in window anymore, but in the active workspace.
- *  *  Active scene isn't stored in screen anymore, but in window.
- *  *  Create workspace instance hook for each window.
+ * - Adds a workspace for (almost) each screen of the old file
+ *   and adds the needed workspace-layout to wrap the screen.
+ * - Active screen isn't stored directly in window anymore, but in the active workspace.
+ * - Active scene isn't stored in screen anymore, but in window.
+ * - Create workspace instance hook for each window.
  *
  * \note Some of the created workspaces might be deleted again in case of reading the default startup.blend.
  */
@@ -212,10 +212,11 @@ static void do_version_view_layer_visibility(ViewLayer *view_layer)
 	}
 }
 
-static void do_version_layer_collection_pre(ViewLayer *view_layer,
-                                            ListBase *lb,
-                                            GSet *enabled_set,
-                                            GSet *selectable_set)
+static void do_version_layer_collection_pre(
+        ViewLayer *view_layer,
+        ListBase *lb,
+        GSet *enabled_set,
+        GSet *selectable_set)
 {
 	/* Convert from deprecated DISABLED to new layer collection and collection flags */
 	for (LayerCollection *lc = lb->first; lc; lc = lc->next) {
@@ -232,11 +233,12 @@ static void do_version_layer_collection_pre(ViewLayer *view_layer,
 	}
 }
 
-static void do_version_layer_collection_post(ViewLayer *view_layer,
-                                             ListBase *lb,
-                                             GSet *enabled_set,
-                                             GSet *selectable_set,
-                                             GHash *collection_map)
+static void do_version_layer_collection_post(
+        ViewLayer *view_layer,
+        ListBase *lb,
+        GSet *enabled_set,
+        GSet *selectable_set,
+        GHash *collection_map)
 {
 	/* Apply layer collection exclude flags. */
 	for (LayerCollection *lc = lb->first; lc; lc = lc->next) {
@@ -253,14 +255,16 @@ static void do_version_layer_collection_post(ViewLayer *view_layer,
 			}
 		}
 
-		do_version_layer_collection_post(view_layer, &lc->layer_collections, enabled_set, selectable_set, collection_map);
+		do_version_layer_collection_post(
+		        view_layer, &lc->layer_collections, enabled_set, selectable_set, collection_map);
 	}
 }
 
-static void do_version_scene_collection_convert(Main *bmain,
-                                                SceneCollection *sc,
-                                                Collection *collection,
-                                                GHash *collection_map)
+static void do_version_scene_collection_convert(
+        Main *bmain,
+        SceneCollection *sc,
+        Collection *collection,
+        GHash *collection_map)
 {
 	if (collection_map) {
 		BLI_ghash_insert(collection_map, collection, sc);
@@ -324,9 +328,13 @@ static void do_version_scene_collection_to_collection(Main *bmain, Scene *scene)
 		GSet *enabled_set = BLI_gset_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, __func__);
 		GSet *selectable_set = BLI_gset_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, __func__);
 
-		do_version_layer_collection_pre(view_layer, &view_layer->layer_collections, enabled_set, selectable_set);
+		do_version_layer_collection_pre(
+		        view_layer, &view_layer->layer_collections, enabled_set, selectable_set);
+
 		BKE_layer_collection_sync(scene, view_layer);
-		do_version_layer_collection_post(view_layer, &view_layer->layer_collections, enabled_set, selectable_set, collection_map);
+
+		do_version_layer_collection_post(
+		        view_layer, &view_layer->layer_collections, enabled_set, selectable_set, collection_map);
 
 		BLI_gset_free(enabled_set, NULL);
 		BLI_gset_free(selectable_set, NULL);
@@ -456,8 +464,9 @@ static void do_version_layers_to_collections(Main *bmain, Scene *scene)
 
 				/* Note usually this would do slow collection syncing for view layers,
 				 * but since no view layers exists yet at this point it's fast. */
-				BKE_collection_object_add(bmain,
-						collections[collection_index].collections[layer], base->object);
+				BKE_collection_object_add(
+				        bmain,
+				        collections[collection_index].collections[layer], base->object);
 			}
 
 			if (base->flag & SELECT) {
@@ -475,26 +484,32 @@ static void do_version_layers_to_collections(Main *bmain, Scene *scene)
 
 	for (int layer = 0; layer < 20; layer++) {
 		if (collections[DO_VERSION_COLLECTION_VISIBLE].created & (1 << layer)) {
-			CollectionChild *hide_child = BLI_findptr(&collection_parent->children, collections[DO_VERSION_COLLECTION_HIDE].collections[layer], offsetof(CollectionChild, collection));
+			CollectionChild *hide_child = BLI_findptr(
+			        &collection_parent->children,
+			        collections[DO_VERSION_COLLECTION_HIDE].collections[layer],
+			        offsetof(CollectionChild, collection));
 
 			if ((collections[DO_VERSION_COLLECTION_HIDE].created & (1 << layer)) &&
-				(hide_child != collection_parent->children.first))
+			    (hide_child != collection_parent->children.first))
 			{
 				BLI_listbase_swaplinks(
-						&collection_parent->children,
-						hide_child,
-						collection_parent->children.first);
+				        &collection_parent->children,
+				        hide_child,
+				        collection_parent->children.first);
 			}
 
-			CollectionChild *hide_all_child = BLI_findptr(&collection_parent->children, collections[DO_VERSION_COLLECTION_HIDE_ALL].collections[layer], offsetof(CollectionChild, collection));
+			CollectionChild *hide_all_child = BLI_findptr(
+			        &collection_parent->children,
+			        collections[DO_VERSION_COLLECTION_HIDE_ALL].collections[layer],
+			        offsetof(CollectionChild, collection));
 
 			if ((collections[DO_VERSION_COLLECTION_HIDE_ALL].created & (1 << layer)) &&
-				(hide_all_child != collection_parent->children.last))
+			    (hide_all_child != collection_parent->children.last))
 			{
 				BLI_listbase_swaplinks(
-						&collection_parent->children,
-						hide_all_child,
-						collection_parent->children.last);
+				        &collection_parent->children,
+				        hide_all_child,
+				        collection_parent->children.last);
 			}
 
 			child_parent = child_parent->next;
@@ -515,20 +530,20 @@ static void do_version_layers_to_collections(Main *bmain, Scene *scene)
 			/* It is up to the external engine to handle
 			 * its own doversion in this case. */
 			BKE_override_view_layer_int_add(
-					view_layer,
-					ID_SCE,
-					"samples",
-					srl->samples);
+			        view_layer,
+			        ID_SCE,
+			        "samples",
+			        srl->samples);
 		}
 
 		if (srl->mat_override) {
 			have_override = true;
 
 			BKE_override_view_layer_datablock_add(
-					view_layer,
-					ID_MA,
-					"self",
-					(ID *)srl->mat_override);
+			        view_layer,
+			        ID_MA,
+			        "self",
+			        (ID *)srl->mat_override);
 		}
 
 		if (srl->layflag & SCE_LAY_DISABLE) {
@@ -565,26 +580,26 @@ static void do_version_layers_to_collections(Main *bmain, Scene *scene)
 					}
 				}
 				else if ((scene->lay & srl->lay & ~(srl->lay_exclude) & (1 << layer)) ||
-					(srl->lay_zmask & (scene->lay | srl->lay_exclude) & (1 << layer)))
+				         (srl->lay_zmask & (scene->lay | srl->lay_exclude) & (1 << layer)))
 				{
 					if (srl->lay_zmask & (1 << layer)) {
 						have_override = true;
 
 						BKE_override_layer_collection_boolean_add(
-								lc,
-								ID_OB,
-								"cycles.is_holdout",
-								true);
+						        lc,
+						        ID_OB,
+						        "cycles.is_holdout",
+						        true);
 					}
 
 					if ((srl->lay & (1 << layer)) == 0) {
 						have_override = true;
 
 						BKE_override_layer_collection_boolean_add(
-								lc,
-								ID_OB,
-								"cycles_visibility.camera",
-								false);
+						        lc,
+						        ID_OB,
+						        "cycles_visibility.camera",
+						        false);
 					}
 				}
 
@@ -1296,60 +1311,60 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *main)
 
 		if (!DNA_struct_find(fd->filesdna, "SceneEEVEE")) {
 			for (Scene *scene = main->scene.first; scene; scene = scene->id.next) {
-					/* First set the default for all the properties. */
+				/* First set the default for all the properties. */
 
-					scene->eevee.gi_diffuse_bounces = 3;
-					scene->eevee.gi_cubemap_resolution = 512;
-					scene->eevee.gi_visibility_resolution = 32;
+				scene->eevee.gi_diffuse_bounces = 3;
+				scene->eevee.gi_cubemap_resolution = 512;
+				scene->eevee.gi_visibility_resolution = 32;
 
-					scene->eevee.taa_samples = 16;
-					scene->eevee.taa_render_samples = 64;
+				scene->eevee.taa_samples = 16;
+				scene->eevee.taa_render_samples = 64;
 
-					scene->eevee.sss_samples = 7;
-					scene->eevee.sss_jitter_threshold = 0.3f;
+				scene->eevee.sss_samples = 7;
+				scene->eevee.sss_jitter_threshold = 0.3f;
 
-					scene->eevee.ssr_quality = 0.25f;
-					scene->eevee.ssr_max_roughness = 0.5f;
-					scene->eevee.ssr_thickness = 0.2f;
-					scene->eevee.ssr_border_fade = 0.075f;
-					scene->eevee.ssr_firefly_fac = 10.0f;
+				scene->eevee.ssr_quality = 0.25f;
+				scene->eevee.ssr_max_roughness = 0.5f;
+				scene->eevee.ssr_thickness = 0.2f;
+				scene->eevee.ssr_border_fade = 0.075f;
+				scene->eevee.ssr_firefly_fac = 10.0f;
 
-					scene->eevee.volumetric_start = 0.1f;
-					scene->eevee.volumetric_end = 100.0f;
-					scene->eevee.volumetric_tile_size = 8;
-					scene->eevee.volumetric_samples = 64;
-					scene->eevee.volumetric_sample_distribution = 0.8f;
-					scene->eevee.volumetric_light_clamp = 0.0f;
-					scene->eevee.volumetric_shadow_samples = 16;
+				scene->eevee.volumetric_start = 0.1f;
+				scene->eevee.volumetric_end = 100.0f;
+				scene->eevee.volumetric_tile_size = 8;
+				scene->eevee.volumetric_samples = 64;
+				scene->eevee.volumetric_sample_distribution = 0.8f;
+				scene->eevee.volumetric_light_clamp = 0.0f;
+				scene->eevee.volumetric_shadow_samples = 16;
 
-					scene->eevee.gtao_distance = 0.2f;
-					scene->eevee.gtao_factor = 1.0f;
-					scene->eevee.gtao_quality = 0.25f;
+				scene->eevee.gtao_distance = 0.2f;
+				scene->eevee.gtao_factor = 1.0f;
+				scene->eevee.gtao_quality = 0.25f;
 
-					scene->eevee.bokeh_max_size = 100.0f;
-					scene->eevee.bokeh_threshold = 1.0f;
+				scene->eevee.bokeh_max_size = 100.0f;
+				scene->eevee.bokeh_threshold = 1.0f;
 
-					copy_v3_fl(scene->eevee.bloom_color, 1.0f);
-					scene->eevee.bloom_threshold = 0.8f;
-					scene->eevee.bloom_knee = 0.5f;
-					scene->eevee.bloom_intensity = 0.8f;
-					scene->eevee.bloom_radius = 6.5f;
-					scene->eevee.bloom_clamp = 1.0f;
+				copy_v3_fl(scene->eevee.bloom_color, 1.0f);
+				scene->eevee.bloom_threshold = 0.8f;
+				scene->eevee.bloom_knee = 0.5f;
+				scene->eevee.bloom_intensity = 0.8f;
+				scene->eevee.bloom_radius = 6.5f;
+				scene->eevee.bloom_clamp = 1.0f;
 
-					scene->eevee.motion_blur_samples = 8;
-					scene->eevee.motion_blur_shutter = 1.0f;
+				scene->eevee.motion_blur_samples = 8;
+				scene->eevee.motion_blur_shutter = 1.0f;
 
-					scene->eevee.shadow_method = SHADOW_ESM;
-					scene->eevee.shadow_cube_size = 512;
-					scene->eevee.shadow_cascade_size = 1024;
+				scene->eevee.shadow_method = SHADOW_ESM;
+				scene->eevee.shadow_cube_size = 512;
+				scene->eevee.shadow_cascade_size = 1024;
 
-					scene->eevee.flag =
-					        SCE_EEVEE_VOLUMETRIC_LIGHTS |
-					        SCE_EEVEE_VOLUMETRIC_COLORED |
-					        SCE_EEVEE_GTAO_BENT_NORMALS |
-					        SCE_EEVEE_GTAO_BOUNCE |
-					        SCE_EEVEE_TAA_REPROJECTION |
-					        SCE_EEVEE_SSR_HALF_RESOLUTION;
+				scene->eevee.flag =
+					SCE_EEVEE_VOLUMETRIC_LIGHTS |
+					SCE_EEVEE_VOLUMETRIC_COLORED |
+					SCE_EEVEE_GTAO_BENT_NORMALS |
+					SCE_EEVEE_GTAO_BOUNCE |
+					SCE_EEVEE_TAA_REPROJECTION |
+					SCE_EEVEE_SSR_HALF_RESOLUTION;
 
 
 				/* If the file is pre-2.80 move on. */

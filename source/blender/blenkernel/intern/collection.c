@@ -189,7 +189,8 @@ bool BKE_collection_delete(Main *bmain, Collection *collection, bool hierarchy)
  *
  * \param flag  Copying options (see BKE_library.h's LIB_ID_COPY_... flags for more).
  */
-void BKE_collection_copy_data(Main *UNUSED(bmain), Collection *collection_dst, const Collection *collection_src, const int flag)
+void BKE_collection_copy_data(
+        Main *UNUSED(bmain), Collection *collection_dst, const Collection *collection_src, const int flag)
 {
 	/* Do not copy collection's preview (same behavior as for objects). */
 	if ((flag & LIB_ID_COPY_NO_PREVIEW) == 0 && false) {  /* XXX TODO temp hack */
@@ -287,7 +288,8 @@ void BKE_collection_new_name_get(Collection *collection_parent, char *rname)
 	else {
 		const int number = BLI_listbase_count(&collection_parent->children) + 1;
 		const int digits = integer_digits_i(number);
-		const int max_len = sizeof(collection_parent->id.name) - 1 /* NULL terminator */ - (1 + digits) /* " %d" */ - 2 /* ID */;
+		const int max_len =
+			sizeof(collection_parent->id.name) - 1 /* NULL terminator */ - (1 + digits) /* " %d" */ - 2 /* ID */;
 		name = BLI_sprintfN("%.*s %d", max_len, collection_parent->id.name + 2, number);
 	}
 
@@ -313,7 +315,8 @@ bool BKE_collection_is_animated(Collection *collection, Object *UNUSED(parent))
  * you can draw everything, leaves tags in objects to signal it needs further updating */
 
 /* note: does not work for derivedmesh and render... it recreates all again in convertblender.c */
-void BKE_collection_handle_recalc_and_update(struct Depsgraph *depsgraph, Scene *scene, Object *UNUSED(parent), Collection *collection)
+void BKE_collection_handle_recalc_and_update(
+        struct Depsgraph *depsgraph, Scene *scene, Object *UNUSED(parent), Collection *collection)
 {
 	/* only do existing tags, as set by regular depsgraph */
 	FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN(collection, object)
@@ -323,7 +326,7 @@ void BKE_collection_handle_recalc_and_update(struct Depsgraph *depsgraph, Scene 
 		}
 	}
 	FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
-	}
+}
 
 /* **************** Object List Cache *******************/
 
@@ -508,7 +511,7 @@ Collection *BKE_collection_object_find(Main *bmain, Collection *collection, Obje
 		collection = collection->id.next;
 	else
 		collection = bmain->collection.first;
-	
+
 	while (collection) {
 		if (BKE_collection_has_object(collection, ob))
 			return collection;
@@ -722,7 +725,8 @@ void BKE_collections_child_remove_nulls(Main *bmain, Collection *old_collection)
  *
  * If source collection is NULL move it from all the existing collections.
  */
-void BKE_collection_object_move(Main *bmain, Scene *scene, Collection *collection_dst, Collection *collection_src, Object *ob)
+void BKE_collection_object_move(
+        Main *bmain, Scene *scene, Collection *collection_dst, Collection *collection_src, Object *ob)
 {
 	/* In both cases we first add the object, then remove it from the other collections.
 	 * Otherwise we lose the original base and whether it was active and selected. */
