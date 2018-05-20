@@ -564,10 +564,10 @@ static void add_pose_transdata(
 	td->protectflag = pchan->protectflag;
 
 	td->loc = pchan->loc;
-	copy_v3_v3(td->iloc, pchan->loc);
+	copy_v3_v3(td->iloc, pchan_eval->loc);
 
 	td->ext->size = pchan->size;
-	copy_v3_v3(td->ext->isize, pchan->size);
+	copy_v3_v3(td->ext->isize, pchan_eval->size);
 
 	if (pchan->rotmode > 0) {
 		td->ext->rot = pchan->eul;
@@ -575,7 +575,7 @@ static void add_pose_transdata(
 		td->ext->rotAngle = NULL;
 		td->ext->quat = NULL;
 
-		copy_v3_v3(td->ext->irot, pchan->eul);
+		copy_v3_v3(td->ext->irot, pchan_eval->eul);
 	}
 	else if (pchan->rotmode == ROT_MODE_AXISANGLE) {
 		td->ext->rot = NULL;
@@ -583,8 +583,8 @@ static void add_pose_transdata(
 		td->ext->rotAngle = &pchan->rotAngle;
 		td->ext->quat = NULL;
 
-		td->ext->irotAngle = pchan->rotAngle;
-		copy_v3_v3(td->ext->irotAxis, pchan->rotAxis);
+		td->ext->irotAngle = pchan_eval->rotAngle;
+		copy_v3_v3(td->ext->irotAxis, pchan_eval->rotAxis);
 	}
 	else {
 		td->ext->rot = NULL;
@@ -592,7 +592,7 @@ static void add_pose_transdata(
 		td->ext->rotAngle = NULL;
 		td->ext->quat = pchan->quat;
 
-		copy_qt_qt(td->ext->iquat, pchan->quat);
+		copy_qt_qt(td->ext->iquat, pchan_eval->quat);
 	}
 	td->ext->rotOrder = pchan->rotmode;
 
@@ -5892,6 +5892,7 @@ void autokeyframe_ob_cb_func(bContext *C, Scene *scene, ViewLayer *view_layer, O
 
 	// TODO: this should probably be done per channel instead...
 	if (autokeyframe_cfra_can_key(scene, id)) {
+		Depsgraph *depsgraph = CTX_data_depsgraph(C);
 		ReportList *reports = CTX_wm_reports(C);
 		ToolSettings *ts = scene->toolsettings;
 		KeyingSet *active_ks = ANIM_scene_get_active_keyingset(scene);
@@ -5918,7 +5919,7 @@ void autokeyframe_ob_cb_func(bContext *C, Scene *scene, ViewLayer *view_layer, O
 			if (adt && adt->action) {
 				for (fcu = adt->action->curves.first; fcu; fcu = fcu->next) {
 					fcu->flag &= ~FCURVE_SELECTED;
-					insert_keyframe(reports, id, adt->action,
+					insert_keyframe(depsgraph, reports, id, adt->action,
 					                (fcu->grp ? fcu->grp->name : NULL),
 					                fcu->rna_path, fcu->array_index, cfra,
 					                ts->keyframe_type, flag);
@@ -6016,6 +6017,7 @@ void autokeyframe_pose_cb_func(bContext *C, Scene *scene, Object *ob, int tmode,
 
 	// TODO: this should probably be done per channel instead...
 	if (autokeyframe_cfra_can_key(scene, id)) {
+		Depsgraph *depsgraph = CTX_data_depsgraph(C);
 		ReportList *reports = CTX_wm_reports(C);
 		ToolSettings *ts = scene->toolsettings;
 		KeyingSet *active_ks = ANIM_scene_get_active_keyingset(scene);
@@ -6059,7 +6061,7 @@ void autokeyframe_pose_cb_func(bContext *C, Scene *scene, Object *ob, int tmode,
 								 * NOTE: this will do constraints too, but those are ok to do here too?
 								 */
 								if (pchanName && STREQ(pchanName, pchan->name)) {
-									insert_keyframe(reports, id, act,
+									insert_keyframe(depsgraph, reports, id, act,
 									                ((fcu->grp) ? (fcu->grp->name) : (NULL)),
 									                fcu->rna_path, fcu->array_index, cfra,
 									                ts->keyframe_type, flag);
