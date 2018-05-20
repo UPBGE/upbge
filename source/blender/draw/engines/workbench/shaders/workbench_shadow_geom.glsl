@@ -1,51 +1,120 @@
-layout(triangles) in;
-layout(triangle_strip, max_vertices=9) out;
+#extension GL_ARB_gpu_shader5 : enable
 
-uniform mat4 ModelMatrix;
-uniform mat4 ModelViewProjectionMatrix;
+#ifdef GL_ARB_gpu_shader5
+#define USE_INVOC_EXT
+#endif
+
+#define DOUBLE_MANIFOLD
+
+#ifdef DOUBLE_MANIFOLD
+#  ifdef USE_INVOC_EXT
+#    define invoc_ct 2
+#  else
+#    define vert_ct 8
+#  endif
+#else
+#  ifdef USE_INVOC_EXT
+#    define invoc_ct 1
+#  else
+#    define vert_ct 4
+#  endif
+#endif
+
+#ifdef USE_INVOC_EXT
+layout(lines_adjacency, invocations = invoc_ct) in;
+layout(triangle_strip, max_vertices = 4) out;
+#else
+layout(lines_adjacency) in;
+layout(triangle_strip, max_vertices = vert_ct) out;
+#endif
 
 uniform vec3 lightDirection = vec3(0.57, 0.57, -0.57);
 
 in VertexData {
-	flat vec4 lightDirectionMS;
-	vec4 frontPosition;
+	vec3 pos;           /* local position */
+	vec4 frontPosition; /* final ndc position */
 	vec4 backPosition;
-} vertexData[];
+} vData[];
 
-vec3 face_normal(vec3 v1, vec3 v2, vec3 v3) {
-	return normalize(cross(v2 - v1, v3 - v1));
+#define DEGENERATE_THRESHOLD 1e-12
+
+#define len_sqr(a) dot(a, a)
+
+void extrude_edge(bool invert)
+{
+	/* Reverse order if backfacing the light. */
+	ivec2 idx = (invert) ? ivec2(1, 2) : ivec2(2, 1);
+	gl_Position = vData[idx.x].frontPosition; EmitVertex();
+	gl_Position = vData[idx.y].frontPosition; EmitVertex();
+	gl_Position = vData[idx.x].backPosition; EmitVertex();
+	gl_Position = vData[idx.y].backPosition; EmitVertex();
+	EndPrimitive();
 }
+
 void main()
 {
-	vec4 light_direction = vertexData[0].lightDirectionMS;
-	vec4 v1 = gl_in[0].gl_Position;
-	vec4 v2 = gl_in[1].gl_Position;
-	vec4 v3 = gl_in[2].gl_Position;
-	bool backface = dot(face_normal(v1.xyz, v2.xyz, v3.xyz), light_direction.xyz) > 0.0;
+	vec3 v10 = vData[0].pos - vData[1].pos;
+	vec3 v12 = vData[2].pos - vData[1].pos;
+	vec3 v13 = vData[3].pos - vData[1].pos;
 
-	int index0 = backface?0:2;
-	int index2 = backface?2:0;
+#ifdef DEGENERATE_THRESHOLD
+	vec3 v20 = vData[0].pos - vData[2].pos;
+	vec3 v23 = vData[3].pos - vData[2].pos;
 
-	/* back cap */
-	gl_Position = vertexData[index0].backPosition;
-	EmitVertex();
-	gl_Position = vertexData[1].backPosition;
-	EmitVertex();
-	gl_Position = vertexData[index2].backPosition;
-	EmitVertex();
+	vec4 edges_lensqr = vec4(len_sqr(v10), len_sqr(v13), len_sqr(v20), len_sqr(v23));
+	bvec4 degen_edges = lessThan(edges_lensqr, vec4(DEGENERATE_THRESHOLD));
 
-	/* sides */
-	gl_Position = vertexData[index2].frontPosition;
-	EmitVertex();
-	gl_Position = vertexData[index0].backPosition;
-	EmitVertex();
-	gl_Position = vertexData[index0].frontPosition;
-	EmitVertex();
-	gl_Position = vertexData[1].backPosition;
-	EmitVertex();
-	gl_Position = vertexData[1].frontPosition;
-	EmitVertex();
-	gl_Position = vertexData[index2].frontPosition;
-	EmitVertex();
-	EndPrimitive();
+	/* Both triangles are degenerate, abort. */
+	if (any(degen_edges.xz) && any(degen_edges.yw))
+		return;
+#endif
+
+	vec3 n1 = cross(v12, v10);
+	vec3 n2 = cross(v13, v12);
+	vec2 facing = vec2(dot(n1, lightDirection),
+	                   dot(n2, lightDirection));
+
+	/* WATCH: maybe unpredictable in some cases. */
+	bool is_manifold = any(notEqual(vData[0].pos, vData[3].pos));
+
+	bvec2 backface = greaterThan(facing, vec2(0.0));
+
+#ifdef DEGENERATE_THRESHOLD
+#  ifndef DOUBLE_MANIFOLD
+	/* If the mesh is known to be manifold and we don't use double count,
+	 * only create an quad if the we encounter a facing geom. */
+	if ((any(degen_edges.xz) && backface.y) ||
+		(any(degen_edges.yw) && backface.x))
+		return;
+#  endif
+
+	/* If one of the 2 triangles is degenerate, replace edge by a non-manifold one. */
+	backface.x = (any(degen_edges.xz)) ? !backface.y : backface.x;
+	backface.y = (any(degen_edges.yw)) ? !backface.x : backface.y;
+	is_manifold = (any(degen_edges)) ? false : is_manifold;
+#endif
+
+	/* If both faces face the same direction it's not an outline edge. */
+	if (backface.x == backface.y)
+		return;
+
+#ifdef USE_INVOC_EXT
+	if (gl_InvocationID == 0) {
+		extrude_edge(backface.x);
+	}
+	else if (is_manifold) {
+#  ifdef DOUBLE_MANIFOLD
+		/* Increment/Decrement twice for manifold edges. */
+		extrude_edge(backface.x);
+#  endif
+	}
+#else
+	extrude_edge(backface.x);
+	if (is_manifold) {
+#  ifdef DOUBLE_MANIFOLD
+		/* Increment/Decrement twice for manifold edges. */
+		extrude_edge(backface.x);
+#  endif
+	}
+#endif
 }
