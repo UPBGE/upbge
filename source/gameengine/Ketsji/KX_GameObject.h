@@ -339,7 +339,7 @@ public:
 	/**
 	 * Inherited from EXP_Value -- returns the name of this object.
 	 */
-	virtual std::string GetName();
+	virtual std::string GetName() const;
 
 	/**
 	 * Inherited from EXP_Value -- set the name of this object.

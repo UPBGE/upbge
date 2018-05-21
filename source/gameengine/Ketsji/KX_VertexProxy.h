@@ -54,7 +54,7 @@ public:
 	RAS_DisplayArray *GetDisplayArray() const;
 
 	// stuff for cvalue related things
-	std::string GetName();
+	virtual std::string GetName() const;
 
 	static PyObject *pyattr_get_x(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static PyObject *pyattr_get_y(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);

@@ -66,7 +66,7 @@ public:
 	virtual RAS_InstancingBuffer::Attrib GetInstancingAttribs() const;
 
 	// Stuff for cvalue related things.
-	virtual std::string GetName();
+	virtual std::string GetName() const;
 
 #ifdef WITH_PYTHON
 

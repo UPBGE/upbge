@@ -18,7 +18,7 @@ public:
 	KX_VehicleWrapper(PHY_IVehicle* vehicle);
 	virtual ~KX_VehicleWrapper ();
 
-	virtual std::string GetName();
+	virtual std::string GetName() const;
 
 #ifdef WITH_PYTHON
 	

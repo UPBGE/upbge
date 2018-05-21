@@ -421,7 +421,7 @@ public:
 	KX_ObstacleSimulation *GetObstacleSimulation();
 	void SetObstacleSimulation(KX_ObstacleSimulation *obstacleSimulation);
 
-	virtual std::string GetName();
+	virtual std::string GetName() const;
 	virtual void SetName(const std::string& name);
 
 #ifdef WITH_PYTHON

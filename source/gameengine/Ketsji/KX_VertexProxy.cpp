@@ -508,7 +508,7 @@ RAS_DisplayArray *KX_VertexProxy::GetDisplayArray() const
 }
 
 // stuff for cvalue related things
-std::string KX_VertexProxy::GetName()
+std::string KX_VertexProxy::GetName() const
 {
 	return "vertex";
 }

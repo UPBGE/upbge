@@ -43,7 +43,7 @@ public:
 	KX_ConstraintWrapper(PHY_IConstraint *constraint);
 	virtual ~KX_ConstraintWrapper ();
 
-	virtual std::string GetName();
+	virtual std::string GetName() const;
 	
 #ifdef WITH_PYTHON
 	EXP_PYMETHOD_NOARGS(KX_ConstraintWrapper,GetConstraintId);

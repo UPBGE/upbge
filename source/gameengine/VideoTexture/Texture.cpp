@@ -109,7 +109,7 @@ void Texture::DestructFromPython()
 	EXP_PyObjectPlus::DestructFromPython();
 }
 
-std::string Texture::GetName()
+std::string Texture::GetName() const
 {
 	return "Texture";
 }

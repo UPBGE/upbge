@@ -85,7 +85,7 @@ public:
 	KX_WorldInfo(Scene *blenderscene, World *blenderworld);
 	~KX_WorldInfo();
 
-	virtual std::string GetName();
+	virtual std::string GetName() const;
 
 	void ReloadMaterial();
 	bool hasWorld();

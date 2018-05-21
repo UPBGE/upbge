@@ -43,7 +43,7 @@ KX_PythonComponent::~KX_PythonComponent()
 {
 }
 
-std::string KX_PythonComponent::GetName()
+std::string KX_PythonComponent::GetName() const
 {
 	return m_name;
 }

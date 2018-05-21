@@ -47,7 +47,7 @@ public:
 	KX_BatchGroup();
 	virtual ~KX_BatchGroup();
 
-	virtual std::string GetName();
+	virtual std::string GetName() const;
 
 	EXP_ListValue<KX_GameObject> *GetObjects() const;
 

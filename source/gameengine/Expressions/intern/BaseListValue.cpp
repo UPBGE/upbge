@@ -94,22 +94,7 @@ bool EXP_BaseListValue::RemoveValue(EXP_Value *val)
 	return result;
 }
 
-bool EXP_BaseListValue::CheckEqual(EXP_Value *first, EXP_Value *second)
-{
-	bool result = false;
-	EXP_Value *eqval = first->Calc(VALUE_EQL_OPERATOR, second);
-	if (eqval == nullptr) {
-		return false;
-	}
-	std::string text = eqval->GetText();
-	if (text == EXP_BoolValue::sTrueString) {
-		result = true;
-	}
-	eqval->Release();
-	return result;
-}
-
-std::string EXP_BaseListValue::GetText()
+std::string EXP_BaseListValue::GetText() const
 {
 	std::string strListRep = "[";
 	std::string commastr = "";
@@ -124,7 +109,7 @@ std::string EXP_BaseListValue::GetText()
 	return strListRep;
 }
 
-int EXP_BaseListValue::GetValueType()
+int EXP_BaseListValue::GetValueType() const
 {
 	return VALUE_LIST_TYPE;
 }
@@ -485,7 +470,7 @@ PyObject *EXP_BaseListValue::Pyindex(PyObject *value)
 	int numelem = GetCount();
 	for (int i = 0; i < numelem; i++) {
 		EXP_Value *elem = GetValue(i);
-		if (checkobj == elem || CheckEqual(checkobj, elem)) {
+		if (checkobj == elem || checkobj->Equal(elem)) {
 			result = PyLong_FromLong(i);
 			break;
 		}
@@ -513,7 +498,7 @@ PyObject *EXP_BaseListValue::Pycount(PyObject *value)
 	int numelem = GetCount();
 	for (int i = 0; i < numelem; i++) {
 		EXP_Value *elem = GetValue(i);
-		if (checkobj == elem || CheckEqual(checkobj, elem)) {
+		if (checkobj == elem || checkobj->Equal(elem)) {
 			numfound++;
 		}
 	}

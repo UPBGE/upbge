@@ -443,7 +443,7 @@ RAS_InstancingBuffer::Attrib KX_BlenderMaterial::GetInstancingAttribs() const
 	return RAS_InstancingBuffer::DEFAULT_ATTRIBS;
 }
 
-std::string KX_BlenderMaterial::GetName()
+std::string KX_BlenderMaterial::GetName() const
 {
 	return m_name;
 }

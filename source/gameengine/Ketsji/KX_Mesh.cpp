@@ -127,7 +127,7 @@ PyAttributeDef KX_Mesh::Attributes[] = {
 	EXP_PYATTRIBUTE_NULL    //Sentinel
 };
 
-std::string KX_Mesh::GetName()
+std::string KX_Mesh::GetName() const
 {
 	return RAS_Mesh::GetName();
 }

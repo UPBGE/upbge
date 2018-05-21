@@ -94,7 +94,7 @@ KX_WorldInfo::~KX_WorldInfo()
 	}
 }
 
-std::string KX_WorldInfo::GetName()
+std::string KX_WorldInfo::GetName() const
 {
 	return m_name;
 }

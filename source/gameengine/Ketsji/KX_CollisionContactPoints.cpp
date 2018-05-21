@@ -39,7 +39,7 @@ KX_CollisionContactPoint::~KX_CollisionContactPoint()
 {
 }
 
-std::string KX_CollisionContactPoint::GetName()
+std::string KX_CollisionContactPoint::GetName() const
 {
 	return "CollisionContactPoint";
 }
@@ -159,7 +159,7 @@ KX_CollisionContactPointList::~KX_CollisionContactPointList()
 {
 }
 
-std::string KX_CollisionContactPointList::GetName()
+std::string KX_CollisionContactPointList::GetName() const
 {
 	return "KX_CollisionContactPointList";
 }

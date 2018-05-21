@@ -60,7 +60,7 @@ public:
 	virtual ~KX_Mesh();
 
 	// stuff for cvalue related things
-	virtual std::string GetName();
+	virtual std::string GetName() const;
 
 	void ReplaceScene(KX_Scene *scene);
 

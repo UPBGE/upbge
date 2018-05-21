@@ -24,27 +24,23 @@
 class EXP_FloatValue : public EXP_PropValue
 {
 public:
-	EXP_FloatValue();
-	EXP_FloatValue(float fl);
-	EXP_FloatValue(float fl, const std::string& name);
+	EXP_FloatValue(double fl);
 
-	virtual std::string GetText();
+	virtual std::string GetText() const;
+	virtual int GetValueType() const;
+	virtual bool Equal(EXP_Value *other) const;
 
-	virtual double GetNumber();
-	virtual int GetValueType();
-	virtual void SetValue(EXP_Value *newval);
-	float GetFloat();
-	void SetFloat(float fl);
-	virtual ~EXP_FloatValue();
+	double GetValue() const;
+	void SetValue(double value);
+
 	virtual EXP_Value *GetReplica();
-	virtual EXP_Value *Calc(VALUE_OPERATOR op, EXP_Value *val);
-	virtual EXP_Value *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, EXP_Value *val);
+
 #ifdef WITH_PYTHON
 	virtual PyObject *ConvertValueToPython();
 #endif
 
 protected:
-	float m_float;
+	double m_value;
 };
 
 #endif  // __EXP_FLOATVALUE_H__

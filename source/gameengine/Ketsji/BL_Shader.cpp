@@ -75,7 +75,7 @@ bool BL_Shader::LinkProgram()
 	return RAS_Shader::LinkProgram();
 }
 
-std::string BL_Shader::GetName()
+std::string BL_Shader::GetName() const
 {
 	return "BL_Shader";
 }

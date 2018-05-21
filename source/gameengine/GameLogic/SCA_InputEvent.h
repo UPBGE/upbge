@@ -45,7 +45,7 @@ public:
 	SCA_InputEvent();
 	SCA_InputEvent(int type);
 
-	virtual std::string GetName();
+	virtual std::string GetName() const;
 
 	/// Clear status, values and queue but keep status and value from before.
 	void Clear();

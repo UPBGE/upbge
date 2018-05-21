@@ -47,8 +47,6 @@ SCA_TimeEventManager::SCA_TimeEventManager(SCA_LogicManager *logicmgr)
 {
 }
 
-
-
 SCA_TimeEventManager::~SCA_TimeEventManager()
 {
 	for (EXP_Value *prop : m_timevalues) {
@@ -56,49 +54,23 @@ SCA_TimeEventManager::~SCA_TimeEventManager()
 	}
 }
 
-
-
-bool SCA_TimeEventManager::RegisterSensor(SCA_ISensor *sensor)
-{
-	// not yet
-	return false;
-}
-
-bool SCA_TimeEventManager::RemoveSensor(SCA_ISensor *sensor)
-{
-	// empty
-	return false;
-}
-
-
-
 void SCA_TimeEventManager::NextFrame(double curtime, double fixedtime)
 {
 	if (m_timevalues.empty() && fixedtime <= 0.0) {
 		return;
 	}
 
-	EXP_FloatValue *floatval = new EXP_FloatValue(curtime);
-
-	// update sensors, but ... need deltatime !
 	for (EXP_Value *prop : m_timevalues) {
-		float newtime = prop->GetNumber() + fixedtime;
-		floatval->SetFloat(newtime);
-		prop->SetValue(floatval);
+		EXP_FloatValue *floatProp = static_cast<EXP_FloatValue *>(prop); // TODO store float prop directly.
+		floatProp->SetValue(floatProp->GetValue() + fixedtime);
 	}
-
-	floatval->Release();
 }
-
-
 
 void SCA_TimeEventManager::AddTimeProperty(EXP_Value *timeval)
 {
 	timeval->AddRef();
 	m_timevalues.push_back(timeval);
 }
-
-
 
 void SCA_TimeEventManager::RemoveTimeProperty(EXP_Value *timeval)
 {
