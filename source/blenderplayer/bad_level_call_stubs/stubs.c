@@ -524,6 +524,8 @@ void WM_keymap_properties_reset(struct wmKeyMapItem *kmi, struct IDProperty *pro
 void WM_keyconfig_update_tag(struct wmKeyMap *keymap, struct wmKeyMapItem *kmi) RET_NONE
 int WM_keymap_item_compare(struct wmKeyMapItem *k1, struct wmKeyMapItem *k2) RET_ZERO
 int	WM_keymap_map_type_get(struct wmKeyMapItem *kmi) RET_ZERO
+void WM_keyconfig_update(struct wmWindowManager *wm) RET_NONE
+struct wmKeyMapItem *WM_key_event_operator(const struct bContext *C, const char *opname, int opcontext, struct IDProperty *properties, const bool is_hotkey, struct wmKeyMap **r_keymap) RET_NULL
 
 
 /* rna editors */
