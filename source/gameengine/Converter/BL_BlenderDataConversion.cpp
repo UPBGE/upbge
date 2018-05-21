@@ -1184,7 +1184,6 @@ static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderob
 static void bl_ConvertBlenderObject_Single(BL_SceneConverter& converter,
                                            Object *blenderobject,
                                            std::vector<BL_ParentChildLink> &vec_parent_child,
-                                           EXP_ListValue<KX_GameObject> *logicbrick_conversionlist,
                                            EXP_ListValue<KX_GameObject> *objectlist, EXP_ListValue<KX_GameObject> *inactivelist,
                                            KX_Scene *kxscene, KX_GameObject *gameobj,
                                            bool isInActiveLayer)
@@ -1248,8 +1247,6 @@ static void bl_ConvertBlenderObject_Single(BL_SceneConverter& converter,
 
 	converter.RegisterGameObject(gameobj, blenderobject);
 
-	logicbrick_conversionlist->Add(CM_AddRef(gameobj));
-
 	// Only draw/use objects in active 'blender' layers.
 	if (isInActiveLayer) {
 		objectlist->Add(CM_AddRef(gameobj));
@@ -1279,7 +1276,6 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 	bl_ConvertBlenderObject_Single(converter,                          \
 	                               blenderobject,                      \
 	                               vec_parent_child,                   \
-	                               logicbrick_conversionlist,          \
 	                               objectlist, inactivelist, \
 	                               kxscene, gameobj,                   \
 	                               isInActiveLayer                     \
@@ -1300,7 +1296,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 	 * push all converted group members to this set.
 	 * This will happen when a group instance is made from a linked group instance
 	 * and both are on the active layer. */
-	EXP_ListValue<KX_GameObject> *convertedlist = new EXP_ListValue<KX_GameObject>();
+	std::vector<KX_GameObject *> convertedlist;
 
 	// Find out which physics engine
 	PHY_IPhysicsEnvironment *phyEnv = nullptr;
@@ -1409,7 +1405,6 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 	EXP_ListValue<KX_GameObject> *inactivelist = kxscene->GetInactiveList();
 	EXP_ListValue<KX_GameObject> *parentlist = kxscene->GetRootParentList();
 
-	EXP_ListValue<KX_GameObject> *logicbrick_conversionlist = new EXP_ListValue<KX_GameObject>();
 
 	// Convert actions to actionmap.
 	bAction *curAct;
@@ -1473,7 +1468,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 							/* Insert object to the constraint game object list
 							 * so we can check later if there is a instance in the scene or
 							 * an instance and its actual group definition. */
-							convertedlist->Add(CM_AddRef(gameobj));
+							convertedlist.push_back(gameobj);
 
 							// Macro calls object conversion funcs.
 							BL_CONVERTBLENDEROBJECT_SINGLE;
@@ -1526,12 +1521,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 			// The returned list by GetChildrenRecursive is not owned by anyone and must not own items, so no AddRef().
 			childrenlist.push_back(childobj);
 			for (KX_GameObject *obj : childrenlist) {
-				if (logicbrick_conversionlist->RemoveValue(obj)) {
-					obj->Release();
-				}
-				if (convertedlist->RemoveValue(obj)) {
-					obj->Release();
-				}
+				CM_ListRemoveIfFound(convertedlist, obj);
 			}
 
 			converter.UnregisterGameObject(childobj);
@@ -1766,17 +1756,17 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 			/* Skipped already converted constraints.
 			 * This will happen when a group instance is made from a linked group instance
 			 * and both are on the active layer. */
-			if (convertedlist->FindValue(gameobj->GetName())) {
+			if (std::find_if(convertedlist.begin(), convertedlist.end(), [gameobj](KX_GameObject *obj){ return obj->GetName() == gameobj->GetName(); }) != convertedlist.end()) {
 				continue;
 			}
 
-			for (KX_GameObject *gotar : sumolist) {
-				if (gotar->GetName() == (dat->tar->id.name + 2) &&
-					(gotar->GetLayer() & activeLayerBitInfo) && gotar->GetPhysicsController() &&
-					(gameobj->GetLayer() & activeLayerBitInfo) && gameobj->GetPhysicsController())
-				{
+			std::vector<KX_GameObject *>::const_iterator it = std::find_if(sumolist.begin(), sumolist.end(), [dat](KX_GameObject *obj){ return obj->GetName() == (dat->tar->id.name + 2); });
+			if (it != sumolist.end()) {
+				KX_GameObject *gotar = *it;
+
+				if ((gotar->GetLayer() & activeLayerBitInfo) && gotar->GetPhysicsController() &&
+					(gameobj->GetLayer() & activeLayerBitInfo) && gameobj->GetPhysicsController()) {
 					physEnv->SetupObjectConstraints(gameobj, gotar, dat);
-					break;
 				}
 			}
 		}
@@ -1812,10 +1802,6 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 			navmesh->SetVisible(false, true);
 		}
 	}
-
-	// Cleanup converted set of group objects.
-	convertedlist->Release();
-	logicbrick_conversionlist->Release();
 
 	/* Instantiate dupli group, we will loop trough the object
 	 * that are in active layers. Note that duplicating group
