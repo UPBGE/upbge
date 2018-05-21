@@ -60,8 +60,6 @@ public:
 
 #ifdef WITH_PYTHON
 
-	EXP_PYMETHOD_O(EXP_BaseListValue, append);
-	EXP_PYMETHOD_NOARGS(EXP_BaseListValue, reverse);
 	EXP_PYMETHOD_O(EXP_BaseListValue, index);
 	EXP_PYMETHOD_O(EXP_BaseListValue, count);
 	EXP_PYMETHOD_VARARGS(EXP_BaseListValue, get);
@@ -72,7 +70,6 @@ public:
 	static PyObject *buffer_item(PyObject *self, Py_ssize_t index);
 	static PyObject *buffer_slice(EXP_BaseListValue *list, Py_ssize_t start, Py_ssize_t stop);
 	static PyObject *mapping_subscript(PyObject *self, PyObject *key);
-	static PyObject *buffer_concat(PyObject *self, PyObject *other);
 	static int buffer_contains(PyObject *self_v, PyObject *value);
 
 	static PySequenceMethods as_sequence;
