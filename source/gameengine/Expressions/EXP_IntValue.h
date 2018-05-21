@@ -22,26 +22,17 @@
 
 #include "EXP_Value.h"
 
-typedef long long cInt;
-
 class EXP_IntValue : public EXP_PropValue
 {
 public:
-	EXP_IntValue();
-	EXP_IntValue(cInt innie);
-	EXP_IntValue(cInt innie, const std::string& name);
-	virtual ~EXP_IntValue();
+	EXP_IntValue(long long innie);
 
-	virtual std::string GetText();
-	virtual double GetNumber();
-	virtual int GetValueType();
+	virtual std::string GetText() const;
+	virtual int GetValueType() const;
+	virtual bool Equal(EXP_Value *other) const;
 
-	cInt GetInt();
-
-	virtual EXP_Value *Calc(VALUE_OPERATOR op, EXP_Value *val);
-	virtual EXP_Value *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, EXP_Value *val);
-
-	virtual void SetValue(EXP_Value *newval);
+	long long GetValue() const;
+	void SetValue(long long value);
 
 	virtual EXP_Value *GetReplica();
 
@@ -50,7 +41,7 @@ public:
 #endif
 
 private:
-	cInt m_int;
+	long long m_value;
 };
 
 #endif  // __EXP_INTVALUE_H__

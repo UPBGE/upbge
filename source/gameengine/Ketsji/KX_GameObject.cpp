@@ -77,6 +77,8 @@
 #  include "python_utildefines.h"
 #endif
 
+#include "EXP_FloatValue.h"
+
 // Component stuff
 #include "DNA_python_component_types.h"
 
@@ -217,7 +219,7 @@ KX_GameObject *KX_GameObject::GetClientObject(KX_ClientObjectInfo *info)
 	return info->m_gameobject;
 }
 
-std::string KX_GameObject::GetName()
+std::string KX_GameObject::GetName() const
 {
 	return m_name;
 }
@@ -2145,14 +2147,7 @@ static int Map_SetItem(PyObject *self_v, PyObject *key, PyObject *val)
 			EXP_Value *vallie = self->ConvertPythonToValue(val, false, "gameOb[key] = value: ");
 
 			if (vallie) {
-				EXP_Value *oldprop = self->GetProperty(attr_str);
-
-				if (oldprop) {
-					oldprop->SetValue(vallie);
-				}
-				else {
-					self->SetProperty(attr_str, vallie);
-				}
+				self->SetProperty(attr_str, vallie);
 
 				vallie->Release();
 				set = true;
@@ -2448,10 +2443,10 @@ PyObject *KX_GameObject::pyattr_get_life(EXP_PyObjectPlus *self_v, const EXP_PYA
 	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
 
 	EXP_Value *life = self->GetProperty("::timebomb");
-	if (life) {
+	if (life && life->GetValueType() == VALUE_FLOAT_TYPE) {
 		// this convert the timebomb seconds to frames, hard coded 50.0f (assuming 50fps)
 		// value hardcoded in KX_Scene::AddReplicaObject()
-		return PyFloat_FromDouble(life->GetNumber() * 50.0);
+		return PyFloat_FromDouble(static_cast<EXP_FloatValue *>(life)->GetValue() * 50.0);
 	}
 	else {
 		Py_RETURN_NONE;

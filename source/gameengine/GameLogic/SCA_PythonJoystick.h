@@ -42,7 +42,7 @@ public:
 	SCA_PythonJoystick(class DEV_Joystick* joystick, int joyindex);
 	virtual ~SCA_PythonJoystick();
 
-	virtual std::string GetName();
+	virtual std::string GetName() const;
 
 #ifdef WITH_PYTHON
 	static PyObject*	pyattr_get_num_x(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);

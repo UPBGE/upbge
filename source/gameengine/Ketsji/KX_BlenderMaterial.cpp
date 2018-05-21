@@ -437,7 +437,7 @@ const RAS_AttributeArray::AttribList KX_BlenderMaterial::GetAttribs(const RAS_Me
 	return {};
 }
 
-std::string KX_BlenderMaterial::GetName()
+std::string KX_BlenderMaterial::GetName() const
 {
 	return m_name;
 }

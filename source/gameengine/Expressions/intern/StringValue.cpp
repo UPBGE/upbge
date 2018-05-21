@@ -16,107 +16,44 @@
  */
 
 #include "EXP_StringValue.h"
-#include "EXP_BoolValue.h"
-#include "EXP_ErrorValue.h"
 
-EXP_StringValue::EXP_StringValue()
-	:m_strString("[Illegal String constructor call]")
+EXP_StringValue::EXP_StringValue(const std::string& txt)
+	:m_value(txt)
 {
 }
 
-EXP_StringValue::EXP_StringValue(const std::string& txt, const std::string& name)
-	:m_strString(txt)
+std::string EXP_StringValue::GetName() const
 {
-	SetName(name);
+	return m_value;
 }
 
-EXP_Value *EXP_StringValue::Calc(VALUE_OPERATOR op, EXP_Value *val)
-{
-	return val->CalcFinal(VALUE_STRING_TYPE, op, this);
-}
-
-EXP_Value *EXP_StringValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, EXP_Value *val)
-{
-	EXP_Value *ret;
-
-	if (op == VALUE_ADD_OPERATOR) {
-		if (dtype == VALUE_ERROR_TYPE) {
-			ret = new EXP_ErrorValue(val->GetText() + op2str(op) + GetText());
-		}
-		else {
-			ret = new EXP_StringValue(val->GetText() + GetText(), "");
-		}
-	}
-	else {
-		if (dtype == VALUE_STRING_TYPE || dtype == VALUE_EMPTY_TYPE) {
-			switch (op) {
-				case VALUE_EQL_OPERATOR:
-				{
-					ret = new EXP_BoolValue(val->GetText() == GetText());
-					break;
-				}
-				case VALUE_NEQ_OPERATOR:
-				{
-					ret = new EXP_BoolValue(val->GetText() != GetText());
-					break;
-				}
-				case VALUE_GRE_OPERATOR:
-				{
-					ret = new EXP_BoolValue(val->GetText() > GetText());
-					break;
-				}
-				case VALUE_LES_OPERATOR:
-				{
-					ret = new EXP_BoolValue(val->GetText() < GetText());
-					break;
-				}
-				case VALUE_GEQ_OPERATOR:
-				{
-					ret = new EXP_BoolValue(val->GetText() >= GetText());
-					break;
-				}
-				case VALUE_LEQ_OPERATOR:
-				{
-					ret = new EXP_BoolValue(val->GetText() <= GetText());
-					break;
-				}
-				default:
-				{
-					ret =  new EXP_ErrorValue(val->GetText() + op2str(op) + "[operator not allowed on strings]");
-					break;
-				}
-			}
-		}
-		else {
-			ret =  new EXP_ErrorValue(val->GetText() + op2str(op) + "[operator not allowed on strings]");
-		}
-	}
-	return ret;
-}
-
-void EXP_StringValue::SetValue(EXP_Value *newval)
-{
-	m_strString = newval->GetText();
-}
-
-double EXP_StringValue::GetNumber()
-{
-	return -1;
-}
-
-int EXP_StringValue::GetValueType()
+int EXP_StringValue::GetValueType() const
 {
 	return VALUE_STRING_TYPE;
 }
 
-std::string EXP_StringValue::GetText()
+std::string EXP_StringValue::GetText() const
 {
-	return m_strString;
+	return m_value;
 }
 
-bool EXP_StringValue::IsEqual(const std::string & other)
+bool EXP_StringValue::Equal(EXP_Value *other) const
 {
-	return (m_strString == other);
+	if (other->GetValueType() != VALUE_STRING_TYPE) {
+		return false;
+	}
+
+	return (m_value == static_cast<EXP_StringValue *>(other)->GetValue());
+}
+
+const std::string &EXP_StringValue::GetValue() const
+{
+	return m_value;
+}
+
+void EXP_StringValue::SetValue(const std::string& value)
+{
+	m_value = value;
 }
 
 EXP_Value *EXP_StringValue::GetReplica()

@@ -353,9 +353,9 @@ int KX_FontObject::pyattr_set_text(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBU
 	const char *chars = _PyUnicode_AsString(value);
 
 	/* Allow for some logic brick control */
-	EXP_Value *tprop = self->GetProperty("Text");
+	EXP_Value *tprop = self->GetProperty("Text"); // TODO deprecate
 	if (tprop) {
-		EXP_Value *newstringprop = new EXP_StringValue(std::string(chars), "Text");
+		EXP_Value *newstringprop = new EXP_StringValue(std::string(chars));
 		self->SetProperty("Text", newstringprop);
 		newstringprop->Release();
 	}

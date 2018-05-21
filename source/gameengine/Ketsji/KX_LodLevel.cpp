@@ -40,7 +40,7 @@ KX_LodLevel::~KX_LodLevel()
 {
 }
 
-std::string KX_LodLevel::GetName()
+std::string KX_LodLevel::GetName() const
 {
 	return m_mesh->GetName();
 }

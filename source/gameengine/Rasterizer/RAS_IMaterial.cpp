@@ -127,7 +127,7 @@ float RAS_IMaterial::GetZOffset() const
 	return m_zoffset;
 }
 
-std::string RAS_IMaterial::GetName()
+std::string RAS_IMaterial::GetName() const
 {
 	return m_name;
 }

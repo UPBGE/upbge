@@ -259,7 +259,7 @@ KX_Scene::~KX_Scene()
 #endif
 }
 
-std::string KX_Scene::GetName()
+std::string KX_Scene::GetName() const
 {
 	return m_name;
 }
@@ -1032,10 +1032,10 @@ void KX_Scene::LogicBeginFrame(double curtime, double framestep)
 		EXP_FloatValue *propval = static_cast<EXP_FloatValue *>(gameobj->GetProperty("::timebomb"));
 
 		if (propval) {
-			const float timeleft = propval->GetNumber() - framestep;
+			const double timeleft = propval->GetValue() - framestep;
 
 			if (timeleft > 0) {
-				propval->SetFloat(timeleft);
+				propval->SetValue(timeleft);
 			}
 			else {
 				// Remove obj, remove the object from tempObjectList in NewRemoveObject only.

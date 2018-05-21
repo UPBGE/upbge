@@ -39,7 +39,7 @@ KX_BoundingBox::~KX_BoundingBox()
 {
 }
 
-std::string KX_BoundingBox::GetName()
+std::string KX_BoundingBox::GetName() const
 {
 	return "KX_BoundingBox";
 }

@@ -117,10 +117,6 @@ public:
 			SetValue(i + numelements, CM_AddRef(otherlist->GetValue(i)));
 		}
 	}
-	bool CheckEqual(ItemType *first, ItemType *second)
-	{
-		return EXP_BaseListValue::CheckEqual(first, second);
-	}
 
 	bool SearchValue(ItemType *val) const
 	{

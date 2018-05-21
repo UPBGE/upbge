@@ -51,7 +51,7 @@ public:
 	KX_BoundingBox(KX_GameObject *owner);
 	virtual ~KX_BoundingBox();
 
-	virtual std::string GetName();
+	virtual std::string GetName() const;
 	virtual std::string GetText();
 
 	/** Return true if the object owner is still valid.

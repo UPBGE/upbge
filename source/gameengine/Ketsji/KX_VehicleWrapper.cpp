@@ -40,7 +40,7 @@ KX_VehicleWrapper::~KX_VehicleWrapper()
 {
 }
 
-std::string KX_VehicleWrapper::GetName()
+std::string KX_VehicleWrapper::GetName() const
 {
 	return "KX_VehicleWrapper";
 }

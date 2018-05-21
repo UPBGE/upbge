@@ -30,18 +30,14 @@ public:
 	static const std::string sTrueString;
 	static const std::string sFalseString;
 
-	EXP_BoolValue();
 	EXP_BoolValue(bool inBool);
-	EXP_BoolValue(bool innie, const std::string& name);
 
-	virtual std::string GetText();
-	virtual double GetNumber();
-	virtual int GetValueType();
-	bool GetBool();
-	virtual void SetValue(EXP_Value *newval);
+	virtual std::string GetText() const;
+	virtual int GetValueType() const;
+	virtual bool Equal(EXP_Value *other) const;
 
-	virtual EXP_Value *Calc(VALUE_OPERATOR op, EXP_Value *val);
-	virtual EXP_Value *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, EXP_Value *val);
+	bool GetValue() const;
+	void SetValue(bool value);
 
 	virtual EXP_Value *GetReplica();
 #ifdef WITH_PYTHON
@@ -49,7 +45,7 @@ public:
 #endif
 
 private:
-	bool m_bool;
+	bool m_value;
 };
 
 #endif  // __EXP_BOOLVALUE_H__

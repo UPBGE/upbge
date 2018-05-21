@@ -168,7 +168,7 @@ EXP_ListValue<EXP_StringValue> *BL_Converter::GetInactiveSceneNames()
 		if (m_ketsjiEngine->CurrentScenes()->FindValue(name)) {
 			continue;
 		}
-		EXP_StringValue *item = new EXP_StringValue(name, name);
+		EXP_StringValue *item = new EXP_StringValue(name);
 		list->Add(item);
 	}
 

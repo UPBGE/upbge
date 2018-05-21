@@ -57,7 +57,7 @@ KX_PlanarMap::~KX_PlanarMap()
 {
 }
 
-std::string KX_PlanarMap::GetName()
+std::string KX_PlanarMap::GetName() const
 {
 	return "KX_PlanarMap";
 }

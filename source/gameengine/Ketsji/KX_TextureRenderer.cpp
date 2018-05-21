@@ -46,7 +46,7 @@ KX_TextureRenderer::~KX_TextureRenderer()
 {
 }
 
-std::string KX_TextureRenderer::GetName()
+std::string KX_TextureRenderer::GetName() const
 {
 	return "KX_TextureRenderer";
 }
