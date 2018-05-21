@@ -6,7 +6,7 @@ It's an independent branch, and its aim is to clean up and improve current BGE c
 
 Currently, after the BF decision of delete BGE from next 2.8 release UPBGE becomes, de facto, the only one to follow the development of BGE. This gives us even more freedom, if possible, to make certain decisions, since we will never, in any way, come into conflict with the official version.
 
-Its development cycle spans the course of one month: 3 weeks to add new features, and 1 week to fix bugs. Then a new release is made available for download.
+Its development cycle spans the course of 4 months: 3 months to add new features and refactors and 1 months to fix bugs. Then a new release is made available for download (around 3 or 4 per year).
 
 Regularly, the UPBGE merges the official Blender new patches, to stay up-to-date with the last Blender evolutions.
 
