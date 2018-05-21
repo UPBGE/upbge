@@ -260,74 +260,6 @@ PyObject *EXP_BaseListValue::mapping_subscript(PyObject *self, PyObject *key)
 	return nullptr;
 }
 
-// clist + list, return a list that python owns.
-PyObject *EXP_BaseListValue::buffer_concat(PyObject *self, PyObject *other)
-{
-	EXP_BaseListValue *listval = static_cast<EXP_BaseListValue *>(EXP_PROXY_REF(self));
-
-	if (listval == nullptr) {
-		PyErr_SetString(PyExc_SystemError, "list+other, " EXP_PROXY_ERROR_MSG);
-		return nullptr;
-	}
-
-	Py_ssize_t numitems_orig = listval->GetCount();
-
-	/* For now, we support EXP_BaseListValue concatenated with items
-	 * and EXP_BaseListValue concatenated to Python Lists
-	 * and EXP_BaseListValue concatenated with another EXP_BaseListValue.
-	 */
-
-	// Shallow copy, don't use listval->GetReplica(), it will screw up with KX_GameObjects.
-	EXP_ListValue<EXP_Value> *listval_new = new EXP_ListValue<EXP_Value>();
-
-	if (PyList_Check(other)) {
-		Py_ssize_t numitems = PyList_GET_SIZE(other);
-
-		// Copy the first part of the list.
-		listval_new->Resize(numitems_orig + numitems);
-		for (Py_ssize_t i = 0; i < numitems_orig; i++) {
-			listval_new->SetValue(i, listval->GetValue(i)->AddRef());
-		}
-
-		for (Py_ssize_t i = 0; i < numitems; i++) {
-			EXP_Value *listitemval = listval->ConvertPythonToValue(PyList_GET_ITEM(other, i), true, "list + pyList: EXP_BaseListValue, ");
-
-			if (listitemval) {
-				listval_new->SetValue(i + numitems_orig, listitemval);
-			}
-			else {
-				listval_new->Resize(numitems_orig + i); // Resize so we don't try release nullptr pointers.
-				listval_new->Release();
-				return nullptr; // ConvertPythonToValue above sets the error.
-			}
-		}
-	}
-	else if (PyObject_TypeCheck(other, &EXP_BaseListValue::Type)) {
-		// Add items from otherlist to this list.
-		EXP_BaseListValue *otherval = static_cast<EXP_BaseListValue *>(EXP_PROXY_REF(other));
-		if (otherval == nullptr) {
-			listval_new->Release();
-			PyErr_SetString(PyExc_SystemError, "list+other, " EXP_PROXY_ERROR_MSG);
-			return nullptr;
-		}
-
-		Py_ssize_t numitems = otherval->GetCount();
-
-		// Copy the first part of the list.
-		listval_new->Resize(numitems_orig + numitems); // Resize so we don't try release nullptr pointers.
-		for (Py_ssize_t i = 0; i < numitems_orig; i++) {
-			listval_new->SetValue(i, listval->GetValue(i)->AddRef());
-		}
-
-		// Now copy the other part of the list.
-		for (Py_ssize_t i = 0; i < numitems; i++) {
-			listval_new->SetValue(i + numitems_orig, otherval->GetValue(i)->AddRef());
-		}
-
-	}
-	return listval_new->NewProxy(true); // Python owns this list.
-}
-
 int EXP_BaseListValue::buffer_contains(PyObject *self_v, PyObject *value)
 {
 	EXP_BaseListValue *self = static_cast<EXP_BaseListValue *>(EXP_PROXY_REF(self_v));
@@ -357,7 +289,7 @@ int EXP_BaseListValue::buffer_contains(PyObject *self_v, PyObject *value)
 
 PySequenceMethods EXP_BaseListValue::as_sequence = {
 	bufferlen, //(inquiry)buffer_length, /*sq_length*/
-	buffer_concat, /*sq_concat*/
+	nullptr, /*sq_concat*/
 	nullptr, /*sq_repeat*/
 	buffer_item, /*sq_item*/
 // TODO, slicing in py3
@@ -408,9 +340,6 @@ PyTypeObject EXP_BaseListValue::Type = {
 };
 
 PyMethodDef EXP_BaseListValue::Methods[] = {
-	// List style access.
-	{"append", (PyCFunction)EXP_BaseListValue::sPyappend, METH_O},
-	{"reverse", (PyCFunction)EXP_BaseListValue::sPyreverse, METH_NOARGS},
 	{"index", (PyCFunction)EXP_BaseListValue::sPyindex, METH_O},
 	{"count", (PyCFunction)EXP_BaseListValue::sPycount, METH_O},
 
@@ -427,36 +356,6 @@ PyMethodDef EXP_BaseListValue::Methods[] = {
 PyAttributeDef EXP_BaseListValue::Attributes[] = {
 	EXP_PYATTRIBUTE_NULL // Sentinel
 };
-
-PyObject *EXP_BaseListValue::Pyappend(PyObject *value)
-{
-	EXP_Value *objval = ConvertPythonToValue(value, true, "list.append(i): EXP_ValueList, ");
-
-	if (!objval) {
-		// ConvertPythonToValue sets the error.
-		return nullptr;
-	}
-
-	if (!EXP_PROXY_PYOWNS(m_proxy)) {
-		PyErr_SetString(PyExc_TypeError, "list.append(i): internal values can't be modified");
-		return nullptr;
-	}
-
-	Add(objval);
-
-	Py_RETURN_NONE;
-}
-
-PyObject *EXP_BaseListValue::Pyreverse()
-{
-	if (!EXP_PROXY_PYOWNS(m_proxy)) {
-		PyErr_SetString(PyExc_TypeError, "list.reverse(): internal values can't be modified");
-		return nullptr;
-	}
-
-	std::reverse(m_valueArray.begin(), m_valueArray.end());
-	Py_RETURN_NONE;
-}
 
 PyObject *EXP_BaseListValue::Pyindex(PyObject *value)
 {

@@ -11,14 +11,6 @@ base class --- :class:`EXP_PropValue`
 
    Other operations such as ``len(clist)``, ``list(clist)``, ``clist[0:10]`` are also supported.
 
-   .. method:: append(val)
-
-      Add an item to the list (like pythons append)
-
-      .. warning::
-      
-         Appending values to the list can cause crashes when the list is used internally by the game engine.
-
    .. method:: count(val)
 
       Count the number of instances of a value in the list.
@@ -32,10 +24,6 @@ base class --- :class:`EXP_PropValue`
 
       :return: The index of the value in the list.
       :rtype: integer
-
-   .. method:: reverse()
-
-      Reverse the order of the list.
 
    .. method:: get(key, default=None)
 
