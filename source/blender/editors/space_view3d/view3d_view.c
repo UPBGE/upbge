@@ -130,14 +130,14 @@ static void view3d_smooth_view_state_restore(const struct SmoothView3DState *sms
 /* the arguments are the desired situation */
 void ED_view3d_smooth_view_ex(
         /* avoid passing in the context */
-        wmWindowManager *wm, wmWindow *win, ScrArea *sa,
+        const Depsgraph *depsgraph, wmWindowManager *wm, wmWindow *win, ScrArea *sa,
         View3D *v3d, ARegion *ar, const int smooth_viewtx,
         const V3D_SmoothParams *sview)
 {
 	RegionView3D *rv3d = ar->regiondata;
 	struct SmoothView3DStore sms = {{0}};
 	bool ok = false;
-	
+
 	/* initialize sms */
 	view3d_smooth_view_state_backup(&sms.dst, v3d, rv3d);
 	view3d_smooth_view_state_backup(&sms.src, v3d, rv3d);
@@ -186,8 +186,9 @@ void ED_view3d_smooth_view_ex(
 	}
 
 	if (sview->camera) {
-		sms.dst.dist = ED_view3d_offset_distance(sview->camera->obmat, sview->ofs, VIEW3D_DIST_FALLBACK);
-		ED_view3d_from_object(sview->camera, sms.dst.ofs, sms.dst.quat, &sms.dst.dist, &sms.dst.lens);
+		Object *camera_eval = DEG_get_evaluated_object(depsgraph, sview->camera);
+		sms.dst.dist = ED_view3d_offset_distance(camera_eval->obmat, sview->ofs, VIEW3D_DIST_FALLBACK);
+		ED_view3d_from_object(camera_eval, sms.dst.ofs, sms.dst.quat, &sms.dst.dist, &sms.dst.lens);
 		sms.to_camera = true; /* restore view3d values in end */
 	}
 	
@@ -211,9 +212,10 @@ void ED_view3d_smooth_view_ex(
 		if (changed) {
 			/* original values */
 			if (sview->camera_old) {
-				sms.src.dist = ED_view3d_offset_distance(sview->camera_old->obmat, rv3d->ofs, 0.0f);
+				Object *camera_old_eval = DEG_get_evaluated_object(depsgraph, sview->camera_old);
+				sms.src.dist = ED_view3d_offset_distance(camera_old_eval->obmat, rv3d->ofs, 0.0f);
 				/* this */
-				ED_view3d_from_object(sview->camera_old, sms.src.ofs, sms.src.quat, &sms.src.dist, &sms.src.lens);
+				ED_view3d_from_object(camera_old_eval, sms.src.ofs, sms.src.quat, &sms.src.dist, &sms.src.lens);
 			}
 			/* grid draw as floor */
 			if ((rv3d->viewlock & RV3D_LOCKED) == 0) {
@@ -235,9 +237,10 @@ void ED_view3d_smooth_view_ex(
 			/* ensure it shows correct */
 			if (sms.to_camera) {
 				/* use ortho if we move from an ortho view to an ortho camera */
+				Object *camera_eval = DEG_get_evaluated_object(depsgraph, sview->camera);
 				rv3d->persp = (((rv3d->is_persp == false) &&
-				                (sview->camera->type == OB_CAMERA) &&
-				                (((Camera *)sview->camera->data)->type == CAM_ORTHO)) ?
+				                (camera_eval->type == OB_CAMERA) &&
+				                (((Camera *)camera_eval->data)->type == CAM_ORTHO)) ?
 				                RV3D_ORTHO : RV3D_PERSP);
 			}
 
@@ -286,11 +289,13 @@ void ED_view3d_smooth_view(
         View3D *v3d, ARegion *ar, const int smooth_viewtx,
         const struct V3D_SmoothParams *sview)
 {
+	const Depsgraph *depsgraph = CTX_data_depsgraph(C);
 	wmWindowManager *wm = CTX_wm_manager(C);
 	wmWindow *win = CTX_wm_window(C);
 	ScrArea *sa = CTX_wm_area(C);
 
 	ED_view3d_smooth_view_ex(
+	        depsgraph,
 	        wm, win, sa,
 	        v3d, ar, smooth_viewtx,
 	        sview);
@@ -784,15 +789,15 @@ void view3d_viewmatrix_set(
 		quat_to_mat4(rv3d->viewmat, rv3d->viewquat);
 		if (rv3d->persp == RV3D_PERSP) rv3d->viewmat[3][2] -= rv3d->dist;
 		if (v3d->ob_centre) {
-			Object *ob = v3d->ob_centre;
+			Object *ob_eval = DEG_get_evaluated_object(depsgraph, v3d->ob_centre);
 			float vec[3];
 			
-			copy_v3_v3(vec, ob->obmat[3]);
-			if (ob->type == OB_ARMATURE && v3d->ob_centre_bone[0]) {
-				bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose, v3d->ob_centre_bone);
+			copy_v3_v3(vec, ob_eval->obmat[3]);
+			if (ob_eval->type == OB_ARMATURE && v3d->ob_centre_bone[0]) {
+				bPoseChannel *pchan = BKE_pose_channel_find_name(ob_eval->pose, v3d->ob_centre_bone);
 				if (pchan) {
 					copy_v3_v3(vec, pchan->pose_mat[3]);
-					mul_m4_v3(ob->obmat, vec);
+					mul_m4_v3(ob_eval->obmat, vec);
 				}
 			}
 			translate_m4(rv3d->viewmat, -vec[0], -vec[1], -vec[2]);
