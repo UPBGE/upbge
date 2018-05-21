@@ -76,10 +76,6 @@ enum VALUE_DATA_TYPE {
 /**
  * Baseclass EXP_Value
  *
- * Together with EXP_Expression, EXP_Value and it's derived classes can be used to
- * parse expressions into a parsetree with error detecting/correcting capabilities
- * also expandable by a CFactory pluginsystem
- *
  * Base class for all editor functionality, flexible object type that allows
  * calculations and uses reference counting for memory management.
  *
@@ -115,52 +111,38 @@ public:
 
 	static PyObject *pyattr_get_name(EXP_PyObjectPlus *self, const EXP_PYATTRIBUTE_DEF *attrdef);
 
-	virtual PyObject *ConvertKeysToPython(void);
+	virtual PyObject *ConvertKeysToPython();
 #endif  // WITH_PYTHON
-
-	/// Expression Calculation
-	virtual EXP_Value *Calc(VALUE_OPERATOR op, EXP_Value *val);
-	virtual EXP_Value *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, EXP_Value *val);
 
 	/// Property Management
 	/// Set property <ioProperty>, overwrites and releases a previous property with the same name if needed.
-	virtual void SetProperty(const std::string& name, EXP_Value *ioProperty);
-	virtual EXP_Value *GetProperty(const std::string & inName);
-	/// Get text description of property with name <inName>, returns an empty string if there is no property named <inName>.
-	const std::string GetPropertyText(const std::string & inName);
-	float GetPropertyNumber(const std::string& inName, float defnumber);
+	void SetProperty(const std::string& name, EXP_Value *ioProperty);
+	/// Get pointer to a property with name <inName>, returns nullptr if there is no property named <inName>.
+	EXP_Value *GetProperty(const std::string & inName) const;
 	/// Remove the property named <inName>, returns true if the property was succesfully removed, false if property was not found or could not be removed.
-	virtual bool RemoveProperty(const std::string& inName);
-	virtual std::vector<std::string>    GetPropertyNames();
+	bool RemoveProperty(const std::string& inName);
+	std::vector<std::string> GetPropertyNames() const;
 	/// Clear all properties.
-	virtual void ClearProperties();
+	void ClearProperties();
 
 	/// Get property number <inIndex>.
-	virtual EXP_Value *GetProperty(int inIndex);
+	EXP_Value *GetProperty(int inIndex) const;
 	/// Get the amount of properties assiocated with this value.
-	virtual int GetPropertyCount();
+	int GetPropertyCount();
 
-	virtual EXP_Value *FindIdentifier(const std::string& identifiername);
-
-	virtual std::string GetText();
-	virtual double GetNumber();
+	virtual std::string GetText() const;
 	/// Get Prop value type.
-	virtual int GetValueType();
+	virtual int GetValueType() const;
+	/// Check if to value are equivalent.
+	virtual bool Equal(EXP_Value *other) const;
 
 	/// Retrieve the name of the value.
-	virtual std::string GetName() = 0;
+	virtual std::string GetName() const = 0;
 	/// Set the name of the value.
 	virtual void SetName(const std::string& name);
-	/** Sets the value to this cvalue.
-	 * \attention this particular function should never be called. Why not abstract?
-	 */
-	virtual void SetValue(EXP_Value *newval);
+
 	virtual EXP_Value *GetReplica();
 	virtual void ProcessReplica();
-
-	std::string op2str(VALUE_OPERATOR op);
-
-	virtual bool IsError() const;
 
 protected:
 	virtual void DestructFromPython();
@@ -170,33 +152,18 @@ private:
 	std::map<std::string, EXP_Value *> m_properties;
 };
 
-/** EXP_PropValue is a EXP_Value derived class, that implements the identification (String name)
- * SetName() / GetName(),
- * normal classes should derive from EXP_PropValue, real lightweight classes straight from EXP_Value
- */
+/// Property class base, forbid name management, EXP_Value store the names inside a property map.
 class EXP_PropValue : public EXP_Value
 {
 public:
-	EXP_PropValue()
-	{
-	}
-
-	virtual ~EXP_PropValue()
-	{
-	}
-
 	virtual void SetName(const std::string& name)
 	{
-		m_strNewName = name;
 	}
 
-	virtual std::string GetName()
+	virtual std::string GetName() const
 	{
-		return m_strNewName;
+		return "";
 	}
-
-protected:
-	std::string m_strNewName;
 };
 
 #endif  // __EXP_VALUE_H__

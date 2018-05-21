@@ -45,7 +45,7 @@ public:
 	virtual ~KX_PythonComponent();
 
 	// stuff for cvalue related things
-	virtual std::string GetName();
+	virtual std::string GetName() const;
 	virtual EXP_Value *GetReplica();
 
 	void ProcessReplica();

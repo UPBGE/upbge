@@ -195,7 +195,7 @@ void BL_Texture::DisableTexture()
 }
 
 // stuff for cvalue related things
-std::string BL_Texture::GetName()
+std::string BL_Texture::GetName() const
 {
 	return RAS_Texture::GetName();
 }

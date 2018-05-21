@@ -43,7 +43,7 @@ KX_BatchGroup::~KX_BatchGroup()
 	m_objects->Release();
 }
 
-std::string KX_BatchGroup::GetName()
+std::string KX_BatchGroup::GetName() const
 {
 	return "KX_BatchGroup";
 }

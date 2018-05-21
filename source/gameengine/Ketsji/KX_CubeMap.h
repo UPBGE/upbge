@@ -50,7 +50,7 @@ public:
 	KX_CubeMap(EnvMap *env, KX_GameObject *viewpoint);
 	virtual ~KX_CubeMap();
 
-	virtual std::string GetName();
+	virtual std::string GetName() const;
 
 	virtual void InvalidateProjectionMatrix();
 	virtual const mt::mat4& GetProjectionMatrix(RAS_Rasterizer *rasty, KX_Scene *scene, KX_Camera *sceneCamera,

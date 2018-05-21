@@ -105,7 +105,7 @@ KX_PolyProxy::~KX_PolyProxy()
 
 
 // stuff for cvalue related things
-std::string KX_PolyProxy::GetName()
+std::string KX_PolyProxy::GetName() const
 {
 	return "polygone";
 }

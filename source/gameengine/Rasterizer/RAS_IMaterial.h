@@ -122,7 +122,7 @@ public:
 	int GetDrawingMode() const;
 	int GetAlphaBlend() const;
 	float GetZOffset() const;
-	virtual std::string GetName();
+	virtual std::string GetName() const;
 	unsigned int GetFlag() const;
 	bool IsAlphaShadow() const;
 	bool CastsShadows() const;

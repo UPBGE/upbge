@@ -1457,8 +1457,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 			 * so the class must be released after being used to make sure that it won't
 			 * hang in memory. If the object needs to be stored for a long time,
 			 * use AddRef() so that this Release() does not free the object.
-			 * Make sure that for any AddRef() there is a Release()!!!!
-			 * Do the same for any object derived from EXP_Value, EXP_Expression and NG_NetworkMessage
+			 * Make sure that for any AddRef() there is a Release().
 			 */
 			gameobj->Release();
 		}

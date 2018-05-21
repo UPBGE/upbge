@@ -111,12 +111,12 @@ bool EXP_BaseListWrapper::AllowFindValue() const
 	return (m_flag & FLAG_FIND_VALUE);
 }
 
-std::string EXP_BaseListWrapper::GetName()
+std::string EXP_BaseListWrapper::GetName() const
 {
 	return "ListWrapper";
 }
 
-std::string EXP_BaseListWrapper::GetText()
+std::string EXP_BaseListWrapper::GetText() const
 {
 	std::string strListRep = "[";
 	std::string commastr = "";
@@ -131,7 +131,7 @@ std::string EXP_BaseListWrapper::GetText()
 	return strListRep;
 }
 
-int EXP_BaseListWrapper::GetValueType()
+int EXP_BaseListWrapper::GetValueType() const
 {
 	return -1;
 }

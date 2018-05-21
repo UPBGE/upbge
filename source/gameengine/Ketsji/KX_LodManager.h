@@ -81,7 +81,7 @@ public:
 	KX_LodManager(Object *ob, KX_Scene *scene, BL_SceneConverter& converter);
 	virtual ~KX_LodManager();
 
-	virtual std::string GetName();
+	virtual std::string GetName() const;
 
 	/// Return number of lod levels.
 	unsigned int GetLevelCount() const;

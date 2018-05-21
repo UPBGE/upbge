@@ -82,9 +82,9 @@ public:
 	bool AllowFindValue() const;
 
 	/// \section EXP_Value Inherited Functions.
-	virtual std::string GetName();
-	virtual std::string GetText();
-	virtual int GetValueType();
+	virtual std::string GetName() const;
+	virtual std::string GetText() const;
+	virtual int GetValueType() const;
 
 	// Python list operators.
 	static PySequenceMethods py_as_sequence;

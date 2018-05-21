@@ -41,15 +41,14 @@ protected:
 	void Add(EXP_Value *value);
 	void Insert(unsigned int i, EXP_Value *value);
 	bool RemoveValue(EXP_Value *val);
-	bool CheckEqual(EXP_Value *first, EXP_Value *second);
 
 public:
 	EXP_BaseListValue();
 	virtual ~EXP_BaseListValue();
 
-	virtual int GetValueType();
+	virtual int GetValueType() const;
 	virtual EXP_Value *GetReplica() = 0;
-	virtual std::string GetText();
+	virtual std::string GetText() const;
 
 	void SetReleaseOnDestruct(bool bReleaseContents);
 

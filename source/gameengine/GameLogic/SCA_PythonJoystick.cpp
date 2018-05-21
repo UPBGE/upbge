@@ -52,7 +52,7 @@ SCA_PythonJoystick::~SCA_PythonJoystick()
 #endif
 }
 
-std::string SCA_PythonJoystick::GetName()
+std::string SCA_PythonJoystick::GetName() const
 {
 	return m_joystick->GetName();
 }

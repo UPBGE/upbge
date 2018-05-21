@@ -128,7 +128,7 @@ KX_LodManager::~KX_LodManager()
 {
 }
 
-std::string KX_LodManager::GetName()
+std::string KX_LodManager::GetName() const
 {
 	return "KX_LodManager";
 }

@@ -45,7 +45,7 @@ public:
 	KX_LodLevel(float distance, float hysteresis, unsigned short level, KX_Mesh *mesh, unsigned short flag);
 	virtual ~KX_LodLevel();
 
-	virtual std::string GetName();
+	virtual std::string GetName() const;
 
 	float GetDistance() const;
 	float GetHysteresis() const;

@@ -42,17 +42,8 @@ set(SRC
 	intern/BaseListValue.cpp
 	intern/BaseListWrapper.cpp
 	intern/BoolValue.cpp
-	intern/ConstExpr.cpp
-	intern/EmptyValue.cpp
-	intern/ErrorValue.cpp
-	intern/Expression.cpp
 	intern/FloatValue.cpp
-	intern/IdentifierExpr.cpp
-	intern/IfExpr.cpp
-	intern/InputParser.cpp
 	intern/IntValue.cpp
-	intern/Operator1Expr.cpp
-	intern/Operator2Expr.cpp
 	intern/PyObjectPlus.cpp
 	intern/StringValue.cpp
 	intern/Value.cpp
@@ -60,17 +51,8 @@ set(SRC
 	EXP_BaseListValue.h
 	EXP_BaseListWrapper.h
 	EXP_BoolValue.h
-	EXP_ConstExpr.h
-	EXP_EmptyValue.h
-	EXP_ErrorValue.h
-	EXP_Expression.h
 	EXP_FloatValue.h
-	EXP_IdentifierExpr.h
-	EXP_IfExpr.h
-	EXP_InputParser.h
 	EXP_IntValue.h
-	EXP_Operator1Expr.h
-	EXP_Operator2Expr.h
 	EXP_PyObjectPlus.h
 	EXP_Python.h
 	EXP_StringValue.h
