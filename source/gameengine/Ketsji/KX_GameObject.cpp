@@ -2172,8 +2172,6 @@ static int Map_SetItem(PyObject *self_v, PyObject *key, PyObject *val)
 
 			if (vallie) {
 				self->SetProperty(attr_str, vallie);
-
-				vallie->Release();
 				set = true;
 
 				/* try remove dict value to avoid double ups */
@@ -3693,7 +3691,7 @@ PyObject *KX_GameObject::PyGetAxisVect(PyObject *value)
 
 PyObject *KX_GameObject::PyGetPhysicsId()
 {
-	unsigned long long physid = 0;
+	unsigned long long physid = 0; // TODO work with PyCapsule
 	if (m_physicsController) {
 		physid = (unsigned long long)m_physicsController.get();
 	}
