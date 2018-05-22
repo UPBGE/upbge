@@ -27,39 +27,46 @@ EXP_Value::EXP_Value()
 {
 }
 
+EXP_Value::EXP_Value(const EXP_Value& other)
+	:EXP_PyObjectPlus(other),
+	CM_RefCount<EXP_Value>(other)
+{
+	for (const auto& pair : other.m_properties) {
+		m_properties.emplace(pair.first, pair.second->GetReplica());
+	}
+}
+
 EXP_Value::~EXP_Value()
 {
 	ClearProperties();
 }
 
-void EXP_Value::SetProperty(const std::string & name, EXP_Value *ioProperty)
+void EXP_Value::SetProperty(const std::string& name, EXP_Value *ioProperty)
 {
 	// Try to replace property.
-	std::map<std::string, EXP_Value *>::iterator it = m_properties.find(name);
+	auto it = m_properties.find(name);
 	if (it != m_properties.end()) {
-		it->second->Release();
-		it->second = ioProperty->AddRef();
+		it->second.reset(ioProperty);
 	}
 	// Add property into the array.
 	else {
-		m_properties.insert({name, ioProperty->AddRef()});
+		m_properties.emplace(name, ioProperty);
 	}
 }
 
 EXP_Value *EXP_Value::GetProperty(const std::string& inName) const
 {
-	std::map<std::string, EXP_Value *>::const_iterator it = m_properties.find(inName);
+	const auto it = m_properties.find(inName);
 	if (it != m_properties.end()) {
-		return it->second;
+		return it->second.get();
 	}
 	return nullptr;
 }
 
 bool EXP_Value::RemoveProperty(const std::string& inName)
 {
-	std::map<std::string, EXP_Value *>::iterator it = m_properties.find(inName);
+	auto it = m_properties.find(inName);
 	if (it != m_properties.end()) {
-		it->second->Release();
 		m_properties.erase(it);
 		return true;
 	}
@@ -81,10 +88,6 @@ std::vector<std::string> EXP_Value::GetPropertyNames() const
 
 void EXP_Value::ClearProperties()
 {
-	// Remove all properties.
-	for (const auto& pair : m_properties) {
-		pair.second->Release();
-	}
 	m_properties.clear();
 }
 
@@ -93,7 +96,7 @@ EXP_Value *EXP_Value::GetProperty(int inIndex) const
 	int count = 0;
 	for (const auto& pair : m_properties) {
 		if (count++ == inIndex) {
-			return pair.second;
+			return pair.second.get();
 		}
 	}
 	return nullptr;
@@ -116,11 +119,6 @@ void EXP_Value::DestructFromPython()
 void EXP_Value::ProcessReplica()
 {
 	EXP_PyObjectPlus::ProcessReplica();
-
-	// Copy all props.
-	for (auto& pair : m_properties) {
-		pair.second = pair.second->GetReplica();
-	}
 }
 
 int EXP_Value::GetValueType() const
@@ -215,7 +213,7 @@ EXP_Value *EXP_Value::ConvertPythonToValue(PyObject *pyobj, const bool do_type_e
 
 }
 
-PyObject *EXP_Value::ConvertKeysToPython(void)
+PyObject *EXP_Value::ConvertKeysToPython()
 {
 	PyObject *pylist = PyList_New(m_properties.size());
 

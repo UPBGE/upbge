@@ -594,7 +594,8 @@ public:
 	void InvalidateProxy();
 
 	/// Makes sure any internal data owned by this class is deep copied.
-	virtual void ProcessReplica();};
+	virtual void ProcessReplica();
+};
 
 #ifdef WITH_PYTHON
 PyObject *PyUnicode_FromStdString(const std::string& str);
