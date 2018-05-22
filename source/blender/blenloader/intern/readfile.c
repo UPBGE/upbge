@@ -2946,6 +2946,7 @@ static void direct_link_workspace(FileData *fd, WorkSpace *workspace, const Main
 
 	for (bToolRef *tref = workspace->tools.first; tref; tref = tref->next) {
 		tref->runtime = NULL;
+		tref->properties = newdataadr(fd, tref->properties);
 	}
 }
 

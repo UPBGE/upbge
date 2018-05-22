@@ -137,6 +137,7 @@ void WM_opengl_context_release(void *context);
 enum {
 	WM_WINDOW_RENDER = 1,
 	WM_WINDOW_USERPREFS,
+	WM_WINDOW_DRIVERS,
 	// WM_WINDOW_FILESEL // UNUSED
 };
 
@@ -646,6 +647,12 @@ bool WM_toolsystem_active_tool_is_brush(const struct bContext *C);
 
 void WM_toolsystem_do_msg_notify_tag_refresh(
         struct bContext *C, struct wmMsgSubscribeKey *msg_key, struct wmMsgSubscribeValue *msg_val);
+
+struct IDProperty *WM_toolsystem_ref_properties_ensure_idprops(struct bToolRef *tref);
+void WM_toolsystem_ref_properties_ensure(struct bToolRef *tref, struct wmOperatorType *ot, struct PointerRNA *ptr);
+
+void WM_toolsystem_ref_properties_init_for_keymap(
+        struct bToolRef *tref, struct PointerRNA *dst_ptr, struct PointerRNA *src_ptr, struct wmOperatorType *ot);
 
 /* wm_tooltip.c */
 typedef struct ARegion *(*wmTooltipInitFn)(struct bContext *, struct ARegion *, bool *);

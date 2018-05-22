@@ -3539,14 +3539,25 @@ class VIEW3D_PT_shading(Panel):
 
             col.separator()
 
-            if not(shading.light == 'STUDIO' and shading.studio_light_orientation == 'WORLD'):
-                row = col.row()
-                row.prop(shading, "show_shadows")
-                sub = row.row()
-                sub.active = shading.show_shadows
-                sub.prop(shading, "shadow_intensity", text="")
+            row = col.row()
+            row.prop(shading, "show_see_through")
+            sub = row.row()
+            sub.active = shading.show_see_through
+            sub.prop(shading, "see_through_transparency", text="")
 
-            col.prop(shading, "show_object_outline")
+            row = col.row()
+            row.active = not shading.show_see_through
+            row.prop(shading, "show_shadows")
+            sub = row.row()
+            sub.active = shading.show_shadows and not shading.show_see_through
+            sub.prop(shading, "shadow_intensity", text="")
+
+
+            row = col.row()
+            row.prop(shading, "show_object_outline")
+            sub = row.row()
+            sub.active = shading.show_object_outline
+            sub.prop(shading, "object_outline_color", text="")
 
 
 class VIEW3D_PT_overlay(Panel):
