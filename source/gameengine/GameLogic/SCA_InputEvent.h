@@ -45,6 +45,8 @@ public:
 	SCA_InputEvent();
 	SCA_InputEvent(int type);
 
+	SCA_InputEvent& operator=(SCA_InputEvent&& other) = default;
+
 	virtual std::string GetName() const;
 
 	/// Clear status, values and queue but keep status and value from before.
