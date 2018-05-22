@@ -10,7 +10,7 @@
 	1 RT_MANIFEST "blender.exe.manifest"
 #endif
 
-APPICON ICON DISCARDABLE "winblender.ico"
+APPICON ICON DISCARDABLE "winupbge.ico"
 BLENDERFILE ICON DISCARDABLE "winblenderfile.ico"
 
 IDR_VERSION1 VERSIONINFO
@@ -27,8 +27,8 @@ BEGIN
       VALUE "ProductVersion", BLEN_VER_RC_STR
       VALUE "CompanyName", "UPBGE - Blender Fork"
       VALUE "FileDescription", "UPBGE"
-      VALUE "LegalCopyright", "GPLv2 (Blender Foundation)"
-      VALUE "OriginalFilename", "blender.exe"
+      VALUE "LegalCopyright", "GPLv2"
+      VALUE "OriginalFilename", "blender-upbge.exe"
       VALUE "ProductName", "UPBGE"
     END
   END
