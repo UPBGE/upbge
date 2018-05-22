@@ -180,7 +180,7 @@ public:
 	void RegisterMesh(KX_Scene *scene, KX_Mesh *mesh);
 
 	Scene *GetBlenderSceneForName(const std::string& name);
-	EXP_ListValue<EXP_StringValue> *GetInactiveSceneNames();
+	std::vector<std::string> GetInactiveSceneNames() const;
 
 	/// Return a new empty library of name path.
 	Main *CreateLibrary(const std::string& path);

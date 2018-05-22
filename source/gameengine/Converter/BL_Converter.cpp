@@ -157,17 +157,16 @@ Scene *BL_Converter::GetBlenderSceneForName(const std::string &name)
 	return nullptr;
 }
 
-EXP_ListValue<EXP_StringValue> *BL_Converter::GetInactiveSceneNames()
+std::vector<std::string> BL_Converter::GetInactiveSceneNames() const
 {
-	EXP_ListValue<EXP_StringValue> *list = new EXP_ListValue<EXP_StringValue>();
+	std::vector<std::string> list;
 
 	for (Scene *sce = (Scene *)m_maggie->scene.first; sce; sce = (Scene *)sce->id.next) {
 		const char *name = sce->id.name + 2;
 		if (m_ketsjiEngine->CurrentScenes()->FindValue(name)) {
 			continue;
 		}
-		EXP_StringValue *item = new EXP_StringValue(name);
-		list->Add(item);
+		list.push_back(name);
 	}
 
 	return list;
