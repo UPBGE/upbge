@@ -654,7 +654,7 @@ bool CcdPhysicsController::ReplaceControllerShape(btCollisionShape *newShape)
 
 	btSoftBody *softBody = GetSoftBody();
 	if (softBody) {
-		btSoftRigidDynamicsWorld *world = m_physicsEnv->GetDynamicsWorld();
+		btSoftRigidDynamicsWorld *world = m_cci.m_physicsEnv->GetDynamicsWorld();
 		// remove the old softBody
 		world->removeSoftBody(softBody);
 
@@ -1013,7 +1013,7 @@ void CcdPhysicsController::RefreshCollisions()
 		return;
 	}
 
-	btSoftRigidDynamicsWorld *dw = m_physicsEnv->GetDynamicsWorld();
+	btSoftRigidDynamicsWorld *dw = m_cci.m_physicsEnv->GetDynamicsWorld();
 	btBroadphaseProxy *proxy = m_object->getBroadphaseHandle();
 	btDispatcher *dispatcher = dw->getDispatcher();
 	btOverlappingPairCache *pairCache = dw->getPairCache();
@@ -1023,17 +1023,17 @@ void CcdPhysicsController::RefreshCollisions()
 
 	// Forcibly recreate the physics object
 	btBroadphaseProxy *handle = m_object->getBroadphaseHandle();
-	m_physicsEnv->UpdateCcdPhysicsController(this, GetMass(), m_object->getCollisionFlags(), handle->m_collisionFilterGroup, handle->m_collisionFilterMask);
+	m_cci.m_physicsEnv->UpdateCcdPhysicsController(this, GetMass(), m_object->getCollisionFlags(), handle->m_collisionFilterGroup, handle->m_collisionFilterMask);
 }
 
 void CcdPhysicsController::SuspendPhysics(bool freeConstraints)
 {
-	m_physicsEnv->RemoveCcdPhysicsController(this, freeConstraints);
+	m_cci.m_physicsEnv->RemoveCcdPhysicsController(this, freeConstraints);
 }
 
 void CcdPhysicsController::RestorePhysics()
 {
-	m_physicsEnv->AddCcdPhysicsController(this);
+	m_cci.m_physicsEnv->AddCcdPhysicsController(this);
 }
 
 void CcdPhysicsController::SuspendDynamics(bool ghost)
@@ -1048,7 +1048,7 @@ void CcdPhysicsController::SuspendDynamics(bool ghost)
 		m_savedCollisionFilterGroup = handle->m_collisionFilterGroup;
 		m_savedCollisionFilterMask = handle->m_collisionFilterMask;
 		m_suspended = true;
-		m_physicsEnv->UpdateCcdPhysicsController(this,
+		m_cci.m_physicsEnv->UpdateCcdPhysicsController(this,
 		                                                    0.0f,
 		                                                    btCollisionObject::CF_STATIC_OBJECT | ((ghost) ? btCollisionObject::CF_NO_CONTACT_RESPONSE : (m_savedCollisionFlags & btCollisionObject::CF_NO_CONTACT_RESPONSE)),
 		                                                    btBroadphaseProxy::StaticFilter,
@@ -1063,7 +1063,7 @@ void CcdPhysicsController::RestoreDynamics()
 	if (body && m_suspended && !IsPhysicsSuspended()) {
 		// before make sure any position change that was done in this logic frame are accounted for
 		SetTransform();
-		m_physicsEnv->UpdateCcdPhysicsController(this,
+		m_cci.m_physicsEnv->UpdateCcdPhysicsController(this,
 		                                                    m_savedMass,
 		                                                    m_savedCollisionFlags,
 		                                                    m_savedCollisionFilterGroup,
@@ -1133,7 +1133,7 @@ void CcdPhysicsController::SetMass(float newmass)
 	btRigidBody *body = GetRigidBody();
 	if (body && !m_suspended && !IsPhysicsSuspended() && (!mt::FuzzyZero(newmass) && !mt::FuzzyZero(GetMass()))) {
 		btBroadphaseProxy *handle = body->getBroadphaseHandle();
-		m_physicsEnv->UpdateCcdPhysicsController(this,
+		m_cci.m_physicsEnv->UpdateCcdPhysicsController(this,
 		                                                    newmass,
 		                                                    body->getCollisionFlags(),
 		                                                    handle->m_collisionFilterGroup,
@@ -1554,9 +1554,9 @@ void CcdPhysicsController::AddCompoundChild(PHY_IPhysicsController *child)
 		rootBody->setMassProps(mass, localInertia * m_cci.m_inertiaFactor);
 	}
 	// must update the broadphase cache,
-	m_physicsEnv->RefreshCcdPhysicsController(this);
+	m_cci.m_physicsEnv->RefreshCcdPhysicsController(this);
 	// remove the children
-	m_physicsEnv->RemoveCcdPhysicsController(childCtrl, true);
+	m_cci.m_physicsEnv->RemoveCcdPhysicsController(childCtrl, true);
 }
 
 /* Reverse function of the above, it will remove a shape from a compound shape
@@ -1610,9 +1610,9 @@ void CcdPhysicsController::RemoveCompoundChild(PHY_IPhysicsController *child)
 		rootBody->setMassProps(mass, localInertia * m_cci.m_inertiaFactor);
 	}
 	// must update the broadphase cache,
-	m_physicsEnv->RefreshCcdPhysicsController(this);
+	m_cci.m_physicsEnv->RefreshCcdPhysicsController(this);
 	// reactivate the children
-	m_physicsEnv->AddCcdPhysicsController(childCtrl);
+	m_cci.m_physicsEnv->AddCcdPhysicsController(childCtrl);
 }
 
 PHY_IPhysicsController *CcdPhysicsController::GetReplica()
@@ -1693,7 +1693,7 @@ bool CcdPhysicsController::ReinstancePhysicsShape(KX_GameObject *from_gameobj, R
 	m_shapeInfo->UpdateMesh(from_gameobj, from_meshobj);
 
 	/* create the new bullet mesh */
-	m_physicsEnv->UpdateCcdPhysicsControllerShape(m_shapeInfo);
+	m_cci.m_physicsEnv->UpdateCcdPhysicsControllerShape(m_shapeInfo);
 
 	return true;
 }
@@ -1709,7 +1709,7 @@ void CcdPhysicsController::ReplacePhysicsShape(PHY_IPhysicsController *phyctrl)
 	// recreate Bullet shape only for this physics controller
 	ReplaceControllerShape(nullptr);
 	// refresh to remove collision pair
-	m_physicsEnv->RefreshCcdPhysicsController(this);
+	m_cci.m_physicsEnv->RefreshCcdPhysicsController(this);
 }
 
 ///////////////////////////////////////////////////////////
@@ -1829,7 +1829,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(KX_GameObject *gameobj, RAS_Mesh *mesh
 		return false;
 	}
 
-	RAS_DisplayArrayList displayArrays;
+	RAS_IDisplayArrayList displayArrays;
 
 	// Indices count.
 	unsigned int numIndices = 0;
