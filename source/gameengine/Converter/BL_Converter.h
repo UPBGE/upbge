@@ -152,7 +152,7 @@ public:
 	void RegisterMesh(KX_Scene *scene, KX_Mesh *mesh);
 
 	Scene *GetBlenderSceneForName(const std::string& name);
-	EXP_ListValue<EXP_StringValue> *GetInactiveSceneNames();
+	std::vector<std::string> GetInactiveSceneNames() const;
 
 	Main *CreateMainDynamic(const std::string& path);
 	Main *GetMainDynamicPath(const std::string& path) const;

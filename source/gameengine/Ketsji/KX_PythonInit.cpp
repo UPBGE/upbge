@@ -578,12 +578,17 @@ PyDoc_STRVAR(gPyGetInactiveSceneNames_doc,
              );
 static PyObject *gPyGetInactiveSceneNames(PyObject *self)
 {
-	EXP_ListValue<EXP_StringValue> *list = KX_GetActiveEngine()->GetConverter()->GetInactiveSceneNames();
+	const std::vector<std::string> list = KX_GetActiveEngine()->GetConverter()->GetInactiveSceneNames();
 
-	return list->NewProxy(true);
+	const unsigned short size = list.size();
+	PyObject *pylist = PyList_New(size);
+
+	for (unsigned short i = 0; i < size; ++i) {
+		PyList_SET_ITEM(pylist, i, PyUnicode_FromStdString(list[i]));
+	}
+
+	return pylist;
 }
-
-
 
 static PyObject *pyPrintStats(PyObject *, PyObject *, PyObject *)
 {
