@@ -343,13 +343,11 @@ int KX_FontObject::pyattr_set_text(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBU
 
 	/* Allow for some logic brick control */
 	EXP_Value *tprop = self->GetProperty("Text"); // TODO deprecate
-	if (tprop) {
-		EXP_Value *newstringprop = new EXP_StringValue(std::string(chars));
-		self->SetProperty("Text", newstringprop);
-		newstringprop->Release();
+	if (tprop && tprop->GetValueType() == VALUE_STRING_TYPE) {
+		static_cast<EXP_StringValue *>(tprop)->SetValue(std::string(chars));
 	}
 	else {
-		self->SetText(std::string(chars));
+		self->SetText(std::string(chars)); // TODO: Check unicode support
 	}
 
 	return PY_SET_ATTR_SUCCESS;
