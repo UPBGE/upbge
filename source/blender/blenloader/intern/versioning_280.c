@@ -297,6 +297,7 @@ static void do_version_group_collection_to_collection(Main *bmain, Collection *g
 	}
 
 	group->collection = NULL;
+	group->view_layer = NULL;
 	id_fake_user_set(&group->id);
 }
 
@@ -1517,6 +1518,26 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *main)
 						}
 					}
 				}
+			}
+		}
+
+		for (Scene *scene = main->scene.first; scene; scene = scene->id.next) {
+			switch (scene->toolsettings->snap_mode) {
+				case 0: scene->toolsettings->snap_mode = SCE_SNAP_MODE_INCREMENT; break;
+				case 1: scene->toolsettings->snap_mode = SCE_SNAP_MODE_VERTEX   ; break;
+				case 2: scene->toolsettings->snap_mode = SCE_SNAP_MODE_EDGE     ; break;
+				case 3: scene->toolsettings->snap_mode = SCE_SNAP_MODE_FACE     ; break;
+				case 4: scene->toolsettings->snap_mode = SCE_SNAP_MODE_VOLUME   ; break;
+			}
+			switch (scene->toolsettings->snap_node_mode) {
+				case 5: scene->toolsettings->snap_node_mode = SCE_SNAP_MODE_NODE_X; break;
+				case 6: scene->toolsettings->snap_node_mode = SCE_SNAP_MODE_NODE_Y; break;
+				case 7: scene->toolsettings->snap_node_mode = SCE_SNAP_MODE_NODE_X | SCE_SNAP_MODE_NODE_Y; break;
+				case 8: scene->toolsettings->snap_node_mode = SCE_SNAP_MODE_GRID  ; break;
+			}
+			switch (scene->toolsettings->snap_uv_mode) {
+				case 0: scene->toolsettings->snap_uv_mode = SCE_SNAP_MODE_INCREMENT; break;
+				case 1: scene->toolsettings->snap_uv_mode = SCE_SNAP_MODE_VERTEX   ; break;
 			}
 		}
 	}

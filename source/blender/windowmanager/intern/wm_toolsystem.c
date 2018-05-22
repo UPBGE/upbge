@@ -57,6 +57,8 @@ static void toolsystem_reinit_with_toolref(
         bContext *C, WorkSpace *UNUSED(workspace), bToolRef *tref);
 static void toolsystem_reinit_ensure_toolref(
         bContext *C, WorkSpace *workspace, const bToolKey *tkey, const char *default_tool);
+static void toolsystem_refresh_screen_from_active_tool(
+        Main *bmain, WorkSpace *workspace, bToolRef *tref);
 
 /* -------------------------------------------------------------------- */
 /** \name Tool Reference API
@@ -278,6 +280,8 @@ void WM_toolsystem_ref_set_from_runtime(
         struct bContext *C, struct WorkSpace *workspace, bToolRef *tref,
         const bToolRef_Runtime *tref_rt, const char *idname)
 {
+	Main *bmain = CTX_data_main(C);
+	
 	if (tref->runtime) {
 		toolsystem_unlink_ref(C, workspace, tref);
 	}
@@ -298,7 +302,8 @@ void WM_toolsystem_ref_set_from_runtime(
 
 	toolsystem_ref_link(C, workspace, tref);
 
-	/* TODO(campbell): fix message. */
+	toolsystem_refresh_screen_from_active_tool(bmain, workspace, tref);
+
 	{
 		struct wmMsgBus *mbus = CTX_wm_message_bus(C);
 		WM_msg_publish_rna_prop(
@@ -399,7 +404,7 @@ void WM_toolsystem_refresh_screen_area(WorkSpace *workspace, Scene *scene, ScrAr
 	sa->runtime.is_tool_set = true;
 	const int mode = WM_toolsystem_mode_from_spacetype(workspace, scene, sa, sa->spacetype);
 	for (bToolRef *tref = workspace->tools.first; tref; tref = tref->next) {
-		if ((tref->space_type == sa->spacetype)) {
+		if (tref->space_type == sa->spacetype) {
 			if (tref->mode == mode) {
 				sa->runtime.tool = tref;
 				break;

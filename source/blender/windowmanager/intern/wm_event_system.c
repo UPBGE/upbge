@@ -2391,12 +2391,12 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 							continue;
 						}
 
-						const wmKeyMap *keymap = WM_keymap_active(wm, mgroup->type->keymap);
+						wmKeyMap *keymap = WM_keymap_active(wm, mgroup->type->keymap);
 						wmKeyMapItem *kmi;
 
 						PRINT("%s:   checking '%s' ...", __func__, keymap->idname);
 
-						if (!keymap->poll || keymap->poll(C)) {
+						if (WM_keymap_poll(C, keymap)) {
 							PRINT("pass\n");
 							for (kmi = keymap->items.first; kmi; kmi = kmi->next) {
 								if (wm_eventmatch(event, kmi)) {
@@ -2417,6 +2417,10 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 									CTX_wm_manipulator_group_set(C, NULL);
 
 									if (action & WM_HANDLER_BREAK) {
+										if (handler->keymap_callback != NULL) {
+											handler->keymap_callback(keymap, kmi, handler->keymap_callback_user_data);
+										}
+
 										if (G.debug & (G_DEBUG_EVENTS | G_DEBUG_HANDLERS)) {
 											printf("%s:       handled - and pass on! '%s'\n",
 											       __func__, kmi->idname);
