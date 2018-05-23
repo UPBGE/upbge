@@ -16,7 +16,6 @@
  */
 
 #include "EXP_FloatValue.h"
-#include "EXP_IntValue.h"
 
 EXP_FloatValue::EXP_FloatValue(double fl)
 	:m_value(fl)
@@ -28,27 +27,9 @@ std::string EXP_FloatValue::GetText() const
 	return std::to_string(m_value);
 }
 
-int EXP_FloatValue::GetValueType() const
+EXP_PropValue::DATA_TYPE EXP_FloatValue::GetValueType() const
 {
-	return VALUE_FLOAT_TYPE;
-}
-
-bool EXP_FloatValue::Equal(EXP_Value *other) const
-{
-	switch (other->GetValueType()) {
-		case VALUE_INT_TYPE:
-		{
-			return (m_value == ((double)static_cast<EXP_IntValue *>(other)->GetValue()));
-		}
-		case VALUE_FLOAT_TYPE:
-		{
-			return (m_value == static_cast<EXP_FloatValue *>(other)->GetValue());
-		}
-		default:
-		{
-			return false;
-		}
-	}
+	return TYPE_FLOAT;
 }
 
 double EXP_FloatValue::GetValue() const
@@ -61,11 +42,9 @@ void EXP_FloatValue::SetValue(double value)
 	m_value = value;
 }
 
-EXP_Value *EXP_FloatValue::GetReplica()
+EXP_PropValue *EXP_FloatValue::GetReplica()
 {
 	EXP_FloatValue *replica = new EXP_FloatValue(*this);
-	replica->ProcessReplica();
-
 	return replica;
 }
 

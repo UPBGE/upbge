@@ -52,12 +52,12 @@ public:
 	virtual ~KX_BoundingBox();
 
 	virtual std::string GetName() const;
-	virtual std::string GetText();
+	virtual std::string GetText() const;
 
 	/** Return true if the object owner is still valid.
 	 * Else return false and print a python error.
 	 */
-	bool IsValidOwner();
+	bool IsValidOwner() const;
 
 	/// Return AABB max.
 	const mt::vec3& GetMax() const;

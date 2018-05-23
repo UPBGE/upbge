@@ -94,6 +94,11 @@ bool EXP_BaseListValue::RemoveValue(EXP_Value *val)
 	return result;
 }
 
+std::string EXP_BaseListValue::GetName() const
+{
+	return "EXP_ListValue";
+}
+
 std::string EXP_BaseListValue::GetText() const
 {
 	std::string strListRep = "[";
@@ -107,11 +112,6 @@ std::string EXP_BaseListValue::GetText() const
 	strListRep += "]";
 
 	return strListRep;
-}
-
-int EXP_BaseListValue::GetValueType() const
-{
-	return VALUE_LIST_TYPE;
 }
 
 void EXP_BaseListValue::SetReleaseOnDestruct(bool bReleaseContents)
@@ -184,14 +184,7 @@ PyObject *EXP_BaseListValue::buffer_item(PyObject *self, Py_ssize_t index)
 	}
 
 	EXP_Value *cval = list->GetValue(index);
-
-	PyObject *pyobj = cval->ConvertValueToPython();
-	if (pyobj) {
-		return pyobj;
-	}
-	else {
-		return cval->GetProxy();
-	}
+	return cval->GetProxy();
 }
 
 // Just slice it into a python list...
@@ -203,10 +196,7 @@ PyObject *EXP_BaseListValue::buffer_slice(EXP_BaseListValue *list, Py_ssize_t st
 	}
 
 	for (Py_ssize_t i = start, j = 0; i < stop; i++, j++) {
-		PyObject *pyobj = list->GetValue(i)->ConvertValueToPython();
-		if (!pyobj) {
-			pyobj = list->GetValue(i)->GetProxy();
-		}
+		PyObject *pyobj = list->GetValue(i)->GetProxy();
 		PyList_SET_ITEM(newlist, j, pyobj);
 	}
 	return newlist;
@@ -224,13 +214,7 @@ PyObject *EXP_BaseListValue::mapping_subscript(PyObject *self, PyObject *key)
 	if (PyUnicode_Check(key)) {
 		EXP_Value *item = list->FindValue(_PyUnicode_AsString(key));
 		if (item) {
-			PyObject *pyobj = item->ConvertValueToPython();
-			if (pyobj) {
-				return pyobj;
-			}
-			else {
-				return item->GetProxy();
-			}
+			return item->GetProxy();
 		}
 	}
 	else if (PyIndex_Check(key)) {
@@ -357,51 +341,25 @@ PyAttributeDef EXP_BaseListValue::Attributes[] = {
 	EXP_PYATTRIBUTE_NULL // Sentinel
 };
 
-PyObject *EXP_BaseListValue::Pyindex(PyObject *value)
+PyObject *EXP_BaseListValue::Pyindex(PyObject *pykey)
 {
-	PyObject *result = nullptr;
-
-	EXP_Value *checkobj = ConvertPythonToValue(value, true, "val = list[i]: EXP_ValueList, ");
-	if (checkobj == nullptr) {
-		// ConvertPythonToValue sets the error.
-		return nullptr;
-	}
-	int numelem = GetCount();
-	for (int i = 0; i < numelem; i++) {
-		EXP_Value *elem = GetValue(i);
-		if (checkobj == elem || checkobj->Equal(elem)) {
-			result = PyLong_FromLong(i);
-			break;
+	for (unsigned short i = 0, size = m_valueArray.size(); i < size; ++i) {
+		if (PyObject_RichCompareBool(m_valueArray[i]->GetProxy(), pykey, Py_EQ) == 1) {
+			return PyLong_FromLong(i);
 		}
 	}
-	checkobj->Release();
 
-	if (result == nullptr) {
-		PyErr_SetString(PyExc_ValueError, "list.index(x): x not in EXP_BaseListValue");
-	}
-	return result;
+	PyErr_SetString(PyExc_ValueError, "list.index(x): x not in EXP_BaseListValue");
+	return nullptr;
 }
 
-PyObject *EXP_BaseListValue::Pycount(PyObject *value)
+PyObject *EXP_BaseListValue::Pycount(PyObject *pykey)
 {
 	int numfound = 0;
 
-	EXP_Value *checkobj = ConvertPythonToValue(value, false, ""); // Error ignored.
-
-	// in this case just return that there are no items in the list.
-	if (checkobj == nullptr) {
-		PyErr_Clear();
-		return PyLong_FromLong(0);
+	for (EXP_Value *value : m_valueArray) {
+		numfound += PyObject_RichCompareBool(value->GetProxy(), pykey, Py_EQ) == 1 ? 1 : 0;
 	}
-
-	int numelem = GetCount();
-	for (int i = 0; i < numelem; i++) {
-		EXP_Value *elem = GetValue(i);
-		if (checkobj == elem || checkobj->Equal(elem)) {
-			numfound++;
-		}
-	}
-	checkobj->Release();
 
 	return PyLong_FromLong(numfound);
 }
@@ -418,13 +376,7 @@ PyObject *EXP_BaseListValue::Pyget(PyObject *args)
 
 	EXP_Value *item = FindValue(key);
 	if (item) {
-		PyObject *pyobj = item->ConvertValueToPython();
-		if (pyobj) {
-			return pyobj;
-		}
-		else {
-			return item->GetProxy();
-		}
+		return item->GetProxy();
 	}
 
 	Py_INCREF(def);

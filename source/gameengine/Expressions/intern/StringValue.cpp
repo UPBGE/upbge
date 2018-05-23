@@ -22,28 +22,14 @@ EXP_StringValue::EXP_StringValue(const std::string& txt)
 {
 }
 
-std::string EXP_StringValue::GetName() const
-{
-	return m_value;
-}
-
-int EXP_StringValue::GetValueType() const
-{
-	return VALUE_STRING_TYPE;
-}
-
 std::string EXP_StringValue::GetText() const
 {
 	return m_value;
 }
 
-bool EXP_StringValue::Equal(EXP_Value *other) const
+EXP_PropValue::DATA_TYPE EXP_StringValue::GetValueType() const
 {
-	if (other->GetValueType() != VALUE_STRING_TYPE) {
-		return false;
-	}
-
-	return (m_value == static_cast<EXP_StringValue *>(other)->GetValue());
+	return TYPE_STRING;
 }
 
 const std::string &EXP_StringValue::GetValue() const
@@ -56,9 +42,13 @@ void EXP_StringValue::SetValue(const std::string& value)
 	m_value = value;
 }
 
-EXP_Value *EXP_StringValue::GetReplica()
+EXP_PropValue *EXP_StringValue::GetReplica()
 {
 	EXP_StringValue *replica = new EXP_StringValue(*this);
-	replica->ProcessReplica();
 	return replica;
+}
+
+PyObject * EXP_StringValue::ConvertValueToPython()
+{
+	return PyUnicode_FromStdString(m_value);
 }

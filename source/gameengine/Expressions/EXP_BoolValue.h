@@ -27,19 +27,15 @@
 class EXP_BoolValue : public EXP_PropValue
 {
 public:
-	static const std::string sTrueString;
-	static const std::string sFalseString;
-
 	EXP_BoolValue(bool inBool);
 
 	virtual std::string GetText() const;
-	virtual int GetValueType() const;
-	virtual bool Equal(EXP_Value *other) const;
+	virtual DATA_TYPE GetValueType() const;
 
 	bool GetValue() const;
 	void SetValue(bool value);
 
-	virtual EXP_Value *GetReplica();
+	virtual EXP_PropValue *GetReplica();
 #ifdef WITH_PYTHON
 	virtual PyObject *ConvertValueToPython();
 #endif

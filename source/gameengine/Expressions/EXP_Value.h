@@ -31,14 +31,32 @@
 #include <vector>
 #include <string>
 
-enum VALUE_DATA_TYPE {
-	VALUE_NO_TYPE, // Abstract baseclass.
-	VALUE_INT_TYPE,
-	VALUE_FLOAT_TYPE,
-	VALUE_STRING_TYPE,
-	VALUE_BOOL_TYPE,
-	VALUE_LIST_TYPE,
-	VALUE_MAX_TYPE // Only here to provide number of types.
+/// Property class base.
+class EXP_PropValue
+{
+public:
+	enum DATA_TYPE {
+		TYPE_INT,
+		TYPE_FLOAT,
+		TYPE_STRING,
+		TYPE_BOOL,
+#ifdef WITH_PYTHON
+		TYPE_PYTHON,
+#endif  // WITH_PYTHON
+		TYPE_MAX
+	};
+
+	static EXP_PropValue *ConvertPythonToValue(PyObject *pyobj);
+
+	virtual std::string GetText() const = 0;
+	/// Get property value type.
+	virtual DATA_TYPE GetValueType() const = 0;
+
+	virtual EXP_PropValue *GetReplica() = 0;
+
+#ifdef WITH_PYTHON
+	virtual PyObject *ConvertValueToPython() = 0;
+#endif  // WITH_PYTHON
 };
 
 /**
@@ -48,13 +66,8 @@ enum VALUE_DATA_TYPE {
  * calculations and uses reference counting for memory management.
  *
  * Features:
- * - Calculations (Calc() / CalcFinal())
  * - Property system (SetProperty() / GetProperty() / FindIdentifier())
  * - Replication (GetReplica())
- * - Flags (IsError())
- *
- * - Some small editor-specific things added
- * - A helperclass CompressorArchive handles the serialization
  *
  */
 class EXP_Value : public EXP_PyObjectPlus, public CM_RefCount<EXP_Value>
@@ -73,13 +86,6 @@ public:
 		return PyUnicode_FromStdString(GetText());
 	}
 
-	virtual PyObject *ConvertValueToPython()
-	{
-		return nullptr;
-	}
-
-	virtual EXP_Value *ConvertPythonToValue(PyObject *pyobj, const bool do_type_exception, const char *error_prefix);
-
 	static PyObject *pyattr_get_name(EXP_PyObjectPlus *self, const EXP_PYATTRIBUTE_DEF *attrdef);
 
 	virtual PyObject *ConvertKeysToPython();
@@ -89,9 +95,9 @@ public:
 	/** Set property <ioProperty>, overwrites and releases a previous property with the same name if needed.
 	 * Stall the owning of the property.
 	 */
-	void SetProperty(const std::string& name, EXP_Value *ioProperty);
+	void SetProperty(const std::string& name, EXP_PropValue *ioProperty);
 	/// Get pointer to a property with name <inName>, returns nullptr if there is no property named <inName>.
-	EXP_Value *GetProperty(const std::string & inName) const;
+	EXP_PropValue *GetProperty(const std::string & inName) const;
 	/// Remove the property named <inName>, returns true if the property was succesfully removed, false if property was not found or could not be removed.
 	bool RemoveProperty(const std::string& inName);
 	std::vector<std::string> GetPropertyNames() const;
@@ -100,15 +106,11 @@ public:
 
 	// TODO to remove in the same time timer management is refactored.
 	/// Get property number <inIndex>.
-	EXP_Value *GetProperty(int inIndex) const;
+	EXP_PropValue *GetProperty(int inIndex) const;
 	/// Get the amount of properties assiocated with this value.
 	int GetPropertyCount();
 
 	virtual std::string GetText() const;
-	/// Get Prop value type.
-	virtual int GetValueType() const;
-	/// Check if to value are equivalent.
-	virtual bool Equal(EXP_Value *other) const;
 
 	/// Retrieve the name of the value.
 	virtual std::string GetName() const = 0;
@@ -123,21 +125,7 @@ protected:
 
 private:
 	/// Properties for user/game etc.
-	std::map<std::string, std::unique_ptr<EXP_Value> > m_properties;
-};
-
-/// Property class base, forbid name management, EXP_Value store the names inside a property map.
-class EXP_PropValue : public EXP_Value
-{
-public:
-	virtual void SetName(const std::string& name)
-	{
-	}
-
-	virtual std::string GetName() const
-	{
-		return "";
-	}
+	std::map<std::string, std::unique_ptr<EXP_PropValue> > m_properties;
 };
 
 #endif  // __EXP_VALUE_H__

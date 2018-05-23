@@ -63,8 +63,10 @@ set(SRC
 if(WITH_PYTHON)
 	list(APPEND SRC
 		intern/PythonCallBack.cpp
+		intern/PythonValue.cpp
 
 		EXP_PythonCallBack.h
+		EXP_PythonValue.h
 	)
 endif()
 

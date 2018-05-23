@@ -18,31 +18,19 @@
 
 #include "EXP_BoolValue.h"
 
-const std::string EXP_BoolValue::sTrueString  = "TRUE";
-const std::string EXP_BoolValue::sFalseString = "FALSE";
-
 EXP_BoolValue::EXP_BoolValue(bool inBool)
 	:m_value(inBool)
 {
 }
 
-int EXP_BoolValue::GetValueType() const
-{
-	return VALUE_BOOL_TYPE;
-}
-
 std::string EXP_BoolValue::GetText() const
 {
-	return m_value ? sTrueString : sFalseString;
+	return m_value ? "TRUE" : "FALSE";
 }
 
-bool EXP_BoolValue::Equal(EXP_Value *other) const
+EXP_PropValue::DATA_TYPE EXP_BoolValue::GetValueType() const
 {
-	if (other->GetValueType() != VALUE_BOOL_TYPE) {
-		return false;
-	}
-
-	return (m_value == static_cast<EXP_BoolValue *>(other)->GetValue());
+	return TYPE_BOOL;
 }
 
 bool EXP_BoolValue::GetValue() const
@@ -55,11 +43,9 @@ void EXP_BoolValue::SetValue(bool value)
 	m_value = value;
 }
 
-EXP_Value *EXP_BoolValue::GetReplica()
+EXP_PropValue *EXP_BoolValue::GetReplica()
 {
 	EXP_BoolValue *replica = new EXP_BoolValue(*this);
-	replica->ProcessReplica();
-
 	return replica;
 }
 
