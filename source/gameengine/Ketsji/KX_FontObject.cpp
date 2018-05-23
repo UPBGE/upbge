@@ -187,9 +187,12 @@ void KX_FontObject::SetText(const std::string& text)
 void KX_FontObject::UpdateTextFromProperty()
 {
 	// Allow for some logic brick control
-	EXP_Value *prop = GetProperty("Text");
-	if (prop && prop->GetText() != m_text) {
-		SetText(prop->GetText());
+	EXP_PropValue *prop = GetProperty("Text"); // TODO deprecate.
+	if (prop) {
+		const std::string text = prop->GetText();
+		if (text != m_text) {
+			SetText(text);
+		}
 	}
 }
 
@@ -342,8 +345,8 @@ int KX_FontObject::pyattr_set_text(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBU
 	const char *chars = _PyUnicode_AsString(value);
 
 	/* Allow for some logic brick control */
-	EXP_Value *tprop = self->GetProperty("Text"); // TODO deprecate
-	if (tprop && tprop->GetValueType() == VALUE_STRING_TYPE) {
+	EXP_PropValue *tprop = self->GetProperty("Text"); // TODO deprecate
+	if (tprop && tprop->GetValueType() == EXP_PropValue::TYPE_STRING) {
 		static_cast<EXP_StringValue *>(tprop)->SetValue(std::string(chars));
 	}
 	else {

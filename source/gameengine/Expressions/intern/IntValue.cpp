@@ -16,7 +16,6 @@
  */
 
 #include "EXP_IntValue.h"
-#include "EXP_FloatValue.h"
 
 EXP_IntValue::EXP_IntValue(long long innie)
 	:m_value(innie)
@@ -28,35 +27,15 @@ std::string EXP_IntValue::GetText() const
 	return std::to_string(m_value);
 }
 
-int EXP_IntValue::GetValueType() const
+EXP_PropValue::DATA_TYPE EXP_IntValue::GetValueType() const
 {
-	return VALUE_INT_TYPE;
+	return TYPE_INT;
 }
 
-EXP_Value *EXP_IntValue::GetReplica()
+EXP_PropValue *EXP_IntValue::GetReplica()
 {
 	EXP_IntValue *replica = new EXP_IntValue(*this);
-	replica->ProcessReplica();
-
 	return replica;
-}
-
-bool EXP_IntValue::Equal(EXP_Value *other) const
-{
-	switch (other->GetValueType()) {
-		case VALUE_INT_TYPE:
-		{
-			return (m_value == static_cast<EXP_IntValue *>(other)->GetValue());
-		}
-		case VALUE_FLOAT_TYPE:
-		{
-			return (((double)m_value) == static_cast<EXP_FloatValue *>(other)->GetValue());
-		}
-		default:
-		{
-			return false;
-		}
-	}
 }
 
 long long EXP_IntValue::GetValue() const

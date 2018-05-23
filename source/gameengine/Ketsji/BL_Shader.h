@@ -48,7 +48,7 @@ public:
 	virtual ~BL_Shader();
 
 	virtual std::string GetName() const;
-	virtual std::string GetText();
+	virtual std::string GetText() const;
 
 #ifdef WITH_PYTHON
 	PyObject *GetCallbacks(CallbacksType type);

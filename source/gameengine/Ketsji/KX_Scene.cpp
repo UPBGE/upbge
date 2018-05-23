@@ -427,11 +427,11 @@ KX_GameObject *KX_Scene::AddNodeReplicaObject(SG_Node *node, KX_GameObject *game
 
 	// Also register 'timers' (time properties) of the replica.
 	for (unsigned short i = 0, numprops = newobj->GetPropertyCount(); i < numprops; ++i) {
-		EXP_Value *prop = newobj->GetProperty(i);
+		EXP_PropValue *prop = newobj->GetProperty(i);
 
-		if (prop->GetProperty("timer")) {
+		/*if (prop->GetProperty("timer")) {
 // 			m_timemgr->AddTimeProperty(prop); TODO
-		}
+		}*/
 	}
 
 	if (node) {
@@ -687,7 +687,7 @@ KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobj, KX_GameObj
 		m_tempObjectList.push_back(replica);
 		/* This convert the life from frames to sort-of seconds, hard coded 0.02 that assumes we have 50 frames per second
 		 * if you change this value, make sure you change it in KX_GameObject::pyattr_get_life property too. */
-		EXP_Value *fval = new EXP_FloatValue(lifespan * 0.02f);
+		EXP_PropValue *fval = new EXP_FloatValue(lifespan * 0.02f);
 		replica->SetProperty("::timebomb", fval);
 	}
 
@@ -813,10 +813,10 @@ bool KX_Scene::NewRemoveObject(KX_GameObject *gameobj)
 
 	// Now remove the timer properties from the time manager.
 	for (unsigned short i = 0, numprops = gameobj->GetPropertyCount(); i < numprops; ++i) {
-		EXP_Value *propval = gameobj->GetProperty(i);
-		if (propval->GetProperty("timer")) {
+		EXP_PropValue *propval = gameobj->GetProperty(i);
+		/*if (propval->GetProperty("timer")) {
 // 			m_timemgr->RemoveTimeProperty(propval);
-		}
+		}*/
 	}
 
 	/* If the object is the dupligroup proxy, you have to cleanup all m_dupliGroupObject's in all
@@ -1027,7 +1027,7 @@ void KX_Scene::RenderDebugProperties(RAS_DebugDraw& debugDraw, int xindent, int 
 		const std::string objname = gameobj->GetName();
 		const std::string& propname = debugProp.m_name;
 
-		EXP_Value *propval = gameobj->GetProperty(propname);
+		EXP_PropValue *propval = gameobj->GetProperty(propname);
 		if (propval) {
 			const std::string text = propval->GetText();
 			const std::string debugtxt = objname + ": '" + propname + "' = " + text;

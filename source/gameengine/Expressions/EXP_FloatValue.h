@@ -27,13 +27,12 @@ public:
 	EXP_FloatValue(double fl);
 
 	virtual std::string GetText() const;
-	virtual int GetValueType() const;
-	virtual bool Equal(EXP_Value *other) const;
+	virtual DATA_TYPE GetValueType() const;
 
 	double GetValue() const;
 	void SetValue(double value);
 
-	virtual EXP_Value *GetReplica();
+	virtual EXP_PropValue *GetReplica();
 
 #ifdef WITH_PYTHON
 	virtual PyObject *ConvertValueToPython();

@@ -2009,7 +2009,6 @@ PyAttributeDef KX_GameObject::Attributes[] = {
 	EXP_PYATTRIBUTE_RW_FUNCTION("angularDamping", KX_GameObject, pyattr_get_angularDamping, pyattr_set_angularDamping),
 	EXP_PYATTRIBUTE_RO_FUNCTION("children", KX_GameObject, pyattr_get_children),
 	EXP_PYATTRIBUTE_RO_FUNCTION("childrenRecursive",    KX_GameObject, pyattr_get_children_recursive),
-	EXP_PYATTRIBUTE_RO_FUNCTION("attrDict", KX_GameObject, pyattr_get_attrDict),
 	EXP_PYATTRIBUTE_RW_FUNCTION("color", KX_GameObject, pyattr_get_obcolor, pyattr_set_obcolor),
 	EXP_PYATTRIBUTE_RW_FUNCTION("debug",    KX_GameObject, pyattr_get_debug, pyattr_set_debug),
 	EXP_PYATTRIBUTE_RO_FUNCTION("components", KX_GameObject, pyattr_get_components),
@@ -2089,132 +2088,58 @@ PyObject *KX_GameObject::PyReplacePhysicsShape(PyObject *value)
 static PyObject *Map_GetItem(PyObject *self_v, PyObject *item)
 {
 	KX_GameObject *self = static_cast<KX_GameObject *>EXP_PROXY_REF(self_v);
+
+	if (!self) {
+		PyErr_SetString(PyExc_SystemError, "value = gameOb[key]: KX_GameObject, " EXP_PROXY_ERROR_MSG);
+		return nullptr;
+	}
+
 	const char *attr_str = _PyUnicode_AsString(item);
-	EXP_Value *resultattr;
-	PyObject *pyconvert;
-
-	if (self == nullptr) {
-		PyErr_SetString(PyExc_SystemError, "val = gameOb[key]: KX_GameObject, " EXP_PROXY_ERROR_MSG);
+	if (!attr_str) {
+		PyErr_SetString(PyExc_KeyError, "value = gameOb[key]: KX_GameObject, key must be a string");
 		return nullptr;
 	}
 
-	/* first see if the attributes a string and try get the cvalue attribute */
-	if (attr_str && (resultattr = self->GetProperty(attr_str))) {
-		pyconvert = resultattr->ConvertValueToPython();
-		return pyconvert ? pyconvert : resultattr->GetProxy();
-	}
-	/* no EXP_Value attribute, try get the python only m_attr_dict attribute */
-	else if (self->m_attr_dict && (pyconvert = PyDict_GetItem(self->m_attr_dict, item))) {
+	EXP_PropValue *prop = self->GetProperty(attr_str);
 
-		if (attr_str) {
-			PyErr_Clear();
-		}
-		Py_INCREF(pyconvert);
-		return pyconvert;
-	}
-	else {
-		if (attr_str) {
-			PyErr_Format(PyExc_KeyError, "value = gameOb[key]: KX_GameObject, key \"%s\" does not exist", attr_str);
-		}
-		else {
-			PyErr_SetString(PyExc_KeyError, "value = gameOb[key]: KX_GameObject, key does not exist");
-		}
+	if (!prop) {
+		PyErr_Format(PyExc_KeyError, "value = gameOb[key]: KX_GameObject, key \"%s\" does not exist", attr_str);
 		return nullptr;
 	}
 
+	return prop->ConvertValueToPython();
 }
 
 
 static int Map_SetItem(PyObject *self_v, PyObject *key, PyObject *val)
 {
 	KX_GameObject *self = static_cast<KX_GameObject *>EXP_PROXY_REF(self_v);
-	const char *attr_str = _PyUnicode_AsString(key);
-	if (attr_str == nullptr) {
-		PyErr_Clear();
-	}
 
-	if (self == nullptr) {
+	if (!self) {
 		PyErr_SetString(PyExc_SystemError, "gameOb[key] = value: KX_GameObject, " EXP_PROXY_ERROR_MSG);
 		return -1;
 	}
 
-	if (val == nullptr) { /* del ob["key"] */
-		int del = 0;
+	const char *attr_str = _PyUnicode_AsString(key);
+	if (!attr_str) {
+		PyErr_SetString(PyExc_KeyError, "gameOb[key] = value: KX_GameObject, key must be a string");
+		return -1;
+	}
 
-		/* try remove both just in case */
-		if (attr_str) {
-			del |= (self->RemoveProperty(attr_str) == true) ? 1 : 0;
-		}
-
-		if (self->m_attr_dict) {
-			del |= (PyDict_DelItem(self->m_attr_dict, key) == 0) ? 1 : 0;
-		}
-
-		if (del == 0) {
-			if (attr_str) {
-				PyErr_Format(PyExc_KeyError, "gameOb[key] = value: KX_GameObject, key \"%s\" could not be set", attr_str);
-			}
-			else {
-				PyErr_SetString(PyExc_KeyError, "del gameOb[key]: KX_GameObject, key could not be deleted");
-			}
+	// del ob["key"]
+	if (!val) {
+		if (!self->RemoveProperty(attr_str)) {
+			PyErr_Format(PyExc_KeyError, "gameOb[key] = value: KX_GameObject, key \"%s\" does not exist", attr_str);
 			return -1;
 		}
-		else if (self->m_attr_dict) {
-			PyErr_Clear(); /* PyDict_DelItem sets an error when it fails */
-		}
 	}
-	else { /* ob["key"] = value */
-		bool set = false;
-
-		/* as EXP_Value */
-		if (attr_str && PyObject_TypeCheck(val, &EXP_PyObjectPlus::Type) == 0) { /* don't allow GameObjects for eg to be assigned to EXP_Value props */
-			EXP_Value *vallie = self->ConvertPythonToValue(val, false, "gameOb[key] = value: ");
-
-			if (vallie) {
-				self->SetProperty(attr_str, vallie);
-				set = true;
-
-				/* try remove dict value to avoid double ups */
-				if (self->m_attr_dict) {
-					if (PyDict_DelItem(self->m_attr_dict, key) != 0) {
-						PyErr_Clear();
-					}
-				}
-			}
-			else if (PyErr_Occurred()) {
-				return -1;
-			}
-		}
-
-		if (set == false) {
-			if (self->m_attr_dict == nullptr) { /* lazy init */
-				self->m_attr_dict = PyDict_New();
-			}
-
-
-			if (PyDict_SetItem(self->m_attr_dict, key, val) == 0) {
-				if (attr_str) {
-					self->RemoveProperty(attr_str); /* overwrite the EXP_Value if it exists */
-				}
-				set = true;
-			}
-			else {
-				if (attr_str) {
-					PyErr_Format(PyExc_KeyError, "gameOb[key] = value: KX_GameObject, key \"%s\" not be added to internal dictionary", attr_str);
-				}
-				else {
-					PyErr_SetString(PyExc_KeyError, "gameOb[key] = value: KX_GameObject, key not be added to internal dictionary");
-				}
-			}
-		}
-
-		if (set == false) {
-			return -1; /* pythons error value */
-		}
-
+	// ob["key"] = value
+	else {
+		EXP_PropValue *vallie = EXP_PropValue::ConvertPythonToValue(val);
+		self->SetProperty(attr_str, vallie);
 	}
 
-	return 0; /* success */
+	return 0;
 }
 
 static int Seq_Contains(PyObject *self_v, PyObject *value)
@@ -2226,11 +2151,13 @@ static int Seq_Contains(PyObject *self_v, PyObject *value)
 		return -1;
 	}
 
-	if (PyUnicode_Check(value) && self->GetProperty(_PyUnicode_AsString(value))) {
-		return 1;
+	const char *attr_str = _PyUnicode_AsString(value);
+	if (!attr_str) {
+		PyErr_SetString(PyExc_KeyError, "val in gameOb: KX_GameObject, key must be a string");
+		return -1;
 	}
 
-	if (self->m_attr_dict && PyDict_GetItem(self->m_attr_dict, value)) {
+	if (self->GetProperty(attr_str)) {
 		return 1;
 	}
 
@@ -2464,8 +2391,8 @@ PyObject *KX_GameObject::pyattr_get_life(EXP_PyObjectPlus *self_v, const EXP_PYA
 {
 	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
 
-	EXP_Value *life = self->GetProperty("::timebomb");
-	if (life && life->GetValueType() == VALUE_FLOAT_TYPE) {
+	EXP_PropValue *life = self->GetProperty("::timebomb");
+	if (life && life->GetValueType() == EXP_PropValue::TYPE_FLOAT) {
 		// this convert the timebomb seconds to frames, hard coded 50.0f (assuming 50fps)
 		// value hardcoded in KX_Scene::AddReplicaObject()
 		return PyFloat_FromDouble(static_cast<EXP_FloatValue *>(life)->GetValue() * 50.0);
@@ -3226,18 +3153,6 @@ PyObject *KX_GameObject::pyattr_get_children_recursive(EXP_PyObjectPlus *self_v,
 	return list->NewProxy(true);
 }
 
-PyObject *KX_GameObject::pyattr_get_attrDict(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
-{
-	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
-
-	if (self->m_attr_dict == nullptr) {
-		self->m_attr_dict = PyDict_New();
-	}
-
-	Py_INCREF(self->m_attr_dict);
-	return self->m_attr_dict;
-}
-
 PyObject *KX_GameObject::pyattr_get_debug(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
@@ -3700,17 +3615,7 @@ PyObject *KX_GameObject::PyGetPhysicsId()
 
 PyObject *KX_GameObject::PyGetPropertyNames()
 {
-	PyObject *list = ConvertKeysToPython();
-
-	if (m_attr_dict) {
-		PyObject *key, *value;
-		Py_ssize_t pos = 0;
-
-		while (PyDict_Next(m_attr_dict, &pos, &key, &value)) {
-			PyList_Append(list, key);
-		}
-	}
-	return list;
+	return ConvertKeysToPython();
 }
 
 EXP_PYMETHODDEF_DOC_O(KX_GameObject, getDistanceTo,
@@ -4247,15 +4152,9 @@ PyObject *KX_GameObject::Pyget(PyObject *args)
 
 
 	if (PyUnicode_Check(key)) {
-		EXP_Value *item = GetProperty(_PyUnicode_AsString(key));
+		EXP_PropValue *item = GetProperty(_PyUnicode_AsString(key));
 		if (item) {
-			ret = item->ConvertValueToPython();
-			if (ret) {
-				return ret;
-			}
-			else {
-				return item->GetProxy();
-			}
+			return item->ConvertValueToPython();
 		}
 	}
 
