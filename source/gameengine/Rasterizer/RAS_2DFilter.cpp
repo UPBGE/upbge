@@ -268,19 +268,19 @@ void RAS_2DFilter::BindUniforms(RAS_ICanvas *canvas)
 		const std::string& prop = m_properties[i];
 		unsigned int uniformLoc = m_propertiesLoc[i];
 
-		EXP_Value *property = m_gameObject->GetProperty(prop);
+		EXP_PropValue *property = m_gameObject->GetProperty(prop);
 
 		if (!property) {
 			continue;
 		}
 
 		switch (property->GetValueType()) {
-			case VALUE_INT_TYPE:
+			case EXP_PropValue::TYPE_INT:
 			{
 				SetUniform(uniformLoc, (int)static_cast<EXP_IntValue *>(property)->GetValue());
 				break;
 			}
-			case VALUE_FLOAT_TYPE:
+			case EXP_PropValue::TYPE_FLOAT:
 			{
 				SetUniform(uniformLoc, (float)static_cast<EXP_FloatValue *>(property)->GetValue());
 				break;

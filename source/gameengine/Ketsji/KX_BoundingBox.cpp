@@ -25,7 +25,7 @@
 #include "KX_GameObject.h"
 #include "KX_PyMath.h"
 
-#include <boost/format.hpp>
+#include <sstream>
 
 #ifdef WITH_PYTHON
 
@@ -44,15 +44,18 @@ std::string KX_BoundingBox::GetName() const
 	return "KX_BoundingBox";
 }
 
-std::string KX_BoundingBox::GetText()
+std::string KX_BoundingBox::GetText() const
 {
 	if (!IsValidOwner()) {
 		return "KX_BoundingBox of invalid object";
 	}
-	return (boost::format("KX_BoundingBox of object %1%, min: %2%, max: %3%") % m_owner->GetName() % GetMin() % GetMax()).str();
+
+	std::stringstream stream;
+	stream << "KX_BoundingBox of object " << m_owner->GetName() << ", min: " << GetMin() << ", max: " << GetMax();
+	return stream.str();
 }
 
-bool KX_BoundingBox::IsValidOwner()
+bool KX_BoundingBox::IsValidOwner() const
 {
 	if (!EXP_PROXY_REF(m_proxy)) {
 		PyErr_SetString(PyExc_SystemError, "KX_BoundingBox, " EXP_PROXY_ERROR_MSG);

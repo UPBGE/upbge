@@ -21,7 +21,7 @@
 
 #include "EXP_Value.h"
 
-class EXP_BaseListValue : public EXP_PropValue
+class EXP_BaseListValue : public EXP_Value
 {
 	Py_Header
 
@@ -46,8 +46,8 @@ public:
 	EXP_BaseListValue();
 	virtual ~EXP_BaseListValue();
 
-	virtual int GetValueType() const;
 	virtual EXP_Value *GetReplica() = 0;
+	virtual std::string GetName() const;
 	virtual std::string GetText() const;
 
 	void SetReleaseOnDestruct(bool bReleaseContents);

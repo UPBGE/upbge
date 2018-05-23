@@ -22,6 +22,28 @@
 #include "EXP_StringValue.h"
 #include "EXP_IntValue.h"
 #include "EXP_FloatValue.h"
+#include "EXP_PythonValue.h"
+
+EXP_PropValue *EXP_PropValue::ConvertPythonToValue(PyObject *pyobj)
+{
+	// Note: Boolean check should go before Int check [#34677].
+	if (PyBool_Check(pyobj)) {
+		return new EXP_BoolValue((bool)PyLong_AsLongLong(pyobj));
+	}
+	else if (PyFloat_Check(pyobj)) {
+		const double tval = PyFloat_AsDouble(pyobj);
+		return new EXP_FloatValue(tval);
+	}
+	else if (PyLong_Check(pyobj)) {
+		return new EXP_IntValue(PyLong_AsLongLong(pyobj));
+	}
+	else if (PyUnicode_Check(pyobj)) {
+		return new EXP_StringValue(_PyUnicode_AsString(pyobj));
+	}
+
+	// Fall down in python property.
+	return new EXP_PythonValue(pyobj);
+}
 
 EXP_Value::EXP_Value()
 {
@@ -41,7 +63,7 @@ EXP_Value::~EXP_Value()
 	ClearProperties();
 }
 
-void EXP_Value::SetProperty(const std::string& name, EXP_Value *ioProperty)
+void EXP_Value::SetProperty(const std::string& name, EXP_PropValue *ioProperty)
 {
 	// Try to replace property.
 	auto it = m_properties.find(name);
@@ -54,7 +76,7 @@ void EXP_Value::SetProperty(const std::string& name, EXP_Value *ioProperty)
 	}
 }
 
-EXP_Value *EXP_Value::GetProperty(const std::string& inName) const
+EXP_PropValue *EXP_Value::GetProperty(const std::string& inName) const
 {
 	const auto it = m_properties.find(inName);
 	if (it != m_properties.end()) {
@@ -91,7 +113,7 @@ void EXP_Value::ClearProperties()
 	m_properties.clear();
 }
 
-EXP_Value *EXP_Value::GetProperty(int inIndex) const
+EXP_PropValue *EXP_Value::GetProperty(int inIndex) const
 {
 	int count = 0;
 	for (const auto& pair : m_properties) {
@@ -119,16 +141,6 @@ void EXP_Value::DestructFromPython()
 void EXP_Value::ProcessReplica()
 {
 	EXP_PyObjectPlus::ProcessReplica();
-}
-
-int EXP_Value::GetValueType() const
-{
-	return VALUE_NO_TYPE;
-}
-
-bool EXP_Value::Equal(EXP_Value *other) const
-{
-	return false;
 }
 
 #ifdef WITH_PYTHON
@@ -172,45 +184,6 @@ PyObject *EXP_Value::pyattr_get_name(EXP_PyObjectPlus *self_v, const EXP_PYATTRI
 {
 	EXP_Value *self = static_cast<EXP_Value *> (self_v);
 	return PyUnicode_FromStdString(self->GetName());
-}
-
-/**
- * There are 2 reasons this could return nullptr
- * - unsupported type.
- * - error converting (overflow).
- *
- * \param do_type_exception Use to skip raising an exception for unknown types.
- */
-EXP_Value *EXP_Value::ConvertPythonToValue(PyObject *pyobj, const bool do_type_exception, const char *error_prefix)
-{
-	EXP_Value *vallie;
-	// Note: Boolean check should go before Int check [#34677].
-	if (PyBool_Check(pyobj)) {
-		vallie = new EXP_BoolValue((bool)PyLong_AsLongLong(pyobj));
-	}
-	else if (PyFloat_Check(pyobj)) {
-		const double tval = PyFloat_AsDouble(pyobj);
-		vallie = new EXP_FloatValue(tval);
-	}
-	else if (PyLong_Check(pyobj)) {
-		vallie = new EXP_IntValue(PyLong_AsLongLong(pyobj));
-	}
-	else if (PyUnicode_Check(pyobj)) {
-		vallie = new EXP_StringValue(_PyUnicode_AsString(pyobj));
-	}
-	// Note, don't let these get assigned to GameObject props, must check elsewhere.
-	else if (PyObject_TypeCheck(pyobj, &EXP_Value::Type)) {
-		vallie = (static_cast<EXP_Value *>(EXP_PROXY_REF(pyobj)))->AddRef();
-	}
-	else {
-		if (do_type_exception) {
-			// Return an error value from the caller.
-			PyErr_Format(PyExc_TypeError, "%scould convert python value to a game engine property", error_prefix);
-		}
-		vallie = nullptr;
-	}
-	return vallie;
-
 }
 
 PyObject *EXP_Value::ConvertKeysToPython()

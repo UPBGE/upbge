@@ -28,13 +28,12 @@ public:
 	EXP_IntValue(long long innie);
 
 	virtual std::string GetText() const;
-	virtual int GetValueType() const;
-	virtual bool Equal(EXP_Value *other) const;
+	virtual DATA_TYPE GetValueType() const;
 
 	long long GetValue() const;
 	void SetValue(long long value);
 
-	virtual EXP_Value *GetReplica();
+	virtual EXP_PropValue *GetReplica();
 
 #ifdef WITH_PYTHON
 	virtual PyObject *ConvertValueToPython();

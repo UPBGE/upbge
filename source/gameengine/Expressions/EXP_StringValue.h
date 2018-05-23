@@ -26,23 +26,16 @@ class EXP_StringValue : public EXP_PropValue
 public:
 	EXP_StringValue(const std::string& txt);
 
-	// Overrided for string list lookup.
-	virtual std::string GetName() const;
-
 	virtual std::string GetText() const;
-	virtual int GetValueType() const;
-	virtual bool Equal(EXP_Value *other) const;
+	virtual DATA_TYPE GetValueType() const;
 
 	const std::string& GetValue() const;
 	void SetValue(const std::string& value);
 
-	virtual EXP_Value *GetReplica();
+	virtual EXP_PropValue *GetReplica();
 
 #ifdef WITH_PYTHON
-	virtual PyObject *ConvertValueToPython()
-	{
-		return PyUnicode_FromStdString(m_value);
-	}
+	virtual PyObject *ConvertValueToPython();
 #endif  // WITH_PYTHON
 
 private:
