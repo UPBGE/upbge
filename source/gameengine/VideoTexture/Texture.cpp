@@ -124,7 +124,7 @@ void Texture::FreeAllTextures(KX_Scene *scene)
 		}
 
 		it = textures.erase(it);
-		texture->Release();
+		delete texture;
 	}
 }
 
@@ -303,7 +303,7 @@ static int Texture_init(PyObject *self, PyObject *args, PyObject *kwds)
 			// get pointer to texture image
 			RAS_IMaterial *mat = getMaterial(gameObj, matID);
 			KX_LightObject *lamp = nullptr;
-			if (gameObj->GetGameObjectType() == KX_GameObject::OBJECT_TYPE_LIGHT) {
+			if (gameObj->GetObjectType() == KX_GameObject::OBJECT_TYPE_LIGHT) {
 				lamp = (KX_LightObject *)gameObj;
 			}
 

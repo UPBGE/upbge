@@ -73,7 +73,7 @@ public:
 	void UpdateScene(KX_Scene *kxscene);
 	virtual void SetLayer(int layer);
 
-	virtual ObjectTypes GetGameObjectType() const
+	virtual ObjectTypes GetObjectType() const
 	{
 		return OBJECT_TYPE_LIGHT;
 	}

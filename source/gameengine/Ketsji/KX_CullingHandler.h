@@ -18,7 +18,7 @@ class KX_CullingHandler
 {
 private:
 	/// List of all objects to test.
-	EXP_ListValue<KX_GameObject> *m_objects;
+	EXP_ListValue<KX_GameObject>& m_objects;
 	/// The camera frustum data.
 	const SG_Frustum& m_frustum;
 	/// Layer to ignore some objects.
@@ -26,7 +26,7 @@ private:
 
 
 public:
-	KX_CullingHandler(EXP_ListValue<KX_GameObject> *objects, const SG_Frustum& frustum, int layer);
+	KX_CullingHandler(EXP_ListValue<KX_GameObject>& objects, const SG_Frustum& frustum, int layer);
 	~KX_CullingHandler() = default;
 
 	bool Test(const mt::mat3x4& trans, const mt::vec3& scale, const SG_BBox& aabb) const;

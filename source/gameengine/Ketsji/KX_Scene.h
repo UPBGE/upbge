@@ -46,13 +46,10 @@
 #include "RAS_FramingManager.h"
 #include "RAS_Rect.h"
 
-#include "EXP_PyObjectPlus.h"
-#include "EXP_Value.h"
+#include "EXP_ListValue.h"
 
 #include <set>
 
-template <class T>
-class EXP_ListValue;
 class EXP_Value;
 class SCA_IInputDevice;
 class KX_NetworkMessageScene;
@@ -139,19 +136,19 @@ private:
 	 */
 	std::vector<KX_GameObject *> m_euthanasyobjects;
 
-	EXP_ListValue<KX_GameObject> *m_objectlist;
+	EXP_ListValue<KX_GameObject> m_objectlist;
 	/// All 'root' parents.
-	EXP_ListValue<KX_GameObject> *m_parentlist;
-	EXP_ListValue<KX_LightObject> *m_lightlist;
+	EXP_ListValue<KX_GameObject> m_parentlist;
+	EXP_ListValue<KX_LightObject> m_lightlist;
 	/// All objects that are not in the active layer.
-	EXP_ListValue<KX_GameObject> *m_inactivelist;
+	EXP_ListValue<KX_GameObject> m_inactivelist;
 	/// All animated objects, no need of EXP_ListValue because the list isn't exposed in python.
 	std::vector<KX_GameObject *> m_animatedlist;
 
 	/// The list of cameras for this scene.
-	EXP_ListValue<KX_Camera> *m_cameralist;
+	EXP_ListValue<KX_Camera> m_cameralist;
 	/// The list of fonts for this scene.
-	EXP_ListValue<KX_FontObject> *m_fontlist;
+	EXP_ListValue<KX_FontObject> m_fontlist;
 
 	std::vector<DebugProp> m_debugList;
 
@@ -251,7 +248,7 @@ private:
 	void RemoveNodeDestructObject(KX_GameObject *gameobj);
 	void RemoveObject(KX_GameObject *gameobj);
 	void RemoveDupliGroup(KX_GameObject *gameobj);
-	bool NewRemoveObject(KX_GameObject *gameobj);
+	void NewRemoveObject(KX_GameObject *gameobj);
 
 public:
 	KX_Scene(SCA_IInputDevice *inputDevice,
@@ -305,12 +302,12 @@ public:
 
 	void LogicEndFrame();
 
-	EXP_ListValue<KX_GameObject> *GetObjectList() const;
-	EXP_ListValue<KX_GameObject> *GetInactiveList() const;
-	EXP_ListValue<KX_GameObject> *GetRootParentList() const;
-	EXP_ListValue<KX_LightObject> *GetLightList() const;
-	EXP_ListValue<KX_Camera> *GetCameraList() const;
-	EXP_ListValue<KX_FontObject> *GetFontList() const;
+	EXP_ListValue<KX_GameObject>& GetObjectList();
+	EXP_ListValue<KX_GameObject>& GetInactiveList();
+	EXP_ListValue<KX_GameObject>& GetRootParentList();
+	EXP_ListValue<KX_LightObject>& GetLightList();
+	EXP_ListValue<KX_Camera>& GetCameraList();
+	EXP_ListValue<KX_FontObject>& GetFontList();
 
 	KX_PythonComponentManager& GetPythonComponentManager();
 

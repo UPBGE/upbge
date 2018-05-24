@@ -21,8 +21,6 @@
 
 #include "EXP_PyObjectPlus.h"
 
-#include "CM_RefCount.h"
-
 #ifdef WITH_PYTHON
 #  include "object.h"
 #endif
@@ -70,7 +68,7 @@ public:
  * - Replication (GetReplica())
  *
  */
-class EXP_Value : public EXP_PyObjectPlus, public CM_RefCount<EXP_Value>
+class EXP_Value : public EXP_PyObjectPlus
 {
 	Py_Header
 public:
@@ -78,6 +76,7 @@ public:
 	EXP_Value(const EXP_Value& other);
 	virtual ~EXP_Value();
 
+	EXP_Value& operator=(const EXP_Value& other) = delete;
 	EXP_Value& operator=(EXP_Value&& other) = default;
 
 #ifdef WITH_PYTHON

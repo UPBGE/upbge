@@ -28,18 +28,16 @@
 #define __KX_BATCH_GROUP_H__
 
 #include "RAS_BatchGroup.h"
-#include "EXP_Value.h"
+#include "EXP_ListValue.h"
 
 class KX_GameObject;
-template <class ItemType>
-class EXP_ListValue;
 
 class KX_BatchGroup : public EXP_Value, public RAS_BatchGroup
 {
 	Py_Header
 private:
 	/// The objects currently merged in the batch group.
-	EXP_ListValue<KX_GameObject> *m_objects;
+	EXP_ListValue<KX_GameObject> m_objects;
 
 public:
 	KX_BatchGroup();
@@ -47,7 +45,7 @@ public:
 
 	virtual std::string GetName() const;
 
-	EXP_ListValue<KX_GameObject> *GetObjects() const;
+	EXP_ListValue<KX_GameObject>& GetObjects();
 
 	/** Merge a list of objects using their mesh user and transformation.
 	 * \param objects The list of objects to merge.
