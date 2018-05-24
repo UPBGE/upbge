@@ -792,7 +792,7 @@ bool ConvertPythonToCamera(KX_Scene *scene, PyObject *value, KX_Camera **object,
 
 	if (PyUnicode_Check(value)) {
 		std::string value_str = _PyUnicode_AsString(value);
-		*object = scene->GetCameraList()->FindValue(value_str);
+		*object = scene->GetCameraList().FindValue(value_str);
 
 		if (*object) {
 			return true;

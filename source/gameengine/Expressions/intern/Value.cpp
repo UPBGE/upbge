@@ -50,8 +50,7 @@ EXP_Value::EXP_Value()
 }
 
 EXP_Value::EXP_Value(const EXP_Value& other)
-	:EXP_PyObjectPlus(other),
-	CM_RefCount<EXP_Value>(other)
+	:EXP_PyObjectPlus(other)
 {
 	for (const auto& pair : other.m_properties) {
 		m_properties.emplace(pair.first, pair.second->GetReplica());
@@ -134,7 +133,7 @@ void EXP_Value::DestructFromPython()
 #ifdef WITH_PYTHON
 	// Avoid decrefing freed proxy in destructor.
 	m_proxy = nullptr;
-	Release();
+	delete this;
 #endif  // WITH_PYTHON
 }
 

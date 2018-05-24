@@ -69,7 +69,7 @@ public:
 
 	virtual EXP_Value *GetReplica();
 	virtual void ProcessReplica();
-	virtual ObjectTypes GetGameObjectType() const;
+	virtual ObjectTypes GetObjectType() const;
 
 	bool BuildNavMesh();
 	dtStatNavMesh *GetNavMesh() const;

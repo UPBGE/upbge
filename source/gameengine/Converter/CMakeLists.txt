@@ -68,6 +68,7 @@ set(SRC
 	BL_ActionData.cpp
 	BL_BlenderDataConversion.cpp
 	BL_Converter.cpp
+	BL_ConvertObjectInfo.cpp
 	BL_Resource.cpp
 	BL_ScalarInterpolator.cpp
 	BL_SceneConverter.cpp
@@ -76,6 +77,7 @@ set(SRC
 	BL_ActionData.h
 	BL_BlenderDataConversion.h
 	BL_Converter.h
+	BL_ConvertObjectInfo.h
 	BL_Resource.h
 	BL_ScalarInterpolator.h
 	BL_SceneConverter.h

@@ -28,6 +28,9 @@
 #define __KX_LOD_MANAGER_H__
 
 #include "EXP_Value.h"
+
+#include "CM_RefCount.h"
+
 #include <vector>
 
 class KX_Scene;
@@ -35,7 +38,7 @@ class BL_SceneConverter;
 class KX_LodLevel;
 struct Object;
 
-class KX_LodManager : public EXP_Value
+class KX_LodManager : public EXP_Value, public CM_RefCount<KX_LodManager>
 {
 	Py_Header
 

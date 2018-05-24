@@ -299,7 +299,6 @@ void LA_Launcher::InitEngine()
 	m_converter->ConvertScene(m_kxStartScene);
 
 	m_ketsjiEngine->AddScene(m_kxStartScene);
-	m_kxStartScene->Release();
 
 	m_rasterizer->Init();
 	m_ketsjiEngine->StartEngine();

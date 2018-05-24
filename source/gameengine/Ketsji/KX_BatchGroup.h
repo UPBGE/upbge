@@ -28,18 +28,16 @@
 #define __KX_BATCH_GROUP_H__
 
 #include "RAS_BatchGroup.h"
-#include "EXP_Value.h"
+#include "EXP_ListValue.h"
 
 class KX_GameObject;
-template <class ItemType>
-class EXP_ListValue;
 
 class KX_BatchGroup : public EXP_Value, public RAS_BatchGroup
 {
 	Py_Header
 private:
 	/// The objects currently merged in the batch group.
-	EXP_ListValue<KX_GameObject> *m_objects;
+	EXP_ListValue<KX_GameObject> m_objects;
 	/// Reference object used to retrieve layer and color.
 	KX_GameObject *m_referenceObject;
 
@@ -49,7 +47,7 @@ public:
 
 	virtual std::string GetName() const;
 
-	EXP_ListValue<KX_GameObject> *GetObjects() const;
+	EXP_ListValue<KX_GameObject>& GetObjects();
 
 	KX_GameObject *GetReferenceObject() const;
 	/// Set reference object with error checking. Return false on error.

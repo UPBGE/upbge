@@ -959,8 +959,7 @@ static KX_GameObject *BL_GameObjectFromBlenderObject(Object *ob, KX_Scene *kxsce
 		{
 			KX_LightObject *gamelight = BL_GameLightFromBlenderLamp(static_cast<Lamp *>(ob->data), ob->lay, kxscene, rendertools);
 			gameobj = gamelight;
-			gamelight->AddRef();
-			kxscene->GetLightList()->Add(gamelight);
+			kxscene->GetLightList().Add(gamelight);
 
 			break;
 		}
@@ -970,7 +969,7 @@ static KX_GameObject *BL_GameObjectFromBlenderObject(Object *ob, KX_Scene *kxsce
 			KX_Camera *gamecamera = BL_GameCameraFromBlenderCamera(ob, kxscene, canvas, camZoom);
 			gameobj = gamecamera;
 
-			kxscene->GetCameraList()->Add(CM_AddRef(gamecamera));
+			kxscene->GetCameraList().Add(gamecamera);
 
 			break;
 		}
@@ -1026,7 +1025,7 @@ static KX_GameObject *BL_GameObjectFromBlenderObject(Object *ob, KX_Scene *kxsce
 			                                           kxscene->GetBoundingBoxManager(), ob);
 			gameobj = fontobj;
 
-			kxscene->GetFontList()->Add(CM_AddRef(fontobj));
+			kxscene->GetFontList().Add(fontobj);
 			break;
 		}
 
@@ -1201,7 +1200,7 @@ static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderob
 static void bl_ConvertBlenderObject_Single(BL_SceneConverter& converter,
                                            Object *blenderobject,
                                            std::vector<BL_ParentChildLink> &vec_parent_child,
-                                           EXP_ListValue<KX_GameObject> *objectlist, EXP_ListValue<KX_GameObject> *inactivelist,
+                                           EXP_ListValue<KX_GameObject>& objectlist, EXP_ListValue<KX_GameObject>& inactivelist,
                                            KX_Scene *kxscene, KX_GameObject *gameobj,
                                            bool isInActiveLayer)
 {
@@ -1266,13 +1265,13 @@ static void bl_ConvertBlenderObject_Single(BL_SceneConverter& converter,
 
 	// Only draw/use objects in active 'blender' layers.
 	if (isInActiveLayer) {
-		objectlist->Add(CM_AddRef(gameobj));
+		objectlist.Add(gameobj);
 
 		gameobj->NodeUpdate();
 	}
 	else {
 		// We must store this object otherwise it will be deleted at the end of this function if it is not a root object.
-		inactivelist->Add(CM_AddRef(gameobj));
+		inactivelist.Add(gameobj);
 	}
 }
 
@@ -1418,9 +1417,9 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 
 	std::vector<BL_ParentChildLink> vec_parent_child;
 
-	EXP_ListValue<KX_GameObject> *objectlist = kxscene->GetObjectList();
-	EXP_ListValue<KX_GameObject> *inactivelist = kxscene->GetInactiveList();
-	EXP_ListValue<KX_GameObject> *parentlist = kxscene->GetRootParentList();
+	EXP_ListValue<KX_GameObject>& objectlist = kxscene->GetObjectList();
+	EXP_ListValue<KX_GameObject>& inactivelist = kxscene->GetInactiveList();
+	EXP_ListValue<KX_GameObject>& parentlist = kxscene->GetRootParentList();
 
 
 	BL_SetBlenderSceneBackground(blenderscene);
@@ -1446,15 +1445,6 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 			if (gameobj->IsDupliGroup()) {
 				grouplist.insert(blenderobject->dup_group);
 			}
-
-			/* Note about memory leak issues:
-			 * When a EXP_Value derived class is created, m_refcount is initialized to 1
-			 * so the class must be released after being used to make sure that it won't
-			 * hang in memory. If the object needs to be stored for a long time,
-			 * use AddRef() so that this Release() does not free the object.
-			 * Make sure that for any AddRef() there is a Release().
-			 */
-			gameobj->Release();
 		}
 	}
 
@@ -1489,8 +1479,6 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 									grouplist.insert(blenderobject->dup_group);
 								}
 							}
-
-							gameobj->Release();
 						}
 					}
 				}
@@ -1516,7 +1504,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 
 		BLI_assert(childobj);
 
-		if (!parentobj || objectlist->SearchValue(childobj) != objectlist->SearchValue(parentobj)) {
+		if (!parentobj || objectlist.SearchValue(childobj) != objectlist.SearchValue(parentobj)) {
 			/* Special case: the parent and child object are not in the same layer.
 			 * This weird situation is used in Apricot for test purposes.
 			 * Resolve it by not converting the child
@@ -1585,7 +1573,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 	// Find 'root' parents (object that has not parents in SceneGraph).
 	for (KX_GameObject *gameobj : sumolist) {
 		if (!gameobj->GetNode()->GetParent()) {
-			parentlist->Add(CM_AddRef(gameobj));
+			parentlist.Add(gameobj);
 			gameobj->NodeUpdate();
 		}
 	}
@@ -1595,7 +1583,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 		gameobj->AddMeshUser();
 
 		// Add active armature for update.
-		if (gameobj->GetGameObjectType() == KX_GameObject::OBJECT_TYPE_ARMATURE) {
+		if (gameobj->GetObjectType() == KX_GameObject::OBJECT_TYPE_ARMATURE) {
 			kxscene->AddAnimatedObject(gameobj);
 		}
 	}
@@ -1605,12 +1593,12 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 		bool occlusion = false;
 		for (KX_GameObject *gameobj : sumolist) {
 			// The object can't be culled ?
-			if (gameobj->GetMeshList().empty() && gameobj->GetGameObjectType() != KX_GameObject::OBJECT_TYPE_TEXT) {
+			if (gameobj->GetMeshList().empty() && gameobj->GetObjectType() != KX_GameObject::OBJECT_TYPE_TEXT) {
 				continue;
 			}
 
 			if (physicsEngine == UseBullet) {
-				const bool isactive = objectlist->SearchValue(gameobj);
+				const bool isactive = objectlist.SearchValue(gameobj);
 				BL_CreateGraphicObjectNew(gameobj, kxscene, isactive, phyEnv);
 			}
 			if (gameobj->GetOccluder()) {
@@ -1784,9 +1772,9 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 	 * has the effect of adding objects at the end of objectlist.
 	 * Only loop through the first part of the list.
 	 */
-	int objcount = objectlist->GetCount();
+	int objcount = objectlist.GetCount();
 	for (unsigned int i = 0; i < objcount; ++i) {
-		KX_GameObject *gameobj = objectlist->GetValue(i);
+		KX_GameObject *gameobj = objectlist.GetValue(i);
 		if (gameobj->IsDupliGroup()) {
 			kxscene->DupliGroupRecurse(gameobj, 0);
 		}
@@ -1796,7 +1784,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 void BL_PostConvertBlenderObjects(KX_Scene *kxscene, const BL_SceneConverter& sceneconverter)
 {
 	const std::vector<KX_GameObject *>& sumolist = sceneconverter.GetObjects();
-	EXP_ListValue<KX_GameObject> *objectlist = kxscene->GetObjectList();
+	EXP_ListValue<KX_GameObject>& objectlist = kxscene->GetObjectList();
 
 #ifdef WITH_PYTHON
 

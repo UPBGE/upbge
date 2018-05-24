@@ -163,7 +163,7 @@ std::vector<std::string> BL_Converter::GetInactiveSceneNames() const
 
 	for (Scene *sce = (Scene *)m_maggie->scene.first; sce; sce = (Scene *)sce->id.next) {
 		const char *name = sce->id.name + 2;
-		if (m_ketsjiEngine->CurrentScenes()->FindValue(name)) {
+		if (m_ketsjiEngine->FindScene(name)) {
 			continue;
 		}
 		list.push_back(name);
@@ -220,8 +220,8 @@ void BL_Converter::RemoveScene(KX_Scene *scene)
 	SceneSlot& sceneSlot = m_sceneSlots[scene];
 	sceneSlot.m_meshobjects.clear();
 
-	// Delete the scene.
-	scene->Release();
+	// Delete the scene before the data, to remove all users.
+	delete scene;
 
 	m_sceneSlots.erase(scene);
 }
@@ -520,6 +520,7 @@ KX_LibLoadStatus *BL_Converter::LinkBlendFile(BlendHandle *blendlib, const char 
 
 bool BL_Converter::FreeBlendFileData(Main *maggie)
 {
+	// TODO use a list of file to free to avoid direct free of objects and scene when the user run python scripts.
 	// Indentifier used to recognize ressources of this library.
 	const BL_Resource::Library libraryId(maggie);
 
@@ -535,9 +536,9 @@ bool BL_Converter::FreeBlendFileData(Main *maggie)
 	}
 
 	// For each scene try to remove any usage of ressources from the library.
-	for (KX_Scene *scene : m_ketsjiEngine->CurrentScenes()) {
+	for (KX_Scene *scene : m_ketsjiEngine->GetScenes()) {
 		// Both list containing all the scene objects.
-		std::array<EXP_ListValue<KX_GameObject> *, 2> allObjects{{scene->GetObjectList(), scene->GetInactiveList()}};
+		std::array<EXP_ListValue<KX_GameObject> *, 2> allObjects{{&scene->GetObjectList(), &scene->GetInactiveList()}};
 
 		for (EXP_ListValue<KX_GameObject> *objectList : allObjects) {
 			for (KX_GameObject *gameobj : objectList) {

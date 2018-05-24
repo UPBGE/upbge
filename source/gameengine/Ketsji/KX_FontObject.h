@@ -58,7 +58,7 @@ public:
 	 */
 	virtual EXP_Value *GetReplica();
 	virtual void ProcessReplica();
-	virtual ObjectTypes GetGameObjectType() const
+	virtual ObjectTypes GetObjectType() const
 	{
 		return OBJECT_TYPE_TEXT;
 	}

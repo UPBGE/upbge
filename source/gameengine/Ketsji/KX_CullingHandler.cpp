@@ -9,11 +9,11 @@ class CullTask
 {
 public:
 	std::vector<KX_GameObject *> m_activeObjects;
-	EXP_ListValue<KX_GameObject> *m_objects;
+	EXP_ListValue<KX_GameObject>& m_objects;
 	KX_CullingHandler& m_handler;
 	int m_layer;
 
-	CullTask(EXP_ListValue<KX_GameObject> *objects, KX_CullingHandler& handler, int layer)
+	CullTask(EXP_ListValue<KX_GameObject>& objects, KX_CullingHandler& handler, int layer)
 		:m_objects(objects),
 		m_handler(handler),
 		m_layer(layer)
@@ -30,7 +30,7 @@ public:
 	void operator()(const tbb::blocked_range<size_t>& r)
 	{
 		for (unsigned int i = r.begin(), end = r.end(); i < end; ++i) {
-			KX_GameObject *obj = m_objects->GetValue(i);
+			KX_GameObject *obj = m_objects.GetValue(i);
 			if (obj->Renderable(m_layer)) {
 				// Update the object bounding volume box.
 				obj->UpdateBounds(false);
@@ -52,7 +52,7 @@ public:
 	}
 };
 
-KX_CullingHandler::KX_CullingHandler(EXP_ListValue<KX_GameObject> *objects, const SG_Frustum& frustum, int layer)
+KX_CullingHandler::KX_CullingHandler(EXP_ListValue<KX_GameObject>& objects, const SG_Frustum& frustum, int layer)
 	:m_objects(objects),
 	m_frustum(frustum),
 	m_layer(layer)
@@ -81,6 +81,6 @@ bool KX_CullingHandler::Test(const mt::mat3x4& trans, const mt::vec3& scale, con
 std::vector<KX_GameObject *> KX_CullingHandler::Process()
 {
 	CullTask task(m_objects, *this, m_layer);
-	tbb::parallel_reduce(tbb::blocked_range<size_t>(0, m_objects->GetCount()), task);
+	tbb::parallel_reduce(tbb::blocked_range<size_t>(0, m_objects.GetCount()), task);
 	return task.m_activeObjects;
 }

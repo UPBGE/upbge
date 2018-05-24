@@ -121,7 +121,7 @@ void KX_NavMeshObject::ProcessReplica()
 	m_navMesh = nullptr;
 }
 
-KX_GameObject::ObjectTypes KX_NavMeshObject::GetGameObjectType() const
+KX_GameObject::ObjectTypes KX_NavMeshObject::GetObjectType() const
 {
 	return OBJECT_TYPE_NAVMESH;
 }
