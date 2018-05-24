@@ -2985,6 +2985,20 @@ static void rna_def_userdef_theme_space_topbar(BlenderRNA *brna)
 	rna_def_userdef_theme_spaces_main(srna);
 }
 
+static void rna_def_userdef_theme_space_statusbar(BlenderRNA *brna)
+{
+	StructRNA *srna;
+
+	/* space_statusbar */
+
+	srna = RNA_def_struct(brna, "ThemeStatusBar", NULL);
+	RNA_def_struct_sdna(srna, "ThemeSpace");
+	RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
+	RNA_def_struct_ui_text(srna, "Theme Status Bar", "Theme settings for the Status Bar");
+
+	rna_def_userdef_theme_spaces_main(srna);
+}
+
 static void rna_def_userdef_themes(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -3011,6 +3025,7 @@ static void rna_def_userdef_themes(BlenderRNA *brna)
 		{17, "CONSOLE", ICON_CONSOLE, "Python Console", ""},
 		{20, "CLIP_EDITOR", ICON_CLIP, "Movie Clip Editor", ""},
 		{21, "TOPBAR", ICON_NONE, "Top Bar", ""},
+		{22, "STATUSBAR", ICON_NONE, "Status Bar", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
 
@@ -3144,6 +3159,12 @@ static void rna_def_userdef_themes(BlenderRNA *brna)
 	RNA_def_property_pointer_sdna(prop, NULL, "ttopbar");
 	RNA_def_property_struct_type(prop, "ThemeTopBar");
 	RNA_def_property_ui_text(prop, "Top Bar", "");
+
+	prop = RNA_def_property(srna, "statusbar", PROP_POINTER, PROP_NONE);
+	RNA_def_property_flag(prop, PROP_NEVER_NULL);
+	RNA_def_property_pointer_sdna(prop, NULL, "tstatusbar");
+	RNA_def_property_struct_type(prop, "ThemeStatusBar");
+	RNA_def_property_ui_text(prop, "Status Bar", "");
 }
 
 static void rna_def_userdef_addon(BlenderRNA *brna)
@@ -3235,6 +3256,7 @@ static void rna_def_userdef_dothemes(BlenderRNA *brna)
 	rna_def_userdef_theme_space_logic(brna);
 	rna_def_userdef_theme_space_clip(brna);
 	rna_def_userdef_theme_space_topbar(brna);
+	rna_def_userdef_theme_space_statusbar(brna);
 	rna_def_userdef_theme_colorset(brna);
 	rna_def_userdef_themes(brna);
 }

@@ -5901,7 +5901,6 @@ static void lib_link_collection_data(FileData *fd, Library *lib, Collection *col
 		cob->ob = newlibadr_us(fd, lib, cob->ob);
 
 		if (cob->ob == NULL) {
-			BLI_assert(!"Collection linked object got lost"); // TODO: remove, only for testing now
 			BLI_freelinkN(&collection->gobject, cob);
 		}
 	}
@@ -5913,7 +5912,6 @@ static void lib_link_collection_data(FileData *fd, Library *lib, Collection *col
 		if (child->collection == NULL ||
 		    BKE_collection_find_cycle(collection, child->collection))
 		{
-			BLI_assert(!"Collection child got lost"); // TODO: remove, only for testing now
 			BLI_freelinkN(&collection->children, child);
 		}
 		else {
@@ -9304,6 +9302,14 @@ static void expand_constraint_channels(FileData *fd, Main *mainvar, ListBase *ch
 	}
 }
 
+static void expand_id(FileData *fd, Main *mainvar, ID *id)
+{
+	if (id->override_static) {
+		expand_doit(fd, mainvar, id->override_static->reference);
+		expand_doit(fd, mainvar, id->override_static->storage);
+	}
+}
+
 static void expand_idprops(FileData *fd, Main *mainvar, IDProperty *prop)
 {
 	if (!prop)
@@ -10162,6 +10168,7 @@ void BLO_expand_main(void *fdhandle, Main *mainvar)
 			id = lbarray[a]->first;
 			while (id) {
 				if (id->tag & LIB_TAG_NEED_EXPAND) {
+					expand_id(fd, mainvar, id);
 					expand_idprops(fd, mainvar, id->properties);
 
 					switch (GS(id->name)) {
