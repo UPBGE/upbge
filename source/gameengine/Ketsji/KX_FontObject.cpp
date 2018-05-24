@@ -37,7 +37,7 @@
 #include "KX_PythonInit.h"
 #include "KX_PyMath.h"
 #include "BLI_math.h"
-#include "EXP_StringValue.h"
+#include "EXP_PropString.h"
 #include "RAS_Rasterizer.h"
 #include "RAS_BucketManager.h"
 #include "RAS_MaterialBucket.h"
@@ -358,7 +358,7 @@ int KX_FontObject::pyattr_set_text(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBU
 	/* Allow for some logic brick control */
 	EXP_PropValue *tprop = self->GetProperty("Text"); // TODO deprecate
 	if (tprop && tprop->GetValueType() == EXP_PropValue::TYPE_STRING) {
-		static_cast<EXP_StringValue *>(tprop)->SetValue(std::string(chars));
+		static_cast<EXP_PropString *>(tprop)->SetValue(std::string(chars));
 	}
 	else {
 		self->SetText(std::string(chars)); // TODO: Check unicode support

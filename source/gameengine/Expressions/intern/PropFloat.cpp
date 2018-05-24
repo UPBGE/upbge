@@ -1,7 +1,7 @@
-/** \file gameengine/Expressions/IntValue.cpp
+/** \file gameengine/Expressions/FloatValue.cpp
  *  \ingroup expressions
  */
-// IntValue.cpp: implementation of the EXP_IntValue class.
+// FloatValue.cpp: implementation of the EXP_PropFloat class.
 /*
  * Copyright (c) 1996-2000 Erwin Coumans <coockie@acm.org>
  *
@@ -15,42 +15,42 @@
  *
  */
 
-#include "EXP_IntValue.h"
+#include "EXP_PropFloat.h"
 
-EXP_IntValue::EXP_IntValue(long long innie)
-	:m_value(innie)
+EXP_PropFloat::EXP_PropFloat(double fl)
+	:m_value(fl)
 {
 }
 
-std::string EXP_IntValue::GetText() const
+std::string EXP_PropFloat::GetText() const
 {
 	return std::to_string(m_value);
 }
 
-EXP_PropValue::DATA_TYPE EXP_IntValue::GetValueType() const
+EXP_PropValue::DATA_TYPE EXP_PropFloat::GetValueType() const
 {
-	return TYPE_INT;
+	return TYPE_FLOAT;
 }
 
-EXP_PropValue *EXP_IntValue::GetReplica()
-{
-	EXP_IntValue *replica = new EXP_IntValue(*this);
-	return replica;
-}
-
-long long EXP_IntValue::GetValue() const
+double EXP_PropFloat::GetValue() const
 {
 	return m_value;
 }
 
-void EXP_IntValue::SetValue(long long value)
+void EXP_PropFloat::SetValue(double value)
 {
 	m_value = value;
 }
 
-#ifdef WITH_PYTHON
-PyObject *EXP_IntValue::ConvertValueToPython()
+EXP_PropValue *EXP_PropFloat::GetReplica()
 {
-	return PyLong_FromLongLong(m_value);
+	EXP_PropFloat *replica = new EXP_PropFloat(*this);
+	return replica;
+}
+
+#ifdef WITH_PYTHON
+PyObject *EXP_PropFloat::ConvertValueToPython()
+{
+	return PyFloat_FromDouble(m_value);
 }
 #endif  // WITH_PYTHON

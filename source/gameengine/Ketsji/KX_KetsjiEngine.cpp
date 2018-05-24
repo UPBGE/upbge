@@ -43,9 +43,9 @@
 #include "KX_KetsjiEngine.h"
 
 #include "EXP_ListValue.h"
-#include "EXP_IntValue.h"
-#include "EXP_BoolValue.h"
-#include "EXP_FloatValue.h"
+#include "EXP_PropInt.h"
+#include "EXP_PropBool.h"
+#include "EXP_PropFloat.h"
 
 #include "RAS_BucketManager.h"
 #include "RAS_Rasterizer.h"

@@ -1,5 +1,5 @@
 /*
- * IntValue.h: interface for the EXP_IntValue class.
+ * StringValue.h: interface for the EXP_PropString class.
  * Copyright (c) 1996-2000 Erwin Coumans <coockie@acm.org>
  *
  * Permission to use, copy, modify, distribute and sell this software
@@ -12,35 +12,35 @@
  *
  */
 
-/** \file EXP_IntValue.h
+/** \file EXP_PropString.h
  *  \ingroup expressions
  */
 
-#ifndef __EXP_INTVALUE_H__
-#define __EXP_INTVALUE_H__
-
+#ifndef __EXP_STRINGVALUE_H__
+#define __EXP_STRINGVALUE_H__
 
 #include "EXP_Value.h"
 
-class EXP_IntValue : public EXP_PropValue
+class EXP_PropString : public EXP_PropValue
 {
 public:
-	EXP_IntValue(long long innie);
+	EXP_PropString(const std::string& txt);
 
 	virtual std::string GetText() const;
 	virtual DATA_TYPE GetValueType() const;
 
-	long long GetValue() const;
-	void SetValue(long long value);
+	const std::string& GetValue() const;
+	void SetValue(const std::string& value);
 
 	virtual EXP_PropValue *GetReplica();
 
 #ifdef WITH_PYTHON
 	virtual PyObject *ConvertValueToPython();
-#endif
+#endif  // WITH_PYTHON
 
 private:
-	long long m_value;
+	/// Data member.
+	std::string m_value;
 };
 
-#endif  // __EXP_INTVALUE_H__
+#endif  // __EXP_STRINGVALUE_H__

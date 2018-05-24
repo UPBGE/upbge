@@ -38,7 +38,7 @@
 #include "SCA_TimeEventManager.h"
 
 #include "SCA_LogicManager.h"
-#include "EXP_FloatValue.h"
+#include "EXP_PropFloat.h"
 
 #include "CM_List.h"
 
@@ -61,7 +61,7 @@ void SCA_TimeEventManager::NextFrame(double curtime, double fixedtime)
 	}
 
 	for (EXP_Value *prop : m_timevalues) {
-		EXP_FloatValue *floatProp = static_cast<EXP_FloatValue *>(prop); // TODO store float prop directly.
+		EXP_PropFloat *floatProp = static_cast<EXP_PropFloat *>(prop); // TODO store float prop directly.
 		floatProp->SetValue(floatProp->GetValue() + fixedtime);
 	}
 }

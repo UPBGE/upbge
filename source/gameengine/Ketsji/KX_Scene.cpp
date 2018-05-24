@@ -58,7 +58,7 @@
 #include "RAS_BucketManager.h"
 #include "RAS_Deformer.h"
 
-#include "EXP_FloatValue.h"
+#include "EXP_PropFloat.h"
 #include "SG_Node.h"
 #include "SG_Controller.h"
 #include "SG_Node.h"
@@ -639,7 +639,7 @@ KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobj, KX_GameObj
 		m_tempObjectList.push_back(replica);
 		/* This convert the life from frames to sort-of seconds, hard coded 0.02 that assumes we have 50 frames per second
 		 * if you change this value, make sure you change it in KX_GameObject::pyattr_get_life property too. */
-		EXP_PropValue *fval = new EXP_FloatValue(lifespan * 0.02f);
+		EXP_PropValue *fval = new EXP_PropFloat(lifespan * 0.02f);
 		replica->SetProperty("::timebomb", fval);
 	}
 
@@ -989,7 +989,7 @@ void KX_Scene::LogicBeginFrame(double curtime, double framestep)
 {
 	// Have a look at temp objects.
 	for (KX_GameObject *gameobj : m_tempObjectList) {
-		EXP_FloatValue *propval = static_cast<EXP_FloatValue *>(gameobj->GetProperty("::timebomb"));
+		EXP_PropFloat *propval = static_cast<EXP_PropFloat *>(gameobj->GetProperty("::timebomb"));
 
 		if (propval) {
 			const double timeleft = propval->GetValue() - framestep;

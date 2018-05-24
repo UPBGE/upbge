@@ -44,7 +44,7 @@
 
 #include "CM_Thread.h"
 
-class EXP_StringValue;
+class EXP_PropString;
 class BL_SceneConverter;
 class BL_ConvertObjectInfo;
 class KX_KetsjiEngine;

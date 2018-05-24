@@ -18,31 +18,31 @@
  *
  */
 #include "EXP_Value.h"
-#include "EXP_BoolValue.h"
-#include "EXP_StringValue.h"
-#include "EXP_IntValue.h"
-#include "EXP_FloatValue.h"
-#include "EXP_PythonValue.h"
+#include "EXP_PropBool.h"
+#include "EXP_PropString.h"
+#include "EXP_PropInt.h"
+#include "EXP_PropFloat.h"
+#include "EXP_PropPython.h"
 
 EXP_PropValue *EXP_PropValue::ConvertPythonToValue(PyObject *pyobj)
 {
 	// Note: Boolean check should go before Int check [#34677].
 	if (PyBool_Check(pyobj)) {
-		return new EXP_BoolValue((bool)PyLong_AsLongLong(pyobj));
+		return new EXP_PropBool((bool)PyLong_AsLongLong(pyobj));
 	}
 	else if (PyFloat_Check(pyobj)) {
 		const double tval = PyFloat_AsDouble(pyobj);
-		return new EXP_FloatValue(tval);
+		return new EXP_PropFloat(tval);
 	}
 	else if (PyLong_Check(pyobj)) {
-		return new EXP_IntValue(PyLong_AsLongLong(pyobj));
+		return new EXP_PropInt(PyLong_AsLongLong(pyobj));
 	}
 	else if (PyUnicode_Check(pyobj)) {
-		return new EXP_StringValue(_PyUnicode_AsString(pyobj));
+		return new EXP_PropString(_PyUnicode_AsString(pyobj));
 	}
 
 	// Fall down in python property.
-	return new EXP_PythonValue(pyobj);
+	return new EXP_PropPython(pyobj);
 }
 
 EXP_Value::EXP_Value()
