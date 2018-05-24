@@ -43,7 +43,6 @@
 #include "KX_TextMaterial.h"
 #include "KX_FontObject.h"
 #include "RAS_IMaterial.h"
-#include "EXP_ListValue.h"
 #include "KX_Camera.h"
 #include "KX_PyMath.h"
 #include "KX_Mesh.h"
@@ -92,11 +91,6 @@
 static void *KX_SceneReplicationFunc(SG_Node *node, void *gameobj, void *scene)
 {
 	KX_GameObject *replica = ((KX_Scene *)scene)->AddNodeReplicaObject(node, (KX_GameObject *)gameobj);
-
-	if (replica) {
-		replica->Release();
-	}
-
 	return (void *)replica;
 }
 
@@ -144,14 +138,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_isActivedHysteresis(false),
 	m_lodHysteresisValue(0)
 {
-
-	m_objectlist = new EXP_ListValue<KX_GameObject>();
-	m_parentlist = new EXP_ListValue<KX_GameObject>();
-	m_lightlist = new EXP_ListValue<KX_LightObject>();
-	m_inactivelist = new EXP_ListValue<KX_GameObject>();
-	m_cameralist = new EXP_ListValue<KX_Camera>();
-	m_fontlist = new EXP_ListValue<KX_FontObject>();
-
 	m_filterManager = new KX_2DFilterManager();
 
 	m_networkScene = new KX_NetworkMessageScene(messageManager);
@@ -180,9 +166,9 @@ KX_Scene::~KX_Scene()
 	 */
 	RemoveAllDebugProperties();
 
-	while (GetRootParentList()->GetCount() > 0) {
-		KX_GameObject *parentobj = GetRootParentList()->GetValue(0);
-		this->RemoveObject(parentobj);
+	while (!m_parentlist.Empty()) {
+		KX_GameObject *parentobj = m_parentlist.GetFront();
+		RemoveObject(parentobj);
 	}
 
 	if (m_obstacleSimulation) {
@@ -191,30 +177,6 @@ KX_Scene::~KX_Scene()
 
 	if (m_animationPool) {
 		BLI_task_pool_free(m_animationPool);
-	}
-
-	if (m_objectlist) {
-		m_objectlist->Release();
-	}
-
-	if (m_parentlist) {
-		m_parentlist->Release();
-	}
-
-	if (m_inactivelist) {
-		m_inactivelist->Release();
-	}
-
-	if (m_lightlist) {
-		m_lightlist->Release();
-	}
-
-	if (m_cameralist) {
-		m_cameralist->Release();
-	}
-
-	if (m_fontlist) {
-		m_fontlist->Release();
 	}
 
 	if (m_filterManager) {
@@ -284,32 +246,32 @@ RAS_BoundingBoxManager *KX_Scene::GetBoundingBoxManager() const
 	return m_boundingBoxManager;
 }
 
-EXP_ListValue<KX_GameObject> *KX_Scene::GetObjectList() const
+EXP_ListValue<KX_GameObject>& KX_Scene::GetObjectList()
 {
 	return m_objectlist;
 }
 
-EXP_ListValue<KX_GameObject> *KX_Scene::GetRootParentList() const
+EXP_ListValue<KX_GameObject>& KX_Scene::GetRootParentList()
 {
 	return m_parentlist;
 }
 
-EXP_ListValue<KX_GameObject> *KX_Scene::GetInactiveList() const
+EXP_ListValue<KX_GameObject>& KX_Scene::GetInactiveList()
 {
 	return m_inactivelist;
 }
 
-EXP_ListValue<KX_LightObject> *KX_Scene::GetLightList() const
+EXP_ListValue<KX_LightObject>& KX_Scene::GetLightList()
 {
 	return m_lightlist;
 }
 
-EXP_ListValue<KX_Camera> *KX_Scene::GetCameraList() const
+EXP_ListValue<KX_Camera>& KX_Scene::GetCameraList()
 {
 	return m_cameralist;
 }
 
-EXP_ListValue<KX_FontObject> *KX_Scene::GetFontList() const
+EXP_ListValue<KX_FontObject>& KX_Scene::GetFontList()
 {
 	return m_fontlist;
 }
@@ -401,12 +363,7 @@ void KX_Scene::AddObjectDebugProperties(KX_GameObject *gameobj)
 
 void KX_Scene::RemoveNodeDestructObject(KX_GameObject *gameobj)
 {
-	if (NewRemoveObject(gameobj)) {
-		/* Object is not yet deleted because a reference is hanging somewhere.
-		 * This should not happen anymore since we use proxy object for Python. */
-		CM_Error("zombie object! name=" << gameobj->GetName());
-		BLI_assert(false);
-	}
+	NewRemoveObject(gameobj);
 }
 
 KX_GameObject *KX_Scene::AddNodeReplicaObject(SG_Node *node, KX_GameObject *gameobj)
@@ -467,22 +424,22 @@ KX_GameObject *KX_Scene::AddNodeReplicaObject(SG_Node *node, KX_GameObject *game
 	replicanode->SetClientObject(newobj);
 
 	// This is the list of object that are send to the graphics pipeline.
-	m_objectlist->Add(CM_AddRef(newobj));
+	m_objectlist.Add(newobj);
 
-	switch (newobj->GetGameObjectType()) {
+	switch (newobj->GetObjectType()) {
 		case KX_GameObject::OBJECT_TYPE_LIGHT:
 		{
-			m_lightlist->Add(CM_AddRef(static_cast<KX_LightObject *>(newobj)));
+			m_lightlist.Add(static_cast<KX_LightObject *>(newobj));
 			break;
 		}
 		case KX_GameObject::OBJECT_TYPE_TEXT:
 		{
-			m_fontlist->Add(CM_AddRef(static_cast<KX_FontObject *>(newobj)));
+			m_fontlist.Add(static_cast<KX_FontObject *>(newobj));
 			break;
 		}
 		case KX_GameObject::OBJECT_TYPE_CAMERA:
 		{
-			m_cameralist->Add(CM_AddRef(static_cast<KX_Camera *>(newobj)));
+			m_cameralist.Add(static_cast<KX_Camera *>(newobj));
 			break;
 		}
 		case KX_GameObject::OBJECT_TYPE_ARMATURE:
@@ -585,7 +542,7 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
 		}
 		KX_GameObject *replica = AddNodeReplicaObject(nullptr, gameobj);
 		// Add to 'rootparent' list (this is the list of top hierarchy objects, updated each frame).
-		m_parentlist->Add(CM_AddRef(replica));
+		m_parentlist.Add(replica);
 
 		// Recurse replication into children nodes.
 		const NodeList& children = gameobj->GetNode()->GetChildren();
@@ -687,7 +644,7 @@ KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobj, KX_GameObj
 	}
 
 	// Add to 'rootparent' list (this is the list of top hierarchy objects, updated each frame).
-	m_parentlist->Add(CM_AddRef(replica));
+	m_parentlist.Add(replica);
 
 	// Recurse replication into children nodes.
 
@@ -781,7 +738,7 @@ void KX_Scene::DelayedRemoveObject(KX_GameObject *gameobj)
 	CM_ListAddIfNotFound(m_euthanasyobjects, gameobj);
 }
 
-bool KX_Scene::NewRemoveObject(KX_GameObject *gameobj)
+void KX_Scene::NewRemoveObject(KX_GameObject *gameobj)
 {
 	// Remove property from debug list.
 	RemoveObjectDebugProperties(gameobj);
@@ -825,30 +782,35 @@ bool KX_Scene::NewRemoveObject(KX_GameObject *gameobj)
 
 	m_rendererManager->InvalidateViewpoint(gameobj);
 
-	bool ret = true;
-	if (m_lightlist->RemoveValue(gameobj)) {
-		ret = (gameobj->Release() != nullptr);
-	}
-	if (m_objectlist->RemoveValue(gameobj)) {
-		ret = (gameobj->Release() != nullptr);
-	}
-	if (m_parentlist->RemoveValue(gameobj)) {
-		ret = (gameobj->Release() != nullptr);
-	}
-	if (m_inactivelist->RemoveValue(gameobj)) {
-		ret = (gameobj->Release() != nullptr);
-	}
-	if (m_fontlist->RemoveValue(gameobj)) {
-		ret = (gameobj->Release() != nullptr);
-	}
-	if (m_cameralist->RemoveValue(gameobj)) {
-		ret = (gameobj->Release() != nullptr);
+	switch (gameobj->GetObjectType()) {
+		case KX_GameObject::OBJECT_TYPE_CAMERA:
+		{
+			m_cameralist.RemoveValue(static_cast<KX_Camera *>(gameobj));
+			break;
+		}
+		case KX_GameObject::OBJECT_TYPE_LIGHT:
+		{
+			m_lightlist.RemoveValue(static_cast<KX_LightObject *>(gameobj));
+			break;
+		}
+		case KX_GameObject::OBJECT_TYPE_TEXT:
+		{
+			m_fontlist.RemoveValue(static_cast<KX_FontObject *>(gameobj));
+			break;
+		}
+		default:
+		{
+			break;
+		}
 	}
 
-	// WARNING: 'gameobj' maybe be freed now, only compare, don't access.
 	CM_ListRemoveIfFound(m_animatedlist, gameobj);
 	CM_ListRemoveIfFound(m_euthanasyobjects, gameobj);
 	CM_ListRemoveIfFound(m_tempObjectList, gameobj);
+
+	m_parentlist.RemoveValue(gameobj);
+	m_inactivelist.RemoveValue(gameobj);
+	m_objectlist.RemoveValue(gameobj);
 
 	if (gameobj == m_activeCamera) {
 		m_activeCamera = nullptr;
@@ -858,8 +820,7 @@ bool KX_Scene::NewRemoveObject(KX_GameObject *gameobj)
 		m_overrideCullingCamera = nullptr;
 	}
 
-	// Return value will be nullptr if the object is actually deleted (all reference gone)
-	return ret;
+	delete gameobj;
 }
 
 KX_Camera *KX_Scene::GetActiveCamera()
@@ -885,9 +846,9 @@ void KX_Scene::SetOverrideCullingCamera(KX_Camera *cam)
 
 void KX_Scene::SetCameraOnTop(KX_Camera *cam)
 {
-	// No release and addref just change camera place.
-	m_cameralist->RemoveValue(cam);
-	m_cameralist->Add(cam);
+	// Change camera place.
+	m_cameralist.RemoveValue(cam);
+	m_cameralist.Add(cam);
 }
 
 void KX_Scene::PhysicsCullingCallback(KX_ClientObjectInfo *objectInfo, void *cullingInfo)
@@ -985,7 +946,7 @@ void KX_Scene::DrawDebug(const std::vector<KX_GameObject *>& objects,
 	if (showArmatures != KX_DebugOption::DISABLE) {
 		// The side effect of a armature is that it was added in the animated object list.
 		/*for (KX_GameObject *gameobj : m_animatedlist) {
-			if (gameobj->GetGameObjectType() == KX_GameObject::OBJECT_TYPE_ARMATURE) {
+			if (gameobj->GetObjectType() == KX_GameObject::OBJECT_TYPE_ARMATURE) {
 				BL_ArmatureObject *armature = static_cast<BL_ArmatureObject *>(gameobj);
 				if (showArmatures == KX_DebugOption::FORCE || armature->GetDrawDebug()) {
 					armature->DrawDebug(m_debugDraw);
@@ -1123,7 +1084,7 @@ static void update_anim_thread_func(TaskPool *pool, void *taskdata, int UNUSED(t
 	KX_GameObject *gameobj = (KX_GameObject *)taskdata;
 
 	// Non-armature updates are fast enough, so just update them
-	bool needs_update = gameobj->GetGameObjectType() != KX_GameObject::OBJECT_TYPE_ARMATURE;
+	bool needs_update = gameobj->GetObjectType() != KX_GameObject::OBJECT_TYPE_ARMATURE;
 
 	if (!needs_update) {
 		// If we got here, we're looking to update an armature, so check its children meshes
@@ -1164,7 +1125,7 @@ static void update_anim_thread_func(TaskPool *pool, void *taskdata, int UNUSED(t
 
 		// Only do deformers here if they are not parented to an armature, otherwise the armature will
 		// handle updating its children
-		if (gameobj->GetDeformer() && (!parent || parent->GetGameObjectType() != KX_GameObject::OBJECT_TYPE_ARMATURE)) {
+		if (gameobj->GetDeformer() && (!parent || parent->GetObjectType() != KX_GameObject::OBJECT_TYPE_ARMATURE)) {
 			gameobj->GetDeformer()->Update();
 		}
 
@@ -1408,7 +1369,7 @@ static void MergeScene_GameObject(KX_GameObject *gameobj, KX_Scene *to, KX_Scene
 			}
 		}
 	}
-	switch (gameobj->GetGameObjectType()) {
+	switch (gameobj->GetObjectType()) {
 		// If the object is a light, update it's scene.
 		case KX_GameObject::OBJECT_TYPE_LIGHT:
 		{
@@ -1451,7 +1412,7 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 	m_rendererManager->Merge(other->GetTextureRendererManager());
 	m_componentManager.Merge(other->GetPythonComponentManager());
 
-	for (KX_GameObject *gameobj : *other->GetObjectList()) {
+	for (KX_GameObject *gameobj : other->GetObjectList()) {
 		MergeScene_GameObject(gameobj, this, other);
 
 		// Add properties to debug list for LibLoad objects.
@@ -1460,13 +1421,13 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 		}
 	}
 
-	for (KX_GameObject *gameobj : *other->GetInactiveList()) {
+	for (KX_GameObject *gameobj : other->GetInactiveList()) {
 		MergeScene_GameObject(gameobj, this, other);
 	}
 
 	if (env) {
 		env->MergeEnvironment(env_other);
-		EXP_ListValue<KX_GameObject> *otherObjects = other->GetObjectList();
+		EXP_ListValue<KX_GameObject>& otherObjects = other->GetObjectList();
 
 		// List of all physics objects to merge (needed by ReplicateConstraints).
 		std::vector<KX_GameObject *> physicsObjects;
@@ -1482,23 +1443,12 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 		}
 	}
 
-	m_objectlist->MergeList(other->GetObjectList());
-	other->GetObjectList()->ReleaseAndRemoveAll();
-
-	m_inactivelist->MergeList(other->GetInactiveList());
-	other->GetInactiveList()->ReleaseAndRemoveAll();
-
-	m_parentlist->MergeList(other->GetRootParentList());
-	other->GetRootParentList()->ReleaseAndRemoveAll();
-
-	m_lightlist->MergeList(other->GetLightList());
-	other->GetLightList()->ReleaseAndRemoveAll();
-
-	m_cameralist->MergeList(other->GetCameraList());
-	other->GetCameraList()->ReleaseAndRemoveAll();
-
-	m_fontlist->MergeList(other->GetFontList());
-	other->GetFontList()->ReleaseAndRemoveAll();
+	m_objectlist.MergeList(other->GetObjectList());
+	m_inactivelist.MergeList(other->GetInactiveList());
+	m_parentlist.MergeList(other->GetRootParentList());
+	m_lightlist.MergeList(other->GetLightList());
+	m_cameralist.MergeList(other->GetCameraList());
+	m_fontlist.MergeList(other->GetFontList());
 
 	// Grab any timer properties from the other scene.
 	/*SCA_TimeEventManager *timemgr_other = other->GetTimeEventManager();
@@ -1748,19 +1698,19 @@ PyObject *KX_Scene::pyattr_get_name(EXP_PyObjectPlus *self_v, const EXP_PYATTRIB
 PyObject *KX_Scene::pyattr_get_objects(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_Scene *self = static_cast<KX_Scene *>(self_v);
-	return self->GetObjectList()->GetProxy();
+	return self->GetObjectList().GetProxy();
 }
 
 PyObject *KX_Scene::pyattr_get_objects_inactive(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_Scene *self = static_cast<KX_Scene *>(self_v);
-	return self->GetInactiveList()->GetProxy();
+	return self->GetInactiveList().GetProxy();
 }
 
 PyObject *KX_Scene::pyattr_get_lights(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_Scene *self = static_cast<KX_Scene *>(self_v);
-	return self->GetLightList()->GetProxy();
+	return self->GetLightList().GetProxy();
 }
 
 PyObject *KX_Scene::pyattr_get_filter_manager(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
@@ -1787,13 +1737,13 @@ PyObject *KX_Scene::pyattr_get_world(EXP_PyObjectPlus *self_v, const EXP_PYATTRI
 PyObject *KX_Scene::pyattr_get_texts(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_Scene *self = static_cast<KX_Scene *>(self_v);
-	return self->GetFontList()->GetProxy();
+	return self->GetFontList().GetProxy();
 }
 
 PyObject *KX_Scene::pyattr_get_cameras(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_Scene *self = static_cast<KX_Scene *>(self_v);
-	return self->GetCameraList()->GetProxy();
+	return self->GetCameraList().GetProxy();
 }
 
 PyObject *KX_Scene::pyattr_get_active_camera(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
@@ -1975,15 +1925,12 @@ EXP_PYMETHODDEF_DOC(KX_Scene, addObject,
 		return nullptr;
 	}
 
-	if (!m_inactivelist->SearchValue(ob)) {
+	if (!m_inactivelist.SearchValue(ob)) {
 		PyErr_Format(PyExc_ValueError, "scene.addObject(object, reference, time): KX_Scene (first argument): object must be in an inactive layer");
 		return nullptr;
 	}
 	KX_GameObject *replica = AddReplicaObject(ob, reference, time);
 
-	/* Release here because AddReplicaObject AddRef's
-	 * the object is added to the scene so we don't want python to own a reference. */
-	replica->Release();
 	return replica->GetProxy();
 }
 
@@ -2093,7 +2040,7 @@ bool ConvertPythonToScene(PyObject *value, KX_Scene **scene, bool py_none_ok, co
 	}
 
 	if (PyUnicode_Check(value)) {
-		*scene = KX_GetActiveEngine()->CurrentScenes()->FindValue(std::string(_PyUnicode_AsString(value)));
+		*scene = KX_GetActiveEngine()->FindScene(std::string(_PyUnicode_AsString(value)));
 
 		if (*scene) {
 			return true;

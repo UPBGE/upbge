@@ -165,7 +165,7 @@ std::vector<std::string> BL_Converter::GetInactiveSceneNames() const
 
 	for (Scene *sce = (Scene *)m_maggie->scene.first; sce; sce = (Scene *)sce->id.next) {
 		const char *name = sce->id.name + 2;
-		if (m_ketsjiEngine->CurrentScenes()->FindValue(name)) {
+		if (m_ketsjiEngine->FindScene(name)) {
 			continue;
 		}
 		list.push_back(name);
@@ -208,8 +208,8 @@ void BL_Converter::RemoveScene(KX_Scene *scene)
 	SceneSlot& sceneSlot = m_sceneSlots[scene];
 	sceneSlot.m_meshobjects.clear();
 
-	// Delete the scene.
-	scene->Release();
+	// Delete the scene before the data, to remove all users.
+	delete scene;
 
 	m_sceneSlots.erase(scene);
 }
@@ -495,6 +495,7 @@ KX_LibLoadStatus *BL_Converter::LinkBlendFile(BlendHandle *blendlib, const char 
  * most are temp and NewRemoveObject frees m_map_gameobject_to_blender */
 bool BL_Converter::FreeBlendFile(Main *maggie)
 {
+	// TODO use a list of file to free to avoid direct free of objects and scene when the user run python scripts.
 	if (maggie == nullptr) {
 		return false;
 	}
@@ -525,16 +526,10 @@ bool BL_Converter::FreeBlendFile(Main *maggie)
 	}
 
 	// free all tagged objects
-	EXP_ListValue<KX_Scene> *scenes = m_ketsjiEngine->CurrentScenes();
-	int numScenes = scenes->GetCount();
-
-	for (unsigned int sce_idx = 0; sce_idx < numScenes; ++sce_idx) {
-		KX_Scene *scene = scenes->GetValue(sce_idx);
+	for (KX_Scene *scene : m_ketsjiEngine->GetScenes()) {
 		if (IS_TAGGED(scene->GetBlenderScene())) {
+			// RemoveScene schedule for suppression only and not actually remove the scene from the list.
 			m_ketsjiEngine->RemoveScene(scene->GetName());
-			m_sceneSlots.erase(scene);
-			sce_idx--;
-			numScenes--;
 		}
 		else {
 			// in case the mesh might be refered to later
@@ -562,11 +557,9 @@ bool BL_Converter::FreeBlendFile(Main *maggie)
 			} TODO */
 
 			// removed tagged objects and meshes
-			EXP_ListValue<KX_GameObject> *obj_lists[] = {scene->GetObjectList(), scene->GetInactiveList(), nullptr};
+			std::array<EXP_ListValue<KX_GameObject> *, 2> obj_lists{{&scene->GetObjectList(), &scene->GetInactiveList()}};
 
-			for (int ob_ls_idx = 0; obj_lists[ob_ls_idx]; ob_ls_idx++) {
-				EXP_ListValue<KX_GameObject> *obs = obj_lists[ob_ls_idx];
-
+			for (EXP_ListValue<KX_GameObject> *obs : obj_lists) {
 				for (int ob_idx = 0; ob_idx < obs->GetCount(); ob_idx++) {
 					KX_GameObject *gameobj = obs->GetValue(ob_idx);
 					if (IS_TAGGED(gameobj->GetBlenderObject())) {

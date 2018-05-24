@@ -569,7 +569,7 @@ PyDoc_STRVAR(gPyGetSceneList_doc,
              );
 static PyObject *gPyGetSceneList(PyObject *self)
 {
-	return KX_GetActiveEngine()->CurrentScenes()->GetProxy();
+	return KX_GetActiveEngine()->GetScenes().GetProxy();
 }
 
 PyDoc_STRVAR(gPyGetInactiveSceneNames_doc,
@@ -1093,7 +1093,7 @@ static PyObject *gPySetGLSLMaterialSetting(PyObject *,
 	if (sceneflag != gs->glslflag) {
 		GPU_materials_free();
 		if (KX_GetActiveEngine()) {
-			EXP_ListValue<KX_Scene> *scenes = KX_GetActiveEngine()->CurrentScenes();
+			EXP_ListValue<KX_Scene>& scenes = KX_GetActiveEngine()->GetScenes();
 
 			for (KX_Scene *scene : scenes) {
 				// temporarily store the glsl settings in the scene for the GLSL materials

@@ -28,17 +28,11 @@
 #include "BLI_sys_types.h" // For intptr_t support.
 
 EXP_BaseListValue::EXP_BaseListValue()
-	:m_bReleaseContents(true)
 {
 }
 
 EXP_BaseListValue::~EXP_BaseListValue()
 {
-	if (m_bReleaseContents) {
-		for (EXP_Value *item : m_valueArray) {
-			item->Release();
-		}
-	}
 }
 
 void EXP_BaseListValue::SetValue(int i, EXP_Value *val)
@@ -94,6 +88,20 @@ bool EXP_BaseListValue::RemoveValue(EXP_Value *val)
 	return result;
 }
 
+void EXP_BaseListValue::MergeList(EXP_BaseListValue& other)
+{
+	const unsigned int otherSize = other.GetCount();
+	const unsigned int size = m_valueArray.size();
+
+	m_valueArray.resize(size + otherSize);
+
+	for (unsigned int i = 0; i < otherSize; ++i) {
+		m_valueArray[i + size] = other.GetValue(i);
+	}
+
+	other.Clear();
+}
+
 std::string EXP_BaseListValue::GetName() const
 {
 	return "EXP_ListValue";
@@ -114,9 +122,9 @@ std::string EXP_BaseListValue::GetText() const
 	return strListRep;
 }
 
-void EXP_BaseListValue::SetReleaseOnDestruct(bool bReleaseContents)
+void EXP_BaseListValue::Clear()
 {
-	m_bReleaseContents = bReleaseContents;
+	m_valueArray.clear();
 }
 
 void EXP_BaseListValue::Remove(int i)
@@ -127,14 +135,6 @@ void EXP_BaseListValue::Remove(int i)
 void EXP_BaseListValue::Resize(int num)
 {
 	m_valueArray.resize(num);
-}
-
-void EXP_BaseListValue::ReleaseAndRemoveAll()
-{
-	for (EXP_Value *item : m_valueArray) {
-		item->Release();
-	}
-	m_valueArray.clear();
 }
 
 int EXP_BaseListValue::GetCount() const
@@ -409,7 +409,6 @@ PyObject *EXP_BaseListValue::Pyfilter(PyObject *args)
 	}
 
 	EXP_ListValue<EXP_Value> *result = new EXP_ListValue<EXP_Value>();
-	result->SetReleaseOnDestruct(false);
 
 	for (EXP_Value *item : m_valueArray) {
 		if (strlen(namestr) == 0 || std::regex_match(item->GetName(), namereg)) {

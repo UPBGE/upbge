@@ -184,10 +184,10 @@ bool BL_Action::Play(const std::string& name,
 	}
 
 	// Extra controllers
-	if (m_obj->GetGameObjectType() == KX_GameObject::OBJECT_TYPE_LIGHT) {
+	if (m_obj->GetObjectType() == KX_GameObject::OBJECT_TYPE_LIGHT) {
 		AddController(BL_CreateLampIPO(m_action, m_obj, kxscene));
 	}
-	else if (m_obj->GetGameObjectType() == KX_GameObject::OBJECT_TYPE_CAMERA) {
+	else if (m_obj->GetObjectType() == KX_GameObject::OBJECT_TYPE_CAMERA) {
 		AddController(BL_CreateCameraIPO(m_action, m_obj, kxscene));
 	}
 

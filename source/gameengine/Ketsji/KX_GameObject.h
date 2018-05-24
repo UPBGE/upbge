@@ -137,9 +137,9 @@ protected:
 	SG_CullingNode m_cullingNode;
 	std::unique_ptr<SG_Node> m_sgNode;
 
-	EXP_ListValue<KX_PythonComponent> *m_components;
+	std::unique_ptr<EXP_ListValue<KX_PythonComponent> > m_components;
 
-	EXP_ListValue<KX_GameObject> *m_instanceObjects;
+	std::unique_ptr<EXP_ListValue<KX_GameObject> > m_instanceObjects;
 	KX_GameObject*						m_dupliGroupObject;
 
 	// The action manager is used to play/stop/update actions
@@ -784,7 +784,7 @@ public:
 	/// Resume progress.
 	void ResumeLogic();
 
-	virtual ObjectTypes GetGameObjectType() const;
+	virtual ObjectTypes GetObjectType() const;
 
 	/**
 	 * add debug object to the debuglist.

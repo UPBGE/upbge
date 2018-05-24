@@ -168,7 +168,7 @@ KX_GameObject::KX_GameObject(const KX_GameObject& other)
 	Py_XINCREF(m_collisionCallbacks);
 
 	if (other.m_components) {
-		m_components = static_cast<EXP_ListValue<KX_PythonComponent> *>(other.m_components->GetReplica());
+		m_components.reset(other.m_components->GetReplica());
 
 		for (KX_PythonComponent *component : m_components) {
 			component->SetGameObject(this);
@@ -191,21 +191,10 @@ KX_GameObject::~KX_GameObject()
 		UnregisterCollisionCallbacks();
 		Py_CLEAR(m_collisionCallbacks);
 	}
-
-	if (m_components) {
-		m_components->Release();
-	}
 #endif // WITH_PYTHON
 
 	RemoveMeshes();
 
-	if (m_dupliGroupObject) {
-		m_dupliGroupObject->Release();
-	}
-
-	if (m_instanceObjects) {
-		m_instanceObjects->Release();
-	}
 	if (m_lodManager) {
 		m_lodManager->Release();
 	}
@@ -262,16 +251,15 @@ KX_GameObject *KX_GameObject::GetDupliGroupObject()
 
 EXP_ListValue<KX_GameObject> *KX_GameObject::GetInstanceObjects()
 {
-	return m_instanceObjects;
+	return m_instanceObjects.get();
 }
 
 void KX_GameObject::AddInstanceObjects(KX_GameObject *obj)
 {
 	if (!m_instanceObjects) {
-		m_instanceObjects = new EXP_ListValue<KX_GameObject>();
+		m_instanceObjects.reset(new EXP_ListValue<KX_GameObject>());
 	}
 
-	obj->AddRef();
 	m_instanceObjects->Add(obj);
 }
 
@@ -279,20 +267,17 @@ void KX_GameObject::RemoveInstanceObject(KX_GameObject *obj)
 {
 	BLI_assert(m_instanceObjects);
 	m_instanceObjects->RemoveValue(obj);
-	obj->Release();
 }
 
 void KX_GameObject::RemoveDupliGroupObject()
 {
 	if (m_dupliGroupObject) {
-		m_dupliGroupObject->Release();
 		m_dupliGroupObject = nullptr;
 	}
 }
 
 void KX_GameObject::SetDupliGroupObject(KX_GameObject *obj)
 {
-	obj->AddRef();
 	m_dupliGroupObject = obj;
 }
 
@@ -350,7 +335,7 @@ void KX_GameObject::SetParent(KX_GameObject *obj, bool addToCompound, bool ghost
 		return;
 	}
 
-	if (!(scene->GetInactiveList()->SearchValue(obj) != scene->GetObjectList()->SearchValue(this))) {
+	if (!(scene->GetInactiveList().SearchValue(obj) != scene->GetObjectList().SearchValue(this))) {
 		CM_FunctionWarning("child and parent are not in the same game objects list (active or inactive). This operation is forbidden.");
 		return;
 	}
@@ -385,11 +370,8 @@ void KX_GameObject::SetParent(KX_GameObject *obj, bool addToCompound, bool ghost
 	NodeUpdate();
 
 	// object will now be a child, it must be removed from the parent list
-	EXP_ListValue<KX_GameObject> *rootlist = scene->GetRootParentList();
-	if (rootlist->RemoveValue(this)) {
-		// the object was in parent list, decrement ref count as it's now removed
-		Release();
-	}
+	EXP_ListValue<KX_GameObject>& rootlist = scene->GetRootParentList();
+	rootlist.RemoveValue(this);
 
 	// if the new parent is a compound object, add this object shape to the compound shape.
 	// step 0: verify this object has physical controller
@@ -425,10 +407,10 @@ void KX_GameObject::RemoveParent()
 
 	KX_Scene *scene = GetScene();
 	// the object is now a root object, add it to the parentlist
-	EXP_ListValue<KX_GameObject> *rootlist = scene->GetRootParentList();
-	if (!rootlist->SearchValue(this)) {
-		// object was not in root list, add it now and increment ref count
-		rootlist->Add(CM_AddRef(this));
+	EXP_ListValue<KX_GameObject>& rootlist = scene->GetRootParentList();
+	if (!rootlist.SearchValue(this)) {
+		// object was not in root list, add it now.
+		rootlist.Add(this);
 	}
 	if (m_physicsController) {
 		// in case this controller was added as a child shape to the parent
@@ -924,7 +906,7 @@ void KX_GameObject::ResumeLogic()
 	}
 }
 
-KX_GameObject::ObjectTypes KX_GameObject::GetGameObjectType() const
+KX_GameObject::ObjectTypes KX_GameObject::GetObjectType() const
 {
 	return OBJECT_TYPE_OBJECT;
 }
@@ -1555,12 +1537,12 @@ std::vector<KX_GameObject *> KX_GameObject::GetChildrenRecursive() const
 
 EXP_ListValue<KX_PythonComponent> *KX_GameObject::GetComponents() const
 {
-	return m_components;
+	return m_components.get();
 }
 
 void KX_GameObject::SetComponents(EXP_ListValue<KX_PythonComponent> *components)
 {
-	m_components = components;
+	m_components.reset(components);
 }
 
 void KX_GameObject::UpdateComponents()
@@ -3113,9 +3095,6 @@ PyObject *KX_GameObject::pyattr_get_children(EXP_PyObjectPlus *self_v, const EXP
 {
 	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
 	EXP_ListValue<KX_GameObject> *list = new EXP_ListValue<KX_GameObject>(self->GetChildren());
-	/* The list must not own any data because is temporary and we can't
-	 * ensure that it will freed before item's in it (e.g python owner). */
-	list->SetReleaseOnDestruct(false);
 	return list->NewProxy(true);
 }
 
@@ -3123,9 +3102,6 @@ PyObject *KX_GameObject::pyattr_get_children_recursive(EXP_PyObjectPlus *self_v,
 {
 	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
 	EXP_ListValue<KX_GameObject> *list = new EXP_ListValue<KX_GameObject>(self->GetChildrenRecursive());
-	/* The list must not own any data because is temporary and we can't
-	 * ensure that it will freed before item's in it (e.g python owner). */
-	list->SetReleaseOnDestruct(false);
 	return list->NewProxy(true);
 }
 

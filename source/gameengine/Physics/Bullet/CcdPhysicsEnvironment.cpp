@@ -57,6 +57,7 @@
 #include "DNA_world_types.h"
 #include "DNA_object_types.h" // for OB_MAX_COL_MASKS
 #include "DNA_object_force_types.h"
+#include "DNA_constraint_types.h"
 
 extern "C" {
 	#include "BLI_utildefines.h"

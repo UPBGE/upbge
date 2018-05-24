@@ -121,7 +121,7 @@ ImageRender::ImageRender(KX_Scene *scene, KX_Camera *camera, unsigned int width,
 ImageRender::~ImageRender(void)
 {
 	if (m_owncamera) {
-		m_camera->Release();
+		delete m_camera;
 	}
 
 #ifdef WITH_GAMEENGINE_GPU_SYNC

@@ -33,14 +33,10 @@
 
 KX_BatchGroup::KX_BatchGroup()
 {
-	m_objects = new EXP_ListValue<KX_GameObject>();
-	// The objects are not owned by the batching group, so not released on list releasing.
-	m_objects->SetReleaseOnDestruct(false);
 }
 
 KX_BatchGroup::~KX_BatchGroup()
 {
-	m_objects->Release();
 }
 
 std::string KX_BatchGroup::GetName() const
@@ -48,7 +44,7 @@ std::string KX_BatchGroup::GetName() const
 	return "KX_BatchGroup";
 }
 
-EXP_ListValue<KX_GameObject> *KX_BatchGroup::GetObjects() const
+EXP_ListValue<KX_GameObject>& KX_BatchGroup::GetObjects()
 {
 	return m_objects;
 }
@@ -71,7 +67,7 @@ void KX_BatchGroup::MergeObjects(const std::vector<KX_GameObject *>& objects)
 		mt::mat3x4 trans(gameobj->NodeGetWorldOrientation(), gameobj->NodeGetWorldPosition(), gameobj->NodeGetWorldScaling());
 
 		if (MergeMeshUser(meshUser, mt::mat4::FromAffineTransform(trans))) {
-			m_objects->Add(gameobj);
+			m_objects.Add(gameobj);
 		}
 		else {
 			CM_Error("failed merge object \"" << gameobj->GetName() << "\"");
@@ -93,7 +89,7 @@ void KX_BatchGroup::SplitObjects(const std::vector<KX_GameObject *>& objects)
 		}
 
 		if (SplitMeshUser(meshUser)) {
-			m_objects->RemoveValue(gameobj);
+			m_objects.RemoveValue(gameobj);
 		}
 		else {
 			CM_Error("failed split object \"" << gameobj->GetName() << "\"");
@@ -133,7 +129,7 @@ static PyObject *py_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 
 	KX_BatchGroup *batchGroup = new KX_BatchGroup();
 	batchGroup->MergeObjects(objects);
-	if (batchGroup->GetObjects()->Empty()) {
+	if (batchGroup->GetObjects().Empty()) {
 		PyErr_SetString(PyExc_SystemError, "KX_BatchGroup(objects): none objects were merged.");
 		delete batchGroup;
 		return nullptr;
@@ -179,7 +175,7 @@ PyAttributeDef KX_BatchGroup::Attributes[] = {
 PyObject *KX_BatchGroup::pyattr_get_objects(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_BatchGroup *self = static_cast<KX_BatchGroup *>(self_v);
-	return self->GetObjects()->GetProxy();
+	return self->GetObjects().GetProxy();
 }
 
 EXP_PYMETHODDEF_DOC(KX_BatchGroup, merge, "merge(objects)")
@@ -209,7 +205,7 @@ EXP_PYMETHODDEF_DOC(KX_BatchGroup, merge, "merge(objects)")
 
 	MergeObjects(objects);
 
-	Py_RETURN_NONE;;
+	Py_RETURN_NONE;
 }
 
 EXP_PYMETHODDEF_DOC(KX_BatchGroup, split, "split(objects)")
@@ -239,14 +235,14 @@ EXP_PYMETHODDEF_DOC(KX_BatchGroup, split, "split(objects)")
 
 	SplitObjects(objects);
 
-	Py_RETURN_NONE;;
+	Py_RETURN_NONE;
 }
 
 EXP_PYMETHODDEF_DOC(KX_BatchGroup, destruct, "destruct()")
 {
 	Destruct();
 
-	Py_RETURN_NONE;;
+	Py_RETURN_NONE;
 }
 
 #endif  // WITH_PYTHON
