@@ -37,34 +37,30 @@
 #include <map>
 #include <vector>
 
-class SCA_IActuator;
-class SCA_IController;
 class KX_Mesh;
 class KX_BlenderMaterial;
 class BL_Converter;
+class BL_ResourceCollection;
 class BL_ConvertObjectInfo;
 class KX_GameObject;
 class KX_Scene;
-class KX_LibLoadStatus;
-struct Main;
-struct BlendHandle;
 struct Object;
-struct Scene;
 struct Mesh;
 struct Material;
-struct bActuator;
-struct bController;
+struct bAction;
 
 class BL_SceneConverter
 {
+	friend BL_ResourceCollection;
 	friend BL_Converter;
 
 private:
 	KX_Scene *m_scene;
 
 	std::vector<KX_BlenderMaterial *> m_materials;
-	std::vector<KX_Mesh *> m_meshobjects;
+	std::vector<KX_Mesh *> m_meshes;
 	std::vector<BL_ConvertObjectInfo *> m_objectInfos;
+	std::vector<bAction *> m_actions;
 	// List of all object converted, active and inactive.
 	std::vector<KX_GameObject *> m_objects;
 
@@ -72,8 +68,6 @@ private:
 	std::map<Object *, KX_GameObject *> m_map_blender_to_gameobject;
 	std::map<Mesh *, KX_Mesh *> m_map_mesh_to_gamemesh;
 	std::map<Material *, KX_BlenderMaterial *> m_map_mesh_to_polyaterial;
-	std::map<bActuator *, SCA_IActuator *> m_map_blender_to_gameactuator;
-	std::map<bController *, SCA_IController *> m_map_blender_to_gamecontroller;
 
 public:
 	BL_SceneConverter(KX_Scene *scene);
@@ -86,21 +80,17 @@ public:
 
 	KX_Scene *GetScene() const;
 
-	void RegisterGameObject(KX_GameObject *gameobject, Object *for_blenderobject);
-	void UnregisterGameObject(KX_GameObject *gameobject);
-	KX_GameObject *FindGameObject(Object *for_blenderobject);
+	void RegisterObject(KX_GameObject *gameobject, Object *for_blenderobject);
+	void UnregisterObject(KX_GameObject *gameobject);
+	KX_GameObject *FindObject(Object *for_blenderobject);
 
-	void RegisterGameMesh(KX_Mesh *gamemesh, Mesh *for_blendermesh);
-	KX_Mesh *FindGameMesh(Mesh *for_blendermesh);
+	void RegisterMesh(KX_Mesh *gamemesh, Mesh *for_blendermesh);
+	KX_Mesh *FindMesh(Mesh *for_blendermesh);
 
 	void RegisterMaterial(KX_BlenderMaterial *blmat, Material *mat);
 	KX_BlenderMaterial *FindMaterial(Material *mat);
 
-	void RegisterGameActuator(SCA_IActuator *act, bActuator *for_actuator);
-	SCA_IActuator *FindGameActuator(bActuator *for_actuator);
-
-	void RegisterGameController(SCA_IController *cont, bController *for_controller);
-	SCA_IController *FindGameController(bController *for_controller);
+	void RegisterAction(bAction *action);
 
 	BL_ConvertObjectInfo *GetObjectInfo(Object *blenderobj);
 

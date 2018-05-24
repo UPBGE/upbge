@@ -26,6 +26,7 @@
 set(INC
 	.
 	../BlenderRoutines
+	../Converter
 	../Common
 	../Device
 	../Expressions

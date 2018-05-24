@@ -837,7 +837,7 @@ EXP_PYMETHODDEF_DOC_O(KX_Camera, getScreenPosition,
 	if (!PyVecTo(value, vect)) {
 		PyErr_Clear();
 
-		if (ConvertPythonToGameObject(0, value, &obj, false, "")) {
+		if (ConvertPythonToGameObject(GetScene(), value, &obj, false, "")) {
 			PyErr_Clear();
 			vect = mt::vec3(obj->NodeGetWorldPosition());
 		}

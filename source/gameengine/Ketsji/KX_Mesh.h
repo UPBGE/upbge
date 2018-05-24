@@ -41,7 +41,7 @@ class KX_Scene;
 
 #ifdef WITH_PYTHON
 // utility conversion function
-bool ConvertPythonToMesh(void *logicmgr, PyObject *value, KX_Mesh **object, bool py_none_ok, const char *error_prefix);
+bool ConvertPythonToMesh(KX_Scene *scene, PyObject *value, KX_Mesh **object, bool py_none_ok, const char *error_prefix);
 
 #endif  // WITH_PYTHON
 

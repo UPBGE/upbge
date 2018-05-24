@@ -130,7 +130,7 @@ void KX_FontObject::ProcessReplica()
 
 void KX_FontObject::AddMeshUser()
 {
-	m_meshUser = new RAS_TextUser(&m_clientInfo, m_boundingBox);
+	m_meshUser.reset(new RAS_TextUser(&m_clientInfo, m_boundingBox));
 
 	RAS_BucketManager *bucketManager = GetScene()->GetBucketManager();
 	RAS_DisplayArrayBucket *arrayBucket = bucketManager->GetTextDisplayArrayBucket();
@@ -143,7 +143,7 @@ void KX_FontObject::AddMeshUser()
 
 void KX_FontObject::UpdateBuckets()
 {
-	RAS_TextUser *textUser = static_cast<RAS_TextUser *>(m_meshUser);
+	RAS_TextUser *textUser = static_cast<RAS_TextUser *>(m_meshUser.get());
 
 	// Update datas and add mesh slot to be rendered only if the object is not culled.
 	if (m_sgNode->IsDirty(SG_Node::DIRTY_RENDER)) {
@@ -172,7 +172,6 @@ void KX_FontObject::UpdateBuckets()
 	// Orient the spacing vector
 	mt::vec3 spacing = NodeGetWorldOrientation() * mt::vec3(0.0f, m_fsize * m_line_spacing, 0.0f) * NodeGetWorldScaling()[1];
 
-	textUser->SetLayer(m_layer);
 	textUser->SetColor(mt::vec4(color));
 	textUser->SetFontId(m_fontid);
 	textUser->SetSize(size);

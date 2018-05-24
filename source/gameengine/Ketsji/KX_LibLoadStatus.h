@@ -71,7 +71,7 @@ public:
 
 	const std::vector<KX_Scene *>& GetScenes() const;
 	void SetScenes(const std::vector<KX_Scene *>& scenes);
-	const std::vector<BL_SceneConverter>& GetSceneConverters() const;
+	std::vector<BL_SceneConverter>& GetSceneConverters();
 	void AddSceneConverter(BL_SceneConverter&& converter);
 
 	bool IsFinished() const;

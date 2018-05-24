@@ -424,24 +424,12 @@ bool KX_KetsjiEngine::NextFrame()
 				// set Python hooks for each scene
 				KX_SetActiveScene(scene);
 
-				// Process sensors, and controllers
 				m_logger.StartLog(tc_logic);
 				scene->LogicBeginFrame(m_frameTime, framestep);
-
-				// Scenegraph needs to be updated again, because Logic Controllers
-				// can affect the local matrices.
-				m_logger.StartLog(tc_scenegraph);
-				scene->UpdateParents();
-
-				// Process actuators
-
 				// Do some cleanup work for this logic frame
-				m_logger.StartLog(tc_logic);
 				scene->LogicUpdateFrame(m_frameTime);
-
 				scene->LogicEndFrame();
 
-				// Actuators can affect the scenegraph
 				m_logger.StartLog(tc_scenegraph);
 				scene->UpdateParents();
 
@@ -1040,6 +1028,7 @@ void KX_KetsjiEngine::StopEngine()
 		// WARNING: here the scene is a dangling pointer.
 		m_scenes.Remove(0);
 	}
+	m_scenes.Clear();
 
 	// cleanup all the stuff
 	m_rasterizer->Exit();
@@ -1308,8 +1297,6 @@ void KX_KetsjiEngine::ConvertScene(KX_Scene *scene)
 {
 	BL_SceneConverter sceneConverter(scene);
 	m_converter->ConvertScene(sceneConverter, false);
-	m_converter->PostConvertScene(sceneConverter);
-	m_converter->FinalizeSceneData(sceneConverter);
 }
 
 void KX_KetsjiEngine::AddScheduledScenes()
@@ -1383,7 +1370,6 @@ void KX_KetsjiEngine::ReplaceScheduledScenes()
 					Scene *blScene = m_converter->GetBlenderSceneForName(newscenename);
 					if (blScene) {
 						DestructScene(scene);
-						m_scenes.RemoveValue(scene);
 
 						KX_Scene *tmpscene = CreateScene(blScene);
 						ConvertScene(tmpscene);
@@ -1420,7 +1406,7 @@ void KX_KetsjiEngine::ResumeScene(const std::string& scenename)
 void KX_KetsjiEngine::DestructScene(KX_Scene *scene)
 {
 	scene->RunOnRemoveCallbacks();
-	m_converter->RemoveScene(scene);
+	delete scene;
 }
 
 double KX_KetsjiEngine::GetTicRate()

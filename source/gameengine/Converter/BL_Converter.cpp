@@ -36,7 +36,6 @@
 #include "KX_Scene.h"
 #include "KX_GameObject.h"
 #include "KX_Mesh.h"
-#include "RAS_BucketManager.h"
 #include "KX_PhysicsEngineEnums.h"
 #include "KX_KetsjiEngine.h"
 #include "KX_PythonInit.h" // So we can handle adding new text datablocks for Python to import
@@ -48,11 +47,13 @@
 #include "BL_ConvertObjectInfo.h"
 #include "KX_BlenderMaterial.h"
 
-#include "EXP_PropString.h"
+#include "LA_SystemCommandLine.h"
 
-#ifdef WITH_PYTHON
-#  include "Texture.h" // For FreeAllTextures.
-#endif  // WITH_PYTHON
+#include "DummyPhysicsEnvironment.h"
+
+#ifdef WITH_BULLET
+#  include "CcdPhysicsEnvironment.h"
+#endif
 
 // This list includes only data type definitions
 #include "DNA_scene_types.h"
@@ -61,6 +62,7 @@
 extern "C" {
 #  include "DNA_mesh_types.h"
 #  include "DNA_material_types.h"
+#  include "DNA_action_types.h"
 #  include "BLI_blenlib.h"
 #  include "BLI_linklist.h"
 #  include "BLO_readfile.h"
@@ -76,45 +78,6 @@ extern "C" {
 #include "CM_Message.h"
 
 #include <cstring>
-
-BL_Converter::SceneSlot::SceneSlot() = default;
-
-BL_Converter::SceneSlot::SceneSlot(const BL_SceneConverter& converter)
-{
-	Merge(converter);
-}
-
-BL_Converter::SceneSlot::~SceneSlot() = default;
-
-void BL_Converter::SceneSlot::Merge(BL_Converter::SceneSlot& other)
-{
-	m_interpolators.insert(m_interpolators.begin(),
-	                       std::make_move_iterator(other.m_interpolators.begin()),
-	                       std::make_move_iterator(other.m_interpolators.end()));
-	m_materials.insert(m_materials.begin(),
-	                   std::make_move_iterator(other.m_materials.begin()),
-	                   std::make_move_iterator(other.m_materials.end()));
-	m_meshobjects.insert(m_meshobjects.begin(),
-	                     std::make_move_iterator(other.m_meshobjects.begin()),
-	                     std::make_move_iterator(other.m_meshobjects.end()));
-	m_objectInfos.insert(m_objectInfos.begin(),
-	                     std::make_move_iterator(other.m_objectInfos.begin()),
-	                     std::make_move_iterator(other.m_objectInfos.end()));
-	m_actionToInterp.insert(other.m_actionToInterp.begin(), other.m_actionToInterp.end());
-}
-
-void BL_Converter::SceneSlot::Merge(const BL_SceneConverter& converter)
-{
-	for (KX_BlenderMaterial *mat : converter.m_materials) {
-		m_materials.emplace_back(mat);
-	}
-	for (KX_Mesh *meshobj : converter.m_meshobjects) {
-		m_meshobjects.emplace_back(meshobj);
-	}
-	for (BL_ConvertObjectInfo *info : converter.m_objectInfos) {
-		m_objectInfos.emplace_back(info);
-	}
-}
 
 BL_Converter::BL_Converter(Main *maggie, KX_KetsjiEngine *engine, bool alwaysUseExpandFraming, float camZoom)
 	:m_maggie(maggie),
@@ -188,47 +151,13 @@ void BL_Converter::ConvertScene(BL_SceneConverter& converter, bool libloading)
 		m_alwaysUseExpandFraming,
 		m_camZoom,
 		libloading);
+
+	scene->SetResources(BL_ResourceCollection(converter));
 }
 
 void BL_Converter::PostConvertScene(const BL_SceneConverter& converter)
 {
 	BL_PostConvertBlenderObjects(converter.GetScene(), converter);
-}
-
-void BL_Converter::RemoveScene(KX_Scene *scene)
-{
-#ifdef WITH_PYTHON
-	Texture::FreeAllTextures(scene);
-#endif  // WITH_PYTHON
-
-	/* Delete the meshes as some one of them depends to the data owned by the scene
-	 * e.g the display array bucket owned by the meshes and needed to be unregistered
-	 * from the bucket manager in the scene.
-	 */
-	SceneSlot& sceneSlot = m_sceneSlots[scene];
-	sceneSlot.m_meshobjects.clear();
-
-	// Delete the scene before the data, to remove all users.
-	delete scene;
-
-	m_sceneSlots.erase(scene);
-}
-
-void BL_Converter::RegisterInterpolatorList(KX_Scene *scene, BL_InterpolatorList *interpolator, bAction *for_act)
-{
-	SceneSlot& sceneSlot = m_sceneSlots[scene];
-	sceneSlot.m_interpolators.emplace_back(interpolator);
-	sceneSlot.m_actionToInterp[for_act] = interpolator;
-}
-
-BL_InterpolatorList *BL_Converter::FindInterpolatorList(KX_Scene *scene, bAction *for_act)
-{
-	return m_sceneSlots[scene].m_actionToInterp[for_act];
-}
-
-void BL_Converter::RegisterMesh(KX_Scene *scene, KX_Mesh *mesh)
-{
-	m_sceneSlots[scene].m_meshobjects.emplace_back(mesh);
 }
 
 Main *BL_Converter::CreateMainDynamic(const std::string& path)
@@ -403,32 +332,28 @@ KX_LibLoadStatus *BL_Converter::LinkBlendFile(BlendHandle *blendlib, const char 
 
 	status = new KX_LibLoadStatus(this, m_ketsjiEngine, scene_merge, path);
 
-	if (idcode == ID_ME) {
-		// Convert all new meshes into BGE meshes
-		ID *mesh;
-
+	if (idcode == ID_ME || idcode == ID_AC) {
 		BL_SceneConverter sceneConverter(scene_merge);
-		for (mesh = (ID *)main_newlib->mesh.first; mesh; mesh = (ID *)mesh->next) {
-			if (options & LIB_LOAD_VERBOSE) {
-				CM_Debug("mesh name: " << mesh->name + 2);
+		if (idcode == ID_ME) {
+			// Convert all new meshes into BGE meshes
+			for (Mesh *mesh = (Mesh *)main_newlib->mesh.first; mesh; mesh = (Mesh *)mesh->id.next) {
+				if (options & LIB_LOAD_VERBOSE) {
+					CM_Debug("mesh name: " << mesh->id.name + 2);
+				}
+				BL_ConvertMesh(mesh, nullptr, scene_merge, sceneConverter);
 			}
-			KX_Mesh *meshobj = BL_ConvertMesh((Mesh *)mesh, nullptr, scene_merge, sceneConverter);
-// 			scene_merge->GetLogicManager()->RegisterMeshName(meshobj->GetName(), meshobj); TODO
+		}
+		else {
+			for (bAction *action = (bAction *)main_newlib->action.first; action; action = (bAction *)action->id.next) {
+				if (options & LIB_LOAD_VERBOSE) {
+					CM_Debug("action name: " << action->id.name + 2);
+				}
+				sceneConverter.RegisterAction(action);
+			}
 		}
 
 		MergeSceneData(scene_merge, sceneConverter);
 		FinalizeSceneData(sceneConverter);
-	}
-	else if (idcode == ID_AC) {
-		// Convert all actions
-		ID *action;
-
-		for (action = (ID *)main_newlib->action.first; action; action = (ID *)action->next) {
-			if (options & LIB_LOAD_VERBOSE) {
-				CM_Debug("action name: " << action->name + 2);
-			}
-// 			scene_merge->GetLogicManager()->RegisterActionName(action->name + 2, action); TODO
-		}
 	}
 	else if (idcode == ID_SCE) {
 		// Merge all new linked in scene into the existing one
@@ -478,7 +403,7 @@ KX_LibLoadStatus *BL_Converter::LinkBlendFile(BlendHandle *blendlib, const char 
 
 				BL_SceneConverter sceneConverter(other);
 				ConvertScene(sceneConverter, true);
-				MergeScene(scene_merge, sceneConverter);
+				MergeScene(scene_merge, other);
 			}
 		}
 	}
@@ -491,8 +416,6 @@ KX_LibLoadStatus *BL_Converter::LinkBlendFile(BlendHandle *blendlib, const char 
 	return status;
 }
 
-/** Note m_map_*** are all ok and don't need to be freed
- * most are temp and NewRemoveObject frees m_map_gameobject_to_blender */
 bool BL_Converter::FreeBlendFile(Main *maggie)
 {
 	// TODO use a list of file to free to avoid direct free of objects and scene when the user run python scripts.
@@ -532,114 +455,9 @@ bool BL_Converter::FreeBlendFile(Main *maggie)
 			m_ketsjiEngine->RemoveScene(scene->GetName());
 		}
 		else {
-			// in case the mesh might be refered to later
-			/*std::map<std::string, void *> &mapStringToMeshes = scene->GetLogicManager()->GetMeshMap();
-			for (std::map<std::string, void *>::iterator it = mapStringToMeshes.begin(), end = mapStringToMeshes.end(); it != end; ) {
-				KX_Mesh *meshobj = (KX_Mesh *)it->second;
-				if (meshobj && IS_TAGGED(meshobj->GetMesh())) {
-					it = mapStringToMeshes.erase(it);
-				}
-				else {
-					++it;
-				}
-			}
-
-			// Now unregister actions.
-			std::map<std::string, void *> &mapStringToActions = scene->GetLogicManager()->GetActionMap();
-			for (std::map<std::string, void *>::iterator it = mapStringToActions.begin(), end = mapStringToActions.end(); it != end; ) {
-				ID *action = (ID *)it->second;
-				if (IS_TAGGED(action)) {
-					it = mapStringToActions.erase(it);
-				}
-				else {
-					++it;
-				}
-			} TODO */
-
-			// removed tagged objects and meshes
-			std::array<EXP_ListValue<KX_GameObject> *, 2> obj_lists{{&scene->GetObjectList(), &scene->GetInactiveList()}};
-
-			for (EXP_ListValue<KX_GameObject> *obs : obj_lists) {
-				for (int ob_idx = 0; ob_idx < obs->GetCount(); ob_idx++) {
-					KX_GameObject *gameobj = obs->GetValue(ob_idx);
-					if (IS_TAGGED(gameobj->GetBlenderObject())) {
-						int size_before = obs->GetCount();
-
-						/* Eventually calls RemoveNodeDestructObject
-						 * frees m_map_gameobject_to_blender from UnregisterGameObject */
-						scene->RemoveObject(gameobj);
-
-						if (size_before != obs->GetCount()) {
-							ob_idx--;
-						}
-						else {
-							CM_Error("could not remove \"" << gameobj->GetName() << "\"");
-						}
-					}
-					else {
-						gameobj->RemoveTaggedActions();
-						// free the mesh, we could be referecing a linked one!
-
-						for (KX_Mesh *meshobj : gameobj->GetMeshList()) {
-							if (IS_TAGGED(meshobj->GetMesh())) {
-								gameobj->RemoveMeshes(); /* XXX - slack, should only remove meshes that are library items but mostly objects only have 1 mesh */
-								break;
-							}
-							else {
-								// also free the mesh if it's using a tagged material
-								for (RAS_MeshMaterial *meshmat : meshobj->GetMeshMaterialList()) {
-									if (IS_TAGGED(meshmat->GetBucket()->GetMaterial()->GetBlenderMaterial())) {
-										gameobj->RemoveMeshes(); // XXX - slack, same as above
-										break;
-									}
-								}
-							}
-						}
-					}
-				}
-			}
+			scene->RemoveTagged();
 		}
 	}
-
-	for (std::map<KX_Scene *, SceneSlot>::iterator sit = m_sceneSlots.begin(), send = m_sceneSlots.end(); sit != send; ++sit) {
-		KX_Scene *scene = sit->first;
-		SceneSlot& sceneSlot = sit->second;
-
-		for (UniquePtrList<KX_Mesh>::iterator it =  sceneSlot.m_meshobjects.begin(); it !=  sceneSlot.m_meshobjects.end(); ) {
-			KX_Mesh *mesh = (*it).get();
-			if (IS_TAGGED(mesh->GetMesh())) {
-				it = sceneSlot.m_meshobjects.erase(it);
-			}
-			else {
-				++it;
-			}
-		}
-
-		for (UniquePtrList<KX_BlenderMaterial>::iterator it = sceneSlot.m_materials.begin(); it != sceneSlot.m_materials.end(); ) {
-			KX_BlenderMaterial *mat = (*it).get();
-			Material *bmat = mat->GetBlenderMaterial();
-			if (IS_TAGGED(bmat)) {
-				scene->GetBucketManager()->RemoveMaterial(mat);
-				it = sceneSlot.m_materials.erase(it);
-			}
-			else {
-				++it;
-			}
-		}
-
-		for (UniquePtrList<BL_InterpolatorList>::iterator it = sceneSlot.m_interpolators.begin(); it != sceneSlot.m_interpolators.end(); ) {
-			BL_InterpolatorList *interp = (*it).get();
-			bAction *action = interp->GetAction();
-			if (IS_TAGGED(action)) {
-				sceneSlot.m_actionToInterp.erase(action);
-				it = sceneSlot.m_interpolators.erase(it);
-			}
-			else {
-				++it;
-			}
-		}
-	}
-
 #ifdef WITH_PYTHON
 	/* make sure this maggie is removed from the import list if it's there
 	 * (this operation is safe if it isn't in the list) */
@@ -661,7 +479,7 @@ bool BL_Converter::FreeBlendFile(const std::string& path)
 
 void BL_Converter::MergeSceneData(KX_Scene *to, const BL_SceneConverter& converter)
 {
-	for (KX_Mesh *mesh : converter.m_meshobjects) {
+	for (KX_Mesh *mesh : converter.m_meshes) {
 		mesh->ReplaceScene(to);
 	}
 
@@ -670,7 +488,8 @@ void BL_Converter::MergeSceneData(KX_Scene *to, const BL_SceneConverter& convert
 		mat->ReplaceScene(to);
 	}
 
-	m_sceneSlots[to].Merge(converter);
+	BL_ResourceCollection ressources(converter);
+	to->GetResources().Merge(ressources);
 }
 
 void BL_Converter::MergeScene(KX_Scene *to, const BL_SceneConverter& converter)
@@ -680,7 +499,7 @@ void BL_Converter::MergeScene(KX_Scene *to, const BL_SceneConverter& converter)
 	MergeSceneData(to, converter);
 
 	KX_Scene *from = converter.GetScene();
-	to->MergeScene(from);
+	to->Merge(from);
 
 	FinalizeSceneData(converter);
 
@@ -771,9 +590,9 @@ KX_Mesh *BL_Converter::ConvertMeshSpecial(KX_Scene *kx_scene, Main *maggie, cons
 	BL_SceneConverter sceneConverter(kx_scene);
 
 	KX_Mesh *meshobj = BL_ConvertMesh((Mesh *)me, nullptr, kx_scene, sceneConverter);
-// 	kx_scene->GetLogicManager()->RegisterMeshName(meshobj->GetName(), meshobj); TODO
 
-	MergeSceneData(kx_scene, sceneConverter);
+	BL_ResourceCollection ressources(sceneConverter);
+	kx_scene->GetResources().Merge(ressources);
 	FinalizeSceneData(sceneConverter);
 
 	return meshobj;
@@ -781,7 +600,8 @@ KX_Mesh *BL_Converter::ConvertMeshSpecial(KX_Scene *kx_scene, Main *maggie, cons
 
 void BL_Converter::PrintStats()
 {
-	CM_Message("BGE STATS");
+	// TODO
+	/*CM_Message("BGE STATS");
 	CM_Message(std::endl << "Assets:");
 
 	unsigned int nummat = 0;
@@ -806,5 +626,5 @@ void BL_Converter::PrintStats()
 	CM_Message("\t scenes: " << m_sceneSlots.size());
 	CM_Message("\t materials: " << nummat);
 	CM_Message("\t meshes: " << nummesh);
-	CM_Message("\t interpolators: " << numinter);
+	CM_Message("\t interpolators: " << numinter);*/
 }

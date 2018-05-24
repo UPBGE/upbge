@@ -41,8 +41,6 @@
 #include "SG_Interpolator.h"
 
 #include "BL_ScalarInterpolator.h"
-#include "BL_Converter.h"
-#include "KX_Globals.h"
 
 #include "RAS_IMaterial.h"
 
@@ -68,12 +66,12 @@
 
 static BL_InterpolatorList *GetAdtList(struct bAction *for_act, KX_Scene *scene)
 {
-	BL_Converter *converter = KX_GetActiveEngine()->GetConverter();
-	BL_InterpolatorList *adtList = converter->FindInterpolatorList(scene, for_act);
+	BL_ResourceCollection& ressource = scene->GetResources();
+	BL_InterpolatorList *adtList = ressource.FindInterpolatorList(for_act);
 
 	if (!adtList) {
 		adtList = new BL_InterpolatorList(for_act);
-		converter->RegisterInterpolatorList(scene, adtList, for_act);
+		ressource.RegisterInterpolatorList(for_act, adtList);
 	}
 
 	return adtList;

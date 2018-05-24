@@ -2631,7 +2631,7 @@ CcdPhysicsEnvironment *CcdPhysicsEnvironment::Create(Scene *blenderscene, bool v
 void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter& converter, KX_GameObject *gameobj, RAS_Mesh *meshobj,
                                           KX_Scene *kxscene, PHY_IMotionState *motionstate,
                                           int activeLayerBitInfo, bool isCompoundChild, bool hasCompoundChildren)
-{
+{ // TODO move in BL_BlenderDataConversion.
 	Object *blenderobject = gameobj->GetBlenderObject();
 
 	bool isbulletdyna = (blenderobject->gameflag & OB_DYNAMIC) != 0;
@@ -2663,13 +2663,13 @@ void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter& converter, KX_GameO
 
 	KX_GameObject *compoundParent = nullptr;
 	if (blenderCompoundRoot) {
-		compoundParent = converter.FindGameObject(blenderCompoundRoot);
+		compoundParent = converter.FindObject(blenderCompoundRoot);
 		isbulletsoftbody = false;
 	}
 
 	KX_GameObject *parentRoot = nullptr;
 	if (blenderRoot) {
-		parentRoot = converter.FindGameObject(blenderRoot);
+		parentRoot = converter.FindObject(blenderRoot);
 		isbulletsoftbody = false;
 	}
 

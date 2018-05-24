@@ -296,7 +296,7 @@ static PyObject *gPySendMessage(PyObject *, PyObject *args)
 		return nullptr;
 	}
 
-	if (!ConvertPythonToGameObject(0, pyfrom, &from, true, "sendMessage(subject, [body, to, from]): \"from\" argument")) {
+	if (!ConvertPythonToGameObject(scene, pyfrom, &from, true, "sendMessage(subject, [body, to, from]): \"from\" argument")) {
 		return nullptr;
 	}
 

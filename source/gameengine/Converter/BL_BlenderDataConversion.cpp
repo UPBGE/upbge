@@ -443,7 +443,7 @@ KX_Mesh *BL_ConvertMesh(Mesh *me, Object *blenderobj, KX_Scene *scene, BL_SceneC
 
 	// Without checking names, we get some reuse we don't want that can cause
 	// problems with material LoDs.
-	if (blenderobj && ((meshobj = converter.FindGameMesh(me)) != nullptr)) {
+	if (blenderobj && ((meshobj = converter.FindMesh(me)) != nullptr)) {
 		const std::string bge_name = meshobj->GetName();
 		const std::string blender_name = ((ID *)blenderobj->data)->name + 2;
 		if (bge_name == blender_name) {
@@ -512,7 +512,7 @@ KX_Mesh *BL_ConvertMesh(Mesh *me, Object *blenderobj, KX_Scene *scene, BL_SceneC
 
 	dm->release(dm);
 
-	converter.RegisterGameMesh(meshobj, me);
+	converter.RegisterMesh(meshobj, me);
 	return meshobj;
 }
 
@@ -958,9 +958,6 @@ static KX_GameObject *BL_GameObjectFromBlenderObject(Object *ob, KX_Scene *kxsce
 			Mesh *mesh = static_cast<Mesh *>(ob->data);
 			KX_Mesh *meshobj = BL_ConvertMesh(mesh, ob, kxscene, converter);
 
-			// needed for python scripting
-// 			kxscene->GetLogicManager()->RegisterMeshName(meshobj->GetName(), meshobj); TODO
-
 			if (ob->gameflag & OB_NAVMESH) {
 				gameobj = new KX_NavMeshObject(kxscene, KX_Scene::m_callbacks);
 				gameobj->AddMesh(meshobj);
@@ -1235,16 +1232,7 @@ static void bl_ConvertBlenderObject_Single(BL_SceneConverter& converter,
 		parentinversenode->AddChild(gameobj->GetNode());
 	}
 
-	// Needed for python scripting.
-// 	logicmgr->RegisterGameObjectName(gameobj->GetName(), gameobj); TODO
-
-	// Needed for group duplication.
-// 	logicmgr->RegisterGameObj(blenderobject, gameobj); TODO
-	for (RAS_Mesh *meshobj : gameobj->GetMeshList()) {
-// 		logicmgr->RegisterGameMeshName(meshobj->GetName(), blenderobject); TODO
-	}
-
-	converter.RegisterGameObject(gameobj, blenderobject);
+	converter.RegisterObject(gameobj, blenderobject);
 
 	// Only draw/use objects in active 'blender' layers.
 	if (isInActiveLayer) {
@@ -1406,9 +1394,8 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 
 
 	// Convert actions to actionmap.
-	bAction *curAct;
-	for (curAct = (bAction *)maggie->action.first; curAct; curAct = (bAction *)curAct->id.next) {
-// 		logicmgr->RegisterActionName(curAct->id.name + 2, curAct); TODO
+	for (bAction *curAct = (bAction *)maggie->action.first; curAct; curAct = (bAction *)curAct->id.next) {
+		converter.RegisterAction(curAct);
 	}
 
 	BL_SetBlenderSceneBackground(blenderscene);
@@ -1448,7 +1435,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 			for (Group *group : tempglist) {
 				for (GroupObject *go = (GroupObject *)group->gobject.first; go; go = (GroupObject *)go->next) {
 					Object *blenderobject = go->ob;
-					if (!converter.FindGameObject(blenderobject)) {
+					if (!converter.FindObject(blenderobject)) {
 						allblobj.insert(blenderobject);
 						groupobj.insert(blenderobject);
 						KX_GameObject *gameobj = BL_GameObjectFromBlenderObject(blenderobject, kxscene, rendertools, canvas, converter, camZoom);
@@ -1477,7 +1464,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 
 	// Non-camera objects not supported as camera currently.
 	if (blenderscene->camera && blenderscene->camera->type == OB_CAMERA) {
-		KX_Camera *gamecamera = static_cast<KX_Camera *>(converter.FindGameObject(blenderscene->camera));
+		KX_Camera *gamecamera = static_cast<KX_Camera *>(converter.FindObject(blenderscene->camera));
 		if (gamecamera) {
 			kxscene->SetActiveCamera(gamecamera);
 		}
@@ -1488,8 +1475,8 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 
 		Object *blenderchild = link.m_blenderchild;
 		Object *blenderparent = blenderchild->parent;
-		KX_GameObject *parentobj = converter.FindGameObject(blenderparent);
-		KX_GameObject *childobj = converter.FindGameObject(blenderchild);
+		KX_GameObject *parentobj = converter.FindObject(blenderparent);
+		KX_GameObject *childobj = converter.FindObject(blenderchild);
 
 		BLI_assert(childobj);
 
@@ -1512,7 +1499,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 				CM_ListRemoveIfFound(convertedlist, obj);
 			}
 
-			converter.UnregisterGameObject(childobj);
+			converter.UnregisterObject(childobj);
 			kxscene->RemoveObject(childobj);
 
 			continue;
@@ -1663,7 +1650,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 
 					KX_GameObject *viewpoint = gameobj;
 					if (env->object) {
-						KX_GameObject *obj = converter.FindGameObject(env->object);
+						KX_GameObject *obj = converter.FindObject(env->object);
 						if (obj) {
 							viewpoint = obj;
 						}
@@ -1682,7 +1669,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 		Mesh *predifinedBoundMesh = blenderobject->gamePredefinedBound;
 
 		if (predifinedBoundMesh) {
-			KX_Mesh *meshobj = converter.FindGameMesh(predifinedBoundMesh);
+			KX_Mesh *meshobj = converter.FindMesh(predifinedBoundMesh);
 			// In case of mesh taken in a other scene.
 			if (!meshobj) {
 				continue;

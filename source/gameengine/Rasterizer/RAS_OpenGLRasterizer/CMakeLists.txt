@@ -28,6 +28,7 @@ set(INC
 	../Node
 	# XXX Remove these <<<
 	../../BlenderRoutines
+	../../Converter
 	../../Common
 	../../Expressions
 	../../GameLogic

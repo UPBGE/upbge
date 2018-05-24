@@ -98,7 +98,7 @@ void KX_LibLoadStatus::SetScenes(const std::vector<KX_Scene *>& scenes)
 	m_scenes = scenes;
 }
 
-const std::vector<BL_SceneConverter>& KX_LibLoadStatus::GetSceneConverters() const
+std::vector<BL_SceneConverter>& KX_LibLoadStatus::GetSceneConverters()
 {
 	return m_sceneConvertes;
 }
