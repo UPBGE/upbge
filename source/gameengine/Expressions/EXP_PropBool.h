@@ -1,5 +1,5 @@
 /*
- * StringValue.h: interface for the EXP_StringValue class.
+ * BoolValue.h: interface for the EXP_PropBool class.
  * Copyright (c) 1996-2000 Erwin Coumans <coockie@acm.org>
  *
  * Permission to use, copy, modify, distribute and sell this software
@@ -12,35 +12,36 @@
  *
  */
 
-/** \file EXP_StringValue.h
+/** \file EXP_PropBool.h
  *  \ingroup expressions
  */
 
-#ifndef __EXP_STRINGVALUE_H__
-#define __EXP_STRINGVALUE_H__
+#ifndef __EXP_BOOLVALUE_H__
+#define __EXP_BOOLVALUE_H__
 
 #include "EXP_Value.h"
 
-class EXP_StringValue : public EXP_PropValue
+/** Smart Boolean Value class.
+ * Is used by parser when an expression tree is build containing booleans.
+ */
+class EXP_PropBool : public EXP_PropValue
 {
 public:
-	EXP_StringValue(const std::string& txt);
+	EXP_PropBool(bool inBool);
 
 	virtual std::string GetText() const;
 	virtual DATA_TYPE GetValueType() const;
 
-	const std::string& GetValue() const;
-	void SetValue(const std::string& value);
+	bool GetValue() const;
+	void SetValue(bool value);
 
 	virtual EXP_PropValue *GetReplica();
-
 #ifdef WITH_PYTHON
 	virtual PyObject *ConvertValueToPython();
-#endif  // WITH_PYTHON
+#endif
 
 private:
-	/// Data member.
-	std::string m_value;
+	bool m_value;
 };
 
-#endif  // __EXP_STRINGVALUE_H__
+#endif  // __EXP_BOOLVALUE_H__

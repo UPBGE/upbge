@@ -28,8 +28,8 @@
 #include "RAS_OffScreen.h"
 #include "RAS_Rect.h"
 
-#include "EXP_IntValue.h"
-#include "EXP_FloatValue.h"
+#include "EXP_PropInt.h"
+#include "EXP_PropFloat.h"
 
 #include "GPU_glew.h"
 
@@ -277,12 +277,12 @@ void RAS_2DFilter::BindUniforms(RAS_ICanvas *canvas)
 		switch (property->GetValueType()) {
 			case EXP_PropValue::TYPE_INT:
 			{
-				SetUniform(uniformLoc, (int)static_cast<EXP_IntValue *>(property)->GetValue());
+				SetUniform(uniformLoc, (int)static_cast<EXP_PropInt *>(property)->GetValue());
 				break;
 			}
 			case EXP_PropValue::TYPE_FLOAT:
 			{
-				SetUniform(uniformLoc, (float)static_cast<EXP_FloatValue *>(property)->GetValue());
+				SetUniform(uniformLoc, (float)static_cast<EXP_PropFloat *>(property)->GetValue());
 				break;
 			}
 			default:

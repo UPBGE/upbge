@@ -1,5 +1,5 @@
 /*
- * FloatValue.h: interface for the EXP_FloatValue class.
+ * FloatValue.h: interface for the EXP_PropFloat class.
  * Copyright (c) 1996-2000 Erwin Coumans <coockie@acm.org>
  *
  * Permission to use, copy, modify, distribute and sell this software
@@ -12,7 +12,7 @@
  *
  */
 
-/** \file EXP_FloatValue.h
+/** \file EXP_PropFloat.h
  *  \ingroup expressions
  */
 
@@ -21,10 +21,10 @@
 
 #include "EXP_Value.h"
 
-class EXP_FloatValue : public EXP_PropValue
+class EXP_PropFloat : public EXP_PropValue
 {
 public:
-	EXP_FloatValue(double fl);
+	EXP_PropFloat(double fl);
 
 	virtual std::string GetText() const;
 	virtual DATA_TYPE GetValueType() const;

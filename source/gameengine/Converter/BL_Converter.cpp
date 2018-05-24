@@ -48,7 +48,7 @@
 #include "BL_ConvertObjectInfo.h"
 #include "KX_BlenderMaterial.h"
 
-#include "EXP_StringValue.h"
+#include "EXP_PropString.h"
 
 #ifdef WITH_PYTHON
 #  include "Texture.h" // For FreeAllTextures.
