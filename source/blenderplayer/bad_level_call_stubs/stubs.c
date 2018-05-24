@@ -911,8 +911,8 @@ int UI_pie_menu_invoke_from_operator_enum(struct bContext *C, const char *title,
                              const char *propname, const struct wmEvent *event) RET_ZERO
 
 void WM_toolsystem_ref_set_from_runtime(struct bContext *C, struct WorkSpace *workspace, struct bToolRef *tref,	const struct bToolRef_Runtime *tool, const char *idname) RET_NONE
-struct bToolRef *WM_toolsystem_ref_find(struct WorkSpace *workspace, const bToolKey *tkey) RET_NULL
-bool WM_toolsystem_ref_ensure(struct WorkSpace *workspace, const bToolKey *tkey, struct bToolRef **r_tref) RET_ZERO
+struct bToolRef *WM_toolsystem_ref_find(struct WorkSpace *workspace, const struct bToolKey *tkey) RET_NULL
+bool WM_toolsystem_ref_ensure(struct WorkSpace *workspace, const struct bToolKey *tkey, struct bToolRef **r_tref) RET_ZERO
 
 /* RNA COLLADA dependency */
 int collada_export(const struct EvaluationContext *eval_ctx,
