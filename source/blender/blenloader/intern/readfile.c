@@ -2882,12 +2882,30 @@ static void lib_link_workspaces(FileData *fd, Main *bmain)
 		IDP_LibLinkProperty(id->properties, fd);
 		id_us_ensure_real(id);
 
-		for (WorkSpaceDataRelation *relation = workspace->scene_viewlayer_relations.first;
+		for (WorkSpaceDataRelation *relation = workspace->scene_viewlayer_relations.first,
+		     *relation_next = NULL;
 		     relation != NULL;
-		     relation = relation->next)
+		     relation = relation_next)
 		{
+			relation_next = relation->next;
+
 			relation->parent = newlibadr(fd, id->lib, relation->parent);
-			/* relation->value is set in direct_link_workspace_link_scene_data */
+			/* relation->value is set in direct_link_workspace_link_scene_data,
+			 * except when loading linked data. */
+			Scene *scene = relation->parent;
+
+			if (scene) {
+				if (scene->id.lib != NULL) {
+					relation->value = BLI_findstring(&scene->view_layers, relation->value_name, offsetof(ViewLayer, name));
+				}
+				if (relation->value == NULL) {
+					relation->value = scene->view_layers.first;
+				}
+			}
+			else {
+				/* Remove empty relation if scene got lost. */
+				BLI_freelinkN(&workspace->scene_viewlayer_relations, relation);
+			}
 		}
 
 		for (WorkSpaceLayout *layout = layouts->first, *layout_next; layout; layout = layout_next) {
@@ -6253,20 +6271,15 @@ static void direct_link_workspace_link_scene_data(
 		     relation != NULL;
 		     relation = relation->next)
 		{
-			ViewLayer *layer = newdataadr(fd, relation->value);
-			if (layer) {
-				BLI_assert(BLI_findindex(&scene->view_layers, layer) != -1);
+			ViewLayer *view_layer = newdataadr(fd, relation->value);
+			if (view_layer != NULL) {
+				BLI_assert(BLI_findindex(&scene->view_layers, view_layer) != -1);
 				/* relation->parent is set in lib_link_workspaces */
-				relation->value = layer;
 			}
-		}
-
-		if (workspace->view_layer) { /* this was temporariliy used during 2.8 project. Keep files compatible */
-			ViewLayer *layer = newdataadr(fd, workspace->view_layer);
-			/* only set when layer is from the scene we read */
-			if (layer && (BLI_findindex(&scene->view_layers, layer) != -1)) {
-				workspace->view_layer = layer;
+			if (UNLIKELY(view_layer == NULL)) {
+				view_layer = scene->view_layers.first;
 			}
+			relation->value = view_layer;
 		}
 	}
 }

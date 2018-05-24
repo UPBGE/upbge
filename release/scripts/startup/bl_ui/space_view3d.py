@@ -157,6 +157,12 @@ class VIEW3D_MT_editor_menus(Menu):
             layout.menu("VIEW3D_MT_edit_gpencil")
         elif edit_object:
             layout.menu("VIEW3D_MT_edit_%s" % edit_object.type.lower())
+
+            if mode_string == 'EDIT_MESH':
+                layout.menu("VIEW3D_MT_edit_mesh_vertices")
+                layout.menu("VIEW3D_MT_edit_mesh_edges")
+                layout.menu("VIEW3D_MT_edit_mesh_faces")
+
         elif obj:
             if mode_string != 'PAINT_TEXTURE':
                 layout.menu("VIEW3D_MT_%s" % mode_string.lower())
@@ -1196,18 +1202,12 @@ class INFO_MT_surface_add(Menu):
 
         layout.operator_context = 'INVOKE_REGION_WIN'
 
-        layout.operator("curve.primitive_bezier_curve_add", text="Bezier", icon='CURVE_BEZCURVE')
-        layout.operator("curve.primitive_bezier_circle_add", text="Circle", icon='CURVE_BEZCIRCLE')
-
-        layout.separator()
-
-        layout.operator("curve.primitive_nurbs_curve_add", text="Nurbs Curve", icon='CURVE_NCURVE')
-        layout.operator("curve.primitive_nurbs_circle_add", text="Nurbs Circle", icon='CURVE_NCIRCLE')
-        layout.operator("curve.primitive_nurbs_path_add", text="Path", icon='CURVE_PATH')
-
-        layout.separator()
-
-        layout.operator("curve.draw", icon='LINE_DATA')
+        layout.operator("surface.primitive_nurbs_surface_curve_add", text="Nurbs Curve", icon='SURFACE_NCURVE')
+        layout.operator("surface.primitive_nurbs_surface_circle_add", text="Nurbs Circle", icon='SURFACE_NCIRCLE')
+        layout.operator("surface.primitive_nurbs_surface_surface_add", text="Nurbs Surface", icon='SURFACE_NSURFACE')
+        layout.operator("surface.primitive_nurbs_surface_cylinder_add", text="Nurbs Cylinder", icon='SURFACE_NCYLINDER')
+        layout.operator("surface.primitive_nurbs_surface_sphere_add", text="Nurbs Sphere", icon='SURFACE_NSPHERE')
+        layout.operator("surface.primitive_nurbs_surface_torus_add", text="Nurbs Torus", icon='SURFACE_NTORUS')
 
 
 class INFO_MT_metaball_add(Menu):
@@ -2488,13 +2488,6 @@ class VIEW3D_MT_edit_mesh(Menu):
 
         layout.operator("mesh.duplicate_move")
         layout.menu("VIEW3D_MT_edit_mesh_extrude")
-
-        layout.separator()
-
-        layout.menu("VIEW3D_MT_edit_mesh_vertices")
-        layout.menu("VIEW3D_MT_edit_mesh_edges")
-        layout.menu("VIEW3D_MT_edit_mesh_faces")
-
         layout.separator()
 
         layout.menu("VIEW3D_MT_edit_mesh_normals")
@@ -2621,7 +2614,7 @@ class VIEW3D_MT_edit_mesh_extrude(Menu):
 
 
 class VIEW3D_MT_edit_mesh_vertices(Menu):
-    bl_label = "Vertices"
+    bl_label = "Vertex"
 
     def draw(self, context):
         layout = self.layout
@@ -2703,7 +2696,7 @@ class VIEW3D_MT_edit_mesh_edges_data(Menu):
 
 
 class VIEW3D_MT_edit_mesh_edges(Menu):
-    bl_label = "Edges"
+    bl_label = "Edge"
 
     def draw(self, context):
         layout = self.layout
@@ -2740,7 +2733,7 @@ class VIEW3D_MT_edit_mesh_edges(Menu):
 
 
 class VIEW3D_MT_edit_mesh_faces(Menu):
-    bl_label = "Faces"
+    bl_label = "Face"
     bl_idname = "VIEW3D_MT_edit_mesh_faces"
 
     def draw(self, context):
@@ -3541,9 +3534,6 @@ class VIEW3D_PT_shading(Panel):
 
             row = col.row()
             row.prop(shading, "show_see_through")
-            sub = row.row()
-            sub.active = shading.show_see_through
-            sub.prop(shading, "see_through_transparency", text="")
 
             row = col.row()
             row.active = not shading.show_see_through

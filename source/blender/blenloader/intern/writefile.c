@@ -3065,9 +3065,12 @@ static void write_area_regions(WriteData *wd, ScrArea *area)
 			}
 			writestruct(wd, DATA, SpaceConsole, 1, sl);
 		}
-#ifdef WITH_TOPBAR_WRITING
+#ifdef WITH_GLOBAL_AREA_WRITING
 		else if (sl->spacetype == SPACE_TOPBAR) {
 			writestruct(wd, DATA, SpaceTopBar, 1, sl);
+		}
+		else if (sl->spacetype == SPACE_STATUSBAR) {
+			writestruct(wd, DATA, SpaceStatusBar, 1, sl);
 		}
 #endif
 		else if (sl->spacetype == SPACE_USERPREF) {
@@ -3091,7 +3094,7 @@ static void write_area_map(WriteData *wd, ScrAreaMap *area_map)
 
 		writestruct(wd, DATA, ScrArea, 1, area);
 
-#ifdef WITH_TOPBAR_WRITING
+#ifdef WITH_GLOBAL_AREA_WRITING
 		writestruct(wd, DATA, ScrGlobalAreaData, 1, area->global);
 #endif
 
@@ -3107,7 +3110,7 @@ static void write_windowmanager(WriteData *wd, wmWindowManager *wm)
 	write_iddata(wd, &wm->id);
 
 	for (wmWindow *win = wm->windows.first; win; win = win->next) {
-#ifndef WITH_TOPBAR_WRITING
+#ifndef WITH_GLOBAL_AREA_WRITING
 		/* Don't write global areas yet, while we make changes to them. */
 		ScrAreaMap global_areas = win->global_areas;
 		memset(&win->global_areas, 0, sizeof(win->global_areas));
@@ -3120,7 +3123,7 @@ static void write_windowmanager(WriteData *wd, wmWindowManager *wm)
 		writestruct(wd, DATA, WorkSpaceInstanceHook, 1, win->workspace_hook);
 		writestruct(wd, DATA, Stereo3dFormat, 1, win->stereo3d_format);
 
-#ifdef WITH_TOPBAR_WRITING
+#ifdef WITH_GLOBAL_AREA_WRITING
 		write_area_map(wd, &win->global_areas);
 #else
 		win->global_areas = global_areas;
@@ -3781,6 +3784,14 @@ static void write_cachefile(WriteData *wd, CacheFile *cache_file)
 static void write_workspace(WriteData *wd, WorkSpace *workspace)
 {
 	ListBase *layouts = BKE_workspace_layouts_get(workspace);
+
+	/* Update the names for file (only need to set on write). */
+	for (WorkSpaceDataRelation *relation = workspace->scene_viewlayer_relations.first;
+	     relation;
+	     relation = relation->next)
+	{
+		STRNCPY(relation->value_name, ((ViewLayer *)relation->value)->name);
+	}
 
 	writestruct(wd, ID_WS, WorkSpace, 1, workspace);
 	writelist(wd, DATA, WorkSpaceLayout, layouts);

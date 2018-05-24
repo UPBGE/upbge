@@ -266,8 +266,6 @@ static void namebutton_cb(bContext *C, void *tsep, char *oldname)
 {
 	Main *bmain = CTX_data_main(C);
 	SpaceOops *soops = CTX_wm_space_outliner(C);
-	Scene *scene = CTX_data_scene(C);
-	ViewLayer *view_layer = CTX_data_view_layer(C);
 	Object *obedit = CTX_data_edit_object(C);
 	BLI_mempool *ts = soops->treestore;
 	TreeStoreElem *tselem = tsep;
@@ -329,37 +327,39 @@ static void namebutton_cb(bContext *C, void *tsep, char *oldname)
 						BLI_strncpy(newname, ebone->name, sizeof(ebone->name));
 						BLI_strncpy(ebone->name, oldname, sizeof(ebone->name));
 						ED_armature_bone_rename(obedit->data, oldname, newname);
-						WM_event_add_notifier(C, NC_OBJECT | ND_POSE, OBACT(view_layer));
+						WM_event_add_notifier(C, NC_OBJECT | ND_POSE, NULL);
 					}
 					break;
 				}
 
 				case TSE_BONE:
 				{
+					ViewLayer *view_layer = CTX_data_view_layer(C);
+					Scene *scene = CTX_data_scene(C);
+					bArmature *arm = (bArmature *)tselem->id;
 					Bone *bone = te->directdata;
-					Object *ob;
 					char newname[sizeof(bone->name)];
 					
 					/* always make current object active */
 					tree_element_active(C, scene, view_layer, soops, te, OL_SETSEL_NORMAL, true);
-					ob = OBACT(view_layer);
 					
 					/* restore bone name */
 					BLI_strncpy(newname, bone->name, sizeof(bone->name));
 					BLI_strncpy(bone->name, oldname, sizeof(bone->name));
-					ED_armature_bone_rename(ob->data, oldname, newname);
-					WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
+					ED_armature_bone_rename(arm, oldname, newname);
+					WM_event_add_notifier(C, NC_OBJECT | ND_POSE, NULL);
 					break;
 				}
 				case TSE_POSE_CHANNEL:
 				{
+					Scene *scene = CTX_data_scene(C);
+					ViewLayer *view_layer = CTX_data_view_layer(C);
+					Object *ob = (Object *)tselem->id;
 					bPoseChannel *pchan = te->directdata;
-					Object *ob;
 					char newname[sizeof(pchan->name)];
 					
 					/* always make current pose-bone active */
 					tree_element_active(C, scene, view_layer, soops, te, OL_SETSEL_NORMAL, true);
-					ob = OBACT(view_layer);
 
 					BLI_assert(ob->type == OB_ARMATURE);
 					
@@ -367,7 +367,7 @@ static void namebutton_cb(bContext *C, void *tsep, char *oldname)
 					BLI_strncpy(newname, pchan->name, sizeof(pchan->name));
 					BLI_strncpy(pchan->name, oldname, sizeof(pchan->name));
 					ED_armature_bone_rename(ob->data, oldname, newname);
-					WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
+					WM_event_add_notifier(C, NC_OBJECT | ND_POSE, NULL);
 					break;
 				}
 				case TSE_POSEGRP:
@@ -391,10 +391,25 @@ static void namebutton_cb(bContext *C, void *tsep, char *oldname)
 					WM_event_add_notifier(C, NC_GPENCIL | ND_DATA, gpd);
 					break;
 				}
+				case TSE_R_LAYER:
+				{
+					Scene *scene = (Scene *)tselem->id;
+					ViewLayer *view_layer = te->directdata;
+
+					/* Restore old name. */
+					char newname[sizeof(view_layer->name)];
+					BLI_strncpy(newname, view_layer->name, sizeof(view_layer->name));
+					BLI_strncpy(view_layer->name, oldname, sizeof(view_layer->name));
+
+					/* Rename, preserving animation and compositing data. */
+					BKE_view_layer_rename(scene, view_layer, newname);
+					WM_event_add_notifier(C, NC_ID | NA_RENAME, NULL);
+					break;
+				}
 				case TSE_LAYER_COLLECTION:
 				{
 					BLI_libblock_ensure_unique_name(bmain, tselem->id->name);
-					WM_event_add_notifier(C, NC_ID | NA_RENAME, NULL); break;
+					WM_event_add_notifier(C, NC_ID | NA_RENAME, NULL);
 					break;
 				}
 			}

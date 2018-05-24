@@ -1408,6 +1408,10 @@ Object *BKE_object_copy(Main *bmain, const Object *ob)
 {
 	Object *ob_copy;
 	BKE_id_copy_ex(bmain, &ob->id, (ID **)&ob_copy, 0, false);
+
+	/* We increase object user count when linking to Collections. */
+	id_us_min(&ob_copy->id);
+
 	return ob_copy;
 }
 

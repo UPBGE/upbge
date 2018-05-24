@@ -1486,27 +1486,7 @@ void rna_ViewLayer_name_set(PointerRNA *ptr, const char *value)
 {
 	Scene *scene = (Scene *)ptr->id.data;
 	ViewLayer *view_layer = (ViewLayer *)ptr->data;
-	char oldname[sizeof(view_layer->name)];
-
-	BLI_strncpy(oldname, view_layer->name, sizeof(view_layer->name));
-
-	BLI_strncpy_utf8(view_layer->name, value, sizeof(view_layer->name));
-	BLI_uniquename(&scene->view_layers, view_layer, DATA_("ViewLayer"), '.', offsetof(ViewLayer, name), sizeof(view_layer->name));
-
-	if (scene->nodetree) {
-		bNode *node;
-		int index = BLI_findindex(&scene->view_layers, view_layer);
-
-		for (node = scene->nodetree->nodes.first; node; node = node->next) {
-			if (node->type == CMP_NODE_R_LAYERS && node->id == NULL) {
-				if (node->custom1 == index)
-					BLI_strncpy(node->name, view_layer->name, NODE_MAXSTR);
-			}
-		}
-	}
-
-	/* fix all the animation data which may link to this */
-	BKE_animdata_fix_paths_rename_all(NULL, "view_layers", oldname, view_layer->name);
+	BKE_view_layer_rename(scene, view_layer, value);
 }
 
 static void rna_SceneRenderView_name_set(PointerRNA *ptr, const char *value)
@@ -1649,12 +1629,6 @@ static void rna_Scene_simplify_update(Main *bmain, Scene *scene, PointerRNA *ptr
 
 	if (sce->r.mode & R_SIMPLIFY)
 		rna_Scene_use_simplify_update(bmain, scene, ptr);
-}
-
-static void rna_SceneRenderData_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
-{
-	Scene *sce = ptr->id.data;
-	DEG_id_tag_update(&sce->id, DEG_TAG_COPY_ON_WRITE);
 }
 
 static void rna_Scene_use_persistent_data_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
@@ -3243,7 +3217,7 @@ void rna_def_view_layer_common(StructRNA *srna, int scene)
 	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
 	if (scene) RNA_def_property_string_funcs(prop, NULL, NULL, "rna_ViewLayer_name_set");
 	else RNA_def_property_string_sdna(prop, NULL, "name");
-	RNA_def_property_ui_text(prop, "Name", "Render layer name");
+	RNA_def_property_ui_text(prop, "Name", "View layer name");
 	RNA_def_struct_name_property(srna, prop);
 	if (scene) RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 	else RNA_def_property_clear_flag(prop, PROP_EDITABLE);
@@ -5522,7 +5496,7 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	RNA_def_property_enum_sdna(prop, NULL, "preview_pixel_size");
 	RNA_def_property_enum_items(prop, pixel_size_items);
 	RNA_def_property_ui_text(prop, "Pixel Size", "Pixel size for viewport rendering");
-	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_SceneRenderData_update");
+	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
 	prop = RNA_def_property(srna, "pixel_aspect_x", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "xasp");
@@ -5660,7 +5634,7 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "mode", R_BORDER);
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_ui_text(prop, "Border", "Render a user-defined border region, within the frame size ");
-	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_SceneRenderData_update");
+	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 	
 	prop = RNA_def_property(srna, "border_min_x", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "border.xmin");

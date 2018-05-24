@@ -53,7 +53,7 @@ typedef struct WORKBENCH_FramebufferList {
 	struct GPUFrameBuffer *composite_fb;
 
 	/* Forward render buffers */
-	struct GPUFrameBuffer *depth_fb;
+	struct GPUFrameBuffer *object_outline_fb;
 	struct GPUFrameBuffer *transparent_accum_fb;
 } WORKBENCH_FramebufferList;
 
@@ -72,7 +72,9 @@ typedef struct WORKBENCH_PassList {
 
 	/* forward rendering */
 	struct DRWPass *transparent_accum_pass;
+	struct DRWPass *object_outline_pass;
 	struct DRWPass *depth_pass;
+	struct DRWPass *checker_depth_pass;
 } WORKBENCH_PassList;
 
 typedef struct WORKBENCH_Data {
@@ -93,8 +95,6 @@ typedef struct WORKBENCH_UBO_World {
 	float background_color_low[4];
 	float background_color_high[4];
 	float object_outline_color[4];
-	float see_through_transparency;
-	float pad[3];
 } WORKBENCH_UBO_World;
 BLI_STATIC_ASSERT_ALIGN(WORKBENCH_UBO_World, 16)
 
@@ -110,6 +110,7 @@ typedef struct WORKBENCH_PrivateData {
 	int drawtype;
 	struct GPUUniformBuffer *world_ubo;
 	struct DRWShadingGroup *shadow_shgrp;
+	struct DRWShadingGroup *depth_shgrp;
 	WORKBENCH_UBO_World world_data;
 	float shadow_multiplier;
 } WORKBENCH_PrivateData; /* Transient data */
@@ -124,7 +125,7 @@ typedef struct WORKBENCH_MaterialData {
 	/* Linked shgroup for drawing */
 	DRWShadingGroup *shgrp;
 	/* forward rendering */
-	DRWShadingGroup *shgrp_depth;
+	DRWShadingGroup *shgrp_object_outline;
 } WORKBENCH_MaterialData;
 
 typedef struct WORKBENCH_ObjectData {

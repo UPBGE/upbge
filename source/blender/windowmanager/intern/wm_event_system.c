@@ -80,6 +80,8 @@
 #include "WM_api.h"
 #include "WM_types.h"
 #include "WM_message.h"
+#include "WM_toolsystem.h"
+
 #include "wm.h"
 #include "wm_window.h"
 #include "wm_event_system.h"
@@ -1959,7 +1961,11 @@ static int wm_handler_operator_call(bContext *C, ListBase *handlers, wmEventHand
 					/* set cursor back to the default for the region */
 					wmWindow *win = CTX_wm_window(C);
 					WM_cursor_grab_disable(win, NULL);
+					/* Causes crash when joining areas: T55166, seems this is not even needed. */
+#if 0
 					ED_region_cursor_set(win, area, region);
+#endif
+
 
 					BLI_remlink(handlers, handler);
 					wm_event_free_handler(handler);
@@ -1978,7 +1984,7 @@ static int wm_handler_operator_call(bContext *C, ListBase *handlers, wmEventHand
 
 		if (ot && wm_operator_check_locked_interface(C, ot)) {
 			bool use_last_properties = true;
-			PointerRNA tool_properties = {0};
+			PointerRNA tool_properties = {{0}};
 			bool use_tool_properties = (handler->keymap_tool != NULL);
 			
 			if (use_tool_properties) {

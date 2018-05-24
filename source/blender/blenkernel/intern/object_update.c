@@ -238,11 +238,6 @@ void BKE_object_handle_data_update(
 		ob->transflag &= ~OB_DUPLIPARTS;
 		psys = ob->particlesystem.first;
 		while (psys) {
-			/* ensure this update always happens even if psys is disabled */
-			if (psys->recalc & PSYS_RECALC_TYPE) {
-				psys_changed_type(ob, psys);
-			}
-
 			if (psys_check_enabled(ob, psys, use_render_params)) {
 				/* check use of dupli objects here */
 				if (psys->part && (psys->part->draw_as == PART_DRAW_REND || use_render_params) &&
@@ -372,6 +367,9 @@ void BKE_object_eval_uber_data(Depsgraph *depsgraph,
 				 * evaluated mesh.
 				 */
 				new_mesh->id.orig_id = &mesh->id;
+				/* Copy autosmooth settings from original mesh. */
+				new_mesh->flag |= (mesh->flag & ME_AUTOSMOOTH);
+				new_mesh->smoothresh = mesh->smoothresh;
 			}
 #if 0
 			if (ob->derivedFinal != NULL) {

@@ -75,19 +75,19 @@ typedef enum {
 	UI_WTYPE_TOOLBAR_ITEM,
 	UI_WTYPE_TAB,
 	UI_WTYPE_TOOLTIP,
-	
+
 	/* strings */
 	UI_WTYPE_NAME,
 	UI_WTYPE_NAME_LINK,
 	UI_WTYPE_POINTER_LINK,
 	UI_WTYPE_FILENAME,
-	
+
 	/* menus */
 	UI_WTYPE_MENU_RADIO,
 	UI_WTYPE_MENU_ICON_RADIO,
 	UI_WTYPE_MENU_POINTER_LINK,
 	UI_WTYPE_MENU_NODE_LINK,
-	
+
 	UI_WTYPE_PULLDOWN,
 	UI_WTYPE_MENU_ITEM,
 	UI_WTYPE_MENU_ITEM_RADIAL,
@@ -262,7 +262,7 @@ struct uiBut {
 
 	uiButCompleteFunc autocomplete_func;
 	void *autofunc_arg;
-	
+
 	uiButSearchCreateFunc search_create_func;
 	uiButSearchFunc search_func;
 	bool free_search_arg;
@@ -322,7 +322,7 @@ struct uiBut {
 	void *dragpoin;
 	struct ImBuf *imb;
 	float imb_scale;
-	
+
 	/* active button data */
 	struct uiHandleButtonData *active;
 
@@ -334,7 +334,7 @@ struct uiBut {
 	float *editvec;
 	void *editcoba;
 	void *editcumap;
-	
+
 	/* pointer back */
 	uiBlock *block;
 };
@@ -382,9 +382,9 @@ struct uiBlock {
 	struct uiLayout *curlayout;
 
 	ListBase contexts;
-	
+
 	char name[UI_MAX_NAME_STR];
-	
+
 	float winmat[4][4];
 
 	rctf rect;
@@ -404,10 +404,10 @@ struct uiBlock {
 
 	uiBlockHandleFunc handle_func;
 	void *handle_func_arg;
-	
+
 	/* custom extra handling */
 	int (*block_event_func)(const struct bContext *C, struct uiBlock *, const struct wmEvent *);
-	
+
 	/* extra draw function for custom blocks */
 	void (*drawextra)(const struct bContext *C, void *idv, void *arg1, void *arg2, rcti *rect);
 	void *drawextra_arg1;
@@ -567,7 +567,7 @@ struct uiPopupBlockHandle {
 	void (*popup_func)(struct bContext *C, void *arg, int event);
 	void (*cancel_func)(struct bContext *C, void *arg);
 	void *popup_arg;
-	
+
 	/* store data for refreshing popups */
 	struct uiPopupBlockCreate popup_create_vars;
 	/* true if we can re-create the popup using 'popup_create_vars' */
@@ -585,7 +585,7 @@ struct uiPopupBlockHandle {
 	ScrArea *ctx_area;
 	ARegion *ctx_region;
 	int opcontext;
-	
+
 	/* return values */
 	int butretval;
 	int menuretval;
