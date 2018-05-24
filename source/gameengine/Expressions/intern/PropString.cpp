@@ -1,8 +1,7 @@
-/** \file gameengine/Expressions/BoolValue.cpp
+/** \file gameengine/Expressions/StringValue.cpp
  *  \ingroup expressions
  */
-
-// BoolValue.cpp: implementation of the EXP_BoolValue class.
+// StringValue.cpp: implementation of the EXP_PropString class.
 /*
  * Copyright (c) 1996-2000 Erwin Coumans <coockie@acm.org>
  *
@@ -16,42 +15,40 @@
  *
  */
 
-#include "EXP_BoolValue.h"
+#include "EXP_PropString.h"
 
-EXP_BoolValue::EXP_BoolValue(bool inBool)
-	:m_value(inBool)
+EXP_PropString::EXP_PropString(const std::string& txt)
+	:m_value(txt)
 {
 }
 
-std::string EXP_BoolValue::GetText() const
-{
-	return m_value ? "TRUE" : "FALSE";
-}
-
-EXP_PropValue::DATA_TYPE EXP_BoolValue::GetValueType() const
-{
-	return TYPE_BOOL;
-}
-
-bool EXP_BoolValue::GetValue() const
+std::string EXP_PropString::GetText() const
 {
 	return m_value;
 }
 
-void EXP_BoolValue::SetValue(bool value)
+EXP_PropValue::DATA_TYPE EXP_PropString::GetValueType() const
+{
+	return TYPE_STRING;
+}
+
+const std::string &EXP_PropString::GetValue() const
+{
+	return m_value;
+}
+
+void EXP_PropString::SetValue(const std::string& value)
 {
 	m_value = value;
 }
 
-EXP_PropValue *EXP_BoolValue::GetReplica()
+EXP_PropValue *EXP_PropString::GetReplica()
 {
-	EXP_BoolValue *replica = new EXP_BoolValue(*this);
+	EXP_PropString *replica = new EXP_PropString(*this);
 	return replica;
 }
 
-#ifdef WITH_PYTHON
-PyObject *EXP_BoolValue::ConvertValueToPython()
+PyObject * EXP_PropString::ConvertValueToPython()
 {
-	return PyBool_FromLong(m_value != 0);
+	return PyUnicode_FromStdString(m_value);
 }
-#endif  // WITH_PYTHON

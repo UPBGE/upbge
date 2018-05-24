@@ -20,7 +20,7 @@
 #define __EXP_LISTVALUE_H__
 
 #include "EXP_BaseListValue.h"
-#include "EXP_BoolValue.h"
+#include "EXP_PropBool.h"
 
 #include <functional>
 

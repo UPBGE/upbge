@@ -1,5 +1,5 @@
 /*
- * BoolValue.h: interface for the EXP_BoolValue class.
+ * IntValue.h: interface for the EXP_PropInt class.
  * Copyright (c) 1996-2000 Erwin Coumans <coockie@acm.org>
  *
  * Permission to use, copy, modify, distribute and sell this software
@@ -12,36 +12,35 @@
  *
  */
 
-/** \file EXP_BoolValue.h
+/** \file EXP_PropInt.h
  *  \ingroup expressions
  */
 
-#ifndef __EXP_BOOLVALUE_H__
-#define __EXP_BOOLVALUE_H__
+#ifndef __EXP_INTVALUE_H__
+#define __EXP_INTVALUE_H__
+
 
 #include "EXP_Value.h"
 
-/** Smart Boolean Value class.
- * Is used by parser when an expression tree is build containing booleans.
- */
-class EXP_BoolValue : public EXP_PropValue
+class EXP_PropInt : public EXP_PropValue
 {
 public:
-	EXP_BoolValue(bool inBool);
+	EXP_PropInt(long long innie);
 
 	virtual std::string GetText() const;
 	virtual DATA_TYPE GetValueType() const;
 
-	bool GetValue() const;
-	void SetValue(bool value);
+	long long GetValue() const;
+	void SetValue(long long value);
 
 	virtual EXP_PropValue *GetReplica();
+
 #ifdef WITH_PYTHON
 	virtual PyObject *ConvertValueToPython();
 #endif
 
 private:
-	bool m_value;
+	long long m_value;
 };
 
-#endif  // __EXP_BOOLVALUE_H__
+#endif  // __EXP_INTVALUE_H__

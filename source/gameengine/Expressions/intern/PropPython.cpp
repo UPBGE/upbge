@@ -25,38 +25,53 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file EXP_PythonValue.h
+/** \file gameengine/Expressions/PythonValue.cpp
  *  \ingroup expressions
  */
 
-#ifndef __EXP_PYTHONVALUE_H__
-#define __EXP_PYTHONVALUE_H__
+#include "EXP_PropPython.h"
 
-
-#include "EXP_Value.h"
-
-/** \brief Property holding a python object, used for properties when no defined
- * Expression class fit the type.
- * Note: This file is compiled only when enabling python.
- */
-class EXP_PythonValue : public EXP_PropValue
+EXP_PropPython::EXP_PropPython(PyObject *object)
+	:m_value(object)
 {
-public:
-	EXP_PythonValue(PyObject *object);
-	virtual ~EXP_PythonValue();
+	Py_INCREF(m_value);
+}
 
-	virtual std::string GetText() const;
-	virtual DATA_TYPE GetValueType() const;
+EXP_PropPython::~EXP_PropPython()
+{
+	Py_DECREF(m_value);
+}
 
-	PyObject *GetValue() const;
+std::string EXP_PropPython::GetText() const
+{
+	return _PyUnicode_AsString(PyObject_Repr(m_value));
+}
 
-	virtual EXP_PropValue *GetReplica();
-	void ProcessReplica();
+EXP_PropValue::DATA_TYPE EXP_PropPython::GetValueType() const
+{
+	return TYPE_PYTHON;
+}
 
-	virtual PyObject *ConvertValueToPython();
+EXP_PropValue *EXP_PropPython::GetReplica()
+{
+	EXP_PropPython *replica = new EXP_PropPython(*this);
+	replica->ProcessReplica();
 
-private:
-	PyObject *m_value;
-};
+	return replica;
+}
 
-#endif  // __EXP_PYTHONVALUE_H__
+void EXP_PropPython::ProcessReplica()
+{
+	Py_INCREF(m_value);
+}
+
+PyObject *EXP_PropPython::GetValue() const
+{
+	return m_value;
+}
+
+PyObject *EXP_PropPython::ConvertValueToPython()
+{
+	Py_INCREF(m_value);
+	return m_value;
+}

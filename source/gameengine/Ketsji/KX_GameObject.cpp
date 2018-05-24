@@ -78,7 +78,7 @@
 #  include "python_utildefines.h"
 #endif
 
-#include "EXP_FloatValue.h"
+#include "EXP_PropFloat.h"
 
 // Component stuff
 #include "DNA_python_component_types.h"
@@ -2377,7 +2377,7 @@ PyObject *KX_GameObject::pyattr_get_life(EXP_PyObjectPlus *self_v, const EXP_PYA
 	if (life && life->GetValueType() == EXP_PropValue::TYPE_FLOAT) {
 		// this convert the timebomb seconds to frames, hard coded 50.0f (assuming 50fps)
 		// value hardcoded in KX_Scene::AddReplicaObject()
-		return PyFloat_FromDouble(static_cast<EXP_FloatValue *>(life)->GetValue() * 50.0);
+		return PyFloat_FromDouble(static_cast<EXP_PropFloat *>(life)->GetValue() * 50.0);
 	}
 	else {
 		Py_RETURN_NONE;
