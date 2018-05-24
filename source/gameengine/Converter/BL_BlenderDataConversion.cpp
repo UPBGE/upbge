@@ -1730,16 +1730,18 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 		gameobj->ResetState();
 	}
 
-	// Convert the python components of each object.
-	for (KX_GameObject *gameobj : sumolist) {
-		Object *blenderobj = gameobj->GetBlenderObject();
-		BL_ConvertComponentsObject(gameobj, blenderobj);
-	}
+	// Convert the python components of each object if the component execution is available.
+	if (G.f & G_COMPONENT_AUTOEXEC) {
+		for (KX_GameObject *gameobj : sumolist) {
+			Object *blenderobj = gameobj->GetBlenderObject();
+			BL_ConvertComponentsObject(gameobj, blenderobj);
+		}
 
-	for (KX_GameObject *gameobj : objectlist) {
-		if (gameobj->GetComponents()) {
-			// Register object for component update.
-			kxscene->GetPythonComponentManager().RegisterObject(gameobj);
+		for (KX_GameObject *gameobj : objectlist) {
+			if (gameobj->GetComponents()) {
+				// Register object for component update.
+				kxscene->GetPythonComponentManager().RegisterObject(gameobj);
+			}
 		}
 	}
 

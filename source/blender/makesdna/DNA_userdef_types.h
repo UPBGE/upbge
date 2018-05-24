@@ -626,6 +626,7 @@ typedef enum eUserPref_Flag {
 	USER_NONEGFRAMES		= (1 << 24),
 	USER_TXT_TABSTOSPACES_DISABLE	= (1 << 25),
 	USER_TOOLTIPS_PYTHON    = (1 << 26),
+	USER_COMPONENT_AUTOEXEC_DISABLE	= (1 << 27),
 } eUserPref_Flag;
 
 /* bPathCompare.flag */

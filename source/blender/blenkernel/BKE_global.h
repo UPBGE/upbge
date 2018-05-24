@@ -107,6 +107,8 @@ typedef struct Global {
 #define G_SCRIPT_AUTOEXEC_FAIL (1 << 15)
 #define G_SCRIPT_AUTOEXEC_FAIL_QUIET (1 << 16)
 
+#define G_COMPONENT_AUTOEXEC (1 << 18)
+
 /* #define G_NOFROZEN	(1 << 17) also removed */
 /* #define G_GREASEPENCIL   (1 << 17)   also removed */
 

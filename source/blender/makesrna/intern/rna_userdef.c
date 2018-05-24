@@ -195,6 +195,13 @@ static void rna_userdef_script_autoexec_update(Main *UNUSED(bmain), Scene *UNUSE
 	else G.f |=  G_SCRIPT_AUTOEXEC;
 }
 
+static void rna_userdef_component_autoexec_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
+{
+	UserDef *userdef = (UserDef *)ptr->data;
+	if (userdef->flag & USER_COMPONENT_AUTOEXEC_DISABLE) G.f &= ~G_COMPONENT_AUTOEXEC;
+	else G.f |=  G_COMPONENT_AUTOEXEC;
+}
+
 static void rna_userdef_load_ui_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	UserDef *userdef = (UserDef *)ptr->data;
@@ -4040,6 +4047,13 @@ static void rna_def_userdef_system(BlenderRNA *brna)
 	                         "Allow any .blend file to run scripts automatically "
 	                         "(unsafe with blend files from an untrusted source)");
 	RNA_def_property_update(prop, 0, "rna_userdef_script_autoexec_update");
+
+	prop = RNA_def_property(srna, "use_components_auto_execute", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", USER_COMPONENT_AUTOEXEC_DISABLE);
+	RNA_def_property_ui_text(prop, "Auto Run UPBGE Components",
+	                         "Allow any .blend file to run python components automatically "
+	                         "(unsafe with blend files from an untrusted source)");
+	RNA_def_property_update(prop, 0, "rna_userdef_component_autoexec_update");
 
 	prop = RNA_def_property(srna, "use_tabs_as_spaces", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", USER_TXT_TABSTOSPACES_DISABLE);

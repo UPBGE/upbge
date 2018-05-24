@@ -129,6 +129,12 @@ void BKE_blender_globals_init(void)
 #else
 	G.f &= ~G_SCRIPT_AUTOEXEC;
 #endif
+
+#ifndef WITH_GAMEENGINE_COMPONENTS_SECURITY /* default */
+	G.f |= G_COMPONENT_AUTOEXEC;
+#else
+	G.f &= ~G_COMPONENT_AUTOEXEC;
+#endif
 }
 
 void BKE_blender_globals_clear(void)

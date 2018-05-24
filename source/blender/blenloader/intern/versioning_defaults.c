@@ -83,6 +83,12 @@ void BLO_update_defaults_userpref_blend(void)
 #else
 	U.flag &= ~USER_SCRIPT_AUTOEXEC_DISABLE;
 #endif
+
+#ifdef WITH_GAMEENGINE_COMPONENTS_SECURITY
+	U.flag |= USER_COMPONENT_AUTOEXEC_DISABLE;
+#else
+	U.flag &= ~USER_COMPONENT_AUTOEXEC_DISABLE;
+#endif
 }
 
 /**
