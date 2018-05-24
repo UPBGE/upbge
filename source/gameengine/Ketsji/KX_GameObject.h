@@ -67,7 +67,7 @@ struct bRigidBodyJointConstraint;
 
 #ifdef WITH_PYTHON
 /* utility conversion function */
-bool ConvertPythonToGameObject(void *logicmgr, PyObject *value, KX_GameObject **object, bool py_none_ok, const char *error_prefix);
+bool ConvertPythonToGameObject(KX_Scene *scene, PyObject *value, KX_GameObject **object, bool py_none_ok, const char *error_prefix);
 #endif
 
 #ifdef USE_MATHUTILS
@@ -116,7 +116,7 @@ protected:
 	std::vector<KX_Mesh *>		m_meshes;
 	KX_LodManager						*m_lodManager;
 	short								m_currentLodLevel;
-	RAS_MeshUser						*m_meshUser;
+	std::unique_ptr<RAS_MeshUser> m_meshUser;
 	/// Info about blender object convert from.
 	BL_ConvertObjectInfo *m_convertInfo;
 

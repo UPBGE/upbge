@@ -141,7 +141,7 @@ bool BL_Action::Play(const std::string& name,
 	KX_Scene *kxscene = m_obj->GetScene();
 
 	// First try to load the action
-	m_actionData = nullptr; // TODO static_cast<BL_ActionData *>(kxscene->GetLogicManager()->GetActionByName(name));
+	m_actionData = kxscene->GetResources().FindAction(name);
 	if (!m_actionData) {
 		CM_Error("failed to load action: " << name);
 		m_done = true;

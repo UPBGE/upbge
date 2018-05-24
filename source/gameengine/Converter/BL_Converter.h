@@ -43,53 +43,24 @@
 #  include "BL_ActionData.h"
 #endif
 
-#include "BL_SceneConverter.h"
-
 #include "CM_Thread.h"
 
-class EXP_PropString;
 class BL_SceneConverter;
-class BL_ConvertObjectInfo;
 class KX_KetsjiEngine;
 class KX_LibLoadStatus;
 class KX_BlenderMaterial;
+class BL_InterpolatorList;
 class SCA_IActuator;
 class SCA_IController;
 class KX_Mesh;
 struct Main;
 struct BlendHandle;
-struct Mesh;
 struct Scene;
-struct Material;
-struct bAction;
-struct bActuator;
-struct bController;
 struct TaskPool;
-
-template<class Value>
-using UniquePtrList = std::vector<std::unique_ptr<Value> >;
 
 class BL_Converter
 {
 private:
-	class SceneSlot
-	{
-	public:
-		UniquePtrList<KX_BlenderMaterial> m_materials;
-		UniquePtrList<KX_Mesh> m_meshobjects;
-		UniquePtrList<BL_ActionData> m_actions;
-		UniquePtrList<BL_ConvertObjectInfo> m_objectInfos;
-
-		SceneSlot();
-		SceneSlot(const BL_SceneConverter& converter);
-		~SceneSlot();
-
-		void Merge(SceneSlot& other);
-		void Merge(const BL_SceneConverter& converter);
-	};
-
-	std::map<KX_Scene *, SceneSlot> m_sceneSlots;
-
 	struct ThreadInfo {
 		TaskPool *m_pool;
 		CM_ThreadMutex m_mutex;
@@ -166,18 +137,6 @@ public:
 
 	/// Fully convert a non-libloaded scene.
 	void ConvertScene(KX_Scene *scene);
-
-	/** This function removes all entities stored in the converter for that scene
-	 * It should be used instead of direct delete scene
-	 * Note that there was some provision for sharing entities (meshes...) between
-	 * scenes but that is now disabled so all scene will have their own copy
-	 * and we can delete them here.
-	 * \param scene The scene to clean.
-	 */
-	void RemoveScene(KX_Scene *scene);
-
-	/// Register a mesh object copy.
-	void RegisterMesh(KX_Scene *scene, KX_Mesh *mesh);
 
 	Scene *GetBlenderSceneForName(const std::string& name);
 	std::vector<std::string> GetInactiveSceneNames() const;

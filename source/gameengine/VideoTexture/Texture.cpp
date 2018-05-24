@@ -223,7 +223,7 @@ short getMaterialID(PyObject *obj, const char *name)
 	{
 		// get material
 		KX_GameObject *gameObj;
-		if (!ConvertPythonToGameObject(0, obj, &gameObj, false, "")) {
+		if (!ConvertPythonToGameObject(KX_GetActiveScene(), obj, &gameObj, false, "")) {
 			break;
 		}
 
@@ -295,7 +295,7 @@ static int Texture_init(PyObject *self, PyObject *args, PyObject *kwds)
 	}
 
 	KX_GameObject *gameObj = nullptr;
-	if (ConvertPythonToGameObject(0, obj, &gameObj, false, "")) {
+	if (ConvertPythonToGameObject(KX_GetActiveScene(), obj, &gameObj, false, "")) {
 		// process polygon material or blender material
 		try
 		{
