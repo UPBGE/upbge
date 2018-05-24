@@ -34,7 +34,7 @@ protected:
 	VectorType m_valueArray;
 
 	void SetValue(int i, EXP_Value *val);
-	EXP_Value *GetValue(int i);
+	EXP_Value *GetValue(int i) const;
 	EXP_Value *FindValue(const std::string& name) const;
 	bool SearchValue(EXP_Value *val) const;
 	void Add(EXP_Value *value);

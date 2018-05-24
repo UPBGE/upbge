@@ -41,8 +41,6 @@
 #include "SG_Interpolator.h"
 
 #include "BL_ActionData.h"
-#include "BL_Converter.h"
-#include "KX_Globals.h"
 
 #include "RAS_IMaterial.h"
 

@@ -40,7 +40,7 @@ void EXP_BaseListValue::SetValue(int i, EXP_Value *val)
 	m_valueArray[i] = val;
 }
 
-EXP_Value *EXP_BaseListValue::GetValue(int i)
+EXP_Value *EXP_BaseListValue::GetValue(int i) const
 {
 	return m_valueArray[i];
 }

@@ -128,16 +128,16 @@ public:
 	{
 		EXP_BaseListValue::SetValue(i, val);
 	}
-	ItemType *GetValue(int i)
+	ItemType *GetValue(int i) const
 	{
 		return static_cast<ItemType *>(EXP_BaseListValue::GetValue(i));
 	}
 
-	ItemType *GetFront()
+	ItemType *GetFront() const
 	{
 		return static_cast<ItemType *>(m_valueArray.front());
 	}
-	ItemType *GetBack()
+	ItemType *GetBack() const
 	{
 		return static_cast<ItemType *>(m_valueArray.back());
 	}

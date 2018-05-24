@@ -79,11 +79,14 @@
 
 #ifdef WITH_PYTHON
 #  include "EXP_PythonCallBack.h"
-#endif
+#  include "Texture.h" // For FreeAllTextures.
+#endif  // WITH_PYTHON
 
 #include "KX_LightObject.h"
 
 #include "BLI_task.h"
+
+#include "BKE_library.h" // For IS_TAGGED
 
 #include "CM_Message.h"
 #include "CM_List.h"
@@ -127,7 +130,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_name(sceneName),
 	m_activeCamera(nullptr),
 	m_overrideCullingCamera(nullptr),
-	m_ueberExecutionPriority(0),
 	m_suspend(false),
 	m_suspendedDelta(0.0),
 	m_activityCulling(false),
@@ -160,6 +162,10 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
 KX_Scene::~KX_Scene()
 {
+#ifdef WITH_PYTHON
+	Texture::FreeAllTextures(this);
+#endif  // WITH_PYTHON
+
 	/* The release of debug properties used to be in KX_Scene::~KX_Scene
 	 * It's still there but we remove all properties here otherwise some
 	 * reference might be hanging and causing late release of objects
@@ -170,6 +176,9 @@ KX_Scene::~KX_Scene()
 		KX_GameObject *parentobj = m_parentlist.GetFront();
 		RemoveObject(parentobj);
 	}
+
+	// Free all ressources.
+	m_resssources.Clear();
 
 	if (m_obstacleSimulation) {
 		delete m_obstacleSimulation;
@@ -203,10 +212,6 @@ KX_Scene::~KX_Scene()
 		delete m_boundingBoxManager;
 	}
 
-	if (m_worldinfo) {
-		delete m_worldinfo;
-	}
-
 #ifdef WITH_PYTHON
 	if (m_attrDict) {
 		PyDict_Clear(m_attrDict);
@@ -219,6 +224,16 @@ KX_Scene::~KX_Scene()
 		Py_CLEAR(m_drawCallbacks[i]);
 	}
 #endif
+}
+
+BL_ResourceCollection& KX_Scene::GetResources()
+{
+	return m_resssources;
+}
+
+void KX_Scene::SetResources(BL_ResourceCollection&& ressources)
+{
+	m_resssources = std::move(ressources);
 }
 
 std::string KX_Scene::GetName() const
@@ -293,12 +308,12 @@ const RAS_FrameSettings& KX_Scene::GetFramingType() const
 
 void KX_Scene::SetWorldInfo(KX_WorldInfo *worldinfo)
 {
-	m_worldinfo = worldinfo;
+	m_worldinfo.reset(worldinfo);
 }
 
 KX_WorldInfo *KX_Scene::GetWorldInfo() const
 {
-	return m_worldinfo;
+	return m_worldinfo.get();
 }
 
 void KX_Scene::Suspend()
@@ -497,7 +512,6 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
 
 	// We will add one group at a time.
 	m_logicHierarchicalGameObjects.clear();
-	m_ueberExecutionPriority++;
 
 	/* For groups will do something special:
 	 * we will force the creation of objects to those in the group only
@@ -514,6 +528,7 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
 		}
 
 		// TODO put information about hierarchy in BL_ConverterObjectInfo.
+		Put KX_GameObject pointers into BL_ConvertObjectInfo and check for existance into m_objectlist and m_inactivelist.
 #if 0
 		KX_GameObject *gameobj = (KX_GameObject *)m_logicmgr->FindGameObjByBlendObj(blenderobj);
 		if (gameobj == nullptr) {
@@ -626,8 +641,6 @@ KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobj, KX_GameObj
 {
 	m_logicHierarchicalGameObjects.clear();
 	m_groupGameObjects.clear();
-
-	m_ueberExecutionPriority++;
 
 	// Lets create a replica.
 	KX_GameObject *replica = AddNodeReplicaObject(nullptr, originalobj);
@@ -790,9 +803,6 @@ void KX_Scene::NewRemoveObject(KX_GameObject *gameobj)
 	}
 
 	m_componentManager.UnregisterObject(gameobj);
-
-	gameobj->RemoveMeshes();
-
 	m_rendererManager->InvalidateViewpoint(gameobj);
 
 	switch (gameobj->GetObjectType()) {
@@ -1401,13 +1411,12 @@ static void MergeScene_GameObject(KX_GameObject *gameobj, KX_Scene *to, KX_Scene
 	}
 }
 
-bool KX_Scene::MergeScene(KX_Scene *other)
+bool KX_Scene::Merge(KX_Scene *other)
 {
 	PHY_IPhysicsEnvironment *env = this->GetPhysicsEnvironment();
 	PHY_IPhysicsEnvironment *env_other = other->GetPhysicsEnvironment();
 
 	if ((env == nullptr) != (env_other == nullptr)) {
-		// TODO - even when both scenes have NONE physics, the other is loaded with bullet enabled, ???
 		CM_FunctionError("physics scenes type differ, aborting\n\tsource " << (int)(env != nullptr) << ", target " << (int)(env_other != nullptr));
 		return false;
 	}
@@ -1462,6 +1471,8 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 	for (EXP_Value *time : times) {
 		m_timemgr->AddTimeProperty(time);
 	} TODO */
+
+	m_resssources.Merge(other->GetResources());
 
 	return true;
 }
@@ -1925,8 +1936,8 @@ EXP_PYMETHODDEF_DOC(KX_Scene, addObject,
 		return nullptr;
 	}
 
-	if (!ConvertPythonToGameObject(0, pyob, &ob, false, "scene.addObject(object, reference, time): KX_Scene (first argument)") ||
-	    !ConvertPythonToGameObject(0, pyreference, &reference, true, "scene.addObject(object, reference, time): KX_Scene (second argument)")) {
+	if (!ConvertPythonToGameObject(this, pyob, &ob, false, "scene.addObject(object, reference, time): KX_Scene (first argument)") ||
+	    !ConvertPythonToGameObject(this, pyreference, &reference, true, "scene.addObject(object, reference, time): KX_Scene (second argument)")) {
 		return nullptr;
 	}
 

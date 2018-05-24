@@ -9,11 +9,11 @@ class CullTask
 {
 public:
 	std::vector<KX_GameObject *> m_activeObjects;
-	EXP_ListValue<KX_GameObject>& m_objects;
+	const EXP_ListValue<KX_GameObject>& m_objects;
 	KX_CullingHandler& m_handler;
 	int m_layer;
 
-	CullTask(EXP_ListValue<KX_GameObject>& objects, KX_CullingHandler& handler, int layer)
+	CullTask(const EXP_ListValue<KX_GameObject>& objects, KX_CullingHandler& handler, int layer)
 		:m_objects(objects),
 		m_handler(handler),
 		m_layer(layer)
@@ -52,7 +52,7 @@ public:
 	}
 };
 
-KX_CullingHandler::KX_CullingHandler(EXP_ListValue<KX_GameObject>& objects, const SG_Frustum& frustum, int layer)
+KX_CullingHandler::KX_CullingHandler(const EXP_ListValue<KX_GameObject>& objects, const SG_Frustum& frustum, int layer)
 	:m_objects(objects),
 	m_frustum(frustum),
 	m_layer(layer)
