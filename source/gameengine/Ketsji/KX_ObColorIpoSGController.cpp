@@ -33,13 +33,13 @@
 #include "KX_ObColorIpoSGController.h"
 #include "KX_GameObject.h"
 
-bool KX_ObColorIpoSGController::Update()
+bool KX_ObColorIpoSGController::Update(SG_Node *node)
 {
-	if (!SG_Controller::Update()) {
+	if (!SG_Controller::Update(node)) {
 		return false;
 	}
 
-	KX_GameObject *kxgameobj = (KX_GameObject *)m_node->GetClientObject();
+	KX_GameObject *kxgameobj = static_cast<KX_GameObject *>(node->GetClientObject());
 
 	kxgameobj->SetObjectColor(m_rgba);
 

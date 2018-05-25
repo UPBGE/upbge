@@ -59,7 +59,7 @@ public:
 		{}
 
 	virtual ~KX_CameraIpoSGController() = default;
-	virtual bool Update();
+	virtual bool Update(SG_Node *node);
 
 	void	SetModifyLens(bool modify) {
 		m_modify_lens = modify;

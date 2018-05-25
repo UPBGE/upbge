@@ -61,8 +61,7 @@ extern "C" {
 #include "BKE_global.h"
 
 BL_Action::BL_Action(class KX_GameObject *gameobj)
-	:
-	m_action(nullptr),
+	:m_action(nullptr),
 	m_tmpaction(nullptr),
 	m_blendpose(nullptr),
 	m_blendinpose(nullptr),
@@ -102,14 +101,24 @@ BL_Action::~BL_Action()
 	}
 }
 
+void BL_Action::AddController(SG_Controller *cont)
+{
+	if (!cont || cont->Empty()) {
+		return;
+	}
+
+	m_sg_contr_list.push_back(cont);
+	m_obj->GetNode()->AddController(cont);
+}
+
 void BL_Action::ClearControllerList()
 {
+	SG_Node *node = m_obj->GetNode();
+
 	// Clear out the controller list
-	std::vector<SG_Controller *>::iterator it;
-	for (it = m_sg_contr_list.begin(); it != m_sg_contr_list.end(); it++)
-	{
-		m_obj->GetNode()->RemoveController((*it));
-		delete *it;
+	for (SG_Controller *cont : m_sg_contr_list) {
+		node->RemoveController(cont);
+		delete cont;
 	}
 
 	m_sg_contr_list.clear();
@@ -166,54 +175,29 @@ bool BL_Action::Play(const std::string& name,
 	// First get rid of any old controllers
 	ClearControllerList();
 
+	SG_Node *node = m_obj->GetNode();
+
 	// Create an SG_Controller
-	SG_Controller *sg_contr = BL_CreateIPO(m_action, m_obj, kxscene);
-	m_sg_contr_list.push_back(sg_contr);
-	m_obj->GetNode()->AddController(sg_contr);
-	sg_contr->SetNode(m_obj->GetNode());
-
+	AddController(BL_CreateIPO(m_action, m_obj, kxscene));
 	// World
-	sg_contr = BL_CreateWorldIPO(m_action, kxscene->GetBlenderScene()->world, kxscene);
-	if (sg_contr) {
-		m_sg_contr_list.push_back(sg_contr);
-		m_obj->GetNode()->AddController(sg_contr);
-		sg_contr->SetNode(m_obj->GetNode());
-	}
-
+	AddController(BL_CreateWorldIPO(m_action, kxscene->GetBlenderScene()->world, kxscene));
 	// Try obcolor
-	sg_contr = BL_CreateObColorIPO(m_action, m_obj, kxscene);
-	if (sg_contr) {
-		m_sg_contr_list.push_back(sg_contr);
-		m_obj->GetNode()->AddController(sg_contr);
-		sg_contr->SetNode(m_obj->GetNode());
-	}
+	AddController(BL_CreateObColorIPO(m_action, m_obj, kxscene));
 
 	// Now try materials
 	for (KX_Mesh *mesh : m_obj->GetMeshList()) {
 		for (RAS_MeshMaterial *meshmat : mesh->GetMeshMaterialList()) {
 			RAS_IPolyMaterial *polymat = meshmat->GetBucket()->GetPolyMaterial();
-
-			sg_contr = BL_CreateMaterialIpo(m_action, polymat, m_obj, kxscene);
-			if (sg_contr) {
-				m_sg_contr_list.push_back(sg_contr);
-				m_obj->GetNode()->AddController(sg_contr);
-				sg_contr->SetNode(m_obj->GetNode());
-			}
+			AddController(BL_CreateMaterialIpo(m_action, polymat, m_obj, kxscene));
 		}
 	}
 
 	// Extra controllers
 	if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_LIGHT) {
-		sg_contr = BL_CreateLampIPO(m_action, m_obj, kxscene);
-		m_sg_contr_list.push_back(sg_contr);
-		m_obj->GetNode()->AddController(sg_contr);
-		sg_contr->SetNode(m_obj->GetNode());
+		AddController(BL_CreateLampIPO(m_action, m_obj, kxscene));
 	}
 	else if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_CAMERA) {
-		sg_contr = BL_CreateCameraIPO(m_action, m_obj, kxscene);
-		m_sg_contr_list.push_back(sg_contr);
-		m_obj->GetNode()->AddController(sg_contr);
-		sg_contr->SetNode(m_obj->GetNode());
+		AddController(BL_CreateCameraIPO(m_action, m_obj, kxscene));
 	}
 
 	m_ipo_flags = ipo_flags;
@@ -269,13 +253,11 @@ bool BL_Action::IsDone()
 void BL_Action::InitIPO()
 {
 	// Initialize the IPOs
-	std::vector<SG_Controller *>::iterator it;
-	for (it = m_sg_contr_list.begin(); it != m_sg_contr_list.end(); it++)
-	{
-		(*it)->SetOption(SG_Controller::SG_CONTR_IPO_RESET, true);
-		(*it)->SetOption(SG_Controller::SG_CONTR_IPO_IPO_AS_FORCE, m_ipo_flags & ACT_IPOFLAG_FORCE);
-		(*it)->SetOption(SG_Controller::SG_CONTR_IPO_IPO_ADD, m_ipo_flags & ACT_IPOFLAG_ADD);
-		(*it)->SetOption(SG_Controller::SG_CONTR_IPO_LOCAL, m_ipo_flags & ACT_IPOFLAG_LOCAL);
+	for (SG_Controller *cont : m_sg_contr_list) {
+		cont->SetOption(SG_Controller::SG_CONTR_IPO_RESET, true);
+		cont->SetOption(SG_Controller::SG_CONTR_IPO_IPO_AS_FORCE, m_ipo_flags & ACT_IPOFLAG_FORCE);
+		cont->SetOption(SG_Controller::SG_CONTR_IPO_IPO_ADD, m_ipo_flags & ACT_IPOFLAG_ADD);
+		cont->SetOption(SG_Controller::SG_CONTR_IPO_LOCAL, m_ipo_flags & ACT_IPOFLAG_LOCAL);
 	}
 }
 

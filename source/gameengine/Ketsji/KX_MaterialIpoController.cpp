@@ -27,9 +27,9 @@
 
 #include "RAS_IPolygonMaterial.h"
 
-bool KX_MaterialIpoController::Update()
+bool KX_MaterialIpoController::Update(SG_Node *node)
 {
-	if (!SG_Controller::Update()) {
+	if (!SG_Controller::Update(node)) {
 		return false;
 	}
 

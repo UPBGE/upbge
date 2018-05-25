@@ -42,10 +42,10 @@ static CM_ThreadMutex transformMutex;
 
 SG_Node::SG_Node(void *clientobj, void *clientinfo, SG_Callbacks& callbacks)
 	:SG_QList(),
-	m_SGclientObject(clientobj),
-	m_SGclientInfo(clientinfo),
+	m_clientObject(clientobj),
+	m_clientInfo(clientinfo),
 	m_callbacks(callbacks),
-	m_SGparent(nullptr),
+	m_parent(nullptr),
 	m_localPosition(mt::zero3),
 	m_localRotation(mt::mat3::Identity()),
 	m_localScaling(mt::one3),
@@ -61,11 +61,11 @@ SG_Node::SG_Node(void *clientobj, void *clientinfo, SG_Callbacks& callbacks)
 
 SG_Node::SG_Node(const SG_Node & other)
 	:SG_QList(),
-	m_SGclientObject(other.m_SGclientObject),
-	m_SGclientInfo(other.m_SGclientInfo),
+	m_clientObject(other.m_clientObject),
+	m_clientInfo(other.m_clientInfo),
 	m_callbacks(other.m_callbacks),
 	m_children(other.m_children),
-	m_SGparent(other.m_SGparent),
+	m_parent(other.m_parent),
 	m_localPosition(other.m_localPosition),
 	m_localRotation(other.m_localRotation),
 	m_localScaling(other.m_localScaling),
@@ -80,10 +80,8 @@ SG_Node::SG_Node(const SG_Node & other)
 
 SG_Node::~SG_Node()
 {
-	SGControllerList::iterator contit;
-
-	for (contit = m_SGcontrollers.begin(); contit != m_SGcontrollers.end(); ++contit) {
-		delete (*contit);
+	for (SG_Controller *cont : m_controllers) {
+		delete cont;
 	}
 }
 
@@ -109,7 +107,7 @@ void SG_Node::ProcessSGReplica(SG_Node **replica)
 	}
 
 	// clear the replica node of it's parent.
-	(*replica)->m_SGparent = nullptr;
+	(*replica)->m_parent = nullptr;
 
 	if (!m_children.empty()) {
 		// if this node has children, the replica has too, so clear and clone children
@@ -153,13 +151,13 @@ void SG_Node::Destruct()
 
 const SG_Node *SG_Node::GetRootSGParent() const
 {
-	return (m_SGparent ? m_SGparent->GetRootSGParent() : this);
+	return (m_parent ? m_parent->GetRootSGParent() : this);
 }
 
 bool SG_Node::IsAncessor(const SG_Node *child) const
 {
-	return (!child->m_SGparent) ? false :
-	       (child->m_SGparent == this) ? true : IsAncessor(child->m_SGparent);
+	return (!child->m_parent) ? false :
+	       (child->m_parent == this) ? true : IsAncessor(child->m_parent);
 }
 
 const NodeList& SG_Node::GetChildren() const
@@ -174,12 +172,12 @@ void SG_Node::ClearSGChildren()
 
 SG_Node *SG_Node::GetParent() const
 {
-	return m_SGparent;
+	return m_parent;
 }
 
 void SG_Node::SetParent(SG_Node *parent)
 {
-	m_SGparent = parent;
+	m_parent = parent;
 	if (parent) {
 		SetFamilly(parent->GetFamilly());
 	}
@@ -187,9 +185,9 @@ void SG_Node::SetParent(SG_Node *parent)
 
 void SG_Node::DisconnectFromParent()
 {
-	if (m_SGparent) {
-		m_SGparent->RemoveChild(this);
-		m_SGparent = nullptr;
+	if (m_parent) {
+		m_parent->RemoveChild(this);
+		m_parent = nullptr;
 		SetFamilly(std::make_shared<SG_Familly>());
 	}
 }
@@ -223,7 +221,7 @@ void SG_Node::RemoveChild(SG_Node *child)
 
 void SG_Node::UpdateWorldData(bool parentUpdated)
 {
-	UpdateSpatialData(m_SGparent, parentUpdated);
+	UpdateSpatialData(m_parent, parentUpdated);
 
 	ActivateUpdateTransformCallback();
 
@@ -248,7 +246,7 @@ void SG_Node::UpdateWorldDataThread(bool parentUpdated)
 
 void SG_Node::UpdateWorldDataThreadSchedule(bool parentUpdated)
 {
-	UpdateSpatialData(m_SGparent, parentUpdated);
+	UpdateSpatialData(m_parent, parentUpdated);
 
 	ActivateUpdateTransformCallback();
 
@@ -298,7 +296,7 @@ bool SG_Node::Schedule(SG_QList& head)
 	// Put top parent in front of list to make sure they are updated before their
 	// children => the children will be udpated and removed from the list before
 	// we get to them, should they be in the list too.
-	const bool result = (m_SGparent) ? head.AddBack(this) : head.AddFront(this);
+	const bool result = (m_parent) ? head.AddBack(this) : head.AddFront(this);
 	scheduleMutex.Unlock();
 
 	return result;
@@ -333,24 +331,24 @@ SG_Node *SG_Node::GetNextRescheduled(SG_QList& head)
 
 void SG_Node::AddController(SG_Controller *cont)
 {
-	m_SGcontrollers.push_back(cont);
+	m_controllers.push_back(cont);
 }
 
 void SG_Node::RemoveController(SG_Controller *cont)
 {
 	m_mutex.Lock();
-	CM_ListRemoveIfFound(m_SGcontrollers, cont);
+	CM_ListRemoveIfFound(m_controllers, cont);
 	m_mutex.Unlock();
 }
 
 void SG_Node::RemoveAllControllers()
 {
-	m_SGcontrollers.clear();
+	m_controllers.clear();
 }
 
 SGControllerList& SG_Node::GetControllerList()
 {
-	return m_SGcontrollers;
+	return m_controllers;
 }
 
 SG_Callbacks& SG_Node::GetCallBackFunctions()
@@ -360,26 +358,26 @@ SG_Callbacks& SG_Node::GetCallBackFunctions()
 
 void *SG_Node::GetClientObject() const
 {
-	return m_SGclientObject;
+	return m_clientObject;
 }
 
 void SG_Node::SetClientObject(void *clientObject)
 {
-	m_SGclientObject = clientObject;
+	m_clientObject = clientObject;
 }
 
 void *SG_Node::GetClientInfo() const
 {
-	return m_SGclientInfo;
+	return m_clientInfo;
 }
 void SG_Node::SetClientInfo(void *clientInfo)
 {
-	m_SGclientInfo = clientInfo;
+	m_clientInfo = clientInfo;
 }
 
 void SG_Node::SetControllerTime(double time)
 {
-	for (SG_Controller *cont : m_SGcontrollers) {
+	for (SG_Controller *cont : m_controllers) {
 		cont->SetSimulatedTime(time);
 	}
 }
@@ -419,8 +417,8 @@ SG_ParentRelation *SG_Node::GetParentRelation()
 void SG_Node::UpdateSpatialData(const SG_Node *parent, bool& parentUpdated)
 {
 	// update spatial controllers
-	for (SG_Controller *cont : m_SGcontrollers) {
-		cont->Update();
+	for (SG_Controller *cont : m_controllers) {
+		cont->Update(this);
 	}
 
 	// Ask the parent_relation object owned by this class to update our world coordinates.
@@ -585,7 +583,7 @@ bool SG_Node::ActivateReplicationCallback(SG_Node *replica)
 {
 	if (m_callbacks.m_replicafunc) {
 		// Call client provided replication func
-		if (m_callbacks.m_replicafunc(replica, m_SGclientObject, m_SGclientInfo) == nullptr) {
+		if (m_callbacks.m_replicafunc(replica, m_clientObject, m_clientInfo) == nullptr) {
 			return false;
 		}
 	}
@@ -596,7 +594,7 @@ void SG_Node::ActivateDestructionCallback()
 {
 	if (m_callbacks.m_destructionfunc) {
 		// Call client provided destruction function on this!
-		m_callbacks.m_destructionfunc(this, m_SGclientObject, m_SGclientInfo);
+		m_callbacks.m_destructionfunc(this, m_clientObject, m_clientInfo);
 	}
 	else {
 		// no callback but must still destroy the node to avoid memory leak
@@ -609,7 +607,7 @@ void SG_Node::ActivateUpdateTransformCallback()
 	if (m_callbacks.m_updatefunc) {
 		// Call client provided update func.
 		transformMutex.Lock();
-		m_callbacks.m_updatefunc(this, m_SGclientObject, m_SGclientInfo);
+		m_callbacks.m_updatefunc(this, m_clientObject, m_clientInfo);
 		transformMutex.Unlock();
 	}
 }
@@ -625,7 +623,7 @@ bool SG_Node::ActivateScheduleUpdateCallback()
 
 	if (empty && m_callbacks.m_schedulefunc) {
 		// Call client provided update func.
-		return m_callbacks.m_schedulefunc(this, m_SGclientObject, m_SGclientInfo);
+		return m_callbacks.m_schedulefunc(this, m_clientObject, m_clientInfo);
 	}
 	return false;
 }
@@ -634,6 +632,6 @@ void SG_Node::ActivateRecheduleUpdateCallback()
 {
 	if (m_callbacks.m_reschedulefunc) {
 		// Call client provided update func.
-		m_callbacks.m_reschedulefunc(this, m_SGclientObject, m_SGclientInfo);
+		m_callbacks.m_reschedulefunc(this, m_clientObject, m_clientInfo);
 	}
 }
