@@ -366,7 +366,7 @@ void EMBM_project_snap_verts(bContext *C, ARegion *ar, BMEditMesh *em)
 	ED_view3d_init_mats_rv3d(obedit, ar->regiondata);
 
 	struct SnapObjectContext *snap_context = ED_transform_snap_object_context_create_view3d(
-	        CTX_data_main(C), CTX_data_scene(C), CTX_data_depsgraph(C), 0,
+	        CTX_data_scene(C), CTX_data_depsgraph(C), 0,
 	        ar, CTX_wm_view3d(C));
 
 	BM_ITER_MESH (eve, &iter, em->bm, BM_VERTS_OF_MESH) {
@@ -2312,7 +2312,7 @@ void MESH_OT_vertices_smooth_laplacian(wmOperatorType *ot)
 
 	RNA_def_int(ot->srna, "repeat", 1, 1, 1000,
 	            "Number of iterations to smooth the mesh", "", 1, 200);
-	RNA_def_float(ot->srna, "lambda_factor", 5e-5f, 1e-7f, 1000.0f,
+	RNA_def_float(ot->srna, "lambda_factor", 1.0f, 1e-7f, 1000.0f,
 	              "Lambda factor", "", 1e-7f, 1000.0f);
 	RNA_def_float(ot->srna, "lambda_border", 5e-5f, 1e-7f, 1000.0f,
 	              "Lambda factor in border", "", 1e-7f, 1000.0f);
@@ -5447,11 +5447,12 @@ static int edbm_split_exec(bContext *C, wmOperator *op)
 	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
 		Object *obedit = objects[ob_index];
 		BMEditMesh *em = BKE_editmesh_from_object(obedit);
-
-		if (em->bm->totfacesel == 0) {
+		if ((em->bm->totvertsel == 0) &&
+		    (em->bm->totedgesel == 0) &&
+		    (em->bm->totfacesel == 0))
+		{
 			continue;
 		}
-
 		BMOperator bmop;
 		EDBM_op_init(em, &bmop, op, "split geom=%hvef use_only_faces=%b", BM_ELEM_SELECT, false);
 		BMO_op_exec(em->bm, &bmop);
