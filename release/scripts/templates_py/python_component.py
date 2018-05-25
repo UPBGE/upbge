@@ -2,8 +2,8 @@ import bge
 from collections import OrderedDict
 
 if not hasattr(bge, "__component__"):
-	# Put shared definitions here executed only in game engine.
-	# e.g:
+    # Put shared definitions here executed only in game engine.
+    # e.g:
     # scene = bge.logic.getCurrentScene()
     pass
 
