@@ -26,12 +26,15 @@
 #include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_path_util.h"
+#include "BLI_fileops.h"
 #include "MEM_guardedalloc.h"
 
 #include "BKE_python_component.h"
 #include "BKE_report.h"
 #include "BKE_context.h"
 #include "BKE_main.h"
+#include "BKE_text.h"
+#include "BKE_appdir.h"
 
 #include "RNA_types.h"
 
@@ -501,6 +504,75 @@ PythonComponent *BKE_python_component_new(char *import, ReportList *reports, bCo
 		BKE_python_component_free(pc);
 		return NULL;
 	}
+
+	return pc;
+}
+
+PythonComponent *BKE_python_component_create_file(char *import, ReportList *reports, bContext *context)
+{
+	char *classname;
+	char *modulename;
+	char filename[FILE_MAX];
+	char respath[FILE_MAX];
+	size_t filesize = 0;
+	unsigned char *orgfilecontent;
+	char *filecontent;
+	Main *maggie = CTX_data_main(context);
+	struct Text *text;
+	PythonComponent *pc;
+
+	// Don't bother with an empty string
+	if (strcmp(import, "") == 0) {
+		BKE_report(reports, RPT_ERROR_INVALID_INPUT, "No component was specified.");
+		return NULL;
+	}
+
+	// Extract the module name and the class name.
+	modulename = strtok(import, ".");
+	classname = strtok(NULL, ".");
+
+	if (!classname) {
+		BKE_report(reports, RPT_ERROR_INVALID_INPUT, "No component class name was specified.");
+		return NULL;
+	}
+
+	strcpy(filename, modulename);
+	BLI_ensure_extension(filename, FILE_MAX, ".py");
+
+	if (BLI_findstring(&maggie->text, filename, offsetof(ID, name) + 2)) {
+		BKE_reportf(reports, RPT_ERROR_INVALID_INPUT, "File %s already exists.", filename);
+		return NULL;
+	}
+
+	text = BKE_text_add(maggie, filename);
+
+	BLI_strncpy(respath, BKE_appdir_folder_id(BLENDER_SYSTEM_SCRIPTS, "templates_py"), sizeof(respath));
+	BLI_path_append(respath, sizeof(respath), "python_component.py");
+
+	orgfilecontent = BLI_file_read_text_as_mem(respath, 0, &filesize);
+	orgfilecontent[filesize] = '\0';
+
+	filecontent = BLI_str_replaceN((char *)orgfilecontent, "%Name%", classname);
+
+	BKE_text_write(text, (char *)filecontent);
+
+	MEM_freeN(filecontent);
+
+	pc = MEM_callocN(sizeof(PythonComponent), "PythonComponent");
+
+	// Copy module and class names.
+	strcpy(pc->module, modulename);
+	if (classname) {
+		strcpy(pc->name, classname);
+	}
+
+	// Try load the component.
+	if (!load_component(pc, reports, CTX_data_main(context))) {
+		BKE_python_component_free(pc);
+		return NULL;
+	}
+
+	BKE_reportf(reports, RPT_INFO, "File %s created.", filename);
 
 	return pc;
 }

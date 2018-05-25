@@ -740,7 +740,7 @@ static void LOGIC_OT_view_all(wmOperatorType *ot)
 }
 
 /* Component operators */
-static int component_add_exec(bContext *C, wmOperator *op)
+static int component_register_exec(bContext *C, wmOperator *op)
 {
 	PythonComponent *pycomp;
 	Object *ob = CTX_data_active_object(C);
@@ -763,20 +763,62 @@ static int component_add_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
+static int component_create_exec(bContext *C, wmOperator *op)
+{
+	PythonComponent *pycomp;
+	Object *ob = CTX_data_active_object(C);
+	char import[MAX_NAME];
+
+	if (!ob) {
+		return OPERATOR_CANCELLED;
+	}
+
+	RNA_string_get(op->ptr, "component_name", import);
+	pycomp = BKE_python_component_create_file(import, op->reports, C);
+
+	if(!pycomp) {
+		return OPERATOR_CANCELLED;
+	}
+
+	BLI_addtail(&ob->components, pycomp);
+	WM_event_add_notifier(C, NC_LOGIC, NULL);
+
+	return OPERATOR_FINISHED;
+}
+
 static int component_new_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
 	/* Better for user feedback. */
 	return WM_operator_props_dialog_popup(C, op, 15 * UI_UNIT_X, UI_UNIT_Y);
 }
 
-static void LOGIC_OT_component_add(wmOperatorType *ot)
+static void LOGIC_OT_python_component_register(wmOperatorType *ot)
 {
 	ot->name = "Add Python Component";
-	ot->idname = "LOGIC_OT_add_python_component";
+	ot->idname = "LOGIC_OT_python_component_register";
 	ot->description = "Add a python component to the selected object";
 
 	/* api callbacks */
-	ot->exec = component_add_exec;
+	ot->exec = component_register_exec;
+	ot->invoke = component_new_invoke;
+	ot->poll = ED_operator_object_active_editable;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	PropertyRNA *parm;
+	parm = RNA_def_string(ot->srna, "component_name", "module.Component", 64, "Component", "The component class name with module (module.ComponentName)");
+	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
+}
+
+static void LOGIC_OT_python_component_create(wmOperatorType *ot)
+{
+	ot->name = "Create Python Component";
+	ot->idname = "LOGIC_OT_python_component_create";
+	ot->description = "Create a python component to the selected object";
+
+	/* api callbacks */
+	ot->exec = component_create_exec;
 	ot->invoke = component_new_invoke;
 	ot->poll = ED_operator_object_active_editable;
 
@@ -812,12 +854,12 @@ static int component_remove_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-static void LOGIC_OT_component_remove(wmOperatorType *ot)
+static void LOGIC_OT_python_component_remove(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name = "Remove Component";
 	ot->description = "Remove Component";
-	ot->idname = "LOGIC_OT_component_remove";
+	ot->idname = "LOGIC_OT_python_component_remove";
 
 	/* api callbacks */
 	ot->exec = component_remove_exec;
@@ -859,12 +901,12 @@ static int component_reload_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-static void LOGIC_OT_component_reload(wmOperatorType *ot)
+static void LOGIC_OT_python_component_reload(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name = "Reload Component";
 	ot->description = "Reload Component";
-	ot->idname = "LOGIC_OT_component_reload";
+	ot->idname = "LOGIC_OT_python_component_reload";
 
 	/* api callbacks */
 	ot->exec = component_reload_exec;
@@ -891,9 +933,10 @@ void ED_operatortypes_logic(void)
 	WM_operatortype_append(LOGIC_OT_actuator_add);
 	WM_operatortype_append(LOGIC_OT_actuator_move);
 
-	WM_operatortype_append(LOGIC_OT_component_add);
-	WM_operatortype_append(LOGIC_OT_component_remove);
-	WM_operatortype_append(LOGIC_OT_component_reload);
+	WM_operatortype_append(LOGIC_OT_python_component_register);
+	WM_operatortype_append(LOGIC_OT_python_component_create);
+	WM_operatortype_append(LOGIC_OT_python_component_remove);
+	WM_operatortype_append(LOGIC_OT_python_component_reload);
 
 	WM_operatortype_append(LOGIC_OT_view_all);
 }
