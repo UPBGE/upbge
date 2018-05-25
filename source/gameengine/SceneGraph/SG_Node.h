@@ -145,7 +145,7 @@ public:
 	 * that.
 	 * \return a reference to the list of children of this node.
 	 */
-	const NodeList& GetSGChildren() const;
+	const NodeList& GetChildren() const;
 
 	/**
 	 * Clear the list of children associated with this node
@@ -155,12 +155,12 @@ public:
 	/**
 	 * return the parent of this node if it exists.
 	 */
-	SG_Node *GetSGParent() const;
+	SG_Node *GetParent() const;
 
 	/**
 	 * Set the parent of this node.
 	 */
-	void SetSGParent(SG_Node *parent);
+	void SetParent(SG_Node *parent);
 
 	/**
 	 * Return the top node in this node's Scene graph hierarchy
@@ -220,7 +220,7 @@ public:
 	/**
 	 * Node replication functions.
 	 */
-	SG_Node *GetSGReplica();
+	SG_Node *GetReplica();
 
 	void Destruct();
 
@@ -230,14 +230,14 @@ public:
 	 * responsibility of this class. It will be deleted when
 	 * this object is deleted.
 	 */
-	void AddSGController(SG_Controller *cont);
+	void AddController(SG_Controller *cont);
 
 	/**
 	 * Remove a pointer to a controller from this node.
 	 * This does not delete the controller itself! Be careful to
 	 * avoid memory leaks.
 	 */
-	void RemoveSGController(SG_Controller *cont);
+	void RemoveController(SG_Controller *cont);
 
 	/**
 	 * Clear the array of pointers to controllers associated with
@@ -256,7 +256,7 @@ public:
 	 * on pointers in the container. C++ topic: how to do this in
 	 * using STL?
 	 */
-	SGControllerList& GetSGControllerList();
+	SGControllerList& GetControllerList();
 
 	SG_Callbacks& GetCallBackFunctions();
 
@@ -269,7 +269,7 @@ public:
 	 * upon replication and destruction
 	 * This may be nullptr.
 	 */
-	void *GetSGClientObject() const;
+	void *GetClientObject() const;
 
 	/**
 	 * Set the client object for this node. This is just a
@@ -277,9 +277,9 @@ public:
 	 * the duration of the lifetime of this object, or until
 	 * this function is called again.
 	 */
-	void SetSGClientObject(void *clientObject);
-	void *GetSGClientInfo() const;
-	void SetSGClientInfo(void *clientInfo);
+	void SetClientObject(void *clientObject);
+	void *GetClientInfo() const;
+	void SetClientInfo(void *clientInfo);
 
 	/**
 	 * Set the current simulation time for this node.

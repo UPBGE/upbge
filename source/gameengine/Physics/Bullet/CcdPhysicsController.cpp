@@ -1460,7 +1460,7 @@ void CcdPhysicsController::SetNewClientInfo(void *clientinfo)
 	if (m_cci.m_bSensor) {
 		// use a different callback function for sensor object,
 		// bullet will not synchronize, we must do it explicitly
-		SG_Callbacks& callbacks = KX_GameObject::GetClientObject((KX_ClientObjectInfo *)clientinfo)->GetSGNode()->GetCallBackFunctions();
+		SG_Callbacks& callbacks = KX_GameObject::GetClientObject((KX_ClientObjectInfo *)clientinfo)->GetNode()->GetCallBackFunctions();
 		callbacks.m_updatefunc = KX_GameObject::SynchronizeTransformFunc;
 	}
 }

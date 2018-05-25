@@ -326,9 +326,9 @@ KX_GameObject *KX_GameObject::GetParent()
 
 	while (node && !result)
 	{
-		node = node->GetSGParent();
+		node = node->GetParent();
 		if (node) {
-			result = (KX_GameObject *)node->GetSGClientObject();
+			result = (KX_GameObject *)node->GetClientObject();
 		}
 	}
 
@@ -342,11 +342,11 @@ void KX_GameObject::SetParent(KX_GameObject *obj, bool addToCompound, bool ghost
 		return;
 	}
 
-	SG_Node *parentSgNode = obj->GetSGNode();
+	SG_Node *parentSgNode = obj->GetNode();
 	KX_Scene *scene = GetScene();
 
 	// Not already parented to same object, no parenting loop, not the object itself
-	if (m_sgNode->GetSGParent() == parentSgNode || !m_sgNode->IsAncessor(parentSgNode) || this != obj) {
+	if (m_sgNode->GetParent() == parentSgNode || !m_sgNode->IsAncessor(parentSgNode) || this != obj) {
 		return;
 	}
 
@@ -382,7 +382,7 @@ void KX_GameObject::SetParent(KX_GameObject *obj, bool addToCompound, bool ghost
 	NodeSetLocalScale(scale1);
 	NodeSetLocalPosition(newpos);
 	NodeSetLocalOrientation(invori * NodeGetWorldOrientation());
-	NodeUpdateGS();
+	NodeUpdate();
 
 	// object will now be a child, it must be removed from the parent list
 	EXP_ListValue<KX_GameObject> *rootlist = scene->GetRootParentList();
@@ -395,7 +395,7 @@ void KX_GameObject::SetParent(KX_GameObject *obj, bool addToCompound, bool ghost
 	// step 0: verify this object has physical controller
 	if (m_physicsController && addToCompound) {
 		// step 1: find the top parent (not necessarily obj)
-		KX_GameObject *rootobj = (KX_GameObject *)parentSgNode->GetRootSGParent()->GetSGClientObject();
+		KX_GameObject *rootobj = (KX_GameObject *)parentSgNode->GetRootSGParent()->GetClientObject();
 		// step 2: verify it has a physical controller and compound shape
 		if (rootobj != nullptr &&
 		    rootobj->m_physicsController != nullptr &&
@@ -409,12 +409,12 @@ void KX_GameObject::SetParent(KX_GameObject *obj, bool addToCompound, bool ghost
 void KX_GameObject::RemoveParent()
 {
 	// check on valid node in case a python controller holds a reference to a deleted object
-	if (m_sgNode->GetSGParent()) {
+	if (m_sgNode->GetParent()) {
 		return;
 	}
 
 	// get the root object to remove us from compound object if needed
-	KX_GameObject *rootobj = (KX_GameObject *)m_sgNode->GetRootSGParent()->GetSGClientObject();
+	KX_GameObject *rootobj = (KX_GameObject *)m_sgNode->GetRootSGParent()->GetClientObject();
 	// Set us to the right spot
 	m_sgNode->SetLocalScale(m_sgNode->GetWorldScaling());
 	m_sgNode->SetLocalOrientation(m_sgNode->GetWorldOrientation());
@@ -422,7 +422,7 @@ void KX_GameObject::RemoveParent()
 
 	// Remove us from our parent
 	m_sgNode->DisconnectFromParent();
-	NodeUpdateGS();
+	NodeUpdate();
 
 	KX_Scene *scene = GetScene();
 	// the object is now a root object, add it to the parentlist
@@ -530,10 +530,10 @@ void KX_GameObject::SetPlayMode(short layer, short mode)
 
 static void setGraphicController_recursive(SG_Node *node)
 {
-	const NodeList& children = node->GetSGChildren();
+	const NodeList& children = node->GetChildren();
 
 	for (SG_Node *childnode : children) {
-		KX_GameObject *clientgameobj = static_cast<KX_GameObject *>(childnode->GetSGClientObject());
+		KX_GameObject *clientgameobj = static_cast<KX_GameObject *>(childnode->GetClientObject());
 		if (clientgameobj != nullptr) { // This is a GameObject
 			clientgameobj->ActivateGraphicController(false);
 		}
@@ -662,8 +662,8 @@ void KX_GameObject::ApplyMovement(const mt::vec3& dloc, bool local)
 	if (m_physicsController) { // (IsDynamic())
 		m_physicsController->RelativeTranslate(dloc, local);
 	}
-	m_sgNode->RelativeTranslate(dloc, m_sgNode->GetSGParent(), local);
-	NodeUpdateGS();
+	m_sgNode->RelativeTranslate(dloc, m_sgNode->GetParent(), local);
+	NodeUpdate();
 }
 
 void KX_GameObject::ApplyRotation(const mt::vec3& drot, bool local)
@@ -675,7 +675,7 @@ void KX_GameObject::ApplyRotation(const mt::vec3& drot, bool local)
 	if (m_physicsController) { // (IsDynamic())
 		m_physicsController->RelativeRotate(rotmat, local);
 	}
-	NodeUpdateGS();
+	NodeUpdate();
 }
 
 void KX_GameObject::UpdateBlenderObjectMatrix(Object *blendobj)
@@ -870,7 +870,7 @@ void KX_GameObject::InitIPO(bool ipo_as_force,
                             bool ipo_add,
                             bool ipo_local)
 {
-	for (SG_Controller *cont : m_sgNode->GetSGControllerList()) {
+	for (SG_Controller *cont : m_sgNode->GetControllerList()) {
 		cont->SetOption(SG_Controller::SG_CONTR_IPO_RESET, true);
 		cont->SetOption(SG_Controller::SG_CONTR_IPO_IPO_AS_FORCE, ipo_as_force);
 		cont->SetOption(SG_Controller::SG_CONTR_IPO_IPO_ADD, ipo_add);
@@ -893,10 +893,10 @@ bool KX_GameObject::GetVisible(void)
 
 static void setVisible_recursive(SG_Node *node, bool v)
 {
-	const NodeList& children = node->GetSGChildren();
+	const NodeList& children = node->GetChildren();
 
 	for (SG_Node *childnode : children) {
-		KX_GameObject *clientgameobj = static_cast<KX_GameObject *>(childnode->GetSGClientObject());
+		KX_GameObject *clientgameobj = static_cast<KX_GameObject *>(childnode->GetClientObject());
 		if (clientgameobj != nullptr) { // This is a GameObject
 			clientgameobj->SetVisible(v, 0);
 		}
@@ -922,10 +922,10 @@ void KX_GameObject::SetVisible(bool v,
 
 static void setOccluder_recursive(SG_Node *node, bool v)
 {
-	const NodeList& children = node->GetSGChildren();
+	const NodeList& children = node->GetChildren();
 
 	for (SG_Node *childnode : children) {
-		KX_GameObject *clientgameobj = static_cast<KX_GameObject *>(childnode->GetSGClientObject());
+		KX_GameObject *clientgameobj = static_cast<KX_GameObject *>(childnode->GetClientObject());
 		if (clientgameobj != nullptr) { // This is a GameObject
 			clientgameobj->SetOccluder(v, false);
 		}
@@ -947,10 +947,10 @@ void KX_GameObject::SetOccluder(bool v,
 
 static void setDebug_recursive(KX_Scene *scene, SG_Node *node, bool debug)
 {
-	const NodeList& children = node->GetSGChildren();
+	const NodeList& children = node->GetChildren();
 
 	for (SG_Node *childnode : children) {
-		KX_GameObject *clientgameobj = static_cast<KX_GameObject *>(childnode->GetSGClientObject());
+		KX_GameObject *clientgameobj = static_cast<KX_GameObject *>(childnode->GetClientObject());
 		if (clientgameobj != nullptr) {
 			if (debug) {
 				if (!scene->ObjectInDebugList(clientgameobj)) {
@@ -1124,10 +1124,10 @@ void KX_GameObject::AlignAxisToVect(const mt::vec3& dir, int axis, float fac)
 	z.Normalize();
 	orimat = mt::mat3(x, y, z);
 
-	if (m_sgNode->GetSGParent() != nullptr) {
+	if (m_sgNode->GetParent() != nullptr) {
 		// the object is a child, adapt its local orientation so that
 		// the global orientation is aligned as we want (cancelling out the parent orientation)
-		mt::mat3 invori = m_sgNode->GetSGParent()->GetWorldOrientation().Inverse();
+		mt::mat3 invori = m_sgNode->GetParent()->GetWorldOrientation().Inverse();
 		NodeSetLocalOrientation(invori * orimat);
 	}
 	else {
@@ -1212,7 +1212,7 @@ mt::vec3 KX_GameObject::GetVelocity(const mt::vec3& point)
 
 void KX_GameObject::NodeSetLocalPosition(const mt::vec3& trans)
 {
-	if (m_physicsController && !m_sgNode->GetSGParent()) {
+	if (m_physicsController && !m_sgNode->GetParent()) {
 		// don't update physic controller if the object is a child:
 		// 1) the transformation will not be right
 		// 2) in this case, the physic controller is necessarily a static object
@@ -1225,7 +1225,7 @@ void KX_GameObject::NodeSetLocalPosition(const mt::vec3& trans)
 
 void KX_GameObject::NodeSetLocalOrientation(const mt::mat3& rot)
 {
-	if (m_physicsController && !m_sgNode->GetSGParent()) {
+	if (m_physicsController && !m_sgNode->GetParent()) {
 		// see note above
 		m_physicsController->SetOrientation(rot);
 	}
@@ -1234,9 +1234,9 @@ void KX_GameObject::NodeSetLocalOrientation(const mt::mat3& rot)
 
 void KX_GameObject::NodeSetGlobalOrientation(const mt::mat3& rot)
 {
-	SG_Node *parentSgNode = m_sgNode->GetSGParent();
+	SG_Node *parentSgNode = m_sgNode->GetParent();
 	if (parentSgNode) {
-		NodeSetLocalOrientation(parentSgNode->GetSGParent()->GetWorldOrientation().Inverse() * rot);
+		NodeSetLocalOrientation(parentSgNode->GetParent()->GetWorldOrientation().Inverse() * rot);
 	}
 	else {
 		NodeSetLocalOrientation(rot);
@@ -1245,7 +1245,7 @@ void KX_GameObject::NodeSetGlobalOrientation(const mt::mat3& rot)
 
 void KX_GameObject::NodeSetLocalScale(const mt::vec3& scale)
 {
-	if (m_physicsController && !m_sgNode->GetSGParent()) {
+	if (m_physicsController && !m_sgNode->GetParent()) {
 		m_physicsController->SetScaling(scale);
 	}
 	m_sgNode->SetLocalScale(scale);
@@ -1254,7 +1254,7 @@ void KX_GameObject::NodeSetLocalScale(const mt::vec3& scale)
 void KX_GameObject::NodeSetRelativeScale(const mt::vec3& scale)
 {
 	m_sgNode->RelativeScale(scale);
-	if (m_physicsController && (!m_sgNode->GetSGParent())) {
+	if (m_physicsController && (!m_sgNode->GetParent())) {
 		// see note above
 		// we can use the local scale: it's the same thing for a root object
 		// and the world scale is not yet updated
@@ -1265,7 +1265,7 @@ void KX_GameObject::NodeSetRelativeScale(const mt::vec3& scale)
 
 void KX_GameObject::NodeSetWorldScale(const mt::vec3& scale)
 {
-	SG_Node *parent = m_sgNode->GetSGParent();
+	SG_Node *parent = m_sgNode->GetParent();
 	if (parent) {
 		// Make sure the objects have some scale
 		mt::vec3 p_scale = parent->GetWorldScaling();
@@ -1286,7 +1286,7 @@ void KX_GameObject::NodeSetWorldScale(const mt::vec3& scale)
 
 void KX_GameObject::NodeSetWorldPosition(const mt::vec3& trans)
 {
-	SG_Node *parent = m_sgNode->GetSGParent();
+	SG_Node *parent = m_sgNode->GetParent();
 	if (parent != nullptr) {
 		// Make sure the objects have some scale
 		mt::vec3 scale = parent->GetWorldScaling();
@@ -1307,7 +1307,7 @@ void KX_GameObject::NodeSetWorldPosition(const mt::vec3& trans)
 	}
 }
 
-void KX_GameObject::NodeUpdateGS()
+void KX_GameObject::NodeUpdate()
 {
 	m_sgNode->UpdateWorldData();
 }
@@ -1368,7 +1368,7 @@ void KX_GameObject::SetConvertObjectInfo(BL_ConvertObjectInfo *info)
 	m_convertInfo = info;
 }
 
-void KX_GameObject::SetSGNode(SG_Node *node)
+void KX_GameObject::SetNode(SG_Node *node)
 {
 	m_sgNode.reset(node);
 }
@@ -1530,10 +1530,10 @@ static void walk_children(const SG_Node *node, std::vector<KX_GameObject *>& lis
 		return;
 	}
 
-	const NodeList& children = node->GetSGChildren();
+	const NodeList& children = node->GetChildren();
 
 	for (SG_Node *childnode : children) {
-		KX_GameObject *childobj = static_cast<KX_GameObject *>(childnode->GetSGClientObject());
+		KX_GameObject *childobj = static_cast<KX_GameObject *>(childnode->GetClientObject());
 		if (childobj) {
 			list.push_back(childobj);
 		}
@@ -1587,7 +1587,7 @@ void KX_GameObject::UpdateComponents()
 KX_Scene *KX_GameObject::GetScene()
 {
 	BLI_assert(m_sgNode);
-	return static_cast<KX_Scene *>(m_sgNode->GetSGClientInfo());
+	return static_cast<KX_Scene *>(m_sgNode->GetClientInfo());
 }
 
 /* ---------------------------------------------------------------------
@@ -1737,25 +1737,25 @@ static int mathutils_kxgameob_vector_set(BaseMathObject *bmo, int subtype)
 		case MATHUTILS_VEC_CB_POS_LOCAL:
 		{
 			self->NodeSetLocalPosition(mt::vec3(bmo->data));
-			self->NodeUpdateGS();
+			self->NodeUpdate();
 			break;
 		}
 		case MATHUTILS_VEC_CB_POS_GLOBAL:
 		{
 			self->NodeSetWorldPosition(mt::vec3(bmo->data));
-			self->NodeUpdateGS();
+			self->NodeUpdate();
 			break;
 		}
 		case MATHUTILS_VEC_CB_SCALE_LOCAL:
 		{
 			self->NodeSetLocalScale(mt::vec3(bmo->data));
-			self->NodeUpdateGS();
+			self->NodeUpdate();
 			break;
 		}
 		case MATHUTILS_VEC_CB_SCALE_GLOBAL:
 		{
 			self->NodeSetWorldScale(mt::vec3(bmo->data));
-			self->NodeUpdateGS();
+			self->NodeUpdate();
 			break;
 		}
 		case MATHUTILS_VEC_CB_INERTIA_LOCAL:
@@ -1871,14 +1871,14 @@ static int mathutils_kxgameob_matrix_set(BaseMathObject *bmo, int subtype)
 		{
 			mat3x3 = mt::mat3(bmo->data);
 			self->NodeSetLocalOrientation(mat3x3);
-			self->NodeUpdateGS();
+			self->NodeUpdate();
 			break;
 		}
 		case MATHUTILS_MAT_CB_ORI_GLOBAL:
 		{
 			mat3x3 = mt::mat3(bmo->data);
 			self->NodeSetLocalOrientation(mat3x3);
-			self->NodeUpdateGS();
+			self->NodeUpdate();
 			break;
 		}
 	}
@@ -2791,7 +2791,7 @@ int KX_GameObject::pyattr_set_worldPosition(EXP_PyObjectPlus *self_v, const EXP_
 	}
 
 	self->NodeSetWorldPosition(pos);
-	self->NodeUpdateGS();
+	self->NodeUpdate();
 	return PY_SET_ATTR_SUCCESS;
 }
 
@@ -2816,7 +2816,7 @@ int KX_GameObject::pyattr_set_localPosition(EXP_PyObjectPlus *self_v, const EXP_
 	}
 
 	self->NodeSetLocalPosition(pos);
-	self->NodeUpdateGS();
+	self->NodeUpdate();
 	return PY_SET_ATTR_SUCCESS;
 }
 
@@ -2859,7 +2859,7 @@ int KX_GameObject::pyattr_set_worldOrientation(EXP_PyObjectPlus *self_v, const E
 
 	self->NodeSetGlobalOrientation(rot);
 
-	self->NodeUpdateGS();
+	self->NodeUpdate();
 	return PY_SET_ATTR_SUCCESS;
 }
 
@@ -2886,7 +2886,7 @@ int KX_GameObject::pyattr_set_localOrientation(EXP_PyObjectPlus *self_v, const E
 	}
 
 	self->NodeSetLocalOrientation(rot);
-	self->NodeUpdateGS();
+	self->NodeUpdate();
 	return PY_SET_ATTR_SUCCESS;
 }
 
@@ -2911,7 +2911,7 @@ int KX_GameObject::pyattr_set_worldScaling(EXP_PyObjectPlus *self_v, const EXP_P
 	}
 
 	self->NodeSetWorldScale(scale);
-	self->NodeUpdateGS();
+	self->NodeUpdate();
 	return PY_SET_ATTR_SUCCESS;
 }
 
@@ -2936,7 +2936,7 @@ int KX_GameObject::pyattr_set_localScaling(EXP_PyObjectPlus *self_v, const EXP_P
 	}
 
 	self->NodeSetLocalScale(scale);
-	self->NodeUpdateGS();
+	self->NodeUpdate();
 	return PY_SET_ATTR_SUCCESS;
 }
 
@@ -3142,7 +3142,7 @@ PyObject *KX_GameObject::pyattr_get_timeOffset(EXP_PyObjectPlus *self_v, const E
 {
 	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
 	SG_Node *sg_parent;
-	if ((sg_parent = self->m_sgNode->GetSGParent()) != nullptr && sg_parent->IsSlowParent()) {
+	if ((sg_parent = self->m_sgNode->GetParent()) != nullptr && sg_parent->IsSlowParent()) {
 		return PyFloat_FromDouble(static_cast<KX_SlowParentRelation *>(sg_parent->GetParentRelation())->GetTimeOffset());
 	}
 	else {
@@ -3154,7 +3154,7 @@ int KX_GameObject::pyattr_set_timeOffset(EXP_PyObjectPlus *self_v, const EXP_PYA
 {
 	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
 	float val = PyFloat_AsDouble(value);
-	SG_Node *sg_parent = self->m_sgNode->GetSGParent();
+	SG_Node *sg_parent = self->m_sgNode->GetParent();
 	if (val < 0.0f) { /* also accounts for non float */
 		PyErr_SetString(PyExc_AttributeError, "gameOb.timeOffset = float: KX_GameObject, expected a float zero or above");
 		return PY_SET_ATTR_FAIL;
@@ -3802,7 +3802,7 @@ PyObject *KX_GameObject::PyAlignAxisToVect(PyObject *args, PyObject *kwds)
 				}
 
 				AlignAxisToVect(vect, axis, fac);
-				NodeUpdateGS();
+				NodeUpdate();
 			}
 			Py_RETURN_NONE;
 		}

@@ -620,7 +620,7 @@ static void BL_CreateGraphicObjectNew(KX_GameObject *gameobj, KX_Scene *kxscene,
 		{
 			CcdPhysicsEnvironment *env = (CcdPhysicsEnvironment *)kxscene->GetPhysicsEnvironment();
 			BLI_assert(env);
-			PHY_IMotionState *motionstate = new KX_MotionState(gameobj->GetSGNode());
+			PHY_IMotionState *motionstate = new KX_MotionState(gameobj->GetNode());
 			CcdGraphicController *ctrl = new CcdGraphicController(env, motionstate);
 			gameobj->SetGraphicController(ctrl);
 			ctrl->SetNewClientInfo(&gameobj->GetClientInfo());
@@ -676,7 +676,7 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject *gameobj, Object *blenderobj
 		return;
 	}
 
-	PHY_IMotionState *motionstate = new KX_MotionState(gameobj->GetSGNode());
+	PHY_IMotionState *motionstate = new KX_MotionState(gameobj->GetNode());
 
 	PHY_IPhysicsEnvironment *phyenv = kxscene->GetPhysicsEnvironment();
 	phyenv->ConvertObject(converter, gameobj, meshobj, kxscene, motionstate, activeLayerBitInfo,
@@ -1117,7 +1117,7 @@ static void bl_ConvertBlenderObject_Single(BL_SceneConverter& converter,
 	gameobj->NodeSetLocalPosition(pos);
 	gameobj->NodeSetLocalOrientation(rotation);
 	gameobj->NodeSetLocalScale(scale);
-	gameobj->NodeUpdateGS();
+	gameobj->NodeUpdate();
 
 	sumolist->Add(CM_AddRef(gameobj));
 
@@ -1147,7 +1147,7 @@ static void bl_ConvertBlenderObject_Single(BL_SceneConverter& converter,
 		parentinversenode->SetLocalPosition(mt::vec3(invp_loc));
 		parentinversenode->SetLocalOrientation(mt::mat3(invp_rot));
 		parentinversenode->SetLocalScale(mt::vec3(invp_size));
-		parentinversenode->AddChild(gameobj->GetSGNode());
+		parentinversenode->AddChild(gameobj->GetNode());
 	}
 
 	// Needed for python scripting.
@@ -1167,7 +1167,7 @@ static void bl_ConvertBlenderObject_Single(BL_SceneConverter& converter,
 	if (isInActiveLayer) {
 		objectlist->Add(CM_AddRef(gameobj));
 
-		gameobj->NodeUpdateGS();
+		gameobj->NodeUpdate();
 	}
 	else {
 		// We must store this object otherwise it will be deleted at the end of this function if it is not a root object.
@@ -1409,7 +1409,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 			 * This weird situation is used in Apricot for test purposes.
 			 * Resolve it by not converting the child
 			 */
-			childobj->GetSGNode()->DisconnectFromParent();
+			childobj->GetNode()->DisconnectFromParent();
 			delete link.m_gamechildnode;
 			/* Now destroy the child object but also all its descendent that may already be linked
 			 * Remove the child reference in the local list!
@@ -1472,15 +1472,15 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 			}
 		}
 
-		parentobj->GetSGNode()->AddChild(link.m_gamechildnode);
+		parentobj->GetNode()->AddChild(link.m_gamechildnode);
 	}
 	vec_parent_child.clear();
 
 	// Find 'root' parents (object that has not parents in SceneGraph).
 	for (KX_GameObject *gameobj : sumolist) {
-		if (!gameobj->GetSGNode()->GetSGParent()) {
+		if (!gameobj->GetNode()->GetParent()) {
 			parentlist->Add(CM_AddRef(gameobj));
-			gameobj->NodeUpdateGS();
+			gameobj->NodeUpdate();
 		}
 	}
 

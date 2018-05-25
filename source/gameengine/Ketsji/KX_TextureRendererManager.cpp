@@ -149,7 +149,7 @@ bool KX_TextureRendererManager::RenderRenderer(RAS_Rasterizer *rasty, KX_Texture
 			continue;
 		}
 
-		m_camera->NodeUpdateGS();
+		m_camera->NodeUpdate();
 
 		renderer->BindFace(i);
 

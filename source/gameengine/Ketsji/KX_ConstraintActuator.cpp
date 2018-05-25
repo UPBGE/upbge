@@ -531,7 +531,7 @@ bool KX_ConstraintActuator::Update(double curtime)
 			case KX_ACT_CONSTRAINT_LOCX:
 			case KX_ACT_CONSTRAINT_LOCY:
 			case KX_ACT_CONSTRAINT_LOCZ:
-				newposition = position = obj->GetSGNode()->GetLocalPosition();
+				newposition = position = obj->GetNode()->GetLocalPosition();
 				switch (m_locrot) {
 					case KX_ACT_CONSTRAINT_LOCX:
 					{

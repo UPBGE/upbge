@@ -510,7 +510,7 @@ KX_KetsjiEngine::CameraRenderData KX_KetsjiEngine::GetCameraRenderData(KX_Scene 
 		rendercam->NodeSetGlobalOrientation(camera->NodeGetWorldOrientation());
 		rendercam->NodeSetWorldPosition(camera->NodeGetWorldPosition());
 		rendercam->NodeSetWorldScale(camera->NodeGetWorldScaling());
-		rendercam->NodeUpdateGS();
+		rendercam->NodeUpdate();
 	}
 	// Else use the native camera.
 	else {
@@ -1128,7 +1128,7 @@ void KX_KetsjiEngine::PostProcessScene(KX_Scene *scene)
 			activecam->NodeSetLocalOrientation(mt::mat3::Identity());
 		}
 
-		activecam->NodeUpdateGS();
+		activecam->NodeUpdate();
 
 		scene->GetCameraList()->Add(CM_AddRef(activecam));
 		scene->SetActiveCamera(activecam);

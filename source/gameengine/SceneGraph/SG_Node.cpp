@@ -87,7 +87,7 @@ SG_Node::~SG_Node()
 	}
 }
 
-SG_Node *SG_Node::GetSGReplica()
+SG_Node *SG_Node::GetReplica()
 {
 	SG_Node *replica = new SG_Node(*this);
 	if (replica == nullptr) {
@@ -116,7 +116,7 @@ void SG_Node::ProcessSGReplica(SG_Node **replica)
 		(*replica)->ClearSGChildren();
 
 		for (SG_Node *childnode : m_children) {
-			SG_Node *replicanode = childnode->GetSGReplica();
+			SG_Node *replicanode = childnode->GetReplica();
 			if (replicanode) {
 				(*replica)->AddChild(replicanode);
 			}
@@ -127,7 +127,7 @@ void SG_Node::ProcessSGReplica(SG_Node **replica)
 	// This can happen in partial replication of hierarchy
 	// during group duplication.
 	if ((*replica)->m_children.empty() &&
-	    (*replica)->GetSGClientObject() == nullptr) {
+	    (*replica)->GetClientObject() == nullptr) {
 		delete (*replica);
 		*replica = nullptr;
 	}
@@ -162,7 +162,7 @@ bool SG_Node::IsAncessor(const SG_Node *child) const
 	       (child->m_SGparent == this) ? true : IsAncessor(child->m_SGparent);
 }
 
-const NodeList& SG_Node::GetSGChildren() const
+const NodeList& SG_Node::GetChildren() const
 {
 	return m_children;
 }
@@ -172,12 +172,12 @@ void SG_Node::ClearSGChildren()
 	m_children.clear();
 }
 
-SG_Node *SG_Node::GetSGParent() const
+SG_Node *SG_Node::GetParent() const
 {
 	return m_SGparent;
 }
 
-void SG_Node::SetSGParent(SG_Node *parent)
+void SG_Node::SetParent(SG_Node *parent)
 {
 	m_SGparent = parent;
 	if (parent) {
@@ -213,7 +213,7 @@ bool SG_Node::IsSlowParent()
 void SG_Node::AddChild(SG_Node *child)
 {
 	m_children.push_back(child);
-	child->SetSGParent(this);
+	child->SetParent(this);
 }
 
 void SG_Node::RemoveChild(SG_Node *child)
@@ -331,12 +331,12 @@ SG_Node *SG_Node::GetNextRescheduled(SG_QList& head)
 	return result;
 }
 
-void SG_Node::AddSGController(SG_Controller *cont)
+void SG_Node::AddController(SG_Controller *cont)
 {
 	m_SGcontrollers.push_back(cont);
 }
 
-void SG_Node::RemoveSGController(SG_Controller *cont)
+void SG_Node::RemoveController(SG_Controller *cont)
 {
 	m_mutex.Lock();
 	CM_ListRemoveIfFound(m_SGcontrollers, cont);
@@ -348,7 +348,7 @@ void SG_Node::RemoveAllControllers()
 	m_SGcontrollers.clear();
 }
 
-SGControllerList& SG_Node::GetSGControllerList()
+SGControllerList& SG_Node::GetControllerList()
 {
 	return m_SGcontrollers;
 }
@@ -358,21 +358,21 @@ SG_Callbacks& SG_Node::GetCallBackFunctions()
 	return m_callbacks;
 }
 
-void *SG_Node::GetSGClientObject() const
+void *SG_Node::GetClientObject() const
 {
 	return m_SGclientObject;
 }
 
-void SG_Node::SetSGClientObject(void *clientObject)
+void SG_Node::SetClientObject(void *clientObject)
 {
 	m_SGclientObject = clientObject;
 }
 
-void *SG_Node::GetSGClientInfo() const
+void *SG_Node::GetClientInfo() const
 {
 	return m_SGclientInfo;
 }
-void SG_Node::SetSGClientInfo(void *clientInfo)
+void SG_Node::SetClientInfo(void *clientInfo)
 {
 	m_SGclientInfo = clientInfo;
 }

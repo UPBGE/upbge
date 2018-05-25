@@ -75,7 +75,7 @@ KX_TrackToActuator::KX_TrackToActuator(SCA_IObject *gameobj,
 			if (m_parentobj) {
 				// if so, store the initial local rotation
 				// this is needed to revert the effect of the parent inverse node (TBC)
-				m_parentlocalmat = m_parentobj->GetSGNode()->GetLocalOrientation();
+				m_parentlocalmat = m_parentobj->GetNode()->GetLocalOrientation();
 				// use registration mechanism rather than AddRef, it creates zombie objects
 				m_parentobj->RegisterActuator(this);
 			}
@@ -351,7 +351,7 @@ bool KX_TrackToActuator::Update(double curtime)
 		if (m_parentobj) {
 
 			mt::vec3 localpos;
-			localpos = curobj->GetSGNode()->GetLocalPosition();
+			localpos = curobj->GetNode()->GetLocalPosition();
 			// Get the inverse of the parent matrix
 			mt::mat3 parentmatinv;
 			parentmatinv = m_parentobj->NodeGetWorldOrientation().Inverse();

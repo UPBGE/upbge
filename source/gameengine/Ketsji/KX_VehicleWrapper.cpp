@@ -79,7 +79,7 @@ PyObject *KX_VehicleWrapper::PyAddWheel(PyObject *args)
 			return nullptr;
 		}
 
-		if (gameOb->GetSGNode()) {
+		if (gameOb->GetNode()) {
 			mt::vec3 attachPos, attachDir, attachAxle;
 			if (!PyVecTo(pylistPos, attachPos)) {
 				PyErr_SetString(PyExc_AttributeError,
@@ -106,7 +106,7 @@ PyObject *KX_VehicleWrapper::PyAddWheel(PyObject *args)
 				return nullptr;
 			}
 
-			PHY_IMotionState *motionState = new KX_MotionState(gameOb->GetSGNode());
+			PHY_IMotionState *motionState = new KX_MotionState(gameOb->GetNode());
 			m_vehicle->AddWheel(motionState, attachPos, attachDir, attachAxle, suspensionRestLength, wheelRadius, hasSteering);
 		}
 

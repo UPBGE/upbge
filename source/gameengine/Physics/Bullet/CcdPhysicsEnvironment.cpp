@@ -3011,8 +3011,8 @@ void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter& converter, KX_GameO
 			btCompoundShape *compoundShape = (btCompoundShape *)colShape;
 
 			// compute the local transform from parent, this may include several node in the chain
-			SG_Node *gameNode = gameobj->GetSGNode();
-			SG_Node *parentNode = compoundParent->GetSGNode();
+			SG_Node *gameNode = gameobj->GetNode();
+			SG_Node *parentNode = compoundParent->GetNode();
 			// relative transform
 			mt::vec3 parentScale = parentNode->GetWorldScaling();
 			parentScale[0] = 1.0f / parentScale[0];
