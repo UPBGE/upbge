@@ -108,7 +108,7 @@ void BL_Action::ClearControllerList()
 	std::vector<SG_Controller *>::iterator it;
 	for (it = m_sg_contr_list.begin(); it != m_sg_contr_list.end(); it++)
 	{
-		m_obj->GetSGNode()->RemoveSGController((*it));
+		m_obj->GetNode()->RemoveController((*it));
 		delete *it;
 	}
 
@@ -169,23 +169,23 @@ bool BL_Action::Play(const std::string& name,
 	// Create an SG_Controller
 	SG_Controller *sg_contr = BL_CreateIPO(m_action, m_obj, kxscene);
 	m_sg_contr_list.push_back(sg_contr);
-	m_obj->GetSGNode()->AddSGController(sg_contr);
-	sg_contr->SetNode(m_obj->GetSGNode());
+	m_obj->GetNode()->AddController(sg_contr);
+	sg_contr->SetNode(m_obj->GetNode());
 
 	// World
 	sg_contr = BL_CreateWorldIPO(m_action, kxscene->GetBlenderScene()->world, kxscene);
 	if (sg_contr) {
 		m_sg_contr_list.push_back(sg_contr);
-		m_obj->GetSGNode()->AddSGController(sg_contr);
-		sg_contr->SetNode(m_obj->GetSGNode());
+		m_obj->GetNode()->AddController(sg_contr);
+		sg_contr->SetNode(m_obj->GetNode());
 	}
 
 	// Try obcolor
 	sg_contr = BL_CreateObColorIPO(m_action, m_obj, kxscene);
 	if (sg_contr) {
 		m_sg_contr_list.push_back(sg_contr);
-		m_obj->GetSGNode()->AddSGController(sg_contr);
-		sg_contr->SetNode(m_obj->GetSGNode());
+		m_obj->GetNode()->AddController(sg_contr);
+		sg_contr->SetNode(m_obj->GetNode());
 	}
 
 	// Now try materials
@@ -196,8 +196,8 @@ bool BL_Action::Play(const std::string& name,
 			sg_contr = BL_CreateMaterialIpo(m_action, polymat, m_obj, kxscene);
 			if (sg_contr) {
 				m_sg_contr_list.push_back(sg_contr);
-				m_obj->GetSGNode()->AddSGController(sg_contr);
-				sg_contr->SetNode(m_obj->GetSGNode());
+				m_obj->GetNode()->AddController(sg_contr);
+				sg_contr->SetNode(m_obj->GetNode());
 			}
 		}
 	}
@@ -206,14 +206,14 @@ bool BL_Action::Play(const std::string& name,
 	if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_LIGHT) {
 		sg_contr = BL_CreateLampIPO(m_action, m_obj, kxscene);
 		m_sg_contr_list.push_back(sg_contr);
-		m_obj->GetSGNode()->AddSGController(sg_contr);
-		sg_contr->SetNode(m_obj->GetSGNode());
+		m_obj->GetNode()->AddController(sg_contr);
+		sg_contr->SetNode(m_obj->GetNode());
 	}
 	else if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_CAMERA) {
 		sg_contr = BL_CreateCameraIPO(m_action, m_obj, kxscene);
 		m_sg_contr_list.push_back(sg_contr);
-		m_obj->GetSGNode()->AddSGController(sg_contr);
-		sg_contr->SetNode(m_obj->GetSGNode());
+		m_obj->GetNode()->AddController(sg_contr);
+		sg_contr->SetNode(m_obj->GetNode());
 	}
 
 	m_ipo_flags = ipo_flags;

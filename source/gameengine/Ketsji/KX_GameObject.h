@@ -490,7 +490,7 @@ public:
 	// adapt local position so that world position is set to desired position
 	void	NodeSetWorldPosition(const mt::vec3& trans);
 
-	void NodeUpdateGS();
+	void NodeUpdate();
 
 	const mt::mat3& NodeGetWorldOrientation(  ) const;
 	const mt::vec3& NodeGetWorldScaling(  ) const;
@@ -506,12 +506,12 @@ public:
 	 * \section scene graph node accessor functions.
 	 */
 
-	SG_Node*	GetSGNode(	) 
+	SG_Node*	GetNode(	) 
 	{ 
 		return m_sgNode.get();
 	}
 
-	const 	SG_Node* GetSGNode(	) const
+	const 	SG_Node* GetNode(	) const
 	{ 
 		return m_sgNode.get();
 	}
@@ -537,7 +537,7 @@ public:
 	 * old node. This class takes ownership of the new
 	 * node.
 	 */
-	void SetSGNode(SG_Node *node);
+	void SetNode(SG_Node *node);
 	
 	/// Is it a dynamic/physics object ?
 	bool IsDynamic() const;
@@ -549,7 +549,7 @@ public:
 	 */
 	bool IsVertexParent( )
 	{
-		return (m_sgNode && m_sgNode->GetSGParent() && m_sgNode->GetSGParent()->IsVertexParent());
+		return (m_sgNode && m_sgNode->GetParent() && m_sgNode->GetParent()->IsVertexParent());
 	}
 
 	/// \see KX_RayCast

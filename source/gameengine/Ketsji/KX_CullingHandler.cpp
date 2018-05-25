@@ -11,7 +11,7 @@ KX_CullingHandler::KX_CullingHandler(std::vector<KX_GameObject *>& objects, cons
 
 void KX_CullingHandler::Process(KX_GameObject *object)
 {
-	SG_Node *sgnode = object->GetSGNode();
+	SG_Node *sgnode = object->GetNode();
 	SG_CullingNode *node = object->GetCullingNode();
 
 	const mt::mat3x4 trans = sgnode->GetWorldTransform();

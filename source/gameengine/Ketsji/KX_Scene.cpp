@@ -474,13 +474,13 @@ KX_GameObject *KX_Scene::AddNodeReplicaObject(SG_Node *node, KX_GameObject *game
 	}
 
 	if (node) {
-		newobj->SetSGNode(node);
+		newobj->SetNode(node);
 	}
 	else {
 		SG_Node *rootnode = new SG_Node(newobj, this, KX_Scene::m_callbacks);
 
 		// This fixes part of the scaling-added object bug.
-		SG_Node *orgnode = gameobj->GetSGNode();
+		SG_Node *orgnode = gameobj->GetNode();
 		rootnode->SetLocalScale(orgnode->GetLocalScale());
 		rootnode->SetLocalPosition(orgnode->GetLocalPosition());
 		rootnode->SetLocalOrientation(orgnode->GetLocalOrientation());
@@ -489,10 +489,10 @@ KX_GameObject *KX_Scene::AddNodeReplicaObject(SG_Node *node, KX_GameObject *game
 		KX_NormalParentRelation *parent_relation = new KX_NormalParentRelation();
 		rootnode->SetParentRelation(parent_relation);
 
-		newobj->SetSGNode(rootnode);
+		newobj->SetNode(rootnode);
 	}
 
-	SG_Node *replicanode = newobj->GetSGNode();
+	SG_Node *replicanode = newobj->GetNode();
 
 	// Add the object in the obstacle simulation if needed.
 	if (m_obstacleSimulation && gameobj->GetBlenderObject()->gameflag & OB_HASOBSTACLE) {
@@ -504,7 +504,7 @@ KX_GameObject *KX_Scene::AddNodeReplicaObject(SG_Node *node, KX_GameObject *game
 		m_componentManager.RegisterObject(newobj);
 	}
 
-	replicanode->SetSGClientObject(newobj);
+	replicanode->SetClientObject(newobj);
 
 	// This is the list of object that are send to the graphics pipeline.
 	m_objectlist->Add(CM_AddRef(newobj));
@@ -538,7 +538,7 @@ KX_GameObject *KX_Scene::AddNodeReplicaObject(SG_Node *node, KX_GameObject *game
 
 	// Replicate graphic controller.
 	if (gameobj->GetGraphicController()) {
-		PHY_IMotionState *motionstate = new KX_MotionState(newobj->GetSGNode());
+		PHY_IMotionState *motionstate = new KX_MotionState(newobj->GetNode());
 		PHY_IGraphicController *newctrl = gameobj->GetGraphicController()->GetReplica(motionstate);
 		newctrl->SetNewClientInfo(&newobj->GetClientInfo());
 		newobj->SetGraphicController(newctrl);
@@ -546,7 +546,7 @@ KX_GameObject *KX_Scene::AddNodeReplicaObject(SG_Node *node, KX_GameObject *game
 
 	// Replicate physics controller.
 	if (gameobj->GetPhysicsController()) {
-		PHY_IMotionState *motionstate = new KX_MotionState(newobj->GetSGNode());
+		PHY_IMotionState *motionstate = new KX_MotionState(newobj->GetNode());
 		PHY_IPhysicsController *newctrl = gameobj->GetPhysicsController()->GetReplica();
 
 		KX_GameObject *parent = newobj->GetParent();
@@ -671,7 +671,7 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
 	Object *blgroupobj = groupobj->GetBlenderObject();
 	std::vector<KX_GameObject *> duplilist;
 
-	if (!groupobj->GetSGNode() || !groupobj->IsDupliGroup() || level > MAX_DUPLI_RECUR) {
+	if (!groupobj->GetNode() || !groupobj->IsDupliGroup() || level > MAX_DUPLI_RECUR) {
 		return;
 	}
 
@@ -730,13 +730,13 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
 		replica->SetDupliGroupObject(groupobj);
 
 		// Recurse replication into children nodes.
-		const NodeList& children = gameobj->GetSGNode()->GetSGChildren();
+		const NodeList& children = gameobj->GetNode()->GetChildren();
 
-		replica->GetSGNode()->ClearSGChildren();
+		replica->GetNode()->ClearSGChildren();
 		for (SG_Node *orgnode : children) {
-			SG_Node *childreplicanode = orgnode->GetSGReplica();
+			SG_Node *childreplicanode = orgnode->GetReplica();
 			if (childreplicanode) {
-				replica->GetSGNode()->AddChild(childreplicanode);
+				replica->GetNode()->AddChild(childreplicanode);
 			}
 		}
 		/* Don't replicate logic now: we assume that the objects in the group can have
@@ -759,7 +759,7 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
 		const mt::mat3 newori = groupobj->NodeGetWorldOrientation() * gameobj->NodeGetWorldOrientation();
 		replica->NodeSetLocalOrientation(newori);
 		// Update scenegraph for entire tree of children.
-		replica->GetSGNode()->UpdateWorldData();
+		replica->GetNode()->UpdateWorldData();
 		// We can now add the graphic controller to the physic engine.
 		replica->ActivateGraphicController(true);
 
@@ -835,13 +835,13 @@ KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobj, KX_GameObj
 
 	// Recurse replication into children nodes.
 
-	const NodeList& children = originalobj->GetSGNode()->GetSGChildren();
+	const NodeList& children = originalobj->GetNode()->GetChildren();
 
-	replica->GetSGNode()->ClearSGChildren();
+	replica->GetNode()->ClearSGChildren();
 	for (SG_Node *orgnode : children) {
-		SG_Node *childreplicanode = orgnode->GetSGReplica();
+		SG_Node *childreplicanode = orgnode->GetReplica();
 		if (childreplicanode) {
-			replica->GetSGNode()->AddChild(childreplicanode);
+			replica->GetNode()->AddChild(childreplicanode);
 		}
 	}
 
@@ -855,12 +855,12 @@ KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobj, KX_GameObj
 		replica->NodeSetLocalOrientation(newori);
 
 		// Get the rootnode's scale.
-		const mt::vec3& newscale = referenceobj->GetSGNode()->GetRootSGParent()->GetLocalScale();
+		const mt::vec3& newscale = referenceobj->GetNode()->GetRootSGParent()->GetLocalScale();
 		// Set the replica's relative scale with the rootnode's scale.
 		replica->NodeSetRelativeScale(newscale);
 	}
 
-	replica->GetSGNode()->UpdateWorldData();
+	replica->GetNode()->UpdateWorldData();
 	// The size is correct, we can add the graphic controller to the physic engine.
 	replica->ActivateGraphicController(true);
 
@@ -907,7 +907,7 @@ KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobj, KX_GameObj
 void KX_Scene::RemoveObject(KX_GameObject *gameobj)
 {
 	// Disconnect child from parent.
-	SG_Node *node = gameobj->GetSGNode();
+	SG_Node *node = gameobj->GetNode();
 
 	if (node) {
 		node->DisconnectFromParent();
@@ -1598,15 +1598,15 @@ static void MergeScene_GameObject(KX_GameObject *gameobj, KX_Scene *to, KX_Scene
 	}
 
 	// SG_Node can hold a scene reference.
-	SG_Node *sg = gameobj->GetSGNode();
+	SG_Node *sg = gameobj->GetNode();
 	if (sg) {
-		if (sg->GetSGClientInfo() == from) {
-			sg->SetSGClientInfo(to);
+		if (sg->GetClientInfo() == from) {
+			sg->SetClientInfo(to);
 
 			// Make sure to grab the children too since they might not be tied to a game object.
-			const NodeList& children = sg->GetSGChildren();
+			const NodeList& children = sg->GetChildren();
 			for (SG_Node *child : children) {
-				child->SetSGClientInfo(to);
+				child->SetClientInfo(to);
 			}
 		}
 	}
