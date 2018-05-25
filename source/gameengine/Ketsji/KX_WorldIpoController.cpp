@@ -35,9 +35,9 @@
 #include "KX_Globals.h"
 #include "KX_Scene.h"
 
-bool KX_WorldIpoController::Update()
+bool KX_WorldIpoController::Update(SG_Node *node)
 {
-	if (!SG_Controller::Update()) {
+	if (!SG_Controller::Update(node)) {
 		return false;
 	}
 

@@ -82,7 +82,6 @@ static BL_InterpolatorList *GetAdtList(struct bAction *for_act, KX_Scene *scene)
 SG_Controller *BL_CreateIPO(struct bAction *action, KX_GameObject *gameobj, KX_Scene *scene)
 {
 	KX_IpoController *ipocontr = new KX_IpoController();
-	ipocontr->SetGameObject(gameobj);
 
 	Object *blenderobject = gameobj->GetBlenderObject();
 

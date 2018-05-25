@@ -60,7 +60,7 @@ public:
 
 	virtual ~KX_LightIpoSGController() = default;
 
-	virtual bool Update();
+	virtual bool Update(SG_Node *node);
 
 	void	SetModifyEnergy(bool modify) {
 		m_modify_energy = modify;

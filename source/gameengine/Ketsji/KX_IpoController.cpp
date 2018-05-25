@@ -36,22 +36,18 @@
 #include "DNA_ipo_types.h"
 #include "BLI_math.h"
 
-// All objects should start on frame 1! Will we ever need an m_nodeject to
-// start on another frame, the 1.0 should change.
 KX_IpoController::KX_IpoController()
 	:m_ipo_as_force(false),
 	m_ipo_add(false),
 	m_ipo_local(false),
 	m_ipo_start_initialized(false),
 	m_ipo_start_euler(mt::zero3),
-	m_ipo_euler_initialized(false),
-	m_game_object(nullptr)
+	m_ipo_euler_initialized(false)
 {
 	for (int i = 0; i < KX_MAX_IPO_CHANNELS; i++) {
 		m_ipo_channels_active[i] = false;
 	}
 }
-
 
 void KX_IpoController::SetOption(SG_ControllerOption option, bool value)
 {
@@ -85,23 +81,21 @@ void KX_IpoController::SetOption(SG_ControllerOption option, bool value)
 	}
 }
 
-void KX_IpoController::SetGameObject(KX_GameObject *go)
+bool KX_IpoController::Update(SG_Node *node)
 {
-	m_game_object = go;
-}
-
-bool KX_IpoController::Update()
-{
-	if (!SG_Controller::Update()) {
+	if (!SG_Controller::Update(node)) {
 		return false;
 	}
 
+	KX_GameObject *obj = static_cast<KX_GameObject *>(node->GetClientObject());
+
 	//initialization on the first frame of the IPO
 	if (!m_ipo_start_initialized) {
-		m_ipo_start_point = m_node->GetLocalPosition();
-		m_ipo_start_orient = m_node->GetLocalOrientation();
-		m_ipo_start_scale = m_node->GetLocalScale();
+		m_ipo_start_point = node->GetLocalPosition();
+		m_ipo_start_orient = node->GetLocalOrientation();
+		m_ipo_start_scale = node->GetLocalScale();
 		m_ipo_start_initialized = true;
+
 		if (!m_ipo_euler_initialized) {
 			// do it only once to avoid angle discontinuities
 			m_ipo_start_euler = m_ipo_start_orient.GetEuler();
@@ -113,20 +107,20 @@ bool KX_IpoController::Update()
 	if (m_ipo_channels_active[OB_LOC_X]  || m_ipo_channels_active[OB_LOC_Y]  || m_ipo_channels_active[OB_LOC_Z] ||
 	    m_ipo_channels_active[OB_DLOC_X] || m_ipo_channels_active[OB_DLOC_Y] || m_ipo_channels_active[OB_DLOC_Z]) {
 		if (m_ipo_as_force) {
-			if (m_game_object && m_node && m_game_object->GetPhysicsController()) {
+			if (obj->GetPhysicsController()) {
 				const mt::vec3 vec = m_ipo_local ?
-				                     m_node->GetWorldOrientation() * m_ipo_xform.GetPosition() :
+				                     node->GetWorldOrientation() * m_ipo_xform.GetPosition() :
 				                     m_ipo_xform.GetPosition();
-				m_game_object->GetPhysicsController()->ApplyForce(vec, false);
+				obj->GetPhysicsController()->ApplyForce(vec, false);
 			}
 		}
 		else {
-			// Local ipo should be defined with the m_nodeject position at (0,0,0)
-			// Local transform is applied to the m_nodeject based on initial position
+			// Local ipo should be defined with the nodeject position at (0,0,0)
+			// Local transform is applied to the nodeject based on initial position
 			mt::vec3 newPosition = mt::zero3;
 
 			if (!m_ipo_add) {
-				newPosition = m_node->GetLocalPosition();
+				newPosition = node->GetLocalPosition();
 			}
 			//apply separate IPO channels if there is any data in them
 			//Loc and dLoc act by themselves or are additive
@@ -134,12 +128,12 @@ bool KX_IpoController::Update()
 				const mt::vec3& loc = m_ipo_xform.GetPosition();
 				const mt::vec3& dloc = m_ipo_xform.GetDeltaPosition();
 
-				const bool dactive = m_ipo_channels_active[OB_DLOC_X + i];
+				const bool delta = m_ipo_channels_active[OB_DLOC_X + i];
 
 				if (m_ipo_channels_active[OB_LOC_X + i]) {
-					newPosition[i] = (dactive ? loc[i] + dloc[i] : loc[i]);
+					newPosition[i] = (delta ? loc[i] + dloc[i] : loc[i]);
 				}
-				else if (dactive) {
+				else if (delta) {
 					newPosition[i] = (((!m_ipo_add) ? m_ipo_start_point[i] : 0.0f) + dloc[i]);
 				}
 			}
@@ -152,20 +146,17 @@ bool KX_IpoController::Update()
 					newPosition = m_ipo_start_point + newPosition;
 				}
 			}
-			if (m_game_object) {
-				m_game_object->NodeSetLocalPosition(newPosition);
-			}
+
+			obj->NodeSetLocalPosition(newPosition);
 		}
 	}
 	//modifies orientation?
 	if (m_ipo_channels_active[OB_ROT_X]  || m_ipo_channels_active[OB_ROT_Y]  || m_ipo_channels_active[OB_ROT_Z] ||
 	    m_ipo_channels_active[OB_DROT_X] || m_ipo_channels_active[OB_DROT_Y] || m_ipo_channels_active[OB_DROT_Z]) {
 		if (m_ipo_as_force) {
-			if (m_game_object && m_node) {
-				m_game_object->ApplyTorque(m_ipo_local ?
-				                           m_node->GetWorldOrientation() * m_ipo_xform.GetEulerAngles() :
-				                           m_ipo_xform.GetEulerAngles(), false);
-			}
+			obj->ApplyTorque(m_ipo_local ?
+	                           node->GetWorldOrientation() * m_ipo_xform.GetEulerAngles() :
+	                           m_ipo_xform.GetEulerAngles(), false);
 		}
 		else if (m_ipo_add) {
 			// Delta euler angles.
@@ -187,9 +178,8 @@ bool KX_IpoController::Update()
 			else {
 				rotation = rotation * m_ipo_start_orient;
 			}
-			if (m_game_object) {
-				m_game_object->NodeSetLocalOrientation(rotation);
-			}
+
+			obj->NodeSetLocalOrientation(rotation);
 		}
 		else if (m_ipo_channels_active[OB_ROT_X] || m_ipo_channels_active[OB_ROT_Y] || m_ipo_channels_active[OB_ROT_Z]) {
 			// assume all channel absolute
@@ -201,19 +191,17 @@ bool KX_IpoController::Update()
 				const mt::vec3& eul = m_ipo_xform.GetEulerAngles();
 				const mt::vec3& deul = m_ipo_xform.GetDeltaEulerAngles();
 
-				const bool dactive = m_ipo_channels_active[OB_DROT_X + i];
+				const bool delta = m_ipo_channels_active[OB_DROT_X + i];
 
 				if (m_ipo_channels_active[OB_ROT_X + i]) {
-					angles[i] = (dactive ? (eul[i] + deul[i]) : eul[i]);
+					angles[i] = (delta ? (eul[i] + deul[i]) : eul[i]);
 				}
-				else if (dactive) {
+				else if (delta) {
 					angles[i] += deul[i];
 				}
 			}
 
-			if (m_game_object) {
-				m_game_object->NodeSetLocalOrientation(mt::mat3(angles));
-			}
+			obj->NodeSetLocalOrientation(mt::mat3(angles));
 		}
 		else {
 			mt::vec3 angles = mt::zero3;
@@ -225,11 +213,9 @@ bool KX_IpoController::Update()
 			}
 
 			// dRot are always local
-			mt::mat3 rotation(angles);
-			rotation = m_ipo_start_orient * rotation;
-			if (m_game_object) {
-				m_game_object->NodeSetLocalOrientation(rotation);
-			}
+			const mt::mat3 rotation = m_ipo_start_orient * mt::mat3(angles);
+
+			obj->NodeSetLocalOrientation(rotation);
 		}
 	}
 	//modifies scale?
@@ -238,19 +224,19 @@ bool KX_IpoController::Update()
 		//default is no scale change
 		mt::vec3 newScale = mt::one3;
 		if (!m_ipo_add) {
-			newScale = m_node->GetLocalScale();
+			newScale = node->GetLocalScale();
 		}
 
 		for (unsigned short i = 0; i < 3; ++i) {
 			const mt::vec3& scale = m_ipo_xform.GetScaling();
 			const mt::vec3& dscale = m_ipo_xform.GetDeltaScaling();
 
-			const bool dactive = m_ipo_channels_active[OB_DSIZE_X + i];
+			const bool delta = m_ipo_channels_active[OB_DSIZE_X + i];
 
 			if (m_ipo_channels_active[OB_SIZE_X + i]) {
-				newScale[i] = (dactive ? (scale[i] + dscale[i]) : scale[i]);
+				newScale[i] = (delta ? (scale[i] + dscale[i]) : scale[i]);
 			}
-			else if (dactive) {
+			else if (delta) {
 				newScale[i] = (dscale[i] + ((!m_ipo_add) ? m_ipo_start_scale[i] : 0.0f));
 			}
 		}
@@ -258,9 +244,8 @@ bool KX_IpoController::Update()
 		if (m_ipo_add) {
 			newScale = m_ipo_start_scale * newScale;
 		}
-		if (m_game_object) {
-			m_game_object->NodeSetLocalScale(newScale);
-		}
+
+		obj->NodeSetLocalScale(newScale);
 	}
 
 	return true;

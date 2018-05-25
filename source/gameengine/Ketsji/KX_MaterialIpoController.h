@@ -36,7 +36,7 @@ public:
 				m_material(polymat)
 		{}
 	virtual ~KX_MaterialIpoController() = default;
-	virtual bool Update();
+	virtual bool Update(SG_Node *node);
 };
 
 #endif /* __KX_MATERIALIPOCONTROLLER_H__ */

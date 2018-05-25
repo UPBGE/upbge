@@ -66,7 +66,7 @@ public:
 
 	virtual ~KX_WorldIpoController() = default;
 
-	virtual bool Update();
+	virtual bool Update(SG_Node *node);
 
 	void	SetModifyMistStart(bool modify) {
 		m_modify_mist_start = modify;

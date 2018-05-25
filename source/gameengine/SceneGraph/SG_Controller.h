@@ -44,6 +44,7 @@ class SG_Node;
  */
 class SG_Controller
 {
+	friend SG_Node;
 public:
 	/**
 	 * Option-identifiers: SG_CONTR_<controller-type>_<option>.
@@ -56,9 +57,6 @@ public:
 		SG_CONTR_IPO_IPO_ADD,
 		SG_CONTR_IPO_LOCAL,
 		SG_CONTR_IPO_RESET,
-		SG_CONTR_CAMIPO_LENS,
-		SG_CONTR_CAMIPO_CLIPEND,
-		SG_CONTR_CAMIPO_CLIPSTART,
 		SG_CONTR_MAX
 	};
 
@@ -66,34 +64,25 @@ public:
 	virtual ~SG_Controller() = default;
 
 	/// Perform an update, returns true when the update was performed.
-	virtual bool Update();
-
-	void SetNode(SG_Node *node);
-
-	void ClearNode();
+	virtual bool Update(SG_Node *node);
 
 	void SetSimulatedTime(double time);
 
 	/**
-	 * Hacky way of passing options to specific controllers
+	 * Pass options to specific controllers
 	 * \param option An integer identifying the option.
 	 * \param value  The value of this option.
-	 * \attention This has been placed here to give sca-elements
-	 * \attention some control over the controllers. This is
-	 * \attention necessary because the identity of the controller
-	 * \attention is lost on the way here.
 	 */
 	virtual void SetOption(SG_ControllerOption option, bool value);
 
 	void AddInterpolator(const SG_Interpolator& interp);
 
+	bool Empty() const;
 
 protected:
 	SG_InterpolatorList m_interpolators;
 	/// Were settings altered since the last update?
 	bool m_modified;
-
-	SG_Node *m_node;
 	/// Local time of this ipo.
 	double m_time;
 

@@ -369,10 +369,10 @@ private:
 
 	void ProcessSGReplica(SG_Node **replica);
 
-	void *m_SGclientObject;
-	void *m_SGclientInfo;
+	void *m_clientObject;
+	void *m_clientInfo;
 	SG_Callbacks m_callbacks;
-	SGControllerList m_SGcontrollers;
+	SGControllerList m_controllers;
 
 	/**
 	 * The list of children of this node.
@@ -382,7 +382,7 @@ private:
 	/**
 	 * The parent of this node may be nullptr
 	 */
-	SG_Node *m_SGparent;
+	SG_Node *m_parent;
 
 	mt::vec3 m_localPosition;
 	mt::mat3 m_localRotation;

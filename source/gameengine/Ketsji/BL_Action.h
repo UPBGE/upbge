@@ -77,6 +77,7 @@ private:
 	float m_prevUpdate;
 
 	void ClearControllerList();
+	void AddController(SG_Controller *cont);
 	void InitIPO();
 	void SetLocalTime(float curtime);
 	void ResetStartTime(float curtime);

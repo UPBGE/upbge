@@ -74,17 +74,11 @@ class KX_IpoController : public SG_Controller, public mt::SimdClassAllocator
 	/** true is m_ipo_start_euler has been initialized */
 	bool m_ipo_euler_initialized;
 
-	/** A reference to the original game object. */
-	class KX_GameObject *m_game_object;
-
 public:
 	KX_IpoController();
 	virtual ~KX_IpoController() = default;
 
 	virtual void SetOption(SG_ControllerOption option, bool value);
-
-	/** Set reference to the corresponding game object. */
-	void SetGameObject(class KX_GameObject *go);
 
 	void SetIPOChannelActive(int index, bool value) {
 		//indexes found in makesdna\DNA_ipo_types.h
@@ -96,7 +90,7 @@ public:
 		return m_ipo_xform;
 	}
 
-	virtual bool Update();
+	virtual bool Update(SG_Node *node);
 };
 
 #endif  /* __KX_IPO_SGCONTROLLER_H__ */

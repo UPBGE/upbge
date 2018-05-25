@@ -34,13 +34,13 @@
 #include "KX_Camera.h"
 #include "RAS_CameraData.h"
 
-bool KX_CameraIpoSGController::Update()
+bool KX_CameraIpoSGController::Update(SG_Node *node)
 {
-	if (!SG_Controller::Update()) {
+	if (!SG_Controller::Update(node)) {
 		return false;
 	}
 
-	KX_Camera *kxcamera = (KX_Camera *)m_node->GetClientObject();
+	KX_Camera *kxcamera = static_cast<KX_Camera *>(node->GetClientObject());
 	RAS_CameraData *camdata = kxcamera->GetCameraData();
 
 	if (m_modify_lens) {

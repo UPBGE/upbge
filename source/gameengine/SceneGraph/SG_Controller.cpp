@@ -36,12 +36,11 @@
 
 SG_Controller::SG_Controller()
 	:m_modified(true),
-	m_node(nullptr),
 	m_time(0.0)
 {
 }
 
-bool SG_Controller::Update()
+bool SG_Controller::Update(SG_Node *node)
 {
 	if (!m_modified) {
 		return false;
@@ -54,16 +53,6 @@ bool SG_Controller::Update()
 	}
 
 	return true;
-}
-
-void SG_Controller::SetNode(SG_Node *node)
-{
-	m_node = node;
-}
-
-void SG_Controller::ClearNode()
-{
-	m_node = nullptr;
 }
 
 void SG_Controller::SetSimulatedTime(double time)
@@ -79,4 +68,9 @@ void SG_Controller::SetOption(SG_Controller::SG_ControllerOption option, bool va
 void SG_Controller::AddInterpolator(const SG_Interpolator& interp)
 {
 	m_interpolators.push_back(interp);
+}
+
+bool SG_Controller::Empty() const
+{
+	return m_interpolators.empty();
 }

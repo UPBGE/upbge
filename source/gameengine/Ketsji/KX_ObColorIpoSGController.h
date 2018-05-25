@@ -45,7 +45,7 @@ public:
 public:
 	KX_ObColorIpoSGController() = default;
 	virtual ~KX_ObColorIpoSGController() = default;
-	virtual bool Update();
+	virtual bool Update(SG_Node *node);
 };
 
 #endif  /* __KX_OBCOLORIPOSGCONTROLLER_H__ */

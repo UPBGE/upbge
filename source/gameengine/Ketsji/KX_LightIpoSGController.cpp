@@ -34,13 +34,15 @@
 #include "KX_LightObject.h"
 #include "RAS_ILightObject.h"
 
-bool KX_LightIpoSGController::Update()
+#include "BLI_math_vector.h"
+
+bool KX_LightIpoSGController::Update(SG_Node *node)
 {
-	if (!SG_Controller::Update()) {
+	if (!SG_Controller::Update(node)) {
 		return false;
 	}
 
-	KX_LightObject *kxlight = (KX_LightObject *)m_node->GetClientObject();
+	KX_LightObject *kxlight = static_cast<KX_LightObject *>(node->GetClientObject());
 	RAS_ILightObject *lightobj = kxlight->GetLightData();
 
 	if (m_modify_energy) {
@@ -48,9 +50,7 @@ bool KX_LightIpoSGController::Update()
 	}
 
 	if (m_modify_color) {
-		lightobj->m_color[0] = m_col_rgb[0];
-		lightobj->m_color[1] = m_col_rgb[1];
-		lightobj->m_color[2] = m_col_rgb[2];
+		copy_v3_v3(lightobj->m_color, m_col_rgb);
 	}
 
 	if (m_modify_dist) {
