@@ -1848,19 +1848,13 @@ static void ui_item_menutype_func(bContext *C, uiLayout *layout, void *arg_mt)
 	layout->root->block->flag ^= UI_BLOCK_IS_FLIP;
 }
 
-static void ui_item_paneltype_func(bContext *C, uiLayout *layout, void *arg_pt)
+void ui_item_paneltype_func(bContext *C, uiLayout *layout, void *arg_pt)
 {
 	PanelType *pt = (PanelType *)arg_pt;
+	UI_paneltype_draw(C, pt, layout);
 
-	if (layout->context) {
-		CTX_store_set(C, layout->context);
-	}
-
-	UI_popover_panel_from_type(C, layout, pt);
-
-	if (layout->context) {
-		CTX_store_set(C, NULL);
-	}
+	/* panels are created flipped (from event handling pov) */
+	layout->root->block->flag ^= UI_BLOCK_IS_FLIP;
 }
 
 static uiBut *ui_item_menu(
@@ -3739,4 +3733,33 @@ void UI_menutype_draw(bContext *C, MenuType *mt, struct uiLayout *layout)
 	if (layout->context) {
 		CTX_store_set(C, NULL);
 	}
+}
+
+/**
+ * Used for popup panels only.
+ */
+void UI_paneltype_draw(bContext *C, PanelType *pt, uiLayout *layout)
+{
+	Panel *panel = MEM_callocN(sizeof(Panel), "popover panel");
+	panel->type = pt;
+
+	if (layout->context) {
+		CTX_store_set(C, layout->context);
+	}
+
+	if (pt->draw_header) {
+		panel->layout = uiLayoutRow(layout, false);
+		pt->draw_header(C, panel);
+		panel->layout = NULL;
+	}
+
+	panel->layout = layout;
+	pt->draw(C, panel);
+	panel->layout = NULL;
+
+	if (layout->context) {
+		CTX_store_set(C, NULL);
+	}
+
+	MEM_freeN(panel);
 }

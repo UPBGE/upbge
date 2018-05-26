@@ -3150,7 +3150,7 @@ DerivedMesh *mesh_create_derived_no_virtual(
 	DerivedMesh *final;
 	
 	mesh_calc_modifiers_dm(
-	        depsgraph, scene, ob, vertCos, false, -1, false, dataMask, -1, false, false, false,
+	        depsgraph, scene, ob, vertCos, -1, false, dataMask, -1, false, false, false,
 	        NULL, &final);
 
 	return final;
@@ -3163,7 +3163,7 @@ DerivedMesh *mesh_create_derived_physics(
 	DerivedMesh *final;
 	
 	mesh_calc_modifiers_dm(
-	        depsgraph, scene, ob, vertCos, false, -1, true, dataMask, -1, false, false, false,
+	        depsgraph, scene, ob, vertCos, -1, true, dataMask, -1, false, false, false,
 	        NULL, &final);
 
 	return final;
@@ -3177,7 +3177,7 @@ DerivedMesh *mesh_create_derived_no_deform_render(
 	DerivedMesh *final;
 
 	mesh_calc_modifiers_dm(
-	        depsgraph, scene, ob, vertCos, true, 0, false, dataMask, -1, false, false, false,
+	        depsgraph, scene, ob, vertCos, 0, false, dataMask, -1, false, false, false,
 	        NULL, &final);
 
 	return final;

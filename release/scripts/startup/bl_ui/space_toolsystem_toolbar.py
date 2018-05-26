@@ -87,7 +87,11 @@ class _defs_view3d_generic:
             text="Cursor",
             icon="ops.generic.cursor",
             keymap=(
-                ("view3d.cursor3d", dict(), dict(type='ACTIONMOUSE', value='CLICK')),
+                ("view3d.cursor3d", dict(), dict(type='ACTIONMOUSE', value='PRESS')),
+                ("transform.translate",
+                 dict(release_confirm=True, cursor_transform=True),
+                 dict(type='EVT_TWEAK_A', value='ANY'),
+                ),
             ),
         )
 
