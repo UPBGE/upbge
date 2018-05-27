@@ -4036,7 +4036,7 @@ static void rna_def_userdef_system(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "use_scripts_auto_execute", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", USER_SCRIPT_AUTOEXEC_DISABLE);
-	RNA_def_property_ui_text(prop, "Auto Run Python Scripts",
+	RNA_def_property_ui_text(prop, "Auto Run Python Scripts and Components",
 	                         "Allow any .blend file to run scripts automatically "
 	                         "(unsafe with blend files from an untrusted source)");
 	RNA_def_property_update(prop, 0, "rna_userdef_script_autoexec_update");

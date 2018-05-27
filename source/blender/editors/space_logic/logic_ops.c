@@ -47,6 +47,8 @@
 #include "BKE_main.h"
 #include "BKE_sca.h"
 #include "BKE_python_component.h"
+#include "BKE_global.h"
+#include "BKE_report.h"
 
 #include "ED_logic.h"
 #include "ED_object.h"
@@ -746,6 +748,11 @@ static int component_add_exec(bContext *C, wmOperator *op)
 	Object *ob = CTX_data_active_object(C);
 	char import[MAX_NAME];
 
+	if ((G.f & G_SCRIPT_AUTOEXEC) == 0) {
+		BKE_report(op->reports, RPT_WARNING, "Python script/component auto-execution disable, look in the userpref to activate...");
+		return OPERATOR_CANCELLED;
+	}
+
 	if (!ob) {
 		return OPERATOR_CANCELLED;
 	}
@@ -835,6 +842,11 @@ static int component_reload_exec(bContext *C, wmOperator *op)
 	Object *ob = CTX_data_active_object(C);
 	PythonComponent *pc = NULL, *prev_pc = NULL;
 	int index = RNA_int_get(op->ptr, "index");
+
+	if ((G.f & G_SCRIPT_AUTOEXEC) == 0) {
+		BKE_report(op->reports, RPT_WARNING, "Python script/component auto-execution disable, look in the userpref to activate...");
+		return OPERATOR_CANCELLED;
+	}
 
 	if(!ob) {
 		return OPERATOR_CANCELLED;
