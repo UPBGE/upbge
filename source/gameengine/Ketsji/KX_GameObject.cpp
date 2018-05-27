@@ -3923,16 +3923,22 @@ struct KX_GameObject::RayCastData {
 	KX_GameObject *m_hitObject;
 };
 
+static bool CheckRayCastObject(KX_GameObject *obj, KX_GameObject::RayCastData *rayData)
+{
+	const std::string& prop = rayData->m_prop;
+	const unsigned short mask = rayData->m_mask;
+	// Check if the object had a given property (if this one is non empty) and have the correct group mask (if this one is different from 0xFFFF).
+	return ((prop.empty() || obj->GetProperty(prop)) && (mask == ((1u << OB_MAX_COL_MASKS) - 1) || obj->GetCollisionGroup() & mask));
+}
+
 bool KX_GameObject::RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, RayCastData *rayData)
 {
-	KX_GameObject *hitKXObj = client->m_gameobject;
+	KX_GameObject *obj = client->m_gameobject;
 
-	// if X-ray option is selected, the unwnted objects were not tested, so get here only with true hit
+	// if X-ray option is selected, the unwanted objects were not tested, so get here only with true hit
 	// if not, all objects were tested and the front one may not be the correct one.
-	if ((rayData->m_xray || rayData->m_prop.empty() || hitKXObj->GetProperty(rayData->m_prop) != nullptr) &&
-	    hitKXObj->GetCollisionGroup() & rayData->m_mask) {
-		rayData->m_hitObject = hitKXObj;
-		return true;
+	if (rayData->m_xray || CheckRayCastObject(obj, rayData)) {
+		rayData->m_hitObject = obj;
 	}
 	// return true to stop RayCast::RayTest from looping, the above test was decisive
 	// We would want to loop only if we want to get more than one hit point
@@ -3944,23 +3950,11 @@ bool KX_GameObject::RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, RayC
  */
 bool KX_GameObject::NeedRayCast(KX_ClientObjectInfo *client, RayCastData *rayData)
 {
-	KX_GameObject *hitKXObj = client->m_gameobject;
-
-	if (client->m_type > KX_ClientObjectInfo::ACTOR) {
-		// Unknown type of object, skip it.
-		// Should not occur as the sensor objects are filtered in RayTest()
-		CM_Error("invalid client type " << client->m_type << " found in ray casting");
-		return false;
-	}
+	KX_GameObject *obj = client->m_gameobject;
 
 	// if X-Ray option is selected, skip object that don't match the criteria as we see through them
 	// if not, test all objects because we don't know yet which one will be on front
-	if ((!rayData->m_xray || rayData->m_prop.size() || hitKXObj->GetProperty(rayData->m_prop) != nullptr) &&
-	    hitKXObj->GetCollisionGroup() & rayData->m_mask) {
-		return true;
-	}
-	// skip the object
-	return false;
+	return (!rayData->m_xray || CheckRayCastObject(obj, rayData));
 }
 
 EXP_PYMETHODDEF_DOC(KX_GameObject, rayCastTo,
