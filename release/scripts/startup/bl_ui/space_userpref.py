@@ -1035,7 +1035,6 @@ class USERPREF_PT_file(Panel):
         row = sub.split(percentage=0.3)
         row.label(text="Auto Execution:")
         row.prop(system, "use_scripts_auto_execute")
-        row.prop(system, "use_components_auto_execute")
 
         if system.use_scripts_auto_execute:
             box = sub.box()
