@@ -237,8 +237,8 @@ option(WITH_SYSTEM_BULLET "Use the systems bullet library (currently unsupported
 mark_as_advanced(WITH_SYSTEM_BULLET)
 option(WITH_GAMEENGINE    "Enable Game Engine" ${_init_GAMEENGINE})
 
-option(WITH_GAMEENGINE_COMPONENTS_SECURITY "Disables execution of UPBGE components within blend files by default" ON)
-mark_as_advanced(WITH_GAMEENGINE_COMPONENTS_SECURITY)
+option(WITH_GAMEENGINE_SECURITY "Disable game engine python debugging tools" OFF)
+mark_as_advanced(WITH_GAMEENGINE_SECURITY)
 
 option(WITH_GAMEENGINE_GPU_SYNC "Enable GPU synchronization for VideoTexture module image rendering (ImageRender)" OFF)
 mark_as_advanced(WITH_GAMEENGINE_GPU_SYNC)
