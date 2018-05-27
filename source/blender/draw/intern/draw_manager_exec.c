@@ -333,8 +333,8 @@ void drw_state_set(DRWState state)
 				}
 				else if ((state & DRW_STATE_WRITE_STENCIL_SHADOW_FAIL) != 0) {
 					glStencilMask(0xFF);
-					glStencilOpSeparate(GL_BACK,  GL_KEEP, GL_INCR_WRAP, GL_KEEP);
-					glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_DECR_WRAP, GL_KEEP);
+					glStencilOpSeparate(GL_BACK,  GL_KEEP, GL_DECR_WRAP, GL_KEEP);
+					glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_INCR_WRAP, GL_KEEP);
 				}
 				/* Stencil Test */
 				else if ((state & (DRW_STATE_STENCIL_EQUAL | DRW_STATE_STENCIL_NEQUAL)) != 0) {
@@ -705,6 +705,12 @@ bool DRW_culling_plane_test(float plane[4])
 	}
 
 	return false;
+}
+
+void DRW_culling_frustum_corners_get(BoundBox *corners)
+{
+	draw_clipping_setup_from_view();
+	memcpy(corners, &DST.clipping.frustum_corners, sizeof(BoundBox));
 }
 
 /** \} */

@@ -289,6 +289,7 @@ enum {
 	PLANE_YZ     = (1 << 6),
 	CLIP_ZPOS    = (1 << 7),
 	CLIP_ZNEG    = (1 << 8),
+	GRID_BACK    = (1 << 9),
 };
 
 /* *********** FUNCTIONS *********** */
@@ -447,18 +448,21 @@ static void OBJECT_engine_init(void *vedata)
 				e_data.grid_flag |= SHOW_AXIS_Y;
 				e_data.grid_flag |= SHOW_AXIS_Z;
 				e_data.grid_flag |= SHOW_GRID;
+				e_data.grid_flag |= GRID_BACK;
 			}
 			else if (ELEM(rv3d->view, RV3D_VIEW_TOP, RV3D_VIEW_BOTTOM)) {
 				e_data.grid_flag = PLANE_XY;
 				e_data.grid_flag |= SHOW_AXIS_X;
 				e_data.grid_flag |= SHOW_AXIS_Y;
 				e_data.grid_flag |= SHOW_GRID;
+				e_data.grid_flag |= GRID_BACK;
 			}
 			else if (ELEM(rv3d->view, RV3D_VIEW_FRONT, RV3D_VIEW_BACK)) {
 				e_data.grid_flag = PLANE_XZ;
 				e_data.grid_flag |= SHOW_AXIS_X;
 				e_data.grid_flag |= SHOW_AXIS_Z;
 				e_data.grid_flag |= SHOW_GRID;
+				e_data.grid_flag |= GRID_BACK;
 			}
 			else { /* RV3D_VIEW_USER */
 				e_data.grid_flag = PLANE_XY;
@@ -988,7 +992,7 @@ static void OBJECT_cache_init(void *vedata)
 
 	{
 		/* Solid bones */
-		DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_CULL_BACK;
+		DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL;
 		psl->bone_solid = DRW_pass_create("Bone Solid Pass", state);
 		psl->bone_outline = DRW_pass_create("Bone Outline Pass", state);
 	}
