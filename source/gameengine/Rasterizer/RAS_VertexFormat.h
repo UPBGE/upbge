@@ -55,7 +55,8 @@ using RAS_VertexFormatUvTuple = std::tuple<
 	RAS_VertexFormatType<4, color>,
 	RAS_VertexFormatType<5, color>,
 	RAS_VertexFormatType<6, color>,
-	RAS_VertexFormatType<7, color>
+	RAS_VertexFormatType<7, color>,
+	RAS_VertexFormatType<8, color>
 >;
 
 using RAS_VertexFormatTuple = decltype(std::tuple_cat(
@@ -65,7 +66,8 @@ using RAS_VertexFormatTuple = decltype(std::tuple_cat(
 	RAS_VertexFormatUvTuple<4>(),
 	RAS_VertexFormatUvTuple<5>(),
 	RAS_VertexFormatUvTuple<6>(),
-	RAS_VertexFormatUvTuple<7>()
+	RAS_VertexFormatUvTuple<7>(),
+	RAS_VertexFormatUvTuple<8>()
 ));
 
 #endif  // __RAS_VERTEX_FORMAT_H__
