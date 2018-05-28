@@ -1259,7 +1259,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 	kxscene->SetDbvtCulling((blenderscene->gm.mode & WO_DBVT_CULLING) != 0);
 
 	// No occlusion culling by default.
-	kxscene->SetDbvtOcclusionRes(0);
+	kxscene->SetDbvtOcclusionRes(0, 0);
 
 	if (blenderscene->gm.lodflag & SCE_LOD_USE_HYST) {
 		kxscene->SetLodHysteresis(true);
@@ -1510,7 +1510,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 			}
 		}
 		if (occlusion) {
-			kxscene->SetDbvtOcclusionRes(blenderscene->gm.occlusionRes);
+			kxscene->SetDbvtOcclusionRes(blenderscene->gm.occlusionRes, blenderscene->gm.occlusionRes);
 		}
 	}
 

@@ -83,6 +83,8 @@ class RAS_DebugDraw;
 class RAS_OffScreen;
 class RAS_2DFilterManager;
 
+class MaskedOcclusionCulling;
+
 struct Scene;
 struct TaskPool;
 
@@ -227,16 +229,12 @@ private:
 	bool m_dbvtCulling;
 
 	/// Occlusion culling resolution.
-	int m_dbvtOcclusionRes;
+	int m_dbvtOcclusionRes[2];
 
 	/// The framing settings used by this scene
 	RAS_FrameSettings m_frameSettings;
 
-	/**
-	 * This scenes viewport into the game engine
-	 * canvas.Maintained externally, initially [0,0] -> [0,0]
-	 */
-	RAS_Rect m_viewport;
+	MaskedOcclusionCulling *m_occlusionBuffer;
 
 	/// Visibility testing functions.
 	static void PhysicsCullingCallback(KX_ClientObjectInfo *objectInfo, void *cullingInfo);
@@ -387,8 +385,7 @@ public:
 	/// Use of DBVT tree for camera culling
 	void SetDbvtCulling(bool b);
 	bool GetDbvtCulling() const;
-	void SetDbvtOcclusionRes(int i);
-	int GetDbvtOcclusionRes() const;
+	void SetDbvtOcclusionRes(int width, int height);
 
 	void SetSceneConverter(BL_SceneConverter *sceneConverter);
 

@@ -54,6 +54,7 @@ set(INC
 	../../blender/python/intern
 	../../../intern/glew-mx
 	../../../intern/guardedalloc
+	../../../intern/maskedocclusionculling
 )
 
 set(INC_SYS

@@ -107,6 +107,8 @@
 #include "CM_Message.h"
 #include "CM_List.h"
 
+#include "MaskedOcclusionCulling.h"
+
 static void *KX_SceneReplicationFunc(SG_Node *node, void *gameobj, void *scene)
 {
 	KX_GameObject *replica = ((KX_Scene *)scene)->AddNodeReplicaObject(node, (KX_GameObject *)gameobj);
@@ -158,7 +160,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_suspendedDelta(0.0),
 	m_activityCulling(false),
 	m_dbvtCulling(false),
-	m_dbvtOcclusionRes(0),
 	m_blenderScene(scene),
 	m_previousAnimTime(0.0f),
 	m_isActivedHysteresis(false),
@@ -171,6 +172,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_inactivelist = new EXP_ListValue<KX_GameObject>();
 	m_cameralist = new EXP_ListValue<KX_Camera>();
 	m_fontlist = new EXP_ListValue<KX_FontObject>();
+
+	m_occlusionBuffer = MaskedOcclusionCulling::Create();
 
 	m_filterManager = new KX_2DFilterManager();
 	m_logicmgr = new SCA_LogicManager();
@@ -281,6 +284,8 @@ KX_Scene::~KX_Scene()
 	if (m_boundingBoxManager) {
 		delete m_boundingBoxManager;
 	}
+
+	MaskedOcclusionCulling::Destroy(m_occlusionBuffer);
 
 #ifdef WITH_PYTHON
 	if (m_attrDict) {
@@ -415,14 +420,12 @@ bool KX_Scene::GetDbvtCulling() const
 	return m_dbvtCulling;
 }
 
-void KX_Scene::SetDbvtOcclusionRes(int i)
+void KX_Scene::SetDbvtOcclusionRes(int width, int height)
 {
-	m_dbvtOcclusionRes = i;
-}
+	m_dbvtOcclusionRes[0] = width;
+	m_dbvtOcclusionRes[1] = height;
 
-int KX_Scene::GetDbvtOcclusionRes() const
-{
-	return m_dbvtOcclusionRes;
+	m_occlusionBuffer->SetResolution(width, height);
 }
 
 void KX_Scene::AddObjectDebugProperties(KX_GameObject *gameobj)
@@ -1128,9 +1131,8 @@ void KX_Scene::CalculateVisibleMeshes(std::vector<KX_GameObject *>& objects, con
 		const std::array<mt::vec4, 6>& planes = frustum.GetPlanes();
 		const mt::mat4& matrix = frustum.GetMatrix();
 		const int *viewport = KX_GetActiveEngine()->GetCanvas()->GetViewPort();
-		CullingInfo info(layer, objects);
 
-		dbvt_culling = m_physicsEnvironment->CullingTest(PhysicsCullingCallback, &info, planes, m_dbvtOcclusionRes, viewport, matrix);
+		m_occlusionBuffer->ClearBuffer();
 	}
 	if (!dbvt_culling) {
 		KX_CullingHandler handler(objects, frustum);
