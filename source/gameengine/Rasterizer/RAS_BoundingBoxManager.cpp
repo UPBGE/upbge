@@ -47,7 +47,7 @@ RAS_BoundingBox *RAS_BoundingBoxManager::CreateBoundingBox()
 	return boundingBox;
 }
 
-RAS_BoundingBox *RAS_BoundingBoxManager::CreateMeshBoundingBox(const RAS_IDisplayArrayList& arrayList)
+RAS_BoundingBox *RAS_BoundingBoxManager::CreateMeshBoundingBox(const RAS_DisplayArrayList& arrayList)
 {
 	RAS_BoundingBox *boundingBox = new RAS_MeshBoundingBox(this, arrayList);
 

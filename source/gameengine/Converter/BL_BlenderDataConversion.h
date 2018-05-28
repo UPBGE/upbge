@@ -47,7 +47,7 @@ struct Object;
 struct Main;
 
 struct BL_MeshMaterial {
-	RAS_IDisplayArray *array;
+	RAS_DisplayArray *array;
 	RAS_MaterialBucket *bucket;
 	bool visible;
 	bool twoside;

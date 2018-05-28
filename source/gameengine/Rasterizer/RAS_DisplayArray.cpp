@@ -20,15 +20,13 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file RAS_IDisplayArray.cpp
+/** \file RAS_DisplayArray.cpp
  *  \ingroup bgerast
  */
 
 #include "RAS_DisplayArray.h"
 #include "RAS_DisplayArrayStorage.h"
 #include "RAS_Mesh.h"
-
-#include "CM_Template.h"
 
 #include "GPU_glew.h"
 
@@ -56,12 +54,18 @@ struct PolygonSort {
 	};
 };
 
-RAS_IDisplayArray::RAS_IDisplayArray(const RAS_IDisplayArray& other)
+RAS_DisplayArray::RAS_DisplayArray(PrimitiveType type, const RAS_DisplayArray::Format& format)
+	:m_type(type),
+	m_format(format),
+	m_maxOrigIndex(0)
+{
+}
+
+RAS_DisplayArray::RAS_DisplayArray(const RAS_DisplayArray& other)
 	:m_type(other.m_type),
 	m_format(other.m_format),
-	m_memoryFormat(other.m_memoryFormat),
+	m_vertexData(other.m_vertexData),
 	m_vertexInfos(other.m_vertexInfos),
-	m_vertexDataPtrs(other.m_vertexDataPtrs),
 	m_primitiveIndices(other.m_primitiveIndices),
 	m_triangleIndices(other.m_triangleIndices),
 	m_maxOrigIndex(other.m_maxOrigIndex),
@@ -69,25 +73,52 @@ RAS_IDisplayArray::RAS_IDisplayArray(const RAS_IDisplayArray& other)
 {
 }
 
-RAS_IDisplayArray::RAS_IDisplayArray(PrimitiveType type, const RAS_VertexFormat& format,
-                                     const RAS_VertexDataMemoryFormat& memoryFormat)
-	:m_type(type),
-	m_format(format),
-	m_memoryFormat(memoryFormat),
-	m_maxOrigIndex(0)
+RAS_DisplayArray::~RAS_DisplayArray()
 {
 }
 
-RAS_IDisplayArray::~RAS_IDisplayArray()
+unsigned int RAS_DisplayArray::AddVertex(const mt::vec3_packed& pos, const mt::vec3_packed& nor, const mt::vec4_packed& tan,
+			mt::vec2_packed uvs[RAS_Texture::MaxUnits], unsigned int colors[RAS_Texture::MaxUnits], unsigned int origIndex, uint8_t flag)
 {
+	m_vertexData.positions.push_back(pos);
+	m_vertexData.normals.push_back(nor);
+	m_vertexData.tangents.push_back(tan);
+
+	for (unsigned short i = 0; i < m_format.uvSize; ++i) {
+		m_vertexData.uvs[i].push_back(uvs[i]);
+	}
+
+	for (unsigned short i = 0; i < m_format.colorSize; ++i) {
+		m_vertexData.colors[i].push_back({colors[i]});
+	}
+
+	m_maxOrigIndex = std::max(m_maxOrigIndex, origIndex);
+	m_vertexInfos.emplace_back(origIndex, flag);
+
+	return m_vertexInfos.size() - 1;
 }
 
-RAS_IDisplayArray *RAS_IDisplayArray::ConstructArray(RAS_IDisplayArray::PrimitiveType type, const RAS_VertexFormat &format)
+void RAS_DisplayArray::Clear()
 {
-	return CM_InstantiateTemplateSwitch<RAS_IDisplayArray, RAS_DisplayArray, RAS_VertexFormatTuple>(format, type, format);
+	m_vertexData.positions.clear();
+	m_vertexData.normals.clear();
+	m_vertexData.tangents.clear();
+
+	for (unsigned short i = 0; i < m_format.uvSize; ++i) {
+		m_vertexData.uvs[i].clear();
+	}
+
+	for (unsigned short i = 0; i < m_format.colorSize; ++i) {
+		m_vertexData.colors[i].clear();
+	}
+
+	m_vertexInfos.clear();
+	m_primitiveIndices.clear();
+	m_triangleIndices.clear();
+	m_maxOrigIndex = 0;
 }
 
-void RAS_IDisplayArray::SortPolygons(const mt::mat3x4& transform, unsigned int *indexmap)
+void RAS_DisplayArray::SortPolygons(const mt::mat3x4& transform, unsigned int *indexmap)
 {
 	const unsigned int totpoly = GetPrimitiveIndexCount() / 3;
 
@@ -106,7 +137,7 @@ void RAS_IDisplayArray::SortPolygons(const mt::mat3x4& transform, unsigned int *
 			for (unsigned short j = 0; j < 3; ++j) {
 				/* Note that we don't divide by 3 as it is not needed
 				 * to compare polygons. */
-				center += GetVertex(m_primitiveIndices[i * 3 + j]).xyz();
+				center += mt::vec3(m_vertexData.positions[m_primitiveIndices[i * 3 + j]]);
 			}
 		}
 	}
@@ -128,17 +159,17 @@ void RAS_IDisplayArray::SortPolygons(const mt::mat3x4& transform, unsigned int *
 	}
 }
 
-void RAS_IDisplayArray::InvalidatePolygonCenters()
+void RAS_DisplayArray::InvalidatePolygonCenters()
 {
 	m_polygonCenters.clear();
 }
 
-RAS_IDisplayArray::PrimitiveType RAS_IDisplayArray::GetPrimitiveType() const
+RAS_DisplayArray::PrimitiveType RAS_DisplayArray::GetPrimitiveType() const
 {
 	return m_type;
 }
 
-int RAS_IDisplayArray::GetOpenGLPrimitiveType() const
+int RAS_DisplayArray::GetOpenGLPrimitiveType() const
 {
 	switch (m_type) {
 		case LINES:
@@ -153,64 +184,78 @@ int RAS_IDisplayArray::GetOpenGLPrimitiveType() const
 	return 0;
 }
 
-void RAS_IDisplayArray::UpdateFrom(RAS_IDisplayArray *other, int flag)
+void RAS_DisplayArray::UpdateFrom(RAS_DisplayArray *other, int flag)
 {
 	BLI_assert(m_format == other->GetFormat());
 
-	if (flag & TANGENT_MODIFIED) {
-		for (unsigned int i = 0, size = other->GetVertexCount(); i < size; ++i) {
-			GetVertex(i).SetTangent(other->GetVertex(i).GetTangent());
-		}
-	}
-	if (flag & UVS_MODIFIED) {
-		const unsigned short uvSize = m_format.uvSize;
-		for (unsigned int i = 0, size = other->GetVertexCount(); i < size; ++i) {
-			for (unsigned int uv = 0; uv < uvSize; ++uv) {
-				GetVertex(i).SetUV(uv, other->GetVertex(i).GetUv(uv));
-			}
-		}
-	}
 	if (flag & POSITION_MODIFIED) {
-		for (unsigned int i = 0, size = other->GetVertexCount(); i < size; ++i) {
-			GetVertex(i).SetXYZ(other->GetVertex(i).GetXYZ());
-		}
+		m_vertexData.positions = other->m_vertexData.positions;
 	}
 	if (flag & NORMAL_MODIFIED) {
-		for (unsigned int i = 0, size = other->GetVertexCount(); i < size; ++i) {
-			GetVertex(i).SetNormal(other->GetVertex(i).GetNormal());
+		m_vertexData.normals = other->m_vertexData.normals;
+	}
+	if (flag & TANGENT_MODIFIED) {
+		m_vertexData.tangents = other->m_vertexData.tangents;
+	}
+	if (flag & UVS_MODIFIED) {
+		for (unsigned short i = 0; i < m_format.uvSize; ++i) {
+			m_vertexData.uvs[i] = other->m_vertexData.uvs[i];
 		}
 	}
 	if (flag & COLORS_MODIFIED) {
-		const unsigned short colorSize = m_format.colorSize;
-		for (unsigned int i = 0, size = other->GetVertexCount(); i < size; ++i) {
-			for (unsigned int color = 0; color < colorSize; ++color) {
-				GetVertex(i).SetColor(color, other->GetVertex(i).GetRawColor(color));
-			}
+		for (unsigned short i = 0; i < m_format.colorSize; ++i) {
+			m_vertexData.colors[i] = other->m_vertexData.colors[i];
 		}
 	}
 }
 
-const RAS_VertexFormat& RAS_IDisplayArray::GetFormat() const
+const RAS_DisplayArray::Format& RAS_DisplayArray::GetFormat() const
 {
 	return m_format;
 }
 
-const RAS_VertexDataMemoryFormat& RAS_IDisplayArray::GetMemoryFormat() const
+RAS_DisplayArrayLayout RAS_DisplayArray::GetLayout() const
 {
-	return m_memoryFormat;
+	RAS_DisplayArrayLayout layout;
+	intptr_t offset = 0;
+
+	const unsigned int size = m_vertexInfos.size();
+
+	layout.position = offset;
+	offset += sizeof(mt::vec3_packed) * size;
+
+	layout.normal = offset;
+	offset += sizeof(mt::vec3_packed) * size;
+	
+	layout.tangent = offset;
+	offset += sizeof(mt::vec4_packed) * size;
+
+	for (unsigned short i = 0; i < m_format.uvSize; ++i) {
+		layout.uvs[i] = offset;
+		offset += sizeof(mt::vec2_packed) * size;
+	}
+
+	for (unsigned short i = 0; i < m_format.colorSize; ++i) {
+		layout.colors[i] = offset;
+		offset += sizeof(unsigned int) * size;
+	}
+
+	layout.size = offset;
+
+	return layout;
 }
 
-RAS_IDisplayArray::Type RAS_IDisplayArray::GetType() const
+RAS_DisplayArray::Type RAS_DisplayArray::GetType() const
 {
 	return NORMAL;
 }
 
-RAS_DisplayArrayStorage *RAS_IDisplayArray::GetStorage()
+RAS_DisplayArrayStorage& RAS_DisplayArray::GetStorage()
 {
-	return &m_storage;
+	return m_storage;
 }
 
-void RAS_IDisplayArray::ConstructStorage()
+void RAS_DisplayArray::ConstructStorage()
 {
 	m_storage.Construct(this);
 	m_storage.UpdateSize();

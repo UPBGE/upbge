@@ -128,6 +128,8 @@ struct VectorPacked {
   /// @param vector Vector to create the VectorPacked from.
   explicit VectorPacked(const Vector<T, d>& vector) { vector.Pack(this); }
 
+  explicit VectorPacked(const T * const s) { MATHFU_VECTOR_OPERATION(data[i] = s[i]); }
+
   /// Copy a Vector to a VectorPacked.
   ///
   /// Both VectorPacked and Vector must have the same number of dimensions.

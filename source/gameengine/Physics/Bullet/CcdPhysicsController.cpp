@@ -1829,7 +1829,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(KX_GameObject *gameobj, RAS_Mesh *mesh
 		return false;
 	}
 
-	RAS_IDisplayArrayList displayArrays;
+	RAS_DisplayArrayList displayArrays;
 
 	// Indices count.
 	unsigned int numIndices = 0;
@@ -1845,7 +1845,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(KX_GameObject *gameobj, RAS_Mesh *mesh
 		RAS_MeshMaterial *meshmat = meshobj->GetMeshMaterial(i);
 		RAS_IPolyMaterial *mat = meshmat->GetBucket()->GetPolyMaterial();
 
-		RAS_IDisplayArray *array = (deformer) ? deformer->GetDisplayArray(i) : meshmat->GetDisplayArray();
+		RAS_DisplayArray *array = (deformer) ? deformer->GetDisplayArray(i) : meshmat->GetDisplayArray();
 		const unsigned int indicesCount = array->GetTriangleIndexCount();
 
 		// If collisions are disabled: do nothing.
@@ -1873,7 +1873,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(KX_GameObject *gameobj, RAS_Mesh *mesh
 	// Current vertex written.
 	unsigned int curVert = 0;
 
-	for (RAS_IDisplayArray *array : displayArrays) {
+	for (RAS_DisplayArray *array : displayArrays) {
 		// Convert location of all vertices and remap if vertices weren't already converted.
 		for (unsigned int j = 0, numvert = array->GetVertexCount(); j < numvert; ++j) {
 			const RAS_VertexInfo& info = array->GetVertexInfo(j);
@@ -1885,11 +1885,10 @@ bool CcdShapeConstructionInfo::UpdateMesh(KX_GameObject *gameobj, RAS_Mesh *mesh
 				continue;
 			}
 
-			RAS_Vertex vert = array->GetVertex(j);
-			const float *pos = vert.GetXYZ();
-			m_vertexArray[curVert * 3] = pos[0];
-			m_vertexArray[curVert * 3 + 1] = pos[1];
-			m_vertexArray[curVert * 3 + 2] = pos[2];
+			const mt::vec3_packed& pos = array->GetPosition(j);
+			m_vertexArray[curVert * 3] = pos.x;
+			m_vertexArray[curVert * 3 + 1] = pos.y;
+			m_vertexArray[curVert * 3 + 2] = pos.z;
 
 			// Register the vertex index where the position was converted in m_vertexArray.
 			m_vertexRemap[origIndex] = curVert++;
@@ -1906,7 +1905,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(KX_GameObject *gameobj, RAS_Mesh *mesh
 		unsigned int curTri = 0;
 
 		for (unsigned short i = 0, numArray = displayArrays.size(); i < numArray; ++i) {
-			RAS_IDisplayArray *array = displayArrays[i];
+			RAS_DisplayArray *array = displayArrays[i];
 			const unsigned int polygonStartIndex = polygonStartIndices[i];
 
 			// Convert triangles using remaped vertices index.
@@ -1919,9 +1918,8 @@ bool CcdShapeConstructionInfo::UpdateMesh(KX_GameObject *gameobj, RAS_Mesh *mesh
 					const unsigned int curInd = curTri * 3 + k;
 
 					// Convert UV for raycast UV computation.
-					RAS_Vertex vert = array->GetVertex(index);
-					const float *uv = vert.GetUv(0);
-					m_triFaceUVcoArray[curInd] = {{uv[0], uv[1]}};
+					const mt::vec2_packed& uv = array->GetUv(index, 0);
+					m_triFaceUVcoArray[curInd] = {{uv.x, uv.y}};
 
 					// Get vertex index from original index to m_vertexArray vertex index.
 					const RAS_VertexInfo& info = array->GetVertexInfo(index);

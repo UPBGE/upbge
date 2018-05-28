@@ -46,7 +46,7 @@
 #include "RAS_OffScreen.h"
 #include "RAS_CameraData.h"
 #include "RAS_MaterialBucket.h"
-#include "RAS_IDisplayArray.h"
+#include "RAS_DisplayArray.h"
 #include "RAS_ISync.h"
 #include "BLI_math.h"
 
@@ -893,8 +893,8 @@ ImageRender::ImageRender(KX_Scene *scene, KX_GameObject *observer, KX_GameObject
 	// this constructor is used for automatic planar mirror
 	// create a camera, take all data by default, in any case we will recompute the frustum on each frame
 	RAS_CameraData camdata;
-	std::vector<RAS_Vertex> mirrorVerts;
-	std::vector<RAS_Vertex>::iterator it;
+	std::vector<mt::vec3_packed> mirrorVerts;
+	std::vector<mt::vec3_packed>::iterator it;
 	float mirrorArea = 0.f;
 	float mirrorNormal[3] = {0.f, 0.f, 0.f};
 	float mirrorUp[3];
@@ -916,17 +916,17 @@ ImageRender::ImageRender(KX_Scene *scene, KX_GameObject *observer, KX_GameObject
 	for (KX_Mesh *mesh : mirror->GetMeshList()) {
 		for (RAS_MeshMaterial *meshmat : mesh->GetMeshMaterialList()) {
 			if (meshmat->GetBucket()->GetPolyMaterial() == mat) {
-				RAS_IDisplayArray *array = meshmat->GetDisplayArray();
+				RAS_DisplayArray *array = meshmat->GetDisplayArray();
 				for (unsigned int j = 0, indexCount = array->GetTriangleIndexCount(); j < indexCount; j += 3) {
 					float normal[3];
-					RAS_Vertex v1 = array->GetVertex(array->GetTriangleIndex(j));
-					RAS_Vertex v2 = array->GetVertex(array->GetTriangleIndex(j + 1));
-					RAS_Vertex v3 = array->GetVertex(array->GetTriangleIndex(j + 2));
+					const mt::vec3_packed& v1 = array->GetPosition(array->GetTriangleIndex(j));
+					const mt::vec3_packed& v2 = array->GetPosition(array->GetTriangleIndex(j + 1));
+					const mt::vec3_packed& v3 = array->GetPosition(array->GetTriangleIndex(j + 2));
 
 					mirrorVerts.push_back(v1);
 					mirrorVerts.push_back(v2);
 					mirrorVerts.push_back(v3);
-					float area = normal_tri_v3(normal, (float *)v1.GetXYZ(), (float *)v2.GetXYZ(), (float *)v3.GetXYZ());
+					float area = normal_tri_v3(normal, v1.data, v2.data, v3.data);
 					area = fabs(area);
 					mirrorArea += area;
 					mul_v3_fl(normal, area);
@@ -991,7 +991,7 @@ ImageRender::ImageRender(KX_Scene *scene, KX_GameObject *observer, KX_GameObject
 	back = -FLT_MAX; // most backward vertex (=highest Z coord in mirror space)
 	for (it = mirrorVerts.begin(); it != mirrorVerts.end(); it++)
 	{
-		copy_v3_v3(vec, (float *)(*it).GetXYZ());
+		copy_v3_v3(vec, it->data);
 		mul_m3_v3(mirrorMat, vec);
 		if (vec[0] < left) {
 			left = vec[0];

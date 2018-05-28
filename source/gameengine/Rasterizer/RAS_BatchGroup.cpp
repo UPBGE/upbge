@@ -25,7 +25,7 @@
  */
 
 #include "RAS_BatchGroup.h"
-#include "RAS_IBatchDisplayArray.h"
+#include "RAS_BatchDisplayArray.h"
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_MaterialBucket.h"
 #include "RAS_MeshUser.h"
@@ -73,9 +73,9 @@ RAS_BatchGroup *RAS_BatchGroup::RemoveMeshUser()
 bool RAS_BatchGroup::MergeMeshSlot(RAS_BatchGroup::Batch& batch, RAS_MeshSlot& slot, const mt::mat4& mat)
 {
 	RAS_DisplayArrayBucket *origArrayBucket = slot.m_displayArrayBucket;
-	RAS_IDisplayArray *origArray = origArrayBucket->GetDisplayArray();
+	RAS_DisplayArray *origArray = origArrayBucket->GetDisplayArray();
 	RAS_DisplayArrayBucket *arrayBucket = batch.m_displayArrayBucket;
-	RAS_IBatchDisplayArray *array = batch.m_displayArray;
+	RAS_BatchDisplayArray *array = batch.m_displayArray;
 
 	if (batch.m_originalDisplayArrayBucketList.find(&slot) != batch.m_originalDisplayArrayBucketList.end()) {
 		CM_Error("could not merge twice a mesh");
@@ -149,8 +149,8 @@ bool RAS_BatchGroup::MergeMeshUser(RAS_MeshUser *meshUser, const mt::mat4& mat)
 		Batch& batch = m_batchs[material];
 		// Create the batch if it is empty.
 		if (!batch.m_displayArray && !batch.m_displayArrayBucket) {
-			RAS_IDisplayArray *origarray = arrayBucket->GetDisplayArray();
-			batch.m_displayArray = RAS_IBatchDisplayArray::ConstructArray(origarray->GetPrimitiveType(), origarray->GetFormat());
+			RAS_DisplayArray *origarray = arrayBucket->GetDisplayArray();
+			batch.m_displayArray = new RAS_BatchDisplayArray(origarray->GetPrimitiveType(), origarray->GetFormat());
 			batch.m_displayArrayBucket = new RAS_DisplayArrayBucket(bucket, batch.m_displayArray, arrayBucket->GetMesh(),
 			                                                        arrayBucket->GetMeshMaterial(), nullptr);
 		}

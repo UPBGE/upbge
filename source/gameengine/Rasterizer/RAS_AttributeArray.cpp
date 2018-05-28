@@ -26,14 +26,14 @@
 
 #include "RAS_AttributeArray.h"
 #include "RAS_AttributeArrayStorage.h"
-#include "RAS_IDisplayArray.h"
+#include "RAS_DisplayArray.h"
 
-RAS_AttributeArray::RAS_AttributeArray(RAS_IDisplayArray *array)
+RAS_AttributeArray::RAS_AttributeArray(RAS_DisplayArray *array)
 	:m_array(array)
 {
 }
 
-RAS_AttributeArray::RAS_AttributeArray(const AttribList& attribs, RAS_IDisplayArray *array)
+RAS_AttributeArray::RAS_AttributeArray(const AttribList& attribs, RAS_DisplayArray *array)
 	:m_attribs(attribs),
 	m_array(array)
 {
@@ -59,8 +59,15 @@ RAS_AttributeArrayStorage *RAS_AttributeArray::GetStorage(RAS_Rasterizer::DrawTy
 {
 	std::unique_ptr<RAS_AttributeArrayStorage>& storage = m_storages[drawingMode];
 	if (!storage) {
-		storage.reset(new RAS_AttributeArrayStorage(m_array, m_array->GetStorage(), m_attribs));
+		storage.reset(new RAS_AttributeArrayStorage(m_array->GetLayout(), &m_array->GetStorage(), m_attribs));
 	}
 
 	return storage.get();
+}
+
+void RAS_AttributeArray::Clear()
+{
+	for (std::unique_ptr<RAS_AttributeArrayStorage> &storage : m_storages) {
+		storage.reset(nullptr);
+	}
 }

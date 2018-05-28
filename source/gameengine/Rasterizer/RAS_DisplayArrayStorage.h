@@ -4,7 +4,7 @@
 #include <vector>
 #include <memory>
 
-class RAS_IDisplayArray;
+class RAS_DisplayArray;
 class RAS_StorageVbo;
 class RAS_StorageVao;
 
@@ -22,9 +22,9 @@ public:
 	~RAS_DisplayArrayStorage();
 
 	// Construct manually to take care that the OpenGL context is current (case of asynchronous libloading).
-	void Construct(RAS_IDisplayArray *array);
+	void Construct(RAS_DisplayArray *array);
 
-	void UpdateVertexData();
+	void UpdateVertexData(unsigned int modifiedFlag);
 	void UpdateSize();
 	/// Map the index data and return its pointer.
 	unsigned int *GetIndexMap();
@@ -41,7 +41,7 @@ public:
 	 * \param indices The list of indices pointers to read.
 	 * \param counts The number of indices associated to the indices pointers.
 	 */
-	void IndexPrimitivesBatching(const std::vector<void *>& indices, const std::vector<int>& counts);
+	void IndexPrimitivesBatching(const std::vector<intptr_t>& indices, const std::vector<int>& counts);
 };
 
 #endif  // __RAS_DISPLAY_ARRAY_STORAGE_H__

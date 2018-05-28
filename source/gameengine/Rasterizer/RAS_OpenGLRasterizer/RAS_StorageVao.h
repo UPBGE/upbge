@@ -27,10 +27,12 @@
 
 #include "GPU_glew.h"
 
+class RAS_DisplayArrayLayout;
+
 class RAS_StorageVao
 {
 public:
-	RAS_StorageVao(RAS_IDisplayArray *array, RAS_DisplayArrayStorage *arrayStorage,
+	RAS_StorageVao(const RAS_DisplayArrayLayout &layout, RAS_DisplayArrayStorage *arrayStorage,
 				   const RAS_AttributeArray::AttribList& attribList);
 	~RAS_StorageVao();
 

@@ -32,21 +32,22 @@
 
 #include <vector>
 
-class RAS_IDisplayArray;
+class RAS_DisplayArrayLayout;
+class RAS_DisplayArray;
 
 class RAS_StorageVbo
 {
 private:
-	RAS_IDisplayArray *m_array;
-	GLuint m_size;
-	GLuint m_stride;
-	GLuint m_indices;
+	RAS_DisplayArray *m_array;
+	unsigned int m_indices;
 	GLenum m_mode;
 	GLuint m_ibo;
 	GLuint m_vbo;
 
+	void CopyVertexData(const RAS_DisplayArrayLayout& layout, unsigned int modifiedFlag);
+
 public:
-	RAS_StorageVbo(RAS_IDisplayArray *array);
+	RAS_StorageVbo(RAS_DisplayArray *array);
 	~RAS_StorageVbo();
 
 	void BindVertexBuffer();
@@ -55,14 +56,14 @@ public:
 	void BindIndexBuffer();
 	void UnbindIndexBuffer();
 
-	void UpdateVertexData();
+	void UpdateVertexData(unsigned int modifiedFlag);
 	void UpdateSize();
 	unsigned int *GetIndexMap();
 	void FlushIndexMap();
 
 	void IndexPrimitives();
 	void IndexPrimitivesInstancing(unsigned int numinstance);
-	void IndexPrimitivesBatching(const std::vector<void *>& indices, const std::vector<int>& counts);
+	void IndexPrimitivesBatching(const std::vector<intptr_t>& indices, const std::vector<int>& counts);
 };
 
 

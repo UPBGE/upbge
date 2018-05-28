@@ -164,7 +164,7 @@ PyObject *KX_Mesh::PyGetVertexArrayLength(PyObject *args, PyObject *kwds)
 		return nullptr;
 	}
 
-	RAS_IDisplayArray *array = GetDisplayArray(matid);
+	RAS_DisplayArray *array = GetDisplayArray(matid);
 	if (array) {
 		length = array->GetVertexCount();
 	}
@@ -181,15 +181,13 @@ PyObject *KX_Mesh::PyGetVertex(PyObject *args, PyObject *kwds)
 		return nullptr;
 	}
 
-	RAS_IDisplayArray *array = GetDisplayArray(matindex);
+	RAS_DisplayArray *array = GetDisplayArray(matindex);
 	if (vertexindex < 0 || vertexindex >= array->GetVertexCount()) {
 		PyErr_SetString(PyExc_ValueError, "mesh.getVertex(mat_idx, vert_idx): KX_Mesh, could not get a vertex at the given indices");
 		return nullptr;
 	}
 
-	RAS_Vertex vertex = array->GetVertex(vertexindex);
-
-	return (new KX_VertexProxy(array, vertex))->NewProxy(true);
+	return (new KX_VertexProxy(array, vertexindex))->NewProxy(true);
 }
 
 PyObject *KX_Mesh::PyGetPolygon(PyObject *args, PyObject *kwds)
@@ -238,17 +236,19 @@ PyObject *KX_Mesh::PyTransform(PyObject *args, PyObject *kwds)
 			continue;
 		}
 
-		RAS_IDisplayArray *array = m_materials[i]->GetDisplayArray();
+		RAS_DisplayArray *array = m_materials[i]->GetDisplayArray();
 		ok = true;
 
-		for (unsigned int j = 0, size = array->GetVertexCount(); j < size; ++j) {
-			RAS_Vertex vert = array->GetVertex(j);
-			vert.Transform(transform, ntransform);
+		const unsigned int vertexCount = array->GetVertexCount();
+		for (unsigned int j = 0; j < vertexCount; ++j) {
+			array->SetPosition(j, transform * mt::vec3(array->GetPosition(j)));
+			array->SetNormal(j, ntransform * mt::vec3(array->GetNormal(j)));
+			array->SetTangent(j, ntransform * mt::vec4(array->GetTangent(j)));
 		}
 
-		array->NotifyUpdate(RAS_IDisplayArray::POSITION_MODIFIED |
-		                    RAS_IDisplayArray::NORMAL_MODIFIED |
-		                    RAS_IDisplayArray::TANGENT_MODIFIED);
+		array->NotifyUpdate(RAS_DisplayArray::POSITION_MODIFIED |
+		                    RAS_DisplayArray::NORMAL_MODIFIED |
+		                    RAS_DisplayArray::TANGENT_MODIFIED);
 
 		/* if we set a material index, quit when done */
 		if (matindex != -1) {
@@ -306,26 +306,28 @@ PyObject *KX_Mesh::PyTransformUV(PyObject *args, PyObject *kwds)
 			continue;
 		}
 
-		RAS_IDisplayArray *array = m_materials[i]->GetDisplayArray();
+		RAS_DisplayArray *array = m_materials[i]->GetDisplayArray();
+		const RAS_DisplayArray::Format& format = array->GetFormat();
 		ok = true;
 
 		for (unsigned int j = 0, size = array->GetVertexCount(); j < size; ++j) {
-			RAS_Vertex vert = array->GetVertex(j);
 			if (uvindex_from != -1) {
-				vert.SetUV(uvindex, vert.GetUv(uvindex_from));
+				array->SetUv(j, uvindex, array->GetUv(j, uvindex_from));
 			}
 
-			if (uvindex >= 0) {
-				vert.TransformUv(uvindex, transform);
+			if (0 <= uvindex && uvindex < format.uvSize) {
+				const mt::vec2_packed& uv = array->GetUv(j, uvindex);
+				array->SetUv(j, uvindex, (transform * mt::vec3(uv.data[0], uv.data[1], 0.0f)).xy());
 			}
 			else if (uvindex == -1) {
-				for (int k = 0; k < RAS_Texture::MaxUnits; ++k) {
-					vert.TransformUv(k, transform);
+				for (unsigned short k = 0; k < format.uvSize; ++k) {
+					const mt::vec2_packed& uv = array->GetUv(j, k);
+					array->SetUv(j, k, (transform * mt::vec3(uv.data[0], uv.data[1], 0.0f)).xy());
 				}
 			}
 		}
 
-		array->NotifyUpdate(RAS_IDisplayArray::UVS_MODIFIED);
+		array->NotifyUpdate(RAS_DisplayArray::UVS_MODIFIED);
 
 		/* if we set a material index, quit when done */
 		if (matindex != -1) {

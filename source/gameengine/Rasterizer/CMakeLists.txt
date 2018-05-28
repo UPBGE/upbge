@@ -58,18 +58,18 @@ set(SRC
 	RAS_2DFilterOffScreen.cpp
 	RAS_AttributeArray.cpp
 	RAS_AttributeArrayStorage.cpp
+	RAS_BatchDisplayArray.cpp
 	RAS_BatchGroup.cpp
 	RAS_BoundingBox.cpp
 	RAS_BoundingBoxManager.cpp
 	RAS_BucketManager.cpp
 	RAS_DebugDraw.cpp
 	RAS_Deformer.cpp
+	RAS_DisplayArray.cpp
 	RAS_DisplayArrayBucket.cpp
 	RAS_DisplayArrayStorage.cpp
 	RAS_FramingManager.cpp
 	RAS_ICanvas.cpp
-	RAS_IDisplayArray.cpp
-	RAS_IBatchDisplayArray.cpp
 	RAS_InstancingBuffer.cpp
 	RAS_IPolygonMaterial.cpp
 	RAS_Rasterizer.cpp
@@ -84,8 +84,8 @@ set(SRC
 	RAS_Texture.cpp
 	RAS_TextureRenderer.cpp
 	RAS_TextUser.cpp
-	RAS_Vertex.cpp
- 
+	RAS_VertexInfo.cpp
+
 	RAS_2DFilterData.h
 	RAS_2DFilter.h
 	RAS_2DFilterManager.h
@@ -105,8 +105,6 @@ set(SRC
 	RAS_DisplayArrayStorage.h
 	RAS_FramingManager.h
 	RAS_ICanvas.h
-	RAS_IDisplayArray.h
-	RAS_IBatchDisplayArray.h
 	RAS_IPolygonMaterial.h
 	RAS_Rasterizer.h
 	RAS_ILightObject.h
@@ -124,9 +122,7 @@ set(SRC
 	RAS_Texture.h
 	RAS_TextureRenderer.h
 	RAS_TextUser.h
-	RAS_Vertex.h
-	RAS_VertexData.h
-	RAS_VertexFormat.h
+	RAS_VertexInfo.h
 )
 
 data_to_c_simple(RAS_OpenGLFilters/RAS_Blur2DFilter.glsl SRC)

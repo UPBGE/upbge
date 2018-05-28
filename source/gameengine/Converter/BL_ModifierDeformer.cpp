@@ -202,7 +202,7 @@ void BL_ModifierDeformer::UpdateTransverts()
 	for (unsigned short i = 0; i < nummat; ++i) {
 		const DisplayArraySlot& slot = m_slots[i];
 		RAS_MeshMaterial *meshmat = slot.m_meshMaterial;
-		RAS_IDisplayArray *array = slot.m_displayArray;
+		RAS_DisplayArray *array = slot.m_displayArray;
 		array->Clear();
 
 		RAS_IPolyMaterial *mat = meshmat->GetBucket()->GetPolyMaterial();
@@ -212,9 +212,8 @@ void BL_ModifierDeformer::UpdateTransverts()
 	BL_ConvertDerivedMeshToArray(m_dm, m_bmesh, mats, m_mesh->GetLayersInfo());
 
 	for (const DisplayArraySlot& slot : m_slots) {
-		RAS_IDisplayArray *array = slot.m_displayArray;
-		array->NotifyUpdate(RAS_IDisplayArray::SIZE_MODIFIED);
-		array->UpdateCache();
+		RAS_DisplayArray *array = slot.m_displayArray;
+		array->NotifyUpdate(RAS_DisplayArray::SIZE_MODIFIED);
 	}
 
 	// Update object's AABB.
@@ -223,7 +222,7 @@ void BL_ModifierDeformer::UpdateTransverts()
 	}
 }
 
-void BL_ModifierDeformer::Apply(RAS_IDisplayArray *array)
+void BL_ModifierDeformer::Apply(RAS_DisplayArray *array)
 {
 	Update();
 }

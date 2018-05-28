@@ -32,13 +32,13 @@
 #ifndef __RAS_MESH_MATERIAL_H__
 #define __RAS_MESH_MATERIAL_H__
 
+#include "RAS_DisplayArray.h"
+
 #include <vector>
 
 class RAS_Mesh;
-class RAS_IDisplayArray;
 class RAS_DisplayArrayBucket;
 class RAS_MaterialBucket;
-struct RAS_VertexFormat;
 
 /** \brief Node between material and mesh.
  * Own the display array and the display array bucket used to draw the part of the mesh
@@ -51,11 +51,11 @@ private:
 	/// The blender material index position in the mesh.
 	unsigned int m_index;
 
-	RAS_IDisplayArray *m_displayArray;
+	RAS_DisplayArray *m_displayArray;
 	RAS_DisplayArrayBucket *m_displayArrayBucket;
 
 public:
-	RAS_MeshMaterial(RAS_Mesh *mesh, RAS_MaterialBucket *bucket, unsigned int index, const RAS_VertexFormat& format);
+	RAS_MeshMaterial(RAS_Mesh *mesh, RAS_MaterialBucket *bucket, unsigned int index, const RAS_DisplayArray::Format& format);
 	/** Copy mesh material for a given mesh object.
 	 * \param mesh Owner of copied mesh material.
 	 */
@@ -65,7 +65,7 @@ public:
 
 	unsigned int GetIndex() const;
 	RAS_MaterialBucket *GetBucket() const;
-	RAS_IDisplayArray *GetDisplayArray() const;
+	RAS_DisplayArray *GetDisplayArray() const;
 	RAS_DisplayArrayBucket *GetDisplayArrayBucket() const;
 
 	void ReplaceMaterial(RAS_MaterialBucket *bucket);

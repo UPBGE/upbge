@@ -27,7 +27,7 @@
 #ifndef __RAS_BOUNDING_BOX_H__
 #define __RAS_BOUNDING_BOX_H__
 
-#include "RAS_IDisplayArray.h"
+#include "RAS_DisplayArray.h"
 
 class RAS_BoundingBoxManager;
 
@@ -85,8 +85,8 @@ private:
 	/// Display arrays used to compute the AABB.
 	struct DisplayArraySlot
 	{
-		RAS_IDisplayArray *m_displayArray;
-		CM_UpdateClient<RAS_IDisplayArray> m_arrayUpdateClient;
+		RAS_DisplayArray *m_displayArray;
+		CM_UpdateClient<RAS_DisplayArray> m_arrayUpdateClient;
 		/// AABB minimum of only this display array.
 		mt::vec3 m_aabbMin;
 		/// AABB maximum of only this display array.
@@ -98,7 +98,7 @@ private:
 	std::vector<DisplayArraySlot, mt::simd_allocator<DisplayArraySlot> > m_slots;
 
 public:
-	RAS_MeshBoundingBox(RAS_BoundingBoxManager *manager, const RAS_IDisplayArrayList& displayArrayList);
+	RAS_MeshBoundingBox(RAS_BoundingBoxManager *manager, const RAS_DisplayArrayList& displayArrayList);
 	virtual ~RAS_MeshBoundingBox();
 
 	virtual RAS_BoundingBox *GetReplica();

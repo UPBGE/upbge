@@ -51,7 +51,7 @@ class RAS_OpenGLLight;
 class RAS_ICanvas;
 class RAS_OffScreen;
 class RAS_MeshSlot;
-class RAS_IDisplayArray;
+class RAS_DisplayArray;
 class RAS_ILightObject;
 class RAS_ISync;
 struct KX_ClientObjectInfo;

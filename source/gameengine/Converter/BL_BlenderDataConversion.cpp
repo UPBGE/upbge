@@ -65,7 +65,6 @@
 #include "RAS_ILightObject.h"
 
 #include "RAS_ICanvas.h"
-#include "RAS_Vertex.h"
 #include "RAS_BucketManager.h"
 #include "RAS_BoundingBoxManager.h"
 #include "RAS_IPolygonMaterial.h"
@@ -179,7 +178,7 @@ extern Material defmaterial;
 
 // For construction to find shared vertices.
 struct BL_SharedVertex {
-	RAS_IDisplayArray *array;
+	RAS_DisplayArray *array;
 	unsigned int offset;
 };
 
@@ -189,20 +188,59 @@ using BL_SharedVertexMap = std::vector<BL_SharedVertexList>;
 class BL_SharedVertexPredicate
 {
 private:
-	RAS_Vertex m_vertex;
-	RAS_IDisplayArray *m_array;
+	RAS_DisplayArray *m_array;
+	mt::vec3_packed m_normal;
+	mt::vec4_packed m_tangent;
+	mt::vec2_packed m_uvs[RAS_Texture::MaxUnits];
+	unsigned int m_colors[RAS_Texture::MaxUnits];
 
 public:
-	BL_SharedVertexPredicate(RAS_Vertex vertex, RAS_IDisplayArray *array)
-		:m_vertex(vertex),
-		m_array(array)
+	BL_SharedVertexPredicate(RAS_DisplayArray *array, const mt::vec3_packed& normal, const mt::vec4_packed& tangent, mt::vec2_packed uvs[], unsigned int colors[])
+		:m_array(array),
+		m_normal(normal),
+		m_tangent(tangent)
 	{
+		const RAS_DisplayArray::Format& format = m_array->GetFormat();
+
+		for (unsigned short i = 0, size = format.uvSize; i < size; ++i) {
+			m_uvs[i] = uvs[i];
+		}
+
+		for (unsigned short i = 0, size = format.colorSize; i < size; ++i) {
+			m_colors[i] = colors[i];
+		}
 	}
 
 	bool operator()(const BL_SharedVertex& sharedVert) const
 	{
-		RAS_IDisplayArray *otherArray = sharedVert.array;
-		return (m_array == otherArray) && (otherArray->GetVertexNoCache(sharedVert.offset).CloseTo(m_vertex));
+		RAS_DisplayArray *otherArray = sharedVert.array;
+		if (m_array != otherArray) {
+			return false;
+		}
+
+		const unsigned int offset = sharedVert.offset;
+
+		static const float eps = FLT_EPSILON;
+		if (!compare_v3v3(m_array->GetNormal(offset).data, m_normal.data, eps) ||
+			!compare_v3v3(m_array->GetTangent(offset).data, m_tangent.data, eps))
+		{
+			return false;
+		}
+
+		const RAS_DisplayArray::Format& format = m_array->GetFormat();
+		for (unsigned short i = 0, size = format.uvSize; i < size; ++i) {
+			if (!compare_v2v2(m_array->GetUv(offset, i).data, m_uvs[i].data, eps)) {
+				return false;
+			}
+		}
+
+		for (unsigned short i = 0, size = format.colorSize; i < size; ++i) {
+			if (m_array->GetRawColor(offset, i) != m_colors[i]) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 };
 
@@ -344,8 +382,8 @@ SCA_IInputDevice::SCA_EnumInputs BL_ConvertKeyCode(int key_code)
 }
 
 static void BL_GetUvRgba(const RAS_Mesh::LayersInfo& layersInfo, std::vector<MLoopUV *>& uvLayers,
-                         std::vector<MLoopCol *>& colorLayers, unsigned int loop, float uvs[RAS_Texture::MaxUnits][2],
-                         unsigned int rgba[RAS_Vertex::MAX_UNIT])
+                         std::vector<MLoopCol *>& colorLayers, unsigned int loop, mt::vec2_packed uvs[RAS_Texture::MaxUnits],
+                         unsigned int rgba[RAS_Texture::MaxUnits])
 {
 	// No need to initialize layers to zero as all the converted layer are all the layers needed.
 
@@ -353,7 +391,8 @@ static void BL_GetUvRgba(const RAS_Mesh::LayersInfo& layersInfo, std::vector<MLo
 		const unsigned short index = layer.index;
 		const MLoopCol& col = colorLayers[index][loop];
 
-		union Convert{
+		union Convert
+		{
 			// Color isn't swapped in MLoopCol.
 			MLoopCol col;
 			unsigned int val;
@@ -367,7 +406,7 @@ static void BL_GetUvRgba(const RAS_Mesh::LayersInfo& layersInfo, std::vector<MLo
 	for (const RAS_Mesh::Layer& layer : layersInfo.uvLayers) {
 		const unsigned short index = layer.index;
 		const MLoopUV& uv = uvLayers[index][loop];
-		copy_v2_v2(uvs[index], uv.uv);
+		uvs[index] = mt::vec2_packed(uv.uv);
 	}
 
 	/* All vertices have at least one uv and color layer accessible to the user
@@ -375,7 +414,7 @@ static void BL_GetUvRgba(const RAS_Mesh::LayersInfo& layersInfo, std::vector<MLo
 	 * when no uv or color layer exist.
 	 */
 	if (layersInfo.uvLayers.empty()) {
-		zero_v2((uvs[0]));
+		uvs[0] = mt::zero2;
 	}
 	if (layersInfo.colorLayers.empty()) {
 		rgba[0] = 0xFFFFFFFF;
@@ -449,7 +488,7 @@ KX_Mesh *BL_ConvertMesh(Mesh *me, Object *blenderobj, KX_Scene *scene, BL_SceneC
 	}
 
 	// Initialize vertex format with used uv and color layers.
-	RAS_VertexFormat vertformat;
+	RAS_DisplayArray::Format vertformat;
 	vertformat.uvSize = max_ii(1, uvCount);
 	vertformat.colorSize = max_ii(1, colorCount);
 
@@ -535,7 +574,7 @@ void BL_ConvertDerivedMeshToArray(DerivedMesh *dm, Mesh *me, const std::vector<B
 		const MPoly& mpoly = mpolys[i];
 
 		const BL_MeshMaterial& mat = mats[mpoly.mat_nr];
-		RAS_IDisplayArray *array = mat.array;
+		RAS_DisplayArray *array = mat.array;
 
 		// Mark face as flat, so vertices are split.
 		const bool flat = (mpoly.flag & ME_SMOOTH) == 0;
@@ -548,32 +587,26 @@ void BL_ConvertDerivedMeshToArray(DerivedMesh *dm, Mesh *me, const std::vector<B
 			const MVert& mvert = mverts[vertid];
 
 			static const float dummyTangent[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-			const float *tan = tangent ? tangent[j] : dummyTangent;
-
-			float uvs[RAS_Texture::MaxUnits][2];
+			const mt::vec4_packed tan(tangent ? tangent[j] : dummyTangent);
+			const mt::vec3_packed nor(normals[j]);
+			const mt::vec3_packed pos(mvert.co);
+			mt::vec2_packed uvs[RAS_Texture::MaxUnits];
 			unsigned int rgba[RAS_Texture::MaxUnits];
 
 			BL_GetUvRgba(layersInfo, uvLayers, colorLayers, j, uvs, rgba);
 
-			RAS_Vertex vertex = array->CreateVertex(mvert.co, uvs, tan, rgba, normals[j]);
-
 			BL_SharedVertexList& sharedList = sharedMap[vertid];
 			BL_SharedVertexList::iterator it = std::find_if(sharedList.begin(), sharedList.end(),
-			                                                BL_SharedVertexPredicate(vertex, array));
+					BL_SharedVertexPredicate(array, nor, tan, uvs, rgba));
 
 			unsigned int offset;
 			if (it != sharedList.end()) {
 				offset = it->offset;
 			}
 			else {
-				offset = array->AddVertex(vertex);
-				const RAS_VertexInfo info(vertid, flat);
-				array->AddVertexInfo(info);
+				offset = array->AddVertex(pos, nor, tan, uvs, rgba, vertid, flat);
 				sharedList.push_back({array, offset});
 			}
-
-			// Destruct the vertex data as it is copied or unused.
-			array->DeleteVertexData(vertex);
 
 			// Add tracked vertices by the mpoly.
 			vertices[vertid] = offset;

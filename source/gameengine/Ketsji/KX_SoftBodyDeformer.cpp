@@ -80,7 +80,7 @@ void KX_SoftBodyDeformer::Relink(std::map<SCA_IObject *, SCA_IObject *>& map)
 	}
 }
 
-void KX_SoftBodyDeformer::Apply(RAS_IDisplayArray *array)
+void KX_SoftBodyDeformer::Apply(RAS_DisplayArray *array)
 {
 	CcdPhysicsController *ctrl = (CcdPhysicsController *)m_gameobj->GetPhysicsController();
 	if (!ctrl) {
@@ -111,19 +111,17 @@ void KX_SoftBodyDeformer::Apply(RAS_IDisplayArray *array)
 	const bool autoUpdate = m_gameobj->GetAutoUpdateBounds();
 
 	for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
-		RAS_Vertex v = array->GetVertex(i);
 		const RAS_VertexInfo& vinfo = array->GetVertexInfo(i);
 
 		const unsigned int index = indices[vinfo.GetOrigIndex()];
-		const mt::vec3 pt(ToMt(nodes[index].m_x));
-		v.SetXYZ(pt);
+		const mt::vec3 pos = ToMt(nodes[index].m_x);
 
-		const mt::vec3 normal(ToMt(nodes[index].m_n));
-		v.SetNormal(normal);
+		array->SetPosition(i, pos);
+		array->SetNormal(i, ToMt(nodes[index].m_n));
 
 		if (autoUpdate) {
 			// Extract object transform from the vertex position.
-			const mt::vec3 ptWorld = invtrans * pt;
+			const mt::vec3 ptWorld = invtrans * pos;
 			aabbMin = mt::vec3::Min(aabbMin, ptWorld);
 			aabbMax = mt::vec3::Max(aabbMax, ptWorld);
 		}
@@ -132,7 +130,7 @@ void KX_SoftBodyDeformer::Apply(RAS_IDisplayArray *array)
 	for (DisplayArraySlot& slot : m_slots) {
 		if (slot.m_displayArray == array) {
 			const short modifiedFlag = slot.m_arrayUpdateClient.GetInvalidAndClear();
-			if (modifiedFlag != RAS_IDisplayArray::NONE_MODIFIED) {
+			if (modifiedFlag != RAS_DisplayArray::NONE_MODIFIED) {
 				/// Update vertex data from the original mesh.
 				array->UpdateFrom(slot.m_origDisplayArray, modifiedFlag);
 			}
@@ -141,7 +139,7 @@ void KX_SoftBodyDeformer::Apply(RAS_IDisplayArray *array)
 		}
 	}
 
-	array->NotifyUpdate(RAS_IDisplayArray::POSITION_MODIFIED | RAS_IDisplayArray::NORMAL_MODIFIED);
+	array->NotifyUpdate(RAS_DisplayArray::POSITION_MODIFIED | RAS_DisplayArray::NORMAL_MODIFIED);
 
 	if (autoUpdate) {
 		m_boundingBox->ExtendAabb(aabbMin, aabbMax);

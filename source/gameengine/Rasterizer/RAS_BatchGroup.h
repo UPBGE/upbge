@@ -30,7 +30,7 @@
 #include "RAS_DisplayArrayBucket.h"
 
 class RAS_IPolyMaterial;
-class RAS_IBatchDisplayArray;
+class RAS_BatchDisplayArray;
 
 class RAS_BatchGroup
 {
@@ -47,7 +47,7 @@ private:
 		/// The display array bucket owning the merged display array.
 		RAS_DisplayArrayBucket *m_displayArrayBucket;
 		/// The merged display array.
-		RAS_IBatchDisplayArray *m_displayArray;
+		RAS_BatchDisplayArray *m_displayArray;
 
 		/// The original display array bucket per mesh slots.
 		std::map<RAS_MeshSlot *, RAS_DisplayArrayBucket *> m_originalDisplayArrayBucketList;

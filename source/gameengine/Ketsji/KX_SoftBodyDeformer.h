@@ -55,7 +55,7 @@ public:
 	virtual ~KX_SoftBodyDeformer();
 
 	virtual void Relink(std::map<SCA_IObject *, SCA_IObject *>& map);
-	virtual void Apply(RAS_IDisplayArray *array);
+	virtual void Apply(RAS_DisplayArray *array);
 	virtual bool Update()
 	{
 		m_bDynamic = true;

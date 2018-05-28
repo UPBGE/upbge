@@ -28,10 +28,8 @@
 #include "RAS_StorageVbo.h"
 #include "RAS_DisplayArray.h"
 
-RAS_StorageVbo::RAS_StorageVbo(RAS_IDisplayArray *array)
+RAS_StorageVbo::RAS_StorageVbo(RAS_DisplayArray *array)
 	:m_array(array),
-	m_size(0),
-	m_stride(m_array->GetMemoryFormat().size),
 	m_indices(0),
 	m_mode(m_array->GetOpenGLPrimitiveType())
 {
@@ -65,24 +63,60 @@ void RAS_StorageVbo::UnbindIndexBuffer()
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
-void RAS_StorageVbo::UpdateVertexData()
+template <class Item>
+static void copySubData(intptr_t offset, const std::vector<Item>& data)
+{
+	const unsigned int size = sizeof(Item) * data.size();
+	glBufferSubData(GL_ARRAY_BUFFER, offset, size, data.data());
+}
+
+void RAS_StorageVbo::CopyVertexData(const RAS_DisplayArrayLayout& layout, unsigned int modifiedFlag)
+{
+	const RAS_DisplayArray::Format& format = m_array->GetFormat();
+	const RAS_DisplayArray::VertexData& data = m_array->m_vertexData;
+
+	if (modifiedFlag & RAS_DisplayArray::POSITION_MODIFIED) {
+		copySubData(layout.position, data.positions);
+	}
+	if (modifiedFlag & RAS_DisplayArray::NORMAL_MODIFIED) {
+		copySubData(layout.normal, data.normals);
+	}
+	if (modifiedFlag & RAS_DisplayArray::TANGENT_MODIFIED) {
+		copySubData(layout.tangent, data.tangents);
+	}
+
+	if (modifiedFlag & RAS_DisplayArray::UVS_MODIFIED) {
+		for (unsigned short i = 0; i < format.uvSize; ++i) {
+			copySubData(layout.uvs[i], data.uvs[i]);
+		}
+	}
+
+	if (modifiedFlag & RAS_DisplayArray::COLORS_MODIFIED) {
+		for (unsigned short i = 0; i < format.colorSize; ++i) {
+			copySubData(layout.colors[i], data.colors[i]);
+		}
+	}
+}
+
+void RAS_StorageVbo::UpdateVertexData(unsigned int modifiedFlag)
 {
 	glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
-	glBufferSubData(GL_ARRAY_BUFFER, 0, m_stride * m_size, m_array->GetVertexPointer());
+	CopyVertexData(m_array->GetLayout(), modifiedFlag);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
 void RAS_StorageVbo::UpdateSize()
 {
-	m_size = m_array->GetVertexCount();
 	m_indices = m_array->GetPrimitiveIndexCount();
 
+	const RAS_DisplayArrayLayout layout = m_array->GetLayout();
 	glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
-	glBufferData(GL_ARRAY_BUFFER, m_stride * m_size, m_array->GetVertexPointer(), GL_DYNAMIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, layout.size, nullptr, GL_DYNAMIC_DRAW);
+	CopyVertexData(layout, RAS_DisplayArray::MESH_MODIFIED);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ibo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_indices * sizeof(GLuint), m_array->GetPrimitiveIndexPointer(), GL_DYNAMIC_DRAW);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_indices * sizeof(GLuint), m_array->m_primitiveIndices.data(), GL_DYNAMIC_DRAW);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
@@ -108,7 +142,7 @@ void RAS_StorageVbo::IndexPrimitivesInstancing(unsigned int numinstance)
 	glDrawElementsInstancedARB(m_mode, m_indices, GL_UNSIGNED_INT, 0, numinstance);
 }
 
-void RAS_StorageVbo::IndexPrimitivesBatching(const std::vector<void *>& indices, const std::vector<int>& counts)
+void RAS_StorageVbo::IndexPrimitivesBatching(const std::vector<intptr_t>& indices, const std::vector<int>& counts)
 {
 	glMultiDrawElements(m_mode, counts.data(), GL_UNSIGNED_INT, (const void **)indices.data(), counts.size());
 }

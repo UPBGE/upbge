@@ -51,7 +51,7 @@
 #  include <windows.h>
 #endif // WIN32
 
-RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_IDisplayArray *array,
+RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_DisplayArray *array,
                                                RAS_Mesh *mesh, RAS_MeshMaterial *meshmat, RAS_Deformer *deformer)
 	:m_bucket(bucket),
 	m_displayArray(array),
@@ -62,7 +62,7 @@ RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_I
 	m_attribArray(m_displayArray),
 	m_instancingBuffer(nullptr),
 	m_materialUpdateClient(RAS_IPolyMaterial::ATTRIBUTES_MODIFIED, RAS_IPolyMaterial::ATTRIBUTES_MODIFIED),
-	m_arrayUpdateClient(RAS_IDisplayArray::ANY_MODIFIED, RAS_IDisplayArray::STORAGE_INVALID),
+	m_arrayUpdateClient(RAS_DisplayArray::ANY_MODIFIED, RAS_DisplayArray::STORAGE_INVALID),
 	m_instancingNode(this, &m_nodeData, &RAS_DisplayArrayBucket::RunInstancingNode, nullptr),
 	m_batchingNode(this, &m_nodeData, &RAS_DisplayArrayBucket::RunBatchingNode, nullptr)
 {
@@ -74,7 +74,7 @@ RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_I
 		m_upwardNode = RAS_DisplayArrayUpwardNode(this, &m_nodeData, &RAS_DisplayArrayBucket::BindUpwardNode,
 		                                          &RAS_DisplayArrayBucket::UnbindUpwardNode);
 
-		m_arrayStorage = m_displayArray->GetStorage();
+		m_arrayStorage = &m_displayArray->GetStorage();
 		m_displayArray->AddUpdateClient(&m_arrayUpdateClient);
 	}
 	else {
@@ -103,7 +103,7 @@ RAS_MaterialBucket *RAS_DisplayArrayBucket::GetBucket() const
 	return m_bucket;
 }
 
-RAS_IDisplayArray *RAS_DisplayArrayBucket::GetDisplayArray() const
+RAS_DisplayArray *RAS_DisplayArrayBucket::GetDisplayArray() const
 {
 	return m_displayArray;
 }
@@ -130,7 +130,7 @@ void RAS_DisplayArrayBucket::RemoveActiveMeshSlots()
 
 bool RAS_DisplayArrayBucket::UseBatching() const
 {
-	return (m_displayArray && m_displayArray->GetType() == RAS_IDisplayArray::BATCHING);
+	return (m_displayArray && m_displayArray->GetType() == RAS_DisplayArray::BATCHING);
 }
 
 void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_Rasterizer::DrawType drawingMode)
@@ -141,19 +141,21 @@ void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_Rasterizer::DrawType draw
 
 	if (m_displayArray) {
 		const unsigned int modifiedFlag = m_arrayUpdateClient.GetInvalidAndClear();
-		if (modifiedFlag != RAS_IDisplayArray::NONE_MODIFIED) {
-			if (modifiedFlag & RAS_IDisplayArray::STORAGE_INVALID) {
+		if (modifiedFlag != RAS_DisplayArray::NONE_MODIFIED) {
+			if (modifiedFlag & RAS_DisplayArray::STORAGE_INVALID) {
 				m_displayArray->ConstructStorage();
 			}
-			else if (modifiedFlag & RAS_IDisplayArray::SIZE_MODIFIED) {
+			else if (modifiedFlag & RAS_DisplayArray::SIZE_MODIFIED) {
 				m_arrayStorage->UpdateSize();
+				// Invalidate all existing attribute storages.
+				m_attribArray.Clear();
 			}
 			// Set the display array storage modified if the mesh is modified.
-			else if (modifiedFlag & RAS_IDisplayArray::MESH_MODIFIED) {
-				m_arrayStorage->UpdateVertexData();
+			else if (modifiedFlag & RAS_DisplayArray::MESH_MODIFIED) {
+				m_arrayStorage->UpdateVertexData(modifiedFlag);
 			}
 
-			if (modifiedFlag & RAS_IDisplayArray::POSITION_MODIFIED) {
+			if (modifiedFlag & RAS_DisplayArray::POSITION_MODIFIED) {
 				// Reset polygons center cache to ask update.
 				m_displayArray->InvalidatePolygonCenters();
 			}
@@ -326,9 +328,9 @@ void RAS_DisplayArrayBucket::RunBatchingNode(const RAS_DisplayArrayNodeTuple& tu
 
 	// We must use a int instead of unsigned size to match GLsizei type.
 	std::vector<int> counts(nummeshslots);
-	std::vector<void *> indices(nummeshslots);
+	std::vector<intptr_t> indices(nummeshslots);
 
-	RAS_IBatchDisplayArray *batchArray = dynamic_cast<RAS_IBatchDisplayArray *>(m_displayArray);
+	RAS_BatchDisplayArray *batchArray = dynamic_cast<RAS_BatchDisplayArray *>(m_displayArray);
 
 	/* If the material use the transparency we must sort all mesh slots depending on the distance.
 	 * This code share the code used in RAS_BucketManager to do the sort.

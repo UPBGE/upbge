@@ -40,7 +40,7 @@
 #include <vector>
 
 class RAS_MaterialBucket;
-class RAS_IDisplayArray;
+class RAS_DisplayArray;
 class RAS_Mesh;
 class RAS_MeshMaterial;
 class RAS_Deformer;
@@ -53,7 +53,7 @@ private:
 	/// The parent bucket.
 	RAS_MaterialBucket *m_bucket;
 	/// The display array = list of vertexes and indexes.
-	RAS_IDisplayArray *m_displayArray;
+	RAS_DisplayArray *m_displayArray;
 	/// The parent mesh object, it can be nullptr for text objects.
 	RAS_Mesh *m_mesh;
 	/// The material mesh.
@@ -71,7 +71,7 @@ private:
 	std::unique_ptr<RAS_InstancingBuffer> m_instancingBuffer;
 
 	CM_UpdateClient<RAS_IPolyMaterial> m_materialUpdateClient;
-	CM_UpdateClient<RAS_IDisplayArray> m_arrayUpdateClient;
+	CM_UpdateClient<RAS_DisplayArray> m_arrayUpdateClient;
 
 	RAS_DisplayArrayNodeData m_nodeData;
 	RAS_DisplayArrayDownwardNode m_downwardNode;
@@ -81,13 +81,13 @@ private:
 	RAS_DisplayArrayDownwardNode m_batchingNode;
 
 public:
-	RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_IDisplayArray *array,
+	RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_DisplayArray *array,
 						   RAS_Mesh *mesh, RAS_MeshMaterial *meshmat, RAS_Deformer *deformer);
 	~RAS_DisplayArrayBucket();
 
 	/// \section Accesor
 	RAS_MaterialBucket *GetBucket() const;
-	RAS_IDisplayArray *GetDisplayArray() const;
+	RAS_DisplayArray *GetDisplayArray() const;
 	RAS_Mesh *GetMesh() const;
 	RAS_MeshMaterial *GetMeshMaterial() const;
 

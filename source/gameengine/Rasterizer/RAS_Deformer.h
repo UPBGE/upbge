@@ -37,7 +37,7 @@
 #endif
 
 #include "RAS_BoundingBox.h"
-#include "RAS_IDisplayArray.h" // For RAS_IDisplayArrayList.
+#include "RAS_DisplayArray.h" // For RAS_DisplayArrayList.
 #include "RAS_DisplayArrayBucket.h" // For RAS_DisplayArrayBucketList.
 
 #include <map>
@@ -54,7 +54,7 @@ public:
 	void InitializeDisplayArrays();
 
 	virtual void Relink(std::map<SCA_IObject *, SCA_IObject *>& map) = 0;
-	virtual void Apply(RAS_IDisplayArray *array) = 0;
+	virtual void Apply(RAS_DisplayArray *array) = 0;
 	virtual bool Update(void)=0;
 	virtual void UpdateBuckets(void)=0;
 	virtual RAS_Deformer *GetReplica()=0;
@@ -78,7 +78,7 @@ public:
 
 	RAS_Mesh *GetMesh() const;
 
-	RAS_IDisplayArray *GetDisplayArray(unsigned short index) const;
+	RAS_DisplayArray *GetDisplayArray(unsigned short index) const;
 	RAS_DisplayArrayBucket *GetDisplayArrayBucket(unsigned short index) const;
 
 protected:
@@ -86,15 +86,15 @@ protected:
 	struct DisplayArraySlot
 	{
 		/// The unique display array owned by the deformer.
-		RAS_IDisplayArray *m_displayArray;
+		RAS_DisplayArray *m_displayArray;
 		/// The original display array used by the deformer to duplicate data.
-		RAS_IDisplayArray *m_origDisplayArray;
+		RAS_DisplayArray *m_origDisplayArray;
 		/// The mesh material of the owning the original display array.
 		RAS_MeshMaterial *m_meshMaterial;
 		/// The unique display array bucket using the display array of this deformer.
 		RAS_DisplayArrayBucket *m_displayArrayBucket;
 		/// Update client of the orignal display array.
-		CM_UpdateClient<RAS_IDisplayArray> m_arrayUpdateClient;
+		CM_UpdateClient<RAS_DisplayArray> m_arrayUpdateClient;
 	};
 
 	std::vector<DisplayArraySlot> m_slots;

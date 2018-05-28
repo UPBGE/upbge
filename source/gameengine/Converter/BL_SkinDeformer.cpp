@@ -112,12 +112,12 @@ void BL_SkinDeformer::Relink(std::map<SCA_IObject *, SCA_IObject *>& map)
 	BL_MeshDeformer::Relink(map);
 }
 
-void BL_SkinDeformer::Apply(RAS_IDisplayArray *array)
+void BL_SkinDeformer::Apply(RAS_DisplayArray *array)
 {
 	for (DisplayArraySlot& slot : m_slots) {
 		if (slot.m_displayArray == array) {
 			const short modifiedFlag = slot.m_arrayUpdateClient.GetInvalidAndClear();
-			if (modifiedFlag != RAS_IDisplayArray::NONE_MODIFIED) {
+			if (modifiedFlag != RAS_DisplayArray::NONE_MODIFIED) {
 				/// Update vertex data from the original mesh.
 				array->UpdateFrom(slot.m_origDisplayArray, modifiedFlag);
 			}
@@ -197,11 +197,11 @@ void BL_SkinDeformer::BGEDeformVerts()
 		float contrib = 0.0f, weight, max_weight = -1.0f;
 		bPoseChannel *pchan = nullptr;
 		Eigen::Vector3f normorg(m_bmesh->mvert[i].no[0], m_bmesh->mvert[i].no[1], m_bmesh->mvert[i].no[2]);
-		Eigen::Map<Eigen::Vector3f> norm = Eigen::Vector3f::Map(m_transnors[i].data());
+		Eigen::Map<Eigen::Vector3f> norm = Eigen::Vector3f::Map(m_transnors[i].data);
 		Eigen::Vector4f vec(0.0f, 0.0f, 0.0f, 1.0f);
-		Eigen::Vector4f co(m_transverts[i][0],
-		                   m_transverts[i][1],
-		                   m_transverts[i][2],
+		Eigen::Vector4f co(m_transverts[i].x,
+		                   m_transverts[i].y,
+		                   m_transverts[i].z,
 		                   1.0f);
 
 		if (!dv->totweight) {
@@ -243,9 +243,7 @@ void BL_SkinDeformer::BGEDeformVerts()
 
 		co = post_mat * co;
 
-		m_transverts[i][0] = co[0];
-		m_transverts[i][1] = co[1];
-		m_transverts[i][2] = co[2];
+		m_transverts[i] = mt::vec3(co[0], co[1], co[2]);
 	}
 	m_copyNormals = true;
 }
@@ -266,25 +264,27 @@ void BL_SkinDeformer::UpdateTransverts()
 	// if it wasn't updated! We must update all the materials at once
 	// because we will not get here again for the other material
 	for (const DisplayArraySlot& slot : m_slots) {
-		RAS_IDisplayArray *array = slot.m_displayArray;
+		RAS_DisplayArray *array = slot.m_displayArray;
 		// for each vertex
 		// copy the untransformed data from the original mvert
 		for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
-			RAS_Vertex v = array->GetVertex(i);
 			const RAS_VertexInfo& vinfo = array->GetVertexInfo(i);
-			v.SetXYZ(m_transverts[vinfo.GetOrigIndex()].data());
-			if (m_copyNormals) {
-				v.SetNormal(m_transnors[vinfo.GetOrigIndex()].data());
-			}
+			const mt::vec3 pos = mt::vec3(m_transverts[vinfo.GetOrigIndex()]);
+			array->SetPosition(i, pos);
 
 			if (autoUpdate) {
-				const mt::vec3 vertpos = v.xyz();
-				aabbMin = mt::vec3::Min(aabbMin, vertpos);
-				aabbMax = mt::vec3::Max(aabbMax, vertpos);
+				aabbMin = mt::vec3::Min(aabbMin, pos);
+				aabbMax = mt::vec3::Max(aabbMax, pos);
+			}
+		}
+		if (m_copyNormals) {
+			for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
+				const RAS_VertexInfo& vinfo = array->GetVertexInfo(i);
+				array->SetNormal(i, m_transnors[vinfo.GetOrigIndex()]);
 			}
 		}
 
-		array->NotifyUpdate(RAS_IDisplayArray::POSITION_MODIFIED | RAS_IDisplayArray::NORMAL_MODIFIED);
+		array->NotifyUpdate(RAS_DisplayArray::POSITION_MODIFIED | RAS_DisplayArray::NORMAL_MODIFIED);
 	}
 
 	m_boundingBox->SetAabb(aabbMin, aabbMax);
