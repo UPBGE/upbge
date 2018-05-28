@@ -835,6 +835,14 @@ elseif(WIN32)
 			)
 	endif()
 
+	if(WITH_GAMEENGINE)
+		# custom game icon for windows deployment
+		install(
+			DIRECTORY ${CMAKE_SOURCE_DIR}/release/windows/icons/rceditcustom/
+			DESTINATION ${TARGETDIR_VER}/rceditcustom
+		)
+	endif()
+
 elseif(APPLE)
 
 	# handy install macro to exclude files, we use \$ escape for the "to"
