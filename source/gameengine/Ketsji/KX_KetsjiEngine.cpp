@@ -867,9 +867,7 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 				/* binds framebuffer object, sets up camera .. */
 				raslight->BindShadowBuffer(m_canvas, cam, camtrans);
 
-				std::vector<KX_GameObject *> objects;
-				/* update scene */
-				scene->CalculateVisibleMeshes(objects, cam, raslight->GetShadowLayer());
+				const std::vector<KX_GameObject *> objects = scene->CalculateVisibleMeshes(cam, raslight->GetShadowLayer());
 
 				m_logger.StartLog(tc_animations, m_kxsystem->GetTimeInSeconds());
 				UpdateAnimations(scene);
@@ -1013,8 +1011,7 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene, const CameraRenderData& came
 
 	m_logger.StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds());
 
-	std::vector<KX_GameObject *> objects;
-	scene->CalculateVisibleMeshes(objects, cullingcam, 0);
+	const std::vector<KX_GameObject *> objects = scene->CalculateVisibleMeshes(cullingcam, 0);
 
 	// update levels of detail
 	scene->UpdateObjectLods(cullingcam, objects);

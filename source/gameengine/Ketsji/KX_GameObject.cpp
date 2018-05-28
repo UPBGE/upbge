@@ -44,6 +44,7 @@
 #include "RAS_Mesh.h"
 #include "RAS_MeshUser.h"
 #include "RAS_BoundingBoxManager.h"
+#include "RAS_Deformer.h"
 #include "KX_NavMeshObject.h"
 #include "KX_Mesh.h"
 #include "KX_PolyProxy.h"
@@ -753,9 +754,9 @@ RAS_MeshUser *KX_GameObject::GetMeshUser() const
 	return m_meshUser;
 }
 
-bool KX_GameObject::UseCulling() const
+bool KX_GameObject::Renderable(int layer) const
 {
-	return (m_meshUser != nullptr);
+	return (m_meshUser != nullptr) && m_bVisible && (layer == 0 || m_layer & layer);
 }
 
 void KX_GameObject::SetLodManager(KX_LodManager *lodManager)
@@ -1383,6 +1384,15 @@ void KX_GameObject::UpdateBounds(bool force)
 		return;
 	}
 
+	RAS_Deformer *deformer = GetDeformer();
+	if (deformer) {
+		/** Update all the deformer, not only per material.
+		 * One of the side effect is to clear some flags about AABB calculation.
+		 * like in KX_SoftBodyDeformer.
+		 */
+		deformer->UpdateBuckets();
+	}
+
 	// AABB Box : min/max.
 	mt::vec3 aabbMin;
 	mt::vec3 aabbMax;
@@ -1409,9 +1419,9 @@ void KX_GameObject::GetBoundsAabb(mt::vec3 &aabbMin, mt::vec3 &aabbMax) const
 	m_cullingNode.GetAabb().Get(aabbMin, aabbMax);
 }
 
-SG_CullingNode *KX_GameObject::GetCullingNode()
+SG_CullingNode& KX_GameObject::GetCullingNode()
 {
-	return &m_cullingNode;
+	return m_cullingNode;
 }
 
 KX_GameObject::ActivityCullingInfo& KX_GameObject::GetActivityCullingInfo()
@@ -2682,7 +2692,7 @@ int KX_GameObject::pyattr_set_visible(EXP_PyObjectPlus *self_v, const EXP_PYATTR
 PyObject *KX_GameObject::pyattr_get_culled(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
-	return PyBool_FromLong(self->GetCulled());
+	return PyBool_FromLong(self->GetCullingNode().GetCulled());
 }
 
 PyObject *KX_GameObject::pyattr_get_cullingBox(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)

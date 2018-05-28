@@ -1075,51 +1075,41 @@ void KX_Scene::PhysicsCullingCallback(KX_ClientObjectInfo *objectInfo, void *cul
 {
 	CullingInfo *info = static_cast<CullingInfo *>(cullingInfo);
 	KX_GameObject *gameobj = objectInfo->m_gameobject;
-	if (!gameobj->GetVisible() || !gameobj->UseCulling()) {
-		// Ideally, invisible objects should be removed from the culling tree temporarily.
-		return;
-	}
-	if (info->m_layer && !(gameobj->GetLayer() & info->m_layer)) {
-		// Used for shadow: object is not in shadow layer.
+
+	if (!gameobj->Renderable(info->m_layer)) {
 		return;
 	}
 
 	// Make object visible.
-	gameobj->SetCulled(false);
+	gameobj->GetCullingNode().SetCulled(false);
 	info->m_objects.push_back(gameobj);
 }
 
-void KX_Scene::CalculateVisibleMeshes(std::vector<KX_GameObject *>& objects, KX_Camera *cam, int layer)
+std::vector<KX_GameObject *> KX_Scene::CalculateVisibleMeshes(KX_Camera *cam, int layer)
 {
+	std::vector<KX_GameObject *> objects;
 	if (!cam->GetFrustumCulling()) {
 		for (KX_GameObject *gameobj : m_objectlist) {
-			gameobj->GetCullingNode()->SetCulled(false);
+			gameobj->GetCullingNode().SetCulled(false);
 			objects.push_back(gameobj);
 		}
-		return;
+		return objects;
 	}
 
-	CalculateVisibleMeshes(objects, cam->GetFrustum(), layer);
+	return CalculateVisibleMeshes(cam->GetFrustum(), layer);
 }
 
-void KX_Scene::CalculateVisibleMeshes(std::vector<KX_GameObject *>& objects, const SG_Frustum& frustum, int layer)
+std::vector<KX_GameObject *> KX_Scene::CalculateVisibleMeshes(const SG_Frustum& frustum, int layer)
 {
 	m_boundingBoxManager->Update(false);
 
 	bool dbvt_culling = false;
 	if (m_dbvtCulling) {
 		for (KX_GameObject *gameobj : m_objectlist) {
-			gameobj->SetCulled(true);
 			/* Reset KX_GameObject m_culled to true before doing culling
 			 * since DBVT culling will only set it to false.
 			 */
-			if (gameobj->GetDeformer()) {
-				/** Update all the deformer, not only per material.
-				 * One of the side effect is to clear some flags about AABB calculation.
-				 * like in KX_SoftBodyDeformer.
-				 */
-				gameobj->GetDeformer()->UpdateBuckets();
-			}
+			gameobj->GetCullingNode().SetCulled(true);
 			// Update the object bounding volume box.
 			gameobj->UpdateBounds(false);
 		}
@@ -1128,30 +1118,23 @@ void KX_Scene::CalculateVisibleMeshes(std::vector<KX_GameObject *>& objects, con
 		const std::array<mt::vec4, 6>& planes = frustum.GetPlanes();
 		const mt::mat4& matrix = frustum.GetMatrix();
 		const int *viewport = KX_GetActiveEngine()->GetCanvas()->GetViewPort();
+		std::vector<KX_GameObject *> objects;
 		CullingInfo info(layer, objects);
 
 		dbvt_culling = m_physicsEnvironment->CullingTest(PhysicsCullingCallback, &info, planes, m_dbvtOcclusionRes, viewport, matrix);
-	}
-	if (!dbvt_culling) {
-		KX_CullingHandler handler(objects, frustum);
-		for (KX_GameObject *gameobj : m_objectlist) {
-			if (gameobj->UseCulling() && gameobj->GetVisible() && (layer == 0 || gameobj->GetLayer() & layer)) {
-				if (gameobj->GetDeformer()) {
-					/** Update all the deformer, not only per material.
-					 * One of the side effect is to clear some flags about AABB calculation.
-					 * like in KX_SoftBodyDeformer.
-					 */
-					gameobj->GetDeformer()->UpdateBuckets();
-				}
-				// Update the object bounding volume box.
-				gameobj->UpdateBounds(false);
 
-				handler.Process(gameobj);
-			}
+		m_boundingBoxManager->ClearModified();
+
+		if (dbvt_culling) {
+			return objects;
 		}
 	}
 
+	KX_CullingHandler handler(m_objectlist, frustum, layer);
+
 	m_boundingBoxManager->ClearModified();
+
+	return handler.Process();
 }
 
 void KX_Scene::DrawDebug(RAS_DebugDraw& debugDraw, const std::vector<KX_GameObject *>& objects,
@@ -1162,7 +1145,7 @@ void KX_Scene::DrawDebug(RAS_DebugDraw& debugDraw, const std::vector<KX_GameObje
 			const mt::vec3& scale = gameobj->NodeGetWorldScaling();
 			const mt::vec3& position = gameobj->NodeGetWorldPosition();
 			const mt::mat3& orientation = gameobj->NodeGetWorldOrientation();
-			const SG_BBox& box = gameobj->GetCullingNode()->GetAabb();
+			const SG_BBox& box = gameobj->GetCullingNode().GetAabb();
 			const mt::vec3& center = box.GetCenter();
 
 			debugDraw.DrawAabb(position, orientation, box.GetMin() * scale, box.GetMax() * scale,
@@ -1289,7 +1272,7 @@ static void update_anim_thread_func(TaskPool *pool, void *taskdata, int UNUSED(t
 
 		// Check for meshes that haven't been culled
 		for (KX_GameObject *child : children) {
-			if (!child->GetCulled()) {
+			if (!child->GetCullingNode().GetCulled()) {
 				needs_update = true;
 				break;
 			}

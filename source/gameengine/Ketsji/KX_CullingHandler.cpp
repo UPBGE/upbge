@@ -3,21 +3,64 @@
 
 #include "SG_Node.h"
 
-KX_CullingHandler::KX_CullingHandler(std::vector<KX_GameObject *>& objects, const SG_Frustum& frustum)
-	:m_activeObjects(objects),
-	m_frustum(frustum)
+#include "tbb/tbb.h"
+
+class CullTask
+{
+public:
+	std::vector<KX_GameObject *> m_activeObjects;
+	EXP_ListValue<KX_GameObject> *m_objects;
+	KX_CullingHandler& m_handler;
+	int m_layer;
+
+	CullTask(EXP_ListValue<KX_GameObject> *objects, KX_CullingHandler& handler, int layer)
+		:m_objects(objects),
+		m_handler(handler),
+		m_layer(layer)
+	{
+	}
+
+	CullTask(const CullTask& other, tbb::split)
+		:m_objects(other.m_objects),
+		m_handler(other.m_handler),
+		m_layer(other.m_layer)
+	{
+	}
+
+	void operator()(const tbb::blocked_range<size_t>& r)
+	{
+		for (unsigned int i = r.begin(), end = r.end(); i < end; ++i) {
+			KX_GameObject *obj = m_objects->GetValue(i);
+			if (obj->Renderable(m_layer)) {
+				// Update the object bounding volume box.
+				obj->UpdateBounds(false);
+
+				SG_CullingNode& node = obj->GetCullingNode();
+				const bool culled = m_handler.Test(obj->NodeGetWorldTransform(), obj->NodeGetWorldScaling(), node.GetAabb());
+
+				node.SetCulled(culled);
+				if (!culled) {
+					m_activeObjects.push_back(obj);
+				}
+			}
+		}
+	}
+
+	void join(const CullTask& other)
+	{
+		m_activeObjects.insert(m_activeObjects.end(), other.m_activeObjects.begin(), other.m_activeObjects.end());
+	}
+};
+
+KX_CullingHandler::KX_CullingHandler(EXP_ListValue<KX_GameObject> *objects, const SG_Frustum& frustum, int layer)
+	:m_objects(objects),
+	m_frustum(frustum),
+	m_layer(layer)
 {
 }
 
-void KX_CullingHandler::Process(KX_GameObject *object)
+bool KX_CullingHandler::Test(const mt::mat3x4& trans, const mt::vec3& scale, const SG_BBox& aabb) const
 {
-	SG_Node *sgnode = object->GetNode();
-	SG_CullingNode *node = object->GetCullingNode();
-
-	const mt::mat3x4 trans = sgnode->GetWorldTransform();
-	const mt::vec3 &scale = sgnode->GetWorldScaling();
-	const SG_BBox& aabb = node->GetAabb();
-
 	bool culled = true;
 	const float maxscale = std::max(std::max(fabs(scale.x), fabs(scale.y)), fabs(scale.z));
 	const SG_Frustum::TestType sphereTest = m_frustum.SphereInsideFrustum(trans * aabb.GetCenter(), maxscale * aabb.GetRadius());
@@ -32,8 +75,12 @@ void KX_CullingHandler::Process(KX_GameObject *object)
 		culled = (m_frustum.AabbInsideFrustum(aabb.GetMin(), aabb.GetMax(), mat) == SG_Frustum::OUTSIDE);
 	}
 
-	node->SetCulled(culled);
-	if (!culled) {
-		m_activeObjects.push_back(object);
-	}
+	return culled;
+}
+
+std::vector<KX_GameObject *> KX_CullingHandler::Process()
+{
+	CullTask task(m_objects, *this, m_layer);
+	tbb::parallel_reduce(tbb::blocked_range<size_t>(0, m_objects->GetCount()), task);
+	return task.m_activeObjects;
 }

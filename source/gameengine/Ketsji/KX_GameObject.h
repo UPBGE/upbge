@@ -716,8 +716,8 @@ public:
 	/// Return the mesh user of this game object.
 	RAS_MeshUser *GetMeshUser() const;
 
-	/// Return true when the object can be culled.
-	bool UseCulling() const;
+	/// Return true when the object can be rendered.
+	bool Renderable(int layer) const;
 
 	/**
 	 * Was this object marked visible? (only for the explicit
@@ -737,22 +737,6 @@ public:
 		bool recursive
 	);
 
-	/**
-	 * Was this object culled?
-	 */
-	inline bool
-	GetCulled(
-		void
-	) { return m_cullingNode.GetCulled(); }
-
-	/**
-	 * Set culled flag of this object
-	 */
-	inline void
-	SetCulled(
-		bool c
-	) { m_cullingNode.SetCulled(c); }
-	
 	/**
 	 * Is this object an occluder?
 	 */
@@ -809,7 +793,7 @@ public:
 	void SetBoundsAabb(const mt::vec3 &aabbMin, const mt::vec3 &aabbMax);
 	void GetBoundsAabb(mt::vec3 &aabbMin, mt::vec3 &aabbMax) const;
 
-	SG_CullingNode *GetCullingNode();
+	SG_CullingNode& GetCullingNode();
 
 	ActivityCullingInfo& GetActivityCullingInfo();
 	void SetActivityCullingInfo(const ActivityCullingInfo& cullingInfo);
