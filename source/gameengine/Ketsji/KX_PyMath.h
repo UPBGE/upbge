@@ -232,44 +232,69 @@ bool PyQuatTo(PyObject *pyval, mt::quat &qrot);
 
 bool PyOrientationTo(PyObject *pyval, mt::mat3 &mat, const char *error_prefix);
 
-/**
- * Converts an mt::mat4 to a python object.
- */
-PyObject *PyObjectFrom(const mt::mat4 &mat);
+/// Converts an mt::matX to a python object.
+template <int Rows, int Cols>
+PyObject *PyObjectFrom(const mt::Matrix<float, Rows, Cols> &mat)
+{
+#ifdef USE_MATHUTILS
+	float fmat[Rows * Cols];
+	mat.Pack(fmat);
+	return Matrix_CreatePyObject(fmat, Rows, Cols, nullptr);
+#else
+	PyObject *list = PyList_New(Rows);
 
-/**
- * Converts an mt::mat3 to a python object.
- */
-PyObject *PyObjectFrom(const mt::mat3 &mat);
+	for (unsigned short i = 0; i < Rows; ++i) {
+		PyObject *row = PyList_New(Cols);
+		for (unsigned short j = 0; j < Cols; ++j) {
+			PyList_SET_ITEM(row, j, PyFloat_FromDouble(mat[i][j]));
+		}
+		PyList_SET_ITEM(list, i, row);
+	}
 
-/**
- * Converts an mt::vec2 to a python object.
- */
-PyObject *PyObjectFrom(const mt::vec2 &vec);
-
-/**
- * Converts an mt::vec3 to a python object
- */
-PyObject *PyObjectFrom(const mt::vec3 &vec);
+	return list;
+#endif
+}
 
 #ifdef USE_MATHUTILS
-/**
- * Converts an mt::quat to a python object.
- */
+/// Converts an mt::quat to a python object.
 PyObject *PyObjectFrom(const mt::quat &qrot);
 #endif
 
-/**
- * Converts an mt::vec4 to a python object.
- */
-PyObject *PyObjectFrom(const mt::vec4 &pos);
+/// Converts an mt::vecX to a python object.
+template <int Size>
+PyObject *PyObjectFrom(const mt::Vector<float, Size> &vec)
+{
+#ifdef USE_MATHUTILS
+	return Vector_CreatePyObject(vec.Data(), Size, nullptr);
+#else
+	PyObject *list = PyList_New(Size);
+	for (unsigned short i = 0; i < Size; ++i) {
+		PyList_SET_ITEM(list, i, PyFloat_FromDouble(vec[i]));
+	}
+	return list;
+#endif
+}
 
-/**
- * Converts an mt::vec3 to a python color object.
- */
+/// Converts an mt::vecX_packed to a python object.
+template <int Size>
+PyObject *PyObjectFrom(const mt::VectorPacked<float, Size> &vec)
+{
+#ifdef USE_MATHUTILS
+	return Vector_CreatePyObject(vec.data, Size, nullptr);
+#else
+	PyObject *list = PyList_New(Size);
+	for (unsigned short i = 0; i < Size; ++i) {
+		PyList_SET_ITEM(list, i, PyFloat_FromDouble(vec.data[i]));
+	}
+	return list;
+#endif
+}
+
+/// Converts an mt::vec3 to a python color object.
 PyObject *PyColorFromVector(const mt::vec3 &vec);
 
-template <unsigned short Size>
+/// Convert a float array to a python object.
+template <int Size>
 PyObject *PyObjectFrom(const float (&vec)[Size])
 {
 #ifdef USE_MATHUTILS

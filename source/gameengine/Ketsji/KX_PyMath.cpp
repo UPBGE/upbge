@@ -86,51 +86,6 @@ bool PyQuatTo(PyObject *pyval, mt::quat &qrot)
 	return true;
 }
 
-PyObject *PyObjectFrom(const mt::mat4 &mat)
-{
-#ifdef USE_MATHUTILS
-	return Matrix_CreatePyObject((float *)mat.Data(), 4, 4, nullptr);
-#else
-	PyObject *collist = PyList_New(4);
-	PyObject *col;
-	int i;
-
-	for (i = 0; i < 4; i++) {
-		col = PyList_New(4);
-		PyList_SET_ITEM(col, 0, PyFloat_FromDouble(mat[0][i]));
-		PyList_SET_ITEM(col, 1, PyFloat_FromDouble(mat[1][i]));
-		PyList_SET_ITEM(col, 2, PyFloat_FromDouble(mat[2][i]));
-		PyList_SET_ITEM(col, 3, PyFloat_FromDouble(mat[3][i]));
-		PyList_SET_ITEM(collist, i, col);
-	}
-
-	return collist;
-#endif
-}
-
-PyObject *PyObjectFrom(const mt::mat3 &mat)
-{
-#ifdef USE_MATHUTILS
-	float fmat[9];
-	mat.Pack(fmat);
-	return Matrix_CreatePyObject(fmat, 3, 3, nullptr);
-#else
-	PyObject *collist = PyList_New(3);
-	PyObject *col;
-	int i;
-
-	for (i = 0; i < 3; i++) {
-		col = PyList_New(3);
-		PyList_SET_ITEM(col, 0, PyFloat_FromDouble(mat[0][i]));
-		PyList_SET_ITEM(col, 1, PyFloat_FromDouble(mat[1][i]));
-		PyList_SET_ITEM(col, 2, PyFloat_FromDouble(mat[2][i]));
-		PyList_SET_ITEM(collist, i, col);
-	}
-
-	return collist;
-#endif
-}
-
 #ifdef USE_MATHUTILS
 PyObject *PyObjectFrom(const mt::quat &qrot)
 {
@@ -140,55 +95,12 @@ PyObject *PyObjectFrom(const mt::quat &qrot)
 }
 #endif
 
-PyObject *PyObjectFrom(const mt::vec4 &vec)
-{
-#ifdef USE_MATHUTILS
-	return Vector_CreatePyObject(vec.Data(), 4, nullptr);
-#else
-	PyObject *list = PyList_New(4);
-	PyList_SET_ITEM(list, 0, PyFloat_FromDouble(vec[0]));
-	PyList_SET_ITEM(list, 1, PyFloat_FromDouble(vec[1]));
-	PyList_SET_ITEM(list, 2, PyFloat_FromDouble(vec[2]));
-	PyList_SET_ITEM(list, 3, PyFloat_FromDouble(vec[3]));
-	return list;
-#endif
-}
-
-PyObject *PyObjectFrom(const mt::vec3 &vec)
-{
-#ifdef USE_MATHUTILS
-	return Vector_CreatePyObject(vec.Data(), 3, nullptr);
-#else
-	PyObject *list = PyList_New(3);
-	PyList_SET_ITEM(list, 0, PyFloat_FromDouble(vec[0]));
-	PyList_SET_ITEM(list, 1, PyFloat_FromDouble(vec[1]));
-	PyList_SET_ITEM(list, 2, PyFloat_FromDouble(vec[2]));
-	return list;
-#endif
-}
-
-PyObject *PyObjectFrom(const mt::vec2 &vec)
-{
-#ifdef USE_MATHUTILS
-	return Vector_CreatePyObject(vec.Data(), 2, nullptr);
-#else
-	PyObject *list = PyList_New(2);
-	PyList_SET_ITEM(list, 0, PyFloat_FromDouble(vec[0]));
-	PyList_SET_ITEM(list, 1, PyFloat_FromDouble(vec[1]));
-	return list;
-#endif
-}
-
 PyObject *PyColorFromVector(const mt::vec3 &vec)
 {
 #ifdef USE_MATHUTILS
 	return Color_CreatePyObject(vec.Data(), nullptr);
 #else
-	PyObject *list = PyList_New(3);
-	PyList_SET_ITEM(list, 0, PyFloat_FromDouble(vec[0]));
-	PyList_SET_ITEM(list, 1, PyFloat_FromDouble(vec[1]));
-	PyList_SET_ITEM(list, 2, PyFloat_FromDouble(vec[2]));
-	return list;
+	return PyObjectFrom(vec);
 #endif
 }
 
