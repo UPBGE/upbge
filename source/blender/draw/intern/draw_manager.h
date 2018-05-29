@@ -248,14 +248,14 @@ struct DRWShadingGroup {
 
 #ifdef USE_GPU_SELECT
 	DRWInstanceData *inst_selectid;
-	DRWPass *pass_parent; /* backlink to pass we're in */
+	struct DRWPass *pass_parent; /* backlink to pass we're in */
 	int override_selectid; /* Override for single object instances. */
 #endif
 };
 
 #define MAX_PASS_NAME 32
 
-struct DRWPass {
+typedef struct DRWPass {
 	/* Linked list */
 	struct {
 		DRWShadingGroup *first;
@@ -264,7 +264,7 @@ struct DRWPass {
 
 	DRWState state;
 	char name[MAX_PASS_NAME];
-};
+} DRWPass;
 
 typedef struct ViewUboStorage {
 	DRWMatrixState matstate;

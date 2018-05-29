@@ -312,23 +312,23 @@ struct Gwn_VertFormat *DRW_shgroup_instance_format_array(const DRWInstanceAttrib
 	} \
 } while (0)
 
-DRWShadingGroup *DRW_shgroup_create(struct GPUShader *shader, DRWPass *pass);
-DRWShadingGroup *DRW_shgroup_material_create(struct GPUMaterial *material, DRWPass *pass);
+DRWShadingGroup *DRW_shgroup_create(struct GPUShader *shader, struct DRWPass *pass);
+DRWShadingGroup *DRW_shgroup_material_create(struct GPUMaterial *material, struct DRWPass *pass);
 DRWShadingGroup *DRW_shgroup_material_instance_create(
-        struct GPUMaterial *material, DRWPass *pass, struct Gwn_Batch *geom, struct Object *ob,
+        struct GPUMaterial *material, struct DRWPass *pass, struct Gwn_Batch *geom, struct Object *ob,
         struct Gwn_VertFormat *format);
-DRWShadingGroup *DRW_shgroup_material_empty_tri_batch_create(struct GPUMaterial *material, DRWPass *pass, int size);
+DRWShadingGroup *DRW_shgroup_material_empty_tri_batch_create(struct GPUMaterial *material, struct DRWPass *pass, int size);
 DRWShadingGroup *DRW_shgroup_instance_create(
-        struct GPUShader *shader, DRWPass *pass, struct Gwn_Batch *geom, struct Gwn_VertFormat *format);
-DRWShadingGroup *DRW_shgroup_point_batch_create(struct GPUShader *shader, DRWPass *pass);
+        struct GPUShader *shader, struct DRWPass *pass, struct Gwn_Batch *geom, struct Gwn_VertFormat *format);
+DRWShadingGroup *DRW_shgroup_point_batch_create(struct GPUShader *shader, struct DRWPass *pass);
 DRWShadingGroup *DRW_shgroup_line_batch_create_with_format(
-        struct GPUShader *shader, DRWPass *pass, struct Gwn_VertFormat *format);
+        struct GPUShader *shader, struct DRWPass *pass, struct Gwn_VertFormat *format);
 DRWShadingGroup *DRW_shgroup_line_batch_create(
-        struct GPUShader *shader, DRWPass *pass);
+        struct GPUShader *shader, struct DRWPass *pass);
 DRWShadingGroup *DRW_shgroup_empty_tri_batch_create(
-        struct GPUShader *shader, DRWPass *pass, int size);
+        struct GPUShader *shader, struct DRWPass *pass, int size);
 DRWShadingGroup *DRW_shgroup_transform_feedback_create(
-        struct GPUShader *shader, DRWPass *pass, struct Gwn_VertBuf *tf_target);
+        struct GPUShader *shader, struct DRWPass *pass, struct Gwn_VertBuf *tf_target);
 
 typedef void (DRWCallGenerateFn)(
         DRWShadingGroup *shgroup,
@@ -392,12 +392,12 @@ void DRW_shgroup_uniform_bool_copy(DRWShadingGroup *shgroup, const char *name, c
 void DRW_shgroup_uniform_float_copy(DRWShadingGroup *shgroup, const char *name, const float value);
 
 /* Passes */
-DRWPass *DRW_pass_create(const char *name, DRWState state);
-void DRW_pass_state_set(DRWPass *pass, DRWState state);
-void DRW_pass_state_add(DRWPass *pass, DRWState state);
-void DRW_pass_state_remove(DRWPass *pass, DRWState state);
-void DRW_pass_foreach_shgroup(DRWPass *pass, void (*callback)(void *userData, DRWShadingGroup *shgrp), void *userData);
-void DRW_pass_sort_shgroup_z(DRWPass *pass);
+struct DRWPass *DRW_pass_create(const char *name, DRWState state);
+void DRW_pass_state_set(struct DRWPass *pass, DRWState state);
+void DRW_pass_state_add(struct DRWPass *pass, DRWState state);
+void DRW_pass_state_remove(struct DRWPass *pass, DRWState state);
+void DRW_pass_foreach_shgroup(struct DRWPass *pass, void (*callback)(void *userData, DRWShadingGroup *shgrp), void *userData);
+void DRW_pass_sort_shgroup_z(struct DRWPass *pass);
 
 /* Viewport */
 typedef enum {
@@ -469,8 +469,8 @@ int  DRW_object_is_paint_mode(const struct Object *ob);
 bool DRW_check_psys_visible_within_active_context(struct Object *object, struct ParticleSystem *psys);
 
 /* Draw commands */
-void DRW_draw_pass(DRWPass *pass);
-void DRW_draw_pass_subset(DRWPass *pass, DRWShadingGroup *start_group, DRWShadingGroup *end_group);
+void DRW_draw_pass(struct DRWPass *pass);
+void DRW_draw_pass_subset(struct DRWPass *pass, DRWShadingGroup *start_group, DRWShadingGroup *end_group);
 
 void DRW_draw_text_cache_queue(struct DRWTextStore *dt);
 

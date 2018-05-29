@@ -722,6 +722,11 @@ void uiItemS(struct uiLayout *layout) RET_NONE
 void uiItemFullR(uiLayout *layout, struct PointerRNA *ptr, struct PropertyRNA *prop, int index, int value, int flag, const char *name, int icon) RET_NONE
 void uiLayoutSetContextPointer(uiLayout *layout, const char *name, struct PointerRNA *ptr) RET_NONE
 const char *uiLayoutIntrospect(uiLayout *layout) RET_NULL
+
+void uiLayoutSetPropSep(uiLayout *layout, bool is_sep) RET_NONE
+bool uiLayoutGetPropSep(uiLayout *layout) RET_NULL
+
+
 void UI_reinit_font(void) RET_NONE
 int UI_rnaptr_icon_get(struct bContext *C, struct PointerRNA *ptr, int rnaicon, const bool big) RET_ZERO
 struct PreviewImage *UI_icon_to_preview(int icon_id) RET_NULL
