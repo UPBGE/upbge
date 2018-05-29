@@ -923,7 +923,7 @@ void EEVEE_materials_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
 		float *col = ts.colorBackground;
 
 		/* LookDev */
-		EEVEE_lookdev_cache_init(vedata, &grp, e_data.default_studiolight_background, psl->background_pass, NULL);
+		EEVEE_lookdev_cache_init(vedata, &grp, e_data.default_studiolight_background, psl->background_pass, wo, NULL);
 		/* END */
 
 		if (!grp && wo) {
@@ -1633,7 +1633,7 @@ void EEVEE_materials_cache_finish(EEVEE_Data *vedata)
 	/* Look-Dev */
 	const DRWContextState *draw_ctx = DRW_context_state_get();
 	const View3D *v3d = draw_ctx->v3d;
-	if (v3d && v3d->drawtype == OB_MATERIAL) {
+	if (LOOK_DEV_OVERLAY_ENABLED(v3d)) {
 		EEVEE_ViewLayerData *sldata = EEVEE_view_layer_data_ensure();
 		EEVEE_LampsInfo *linfo = sldata->lamps;
 		struct Gwn_Batch *sphere = DRW_cache_sphere_get();

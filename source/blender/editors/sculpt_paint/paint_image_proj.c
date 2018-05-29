@@ -5030,7 +5030,7 @@ void paint_proj_stroke(
 	/* clone gets special treatment here to avoid going through image initialization */
 	if (ps_handle->is_clone_cursor_pick) {
 		Scene *scene = ps_handle->scene;
-		struct Depsgraph *graph = CTX_data_depsgraph(C);
+		struct Depsgraph *depsgraph = CTX_data_depsgraph(C);
 		View3D *v3d = CTX_wm_view3d(C);
 		ARegion *ar = CTX_wm_region(C);
 		float *cursor = ED_view3d_cursor3d_get(scene, v3d)->location;
@@ -5038,7 +5038,7 @@ void paint_proj_stroke(
 
 		view3d_operator_needs_opengl(C);
 
-		if (!ED_view3d_autodist(graph, ar, v3d, mval_i, cursor, false, NULL)) {
+		if (!ED_view3d_autodist(depsgraph, ar, v3d, mval_i, cursor, false, NULL)) {
 			return;
 		}
 
@@ -5741,14 +5741,15 @@ static int texture_paint_add_texture_paint_slot_exec(bContext *C, wmOperator *op
 static int texture_paint_add_texture_paint_slot_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
 	char imagename[MAX_ID_NAME - 2];
+	Main *bmain = CTX_data_main(C);
 	Object *ob = CTX_data_active_object(C);
 	Material *ma = give_current_material(ob, ob->actcol);
 	int type = RNA_enum_get(op->ptr, "type");
 
 	if (!ma) {
-		ma = BKE_material_add(CTX_data_main(C), "Material");
+		ma = BKE_material_add(bmain, "Material");
 		/* no material found, just assign to first slot */
-		assign_material(ob, ma, ob->actcol, BKE_MAT_ASSIGN_USERPREF);
+		assign_material(bmain, ob, ma, ob->actcol, BKE_MAT_ASSIGN_USERPREF);
 	}
 	
 	type = RNA_enum_from_value(layer_type_items, type);

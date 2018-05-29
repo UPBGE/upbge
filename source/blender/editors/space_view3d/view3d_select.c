@@ -106,6 +106,9 @@
 
 // #include "PIL_time_utildefines.h"
 
+/* Don't allow switching object-modes when selecting objects. */
+#define USE_OBJECT_MODE_STRICT
+
 float ED_view3d_select_dist_px(void)
 {
 	return 75.0f * U.pixelsize;
@@ -423,16 +426,18 @@ static void do_lasso_select_objects(
 
 	for (base = vc->view_layer->object_bases.first; base; base = base->next) {
 		if (BASE_SELECTABLE(base)) { /* use this to avoid un-needed lasso lookups */
-			if (ED_view3d_project_base(vc->ar, base) == V3D_PROJ_RET_OK) {
+			if (
+#ifdef USE_OBJECT_MODE_STRICT
+			    (is_pose_mode == false) &&
+#endif
+			    ED_view3d_project_base(vc->ar, base) == V3D_PROJ_RET_OK)
+			{
 				if (BLI_lasso_is_point_inside(mcords, moves, base->sx, base->sy, IS_CLIPPED)) {
 
 					ED_object_base_select(base, select ? BA_SELECT : BA_DESELECT);
 				}
 			}
-			if (is_pose_mode &&
-			    ((vc->obact == base->object) || (base->flag & BASE_SELECTED)) &&
-			    (base->object->mode & OB_MODE_POSE))
-			{
+			if (is_pose_mode && (base->object->mode & OB_MODE_POSE)) {
 				do_lasso_select_pose(vc, base->object, mcords, moves, select);
 			}
 		}
@@ -1249,6 +1254,25 @@ static int mixed_bones_object_selectbuffer(
 finally:
 	view3d_opengl_select_cache_end();
 
+#ifdef USE_OBJECT_MODE_STRICT
+	{
+		const bool is_pose_mode = (vc->obact && vc->obact->mode & OB_MODE_POSE);
+		struct {
+			uint data[4];
+		} *buffer4 = (void *)buffer;
+		uint j = 0;
+		for (uint i = 0; i < hits; i++) {
+			if (((buffer4[i].data[3] & 0xFFFF0000) != 0) == is_pose_mode) {
+				if (i != j) {
+					buffer4[i] = buffer4[j];
+				}
+				j++;
+			}
+		}
+		hits = j;
+	}
+#endif
+
 	return hits;
 }
 
@@ -1389,7 +1413,7 @@ static bool ed_object_select_pick(
 	ARegion *ar = CTX_wm_region(C);
 	Scene *scene = CTX_data_scene(C);
 	ViewLayer *view_layer = CTX_data_view_layer(C);
-	Base *base, *startbase = NULL, *basact = NULL, *oldbasact = NULL;
+	Base *base, *startbase = NULL, *basact = NULL, *oldbasact = BASACT(view_layer);
 	bool is_obedit;
 	float dist = ED_view3d_select_dist_px() * 1.3333f;
 	bool retval = false;
@@ -1444,6 +1468,15 @@ static bool ed_object_select_pick(
 				if (base == startbase) break;
 			}
 		}
+#ifdef USE_OBJECT_MODE_STRICT
+		if (is_obedit == false) {
+			if (basact && !BKE_object_is_mode_compat(
+			            basact->object, oldbasact ? oldbasact->object->mode : OB_MODE_OBJECT))
+			{
+				basact = NULL;
+			}
+		}
+#endif
 	}
 	else {
 		unsigned int buffer[MAXPICKBUF];
@@ -1467,7 +1500,17 @@ static bool ed_object_select_pick(
 			else {
 				basact = mouse_select_eval_buffer(&vc, buffer, hits, startbase, has_bones, do_nearest);
 			}
-			
+
+#ifdef USE_OBJECT_MODE_STRICT
+			if (is_obedit == false) {
+				if (basact && !BKE_object_is_mode_compat(
+				            basact->object, oldbasact ? oldbasact->object->mode : OB_MODE_OBJECT))
+				{
+					basact = NULL;
+				}
+			}
+#endif
+
 			if (has_bones && basact) {
 				if (basact->object->type == OB_CAMERA) {
 					if (BASACT(view_layer) == basact) {
@@ -1554,7 +1597,21 @@ static bool ed_object_select_pick(
 			}
 		}
 	}
-	
+
+#ifdef USE_OBJECT_MODE_STRICT
+	/* Disallow switching modes,
+	 * special exception for edit-mode - vertex-parent operator. */
+	if (is_obedit == false) {
+		if (oldbasact && basact) {
+			if ((oldbasact->object->mode != basact->object->mode) &&
+			    (oldbasact->object->mode & basact->object->mode) == 0)
+			{
+				basact = NULL;
+			}
+		}
+	}
+#endif
+
 	/* so, do we have something selected? */
 	if (basact) {
 		retval = true;
@@ -1566,9 +1623,6 @@ static bool ed_object_select_pick(
 		}
 		/* also prevent making it active on mouse selection */
 		else if (BASE_SELECTABLE(basact)) {
-
-			oldbasact = BASACT(view_layer);
-			
 			if (extend) {
 				ED_object_base_select(basact, BA_SELECT);
 			}
