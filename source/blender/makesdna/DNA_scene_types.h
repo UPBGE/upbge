@@ -858,6 +858,11 @@ typedef struct GameData {
 	/* Scene LoD */
 	short lodflag, pad2;
 	int scehysteresis;
+
+	// New variable.
+	int myVar;
+	// DNA request a alignment of 8o for struct.
+	int pad;
 } GameData;
 
 #define STEREO_NOSTEREO		1

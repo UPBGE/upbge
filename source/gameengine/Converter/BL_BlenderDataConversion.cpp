@@ -1203,6 +1203,8 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 
 	Scene *blenderscene = kxscene->GetBlenderScene();
 
+	CM_Debug("My Var : " << blenderscene->gm.myVar);
+
 	// List of groups to be converted
 	std::set<Group *> grouplist;
 	// All objects converted.

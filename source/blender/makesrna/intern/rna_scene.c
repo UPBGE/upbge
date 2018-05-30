@@ -4929,6 +4929,20 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_SHOW_OBSTACLE_SIMULATION);
 	RNA_def_property_ui_text(prop, "Visualization", "Enable debug visualization for obstacle simulation");
 
+	// Definition of python name, type and flag.
+	prop = RNA_def_property(srna, "my_var", PROP_INT, PROP_NONE);
+	// Link to the DNA variable by name.
+	RNA_def_property_int_sdna(prop, NULL, "myVar");
+	RNA_def_property_range(prop, 1, 10000);
+	// The clamping range and step in UI.
+	RNA_def_property_ui_range(prop, 1, 50, 1, 1);
+	// The default value when resetting in UI.
+	RNA_def_property_int_default(prop, 5);
+	// Description.
+	RNA_def_property_ui_text(prop, "My Var", "Example variable");
+	// Description of update to proceed when changing of value.
+	RNA_def_property_update(prop, NC_SCENE, NULL);
+
 	/* Recast Settings */
 	prop = RNA_def_property(srna, "recast_data", PROP_POINTER, PROP_NONE);
 	RNA_def_property_flag(prop, PROP_NEVER_NULL);
