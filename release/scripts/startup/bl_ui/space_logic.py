@@ -39,14 +39,15 @@ class LOGIC_PT_components(bpy.types.Panel):
         st = context.space_data
 
         row = layout.row()
-        row.operator("logic.add_python_component", text="Add Component", icon="ZOOMIN")
+        row.operator("logic.python_component_register", text="Register Component", icon="ZOOMIN")
+        row.operator("logic.python_component_create", text="Create Component", icon="ZOOMIN")
 
         for i, c in enumerate(game.components):
             box = layout.box()
             row = box.row()
             row.prop(c, "name", text="")
-            row.operator("logic.component_reload", text="", icon='RECOVER_LAST').index = i
-            row.operator("logic.component_remove", text="", icon='X').index = i
+            row.operator("logic.python_component_reload", text="", icon='RECOVER_LAST').index = i
+            row.operator("logic.python_component_remove", text="", icon='X').index = i
 
             for prop in c.properties:
                 row = box.row()
