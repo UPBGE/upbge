@@ -659,7 +659,7 @@ static int rna_3DViewShading_type_get(PointerRNA *ptr)
 	View3D *v3d = (View3D *)ptr->data;
 
 	if (!BKE_scene_uses_blender_eevee(scene) && v3d->drawtype == OB_RENDER) {
-		if (!(type && type->render_to_view)) {
+		if (!(type && type->view_draw)) {
 			return OB_MATERIAL;
 		}
 	}
@@ -696,7 +696,7 @@ static const EnumPropertyItem *rna_3DViewShading_type_itemf(
 	}
 	else {
 		RNA_enum_items_add_value(&item, &totitem, rna_enum_shading_type_items, OB_MATERIAL);
-		if (type && type->render_to_view) {
+		if (type && type->view_draw) {
 			RNA_enum_items_add_value(&item, &totitem, rna_enum_shading_type_items, OB_RENDER);
 		}
 	}
@@ -720,7 +720,7 @@ static void rna_View3DShading_studio_light_orientation_set(PointerRNA *UNUSED(pt
 static int rna_View3DShading_studio_light_get(PointerRNA *ptr)
 {
 	View3D *v3d = (View3D *)ptr->data;
-	const int flag = v3d->drawtype == OB_MATERIAL? STUDIOLIGHT_ORIENTATION_WORLD: 0;
+	const int flag = (v3d->drawtype == OB_MATERIAL) ? STUDIOLIGHT_ORIENTATION_WORLD : 0;
 	StudioLight *sl = BKE_studiolight_find(v3d->shading.studio_light, flag);
 	BLI_strncpy(v3d->shading.studio_light, sl->name, FILE_MAXFILE);
 	return sl->index;
@@ -750,7 +750,8 @@ static const EnumPropertyItem *rna_View3DShading_studio_light_itemf(
 		if ((sl->flag & STUDIOLIGHT_EXTERNAL_FILE) == 0) {
 			/* always show internal lights */
 			show_studiolight = true;
-		} else {
+		}
+		else {
 			switch (v3d->drawtype) {
 				case OB_SOLID:
 				case OB_TEXTURE:
@@ -2251,8 +2252,7 @@ static void rna_def_space_view3d_shading(BlenderRNA *brna)
 
 	static const EnumPropertyItem color_type_items[] = {
 		{V3D_SHADING_SINGLE_COLOR,   "SINGLE",   0, "Single",   "Show scene in a single color"},
-		{V3D_SHADING_OBJECT_COLOR,   "OBJECT",   0, "Object",   "Show Object color"},
-		{V3D_SHADING_MATERIAL_COLOR, "MATERIAL", 0, "Material", "Show Material color"},
+		{V3D_SHADING_MATERIAL_COLOR, "MATERIAL", 0, "Material", "Show material color"},
 		{V3D_SHADING_RANDOM_COLOR,   "RANDOM",   0, "Random",   "Show random object color"},
 		{0, NULL, 0, NULL, NULL}
 	};
@@ -2345,8 +2345,8 @@ static void rna_def_space_view3d_shading(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Scene Light", "Render lamps and light probes of the scene");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
-	prop = RNA_def_property(srna, "show_specular_highlights", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "shading.flag", V3D_SHADING_SPECULAR_HIGHLIGHTS);
+	prop = RNA_def_property(srna, "show_specular_highlight", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "shading.flag", V3D_SHADING_SPECULAR_HIGHLIGHT);
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_ui_text(prop, "Specular Highlights", "Render specular highlights");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);

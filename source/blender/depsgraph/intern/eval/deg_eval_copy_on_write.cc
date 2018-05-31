@@ -527,10 +527,10 @@ void update_special_pointers(const Depsgraph *depsgraph,
 			 */
 			Object *object_cow = (Object *)id_cow;
 			const Object *object_orig = (const Object *)id_orig;
-			(void) object_cow;  /* Ignored for release builds. */
 			BLI_assert(object_cow->derivedFinal == NULL);
 			BLI_assert(object_cow->derivedDeform == NULL);
 			object_cow->mode = object_orig->mode;
+			object_cow->sculpt = object_orig->sculpt;
 			if (object_cow->type == OB_ARMATURE) {
 				BKE_pose_remap_bone_pointers((bArmature *)object_cow->data,
 				                             object_cow->pose);
@@ -542,6 +542,7 @@ void update_special_pointers(const Depsgraph *depsgraph,
 			break;
 	}
 	update_edit_mode_pointers(depsgraph, id_orig, id_cow);
+	BKE_animsys_update_driver_array(id_cow);
 }
 
 /* This callback is used to validate that all nested ID datablocks are
@@ -937,6 +938,7 @@ void deg_free_copy_on_write_datablock(ID *id_cow)
 			 */
 			Object *ob_cow = (Object *)id_cow;
 			ob_cow->data = NULL;
+			ob_cow->sculpt = NULL;
 			break;
 		}
 		default:

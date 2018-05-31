@@ -216,6 +216,7 @@ bool ED_object_mode_generic_enter(
         struct bContext *C,
         eObjectMode object_mode);
 void ED_object_mode_generic_exit(
+        struct Main *bmain,
         struct Depsgraph *depsgraph,
         struct Scene *scene, struct Object *ob);
 bool ED_object_mode_generic_has_data(
@@ -275,5 +276,8 @@ void ED_object_facemap_face_remove(struct Object *ob, struct bFaceMap *fmap, int
 #ifdef __cplusplus
 }
 #endif
+
+/* Don't allow switching object-modes when selecting objects. */
+#define USE_OBJECT_MODE_STRICT
 
 #endif /* __ED_OBJECT_H__ */

@@ -341,7 +341,7 @@ enum {
 	V3D_SHADING_XRAY                = (1 << 1),
 	V3D_SHADING_SHADOW              = (1 << 2),
 	V3D_SHADING_SCENE_LIGHT         = (1 << 3),
-	V3D_SHADING_SPECULAR_HIGHLIGHTS = (1 << 4),
+	V3D_SHADING_SPECULAR_HIGHLIGHT  = (1 << 4),
 };
 
 /* View3DShading->single_color_type */
@@ -349,7 +349,6 @@ enum {
 	V3D_SHADING_MATERIAL_COLOR = 0,
 	V3D_SHADING_RANDOM_COLOR   = 1,
 	V3D_SHADING_SINGLE_COLOR   = 2,
-	V3D_SHADING_OBJECT_COLOR   = 3,
 };
 
 /* View3DOverlay->flag */
