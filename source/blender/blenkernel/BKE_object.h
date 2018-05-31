@@ -88,6 +88,8 @@ bool BKE_object_is_in_wpaint_select_vert(const struct Object *ob);
 bool BKE_object_has_mode_data(const struct Object *ob, eObjectMode object_mode);
 bool BKE_object_is_mode_compat(const struct Object *ob, eObjectMode object_mode);
 
+bool BKE_object_data_is_in_editmode(const struct ID *id);
+
 typedef enum eObjectVisibilityCheck {
 	OB_VISIBILITY_CHECK_FOR_VIEWPORT,
 	OB_VISIBILITY_CHECK_FOR_RENDER,
@@ -303,6 +305,8 @@ void BKE_object_relink(struct Object *ob);
 void BKE_object_data_relink(struct Object *ob);
 
 struct MovieClip *BKE_object_movieclip_get(struct Scene *scene, struct Object *ob, bool use_default);
+
+void BKE_object_runtime_reset(struct Object *object);
 
 /* this function returns a superset of the scenes selection based on relationships */
 

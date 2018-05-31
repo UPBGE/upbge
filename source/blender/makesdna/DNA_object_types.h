@@ -143,6 +143,18 @@ typedef struct ObjectDisplay {
 	int flag;
 } ObjectDisplay;
 
+/* Not saved in file! */
+typedef struct Object_Runtime {
+	/* Mesh structure created during object evaluation.
+	 * It has all modifiers applied.
+	 */
+	struct Mesh *mesh_eval;
+	/* Mesh structure created during object evaluation.
+	 * It has deforemation only modifiers applied on it.
+	 */
+	struct Mesh *mesh_deform_eval;
+} Object_Runtime;
+
 typedef struct Object {
 	ID id;
 	struct AnimData *adt;		/* animation data (must be immediately after id for utilities to use it) */ 
@@ -348,10 +360,8 @@ typedef struct Object {
 	int pad6;
 	int select_color;
 
-	/* Mesh structure created during object evaluation.
-	 * It has all modifiers applied.
-	 */
-	struct Mesh *mesh_evaluated;
+	/* Runtime evaluation data. */
+	Object_Runtime runtime;
 
 	/* Object Display */
 	struct ObjectDisplay display;
@@ -442,6 +452,10 @@ enum {
 	(ELEM(_type, OB_MESH, OB_FONT, OB_CURVE, OB_SURF, OB_MBALL, OB_LATTICE, OB_ARMATURE))
 #define OB_TYPE_SUPPORT_PARVERT(_type) \
 	(ELEM(_type, OB_MESH, OB_SURF, OB_CURVE, OB_LATTICE))
+
+/** Matches #OB_TYPE_SUPPORT_EDITMODE. */
+#define OB_DATA_SUPPORT_EDITMODE(_type) \
+	(ELEM(_type, ID_ME, ID_CU, ID_MB, ID_LT, ID_AR))
 
 /* is this ID type used as object data */
 #define OB_DATA_SUPPORT_ID(_id_type) \

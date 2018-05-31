@@ -1479,7 +1479,8 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *main)
 			}
 		}
 
-		if (!DNA_struct_elem_find(fd->filesdna, "SceneDisplay", "int", "matcap_icon")) {
+
+		if (!MAIN_VERSION_ATLEAST(main, 280, 15)) {
 			for (Scene *scene = main->scene.first; scene; scene = scene->id.next) {
 				scene->display.matcap_icon = 1;
 				scene->display.matcap_type = CLAY_MATCAP_NONE;
@@ -1492,9 +1493,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *main)
 				scene->display.matcap_ssao_factor_edge = 1.0f;
 				scene->display.matcap_ssao_samples = 16;
 			}
-		}
 
-		if (!DNA_struct_elem_find(fd->filesdna, "SpaceOops", "short", "filter_id_type")) {
 			for (bScreen *screen = main->screen.first; screen; screen = screen->id.next) {
 				for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
 					for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
@@ -1506,25 +1505,52 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *main)
 					}
 				}
 			}
-		}
 
-		for (Scene *scene = main->scene.first; scene; scene = scene->id.next) {
-			switch (scene->toolsettings->snap_mode) {
-				case 0: scene->toolsettings->snap_mode = SCE_SNAP_MODE_INCREMENT; break;
-				case 1: scene->toolsettings->snap_mode = SCE_SNAP_MODE_VERTEX   ; break;
-				case 2: scene->toolsettings->snap_mode = SCE_SNAP_MODE_EDGE     ; break;
-				case 3: scene->toolsettings->snap_mode = SCE_SNAP_MODE_FACE     ; break;
-				case 4: scene->toolsettings->snap_mode = SCE_SNAP_MODE_VOLUME   ; break;
+			for (Scene *scene = main->scene.first; scene; scene = scene->id.next) {
+				switch (scene->toolsettings->snap_mode) {
+					case 0: scene->toolsettings->snap_mode = SCE_SNAP_MODE_INCREMENT; break;
+					case 1: scene->toolsettings->snap_mode = SCE_SNAP_MODE_VERTEX   ; break;
+					case 2: scene->toolsettings->snap_mode = SCE_SNAP_MODE_EDGE     ; break;
+					case 3: scene->toolsettings->snap_mode = SCE_SNAP_MODE_FACE     ; break;
+					case 4: scene->toolsettings->snap_mode = SCE_SNAP_MODE_VOLUME   ; break;
+				}
+				switch (scene->toolsettings->snap_node_mode) {
+					case 5: scene->toolsettings->snap_node_mode = SCE_SNAP_MODE_NODE_X; break;
+					case 6: scene->toolsettings->snap_node_mode = SCE_SNAP_MODE_NODE_Y; break;
+					case 7: scene->toolsettings->snap_node_mode = SCE_SNAP_MODE_NODE_X | SCE_SNAP_MODE_NODE_Y; break;
+					case 8: scene->toolsettings->snap_node_mode = SCE_SNAP_MODE_GRID  ; break;
+				}
+				switch (scene->toolsettings->snap_uv_mode) {
+					case 0: scene->toolsettings->snap_uv_mode = SCE_SNAP_MODE_INCREMENT; break;
+					case 1: scene->toolsettings->snap_uv_mode = SCE_SNAP_MODE_VERTEX   ; break;
+				}
 			}
-			switch (scene->toolsettings->snap_node_mode) {
-				case 5: scene->toolsettings->snap_node_mode = SCE_SNAP_MODE_NODE_X; break;
-				case 6: scene->toolsettings->snap_node_mode = SCE_SNAP_MODE_NODE_Y; break;
-				case 7: scene->toolsettings->snap_node_mode = SCE_SNAP_MODE_NODE_X | SCE_SNAP_MODE_NODE_Y; break;
-				case 8: scene->toolsettings->snap_node_mode = SCE_SNAP_MODE_GRID  ; break;
+
+			ParticleSettings *part;
+			for (part = main->particle.first; part; part = part->id.next) {
+				part->shape_flag = PART_SHAPE_CLOSE_TIP;
+				part->shape = 0.0f;
+				part->rad_root = 1.0f;
+				part->rad_tip = 0.0f;
+				part->rad_scale = 0.01f;
 			}
-			switch (scene->toolsettings->snap_uv_mode) {
-				case 0: scene->toolsettings->snap_uv_mode = SCE_SNAP_MODE_INCREMENT; break;
-				case 1: scene->toolsettings->snap_uv_mode = SCE_SNAP_MODE_VERTEX   ; break;
+		}
+	}
+
+	{
+		if (!DNA_struct_elem_find(fd->filesdna, "SceneDisplay", "float", "roughness")) {
+			for (Scene *scene = main->scene.first; scene; scene = scene->id.next) {
+				scene->display.roughness = 0.0f;
+			}
+			for (bScreen *screen = main->screen.first; screen; screen = screen->id.next) {
+				for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
+					for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
+						if (sl->spacetype == SPACE_VIEW3D) {
+							View3D *v3d = (View3D *)sl;
+							v3d->shading.flag |= V3D_SHADING_SPECULAR_HIGHLIGHTS;
+						}
+					}
+				}
 			}
 		}
 	}

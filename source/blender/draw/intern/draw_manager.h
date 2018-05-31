@@ -87,6 +87,7 @@
 enum {
 	DRW_CALL_CULLED                 = (1 << 0),
 	DRW_CALL_NEGSCALE               = (1 << 1),
+	DRW_CALL_BYPASS_CULLING         = (1 << 2),
 };
 
 /* Used by DRWCallState.matflag */
@@ -127,6 +128,7 @@ typedef enum {
 	DRW_CALL_SINGLE,                 /* A single batch */
 	DRW_CALL_INSTANCES,              /* Draw instances without any instancing attribs. */
 	DRW_CALL_GENERATE,               /* Uses a callback to draw with any number of batches. */
+	DRW_CALL_PROCEDURAL,             /* Generate a drawcall without any Gwn_Batch. */
 } DRWCallType;
 
 typedef struct DRWCall {
@@ -146,6 +148,10 @@ typedef struct DRWCall {
 			DRWCallGenerateFn *geometry_fn;
 			void *user_data;
 		} generate;
+		struct { /* type == DRW_CALL_PROCEDURAL */
+			unsigned int prim_count;
+			Gwn_PrimType prim_type;
+		} procedural;
 	};
 
 	DRWCallType type;
@@ -247,7 +253,7 @@ struct DRWShadingGroup {
 #endif
 
 #ifdef USE_GPU_SELECT
-	DRWInstanceData *inst_selectid;
+	Gwn_VertBuf *inst_selectid;
 	struct DRWPass *pass_parent; /* backlink to pass we're in */
 	int override_selectid; /* Override for single object instances. */
 #endif
@@ -289,7 +295,7 @@ typedef struct DRWManager {
 	/* Cache generation */
 	ViewportMemoryPool *vmempool;
 	DRWInstanceDataList *idatalist;
-	DRWInstanceData *common_instance_data[MAX_INSTANCE_DATA_SIZE];
+	DRWInstanceData *object_instance_data[MAX_INSTANCE_DATA_SIZE];
 	/* State of the object being evaluated if already allocated. */
 	DRWCallState *ob_state;
 	unsigned char state_cache_id; /* Could be larger but 254 view changes is already a lot! */

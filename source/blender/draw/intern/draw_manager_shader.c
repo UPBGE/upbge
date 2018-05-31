@@ -47,6 +47,7 @@ extern char datatoc_gpu_shader_2D_vert_glsl[];
 extern char datatoc_gpu_shader_3D_vert_glsl[];
 extern char datatoc_common_fullscreen_vert_glsl[];
 
+#define USE_DEFERRED_COMPILATION 1
 
 /* -------------------------------------------------------------------- */
 
@@ -168,7 +169,7 @@ static void drw_deferred_shader_add(
         GPUMaterial *mat, const char *vert, const char *geom, const char *frag_lib, const char *defines)
 {
 	/* Do not deferre the compilation if we are rendering for image. */
-	if (1) {//DRW_state_is_image_render() || DRW_state_is_game_engine()) {
+	if (DRW_state_is_image_render() || !USE_DEFERRED_COMPILATION || DRW_state_is_game_engine()) {
 		/* Double checking that this GPUMaterial is not going to be
 		 * compiled by another thread. */
 		DRW_deferred_shader_remove(mat);

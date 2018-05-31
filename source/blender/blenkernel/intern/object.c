@@ -353,15 +353,23 @@ void BKE_object_free_derived_caches(Object *ob)
 		ob->derivedDeform = NULL;
 	}
 
-	if (ob->mesh_evaluated != NULL) {
+	if (ob->runtime.mesh_eval != NULL) {
+		Mesh *mesh_eval = ob->runtime.mesh_eval;
 		/* Restore initial pointer. */
-		ob->data = ob->mesh_evaluated->id.orig_id;
+		ob->data = mesh_eval->id.orig_id;
 		/* Evaluated mesh points to edit mesh, but does not own it. */
-		ob->mesh_evaluated->edit_btmesh = NULL;
-		BKE_mesh_free(ob->mesh_evaluated);
-		BKE_libblock_free_data(&ob->mesh_evaluated->id, false);
-		MEM_freeN(ob->mesh_evaluated);
-		ob->mesh_evaluated = NULL;
+		mesh_eval->edit_btmesh = NULL;
+		BKE_mesh_free(mesh_eval);
+		BKE_libblock_free_data(&mesh_eval->id, false);
+		MEM_freeN(mesh_eval);
+		ob->runtime.mesh_eval = NULL;
+	}
+	if (ob->runtime.mesh_deform_eval != NULL) {
+		Mesh *mesh_deform_eval = ob->runtime.mesh_deform_eval;
+		BKE_mesh_free(mesh_deform_eval);
+		BKE_libblock_free_data(&mesh_deform_eval->id, false);
+		MEM_freeN(mesh_deform_eval);
+		ob->runtime.mesh_deform_eval = NULL;
 	}
 
 	BKE_object_free_curve_cache(ob);
@@ -527,6 +535,30 @@ bool BKE_object_is_in_editmode_vgroup(const Object *ob)
 {
 	return (OB_TYPE_SUPPORT_VGROUP(ob->type) &&
 	        BKE_object_is_in_editmode(ob));
+}
+
+bool BKE_object_data_is_in_editmode(const ID *id)
+{
+	const short type = GS(id->name);
+	BLI_assert(OB_DATA_SUPPORT_EDITMODE(type));
+	switch (type) {
+		case ID_ME:
+			return ((const Mesh *)id)->edit_btmesh != NULL;
+		case ID_CU:
+			return (
+			        (((const Curve *)id)->editnurb != NULL) ||
+			        (((const Curve *)id)->editfont != NULL)
+			);
+		case ID_MB:
+			return ((const MetaBall *)id)->editelems != NULL;
+		case ID_LT:
+			return ((const Lattice *)id)->editlatt != NULL;
+		case ID_AR:
+			return ((const bArmature *)id)->edbo != NULL;
+		default:
+			BLI_assert(0);
+			return false;
+	}
 }
 
 bool BKE_object_is_in_wpaint_select_vert(const Object *ob)
@@ -3001,8 +3033,7 @@ int BKE_object_obdata_texspace_get(Object *ob, short **r_texflag, float **r_loc,
 Mesh *BKE_object_get_evaluated_mesh(const Depsgraph *depsgraph, Object *ob)
 {
 	Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
-
-	return ob_eval->mesh_evaluated;
+	return ob_eval->runtime.mesh_eval;
 }
 
 
@@ -3508,6 +3539,9 @@ MovieClip *BKE_object_movieclip_get(Scene *scene, Object *ob, bool use_default)
 	return clip;
 }
 
+void BKE_object_runtime_reset(Object *object) {
+	memset(&object->runtime, 0, sizeof(object->runtime));
+}
 
 /*
  * Find an associated Armature object

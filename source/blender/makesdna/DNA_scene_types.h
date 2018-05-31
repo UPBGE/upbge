@@ -720,11 +720,20 @@ typedef struct RenderData {
 	ListBase views;  /* SceneRenderView */
 	short actview;
 	short views_format;
-	short pad8[2];
+
+	/* Hair Display */
+	short hair_type, hair_subdiv;
 
 	/* Motion blur shutter */
 	struct CurveMapping mblur_shutter_curve;
 } RenderData;
+
+/* RenderData.hair_type */
+typedef enum eHairType {
+	SCE_HAIR_SHAPE_STRAND      = 0,
+	SCE_HAIR_SHAPE_STRIP       = 1,
+} eHairType;
+
 
 /* *************************************************************** */
 /* Render Conversion/Simplfication Settings */
@@ -1543,6 +1552,7 @@ typedef struct DisplaySafeAreas {
 typedef struct SceneDisplay {
 	float light_direction[3];      /* light direction for shadows/highlight */
 	float shadow_shift;
+	float roughness;               /* Roughness for the specular highlights */
 
 	int matcap_icon;
 	int matcap_type;
@@ -1556,6 +1566,8 @@ typedef struct SceneDisplay {
 	float matcap_ssao_factor_edge;
 	float matcap_hair_brightness_randomness;
 	int matcap_ssao_samples;
+
+	int pad;
 } SceneDisplay;
 
 typedef struct SceneEEVEE {

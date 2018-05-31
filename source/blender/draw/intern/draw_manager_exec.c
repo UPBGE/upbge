@@ -747,7 +747,8 @@ static void draw_matrices_model_prepare(DRWCallState *st)
 	}
 
 	/* No need to go further the call will not be used. */
-	if (st->flag & DRW_CALL_CULLED)
+	if ((st->flag & DRW_CALL_CULLED) != 0 &&
+	    (st->flag & DRW_CALL_BYPASS_CULLING) == 0)
 		return;
 
 	/* Order matters */
@@ -820,6 +821,7 @@ static void draw_geometry_execute_ex(
         DRWShadingGroup *shgroup, Gwn_Batch *geom, uint start, uint count, bool draw_instance)
 {
 	/* Special case: empty drawcall, placement is done via shader, don't bind anything. */
+	/* TODO use DRW_CALL_PROCEDURAL instead */
 	if (geom == NULL) {
 		BLI_assert(shgroup->type == DRW_SHG_TRIANGLE_BATCH); /* Add other type if needed. */
 		/* Shader is already bound. */
@@ -1043,7 +1045,10 @@ static void draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state)
 	int *select_id = NULL;                                           \
 	if (G.f & G_PICKSEL) {                                           \
 		if (_shgroup->override_selectid == -1) {                        \
-			select_id = DRW_instance_data_get(_shgroup->inst_selectid); \
+			/* Hack : get vbo data without actually drawing. */     \
+			Gwn_VertBufRaw raw;                   \
+			GWN_vertbuf_attr_get_raw_data(_shgroup->inst_selectid, 0, &raw); \
+			select_id = GWN_vertbuf_raw_step(&raw);                               \
 			switch (_shgroup->type) {                                             \
 				case DRW_SHG_TRIANGLE_BATCH: _count = 3; break;                   \
 				case DRW_SHG_LINE_BATCH: _count = 2; break;                       \
@@ -1118,8 +1123,11 @@ static void draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state)
 			draw_visibility_eval(call->state);
 			draw_matrices_model_prepare(call->state);
 
-			if ((call->state->flag & DRW_CALL_CULLED) != 0)
+			if ((call->state->flag & DRW_CALL_CULLED) != 0 &&
+			    (call->state->flag & DRW_CALL_BYPASS_CULLING) == 0)
+			{
 				continue;
+			}
 
 			/* XXX small exception/optimisation for outline rendering. */
 			if (shgroup->callid != -1) {
@@ -1146,6 +1154,9 @@ static void draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state)
 					break;
 				case DRW_CALL_GENERATE:
 					call->generate.geometry_fn(shgroup, draw_geometry_execute, call->generate.user_data);
+					break;
+				case DRW_CALL_PROCEDURAL:
+					GWN_draw_primitive(call->procedural.prim_type, call->procedural.prim_count);
 					break;
 				default:
 					BLI_assert(0);

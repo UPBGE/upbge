@@ -1,9 +1,12 @@
 
 uniform mat4 ModelMatrix;
-uniform mat4 ModelMatrixInverse;
 uniform mat4 ModelViewMatrix;
 uniform mat4 ModelViewMatrixInverse;
 uniform mat3 NormalMatrix;
+
+#ifndef ATTRIB
+uniform mat4 ModelMatrixInverse;
+#endif
 
 /* Old glsl mode compat. */
 
@@ -2474,6 +2477,23 @@ void node_bump(float strength, float dist, float height, vec3 N, vec3 surf_pos, 
 void node_bevel(float radius, vec3 N, out vec3 result)
 {
 	result = N;
+}
+
+void node_hair_info(out float is_strand, out float intercept, out float thickness, out vec3 tangent, out float random)
+{
+#ifdef HAIR_SHADER
+	is_strand = 1.0;
+	intercept = hairTime;
+	thickness = hairThickness;
+	tangent = normalize(worldNormal); /* TODO fix naming */
+	random = 0.0;
+#else
+	is_strand = 0.0;
+	intercept = 0.0;
+	thickness = 0.0;
+	tangent = vec3(1.0);
+	random = 0.0;
+#endif
 }
 
 void node_displacement_object(float height, float midlevel, float scale, vec3 N, mat4 obmat, out vec3 result)

@@ -149,7 +149,7 @@ static void eevee_cache_populate(void *vedata, Object *ob)
 		}
 	}
 	else if (!USE_SCENE_LIGHT(draw_ctx->v3d)) {
-		/* do not add any light sources to the cache */
+		/* do not add any scene light sources to the cache */
 	}
 	else if (ob->type == OB_LIGHTPROBE) {
 		if ((ob->base_flag & BASE_FROMDUPLI) != 0) {
@@ -190,6 +190,10 @@ static void eevee_draw_background(void *vedata)
 	/* Default framebuffer and texture */
 	DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
 	DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
+
+	/* Refresh Hair */
+	DRW_draw_pass(psl->hair_tf_pass);
+
 	/* Sort transparents before the loop. */
 	DRW_pass_sort_shgroup_z(psl->transparent_pass);
 
@@ -370,20 +374,18 @@ static void eevee_view_update(void *vedata)
 static void eevee_id_object_update(void *UNUSED(vedata), Object *object)
 {
 	/* This is a bit mask of components which update is to be ignored. */
-	const int ignore_updates = ID_RECALC_COLLECTIONS;
-	const int allowed_updates = ~ignore_updates;
 	EEVEE_LightProbeEngineData *ped = EEVEE_lightprobe_data_get(object);
-	if (ped != NULL && (ped->engine_data.recalc & allowed_updates) != 0) {
+	if (ped != NULL && ped->engine_data.recalc != 0) {
 		ped->need_full_update = true;
 		ped->engine_data.recalc = 0;
 	}
 	EEVEE_LampEngineData *led = EEVEE_lamp_data_get(object);
-	if (led != NULL && (led->engine_data.recalc & allowed_updates) != 0) {
+	if (led != NULL && led->engine_data.recalc != 0) {
 		led->need_update = true;
 		led->engine_data.recalc = 0;
 	}
 	EEVEE_ObjectEngineData *oedata = EEVEE_object_data_get(object);
-	if (oedata != NULL && (oedata->engine_data.recalc & allowed_updates) != 0) {
+	if (oedata != NULL && oedata->engine_data.recalc != 0) {
 		oedata->need_update = true;
 		oedata->engine_data.recalc = 0;
 	}

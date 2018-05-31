@@ -275,7 +275,7 @@ bool ED_object_editmode_load(Object *obedit)
  * \param flag:
  * - If #EM_FREEDATA isn't in the flag, use ED_object_editmode_load directly.
  */
-void ED_object_editmode_exit_ex(Scene *scene, Object *obedit, int flag)
+bool ED_object_editmode_exit_ex(Scene *scene, Object *obedit, int flag)
 {
 	const bool freedata = (flag & EM_FREEDATA) != 0;
 
@@ -288,7 +288,7 @@ void ED_object_editmode_exit_ex(Scene *scene, Object *obedit, int flag)
 			obedit->mode &= ~OB_MODE_EDIT;
 		}
 		if (flag & EM_WAITCURSOR) waitcursor(0);
-		return;
+		return true;
 	}
 
 	/* freedata only 0 now on file saves and render */
@@ -303,7 +303,7 @@ void ED_object_editmode_exit_ex(Scene *scene, Object *obedit, int flag)
 				pid->cache->flag |= PTCACHE_OUTDATED;
 		}
 		BLI_freelistN(&pidlist);
-		
+
 		BKE_ptcache_object_reset(scene, obedit, PTCACHE_RESET_OUTDATED);
 
 		/* also flush ob recalc, doesn't take much overhead, but used for particles */
@@ -311,34 +311,37 @@ void ED_object_editmode_exit_ex(Scene *scene, Object *obedit, int flag)
 
 		WM_main_add_notifier(NC_SCENE | ND_MODE | NS_MODE_OBJECT, scene);
 
-
 		obedit->mode &= ~OB_MODE_EDIT;
 	}
 
 	if (flag & EM_WAITCURSOR) waitcursor(0);
+
+	return (obedit->mode & OB_MODE_EDIT) == 0;
 }
 
-void ED_object_editmode_exit(bContext *C, int flag)
+bool ED_object_editmode_exit(bContext *C, int flag)
 {
 	Scene *scene = CTX_data_scene(C);
 	Object *obedit = CTX_data_edit_object(C);
-	ED_object_editmode_exit_ex(scene, obedit, flag);
+	return ED_object_editmode_exit_ex(scene, obedit, flag);
 }
 
-void ED_object_editmode_enter_ex(Scene *scene, Object *ob, int flag)
+bool ED_object_editmode_enter_ex(Scene *scene, Object *ob, int flag)
 {
 	bool ok = false;
 
-	if (ELEM(NULL, ob, ob->data)) return;
-	if (ID_IS_LINKED(ob)) return;
+	if (ELEM(NULL, ob, ob->data) || ID_IS_LINKED(ob)) {
+		return false;
+	}
 
 	/* this checks actual object->data, for cases when other scenes have it in editmode context */
-	if (BKE_object_is_in_editmode(ob))
-		return;
-	
+	if (BKE_object_is_in_editmode(ob)) {
+		return true;
+	}
+
 	if (BKE_object_obdata_is_libdata(ob)) {
 		error_libdata();
-		return;
+		return false;
 	}
 
 	if (flag & EM_WAITCURSOR) waitcursor(1);
@@ -364,22 +367,8 @@ void ED_object_editmode_enter_ex(Scene *scene, Object *ob, int flag)
 		WM_main_add_notifier(NC_SCENE | ND_MODE | NS_EDITMODE_MESH, NULL);
 	}
 	else if (ob->type == OB_ARMATURE) {
-		bArmature *arm = ob->data;
-		if (!arm) return;
-		/*
-		 * The function BKE_object_obdata_is_libdata make a problem here, the
-		 * check for ob->proxy return 0 and let blender enter to edit mode
-		 * this causes a crash when you try leave the edit mode.
-		 * The problem is that i can't remove the ob->proxy check from
-		 * BKE_object_obdata_is_libdata that prevent the bugfix #6614, so
-		 * i add this little hack here.
-		 */
-		if (ID_IS_LINKED(arm)) {
-			error_libdata();
-			return;
-		}
 		ok = 1;
-		ED_armature_to_edit(arm);
+		ED_armature_to_edit(ob->data);
 		/* to ensure all goes in restposition and without striding */
 		DEG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME); /* XXX: should this be OB_RECALC_DATA? */
 
@@ -421,9 +410,11 @@ void ED_object_editmode_enter_ex(Scene *scene, Object *ob, int flag)
 	}
 
 	if (flag & EM_WAITCURSOR) waitcursor(0);
+
+	return (ob->mode & OB_MODE_EDIT) != 0;
 }
 
-void ED_object_editmode_enter(bContext *C, int flag)
+bool ED_object_editmode_enter(bContext *C, int flag)
 {
 	Scene *scene = CTX_data_scene(C);
 	ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -435,10 +426,10 @@ void ED_object_editmode_enter(bContext *C, int flag)
 	else {
 		ob = view_layer->basact->object;
 	}
-	if (ob == NULL) return;
-	if (ID_IS_LINKED(ob)) return;
-
-	ED_object_editmode_enter_ex(scene, ob, flag);
+	if ((ob == NULL) || ID_IS_LINKED(ob)) {
+		return false;
+	}
+	return ED_object_editmode_enter_ex(scene, ob, flag);
 }
 
 static int editmode_toggle_exec(bContext *C, wmOperator *op)
@@ -1499,15 +1490,7 @@ static int object_mode_set_exec(bContext *C, wmOperator *op)
 	const bool toggle = RNA_boolean_get(op->ptr, "toggle");
 
 	if (use_submode) {
-		/* Apply arbitrary fallback modes, see: T55162. */
-		if (ob) {
-			if (ob->type == OB_ARMATURE) {
-				if (mode == OB_MODE_TEXTURE_PAINT) {
-					mode = OB_MODE_POSE;
-				}
-			}
-		}
-
+		/* When not changing modes use submodes, see: T55162. */
 		if (toggle == false) {
 			if (mode == restore_mode) {
 				switch (mode) {
