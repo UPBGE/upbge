@@ -107,7 +107,7 @@
 #include "CM_Message.h"
 #include "CM_List.h"
 
-static void *KX_SceneReplicationFunc(SG_Node *node, void *gameobj, void *scene)
+static void *KX_SceneReplicationFunc(SG_Node *node, SG_Object *gameobj, SG_Scene *scene)
 {
 	KX_GameObject *replica = ((KX_Scene *)scene)->AddNodeReplicaObject(node, (KX_GameObject *)gameobj);
 
@@ -118,29 +118,17 @@ static void *KX_SceneReplicationFunc(SG_Node *node, void *gameobj, void *scene)
 	return (void *)replica;
 }
 
-static void *KX_SceneDestructionFunc(SG_Node *node, void *gameobj, void *scene)
+static void *KX_SceneDestructionFunc(SG_Node *node, SG_Object *gameobj, SG_Scene *scene)
 {
 	((KX_Scene *)scene)->RemoveNodeDestructObject((KX_GameObject *)gameobj);
 
 	return nullptr;
 }
 
-bool KX_Scene::KX_ScenegraphUpdateFunc(SG_Node *node, void *gameobj, void *scene)
-{
-	return node->Schedule(((KX_Scene *)scene)->m_sghead);
-}
-
-bool KX_Scene::KX_ScenegraphRescheduleFunc(SG_Node *node, void *gameobj, void *scene)
-{
-	return node->Reschedule(((KX_Scene *)scene)->m_sghead);
-}
-
 SG_Callbacks KX_Scene::m_callbacks = SG_Callbacks(
 	KX_SceneReplicationFunc,
 	KX_SceneDestructionFunc,
-	KX_GameObject::UpdateTransformFunc,
-	KX_Scene::KX_ScenegraphUpdateFunc,
-	KX_Scene::KX_ScenegraphRescheduleFunc);
+	KX_GameObject::UpdateTransformFunc);
 
 KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
                    const std::string& sceneName,
@@ -504,7 +492,7 @@ KX_GameObject *KX_Scene::AddNodeReplicaObject(SG_Node *node, KX_GameObject *game
 		m_componentManager.RegisterObject(newobj);
 	}
 
-	replicanode->SetClientObject(newobj);
+	replicanode->SetObject(newobj);
 
 	// This is the list of object that are send to the graphics pipeline.
 	m_objectlist->Add(CM_AddRef(newobj));
@@ -1093,7 +1081,7 @@ void KX_Scene::CalculateVisibleMeshes(std::vector<KX_GameObject *>& objects, KX_
 {
 	if (!cam->GetFrustumCulling()) {
 		for (KX_GameObject *gameobj : m_objectlist) {
-			gameobj->GetCullingNode()->SetCulled(false);
+			gameobj->SetCulled(false);
 			objects.push_back(gameobj);
 		}
 		return;
@@ -1162,7 +1150,7 @@ void KX_Scene::DrawDebug(RAS_DebugDraw& debugDraw, const std::vector<KX_GameObje
 			const mt::vec3& scale = gameobj->NodeGetWorldScaling();
 			const mt::vec3& position = gameobj->NodeGetWorldPosition();
 			const mt::mat3& orientation = gameobj->NodeGetWorldOrientation();
-			const SG_BBox& box = gameobj->GetCullingNode()->GetAabb();
+			const SG_BBox& box = gameobj->GetAabb();
 			const mt::vec3& center = box.GetCenter();
 
 			debugDraw.DrawAabb(position, orientation, box.GetMin() * scale, box.GetMax() * scale,
@@ -1389,23 +1377,6 @@ void KX_Scene::LogicEndFrame()
 	}
 }
 
-void KX_Scene::UpdateParents()
-{
-	// We use the SG dynamic list
-	SG_Node *node;
-
-	while ((node = SG_Node::GetNextScheduled(m_sghead))) {
-		node->UpdateWorldData();
-	}
-
-	// The list must be empty here
-	BLI_assert(m_sghead.Empty());
-	// Some nodes may be ready for reschedule, move them to schedule list for next time.
-	while ((node = SG_Node::GetNextRescheduled(m_sghead))) {
-		node->Schedule(m_sghead);
-	}
-}
-
 RAS_MaterialBucket *KX_Scene::FindBucket(RAS_IPolyMaterial *polymat, bool &bucketCreated)
 {
 	return m_bucketmanager->FindBucket(polymat, bucketCreated);
@@ -1597,19 +1568,15 @@ static void MergeScene_GameObject(KX_GameObject *gameobj, KX_Scene *to, KX_Scene
 		physicsCtrl->SetPhysicsEnvironment(to->GetPhysicsEnvironment());
 	}
 
-	// SG_Node can hold a scene reference.
 	SG_Node *sg = gameobj->GetNode();
-	if (sg) {
-		if (sg->GetClientInfo() == from) {
-			sg->SetClientInfo(to);
+	sg->SetScene(to);
 
-			// Make sure to grab the children too since they might not be tied to a game object.
-			const NodeList& children = sg->GetChildren();
-			for (SG_Node *child : children) {
-				child->SetClientInfo(to);
-			}
-		}
+	// Make sure to grab the children too since they might not be tied to a game object.
+	const NodeList& children = sg->GetChildren();
+	for (SG_Node *child : children) {
+		child->SetScene(to);
 	}
+
 	// If the object is a light, update it's scene.
 	if (gameobj->GetGameObjectType() == SCA_IObject::OBJ_LIGHT) {
 		static_cast<KX_LightObject *>(gameobj)->UpdateScene(to);

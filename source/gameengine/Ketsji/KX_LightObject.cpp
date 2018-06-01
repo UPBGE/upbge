@@ -52,18 +52,15 @@
 
 #include "BLI_math.h"
 
-KX_LightObject::KX_LightObject(void *sgReplicationInfo, SG_Callbacks callbacks,
-                               RAS_Rasterizer *rasterizer,
-                               RAS_ILightObject *lightobj)
-	:KX_GameObject(sgReplicationInfo, callbacks),
-	m_rasterizer(rasterizer),
+KX_LightObject::KX_LightObject(KX_Scene *scene, RAS_Rasterizer *rasterizer, RAS_ILightObject *lightobj)
+	:m_rasterizer(rasterizer),
 	m_showShadowFrustum(false)
 {
 	m_lightobj = lightobj;
-	m_lightobj->m_scene = sgReplicationInfo;
+	m_lightobj->m_scene = scene;
 	m_lightobj->m_light = this;
 	m_rasterizer->AddLight(m_lightobj);
-	m_blenderscene = ((KX_Scene *)sgReplicationInfo)->GetBlenderScene();
+	m_blenderscene = scene->GetBlenderScene();
 	m_base = nullptr;
 }
 

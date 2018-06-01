@@ -42,13 +42,8 @@
 
 #include <BLI_math_rotation.h>
 
-KX_Camera::KX_Camera(void *sgReplicationInfo,
-                     SG_Callbacks callbacks,
-                     const RAS_CameraData& camdata,
-                     bool frustum_culling)
-	:
-	KX_GameObject(sgReplicationInfo, callbacks),
-	m_camdata(camdata),
+KX_Camera::KX_Camera(const RAS_CameraData& camdata, bool frustum_culling)
+	:m_camdata(camdata),
 	m_projection_matrix(mt::mat4::Identity()),
 	m_modelview_matrix(mt::mat4::Identity()),
 	m_dirty(true),

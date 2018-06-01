@@ -45,14 +45,14 @@
 class SG_Controller;
 class SG_Familly;
 class SG_Node;
+class SG_Scene;
+class SG_Object;
 
 typedef std::vector<SG_Controller *> SGControllerList;
 
-typedef void * (*SG_ReplicationNewCallback)(SG_Node *sgnode, void *clientobj, void *clientinfo);
-typedef void * (*SG_DestructionNewCallback)(SG_Node *sgnode, void *clientobj, void *clientinfo);
-typedef void (*SG_UpdateTransformCallback)(SG_Node *sgnode, void *clientobj, void *clientinfo);
-typedef bool (*SG_ScheduleUpdateCallback)(SG_Node *sgnode, void *clientobj, void *clientinfo);
-typedef bool (*SG_RescheduleUpdateCallback)(SG_Node *sgnode, void *clientobj, void *clientinfo);
+typedef void * (*SG_ReplicationNewCallback)(SG_Node *sgnode, SG_Object *object, SG_Scene *scene);
+typedef void * (*SG_DestructionNewCallback)(SG_Node *sgnode, SG_Object *object, SG_Scene *scene);
+typedef void (*SG_UpdateTransformCallback)(SG_Node *sgnode, SG_Object *object, SG_Scene *scene);
 
 /**
  * SG_Callbacks hold 2 call backs to the outside world.
@@ -73,30 +73,22 @@ struct SG_Callbacks {
 	SG_Callbacks()
 		:m_replicafunc(nullptr),
 		m_destructionfunc(nullptr),
-		m_updatefunc(nullptr),
-		m_schedulefunc(nullptr),
-		m_reschedulefunc(nullptr)
+		m_updatefunc(nullptr)
 	{
 	}
 
 	SG_Callbacks(SG_ReplicationNewCallback repfunc,
 	             SG_DestructionNewCallback destructfunc,
-	             SG_UpdateTransformCallback updatefunc,
-	             SG_ScheduleUpdateCallback schedulefunc,
-	             SG_RescheduleUpdateCallback reschedulefunc)
+	             SG_UpdateTransformCallback updatefunc)
 		:m_replicafunc(repfunc),
 		m_destructionfunc(destructfunc),
-		m_updatefunc(updatefunc),
-		m_schedulefunc(schedulefunc),
-		m_reschedulefunc(reschedulefunc)
+		m_updatefunc(updatefunc)
 	{
 	}
 
 	SG_ReplicationNewCallback m_replicafunc;
 	SG_DestructionNewCallback m_destructionfunc;
 	SG_UpdateTransformCallback m_updatefunc;
-	SG_ScheduleUpdateCallback m_schedulefunc;
-	SG_RescheduleUpdateCallback m_reschedulefunc;
 };
 
 typedef std::vector<SG_Node *> NodeList;
@@ -115,8 +107,8 @@ public:
 		DIRTY_CULLING = (1 << 1)
 	};
 
-	SG_Node(void *clientobj, void *clientinfo, SG_Callbacks& callbacks);
-	SG_Node(const SG_Node & other);
+	SG_Node(SG_Object *object, SG_Scene *scene, SG_Callbacks& callbacks);
+	SG_Node(const SG_Node& other);
 	virtual ~SG_Node();
 
 	/**
@@ -260,26 +252,10 @@ public:
 
 	SG_Callbacks& GetCallBackFunctions();
 
-	/**
-	 * Get the client object associated with this
-	 * node. This interface allows you to associate
-	 * arbitrary external objects with this node. They are
-	 * passed to the callback functions when they are
-	 * activated so you can synchronize these external objects
-	 * upon replication and destruction
-	 * This may be nullptr.
-	 */
-	void *GetClientObject() const;
-
-	/**
-	 * Set the client object for this node. This is just a
-	 * pointer to an object allocated that should exist for
-	 * the duration of the lifetime of this object, or until
-	 * this function is called again.
-	 */
-	void SetClientObject(void *clientObject);
-	void *GetClientInfo() const;
-	void SetClientInfo(void *clientInfo);
+	SG_Object *GetObject() const;
+	void SetObject(SG_Object *object);
+	SG_Scene *GetScene() const;
+	void SetScene(SG_Scene *scene);
 
 	/**
 	 * Set the current simulation time for this node.
@@ -355,8 +331,8 @@ protected:
 	bool ActivateReplicationCallback(SG_Node *replica);
 	void ActivateDestructionCallback();
 	void ActivateUpdateTransformCallback();
-	bool ActivateScheduleUpdateCallback();
-	void ActivateRecheduleUpdateCallback();
+
+	void Reschedule();
 
 	/**
 	 * Update the world coordinates of this spatial node. This also informs
@@ -369,8 +345,8 @@ private:
 
 	void ProcessSGReplica(SG_Node **replica);
 
-	void *m_clientObject;
-	void *m_clientInfo;
+	SG_Object *m_object;
+	SG_Scene *m_scene;
 	SG_Callbacks m_callbacks;
 	SGControllerList m_controllers;
 

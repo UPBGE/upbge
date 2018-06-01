@@ -50,7 +50,7 @@ private:
 	double m_lastframe;
 
 public:
-	BL_DeformableGameObject(void *sgReplicationInfo, SG_Callbacks callbacks);
+	BL_DeformableGameObject();
 	virtual ~BL_DeformableGameObject();
 
 	virtual EXP_Value *GetReplica();

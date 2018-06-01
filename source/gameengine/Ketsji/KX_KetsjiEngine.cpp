@@ -500,7 +500,8 @@ KX_KetsjiEngine::CameraRenderData KX_KetsjiEngine::GetCameraRenderData(KX_Scene 
 	 */
 	const bool usestereo = (stereoMode != RAS_Rasterizer::RAS_STEREO_NOSTEREO);
 	if (usestereo) {
-		rendercam = new KX_Camera(scene, KX_Scene::m_callbacks, *camera->GetCameraData(), true);
+		rendercam = new KX_Camera(*camera->GetCameraData(), true);
+		rendercam->SetNode(new SG_Node(rendercam, scene, KX_Scene::m_callbacks));
 		rendercam->SetName("__stereo_" + camera->GetName() + "_" + std::to_string(eye) + "__");
 		rendercam->NodeSetGlobalOrientation(camera->NodeGetWorldOrientation());
 		rendercam->NodeSetWorldPosition(camera->NodeGetWorldPosition());
@@ -838,7 +839,8 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 			if (light->GetVisible() && raslight->HasShadowBuffer() && raslight->NeedShadowUpdate()) {
 				/* make temporary camera */
 				RAS_CameraData camdata = RAS_CameraData();
-				KX_Camera *cam = new KX_Camera(scene, KX_Scene::m_callbacks, camdata, true);
+				KX_Camera *cam = new KX_Camera(camdata, true);
+				cam->SetNode(new SG_Node(cam, scene, KX_Scene::m_callbacks));
 				cam->SetName("__shadow__cam__");
 
 				mt::mat3x4 camtrans;
@@ -1086,7 +1088,8 @@ void KX_KetsjiEngine::PostProcessScene(KX_Scene *scene)
 	if (!scene->GetActiveCamera() || override_camera) {
 		KX_Camera *activecam = nullptr;
 
-		activecam = new KX_Camera(scene, KX_Scene::m_callbacks, override_camera ? m_overrideCamData : RAS_CameraData());
+		activecam = new KX_Camera(override_camera ? m_overrideCamData : RAS_CameraData());
+		activecam->SetNode(new SG_Node(activecam, scene, KX_Scene::m_callbacks));
 		activecam->SetName("__default__cam__");
 
 		// set transformation

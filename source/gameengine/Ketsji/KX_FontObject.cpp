@@ -81,17 +81,10 @@ static std::vector<std::string> split_string(std::string str)
 	return text;
 }
 
-KX_FontObject::KX_FontObject(void *sgReplicationInfo,
-                             SG_Callbacks callbacks,
-                             RAS_Rasterizer *rasterizer,
-                             RAS_BoundingBoxManager *boundingBoxManager,
-                             Object *ob,
-                             bool do_color_management)
-	:KX_GameObject(sgReplicationInfo, callbacks),
-	m_object(ob),
+KX_FontObject::KX_FontObject(RAS_BoundingBoxManager *boundingBoxManager, Object *ob, bool do_color_management)
+	:m_object(ob),
 	m_dpi(72),
 	m_resolution(1.0f),
-	m_rasterizer(rasterizer),
 	m_do_color_management(do_color_management)
 {
 	Curve *text = static_cast<Curve *> (ob->data);
@@ -143,9 +136,9 @@ void KX_FontObject::AddMeshUser()
 void KX_FontObject::UpdateBuckets()
 {
 	// Update datas and add mesh slot to be rendered only if the object is not culled.
-	if (m_sgNode->IsDirty(SG_Node::DIRTY_RENDER)) {
+	if (m_node->IsDirty(SG_Node::DIRTY_RENDER)) {
 		NodeGetWorldTransform().PackFromAffineTransform(m_meshUser->GetMatrix());
-		m_sgNode->ClearDirty(SG_Node::DIRTY_RENDER);
+		m_node->ClearDirty(SG_Node::DIRTY_RENDER);
 	}
 
 	// Font Objects don't use the glsl shader, this color management code is copied from gpu_shader_material.glsl

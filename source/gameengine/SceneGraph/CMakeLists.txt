@@ -41,6 +41,8 @@ set(SRC
 	SG_Frustum.cpp
 	SG_Interpolator.cpp
 	SG_Node.cpp
+	SG_Object.cpp
+	SG_Scene.cpp
 
 	SG_BBox.h
 	SG_Controller.h
@@ -50,8 +52,10 @@ set(SRC
 	SG_Frustum.h
 	SG_Interpolator.h
 	SG_Node.h
+	SG_Object.h
 	SG_ParentRelation.h
 	SG_ScalarInterpolator.h
+	SG_Scene.h
 	SG_QList.h
 )
 

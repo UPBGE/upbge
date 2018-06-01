@@ -40,9 +40,8 @@
 
 #include "CM_Message.h"
 
-BL_DeformableGameObject::BL_DeformableGameObject(void *sgReplicationInfo, SG_Callbacks callbacks)
-	:KX_GameObject(sgReplicationInfo, callbacks),
-	m_deformer(nullptr),
+BL_DeformableGameObject::BL_DeformableGameObject()
+	:m_deformer(nullptr),
 	m_lastframe(0.0)
 {
 }

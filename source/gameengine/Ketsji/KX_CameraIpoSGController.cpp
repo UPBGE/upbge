@@ -40,7 +40,7 @@ bool KX_CameraIpoSGController::Update(SG_Node *node)
 		return false;
 	}
 
-	KX_Camera *kxcamera = static_cast<KX_Camera *>(node->GetClientObject());
+	KX_Camera *kxcamera = static_cast<KX_Camera *>(node->GetObject());
 	RAS_CameraData *camdata = kxcamera->GetCameraData();
 
 	if (m_modify_lens) {

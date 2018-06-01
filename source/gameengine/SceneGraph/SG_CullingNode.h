@@ -11,7 +11,6 @@ class SG_CullingNode
 private:
 	/// The bounding box of the node in the scene graph node transform space.
 	SG_BBox m_aabb;
-	/// The culling state from the last culling pass.
 	bool m_culled;
 
 public:

@@ -178,7 +178,7 @@ bool KX_SlowParentRelation::UpdateChildCoordinates(SG_Node *child, const SG_Node
 
 	child->ClearModified();
 	// This node must always be updated, so reschedule it for next time.
-	child->ActivateRecheduleUpdateCallback();
+	child->Reschedule();
 
 	return true;
 }

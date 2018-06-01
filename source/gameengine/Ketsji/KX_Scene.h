@@ -38,7 +38,7 @@
 #include "KX_PythonComponentManager.h"
 #include "KX_KetsjiEngine.h" // For KX_DebugOption.
 
-#include "SG_Node.h"
+#include "SG_Scene.h"
 #include "SG_Frustum.h"
 #include "SCA_IScene.h"
 
@@ -86,7 +86,7 @@ class RAS_2DFilterManager;
 struct Scene;
 struct TaskPool;
 
-class KX_Scene : public EXP_Value, public SCA_IScene
+class KX_Scene : public EXP_Value, public SCA_IScene, public SG_Scene
 {
 public:
 	enum DrawingCallbackType {
@@ -151,14 +151,6 @@ private:
 	EXP_ListValue<KX_Camera> *m_cameralist;
 	/// The list of fonts for this scene.
 	EXP_ListValue<KX_FontObject> *m_fontlist;
-
-	/**
-	 * List of nodes that needs scenegraph update
-	 * the Dlist is not object that must be updated
-	 * the Qlist is for objects that needs to be rescheduled
-	 * for updates after udpate is over (slow parent, bone parent).
-	 */
-	SG_QList m_sghead;
 
 	/// Various SCA managers used by the scene
 	SCA_LogicManager *m_logicmgr;
@@ -271,12 +263,6 @@ public:
 	                   const mt::mat3x4& cameratransform, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen);
 	void RenderTextureRenderers(KX_TextureRendererManager::RendererCategory category, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen,
 	                            KX_Camera *sceneCamera, const RAS_Rect& viewport, const RAS_Rect& area);
-
-	/// Update all transforms according to the scenegraph.
-	static bool KX_ScenegraphUpdateFunc(SG_Node *node, void *gameobj, void *scene);
-	static bool KX_ScenegraphRescheduleFunc(SG_Node *node, void *gameobj, void *scene);
-	/// SceneGraph transformation update.
-	void UpdateParents();
 
 	void DupliGroupRecurse(KX_GameObject *groupobj, int level);
 	bool IsObjectInGroup(KX_GameObject *gameobj) const;
