@@ -129,70 +129,49 @@ PyAttributeDef SCA_InputEvent::Attributes[] = {
 	EXP_PYATTRIBUTE_NULL //Sentinel
 };
 
-int SCA_InputEvent::get_status_size_cb(void *self_v)
+unsigned int SCA_InputEvent::get_status_size()
 {
-	return ((SCA_InputEvent *)self_v)->m_status.size();
+	return m_status.size();
 }
 
-PyObject *SCA_InputEvent::get_status_item_cb(void *self_v, int index)
+PyObject *SCA_InputEvent::get_status_item(unsigned int index)
 {
-	return PyLong_FromLong(((SCA_InputEvent *)self_v)->m_status[index]);
+	return PyLong_FromLong(m_status[index]);
 }
 
 PyObject *SCA_InputEvent::pyattr_get_status(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
-	return (new EXP_ListWrapper(self_v,
-	                            ((SCA_InputEvent *)self_v)->GetProxy(),
-	                            nullptr,
-	                            SCA_InputEvent::get_status_size_cb,
-	                            SCA_InputEvent::get_status_item_cb,
-	                            nullptr,
-	                            nullptr,
-	                            EXP_ListWrapper::FLAG_FIND_VALUE))->NewProxy(true);
+	return (new EXP_ListWrapper<SCA_InputEvent, &SCA_InputEvent::get_status_size, &SCA_InputEvent::get_status_item>(self_v))->NewProxy(true);
 }
 
-int SCA_InputEvent::get_queue_size_cb(void *self_v)
+unsigned int SCA_InputEvent::get_queue_size()
 {
-	return ((SCA_InputEvent *)self_v)->m_queue.size();
+	return m_queue.size();
 }
 
-PyObject *SCA_InputEvent::get_queue_item_cb(void *self_v, int index)
+PyObject *SCA_InputEvent::get_queue_item(unsigned int index)
 {
-	return PyLong_FromLong(((SCA_InputEvent *)self_v)->m_queue[index]);
+	return PyLong_FromLong(m_queue[index]);
 }
 
 PyObject *SCA_InputEvent::pyattr_get_queue(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
-	return (new EXP_ListWrapper(self_v,
-	                            ((SCA_InputEvent *)self_v)->GetProxy(),
-	                            nullptr,
-	                            SCA_InputEvent::get_queue_size_cb,
-	                            SCA_InputEvent::get_queue_item_cb,
-	                            nullptr,
-	                            nullptr,
-	                            EXP_ListWrapper::FLAG_FIND_VALUE))->NewProxy(true);
+	return (new EXP_ListWrapper<SCA_InputEvent, &SCA_InputEvent::get_queue_size, &SCA_InputEvent::get_queue_item>(self_v))->NewProxy(true);
 }
 
-int SCA_InputEvent::get_values_size_cb(void *self_v)
+unsigned int SCA_InputEvent::get_values_size()
 {
-	return ((SCA_InputEvent *)self_v)->m_values.size();
+	return m_values.size();
 }
 
-PyObject *SCA_InputEvent::get_values_item_cb(void *self_v, int index)
+PyObject *SCA_InputEvent::get_values_item(unsigned int index)
 {
-	return PyLong_FromLong(((SCA_InputEvent *)self_v)->m_values[index]);
+	return PyLong_FromLong(m_values[index]);
 }
 
 PyObject *SCA_InputEvent::pyattr_get_values(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
-	return (new EXP_ListWrapper(self_v,
-	                            ((SCA_InputEvent *)self_v)->GetProxy(),
-	                            nullptr,
-	                            SCA_InputEvent::get_values_size_cb,
-	                            SCA_InputEvent::get_values_item_cb,
-	                            nullptr,
-	                            nullptr,
-	                            EXP_ListWrapper::FLAG_FIND_VALUE))->NewProxy(true);
+	return (new EXP_ListWrapper<SCA_InputEvent, &SCA_InputEvent::get_values_size, &SCA_InputEvent::get_values_item>(self_v))->NewProxy(true);
 }
 
 PyObject *SCA_InputEvent::pyattr_get_inactive(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)

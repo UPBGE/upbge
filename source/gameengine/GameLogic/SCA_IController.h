@@ -76,6 +76,14 @@ public:
 	static PyObject *pyattr_get_state(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static PyObject *pyattr_get_sensors(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static PyObject *pyattr_get_actuators(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+
+	unsigned int py_get_sensors_size();
+	PyObject *py_get_sensors_item(unsigned int index);
+	std::string py_get_sensors_item_name(unsigned int index);
+
+	unsigned int py_get_actuators_size();
+	PyObject *py_get_actuators_item(unsigned int index);
+	std::string py_get_actuators_item_name(unsigned int index);
 #endif  // WITH_PYTHON
 };
 

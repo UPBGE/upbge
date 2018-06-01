@@ -3255,85 +3255,68 @@ PyObject *KX_GameObject::pyattr_get_components(EXP_PyObjectPlus *self_v, const E
 	return components ? components->GetProxy() : (new EXP_ListValue<KX_PythonComponent>())->NewProxy(true);
 }
 
-static int kx_game_object_get_sensors_size_cb(void *self_v)
+unsigned int KX_GameObject::py_get_sensors_size()
 {
-	return ((KX_GameObject *)self_v)->GetSensors().size();
+	return m_sensors.size();
 }
 
-static PyObject *kx_game_object_get_sensors_item_cb(void *self_v, int index)
+PyObject *KX_GameObject::py_get_sensors_item(unsigned int index)
 {
-	return ((KX_GameObject *)self_v)->GetSensors()[index]->GetProxy();
+	return m_sensors[index]->GetProxy();
 }
 
-static const std::string kx_game_object_get_sensors_item_name_cb(void *self_v, int index)
+std::string KX_GameObject::py_get_sensors_item_name(unsigned int index)
 {
-	return ((KX_GameObject *)self_v)->GetSensors()[index]->GetName();
+	return m_sensors[index]->GetName();
 }
 
-/* These are experimental! */
 PyObject *KX_GameObject::pyattr_get_sensors(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
-	return (new EXP_ListWrapper(self_v,
-	                            ((KX_GameObject *)self_v)->GetProxy(),
-	                            nullptr,
-	                            kx_game_object_get_sensors_size_cb,
-	                            kx_game_object_get_sensors_item_cb,
-	                            kx_game_object_get_sensors_item_name_cb,
-	                            nullptr))->NewProxy(true);
+	return (new EXP_ListWrapper<KX_GameObject, &KX_GameObject::py_get_sensors_size, &KX_GameObject::py_get_sensors_item,
+				nullptr, &KX_GameObject::py_get_sensors_item_name>(self_v))->NewProxy(true);
 }
 
-static int kx_game_object_get_controllers_size_cb(void *self_v)
+unsigned int KX_GameObject::py_get_controllers_size()
 {
-	return ((KX_GameObject *)self_v)->GetControllers().size();
+	return m_controllers.size();
 }
 
-static PyObject *kx_game_object_get_controllers_item_cb(void *self_v, int index)
+PyObject *KX_GameObject::py_get_controllers_item(unsigned int index)
 {
-	return ((KX_GameObject *)self_v)->GetControllers()[index]->GetProxy();
+	return m_controllers[index]->GetProxy();
 }
 
-static const std::string kx_game_object_get_controllers_item_name_cb(void *self_v, int index)
+std::string KX_GameObject::py_get_controllers_item_name(unsigned int index)
 {
-	return ((KX_GameObject *)self_v)->GetControllers()[index]->GetName();
+	return m_controllers[index]->GetName();
 }
 
 PyObject *KX_GameObject::pyattr_get_controllers(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
-	return (new EXP_ListWrapper(self_v,
-	                            ((KX_GameObject *)self_v)->GetProxy(),
-	                            nullptr,
-	                            kx_game_object_get_controllers_size_cb,
-	                            kx_game_object_get_controllers_item_cb,
-	                            kx_game_object_get_controllers_item_name_cb,
-	                            nullptr))->NewProxy(true);
+	return (new EXP_ListWrapper<KX_GameObject, &KX_GameObject::py_get_controllers_size, &KX_GameObject::py_get_controllers_item,
+				nullptr, &KX_GameObject::py_get_controllers_item_name>(self_v))->NewProxy(true);
 }
 
-static int kx_game_object_get_actuators_size_cb(void *self_v)
+unsigned int KX_GameObject::py_get_actuators_size()
 {
-	return ((KX_GameObject *)self_v)->GetActuators().size();
+	return m_actuators.size();
 }
 
-static PyObject *kx_game_object_get_actuators_item_cb(void *self_v, int index)
+PyObject *KX_GameObject::py_get_actuators_item(unsigned int index)
 {
-	return ((KX_GameObject *)self_v)->GetActuators()[index]->GetProxy();
+	return m_actuators[index]->GetProxy();
 }
 
-static const std::string kx_game_object_get_actuators_item_name_cb(void *self_v, int index)
+std::string KX_GameObject::py_get_actuators_item_name(unsigned int index)
 {
-	return ((KX_GameObject *)self_v)->GetActuators()[index]->GetName();
+	return m_actuators[index]->GetName();
 }
 
 PyObject *KX_GameObject::pyattr_get_actuators(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
-	return (new EXP_ListWrapper(self_v,
-	                            ((KX_GameObject *)self_v)->GetProxy(),
-	                            nullptr,
-	                            kx_game_object_get_actuators_size_cb,
-	                            kx_game_object_get_actuators_item_cb,
-	                            kx_game_object_get_actuators_item_name_cb,
-	                            nullptr))->NewProxy(true);
+	return (new EXP_ListWrapper<KX_GameObject, &KX_GameObject::py_get_actuators_size, &KX_GameObject::py_get_actuators_item,
+				nullptr, &KX_GameObject::py_get_actuators_item_name>(self_v))->NewProxy(true);
 }
-/* End experimental */
 
 PyObject *KX_GameObject::pyattr_get_children(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {

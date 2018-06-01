@@ -206,25 +206,19 @@ PyAttributeDef KX_LodManager::Attributes[] = {
 	EXP_PYATTRIBUTE_NULL
 };
 
-static int kx_lod_manager_get_levels_size_cb(void *self_v)
+unsigned int KX_LodManager::py_get_levels_size()
 {
-	return static_cast<KX_LodManager *>(self_v)->GetLevelCount();
+	return m_levels.size();
 }
 
-static PyObject *kx_lod_manager_get_levels_item_cb(void *self_v, int index)
+PyObject *KX_LodManager::py_get_levels_item(unsigned int index)
 {
-	return static_cast<KX_LodManager *>(self_v)->GetLevel(index).GetProxy();
+	return m_levels[index].GetProxy();
 }
 
 PyObject *KX_LodManager::pyattr_get_levels(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
-	return (new EXP_ListWrapper(self_v,
-	                            ((KX_LodManager *)self_v)->GetProxy(),
-	                            nullptr,
-	                            kx_lod_manager_get_levels_size_cb,
-	                            kx_lod_manager_get_levels_item_cb,
-	                            nullptr,
-	                            nullptr))->NewProxy(true);
+	return (new EXP_ListWrapper<KX_LodManager, &KX_LodManager::py_get_levels_size, &KX_LodManager::py_get_levels_item>(self_v))->NewProxy(true);
 }
 
 bool ConvertPythonToLodManager(PyObject *value, KX_LodManager **object, bool py_none_ok, const char *error_prefix)

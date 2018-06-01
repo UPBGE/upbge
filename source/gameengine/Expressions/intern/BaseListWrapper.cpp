@@ -26,93 +26,95 @@
 
 #ifdef WITH_PYTHON
 
-#include "EXP_ListWrapper.h"
+#include "EXP_BaseListWrapper.h"
 
-EXP_ListWrapper::EXP_ListWrapper(void *client,
-                                 PyObject *base,
-                                 bool (*checkValid)(void *),
-                                 int (*getSize)(void *),
-                                 PyObject *(*getItem)(void *, int),
-                                 const std::string (*getItemName)(void *, int),
-                                 bool (*setItem)(void *, int, PyObject *),
-                                 int flag)
+EXP_BaseListWrapper::EXP_BaseListWrapper(EXP_PyObjectPlus *client,
+			GetSizeFunction getSize, GetItemFunction getItem,
+			GetItemNameFunction getItemName, SetItemFunction setItem, Flag flag)
 	:m_client(client),
-	m_base(base),
-	m_checkValid(checkValid),
+	m_weakRef(nullptr),
 	m_getSize(getSize),
 	m_getItem(getItem),
 	m_getItemName(getItemName),
 	m_setItem(setItem),
 	m_flag(flag)
 {
-	/* Incref to always have a existing pointer.
-	 * If there's no base python proxy it mean that we must manage the
-	 * invalidation of this list manualy when the instance which create
-	 * it is freed.
-	 */
-	if (m_base) {
-		Py_INCREF(m_base);
+	if (m_flag & FLAG_NO_WEAK_REF) {
+		m_weakRef = PyWeakref_NewRef(client->GetProxy(), nullptr);
 	}
 }
 
-EXP_ListWrapper::~EXP_ListWrapper()
+EXP_BaseListWrapper::~EXP_BaseListWrapper()
 {
-	if (m_base) {
-		Py_DECREF(m_base);
-	}
+	Py_XDECREF(m_weakRef);
 }
 
-bool EXP_ListWrapper::CheckValid()
+bool EXP_BaseListWrapper::CheckValid(EXP_BaseListWrapper *list)
 {
-	if (m_base && !EXP_PROXY_REF(m_base)) {
+	if (!list) {
 		return false;
 	}
-	return m_checkValid ? (*m_checkValid)(m_client) : true;
+
+	if (list->m_flag & FLAG_NO_WEAK_REF) {
+		return true;
+	}
+
+	PyObject *proxy = PyWeakref_GET_OBJECT(list->m_weakRef);
+	if (proxy == Py_None) {
+		return false;
+	}
+
+	EXP_PyObjectPlus *ref = EXP_PROXY_REF(proxy);
+	if (!ref) {
+		return false;
+	}
+
+	BLI_assert(ref == list->m_client);
+
+	return true;
 }
 
-int EXP_ListWrapper::GetSize()
+unsigned int EXP_BaseListWrapper::GetSize() const
 {
 	return (*m_getSize)(m_client);
 }
 
-PyObject *EXP_ListWrapper::GetItem(int index)
+PyObject *EXP_BaseListWrapper::GetItem(int index) const
 {
 	return (*m_getItem)(m_client, index);
 }
 
-const std::string EXP_ListWrapper::GetItemName(int index)
+std::string EXP_BaseListWrapper::GetItemName(int index) const
 {
 	return (*m_getItemName)(m_client, index);
 }
 
-bool EXP_ListWrapper::SetItem(int index, PyObject *item)
+bool EXP_BaseListWrapper::SetItem(int index, PyObject *item)
 {
 	return (*m_setItem)(m_client, index, item);
 }
 
-bool EXP_ListWrapper::AllowSetItem()
+bool EXP_BaseListWrapper::AllowSetItem() const
 {
 	return m_setItem != nullptr;
 }
 
-bool EXP_ListWrapper::AllowGetItemByName()
+bool EXP_BaseListWrapper::AllowGetItemByName() const
 {
 	return m_getItemName != nullptr;
 }
 
-bool EXP_ListWrapper::AllowFindValue()
+bool EXP_BaseListWrapper::AllowFindValue() const
 {
 	return (m_flag & FLAG_FIND_VALUE);
 }
 
-// ================================================================
-
-std::string EXP_ListWrapper::GetName()
+std::string EXP_BaseListWrapper::GetName()
 {
 	return "ListWrapper";
 }
 
-std::string EXP_ListWrapper::GetText()
+std::string EXP_BaseListWrapper::GetText()
 {
 	std::string strListRep = "[";
 	std::string commastr = "";
@@ -127,29 +129,29 @@ std::string EXP_ListWrapper::GetText()
 	return strListRep;
 }
 
-int EXP_ListWrapper::GetValueType()
+int EXP_BaseListWrapper::GetValueType()
 {
 	return -1;
 }
 
-Py_ssize_t EXP_ListWrapper::py_len(PyObject *self)
+Py_ssize_t EXP_BaseListWrapper::py_len(PyObject *self)
 {
-	EXP_ListWrapper *list = (EXP_ListWrapper *)EXP_PROXY_REF(self);
+	EXP_BaseListWrapper *list = (EXP_BaseListWrapper *)EXP_PROXY_REF(self);
 	// Invalid list.
-	if (!list->CheckValid()) {
-		PyErr_SetString(PyExc_SystemError, "len(EXP_ListWrapper), " EXP_PROXY_ERROR_MSG);
+	if (!CheckValid(list)) {
+		PyErr_SetString(PyExc_SystemError, "len(EXP_BaseListWrapper), " EXP_PROXY_ERROR_MSG);
 		return 0;
 	}
 
 	return (Py_ssize_t)list->GetSize();
 }
 
-PyObject *EXP_ListWrapper::py_get_item(PyObject *self, Py_ssize_t index)
+PyObject *EXP_BaseListWrapper::py_get_item(PyObject *self, Py_ssize_t index)
 {
-	EXP_ListWrapper *list = (EXP_ListWrapper *)EXP_PROXY_REF(self);
+	EXP_BaseListWrapper *list = (EXP_BaseListWrapper *)EXP_PROXY_REF(self);
 	// Invalid list.
-	if (!list->CheckValid()) {
-		PyErr_SetString(PyExc_SystemError, "val = EXP_ListWrapper[i], " EXP_PROXY_ERROR_MSG);
+	if (!CheckValid(list)) {
+		PyErr_SetString(PyExc_SystemError, "val = EXP_BaseListWrapper[i], " EXP_PROXY_ERROR_MSG);
 		return nullptr;
 	}
 
@@ -159,7 +161,7 @@ PyObject *EXP_ListWrapper::py_get_item(PyObject *self, Py_ssize_t index)
 		index = size + index;
 	}
 	if (index < 0 || index >= size) {
-		PyErr_SetString(PyExc_IndexError, "EXP_ListWrapper[i]: List index out of range in EXP_ListWrapper");
+		PyErr_SetString(PyExc_IndexError, "EXP_BaseListWrapper[i]: List index out of range in EXP_BaseListWrapper");
 		return nullptr;
 	}
 
@@ -168,22 +170,22 @@ PyObject *EXP_ListWrapper::py_get_item(PyObject *self, Py_ssize_t index)
 	return pyobj;
 }
 
-int EXP_ListWrapper::py_set_item(PyObject *self, Py_ssize_t index, PyObject *value)
+int EXP_BaseListWrapper::py_set_item(PyObject *self, Py_ssize_t index, PyObject *value)
 {
-	EXP_ListWrapper *list = (EXP_ListWrapper *)EXP_PROXY_REF(self);
+	EXP_BaseListWrapper *list = (EXP_BaseListWrapper *)EXP_PROXY_REF(self);
 	// Invalid list.
-	if (!list->CheckValid()) {
-		PyErr_SetString(PyExc_SystemError, "EXP_ListWrapper[i] = val, " EXP_PROXY_ERROR_MSG);
+	if (!CheckValid(list)) {
+		PyErr_SetString(PyExc_SystemError, "EXP_BaseListWrapper[i] = val, " EXP_PROXY_ERROR_MSG);
 		return -1;
 	}
 
 	if (!list->AllowSetItem()) {
-		PyErr_SetString(PyExc_TypeError, "EXP_ListWrapper's item type doesn't support assignment");
+		PyErr_SetString(PyExc_TypeError, "EXP_BaseListWrapper's item type doesn't support assignment");
 		return -1;
 	}
 
 	if (!value) {
-		PyErr_SetString(PyExc_TypeError, "EXP_ListWrapper doesn't support item deletion");
+		PyErr_SetString(PyExc_TypeError, "EXP_BaseListWrapper doesn't support item deletion");
 		return -1;
 	}
 
@@ -193,7 +195,7 @@ int EXP_ListWrapper::py_set_item(PyObject *self, Py_ssize_t index, PyObject *val
 		index = size + index;
 	}
 	if (index < 0 || index >= size) {
-		PyErr_SetString(PyExc_IndexError, "EXP_ListWrapper[i]: List index out of range in EXP_ListWrapper");
+		PyErr_SetString(PyExc_IndexError, "EXP_BaseListWrapper[i]: List index out of range in EXP_BaseListWrapper");
 		return -1;
 	}
 
@@ -203,12 +205,12 @@ int EXP_ListWrapper::py_set_item(PyObject *self, Py_ssize_t index, PyObject *val
 	return 0;
 }
 
-PyObject *EXP_ListWrapper::py_mapping_subscript(PyObject *self, PyObject *key)
+PyObject *EXP_BaseListWrapper::py_mapping_subscript(PyObject *self, PyObject *key)
 {
-	EXP_ListWrapper *list = (EXP_ListWrapper *)EXP_PROXY_REF(self);
+	EXP_BaseListWrapper *list = (EXP_BaseListWrapper *)EXP_PROXY_REF(self);
 	// Invalid list.
-	if (!list->CheckValid()) {
-		PyErr_SetString(PyExc_SystemError, "val = EXP_ListWrapper[key], " EXP_PROXY_ERROR_MSG);
+	if (!CheckValid(list)) {
+		PyErr_SetString(PyExc_SystemError, "val = EXP_BaseListWrapper[key], " EXP_PROXY_ERROR_MSG);
 		return nullptr;
 	}
 
@@ -218,7 +220,7 @@ PyObject *EXP_ListWrapper::py_mapping_subscript(PyObject *self, PyObject *key)
 	}
 	else if (PyUnicode_Check(key)) {
 		if (!list->AllowGetItemByName()) {
-			PyErr_SetString(PyExc_SystemError, "EXP_ListWrapper's item type doesn't support access by key");
+			PyErr_SetString(PyExc_SystemError, "EXP_BaseListWrapper's item type doesn't support access by key");
 			return nullptr;
 		}
 
@@ -235,21 +237,21 @@ PyObject *EXP_ListWrapper::py_mapping_subscript(PyObject *self, PyObject *key)
 		return nullptr;
 	}
 
-	PyErr_Format(PyExc_KeyError, "EXP_ListWrapper[key]: '%R' key not in list", key);
+	PyErr_Format(PyExc_KeyError, "EXP_BaseListWrapper[key]: '%R' key not in list", key);
 	return nullptr;
 }
 
-int EXP_ListWrapper::py_mapping_ass_subscript(PyObject *self, PyObject *key, PyObject *value)
+int EXP_BaseListWrapper::py_mapping_ass_subscript(PyObject *self, PyObject *key, PyObject *value)
 {
-	EXP_ListWrapper *list = (EXP_ListWrapper *)EXP_PROXY_REF(self);
+	EXP_BaseListWrapper *list = (EXP_BaseListWrapper *)EXP_PROXY_REF(self);
 	// Invalid list.
-	if (!list->CheckValid()) {
-		PyErr_SetString(PyExc_SystemError, "val = EXP_ListWrapper[key], " EXP_PROXY_ERROR_MSG);
+	if (!CheckValid(list)) {
+		PyErr_SetString(PyExc_SystemError, "val = EXP_BaseListWrapper[key], " EXP_PROXY_ERROR_MSG);
 		return -1;
 	}
 
 	if (!list->AllowSetItem()) {
-		PyErr_SetString(PyExc_TypeError, "EXP_ListWrapper's item type doesn't support assignment");
+		PyErr_SetString(PyExc_TypeError, "EXP_BaseListWrapper's item type doesn't support assignment");
 		return -1;
 	}
 
@@ -259,7 +261,7 @@ int EXP_ListWrapper::py_mapping_ass_subscript(PyObject *self, PyObject *key, PyO
 	}
 	else if (PyUnicode_Check(key)) {
 		if (!list->AllowGetItemByName()) {
-			PyErr_SetString(PyExc_SystemError, "EXP_ListWrapper's item type doesn't support access by key");
+			PyErr_SetString(PyExc_SystemError, "EXP_BaseListWrapper's item type doesn't support access by key");
 			return -1;
 		}
 
@@ -279,22 +281,22 @@ int EXP_ListWrapper::py_mapping_ass_subscript(PyObject *self, PyObject *key, PyO
 		return -1;
 	}
 
-	PyErr_Format(PyExc_KeyError, "EXP_ListWrapper[key]: '%R' key not in list", key);
+	PyErr_Format(PyExc_KeyError, "EXP_BaseListWrapper[key]: '%R' key not in list", key);
 	return -1;
 }
 
-int EXP_ListWrapper::py_contains(PyObject *self, PyObject *key)
+int EXP_BaseListWrapper::py_contains(PyObject *self, PyObject *key)
 {
-	EXP_ListWrapper *list = (EXP_ListWrapper *)EXP_PROXY_REF(self);
+	EXP_BaseListWrapper *list = (EXP_BaseListWrapper *)EXP_PROXY_REF(self);
 	// Invalid list.
-	if (!list->CheckValid()) {
-		PyErr_SetString(PyExc_SystemError, "val = EXP_ListWrapper[i], " EXP_PROXY_ERROR_MSG);
+	if (!CheckValid(list)) {
+		PyErr_SetString(PyExc_SystemError, "val = EXP_BaseListWrapper[i], " EXP_PROXY_ERROR_MSG);
 		return -1;
 	}
 
 	if (PyUnicode_Check(key)) {
 		if (!list->AllowGetItemByName()) {
-			PyErr_SetString(PyExc_SystemError, "EXP_ListWrapper's item type doesn't support access by key");
+			PyErr_SetString(PyExc_SystemError, "EXP_BaseListWrapper's item type doesn't support access by key");
 			return -1;
 		}
 
@@ -318,7 +320,7 @@ int EXP_ListWrapper::py_contains(PyObject *self, PyObject *key)
 	return 0;
 }
 
-PySequenceMethods EXP_ListWrapper::py_as_sequence = {
+PySequenceMethods EXP_BaseListWrapper::py_as_sequence = {
 	py_len, // sq_length
 	nullptr, // sq_concat
 	nullptr, // sq_repeat
@@ -331,13 +333,13 @@ PySequenceMethods EXP_ListWrapper::py_as_sequence = {
 	(ssizeargfunc)nullptr,  // sq_inplace_repeat
 };
 
-PyMappingMethods EXP_ListWrapper::py_as_mapping = {
+PyMappingMethods EXP_BaseListWrapper::py_as_mapping = {
 	py_len, // mp_length
 	py_mapping_subscript, // mp_subscript
 	py_mapping_ass_subscript // mp_ass_subscript
 };
 
-PyTypeObject EXP_ListWrapper::Type = {
+PyTypeObject EXP_BaseListWrapper::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"EXP_ListWrapper", // tp_name
 	sizeof(EXP_PyObjectPlus_Proxy), // tp_basicsize
@@ -367,29 +369,29 @@ PyTypeObject EXP_ListWrapper::Type = {
 	py_base_new
 };
 
-PyMethodDef EXP_ListWrapper::Methods[] = {
-	{"get", (PyCFunction)EXP_ListWrapper::sPyGet, METH_VARARGS},
+PyMethodDef EXP_BaseListWrapper::Methods[] = {
+	{"get", (PyCFunction)EXP_BaseListWrapper::sPyGet, METH_VARARGS},
 	{nullptr, nullptr} // Sentinel
 };
 
-PyAttributeDef EXP_ListWrapper::Attributes[] = {
+PyAttributeDef EXP_BaseListWrapper::Attributes[] = {
 	EXP_PYATTRIBUTE_NULL // Sentinel
 };
 
 // Matches python dict.get(key, [default]).
-PyObject *EXP_ListWrapper::PyGet(PyObject *args)
+PyObject *EXP_BaseListWrapper::PyGet(PyObject *args)
 {
 	char *name;
 	PyObject *def = Py_None;
 
 	// Invalid list.
-	if (!CheckValid()) {
-		PyErr_SetString(PyExc_SystemError, "val = EXP_ListWrapper[i], " EXP_PROXY_ERROR_MSG);
+	if (!CheckValid(this)) {
+		PyErr_SetString(PyExc_SystemError, "val = EXP_BaseListWrapper[i], " EXP_PROXY_ERROR_MSG);
 		return nullptr;
 	}
 
 	if (!AllowGetItemByName()) {
-		PyErr_SetString(PyExc_SystemError, "EXP_ListWrapper's item type doesn't support access by key");
+		PyErr_SetString(PyExc_SystemError, "EXP_BaseListWrapper's item type doesn't support access by key");
 		return nullptr;
 	}
 

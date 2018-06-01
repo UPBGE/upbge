@@ -104,6 +104,9 @@ public:
 
 	static PyObject *pyattr_get_levels(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 
+	unsigned int py_get_levels_size();
+	PyObject *py_get_levels_item(unsigned int index);
+
 #endif //WITH_PYTHON
 };
 

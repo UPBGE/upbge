@@ -102,6 +102,9 @@ public:
 	static PyObject *pyattr_get_steeringVec(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef);
 	static PyObject *pyattr_get_path(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef);
 
+	unsigned int py_get_path_size();
+	PyObject *py_get_path_item(unsigned int index);
+
 #endif  // WITH_PYTHON
 };
 

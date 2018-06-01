@@ -179,30 +179,22 @@ PyObject *KX_PolyProxy::pyattr_get_collide(EXP_PyObjectPlus *self_v, const EXP_P
 	return self->PyisCollider();
 }
 
-static int kx_poly_proxy_get_vertices_size_cb(void *self_v)
+unsigned int KX_PolyProxy::py_get_vertices_size()
 {
 	return 3;
 }
 
-static PyObject *kx_poly_proxy_get_vertices_item_cb(void *self_v, int index)
+PyObject *KX_PolyProxy::py_get_vertices_item(unsigned int index)
 {
-	KX_PolyProxy *self = static_cast<KX_PolyProxy *>(self_v);
-	const RAS_Mesh::PolygonInfo& polygon = self->GetPolygon();
-	RAS_IDisplayArray *array = polygon.array;
-	KX_VertexProxy *vert = new KX_VertexProxy(array, array->GetVertex(polygon.indices[index]));
+	RAS_IDisplayArray *array = m_polygon.array;
+	KX_VertexProxy *vert = new KX_VertexProxy(array, array->GetVertex(m_polygon.indices[index]));
 
-	return vert->GetProxy();
+	return vert->NewProxy(true);
 }
 
 PyObject *KX_PolyProxy::pyattr_get_vertices(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
-	return (new EXP_ListWrapper(self_v,
-	                            ((KX_PolyProxy *)self_v)->GetProxy(),
-	                            nullptr,
-	                            kx_poly_proxy_get_vertices_size_cb,
-	                            kx_poly_proxy_get_vertices_item_cb,
-	                            nullptr,
-	                            nullptr))->NewProxy(true);
+	return (new EXP_ListWrapper<KX_PolyProxy, &KX_PolyProxy::py_get_vertices_size, &KX_PolyProxy::py_get_vertices_item>(self_v))->NewProxy(true);
 }
 
 EXP_PYMETHODDEF_DOC_NOARGS(KX_PolyProxy, getMaterialIndex,

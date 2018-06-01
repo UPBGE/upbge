@@ -68,12 +68,12 @@ public:
 	int m_type;
 
 #ifdef WITH_PYTHON
-	static int get_status_size_cb(void *self_v);
-	static PyObject *get_status_item_cb(void *self_v, int index);
-	static int get_queue_size_cb(void *self_v);
-	static PyObject *get_queue_item_cb(void *self_v, int index);
-	static int get_values_size_cb(void *self_v);
-	static PyObject *get_values_item_cb(void *self_v, int index);
+	unsigned int get_status_size();
+	PyObject *get_status_item(unsigned int index);
+	unsigned int get_queue_size();
+	PyObject *get_queue_item(unsigned int index);
+	unsigned int get_values_size();
+	PyObject *get_values_item(unsigned int index);
 
 	static PyObject *pyattr_get_status(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static PyObject *pyattr_get_queue(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);

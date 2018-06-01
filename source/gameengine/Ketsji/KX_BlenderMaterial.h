@@ -92,6 +92,10 @@ public:
 	static PyObject *pyattr_get_specular_alpha(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_specular_alpha(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
+	unsigned int py_get_textures_size();
+	PyObject *py_get_textures_item(unsigned int index);
+	std::string py_get_textures_item_name(unsigned int index);
+
 	EXP_PYMETHOD_DOC(KX_BlenderMaterial, getShader);
 	EXP_PYMETHOD_DOC(KX_BlenderMaterial, getTextureBindcode);
 

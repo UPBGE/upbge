@@ -132,12 +132,12 @@ PyObject *KX_CollisionContactPoint::pyattr_get_applied_impulse(EXP_PyObjectPlus 
 	return PyFloat_FromDouble(self->m_collData->GetAppliedImpulse(self->m_index, self->m_firstObject));
 }
 
-static int kx_collision_contact_point_list_get_sensors_size_cb(void *self_v)
+static unsigned int kx_collision_contact_point_list_get_size_cb(EXP_PyObjectPlus *self_v)
 {
 	return ((KX_CollisionContactPointList *)self_v)->GetNumCollisionContactPoint();
 }
 
-static PyObject *kx_collision_contact_point_list_get_sensors_item_cb(void *self_v, int index)
+static PyObject *kx_collision_contact_point_list_get_item_cb(EXP_PyObjectPlus *self_v, unsigned int index)
 {
 	return ((KX_CollisionContactPointList *)self_v)->GetCollisionContactPoint(index)->NewProxy(true);
 }
@@ -147,8 +147,8 @@ static PyObject *kx_collision_contact_point_list_get_sensors_item_cb(void *self_
 KX_CollisionContactPointList::KX_CollisionContactPointList(const PHY_ICollData *collData, bool firstObject)
 	:
 #ifdef WITH_PYTHON
-	EXP_ListWrapper(this, nullptr, nullptr, kx_collision_contact_point_list_get_sensors_size_cb,
-	                kx_collision_contact_point_list_get_sensors_item_cb, nullptr, nullptr),
+	EXP_BaseListWrapper(this, kx_collision_contact_point_list_get_size_cb,
+	                kx_collision_contact_point_list_get_item_cb, nullptr, nullptr, EXP_BaseListWrapper::FLAG_NO_WEAK_REF),
 #endif  // WITH_PYTHON
 	m_collData(collData),
 	m_firstObject(firstObject)

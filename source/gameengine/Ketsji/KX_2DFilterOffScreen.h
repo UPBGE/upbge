@@ -46,6 +46,9 @@ public:
 	static PyObject *pyattr_get_colorBindCodes(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static PyObject *pyattr_get_depthBindCode(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 
+	unsigned int py_get_textures_size();
+	PyObject *py_get_textures_item(unsigned int index);
+
 #endif
 };
 

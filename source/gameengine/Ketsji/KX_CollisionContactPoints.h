@@ -64,7 +64,7 @@ public:
 
 class KX_CollisionContactPointList
 #ifdef WITH_PYTHON
-	: public EXP_ListWrapper
+	: public EXP_BaseListWrapper
 #endif  // WITH_PYTHON
 {
 private:

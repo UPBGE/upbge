@@ -597,40 +597,34 @@ PyObject *KX_BlenderMaterial::pyattr_get_shader(EXP_PyObjectPlus *self_v, const 
 	return self->PygetShader(nullptr, nullptr);
 }
 
-static int kx_blender_material_get_textures_size_cb(void *self_v)
+unsigned int KX_BlenderMaterial::py_get_textures_size()
 {
 	return RAS_Texture::MaxUnits;
 }
 
-static PyObject *kx_blender_material_get_textures_item_cb(void *self_v, int index)
+PyObject *KX_BlenderMaterial::py_get_textures_item(unsigned int index)
 {
-	BL_Texture *tex = (BL_Texture *)((KX_BlenderMaterial *)self_v)->GetTexture(index);
+	BL_Texture *tex = static_cast<BL_Texture *>(m_textures[index]);
 	PyObject *item = nullptr;
 	if (tex) {
 		item = tex->GetProxy();
 	}
 	else {
-		item = Py_None;
-		Py_INCREF(Py_None);
+		Py_RETURN_NONE;
 	}
 	return item;
 }
 
-static const std::string kx_blender_material_get_textures_item_name_cb(void *self_v, int index)
+std::string KX_BlenderMaterial::py_get_textures_item_name(unsigned int index)
 {
-	BL_Texture *tex = (BL_Texture *)((KX_BlenderMaterial *)self_v)->GetTexture(index);
+	BL_Texture *tex = static_cast<BL_Texture *>(m_textures[index]);
 	return (tex ? tex->GetName() : "");
 }
 
 PyObject *KX_BlenderMaterial::pyattr_get_textures(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
-	return (new EXP_ListWrapper(self_v,
-	                            ((KX_BlenderMaterial *)self_v)->GetProxy(),
-	                            nullptr,
-	                            kx_blender_material_get_textures_size_cb,
-	                            kx_blender_material_get_textures_item_cb,
-	                            kx_blender_material_get_textures_item_name_cb,
-	                            nullptr))->NewProxy(true);
+	return (new EXP_ListWrapper<KX_BlenderMaterial, &KX_BlenderMaterial::py_get_textures_size, &KX_BlenderMaterial::py_get_textures_item,
+				nullptr, &KX_BlenderMaterial::py_get_textures_item_name>(self_v))->NewProxy(true);
 }
 
 PyObject *KX_BlenderMaterial::pyattr_get_blending(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)

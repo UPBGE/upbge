@@ -619,26 +619,19 @@ PyObject *KX_SteeringActuator::pyattr_get_steeringVec(EXP_PyObjectPlus *self, co
 	return PyObjectFrom(steeringVec);
 }
 
-static int kx_steering_actuator_get_path_size_cb(void *self)
+unsigned int KX_SteeringActuator::py_get_path_size()
 {
-	return ((KX_SteeringActuator *)self)->m_path.size();
+	return m_path.size();
 }
 
-static PyObject *kx_steering_actuator_get_path_item_cb(void *self, int index)
+PyObject *KX_SteeringActuator::py_get_path_item(unsigned int index)
 {
-	const mt::vec3& vec = ((KX_SteeringActuator *)self)->m_path[index];
-	return PyObjectFrom(vec);
+	return PyObjectFrom(m_path[index]);
 }
 
 PyObject *KX_SteeringActuator::pyattr_get_path(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef)
 {
-	return (new EXP_ListWrapper(self,
-	                            ((KX_SteeringActuator *)self)->GetProxy(),
-	                            nullptr,
-	                            kx_steering_actuator_get_path_size_cb,
-	                            kx_steering_actuator_get_path_item_cb,
-	                            nullptr,
-	                            nullptr))->NewProxy(true);
+	return (new EXP_ListWrapper<KX_SteeringActuator, &KX_SteeringActuator::py_get_path_size, &KX_SteeringActuator::py_get_path_item>(self))->NewProxy(true);
 }
 
 #endif  // WITH_PYTHON

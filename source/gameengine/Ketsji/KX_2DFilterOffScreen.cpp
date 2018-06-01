@@ -91,28 +91,20 @@ PyObject *KX_2DFilterOffScreen::pyattr_get_height(EXP_PyObjectPlus *self_v, cons
 	return PyLong_FromLong(self->GetHeight());
 }
 
-static int kx_2dfilter_offscreen_get_textures_size_cb(void *self_v)
+unsigned int KX_2DFilterOffScreen::py_get_textures_size()
 {
 	return RAS_2DFilterOffScreen::NUM_COLOR_SLOTS;
 }
 
-static PyObject *kx_2dfilter_offscreen_get_textures_item_cb(void *self_v, int index)
+PyObject *KX_2DFilterOffScreen::py_get_textures_item(unsigned int index)
 {
-	int bindCode = static_cast<KX_2DFilterOffScreen *>(self_v)->GetColorBindCode(index);
+	const int bindCode = GetColorBindCode(index);
 	return PyLong_FromLong(bindCode);
 }
 
 PyObject *KX_2DFilterOffScreen::pyattr_get_colorBindCodes(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_2DFilterOffScreen *self = static_cast<KX_2DFilterOffScreen *>(self_v);
-
-	return (new EXP_ListWrapper(self_v,
-	                            self->GetProxy(),
-	                            nullptr,
-	                            kx_2dfilter_offscreen_get_textures_size_cb,
-	                            kx_2dfilter_offscreen_get_textures_item_cb,
-	                            nullptr,
-	                            nullptr))->NewProxy(true);
+	return (new EXP_ListWrapper<KX_2DFilterOffScreen, &KX_2DFilterOffScreen::py_get_textures_size, &KX_2DFilterOffScreen::py_get_textures_item>(self_v))->NewProxy(true);
 }
 
 PyObject *KX_2DFilterOffScreen::pyattr_get_depthBindCode(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)

@@ -68,6 +68,9 @@ public:
 	static PyObject *pyattr_get_collide(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static PyObject *pyattr_get_vertices(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 
+	unsigned int py_get_vertices_size();
+	PyObject *py_get_vertices_item(unsigned int index);
+
 	EXP_PYMETHOD_DOC_NOARGS(KX_PolyProxy, getMaterialIndex)
 	EXP_PYMETHOD_DOC_NOARGS(KX_PolyProxy, getNumVertex)
 	EXP_PYMETHOD_DOC_NOARGS(KX_PolyProxy, isVisible)

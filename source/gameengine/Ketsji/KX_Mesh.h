@@ -82,6 +82,9 @@ public:
 	static PyObject *pyattr_get_numPolygons(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static PyObject *pyattr_get_polygons(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 
+	unsigned int py_get_polygons_size();
+	PyObject *py_get_polygons_item(unsigned int index);
+
 #endif  // WITH_PYTHON
 };
 

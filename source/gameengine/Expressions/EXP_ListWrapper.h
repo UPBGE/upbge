@@ -29,84 +29,46 @@
 #ifndef __EXP_LISTWRAPPER_H__
 #define __EXP_LISTWRAPPER_H__
 
-#include "EXP_Value.h"
+#include "EXP_BaseListWrapper.h"
 
-class EXP_ListWrapper : public EXP_Value
+template <class Object,
+	unsigned int (Object::*GetSizeFunc)(),
+	PyObject *(Object::*GetItemFunc)(unsigned int),
+	bool (Object::*SetItemFunc)(unsigned int, PyObject *) = nullptr,
+	std::string (Object::*GetItemNameFunc)(unsigned int) = nullptr>
+class EXP_ListWrapper : public EXP_BaseListWrapper
 {
-	Py_Header
 private:
-	/** The client instance passed as first argument of each callback.
-	 * We use a void * instead of a template to avoid to declare this class
-	 * for each use in KX_PythonInitTypes.
-	 */
-	void *m_client;
+	static PyObject *GetItem(EXP_PyObjectPlus *self, unsigned int index)
+	{
+		return (static_cast<Object *>(self)->*GetItemFunc)(index);
+	}
 
-	// The python object which owned this list.
-	PyObject *m_base;
+	static std::string GetItemName(EXP_PyObjectPlus *self, unsigned int index)
+	{
+		return (static_cast<Object *>(self)->*GetItemNameFunc)(index);
+	}
 
-	/// Returns true if the list is still valid, else each call will raise an error.
-	bool (*m_checkValid)(void *);
+	static unsigned int GetSize(EXP_PyObjectPlus *self)
+	{
+		return (static_cast<Object *>(self)->*GetSizeFunc)();
+	}
 
-	/// Returns the list size.
-	int (*m_getSize)(void *);
-
-	/// Returns the list item for the giving index.
-	PyObject *(*m_getItem)(void *, int);
-
-	/// Returns name item for the giving index, used for python operator list["name"].
-	const std::string (*m_getItemName)(void *, int);
-
-	/// Sets the nex item to the index place, return false when failed item conversion.
-	bool (*m_setItem)(void *, int, PyObject *);
-
-	/// Flags used to define special behaviours of the list.
-	int m_flag;
+	static bool SetItem(EXP_PyObjectPlus *self, unsigned int index, PyObject *item)
+	{
+		return (static_cast<Object *>(self)->*SetItemFunc)(index, item);
+	}
 
 public:
-	enum {
-		FLAG_NONE = 0,
-		/// Allow iterating on all items and compare the value of it with a research key.
-		FLAG_FIND_VALUE = (1 << 0)
-	};
-
-	EXP_ListWrapper(void *client,
-	             PyObject *base,
-	             bool(*checkValid)(void *),
-	             int(*getSize)(void *),
-	             PyObject *(*getItem)(void *, int),
-	             const std::string(*getItemName)(void *, int),
-	             bool(*setItem)(void *, int, PyObject *),
-	             int flag = FLAG_NONE);
-	~EXP_ListWrapper();
-
-	/// \section Python Interface
-	bool CheckValid();
-	int GetSize();
-	PyObject *GetItem(int index);
-	const std::string GetItemName(int index);
-	bool SetItem(int index, PyObject *item);
-	bool AllowSetItem();
-	bool AllowGetItemByName();
-	bool AllowFindValue();
-
-	/// \section EXP_Value Inherited Functions.
-	virtual std::string GetName();
-	virtual std::string GetText();
-	virtual int GetValueType();
-
-	// Python list operators.
-	static PySequenceMethods py_as_sequence;
-	// Python dictionnary operators.
-	static PyMappingMethods py_as_mapping;
-
-	static Py_ssize_t py_len(PyObject *self);
-	static PyObject *py_get_item(PyObject *self, Py_ssize_t index);
-	static int py_set_item(PyObject *self, Py_ssize_t index, PyObject *value);
-	static PyObject *py_mapping_subscript(PyObject *self, PyObject *key);
-	static int py_mapping_ass_subscript(PyObject *self, PyObject *key, PyObject *value);
-	static int py_contains(PyObject *self, PyObject *key);
-
-	EXP_PYMETHOD_VARARGS(EXP_ListWrapper, Get);
+	EXP_ListWrapper(EXP_PyObjectPlus *client, Flag flag = FLAG_NONE)
+		:EXP_BaseListWrapper(client, GetSize, GetItem,
+				GetItemNameFunc ? GetItemName : nullptr,
+				SetItemFunc ? SetItem : nullptr, flag)
+	{
+	}
+	virtual ~EXP_ListWrapper()
+	{
+	}
 };
 
 #endif // __EXP_LISTWRAPPER_H__

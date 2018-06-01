@@ -93,6 +93,13 @@ public:
 	static int pyattr_set_normal(EXP_PyObjectPlus *self, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static int pyattr_set_uvs(EXP_PyObjectPlus *self, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
+	unsigned int py_get_uvs_size();
+	PyObject *py_get_uvs_item(unsigned int index);
+	bool py_set_uvs_item(unsigned int index, PyObject *item);
+	unsigned int py_get_colors_size();
+	PyObject *py_get_colors_item(unsigned int index);
+	bool py_set_colors_item(unsigned int index, PyObject *item);
+
 	EXP_PYMETHOD_NOARGS(KX_VertexProxy, GetXYZ);
 	EXP_PYMETHOD_O(KX_VertexProxy, SetXYZ);
 	EXP_PYMETHOD_NOARGS(KX_VertexProxy, GetUV1);
