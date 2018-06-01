@@ -494,6 +494,11 @@ if(WITH_SDL)
 	set(SDL_LIBRARY ${SDL_LIBPATH}/SDL2.lib)
 endif()
 
+if(WITH_GAMEENGINE)
+	set(TBB_LIBRARIES optimized ${LIBDIR}/tbb/lib/tbb.lib debug ${LIBDIR}/tbb/lib/tbb_debug.lib)
+	set(TBB_INCLUDE_DIR ${LIBDIR}/tbb/include)
+endif()
+
 # Audio IO
 if(WITH_SYSTEM_AUDASPACE)
 	set(AUDASPACE_INCLUDE_DIRS ${LIBDIR}/audaspace/include/audaspace)

@@ -6,6 +6,12 @@
 
 #include "EXP_ListValue.h"
 
+#ifdef WIN32
+#	ifndef NOMINMAX
+#		define NOMINMAX
+#	endif
+#endif
+
 class KX_GameObject;
 
 class KX_CullingHandler
