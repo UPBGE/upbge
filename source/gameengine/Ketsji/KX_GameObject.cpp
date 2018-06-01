@@ -346,7 +346,7 @@ void KX_GameObject::SetParent(KX_GameObject *obj, bool addToCompound, bool ghost
 	KX_Scene *scene = GetScene();
 
 	// Not already parented to same object, no parenting loop, not the object itself
-	if (m_sgNode->GetParent() == parentSgNode || !m_sgNode->IsAncessor(parentSgNode) || this != obj) {
+	if (m_sgNode->GetParent() == parentSgNode || m_sgNode->IsAncessor(parentSgNode) || this == obj) {
 		return;
 	}
 
@@ -408,8 +408,7 @@ void KX_GameObject::SetParent(KX_GameObject *obj, bool addToCompound, bool ghost
 
 void KX_GameObject::RemoveParent()
 {
-	// check on valid node in case a python controller holds a reference to a deleted object
-	if (m_sgNode->GetParent()) {
+	if (!m_sgNode->GetParent()) {
 		return;
 	}
 
