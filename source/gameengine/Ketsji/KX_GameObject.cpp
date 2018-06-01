@@ -666,7 +666,7 @@ void KX_GameObject::ApplyMovement(const mt::vec3& dloc, bool local)
 	if (m_physicsController) { // (IsDynamic())
 		m_physicsController->RelativeTranslate(dloc, local);
 	}
-	m_sgNode->RelativeTranslate(dloc, m_sgNode->GetParent(), local);
+	m_sgNode->RelativeTranslate(dloc, local);
 	NodeUpdate();
 }
 
@@ -1293,7 +1293,7 @@ void KX_GameObject::NodeSetWorldPosition(const mt::vec3& trans)
 
 void KX_GameObject::NodeUpdate()
 {
-	m_sgNode->UpdateWorldData();
+// 	m_sgNode->UpdateWorldData(); // TODO
 }
 
 const mt::mat3& KX_GameObject::NodeGetWorldOrientation() const

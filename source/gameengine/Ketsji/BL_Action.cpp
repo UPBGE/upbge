@@ -78,7 +78,6 @@ BL_Action::BL_Action(KX_GameObject *gameobj)
 	m_ipo_flags(0),
 	m_done(true),
 	m_appliedToObject(true),
-	m_requestIpo(false),
 	m_calc_localtime(true),
 	m_prevUpdate(-1.0f)
 {
@@ -230,7 +229,6 @@ bool BL_Action::Play(const std::string& name,
 
 	m_done = false;
 	m_appliedToObject = false;
-	m_requestIpo = false;
 
 	m_prevUpdate = -1.0f;
 
@@ -407,8 +405,6 @@ void BL_Action::Update(float curtime, bool applyToObject)
 		return;
 	}
 
-	m_requestIpo = true;
-
 	SG_Node *node = m_obj->GetNode();
 	// Update controllers time.
 	for (SG_Controller *cont : m_controllers) {
@@ -487,13 +483,5 @@ void BL_Action::Update(float curtime, bool applyToObject)
 	// If the action is done we can remove its scene graph IPO controller.
 	if (m_done) {
 		ClearControllerList();
-	}
-}
-
-void BL_Action::UpdateIPOs()
-{
-	if (m_requestIpo) {
-        m_obj->GetNode()->UpdateWorldDataThread();
-		m_requestIpo = false;
 	}
 }

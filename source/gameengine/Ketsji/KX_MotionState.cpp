@@ -43,17 +43,17 @@ KX_MotionState::~KX_MotionState()
 
 mt::vec3 KX_MotionState::GetWorldPosition() const
 {
-	return m_node->GetWorldPosition();
+	return m_node->GetWorldPosition<false>();
 }
 
 mt::vec3 KX_MotionState::GetWorldScaling() const
 {
-	return m_node->GetWorldScaling();
+	return m_node->GetWorldScaling<false>();
 }
 
 mt::mat3 KX_MotionState::GetWorldOrientation() const
 {
-	return m_node->GetWorldOrientation();
+	return m_node->GetWorldOrientation<false>();
 }
 
 void KX_MotionState::SetWorldOrientation(const mt::mat3& ori)

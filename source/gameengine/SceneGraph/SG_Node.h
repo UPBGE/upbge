@@ -48,8 +48,6 @@ class SG_Node;
 typedef void * (*SG_ReplicationNewCallback)(SG_Node *sgnode, void *clientobj, void *clientinfo);
 typedef void * (*SG_DestructionNewCallback)(SG_Node *sgnode, void *clientobj, void *clientinfo);
 typedef void (*SG_UpdateTransformCallback)(SG_Node *sgnode, void *clientobj, void *clientinfo);
-typedef bool (*SG_ScheduleUpdateCallback)(SG_Node *sgnode, void *clientobj, void *clientinfo);
-typedef bool (*SG_RescheduleUpdateCallback)(SG_Node *sgnode, void *clientobj, void *clientinfo);
 
 /**
  * SG_Callbacks hold 2 call backs to the outside world.
@@ -70,30 +68,22 @@ struct SG_Callbacks {
 	SG_Callbacks()
 		:m_replicafunc(nullptr),
 		m_destructionfunc(nullptr),
-		m_updatefunc(nullptr),
-		m_schedulefunc(nullptr),
-		m_reschedulefunc(nullptr)
+		m_updatefunc(nullptr)
 	{
 	}
 
 	SG_Callbacks(SG_ReplicationNewCallback repfunc,
 	             SG_DestructionNewCallback destructfunc,
-	             SG_UpdateTransformCallback updatefunc,
-	             SG_ScheduleUpdateCallback schedulefunc,
-	             SG_RescheduleUpdateCallback reschedulefunc)
+	             SG_UpdateTransformCallback updatefunc)
 		:m_replicafunc(repfunc),
 		m_destructionfunc(destructfunc),
-		m_updatefunc(updatefunc),
-		m_schedulefunc(schedulefunc),
-		m_reschedulefunc(reschedulefunc)
+		m_updatefunc(updatefunc)
 	{
 	}
 
 	SG_ReplicationNewCallback m_replicafunc;
 	SG_DestructionNewCallback m_destructionfunc;
 	SG_UpdateTransformCallback m_updatefunc;
-	SG_ScheduleUpdateCallback m_schedulefunc;
-	SG_RescheduleUpdateCallback m_reschedulefunc;
 };
 
 typedef std::vector<SG_Node *> NodeList;
@@ -180,39 +170,11 @@ public:
 	bool IsSlowParent();
 
 	/**
-	 * Update the spatial data of this node. Iterate through
-	 * the children of this node and update their world data.
-	 */
-	void UpdateWorldData(bool parentUpdated = false);
-	void UpdateWorldDataThread(bool parentUpdated = false);
-
-	/**
 	 * Update the simulation time of this node. Iterate through
 	 * the children nodes and update their simulated time.
 	 */
 	void SetSimulatedTime(double time, bool recurse);
 	void SetSimulatedTimeThread(double time, bool recurse);
-
-	/**
-	 * Schedule this node for update by placing it in head queue
-	 */
-	bool Schedule(SG_QList& head);
-
-	/**
-	 * Used during Scenegraph update
-	 */
-	static SG_Node *GetNextScheduled(SG_QList& head);
-
-	/**
-	 * Make this node ready for schedule on next update. This is needed for nodes
-	 * that must always be updated (slow parent, bone parent)
-	 */
-	bool Reschedule(SG_QList& head);
-
-	/**
-	 * Used during Scenegraph update
-	 */
-	static SG_Node *GetNextRescheduled(SG_QList& head);
 
 	/**
 	 * Node replication functions.
@@ -246,8 +208,6 @@ public:
 	void *GetClientInfo() const;
 	void SetClientInfo(void *clientInfo);
 
-	void ClearModified();
-	void SetModified();
 	void ClearDirty(DirtyFlag flag);
 
 	/**
@@ -274,30 +234,145 @@ public:
 	 * you must provide a pointer to the parent of this object if it
 	 * exists otherwise if there is no parent set it to nullptr
 	 */
-	void RelativeTranslate(const mt::vec3& trans, const SG_Node *parent, bool local);
-	void SetLocalPosition(const mt::vec3& trans);
-	void SetWorldPosition(const mt::vec3& trans);
-	void RelativeRotate(const mt::mat3& rot, bool local);
-	void SetLocalOrientation(const mt::mat3& rot);
-	void SetWorldOrientation(const mt::mat3& rot);
-	void RelativeScale(const mt::vec3& scale);
-	void SetLocalScale(const mt::vec3& scale);
-	void SetWorldScale(const mt::vec3& scale);
+	inline void RelativeTranslate(const mt::vec3& trans, bool local)
+	{
+		if (local) {
+			m_localPosition += m_localRotation * trans;
+		}
+		else {
+			m_localPosition += trans;
+		}
+		SetModified();
+	}
 
-	const mt::vec3& GetLocalPosition() const;
-	const mt::mat3& GetLocalOrientation() const;
-	const mt::vec3& GetLocalScale() const;
-	const mt::vec3& GetWorldPosition() const;
-	const mt::mat3& GetWorldOrientation() const;
-	const mt::vec3& GetWorldScaling() const;
+	template <bool Modify = true>
+	inline void SetLocalPosition(const mt::vec3& trans)
+	{
+		m_localPosition = trans;
+		if (Modify) {
+			SetModified();
+		}
+	}
+
+	template <bool Modify = true>
+	inline void SetWorldPosition(const mt::vec3& trans)
+	{
+		m_worldPosition = trans;
+		if (Modify) {
+			SetModified();
+		}
+	}
+
+	inline void RelativeRotate(const mt::mat3& rot, bool local)
+	{
+		m_localRotation = m_localRotation * (
+			local ?
+			rot
+			:
+			(GetWorldOrientation().Inverse() * rot * GetWorldOrientation()));
+		SetModified();
+	}
+
+	template <bool Modify = true>
+	inline void SetLocalOrientation(const mt::mat3& rot)
+	{
+		m_localRotation = rot;
+		if (Modify) {
+			SetModified();
+		}
+	}
+
+	template <bool Modify = true>
+	inline void SetWorldOrientation(const mt::mat3& rot)
+	{
+		m_worldRotation = rot;
+		if (Modify) {
+			SetModified();
+		}
+	}
+
+	inline void RelativeScale(const mt::vec3& scale)
+	{
+		m_localScaling = m_localScaling * scale;
+		SetModified();
+	}
+
+	template <bool Modify = true>
+	inline void SetLocalScale(const mt::vec3& scale)
+	{
+		m_localScaling = scale;
+		if (Modify) {
+			SetModified();
+		}
+	}
+
+	template <bool Modify = true>
+	inline void SetWorldScale(const mt::vec3& scale)
+	{
+		m_worldScaling = scale;
+		if (Modify) {
+			SetModified();
+		}
+	}
+
+	inline const mt::vec3& GetLocalPosition() const
+	{
+		return m_localPosition;
+	}
+
+	inline const mt::mat3& GetLocalOrientation() const
+	{
+		return m_localRotation;
+	}
+
+	inline const mt::vec3& GetLocalScale() const
+	{
+		return m_localScaling;
+	}
+
+	template <bool Update = true>
+	inline const mt::vec3& GetWorldPosition()
+	{
+		if (Update) {
+			UpdateSpatial();
+		}
+		return m_worldPosition;
+	}
+
+	template <bool Update = true>
+	inline const mt::mat3& GetWorldOrientation()
+	{
+		if (Update) {
+			UpdateSpatial();
+		}
+		return m_worldRotation;
+	}
+
+	template <bool Update = true>
+	inline const mt::vec3& GetWorldScaling()
+	{
+		if (Update) {
+			UpdateSpatial();
+		}
+		return m_worldScaling;
+	}
+
+	template <bool Update = true>
+	inline mt::mat3x4 GetWorldTransform()
+	{
+		if (Update) {
+			UpdateSpatial();
+		}
+		return mt::mat3x4(m_worldRotation, m_worldPosition, m_worldScaling);
+	}
+
+	inline mt::mat3x4 GetLocalTransform() const
+	{
+		return mt::mat3x4(m_localRotation, m_localPosition, m_localScaling);
+	}
 
 	void SetWorldFromLocalTransform();
-	mt::mat3x4 GetWorldTransform() const;
-	mt::mat3x4 GetLocalTransform() const;
-
 	bool IsNegativeScaling() const;
-
-	bool ComputeWorldTransforms(const SG_Node *parent, bool& parentUpdated);
 
 	const std::shared_ptr<SG_Familly>& GetFamilly() const;
 	void SetFamilly(const std::shared_ptr<SG_Familly>& familly);
@@ -307,25 +382,17 @@ public:
 
 protected:
 	friend class SG_Controller;
-	friend class KX_BoneParentRelation;
-	friend class KX_VertexParentRelation;
-	friend class KX_SlowParentRelation;
-	friend class KX_NormalParentRelation;
 
 	bool ActivateReplicationCallback(SG_Node *replica);
 	void ActivateDestructionCallback();
 	void ActivateUpdateTransformCallback();
-	bool ActivateScheduleUpdateCallback();
-	void ActivateRecheduleUpdateCallback();
 
-	/**
-	 * Update the world coordinates of this spatial node.
-	 */
-	void UpdateSpatialData(const SG_Node *parent, bool& parentUpdated);
+	/// Update the world coordinates of this spatial node.
+	void UpdateSpatial();
+
+	void SetModified();
 
 private:
-	void UpdateWorldDataThreadSchedule(bool parentUpdated = false);
-
 	void ProcessSGReplica(SG_Node **replica);
 
 	void *m_clientObject;

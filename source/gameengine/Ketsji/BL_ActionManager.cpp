@@ -169,8 +169,4 @@ void BL_ActionManager::Update(float curtime, bool applyToObject)
 	for (const auto& pair : m_layers) {
 		pair.second->Update(curtime, applyToObject);
 	}
-
-	for (const auto& pair : m_layers) {
-		pair.second->UpdateIPOs();
-	}
 }

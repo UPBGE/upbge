@@ -266,7 +266,6 @@ bool ImageRender::Render()
 			mirrorWorldX[1], mirrorWorldY[1], mirrorWorldZ[1],
 			mirrorWorldX[2], mirrorWorldY[2], mirrorWorldZ[2]);
 		m_camera->GetNode()->SetLocalOrientation(cameraWorldOri);
-		m_camera->GetNode()->UpdateWorldData();
 		// compute camera frustum:
 		//   get position of mirror relative to camera: offset = mirrorPos-cameraPos
 		mt::vec3 mirrorOffset = mirrorWorldPos - cameraWorldPos;

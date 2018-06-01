@@ -46,55 +46,43 @@ KX_BoneParentRelation::~KX_BoneParentRelation()
 {
 }
 
-bool KX_BoneParentRelation::UpdateChildCoordinates(SG_Node *child, const SG_Node *parent, bool& parentUpdated)
+void KX_BoneParentRelation::UpdateChildCoordinates(SG_Node *child, SG_Node *parent)
 {
-	BLI_assert(child != nullptr);
-
-	// We don't know if the armature has been updated or not, assume yes.
-	parentUpdated = true;
-
 	// The childs world locations which we will update.
 	bool valid_parent_transform = false;
 
-	if (parent) {
-		BL_ArmatureObject *armature = (BL_ArmatureObject *)(parent->GetClientObject());
-		if (armature) {
-			mt::mat3x4 bonetrans;
-			if (armature->GetBoneTransform(m_bone, bonetrans)) {
-				const mt::vec3& cscale = child->GetLocalScale();
-				const mt::vec3& cpos = child->GetLocalPosition();
-				const mt::mat3& crot = child->GetLocalOrientation();
+	BL_ArmatureObject *armature = (BL_ArmatureObject *)(parent->GetClientObject());
+	if (armature) {
+		mt::mat3x4 bonetrans;
+		if (armature->GetBoneTransform(m_bone, bonetrans)) {
+			const mt::vec3& cscale = child->GetLocalScale();
+			const mt::vec3& cpos = child->GetLocalPosition();
+			const mt::mat3& crot = child->GetLocalOrientation();
 
-				// The child's world transform is parent * child
-				const mt::mat3x4 ptrans = parent->GetWorldTransform() * bonetrans;
+			// The child's world transform is parent * child
+			const mt::mat3x4 ptrans = parent->GetWorldTransform<false>() * bonetrans;
 
-				// Get the child's transform, and the bone matrix.
-				const mt::mat3x4 trans = ptrans *
-				                         mt::mat3x4(crot, cpos + mt::vec3(0.0f, armature->GetBoneLength(m_bone), 0.0f), cscale);
+			// Get the child's transform, and the bone matrix.
+			const mt::mat3x4 trans = ptrans *
+			                         mt::mat3x4(crot, cpos + mt::vec3(0.0f, armature->GetBoneLength(m_bone), 0.0f), cscale);
 
-				// Recompute the child transform components from the transform.
-				const mt::vec3 scale = trans.ScaleVector3D();
-				const mt::vec3 invscale(1.0f / scale.x, 1.0f / scale.y, 1.0f / scale.z);
-				const mt::vec3 pos = trans.TranslationVector3D();
-				const mt::mat3 rot = trans.RotationMatrix().Scale(invscale);
+			// Recompute the child transform components from the transform.
+			const mt::vec3 scale = trans.ScaleVector3D();
+			const mt::vec3 invscale(1.0f / scale.x, 1.0f / scale.y, 1.0f / scale.z);
+			const mt::vec3 pos = trans.TranslationVector3D();
+			const mt::mat3 rot = trans.RotationMatrix().Scale(invscale);
 
-				child->SetWorldScale(scale);
-				child->SetWorldPosition(pos);
-				child->SetWorldOrientation(rot);
+			child->SetWorldScale<false>(scale);
+			child->SetWorldPosition<false>(pos);
+			child->SetWorldOrientation<false>(rot);
 
-				valid_parent_transform = true;
-			}
+			valid_parent_transform = true;
 		}
 	}
 
 	if (!valid_parent_transform) {
 		child->SetWorldFromLocalTransform();
 	}
-
-	child->ClearModified();
-	// This node must always be updated, so reschedule it for next time.
-	child->ActivateRecheduleUpdateCallback();
-	return valid_parent_transform;
 }
 
 SG_ParentRelation *KX_BoneParentRelation::NewCopy()

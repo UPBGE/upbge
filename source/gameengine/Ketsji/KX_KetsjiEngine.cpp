@@ -423,7 +423,6 @@ bool KX_KetsjiEngine::NextFrame()
 			scene->UpdateObjectActivity();
 
 			if (!scene->IsSuspended()) {
-				m_logger.StartLog(tc_physics, m_kxsystem->GetTimeInSeconds());
 				// set Python hooks for each scene
 				KX_SetActiveScene(scene);
 
@@ -431,31 +430,18 @@ bool KX_KetsjiEngine::NextFrame()
 				m_logger.StartLog(tc_logic, m_kxsystem->GetTimeInSeconds());
 				scene->LogicBeginFrame(m_frameTime, framestep);
 
-				// Scenegraph needs to be updated again, because Logic Controllers
-				// can affect the local matrices.
-				m_logger.StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds());
-				scene->UpdateParents();
-
 				// Process actuators
 
 				// Do some cleanup work for this logic frame
-				m_logger.StartLog(tc_logic, m_kxsystem->GetTimeInSeconds());
 				scene->LogicUpdateFrame(m_frameTime);
 
 				scene->LogicEndFrame();
-
-				// Actuators can affect the scenegraph
-				m_logger.StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds());
-				scene->UpdateParents();
 
 				m_logger.StartLog(tc_physics, m_kxsystem->GetTimeInSeconds());
 
 				// Perform physics calculations on the scene. This can involve
 				// many iterations of the physics solver.
 				scene->GetPhysicsEnvironment()->ProceedDeltaTime(m_frameTime, timestep, framestep);//m_deltatimerealDeltaTime);
-
-				m_logger.StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds());
-				scene->UpdateParents();
 			}
 
 			m_logger.StartLog(tc_services, m_kxsystem->GetTimeInSeconds());

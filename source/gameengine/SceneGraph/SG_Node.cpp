@@ -37,7 +37,6 @@
 
 #include "BLI_utildefines.h"
 
-static CM_ThreadMutex scheduleMutex;
 static CM_ThreadMutex transformMutex;
 
 SG_Node::SG_Node(void *clientobj, void *clientinfo, SG_Callbacks& callbacks)
@@ -216,87 +215,6 @@ void SG_Node::RemoveChild(SG_Node *child)
 	CM_ListRemoveIfFound(m_children, child);
 }
 
-void SG_Node::UpdateWorldData(bool parentUpdated)
-{
-	UpdateSpatialData(m_parent, parentUpdated);
-
-	ActivateUpdateTransformCallback();
-
-	// The node is updated, remove it from the update list
-	Delink();
-
-	// update children's worlddata
-	for (SG_Node *childnode : m_children) {
-		childnode->UpdateWorldData(parentUpdated);
-	}
-}
-
-void SG_Node::UpdateWorldDataThread(bool parentUpdated)
-{
-	CM_ThreadSpinLock& famillyMutex = m_familly->GetMutex();
-	famillyMutex.Lock();
-
-	UpdateWorldDataThreadSchedule(parentUpdated);
-
-	famillyMutex.Unlock();
-}
-
-void SG_Node::UpdateWorldDataThreadSchedule(bool parentUpdated)
-{
-	UpdateSpatialData(m_parent, parentUpdated);
-
-	ActivateUpdateTransformCallback();
-
-	scheduleMutex.Lock();
-	// The node is updated, remove it from the update list
-	Delink();
-	scheduleMutex.Unlock();
-
-	// update children's worlddata
-	for (SG_Node *childnode : m_children) {
-		childnode->UpdateWorldDataThreadSchedule(parentUpdated);
-	}
-}
-
-bool SG_Node::Schedule(SG_QList& head)
-{
-	scheduleMutex.Lock();
-	// Put top parent in front of list to make sure they are updated before their
-	// children => the children will be udpated and removed from the list before
-	// we get to them, should they be in the list too.
-	const bool result = (m_parent) ? head.AddBack(this) : head.AddFront(this);
-	scheduleMutex.Unlock();
-
-	return result;
-}
-
-SG_Node *SG_Node::GetNextScheduled(SG_QList& head)
-{
-	scheduleMutex.Lock();
-	SG_Node *result = static_cast<SG_Node *>(head.Remove());
-	scheduleMutex.Unlock();
-
-	return result;
-}
-
-bool SG_Node::Reschedule(SG_QList& head)
-{
-	scheduleMutex.Lock();
-	const bool result = head.QAddBack(this);
-	scheduleMutex.Unlock();
-
-	return result;
-}
-
-SG_Node *SG_Node::GetNextRescheduled(SG_QList& head)
-{
-	scheduleMutex.Lock();
-	SG_Node *result = static_cast<SG_Node *>(head.QRemove());
-	scheduleMutex.Unlock();
-
-	return result;
-}
-
 SG_Callbacks& SG_Node::GetCallBackFunctions()
 {
 	return m_callbacks;
@@ -321,16 +239,16 @@ void SG_Node::SetClientInfo(void *clientInfo)
 	m_clientInfo = clientInfo;
 }
 
-void SG_Node::ClearModified()
-{
-	m_modified = false;
-	m_dirty = DIRTY_ALL;
-}
-
 void SG_Node::SetModified()
 {
+	if (m_modified) {
+		return;
+	}
+
 	m_modified = true;
-	ActivateScheduleUpdateCallback();
+	for (SG_Node *child : m_children) {
+		child->SetModified();
+	}
 }
 
 void SG_Node::ClearDirty(DirtyFlag flag)
@@ -353,115 +271,24 @@ SG_ParentRelation *SG_Node::GetParentRelation()
  * Update Spatial Data.
  * Calculates WorldTransform., (either doing its self or using the linked SGControllers)
  */
-void SG_Node::UpdateSpatialData(const SG_Node *parent, bool& parentUpdated)
+void SG_Node::UpdateSpatial()
 {
-	// Ask the parent_relation object owned by this class to update our world coordinates.
-	ComputeWorldTransforms(parent, parentUpdated);
-}
+	if (!m_modified) {
+		return;
+	}
 
-/**
- * Position and translation methods
- */
-void SG_Node::RelativeTranslate(const mt::vec3& trans, const SG_Node *parent, bool local)
-{
-	if (local) {
-		m_localPosition += m_localRotation * trans;
+	if (m_parent) {
+		m_parent->UpdateSpatial();
+		// Ask the parent_relation object owned by this class to update our world coordinates.
+		m_parent_relation->UpdateChildCoordinates(this, m_parent);
 	}
 	else {
-		if (parent) {
-			m_localPosition += trans * parent->GetWorldOrientation();
-		}
-		else {
-			m_localPosition += trans;
-		}
+		SetWorldFromLocalTransform();
 	}
-	SetModified();
-}
+	ActivateUpdateTransformCallback();
 
-void SG_Node::SetLocalPosition(const mt::vec3& trans)
-{
-	m_localPosition = trans;
-	SetModified();
-}
-
-void SG_Node::SetWorldPosition(const mt::vec3& trans)
-{
-	m_worldPosition = trans;
-}
-
-/**
- * Scaling methods.
- */
-
-/**
- * Orientation and rotation methods.
- */
-void SG_Node::RelativeRotate(const mt::mat3& rot, bool local)
-{
-	m_localRotation = m_localRotation * (
-		local ?
-		rot
-		:
-		(GetWorldOrientation().Inverse() * rot * GetWorldOrientation()));
-	SetModified();
-}
-
-void SG_Node::SetLocalOrientation(const mt::mat3& rot)
-{
-	m_localRotation = rot;
-	SetModified();
-}
-
-void SG_Node::SetWorldOrientation(const mt::mat3& rot)
-{
-	m_worldRotation = rot;
-}
-
-void SG_Node::RelativeScale(const mt::vec3& scale)
-{
-	m_localScaling = m_localScaling * scale;
-	SetModified();
-}
-
-void SG_Node::SetLocalScale(const mt::vec3& scale)
-{
-	m_localScaling = scale;
-	SetModified();
-}
-
-void SG_Node::SetWorldScale(const mt::vec3& scale)
-{
-	m_worldScaling = scale;
-}
-
-const mt::vec3& SG_Node::GetLocalPosition() const
-{
-	return m_localPosition;
-}
-
-const mt::mat3& SG_Node::GetLocalOrientation() const
-{
-	return m_localRotation;
-}
-
-const mt::vec3& SG_Node::GetLocalScale() const
-{
-	return m_localScaling;
-}
-
-const mt::vec3& SG_Node::GetWorldPosition() const
-{
-	return m_worldPosition;
-}
-
-const mt::mat3& SG_Node::GetWorldOrientation() const
-{
-	return m_worldRotation;
-}
-
-const mt::vec3& SG_Node::GetWorldScaling() const
-{
-	return m_worldScaling;
+	m_modified = false;
+	m_dirty = DIRTY_ALL;
 }
 
 void SG_Node::SetWorldFromLocalTransform()
@@ -471,24 +298,10 @@ void SG_Node::SetWorldFromLocalTransform()
 	m_worldRotation = m_localRotation;
 }
 
-mt::mat3x4 SG_Node::GetWorldTransform() const
-{
-	return mt::mat3x4(m_worldRotation, m_worldPosition, m_worldScaling);
-}
-
-mt::mat3x4 SG_Node::GetLocalTransform() const
-{
-	return mt::mat3x4(m_localRotation, m_localPosition, m_localScaling);
-}
-
 bool SG_Node::IsNegativeScaling() const
 {
+	UpdateSpatial();
 	return (m_worldScaling.x * m_worldScaling.y * m_worldScaling.z) < 0.0f;
-}
-
-bool SG_Node::ComputeWorldTransforms(const SG_Node *parent, bool& parentUpdated)
-{
-	return m_parent_relation->UpdateChildCoordinates(this, parent, parentUpdated);
 }
 
 const std::shared_ptr<SG_Familly>& SG_Node::GetFamilly() const
@@ -545,32 +358,8 @@ void SG_Node::ActivateUpdateTransformCallback()
 {
 	if (m_callbacks.m_updatefunc) {
 		// Call client provided update func.
-		transformMutex.Lock();
+// 		transformMutex.Lock(); // TODO
 		m_callbacks.m_updatefunc(this, m_clientObject, m_clientInfo);
-		transformMutex.Unlock();
-	}
-}
-
-bool SG_Node::ActivateScheduleUpdateCallback()
-{
-	// HACK, this check assumes that the scheduled nodes are put on a DList (see SG_Node.h)
-	// The early check on Empty() allows up to avoid calling the callback function
-	// when the node is already scheduled for update.
-	scheduleMutex.Lock();
-	const bool empty = Empty();
-	scheduleMutex.Unlock();
-
-	if (empty && m_callbacks.m_schedulefunc) {
-		// Call client provided update func.
-		return m_callbacks.m_schedulefunc(this, m_clientObject, m_clientInfo);
-	}
-	return false;
-}
-
-void SG_Node::ActivateRecheduleUpdateCallback()
-{
-	if (m_callbacks.m_reschedulefunc) {
-		// Call client provided update func.
-		m_callbacks.m_reschedulefunc(this, m_clientObject, m_clientInfo);
+// 		transformMutex.Unlock();
 	}
 }

@@ -119,22 +119,10 @@ static void *KX_SceneDestructionFunc(SG_Node *node, void *gameobj, void *scene)
 	return nullptr;
 }
 
-bool KX_Scene::KX_ScenegraphUpdateFunc(SG_Node *node, void *gameobj, void *scene)
-{
-	return node->Schedule(((KX_Scene *)scene)->m_sghead);
-}
-
-bool KX_Scene::KX_ScenegraphRescheduleFunc(SG_Node *node, void *gameobj, void *scene)
-{
-	return node->Reschedule(((KX_Scene *)scene)->m_sghead);
-}
-
 SG_Callbacks KX_Scene::m_callbacks = SG_Callbacks(
 	KX_SceneReplicationFunc,
 	KX_SceneDestructionFunc,
-	KX_GameObject::UpdateTransformFunc,
-	KX_Scene::KX_ScenegraphUpdateFunc,
-	KX_Scene::KX_ScenegraphRescheduleFunc);
+	KX_GameObject::UpdateTransformFunc);
 
 KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
                    const std::string& sceneName,
@@ -742,8 +730,6 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
 		// Set the orientation after position for softbody.
 		const mt::mat3 newori = groupobj->NodeGetWorldOrientation() * gameobj->NodeGetWorldOrientation();
 		replica->NodeSetLocalOrientation(newori);
-		// Update scenegraph for entire tree of children.
-		replica->GetNode()->UpdateWorldData();
 		// We can now add the graphic controller to the physic engine.
 		replica->ActivateGraphicController(true);
 
@@ -856,7 +842,6 @@ KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobj, KX_GameObj
 		replica->NodeSetRelativeScale(newscale);
 	}
 
-	replica->GetNode()->UpdateWorldData();
 	// The size is correct, we can add the graphic controller to the physic engine.
 	replica->ActivateGraphicController(true);
 
@@ -1378,19 +1363,7 @@ void KX_Scene::LogicEndFrame()
 
 void KX_Scene::UpdateParents()
 {
-	// We use the SG dynamic list
-	SG_Node *node;
-
-	while ((node = SG_Node::GetNextScheduled(m_sghead))) {
-		node->UpdateWorldData();
-	}
-
-	// The list must be empty here
-	BLI_assert(m_sghead.Empty());
-	// Some nodes may be ready for reschedule, move them to schedule list for next time.
-	while ((node = SG_Node::GetNextRescheduled(m_sghead))) {
-		node->Schedule(m_sghead);
-	}
+	// TODO
 }
 
 RAS_MaterialBucket *KX_Scene::FindBucket(RAS_IPolyMaterial *polymat, bool &bucketCreated)

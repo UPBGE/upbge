@@ -56,7 +56,7 @@ public:
 	 *
 	 *  Parent should be a BL_ArmatureObject.
 	 */
-	virtual bool UpdateChildCoordinates(SG_Node *child, const SG_Node *parent, bool& parentUpdated);
+	virtual void UpdateChildCoordinates(SG_Node *child, SG_Node *parent);
 
 	/// Create a copy of this relationship.
 	virtual SG_ParentRelation *NewCopy();
