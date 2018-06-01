@@ -25,7 +25,6 @@
  */
 
 #include "KX_Globals.h"
-#include "KX_KetsjiEngine.h"
 #include "KX_Scene.h"
 #include "RAS_Rasterizer.h"
 
@@ -72,6 +71,11 @@ KX_KetsjiEngine *KX_GetActiveEngine()
 KX_Scene *KX_GetActiveScene()
 {
 	return g_scene;
+}
+
+PHY_IPhysicsEnvironment *KX_GetPhysicsEnvironment()
+{
+	return g_scene->GetPhysicsEnvironment();
 }
 
 const std::string& KX_GetMainPath()

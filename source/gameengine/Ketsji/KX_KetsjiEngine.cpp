@@ -427,9 +427,6 @@ bool KX_KetsjiEngine::NextFrame()
 			if (!scene->IsSuspended()) {
 				m_logger.StartLog(tc_physics, m_kxsystem->GetTimeInSeconds());
 				// set Python hooks for each scene
-#ifdef WITH_PYTHON
-				PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());
-#endif
 				KX_SetActiveScene(scene);
 
 				// Process sensors, and controllers
@@ -1035,7 +1032,6 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene, const CameraRenderData& came
 	DrawDebugShadowFrustum(scene, debugDraw);
 
 #ifdef WITH_PYTHON
-	PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());
 	// Run any pre-drawing python callbacks
 	scene->RunDrawingCallbacks(KX_Scene::PRE_DRAW, rendercam);
 #endif
@@ -1065,7 +1061,6 @@ RAS_OffScreen *KX_KetsjiEngine::PostRenderScene(KX_Scene *scene, RAS_OffScreen *
 	RAS_OffScreen *offScreen = scene->Render2DFilters(m_rasterizer, m_canvas, inputofs, targetofs);
 
 #ifdef WITH_PYTHON
-	PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());
 	/* We can't deduce what camera should be passed to the python callbacks
 	 * because the post draw callbacks are per scenes and not per cameras.
 	 */
