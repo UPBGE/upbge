@@ -95,9 +95,8 @@ inline void flipAxes(float vec[3])
 	std::swap(vec[1], vec[2]);
 }
 
-KX_NavMeshObject::KX_NavMeshObject(void *sgReplicationInfo, SG_Callbacks callbacks)
-	:KX_GameObject(sgReplicationInfo, callbacks),
-	m_navMesh(nullptr)
+KX_NavMeshObject::KX_NavMeshObject()
+	:m_navMesh(nullptr)
 {
 }
 

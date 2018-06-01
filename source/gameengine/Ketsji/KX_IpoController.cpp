@@ -87,7 +87,7 @@ bool KX_IpoController::Update(SG_Node *node)
 		return false;
 	}
 
-	KX_GameObject *obj = static_cast<KX_GameObject *>(node->GetClientObject());
+	KX_GameObject *obj = static_cast<KX_GameObject *>(node->GetObject());
 
 	//initialization on the first frame of the IPO
 	if (!m_ipo_start_initialized) {

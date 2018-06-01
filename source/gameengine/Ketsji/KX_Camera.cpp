@@ -49,13 +49,8 @@ KX_Camera::View::View()
 {
 }
 
-KX_Camera::KX_Camera(void *sgReplicationInfo,
-                     SG_Callbacks callbacks,
-                     const RAS_CameraData& camdata,
-                     bool frustum_culling)
-	:
-	KX_GameObject(sgReplicationInfo, callbacks),
-	m_camdata(camdata),
+KX_Camera::KX_Camera(const RAS_CameraData& camdata, bool frustum_culling)
+	:m_camdata(camdata),
 	m_frustum_culling(frustum_culling),
 	m_lodDistanceFactor(1.0f),
 	m_activityCulling(false),

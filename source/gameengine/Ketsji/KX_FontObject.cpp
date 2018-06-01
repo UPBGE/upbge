@@ -81,16 +81,10 @@ static std::vector<std::string> split_string(std::string str)
 	return text;
 }
 
-KX_FontObject::KX_FontObject(void *sgReplicationInfo,
-                             SG_Callbacks callbacks,
-                             RAS_Rasterizer *rasterizer,
-                             RAS_BoundingBoxManager *boundingBoxManager,
-                             Object *ob)
-	:KX_GameObject(sgReplicationInfo, callbacks),
-	m_object(ob),
+KX_FontObject::KX_FontObject(RAS_BoundingBoxManager *boundingBoxManager, Object *ob)
+	:m_object(ob),
 	m_dpi(72),
-	m_resolution(1.0f),
-	m_rasterizer(rasterizer)
+	m_resolution(1.0f)
 {
 	Curve *text = static_cast<Curve *> (ob->data);
 	m_fsize = text->fsize;
@@ -142,10 +136,10 @@ void KX_FontObject::UpdateBuckets()
 	RAS_TextUser *textUser = static_cast<RAS_TextUser *>(m_meshUser);
 
 	// Update datas and add mesh slot to be rendered only if the object is not culled.
-	if (m_sgNode->IsDirty(SG_Node::DIRTY_RENDER)) {
+	if (m_node->IsDirty(SG_Node::DIRTY_RENDER)) {
 		m_meshUser->SetMatrix(mt::mat4::FromAffineTransform(NodeGetWorldTransform()));
 		m_meshUser->SetFrontFace(!IsNegativeScaling());
-		m_sgNode->ClearDirty(SG_Node::DIRTY_RENDER);
+		m_node->ClearDirty(SG_Node::DIRTY_RENDER);
 	}
 
 	// HARDCODED MULTIPLICATION FACTOR - this will affect the render resolution directly

@@ -55,7 +55,7 @@ protected:
 	bool m_showShadowFrustum;
 
 public:
-	KX_LightObject(void *sgReplicationInfo, SG_Callbacks callbacks, RAS_Rasterizer *rasterizer, RAS_ILightObject *lightobj);
+	KX_LightObject(KX_Scene *scene, RAS_Rasterizer *rasterizer, RAS_ILightObject *lightobj);
 	virtual ~KX_LightObject();
 
 	virtual EXP_Value *GetReplica();

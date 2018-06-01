@@ -58,6 +58,7 @@
 #include "KX_Camera.h"
 #include "KX_LightObject.h"
 #include "KX_Globals.h"
+#include "KX_NodeRelationships.h"
 #include "KX_PyConstraintBinding.h"
 #include "PHY_IPhysicsEnvironment.h"
 
@@ -942,7 +943,8 @@ void KX_KetsjiEngine::PostProcessScene(KX_Scene *scene)
 	if (!scene->GetActiveCamera() || override_camera) {
 		KX_Camera *activecam = nullptr;
 
-		activecam = new KX_Camera(scene, KX_Scene::m_callbacks, override_camera ? m_overrideCamData : RAS_CameraData());
+		activecam = new KX_Camera(override_camera ? m_overrideCamData : RAS_CameraData());
+		activecam->SetNode(new SG_Node(activecam, scene, KX_Scene::m_callbacks, (new KX_NormalParentRelation())));
 		activecam->SetName("__default__cam__");
 
 		// set transformation
@@ -960,7 +962,6 @@ void KX_KetsjiEngine::PostProcessScene(KX_Scene *scene)
 		scene->GetCameraList()->Add(CM_AddRef(activecam));
 		scene->SetActiveCamera(activecam);
 		scene->GetObjectList()->Add(CM_AddRef(activecam));
-		scene->GetRootParentList()->Add(CM_AddRef(activecam));
 		// done with activecam
 		activecam->Release();
 	}
@@ -1167,7 +1168,6 @@ KX_Scene *KX_KetsjiEngine::CreateScene(Scene *scene)
 	KX_Scene *tmpscene = new KX_Scene(m_inputDevice,
 	                                  scene->id.name + 2,
 	                                  scene,
-	                                  m_canvas,
 	                                  m_networkMessageManager);
 
 	return tmpscene;

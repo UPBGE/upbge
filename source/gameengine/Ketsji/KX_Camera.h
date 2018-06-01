@@ -106,7 +106,7 @@ public:
 
 	enum { INSIDE, INTERSECT, OUTSIDE };
 
-	KX_Camera(void* sgReplicationInfo,SG_Callbacks callbacks,const RAS_CameraData& camdata, bool frustum_culling = true);
+	KX_Camera(const RAS_CameraData& camdata, bool frustum_culling = true);
 	virtual ~KX_Camera();
 
 	/** 

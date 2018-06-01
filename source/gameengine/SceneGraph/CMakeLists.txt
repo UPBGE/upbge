@@ -37,22 +37,24 @@ set(INC_SYS
 set(SRC
 	SG_BBox.cpp
 	SG_Controller.cpp
-	SG_CullingNode.cpp
 	SG_Familly.cpp
 	SG_Frustum.cpp
 	SG_Interpolator.cpp
 	SG_Node.cpp
+	SG_Object.cpp
+	SG_Scene.cpp
 
 	SG_BBox.h
 	SG_Controller.h
-	SG_CullingNode.h
 	SG_DList.h
 	SG_Familly.h
 	SG_Frustum.h
 	SG_Interpolator.h
 	SG_Node.h
+	SG_Object.h
 	SG_ParentRelation.h
 	SG_ScalarInterpolator.h
+	SG_Scene.h
 	SG_QList.h
 )
 

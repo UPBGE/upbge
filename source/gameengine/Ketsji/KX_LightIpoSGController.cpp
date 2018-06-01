@@ -40,7 +40,7 @@ bool KX_LightIpoSGController::Update(SG_Node *node)
 		return false;
 	}
 
-	KX_LightObject *kxlight = static_cast<KX_LightObject *>(node->GetClientObject());
+	KX_LightObject *kxlight = static_cast<KX_LightObject *>(node->GetObject());
 	RAS_ILightObject *lightobj = kxlight->GetLightData();
 
 	if (m_modify_energy) {

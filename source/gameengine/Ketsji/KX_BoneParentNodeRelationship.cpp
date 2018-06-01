@@ -57,7 +57,7 @@ bool KX_BoneParentRelation::UpdateChildCoordinates(SG_Node *child, const SG_Node
 	bool valid_parent_transform = false;
 
 	if (parent) {
-		BL_ArmatureObject *armature = (BL_ArmatureObject *)(parent->GetClientObject());
+		BL_ArmatureObject *armature = (BL_ArmatureObject *)(parent->GetObject());
 		if (armature) {
 			mt::mat3x4 bonetrans;
 			if (armature->GetBoneTransform(m_bone, bonetrans)) {
@@ -93,7 +93,7 @@ bool KX_BoneParentRelation::UpdateChildCoordinates(SG_Node *child, const SG_Node
 
 	child->ClearModified();
 	// This node must always be updated, so reschedule it for next time.
-	child->ActivateRecheduleUpdateCallback();
+	child->Reschedule();
 	return valid_parent_transform;
 }
 

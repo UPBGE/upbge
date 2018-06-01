@@ -200,12 +200,8 @@ static void game_blend_poses(bPose *dst, bPose *src, float srcweight, short mode
 	dst->ctime = src->ctime;
 }
 
-BL_ArmatureObject::BL_ArmatureObject(void *sgReplicationInfo,
-                                     SG_Callbacks callbacks,
-                                     Object *armature,
-                                     Scene *scene)
-	:KX_GameObject(sgReplicationInfo, callbacks),
-	m_scene(scene),
+BL_ArmatureObject::BL_ArmatureObject(Object *armature, Scene *scene)
+	:m_scene(scene),
 	m_lastframe(0.0),
 	m_drawDebug(false),
 	m_lastapplyframe(0.0)

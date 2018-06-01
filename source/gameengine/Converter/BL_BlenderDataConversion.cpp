@@ -909,7 +909,7 @@ static KX_LightObject *BL_GameLightFromBlenderLamp(Lamp *la, unsigned int layerf
 		}
 	}
 
-	KX_LightObject *gamelight = new KX_LightObject(kxscene, KX_Scene::m_callbacks, rasterizer, lightobj);
+	KX_LightObject *gamelight = new KX_LightObject(kxscene, rasterizer, lightobj);
 
 	gamelight->SetShowShadowFrustum((la->mode & LA_SHOW_SHADOW_BOX) && (la->mode & LA_SHAD_RAY));
 
@@ -920,9 +920,8 @@ static KX_Camera *BL_GameCameraFromBlenderCamera(Object *ob, KX_Scene *kxscene, 
 {
 	Camera *ca = static_cast<Camera *>(ob->data);
 	RAS_CameraData camdata(ca->lens, ca->ortho_scale, ca->sensor_x, ca->sensor_y, ca->sensor_fit, ca->shiftx, ca->shifty, ca->clipsta, ca->clipend, ca->type == CAM_PERSP, ca->YF_dofdist, camZoom);
-	KX_Camera *gamecamera;
 
-	gamecamera = new KX_Camera(kxscene, KX_Scene::m_callbacks, camdata);
+	KX_Camera *gamecamera = new KX_Camera(camdata);
 	gamecamera->SetName(ca->id.name + 2);
 
 	if (ca->gameflag & GAME_CAM_VIEWPORT) {
@@ -990,13 +989,13 @@ static KX_GameObject *BL_GameObjectFromBlenderObject(Object *ob, KX_Scene *kxsce
 			KX_Mesh *meshobj = BL_ConvertMesh(mesh, ob, kxscene, converter);
 
 			if (ob->gameflag & OB_NAVMESH) {
-				gameobj = new KX_NavMeshObject(kxscene, KX_Scene::m_callbacks);
+				gameobj = new KX_NavMeshObject();
 				gameobj->AddMesh(meshobj);
 				break;
 			}
 
 
-			KX_GameObject *deformableGameObj = new KX_GameObject(kxscene, KX_Scene::m_callbacks);
+			KX_GameObject *deformableGameObj = new KX_GameObject();
 			gameobj = deformableGameObj;
 
 			// set transformation
@@ -1016,14 +1015,14 @@ static KX_GameObject *BL_GameObjectFromBlenderObject(Object *ob, KX_Scene *kxsce
 
 		case OB_ARMATURE:
 		{
-			gameobj = new BL_ArmatureObject(kxscene, KX_Scene::m_callbacks, ob, kxscene->GetBlenderScene());
+			gameobj = new BL_ArmatureObject(ob, kxscene->GetBlenderScene());
 
 			break;
 		}
 
 		case OB_EMPTY:
 		{
-			gameobj = new KX_EmptyObject(kxscene, KX_Scene::m_callbacks);
+			gameobj = new KX_EmptyObject();
 
 			break;
 		}
@@ -1031,8 +1030,7 @@ static KX_GameObject *BL_GameObjectFromBlenderObject(Object *ob, KX_Scene *kxsce
 		case OB_FONT:
 		{
 			// Font objects have no bounding box.
-			KX_FontObject *fontobj = new KX_FontObject(kxscene, KX_Scene::m_callbacks, rendertools,
-			                                           kxscene->GetBoundingBoxManager(), ob);
+			KX_FontObject *fontobj = new KX_FontObject(kxscene->GetBoundingBoxManager(), ob);
 			gameobj = fontobj;
 
 			kxscene->GetFontList()->Add(CM_AddRef(fontobj));
@@ -1051,7 +1049,7 @@ static KX_GameObject *BL_GameObjectFromBlenderObject(Object *ob, KX_Scene *kxsce
 			 * see : https://github.com/youle31/EEVEEinUPBGE/commit/ff11e0fdea4dfc121a7eaa7b7d48183eaf5fd9f6
 			 * for comments about culling.
 			 */
-			gameobj = new KX_EmptyObject(kxscene, KX_Scene::m_callbacks);
+			gameobj = new KX_EmptyObject();
 			break;
 		}
 #endif
@@ -1066,6 +1064,10 @@ static KX_GameObject *BL_GameObjectFromBlenderObject(Object *ob, KX_Scene *kxsce
 		if (ob->restrictflag & OB_RESTRICT_RENDER) {
 			gameobj->SetVisible(false, false);
 		}
+
+		KX_NormalParentRelation *parentRelation = new KX_NormalParentRelation();
+		SG_Node *node = new SG_Node(gameobj, kxscene, KX_Scene::m_callbacks, parentRelation);
+		gameobj->SetNode(node);
 	}
 
 	return gameobj;
@@ -1243,12 +1245,12 @@ static void bl_ConvertBlenderObject_Single(BL_SceneConverter& converter,
 	// Update children/parent hierarchy.
 	if (blenderobject->parent != 0) {
 		// Blender has an additional 'parentinverse' offset in each object.
-		SG_Callbacks callback(nullptr, nullptr, nullptr, KX_Scene::KX_ScenegraphUpdateFunc, KX_Scene::KX_ScenegraphRescheduleFunc);
-		SG_Node *parentinversenode = new SG_Node(nullptr, kxscene, callback);
 
 		// Define a normal parent relationship for this node.
 		KX_NormalParentRelation *parent_relation = new KX_NormalParentRelation();
-		parentinversenode->SetParentRelation(parent_relation);
+
+		SG_Callbacks callback(nullptr);
+		SG_Node *parentinversenode = new SG_Node(nullptr, kxscene, callback, parent_relation);
 
 		BL_ParentChildLink pclink;
 		pclink.m_blenderchild = blenderobject;
@@ -1262,7 +1264,9 @@ static void bl_ConvertBlenderObject_Single(BL_SceneConverter& converter,
 		parentinversenode->SetLocalPosition(mt::vec3(invp_loc));
 		parentinversenode->SetLocalOrientation(mt::mat3(invp_rot));
 		parentinversenode->SetLocalScale(mt::vec3(invp_size));
-		parentinversenode->AddChild(gameobj->GetNode());
+
+		SG_Node *childNode = gameobj->GetNode();
+		childNode->SetParent(parentinversenode);
 	}
 
 	// Needed for python scripting.
@@ -1436,7 +1440,6 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 
 	EXP_ListValue<KX_GameObject> *objectlist = kxscene->GetObjectList();
 	EXP_ListValue<KX_GameObject> *inactivelist = kxscene->GetInactiveList();
-	EXP_ListValue<KX_GameObject> *parentlist = kxscene->GetRootParentList();
 
 	SCA_LogicManager *logicmgr = kxscene->GetLogicManager();
 	SCA_TimeEventManager *timemgr = kxscene->GetTimeEventManager();
@@ -1602,19 +1605,11 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 			}
 		}
 
-		parentobj->GetNode()->AddChild(link.m_gamechildnode);
+		link.m_gamechildnode->SetParent(parentobj->GetNode());
 	}
 	vec_parent_child.clear();
 
 	const std::vector<KX_GameObject *>& sumolist = converter.GetObjects();
-
-	// Find 'root' parents (object that has not parents in SceneGraph).
-	for (KX_GameObject *gameobj : sumolist) {
-		if (!gameobj->GetNode()->GetParent()) {
-			parentlist->Add(CM_AddRef(gameobj));
-			gameobj->NodeUpdate();
-		}
-	}
 
 	for (KX_GameObject *gameobj : objectlist) {
 		// Init mesh users, mesh slots and deformers.
@@ -1710,7 +1705,8 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 			RAS_BoundingBox *boundingBox = meshobj->GetBoundingBox();
 			// Get the AABB.
 			boundingBox->GetAabb(aabbMin, aabbMax);
-			gameobj->SetBoundsAabb(aabbMin, aabbMax);
+			gameobj->GetAabb().Set(aabbMin, aabbMax);
+			gameobj->UpdateGraphicController();
 		}
 		else {
 			// The object allow AABB auto update only if there's no predefined bound.

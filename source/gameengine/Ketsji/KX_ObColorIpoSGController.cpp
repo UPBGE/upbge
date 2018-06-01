@@ -39,7 +39,7 @@ bool KX_ObColorIpoSGController::Update(SG_Node *node)
 		return false;
 	}
 
-	KX_GameObject *kxgameobj = static_cast<KX_GameObject *>(node->GetClientObject());
+	KX_GameObject *kxgameobj = static_cast<KX_GameObject *>(node->GetObject());
 
 	kxgameobj->SetObjectColor(m_rgba);
 

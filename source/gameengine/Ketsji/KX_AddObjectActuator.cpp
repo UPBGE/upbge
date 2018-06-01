@@ -278,7 +278,5 @@ void KX_AddObjectActuator::InstantAddObject()
 		//m_lastCreatedObject->AddRef();
 		// but registration
 		m_lastCreatedObject->RegisterActuator(this);
-		// finished using replica? then release it
-		replica->Release();
 	}
 }
