@@ -1481,7 +1481,7 @@ void KX_Scene::UpdateObjectActivity()
 
 	for (KX_GameObject *gameobj : m_objectlist) {
 		// If the object doesn't manage activity culling we don't compute distance.
-		if (gameobj->GetActivityCullingInfo().m_flags & KX_GameObject::ActivityCullingInfo::ACTIVITY_NONE) {
+		if (gameobj->GetActivityCullingInfo().m_flags == KX_GameObject::ActivityCullingInfo::ACTIVITY_NONE) {
 			continue;
 		}
 
