@@ -875,7 +875,7 @@ public:
 	bool pyattr_get_visible();
 	void pyattr_set_visible(bool value);
 	bool pyattr_get_culled();
-	PyObject *pyattr_get_cullingBox();
+	EXP_ValuePythonOwn pyattr_get_cullingBox();
 	bool pyattr_get_physicsCulling();
 	void pyattr_set_physicsCulling(bool value);
 	bool pyattr_get_logicCulling();
@@ -915,8 +915,8 @@ public:
 	float pyattr_get_timeOffset();
 	void pyattr_set_timeOffset(float value);
 	KX_BatchGroup *pyattr_get_batchGroup();
-	EXP_ListValue<KX_GameObject> *pyattr_get_children();
-	EXP_ListValue<KX_GameObject> *pyattr_get_children_recursive();
+	EXP_ValuePythonOwn pyattr_get_children();
+	EXP_ValuePythonOwn pyattr_get_children_recursive();
 	mt::vec4 pyattr_get_obcolor();
 	void pyattr_set_obcolor(const mt::vec4& value);
 	PyObject *pyattr_get_collisionCallbacks();
@@ -933,7 +933,7 @@ public:
 	void pyattr_set_linearDamping(float value);
 	float pyattr_get_angularDamping();
 	void pyattr_set_angularDamping(float value);
-	PyObject *pyattr_get_lodManager();
+	KX_LodManager *pyattr_get_lodManager();
 	bool pyattr_set_lodManager(PyObject *value);
 	
 	/* getitem/setitem */

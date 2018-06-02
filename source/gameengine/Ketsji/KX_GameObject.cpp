@@ -2063,9 +2063,9 @@ bool KX_GameObject::pyattr_get_culled()
 	return m_cullingNode.GetCulled();
 }
 
-PyObject *KX_GameObject::pyattr_get_cullingBox()
+EXP_ValuePythonOwn KX_GameObject::pyattr_get_cullingBox()
 {
-	return (new KX_BoundingBox(this))->NewProxy(true);
+	return (new KX_BoundingBox(this));
 }
 
 bool KX_GameObject::pyattr_get_physicsCulling()
@@ -2311,17 +2311,14 @@ void KX_GameObject::pyattr_set_obcolor(const mt::vec4& value)
 	m_objectColor = value;
 }
 
-// TODO don't own the list
-EXP_ListValue<KX_GameObject> *KX_GameObject::pyattr_get_children()
+EXP_ValuePythonOwn KX_GameObject::pyattr_get_children()
 {
-	EXP_ListValue<KX_GameObject> *list = new EXP_ListValue<KX_GameObject>(GetChildren());
-	return list;
+	return (new EXP_ListValue<KX_GameObject>(GetChildren()));
 }
 
-EXP_ListValue<KX_GameObject> *KX_GameObject::pyattr_get_children_recursive()
+EXP_ValuePythonOwn KX_GameObject::pyattr_get_children_recursive()
 {
-	EXP_ListValue<KX_GameObject> *list = new EXP_ListValue<KX_GameObject>(GetChildrenRecursive());
-	return list;
+	return (new EXP_ListValue<KX_GameObject>(GetChildrenRecursive()));
 }
 
 bool KX_GameObject::pyattr_get_debug()
@@ -2344,12 +2341,12 @@ void KX_GameObject::pyattr_set_debugRecursive(bool value)
 	SetUseDebugProperties(value, true);
 }
 
-PyObject *KX_GameObject::pyattr_get_lodManager()
+KX_LodManager *KX_GameObject::pyattr_get_lodManager()
 {
-	return EXP_ConvertToPython(m_lodManager);
+	return m_lodManager;
 }
 
-bool KX_GameObject::pyattr_set_lodManager(PyObject *value)
+bool KX_GameObject::pyattr_set_lodManager(PyObject *value) // TODO strict auto check.
 {
 	KX_LodManager *lodManager = nullptr;
 	if (!ConvertPythonToLodManager(value, &lodManager, true, "gameobj.lodManager: KX_GameObject")) {
