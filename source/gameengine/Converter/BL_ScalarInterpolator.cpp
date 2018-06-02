@@ -61,17 +61,13 @@ BL_InterpolatorList::BL_InterpolatorList(bAction *action)
 
 	for (FCurve *fcu = (FCurve *)action->curves.first; fcu; fcu = fcu->next) {
 		if (fcu->rna_path) {
-			BL_ScalarInterpolator *new_ipo = new BL_ScalarInterpolator(fcu);
-			m_interpolators.push_back(new_ipo);
+			m_interpolators.emplace_back(fcu);
 		}
 	}
 }
 
 BL_InterpolatorList::~BL_InterpolatorList()
 {
-	for (BL_ScalarInterpolator *interp : m_interpolators) {
-		delete interp;
-	}
 }
 
 bAction *BL_InterpolatorList::GetAction() const
@@ -81,10 +77,10 @@ bAction *BL_InterpolatorList::GetAction() const
 
 BL_ScalarInterpolator *BL_InterpolatorList::GetScalarInterpolator(const std::string& rna_path, int array_index)
 {
-	for (BL_ScalarInterpolator *interp : m_interpolators) {
-		FCurve *fcu = interp->GetFCurve();
+	for (BL_ScalarInterpolator &interp : m_interpolators) {
+		FCurve *fcu = interp.GetFCurve();
 		if (array_index == fcu->array_index && rna_path == fcu->rna_path) {
-			return interp;
+			return &interp;
 		}
 	}
 	return nullptr;

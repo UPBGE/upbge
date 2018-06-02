@@ -57,7 +57,7 @@ class BL_InterpolatorList
 {
 private:
 	bAction *m_action;
-	std::vector<BL_ScalarInterpolator *> m_interpolators;
+	std::vector<BL_ScalarInterpolator> m_interpolators;
 
 public:
 	BL_InterpolatorList(bAction *action);
