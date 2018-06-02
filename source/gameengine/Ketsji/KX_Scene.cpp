@@ -780,7 +780,7 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
 	for (KX_GameObject *gameobj : m_logicHierarchicalGameObjects) {
 		// This will also relink the actuator to objects within the hierarchy.
 		gameobj->Relink(m_map_gameobject_to_replica);
-		gameobj->AddMeshUser();
+		gameobj->AddDefaultMeshUser();
 		// Always make sure that the bounding box is valid.
 		gameobj->UpdateBounds(true);
 		// Add the object in the layer of the parent.
@@ -879,7 +879,7 @@ KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobj, KX_GameObj
 	for (KX_GameObject *gameobj : m_logicHierarchicalGameObjects) {
 		// This will also relink the actuators in the hierarchy.
 		gameobj->Relink(m_map_gameobject_to_replica);
-		gameobj->AddMeshUser();
+		gameobj->AddDefaultMeshUser();
 		// Always make sure that the bounding box is valid.
 		gameobj->UpdateBounds(true);
 
@@ -1674,7 +1674,7 @@ static void MergeScene_GameObject(KX_GameObject *gameobj, KX_Scene *to, KX_Scene
 		case SCA_IObject::OBJ_TEXT:
 		{
 			gameobj->RemoveMeshes();
-			gameobj->AddMeshUser();
+			gameobj->AddDefaultMeshUser();
 			break;
 		}
 	}

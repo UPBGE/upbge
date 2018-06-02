@@ -1618,7 +1618,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 
 	for (KX_GameObject *gameobj : objectlist) {
 		// Init mesh users, mesh slots and deformers.
-		gameobj->AddMeshUser();
+		gameobj->AddDefaultMeshUser();
 
 		// Add active armature for update.
 		if (gameobj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {

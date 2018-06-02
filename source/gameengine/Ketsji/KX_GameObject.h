@@ -48,6 +48,7 @@
 #include "KX_Scene.h"
 #include "KX_KetsjiEngine.h" /* for m_anim_framerate */
 #include "KX_ClientObjectInfo.h"
+#include "KX_LodUser.h"
 #include "DNA_constraint_types.h" /* for constraint replication */
 #include "DNA_object_types.h"
 #include "SCA_LogicManager.h" /* for ConvertPythonToGameObject to search object names */
@@ -108,9 +109,11 @@ protected:
 	int									m_layer;
 	short m_passIndex;
 	std::vector<KX_Mesh *>		m_meshes;
-	KX_LodManager						*m_lodManager;
-	short								m_currentLodLevel;
-	RAS_MeshUser						*m_meshUser;
+	KX_LodUser m_lodUser;
+	/// The current mesh user to draw.
+	RAS_MeshUser *m_currentMeshUser;
+	/// The default mesh user for the default mesh.
+	std::unique_ptr<RAS_MeshUser> m_defaultMeshUser;
 	/// Info about blender object convert from.
 	BL_ConvertObjectInfo *m_convertInfo;
 
@@ -440,7 +443,8 @@ public:
 		const mt::vec4&
 	GetObjectColor();
 
-	RAS_Deformer *GetDeformer();
+	RAS_MeshUser *GetCurrentMeshUser() const;
+	RAS_Deformer *GetDeformer() const;
 
 	/**
 	 * \return a pointer to the physics controller owned by this class.
@@ -640,8 +644,10 @@ public:
 	 * user of this object's meshes.
 	 */
 	virtual void
-	AddMeshUser(
+	AddDefaultMeshUser(
 	);
+
+	void SetCurrentMeshUser(RAS_MeshUser *meshUser);
 	
 	/**
 	 * Update buckets with data about the mesh after
@@ -693,8 +699,8 @@ public:
 
 	const std::vector<KX_Mesh *>& GetMeshList() const;
 
-	/// Return the mesh user of this game object.
-	RAS_MeshUser *GetMeshUser() const;
+	/// Return the default mesh user of this game object.
+	RAS_MeshUser *GetDefaultMeshUser() const;
 
 	/// Return true when the object can be rendered.
 	bool Renderable(int layer) const;

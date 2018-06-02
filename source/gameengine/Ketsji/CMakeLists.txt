@@ -101,6 +101,7 @@ set(SRC
 	KX_LightIpoSGController.cpp
 	KX_LodLevel.cpp
 	KX_LodManager.cpp
+	KX_LodUser.cpp
 	KX_MaterialIpoController.cpp
 	KX_Mesh.cpp
 	KX_MotionState.cpp
@@ -184,6 +185,7 @@ set(SRC
 	KX_LightIpoSGController.h
 	KX_LodLevel.h
 	KX_LodManager.h
+	KX_LodUser.h
 	KX_MaterialIpoController.h
 	KX_Mesh.h
 	KX_MotionState.h

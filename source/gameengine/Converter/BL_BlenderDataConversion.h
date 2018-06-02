@@ -40,6 +40,8 @@ class RAS_Rasterizer;
 class RAS_ICanvas;
 class KX_KetsjiEngine;
 class KX_Scene;
+class KX_GameObject;
+class KX_Mesh;
 class BL_SceneConverter;
 class BL_ActionData;
 struct Mesh;
