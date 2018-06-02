@@ -80,9 +80,6 @@ SG_Node::SG_Node(const SG_Node & other)
 
 SG_Node::~SG_Node()
 {
-	for (SG_Controller *cont : m_controllers) {
-		delete cont;
-	}
 }
 
 SG_Node *SG_Node::GetReplica()
@@ -261,35 +258,6 @@ void SG_Node::UpdateWorldDataThreadSchedule(bool parentUpdated)
 	}
 }
 
-void SG_Node::SetSimulatedTime(double time, bool recurse)
-{
-	// update the controllers of this node.
-	SetControllerTime(time);
-
-	// update children's simulate time.
-	if (recurse) {
-		for (SG_Node *childnode : m_children) {
-			childnode->SetSimulatedTime(time, recurse);
-		}
-	}
-}
-
-void SG_Node::SetSimulatedTimeThread(double time, bool recurse)
-{
-	CM_ThreadSpinLock& famillyMutex = m_familly->GetMutex();
-	famillyMutex.Lock();
-	// update the controllers of this node.
-	SetControllerTime(time);
-
-	// update children's simulate time.
-	if (recurse) {
-		for (SG_Node *childnode : m_children) {
-			childnode->SetSimulatedTime(time, recurse);
-		}
-	}
-	famillyMutex.Unlock();
-}
-
 bool SG_Node::Schedule(SG_QList& head)
 {
 	scheduleMutex.Lock();
@@ -329,28 +297,6 @@ SG_Node *SG_Node::GetNextRescheduled(SG_QList& head)
 	return result;
 }
 
-void SG_Node::AddController(SG_Controller *cont)
-{
-	m_controllers.push_back(cont);
-}
-
-void SG_Node::RemoveController(SG_Controller *cont)
-{
-	m_mutex.Lock();
-	CM_ListRemoveIfFound(m_controllers, cont);
-	m_mutex.Unlock();
-}
-
-void SG_Node::RemoveAllControllers()
-{
-	m_controllers.clear();
-}
-
-SGControllerList& SG_Node::GetControllerList()
-{
-	return m_controllers;
-}
-
 SG_Callbacks& SG_Node::GetCallBackFunctions()
 {
 	return m_callbacks;
@@ -373,13 +319,6 @@ void *SG_Node::GetClientInfo() const
 void SG_Node::SetClientInfo(void *clientInfo)
 {
 	m_clientInfo = clientInfo;
-}
-
-void SG_Node::SetControllerTime(double time)
-{
-	for (SG_Controller *cont : m_controllers) {
-		cont->SetSimulatedTime(time);
-	}
 }
 
 void SG_Node::ClearModified()
@@ -416,11 +355,6 @@ SG_ParentRelation *SG_Node::GetParentRelation()
  */
 void SG_Node::UpdateSpatialData(const SG_Node *parent, bool& parentUpdated)
 {
-	// update spatial controllers
-	for (SG_Controller *cont : m_controllers) {
-		cont->Update(this);
-	}
-
 	// Ask the parent_relation object owned by this class to update our world coordinates.
 	ComputeWorldTransforms(parent, parentUpdated);
 }

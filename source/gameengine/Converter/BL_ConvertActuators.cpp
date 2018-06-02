@@ -221,9 +221,6 @@ void BL_ConvertActuators(const char *maggiename,
 				if (actact->flag & ACT_IPOADD) {
 					ipo_flags |= BL_Action::ACT_IPOFLAG_ADD;
 				}
-				if (actact->flag & ACT_IPOCHILD) {
-					ipo_flags |= BL_Action::ACT_IPOFLAG_CHILD;
-				}
 
 				BL_ActionActuator *tmpbaseact = new BL_ActionActuator(
 					gameobj,

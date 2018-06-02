@@ -865,26 +865,6 @@ void KX_GameObject::SynchronizeTransformFunc(SG_Node *node, void *gameobj, void 
 	((KX_GameObject *)gameobj)->SynchronizeTransform();
 }
 
-void KX_GameObject::InitIPO(bool ipo_as_force,
-                            bool ipo_add,
-                            bool ipo_local)
-{
-	for (SG_Controller *cont : m_sgNode->GetControllerList()) {
-		cont->SetOption(SG_Controller::SG_CONTR_IPO_RESET, true);
-		cont->SetOption(SG_Controller::SG_CONTR_IPO_IPO_AS_FORCE, ipo_as_force);
-		cont->SetOption(SG_Controller::SG_CONTR_IPO_IPO_ADD, ipo_add);
-		cont->SetOption(SG_Controller::SG_CONTR_IPO_LOCAL, ipo_local);
-	}
-}
-
-void KX_GameObject::UpdateIPO(float curframetime,
-                              bool recurse)
-{
-	// just the 'normal' update procedure.
-	m_sgNode->SetSimulatedTimeThread(curframetime, recurse);
-	m_sgNode->UpdateWorldDataThread();
-}
-
 bool KX_GameObject::GetVisible(void)
 {
 	return m_bVisible;

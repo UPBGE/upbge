@@ -42,11 +42,8 @@
 #include <vector>
 #include <memory>
 
-class SG_Controller;
 class SG_Familly;
 class SG_Node;
-
-typedef std::vector<SG_Controller *> SGControllerList;
 
 typedef void * (*SG_ReplicationNewCallback)(SG_Node *sgnode, void *clientobj, void *clientinfo);
 typedef void * (*SG_DestructionNewCallback)(SG_Node *sgnode, void *clientobj, void *clientinfo);
@@ -224,39 +221,7 @@ public:
 
 	void Destruct();
 
-	/**
-	 * Add a pointer to a controller allocated on the heap, to
-	 * this node. This memory for this controller becomes the
-	 * responsibility of this class. It will be deleted when
-	 * this object is deleted.
-	 */
-	void AddController(SG_Controller *cont);
-
-	/**
-	 * Remove a pointer to a controller from this node.
-	 * This does not delete the controller itself! Be careful to
-	 * avoid memory leaks.
-	 */
-	void RemoveController(SG_Controller *cont);
-
-	/**
-	 * Clear the array of pointers to controllers associated with
-	 * this node. This does not delete the controllers themselves!
-	 * This should be used very carefully to avoid memory
-	 * leaks.
-	 */
-	void RemoveAllControllers();
-
 	/// Needed for replication
-
-	/**
-	 * Return a reference to this node's controller list.
-	 * Whilst we don't wish to expose full control of the container
-	 * to the user we do allow them to call non_const methods
-	 * on pointers in the container. C++ topic: how to do this in
-	 * using STL?
-	 */
-	SGControllerList& GetControllerList();
 
 	SG_Callbacks& GetCallBackFunctions();
 
@@ -280,13 +245,6 @@ public:
 	void SetClientObject(void *clientObject);
 	void *GetClientInfo() const;
 	void SetClientInfo(void *clientInfo);
-
-	/**
-	 * Set the current simulation time for this node.
-	 * The implementation of this function runs through
-	 * the nodes list of controllers and calls their SetSimulatedTime methods
-	 */
-	void SetControllerTime(double time);
 
 	void ClearModified();
 	void SetModified();
@@ -359,8 +317,7 @@ protected:
 	void ActivateRecheduleUpdateCallback();
 
 	/**
-	 * Update the world coordinates of this spatial node. This also informs
-	 * any controllers to update this object.
+	 * Update the world coordinates of this spatial node.
 	 */
 	void UpdateSpatialData(const SG_Node *parent, bool& parentUpdated);
 
@@ -372,7 +329,6 @@ private:
 	void *m_clientObject;
 	void *m_clientInfo;
 	SG_Callbacks m_callbacks;
-	SGControllerList m_controllers;
 
 	/**
 	 * The list of children of this node.
