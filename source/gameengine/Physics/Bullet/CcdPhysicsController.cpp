@@ -268,7 +268,6 @@ public:
 	{
 		m_blenderMotionState->SetWorldPosition(ToMt(worldTrans.getOrigin()));
 		m_blenderMotionState->SetWorldOrientation(ToMt(worldTrans.getBasis()));
-		m_blenderMotionState->CalculateWorldTransformations();
 	}
 };
 
@@ -736,22 +735,15 @@ void CcdPhysicsController::SimulationTick(float timestep)
 	}
 }
 
-/**
- * SynchronizeMotionStates ynchronizes dynas, kinematic and deformable entities (and do 'late binding')
- */
-bool CcdPhysicsController::SynchronizeMotionStates(float time)
+void CcdPhysicsController::SynchronizeDynamicsToMotionState()
 {
-	//sync non-static to motionstate, and static from motionstate (todo: add kinematic etc.)
-
 	btSoftBody *sb = GetSoftBody();
 	if (sb) {
 		if (sb->m_pose.m_bframe) {
 			btVector3 worldPos = sb->m_pose.m_com;
-			btQuaternion worldquat;
 			btMatrix3x3 trs = sb->m_pose.m_rot * sb->m_pose.m_scl;
-			trs.getRotation(worldquat);
 			m_MotionState->SetWorldPosition(ToMt(worldPos));
-			m_MotionState->SetWorldOrientation(ToMt(worldquat));
+			m_MotionState->SetWorldOrientation(ToMt(trs));
 		}
 		else {
 			btVector3 aabbMin, aabbMax;
@@ -759,40 +751,38 @@ bool CcdPhysicsController::SynchronizeMotionStates(float time)
 			btVector3 worldPos  = (aabbMax + aabbMin) * 0.5f;
 			m_MotionState->SetWorldPosition(ToMt(worldPos));
 		}
-		m_MotionState->CalculateWorldTransformations();
-		return true;
+	}
+	else {
+		btRigidBody *body = GetRigidBody();
+
+		if (body && !body->isStaticObject()) {
+			const btTransform& xform = body->getCenterOfMassTransform();
+			const btMatrix3x3& worldOri = xform.getBasis();
+			const btVector3& worldPos = xform.getOrigin();
+			m_MotionState->SetWorldOrientation(ToMt(worldOri));
+			m_MotionState->SetWorldPosition(ToMt(worldPos));
+		}
+	}
+}
+
+void CcdPhysicsController::SynchronizeMotionStateToDynamics()
+{
+	if (!m_MotionState->IsDirtyAndClear()) {
+		return;
 	}
 
-	btRigidBody *body = GetRigidBody();
-
-	if (body && !body->isStaticObject()) {
-		const btTransform& xform = body->getCenterOfMassTransform();
-		const btMatrix3x3& worldOri = xform.getBasis();
-		const btVector3& worldPos = xform.getOrigin();
-		m_MotionState->SetWorldOrientation(ToMt(worldOri));
-		m_MotionState->SetWorldPosition(ToMt(worldPos));
-		m_MotionState->CalculateWorldTransformations();
-	}
+	btTransform xform = CcdPhysicsController::GetTransformFromMotionState(m_MotionState);
+	SetCenterOfMassTransform(xform);
 
 	const mt::vec3& scale = m_MotionState->GetWorldScaling();
 	GetCollisionShape()->setLocalScaling(ToBullet(scale));
 
-	return true;
+	if (!IsDynamic() && !GetConstructionInfo().m_bSensor && !m_characterController) {
+		m_object->setActivationState(ACTIVE_TAG);
+		m_object->setCollisionFlags(m_object->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
+	}
 }
 
-/**
- * WriteMotionStateToDynamics synchronizes dynas, kinematic and deformable entities (and do 'late binding')
- */
-
-void CcdPhysicsController::WriteMotionStateToDynamics(bool nondynaonly)
-{
-	btTransform xform = CcdPhysicsController::GetTransformFromMotionState(m_MotionState);
-	SetCenterOfMassTransform(xform);
-}
-
-void CcdPhysicsController::WriteDynamicsToMotionState()
-{
-}
 // controller replication
 void CcdPhysicsController::PostProcessReplica(class PHY_IMotionState *motionstate, class PHY_IPhysicsController *parentctrl)
 {
@@ -873,18 +863,7 @@ void CcdPhysicsController::SetCenterOfMassTransform(btTransform& xform)
 		body->setCenterOfMassTransform(xform);
 	}
 	else {
-		//either collision object or soft body?
-		if (GetSoftBody()) {
-		}
-		else {
-			if (m_object->isStaticOrKinematicObject()) {
-				m_object->setInterpolationWorldTransform(m_object->getWorldTransform());
-			}
-			else {
-				m_object->setInterpolationWorldTransform(xform);
-			}
-			m_object->setWorldTransform(xform);
-		}
+		m_object->setWorldTransform(xform);
 	}
 }
 
@@ -997,15 +976,6 @@ void CcdPhysicsController::SetPosition(const mt::vec3& pos)
 	}
 }
 
-void CcdPhysicsController::ForceWorldTransform(const btMatrix3x3& mat, const btVector3& pos)
-{
-	if (m_object) {
-		btTransform& xform = m_object->getWorldTransform();
-		xform.setBasis(mat);
-		xform.setOrigin(pos);
-	}
-}
-
 void CcdPhysicsController::RefreshCollisions()
 {
 	// the object is in an inactive layer so it's useless to update it and can cause problems
@@ -1061,8 +1031,6 @@ void CcdPhysicsController::RestoreDynamics()
 {
 	btRigidBody *body = GetRigidBody();
 	if (body && m_suspended && !IsPhysicsSuspended()) {
-		// before make sure any position change that was done in this logic frame are accounted for
-		SetTransform();
 		m_cci.m_physicsEnv->UpdateCcdPhysicsController(this,
 		                                                    m_savedMass,
 		                                                    m_savedCollisionFlags,
@@ -1096,19 +1064,6 @@ void CcdPhysicsController::SetScaling(const mt::vec3& scale)
 				body->setMassProps(m_cci.m_mass, m_cci.m_localInertiaTensor * m_cci.m_inertiaFactor);
 			}
 		}
-	}
-}
-
-void CcdPhysicsController::SetTransform()
-{
-	const mt::vec3 pos = m_MotionState->GetWorldPosition();
-	const mt::mat3 rot = m_MotionState->GetWorldOrientation();
-	ForceWorldTransform(ToBullet(rot), ToBullet(pos));
-
-	if (!IsDynamic() && !GetConstructionInfo().m_bSensor && !m_characterController) {
-		btCollisionObject *object = GetRigidBody();
-		object->setActivationState(ACTIVE_TAG);
-		object->setCollisionFlags(object->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
 	}
 }
 
@@ -1456,13 +1411,6 @@ void *CcdPhysicsController::GetNewClientInfo()
 void CcdPhysicsController::SetNewClientInfo(void *clientinfo)
 {
 	m_newClientInfo = clientinfo;
-
-	if (m_cci.m_bSensor) {
-		// use a different callback function for sensor object,
-		// bullet will not synchronize, we must do it explicitly
-		SG_Callbacks& callbacks = KX_GameObject::GetClientObject((KX_ClientObjectInfo *)clientinfo)->GetNode()->GetCallBackFunctions();
-		callbacks.m_updatefunc = KX_GameObject::SynchronizeTransformFunc;
-	}
 }
 
 void CcdPhysicsController::UpdateDeactivation(float timeStep)
@@ -1718,46 +1666,48 @@ void CcdPhysicsController::ReplacePhysicsShape(PHY_IPhysicsController *phyctrl)
 ///////////////////////////////////////////////////////////
 
 DefaultMotionState::DefaultMotionState()
+	:m_orientation(mt::mat3::Identity()),
+	m_scale(mt::one3),
+	m_position(mt::zero3),
+	m_dirty(true)
 {
-	m_worldTransform.setIdentity();
-	m_localScaling.setValue(1.0f, 1.0f, 1.0f);
 }
 
 DefaultMotionState::~DefaultMotionState()
 {
 }
 
+bool DefaultMotionState::IsDirtyAndClear()
+{
+	const bool dirty = m_dirty;
+	m_dirty = false;
+	return dirty;
+}
+
 mt::vec3 DefaultMotionState::GetWorldPosition() const
 {
-	return ToMt(m_worldTransform.getOrigin());
+	return m_position;
 }
 
 mt::vec3 DefaultMotionState::GetWorldScaling() const
 {
-	return ToMt(m_localScaling);
+	return m_scale;
 }
 
 mt::mat3 DefaultMotionState::GetWorldOrientation() const
 {
-	return ToMt(m_worldTransform.getBasis());
+	return m_orientation;
 }
 
 void DefaultMotionState::SetWorldOrientation(const mt::mat3& ori)
 {
-	m_worldTransform.setBasis(ToBullet(ori));
+	m_orientation = ori;
+	m_dirty = true;
 }
 void DefaultMotionState::SetWorldPosition(const mt::vec3& pos)
 {
-	m_worldTransform.setOrigin(ToBullet(pos));
-}
-
-void DefaultMotionState::SetWorldOrientation(const mt::quat& quat)
-{
-	m_worldTransform.setRotation(ToBullet(quat));
-}
-
-void DefaultMotionState::CalculateWorldTransformations()
-{
+	m_position = pos;
+	m_dirty = true;
 }
 
 // Shape constructor

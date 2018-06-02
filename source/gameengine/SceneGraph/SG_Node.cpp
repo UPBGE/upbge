@@ -246,14 +246,10 @@ void SG_Node::SetModified()
 	}
 
 	m_modified = true;
+
 	for (SG_Node *child : m_children) {
 		child->SetModified();
 	}
-}
-
-void SG_Node::ClearDirty(DirtyFlag flag)
-{
-	m_dirty &= ~flag;
 }
 
 void SG_Node::SetParentRelation(SG_ParentRelation *relation)
@@ -285,10 +281,10 @@ void SG_Node::UpdateSpatial()
 	else {
 		SetWorldFromLocalTransform();
 	}
-	ActivateUpdateTransformCallback();
+
+	m_dirty = DIRTY_ALL;
 
 	m_modified = false;
-	m_dirty = DIRTY_ALL;
 }
 
 void SG_Node::SetWorldFromLocalTransform()
@@ -326,9 +322,13 @@ bool SG_Node::IsModified()
 	return m_modified;
 }
 
-bool SG_Node::IsDirty(DirtyFlag flag)
+bool SG_Node::IsDirtyAndClear(DirtyFlag flag)
 {
-	return (m_dirty & flag);
+	/// Try to flush modification first.
+	UpdateSpatial();
+	const bool dirty = (m_dirty & flag);
+	m_dirty &= ~flag;
+	return dirty;
 }
 
 bool SG_Node::ActivateReplicationCallback(SG_Node *replica)
@@ -351,15 +351,5 @@ void SG_Node::ActivateDestructionCallback()
 	else {
 		// no callback but must still destroy the node to avoid memory leak
 		delete this;
-	}
-}
-
-void SG_Node::ActivateUpdateTransformCallback()
-{
-	if (m_callbacks.m_updatefunc) {
-		// Call client provided update func.
-// 		transformMutex.Lock(); // TODO
-		m_callbacks.m_updatefunc(this, m_clientObject, m_clientInfo);
-// 		transformMutex.Unlock();
 	}
 }

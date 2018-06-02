@@ -142,9 +142,8 @@ void KX_FontObject::AddMeshUser()
 void KX_FontObject::UpdateBuckets()
 {
 	// Update datas and add mesh slot to be rendered only if the object is not culled.
-	if (m_sgNode->IsDirty(SG_Node::DIRTY_RENDER)) {
+	if (m_sgNode->IsDirtyAndClear(SG_Node::DIRTY_RENDER)) {
 		NodeGetWorldTransform().PackFromAffineTransform(m_meshUser->GetMatrix());
-		m_sgNode->ClearDirty(SG_Node::DIRTY_RENDER);
 	}
 
 	// Font Objects don't use the glsl shader, this color management code is copied from gpu_shader_material.glsl

@@ -225,7 +225,7 @@ public:
 	virtual bool RemoveCollisionCallback(PHY_IPhysicsController *ctrl) = 0;
 	virtual PHY_CollisionTestResult CheckCollision(PHY_IPhysicsController *ctrl0, PHY_IPhysicsController *ctrl1) = 0;
 	//These two methods are *solely* used to create controllers for sensor! Don't use for anything else
-	virtual PHY_IPhysicsController *CreateSphereController(float radius, const mt::vec3& position) = 0;
+	virtual PHY_IPhysicsController *CreateSphereController(float radius) = 0;
 	virtual PHY_IPhysicsController *CreateConeController(float coneradius, float coneheight) = 0;
 
 	virtual void ExportFile(const std::string& filename)

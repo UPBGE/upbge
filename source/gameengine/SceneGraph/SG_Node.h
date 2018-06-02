@@ -47,7 +47,6 @@ class SG_Node;
 
 typedef void * (*SG_ReplicationNewCallback)(SG_Node *sgnode, void *clientobj, void *clientinfo);
 typedef void * (*SG_DestructionNewCallback)(SG_Node *sgnode, void *clientobj, void *clientinfo);
-typedef void (*SG_UpdateTransformCallback)(SG_Node *sgnode, void *clientobj, void *clientinfo);
 
 /**
  * SG_Callbacks hold 2 call backs to the outside world.
@@ -67,23 +66,19 @@ typedef void (*SG_UpdateTransformCallback)(SG_Node *sgnode, void *clientobj, voi
 struct SG_Callbacks {
 	SG_Callbacks()
 		:m_replicafunc(nullptr),
-		m_destructionfunc(nullptr),
-		m_updatefunc(nullptr)
+		m_destructionfunc(nullptr)
 	{
 	}
 
 	SG_Callbacks(SG_ReplicationNewCallback repfunc,
-	             SG_DestructionNewCallback destructfunc,
-	             SG_UpdateTransformCallback updatefunc)
+	             SG_DestructionNewCallback destructfunc)
 		:m_replicafunc(repfunc),
-		m_destructionfunc(destructfunc),
-		m_updatefunc(updatefunc)
+		m_destructionfunc(destructfunc)
 	{
 	}
 
 	SG_ReplicationNewCallback m_replicafunc;
 	SG_DestructionNewCallback m_destructionfunc;
-	SG_UpdateTransformCallback m_updatefunc;
 };
 
 typedef std::vector<SG_Node *> NodeList;
@@ -99,7 +94,8 @@ public:
 		DIRTY_NONE = 0,
 		DIRTY_ALL = 0xFF,
 		DIRTY_RENDER = (1 << 0),
-		DIRTY_CULLING = (1 << 1)
+		DIRTY_CULLING = (1 << 1),
+		DIRTY_PHYSICS = (1 << 2)
 	};
 
 	SG_Node(void *clientobj, void *clientinfo, SG_Callbacks& callbacks);
@@ -207,8 +203,6 @@ public:
 	void SetClientObject(void *clientObject);
 	void *GetClientInfo() const;
 	void SetClientInfo(void *clientInfo);
-
-	void ClearDirty(DirtyFlag flag);
 
 	/**
 	 * Define the relationship this node has with it's parent
@@ -378,14 +372,13 @@ public:
 	void SetFamilly(const std::shared_ptr<SG_Familly>& familly);
 
 	bool IsModified();
-	bool IsDirty(DirtyFlag flag);
+	bool IsDirtyAndClear(DirtyFlag flag);
 
 protected:
 	friend class SG_Controller;
 
 	bool ActivateReplicationCallback(SG_Node *replica);
 	void ActivateDestructionCallback();
-	void ActivateUpdateTransformCallback();
 
 	/// Update the world coordinates of this spatial node.
 	void UpdateSpatial();

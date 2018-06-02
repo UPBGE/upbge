@@ -148,14 +148,11 @@ void KX_RadarSensor::SynchronizeTransform()
 	m_cone_target[1] = temp[1];
 	m_cone_target[2] = temp[2];
 
-
 	if (m_physCtrl) {
 		PHY_IMotionState *motionState = m_physCtrl->GetMotionState();
 		motionState->SetWorldPosition(trans.TranslationVector3D());
 		motionState->SetWorldOrientation(trans.RotationMatrix());
-		m_physCtrl->WriteMotionStateToDynamics(true);
 	}
-
 }
 
 /* ------------------------------------------------------------------------- */

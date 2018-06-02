@@ -604,23 +604,6 @@ public:
 	virtual void	SetDamping(float linear, float angular);
 
 	/**
-	 * Update the physics object transform based upon the current SG_Node
-	 * position.
-	 */
-		void
-	UpdateTransform(
-	);
-
-	static void UpdateTransformFunc(SG_Node* node, void* gameobj, void* scene);
-
-	/**
-	 * only used for sensor objects
-	 */
-	void SynchronizeTransform();
-
-	static void SynchronizeTransformFunc(SG_Node* node, void* gameobj, void* scene);
-
-	/**
 	 * \section Mesh accessor functions.
 	 */
 

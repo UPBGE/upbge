@@ -41,8 +41,10 @@ class KX_MotionState : public PHY_IMotionState
 	SG_Node *m_node;
 
 public:
-	KX_MotionState(SG_Node *spatial);
+	KX_MotionState(SG_Node *node);
 	virtual ~KX_MotionState();
+
+	virtual bool IsDirtyAndClear();
 
 	virtual mt::vec3 GetWorldPosition() const;
 	virtual mt::vec3 GetWorldScaling() const;
@@ -50,9 +52,6 @@ public:
 
 	virtual void SetWorldPosition(const mt::vec3& pos);
 	virtual void SetWorldOrientation(const mt::mat3& ori);
-	virtual void SetWorldOrientation(const mt::quat& quat);
-
-	virtual void CalculateWorldTransformations();
 };
 
 #endif  // __KX_MOTIONSTATE_H__

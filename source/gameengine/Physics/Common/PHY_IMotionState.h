@@ -41,9 +41,9 @@
 class PHY_IMotionState
 {
 public:
-	virtual ~PHY_IMotionState()
-	{
-	}
+	virtual ~PHY_IMotionState() = default;
+
+	virtual bool IsDirtyAndClear() = 0;
 
 	virtual mt::vec3 GetWorldPosition() const = 0;
 	virtual mt::vec3 GetWorldScaling() const = 0;
@@ -51,9 +51,6 @@ public:
 
 	virtual void SetWorldPosition(const mt::vec3& pos) = 0;
 	virtual void SetWorldOrientation(const mt::mat3& ori) = 0;
-	virtual void SetWorldOrientation(const mt::quat& quat) = 0;
-
-	virtual void CalculateWorldTransformations() = 0;
 };
 
 #endif  /* __PHY_IMOTIONSTATE_H__ */

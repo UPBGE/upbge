@@ -108,7 +108,7 @@ public:
 	{
 		return {false, false, nullptr};
 	}
-	virtual PHY_IPhysicsController *CreateSphereController(float radius, const mt::vec3& position)
+	virtual PHY_IPhysicsController *CreateSphereController(float radius)
 	{
 		return nullptr;
 	}

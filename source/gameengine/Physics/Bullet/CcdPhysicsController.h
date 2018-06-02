@@ -601,7 +601,6 @@ protected:
 	int getNumCcdConstraintRefs() const;
 
 	void SetWorldOrientation(const btMatrix3x3& mat);
-	void ForceWorldTransform(const btMatrix3x3& mat, const btVector3& pos);
 
 public:
 
@@ -646,26 +645,15 @@ public:
 	}
 
 	const std::vector<unsigned int>& GetSoftBodyIndices() const;
-	////////////////////////////////////
-	// PHY_IPhysicsController interface
-	////////////////////////////////////
 
-	/**
-	 * SynchronizeMotionStates ynchronizes dynas, kinematic and deformable entities (and do 'late binding')
-	 */
-	virtual bool SynchronizeMotionStates(float time);
+	void SynchronizeDynamicsToMotionState();
+	void SynchronizeMotionStateToDynamics();
 
 	/**
 	 * Called for every physics simulation step. Use this method for
 	 * things like limiting linear and angular velocity.
 	 */
 	void SimulationTick(float timestep);
-
-	/**
-	 * WriteMotionStateToDynamics ynchronizes dynas, kinematic and deformable entities (and do 'late binding')
-	 */
-	virtual void WriteMotionStateToDynamics(bool nondynaonly);
-	virtual void WriteDynamicsToMotionState();
 
 	// controller replication
 	virtual void PostProcessReplica(class PHY_IMotionState *motionstate, class PHY_IPhysicsController *parentctrl);
@@ -679,7 +667,6 @@ public:
 	virtual void SetPosition(const mt::vec3& pos);
 	virtual mt::vec3 GetPosition() const;
 	virtual void SetScaling(const mt::vec3& scale);
-	virtual void SetTransform();
 
 	virtual float GetMass();
 	virtual void SetMass(float newmass);
@@ -863,10 +850,17 @@ public:
 /// DefaultMotionState implements standard motionstate, using btTransform
 class DefaultMotionState : public PHY_IMotionState, public mt::SimdClassAllocator
 {
+private:
+	mt::mat3 m_orientation;
+	mt::vec3 m_scale;
+	mt::vec3 m_position;
+	bool m_dirty;
+
 public:
 	DefaultMotionState();
-
 	virtual ~DefaultMotionState();
+
+	virtual bool IsDirtyAndClear();
 
 	virtual mt::vec3 GetWorldPosition() const;
 	virtual mt::vec3 GetWorldScaling() const;
@@ -874,12 +868,6 @@ public:
 
 	virtual void SetWorldPosition(const mt::vec3& pos);
 	virtual void SetWorldOrientation(const mt::mat3& ori);
-	virtual void SetWorldOrientation(const mt::quat& quat);
-
-	virtual void CalculateWorldTransformations();
-
-	btTransform m_worldTransform;
-	btVector3 m_localScaling;
 };
 
 #endif  /* __CCDPHYSICSCONTROLLER_H__ */

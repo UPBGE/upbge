@@ -52,16 +52,6 @@ public:
 	virtual ~PHY_IPhysicsController()
 	{
 	}
-	/**
-	 * SynchronizeMotionStates ynchronizes dynas, kinematic and deformable entities (and do 'late binding')
-	 */
-	virtual bool SynchronizeMotionStates(float time) = 0;
-	/**
-	 * WriteMotionStateToDynamics ynchronizes dynas, kinematic and deformable entities (and do 'late binding')
-	 */
-
-	virtual void WriteMotionStateToDynamics(bool nondynaonly) = 0;
-	virtual void WriteDynamicsToMotionState() = 0;
 	virtual class PHY_IMotionState *GetMotionState() = 0;
 	// controller replication
 	virtual void PostProcessReplica(class PHY_IMotionState *motionstate, class PHY_IPhysicsController *parentctrl) = 0;
@@ -75,7 +65,6 @@ public:
 	virtual void SetPosition(const mt::vec3& pos) = 0;
 	virtual mt::vec3 GetPosition() const = 0;
 	virtual void SetScaling(const mt::vec3& scale) = 0;
-	virtual void SetTransform() = 0;
 
 	virtual float GetMass() = 0;
 	virtual void SetMass(float newmass) = 0;

@@ -739,7 +739,7 @@ bool CcdPhysicsEnvironment::ProceedDeltaTime(double curTime, float timeStep, flo
 	gContactBreakingThreshold = m_contactBreakingThreshold;
 
 	for (it = m_controllers.begin(); it != m_controllers.end(); it++) {
-		(*it)->SynchronizeMotionStates(timeStep);
+		(*it)->SynchronizeMotionStateToDynamics();
 	}
 
 	float subStep = timeStep / float(m_numTimeSubSteps);
@@ -750,7 +750,7 @@ bool CcdPhysicsEnvironment::ProceedDeltaTime(double curTime, float timeStep, flo
 	ProcessFhSprings(curTime, i * subStep);
 
 	for (it = m_controllers.begin(); it != m_controllers.end(); it++) {
-		(*it)->SynchronizeMotionStates(timeStep);
+		(*it)->SynchronizeDynamicsToMotionState();
 	}
 
 	for (i = 0; i < m_wrapperVehicles.size(); i++) {
@@ -2193,7 +2193,7 @@ PHY_ICharacter *CcdPhysicsEnvironment::GetCharacterController(KX_GameObject *ob)
 }
 
 
-PHY_IPhysicsController *CcdPhysicsEnvironment::CreateSphereController(float radius, const mt::vec3& position)
+PHY_IPhysicsController *CcdPhysicsEnvironment::CreateSphereController(float radius)
 {
 	CcdConstructionInfo cinfo;
 	cinfo.m_collisionShape = new btSphereShape(radius); // memory leak! The shape is not deleted by Bullet and we cannot add it to the KX_Scene.m_shapes list
@@ -2209,8 +2209,6 @@ PHY_IPhysicsController *CcdPhysicsEnvironment::CreateSphereController(float radi
 	cinfo.m_collisionFilterMask = CcdConstructionInfo::AllFilter ^ CcdConstructionInfo::SensorFilter;
 	cinfo.m_collisionFilterGroup = CcdConstructionInfo::SensorFilter;
 	cinfo.m_bSensor = true;
-	motionState->m_worldTransform.setIdentity();
-	motionState->m_worldTransform.setOrigin(ToBullet(position));
 
 	CcdPhysicsController *sphereController = new CcdPhysicsController(cinfo);
 
@@ -2560,8 +2558,6 @@ PHY_IPhysicsController *CcdPhysicsEnvironment::CreateConeController(float conera
 	cinfo.m_collisionFilterMask = CcdConstructionInfo::AllFilter ^ CcdConstructionInfo::SensorFilter;
 	cinfo.m_collisionFilterGroup = CcdConstructionInfo::SensorFilter;
 	cinfo.m_bSensor = true;
-	motionState->m_worldTransform.setIdentity();
-//	motionState->m_worldTransform.setOrigin(btVector3(position[0],position[1],position[2]));
 
 	CcdPhysicsController *sphereController = new CcdPhysicsController(cinfo);
 

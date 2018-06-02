@@ -121,8 +121,7 @@ static void *KX_SceneDestructionFunc(SG_Node *node, void *gameobj, void *scene)
 
 SG_Callbacks KX_Scene::m_callbacks = SG_Callbacks(
 	KX_SceneReplicationFunc,
-	KX_SceneDestructionFunc,
-	KX_GameObject::UpdateTransformFunc);
+	KX_SceneDestructionFunc);
 
 KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
                    const std::string& sceneName,

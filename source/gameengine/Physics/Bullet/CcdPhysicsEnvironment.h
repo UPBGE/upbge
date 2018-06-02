@@ -199,7 +199,7 @@ public:
 	virtual bool RemoveCollisionCallback(PHY_IPhysicsController *ctrl);
 	virtual PHY_CollisionTestResult CheckCollision(PHY_IPhysicsController *ctrl0, PHY_IPhysicsController *ctrl1);
 	//These two methods are used *solely* to create controllers for Near/Radar sensor! Don't use for anything else
-	virtual PHY_IPhysicsController *CreateSphereController(float radius, const mt::vec3& position);
+	virtual PHY_IPhysicsController *CreateSphereController(float radius);
 	virtual PHY_IPhysicsController *CreateConeController(float coneradius, float coneheight);
 
 	virtual int GetNumContactPoints();

@@ -41,19 +41,24 @@ KX_MotionState::~KX_MotionState()
 {
 }
 
+bool KX_MotionState::IsDirtyAndClear()
+{
+	return m_node->IsDirtyAndClear(SG_Node::DIRTY_PHYSICS);
+}
+
 mt::vec3 KX_MotionState::GetWorldPosition() const
 {
-	return m_node->GetWorldPosition<false>();
+	return m_node->GetWorldPosition();
 }
 
 mt::vec3 KX_MotionState::GetWorldScaling() const
 {
-	return m_node->GetWorldScaling<false>();
+	return m_node->GetWorldScaling();
 }
 
 mt::mat3 KX_MotionState::GetWorldOrientation() const
 {
-	return m_node->GetWorldOrientation<false>();
+	return m_node->GetWorldOrientation();
 }
 
 void KX_MotionState::SetWorldOrientation(const mt::mat3& ori)
@@ -65,17 +70,4 @@ void KX_MotionState::SetWorldPosition(const mt::vec3& pos)
 {
 	m_node->SetLocalPosition(pos);
 }
-
-void KX_MotionState::SetWorldOrientation(const mt::quat& quat)
-{
-	m_node->SetLocalOrientation(quat.ToMatrix());
-}
-
-void KX_MotionState::CalculateWorldTransformations()
-{
-	//Not needed, will be done in KX_Scene::UpdateParents() after the physics simulation
-	//bool parentUpdated = false;
-	//m_node->ComputeWorldTransforms(nullptr, parentUpdated);
-}
-
 

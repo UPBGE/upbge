@@ -81,7 +81,6 @@ void KX_NearSensor::SynchronizeTransform()
 		KX_GameObject *parent = ((KX_GameObject *)GetParent());
 		motionState->SetWorldPosition(parent->NodeGetWorldPosition());
 		motionState->SetWorldOrientation(parent->NodeGetWorldOrientation());
-		m_physCtrl->WriteMotionStateToDynamics(true);
 	}
 }
 

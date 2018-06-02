@@ -705,10 +705,8 @@ void KX_GameObject::AddMeshUser()
 
 void KX_GameObject::UpdateBuckets()
 {
-	// Update datas and add mesh slot to be rendered only if the object is not culled.
-	if (m_sgNode->IsDirty(SG_Node::DIRTY_RENDER)) {
+	if (m_sgNode->IsDirtyAndClear(SG_Node::DIRTY_RENDER)) {
 		NodeGetWorldTransform().PackFromAffineTransform(m_meshUser->GetMatrix());
-		m_sgNode->ClearDirty(SG_Node::DIRTY_RENDER);
 	}
 
 	m_meshUser->SetColor(m_objectColor);
@@ -834,40 +832,6 @@ void KX_GameObject::UpdateActivity(float distance)
 			}
 		}
 	}
-}
-
-void KX_GameObject::UpdateTransform()
-{
-	// HACK: saves function call for dynamic object, they are handled differently
-	if (m_physicsController && !m_physicsController->IsDynamic()) {
-		m_physicsController->SetTransform();
-	}
-	if (m_graphicController) {
-		// update the culling tree
-		m_graphicController->SetGraphicTransform();
-	}
-
-}
-
-void KX_GameObject::UpdateTransformFunc(SG_Node *node, void *gameobj, void *scene)
-{
-	((KX_GameObject *)gameobj)->UpdateTransform();
-}
-
-void KX_GameObject::SynchronizeTransform()
-{
-	// only used for sensor object, do full synchronization as bullet doesn't do it
-	if (m_physicsController) {
-		m_physicsController->SetTransform();
-	}
-	if (m_graphicController) {
-		m_graphicController->SetGraphicTransform();
-	}
-}
-
-void KX_GameObject::SynchronizeTransformFunc(SG_Node *node, void *gameobj, void *scene)
-{
-	((KX_GameObject *)gameobj)->SynchronizeTransform();
 }
 
 bool KX_GameObject::GetVisible(void)
@@ -1201,7 +1165,7 @@ void KX_GameObject::NodeSetLocalPosition(const mt::vec3& trans)
 		// 1) the transformation will not be right
 		// 2) in this case, the physic controller is necessarily a static object
 		//    that is updated from the normal kinematic synchronization
-		m_physicsController->SetPosition(trans);
+		m_physicsController->SetPosition(trans); // TODO ?
 	}
 
 	m_sgNode->SetLocalPosition(trans);
