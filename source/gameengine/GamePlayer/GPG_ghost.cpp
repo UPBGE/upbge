@@ -716,6 +716,8 @@ int main(int argc,
 
 	BKE_blender_globals_init();
 
+	SET_FLAG_FROM_TEST(G.f, (U.flag & USER_SCRIPT_AUTOEXEC_DISABLE) == 0, G_SCRIPT_AUTOEXEC);
+
 	// We load our own G.main, so free the one that BKE_blender_globals_init() gives us
 	BKE_main_free(G.main);
 	G.main = nullptr;
