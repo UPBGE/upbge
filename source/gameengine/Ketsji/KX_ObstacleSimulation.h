@@ -53,14 +53,13 @@ struct KX_Obstacle : mt::SimdClassAllocator
 	mt::vec3 m_pos2;
 	float m_rad;
 	
-	float vel[2];
-	float pvel[2];
-	float dvel[2];
-	float nvel[2];
-	float hvel[VEL_HIST_SIZE*2];
+	mt::vec2 vel;
+	mt::vec2 pvel;
+	mt::vec2 dvel;
+	mt::vec2 nvel;
+	mt::vec2 hvel[VEL_HIST_SIZE];
 	int hhead;
 
-	
 	KX_GameObject* m_gameObj;
 };
 typedef std::vector<KX_Obstacle*> KX_Obstacles;
