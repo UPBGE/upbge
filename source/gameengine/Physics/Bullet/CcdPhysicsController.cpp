@@ -57,11 +57,10 @@ extern bool gDisableDeactivation;
 float gLinearSleepingTreshold;
 float gAngularSleepingTreshold;
 
-CcdCharacter::CcdCharacter(CcdPhysicsController *ctrl, btMotionState *motionState,
+CcdCharacter::CcdCharacter(CcdPhysicsController *ctrl,
                            btPairCachingGhostObject *ghost, btConvexShape *shape, float stepHeight)
 	:btKinematicCharacterController(ghost, shape, stepHeight, 2),
 	m_ctrl(ctrl),
-	m_motionState(motionState),
 	m_jumps(0),
 	m_maxJumps(1)
 {
@@ -74,7 +73,11 @@ void CcdCharacter::updateAction(btCollisionWorld *collisionWorld, btScalar dt)
 	}
 
 	btKinematicCharacterController::updateAction(collisionWorld, dt);
-	m_motionState->setWorldTransform(getGhostObject()->getWorldTransform());
+	
+	const btTransform& trans = getGhostObject()->getWorldTransform();
+	PHY_IMotionState *motionState = m_ctrl->GetMotionState();
+	motionState->SetWorldPosition(ToMt(trans.getOrigin()));
+	motionState->SetWorldOrientation(ToMt(trans.getBasis()));
 }
 
 unsigned char CcdCharacter::getMaxJumps() const
@@ -147,7 +150,7 @@ void CcdCharacter::SetVelocity(const btVector3& vel, float time, bool local)
 {
 	btVector3 v = vel;
 	if (local) {
-		const btTransform xform = getGhostObject()->getWorldTransform();
+		const btTransform& xform = getGhostObject()->getWorldTransform();
 		v = xform.getBasis() * v;
 	}
 
@@ -203,7 +206,6 @@ CcdPhysicsController::CcdPhysicsController(const CcdConstructionInfo& ci)
 
 	m_bulletChildShape = nullptr;
 
-	m_bulletMotionState = 0;
 	m_characterController = 0;
 	m_savedCollisionFlags = 0;
 	m_savedCollisionFilterGroup = 0;
@@ -245,31 +247,6 @@ btTransform CcdPhysicsController::GetTransformFromMotionState(PHY_IMotionState *
 
 	return btTransform(ToBullet(mat), ToBullet(pos));
 }
-
-class BlenderBulletMotionState : public btMotionState
-{
-	PHY_IMotionState *m_blenderMotionState;
-
-public:
-	BlenderBulletMotionState(PHY_IMotionState *bms)
-		:m_blenderMotionState(bms)
-	{
-	}
-
-	void getWorldTransform(btTransform& worldTrans) const
-	{
-		const mt::vec3 pos = m_blenderMotionState->GetWorldPosition();
-		const mt::mat3 mat = m_blenderMotionState->GetWorldOrientation();
-		worldTrans.setOrigin(ToBullet(pos));
-		worldTrans.setBasis(ToBullet(mat));
-	}
-
-	void setWorldTransform(const btTransform& worldTrans)
-	{
-		m_blenderMotionState->SetWorldPosition(ToMt(worldTrans.getOrigin()));
-		m_blenderMotionState->SetWorldOrientation(ToMt(worldTrans.getBasis()));
-	}
-};
 
 btRigidBody *CcdPhysicsController::GetRigidBody()
 {
@@ -487,8 +464,7 @@ bool CcdPhysicsController::CreateSoftbody()
 		m_softBodyIndices[i] = Ccd_FindClosestNode(psb, btVector3(co[0], co[1], co[2]));
 	}
 
-	btTransform startTrans;
-	m_bulletMotionState->getWorldTransform(startTrans);
+	const btTransform startTrans = GetTransformFromMotionState(m_MotionState);
 
 	m_MotionState->SetWorldPosition(ToMt(startTrans.getOrigin()));
 	m_MotionState->SetWorldOrientation(mt::mat3::Identity());
@@ -512,11 +488,10 @@ bool CcdPhysicsController::CreateCharacterController()
 	m_object->setCollisionShape(m_collisionShape);
 	m_object->setCollisionFlags(btCollisionObject::CF_CHARACTER_OBJECT);
 
-	btTransform trans;
-	m_bulletMotionState->getWorldTransform(trans);
+	const btTransform trans = GetTransformFromMotionState(m_MotionState);
 	m_object->setWorldTransform(trans);
 
-	m_characterController = new CcdCharacter(this, m_bulletMotionState, (btPairCachingGhostObject *)m_object,
+	m_characterController = new CcdCharacter(this, (btPairCachingGhostObject *)m_object,
 	                                         (btConvexShape *)m_collisionShape, m_cci.m_stepHeight);
 
 	m_characterController->setJumpSpeed(m_cci.m_jumpSpeed);
@@ -529,9 +504,6 @@ bool CcdPhysicsController::CreateCharacterController()
 
 void CcdPhysicsController::CreateRigidbody()
 {
-	//btTransform trans = GetTransformFromMotionState(m_MotionState);
-	m_bulletMotionState = new BlenderBulletMotionState(m_MotionState);
-
 	///either create a btCollisionObject, btRigidBody or btSoftBody
 	if (CreateSoftbody() || CreateCharacterController()) {
 		// soft body created, done
@@ -539,12 +511,13 @@ void CcdPhysicsController::CreateRigidbody()
 	}
 
 	//create a rgid collision object
-	btRigidBody::btRigidBodyConstructionInfo rbci(m_cci.m_mass, m_bulletMotionState, m_collisionShape, m_cci.m_localInertiaTensor *m_cci.m_inertiaFactor);
+	btRigidBody::btRigidBodyConstructionInfo rbci(m_cci.m_mass, nullptr, m_collisionShape, m_cci.m_localInertiaTensor *m_cci.m_inertiaFactor);
 	rbci.m_linearDamping = m_cci.m_linearDamping;
 	rbci.m_angularDamping = m_cci.m_angularDamping;
 	rbci.m_friction = m_cci.m_friction;
 	rbci.m_rollingFriction = m_cci.m_rollingFriction;
 	rbci.m_restitution = m_cci.m_restitution;
+	rbci.m_startWorldTransform = GetTransformFromMotionState(m_MotionState);
 	m_object = new btRigidBody(rbci);
 
 	//
@@ -686,9 +659,6 @@ CcdPhysicsController::~CcdPhysicsController()
 	if (m_MotionState) {
 		delete m_MotionState;
 	}
-	if (m_bulletMotionState) {
-		delete m_bulletMotionState;
-	}
 	if (m_characterController) {
 		delete m_characterController;
 	}
@@ -740,15 +710,15 @@ void CcdPhysicsController::SynchronizeDynamicsToMotionState()
 	btSoftBody *sb = GetSoftBody();
 	if (sb) {
 		if (sb->m_pose.m_bframe) {
-			btVector3 worldPos = sb->m_pose.m_com;
-			btMatrix3x3 trs = sb->m_pose.m_rot * sb->m_pose.m_scl;
+			const btVector3& worldPos = sb->m_pose.m_com;
+			const btMatrix3x3 trs = sb->m_pose.m_rot * sb->m_pose.m_scl;
 			m_MotionState->SetWorldPosition(ToMt(worldPos));
 			m_MotionState->SetWorldOrientation(ToMt(trs));
 		}
 		else {
 			btVector3 aabbMin, aabbMax;
 			sb->getAabb(aabbMin, aabbMax);
-			btVector3 worldPos  = (aabbMax + aabbMin) * 0.5f;
+			const btVector3 worldPos  = (aabbMax + aabbMin) * 0.5f;
 			m_MotionState->SetWorldPosition(ToMt(worldPos));
 		}
 	}
@@ -771,7 +741,7 @@ void CcdPhysicsController::SynchronizeMotionStateToDynamics()
 		return;
 	}
 
-	btTransform xform = CcdPhysicsController::GetTransformFromMotionState(m_MotionState);
+	btTransform xform = GetTransformFromMotionState(m_MotionState);
 	SetCenterOfMassTransform(xform);
 
 	const mt::vec3& scale = m_MotionState->GetWorldScaling();

@@ -444,12 +444,11 @@ class CcdCharacter : public btKinematicCharacterController, public PHY_ICharacte
 {
 private:
 	CcdPhysicsController *m_ctrl;
-	btMotionState *m_motionState;
 	unsigned char m_jumps;
 	unsigned char m_maxJumps;
 
 public:
-	CcdCharacter(CcdPhysicsController *ctrl, btMotionState *motionState, btPairCachingGhostObject *ghost, btConvexShape *shape, float stepHeight);
+	CcdCharacter(CcdPhysicsController *ctrl, btPairCachingGhostObject *ghost, btConvexShape *shape, float stepHeight);
 
 	virtual void updateAction(btCollisionWorld *collisionWorld, btScalar dt);
 
@@ -545,7 +544,6 @@ protected:
 	CcdCharacter *m_characterController;
 
 	class PHY_IMotionState *m_MotionState;
-	btMotionState *m_bulletMotionState;
 	class btCollisionShape *m_collisionShape;
 	class CcdShapeConstructionInfo *m_shapeInfo;
 	btCollisionShape *m_bulletChildShape;
