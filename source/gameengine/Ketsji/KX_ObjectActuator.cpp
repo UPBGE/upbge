@@ -229,7 +229,7 @@ bool KX_ObjectActuator::Update()
 			mt::vec3 dir = m_dloc;
 
 			if (m_bitLocalFlag.DLoc) {
-				mt::mat3 basis = parent->GetPhysicsController()->GetOrientation();
+				mt::mat3 basis = parent->NodeGetWorldOrientation();
 				dir = basis * dir;
 			}
 

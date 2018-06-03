@@ -663,22 +663,13 @@ void KX_GameObject::ApplyTorque(const mt::vec3& torque, bool local)
 
 void KX_GameObject::ApplyMovement(const mt::vec3& dloc, bool local)
 {
-	if (m_physicsController) { // (IsDynamic())
-		m_physicsController->RelativeTranslate(dloc, local);
-	}
 	m_sgNode->RelativeTranslate(dloc, local);
 	NodeUpdate();
 }
 
 void KX_GameObject::ApplyRotation(const mt::vec3& drot, bool local)
 {
-	mt::mat3 rotmat(drot);
-
-	m_sgNode->RelativeRotate(rotmat, local);
-
-	if (m_physicsController) { // (IsDynamic())
-		m_physicsController->RelativeRotate(rotmat, local);
-	}
+	m_sgNode->RelativeRotate(mt::mat3(drot), local);
 	NodeUpdate();
 }
 
@@ -1160,23 +1151,11 @@ mt::vec3 KX_GameObject::GetVelocity(const mt::vec3& point)
 
 void KX_GameObject::NodeSetLocalPosition(const mt::vec3& trans)
 {
-	if (m_physicsController && !m_sgNode->GetParent()) {
-		// don't update physic controller if the object is a child:
-		// 1) the transformation will not be right
-		// 2) in this case, the physic controller is necessarily a static object
-		//    that is updated from the normal kinematic synchronization
-		m_physicsController->SetPosition(trans); // TODO ?
-	}
-
 	m_sgNode->SetLocalPosition(trans);
 }
 
 void KX_GameObject::NodeSetLocalOrientation(const mt::mat3& rot)
 {
-	if (m_physicsController && !m_sgNode->GetParent()) {
-		// see note above
-		m_physicsController->SetOrientation(rot);
-	}
 	m_sgNode->SetLocalOrientation(rot);
 }
 
@@ -1193,22 +1172,12 @@ void KX_GameObject::NodeSetGlobalOrientation(const mt::mat3& rot)
 
 void KX_GameObject::NodeSetLocalScale(const mt::vec3& scale)
 {
-	if (m_physicsController && !m_sgNode->GetParent()) {
-		m_physicsController->SetScaling(scale);
-	}
 	m_sgNode->SetLocalScale(scale);
 }
 
 void KX_GameObject::NodeSetRelativeScale(const mt::vec3& scale)
 {
 	m_sgNode->RelativeScale(scale);
-	if (m_physicsController && (!m_sgNode->GetParent())) {
-		// see note above
-		// we can use the local scale: it's the same thing for a root object
-		// and the world scale is not yet updated
-		const mt::vec3& newscale = NodeGetLocalScaling();
-		m_physicsController->SetScaling(newscale);
-	}
 }
 
 void KX_GameObject::NodeSetWorldScale(const mt::vec3& scale)

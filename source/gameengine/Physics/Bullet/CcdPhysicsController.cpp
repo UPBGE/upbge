@@ -748,7 +748,7 @@ void CcdPhysicsController::SynchronizeMotionStateToDynamics()
 	GetCollisionShape()->setLocalScaling(ToBullet(scale));
 
 	if (!IsDynamic() && !GetConstructionInfo().m_bSensor && !m_characterController) {
-		m_object->setActivationState(ACTIVE_TAG);
+		m_object->activate(true);
 		m_object->setCollisionFlags(m_object->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
 	}
 }
@@ -837,115 +837,6 @@ void CcdPhysicsController::SetCenterOfMassTransform(btTransform& xform)
 	}
 }
 
-// kinematic methods
-void CcdPhysicsController::RelativeTranslate(const mt::vec3& dlocin, bool local)
-{
-	if (m_object) {
-		m_object->activate(true);
-		if (m_object->isStaticObject()) {
-			if (!m_cci.m_bSensor) {
-				m_object->setCollisionFlags(m_object->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
-			}
-			// kinematic object should not set the transform, it disturbs the velocity interpolation
-			return;
-		}
-
-		btVector3 dloc = ToBullet(dlocin);
-		btTransform xform = m_object->getWorldTransform();
-
-		if (local) {
-			dloc = xform.getBasis() * dloc;
-		}
-
-		xform.setOrigin(xform.getOrigin() + dloc);
-		SetCenterOfMassTransform(xform);
-	}
-}
-
-void CcdPhysicsController::RelativeRotate(const mt::mat3& rotval, bool local)
-{
-	if (m_object) {
-		m_object->activate(true);
-		if (m_object->isStaticObject()) {
-			if (!m_cci.m_bSensor) {
-				m_object->setCollisionFlags(m_object->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
-			}
-			// kinematic object should not set the transform, it disturbs the velocity interpolation
-			return;
-		}
-
-		btMatrix3x3 drotmat = ToBullet(rotval);
-		btMatrix3x3 currentOrn;
-		GetWorldOrientation(currentOrn);
-
-		btTransform xform = m_object->getWorldTransform();
-
-		xform.setBasis(xform.getBasis() * (local ?
-		                                   drotmat : (currentOrn.inverse() * drotmat * currentOrn)));
-
-		SetCenterOfMassTransform(xform);
-	}
-}
-
-void CcdPhysicsController::GetWorldOrientation(btMatrix3x3& mat)
-{
-	const mt::mat3 ori = m_MotionState->GetWorldOrientation();
-	mat = ToBullet(ori);
-}
-
-mt::mat3 CcdPhysicsController::GetOrientation()
-{
-	const btMatrix3x3 orn = m_object->getWorldTransform().getBasis();
-	return ToMt(orn);
-}
-
-void CcdPhysicsController::SetOrientation(const mt::mat3& orn)
-{
-	SetWorldOrientation(ToBullet(orn));
-}
-
-void CcdPhysicsController::SetWorldOrientation(const btMatrix3x3& orn)
-{
-	if (m_object) {
-		m_object->activate(true);
-		if (m_object->isStaticObject() && !m_cci.m_bSensor) {
-			m_object->setCollisionFlags(m_object->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
-		}
-		btTransform xform  = m_object->getWorldTransform();
-		xform.setBasis(orn);
-		SetCenterOfMassTransform(xform);
-
-		//only once!
-		if (!m_softBodyTransformInitialized && GetSoftBody()) {
-			m_softbodyStartTrans.setBasis(orn);
-			xform.setOrigin(m_softbodyStartTrans.getOrigin());
-			GetSoftBody()->transform(xform);
-			m_softBodyTransformInitialized = true;
-		}
-	}
-}
-
-void CcdPhysicsController::SetPosition(const mt::vec3& pos)
-{
-	if (m_object) {
-		m_object->activate(true);
-		if (m_object->isStaticObject()) {
-			if (!m_cci.m_bSensor) {
-				m_object->setCollisionFlags(m_object->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
-			}
-			// kinematic object should not set the transform, it disturbs the velocity interpolation
-			return;
-		}
-
-		btTransform xform  = m_object->getWorldTransform();
-		xform.setOrigin(ToBullet(pos));
-		SetCenterOfMassTransform(xform);
-		if (!m_softBodyTransformInitialized) {
-			m_softbodyStartTrans.setOrigin(xform.getOrigin());
-		}
-	}
-}
-
 void CcdPhysicsController::RefreshCollisions()
 {
 	// the object is in an inactive layer so it's useless to update it and can cause problems
@@ -1009,31 +900,6 @@ void CcdPhysicsController::RestoreDynamics()
 		body->activate();
 		m_cci.m_bDyna = m_savedDyna;
 		m_suspended = false;
-	}
-}
-
-mt::vec3 CcdPhysicsController::GetPosition() const
-{
-	return ToMt(m_object->getWorldTransform().getOrigin());
-}
-
-void CcdPhysicsController::SetScaling(const mt::vec3& scale)
-{
-	if (!btFuzzyZero(m_cci.m_scaling.x() - scale.x) ||
-	    !btFuzzyZero(m_cci.m_scaling.y() - scale.y) ||
-	    !btFuzzyZero(m_cci.m_scaling.z() - scale.z)) {
-		m_cci.m_scaling = ToBullet(scale);
-
-		if (m_object && m_object->getCollisionShape()) {
-			m_object->activate(true); // without this, sleeping objects scale wont be applied in bullet if python changes the scale - Campbell.
-			m_object->getCollisionShape()->setLocalScaling(m_cci.m_scaling);
-
-			btRigidBody *body = GetRigidBody();
-			if (body && m_cci.m_mass) {
-				body->getCollisionShape()->calculateLocalInertia(m_cci.m_mass, m_cci.m_localInertiaTensor);
-				body->setMassProps(m_cci.m_mass, m_cci.m_localInertiaTensor * m_cci.m_inertiaFactor);
-			}
-		}
 	}
 }
 

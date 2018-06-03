@@ -657,15 +657,6 @@ public:
 	virtual void PostProcessReplica(class PHY_IMotionState *motionstate, class PHY_IPhysicsController *parentctrl);
 	virtual void SetPhysicsEnvironment(class PHY_IPhysicsEnvironment *env);
 
-	// kinematic methods
-	virtual void RelativeTranslate(const mt::vec3& dloc, bool local);
-	virtual void RelativeRotate(const mt::mat3&rotval, bool local);
-	virtual mt::mat3 GetOrientation();
-	virtual void SetOrientation(const mt::mat3& orn);
-	virtual void SetPosition(const mt::vec3& pos);
-	virtual mt::vec3 GetPosition() const;
-	virtual void SetScaling(const mt::vec3& scale);
-
 	virtual float GetMass();
 	virtual void SetMass(float newmass);
 
