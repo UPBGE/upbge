@@ -1363,17 +1363,17 @@ static void rna_Object_active_constraint_set(PointerRNA *ptr, PointerRNA value)
 	BKE_constraints_active_set(&ob->constraints, (bConstraint *)value.data);
 }
 
-static bConstraint *rna_Object_constraints_new(Object *object, int type)
+static bConstraint *rna_Object_constraints_new(Object *object, Main *bmain, int type)
 {
 	bConstraint *new_con = BKE_constraint_add_for_object(object, NULL, type);
 
-	ED_object_constraint_tag_update(object, new_con);
+	ED_object_constraint_tag_update(bmain, object, new_con);
 	WM_main_add_notifier(NC_OBJECT | ND_CONSTRAINT | NA_ADDED, object);
 
 	return new_con;
 }
 
-static void rna_Object_constraints_remove(Object *object, ReportList *reports, PointerRNA *con_ptr)
+static void rna_Object_constraints_remove(Object *object, Main *bmain, ReportList *reports, PointerRNA *con_ptr)
 {
 	bConstraint *con = con_ptr->data;
 	if (BLI_findindex(&object->constraints, con) == -1) {
@@ -1384,16 +1384,16 @@ static void rna_Object_constraints_remove(Object *object, ReportList *reports, P
 	BKE_constraint_remove(&object->constraints, con);
 	RNA_POINTER_INVALIDATE(con_ptr);
 
-	ED_object_constraint_update(object);
+	ED_object_constraint_update(bmain, object);
 	ED_object_constraint_set_active(object, NULL);
 	WM_main_add_notifier(NC_OBJECT | ND_CONSTRAINT | NA_REMOVED, object);
 }
 
-static void rna_Object_constraints_clear(Object *object)
+static void rna_Object_constraints_clear(Object *object, Main *bmain)
 {
 	BKE_constraints_free(&object->constraints);
 
-	ED_object_constraint_update(object);
+	ED_object_constraint_update(bmain, object);
 	ED_object_constraint_set_active(object, NULL);
 
 	WM_main_add_notifier(NC_OBJECT | ND_CONSTRAINT | NA_REMOVED, object);
@@ -2199,6 +2199,7 @@ static void rna_def_object_constraints(BlenderRNA *brna, PropertyRNA *cprop)
 	/* Constraint collection */
 	func = RNA_def_function(srna, "new", "rna_Object_constraints_new");
 	RNA_def_function_ui_description(func, "Add a new constraint to this object");
+	RNA_def_function_flag(func, FUNC_USE_MAIN);
 	/* object to add */
 	parm = RNA_def_enum(func, "type", rna_enum_constraint_type_items, 1, "", "Constraint type to add");
 	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
@@ -2208,13 +2209,14 @@ static void rna_def_object_constraints(BlenderRNA *brna, PropertyRNA *cprop)
 
 	func = RNA_def_function(srna, "remove", "rna_Object_constraints_remove");
 	RNA_def_function_ui_description(func, "Remove a constraint from this object");
-	RNA_def_function_flag(func, FUNC_USE_REPORTS);
+	RNA_def_function_flag(func, FUNC_USE_MAIN | FUNC_USE_REPORTS);
 	/* constraint to remove */
 	parm = RNA_def_pointer(func, "constraint", "Constraint", "", "Removed constraint");
 	RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED | PARM_RNAPTR);
 	RNA_def_parameter_clear_flags(parm, PROP_THICK_WRAP, 0);
 
 	func = RNA_def_function(srna, "clear", "rna_Object_constraints_clear");
+	RNA_def_function_flag(func, FUNC_USE_MAIN);
 	RNA_def_function_ui_description(func, "Remove all constraint from this object");
 }
 
@@ -2928,7 +2930,7 @@ static void rna_def_object(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "show_duplicator_for_viewport", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "duplicator_visibility_flag", OB_DUPLI_FLAG_VIEWPORT);
-	RNA_def_property_ui_text(prop, "Show Duplicator", "Make duplicator visible in the viewport");
+	RNA_def_property_ui_text(prop, "Display Duplicator", "Make duplicator visible in the viewport");
 
 	prop = RNA_def_property(srna, "is_visible", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_funcs(prop, "rna_Object_is_visible_get", NULL);

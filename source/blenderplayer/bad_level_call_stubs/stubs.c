@@ -240,6 +240,10 @@ bool BPY_string_is_keyword(const char *str) { return false; }
 /* -------------------------------------------------------------------- */
 /* Stubs */
 
+short compare_ak_cfraPtr(void *node, void *data) RET_ZERO
+void agroup_to_keylist(struct AnimData *adt, struct bActionGroup *agrp, struct DLRBT_Tree *keys, struct DLRBT_Tree *blocks) RET_NONE
+void action_to_keylist(struct AnimData *adt, struct bAction *act, struct DLRBT_Tree *keys, struct DLRBT_Tree *blocks) RET_NONE
+
 /*new render funcs */
 void EDBM_selectmode_set(struct BMEditMesh *em) RET_NONE
 void EDBM_mesh_load(struct Object *ob) RET_NONE

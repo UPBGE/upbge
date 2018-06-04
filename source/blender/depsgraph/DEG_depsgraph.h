@@ -42,9 +42,9 @@
  * Evaluation Engine
  * =================
  *
- * The evaluation takes the operation-nodes the Depsgraph has tagged for updating, 
+ * The evaluation takes the operation-nodes the Depsgraph has tagged for updating,
  * and schedules them up for being evaluated/executed such that the all dependency
- * relationship constraints are satisfied. 
+ * relationship constraints are satisfied.
  */
 
 /* ************************************************* */
@@ -231,6 +231,12 @@ typedef void (*DEG_EditorUpdateSceneCb)(
 /* Set callbacks which are being called when depsgraph changes. */
 void DEG_editors_set_update_cb(DEG_EditorUpdateIDCb id_func,
                                DEG_EditorUpdateSceneCb scene_func);
+
+/* Evaluation  ----------------------------------- */
+
+bool DEG_is_active(const struct Depsgraph *depsgraph);
+void DEG_make_active(struct Depsgraph *depsgraph);
+void DEG_make_inactive(struct Depsgraph *depsgraph);
 
 /* Evaluation Debug ------------------------------ */
 

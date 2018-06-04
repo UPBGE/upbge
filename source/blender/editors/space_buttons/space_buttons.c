@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -18,7 +18,7 @@
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
  *
- * 
+ *
  * Contributor(s): Blender Foundation
  *
  * ***** END GPL LICENSE BLOCK *****
@@ -47,6 +47,10 @@
 #include "WM_message.h"
 
 #include "RNA_access.h"
+#include "RNA_define.h"
+#include "RNA_enum_types.h"
+
+#include "UI_resources.h"
 
 #include "buttons_intern.h"  /* own include */
 
@@ -138,44 +142,141 @@ static void buttons_main_region_init(wmWindowManager *wm, ARegion *ar)
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 }
 
-static void buttons_main_region_draw(const bContext *C, ARegion *ar)
+static void buttons_main_region_draw_properties(const bContext *C, SpaceButs *sbuts, ARegion *ar)
 {
-	/* draw entirely, view changes should be handled here */
-	SpaceButs *sbuts = CTX_wm_space_buts(C);
+	BLI_assert(sbuts->space_subtype == SB_SUBTYPE_DATA);
 	const bool vertical = (sbuts->align == BUT_VERTICAL);
 
 	buttons_context_compute(C, sbuts);
 
-	if (sbuts->mainb == BCONTEXT_SCENE)
-		ED_region_panels(C, ar, "scene", sbuts->mainb, vertical);
-	else if (sbuts->mainb == BCONTEXT_RENDER)
-		ED_region_panels(C, ar, "render", sbuts->mainb, vertical);
-	else if (sbuts->mainb == BCONTEXT_VIEW_LAYER)
-		ED_region_panels(C, ar, "view_layer", sbuts->mainb, vertical);
-	else if (sbuts->mainb == BCONTEXT_WORLD)
-		ED_region_panels(C, ar, "world", sbuts->mainb, vertical);
-	else if (sbuts->mainb == BCONTEXT_WORKSPACE)
-		ED_region_panels(C, ar, "workspace", sbuts->mainb, vertical);
-	else if (sbuts->mainb == BCONTEXT_OBJECT)
-		ED_region_panels(C, ar, "object", sbuts->mainb, vertical);
-	else if (sbuts->mainb == BCONTEXT_DATA)
-		ED_region_panels(C, ar, "data", sbuts->mainb, vertical);
-	else if (sbuts->mainb == BCONTEXT_MATERIAL)
-		ED_region_panels(C, ar, "material", sbuts->mainb, vertical);
-	else if (sbuts->mainb == BCONTEXT_TEXTURE)
-		ED_region_panels(C, ar, "texture", sbuts->mainb, vertical);
-	else if (sbuts->mainb == BCONTEXT_PARTICLE)
-		ED_region_panels(C, ar, "particle", sbuts->mainb, vertical);
-	else if (sbuts->mainb == BCONTEXT_PHYSICS)
-		ED_region_panels(C, ar, "physics", sbuts->mainb, vertical);
-	else if (sbuts->mainb == BCONTEXT_BONE)
-		ED_region_panels(C, ar, "bone", sbuts->mainb, vertical);
-	else if (sbuts->mainb == BCONTEXT_MODIFIER)
-		ED_region_panels(C, ar, "modifier", sbuts->mainb, vertical);
-	else if (sbuts->mainb == BCONTEXT_CONSTRAINT)
-		ED_region_panels(C, ar, "constraint", sbuts->mainb, vertical);
-	else if (sbuts->mainb == BCONTEXT_BONE_CONSTRAINT)
-		ED_region_panels(C, ar, "bone_constraint", sbuts->mainb, vertical);
+	const char *contexts[2] = {NULL, NULL};
+
+	switch (sbuts->mainb) {
+		case BCONTEXT_SCENE:
+			contexts[0] = "scene";
+			break;
+		case BCONTEXT_RENDER:
+			contexts[0] = "render";
+			break;
+		case BCONTEXT_VIEW_LAYER:
+			contexts[0] = "view_layer";
+			break;
+		case BCONTEXT_WORLD:
+			contexts[0] = "world";
+			break;
+		case BCONTEXT_WORKSPACE:
+			contexts[0] = "workspace";
+			break;
+		case BCONTEXT_OBJECT:
+			contexts[0] = "object";
+			break;
+		case BCONTEXT_DATA:
+			contexts[0] = "data";
+			break;
+		case BCONTEXT_MATERIAL:
+			contexts[0] = "material";
+			break;
+		case BCONTEXT_TEXTURE:
+			contexts[0] = "texture";
+			break;
+		case BCONTEXT_PARTICLE:
+			contexts[0] = "particle";
+			break;
+		case BCONTEXT_PHYSICS:
+			contexts[0] = "physics";
+			break;
+		case BCONTEXT_BONE:
+			contexts[0] = "bone";
+			break;
+		case BCONTEXT_MODIFIER:
+			contexts[0] = "modifier";
+			break;
+		case BCONTEXT_CONSTRAINT:
+			contexts[0] = "constraint";
+			break;
+		case BCONTEXT_BONE_CONSTRAINT:
+			contexts[0] = "bone_constraint";
+			break;
+	}
+
+	if (contexts[0]) {
+		ED_region_panels(C, ar, contexts, sbuts->mainb, vertical);
+	}
+}
+
+static void buttons_main_region_draw_tool(const bContext *C, SpaceButs *sbuts, ARegion *ar)
+{
+	BLI_assert(sbuts->space_subtype == SB_SUBTYPE_TOOL);
+	const bool vertical = (sbuts->align == BUT_VERTICAL);
+
+	const WorkSpace *workspace = CTX_wm_workspace(C);
+	if (workspace->tools_space_type == SPACE_VIEW3D) {
+		const int mode = CTX_data_mode_enum(C);
+		const char *contexts[3] = {NULL};
+		switch (mode) {
+			case CTX_MODE_EDIT_MESH:
+				ARRAY_SET_ITEMS(contexts, ".mesh_edit");
+				break;
+			case CTX_MODE_EDIT_CURVE:
+				ARRAY_SET_ITEMS(contexts, ".curve_edit");
+				break;
+			case CTX_MODE_EDIT_SURFACE:
+				ARRAY_SET_ITEMS(contexts, ".curve_edit");
+				break;
+			case CTX_MODE_EDIT_TEXT:
+				ARRAY_SET_ITEMS(contexts, ".todo");
+				break;
+			case CTX_MODE_EDIT_ARMATURE:
+				ARRAY_SET_ITEMS(contexts, ".armature_edit");
+				break;
+			case CTX_MODE_EDIT_METABALL:
+				ARRAY_SET_ITEMS(contexts, ".todo");
+				break;
+			case CTX_MODE_EDIT_LATTICE:
+				ARRAY_SET_ITEMS(contexts, ".todo");
+				break;
+			case CTX_MODE_POSE:
+				ARRAY_SET_ITEMS(contexts, ".posemode");
+				break;
+			case CTX_MODE_SCULPT:
+				ARRAY_SET_ITEMS(contexts, ".paint_common", ".sculpt_mode");
+				break;
+			case CTX_MODE_PAINT_WEIGHT:
+				ARRAY_SET_ITEMS(contexts, ".paint_common", ".weightpaint");
+				break;
+			case CTX_MODE_PAINT_VERTEX:
+				ARRAY_SET_ITEMS(contexts, ".paint_common", ".vertexpaint");
+				break;
+			case CTX_MODE_PAINT_TEXTURE:
+				ARRAY_SET_ITEMS(contexts, ".paint_common", ".imagepaint");
+				break;
+			case CTX_MODE_PARTICLE:
+				ARRAY_SET_ITEMS(contexts, ".particlemode");
+				break;
+			case CTX_MODE_OBJECT:
+				ARRAY_SET_ITEMS(contexts, ".todo");
+				break;
+		}
+		if (contexts[0]) {
+			ED_region_panels(C, ar, contexts, -1, vertical);
+		}
+	}
+	else if (workspace->tools_space_type == SPACE_IMAGE) {
+		/* TODO */
+	}
+}
+
+static void buttons_main_region_draw(const bContext *C, ARegion *ar)
+{
+	/* draw entirely, view changes should be handled here */
+	SpaceButs *sbuts = CTX_wm_space_buts(C);
+
+	if (sbuts->space_subtype == SB_SUBTYPE_DATA) {
+		buttons_main_region_draw_properties(C, sbuts, ar);
+	}
+	else if (sbuts->space_subtype == SB_SUBTYPE_TOOL) {
+		buttons_main_region_draw_tool(C, sbuts, ar);
+	}
 
 	sbuts->re_align = 0;
 	sbuts->mainbo = sbuts->mainb;
@@ -219,8 +320,10 @@ static void buttons_header_region_draw(const bContext *C, ARegion *ar)
 {
 	SpaceButs *sbuts = CTX_wm_space_buts(C);
 
-	/* Needed for RNA to get the good values! */
-	buttons_context_compute(C, sbuts);
+	if (sbuts->space_subtype == SB_SUBTYPE_DATA) {
+		/* Needed for RNA to get the good values! */
+		buttons_context_compute(C, sbuts);
+	}
 
 	ED_region_header(C, ar);
 }
@@ -487,6 +590,24 @@ static void buttons_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id, 
 	}
 }
 
+static int buttons_space_subtype_get(ScrArea *sa)
+{
+	SpaceButs *sbuts = sa->spacedata.first;
+	return sbuts->space_subtype;
+}
+
+static void buttons_space_subtype_set(ScrArea *sa, int value)
+{
+	SpaceButs *sbuts = sa->spacedata.first;
+	sbuts->space_subtype = value;
+}
+
+static void buttons_space_subtype_item_extend(
+        bContext *UNUSED(C), EnumPropertyItem **item, int *totitem)
+{
+	RNA_enum_items_add(item, totitem, rna_enum_space_button_mode_items);
+}
+
 /* only called once, from space/spacetypes.c */
 void ED_spacetype_buttons(void)
 {
@@ -505,6 +626,9 @@ void ED_spacetype_buttons(void)
 	st->listener = buttons_area_listener;
 	st->context = buttons_context;
 	st->id_remap = buttons_id_remap;
+	st->space_subtype_item_extend = buttons_space_subtype_item_extend;
+	st->space_subtype_get = buttons_space_subtype_get;
+	st->space_subtype_set = buttons_space_subtype_set;
 
 	/* regions: main window */
 	art = MEM_callocN(sizeof(ARegionType), "spacetype buttons region");

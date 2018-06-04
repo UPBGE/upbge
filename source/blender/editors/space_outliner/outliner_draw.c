@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -307,7 +307,7 @@ static void namebutton_cb(bContext *C, void *tsep, char *oldname)
 				Library *lib = (Library *)tselem->id;
 				char expanded[FILE_MAX];
 
-				BKE_library_filepath_set(lib, lib->name);
+				BKE_library_filepath_set(bmain, lib, lib->name);
 
 				BLI_strncpy(expanded, lib->name, sizeof(expanded));
 				BLI_path_abs(expanded, bmain->name);

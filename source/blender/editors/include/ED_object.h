@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -18,7 +18,7 @@
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
  *
- * 
+ *
  * Contributor(s): Blender Foundation
  *
  * ***** END GPL LICENSE BLOCK *****
@@ -129,9 +129,9 @@ bool ED_object_editmode_exit_ex(
         struct Scene *scene, struct Object *obedit, int flag);
 bool ED_object_editmode_exit(struct bContext *C, int flag);
 
-bool ED_object_editmode_enter_ex(struct Scene *scene, struct Object *ob, int flag);
+bool ED_object_editmode_enter_ex(struct Main *bmain, struct Scene *scene, struct Object *ob, int flag);
 bool ED_object_editmode_enter(struct bContext *C, int flag);
-bool ED_object_editmode_load(struct Object *obedit);
+bool ED_object_editmode_load(struct Main *bmain, struct Object *obedit);
 
 bool ED_object_editmode_calc_active_center(struct Object *obedit, const bool select_only, float r_center[3]);
 
@@ -197,13 +197,13 @@ struct ListBase *get_active_constraints(struct Object *ob);
 struct ListBase *get_constraint_lb(struct Object *ob, struct bConstraint *con, struct bPoseChannel **r_pchan);
 struct bConstraint *get_active_constraint(struct Object *ob);
 
-void object_test_constraints(struct Object *ob);
+void object_test_constraints(struct Main *bmain, struct Object *ob);
 
 void ED_object_constraint_set_active(struct Object *ob, struct bConstraint *con);
-void ED_object_constraint_update(struct Object *ob);
+void ED_object_constraint_update(struct Main *bmain, struct Object *ob);
 void ED_object_constraint_dependency_update(struct Main *bmain, struct Object *ob);
 
-void ED_object_constraint_tag_update(struct Object *ob, struct bConstraint *con);
+void ED_object_constraint_tag_update(struct Main *bmain, struct Object *ob, struct bConstraint *con);
 void ED_object_constraint_dependency_tag_update(struct Main *bmain, struct Object *ob, struct bConstraint *con);
 
 /* object_modes.c */

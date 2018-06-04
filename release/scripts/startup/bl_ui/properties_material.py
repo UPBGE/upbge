@@ -172,11 +172,10 @@ class EEVEE_MATERIAL_PT_surface(MaterialButtonsPanel, Panel):
         if mat.use_nodes:
             panel_node_draw(layout, mat.node_tree, ('OUTPUT_EEVEE_MATERIAL', 'OUTPUT_MATERIAL'))
         else:
-            raym = mat.raytrace_mirror
             layout.prop(mat, "diffuse_color", text="Base Color")
-            layout.prop(raym, "reflect_factor", text="Metallic")
+            layout.prop(mat, "metallic")
             layout.prop(mat, "specular_intensity", text="Specular")
-            layout.prop(raym, "gloss_factor", text="Roughness")
+            layout.prop(mat, "roughness")
 
 
 class EEVEE_MATERIAL_PT_options(MaterialButtonsPanel, Panel):
@@ -216,7 +215,7 @@ class EEVEE_MATERIAL_PT_options(MaterialButtonsPanel, Panel):
 
 
 class MATERIAL_PT_viewport(MaterialButtonsPanel, Panel):
-    bl_label = "Viewport"
+    bl_label = "Viewport Display"
     bl_context = "material"
     bl_options = {'DEFAULT_CLOSED'}
 
@@ -228,10 +227,12 @@ class MATERIAL_PT_viewport(MaterialButtonsPanel, Panel):
         mat = context.material
 
         layout = self.layout
-        split = layout.split()
+        layout.use_property_split = True
 
-        col = split.column(align=True)
+        col = layout.column()
         col.prop(mat, "diffuse_color")
+        col.prop(mat, "specular_color")
+        col.prop(mat, "roughness")
 
 
 classes = (

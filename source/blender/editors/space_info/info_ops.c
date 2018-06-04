@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -18,7 +18,7 @@
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
  *
- * 
+ *
  * Contributor(s): Blender Foundation
  *
  * ***** END GPL LICENSE BLOCK *****
@@ -301,7 +301,7 @@ static int unpack_item_exec(bContext *C, wmOperator *op)
 	int method = RNA_enum_get(op->ptr, "method");
 
 	RNA_string_get(op->ptr, "id_name", idname);
-	id = BKE_libblock_find_name(type, idname);
+	id = BKE_libblock_find_name(bmain, type, idname);
 
 	if (id == NULL) {
 		BKE_report(op->reports, RPT_WARNING, "No packed file");
@@ -491,9 +491,9 @@ void FILE_OT_find_missing_files(wmOperatorType *ot)
 /********************* report box operator *********************/
 
 /* Hard to decide whether to keep this as an operator, 
- * or turn it into a hardcoded ui control feature, 
+ * or turn it into a hardcoded ui control feature,
  * handling TIMER events for all regions in interface_handlers.c
- * Not sure how good that is to be accessing UI data from 
+ * Not sure how good that is to be accessing UI data from
  * inactive regions, so use this for now. --matt
  */
 

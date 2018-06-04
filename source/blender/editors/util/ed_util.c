@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -18,7 +18,7 @@
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
  *
- * 
+ *
  * Contributor(s): Blender Foundation
  *
  * ***** END GPL LICENSE BLOCK *****
@@ -210,7 +210,7 @@ bool ED_editors_flush_edits(const bContext *C, bool for_render)
 		else if (ob->mode & OB_MODE_EDIT) {
 			/* get editmode results */
 			has_edited = true;
-			ED_object_editmode_load(ob);
+			ED_object_editmode_load(bmain, ob);
 		}
 	}
 
@@ -241,6 +241,7 @@ void apply_keyb_grid(int shift, int ctrl, float *val, float fac1, float fac2, fl
 
 void unpack_menu(bContext *C, const char *opname, const char *id_name, const char *abs_name, const char *folder, struct PackedFile *pf)
 {
+	Main *bmain = CTX_data_main(C);
 	PointerRNA props_ptr;
 	uiPopupMenu *pup;
 	uiLayout *layout;
@@ -262,7 +263,7 @@ void unpack_menu(bContext *C, const char *opname, const char *id_name, const cha
 		BLI_split_file_part(abs_name, fi, sizeof(fi));
 		BLI_snprintf(local_name, sizeof(local_name), "//%s/%s", folder, fi);
 		if (!STREQ(abs_name, local_name)) {
-			switch (checkPackedFile(local_name, pf)) {
+			switch (checkPackedFile(bmain->name, local_name, pf)) {
 				case PF_NOFILE:
 					BLI_snprintf(line, sizeof(line), IFACE_("Create %s"), local_name);
 					uiItemFullO_ptr(layout, ot, line, ICON_NONE, NULL, WM_OP_EXEC_DEFAULT, 0, &props_ptr);
@@ -295,7 +296,7 @@ void unpack_menu(bContext *C, const char *opname, const char *id_name, const cha
 		}
 	}
 
-	switch (checkPackedFile(abs_name, pf)) {
+	switch (checkPackedFile(bmain->name, abs_name, pf)) {
 		case PF_NOFILE:
 			BLI_snprintf(line, sizeof(line), IFACE_("Create %s"), abs_name);
 			//uiItemEnumO_ptr(layout, ot, line, 0, "method", PF_WRITE_ORIGINAL);

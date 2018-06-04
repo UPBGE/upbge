@@ -18,7 +18,7 @@
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
  *
- * Contributor(s): 
+ * Contributor(s):
  * - Blender Foundation, 2003-2009
  * - Peter Schlaile <peter [at] schlaile [dot] de> 2005/2006
  *
@@ -593,11 +593,12 @@ void BKE_sequencer_pixel_from_sequencer_space_v4(struct Scene *scene, float pixe
 /*********************** sequencer pipeline functions *************************/
 
 void BKE_sequencer_new_render_data(
-        Main *bmain, Scene *scene, int rectx, int recty,
+        Main *bmain, struct Depsgraph *depsgraph, Scene *scene, int rectx, int recty,
         int preview_render_size, int for_render,
         SeqRenderData *r_context)
 {
 	r_context->bmain = bmain;
+	r_context->depsgraph = depsgraph;
 	r_context->scene = scene;
 	r_context->rectx = rectx;
 	r_context->recty = recty;
@@ -1462,6 +1463,7 @@ typedef struct SeqIndexBuildContext {
 	int view_id;
 
 	Main *bmain;
+	Depsgraph *depsgraph;
 	Scene *scene;
 	Sequence *seq, *orig_seq;
 } SeqIndexBuildContext;
@@ -1950,7 +1952,9 @@ static int seq_proxy_context_count(Sequence *seq, Scene *scene)
 	return num_views;
 }
 
-void BKE_sequencer_proxy_rebuild_context(Main *bmain, Scene *scene, Sequence *seq, struct GSet *file_list, ListBase *queue)
+void BKE_sequencer_proxy_rebuild_context(
+        Main *bmain, Depsgraph *depsgraph, Scene *scene,
+        Sequence *seq, struct GSet *file_list, ListBase *queue)
 {
 	SeqIndexBuildContext *context;
 	Sequence *nseq;
@@ -1982,6 +1986,7 @@ void BKE_sequencer_proxy_rebuild_context(Main *bmain, Scene *scene, Sequence *se
 		context->overwrite = (nseq->strip->proxy->build_flags & SEQ_PROXY_SKIP_EXISTING) == 0;
 
 		context->bmain = bmain;
+		context->depsgraph = depsgraph;
 		context->scene = scene;
 		context->orig_seq = seq;
 		context->seq = nseq;
@@ -2035,7 +2040,7 @@ void BKE_sequencer_proxy_rebuild(SeqIndexBuildContext *context, short *stop, sho
 	/* fail safe code */
 
 	BKE_sequencer_new_render_data(
-	        bmain, context->scene,
+	        bmain, context->depsgraph, context->scene,
 	        (scene->r.size * (float) scene->r.xsch) / 100.0f + 0.5f,
 	        (scene->r.size * (float) scene->r.ysch) / 100.0f + 0.5f, 100,
 	        false,
@@ -3131,7 +3136,7 @@ static ImBuf *seq_render_mask(const SeqRenderData *context, Mask *mask, float nr
 
 		/* anim-data */
 		adt = BKE_animdata_from_id(&mask->id);
-		BKE_animsys_evaluate_animdata(context->scene, &mask_temp->id, adt, nr, ADT_RECALC_ANIM);
+		BKE_animsys_evaluate_animdata(context->depsgraph, context->scene, &mask_temp->id, adt, nr, ADT_RECALC_ANIM);
 
 		maskbuf = MEM_mallocN(sizeof(float) * context->rectx * context->recty, __func__);
 
@@ -3511,7 +3516,7 @@ static ImBuf *do_render_strip_uncached(
 				ibuf = seq_render_scene_strip(context, seq, nr, cfra);
 
 				/* Scene strips update all animation, so we need to restore original state.*/
-				BKE_animsys_evaluate_all_animation(context->bmain, context->scene, cfra);
+				BKE_animsys_evaluate_all_animation(context->bmain, context->depsgraph, context->scene, cfra);
 
 				copy_to_ibuf_still(context, seq, nr, ibuf);
 			}

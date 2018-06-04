@@ -470,7 +470,11 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, float localtime)
 	PointerRNA ptrrna;
 	RNA_id_pointer_create(&arm->id, &ptrrna);
 
-	animsys_evaluate_action(&ptrrna, action, nullptr, localtime);
+	Scene *scene = KX_GetActiveScene()->GetBlenderScene();
+	ViewLayer *view_layer = BKE_view_layer_default_view(scene);
+	Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer, false);
+
+	animsys_evaluate_action(depsgraph, &ptrrna, action, nullptr, localtime);
 }
 
 void BL_ArmatureObject::BlendInPose(bPose *blend_pose, float weight, short mode)

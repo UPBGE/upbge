@@ -2721,7 +2721,7 @@ static void lib_link_nladata(FileData *fd, ID *id, ListBase *list)
 }
 
 /* This handles Animato NLA-Strips linking 
- * NOTE: this assumes that link_list has already been called on the list 
+ * NOTE: this assumes that link_list has already been called on the list
  */
 static void direct_link_nladata_strips(FileData *fd, ListBase *list)
 {
@@ -2970,6 +2970,10 @@ static void direct_link_motionpath(FileData *fd, bMotionPath *mpath)
 	
 	/* relink points cache */
 	mpath->points = newdataadr(fd, mpath->points);
+
+	mpath->points_vbo = NULL;
+	mpath->batch_line = NULL;
+	mpath->batch_points = NULL;
 }
 
 /* ************ READ NODE TREE *************** */
@@ -8476,7 +8480,7 @@ static BHead *read_libblock(FileData *fd, Main *main, BHead *bhead, const short 
 		}
 		else {
 			DEBUG_PRINTF("... in %s (%s): ", main->curlib ? main->curlib->id.name : "<NULL>", main->curlib ? main->curlib->name : "<NULL>");
-			if ((id = BKE_libblock_find_name_ex(main, GS(idname), idname + 2))) {
+			if ((id = BKE_libblock_find_name(main, GS(idname), idname + 2))) {
 				DEBUG_PRINTF("FOUND!\n");
 				/* Even though we found our linked ID, there is no guarantee its address is still the same... */
 				if (id != bhead->old) {

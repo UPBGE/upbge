@@ -639,13 +639,13 @@ bool BKE_object_is_visible(Object *ob, const eObjectVisibilityCheck mode)
 	}
 }
 
-bool BKE_object_exists_check(const Object *obtest)
+bool BKE_object_exists_check(Main *bmain, const Object *obtest)
 {
 	Object *ob;
 	
 	if (obtest == NULL) return false;
 	
-	ob = G.main->object.first;
+	ob = bmain->object.first;
 	while (ob) {
 		if (ob == obtest) return true;
 		ob = ob->id.next;
@@ -1416,7 +1416,8 @@ void BKE_object_copy_data(Main *UNUSED(bmain), Object *ob_dst, const Object *ob_
 	BLI_listbase_clear(&ob_dst->drawdata);
 	BLI_listbase_clear(&ob_dst->pc_ids);
 
-	ob_dst->mpath = NULL;
+	ob_dst->avs = ob_src->avs;
+	ob_dst->mpath = animviz_copy_motionpath(ob_src->mpath);
 
 	copy_object_lod(ob_dst, ob_src, flag_subdata);
 	
@@ -2320,7 +2321,7 @@ void BKE_object_where_is_calc_time_ex(
 	if (ob == NULL) return;
 	
 	/* execute drivers only, as animation has already been done */
-	BKE_animsys_evaluate_animdata(scene, &ob->id, ob->adt, ctime, ADT_RECALC_DRIVERS);
+	BKE_animsys_evaluate_animdata(depsgraph, scene, &ob->id, ob->adt, ctime, ADT_RECALC_DRIVERS);
 	
 	if (ob->parent) {
 		Object *par = ob->parent;
@@ -3581,7 +3582,7 @@ static void obrel_list_add(LinkNode **links, Object *ob)
  * Iterates over all objects of the given scene layer.
  * Depending on the eObjectSet flag:
  * collect either OB_SET_ALL, OB_SET_VISIBLE or OB_SET_SELECTED objects.
- * If OB_SET_VISIBLE or OB_SET_SELECTED are collected, 
+ * If OB_SET_VISIBLE or OB_SET_SELECTED are collected,
  * then also add related objects according to the given includeFilters.
  */
 LinkNode *BKE_object_relational_superset(struct ViewLayer *view_layer, eObjectSet objectSet, eObRelationTypes includeFilter)
@@ -3938,7 +3939,7 @@ bool BKE_object_modifier_update_subframe(
 	/* was originally OB_RECALC_ALL - TODO - which flags are really needed??? */
 	/* TODO(sergey): What about animation? */
 	ob->id.recalc |= ID_RECALC_ALL;
-	BKE_animsys_evaluate_animdata(scene, &ob->id, ob->adt, frame, ADT_RECALC_ANIM);
+	BKE_animsys_evaluate_animdata(depsgraph, scene, &ob->id, ob->adt, frame, ADT_RECALC_ANIM);
 	if (update_mesh) {
 		/* ignore cache clear during subframe updates
 		 *  to not mess up cache validity */
@@ -3952,12 +3953,12 @@ bool BKE_object_modifier_update_subframe(
 	/* for curve following objects, parented curve has to be updated too */
 	if (ob->type == OB_CURVE) {
 		Curve *cu = ob->data;
-		BKE_animsys_evaluate_animdata(scene, &cu->id, cu->adt, frame, ADT_RECALC_ANIM);
+		BKE_animsys_evaluate_animdata(depsgraph, scene, &cu->id, cu->adt, frame, ADT_RECALC_ANIM);
 	}
 	/* and armatures... */
 	if (ob->type == OB_ARMATURE) {
 		bArmature *arm = ob->data;
-		BKE_animsys_evaluate_animdata(scene, &arm->id, arm->adt, frame, ADT_RECALC_ANIM);
+		BKE_animsys_evaluate_animdata(depsgraph, scene, &arm->id, arm->adt, frame, ADT_RECALC_ANIM);
 		BKE_pose_where_is(depsgraph, scene, ob);
 	}
 

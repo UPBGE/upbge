@@ -46,6 +46,11 @@
 extern "C" {
 #include "BKE_animsys.h"
 #include "BKE_action.h"
+
+
+#include "BKE_layer.h"
+#include "BKE_scene.h"
+
 #include "RNA_access.h"
 #include "RNA_define.h"
 
@@ -462,7 +467,11 @@ void BL_Action::Update(float curtime, bool applyToObject)
 			PointerRNA ptrrna;
 			RNA_id_pointer_create(&key->id, &ptrrna);
 
-			animsys_evaluate_action(&ptrrna, m_tmpaction, nullptr, m_localframe);
+			Scene *scene = KX_GetActiveScene()->GetBlenderScene();
+			ViewLayer *view_layer = BKE_view_layer_default_view(scene);
+			Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer, false);
+
+			animsys_evaluate_action(depsgraph, &ptrrna, m_tmpaction, nullptr, m_localframe);
 
 			// Handle blending between shape actions
 			if (m_blendin && m_blendframe < m_blendin)

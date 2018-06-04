@@ -60,7 +60,7 @@ bool AnimationExporter::is_flat_line(std::vector<float> &values, int channel_cou
 	return true;
 }
 /*
- *  This function creates a complete LINEAR Collada <Animation> Entry with all needed 
+ *  This function creates a complete LINEAR Collada <Animation> Entry with all needed
  *  <source>, <sampler>, and <channel> entries.
  *  This is is used for creating sampled Transformation Animations for either:
  *
@@ -78,8 +78,8 @@ bool AnimationExporter::is_flat_line(std::vector<float> &values, int channel_cou
  *			axis_name = "" (actually not used)
  *			is_rot = false (see xxx below)
  *
- *	xxx: I tried to create a 3 axis rotation animation 
- *		 like for translation or scale. But i could not 
+ *	xxx: I tried to create a 3 axis rotation animation
+ *		 like for translation or scale. But i could not
  *		 figure out how to setup the channel for this case.
  *		 So for now rotations are exported as 3 separate 1-axis collada animations
  *		 See export_sampled_animation() further down.
@@ -1004,7 +1004,7 @@ std::string AnimationExporter::create_source_from_fcurve(COLLADASW::InputSemanti
 
 void AnimationExporter::evaluate_anim_with_constraints(Object *ob, float ctime)
 {
-	BKE_animsys_evaluate_animdata(scene, &ob->id, ob->adt, ctime, ADT_RECALC_ALL);
+	BKE_animsys_evaluate_animdata(depsgraph, scene, &ob->id, ob->adt, ctime, ADT_RECALC_ALL);
 	ListBase *conlist = get_active_constraints(ob);
 	bConstraint *con;
 	for (con = (bConstraint *)conlist->first; con; con = con->next) {
@@ -1020,7 +1020,7 @@ void AnimationExporter::evaluate_anim_with_constraints(Object *ob, float ctime)
 				obtar = ct->tar;
 
 				if (obtar) {
-					BKE_animsys_evaluate_animdata(scene, &obtar->id, obtar->adt, ctime, ADT_RECALC_ANIM);
+					BKE_animsys_evaluate_animdata(depsgraph, scene, &obtar->id, obtar->adt, ctime, ADT_RECALC_ANIM);
 					BKE_object_where_is_calc_time(this->depsgraph, scene, obtar, ctime);
 				}
 			}
@@ -1035,8 +1035,8 @@ void AnimationExporter::evaluate_anim_with_constraints(Object *ob, float ctime)
 /*
  * ob is needed to aply parent inverse information to fcurve.
  * TODO: Here we have to step over all keyframes for each object and for each fcurve.
- * Instead of processing each fcurve one by one, 
- * step over the animation from keyframe to keyframe, 
+ * Instead of processing each fcurve one by one,
+ * step over the animation from keyframe to keyframe,
  * then create adjusted fcurves (and entries) for all affected objects.
  * Then we would need to step through the scene only once.
  */
@@ -1320,7 +1320,7 @@ std::string AnimationExporter::create_4x4_source(std::vector<float> &frames, Obj
 
 			if (pchan->flag & POSE_CHAIN) {
 				enable_fcurves(ob->adt->action, NULL);
-				BKE_animsys_evaluate_animdata(scene, &ob->id, ob->adt, ctime, ADT_RECALC_ALL);
+				BKE_animsys_evaluate_animdata(depsgraph, scene, &ob->id, ob->adt, ctime, ADT_RECALC_ALL);
 				BKE_pose_where_is(depsgraph, scene, ob);
 			}
 			else {
@@ -1572,7 +1572,7 @@ std::string AnimationExporter::get_camera_param_sid(char *rna_path, int tm_type,
 }
 
 /*
- * Assign sid of the animated parameter or transform for rotation, 
+ * Assign sid of the animated parameter or transform for rotation,
  * axis name is always appended and the value of append_axis is ignored
  */
 std::string AnimationExporter::get_transform_sid(char *rna_path, int tm_type, const char *axis_name, bool append_axis)
@@ -1896,7 +1896,7 @@ void AnimationExporter::sample_animation(float *v, std::vector<float> &frames, i
 		float ctime = BKE_scene_frame_get_from_ctime(scene, *it);
 
 
-		BKE_animsys_evaluate_animdata(scene, &ob_arm->id, ob_arm->adt, ctime, ADT_RECALC_ANIM);
+		BKE_animsys_evaluate_animdata(depsgraph, scene, &ob_arm->id, ob_arm->adt, ctime, ADT_RECALC_ANIM);
 		BKE_pose_where_is_bone(depsgraph, scene, ob_arm, pchan, ctime, 1);
 
 		// compute bone local mat

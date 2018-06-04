@@ -433,7 +433,7 @@ class CYCLES_RENDER_PT_filter(CyclesButtonsPanel, Panel):
 
         col = layout.column()
         col.prop(view_layer, "use_sky", "Use Environment")
-        col.prop(view_layer, "use_ao", "Use AO")
+        col.prop(view_layer, "use_ao", "Use Ambient Occlusion")
         col.prop(view_layer, "use_solid", "Use Surfaces")
         col.prop(view_layer, "use_strand", "Use Hair")
         if with_freestyle:
@@ -472,7 +472,7 @@ class CYCLES_RENDER_PT_layer_passes(CyclesButtonsPanel, Panel):
         col.prop(view_layer, "use_pass_material_index")
         col.separator()
         col.prop(view_layer, "use_pass_shadow")
-        col.prop(view_layer, "use_pass_ambient_occlusion")
+        col.prop(view_layer, "use_pass_ambient_occlusion", text="Ambient Occlusion")
         col.separator()
         col.prop(view_layer, "pass_alpha_threshold")
 
@@ -1475,8 +1475,9 @@ def draw_pause(self, context):
     if context.engine == "CYCLES":
         view = context.space_data
 
-        cscene = scene.cycles
-        layout.prop(cscene, "preview_pause", icon="PAUSE", text="")
+        if view.shading.type == 'RENDERED':
+            cscene = scene.cycles
+            layout.prop(cscene, "preview_pause", icon="PAUSE", text="")
 
 
 def get_panels():

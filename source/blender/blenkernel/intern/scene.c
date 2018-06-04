@@ -942,7 +942,7 @@ void BKE_scene_set_background(Main *bmain, Scene *scene)
 /* called from creator_args.c */
 Scene *BKE_scene_set_name(Main *bmain, const char *name)
 {
-	Scene *sce = (Scene *)BKE_libblock_find_name_ex(bmain, ID_SCE, name);
+	Scene *sce = (Scene *)BKE_libblock_find_name(bmain, ID_SCE, name);
 	if (sce) {
 		BKE_scene_set_background(bmain, sce);
 		printf("Scene switch for render: '%s' in file: '%s'\n", name, bmain->name);
@@ -1229,7 +1229,7 @@ bool BKE_scene_validate_setscene(Main *bmain, Scene *sce)
 }
 
 /* This function is needed to cope with fractional frames - including two Blender rendering features
- * mblur (motion blur that renders 'subframes' and blurs them together), and fields rendering. 
+ * mblur (motion blur that renders 'subframes' and blurs them together), and fields rendering.
  */
 float BKE_scene_frame_get(const Scene *scene)
 {
@@ -1399,7 +1399,7 @@ void BKE_scene_graph_update_for_newframe(Depsgraph *depsgraph,
 	 *
 	 * TODO(sergey): Make this a depsgraph node?
 	 */
-	BKE_cachefile_update_frame(bmain, scene, ctime,
+	BKE_cachefile_update_frame(bmain, depsgraph, scene, ctime,
 	                           (((double)scene->r.frs_sec) / (double)scene->r.frs_sec_base));
 #ifdef POSE_ANIMATION_WORKAROUND
 	scene_armature_depsgraph_workaround(bmain, depsgraph);

@@ -1150,6 +1150,9 @@ static void draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state)
 				case DRW_CALL_SINGLE:
 					draw_geometry_execute(shgroup, call->single.geometry);
 					break;
+				case DRW_CALL_RANGE:
+					draw_geometry_execute_ex(shgroup, call->range.geometry, call->range.start, call->range.count, false);
+					break;
 				case DRW_CALL_INSTANCES:
 					draw_geometry_execute_ex(shgroup, call->instances.geometry, 0, *call->instances.count, true);
 					break;
@@ -1157,7 +1160,7 @@ static void draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state)
 					call->generate.geometry_fn(shgroup, draw_geometry_execute, call->generate.user_data);
 					break;
 				case DRW_CALL_PROCEDURAL:
-					GWN_draw_primitive(call->procedural.prim_type, call->procedural.prim_count);
+					GWN_draw_primitive(call->procedural.prim_type, call->procedural.vert_count);
 					break;
 				default:
 					BLI_assert(0);

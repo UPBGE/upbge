@@ -163,7 +163,7 @@ static WORKBENCH_MaterialData *get_or_create_material_data(
 	DRWShadingGroup *grp;
 
 	/* Solid */
-	workbench_material_get_solid_color(wpd, ob, mat, material_template.color);
+	workbench_material_update_data(wpd, ob, mat, &material_template);
 	material_template.object_id = engine_object_data->object_id;
 	material_template.drawtype = drawtype;
 	material_template.ima = ima;
@@ -178,11 +178,14 @@ static WORKBENCH_MaterialData *get_or_create_material_data(
 		        drawtype == OB_SOLID ? wpd->transparent_accum_sh : wpd->transparent_accum_texture_sh,
 		        psl->transparent_accum_pass);
 		DRW_shgroup_uniform_block(grp, "world_block", wpd->world_ubo);
+		DRW_shgroup_uniform_float(grp, "alpha", &wpd->shading.xray_alpha, 1);
 		workbench_material_set_normal_world_matrix(grp, wpd, e_data.normal_world_matrix);
-		copy_v4_v4(material->color, material_template.color);
+		material->object_id = engine_object_data->object_id;
+		copy_v4_v4(material->material_data.diffuse_color, material_template.material_data.diffuse_color);
+		copy_v4_v4(material->material_data.specular_color, material_template.material_data.specular_color);
+		material->material_data.roughness = material_template.material_data.roughness;
 		switch (drawtype) {
 			case OB_SOLID:
-				DRW_shgroup_uniform_vec4(grp, "color", material->color, 1);
 				break;
 
 			case OB_TEXTURE:
@@ -192,6 +195,8 @@ static WORKBENCH_MaterialData *get_or_create_material_data(
 				break;
 			}
 		}
+		material->material_ubo = DRW_uniformbuffer_create(sizeof(WORKBENCH_UBO_Material), &material->material_data);
+		DRW_shgroup_uniform_block(grp, "material_block", material->material_ubo);
 		material->shgrp = grp;
 
 		/* Depth */
@@ -339,6 +344,7 @@ void workbench_forward_engine_init(WORKBENCH_Data *vedata)
 		int state = DRW_STATE_WRITE_COLOR | DRW_STATE_TRANSPARENT_REVEALAGE;
 		psl->transparent_revealage_pass = DRW_pass_create("Transparent Revealage", state);
 		grp = DRW_shgroup_create(e_data.transparent_revealage_sh, psl->transparent_revealage_pass);
+		DRW_shgroup_uniform_float(grp, "alpha", &wpd->shading.xray_alpha, 1);
 		wpd->transparent_revealage_shgrp = grp;
 	}
 #endif
@@ -543,13 +549,16 @@ void workbench_forward_draw_scene(WORKBENCH_Data *vedata)
 	GPU_framebuffer_bind(fbl->object_outline_fb);
 	DRW_draw_pass(psl->object_outline_pass);
 
-	/* Shade */
-	GPU_framebuffer_bind(fbl->transparent_accum_fb);
-	DRW_draw_pass(psl->transparent_accum_pass);
+	if (wpd->shading.xray_alpha > 0.0) {
+		/* Shade */
+		GPU_framebuffer_bind(fbl->transparent_accum_fb);
+		DRW_draw_pass(psl->transparent_accum_pass);
 #ifdef WORKBENCH_REVEALAGE_ENABLED
-	GPU_framebuffer_bind(fbl->transparent_revealage_fb);
-	DRW_draw_pass(psl->transparent_revealage_pass);
+		GPU_framebuffer_bind(fbl->transparent_revealage_fb);
+		DRW_draw_pass(psl->transparent_revealage_pass);
 #endif
+	}
+
 	/* Composite */
 	GPU_framebuffer_bind(fbl->composite_fb);
 	DRW_draw_pass(psl->composite_pass);

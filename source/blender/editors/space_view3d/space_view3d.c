@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -18,7 +18,7 @@
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
  *
- * 
+ *
  * Contributor(s): Blender Foundation
  *
  * ***** END GPL LICENSE BLOCK *****
@@ -325,7 +325,8 @@ static SpaceLink *view3d_new(const ScrArea *UNUSED(sa), const Scene *scene)
 	v3d->drawtype = OB_SOLID;
 	v3d->shading.flag = V3D_SHADING_SPECULAR_HIGHLIGHT;
 	v3d->shading.light = V3D_LIGHTING_STUDIO;
-	v3d->shading.shadow_intensity = 0.5;
+	v3d->shading.shadow_intensity = 0.5f;
+	v3d->shading.xray_alpha = 0.5f;
 	copy_v3_fl(v3d->shading.single_color, 0.8f);
 
 	v3d->overlay.flag = V3D_OVERLAY_LOOK_DEV;
@@ -1357,7 +1358,7 @@ static void view3d_tools_region_init(wmWindowManager *wm, ARegion *ar)
 
 static void view3d_tools_region_draw(const bContext *C, ARegion *ar)
 {
-	ED_region_panels(C, ar, CTX_data_mode_string(C), -1, true);
+	ED_region_panels(C, ar, (const char * []){CTX_data_mode_string(C), NULL}, -1, true);
 }
 
 /* area (not region) level listener */

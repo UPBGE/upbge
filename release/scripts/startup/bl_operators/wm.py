@@ -2407,8 +2407,10 @@ class WM_OT_tool_set_by_name(Operator):
             activate_by_name,
             activate_by_name_or_cycle,
         )
-        space_type = self.space_type
-        if space_type == 'EMPTY':
+
+        if self.properties.is_property_set("space_type"):
+            space_type = self.space_type
+        else:
             space_type = context.space_data.type
 
         fn = activate_by_name_or_cycle if self.cycle else activate_by_name

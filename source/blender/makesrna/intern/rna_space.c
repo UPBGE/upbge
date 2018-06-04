@@ -115,6 +115,12 @@ const EnumPropertyItem rna_enum_space_image_mode_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
+/* Expanded into the Space.ui_type enum. */
+const EnumPropertyItem rna_enum_space_button_mode_items[] = {
+	{SB_SUBTYPE_DATA, "DATA_PROPERTIES", ICON_BUTS, "Data Properties", "Edit properties of active object and related data-blocks"},
+	{SB_SUBTYPE_TOOL, "TOOL_PROPERTIES", ICON_PREFERENCES, "Tool Properties", "Edit tool settings"},
+	{0, NULL, 0, NULL, NULL}
+};
 
 #define V3D_S3D_CAMERA_LEFT        {STEREO_LEFT_ID, "LEFT", ICON_RESTRICT_RENDER_OFF, "Left", ""},
 #define V3D_S3D_CAMERA_RIGHT       {STEREO_RIGHT_ID, "RIGHT", ICON_RESTRICT_RENDER_OFF, "Right", ""},
@@ -2339,6 +2345,15 @@ static void rna_def_space_view3d_shading(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "X-Ray", "Show whole scene transparent");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
+	prop = RNA_def_property(srna, "xray_alpha", PROP_FLOAT, PROP_FACTOR);
+	RNA_def_property_float_sdna(prop, NULL, "shading.xray_alpha");
+	RNA_def_property_float_default(prop, 0.5);
+	RNA_def_property_ui_text(prop, "X-Ray Alpha", "Amount of alpha to use");
+	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_ui_range(prop, 0.04f, 1.0f, 1, 1);
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
+
 	prop = RNA_def_property(srna, "use_scene_light", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "shading.flag", V3D_SHADING_SCENE_LIGHT);
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
@@ -2469,6 +2484,11 @@ static void rna_def_space_view3d_overlay(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Show 3D Cursor", "Display 3D Cursor Overlay");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
+	prop = RNA_def_property(srna, "show_text", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "overlay.flag", V3D_OVERLAY_HIDE_TEXT);
+	RNA_def_property_ui_text(prop, "Show Text", "Display overlay text");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
+
 	prop = RNA_def_property(srna, "show_face_orientation", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "overlay.flag", V3D_OVERLAY_FACE_ORIENTATION);
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
@@ -2481,10 +2501,22 @@ static void rna_def_space_view3d_overlay(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Bone Selection", "Show the Bone Selection Overlay");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
+	prop = RNA_def_property(srna, "show_motion_paths", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "overlay.flag", V3D_OVERLAY_HIDE_MOTION_PATHS);
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+	RNA_def_property_ui_text(prop, "Motion Paths", "Show the Motion Paths Overlay");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
+
 	prop = RNA_def_property(srna, "show_look_dev", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "overlay.flag", V3D_OVERLAY_LOOK_DEV);
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_ui_text(prop, "Look Dev", "Show Look Development Balls and Palette");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
+
+	prop = RNA_def_property(srna, "show_wireframes", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "overlay.flag", V3D_OVERLAY_WIREFRAMES);
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+	RNA_def_property_ui_text(prop, "Wireframes", "Show face edges wires");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
 	prop = RNA_def_property(srna, "show_paint_wire", PROP_BOOLEAN, PROP_NONE);
@@ -2996,6 +3028,13 @@ static void rna_def_space_buttons(BlenderRNA *brna)
 	srna = RNA_def_struct(brna, "SpaceProperties", "Space");
 	RNA_def_struct_sdna(srna, "SpaceButs");
 	RNA_def_struct_ui_text(srna, "Properties Space", "Properties space data");
+
+	/* Not exposed to the UI (access via space-type selector). */
+	prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "space_subtype");
+	RNA_def_property_enum_items(prop, rna_enum_space_button_mode_items);
+	RNA_def_property_ui_text(prop, "Mode", "Arrangement of the panels");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_PROPERTIES, NULL);
 
 	prop = RNA_def_property(srna, "context", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "mainb");

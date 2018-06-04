@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -98,7 +98,7 @@ static void do_outliner_activate_obdata(bContext *C, Scene *scene, ViewLayer *vi
 				ok = ED_object_editmode_exit_ex(scene, ob, EM_FREEDATA | EM_WAITCURSOR);
 			}
 			else {
-				ok = ED_object_editmode_enter_ex(scene, ob, EM_WAITCURSOR | EM_NO_CONTEXT);
+				ok = ED_object_editmode_enter_ex(CTX_data_main(C), scene, ob, EM_WAITCURSOR | EM_NO_CONTEXT);
 			}
 			if (ok) {
 				ED_object_base_select(base, (ob->mode & OB_MODE_EDIT) ? BA_SELECT : BA_DESELECT);

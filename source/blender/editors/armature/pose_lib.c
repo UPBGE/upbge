@@ -82,8 +82,8 @@ static void action_set_activemarker(void *UNUSED(a), void *UNUSED(b), void *UNUS
 
 /* ************************************************************* */
 /* == POSE-LIBRARY TOOL FOR BLENDER == 
- *	
- * Overview: 
+ *
+ * Overview:
  *  This tool allows animators to store a set of frequently used poses to dump into
  *  the active action to help in "budget" productions to quickly block out new actions.
  *  It acts as a kind of "glorified clipboard for poses", allowing for naming of poses.
@@ -501,7 +501,8 @@ static int poselib_add_exec(bContext *C, wmOperator *op)
 	
 	/* store new 'active' pose number */
 	act->active_marker = BLI_listbase_count(&act->markers);
-	
+	DEG_id_tag_update(&act->id, DEG_TAG_COPY_ON_WRITE);
+
 	/* done */
 	return OPERATOR_FINISHED;
 }
@@ -615,7 +616,8 @@ static int poselib_remove_exec(bContext *C, wmOperator *op)
 	 * may be being shown in anim editors as active action 
 	 */
 	WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, NULL);
-	
+	DEG_id_tag_update(&act->id, DEG_TAG_COPY_ON_WRITE);
+
 	/* done */
 	return OPERATOR_FINISHED;
 }

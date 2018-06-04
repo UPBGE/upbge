@@ -128,8 +128,9 @@ typedef struct TransSeq {
 /* ***************** proxy job manager ********************** */
 
 typedef struct ProxyBuildJob {
-	Scene *scene; 
 	struct Main *main;
+	struct Depsgraph *depsgraph;
+	Scene *scene; 
 	ListBase queue;
 	int stop;
 } ProxyJob;
@@ -181,6 +182,7 @@ static void seq_proxy_build_job(const bContext *C)
 {
 	wmJob *wm_job;
 	ProxyJob *pj;
+	struct Depsgraph *depsgraph = CTX_data_depsgraph(C);
 	Scene *scene = CTX_data_scene(C);
 	Editing *ed = BKE_sequencer_editing_get(scene, false);
 	ScrArea *sa = CTX_wm_area(C);
@@ -199,6 +201,7 @@ static void seq_proxy_build_job(const bContext *C)
 	if (!pj) {
 		pj = MEM_callocN(sizeof(ProxyJob), "proxy rebuild job");
 	
+		pj->depsgraph = depsgraph;
 		pj->scene = scene;
 		pj->main = CTX_data_main(C);
 
@@ -211,7 +214,7 @@ static void seq_proxy_build_job(const bContext *C)
 	SEQP_BEGIN (ed, seq)
 	{
 		if ((seq->flag & SELECT)) {
-			BKE_sequencer_proxy_rebuild_context(pj->main, pj->scene, seq, file_list, &pj->queue);
+			BKE_sequencer_proxy_rebuild_context(pj->main, pj->depsgraph, pj->scene, seq, file_list, &pj->queue);
 		}
 	}
 	SEQ_END
@@ -889,7 +892,7 @@ static Sequence *cut_seq_soft(Scene *scene, Sequence *seq, int cutframe)
 
 
 /* like duplicate, but only duplicate and cut overlapping strips,
- * strips to the left of the cutframe are ignored and strips to the right 
+ * strips to the left of the cutframe are ignored and strips to the right
  * are moved to the end of slist
  * we have to work on the same slist (not using a separate list), since
  * otherwise dupli_seq can't check for duplicate names properly and
@@ -3456,6 +3459,7 @@ static int sequencer_rebuild_proxy_invoke(bContext *C, wmOperator *UNUSED(op),
 static int sequencer_rebuild_proxy_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Main *bmain = CTX_data_main(C);
+	struct Depsgraph *depsgraph = CTX_data_depsgraph(C);
 	Scene *scene = CTX_data_scene(C);
 	Editing *ed = BKE_sequencer_editing_get(scene, false);
 	Sequence *seq;
@@ -3475,7 +3479,7 @@ static int sequencer_rebuild_proxy_exec(bContext *C, wmOperator *UNUSED(op))
 			short stop = 0, do_update;
 			float progress;
 
-			BKE_sequencer_proxy_rebuild_context(bmain, scene, seq, file_list, &queue);
+			BKE_sequencer_proxy_rebuild_context(bmain, depsgraph, scene, seq, file_list, &queue);
 
 			for (link = queue.first; link; link = link->next) {
 				struct SeqIndexBuildContext *context = link->data;
@@ -3861,13 +3865,14 @@ void SEQUENCER_OT_change_path(struct wmOperatorType *ot)
 
 static int sequencer_export_subtitles_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
+	Main *bmain = CTX_data_main(C);
 	if (!RNA_struct_property_is_set(op->ptr, "filepath")) {
 		char filepath[FILE_MAX];
 
-		if (G.main->name[0] == 0)
+		if (bmain->name[0] == '\0')
 			BLI_strncpy(filepath, "untitled", sizeof(filepath));
 		else
-			BLI_strncpy(filepath, G.main->name, sizeof(filepath));
+			BLI_strncpy(filepath, bmain->name, sizeof(filepath));
 
 		BLI_replace_extension(filepath, sizeof(filepath), ".srt");
 		RNA_string_set(op->ptr, "filepath", filepath);

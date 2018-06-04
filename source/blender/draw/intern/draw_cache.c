@@ -502,12 +502,35 @@ Gwn_Batch *DRW_cache_object_wire_outline_get(Object *ob)
 	}
 }
 
-/* Returns a buffer texture. */
 Gwn_Batch *DRW_cache_object_edge_detection_get(Object *ob, bool *r_is_manifold)
 {
 	switch (ob->type) {
 		case OB_MESH:
 			return DRW_cache_mesh_edge_detection_get(ob, r_is_manifold);
+
+		/* TODO, should match 'DRW_cache_object_surface_get' */
+		default:
+			return NULL;
+	}
+}
+
+/* Returns a buffer texture. */
+void DRW_cache_object_face_wireframe_get(
+        Object *ob, struct GPUTexture **r_vert_tx, struct GPUTexture **r_faceid_tx, int *r_tri_count)
+{
+	switch (ob->type) {
+		case OB_MESH:
+			DRW_mesh_batch_cache_get_wireframes_face_texbuf((Mesh *)ob->data, r_vert_tx, r_faceid_tx, r_tri_count);
+
+		/* TODO, should match 'DRW_cache_object_surface_get' */
+	}
+}
+
+Gwn_Batch *DRW_cache_object_loose_edges_get(struct Object *ob)
+{
+	switch (ob->type) {
+		case OB_MESH:
+			return DRW_cache_mesh_loose_edges_get(ob);
 
 		/* TODO, should match 'DRW_cache_object_surface_get' */
 		default:
@@ -2183,7 +2206,8 @@ Gwn_Batch *DRW_cache_bone_stick_get(void)
 			GWN_indexbuf_add_generic_vert(&elb, v++);
 		}
 
-		SHC.drw_bone_stick = GWN_batch_create_ex(GWN_PRIM_TRI_FAN, vbo, GWN_indexbuf_build(&elb), GWN_BATCH_OWNS_VBO);
+		SHC.drw_bone_stick = GWN_batch_create_ex(GWN_PRIM_TRI_FAN, vbo, GWN_indexbuf_build(&elb),
+		                                         GWN_BATCH_OWNS_VBO | GWN_BATCH_OWNS_INDEX);
 #undef CIRCLE_RESOL
 	}
 	return SHC.drw_bone_stick;
@@ -2599,6 +2623,14 @@ Gwn_Batch *DRW_cache_mesh_surface_get(Object *ob)
 
 	Mesh *me = ob->data;
 	return DRW_mesh_batch_cache_get_triangles_with_normals(me);
+}
+
+Gwn_Batch *DRW_cache_mesh_loose_edges_get(Object *ob)
+{
+	BLI_assert(ob->type == OB_MESH);
+
+	Mesh *me = ob->data;
+	return DRW_mesh_batch_cache_get_loose_edges_with_normals(me);
 }
 
 Gwn_Batch *DRW_cache_mesh_surface_weights_get(Object *ob)

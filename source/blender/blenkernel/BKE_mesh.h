@@ -34,6 +34,9 @@
 /* defines BLI_INLINE */
 #include "BLI_utildefines.h"
 
+/* defines CustomDataMask */
+#include "BKE_customdata.h"
+
 struct ID;
 struct BMeshCreateParams;
 struct BMeshFromMeshParams;
@@ -46,9 +49,11 @@ struct LinkNode;
 struct BLI_Stack;
 struct MemArena;
 struct BMesh;
+struct KeyBlock;
 struct MLoopTri;
 struct Main;
 struct Mesh;
+struct ModifierData;
 struct MPoly;
 struct MLoop;
 struct MFace;
@@ -142,7 +147,7 @@ int BKE_mesh_nurbs_displist_to_mdata(
 void BKE_mesh_from_nurbs_displist(
         struct Object *ob, struct ListBase *dispbase, const bool use_orco_uv, const char *obdata_name, bool temporary);
 void BKE_mesh_from_nurbs(struct Object *ob);
-void BKE_mesh_to_curve_nurblist(struct DerivedMesh *dm, struct ListBase *nurblist, const int edge_users_test);
+void BKE_mesh_to_curve_nurblist(const struct Mesh *me, struct ListBase *nurblist, const int edge_users_test);
 void BKE_mesh_to_curve(struct Depsgraph *depsgraph, struct Scene *scene, struct Object *ob);
 void BKE_mesh_material_index_remove(struct Mesh *me, short index);
 void BKE_mesh_material_index_clear(struct Mesh *me);
@@ -168,6 +173,15 @@ void BKE_mesh_split_faces(struct Mesh *mesh, bool free_loop_normals);
 struct Mesh *BKE_mesh_new_from_object(
         struct Depsgraph *depsgraph, struct Main *bmain, struct Scene *sce, struct Object *ob,
         const bool apply_modifiers, const bool calc_tessface, const bool calc_undeformed);
+struct Mesh *BKE_mesh_create_derived_for_modifier(
+        struct Depsgraph *depsgraph, struct Scene *scene, struct Object *ob,
+        struct ModifierData *md, int build_shapekey_layers);
+
+/* Copies a nomain-Mesh into an existing Mesh. */
+void BKE_nomain_mesh_to_mesh(struct Mesh *mesh_src, struct Mesh *mesh_dst, struct Object *ob,
+                             CustomDataMask mask, bool take_ownership);
+void BKE_nomain_mesh_to_meshkey(struct Mesh *mesh_src, struct Mesh *mesh_dst, struct KeyBlock *kb);
+
 
 /* vertex level transformations & checks (no derived mesh) */
 

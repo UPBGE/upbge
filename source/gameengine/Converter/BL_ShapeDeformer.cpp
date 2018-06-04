@@ -52,6 +52,10 @@
 #include "BKE_key.h"
 #include "BKE_fcurve.h"
 #include "BKE_ipo.h"
+
+#include "BKE_layer.h"
+#include "BKE_scene.h"
+
 #include "BKE_library.h"
 #include "MT_Vector3.h"
 
@@ -62,6 +66,8 @@ extern "C" {
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
+
+#include "KX_Globals.h"
 
 #define __NLA_DEFNORMALS
 //#undef __NLA_DEFNORMALS
@@ -156,8 +162,13 @@ bool BL_ShapeDeformer::LoadShapeDrivers(KX_GameObject *parent)
 bool BL_ShapeDeformer::ExecuteShapeDrivers()
 {
 	if (m_useShapeDrivers && PoseUpdated()) {
+
+		Scene *scene = KX_GetActiveScene()->GetBlenderScene();
+		ViewLayer *view_layer = BKE_view_layer_default_view(scene);
+		Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer, false);
+
 		// We don't need an actual time, just use 0
-		BKE_animsys_evaluate_animdata(nullptr, &GetKey()->id, GetKey()->adt, 0.f, ADT_RECALC_DRIVERS);
+		BKE_animsys_evaluate_animdata(depsgraph, scene, &GetKey()->id, GetKey()->adt, 0.f, ADT_RECALC_DRIVERS);
 
 		ForceUpdate();
 		m_bDynamic = true;

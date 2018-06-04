@@ -199,7 +199,7 @@ static bool object_has_modifier(const Object *ob, const ModifierData *exclude,
  * each of them.
  *
  * If include_orig is true, the callback will run on 'orig_ob' too.
- * 
+ *
  * If the callback ever returns true, iteration will stop and the
  * function value will be true. Otherwise the function returns false.
  */
@@ -546,7 +546,7 @@ static int modifier_apply_shape(ReportList *reports, Depsgraph *depsgraph, Scene
 	 */
 
 	if (ob->type == OB_MESH) {
-		DerivedMesh *dm;
+		Mesh *mesh_applied;
 		Mesh *me = ob->data;
 		Key *key = me->key;
 		KeyBlock *kb;
@@ -556,8 +556,8 @@ static int modifier_apply_shape(ReportList *reports, Depsgraph *depsgraph, Scene
 			return 0;
 		}
 		
-		dm = mesh_create_derived_for_modifier(depsgraph, scene, ob, md, 0);
-		if (!dm) {
+		mesh_applied = BKE_mesh_create_derived_for_modifier(depsgraph, scene, ob, md, 0);
+		if (!mesh_applied) {
 			BKE_report(reports, RPT_ERROR, "Modifier is disabled or returned error, skipping apply");
 			return 0;
 		}
@@ -572,9 +572,9 @@ static int modifier_apply_shape(ReportList *reports, Depsgraph *depsgraph, Scene
 		}
 
 		kb = BKE_keyblock_add(key, md->name);
-		DM_to_meshkey(dm, me, kb);
+		BKE_nomain_mesh_to_meshkey(mesh_applied, me, kb);
 		
-		dm->release(dm);
+		BKE_id_free(NULL, mesh_applied);
 	}
 	else {
 		BKE_report(reports, RPT_ERROR, "Cannot apply modifier for this object type");
@@ -595,7 +595,7 @@ static int modifier_apply_obdata(ReportList *reports, Depsgraph *depsgraph, Scen
 	}
 
 	if (ob->type == OB_MESH) {
-		DerivedMesh *dm;
+		Mesh *mesh_applied;
 		Mesh *me = ob->data;
 		MultiresModifierData *mmd = find_multires_modifier_before(scene, md);
 
@@ -615,13 +615,13 @@ static int modifier_apply_obdata(ReportList *reports, Depsgraph *depsgraph, Scen
 			}
 		}
 		else {
-			dm = mesh_create_derived_for_modifier(depsgraph, scene, ob, md, 1);
-			if (!dm) {
+			mesh_applied = BKE_mesh_create_derived_for_modifier(depsgraph, scene, ob, md, 1);
+			if (!mesh_applied) {
 				BKE_report(reports, RPT_ERROR, "Modifier returned error, skipping apply");
 				return 0;
 			}
 
-			DM_to_mesh(dm, me, ob, CD_MASK_MESH, true);
+			BKE_nomain_mesh_to_mesh(mesh_applied, me, ob, CD_MASK_MESH, true);
 
 			if (md->type == eModifierType_Multires)
 				multires_customdata_delete(me);
@@ -1314,6 +1314,7 @@ void OBJECT_OT_multires_reshape(wmOperatorType *ot)
 
 static int multires_external_save_exec(bContext *C, wmOperator *op)
 {
+	Main *bmain = CTX_data_main(C);
 	Object *ob = ED_object_active_context(C);
 	Mesh *me = (ob) ? ob->data : op->customdata;
 	char path[FILE_MAX];
@@ -1328,7 +1329,7 @@ static int multires_external_save_exec(bContext *C, wmOperator *op)
 	RNA_string_get(op->ptr, "filepath", path);
 
 	if (relative)
-		BLI_path_rel(path, G.main->name);
+		BLI_path_rel(path, bmain->name);
 
 	CustomData_external_add(&me->ldata, &me->id, CD_MDISPS, me->totloop, path);
 	CustomData_external_write(&me->ldata, &me->id, CD_MASK_MESH, me->totloop, 0);
@@ -2153,6 +2154,7 @@ static void oceanbake_endjob(void *customdata)
 
 static int ocean_bake_exec(bContext *C, wmOperator *op)
 {
+	Main *bmain = CTX_data_main(C);
 	Object *ob = ED_object_active_context(C);
 	OceanModifierData *omd = (OceanModifierData *)edit_modifier_property_get(op, ob, eModifierType_Ocean);
 	Scene *scene = CTX_data_scene(C);
@@ -2174,7 +2176,7 @@ static int ocean_bake_exec(bContext *C, wmOperator *op)
 		return OPERATOR_FINISHED;
 	}
 
-	och = BKE_ocean_init_cache(omd->cachepath, modifier_path_relbase(ob),
+	och = BKE_ocean_init_cache(omd->cachepath, modifier_path_relbase(bmain, ob),
 	                           omd->bakestart, omd->bakeend, omd->wave_scale,
 	                           omd->chop_amount, omd->foam_coverage, omd->foam_fade, omd->resolution);
 	
@@ -2188,7 +2190,7 @@ static int ocean_bake_exec(bContext *C, wmOperator *op)
 		 *
 		 * XXX: This can't be used due to an anim sys optimization that ignores recalc object animation,
 		 * leaving it for the depgraph (this ignores object animation such as modifier properties though... :/ )
-		 * --> BKE_animsys_evaluate_all_animation(G.main, eval_time);
+		 * --> BKE_animsys_evaluate_all_animation(bmain, eval_time);
 		 * This doesn't work with drivers:
 		 * --> BKE_animsys_evaluate_animdata(&fsDomain->id, fsDomain->adt, eval_time, ADT_RECALC_ALL);
 		 */
@@ -2197,11 +2199,11 @@ static int ocean_bake_exec(bContext *C, wmOperator *op)
 		 * this part of the process before a threaded job is created */
 		
 		//scene->r.cfra = f;
-		//ED_update_for_newframe(CTX_data_main(C), scene);
+		//ED_update_for_newframe(bmain, scene);
 		
 		/* ok, this doesn't work with drivers, but is way faster. 
 		 * let's use this for now and hope nobody wants to drive the time value... */
-		BKE_animsys_evaluate_animdata(scene, (ID *)ob, ob->adt, f, ADT_RECALC_ANIM);
+		BKE_animsys_evaluate_animdata(CTX_data_depsgraph(C), scene, (ID *)ob, ob->adt, f, ADT_RECALC_ANIM);
 		
 		och->time[i] = omd->time;
 		i++;

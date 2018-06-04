@@ -140,6 +140,12 @@ void BKE_object_eval_done(Depsgraph *depsgraph, Object *ob)
 	/* Set negative scale flag in object. */
 	if (is_negative_m4(ob->obmat)) ob->transflag |= OB_NEG_SCALE;
 	else ob->transflag &= ~OB_NEG_SCALE;
+
+	if (DEG_is_active(depsgraph)) {
+		Object *ob_orig = DEG_get_original_object(ob);
+		copy_m4_m4(ob_orig->obmat, ob->obmat);
+		ob_orig->transflag = ob->transflag;
+	}
 }
 
 void BKE_object_handle_data_update(
@@ -159,14 +165,14 @@ void BKE_object_handle_data_update(
 	if (adt) {
 		/* evaluate drivers - datalevel */
 		/* XXX: for mesh types, should we push this to derivedmesh instead? */
-		BKE_animsys_evaluate_animdata(scene, data_id, adt, ctime, ADT_RECALC_DRIVERS);
+		BKE_animsys_evaluate_animdata(depsgraph, scene, data_id, adt, ctime, ADT_RECALC_DRIVERS);
 	}
 
 	/* TODO(sergey): Only used by legacy depsgraph. */
 	key = BKE_key_from_object(ob);
 	if (key && key->block.first) {
 		if (!(ob->shapeflag & OB_SHAPE_LOCK))
-			BKE_animsys_evaluate_animdata(scene, &key->id, key->adt, ctime, ADT_RECALC_DRIVERS);
+			BKE_animsys_evaluate_animdata(depsgraph, scene, &key->id, key->adt, ctime, ADT_RECALC_DRIVERS);
 	}
 
 	/* includes all keys and modifiers */

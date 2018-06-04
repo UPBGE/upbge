@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -18,7 +18,7 @@
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
  *
- * 
+ *
  * Contributor(s): Blender Foundation
  *
  * ***** END GPL LICENSE BLOCK *****
@@ -828,7 +828,7 @@ static void region_azone_tab_plus(ScrArea *sa, AZone *az, ARegion *ar)
 	}
 	/* rect needed for mouse pointer test */
 	BLI_rcti_init(&az->rect, az->x1, az->x2, az->y1, az->y2);
-}	
+}
 
 static void region_azone_edge_initialize(ScrArea *sa, ARegion *ar, AZEdge edge, const bool is_fullscreen)
 {
@@ -848,7 +848,7 @@ static void region_azone_edge_initialize(ScrArea *sa, ARegion *ar, AZEdge edge, 
 	if (is_hidden) {
 		region_azone_tab_plus(sa, az, ar);
 	}
-	else {
+	else if (!is_hidden && (ar->regiontype != RGN_TYPE_HEADER)) {
 		region_azone_edge(az, ar);
 	}
 }
@@ -1006,19 +1006,19 @@ static void region_overlap_fix(ScrArea *sa, ARegion *ar)
 }
 
 /* overlapping regions only in the following restricted cases */
-static bool region_is_overlap(ScrArea *sa, ARegion *ar)
+bool ED_region_is_overlap(int spacetype, int regiontype)
 {
 	if (U.uiflag2 & USER_REGION_OVERLAP) {
-		if (ELEM(sa->spacetype, SPACE_VIEW3D, SPACE_SEQ, SPACE_IMAGE)) {
-			if (ELEM(ar->regiontype, RGN_TYPE_TOOLS, RGN_TYPE_UI, RGN_TYPE_TOOL_PROPS))
+		if (ELEM(spacetype, SPACE_VIEW3D, SPACE_SEQ, SPACE_IMAGE)) {
+			if (ELEM(regiontype, RGN_TYPE_TOOLS, RGN_TYPE_UI, RGN_TYPE_TOOL_PROPS))
 				return 1;
 
-			if (ELEM(sa->spacetype, SPACE_VIEW3D, SPACE_IMAGE)) {
-				if (ar->regiontype == RGN_TYPE_HEADER)
+			if (ELEM(spacetype, SPACE_VIEW3D, SPACE_IMAGE)) {
+				if (regiontype == RGN_TYPE_HEADER)
 					return 1;
 			}
-			else if (sa->spacetype == SPACE_SEQ) {
-				if (ar->regiontype == RGN_TYPE_PREVIEW)
+			else if (spacetype == SPACE_SEQ) {
+				if (regiontype == RGN_TYPE_PREVIEW)
 					return 1;
 			}
 		}
@@ -1047,7 +1047,7 @@ static void region_rect_recursive(wmWindow *win, ScrArea *sa, ARegion *ar, rcti 
 	alignment = ar->alignment & ~RGN_SPLIT_PREV;
 	
 	/* set here, assuming userpref switching forces to call this again */
-	ar->overlap = region_is_overlap(sa, ar);
+	ar->overlap = ED_region_is_overlap(sa->spacetype, ar->regiontype);
 
 	/* clear state flags first */
 	ar->flag &= ~RGN_FLAG_TOO_SMALL;
@@ -1796,7 +1796,22 @@ static void region_clear_color(const bContext *C, const ARegion *ar, ThemeColorI
 	}
 }
 
-void ED_region_panels(const bContext *C, ARegion *ar, const char *context, int contextnr, const bool vertical)
+BLI_INLINE bool streq_array_any(const char *s, const char *arr[])
+{
+	for (uint i = 0; arr[i]; i++) {
+		if (STREQ(arr[i], s)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/**
+ * \param contexts: A NULL terminated array of context strings to match against.
+ * Matching against any of these strings will draw the panel.
+ * Can be NULL to skip context checks.
+ */
+void ED_region_panels(const bContext *C, ARegion *ar, const char *contexts[], int contextnr, const bool vertical)
 {
 	const WorkSpace *workspace = CTX_wm_workspace(C);
 	ScrArea *sa = CTX_wm_area(C);
@@ -1810,7 +1825,8 @@ void ED_region_panels(const bContext *C, ARegion *ar, const char *context, int c
 	bool is_context_new = 0;
 	int scroll;
 
-	bool use_category_tabs = (ELEM(ar->regiontype, RGN_TYPE_TOOLS, RGN_TYPE_UI));  /* XXX, should use some better check? */
+	/* XXX, should use some better check? */
+	bool use_category_tabs = (ELEM(ar->regiontype, RGN_TYPE_TOOLS, RGN_TYPE_UI, RGN_TYPE_WINDOW));
 	/* offset panels for small vertical tab area */
 	const char *category = NULL;
 	const int category_tabs_width = UI_PANEL_CATEGORY_MARGIN_WIDTH;
@@ -1844,7 +1860,7 @@ void ED_region_panels(const bContext *C, ARegion *ar, const char *context, int c
 	/* collect panels to draw */
 	for (pt = ar->type->paneltypes.last; pt; pt = pt->prev) {
 		/* verify context */
-		if (context && pt->context[0] && !STREQ(context, pt->context)) {
+		if (contexts && pt->context[0] && !streq_array_any(pt->context, contexts)) {
 			continue;
 		}
 
@@ -2242,7 +2258,7 @@ void ED_region_info_draw_multiline(ARegion *ar, const char *text_array[], float 
 		}
 	}
 
-	rect.ymin = BLI_rcti_size_y(&rect) - header_height * num_lines;
+	rect.ymin = rect.ymax - header_height * num_lines;
 
 	/* setup scissor */
 	glGetIntegerv(GL_SCISSOR_BOX, scissor);

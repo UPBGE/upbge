@@ -1059,6 +1059,7 @@ void OBJECT_OT_lamp_add(wmOperatorType *ot)
 
 static int collection_instance_add_exec(bContext *C, wmOperator *op)
 {
+	Main *bmain = CTX_data_main(C);
 	Collection *collection;
 	unsigned int layer;
 	float loc[3], rot[3];
@@ -1067,7 +1068,7 @@ static int collection_instance_add_exec(bContext *C, wmOperator *op)
 		char name[MAX_ID_NAME - 2];
 		
 		RNA_string_get(op->ptr, "name", name);
-		collection = (Collection *)BKE_libblock_find_name(ID_GR, name);
+		collection = (Collection *)BKE_libblock_find_name(bmain, ID_GR, name);
 		
 		if (0 == RNA_struct_property_is_set(op->ptr, "location")) {
 			const wmEvent *event = CTX_wm_window(C)->eventstate;
@@ -1086,7 +1087,6 @@ static int collection_instance_add_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 
 	if (collection) {
-		Main *bmain = CTX_data_main(C);
 		Scene *scene = CTX_data_scene(C);
 		ViewLayer *view_layer = CTX_data_view_layer(C);
 
@@ -2086,7 +2086,7 @@ static Base *object_add_duplicate_internal(Main *bmain, Scene *scene, ViewLayer 
 	}
 	else {
 		obn = ID_NEW_SET(ob, BKE_object_copy(bmain, ob));
-		DEG_id_tag_update(&obn->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
+		DEG_id_tag_update(&obn->id, OB_RECALC_OB | OB_RECALC_DATA);
 
 		base = BKE_view_layer_base_find(view_layer, ob);
 		if ((base != NULL) && (base->flag & BASE_VISIBLED)) {
@@ -2434,7 +2434,7 @@ static int add_named_exec(bContext *C, wmOperator *op)
 
 	/* find object, create fake base */
 	RNA_string_get(op->ptr, "name", name);
-	ob = (Object *)BKE_libblock_find_name(ID_OB, name);
+	ob = (Object *)BKE_libblock_find_name(bmain, ID_OB, name);
 
 	if (ob == NULL) {
 		BKE_report(op->reports, RPT_ERROR, "Object not found");

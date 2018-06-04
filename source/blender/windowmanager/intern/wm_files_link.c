@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -18,7 +18,7 @@
  * The Original Code is Copyright (C) 2007 Blender Foundation.
  * All rights reserved.
  *
- * 
+ *
  * Contributor(s): Blender Foundation
  *
  * ***** END GPL LICENSE BLOCK *****
@@ -580,7 +580,7 @@ static int wm_lib_relocate_invoke(bContext *C, wmOperator *op, const wmEvent *UN
 	char lib_name[MAX_NAME];
 
 	RNA_string_get(op->ptr, "library", lib_name);
-	lib = (Library *)BKE_libblock_find_name_ex(CTX_data_main(C), ID_LI, lib_name);
+	lib = (Library *)BKE_libblock_find_name(CTX_data_main(C), ID_LI, lib_name);
 
 	if (lib) {
 		if (lib->parent) {
@@ -822,7 +822,7 @@ static int wm_lib_relocate_exec_do(bContext *C, wmOperator *op, bool do_reload)
 	char lib_name[MAX_NAME];
 
 	RNA_string_get(op->ptr, "library", lib_name);
-	lib = (Library *)BKE_libblock_find_name_ex(CTX_data_main(C), ID_LI, lib_name);
+	lib = (Library *)BKE_libblock_find_name(CTX_data_main(C), ID_LI, lib_name);
 
 	if (lib) {
 		Main *bmain = CTX_data_main(C);

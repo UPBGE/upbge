@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -18,7 +18,7 @@
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
  *
- * 
+ *
  * Contributor(s): Blender Foundation
  *
  * ***** END GPL LICENSE BLOCK *****
@@ -79,7 +79,7 @@ void    ED_region_tag_refresh_ui(struct ARegion *ar);
 void    ED_region_panels_init(struct wmWindowManager *wm, struct ARegion *ar);
 void    ED_region_panels(
             const struct bContext *C, struct ARegion *ar,
-            const char *context, int contextnr,
+            const char *contexts[], int contextnr,
             const bool vertical);
 void    ED_region_header_init(struct ARegion *ar);
 void    ED_region_header(const struct bContext *C, struct ARegion *ar);
@@ -94,6 +94,7 @@ void    ED_region_image_metadata_draw(int x, int y, struct ImBuf *ibuf, const rc
 void    ED_region_grid_draw(struct ARegion *ar, float zoomx, float zoomy);
 float	ED_region_blend_alpha(struct ARegion *ar);
 void	ED_region_visible_rect(struct ARegion *ar, struct rcti *rect);
+bool    ED_region_is_overlap(int spacetype, int regiontype);
 
 int     ED_region_snap_size_test(const struct ARegion *ar);
 bool    ED_region_snap_size_apply(struct ARegion *ar, int snap_flag);

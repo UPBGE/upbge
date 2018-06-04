@@ -2943,6 +2943,52 @@ static bool calc_modifiers_skip_orco(Depsgraph *depsgraph,
 }
 #endif
 
+static void mesh_finalize_eval(Object *object)
+{
+	Mesh *mesh = (Mesh *)object->data;
+	Mesh *mesh_eval = object->runtime.mesh_eval;
+	/* Special Tweaks for cases when evaluated mesh came from
+	 * BKE_mesh_new_nomain_from_template().
+	 */
+	BLI_strncpy(mesh_eval->id.name, mesh->id.name, sizeof(mesh_eval->id.name));
+	if (mesh_eval->mat != NULL) {
+		MEM_freeN(mesh_eval->mat);
+	}
+	mesh_eval->mat = MEM_dupallocN(mesh->mat);
+	mesh_eval->totcol = mesh->totcol;
+	/* Make evaluated mesh to share same edit mesh pointer as original
+	 * and copied meshes.
+	 */
+	mesh_eval->edit_btmesh = mesh->edit_btmesh;
+	/* Special flags to help debugging and also to allow copy-on-write core
+	 * to understand that on re-evaluation this mesh is to be preserved and
+	 * to be remapped back to copied original mesh when used as object data.
+	 */
+	mesh_eval->id.tag |= LIB_TAG_COPY_ON_WRITE_EVAL;
+	mesh_eval->id.orig_id = &mesh->id;
+	/* Copy autosmooth settings from original mesh.
+	 * This is not done by BKE_mesh_new_nomain_from_template(), so need to take
+	 * extra care here.
+	 */
+	mesh_eval->flag |= (mesh->flag & ME_AUTOSMOOTH);
+	mesh_eval->smoothresh = mesh->smoothresh;
+	/* Replace evaluated object's data with fully evaluated mesh. */
+	/* TODO(sergey): There was statement done by Sybren and Mai that this
+	 * caused modifiers to be applied twice. which is weirtd and shouldn't
+	 * really happen. But since there is no reference to the report, can not
+	 * do much about this.
+	 */
+
+	/* Object is sometimes not evaluated!
+	 * TODO(sergey): BAD TEMPORARY HACK FOR UNTIL WE ARE SMARTER */
+	if (object->id.tag & LIB_TAG_COPY_ON_WRITE) {
+		object->data = mesh_eval;
+	}
+	else {
+		/* evaluated will be available via: 'object->runtime.mesh_eval' */
+	}
+}
+
 static void mesh_build_data(
         struct Depsgraph *depsgraph, Scene *scene, Object *ob, CustomDataMask dataMask,
         const bool build_shapekey_layers, const bool need_mapping)
@@ -3064,6 +3110,7 @@ void makeDerivedMesh(
 
 /***/
 
+/* Deprecated DM, use: 'mesh_get_eval_final'. */
 DerivedMesh *mesh_get_derived_final(
         struct Depsgraph *depsgraph, Scene *scene, Object *ob, CustomDataMask dataMask)
 {
@@ -3083,7 +3130,27 @@ DerivedMesh *mesh_get_derived_final(
 	if (ob->derivedFinal) { BLI_assert(!(ob->derivedFinal->dirty & DM_DIRTY_NORMALS)); }
 	return ob->derivedFinal;
 }
+Mesh *mesh_get_eval_final(
+        struct Depsgraph *depsgraph, Scene *scene, Object *ob, CustomDataMask dataMask)
+{
+	/* if there's no evaluated mesh or the last data mask used doesn't include
+	 * the data we need, rebuild the derived mesh
+	 */
+	bool need_mapping;
+	dataMask |= object_get_datamask(depsgraph, ob, &need_mapping);
 
+	if (!ob->derivedFinal ||
+	    ((dataMask & ob->lastDataMask) != dataMask) ||
+	    (need_mapping != ob->lastNeedMapping))
+	{
+		mesh_build_data(depsgraph, scene, ob, dataMask, false, need_mapping);
+	}
+
+	if (ob->runtime.mesh_eval) { BLI_assert(!(ob->runtime.mesh_eval->runtime.cd_dirty_vert & CD_MASK_NORMAL)); }
+	return ob->runtime.mesh_eval;
+}
+
+/* Deprecated DM, use: 'mesh_get_eval_deform' instead. */
 DerivedMesh *mesh_get_derived_deform(struct Depsgraph *depsgraph, Scene *scene, Object *ob, CustomDataMask dataMask)
 {
 	/* if there's no derived mesh or the last data mask used doesn't include
@@ -3102,6 +3169,25 @@ DerivedMesh *mesh_get_derived_deform(struct Depsgraph *depsgraph, Scene *scene, 
 
 	return ob->derivedDeform;
 }
+Mesh *mesh_get_eval_deform(struct Depsgraph *depsgraph, Scene *scene, Object *ob, CustomDataMask dataMask)
+{
+	/* if there's no derived mesh or the last data mask used doesn't include
+	 * the data we need, rebuild the derived mesh
+	 */
+	bool need_mapping;
+
+	dataMask |= object_get_datamask(depsgraph, ob, &need_mapping);
+
+	if (!ob->runtime.mesh_deform_eval ||
+	    ((dataMask & ob->lastDataMask) != dataMask) ||
+	    (need_mapping != ob->lastNeedMapping))
+	{
+		mesh_build_data(depsgraph, scene, ob, dataMask, false, need_mapping);
+	}
+
+	return ob->runtime.mesh_deform_eval;
+}
+
 
 DerivedMesh *mesh_create_derived_render(struct Depsgraph *depsgraph, Scene *scene, Object *ob, CustomDataMask dataMask)
 {

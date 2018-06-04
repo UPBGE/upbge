@@ -126,6 +126,7 @@ typedef struct DRWCallState {
 
 typedef enum {
 	DRW_CALL_SINGLE,                 /* A single batch */
+	DRW_CALL_RANGE,                  /* Like single but only draw a range of vertices/indices. */
 	DRW_CALL_INSTANCES,              /* Draw instances without any instancing attribs. */
 	DRW_CALL_GENERATE,               /* Uses a callback to draw with any number of batches. */
 	DRW_CALL_PROCEDURAL,             /* Generate a drawcall without any Gwn_Batch. */
@@ -139,6 +140,10 @@ typedef struct DRWCall {
 		struct { /* type == DRW_CALL_SINGLE */
 			Gwn_Batch *geometry;
 		} single;
+		struct { /* type == DRW_CALL_RANGE */
+			Gwn_Batch *geometry;
+			uint start, count;
+		} range;
 		struct { /* type == DRW_CALL_INSTANCES */
 			Gwn_Batch *geometry;
 			/* Count can be adjusted between redraw. If needed, we can add fixed count. */
@@ -149,7 +154,7 @@ typedef struct DRWCall {
 			void *user_data;
 		} generate;
 		struct { /* type == DRW_CALL_PROCEDURAL */
-			unsigned int prim_count;
+			uint vert_count;
 			Gwn_PrimType prim_type;
 		} procedural;
 	};
@@ -324,6 +329,7 @@ typedef struct DRWManager {
 		uint is_image_render : 1;
 		uint is_scene_render : 1;
 		uint draw_background : 1;
+		uint draw_text : 1;
 		uint is_game_engine : 1;
 	} options;
 

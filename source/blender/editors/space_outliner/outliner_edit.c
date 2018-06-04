@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -1347,7 +1347,7 @@ static int ed_operator_outliner_datablocks_active(bContext *C)
 
 /* Helper func to extract an RNA path from selected tree element 
  * NOTE: the caller must zero-out all values of the pointers that it passes here first, as
- * this function does not do that yet 
+ * this function does not do that yet
  */
 static void tree_element_to_path(TreeElement *te, TreeStoreElem *tselem,
                                  ID **id, char **path, int *array_index, short *flag, short *UNUSED(groupmode))
@@ -1887,9 +1887,9 @@ static int parent_drop_exec(bContext *C, wmOperator *op)
 
 	partype = RNA_enum_get(op->ptr, "type");
 	RNA_string_get(op->ptr, "parent", parname);
-	par = (Object *)BKE_libblock_find_name(ID_OB, parname);
+	par = (Object *)BKE_libblock_find_name(bmain, ID_OB, parname);
 	RNA_string_get(op->ptr, "child", childname);
-	ob = (Object *)BKE_libblock_find_name(ID_OB, childname);
+	ob = (Object *)BKE_libblock_find_name(bmain, ID_OB, childname);
 
 	if (ID_IS_LINKED(ob)) {
 		BKE_report(op->reports, RPT_INFO, "Can't edit library linked object");
@@ -1928,9 +1928,9 @@ static int parent_drop_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 		RNA_string_set(op->ptr, "parent", te->name);
 		/* Identify parent and child */
 		RNA_string_get(op->ptr, "child", childname);
-		ob = (Object *)BKE_libblock_find_name(ID_OB, childname);
+		ob = (Object *)BKE_libblock_find_name(bmain, ID_OB, childname);
 		RNA_string_get(op->ptr, "parent", parname);
-		par = (Object *)BKE_libblock_find_name(ID_OB, parname);
+		par = (Object *)BKE_libblock_find_name(bmain, ID_OB, parname);
 		
 		if (ELEM(NULL, ob, par)) {
 			if (par == NULL) printf("par==NULL\n");
@@ -2085,7 +2085,7 @@ static int parent_clear_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSE
 	char obname[MAX_ID_NAME];
 
 	RNA_string_get(op->ptr, "dragged_obj", obname);
-	ob = (Object *)BKE_libblock_find_name(ID_OB, obname);
+	ob = (Object *)BKE_libblock_find_name(bmain, ID_OB, obname);
 
 	/* search forwards to find the object */
 	outliner_find_id(soops, &soops->tree, (ID *)ob);
@@ -2136,10 +2136,10 @@ static int scene_drop_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
 	if (te) {
 		RNA_string_set(op->ptr, "scene", te->name);
-		scene = (Scene *)BKE_libblock_find_name(ID_SCE, te->name);
+		scene = (Scene *)BKE_libblock_find_name(bmain, ID_SCE, te->name);
 
 		RNA_string_get(op->ptr, "object", obname);
-		ob = (Object *)BKE_libblock_find_name(ID_OB, obname);
+		ob = (Object *)BKE_libblock_find_name(bmain, ID_OB, obname);
 
 		if (ELEM(NULL, ob, scene) || ID_IS_LINKED(scene)) {
 			return OPERATOR_CANCELLED;
@@ -2215,10 +2215,10 @@ static int material_drop_invoke(bContext *C, wmOperator *op, const wmEvent *even
 
 	if (te) {
 		RNA_string_set(op->ptr, "object", te->name);
-		ob = (Object *)BKE_libblock_find_name(ID_OB, te->name);
+		ob = (Object *)BKE_libblock_find_name(bmain, ID_OB, te->name);
 
 		RNA_string_get(op->ptr, "material", mat_name);
-		ma = (Material *)BKE_libblock_find_name(ID_MA, mat_name);
+		ma = (Material *)BKE_libblock_find_name(bmain, ID_MA, mat_name);
 
 		if (ELEM(NULL, ob, ma)) {
 			return OPERATOR_CANCELLED;
@@ -2311,7 +2311,7 @@ static int collection_drop_invoke(bContext *C, wmOperator *op, const wmEvent *ev
 	Scene *scene = BKE_scene_find_from_collection(bmain, collection);
 	BLI_assert(scene);
 	RNA_string_get(op->ptr, "child", childname);
-	Object *ob = (Object *)BKE_libblock_find_name(ID_OB, childname);
+	Object *ob = (Object *)BKE_libblock_find_name(bmain, ID_OB, childname);
 	BKE_collection_object_add(bmain, collection, ob);
 
 	DEG_relations_tag_update(bmain);

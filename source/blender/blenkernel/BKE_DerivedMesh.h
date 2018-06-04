@@ -38,18 +38,18 @@
  * There are three main mesh data structures in Blender:
  * #Mesh, #CDDerivedMesh and #BMesh.
  *
- * These, and a few others, all implement DerivedMesh interfaces, 
- * which contains unified drawing interfaces, a few utility interfaces, 
- * and a bunch of read-only interfaces intended mostly for conversion from 
+ * These, and a few others, all implement DerivedMesh interfaces,
+ * which contains unified drawing interfaces, a few utility interfaces,
+ * and a bunch of read-only interfaces intended mostly for conversion from
  * one format to another.
  *
  * All Mesh structures in blender make use of CustomData, which is used to store
  * per-element attributes and interpolate them (e.g. uvs, vcols, vgroups, etc).
- * 
+ *
  * Mesh is the "serialized" structure, used for storing object-mode mesh data
  * and also for saving stuff to disk.  It's interfaces are also what DerivedMesh
  * uses to communicate with.
- * 
+ *
  * CDDM is a little mesh library, that uses Mesh data structures in the backend.
  * It's mostly used for modifiers, and has the advantages of not taking much
  * resources.
@@ -534,7 +534,13 @@ void mesh_get_mapped_verts_coords(DerivedMesh *dm, float (*r_cos)[3], const int 
 DerivedMesh *mesh_get_derived_final(
         struct Depsgraph *depsgraph, struct Scene *scene,
         struct Object *ob, CustomDataMask dataMask);
+struct Mesh *mesh_get_eval_final(
+        struct Depsgraph *depsgraph, struct Scene *scene, struct Object *ob, CustomDataMask dataMask);
+
 DerivedMesh *mesh_get_derived_deform(
+        struct Depsgraph *depsgraph, struct Scene *scene,
+        struct Object *ob, CustomDataMask dataMask);
+struct Mesh *mesh_get_eval_deform(
         struct Depsgraph *depsgraph, struct Scene *scene,
         struct Object *ob, CustomDataMask dataMask);
 

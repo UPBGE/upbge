@@ -53,6 +53,7 @@ set(INC_SYS
 )
 
 set(SRC
+	intern/draw_anim_viz.c
 	intern/draw_armature.c
 	intern/draw_cache.c
 	intern/draw_cache_impl_curve.c
@@ -241,6 +242,9 @@ data_to_c_simple(modes/shaders/common_hair_refine_vert.glsl SRC)
 data_to_c_simple(modes/shaders/common_view_lib.glsl SRC)
 data_to_c_simple(modes/shaders/common_fxaa_lib.glsl SRC)
 data_to_c_simple(modes/shaders/common_fullscreen_vert.glsl SRC)
+data_to_c_simple(modes/shaders/animviz_mpath_lines_vert.glsl SRC)
+data_to_c_simple(modes/shaders/animviz_mpath_lines_geom.glsl SRC)
+data_to_c_simple(modes/shaders/animviz_mpath_points_vert.glsl SRC)
 data_to_c_simple(modes/shaders/armature_axes_vert.glsl SRC)
 data_to_c_simple(modes/shaders/armature_sphere_solid_vert.glsl SRC)
 data_to_c_simple(modes/shaders/armature_sphere_solid_frag.glsl SRC)
@@ -274,6 +278,8 @@ data_to_c_simple(modes/shaders/edit_normals_vert.glsl SRC)
 data_to_c_simple(modes/shaders/edit_normals_geom.glsl SRC)
 data_to_c_simple(modes/shaders/overlay_face_orientation_frag.glsl SRC)
 data_to_c_simple(modes/shaders/overlay_face_orientation_vert.glsl SRC)
+data_to_c_simple(modes/shaders/overlay_face_wireframe_vert.glsl SRC)
+data_to_c_simple(modes/shaders/overlay_face_wireframe_frag.glsl SRC)
 data_to_c_simple(modes/shaders/object_empty_image_frag.glsl SRC)
 data_to_c_simple(modes/shaders/object_empty_image_vert.glsl SRC)
 data_to_c_simple(modes/shaders/object_outline_resolve_frag.glsl SRC)
