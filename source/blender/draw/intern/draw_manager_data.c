@@ -132,6 +132,11 @@ static void drw_shgroup_uniform(DRWShadingGroup *shgroup, const char *name,
 	BLI_assert(length >= 0 && length <= 16);
 
 	drw_shgroup_uniform_create_ex(shgroup, location, type, value, length, arraysize);
+
+#ifndef NDEBUG
+	/* Save uniform name to easily identify it when debugging. */
+	BLI_strncpy(shgroup->uniforms->name, name, MAX_UNIFORM_NAME);
+#endif
 }
 
 void DRW_shgroup_uniform_texture(DRWShadingGroup *shgroup, const char *name, const GPUTexture *tex)
@@ -431,7 +436,8 @@ void DRW_shgroup_call_object_add_ex(DRWShadingGroup *shgroup, Gwn_Batch *geom, O
 	call->select_id = DST.select_id;
 #endif
 
-	SET_FLAG_FROM_TEST(call->state->flag, bypass_culling, DRW_CALL_BYPASS_CULLING);
+	/* NOTE this will disable culling for the whole object. */
+	call->state->flag |= (bypass_culling) ? DRW_CALL_BYPASS_CULLING : 0;
 
 	BLI_LINKS_APPEND(&shgroup->calls, call);
 }

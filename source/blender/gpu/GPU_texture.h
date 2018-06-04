@@ -40,7 +40,7 @@ struct Image;
 struct ImageUser;
 struct PreviewImage;
 struct Gwn_VertBuf;
-	
+
 struct GPUFrameBuffer;
 typedef struct GPUTexture GPUTexture;
 
@@ -172,6 +172,11 @@ void GPU_invalid_tex_bind(int mode);
 void GPU_invalid_tex_free(void);
 
 void GPU_texture_free(GPUTexture *tex);
+
+void GPU_texture_init_orphans(void);
+void GPU_texture_exit_orphans(void);
+/* This has to be called from a thread with an ogl context bound. */
+void GPU_texture_delete_orphans(void);
 
 void GPU_texture_ref(GPUTexture *tex);
 void GPU_texture_bind(GPUTexture *tex, int number);

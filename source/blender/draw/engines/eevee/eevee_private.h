@@ -220,7 +220,6 @@ typedef struct EEVEE_PassList {
 	struct DRWPass *background_pass;
 	struct DRWPass *update_noise_pass;
 	struct DRWPass *lookdev_pass;
-	struct DRWPass *hair_tf_pass;
 } EEVEE_PassList;
 
 typedef struct EEVEE_FramebufferList {
@@ -791,7 +790,6 @@ typedef struct EEVEE_PrivateData {
 	struct DRWShadingGroup *cube_display_shgrp;
 	struct DRWShadingGroup *planar_display_shgrp;
 	struct GHash *material_hash;
-	struct GHash *hair_material_hash;
 	float background_alpha; /* TODO find a better place for this. */
 	/* For planar probes */
 	float planar_texel_size[2];
@@ -823,6 +821,7 @@ struct GPUTexture *EEVEE_materials_get_util_tex(void); /* XXX */
 void EEVEE_materials_init(EEVEE_ViewLayerData *sldata, EEVEE_StorageList *stl, EEVEE_FramebufferList *fbl);
 void EEVEE_materials_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_materials_cache_populate(EEVEE_Data *vedata, EEVEE_ViewLayerData *sldata, Object *ob, bool *cast_shadow);
+void EEVEE_hair_cache_populate(EEVEE_Data *vedata, EEVEE_ViewLayerData *sldata, Object *ob, bool *cast_shadow);
 void EEVEE_materials_cache_finish(EEVEE_Data *vedata);
 struct GPUMaterial *EEVEE_material_world_lightprobe_get(struct Scene *scene, struct World *wo);
 struct GPUMaterial *EEVEE_material_world_background_get(struct Scene *scene, struct World *wo);
