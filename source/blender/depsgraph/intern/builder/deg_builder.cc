@@ -47,6 +47,7 @@ namespace DEG {
 
 void deg_graph_build_finalize(Main *bmain, Depsgraph *graph)
 {
+	const bool use_copy_on_write = DEG_depsgraph_use_copy_on_write();
 	/* Re-tag IDs for update if it was tagged before the relations
 	 * update tag.
 	 */
@@ -56,7 +57,10 @@ void deg_graph_build_finalize(Main *bmain, Depsgraph *graph)
 		if ((id->recalc & ID_RECALC_ALL)) {
 			DEG_id_tag_update_ex(bmain, id_node->id_orig, 0);
 		}
-		if (!deg_copy_on_write_is_expanded(id_node->id_cow)) {
+		/* TODO(sergey): This is not ideal at all, since this forces
+		 * re-evaluaiton of the whole tree.
+		 */
+		if (use_copy_on_write) {
 			DEG_id_tag_update_ex(bmain, id_node->id_orig, DEG_TAG_COPY_ON_WRITE);
 		}
 	}

@@ -1025,12 +1025,14 @@ void DepsgraphRelationBuilder::build_animdata_curves_targets(
 		/* It is possible that animation is writing to a nested ID datablock,
 		 * need to make sure animation is evaluated after target ID is copied.
 		 */
-		const IDDepsNode *id_node_from = operation_from->owner->owner;
-		const IDDepsNode *id_node_to = operation_to->owner->owner;
-		if (id_node_from != id_node_to) {
-			ComponentKey cow_key(id_node_to->id_orig,
-			                     DEG_NODE_TYPE_COPY_ON_WRITE);
-			add_relation(cow_key, adt_key, "Target CoW -> Animation", true);
+		if (DEG_depsgraph_use_copy_on_write()) {
+			const IDDepsNode *id_node_from = operation_from->owner->owner;
+			const IDDepsNode *id_node_to = operation_to->owner->owner;
+			if (id_node_from != id_node_to) {
+				ComponentKey cow_key(id_node_to->id_orig,
+				                     DEG_NODE_TYPE_COPY_ON_WRITE);
+				add_relation(cow_key, adt_key, "Target CoW -> Animation", true);
+			}
 		}
 	}
 }
@@ -1204,7 +1206,7 @@ void DepsgraphRelationBuilder::build_driver_data(ID *id, FCurve *fcu)
 		 * datablock, which means driver execution should wait for that
 		 * datablock to be copied.
 		 */
-		{
+		if (DEG_depsgraph_use_copy_on_write()) {
 			PointerRNA id_ptr;
 			PointerRNA ptr;
 			RNA_id_pointer_create(id, &id_ptr);
@@ -1881,16 +1883,18 @@ void DepsgraphRelationBuilder::build_lamp(Object *object)
 		build_nested_nodetree(&lamp->id, lamp->nodetree);
 	}
 
-	/* Make sure copy on write of lamp data is always properly updated for
-	 * visible lamps.
-	 */
-	OperationKey ob_copy_on_write_key(&object->id,
-	                                  DEG_NODE_TYPE_COPY_ON_WRITE,
-	                                  DEG_OPCODE_COPY_ON_WRITE);
-	OperationKey lamp_copy_on_write_key(&lamp->id,
-	                                    DEG_NODE_TYPE_COPY_ON_WRITE,
-	                                    DEG_OPCODE_COPY_ON_WRITE);
-	add_relation(lamp_copy_on_write_key, ob_copy_on_write_key, "Eval Order");
+	if (DEG_depsgraph_use_copy_on_write()) {
+		/* Make sure copy on write of lamp data is always properly updated for
+		 * visible lamps.
+		 */
+		OperationKey ob_copy_on_write_key(&object->id,
+		                                  DEG_NODE_TYPE_COPY_ON_WRITE,
+		                                  DEG_OPCODE_COPY_ON_WRITE);
+		OperationKey lamp_copy_on_write_key(&lamp->id,
+		                                    DEG_NODE_TYPE_COPY_ON_WRITE,
+		                                    DEG_OPCODE_COPY_ON_WRITE);
+		add_relation(lamp_copy_on_write_key, ob_copy_on_write_key, "Eval Order");
+	}
 }
 
 void DepsgraphRelationBuilder::build_nodetree(bNodeTree *ntree)
@@ -2078,6 +2082,9 @@ void DepsgraphRelationBuilder::build_copy_on_write_relations()
  */
 void DepsgraphRelationBuilder::build_nested_datablock(ID *owner, ID *id)
 {
+	if (!DEG_depsgraph_use_copy_on_write()) {
+		return;
+	}
 	OperationKey owner_copy_on_write_key(owner,
 	                                     DEG_NODE_TYPE_COPY_ON_WRITE,
 	                                     DEG_OPCODE_COPY_ON_WRITE);
