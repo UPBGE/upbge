@@ -39,8 +39,10 @@ EXP_BaseListWrapper::EXP_BaseListWrapper(EXP_PyObjectPlus *client,
 	m_setItem(setItem),
 	m_flag(flag)
 {
-	if (m_flag & FLAG_NO_WEAK_REF) {
-		m_weakRef = PyWeakref_NewRef(client->GetProxy(), nullptr);
+	if (!(m_flag & FLAG_NO_WEAK_REF)) {
+		PyObject *proxy = client->GetProxy();
+		m_weakRef = PyWeakref_NewRef(proxy, nullptr);
+		Py_DECREF(proxy);
 	}
 }
 
