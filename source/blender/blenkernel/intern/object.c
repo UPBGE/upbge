@@ -356,7 +356,9 @@ void BKE_object_free_derived_caches(Object *ob)
 	if (ob->runtime.mesh_eval != NULL) {
 		Mesh *mesh_eval = ob->runtime.mesh_eval;
 		/* Restore initial pointer. */
-		ob->data = mesh_eval->id.orig_id;
+		if (ob->data == mesh_eval) {
+			ob->data = ob->runtime.mesh_orig;
+		}
 		/* Evaluated mesh points to edit mesh, but does not own it. */
 		mesh_eval->edit_btmesh = NULL;
 		BKE_mesh_free(mesh_eval);
@@ -3037,6 +3039,61 @@ Mesh *BKE_object_get_evaluated_mesh(const Depsgraph *depsgraph, Object *ob)
 	return ob_eval->runtime.mesh_eval;
 }
 
+/* Get object's mesh with all modifiers applied. */
+Mesh *BKE_object_get_final_mesh(Object *object)
+{
+	if (object->runtime.mesh_eval != NULL) {
+		BLI_assert((object->id.tag & LIB_TAG_COPIED_ON_WRITE) != 0);
+		BLI_assert(object->runtime.mesh_eval == object->data);
+		BLI_assert((object->runtime.mesh_eval->id.tag & LIB_TAG_COPIED_ON_WRITE_EVAL_RESULT) != 0);
+		return object->runtime.mesh_eval;
+	}
+	/* Wasn't evaluated yet. */
+	return object->data;
+}
+
+/* Get mesh which is not affected by modifiers:
+ * - For original objects it will be same as object->data, and it is a mesh
+ *   which is in the corresponding bmain.
+ * - For copied-on-write objects it will give pointer to a copied-on-write
+ *   mesh which corresponds to original object's mesh.
+ */
+Mesh *BKE_object_get_pre_modified_mesh(Object *object)
+{
+	if (object->runtime.mesh_orig != NULL) {
+		BLI_assert(object->id.tag & LIB_TAG_COPIED_ON_WRITE);
+		BLI_assert(object->id.orig_id != NULL);
+		BLI_assert(object->runtime.mesh_orig->id.orig_id ==
+		           ((Object*)object->id.orig_id)->data);
+		Mesh *result = object->runtime.mesh_orig;
+		BLI_assert((result->id.tag & LIB_TAG_COPIED_ON_WRITE) != 0);
+		BLI_assert((result->id.tag & LIB_TAG_COPIED_ON_WRITE_EVAL_RESULT) == 0);
+		return result;
+	}
+	BLI_assert((object->id.tag & LIB_TAG_COPIED_ON_WRITE) == 0);
+	return object->data;
+}
+
+/* Get a mesh which corresponds to very very original mesh from bmain.
+ * - For original objects it will be object->data.
+ * - For evaluated objects it will be same mesh as corresponding original
+ *   object uses as data.
+ */
+Mesh *BKE_object_get_original_mesh(Object *object)
+{
+	Mesh *result = NULL;
+	if (object->id.orig_id == NULL) {
+		BLI_assert((object->id.tag & LIB_TAG_COPIED_ON_WRITE) == 0);
+		result = object->data;
+	}
+	else {
+		BLI_assert((object->id.tag & LIB_TAG_COPIED_ON_WRITE) != 0);
+		result = ((Object*)object->id.orig_id)->data;
+	}
+	BLI_assert(result != NULL);
+	BLI_assert((result->id.tag & (LIB_TAG_COPIED_ON_WRITE | LIB_TAG_COPIED_ON_WRITE_EVAL_RESULT)) == 0);
+	return result;
+}
 
 static int pc_cmp(const void *a, const void *b)
 {

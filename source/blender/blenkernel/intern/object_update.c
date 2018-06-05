@@ -364,7 +364,7 @@ void BKE_object_eval_uber_data(Depsgraph *depsgraph,
 				 */
 				ob->data = new_mesh;
 				/* Special flags to help debugging. */
-				new_mesh->id.tag |= LIB_TAG_COPY_ON_WRITE_EVAL;
+				//new_mesh->id.tag |= LIB_TAG_COPY_ON_WRITE_EVAL;
 				/* Save some memory by throwing DerivedMesh away. */
 				/* NOTE: Watch out, some tools might need it!
 				 * So keep around for now..

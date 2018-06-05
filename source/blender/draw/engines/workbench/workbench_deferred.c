@@ -388,8 +388,6 @@ void workbench_deferred_cache_init(WORKBENCH_Data *vedata)
 			psl->shadow_depth_fail_caps_mani_pass = DRW_pass_create("Shadow Fail Caps Mani", depth_fail_state);
 
 #ifndef DEBUG_SHADOW_VOLUME
-			grp = DRW_shgroup_create(e_data.shadow_caps_sh, psl->shadow_depth_fail_caps_pass);
-			DRW_shgroup_stencil_mask(grp, 0xFF);
 			grp = DRW_shgroup_create(e_data.shadow_pass_sh, psl->shadow_depth_pass_pass);
 			DRW_shgroup_stencil_mask(grp, 0xFF);
 			grp = DRW_shgroup_create(e_data.shadow_pass_manifold_sh, psl->shadow_depth_pass_mani_pass);
@@ -628,13 +626,6 @@ void workbench_deferred_solid_cache_populate(WORKBENCH_Data *vedata, Object *ob)
 						DRWShadingGroup *grp;
 						bool use_shadow_pass_technique = !studiolight_camera_in_object_shadow(wpd, ob, engine_object_data);
 
-						/* Unless we expose a parameter to the user, it's better to use the depth pass technique if the object is
-						 * non manifold. Exposing a switch to the user to force depth fail in this case can be beneficial for
-						 * planes and non-closed terrains. */
-						if (!is_manifold) {
-							use_shadow_pass_technique = true;
-						}
-
 						if (use_shadow_pass_technique) {
 							if (is_manifold) {
 								grp = DRW_shgroup_create(e_data.shadow_pass_manifold_sh, psl->shadow_depth_pass_mani_pass);
@@ -643,12 +634,15 @@ void workbench_deferred_solid_cache_populate(WORKBENCH_Data *vedata, Object *ob)
 								grp = DRW_shgroup_create(e_data.shadow_pass_sh, psl->shadow_depth_pass_pass);
 							}
 							DRW_shgroup_uniform_vec3(grp, "lightDirection", engine_object_data->shadow_dir, 1);
+							DRW_shgroup_uniform_float_copy(grp, "lightDistance", 1e5f);
 							DRW_shgroup_call_add(grp, geom_shadow, ob->obmat);
 #ifdef DEBUG_SHADOW_VOLUME
 							DRW_debug_bbox(&engine_object_data->shadow_bbox, (float[4]){1.0f, 0.0f, 0.0f, 1.0f});
 #endif
 						}
 						else {
+							float extrude_distance = studiolight_object_shadow_distance(wpd, ob, engine_object_data);
+
 							/* TODO(fclem): only use caps if they are in the view frustum. */
 							const bool need_caps = true;
 							if (need_caps) {
@@ -659,6 +653,7 @@ void workbench_deferred_solid_cache_populate(WORKBENCH_Data *vedata, Object *ob)
 									grp = DRW_shgroup_create(e_data.shadow_caps_sh, psl->shadow_depth_fail_caps_pass);
 								}
 								DRW_shgroup_uniform_vec3(grp, "lightDirection", engine_object_data->shadow_dir, 1);
+								DRW_shgroup_uniform_float_copy(grp, "lightDistance", extrude_distance);
 								DRW_shgroup_call_add(grp, DRW_cache_object_surface_get(ob), ob->obmat);
 							}
 
@@ -669,6 +664,7 @@ void workbench_deferred_solid_cache_populate(WORKBENCH_Data *vedata, Object *ob)
 								grp = DRW_shgroup_create(e_data.shadow_fail_sh, psl->shadow_depth_fail_pass);
 							}
 							DRW_shgroup_uniform_vec3(grp, "lightDirection", engine_object_data->shadow_dir, 1);
+							DRW_shgroup_uniform_float_copy(grp, "lightDistance", extrude_distance);
 							DRW_shgroup_call_add(grp, geom_shadow, ob->obmat);
 #ifdef DEBUG_SHADOW_VOLUME
 							DRW_debug_bbox(&engine_object_data->shadow_bbox, (float[4]){0.0f, 1.0f, 0.0f, 1.0f});
