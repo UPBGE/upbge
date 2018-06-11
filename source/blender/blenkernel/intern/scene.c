@@ -945,17 +945,16 @@ Scene *BKE_scene_set_name(Main *bmain, const char *name)
 	Scene *sce = (Scene *)BKE_libblock_find_name(bmain, ID_SCE, name);
 	if (sce) {
 		BKE_scene_set_background(bmain, sce);
-		printf("Scene switch for render: '%s' in file: '%s'\n", name, bmain->name);
+		printf("Scene switch for render: '%s' in file: '%s'\n", name, BKE_main_blendfile_path(bmain));
 		return sce;
 	}
 
-	printf("Can't find scene: '%s' in file: '%s'\n", name, bmain->name);
+	printf("Can't find scene: '%s' in file: '%s'\n", name, BKE_main_blendfile_path(bmain));
 	return NULL;
 }
 
 /* Used by metaballs, return *all* objects (including duplis) existing in the scene (including scene's sets) */
-int BKE_scene_base_iter_next(
-        Depsgraph *depsgraph, SceneBaseIter *iter,
+int BKE_scene_base_iter_next(Depsgraph *depsgraph, SceneBaseIter *iter,
         Scene **scene, int val, Base **base, Object **ob)
 {
 	bool run_again = true;
@@ -1029,7 +1028,7 @@ int BKE_scene_base_iter_next(
 						 * this enters eternal loop because of 
 						 * makeDispListMBall getting called inside of collection_duplilist */
 						if ((*base)->object->dup_group == NULL) {
-							iter->duplilist = object_duplilist_ex(depsgraph, (*scene), (*base)->object, false);
+							iter->duplilist = object_duplilist(depsgraph, (*scene), (*base)->object);
 							
 							iter->dupob = iter->duplilist->first;
 

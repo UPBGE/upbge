@@ -224,6 +224,7 @@ void view3d_operatortypes(void)
 
 	WM_operatortype_append(VIEW3D_OT_toggle_render);
 	WM_operatortype_append(VIEW3D_OT_toggle_xray_draw_option);
+	WM_operatortype_append(VIEW3D_OT_toggle_matcap_flip);
 
 	WM_operatortype_append(VIEW3D_OT_ruler_add);
 
@@ -301,6 +302,8 @@ void view3d_keymap(wmKeyConfig *keyconf)
 	RNA_boolean_set(kmi->ptr, "center", false); /* only without camera view */
 	kmi = WM_keymap_add_item(keymap, "VIEW3D_OT_view_all", CKEY, KM_PRESS, KM_SHIFT, 0);
 	RNA_boolean_set(kmi->ptr, "center", true);
+
+	WM_keymap_add_menu_pie(keymap, "VIEW3D_PIE_view", ACCENTGRAVEKEY, KM_CLICK_DRAG, 0, 0);
 
 	/* numpad view hotkeys*/
 	RNA_enum_set(WM_keymap_add_item(keymap, "VIEW3D_OT_viewnumpad", PAD0, KM_PRESS, 0, 0)->ptr, "type", RV3D_VIEW_CAMERA);

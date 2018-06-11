@@ -33,6 +33,7 @@ struct Object;
 struct PTCacheEdit;
 
 void DRW_shape_cache_free(void);
+void DRW_shape_cache_reset(void);
 
 /* 3D cursor */
 struct Gwn_Batch *DRW_cache_cursor_get(bool crosshair_lines);
@@ -187,5 +188,6 @@ struct Gwn_Batch *DRW_cache_particles_get_prim(int type);
 
 /* Metaball */
 struct Gwn_Batch *DRW_cache_mball_surface_get(struct Object *ob);
+struct Gwn_Batch **DRW_cache_mball_surface_shaded_get(struct Object *ob, struct GPUMaterial **gpumat_array, uint gpumat_array_len);
 
 #endif /* __DRAW_CACHE_H__ */

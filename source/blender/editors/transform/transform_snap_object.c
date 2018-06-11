@@ -56,6 +56,7 @@
 #include "BKE_tracking.h"
 #include "BKE_context.h"
 #include "BKE_mesh.h"
+#include "BKE_mesh_runtime.h"
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_query.h"
@@ -113,6 +114,7 @@ typedef struct SnapObjectData_EditMesh {
 } SnapObjectData_EditMesh;
 
 struct SnapObjectContext {
+	Main *bmain;
 	Scene *scene;
 	Depsgraph *depsgraph;
 
@@ -2269,12 +2271,13 @@ static short snapObjectsRay(
  * \{ */
 
 SnapObjectContext *ED_transform_snap_object_context_create(
-        Scene *scene, Depsgraph *depsgraph, int flag)
+        Main *bmain, Scene *scene, Depsgraph *depsgraph, int flag)
 {
 	SnapObjectContext *sctx = MEM_callocN(sizeof(*sctx), __func__);
 
 	sctx->flag = flag;
 
+	sctx->bmain = bmain;
 	sctx->scene = scene;
 	sctx->depsgraph = depsgraph;
 
@@ -2285,11 +2288,11 @@ SnapObjectContext *ED_transform_snap_object_context_create(
 }
 
 SnapObjectContext *ED_transform_snap_object_context_create_view3d(
-        Scene *scene, Depsgraph *depsgraph, int flag,
+        Main *bmain, Scene *scene, Depsgraph *depsgraph, int flag,
         /* extra args for view3d */
         const ARegion *ar, const View3D *v3d)
 {
-	SnapObjectContext *sctx = ED_transform_snap_object_context_create(scene, depsgraph, flag);
+	SnapObjectContext *sctx = ED_transform_snap_object_context_create(bmain, scene, depsgraph, flag);
 
 	sctx->use_v3d = true;
 	sctx->v3d_data.ar = ar;

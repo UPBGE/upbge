@@ -1,18 +1,15 @@
 
-#ifdef GPU_INTEL
-#define USE_GEOM_SHADER
-#endif
-
 uniform mat4 ModelViewProjectionMatrix;
 uniform mat4 ModelViewMatrix;
 uniform mat4 ProjectionMatrix;
 uniform mat3 NormalMatrix;
 
+uniform vec2 wireStepParam;
 uniform vec2 viewportSize;
 uniform float nearDist;
 
 uniform samplerBuffer vertData;
-uniform isamplerBuffer faceIds;
+uniform usamplerBuffer faceIds;
 
 #ifdef USE_GEOM_SHADER
 out vec2 ssPos;
@@ -22,6 +19,16 @@ flat out vec3 ssVec0;
 flat out vec3 ssVec1;
 flat out vec3 ssVec2;
 out float facing;
+#endif
+
+#ifdef LIGHT_EDGES
+#ifdef USE_GEOM_SHADER
+out vec3 obPos;
+out vec3 vNor;
+out float forceEdge;
+#else
+out float edgeSharpness;
+#endif
 #endif
 
 /* project to screen space */
@@ -46,9 +53,9 @@ float short_to_unit_float(uint s)
 	return float(value) / float(0x7FFF);
 }
 
-vec3 get_vertex_nor(int v_id)
+vec3 get_vertex_nor(uint id)
 {
-	v_id *= 5; /* See vertex format for explanation. */
+	int v_id = int(id) * 5; /* See vertex format for explanation. */
 	/* Fetch compressed normal as float and unpack them. */
 	vec2 data;
 	data.x = texelFetch(vertData, v_id + 3).r;
@@ -63,9 +70,9 @@ vec3 get_vertex_nor(int v_id)
 	return nor;
 }
 
-vec3 get_vertex_pos(int v_id)
+vec3 get_vertex_pos(uint id)
 {
-	v_id *= 5; /* See vertex format for explanation. */
+	int v_id = int(id) * 5; /* See vertex format for explanation. */
 	vec3 pos;
 	pos.x = texelFetch(vertData, v_id).r;
 	pos.y = texelFetch(vertData, v_id + 1).r;
@@ -73,15 +80,22 @@ vec3 get_vertex_pos(int v_id)
 	return pos;
 }
 
+float get_edge_sharpness(vec3 fnor, vec3 vnor)
+{
+	float sharpness = abs(dot(fnor, vnor));
+	return smoothstep(wireStepParam.x, wireStepParam.y, sharpness);
+}
+
 #define NO_EDGE vec3(10000.0);
 
 void main()
 {
 #ifdef USE_GEOM_SHADER
-	int v_id = texelFetch(faceIds, gl_VertexID).r;
+	uint v_id = texelFetch(faceIds, gl_VertexID).r;
 
-	bool do_edge = v_id < 0;
-	v_id = abs(v_id) - 1;
+	bool do_edge = (v_id & (1u << 30u)) != 0u;
+	bool force_edge = (v_id & (1u << 31u)) != 0u;
+	v_id = (v_id << 2u) >> 2u;
 
 	vec3 pos = get_vertex_pos(v_id);
 	vec3 nor = get_vertex_nor(v_id);
@@ -91,18 +105,30 @@ void main()
 	gl_Position = ModelViewProjectionMatrix * vec4(pos, 1.0);
 	ssPos = proj(gl_Position);
 
-#else
+#  ifdef LIGHT_EDGES
+	obPos = pos;
+	vNor = nor;
+	forceEdge = float(force_edge); /* meh, could try to also encode it in facingOut */
+#  endif
 
+#else
 	int v_0 = (gl_VertexID / 3) * 3;
 	int v_n = gl_VertexID % 3;
+
 	/* Getting the same positions for each of the 3 verts. */
-	ivec3 v_id;
+	uvec3 v_id;
 	v_id.x = texelFetch(faceIds, v_0).r;
 	v_id.y = texelFetch(faceIds, v_0 + 1).r;
 	v_id.z = texelFetch(faceIds, v_0 + 2).r;
 
-	bvec3 do_edge = lessThan(v_id, ivec3(0));
-	v_id = abs(v_id) - 1;
+	bvec3 do_edge, force_edge;
+	do_edge.x = (v_id.x & (1u << 30u)) != 0u;
+	do_edge.y = (v_id.y & (1u << 30u)) != 0u;
+	do_edge.z = (v_id.z & (1u << 30u)) != 0u;
+	force_edge.x = (v_id.x & (1u << 31u)) != 0u;
+	force_edge.y = (v_id.y & (1u << 31u)) != 0u;
+	force_edge.z = (v_id.z & (1u << 31u)) != 0u;
+	v_id = (v_id << 2u) >> 2u;
 
 	vec3 pos[3];
 	pos[0] = get_vertex_pos(v_id.x);
@@ -128,5 +154,22 @@ void main()
 
 	vec3 nor = get_vertex_nor(v_id[v_n]);
 	facing = normalize(NormalMatrix * nor).z;
+
+#  ifdef LIGHT_EDGES
+	vec3 fnor = normalize(cross(pos[1] - pos[0], pos[2] - pos[0]));
+	edgeSharpness = get_edge_sharpness(fnor, nor);
+
+	/* Fix disapearing edges. */
+	if (v_n == 0) {
+		force_edge.xy = force_edge.xz;
+	}
+	else if (v_n == 2) {
+		force_edge.xy = force_edge.yz;
+	}
+	if (any(force_edge.xy)) {
+		edgeSharpness = 1.0;
+	}
+#  endif
+
 #endif
 }

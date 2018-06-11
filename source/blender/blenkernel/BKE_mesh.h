@@ -178,9 +178,9 @@ struct Mesh *BKE_mesh_create_derived_for_modifier(
         struct ModifierData *md, int build_shapekey_layers);
 
 /* Copies a nomain-Mesh into an existing Mesh. */
-void BKE_nomain_mesh_to_mesh(struct Mesh *mesh_src, struct Mesh *mesh_dst, struct Object *ob,
+void BKE_mesh_nomain_to_mesh(struct Mesh *mesh_src, struct Mesh *mesh_dst, struct Object *ob,
                              CustomDataMask mask, bool take_ownership);
-void BKE_nomain_mesh_to_meshkey(struct Mesh *mesh_src, struct Mesh *mesh_dst, struct KeyBlock *kb);
+void BKE_mesh_nomain_to_meshkey(struct Mesh *mesh_src, struct Mesh *mesh_dst, struct KeyBlock *kb);
 
 
 /* vertex level transformations & checks (no derived mesh) */
@@ -206,23 +206,10 @@ void BKE_mesh_mselect_active_set(struct Mesh *me, int index, int type);
 
 void BKE_mesh_apply_vert_coords(struct Mesh *mesh, float (*vertCoords)[3]);
 
-/* *** mesh_runtime.c *** */
-void                   BKE_mesh_runtime_reset(struct Mesh *mesh);
-int                    BKE_mesh_runtime_looptri_len(const struct Mesh *mesh);
-void                   BKE_mesh_runtime_looptri_recalc(struct Mesh *mesh);
-const struct MLoopTri *BKE_mesh_runtime_looptri_ensure(struct Mesh *mesh);
-bool                   BKE_mesh_runtime_ensure_edit_data(struct Mesh *mesh);
-bool                   BKE_mesh_runtime_clear_edit_data(struct Mesh *mesh);
-void                   BKE_mesh_runtime_clear_geometry(struct Mesh *mesh);
-void                   BKE_mesh_runtime_clear_cache(struct Mesh *mesh);
-
-void BKE_mesh_runtime_verttri_from_looptri(
-        struct MVertTri *r_verttri,
-        const struct MLoop *mloop, const struct MLoopTri *looptri, int looptri_num);
-
 
 /* *** mesh_evaluate.c *** */
 
+void BKE_mesh_calc_normals_mapping_simple(struct Mesh *me);
 void BKE_mesh_calc_normals_mapping(
         struct MVert *mverts, int numVerts,
         const struct MLoop *mloop, const struct MPoly *mpolys, int numLoops, int numPolys, float (*r_polyNors)[3],

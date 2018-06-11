@@ -310,7 +310,7 @@ static void namebutton_cb(bContext *C, void *tsep, char *oldname)
 				BKE_library_filepath_set(bmain, lib, lib->name);
 
 				BLI_strncpy(expanded, lib->name, sizeof(expanded));
-				BLI_path_abs(expanded, bmain->name);
+				BLI_path_abs(expanded, BKE_main_blendfile_path(bmain));
 				if (!BLI_exists(expanded)) {
 					BKE_reportf(CTX_wm_reports(C), RPT_ERROR,
 					            "Library path '%s' does not exist, correct this before saving", expanded);
@@ -340,7 +340,7 @@ static void namebutton_cb(bContext *C, void *tsep, char *oldname)
 						/* restore bone name */
 						BLI_strncpy(newname, ebone->name, sizeof(ebone->name));
 						BLI_strncpy(ebone->name, oldname, sizeof(ebone->name));
-						ED_armature_bone_rename(obedit->data, oldname, newname);
+						ED_armature_bone_rename(bmain, obedit->data, oldname, newname);
 						WM_event_add_notifier(C, NC_OBJECT | ND_POSE, NULL);
 					}
 					break;
@@ -360,7 +360,7 @@ static void namebutton_cb(bContext *C, void *tsep, char *oldname)
 					/* restore bone name */
 					BLI_strncpy(newname, bone->name, sizeof(bone->name));
 					BLI_strncpy(bone->name, oldname, sizeof(bone->name));
-					ED_armature_bone_rename(arm, oldname, newname);
+					ED_armature_bone_rename(bmain, arm, oldname, newname);
 					WM_event_add_notifier(C, NC_OBJECT | ND_POSE, NULL);
 					break;
 				}
@@ -380,7 +380,7 @@ static void namebutton_cb(bContext *C, void *tsep, char *oldname)
 					/* restore bone name */
 					BLI_strncpy(newname, pchan->name, sizeof(pchan->name));
 					BLI_strncpy(pchan->name, oldname, sizeof(pchan->name));
-					ED_armature_bone_rename(ob->data, oldname, newname);
+					ED_armature_bone_rename(bmain, ob->data, oldname, newname);
 					WM_event_add_notifier(C, NC_OBJECT | ND_POSE, NULL);
 					break;
 				}

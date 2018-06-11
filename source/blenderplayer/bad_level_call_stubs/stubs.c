@@ -634,6 +634,11 @@ void uiLayoutSetScaleX(struct uiLayout *layout, float scale) RET_NONE
 void uiLayoutSetScaleY(struct uiLayout *layout, float scale) RET_NONE
 void uiLayoutSetEmboss(uiLayout *layout, char emboss) RET_NONE
 int uiLayoutGetEmboss(uiLayout *layout) RET_ZERO
+
+struct uiLayout *uiLayoutGridFlow(struct uiLayout *layout, int row_major, int num_columns, int even_columns, int even_rows, int align) RET_NULL
+void uiItemSpacer(struct uiLayout *layout) RET_NONE
+
+
 void uiTemplateIconView(struct uiLayout *layout, struct PointerRNA *ptr, const char *propname, int show_labels, float icon_scale) RET_NONE
 void ED_object_base_free_and_unlink(struct Main *bmain, struct Scene *scene, struct Object *base) RET_NONE
 void ED_mesh_update(struct Mesh *mesh, struct bContext *C, int calc_edges, int calc_tessface) RET_NONE
@@ -840,6 +845,11 @@ void uiTemplateImageStereo3d(struct uiLayout *layout, struct PointerRNA *stereo3
 void uiTemplateCacheFile(uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, const char *propname) RET_NONE
 
 /* rna render */
+
+void *RE_gl_context_get(struct Render *re) RET_NULL
+void *RE_gwn_context_get(struct Render *re) RET_NULL
+
+
 struct RenderResult *RE_engine_begin_result(RenderEngine *engine, int x, int y, int w, int h, const char *layername, const char *viewname) RET_NULL
 RenderEngine *RE_engine_create_ex(RenderEngineType *type, bool use_for_viewport) RET_NULL
 struct RenderResult *RE_AcquireResultRead(struct Render *re) RET_NULL

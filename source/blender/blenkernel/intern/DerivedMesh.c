@@ -61,6 +61,7 @@
 #include "BKE_modifier.h"
 #include "BKE_mesh.h"
 #include "BKE_mesh_mapping.h"
+#include "BKE_mesh_runtime.h"
 #include "BKE_mesh_tangent.h"
 #include "BKE_object.h"
 #include "BKE_object_deform.h"
@@ -94,7 +95,6 @@
 static ThreadRWMutex loops_cache_lock = PTHREAD_RWLOCK_INITIALIZER;
 
 
-static void add_shapekey_layers(DerivedMesh *dm, Mesh *me, Object *ob);
 static void shapekey_layers_to_keyblocks(DerivedMesh *dm, Mesh *me, int actshape_uid);
 
 static void mesh_init_origspace(Mesh *mesh);
@@ -1157,6 +1157,8 @@ DerivedMesh *mesh_create_derived(Mesh *me, float (*vertCos)[3])
 	return dm;
 }
 
+/* XXX2.8(Sybren): can be removed once DerivedMesh port is done */
+#ifdef WITH_DERIVEDMESH_DEPRECATED_FUNCS
 DerivedMesh *mesh_create_derived_for_modifier(
         struct Depsgraph *depsgraph, Scene *scene, Object *ob,
         ModifierData *md, int build_shapekey_layers)
@@ -1207,6 +1209,7 @@ DerivedMesh *mesh_create_derived_for_modifier(
 
 	return dm;
 }
+#endif
 
 static float (*get_editbmesh_orco_verts(BMEditMesh *em))[3]
 {
@@ -1920,7 +1923,7 @@ static void shapekey_layers_to_keyblocks(DerivedMesh *dm, Mesh *me, int actshape
 	}
 }
 
-static void add_shapekey_layers(DerivedMesh *dm, Mesh *me, Object *UNUSED(ob))
+static void UNUSED_FUNCTION(add_shapekey_layers)(DerivedMesh *dm, Mesh *me, Object *UNUSED(ob))
 {
 	KeyBlock *kb;
 	Key *key = me->key;
@@ -3109,6 +3112,7 @@ void makeDerivedMesh(
 
 /***/
 
+#ifdef USE_DERIVEDMESH
 /* Deprecated DM, use: 'mesh_get_eval_final'. */
 DerivedMesh *mesh_get_derived_final(
         struct Depsgraph *depsgraph, Scene *scene, Object *ob, CustomDataMask dataMask)
@@ -3129,6 +3133,7 @@ DerivedMesh *mesh_get_derived_final(
 	if (ob->derivedFinal) { BLI_assert(!(ob->derivedFinal->dirty & DM_DIRTY_NORMALS)); }
 	return ob->derivedFinal;
 }
+#endif
 Mesh *mesh_get_eval_final(
         struct Depsgraph *depsgraph, Scene *scene, Object *ob, CustomDataMask dataMask)
 {
@@ -3138,7 +3143,7 @@ Mesh *mesh_get_eval_final(
 	bool need_mapping;
 	dataMask |= object_get_datamask(depsgraph, ob, &need_mapping);
 
-	if (!ob->derivedFinal ||
+	if (!ob->runtime.mesh_eval ||
 	    ((dataMask & ob->lastDataMask) != dataMask) ||
 	    (need_mapping != ob->lastNeedMapping))
 	{
@@ -3149,6 +3154,7 @@ Mesh *mesh_get_eval_final(
 	return ob->runtime.mesh_eval;
 }
 
+#ifdef USE_DERIVEDMESH
 /* Deprecated DM, use: 'mesh_get_eval_deform' instead. */
 DerivedMesh *mesh_get_derived_deform(struct Depsgraph *depsgraph, Scene *scene, Object *ob, CustomDataMask dataMask)
 {
@@ -3168,6 +3174,7 @@ DerivedMesh *mesh_get_derived_deform(struct Depsgraph *depsgraph, Scene *scene, 
 
 	return ob->derivedDeform;
 }
+#endif
 Mesh *mesh_get_eval_deform(struct Depsgraph *depsgraph, Scene *scene, Object *ob, CustomDataMask dataMask)
 {
 	/* if there's no derived mesh or the last data mask used doesn't include

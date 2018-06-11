@@ -1419,7 +1419,7 @@ void filelist_setdir(struct FileList *filelist, char *r_dir)
 {
 	BLI_assert(strlen(r_dir) < FILE_MAX_LIBEXTRA);
 
-	BLI_cleanup_dir(G.main->name, r_dir);
+	BLI_cleanup_dir(BKE_main_blendfile_path_from_global(), r_dir);
 	const bool is_valid_path = filelist->checkdirf(filelist, r_dir, true);
 	BLI_assert(is_valid_path);
 	UNUSED_VARS_NDEBUG(is_valid_path);
@@ -2313,7 +2313,7 @@ static int filelist_readjob_list_lib(const char *root, ListBase *entries, const 
 #if 0
 /* Kept for reference here, in case we want to add back that feature later. We do not need it currently. */
 /* Code ***NOT*** updated for job stuff! */
-static void filelist_readjob_main_rec(struct FileList *filelist)
+static void filelist_readjob_main_rec(Main *bmain, FileList *filelist)
 {
 	ID *id;
 	FileDirEntry *files, *firstlib = NULL;
@@ -2375,7 +2375,7 @@ static void filelist_readjob_main_rec(struct FileList *filelist)
 		/* make files */
 		idcode = groupname_to_code(filelist->filelist.root);
 
-		lb = which_libbase(G.main, idcode);
+		lb = which_libbase(bmain, idcode);
 		if (lb == NULL) return;
 
 		filelist->filelist.nbr_entries = 0;
@@ -2700,13 +2700,14 @@ static void filelist_readjob_free(void *flrjv)
 
 void filelist_readjob_start(FileList *filelist, const bContext *C)
 {
+	Main *bmain = CTX_data_main(C);
 	wmJob *wm_job;
 	FileListReadJob *flrj;
 
 	/* prepare job data */
 	flrj = MEM_callocN(sizeof(*flrj), __func__);
 	flrj->filelist = filelist;
-	BLI_strncpy(flrj->main_name, G.main->name, sizeof(flrj->main_name));
+	BLI_strncpy(flrj->main_name, BKE_main_blendfile_path(bmain), sizeof(flrj->main_name));
 
 	filelist->flags &= ~(FL_FORCE_RESET | FL_IS_READY);
 	filelist->flags |= FL_IS_PENDING;

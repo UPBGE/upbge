@@ -92,7 +92,7 @@ enum {
 	WM_IME_COMPOSITE_EVENT      = 0x0015,
 /* IME event, GHOST_kEventImeCompositionEnd in ghost */
 	WM_IME_COMPOSITE_END   = 0x0016,
-	
+
 	/* Tablet/Pen Specific Events */
 	TABLET_STYLUS       = 0x001a,
 	TABLET_ERASER       = 0x001b,
@@ -367,6 +367,13 @@ enum {
 
 /* test whether the event is a mouse button */
 #define ISMOUSE(event_type)  ((event_type) >= LEFTMOUSE && (event_type) <= BUTTON7MOUSE)
+
+#define ISMOUSE_WHEEL(event_type)  ((event_type) >= WHEELUPMOUSE && (event_type) <= WHEELOUTMOUSE)
+#define ISMOUSE_GESTURE(event_type)  ((event_type) >= MOUSEPAN && (event_type) <= MOUSEROTATE)
+#define ISMOUSE_BUTTON(event_type) \
+	(ELEM(event_type, \
+	      LEFTMOUSE, MIDDLEMOUSE, RIGHTMOUSE, ACTIONMOUSE, SELECTMOUSE, \
+	      BUTTON4MOUSE, BUTTON5MOUSE, BUTTON6MOUSE, BUTTON7MOUSE))
 
 /* test whether the event is tweak event */
 #define ISTWEAK(event_type)  ((event_type) >= EVT_TWEAK_L && (event_type) <= EVT_GESTURE)

@@ -827,6 +827,7 @@ class CYCLES_CAMERA_PT_dof(CyclesButtonsPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
+        layout.use_property_split = True
 
         cam = context.camera
         ccam = cam.cycles
@@ -835,37 +836,68 @@ class CYCLES_CAMERA_PT_dof(CyclesButtonsPanel, Panel):
         split = layout.split()
 
         col = split.column()
-        col.label("Focus:")
-        col.prop(cam, "dof_object", text="")
+        col.prop(cam, "dof_object", text="Focus Object")
 
         sub = col.row()
         sub.active = cam.dof_object is None
         sub.prop(cam, "dof_distance", text="Distance")
 
+
+class CYCLES_CAMERA_PT_dof_aperture(CyclesButtonsPanel, Panel):
+    bl_label = "Aperture"
+    bl_parent_id = "CYCLES_CAMERA_PT_dof"
+
+    @classmethod
+    def poll(cls, context):
+        return context.camera and CyclesButtonsPanel.poll(context)
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        flow = layout.grid_flow(row_major=True, num_columns=0, even_columns=True, even_rows=False, align=False)
+
+        cam = context.camera
+        ccam = cam.cycles
+        dof_options = cam.gpu_dof
+
+        col = flow.column()
+        col.prop(ccam, "aperture_type")
+        if ccam.aperture_type == 'RADIUS':
+            col.prop(ccam, "aperture_size", text="Size")
+        elif ccam.aperture_type == 'FSTOP':
+            col.prop(ccam, "aperture_fstop", text="Number")
+        col.separator()
+
+        col = flow.column()
+        col.prop(ccam, "aperture_blades", text="Blades")
+        col.prop(ccam, "aperture_rotation", text="Rotation")
+        col.prop(ccam, "aperture_ratio", text="Ratio")
+
+
+class CYCLES_CAMERA_PT_dof_viewport(CyclesButtonsPanel, Panel):
+    bl_label = "Viewport"
+    bl_parent_id = "CYCLES_CAMERA_PT_dof"
+
+    @classmethod
+    def poll(cls, context):
+        return context.camera and CyclesButtonsPanel.poll(context)
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        flow = layout.grid_flow(row_major=True, num_columns=0, even_columns=True, even_rows=False, align=False)
+
+        cam = context.camera
+        dof_options = cam.gpu_dof
+
         hq_support = dof_options.is_hq_supported
-        sub = col.column(align=True)
-        sub.label("Viewport:")
+        sub = flow.column(align=True)
         subhq = sub.column()
         subhq.active = hq_support
         subhq.prop(dof_options, "use_high_quality")
         sub.prop(dof_options, "fstop")
         if dof_options.use_high_quality and hq_support:
             sub.prop(dof_options, "blades")
-
-        col = split.column()
-
-        col.label("Aperture:")
-        sub = col.column(align=True)
-        sub.prop(ccam, "aperture_type", text="")
-        if ccam.aperture_type == 'RADIUS':
-            sub.prop(ccam, "aperture_size", text="Size")
-        elif ccam.aperture_type == 'FSTOP':
-            sub.prop(ccam, "aperture_fstop", text="Number")
-
-        sub = col.column(align=True)
-        sub.prop(ccam, "aperture_blades", text="Blades")
-        sub.prop(ccam, "aperture_rotation", text="Rotation")
-        sub.prop(ccam, "aperture_ratio", text="Ratio")
 
 
 class CYCLES_PT_context_material(CyclesButtonsPanel, Panel):
@@ -1480,26 +1512,6 @@ class CYCLES_MATERIAL_PT_settings_surface(CyclesButtonsPanel, Panel):
         col = layout.column()
         col.prop(cmat, "sample_as_light", text="Multiple Importance")
         col.prop(cmat, "use_transparent_shadow")
-
-
-class CYCLES_MATERIAL_PT_settings_geometry(CyclesButtonsPanel, Panel):
-    bl_label = "Geometry"
-    bl_parent_id = "CYCLES_MATERIAL_PT_settings"
-    bl_context = "material"
-
-    @classmethod
-    def poll(cls, context):
-        return context.material and CyclesButtonsPanel.poll(context)
-
-    def draw(self, context):
-        layout = self.layout
-        layout.use_property_split = True
-
-        mat = context.material
-        cmat = mat.cycles
-
-        col = layout.column()
-
         col.prop(cmat, "displacement_method", text="Displacement Method")
 
 
@@ -1674,29 +1686,7 @@ class CYCLES_SCENE_PT_simplify(CyclesButtonsPanel, Panel):
         self.layout.prop(rd, "use_simplify", text="")
 
     def draw(self, context):
-        layout = self.layout
-        layout.use_property_split = True
-
-        scene = context.scene
-        rd = scene.render
-        cscene = scene.cycles
-
-        layout.active = rd.use_simplify
-
-        col = layout.column()
-        col.prop(cscene, "use_camera_cull")
-        sub = col.column()
-        sub.active = cscene.use_camera_cull
-        sub.prop(cscene, "camera_cull_margin")
-
-        layout.separator()
-
-        col = layout.column()
-
-        col.prop(cscene, "use_distance_cull")
-        sub = col.column()
-        sub.active = cscene.use_distance_cull
-        sub.prop(cscene, "distance_cull_margin", text="Distance")
+        pass
 
 
 class CYCLES_SCENE_PT_simplify_viewport(CyclesButtonsPanel, Panel):
@@ -1744,6 +1734,36 @@ class CYCLES_SCENE_PT_simplify_render(CyclesButtonsPanel, Panel):
         col.prop(rd, "simplify_child_particles_render", text="Child Particles")
         col.prop(cscene, "texture_limit_render", text="Texture Limit")
         col.prop(cscene, "ao_bounces_render", text="AO Bounces")
+
+
+class CYCLES_SCENE_PT_simplify_culling(CyclesButtonsPanel, Panel):
+    bl_label = "Culling"
+    bl_context = "scene"
+    bl_parent_id = "CYCLES_SCENE_PT_simplify"
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = {'CYCLES'}
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+
+        scene = context.scene
+        rd = scene.render
+        cscene = scene.cycles
+
+        layout.active = rd.use_simplify
+
+        col = layout.column()
+        col.prop(cscene, "use_camera_cull")
+        sub = col.column()
+        sub.active = cscene.use_camera_cull
+        sub.prop(cscene, "camera_cull_margin")
+
+        col = layout.column()
+        col.prop(cscene, "use_distance_cull")
+        sub = col.column()
+        sub.active = cscene.use_distance_cull
+        sub.prop(cscene, "distance_cull_margin", text="Distance")
 
 
 def draw_device(self, context):
@@ -1824,6 +1844,8 @@ classes = (
     CYCLES_RENDER_PT_denoising,
     CYCLES_PT_post_processing,
     CYCLES_CAMERA_PT_dof,
+    CYCLES_CAMERA_PT_dof_aperture,
+    CYCLES_CAMERA_PT_dof_viewport,
     CYCLES_PT_context_material,
     CYCLES_OBJECT_PT_motion_blur,
     CYCLES_OBJECT_PT_cycles_settings,
@@ -1847,13 +1869,13 @@ classes = (
     CYCLES_MATERIAL_PT_displacement,
     CYCLES_MATERIAL_PT_settings,
     CYCLES_MATERIAL_PT_settings_surface,
-    CYCLES_MATERIAL_PT_settings_geometry,
     CYCLES_MATERIAL_PT_settings_volume,
     CYCLES_RENDER_PT_bake,
     CYCLES_RENDER_PT_debug,
     CYCLES_SCENE_PT_simplify,
     CYCLES_SCENE_PT_simplify_viewport,
     CYCLES_SCENE_PT_simplify_render,
+    CYCLES_SCENE_PT_simplify_culling,
 )
 
 

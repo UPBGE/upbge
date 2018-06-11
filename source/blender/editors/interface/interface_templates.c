@@ -4042,7 +4042,9 @@ eAutoPropButsReturn uiTemplateOperatorPropertyButs(
 #endif
 
 	/* set various special settings for buttons */
-	{
+
+	/* Only do this if we're not refreshing an existing UI. */
+	if (block->oldblock == NULL) {
 		const bool is_popup = (block->flag & UI_BLOCK_KEEP_OPEN) != 0;
 		uiBut *but;
 

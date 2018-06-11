@@ -152,7 +152,7 @@ bConstraint *get_active_constraint(Object *ob)
 /* ------------- PyConstraints ------------------ */
 
 /* this callback sets the text-file to be used for selected menu item */
-static void validate_pyconstraint_cb(void *arg1, void *arg2)
+static void validate_pyconstraint_cb(Main *bmain, void *arg1, void *arg2)
 {
 	bPythonConstraint *data = arg1;
 	Text *text = NULL;
@@ -162,13 +162,13 @@ static void validate_pyconstraint_cb(void *arg1, void *arg2)
 	/* exception for no script */
 	if (index) {
 		/* innovative use of a for...loop to search */
-		for (text = G.main->text.first, i = 1; text && index != i; i++, text = text->id.next) ;
+		for (text = bmain->text.first, i = 1; text && index != i; i++, text = text->id.next) ;
 	}
 	data->text = text;
 }
 
 /* this returns a string for the list of usable pyconstraint script names */
-static char *buildmenu_pyconstraints(Text *con_text, int *pyconindex)
+static char *buildmenu_pyconstraints(Main *bmain, Text *con_text, int *pyconindex)
 {
 	DynStr *pupds = BLI_dynstr_new();
 	Text *text;
@@ -185,7 +185,7 @@ static char *buildmenu_pyconstraints(Text *con_text, int *pyconindex)
 		*pyconindex = 0;
 
 	/* loop through markers, adding them */
-	for (text = G.main->text.first, i = 1; text; i++, text = text->id.next) {
+	for (text = bmain->text.first, i = 1; text; i++, text = text->id.next) {
 		/* this is important to ensure that right script is shown as active */
 		if (text == con_text) *pyconindex = i;
 
@@ -969,6 +969,7 @@ void CONSTRAINT_OT_childof_clear_inverse(wmOperatorType *ot)
 
 static int followpath_path_animate_exec(bContext *C, wmOperator *op)
 {
+	Main *bmain = CTX_data_main(C);
 	Object *ob = ED_object_active_context(C);
 	bConstraint *con = edit_constraint_property_get(op, ob, CONSTRAINT_TYPE_FOLLOWPATH);
 	bFollowPathConstraint *data = (con) ? (bFollowPathConstraint *)con->data : NULL;
@@ -993,7 +994,7 @@ static int followpath_path_animate_exec(bContext *C, wmOperator *op)
 		    (list_find_fcurve(&cu->adt->action->curves, "eval_time", 0) == NULL))
 		{
 			/* create F-Curve for path animation */
-			act = verify_adt_action(&cu->id, 1);
+			act = verify_adt_action(bmain, &cu->id, 1);
 			fcu = verify_fcurve(act, NULL, NULL, "eval_time", 0, 1);
 
 			/* standard vertical range - 1:1 = 100 frames */
@@ -1018,7 +1019,7 @@ static int followpath_path_animate_exec(bContext *C, wmOperator *op)
 		path = RNA_path_from_ID_to_property(&ptr, prop);
 
 		/* create F-Curve for constraint */
-		act = verify_adt_action(&ob->id, 1);
+		act = verify_adt_action(bmain, &ob->id, 1);
 		fcu = verify_fcurve(act, NULL, NULL, path, 0, 1);
 
 		/* standard vertical range - 0.0 to 1.0 */
@@ -1807,14 +1808,14 @@ static int constraint_add_exec(bContext *C, wmOperator *op, Object *ob, ListBase
 			char *menustr;
 			int scriptint = 0;
 			/* popup a list of usable scripts */
-			menustr = buildmenu_pyconstraints(NULL, &scriptint);
+			menustr = buildmenu_pyconstraints(bmain, NULL, &scriptint);
 			/* XXX scriptint = pupmenu(menustr); */
 			MEM_freeN(menustr);
 
 			/* only add constraint if a script was chosen */
 			if (scriptint) {
 				/* add constraint */
-				validate_pyconstraint_cb(con->data, &scriptint);
+				validate_pyconstraint_cb(bmain, con->data, &scriptint);
 
 				/* make sure target allowance is set correctly */
 				BPY_pyconstraint_update(ob, con);

@@ -307,7 +307,8 @@ typedef enum {
 	UI_BTYPE_NODE_SOCKET            = (53 << 9),
 	UI_BTYPE_SEPR                   = (54 << 9),
 	UI_BTYPE_SEPR_LINE              = (55 << 9),
-	UI_BTYPE_GRIP                   = (56 << 9),  /* resize handle (resize uilist) */
+	UI_BTYPE_SEPR_SPACER            = (56 << 9),  /* Dynamically fill available space. */
+	UI_BTYPE_GRIP                   = (57 << 9),  /* resize handle (resize uilist) */
 } eButType;
 
 #define BUTTYPE     (63 << 9)
@@ -840,6 +841,7 @@ struct Panel *UI_panel_begin(struct ScrArea *sa, struct ARegion *ar, struct List
                              bool *r_open);
 void UI_panel_end(uiBlock *block, int width, int height);
 void UI_panels_scale(struct ARegion *ar, float new_width);
+void UI_panel_label_offset(struct uiBlock *block, int *x, int *y);
 
 bool                       UI_panel_category_is_visible(struct ARegion *ar);
 void                       UI_panel_category_add(struct ARegion *ar, const char *name);
@@ -871,7 +873,7 @@ void UI_popup_handlers_remove_all(struct bContext *C, struct ListBase *handlers)
  * be used to reinitialize some internal state if user preferences change. */
 
 void UI_init(void);
-void UI_init_userdef(void);
+void UI_init_userdef(struct Main *bmain);
 void UI_reinit_font(void);
 void UI_exit(void);
 
@@ -915,6 +917,7 @@ void UI_exit(void);
 #define UI_ITEM_O_DEPRESS       (1 << 9)
 #define UI_ITEM_R_COMPACT       (1 << 10)
 
+#define UI_HEADER_OFFSET_START ((void)0, 0.4f * UI_UNIT_X)
 
 /* uiLayoutOperatorButs flags */
 enum {
@@ -954,7 +957,6 @@ uiBlock *uiLayoutGetBlock(uiLayout *layout);
 void uiLayoutSetFunc(uiLayout *layout, uiMenuHandleFunc handlefunc, void *argv);
 void uiLayoutSetContextPointer(uiLayout *layout, const char *name, struct PointerRNA *ptr);
 void uiLayoutContextCopy(uiLayout *layout, struct bContextStore *context);
-const char *uiLayoutIntrospect(uiLayout *layout); // XXX - testing
 struct MenuType *UI_but_menutype_get(uiBut *but);
 struct PanelType *UI_but_paneltype_get(uiBut *but);
 void UI_menutype_draw(struct bContext *C, struct MenuType *mt, struct uiLayout *layout);
@@ -990,6 +992,8 @@ bool uiLayoutGetPropSep(uiLayout *layout);
 uiLayout *uiLayoutRow(uiLayout *layout, int align);
 uiLayout *uiLayoutColumn(uiLayout *layout, int align);
 uiLayout *uiLayoutColumnFlow(uiLayout *layout, int number, int align);
+uiLayout *uiLayoutGridFlow(
+        uiLayout *layout, int row_major, int num_columns, int even_columns, int even_rows, int align);
 uiLayout *uiLayoutBox(uiLayout *layout);
 uiLayout *uiLayoutListBox(uiLayout *layout, struct uiList *ui_list, struct PointerRNA *ptr, struct PropertyRNA *prop,
                           struct PointerRNA *actptr, struct PropertyRNA *actprop);
@@ -1138,6 +1142,7 @@ void uiItemLDrag(uiLayout *layout, struct PointerRNA *ptr, const char *name, int
 void uiItemM(uiLayout *layout, struct bContext *C, const char *menuname, const char *name, int icon); /* menu */
 void uiItemV(uiLayout *layout, const char *name, int icon, int argval); /* value */
 void uiItemS(uiLayout *layout); /* separator */
+void uiItemSpacer(uiLayout *layout); /* Special separator. */
 
 void uiItemPopoverPanel_ptr(
         uiLayout *layout, struct bContext *C,
@@ -1258,10 +1263,10 @@ void UI_widgetbase_draw_cache_flush(void);
 void UI_widgetbase_draw_cache_end(void);
 
 /* Special drawing for toolbar, mainly workarounds for inflexible icon sizing. */
-#define USE_TOOLBAR_HACK
+#define USE_UI_TOOLBAR_HACK
 
 /* Support click-drag motion which presses the button and closes a popover (like a menu). */
-#define USE_POPOVER_ONCE
+#define USE_UI_POPOVER_ONCE
 
 bool UI_but_is_tool(const uiBut *but);
 

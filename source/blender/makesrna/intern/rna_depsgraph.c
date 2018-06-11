@@ -44,6 +44,8 @@
 
 #include "BLI_iterator.h"
 
+#include "BKE_anim.h"
+
 #include "DEG_depsgraph_build.h"
 #include "DEG_depsgraph_debug.h"
 #include "DEG_depsgraph_query.h"
@@ -126,6 +128,14 @@ static int rna_DepsgraphObjectInstance_is_instance_get(PointerRNA *ptr)
 	return (deg_iter->dupli_object_current != NULL);
 }
 
+/* ******************** Sorted  ***************** */
+
+static int rna_Depsgraph_mode_get(PointerRNA *ptr)
+{
+	Depsgraph *depsgraph = ptr->data;
+	return DEG_get_mode(depsgraph);
+}
+
 /* ******************** Updates ***************** */
 
 static PointerRNA rna_DepsgraphUpdate_id_get(PointerRNA *ptr)
@@ -206,7 +216,6 @@ static void rna_Depsgraph_objects_begin(CollectionPropertyIterator *iter, Pointe
 	data->flag = DEG_ITER_OBJECT_FLAG_LINKED_DIRECTLY |
 	             DEG_ITER_OBJECT_FLAG_VISIBLE |
 	             DEG_ITER_OBJECT_FLAG_LINKED_VIA_SET;
-	data->mode = DEG_ITER_OBJECT_MODE_RENDER;
 
 	((BLI_Iterator *)iter->internal.custom)->valid = true;
 	DEG_iterator_objects_begin(iter->internal.custom, data);
@@ -247,7 +256,6 @@ static void rna_Depsgraph_object_instances_begin(CollectionPropertyIterator *ite
 	             DEG_ITER_OBJECT_FLAG_LINKED_VIA_SET |
 	             DEG_ITER_OBJECT_FLAG_VISIBLE |
 	             DEG_ITER_OBJECT_FLAG_DUPLI;
-	data->mode = DEG_ITER_OBJECT_MODE_RENDER;
 
 	((BLI_Iterator *)iter->internal.custom)->valid = true;
 	DEG_iterator_objects_begin(iter->internal.custom, data);
@@ -464,8 +472,19 @@ static void rna_def_depsgraph(BlenderRNA *brna)
 	PropertyRNA *parm;
 	PropertyRNA *prop;
 
+	static EnumPropertyItem enum_depsgraph_mode_items[] = {
+		{DAG_EVAL_VIEWPORT, "VIEWPORT", 0, "Viewport", "Viewport non-rendered mode"},
+		{DAG_EVAL_PREVIEW, "PREVIEW", 0, "Preview", "Viewport rendered draw mode"},
+		{DAG_EVAL_RENDER, "RENDER", 0, "Render", "Render"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	srna = RNA_def_struct(brna, "Depsgraph", NULL);
 	RNA_def_struct_ui_text(srna, "Dependency Graph", "");
+
+	prop = RNA_def_enum(srna, "mode", enum_depsgraph_mode_items, 0, "Mode", "Evaluation mode");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_enum_funcs(prop, "rna_Depsgraph_mode_get", NULL, NULL);
 
 	/* Debug helpers. */
 

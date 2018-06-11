@@ -82,11 +82,11 @@ static bool node_link_item_compare(bNode *node, NodeLinkItem *item)
 		return true;
 }
 
-static void node_link_item_apply(bNode *node, NodeLinkItem *item)
+static void node_link_item_apply(Main *bmain, bNode *node, NodeLinkItem *item)
 {
 	if (node->type == NODE_GROUP) {
 		node->id = (ID *)item->ngroup;
-		ntreeUpdateTree(G.main, item->ngroup);
+		ntreeUpdateTree(bmain, item->ngroup);
 	}
 	else {
 		/* nothing to do for now */
@@ -191,6 +191,7 @@ static void node_socket_remove(Main *bmain, bNodeTree *ntree, bNode *node_to, bN
 static void node_socket_add_replace(const bContext *C, bNodeTree *ntree, bNode *node_to, bNodeSocket *sock_to,
                                     int type, NodeLinkItem *item)
 {
+	Main *bmain = CTX_data_main(C);
 	bNode *node_from;
 	bNodeSocket *sock_from_tmp;
 	bNode *node_prev = NULL;
@@ -233,7 +234,7 @@ static void node_socket_add_replace(const bContext *C, bNodeTree *ntree, bNode *
 			node_from->locy = node_to->locy - (node_from->typeinfo->height * index);
 		}
 
-		node_link_item_apply(node_from, item);
+		node_link_item_apply(bmain, node_from, item);
 	}
 
 	nodeSetActive(ntree, node_from);
@@ -634,7 +635,7 @@ static void ui_node_draw_node(uiLayout *layout, bContext *C, bNodeTree *ntree, b
 
 	if (node->typeinfo->draw_buttons) {
 		if (node->type != NODE_GROUP) {
-			split = uiLayoutSplit(layout, 0.35f, false);
+			split = uiLayoutSplit(layout, 0.5f, false);
 			col = uiLayoutColumn(split, false);
 			col = uiLayoutColumn(split, false);
 
@@ -677,10 +678,10 @@ static void ui_node_draw_input(uiLayout *layout, bContext *C, bNodeTree *ntree, 
 		label[i] = ' ';
 	}
 	label[indent] = '\0';
-	BLI_snprintf(label + indent, UI_MAX_NAME_STR - indent, "%s:", IFACE_(input->name));
+	BLI_snprintf(label + indent, UI_MAX_NAME_STR - indent, "%s", IFACE_(input->name));
 
 	/* split in label and value */
-	split = uiLayoutSplit(layout, 0.35f, false);
+	split = uiLayoutSplit(layout, 0.5f, false);
 
 	row = uiLayoutRow(split, true);
 
@@ -702,7 +703,7 @@ static void ui_node_draw_input(uiLayout *layout, bContext *C, bNodeTree *ntree, 
 
 	uiItemL(row, label, ICON_NONE);
 	bt = block->buttons.last;
-	bt->drawflag = UI_BUT_TEXT_LEFT;
+	bt->drawflag = UI_BUT_TEXT_RIGHT;
 
 	if (dependency_loop) {
 		row = uiLayoutRow(split, false);

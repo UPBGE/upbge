@@ -46,14 +46,15 @@
 
 #include "PIL_time.h"
 
-#include "BKE_paint.h"
-#include "BKE_gpencil.h"
+#include "BKE_colortools.h"
 #include "BKE_context.h"
 #include "BKE_global.h"
+#include "BKE_gpencil.h"
+#include "BKE_main.h"
+#include "BKE_paint.h"
 #include "BKE_report.h"
 #include "BKE_screen.h"
 #include "BKE_tracking.h"
-#include "BKE_colortools.h"
 
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
@@ -115,6 +116,7 @@ typedef enum eGPencil_PaintFlags {
  *   "p" = op->customdata
  */
 typedef struct tGPsdata {
+	Main *bmain;
 	Scene *scene;       /* current scene from context */
 	struct Depsgraph *depsgraph;
 
@@ -1399,6 +1401,7 @@ static bool gp_session_initdata(bContext *C, tGPsdata *p)
 	}
 
 	/* pass on current scene and window */
+	p->bmain = CTX_data_main(C);
 	p->scene = CTX_data_scene(C);
 	p->depsgraph = CTX_data_depsgraph(C);
 	p->win = CTX_wm_window(C);
@@ -2511,7 +2514,7 @@ static int gpencil_draw_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	 *    (Disabling RIGHTMOUSE case here results in bugs like [#32647])
 	 * also making sure we have a valid event value, to not exit too early
 	 */
-	if (ELEM(event->type, LEFTMOUSE, RIGHTMOUSE) && (event->val != KM_NOTHING)) {
+	if (ELEM(event->type, LEFTMOUSE, RIGHTMOUSE) && (ELEM(event->val, KM_PRESS, KM_RELEASE))) {
 		/* if painting, end stroke */
 		if (p->status == GP_STATUS_PAINTING) {
 			int sketch = 0;
@@ -2657,7 +2660,7 @@ static int gpencil_draw_modal(bContext *C, wmOperator *op, const wmEvent *event)
 				estate = OPERATOR_FINISHED;
 			}
 		}
-		else {
+		else if (event->val == KM_RELEASE) {
 			p->status = GP_STATUS_IDLING;
 			op->flag |= OP_IS_MODAL_CURSOR_REGION;
 		}

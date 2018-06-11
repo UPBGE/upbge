@@ -181,7 +181,7 @@ static void particle_batch_cache_clear_hair(ParticleHairCache *hair_cache)
 	for (int i = 0; i < MAX_HAIR_SUBDIV; ++i) {
 		GWN_VERTBUF_DISCARD_SAFE(hair_cache->final[i].proc_buf);
 		DRW_TEXTURE_FREE_SAFE(hair_cache->final[i].proc_tex);
-		for (int j = 0; j < MAX_THICKRES - 1; ++j) {
+		for (int j = 0; j < MAX_THICKRES; ++j) {
 			GWN_BATCH_DISCARD_SAFE(hair_cache->final[i].proc_hairs[j]);
 		}
 	}
@@ -779,7 +779,7 @@ static void particle_batch_cache_ensure_procedural_strand_data(
 
 	ParticleSystemModifierData *psmd = (ParticleSystemModifierData *)md;
 
-	if (psmd != NULL) {
+	if (psmd != NULL && psmd->mesh_final != NULL) {
 		if (CustomData_has_layer(&psmd->mesh_final->ldata, CD_MLOOPUV)) {
 			cache->num_uv_layers = CustomData_number_of_layers(&psmd->mesh_final->ldata, CD_MLOOPUV);
 			active_uv = CustomData_get_active_layer(&psmd->mesh_final->ldata, CD_MLOOPUV);

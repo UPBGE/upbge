@@ -5210,14 +5210,12 @@ static void sculpt_dynamic_topology_triangulate(BMesh *bm)
 void sculpt_pbvh_clear(Object *ob)
 {
 	SculptSession *ss = ob->sculpt;
-	DerivedMesh *dm = ob->derivedFinal;
 
 	/* Clear out any existing DM and PBVH */
-	if (ss->pbvh)
+	if (ss->pbvh) {
 		BKE_pbvh_free(ss->pbvh);
+	}
 	ss->pbvh = NULL;
-	if (dm)
-		dm->getPBVH(NULL, dm);
 	BKE_object_free_derived_caches(ob);
 }
 
@@ -5629,7 +5627,7 @@ static void sculpt_init_session(Depsgraph *depsgraph, Scene *scene, Object *ob)
 
 	ob->sculpt = MEM_callocN(sizeof(SculptSession), "sculpt session");
 	ob->sculpt->mode_type = OB_MODE_SCULPT;
-	BKE_sculpt_update_mesh_elements(depsgraph, scene, scene->toolsettings->sculpt, ob, 0, false);
+	BKE_sculpt_update_mesh_elements(depsgraph, scene, scene->toolsettings->sculpt, ob, false, false);
 }
 
 static int ed_object_sculptmode_flush_recalc_flag(Scene *scene, Object *ob, MultiresModifierData *mmd)
@@ -5643,7 +5641,7 @@ static int ed_object_sculptmode_flush_recalc_flag(Scene *scene, Object *ob, Mult
 }
 
 void ED_object_sculptmode_enter_ex(
-        Depsgraph *depsgraph,
+        Main *bmain, Depsgraph *depsgraph,
         Scene *scene, Object *ob,
         ReportList *reports)
 {
@@ -5665,6 +5663,11 @@ void ED_object_sculptmode_enter_ex(
 		BKE_sculptsession_free(ob);
 	}
 
+	/* Make sure derived final from original object does not reference possibly
+	 * freed memory.
+	 */
+	BKE_object_free_derived_mesh_caches(ob);
+
 	sculpt_init_session(depsgraph, scene, ob);
 
 	/* Mask layer is required */
@@ -5684,9 +5687,9 @@ void ED_object_sculptmode_enter_ex(
 	}
 
 	Paint *paint = BKE_paint_get_active_from_paintmode(scene, ePaintSculpt);
-	BKE_paint_init(scene, ePaintSculpt, PAINT_CURSOR_SCULPT);
+	BKE_paint_init(bmain, scene, ePaintSculpt, PAINT_CURSOR_SCULPT);
 
-	paint_cursor_start_explicit(paint, G.main->wm.first, sculpt_poll_view3d);
+	paint_cursor_start_explicit(paint, bmain->wm.first, sculpt_poll_view3d);
 
 	/* Check dynamic-topology flag; re-enter dynamic-topology mode when changing modes,
 	 * As long as no data was added that is not supported. */
@@ -5735,14 +5738,18 @@ void ED_object_sculptmode_enter_ex(
 	}
 
 	// ED_workspace_object_mode_sync_from_object(G.main->wm.first, workspace, ob);
+
+	/* Flush object mode. */
+	DEG_id_tag_update(&ob->id, DEG_TAG_COPY_ON_WRITE);
 }
 
 void ED_object_sculptmode_enter(struct bContext *C, ReportList *reports)
 {
+	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
 	Object *ob = CTX_data_active_object(C);
 	Depsgraph *depsgraph = CTX_data_depsgraph(C);
-	ED_object_sculptmode_enter_ex(depsgraph, scene, ob, reports);
+	ED_object_sculptmode_enter_ex(bmain, depsgraph, scene, ob, reports);
 }
 
 void ED_object_sculptmode_exit_ex(
@@ -5788,6 +5795,10 @@ void ED_object_sculptmode_exit_ex(
 
 	paint_cursor_delete_textures();
 
+	/* Never leave derived meshes behind. */
+	BKE_object_free_derived_mesh_caches(ob);
+
+	/* Flush object mode. */
 	DEG_id_tag_update(&ob->id, DEG_TAG_COPY_ON_WRITE);
 }
 
@@ -5802,6 +5813,7 @@ void ED_object_sculptmode_exit(bContext *C)
 static int sculpt_mode_toggle_exec(bContext *C, wmOperator *op)
 {
 	struct wmMsgBus *mbus = CTX_wm_message_bus(C);
+	Main *bmain = CTX_data_main(C);
 	Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
 	Scene *scene = CTX_data_scene(C);
 	Object *ob = CTX_data_active_object(C);
@@ -5818,7 +5830,7 @@ static int sculpt_mode_toggle_exec(bContext *C, wmOperator *op)
 		ED_object_sculptmode_exit_ex(depsgraph, scene, ob);
 	}
 	else {
-		ED_object_sculptmode_enter_ex(depsgraph, scene, ob, op->reports);
+		ED_object_sculptmode_enter_ex(bmain, depsgraph, scene, ob, op->reports);
 	}
 
 	WM_event_add_notifier(C, NC_SCENE | ND_MODE, scene);

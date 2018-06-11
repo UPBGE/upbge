@@ -120,7 +120,7 @@ static bool deg_objects_dupli_iterator_next(BLI_Iterator *iter)
 		/* Duplicated elements shouldn't care whether their original collection is visible or not. */
 		temp_dupli_object->base_flag |= BASE_VISIBLED;
 
-		if (BKE_object_is_visible(temp_dupli_object, (eObjectVisibilityCheck)data->visibility_check) == false) {
+		if (BKE_object_is_visible(temp_dupli_object, OB_VISIBILITY_CHECK_UNKNOWN_RENDER_MODE) == false) {
 			continue;
 		}
 
@@ -211,7 +211,9 @@ void DEG_iterator_objects_begin(BLI_Iterator *iter, DEGObjectIterData *data)
 	data->scene = DEG_get_evaluated_scene(depsgraph);
 	data->id_node_index = 0;
 	data->num_id_nodes = num_id_nodes;
-	data->visibility_check = (data->mode == DEG_ITER_OBJECT_MODE_RENDER)
+	eEvaluationMode eval_mode = DEG_get_mode(depsgraph);
+	/* Viewport rendered mode is DAG_EVAL_PREVIEW but still treated as viewport. */
+	data->visibility_check = (eval_mode == DAG_EVAL_RENDER)
 	                         ? OB_VISIBILITY_CHECK_FOR_RENDER
 	                         : OB_VISIBILITY_CHECK_FOR_VIEWPORT;
 

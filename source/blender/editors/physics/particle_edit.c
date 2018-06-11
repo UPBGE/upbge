@@ -57,9 +57,11 @@
 #include "BKE_object.h"
 #include "BKE_library.h"
 #include "BKE_mesh.h"
+#include "BKE_mesh_runtime.h"
 #include "BKE_modifier.h"
 #include "BKE_particle.h"
 #include "BKE_report.h"
+#include "BKE_scene.h"
 #include "BKE_bvhutils.h"
 #include "BKE_pointcache.h"
 
@@ -260,8 +262,7 @@ static PTCacheEdit *pe_get_current(
 					}
 					else {
 						if (create && !psys->edit) {
-							ParticleSystem *psys_eval = psys_eval_get(depsgraph, ob, psys);
-							if (psys_eval->flag & PSYS_HAIR_DONE) {
+							if (psys->flag & PSYS_HAIR_DONE) {
 								PE_create_particle_edit(depsgraph, scene, ob, NULL, psys);
 							}
 						}
@@ -643,11 +644,9 @@ static void foreach_mouse_hit_point(PEData *data, ForPointFunc func, int selecte
 
 static void foreach_mouse_hit_key(PEData *data, ForKeyMatFunc func, int selected)
 {
-	Object *ob_eval = DEG_get_evaluated_object(data->depsgraph, data->ob);
 	PTCacheEdit *edit = data->edit;
 	ParticleSystem *psys = edit->psys;
 	ParticleSystemModifierData *psmd = NULL;
-	ParticleSystemModifierData *psmd_eval = NULL;
 	ParticleEditSettings *pset= PE_settings(data->scene);
 	POINT_P; KEY_K;
 	float mat[4][4], imat[4][4];
@@ -657,10 +656,6 @@ static void foreach_mouse_hit_key(PEData *data, ForKeyMatFunc func, int selected
 
 	if (edit->psys)
 		psmd= psys_get_modifier(data->ob, edit->psys);
-
-	if (psmd != NULL) {
-		psmd_eval = (ParticleSystemModifierData *)modifiers_findByName(ob_eval, psmd->modifier.name);
-	}
 
 	/* all is selected in path mode */
 	if (pset->selectmode==SCE_SELECT_PATH)
@@ -675,7 +670,7 @@ static void foreach_mouse_hit_key(PEData *data, ForKeyMatFunc func, int selected
 				if (selected==0 || key->flag & PEK_SELECT) {
 					if (key_inside_circle(data, data->rad, KEY_WCO, &data->dist)) {
 						if (edit->psys && !(edit->psys->flag & PSYS_GLOBAL_HAIR)) {
-							psys_mat_hair_to_global(data->ob, psmd_eval->mesh_final, psys->part->from, psys->particles + p, mat);
+							psys_mat_hair_to_global(data->ob, psmd->mesh_final, psys->part->from, psys->particles + p, mat);
 							invert_m4_m4(imat, mat);
 						}
 
@@ -690,7 +685,7 @@ static void foreach_mouse_hit_key(PEData *data, ForKeyMatFunc func, int selected
 				if (selected==0 || key->flag & PEK_SELECT) {
 					if (key_inside_circle(data, data->rad, KEY_WCO, &data->dist)) {
 						if (edit->psys && !(edit->psys->flag & PSYS_GLOBAL_HAIR)) {
-							psys_mat_hair_to_global(data->ob, psmd_eval->mesh_final, psys->part->from, psys->particles + p, mat);
+							psys_mat_hair_to_global(data->ob, psmd->mesh_final, psys->part->from, psys->particles + p, mat);
 							invert_m4_m4(imat, mat);
 						}
 
@@ -1109,11 +1104,9 @@ void recalc_lengths(PTCacheEdit *edit)
 }
 
 /* calculate a tree for finding nearest emitter's vertice */
-void recalc_emitter_field(Depsgraph *depsgraph, Object *ob, ParticleSystem *psys)
+void recalc_emitter_field(Depsgraph *UNUSED(depsgraph), Object *ob, ParticleSystem *psys)
 {
-	Object *object_eval = DEG_get_evaluated_object(depsgraph, ob);
-	ParticleSystem *psys_eval = psys_eval_get(depsgraph, ob, psys);
-	Mesh *mesh = psys_get_modifier(object_eval, psys_eval)->mesh_final;
+	Mesh *mesh = psys_get_modifier(ob, psys)->mesh_final;
 	PTCacheEdit *edit = psys->edit;
 	float *vec, *nor;
 	int i, totface /*, totvert*/;
@@ -1201,27 +1194,19 @@ static void PE_update_selection(Depsgraph *depsgraph, Scene *scene, Object *ob, 
 	DEG_id_tag_update(&ob->id, DEG_TAG_SELECT_UPDATE);
 }
 
-void update_world_cos(Depsgraph *depsgraph, Object *ob, PTCacheEdit *edit)
+void update_world_cos(Depsgraph *UNUSED(depsgraph), Object *ob, PTCacheEdit *edit)
 {
-	Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
 	ParticleSystem *psys = edit->psys;
-	ParticleSystem *psys_eval = NULL;
 	ParticleSystemModifierData *psmd = psys_get_modifier(ob, psys);
-	ParticleSystemModifierData *psmd_eval = NULL;
 	POINT_P; KEY_K;
 	float hairmat[4][4];
 
-	if (psmd != NULL) {
-		psmd_eval = (ParticleSystemModifierData *)modifiers_findByName(ob_eval, psmd->modifier.name);
-		psys_eval = psmd_eval->psys;
-	}
-
-	if (psys == 0 || psys->edit == 0 || psmd_eval->mesh_final == NULL)
+	if (psys == 0 || psys->edit == 0 || psmd->mesh_final == NULL)
 		return;
 
 	LOOP_POINTS {
 		if (!(psys->flag & PSYS_GLOBAL_HAIR))
-			psys_mat_hair_to_global(ob_eval, psmd_eval->mesh_final, psys->part->from, psys_eval->particles+p, hairmat);
+			psys_mat_hair_to_global(ob, psmd->mesh_final, psys->part->from, psys->particles+p, hairmat);
 
 		LOOP_KEYS {
 			copy_v3_v3(key->world_co, key->co);
@@ -4362,20 +4347,14 @@ void PE_create_particle_edit(
         Depsgraph *depsgraph, Scene *scene, Object *ob, PointCache *cache, ParticleSystem *psys)
 {
 	PTCacheEdit *edit;
-	Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
 	ParticleSystemModifierData *psmd = (psys) ? psys_get_modifier(ob, psys) : NULL;
-	ParticleSystemModifierData *psmd_eval = NULL;
 	POINT_P; KEY_K;
 	ParticleData *pa = NULL;
 	HairKey *hkey;
 	int totpoint;
 
-	if (psmd != NULL) {
-		psmd_eval = (ParticleSystemModifierData *)modifiers_findByName(ob_eval, psmd->modifier.name);
-	}
-
 	/* no psmd->dm happens in case particle system modifier is not enabled */
-	if (!(psys && psmd_eval && psmd_eval->mesh_final) && !cache)
+	if (!(psys && psmd && psmd->mesh_final) && !cache)
 		return;
 
 	if (cache && cache->flag & PTCACHE_DISK_CACHE)
@@ -4505,7 +4484,16 @@ static int particle_edit_toggle_exec(bContext *C, wmOperator *op)
 	if (!is_mode_set) {
 		PTCacheEdit *edit;
 
+		/* Particle edit mode requires original object to have all strands
+		 * cached. A bit annoying to do update here, but is simpler than
+		 * rewriting the while edit mode code.
+		 */
+		ob->id.recalc |= (ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
+		BKE_scene_graph_update_tagged(depsgraph, CTX_data_main(C));
+		BKE_object_eval_transform_all(depsgraph, scene, ob);
+		BKE_object_handle_data_update(depsgraph, scene, ob);
 		ob->mode |= mode_flag;
+
 		edit= PE_create_current(depsgraph, scene, ob);
 
 		/* mesh may have changed since last entering editmode.

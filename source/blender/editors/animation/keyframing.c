@@ -53,17 +53,18 @@
 #include "DNA_object_types.h"
 #include "DNA_rigidbody_types.h"
 
-#include "BKE_animsys.h"
 #include "BKE_action.h"
+#include "BKE_animsys.h"
 #include "BKE_armature.h"
-#include "BKE_fcurve.h"
-#include "BKE_idcode.h"
-#include "BKE_nla.h"
-#include "BKE_global.h"
 #include "BKE_context.h"
-#include "BKE_report.h"
+#include "BKE_fcurve.h"
+#include "BKE_global.h"
+#include "BKE_idcode.h"
 #include "BKE_key.h"
+#include "BKE_main.h"
 #include "BKE_material.h"
+#include "BKE_nla.h"
+#include "BKE_report.h"
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"
@@ -126,7 +127,7 @@ short ANIM_get_keyframing_flags(Scene *scene, short incl_mode)
 /* Get (or add relevant data to be able to do so) the Active Action for the given
  * Animation Data block, given an ID block where the Animation Data should reside.
  */
-bAction *verify_adt_action(ID *id, short add)
+bAction *verify_adt_action(Main *bmain, ID *id, short add)
 {
 	AnimData *adt;
 
@@ -148,7 +149,7 @@ bAction *verify_adt_action(ID *id, short add)
 		BLI_snprintf(actname, sizeof(actname), "%sAction", id->name + 2);
 
 		/* create action */
-		adt->action = BKE_action_add(G.main, actname);
+		adt->action = BKE_action_add(bmain, actname);
 
 		/* set ID-type from ID-block that this is going to be assigned to
 		 * so that users can't accidentally break actions by assigning them
@@ -158,7 +159,7 @@ bAction *verify_adt_action(ID *id, short add)
 
 		/* tag depsgraph to be rebuilt to include time dependency */
 		/* XXX: we probably should have bmain passed down, but that involves altering too many API's */
-		DEG_relations_tag_update(G.main);
+		DEG_relations_tag_update(bmain);
 	}
 
 	DEG_id_tag_update(&adt->action->id, DEG_TAG_COPY_ON_WRITE);
@@ -616,12 +617,14 @@ static short new_key_needed(FCurve *fcu, float cFrame, float nValue)
 /* ------------------ RNA Data-Access Functions ------------------ */
 
 /* Try to read value using RNA-properties obtained already */
-static float setting_get_rna_value(Depsgraph *depsgraph, PointerRNA *ptr, PropertyRNA *prop, int index)
+static float setting_get_rna_value(Depsgraph *depsgraph, PointerRNA *ptr, PropertyRNA *prop, int index, const bool get_evaluated)
 {
-	PointerRNA ptr_eval;
+	PointerRNA ptr_eval = *ptr;
 	float value = 0.0f;
 
-	DEG_get_evaluated_rna_pointer(depsgraph, ptr, &ptr_eval);
+	if (get_evaluated) {
+		DEG_get_evaluated_rna_pointer(depsgraph, ptr, &ptr_eval);
+	}
 
 	switch (RNA_property_type(prop)) {
 		case PROP_BOOLEAN:
@@ -847,7 +850,7 @@ static float visualkey_get_value(Depsgraph *depsgraph, PointerRNA *ptr, Property
 		}
 	}
 	else {
-		return setting_get_rna_value(depsgraph, ptr, prop, array_index);
+		return setting_get_rna_value(depsgraph, ptr, prop, array_index, true);
 	}
 
 	/* Rot/Scale code are common! */
@@ -885,7 +888,7 @@ static float visualkey_get_value(Depsgraph *depsgraph, PointerRNA *ptr, Property
 	}
 
 	/* as the function hasn't returned yet, read value from system in the default way */
-	return setting_get_rna_value(depsgraph, ptr, prop, array_index);
+	return setting_get_rna_value(depsgraph, ptr, prop, array_index, true);
 }
 
 /* ------------------------- Insert Key API ------------------------- */
@@ -970,7 +973,7 @@ bool insert_keyframe_direct(Depsgraph *depsgraph, ReportList *reports, PointerRN
 	}
 	else {
 		/* read value from system */
-		curval = setting_get_rna_value(depsgraph, &ptr, prop, fcu->array_index);
+		curval = setting_get_rna_value(depsgraph, &ptr, prop, fcu->array_index, false);
 	}
 
 	/* only insert keyframes where they are needed */
@@ -1019,7 +1022,9 @@ bool insert_keyframe_direct(Depsgraph *depsgraph, ReportList *reports, PointerRN
  *
  *	index of -1 keys all array indices
  */
-short insert_keyframe(Depsgraph *depsgraph, ReportList *reports, ID *id, bAction *act, const char group[], const char rna_path[], int array_index, float cfra, eBezTriple_KeyframeType keytype, eInsertKeyFlags flag)
+short insert_keyframe(
+        Main *bmain, Depsgraph *depsgraph, ReportList *reports, ID *id, bAction *act,
+        const char group[], const char rna_path[], int array_index, float cfra, eBezTriple_KeyframeType keytype, eInsertKeyFlags flag)
 {
 	PointerRNA id_ptr, ptr;
 	PropertyRNA *prop = NULL;
@@ -1045,7 +1050,7 @@ short insert_keyframe(Depsgraph *depsgraph, ReportList *reports, ID *id, bAction
 	/* if no action is provided, keyframe to the default one attached to this ID-block */
 	if (act == NULL) {
 		/* get action to add F-Curve+keyframe to */
-		act = verify_adt_action(id, 1);
+		act = verify_adt_action(bmain, id, 1);
 
 		if (act == NULL) {
 			BKE_reportf(reports, RPT_ERROR,
@@ -1099,6 +1104,10 @@ short insert_keyframe(Depsgraph *depsgraph, ReportList *reports, ID *id, bAction
 			/* insert keyframe */
 			ret += insert_keyframe_direct(depsgraph, reports, ptr, prop, fcu, cfra, keytype, flag);
 		}
+	}
+
+	if (ret) {
+		DEG_id_tag_update(&adt->action->id, DEG_TAG_COPY_ON_WRITE);
 	}
 
 	return ret;
@@ -1771,6 +1780,7 @@ void ANIM_OT_keyframe_delete_v3d(wmOperatorType *ot)
 static int insert_key_button_exec(bContext *C, wmOperator *op)
 {
 	Depsgraph *depsgraph = CTX_data_depsgraph(C);
+	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
 	ToolSettings *ts = scene->toolsettings;
 	PointerRNA ptr = {{NULL}};
@@ -1854,7 +1864,7 @@ static int insert_key_button_exec(bContext *C, wmOperator *op)
 					index = -1;
 				}
 
-				success = insert_keyframe(depsgraph, op->reports, ptr.id.data, NULL, group, path, index, cfra, ts->keyframe_type, flag);
+				success = insert_keyframe(bmain, depsgraph, op->reports, ptr.id.data, NULL, group, path, index, cfra, ts->keyframe_type, flag);
 
 				MEM_freeN(path);
 			}

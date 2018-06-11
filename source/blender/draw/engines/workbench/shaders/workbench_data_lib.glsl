@@ -16,7 +16,8 @@ struct WorldData {
 	vec4 light_direction_vs;
 	LightData lights[3];
 	int num_lights;
-	int pad[3];
+	int matcap_orientation;
+	int pad[2];
 };
 
 struct MaterialData {

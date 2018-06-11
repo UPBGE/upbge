@@ -74,6 +74,7 @@
 #include "../generic/bgl.h"
 #include "../generic/blf_py_api.h"
 #include "../generic/idprop_py_api.h"
+#include "../generic/imbuf_py_api.h"
 #include "../gawain/gwn_py_api.h"
 #include "../bmesh/bmesh_py_api.h"
 #include "../mathutils/mathutils.h"
@@ -221,6 +222,7 @@ static struct _inittab bpy_internal_modules[] = {
 	{"_gawain", BPyInit_gawain},
 	{"bgl", BPyInit_bgl},
 	{"blf", BPyInit_blf},
+	{"imbuf", BPyInit_imbuf},
 	{"bmesh", BPyInit_bmesh},
 #if 0
 	{"bmesh.types", BPyInit_bmesh_types},
@@ -730,7 +732,7 @@ void BPY_modules_load_user(bContext *C)
 					G.f |= G_SCRIPT_AUTOEXEC_FAIL;
 					BLI_snprintf(G.autoexec_fail, sizeof(G.autoexec_fail), "Text '%s'", text->id.name + 2);
 
-					printf("scripts disabled for \"%s\", skipping '%s'\n", bmain->name, text->id.name + 2);
+					printf("scripts disabled for \"%s\", skipping '%s'\n", BKE_main_blendfile_path(bmain), text->id.name + 2);
 				}
 			}
 			else {

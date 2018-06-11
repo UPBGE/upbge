@@ -43,6 +43,7 @@
 #include "BKE_global.h"
 #include "BKE_key.h"
 #include "BKE_mesh.h"
+#include "BKE_mesh_runtime.h"
 #include "BKE_modifier.h"
 #include "BKE_displist.h"
 #include "BKE_library.h"
@@ -1263,7 +1264,7 @@ static void shapekey_layers_to_keyblocks(Mesh *mesh_src, Mesh *mesh_dst, int act
 
 
 /* This is a Mesh-based copy of DM_to_mesh() */
-void BKE_nomain_mesh_to_mesh(Mesh *mesh_src, Mesh *mesh_dst, Object *ob, CustomDataMask mask, bool take_ownership)
+void BKE_mesh_nomain_to_mesh(Mesh *mesh_src, Mesh *mesh_dst, Object *ob, CustomDataMask mask, bool take_ownership)
 {
 	/* mesh_src might depend on mesh_dst, so we need to do everything with a local copy */
 	/* TODO(Sybren): the above claim came from DM_to_mesh(); check whether it is still true with Mesh */
@@ -1414,7 +1415,7 @@ void BKE_nomain_mesh_to_mesh(Mesh *mesh_src, Mesh *mesh_dst, Object *ob, CustomD
 }
 
 /* This is a Mesh-based copy of DM_to_meshkey() */
-void BKE_nomain_mesh_to_meshkey(Mesh *mesh_src, Mesh *mesh_dst, KeyBlock *kb)
+void BKE_mesh_nomain_to_meshkey(Mesh *mesh_src, Mesh *mesh_dst, KeyBlock *kb)
 {
 	int a, totvert = mesh_src->totvert;
 	float *fp;

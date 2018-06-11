@@ -340,12 +340,12 @@ ScrArea *area_split(bScreen *sc, ScrArea *sa, char dir, float fac, int merge)
 /**
  * Empty screen, with 1 dummy area without spacedata. Uses window size.
  */
-bScreen *screen_add(const char *name, const rcti *rect)
+bScreen *screen_add(Main *bmain, const char *name, const rcti *rect)
 {
 	bScreen *sc;
 	ScrVert *sv1, *sv2, *sv3, *sv4;
 
-	sc = BKE_libblock_alloc(G.main, ID_SCR, name, 0);
+	sc = BKE_libblock_alloc(bmain, ID_SCR, name, 0);
 	sc->do_refresh = true;
 	sc->redraws_flag = TIME_ALL_3D_WIN | TIME_ALL_ANIM_WIN;
 
@@ -832,7 +832,7 @@ void ED_screen_refresh(wmWindowManager *wm, wmWindow *win)
 }
 
 /* file read, set all screens, ... */
-void ED_screens_initialize(wmWindowManager *wm)
+void ED_screens_initialize(Main *UNUSED(bmain), wmWindowManager *wm)
 {
 	wmWindow *win;
 
@@ -1399,6 +1399,7 @@ void ED_screen_full_restore(bContext *C, ScrArea *sa)
  */
 ScrArea *ED_screen_state_toggle(bContext *C, wmWindow *win, ScrArea *sa, const short state)
 {
+	Main *bmain = CTX_data_main(C);
 	wmWindowManager *wm = CTX_wm_manager(C);
 	WorkSpace *workspace = WM_window_get_active_workspace(win);
 	bScreen *sc, *oldscreen;
@@ -1489,7 +1490,7 @@ ScrArea *ED_screen_state_toggle(bContext *C, wmWindow *win, ScrArea *sa, const s
 		oldscreen->state = state;
 		BLI_snprintf(newname, sizeof(newname), "%s-%s", oldscreen->id.name + 2, "nonnormal");
 
-		layout_new = ED_workspace_layout_add(workspace, win, newname);
+		layout_new = ED_workspace_layout_add(bmain, workspace, win, newname);
 
 		sc = BKE_workspace_layout_screen_get(layout_new);
 		sc->state = state;
@@ -1502,7 +1503,7 @@ ScrArea *ED_screen_state_toggle(bContext *C, wmWindow *win, ScrArea *sa, const s
 
 		/* use random area when we have no active one, e.g. when the
 		 * mouse is outside of the window and we open a file browser */
-		if (!sa) {
+		if (!sa || sa->global) {
 			sa = oldscreen->areabase.first;
 		}
 

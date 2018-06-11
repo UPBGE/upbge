@@ -747,7 +747,7 @@ static void graph_draw_driven_property_panel(uiLayout *layout, ID *id, FCurve *f
 }
 
 /* UI properties panel layout for driver settings - shared for Drivers Editor and for */
-static void graph_draw_driver_settings_panel(uiLayout *layout, ID *id, FCurve *fcu)
+static void graph_draw_driver_settings_panel(uiLayout *layout, ID *id, FCurve *fcu, const bool is_popover)
 {
 	ChannelDriver *driver = fcu->driver;
 	DriverVar *dvar;
@@ -777,6 +777,9 @@ static void graph_draw_driver_settings_panel(uiLayout *layout, ID *id, FCurve *f
 		BLI_snprintf(valBuf, sizeof(valBuf), "%.3f", driver->curval);
 		uiItemL(row, valBuf, ICON_NONE);
 	}
+
+	uiItemS(layout);
+	uiItemS(layout);
 
 	/* show expression box if doing scripted drivers, and/or error messages when invalid drivers exist */
 	if (driver->type == DRIVER_TYPE_PYTHON) {
@@ -841,15 +844,31 @@ static void graph_draw_driver_settings_panel(uiLayout *layout, ID *id, FCurve *f
 		}
 	}
 
+	uiItemS(layout);
+
 	/* add/copy/paste driver variables */
-	{
+	if (is_popover) {
+		/* add driver variable - add blank */
+		row = uiLayoutRow(layout, true);
+		block = uiLayoutGetBlock(row);
+		but = uiDefIconTextBut(block, UI_BTYPE_BUT, B_IPO_DEPCHANGE, ICON_ZOOMIN, IFACE_("Add Input Variable"),
+		                       0, 0, 10 * UI_UNIT_X, UI_UNIT_Y,
+		                       NULL, 0.0, 0.0, 0, 0,
+		                       TIP_("Add a Driver Variable to keep track an input used by the driver"));
+		UI_but_func_set(but, driver_add_var_cb, driver, NULL);
+
+		/* add driver variable - add using eyedropper */
+		/* XXX: will this operator work like this? */
+		uiItemO(row, "", ICON_EYEDROPPER, "UI_OT_eyedropper_driver");
+	}
+	else {
 		/* add driver variable */
 		row = uiLayoutRow(layout, false);
 		block = uiLayoutGetBlock(row);
 		but = uiDefIconTextBut(block, UI_BTYPE_BUT, B_IPO_DEPCHANGE, ICON_ZOOMIN, IFACE_("Add Input Variable"),
-	                           0, 0, 10 * UI_UNIT_X, UI_UNIT_Y,
-	                           NULL, 0.0, 0.0, 0, 0,
-	                           TIP_("Driver variables ensure that all dependencies will be accounted for, eusuring that drivers will update correctly"));
+		                       0, 0, 10 * UI_UNIT_X, UI_UNIT_Y,
+		                       NULL, 0.0, 0.0, 0, 0,
+		                       TIP_("Driver variables ensure that all dependencies will be accounted for, eusuring that drivers will update correctly"));
 		UI_but_func_set(but, driver_add_var_cb, driver, NULL);
 
 		/* copy/paste (as sub-row) */
@@ -948,6 +967,9 @@ static void graph_draw_driver_settings_panel(uiLayout *layout, ID *id, FCurve *f
 		}
 	}
 
+	uiItemS(layout);
+	uiItemS(layout);
+
 	/* XXX: This should become redundant. But sometimes the flushing fails, so keep this around for a while longer as a "last resort" */
 	row = uiLayoutRow(layout, true);
 	block = uiLayoutGetBlock(row);
@@ -985,7 +1007,7 @@ static void graph_panel_drivers(const bContext *C, Panel *pa)
 	if (!graph_panel_context(C, &ale, &fcu))
 		return;
 
-	graph_draw_driver_settings_panel(pa->layout, ale->id, fcu);
+	graph_draw_driver_settings_panel(pa->layout, ale->id, fcu, false);
 
 	/* cleanup */
 	MEM_freeN(ale);
@@ -1019,6 +1041,12 @@ static void graph_panel_drivers_popover(const bContext *C, Panel *pa)
 		                                &ptr, prop, index,
 		                                NULL, NULL, &driven, &special);
 
+		/* Hack: Force all buttons in this panel to be able to know the driver button
+		 * this panel is getting spawned from, so that things like the "Open Drivers Editor"
+		 * button will work.
+		 */
+		uiLayoutSetContextFromBut(layout, but);
+
 		/* Populate Panel - With a combination of the contents of the Driven and Driver panels */
 		if (fcu) {
 			ID *id = ptr.id.data;
@@ -1033,7 +1061,7 @@ static void graph_panel_drivers_popover(const bContext *C, Panel *pa)
 
 			/* Drivers Settings */
 			uiItemL(layout, IFACE_("Driver Settings:"), ICON_NONE);
-			graph_draw_driver_settings_panel(pa->layout, id, fcu);
+			graph_draw_driver_settings_panel(pa->layout, id, fcu, true);
 		}
 	}
 

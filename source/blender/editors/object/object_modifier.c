@@ -63,6 +63,7 @@
 #include "BKE_main.h"
 #include "BKE_mesh.h"
 #include "BKE_mesh_mapping.h"
+#include "BKE_mesh_runtime.h"
 #include "BKE_modifier.h"
 #include "BKE_multires.h"
 #include "BKE_report.h"
@@ -572,7 +573,7 @@ static int modifier_apply_shape(ReportList *reports, Depsgraph *depsgraph, Scene
 		}
 
 		kb = BKE_keyblock_add(key, md->name);
-		BKE_nomain_mesh_to_meshkey(mesh_applied, me, kb);
+		BKE_mesh_nomain_to_meshkey(mesh_applied, me, kb);
 
 		BKE_id_free(NULL, mesh_applied);
 	}
@@ -621,7 +622,7 @@ static int modifier_apply_obdata(ReportList *reports, Depsgraph *depsgraph, Scen
 				return 0;
 			}
 
-			BKE_nomain_mesh_to_mesh(mesh_applied, me, ob, CD_MASK_MESH, true);
+			BKE_mesh_nomain_to_mesh(mesh_applied, me, ob, CD_MASK_MESH, true);
 
 			if (md->type == eModifierType_Multires)
 				multires_customdata_delete(me);
@@ -1329,7 +1330,7 @@ static int multires_external_save_exec(bContext *C, wmOperator *op)
 	RNA_string_get(op->ptr, "filepath", path);
 
 	if (relative)
-		BLI_path_rel(path, bmain->name);
+		BLI_path_rel(path, BKE_main_blendfile_path(bmain));
 
 	CustomData_external_add(&me->ldata, &me->id, CD_MDISPS, me->totloop, path);
 	CustomData_external_write(&me->ldata, &me->id, CD_MASK_MESH, me->totloop, 0);
@@ -1781,7 +1782,7 @@ static Object *modifier_skin_armature_create(Depsgraph *depsgraph, Main *bmain, 
 	MEM_freeN(emap);
 	MEM_freeN(emap_mem);
 
-	ED_armature_from_edit(arm);
+	ED_armature_from_edit(bmain, arm);
 	ED_armature_edit_free(arm);
 
 	return arm_ob;

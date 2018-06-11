@@ -61,13 +61,16 @@
 
 static int wm_collada_export_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
+	Main *bmain = CTX_data_main(C);
+
 	if (!RNA_struct_property_is_set(op->ptr, "filepath")) {
 		char filepath[FILE_MAX];
+		const char *blendfile_path = BKE_main_blendfile_path(bmain);
 
-		if (G.main->name[0] == 0)
+		if (blendfile_path[0] == '\0')
 			BLI_strncpy(filepath, "untitled", sizeof(filepath));
 		else
-			BLI_strncpy(filepath, G.main->name, sizeof(filepath));
+			BLI_strncpy(filepath, blendfile_path, sizeof(filepath));
 
 		BLI_replace_extension(filepath, sizeof(filepath), ".dae");
 		RNA_string_set(op->ptr, "filepath", filepath);
@@ -202,9 +205,11 @@ static int wm_collada_export_exec(bContext *C, wmOperator *op)
 	if (export_settings.include_armatures) includeFilter |= OB_REL_MOD_ARMATURE;
 	if (export_settings.include_children) includeFilter |= OB_REL_CHILDREN_RECURSIVE;
 
-	export_count = collada_export(CTX_data_depsgraph(C),
-		scene,
-		&export_settings
+	export_count = collada_export(
+	                   C,
+	                   CTX_data_depsgraph(C),
+	                   scene,
+	                   &export_settings
 	);
 
 	if (export_count == 0) {

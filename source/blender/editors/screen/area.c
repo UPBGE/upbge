@@ -1825,19 +1825,21 @@ static void ed_panel_draw(const bContext *C,
 	panel = UI_panel_begin(sa, ar, lb, block, pt, panel, &open);
 
 	/* bad fixed values */
-	int triangle = (int)(UI_UNIT_Y * 1.1f);
 	int xco, yco, h = 0;
 
 	if (pt->draw_header && !(pt->flag & PNL_NO_HEADER) && (open || vertical)) {
+		int labelx, labely;
+		UI_panel_label_offset(block, &labelx, &labely);
+
 		/* for enabled buttons */
 		panel->layout = UI_block_layout(
 		        block, UI_LAYOUT_HORIZONTAL, UI_LAYOUT_HEADER,
-		        triangle, (UI_UNIT_Y * 1.1f) + style->panelspace, UI_UNIT_Y, 1, 0, style);
+		        labelx, labely, UI_UNIT_Y, 1, 0, style);
 
 		pt->draw_header(C, panel);
 
 		UI_block_layout_resolve(block, &xco, &yco);
-		panel->labelofs = xco - triangle;
+		panel->labelofs = xco - labelx;
 		panel->layout = NULL;
 	}
 	else {
@@ -1901,7 +1903,7 @@ void ED_region_panels(const bContext *C, ARegion *ar, const char *contexts[], in
 	int scroll;
 
 	/* XXX, should use some better check? */
-	bool use_category_tabs = (ELEM(ar->regiontype, RGN_TYPE_TOOLS, RGN_TYPE_UI, RGN_TYPE_WINDOW));
+	bool use_category_tabs = (ELEM(ar->regiontype, RGN_TYPE_TOOLS, RGN_TYPE_UI));
 	/* offset panels for small vertical tab area */
 	const char *category = NULL;
 	const int category_tabs_width = UI_PANEL_CATEGORY_MARGIN_WIDTH;
@@ -2100,7 +2102,7 @@ void ED_region_header_layout(const bContext *C, ARegion *ar)
 	Header header = {NULL};
 	int maxco, xco, yco;
 	int headery = ED_area_headersize();
-	const int start_ofs = 0.4f * UI_UNIT_X;
+	const int start_ofs = UI_HEADER_OFFSET_START;
 	bool region_layout_based = ar->flag & RGN_FLAG_DYNAMIC_SIZE;
 
 	/* set view2d view matrix for scrolling (without scrollers) */

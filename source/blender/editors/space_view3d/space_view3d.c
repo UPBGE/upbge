@@ -326,9 +326,13 @@ static SpaceLink *view3d_new(const ScrArea *UNUSED(sa), const Scene *scene)
 	v3d->shading.light = V3D_LIGHTING_STUDIO;
 	v3d->shading.shadow_intensity = 0.5f;
 	v3d->shading.xray_alpha = 0.5f;
+	v3d->shading.cavity_valley_factor = 1.0f;
+	v3d->shading.cavity_ridge_factor = 1.0f;
 	copy_v3_fl(v3d->shading.single_color, 0.8f);
 
 	v3d->overlay.flag = V3D_OVERLAY_LOOK_DEV;
+	v3d->overlay.wireframe_threshold = 0.5f;
+	v3d->overlay.bone_selection_alpha = 0.5f;
 
 	v3d->gridflag = V3D_SHOW_X | V3D_SHOW_Y | V3D_SHOW_FLOOR;
 
@@ -1327,7 +1331,7 @@ static int view3d_tools_region_snap_size(const ARegion *ar, int size, int axis)
 {
 	if (axis == 0) {
 		/* Note, this depends on the icon size: see #ICON_DEFAULT_HEIGHT_TOOLBAR. */
-		const float snap_units[] = {3 + 0.25f, 5 + 0.25};
+		const float snap_units[] = {2 + 0.8f, 4 + 0.8f};
 		const float aspect = BLI_rctf_size_x(&ar->v2d.cur) / (BLI_rcti_size_x(&ar->v2d.mask) + 1);
 		int best_diff = INT_MAX;
 		int best_size = size;

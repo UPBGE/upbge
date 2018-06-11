@@ -69,6 +69,7 @@ void BKE_object_free_curve_cache(struct Object *ob);
 
 void BKE_object_free(struct Object *ob);
 void BKE_object_free_derived_caches(struct Object *ob);
+void BKE_object_free_derived_mesh_caches(struct Object *ob);
 void BKE_object_free_caches(struct Object *object);
 
 void BKE_object_modifier_hook_reset(struct Object *ob, struct HookModifierData *hmd);
@@ -268,12 +269,10 @@ void BKE_object_eval_flush_base_flags(
         struct Object *object, int base_index,
         const bool is_from_set);
 
-void BKE_object_handle_data_update(
-        struct Depsgraph *depsgraph,
+void BKE_object_handle_data_update(struct Depsgraph *depsgraph,
         struct Scene *scene,
         struct Object *ob);
-void BKE_object_handle_update(
-        struct Depsgraph *depsgraph,
+void BKE_object_handle_update(struct Depsgraph *depsgraph,
         struct Scene *scene, struct Object *ob);
 void BKE_object_handle_update_ex(
         struct Depsgraph *depsgraph,
