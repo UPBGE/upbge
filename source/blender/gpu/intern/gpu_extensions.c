@@ -71,6 +71,7 @@ static struct GPUGlobal {
 	GLint maxtexsize;
 	GLint maxcubemapsize;
 	GLint maxtextures;
+	GLint maxvertexcomponents;
 	bool extdisabled;
 	int colordepth;
 	int samples_color_texture_max;
@@ -128,6 +129,11 @@ void GPU_get_dfdy_factors(float fac[2])
 	copy_v2_v2(fac, GG.dfdyfactors);
 }
 
+int GPU_max_vertex_uniform_components(void)
+{
+	return GG.maxvertexcomponents;
+}
+
 void gpu_extensions_init(void)
 {
 	/* BLI_assert(GLEW_VERSION_2_1); */
@@ -137,6 +143,8 @@ void gpu_extensions_init(void)
 
 	glGetIntegerv(GL_MAX_TEXTURE_SIZE, &GG.maxtexsize);
 	glGetIntegerv(GL_MAX_CUBE_MAP_TEXTURE_SIZE, &GG.maxcubemapsize);
+
+	glGetIntegerv(GL_MAX_VERTEX_UNIFORM_COMPONENTS, &GG.maxvertexcomponents);
 
 	if (GLEW_EXT_texture_filter_anisotropic)
 		glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &GG.max_anisotropy);
@@ -160,6 +168,9 @@ void gpu_extensions_init(void)
 	if (strstr(vendor, "ATI")) {
 		GG.device = GPU_DEVICE_ATI;
 		GG.driver = GPU_DRIVER_OFFICIAL;
+		/* AMD/ATI cards need GL_MAX_*_UNIFORM_COMPONENTS divided by 4:
+		 * https://www.opengl.org/wiki_132/index.php?title=GLSL_Uniform#Implementation_limits */
+		GG.maxvertexcomponents /= 4;
 	}
 	else if (strstr(vendor, "NVIDIA")) {
 		GG.device = GPU_DEVICE_NVIDIA;
@@ -179,6 +190,9 @@ void gpu_extensions_init(void)
 	{
 		GG.device = GPU_DEVICE_ATI;
 		GG.driver = GPU_DRIVER_OPENSOURCE;
+		/* AMD/ATI cards need GL_MAX_*_UNIFORM_COMPONENTS divided by 4:
+		 * https://www.opengl.org/wiki_132/index.php?title=GLSL_Uniform#Implementation_limits */
+		GG.maxvertexcomponents /= 4;
 	}
 	else if (strstr(renderer, "Nouveau") || strstr(vendor, "nouveau")) {
 		GG.device = GPU_DEVICE_NVIDIA;

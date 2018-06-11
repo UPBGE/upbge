@@ -387,3 +387,8 @@ void RAS_DisplayArrayBucket::ChangeMaterialBucket(RAS_MaterialBucket *bucket)
 	RAS_IPolyMaterial *material = bucket->GetMaterial();
 	material->MoveUpdateClient(&m_materialUpdateClient, RAS_IPolyMaterial::ATTRIBUTES_MODIFIED);
 }
+
+RAS_Deformer *RAS_DisplayArrayBucket::GetDeformer()
+{
+	return m_deformer;
+}

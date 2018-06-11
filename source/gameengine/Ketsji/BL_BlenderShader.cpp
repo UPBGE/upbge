@@ -132,6 +132,8 @@ void BL_BlenderShader::BindProg(RAS_Rasterizer *rasty)
 {
 	GPU_material_bind(m_gpuMat, m_blenderScene->lay, rasty->GetTime(), 1,
 					  rasty->GetViewMatrix().Data(), rasty->GetViewInvMatrix().Data(), nullptr, false);
+
+	rasty->SetCurrentProgram(GPU_material_shader(m_gpuMat));
 }
 
 void BL_BlenderShader::UnbindProg()

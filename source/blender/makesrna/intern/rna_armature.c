@@ -989,7 +989,8 @@ static void rna_def_armature(BlenderRNA *brna)
 	};
 	static const EnumPropertyItem prop_vdeformer[] = {
 		{ARM_VDEF_BLENDER, "BLENDER", 0, "Blender", "Use Blender's armature vertex deformation"},
-		{ARM_VDEF_BGE_CPU, "BGE_CPU", 0, "BGE", "Use vertex deformation code optimized for the BGE"},
+		{ARM_VDEF_BGE_CPU, "BGE_CPU", 0, "BGE CPU", "Use vertex deformation code optimized for the BGE"},
+		{ARM_VDEF_BGE_GPU, "BGE_GPU", 0, "BGE GPU", "Use GPU hardware skinning, 128 bones maximum"},
 		{0, NULL, 0, NULL, NULL}
 	};
 	static const EnumPropertyItem prop_ghost_type_items[] = {

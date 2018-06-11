@@ -336,6 +336,8 @@ private:
 	/// Return GPUShader coresponding to the override shader enumeration.
 	GPUShader *GetOverrideGPUShader(OverrideShaderType type);
 
+	void *m_shader;
+
 public:
 	RAS_Rasterizer();
 	virtual ~RAS_Rasterizer();
@@ -656,6 +658,9 @@ public:
 	void SetOverrideShader(OverrideShaderType type);
 	OverrideShaderType GetOverrideShader();
 	void ActivateOverrideShaderInstancing(void *matrixoffset, void *positionoffset, unsigned int stride);
+
+	void SetCurrentProgram(void *val);
+	void *GetCurrentProgram();
 
 	/// \see KX_RayCast
 	bool RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, RayCastTranform *raytransform);

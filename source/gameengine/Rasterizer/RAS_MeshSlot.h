@@ -38,6 +38,7 @@
 
 class RAS_DisplayArrayBucket;
 class RAS_MeshUser;
+class RAS_Deformer;
 
 class RAS_MeshSlot
 {
@@ -48,6 +49,7 @@ public:
 	// for rendering
 	RAS_DisplayArrayBucket *m_displayArrayBucket;
 	RAS_MeshUser *m_meshUser;
+	RAS_Deformer *m_deformer;
 
 	/// Batch index used for batching render.
 	short m_batchPartIndex;

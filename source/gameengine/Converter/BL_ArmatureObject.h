@@ -94,6 +94,7 @@ public:
 	Object *GetArmatureObject();
 	Object *GetOrigArmatureObject();
 	int GetVertDeformType() const;
+	void SetVertDeformType(int deform_type);
 	bool GetDrawDebug() const;
 	void DrawDebug(RAS_DebugDraw& debugDraw);
 

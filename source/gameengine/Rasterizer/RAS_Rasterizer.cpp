@@ -214,7 +214,8 @@ RAS_Rasterizer::RAS_Rasterizer()
 	m_drawingmode(RAS_TEXTURED),
 	m_shadowMode(RAS_SHADOW_NONE),
 	m_invertFrontFace(false),
-	m_overrideShader(RAS_OVERRIDE_SHADER_NONE)
+	m_overrideShader(RAS_OVERRIDE_SHADER_NONE),
+	m_shader(0)
 {
 	m_impl.reset(new RAS_OpenGLRasterizer(this));
 	m_debugDrawImpl.reset(new RAS_OpenGLDebugDraw());
@@ -1140,6 +1141,16 @@ void RAS_Rasterizer::ActivateOverrideShaderInstancing(void *matrixoffset, void *
 	if (shader) {
 		GPU_shader_bind_instancing_attrib(shader, matrixoffset, positionoffset, stride);
 	}
+}
+
+void RAS_Rasterizer::SetCurrentProgram(void *val)
+{
+	m_shader = val;
+}
+
+void *RAS_Rasterizer::GetCurrentProgram()
+{
+	return m_shader;
 }
 
 /**

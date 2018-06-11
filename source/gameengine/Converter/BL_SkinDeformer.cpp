@@ -59,8 +59,14 @@ extern "C" {
 	#include "BKE_deform.h"
 }
 
+#include "GPU_material.h"
+#include "GPU_extensions.h"
+#include "GPU_shader.h"
+
+#include <GL/glew.h>
 
 #include "BLI_blenlib.h"
+#include "BLI_utildefines.h"
 #include "BLI_math.h"
 
 static short get_deformflags(Object *bmeshobj)
@@ -86,7 +92,8 @@ BL_SkinDeformer::BL_SkinDeformer(KX_GameObject *gameobj,
 	:BL_MeshDeformer(gameobj, bmeshobj_old, mesh),
 	m_armobj(arma),
 	m_lastArmaUpdate(-1),
-	m_copyNormals(false)
+	m_copyNormals(false),
+	m_poseMatrices(NULL)
 {
 	// this is needed to ensure correct deformation of mesh:
 	// the deformation is done with Blender's armature_deform_verts() function
@@ -95,10 +102,38 @@ BL_SkinDeformer::BL_SkinDeformer(KX_GameObject *gameobj,
 	// simulate a pure replacement of the mesh.
 	copy_m4_m4(m_obmat, bmeshobj_new->obmat);
 	m_deformflags = get_deformflags(bmeshobj_new);
+
+	VerifyHardwareSkinning();
 }
 
 BL_SkinDeformer::~BL_SkinDeformer()
 {
+	if (m_poseMatrices)
+		delete [] m_poseMatrices;
+
+	std::map<void*, SkinVertData*>::iterator it;
+	for (it = m_skinVertData.begin(); it != m_skinVertData.end(); ++it) {
+		delete [] it->second;
+	}
+	m_skinVertData.clear();
+}
+
+void BL_SkinDeformer::VerifyHardwareSkinning()
+{
+	if (m_armobj && m_armobj->GetVertDeformType() == ARM_VDEF_BGE_GPU) {
+		// Check to see if we can do this skinning in hardware, and fallback to software if we cannot.
+		// Each matrix is sixteen components, and we don't want to use more than half of the available components (or maybe so).
+		int defbase_tot = BLI_listbase_count(&m_objMesh->defbase);
+		int max = GPU_max_vertex_uniform_components() / 16;
+		if (max > 128)
+			max = 128;
+
+		if (defbase_tot > max) {
+			printf("Skinned mesh with %d bones not supported by hardware (max: %d): %s. Using software skinning.\n",
+			       defbase_tot, max, m_objMesh->id.name);
+			m_armobj->SetVertDeformType(ARM_VDEF_BGE_CPU);
+		}
+	}
 }
 
 void BL_SkinDeformer::Apply(RAS_DisplayArray *array)
@@ -106,7 +141,7 @@ void BL_SkinDeformer::Apply(RAS_DisplayArray *array)
 	for (DisplayArraySlot& slot : m_slots) {
 		if (slot.m_displayArray == array) {
 			const short modifiedFlag = slot.m_arrayUpdateClient.GetInvalidAndClear();
-			if (modifiedFlag != RAS_DisplayArray::NONE_MODIFIED) {
+			if ((modifiedFlag != RAS_DisplayArray::NONE_MODIFIED) && (m_armobj->GetVertDeformType() != ARM_VDEF_BGE_GPU)) {
 				/// Update vertex data from the original mesh.
 				array->UpdateFrom(slot.m_origDisplayArray, modifiedFlag);
 			}
@@ -230,39 +265,41 @@ void BL_SkinDeformer::UpdateTransverts()
 	mt::vec3 aabbMin(FLT_MAX);
 	mt::vec3 aabbMax(-FLT_MAX);
 
-	const bool autoUpdate = m_gameobj->GetAutoUpdateBounds();
+	if (m_bDynamic) {
+		const bool autoUpdate = m_gameobj->GetAutoUpdateBounds();
 
-	// the vertex cache is unique to this deformer, no need to update it
-	// if it wasn't updated! We must update all the materials at once
-	// because we will not get here again for the other material
-	for (const DisplayArraySlot& slot : m_slots) {
-		RAS_DisplayArray *array = slot.m_displayArray;
-		// for each vertex
-		// copy the untransformed data from the original mvert
-		for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
-			const RAS_VertexInfo& vinfo = array->GetVertexInfo(i);
-			const mt::vec3 pos = mt::vec3(m_transverts[vinfo.GetOrigIndex()]);
-			array->SetPosition(i, pos);
-
-			if (autoUpdate) {
-				aabbMin = mt::vec3::Min(aabbMin, pos);
-				aabbMax = mt::vec3::Max(aabbMax, pos);
-			}
-		}
-		if (m_copyNormals) {
+		// the vertex cache is unique to this deformer, no need to update it
+		// if it wasn't updated! We must update all the materials at once
+		// because we will not get here again for the other material
+		for (const DisplayArraySlot& slot : m_slots) {
+			RAS_DisplayArray *array = slot.m_displayArray;
+			// for each vertex
+			// copy the untransformed data from the original mvert
 			for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
 				const RAS_VertexInfo& vinfo = array->GetVertexInfo(i);
-				array->SetNormal(i, m_transnors[vinfo.GetOrigIndex()]);
+				const mt::vec3 pos = mt::vec3(m_transverts[vinfo.GetOrigIndex()]);
+				array->SetPosition(i, pos);
+
+				if (autoUpdate) {
+					aabbMin = mt::vec3::Min(aabbMin, pos);
+					aabbMax = mt::vec3::Max(aabbMax, pos);
+				}
 			}
+			if (m_copyNormals) {
+				for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
+					const RAS_VertexInfo& vinfo = array->GetVertexInfo(i);
+					array->SetNormal(i, m_transnors[vinfo.GetOrigIndex()]);
+				}
+			}
+
+			array->NotifyUpdate(RAS_DisplayArray::POSITION_MODIFIED | RAS_DisplayArray::NORMAL_MODIFIED);
 		}
 
-		array->NotifyUpdate(RAS_DisplayArray::POSITION_MODIFIED | RAS_DisplayArray::NORMAL_MODIFIED);
-	}
+		m_boundingBox->SetAabb(aabbMin, aabbMax);
 
-	m_boundingBox->SetAabb(aabbMin, aabbMax);
-
-	if (m_copyNormals) {
-		m_copyNormals = false;
+		if (m_copyNormals) {
+			m_copyNormals = false;
+		}
 	}
 }
 
@@ -270,17 +307,21 @@ bool BL_SkinDeformer::UpdateInternal(bool shape_applied)
 {
 	/* See if the armature has been updated for this frame */
 	if (PoseUpdated()) {
-		if (!shape_applied) {
-			/* store verts locally */
-			VerifyStorage();
+		int vert_deformer = m_armobj->GetVertDeformType();
+
+		if (vert_deformer != ARM_VDEF_BGE_GPU) {
+			if (!shape_applied) {
+				/* store verts locally */
+				VerifyStorage();
+			}
 		}
 
 		m_armobj->ApplyPose();
 
-		if (m_armobj->GetVertDeformType() == ARM_VDEF_BGE_CPU) {
+		if (vert_deformer == ARM_VDEF_BGE_CPU) {
 			BGEDeformVerts();
 		}
-		else {
+		else if (vert_deformer == ARM_VDEF_BLENDER) {
 			BlenderDeformVerts();
 		}
 
@@ -288,7 +329,7 @@ bool BL_SkinDeformer::UpdateInternal(bool shape_applied)
 		m_lastArmaUpdate = m_armobj->GetLastFrame();
 
 		/* dynamic vertex, cannot use display list */
-		m_bDynamic = true;
+		m_bDynamic = vert_deformer != ARM_VDEF_BGE_GPU;
 
 		UpdateTransverts();
 
@@ -302,4 +343,139 @@ bool BL_SkinDeformer::UpdateInternal(bool shape_applied)
 bool BL_SkinDeformer::Update(void)
 {
 	return UpdateInternal(false);
+}
+
+void BL_SkinDeformer::HandleGPUUniforms(RAS_Rasterizer *rasty)
+{
+	if (m_armobj->GetVertDeformType() != ARM_VDEF_BGE_GPU)
+		return;
+
+	GPUShader *shader = (GPUShader *)rasty->GetCurrentProgram();
+	m_shader = shader;
+
+	if (!shader)
+		return;
+
+	const unsigned int defbase_tot = BLI_listbase_count(&m_objMesh->defbase);
+
+	if (m_dfnrToPC.empty()) {
+		m_dfnrToPC.resize(defbase_tot);
+		Object *par_arma = m_armobj->GetArmatureObject();
+
+		int i;
+		bDeformGroup *dg;
+		for (i = 0, dg = (bDeformGroup *)m_objMesh->defbase.first; dg; ++i, dg = dg->next) {
+			m_dfnrToPC[i] = BKE_pose_channel_find_name(par_arma->pose, dg->name);
+
+			if (m_dfnrToPC[i] && m_dfnrToPC[i]->bone->flag & BONE_NO_DEFORM) {
+				m_dfnrToPC[i] = nullptr;
+			}
+		}
+
+		m_poseMatrices = new float[16 * defbase_tot];
+		m_shaderLocations["useshwskin"] = GPU_shader_get_uniform(shader, "useshwskin");
+		m_shaderLocations["bonematrices"] = GPU_shader_get_uniform(shader, "bonematrices");
+	}
+
+	for (int i = 0; i < defbase_tot; ++i) {
+		if (m_dfnrToPC[i] != nullptr)
+			memcpy(m_poseMatrices + (i * 16), m_dfnrToPC[i]->chan_mat, 16 * sizeof(float));
+	}
+
+	GPU_shader_uniform_int(shader, m_shaderLocations["useshwskin"], 1);
+	GPU_shader_uniform_vector(shader, m_shaderLocations["bonematrices"], 16, defbase_tot, m_poseMatrices);
+ }
+
+
+void BL_SkinDeformer::BeginHandleGPUAttribs(RAS_DisplayArray *array)
+{
+	if (m_armobj->GetVertDeformType() != ARM_VDEF_BGE_GPU  || !m_shader)
+		return;
+
+	SkinVertData *skinverts = m_skinVertData[array];
+
+	if (skinverts == nullptr) {
+		m_skinVertData[array] = skinverts = new SkinVertData[array->GetVertexCount()];
+
+		//std::vector<RAS_Vertex>::iterator vit;
+		//int i = 0;
+		for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
+			//RAS_Vertex v = array->GetVertex(i);
+			const RAS_VertexInfo& vinfo = array->GetVertexInfo(i);
+			MDeformVert* dv = &m_bmesh->dvert[vinfo.GetOrigIndex()];
+
+			if (dv->totweight <= 4) {
+					// We have no more than four weights, just copy them over.
+					skinverts[i].num_bones = dv->totweight;
+
+					MDeformWeight *dw = dv->dw;
+					for (int j = 0; j < dv->totweight && j < 4; ++j, ++dw) {
+						skinverts[i].indexes[j] = dw->def_nr;
+						skinverts[i].weights[j] = dw->weight;
+					}
+			} else {
+				// We have more than four weights, pick the four most influential bones
+				float indexes[4] = {-1.f};
+				float weights[4] = {0.f};
+
+				int j;
+				for (j = 0; j < 4; ++j) {
+					float maxval = -1.0f;
+					float maxidx = -1.0f;
+
+					MDeformWeight *dw = dv->dw;
+					for (int k = 0; k < dv->totweight; ++k, ++dw) {
+						if (dw->weight > maxval && !ELEM(dw->def_nr, indexes[0], indexes[1], indexes[2], indexes[3])) {
+							maxval = dw->weight;
+							maxidx = dw->def_nr;
+						}
+					}
+
+					if (maxval <= 0) break;
+
+					indexes[j] = maxidx;
+					weights[j] = maxval;
+
+					dw = dv->dw;
+				}
+
+				skinverts[i].num_bones = j;
+
+				normalize_vn(weights, 4);
+
+				memcpy(skinverts[i].indexes, indexes, 4*sizeof(float));
+				memcpy(skinverts[i].weights, weights, 4*sizeof(float));
+			}
+		}
+
+		m_shaderLocations["weight"] = GPU_shader_get_attribute(m_shader, "weight");
+		m_shaderLocations["index"] = GPU_shader_get_attribute(m_shader, "index");
+		m_shaderLocations["numbones"] = GPU_shader_get_attribute(m_shader, "numbones");
+	}
+
+	int loc = m_shaderLocations["weight"];
+	glEnableVertexAttribArray(loc);
+	glVertexAttribPointer(loc, 4, GL_FLOAT, GL_FALSE, sizeof(SkinVertData), skinverts[0].weights);
+
+	loc = m_shaderLocations["index"];
+	glEnableVertexAttribArray(loc);
+	glVertexAttribPointer(loc, 4, GL_FLOAT, GL_FALSE, sizeof(SkinVertData), skinverts[0].indexes);
+
+	loc = m_shaderLocations["numbones"];
+	glEnableVertexAttribArray(loc);
+	glVertexAttribPointer(loc, 1, GL_FLOAT, GL_FALSE, sizeof(SkinVertData), &skinverts[0].num_bones);
+}
+
+void BL_SkinDeformer::EndHandleGPUAttribs() {
+	if (m_armobj->GetVertDeformType() != ARM_VDEF_BGE_GPU  || !m_shader)
+		return;
+
+	int loc = m_shaderLocations["weight"];
+	glDisableVertexAttribArray(loc);
+
+	loc = m_shaderLocations["index"];
+	glDisableVertexAttribArray(loc);
+
+	loc = m_shaderLocations["numbones"];
+	glDisableVertexAttribArray(loc);
 }

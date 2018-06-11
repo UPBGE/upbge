@@ -53,6 +53,7 @@ set(INC
 	../../blender/windowmanager
 	../../../intern/guardedalloc
 	../../../intern/termcolor
+	../../../intern/glew-mx
 )
 
 set(INC_SYS
@@ -62,6 +63,7 @@ set(INC_SYS
 	${EIGEN3_INCLUDE_DIRS}
 	${PTHREADS_INCLUDE_DIRS}
 	${BOOST_INCLUDE_DIR}
+	${GLEW_INCLUDE_PATH}
 )
 
 set(SRC

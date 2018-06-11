@@ -49,6 +49,12 @@ struct bPoseChannel;
 class RAS_Mesh;
 class RAS_IPolyMaterial;
 
+struct SkinVertData {
+	float indexes[4];
+	float weights[4];
+	float num_bones;
+};
+
 class BL_SkinDeformer : public BL_MeshDeformer
 {
 public:
@@ -80,6 +86,10 @@ public:
 		m_lastArmaUpdate = -1.0;
 	}
 
+	virtual void HandleGPUUniforms(RAS_Rasterizer *rasty);
+	virtual void BeginHandleGPUAttribs(RAS_DisplayArray *array);
+	virtual void EndHandleGPUAttribs();
+
 protected:
 	BL_ArmatureObject *m_armobj; // Our parent object
 	double m_lastArmaUpdate;
@@ -88,8 +98,16 @@ protected:
 	std::vector<bPoseChannel *> m_dfnrToPC;
 	short m_deformflags;
 
+	// For hardware skinning
+	std::map<void *, SkinVertData *> m_skinVertData;
+	float *m_poseMatrices;
+	struct GPUShader *m_shader;
+	std::map<const char *, int> m_shaderLocations;
+
 	void BlenderDeformVerts();
 	void BGEDeformVerts();
+
+	void VerifyHardwareSkinning();
 
 	virtual void UpdateTransverts();
 };

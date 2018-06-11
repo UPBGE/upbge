@@ -34,7 +34,9 @@
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_DisplayArray.h"
 #include "RAS_DisplayArrayStorage.h"
+#include "RAS_DisplayArrayBucket.h"
 #include "RAS_Mesh.h"
+#include "RAS_Deformer.h"
 
 #ifdef _MSC_VER
 #  pragma warning (disable:4786)
@@ -86,11 +88,16 @@ void RAS_MeshSlot::RunNode(const RAS_MeshSlotNodeTuple& tuple)
 	RAS_Rasterizer *rasty = managerData->m_rasty;
 	rasty->SetClientObject(m_meshUser->GetClientObject());
 	rasty->SetFrontFace(m_meshUser->GetFrontFace());
+	RAS_Deformer *deformer = m_displayArrayBucket->GetDeformer();
 
 	RAS_DisplayArrayStorage *storage = displayArrayData->m_arrayStorage;
 
 	if (!managerData->m_shaderOverride) {
 		materialData->m_material->ActivateMeshSlot(this, rasty, managerData->m_trans);
+
+		if (deformer) {
+			deformer->HandleGPUUniforms(rasty);
+		}
 
 		if (materialData->m_zsort && storage) {
 			displayArrayData->m_array->SortPolygons(
@@ -110,7 +117,16 @@ void RAS_MeshSlot::RunNode(const RAS_MeshSlotNodeTuple& tuple)
 			rasty->GetTransform(m_meshUser->GetMatrix(), materialData->m_drawingMode, mat);
 			rasty->MultMatrix(mat);
 		}
+
+		if (deformer) {
+			deformer->BeginHandleGPUAttribs(displayArrayData->m_array);
+		}
+
 		storage->IndexPrimitives();
+
+		if (deformer) {
+			deformer->EndHandleGPUAttribs();
+		}
 	}
 	rasty->PopMatrix();
 }

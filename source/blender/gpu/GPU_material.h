@@ -53,6 +53,7 @@ struct GPUNode;
 struct GPUNodeLink;
 struct GPUNodeStack;
 struct GPUMaterial;
+struct GPUShader;
 struct GPUTexture;
 struct GPULamp;
 struct PreviewImage;
@@ -61,6 +62,7 @@ struct World;
 typedef struct GPUNode GPUNode;
 typedef struct GPUNodeLink GPUNodeLink;
 typedef struct GPUMaterial GPUMaterial;
+typedef struct GPUShader GPUShader;
 typedef struct GPULamp GPULamp;
 typedef struct GPUParticleInfo GPUParticleInfo;
 
@@ -280,6 +282,7 @@ void GPU_material_bind_uniforms(
 void GPU_material_unbind(GPUMaterial *material);
 bool GPU_material_bound(GPUMaterial *material);
 struct Scene *GPU_material_scene(GPUMaterial *material);
+GPUShader *GPU_material_shader(GPUMaterial *material);
 GPUMatType GPU_Material_get_type(GPUMaterial *material);
 
 void GPU_material_vertex_attributes(GPUMaterial *material,

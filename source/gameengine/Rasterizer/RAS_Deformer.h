@@ -44,6 +44,8 @@
 
 class RAS_Mesh;
 class SCA_IObject;
+class RAS_MeshSlot;
+class RAS_Rasterizer;
 
 class RAS_Deformer
 {
@@ -77,6 +79,10 @@ public:
 
 	RAS_DisplayArray *GetDisplayArray(unsigned short index) const;
 	RAS_DisplayArrayBucket *GetDisplayArrayBucket(unsigned short index) const;
+
+	virtual void HandleGPUUniforms(RAS_Rasterizer *rasty) {}
+	virtual void BeginHandleGPUAttribs(RAS_DisplayArray *array) {}
+	virtual void EndHandleGPUAttribs() {}
 
 protected:
 	/// Struct wrapping display arrays owned/used by the deformer.

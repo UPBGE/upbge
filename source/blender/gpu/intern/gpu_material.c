@@ -120,6 +120,7 @@ struct GPUMaterial {
 	int obcolloc, obautobumpscaleloc;
 	int cameratexcofacloc;
 	int timeloc;
+	int useshwskinloc;
 
 	int partscalarpropsloc;
 	int partcoloc;
@@ -299,6 +300,9 @@ static int gpu_material_construct_end(GPUMaterial *material, const char *passnam
 		if (material->builtins & GPU_OBJECT_LAY) {
 			material->objectlayloc = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_OBJECT_LAY));
 		}
+
+		material->useshwskinloc = GPU_shader_get_uniform(shader, "useshwskin");
+
 		return 1;
 	}
 	else {
@@ -553,6 +557,10 @@ void GPU_material_bind_uniforms(
 		if (material->builtins & GPU_OBJECT_LAY) {
 			GPU_shader_uniform_vector_int(shader, material->objectlayloc, 1, 1, &oblay);
 		}
+
+		// This is enabled later as needed
+		GPU_shader_uniform_int(shader, material->useshwskinloc, 0);
+
 	}
 }
 
@@ -572,6 +580,11 @@ bool GPU_material_bound(GPUMaterial *material)
 Scene *GPU_material_scene(GPUMaterial *material)
 {
 	return material->scene;
+}
+
+GPUShader *GPU_material_shader(GPUMaterial *material)
+{
+	return GPU_pass_shader(material->pass);
 }
 
 GPUMatType GPU_Material_get_type(GPUMaterial *material)

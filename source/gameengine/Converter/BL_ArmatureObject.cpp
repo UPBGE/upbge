@@ -473,6 +473,11 @@ int BL_ArmatureObject::GetVertDeformType() const
 	return ((bArmature *)m_objArma->data)->gevertdeformer;
 }
 
+void BL_ArmatureObject::SetVertDeformType(int deform_type)
+{
+	((bArmature *)m_objArma->data)->gevertdeformer = deform_type;
+}
+
 void BL_ArmatureObject::GetPose(bPose **pose) const
 {
 	/* If the caller supplies a null pose, create a new one. */
