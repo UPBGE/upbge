@@ -435,6 +435,12 @@ void BKE_object_free(Object *ob)
 	free_actuators(&ob->actuators);
 	BKE_python_component_free_list(&ob->components);
 
+	if (ob->logicNodeTree) {
+		ntreeFreeTree(ob->logicNodeTree);
+		MEM_freeN(ob->logicNodeTree);
+		ob->logicNodeTree = NULL;
+	}
+
 	BKE_constraints_free_ex(&ob->constraints, false);
 
 	free_partdeflect(ob->pd);
@@ -1118,7 +1124,7 @@ void BKE_object_transform_copy(Object *ob_tar, const Object *ob_src)
  *
  * \param flag  Copying options (see BKE_library.h's LIB_ID_COPY_... flags for more).
  */
-void BKE_object_copy_data(Main *UNUSED(bmain), Object *ob_dst, const Object *ob_src, const int flag)
+void BKE_object_copy_data(Main *bmain, Object *ob_dst, const Object *ob_src, const int flag)
 {
 	ModifierData *md;
 
@@ -1156,6 +1162,10 @@ void BKE_object_copy_data(Main *UNUSED(bmain), Object *ob_dst, const Object *ob_
 
 	BKE_sca_logic_copy(ob_dst, ob_src, flag_subdata);
 	BKE_python_component_copy_list(&ob_dst->components, &ob_src->components);
+
+	if (ob_src->logicNodeTree) {
+		BKE_id_copy_ex(bmain, (ID *)ob_src->logicNodeTree, (ID **)&ob_dst->logicNodeTree, flag, false);
+	}
 
 	if (ob_src->pose) {
 		copy_object_pose(ob_dst, ob_src, flag_subdata);

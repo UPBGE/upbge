@@ -1957,6 +1957,12 @@ static void write_object(WriteData *wd, Object *ob)
 		write_actuators(wd, &ob->actuators);
 		write_components(wd, &ob->components);
 
+		/* nodetree is integral part of object, no libdata */
+		if (ob->logicNodeTree) {
+			writestruct(wd, DATA, bNodeTree, 1, ob->logicNodeTree);
+			write_nodetree_nolib(wd, ob->logicNodeTree);
+		}
+
 		if (ob->type == OB_ARMATURE) {
 			bArmature *arm = ob->data;
 			if (arm && ob->pose && arm->act_bone) {

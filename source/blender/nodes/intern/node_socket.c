@@ -484,5 +484,7 @@ void register_standard_node_socket_types(void)
 
 	nodeRegisterSocketType(make_standard_socket_type(SOCK_SHADER, PROP_NONE));
 
+	nodeRegisterSocketType(make_standard_socket_type(SOCK_LOGIC, PROP_NONE));
+	
 	nodeRegisterSocketType(make_socket_type_virtual());
 }

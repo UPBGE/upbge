@@ -4911,6 +4911,11 @@ static void lib_link_object(FileData *fd, Main *main)
 			lib_link_nlastrips(fd, &ob->id, &ob->nlastrips);
 // >>> XXX deprecated - old animation system
 
+			if (ob->logicNodeTree) {
+				lib_link_ntree(fd, &ob->id, ob->logicNodeTree);
+				ob->logicNodeTree->id.lib = ob->id.lib;
+			}
+			
 			for (PartEff *paf = ob->effect.first; paf; paf = paf->next) {
 				if (paf->type == EFF_PARTICLE) {
 					paf->group = newlibadr_us(fd, ob->id.lib, paf->group);
@@ -5530,6 +5535,12 @@ static void direct_link_object(FileData *fd, Object *ob)
 
 	/* do it here, below old data gets converted */
 	direct_link_modifiers(fd, &ob->modifiers);
+
+	ob->logicNodeTree = newdataadr(fd, ob->logicNodeTree);
+	if (ob->logicNodeTree) {
+		direct_link_id(fd, &ob->logicNodeTree->id);
+		direct_link_nodetree(fd, ob->logicNodeTree);
+	}
 
 	link_list(fd, &ob->effect);
 	paf= ob->effect.first;

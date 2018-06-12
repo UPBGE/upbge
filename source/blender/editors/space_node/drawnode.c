@@ -70,6 +70,7 @@
 #include "NOD_composite.h"
 #include "NOD_shader.h"
 #include "NOD_texture.h"
+#include "NOD_logic.h"
 
 
 /* ****************** SOCKET BUTTON DRAW FUNCTIONS ***************** */
@@ -3092,6 +3093,7 @@ void ED_node_init_butfuncs(void)
 	ntreeType_Composite->ui_icon = ICON_RENDERLAYERS;
 	ntreeType_Shader->ui_icon = ICON_MATERIAL;
 	ntreeType_Texture->ui_icon = ICON_TEXTURE;
+	ntreeType_Logic->ui_icon = ICON_LOGIC;
 }
 
 void ED_init_custom_node_type(bNodeType *ntype)
@@ -3120,6 +3122,7 @@ static const float std_node_socket_colors[][4] = {
 	{0.0, 0.0, 0.0, 1.0},       /*__SOCK_MESH (deprecated) */
 	{0.06, 0.52, 0.15, 1.0},    /* SOCK_INT */
 	{0.39, 0.39, 0.39, 1.0},    /* SOCK_STRING */
+	{0.0, 0.0, 1.0, 1.0},       /* SOCK_LOGIC */
 };
 
 /* common color callbacks for standard types */

@@ -34,6 +34,7 @@
 #include "DNA_lamp_types.h"
 #include "DNA_material_types.h"
 #include "DNA_node_types.h"
+#include "DNA_object_types.h"
 #include "DNA_text_types.h"
 #include "DNA_world_types.h"
 
@@ -75,7 +76,7 @@
 #include "NOD_composite.h"
 #include "NOD_shader.h"
 #include "NOD_texture.h"
-
+#include "NOD_logic.h"
 
 #define USE_ESC_COMPO
 
@@ -538,6 +539,20 @@ void ED_node_texture_default(const bContext *C, Tex *tx)
 	nodeAddLink(tx->nodetree, in, fromsock, out, tosock);
 
 	ntreeUpdateTree(CTX_data_main(C), tx->nodetree);
+}
+
+void ED_node_logic_default(const bContext *C, Object *ob)
+{
+	/* but lets check it anyway */
+	if (ob->logicNodeTree) {
+		if (G.debug & G_DEBUG)
+			printf("error in logic initialize\n");
+		return;
+	}
+	
+	ob->logicNodeTree = ntreeAddTree(NULL, "Logic Nodetree", ntreeType_Logic->idname);
+
+	ntreeUpdateTree(CTX_data_main(C), ob->logicNodeTree);
 }
 
 /* Here we set the active tree(s), even called for each redraw now, so keep it fast :) */

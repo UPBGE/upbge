@@ -284,7 +284,12 @@ typedef struct Object {
 	/* dynamic properties */
 	float friction, rolling_friction, fh, reflect;
 	float fhdist, xyfrict;
-	short dynamode, pad6[3];
+	short dynamode;
+	char useLogicNodes;
+	char pad8[5];
+
+	struct bNodeTree *logicNodeTree;
+	void *pad7;
 
 	ListBase constraints;		/* object constraints */
 	ListBase nlastrips  DNA_DEPRECATED;			// XXX deprecated... old animation system

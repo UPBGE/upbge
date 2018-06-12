@@ -130,6 +130,9 @@ set(SRC
 	composite/node_composite_tree.c
 	composite/node_composite_util.c
 
+	logic/node_logic_tree.c
+	logic/node_logic_util.c
+
 	shader/nodes/node_shader_camera.c
 	shader/nodes/node_shader_common.c
 	shader/nodes/node_shader_curves.c
@@ -254,6 +257,7 @@ set(SRC
 	intern/node_socket.c
 
 	composite/node_composite_util.h
+	logic/node_logic_util.h
 	shader/node_shader_util.h
 	texture/node_texture_util.h
 

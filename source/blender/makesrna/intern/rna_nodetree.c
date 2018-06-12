@@ -91,6 +91,7 @@ static const EnumPropertyItem node_socket_type_items[] = {
 	{SOCK_STRING,  "STRING",    0,    "String",    ""},
 	{SOCK_RGBA,    "RGBA",      0,    "RGBA",      ""},
 	{SOCK_SHADER,  "SHADER",    0,    "Shader",    ""},
+	{SOCK_LOGIC,   "LOGIC",     0,    "Logic",     ""},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -7718,6 +7719,20 @@ static void rna_def_node_socket_shader(BlenderRNA *brna, const char *identifier,
 	RNA_def_struct_sdna(srna, "bNodeSocket");
 }
 
+static void rna_def_node_socket_logic(BlenderRNA *brna, const char *identifier, const char *interface_idname)
+{
+	StructRNA *srna;
+	
+	srna = RNA_def_struct(brna, identifier, "NodeSocketStandard");
+	RNA_def_struct_ui_text(srna, "Logic Node Socket", "Logic socket of a node");
+	RNA_def_struct_sdna(srna, "bNodeSocket");
+	
+	/* socket interface */
+	srna = RNA_def_struct(brna, interface_idname, "NodeSocketInterfaceStandard");
+	RNA_def_struct_ui_text(srna, "Logic Node Socket Interface", "Logic socket of a node");
+	RNA_def_struct_sdna(srna, "bNodeSocket");
+}
+
 static void rna_def_node_socket_virtual(BlenderRNA *brna, const char *identifier)
 {
 	StructRNA *srna;
@@ -7839,6 +7854,7 @@ static void rna_def_node_socket_standard_types(BlenderRNA *brna)
 	rna_def_node_socket_string(brna, "NodeSocketString", "NodeSocketInterfaceString");
 
 	rna_def_node_socket_shader(brna, "NodeSocketShader", "NodeSocketInterfaceShader");
+	rna_def_node_socket_logic(brna, "NodeSocketLogic", "NodeSocketInterfaceLogic");
 
 	rna_def_node_socket_virtual(brna, "NodeSocketVirtual");
 }
@@ -8440,6 +8456,7 @@ static void rna_def_nodetree(BlenderRNA *brna)
 		{NTREE_SHADER,      "SHADER",       ICON_MATERIAL,      "Shader",       "Shader nodes"},
 		{NTREE_TEXTURE,     "TEXTURE",      ICON_TEXTURE,       "Texture",      "Texture nodes"},
 		{NTREE_COMPOSIT,    "COMPOSITING",  ICON_RENDERLAYERS,  "Compositing",  "Compositing nodes"},
+		{NTREE_LOGIC,       "LOGIC",        ICON_LOGIC,         "Logic",        "Logic nodes"},
 		{0, NULL, 0, NULL, NULL}
 	};
 
@@ -8631,6 +8648,17 @@ static void rna_def_texture_nodetree(BlenderRNA *brna)
 	RNA_def_struct_ui_icon(srna, ICON_TEXTURE);
 }
 
+static void rna_def_logic_nodetree(BlenderRNA *brna)
+{
+	StructRNA *srna;
+
+	srna = RNA_def_struct(brna, "LogicNodeTree", "NodeTree");
+	RNA_def_struct_ui_text(srna, "Logic Node Tree",
+	                       "Node tree consisting of linked nodes used for logic");
+	RNA_def_struct_sdna(srna, "bNodeTree");
+	RNA_def_struct_ui_icon(srna, ICON_LOGIC);
+}
+
 static StructRNA *define_specific_node(BlenderRNA *brna, const char *struct_name, const char *base_name,
                                        const char *ui_name, const char *ui_desc, void (*def_func)(StructRNA *))
 {
@@ -8718,6 +8746,7 @@ void RNA_def_nodetree(BlenderRNA *brna)
 	rna_def_composite_nodetree(brna);
 	rna_def_shader_nodetree(brna);
 	rna_def_texture_nodetree(brna);
+	rna_def_logic_nodetree(brna);
 
 #define DefNode(Category, ID, DefFunc, EnumName, StructName, UIName, UIDesc) \
 	{ \

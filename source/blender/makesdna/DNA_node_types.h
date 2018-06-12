@@ -140,7 +140,8 @@ typedef enum eNodeSocketDatatype {
 	SOCK_BOOLEAN		= 4,
 	__SOCK_MESH			= 5,	/* deprecated */
 	SOCK_INT			= 6,
-	SOCK_STRING			= 7
+	SOCK_STRING			= 7,
+	SOCK_LOGIC			= 8
 } eNodeSocketDatatype;
 
 /* socket shape */
@@ -406,6 +407,7 @@ typedef struct bNodeTree {
 #define NTREE_SHADER		0
 #define NTREE_COMPOSIT		1
 #define NTREE_TEXTURE		2
+#define NTREE_LOGIC			3
 
 /* ntree->init, flag */
 #define NTREE_TYPE_INIT		1

@@ -58,9 +58,11 @@
 #include "BLI_sys_types.h" /* needed for intptr_t used in ED_mesh.h */
 #include "BLI_math_base.h"
 #include "ED_mesh.h"
+#include "ED_node.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
+
 
 const EnumPropertyItem rna_enum_object_mode_items[] = {
 	{OB_MODE_OBJECT, "OBJECT", ICON_OBJECT_DATAMODE, "Object Mode", ""},
@@ -1089,6 +1091,17 @@ static void rna_GameObjectSettings_physics_type_set(PointerRNA *ptr, int value)
 	WM_main_add_notifier(NC_OBJECT | ND_DRAW, ptr->id.data);
 }
 
+static void rna_GameObject_use_logic_nodes_update(bContext *C, PointerRNA *ptr)
+{
+	Object *ob = (Object *)ptr->id.data;
+	
+	if (ob->useLogicNodes) {
+		if (ob->logicNodeTree == NULL) {
+			ED_node_logic_default(C, ob);
+		}
+	}
+}
+
 static PointerRNA rna_Object_active_particle_system_get(PointerRNA *ptr)
 {
 	Object *ob = (Object *)ptr->id.data;
@@ -1719,6 +1732,16 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
 	RNA_def_property_collection_sdna(prop, NULL, "components", NULL);
 	RNA_def_property_struct_type(prop, "PythonComponent"); /* rna_python_component.c */
 	RNA_def_property_ui_text(prop, "Components", "Game engine components");
+
+	prop = RNA_def_property(srna, "use_logic_nodes", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "useLogicNodes", 1);
+	RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+	RNA_def_property_ui_text(prop, "Use Logic Nodes", "Make this a node-based logic");
+	RNA_def_property_update(prop, 0, "rna_GameObject_use_logic_nodes_update");
+	
+	prop = RNA_def_property(srna, "logic_node_tree", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "logicNodeTree");
+	RNA_def_property_ui_text(prop, "Logic Node Tree", "Node tree for node-based logic");
 
 	prop = RNA_def_property(srna, "show_sensors", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "scaflag", OB_SHOWSENS);
