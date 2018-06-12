@@ -317,7 +317,7 @@ void KX_GameObject::ReplicateConstraints(PHY_IPhysicsEnvironment *physEnv, const
 KX_GameObject *KX_GameObject::GetParent()
 {
 	KX_GameObject *result = nullptr;
-	SG_Node *node = m_node.get();
+	SG_Node *node = m_node;
 
 	while (node && !result)
 	{
@@ -359,7 +359,7 @@ void KX_GameObject::SetParent(KX_GameObject *obj, bool addToCompound, bool ghost
 
 	// Remove us from our old parent and set our new parent
 	RemoveParent();
-	parentSgNode->AddChild(m_node.get());
+	parentSgNode->AddChild(m_node);
 
 	if (m_physicsController) {
 		m_physicsController->SuspendDynamics(ghost);
@@ -545,7 +545,7 @@ void KX_GameObject::ActivateGraphicController(bool recurse)
 		m_graphicController->Activate(m_bVisible);
 	}
 	if (recurse) {
-		setGraphicController_recursive(m_node.get());
+		setGraphicController_recursive(m_node);
 	}
 }
 
@@ -694,8 +694,10 @@ void KX_GameObject::AddMeshUser()
 
 void KX_GameObject::UpdateBuckets()
 {
+	CM_Debug("node : " << m_node << ", " << this);
 	// Update datas and add mesh slot to be rendered only if the object is not culled.
 	if (m_node->IsDirty(SG_Node::DIRTY_RENDER)) {
+		CM_Debug("update : " << m_name);
 		NodeGetWorldTransform().PackFromAffineTransform(m_meshUser->GetMatrix());
 		m_node->ClearDirty(SG_Node::DIRTY_RENDER);
 	}
@@ -909,7 +911,7 @@ void KX_GameObject::SetVisible(bool v,
 		m_graphicController->Activate(m_bVisible);
 	}
 	if (recursive) {
-		setVisible_recursive(m_node.get(), v);
+		setVisible_recursive(m_node, v);
 	}
 }
 
@@ -934,7 +936,7 @@ void KX_GameObject::SetOccluder(bool v,
 {
 	m_bOccluder = v;
 	if (recursive) {
-		setOccluder_recursive(m_node.get(), v);
+		setOccluder_recursive(m_node, v);
 	}
 }
 
@@ -975,7 +977,7 @@ void KX_GameObject::SetUseDebugProperties(bool debug, bool recursive)
 	}
 
 	if (recursive) {
-		setDebug_recursive(scene, m_node.get(), debug);
+		setDebug_recursive(scene, m_node, debug);
 	}
 }
 
@@ -1523,14 +1525,14 @@ static void walk_children(const SG_Node *node, std::vector<KX_GameObject *>& lis
 std::vector<KX_GameObject *> KX_GameObject::GetChildren() const
 {
 	std::vector<KX_GameObject *> list;
-	walk_children<false>(m_node.get(), list);
+	walk_children<false>(m_node, list);
 	return list;
 }
 
 std::vector<KX_GameObject *> KX_GameObject::GetChildrenRecursive() const
 {
 	std::vector<KX_GameObject *> list;
-	walk_children<true>(m_node.get(), list);
+	walk_children<true>(m_node, list);
 	return list;
 }
 

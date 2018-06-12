@@ -35,6 +35,8 @@
 
 #include "BLI_utildefines.h"
 
+#include "KX_GameObject.h"
+
 KX_NormalParentRelation::~KX_NormalParentRelation()
 {
 }
@@ -43,17 +45,24 @@ KX_NormalParentRelation::KX_NormalParentRelation()
 {
 }
 
+#include "CM_Message.h"
+
 bool KX_NormalParentRelation::UpdateChildCoordinates(SG_Node *child, const SG_Node *parent, bool& parentUpdated)
 {
+	if (child->GetObject()) {
+		CM_FunctionDebug(static_cast<KX_GameObject *>(child->GetObject())->GetName());
+	}
 	BLI_assert(child != nullptr);
 
 	if (!parentUpdated && !child->IsModified()) {
 		return false;
 	}
 
+
 	parentUpdated = true;
 
 	if (parent) {
+		CM_Debug("\tparent : " << parent->GetWorldPosition());
 		const mt::mat3x4 trans = parent->GetWorldTransform() * child->GetLocalTransform();
 		const mt::vec3 scale = trans.ScaleVector3D();
 		const mt::vec3 invscale(1.0f / scale.x, 1.0f / scale.y, 1.0f / scale.z);

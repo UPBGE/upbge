@@ -107,28 +107,7 @@
 #include "CM_Message.h"
 #include "CM_List.h"
 
-static void *KX_SceneReplicationFunc(SG_Node *node, SG_Object *gameobj, SG_Scene *scene)
-{
-	KX_GameObject *replica = ((KX_Scene *)scene)->AddNodeReplicaObject(node, (KX_GameObject *)gameobj);
-
-	if (replica) {
-		replica->Release();
-	}
-
-	return (void *)replica;
-}
-
-static void *KX_SceneDestructionFunc(SG_Node *node, SG_Object *gameobj, SG_Scene *scene)
-{
-	((KX_Scene *)scene)->RemoveNodeDestructObject((KX_GameObject *)gameobj);
-
-	return nullptr;
-}
-
-SG_Callbacks KX_Scene::m_callbacks = SG_Callbacks(
-	KX_SceneReplicationFunc,
-	KX_SceneDestructionFunc,
-	KX_GameObject::UpdateTransformFunc);
+SG_Callbacks KX_Scene::m_callbacks = SG_Callbacks(KX_GameObject::UpdateTransformFunc);
 
 KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
                    const std::string& sceneName,
@@ -431,8 +410,19 @@ void KX_Scene::AddObjectDebugProperties(KX_GameObject *gameobj)
 	}
 }
 
-void KX_Scene::RemoveNodeDestructObject(KX_GameObject *gameobj)
+SG_Object *KX_Scene::ReplicateNodeObject(SG_Node *node, SG_Object *origObject)
 {
+	KX_GameObject *replica = AddNodeReplicaObject(node, static_cast<KX_GameObject *>(origObject));
+	if (replica) {
+		replica->Release();
+	}
+
+	return replica;
+}
+
+void KX_Scene::DestructNodeObject(SG_Node *node, SG_Object *object)
+{
+	KX_GameObject *gameobj = static_cast<KX_GameObject *>(object);
 	if (NewRemoveObject(gameobj)) {
 		/* Object is not yet deleted because a reference is hanging somewhere.
 		 * This should not happen anymore since we use proxy object for Python. */
@@ -461,26 +451,22 @@ KX_GameObject *KX_Scene::AddNodeReplicaObject(SG_Node *node, KX_GameObject *game
 		}
 	}
 
-	if (node) {
-		newobj->SetNode(node);
-	}
-	else {
-		SG_Node *rootnode = new SG_Node(newobj, this, KX_Scene::m_callbacks);
+	if (!node) {
+		node = new SG_Node(newobj, this, KX_Scene::m_callbacks);
 
 		// This fixes part of the scaling-added object bug.
 		SG_Node *orgnode = gameobj->GetNode();
-		rootnode->SetLocalScale(orgnode->GetLocalScale());
-		rootnode->SetLocalPosition(orgnode->GetLocalPosition());
-		rootnode->SetLocalOrientation(orgnode->GetLocalOrientation());
+		node->SetLocalScale(orgnode->GetLocalScale());
+		node->SetLocalPosition(orgnode->GetLocalPosition());
+		node->SetLocalOrientation(orgnode->GetLocalOrientation());
 
 		// Define the relationship between this node and it's parent.
 		KX_NormalParentRelation *parent_relation = new KX_NormalParentRelation();
-		rootnode->SetParentRelation(parent_relation);
-
-		newobj->SetNode(rootnode);
+		node->SetParentRelation(parent_relation);
 	}
 
-	SG_Node *replicanode = newobj->GetNode();
+	newobj->SetNode(node);
+	node->SetObject(newobj);
 
 	// Add the object in the obstacle simulation if needed.
 	if (m_obstacleSimulation && gameobj->GetBlenderObject()->gameflag & OB_HASOBSTACLE) {
@@ -491,8 +477,6 @@ KX_GameObject *KX_Scene::AddNodeReplicaObject(SG_Node *node, KX_GameObject *game
 	if (gameobj->GetComponents()) {
 		m_componentManager.RegisterObject(newobj);
 	}
-
-	replicanode->SetObject(newobj);
 
 	// This is the list of object that are send to the graphics pipeline.
 	m_objectlist->Add(CM_AddRef(newobj));

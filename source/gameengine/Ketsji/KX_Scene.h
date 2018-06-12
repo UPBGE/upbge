@@ -264,13 +264,15 @@ public:
 	void RenderTextureRenderers(KX_TextureRendererManager::RendererCategory category, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen,
 	                            KX_Camera *sceneCamera, const RAS_Rect& viewport, const RAS_Rect& area);
 
+	virtual SG_Object *ReplicateNodeObject(SG_Node *node, SG_Object *origObject);
+	virtual void DestructNodeObject(SG_Node *node, SG_Object *object);
+
 	void DupliGroupRecurse(KX_GameObject *groupobj, int level);
 	bool IsObjectInGroup(KX_GameObject *gameobj) const;
 	void AddObjectDebugProperties(KX_GameObject *gameobj);
 	KX_GameObject *AddReplicaObject(KX_GameObject *gameobj, KX_GameObject *locationobj, float lifespan = 0.0f);
 	KX_GameObject *AddNodeReplicaObject(SG_Node *node, KX_GameObject *gameobj);
 
-	void RemoveNodeDestructObject(KX_GameObject *gameobj);
 	void RemoveObject(KX_GameObject *gameobj);
 	void RemoveDupliGroup(KX_GameObject *gameobj);
 	void DelayedRemoveObject(KX_GameObject *gameobj);

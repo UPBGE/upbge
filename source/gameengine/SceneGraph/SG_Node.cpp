@@ -36,6 +36,8 @@
 
 #include "CM_List.h"
 
+#include "CM_Message.h"
+
 #include "BLI_utildefines.h"
 
 static CM_ThreadMutex scheduleMutex;
@@ -58,15 +60,16 @@ SG_Node::SG_Node(SG_Object *object, SG_Scene *scene, SG_Callbacks& callbacks)
 	m_modified(true),
 	m_dirty(DIRTY_NONE)
 {
+	BLI_assert(object || !m_callbacks.m_updatefunc);
 }
 
-SG_Node::SG_Node(const SG_Node & other)
+SG_Node::SG_Node(const SG_Node& other)
 	:SG_QList(),
-	m_object(other.m_object),
+	m_object(nullptr),
 	m_scene(other.m_scene),
 	m_callbacks(other.m_callbacks),
 	m_children(other.m_children),
-	m_parent(other.m_parent),
+	m_parent(nullptr),
 	m_localPosition(other.m_localPosition),
 	m_localRotation(other.m_localRotation),
 	m_localScaling(other.m_localScaling),
@@ -88,66 +91,44 @@ SG_Node::~SG_Node()
 
 SG_Node *SG_Node::GetReplica()
 {
-	SG_Node *replica = new SG_Node(*this);
-	if (replica == nullptr) {
+	// Avoid duplicate leaf node without object.
+	if (m_children.empty() && !m_object) {
 		return nullptr;
 	}
 
-	ProcessSGReplica(&replica);
+	SG_Node *replica = new SG_Node(*this);
+
+	if (m_object) {
+		SG_Object *object = m_scene->ReplicateNodeObject(replica, m_object);
+		// The scene can refuse an object duplication.
+		if (!object) {
+			delete replica;
+			return nullptr;
+		}
+	}
+
+	for (SG_Node *child : m_children) {
+		SG_Node *replicanode = child->GetReplica();
+		if (replicanode) {
+			replica->AddChild(replicanode);
+		}
+	}
 
 	return replica;
 }
 
-void SG_Node::ProcessSGReplica(SG_Node **replica)
-{
-	// Apply the replication call back function.
-	if (!ActivateReplicationCallback(*replica)) {
-		delete (*replica);
-		*replica = nullptr;
-		return;
-	}
-
-	// clear the replica node of it's parent.
-	(*replica)->m_parent = nullptr;
-
-	if (!m_children.empty()) {
-		// if this node has children, the replica has too, so clear and clone children
-		(*replica)->ClearSGChildren();
-
-		for (SG_Node *childnode : m_children) {
-			SG_Node *replicanode = childnode->GetReplica();
-			if (replicanode) {
-				(*replica)->AddChild(replicanode);
-			}
-		}
-	}
-	// Nodes without children and without client object are
-	// not worth to keep, they will just take up CPU
-	// This can happen in partial replication of hierarchy
-	// during group duplication.
-	if ((*replica)->m_children.empty() &&
-	    (*replica)->GetObject() == nullptr) {
-		delete (*replica);
-		*replica = nullptr;
-	}
-}
-
 void SG_Node::Destruct()
 {
-	// Not entirely sure what Destruct() expects to happen.
-	// I think it probably means just to call the DestructionCallback
-	// in the right order on all the children - rather than free any memory
-
-	// We'll delete m_parent_relation now anyway.
-
 	m_parent_relation.reset(nullptr);
 
 	for (SG_Node *childnode : m_children) {
-		// call the SG_Node destruct method on each of our children }-)
+		// call the SG_Node destruct method on each of our children
 		childnode->Destruct();
 	}
 
-	ActivateDestructionCallback();
+	if (m_object) {
+		m_scene->DestructNodeObject(this, m_object);
+	}
 }
 
 const SG_Node *SG_Node::GetRootSGParent() const
@@ -364,6 +345,7 @@ SG_Object *SG_Node::GetObject() const
 
 void SG_Node::SetObject(SG_Object *object)
 {
+	BLI_assert(object);
 	m_object = object;
 }
 
@@ -435,6 +417,7 @@ void SG_Node::UpdateSpatialData(const SG_Node *parent, bool& parentUpdated)
 
 	// Ask the parent_relation object owned by this class to update our world coordinates.
 	ComputeWorldTransforms(parent, parentUpdated);
+	CM_FunctionDebug(m_worldPosition);
 }
 
 /**
@@ -593,29 +576,6 @@ bool SG_Node::IsModified()
 bool SG_Node::IsDirty(DirtyFlag flag)
 {
 	return (m_dirty & flag);
-}
-
-bool SG_Node::ActivateReplicationCallback(SG_Node *replica)
-{
-	if (m_callbacks.m_replicafunc) {
-		// Call client provided replication func
-		if (m_callbacks.m_replicafunc(replica, m_object, m_scene) == nullptr) {
-			return false;
-		}
-	}
-	return true;
-}
-
-void SG_Node::ActivateDestructionCallback()
-{
-	if (m_callbacks.m_destructionfunc) {
-		// Call client provided destruction function on this!
-		m_callbacks.m_destructionfunc(this, m_object, m_scene);
-	}
-	else {
-		// no callback but must still destroy the node to avoid memory leak
-		delete this;
-	}
 }
 
 void SG_Node::ActivateUpdateTransformCallback()

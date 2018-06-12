@@ -21,6 +21,9 @@ private:
 	NodeList m_rootNodes;
 
 public:
+	virtual SG_Object *ReplicateNodeObject(SG_Node *node, SG_Object *origObject) = 0;
+	virtual void DestructNodeObject(SG_Node *node, SG_Object *object) = 0;
+
 	void Schedule(SG_Node *node);
 	void Reschedule(SG_Node *node);
 

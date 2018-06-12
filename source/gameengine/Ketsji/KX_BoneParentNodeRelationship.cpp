@@ -46,8 +46,11 @@ KX_BoneParentRelation::~KX_BoneParentRelation()
 {
 }
 
+#include "CM_Message.h"
+
 bool KX_BoneParentRelation::UpdateChildCoordinates(SG_Node *child, const SG_Node *parent, bool& parentUpdated)
 {
+	CM_FunctionDebug("");
 	BLI_assert(child != nullptr);
 
 	// We don't know if the armature has been updated or not, assume yes.

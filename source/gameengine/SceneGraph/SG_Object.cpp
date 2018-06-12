@@ -13,19 +13,14 @@ SG_Object::SG_Object(const SG_Object& other)
 
 SG_Object::~SG_Object() = default;
 
-SG_Node *SG_Object::GetNode()
+SG_Node *SG_Object::GetNode() const
 {
-	return m_node.get();
-}
-
-const SG_Node *SG_Object::GetNode() const
-{
-	return m_node.get();
+	return m_node;
 }
 
 void SG_Object::SetNode(SG_Node *node)
 {
-	m_node.reset(node);
+	m_node = node;
 }
 
 SG_BBox &SG_Object::GetAabb()

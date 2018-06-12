@@ -1129,7 +1129,7 @@ static void bl_ConvertBlenderObject_Single(BL_SceneConverter& converter,
 	// Update children/parent hierarchy.
 	if (blenderobject->parent != 0) {
 		// Blender has an additional 'parentinverse' offset in each object.
-		SG_Callbacks callback(nullptr, nullptr, nullptr);
+		SG_Callbacks callback(nullptr);
 		SG_Node *parentinversenode = new SG_Node(nullptr, kxscene, callback);
 
 		// Define a normal parent relationship for this node.

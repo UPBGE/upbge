@@ -50,8 +50,6 @@ class SG_Object;
 
 typedef std::vector<SG_Controller *> SGControllerList;
 
-typedef void * (*SG_ReplicationNewCallback)(SG_Node *sgnode, SG_Object *object, SG_Scene *scene);
-typedef void * (*SG_DestructionNewCallback)(SG_Node *sgnode, SG_Object *object, SG_Scene *scene);
 typedef void (*SG_UpdateTransformCallback)(SG_Node *sgnode, SG_Object *object, SG_Scene *scene);
 
 /**
@@ -71,23 +69,15 @@ typedef void (*SG_UpdateTransformCallback)(SG_Node *sgnode, SG_Object *object, S
  */
 struct SG_Callbacks {
 	SG_Callbacks()
-		:m_replicafunc(nullptr),
-		m_destructionfunc(nullptr),
-		m_updatefunc(nullptr)
+		:m_updatefunc(nullptr)
 	{
 	}
 
-	SG_Callbacks(SG_ReplicationNewCallback repfunc,
-	             SG_DestructionNewCallback destructfunc,
-	             SG_UpdateTransformCallback updatefunc)
-		:m_replicafunc(repfunc),
-		m_destructionfunc(destructfunc),
-		m_updatefunc(updatefunc)
+	SG_Callbacks(SG_UpdateTransformCallback updatefunc)
+		:m_updatefunc(updatefunc)
 	{
 	}
 
-	SG_ReplicationNewCallback m_replicafunc;
-	SG_DestructionNewCallback m_destructionfunc;
 	SG_UpdateTransformCallback m_updatefunc;
 };
 
@@ -328,8 +318,6 @@ protected:
 	friend class KX_SlowParentRelation;
 	friend class KX_NormalParentRelation;
 
-	bool ActivateReplicationCallback(SG_Node *replica);
-	void ActivateDestructionCallback();
 	void ActivateUpdateTransformCallback();
 
 	void Reschedule();
@@ -342,8 +330,6 @@ protected:
 
 private:
 	void UpdateWorldDataThreadSchedule(bool parentUpdated = false);
-
-	void ProcessSGReplica(SG_Node **replica);
 
 	SG_Object *m_object;
 	SG_Scene *m_scene;

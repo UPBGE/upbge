@@ -11,7 +11,7 @@ class SG_Object
 {
 protected:
 	/// Object transformation and hierachie.
-	std::unique_ptr<SG_Node> m_node;
+	SG_Node *m_node;
 	/// The bounding box in node transform space.
 	SG_BBox m_aabb;
 	/// The culling state from the last culling pass.
@@ -22,8 +22,7 @@ public:
 	SG_Object(const SG_Object& other);
 	virtual ~SG_Object();
 
-	SG_Node *GetNode();
-	const SG_Node* GetNode() const;
+	SG_Node *GetNode() const;
 	void SetNode(SG_Node *node);
 
 	SG_BBox& GetAabb();
