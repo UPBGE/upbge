@@ -2067,13 +2067,12 @@ void initPlayerPython(int argc, char **argv)
 
 	bpy_import_init(PyEval_GetBuiltins());
 
-#ifdef WITH_AUDASPACE
-	/* accessing a SoundActuator's sound results in a crash if aud is not initialized... */
-	{
-		PyObject *mod = PyImport_ImportModuleLevel("aud", nullptr, nullptr, nullptr, 0);
+	/* The modules are imported to call their init functions to ensure the types they own are ready
+	 * as they are used outside of the modules. */
+	for (unsigned short i = 0; bge_internal_modules[i].name; ++i) {
+		PyObject *mod = PyImport_ImportModuleLevel(bge_internal_modules[i].name, nullptr, nullptr, nullptr, 0);
 		Py_DECREF(mod);
 	}
-#endif
 }
 
 void exitPlayerPython()
