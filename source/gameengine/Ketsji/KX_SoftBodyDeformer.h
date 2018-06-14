@@ -37,24 +37,21 @@
 #endif
 
 #include "RAS_Deformer.h"
-#include "BL_DeformableGameObject.h"
-#include <vector>
 
-class RAS_Mesh;
+class KX_GameObject;
 
 class KX_SoftBodyDeformer : public RAS_Deformer
 {
-	BL_DeformableGameObject *m_gameobj;
+	KX_GameObject *m_gameobj;
 	/** Set to true to request an AABB update in Apply(mat).
 	 * Used to compute a fully AABB and not for only one material.
 	 */
 	bool m_needUpdateAabb;
 
 public:
-	KX_SoftBodyDeformer(RAS_Mesh *pMeshObject, BL_DeformableGameObject *gameobj);
+	KX_SoftBodyDeformer(RAS_Mesh *pMeshObject, KX_GameObject *gameobj);
 	virtual ~KX_SoftBodyDeformer();
 
-	virtual void Relink(std::map<SCA_IObject *, SCA_IObject *>& map);
 	virtual void Apply(RAS_DisplayArray *array);
 	virtual bool Update()
 	{
@@ -69,18 +66,6 @@ public:
 		// no need to do it for this deformer, it's done in any case in Apply()
 	}
 
-	virtual RAS_Deformer *GetReplica()
-	{
-		KX_SoftBodyDeformer *deformer = new KX_SoftBodyDeformer(*this);
-		deformer->ProcessReplica();
-		return deformer;
-	}
-	virtual void ProcessReplica()
-	{
-		RAS_Deformer::ProcessReplica();
-		// we have two pointers to deal with but we cannot do it now, will be done in Relink
-		m_bDynamic = false;
-	}
 	virtual bool SkipVertexTransform()
 	{
 		return true;

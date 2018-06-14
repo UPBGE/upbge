@@ -31,8 +31,11 @@
 
 #include "RAS_MeshSlot.h"
 
+#include <memory>
+
 class RAS_BoundingBox;
 class RAS_BatchGroup;
+class RAS_Deformer;
 
 class RAS_MeshUser : public mt::SimdClassAllocator
 {
@@ -51,9 +54,11 @@ private:
 	std::vector<RAS_MeshSlot> m_meshSlots;
 	/// Possible batching groups shared between mesh users.
 	RAS_BatchGroup *m_batchGroup;
+	/// Deformer of this mesh user modifying the display array of the mesh slots.
+	std::unique_ptr<RAS_Deformer> m_deformer;
 
 public:
-	RAS_MeshUser(void *clientobj, RAS_BoundingBox *boundingBox);
+	RAS_MeshUser(void *clientobj, RAS_BoundingBox *boundingBox, RAS_Deformer *deformer);
 	virtual ~RAS_MeshUser();
 
 	void NewMeshSlot(RAS_DisplayArrayBucket *arrayBucket);
@@ -64,6 +69,7 @@ public:
 	void *GetClientObject() const;
 	std::vector<RAS_MeshSlot>& GetMeshSlots();
 	RAS_BatchGroup *GetBatchGroup() const;
+	RAS_Deformer *GetDeformer();
 
 	void SetFrontFace(bool frontFace);
 	void SetColor(const mt::vec4& color);

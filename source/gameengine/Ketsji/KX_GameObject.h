@@ -57,6 +57,7 @@ class KX_LodManager;
 class KX_PythonComponent;
 class KX_Mesh;
 class RAS_MeshUser;
+class RAS_Deformer;
 class PHY_IGraphicController;
 class PHY_IPhysicsEnvironment;
 class PHY_IPhysicsController;
@@ -428,26 +429,14 @@ public:
 		const mt::vec4&
 	GetObjectColor();
 
+	RAS_Deformer *GetDeformer();
+
 	/**
 	 * \return a pointer to the physics controller owned by this class.
 	 */
 
 	PHY_IPhysicsController* GetPhysicsController();
 	void SetPhysicsController(PHY_IPhysicsController *physicscontroller);
-
-	virtual class RAS_Deformer* GetDeformer()
-	{
-		return 0;
-	}
-	/// Return true when the game object is a BL_DeformableGameObject.
-	virtual bool IsDeformable() const
-	{
-		return false;
-	}
-
-	virtual void LoadDeformer()
-	{
-	}
 
 	/**
 	 * \return a pointer to the graphic controller owner by this class 

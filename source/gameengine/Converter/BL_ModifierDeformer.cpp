@@ -70,33 +70,9 @@ extern "C" {
 BL_ModifierDeformer::~BL_ModifierDeformer()
 {
 	if (m_dm) {
-		// deformedOnly is used as a user counter
-		if (--m_dm->deformedOnly == 0) {
-			m_dm->needsFree = 1;
-			m_dm->release(m_dm);
-		}
+		m_dm->needsFree = 1;
+		m_dm->release(m_dm);
 	}
-}
-
-RAS_Deformer *BL_ModifierDeformer::GetReplica()
-{
-	BL_ModifierDeformer *result;
-
-	result = new BL_ModifierDeformer(*this);
-	result->ProcessReplica();
-	return result;
-}
-
-void BL_ModifierDeformer::ProcessReplica()
-{
-	/* Note! - This is not inherited from EXP_PyObjectPlus */
-	BL_ShapeDeformer::ProcessReplica();
-	if (m_dm) {
-		// by default try to reuse mesh, deformedOnly is used as a user count
-		m_dm->deformedOnly++;
-	}
-	// this will force an update and if the mesh cannot be reused, a new one will be created
-	m_lastModifierUpdate = -1.0;
 }
 
 bool BL_ModifierDeformer::HasCompatibleDeformer(Object *ob)
@@ -143,7 +119,7 @@ bool BL_ModifierDeformer::Update(void)
 {
 	bool bShapeUpdate = BL_ShapeDeformer::Update();
 
-	if (bShapeUpdate || m_lastModifierUpdate != m_gameobj->GetLastFrame()) {
+	if (bShapeUpdate || m_lastModifierUpdate != m_lastFrame) {
 		// static derived mesh are not updated
 		if (m_dm == nullptr || m_bDynamic) {
 			/* execute the modifiers */
@@ -157,25 +133,20 @@ bool BL_ModifierDeformer::Update(void)
 			/* restore object data */
 			blendobj->data = oldmesh;
 			/* free the current derived mesh and replace, (dm should never be nullptr) */
-			if (m_dm != nullptr) {
-				// HACK! use deformedOnly as a user counter
-				if (--m_dm->deformedOnly == 0) {
-					m_dm->needsFree = 1;
-					m_dm->release(m_dm);
-				}
+			if (m_dm) {
+				m_dm->needsFree = 1;
+				m_dm->release(m_dm);
 			}
 			m_dm = dm;
 			// get rid of temporary data
 			m_dm->needsFree = 0;
 			m_dm->release(m_dm);
-			// HACK! use deformedOnly as a user counter
-			m_dm->deformedOnly = 1;
 			DM_update_materials(m_dm, blendobj);
 
 			UpdateBounds();
 			UpdateTransverts();
 		}
-		m_lastModifierUpdate = m_gameobj->GetLastFrame();
+		m_lastModifierUpdate = m_lastFrame;
 		bShapeUpdate = true;
 	}
 

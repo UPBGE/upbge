@@ -72,6 +72,7 @@
 
 #include "BKE_object.h"
 
+#include "BL_BlenderDataConversion.h" // For BL_ConvertDeformer.
 #include "BL_ConvertObjectInfo.h"
 #include "BL_ActionManager.h"
 #include "BL_Action.h"
@@ -232,6 +233,11 @@ std::string KX_GameObject::GetName()
 void KX_GameObject::SetName(const std::string& name)
 {
 	m_name = name;
+}
+
+RAS_Deformer *KX_GameObject::GetDeformer()
+{
+	return (m_meshUser) ? m_meshUser->GetDeformer() : nullptr;
 }
 
 PHY_IPhysicsController *KX_GameObject::GetPhysicsController()
@@ -690,7 +696,8 @@ void KX_GameObject::UpdateBlenderObjectMatrix(Object *blendobj)
 void KX_GameObject::AddMeshUser()
 {
 	for (size_t i = 0; i < m_meshes.size(); ++i) {
-		m_meshUser = m_meshes[i]->AddMeshUser(&m_clientInfo, GetDeformer());
+		RAS_Deformer *deformer = BL_ConvertDeformer(this, m_meshes[i]);
+		m_meshUser = m_meshes[i]->AddMeshUser(&m_clientInfo, deformer);
 		// Make sure the mesh user get the matrix even if the object doesn't move.
 		NodeGetWorldTransform().PackFromAffineTransform(m_meshUser->GetMatrix());
 	}
@@ -714,7 +721,6 @@ void KX_GameObject::ReplaceMesh(KX_Mesh *mesh, bool use_gfx, bool use_phys)
 	if (use_gfx && mesh) {
 		RemoveMeshes();
 		AddMesh(mesh);
-		LoadDeformer();
 		AddMeshUser();
 	}
 

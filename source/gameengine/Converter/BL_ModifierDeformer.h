@@ -37,8 +37,6 @@
 #endif
 
 #include "BL_ShapeDeformer.h"
-#include "BL_DeformableGameObject.h"
-#include <vector>
 
 class RAS_Mesh;
 struct DerivedMesh;
@@ -50,7 +48,7 @@ public:
 	static bool HasCompatibleDeformer(Object *ob);
 	static bool HasArmatureDeformer(Object *ob);
 
-	BL_ModifierDeformer(BL_DeformableGameObject *gameobj,
+	BL_ModifierDeformer(KX_GameObject *gameobj,
 						Scene *scene,
 						Object *bmeshobj_old,
 						Object *bmeshobj_new,
@@ -63,8 +61,6 @@ public:
 	{
 	}
 
-	virtual void ProcessReplica();
-	virtual RAS_Deformer *GetReplica();
 	virtual ~BL_ModifierDeformer();
 
 	bool Update();

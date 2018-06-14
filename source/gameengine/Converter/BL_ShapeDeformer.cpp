@@ -62,7 +62,7 @@ extern "C" {
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 
-BL_ShapeDeformer::BL_ShapeDeformer(BL_DeformableGameObject *gameobj,
+BL_ShapeDeformer::BL_ShapeDeformer(KX_GameObject *gameobj,
                                    Object *bmeshobj_old,
                                    Object *bmeshobj_new,
                                    RAS_Mesh *mesh,
@@ -80,23 +80,6 @@ BL_ShapeDeformer::~BL_ShapeDeformer()
 		BKE_libblock_free(G.main, m_key);
 		m_key = nullptr;
 	}
-}
-
-RAS_Deformer *BL_ShapeDeformer::GetReplica()
-{
-	BL_ShapeDeformer *result;
-
-	result = new BL_ShapeDeformer(*this);
-	result->ProcessReplica();
-	return result;
-}
-
-void BL_ShapeDeformer::ProcessReplica()
-{
-	BL_SkinDeformer::ProcessReplica();
-	m_lastShapeUpdate = -1;
-
-	m_key = m_key ? BKE_key_copy(G.main, m_key) : nullptr;
 }
 
 bool BL_ShapeDeformer::LoadShapeDrivers(KX_GameObject *parent)
@@ -157,7 +140,7 @@ bool BL_ShapeDeformer::Update()
 	ExecuteShapeDrivers();
 
 	/* See if the object shape has changed */
-	if (m_lastShapeUpdate != m_gameobj->GetLastFrame()) {
+	if (m_lastShapeUpdate != m_lastFrame) {
 		/* the key coefficient have been set already, we just need to blend the keys */
 		Object *blendobj = m_gameobj->GetBlenderObject();
 
@@ -182,7 +165,7 @@ bool BL_ShapeDeformer::Update()
 		// The weight array are ultimately deleted when the skin mesh is destroyed
 
 		/* Update the current frame */
-		m_lastShapeUpdate = m_gameobj->GetLastFrame();
+		m_lastShapeUpdate = m_lastFrame;
 
 		// As we have changed, the mesh, the skin deformer must update as well.
 		// This will force the update
@@ -205,4 +188,17 @@ bool BL_ShapeDeformer::Update()
 Key *BL_ShapeDeformer::GetKey()
 {
 	return m_key;
+}
+
+bool BL_ShapeDeformer::GetShape(std::vector<float> &shape) const
+{
+	shape.clear();
+	// this check is normally superfluous: a shape deformer can only be created if the mesh
+	// has relative keys
+	if (m_key && m_key->type == KEY_RELATIVE) {
+		for (KeyBlock *kb = (KeyBlock *)m_key->block.first; kb; kb = (KeyBlock *)kb->next) {
+			shape.push_back(kb->curval);
+		}
+	}
+	return !shape.empty();
 }

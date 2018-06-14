@@ -60,18 +60,6 @@ void RAS_Deformer::InitializeDisplayArrays()
 	}
 }
 
-void RAS_Deformer::ProcessReplica()
-{
-	m_boundingBox = m_boundingBox->GetReplica();
-
-	for (DisplayArraySlot& slot : m_slots) {
-		RAS_DisplayArray *array = slot.m_displayArray = new RAS_DisplayArray(*slot.m_displayArray);
-		RAS_MeshMaterial *meshmat = slot.m_meshMaterial;
-		slot.m_displayArrayBucket = new RAS_DisplayArrayBucket(meshmat->GetBucket(), array, m_mesh, meshmat, this);
-		slot.m_origDisplayArray->AddUpdateClient(&slot.m_arrayUpdateClient);
-	}
-}
-
 RAS_Mesh *RAS_Deformer::GetMesh() const
 {
 	return m_mesh;

@@ -208,7 +208,7 @@ RAS_BoundingBox *RAS_Mesh::GetBoundingBox() const
 RAS_MeshUser *RAS_Mesh::AddMeshUser(void *clientobj, RAS_Deformer *deformer)
 {
 	RAS_BoundingBox *boundingBox = (deformer) ? deformer->GetBoundingBox() : m_boundingBox;
-	RAS_MeshUser *meshUser = new RAS_MeshUser(clientobj, boundingBox);
+	RAS_MeshUser *meshUser = new RAS_MeshUser(clientobj, boundingBox, deformer);
 
 	for (unsigned short i = 0, nummat = m_materials.size(); i < nummat; ++i) {
 		RAS_DisplayArrayBucket *arrayBucket = (deformer) ?

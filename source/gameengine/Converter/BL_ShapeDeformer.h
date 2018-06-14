@@ -37,7 +37,6 @@
 #endif
 
 #include "BL_SkinDeformer.h"
-#include "BL_DeformableGameObject.h"
 #include <vector>
 
 struct Object;
@@ -47,14 +46,12 @@ class RAS_Mesh;
 class BL_ShapeDeformer : public BL_SkinDeformer
 {
 public:
-	BL_ShapeDeformer(BL_DeformableGameObject *gameobj,
+	BL_ShapeDeformer(KX_GameObject *gameobj,
 					 Object *bmeshobj_old,
 					 Object *bmeshobj_new,
 					 RAS_Mesh *mesh,
 					 BL_ArmatureObject *arma);
 
-	virtual RAS_Deformer *GetReplica();
-	virtual void ProcessReplica();
 	virtual ~BL_ShapeDeformer();
 
 	bool Update();
@@ -62,6 +59,7 @@ public:
 	bool ExecuteShapeDrivers();
 
 	Key *GetKey();
+	bool GetShape(std::vector<float> &shape) const;
 
 	void ForceUpdate()
 	{

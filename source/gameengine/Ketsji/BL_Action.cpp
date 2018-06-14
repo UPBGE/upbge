@@ -28,7 +28,6 @@
 
 #include "BL_Action.h"
 #include "BL_ArmatureObject.h"
-#include "BL_DeformableGameObject.h"
 #include "BL_ShapeDeformer.h"
 #include "BL_IpoConvert.h"
 #include "KX_GameObject.h"
@@ -209,11 +208,10 @@ bool BL_Action::Play(const std::string& name,
 		obj->GetPose(&m_blendinpose);
 	}
 	else {
-		BL_DeformableGameObject *obj = (BL_DeformableGameObject *)m_obj;
-		BL_ShapeDeformer *shape_deformer = dynamic_cast<BL_ShapeDeformer *>(obj->GetDeformer());
+		BL_ShapeDeformer *shape_deformer = dynamic_cast<BL_ShapeDeformer *>(m_obj->GetDeformer());
 
 		if (shape_deformer && shape_deformer->GetKey()) {
-			obj->GetShape(m_blendinshape);
+			shape_deformer->GetShape(m_blendinshape);
 
 			// Now that we have the previous blend shape saved, we can clear out the key to avoid any
 			// further interference.
@@ -447,8 +445,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
 		obj->UpdateTimestep(curtime);
 	}
 	else {
-		BL_DeformableGameObject *obj = (BL_DeformableGameObject *)m_obj;
-		BL_ShapeDeformer *shape_deformer = dynamic_cast<BL_ShapeDeformer *>(obj->GetDeformer());
+		BL_ShapeDeformer *shape_deformer = dynamic_cast<BL_ShapeDeformer *>(m_obj->GetDeformer());
 
 		// Handle shape actions if we have any
 		if (shape_deformer && shape_deformer->GetKey()) {
@@ -478,11 +475,11 @@ void BL_Action::Update(float curtime, bool applyToObject)
 
 			// Handle layer blending
 			if (m_layer_weight >= 0) {
-				obj->GetShape(m_blendshape);
+				shape_deformer->GetShape(m_blendshape);
 				BlendShape(key, m_layer_weight, m_blendshape);
 			}
 
-			obj->SetLastFrame(curtime);
+			shape_deformer->SetLastFrame(curtime);
 		}
 	}
 }

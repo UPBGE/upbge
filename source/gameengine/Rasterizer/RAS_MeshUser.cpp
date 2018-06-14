@@ -30,13 +30,15 @@
 #include "RAS_DisplayArrayBucket.h"
 #include "RAS_BoundingBox.h"
 #include "RAS_BatchGroup.h"
+#include "RAS_Deformer.h"
 
-RAS_MeshUser::RAS_MeshUser(void *clientobj, RAS_BoundingBox *boundingBox)
+RAS_MeshUser::RAS_MeshUser(void *clientobj, RAS_BoundingBox *boundingBox, RAS_Deformer *deformer)
 	:m_frontFace(true),
 	m_color(mt::zero4),
 	m_boundingBox(boundingBox),
 	m_clientObject(clientobj),
-	m_batchGroup(nullptr)
+	m_batchGroup(nullptr),
+	m_deformer(deformer)
 {
 	BLI_assert(m_boundingBox);
 	m_boundingBox->AddUser();
@@ -92,6 +94,11 @@ std::vector<RAS_MeshSlot>& RAS_MeshUser::GetMeshSlots()
 RAS_BatchGroup *RAS_MeshUser::GetBatchGroup() const
 {
 	return m_batchGroup;
+}
+
+RAS_Deformer *RAS_MeshUser::GetDeformer()
+{
+	return m_deformer.get();
 }
 
 void RAS_MeshUser::SetFrontFace(bool frontFace)
