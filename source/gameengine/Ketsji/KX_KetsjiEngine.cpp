@@ -170,8 +170,6 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system)
 	m_exitkey(130),
 	m_exitcode(KX_ExitRequest::NO_REQUEST),
 	m_exitstring(""),
-	m_cameraZoom(1.0f),
-	m_overrideCamZoom(1.0f),
 	m_logger(KX_TimeCategoryLogger(25)),
 	m_average_framerate(0.0),
 	m_showBoundingBox(KX_DebugOption::DISABLE),
@@ -757,25 +755,6 @@ const std::string& KX_KetsjiEngine::GetExitString()
 	return m_exitstring;
 }
 
-void KX_KetsjiEngine::SetCameraZoom(float camzoom)
-{
-	m_cameraZoom = camzoom;
-}
-
-void KX_KetsjiEngine::SetCameraOverrideZoom(float camzoom)
-{
-	m_overrideCamZoom = camzoom;
-}
-
-float KX_KetsjiEngine::GetCameraZoom(KX_Camera *camera) const
-{
-	KX_Scene *scene = camera->GetScene();
-	const bool overrideCamera = ((m_flags & CAMERA_OVERRIDE) != 0) && (scene->GetName() == m_overrideSceneName) &&
-	                            (camera->GetName() == "__default__cam__");
-
-	return overrideCamera ? m_overrideCamZoom : m_cameraZoom;
-}
-
 void KX_KetsjiEngine::EnableCameraOverride(const std::string& forscene, const mt::mat4& projmat,
                                            const mt::mat4& viewmat, const RAS_CameraData& camdata)
 {
@@ -910,7 +889,7 @@ mt::mat4 KX_KetsjiEngine::GetCameraProjectionMatrix(KX_Scene *scene, KX_Camera *
 		const float farfrust = cam->GetCameraFar();
 		const float focallength = cam->GetFocalLength();
 
-		const float camzoom = override_camera ? m_overrideCamZoom : m_cameraZoom;
+		const float camzoom = cam->GetZoom();
 		if (orthographic) {
 
 			RAS_FramingManager::ComputeOrtho(

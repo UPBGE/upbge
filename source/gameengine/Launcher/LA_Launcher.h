@@ -84,6 +84,9 @@ protected:
 	PyObject *m_globalDict;
 #endif  // WITH_PYTHON
 
+	bool m_alwaysUseExpandFraming;
+	float m_camZoom;
+
 	/// The number of render samples.
 	int m_samples;
 
@@ -125,14 +128,13 @@ protected:
 
 	virtual RAS_ICanvas *CreateCanvas(RAS_Rasterizer *rasty) = 0;
 	virtual RAS_Rasterizer::DrawType GetRasterizerDrawMode() = 0;
-	virtual bool GetUseAlwaysExpandFraming() = 0;
 	virtual void InitCamera() = 0;
 
 	virtual void SetWindowOrder(short order) = 0;
 
 public:
 	LA_Launcher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs,
-				RAS_Rasterizer::StereoMode stereoMode, int samples, int argc, char **argv);
+				RAS_Rasterizer::StereoMode stereoMode, int samples, bool alwaysUseExpandFraming, int argc, char **argv);
 	virtual ~LA_Launcher();
 
 #ifdef WITH_PYTHON

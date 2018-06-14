@@ -61,7 +61,7 @@ void BL_ConvertDerivedMeshToArray(DerivedMesh *dm, Mesh *me, const std::vector<B
 
 void BL_ConvertBlenderObjects(Main *maggie, KX_Scene *kxscene, KX_KetsjiEngine *ketsjiEngine, e_PhysicsEngine physics_engine,
 							  RAS_Rasterizer *rendertools, RAS_ICanvas *canvas, BL_SceneConverter& sceneconverter,
-                              bool alwaysUseExpandFraming, bool libloading);
+                              bool alwaysUseExpandFraming, float camZoom, bool libloading);
 
 SCA_IInputDevice::SCA_EnumInputs BL_ConvertKeyCode(int key_code);
 

@@ -27,7 +27,6 @@
 #include "KX_PlanarMap.h"
 #include "KX_Camera.h"
 #include "KX_PyMath.h"
-#include "KX_Globals.h"
 
 #include "RAS_Rasterizer.h"
 #include "RAS_Texture.h"
@@ -121,9 +120,7 @@ const mt::mat4& KX_PlanarMap::GetProjectionMatrix(RAS_Rasterizer *rasty, KX_Scen
 	}
 
 	if (!sceneCamera->GetViewport()) {
-		KX_KetsjiEngine *engine = KX_GetActiveEngine();
-		const float camzoom = engine->GetCameraZoom(sceneCamera);
-
+		const float camzoom = sceneCamera->GetZoom();
 		frustum.x1 *= camzoom;
 		frustum.x2 *= camzoom;
 		frustum.y1 *= camzoom;

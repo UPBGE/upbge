@@ -58,7 +58,7 @@ extern "C" {
 
 LA_PlayerLauncher::LA_PlayerLauncher(GHOST_ISystem *system, GHOST_IWindow *window, Main *maggie, Scene *scene, GlobalSettings *gs,
                                      RAS_Rasterizer::StereoMode stereoMode, int samples, int argc, char **argv, const std::string& pythonMainLoop)
-	:LA_Launcher(system, maggie, scene, gs, stereoMode, samples, argc, argv),
+	:LA_Launcher(system, maggie, scene, gs, stereoMode, samples, false, argc, argv),
 	m_mainWindow(window),
 	m_pythonMainLoop(pythonMainLoop)
 {
@@ -113,11 +113,6 @@ RAS_Rasterizer::DrawType LA_PlayerLauncher::GetRasterizerDrawMode()
 	}
 
 	return RAS_Rasterizer::RAS_TEXTURED;
-}
-
-bool LA_PlayerLauncher::GetUseAlwaysExpandFraming()
-{
-	return false;
 }
 
 void LA_PlayerLauncher::InitCamera()

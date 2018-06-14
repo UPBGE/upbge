@@ -126,10 +126,11 @@ void BL_Converter::SceneSlot::Merge(const BL_SceneConverter& converter)
 	}
 }
 
-BL_Converter::BL_Converter(Main *maggie, KX_KetsjiEngine *engine)
+BL_Converter::BL_Converter(Main *maggie, KX_KetsjiEngine *engine, bool alwaysUseExpandFraming, float camZoom)
 	:m_maggie(maggie),
 	m_ketsjiEngine(engine),
-	m_alwaysUseExpandFraming(false)
+	m_alwaysUseExpandFraming(alwaysUseExpandFraming),
+	m_camZoom(camZoom)
 {
 	BKE_main_id_tag_all(maggie, LIB_TAG_DOIT, false);  // avoid re-tagging later on
 	m_threadinfo.m_pool = BLI_task_pool_create(engine->GetTaskScheduler(), nullptr);
@@ -231,6 +232,7 @@ void BL_Converter::ConvertScene(BL_SceneConverter& converter, bool libloading)
 		m_ketsjiEngine->GetCanvas(),
 		converter,
 		m_alwaysUseExpandFraming,
+		m_camZoom,
 		libloading);
 
 	m_sceneSlots.emplace(scene, converter);
@@ -270,11 +272,6 @@ void BL_Converter::RemoveScene(KX_Scene *scene)
 	scene->Release();
 
 	m_sceneSlots.erase(scene);
-}
-
-void BL_Converter::SetAlwaysUseExpandFraming(bool to_what)
-{
-	m_alwaysUseExpandFraming = to_what;
 }
 
 void BL_Converter::RegisterInterpolatorList(KX_Scene *scene, BL_InterpolatorList *interpolator, bAction *for_act)

@@ -793,10 +793,10 @@ static KX_LightObject *BL_GameLightFromBlenderLamp(Lamp *la, unsigned int layerf
 	return gamelight;
 }
 
-static KX_Camera *BL_GameCameraFromBlenderCamera(Object *ob, KX_Scene *kxscene, RAS_ICanvas *canvas)
+static KX_Camera *BL_GameCameraFromBlenderCamera(Object *ob, KX_Scene *kxscene, RAS_ICanvas *canvas, float camZoom)
 {
 	Camera *ca = static_cast<Camera *>(ob->data);
-	RAS_CameraData camdata(ca->lens, ca->ortho_scale, ca->sensor_x, ca->sensor_y, ca->sensor_fit, ca->shiftx, ca->shifty, ca->clipsta, ca->clipend, ca->type == CAM_PERSP, ca->YF_dofdist);
+	RAS_CameraData camdata(ca->lens, ca->ortho_scale, ca->sensor_x, ca->sensor_y, ca->sensor_fit, ca->shiftx, ca->shifty, ca->clipsta, ca->clipend, ca->type == CAM_PERSP, ca->YF_dofdist, camZoom);
 	KX_Camera *gamecamera;
 
 	gamecamera = new KX_Camera(kxscene, KX_Scene::m_callbacks, camdata);
@@ -835,7 +835,7 @@ static KX_Camera *BL_GameCameraFromBlenderCamera(Object *ob, KX_Scene *kxscene, 
 }
 
 static KX_GameObject *BL_GameObjectFromBlenderObject(Object *ob, KX_Scene *kxscene, RAS_Rasterizer *rendertools,
-                                                     RAS_ICanvas *canvas, BL_SceneConverter &converter)
+                                                     RAS_ICanvas *canvas, BL_SceneConverter &converter, float camZoom)
 {
 	KX_GameObject *gameobj = nullptr;
 	Scene *blenderscene = kxscene->GetBlenderScene();
@@ -853,7 +853,7 @@ static KX_GameObject *BL_GameObjectFromBlenderObject(Object *ob, KX_Scene *kxsce
 
 		case OB_CAMERA:
 		{
-			KX_Camera *gamecamera = BL_GameCameraFromBlenderCamera(ob, kxscene, canvas);
+			KX_Camera *gamecamera = BL_GameCameraFromBlenderCamera(ob, kxscene, canvas, camZoom);
 			gameobj = gamecamera;
 
 			kxscene->GetCameraList()->Add(CM_AddRef(gamecamera));
@@ -1185,6 +1185,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
                               RAS_ICanvas *canvas,
                               BL_SceneConverter& converter,
                               bool alwaysUseExpandFraming,
+							  float camZoom,
                               bool libloading)
 {
 
@@ -1323,7 +1324,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 		Object *blenderobject = base->object;
 		allblobj.insert(blenderobject);
 
-		KX_GameObject *gameobj = BL_GameObjectFromBlenderObject(base->object, kxscene, rendertools, canvas, converter);
+		KX_GameObject *gameobj = BL_GameObjectFromBlenderObject(base->object, kxscene, rendertools, canvas, converter, camZoom);
 
 		bool isInActiveLayer = (blenderobject->lay & activeLayerBitInfo) != 0;
 		if (gameobj) {
@@ -1360,7 +1361,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 					if (!converter.FindGameObject(blenderobject)) {
 						allblobj.insert(blenderobject);
 						groupobj.insert(blenderobject);
-						KX_GameObject *gameobj = BL_GameObjectFromBlenderObject(blenderobject, kxscene, rendertools, canvas, converter);
+						KX_GameObject *gameobj = BL_GameObjectFromBlenderObject(blenderobject, kxscene, rendertools, canvas, converter, camZoom);
 
 						bool isInActiveLayer = false;
 						if (gameobj) {

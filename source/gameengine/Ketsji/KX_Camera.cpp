@@ -216,7 +216,10 @@ float KX_Camera::GetFocalLength() const
 	return m_camdata.m_focallength;
 }
 
-
+float KX_Camera::GetZoom() const
+{
+	return m_camdata.m_zoom;
+}
 
 RAS_CameraData *KX_Camera::GetCameraData()
 {

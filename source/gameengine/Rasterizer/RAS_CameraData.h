@@ -50,11 +50,12 @@ struct RAS_CameraData
 	int m_viewportright;
 	int m_viewporttop;
 	float m_focallength;
+	float m_zoom;
 
 	RAS_CameraData(float lens = 35.0f, float scale = 6.0f, float sensor_x = 32.0f, float sensor_y = 18.0f, short sensor_fit = 0,
 	               float shift_x = 0.0f, float shift_y = 0.0f,
 	               float clipstart = 0.1f, float clipend = 5000.0f, bool perspective = true,
-	               float focallength = 3.0f, bool viewport = false, int viewportleft = 0, int viewportbottom = 0,
+	               float focallength = 3.0f, float zoom = 1.0f, bool viewport = false, int viewportleft = 0, int viewportbottom = 0,
 	               int viewportright = 0, int viewporttop = 0) :
 	    m_lens(lens),
 	    m_scale(scale),
@@ -71,7 +72,8 @@ struct RAS_CameraData
 	    m_viewportbottom(viewportbottom),
 	    m_viewportright(viewportright),
 	    m_viewporttop(viewporttop),
-	    m_focallength(focallength)
+	    m_focallength(focallength),
+	    m_zoom(zoom)
 	{
 	}
 };

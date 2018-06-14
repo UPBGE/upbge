@@ -80,7 +80,7 @@ extern "C" {
 #endif
 
 LA_Launcher::LA_Launcher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs,
-                         RAS_Rasterizer::StereoMode stereoMode, int samples, int argc, char **argv)
+                         RAS_Rasterizer::StereoMode stereoMode, int samples, bool alwaysUseExpandFraming, int argc, char **argv)
 	:m_startSceneName(scene->id.name + 2),
 	m_startScene(scene),
 	m_maggie(maggie),
@@ -98,6 +98,8 @@ LA_Launcher::LA_Launcher(GHOST_ISystem *system, Main *maggie, Scene *scene, Glob
 #ifdef WITH_PYTHON
 	m_globalDict(nullptr),
 #endif  // WITH_PYTHON
+	m_alwaysUseExpandFraming(alwaysUseExpandFraming),
+	m_camZoom(1.0f),
 	m_samples(samples),
 	m_stereoMode(stereoMode),
 	m_argc(argc),
@@ -280,7 +282,7 @@ void LA_Launcher::InitEngine()
 #endif  // WITH_PYTHON
 
 	// Create a scene converter, create and convert the stratingscene.
-	m_converter = new BL_Converter(m_maggie, m_ketsjiEngine);
+	m_converter = new BL_Converter(m_maggie, m_ketsjiEngine, m_alwaysUseExpandFraming, m_camZoom);
 	m_ketsjiEngine->SetConverter(m_converter);
 
 	m_kxStartScene = m_ketsjiEngine->CreateScene(m_startScene);
@@ -295,8 +297,6 @@ void LA_Launcher::InitEngine()
 	AUD_Device_setDopplerFactor(device, m_startScene->audio.doppler_factor);
 	AUD_Device_setDistanceModel(device, AUD_DistanceModel(m_startScene->audio.distance_model));
 #endif  // WITH_AUDASPACE
-
-	m_converter->SetAlwaysUseExpandFraming(GetUseAlwaysExpandFraming());
 
 	// Convert scene data.
 	m_ketsjiEngine->ConvertScene(m_kxStartScene);

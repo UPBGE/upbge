@@ -53,11 +53,10 @@ extern "C" {
 
 LA_BlenderLauncher::LA_BlenderLauncher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs, RAS_Rasterizer::StereoMode stereoMode,
                                        int argc, char **argv, bContext *context, rcti *camframe, ARegion *ar, int alwaysUseExpandFraming)
-	:LA_Launcher(system, maggie, scene, gs, stereoMode, scene->gm.aasamples, argc, argv),
+	:LA_Launcher(system, maggie, scene, gs, stereoMode, scene->gm.aasamples, alwaysUseExpandFraming, argc, argv),
 	m_context(context),
 	m_ar(ar),
 	m_camFrame(camframe),
-	m_alwaysUseExpandFraming(alwaysUseExpandFraming),
 	m_drawLetterBox(false)
 {
 	m_windowManager = CTX_wm_manager(m_context);
@@ -100,29 +99,17 @@ RAS_Rasterizer::DrawType LA_BlenderLauncher::GetRasterizerDrawMode()
 	return drawmode;
 }
 
-bool LA_BlenderLauncher::GetUseAlwaysExpandFraming()
-{
-	return m_alwaysUseExpandFraming;
-}
-
 void LA_BlenderLauncher::InitCamera()
 {
 	RegionView3D *rv3d = CTX_wm_region_view3d(m_context);
-
-	// Some blender stuff.
-	float camzoom = 1.0f;
-
 	if (rv3d->persp == RV3D_CAMOB) {
 		if (m_startScene->gm.framing.type == SCE_GAMEFRAMING_BARS) { /* Letterbox */
 			m_drawLetterBox = true;
 		}
 		else {
-			camzoom = 1.0f / BKE_screen_view3d_zoom_to_fac(rv3d->camzoom);
+			m_camZoom = 1.0f / BKE_screen_view3d_zoom_to_fac(rv3d->camzoom);
 		}
 	}
-
-	m_ketsjiEngine->SetCameraZoom(camzoom);
-	m_ketsjiEngine->SetCameraOverrideZoom(2.0f);
 
 	if (rv3d->persp != RV3D_CAMOB) {
 		RAS_CameraData camdata = RAS_CameraData();
@@ -130,6 +117,7 @@ void LA_BlenderLauncher::InitCamera()
 		camdata.m_clipstart = m_view3d->near;
 		camdata.m_clipend = m_view3d->far;
 		camdata.m_perspective = (rv3d->persp != RV3D_ORTHO);
+		camdata.m_zoom = 2.0f;
 
 		m_ketsjiEngine->EnableCameraOverride(m_startSceneName, mt::mat4(rv3d->winmat), mt::mat4(rv3d->viewmat), camdata);
 	}

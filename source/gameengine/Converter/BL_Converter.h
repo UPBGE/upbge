@@ -104,9 +104,10 @@ private:
 
 	KX_KetsjiEngine *m_ketsjiEngine;
 	bool m_alwaysUseExpandFraming;
+	float m_camZoom;
 
 public:
-	BL_Converter(Main *maggie, KX_KetsjiEngine *engine);
+	BL_Converter(Main *maggie, KX_KetsjiEngine *engine, bool alwaysUseExpandFraming, float camZoom);
 	virtual ~BL_Converter();
 
 	void ConvertScene(BL_SceneConverter& converter, bool libloading);
@@ -128,8 +129,6 @@ public:
 	 * \param scene The scene to clean.
 	 */
 	void RemoveScene(KX_Scene *scene);
-
-	void SetAlwaysUseExpandFraming(bool to_what);
 
 	void RegisterInterpolatorList(KX_Scene *scene, BL_InterpolatorList *interpolator, bAction *for_act);
 	BL_InterpolatorList *FindInterpolatorList(KX_Scene *scene, bAction *for_act);

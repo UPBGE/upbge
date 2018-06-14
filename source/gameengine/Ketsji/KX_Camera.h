@@ -114,7 +114,7 @@ public:
 
 	KX_Camera(void* sgReplicationInfo,SG_Callbacks callbacks,const RAS_CameraData& camdata, bool frustum_culling = true);
 	virtual ~KX_Camera();
-	
+
 	/** 
 	 * Inherited from EXP_Value -- return a new copy of this
 	 * instance allocated on the heap. Ownership of the new 
@@ -171,6 +171,7 @@ public:
 	float				GetCameraFar() const;
 	/** Gets the focal length (only used for stereo rendering) */
 	float				GetFocalLength() const;
+	float GetZoom() const;
 	/** Gets all camera data. */
 	RAS_CameraData*		GetCameraData();
 

@@ -55,7 +55,6 @@ protected:
 
 	virtual RAS_ICanvas *CreateCanvas(RAS_Rasterizer *rasty);
 	virtual RAS_Rasterizer::DrawType GetRasterizerDrawMode();
-	virtual bool GetUseAlwaysExpandFraming();
 	virtual void InitCamera();
 
 	virtual void SetWindowOrder(short order);

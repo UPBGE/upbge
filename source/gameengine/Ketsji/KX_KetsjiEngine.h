@@ -202,14 +202,10 @@ private:
 	KX_ExitRequest m_exitcode;
 	std::string m_exitstring;
 
-	float m_cameraZoom;
-
 	std::string m_overrideSceneName;
 	RAS_CameraData m_overrideCamData;
 	mt::mat4 m_overrideCamProjMat;
 	mt::mat4 m_overrideCamViewMat;
-	/// Default camera zoom.
-	float m_overrideCamZoom;
 
 	/// Categories for profiling display.
 	typedef enum {
@@ -372,13 +368,6 @@ public:
 	void ResumeScene(const std::string& scenename);
 
 	void GetSceneViewport(KX_Scene *scene, KX_Camera *cam, const RAS_Rect& displayArea, RAS_Rect& area, RAS_Rect& viewport);
-
-	/// Sets zoom for camera objects, useful only with extend and scale framing mode.
-	void SetCameraZoom(float camzoom);
-	/// Sets zoom for default camera, = 2 in embedded mode.
-	void SetCameraOverrideZoom(float camzoom);
-	/// Get the camera zoom for the passed camera.
-	float GetCameraZoom(KX_Camera *camera) const;
 
 	void EnableCameraOverride(const std::string& forscene, const mt::mat4& projmat, const mt::mat4& viewmat, const RAS_CameraData& camdata);
 
