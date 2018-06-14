@@ -140,14 +140,9 @@ public:
 	SG_Node *GetParent() const;
 
 	/**
-	 * Set the parent of this node.
-	 */
-	void SetParent(SG_Node *parent);
-
-	/**
 	 * Return the top node in this node's Scene graph hierarchy
 	 */
-	const SG_Node *GetRootSGParent() const;
+	SG_Node *GetRootSGParent();
 
 	/**
 	 * Disconnect this node from it's parent
@@ -317,6 +312,11 @@ protected:
 	friend class KX_VertexParentRelation;
 	friend class KX_SlowParentRelation;
 	friend class KX_NormalParentRelation;
+
+	/**
+	 * Set the parent of this node.
+	 */
+	void SetParent(SG_Node *parent);
 
 	void ActivateUpdateTransformCallback();
 

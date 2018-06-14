@@ -139,8 +139,6 @@ private:
 	std::vector<KX_GameObject *> m_euthanasyobjects;
 
 	EXP_ListValue<KX_GameObject> *m_objectlist;
-	/// All 'root' parents.
-	EXP_ListValue<KX_GameObject> *m_parentlist;
 	EXP_ListValue<KX_LightObject> *m_lightlist;
 	/// All objects that are not in the active layer.
 	EXP_ListValue<KX_GameObject> *m_inactivelist;
@@ -292,7 +290,6 @@ public:
 
 	EXP_ListValue<KX_GameObject> *GetObjectList() const;
 	EXP_ListValue<KX_GameObject> *GetInactiveList() const;
-	EXP_ListValue<KX_GameObject> *GetRootParentList() const;
 	EXP_ListValue<KX_LightObject> *GetLightList() const;
 	EXP_ListValue<KX_Camera> *GetCameraList() const;
 	EXP_ListValue<KX_FontObject> *GetFontList() const;

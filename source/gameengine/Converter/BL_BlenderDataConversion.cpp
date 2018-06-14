@@ -1304,7 +1304,6 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 
 	EXP_ListValue<KX_GameObject> *objectlist = kxscene->GetObjectList();
 	EXP_ListValue<KX_GameObject> *inactivelist = kxscene->GetInactiveList();
-	EXP_ListValue<KX_GameObject> *parentlist = kxscene->GetRootParentList();
 
 	SCA_LogicManager *logicmgr = kxscene->GetLogicManager();
 	SCA_TimeEventManager *timemgr = kxscene->GetTimeEventManager();
@@ -1482,14 +1481,6 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 		parentobj->GetNode()->AddChild(link.m_gamechildnode);
 	}
 	vec_parent_child.clear();
-
-	// Find 'root' parents (object that has not parents in SceneGraph).
-	for (KX_GameObject *gameobj : sumolist) {
-		if (!gameobj->GetNode()->GetParent()) {
-			parentlist->Add(CM_AddRef(gameobj));
-			gameobj->NodeUpdate();
-		}
-	}
 
 	// Load deformers
 	for (KX_GameObject *gameobj : sumolist) {

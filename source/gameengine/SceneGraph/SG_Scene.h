@@ -27,7 +27,14 @@ public:
 	void Schedule(SG_Node *node);
 	void Reschedule(SG_Node *node);
 
+	void AddRootNode(SG_Node *node);
+	void RemoveRootNode(SG_Node *node);
+
+	void DestructRootNodes();
+
 	void UpdateParents();
+
+	void Merge(SG_Scene *other);
 };
 
 #endif  // __SG_SCENE_H__

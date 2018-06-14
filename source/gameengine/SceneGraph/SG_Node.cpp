@@ -60,7 +60,10 @@ SG_Node::SG_Node(SG_Object *object, SG_Scene *scene, SG_Callbacks& callbacks)
 	m_modified(true),
 	m_dirty(DIRTY_NONE)
 {
-	BLI_assert(object || !m_callbacks.m_updatefunc);
+	BLI_assert(m_scene);
+	BLI_assert((m_object != nullptr) == (m_callbacks.m_updatefunc != nullptr));
+
+	m_scene->AddRootNode(this);
 }
 
 SG_Node::SG_Node(const SG_Node& other)
@@ -105,6 +108,7 @@ SG_Node *SG_Node::GetReplica()
 			delete replica;
 			return nullptr;
 		}
+		replica->SetObject(object);
 	}
 
 	for (SG_Node *child : m_children) {
@@ -114,13 +118,16 @@ SG_Node *SG_Node::GetReplica()
 		}
 	}
 
+	// Add the duplicated node to root as the original node.
+	if (!m_parent) {
+		m_scene->AddRootNode(replica);
+	}
+
 	return replica;
 }
 
 void SG_Node::Destruct()
 {
-	m_parent_relation.reset(nullptr);
-
 	for (SG_Node *childnode : m_children) {
 		// call the SG_Node destruct method on each of our children
 		childnode->Destruct();
@@ -129,9 +136,11 @@ void SG_Node::Destruct()
 	if (m_object) {
 		m_scene->DestructNodeObject(this, m_object);
 	}
+
+	delete this;
 }
 
-const SG_Node *SG_Node::GetRootSGParent() const
+SG_Node *SG_Node::GetRootSGParent()
 {
 	return (m_parent ? m_parent->GetRootSGParent() : this);
 }
@@ -159,10 +168,18 @@ SG_Node *SG_Node::GetParent() const
 
 void SG_Node::SetParent(SG_Node *parent)
 {
-	m_parent = parent;
-	if (parent) {
-		SetFamilly(parent->GetFamilly());
+	BLI_assert(parent);
+
+	// Detect new parenting.
+	if (!m_parent) {
+		m_scene->RemoveRootNode(this);
 	}
+	else {
+		m_parent->RemoveChild(this);
+	}
+
+	m_parent = parent;
+	SetFamilly(m_parent->GetFamilly());
 }
 
 void SG_Node::DisconnectFromParent()
@@ -170,6 +187,7 @@ void SG_Node::DisconnectFromParent()
 	if (m_parent) {
 		m_parent->RemoveChild(this);
 		m_parent = nullptr;
+		m_scene->AddRootNode(this);
 		SetFamilly(std::make_shared<SG_Familly>());
 	}
 }

@@ -357,8 +357,17 @@ void KX_GameObject::SetParent(KX_GameObject *obj, bool addToCompound, bool ghost
 		return;
 	}
 
-	// Remove us from our old parent and set our new parent
-	RemoveParent();
+	if (m_node->GetParent() && m_physicsController) {
+		// get the root object to remove us from compound object if needed
+		KX_GameObject *rootobj = static_cast<KX_GameObject *>(m_node->GetRootSGParent()->GetObject());
+		PHY_IPhysicsController *rootCtrl = rootobj->GetPhysicsController();
+		// in case this controller was added as a child shape to the parent
+		if (rootCtrl && rootCtrl->IsCompound()) {
+			rootCtrl->RemoveCompoundChild(m_physicsController.get());
+		}
+	}
+
+	// In the same time unparenting a potential parent is proceeded.
 	parentSgNode->AddChild(m_node);
 
 	if (m_physicsController) {
@@ -379,23 +388,15 @@ void KX_GameObject::SetParent(KX_GameObject *obj, bool addToCompound, bool ghost
 	NodeSetLocalOrientation(invori * NodeGetWorldOrientation());
 	NodeUpdate();
 
-	// object will now be a child, it must be removed from the parent list
-	EXP_ListValue<KX_GameObject> *rootlist = scene->GetRootParentList();
-	if (rootlist->RemoveValue(this)) {
-		// the object was in parent list, decrement ref count as it's now removed
-		Release();
-	}
-
 	// if the new parent is a compound object, add this object shape to the compound shape.
 	// step 0: verify this object has physical controller
 	if (m_physicsController && addToCompound) {
-		// step 1: find the top parent (not necessarily obj)
-		KX_GameObject *rootobj = (KX_GameObject *)parentSgNode->GetRootSGParent()->GetObject();
+		// step 1: find the top parent
+		KX_GameObject *rootobj = static_cast<KX_GameObject *>(m_node->GetRootSGParent()->GetObject());
+		PHY_IPhysicsController *rootCtrl = rootobj->GetPhysicsController();
 		// step 2: verify it has a physical controller and compound shape
-		if (rootobj != nullptr &&
-		    rootobj->m_physicsController != nullptr &&
-		    rootobj->m_physicsController->IsCompound()) {
-			rootobj->m_physicsController->AddCompoundChild(m_physicsController.get());
+		if (rootCtrl && rootCtrl->IsCompound()) {
+			rootCtrl->AddCompoundChild(m_physicsController.get());
 		}
 	}
 	// graphically, the object hasn't change place, no need to update m_graphicController
@@ -412,34 +413,26 @@ void KX_GameObject::RemoveParent()
 	m_node->SetLocalOrientation(m_node->GetWorldOrientation());
 	m_node->SetLocalPosition(m_node->GetWorldPosition());
 
-	// Remove us from our parent
 	m_node->DisconnectFromParent();
 	NodeUpdate();
 
-	KX_Scene *scene = GetScene();
-	// the object is now a root object, add it to the parentlist
-	EXP_ListValue<KX_GameObject> *rootlist = scene->GetRootParentList();
-	if (!rootlist->SearchValue(this)) {
-		// object was not in root list, add it now and increment ref count
-		rootlist->Add(CM_AddRef(this));
-	}
 	if (m_physicsController) {
 		// get the root object to remove us from compound object if needed
-		KX_GameObject *rootobj = (KX_GameObject *)m_node->GetRootSGParent()->GetObject();
+		SG_Node *rootNode = m_node->GetRootSGParent();
+		KX_GameObject *rootobj = static_cast<KX_GameObject *>(rootNode->GetObject());
+		PHY_IPhysicsController *rootCtrl = rootobj->GetPhysicsController();
 		// in case this controller was added as a child shape to the parent
-		if (rootobj &&
-		    rootobj->m_physicsController &&
-		    rootobj->m_physicsController->IsCompound()) {
-			rootobj->m_physicsController->RemoveCompoundChild(m_physicsController.get());
+		if (rootCtrl && rootCtrl->IsCompound()) {
+			rootCtrl->RemoveCompoundChild(m_physicsController.get());
 		}
 		m_physicsController->RestoreDynamics();
-		if (m_physicsController->IsDynamic() && (rootobj && rootobj->m_physicsController)) {
+		if (m_physicsController->IsDynamic() && rootCtrl) {
 			// dynamic object should remember the velocity they had while being parented
 			const mt::vec3 childPoint = m_node->GetWorldPosition();
-			const mt::vec3 rootPoint = rootobj->m_node->GetWorldPosition();
+			const mt::vec3 rootPoint = rootNode->GetWorldPosition();
 			const mt::vec3 relPoint = (childPoint - rootPoint);
-			const mt::vec3 linVel = rootobj->m_physicsController->GetVelocity(relPoint);
-			const mt::vec3 angVel = rootobj->m_physicsController->GetAngularVelocity();
+			const mt::vec3 linVel = rootCtrl->GetVelocity(relPoint);
+			const mt::vec3 angVel = rootCtrl->GetAngularVelocity();
 			m_physicsController->SetLinearVelocity(linVel, false);
 			m_physicsController->SetAngularVelocity(angVel, false);
 		}

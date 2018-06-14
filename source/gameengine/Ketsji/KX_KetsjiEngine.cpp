@@ -1110,7 +1110,6 @@ void KX_KetsjiEngine::PostProcessScene(KX_Scene *scene)
 		scene->GetCameraList()->Add(CM_AddRef(activecam));
 		scene->SetActiveCamera(activecam);
 		scene->GetObjectList()->Add(CM_AddRef(activecam));
-		scene->GetRootParentList()->Add(CM_AddRef(activecam));
 		// done with activecam
 		activecam->Release();
 	}

@@ -133,7 +133,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 {
 
 	m_objectlist = new EXP_ListValue<KX_GameObject>();
-	m_parentlist = new EXP_ListValue<KX_GameObject>();
 	m_lightlist = new EXP_ListValue<KX_LightObject>();
 	m_inactivelist = new EXP_ListValue<KX_GameObject>();
 	m_cameralist = new EXP_ListValue<KX_Camera>();
@@ -184,10 +183,7 @@ KX_Scene::~KX_Scene()
 	 */
 	RemoveAllDebugProperties();
 
-	while (GetRootParentList()->GetCount() > 0) {
-		KX_GameObject *parentobj = GetRootParentList()->GetValue(0);
-		this->RemoveObject(parentobj);
-	}
+	DestructRootNodes();
 
 	if (m_obstacleSimulation) {
 		delete m_obstacleSimulation;
@@ -199,10 +195,6 @@ KX_Scene::~KX_Scene()
 
 	if (m_objectlist) {
 		m_objectlist->Release();
-	}
-
-	if (m_parentlist) {
-		m_parentlist->Release();
 	}
 
 	if (m_inactivelist) {
@@ -290,11 +282,6 @@ RAS_BoundingBoxManager *KX_Scene::GetBoundingBoxManager() const
 EXP_ListValue<KX_GameObject> *KX_Scene::GetObjectList() const
 {
 	return m_objectlist;
-}
-
-EXP_ListValue<KX_GameObject> *KX_Scene::GetRootParentList() const
-{
-	return m_parentlist;
 }
 
 EXP_ListValue<KX_GameObject> *KX_Scene::GetInactiveList() const
@@ -466,7 +453,6 @@ KX_GameObject *KX_Scene::AddNodeReplicaObject(SG_Node *node, KX_GameObject *game
 	}
 
 	newobj->SetNode(node);
-	node->SetObject(newobj);
 
 	// Add the object in the obstacle simulation if needed.
 	if (m_obstacleSimulation && gameobj->GetBlenderObject()->gameflag & OB_HASOBSTACLE) {
@@ -691,8 +677,6 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
 			continue;
 		}
 		KX_GameObject *replica = AddNodeReplicaObject(nullptr, gameobj);
-		// Add to 'rootparent' list (this is the list of top hierarchy objects, updated each frame).
-		m_parentlist->Add(CM_AddRef(replica));
 
 		/* Set references for dupli-group
 		 * groupobj holds a list of all objects, that belongs to this group. */
@@ -802,9 +786,6 @@ KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobj, KX_GameObj
 		fval->Release();
 	}
 
-	// Add to 'rootparent' list (this is the list of top hierarchy objects, updated each frame).
-	m_parentlist->Add(CM_AddRef(replica));
-
 	// Recurse replication into children nodes.
 
 	const NodeList& children = originalobj->GetNode()->GetChildren();
@@ -907,6 +888,7 @@ void KX_Scene::DelayedRemoveObject(KX_GameObject *gameobj)
 
 bool KX_Scene::NewRemoveObject(KX_GameObject *gameobj)
 {
+	CM_FunctionDebug(gameobj << ", " << gameobj->GetName());
 	// Remove property from debug list.
 	RemoveObjectDebugProperties(gameobj);
 
@@ -983,9 +965,6 @@ bool KX_Scene::NewRemoveObject(KX_GameObject *gameobj)
 		ret = (gameobj->Release() != nullptr);
 	}
 	if (m_objectlist->RemoveValue(gameobj)) {
-		ret = (gameobj->Release() != nullptr);
-	}
-	if (m_parentlist->RemoveValue(gameobj)) {
 		ret = (gameobj->Release() != nullptr);
 	}
 	if (m_inactivelist->RemoveValue(gameobj)) {
@@ -1633,9 +1612,6 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 
 	m_inactivelist->MergeList(other->GetInactiveList());
 	other->GetInactiveList()->ReleaseAndRemoveAll();
-
-	m_parentlist->MergeList(other->GetRootParentList());
-	other->GetRootParentList()->ReleaseAndRemoveAll();
 
 	m_lightlist->MergeList(other->GetLightList());
 	other->GetLightList()->ReleaseAndRemoveAll();
