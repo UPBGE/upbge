@@ -159,8 +159,7 @@ bool KX_TextureRendererManager::RenderRenderer(RAS_Rasterizer *rasty, KX_Texture
 		rasty->SetViewMatrix(viewmat, m_camera->NodeGetWorldPosition(), mt::one3);
 		m_camera->SetModelviewMatrix(viewmat);
 
-		std::vector<KX_GameObject *> objects;
-		m_scene->CalculateVisibleMeshes(objects, m_camera, ~renderer->GetIgnoreLayers());
+		const std::vector<KX_GameObject *> objects = m_scene->CalculateVisibleMeshes(m_camera, ~renderer->GetIgnoreLayers());
 
 		/* Updating the lod per face is normally not expensive because a cube map normally show every objects
 		 * but here we update only visible object of a face including the clip end and start.

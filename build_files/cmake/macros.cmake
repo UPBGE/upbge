@@ -518,6 +518,8 @@ function(setup_liblinks
 
 	#target_link_libraries(${target} ${PLATFORM_LINKLIBS} ${CMAKE_DL_LIBS})
 	target_link_libraries(${target} ${PLATFORM_LINKLIBS})
+
+	target_link_libraries(${target} ${TBB_LIBRARIES})
 endfunction()
 
 

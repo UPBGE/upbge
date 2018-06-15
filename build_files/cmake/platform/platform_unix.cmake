@@ -35,6 +35,7 @@ find_package_wrapper(JPEG REQUIRED)
 find_package_wrapper(PNG REQUIRED)
 find_package_wrapper(ZLIB REQUIRED)
 find_package_wrapper(Freetype REQUIRED)
+find_package_wrapper(TBB REQUIRED)
 
 if(WITH_LZO AND WITH_SYSTEM_LZO)
 	find_package_wrapper(LZO)

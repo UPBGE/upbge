@@ -395,8 +395,7 @@ bool ImageRender::Render()
 		m_scene->GetWorldInfo()->setZenithColor(zen);
 	}
 
-	std::vector<KX_GameObject *> objects;
-	m_scene->CalculateVisibleMeshes(objects, m_camera, 0);
+	const std::vector<KX_GameObject *> objects = m_scene->CalculateVisibleMeshes(m_camera, 0);
 
 	m_engine->UpdateAnimations(m_scene);
 

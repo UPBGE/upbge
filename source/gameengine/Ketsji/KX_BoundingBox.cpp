@@ -65,7 +65,7 @@ const mt::vec3& KX_BoundingBox::GetMax() const
 {
 	// Update AABB to make sure we have the last one.
 	m_owner->UpdateBounds(false);
-	const SG_BBox& box = m_owner->GetCullingNode()->GetAabb();
+	const SG_BBox& box = m_owner->GetCullingNode().GetAabb();
 	return box.GetMax();
 }
 
@@ -73,7 +73,7 @@ const mt::vec3& KX_BoundingBox::GetMin() const
 {
 	// Update AABB to make sure we have the last one.
 	m_owner->UpdateBounds(false);
-	const SG_BBox& box = m_owner->GetCullingNode()->GetAabb();
+	const SG_BBox& box = m_owner->GetCullingNode().GetAabb();
 	return box.GetMin();
 }
 
@@ -81,7 +81,7 @@ const mt::vec3 KX_BoundingBox::GetCenter() const
 {
 	// Update AABB to make sure we have the last one.
 	m_owner->UpdateBounds(false);
-	const SG_BBox& box = m_owner->GetCullingNode()->GetAabb();
+	const SG_BBox& box = m_owner->GetCullingNode().GetAabb();
 	return box.GetCenter();
 }
 
@@ -89,7 +89,7 @@ float KX_BoundingBox::GetRadius() const
 {
 	// Update AABB to make sure we have the last one.
 	m_owner->UpdateBounds(false);
-	const SG_BBox& box = m_owner->GetCullingNode()->GetAabb();
+	const SG_BBox& box = m_owner->GetCullingNode().GetAabb();
 	return box.GetRadius();
 }
 
