@@ -144,6 +144,29 @@ static void shader_print_errors(const char *task, const char *log, const char **
 
 static const char *gpu_shader_version(void)
 {
+	if (GLEW_ARB_compatibility) {
+		if (GLEW_VERSION_4_5) {
+			return "#version 450 compatibility\n";
+		}
+		else if (GLEW_VERSION_4_4) {
+			return "#version 440 compatibility\n";
+		}
+		else if (GLEW_VERSION_4_3) {
+			return "#version 430 compatibility\n";
+		}
+		else if (GLEW_VERSION_4_2) {
+			return "#version 420 compatibility\n";
+		}
+		else if (GLEW_VERSION_4_1) {
+			return "#version 410 compatibility\n";
+		}
+		else if (GLEW_VERSION_4_0) {
+			return "#version 400 compatibility\n";
+		}
+		else if (GLEW_VERSION_3_3) {
+			return "#version 330 compatibility\n";
+		}
+	}
 	if (GLEW_VERSION_3_2) {
 		if (GLEW_ARB_compatibility) {
 			return "#version 150 compatibility\n";
