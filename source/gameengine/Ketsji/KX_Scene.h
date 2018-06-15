@@ -43,6 +43,7 @@
 #include "SCA_IScene.h"
 
 #include "RAS_Rasterizer.h" // For RAS_Rasterizer::DrawType.
+#include "RAS_DebugDraw.h"
 #include "RAS_FramingManager.h"
 #include "RAS_Rect.h"
 
@@ -79,7 +80,6 @@ class RAS_BucketManager;
 class RAS_MaterialBucket;
 class RAS_IPolyMaterial;
 class RAS_Rasterizer;
-class RAS_DebugDraw;
 class RAS_OffScreen;
 class RAS_2DFilterManager;
 
@@ -238,6 +238,9 @@ private:
 	 */
 	RAS_Rect m_viewport;
 
+	/// Debug drawing registering.
+	RAS_DebugDraw m_debugDraw;
+
 	/// Visibility testing functions.
 	static void PhysicsCullingCallback(KX_ClientObjectInfo *objectInfo, void *cullingInfo);
 
@@ -354,10 +357,12 @@ public:
 	std::vector<KX_GameObject *> CalculateVisibleMeshes(KX_Camera *cam, int layer);
 	std::vector<KX_GameObject *> CalculateVisibleMeshes(const SG_Frustum& frustum, int layer);
 
+	RAS_DebugDraw& GetDebugDraw();
 	/// \section Debug draw.
-	void DrawDebug(RAS_DebugDraw& debugDraw, const std::vector<KX_GameObject *>& objects,
+	void DrawDebug(const std::vector<KX_GameObject *>& objects,
 			KX_DebugOption showBoundingBox, KX_DebugOption showArmatures);
 	void RenderDebugProperties(RAS_DebugDraw& debugDraw, int xindent, int ysize, int& xcoord, int& ycoord, unsigned short propsMax);
+	void FlushDebugDraw(RAS_Rasterizer *rasty, RAS_ICanvas *canvas);
 
 	/// Replicate the logic bricks associated to this object.
 	void ReplicateLogic(KX_GameObject *newobj);

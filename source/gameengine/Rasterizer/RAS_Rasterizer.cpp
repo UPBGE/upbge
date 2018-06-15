@@ -396,16 +396,6 @@ void RAS_Rasterizer::DrawOverlayPlane()
 	m_impl->DrawOverlayPlane();
 }
 
-RAS_DebugDraw& RAS_Rasterizer::GetDebugDraw(SCA_IScene *scene)
-{
-	return m_debugDraws[scene];
-}
-
-void RAS_Rasterizer::FlushDebugDraw(SCA_IScene *scene, RAS_ICanvas *canvas)
-{
-	m_debugDraws[scene].Flush(this, canvas);
-}
-
 void RAS_Rasterizer::UpdateOffScreens(RAS_ICanvas *canvas)
 {
 	m_offScreens.Update(canvas);

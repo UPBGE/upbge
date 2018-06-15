@@ -40,6 +40,7 @@
 #include "KX_WorldInfo.h"
 #include "RAS_CameraData.h"
 #include "RAS_Rasterizer.h"
+#include "RAS_DebugDraw.h"
 #include <vector>
 
 struct TaskScheduler;
@@ -154,6 +155,8 @@ private:
 	RAS_ICanvas *m_canvas;
 	/// 3D Rasterizer (3D Rendering)
 	RAS_Rasterizer *m_rasterizer;
+	/// Global debug draw, mainly used for profiling texts.
+	RAS_DebugDraw m_debugDraw;
 	KX_ISystem *m_kxsystem;
 	BL_Converter *m_converter;
 	KX_NetworkMessageManager *m_networkMessageManager;
@@ -280,9 +283,9 @@ private:
 	RAS_OffScreen *PostRenderScene(KX_Scene *scene, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs);
 	void RenderDebugProperties();
 	/// Debug draw cameras frustum of a scene.
-	void DrawDebugCameraFrustum(KX_Scene *scene, RAS_DebugDraw& debugDraw, const CameraRenderData& cameraFrameData);
+	void DrawDebugCameraFrustum(KX_Scene *scene, const CameraRenderData& cameraFrameData);
 	/// Debug draw lights shadow frustum of a scene.
-	void DrawDebugShadowFrustum(KX_Scene *scene, RAS_DebugDraw& debugDraw);
+	void DrawDebugShadowFrustum(KX_Scene *scene);
 
 	/**
 	 * Processes all scheduled scene activity.

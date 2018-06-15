@@ -1137,7 +1137,12 @@ std::vector<KX_GameObject *> KX_Scene::CalculateVisibleMeshes(const SG_Frustum& 
 	return handler.Process();
 }
 
-void KX_Scene::DrawDebug(RAS_DebugDraw& debugDraw, const std::vector<KX_GameObject *>& objects,
+RAS_DebugDraw& KX_Scene::GetDebugDraw()
+{
+	return m_debugDraw;
+}
+
+void KX_Scene::DrawDebug(const std::vector<KX_GameObject *>& objects,
                          KX_DebugOption showBoundingBox, KX_DebugOption showArmatures)
 {
 	if (showBoundingBox != KX_DebugOption::DISABLE) {
@@ -1148,19 +1153,16 @@ void KX_Scene::DrawDebug(RAS_DebugDraw& debugDraw, const std::vector<KX_GameObje
 			const SG_BBox& box = gameobj->GetCullingNode().GetAabb();
 			const mt::vec3& center = box.GetCenter();
 
-			debugDraw.DrawAabb(position, orientation, box.GetMin() * scale, box.GetMax() * scale,
+			m_debugDraw.DrawAabb(position, orientation, box.GetMin() * scale, box.GetMax() * scale,
 			                   mt::vec4(1.0f, 0.0f, 1.0f, 1.0f));
 
+			static const mt::vec3 axes[] = {mt::axisX3, mt::axisY3, mt::axisZ3};
+			static const mt::vec4 colors[] = {mt::vec4(1.0f, 0.0f, 0.0f, 1.0f), mt::vec4(0.0f, 1.0f, 0.0f, 1.0f), mt::vec4(0.0f, 0.0f, 1.0f, 1.0f)};
 			// Render center in red, green and blue.
-			debugDraw.DrawLine(orientation * (center * scale) + position,
-			                   orientation * ((center + mt::axisX3) * scale) + position,
-			                   mt::vec4(1.0f, 0.0f, 0.0f, 1.0f));
-			debugDraw.DrawLine(orientation * (center * scale) + position,
-			                   orientation * ((center + mt::axisY3) * scale)  + position,
-			                   mt::vec4(0.0f, 1.0f, 0.0f, 1.0f));
-			debugDraw.DrawLine(orientation * (center * scale) + position,
-			                   orientation * ((center + mt::axisZ3) * scale)  + position,
-			                   mt::vec4(0.0f, 0.0f, 1.0f, 1.0f));
+			for (unsigned short i = 0; i < 3; ++i) {
+				m_debugDraw.DrawLine(orientation * (center * scale) + position,
+						orientation * ((center + axes[i]) * scale) + position, colors[i]);
+			}
 		}
 	}
 
@@ -1170,7 +1172,7 @@ void KX_Scene::DrawDebug(RAS_DebugDraw& debugDraw, const std::vector<KX_GameObje
 			if (gameobj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
 				BL_ArmatureObject *armature = static_cast<BL_ArmatureObject *>(gameobj);
 				if (showArmatures == KX_DebugOption::FORCE || armature->GetDrawDebug()) {
-					armature->DrawDebug(debugDraw);
+					armature->DrawDebug(m_debugDraw);
 				}
 			}
 		}
@@ -1221,6 +1223,11 @@ void KX_Scene::RenderDebugProperties(RAS_DebugDraw& debugDraw, int xindent, int 
 			}
 		}
 	}
+}
+
+void KX_Scene::FlushDebugDraw(RAS_Rasterizer *rasty, RAS_ICanvas *canvas)
+{
+	m_debugDraw.Flush(rasty, canvas);
 }
 
 void KX_Scene::LogicBeginFrame(double curtime, double framestep)

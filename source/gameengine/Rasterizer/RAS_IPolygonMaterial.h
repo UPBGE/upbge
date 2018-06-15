@@ -42,6 +42,7 @@
 #include <map>
 
 class RAS_Rasterizer;
+class SCA_IScene;
 struct Material;
 struct Scene;
 struct GameSettings;
