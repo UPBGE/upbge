@@ -213,8 +213,7 @@ RAS_MeshUser *RAS_Mesh::AddMeshUser(void *clientobj, RAS_Deformer *deformer)
 	for (unsigned short i = 0, nummat = m_materials.size(); i < nummat; ++i) {
 		RAS_DisplayArrayBucket *arrayBucket = (deformer) ?
 		                                      deformer->GetDisplayArrayBucket(i) : m_materials[i]->GetDisplayArrayBucket();
-		RAS_MeshSlot *ms = new RAS_MeshSlot(meshUser, arrayBucket);
-		meshUser->AddMeshSlot(ms);
+		meshUser->NewMeshSlot(arrayBucket);
 	}
 	return meshUser;
 }

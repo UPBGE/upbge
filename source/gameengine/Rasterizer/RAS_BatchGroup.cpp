@@ -70,14 +70,14 @@ RAS_BatchGroup *RAS_BatchGroup::RemoveMeshUser()
 	return this;
 }
 
-bool RAS_BatchGroup::MergeMeshSlot(RAS_BatchGroup::Batch& batch, RAS_MeshSlot *slot, const mt::mat4& mat)
+bool RAS_BatchGroup::MergeMeshSlot(RAS_BatchGroup::Batch& batch, RAS_MeshSlot& slot, const mt::mat4& mat)
 {
-	RAS_DisplayArrayBucket *origArrayBucket = slot->m_displayArrayBucket;
+	RAS_DisplayArrayBucket *origArrayBucket = slot.m_displayArrayBucket;
 	RAS_IDisplayArray *origArray = origArrayBucket->GetDisplayArray();
 	RAS_DisplayArrayBucket *arrayBucket = batch.m_displayArrayBucket;
 	RAS_IBatchDisplayArray *array = batch.m_displayArray;
 
-	if (batch.m_originalDisplayArrayBucketList.find(slot) != batch.m_originalDisplayArrayBucketList.end()) {
+	if (batch.m_originalDisplayArrayBucketList.find(&slot) != batch.m_originalDisplayArrayBucketList.end()) {
 		CM_Error("could not merge twice a mesh");
 		return false;
 	}
@@ -89,21 +89,21 @@ bool RAS_BatchGroup::MergeMeshSlot(RAS_BatchGroup::Batch& batch, RAS_MeshSlot *s
 	}
 
 	// Store original display array bucket.
-	batch.m_originalDisplayArrayBucketList[slot] = origArrayBucket;
-	batch.m_meshSlots.push_back(slot);
+	batch.m_originalDisplayArrayBucketList[&slot] = origArrayBucket;
+	batch.m_meshSlots.push_back(&slot);
 
 	// Merge display array.
 	const unsigned int index = array->Merge(origArray, mat);
-	slot->m_batchPartIndex = index;
+	slot.m_batchPartIndex = index;
 
-	slot->SetDisplayArrayBucket(arrayBucket);
+	slot.SetDisplayArrayBucket(arrayBucket);
 
 	return true;
 }
 
-bool RAS_BatchGroup::SplitMeshSlot(RAS_MeshSlot *slot)
+bool RAS_BatchGroup::SplitMeshSlot(RAS_MeshSlot& slot)
 {
-	RAS_MaterialBucket *bucket = slot->m_displayArrayBucket->GetBucket();
+	RAS_MaterialBucket *bucket = slot.m_displayArrayBucket->GetBucket();
 	RAS_IPolyMaterial *material = bucket->GetPolyMaterial();
 
 	std::map<RAS_IPolyMaterial *, Batch>::iterator bit = m_batchs.find(material);
@@ -114,23 +114,23 @@ bool RAS_BatchGroup::SplitMeshSlot(RAS_MeshSlot *slot)
 
 	Batch& batch = bit->second;
 
-	RAS_DisplayArrayBucket *origArrayBucket = batch.m_originalDisplayArrayBucketList[slot];
+	RAS_DisplayArrayBucket *origArrayBucket = batch.m_originalDisplayArrayBucketList[&slot];
 
 	if (!origArrayBucket) {
 		CM_Error("could not restore mesh");
 		return false;
 	}
 
-	slot->SetDisplayArrayBucket(origArrayBucket);
+	slot.SetDisplayArrayBucket(origArrayBucket);
 
-	batch.m_displayArray->Split(slot->m_batchPartIndex);
+	batch.m_displayArray->Split(slot.m_batchPartIndex);
 
-	batch.m_originalDisplayArrayBucketList.erase(slot);
+	batch.m_originalDisplayArrayBucketList.erase(&slot);
 
-	slot->m_batchPartIndex = -1;
+	slot.m_batchPartIndex = -1;
 
 	// One part is removed and then all the part after must use an index smaller of one.
-	RAS_MeshSlotList::iterator mit = batch.m_meshSlots.erase(std::find(batch.m_meshSlots.begin(), batch.m_meshSlots.end(), slot));
+	RAS_MeshSlotList::iterator mit = batch.m_meshSlots.erase(std::find(batch.m_meshSlots.begin(), batch.m_meshSlots.end(), &slot));
 	for (RAS_MeshSlotList::iterator it = mit, end = batch.m_meshSlots.end(); it != end; ++it) {
 		RAS_MeshSlot *meshSlot = *it;
 		--meshSlot->m_batchPartIndex;
@@ -141,8 +141,8 @@ bool RAS_BatchGroup::SplitMeshSlot(RAS_MeshSlot *slot)
 
 bool RAS_BatchGroup::MergeMeshUser(RAS_MeshUser *meshUser, const mt::mat4& mat)
 {
-	for (RAS_MeshSlot *meshSlot : meshUser->GetMeshSlots()) {
-		RAS_DisplayArrayBucket *arrayBucket = meshSlot->m_displayArrayBucket;
+	for (RAS_MeshSlot& meshSlot : meshUser->GetMeshSlots()) {
+		RAS_DisplayArrayBucket *arrayBucket = meshSlot.m_displayArrayBucket;
 		RAS_MaterialBucket *bucket = arrayBucket->GetBucket();
 		RAS_IPolyMaterial *material = bucket->GetPolyMaterial();
 
@@ -167,7 +167,7 @@ bool RAS_BatchGroup::MergeMeshUser(RAS_MeshUser *meshUser, const mt::mat4& mat)
 
 bool RAS_BatchGroup::SplitMeshUser(RAS_MeshUser *meshUser)
 {
-	for (RAS_MeshSlot *meshSlot : meshUser->GetMeshSlots()) {
+	for (RAS_MeshSlot& meshSlot : meshUser->GetMeshSlots()) {
 		if (!SplitMeshSlot(meshSlot)) {
 			return false;
 		}

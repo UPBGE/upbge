@@ -48,7 +48,7 @@ private:
 	/// Client object owner of this mesh user.
 	void *m_clientObject;
 	/// Unique mesh slots used for render of this object.
-	RAS_MeshSlotList m_meshSlots;
+	std::vector<RAS_MeshSlot> m_meshSlots;
 	/// Possible batching groups shared between mesh users.
 	RAS_BatchGroup *m_batchGroup;
 
@@ -56,13 +56,13 @@ public:
 	RAS_MeshUser(void *clientobj, RAS_BoundingBox *boundingBox);
 	virtual ~RAS_MeshUser();
 
-	void AddMeshSlot(RAS_MeshSlot *meshSlot);
+	void NewMeshSlot(RAS_DisplayArrayBucket *arrayBucket);
 	bool GetFrontFace() const;
 	const mt::vec4& GetColor() const;
 	float *GetMatrix();
 	RAS_BoundingBox *GetBoundingBox() const;
 	void *GetClientObject() const;
-	RAS_MeshSlotList& GetMeshSlots();
+	std::vector<RAS_MeshSlot>& GetMeshSlots();
 	RAS_BatchGroup *GetBatchGroup() const;
 
 	void SetFrontFace(bool frontFace);

@@ -63,13 +63,13 @@ private:
 	 * \param mat The transform matrix to apply to vertices during merging.
 	 * \return false on failure.
 	 */
-	bool MergeMeshSlot(Batch& batch, RAS_MeshSlot *slot, const mt::mat4& mat);
+	bool MergeMeshSlot(Batch& batch, RAS_MeshSlot& slot, const mt::mat4& mat);
 
 	/** Split the part representing the display array containing in the passed mesh slot.
 	 * \param slot The mesh slot using the display array to split.
 	 * \return false on failure.
 	 */
-	bool SplitMeshSlot(RAS_MeshSlot *slot);
+	bool SplitMeshSlot(RAS_MeshSlot& slot);
 
 public:
 	RAS_BatchGroup();

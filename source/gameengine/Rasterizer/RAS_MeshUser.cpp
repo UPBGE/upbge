@@ -44,9 +44,6 @@ RAS_MeshUser::RAS_MeshUser(void *clientobj, RAS_BoundingBox *boundingBox)
 
 RAS_MeshUser::~RAS_MeshUser()
 {
-	for (RAS_MeshSlot *ms : m_meshSlots) {
-		delete ms;
-	}
 	m_meshSlots.clear();
 
 	m_boundingBox->RemoveUser();
@@ -57,9 +54,9 @@ RAS_MeshUser::~RAS_MeshUser()
 	}
 }
 
-void RAS_MeshUser::AddMeshSlot(RAS_MeshSlot *meshSlot)
+void RAS_MeshUser::NewMeshSlot(RAS_DisplayArrayBucket *arrayBucket)
 {
-	m_meshSlots.push_back(meshSlot);
+	m_meshSlots.emplace_back(this, arrayBucket);
 }
 
 bool RAS_MeshUser::GetFrontFace() const
@@ -87,7 +84,7 @@ void *RAS_MeshUser::GetClientObject() const
 	return m_clientObject;
 }
 
-RAS_MeshSlotList& RAS_MeshUser::GetMeshSlots()
+std::vector<RAS_MeshSlot>& RAS_MeshUser::GetMeshSlots()
 {
 	return m_meshSlots;
 }
@@ -122,7 +119,7 @@ void RAS_MeshUser::SetBatchGroup(RAS_BatchGroup *batchGroup)
 
 void RAS_MeshUser::ActivateMeshSlots()
 {
-	for (RAS_MeshSlot *ms : m_meshSlots) {
-		ms->m_displayArrayBucket->ActivateMesh(ms);
+	for (RAS_MeshSlot& ms : m_meshSlots) {
+		ms.m_displayArrayBucket->ActivateMesh(&ms);
 	}
 }

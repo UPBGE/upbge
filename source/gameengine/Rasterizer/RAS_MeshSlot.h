@@ -53,6 +53,7 @@ public:
 	short m_batchPartIndex;
 
 	RAS_MeshSlot(RAS_MeshUser *meshUser, RAS_DisplayArrayBucket *arrayBucket);
+	RAS_MeshSlot(const RAS_MeshSlot& other);
 	virtual ~RAS_MeshSlot();
 
 	void SetDisplayArrayBucket(RAS_DisplayArrayBucket *arrayBucket);

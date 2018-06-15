@@ -60,6 +60,14 @@ RAS_MeshSlot::~RAS_MeshSlot()
 {
 }
 
+RAS_MeshSlot::RAS_MeshSlot(const RAS_MeshSlot& other)
+	:m_node(this, &dummyNodeData, &RAS_MeshSlot::RunNode, nullptr),
+	m_displayArrayBucket(other.m_displayArrayBucket),
+	m_meshUser(other.m_meshUser),
+	m_batchPartIndex(other.m_batchPartIndex)
+{
+}
+
 void RAS_MeshSlot::SetDisplayArrayBucket(RAS_DisplayArrayBucket *arrayBucket)
 {
 	m_displayArrayBucket = arrayBucket;
