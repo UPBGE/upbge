@@ -189,9 +189,9 @@ static void rna_Image_unpack(Image *image, Main *bmain, ReportList *reports, int
 	}
 }
 
-static void rna_Image_reload(Image *image)
+static void rna_Image_reload(Image *image, Main *bmain)
 {
-	BKE_image_signal(image, NULL, IMA_SIGNAL_RELOAD);
+	BKE_image_signal(bmain, image, NULL, IMA_SIGNAL_RELOAD);
 }
 
 static void rna_Image_update(Image *image, ReportList *reports)
@@ -220,29 +220,30 @@ static void rna_Image_scale(Image *image, ReportList *reports, int width, int he
 
 static int rna_Image_gl_load(Image *image, ReportList *reports, int frame, int filter, int mag)
 {
-	ImBuf *ibuf;
-	unsigned int *bind = &image->bindcode[TEXTARGET_TEXTURE_2D];
+	GPUTexture *tex = image->gputexture[TEXTARGET_TEXTURE_2D];
 	int error = GL_NO_ERROR;
-	ImageUser iuser = {NULL};
-	void *lock;
 
-	if (*bind)
+	if (tex)
 		return error;
+
+	ImageUser iuser = {NULL};
 	iuser.framenr = frame;
 	iuser.ok = true;
 
-	ibuf = BKE_image_acquire_ibuf(image, &iuser, &lock);
+	void *lock;
+	ImBuf *ibuf = BKE_image_acquire_ibuf(image, &iuser, &lock);
 
 	/* clean glError buffer */
 	while (glGetError() != GL_NO_ERROR) {}
 
 	if (ibuf == NULL || ibuf->rect == NULL) {
 		BKE_reportf(reports, RPT_ERROR, "Image '%s' does not have any image data", image->id.name + 2);
-		BKE_image_release_ibuf(image, ibuf, NULL);
+		BKE_image_release_ibuf(image, ibuf, lock);
 		return (int)GL_INVALID_OPERATION;
 	}
 
-	GPU_create_gl_tex(bind, ibuf->rect, ibuf->rect_float, ibuf->x, ibuf->y, GL_TEXTURE_2D,
+	unsigned int bindcode = 0;
+	GPU_create_gl_tex(&bindcode, ibuf->rect, ibuf->rect_float, ibuf->x, ibuf->y, GL_TEXTURE_2D,
 	                  (filter != GL_NEAREST && filter != GL_LINEAR), false, image);
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, (GLint)filter);
@@ -253,23 +254,24 @@ static int rna_Image_gl_load(Image *image, ReportList *reports, int frame, int f
 	error = glGetError();
 
 	if (error) {
-		glDeleteTextures(1, (GLuint *)bind);
-		image->bindcode[TEXTARGET_TEXTURE_2D] = 0;
+		glDeleteTextures(1, (GLuint *)&bindcode);
+	}
+	else {
+		image->gputexture[TEXTARGET_TEXTURE_2D] = GPU_texture_from_bindcode(GL_TEXTURE_2D, bindcode);
 	}
 
-	BKE_image_release_ibuf(image, ibuf, NULL);
+	BKE_image_release_ibuf(image, ibuf, lock);
 
 	return error;
 }
 
 static int rna_Image_gl_touch(Image *image, ReportList *reports, int frame, int filter, int mag)
 {
-	unsigned int *bind = &image->bindcode[TEXTARGET_TEXTURE_2D];
 	int error = GL_NO_ERROR;
 
 	BKE_image_tag_time(image);
 
-	if (*bind == 0)
+	if (image->gputexture[TEXTARGET_TEXTURE_2D] == NULL)
 		error = rna_Image_gl_load(image, reports, frame, filter, mag);
 
 	return error;
@@ -335,6 +337,7 @@ void RNA_api_image(StructRNA *srna)
 	RNA_def_enum(func, "method", rna_enum_unpack_method_items, PF_USE_LOCAL, "method", "How to unpack");
 
 	func = RNA_def_function(srna, "reload", "rna_Image_reload");
+	RNA_def_function_flag(func, FUNC_USE_MAIN);
 	RNA_def_function_ui_description(func, "Reload the image from its source path");
 
 	func = RNA_def_function(srna, "update", "rna_Image_update");

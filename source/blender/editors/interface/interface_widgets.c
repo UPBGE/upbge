@@ -4996,6 +4996,33 @@ uiWidgetColors *ui_tooltip_get_theme(void)
 	return wt->wcol_theme;
 }
 
+/**
+ * Generic drawing for background.
+ */
+void ui_draw_widget_back_color(
+        uiWidgetTypeEnum type, bool use_shadow, const rcti *rect,
+        const float color[4])
+{
+	uiWidgetType *wt = widget_type(type);
+
+	if (use_shadow) {
+		glEnable(GL_BLEND);
+		widget_softshadow(rect, UI_CNR_ALL, 0.25f * U.widget_unit);
+		glDisable(GL_BLEND);
+	}
+
+	rcti rect_copy = *rect;
+	wt->state(wt, 0);
+	if (color) {
+		rgba_float_to_uchar((unsigned char *)wt->wcol.inner, color);
+	}
+	wt->draw(&wt->wcol, &rect_copy, 0, UI_CNR_ALL);
+}
+void ui_draw_widget_back(uiWidgetTypeEnum type, bool use_shadow, const rcti *rect)
+{
+	ui_draw_widget_back_color(type, use_shadow, rect, NULL);
+}
+
 void ui_draw_tooltip_background(uiStyle *UNUSED(style), uiBlock *UNUSED(block), rcti *rect)
 {
 	uiWidgetType *wt = widget_type(UI_WTYPE_TOOLTIP);
@@ -5003,22 +5030,6 @@ void ui_draw_tooltip_background(uiStyle *UNUSED(style), uiBlock *UNUSED(block), 
 	/* wt->draw ends up using same function to draw the tooltip as menu_back */
 	wt->draw(&wt->wcol, rect, 0, 0);
 }
-
-void ui_draw_search_back(uiStyle *UNUSED(style), uiBlock *block, rcti *rect)
-{
-	uiWidgetType *wt = widget_type(UI_WTYPE_BOX);
-
-	glEnable(GL_BLEND);
-	widget_softshadow(rect, UI_CNR_ALL, 0.25f * U.widget_unit);
-	glDisable(GL_BLEND);
-
-	wt->state(wt, 0);
-	if (block)
-		wt->draw(&wt->wcol, rect, block->flag, UI_CNR_ALL);
-	else
-		wt->draw(&wt->wcol, rect, 0, UI_CNR_ALL);
-}
-
 
 /* helper call to draw a menu item without button */
 /* state: UI_ACTIVE or 0 */

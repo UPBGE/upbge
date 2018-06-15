@@ -199,11 +199,6 @@ static const EnumPropertyItem rna_enum_studio_light_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
-static const EnumPropertyItem rna_enum_matcap_items[] = {
-	{0, "DEFAULT", 0, "Default", ""},
-	{0, NULL, 0, NULL, NULL}
-};
-
 const EnumPropertyItem rna_enum_clip_editor_mode_items[] = {
 	{SC_MODE_TRACKING, "TRACKING", ICON_ANIM_DATA, "Tracking", "Show tracking and solving tools"},
 	{SC_MODE_MASKEDIT, "MASK", ICON_MOD_MASK, "Mask", "Show mask editing tools"},
@@ -674,14 +669,18 @@ static const EnumPropertyItem *rna_3DViewShading_type_itemf(
 	return item;
 }
 
-static int rna_View3DShading_studio_light_orientation_get(PointerRNA *ptr)
+/* Shading.selected_studio_light */
+static PointerRNA rna_View3DShading_selected_studio_light_get(PointerRNA *ptr)
 {
 	View3D *v3d = (View3D *)ptr->data;
-	StudioLight *sl = BKE_studiolight_find(v3d->shading.studio_light, STUDIOLIGHT_FLAG_ALL);
-	return sl->flag & STUDIOLIGHT_FLAG_ORIENTATIONS;
-}
-static void rna_View3DShading_studio_light_orientation_set(PointerRNA *UNUSED(ptr), int UNUSED(value))
-{
+	StudioLight *sl;
+	if (v3d->shading.light == V3D_LIGHTING_MATCAP) {
+		sl = BKE_studiolight_find(v3d->shading.matcap, STUDIOLIGHT_FLAG_ALL);
+	}
+	else {
+		sl = BKE_studiolight_find(v3d->shading.studio_light, STUDIOLIGHT_FLAG_ALL);
+	}
+	return rna_pointer_inherit_refine(ptr, &RNA_StudioLight, sl);
 }
 
 /* shading.light */
@@ -723,20 +722,36 @@ static const EnumPropertyItem *rna_View3DShading_light_itemf(
 static int rna_View3DShading_studio_light_get(PointerRNA *ptr)
 {
 	View3D *v3d = (View3D *)ptr->data;
+	char *dna_storage = v3d->shading.studio_light;
+
 	int flag = STUDIOLIGHT_ORIENTATIONS_SOLID;
-	if (v3d->drawtype == OB_MATERIAL) {
+	if (v3d->drawtype == OB_SOLID && v3d->shading.light == V3D_LIGHTING_MATCAP) {
+		flag = STUDIOLIGHT_ORIENTATION_VIEWNORMAL;
+		dna_storage = v3d->shading.matcap;
+	}
+	else if (v3d->drawtype == OB_MATERIAL) {
 		flag = STUDIOLIGHT_ORIENTATIONS_MATERIAL_MODE;
 	}
-	StudioLight *sl = BKE_studiolight_find(v3d->shading.studio_light, flag);
-	BLI_strncpy(v3d->shading.studio_light, sl->name, FILE_MAXFILE);
+	StudioLight *sl = BKE_studiolight_find(dna_storage, flag);
+	BLI_strncpy(dna_storage, sl->name, FILE_MAXFILE);
 	return sl->index;
 }
 
 static void rna_View3DShading_studio_light_set(PointerRNA *ptr, int value)
 {
 	View3D *v3d = (View3D *)ptr->data;
-	StudioLight *sl = BKE_studiolight_findindex(value, STUDIOLIGHT_FLAG_ALL);
-	BLI_strncpy(v3d->shading.studio_light, sl->name, FILE_MAXFILE);
+	char *dna_storage = v3d->shading.studio_light;
+
+	int flag = STUDIOLIGHT_ORIENTATIONS_SOLID;
+	if (v3d->drawtype == OB_SOLID && v3d->shading.light == V3D_LIGHTING_MATCAP) {
+		flag = STUDIOLIGHT_ORIENTATION_VIEWNORMAL;
+		dna_storage = v3d->shading.matcap;
+	}
+	else if (v3d->drawtype == OB_MATERIAL) {
+		flag = STUDIOLIGHT_ORIENTATIONS_MATERIAL_MODE;
+	}
+	StudioLight *sl = BKE_studiolight_findindex(value, flag);
+	BLI_strncpy(dna_storage, sl->name, FILE_MAXFILE);
 }
 
 static const EnumPropertyItem *rna_View3DShading_studio_light_itemf(
@@ -747,70 +762,44 @@ static const EnumPropertyItem *rna_View3DShading_studio_light_itemf(
 	EnumPropertyItem *item = NULL;
 	int totitem = 0;
 
-	LISTBASE_FOREACH(StudioLight *, sl, BKE_studiolight_listbase()) {
-		int icon_id = sl->irradiance_icon_id;
-		bool show_studiolight = false;
+	if (v3d->drawtype == OB_SOLID && v3d->shading.light == V3D_LIGHTING_MATCAP) {
+		const int flags = (STUDIOLIGHT_EXTERNAL_FILE | STUDIOLIGHT_ORIENTATION_VIEWNORMAL);
 
-		if ((sl->flag & STUDIOLIGHT_INTERNAL)) {
-			/* always show internal lights */
-			show_studiolight = true;
-		}
-		else {
-			switch (v3d->drawtype) {
-				case OB_SOLID:
-				case OB_TEXTURE:
-					show_studiolight = (sl->flag & (STUDIOLIGHT_ORIENTATION_WORLD | STUDIOLIGHT_ORIENTATION_CAMERA)) > 0;
-					break;
-
-				case OB_MATERIAL:
-					show_studiolight = (sl->flag & STUDIOLIGHT_ORIENTATION_WORLD) > 0;
-					icon_id = sl->radiance_icon_id;
-					break;
+		LISTBASE_FOREACH(StudioLight *, sl, BKE_studiolight_listbase()) {
+			int icon_id = (v3d->shading.flag & V3D_SHADING_MATCAP_FLIP_X) ? sl->icon_id_matcap_flipped: sl->icon_id_matcap;
+			if ((sl->flag & flags) == flags) {
+				EnumPropertyItem tmp = {sl->index, sl->name, icon_id, sl->name, ""};
+				RNA_enum_item_add(&item, &totitem, &tmp);
 			}
 		}
-
-		if (show_studiolight) {
-			EnumPropertyItem tmp = {sl->index, sl->name, icon_id, sl->name, ""};
-			RNA_enum_item_add(&item, &totitem, &tmp);
-		}
 	}
+	else {
+		LISTBASE_FOREACH(StudioLight *, sl, BKE_studiolight_listbase()) {
+			int icon_id = sl->icon_id_irradiance;
+			bool show_studiolight = false;
 
-	RNA_enum_item_end(&item, &totitem);
-	*r_free = true;
-	return item;
-}
-/* Matcap studiolight */
-static int rna_View3DShading_matcap_get(PointerRNA *ptr)
-{
-	View3D *v3d = (View3D *)ptr->data;
-	StudioLight *sl = BKE_studiolight_find(v3d->shading.matcap, STUDIOLIGHT_ORIENTATION_VIEWNORMAL);
-	BLI_strncpy(v3d->shading.matcap, sl->name, FILE_MAXFILE);
-	return sl->index;
-}
+			if ((sl->flag & STUDIOLIGHT_INTERNAL)) {
+				/* always show internal lights */
+				show_studiolight = true;
+			}
+			else {
+				switch (v3d->drawtype) {
+					case OB_SOLID:
+					case OB_TEXTURE:
+						show_studiolight = (sl->flag & (STUDIOLIGHT_ORIENTATION_WORLD | STUDIOLIGHT_ORIENTATION_CAMERA)) > 0;
+						break;
 
-static void rna_View3DShading_matcap_set(PointerRNA *ptr, int value)
-{
-	View3D *v3d = (View3D *)ptr->data;
-	StudioLight *sl = BKE_studiolight_findindex(value, STUDIOLIGHT_ORIENTATION_VIEWNORMAL);
-	BLI_strncpy(v3d->shading.matcap, sl->name, FILE_MAXFILE);
-}
+					case OB_MATERIAL:
+						show_studiolight = (sl->flag & STUDIOLIGHT_ORIENTATION_WORLD) > 0;
+						icon_id = sl->icon_id_radiance;
+						break;
+				}
+			}
 
-static const EnumPropertyItem *rna_View3DShading_matcap_itemf(
-        bContext *UNUSED(C), PointerRNA *UNUSED(ptr),
-        PropertyRNA *UNUSED(prop), bool *r_free)
-{
-	EnumPropertyItem *item = NULL;
-	int totitem = 0;
-
-	const int flags = (STUDIOLIGHT_EXTERNAL_FILE | STUDIOLIGHT_ORIENTATION_VIEWNORMAL);
-
-	LISTBASE_FOREACH(StudioLight *, sl, BKE_studiolight_listbase()) {
-		int icon_id = sl->irradiance_icon_id;
-		bool show_studiolight = (sl->flag & flags) == flags;
-
-		if (show_studiolight) {
-			EnumPropertyItem tmp = {sl->index, sl->name, icon_id, sl->name, ""};
-			RNA_enum_item_add(&item, &totitem, &tmp);
+			if (show_studiolight) {
+				EnumPropertyItem tmp = {sl->index, sl->name, icon_id, sl->name, ""};
+				RNA_enum_item_add(&item, &totitem, &tmp);
+			}
 		}
 	}
 
@@ -934,7 +923,7 @@ static void rna_SpaceImageEditor_image_set(PointerRNA *ptr, PointerRNA value)
 	Scene *scene = ED_screen_scene_find_with_window(sc, G.main->wm.first, &win);
 	ViewLayer *view_layer = WM_window_get_active_view_layer(win);
 	Object *obedit = OBEDIT_FROM_VIEW_LAYER(view_layer);
-	ED_space_image_set(sima, scene, obedit, (Image *)value.data);
+	ED_space_image_set(G.main, sima, scene, obedit, (Image *)value.data);
 }
 
 static void rna_SpaceImageEditor_mask_set(PointerRNA *ptr, PointerRNA value)
@@ -2302,14 +2291,6 @@ static void rna_def_space_view3d_shading(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
-	static const EnumPropertyItem studio_light_orientation_items[] = {
-		{0,                                  "UNKNOWN", 0,    "Unknown", "Studio light has no orientation"},
-		{STUDIOLIGHT_ORIENTATION_CAMERA,     "CAMERA",  0,    "Camera",  "Studio light is camera based"},
-		{STUDIOLIGHT_ORIENTATION_WORLD,      "WORLD",   0,    "World",   "Studio light is world based"},
-		{STUDIOLIGHT_ORIENTATION_VIEWNORMAL, "VIEWNORMAL", 0, "Matcap",  "Studio light is a matcap"},
-		{0, NULL, 0, NULL, NULL}
-	};
-
 	srna = RNA_def_struct(brna, "View3DShading", NULL);
 	RNA_def_struct_sdna(srna, "View3D");
 	RNA_def_struct_nested(brna, srna, "SpaceView3D");
@@ -2344,13 +2325,6 @@ static void rna_def_space_view3d_shading(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Studiolight", "Studio lighting setup");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
-	prop = RNA_def_property(srna, "matcap", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_items(prop, rna_enum_matcap_items);
-	RNA_def_property_enum_default(prop, 0);
-	RNA_def_property_enum_funcs(prop, "rna_View3DShading_matcap_get", "rna_View3DShading_matcap_set", "rna_View3DShading_matcap_itemf");
-	RNA_def_property_ui_text(prop, "Matcap", "Matcap material and lighting");
-	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
-
 	prop = RNA_def_property(srna, "show_cavity", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "shading.flag", V3D_SHADING_CAVITY);
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
@@ -2375,13 +2349,18 @@ static void rna_def_space_view3d_shading(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
-	prop = RNA_def_property(srna, "studio_light_orientation", PROP_ENUM, PROP_NONE);
-	RNA_define_verify_sdna(0);
-	RNA_def_property_enum_sdna(prop, NULL, "shading.flag");
-	RNA_def_property_ui_text(prop, "Studio Light Orientation", "Orientation of the studio light");
-	RNA_def_property_enum_items(prop, studio_light_orientation_items);
-	RNA_def_property_enum_funcs(prop, "rna_View3DShading_studio_light_orientation_get", "rna_View3DShading_studio_light_orientation_set", NULL);
+	prop = RNA_def_property(srna, "show_anti_aliasing", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "shading.flag", V3D_SHADING_EFFECT_FXAA);
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+	RNA_def_property_ui_text(prop, "Anti Alias", "Draw the view using FXAA");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
+
+	prop = RNA_def_property(srna, "selected_studio_light", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(prop, "StudioLight");
+	RNA_define_verify_sdna(0);
+	RNA_def_property_ui_text(prop, "Studio Light", "Selected StudioLight");
+	RNA_def_property_pointer_funcs(prop, "rna_View3DShading_selected_studio_light_get", NULL, NULL, NULL);
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE | PROP_EDITABLE);
 	RNA_define_verify_sdna(1);
 
 	prop = RNA_def_property(srna, "studiolight_rot_z", PROP_FLOAT, PROP_ANGLE);

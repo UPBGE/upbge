@@ -640,6 +640,9 @@ void uiItemSpacer(struct uiLayout *layout) RET_NONE
 
 
 void uiTemplateIconView(struct uiLayout *layout, struct PointerRNA *ptr, const char *propname, int show_labels, float icon_scale) RET_NONE
+void uiTemplateIcon(uiLayout *layout, int icon_value, float icon_scale) RET_NONE
+
+
 void ED_object_base_free_and_unlink(struct Main *bmain, struct Scene *scene, struct Object *base) RET_NONE
 void ED_mesh_update(struct Mesh *mesh, struct bContext *C, int calc_edges, int calc_tessface) RET_NONE
 void ED_mesh_vertices_add(struct Mesh *mesh, struct ReportList *reports, int count) RET_NONE
@@ -848,6 +851,7 @@ void uiTemplateCacheFile(uiLayout *layout, struct bContext *C, struct PointerRNA
 
 void *RE_gl_context_get(struct Render *re) RET_NULL
 void *RE_gwn_context_get(struct Render *re) RET_NULL
+void RE_ClearResult(struct Render *re) RET_NONE
 
 
 struct RenderResult *RE_engine_begin_result(RenderEngine *engine, int x, int y, int w, int h, const char *layername, const char *viewname) RET_NULL

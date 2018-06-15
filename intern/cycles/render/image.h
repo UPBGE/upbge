@@ -71,6 +71,8 @@ public:
 	bool get_image_metadata(const string& filename,
 	                        void *builtin_data,
 	                        ImageMetaData& metadata);
+	bool get_image_metadata(int flat_slot,
+	                        ImageMetaData& metadata);
 
 	void device_update(Device *device,
 	                   Scene *scene,
@@ -80,6 +82,10 @@ public:
 	                        int flat_slot,
 	                        Progress *progress);
 	void device_free(Device *device);
+
+	void device_load_builtin(Device *device,
+	                         Scene *scene,
+	                         Progress& progress);
 	void device_free_builtin(Device *device);
 
 	void set_osl_texture_system(void *texture_system);
@@ -110,7 +116,7 @@ public:
 	struct Image {
 		string filename;
 		void *builtin_data;
-		bool builtin_free_cache;
+		ImageMetaData metadata;
 
 		bool use_alpha;
 		bool need_load;
@@ -137,11 +143,7 @@ private:
 	void *osl_texture_system;
 
 	bool file_load_image_generic(Image *img,
-	                             ImageInput **in,
-	                             int &width,
-	                             int &height,
-	                             int &depth,
-	                             int &components);
+	                             ImageInput **in);
 
 	template<TypeDesc::BASETYPE FileFormat,
 	         typename StorageType,

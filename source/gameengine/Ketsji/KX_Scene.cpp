@@ -803,9 +803,8 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
 	m_groupGameObjects.clear();
 
 	group = blgroupobj->dup_group;
-	FOREACH_COLLECTION_BASE_RECURSIVE_BEGIN(group, base)
+	FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN(group, blenderobj)
 	{
-		Object* blenderobj = base->object;
 		if (blgroupobj == blenderobj)
 			// this check is also in group_duplilist()
 			continue;
@@ -827,7 +826,7 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
 		}
 		m_groupGameObjects.insert(gameobj);
 	}
-	FOREACH_COLLECTION_BASE_RECURSIVE_END;
+	FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
 
 	for (KX_GameObject *gameobj : m_groupGameObjects) {
 		KX_GameObject *parent = gameobj->GetParent();

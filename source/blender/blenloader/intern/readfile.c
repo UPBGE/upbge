@@ -1651,9 +1651,9 @@ void blo_make_image_pointer_map(FileData *fd, Main *oldmain)
 				oldnewmap_insert(fd->imamap, ima->gputexture[a], ima->gputexture[a], 0);
 		if (ima->rr)
 			oldnewmap_insert(fd->imamap, ima->rr, ima->rr, 0);
-		for (a=0; a < IMA_MAX_RENDER_SLOT; a++)
-			if (ima->renders[a])
-				oldnewmap_insert(fd->imamap, ima->renders[a], ima->renders[a], 0);
+			LISTBASE_FOREACH(RenderSlot *, slot, &ima->renderslots)
+				if (slot->render)
+					oldnewmap_insert(fd->imamap, slot->render, slot->render, 0);
 	}
 	for (; sce; sce = sce->id.next) {
 		if (sce->nodetree && sce->nodetree->previews) {
@@ -1686,13 +1686,12 @@ void blo_end_image_pointer_map(FileData *fd, Main *oldmain)
 		if (ima->cache == NULL) {
 			ima->tpageflag &= ~IMA_GLBIND_IS_DATA;
 			for (i = 0; i < TEXTARGET_COUNT; i++) {
-				ima->bindcode[i] = 0;
 				ima->gputexture[i] = NULL;
 			}
 			ima->rr = NULL;
 		}
-		for (i = 0; i < IMA_MAX_RENDER_SLOT; i++)
-			ima->renders[i] = newimaadr(fd, ima->renders[i]);
+		LISTBASE_FOREACH(RenderSlot *, slot, &ima->renderslots)
+			slot->render = newimaadr(fd, slot->render);
 		
 		for (i = 0; i < TEXTARGET_COUNT; i++)
 			ima->gputexture[i] = newimaadr(fd, ima->gputexture[i]);
@@ -3921,7 +3920,6 @@ static void direct_link_image(FileData *fd, Image *ima)
 	if (!ima->cache) {
 		ima->tpageflag &= ~IMA_GLBIND_IS_DATA;
 		for (int i = 0; i < TEXTARGET_COUNT; i++) {
-			ima->bindcode[i] = 0;
 			ima->gputexture[i] = NULL;
 		}
 		ima->rr = NULL;
@@ -3930,14 +3928,15 @@ static void direct_link_image(FileData *fd, Image *ima)
 	ima->repbind = NULL;
 	
 	/* undo system, try to restore render buffers */
+	link_list(fd, &(ima->renderslots));
 	if (fd->imamap) {
-		int a;
-		
-		for (a = 0; a < IMA_MAX_RENDER_SLOT; a++)
-			ima->renders[a] = newimaadr(fd, ima->renders[a]);
+		LISTBASE_FOREACH(RenderSlot *, slot, &ima->renderslots) {
+			slot->render = newimaadr(fd, slot->render);
+		}
 	}
 	else {
-		memset(ima->renders, 0, sizeof(ima->renders));
+		LISTBASE_FOREACH(RenderSlot *, slot, &ima->renderslots)
+			slot->render = NULL;
 		ima->last_render_slot = ima->render_slot;
 	}
 
@@ -4540,12 +4539,12 @@ static void lib_link_mesh(FileData *fd, Main *main)
 			if (me->totface && !me->totpoly) {
 				/* temporarily switch main so that reading from
 				 * external CustomData works */
-				Main *gmain = G.main;
-				G.main = main;
+				Main *gmain = G_MAIN;
+				G_MAIN = main;
 				
 				BKE_mesh_do_versions_convert_mfaces_to_mpolys(me);
 				
-				G.main = gmain;
+				G_MAIN = gmain;
 			}
 
 			/*
@@ -6620,6 +6619,10 @@ static void direct_link_region(FileData *fd, ARegion *ar, int spacetype)
 		/* unkown space type, don't leak regiondata */
 		ar->regiondata = NULL;
 	}
+	else if (ar->flag & RGN_FLAG_TEMP_REGIONDATA) {
+		/* Runtime data, don't use. */
+		ar->regiondata = NULL;
+	}
 	else {
 		ar->regiondata = newdataadr(fd, ar->regiondata);
 		if (ar->regiondata) {
@@ -7418,11 +7421,12 @@ static void lib_link_workspace_layout_restore(struct IDNameLib_Map *id_map, Main
 
 					/* free render engines for now */
 					for (ar = sa->regionbase.first; ar; ar = ar->next) {
-						RegionView3D *rv3d= ar->regiondata;
-						
-						if (rv3d && rv3d->render_engine) {
-							RE_engine_free(rv3d->render_engine);
-							rv3d->render_engine = NULL;
+						if (ar->regiontype == RGN_TYPE_WINDOW) {
+							RegionView3D *rv3d = ar->regiondata;
+							if (rv3d && rv3d->render_engine) {
+								RE_engine_free(rv3d->render_engine);
+								rv3d->render_engine = NULL;
+							}
 						}
 					}
 				}
@@ -9041,6 +9045,7 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
 	/* Now that all our data-blocks are loaded, we can re-generate overrides from their references. */
 	if (fd->memfile == NULL) {
 		/* Do not apply in undo case! */
+		lib_verify_nodetree(bfd->main, true);  /* Needed to ensure we have typeinfo in nodes... */
 		BKE_main_override_static_update(bfd->main);
 		BKE_collections_after_lib_link(bfd->main);
 	}
@@ -10293,13 +10298,15 @@ static void add_loose_objects_to_scene(
 		if ((ob->id.tag & LIB_TAG_INDIRECT) && (ob->id.tag & LIB_TAG_PRE_EXISTING) == 0) {
 			bool do_it = false;
 
-			if (ob->id.us == 0) {
-				do_it = true;
-			}
-			else if (!is_link && (ob->id.lib == lib) && (object_in_any_scene(bmain, ob) == 0)) {
-				/* When appending, make sure any indirectly loaded objects get a base, else they cant be accessed at all
-				 * (see T27437). */
-				do_it = true;
+			if (!is_link) {
+				if (ob->id.us == 0) {
+					do_it = true;
+				}
+				else if ((ob->id.lib == lib) && (object_in_any_scene(bmain, ob) == 0)) {
+					/* When appending, make sure any indirectly loaded objects get a base, else they cant be accessed at all
+					 * (see T27437). */
+					do_it = true;
+				}
 			}
 
 			if (do_it) {
@@ -10627,7 +10634,7 @@ static Main *library_link_begin(Main *mainvar, FileData **fd, const char *filepa
 /**
  * Initialize the BlendHandle for linking library data.
  *
- * \param mainvar The current main database, e.g. G.main or CTX_data_main(C).
+ * \param mainvar The current main database, e.g. G_MAIN or CTX_data_main(C).
  * \param bh A blender file handle as returned by \a BLO_blendhandle_from_file or \a BLO_blendhandle_from_memory.
  * \param filepath Used for relative linking, copied to the \a lib->name.
  * \return the library Main, to be passed to \a BLO_library_append_named_part as \a mainl.

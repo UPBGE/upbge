@@ -85,6 +85,7 @@ static void distribute_simple_children(Scene *scene, Object *ob, Mesh *final_mes
 	int i, p;
 	int child_nbr= psys_get_child_number(scene, psys, use_render_params);
 	int totpart= psys_get_tot_child(scene, psys, use_render_params);
+	RNG *rng = BLI_rng_new_srandom(31415926 + psys->seed + psys->child_seed);
 
 	alloc_child_particles(psys, totpart);
 
@@ -96,9 +97,9 @@ static void distribute_simple_children(Scene *scene, Object *ob, Mesh *final_mes
 					
 			/* create even spherical distribution inside unit sphere */
 			while (length>=1.0f) {
-				cpa->fuv[0]=2.0f*BLI_frand()-1.0f;
-				cpa->fuv[1]=2.0f*BLI_frand()-1.0f;
-				cpa->fuv[2]=2.0f*BLI_frand()-1.0f;
+				cpa->fuv[0]=2.0f*BLI_rng_get_float(rng)-1.0f;
+				cpa->fuv[1]=2.0f*BLI_rng_get_float(rng)-1.0f;
+				cpa->fuv[2]=2.0f*BLI_rng_get_float(rng)-1.0f;
 				length=len_v3(cpa->fuv);
 			}
 
@@ -107,6 +108,8 @@ static void distribute_simple_children(Scene *scene, Object *ob, Mesh *final_mes
 	}
 	/* dmcache must be updated for parent particles if children from faces is used */
 	psys_calc_dmcache(ob, final_mesh, deform_mesh, psys);
+
+	BLI_rng_free(rng);
 }
 static void distribute_grid(Mesh *mesh, ParticleSystem *psys)
 {
@@ -430,7 +433,7 @@ static int distribute_binary_search(float *sum, int n, float value)
 
 /* the max number if calls to rng_* funcs within psys_thread_distribute_particle
  * be sure to keep up to date if this changes */
-#define PSYS_RND_DIST_SKIP 2
+#define PSYS_RND_DIST_SKIP 3
 
 /* note: this function must be thread safe, for from == PART_FROM_CHILD */
 #define ONLY_WORKING_WITH_PA_VERTS 0
@@ -484,8 +487,10 @@ static void distribute_from_verts_exec(ParticleTask *thread, ParticleData *pa, i
 	}
 #endif
 	
-	if (rng_skip_tot > 0) /* should never be below zero */
+	BLI_assert(rng_skip_tot > 0);  /* should never be below zero */
+	if (rng_skip_tot > 0) {
 		BLI_rng_skip(thread->rng, rng_skip_tot);
+	}
 }
 
 static void distribute_from_faces_exec(ParticleTask *thread, ParticleData *pa, int p) {
@@ -525,9 +530,11 @@ static void distribute_from_faces_exec(ParticleTask *thread, ParticleData *pa, i
 			break;
 	}
 	pa->foffset= 0.0f;
-	
-	if (rng_skip_tot > 0) /* should never be below zero */
+
+	BLI_assert(rng_skip_tot > 0);  /* should never be below zero */
+	if (rng_skip_tot > 0) {
 		BLI_rng_skip(thread->rng, rng_skip_tot);
+	}
 }
 
 static void distribute_from_volume_exec(ParticleTask *thread, ParticleData *pa, int p) {
@@ -615,13 +622,16 @@ static void distribute_from_volume_exec(ParticleTask *thread, ParticleData *pa, 
 				pa->foffset *= ctx->jit[p % (2 * ctx->jitlevel)];
 				break;
 			case PART_DISTR_RAND:
-				pa->foffset *= BLI_frand();
+				pa->foffset *= BLI_rng_get_float(thread->rng);
+				rng_skip_tot--;
 				break;
 		}
 	}
 	
-	if (rng_skip_tot > 0) /* should never be below zero */
+	BLI_assert(rng_skip_tot > 0); /* should never be below zero */
+	if (rng_skip_tot > 0) {
 		BLI_rng_skip(thread->rng, rng_skip_tot);
+	}
 }
 
 static void distribute_children_exec(ParticleTask *thread, ChildParticle *cpa, int p) {
@@ -818,6 +828,7 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx, Parti
 	int jitlevel= 1, distr;
 	float *element_weight=NULL,*jitter_offset=NULL, *vweight=NULL;
 	float cur, maxweight=0.0, tweight, totweight, inv_totweight, co[3], nor[3], orco[3];
+	RNG *rng = NULL;
 	
 	if (ELEM(NULL, ob, psys, psys->part))
 		return 0;
@@ -846,7 +857,6 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx, Parti
 	if (from == PART_FROM_CHILD) {
 		/* Simple children */
 		if (part->childtype != PART_CHILD_FACES) {
-			BLI_srandom(31415926 + psys->seed + psys->child_seed);
 			distribute_simple_children(scene, ob, final_mesh, sim->psmd->mesh_original, psys, use_render_params);
 			return 0;
 		}
@@ -854,8 +864,6 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx, Parti
 	else {
 		/* Grid distribution */
 		if (part->distr==PART_DISTR_GRID && from != PART_FROM_VERT) {
-			BLI_srandom(31415926 + psys->seed);
-
 			if (psys->part->use_modifier_stack) {
 				mesh = final_mesh;
 			}
@@ -882,8 +890,8 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx, Parti
 	
 	/* Create trees and original coordinates if needed */
 	if (from == PART_FROM_CHILD) {
-		distr=PART_DISTR_RAND;
-		BLI_srandom(31415926 + psys->seed + psys->child_seed);
+		distr = PART_DISTR_RAND;
+		rng = BLI_rng_new_srandom(31415926 + psys->seed + psys->child_seed);
 		mesh= final_mesh;
 
 		/* BMESH ONLY */
@@ -906,7 +914,8 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx, Parti
 	}
 	else {
 		distr = part->distr;
-		BLI_srandom(31415926 + psys->seed);
+
+		rng = BLI_rng_new_srandom(31415926 + psys->seed);
 		
 		if (psys->part->use_modifier_stack)
 			mesh = final_mesh;
@@ -958,6 +967,7 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx, Parti
 		if (mesh != final_mesh) BKE_id_free(NULL, mesh);
 
 		BLI_kdtree_free(tree);
+		BLI_rng_free(rng);
 
 		return 0;
 	}
@@ -1098,7 +1108,7 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx, Parti
 		for (p = 0; p < totpart; p++) {
 			/* In theory element_sum[totmapped - 1] should be 1.0,
 			 * but due to float errors this is not necessarily always true, so scale pos accordingly. */
-			const float pos = BLI_frand() * element_sum[totmapped - 1];
+			const float pos = BLI_rng_get_float(rng) * element_sum[totmapped - 1];
 			const int eidx = distribute_binary_search(element_sum, totmapped, pos);
 			particle_element[p] = element_map[eidx];
 			BLI_assert(pos <= element_sum[eidx]);
@@ -1190,6 +1200,8 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx, Parti
 	if (children) {
 		alloc_child_particles(psys, totpart);
 	}
+
+	BLI_rng_free(rng);
 
 	return 1;
 }

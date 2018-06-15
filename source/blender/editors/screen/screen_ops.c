@@ -2257,7 +2257,7 @@ static int region_scale_modal(bContext *C, wmOperator *op, const wmEvent *event)
 		case MOUSEMOVE:
 		{
 			const float aspect = BLI_rctf_size_x(&rmd->ar->v2d.cur) / (BLI_rcti_size_x(&rmd->ar->v2d.mask) + 1);
-			const int snap_size_threshold = (U.widget_unit * 3) / aspect;
+			const int snap_size_threshold = (U.widget_unit * 2) / aspect;
 			if (rmd->edge == AE_LEFT_TO_TOPRIGHT || rmd->edge == AE_RIGHT_TO_TOPLEFT) {
 				delta = event->x - rmd->origx;
 				if (rmd->edge == AE_LEFT_TO_TOPRIGHT) delta = -delta;
@@ -2449,7 +2449,7 @@ static void SCREEN_OT_frame_offset(wmOperatorType *ot)
 
 	ot->poll = ED_operator_screenactive_norender;
 	ot->flag = OPTYPE_UNDO_GROUPED;
-	ot->undo_group = "FRAME_CHANGE";
+	ot->undo_group = "Frame Change";
 
 	/* rna */
 	RNA_def_int(ot->srna, "delta", 0, INT_MIN, INT_MAX, "Delta", "", INT_MIN, INT_MAX);
@@ -2508,7 +2508,7 @@ static void SCREEN_OT_frame_jump(wmOperatorType *ot)
 
 	ot->poll = ED_operator_screenactive_norender;
 	ot->flag = OPTYPE_UNDO_GROUPED;
-	ot->undo_group = "FRAME_CHANGE";
+	ot->undo_group = "Frame Change";
 
 	/* rna */
 	RNA_def_boolean(ot->srna, "end", 0, "Last Frame", "Jump to the last frame of the frame range");
@@ -2621,7 +2621,7 @@ static void SCREEN_OT_keyframe_jump(wmOperatorType *ot)
 
 	ot->poll = ED_operator_screenactive_norender;
 	ot->flag = OPTYPE_UNDO_GROUPED;
-	ot->undo_group = "FRAME_CHANGE";
+	ot->undo_group = "Frame Change";
 
 	/* properties */
 	RNA_def_boolean(ot->srna, "next", true, "Next Keyframe", "");
@@ -2688,7 +2688,7 @@ static void SCREEN_OT_marker_jump(wmOperatorType *ot)
 
 	ot->poll = ED_operator_screenactive_norender;
 	ot->flag = OPTYPE_UNDO_GROUPED;
-	ot->undo_group = "FRAME_CHANGE";
+	ot->undo_group = "Frame Change";
 
 	/* properties */
 	RNA_def_boolean(ot->srna, "next", true, "Next Marker", "");

@@ -1553,19 +1553,11 @@ typedef struct SceneDisplay {
 	float light_direction[3];      /* light direction for shadows/highlight */
 	float shadow_shift;
 
-	int matcap_icon;
-	int matcap_type;
-	float matcap_rotation;
-	float matcap_hue;
-	float matcap_saturation;
-	float matcap_value;
+	/* Settings for Cavity Shader */
 	float matcap_ssao_distance;
 	float matcap_ssao_attenuation;
-	float matcap_ssao_factor_cavity;
-	float matcap_ssao_factor_edge;
-	float matcap_hair_brightness_randomness;
 	int matcap_ssao_samples;
-
+	int pad;
 } SceneDisplay;
 
 typedef struct SceneEEVEE {
@@ -1808,7 +1800,7 @@ enum {
 /* #define R_DEPRECATED		0x10000 */
 /* #define R_RECURS_PROTECTION	0x20000 */
 #define R_TEXNODE_PREVIEW	0x40000
-#define R_VIEWPORT_PREVIEW	0x80000
+/* #define R_VIEWPORT_PREVIEW	0x80000 */
 #define R_EXR_CACHE_FILE	0x100000
 #define R_MULTIVIEW			0x200000
 
@@ -1889,7 +1881,6 @@ enum {
 /* sequencer seq_prev_type seq_rend_type */
 
 /* RenderData.engine (scene.c) */
-extern const char *RE_engine_id_BLENDER_CLAY;
 extern const char *RE_engine_id_BLENDER_EEVEE;
 extern const char *RE_engine_id_BLENDER_WORKBENCH;
 extern const char *RE_engine_id_CYCLES;

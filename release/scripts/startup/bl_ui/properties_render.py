@@ -20,20 +20,20 @@
 # <pep8 compliant>
 import bpy
 from bpy.types import Menu, Panel, UIList
+from bl_operators.presets import PresetMenu
 
 
-class RENDER_MT_presets(Menu):
+class RENDER_MT_presets(PresetMenu):
     bl_label = "Render Presets"
     preset_subdir = "render"
     preset_operator = "script.execute_preset"
-    draw = Menu.draw_preset
+    preset_add_operator = "render.preset_add"
 
 
-class RENDER_MT_ffmpeg_presets(Menu):
+class RENDER_MT_ffmpeg_presets(PresetMenu):
     bl_label = "FFMPEG Presets"
     preset_subdir = "ffmpeg"
     preset_operator = "script.python_file_run"
-    draw = Menu.draw_preset
 
 
 class RENDER_MT_framerate_presets(Menu):
@@ -84,6 +84,9 @@ class RENDER_PT_dimensions(RenderButtonsPanel, Panel):
     _frame_rate_args_prev = None
     _preset_class = None
 
+    def draw_header_preset(self, context):
+        RENDER_MT_presets.draw_panel_header(self.layout)
+
     @staticmethod
     def _draw_framerate_label(*args):
         # avoids re-creating text string each draw
@@ -131,11 +134,6 @@ class RENDER_PT_dimensions(RenderButtonsPanel, Panel):
 
         scene = context.scene
         rd = scene.render
-
-        row = layout.row(align=True)
-        row.menu("RENDER_MT_presets", text=bpy.types.RENDER_MT_presets.bl_label)
-        row.operator("render.preset_add", text="", icon='ZOOMIN')
-        row.operator("render.preset_add", text="", icon='ZOOMOUT').remove_active = True
 
         col = layout.column(align=True)
         col.prop(rd, "resolution_x", text="Resolution X")
@@ -354,6 +352,9 @@ class RENDER_PT_encoding(RenderButtonsPanel, Panel):
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE'}
 
+    def draw_header_preset(self, context):
+        RENDER_MT_ffmpeg_presets.draw_panel_header(self.layout)
+
     @classmethod
     def poll(cls, context):
         rd = context.scene.render
@@ -364,8 +365,6 @@ class RENDER_PT_encoding(RenderButtonsPanel, Panel):
 
         rd = context.scene.render
         ffmpeg = rd.ffmpeg
-
-        layout.menu("RENDER_MT_ffmpeg_presets", text="Presets")
 
         split = layout.split()
         split.prop(rd.ffmpeg, "format")
@@ -435,7 +434,7 @@ class RENDER_UL_renderviews(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         view = item
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            if view.name in {'left', 'right'}:
+            if view.name in {"left", "right"}:
                 layout.label(view.name, icon_value=icon + (not view.use))
             else:
                 layout.prop(view, "name", text="", index=index, icon_value=icon, emboss=False)
@@ -448,7 +447,7 @@ class RENDER_UL_renderviews(UIList):
 
 class RENDER_PT_stereoscopy(RenderButtonsPanel, Panel):
     bl_label = "Stereoscopy"
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_CLAY', 'BLENDER_EEVEE'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE'}
     bl_options = {'DEFAULT_CLOSED'}
 
     def draw_header(self, context):
@@ -487,28 +486,6 @@ class RENDER_PT_stereoscopy(RenderButtonsPanel, Panel):
             row = layout.row()
             row.label(text="Camera Suffix:")
             row.prop(rv, "camera_suffix", text="")
-
-
-class RENDER_PT_clay_settings(RenderButtonsPanel, Panel):
-    bl_label = "Clay Settings"
-    COMPAT_ENGINES = {'BLENDER_CLAY'}
-
-    def draw(self, context):
-        layout = self.layout
-        props = context.scene.display
-
-        col = layout.column()
-        col.template_icon_view(props, "matcap_icon")
-        col.prop(props, "matcap_rotation")
-        col.prop(props, "matcap_hue")
-        col.prop(props, "matcap_saturation")
-        col.prop(props, "matcap_value")
-        col.prop(props, "matcap_ssao_samples")
-        col.prop(props, "matcap_ssao_factor_cavity")
-        col.prop(props, "matcap_ssao_factor_edge")
-        col.prop(props, "matcap_ssao_distance")
-        col.prop(props, "matcap_ssao_attenuation")
-        col.prop(props, "matcap_hair_brightness_randomness")
 
 
 class RENDER_PT_eevee_ambient_occlusion(RenderButtonsPanel, Panel):
@@ -855,7 +832,6 @@ classes = (
     RENDER_UL_renderviews,
     RENDER_PT_stereoscopy,
     RENDER_PT_hair,
-    RENDER_PT_clay_settings,
     RENDER_PT_eevee_sampling,
     RENDER_PT_eevee_film,
     RENDER_PT_eevee_shadows,

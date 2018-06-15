@@ -135,7 +135,7 @@ static uiBlock *ui_block_func_POPOVER(bContext *C, uiPopupBlockHandle *handle, v
 
 	UI_block_region_set(block, handle->region);
 	UI_block_layout_resolve(block, &width, &height);
-	UI_block_flag_enable(block, UI_BLOCK_MOVEMOUSE_QUIT | UI_BLOCK_KEEP_OPEN | UI_BLOCK_POPOVER);
+	UI_block_flag_enable(block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_POPOVER);
 #ifdef USE_UI_POPOVER_ONCE
 	if (pup->is_once) {
 		UI_block_flag_enable(block, UI_BLOCK_POPOVER_ONCE);
@@ -168,11 +168,17 @@ static uiBlock *ui_block_func_POPOVER(bContext *C, uiPopupBlockHandle *handle, v
 			block->my = handle->prev_my;
 		}
 
-		/* Prefer popover from header to be positioned into the editor. */
 		if (!slideout) {
 			ScrArea *sa = CTX_wm_area(C);
-			if (sa && ED_area_header_alignment(sa) == RGN_ALIGN_BOTTOM) {
-				ARegion *ar = CTX_wm_region(C);
+			ARegion *ar = CTX_wm_region(C);
+
+			if (ar && ar->panels.first) {
+				/* For regions with panels, prefer to open to top so we can
+				 * see the values of the buttons below changing. */
+				UI_block_direction_set(block, UI_DIR_UP | UI_DIR_CENTER_X);
+			}
+			else if (sa && ED_area_header_alignment(sa) == RGN_ALIGN_BOTTOM) {
+				/* Prefer popover from header to be positioned into the editor. */
 				if (ar && ar->regiontype == RGN_TYPE_HEADER) {
 					UI_block_direction_set(block, UI_DIR_UP | UI_DIR_CENTER_X);
 				}

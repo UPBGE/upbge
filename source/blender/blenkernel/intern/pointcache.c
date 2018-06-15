@@ -1743,16 +1743,15 @@ void BKE_ptcache_ids_from_object(ListBase *lb, Object *ob, Scene *scene, int dup
 	 * for baking with linking dupligroups. Once we have better overrides
 	 * this can be revisited so users select the local objects directly. */
 	if (scene && (duplis-- > 0) && (ob->dup_group)) {
-		Collection *collection = ob->dup_group;
-		Base *base = BKE_collection_object_cache_get(collection).first;
-
-		for (; base; base = base->next) {
-			if (base->object != ob) {
+		FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN(ob->dup_group, object)
+		{
+			if (object != ob) {
 				ListBase lb_dupli_pid;
-				BKE_ptcache_ids_from_object(&lb_dupli_pid, base->object, scene, duplis);
+				BKE_ptcache_ids_from_object(&lb_dupli_pid, object, scene, duplis);
 				BLI_movelisttolist(lb, &lb_dupli_pid);
 			}
 		}
+		FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
 	}
 }
 
@@ -3537,7 +3536,7 @@ void BKE_ptcache_quick_cache_all(Main *bmain, Scene *scene, ViewLayer *view_laye
 	PTCacheBaker baker;
 
 	memset(&baker, 0, sizeof(baker));
-	baker.main = bmain;
+	baker.bmain = bmain;
 	baker.scene = scene;
 	baker.view_layer = view_layer;
 	baker.bake = 0;
@@ -3563,7 +3562,7 @@ static void ptcache_dt_to_str(char *str, double dtime)
 /* if bake is not given run simulations to current frame */
 void BKE_ptcache_bake(PTCacheBaker *baker)
 {
-	Main *bmain = baker->main;
+	Main *bmain = baker->bmain;
 	Scene *scene = baker->scene;
 	ViewLayer *view_layer = baker->view_layer;
 	struct Depsgraph *depsgraph = baker->depsgraph;

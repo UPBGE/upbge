@@ -185,7 +185,7 @@ typedef struct PTCacheID {
 } PTCacheID;
 
 typedef struct PTCacheBaker {
-	struct Main *main;
+	struct Main *bmain;
 	struct Scene *scene;
 	struct ViewLayer *view_layer;
 	struct Depsgraph *depsgraph;
@@ -278,7 +278,8 @@ void BKE_ptcache_id_from_dynamicpaint(PTCacheID *pid, struct Object *ob, struct 
 void BKE_ptcache_id_from_rigidbody(PTCacheID *pid, struct Object *ob, struct RigidBodyWorld *rbw);
 
 PTCacheID BKE_ptcache_id_find(struct Object *ob, struct Scene *scene, struct PointCache *cache);
-void BKE_ptcache_ids_from_object(struct ListBase *lb, struct Object *ob, struct Scene *scene, int duplis);
+void BKE_ptcache_ids_from_object(
+        struct ListBase *lb, struct Object *ob, struct Scene *scene, int duplis);
 
 /***************** Global funcs ****************************/
 void BKE_ptcache_remove(void);

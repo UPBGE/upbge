@@ -239,18 +239,6 @@ static void rna_Object_hide_update(Main *bmain, Scene *UNUSED(scene), PointerRNA
 	DEG_id_type_tag(bmain, ID_OB);
 }
 
-static int rna_Object_is_visible_get(PointerRNA *ptr)
-{
-	Object *ob = ptr->id.data;
-	/* The duplicators final visibility is not evaluated by depsgraph, so it's
-	 * in ob->base_flag & VISIBLED. Instead we need to take into account whether
-	 * we are rendering or not, and the ob->duplicator_visibility_flag.
-	 * However for this assessor we don't know if we are rendering, so we just
-	 * ignore the duplicator visibility
-	 */
-	return BKE_object_is_visible(ob, OB_VISIBILITY_CHECK_UNKNOWN_RENDER_MODE);
-}
-
 static void rna_Object_matrix_local_get(PointerRNA *ptr, float values[16])
 {
 	Object *ob = ptr->id.data;
@@ -305,7 +293,7 @@ static void rna_Object_active_shape_update(bContext *C, PointerRNA *ptr)
 		/* exit/enter editmode to get new shape */
 		switch (ob->type) {
 			case OB_MESH:
-				EDBM_mesh_load(ob);
+				EDBM_mesh_load(bmain, ob);
 				EDBM_mesh_make(ob, scene->toolsettings->selectmode, true);
 
 				DEG_id_tag_update(ob->data, 0);
@@ -947,12 +935,27 @@ static int rna_Object_rotation_4d_editable(PointerRNA *ptr, int index)
 	return PROP_EDITABLE;
 }
 
+static int rna_MaterialSlot_material_editable(PointerRNA *ptr, const char **UNUSED(r_info))
+{
+	Object *ob = (Object *)ptr->id.data;
+	const int index = (Material **)ptr->data - ob->mat;
+	bool is_editable;
+
+	if ((ob->matbits == NULL) || ob->matbits[index]) {
+		is_editable = !ID_IS_LINKED(ob);
+	}
+	else {
+		is_editable = ob->data ? !ID_IS_LINKED(ob->data) : false;
+	}
+
+	return is_editable ? PROP_EDITABLE : 0;
+}
 
 static PointerRNA rna_MaterialSlot_material_get(PointerRNA *ptr)
 {
 	Object *ob = (Object *)ptr->id.data;
 	Material *ma;
-	int index = (Material **)ptr->data - ob->mat;
+	const int index = (Material **)ptr->data - ob->mat;
 
 	ma = give_current_material(ob, index + 1);
 	return rna_pointer_inherit_refine(ptr, &RNA_Material, ma);
@@ -1856,6 +1859,7 @@ static void rna_def_material_slot(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "material", PROP_POINTER, PROP_NONE);
 	RNA_def_property_struct_type(prop, "Material");
 	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_editable_func(prop, "rna_MaterialSlot_material_editable");
 	RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_STATIC);
 	RNA_def_property_pointer_funcs(prop, "rna_MaterialSlot_material_get", "rna_MaterialSlot_material_set", NULL, NULL);
 	RNA_def_property_ui_text(prop, "Material", "Material data-block used by this material slot");
@@ -2629,6 +2633,7 @@ static void rna_def_object(BlenderRNA *brna)
 	RNA_def_property_pointer_funcs(prop, "rna_Object_active_material_get",
 	                               "rna_Object_active_material_set", NULL, NULL);
 	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_STATIC);
 	RNA_def_property_editable_func(prop, "rna_Object_active_material_editable");
 	RNA_def_property_ui_text(prop, "Active Material", "Active material being displayed");
 	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_MaterialSlot_update");
@@ -2940,11 +2945,6 @@ static void rna_def_object(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "show_duplicator_for_viewport", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "duplicator_visibility_flag", OB_DUPLI_FLAG_VIEWPORT);
 	RNA_def_property_ui_text(prop, "Display Duplicator", "Make duplicator visible in the viewport");
-
-	prop = RNA_def_property(srna, "is_visible", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_funcs(prop, "rna_Object_is_visible_get", NULL);
-	RNA_def_property_ui_text(prop, "Visible", "Visible to camera rays, set only on objects evaluated by depsgraph");
-	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
 	/* anim */
 	rna_def_animdata_common(srna);

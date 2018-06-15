@@ -194,7 +194,7 @@ static bool ED_object_editmode_load_ex(Main *bmain, Object *obedit, const bool f
 			return false;
 		}
 
-		EDBM_mesh_load(obedit);
+		EDBM_mesh_load(bmain, obedit);
 
 		if (freedata) {
 			EDBM_mesh_free(me->edit_btmesh);
@@ -2157,7 +2157,7 @@ static int move_to_collection_exec(bContext *C, wmOperator *op)
 	            collection->id.name + 2);
 
 	DEG_relations_tag_update(CTX_data_main(C));
-	DEG_id_tag_update(&scene->id, 0);
+	DEG_id_tag_update(&scene->id, DEG_TAG_COPY_ON_WRITE | DEG_TAG_SELECT_UPDATE);
 
 	WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
 	WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, scene);

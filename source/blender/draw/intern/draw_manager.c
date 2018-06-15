@@ -76,7 +76,6 @@
 #include "draw_cache_impl.h"
 
 #include "draw_mode_engines.h"
-#include "engines/clay/clay_engine.h"
 #include "engines/eevee/eevee_engine.h"
 #include "engines/basic/basic_engine.h"
 #include "engines/workbench/workbench_engine.h"
@@ -1312,12 +1311,13 @@ void DRW_draw_render_loop_ex(
 	}
 
 	DRW_stats_begin();
-	DRW_hair_update();
 
 	GPU_framebuffer_bind(DST.default_framebuffer);
 
 	/* Start Drawing */
 	DRW_state_reset();
+
+	DRW_hair_update();
 
 	drw_engines_draw_background();
 
@@ -1548,6 +1548,11 @@ void DRW_render_to_image(RenderEngine *engine, struct Depsgraph *depsgraph)
 	GPU_viewport_free(DST.viewport);
 	GPU_framebuffer_restore();
 
+#ifdef DEBUG
+	/* Avoid accidental reuse. */
+	drw_state_ensure_not_reused(&DST);
+#endif
+
 	/* Changing Context */
 	if (re_gl_context != NULL) {
 		DRW_shape_cache_reset(); /* XXX fix that too. */
@@ -1560,11 +1565,6 @@ void DRW_render_to_image(RenderEngine *engine, struct Depsgraph *depsgraph)
 	else {
 		DRW_opengl_context_disable();
 	}
-
-#ifdef DEBUG
-	/* Avoid accidental reuse. */
-	drw_state_ensure_not_reused(&DST);
-#endif
 }
 
 void DRW_render_object_iter(
@@ -1738,8 +1738,6 @@ void DRW_draw_select_loop(
 		DRW_render_instance_buffer_finish();
 	}
 
-	DRW_hair_update();
-
 	/* Setup framebuffer */
 	draw_select_framebuffer_setup(rect);
 	GPU_framebuffer_bind(g_select_buffer.framebuffer);
@@ -1748,6 +1746,8 @@ void DRW_draw_select_loop(
 	/* Start Drawing */
 	DRW_state_reset();
 	DRW_draw_callbacks_pre_scene();
+
+	DRW_hair_update();
 
 	DRW_state_lock(
 	        DRW_STATE_WRITE_DEPTH |
@@ -1898,10 +1898,11 @@ void DRW_draw_depth_loop(
 		DRW_render_instance_buffer_finish();
 	}
 
-	DRW_hair_update();
-
 	/* Start Drawing */
 	DRW_state_reset();
+
+	DRW_hair_update();
+
 	DRW_draw_callbacks_pre_scene();
 	drw_engines_draw_scene();
 	DRW_draw_callbacks_post_scene();
@@ -2068,9 +2069,6 @@ void DRW_engine_register(DrawEngineType *draw_engine_type)
 
 void DRW_engines_register(void)
 {
-#ifdef WITH_CLAY_ENGINE
-	RE_engines_register(&DRW_engine_viewport_clay_type);
-#endif
 	RE_engines_register(&DRW_engine_viewport_eevee_type);
 	RE_engines_register(&DRW_engine_viewport_workbench_type);
 
@@ -2165,10 +2163,6 @@ void DRW_engines_free(void)
 	MEM_SAFE_FREE(DST.RST.bound_ubo_slots);
 
 	DRW_opengl_context_disable();
-
-#ifdef WITH_CLAY_ENGINE
-	BLI_remlink(&R_engines, &DRW_engine_viewport_clay_type);
-#endif
 }
 
 /** \} */

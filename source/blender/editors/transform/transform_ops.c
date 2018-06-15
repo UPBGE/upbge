@@ -534,7 +534,7 @@ void Transform_Properties(struct wmOperatorType *ot, int flags)
 	if (flags & P_PROPORTIONAL) {
 		RNA_def_enum(ot->srna, "proportional", rna_enum_proportional_editing_items, 0, "Proportional Editing", "");
 		prop = RNA_def_enum(ot->srna, "proportional_edit_falloff", rna_enum_proportional_falloff_items, 0,
-		                    "Proportional Editing Falloff", "Falloff type for proportional editing mode");
+		                    "Proportional Falloff", "Falloff type for proportional editing mode");
 		RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_CURVE); /* Abusing id_curve :/ */
 		RNA_def_float(ot->srna, "proportional_size", 1, T_PROP_SIZE_MIN, T_PROP_SIZE_MAX,
 		              "Proportional Size", "", 0.001f, 100.0f);
@@ -560,17 +560,20 @@ void Transform_Properties(struct wmOperatorType *ot, int flags)
 	}
 
 	if (flags & P_GPENCIL_EDIT) {
-		RNA_def_boolean(ot->srna, "gpencil_strokes", 0, "Edit Grease Pencil", "Edit selected Grease Pencil strokes");
+		prop = RNA_def_boolean(ot->srna, "gpencil_strokes", 0, "Edit Grease Pencil", "Edit selected Grease Pencil strokes");
+		RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 	}
 
 	if (flags & P_CURSOR_EDIT) {
-		RNA_def_boolean(ot->srna, "cursor_transform", 0, "Transform Cursor", "");
+		prop = RNA_def_boolean(ot->srna, "cursor_transform", 0, "Transform Cursor", "");
+		RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 	}
 
 	if ((flags & P_OPTIONS) && !(flags & P_NO_TEXSPACE)) {
-		RNA_def_boolean(ot->srna, "texture_space", 0, "Edit Texture Space", "Edit Object data texture space");
+		prop = RNA_def_boolean(ot->srna, "texture_space", 0, "Edit Texture Space", "Edit Object data texture space");
+		RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 		prop = RNA_def_boolean(ot->srna, "remove_on_cancel", 0, "Remove on Cancel", "Remove elements on cancel");
-		RNA_def_property_flag(prop, PROP_HIDDEN);
+		RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 	}
 
 	if (flags & P_CORRECT_UV) {

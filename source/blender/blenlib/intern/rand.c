@@ -268,24 +268,21 @@ void BLI_rng_skip(RNG *rng, int n)
 /* initialize with some non-zero seed */
 static RNG theBLI_rng = {611330372042337130};
 
-void BLI_srandom(unsigned int seed)
+static void ensure_rng_thread_safe(void)
 {
-	BLI_rng_srandom(&theBLI_rng, seed);
-}
-
-int BLI_rand(void)
-{
-	return BLI_rng_get_int(&theBLI_rng);
+	/* TODO(sergey): Ideally we will get rid of all rng functions which
+	 * are using global generator. But for until then we need some way to
+	 * catch "bad" calls at runtime.
+	 *
+	 * NOTE: Lots of areas are not ported, so we keep check disabled for now.
+	 */
+	// BLI_assert(BLI_thread_is_main());
 }
 
 float BLI_frand(void)
 {
+	ensure_rng_thread_safe();
 	return BLI_rng_get_float(&theBLI_rng);
-}
-
-void BLI_frand_unit_v3(float v[3])
-{
-	BLI_rng_get_float_unit_v3(&theBLI_rng, v);
 }
 
 float BLI_hash_frand(unsigned int seed)

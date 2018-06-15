@@ -3157,7 +3157,7 @@ void BKE_object_delete_ptcache(Object *ob, int index)
 /* shape key utility function */
 
 /************************* Mesh ************************/
-static KeyBlock *insert_meshkey(Object *ob, const char *name, const bool from_mix)
+static KeyBlock *insert_meshkey(Main *bmain, Object *ob, const char *name, const bool from_mix)
 {
 	Mesh *me = ob->data;
 	Key *key = me->key;
@@ -3165,7 +3165,7 @@ static KeyBlock *insert_meshkey(Object *ob, const char *name, const bool from_mi
 	int newkey = 0;
 
 	if (key == NULL) {
-		key = me->key = BKE_key_add((ID *)me);
+		key = me->key = BKE_key_add(bmain, (ID *)me);
 		key->type = KEY_RELATIVE;
 		newkey = 1;
 	}
@@ -3189,7 +3189,7 @@ static KeyBlock *insert_meshkey(Object *ob, const char *name, const bool from_mi
 	return kb;
 }
 /************************* Lattice ************************/
-static KeyBlock *insert_lattkey(Object *ob, const char *name, const bool from_mix)
+static KeyBlock *insert_lattkey(Main *bmain, Object *ob, const char *name, const bool from_mix)
 {
 	Lattice *lt = ob->data;
 	Key *key = lt->key;
@@ -3197,7 +3197,7 @@ static KeyBlock *insert_lattkey(Object *ob, const char *name, const bool from_mi
 	int newkey = 0;
 
 	if (key == NULL) {
-		key = lt->key = BKE_key_add((ID *)lt);
+		key = lt->key = BKE_key_add(bmain, (ID *)lt);
 		key->type = KEY_RELATIVE;
 		newkey = 1;
 	}
@@ -3227,7 +3227,7 @@ static KeyBlock *insert_lattkey(Object *ob, const char *name, const bool from_mi
 	return kb;
 }
 /************************* Curve ************************/
-static KeyBlock *insert_curvekey(Object *ob, const char *name, const bool from_mix)
+static KeyBlock *insert_curvekey(Main *bmain, Object *ob, const char *name, const bool from_mix)
 {
 	Curve *cu = ob->data;
 	Key *key = cu->key;
@@ -3236,7 +3236,7 @@ static KeyBlock *insert_curvekey(Object *ob, const char *name, const bool from_m
 	int newkey = 0;
 
 	if (key == NULL) {
-		key = cu->key = BKE_key_add((ID *)cu);
+		key = cu->key = BKE_key_add(bmain, (ID *)cu);
 		key->type = KEY_RELATIVE;
 		newkey = 1;
 	}
@@ -3267,16 +3267,16 @@ static KeyBlock *insert_curvekey(Object *ob, const char *name, const bool from_m
 	return kb;
 }
 
-KeyBlock *BKE_object_shapekey_insert(Object *ob, const char *name, const bool from_mix)
+KeyBlock *BKE_object_shapekey_insert(Main *bmain, Object *ob, const char *name, const bool from_mix)
 {	
 	switch (ob->type) {
 		case OB_MESH:
-			return insert_meshkey(ob, name, from_mix);
+			return insert_meshkey(bmain, ob, name, from_mix);
 		case OB_CURVE:
 		case OB_SURF:
-			return insert_curvekey(ob, name, from_mix);
+			return insert_curvekey(bmain, ob, name, from_mix);
 		case OB_LATTICE:
-			return insert_lattkey(ob, name, from_mix);
+			return insert_lattkey(bmain, ob, name, from_mix);
 		default:
 			return NULL;
 	}

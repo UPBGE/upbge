@@ -51,8 +51,11 @@
 #define STUDIOLIGHT_Y_NEG 3
 #define STUDIOLIGHT_Z_POS 4
 #define STUDIOLIGHT_Z_NEG 5
-#define STUDIOLIGHT_ICON_ID_TYPE_RADIANCE 0
-#define STUDIOLIGHT_ICON_ID_TYPE_IRRADIANCE 1
+
+#define STUDIOLIGHT_ICON_ID_TYPE_RADIANCE       0
+#define STUDIOLIGHT_ICON_ID_TYPE_IRRADIANCE     1
+#define STUDIOLIGHT_ICON_ID_TYPE_MATCAP         2
+#define STUDIOLIGHT_ICON_ID_TYPE_MATCAP_FLIPPED 3
 
 struct GPUTexture;
 
@@ -75,15 +78,18 @@ enum StudioLightFlag {
 #define STUDIOLIGHT_FLAG_ALL (STUDIOLIGHT_INTERNAL | STUDIOLIGHT_EXTERNAL_FILE)
 #define STUDIOLIGHT_FLAG_ORIENTATIONS (STUDIOLIGHT_ORIENTATION_CAMERA | STUDIOLIGHT_ORIENTATION_WORLD | STUDIOLIGHT_ORIENTATION_VIEWNORMAL)
 #define STUDIOLIGHT_ORIENTATIONS_MATERIAL_MODE (STUDIOLIGHT_INTERNAL | STUDIOLIGHT_ORIENTATION_WORLD)
-#define STUDIOLIGHT_ORIENTATIONS_SOLID (STUDIOLIGHT_ORIENTATION_CAMERA | STUDIOLIGHT_ORIENTATION_WORLD)
+#define STUDIOLIGHT_ORIENTATIONS_SOLID (STUDIOLIGHT_INTERNAL | STUDIOLIGHT_ORIENTATION_CAMERA | STUDIOLIGHT_ORIENTATION_WORLD)
 
 typedef struct StudioLight {
 	struct StudioLight *next, *prev;
 	int flag;
 	char name[FILE_MAXFILE];
 	char path[FILE_MAX];
-	int irradiance_icon_id;
-	int radiance_icon_id;
+	char *path_irr;
+	int icon_id_irradiance;
+	int icon_id_radiance;
+	int icon_id_matcap;
+	int icon_id_matcap_flipped;
 	int index;
 	float diffuse_light[6][3];
 	float light_direction[3];
@@ -92,6 +98,7 @@ typedef struct StudioLight {
 	ImBuf *radiance_cubemap_buffers[6];
 	struct GPUTexture *equirectangular_radiance_gputexture;
 	struct GPUTexture *equirectangular_irradiance_gputexture;
+	float *gpu_matcap_3components; /* 3 channel buffer for GPU_R11F_G11F_B10F */
 } StudioLight;
 
 void BKE_studiolight_init(void);

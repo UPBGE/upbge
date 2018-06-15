@@ -40,8 +40,9 @@
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 
-#include "BKE_paint.h"
+#include "BKE_main.h"
 #include "BKE_material.h"
+#include "BKE_paint.h"
 
 #include "ED_image.h"
 
@@ -104,9 +105,9 @@ const EnumPropertyItem rna_enum_symmetrize_direction_items[] = {
 
 #include "BKE_context.h"
 #include "BKE_DerivedMesh.h"
-#include "BKE_pointcache.h"
 #include "BKE_particle.h"
 #include "BKE_pbvh.h"
+#include "BKE_pointcache.h"
 #include "BKE_object.h"
 
 #include "DEG_depsgraph.h"
@@ -412,7 +413,7 @@ static void rna_ImaPaint_canvas_update(bContext *C, PointerRNA *UNUSED(ptr))
 					SpaceImage *sima = (SpaceImage *)slink;
 
 					if (!sima->pin)
-						ED_space_image_set(sima, scene, obedit, ima);
+						ED_space_image_set(bmain, sima, scene, obedit, ima);
 				}
 			}
 		}

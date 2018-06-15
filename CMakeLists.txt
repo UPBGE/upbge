@@ -243,8 +243,6 @@ mark_as_advanced(WITH_GAMEENGINE_BPPLAYER)
 option(WITH_PLAYER        "Build Player" ON)
 option(WITH_OPENCOLORIO   "Enable OpenColorIO color management" ${_init_OPENCOLORIO})
 
-option(WITH_CLAY_ENGINE    "Enable Clay engine" ON)
-
 # Compositor
 option(WITH_COMPOSITOR         "Enable the tile based nodal compositor" ON)
 

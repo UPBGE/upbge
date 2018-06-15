@@ -72,7 +72,8 @@ GHOST_ContextGLX::GHOST_ContextGLX(
       m_contextMinorVersion(contextMinorVersion),
       m_contextFlags(contextFlags),
       m_contextResetNotificationStrategy(contextResetNotificationStrategy),
-      m_context(None)
+      m_context(None),
+      m_init(false)
 {
 	assert(m_display != NULL);
 }
@@ -305,7 +306,7 @@ const bool GLXEW_ARB_create_context_robustness =
 		fprintf(stderr, "Warning! GLX_ARB_create_context not available.\n");
 	}
 
-	GHOST_TSuccess success;
+	GHOST_TSuccess success = GHOST_kSuccess;
 
 	if (m_context != NULL) {
 		if (!s_sharedContext)

@@ -556,7 +556,7 @@ void DepsgraphNodeBuilder::build_object_flags(
 	const bool is_from_set = (linked_state == DEG_ID_LINKED_VIA_SET);
 	/* TODO(sergey): Is this really best component to be used? */
 	add_operation_node(&object->id,
-	                   DEG_NODE_TYPE_LAYER_COLLECTIONS,
+	                   DEG_NODE_TYPE_OBJECT_FROM_LAYER,
 	                   function_bind(BKE_object_eval_flush_base_flags,
 	                                 _1,
 	                                 scene_cow,
@@ -901,11 +901,9 @@ void DepsgraphNodeBuilder::build_rigidbody(Scene *scene)
 
 	/* objects - simulation participants */
 	if (rbw->group) {
-		const ListBase group_objects = BKE_collection_object_cache_get(rbw->group);
-		LISTBASE_FOREACH (Base *, base, &group_objects) {
-			Object *object = base->object;
-
-			if (!object || (object->type != OB_MESH))
+		FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN(rbw->group, object)
+		{
+			if (object->type != OB_MESH)
 				continue;
 
 			/* 2) create operation for flushing results */
@@ -919,6 +917,7 @@ void DepsgraphNodeBuilder::build_rigidbody(Scene *scene)
 			                           get_cow_datablock(object)),
 			                   DEG_OPCODE_RIGIDBODY_TRANSFORM_COPY);
 		}
+		FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
 	}
 }
 

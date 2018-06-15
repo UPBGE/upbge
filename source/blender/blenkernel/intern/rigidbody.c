@@ -58,6 +58,7 @@
 #include "BKE_collection.h"
 #include "BKE_effect.h"
 #include "BKE_global.h"
+#include "BKE_layer.h"
 #include "BKE_library.h"
 #include "BKE_library_query.h"
 #include "BKE_mesh.h"
@@ -1201,17 +1202,20 @@ void BKE_rigidbody_remove_constraint(Scene *scene, Object *ob)
 /* Update object array and rigid body count so they're in sync with the rigid body group */
 static void rigidbody_update_ob_array(RigidBodyWorld *rbw)
 {
-	const ListBase objects = BKE_collection_object_cache_get(rbw->group);
-	int i, n;
-
-	n = BLI_listbase_count(&objects);
+	int n = 0;
+	FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN(rbw->group, object)
+	{
+		(void)object;
+		n++;
+	}
+	FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
 
 	if (rbw->numbodies != n) {
 		rbw->numbodies = n;
 		rbw->objects = realloc(rbw->objects, sizeof(Object *) * rbw->numbodies);
 	}
 
-	i = 0;
+	int i = 0;
 	FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN(rbw->group, object)
 	{
 		rbw->objects[i] = object;
@@ -1240,7 +1244,7 @@ static void rigidbody_update_sim_world(Scene *scene, RigidBodyWorld *rbw)
 	rigidbody_update_ob_array(rbw);
 }
 
-static void rigidbody_update_sim_ob(struct Depsgraph *depsgraph, Scene *scene, RigidBodyWorld *rbw, Object *ob, RigidBodyOb *rbo)
+static void rigidbody_update_sim_ob(Depsgraph *depsgraph, Scene *scene, RigidBodyWorld *rbw, Object *ob, RigidBodyOb *rbo)
 {
 	float loc[3];
 	float rot[4];
@@ -1329,7 +1333,7 @@ static void rigidbody_update_sim_ob(struct Depsgraph *depsgraph, Scene *scene, R
  *
  * \param rebuild Rebuild entire simulation
  */
-static void rigidbody_update_simulation(struct Depsgraph *depsgraph, Scene *scene, RigidBodyWorld *rbw, bool rebuild)
+static void rigidbody_update_simulation(Depsgraph *depsgraph, Scene *scene, RigidBodyWorld *rbw, bool rebuild)
 {
 	/* update world */
 	if (rebuild)
@@ -1436,14 +1440,16 @@ static void rigidbody_update_simulation(struct Depsgraph *depsgraph, Scene *scen
 	FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
 }
 
-static void rigidbody_update_simulation_post_step(RigidBodyWorld *rbw)
+static void rigidbody_update_simulation_post_step(Depsgraph *depsgraph, RigidBodyWorld *rbw)
 {
-	FOREACH_COLLECTION_BASE_RECURSIVE_BEGIN(rbw->group, base)
+	ViewLayer *view_layer = DEG_get_input_view_layer(depsgraph);
+
+	FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN(rbw->group, ob)
 	{
-		Object *ob = base->object;
+		Base *base = BKE_view_layer_base_find(view_layer, ob);
 		RigidBodyOb *rbo = ob->rigidbody_object;
 		/* Reset kinematic state for transformed objects. */
-		if (rbo && (base->flag & BASE_SELECTED) && (G.moving & G_TRANSFORM_OBJ)) {
+		if (rbo && base && (base->flag & BASE_SELECTED) && (G.moving & G_TRANSFORM_OBJ)) {
 			RB_body_set_kinematic_state(rbo->physics_object, rbo->flag & RBO_FLAG_KINEMATIC || rbo->flag & RBO_FLAG_DISABLED);
 			RB_body_set_mass(rbo->physics_object, RBO_GET_MASS(rbo));
 			/* Deactivate passive objects so they don't interfere with deactivation of active objects. */
@@ -1451,7 +1457,7 @@ static void rigidbody_update_simulation_post_step(RigidBodyWorld *rbw)
 				RB_body_deactivate(rbo->physics_object);
 		}
 	}
-	FOREACH_COLLECTION_BASE_RECURSIVE_END
+	FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
 }
 
 bool BKE_rigidbody_check_sim_running(RigidBodyWorld *rbw, float ctime)
@@ -1566,7 +1572,7 @@ void BKE_rigidbody_cache_reset(RigidBodyWorld *rbw)
 
 /* Rebuild rigid body world */
 /* NOTE: this needs to be called before frame update to work correctly */
-void BKE_rigidbody_rebuild_world(struct Depsgraph *depsgraph, Scene *scene, float ctime)
+void BKE_rigidbody_rebuild_world(Depsgraph *depsgraph, Scene *scene, float ctime)
 {
 	RigidBodyWorld *rbw = scene->rigidbody_world;
 	PointCache *cache;
@@ -1578,8 +1584,15 @@ void BKE_rigidbody_rebuild_world(struct Depsgraph *depsgraph, Scene *scene, floa
 	cache = rbw->pointcache;
 
 	/* flag cache as outdated if we don't have a world or number of objects in the simulation has changed */
-	const ListBase objects = BKE_collection_object_cache_get(rbw->group);
-	if (rbw->physics_world == NULL || rbw->numbodies != BLI_listbase_count(&objects)) {
+	int n = 0;
+	FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN(rbw->group, object)
+	{
+		(void)object;
+		n++;
+	}
+	FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
+
+	if (rbw->physics_world == NULL || rbw->numbodies != n) {
 		cache->flag |= PTCACHE_OUTDATED;
 	}
 
@@ -1595,7 +1608,7 @@ void BKE_rigidbody_rebuild_world(struct Depsgraph *depsgraph, Scene *scene, floa
 }
 
 /* Run RigidBody simulation for the specified physics world */
-void BKE_rigidbody_do_simulation(struct Depsgraph *depsgraph, Scene *scene, float ctime)
+void BKE_rigidbody_do_simulation(Depsgraph *depsgraph, Scene *scene, float ctime)
 {
 	float timestep;
 	RigidBodyWorld *rbw = scene->rigidbody_world;
@@ -1647,7 +1660,7 @@ void BKE_rigidbody_do_simulation(struct Depsgraph *depsgraph, Scene *scene, floa
 		/* step simulation by the requested timestep, steps per second are adjusted to take time scale into account */
 		RB_dworld_step_simulation(rbw->physics_world, timestep, INT_MAX, 1.0f / (float)rbw->steps_per_second * min_ff(rbw->time_scale, 1.0f));
 
-		rigidbody_update_simulation_post_step(rbw);
+		rigidbody_update_simulation_post_step(depsgraph, rbw);
 
 		/* write cache for current frame */
 		BKE_ptcache_validate(cache, (int)ctime);
@@ -1684,8 +1697,8 @@ void BKE_rigidbody_sync_transforms(RigidBodyWorld *rbw, Object *ob, float ctime)
 void BKE_rigidbody_aftertrans_update(Object *ob, float loc[3], float rot[3], float quat[4], float rotAxis[3], float rotAngle) {}
 bool BKE_rigidbody_check_sim_running(RigidBodyWorld *rbw, float ctime) { return false; }
 void BKE_rigidbody_cache_reset(RigidBodyWorld *rbw) {}
-void BKE_rigidbody_rebuild_world(struct Depsgraph *depsgraph, Scene *scene, float ctime) {}
-void BKE_rigidbody_do_simulation(struct Depsgraph *depsgraph, Scene *scene, float ctime) {}
+void BKE_rigidbody_rebuild_world(Depsgraph *depsgraph, Scene *scene, float ctime) {}
+void BKE_rigidbody_do_simulation(Depsgraph *depsgraph, Scene *scene, float ctime) {}
 
 #if defined(__GNUC__) || defined(__clang__)
 #  pragma GCC diagnostic pop
@@ -1696,7 +1709,7 @@ void BKE_rigidbody_do_simulation(struct Depsgraph *depsgraph, Scene *scene, floa
 /* -------------------- */
 /* Depsgraph evaluation */
 
-void BKE_rigidbody_rebuild_sim(struct Depsgraph *depsgraph,
+void BKE_rigidbody_rebuild_sim(Depsgraph *depsgraph,
                                Scene *scene)
 {
 	float ctime = DEG_get_ctime(depsgraph);
@@ -1707,7 +1720,7 @@ void BKE_rigidbody_rebuild_sim(struct Depsgraph *depsgraph,
 	}
 }
 
-void BKE_rigidbody_eval_simulation(struct Depsgraph *depsgraph,
+void BKE_rigidbody_eval_simulation(Depsgraph *depsgraph,
                                    Scene *scene)
 {
 	float ctime = DEG_get_ctime(depsgraph);
@@ -1718,7 +1731,7 @@ void BKE_rigidbody_eval_simulation(struct Depsgraph *depsgraph,
 	}
 }
 
-void BKE_rigidbody_object_sync_transforms(struct Depsgraph *depsgraph,
+void BKE_rigidbody_object_sync_transforms(Depsgraph *depsgraph,
                                           Scene *scene,
                                           Object *ob)
 {
