@@ -642,6 +642,9 @@ void uiItemSpacer(struct uiLayout *layout) RET_NONE
 void uiTemplateIconView(struct uiLayout *layout, struct PointerRNA *ptr, const char *propname, int show_labels, float icon_scale) RET_NONE
 void uiTemplateIcon(uiLayout *layout, int icon_value, float icon_scale) RET_NONE
 
+void uiLayoutSetPropDecorate(uiLayout *layout, bool is_sep) RET_NONE
+bool uiLayoutGetPropDecorate(uiLayout *layout) RET_ZERO
+
 
 void ED_object_base_free_and_unlink(struct Main *bmain, struct Scene *scene, struct Object *base) RET_NONE
 void ED_mesh_update(struct Mesh *mesh, struct bContext *C, int calc_edges, int calc_tessface) RET_NONE
