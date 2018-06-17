@@ -141,6 +141,20 @@ void DepsgraphNodeBuilder::build_splineik_pose(Object *object,
 	                   DEG_OPCODE_POSE_SPLINE_IK_SOLVER);
 }
 
+
+// Hack to avoid crash when adding armature. Armature doesn't update in pose mode for now // Game engine transition
+// Because we don't use COW
+static void update_pose_orig_pointers(const bPose *pose_orig, bPose *pose_cow)
+{
+	bPoseChannel *pchan_cow = (bPoseChannel *)pose_cow->chanbase.first;
+	bPoseChannel *pchan_orig = (bPoseChannel *)pose_orig->chanbase.first;
+	while (pchan_orig != NULL) {
+		pchan_cow->orig_pchan = pchan_orig;
+		pchan_cow = pchan_cow->next;
+		pchan_orig = pchan_orig->next;
+	}
+}
+
 /* Pose/Armature Bones Graph */
 void DepsgraphNodeBuilder::build_rig(Object *object)
 {
@@ -154,6 +168,7 @@ void DepsgraphNodeBuilder::build_rig(Object *object)
 	else {
 		scene_cow = scene_;
 		object_cow = object;
+		update_pose_orig_pointers(object->pose, object->pose); // Game engine transition hack
 	}
 	OperationDepsNode *op_node;
 	/* Animation and/or drivers linking posebones to base-armature used to
