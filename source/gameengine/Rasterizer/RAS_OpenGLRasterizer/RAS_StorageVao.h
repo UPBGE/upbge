@@ -24,6 +24,7 @@
 #define __RAS_STORAGE_VAO_H__
 
 #include "RAS_AttributeArray.h"
+#include "RAS_DisplayArray.h"
 
 #include "GPU_glew.h"
 
