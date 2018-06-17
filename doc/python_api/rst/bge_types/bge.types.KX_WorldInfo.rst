@@ -1,8 +1,6 @@
 KX_WorldInfo(EXP_PyObjectPlus)
 =============================
 
-.. module:: bge.types
-
 base class --- :class:`EXP_PyObjectPlus`
 
 .. class:: KX_WorldInfo(EXP_PyObjectPlus)

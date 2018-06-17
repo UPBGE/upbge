@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -103,7 +103,7 @@ static void node_shader_exec_geom(void *data, int UNUSED(thread), bNode *node, b
 			memcpy(out[GEOM_OUT_VCOL]->vec, defaultvcol, sizeof(defaultvcol));
 			out[GEOM_OUT_VCOL_ALPHA]->vec[0] = 1.0f;
 		}
-		
+
 		if (shi->osatex) {
 			out[GEOM_OUT_GLOB]->data = shi->dxgl;
 			out[GEOM_OUT_GLOB]->datatype = NS_OSA_VECTORS;
@@ -118,7 +118,7 @@ static void node_shader_exec_geom(void *data, int UNUSED(thread), bNode *node, b
 			out[GEOM_OUT_NORMAL]->data = shi->dxno;
 			out[GEOM_OUT_NORMAL]->datatype = NS_OSA_VECTORS;
 		}
-		
+
 		/* front/back, normal flipping was stored */
 		out[GEOM_OUT_FRONTBACK]->vec[0] = (shi->flippednor) ? 0.0f : 1.0f;
 	}

@@ -1,7 +1,5 @@
 KX_VehicleWrapper(EXP_PyObjectPlus)
-===============================
-
-.. module:: bge.types
+===================================
 
 base class --- :class:`EXP_PyObjectPlus`
 
@@ -163,7 +161,6 @@ base class --- :class:`EXP_PyObjectPlus`
 
       :arg wheelIndex: the wheel index
       :type wheelIndex: integer
-
    .. attribute:: rayMask
 
       Set ray cast mask.

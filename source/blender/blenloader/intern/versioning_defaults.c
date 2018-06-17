@@ -54,7 +54,7 @@ void BLO_update_defaults_userpref_blend(void)
 {
 	/* defaults from T37518 */
 
-	U.uiflag |= USER_ZBUF_CURSOR;
+	U.uiflag |= USER_DEPTH_CURSOR;
 	U.uiflag |= USER_QUIT_PROMPT;
 	U.uiflag |= USER_CONTINUOUS_MOUSE;
 
@@ -170,7 +170,7 @@ void BLO_update_defaults_startup_blend(Main *bmain)
 			ts->gpencil_ima_align = GP_PROJECT_VIEWSPACE;
 
 			ParticleEditSettings *pset = &ts->particle;
-			for (int a = 0; a < PE_TOT_BRUSH; a++) {
+			for (int a = 0; a < ARRAY_SIZE(pset->brush); a++) {
 				pset->brush[a].strength = 0.5f;
 				pset->brush[a].count = 10;
 			}
@@ -230,7 +230,7 @@ void BLO_update_defaults_startup_blend(Main *bmain)
 	{
 		Object *ob;
 
-		ob = (Object *)BKE_libblock_find_name_ex(bmain, ID_OB, "Camera");
+		ob = (Object *)BKE_libblock_find_name(bmain, ID_OB, "Camera");
 		if (ob) {
 			ob->rot[1] = 0.0f;
 		}
@@ -239,70 +239,73 @@ void BLO_update_defaults_startup_blend(Main *bmain)
 	{
 		Brush *br;
 
-		br = (Brush *)BKE_libblock_find_name_ex(bmain, ID_BR, "Fill");
+		br = (Brush *)BKE_libblock_find_name(bmain, ID_BR, "Fill");
 		if (!br) {
 			br = BKE_brush_add(bmain, "Fill", OB_MODE_TEXTURE_PAINT);
+			id_us_min(&br->id);  /* fake user only */
 			br->imagepaint_tool = PAINT_TOOL_FILL;
 			br->ob_mode = OB_MODE_TEXTURE_PAINT;
 		}
 
 		/* Vertex/Weight Paint */
-		br = (Brush *)BKE_libblock_find_name_ex(bmain, ID_BR, "Average");
+		br = (Brush *)BKE_libblock_find_name(bmain, ID_BR, "Average");
 		if (!br) {
 			br = BKE_brush_add(bmain, "Average", OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT);
+			id_us_min(&br->id);  /* fake user only */
 			br->vertexpaint_tool = PAINT_BLEND_AVERAGE;
 			br->ob_mode = OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT;
 		}
-		br = (Brush *)BKE_libblock_find_name_ex(bmain, ID_BR, "Smear");
+		br = (Brush *)BKE_libblock_find_name(bmain, ID_BR, "Smear");
 		if (!br) {
 			br = BKE_brush_add(bmain, "Smear", OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT);
+			id_us_min(&br->id);  /* fake user only */
 			br->vertexpaint_tool = PAINT_BLEND_SMEAR;
 			br->ob_mode = OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT;
 		}
 
-		br = (Brush *)BKE_libblock_find_name_ex(bmain, ID_BR, "Mask");
+		br = (Brush *)BKE_libblock_find_name(bmain, ID_BR, "Mask");
 		if (br) {
 			br->imagepaint_tool = PAINT_TOOL_MASK;
 			br->ob_mode |= OB_MODE_TEXTURE_PAINT;
 		}
 
 		/* remove polish brush (flatten/contrast does the same) */
-		br = (Brush *)BKE_libblock_find_name_ex(bmain, ID_BR, "Polish");
+		br = (Brush *)BKE_libblock_find_name(bmain, ID_BR, "Polish");
 		if (br) {
 			BKE_libblock_delete(bmain, br);
 		}
 
 		/* remove brush brush (huh?) from some modes (draw brushes do the same) */
-		br = (Brush *)BKE_libblock_find_name_ex(bmain, ID_BR, "Brush");
+		br = (Brush *)BKE_libblock_find_name(bmain, ID_BR, "Brush");
 		if (br) {
 			BKE_libblock_delete(bmain, br);
 		}
 
 		/* remove draw brush from texpaint (draw brushes do the same) */
-		br = (Brush *)BKE_libblock_find_name_ex(bmain, ID_BR, "Draw");
+		br = (Brush *)BKE_libblock_find_name(bmain, ID_BR, "Draw");
 		if (br) {
 			br->ob_mode &= ~OB_MODE_TEXTURE_PAINT;
 		}
 
 		/* rename twist brush to rotate brush to match rotate tool */
-		br = (Brush *)BKE_libblock_find_name_ex(bmain, ID_BR, "Twist");
+		br = (Brush *)BKE_libblock_find_name(bmain, ID_BR, "Twist");
 		if (br) {
 			BKE_libblock_rename(bmain, &br->id, "Rotate");
 		}
 
 		/* use original normal for grab brush (otherwise flickers with normal weighting). */
-		br = (Brush *)BKE_libblock_find_name_ex(bmain, ID_BR, "Grab");
+		br = (Brush *)BKE_libblock_find_name(bmain, ID_BR, "Grab");
 		if (br) {
 			br->flag |= BRUSH_ORIGINAL_NORMAL;
 		}
 
 		/* increase strength, better for smoothing method */
-		br = (Brush *)BKE_libblock_find_name_ex(bmain, ID_BR, "Blur");
+		br = (Brush *)BKE_libblock_find_name(bmain, ID_BR, "Blur");
 		if (br) {
 			br->alpha = 1.0f;
 		}
 
-		br = (Brush *)BKE_libblock_find_name_ex(bmain, ID_BR, "Flatten/Contrast");
+		br = (Brush *)BKE_libblock_find_name(bmain, ID_BR, "Flatten/Contrast");
 		if (br) {
 			br->flag |= BRUSH_ACCUMULATE;
 		}

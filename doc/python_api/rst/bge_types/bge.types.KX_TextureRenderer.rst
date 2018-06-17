@@ -1,8 +1,6 @@
 KX_TextureRenderer(EXP_Value)
 ==========================
 
-.. module:: bge.types
-
 base class --- :class:`EXP_Value`
 
 .. class:: KX_TextureRenderer(EXP_Value)

@@ -31,7 +31,7 @@ extern "C" {
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
-#include "DNA_object_fluidsim.h"
+#include "DNA_object_fluidsim_types.h"
 #include "DNA_object_types.h"
 
 #include "BLI_math_geom.h"
@@ -667,7 +667,7 @@ static void assign_materials(Main *bmain, Object *ob, const std::map<std::string
 
 	int matcount = 0;
 	for (; it != mat_index_map.end(); ++it, ++matcount) {
-		if (!BKE_object_material_slot_add(ob)) {
+		if (!BKE_object_material_slot_add(bmain, ob)) {
 			can_assign = false;
 			break;
 		}
@@ -696,7 +696,7 @@ static void assign_materials(Main *bmain, Object *ob, const std::map<std::string
 				assigned_mat = mat_iter->second;
 			}
 
-			assign_material(ob, assigned_mat, it->second, BKE_MAT_ASSIGN_OBDATA);
+			assign_material(bmain, ob, assigned_mat, it->second, BKE_MAT_ASSIGN_OBDATA);
 		}
 	}
 }
@@ -1331,7 +1331,7 @@ void AbcSubDReader::readObjectData(Main *bmain, const Alembic::Abc::ISampleSelec
 			MEdge *edge = find_edge(edges, mesh->totedge, (*indices)[i], (*indices)[i + 1]);
 
 			if (edge) {
-				edge->crease = FTOCHAR((*sharpnesses)[s]);
+				edge->crease = unit_float_to_uchar_clamp((*sharpnesses)[s]);
 			}
 		}
 

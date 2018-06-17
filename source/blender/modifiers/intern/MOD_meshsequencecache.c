@@ -33,7 +33,6 @@
 #include "BKE_cachefile.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_cdderivedmesh.h"
-#include "BKE_global.h"
 #include "BKE_library.h"
 #include "BKE_library_query.h"
 #include "BKE_scene.h"
@@ -45,6 +44,7 @@
 
 #ifdef WITH_ALEMBIC
 #	include "ABC_alembic.h"
+#	include "BKE_global.h"
 #endif
 
 static void initData(ModifierData *md)
@@ -56,28 +56,21 @@ static void initData(ModifierData *md)
 	mcmd->read_flag = MOD_MESHSEQ_READ_ALL;
 }
 
-static void copyData(ModifierData *md, ModifierData *target)
+static void copyData(const ModifierData *md, ModifierData *target)
 {
 #if 0
-	MeshSeqCacheModifierData *mcmd = (MeshSeqCacheModifierData *)md;
+	const MeshSeqCacheModifierData *mcmd = (const MeshSeqCacheModifierData *)md;
 #endif
 	MeshSeqCacheModifierData *tmcmd = (MeshSeqCacheModifierData *)target;
 
 	modifier_copyData_generic(md, target);
 
-	if (tmcmd->cache_file) {
-		id_us_plus(&tmcmd->cache_file->id);
-		tmcmd->reader = NULL;
-	}
+	tmcmd->reader = NULL;
 }
 
 static void freeData(ModifierData *md)
 {
 	MeshSeqCacheModifierData *mcmd = (MeshSeqCacheModifierData *) md;
-
-	if (mcmd->cache_file) {
-		id_us_min(&mcmd->cache_file->id);
-	}
 
 	if (mcmd->reader) {
 #ifdef WITH_ALEMBIC
@@ -95,9 +88,10 @@ static bool isDisabled(ModifierData *md, int UNUSED(useRenderParams))
 	return (mcmd->cache_file == NULL) || (mcmd->object_path[0] == '\0');
 }
 
-static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
-                                  DerivedMesh *dm,
-                                  ModifierApplyFlag UNUSED(flag))
+static DerivedMesh *applyModifier(
+        ModifierData *md, Object *ob,
+        DerivedMesh *dm,
+        ModifierApplyFlag UNUSED(flag))
 {
 #ifdef WITH_ALEMBIC
 	MeshSeqCacheModifierData *mcmd = (MeshSeqCacheModifierData *) md;
@@ -165,8 +159,9 @@ static bool dependsOnTime(ModifierData *md)
 	return true;
 }
 
-static void foreachIDLink(ModifierData *md, Object *ob,
-                          IDWalkFunc walk, void *userData)
+static void foreachIDLink(
+        ModifierData *md, Object *ob,
+        IDWalkFunc walk, void *userData)
 {
 	MeshSeqCacheModifierData *mcmd = (MeshSeqCacheModifierData *) md;
 
@@ -174,36 +169,25 @@ static void foreachIDLink(ModifierData *md, Object *ob,
 }
 
 
-static void updateDepgraph(ModifierData *md, DagForest *forest,
-                           struct Main *bmain,
-                           struct Scene *scene,
-                           Object *ob, DagNode *obNode)
+static void updateDepgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
 	MeshSeqCacheModifierData *mcmd = (MeshSeqCacheModifierData *) md;
 
 	if (mcmd->cache_file != NULL) {
-		DagNode *curNode = dag_get_node(forest, mcmd->cache_file);
+		DagNode *curNode = dag_get_node(ctx->forest, mcmd->cache_file);
 
-		dag_add_relation(forest, curNode, obNode,
+		dag_add_relation(ctx->forest, curNode, ctx->obNode,
 		                 DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "Cache File Modifier");
 	}
-
-	UNUSED_VARS(bmain, scene, ob);
 }
 
-static void updateDepsgraph(ModifierData *md,
-                            struct Main *bmain,
-                            struct Scene *scene,
-                            Object *ob,
-                            struct DepsNodeHandle *node)
+static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
 	MeshSeqCacheModifierData *mcmd = (MeshSeqCacheModifierData *) md;
 
 	if (mcmd->cache_file != NULL) {
-		DEG_add_object_cache_relation(node, mcmd->cache_file, DEG_OB_COMP_CACHE, "Mesh Cache File");
+		DEG_add_object_cache_relation(ctx->node, mcmd->cache_file, DEG_OB_COMP_CACHE, "Mesh Cache File");
 	}
-
-	UNUSED_VARS(bmain, scene, ob);
 }
 
 ModifierTypeInfo modifierType_MeshSequenceCache = {

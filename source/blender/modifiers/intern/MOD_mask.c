@@ -57,15 +57,6 @@
 
 #include "BLI_strict_flags.h"
 
-static void copyData(ModifierData *md, ModifierData *target)
-{
-#if 0
-	MaskModifierData *mmd = (MaskModifierData *) md;
-	MaskModifierData *tmmd = (MaskModifierData *) target;
-#endif
-	modifier_copyData_generic(md, target);
-}
-
 static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *UNUSED(md))
 {
 	return CD_MASK_MDEFORMVERT;
@@ -79,43 +70,36 @@ static void foreachObjectLink(
 	walk(userData, ob, &mmd->ob_arm, IDWALK_CB_NOP);
 }
 
-static void updateDepgraph(ModifierData *md, DagForest *forest,
-                           struct Main *UNUSED(bmain),
-                           struct Scene *UNUSED(scene),
-                           Object *UNUSED(ob),
-                           DagNode *obNode)
+static void updateDepgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
 	MaskModifierData *mmd = (MaskModifierData *)md;
 
 	if (mmd->ob_arm) {
 		bArmature *arm = (bArmature *)mmd->ob_arm->data;
-		DagNode *armNode = dag_get_node(forest, mmd->ob_arm);
+		DagNode *armNode = dag_get_node(ctx->forest, mmd->ob_arm);
 		
 		/* tag relationship in depsgraph, but also on the armature */
-		dag_add_relation(forest, armNode, obNode, DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "Mask Modifier");
+		dag_add_relation(ctx->forest, armNode, ctx->obNode, DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "Mask Modifier");
 		arm->flag |= ARM_HAS_VIZ_DEPS;
 	}
 }
 
-static void updateDepsgraph(ModifierData *md,
-                            struct Main *UNUSED(bmain),
-                            struct Scene *UNUSED(scene),
-                            Object *UNUSED(ob),
-                            struct DepsNodeHandle *node)
+static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
 	MaskModifierData *mmd = (MaskModifierData *)md;
 	if (mmd->ob_arm) {
 		bArmature *arm = (bArmature *)mmd->ob_arm->data;
 		/* Tag relationship in depsgraph, but also on the armature. */
 		/* TODO(sergey): Is it a proper relation here? */
-		DEG_add_object_relation(node, mmd->ob_arm, DEG_OB_COMP_TRANSFORM, "Mask Modifier");
+		DEG_add_object_relation(ctx->node, mmd->ob_arm, DEG_OB_COMP_TRANSFORM, "Mask Modifier");
 		arm->flag |= ARM_HAS_VIZ_DEPS;
 	}
 }
 
-static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
-                                  DerivedMesh *dm,
-                                  ModifierApplyFlag UNUSED(flag))
+static DerivedMesh *applyModifier(
+        ModifierData *md, Object *ob,
+        DerivedMesh *dm,
+        ModifierApplyFlag UNUSED(flag))
 {
 	MaskModifierData *mmd = (MaskModifierData *)md;
 	const bool found_test = (mmd->flag & MOD_MASK_INV) == 0;
@@ -181,7 +165,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 		 * - each cell is a boolean saying whether bone corresponding to the ith group is selected
 		 * - groups that don't match a bone are treated as not existing (along with the corresponding ungrouped verts)
 		 */
-		bone_select_array = MEM_mallocN((size_t)defbase_tot * sizeof(char), "mask array");
+		bone_select_array = MEM_malloc_arrayN((size_t)defbase_tot, sizeof(char), "mask array");
 		
 		for (i = 0, def = ob->defbase.first; def; def = def->next, i++) {
 			pchan = BKE_pose_channel_find_name(oba->pose, def->name);
@@ -265,7 +249,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	mloop_src = dm->getLoopArray(dm);
 
 	/* overalloc, assume all polys are seen */
-	loop_mapping = MEM_mallocN(sizeof(int) * (size_t)maxPolys, "mask loopmap");
+	loop_mapping = MEM_malloc_arrayN((size_t)maxPolys, sizeof(int), "mask loopmap");
 
 	/* loop over edges and faces, and do the same thing to 
 	 * ensure that they only reference existing verts 
@@ -392,7 +376,7 @@ ModifierTypeInfo modifierType_Mask = {
 	                        eModifierTypeFlag_SupportsMapping |
 	                        eModifierTypeFlag_SupportsEditmode,
 
-	/* copyData */          copyData,
+	/* copyData */          modifier_copyData_generic,
 	/* deformVerts */       NULL,
 	/* deformMatrices */    NULL,
 	/* deformVertsEM */     NULL,

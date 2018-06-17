@@ -35,7 +35,7 @@
 
 #include "DNA_genfile.h"
 #include "DNA_material_types.h"
-#include "DNA_object_force.h"
+#include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_sdna_types.h"
@@ -48,6 +48,7 @@
 #include "DNA_world_types.h"
 
 #include "BKE_main.h"
+#include "BKE_node.h"
 
 #include "BLI_math_base.h"
 
@@ -275,5 +276,30 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
 				ob->max_slope = M_PI_2;
 			}
 		}
+	}
+	if (!MAIN_VERSION_UPBGE_ATLEAST(main, 2, 4)) {
+		FOREACH_NODETREE(main, ntree, id) {
+			if (ntree->type == NTREE_SHADER) {
+				for (bNode *node = ntree->nodes.first; node; node = node->next) {
+					switch (node->type) {
+						case 194:
+						{
+							node->type = SH_NODE_OBJECT;
+							break;
+						}
+						case 195:
+						{
+							node->type = SH_NODE_TIME;
+							break;
+						}
+						case 196:
+						{
+							node->type = SH_NODE_PARALLAX;
+							break;
+						}
+					}
+				}
+			}
+		} FOREACH_NODETREE_END
 	}
 }

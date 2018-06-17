@@ -53,10 +53,10 @@
 /* Validation */
 
 /* Sync selection to parent for connected children */
-void ED_armature_sync_selection(ListBase *edbo)
+void ED_armature_edit_sync_selection(ListBase *edbo)
 {
 	EditBone *ebo;
-	
+
 	for (ebo = edbo->first; ebo; ebo = ebo->next) {
 		/* if bone is not selectable, we shouldn't alter this setting... */
 		if ((ebo->flag & BONE_UNSELECTABLE) == 0) {
@@ -66,7 +66,7 @@ void ED_armature_sync_selection(ListBase *edbo)
 				else
 					ebo->flag &= ~BONE_ROOTSEL;
 			}
-			
+
 			if ((ebo->flag & BONE_TIPSEL) && (ebo->flag & BONE_ROOTSEL))
 				ebo->flag |= BONE_SELECTED;
 			else
@@ -75,7 +75,7 @@ void ED_armature_sync_selection(ListBase *edbo)
 	}
 }
 
-void ED_armature_validate_active(struct bArmature *arm)
+void ED_armature_edit_validate_active(struct bArmature *arm)
 {
 	EditBone *ebone = arm->act_edbone;
 
@@ -93,27 +93,27 @@ void ED_armature_validate_active(struct bArmature *arm)
 int bone_looper(Object *ob, Bone *bone, void *data,
                 int (*bone_func)(Object *, Bone *, void *))
 {
-	/* We want to apply the function bone_func to every bone 
-	 * in an armature -- feed bone_looper the first bone and 
-	 * a pointer to the bone_func and watch it go!. The int count 
+	/* We want to apply the function bone_func to every bone
+	 * in an armature -- feed bone_looper the first bone and
+	 * a pointer to the bone_func and watch it go!. The int count
 	 * can be useful for counting bones with a certain property
 	 * (e.g. skinnable)
 	 */
 	int count = 0;
-	
+
 	if (bone) {
 		/* only do bone_func if the bone is non null */
 		count += bone_func(ob, bone, data);
-		
+
 		/* try to execute bone_func for the first child */
 		count += bone_looper(ob, bone->childbase.first, data, bone_func);
-		
+
 		/* try to execute bone_func for the next bone at this
 		 * depth of the recursion.
 		 */
 		count += bone_looper(ob, bone->next, data, bone_func);
 	}
-	
+
 	return count;
 }
 
@@ -133,7 +133,10 @@ void bone_free(bArmature *arm, EditBone *bone)
 	BLI_freelinkN(arm->edbo, bone);
 }
 
-void ED_armature_edit_bone_remove(bArmature *arm, EditBone *exBone)
+/**
+ * \param clear_connected: When false caller is responsible for keeping the flag in a valid state.
+ */
+void ED_armature_ebone_remove_ex(bArmature *arm, EditBone *exBone, bool clear_connected)
 {
 	EditBone *curBone;
 
@@ -141,11 +144,18 @@ void ED_armature_edit_bone_remove(bArmature *arm, EditBone *exBone)
 	for (curBone = arm->edbo->first; curBone; curBone = curBone->next) {
 		if (curBone->parent == exBone) {
 			curBone->parent = exBone->parent;
-			curBone->flag &= ~BONE_CONNECTED;
+			if (clear_connected) {
+				curBone->flag &= ~BONE_CONNECTED;
+			}
 		}
 	}
 
 	bone_free(arm, exBone);
+}
+
+void ED_armature_ebone_remove(bArmature *arm, EditBone *exBone)
+{
+	ED_armature_ebone_remove_ex(arm, exBone, true);
 }
 
 bool ED_armature_ebone_is_child_recursive(EditBone *ebone_parent, EditBone *ebone_child)
@@ -164,7 +174,7 @@ bool ED_armature_ebone_is_child_recursive(EditBone *ebone_parent, EditBone *ebon
  * \param ebone_child_tot  Size of the ebone_child array
  * \return The shared parent or NULL.
  */
-EditBone *ED_armature_bone_find_shared_parent(EditBone *ebone_child[], const unsigned int ebone_child_tot)
+EditBone *ED_armature_ebone_find_shared_parent(EditBone *ebone_child[], const unsigned int ebone_child_tot)
 {
 	unsigned int i;
 	EditBone *ebone_iter;
@@ -244,7 +254,7 @@ void ED_armature_ebone_from_mat4(EditBone *ebone, float mat[4][4])
 /**
  * Return a pointer to the bone of the given name
  */
-EditBone *ED_armature_bone_find_name(const ListBase *edbo, const char *name)
+EditBone *ED_armature_ebone_find_name(const ListBase *edbo, const char *name)
 {
 	return BLI_findstring(edbo, name, offsetof(EditBone, name));
 }
@@ -256,19 +266,19 @@ EditBone *ED_armature_bone_find_name(const ListBase *edbo, const char *name)
 /**
  * \see #BKE_pose_channel_get_mirrored (pose-mode, matching function)
  */
-EditBone *ED_armature_bone_get_mirrored(const ListBase *edbo, EditBone *ebo)
+EditBone *ED_armature_ebone_get_mirrored(const ListBase *edbo, EditBone *ebo)
 {
 	char name_flip[MAXBONENAME];
 
 	if (ebo == NULL)
 		return NULL;
-	
+
 	BLI_string_flip_side_name(name_flip, ebo->name, false, sizeof(name_flip));
-	
+
 	if (!STREQ(name_flip, ebo->name)) {
-		return ED_armature_bone_find_name(edbo, name_flip);
+		return ED_armature_ebone_find_name(edbo, name_flip);
 	}
-	
+
 	return NULL;
 }
 
@@ -282,18 +292,18 @@ void armature_select_mirrored_ex(bArmature *arm, const int flag)
 	/* Select mirrored bones */
 	if (arm->flag & ARM_MIRROR_EDIT) {
 		EditBone *curBone, *ebone_mirr;
-		
+
 		for (curBone = arm->edbo->first; curBone; curBone = curBone->next) {
 			if (arm->layer & curBone->layer) {
 				if (curBone->flag & flag) {
-					ebone_mirr = ED_armature_bone_get_mirrored(arm->edbo, curBone);
+					ebone_mirr = ED_armature_ebone_get_mirrored(arm->edbo, curBone);
 					if (ebone_mirr)
 						ebone_mirr->flag |= (curBone->flag & flag);
 				}
 			}
 		}
 	}
-	
+
 }
 
 void armature_select_mirrored(bArmature *arm)
@@ -315,17 +325,17 @@ void armature_tag_select_mirrored(bArmature *arm)
 		for (curBone = arm->edbo->first; curBone; curBone = curBone->next) {
 			if (arm->layer & curBone->layer) {
 				if (curBone->flag & (BONE_SELECTED | BONE_ROOTSEL | BONE_TIPSEL)) {
-					EditBone *ebone_mirr = ED_armature_bone_get_mirrored(arm->edbo, curBone);
+					EditBone *ebone_mirr = ED_armature_ebone_get_mirrored(arm->edbo, curBone);
 					if (ebone_mirr && (ebone_mirr->flag & BONE_SELECTED) == 0) {
 						ebone_mirr->flag |= BONE_DONE;
 					}
 				}
 			}
 		}
-		
+
 		for (curBone = arm->edbo->first; curBone; curBone = curBone->next) {
 			if (curBone->flag & BONE_DONE) {
-				EditBone *ebone_mirr = ED_armature_bone_get_mirrored(arm->edbo, curBone);
+				EditBone *ebone_mirr = ED_armature_ebone_get_mirrored(arm->edbo, curBone);
 				curBone->flag |= ebone_mirr->flag & (BONE_SELECTED | BONE_ROOTSEL | BONE_TIPSEL);
 			}
 		}
@@ -348,21 +358,21 @@ void armature_tag_unselect(bArmature *arm)
 
 /* if editbone (partial) selected, copy data */
 /* context; editmode armature, with mirror editing enabled */
-void transform_armature_mirror_update(Object *obedit)
+void ED_armature_edit_transform_mirror_update(Object *obedit)
 {
 	bArmature *arm = obedit->data;
 	EditBone *ebo, *eboflip;
-	
+
 	for (ebo = arm->edbo->first; ebo; ebo = ebo->next) {
 		/* no layer check, correct mirror is more important */
 		if (ebo->flag & (BONE_TIPSEL | BONE_ROOTSEL)) {
-			eboflip = ED_armature_bone_get_mirrored(arm->edbo, ebo);
-			
+			eboflip = ED_armature_ebone_get_mirrored(arm->edbo, ebo);
+
 			if (eboflip) {
 				/* we assume X-axis flipping for now */
 				if (ebo->flag & BONE_TIPSEL) {
 					EditBone *children;
-					
+
 					eboflip->tail[0] = -ebo->tail[0];
 					eboflip->tail[1] = ebo->tail[1];
 					eboflip->tail[2] = ebo->tail[2];
@@ -370,7 +380,7 @@ void transform_armature_mirror_update(Object *obedit)
 					eboflip->roll = -ebo->roll;
 					eboflip->curveOutX = -ebo->curveOutX;
 					eboflip->roll2 = -ebo->roll2;
-					
+
 					/* Also move connected children, in case children's name aren't mirrored properly */
 					for (children = arm->edbo->first; children; children = children->next) {
 						if (children->parent == eboflip && children->flag & BONE_CONNECTED) {
@@ -387,7 +397,7 @@ void transform_armature_mirror_update(Object *obedit)
 					eboflip->roll = -ebo->roll;
 					eboflip->curveInX = -ebo->curveInX;
 					eboflip->roll1 = -ebo->roll1;
-					
+
 					/* Also move connected parent, in case parent's name isn't mirrored properly */
 					if (eboflip->parent && eboflip->flag & BONE_CONNECTED) {
 						EditBone *parent = eboflip->parent;
@@ -400,7 +410,7 @@ void transform_armature_mirror_update(Object *obedit)
 					eboflip->roll = -ebo->roll;
 					eboflip->xwidth = ebo->xwidth;
 					eboflip->zwidth = ebo->zwidth;
-					
+
 					eboflip->curveInX = -ebo->curveInX;
 					eboflip->curveOutX = -ebo->curveOutX;
 					eboflip->roll1 = -ebo->roll1;
@@ -421,17 +431,17 @@ EditBone *make_boneList(ListBase *edbo, ListBase *bones, EditBone *parent, Bone 
 	EditBone    *eBoneAct = NULL;
 	EditBone    *eBoneTest = NULL;
 	Bone        *curBone;
-		
+
 	for (curBone = bones->first; curBone; curBone = curBone->next) {
 		eBone = MEM_callocN(sizeof(EditBone), "make_editbone");
-		
+
 		/* Copy relevant data from bone to eBone
-		 * Keep selection logic in sync with ED_armature_sync_selection.
+		 * Keep selection logic in sync with ED_armature_edit_sync_selection.
 		 */
 		eBone->parent = parent;
 		BLI_strncpy(eBone->name, curBone->name, sizeof(eBone->name));
 		eBone->flag = curBone->flag;
-		
+
 		/* fix selection flags */
 		if (eBone->flag & BONE_SELECTED) {
 			/* if the bone is selected the copy its root selection to the parents tip */
@@ -451,11 +461,11 @@ EditBone *make_boneList(ListBase *edbo, ListBase *bones, EditBone *parent, Bone 
 				eBone->flag &= ~BONE_ROOTSEL;
 			}
 		}
-		
+
 		copy_v3_v3(eBone->head, curBone->arm_head);
 		copy_v3_v3(eBone->tail, curBone->arm_tail);
 		eBone->roll = curBone->arm_roll;
-		
+
 		/* rest of stuff copy */
 		eBone->length = curBone->length;
 		eBone->dist = curBone->dist;
@@ -481,20 +491,20 @@ EditBone *make_boneList(ListBase *edbo, ListBase *bones, EditBone *parent, Bone 
 
 		if (curBone->prop)
 			eBone->prop = IDP_CopyProperty(curBone->prop);
-		
+
 		BLI_addtail(edbo, eBone);
-		
+
 		/*	Add children if necessary */
 		if (curBone->childbase.first) {
 			eBoneTest = make_boneList(edbo, &curBone->childbase, eBone, actBone);
 			if (eBoneTest)
 				eBoneAct = eBoneTest;
 		}
-		
+
 		if (curBone == actBone)
 			eBoneAct = eBone;
 	}
-	
+
 	return eBoneAct;
 }
 
@@ -574,24 +584,24 @@ static void armature_finalize_restpose(ListBase *bonelist, ListBase *editbonelis
 }
 
 /* put EditMode back in Object */
-void ED_armature_from_edit(bArmature *arm)
+void ED_armature_from_edit(Main *bmain, bArmature *arm)
 {
 	EditBone *eBone, *neBone;
 	Bone *newBone;
 	Object *obt;
-	
+
 	/* armature bones */
 	BKE_armature_bonelist_free(&arm->bonebase);
 	arm->act_bone = NULL;
-	
+
 	/* remove zero sized bones, this gives unstable restposes */
 	for (eBone = arm->edbo->first; eBone; eBone = neBone) {
 		float len_sq = len_squared_v3v3(eBone->head, eBone->tail);
 		neBone = eBone->next;
 		if (len_sq <= SQUARE(0.000001f)) {  /* FLT_EPSILON is too large? */
 			EditBone *fBone;
-			
-			/*	Find any bones that refer to this bone	*/
+
+			/* Find any bones that refer to this bone */
 			for (fBone = arm->edbo->first; fBone; fBone = fBone->next) {
 				if (fBone->parent == eBone)
 					fBone->parent = eBone->parent;
@@ -601,19 +611,19 @@ void ED_armature_from_edit(bArmature *arm)
 			bone_free(arm, eBone);
 		}
 	}
-	
+
 	/*	Copy the bones from the editData into the armature */
 	for (eBone = arm->edbo->first; eBone; eBone = eBone->next) {
 		newBone = MEM_callocN(sizeof(Bone), "bone");
 		eBone->temp.bone = newBone;   /* Associate the real Bones with the EditBones */
-		
+
 		BLI_strncpy(newBone->name, eBone->name, sizeof(newBone->name));
 		copy_v3_v3(newBone->arm_head, eBone->head);
 		copy_v3_v3(newBone->arm_tail, eBone->tail);
 		newBone->arm_roll = eBone->roll;
-		
+
 		newBone->flag = eBone->flag;
-		
+
 		if (eBone == arm->act_edbone) {
 			/* don't change active selection, this messes up separate which uses
 			 * editmode toggle and can separate active bone which is de-selected originally */
@@ -621,10 +631,10 @@ void ED_armature_from_edit(bArmature *arm)
 			arm->act_bone = newBone;
 		}
 		newBone->roll = 0.0f;
-		
+
 		newBone->weight = eBone->weight;
 		newBone->dist = eBone->dist;
-		
+
 		newBone->xwidth = eBone->xwidth;
 		newBone->zwidth = eBone->zwidth;
 		newBone->rad_head = eBone->rad_head;
@@ -648,7 +658,7 @@ void ED_armature_from_edit(bArmature *arm)
 		if (eBone->prop)
 			newBone->prop = IDP_CopyProperty(eBone->prop);
 	}
-	
+
 	/* Fix parenting in a separate pass to ensure ebone->bone connections are valid at this point.
 	 * Do not set bone->head/tail here anymore, using EditBone data for that is not OK since our later fiddling
 	 * with parent's arm_mat (for roll conversion) may have some small but visible impact on locations (T46010). */
@@ -663,24 +673,24 @@ void ED_armature_from_edit(bArmature *arm)
 			BLI_addtail(&arm->bonebase, newBone);
 		}
 	}
-	
+
 	/* Finalize definition of restpose data (roll, bone_mat, arm_mat, head/tail...). */
 	armature_finalize_restpose(&arm->bonebase, arm->edbo);
-	
+
 	/* so all users of this armature should get rebuilt */
-	for (obt = G.main->object.first; obt; obt = obt->id.next) {
+	for (obt = bmain->object.first; obt; obt = obt->id.next) {
 		if (obt->data == arm) {
 			BKE_pose_rebuild(obt, arm);
 		}
 	}
-	
+
 	DAG_id_tag_update(&arm->id, 0);
 }
 
 void ED_armature_edit_free(struct bArmature *arm)
 {
 	EditBone *eBone;
-	
+
 	/*	Clear the editbones list */
 	if (arm->edbo) {
 		if (arm->edbo->first) {
@@ -690,7 +700,7 @@ void ED_armature_edit_free(struct bArmature *arm)
 					MEM_freeN(eBone->prop);
 				}
 			}
-			
+
 			BLI_freelistN(arm->edbo);
 		}
 		MEM_freeN(arm->edbo);
@@ -710,11 +720,11 @@ void ED_armature_to_edit(bArmature *arm)
 }
 
 /* *************************************************************** */
-/* Undo for Armature EditMode*/
+/* Used by Undo for Armature EditMode*/
 
 /* free's bones and their properties */
 
-static void ED_armature_ebone_listbase_free(ListBase *lb)
+void ED_armature_ebone_listbase_free(ListBase *lb)
 {
 	EditBone *ebone, *ebone_next;
 
@@ -732,7 +742,7 @@ static void ED_armature_ebone_listbase_free(ListBase *lb)
 	BLI_listbase_clear(lb);
 }
 
-static void ED_armature_ebone_listbase_copy(ListBase *lb_dst, ListBase *lb_src)
+void ED_armature_ebone_listbase_copy(ListBase *lb_dst, ListBase *lb_src)
 {
 	EditBone *ebone_src;
 	EditBone *ebone_dst;
@@ -763,78 +773,6 @@ void ED_armature_ebone_listbase_temp_clear(ListBase *lb)
 	for (ebone = lb->first; ebone; ebone = ebone->next) {
 		ebone->temp.p = NULL;
 	}
-}
-
-typedef struct UndoArmature {
-	EditBone *act_edbone;
-	ListBase lb;
-} UndoArmature;
-
-static void undoBones_to_editBones(void *uarmv, void *armv, void *UNUSED(data))
-{
-	UndoArmature *uarm = uarmv;
-	bArmature *arm = armv;
-	EditBone *ebone;
-	
-	ED_armature_ebone_listbase_free(arm->edbo);
-	ED_armature_ebone_listbase_copy(arm->edbo, &uarm->lb);
-	
-	/* active bone */
-	if (uarm->act_edbone) {
-		ebone = uarm->act_edbone;
-		arm->act_edbone = ebone->temp.ebone;
-	}
-	else {
-		arm->act_edbone = NULL;
-	}
-
-	ED_armature_ebone_listbase_temp_clear(arm->edbo);
-}
-
-static void *editBones_to_undoBones(void *armv, void *UNUSED(obdata))
-{
-	bArmature *arm = armv;
-	UndoArmature *uarm;
-	EditBone *ebone;
-	
-	uarm = MEM_callocN(sizeof(UndoArmature), "listbase undo");
-	
-	ED_armature_ebone_listbase_copy(&uarm->lb, arm->edbo);
-	
-	/* active bone */
-	if (arm->act_edbone) {
-		ebone = arm->act_edbone;
-		uarm->act_edbone = ebone->temp.ebone;
-	}
-
-	ED_armature_ebone_listbase_temp_clear(&uarm->lb);
-	
-	return uarm;
-}
-
-static void free_undoBones(void *uarmv)
-{
-	UndoArmature *uarm = uarmv;
-	
-	ED_armature_ebone_listbase_free(&uarm->lb);
-
-	MEM_freeN(uarm);
-}
-
-static void *get_armature_edit(bContext *C)
-{
-	Object *obedit = CTX_data_edit_object(C);
-	if (obedit && obedit->type == OB_ARMATURE) {
-		return obedit->data;
-	}
-	return NULL;
-}
-
-/* and this is all the undo system needs to know */
-void undo_push_armature(bContext *C, const char *name)
-{
-	// XXX solve getdata()
-	undo_editmode_push(C, name, get_armature_edit, free_undoBones, undoBones_to_editBones, editBones_to_undoBones, NULL);
 }
 
 /* *************************************************************** */

@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -60,24 +60,24 @@ typedef struct RTBuilder {
 		float bb[6];
 		int selected;
 	};
-	
+
 	/* list to all primitives added in this tree */
 	struct {
 		Object *begin, *end;
 		int maxsize;
 	} primitives;
-	
+
 	/* sorted list of rayobjects */
 	struct Object **sorted_begin[3], **sorted_end[3];
 
 	/* axis used (if any) on the split method */
 	int split_axis;
-	
+
 	/* child partitions calculated during splitting */
 	int child_offset[RTBUILD_MAX_CHILDS + 1];
-	
+
 //	int child_sorted_axis; /* -1 if not sorted */
-	
+
 	float bb[6];
 
 	/* current depth */

@@ -126,24 +126,6 @@ static void initData(ModifierData *md)
 	wmd->mask_tex_mapping       = MOD_DISP_MAP_LOCAL;
 }
 
-static void freeData(ModifierData *md)
-{
-	WeightVGMixModifierData *wmd = (WeightVGMixModifierData *) md;
-	if (wmd->mask_texture) {
-		id_us_min(&wmd->mask_texture->id);
-	}
-}
-
-static void copyData(ModifierData *md, ModifierData *target)
-{
-#if 0
-	WeightVGMixModifierData *wmd  = (WeightVGMixModifierData *) md;
-	WeightVGMixModifierData *twmd = (WeightVGMixModifierData *) target;
-#endif
-
-	modifier_copyData_generic(md, target);
-}
-
 static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
 {
 	WeightVGMixModifierData *wmd = (WeightVGMixModifierData *) md;
@@ -190,40 +172,33 @@ static void foreachTexLink(ModifierData *md, Object *ob, TexWalkFunc walk, void 
 	walk(userData, ob, md, "mask_texture");
 }
 
-static void updateDepgraph(ModifierData *md, DagForest *forest,
-                           struct Main *UNUSED(bmain),
-                           struct Scene *UNUSED(scene),
-                           Object *UNUSED(ob), DagNode *obNode)
+static void updateDepgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
 	WeightVGMixModifierData *wmd = (WeightVGMixModifierData *) md;
 	DagNode *curNode;
 
 	if (wmd->mask_tex_map_obj && wmd->mask_tex_mapping == MOD_DISP_MAP_OBJECT) {
-		curNode = dag_get_node(forest, wmd->mask_tex_map_obj);
+		curNode = dag_get_node(ctx->forest, wmd->mask_tex_map_obj);
 
-		dag_add_relation(forest, curNode, obNode, DAG_RL_DATA_DATA | DAG_RL_OB_DATA,
+		dag_add_relation(ctx->forest, curNode, ctx->obNode, DAG_RL_DATA_DATA | DAG_RL_OB_DATA,
 		                 "WeightVGMix Modifier");
 	}
 
 	if (wmd->mask_tex_mapping == MOD_DISP_MAP_GLOBAL)
-		dag_add_relation(forest, obNode, obNode, DAG_RL_DATA_DATA | DAG_RL_OB_DATA,
+		dag_add_relation(ctx->forest, ctx->obNode, ctx->obNode, DAG_RL_DATA_DATA | DAG_RL_OB_DATA,
 		                 "WeightVGMix Modifier");
 }
 
-static void updateDepsgraph(ModifierData *md,
-                            struct Main *UNUSED(bmain),
-                            struct Scene *UNUSED(scene),
-                            Object *ob,
-                            struct DepsNodeHandle *node)
+static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
 	WeightVGMixModifierData *wmd = (WeightVGMixModifierData *) md;
 	if (wmd->mask_tex_map_obj != NULL && wmd->mask_tex_mapping == MOD_DISP_MAP_OBJECT) {
-		DEG_add_object_relation(node, wmd->mask_tex_map_obj, DEG_OB_COMP_TRANSFORM, "WeightVGMix Modifier");
-		DEG_add_object_relation(node, wmd->mask_tex_map_obj, DEG_OB_COMP_GEOMETRY, "WeightVGMix Modifier");
+		DEG_add_object_relation(ctx->node, wmd->mask_tex_map_obj, DEG_OB_COMP_TRANSFORM, "WeightVGMix Modifier");
+		DEG_add_object_relation(ctx->node, wmd->mask_tex_map_obj, DEG_OB_COMP_GEOMETRY, "WeightVGMix Modifier");
 	}
 	if (wmd->mask_tex_mapping == MOD_DISP_MAP_GLOBAL) {
-		DEG_add_object_relation(node, ob, DEG_OB_COMP_TRANSFORM, "WeightVGMix Modifier");
-		DEG_add_object_relation(node, ob, DEG_OB_COMP_GEOMETRY, "WeightVGMix Modifier");
+		DEG_add_object_relation(ctx->node, ctx->object, DEG_OB_COMP_TRANSFORM, "WeightVGMix Modifier");
+		DEG_add_object_relation(ctx->node, ctx->object, DEG_OB_COMP_GEOMETRY, "WeightVGMix Modifier");
 	}
 }
 
@@ -234,8 +209,9 @@ static bool isDisabled(ModifierData *md, int UNUSED(useRenderParams))
 	return (wmd->defgrp_name_a[0] == '\0');
 }
 
-static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *derivedData,
-                                  ModifierApplyFlag UNUSED(flag))
+static DerivedMesh *applyModifier(
+        ModifierData *md, Object *ob, DerivedMesh *derivedData,
+        ModifierApplyFlag UNUSED(flag))
 {
 	WeightVGMixModifierData *wmd = (WeightVGMixModifierData *) md;
 	DerivedMesh *dm = derivedData;
@@ -286,9 +262,9 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *der
 			return dm;
 	}
 	/* Find out which vertices to work on. */
-	tidx = MEM_mallocN(sizeof(int) * numVerts, "WeightVGMix Modifier, tidx");
-	tdw1 = MEM_mallocN(sizeof(MDeformWeight *) * numVerts, "WeightVGMix Modifier, tdw1");
-	tdw2 = MEM_mallocN(sizeof(MDeformWeight *) * numVerts, "WeightVGMix Modifier, tdw2");
+	tidx = MEM_malloc_arrayN(numVerts, sizeof(int), "WeightVGMix Modifier, tidx");
+	tdw1 = MEM_malloc_arrayN(numVerts, sizeof(MDeformWeight *), "WeightVGMix Modifier, tdw1");
+	tdw2 = MEM_malloc_arrayN(numVerts, sizeof(MDeformWeight *), "WeightVGMix Modifier, tdw2");
 	switch (wmd->mix_set) {
 		case MOD_WVG_SET_A:
 			/* All vertices in first vgroup. */
@@ -354,12 +330,12 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *der
 		return dm;
 	}
 	if (numIdx != -1) {
-		indices = MEM_mallocN(sizeof(int) * numIdx, "WeightVGMix Modifier, indices");
+		indices = MEM_malloc_arrayN(numIdx, sizeof(int), "WeightVGMix Modifier, indices");
 		memcpy(indices, tidx, sizeof(int) * numIdx);
-		dw1 = MEM_mallocN(sizeof(MDeformWeight *) * numIdx, "WeightVGMix Modifier, dw1");
+		dw1 = MEM_malloc_arrayN(numIdx, sizeof(MDeformWeight *), "WeightVGMix Modifier, dw1");
 		memcpy(dw1, tdw1, sizeof(MDeformWeight *) * numIdx);
 		MEM_freeN(tdw1);
-		dw2 = MEM_mallocN(sizeof(MDeformWeight *) * numIdx, "WeightVGMix Modifier, dw2");
+		dw2 = MEM_malloc_arrayN(numIdx, sizeof(MDeformWeight *), "WeightVGMix Modifier, dw2");
 		memcpy(dw2, tdw2, sizeof(MDeformWeight *) * numIdx);
 		MEM_freeN(tdw2);
 	}
@@ -372,8 +348,8 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *der
 	}
 	MEM_freeN(tidx);
 
-	org_w = MEM_mallocN(sizeof(float) * numIdx, "WeightVGMix Modifier, org_w");
-	new_w = MEM_mallocN(sizeof(float) * numIdx, "WeightVGMix Modifier, new_w");
+	org_w = MEM_malloc_arrayN(numIdx, sizeof(float), "WeightVGMix Modifier, org_w");
+	new_w = MEM_malloc_arrayN(numIdx, sizeof(float), "WeightVGMix Modifier, new_w");
 
 	/* Mix weights. */
 	for (i = 0; i < numIdx; i++) {
@@ -425,7 +401,7 @@ ModifierTypeInfo modifierType_WeightVGMix = {
 	                        eModifierTypeFlag_SupportsEditmode |
 	                        eModifierTypeFlag_UsesPreview,
 
-	/* copyData */          copyData,
+	/* copyData */          modifier_copyData_generic,
 	/* deformVerts */       NULL,
 	/* deformMatrices */    NULL,
 	/* deformVertsEM */     NULL,
@@ -434,7 +410,7 @@ ModifierTypeInfo modifierType_WeightVGMix = {
 	/* applyModifierEM */   NULL,
 	/* initData */          initData,
 	/* requiredDataMask */  requiredDataMask,
-	/* freeData */          freeData,
+	/* freeData */          NULL,
 	/* isDisabled */        isDisabled,
 	/* updateDepgraph */    updateDepgraph,
 	/* updateDepsgraph */   updateDepsgraph,

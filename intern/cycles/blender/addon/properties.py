@@ -42,9 +42,14 @@ enum_feature_set = (
     )
 
 enum_displacement_methods = (
-    ('BUMP', "Bump", "Bump mapping to simulate the appearance of displacement"),
-    ('TRUE', "True", "Use true displacement only, requires fine subdivision"),
-    ('BOTH', "Both", "Combination of displacement and bump mapping"),
+    ('BUMP', "Bump Only", "Bump mapping to simulate the appearance of displacement"),
+    ('DISPLACEMENT', "Displacement Only", "Use true displacement of surface only, requires fine subdivision"),
+    ('BOTH', "Displacement and Bump", "Combination of true displacement and bump mapping for finer detail"),
+    )
+
+enum_bvh_layouts = (
+    ('BVH2', "BVH2", "", 1),
+    ('BVH4', "BVH4", "", 2),
     )
 
 enum_bvh_types = (
@@ -121,6 +126,12 @@ enum_volume_sampling = (
 enum_volume_interpolation = (
     ('LINEAR', "Linear", "Good smoothness and speed"),
     ('CUBIC', "Cubic", "Smoothed high quality interpolation, but slower")
+    )
+
+enum_world_mis = (
+    ('NONE', "None", "Don't sample the background, faster but might cause noise for non-solid backgrounds"),
+    ('AUTOMATIC', "Auto", "Automatically try to determine the best setting"),
+    ('MANUAL', "Manual", "Manually set the resolution of the sampling map, higher values are slower and require more memory but reduce noise")
     )
 
 enum_device_type = (
@@ -388,6 +399,23 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
                 default=12,
                 )
 
+        cls.dicing_camera = PointerProperty(
+                name="Dicing Camera",
+                description="Camera to use as reference point when subdividing geometry, useful to avoid crawling "
+                            "artifacts in animations when the scene camera is moving",
+                type=bpy.types.Object,
+                poll=lambda self, obj: obj.type == 'CAMERA',
+                )
+        cls.offscreen_dicing_scale = FloatProperty(
+                name="Offscreen Dicing Scale",
+                description="Multiplier for dicing rate of geometry outside of the camera view. The dicing rate "
+                            "of objects is gradually increased the further they are outside the camera view. "
+                            "Lower values provide higher quality reflections and shadows for off screen objects, "
+                            "while higher values use less memory",
+                min=1.0, soft_max=25.0,
+                default=4.0,
+                )
+
         cls.film_exposure = FloatProperty(
                 name="Exposure",
                 description="Image brightness scale",
@@ -396,8 +424,19 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
                 )
         cls.film_transparent = BoolProperty(
                 name="Transparent",
-                description="World background is transparent with premultiplied alpha",
+                description="World background is transparent, for compositing the render over another background",
                 default=False,
+                )
+        cls.film_transparent_glass = BoolProperty(
+                name="Transparent Glass",
+                description="Render transmissive surfaces as transparent, for compositing glass over another background",
+                default=False,
+                )
+        cls.film_transparent_roughness = FloatProperty(
+                name="Transparent Roughness Threshold",
+                description="For transparent transmission, keep surfaces with roughness above the threshold opaque",
+                min=0.0, max=1.0,
+                default=0.1,
                 )
 
         # Really annoyingly, we have to keep it around for a few releases,
@@ -538,6 +577,7 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
                 ('SHADOW', "Shadow", ""),
                 ('NORMAL', "Normal", ""),
                 ('UV', "UV", ""),
+                ('ROUGHNESS', "Roughness", ""),
                 ('EMIT', "Emit", ""),
                 ('ENVIRONMENT', "Environment", ""),
                 ('DIFFUSE', "Diffuse", ""),
@@ -642,7 +682,11 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         cls.debug_use_cpu_sse41 = BoolProperty(name="SSE41", default=True)
         cls.debug_use_cpu_sse3 = BoolProperty(name="SSE3", default=True)
         cls.debug_use_cpu_sse2 = BoolProperty(name="SSE2", default=True)
-        cls.debug_use_qbvh = BoolProperty(name="QBVH", default=True)
+        cls.debug_bvh_layout = EnumProperty(
+                name="BVH Layout",
+                items=enum_bvh_layouts,
+                default='BVH4',
+                )
         cls.debug_use_cpu_split_kernel = BoolProperty(name="Split Kernel", default=False)
 
         cls.debug_use_cuda_adaptive_compile = BoolProperty(name="Adaptive Compile", default=False)
@@ -841,7 +885,7 @@ class CyclesMaterialSettings(bpy.types.PropertyGroup):
                 name="Displacement Method",
                 description="Method to use for the displacement",
                 items=enum_displacement_methods,
-                default='BUMP',
+                default='DISPLACEMENT',
                 )
 
     @classmethod
@@ -900,15 +944,15 @@ class CyclesWorldSettings(bpy.types.PropertyGroup):
                 description="Cycles world settings",
                 type=cls,
                 )
-        cls.sample_as_light = BoolProperty(
-                name="Multiple Importance Sample",
-                description="Use multiple importance sampling for the environment, "
-                            "enabling for non-solid colors is recommended",
-                default=True,
+        cls.sampling_method = EnumProperty(
+                name="Sampling method",
+                description="How to sample the background light",
+                items=enum_world_mis,
+                default='AUTOMATIC',
                 )
         cls.sample_map_resolution = IntProperty(
                 name="Map Resolution",
-                description="Importance map size is resolution x resolution; "
+                description="Importance map size is resolution x resolution/2; "
                             "higher values potentially produce less noise, at the cost of memory and speed",
                 min=4, max=8192,
                 default=1024,
@@ -1051,7 +1095,7 @@ class CyclesObjectSettings(bpy.types.PropertyGroup):
 
         cls.motion_steps = IntProperty(
                 name="Motion Steps",
-                description="Control accuracy of deformation motion blur, more steps gives more memory usage (actual number of steps is 2^(steps - 1))",
+                description="Control accuracy of motion blur, more steps gives more memory usage (actual number of steps is 2^(steps - 1))",
                 min=1, soft_max=8,
                 default=1,
                 )

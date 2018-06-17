@@ -22,10 +22,10 @@
 #include "render/constant_fold.h"
 
 #include "util/util_algorithm.h"
-#include "util/util_debug.h"
 #include "util/util_foreach.h"
-#include "util/util_queue.h"
 #include "util/util_logging.h"
+#include "util/util_md5.h"
+#include "util/util_queue.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -232,8 +232,8 @@ void ShaderGraph::connect(ShaderOutput *from, ShaderInput *to)
 	}
 
 	if(from->type() != to->type()) {
-		/* for closures we can't do automatic conversion */
-		if(from->type() == SocketType::CLOSURE || to->type() == SocketType::CLOSURE) {
+		/* can't do automatic conversion from closure */
+		if(from->type() == SocketType::CLOSURE) {
 			fprintf(stderr, "Cycles shader graph connect: can only connect closure to closure "
 			        "(%s.%s to %s.%s).\n",
 			        from->parent->name.c_str(), from->name().c_str(),
@@ -242,9 +242,28 @@ void ShaderGraph::connect(ShaderOutput *from, ShaderInput *to)
 		}
 
 		/* add automatic conversion node in case of type mismatch */
-		ShaderNode *convert = add(new ConvertNode(from->type(), to->type(), true));
+		ShaderNode *convert;
+		ShaderInput *convert_in;
 
-		connect(from, convert->inputs[0]);
+		if (to->type() == SocketType::CLOSURE) {
+			EmissionNode *emission = new EmissionNode();
+			emission->color = make_float3(1.0f, 1.0f, 1.0f);
+			emission->strength = 1.0f;
+			convert = add(emission);
+			/* Connect float inputs to Strength to save an additional Falue->Color conversion. */
+			if(from->type() == SocketType::FLOAT) {
+				convert_in = convert->input("Strength");
+			}
+			else {
+				convert_in = convert->input("Color");
+			}
+		}
+		else {
+			convert = add(new ConvertNode(from->type(), to->type(), true));
+			convert_in = convert->inputs[0];
+		}
+
+		connect(from, convert_in);
 		connect(convert->outputs[0], to);
 	}
 	else {
@@ -477,7 +496,7 @@ void ShaderGraph::remove_proxy_nodes()
  * Try to constant fold some nodes, and pipe result directly to
  * the input socket of connected nodes.
  */
-void ShaderGraph::constant_fold()
+void ShaderGraph::constant_fold(Scene *scene)
 {
 	ShaderNodeSet done, scheduled;
 	queue<ShaderNode*> traverse_queue;
@@ -517,7 +536,7 @@ void ShaderGraph::constant_fold()
 				}
 			}
 			/* Optimize current node. */
-			ConstantFolder folder(this, node, output);
+			ConstantFolder folder(this, node, output, scene);
 			node->constant_fold(folder);
 		}
 	}
@@ -527,10 +546,10 @@ void ShaderGraph::constant_fold()
 	 * that happens to ensure there is still a valid graph for displacement.
 	 */
 	if(has_displacement && !output()->input("Displacement")->link) {
-		ValueNode *value = (ValueNode*)add(new ValueNode());
+		ColorNode *value = (ColorNode*)add(new ColorNode());
 		value->value = output()->displacement;
 
-		connect(value->output("Value"), output()->input("Displacement"));
+		connect(value->output("Color"), output()->input("Displacement"));
 	}
 }
 
@@ -684,12 +703,38 @@ void ShaderGraph::break_cycles(ShaderNode *node, vector<bool>& visited, vector<b
 	on_stack[node->id] = false;
 }
 
+void ShaderGraph::compute_displacement_hash()
+{
+	/* Compute hash of all nodes linked to displacement, to detect if we need
+	 * to recompute displacement when shader nodes change. */
+	ShaderInput *displacement_in = output()->input("Displacement");
+
+	if(!displacement_in->link) {
+		displacement_hash = "";
+		return;
+	}
+
+	ShaderNodeSet nodes_displace;
+	find_dependencies(nodes_displace, displacement_in);
+
+	MD5Hash md5;
+	foreach(ShaderNode *node, nodes_displace) {
+		node->hash(md5);
+		foreach(ShaderInput *input, node->inputs) {
+			int link_id = (input->link) ? input->link->parent->id : 0;
+			md5.append((uint8_t*)&link_id, sizeof(link_id));
+		}
+	}
+
+	displacement_hash = md5.get_hex();
+}
+
 void ShaderGraph::clean(Scene *scene)
 {
 	/* Graph simplification */
 
 	/* NOTE: Remove proxy nodes was already done. */
-	constant_fold();
+	constant_fold(scene);
 	simplify_settings(scene);
 	deduplicate_nodes();
 	verify_volume_output();
@@ -747,6 +792,12 @@ void ShaderGraph::default_inputs(bool do_osl)
 						texco = new TextureCoordinateNode();
 
 					connect(texco->output("Generated"), input);
+				}
+				if(input->flags() & SocketType::LINK_TEXTURE_NORMAL) {
+					if(!texco)
+						texco = new TextureCoordinateNode();
+
+					connect(texco->output("Normal"), input);
 				}
 				else if(input->flags() & SocketType::LINK_TEXTURE_UV) {
 					if(!texco)
@@ -862,7 +913,7 @@ void ShaderGraph::bump_from_displacement(bool use_object_space)
 
 	if(!displacement_in->link)
 		return;
-	
+
 	/* find dependencies for the given input */
 	ShaderNodeSet nodes_displace;
 	find_dependencies(nodes_displace, displacement_in);
@@ -894,15 +945,34 @@ void ShaderGraph::bump_from_displacement(bool use_object_space)
 	/* add bump node and connect copied graphs to it */
 	BumpNode *bump = (BumpNode*)add(new BumpNode());
 	bump->use_object_space = use_object_space;
+	bump->distance = 1.0f;
 
 	ShaderOutput *out = displacement_in->link;
 	ShaderOutput *out_center = nodes_center[out->parent]->output(out->name());
 	ShaderOutput *out_dx = nodes_dx[out->parent]->output(out->name());
 	ShaderOutput *out_dy = nodes_dy[out->parent]->output(out->name());
 
-	connect(out_center, bump->input("SampleCenter"));
-	connect(out_dx, bump->input("SampleX"));
-	connect(out_dy, bump->input("SampleY"));
+	/* convert displacement vector to height */
+	VectorMathNode *dot_center = (VectorMathNode*)add(new VectorMathNode());
+	VectorMathNode *dot_dx = (VectorMathNode*)add(new VectorMathNode());
+	VectorMathNode *dot_dy = (VectorMathNode*)add(new VectorMathNode());
+
+	dot_center->type = NODE_VECTOR_MATH_DOT_PRODUCT;
+	dot_dx->type = NODE_VECTOR_MATH_DOT_PRODUCT;
+	dot_dy->type = NODE_VECTOR_MATH_DOT_PRODUCT;
+
+	GeometryNode *geom = (GeometryNode*)add(new GeometryNode());
+	connect(geom->output("Normal"), dot_center->input("Vector2"));
+	connect(geom->output("Normal"), dot_dx->input("Vector2"));
+	connect(geom->output("Normal"), dot_dy->input("Vector2"));
+
+	connect(out_center, dot_center->input("Vector1"));
+	connect(out_dx, dot_dx->input("Vector1"));
+	connect(out_dy, dot_dy->input("Vector1"));
+
+	connect(dot_center->output("Value"), bump->input("SampleCenter"));
+	connect(dot_dx->output("Value"), bump->input("SampleX"));
+	connect(dot_dy->output("Value"), bump->input("SampleY"));
 	
 	/* connect the bump out to the set normal in: */
 	connect(bump->output("Normal"), set_normal->input("Direction"));

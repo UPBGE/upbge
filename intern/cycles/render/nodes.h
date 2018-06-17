@@ -25,6 +25,7 @@
 CCL_NAMESPACE_BEGIN
 
 class ImageManager;
+class LightManager;
 class Scene;
 class Shader;
 
@@ -82,6 +83,7 @@ public:
 	~ImageTextureNode();
 	ShaderNode *clone() const;
 	void attributes(Shader *shader, AttributeRequestSet *attributes);
+	bool has_attribute_dependency() { return true; }
 
 	ImageManager *image_manager;
 	int is_float;
@@ -112,6 +114,7 @@ public:
 	~EnvironmentTextureNode();
 	ShaderNode *clone() const;
 	void attributes(Shader *shader, AttributeRequestSet *attributes);
+	bool has_attribute_dependency() { return true; }
 	virtual int get_group() { return NODE_GROUP_LEVEL_2; }
 
 	ImageManager *image_manager;
@@ -154,7 +157,7 @@ public:
 
 	void *surface;
 	void *volume;
-	float displacement;
+	float3 displacement;
 	float3 normal;
 
 	/* Don't allow output node de-duplication. */
@@ -257,6 +260,7 @@ public:
 	~PointDensityTextureNode();
 	ShaderNode *clone() const;
 	void attributes(Shader *shader, AttributeRequestSet *attributes);
+	bool has_attribute_dependency() { return true; }
 
 	bool has_spatial_varying() { return true; }
 	bool has_object_dependency() { return true; }
@@ -276,6 +280,27 @@ public:
 		return ShaderNode::equals(other) &&
 		       builtin_data == point_dendity_node.builtin_data;
 	}
+};
+
+class IESLightNode : public TextureNode {
+public:
+	SHADER_NODE_NO_CLONE_CLASS(IESLightNode)
+
+	~IESLightNode();
+	ShaderNode *clone() const;
+	virtual int get_group() { return NODE_GROUP_LEVEL_2; }
+
+	ustring filename;
+	ustring ies;
+
+	float strength;
+	float3 vector;
+
+private:
+	LightManager *light_manager;
+	int slot;
+
+	void get_slot();
 };
 
 class MappingNode : public ShaderNode {
@@ -361,6 +386,7 @@ public:
 
 	ClosureType get_closure_type() { return distribution; }
 	void attributes(Shader *shader, AttributeRequestSet *attributes);
+	bool has_attribute_dependency() { return true; }
 };
 
 class DiffuseBsdfNode : public BsdfNode {
@@ -390,9 +416,11 @@ public:
 	float3 normal, clearcoat_normal, tangent;
 	float surface_mix_weight;
 	ClosureType distribution, distribution_orig;
+	ClosureType subsurface_method;
 
 	bool has_integrator_dependency();
 	void attributes(Shader *shader, AttributeRequestSet *attributes);
+	bool has_attribute_dependency() { return true; }
 };
 
 class TranslucentBsdfNode : public BsdfNode {
@@ -510,12 +538,16 @@ public:
 	SHADER_NODE_CLASS(AmbientOcclusionNode)
 
 	bool has_spatial_varying() { return true; }
-	virtual int get_group() { return NODE_GROUP_LEVEL_1; }
-	virtual ClosureType get_closure_type() { return CLOSURE_AMBIENT_OCCLUSION_ID; }
+	virtual int get_group() { return NODE_GROUP_LEVEL_3; }
+	virtual bool has_raytrace() { return true; }
 
-	float3 normal_osl;
 	float3 color;
-	float surface_mix_weight;
+	float distance;
+	float3 normal;
+	int samples;
+
+	bool only_local;
+	bool inside;
 };
 
 class VolumeNode : public ShaderNode {
@@ -555,6 +587,25 @@ public:
 	float anisotropy;
 };
 
+class PrincipledVolumeNode : public VolumeNode {
+public:
+	SHADER_NODE_CLASS(PrincipledVolumeNode)
+	void attributes(Shader *shader, AttributeRequestSet *attributes);
+	bool has_attribute_dependency() { return true; }
+
+	ustring density_attribute;
+	ustring color_attribute;
+	ustring temperature_attribute;
+
+	float anisotropy;
+	float3 absorption_color;
+	float emission_strength;
+	float3 emission_color;
+	float blackbody_intensity;
+	float3 blackbody_tint;
+	float temperature;
+};
+
 class HairBsdfNode : public BsdfNode {
 public:
 	SHADER_NODE_CLASS(HairBsdfNode)
@@ -571,6 +622,7 @@ class GeometryNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(GeometryNode)
 	void attributes(Shader *shader, AttributeRequestSet *attributes);
+	bool has_attribute_dependency() { return true; }
 	bool has_spatial_varying() { return true; }
 
 	float3 normal_osl;
@@ -580,6 +632,7 @@ class TextureCoordinateNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(TextureCoordinateNode)
 	void attributes(Shader *shader, AttributeRequestSet *attributes);
+	bool has_attribute_dependency() { return true; }
 	bool has_spatial_varying() { return true; }
 	bool has_object_dependency() { return use_transform; }
 
@@ -593,6 +646,7 @@ class UVMapNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(UVMapNode)
 	void attributes(Shader *shader, AttributeRequestSet *attributes);
+	bool has_attribute_dependency() { return true; }
 	bool has_spatial_varying() { return true; }
 	virtual int get_group() { return NODE_GROUP_LEVEL_1; }
 
@@ -626,6 +680,7 @@ class ParticleInfoNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(ParticleInfoNode)
 	void attributes(Shader *shader, AttributeRequestSet *attributes);
+	bool has_attribute_dependency() { return true; }
 	virtual int get_group() { return NODE_GROUP_LEVEL_1; }
 };
 
@@ -634,6 +689,7 @@ public:
 	SHADER_NODE_CLASS(HairInfoNode)
 
 	void attributes(Shader *shader, AttributeRequestSet *attributes);
+	bool has_attribute_dependency() { return true; }
 	bool has_spatial_varying() { return true; }
 	virtual int get_group() { return NODE_GROUP_LEVEL_1; }
 	virtual int get_feature() {
@@ -795,6 +851,7 @@ class AttributeNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(AttributeNode)
 	void attributes(Shader *shader, AttributeRequestSet *attributes);
+	bool has_attribute_dependency() { return true; }
 	bool has_spatial_varying() { return true; }
 
 	ustring attribute;
@@ -992,6 +1049,7 @@ class NormalMapNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(NormalMapNode)
 	void attributes(Shader *shader, AttributeRequestSet *attributes);
+	bool has_attribute_dependency() { return true; }
 	bool has_spatial_varying() { return true; }
 	virtual int get_group() { return NODE_GROUP_LEVEL_3; }
 
@@ -1006,6 +1064,7 @@ class TangentNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(TangentNode)
 	void attributes(Shader *shader, AttributeRequestSet *attributes);
+	bool has_attribute_dependency() { return true; }
 	bool has_spatial_varying() { return true; }
 	virtual int get_group() { return NODE_GROUP_LEVEL_3; }
 
@@ -1025,6 +1084,38 @@ public:
 	float radius;
 	float3 normal;
 	int samples;
+};
+
+class DisplacementNode : public ShaderNode {
+public:
+	SHADER_NODE_CLASS(DisplacementNode)
+	void constant_fold(const ConstantFolder& folder);
+	virtual int get_feature() {
+		return NODE_FEATURE_BUMP;
+	}
+
+	NodeNormalMapSpace space;
+	float height;
+	float midlevel;
+	float scale;
+	float3 normal;
+};
+
+class VectorDisplacementNode : public ShaderNode {
+public:
+	SHADER_NODE_CLASS(VectorDisplacementNode)
+	void attributes(Shader *shader, AttributeRequestSet *attributes);
+	bool has_attribute_dependency() { return true; }
+	void constant_fold(const ConstantFolder& folder);
+	virtual int get_feature() {
+		return NODE_FEATURE_BUMP;
+	}
+
+	NodeNormalMapSpace space;
+	ustring attribute;
+	float3 vector;
+	float midlevel;
+	float scale;
 };
 
 CCL_NAMESPACE_END

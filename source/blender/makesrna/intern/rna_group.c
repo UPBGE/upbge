@@ -65,7 +65,8 @@ static void rna_Group_objects_link(Group *group, bContext *C, ReportList *report
 
 static void rna_Group_objects_unlink(Group *group, bContext *C, ReportList *reports, Object *object)
 {
-	if (!BKE_group_object_unlink(group, object, CTX_data_scene(C), NULL)) {
+	Main *bmain = CTX_data_main(C);
+	if (!BKE_group_object_unlink(bmain, group, object, CTX_data_scene(C), NULL)) {
 		BKE_reportf(reports, RPT_ERROR, "Object '%s' not in group '%s'", object->id.name + 2, group->id.name + 2);
 		return;
 	}
@@ -83,7 +84,7 @@ static void rna_def_group_objects(BlenderRNA *brna, PropertyRNA *cprop)
 
 	FunctionRNA *func;
 	PropertyRNA *parm;
-	
+
 	RNA_def_property_srna(cprop, "GroupObjects");
 	srna = RNA_def_struct(brna, "GroupObjects", NULL);
 	RNA_def_struct_sdna(srna, "Group");

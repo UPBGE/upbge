@@ -68,10 +68,13 @@ static int brush_add_exec(bContext *C, wmOperator *UNUSED(op))
 	Main *bmain = CTX_data_main(C);
 	ePaintMode mode = BKE_paintmode_get_active_from_context(C);
 
-	if (br)
+	if (br) {
 		br = BKE_brush_copy(bmain, br);
-	else
+	}
+	else {
 		br = BKE_brush_add(bmain, "Brush", BKE_paint_object_mode_from_paint_mode(mode));
+		id_us_min(&br->id);  /* fake user only */
+	}
 
 	BKE_paint_brush_set(paint, br);
 
@@ -84,10 +87,10 @@ static void BRUSH_OT_add(wmOperatorType *ot)
 	ot->name = "Add Brush";
 	ot->description = "Add brush by mode type";
 	ot->idname = "BRUSH_OT_add";
-	
+
 	/* api callbacks */
 	ot->exec = brush_add_exec;
-	
+
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
@@ -141,10 +144,10 @@ static void BRUSH_OT_scale_size(wmOperatorType *ot)
 	ot->name = "Scale Sculpt/Paint Brush Size";
 	ot->description = "Change brush size by a scalar";
 	ot->idname = "BRUSH_OT_scale_size";
-	
+
 	/* api callbacks */
 	ot->exec = brush_scale_size_exec;
-	
+
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
@@ -282,10 +285,10 @@ static void BRUSH_OT_reset(wmOperatorType *ot)
 	ot->name = "Reset Brush";
 	ot->description = "Return brush to defaults based on current tool";
 	ot->idname = "BRUSH_OT_reset";
-	
+
 	/* api callbacks */
 	ot->exec = brush_reset_exec;
-	
+
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
@@ -350,7 +353,7 @@ static Brush *brush_tool_toggle(Main *bmain, Brush *brush_orig, const int tool, 
 		/* store the previously-selected brush */
 		if (br)
 			br->toggle_brush = brush_orig;
-		
+
 		return br;
 	}
 	else if (brush_orig->toggle_brush) {
@@ -376,6 +379,7 @@ static int brush_generic_tool_set(Main *bmain, Paint *paint, const int tool,
 
 	if (!brush && brush_tool(brush_orig, tool_offset) != tool && create_missing) {
 		brush = BKE_brush_add(bmain, tool_name, ob_mode);
+		id_us_min(&brush->id);  /* fake user only */
 		brush_tool_set(brush, tool_offset, tool);
 		brush->toggle_brush = brush_orig;
 	}
@@ -498,7 +502,7 @@ static wmKeyMapItem *keymap_brush_select(wmKeyMap *keymap, int paint_mode,
 	                         keymap_type, KM_PRESS, keymap_modifier, 0);
 
 	RNA_enum_set(kmi->ptr, "paint_mode", paint_mode);
-	
+
 	switch (paint_mode) {
 		case OB_MODE_SCULPT:
 			RNA_enum_set(kmi->ptr, "sculpt_tool", tool);
@@ -910,7 +914,7 @@ static int stencil_reset_transform_exec(bContext *C, wmOperator *op)
 
 	if (!br)
 		return OPERATOR_CANCELLED;
-	
+
 	if (do_mask) {
 		br->mask_stencil_pos[0] = 256;
 		br->mask_stencil_pos[1] = 256;
@@ -1196,7 +1200,7 @@ static void ed_keymap_paint_brush_radial_control(wmKeyMap *keymap, const char *p
 static void paint_partial_visibility_keys(wmKeyMap *keymap)
 {
 	wmKeyMapItem *kmi;
-	
+
 	/* Partial visibility */
 	kmi = WM_keymap_add_item(keymap, "PAINT_OT_hide_show", HKEY, KM_PRESS, KM_SHIFT, 0);
 	RNA_enum_set(kmi->ptr, "action", PARTIALVIS_SHOW);
@@ -1242,7 +1246,7 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	wmKeyMap *keymap;
 	wmKeyMapItem *kmi;
 	int i;
-	
+
 	keymap = WM_keymap_find(keyconf, "Paint Curve", 0, 0);
 	keymap->poll = paint_curve_poll;
 
@@ -1273,11 +1277,15 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 
 	WM_keymap_add_item(keymap, "PAINT_OT_mask_lasso_gesture", LEFTMOUSE, KM_PRESS, KM_CTRL | KM_SHIFT, 0);
 
+	/* Toggle mask visibility */
+	kmi = WM_keymap_add_item(keymap, "WM_OT_context_toggle", MKEY, KM_PRESS, KM_CTRL, 0);
+	RNA_string_set(kmi->ptr, "data_path", "scene.tool_settings.sculpt.show_mask");
+
 	/* Toggle dynamic topology */
 	WM_keymap_add_item(keymap, "SCULPT_OT_dynamic_topology_toggle", DKEY, KM_PRESS, KM_CTRL, 0);
 
 	/* Dynamic-topology detail size
-	 * 
+	 *
 	 * This should be improved further, perhaps by showing a triangle
 	 * grid rather than brush alpha */
 	kmi = WM_keymap_add_item(keymap, "SCULPT_OT_set_detail_size", DKEY, KM_PRESS, KM_SHIFT, 0);
@@ -1367,8 +1375,6 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	ed_keymap_paint_brush_switch(keymap, "weight_paint");
 	ed_keymap_paint_brush_size(keymap, "tool_settings.weight_paint.brush.size");
 	ed_keymap_paint_brush_radial_control(keymap, "weight_paint", RC_WEIGHT);
-
-	ed_keymap_stencil(keymap);
 
 	kmi = WM_keymap_add_item(keymap, "WM_OT_context_menu_enum", EKEY, KM_PRESS, 0, 0);
 	RNA_string_set(kmi->ptr, "data_path", "tool_settings.vertex_paint.brush.stroke_method");

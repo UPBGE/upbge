@@ -386,10 +386,9 @@ void GPU_update_envlight_energy(float energy);
 struct GPUParticleInfo
 {
 	float scalprops[4];
-	float location[3];
+	float location[4];
 	float velocity[3];
 	float angular_velocity[3];
-	int random_id;
 };
 
 #ifdef WITH_OPENSUBDIV

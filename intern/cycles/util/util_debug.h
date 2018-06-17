@@ -20,7 +20,7 @@
 #include <cassert>
 #include <iostream>
 
-#include "util/util_static_assert.h"
+#include "bvh/bvh_params.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -47,8 +47,21 @@ public:
 		bool sse3;
 		bool sse2;
 
-		/* Whether QBVH usage is allowed or not. */
-		bool qbvh;
+		/* Check functions to see whether instructions up to the given one
+		 * are allowed for use.
+		 */
+		bool has_avx2()  { return has_avx()   && avx2; }
+		bool has_avx()   { return has_sse41() && avx; }
+		bool has_sse41() { return has_sse3()  && sse41; }
+		bool has_sse3()  { return has_sse2()  && sse3; }
+		bool has_sse2()  { return sse2; }
+
+		/* Requested BVH size.
+		 *
+		 * Rendering will use widest possible BVH which is below or equal
+		 * this one.
+		 */
+		BVHLayout bvh_layout;
 
 		/* Whether split kernel is used */
 		bool split_kernel;

@@ -1,8 +1,6 @@
 KX_2DFilterManager(EXP_PyObjectPlus)
 ================================
 
-.. module:: bge.types
-
 base class --- :class:`EXP_PyObjectPlus`
 
 .. class:: KX_2DFilterManager(EXP_PyObjectPlus)

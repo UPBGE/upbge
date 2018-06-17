@@ -63,15 +63,15 @@
 
 /* default bone add, returns it selected, but without tail set */
 /* XXX should be used everywhere, now it mallocs bones still locally in functions */
-EditBone *ED_armature_edit_bone_add(bArmature *arm, const char *name)
+EditBone *ED_armature_ebone_add(bArmature *arm, const char *name)
 {
 	EditBone *bone = MEM_callocN(sizeof(EditBone), "eBone");
-	
+
 	BLI_strncpy(bone->name, name, sizeof(bone->name));
-	unique_editbone_name(arm->edbo, bone->name, NULL);
-	
+	ED_armature_ebone_unique_name(arm->edbo, bone->name, NULL);
+
 	BLI_addtail(arm->edbo, bone);
-	
+
 	bone->flag |= BONE_TIPSEL;
 	bone->weight = 1.0f;
 	bone->dist = 0.25f;
@@ -81,7 +81,7 @@ EditBone *ED_armature_edit_bone_add(bArmature *arm, const char *name)
 	bone->rad_tail = 0.05f;
 	bone->segments = 1;
 	bone->layer = arm->layer;
-	
+
 	/* Bendy-Bone parameters */
 	bone->roll1 = 0.0f;
 	bone->roll2 = 0.0f;
@@ -97,15 +97,15 @@ EditBone *ED_armature_edit_bone_add(bArmature *arm, const char *name)
 	return bone;
 }
 
-EditBone *ED_armature_edit_bone_add_primitive(Object *obedit_arm, float length, bool view_aligned)
+EditBone *ED_armature_ebone_add_primitive(Object *obedit_arm, float length, bool view_aligned)
 {
 	bArmature *arm = obedit_arm->data;
 	EditBone *bone;
 
-	ED_armature_deselect_all(obedit_arm);
-	
+	ED_armature_edit_deselect_all(obedit_arm);
+
 	/* Create a bone */
-	bone = ED_armature_edit_bone_add(arm, "Bone");
+	bone = ED_armature_ebone_add(arm, "Bone");
 
 	arm->act_edbone = bone;
 
@@ -135,7 +135,7 @@ static int armature_click_extrude_exec(bContext *C, wmOperator *UNUSED(op))
 	v3d = CTX_wm_view3d(C);
 	obedit = CTX_data_edit_object(C);
 	arm = obedit->data;
-	
+
 	/* find the active or selected bone */
 	for (ebone = arm->edbo->first; ebone; ebone = ebone->next) {
 		if (EBONE_VISIBLE(arm, ebone)) {
@@ -143,7 +143,7 @@ static int armature_click_extrude_exec(bContext *C, wmOperator *UNUSED(op))
 				break;
 		}
 	}
-	
+
 	if (ebone == NULL) {
 		for (ebone = arm->edbo->first; ebone; ebone = ebone->next) {
 			if (EBONE_VISIBLE(arm, ebone)) {
@@ -151,18 +151,18 @@ static int armature_click_extrude_exec(bContext *C, wmOperator *UNUSED(op))
 					break;
 			}
 		}
-		if (ebone == NULL) 
+		if (ebone == NULL)
 			return OPERATOR_CANCELLED;
-		
+
 		to_root = 1;
 	}
-	
-	ED_armature_deselect_all(obedit);
-	
+
+	ED_armature_edit_deselect_all(obedit);
+
 	/* we re-use code for mirror editing... */
 	flipbone = NULL;
 	if (arm->flag & ARM_MIRROR_EDIT)
-		flipbone = ED_armature_bone_get_mirrored(arm->edbo, ebone);
+		flipbone = ED_armature_ebone_get_mirrored(arm->edbo, ebone);
 
 	for (a = 0; a < 2; a++) {
 		if (a == 1) {
@@ -172,10 +172,10 @@ static int armature_click_extrude_exec(bContext *C, wmOperator *UNUSED(op))
 				SWAP(EditBone *, flipbone, ebone);
 			}
 		}
-		
-		newbone = ED_armature_edit_bone_add(arm, ebone->name);
+
+		newbone = ED_armature_ebone_add(arm, ebone->name);
 		arm->act_edbone = newbone;
-		
+
 		if (to_root) {
 			copy_v3_v3(newbone->head, ebone->head);
 			newbone->rad_head = ebone->rad_tail;
@@ -187,28 +187,28 @@ static int armature_click_extrude_exec(bContext *C, wmOperator *UNUSED(op))
 			newbone->parent = ebone;
 			newbone->flag |= BONE_CONNECTED;
 		}
-		
+
 		curs = ED_view3d_cursor3d_get(scene, v3d);
 		copy_v3_v3(newbone->tail, curs);
 		sub_v3_v3v3(newbone->tail, newbone->tail, obedit->obmat[3]);
-		
+
 		if (a == 1)
 			newbone->tail[0] = -newbone->tail[0];
-		
+
 		copy_m3_m4(mat, obedit->obmat);
 		invert_m3_m3(imat, mat);
 		mul_m3_v3(imat, newbone->tail);
-		
+
 		newbone->length = len_v3v3(newbone->head, newbone->tail);
 		newbone->rad_tail = newbone->length * 0.05f;
 		newbone->dist = newbone->length * 0.25f;
-		
+
 	}
-	
-	ED_armature_sync_selection(arm->edbo);
+
+	ED_armature_edit_sync_selection(arm->edbo);
 
 	WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, obedit);
-	
+
 	return OPERATOR_FINISHED;
 }
 
@@ -227,9 +227,9 @@ static int armature_click_extrude_invoke(bContext *C, wmOperator *op, const wmEv
 	scene = CTX_data_scene(C);
 	ar = CTX_wm_region(C);
 	v3d = CTX_wm_view3d(C);
-	
+
 	fp = ED_view3d_cursor3d_get(scene, v3d);
-	
+
 	copy_v3_v3(oldcurs, fp);
 
 	VECCOPY2D(mval_f, event->mval);
@@ -251,12 +251,12 @@ void ARMATURE_OT_click_extrude(wmOperatorType *ot)
 	ot->name = "Click-Extrude";
 	ot->idname = "ARMATURE_OT_click_extrude";
 	ot->description = "Create a new bone going from the last selected joint to the mouse position";
-	
+
 	/* api callbacks */
 	ot->invoke = armature_click_extrude_invoke;
 	ot->exec = armature_click_extrude_exec;
 	ot->poll = ED_operator_editarmature;
-	
+
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
@@ -267,12 +267,12 @@ void ARMATURE_OT_click_extrude(wmOperatorType *ot)
 EditBone *add_points_bone(Object *obedit, float head[3], float tail[3])
 {
 	EditBone *ebo;
-	
-	ebo = ED_armature_edit_bone_add(obedit->data, "Bone");
-	
+
+	ebo = ED_armature_ebone_add(obedit->data, "Bone");
+
 	copy_v3_v3(ebo->head, head);
 	copy_v3_v3(ebo->tail, tail);
-	
+
 	return ebo;
 }
 
@@ -333,7 +333,7 @@ void postEditBoneDuplicate(struct ListBase *editbones, Object *ob)
 	for (EditBone *ebone_src = editbones->first; ebone_src; ebone_src = ebone_src->next) {
 		EditBone *ebone_dst = ebone_src->temp.ebone;
 		if (!ebone_dst) {
-			ebone_dst = ED_armature_bone_get_mirrored(editbones, ebone_src);
+			ebone_dst = ED_armature_ebone_get_mirrored(editbones, ebone_src);
 		}
 		if (ebone_dst) {
 			BLI_ghash_insert(name_map, ebone_src->name, ebone_dst->name);
@@ -378,7 +378,7 @@ void updateDuplicateSubtargetObjects(EditBone *dupBone, ListBase *editbones, Obj
 	bPoseChannel *pchan;
 	bConstraint  *curcon;
 	ListBase     *conlist;
-	
+
 	if ((pchan = BKE_pose_channel_verify(dst_ob->pose, dupBone->name))) {
 		if ((conlist = &pchan->constraints)) {
 			for (curcon = conlist->first; curcon; curcon = curcon->next) {
@@ -388,17 +388,17 @@ void updateDuplicateSubtargetObjects(EditBone *dupBone, ListBase *editbones, Obj
 				const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(curcon);
 				ListBase targets = {NULL, NULL};
 				bConstraintTarget *ct;
-				
+
 				if (cti && cti->get_constraint_targets) {
 					cti->get_constraint_targets(curcon, &targets);
-					
+
 					for (ct = targets.first; ct; ct = ct->next) {
 						if ((ct->tar == src_ob) && (ct->subtarget[0])) {
-							ct->tar = dst_ob; /* update target */ 
+							ct->tar = dst_ob; /* update target */
 							oldtarget = get_named_editbone(editbones, ct->subtarget);
 							if (oldtarget) {
 								/* was the subtarget bone duplicated too? If
-								 * so, update the constraint to point at the 
+								 * so, update the constraint to point at the
 								 * duplicate of the old subtarget.
 								 */
 								if (oldtarget->temp.ebone) {
@@ -408,7 +408,7 @@ void updateDuplicateSubtargetObjects(EditBone *dupBone, ListBase *editbones, Obj
 							}
 						}
 					}
-					
+
 					if (cti->flush_constraint_targets)
 						cti->flush_constraint_targets(curcon, &targets, 0);
 				}
@@ -427,20 +427,20 @@ EditBone *duplicateEditBoneObjects(EditBone *curBone, const char *name, ListBase
                                    Object *src_ob, Object *dst_ob)
 {
 	EditBone *eBone = MEM_mallocN(sizeof(EditBone), "addup_editbone");
-	
+
 	/*	Copy data from old bone to new bone */
 	memcpy(eBone, curBone, sizeof(EditBone));
-	
+
 	curBone->temp.ebone = eBone;
 	eBone->temp.ebone = curBone;
-	
+
 	if (name != NULL) {
 		BLI_strncpy(eBone->name, name, sizeof(eBone->name));
 	}
 
-	unique_editbone_name(editbones, eBone->name, NULL);
+	ED_armature_ebone_unique_name(editbones, eBone->name, NULL);
 	BLI_addtail(editbones, eBone);
-	
+
 	/* copy the ID property */
 	if (curBone->prop)
 		eBone->prop = IDP_CopyProperty(curBone->prop);
@@ -450,7 +450,7 @@ EditBone *duplicateEditBoneObjects(EditBone *curBone, const char *name, ListBase
 	 */
 	if (src_ob->pose) {
 		bPoseChannel *chanold, *channew;
-		
+
 		chanold = BKE_pose_channel_verify(src_ob->pose, curBone->name);
 		if (chanold) {
 			/* WARNING: this creates a new posechannel, but there will not be an attached bone
@@ -463,7 +463,7 @@ EditBone *duplicateEditBoneObjects(EditBone *curBone, const char *name, ListBase
 			}
 		}
 	}
-	
+
 	return eBone;
 }
 
@@ -472,7 +472,7 @@ EditBone *duplicateEditBone(EditBone *curBone, const char *name, ListBase *editb
 	return duplicateEditBoneObjects(curBone, name, editbones, ob, ob);
 }
 
-static int armature_duplicate_selected_exec(bContext *C, wmOperator *UNUSED(op))
+static int armature_duplicate_selected_exec(bContext *C, wmOperator *op)
 {
 	bArmature *arm;
 	EditBone *ebone_iter;
@@ -484,8 +484,10 @@ static int armature_duplicate_selected_exec(bContext *C, wmOperator *UNUSED(op))
 	/* cancel if nothing selected */
 	if (CTX_DATA_COUNT(C, selected_bones) == 0)
 		return OPERATOR_CANCELLED;
-	
-	ED_armature_sync_selection(arm->edbo); // XXX why is this needed?
+
+	const bool do_flip_names = RNA_boolean_get(op->ptr, "do_flip_names");
+
+	ED_armature_edit_sync_selection(arm->edbo); // XXX why is this needed?
 
 	preEditBoneDuplicate(arm->edbo);
 
@@ -497,7 +499,7 @@ static int armature_duplicate_selected_exec(bContext *C, wmOperator *UNUSED(op))
 			{
 				EditBone *ebone;
 
-				ebone = ED_armature_bone_get_mirrored(arm->edbo, ebone_iter);
+				ebone = ED_armature_ebone_get_mirrored(arm->edbo, ebone_iter);
 				if (ebone) {
 					ebone->flag |= BONE_SELECTED;
 				}
@@ -505,15 +507,27 @@ static int armature_duplicate_selected_exec(bContext *C, wmOperator *UNUSED(op))
 		}
 	}
 
-	
+
 	/* Find the selected bones and duplicate them as needed */
 	for (ebone_iter = arm->edbo->first; ebone_iter && ebone_iter != ebone_first_dupe; ebone_iter = ebone_iter->next) {
 		if (EBONE_VISIBLE(arm, ebone_iter) &&
 		    (ebone_iter->flag & BONE_SELECTED))
 		{
 			EditBone *ebone;
+			char new_bone_name_buff[MAXBONENAME];
+			char *new_bone_name = ebone_iter->name;
 
-			ebone = duplicateEditBone(ebone_iter, ebone_iter->name, arm->edbo, obedit);
+			if (do_flip_names) {
+				BLI_string_flip_side_name(new_bone_name_buff, ebone_iter->name, false, sizeof(new_bone_name_buff));
+
+				/* Only use flipped name if not yet in use. Otherwise we'd get again inconsistent namings
+				 * (different numbers), better keep default behavior in this case. */
+				if (ED_armature_ebone_find_name(arm->edbo, new_bone_name_buff) == NULL) {
+					new_bone_name = new_bone_name_buff;
+				}
+			}
+
+			ebone = duplicateEditBone(ebone_iter, new_bone_name, arm->edbo, obedit);
 
 			if (!ebone_first_dupe) {
 				ebone_first_dupe = ebone;
@@ -554,7 +568,7 @@ static int armature_duplicate_selected_exec(bContext *C, wmOperator *UNUSED(op))
 			updateDuplicateSubtarget(ebone, arm->edbo, obedit);
 		}
 	}
-	
+
 	/* correct the active bone */
 	if (arm->act_edbone && arm->act_edbone->temp.ebone) {
 		arm->act_edbone = arm->act_edbone->temp.ebone;
@@ -569,10 +583,10 @@ static int armature_duplicate_selected_exec(bContext *C, wmOperator *UNUSED(op))
 
 	postEditBoneDuplicate(arm->edbo, obedit);
 
-	ED_armature_validate_active(arm);
+	ED_armature_edit_validate_active(arm);
 
 	WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, obedit);
-	
+
 	return OPERATOR_FINISHED;
 }
 
@@ -583,13 +597,17 @@ void ARMATURE_OT_duplicate(wmOperatorType *ot)
 	ot->name = "Duplicate Selected Bone(s)";
 	ot->idname = "ARMATURE_OT_duplicate";
 	ot->description = "Make copies of the selected bones within the same armature";
-	
+
 	/* api callbacks */
 	ot->exec = armature_duplicate_selected_exec;
 	ot->poll = ED_operator_editarmature;
-	
+
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	RNA_def_boolean(
+	        ot->srna, "do_flip_names", false,
+	        "Flip Names", "Try to flip names of the bones, if possible, instead of adding a number extension");
 }
 
 /**
@@ -612,7 +630,7 @@ static int armature_symmetrize_exec(bContext *C, wmOperator *op)
 	if (CTX_DATA_COUNT(C, selected_bones) == 0)
 		return OPERATOR_CANCELLED;
 
-	ED_armature_sync_selection(arm->edbo); // XXX why is this needed?
+	ED_armature_edit_sync_selection(arm->edbo); // XXX why is this needed?
 
 	preEditBoneDuplicate(arm->edbo);
 
@@ -630,7 +648,7 @@ static int armature_symmetrize_exec(bContext *C, wmOperator *op)
 				ebone_iter->flag &= ~(BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
 			}
 			else {
-				EditBone *ebone = ED_armature_bone_find_name(arm->edbo, name_flip);
+				EditBone *ebone = ED_armature_ebone_find_name(arm->edbo, name_flip);
 
 				if (ebone) {
 					if ((ebone->flag & BONE_SELECTED) == 0) {
@@ -720,7 +738,7 @@ static int armature_symmetrize_exec(bContext *C, wmOperator *op)
 				/* the parent may have been duplicated, if not lookup the mirror parent */
 				EditBone *ebone_parent =
 				        (ebone_iter->parent->temp.ebone ?
-				         ebone_iter->parent->temp.ebone : ED_armature_bone_get_mirrored(arm->edbo, ebone_iter->parent));
+				         ebone_iter->parent->temp.ebone : ED_armature_ebone_get_mirrored(arm->edbo, ebone_iter->parent));
 
 				if (ebone_parent == NULL) {
 					/* If the mirror lookup failed, (but the current bone has a parent)
@@ -741,7 +759,7 @@ static int armature_symmetrize_exec(bContext *C, wmOperator *op)
 		}
 	}
 
-	transform_armature_mirror_update(obedit);
+	ED_armature_edit_transform_mirror_update(obedit);
 
 	/* Selected bones now have their 'temp' pointer set,
 	 * so we don't need this anymore */
@@ -768,7 +786,7 @@ static int armature_symmetrize_exec(bContext *C, wmOperator *op)
 
 	postEditBoneDuplicate(arm->edbo, obedit);
 
-	ED_armature_validate_active(arm);
+	ED_armature_edit_validate_active(arm);
 
 	WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, obedit);
 
@@ -829,7 +847,7 @@ static int armature_extrude_exec(bContext *C, wmOperator *op)
 			}
 		}
 	}
-	
+
 	/* Duplicate the necessary bones */
 	for (ebone = arm->edbo->first; ((ebone) && (ebone != first)); ebone = ebone->next) {
 		if (EBONE_VISIBLE(arm, ebone)) {
@@ -847,12 +865,12 @@ static int armature_extrude_exec(bContext *C, wmOperator *op)
 					do_extrude = 2;
 				}
 			}
-			
+
 			if (do_extrude) {
 				/* we re-use code for mirror editing... */
 				flipbone = NULL;
 				if (arm->flag & ARM_MIRROR_EDIT) {
-					flipbone = ED_armature_bone_get_mirrored(arm->edbo, ebone);
+					flipbone = ED_armature_ebone_get_mirrored(arm->edbo, ebone);
 					if (flipbone) {
 						forked = 0;  // we extrude 2 different bones
 						if (flipbone->flag & (BONE_TIPSEL | BONE_ROOTSEL | BONE_SELECTED))
@@ -862,7 +880,7 @@ static int armature_extrude_exec(bContext *C, wmOperator *op)
 					if ((flipbone == NULL) && (forked))
 						flipbone = ebone;
 				}
-				
+
 				for (a = 0; a < 2; a++) {
 					if (a == 1) {
 						if (flipbone == NULL)
@@ -871,31 +889,31 @@ static int armature_extrude_exec(bContext *C, wmOperator *op)
 							SWAP(EditBone *, flipbone, ebone);
 						}
 					}
-					
+
 					totbone++;
 					newbone = MEM_callocN(sizeof(EditBone), "extrudebone");
-					
+
 					if (do_extrude == true) {
 						copy_v3_v3(newbone->head, ebone->tail);
 						copy_v3_v3(newbone->tail, newbone->head);
 						newbone->parent = ebone;
-						
+
 						newbone->flag = ebone->flag & (BONE_TIPSEL | BONE_RELATIVE_PARENTING);  // copies it, in case mirrored bone
-						
+
 						if (newbone->parent) newbone->flag |= BONE_CONNECTED;
 					}
 					else {
 						copy_v3_v3(newbone->head, ebone->head);
 						copy_v3_v3(newbone->tail, ebone->head);
 						newbone->parent = ebone->parent;
-						
+
 						newbone->flag = BONE_TIPSEL;
-						
+
 						if (newbone->parent && (ebone->flag & BONE_CONNECTED)) {
 							newbone->flag |= BONE_CONNECTED;
 						}
 					}
-					
+
 					newbone->weight = ebone->weight;
 					newbone->dist = ebone->dist;
 					newbone->xwidth = ebone->xwidth;
@@ -904,7 +922,7 @@ static int armature_extrude_exec(bContext *C, wmOperator *op)
 					newbone->rad_tail = ebone->rad_tail;
 					newbone->segments = 1;
 					newbone->layer = ebone->layer;
-					
+
 					/* Bendy-Bone parameters */
 					newbone->roll1 = ebone->roll1;
 					newbone->roll2 = ebone->roll2;
@@ -919,26 +937,26 @@ static int armature_extrude_exec(bContext *C, wmOperator *op)
 
 
 					BLI_strncpy(newbone->name, ebone->name, sizeof(newbone->name));
-					
+
 					if (flipbone && forked) {   // only set if mirror edit
 						if (strlen(newbone->name) < (MAXBONENAME - 2)) {
 							if (a == 0) strcat(newbone->name, "_L");
 							else strcat(newbone->name, "_R");
 						}
 					}
-					unique_editbone_name(arm->edbo, newbone->name, NULL);
-					
+					ED_armature_ebone_unique_name(arm->edbo, newbone->name, NULL);
+
 					/* Add the new bone to the list */
 					BLI_addtail(arm->edbo, newbone);
 					if (!first)
 						first = newbone;
-					
+
 					/* restore ebone if we were flipping */
 					if (a == 1 && flipbone)
 						SWAP(EditBone *, flipbone, ebone);
 				}
 			}
-			
+
 			/* Deselect the old bone */
 			ebone->flag &= ~(BONE_TIPSEL | BONE_SELECTED | BONE_ROOTSEL);
 		}
@@ -956,7 +974,7 @@ static int armature_extrude_exec(bContext *C, wmOperator *op)
 	}
 
 	/* Transform the endpoints */
-	ED_armature_sync_selection(arm->edbo);
+	ED_armature_edit_sync_selection(arm->edbo);
 
 	WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, obedit);
 
@@ -969,14 +987,14 @@ void ARMATURE_OT_extrude(wmOperatorType *ot)
 	ot->name = "Extrude";
 	ot->idname = "ARMATURE_OT_extrude";
 	ot->description = "Create new bones from the selected joints";
-	
+
 	/* api callbacks */
 	ot->exec = armature_extrude_exec;
 	ot->poll = ED_operator_editarmature;
-	
+
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-	
+
 	/* props */
 	RNA_def_boolean(ot->srna, "forked", 0, "Forked", "");
 }
@@ -985,16 +1003,16 @@ void ARMATURE_OT_extrude(wmOperatorType *ot)
 
 /*op makes a new bone and returns it with its tip selected */
 
-static int armature_bone_primitive_add_exec(bContext *C, wmOperator *op) 
+static int armature_bone_primitive_add_exec(bContext *C, wmOperator *op)
 {
 	RegionView3D *rv3d = CTX_wm_region_view3d(C);
 	Object *obedit = CTX_data_edit_object(C);
 	EditBone *bone;
 	float obmat[3][3], curs[3], viewmat[3][3], totmat[3][3], imat[3][3];
 	char name[MAXBONENAME];
-	
+
 	RNA_string_get(op->ptr, "name", name);
-	
+
 	copy_v3_v3(curs, ED_view3d_cursor3d_get(CTX_data_scene(C), CTX_wm_view3d(C)));
 
 	/* Get inverse point for head and orientation for tail */
@@ -1004,18 +1022,18 @@ static int armature_bone_primitive_add_exec(bContext *C, wmOperator *op)
 	if (rv3d && (U.flag & USER_ADD_VIEWALIGNED))
 		copy_m3_m4(obmat, rv3d->viewmat);
 	else unit_m3(obmat);
-	
+
 	copy_m3_m4(viewmat, obedit->obmat);
 	mul_m3_m3m3(totmat, obmat, viewmat);
 	invert_m3_m3(imat, totmat);
-	
-	ED_armature_deselect_all(obedit);
-	
-	/*	Create a bone	*/
-	bone = ED_armature_edit_bone_add(obedit->data, name);
+
+	ED_armature_edit_deselect_all(obedit);
+
+	/*	Create a bone */
+	bone = ED_armature_ebone_add(obedit->data, name);
 
 	copy_v3_v3(bone->head, curs);
-	
+
 	if (rv3d && (U.flag & USER_ADD_VIEWALIGNED))
 		add_v3_v3v3(bone->tail, bone->head, imat[1]);   // bone with unit length 1
 	else
@@ -1033,23 +1051,23 @@ void ARMATURE_OT_bone_primitive_add(wmOperatorType *ot)
 	ot->name = "Add Bone";
 	ot->idname = "ARMATURE_OT_bone_primitive_add";
 	ot->description = "Add a new bone located at the 3D-Cursor";
-	
+
 	/* api callbacks */
 	ot->exec = armature_bone_primitive_add_exec;
 	ot->poll = ED_operator_editarmature;
-	
+
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-	
+
 	RNA_def_string(ot->srna, "name", "Bone", MAXBONENAME, "Name", "Name of the newly created bone");
-	
+
 }
 
 /* ********************** Subdivide *******************************/
 
 /* Subdivide Operators:
  * This group of operators all use the same 'exec' callback, but they are called
- * through several different operators - a combined menu (which just calls the exec in the 
+ * through several different operators - a combined menu (which just calls the exec in the
  * appropriate ways), and two separate ones.
  */
 
@@ -1059,10 +1077,10 @@ static int armature_subdivide_exec(bContext *C, wmOperator *op)
 	bArmature *arm = obedit->data;
 	EditBone *newbone, *tbone;
 	int cuts, i;
-	
+
 	/* there may not be a number_cuts property defined (for 'simple' subdivide) */
 	cuts = RNA_int_get(op->ptr, "number_cuts");
-	
+
 	/* loop over all editable bones */
 	// XXX the old code did this in reverse order though!
 	CTX_DATA_BEGIN(C, EditBone *, ebone, selected_editable_bones)
@@ -1071,37 +1089,37 @@ static int armature_subdivide_exec(bContext *C, wmOperator *op)
 			/* compute cut ratio first */
 			float cutratio = 1.0f / (float)i;
 			float cutratioI = 1.0f - cutratio;
-			
+
 			float val1[3];
 			float val2[3];
 			float val3[3];
-			
+
 			newbone = MEM_mallocN(sizeof(EditBone), "ebone subdiv");
 			*newbone = *ebone;
 			BLI_addtail(arm->edbo, newbone);
-			
+
 			/* calculate location of newbone->head */
 			copy_v3_v3(val1, ebone->head);
 			copy_v3_v3(val2, ebone->tail);
 			copy_v3_v3(val3, newbone->head);
-			
+
 			val3[0] = val1[0] * cutratio + val2[0] * cutratioI;
 			val3[1] = val1[1] * cutratio + val2[1] * cutratioI;
 			val3[2] = val1[2] * cutratio + val2[2] * cutratioI;
-			
+
 			copy_v3_v3(newbone->head, val3);
 			copy_v3_v3(newbone->tail, ebone->tail);
 			copy_v3_v3(ebone->tail, newbone->head);
-			
+
 			newbone->rad_head = ((ebone->rad_head * cutratio) + (ebone->rad_tail * cutratioI));
 			ebone->rad_tail = newbone->rad_head;
-			
+
 			newbone->flag |= BONE_CONNECTED;
 
 			newbone->prop = NULL;
 
-			unique_editbone_name(arm->edbo, newbone->name, NULL);
-			
+			ED_armature_ebone_unique_name(arm->edbo, newbone->name, NULL);
+
 			/* correct parent bones */
 			for (tbone = arm->edbo->first; tbone; tbone = tbone->next) {
 				if (tbone->parent == ebone)
@@ -1111,10 +1129,10 @@ static int armature_subdivide_exec(bContext *C, wmOperator *op)
 		}
 	}
 	CTX_DATA_END;
-	
+
 	/* note, notifier might evolve */
 	WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, obedit);
-	
+
 	return OPERATOR_FINISHED;
 }
 
@@ -1126,14 +1144,14 @@ void ARMATURE_OT_subdivide(wmOperatorType *ot)
 	ot->name = "Subdivide Multi";
 	ot->idname = "ARMATURE_OT_subdivide";
 	ot->description = "Break selected bones into chains of smaller bones";
-	
+
 	/* api callbacks */
 	ot->exec = armature_subdivide_exec;
 	ot->poll = ED_operator_editarmature;
-	
+
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-	
+
 	/* Properties */
 	prop = RNA_def_int(ot->srna, "number_cuts", 1, 1, 1000, "Number of Cuts", "", 1, 10);
 	/* avoid re-using last var because it can cause _very_ high poly meshes and annoy users (or worse crash) */

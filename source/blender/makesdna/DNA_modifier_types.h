@@ -603,7 +603,7 @@ typedef struct ClothModifierData {
 	struct Cloth *clothObject;            /* The internal data structure for cloth. */
 	struct ClothSimSettings *sim_parms;   /* definition is in DNA_cloth_types.h */
 	struct ClothCollSettings *coll_parms; /* definition is in DNA_cloth_types.h */
-	struct PointCache *point_cache;       /* definition is in DNA_object_force.h */
+	struct PointCache *point_cache;       /* definition is in DNA_object_force_types.h */
 	struct ListBase ptcaches;
 	/* XXX nasty hack, remove once hair can be separated from cloth modifier data */
 	struct ClothHairData *hairdata;
@@ -655,8 +655,7 @@ typedef struct BooleanModifierData {
 
 	struct Object *object;
 	char operation;
-	char solver;
-	char pad;
+	char pad[2];
 	char bm_flag;
 	float double_threshold;
 } BooleanModifierData;
@@ -666,11 +665,6 @@ typedef enum {
 	eBooleanModifierOp_Union      = 1,
 	eBooleanModifierOp_Difference = 2,
 } BooleanModifierOp;
-
-typedef enum {
-	eBooleanModifierSolver_Carve    = 0,
-	eBooleanModifierSolver_BMesh = 1,
-} BooleanSolver;
 
 /* bm_flag (only used when G_DEBUG) */
 enum {
@@ -759,12 +753,21 @@ typedef enum {
 	eParticleInstanceFlag_UseSize   = (1 << 7),
 } ParticleInstanceModifierFlag;
 
+typedef enum {
+	eParticleInstanceSpace_World    = 0,
+	eParticleInstanceSpace_Local    = 1,
+} ParticleInstanceModifierSpace;
+
 typedef struct ParticleInstanceModifierData {
 	ModifierData modifier;
 
 	struct Object *ob;
-	short psys, flag, axis, pad;
+	short psys, flag, axis, space;
 	float position, random_position;
+	float rotation, random_rotation;
+	float particle_amount, particle_offset;
+	char index_layer_name[64]; /* MAX_CUSTOMDATA_LAYER_NAME */
+	char value_layer_name[64]; /* MAX_CUSTOMDATA_LAYER_NAME */
 } ParticleInstanceModifierData;
 
 typedef enum {
@@ -800,8 +803,8 @@ typedef enum {
 typedef struct FluidsimModifierData {
 	ModifierData modifier;
 
-	struct FluidsimSettings *fss;   /* definition is in DNA_object_fluidsim.h */
-	struct PointCache *point_cache; /* definition is in DNA_object_force.h */
+	struct FluidsimSettings *fss;   /* definition is in DNA_object_fluidsim_types.h */
+	struct PointCache *point_cache; /* definition is in DNA_object_force_types.h */
 } FluidsimModifierData;
 
 typedef struct ShrinkwrapModifierData {
@@ -868,8 +871,8 @@ typedef struct SimpleDeformModifierData {
 
 	char mode;              /* deform function */
 	char axis;              /* lock axis (for taper and strech) */
+	char deform_axis;       /* axis to perform the deform on (default is X, but can be overridden by origin */
 	char flag;
-	char pad;
 
 } SimpleDeformModifierData;
 
@@ -889,6 +892,7 @@ enum {
 enum {
 	MOD_SIMPLEDEFORM_LOCK_AXIS_X = (1 << 0),
 	MOD_SIMPLEDEFORM_LOCK_AXIS_Y = (1 << 1),
+	MOD_SIMPLEDEFORM_LOCK_AXIS_Z = (1 << 2),
 };
 
 typedef struct ShapeKeyModifierData {
@@ -1555,6 +1559,7 @@ enum {
 enum {
 	MOD_NORMALEDIT_INVERT_VGROUP            = (1 << 0),
 	MOD_NORMALEDIT_USE_DIRECTION_PARALLEL   = (1 << 1),
+	MOD_NORMALEDIT_NO_POLYNORS_FIX             = (1 << 2),
 };
 
 /* NormalEditModifierData.mix_mode */

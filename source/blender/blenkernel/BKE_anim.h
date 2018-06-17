@@ -32,15 +32,16 @@
  *  \author nzc
  *  \since March 2001
  */
-struct EvaluationContext;
-struct Path;
-struct Object;
-struct Scene;
-struct ListBase;
 struct bAnimVizSettings;
 struct bMotionPath;
 struct bPoseChannel;
+struct EvaluationContext;
+struct ListBase;
+struct Main;
+struct Object;
+struct Path;
 struct ReportList;
+struct Scene;
 
 /* ---------------------------------------------------- */
 /* Animation Visualization */
@@ -53,7 +54,7 @@ void animviz_free_motionpath(struct bMotionPath *mpath);
 struct bMotionPath *animviz_verify_motionpaths(struct ReportList *reports, struct Scene *scene, struct Object *ob, struct bPoseChannel *pchan);
 
 void animviz_get_object_motionpaths(struct Object *ob, ListBase *targets);
-void animviz_calc_motionpaths(struct Scene *scene, ListBase *targets);
+void animviz_calc_motionpaths(struct Main *bmain, struct Scene *scene, ListBase *targets);
 
 /* ---------------------------------------------------- */
 /* Curve Paths */
@@ -65,8 +66,10 @@ int where_on_path(struct Object *ob, float ctime, float vec[4], float dir[3], fl
 /* ---------------------------------------------------- */
 /* Dupli-Geometry */
 
-struct ListBase *object_duplilist_ex(struct EvaluationContext *eval_ctx, struct Scene *sce, struct Object *ob, bool update);
-struct ListBase *object_duplilist(struct EvaluationContext *eval_ctx, struct Scene *sce, struct Object *ob);
+struct ListBase *object_duplilist_ex(
+        struct Main *bmain, struct EvaluationContext *eval_ctx, struct Scene *sce, struct Object *ob, bool update);
+struct ListBase *object_duplilist(
+        struct Main *bmain, struct EvaluationContext *eval_ctx, struct Scene *sce, struct Object *ob);
 void free_object_duplilist(struct ListBase *lb);
 int count_duplilist(struct Object *ob);
 

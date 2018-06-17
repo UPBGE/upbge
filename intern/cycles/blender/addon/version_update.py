@@ -17,6 +17,7 @@
 # <pep8 compliant>
 
 import bpy
+import math
 
 from bpy.app.handlers import persistent
 
@@ -87,6 +88,106 @@ def foreach_cycles_node(callback):
                 foreach_notree_node(lamp.node_tree,
                                     callback,
                                     traversed)
+
+
+def displacement_node_insert(material, nodetree, traversed):
+    if nodetree in traversed:
+        return
+    traversed.add(nodetree)
+
+    for node in nodetree.nodes:
+        if node.bl_idname == 'ShaderNodeGroup':
+            displacement_node_insert(material, node.node_tree, traversed)
+
+    # Gather links to replace
+    displacement_links = []
+    for link in nodetree.links:
+        if link.to_node.bl_idname == 'ShaderNodeOutputMaterial' and \
+           link.from_node.bl_idname != 'ShaderNodeDisplacement' and \
+           link.to_socket.identifier == 'Displacement':
+           displacement_links.append(link)
+
+    # Replace links with displacement node
+    for link in displacement_links:
+        from_node = link.from_node
+        from_socket = link.from_socket
+        to_node = link.to_node
+        to_socket = link.to_socket
+
+        nodetree.links.remove(link)
+
+        node = nodetree.nodes.new(type='ShaderNodeDisplacement')
+        node.location[0] = 0.5 * (from_node.location[0] + to_node.location[0]);
+        node.location[1] = 0.5 * (from_node.location[1] + to_node.location[1]);
+        node.inputs['Scale'].default_value = 0.1
+        node.inputs['Midlevel'].default_value = 0.0
+
+        nodetree.links.new(from_socket, node.inputs['Height'])
+        nodetree.links.new(node.outputs['Displacement'], to_socket)
+
+def displacement_nodes_insert():
+    traversed = set()
+    for material in bpy.data.materials:
+        if check_is_new_shading_material(material):
+            displacement_node_insert(material, material.node_tree, traversed)
+
+def displacement_principled_nodes(node):
+    if node.bl_idname == 'ShaderNodeDisplacement':
+        if node.space != 'WORLD':
+            node.space = 'OBJECT'
+    if node.bl_idname == 'ShaderNodeBsdfPrincipled':
+        if node.subsurface_method != 'RANDOM_WALK':
+            node.subsurface_method = 'BURLEY'
+
+def square_roughness_node_insert(material, nodetree, traversed):
+    if nodetree in traversed:
+        return
+    traversed.add(nodetree)
+
+    roughness_node_types = {
+        'ShaderNodeBsdfAnisotropic',
+        'ShaderNodeBsdfGlass',
+        'ShaderNodeBsdfGlossy',
+        'ShaderNodeBsdfRefraction'}
+
+    # Update default values
+    for node in nodetree.nodes:
+        if node.bl_idname == 'ShaderNodeGroup':
+            square_roughness_node_insert(material, node.node_tree, traversed)
+        elif node.bl_idname in roughness_node_types:
+            roughness_input = node.inputs['Roughness']
+            roughness_input.default_value = math.sqrt(max(roughness_input.default_value, 0.0))
+
+    # Gather roughness links to replace
+    roughness_links = []
+    for link in nodetree.links:
+        if link.to_node.bl_idname in roughness_node_types and \
+           link.to_socket.identifier == 'Roughness':
+           roughness_links.append(link)
+
+    # Replace links with sqrt node
+    for link in roughness_links:
+        from_node = link.from_node
+        from_socket = link.from_socket
+        to_node = link.to_node
+        to_socket = link.to_socket
+
+        nodetree.links.remove(link)
+
+        node = nodetree.nodes.new(type='ShaderNodeMath')
+        node.operation = 'POWER'
+        node.location[0] = 0.5 * (from_node.location[0] + to_node.location[0]);
+        node.location[1] = 0.5 * (from_node.location[1] + to_node.location[1]);
+
+        nodetree.links.new(from_socket, node.inputs[0])
+        node.inputs[1].default_value = 0.5
+        nodetree.links.new(node.outputs['Value'], to_socket)
+
+def square_roughness_nodes_insert():
+    traversed = set()
+    for material in bpy.data.materials:
+        if check_is_new_shading_material(material):
+            square_roughness_node_insert(material, material.node_tree, traversed)
 
 
 def mapping_node_order_flip(node):
@@ -168,6 +269,40 @@ def custom_bake_remap(scene):
     elif end == 'COLOR':
         scene.render.bake.use_pass_direct = False
         scene.render.bake.use_pass_indirect = False
+
+
+def ambient_occlusion_node_relink(material, nodetree, traversed):
+    if nodetree in traversed:
+        return
+    traversed.add(nodetree)
+
+    for node in nodetree.nodes:
+        if node.bl_idname == 'ShaderNodeAmbientOcclusion':
+            node.samples = 1
+            node.only_local = False
+            node.inputs['Distance'].default_value = 0.0
+        elif node.bl_idname == 'ShaderNodeGroup':
+            ambient_occlusion_node_relink(material, node.node_tree, traversed)
+
+    # Gather links to replace
+    ao_links = []
+    for link in nodetree.links:
+        if link.from_node.bl_idname == 'ShaderNodeAmbientOcclusion':
+           ao_links.append(link)
+
+    # Replace links
+    for link in ao_links:
+        from_node = link.from_node
+        to_socket = link.to_socket
+
+        nodetree.links.remove(link)
+        nodetree.links.new(from_node.outputs['Color'], to_socket)
+
+def ambient_occlusion_nodes_relink():
+    traversed = set()
+    for material in bpy.data.materials:
+        if check_is_new_shading_material(material):
+            ambient_occlusion_node_relink(material, material.node_tree, traversed)
 
 
 @persistent
@@ -276,10 +411,6 @@ def do_versions(self):
         for world in bpy.data.worlds:
             cworld = world.cycles
 
-            # World MIS
-            if not cworld.is_property_set("sample_as_light"):
-                cworld.sample_as_light = False
-
             # World MIS Samples
             if not cworld.is_property_set("samples"):
                 cworld.samples = 4
@@ -315,3 +446,30 @@ def do_versions(self):
                 cscene.blur_glossy = 0.0
             if not cscene.is_property_set("sample_clamp_indirect"):
                 cscene.sample_clamp_indirect = 0.0
+
+    if bpy.data.version <= (2, 79, 1):
+        displacement_nodes_insert()
+
+    if bpy.data.version <= (2, 79, 2):
+        for mat in bpy.data.materials:
+            cmat = mat.cycles
+            if not cmat.is_property_set("displacement_method"):
+                cmat.displacement_method = 'BUMP'
+
+        foreach_cycles_node(displacement_principled_nodes)
+
+    if bpy.data.version <= (2, 79, 3):
+        # Switch to squared roughness convention
+        square_roughness_nodes_insert()
+
+    if bpy.data.version <= (2, 79, 4):
+        for world in bpy.data.worlds:
+            cworld = world.cycles
+            # World MIS
+            if not cworld.is_property_set("sampling_method"):
+                if cworld.get("sample_as_light", False):
+                    cworld.sampling_method = 'MANUAL'
+                else:
+                    cworld.sampling_method = 'NONE'
+
+        ambient_occlusion_nodes_relink()

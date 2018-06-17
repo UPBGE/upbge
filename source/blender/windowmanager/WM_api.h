@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -18,7 +18,7 @@
  * The Original Code is Copyright (C) 2007 Blender Foundation.
  * All rights reserved.
  *
- * 
+ *
  * Contributor(s): Blender Foundation
  *
  * ***** END GPL LICENSE BLOCK *****
@@ -104,7 +104,7 @@ enum {
 struct wmWindow	*WM_window_open(struct bContext *C, const struct rcti *rect);
 struct wmWindow *WM_window_open_temp(struct bContext *C, int x, int y, int sizex, int sizey, int type);
 void             WM_window_set_dpi(wmWindow *win);
-			
+
 			/* returns true if draw method is triple buffer */
 bool		WM_is_draw_triple(struct wmWindow *win);
 
@@ -116,7 +116,7 @@ void		WM_file_autoexec_init(const char *filepath);
 bool		WM_file_read(struct bContext *C, const char *filepath, struct ReportList *reports);
 void		WM_autosave_init(struct wmWindowManager *wm);
 void		WM_recover_last_session(struct bContext *C, struct ReportList *reports);
-void		WM_file_tag_modified(const struct bContext *C);
+void		WM_file_tag_modified(void);
 
 void        WM_lib_reload(struct Library *lib, struct bContext *C, struct ReportList *reports);
 
@@ -143,6 +143,7 @@ float		WM_cursor_pressure	(const struct wmWindow *win);
 
 			/* event map */
 int			WM_userdef_event_map(int kmitype);
+int			WM_userdef_event_type_from_keymap_type(int kmitype);
 
 			/* handlers */
 
@@ -186,9 +187,8 @@ enum {
 struct wmEventHandler *WM_event_add_dropbox_handler(ListBase *handlers, ListBase *dropboxes);
 
 			/* mouse */
-void		WM_event_add_mousemove(struct bContext *C);
+void		WM_event_add_mousemove(const struct bContext *C);
 bool		WM_event_is_modal_tweak_exit(const struct wmEvent *event, int tweak_event);
-bool		WM_event_is_absolute(const struct wmEvent *event);
 bool		WM_event_is_last_mousemove(const struct wmEvent *event);
 
 #ifdef WITH_INPUT_NDOF
@@ -206,11 +206,11 @@ void        WM_report_banner_show(void);
 void        WM_report(ReportType type, const char *message);
 void        WM_reportf(ReportType type, const char *format, ...) ATTR_PRINTF_FORMAT(2, 3);
 
-void wm_event_add_ex(
+struct wmEvent *wm_event_add_ex(
         struct wmWindow *win, const struct wmEvent *event_to_add,
         const struct wmEvent *event_to_add_after)
         ATTR_NONNULL(1, 2);
-void wm_event_add(
+struct wmEvent *wm_event_add(
         struct wmWindow *win, const struct wmEvent *event_to_add)
         ATTR_NONNULL(1, 2);
 
@@ -230,6 +230,7 @@ void		WM_operator_view3d_unit_defaults(struct bContext *C, struct wmOperator *op
 int			WM_operator_smooth_viewtx_get(const struct wmOperator *op);
 int			WM_menu_invoke_ex(struct bContext *C, struct wmOperator *op, int opcontext);
 int			WM_menu_invoke			(struct bContext *C, struct wmOperator *op, const struct wmEvent *event);
+void		WM_menu_name_call(struct bContext *C, const char *menu_name, short context);
 int			WM_enum_search_invoke(struct bContext *C, struct wmOperator *op, const struct wmEvent *event);
 			/* invoke callback, confirm menu + exec */
 int			WM_operator_confirm		(struct bContext *C, struct wmOperator *op, const struct wmEvent *event);
@@ -378,6 +379,7 @@ struct MenuType    *WM_menutype_find(const char *idname, bool quiet);
 bool                WM_menutype_add(struct MenuType *mt);
 void                WM_menutype_freelink(struct MenuType *mt);
 void                WM_menutype_free(void);
+bool                WM_menutype_poll(struct bContext *C, struct MenuType *mt);
 
 /* wm_gesture_ops.c */
 int			WM_gesture_border_invoke	(struct bContext *C, struct wmOperator *op, const struct wmEvent *event);
@@ -506,6 +508,11 @@ void		WM_progress_set(struct wmWindow *win, float progress);
 void		WM_progress_clear(struct wmWindow *win);
 
 			/* Draw (for screenshot) */
+void        *WM_draw_cb_activate(
+                    struct wmWindow *win,
+                    void(*draw)(const struct wmWindow *, void *),
+                    void *customdata);
+void        WM_draw_cb_exit(struct wmWindow *win, void *handle);
 void		WM_redraw_windows(struct bContext *C);
 
 void        WM_main_playanim(int argc, const char **argv);
@@ -530,6 +537,17 @@ bool        WM_event_is_tablet(const struct wmEvent *event);
 #ifdef WITH_INPUT_IME
 bool        WM_event_is_ime_switch(const struct wmEvent *event);
 #endif
+
+/* wm_tooltip.c */
+typedef struct ARegion *(*wmTooltipInitFn)(struct bContext *, struct ARegion *, bool *);
+
+void WM_tooltip_timer_init(
+        struct bContext *C, struct wmWindow *win, struct ARegion *ar,
+        wmTooltipInitFn init);
+void WM_tooltip_timer_clear(struct bContext *C, struct wmWindow *win);
+void WM_tooltip_clear(struct bContext *C, struct wmWindow *win);
+void WM_tooltip_init(struct bContext *C, struct wmWindow *win);
+void WM_tooltip_refresh(struct bContext *C, struct wmWindow *win);
 
 #ifdef __cplusplus
 }

@@ -119,6 +119,12 @@ ccl_device void svm_node_particle_info(KernelGlobals *kg,
 			stack_store_float(stack, out_offset, particle_index(kg, particle_id));
 			break;
 		}
+		case NODE_INFO_PAR_RANDOM: {
+			int particle_id = object_particle_id(kg, sd->object);
+			float random = hash_int_01(particle_index(kg, particle_id));
+			stack_store_float(stack, out_offset, random);
+			break;
+		}
 		case NODE_INFO_PAR_AGE: {
 			int particle_id = object_particle_id(kg, sd->object);
 			stack_store_float(stack, out_offset, particle_age(kg, particle_id));
@@ -179,6 +185,8 @@ ccl_device void svm_node_hair_info(KernelGlobals *kg,
 			break;
 		}
 		case NODE_INFO_CURVE_INTERCEPT:
+			break; /* handled as attribute */
+		case NODE_INFO_CURVE_RANDOM:
 			break; /* handled as attribute */
 		case NODE_INFO_CURVE_THICKNESS: {
 			data = curve_thickness(kg, sd);

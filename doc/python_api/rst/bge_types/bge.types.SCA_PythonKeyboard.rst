@@ -1,7 +1,5 @@
 SCA_PythonKeyboard(EXP_PyObjectPlus)
-================================
-
-.. module:: bge.types
+====================================
 
 base class --- :class:`EXP_PyObjectPlus`
 
@@ -55,4 +53,3 @@ base class --- :class:`EXP_PyObjectPlus`
 
       :arg text: New clipboard text
       :type text: string
-

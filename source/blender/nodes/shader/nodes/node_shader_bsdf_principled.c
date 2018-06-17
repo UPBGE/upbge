@@ -32,8 +32,8 @@
 static bNodeSocketTemplate sh_node_bsdf_principled_in[] = {
 	{	SOCK_RGBA, 1, N_("Base Color"),				0.8f, 0.8f, 0.8f, 1.0f, 0.0f, 1.0f},
 	{	SOCK_FLOAT, 1, N_("Subsurface"),			0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_FACTOR},
-	{	SOCK_VECTOR, 1, N_("Subsurface Radius"),	1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 100.0f},
-	{	SOCK_RGBA, 1, N_("Subsurface Color"),		0.7f, 0.1f, 0.1f, 1.0f, 0.0f, 1.0f},
+	{	SOCK_VECTOR, 1, N_("Subsurface Radius"),	1.0f, 0.2f, 0.1f, 0.0f, 0.0f, 100.0f},
+	{	SOCK_RGBA, 1, N_("Subsurface Color"),		0.8f, 0.8f, 0.8f, 1.0f, 0.0f, 1.0f},
 	{	SOCK_FLOAT, 1, N_("Metallic"),				0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_FACTOR},
 	{	SOCK_FLOAT, 1, N_("Specular"),				0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_FACTOR},
 	{	SOCK_FLOAT, 1, N_("Specular Tint"),			0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_FACTOR},
@@ -60,7 +60,8 @@ static bNodeSocketTemplate sh_node_bsdf_principled_out[] = {
 
 static void node_shader_init_principled(bNodeTree *UNUSED(ntree), bNode *node)
 {
-	node->custom1 = SHD_GLOSSY_MULTI_GGX;
+	node->custom1 = SHD_GLOSSY_GGX;
+	node->custom2 = SHD_SUBSURFACE_BURLEY;
 }
 
 static int node_shader_gpu_bsdf_principled(GPUMaterial *mat, bNode *UNUSED(node), bNodeExecData *UNUSED(execdata), GPUNodeStack *in, GPUNodeStack *out)
@@ -104,7 +105,7 @@ void register_node_type_sh_bsdf_principled(void)
 	sh_node_type_base(&ntype, SH_NODE_BSDF_PRINCIPLED, "Principled BSDF", NODE_CLASS_SHADER, 0);
 	node_type_compatibility(&ntype, NODE_NEW_SHADING);
 	node_type_socket_templates(&ntype, sh_node_bsdf_principled_in, sh_node_bsdf_principled_out);
-	node_type_size_preset(&ntype, NODE_SIZE_MIDDLE);
+	node_type_size_preset(&ntype, NODE_SIZE_LARGE);
 	node_type_init(&ntype, node_shader_init_principled);
 	node_type_storage(&ntype, "", NULL, NULL);
 	node_type_gpu(&ntype, node_shader_gpu_bsdf_principled);

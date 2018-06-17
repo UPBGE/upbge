@@ -300,7 +300,7 @@ public:
 	 * \return The current status.
 	 */
 	virtual bool getFullScreen(void) = 0;
-	
+
 	/**
 	 * Native pixel size support (MacBook 'retina').
 	 */
@@ -418,6 +418,12 @@ public:
 	 * in the application
 	 */
 	virtual int confirmQuit(GHOST_IWindow *window) const = 0;
+
+	/**
+	 * Informs if the system provides native dialogs (eg. confirm quit)
+	 */
+	virtual bool supportsNativeDialogs(void) = 0;
+
 protected:
 	/**
 	 * Initialize the system.

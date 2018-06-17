@@ -54,6 +54,7 @@
 #include "BKE_context.h"
 #include "BKE_curve.h"
 #include "BKE_global.h"
+#include "BKE_main.h"
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
 #include "BKE_editmesh.h"
@@ -263,6 +264,7 @@ bool gimbal_axis(Object *ob, float gmat[3][3])
 /* returns total items selected */
 static int calc_manipulator_stats(const bContext *C, struct TransformBounds *tbounds)
 {
+	Main *bmain = CTX_data_main(C);
 	ScrArea *sa = CTX_wm_area(C);
 	ARegion *ar = CTX_wm_region(C);
 	Scene *scene = CTX_data_scene(C);
@@ -562,7 +564,7 @@ static int calc_manipulator_stats(const bContext *C, struct TransformBounds *tbo
 		/* pass */
 	}
 	else if (ob && ob->mode & OB_MODE_PARTICLE_EDIT) {
-		PTCacheEdit *edit = PE_get_current(scene, ob);
+		PTCacheEdit *edit = PE_get_current(bmain, scene, ob);
 		PTCacheEditPoint *point;
 		PTCacheEditKey *ek;
 		int k;
@@ -611,7 +613,7 @@ static int calc_manipulator_stats(const bContext *C, struct TransformBounds *tbo
 	if (ob && totsel && !is_gp_edit) {
 
 		switch (v3d->twmode) {
-		
+
 			case V3D_MANIP_GLOBAL:
 			{
 				break; /* nothing to do */
@@ -714,12 +716,13 @@ static float screen_aligned(RegionView3D *rv3d, float mat[4][4])
 }
 
 
-/* radring = radius of doughnut rings
- * radhole = radius hole
- * start = starting segment (based on nrings)
- * end   = end segment
- * nsides = amount of points in ring
- * nrigns = amount of rings
+/**
+ * \param radring: Radius of doughnut rings.
+ * \param radhole: Radius hole.
+ * \param start: Starting segment (based on \a nrings).
+ * \param end: End segment.
+ * \param nsides: Number of points in ring.
+ * \param nrings: Number of rings.
  */
 static void partial_doughnut(float radring, float radhole, int start, int end, int nsides, int nrings)
 {
@@ -1034,7 +1037,7 @@ static void draw_manipulator_rotate(
 
 
 	ortho = is_orthogonal_m4(rv3d->twmat);
-	
+
 	/* apply the transform delta */
 	if (is_moving) {
 		copy_m4_m4(matt, rv3d->twmat); // to copy the parts outside of [3][3]

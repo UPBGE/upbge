@@ -51,9 +51,9 @@ struct PointerRNA;
 struct PropertyRNA;
 
 size_t BKE_libblock_get_alloc_info(short type, const char **name);
-void *BKE_libblock_alloc_notest(short type);
-void *BKE_libblock_alloc(struct Main *bmain, short type, const char *name, const int flag) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
-void  BKE_libblock_init_empty(struct ID *id);
+void *BKE_libblock_alloc_notest(short type) ATTR_WARN_UNUSED_RESULT;
+void *BKE_libblock_alloc(struct Main *bmain, short type, const char *name, const int flag) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(1);
+void  BKE_libblock_init_empty(struct ID *id) ATTR_NONNULL(1);
 
 /**
  * New ID creation/copying options.
@@ -88,8 +88,7 @@ void *BKE_libblock_copy_nolib(const struct ID *id, const bool do_action) ATTR_NO
 void  BKE_libblock_rename(struct Main *bmain, struct ID *id, const char *name) ATTR_NONNULL();
 void  BLI_libblock_ensure_unique_name(struct Main *bmain, const char *name) ATTR_NONNULL();
 
-struct ID *BKE_libblock_find_name_ex(struct Main *bmain, const short type, const char *name) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
-struct ID *BKE_libblock_find_name(const short type, const char *name) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
+struct ID *BKE_libblock_find_name(struct Main *bmain, const short type, const char *name) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 
 /* library_remap.c (keep here since they're general functions) */
 /**
@@ -133,7 +132,7 @@ void  BKE_libblock_free_data(struct ID *id, const bool do_id_user) ATTR_NONNULL(
 
 void BKE_id_lib_local_paths(struct Main *bmain, struct Library *lib, struct ID *id);
 void id_lib_extern(struct ID *id);
-void BKE_library_filepath_set(struct Library *lib, const char *filepath);
+void BKE_library_filepath_set(struct Main *bmain, struct Library *lib, const char *filepath);
 void id_us_ensure_real(struct ID *id);
 void id_us_clear_real(struct ID *id);
 void id_us_plus_no_lib(struct ID *id);
@@ -174,6 +173,9 @@ void BKE_main_relations_free(struct Main *bmain);
 struct BlendThumbnail *BKE_main_thumbnail_from_imbuf(struct Main *bmain, struct ImBuf *img);
 struct ImBuf *BKE_main_thumbnail_to_imbuf(struct Main *bmain, struct BlendThumbnail *data);
 void BKE_main_thumbnail_create(struct Main *bmain);
+
+const char *BKE_main_blendfile_path(const struct Main *bmain) ATTR_NONNULL();
+const char *BKE_main_blendfile_path_from_global(void);
 
 void BKE_main_id_tag_idcode(struct Main *mainvar, const short type, const int tag, const bool value);
 void BKE_main_id_tag_listbase(struct ListBase *lb, const int tag, const bool value);

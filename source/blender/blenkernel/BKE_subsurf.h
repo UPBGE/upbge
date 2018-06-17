@@ -34,6 +34,9 @@
 /* struct DerivedMesh is used directly */
 #include "BKE_DerivedMesh.h"
 
+/* Thread sync primitives used directly.  */
+#include "BLI_threads.h"
+
 struct CCGElem;
 struct DMFlagMat;
 struct DMGridAdjacency;
@@ -140,6 +143,9 @@ typedef struct CCGDerivedMesh {
 	} multires;
 
 	struct EdgeHash *ehash;
+
+	ThreadMutex loops_cache_lock;
+	ThreadRWMutex origindex_cache_rwlock;
 } CCGDerivedMesh;
 
 #ifdef WITH_OPENSUBDIV

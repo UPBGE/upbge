@@ -59,6 +59,8 @@
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
 
+#include "ED_object.h"
+
 #include "UI_interface.h"
 #include "UI_resources.h"
 
@@ -77,11 +79,11 @@ static int wm_alembic_export_invoke(bContext *C, wmOperator *op, const wmEvent *
 		Main *bmain = CTX_data_main(C);
 		char filepath[FILE_MAX];
 
-		if (bmain->name[0] == '\0') {
+		if (BKE_main_blendfile_path(bmain)[0] == '\0') {
 			BLI_strncpy(filepath, "untitled", sizeof(filepath));
 		}
 		else {
-			BLI_strncpy(filepath, bmain->name, sizeof(filepath));
+			BLI_strncpy(filepath, BKE_main_blendfile_path(bmain), sizeof(filepath));
 		}
 
 		BLI_replace_extension(filepath, sizeof(filepath), ".abc");
@@ -420,12 +422,12 @@ static int get_sequence_len(char *filename, int *ofs)
 	}
 
 	char path[FILE_MAX];
-	BLI_path_abs(filename, G.main->name);
+	BLI_path_abs(filename, BKE_main_blendfile_path_from_global());
 	BLI_split_dir_part(filename, path, FILE_MAX);
 
 	if (path[0] == '\0') {
 		/* The filename had no path, so just use the blend file path. */
-		BLI_split_dir_part(G.main->name, path, FILE_MAX);
+		BLI_split_dir_part(BKE_main_blendfile_path_from_global(), path, FILE_MAX);
 	}
 
 	DIR *dir = opendir(path);
@@ -540,6 +542,22 @@ static int wm_alembic_import_exec(bContext *C, wmOperator *op)
 		if (sequence_len < 0) {
 			BKE_report(op->reports, RPT_ERROR, "Unable to determine ABC sequence length");
 			return OPERATOR_CANCELLED;
+		}
+	}
+
+	/* Switch to object mode to avoid being stuck in other modes (T54326). */
+	if (CTX_data_mode_enum(C) != CTX_MODE_OBJECT) {
+		Object *obedit = CTX_data_edit_object(C);
+
+		if (obedit != NULL) {
+			ED_object_mode_toggle(C, obedit->mode);
+		}
+		else {
+			Object *ob = CTX_data_active_object(C);
+
+			if (ob) {
+				ED_object_mode_toggle(C, ob->mode);
+			}
 		}
 	}
 

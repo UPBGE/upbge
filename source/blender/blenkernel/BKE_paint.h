@@ -23,7 +23,7 @@
  * Contributor(s): none yet.
  *
  * ***** END GPL LICENSE BLOCK *****
- */ 
+ */
 
 #ifndef __BKE_PAINT_H__
 #define __BKE_PAINT_H__
@@ -59,6 +59,8 @@ struct ImagePool;
 struct UnifiedPaintSettings;
 
 enum eOverlayFlags;
+
+#include "DNA_object_enums.h"
 
 extern const char PAINT_CURSOR_SCULPT[3];
 extern const char PAINT_CURSOR_VERTEX_PAINT[3];
@@ -116,13 +118,13 @@ void BKE_paint_curve_copy_data(
 struct PaintCurve *BKE_paint_curve_copy(struct Main *bmain, const struct PaintCurve *pc);
 void               BKE_paint_curve_make_local(struct Main *bmain, struct PaintCurve *pc, const bool lib_local);
 
-void BKE_paint_init(struct Scene *sce, ePaintMode mode, const char col[3]);
+void BKE_paint_init(struct Main *bmain, struct Scene *sce, ePaintMode mode, const char col[3]);
 void BKE_paint_free(struct Paint *p);
 void BKE_paint_copy(struct Paint *src, struct Paint *tar, const int flag);
 
 void BKE_paint_cavity_curve_preset(struct Paint *p, int preset);
 
-short BKE_paint_object_mode_from_paint_mode(ePaintMode mode);
+eObjectMode BKE_paint_object_mode_from_paint_mode(ePaintMode mode);
 struct Paint *BKE_paint_get_active_from_paintmode(struct Scene *sce, ePaintMode mode);
 struct Paint *BKE_paint_get_active(struct Scene *sce);
 struct Paint *BKE_paint_get_active_from_context(const struct bContext *C);
@@ -194,6 +196,7 @@ typedef struct SculptSession {
 	/* PBVH acceleration structure */
 	struct PBVH *pbvh;
 	bool show_diffuse_color;
+	bool show_mask;
 
 	/* Painting on deformed mesh */
 	bool modifiers_active; /* object is deformed with some modifiers */
@@ -211,7 +214,6 @@ typedef struct SculptSession {
 	/* Layer brush persistence between strokes */
 	float (*layer_co)[3]; /* Copy of the mesh vertices' locations */
 
-	struct SculptStroke *stroke;
 	struct StrokeCache *cache;
 
 	union {
@@ -232,9 +234,8 @@ typedef struct SculptSession {
 			struct MDeformVert *dvert_prev;
 		} wpaint;
 
-		//struct {
-		//ToDo: identify sculpt-only fields
-		//} sculpt;
+		/* TODO: identify sculpt-only fields */
+		// struct { ... } sculpt;
 	} mode;
 	int mode_type;
 
@@ -252,6 +253,7 @@ void BKE_sculpt_update_mesh_elements(struct Scene *scene, struct Sculpt *sd, str
 struct MultiresModifierData *BKE_sculpt_multires_active(struct Scene *scene, struct Object *ob);
 int BKE_sculpt_mask_layers_ensure(struct Object *ob,
                                   struct MultiresModifierData *mmd);
+void BKE_sculpt_toolsettings_data_ensure(struct Scene *scene);
 
 enum {
 	SCULPT_MASK_LAYER_CALC_VERT = (1 << 0),

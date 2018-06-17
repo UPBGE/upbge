@@ -152,7 +152,7 @@
  * also note that the id _must_ have a library - campbell */
 void BKE_id_lib_local_paths(Main *bmain, Library *lib, ID *id)
 {
-	const char *bpath_user_data[2] = {bmain->name, lib->filepath};
+	const char *bpath_user_data[2] = {BKE_main_blendfile_path(bmain), lib->filepath};
 
 	BKE_bpath_traverse_id(bmain, id,
 	                      BKE_bpath_relocate_visitor,
@@ -689,9 +689,10 @@ bool id_single_user(bContext *C, ID *id, PointerRNA *ptr, PropertyRNA *prop)
 	if (id) {
 		/* if property isn't editable, we're going to have an extra block hanging around until we save */
 		if (RNA_property_editable(ptr, prop)) {
-			if (id_copy(CTX_data_main(C), id, &newid, false) && newid) {
+			Main *bmain = CTX_data_main(C);
+			if (id_copy(bmain, id, &newid, false) && newid) {
 				/* copy animation actions too */
-				BKE_animdata_copy_id_action(id, false);
+				BKE_animdata_copy_id_action(bmain, id, false);
 				/* us is 1 by convention, but RNA_property_pointer_set
 				 * will also increment it, so set it to zero */
 				newid->us = 0;
@@ -757,6 +758,7 @@ void BKE_libblock_management_main_add(Main *bmain, void *idv)
 	new_id(lb, id, NULL);
 	/* alphabetic insertion: is in new_id */
 	id->tag &= ~(LIB_TAG_NO_MAIN | LIB_TAG_NO_USER_REFCOUNT);
+	bmain->is_memfile_undo_written = false;
 	BKE_main_unlock(bmain);
 }
 
@@ -776,6 +778,7 @@ void BKE_libblock_management_main_remove(Main *bmain, void *idv)
 	BKE_main_lock(bmain);
 	BLI_remlink(lb, id);
 	id->tag |= LIB_TAG_NO_MAIN;
+	bmain->is_memfile_undo_written = false;
 	BKE_main_unlock(bmain);
 }
 
@@ -1138,6 +1141,7 @@ void *BKE_libblock_alloc(Main *bmain, short type, const char *name, const int fl
 			BKE_main_lock(bmain);
 			BLI_addtail(lb, id);
 			new_id(lb, id, name);
+			bmain->is_memfile_undo_written = false;
 			/* alphabetic insertion: is in new_id */
 			BKE_main_unlock(bmain);
 
@@ -1323,6 +1327,7 @@ void BKE_libblock_copy_ex(Main *bmain, const ID *id, ID **r_newid, const int fla
 	}
 
 	/* the duplicate should get a copy of the animdata */
+	BLI_assert((flag & LIB_ID_COPY_ACTIONS) == 0 || (flag & LIB_ID_CREATE_NO_MAIN) == 0);
 	id_copy_animdata(bmain, new_id, (flag & LIB_ID_COPY_ACTIONS) != 0 && (flag & LIB_ID_CREATE_NO_MAIN) == 0);
 
 	if ((flag & LIB_ID_CREATE_NO_DEG_TAG) == 0 && (flag & LIB_ID_CREATE_NO_MAIN) == 0) {
@@ -1589,18 +1594,31 @@ void BKE_main_thumbnail_create(struct Main *bmain)
 	bmain->blen_thumb->height = BLEN_THUMB_SIZE;
 }
 
+/**
+ * Return filepath of given \a main.
+ */
+const char *BKE_main_blendfile_path(const Main *bmain)
+{
+	return bmain->name;
+}
+
+/**
+ * Return filepath of global main (G_MAIN).
+ *
+ * \warning Usage is not recommended, you should always try to get a valid Main pointer from context...
+ */
+const char *BKE_main_blendfile_path_from_global(void)
+{
+	return BKE_main_blendfile_path(G_MAIN);
+}
+
 /* ***************** ID ************************ */
-ID *BKE_libblock_find_name_ex(struct Main *bmain, const short type, const char *name)
+ID *BKE_libblock_find_name(struct Main *bmain, const short type, const char *name)
 {
 	ListBase *lb = which_libbase(bmain, type);
 	BLI_assert(lb != NULL);
 	return BLI_findstring(lb, name, offsetof(ID, name) + 2);
 }
-ID *BKE_libblock_find_name(const short type, const char *name)
-{
-	return BKE_libblock_find_name_ex(G.main, type, name);
-}
-
 
 void id_sort_by_name(ListBase *lb, ID *id)
 {
@@ -1930,7 +1948,7 @@ static void library_make_local_copying_check(ID *id, GSet *loop_tags, MainIDRela
 
 /** Make linked datablocks local.
  *
- * \param bmain Almost certainly G.main.
+ * \param bmain Almost certainly global main.
  * \param lib If not NULL, only make local datablocks from this library.
  * \param untagged_only If true, only make local datablocks not tagged with LIB_TAG_PRE_EXISTING.
  * \param set_fake If true, set fake user on all localized datablocks (except group and objects ones).
@@ -2026,7 +2044,7 @@ void BKE_library_make_local(
 	GSet *loop_tags = BLI_gset_ptr_new(__func__);
 	for (LinkNode *it = todo_ids; it; it = it->next) {
 		library_make_local_copying_check(it->link, loop_tags, bmain->relations, done_ids);
-		BLI_assert(BLI_gset_size(loop_tags) == 0);
+		BLI_assert(BLI_gset_len(loop_tags) == 0);
 	}
 	BLI_gset_free(loop_tags, NULL);
 	BLI_gset_free(done_ids, NULL);
@@ -2146,8 +2164,8 @@ void BKE_library_make_local(
 			 * was not used locally would be a nasty bug! */
 			if (is_local || is_lib) {
 				printf("Warning, made-local proxy object %s will loose its link to %s, "
-					   "because the linked-in proxy is referenced (is_local=%i, is_lib=%i).\n",
-					   id->newid->name, ob->proxy->id.name, is_local, is_lib);
+				       "because the linked-in proxy is referenced (is_local=%i, is_lib=%i).\n",
+				       id->newid->name, ob->proxy->id.name, is_local, is_lib);
 			}
 			else {
 				/* we can switch the proxy'ing from the linked-in to the made-local proxy.
@@ -2203,8 +2221,8 @@ void BKE_library_make_local(
 				 * was not used locally would be a nasty bug! */
 				else if (is_local || is_lib) {
 					printf("Warning, made-local proxy object %s will loose its link to %s, "
-						   "because the linked-in proxy is referenced (is_local=%i, is_lib=%i).\n",
-						   id->newid->name, ob->proxy->id.name, is_local, is_lib);
+					       "because the linked-in proxy is referenced (is_local=%i, is_lib=%i).\n",
+					       id->newid->name, ob->proxy->id.name, is_local, is_lib);
 				}
 				else {
 					/* we can switch the proxy'ing from the linked-in to the made-local proxy.
@@ -2362,7 +2380,7 @@ void BKE_id_ui_prefix(char name[MAX_ID_NAME + 1], const ID *id)
 	strcpy(name + 3, id->name + 2);
 }
 
-void BKE_library_filepath_set(Library *lib, const char *filepath)
+void BKE_library_filepath_set(Main *bmain, Library *lib, const char *filepath)
 {
 	/* in some cases this is used to update the absolute path from the
 	 * relative */
@@ -2380,7 +2398,9 @@ void BKE_library_filepath_set(Library *lib, const char *filepath)
 		 * outliner, and its not really supported but allow from here for now
 		 * since making local could cause this to be directly linked - campbell
 		 */
-		const char *basepath = lib->parent ? lib->parent->filepath : G.main->name;
+		/* Never make paths relative to parent lib - reading code (blenloader) always set *all* lib->name relative to
+		 * current main, not to their parent for indirectly linked ones. */
+		const char *basepath = BKE_main_blendfile_path(bmain);
 		BLI_path_abs(lib->filepath, basepath);
 	}
 }

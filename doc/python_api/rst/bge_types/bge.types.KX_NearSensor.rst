@@ -1,8 +1,6 @@
 KX_NearSensor(KX_CollisionSensor)
 =================================
 
-.. module:: bge.types
-
 base class --- :class:`KX_CollisionSensor`
 
 .. class:: KX_NearSensor(KX_CollisionSensor)
@@ -20,4 +18,3 @@ base class --- :class:`KX_CollisionSensor`
       The near sensor deactivates when the object exceeds this distance.
 
       :type: float
-

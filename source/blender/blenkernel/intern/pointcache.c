@@ -40,7 +40,7 @@
 #include "DNA_dynamicpaint_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
-#include "DNA_object_force.h"
+#include "DNA_object_force_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_rigidbody_types.h"
 #include "DNA_scene_types.h"
@@ -49,6 +49,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_threads.h"
 #include "BLI_math.h"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.h"
@@ -440,9 +441,9 @@ static void ptcache_particle_extra_write(void *psys_v, PTCacheMem *pm, int UNUSE
 	PTCacheExtra *extra = NULL;
 
 	if (psys->part->phystype == PART_PHYS_FLUID &&
-		psys->part->fluid && psys->part->fluid->flag & SPH_VISCOELASTIC_SPRINGS &&
-		psys->tot_fluidsprings && psys->fluid_springs) {
-
+	    psys->part->fluid && psys->part->fluid->flag & SPH_VISCOELASTIC_SPRINGS &&
+	    psys->tot_fluidsprings && psys->fluid_springs)
+	{
 		extra = MEM_callocN(sizeof(PTCacheExtra), "Point cache: fluid extra data");
 
 		extra->type = BPHYS_EXTRA_FLUID_SPRINGS;
@@ -789,8 +790,9 @@ static int ptcache_smoke_read(PTCacheFile *pf, void *smoke_v)
 
 	/* check if resolution has changed */
 	if (sds->res[0] != ch_res[0] ||
-		sds->res[1] != ch_res[1] ||
-		sds->res[2] != ch_res[2]) {
+	    sds->res[1] != ch_res[1] ||
+	    sds->res[2] != ch_res[2])
+	{
 		if (sds->flags & MOD_SMOKE_ADAPTIVE_DOMAIN)
 			reallocate = 1;
 		else
@@ -972,20 +974,20 @@ static int ptcache_smoke_openvdb_write(struct OpenVDBWriter *writer, void *smoke
 
 		smoke_turbulence_export(sds->wt, &dens, &react, &flame, &fuel, &r, &g, &b, &tcu, &tcv, &tcw);
 
-		wt_density_grid = OpenVDB_export_grid_fl(writer, "density", dens, sds->res_wt, sds->fluidmat_wt, NULL);
+		wt_density_grid = OpenVDB_export_grid_fl(writer, "density", dens, sds->res_wt, sds->fluidmat_wt, sds->clipping, NULL);
 		clip_grid = wt_density_grid;
 
 		if (fluid_fields & SM_ACTIVE_FIRE) {
-			OpenVDB_export_grid_fl(writer, "flame", flame, sds->res_wt, sds->fluidmat_wt, wt_density_grid);
-			OpenVDB_export_grid_fl(writer, "fuel", fuel, sds->res_wt, sds->fluidmat_wt, wt_density_grid);
-			OpenVDB_export_grid_fl(writer, "react", react, sds->res_wt, sds->fluidmat_wt, wt_density_grid);
+			OpenVDB_export_grid_fl(writer, "flame", flame, sds->res_wt, sds->fluidmat_wt, sds->clipping, wt_density_grid);
+			OpenVDB_export_grid_fl(writer, "fuel", fuel, sds->res_wt, sds->fluidmat_wt, sds->clipping, wt_density_grid);
+			OpenVDB_export_grid_fl(writer, "react", react, sds->res_wt, sds->fluidmat_wt, sds->clipping, wt_density_grid);
 		}
 
 		if (fluid_fields & SM_ACTIVE_COLORS) {
-			OpenVDB_export_grid_vec(writer, "color", r, g, b, sds->res_wt, sds->fluidmat_wt, VEC_INVARIANT, true, wt_density_grid);
+			OpenVDB_export_grid_vec(writer, "color", r, g, b, sds->res_wt, sds->fluidmat_wt, VEC_INVARIANT, true, sds->clipping, wt_density_grid);
 		}
 
-		OpenVDB_export_grid_vec(writer, "texture coordinates", tcu, tcv, tcw, sds->res, sds->fluidmat, VEC_INVARIANT, false, wt_density_grid);
+		OpenVDB_export_grid_vec(writer, "texture coordinates", tcu, tcv, tcw, sds->res, sds->fluidmat, VEC_INVARIANT, false, sds->clipping, wt_density_grid);
 	}
 
 	if (sds->fluid) {
@@ -999,33 +1001,33 @@ static int ptcache_smoke_openvdb_write(struct OpenVDBWriter *writer, void *smoke
 		OpenVDBWriter_add_meta_fl(writer, "blender/smoke/dx", dx);
 		OpenVDBWriter_add_meta_fl(writer, "blender/smoke/dt", dt);
 
-		const char *name = (!sds->wt) ? "density" : "density low";
-		density_grid = OpenVDB_export_grid_fl(writer, name, dens, sds->res, sds->fluidmat, NULL);
+		const char *name = (!sds->wt) ? "density" : "density_low";
+		density_grid = OpenVDB_export_grid_fl(writer, name, dens, sds->res, sds->fluidmat, sds->clipping, NULL);
 		clip_grid = sds->wt ? clip_grid : density_grid;
 
-		OpenVDB_export_grid_fl(writer, "shadow", sds->shadow, sds->res, sds->fluidmat, NULL);
+		OpenVDB_export_grid_fl(writer, "shadow", sds->shadow, sds->res, sds->fluidmat, sds->clipping, NULL);
 
 		if (fluid_fields & SM_ACTIVE_HEAT) {
-			OpenVDB_export_grid_fl(writer, "heat", heat, sds->res, sds->fluidmat, clip_grid);
-			OpenVDB_export_grid_fl(writer, "heat old", heatold, sds->res, sds->fluidmat, clip_grid);
+			OpenVDB_export_grid_fl(writer, "heat", heat, sds->res, sds->fluidmat, sds->clipping, clip_grid);
+			OpenVDB_export_grid_fl(writer, "heat_old", heatold, sds->res, sds->fluidmat, sds->clipping, clip_grid);
 		}
 
 		if (fluid_fields & SM_ACTIVE_FIRE) {
-			name = (!sds->wt) ? "flame" : "flame low";
-			OpenVDB_export_grid_fl(writer, name, flame, sds->res, sds->fluidmat, density_grid);
-			name = (!sds->wt) ? "fuel" : "fuel low";
-			OpenVDB_export_grid_fl(writer, name, fuel, sds->res, sds->fluidmat, density_grid);
-			name = (!sds->wt) ? "react" : "react low";
-			OpenVDB_export_grid_fl(writer, name, react, sds->res, sds->fluidmat, density_grid);
+			name = (!sds->wt) ? "flame" : "flame_low";
+			OpenVDB_export_grid_fl(writer, name, flame, sds->res, sds->fluidmat, sds->clipping, density_grid);
+			name = (!sds->wt) ? "fuel" : "fuel_low";
+			OpenVDB_export_grid_fl(writer, name, fuel, sds->res, sds->fluidmat, sds->clipping, density_grid);
+			name = (!sds->wt) ? "react" : "react_low";
+			OpenVDB_export_grid_fl(writer, name, react, sds->res, sds->fluidmat, sds->clipping, density_grid);
 		}
 
 		if (fluid_fields & SM_ACTIVE_COLORS) {
-			name = (!sds->wt) ? "color" : "color low";
-			OpenVDB_export_grid_vec(writer, name, r, g, b, sds->res, sds->fluidmat, VEC_INVARIANT, true, density_grid);
+			name = (!sds->wt) ? "color" : "color_low";
+			OpenVDB_export_grid_vec(writer, name, r, g, b, sds->res, sds->fluidmat, VEC_INVARIANT, true, sds->clipping, density_grid);
 		}
 
-		OpenVDB_export_grid_vec(writer, "velocity", vx, vy, vz, sds->res, sds->fluidmat, VEC_CONTRAVARIANT_RELATIVE, false, clip_grid);
-		OpenVDB_export_grid_ch(writer, "obstacles", obstacles, sds->res, sds->fluidmat, NULL);
+		OpenVDB_export_grid_vec(writer, "velocity", vx, vy, vz, sds->res, sds->fluidmat, VEC_CONTRAVARIANT_RELATIVE, false, sds->clipping, clip_grid);
+		OpenVDB_export_grid_ch(writer, "obstacles", obstacles, sds->res, sds->fluidmat, sds->clipping, NULL);
 	}
 
 	return 1;
@@ -1104,25 +1106,25 @@ static int ptcache_smoke_openvdb_read(struct OpenVDBReader *reader, void *smoke_
 
 		OpenVDB_import_grid_fl(reader, "shadow", &sds->shadow, sds->res);
 
-		const char *name = (!sds->wt) ? "density" : "density low";
+		const char *name = (!sds->wt) ? "density" : "density_low";
 		OpenVDB_import_grid_fl(reader, name, &dens, sds->res);
 
 		if (cache_fields & SM_ACTIVE_HEAT) {
 			OpenVDB_import_grid_fl(reader, "heat", &heat, sds->res);
-			OpenVDB_import_grid_fl(reader, "heat old", &heatold, sds->res);
+			OpenVDB_import_grid_fl(reader, "heat_old", &heatold, sds->res);
 		}
 
 		if (cache_fields & SM_ACTIVE_FIRE) {
-			name = (!sds->wt) ? "flame" : "flame low";
+			name = (!sds->wt) ? "flame" : "flame_low";
 			OpenVDB_import_grid_fl(reader, name, &flame, sds->res);
-			name = (!sds->wt) ? "fuel" : "fuel low";
+			name = (!sds->wt) ? "fuel" : "fuel_low";
 			OpenVDB_import_grid_fl(reader, name, &fuel, sds->res);
-			name = (!sds->wt) ? "react" : "react low";
+			name = (!sds->wt) ? "react" : "react_low";
 			OpenVDB_import_grid_fl(reader, name, &react, sds->res);
 		}
 
 		if (cache_fields & SM_ACTIVE_COLORS) {
-			name = (!sds->wt) ? "color" : "color low";
+			name = (!sds->wt) ? "color" : "color_low";
 			OpenVDB_import_grid_vec(reader, name, &r, &g, &b, sds->res);
 		}
 
@@ -1646,7 +1648,7 @@ void BKE_ptcache_id_from_rigidbody(PTCacheID *pid, Object *ob, RigidBodyWorld *r
 	pid->file_type = PTCACHE_FILE_PTCACHE;
 }
 
-void BKE_ptcache_ids_from_object(ListBase *lb, Object *ob, Scene *scene, int duplis)
+void BKE_ptcache_ids_from_object(Main *bmain, ListBase *lb, Object *ob, Scene *scene, int duplis)
 {
 	PTCacheID *pid;
 	ParticleSystem *psys;
@@ -1717,12 +1719,12 @@ void BKE_ptcache_ids_from_object(ListBase *lb, Object *ob, Scene *scene, int dup
 	if (scene && (duplis-- > 0) && (ob->transflag & OB_DUPLI)) {
 		ListBase *lb_dupli_ob;
 		/* don't update the dupli groups, we only want their pid's */
-		if ((lb_dupli_ob = object_duplilist_ex(G.main->eval_ctx, scene, ob, false))) {
+		if ((lb_dupli_ob = object_duplilist_ex(bmain, bmain->eval_ctx, scene, ob, false))) {
 			DupliObject *dob;
 			for (dob= lb_dupli_ob->first; dob; dob= dob->next) {
 				if (dob->ob != ob) { /* avoids recursive loops with dupliframes: bug 22988 */
 					ListBase lb_dupli_pid;
-					BKE_ptcache_ids_from_object(&lb_dupli_pid, dob->ob, scene, duplis);
+					BKE_ptcache_ids_from_object(bmain, &lb_dupli_pid, dob->ob, scene, duplis);
 					BLI_movelisttolist(lb, &lb_dupli_pid);
 					if (lb_dupli_pid.first)
 						printf("Adding Dupli\n");
@@ -1780,7 +1782,7 @@ static int ptcache_frame_from_filename(const char *filename, const char *ext)
 static int ptcache_path(PTCacheID *pid, char *filename)
 {
 	Library *lib = (pid->ob) ? pid->ob->id.lib : NULL;
-	const char *blendfilename= (lib && (pid->cache->flag & PTCACHE_IGNORE_LIBPATH)==0) ? lib->filepath: G.main->name;
+	const char *blendfilename= (lib && (pid->cache->flag & PTCACHE_IGNORE_LIBPATH)==0) ? lib->filepath: BKE_main_blendfile_path_from_global();
 	size_t i;
 
 	if (pid->cache->flag & PTCACHE_EXTERNAL) {
@@ -2197,8 +2199,8 @@ static void ptcache_data_copy(void *from[], void *to[])
 {
 	int i;
 	for (i=0; i<BPHYS_TOT_DATA; i++) {
-	/* note, durian file 03.4b_comp crashes if to[i] is not tested
-	 * its NULL, not sure if this should be fixed elsewhere but for now its needed */
+		/* note, durian file 03.4b_comp crashes if to[i] is not tested
+		 * its NULL, not sure if this should be fixed elsewhere but for now its needed */
 		if (from[i] && to[i])
 			memcpy(to[i], from[i], ptcache_data_size[i]);
 	}
@@ -2937,7 +2939,7 @@ int BKE_ptcache_write(PTCacheID *pid, unsigned int cfra)
 	return !error;
 }
 /* youll need to close yourself after!
- * mode - PTCACHE_CLEAR_ALL, 
+ * mode - PTCACHE_CLEAR_ALL,
  */
 
 /* Clears & resets */
@@ -3514,7 +3516,7 @@ void BKE_ptcache_quick_cache_all(Main *bmain, Scene *scene)
 	PTCacheBaker baker;
 
 	memset(&baker, 0, sizeof(baker));
-	baker.main = bmain;
+	baker.bmain = bmain;
 	baker.scene = scene;
 	baker.bake = 0;
 	baker.render = 0;
@@ -3539,7 +3541,7 @@ static void ptcache_dt_to_str(char *str, double dtime)
 /* if bake is not given run simulations to current frame */
 void BKE_ptcache_bake(PTCacheBaker *baker)
 {
-	Main *bmain = baker->main;
+	Main *bmain = baker->bmain;
 	Scene *scene = baker->scene;
 	Scene *sce_iter; /* SETLOOPER macro only */
 	Base *base;
@@ -3570,7 +3572,7 @@ void BKE_ptcache_bake(PTCacheBaker *baker)
 				/* get all pids from the object and search for smoke low res */
 				ListBase pidlist2;
 				PTCacheID *pid2;
-				BKE_ptcache_ids_from_object(&pidlist2, pid->ob, scene, MAX_DUPLI_RECUR);
+				BKE_ptcache_ids_from_object(bmain, &pidlist2, pid->ob, scene, MAX_DUPLI_RECUR);
 				for (pid2=pidlist2.first; pid2; pid2=pid2->next) {
 					if (pid2->type == PTCACHE_TYPE_SMOKE_DOMAIN) {
 						if (pid2->cache && !(pid2->cache->flag & PTCACHE_BAKED)) {
@@ -3605,7 +3607,7 @@ void BKE_ptcache_bake(PTCacheBaker *baker)
 	else {
 		for (SETLOOPER(scene, sce_iter, base)) {
 			/* cache/bake everything in the scene */
-			BKE_ptcache_ids_from_object(&pidlist, base->object, scene, MAX_DUPLI_RECUR);
+			BKE_ptcache_ids_from_object(bmain, &pidlist, base->object, scene, MAX_DUPLI_RECUR);
 
 			for (pid=pidlist.first; pid; pid=pid->next) {
 				cache = pid->cache;
@@ -3659,7 +3661,7 @@ void BKE_ptcache_bake(PTCacheBaker *baker)
 	stime = ptime = PIL_check_seconds_timer();
 
 	for (int fr = CFRA; fr <= endframe; fr += baker->quick_step, CFRA = fr) {
-		BKE_scene_update_for_newframe(G.main->eval_ctx, bmain, scene, scene->lay);
+		BKE_scene_update_for_newframe(bmain->eval_ctx, bmain, scene, scene->lay);
 
 		if (baker->update_progress) {
 			float progress = ((float)(CFRA - startframe)/(float)(endframe - startframe));
@@ -3715,7 +3717,7 @@ void BKE_ptcache_bake(PTCacheBaker *baker)
 	}
 	else {
 		for (SETLOOPER(scene, sce_iter, base)) {
-			BKE_ptcache_ids_from_object(&pidlist, base->object, scene, MAX_DUPLI_RECUR);
+			BKE_ptcache_ids_from_object(bmain, &pidlist, base->object, scene, MAX_DUPLI_RECUR);
 
 			for (pid=pidlist.first; pid; pid=pid->next) {
 				/* skip hair particles */
@@ -4046,9 +4048,11 @@ void BKE_ptcache_update_info(PTCacheID *pid)
 	}
 	else {
 		PTCacheMem *pm = cache->mem_cache.first;
-		float bytes = 0.0f;
-		int i, mb;
-		
+		char formatted_tot[16];
+		char formatted_mem[15];
+		long long int bytes = 0.0f;
+		int i;
+
 		for (; pm; pm=pm->next) {
 			for (i=0; i<BPHYS_TOT_DATA; i++)
 				bytes += MEM_allocN_len(pm->data[i]);
@@ -4063,12 +4067,10 @@ void BKE_ptcache_update_info(PTCacheID *pid)
 			totframes++;
 		}
 
-		mb = (bytes > 1024.0f * 1024.0f);
+		BLI_str_format_int_grouped(formatted_tot, totframes);
+		BLI_str_format_byte_unit(formatted_mem, bytes, true);
 
-		BLI_snprintf(mem_info, sizeof(mem_info), IFACE_("%i frames in memory (%.1f %s)"),
-		             totframes,
-		             bytes / (mb ? 1024.0f * 1024.0f : 1024.0f),
-		             mb ? IFACE_("Mb") : IFACE_("kb"));
+		BLI_snprintf(mem_info, sizeof(mem_info), IFACE_("%s frames in memory (%s)"), formatted_tot, formatted_mem);
 	}
 
 	if (cache->flag & PTCACHE_OUTDATED) {

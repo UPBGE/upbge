@@ -1,8 +1,6 @@
 KX_BoundingBox(EXP_PyObjectPlus)
 =============================
 
-.. module:: bge.types
-
 base class --- :class:`EXP_PyObjectPlus`
 
 .. class:: KX_BoundingBox(EXP_PyObjectPlus)

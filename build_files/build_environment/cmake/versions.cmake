@@ -104,10 +104,10 @@ set(OPENCOLORIO_URI https://github.com/imageworks/OpenColorIO/archive/6de971097c
 set(OPENCOLORIO_HASH c9de0fd98f26ce6f2e08d617ca68b8e4)
 
 set(LLVM_VERSION 3.4.2)
-set(LLVM_URI http://llvm.org/releases/${LLVM_VERSION}/llvm-${LLVM_VERSION}.src.tar.gz)
+set(LLVM_URI http://releases.llvm.org/${LLVM_VERSION}/llvm-${LLVM_VERSION}.src.tar.gz)
 set(LLVM_HASH a20669f75967440de949ac3b1bad439c)
 
-set(CLANG_URI http://llvm.org/releases/${LLVM_VERSION}/cfe-${LLVM_VERSION}.src.tar.gz)
+set(CLANG_URI http://releases.llvm.org/${LLVM_VERSION}/cfe-${LLVM_VERSION}.src.tar.gz)
 set(CLANG_HASH 87945973b7c73038871c5f849a818588)
 
 set(OPENIMAGEIO_VERSION 1.7.15)
@@ -137,9 +137,16 @@ set(PYTHON_SHORT_VERSION_NO_DOTS 36)
 set(PYTHON_URI https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tar.xz)
 set(PYTHON_HASH 2c68846471994897278364fc18730dd9)
 
-set(TBB_VERSION 44_20160128)
-set(TBB_URI https://www.threadingbuildingblocks.org/sites/default/files/software_releases/source/tbb${TBB_VERSION}oss_src_0.tgz)
-set(TBB_HASH 9d8a4cdf43496f1b3f7c473a5248e5cc)
+if(UNIX AND NOT APPLE)
+	# Needed to be compatible with GCC 7, other platforms can upgrade later
+	set(TBB_VERSION 2017_U7)
+	set(TBB_URI https://github.com/01org/tbb/archive/${TBB_VERSION}.tar.gz)
+	set(TBB_HASH 364f2a4b80e978f38a69cbf7c466b898)
+else()
+	set(TBB_VERSION 44_20160128)
+	set(TBB_URI https://www.threadingbuildingblocks.org/sites/default/files/software_releases/source/tbb${TBB_VERSION}oss_src_0.tgz)
+	set(TBB_HASH 9d8a4cdf43496f1b3f7c473a5248e5cc)
+endif()
 
 set(OPENVDB_VERSION 3.1.0)
 set(OPENVDB_URI https://github.com/dreamworksanimation/openvdb/archive/v${OPENVDB_VERSION}.tar.gz)

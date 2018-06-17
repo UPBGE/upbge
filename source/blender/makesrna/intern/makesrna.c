@@ -290,7 +290,7 @@ static void rna_sortlist(ListBase *listbase, int (*cmp)(const void *, const void
 	Link *link;
 	void **array;
 	int a, size;
-	
+
 	if (listbase->first == listbase->last)
 		return;
 
@@ -497,7 +497,7 @@ static int rna_enum_bitmask(PropertyRNA *prop)
 			if (eprop->item[a].identifier[0])
 				mask |= eprop->item[a].value;
 	}
-	
+
 	return mask;
 }
 
@@ -970,7 +970,7 @@ static char *rna_def_property_set_func(FILE *f, StructRNA *srna, PropertyRNA *pr
 							fprintf(f, ";\n");
 						}
 						else if (rna_color_quantize(prop, dp)) {
-							fprintf(f, "		data->%s[i] = FTOCHAR(values[i]);\n", dp->dnaname);
+							fprintf(f, "		data->%s[i] = unit_float_to_uchar_clamp(values[i]);\n", dp->dnaname);
 						}
 						else {
 							if (dp->dnatype)
@@ -1416,7 +1416,7 @@ static void rna_set_raw_property(PropertyDefRNA *dp, PropertyRNA *prop)
 		return;
 	if (!dp->dnatype || !dp->dnaname || !dp->dnastructname)
 		return;
-	
+
 	if (STREQ(dp->dnatype, "char")) {
 		prop->rawtype = PROP_RAW_CHAR;
 		prop->flag_internal |= PROP_INTERN_RAW_ACCESS;
@@ -1677,7 +1677,7 @@ static void rna_def_property_funcs_header(FILE *f, StructRNA *srna, PropertyDefR
 			if (sprop->maxlength) {
 				fprintf(f, "#define %s_%s_MAX %d\n\n", srna->identifier, prop->identifier, sprop->maxlength);
 			}
-			
+
 			fprintf(f, "void %sget(PointerRNA *ptr, char *value);\n", func);
 			fprintf(f, "int %slength(PointerRNA *ptr);\n", func);
 			fprintf(f, "void %sset(PointerRNA *ptr, const char *value);\n", func);
@@ -1733,7 +1733,7 @@ static void rna_def_property_funcs_header_cpp(FILE *f, StructRNA *srna, Property
 	if (prop->flag & PROP_IDPROPERTY || prop->flag_internal & PROP_INTERN_BUILTIN) {
 		return;
 	}
-	
+
 	/* disabled for now to avoid msvc compiler error due to large file size */
 #if 0
 	if (prop->name && prop->description && prop->description[0] != '\0')
@@ -2092,8 +2092,16 @@ static void rna_def_struct_function_call_impl_cpp(FILE *f, StructRNA *srna, Func
 		if (dp->prop->type == PROP_POINTER)
 			if ((dp->prop->flag_parameter & PARM_RNAPTR) && !(dp->prop->flag & PROP_THICK_WRAP))
 				fprintf(f, "(::%s *) &%s.ptr", rna_parameter_type_name(dp->prop), rna_safe_id(dp->prop->identifier));
-			else if (dp->prop->flag_parameter & PARM_OUTPUT)
-				fprintf(f, "(::%s **) &%s->ptr.data", rna_parameter_type_name(dp->prop), rna_safe_id(dp->prop->identifier));
+			else if (dp->prop->flag_parameter & PARM_OUTPUT) {
+				if (dp->prop->flag_parameter & PARM_RNAPTR) {
+					fprintf(f, "&%s->ptr",
+					        rna_safe_id(dp->prop->identifier));
+				}
+				else {
+					fprintf(f, "(::%s **) &%s->ptr.data",
+					        rna_parameter_type_name(dp->prop), rna_safe_id(dp->prop->identifier));
+				}
+			}
 			else
 				fprintf(f, "(::%s *) %s.ptr.data", rna_parameter_type_name(dp->prop), rna_safe_id(dp->prop->identifier));
 		else
@@ -2251,7 +2259,7 @@ static void rna_def_function_funcs(FILE *f, StructDefRNA *dsrna, FunctionDefRNA 
 	fprintf(f, "\n{\n");
 
 	/* variable definitions */
-	
+
 	if (func->flag & FUNC_USE_SELF_ID) {
 		fprintf(f, "\tstruct ID *_selfid;\n");
 	}
@@ -2293,7 +2301,7 @@ static void rna_def_function_funcs(FILE *f, StructDefRNA *dsrna, FunctionDefRNA 
 		/* for dynamic parameters we pass an additional int for the length of the parameter */
 		if (flag & PROP_DYNAMIC)
 			fprintf(f, "\tint %s%s_len;\n", pout ? "*" : "", dparm->prop->identifier);
-		
+
 		fprintf(f, "\t%s%s %s%s;\n", rna_type_struct(dparm->prop), rna_parameter_type_name(dparm->prop),
 		        ptrstr, dparm->prop->identifier);
 	}
@@ -2309,7 +2317,7 @@ static void rna_def_function_funcs(FILE *f, StructDefRNA *dsrna, FunctionDefRNA 
 	if (func->flag & FUNC_USE_SELF_ID) {
 		fprintf(f, "\t_selfid = (struct ID *)_ptr->id.data;\n");
 	}
-	
+
 	if ((func->flag & FUNC_NO_SELF) == 0) {
 		if (dsrna->dnafromprop) fprintf(f, "\t_self = (struct %s *)_ptr->data;\n", dsrna->dnafromname);
 		else if (dsrna->dnaname) fprintf(f, "\t_self = (struct %s *)_ptr->data;\n", dsrna->dnaname);
@@ -2831,6 +2839,10 @@ static void rna_generate_struct_prototypes(FILE *f)
 					if (dp->prop->type == PROP_POINTER) {
 						int a, found = 0;
 						const char *struct_name = rna_parameter_type_name(dp->prop);
+						if (struct_name == NULL) {
+							printf("No struct found for property '%s'\n", dp->prop->identifier);
+							exit(1);
+						}
 
 						for (a = 0; a < all_structures; a++) {
 							if (STREQ(struct_name, structures[a])) {
@@ -2862,7 +2874,7 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
 {
 	char *strnest = (char *)"", *errnest = (char *)"";
 	int len, freenest = 0;
-	
+
 	if (nest != NULL) {
 		len = strlen(nest);
 
@@ -3393,7 +3405,7 @@ static void rna_generate(BlenderRNA *brna, FILE *f, const char *filename, const 
 	StructDefRNA *ds;
 	PropertyDefRNA *dp;
 	FunctionDefRNA *dfunc;
-	
+
 	fprintf(f,
 	        "\n"
 	        "/* Automatically generated struct definitions for the Data API.\n"
@@ -3434,7 +3446,7 @@ static void rna_generate(BlenderRNA *brna, FILE *f, const char *filename, const 
 
 	/* we want the included C files to have warnings enabled but for the generated code
 	 * ignore unused-parameter warnings which are hard to prevent */
-#ifdef __GNUC__
+#if defined( __GNUC__) || defined(__clang__)
 	fprintf(f, "#pragma GCC diagnostic ignored \"-Wunused-parameter\"\n\n");
 #endif
 
@@ -3889,7 +3901,7 @@ static void rna_generate_header_cpp(BlenderRNA *UNUSED(brna), FILE *f)
 	fprintf(f,
 	        "/* Automatically generated classes for the Data API.\n"
 	        " * Do not edit manually, changes will be overwritten. */\n\n");
-	
+
 	fprintf(f, "#include \"RNA_blender.h\"\n");
 	fprintf(f, "#include \"RNA_types.h\"\n");
 	fprintf(f, "#include \"RNA_access.h\"\n");

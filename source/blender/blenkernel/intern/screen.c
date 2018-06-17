@@ -68,13 +68,17 @@ static void spacetype_free(SpaceType *st)
 	for (art = st->regiontypes.first; art; art = art->next) {
 		BLI_freelistN(&art->drawcalls);
 
-		for (pt = art->paneltypes.first; pt; pt = pt->next)
-			if (pt->ext.free)
+		for (pt = art->paneltypes.first; pt; pt = pt->next) {
+			if (pt->ext.free) {
 				pt->ext.free(pt->ext.data);
+			}
+		}
 
-		for (ht = art->headertypes.first; ht; ht = ht->next)
-			if (ht->ext.free)
+		for (ht = art->headertypes.first; ht; ht = ht->next) {
+			if (ht->ext.free) {
 				ht->ext.free(ht->ext.data);
+			}
+		}
 
 		BLI_freelistN(&art->paneltypes);
 		BLI_freelistN(&art->headertypes);
@@ -107,7 +111,7 @@ SpaceType *BKE_spacetype_from_id(int spaceid)
 	return NULL;
 }
 
-ARegionType *BKE_regiontype_from_id(SpaceType *st, int regionid)
+ARegionType *BKE_regiontype_from_id_or_first(SpaceType *st, int regionid)
 {
 	ARegionType *art;
 	
@@ -117,6 +121,18 @@ ARegionType *BKE_regiontype_from_id(SpaceType *st, int regionid)
 	
 	printf("Error, region type %d missing in - name:\"%s\", id:%d\n", regionid, st->name, st->spaceid);
 	return st->regiontypes.first;
+}
+
+ARegionType *BKE_regiontype_from_id(SpaceType *st, int regionid)
+{
+	ARegionType *art;
+	
+	for (art = st->regiontypes.first; art; art = art->next) {
+		if (art->regionid == regionid) {
+			return art;
+		}
+	}
+	return NULL;
 }
 
 
@@ -187,10 +203,15 @@ ARegion *BKE_area_region_copy(SpaceType *st, ARegion *ar)
 	if (ar->regiondata) {
 		ARegionType *art = BKE_regiontype_from_id(st, ar->regiontype);
 
-		if (art && art->duplicate)
+		if (art && art->duplicate) {
 			newar->regiondata = art->duplicate(ar->regiondata);
-		else
+		}
+		else if (ar->flag & RGN_FLAG_TEMP_REGIONDATA) {
+			newar->regiondata = NULL;
+		}
+		else {
 			newar->regiondata = MEM_dupallocN(ar->regiondata);
+		}
 	}
 
 	if (ar->v2d.tab_offset)
@@ -381,6 +402,9 @@ void BKE_screen_free(bScreen *sc)
 	BLI_freelistN(&sc->vertbase);
 	BLI_freelistN(&sc->edgebase);
 	BLI_freelistN(&sc->areabase);
+
+	/* Region and timer are freed by the window manager. */
+	MEM_SAFE_FREE(sc->tool_tip);
 }
 
 /* for depsgraph */
@@ -617,7 +641,7 @@ void BKE_screen_view3d_twmode_remove(View3D *v3d, const int i)
 {
 	const int selected_index = (v3d->twmode - V3D_MANIP_CUSTOM);
 	if (selected_index == i) {
-		v3d->twmode = V3D_MANIP_GLOBAL; /* fallback to global	*/
+		v3d->twmode = V3D_MANIP_GLOBAL; /* fallback to global */
 	}
 	else if (selected_index > i) {
 		v3d->twmode--;

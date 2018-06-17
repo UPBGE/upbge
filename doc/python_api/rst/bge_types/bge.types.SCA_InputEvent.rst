@@ -1,8 +1,6 @@
 SCA_InputEvent(EXP_PyObjectPlus)
 ============================
 
-.. module:: bge.types
-
 base class --- :class:`EXP_PyObjectPlus`
 
 .. class:: SCA_InputEvent(EXP_PyObjectPlus)

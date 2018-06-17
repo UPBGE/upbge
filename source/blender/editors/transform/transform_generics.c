@@ -75,6 +75,7 @@
 #include "BKE_fcurve.h"
 #include "BKE_lattice.h"
 #include "BKE_library.h"
+#include "BKE_main.h"
 #include "BKE_nla.h"
 #include "BKE_context.h"
 #include "BKE_paint.h"
@@ -109,7 +110,7 @@
 
 /* ************************** Functions *************************** */
 
-void getViewVector(TransInfo *t, float coord[3], float vec[3])
+void getViewVector(const TransInfo *t, const float coord[3], float vec[3])
 {
 	if (t->persp != RV3D_ORTHO) {
 		sub_v3_v3v3(vec, coord, t->viewinv[3]);
@@ -128,11 +129,11 @@ static void clipMirrorModifier(TransInfo *t, Object *ob)
 	ModifierData *md = ob->modifiers.first;
 	float tolerance[3] = {0.0f, 0.0f, 0.0f};
 	int axis = 0;
-	
+
 	for (; md; md = md->next) {
 		if ((md->type == eModifierType_Mirror) && (md->mode & eModifierMode_Realtime)) {
 			MirrorModifierData *mmd = (MirrorModifierData *) md;
-			
+
 			if (mmd->flag & MOD_MIR_CLIPPING) {
 				axis = 0;
 				if (mmd->flag & MOD_MIR_AXIS_X) {
@@ -151,35 +152,35 @@ static void clipMirrorModifier(TransInfo *t, Object *ob)
 					float mtx[4][4], imtx[4][4];
 					int i;
 					TransData *td = t->data;
-					
+
 					if (mmd->mirror_ob) {
 						float obinv[4][4];
-						
+
 						invert_m4_m4(obinv, mmd->mirror_ob->obmat);
 						mul_m4_m4m4(mtx, obinv, ob->obmat);
 						invert_m4_m4(imtx, mtx);
 					}
-					
+
 					for (i = 0; i < t->total; i++, td++) {
 						int clip;
 						float loc[3], iloc[3];
-						
+
 						if (td->flag & TD_NOACTION)
 							break;
 						if (td->loc == NULL)
 							break;
-						
+
 						if (td->flag & TD_SKIP)
 							continue;
-						
+
 						copy_v3_v3(loc,  td->loc);
 						copy_v3_v3(iloc, td->iloc);
-						
+
 						if (mmd->mirror_ob) {
 							mul_m4_v3(mtx, loc);
 							mul_m4_v3(mtx, iloc);
 						}
-						
+
 						clip = 0;
 						if (axis & 1) {
 							if (fabsf(iloc[0]) <= tolerance[0] ||
@@ -189,7 +190,7 @@ static void clipMirrorModifier(TransInfo *t, Object *ob)
 								clip = 1;
 							}
 						}
-						
+
 						if (axis & 2) {
 							if (fabsf(iloc[1]) <= tolerance[1] ||
 							    loc[1] * iloc[1] < 0.0f)
@@ -214,7 +215,7 @@ static void clipMirrorModifier(TransInfo *t, Object *ob)
 						}
 					}
 				}
-				
+
 			}
 		}
 	}
@@ -226,7 +227,7 @@ static void editbmesh_apply_to_mirror(TransInfo *t)
 	TransData *td = t->data;
 	BMVert *eve;
 	int i;
-	
+
 	for (i = 0; i < t->total; i++, td++) {
 		if (td->flag & TD_NOACTION)
 			break;
@@ -234,14 +235,14 @@ static void editbmesh_apply_to_mirror(TransInfo *t)
 			break;
 		if (td->flag & TD_SKIP)
 			continue;
-		
+
 		eve = td->extra;
 		if (eve) {
 			eve->co[0] = -td->loc[0];
 			eve->co[1] = td->loc[1];
 			eve->co[2] = td->loc[2];
 		}
-		
+
 		if (td->flag & TD_MIRROR_EDGE) {
 			td->loc[0] = 0;
 		}
@@ -252,11 +253,11 @@ static void editbmesh_apply_to_mirror(TransInfo *t)
 static void animrecord_check_state(Scene *scene, ID *id, wmTimer *animtimer)
 {
 	ScreenAnimData *sad = (animtimer) ? animtimer->customdata : NULL;
-	
+
 	/* sanity checks */
 	if (ELEM(NULL, scene, id, sad))
 		return;
-	
+
 	/* check if we need a new strip if:
 	 *  - if animtimer is running
 	 *	- we're not only keying for available channels
@@ -266,28 +267,52 @@ static void animrecord_check_state(Scene *scene, ID *id, wmTimer *animtimer)
 		/* if playback has just looped around, we need to add a new NLA track+strip to allow a clean pass to occur */
 		if ((sad) && (sad->flag & ANIMPLAY_FLAG_JUMPED)) {
 			AnimData *adt = BKE_animdata_from_id(id);
-			
-			/* perform push-down manually with some differences 
+			const bool is_first = (adt) && (adt->nla_tracks.first == NULL);
+
+			/* perform push-down manually with some differences
 			 * NOTE: BKE_nla_action_pushdown() sync warning...
 			 */
 			if ((adt->action) && !(adt->flag & ADT_NLA_EDIT_ON)) {
 				float astart, aend;
-				
+
 				/* only push down if action is more than 1-2 frames long */
 				calc_action_range(adt->action, &astart, &aend, 1);
 				if (aend > astart + 2.0f) {
-					NlaStrip *strip = add_nlastrip_to_stack(adt, adt->action);
-					
+					NlaStrip *strip = BKE_nlastack_add_strip(adt, adt->action);
+
 					/* clear reference to action now that we've pushed it onto the stack */
 					id_us_min(&adt->action->id);
 					adt->action = NULL;
-					
+
 					/* adjust blending + extend so that they will behave correctly */
 					strip->extendmode = NLASTRIP_EXTEND_NOTHING;
 					strip->flag &= ~(NLASTRIP_FLAG_AUTO_BLENDS | NLASTRIP_FLAG_SELECT | NLASTRIP_FLAG_ACTIVE);
-					
-					/* also, adjust the AnimData's action extend mode to be on 
-					 * 'nothing' so that previous result still play 
+
+					/* copy current "action blending" settings from adt to the strip,
+					 * as it was keyframed with these settings, so omitting them will
+					 * change the effect  [T54766]
+					 */
+					if (is_first == false) {
+						strip->blendmode = adt->act_blendmode;
+						strip->influence = adt->act_influence;
+
+						if (adt->act_influence < 1.0f) {
+							/* enable "user-controlled" influence (which will insert a default keyframe)
+							 * so that the influence doesn't get lost on the new update
+							 *
+							 * NOTE: An alternative way would have been to instead hack the influence
+							 * to not get always get reset to full strength if NLASTRIP_FLAG_USR_INFLUENCE
+							 * is disabled but auto-blending isn't being used. However, that approach
+							 * is a bit hacky/hard to discover, and may cause backwards compatability issues,
+							 * so it's better to just do it this way.
+							 */
+							strip->flag |= NLASTRIP_FLAG_USR_INFLUENCE;
+							BKE_nlastrip_validate_fcurves(strip);
+						}
+					}
+
+					/* also, adjust the AnimData's action extend mode to be on
+					 * 'nothing' so that previous result still play
 					 */
 					adt->act_extendmode = NLASTRIP_EXTEND_NOTHING;
 				}
@@ -316,14 +341,15 @@ static void recalcData_actedit(TransInfo *t)
 {
 	Scene *scene = t->scene;
 	SpaceAction *saction = (SpaceAction *)t->sa->spacedata.first;
-	
+
 	bAnimContext ac = {NULL};
 	ListBase anim_data = {NULL, NULL};
 	bAnimListElem *ale;
 	int filter;
-	
+
 	/* initialize relevant anim-context 'context' data from TransInfo data */
 	/* NOTE: sync this with the code in ANIM_animdata_get_context() */
+	ac.bmain = CTX_data_main(t->context);
 	ac.scene = t->scene;
 	ac.obact = OBACT;
 	ac.sa = t->sa;
@@ -331,9 +357,9 @@ static void recalcData_actedit(TransInfo *t)
 	ac.sl = (t->sa) ? t->sa->spacedata.first : NULL;
 	ac.spacetype = (t->sa) ? t->sa->spacetype : 0;
 	ac.regiontype = (t->ar) ? t->ar->regiontype : 0;
-	
+
 	ANIM_animdata_context_getdata(&ac);
-	
+
 	/* perform flush */
 	if (ELEM(ac.datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK)) {
 		/* flush transform values back to actual coordinates */
@@ -343,17 +369,17 @@ static void recalcData_actedit(TransInfo *t)
 		/* get animdata blocks visible in editor, assuming that these will be the ones where things changed */
 		filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_ANIMDATA);
 		ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
-		
-		/* just tag these animdata-blocks to recalc, assuming that some data there changed 
+
+		/* just tag these animdata-blocks to recalc, assuming that some data there changed
 		 * BUT only do this if realtime updates are enabled
 		 */
 		if ((saction->flag & SACTION_NOREALTIMEUPDATES) == 0) {
 			for (ale = anim_data.first; ale; ale = ale->next) {
 				/* set refresh tags for objects using this animation */
-				ANIM_list_elem_update(t->scene, ale);
+				ANIM_list_elem_update(CTX_data_main(t->context), scene, ale);
 			}
 		}
-		
+
 		/* now free temp channels */
 		ANIM_animdata_freelist(&anim_data);
 	}
@@ -363,16 +389,17 @@ static void recalcData_graphedit(TransInfo *t)
 {
 	SpaceIpo *sipo = (SpaceIpo *)t->sa->spacedata.first;
 	Scene *scene;
-	
+
 	ListBase anim_data = {NULL, NULL};
 	bAnimContext ac = {NULL};
 	int filter;
-	
+
 	bAnimListElem *ale;
 	int dosort = 0;
 
 	/* initialize relevant anim-context 'context' data from TransInfo data */
 	/* NOTE: sync this with the code in ANIM_animdata_get_context() */
+	ac.bmain = CTX_data_main(t->context);
 	scene = ac.scene = t->scene;
 	ac.obact = OBACT;
 	ac.sa = t->sa;
@@ -380,20 +407,20 @@ static void recalcData_graphedit(TransInfo *t)
 	ac.sl = (t->sa) ? t->sa->spacedata.first : NULL;
 	ac.spacetype = (t->sa) ? t->sa->spacetype : 0;
 	ac.regiontype = (t->ar) ? t->ar->regiontype : 0;
-	
+
 	ANIM_animdata_context_getdata(&ac);
-	
+
 	/* do the flush first */
 	flushTransGraphData(t);
-	
+
 	/* get curves to check if a re-sort is needed */
 	filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_FOREDIT | ANIMFILTER_CURVE_VISIBLE);
 	ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
-	
+
 	/* now test if there is a need to re-sort */
 	for (ale = anim_data.first; ale; ale = ale->next) {
 		FCurve *fcu = (FCurve *)ale->key_data;
-		
+
 		/* ignore FC-Curves without any selected verts */
 		if (!fcu_test_selected(fcu))
 			continue;
@@ -403,17 +430,17 @@ static void recalcData_graphedit(TransInfo *t)
 			dosort++;
 		else
 			calchandles_fcurve(fcu);
-		
+
 		/* set refresh tags for objects using this animation,
-		 * BUT only if realtime updates are enabled  
+		 * BUT only if realtime updates are enabled
 		 */
 		if ((sipo->flag & SIPO_NOREALTIMEUPDATES) == 0)
-			ANIM_list_elem_update(t->scene, ale);
+			ANIM_list_elem_update(CTX_data_main(t->context), t->scene, ale);
 	}
-	
+
 	/* do resort and other updates? */
 	if (dosort) remake_graph_transdata(t, &anim_data);
-	
+
 	/* now free temp channels */
 	ANIM_animdata_freelist(&anim_data);
 }
@@ -426,7 +453,7 @@ static void recalcData_nla(TransInfo *t)
 	Scene *scene = t->scene;
 	double secf = FPS;
 	int i;
-	
+
 	/* for each strip we've got, perform some additional validation of the values that got set before
 	 * using RNA to set the value (which does some special operations when setting these values to make
 	 * sure that everything works ok)
@@ -436,48 +463,48 @@ static void recalcData_nla(TransInfo *t)
 		PointerRNA strip_ptr;
 		short pExceeded, nExceeded, iter;
 		int delta_y1, delta_y2;
-		
+
 		/* if this tdn has no handles, that means it is just a dummy that should be skipped */
 		if (tdn->handle == 0)
 			continue;
-		
+
 		/* set refresh tags for objects using this animation,
-		 * BUT only if realtime updates are enabled  
+		 * BUT only if realtime updates are enabled
 		 */
 		if ((snla->flag & SNLA_NOREALTIMEUPDATES) == 0)
 			ANIM_id_update(t->scene, tdn->id);
-		
+
 		/* if canceling transform, just write the values without validating, then move on */
 		if (t->state == TRANS_CANCEL) {
 			/* clear the values by directly overwriting the originals, but also need to restore
 			 * endpoints of neighboring transition-strips
 			 */
-			
+
 			/* start */
 			strip->start = tdn->h1[0];
-			
+
 			if ((strip->prev) && (strip->prev->type == NLASTRIP_TYPE_TRANSITION))
 				strip->prev->end = tdn->h1[0];
-			
+
 			/* end */
 			strip->end = tdn->h2[0];
-			
+
 			if ((strip->next) && (strip->next->type == NLASTRIP_TYPE_TRANSITION))
 				strip->next->start = tdn->h2[0];
-			
+
 			/* flush transforms to child strips (since this should be a meta) */
 			BKE_nlameta_flush_transforms(strip);
-			
+
 			/* restore to original track (if needed) */
 			if (tdn->oldTrack != tdn->nlt) {
 				/* just append to end of list for now, since strips get sorted in special_aftertrans_update() */
 				BLI_remlink(&tdn->nlt->strips, strip);
 				BLI_addtail(&tdn->oldTrack->strips, strip);
 			}
-			
+
 			continue;
 		}
-		
+
 		/* firstly, check if the proposed transform locations would overlap with any neighboring strips
 		 * (barring transitions) which are absolute barriers since they are not being moved
 		 *
@@ -486,7 +513,7 @@ static void recalcData_nla(TransInfo *t)
 		for (iter = 0; iter < 5; iter++) {
 			pExceeded = ((strip->prev) && (strip->prev->type != NLASTRIP_TYPE_TRANSITION) && (tdn->h1[0] < strip->prev->end));
 			nExceeded = ((strip->next) && (strip->next->type != NLASTRIP_TYPE_TRANSITION) && (tdn->h2[0] > strip->next->start));
-			
+
 			if ((pExceeded && nExceeded) || (iter == 4)) {
 				/* both endpoints exceeded (or iteration ping-pong'd meaning that we need a compromise)
 				 *	- simply crop strip to fit within the bounds of the strips bounding it
@@ -504,21 +531,21 @@ static void recalcData_nla(TransInfo *t)
 			else if (nExceeded) {
 				/* move backwards */
 				float offset = tdn->h2[0] - strip->next->start;
-				
+
 				tdn->h1[0] -= offset;
 				tdn->h2[0] -= offset;
 			}
 			else if (pExceeded) {
 				/* more forwards */
 				float offset = strip->prev->end - tdn->h1[0];
-				
+
 				tdn->h1[0] += offset;
 				tdn->h2[0] += offset;
 			}
 			else /* all is fine and well */
 				break;
 		}
-		
+
 		/* handle auto-snapping
 		 * NOTE: only do this when transform is still running, or we can't restore
 		 */
@@ -531,7 +558,7 @@ static void recalcData_nla(TransInfo *t)
 					tdn->h2[0] = floorf(tdn->h2[0] + 0.5f);
 					break;
 				}
-				
+
 				case SACTSNAP_SECOND: /* snap to nearest second */
 				case SACTSNAP_TSTEP: /* second step - this is basically the same, since we don't have any remapping going on */
 				{
@@ -546,12 +573,12 @@ static void recalcData_nla(TransInfo *t)
 					 */
 					float h1_new = (float)(floor(((double)tdn->h1[0] / secf) + 0.5) * secf);
 					float delta  = h1_new - tdn->h1[0];
-					
+
 					tdn->h1[0] = h1_new;
 					tdn->h2[0] += delta;
 					break;
 				}
-				
+
 				case SACTSNAP_MARKER: /* snap to nearest marker */
 				{
 					tdn->h1[0] = (float)ED_markers_find_nearest_marker_time(&t->scene->markers, tdn->h1[0]);
@@ -560,36 +587,36 @@ static void recalcData_nla(TransInfo *t)
 				}
 			}
 		}
-		
+
 		/* Use RNA to write the values to ensure that constraints on these are obeyed
 		 * (e.g. for transition strips, the values are taken from the neighbors)
-		 * 
+		 *
 		 * NOTE: we write these twice to avoid truncation errors which can arise when
-		 * moving the strips a large distance using numeric input [#33852] 
+		 * moving the strips a large distance using numeric input [#33852]
 		 */
 		RNA_pointer_create(NULL, &RNA_NlaStrip, strip, &strip_ptr);
-		
+
 		RNA_float_set(&strip_ptr, "frame_start", tdn->h1[0]);
 		RNA_float_set(&strip_ptr, "frame_end", tdn->h2[0]);
-		
+
 		RNA_float_set(&strip_ptr, "frame_start", tdn->h1[0]);
 		RNA_float_set(&strip_ptr, "frame_end", tdn->h2[0]);
-		
+
 		/* flush transforms to child strips (since this should be a meta) */
 		BKE_nlameta_flush_transforms(strip);
-		
-		
+
+
 		/* now, check if we need to try and move track
 		 *	- we need to calculate both, as only one may have been altered by transform if only 1 handle moved
 		 */
 		delta_y1 = ((int)tdn->h1[1] / NLACHANNEL_STEP(snla) - tdn->trackIndex);
 		delta_y2 = ((int)tdn->h2[1] / NLACHANNEL_STEP(snla) - tdn->trackIndex);
-		
+
 		if (delta_y1 || delta_y2) {
 			NlaTrack *track;
 			int delta = (delta_y2) ? delta_y2 : delta_y1;
 			int n;
-			
+
 			/* move in the requested direction, checking at each layer if there's space for strip to pass through,
 			 * stopping on the last track available or that we're able to fit in
 			 */
@@ -600,7 +627,7 @@ static void recalcData_nla(TransInfo *t)
 						/* move strip to this track */
 						BLI_remlink(&tdn->nlt->strips, strip);
 						BKE_nlatrack_add_strip(track, strip);
-						
+
 						tdn->nlt = track;
 						tdn->trackIndex++;
 					}
@@ -611,14 +638,14 @@ static void recalcData_nla(TransInfo *t)
 			else {
 				/* make delta 'positive' before using it, since we now know to go backwards */
 				delta = -delta;
-				
+
 				for (track = tdn->nlt->prev, n = 0; (track) && (n < delta); track = track->prev, n++) {
 					/* check if space in this track for the strip */
 					if (BKE_nlatrack_has_space(track, strip->start, strip->end)) {
 						/* move strip to this track */
 						BLI_remlink(&tdn->nlt->strips, strip);
 						BKE_nlatrack_add_strip(track, strip);
-						
+
 						tdn->nlt = track;
 						tdn->trackIndex--;
 					}
@@ -650,11 +677,11 @@ static void recalcData_image(TransInfo *t)
 	}
 	else if (t->obedit && t->obedit->type == OB_MESH) {
 		SpaceImage *sima = t->sa->spacedata.first;
-		
+
 		flushTransUVs(t);
 		if (sima->flag & SI_LIVE_UNWRAP)
 			ED_uvedit_live_unwrap_re_solve();
-		
+
 		DAG_id_tag_update(t->obedit->data, 0);
 	}
 }
@@ -708,6 +735,7 @@ static void recalcData_spaceclip(TransInfo *t)
 /* helper for recalcData() - for object transforms, typically in the 3D view */
 static void recalcData_objects(TransInfo *t)
 {
+	Main *bmain = CTX_data_main(t->context);
 	Base *base = t->scene->basact;
 
 	if (t->obedit) {
@@ -715,14 +743,14 @@ static void recalcData_objects(TransInfo *t)
 			Curve *cu = t->obedit->data;
 			ListBase *nurbs = BKE_curve_editNurbs_get(cu);
 			Nurb *nu = nurbs->first;
-			
+
 			if (t->state != TRANS_CANCEL) {
 				clipMirrorModifier(t, t->obedit);
 				applyProject(t);
 			}
-			
+
 			DAG_id_tag_update(t->obedit->data, 0);  /* sets recalc flags */
-				
+
 			if (t->state == TRANS_CANCEL) {
 				while (nu) {
 					BKE_nurb_handles_calc(nu); /* Cant do testhandlesNurb here, it messes up the h1 and h2 flags */
@@ -740,13 +768,13 @@ static void recalcData_objects(TransInfo *t)
 		}
 		else if (t->obedit->type == OB_LATTICE) {
 			Lattice *la = t->obedit->data;
-			
+
 			if (t->state != TRANS_CANCEL) {
 				applyProject(t);
 			}
-			
+
 			DAG_id_tag_update(t->obedit->data, 0);  /* sets recalc flags */
-			
+
 			if (la->editlatt->latt->flag & LT_OUTSIDE) outside_lattice(la->editlatt->latt);
 		}
 		else if (t->obedit->type == OB_MESH) {
@@ -768,7 +796,7 @@ static void recalcData_objects(TransInfo *t)
 			}
 
 			DAG_id_tag_update(t->obedit->data, 0);  /* sets recalc flags */
-			
+
 			EDBM_mesh_normals_update(em);
 			BKE_editmesh_tessface_calc(em);
 		}
@@ -778,15 +806,15 @@ static void recalcData_objects(TransInfo *t)
 			EditBone *ebo, *ebo_parent;
 			TransData *td = t->data;
 			int i;
-			
+
 			if (t->state != TRANS_CANCEL) {
 				applyProject(t);
 			}
-			
+
 			/* Ensure all bones are correctly adjusted */
 			for (ebo = edbo->first; ebo; ebo = ebo->next) {
 				ebo_parent = (ebo->flag & BONE_CONNECTED) ? ebo->parent : NULL;
-				
+
 				if (ebo_parent) {
 					/* If this bone has a parent tip that has been moved */
 					if (ebo_parent->flag & BONE_TIPSEL) {
@@ -799,7 +827,7 @@ static void recalcData_objects(TransInfo *t)
 						if (t->mode == TFM_BONE_ENVELOPE) ebo_parent->rad_tail = ebo->rad_head;
 					}
 				}
-				
+
 				/* on extrude bones, oldlength==0.0f, so we scale radius of points */
 				ebo->length = len_v3v3(ebo->head, ebo->tail);
 				if (ebo->oldlength == 0.0f) {
@@ -823,7 +851,7 @@ static void recalcData_objects(TransInfo *t)
 					}
 				}
 			}
-			
+
 			if (!ELEM(t->mode, TFM_BONE_ROLL, TFM_BONE_ENVELOPE, TFM_BONE_ENVELOPE_DIST, TFM_BONESIZE)) {
 				/* fix roll */
 				for (i = 0; i < t->total; i++, td++) {
@@ -831,7 +859,7 @@ static void recalcData_objects(TransInfo *t)
 						float vec[3], up_axis[3];
 						float qrot[4];
 						float roll;
-						
+
 						ebo = td->extra;
 
 						if (t->state == TRANS_CANCEL) {
@@ -847,16 +875,16 @@ static void recalcData_objects(TransInfo *t)
 							mul_qt_v3(qrot, up_axis);
 
 							/* roll has a tendency to flip in certain orientations - [#34283], [#33974] */
-							roll = ED_rollBoneToVector(ebo, up_axis, false);
+							roll = ED_armature_ebone_roll_to_vector(ebo, up_axis, false);
 							ebo->roll = angle_compat_rad(roll, td->ival);
 						}
 					}
 				}
 			}
-			
+
 			if (arm->flag & ARM_MIRROR_EDIT) {
 				if (t->state != TRANS_CANCEL)
-					transform_armature_mirror_update(t->obedit);
+					ED_armature_edit_transform_mirror_update(t->obedit);
 				else
 					restoreBones(t);
 			}
@@ -871,7 +899,7 @@ static void recalcData_objects(TransInfo *t)
 	else if ((t->flag & T_POSE) && t->poseobj) {
 		Object *ob = t->poseobj;
 		bArmature *arm = ob->data;
-		
+
 		/* if animtimer is running, and the object already has animation data,
 		 * check if the auto-record feature means that we should record 'samples'
 		 * (i.e. uneditable animation values)
@@ -881,11 +909,11 @@ static void recalcData_objects(TransInfo *t)
 		// TODO: autokeyframe calls need some setting to specify to add samples (FPoints) instead of keyframes?
 		if ((t->animtimer) && (t->context) && IS_AUTOKEY_ON(t->scene)) {
 			int targetless_ik = (t->flag & T_AUTOIK); // XXX this currently doesn't work, since flags aren't set yet!
-			
+
 			animrecord_check_state(t->scene, &ob->id, t->animtimer);
 			autokeyframe_pose_cb_func(t->context, t->scene, (View3D *)t->view, ob, t->mode, targetless_ik);
 		}
-		
+
 		/* old optimize trick... this enforces to bypass the depgraph */
 		if (!(arm->flag & ARM_DELAYDEFORM)) {
 			DAG_id_tag_update(&ob->id, OB_RECALC_DATA);  /* sets recalc flags */
@@ -895,7 +923,7 @@ static void recalcData_objects(TransInfo *t)
 		else
 			BKE_pose_where_is(t->scene, ob);
 	}
-	else if (base && (base->object->mode & OB_MODE_PARTICLE_EDIT) && PE_get_current(t->scene, base->object)) {
+	else if (base && (base->object->mode & OB_MODE_PARTICLE_EDIT) && PE_get_current(bmain, t->scene, base->object)) {
 		if (t->state != TRANS_CANCEL) {
 			applyProject(t);
 		}
@@ -903,21 +931,21 @@ static void recalcData_objects(TransInfo *t)
 	}
 	else {
 		int i;
-		
+
 		if (t->state != TRANS_CANCEL) {
 			applyProject(t);
 		}
-		
+
 		for (i = 0; i < t->total; i++) {
 			TransData *td = t->data + i;
 			Object *ob = td->ob;
-			
+
 			if (td->flag & TD_NOACTION)
 				break;
-			
+
 			if (td->flag & TD_SKIP)
 				continue;
-			
+
 			/* if animtimer is running, and the object already has animation data,
 			 * check if the auto-record feature means that we should record 'samples'
 			 * (i.e. uneditable animation values)
@@ -927,8 +955,8 @@ static void recalcData_objects(TransInfo *t)
 				animrecord_check_state(t->scene, &ob->id, t->animtimer);
 				autokeyframe_ob_cb_func(t->context, t->scene, (View3D *)t->view, ob, t->mode);
 			}
-			
-			/* sets recalc flags fully, instead of flushing existing ones 
+
+			/* sets recalc flags fully, instead of flushing existing ones
 			 * otherwise proxies don't function correctly
 			 */
 			DAG_id_tag_update(&ob->id, OB_RECALC_OB);
@@ -1030,18 +1058,18 @@ void drawLine(TransInfo *t, const float center[3], const float dir[3], char axis
 
 	if (t->spacetype == SPACE_VIEW3D) {
 		View3D *v3d = t->view;
-		
+
 		glPushMatrix();
-		
+
 		//if (t->obedit) glLoadMatrixf(t->obedit->obmat);	// sets opengl viewing
-		
-		
+
+
 		copy_v3_v3(v3, dir);
 		mul_v3_fl(v3, v3d->far);
-		
+
 		sub_v3_v3v3(v2, center, v3);
 		add_v3_v3v3(v1, center, v3);
-		
+
 		if (options & DRAWLIGHT) {
 			col[0] = col[1] = col[2] = 220;
 		}
@@ -1050,13 +1078,13 @@ void drawLine(TransInfo *t, const float center[3], const float dir[3], char axis
 		}
 		UI_make_axis_color(col, col2, axis);
 		glColor3ubv(col2);
-		
+
 		setlinestyle(0);
 		glBegin(GL_LINES);
 		glVertex3fv(v1);
 		glVertex3fv(v2);
 		glEnd();
-		
+
 		glPopMatrix();
 	}
 }
@@ -1110,7 +1138,7 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 	Object *ob = CTX_data_active_object(C);
 	bGPdata *gpd = CTX_data_gpencil_data(C);
 	PropertyRNA *prop;
-	
+
 	t->scene = sce;
 	t->sa = sa;
 	t->ar = ar;
@@ -1125,13 +1153,13 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 
 	t->data = NULL;
 	t->ext = NULL;
-	
+
 	t->helpline = HLP_NONE;
-	
+
 	t->flag = 0;
-	
+
 	t->redraw = TREDRAW_HARD;  /* redraw first time */
-	
+
 	if (event) {
 		t->mouse.imval[0] = event->mval[0];
 		t->mouse.imval[1] = event->mval[1];
@@ -1140,18 +1168,18 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 		t->mouse.imval[0] = 0;
 		t->mouse.imval[1] = 0;
 	}
-	
+
 	t->con.imval[0] = t->mouse.imval[0];
 	t->con.imval[1] = t->mouse.imval[1];
-	
+
 	t->mval[0] = t->mouse.imval[0];
 	t->mval[1] = t->mouse.imval[1];
-	
+
 	t->transform        = NULL;
 	t->handleEvent      = NULL;
-	
+
 	t->total            = 0;
-	
+
 	t->val = 0.0f;
 
 	zero_v3(t->vec);
@@ -1159,7 +1187,7 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 	zero_v3(t->center_global);
 
 	unit_m3(t->mat);
-	
+
 	/* if there's an event, we're modal */
 	if (event) {
 		t->flag |= T_MODAL;
@@ -1177,7 +1205,7 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 			t->remove_on_cancel = true;
 		}
 	}
-	
+
 	/* GPencil editing context */
 	if ((gpd) && (gpd->flag & GP_DATA_STROKE_EDITMODE)) {
 		t->options |= CTX_GPENCIL_STROKES;
@@ -1214,10 +1242,10 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 	if (t->spacetype == SPACE_VIEW3D) {
 		View3D *v3d = sa->spacedata.first;
 		bScreen *animscreen = ED_screen_animation_playing(CTX_wm_manager(C));
-		
+
 		t->view = v3d;
 		t->animtimer = (animscreen) ? animscreen->animtimer : NULL;
-		
+
 		/* turn manipulator off during transform */
 		// FIXME: but don't do this when USING the manipulator...
 		if (t->flag & T_MODAL) {
@@ -1227,7 +1255,7 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 
 		if (v3d->flag & V3D_ALIGN) t->flag |= T_V3D_ALIGN;
 		t->around = v3d->around;
-		
+
 		/* bend always uses the cursor */
 		if (t->mode == TFM_BEND) {
 			t->around = V3D_AROUND_CURSOR;
@@ -1359,7 +1387,7 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 			t->mirror = 1;
 		}
 	}
-	
+
 	/* setting PET flag only if property exist in operator. Otherwise, assume it's not supported */
 	if (op && (prop = RNA_struct_find_property(op->ptr, "proportional"))) {
 		if (RNA_property_is_set(op->ptr, prop)) {
@@ -1396,7 +1424,7 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 				}
 			}
 		}
-		
+
 		if (op && ((prop = RNA_struct_find_property(op->ptr, "proportional_size")) &&
 		           RNA_property_is_set(op->ptr, prop)))
 		{
@@ -1405,14 +1433,14 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 		else {
 			t->prop_size = ts->proportional_size;
 		}
-		
-		
+
+
 		/* TRANSFORM_FIX_ME rna restrictions */
 		if (t->prop_size <= 0.00001f) {
 			printf("Proportional size (%f) under 0.00001, resetting to 1!\n", t->prop_size);
 			t->prop_size = 1.0f;
 		}
-		
+
 		if (op && ((prop = RNA_struct_find_property(op->ptr, "proportional_edit_falloff")) &&
 		           RNA_property_is_set(op->ptr, prop)))
 		{
@@ -1425,7 +1453,7 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 	else { /* add not pet option to context when not available */
 		t->options |= CTX_NO_PET;
 	}
-	
+
 	// Mirror is not supported with PET, turn it off.
 #if 0
 	if (t->flag & T_PROP_EDIT) {
@@ -1449,7 +1477,7 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 void postTrans(bContext *C, TransInfo *t)
 {
 	TransData *td;
-	
+
 	if (t->draw_handle_view)
 		ED_region_draw_cb_exit(t->ar->type, t->draw_handle_view);
 	if (t->draw_handle_apply)
@@ -1477,7 +1505,7 @@ void postTrans(bContext *C, TransInfo *t)
 
 	/* postTrans can be called when nothing is selected, so data is NULL already */
 	if (t->data) {
-		
+
 		/* free data malloced per trans-data */
 		if ((t->obedit && ELEM(t->obedit->type, OB_CURVE, OB_SURF)) ||
 		    (t->spacetype == SPACE_IPO))
@@ -1491,7 +1519,7 @@ void postTrans(bContext *C, TransInfo *t)
 		}
 		MEM_freeN(t->data);
 	}
-	
+
 	BLI_freelistN(&t->tsnap.points);
 
 	if (t->ext) MEM_freeN(t->ext);
@@ -1499,7 +1527,7 @@ void postTrans(bContext *C, TransInfo *t)
 		MEM_freeN(t->data2d);
 		t->data2d = NULL;
 	}
-	
+
 	if (t->spacetype == SPACE_IMAGE) {
 		if (t->options & (CTX_MASK | CTX_PAINT_CURVE)) {
 			/* pass */
@@ -1517,7 +1545,7 @@ void postTrans(bContext *C, TransInfo *t)
 			v3d->twtype = t->twtype;
 		}
 	}
-	
+
 	if (t->mouse.data) {
 		MEM_freeN(t->mouse.data);
 	}
@@ -1528,7 +1556,7 @@ void postTrans(bContext *C, TransInfo *t)
 void applyTransObjects(TransInfo *t)
 {
 	TransData *td;
-	
+
 	for (td = t->data; td < t->data + t->total; td++) {
 		copy_v3_v3(td->iloc, td->loc);
 		if (td->ext->rot) {
@@ -1569,7 +1597,7 @@ static void restoreElement(TransData *td)
 			copy_qt_qt(td->ext->quat, td->ext->iquat);
 		}
 	}
-	
+
 	if (td->flag & TD_BEZTRIPLE) {
 		*(td->hdata->h1) = td->hdata->ih1;
 		*(td->hdata->h2) = td->hdata->ih2;
@@ -1584,7 +1612,7 @@ void restoreTransObjects(TransInfo *t)
 	for (td = t->data; td < t->data + t->total; td++) {
 		restoreElement(td);
 	}
-	
+
 	for (td2d = t->data2d; t->data2d && td2d < t->data2d + t->total; td2d++) {
 		if (td2d->h1) {
 			td2d->h1[0] = td2d->ih1[0];
@@ -1597,7 +1625,7 @@ void restoreTransObjects(TransInfo *t)
 	}
 
 	unit_m3(t->mat);
-	
+
 	recalcData(t);
 }
 
@@ -1608,7 +1636,7 @@ void calculateCenter2D(TransInfo *t)
 	if (t->flag & (T_EDIT | T_POSE)) {
 		Object *ob = t->obedit ? t->obedit : t->poseobj;
 		float vec[3];
-		
+
 		copy_v3_v3(vec, t->center);
 		mul_m4_v3(ob->obmat, vec);
 		projectFloatView(t, vec, t->center2d);
@@ -1636,15 +1664,15 @@ void calculateCenterGlobal(
 void calculateCenterCursor(TransInfo *t, float r_center[3])
 {
 	const float *cursor;
-	
+
 	cursor = ED_view3d_cursor3d_get(t->scene, t->view);
 	copy_v3_v3(r_center, cursor);
-	
+
 	/* If edit or pose mode, move cursor in local space */
 	if (t->flag & (T_EDIT | T_POSE)) {
 		Object *ob = t->obedit ? t->obedit : t->poseobj;
 		float mat[3][3], imat[3][3];
-		
+
 		sub_v3_v3v3(r_center, r_center, ob->obmat[3]);
 		copy_m3_m4(mat, ob->obmat);
 		invert_m3_m3(imat, mat);
@@ -1662,7 +1690,7 @@ void calculateCenterCursor(TransInfo *t, float r_center[3])
 void calculateCenterCursor2D(TransInfo *t, float r_center[2])
 {
 	const float *cursor = NULL;
-	
+
 	if (t->spacetype == SPACE_IMAGE) {
 		SpaceImage *sima = (SpaceImage *)t->sa->spacedata.first;
 		cursor = sima->cursor;
@@ -1708,7 +1736,7 @@ void calculateCenterCursorGraph2D(TransInfo *t, float r_center[2])
 {
 	SpaceIpo *sipo = (SpaceIpo *)t->sa->spacedata.first;
 	Scene *scene = t->scene;
-	
+
 	/* cursor is combination of current frame, and graph-editor cursor value */
 	if (sipo->mode == SIPO_MODE_DRIVERS) {
 		r_center[0] = sipo->cursorTime;
@@ -1725,7 +1753,7 @@ void calculateCenterMedian(TransInfo *t, float r_center[3])
 	float partial[3] = {0.0f, 0.0f, 0.0f};
 	int total = 0;
 	int i;
-	
+
 	for (i = 0; i < t->total; i++) {
 		if (t->data[i].flag & TD_SELECTED) {
 			if (!(t->data[i].flag & TD_NOCENTER)) {
@@ -1859,20 +1887,20 @@ void calculateCenter(TransInfo *t)
 	/* for panning from cameraview */
 	if ((t->flag & T_OBJECT) && (t->flag & T_OVERRIDE_CENTER) == 0) {
 		if (t->spacetype == SPACE_VIEW3D && t->ar && t->ar->regiontype == RGN_TYPE_WINDOW) {
-			
+
 			if (t->flag & T_CAMERA) {
 				float axis[3];
 				/* persinv is nasty, use viewinv instead, always right */
 				copy_v3_v3(axis, t->viewinv[2]);
 				normalize_v3(axis);
-				
+
 				/* 6.0 = 6 grid units */
 				axis[0] = t->center[0] - 6.0f * axis[0];
 				axis[1] = t->center[1] - 6.0f * axis[1];
 				axis[2] = t->center[2] - 6.0f * axis[2];
-				
+
 				projectFloatView(t, axis, t->center2d);
-				
+
 				/* rotate only needs correct 2d center, grab needs ED_view3d_calc_zfac() value */
 				if (t->mode == TFM_TRANSLATION) {
 					copy_v3_v3(t->center, axis);
@@ -1881,17 +1909,9 @@ void calculateCenter(TransInfo *t)
 			}
 		}
 	}
-	
+
 	if (t->spacetype == SPACE_VIEW3D) {
 		/* ED_view3d_calc_zfac() defines a factor for perspective depth correction, used in ED_view3d_win_to_delta() */
-		float vec[3];
-		if (t->flag & (T_EDIT | T_POSE)) {
-			Object *ob = t->obedit ? t->obedit : t->poseobj;
-			mul_v3_m4v3(vec, ob->obmat, t->center);
-		}
-		else {
-			copy_v3_v3(vec, t->center);
-		}
 
 		/* zfac is only used convertViewVec only in cases operator was invoked in RGN_TYPE_WINDOW
 		 * and never used in other cases.
@@ -1900,7 +1920,7 @@ void calculateCenter(TransInfo *t)
 		 * for a region different from RGN_TYPE_WINDOW.
 		 */
 		if (t->ar->regiontype == RGN_TYPE_WINDOW) {
-			t->zfac = ED_view3d_calc_zfac(t->ar->regiondata, vec, NULL);
+			t->zfac = ED_view3d_calc_zfac(t->ar->regiondata, t->center_global, NULL);
 		}
 		else {
 			t->zfac = 0.0f;
@@ -1953,14 +1973,14 @@ void calculatePropRatio(TransInfo *t)
 				 * that means we can stop when it finds one element outside of the propsize.
 				 * do not set 'td->flag |= TD_NOACTION', the prop circle is being changed.
 				 */
-				
+
 				td->factor = 0.0f;
 				restoreElement(td);
 			}
 			else {
 				/* Use rdist for falloff calculations, it is the real distance */
 				td->flag &= ~TD_NOACTION;
-				
+
 				if (connected)
 					dist = (t->prop_size - td->dist) / t->prop_size;
 				else
@@ -1973,7 +1993,7 @@ void calculatePropRatio(TransInfo *t)
 				 */
 				if (dist < 0.0f)
 					dist = 0.0f;
-				
+
 				switch (t->prop_mode) {
 					case PROP_SHARP:
 						td->factor = dist * dist;

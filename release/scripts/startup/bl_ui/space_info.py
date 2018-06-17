@@ -154,6 +154,7 @@ class INFO_MT_file(Menu):
         layout.separator()
 
         layout.menu("INFO_MT_file_external_data", icon='EXTERNAL_DATA')
+        layout.operator("wm.blend_strings_utf8_validate", icon='FILE_BLEND')
 
         layout.separator()
 
@@ -334,32 +335,35 @@ class INFO_MT_help(Menu):
         layout = self.layout
 
         layout.operator(
-                "wm.url_open", text="Manual", icon='HELP',
-                ).url = "https://docs.blender.org/manual/en/dev/"
+            "wm.url_open", text="Manual", icon='HELP',
+        ).url = "https://docs.blender.org/manual/en/dev/"
         layout.operator(
-                "wm.url_open", text="Release Log", icon='URL',
-                ).url = "http://wiki.blender.org/index.php/Dev:Ref/Release_Notes/%d.%d" % bpy.app.version[:2]
+            "wm.url_open", text="Release Log", icon='URL',
+        ).url = "http://wiki.blender.org/index.php/Dev:Ref/Release_Notes/%d.%d" % bpy.app.version[:2]
         layout.separator()
 
         layout.operator(
-                "wm.url_open", text="Blender Website", icon='URL',
-                ).url = "https://www.blender.org"
+            "wm.url_open", text="Blender Website", icon='URL',
+        ).url = "https://www.blender.org"
         layout.operator(
-                "wm.url_open", text="Blender Store", icon='URL',
-                ).url = "https://store.blender.org"
+            "wm.url_open", text="Blender Store", icon='URL',
+        ).url = "https://store.blender.org"
         layout.operator(
-                "wm.url_open", text="Developer Community", icon='URL',
-                ).url = "https://www.blender.org/get-involved/"
+            "wm.url_open", text="Developer Community", icon='URL',
+        ).url = "https://www.blender.org/get-involved/"
         layout.operator(
-                "wm.url_open", text="User Community", icon='URL',
-                ).url = "https://www.blender.org/support/user-community"
+            "wm.url_open", text="User Community", icon='URL',
+        ).url = "https://www.blender.org/support/user-community"
         layout.separator()
         layout.operator(
-                "wm.url_open", text="Report a Bug", icon='URL',
-                ).url = "https://developer.blender.org/maniphest/task/edit/form/1"
+            "wm.url_open", text="Report a Bug", icon='URL',
+        ).url = "https://developer.blender.org/maniphest/task/edit/form/1"
         layout.separator()
 
-        layout.operator("wm.url_open", text="Python API Reference", icon='URL').url = "https://pythonapi.upbge.org/"
+        layout.operator(
+                "wm.url_open", text="Python API Reference", icon='URL',
+                ).url = "https://pythonapi.upbge.org/"
+
         layout.operator("wm.operator_cheat_sheet", icon='TEXT')
         layout.operator("wm.sysinfo", icon='TEXT')
         layout.separator()

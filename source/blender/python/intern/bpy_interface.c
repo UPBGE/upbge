@@ -33,6 +33,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "CLG_log.h"
+
 #include "BLI_utildefines.h"
 #include "BLI_path_util.h"
 #include "BLI_fileops.h"
@@ -72,9 +74,13 @@
 #include "../generic/bgl.h"
 #include "../generic/blf_py_api.h"
 #include "../generic/idprop_py_api.h"
+#include "../generic/imbuf_py_api.h"
 #include "../bmesh/bmesh_py_api.h"
 #include "../mathutils/mathutils.h"
 
+/* Logging types to use anywhere in the Python modules. */
+CLG_LOGREF_DECLARE_GLOBAL(BPY_LOG_CONTEXT, "bpy.context");
+CLG_LOGREF_DECLARE_GLOBAL(BPY_LOG_RNA, "bpy.rna");
 
 /* for internal use, when starting and ending python scripts */
 
@@ -214,6 +220,7 @@ static struct _inittab bpy_internal_modules[] = {
 	{"_bpy_path", BPyInit__bpy_path},
 	{"bgl", BPyInit_bgl},
 	{"blf", BPyInit_blf},
+	{"imbuf", BPyInit_imbuf},
 	{"bmesh", BPyInit_bmesh},
 #if 0
 	{"bmesh.types", BPyInit_bmesh_types},
@@ -284,7 +291,7 @@ void BPY_python_start(int argc, const char **argv)
 		PySys_SetObject("argv", py_argv);
 		Py_DECREF(py_argv);
 	}
-	
+
 	/* Initialize thread support (also acquires lock) */
 	PyEval_InitThreads();
 #else
@@ -323,7 +330,7 @@ void BPY_python_start(int argc, const char **argv)
 	BPy_init_modules();
 
 	bpy_import_init(PyEval_GetBuiltins());
-	
+
 	pyrna_alloc_types();
 
 #ifndef WITH_PYTHON_MODULE
@@ -342,7 +349,7 @@ void BPY_python_end(void)
 
 	/* finalizing, no need to grab the state, except when we are a module */
 	gilstate = PyGILState_Ensure();
-	
+
 	/* free other python data. */
 	pyrna_free_types();
 
@@ -691,7 +698,7 @@ bool BPY_execute_string_ex(bContext *C, const char *expr, bool use_eval)
 	PyC_MainModule_Restore(main_mod);
 
 	bpy_context_clear(C, &gilstate);
-	
+
 	return ok;
 }
 
@@ -725,7 +732,7 @@ void BPY_modules_load_user(bContext *C)
 					G.f |= G_SCRIPT_AUTOEXEC_FAIL;
 					BLI_snprintf(G.autoexec_fail, sizeof(G.autoexec_fail), "Text '%s'", text->id.name + 2);
 
-					printf("scripts disabled for \"%s\", skipping '%s'\n", bmain->name, text->id.name + 2);
+					printf("scripts disabled for \"%s\", skipping '%s'\n", BKE_main_blendfile_path(bmain), text->id.name + 2);
 				}
 			}
 			else {
@@ -803,8 +810,9 @@ int BPY_context_member_get(bContext *C, const char *member, bContextDataResult *
 					CTX_data_list_add(result, ptr->id.data, ptr->type, ptr->data);
 				}
 				else {
-					printf("PyContext: '%s' list item not a valid type in sequece type '%s'\n",
-					       member, Py_TYPE(item)->tp_name);
+					CLOG_INFO(BPY_LOG_CONTEXT, 1,
+					          "'%s' list item not a valid type in sequence type '%s'",
+					          member, Py_TYPE(item)->tp_name);
 				}
 
 			}
@@ -816,16 +824,14 @@ int BPY_context_member_get(bContext *C, const char *member, bContextDataResult *
 
 	if (done == false) {
 		if (item) {
-			printf("PyContext '%s' not a valid type\n", member);
+			CLOG_INFO(BPY_LOG_CONTEXT, 1, "'%s' not a valid type", member);
 		}
 		else {
-			printf("PyContext '%s' not found\n", member);
+			CLOG_INFO(BPY_LOG_CONTEXT, 1, "'%s' not found\n", member);
 		}
 	}
 	else {
-		if (G.debug & G_DEBUG_PYTHON) {
-			printf("PyContext '%s' found\n", member);
-		}
+		CLOG_INFO(BPY_LOG_CONTEXT, 2, "'%s' found", member);
 	}
 
 	if (use_gil)
@@ -876,7 +882,7 @@ static void bpy_module_delay_init(PyObject *bpy_proxy)
 
 	argv[0] = filename_abs;
 	argv[1] = NULL;
-	
+
 	// printf("module found %s\n", argv[0]);
 
 	main_python_enter(argc, argv);
@@ -905,14 +911,14 @@ PyMODINIT_FUNC
 PyInit_bpy(void)
 {
 	PyObject *bpy_proxy = PyModule_Create(&bpy_proxy_def);
-	
+
 	/* Problem:
 	 * 1) this init function is expected to have a private member defined - 'md_def'
 	 *    but this is only set for C defined modules (not py packages)
 	 *    so we cant return 'bpy_package_py' as is.
 	 *
 	 * 2) there is a 'bpy' C module for python to load which is basically all of blender,
-	 *    and there is scripts/bpy/__init__.py, 
+	 *    and there is scripts/bpy/__init__.py,
 	 *    we may end up having to rename this module so there is no naming conflict here eg:
 	 *    'from blender import bpy'
 	 *
@@ -922,13 +928,13 @@ PyInit_bpy(void)
 
 	/* assign an object which is freed after __file__ is assigned */
 	dealloc_obj *dob;
-	
+
 	/* assign dummy type */
 	dealloc_obj_Type.tp_name = "dealloc_obj";
 	dealloc_obj_Type.tp_basicsize = sizeof(dealloc_obj);
 	dealloc_obj_Type.tp_dealloc = dealloc_obj_dealloc;
 	dealloc_obj_Type.tp_flags = Py_TPFLAGS_DEFAULT;
-	
+
 	if (PyType_Ready(&dealloc_obj_Type) < 0)
 		return NULL;
 

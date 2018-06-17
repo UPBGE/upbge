@@ -227,7 +227,15 @@ void BlenderSync::sync_background_light(bool use_portal)
 	if(b_world) {
 		PointerRNA cscene = RNA_pointer_get(&b_scene.ptr, "cycles");
 		PointerRNA cworld = RNA_pointer_get(&b_world.ptr, "cycles");
-		bool sample_as_light = get_boolean(cworld, "sample_as_light");
+
+		enum SamplingMethod {
+			SAMPLING_NONE = 0,
+			SAMPLING_AUTOMATIC,
+			SAMPLING_MANUAL,
+			SAMPLING_NUM
+		};
+		int sampling_method = get_enum(cworld, "sampling_method", SAMPLING_NUM, SAMPLING_AUTOMATIC);
+		bool sample_as_light = (sampling_method != SAMPLING_NONE);
 
 		if(sample_as_light || use_portal) {
 			/* test if we need to sync */
@@ -239,7 +247,12 @@ void BlenderSync::sync_background_light(bool use_portal)
 			    b_world.ptr.data != world_map)
 			{
 				light->type = LIGHT_BACKGROUND;
-				light->map_resolution  = get_int(cworld, "sample_map_resolution");
+				if(sampling_method == SAMPLING_MANUAL) {
+					light->map_resolution = get_int(cworld, "sample_map_resolution");
+				}
+				else {
+					light->map_resolution = 0;
+				}
 				light->shader = scene->default_background;
 				light->use_mis = sample_as_light;
 				light->max_bounces = get_int(cworld, "max_bounces");
@@ -327,22 +340,11 @@ Object *BlenderSync::sync_object(BL::Object& b_parent,
 	if(motion) {
 		object = object_map.find(key);
 
-		if(object && (scene->need_motion() == Scene::MOTION_PASS ||
-		              object_use_motion(b_parent, b_ob)))
-		{
-			/* object transformation */
-			if(tfm != object->tfm) {
-				VLOG(1) << "Object " << b_ob.name() << " motion detected.";
-				if(motion_time == -1.0f || motion_time == 1.0f) {
-					object->use_motion = true;
-				}
-			}
-
-			if(motion_time == -1.0f) {
-				object->motion.pre = tfm;
-			}
-			else if(motion_time == 1.0f) {
-				object->motion.post = tfm;
+		if(object && object->use_motion()) {
+			/* Set transform at matching motion time step. */
+			int time_index = object->motion_step(motion_time);
+			if(time_index >= 0) {
+				object->motion[time_index] = tfm;
 			}
 
 			/* mesh deformation */
@@ -389,25 +391,37 @@ Object *BlenderSync::sync_object(BL::Object& b_parent,
 		object->name = b_ob.name().c_str();
 		object->pass_id = b_ob.pass_index();
 		object->tfm = tfm;
-		object->motion.pre = transform_empty();
-		object->motion.post = transform_empty();
-		object->use_motion = false;
+		object->motion.clear();
 
 		/* motion blur */
-		if(scene->need_motion() == Scene::MOTION_BLUR && object->mesh) {
+		Scene::MotionType need_motion = scene->need_motion();
+		if(need_motion != Scene::MOTION_NONE && object->mesh) {
 			Mesh *mesh = object->mesh;
-
 			mesh->use_motion_blur = false;
+			mesh->motion_steps = 0;
 
-			if(object_use_motion(b_parent, b_ob)) {
-				if(object_use_deform_motion(b_parent, b_ob)) {
-					mesh->motion_steps = object_motion_steps(b_ob);
+			uint motion_steps;
+
+			if(scene->need_motion() == Scene::MOTION_BLUR) {
+				motion_steps = object_motion_steps(b_parent, b_ob);
+				if(motion_steps && object_use_deform_motion(b_parent, b_ob)) {
+					mesh->motion_steps = motion_steps;
 					mesh->use_motion_blur = true;
 				}
+			}
+			else {
+				motion_steps = 3;
+				mesh->motion_steps = motion_steps;
+			}
 
-				vector<float> times = object->motion_times();
-				foreach(float time, times)
-					motion_times.insert(time);
+			object->motion.resize(motion_steps, transform_empty());
+
+			if(motion_steps) {
+				object->motion[motion_steps/2] = tfm;
+
+				for(size_t step = 0; step < motion_steps; step++) {
+					motion_times.insert(object->motion_time(step));
+				}
 			}
 		}
 
@@ -566,7 +580,7 @@ void BlenderSync::sync_objects(float motion_time)
 
 				if(b_ob.is_duplicator() && !object_render_hide_duplis(b_ob)) {
 					/* dupli objects */
-					b_ob.dupli_list_create(b_scene, dupli_settings);
+					b_ob.dupli_list_create(b_data, b_scene, dupli_settings);
 
 					BL::Object::dupli_list_iterator b_dup;
 
@@ -694,6 +708,11 @@ void BlenderSync::sync_motion(BL::RenderSettings& b_render,
 
 	/* note iteration over motion_times set happens in sorted order */
 	foreach(float relative_time, motion_times) {
+		/* center time is already handled. */
+		if(relative_time == 0.0f) {
+			continue;
+		}
+
 		VLOG(1) << "Synchronizing motion for the relative time "
 		        << relative_time << ".";
 

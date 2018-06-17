@@ -44,6 +44,8 @@
 #include "BKE_customdata.h"
 #include "BKE_deform.h"
 
+#include "eigen_capi.h"
+
 #include "bmesh.h"
 #include "bmesh_bevel.h"  /* own include */
 
@@ -58,6 +60,7 @@
 #define BEVEL_SMALL_ANG DEG2RADF(10.0f)
 #define BEVEL_MAX_ADJUST_PCT 10.0f
 #define BEVEL_MAX_AUTO_ADJUST_PCT 300.0f
+#define BEVEL_MATCH_SPEC_WEIGHT 0.2
 
 /* happens far too often, uncomment for development */
 // #define BEVEL_ASSERT_PROJECT
@@ -139,12 +142,16 @@ typedef struct BoundVert {
 	NewVert nv;
 	EdgeHalf *efirst;   /* first of edges attached here: in CCW order */
 	EdgeHalf *elast;
+	EdgeHalf *eon;      /* the "edge between" that this is on, in offset_on_edge_between case */
 	EdgeHalf *ebev;     /* beveled edge whose left side is attached here, if any */
 	int index;          /* used for vmesh indexing */
+	float sinratio;     /* when eon set, ratio of sines of angles to eon edge */
+	struct BoundVert *adjchain; /* adjustment chain or cycle link pointer */
 	Profile profile;    /* edge profile between this and next BoundVert */
 	bool any_seam;      /* are any of the edges attached here seams? */
+	bool visited;       /* used during delta adjust pass */
 //	int _pad;
-} BoundVert;	
+} BoundVert;
 
 /* Mesh structure replacing a vertex */
 typedef struct VMesh {
@@ -192,6 +199,7 @@ typedef struct BevelParams {
 	bool use_weights;       /* bevel amount affected by weights on edges or verts */
 	bool loop_slide;	    /* should bevel prefer to slide along edges rather than keep widths spec? */
 	bool limit_offset;      /* should offsets be limited by collisions? */
+	bool offset_adjust;     /* should offsets be adjusted to try to get even widths? */
 	const struct MDeformVert *dvert; /* vertex group array, maybe set if vertex_only */
 	int vertex_group;       /* vertex group index, maybe set if vertex_only */
 	int mat_nr;             /* if >= 0, material number for bevel; else material comes from adjacent faces */
@@ -206,6 +214,7 @@ static int bev_debug_flags = 0;
 #define DEBUG_OLD_PLANE_SPECIAL (bev_debug_flags & 1)
 #define DEBUG_OLD_PROJ_TO_PERP_PLANE (bev_debug_flags & 2)
 #define DEBUG_OLD_FLAT_MID (bev_debug_flags & 4)
+
 
 /* this flag values will get set on geom we want to return in 'out' slots for edges and verts */
 #define EDGE_OUT 4
@@ -260,6 +269,9 @@ static BoundVert *add_new_bound_vert(MemArena *mem_arena, VMesh *vm, const float
 		vm->boundstart->prev = ans;
 	}
 	ans->profile.super_r = PRO_LINE_R;
+	ans->adjchain = NULL;
+	ans->sinratio = 1.0f;
+	ans->visited = false;
 	vm->count++;
 	return ans;
 }
@@ -340,52 +352,6 @@ static EdgeHalf *find_other_end_edge_half(BevelParams *bp, EdgeHalf *e, BevVert 
 		*r_bvother = NULL;
 	}
 	return NULL;
-}
-
-static bool other_edge_half_visited(BevelParams *bp, EdgeHalf *e)
-{
-	BevVert *bvo;
-
-	bvo = find_bevvert(bp, e->is_rev ? e->e->v1 : e->e->v2);
-	if (bvo)
-		return bvo->visited;
-	else
-		return false;
-}
-
-static bool edge_half_offset_changed(EdgeHalf *e)
-{
-	return e->offset_l != e->offset_l_spec ||
-	       e->offset_r != e->offset_r_spec;
-}
-
-static float adjusted_rel_change(float val, float spec)
-{
-	float relchg;
-
-	relchg = 0.0f;
-	if (val != spec) {
-		if (spec == 0)
-			relchg = 1000.0f;  /* arbitrary large value */
-		else
-			relchg = fabsf((val - spec) / spec);
-	}
-	return relchg;
-}
-
-static float max_edge_half_offset_rel_change(BevVert *bv)
-{
-	int i;
-	float max_rel_change;
-	EdgeHalf *e;
-
-	max_rel_change = 0.0f;
-	for (i = 0; i < bv->edgecount; i++) {
-		e = &bv->edges[i];
-		max_rel_change = max_ff(max_rel_change, adjusted_rel_change(e->offset_l, e->offset_l_spec));
-		max_rel_change = max_ff(max_rel_change, adjusted_rel_change(e->offset_r, e->offset_r_spec));
-	}
-	return max_rel_change;
 }
 
 /* Return the next EdgeHalf after from_e that is beveled.
@@ -545,7 +511,7 @@ static BMFace *bev_create_ngon(
 
 static BMFace *bev_create_quad(
         BMesh *bm, BMVert *v1, BMVert *v2, BMVert *v3, BMVert *v4,
-        BMFace *f1, BMFace *f2, BMFace *f3, BMFace *f4, 
+        BMFace *f1, BMFace *f2, BMFace *f3, BMFace *f4,
         int mat_nr)
 {
 	BMVert *varr[4] = {v1, v2, v3, v4};
@@ -555,7 +521,7 @@ static BMFace *bev_create_quad(
 
 static BMFace *bev_create_quad_ex(
         BMesh *bm, BMVert *v1, BMVert *v2, BMVert *v3, BMVert *v4,
-        BMFace *f1, BMFace *f2, BMFace *f3, BMFace *f4, 
+        BMFace *f1, BMFace *f2, BMFace *f3, BMFace *f4,
         BMEdge *e1, BMEdge *e2, BMEdge *e3, BMEdge *e4,
         int mat_nr)
 {
@@ -818,10 +784,6 @@ static void offset_meet(EdgeHalf *e1, EdgeHalf *e2, BMVert *v, BMFace *f, bool e
 		copy_v3_v3(off1a, v->co);
 		d = max_ff(e1->offset_r, e2->offset_l);
 		madd_v3_v3fl(off1a, norm_perp1, d);
-		if (e1->offset_r != d)
-			e1->offset_r = d;
-		else if (e2->offset_l != d)
-			e2->offset_l = d;
 		copy_v3_v3(meetco, off1a);
 	}
 	else if (fabsf(ang - (float)M_PI) < BEVEL_EPSILON_ANG) {
@@ -830,10 +792,6 @@ static void offset_meet(EdgeHalf *e1, EdgeHalf *e2, BMVert *v, BMFace *f, bool e
 		 * common line, at offset distance from v. */
 		d = max_ff(e1->offset_r, e2->offset_l);
 		slide_dist(e2, v, d, meetco);
-		if (e1->offset_r != d)
-			e1->offset_r = d;
-		else if (e2->offset_l != d)
-			e2->offset_l = d;
 	}
 	else {
 		/* Get normal to plane where meet point should be,
@@ -871,7 +829,6 @@ static void offset_meet(EdgeHalf *e1, EdgeHalf *e2, BMVert *v, BMFace *f, bool e
 				negate_v3(norm_v2);
 		}
 
-
 		/* get vectors perp to each edge, perp to norm_v, and pointing into face */
 		cross_v3_v3v3(norm_perp1, dir1, norm_v1);
 		cross_v3_v3v3(norm_perp2, dir2, norm_v2);
@@ -891,9 +848,6 @@ static void offset_meet(EdgeHalf *e1, EdgeHalf *e2, BMVert *v, BMFace *f, bool e
 		if (isect_kind == 0) {
 			/* lines are collinear: we already tested for this, but this used a different epsilon */
 			copy_v3_v3(meetco, off1a);  /* just to do something */
-			d = dist_to_line_v3(meetco, v->co, BM_edge_other_vert(e2->e, v)->co);
-			if (fabsf(d - e2->offset_l) > BEVEL_EPSILON)
-				e2->offset_l = d;
 		}
 		else {
 			/* The lines intersect, but is it at a reasonable place?
@@ -903,11 +857,9 @@ static void offset_meet(EdgeHalf *e1, EdgeHalf *e2, BMVert *v, BMFace *f, bool e
 			 * or if the offset amount is > the edge length*/
 			if (e1->offset_r == 0.0f && is_outside_edge(e1, meetco, &closer_v)) {
 				copy_v3_v3(meetco, closer_v->co);
-				e2->offset_l = len_v3v3(meetco, v->co);
 			}
 			if (e2->offset_l == 0.0f && is_outside_edge(e2, meetco, &closer_v)) {
 				copy_v3_v3(meetco, closer_v->co);
-				e1->offset_r = len_v3v3(meetco, v->co);
 			}
 			if (edges_between && e1->offset_r > 0.0f && e2->offset_l > 0.0f) {
 				/* Try to drop meetco to a face between e1 and e2 */
@@ -926,8 +878,6 @@ static void offset_meet(EdgeHalf *e1, EdgeHalf *e2, BMVert *v, BMFace *f, bool e
 						break;
 					}
 				}
-				e1->offset_r = dist_to_line_v3(meetco, v->co, BM_edge_other_vert(e1->e, v)->co);
-				e2->offset_l = dist_to_line_v3(meetco, v->co, BM_edge_other_vert(e2->e, v)->co);
 			}
 		}
 	}
@@ -994,40 +944,27 @@ static bool good_offset_on_edge_between(EdgeHalf *e1, EdgeHalf *e2, EdgeHalf *em
 /* Calculate the best place for a meeting point for the offsets from edges e1 and e2
  * on the in-between edge emid.  Viewed from the vertex normal side, the CCW
  * order of these edges is e1, emid, e2.
- * The offsets probably do not meet at a common point on emid, so need to pick
- * one that causes the least problems. If the other end of one of e1 or e2 has been visited
- * already, prefer to keep the offset the same on this end.
- * Otherwise, pick a point between the two intersection points on emid that minimizes
- * the sum of squares of errors from desired offset. */
-static void offset_on_edge_between(
-        BevelParams *bp, EdgeHalf *e1, EdgeHalf *e2, EdgeHalf *emid,
-        BMVert *v, float meetco[3])
+ * Return true if we placed meetco as compromise between where two edges met.
+ * If we did, put ration of sines of angles in *r_sinratio too */
+static bool offset_on_edge_between(
+        EdgeHalf *e1, EdgeHalf *e2, EdgeHalf *emid,
+        BMVert *v, float meetco[3], float *r_sinratio)
 {
-	float d, ang1, ang2, sina1, sina2, lambda;
+	float ang1, ang2;
 	float meet1[3], meet2[3];
-	bool visited1, visited2, ok1, ok2;
+	bool ok1, ok2;
+	bool retval = false;
 
 	BLI_assert(e1->is_bev && e2->is_bev && !emid->is_bev);
-
-	visited1 = other_edge_half_visited(bp, e1);
-	visited2 = other_edge_half_visited(bp, e2);
 
 	ok1 = offset_meet_edge(e1, emid, v, meet1, &ang1);
 	ok2 = offset_meet_edge(emid, e2, v, meet2, &ang2);
 	if (ok1 && ok2) {
-		if (visited1 && !visited2) {
-			copy_v3_v3(meetco, meet1);
-		}
-		else if (!visited1 && visited2) {
-			copy_v3_v3(meetco, meet2);
-		}
-		else {
-			/* find best compromise meet point */
-			sina1 = sinf(ang1);
-			sina2 = sinf(ang2);
-			lambda = sina2 * sina2 / (sina1 * sina1 + sina2 * sina2);
-			interp_v3_v3v3(meetco, meet1, meet2, lambda);
-		}
+		mid_v3_v3v3(meetco, meet1, meet2);
+		if (r_sinratio)
+			/* ang1 should not be 0, but be paranoid */
+			*r_sinratio = (ang1 == 0.0f) ? 1.0f : sinf(ang2) / sinf(ang1);
+		retval = true;
 	}
 	else if (ok1 && !ok2) {
 		copy_v3_v3(meetco, meet1);
@@ -1041,13 +978,7 @@ static void offset_on_edge_between(
 		slide_dist(emid, v, e1->offset_r, meetco);
 	}
 
-	/* offsets may have changed now */
-	d = dist_to_line_v3(meetco, v->co, BM_edge_other_vert(e1->e, v)->co);
-	if (fabsf(d - e1->offset_r) > BEVEL_EPSILON)
-		e1->offset_r = d;
-	d = dist_to_line_v3(meetco, v->co, BM_edge_other_vert(e2->e, v)->co);
-	if (fabsf(d - e2->offset_l) > BEVEL_EPSILON)
-		e2->offset_l = d;
+	return retval;
 }
 
 /* Offset by e->offset in plane with normal plane_no, on left if left==true,
@@ -1424,7 +1355,7 @@ static void get_profile_point(BevelParams *bp, const Profile *pro, int i, int n,
 		else
 			copy_v3_v3(r_co, pro->cob);
 	}
-	
+
 	else {
 		if (n == bp->seg) {
 			BLI_assert(pro->prof_co != NULL);
@@ -1692,7 +1623,7 @@ static void build_boundary_vertex_only(BevelParams *bp, BevVert *bv, bool constr
  * Special case of build_boundary when a single edge is beveled.
  * The 'width adjust' part of build_boundary has been done already,
  * and \a efirst is the first beveled edge at vertex \a bv.
-*/
+ */
 static void build_boundary_terminal_edge(BevelParams *bp, BevVert *bv, EdgeHalf *efirst, bool construct)
 {
 	MemArena *mem_arena = bp->mem_arena;
@@ -1806,6 +1737,7 @@ static void build_boundary_terminal_edge(BevelParams *bp, BevVert *bv, EdgeHalf 
 	}
 }
 
+#if 0
 /* Return a value that is v if v is within BEVEL_MAX_ADJUST_PCT of the spec (assumed positive),
  * else clamp to make it at most that far away from spec */
 static float clamp_adjust(float v, float spec)
@@ -1819,6 +1751,7 @@ static float clamp_adjust(float v, float spec)
 	else
 		return v;
 }
+#endif
 
 /* Make a circular list of BoundVerts for bv, each of which has the coordinates
  * of a vertex on the boundary of the beveled vertex bv->v.
@@ -1835,11 +1768,10 @@ static float clamp_adjust(float v, float spec)
 static void build_boundary(BevelParams *bp, BevVert *bv, bool construct)
 {
 	MemArena *mem_arena = bp->mem_arena;
-	EdgeHalf *efirst, *e, *e2, *e3, *enip, *eip, *eother;
+	EdgeHalf *efirst, *e, *e2, *e3, *enip, *eip, *eon;
 	BoundVert *v;
-	BevVert *bvother;
 	VMesh *vm;
-	float co[3];
+	float co[3], r;
 	int nip, nnip;
 
 	/* Current bevel does nothing if only one edge into a vertex */
@@ -1853,30 +1785,9 @@ static void build_boundary(BevelParams *bp, BevVert *bv, bool construct)
 
 	vm = bv->vmesh;
 
-	/* Find a beveled edge to be efirst. Then for each edge, try matching widths to other end. */
+	/* Find a beveled edge to be efirst */
 	e = efirst = next_bev(bv, NULL);
 	BLI_assert(e->is_bev);
-	do {
-		eother = find_other_end_edge_half(bp, e, &bvother);
-		if (eother && bvother->visited && bp->offset_type != BEVEL_AMT_PERCENT) {
-			/* try to keep bevel even by matching other end offsets */
-			/* sometimes, adjustment can accumulate errors so use the bp->limit_offset to
-			 * let user limit the adjustment to within a reasonable range around spec */
-			if (bp->limit_offset) {
-				e->offset_l = clamp_adjust(eother->offset_r, e->offset_l_spec);
-				e->offset_r = clamp_adjust(eother->offset_l, e->offset_r_spec);
-			}
-			else {
-				e->offset_l = eother->offset_r;
-				e->offset_r = eother->offset_l;
-			}
-		}
-		else {
-			/* reset to user spec */
-			e->offset_l = e->offset_l_spec;
-			e->offset_r = e->offset_r_spec;
-		}
-	} while ((e = e->next) != efirst);
 
 	if (bv->selcount == 1) {
 		/* special case: only one beveled edge in */
@@ -1890,6 +1801,7 @@ static void build_boundary(BevelParams *bp, BevVert *bv, bool construct)
 	e = efirst;
 	do {
 		BLI_assert(e->is_bev);
+		eon = NULL;
 		/* Make the BoundVert for the right side of e; other side will be made
 		 * when the beveled edge to the left of e is handled.
 		 * Analyze edges until next beveled edge.
@@ -1913,7 +1825,8 @@ static void build_boundary(BevelParams *bp, BevVert *bv, bool construct)
 		}
 		else if (nnip > 0) {
 			if (bp->loop_slide && nnip == 1 && good_offset_on_edge_between(e, e2, enip, bv->v)) {
-				offset_on_edge_between(bp, e, e2, enip, bv->v, co);
+				if (offset_on_edge_between(e, e2, enip, bv->v, co, &r))
+					eon = enip;
 			}
 			else {
 				offset_meet(e, e2, bv->v, NULL, true, co);
@@ -1922,7 +1835,8 @@ static void build_boundary(BevelParams *bp, BevVert *bv, bool construct)
 		else {
 			/* nip > 0 and nnip == 0 */
 			if (bp->loop_slide && nip == 1 && good_offset_on_edge_between(e, e2, eip, bv->v)) {
-				offset_on_edge_between(bp, e, e2, eip, bv->v, co);
+				if (offset_on_edge_between(e, e2, eip, bv->v, co, &r))
+					eon = eip;
 			}
 			else {
 				offset_meet(e, e2, bv->v, e->fnext, true, co);
@@ -1933,6 +1847,9 @@ static void build_boundary(BevelParams *bp, BevVert *bv, bool construct)
 			v->efirst = e;
 			v->elast = e2;
 			v->ebev = e2;
+			v->eon = eon;
+			if (eon)
+				v->sinratio = r;
 			e->rightv = v;
 			e2->leftv = v;
 			for (e3 = e->next; e3 != e2; e3 = e3->next) {
@@ -1962,98 +1879,393 @@ static void build_boundary(BevelParams *bp, BevVert *bv, bool construct)
 	}
 }
 
-/* Do a global pass to try to make offsets as even as possible.
- * Consider this graph:
- *   nodes = BevVerts
- *   edges = { (u,v) } where u and v are nodes such that u and v
- *        are connected by a mesh edge that has at least one end
- *        whose offset does not match the user spec.
+#ifdef DEBUG_ADJUST
+static void print_adjust_stats(BoundVert *vstart)
+{
+	BoundVert *v;
+	EdgeHalf *eleft, *eright;
+	double even_residual2, spec_residual2;
+	double max_even_r, max_even_r_pct;
+	double max_spec_r, max_spec_r_pct;
+	double delta, delta_pct;
+
+	printf("\nSolution analysis\n");
+	even_residual2 = 0.0;
+	spec_residual2 = 0.0;
+	max_even_r = 0.0;
+	max_even_r_pct = 0.0;
+	max_spec_r = 0.0;
+	max_spec_r_pct = 0.0;
+	printf("width matching\n");
+	v = vstart;
+	do {
+		if (v->adjchain != NULL) {
+			eright = v->efirst;
+			eleft = v->adjchain->elast;
+			delta = fabs(eright->offset_r - eleft->offset_l);
+			delta_pct = 100.0 * delta / eright->offset_r_spec;
+			printf("e%d r(%f) vs l(%f): abs(delta)=%f, delta_pct=%f\n",
+				BM_elem_index_get(eright->e), eright->offset_r, eleft->offset_l, delta, delta_pct);
+			even_residual2 += delta * delta;
+			if (delta > max_even_r)
+				max_even_r = delta;
+			if (delta_pct > max_even_r_pct)
+				max_even_r_pct = delta_pct;
+		}
+		v = v->adjchain;
+	} while (v && v != vstart);
+
+	printf("spec matching\n");
+	v = vstart;
+	do {
+		if (v->adjchain != NULL) {
+			eright = v->efirst;
+			eleft = v->adjchain->elast;
+			delta = eright->offset_r - eright->offset_r_spec;
+			delta_pct = 100.0 * delta / eright->offset_r_spec;
+			printf("e%d r(%f) vs r spec(%f): delta=%f, delta_pct=%f\n",
+				BM_elem_index_get(eright->e), eright->offset_r, eright->offset_r_spec, delta, delta_pct);
+			spec_residual2 += delta * delta;
+			delta = fabs(delta);
+			delta_pct = fabs(delta_pct);
+			if (delta > max_spec_r)
+				max_spec_r = delta;
+			if (delta_pct > max_spec_r_pct)
+				max_spec_r_pct = delta_pct;
+
+			delta = eleft->offset_l - eleft->offset_l_spec;
+			delta_pct = 100.0 * delta / eright->offset_l_spec;
+			printf("e%d l(%f) vs l spec(%f): delta=%f, delta_pct=%f\n",
+				BM_elem_index_get(eright->e), eleft->offset_l, eleft->offset_l_spec, delta, delta_pct);
+			spec_residual2 += delta * delta;
+			delta = fabs(delta);
+			delta_pct = fabs(delta_pct);
+			if (delta > max_spec_r)
+				max_spec_r = delta;
+			if (delta_pct > max_spec_r_pct)
+				max_spec_r_pct = delta_pct;
+		}
+		v = v->adjchain;
+	} while (v && v != vstart);
+
+	printf("Analysis Result:\n");
+	printf("even residual2 = %f,  spec residual2 = %f\n", even_residual2, spec_residual2);
+	printf("max even delta = %f, max as percent of spec = %f\n", max_even_r, max_even_r_pct);
+	printf("max spec delta = %f, max as percent of spec = %f\n", max_spec_r, max_spec_r_pct);
+}
+#endif
+
+#ifdef FAST_ADJUST_CODE
+/* This code uses a direct solution to the adjustment problem for chains and certain cycles.
+ * It is a two-step approach: first solve for the exact solution of the 'match widths' constraints
+ * using the one degree of freedom that allows for expressing all other widths in terms of that.
+ * And then minimize the spec-matching constraints using the derivative of the least squares
+ * residual in terms of that one degree of freedom.
+ * Unfortunately, the results are in some cases worse than the general least squares solution
+ * for the combined (with weights) problem, so this code is not used.
+ * But keep it here for a while in case peformance issues demand that it be used sometimes. */
+static bool adjust_the_cycle_or_chain_fast(BoundVert *vstart, int np, bool iscycle)
+{
+	BoundVert *v;
+	EdgeHalf *eleft, *eright;
+	float *g;
+	float *g_prod;
+	float gprod, gprod_sum, spec_sum, p;
+	int i;
+
+	g = MEM_mallocN(np * sizeof(float), "beveladjust");
+	g_prod = MEM_mallocN(np * sizeof(float), "beveladjust");
+
+	v = vstart;
+	spec_sum = 0.0f;
+	i = 0;
+	do {
+		g[i] = v->sinratio;
+		if (iscycle || v->adjchain != NULL) {
+			spec_sum += v->efirst->offset_r;
+		}
+		else {
+			spec_sum += v->elast->offset_l;
+		}
+		i++;
+		v = v->adjchain;
+	} while (v && v != vstart);
+
+	gprod = 1.00f;
+	gprod_sum = 1.0f;
+	for (i = np - 1; i > 0; i--) {
+		gprod *= g[i];
+		g_prod[i] = gprod;
+		gprod_sum += gprod;
+	}
+	g_prod[0] = 1.0f;
+	if (iscycle) {
+		gprod *= g[0];
+		if (fabs(gprod - 1.0f) > BEVEL_EPSILON) {
+			/* fast cycle calc only works if total product is 1 */
+			MEM_freeN(g);
+			MEM_freeN(g_prod);
+			return false;
+		}
+	}
+	if (gprod_sum == 0.0f) {
+		MEM_freeN(g);
+		MEM_freeN(g_prod);
+		return false;
+	}
+	p = spec_sum / gprod_sum;
+
+	/* apply the new offsets */
+	v = vstart;
+	i = 0;
+	do {
+		if (iscycle || v->adjchain != NULL) {
+			eright = v->efirst;
+			eleft = v->elast;
+			eright->offset_r = g_prod[(i + 1) % np] * p;
+			if (iscycle || v != vstart) {
+				eleft->offset_l = v->sinratio * eright->offset_r;
+			}
+		}
+		else {
+			/* not a cycle, and last of chain */
+			eleft = v->elast;
+			eleft->offset_l = p;
+		}
+		i++;
+		v = v->adjchain;
+	} while (v && v != vstart);
+
+	MEM_freeN(g);
+	MEM_freeN(g_prod);
+	return true;
+}
+#endif
+
+/* Adjust the offsets for a single cycle or chain.
+ * For chains and some cycles, a fast solution exists.
+ * Otherwise, we set up and solve a linear least squares problem
+ * that tries to minimize the squared differences of lengths
+ * at each end of an edge, and (with smaller weight) the
+ * squared differences of the offsets from their specs.
+ */
+static void adjust_the_cycle_or_chain(BoundVert *vstart, bool iscycle)
+{
+	BoundVert *v;
+	EdgeHalf *eleft, *eright, *enextleft;
+	LinearSolver *solver;
+	double weight, val;
+	int i, np, nrows, row;
+
+	np = 0;
+#ifdef DEBUG_ADJUST
+	printf("\nadjust the %s (with eigen)\n", iscycle ? "cycle" : "chain");
+#endif
+	v = vstart;
+	do {
+#ifdef DEBUG_ADJUST
+		eleft = v->elast;
+		eright = v->efirst;
+		printf(" (left=e%d, right=e%d)", BM_elem_index_get(eleft->e), BM_elem_index_get(eright->e));
+#endif
+		np++;
+		v = v->adjchain;
+	} while (v && v != vstart);
+#ifdef DEBUG_ADJUST
+		printf(" -> %d parms\n", np);
+#endif
+
+#ifdef FAST_ADJUST_CODE
+	if (adjust_the_cycle_or_chain_fast(vstart, np, iscycle))
+		return;
+#endif
+
+	nrows = iscycle ? 3 * np : 3 * np - 3;
+
+	solver = EIG_linear_least_squares_solver_new(nrows, np, 1);
+
+	v = vstart;
+	i = 0;
+	weight = BEVEL_MATCH_SPEC_WEIGHT; /* sqrt of factor to weight down importance of spec match */
+	do {
+		/* except at end of chain, v's indep variable is offset_r of v->efirst */
+		if (iscycle || i < np - 1) {
+			eright = v->efirst;
+			eleft = v->elast;
+			enextleft = v->adjchain->elast;
+#ifdef DEBUG_ADJUST
+			printf("p%d: e%d->offset_r = %f\n", i, BM_elem_index_get(eright->e), eright->offset_r);
+			if (iscycle || v != vstart)
+				printf("  dependent: e%d->offset_l = %f * p%d\n", BM_elem_index_get(eleft->e), v->sinratio, i);
+#endif
+
+			/* residue i: width difference between eright and eleft of next */
+			EIG_linear_solver_matrix_add(solver, i, i, 1.0);
+			EIG_linear_solver_right_hand_side_add(solver, 0, i, 0.0);
+			if (iscycle) {
+				EIG_linear_solver_matrix_add(solver, i > 0 ? i - 1 : np - 1, i, -v->sinratio);
+			}
+			else {
+				if (i > 0) {
+					EIG_linear_solver_matrix_add(solver, i - 1, i, -v->sinratio);
+				}
+			}
+
+			/* residue np + 2*i (if cycle) else np - 1 + 2*i:
+			 * right offset for parm i matches its spec; weighted */
+			row = iscycle ? np + 2 * i : np - 1 + 2 *  i;
+			EIG_linear_solver_matrix_add(solver, row, i, weight);
+			EIG_linear_solver_right_hand_side_add(solver, 0, row, weight * eright->offset_r);
+#ifdef DEBUG_ADJUST
+			printf("b[%d]=%f * %f, for e%d->offset_r\n", row, weight, eright->offset_r, BM_elem_index_get(eright->e));
+#endif
+
+			/* residue np + 2*i + 1 (if cycle) else np - 1 + 2*i + 1:
+			 * left offset for parm i matches its spec; weighted */
+			 row = row + 1;
+			EIG_linear_solver_matrix_add(solver, row, (i == np - 1) ? 0 : i + 1, weight * v->adjchain->sinratio);
+			EIG_linear_solver_right_hand_side_add(solver, 0, row, weight * enextleft->offset_l);
+#ifdef DEBUG_ADJUST
+			printf("b[%d]=%f * %f, for e%d->offset_l\n", row, weight, enextleft->offset_l,
+				BM_elem_index_get(enextleft->e));
+#endif
+		}
+		else {
+			/* not a cycle, and last of chain */
+			eleft = v->elast;
+#ifdef DEBUG_ADJUST
+			printf("p%d: e%d->offset_l = %f\n", i, BM_elem_index_get(eleft->e), eleft->offset_l);
+#endif
+			/* second part of residue i for last i */
+			EIG_linear_solver_matrix_add(solver, i - 1, i, -1.0);
+		}
+		i++;
+		v = v->adjchain;
+	} while (v && v != vstart);
+	EIG_linear_solver_solve(solver);
+#ifdef DEBUG_ADJUST
+	/* Note: this print only works after solve, but by that time b has been cleared */
+	EIG_linear_solver_print_matrix(solver);
+	printf("\nSolution:\n");
+	for (i = 0; i < np; i++)
+		printf("p%d = %f\n", i, EIG_linear_solver_variable_get(solver, 0, i));
+#endif
+
+	/* Use the solution to set new widths */
+	v = vstart;
+	i = 0;
+	do {
+		val = EIG_linear_solver_variable_get(solver, 0, i);
+		if (iscycle || i < np - 1) {
+			eright = v->efirst;
+			eleft = v->elast;
+			eright->offset_r = (float)val;
+#ifdef DEBUG_ADJUST
+			printf("e%d->offset_r = %f\n", BM_elem_index_get(eright->e), eright->offset_r);
+#endif
+			if (iscycle || v != vstart) {
+				eleft->offset_l = (float)(v->sinratio * val);
+#ifdef DEBUG_ADJUST
+				printf("e%d->offset_l = %f\n", BM_elem_index_get(eleft->e), eleft->offset_l);
+#endif
+			}
+		}
+		else {
+			/* not a cycle, and last of chain */
+			eleft = v->elast;
+			eleft->offset_l = (float)val;
+#ifdef DEBUG_ADJUST
+			printf("e%d->offset_l = %f\n", BM_elem_index_get(eleft->e), eleft->offset_l);
+#endif
+		}
+		i++;
+		v = v->adjchain;
+	} while (v && v != vstart);
+
+#ifdef DEBUG_ADJUST
+		print_adjust_stats(vstart);
+		EIG_linear_solver_print_matrix(solver);
+#endif
+
+	EIG_linear_solver_delete(solver);
+}
+
+/* Adjust the offsets to try to make them, as much as possible,
+ * have even-width bevels with offsets that match their specs.
+ * The problem that we can try to amelieroate is that when loop slide
+ * is active, the meet point will probably not be the one that makes
+ * both sides have their specified width. And because both ends may be
+ * on loop slide edges, the widths at each end could be different.
  *
- * Do a breadth-first search on this graph, starting from nodes
- * that have any_adjust=true, and changing all
- * not-already-changed offsets on EdgeHalfs to match the
- * corresponding ones that changed on the other end.
- * The graph is dynamic in the sense that having an offset that
- * doesn't meet the user spec can be added as the search proceeds.
- * We want this search to be deterministic (not dependent
- * on order of processing through hash table), so as to avoid
- * flicker to to different decisions made if search is different
- * while dragging the offset number in the UI.  So look for the
- * lower vertex number when there is a choice of where to start.
- *
- * Note that this might not process all BevVerts, only the ones
- * that need adjustment.
+ * It turns out that the dependent offsets either form chains or
+ * cycles, and we can process each of those separatey.
  */
 static void adjust_offsets(BevelParams *bp)
 {
-	BevVert *bv, *searchbv, *bvother;
-	int i, searchi;
+	BevVert *bv, *bvcur;
+	BoundVert *v, *vanchor, *vchainstart, *vnext;
+	EdgeHalf *enext;
 	GHashIterator giter;
-	EdgeHalf *e, *efirst, *eother;
-	GSQueue *q;
-	float max_rel_adj;
+	bool iscycle;
 
-	BLI_assert(!bp->vertex_only);
+	/* find and process chains and cycles of unvisited BoundVerts that have eon set */
+	GHASH_ITER(giter, bp->vert_hash) {
+		bv = bvcur = BLI_ghashIterator_getValue(&giter);
+		vanchor = bv->vmesh->boundstart;
+		do {
+			if (vanchor->visited || !vanchor->eon)
+				continue;
+
+			/* Find one of (1) a cycle that starts and ends at v
+			 * where each v has v->eon set and had not been visited before;
+			 * or (2) a chain of v's where the start and end of the chain do not have
+			 * v->eon set but all else do.
+			 * It is OK for the first and last elements to
+			 * have been visited before, but not any of the inner ones.
+			 * We chain the v's together through v->adjchain, and are following
+			 * them in left->right direction, meaning that the left side of one edge
+			 * pairs with the right side of the next edge in the cycle or chain. */
+
+			/* first follow paired edges in left->right direction */
+			v = vchainstart = vanchor;
+			iscycle = false;
+			while (v->eon && !v->visited && !iscycle) {
+				enext = find_other_end_edge_half(bp, v->efirst, &bvcur);
+				BLI_assert(enext != NULL);
+				vnext = enext->leftv;
+				v->adjchain = vnext;
+				v->visited = true;
+				if (vnext->visited) {
+					if (vnext != vchainstart) {
+						break;
+					}
+					adjust_the_cycle_or_chain(vchainstart, true);
+					iscycle = true;
+				}
+				v = vnext;
+			}
+			if (!iscycle) {
+				/* right->left direction, changing vchainstart at each step */
+				v = vchainstart;
+				bvcur = bv;
+				do {
+					enext = find_other_end_edge_half(bp, v->elast, &bvcur);
+					BLI_assert(enext != NULL);
+					vnext = enext->rightv;
+					vnext->adjchain = v;
+					vchainstart = vnext;
+					v->visited = true;
+					v = vnext;
+				} while (!v->visited && v->eon);
+				adjust_the_cycle_or_chain(vchainstart, false);
+			}
+		} while ((vanchor = vanchor->next) != bv->vmesh->boundstart);
+	}
+
+	/* Rebuild boundaries with new width specs */
 	GHASH_ITER(giter, bp->vert_hash) {
 		bv = BLI_ghashIterator_getValue(&giter);
-		bv->visited = false;
-	}
-
-	q = BLI_gsqueue_new(sizeof(BevVert *));
-	/* the following loop terminates because at least one node is visited each time */
-	for (;;) {
-		/* look for root of a connected component in search graph */
-		searchbv = NULL;
-		searchi = -1;
-		GHASH_ITER(giter, bp->vert_hash) {
-			bv = BLI_ghashIterator_getValue(&giter);
-			if (!bv->visited && max_edge_half_offset_rel_change(bv) > 0.0f) {
-				i = BM_elem_index_get(bv->v);
-				if (!searchbv || i < searchi) {
-					searchbv = bv;
-					searchi = i;
-				}
-			}
-		}
-		if (searchbv == NULL)
-			break;
-
-		BLI_gsqueue_push(q, &searchbv);
-		while (!BLI_gsqueue_is_empty(q)) {
-			BLI_gsqueue_pop(q, &bv);
-			/* If do this check, don't have to check for already-on-queue before push, below */
-			if (bv->visited)
-				continue;
-			bv->visited = true;
-			build_boundary(bp, bv, false);
-
-			e = efirst = &bv->edges[0];
-			do {
-				eother = find_other_end_edge_half(bp, e, &bvother);
-				if (eother && !bvother->visited && edge_half_offset_changed(e)) {
-					BLI_gsqueue_push(q, &bvother);
-				}
-			} while ((e = e->next) != efirst);
-		}
-	}
-	BLI_gsqueue_free(q);
-
-	/* Should we auto-limit the error accumulation? Typically, spirals can lead to 100x relative adjustments,
-	 * and somewhat hacky mechanism of using bp->limit_offset to indicate "clamp the adjustments" is not
-	 * obvious to users, who almost certainaly want clamping in this situation.
-	 * The reason not to clamp always is that some models work better without it (e.g., Bent_test in regression
-	 * suite, where relative adjust maximum is about .6). */
-	if (!bp->limit_offset) {
-		max_rel_adj = 0.0f;
-		GHASH_ITER(giter, bp->vert_hash) {
-			bv = BLI_ghashIterator_getValue(&giter);
-			max_rel_adj = max_ff(max_rel_adj, max_edge_half_offset_rel_change(bv));
-		}
-		if (max_rel_adj > BEVEL_MAX_AUTO_ADJUST_PCT / 100.0f) {
-			bp->limit_offset = true;
-			adjust_offsets(bp);
-			bp->limit_offset = false;
-		}
+		build_boundary(bp, bv, false);
 	}
 }
 
@@ -2395,7 +2607,7 @@ static VMesh *cubic_subdiv(BevelParams *bp, VMesh *vm0)
 	float beta, gamma;
 	VMesh *vm1;
 	BoundVert *bndv;
-	
+
 	n = vm0->count;
 	ns0 = vm0->seg;
 	ns20 = ns0 / 2;
@@ -2415,7 +2627,7 @@ static VMesh *cubic_subdiv(BevelParams *bp, VMesh *vm0)
 			add_v3_v3v3(acc, co1, co2);
 			madd_v3_v3fl(acc, co, -2.0f);
 			madd_v3_v3fl(co, acc, -1.0f / 6.0f);
-			
+
 			copy_v3_v3(mesh_vert_canon(vm1, i, 0, 2 * k)->co, co);
 		}
 	}
@@ -2430,7 +2642,7 @@ static VMesh *cubic_subdiv(BevelParams *bp, VMesh *vm0)
 			add_v3_v3v3(acc, co1, co2);
 			madd_v3_v3fl(acc, co, -2.0f);
 			madd_v3_v3fl(co, acc, -1.0f / 6.0f);
-			
+
 			copy_v3_v3(mesh_vert_canon(vm1, i, 0, k)->co, co);
 		}
 		bndv = bndv->next;
@@ -2449,7 +2661,7 @@ static VMesh *cubic_subdiv(BevelParams *bp, VMesh *vm0)
 
 	/* Now we do the internal vertices, using standard Catmull-Clark
 	 * and assuming all boundary vertices have valence 4 */
-	
+
 	/* The new face vertices */
 	for (i = 0; i < n; i++) {
 		for (j = 0; j < ns20; j++) {
@@ -2670,7 +2882,7 @@ static VMesh *make_cube_corner_adj_vmesh(BevelParams *bp)
 		copy_v3_v3(bndv->profile.proj_dir, bndv->profile.plane_no);
 		calculate_profile(bp, bndv);
 		get_profile_point(bp, &bndv->profile, 1, 2, mesh_vert(vm0, i, 0, 1)->co);
-		
+
 		bndv = bndv->next;
 	}
 	/* center vertex */
@@ -2997,7 +3209,7 @@ static void build_center_ngon(BMesh *bm, BevVert *bv, int mat_nr)
 			BLI_array_append(ve, NULL);
 		}
 	} while ((v = v->next) != vm->boundstart);
-	bev_create_ngon(bm, vv, BLI_array_count(vv), vf, frep, ve, mat_nr, true);
+	bev_create_ngon(bm, vv, BLI_array_len(vv), vf, frep, ve, mat_nr, true);
 
 	BLI_array_free(vv);
 	BLI_array_free(vf);
@@ -3041,6 +3253,173 @@ static void build_square_in_vmesh(BevelParams *bp, BMesh *bm, BevVert *bv, VMesh
 	}
 }
 
+/* copy whichever of a and b is closer to v into r */
+static void closer_v3_v3v3v3(float r[3], float a[3], float b[3], float v[3])
+{
+	if (len_squared_v3v3(a, v) <= len_squared_v3v3(b, v))
+		copy_v3_v3(r, a);
+	else
+		copy_v3_v3(r, b);
+}
+
+/* Special case of VMesh when profile == 1 and there are 3 or more beveled edges.
+ * We want the effect of parallel offset lines (n/2 of them) on each side of the center, for even n.
+ * Wherever they intersect with each other between two successive beveled edges, those intersections
+ * are part of the vmesh rings.
+ * We have to move the boundary edges too -- the usual method is to make one profile plane between
+ * successive BoundVerts, but for the effect we want here, there will be two planes, one on each side
+ * of the original edge.
+ */
+static VMesh *square_out_adj_vmesh(BevelParams *bp, BevVert *bv)
+{
+	int n, ns, ns2, odd, i, j, k, ikind, im1, clstride;
+	float bndco[3], dir1[3], dir2[3], co1[3], co2[3], meet1[3], meet2[3], v1co[3], v2co[3];
+	float *on_edge_cur, *on_edge_prev, *p;
+	float ns2inv, finalfrac, ang;
+	BoundVert *bndv;
+	EdgeHalf *e1, *e2;
+	VMesh *vm;
+	float *centerline;
+
+	n = bv->vmesh->count;
+	ns = bv->vmesh->seg;
+	ns2 = ns / 2;
+	odd = ns % 2;
+	ns2inv = 1.0f / (float) ns2;
+	vm = new_adj_vmesh(bp->mem_arena, n, ns, bv->vmesh->boundstart);
+	clstride = 3 * (ns2 + 1);
+	centerline = MEM_mallocN(clstride * n * sizeof(float), "bevel");
+
+	/* find on_edge, place on bndv[i]'s elast where offset line would meet,
+	 * averaging with position where next sector's offset line would meet */
+	bndv = vm->boundstart;
+	for (i = 0; i < n; i++) {
+		copy_v3_v3(bndco, bndv->nv.co);
+		e1 = bndv->efirst;
+		e2 = bndv->elast;
+		sub_v3_v3v3(dir1, e1->e->v1->co, e1->e->v2->co);
+		sub_v3_v3v3(dir2, e2->e->v1->co, e2->e->v2->co);
+		add_v3_v3v3(co1, bndco, dir1);
+		add_v3_v3v3(co2, bndco, dir2);
+		/* intersect e1 with line through bndv parallel to e2 to get v1co */
+		ikind = isect_line_line_v3(e1->e->v1->co, e1->e->v2->co, bndco, co2, meet1, meet2);
+
+		if (ikind == 0) {
+			/* Placeholder: this should get eliminated by min dist test with adjacent edge */
+			mid_v3_v3v3(v1co, e1->e->v1->co, e1->e->v2->co);
+		}
+		else {
+			/* if the lines are skew (ikind == 2), want meet1 which is on e1 */
+			copy_v3_v3(v1co, meet1);
+		}
+		/* intersect e2 with line through bndv parallel to e1 to get v2co */
+		ikind = isect_line_line_v3(e2->e->v1->co, e2->e->v2->co, bndco, co1, meet1, meet2);
+		if (ikind == 0) {
+			mid_v3_v3v3(v2co, e2->e->v1->co, e2->e->v2->co);
+		}
+		else {
+			copy_v3_v3(v2co, meet1);
+		}
+
+		/* want on_edge[i] to be min dist to bv->v of v2co and the v1co of next iteration */
+		on_edge_cur = centerline + clstride * i;
+		on_edge_prev = centerline + clstride * ((i == 0) ? n - 1 : i - 1);
+		if (i == 0) {
+			copy_v3_v3(on_edge_cur, v2co);
+			copy_v3_v3(on_edge_prev, v1co);
+		}
+		else if (i == n - 1) {
+			closer_v3_v3v3v3(on_edge_cur, on_edge_cur, v2co, bv->v->co);
+			closer_v3_v3v3v3(on_edge_prev, on_edge_prev, v1co, bv->v->co);
+		}
+		else {
+			copy_v3_v3(on_edge_cur, v2co);
+			closer_v3_v3v3v3(on_edge_prev, on_edge_prev, v1co, bv->v->co);
+		}
+		bndv = bndv->next;
+	}
+
+	/* fill in rest of centerlines by interpolation */
+	copy_v3_v3(co2, bv->v->co);
+	bndv = vm->boundstart;
+	for (i = 0; i < n; i++) {
+		if (odd) {
+			ang = 0.5f * angle_v3v3v3(bndv->nv.co, co1, bndv->next->nv.co);
+			if (ang > BEVEL_SMALL_ANG) {
+				/* finalfrac is length along arms of isoceles triangle with top angle 2*ang
+				 * such that the base of the triangle is 1.
+				 * This is used in interpolation along centerline in odd case.
+				 * To avoid too big a drop from bv, cap finalfrac a 0.8 arbitrarily */
+				finalfrac = 0.5f / sin(ang);
+				if (finalfrac > 0.8f)
+					finalfrac = 0.8f;
+			}
+			else {
+				finalfrac = 0.8f;
+			}
+			ns2inv = 1.0f / (ns2 + finalfrac);
+		}
+
+		p = centerline + clstride * i;
+		copy_v3_v3(co1, p);
+		p += 3;
+		for (j = 1; j <= ns2; j++) {
+			interp_v3_v3v3(p, co1, co2, j * ns2inv);
+			p += 3;
+		}
+		bndv = bndv->next;
+	}
+
+	/* coords of edges and mid or near-mid line */
+	bndv = vm->boundstart;
+	for (i = 0; i < n; i++) {
+		copy_v3_v3(co1, bndv->nv.co);
+		copy_v3_v3(co2, centerline + clstride * (i == 0 ? n - 1 : i - 1));
+		for (j = 0; j < ns2 + odd; j++) {
+			interp_v3_v3v3(mesh_vert(vm, i, j, 0)->co, co1, co2, j * ns2inv);
+		}
+		copy_v3_v3(co2, centerline + clstride * i);
+		for (k = 1; k <= ns2; k++) {
+			interp_v3_v3v3(mesh_vert(vm, i, 0, k)->co, co1, co2, k * ns2inv);
+		}
+		bndv = bndv->next;
+	}
+	if (!odd)
+		copy_v3_v3(mesh_vert(vm, 0, ns2, ns2)->co, bv->v->co);
+	vmesh_copy_equiv_verts(vm);
+
+	/* fill in interior points by interpolation from edges to centerlines */
+	bndv = vm->boundstart;
+	for (i = 0; i < n; i++) {
+		im1 = (i == 0) ? n - 1 : i - 1;
+		for (j = 1; j < ns2 + odd; j++) {
+			for (k = 1; k <= ns2; k++) {
+				ikind = isect_line_line_v3(
+					mesh_vert(vm, i, 0, k)->co, centerline + clstride * im1 + 3 * k,
+					mesh_vert(vm, i, j, 0)->co, centerline + clstride * i + 3 * j,
+					meet1, meet2);
+				if (ikind == 0) {
+					/* how can this happen? fall back on interpolation in one direction if it does */
+					interp_v3_v3v3(mesh_vert(vm, i, j, k)->co,
+						mesh_vert(vm, i, 0, k)->co, centerline + clstride * im1 + 3 * k, j * ns2inv);
+				}
+				else if (ikind == 1) {
+					copy_v3_v3(mesh_vert(vm, i, j, k)->co, meet1);
+				}
+				else {
+					mid_v3_v3v3(mesh_vert(vm, i, j, k)->co, meet1, meet2);
+				}
+			}
+		}
+		bndv = bndv->next;
+	}
+
+	vmesh_copy_equiv_verts(vm);
+
+	MEM_freeN(centerline);
+	return vm;
+}
+
 /*
  * Given that the boundary is built and the boundary BMVerts have been made,
  * calculate the positions of the interior mesh points for the M_ADJ pattern,
@@ -3063,9 +3442,13 @@ static void bevel_build_rings(BevelParams *bp, BMesh *bm, BevVert *bv)
 	odd = ns % 2;
 	BLI_assert(n >= 3 && ns > 1);
 
+
 	vpipe = pipe_test(bv);
 
-	if (vpipe) {
+	if (bp->pro_super_r == PRO_SQUARE_R && bv->selcount >= 3 && !odd) {
+		vm1 = square_out_adj_vmesh(bp, bv);
+	}
+	else if (vpipe) {
 		vm1 = pipe_adj_vmesh(bp, bv, vpipe);
 	}
 	else if (tri_corner_test(bp, bv)) {
@@ -3198,7 +3581,7 @@ static void bevel_build_rings(BevelParams *bp, BMesh *bm, BevVert *bv)
 
 /* If we make a poly out of verts around bv, snapping to rep frep, will uv poly have zero area?
  * The uv poly is made by snapping all outside-of-frep vertices to the closest edge in frep.
- * Assume that this funciton is called when the only inside-of-frep vertex is vm->boundstart.
+ * Assume that this function is called when the only inside-of-frep vertex is vm->boundstart.
  * The poly will have zero area if the distance of that first vertex to some edge e is zero, and all
  * the other vertices snap to e or snap to an edge at a point that is essentially on e too.  */
 static bool is_bad_uv_poly(BevVert *bv, BMFace *frep)
@@ -3577,7 +3960,7 @@ static int bevel_edge_order_extend(BMesh *bm, BevVert *bv, int i)
 			BLI_array_append(sucs, bme2);
 		}
 	}
-	nsucs = BLI_array_count(sucs);
+	nsucs = BLI_array_len(sucs);
 
 	bestj = j = i;
 	for (sucindex = 0; sucindex < nsucs; sucindex++) {
@@ -3590,7 +3973,7 @@ static int bevel_edge_order_extend(BMesh *bm, BevVert *bv, int i)
 		tryj = bevel_edge_order_extend(bm, bv, j + 1);
 		if (tryj > bestj || (tryj == bestj && edges_face_connected_at_vert(bv->edges[tryj].e, bv->edges[0].e))) {
 			bestj = tryj;
-			BLI_array_empty(save_path);
+			BLI_array_clear(save_path);
 			for (k = j + 1; k <= bestj; k++) {
 				BLI_array_append(save_path, bv->edges[k].e);
 			}
@@ -4117,15 +4500,15 @@ static bool bev_rebuild_polygon(BMesh *bm, BevelParams *bp, BMFace *f)
 		}
 	}
 	if (do_rebuild) {
-		n = BLI_array_count(vv);
+		n = BLI_array_len(vv);
 		f_new = bev_create_ngon(bm, vv, n, NULL, f, NULL, -1, true);
 
-		for (k = 0; k < BLI_array_count(vv_fix); k++) {
+		for (k = 0; k < BLI_array_len(vv_fix); k++) {
 			bev_merge_uvs(bm, vv_fix[k]);
 		}
 
 		/* copy attributes from old edges */
-		BLI_assert(n == BLI_array_count(ee));
+		BLI_assert(n == BLI_array_len(ee));
 		bme_prev = ee[n - 1];
 		for (k = 0; k < n; k++) {
 			bme_new = BM_edge_exists(vv[k], vv[(k + 1) % n]);
@@ -4235,7 +4618,7 @@ static void bevel_reattach_wires(BMesh *bm, BevelParams *bp, BMVert *v)
 						vclosest = bndv->nv.v;
 						votherclosest = bndvother->nv.v;
 						dclosest = d;
-						
+
 					}
 				} while ((bndvother = bndvother->next) != bvother->vmesh->boundstart);
 			}
@@ -4832,7 +5215,7 @@ static float geometry_collide_offset(BevelParams *bp, EdgeHalf *eb)
 	kc = kc / bp->offset;
 	th1 = angle_v3v3v3(va->co, vb->co, vc->co);
 	th2 = angle_v3v3v3(vb->co, vc->co, vd->co);
-	
+
 	/* First calculate offset at which edge B collapses, which happens
 	 * when advancing clones of A, B, C all meet at a point.
 	 * This only happens if at least two of those three edges have non-zero k's */
@@ -4933,7 +5316,7 @@ static void bevel_limit_offset(BevelParams *bp)
 		 * so we can just multiply them all by the reduction factor
 		 * of the offset to have the effect of recalculating the specs
 		 * with the new limited_offset.
-		*/
+		 */
 		offset_factor = limited_offset / bp->offset;
 		GHASH_ITER(giter, bp->vert_hash) {
 			bv = BLI_ghashIterator_getValue(&giter);
@@ -4983,6 +5366,7 @@ void BM_mesh_bevel(
 	bp.use_weights = use_weights;
 	bp.loop_slide = loop_slide;
 	bp.limit_offset = limit_offset;
+	bp.offset_adjust = true;
 	bp.dvert = dvert;
 	bp.vertex_group = vertex_group;
 	bp.mat_nr = mat;
@@ -5019,7 +5403,7 @@ void BM_mesh_bevel(
 		}
 
 		/* Perhaps do a pass to try to even out widths */
-		if (!bp.vertex_only) {
+		if (!bp.vertex_only && bp.offset_adjust && bp.offset_type != BEVEL_AMT_PERCENT) {
 			adjust_offsets(&bp);
 		}
 

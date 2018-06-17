@@ -40,7 +40,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
-#include "DNA_object_fluidsim.h"
+#include "DNA_object_fluidsim_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
@@ -48,7 +48,10 @@
 
 #include "BKE_fluidsim.h" /* ensure definitions here match */
 #include "BKE_cdderivedmesh.h"
-#include "BKE_global.h" /* G.main->name only */
+#include "BKE_main.h"
+#ifdef WITH_MOD_FLUID
+#  include "BKE_global.h"
+#endif
 
 #include "MOD_fluidsim_util.h"
 #include "MOD_modifiertypes.h"
@@ -153,6 +156,10 @@ void fluidsim_free(FluidsimModifierData *fluidmd)
 		}
 		MEM_SAFE_FREE(fluidmd->fss);
 	}
+
+	/* Seems to never be used, but for sqke of consistency... */
+	BLI_assert(fluidmd->point_cache == NULL);
+	fluidmd->point_cache = NULL;
 	
 	return;
 }
@@ -239,7 +246,7 @@ static DerivedMesh *fluidsim_read_obj(const char *filename, const MPoly *mp_exam
 		return NULL;
 	}
 
-	normals = MEM_callocN(sizeof(short) * numverts * 3, "fluid_tmp_normals");
+	normals = MEM_calloc_arrayN(numverts, 3 * sizeof(short), "fluid_tmp_normals");
 	if (!normals) {
 		if (dm)
 			dm->release(dm);
@@ -298,8 +305,9 @@ static DerivedMesh *fluidsim_read_obj(const char *filename, const MPoly *mp_exam
 }
 
 
-void fluid_get_bb(MVert *mvert, int totvert, float obmat[4][4],
-                  /*RET*/ float start[3], /*RET*/ float size[3])
+void fluid_get_bb(
+        MVert *mvert, int totvert, float obmat[4][4],
+        /*RET*/ float start[3], /*RET*/ float size[3])
 {
 	float bbsx = 0.0, bbsy = 0.0, bbsz = 0.0;
 	float bbex = 1.0, bbey = 1.0, bbez = 1.0;
@@ -384,7 +392,7 @@ static void fluidsim_read_vel_cache(FluidsimModifierData *fluidmd, DerivedMesh *
 
 	if (fss->domainNovecgen > 0) return;
 
-	fss->meshVelocities = MEM_callocN(sizeof(FluidVertexVelocity) * dm->getNumVerts(dm), "Fluidsim_velocities");
+	fss->meshVelocities = MEM_calloc_arrayN(dm->getNumVerts(dm), sizeof(FluidVertexVelocity), "Fluidsim_velocities");
 	fss->totvert = totvert;
 
 	velarray = fss->meshVelocities;
@@ -419,8 +427,9 @@ static void fluidsim_read_vel_cache(FluidsimModifierData *fluidmd, DerivedMesh *
 	gzclose(gzf);
 }
 
-static DerivedMesh *fluidsim_read_cache(Object *ob, DerivedMesh *orgdm,
-                                        FluidsimModifierData *fluidmd, int framenr, int useRenderParams)
+static DerivedMesh *fluidsim_read_cache(
+        Object *ob, DerivedMesh *orgdm,
+        FluidsimModifierData *fluidmd, int framenr, int useRenderParams)
 {
 	int curFrame = framenr /* - 1 */ /*scene->r.sfra*/; /* start with 0 at start frame */ 
 	/*  why start with 0 as start frame?? Animations + time are frozen for frame 0 anyway. (See physics_fluid.c for that. - DG */
@@ -454,7 +463,7 @@ static DerivedMesh *fluidsim_read_cache(Object *ob, DerivedMesh *orgdm,
 	/* offset baked frame */
 	curFrame += fss->frameOffset;
 
-	BLI_path_abs(targetFile, modifier_path_relbase(ob));
+	BLI_path_abs(targetFile, modifier_path_relbase_from_global(ob));
 	BLI_path_frame(targetFile, curFrame, 0); // fixed #frame-no
 
 	/* assign material + flags to new dm
@@ -503,10 +512,11 @@ static DerivedMesh *fluidsim_read_cache(Object *ob, DerivedMesh *orgdm,
 }
 #endif // WITH_MOD_FLUID
 
-DerivedMesh *fluidsimModifier_do(FluidsimModifierData *fluidmd, Scene *scene,
-                                 Object *ob,
-                                 DerivedMesh *dm,
-                                 int useRenderParams, int UNUSED(isFinalCalc))
+DerivedMesh *fluidsimModifier_do(
+        FluidsimModifierData *fluidmd, Scene *scene,
+        Object *ob,
+        DerivedMesh *dm,
+        int useRenderParams, int UNUSED(isFinalCalc))
 {
 #ifdef WITH_MOD_FLUID
 	DerivedMesh *result = NULL;

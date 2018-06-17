@@ -79,7 +79,7 @@ _modules = [
     "space_userpref",
     "space_view3d",
     "space_view3d_toolbar",
-    ]
+]
 
 import bpy
 
@@ -99,17 +99,21 @@ def register():
             register_class(cls)
 
     # space_userprefs.py
-    from bpy.props import StringProperty, EnumProperty
+    from bpy.props import (
+        EnumProperty,
+        StringProperty,
+    )
     from bpy.types import WindowManager
 
     def addon_filter_items(self, context):
         import addon_utils
 
-        items = [('All', "All", "All Add-ons"),
-                 ('User', "User", "All Add-ons Installed by User"),
-                 ('Enabled', "Enabled", "All Enabled Add-ons"),
-                 ('Disabled', "Disabled", "All Disabled Add-ons"),
-                 ]
+        items = [
+            ('All', "All", "All Add-ons"),
+            ('User', "User", "All Add-ons Installed by User"),
+            ('Enabled', "Enabled", "All Enabled Add-ons"),
+            ('Disabled', "Disabled", "All Disabled Add-ons"),
+        ]
 
         items_unique = set()
 
@@ -121,26 +125,27 @@ def register():
         return items
 
     WindowManager.addon_search = StringProperty(
-            name="Search",
-            description="Search within the selected filter",
-            options={'TEXTEDIT_UPDATE'},
-            )
+        name="Search",
+        description="Search within the selected filter",
+        options={'TEXTEDIT_UPDATE'},
+    )
     WindowManager.addon_filter = EnumProperty(
-            items=addon_filter_items,
-            name="Category",
-            description="Filter add-ons by category",
-            )
+        items=addon_filter_items,
+        name="Category",
+        description="Filter add-ons by category",
+    )
 
     WindowManager.addon_support = EnumProperty(
-            items=[('OFFICIAL', "Official", "Officially supported"),
-                   ('COMMUNITY', "Community", "Maintained by community developers"),
-                   ('TESTING', "Testing", "Newly contributed scripts (excluded from release builds)")
-                   ],
-            name="Support",
-            description="Display support level",
-            default={'OFFICIAL', 'COMMUNITY'},
-            options={'ENUM_FLAG'},
-            )
+        items=[
+            ('OFFICIAL', "Official", "Officially supported"),
+            ('COMMUNITY', "Community", "Maintained by community developers"),
+            ('TESTING', "Testing", "Newly contributed scripts (excluded from release builds)")
+        ],
+        name="Support",
+        description="Display support level",
+        default={'OFFICIAL', 'COMMUNITY'},
+        options={'ENUM_FLAG'},
+    )
     # done...
 
 
@@ -153,6 +158,8 @@ def unregister():
 
 # Define a default UIList, when a list does not need any custom drawing...
 # Keep in sync with its #defined name in UI_interface.h
+
+
 class UI_UL_list(bpy.types.UIList):
     # These are common filtering or ordering operations (same as the default C ones!).
     @staticmethod

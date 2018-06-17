@@ -101,7 +101,7 @@ static void rna_Scene_frame_set(Scene *scene, Main *bmain, int frame, float subf
 		/* cant use NC_SCENE|ND_FRAME because this causes wm_event_do_notifiers to call
 		 * BKE_scene_update_for_newframe which will loose any un-keyed changes [#24690] */
 		/* WM_main_add_notifier(NC_SCENE|ND_FRAME, scene); */
-		
+
 		/* instead just redraw the views */
 		WM_main_add_notifier(NC_WINDOW, NULL);
 	}
@@ -112,7 +112,7 @@ static void rna_Scene_uvedit_aspect(Scene *scene, Object *ob, float *aspect)
 	if ((ob->type == OB_MESH) && (ob->mode == OB_MODE_EDIT)) {
 		BMEditMesh *em;
 		em = BKE_editmesh_from_object(ob);
-		if (EDBM_mtexpoly_check(em)) {
+		if (EDBM_uv_check(em)) {
 			ED_uvedit_get_aspect(scene, ob, em->bm, aspect, aspect + 1);
 			return;
 		}
@@ -134,7 +134,8 @@ static void rna_Scene_update_tagged(Scene *scene, Main *bmain)
 #endif
 }
 
-static void rna_SceneRender_get_frame_path(RenderData *rd, int frame, int preview, const char *view, char *name)
+static void rna_SceneRender_get_frame_path(
+        RenderData *rd, Main *bmain, int frame, int preview, const char *view, char *name)
 {
 	const char *suffix = BKE_scene_multiview_view_suffix_get(rd, view);
 
@@ -147,20 +148,20 @@ static void rna_SceneRender_get_frame_path(RenderData *rd, int frame, int previe
 	}
 	else {
 		BKE_image_path_from_imformat(
-		        name, rd->pic, G.main->name, (frame == INT_MIN) ? rd->cfra : frame,
+		        name, rd->pic, BKE_main_blendfile_path(bmain), (frame == INT_MIN) ? rd->cfra : frame,
 		        &rd->im_format, (rd->scemode & R_EXTENSION) != 0, true, suffix);
 	}
 }
 
 static void rna_Scene_ray_cast(
-        Scene *scene, float origin[3], float direction[3], float ray_dist,
+        Scene *scene, Main *bmain,
+        float origin[3], float direction[3], float ray_dist,
         int *r_success, float r_location[3], float r_normal[3], int *r_index,
         Object **r_ob, float r_obmat[16])
 {
 	normalize_v3(direction);
 
-	SnapObjectContext *sctx = ED_transform_snap_object_context_create(
-	        G.main, scene, 0);
+	SnapObjectContext *sctx = ED_transform_snap_object_context_create(bmain, scene, 0);
 
 	bool ret = ED_transform_snap_object_project_ray_ex(
 	        sctx,
@@ -183,6 +184,11 @@ static void rna_Scene_ray_cast(
 		zero_v3(r_location);
 		zero_v3(r_normal);
 	}
+}
+
+static void rna_Scene_sequencer_editing_free(Scene *scene)
+{
+	BKE_sequencer_editing_free(scene, true);
 }
 
 #ifdef WITH_ALEMBIC
@@ -262,63 +268,6 @@ static void rna_Scene_alembic_export(
 
 #endif
 
-#ifdef WITH_COLLADA
-/* don't remove this, as COLLADA exporting cannot be done through operators in render() callback. */
-#include "../../collada/collada.h"
-
-/* Note: This definition must match to the generated function call */
-static void rna_Scene_collada_export(
-        Scene *scene,
-        const char *filepath, 
-        int apply_modifiers,
-
-        int export_mesh_type,
-        int selected,
-        int include_children,
-        int include_armatures,
-        int include_shapekeys,
-        int deform_bones_only,
-        int active_uv_only,
-        int export_texture_type,
-        int use_texture_copies,
-        int triangulate,
-        int use_object_instantiation,
-        int use_blender_profile,
-        int sort_by_name,
-        int export_transformation_type,
-        int open_sim,
-        int limit_precision,
-        int keep_bind_info)
-{
-	collada_export(scene,
-		filepath,
-
-		apply_modifiers,
-		export_mesh_type,
-
-		selected,
-		include_children,
-		include_armatures,
-		include_shapekeys,
-		deform_bones_only,
-
-		active_uv_only,
-		export_texture_type,
-		use_texture_copies,
-
-		triangulate,
-		use_object_instantiation,
-		use_blender_profile,
-		sort_by_name,
-
-		export_transformation_type,
-		open_sim,
-		limit_precision,
-		keep_bind_info);
-}
-
-#endif
-
 #else
 
 void RNA_api_scene(StructRNA *srna)
@@ -345,9 +294,10 @@ void RNA_api_scene(StructRNA *srna)
 	parm = RNA_def_float_vector(func, "result", 2, NULL, 0.0f, FLT_MAX, "", "aspect", 0.0f, FLT_MAX);
 	RNA_def_parameter_flags(parm, PROP_THICK_WRAP, 0);
 	RNA_def_function_output(func, parm);
-	
+
 	/* Ray Cast */
 	func = RNA_def_function(srna, "ray_cast", "rna_Scene_ray_cast");
+	RNA_def_function_flag(func, FUNC_USE_MAIN);
 	RNA_def_function_ui_description(func, "Cast a ray onto in object space");
 	/* ray start and end */
 	parm = RNA_def_float_vector(func, "origin", 3, NULL, -FLT_MAX, FLT_MAX, "", "", -1e4, 1e4);
@@ -374,65 +324,15 @@ void RNA_api_scene(StructRNA *srna)
 	parm = RNA_def_float_matrix(func, "matrix", 4, 4, NULL, 0.0f, 0.0f, "", "Matrix", 0.0f, 0.0f);
 	RNA_def_function_output(func, parm);
 
-#ifdef WITH_COLLADA
-	/* don't remove this, as COLLADA exporting cannot be done through operators in render() callback. */
-	func = RNA_def_function(srna, "collada_export", "rna_Scene_collada_export");
-	parm = RNA_def_string(func, "filepath", NULL, FILE_MAX, "File Path", "File path to write Collada file");
-	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
-	RNA_def_property_subtype(parm, PROP_FILEPATH); /* allow non utf8 */
+	/* Sequencer. */
+	func = RNA_def_function(srna, "sequence_editor_create", "BKE_sequencer_editing_ensure");
+	RNA_def_function_ui_description(func, "Ensure sequence editor is valid in this scene");
+	parm = RNA_def_pointer(func, "sequence_editor", "SequenceEditor", "", "New sequence editor data or NULL");
+	RNA_def_function_return(func, parm);
 
-	RNA_def_boolean(func, "apply_modifiers", false,
-	                "Apply Modifiers", "Apply modifiers to exported mesh (non destructive))");
+	func = RNA_def_function(srna, "sequence_editor_clear", "rna_Scene_sequencer_editing_free");
+	RNA_def_function_ui_description(func, "Clear sequence editor in this scene");
 
-	RNA_def_int(func, "export_mesh_type", 0, INT_MIN, INT_MAX,
-	            "Resolution", "Modifier resolution for export", INT_MIN, INT_MAX);
-
-	RNA_def_boolean(func, "selected", false, "Selection Only", "Export only selected elements");
-
-	RNA_def_boolean(func, "include_children", false,
-	                "Include Children", "Export all children of selected objects (even if not selected)");
-
-	RNA_def_boolean(func, "include_armatures", false,
-	                "Include Armatures", "Export related armatures (even if not selected)");
-
-	RNA_def_boolean(func, "include_shapekeys", true, "Include Shape Keys", "Export all Shape Keys from Mesh Objects");
-
-	RNA_def_boolean(func, "deform_bones_only", false,
-	                "Deform Bones only", "Only export deforming bones with armatures");
-
-	RNA_def_boolean(func, "active_uv_only", false, "Only Selected UV Map", "Export only the selected UV Map");
-
-	RNA_def_int(func, "export_texture_type", 0, INT_MIN, INT_MAX,
-		"Texture Type", "Type for exported Textures (UV or MAT)", INT_MIN, INT_MAX);
-
-	RNA_def_boolean(func, "use_texture_copies", true,
-	                "Copy", "Copy textures to same folder where the .dae file is exported");
-
-	RNA_def_boolean(func, "triangulate", true, "Triangulate", "Export Polygons (Quads & NGons) as Triangles");
-
-	RNA_def_boolean(func, "use_object_instantiation", true,
-	                "Use Object Instances", "Instantiate multiple Objects from same Data");
-
-	RNA_def_boolean(func, "use_blender_profile", true, "Use Blender Profile",
-	                "Export additional Blender specific information (for material, shaders, bones, etc.)");
-
-	RNA_def_boolean(func, "sort_by_name", false, "Sort by Object name", "Sort exported data by Object name");
-
-	RNA_def_int(func, "export_transformation_type", 0, INT_MIN, INT_MAX,
-	            "Transform", "Transformation type for translation, scale and rotation", INT_MIN, INT_MAX);
-
-	RNA_def_boolean(func, "open_sim", false,
-	                "Export to SL/OpenSim", "Compatibility mode for SL, OpenSim and other compatible online worlds");
-
-	RNA_def_boolean(func, "limit_precision", false,
-	                "Limit Precision",
-	                "Reduce the precision of the exported data to 6 digits");
-
-	RNA_def_boolean(func, "keep_bind_info", false,
-	                "Keep Bind Info",
-	                "Store bind pose information in custom bone properties for later use during Collada export");
-
-#endif
 
 #ifdef WITH_ALEMBIC
 	/* XXX Deprecated, will be removed in 2.8 in favour of calling the export operator. */
@@ -451,7 +351,7 @@ void RNA_api_scene(StructRNA *srna)
 	RNA_def_float(func, "shutter_close", 1.0f, -1.0f, 1.0f, "Shutter close", "", -1.0f, 1.0f);
 	RNA_def_boolean(func, "selected_only"	, 0, "Selected only", "Export only selected objects");
 	RNA_def_boolean(func, "uvs"			, 1, "UVs", "Export UVs");
-	RNA_def_boolean(func, "normals"		, 1, "Normals", "Export cormals");
+	RNA_def_boolean(func, "normals"		, 1, "Normals", "Export normals");
 	RNA_def_boolean(func, "vcolors"		, 0, "Vertex colors", "Export vertex colors");
 	RNA_def_boolean(func, "apply_subdiv"	, 1, "Subsurfs as meshes", "Export subdivision surfaces as meshes");
 	RNA_def_boolean(func, "flatten"		, 0, "Flatten hierarchy", "Flatten hierarchy");
@@ -479,6 +379,7 @@ void RNA_api_scene_render(StructRNA *srna)
 	PropertyRNA *parm;
 
 	func = RNA_def_function(srna, "frame_path", "rna_SceneRender_get_frame_path");
+	RNA_def_function_flag(func, FUNC_USE_MAIN);
 	RNA_def_function_ui_description(func, "Return the absolute path to the filename to be written for a given frame");
 	RNA_def_int(func, "frame", INT_MIN, INT_MIN, INT_MAX, "",
 	            "Frame number to use, if unset the current frame will be used", MINAFRAME, MAXFRAME);

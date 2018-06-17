@@ -20,7 +20,6 @@
 #include "device/device.h"
 #include "device/device_intern.h"
 
-#include "util/util_debug.h"
 #include "util/util_foreach.h"
 #include "util/util_half.h"
 #include "util/util_logging.h"
@@ -360,10 +359,9 @@ DeviceInfo Device::get_multi_device(const vector<DeviceInfo>& subdevices, int th
 	info.description = "Multi Device";
 	info.num = 0;
 
-	info.has_fermi_limits = false;
 	info.has_half_images = true;
 	info.has_volume_decoupled = true;
-	info.has_qbvh = true;
+	info.bvh_layout_mask = BVH_LAYOUT_ALL;
 	info.has_osl = true;
 
 	foreach(const DeviceInfo &device, subdevices) {
@@ -396,11 +394,9 @@ DeviceInfo Device::get_multi_device(const vector<DeviceInfo>& subdevices, int th
 		}
 
 		/* Accumulate device info. */
-		info.has_fermi_limits = info.has_fermi_limits ||
-		                        device.has_fermi_limits;
 		info.has_half_images &= device.has_half_images;
 		info.has_volume_decoupled &= device.has_volume_decoupled;
-		info.has_qbvh &= device.has_qbvh;
+		info.bvh_layout_mask = device.bvh_layout_mask & info.bvh_layout_mask;
 		info.has_osl &= device.has_osl;
 	}
 

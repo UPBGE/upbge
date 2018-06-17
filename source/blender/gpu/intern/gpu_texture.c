@@ -79,7 +79,7 @@ static unsigned char *GPU_texture_convert_pixels(int length, const float *fpixel
 	p = pixels = MEM_callocN(sizeof(unsigned char) * len, "GPUTexturePixels");
 
 	for (int a = 0; a < len; a++, p++, fp++)
-		*p = FTOCHAR((*fp));
+		*p = unit_float_to_uchar_clamp((*fp));
 
 	return pixels;
 }
@@ -92,7 +92,7 @@ static void gpu_glTexSubImageEmpty(GLenum target, GLenum format, int x, int y, i
 		glTexSubImage1D(target, 0, x, w, format, GL_UNSIGNED_BYTE, pixels);
 	else
 		glTexSubImage2D(target, 0, x, y, w, h, format, GL_UNSIGNED_BYTE, pixels);
-	
+
 	MEM_freeN(pixels);
 }
 
@@ -438,10 +438,10 @@ GPUTexture *GPU_texture_from_preview(PreviewImage *prv, int mipmap)
 {
 	GPUTexture *tex = prv->gputexture[0];
 	GLuint bindcode = 0;
-	
+
 	if (tex)
 		bindcode = tex->bindcode;
-	
+
 	/* this binds a texture, so that's why we restore it to 0 */
 	if (bindcode == 0) {
 		GPU_create_gl_tex(&bindcode, prv->rect[0], NULL, prv->w[0], prv->h[0], GL_TEXTURE_2D, mipmap, 0, NULL);
@@ -458,9 +458,9 @@ GPUTexture *GPU_texture_from_preview(PreviewImage *prv, int mipmap)
 	tex->refcount = 1;
 	tex->target = GL_TEXTURE_2D;
 	tex->target_base = GL_TEXTURE_2D;
-	
+
 	prv->gputexture[0] = tex;
-	
+
 	if (!glIsTexture(tex->bindcode)) {
 		GPU_ASSERT_NO_GL_ERRORS("Blender Texture Not Loaded");
 	}
@@ -470,13 +470,13 @@ GPUTexture *GPU_texture_from_preview(PreviewImage *prv, int mipmap)
 		glBindTexture(GL_TEXTURE_2D, tex->bindcode);
 		glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &w);
 		glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &h);
-		
+
 		tex->w = w;
 		tex->h = h;
 	}
-	
+
 	glBindTexture(GL_TEXTURE_2D, 0);
-	
+
 	return tex;
 
 }
@@ -487,7 +487,7 @@ GPUTexture *GPU_texture_create_1D(int w, const float *fpixels, char err_out[256]
 
 	if (tex)
 		GPU_texture_unbind(tex);
-	
+
 	return tex;
 }
 
@@ -497,7 +497,7 @@ GPUTexture *GPU_texture_create_2D(int w, int h, const float *fpixels, GPUHDRType
 
 	if (tex)
 		GPU_texture_unbind(tex);
-	
+
 	return tex;
 }
 GPUTexture *GPU_texture_create_2D_multisample(
@@ -518,7 +518,7 @@ GPUTexture *GPU_texture_create_depth(int w, int h, bool compare, char err_out[25
 
 	if (tex)
 		GPU_texture_unbind(tex);
-	
+
 	return tex;
 }
 GPUTexture *GPU_texture_create_depth_multisample(int w, int h, int samples, bool compare, char err_out[256])
@@ -702,7 +702,7 @@ void GPU_texture_unbind(GPUTexture *tex)
 
 	if (tex->number == -1)
 		return;
-	
+
 	GPU_ASSERT_NO_GL_ERRORS("Pre Texture Unbind");
 
 	GLenum arbnumber = (GLenum)((GLuint)GL_TEXTURE0 + tex->number);
@@ -795,7 +795,7 @@ void GPU_texture_free(GPUTexture *tex)
 
 	if (tex->refcount < 0)
 		fprintf(stderr, "GPUTexture: negative refcount\n");
-	
+
 	if (tex->refcount == 0) {
 		if (tex->fb)
 			GPU_framebuffer_texture_detach(tex);

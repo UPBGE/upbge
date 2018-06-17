@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -506,6 +506,26 @@ static bNodeSocket *make_socket(bNodeTree *ntree, bNode *UNUSED(node), int in_ou
 	return sock;
 }
 
+void nodeModifySocketType(bNodeTree *ntree, bNode *UNUSED(node), bNodeSocket *sock,
+                          int type, int subtype)
+{
+	const char *idname = nodeStaticSocketType(type, subtype);
+
+	if (!idname) {
+		printf("Error: static node socket type %d undefined\n", type);
+		return;
+	}
+
+	if (sock->default_value) {
+		MEM_freeN(sock->default_value);
+		sock->default_value = NULL;
+	}
+
+	sock->type = type;
+	BLI_strncpy(sock->idname, idname, sizeof(sock->idname));
+	node_socket_set_typeinfo(ntree, sock, nodeSocketTypeFind(idname));
+}
+
 bNodeSocket *nodeAddSocket(bNodeTree *ntree, bNode *node, int in_out, const char *idname,
                            const char *identifier, const char *name)
 {
@@ -814,7 +834,7 @@ bool nodeIsChildOf(const bNode *parent, const bNode *child)
 /**
  * Iterate over a chain of nodes, starting with \a node_start, executing
  * \a callback for each node (which can return false to end iterator).
- * 
+ *
  * \param reversed for backwards iteration
  * \note Recursive
  */
@@ -846,7 +866,7 @@ void nodeChainIter(
 
 /**
  * Iterate over all parents of \a node, executing \a callback for each parent (which can return false to end iterator)
- * 
+ *
  * \note Recursive
  */
 void nodeParentsIter(bNode *node, bool (*callback)(bNode *, void *), void *userdata)
@@ -1994,7 +2014,7 @@ bNodeTree *ntreeLocalize(bNodeTree *ntree)
 		/* Make full copy outside of Main database.
 		 * Note: previews are not copied here.
 		 */
-		BKE_id_copy_ex(G.main, (ID *)ntree, (ID **)&ltree,
+		BKE_id_copy_ex(NULL, (ID *)ntree, (ID **)&ltree,
 		               LIB_ID_CREATE_NO_MAIN | LIB_ID_CREATE_NO_USER_REFCOUNT | LIB_ID_COPY_NO_PREVIEW, false);
 		ltree->flag |= NTREE_IS_LOCALIZED;
 
@@ -2050,11 +2070,11 @@ void ntreeLocalSync(bNodeTree *localtree, bNodeTree *ntree)
 
 /* merge local tree results back, and free local tree */
 /* we have to assume the editor already changed completely */
-void ntreeLocalMerge(bNodeTree *localtree, bNodeTree *ntree)
+void ntreeLocalMerge(Main *bmain, bNodeTree *localtree, bNodeTree *ntree)
 {
 	if (ntree && localtree) {
 		if (ntree->typeinfo->local_merge)
-			ntree->typeinfo->local_merge(localtree, ntree);
+			ntree->typeinfo->local_merge(bmain, localtree, ntree);
 		
 		ntreeFreeTree(localtree);
 		MEM_freeN(localtree);
@@ -2767,7 +2787,7 @@ int BKE_node_instance_hash_haskey(bNodeInstanceHash *hash, bNodeInstanceKey key)
 
 int BKE_node_instance_hash_size(bNodeInstanceHash *hash)
 {
-	return BLI_ghash_size(hash->ghash);
+	return BLI_ghash_len(hash->ghash);
 }
 
 void BKE_node_instance_hash_clear_tags(bNodeInstanceHash *hash)
@@ -3173,13 +3193,17 @@ void nodeSynchronizeID(bNode *node, bool copy_to_id)
 
 void nodeLabel(bNodeTree *ntree, bNode *node, char *label, int maxlen)
 {
+	label[0] = '\0';
+
 	if (node->label[0] != '\0') {
 		BLI_strncpy(label, node->label, maxlen);
 	}
 	else if (node->typeinfo->labelfunc) {
 		node->typeinfo->labelfunc(ntree, node, label, maxlen);
 	}
-	else {
+
+	/* The previous methods (labelfunc) could not provide an adequate label for the node. */
+	if (label[0] == '\0') {
 		/* Kind of hacky and weak... Ideally would be better to use RNA here. :| */
 		const char *tmp = CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, node->typeinfo->ui_name);
 		if (tmp == node->typeinfo->ui_name) {
@@ -3568,6 +3592,8 @@ static void registerShaderNodes(void)
 
 	register_node_type_sh_attribute();
 	register_node_type_sh_bevel();
+	register_node_type_sh_displacement();
+	register_node_type_sh_vector_displacement();
 	register_node_type_sh_geometry();
 	register_node_type_sh_light_path();
 	register_node_type_sh_light_falloff();
@@ -3593,6 +3619,7 @@ static void registerShaderNodes(void)
 	register_node_type_sh_holdout();
 	register_node_type_sh_volume_absorption();
 	register_node_type_sh_volume_scatter();
+	register_node_type_sh_volume_principled();
 	register_node_type_sh_subsurface_scattering();
 	register_node_type_sh_mix_shader();
 	register_node_type_sh_add_shader();
@@ -3616,6 +3643,7 @@ static void registerShaderNodes(void)
 	register_node_type_sh_tex_checker();
 	register_node_type_sh_tex_brick();
 	register_node_type_sh_tex_pointdensity();
+	register_node_type_sh_tex_ies();
 }
 
 static void registerTextureNodes(void)

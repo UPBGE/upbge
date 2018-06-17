@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -18,7 +18,7 @@
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
  *
- * 
+ *
  * Contributor(s): Blender Foundation
  *
  * ***** END GPL LICENSE BLOCK *****
@@ -34,6 +34,7 @@
 struct bContext;
 struct Object;
 struct wmKeyConfig;
+struct UndoType;
 
 void ED_operatortypes_metaball(void);
 void ED_operatormacros_metaball(void);
@@ -47,6 +48,7 @@ void ED_mball_editmball_free(struct Object *obedit);
 void ED_mball_editmball_make(struct Object *obedit);
 void ED_mball_editmball_load(struct Object *obedit);
 
-void undo_push_mball(struct bContext *C, const char *name);
+/* editmball_undo.c */
+void ED_mball_undosys_type(struct UndoType *ut);
 
 #endif  /* __ED_MBALL_H__ */

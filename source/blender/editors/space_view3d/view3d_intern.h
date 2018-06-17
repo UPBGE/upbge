@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -18,7 +18,7 @@
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
  *
- * 
+ *
  * Contributor(s): Blender Foundation
  *
  * ***** END GPL LICENSE BLOCK *****
@@ -107,6 +107,7 @@ void VIEW3D_OT_zoom_border(struct wmOperatorType *ot);
 void VIEW3D_OT_toggle_render(struct wmOperatorType *ot);
 
 void view3d_boxview_copy(ScrArea *sa, ARegion *ar);
+void view3d_boxview_sync(ScrArea *sa, ARegion *ar);
 
 void view3d_orbit_apply_dyn_ofs(
         float r_ofs[3], const float ofs_old[3], const float viewquat_old[4],
@@ -142,8 +143,12 @@ void draw_motion_paths_cleanup(View3D *v3d);
 
 
 /* drawobject.c */
-void draw_object(Scene *scene, struct ARegion *ar, View3D *v3d, Base *base, const short dflag);
-void draw_object_select(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short dflag);
+void draw_object(
+        struct Main *bmain, Scene *scene, struct ARegion *ar, View3D *v3d,
+        Base *base, const short dflag);
+void draw_object_select(
+        struct Main *bmain, Scene *scene, ARegion *ar, View3D *v3d,
+        Base *base, const short dflag);
 
 bool draw_glsl_material(Scene *scene, struct Object *ob, View3D *v3d, const char dt);
 void draw_object_instance(Scene *scene, View3D *v3d, RegionView3D *rv3d, struct Object *ob, const char dt, int outline);
@@ -169,9 +174,10 @@ enum {
 int view3d_effective_drawtype(const struct View3D *v3d);
 
 /* drawarmature.c */
-bool draw_armature(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
-                   const short dt, const short dflag, const unsigned char ob_wire_col[4],
-                   const bool is_outline);
+bool draw_armature(
+        Scene *scene, View3D *v3d, ARegion *ar, Base *base,
+        const short dt, const short dflag, const unsigned char ob_wire_col[4],
+        const bool is_outline);
 
 /* drawmesh.c */
 void draw_mesh_textured(Scene *scene, View3D *v3d, RegionView3D *rv3d,
@@ -195,7 +201,10 @@ void draw_sim_debug_data(Scene *scene, View3D *v3d, ARegion *ar);
 
 /* view3d_draw.c */
 void view3d_main_region_draw(const struct bContext *C, struct ARegion *ar);
-void ED_view3d_draw_depth(Scene *scene, struct ARegion *ar, View3D *v3d, bool alphaoverride);
+
+void ED_view3d_draw_depth(
+        struct Main *bmain, struct Scene *scene,
+        struct ARegion *ar, View3D *v3d, bool alphaoverride);
 void ED_view3d_draw_depth_gpencil(Scene *scene, ARegion *ar, View3D *v3d);
 void ED_view3d_draw_select_loop(
         ViewContext *vc, Scene *scene, View3D *v3d, ARegion *ar,
@@ -247,8 +256,11 @@ void ED_view3d_smooth_view_force_finish(
         struct bContext *C,
         struct View3D *v3d, struct ARegion *ar);
 
-void view3d_winmatrix_set(ARegion *ar, const View3D *v3d, const rcti *rect);
-void view3d_viewmatrix_set(Scene *scene, const View3D *v3d, RegionView3D *rv3d);
+void view3d_winmatrix_set(
+        ARegion *ar, const View3D *v3d, const rcti *rect);
+void view3d_viewmatrix_set(
+        Scene *scene,
+        const View3D *v3d, RegionView3D *rv3d, const float rect_scale[2]);
 
 void fly_modal_keymap(struct wmKeyConfig *keyconf);
 void walk_modal_keymap(struct wmKeyConfig *keyconf);

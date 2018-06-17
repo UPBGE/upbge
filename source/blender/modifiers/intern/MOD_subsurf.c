@@ -63,17 +63,16 @@ static void initData(ModifierData *md)
 	smd->flags |= eSubsurfModifierFlag_SubsurfUv;
 }
 
-static void copyData(ModifierData *md, ModifierData *target)
+static void copyData(const ModifierData *md, ModifierData *target)
 {
 #if 0
-	SubsurfModifierData *smd = (SubsurfModifierData *) md;
+	const SubsurfModifierData *smd = (const SubsurfModifierData *) md;
 #endif
 	SubsurfModifierData *tsmd = (SubsurfModifierData *) target;
 
 	modifier_copyData_generic(md, target);
 
 	tsmd->emCache = tsmd->mCache = NULL;
-
 }
 
 static void freeData(ModifierData *md)
@@ -82,9 +81,11 @@ static void freeData(ModifierData *md)
 
 	if (smd->mCache) {
 		ccgSubSurf_free(smd->mCache);
+		smd->mCache = NULL;
 	}
 	if (smd->emCache) {
 		ccgSubSurf_free(smd->emCache);
+		smd->emCache = NULL;
 	}
 }
 
@@ -96,9 +97,10 @@ static bool isDisabled(ModifierData *md, int useRenderParams)
 	return get_render_subsurf_level(&md->scene->r, levels, useRenderParams != 0) == 0;
 }
 
-static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
-                                  DerivedMesh *derivedData,
-                                  ModifierApplyFlag flag)
+static DerivedMesh *applyModifier(
+        ModifierData *md, Object *ob,
+        DerivedMesh *derivedData,
+        ModifierApplyFlag flag)
 {
 	SubsurfModifierData *smd = (SubsurfModifierData *) md;
 	SubsurfFlags subsurf_flags = 0;
@@ -155,10 +157,11 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	return result;
 }
 
-static DerivedMesh *applyModifierEM(ModifierData *md, Object *UNUSED(ob),
-                                    struct BMEditMesh *UNUSED(editData),
-                                    DerivedMesh *derivedData,
-                                    ModifierApplyFlag flag)
+static DerivedMesh *applyModifierEM(
+        ModifierData *md, Object *UNUSED(ob),
+        struct BMEditMesh *UNUSED(editData),
+        DerivedMesh *derivedData,
+        ModifierApplyFlag flag)
 {
 	SubsurfModifierData *smd = (SubsurfModifierData *) md;
 	DerivedMesh *result;

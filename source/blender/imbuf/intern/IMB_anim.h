@@ -93,14 +93,15 @@
 
 struct _AviMovie;
 struct anim_index;
+struct IDProperty;
 
 struct anim {
 	int ib_flags;
 	int curtype;
 	int curposition;    /* index  0 = 1e,  1 = 2e, enz. */
 	int duration;
-	short frs_sec;
-	float frs_sec_base;
+	int frs_sec;
+	double frs_sec_base;
 	int x, y;
 	
 	/* for number */
@@ -158,6 +159,8 @@ struct anim {
 
 	char colorspace[64];
 	char suffix[64]; /* MAX_NAME - multiview */
+
+	struct IDProperty *metadata;
 };
 
 #endif

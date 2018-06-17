@@ -1,8 +1,6 @@
 KX_BatchGroup(EXP_Value)
 =====================
 
-.. module:: bge.types
-
 base class --- :class:`EXP_Value`
 
 .. class:: KX_BatchGroup(EXP_Value)

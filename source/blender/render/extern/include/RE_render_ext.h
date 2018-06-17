@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -62,9 +62,6 @@ void RE_sample_material_color(
 /* imagetexture.c */
 void ibuf_sample(struct ImBuf *ibuf, float fx, float fy, float dx, float dy, float result[4]);
 
-/* zbuf.c */
-void antialias_tagbuf(int xsize, int ysize, char *rectmove);
-
 /* pointdensity.c */
 struct PointDensity;
 
@@ -89,4 +86,3 @@ void RE_point_density_sample(
 void RE_point_density_free(struct PointDensity *pd);
 
 #endif /* __RE_RENDER_EXT_H__ */
-

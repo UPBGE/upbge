@@ -43,6 +43,7 @@
 #include "BLI_utildefines.h"
 #include "BLI_string.h"
 
+#include "intern/builder/deg_builder_map.h"
 #include "intern/nodes/deg_node.h"
 #include "intern/nodes/deg_node_component.h"
 #include "intern/nodes/deg_node_operation.h"
@@ -66,11 +67,11 @@ struct bNodeTree;
 struct Object;
 struct bPoseChannel;
 struct bConstraint;
+struct ParticleSystem;
 struct Scene;
 struct Tex;
 struct World;
 struct EffectorWeights;
-struct ParticleSystem;
 
 struct PropertyRNA;
 
@@ -79,6 +80,7 @@ namespace DEG {
 struct Depsgraph;
 struct DepsNode;
 struct DepsNodeHandle;
+struct DepsRelation;
 struct RootDepsNode;
 struct IDDepsNode;
 struct TimeSourceDepsNode;
@@ -172,22 +174,22 @@ struct DepsgraphRelationBuilder
 	void begin_build();
 
 	template <typename KeyFrom, typename KeyTo>
-	void add_relation(const KeyFrom& key_from,
-	                  const KeyTo& key_to,
-	                  const char *description,
-	                  bool check_unique = false);
+	DepsRelation *add_relation(const KeyFrom& key_from,
+	                           const KeyTo& key_to,
+	                           const char *description,
+	                           bool check_unique = false);
 
 	template <typename KeyTo>
-	void add_relation(const TimeSourceKey& key_from,
-	                  const KeyTo& key_to,
-	                  const char *description,
-	                  bool check_unique = false);
+	DepsRelation *add_relation(const TimeSourceKey& key_from,
+	                           const KeyTo& key_to,
+	                           const char *description,
+	                           bool check_unique = false);
 
 	template <typename KeyType>
-	void add_node_handle_relation(const KeyType& key_from,
-	                              const DepsNodeHandle *handle,
-	                              const char *description,
-	                              bool check_unique = false);
+	DepsRelation *add_node_handle_relation(const KeyType& key_from,
+	                                       const DepsNodeHandle *handle,
+	                                       const char *description,
+	                                       bool check_unique = false);
 
 	void build_scene(Scene *scene);
 	void build_group(Object *object, Group *group);
@@ -201,14 +203,24 @@ struct DepsgraphRelationBuilder
 	                       RootPChanMap *root_map);
 	void build_animdata(ID *id);
 	void build_animdata_curves(ID *id);
-	void build_animdata_curves_targets(ID *id);
-	void build_animdata_drievrs(ID *id);
+	void build_animdata_curves_targets(ID *id,
+	                                   ComponentKey &adt_key,
+	                                   OperationDepsNode *operation_from,
+	                                   ListBase *curves);
+	void build_animdata_nlastrip_targets(ID *id,
+	                                     ComponentKey &adt_key,
+	                                     OperationDepsNode *operation_from,
+	                                     ListBase *strips);
+	void build_animdata_drivers(ID *id);
 	void build_driver(ID *id, FCurve *fcurve);
 	void build_driver_data(ID *id, FCurve *fcurve);
 	void build_driver_variables(ID *id, FCurve *fcurve);
 	void build_world(World *world);
 	void build_rigidbody(Scene *scene);
 	void build_particles(Object *object);
+	void build_particles_visualization_object(Object *object,
+	                                          ParticleSystem *psys,
+	                                          Object *draw_object);
 	void build_cloth(Object *object, ModifierData *md);
 	void build_ik_pose(Object *object,
 	                   bPoseChannel *pchan,
@@ -263,29 +275,67 @@ protected:
 	OperationDepsNode *find_node(const OperationKey &key) const;
 	bool has_node(const OperationKey &key) const;
 
-	void add_time_relation(TimeSourceDepsNode *timesrc,
-	                       DepsNode *node_to,
-	                       const char *description,
-	                       bool check_unique = false);
-	void add_operation_relation(OperationDepsNode *node_from,
-	                            OperationDepsNode *node_to,
-	                            const char *description,
-	                            bool check_unique = false);
+	DepsRelation *add_time_relation(TimeSourceDepsNode *timesrc,
+	                                DepsNode *node_to,
+	                                const char *description,
+	                                bool check_unique = false);
+	DepsRelation *add_operation_relation(OperationDepsNode *node_from,
+	                                     OperationDepsNode *node_to,
+	                                     const char *description,
+	                                     bool check_unique = false);
 
 	template <typename KeyType>
 	DepsNodeHandle create_node_handle(const KeyType& key,
 	                                  const char *default_name = "");
 
+	/* TODO(sergey): All those is_same* functions are to be generalized. */
+
+	/* Check whether two keys correponds to the same bone from same armature.
+	 *
+	 * This is used by drivers relations builder to avoid possible fake
+	 * dependency cycle when one bone property drives another property of the
+	 * same bone.
+	 */
 	template <typename KeyFrom, typename KeyTo>
 	bool is_same_bone_dependency(const KeyFrom& key_from, const KeyTo& key_to);
 
+	/* Similar to above, but used to check whether driver is using node from
+	 * the same node tree as a driver variable.
+	 */
+	template <typename KeyFrom, typename KeyTo>
+	bool is_same_nodetree_node_dependency(const KeyFrom& key_from,
+	                                      const KeyTo& key_to);
+
+	/* Similar to above, but used to check whether driver is using key from
+	 * the same key datablock as a driver variable.
+	 */
+	template <typename KeyFrom, typename KeyTo>
+	bool is_same_shapekey_dependency(const KeyFrom& key_from,
+	                                 const KeyTo& key_to);
+
 private:
+	struct BuilderWalkUserData {
+		DepsgraphRelationBuilder *builder;
+	};
+
+	static void modifier_walk(void *user_data,
+	                          struct Object *object,
+	                          struct ID **idpoin,
+	                          int cb_flag);
+
+	static void constraint_walk(bConstraint *con,
+	                            ID **idpoin,
+	                            bool is_reference,
+	                            void *user_data);
+
 	/* State which never changes, same for the whole builder time. */
 	Main *bmain_;
 	Depsgraph *graph_;
 
 	/* State which demotes currently built entities. */
 	Scene *scene_;
+
+	BuilderMap built_map_;
 };
 
 struct DepsNodeHandle

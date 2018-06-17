@@ -35,7 +35,7 @@
 #include <unistd.h>
 #else
 #include <io.h>
-#endif   
+#endif
 
 #include "MEM_guardedalloc.h"
 
@@ -76,8 +76,9 @@
 
 static void ED_object_shape_key_add(bContext *C, Object *ob, const bool from_mix)
 {
+	Main *bmain = CTX_data_main(C);
 	KeyBlock *kb;
-	if ((kb = BKE_object_shapekey_insert(ob, NULL, from_mix))) {
+	if ((kb = BKE_object_shapekey_insert(bmain, ob, NULL, from_mix))) {
 		Key *key = BKE_key_from_object(ob);
 		/* for absolute shape keys, new keys may not be added last */
 		ob->shapenr = BLI_findindex(&key->block, kb) + 1;
@@ -117,7 +118,7 @@ static bool object_shape_key_mirror(bContext *C, Object *ob,
 	key = BKE_key_from_object(ob);
 	if (key == NULL)
 		return 0;
-	
+
 	kb = BLI_findlink(&key->block, ob->shapenr - 1);
 
 	if (kb) {
@@ -209,7 +210,7 @@ static bool object_shape_key_mirror(bContext *C, Object *ob,
 
 		MEM_freeN(tag_elem);
 	}
-	
+
 	*r_totmirr = totmirr;
 	*r_totfail = totfail;
 
@@ -276,7 +277,7 @@ void OBJECT_OT_shape_key_add(wmOperatorType *ot)
 	ot->name = "Add Shape Key";
 	ot->idname = "OBJECT_OT_shape_key_add";
 	ot->description = "Add shape key to the object";
-	
+
 	/* api callbacks */
 	ot->poll = shape_key_mode_poll;
 	ot->exec = shape_key_add_exec;
@@ -319,7 +320,7 @@ void OBJECT_OT_shape_key_remove(wmOperatorType *ot)
 	ot->name = "Remove Shape Key";
 	ot->idname = "OBJECT_OT_shape_key_remove";
 	ot->description = "Remove shape key from the object";
-	
+
 	/* api callbacks */
 	ot->poll = shape_key_mode_exists_poll;
 	ot->exec = shape_key_remove_exec;
@@ -339,13 +340,13 @@ static int shape_key_clear_exec(bContext *C, wmOperator *UNUSED(op))
 
 	if (!key || !kb)
 		return OPERATOR_CANCELLED;
-	
+
 	for (kb = key->block.first; kb; kb = kb->next)
 		kb->curval = 0.0f;
 
 	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
-	
+
 	return OPERATOR_FINISHED;
 }
 
@@ -355,7 +356,7 @@ void OBJECT_OT_shape_key_clear(wmOperatorType *ot)
 	ot->name = "Clear Shape Keys";
 	ot->description = "Clear weights for all shape keys";
 	ot->idname = "OBJECT_OT_shape_key_clear";
-	
+
 	/* api callbacks */
 	ot->poll = shape_key_poll;
 	ot->exec = shape_key_clear_exec;

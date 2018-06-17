@@ -261,6 +261,10 @@ typedef struct ParticleSettings {
 	short use_modifier_stack;
 	short pad5[3];
 
+	float twist;
+	float pad6;
+	struct CurveMapping *twistcurve;
+	void *pad7;
 } ParticleSettings;
 
 typedef struct ParticleSystem {
@@ -303,7 +307,8 @@ typedef struct ParticleSystem {
 	char bb_uvname[3][64];					/* billboard uv name, MAX_CUSTOMDATA_LAYER_NAME */
 
 	/* if you change these remember to update array lengths to PSYS_TOT_VG! */
-	short vgroup[12], vg_neg, rt3;			/* vertex groups, 0==disable, 1==starting index */
+	short vgroup[13], vg_neg, rt3;			/* vertex groups, 0==disable, 1==starting index */
+	char pad[6];
 
 	/* temporary storage during render */
 	struct ParticleRenderData *renderdata;
@@ -435,6 +440,7 @@ typedef enum eParticleChildFlag {
 	PART_CHILD_USE_CLUMP_NOISE  = (1<<0),
 	PART_CHILD_USE_CLUMP_CURVE  = (1<<1),
 	PART_CHILD_USE_ROUGH_CURVE  = (1<<2),
+	PART_CHILD_USE_TWIST_CURVE  = (1<<3),
 } eParticleChildFlag;
 
 /* part->draw_col */
@@ -562,7 +568,7 @@ typedef enum eParticleChildFlag {
 #define PART_DUPLIW_CURRENT	1
 
 /* psys->vg */
-#define PSYS_TOT_VG			12
+#define PSYS_TOT_VG			13
 
 #define PSYS_VG_DENSITY		0
 #define PSYS_VG_VEL			1
@@ -576,6 +582,7 @@ typedef enum eParticleChildFlag {
 #define PSYS_VG_TAN			9
 #define PSYS_VG_ROT			10
 #define PSYS_VG_EFFECTOR	11
+#define PSYS_VG_TWIST	12
 
 /* ParticleTarget->flag */
 #define PTARGET_CURRENT		1
@@ -607,7 +614,8 @@ typedef enum eParticleTextureInfluence {
 	PAMAP_KINK_AMP	= (1<<12),
 	PAMAP_ROUGH		= (1<<9),
 	PAMAP_LENGTH	= (1<<4),
-	PAMAP_CHILD		= (PAMAP_CLUMP | PAMAP_KINK_FREQ | PAMAP_KINK_AMP | PAMAP_ROUGH | PAMAP_LENGTH),
+	PAMAP_TWIST	= (1<<13),
+	PAMAP_CHILD		= (PAMAP_CLUMP | PAMAP_KINK_FREQ | PAMAP_KINK_AMP | PAMAP_ROUGH | PAMAP_LENGTH | PAMAP_TWIST),
 } eParticleTextureInfluence;
 
 #endif

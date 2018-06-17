@@ -151,7 +151,10 @@ typedef struct LoadTexData {
 	float radius;
 } LoadTexData;
 
-static void load_tex_task_cb_ex(void *userdata, void *UNUSED(userdata_chunck), const int j, const int thread_id)
+static void load_tex_task_cb_ex(
+        void *__restrict userdata,
+        const int j,
+        const ParallelRangeTLS *__restrict tls)
 {
 	LoadTexData *data = userdata;
 	Brush *br = data->br;
@@ -212,7 +215,7 @@ static void load_tex_task_cb_ex(void *userdata, void *UNUSED(userdata_chunck), c
 			if (col) {
 				float rgba[4];
 
-				paint_get_tex_pixel_col(mtex, x, y, rgba, pool, thread_id, convert_to_linear, colorspace);
+				paint_get_tex_pixel_col(mtex, x, y, rgba, pool, tls->thread_id, convert_to_linear, colorspace);
 
 				buffer[index * 4]     = rgba[0] * 255;
 				buffer[index * 4 + 1] = rgba[1] * 255;
@@ -220,7 +223,7 @@ static void load_tex_task_cb_ex(void *userdata, void *UNUSED(userdata_chunck), c
 				buffer[index * 4 + 3] = rgba[3] * 255;
 			}
 			else {
-				float avg = paint_get_tex_pixel(mtex, x, y, pool, thread_id);
+				float avg = paint_get_tex_pixel(mtex, x, y, pool, tls->thread_id);
 
 				avg += br->texture_sample_bias;
 
@@ -259,7 +262,7 @@ static int load_tex(Brush *br, ViewContext *vc, float zoom, bool col, bool prima
 
 	target = (primary) ? &primary_snap : &secondary_snap;
 
-	refresh = 
+	refresh =
 	    !target->overlay_texture ||
 	    (invalid != 0) ||
 	    !same_tex_snap(target, mtex, vc, col, zoom);
@@ -318,7 +321,9 @@ static int load_tex(Brush *br, ViewContext *vc, float zoom, bool col, bool prima
 		    .pool = pool, .size = size, .rotation = rotation, .radius = radius,
 		};
 
-		BLI_task_parallel_range_ex(0, size, &data, NULL, 0, load_tex_task_cb_ex, true, false);
+		ParallelRangeSettings settings;
+		BLI_parallel_range_settings_defaults(&settings);
+		BLI_task_parallel_range(0, size, &data, load_tex_task_cb_ex, &settings);
 
 		if (mtex->tex && mtex->tex->nodetree)
 			ntreeTexEndExecTree(mtex->tex->nodetree->execdata);
@@ -367,7 +372,10 @@ static int load_tex(Brush *br, ViewContext *vc, float zoom, bool col, bool prima
 	return 1;
 }
 
-static void load_tex_cursor_task_cb(void *userdata, const int j)
+static void load_tex_cursor_task_cb(
+        void *__restrict userdata,
+        const int j,
+        const ParallelRangeTLS *__restrict UNUSED(tls))
 {
 	LoadTexData *data = userdata;
 	Brush *br = data->br;
@@ -447,7 +455,9 @@ static int load_tex_cursor(Brush *br, ViewContext *vc, float zoom)
 		    .br = br, .buffer = buffer, .size = size,
 		};
 
-		BLI_task_parallel_range(0, size, &data, load_tex_cursor_task_cb, true);
+		ParallelRangeSettings settings;
+		BLI_parallel_range_settings_defaults(&settings);
+		BLI_task_parallel_range(0, size, &data, load_tex_cursor_task_cb, &settings);
 
 		if (!cursor_snap.overlay_texture)
 			glGenTextures(1, &cursor_snap.overlay_texture);
@@ -957,7 +967,7 @@ static void paint_cursor_on_hit(UnifiedPaintSettings *ups, Brush *brush, ViewCon
 			else
 				projected_radius = BKE_brush_size_get(vc->scene, brush);
 		}
-	
+
 		/* convert brush radius from 2D to 3D */
 		unprojected_radius = paint_calc_object_space_radius(vc, location,
 		                                                    projected_radius);
@@ -1001,7 +1011,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 
 	/* can't use stroke vc here because this will be called during
 	 * mouse over too, not just during a stroke */
-	view3d_set_viewcontext(C, &vc);
+	ED_view3d_viewcontext_init(C, &vc);
 
 	if (vc.rv3d && (vc.rv3d->rflag & RV3D_NAVIGATING)) {
 		return;

@@ -127,31 +127,24 @@ static void foreachObjectLink(
 	walk(userData, ob, &dtmd->ob_source, IDWALK_CB_NOP);
 }
 
-static void updateDepgraph(ModifierData *md, DagForest *forest,
-                           struct Main *UNUSED(bmain),
-                           struct Scene *UNUSED(scene),
-                           Object *UNUSED(ob), DagNode *obNode)
+static void updateDepgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
 	DataTransferModifierData *dtmd = (DataTransferModifierData *) md;
 	DagNode *curNode;
 
 	if (dtmd->ob_source) {
-		curNode = dag_get_node(forest, dtmd->ob_source);
+		curNode = dag_get_node(ctx->forest, dtmd->ob_source);
 
-		dag_add_relation(forest, curNode, obNode, DAG_RL_DATA_DATA | DAG_RL_OB_DATA,
+		dag_add_relation(ctx->forest, curNode, ctx->obNode, DAG_RL_DATA_DATA | DAG_RL_OB_DATA,
 		                 "DataTransfer Modifier");
 	}
 }
 
-static void updateDepsgraph(ModifierData *md,
-                            struct Main *UNUSED(bmain),
-                            struct Scene *UNUSED(scene),
-                            Object *UNUSED(ob),
-                            struct DepsNodeHandle *node)
+static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
 	DataTransferModifierData *dtmd = (DataTransferModifierData *) md;
 	if (dtmd->ob_source != NULL) {
-		DEG_add_object_relation(node, dtmd->ob_source, DEG_OB_COMP_GEOMETRY, "DataTransfer Modifier");
+		DEG_add_object_relation(ctx->node, dtmd->ob_source, DEG_OB_COMP_GEOMETRY, "DataTransfer Modifier");
 	}
 }
 
@@ -170,8 +163,9 @@ static bool isDisabled(ModifierData *md, int UNUSED(useRenderParams))
 	DT_TYPE_SHARP_FACE \
 )
 
-static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *derivedData,
-                                  ModifierApplyFlag UNUSED(flag))
+static DerivedMesh *applyModifier(
+        ModifierData *md, Object *ob, DerivedMesh *derivedData,
+        ModifierApplyFlag UNUSED(flag))
 {
 	DataTransferModifierData *dtmd = (DataTransferModifierData *) md;
 	DerivedMesh *dm = derivedData;
@@ -224,15 +218,6 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *der
 #undef HIGH_POLY_WARNING
 #undef DT_TYPES_AFFECT_MESH
 
-static void copyData(ModifierData *md, ModifierData *target)
-{
-#if 0
-	DataTransferModifierData *dtmd = (DecimateModifierData *) md;
-	DataTransferModifierData *tdtmd = (DecimateModifierData *) target;
-#endif
-	modifier_copyData_generic(md, target);
-}
-
 ModifierTypeInfo modifierType_DataTransfer = {
 	/* name */              "DataTransfer",
 	/* structName */        "DataTransferModifierData",
@@ -243,7 +228,7 @@ ModifierTypeInfo modifierType_DataTransfer = {
 	                        eModifierTypeFlag_SupportsEditmode |
 	                        eModifierTypeFlag_UsesPreview,
 
-	/* copyData */          copyData,
+	/* copyData */          modifier_copyData_generic,
 	/* deformVerts */       NULL,
 	/* deformMatrices */    NULL,
 	/* deformVertsEM */     NULL,

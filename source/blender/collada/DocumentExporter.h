@@ -27,10 +27,11 @@
 #ifndef __DOCUMENTEXPORTER_H__
 #define __DOCUMENTEXPORTER_H__
 
-#include "ExportSettings.h"
+#include "collada.h"
 
 extern "C" {
 #include "DNA_customdata_types.h"
+#include "BKE_depsgraph.h"
 }
 
 struct Scene;
@@ -39,7 +40,7 @@ class DocumentExporter
 {
  public:
 	DocumentExporter(const ExportSettings *export_settings);
-	int  exportCurrentScene(Scene *sce);
+	int  exportCurrentScene(bContext *C, const EvaluationContext *eval_ctx, Scene *sce);
 	void exportScenes(const char *filename);
 private:
 	const ExportSettings *export_settings;

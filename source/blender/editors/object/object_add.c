@@ -42,8 +42,8 @@
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meta_types.h"
-#include "DNA_object_fluidsim.h"
-#include "DNA_object_force.h"
+#include "DNA_object_fluidsim_types.h"
+#include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_vfont_types.h"
@@ -159,45 +159,44 @@ void ED_object_location_from_view(bContext *C, float loc[3])
 	copy_v3_v3(loc, cursor);
 }
 
+void ED_object_rotation_from_quat(float rot[3], const float viewquat[4], const char align_axis)
+{
+	BLI_assert(align_axis >= 'X' && align_axis <= 'Z');
+
+	switch (align_axis) {
+		case 'X':
+		{
+			/* Same as 'rv3d->viewinv[1]' */
+			float axis_y[4] = {0.0f, 1.0f, 0.0f};
+			float quat_y[4], quat[4];
+			axis_angle_to_quat(quat_y, axis_y, M_PI_2);
+			mul_qt_qtqt(quat, viewquat, quat_y);
+			quat_to_eul(rot, quat);
+			break;
+		}
+		case 'Y':
+		{
+			quat_to_eul(rot, viewquat);
+			rot[0] -= (float)M_PI_2;
+			break;
+		}
+		case 'Z':
+		{
+			quat_to_eul(rot, viewquat);
+			break;
+		}
+	}
+}
+
 void ED_object_rotation_from_view(bContext *C, float rot[3], const char align_axis)
 {
 	RegionView3D *rv3d = CTX_wm_region_view3d(C);
-
 	BLI_assert(align_axis >= 'X' && align_axis <= 'Z');
-
 	if (rv3d) {
-		float quat[4];
-
-		switch (align_axis) {
-			case 'X':
-			{
-				float quat_y[4];
-				axis_angle_to_quat(quat_y, rv3d->viewinv[1], -M_PI_2);
-				mul_qt_qtqt(quat, rv3d->viewquat, quat_y);
-				quat[0] = -quat[0];
-
-				quat_to_eul(rot, quat);
-				break;
-			}
-			case 'Y':
-			{
-				copy_qt_qt(quat, rv3d->viewquat);
-				quat[0] = -quat[0];
-
-				quat_to_eul(rot, quat);
-				rot[0] -= (float)M_PI_2;
-				break;
-			}
-			case 'Z':
-			{
-				copy_qt_qt(quat, rv3d->viewquat);
-				quat[0] = -quat[0];
-
-				quat_to_eul(rot, quat);
-				break;
-			}
-		}
-
+		float viewquat[4];
+		copy_qt_qt(viewquat, rv3d->viewquat);
+		viewquat[0] *= -1.0f;
+		ED_object_rotation_from_quat(rot, viewquat, align_axis);
 	}
 	else {
 		zero_v3(rot);
@@ -412,8 +411,9 @@ Object *ED_object_add_type(
 	Object *ob;
 
 	/* for as long scene has editmode... */
-	if (CTX_data_edit_object(C)) 
-		ED_object_editmode_exit(C, EM_FREEDATA | EM_FREEUNDO | EM_WAITCURSOR | EM_DO_UNDO);  /* freedata, and undo */
+	if (CTX_data_edit_object(C)) {
+		ED_object_editmode_exit(C, EM_FREEDATA | EM_WAITCURSOR);
+	}
 
 	/* deselects all, sets scene->basact */
 	ob = BKE_object_add(bmain, scene, type, name);
@@ -753,7 +753,7 @@ static int object_armature_add_exec(bContext *C, wmOperator *op)
 	}
 
 	dia = RNA_float_get(op->ptr, "radius");
-	ED_armature_edit_bone_add_primitive(obedit, dia, view_aligned);
+	ED_armature_ebone_add_primitive(obedit, dia, view_aligned);
 
 	/* userdef */
 	if (newob && !enter_editmode)
@@ -967,16 +967,17 @@ void OBJECT_OT_lamp_add(wmOperatorType *ot)
 
 static int group_instance_add_exec(bContext *C, wmOperator *op)
 {
+	Main *bmain = CTX_data_main(C);
 	Group *group;
 	unsigned int layer;
 	float loc[3], rot[3];
-	
+
 	if (RNA_struct_property_is_set(op->ptr, "name")) {
 		char name[MAX_ID_NAME - 2];
-		
+
 		RNA_string_get(op->ptr, "name", name);
-		group = (Group *)BKE_libblock_find_name(ID_GR, name);
-		
+		group = (Group *)BKE_libblock_find_name(bmain, ID_GR, name);
+
 		if (0 == RNA_struct_property_is_set(op->ptr, "location")) {
 			const wmEvent *event = CTX_wm_window(C)->eventstate;
 			ARegion *ar = CTX_wm_region(C);
@@ -994,7 +995,6 @@ static int group_instance_add_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 
 	if (group) {
-		Main *bmain = CTX_data_main(C);
 		Scene *scene = CTX_data_scene(C);
 		Object *ob = ED_object_add_type(C, OB_EMPTY, group->id.name + 2, loc, rot, false, layer);
 		ob->dup_group = group;
@@ -1059,8 +1059,8 @@ static int object_speaker_add_exec(bContext *C, wmOperator *op)
 	{
 		/* create new data for NLA hierarchy */
 		AnimData *adt = BKE_animdata_add_id(&ob->id);
-		NlaTrack *nlt = add_nlatrack(adt, NULL);
-		NlaStrip *strip = add_nla_soundstrip(scene, ob->data);
+		NlaTrack *nlt = BKE_nlatrack_add(adt, NULL);
+		NlaStrip *strip = BKE_nla_add_soundstrip(scene, ob->data);
 		strip->start = CFRA;
 		strip->end += strip->start;
 
@@ -1136,7 +1136,7 @@ static int object_delete_exec(bContext *C, wmOperator *op)
 	const bool use_global = RNA_boolean_get(op->ptr, "use_global");
 	bool changed = false;
 
-	if (CTX_data_edit_object(C)) 
+	if (CTX_data_edit_object(C))
 		return OPERATOR_CANCELLED;
 
 	CTX_DATA_BEGIN (C, Base *, base, selected_bases)
@@ -1217,10 +1217,10 @@ static int object_delete_exec(bContext *C, wmOperator *op)
 	BKE_main_id_tag_listbase(&bmain->scene, LIB_TAG_DOIT, true);
 	for (win = wm->windows.first; win; win = win->next) {
 		scene = win->screen->scene;
-		
+
 		if (scene->id.tag & LIB_TAG_DOIT) {
 			scene->id.tag &= ~LIB_TAG_DOIT;
-			
+
 			DAG_relations_tag_update(bmain);
 
 			WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, scene);
@@ -1351,7 +1351,7 @@ static void make_object_duplilist_real(bContext *C, Scene *scene, Base *base,
 		return;
 	}
 
-	lb_duplis = object_duplilist(bmain->eval_ctx, scene, base->object);
+	lb_duplis = object_duplilist(bmain, bmain->eval_ctx, scene, base->object);
 
 	dupli_gh = BLI_ghash_ptr_new(__func__);
 	if (use_hierarchy) {
@@ -1562,7 +1562,7 @@ static void convert_ensure_curve_cache(Main *bmain, Scene *scene, Object *ob)
 			BKE_displist_make_curveTypes(scene, ob, false);
 		}
 		else if (ob->type == OB_MBALL) {
-			BKE_displist_make_mball(bmain->eval_ctx, scene, ob);
+			BKE_displist_make_mball(bmain, bmain->eval_ctx, scene, ob);
 		}
 	}
 }
@@ -1570,10 +1570,10 @@ static void convert_ensure_curve_cache(Main *bmain, Scene *scene, Object *ob)
 static void curvetomesh(Main *bmain, Scene *scene, Object *ob)
 {
 	convert_ensure_curve_cache(bmain, scene, ob);
-	BKE_mesh_from_nurbs(ob); /* also does users */
+	BKE_mesh_from_nurbs(bmain, ob); /* also does users */
 
 	if (ob->type == OB_MESH) {
-		BKE_object_free_modifiers(ob);
+		BKE_object_free_modifiers(ob, 0);
 
 		/* Game engine defaults for mesh objects */
 		ob->body_type = OB_BODY_TYPE_STATIC;
@@ -1648,7 +1648,7 @@ static int convert_exec(bContext *C, wmOperator *op)
 			if (ob->type == OB_MBALL && target == OB_MESH) {
 				if (BKE_mball_is_basis(ob) == false) {
 					Object *ob_basis;
-					ob_basis = BKE_mball_basis_find(scene, ob);
+					ob_basis = BKE_mball_basis_find(bmain, bmain->eval_ctx, scene, ob);
 					if (ob_basis) {
 						ob_basis->flag &= ~OB_DONE;
 					}
@@ -1702,7 +1702,7 @@ static int convert_exec(bContext *C, wmOperator *op)
 				/* When 2 objects with linked data are selected, converting both
 				 * would keep modifiers on all but the converted object [#26003] */
 				if (ob->type == OB_MESH) {
-					BKE_object_free_modifiers(ob);  /* after derivedmesh calls! */
+					BKE_object_free_modifiers(ob, 0);  /* after derivedmesh calls! */
 				}
 			}
 		}
@@ -1724,10 +1724,10 @@ static int convert_exec(bContext *C, wmOperator *op)
 				newob = ob;
 			}
 
-			BKE_mesh_to_curve(scene, newob);
+			BKE_mesh_to_curve(bmain, scene, newob);
 
 			if (newob->type == OB_CURVE) {
-				BKE_object_free_modifiers(newob);   /* after derivedmesh calls! */
+				BKE_object_free_modifiers(newob, 0);   /* after derivedmesh calls! */
 				ED_rigidbody_object_remove(bmain, scene, newob);
 			}
 		}
@@ -1760,7 +1760,7 @@ static int convert_exec(bContext *C, wmOperator *op)
 
 			/* re-tessellation is called by DM_to_mesh */
 
-			BKE_object_free_modifiers(newob);   /* after derivedmesh calls! */
+			BKE_object_free_modifiers(newob, 0);   /* after derivedmesh calls! */
 		}
 		else if (ob->type == OB_FONT) {
 			ob->flag |= OB_DONE;
@@ -1785,7 +1785,7 @@ static int convert_exec(bContext *C, wmOperator *op)
 			 *               datablock, but for until we've got granular update
 			 *               lets take care by selves.
 			 */
-			BKE_vfont_to_curve(bmain, newob, FO_EDIT);
+			BKE_vfont_to_curve(newob, FO_EDIT);
 
 			newob->type = OB_CURVE;
 			cu->type = OB_CURVE;
@@ -1862,7 +1862,7 @@ static int convert_exec(bContext *C, wmOperator *op)
 			base->flag &= ~SELECT;
 			ob->flag &= ~SELECT;
 
-			baseob = BKE_mball_basis_find(scene, ob);
+			baseob = BKE_mball_basis_find(bmain, bmain->eval_ctx, scene, ob);
 
 			if (ob != baseob) {
 				/* if motherball is converting it would be marked as done later */
@@ -1933,7 +1933,7 @@ static int convert_exec(bContext *C, wmOperator *op)
 					if (ob->flag & OB_DONE) {
 						Object *ob_basis = NULL;
 						if (BKE_mball_is_basis(ob) ||
-						    ((ob_basis = BKE_mball_basis_find(scene, ob)) && (ob_basis->flag & OB_DONE)))
+						    ((ob_basis = BKE_mball_basis_find(bmain, bmain->eval_ctx, scene, ob)) && (ob_basis->flag & OB_DONE)))
 						{
 							ED_base_object_free_and_unlink(bmain, scene, base);
 						}
@@ -1989,7 +1989,7 @@ void OBJECT_OT_convert(wmOperatorType *ot)
 
 /**************************** Duplicate ************************/
 
-/* 
+/*
  * dupflag: a flag made from constants declared in DNA_userdef_types.h
  * The flag tells adduplicate() whether to copy data linked to the object, or to reference the existing data.
  * U.dupflag for default operations or you can construct a flag as python does
@@ -2036,7 +2036,7 @@ static Base *object_add_duplicate_internal(Main *bmain, Scene *scene, Base *base
 
 		/* duplicates using userflags */
 		if (dupflag & USER_DUP_ACT) {
-			BKE_animdata_copy_id_action(&obn->id, true);
+			BKE_animdata_copy_id_action(bmain, &obn->id, true);
 		}
 
 		if (dupflag & USER_DUP_MAT) {
@@ -2050,7 +2050,7 @@ static Base *object_add_duplicate_internal(Main *bmain, Scene *scene, Base *base
 					id_us_min(id);
 
 					if (dupflag & USER_DUP_ACT) {
-						BKE_animdata_copy_id_action(&obn->mat[a]->id, true);
+						BKE_animdata_copy_id_action(bmain, &obn->mat[a]->id, true);
 					}
 				}
 			}
@@ -2066,7 +2066,7 @@ static Base *object_add_duplicate_internal(Main *bmain, Scene *scene, Base *base
 					}
 
 					if (dupflag & USER_DUP_ACT) {
-						BKE_animdata_copy_id_action(&psys->part->id, true);
+						BKE_animdata_copy_id_action(bmain, &psys->part->id, true);
 					}
 
 					id_us_min(id);
@@ -2196,9 +2196,9 @@ static Base *object_add_duplicate_internal(Main *bmain, Scene *scene, Base *base
 			if (dupflag & USER_DUP_ACT) {
 				bActuator *act;
 
-				BKE_animdata_copy_id_action((ID *)obn->data, true);
+				BKE_animdata_copy_id_action(bmain, (ID *)obn->data, true);
 				if (key) {
-					BKE_animdata_copy_id_action((ID *)key, true);
+					BKE_animdata_copy_id_action(bmain, (ID *)key, true);
 				}
 
 				/* Update the duplicated action in the action actuators */
@@ -2354,7 +2354,7 @@ static int add_named_exec(bContext *C, wmOperator *op)
 
 	/* find object, create fake base */
 	RNA_string_get(op->ptr, "name", name);
-	ob = (Object *)BKE_libblock_find_name(ID_OB, name);
+	ob = (Object *)BKE_libblock_find_name(bmain, ID_OB, name);
 
 	if (ob == NULL) {
 		BKE_report(op->reports, RPT_ERROR, "Object not found");
@@ -2386,7 +2386,7 @@ static int add_named_exec(bContext *C, wmOperator *op)
 		ED_object_location_from_view(C, basen->object->loc);
 		ED_view3d_cursor3d_position(C, basen->object->loc, mval);
 	}
-	
+
 	ED_base_object_select(basen, BA_SELECT);
 	ED_base_object_activate(C, basen);
 
@@ -2398,7 +2398,8 @@ static int add_named_exec(bContext *C, wmOperator *op)
 
 	MEM_freeN(base);
 
-	WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT | ND_OB_ACTIVE, scene);
+	WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
+	WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, scene);
 
 	return OPERATOR_FINISHED;
 }

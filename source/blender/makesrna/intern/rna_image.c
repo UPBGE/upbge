@@ -30,6 +30,7 @@
 #include "DNA_scene_types.h"
 
 #include "BLI_utildefines.h"
+#include "BLI_math_base.h"
 
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
@@ -103,12 +104,12 @@ static void rna_Image_source_set(PointerRNA *ptr, int value)
 
 	if (value != ima->source) {
 		ima->source = value;
-		BKE_image_signal(ima, NULL, IMA_SIGNAL_SRC_CHANGE);
+		BKE_image_signal(G.main, ima, NULL, IMA_SIGNAL_SRC_CHANGE);
 		DAG_id_tag_update(&ima->id, 0);
 	}
 }
 
-static void rna_Image_fields_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
+static void rna_Image_fields_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	Image *ima = ptr->id.data;
 	ImBuf *ibuf;
@@ -123,36 +124,36 @@ static void rna_Image_fields_update(Main *UNUSED(bmain), Scene *UNUSED(scene), P
 		if ((ima->flag & IMA_FIELDS) && !(ibuf->flags & IB_fields)) nr = 1;
 
 		if (nr)
-			BKE_image_signal(ima, NULL, IMA_SIGNAL_FREE);
+			BKE_image_signal(bmain, ima, NULL, IMA_SIGNAL_FREE);
 	}
 
 	BKE_image_release_ibuf(ima, ibuf, lock);
 }
 
-static void rna_Image_reload_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
+static void rna_Image_reload_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	Image *ima = ptr->id.data;
-	BKE_image_signal(ima, NULL, IMA_SIGNAL_RELOAD);
+	BKE_image_signal(bmain, ima, NULL, IMA_SIGNAL_RELOAD);
 	WM_main_add_notifier(NC_IMAGE | NA_EDITED, &ima->id);
 	DAG_id_tag_update(&ima->id, 0);
 }
 
-static void rna_Image_generated_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
+static void rna_Image_generated_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	Image *ima = ptr->id.data;
-	BKE_image_signal(ima, NULL, IMA_SIGNAL_FREE);
+	BKE_image_signal(bmain, ima, NULL, IMA_SIGNAL_FREE);
 }
 
-static void rna_Image_colormanage_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
+static void rna_Image_colormanage_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	Image *ima = ptr->id.data;
-	BKE_image_signal(ima, NULL, IMA_SIGNAL_COLORMANAGE);
+	BKE_image_signal(bmain, ima, NULL, IMA_SIGNAL_COLORMANAGE);
 	DAG_id_tag_update(&ima->id, 0);
 	WM_main_add_notifier(NC_IMAGE | ND_DISPLAY, &ima->id);
 	WM_main_add_notifier(NC_IMAGE | NA_EDITED, &ima->id);
 }
 
-static void rna_Image_views_format_update(Main *UNUSED(bmain), Scene *scene, PointerRNA *ptr)
+static void rna_Image_views_format_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	Image *ima = ptr->id.data;
 	ImBuf *ibuf;
@@ -163,7 +164,7 @@ static void rna_Image_views_format_update(Main *UNUSED(bmain), Scene *scene, Poi
 	if (ibuf) {
 		ImageUser iuser = {NULL};
 		iuser.scene = scene;
-		BKE_image_signal(ima, &iuser, IMA_SIGNAL_FREE);
+		BKE_image_signal(bmain, ima, &iuser, IMA_SIGNAL_FREE);
 	}
 
 	BKE_image_release_ibuf(ima, ibuf, lock);
@@ -186,7 +187,7 @@ static char *rna_ImageUser_path(PointerRNA *ptr)
 {
 	if (ptr->id.data) {
 		/* ImageUser *iuser = ptr->data; */
-		
+
 		switch (GS(((ID *)ptr->id.data)->name)) {
 			case ID_OB:
 			case ID_TE:
@@ -201,7 +202,7 @@ static char *rna_ImageUser_path(PointerRNA *ptr)
 				break;
 		}
 	}
-	
+
 	return BLI_strdup("");
 }
 
@@ -211,7 +212,7 @@ static const EnumPropertyItem *rna_Image_source_itemf(bContext *UNUSED(C), Point
 	Image *ima = (Image *)ptr->data;
 	EnumPropertyItem *item = NULL;
 	int totitem = 0;
-	
+
 	if (ima->source == IMA_SRC_VIEWER) {
 		RNA_enum_items_add_value(&item, &totitem, image_source_items, IMA_SRC_VIEWER);
 	}
@@ -315,7 +316,7 @@ static int rna_Image_depth_get(PointerRNA *ptr)
 	ImBuf *ibuf;
 	void *lock;
 	int planes;
-	
+
 	ibuf = BKE_image_acquire_ibuf(im, NULL, &lock);
 
 	if (!ibuf)
@@ -407,7 +408,7 @@ static void rna_Image_pixels_set(PointerRNA *ptr, const float *values)
 		}
 		else {
 			for (i = 0; i < size; i++)
-				((unsigned char *)ibuf->rect)[i] = FTOCHAR(values[i]);
+				((unsigned char *)ibuf->rect)[i] = unit_float_to_uchar_clamp(values[i]);
 		}
 
 		ibuf->userflags |= IB_BITMAPDIRTY | IB_DISPLAY_BUFFER_INVALID | IB_MIPMAP_INVALID;
@@ -718,7 +719,7 @@ static void rna_def_image(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Fields", "Use fields of the image");
 	RNA_def_property_update(prop, NC_IMAGE | ND_DISPLAY, "rna_Image_fields_update");
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-	
+
 
 	prop = RNA_def_property(srna, "use_view_as_render", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", IMA_VIEW_AS_RENDER);
@@ -762,7 +763,7 @@ static void rna_def_image(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Generated Type", "Generated image type");
 	RNA_def_property_update(prop, NC_IMAGE | ND_DISPLAY, "rna_Image_generated_update");
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-	
+
 	prop = RNA_def_property(srna, "generated_width", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "gen_x");
 	RNA_def_property_flag(prop, PROP_PROPORTIONAL);
@@ -770,7 +771,7 @@ static void rna_def_image(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Generated Width", "Generated image width");
 	RNA_def_property_update(prop, NC_IMAGE | ND_DISPLAY, "rna_Image_generated_update");
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-	
+
 	prop = RNA_def_property(srna, "generated_height", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "gen_y");
 	RNA_def_property_flag(prop, PROP_PROPORTIONAL);
@@ -778,7 +779,7 @@ static void rna_def_image(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Generated Height", "Generated image height");
 	RNA_def_property_update(prop, NC_IMAGE | ND_DISPLAY, "rna_Image_generated_update");
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-	
+
 	prop = RNA_def_property(srna, "use_generated_float", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "gen_flag", IMA_GEN_FLOAT);
 	RNA_def_property_ui_text(prop, "Float Buffer", "Generate floating point buffer");

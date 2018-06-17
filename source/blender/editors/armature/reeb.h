@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -24,7 +24,7 @@
  *  \ingroup edarmature
  */
 
- 
+
 #ifndef __REEB_H__
 #define __REEB_H__
 
@@ -43,15 +43,15 @@ struct ReebNode;
 typedef struct ReebGraph {
 	ListBase arcs;
 	ListBase nodes;
-	
+
 	float length;
-	
+
 	FreeArc         free_arc;
 	FreeNode        free_node;
 	RadialSymmetry  radial_symmetry;
 	AxialSymmetry   axial_symmetry;
 	/*********************************/
-	
+
 	int resolution;
 	int totnodes;
 	struct EdgeHash *emap;
@@ -80,7 +80,7 @@ typedef struct ReebNode {
 	int symmetry_flag;
 	float symmetry_axis[3];
 	/*********************************/
-	
+
 	float no[3];
 
 	int index;
@@ -127,10 +127,10 @@ typedef struct ReebArcIterator {
 	NextNFct     nextN;
 	PreviousFct  previous;
 	StoppedFct   stopped;
-	
+
 	float *p, *no;
 	float size;
-	
+
 	int length;
 	int index;
 	/*********************************/

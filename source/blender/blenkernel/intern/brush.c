@@ -148,7 +148,10 @@ void BKE_brush_init(Brush *brush)
 	BKE_brush_curve_preset(brush, CURVE_PRESET_SMOOTH);
 }
 
-Brush *BKE_brush_add(Main *bmain, const char *name, short ob_mode)
+/**
+ * \note Resulting brush will have two users: one as a fake user, another is assumed to be used by the caller.
+ */
+Brush *BKE_brush_add(Main *bmain, const char *name, const eObjectMode ob_mode)
 {
 	Brush *brush;
 
@@ -161,7 +164,7 @@ Brush *BKE_brush_add(Main *bmain, const char *name, short ob_mode)
 	return brush;
 }
 
-struct Brush *BKE_brush_first_search(struct Main *bmain, short ob_mode)
+struct Brush *BKE_brush_first_search(struct Main *bmain, const eObjectMode ob_mode)
 {
 	Brush *brush;
 
@@ -452,68 +455,6 @@ void BKE_brush_curve_preset(Brush *b, eCurveMappingPreset preset)
 	b->curve->preset = preset;
 	curvemap_reset(cm, &b->curve->clipr, b->curve->preset, CURVEMAP_SLOPE_NEGATIVE);
 	curvemapping_changed(b->curve, false);
-}
-
-/* XXX Unused function. */
-int BKE_brush_texture_set_nr(Brush *brush, int nr)
-{
-	ID *idtest, *id = NULL;
-
-	id = (ID *)brush->mtex.tex;
-
-	idtest = (ID *)BLI_findlink(&G.main->tex, nr - 1);
-	if (idtest == NULL) { /* new tex */
-		if (id) idtest = (ID *)BKE_texture_copy(G.main, (Tex *)id);
-		else idtest = (ID *)BKE_texture_add(G.main, "Tex");
-		id_us_min(idtest);
-	}
-	if (idtest != id) {
-		BKE_brush_texture_delete(brush);
-
-		brush->mtex.tex = (Tex *)idtest;
-		id_us_plus(idtest);
-
-		return 1;
-	}
-
-	return 0;
-}
-
-int BKE_brush_texture_delete(Brush *brush)
-{
-	if (brush->mtex.tex)
-		id_us_min(&brush->mtex.tex->id);
-
-	return 1;
-}
-
-int BKE_brush_clone_image_set_nr(Brush *brush, int nr)
-{
-	if (brush && nr > 0) {
-		Image *ima = (Image *)BLI_findlink(&G.main->image, nr - 1);
-
-		if (ima) {
-			BKE_brush_clone_image_delete(brush);
-			brush->clone.image = ima;
-			id_us_plus(&ima->id);
-			brush->clone.offset[0] = brush->clone.offset[1] = 0.0f;
-
-			return 1;
-		}
-	}
-
-	return 0;
-}
-
-int BKE_brush_clone_image_delete(Brush *brush)
-{
-	if (brush && brush->clone.image) {
-		id_us_min(&brush->clone.image->id);
-		brush->clone.image = NULL;
-		return 1;
-	}
-
-	return 0;
 }
 
 /* Generic texture sampler for 3D painting systems. point has to be either in
@@ -1063,7 +1004,8 @@ struct ImBuf *BKE_brush_gen_radial_control_imbuf(Brush *br, bool secondary)
 		for (i = 0; i < side; ++i) {
 			for (j = 0; j < side; ++j) {
 				const int col = texcache[i * side + j];
-				im->rect_float[i * side + j] *= (((char *)&col)[0] + ((char *)&col)[1] + ((char *)&col)[2]) / 3.0f / 255.0f;
+				im->rect_float[i * side + j] *=
+				        (((char *)&col)[0] + ((char *)&col)[1] + ((char *)&col)[2]) / 3.0f / 255.0f;
 			}
 		}
 

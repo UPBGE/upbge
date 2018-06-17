@@ -273,7 +273,7 @@ float *BKE_mball_make_orco(Object *ob, ListBase *dispbase)
  * This really needs a rewrite/refactor its totally broken in anything other then basic cases
  * Multiple Scenes + Set Scenes & mixing mball basis SHOULD work but fails to update the depsgraph on rename
  * and linking into scenes or removal of basis mball. so take care when changing this code.
- * 
+ *
  * Main idiot thing here is that the system returns find_basis_mball() objects which fail a is_basis_mball() test.
  *
  * Not only that but the depsgraph and their areas depend on this behavior!, so making small fixes here isn't worth it.
@@ -316,7 +316,7 @@ bool BKE_mball_is_basis_for(Object *ob1, Object *ob2)
  * are copied to all metaballs in same "group" (metaballs with same base name: MBall,
  * MBall.001, MBall.002, etc). The most important is to copy properties to the base metaball,
  * because this metaball influence polygonisation of metaballs. */
-void BKE_mball_properties_copy(Scene *scene, Object *active_object)
+void BKE_mball_properties_copy(Main *bmain, EvaluationContext *eval_ctx, Scene *scene, Object *active_object)
 {
 	Scene *sce_iter = scene;
 	Base *base;
@@ -325,12 +325,11 @@ void BKE_mball_properties_copy(Scene *scene, Object *active_object)
 	int basisnr, obnr;
 	char basisname[MAX_ID_NAME], obname[MAX_ID_NAME];
 	SceneBaseIter iter;
-	EvaluationContext *eval_ctx = G.main->eval_ctx;
 
 	BLI_split_name_num(basisname, &basisnr, active_object->id.name + 2, '.');
 
-	BKE_scene_base_iter_next(eval_ctx, &iter, &sce_iter, 0, NULL, NULL);
-	while (BKE_scene_base_iter_next(eval_ctx, &iter, &sce_iter, 1, &base, &ob)) {
+	BKE_scene_base_iter_next(bmain, eval_ctx, &iter, &sce_iter, 0, NULL, NULL);
+	while (BKE_scene_base_iter_next(bmain, eval_ctx, &iter, &sce_iter, 1, &base, &ob)) {
 		if (ob->type == OB_MBALL) {
 			if (ob != active_object) {
 				BLI_split_name_num(obname, &obnr, ob->id.name + 2, '.');
@@ -360,7 +359,7 @@ void BKE_mball_properties_copy(Scene *scene, Object *active_object)
  *
  * warning!, is_basis_mball() can fail on returned object, see long note above.
  */
-Object *BKE_mball_basis_find(Scene *scene, Object *basis)
+Object *BKE_mball_basis_find(Main *bmain, EvaluationContext *eval_ctx, Scene *scene, Object *basis)
 {
 	Scene *sce_iter = scene;
 	Base *base;
@@ -368,12 +367,11 @@ Object *BKE_mball_basis_find(Scene *scene, Object *basis)
 	int basisnr, obnr;
 	char basisname[MAX_ID_NAME], obname[MAX_ID_NAME];
 	SceneBaseIter iter;
-	EvaluationContext *eval_ctx = G.main->eval_ctx;
 
 	BLI_split_name_num(basisname, &basisnr, basis->id.name + 2, '.');
 
-	BKE_scene_base_iter_next(eval_ctx, &iter, &sce_iter, 0, NULL, NULL);
-	while (BKE_scene_base_iter_next(eval_ctx, &iter, &sce_iter, 1, &base, &ob)) {
+	BKE_scene_base_iter_next(bmain, eval_ctx, &iter, &sce_iter, 0, NULL, NULL);
+	while (BKE_scene_base_iter_next(bmain, eval_ctx, &iter, &sce_iter, 1, &base, &ob)) {
 		if ((ob->type == OB_MBALL) && !(base->flag & OB_FROMDUPLI)) {
 			if (ob != bob) {
 				BLI_split_name_num(obname, &obnr, ob->id.name + 2, '.');

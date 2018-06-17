@@ -72,8 +72,9 @@ static void initData(ModifierData *md)
 	cloth_init(clmd);
 }
 
-static void deformVerts(ModifierData *md, Object *ob, DerivedMesh *derivedData, float (*vertexCos)[3],
-                        int numVerts, ModifierApplyFlag UNUSED(flag))
+static void deformVerts(
+        ModifierData *md, Object *ob, DerivedMesh *derivedData, float (*vertexCos)[3],
+        int numVerts, ModifierApplyFlag UNUSED(flag))
 {
 	DerivedMesh *dm;
 	ClothModifierData *clmd = (ClothModifierData *) md;
@@ -117,38 +118,29 @@ static void deformVerts(ModifierData *md, Object *ob, DerivedMesh *derivedData, 
 	dm->release(dm);
 }
 
-static void updateDepgraph(ModifierData *md, DagForest *forest,
-                           struct Main *UNUSED(bmain),
-                           Scene *scene, Object *ob, DagNode *obNode)
+static void updateDepgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
 	ClothModifierData *clmd = (ClothModifierData *) md;
 	
 	if (clmd) {
 		/* Actual code uses get_collisionobjects */
 #ifdef WITH_LEGACY_DEPSGRAPH
-		dag_add_collision_relations(forest, scene, ob, obNode, clmd->coll_parms->group, ob->lay|scene->lay, eModifierType_Collision, NULL, true, "Cloth Collision");
-		dag_add_forcefield_relations(forest, scene, ob, obNode, clmd->sim_parms->effector_weights, true, 0, "Cloth Field");
+		dag_add_collision_relations(ctx->forest, ctx->scene, ctx->object, ctx->obNode, clmd->coll_parms->group, ctx->object->lay|ctx->scene->lay, eModifierType_Collision, NULL, true, "Cloth Collision");
+		dag_add_forcefield_relations(ctx->forest, ctx->scene, ctx->object, ctx->obNode, clmd->sim_parms->effector_weights, true, 0, "Cloth Field");
 #else
-	(void)forest;
-	(void)scene;
-	(void)ob;
-	(void)obNode;
+	(void)ctx;
 #endif
 	}
 }
 
-static void updateDepsgraph(ModifierData *md,
-                            struct Main *UNUSED(bmain),
-                            struct Scene *scene,
-                            Object *ob,
-                            struct DepsNodeHandle *node)
+static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
 	ClothModifierData *clmd = (ClothModifierData *)md;
 	if (clmd != NULL) {
 		/* Actual code uses get_collisionobjects */
-		DEG_add_collision_relations(node, scene, ob, clmd->coll_parms->group, ob->lay|scene->lay, eModifierType_Collision, NULL, true, "Cloth Collision");
+		DEG_add_collision_relations(ctx->node, ctx->scene, ctx->object, clmd->coll_parms->group, ctx->object->lay|ctx->scene->lay, eModifierType_Collision, NULL, true, "Cloth Collision");
 
-		DEG_add_forcefield_relations(node, scene, ob, clmd->sim_parms->effector_weights, true, 0, "Cloth Field");
+		DEG_add_forcefield_relations(ctx->node, ctx->scene, ctx->object, clmd->sim_parms->effector_weights, true, 0, "Cloth Field");
 	}
 }
 
@@ -166,9 +158,9 @@ static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
 	return dataMask;
 }
 
-static void copyData(ModifierData *md, ModifierData *target)
+static void copyData(const ModifierData *md, ModifierData *target)
 {
-	ClothModifierData *clmd = (ClothModifierData *) md;
+	const ClothModifierData *clmd = (const ClothModifierData *) md;
 	ClothModifierData *tclmd = (ClothModifierData *) target;
 
 	if (tclmd->sim_parms) {
@@ -228,8 +220,9 @@ static void freeData(ModifierData *md)
 	}
 }
 
-static void foreachIDLink(ModifierData *md, Object *ob,
-                          IDWalkFunc walk, void *userData)
+static void foreachIDLink(
+        ModifierData *md, Object *ob,
+        IDWalkFunc walk, void *userData)
 {
 	ClothModifierData *clmd = (ClothModifierData *) md;
 

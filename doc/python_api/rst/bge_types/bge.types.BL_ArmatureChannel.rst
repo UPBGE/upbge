@@ -1,7 +1,5 @@
 BL_ArmatureChannel(EXP_PyObjectPlus)
-================================
-
-.. module:: bge.types
+====================================
 
 base class --- :class:`EXP_PyObjectPlus`
 
@@ -275,4 +273,3 @@ base class --- :class:`EXP_PyObjectPlus`
       .. note::
       
          You can read the result of the calculation in rotation or euler_rotation attributes after setting this attribute.
-

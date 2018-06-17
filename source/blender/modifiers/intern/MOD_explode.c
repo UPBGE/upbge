@@ -66,12 +66,12 @@ static void freeData(ModifierData *md)
 {
 	ExplodeModifierData *emd = (ExplodeModifierData *) md;
 	
-	if (emd->facepa) MEM_freeN(emd->facepa);
+	MEM_SAFE_FREE(emd->facepa);
 }
-static void copyData(ModifierData *md, ModifierData *target)
+static void copyData(const ModifierData *md, ModifierData *target)
 {
 #if 0
-	ExplodeModifierData *emd = (ExplodeModifierData *) md;
+	const ExplodeModifierData *emd = (const ExplodeModifierData *) md;
 #endif
 	ExplodeModifierData *temd = (ExplodeModifierData *) target;
 
@@ -94,9 +94,10 @@ static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
 	return dataMask;
 }
 
-static void createFacepa(ExplodeModifierData *emd,
-                         ParticleSystemModifierData *psmd,
-                         DerivedMesh *dm)
+static void createFacepa(
+        ExplodeModifierData *emd,
+        ParticleSystemModifierData *psmd,
+        DerivedMesh *dm)
 {
 	ParticleSystem *psys = psmd->psys;
 	MFace *fa = NULL, *mface = NULL;
@@ -119,9 +120,9 @@ static void createFacepa(ExplodeModifierData *emd,
 	if (emd->facepa)
 		MEM_freeN(emd->facepa);
 
-	facepa = emd->facepa = MEM_callocN(sizeof(int) * totface, "explode_facepa");
+	facepa = emd->facepa = MEM_calloc_arrayN(totface, sizeof(int), "explode_facepa");
 
-	vertpa = MEM_callocN(sizeof(int) * totvert, "explode_vertpa");
+	vertpa = MEM_calloc_arrayN(totvert, sizeof(int), "explode_vertpa");
 
 	/* initialize all faces & verts to no particle */
 	for (i = 0; i < totface; i++)
@@ -557,8 +558,8 @@ static DerivedMesh *cutEdges(ExplodeModifierData *emd, DerivedMesh *dm)
 	int totvert = dm->getNumVerts(dm);
 	int totface = dm->getNumTessFaces(dm);
 
-	int *facesplit = MEM_callocN(sizeof(int) * totface, "explode_facesplit");
-	int *vertpa = MEM_callocN(sizeof(int) * totvert, "explode_vertpa2");
+	int *facesplit = MEM_calloc_arrayN(totface, sizeof(int), "explode_facesplit");
+	int *vertpa = MEM_calloc_arrayN(totvert, sizeof(int), "explode_vertpa2");
 	int *facepa = emd->facepa;
 	int *fs, totesplit = 0, totfsplit = 0, curdupface = 0;
 	int i, v1, v2, v3, v4, esplit,
@@ -656,7 +657,7 @@ static DerivedMesh *cutEdges(ExplodeModifierData *emd, DerivedMesh *dm)
 	 * later interpreted as tri's, for this to work right I think we probably
 	 * have to stop using tessface - campbell */
 
-	facepa = MEM_callocN(sizeof(int) * (totface + (totfsplit * 2)), "explode_facepa");
+	facepa = MEM_calloc_arrayN((totface + (totfsplit * 2)), sizeof(int), "explode_facepa");
 	//memcpy(facepa, emd->facepa, totface*sizeof(int));
 	emd->facepa = facepa;
 
@@ -785,9 +786,10 @@ static DerivedMesh *cutEdges(ExplodeModifierData *emd, DerivedMesh *dm)
 
 	return splitdm;
 }
-static DerivedMesh *explodeMesh(ExplodeModifierData *emd,
-                                ParticleSystemModifierData *psmd, Scene *scene, Object *ob,
-                                DerivedMesh *to_explode)
+static DerivedMesh *explodeMesh(
+        ExplodeModifierData *emd,
+        ParticleSystemModifierData *psmd, Scene *scene, Object *ob,
+        DerivedMesh *to_explode)
 {
 	DerivedMesh *explode, *dm = to_explode;
 	MFace *mf = NULL, *mface;
@@ -993,9 +995,10 @@ static ParticleSystemModifierData *findPrecedingParticlesystem(Object *ob, Modif
 	}
 	return psmd;
 }
-static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
-                                  DerivedMesh *derivedData,
-                                  ModifierApplyFlag UNUSED(flag))
+static DerivedMesh *applyModifier(
+        ModifierData *md, Object *ob,
+        DerivedMesh *derivedData,
+        ModifierApplyFlag UNUSED(flag))
 {
 	DerivedMesh *dm = derivedData;
 	ExplodeModifierData *emd = (ExplodeModifierData *) md;

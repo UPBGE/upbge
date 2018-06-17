@@ -622,12 +622,12 @@ bGPDpalettecolor *BKE_gpencil_palettecolor_addnew(bGPDpalette *palette, const ch
 }
 
 /* add a new gp-datablock */
-bGPdata *BKE_gpencil_data_addnew(const char name[])
+bGPdata *BKE_gpencil_data_addnew(Main *bmain, const char name[])
 {
 	bGPdata *gpd;
 	
 	/* allocate memory for a new block */
-	gpd = BKE_libblock_alloc(G.main, ID_GD, name, 0);
+	gpd = BKE_libblock_alloc(bmain, ID_GD, name, 0);
 	
 	/* initial settings */
 	gpd->flag = (GP_DATA_DISPINFO | GP_DATA_EXPAND);
@@ -805,6 +805,7 @@ bGPdata *BKE_gpencil_data_duplicate(Main *bmain, const bGPdata *gpd_src, bool in
 		return gpd_dst;
 	}
 	else {
+		BLI_assert(bmain != NULL);
 		bGPdata *gpd_copy;
 		BKE_id_copy_ex(bmain, &gpd_src->id, (ID **)&gpd_copy, 0, false);
 		return gpd_copy;

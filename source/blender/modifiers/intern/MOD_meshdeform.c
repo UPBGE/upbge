@@ -78,9 +78,9 @@ static void freeData(ModifierData *md)
 	if (mmd->bindcos) MEM_freeN(mmd->bindcos);  /* deprecated */
 }
 
-static void copyData(ModifierData *md, ModifierData *target)
+static void copyData(const ModifierData *md, ModifierData *target)
 {
-	MeshDeformModifierData *mmd = (MeshDeformModifierData *) md;
+	const MeshDeformModifierData *mmd = (const MeshDeformModifierData *) md;
 	MeshDeformModifierData *tmmd = (MeshDeformModifierData *) target;
 
 	modifier_copyData_generic(md, target);
@@ -122,33 +122,25 @@ static void foreachObjectLink(
 	walk(userData, ob, &mmd->object, IDWALK_CB_NOP);
 }
 
-static void updateDepgraph(ModifierData *md, DagForest *forest,
-                           struct Main *UNUSED(bmain),
-                           struct Scene *UNUSED(scene),
-                           Object *UNUSED(ob),
-                           DagNode *obNode)
+static void updateDepgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
 	MeshDeformModifierData *mmd = (MeshDeformModifierData *) md;
 
 	if (mmd->object) {
-		DagNode *curNode = dag_get_node(forest, mmd->object);
+		DagNode *curNode = dag_get_node(ctx->forest, mmd->object);
 
-		dag_add_relation(forest, curNode, obNode,
+		dag_add_relation(ctx->forest, curNode, ctx->obNode,
 		                 DAG_RL_DATA_DATA | DAG_RL_OB_DATA | DAG_RL_DATA_OB | DAG_RL_OB_OB,
 		                 "Mesh Deform Modifier");
 	}
 }
 
-static void updateDepsgraph(ModifierData *md,
-                            struct Main *UNUSED(bmain),
-                            struct Scene *UNUSED(scene),
-                            Object *UNUSED(ob),
-                            struct DepsNodeHandle *node)
+static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
 	MeshDeformModifierData *mmd = (MeshDeformModifierData *)md;
 	if (mmd->object != NULL) {
 		/* TODO(sergey): Do we need transform component here? */
-		DEG_add_object_relation(node, mmd->object, DEG_OB_COMP_GEOMETRY, "Mesh Deform Modifier");
+		DEG_add_object_relation(ctx->node, mmd->object, DEG_OB_COMP_GEOMETRY, "Mesh Deform Modifier");
 	}
 }
 
@@ -234,7 +226,10 @@ typedef struct MeshdeformUserdata {
 	float (*icagemat)[3];
 } MeshdeformUserdata;
 
-static void meshdeform_vert_task(void *userdata, const int iter)
+static void meshdeform_vert_task(
+        void *__restrict userdata,
+        const int iter,
+        const ParallelRangeTLS *__restrict UNUSED(tls))
 {
 	MeshdeformUserdata *data = userdata;
 	/*const*/ MeshDeformModifierData *mmd = data->mmd;
@@ -377,7 +372,7 @@ static void meshdeformModifier_do(
 		return;
 	}
 
-	cagecos = MEM_mallocN(sizeof(*cagecos) * totcagevert, "meshdeformModifier vertCos");
+	cagecos = MEM_malloc_arrayN(totcagevert, sizeof(*cagecos), "meshdeformModifier vertCos");
 
 	/* setup deformation data */
 	cagedm->getVertCos(cagedm, cagecos);
@@ -386,7 +381,7 @@ static void meshdeformModifier_do(
 	/* We allocate 1 element extra to make it possible to
 	 * load the values to SSE registers, which are float4.
 	 */
-	dco = MEM_callocN(sizeof(*dco) * (totcagevert + 1), "MDefDco");
+	dco = MEM_calloc_arrayN((totcagevert + 1), sizeof(*dco), "MDefDco");
 	zero_v3(dco[totcagevert]);
 	for (a = 0; a < totcagevert; a++) {
 		/* get cage vertex in world space with binding transform */
@@ -413,7 +408,13 @@ static void meshdeformModifier_do(
 	data.icagemat = icagemat;
 
 	/* Do deformation. */
-	BLI_task_parallel_range(0, totvert, &data, meshdeform_vert_task, totvert > 1000);
+	ParallelRangeSettings settings;
+	BLI_parallel_range_settings_defaults(&settings);
+	settings.min_iter_per_thread = 16;
+	BLI_task_parallel_range(0, totvert,
+	                        &data,
+	                        meshdeform_vert_task,
+	                        &settings);
 
 	/* release cage derivedmesh */
 	MEM_freeN(dco);
@@ -421,11 +422,12 @@ static void meshdeformModifier_do(
 	cagedm->release(cagedm);
 }
 
-static void deformVerts(ModifierData *md, Object *ob,
-                        DerivedMesh *derivedData,
-                        float (*vertexCos)[3],
-                        int numVerts,
-                        ModifierApplyFlag UNUSED(flag))
+static void deformVerts(
+        ModifierData *md, Object *ob,
+        DerivedMesh *derivedData,
+        float (*vertexCos)[3],
+        int numVerts,
+        ModifierApplyFlag UNUSED(flag))
 {
 	DerivedMesh *dm = get_dm(ob, NULL, derivedData, NULL, false, false);
 
@@ -437,11 +439,12 @@ static void deformVerts(ModifierData *md, Object *ob,
 		dm->release(dm);
 }
 
-static void deformVertsEM(ModifierData *md, Object *ob,
-                          struct BMEditMesh *UNUSED(editData),
-                          DerivedMesh *derivedData,
-                          float (*vertexCos)[3],
-                          int numVerts)
+static void deformVertsEM(
+        ModifierData *md, Object *ob,
+        struct BMEditMesh *UNUSED(editData),
+        DerivedMesh *derivedData,
+        float (*vertexCos)[3],
+        int numVerts)
 {
 	DerivedMesh *dm = get_dm(ob, NULL, derivedData, NULL, false, false);
 
@@ -477,8 +480,8 @@ void modifier_mdef_compact_influences(ModifierData *md)
 	}
 
 	/* allocate bind influences */
-	mmd->bindinfluences = MEM_callocN(sizeof(MDefInfluence) * mmd->totinfluence, "MDefBindInfluence");
-	mmd->bindoffsets = MEM_callocN(sizeof(int) * (totvert + 1), "MDefBindOffset");
+	mmd->bindinfluences = MEM_calloc_arrayN(mmd->totinfluence, sizeof(MDefInfluence), "MDefBindInfluence");
+	mmd->bindoffsets = MEM_calloc_arrayN((totvert + 1), sizeof(int), "MDefBindOffset");
 
 	/* write influences */
 	totinfluence = 0;

@@ -92,6 +92,8 @@ ccl_device float svm_math(NodeMath type, float Fac1, float Fac2)
 		Fac = safe_modulo(Fac1, Fac2);
 	else if(type == NODE_MATH_ABSOLUTE)
 		Fac = fabsf(Fac1);
+	else if(type == NODE_MATH_ARCTAN2)
+		Fac = atan2f(Fac1, Fac2);
 	else if(type == NODE_MATH_CLAMP)
 		Fac = saturate(Fac1);
 	else
@@ -136,6 +138,8 @@ ccl_static_constant float blackbody_table_b[6][4] = {
 
 ccl_device float3 svm_math_blackbody_color(float t)
 {
+	/* TODO(lukas): Reimplement in XYZ. */
+
 	if(t >= 12000.0f) {
 		return make_float3(0.826270103f, 0.994478524f, 1.56626022f);
 	}

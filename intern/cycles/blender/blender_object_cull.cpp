@@ -62,7 +62,7 @@ void BlenderObjectCulling::init_object(Scene *scene, BL::Object& b_ob)
 
 	if(use_camera_cull_ || use_distance_cull_) {
 		/* Need to have proper projection matrix. */
-		scene->camera->update();
+		scene->camera->update(scene);
 	}
 }
 
@@ -96,7 +96,7 @@ bool BlenderObjectCulling::test(Scene *scene, BL::Object& b_ob, Transform& tfm)
 bool BlenderObjectCulling::test_camera(Scene *scene, float3 bb[8])
 {
 	Camera *cam = scene->camera;
-	Transform& worldtondc = cam->worldtondc;
+	const ProjectionTransform& worldtondc = cam->worldtondc;
 	float3 bb_min = make_float3(FLT_MAX, FLT_MAX, FLT_MAX),
 	       bb_max = make_float3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
 	bool all_behind = true;

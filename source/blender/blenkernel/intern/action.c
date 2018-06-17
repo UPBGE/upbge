@@ -84,7 +84,7 @@
 
 /* ***************** Library data level operations on action ************** */
 
-bAction *add_empty_action(Main *bmain, const char name[])
+bAction *BKE_action_add(Main *bmain, const char name[])
 {
 	bAction *act;
 	
@@ -264,7 +264,7 @@ bActionGroup *action_groups_add_new(bAction *act, const char name[])
 
 /* Add given channel into (active) group 
  *	- assumes that channel is not linked to anything anymore
- *	- always adds at the end of the group 
+ *	- always adds at the end of the group
  */
 void action_groups_add_channel(bAction *act, bActionGroup *agrp, FCurve *fcurve)
 {	
@@ -499,7 +499,7 @@ bPoseChannel *BKE_pose_channel_active(Object *ob)
 }
 
 /**
- * \see #ED_armature_bone_get_mirrored (edit-mode, matching function)
+ * \see #ED_armature_ebone_get_mirrored (edit-mode, matching function)
  */
 bPoseChannel *BKE_pose_channel_get_mirrored(const bPose *pose, const char *name)
 {
@@ -939,7 +939,7 @@ void BKE_pose_channel_copy_data(bPoseChannel *pchan, const bPoseChannel *pchan_f
 
 
 /* checks for IK constraint, Spline IK, and also for Follow-Path constraint.
- * can do more constraints flags later 
+ * can do more constraints flags later
  */
 /* pose should be entirely OK */
 void BKE_pose_update_constraint_flags(bPose *pose)
@@ -1009,7 +1009,7 @@ void BKE_pose_tag_update_constraint_flags(bPose *pose)
  * This should only be called on frame changing, when it is acceptable to
  * do this. Otherwise, these flags should not get cleared as poses may get lost.
  */
-void framechange_poses_clear_unkeyed(void)
+void framechange_poses_clear_unkeyed(Main *bmain)
 {
 	Object *ob;
 	bPose *pose;
@@ -1017,7 +1017,7 @@ void framechange_poses_clear_unkeyed(void)
 	
 	/* This needs to be done for each object that has a pose */
 	/* TODO: proxies may/may not be correctly handled here... (this needs checking) */
-	for (ob = G.main->object.first; ob; ob = ob->id.next) {
+	for (ob = bmain->object.first; ob; ob = ob->id.next) {
 		/* we only need to do this on objects with a pose */
 		if ((pose = ob->pose)) {
 			for (pchan = pose->chanbase.first; pchan; pchan = pchan->next) {
@@ -1432,7 +1432,7 @@ void BKE_pose_tag_recalc(Main *bmain, bPose *pose)
 }
 
 /* For the calculation of the effects of an Action at the given frame on an object 
- * This is currently only used for the Action Constraint 
+ * This is currently only used for the Action Constraint
  */
 void what_does_obaction(Object *ob, Object *workob, bPose *pose, bAction *act, char groupname[], float cframe)
 {

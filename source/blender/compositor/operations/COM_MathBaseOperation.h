@@ -15,8 +15,8 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributor: 
- *		Jeroen Bakker 
+ * Contributor:
+ *		Jeroen Bakker
  *		Monique Dewanchand
  */
 
@@ -166,6 +166,12 @@ public:
 class MathAbsoluteOperation : public MathBaseOperation {
 public:
 	MathAbsoluteOperation() : MathBaseOperation() {}
+	void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
+};
+
+class MathArcTan2Operation : public MathBaseOperation {
+public:
+	MathArcTan2Operation() : MathBaseOperation() {}
 	void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
 };
 

@@ -84,6 +84,7 @@ static FontBLF *global_font[BLF_MAX_FONT] = {NULL};
 static int global_font_default = -1;
 static int global_font_points = 11;
 static int global_font_dpi = 72;
+static bool global_use_antialias = true;
 
 /* XXX, should these be made into global_font_'s too? */
 int blf_mono_font = -1;
@@ -163,7 +164,7 @@ static int blf_search_available(void)
 	for (i = 0; i < BLF_MAX_FONT; i++)
 		if (!global_font[i])
 			return i;
-	
+
 	return -1;
 }
 
@@ -173,6 +174,16 @@ void BLF_default_set(int fontid)
 	if (font || fontid == -1) {
 		global_font_default = fontid;
 	}
+}
+
+void BLF_antialias_set(bool enabled)
+{
+	global_use_antialias = enabled;
+}
+
+bool BLF_antialias_get(void)
+{
+	return global_use_antialias;
 }
 
 int BLF_load(const char *name)
@@ -760,7 +771,7 @@ int BLF_height_max(int fontid)
 	FontBLF *font = blf_get(fontid);
 
 	if (font && font->glyph_cache) {
-		return font->glyph_cache->max_glyph_height;
+		return font->glyph_cache->glyph_height_max;
 	}
 
 	return 0;
@@ -771,7 +782,7 @@ float BLF_width_max(int fontid)
 	FontBLF *font = blf_get(fontid);
 
 	if (font && font->glyph_cache) {
-		return font->glyph_cache->max_glyph_width;
+		return font->glyph_cache->glyph_width_max;
 	}
 
 	return 0.0f;

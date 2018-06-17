@@ -19,10 +19,8 @@
 #include "render/buffers.h"
 #include "device/device.h"
 
-#include "util/util_debug.h"
 #include "util/util_foreach.h"
 #include "util/util_hash.h"
-#include "util/util_image.h"
 #include "util/util_math.h"
 #include "util/util_opengl.h"
 #include "util/util_time.h"
@@ -151,6 +149,10 @@ bool RenderBuffers::copy_from_device()
 
 bool RenderBuffers::get_denoising_pass_rect(int offset, float exposure, int sample, int components, float *pixels)
 {
+	if(buffer.data() == NULL) {
+		return false;
+	}
+
 	float invsample = 1.0f/sample;
 	float scale = invsample;
 	bool variance = (offset == DENOISING_PASS_NORMAL_VAR) ||
@@ -218,6 +220,10 @@ bool RenderBuffers::get_denoising_pass_rect(int offset, float exposure, int samp
 
 bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int components, float *pixels)
 {
+	if(buffer.data() == NULL) {
+		return false;
+	}
+
 	int pass_offset = 0;
 
 	for(size_t j = 0; j < params.passes.size(); j++) {
@@ -439,38 +445,6 @@ void DisplayBuffer::draw(Device *device, const DeviceDrawParams& draw_params)
 bool DisplayBuffer::draw_ready()
 {
 	return (draw_width != 0 && draw_height != 0);
-}
-
-void DisplayBuffer::write(const string& filename)
-{
-	int w = draw_width;
-	int h = draw_height;
-
-	if(w == 0 || h == 0)
-		return;
-	
-	if(half_float)
-		return;
-
-	/* read buffer from device */
-	uchar4 *pixels = rgba_byte.copy_from_device(0, w, h);
-
-	/* write image */
-	ImageOutput *out = ImageOutput::create(filename);
-	ImageSpec spec(w, h, 4, TypeDesc::UINT8);
-
-	out->open(filename, spec);
-
-	/* conversion for different top/bottom convention */
-	out->write_image(TypeDesc::UINT8,
-		(uchar*)(pixels + (h-1)*w),
-		AutoStride,
-		-w*sizeof(uchar4),
-		AutoStride);
-
-	out->close();
-
-	delete out;
 }
 
 CCL_NAMESPACE_END

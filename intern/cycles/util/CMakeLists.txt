@@ -11,6 +11,7 @@ set(INC_SYS
 set(SRC
 	util_aligned_malloc.cpp
 	util_debug.cpp
+	util_ies.cpp
 	util_logging.cpp
 	util_math_cdf.cpp
 	util_md5.cpp
@@ -45,6 +46,7 @@ set(SRC_HEADERS
 	util_guarded_allocator.h
 	util_half.h
 	util_hash.h
+	util_ies.h
 	util_image.h
 	util_image_impl.h
 	util_list.h
@@ -67,6 +69,7 @@ set(SRC_HEADERS
 	util_param.h
 	util_path.h
 	util_progress.h
+	util_projection.h
 	util_queue.h
 	util_rect.h
 	util_set.h
@@ -127,4 +130,4 @@ include_directories(SYSTEM ${INC_SYS})
 
 add_definitions(${GL_DEFINITIONS})
 
-add_library(cycles_util ${SRC} ${SRC_HEADERS})
+cycles_add_library(cycles_util ${SRC} ${SRC_HEADERS})

@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -67,7 +67,7 @@ float  *IMB_exr_channel_rect(void *handle, const char *layname, const char *pass
 
 void    IMB_exr_read_channels(void *handle);
 void    IMB_exr_write_channels(void *handle);
-void    IMB_exrtile_write_channels(void *handle, int partx, int party, int level, const char *viewname);
+void    IMB_exrtile_write_channels(void *handle, int partx, int party, int level, const char *viewname, bool empty);
 void    IMB_exr_clear_channels(void *handle);
 
 void    IMB_exr_multilayer_convert(

@@ -1782,7 +1782,7 @@ static int stitch_init(bContext *C, wmOperator *op)
 		}
 	}
 
-	total_edges = BLI_ghash_size(edge_hash);
+	total_edges = BLI_ghash_len(edge_hash);
 	state->edges = edges = MEM_mallocN(sizeof(*edges) * total_edges, "stitch_edges");
 
 	/* I assume any system will be able to at least allocate an iterator :p */
@@ -2058,16 +2058,16 @@ static void stitch_select(bContext *C, Scene *scene, const wmEvent *event, Stitc
 {
 	/* add uv under mouse to processed uv's */
 	float co[2];
-	NearestHit hit;
+	UvNearestHit hit = UV_NEAREST_HIT_INIT;
 	ARegion *ar = CTX_wm_region(C);
 	Image *ima = CTX_data_edit_image(C);
 
 	UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], &co[0], &co[1]);
 
 	if (state->mode == STITCH_VERT) {
-		uv_find_nearest_vert(scene, ima, state->em, co, NULL, &hit);
-
-		if (hit.efa) {
+		if (uv_find_nearest_vert(
+		            scene, ima, state->em, co, 0.0f, &hit))
+		{
 			/* Add vertex to selection, deselect all common uv's of vert other
 			 * than selected and update the preview. This behavior was decided so that
 			 * you can do stuff like deselect the opposite stitchable vertex and the initial still gets deselected */
@@ -2079,9 +2079,9 @@ static void stitch_select(bContext *C, Scene *scene, const wmEvent *event, Stitc
 		}
 	}
 	else {
-		uv_find_nearest_edge(scene, ima, state->em, co, &hit);
-
-		if (hit.efa) {
+		if (uv_find_nearest_edge(
+		            scene, ima, state->em, co, &hit))
+		{
 			UvEdge *edge = uv_edge_get(hit.l, state);
 			stitch_select_edge(edge, state, false);
 		}
@@ -2265,7 +2265,7 @@ void UV_OT_stitch(wmOperatorType *ot)
 	ot->description = "Stitch selected UV vertices by proximity";
 	ot->idname = "UV_OT_stitch";
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-	
+
 	/* api callbacks */
 	ot->invoke = stitch_invoke;
 	ot->modal = stitch_modal;

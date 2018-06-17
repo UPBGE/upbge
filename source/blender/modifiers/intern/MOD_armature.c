@@ -62,10 +62,10 @@ static void initData(ModifierData *md)
 	amd->deformflag = ARM_DEF_VGROUP;
 }
 
-static void copyData(ModifierData *md, ModifierData *target)
+static void copyData(const ModifierData *md, ModifierData *target)
 {
 #if 0
-	ArmatureModifierData *amd = (ArmatureModifierData *) md;
+	const ArmatureModifierData *amd = (const ArmatureModifierData *) md;
 #endif
 	ArmatureModifierData *tamd = (ArmatureModifierData *) target;
 
@@ -99,40 +99,34 @@ static void foreachObjectLink(
 	walk(userData, ob, &amd->object, IDWALK_CB_NOP);
 }
 
-static void updateDepgraph(ModifierData *md, DagForest *forest,
-                           struct Main *UNUSED(bmain),
-                           struct Scene *UNUSED(scene),
-                           Object *UNUSED(ob),
-                           DagNode *obNode)
+static void updateDepgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
 	ArmatureModifierData *amd = (ArmatureModifierData *) md;
 
 	if (amd->object) {
-		DagNode *curNode = dag_get_node(forest, amd->object);
+		DagNode *curNode = dag_get_node(ctx->forest, amd->object);
 
-		dag_add_relation(forest, curNode, obNode,
+		dag_add_relation(ctx->forest, curNode, ctx->obNode,
 		                 DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "Armature Modifier");
 	}
 }
 
-static void updateDepsgraph(ModifierData *md,
-                            struct Main *UNUSED(bmain),
-                            struct Scene *UNUSED(scene),
-                            Object *UNUSED(ob),
-                            struct DepsNodeHandle *node)
+static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
 	ArmatureModifierData *amd = (ArmatureModifierData *)md;
 	if (amd->object != NULL) {
-		DEG_add_object_relation(node, amd->object, DEG_OB_COMP_EVAL_POSE, "Armature Modifier");
-		DEG_add_object_relation(node, amd->object, DEG_OB_COMP_TRANSFORM, "Armature Modifier");
+		DEG_add_object_relation(ctx->node, amd->object, DEG_OB_COMP_EVAL_POSE, "Armature Modifier");
+		DEG_add_object_relation(ctx->node, amd->object, DEG_OB_COMP_TRANSFORM, "Armature Modifier");
 	}
+	DEG_add_object_relation(ctx->node, ctx->object, DEG_OB_COMP_TRANSFORM, "Armature Modifier");
 }
 
-static void deformVerts(ModifierData *md, Object *ob,
-                        DerivedMesh *derivedData,
-                        float (*vertexCos)[3],
-                        int numVerts,
-                        ModifierApplyFlag UNUSED(flag))
+static void deformVerts(
+        ModifierData *md, Object *ob,
+        DerivedMesh *derivedData,
+        float (*vertexCos)[3],
+        int numVerts,
+        ModifierApplyFlag UNUSED(flag))
 {
 	ArmatureModifierData *amd = (ArmatureModifierData *) md;
 
@@ -187,8 +181,9 @@ static void deformMatricesEM(
 	if (!derivedData) dm->release(dm);
 }
 
-static void deformMatrices(ModifierData *md, Object *ob, DerivedMesh *derivedData,
-                           float (*vertexCos)[3], float (*defMats)[3][3], int numVerts)
+static void deformMatrices(
+        ModifierData *md, Object *ob, DerivedMesh *derivedData,
+        float (*vertexCos)[3], float (*defMats)[3][3], int numVerts)
 {
 	ArmatureModifierData *amd = (ArmatureModifierData *) md;
 	DerivedMesh *dm = derivedData;

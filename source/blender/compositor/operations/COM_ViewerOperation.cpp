@@ -15,8 +15,8 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributor: 
- *		Jeroen Bakker 
+ * Contributor:
+ *		Jeroen Bakker
  *		Monique Dewanchand
  */
 
@@ -135,14 +135,14 @@ void ViewerOperation::initImage()
 		BKE_image_verify_viewer_views(this->m_rd, ima, this->m_imageUser);
 	}
 
-	BLI_lock_thread(LOCK_DRAW_IMAGE);
+	BLI_thread_lock(LOCK_DRAW_IMAGE);
 
 	/* local changes to the original ImageUser */
 	iuser.multi_index = BKE_scene_multiview_view_id_get(this->m_rd, this->m_viewName);
 	ibuf = BKE_image_acquire_ibuf(ima, &iuser, &lock);
 
 	if (!ibuf) {
-		BLI_unlock_thread(LOCK_DRAW_IMAGE);
+		BLI_thread_unlock(LOCK_DRAW_IMAGE);
 		return;
 	}
 	if (ibuf->x != (int)getWidth() || ibuf->y != (int)getHeight()) {
@@ -176,7 +176,7 @@ void ViewerOperation::initImage()
 
 	BKE_image_release_ibuf(this->m_image, this->m_ibuf, lock);
 
-	BLI_unlock_thread(LOCK_DRAW_IMAGE);
+	BLI_thread_unlock(LOCK_DRAW_IMAGE);
 }
 
 void ViewerOperation::updateImage(rcti *rect)

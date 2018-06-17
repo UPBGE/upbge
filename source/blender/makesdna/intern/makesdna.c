@@ -86,8 +86,8 @@ static const char *includefiles[] = {
 	"DNA_modifier_types.h",
 	"DNA_lattice_types.h",
 	"DNA_object_types.h",
-	"DNA_object_force.h",
-	"DNA_object_fluidsim.h",
+	"DNA_object_force_types.h",
+	"DNA_object_fluidsim_types.h",
 	"DNA_world_types.h",
 	"DNA_scene_types.h",
 	"DNA_view3d_types.h",
@@ -173,7 +173,7 @@ static int additional_slen_offset;
 static int add_type(const char *str, int len);
 
 /**
- * Add variable \c str to 
+ * Add variable \c str to
  * \param str
  */
 static int add_name(const char *str);
@@ -192,22 +192,22 @@ static int preprocess_include(char *maindata, int len);
 
 /**
  * Scan this file for serializable types.
- */ 
+ */
 static int convert_include(const char *filename);
 
 /**
  * Determine how many bytes are needed for an array.
- */ 
+ */
 static int arraysize(const char *str);
 
 /**
  * Determine how many bytes are needed for each struct.
- */ 
+ */
 static int calculate_structlens(int);
 
 /**
  * Construct the DNA.c file
- */ 
+ */
 static void dna_write(FILE *file, const void *pntr, const int size);
 
 /**
@@ -465,7 +465,7 @@ static int preprocess_include(char *maindata, int len)
 		if (cp[0] == '/' && cp[1] == '/') {
 			comment = 1;
 		}
-		else if (*cp < 32) {
+		else if (*cp == '\n') {
 			comment = 0;
 		}
 		if (comment || *cp < 32 || *cp > 128) *cp = 32;
@@ -563,9 +563,10 @@ static int convert_include(const char *filename)
 	/* read include file, skip structs with a '#' before it.
 	 * store all data in temporal arrays.
 	 */
-	int filelen, count, overslaan, slen, type, name, strct;
+	int filelen, count, slen, type, name, strct;
 	short *structpoin, *sp;
 	char *maindata, *mainend, *md, *md1;
+	bool skip_struct;
 	
 	md = maindata = read_file_data(filename, &filelen);
 	if (filelen == -1) {
@@ -578,18 +579,18 @@ static int convert_include(const char *filename)
 
 	/* we look for '{' and then back to 'struct' */
 	count = 0;
-	overslaan = 0;
+	skip_struct = false;
 	while (count < filelen) {
 		
 		/* code for skipping a struct: two hashes on 2 lines. (preprocess added a space) */
 		if (md[0] == '#' && md[1] == ' ' && md[2] == '#') {
-			overslaan = 1;
+			skip_struct = true;
 		}
 		
 		if (md[0] == '{') {
 			md[0] = 0;
-			if (overslaan) {
-				overslaan = 0;
+			if (skip_struct) {
+				skip_struct = false;
 			}
 			else {
 				if (md[-1] == ' ') md[-1] = 0;
@@ -1299,8 +1300,8 @@ int main(int argc, char **argv)
 #include "DNA_modifier_types.h"
 #include "DNA_lattice_types.h"	
 #include "DNA_object_types.h"
-#include "DNA_object_force.h"
-#include "DNA_object_fluidsim.h"
+#include "DNA_object_force_types.h"
+#include "DNA_object_fluidsim_types.h"
 #include "DNA_world_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_view3d_types.h"

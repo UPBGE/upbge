@@ -1,7 +1,5 @@
 KX_ConstraintWrapper(EXP_PyObjectPlus)
-==================================
-
-.. module:: bge.types
+======================================
 
 base class --- :class:`EXP_PyObjectPlus`
 
@@ -140,7 +138,6 @@ base class --- :class:`EXP_PyObjectPlus`
          - :class:`~bge.constraints.CONETWIST_CONSTRAINT`
          - :class:`~bge.constraints.VEHICLE_CONSTRAINT`
          - :class:`~bge.constraints.GENERIC_6DOF_CONSTRAINT`
-
    .. attribute:: breakingThreshold
 
       The impulse threshold breaking the constraint, if the constraint is broken :data:`enabled` is set to `False`.

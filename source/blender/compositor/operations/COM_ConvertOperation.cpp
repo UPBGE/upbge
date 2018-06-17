@@ -15,8 +15,8 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributor: 
- *		Jeroen Bakker 
+ * Contributor:
+ *		Jeroen Bakker
  *		Monique Dewanchand
  */
 
@@ -164,15 +164,15 @@ ConvertRGBToYCCOperation::ConvertRGBToYCCOperation() : ConvertBaseOperation()
 void ConvertRGBToYCCOperation::setMode(int mode)
 {
 	switch (mode) {
-		case 1:
-			this->m_mode = BLI_YCC_ITU_BT709;
+		case 0:
+			this->m_mode = BLI_YCC_ITU_BT601;
 			break;
 		case 2:
 			this->m_mode = BLI_YCC_JFIF_0_255;
 			break;
-		case 0:
+		case 1:
 		default:
-			this->m_mode = BLI_YCC_ITU_BT601;
+			this->m_mode = BLI_YCC_ITU_BT709;
 			break;
 	}
 }
@@ -202,15 +202,15 @@ ConvertYCCToRGBOperation::ConvertYCCToRGBOperation() : ConvertBaseOperation()
 void ConvertYCCToRGBOperation::setMode(int mode)
 {
 	switch (mode) {
-		case 1:
-			this->m_mode = BLI_YCC_ITU_BT709;
+		case 0:
+			this->m_mode = BLI_YCC_ITU_BT601;
 			break;
 		case 2:
 			this->m_mode = BLI_YCC_JFIF_0_255;
 			break;
-		case 0:
+		case 1:
 		default:
-			this->m_mode = BLI_YCC_ITU_BT601;
+			this->m_mode = BLI_YCC_ITU_BT709;
 			break;
 	}
 }
@@ -241,7 +241,7 @@ void ConvertRGBToYUVOperation::executePixelSampled(float output[4], float x, flo
 {
 	float inputColor[4];
 	this->m_inputOperation->readSampled(inputColor, x, y, sampler);
-	rgb_to_yuv(inputColor[0], inputColor[1], inputColor[2], &output[0], &output[1], &output[2]);
+	rgb_to_yuv(inputColor[0], inputColor[1], inputColor[2], &output[0], &output[1], &output[2], BLI_YUV_ITU_BT709);
 	output[3] = inputColor[3];
 }
 
@@ -258,7 +258,7 @@ void ConvertYUVToRGBOperation::executePixelSampled(float output[4], float x, flo
 {
 	float inputColor[4];
 	this->m_inputOperation->readSampled(inputColor, x, y, sampler);
-	yuv_to_rgb(inputColor[0], inputColor[1], inputColor[2], &output[0], &output[1], &output[2]);
+	yuv_to_rgb(inputColor[0], inputColor[1], inputColor[2], &output[0], &output[1], &output[2], BLI_YUV_ITU_BT709);
 	output[3] = inputColor[3];
 }
 

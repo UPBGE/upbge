@@ -42,14 +42,15 @@ set(INC_SYS
 set(SRC
 	paint_cursor.c
 	paint_curve.c
+	paint_curve_undo.c
 	paint_hide.c
 	paint_image.c
 	paint_image_2d.c
 	paint_image_proj.c
+	paint_image_undo.c
 	paint_mask.c
 	paint_ops.c
 	paint_stroke.c
-	paint_undo.c
 	paint_utils.c
 	paint_vertex.c
 	paint_vertex_color_ops.c

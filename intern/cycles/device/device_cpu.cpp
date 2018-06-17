@@ -86,35 +86,35 @@ public:
 		(void)kernel_avx;
 		(void)kernel_avx2;
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX2
-		if(system_cpu_support_avx2()) {
+		if(DebugFlags().cpu.has_avx2() && system_cpu_support_avx2()) {
 			architecture_name = "AVX2";
 			kernel = kernel_avx2;
 		}
 		else
 #endif
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX
-		if(system_cpu_support_avx()) {
+		if(DebugFlags().cpu.has_avx() && system_cpu_support_avx()) {
 			architecture_name = "AVX";
 			kernel = kernel_avx;
 		}
 		else
 #endif
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE41
-		if(system_cpu_support_sse41()) {
+		if(DebugFlags().cpu.has_sse41() && system_cpu_support_sse41()) {
 			architecture_name = "SSE4.1";
 			kernel = kernel_sse41;
 		}
 		else
 #endif
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE3
-		if(system_cpu_support_sse3()) {
+		if(DebugFlags().cpu.has_sse3() && system_cpu_support_sse3()) {
 			architecture_name = "SSE3";
 			kernel = kernel_sse3;
 		}
 		else
 #endif
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE2
-		if(system_cpu_support_sse2()) {
+		if(DebugFlags().cpu.has_sse2() && system_cpu_support_sse2()) {
 			architecture_name = "SSE2";
 			kernel = kernel_sse2;
 		}
@@ -299,7 +299,7 @@ public:
 
 			if(mem.type == MEM_DEVICE_ONLY) {
 				assert(!mem.host_pointer);
-				size_t alignment = mem_address_alignment();
+				size_t alignment = MIN_ALIGNMENT_CPU_DATA_TYPES;
 				void *data = util_aligned_malloc(mem.memory_size(), alignment);
 				mem.device_pointer = (device_ptr)data;
 			}
@@ -1046,7 +1046,10 @@ void device_cpu_info(vector<DeviceInfo>& devices)
 	info.id = "CPU";
 	info.num = 0;
 	info.advanced_shading = true;
-	info.has_qbvh = system_cpu_support_sse2();
+	info.bvh_layout_mask = BVH_LAYOUT_BVH2;
+	if (system_cpu_support_sse2()) {
+		info.bvh_layout_mask |= BVH_LAYOUT_BVH4;
+	}
 	info.has_volume_decoupled = true;
 	info.has_osl = true;
 	info.has_half_images = true;

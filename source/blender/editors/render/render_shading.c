@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -97,23 +97,24 @@
 
 static int material_slot_add_exec(bContext *C, wmOperator *UNUSED(op))
 {
+	Main *bmain = CTX_data_main(C);
 	Object *ob = ED_object_context(C);
 
 	if (!ob)
 		return OPERATOR_CANCELLED;
-	
-	BKE_object_material_slot_add(ob);
+
+	BKE_object_material_slot_add(bmain, ob);
 
 	if (ob->mode & OB_MODE_TEXTURE_PAINT) {
 		Scene *scene = CTX_data_scene(C);
 		BKE_paint_proj_mesh_data_check(scene, ob, NULL, NULL, NULL, NULL);
 		WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, NULL);
 	}
-	
+
 	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 	WM_event_add_notifier(C, NC_OBJECT | ND_OB_SHADING, ob);
 	WM_event_add_notifier(C, NC_MATERIAL | ND_SHADING_PREVIEW, ob);
-	
+
 	return OPERATOR_FINISHED;
 }
 
@@ -123,7 +124,7 @@ void OBJECT_OT_material_slot_add(wmOperatorType *ot)
 	ot->name = "Add Material Slot";
 	ot->idname = "OBJECT_OT_material_slot_add";
 	ot->description = "Add a new material slot";
-	
+
 	/* api callbacks */
 	ot->exec = material_slot_add_exec;
 	ot->poll = ED_operator_object_active_editable;
@@ -144,20 +145,20 @@ static int material_slot_remove_exec(bContext *C, wmOperator *op)
 		BKE_report(op->reports, RPT_ERROR, "Unable to remove material slot in edit mode");
 		return OPERATOR_CANCELLED;
 	}
-	
-	BKE_object_material_slot_remove(ob);
+
+	BKE_object_material_slot_remove(CTX_data_main(C), ob);
 
 	if (ob->mode & OB_MODE_TEXTURE_PAINT) {
 		Scene *scene = CTX_data_scene(C);
 		BKE_paint_proj_mesh_data_check(scene, ob, NULL, NULL, NULL, NULL);
 		WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, NULL);
 	}
-	
+
 	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 	WM_event_add_notifier(C, NC_OBJECT | ND_OB_SHADING, ob);
 	WM_event_add_notifier(C, NC_MATERIAL | ND_SHADING_PREVIEW, ob);
-	
+
 	return OPERATOR_FINISHED;
 }
 
@@ -167,7 +168,7 @@ void OBJECT_OT_material_slot_remove(wmOperatorType *ot)
 	ot->name = "Remove Material Slot";
 	ot->idname = "OBJECT_OT_material_slot_remove";
 	ot->description = "Remove the selected material slot";
-	
+
 	/* api callbacks */
 	ot->exec = material_slot_remove_exec;
 	ot->poll = ED_operator_object_active_editable;
@@ -221,7 +222,7 @@ static int material_slot_assign_exec(bContext *C, wmOperator *UNUSED(op))
 
 	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
-	
+
 	return OPERATOR_FINISHED;
 }
 
@@ -231,7 +232,7 @@ void OBJECT_OT_material_slot_assign(wmOperatorType *ot)
 	ot->name = "Assign Material Slot";
 	ot->idname = "OBJECT_OT_material_slot_assign";
 	ot->description = "Assign active material slot to selection";
-	
+
 	/* api callbacks */
 	ot->exec = material_slot_assign_exec;
 	ot->poll = ED_operator_object_active_editable;
@@ -315,7 +316,7 @@ void OBJECT_OT_material_slot_select(wmOperatorType *ot)
 	ot->name = "Select Material Slot";
 	ot->idname = "OBJECT_OT_material_slot_select";
 	ot->description = "Select by active material slot";
-	
+
 	/* api callbacks */
 	ot->exec = material_slot_select_exec;
 
@@ -334,7 +335,7 @@ void OBJECT_OT_material_slot_deselect(wmOperatorType *ot)
 	ot->name = "Deselect Material Slot";
 	ot->idname = "OBJECT_OT_material_slot_deselect";
 	ot->description = "Deselect by active material slot";
-	
+
 	/* api callbacks */
 	ot->exec = material_slot_deselect_exec;
 
@@ -345,6 +346,7 @@ void OBJECT_OT_material_slot_deselect(wmOperatorType *ot)
 
 static int material_slot_copy_exec(bContext *C, wmOperator *UNUSED(op))
 {
+	Main *bmain = CTX_data_main(C);
 	Object *ob = ED_object_context(C);
 	Material ***matar;
 
@@ -355,8 +357,8 @@ static int material_slot_copy_exec(bContext *C, wmOperator *UNUSED(op))
 	{
 		if (ob != ob_iter && give_matarar(ob_iter)) {
 			if (ob->data != ob_iter->data)
-				assign_matarar(ob_iter, matar, ob->totcol);
-			
+				assign_matarar(bmain, ob_iter, matar, ob->totcol);
+
 			if (ob_iter->totcol == ob->totcol) {
 				ob_iter->actcol = ob->actcol;
 				DAG_id_tag_update(&ob_iter->id, OB_RECALC_DATA);
@@ -425,7 +427,8 @@ static int material_slot_move_exec(bContext *C, wmOperator *op)
 	MEM_freeN(slot_remap);
 
 	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
-	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW | ND_DATA, ob);
+	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
+	WM_event_add_notifier(C, NC_OBJECT | ND_DATA, ob);
 
 	return OPERATOR_FINISHED;
 }
@@ -490,7 +493,7 @@ static int new_material_exec(bContext *C, wmOperator *UNUSED(op))
 	}
 
 	WM_event_add_notifier(C, NC_MATERIAL | NA_ADDED, ma);
-	
+
 	return OPERATOR_FINISHED;
 }
 
@@ -500,7 +503,7 @@ void MATERIAL_OT_new(wmOperatorType *ot)
 	ot->name = "New Material";
 	ot->idname = "MATERIAL_OT_new";
 	ot->description = "Add a new material";
-	
+
 	/* api callbacks */
 	ot->exec = new_material_exec;
 
@@ -547,7 +550,7 @@ static int new_texture_exec(bContext *C, wmOperator *UNUSED(op))
 	}
 
 	WM_event_add_notifier(C, NC_TEXTURE | NA_ADDED, tex);
-	
+
 	return OPERATOR_FINISHED;
 }
 
@@ -557,7 +560,7 @@ void TEXTURE_OT_new(wmOperatorType *ot)
 	ot->name = "New Texture";
 	ot->idname = "TEXTURE_OT_new";
 	ot->description = "Add a new texture";
-	
+
 	/* api callbacks */
 	ot->exec = new_texture_exec;
 
@@ -580,7 +583,7 @@ static int new_world_exec(bContext *C, wmOperator *UNUSED(op))
 		wo = BKE_world_copy(bmain, wo);
 	}
 	else {
-		wo = add_world(bmain, DATA_("World"));
+		wo = BKE_world_add(bmain, DATA_("World"));
 
 		if (BKE_scene_use_new_shading_nodes(scene)) {
 			ED_node_shader_default(C, &wo->id);
@@ -602,7 +605,7 @@ static int new_world_exec(bContext *C, wmOperator *UNUSED(op))
 	}
 
 	WM_event_add_notifier(C, NC_WORLD | NA_ADDED, wo);
-	
+
 	return OPERATOR_FINISHED;
 }
 
@@ -612,7 +615,7 @@ void WORLD_OT_new(wmOperatorType *ot)
 	ot->name = "New World";
 	ot->idname = "WORLD_OT_new";
 	ot->description = "Create a new world Data-Block";
-	
+
 	/* api callbacks */
 	ot->exec = new_world_exec;
 
@@ -631,7 +634,7 @@ static int render_layer_add_exec(bContext *C, wmOperator *UNUSED(op))
 
 	DAG_id_tag_update(&scene->id, 0);
 	WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, scene);
-	
+
 	return OPERATOR_FINISHED;
 }
 
@@ -641,7 +644,7 @@ void SCENE_OT_render_layer_add(wmOperatorType *ot)
 	ot->name = "Add Render Layer";
 	ot->idname = "SCENE_OT_render_layer_add";
 	ot->description = "Add a render layer";
-	
+
 	/* api callbacks */
 	ot->exec = render_layer_add_exec;
 
@@ -659,7 +662,7 @@ static int render_layer_remove_exec(bContext *C, wmOperator *UNUSED(op))
 
 	DAG_id_tag_update(&scene->id, 0);
 	WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, scene);
-	
+
 	return OPERATOR_FINISHED;
 }
 
@@ -669,7 +672,7 @@ void SCENE_OT_render_layer_remove(wmOperatorType *ot)
 	ot->name = "Remove Render Layer";
 	ot->idname = "SCENE_OT_render_layer_remove";
 	ot->description = "Remove the selected render layer";
-	
+
 	/* api callbacks */
 	ot->exec = render_layer_remove_exec;
 
@@ -1448,7 +1451,7 @@ static int texture_slot_move_exec(bContext *C, wmOperator *op)
 				mtexswap = mtex_ar[act];
 				mtex_ar[act] = mtex_ar[act - 1];
 				mtex_ar[act - 1] = mtexswap;
-				
+
 				BKE_animdata_fix_paths_rename(id, adt, NULL, "texture_slots", NULL, NULL, act - 1, -1, 0);
 				BKE_animdata_fix_paths_rename(id, adt, NULL, "texture_slots", NULL, NULL, act, act - 1, 0);
 				BKE_animdata_fix_paths_rename(id, adt, NULL, "texture_slots", NULL, NULL, -1, act, 0);
@@ -1461,7 +1464,7 @@ static int texture_slot_move_exec(bContext *C, wmOperator *op)
 					ma->septex &= ~(1 << (act - 1));
 					ma->septex |= mtexuse >> 1;
 				}
-				
+
 				set_active_mtex(id, act - 1);
 			}
 		}
@@ -1470,7 +1473,7 @@ static int texture_slot_move_exec(bContext *C, wmOperator *op)
 				mtexswap = mtex_ar[act];
 				mtex_ar[act] = mtex_ar[act + 1];
 				mtex_ar[act + 1] = mtexswap;
-				
+
 				BKE_animdata_fix_paths_rename(id, adt, NULL, "texture_slots", NULL, NULL, act + 1, -1, 0);
 				BKE_animdata_fix_paths_rename(id, adt, NULL, "texture_slots", NULL, NULL, act, act + 1, 0);
 				BKE_animdata_fix_paths_rename(id, adt, NULL, "texture_slots", NULL, NULL, -1, act, 0);
@@ -1483,7 +1486,7 @@ static int texture_slot_move_exec(bContext *C, wmOperator *op)
 					ma->septex &= ~(1 << (act + 1));
 					ma->septex |= mtexuse << 1;
 				}
-				
+
 				set_active_mtex(id, act + 1);
 			}
 		}
@@ -1549,35 +1552,36 @@ static int envmap_save_exec(bContext *C, wmOperator *op)
 	//int imtype = RNA_enum_get(op->ptr, "file_type");
 	char imtype = scene->r.im_format.imtype;
 	char path[FILE_MAX];
-	
+
 	RNA_string_get(op->ptr, "filepath", path);
-	
+
 	if (scene->r.scemode & R_EXTENSION) {
 		BKE_image_path_ensure_ext_from_imformat(path, &scene->r.im_format);
 	}
-	
+
 	WM_cursor_wait(1);
-	
+
 	save_envmap(op, scene, tex->env, path, imtype);
-	
+
 	WM_cursor_wait(0);
-	
+
 	WM_event_add_notifier(C, NC_TEXTURE, tex);
-	
+
 	return OPERATOR_FINISHED;
 }
 
 static int envmap_save_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
+	Main *bmain = CTX_data_main(C);
 	//Scene *scene= CTX_data_scene(C);
-	
+
 	if (RNA_struct_property_is_set(op->ptr, "filepath"))
 		return envmap_save_exec(C, op);
 
 	//RNA_enum_set(op->ptr, "file_type", scene->r.im_format.imtype);
-	RNA_string_set(op->ptr, "filepath", G.main->name);
+	RNA_string_set(op->ptr, "filepath", BKE_main_blendfile_path(bmain));
 	WM_event_add_fileselect(C, op);
-	
+
 	return OPERATOR_RUNNING_MODAL;
 }
 
@@ -1585,13 +1589,13 @@ static int envmap_save_poll(bContext *C)
 {
 	Tex *tex = CTX_data_pointer_get_type(C, "texture", &RNA_Texture).data;
 
-	if (!tex) 
+	if (!tex)
 		return 0;
 	if (!tex->env || !tex->env->ok)
 		return 0;
 	if (tex->env->cube[1] == NULL)
 		return 0;
-	
+
 	return 1;
 }
 
@@ -1602,15 +1606,15 @@ void TEXTURE_OT_envmap_save(wmOperatorType *ot)
 	ot->name = "Save Environment Map";
 	ot->idname = "TEXTURE_OT_envmap_save";
 	ot->description = "Save the current generated Environment map to an image file";
-	
+
 	/* api callbacks */
 	ot->exec = envmap_save_exec;
 	ot->invoke = envmap_save_invoke;
 	ot->poll = envmap_save_poll;
-	
+
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_INTERNAL; /* no undo since this doesnt modify the env-map */
-	
+
 	/* properties */
 	prop = RNA_def_float_array(ot->srna, "layout", 12, default_envmap_layout, 0.0f, 0.0f,
 	                           "File layout",
@@ -1627,25 +1631,25 @@ void TEXTURE_OT_envmap_save(wmOperatorType *ot)
 static int envmap_clear_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Tex *tex = CTX_data_pointer_get_type(C, "texture", &RNA_Texture).data;
-	
+
 	BKE_texture_envmap_free_data(tex->env);
-	
+
 	WM_event_add_notifier(C, NC_TEXTURE | NA_EDITED, tex);
-	
+
 	return OPERATOR_FINISHED;
 }
 
 static int envmap_clear_poll(bContext *C)
 {
 	Tex *tex = CTX_data_pointer_get_type(C, "texture", &RNA_Texture).data;
-	
-	if (!tex) 
+
+	if (!tex)
 		return 0;
 	if (!tex->env || !tex->env->ok)
 		return 0;
 	if (tex->env->cube[1] == NULL)
 		return 0;
-	
+
 	return 1;
 }
 
@@ -1655,11 +1659,11 @@ void TEXTURE_OT_envmap_clear(wmOperatorType *ot)
 	ot->name = "Clear Environment Map";
 	ot->idname = "TEXTURE_OT_envmap_clear";
 	ot->description = "Discard the environment map and free it from memory";
-	
+
 	/* api callbacks */
 	ot->exec = envmap_clear_exec;
 	ot->poll = envmap_clear_poll;
-	
+
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
 }
@@ -1668,13 +1672,13 @@ static int envmap_clear_all_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Main *bmain = CTX_data_main(C);
 	Tex *tex;
-	
+
 	for (tex = bmain->tex.first; tex; tex = tex->id.next)
 		if (tex->env)
 			BKE_texture_envmap_free_data(tex->env);
-	
+
 	WM_event_add_notifier(C, NC_TEXTURE | NA_EDITED, tex);
-	
+
 	return OPERATOR_FINISHED;
 }
 
@@ -1684,11 +1688,11 @@ void TEXTURE_OT_envmap_clear_all(wmOperatorType *ot)
 	ot->name = "Clear All Environment Maps";
 	ot->idname = "TEXTURE_OT_envmap_clear_all";
 	ot->description = "Discard all environment maps in the .blend file and free them from memory";
-	
+
 	/* api callbacks */
 	ot->exec = envmap_clear_all_exec;
 	ot->poll = envmap_clear_poll;
-	
+
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
@@ -1703,7 +1707,7 @@ static int copy_material_exec(bContext *C, wmOperator *UNUSED(op))
 	if (ma == NULL)
 		return OPERATOR_CANCELLED;
 
-	copy_matcopybuf(ma);
+	copy_matcopybuf(CTX_data_main(C), ma);
 
 	return OPERATOR_FINISHED;
 }
@@ -1729,7 +1733,7 @@ static int paste_material_exec(bContext *C, wmOperator *UNUSED(op))
 	if (ma == NULL)
 		return OPERATOR_CANCELLED;
 
-	paste_matcopybuf(ma);
+	paste_matcopybuf(CTX_data_main(C), ma);
 
 	WM_event_add_notifier(C, NC_MATERIAL | ND_SHADING_LINKS, ma);
 
@@ -1762,7 +1766,7 @@ void ED_render_clear_mtex_copybuf(void)
 static void copy_mtex_copybuf(ID *id)
 {
 	MTex **mtex = NULL;
-	
+
 	switch (GS(id->name)) {
 		case ID_MA:
 			mtex = &(((Material *)id)->mtex[(int)((Material *)id)->texact]);
@@ -1784,7 +1788,7 @@ static void copy_mtex_copybuf(ID *id)
 		default:
 			break;
 	}
-	
+
 	if (mtex && *mtex) {
 		memcpy(&mtexcopybuf, *mtex, sizeof(MTex));
 		mtexcopied = 1;
@@ -1797,10 +1801,10 @@ static void copy_mtex_copybuf(ID *id)
 static void paste_mtex_copybuf(ID *id)
 {
 	MTex **mtex = NULL;
-	
+
 	if (mtexcopied == 0 || mtexcopybuf.tex == NULL)
 		return;
-	
+
 	switch (GS(id->name)) {
 		case ID_MA:
 			mtex = &(((Material *)id)->mtex[(int)((Material *)id)->texact]);
@@ -1823,7 +1827,7 @@ static void paste_mtex_copybuf(ID *id)
 			BLI_assert(!"invalid id type");
 			return;
 	}
-	
+
 	if (mtex) {
 		if (*mtex == NULL) {
 			*mtex = MEM_mallocN(sizeof(MTex), "mtex copy");
@@ -1831,9 +1835,9 @@ static void paste_mtex_copybuf(ID *id)
 		else if ((*mtex)->tex) {
 			id_us_min(&(*mtex)->tex->id);
 		}
-		
+
 		memcpy(*mtex, &mtexcopybuf, sizeof(MTex));
-		
+
 		id_us_plus((ID *)mtexcopybuf.tex);
 	}
 }
@@ -1857,7 +1861,7 @@ static int copy_mtex_exec(bContext *C, wmOperator *UNUSED(op))
 static int copy_mtex_poll(bContext *C)
 {
 	ID *id = CTX_data_pointer_get_type(C, "texture_slot", &RNA_TextureSlot).id.data;
-	
+
 	return (id != NULL);
 }
 
@@ -1871,7 +1875,7 @@ void TEXTURE_OT_slot_copy(wmOperatorType *ot)
 	/* api callbacks */
 	ot->exec = copy_mtex_exec;
 	ot->poll = copy_mtex_poll;
-	
+
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_INTERNAL; /* no undo needed since no changes are made to the mtex */
 }
@@ -1897,7 +1901,7 @@ static int paste_mtex_exec(bContext *C, wmOperator *UNUSED(op))
 			id = &psys->part->id;
 		else if (linestyle)
 			id = &linestyle->id;
-		
+
 		if (id == NULL)
 			return OPERATOR_CANCELLED;
 	}

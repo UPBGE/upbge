@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -102,12 +102,12 @@ typedef struct RenderPass {
 /* after render, the Combined pass is in combined, for renderlayers read from files it is a real pass */
 typedef struct RenderLayer {
 	struct RenderLayer *next, *prev;
-	
+
 	/* copy of RenderData */
 	char name[RE_MAXNAME];
 	unsigned int lay, lay_zmask, lay_exclude;
 	int layflag, passflag, pass_xor;
-	
+
 	struct Material *mat_override;
 	struct Group *light_override;
 
@@ -122,18 +122,18 @@ typedef struct RenderLayer {
 
 	/* optional saved endresult on disk */
 	void *exrhandle;
-	
+
 	ListBase passes;
-	
+
 } RenderLayer;
 
 typedef struct RenderResult {
 	struct RenderResult *next, *prev;
-	
+
 	/* target image size */
 	int rectx, recty;
 	short crop, sample_nr;
-	
+
 	/* the following rect32, rectf and rectz buffers are for temporary storage only, for RenderResult structs
 	 * created in #RE_AcquireResultImage - which do not have RenderView */
 
@@ -143,25 +143,25 @@ typedef struct RenderResult {
 	float *rectf;
 	/* if this exists, a copy of one of layers, or result of composited layers */
 	float *rectz;
-	
+
 	/* coordinates within final image (after cropping) */
 	rcti tilerect;
 	/* offset to apply to get a border render in full image */
 	int xof, yof;
-	
+
 	/* the main buffers */
 	ListBase layers;
-	
+
 	/* multiView maps to a StringVector in OpenEXR */
 	ListBase views;  /* RenderView */
 
 	/* allowing live updates: */
 	volatile rcti renrect;
 	volatile RenderLayer *renlay;
-	
+
 	/* optional saved endresult on disk */
 	int do_exr_tile;
-	
+
 	/* for render results in Image, verify validity for sequences */
 	int framenr;
 
@@ -235,6 +235,8 @@ void RE_render_result_rect_from_ibuf(
 
 struct RenderLayer *RE_GetRenderLayer(struct RenderResult *rr, const char *name);
 float *RE_RenderLayerGetPass(volatile struct RenderLayer *rl, const char *name, const char *viewname);
+
+bool RE_HasSingleLayer(struct Render *re);
 
 /* add passes for grease pencil */
 struct RenderPass *RE_create_gp_pass(struct RenderResult *rr, const char *layername, const char *viewname);
@@ -334,10 +336,6 @@ void RE_current_scene_update_cb(struct Render *re, void *handle, void (*f)(void 
 
 /* should move to kernel once... still unsure on how/where */
 float RE_filter_value(int type, float x);
-/* vector blur zbuffer method */
-void RE_zbuf_accumulate_vecblur(
-        struct NodeBlurData *nbd, int xsize, int ysize, float *newrect,
-        const float *imgrect, float *vecbufrect, const float *zbufrect);
 
 int RE_seq_render_active(struct Scene *scene, struct RenderData *rd);
 
@@ -388,6 +386,7 @@ void RE_updateRenderInstances(Render *re, int flag);
 /******* defined in render_result.c *********/
 
 bool RE_HasCombinedLayer(RenderResult *res);
+bool RE_HasFloatPixels(RenderResult *res);
 bool RE_RenderResult_is_stereo(RenderResult *res);
 struct RenderView *RE_RenderViewGetById(struct RenderResult *res, const int view_id);
 struct RenderView *RE_RenderViewGetByName(struct RenderResult *res, const char *viewname);

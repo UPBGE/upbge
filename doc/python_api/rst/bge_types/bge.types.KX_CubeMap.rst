@@ -1,8 +1,6 @@
 KX_CubeMap(KX_TextureRenderer)
 ==============================
 
-.. module:: bge.types
-
 base class --- :class:`KX_TextureRenderer`
 
 .. class:: KX_CubeMap(KX_TextureRenderer)

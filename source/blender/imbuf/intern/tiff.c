@@ -32,10 +32,10 @@
  * already loaded the file into a memory buffer.  libtiff is not well
  * configured to handle files in memory, so a client wrapper is written to
  * surround the memory and turn it into a virtual file.  Currently, reading
- * of TIFF files is done using libtiff's RGBAImage support.  This is a 
+ * of TIFF files is done using libtiff's RGBAImage support.  This is a
  * high-level routine that loads all images as 32-bit RGBA, handling all the
  * required conversions between many different TIFF types internally.
- * 
+ *
  * Saving supports RGB, RGBA and BW (grayscale) images correctly, with
  * 8 bits per channel in all cases.  The "deflate" compression algorithm is
  * used to compress images.
@@ -371,12 +371,12 @@ static void imb_read_tiff_resolution(ImBuf *ibuf, TIFF *image)
 
 /* 
  * Use the libTIFF scanline API to read a TIFF image.
- * This method is most flexible and can handle multiple different bit depths 
+ * This method is most flexible and can handle multiple different bit depths
  * and RGB channel orderings.
  */
 static int imb_read_tiff_pixels(ImBuf *ibuf, TIFF *image)
 {
-	ImBuf *tmpibuf;
+	ImBuf *tmpibuf = NULL;
 	int success = 0;
 	short bitspersample, spp, config;
 	size_t scanline;
@@ -412,16 +412,25 @@ static int imb_read_tiff_pixels(ImBuf *ibuf, TIFF *image)
 	if (bitspersample == 32) {
 		ib_flag = IB_rectfloat;
 		fbuf = (float *)_TIFFmalloc(scanline);
+		if (!fbuf) {
+			goto cleanup;
+		}
 	}
 	else if (bitspersample == 16) {
 		ib_flag = IB_rectfloat;
 		sbuf = (unsigned short *)_TIFFmalloc(scanline);
+		if (!sbuf) {
+			goto cleanup;
+		}
 	}
 	else {
 		ib_flag = IB_rect;
 	}
 	
 	tmpibuf = IMB_allocImBuf(ibuf->x, ibuf->y, ibuf->planes, ib_flag);
+	if (!tmpibuf) {
+		goto cleanup;
+	}
 	
 	/* simple RGBA image */
 	if (!(bitspersample == 32 || bitspersample == 16)) {
@@ -430,7 +439,7 @@ static int imb_read_tiff_pixels(ImBuf *ibuf, TIFF *image)
 	/* contiguous channels: RGBRGBRGB */
 	else if (config == PLANARCONFIG_CONTIG) {
 		for (row = 0; row < ibuf->y; row++) {
-			int ib_offset = ibuf->x * ibuf->y * 4 - ibuf->x * 4 * (row + 1);
+			size_t ib_offset = (size_t)ibuf->x * 4 * ((size_t)ibuf->y - ((size_t)row + 1));
 		
 			if (bitspersample == 32) {
 				success |= TIFFReadScanline(image, fbuf, row, 0);
@@ -450,7 +459,7 @@ static int imb_read_tiff_pixels(ImBuf *ibuf, TIFF *image)
 		 * but only fill in from the TIFF scanline where necessary. */
 		for (chan = 0; chan < 4; chan++) {
 			for (row = 0; row < ibuf->y; row++) {
-				int ib_offset = ibuf->x * ibuf->y * 4 - ibuf->x * 4 * (row + 1);
+				size_t ib_offset = (size_t)ibuf->x * 4 * ((size_t)ibuf->y - ((size_t)row + 1));
 				
 				if (bitspersample == 32) {
 					if (chan == 3 && spp == 3) /* fill alpha if only RGB TIFF */
@@ -475,11 +484,6 @@ static int imb_read_tiff_pixels(ImBuf *ibuf, TIFF *image)
 			}
 		}
 	}
-	
-	if (bitspersample == 32)
-		_TIFFfree(fbuf);
-	else if (bitspersample == 16)
-		_TIFFfree(sbuf);
 
 	if (success) {
 		/* Code seems to be not needed for 16 bits tif, on PPC G5 OSX (ton) */
@@ -497,6 +501,12 @@ static int imb_read_tiff_pixels(ImBuf *ibuf, TIFF *image)
 		
 		tmpibuf->mall &= ~ib_flag;
 	}
+
+cleanup:
+	if (bitspersample == 32)
+		_TIFFfree(fbuf);
+	else if (bitspersample == 16)
+		_TIFFfree(sbuf);
 
 	IMB_freeImBuf(tmpibuf);
 	
@@ -684,7 +694,7 @@ void imb_loadtiletiff(ImBuf *ibuf, const unsigned char *mem, size_t size, int tx
 /**
  * Saves a TIFF file.
  *
- * ImBuf structures with 1, 3 or 4 bytes per pixel (GRAY, RGB, RGBA 
+ * ImBuf structures with 1, 3 or 4 bytes per pixel (GRAY, RGB, RGBA
  * respectively) are accepted, and interpreted correctly.  Note that the TIFF
  * convention is to use pre-multiplied alpha, which can be achieved within
  * Blender by setting "Premul" alpha handling.  Other alpha conventions are
@@ -859,7 +869,7 @@ int imb_savetiff(ImBuf *ibuf, const char *name, int flags)
 				}
 
 				for (i = 0; i < samplesperpixel; i++, to_i++)
-					to16[to_i] = FTOUSHORT(rgb[i]);
+					to16[to_i] = unit_float_to_ushort_clamp(rgb[i]);
 			}
 			else {
 				for (i = 0; i < samplesperpixel; i++, to_i++, from_i++)

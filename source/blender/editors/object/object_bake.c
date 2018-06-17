@@ -557,7 +557,7 @@ typedef struct BakeRender {
 	short *stop;
 	short *do_update;
 	float *progress;
-	
+
 	ListBase threads;
 
 	/* backup */
@@ -588,14 +588,15 @@ static int test_bake_internal(bContext *C, ReportList *reports)
 
 static void init_bake_internal(BakeRender *bkr, bContext *C)
 {
+	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
 	bScreen *sc = CTX_wm_screen(C);
 
 	/* get editmode results */
-	ED_object_editmode_load(CTX_data_edit_object(C));
+	ED_object_editmode_load(bmain, CTX_data_edit_object(C));
 
 	bkr->sa = sc ? BKE_screen_find_big_area(sc, SPACE_IMAGE, 10) : NULL; /* can be NULL */
-	bkr->main = CTX_data_main(C);
+	bkr->main = bmain;
 	bkr->scene = scene;
 	bkr->actob = (scene->r.bake_flag & R_BAKE_TO_ACTIVE) ? OBACT : NULL;
 	bkr->re = RE_NewRender("_Bake View_");
@@ -628,7 +629,7 @@ static void finish_bake_internal(BakeRender *bkr)
 
 	/* force OpenGL reload and mipmap recalc */
 	if ((bkr->scene->r.bake_flag & R_BAKE_VCOL) == 0) {
-		for (ima = G.main->image.first; ima; ima = ima->id.next) {
+		for (ima = bkr->main->image.first; ima; ima = ima->id.next) {
 			ImBuf *ibuf = BKE_image_acquire_ibuf(ima, NULL, NULL);
 
 			/* some of the images could have been changed during bake,
@@ -661,7 +662,7 @@ static void finish_bake_internal(BakeRender *bkr)
 			}
 
 			BKE_image_release_ibuf(ima, ibuf, NULL);
-			DAG_id_tag_update(&ima->id, 0);			
+			DAG_id_tag_update(&ima->id, 0);
 		}
 	}
 
@@ -669,7 +670,7 @@ static void finish_bake_internal(BakeRender *bkr)
 		/* update all tagged meshes */
 		Mesh *me;
 		BLI_assert(BLI_thread_is_main());
-		for (me = G.main->mesh.first; me; me = me->id.next) {
+		for (me = bkr->main->mesh.first; me; me = me->id.next) {
 			if (me->id.tag & LIB_TAG_DOIT) {
 				DAG_id_tag_update(&me->id, OB_RECALC_DATA);
 				BKE_mesh_tessface_clear(me);
@@ -832,9 +833,9 @@ static int bake_image_exec(bContext *C, wmOperator *op)
 			RE_Database_Baking(bkr.re, bmain, scene, scene->lay, scene->r.bake_mode, (scene->r.bake_flag & R_BAKE_TO_ACTIVE) ? OBACT : NULL);
 
 			/* baking itself is threaded, cannot use test_break in threads  */
-			BLI_init_threads(&threads, do_bake_render, 1);
+			BLI_threadpool_init(&threads, do_bake_render, 1);
 			bkr.ready = 0;
-			BLI_insert_thread(&threads, &bkr);
+			BLI_threadpool_insert(&threads, &bkr);
 
 			while (bkr.ready == 0) {
 				PIL_sleep_ms(50);
@@ -845,7 +846,7 @@ static int bake_image_exec(bContext *C, wmOperator *op)
 				if (!G.background)
 					BKE_blender_test_break();
 			}
-			BLI_end_threads(&threads);
+			BLI_threadpool_end(&threads);
 
 			if (bkr.result == BAKE_RESULT_NO_OBJECTS)
 				BKE_report(op->reports, RPT_ERROR, "No valid images found to bake to");

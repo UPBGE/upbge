@@ -1,8 +1,6 @@
 BL_ActionActuator(SCA_IActuator)
 ================================
 
-.. module:: bge.types
-
 base class --- :class:`SCA_IActuator`
 
 .. class:: BL_ActionActuator(SCA_IActuator)
@@ -69,4 +67,3 @@ base class --- :class:`SCA_IActuator`
       The name of the property that is set to the current frame number.
 
       :type: string
-

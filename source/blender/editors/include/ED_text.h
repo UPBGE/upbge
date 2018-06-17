@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -17,7 +17,7 @@
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation.
  * All rights reserved.
- * 
+ *
  * Contributor(s): Blender Foundation
  *
  * ***** END GPL LICENSE BLOCK *****
@@ -30,12 +30,16 @@
 #ifndef __ED_TEXT_H__
 #define __ED_TEXT_H__
 
-struct bContext;
 struct SpaceText;
 struct ARegion;
+struct UndoType;
+struct TextUndoBuf;
 
-void ED_text_undo_step(struct bContext *C, int step);
 bool ED_text_region_location_from_cursor(struct SpaceText *st, struct ARegion *ar, const int cursor_co[2], int r_pixel_co[2]);
 
-#endif /* __ED_TEXT_H__ */
+/* text_undo.c */
+void ED_text_undosys_type(struct UndoType *ut);
 
+struct TextUndoBuf *ED_text_undo_push_init(struct bContext *C);
+
+#endif /* __ED_TEXT_H__ */

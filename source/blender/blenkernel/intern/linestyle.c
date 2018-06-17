@@ -47,7 +47,6 @@
 #include "BKE_colorband.h"
 #include "BKE_context.h"
 #include "BKE_freestyle.h"
-#include "BKE_global.h"
 #include "BKE_library.h"
 #include "BKE_linestyle.h"
 #include "BKE_node.h"
@@ -216,6 +215,10 @@ void BKE_linestyle_make_local(struct Main *bmain, FreestyleLineStyle *linestyle,
 FreestyleLineStyle *BKE_linestyle_active_from_scene(Scene *scene)
 {
 	SceneRenderLayer *actsrl = BLI_findlink(&scene->r.layers, scene->r.actlay);
+	if (!actsrl) {
+		return NULL;
+	}
+
 	FreestyleConfig *config = &actsrl->freestyleConfig;
 	FreestyleLineSet *lineset = BKE_freestyle_lineset_get_active(config);
 

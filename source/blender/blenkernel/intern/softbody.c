@@ -676,11 +676,13 @@ static void add_2nd_order_roller(Object *ob, float UNUSED(stiffness), int *count
 				notthis = bs->v2;
 			}
 			else {
-			if (v0 == bs->v2) {
-				bpo = sb->bpoint+bs->v1;
-				notthis = bs->v1;
-			}
-			else {printf("oops we should not get here -  add_2nd_order_springs");}
+				if (v0 == bs->v2) {
+					bpo = sb->bpoint+bs->v1;
+					notthis = bs->v1;
+				}
+				else {
+					printf("oops we should not get here -  add_2nd_order_springs");
+				}
 			}
 			if (bpo) {/* so now we have a 2nd order humpdidump */
 				for (c=bpo->nofsprings;c>0;c--) {
@@ -1602,12 +1604,12 @@ static void sb_sfesf_threads_run(Scene *scene, struct Object *ob, float timenow,
 		sb_threads[i].tot= totthread;
 	}
 	if (totthread > 1) {
-		BLI_init_threads(&threads, exec_scan_for_ext_spring_forces, totthread);
+		BLI_threadpool_init(&threads, exec_scan_for_ext_spring_forces, totthread);
 
 		for (i=0; i<totthread; i++)
-			BLI_insert_thread(&threads, &sb_threads[i]);
+			BLI_threadpool_insert(&threads, &sb_threads[i]);
 
-		BLI_end_threads(&threads);
+		BLI_threadpool_end(&threads);
 	}
 	else
 		exec_scan_for_ext_spring_forces(&sb_threads[0]);
@@ -1977,12 +1979,12 @@ static int _softbody_calc_forces_slice_in_a_thread(Scene *scene, Object *ob, flo
 
 	/* intitialize */
 	if (sb) {
-	/* check conditions for various options */
-	/* +++ could be done on object level to squeeze out the last bits of it */
-	do_selfcollision=((ob->softflag & OB_SB_EDGES) && (sb->bspring)&& (ob->softflag & OB_SB_SELF));
-	do_springcollision=do_deflector && (ob->softflag & OB_SB_EDGES) &&(ob->softflag & OB_SB_EDGECOLL);
-	do_aero=((sb->aeroedge)&& (ob->softflag & OB_SB_EDGES));
-	/* --- could be done on object level to squeeze out the last bits of it */
+		/* check conditions for various options */
+		/* +++ could be done on object level to squeeze out the last bits of it */
+		do_selfcollision=((ob->softflag & OB_SB_EDGES) && (sb->bspring)&& (ob->softflag & OB_SB_SELF));
+		do_springcollision=do_deflector && (ob->softflag & OB_SB_EDGES) &&(ob->softflag & OB_SB_EDGECOLL);
+		do_aero=((sb->aeroedge)&& (ob->softflag & OB_SB_EDGES));
+		/* --- could be done on object level to squeeze out the last bits of it */
 	}
 	else {
 		printf("Error expected a SB here\n");
@@ -2013,7 +2015,8 @@ static int _softbody_calc_forces_slice_in_a_thread(Scene *scene, Object *ob, flo
 			float compare;
 			float bstune = sb->ballstiff;
 
-			for (c=sb->totpoint, obp= sb->bpoint; c>=ifirst+bb; c--, obp++) {
+                        /* running in a slice we must not assume anything done with obp  neither alter the data of obp */
+			for (c=sb->totpoint, obp= sb->bpoint; c>0; c--, obp++) {
 				compare = (obp->colball + bp->colball);
 				sub_v3_v3v3(def, bp->pos, obp->pos);
 				/* rather check the AABBoxes before ever calulating the real distance */
@@ -2038,13 +2041,6 @@ static int _softbody_calc_forces_slice_in_a_thread(Scene *scene, Object *ob, flo
 
 						madd_v3_v3fl(bp->force, def, f * (1.0f - sb->balldamp));
 						madd_v3_v3fl(bp->force, dvel, sb->balldamp);
-
-						/* exploit force(a, b) == -force(b, a) part2/2 */
-						sub_v3_v3v3(dvel, velcenter, obp->vec);
-						mul_v3_fl(dvel, _final_mass(ob, bp));
-
-						madd_v3_v3fl(obp->force, dvel, sb->balldamp);
-						madd_v3_v3fl(obp->force, def, -f * (1.0f - sb->balldamp));
 					}
 				}
 			}
@@ -2220,12 +2216,12 @@ static void sb_cf_threads_run(Scene *scene, Object *ob, float forcetime, float t
 
 
 	if (totthread > 1) {
-		BLI_init_threads(&threads, exec_softbody_calc_forces, totthread);
+		BLI_threadpool_init(&threads, exec_softbody_calc_forces, totthread);
 
 		for (i=0; i<totthread; i++)
-			BLI_insert_thread(&threads, &sb_threads[i]);
+			BLI_threadpool_insert(&threads, &sb_threads[i]);
 
-		BLI_end_threads(&threads);
+		BLI_threadpool_end(&threads);
 	}
 	else
 		exec_softbody_calc_forces(&sb_threads[0]);
@@ -2783,7 +2779,7 @@ static void apply_spring_memory(Object *ob)
 			l = len_v3v3(bp1->pos, bp2->pos);
 			r = bs->len/l;
 			if (( r > 1.05f) || (r < 0.95f)) {
-			bs->len = ((100.0f - b) * bs->len  + b*l)/100.0f;
+				bs->len = ((100.0f - b) * bs->len  + b*l)/100.0f;
 			}
 		}
 	}
@@ -2831,10 +2827,10 @@ static void springs_from_mesh(Object *ob)
 
 	sb= ob->soft;
 	if (me && sb) {
-	/* using bp->origS as a container for spring calcualtions here
-	 * will be overwritten sbObjectStep() to receive
-	 * actual modifier stack positions
-	 */
+		/* using bp->origS as a container for spring calcualtions here
+		 * will be overwritten sbObjectStep() to receive
+		 * actual modifier stack positions
+		 */
 		if (me->totvert) {
 			bp= ob->soft->bpoint;
 			for (a=0; a<me->totvert; a++, bp++) {
@@ -3497,16 +3493,16 @@ static void softbody_reset(Object *ob, SoftBody *sb, float (*vertexCos)[3], int 
 		SB_estimate_transform(ob, NULL, NULL, NULL);
 	}
 	switch (ob->type) {
-	case OB_MESH:
-		if (ob->softflag & OB_SB_FACECOLL) mesh_faces_to_scratch(ob);
-		break;
-	case OB_LATTICE:
-		break;
-	case OB_CURVE:
-	case OB_SURF:
-		break;
-	default:
-		break;
+		case OB_MESH:
+			if (ob->softflag & OB_SB_FACECOLL) mesh_faces_to_scratch(ob);
+			break;
+		case OB_LATTICE:
+			break;
+		case OB_CURVE:
+		case OB_SURF:
+			break;
+		default:
+			break;
 	}
 }
 
@@ -3726,7 +3722,8 @@ void sbObjectStep(Scene *scene, Object *ob, float cfra, float (*vertexCos)[3], i
 	cache_result = BKE_ptcache_read(&pid, (float)framenr+scene->r.subframe, can_simulate);
 
 	if (cache_result == PTCACHE_READ_EXACT || cache_result == PTCACHE_READ_INTERPOLATED ||
-	    (!can_simulate && cache_result == PTCACHE_READ_OLD)) {
+	    (!can_simulate && cache_result == PTCACHE_READ_OLD))
+	{
 		softbody_to_object(ob, vertexCos, numVerts, sb->local);
 
 		BKE_ptcache_validate(cache, framenr);

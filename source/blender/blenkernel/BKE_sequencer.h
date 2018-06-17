@@ -207,7 +207,7 @@ void BKE_sequencer_pixel_from_sequencer_space_v4(struct Scene *scene, float pixe
  * ********************************************************************** */
 struct Editing  *BKE_sequencer_editing_get(struct Scene *scene, bool alloc);
 struct Editing  *BKE_sequencer_editing_ensure(struct Scene *scene);
-void             BKE_sequencer_editing_free(struct Scene *scene);
+void             BKE_sequencer_editing_free(struct Scene *scene, const bool do_id_user);
 
 void             BKE_sequencer_sort(struct Scene *scene);
 
@@ -405,6 +405,8 @@ struct Sequence *BKE_sequence_alloc(ListBase *lb, int cfra, int machine);
 void BKE_sequence_alpha_mode_from_extension(struct Sequence *seq);
 void BKE_sequence_init_colorspace(struct Sequence *seq);
 
+float BKE_sequence_get_fps(struct Scene *scene, struct Sequence *seq);
+
 /* RNA enums, just to be more readable */
 enum {
 	SEQ_SIDE_NONE = 0,
@@ -432,7 +434,8 @@ enum {
 };
 
 typedef struct ImBuf *(*SequencerDrawView)(
-        struct Scene *scene, struct Object *camera, int width, int height,
+        struct Main *bmain, struct Scene *scene,
+        struct Object *camera, int width, int height,
         unsigned int flag, unsigned int draw_flags, int drawtype, int alpha_mode,
         int samples, const char *viewname,
         struct GPUFX *fx, struct GPUOffScreen *ofs, char err_out[256]);
@@ -488,6 +491,6 @@ struct ImBuf *BKE_sequencer_render_mask_input(
         int cfra, int fra_offset, bool make_float);
 void BKE_sequencer_color_balance_apply(struct StripColorBalance *cb, struct ImBuf *ibuf, float mul, bool make_float, struct ImBuf *mask_input);
 
-void BKE_sequencer_all_free_anim_ibufs(int cfra);
+void BKE_sequencer_all_free_anim_ibufs(struct Main *bmain, int cfra);
 
 #endif  /* __BKE_SEQUENCER_H__ */

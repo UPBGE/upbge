@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -68,7 +68,7 @@
 #include "ED_object.h"
 #include "ED_screen.h"
 #include "ED_sequencer.h"
-#include "ED_util.h"
+#include "ED_undo.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -96,7 +96,7 @@ static void set_operation_types(SpaceOops *soops, ListBase *lb,
 {
 	TreeElement *te;
 	TreeStoreElem *tselem;
-	
+
 	for (te = lb->first; te; te = te->next) {
 		tselem = TREESTORE(te);
 		if (tselem->flag & TSE_SELECTED) {
@@ -115,7 +115,7 @@ static void set_operation_types(SpaceOops *soops, ListBase *lb,
 					case ID_OB:
 						*objectlevel = 1;
 						break;
-						
+
 					case ID_ME: case ID_CU: case ID_MB: case ID_LT:
 					case ID_LA: case ID_AR: case ID_CA: case ID_SPK:
 					case ID_MA: case ID_TE: case ID_IP: case ID_IM:
@@ -149,7 +149,7 @@ static void unlink_material_cb(
 {
 	Material **matar = NULL;
 	int a, totcol = 0;
-	
+
 	if (GS(tsep->id->name) == ID_OB) {
 		Object *ob = (Object *)tsep->id;
 		totcol = ob->totcol;
@@ -190,7 +190,7 @@ static void unlink_texture_cb(
 {
 	MTex **mtex = NULL;
 	int a;
-	
+
 	if (GS(tsep->id->name) == ID_MA) {
 		Material *ma = (Material *)tsep->id;
 		mtex = ma->mtex;
@@ -226,7 +226,7 @@ static void unlink_group_cb(
         TreeStoreElem *tsep, TreeStoreElem *tselem, void *UNUSED(user_data))
 {
 	Group *group = (Group *)tselem->id;
-	
+
 	if (tsep) {
 		if (GS(tsep->id->name) == ID_OB) {
 			Object *ob = (Object *)tsep->id;
@@ -245,7 +245,7 @@ static void unlink_world_cb(
 {
 	Scene *parscene = (Scene *)tsep->id;
 	World *wo = (World *)tselem->id;
-	
+
 	/* need to use parent scene not just scene, otherwise may end up getting wrong one */
 	id_us_min(&wo->id);
 	parscene->world = NULL;
@@ -258,7 +258,7 @@ static void outliner_do_libdata_operation(
 {
 	TreeElement *te;
 	TreeStoreElem *tselem;
-	
+
 	for (te = lb->first; te; te = te->next) {
 		tselem = TREESTORE(te);
 		if (tselem->flag & TSE_SELECTED) {
@@ -363,7 +363,7 @@ static void object_select_cb(
         TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
 {
 	Base *base = (Base *)te->directdata;
-	
+
 	if (base == NULL) base = BKE_scene_base_find(scene, (Object *)tselem->id);
 	if (base && ((base->object->restrictflag & OB_RESTRICT_VIEW) == 0)) {
 		base->flag |= SELECT;
@@ -385,7 +385,7 @@ static void object_deselect_cb(
         TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
 {
 	Base *base = (Base *)te->directdata;
-	
+
 	if (base == NULL) base = BKE_scene_base_find(scene, (Object *)tselem->id);
 	if (base) {
 		base->flag &= ~SELECT;
@@ -398,7 +398,7 @@ static void object_delete_cb(
         TreeStoreElem *tsep, TreeStoreElem *tselem, void *user_data)
 {
 	Base *base = (Base *)te->directdata;
-	
+
 	if (base == NULL)
 		base = BKE_scene_base_find(scene, (Object *)tselem->id);
 	if (base) {
@@ -417,9 +417,10 @@ static void object_delete_cb(
 		}
 
 		// check also library later
-		if (scene->obedit == base->object)
-			ED_object_editmode_exit(C, EM_FREEDATA | EM_FREEUNDO | EM_WAITCURSOR | EM_DO_UNDO);
-		
+		if (scene->obedit == base->object) {
+			ED_object_editmode_exit(C, EM_FREEDATA | EM_WAITCURSOR);
+		}
+
 		ED_base_object_free_and_unlink(CTX_data_main(C), scene, base);
 		/* leave for ED_outliner_id_unref to handle */
 #if 0
@@ -458,7 +459,7 @@ static void id_fake_user_set_cb(
         TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
 {
 	ID *id = tselem->id;
-	
+
 	id_fake_user_set(id);
 }
 
@@ -467,7 +468,7 @@ static void id_fake_user_clear_cb(
         TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
 {
 	ID *id = tselem->id;
-	
+
 	id_fake_user_clear(id);
 }
 
@@ -485,15 +486,15 @@ static void singleuser_action_cb(
         TreeStoreElem *tsep, TreeStoreElem *tselem, void *UNUSED(user_data))
 {
 	ID *id = tselem->id;
-	
+
 	if (id) {
 		IdAdtTemplate *iat = (IdAdtTemplate *)tsep->id;
 		PointerRNA ptr = {{NULL}};
 		PropertyRNA *prop;
-		
+
 		RNA_pointer_create(&iat->id, &RNA_AnimData, iat->adt, &ptr);
 		prop = RNA_struct_find_property(&ptr, "action");
-		
+
 		id_single_user(C, id, &ptr, prop);
 	}
 }
@@ -503,16 +504,16 @@ static void singleuser_world_cb(
         TreeStoreElem *tsep, TreeStoreElem *tselem, void *UNUSED(user_data))
 {
 	ID *id = tselem->id;
-	
+
 	/* need to use parent scene not just scene, otherwise may end up getting wrong one */
 	if (id) {
 		Scene *parscene = (Scene *)tsep->id;
 		PointerRNA ptr = {{NULL}};
 		PropertyRNA *prop;
-		
+
 		RNA_id_pointer_create(&parscene->id, &ptr);
 		prop = RNA_struct_find_property(&ptr, "world");
-		
+
 		id_single_user(C, id, &ptr, prop);
 	}
 }
@@ -557,7 +558,7 @@ void outliner_do_object_operation_ex(
         outliner_operation_cb operation_cb, bool select_recurse)
 {
 	TreeElement *te;
-	
+
 	for (te = lb->first; te; te = te->next) {
 		TreeStoreElem *tselem = TREESTORE(te);
 		bool select_handled = false;
@@ -611,7 +612,7 @@ static void cleardrivers_animdata_cb(int UNUSED(event), TreeElement *UNUSED(te),
                                      TreeStoreElem *tselem, void *UNUSED(arg))
 {
 	IdAdtTemplate *iat = (IdAdtTemplate *)tselem->id;
-	
+
 	/* just free drivers - stored as a list of F-Curves */
 	free_fcurves(&iat->adt->drivers);
 }
@@ -621,11 +622,11 @@ static void refreshdrivers_animdata_cb(int UNUSED(event), TreeElement *UNUSED(te
 {
 	IdAdtTemplate *iat = (IdAdtTemplate *)tselem->id;
 	FCurve *fcu;
-	
+
 	/* loop over drivers, performing refresh (i.e. check graph_buttons.c and rna_fcurve.c for details) */
 	for (fcu = iat->adt->drivers.first; fcu; fcu = fcu->next) {
 		fcu->flag &= ~FCURVE_DISABLED;
-		
+
 		if (fcu->driver)
 			fcu->driver->flag &= ~DRIVER_FLAG_INVALID;
 	}
@@ -656,7 +657,7 @@ typedef enum eOutliner_PropModifierOps {
 static void pchan_cb(int event, TreeElement *te, TreeStoreElem *UNUSED(tselem), void *UNUSED(arg))
 {
 	bPoseChannel *pchan = (bPoseChannel *)te->directdata;
-	
+
 	if (event == OL_DOP_SELECT)
 		pchan->bone->flag |= BONE_SELECTED;
 	else if (event == OL_DOP_DESELECT)
@@ -672,7 +673,7 @@ static void pchan_cb(int event, TreeElement *te, TreeStoreElem *UNUSED(tselem), 
 static void bone_cb(int event, TreeElement *te, TreeStoreElem *UNUSED(tselem), void *UNUSED(arg))
 {
 	Bone *bone = (Bone *)te->directdata;
-	
+
 	if (event == OL_DOP_SELECT)
 		bone->flag |= BONE_SELECTED;
 	else if (event == OL_DOP_DESELECT)
@@ -688,7 +689,7 @@ static void bone_cb(int event, TreeElement *te, TreeStoreElem *UNUSED(tselem), v
 static void ebone_cb(int event, TreeElement *te, TreeStoreElem *UNUSED(tselem), void *UNUSED(arg))
 {
 	EditBone *ebone = (EditBone *)te->directdata;
-	
+
 	if (event == OL_DOP_SELECT)
 		ebone->flag |= BONE_SELECTED;
 	else if (event == OL_DOP_DESELECT)
@@ -718,7 +719,7 @@ static void sequence_cb(int event, TreeElement *te, TreeStoreElem *tselem, void 
 static void gp_layer_cb(int event, TreeElement *te, TreeStoreElem *UNUSED(tselem), void *UNUSED(arg))
 {
 	bGPDlayer *gpl = (bGPDlayer *)te->directdata;
-	
+
 	if (event == OL_DOP_SELECT)
 		gpl->flag |= GP_LAYER_SELECT;
 	else if (event == OL_DOP_DESELECT)
@@ -744,18 +745,19 @@ static void data_select_linked_cb(int event, TreeElement *te, TreeStoreElem *UNU
 static void constraint_cb(int event, TreeElement *te, TreeStoreElem *UNUSED(tselem), void *C_v)
 {
 	bContext *C = C_v;
+	Main *bmain = CTX_data_main(C);
 	SpaceOops *soops = CTX_wm_space_outliner(C);
 	bConstraint *constraint = (bConstraint *)te->directdata;
 	Object *ob = (Object *)outliner_search_back(soops, te, ID_OB);
 
 	if (event == OL_CONSTRAINTOP_ENABLE) {
 		constraint->flag &= ~CONSTRAINT_OFF;
-		ED_object_constraint_update(ob);
+		ED_object_constraint_update(bmain, ob);
 		WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT, ob);
 	}
 	else if (event == OL_CONSTRAINTOP_DISABLE) {
 		constraint->flag = CONSTRAINT_OFF;
-		ED_object_constraint_update(ob);
+		ED_object_constraint_update(bmain, ob);
 		WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT, ob);
 	}
 	else if (event == OL_CONSTRAINTOP_DELETE) {
@@ -771,7 +773,7 @@ static void constraint_cb(int event, TreeElement *te, TreeStoreElem *UNUSED(tsel
 		if (BKE_constraint_remove_ex(lb, ob, constraint, true)) {
 			/* there's no active constraint now, so make sure this is the case */
 			BKE_constraints_active_set(&ob->constraints, NULL);
-			ED_object_constraint_update(ob); /* needed to set the flags on posebones correctly */
+			ED_object_constraint_update(bmain, ob); /* needed to set the flags on posebones correctly */
 			WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT | NA_REMOVED, ob);
 			te->store_elem->flag &= ~TSE_SELECTED;
 		}
@@ -809,7 +811,7 @@ static void outliner_do_data_operation(SpaceOops *soops, int type, int event, Li
 {
 	TreeElement *te;
 	TreeStoreElem *tselem;
-	
+
 	for (te = lb->first; te; te = te->next) {
 		tselem = TREESTORE(te);
 		if (tselem->flag & TSE_SELECTED) {
@@ -873,7 +875,7 @@ static void object_delete_hierarchy_cb(
 		/* Check also library later. */
 		for (; obedit && (obedit != base->object); obedit = obedit->parent);
 		if (obedit == base->object) {
-			ED_object_editmode_exit(C, EM_FREEDATA | EM_FREEUNDO | EM_WAITCURSOR | EM_DO_UNDO);
+			ED_object_editmode_exit(C, EM_FREEDATA | EM_WAITCURSOR);
 		}
 
 		outline_delete_hierarchy(C, reports, scene, base);
@@ -925,11 +927,11 @@ static int outliner_object_operation_exec(bContext *C, wmOperator *op)
 	SpaceOops *soops = CTX_wm_space_outliner(C);
 	int event;
 	const char *str = NULL;
-	
+
 	/* check for invalid states */
 	if (soops == NULL)
 		return OPERATOR_CANCELLED;
-	
+
 	event = RNA_enum_get(op->ptr, "type");
 
 	if (event == OL_OP_SELECT) {
@@ -938,7 +940,7 @@ static int outliner_object_operation_exec(bContext *C, wmOperator *op)
 		if (scene != sce) {
 			ED_screen_set_scene(C, CTX_wm_screen(C), sce);
 		}
-		
+
 		str = "Select Objects";
 		WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
 	}
@@ -947,7 +949,7 @@ static int outliner_object_operation_exec(bContext *C, wmOperator *op)
 		outliner_do_object_operation_ex(C, op->reports, scene, soops, &soops->tree, object_select_hierarchy_cb, false);
 		if (scene != sce) {
 			ED_screen_set_scene(C, CTX_wm_screen(C), sce);
-		}	
+		}
 		str = "Select Object Hierarchy";
 		WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
 	}
@@ -1013,7 +1015,7 @@ static int outliner_object_operation_exec(bContext *C, wmOperator *op)
 	}
 
 	ED_undo_push(C, str);
-	
+
 	return OPERATOR_FINISHED;
 }
 
@@ -1024,12 +1026,12 @@ void OUTLINER_OT_object_operation(wmOperatorType *ot)
 	ot->name = "Outliner Object Operation";
 	ot->idname = "OUTLINER_OT_object_operation";
 	ot->description = "";
-	
+
 	/* callbacks */
 	ot->invoke = WM_menu_invoke;
 	ot->exec = outliner_object_operation_exec;
 	ot->poll = ED_operator_outliner_active;
-	
+
 	ot->flag = 0;
 
 	ot->prop = RNA_def_enum(ot->srna, "type", prop_object_op_types, 0, "Object Operation", "");
@@ -1070,11 +1072,11 @@ static int outliner_group_operation_exec(bContext *C, wmOperator *op)
 	Scene *scene = CTX_data_scene(C);
 	SpaceOops *soops = CTX_wm_space_outliner(C);
 	int event;
-	
+
 	/* check for invalid states */
 	if (soops == NULL)
 		return OPERATOR_CANCELLED;
-	
+
 	event = RNA_enum_get(op->ptr, "type");
 
 	switch (event) {
@@ -1127,14 +1129,14 @@ void OUTLINER_OT_group_operation(wmOperatorType *ot)
 	ot->name = "Outliner Group Operation";
 	ot->idname = "OUTLINER_OT_group_operation";
 	ot->description = "";
-	
+
 	/* callbacks */
 	ot->invoke = WM_menu_invoke;
 	ot->exec = outliner_group_operation_exec;
 	ot->poll = ED_operator_outliner_active;
-	
+
 	ot->flag = 0;
-	
+
 	ot->prop = RNA_def_enum(ot->srna, "type", prop_group_op_types, 0, "Group Operation", "");
 }
 
@@ -1142,13 +1144,13 @@ void OUTLINER_OT_group_operation(wmOperatorType *ot)
 
 typedef enum eOutlinerIdOpTypes {
 	OUTLINER_IDOP_INVALID = 0,
-	
+
 	OUTLINER_IDOP_UNLINK,
 	OUTLINER_IDOP_LOCAL,
 	OUTLINER_IDOP_SINGLE,
 	OUTLINER_IDOP_DELETE,
 	OUTLINER_IDOP_REMAP,
-	
+
 	OUTLINER_IDOP_FAKE_ADD,
 	OUTLINER_IDOP_FAKE_CLEAR,
 	OUTLINER_IDOP_RENAME,
@@ -1178,15 +1180,15 @@ static int outliner_id_operation_exec(bContext *C, wmOperator *op)
 	SpaceOops *soops = CTX_wm_space_outliner(C);
 	int scenelevel = 0, objectlevel = 0, idlevel = 0, datalevel = 0;
 	eOutlinerIdOpTypes event;
-	
+
 	/* check for invalid states */
 	if (soops == NULL)
 		return OPERATOR_CANCELLED;
-	
+
 	set_operation_types(soops, &soops->tree, &scenelevel, &objectlevel, &idlevel, &datalevel);
-	
+
 	event = RNA_enum_get(op->ptr, "type");
-	
+
 	switch (event) {
 		case OUTLINER_IDOP_UNLINK:
 		{
@@ -1194,25 +1196,25 @@ static int outliner_id_operation_exec(bContext *C, wmOperator *op)
 			switch (idlevel) {
 				case ID_AC:
 					outliner_do_libdata_operation(C, op->reports, scene, soops, &soops->tree, unlink_action_cb, NULL);
-					
+
 					WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ACTCHANGE, NULL);
 					ED_undo_push(C, "Unlink action");
 					break;
 				case ID_MA:
 					outliner_do_libdata_operation(C, op->reports, scene, soops, &soops->tree, unlink_material_cb, NULL);
-					
+
 					WM_event_add_notifier(C, NC_OBJECT | ND_OB_SHADING, NULL);
 					ED_undo_push(C, "Unlink material");
 					break;
 				case ID_TE:
 					outliner_do_libdata_operation(C, op->reports, scene, soops, &soops->tree, unlink_texture_cb, NULL);
-					
+
 					WM_event_add_notifier(C, NC_OBJECT | ND_OB_SHADING, NULL);
 					ED_undo_push(C, "Unlink texture");
 					break;
 				case ID_WO:
 					outliner_do_libdata_operation(C, op->reports, scene, soops, &soops->tree, unlink_world_cb, NULL);
-					
+
 					WM_event_add_notifier(C, NC_SCENE | ND_WORLD, NULL);
 					ED_undo_push(C, "Unlink world");
 					break;
@@ -1235,18 +1237,18 @@ static int outliner_id_operation_exec(bContext *C, wmOperator *op)
 			switch (idlevel) {
 				case ID_AC:
 					outliner_do_libdata_operation(C, op->reports, scene, soops, &soops->tree, singleuser_action_cb, NULL);
-					
+
 					WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ACTCHANGE, NULL);
 					ED_undo_push(C, "Single-User Action");
 					break;
-					
+
 				case ID_WO:
 					outliner_do_libdata_operation(C, op->reports, scene, soops, &soops->tree, singleuser_world_cb, NULL);
-					
+
 					WM_event_add_notifier(C, NC_SCENE | ND_WORLD, NULL);
 					ED_undo_push(C, "Single-User World");
 					break;
-					
+
 				default:
 					BKE_report(op->reports, RPT_WARNING, "Not yet implemented");
 					break;
@@ -1273,7 +1275,7 @@ static int outliner_id_operation_exec(bContext *C, wmOperator *op)
 		{
 			/* set fake user */
 			outliner_do_libdata_operation(C, op->reports, scene, soops, &soops->tree, id_fake_user_set_cb, NULL);
-			
+
 			WM_event_add_notifier(C, NC_ID | NA_EDITED, NULL);
 			ED_undo_push(C, "Add Fake User");
 			break;
@@ -1282,7 +1284,7 @@ static int outliner_id_operation_exec(bContext *C, wmOperator *op)
 		{
 			/* clear fake user */
 			outliner_do_libdata_operation(C, op->reports, scene, soops, &soops->tree, id_fake_user_clear_cb, NULL);
-			
+
 			WM_event_add_notifier(C, NC_ID | NA_EDITED, NULL);
 			ED_undo_push(C, "Clear Fake User");
 			break;
@@ -1291,7 +1293,7 @@ static int outliner_id_operation_exec(bContext *C, wmOperator *op)
 		{
 			/* rename */
 			outliner_do_libdata_operation(C, op->reports, scene, soops, &soops->tree, item_rename_cb, NULL);
-			
+
 			WM_event_add_notifier(C, NC_ID | NA_EDITED, NULL);
 			ED_undo_push(C, "Rename");
 			break;
@@ -1300,18 +1302,18 @@ static int outliner_id_operation_exec(bContext *C, wmOperator *op)
 			outliner_do_libdata_operation(C, op->reports, scene, soops, &soops->tree, id_select_linked_cb, NULL);
 			ED_undo_push(C, "Select");
 			break;
-			
+
 		default:
 			// invalid - unhandled
 			break;
 	}
-	
+
 	/* wrong notifier still... */
 	WM_event_add_notifier(C, NC_ID | NA_EDITED, NULL);
-	
-	// XXX: this is just so that outliner is always up to date 
+
+	// XXX: this is just so that outliner is always up to date
 	WM_event_add_notifier(C, NC_SPACE | ND_SPACE_OUTLINER, NULL);
-	
+
 	return OPERATOR_FINISHED;
 }
 
@@ -1322,14 +1324,14 @@ void OUTLINER_OT_id_operation(wmOperatorType *ot)
 	ot->name = "Outliner ID data Operation";
 	ot->idname = "OUTLINER_OT_id_operation";
 	ot->description = "";
-	
+
 	/* callbacks */
 	ot->invoke = WM_menu_invoke;
 	ot->exec = outliner_id_operation_exec;
 	ot->poll = ED_operator_outliner_active;
-	
+
 	ot->flag = 0;
-	
+
 	ot->prop = RNA_def_enum(ot->srna, "type", prop_id_op_types, 0, "ID data Operation", "");
 }
 
@@ -1433,7 +1435,7 @@ static void outliner_do_id_set_operation(SpaceOops *soops, int type, ListBase *l
 {
 	TreeElement *te;
 	TreeStoreElem *tselem;
-	
+
 	for (te = lb->first; te; te = te->next) {
 		tselem = TREESTORE(te);
 		if (tselem->flag & TSE_SELECTED) {
@@ -1453,12 +1455,12 @@ static void outliner_do_id_set_operation(SpaceOops *soops, int type, ListBase *l
 static void actionset_id_cb(TreeElement *UNUSED(te), TreeStoreElem *tselem, TreeStoreElem *tsep, ID *actId)
 {
 	bAction *act = (bAction *)actId;
-	
+
 	if (tselem->type == TSE_ANIM_DATA) {
 		/* "animation" entries - action is child of this */
 		BKE_animdata_set_action(NULL, tselem->id, act);
 	}
-	/* TODO: if any other "expander" channels which own actions need to support this menu, 
+	/* TODO: if any other "expander" channels which own actions need to support this menu,
 	 * add: tselem->type = ...
 	 */
 	else if (tsep && (tsep->type == TSE_ANIM_DATA)) {
@@ -1472,17 +1474,17 @@ static int outliner_action_set_exec(bContext *C, wmOperator *op)
 {
 	SpaceOops *soops = CTX_wm_space_outliner(C);
 	int scenelevel = 0, objectlevel = 0, idlevel = 0, datalevel = 0;
-	
+
 	bAction *act;
-	
+
 	/* check for invalid states */
 	if (soops == NULL)
 		return OPERATOR_CANCELLED;
 	set_operation_types(soops, &soops->tree, &scenelevel, &objectlevel, &idlevel, &datalevel);
-	
+
 	/* get action to use */
 	act = BLI_findlink(&CTX_data_main(C)->action, RNA_enum_get(op->ptr, "action"));
-	
+
 	if (act == NULL) {
 		BKE_report(op->reports, RPT_ERROR, "No valid action to add");
 		return OPERATOR_CANCELLED;
@@ -1495,7 +1497,7 @@ static int outliner_action_set_exec(bContext *C, wmOperator *op)
 		            "for this action to avoid future problems)",
 		            act->id.name + 2);
 	}
-	
+
 	/* perform action if valid channel */
 	if (datalevel == TSE_ANIM_DATA)
 		outliner_do_id_set_operation(soops, datalevel, &soops->tree, (ID *)act, actionset_id_cb);
@@ -1503,11 +1505,11 @@ static int outliner_action_set_exec(bContext *C, wmOperator *op)
 		outliner_do_id_set_operation(soops, idlevel, &soops->tree, (ID *)act, actionset_id_cb);
 	else
 		return OPERATOR_CANCELLED;
-		
+
 	/* set notifier that things have changed */
 	WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ACTCHANGE, NULL);
 	ED_undo_push(C, "Set action");
-	
+
 	/* done */
 	return OPERATOR_FINISHED;
 }
@@ -1520,15 +1522,15 @@ void OUTLINER_OT_action_set(wmOperatorType *ot)
 	ot->name = "Outliner Set Action";
 	ot->idname = "OUTLINER_OT_action_set";
 	ot->description = "Change the active action used";
-	
+
 	/* api callbacks */
 	ot->invoke = WM_enum_search_invoke;
 	ot->exec = outliner_action_set_exec;
 	ot->poll = ED_operator_outliner_active;
-	
+
 	/* flags */
 	ot->flag = 0;
-	
+
 	/* props */
 	// TODO: this would be nicer as an ID-pointer...
 	prop = RNA_def_enum(ot->srna, "action", DummyRNA_NULL_items, 0, "Action", "");
@@ -1541,15 +1543,15 @@ void OUTLINER_OT_action_set(wmOperatorType *ot)
 
 typedef enum eOutliner_AnimDataOps {
 	OUTLINER_ANIMOP_INVALID = 0,
-	
+
 	OUTLINER_ANIMOP_CLEAR_ADT,
-	
+
 	OUTLINER_ANIMOP_SET_ACT,
 	OUTLINER_ANIMOP_CLEAR_ACT,
-	
+
 	OUTLINER_ANIMOP_REFRESH_DRV,
 	OUTLINER_ANIMOP_CLEAR_DRV
-	
+
 	//OUTLINER_ANIMOP_COPY_DRIVERS,
 	//OUTLINER_ANIMOP_PASTE_DRIVERS
 } eOutliner_AnimDataOps;
@@ -1571,66 +1573,66 @@ static int outliner_animdata_operation_exec(bContext *C, wmOperator *op)
 	int scenelevel = 0, objectlevel = 0, idlevel = 0, datalevel = 0;
 	eOutliner_AnimDataOps event;
 	short updateDeps = 0;
-	
+
 	/* check for invalid states */
 	if (soops == NULL)
 		return OPERATOR_CANCELLED;
-	
+
 	event = RNA_enum_get(op->ptr, "type");
 	set_operation_types(soops, &soops->tree, &scenelevel, &objectlevel, &idlevel, &datalevel);
-	
+
 	if (datalevel != TSE_ANIM_DATA)
 		return OPERATOR_CANCELLED;
-	
+
 	/* perform the core operation */
 	switch (event) {
 		case OUTLINER_ANIMOP_CLEAR_ADT:
 			/* Remove Animation Data - this may remove the active action, in some cases... */
 			outliner_do_data_operation(soops, datalevel, event, &soops->tree, clear_animdata_cb, NULL);
-			
+
 			WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ACTCHANGE, NULL);
 			ED_undo_push(C, "Clear Animation Data");
 			break;
-		
+
 		case OUTLINER_ANIMOP_SET_ACT:
 			/* delegate once again... */
 			WM_operator_name_call(C, "OUTLINER_OT_action_set", WM_OP_INVOKE_REGION_WIN, NULL);
 			break;
-		
+
 		case OUTLINER_ANIMOP_CLEAR_ACT:
 			/* clear active action - using standard rules */
 			outliner_do_data_operation(soops, datalevel, event, &soops->tree, unlinkact_animdata_cb, NULL);
-			
+
 			WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ACTCHANGE, NULL);
 			ED_undo_push(C, "Unlink action");
 			break;
-			
+
 		case OUTLINER_ANIMOP_REFRESH_DRV:
 			outliner_do_data_operation(soops, datalevel, event, &soops->tree, refreshdrivers_animdata_cb, NULL);
-			
+
 			WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN, NULL);
 			//ED_undo_push(C, "Refresh Drivers"); /* no undo needed - shouldn't have any impact? */
 			updateDeps = 1;
 			break;
-			
+
 		case OUTLINER_ANIMOP_CLEAR_DRV:
 			outliner_do_data_operation(soops, datalevel, event, &soops->tree, cleardrivers_animdata_cb, NULL);
-			
+
 			WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN, NULL);
 			ED_undo_push(C, "Clear Drivers");
 			updateDeps = 1;
 			break;
-			
+
 		default: // invalid
 			break;
 	}
-	
+
 	/* update dependencies */
 	if (updateDeps) {
 		/* rebuild depsgraph for the new deps */
 		DAG_relations_tag_update(CTX_data_main(C));
 	}
-	
+
 	return OPERATOR_FINISHED;
 }
 
@@ -1641,14 +1643,14 @@ void OUTLINER_OT_animdata_operation(wmOperatorType *ot)
 	ot->name = "Outliner Animation Data Operation";
 	ot->idname = "OUTLINER_OT_animdata_operation";
 	ot->description = "";
-	
+
 	/* callbacks */
 	ot->invoke = WM_menu_invoke;
 	ot->exec = outliner_animdata_operation_exec;
 	ot->poll = ED_operator_outliner_active;
-	
+
 	ot->flag = 0;
-	
+
 	ot->prop = RNA_def_enum(ot->srna, "type", prop_animdata_op_types, 0, "Animation Operation", "");
 }
 
@@ -1761,14 +1763,14 @@ static int outliner_data_operation_exec(bContext *C, wmOperator *op)
 	SpaceOops *soops = CTX_wm_space_outliner(C);
 	int scenelevel = 0, objectlevel = 0, idlevel = 0, datalevel = 0;
 	eOutliner_PropDataOps event;
-	
+
 	/* check for invalid states */
 	if (soops == NULL)
 		return OPERATOR_CANCELLED;
-	
+
 	event = RNA_enum_get(op->ptr, "type");
 	set_operation_types(soops, &soops->tree, &scenelevel, &objectlevel, &idlevel, &datalevel);
-	
+
 	switch (datalevel) {
 		case TSE_POSE_CHANNEL:
 		{
@@ -1820,7 +1822,7 @@ static int outliner_data_operation_exec(bContext *C, wmOperator *op)
 			BKE_report(op->reports, RPT_WARNING, "Not yet implemented");
 			break;
 	}
-	
+
 	return OPERATOR_FINISHED;
 }
 
@@ -1831,14 +1833,14 @@ void OUTLINER_OT_data_operation(wmOperatorType *ot)
 	ot->name = "Outliner Data Operation";
 	ot->idname = "OUTLINER_OT_data_operation";
 	ot->description = "";
-	
+
 	/* callbacks */
 	ot->invoke = WM_menu_invoke;
 	ot->exec = outliner_data_operation_exec;
 	ot->poll = ED_operator_outliner_active;
-	
+
 	ot->flag = 0;
-	
+
 	ot->prop = RNA_def_enum(ot->srna, "type", prop_data_op_types, 0, "Data Operation", "");
 }
 
@@ -1850,25 +1852,25 @@ static int do_outliner_operation_event(bContext *C, ARegion *ar, SpaceOops *soop
                                        TreeElement *te, const float mval[2])
 {
 	ReportList *reports = CTX_wm_reports(C); // XXX...
-	
+
 	if (mval[1] > te->ys && mval[1] < te->ys + UI_UNIT_Y) {
 		int scenelevel = 0, objectlevel = 0, idlevel = 0, datalevel = 0;
 		TreeStoreElem *tselem = TREESTORE(te);
-		
+
 		/* select object that's clicked on and popup context menu */
 		if (!(tselem->flag & TSE_SELECTED)) {
-			
+
 			if (outliner_has_one_flag(&soops->tree, TSE_SELECTED, 1))
 				outliner_set_flag(&soops->tree, TSE_SELECTED, 0);
-			
+
 			tselem->flag |= TSE_SELECTED;
 			/* redraw, same as outliner_select function */
 			soops->storeflag |= SO_TREESTORE_REDRAW;
 			ED_region_tag_redraw(ar);
 		}
-		
+
 		set_operation_types(soops, &soops->tree, &scenelevel, &objectlevel, &idlevel, &datalevel);
-		
+
 		if (scenelevel) {
 			if (objectlevel || datalevel || idlevel) {
 				BKE_report(reports, RPT_WARNING, "Mixed selection");
@@ -1925,10 +1927,10 @@ static int do_outliner_operation_event(bContext *C, ARegion *ar, SpaceOops *soop
 				}
 			}
 		}
-		
+
 		return 1;
 	}
-	
+
 	for (te = te->subtree.first; te; te = te->next) {
 		if (do_outliner_operation_event(C, ar, soops, te, mval))
 			return 1;
@@ -1950,13 +1952,13 @@ static int outliner_operation(bContext *C, wmOperator *UNUSED(op), const wmEvent
 	}
 
 	UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], &fmval[0], &fmval[1]);
-	
+
 	for (te = soops->tree.first; te; te = te->next) {
 		if (do_outliner_operation_event(C, ar, soops, te, fmval)) {
 			break;
 		}
 	}
-	
+
 	return OPERATOR_FINISHED;
 }
 
@@ -1966,9 +1968,9 @@ void OUTLINER_OT_operation(wmOperatorType *ot)
 	ot->name = "Execute Operation";
 	ot->idname = "OUTLINER_OT_operation";
 	ot->description = "Context menu for item operations";
-	
+
 	ot->invoke = outliner_operation;
-	
+
 	ot->poll = ED_operator_outliner_active;
 }
 

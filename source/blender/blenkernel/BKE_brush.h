@@ -36,6 +36,7 @@ struct Scene;
 struct UnifiedPaintSettings;
 // enum eCurveMappingPreset;
 
+#include "DNA_object_enums.h"
 
 /* globals for brush execution */
 void BKE_brush_system_init(void);
@@ -43,8 +44,8 @@ void BKE_brush_system_exit(void);
 
 /* datablock functions */
 void BKE_brush_init(struct Brush *brush);
-struct Brush *BKE_brush_add(struct Main *bmain, const char *name, short ob_mode);
-struct Brush *BKE_brush_first_search(struct Main *bmain, short ob_mode);
+struct Brush *BKE_brush_add(struct Main *bmain, const char *name, const eObjectMode ob_mode);
+struct Brush *BKE_brush_first_search(struct Main *bmain, const eObjectMode ob_mode);
 void BKE_brush_copy_data(struct Main *bmain, struct Brush *brush_dst, const struct Brush *brush_src, const int flag);
 struct Brush *BKE_brush_copy(struct Main *bmain, const struct Brush *brush);
 void BKE_brush_make_local(struct Main *bmain, struct Brush *brush, const bool lib_local);
@@ -55,12 +56,6 @@ void BKE_brush_sculpt_reset(struct Brush *brush);
 
 /* image icon function */
 struct ImBuf *get_brush_icon(struct Brush *brush);
-
-/* brush library operations used by different paint panels */
-int BKE_brush_texture_set_nr(struct Brush *brush, int nr);
-int BKE_brush_texture_delete(struct Brush *brush);
-int BKE_brush_clone_image_set_nr(struct Brush *brush, int nr);
-int BKE_brush_clone_image_delete(struct Brush *brush);
 
 /* jitter */
 void BKE_brush_jitter_pos(

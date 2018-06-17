@@ -48,168 +48,88 @@ CCL_NAMESPACE_BEGIN
 
 using namespace OSL;
 
+static ustring u_cubic("cubic");
+static ustring u_gaussian("gaussian");
+static ustring u_burley("burley");
+static ustring u_principled("principled");
+static ustring u_random_walk("random_walk");
+static ustring u_principled_random_walk("principled_random_walk");
+
 class CBSSRDFClosure : public CClosurePrimitive {
 public:
 	Bssrdf params;
-	float3 radius;
-	float3 albedo;
+	ustring method;
+
+	CBSSRDFClosure()
+	{
+		params.texture_blur = 0.0f;
+		params.sharpness = 0.0f;
+		params.roughness = 0.0f;
+	}
+
+	void setup(ShaderData *sd, int path_flag, float3 weight)
+	{
+		if (method == u_cubic) {
+			alloc(sd, path_flag, weight, CLOSURE_BSSRDF_CUBIC_ID);
+		}
+		else if (method == u_gaussian) {
+			alloc(sd, path_flag, weight, CLOSURE_BSSRDF_GAUSSIAN_ID);
+		}
+		else if (method == u_burley) {
+			alloc(sd, path_flag, weight, CLOSURE_BSSRDF_BURLEY_ID);
+		}
+		else if (method == u_principled) {
+			alloc(sd, path_flag, weight, CLOSURE_BSSRDF_PRINCIPLED_ID);
+		}
+		else if (method == u_random_walk) {
+			alloc(sd, path_flag, weight, CLOSURE_BSSRDF_RANDOM_WALK_ID);
+		}
+		else if (method == u_principled_random_walk) {
+			alloc(sd, path_flag, weight, CLOSURE_BSSRDF_PRINCIPLED_RANDOM_WALK_ID);
+		}
+	}
 
 	void alloc(ShaderData *sd, int path_flag, float3 weight, ClosureType type)
 	{
-		float sample_weight = fabsf(average(weight));
+		Bssrdf *bssrdf = bssrdf_alloc(sd, weight);
 
-		/* disable in case of diffuse ancestor, can't see it well then and
-		 * adds considerably noise due to probabilities of continuing path
-		 * getting lower and lower */
-		if(path_flag & PATH_RAY_DIFFUSE_ANCESTOR) {
-			radius = make_float3(0.0f, 0.0f, 0.0f);
-		}
-
-		if(sample_weight > CLOSURE_WEIGHT_CUTOFF) {
-			/* sharpness */
-			float sharpness = params.sharpness;
-			/* texture color blur */
-			float texture_blur = params.texture_blur;
+		if(bssrdf) {
+			/* disable in case of diffuse ancestor, can't see it well then and
+			 * adds considerably noise due to probabilities of continuing path
+			 * getting lower and lower */
+			if(path_flag & PATH_RAY_DIFFUSE_ANCESTOR) {
+				params.radius = make_float3(0.0f, 0.0f, 0.0f);
+			}
 
 			/* create one closure per color channel */
-			Bssrdf *bssrdf = bssrdf_alloc(sd, make_float3(weight.x, 0.0f, 0.0f));
-			if(bssrdf) {
-				bssrdf->sample_weight = sample_weight;
-				bssrdf->radius = radius.x;
-				bssrdf->texture_blur = texture_blur;
-				bssrdf->albedo = albedo.x;
-				bssrdf->sharpness = sharpness;
-				bssrdf->N = params.N;
-				bssrdf->roughness = params.roughness;
-				sd->flag |= bssrdf_setup(bssrdf, (ClosureType)type);
-			}
-
-			bssrdf = bssrdf_alloc(sd, make_float3(0.0f, weight.y, 0.0f));
-			if(bssrdf) {
-				bssrdf->sample_weight = sample_weight;
-				bssrdf->radius = radius.y;
-				bssrdf->texture_blur = texture_blur;
-				bssrdf->albedo = albedo.y;
-				bssrdf->sharpness = sharpness;
-				bssrdf->N = params.N;
-				bssrdf->roughness = params.roughness;
-				sd->flag |= bssrdf_setup(bssrdf, (ClosureType)type);
-			}
-
-			bssrdf = bssrdf_alloc(sd, make_float3(0.0f, 0.0f, weight.z));
-			if(bssrdf) {
-				bssrdf->sample_weight = sample_weight;
-				bssrdf->radius = radius.z;
-				bssrdf->texture_blur = texture_blur;
-				bssrdf->albedo = albedo.z;
-				bssrdf->sharpness = sharpness;
-				bssrdf->N = params.N;
-				bssrdf->roughness = params.roughness;
-				sd->flag |= bssrdf_setup(bssrdf, (ClosureType)type);
-			}
+			bssrdf->radius = params.radius;
+			bssrdf->albedo = params.albedo;
+			bssrdf->texture_blur = params.texture_blur;
+			bssrdf->sharpness = params.sharpness;
+			bssrdf->N = params.N;
+			bssrdf->roughness = params.roughness;
+			sd->flag |= bssrdf_setup(sd, bssrdf, (ClosureType)type);
 		}
 	}
 };
 
-/* Cubic */
-
-class CubicBSSRDFClosure : public CBSSRDFClosure {
-public:
-	void setup(ShaderData *sd, int path_flag, float3 weight)
-	{
-		alloc(sd, path_flag, weight, CLOSURE_BSSRDF_CUBIC_ID);
-	}
-};
-
-ClosureParam *closure_bssrdf_cubic_params()
+ClosureParam *closure_bssrdf_params()
 {
 	static ClosureParam params[] = {
-		CLOSURE_FLOAT3_PARAM(CubicBSSRDFClosure, params.N),
-		CLOSURE_FLOAT3_PARAM(CubicBSSRDFClosure, radius),
-		CLOSURE_FLOAT_PARAM(CubicBSSRDFClosure, params.texture_blur),
-		CLOSURE_FLOAT_PARAM(CubicBSSRDFClosure, params.sharpness),
-		CLOSURE_STRING_KEYPARAM(CubicBSSRDFClosure, label, "label"),
-		CLOSURE_FINISH_PARAM(CubicBSSRDFClosure)
+		CLOSURE_STRING_PARAM(CBSSRDFClosure, method),
+		CLOSURE_FLOAT3_PARAM(CBSSRDFClosure, params.N),
+		CLOSURE_FLOAT3_PARAM(CBSSRDFClosure, params.radius),
+		CLOSURE_FLOAT3_PARAM(CBSSRDFClosure, params.albedo),
+		CLOSURE_FLOAT_KEYPARAM(CBSSRDFClosure, params.texture_blur, "texture_blur"),
+		CLOSURE_FLOAT_KEYPARAM(CBSSRDFClosure, params.sharpness, "sharpness"),
+		CLOSURE_FLOAT_KEYPARAM(CBSSRDFClosure, params.roughness, "roughness"),
+		CLOSURE_STRING_KEYPARAM(CBSSRDFClosure, label, "label"),
+		CLOSURE_FINISH_PARAM(CBSSRDFClosure)
 	};
 	return params;
 }
 
-CCLOSURE_PREPARE(closure_bssrdf_cubic_prepare, CubicBSSRDFClosure)
-
-/* Gaussian */
-
-class GaussianBSSRDFClosure : public CBSSRDFClosure {
-public:
-	void setup(ShaderData *sd, int path_flag, float3 weight)
-	{
-		alloc(sd, path_flag, weight, CLOSURE_BSSRDF_GAUSSIAN_ID);
-	}
-};
-
-ClosureParam *closure_bssrdf_gaussian_params()
-{
-	static ClosureParam params[] = {
-		CLOSURE_FLOAT3_PARAM(GaussianBSSRDFClosure, params.N),
-		CLOSURE_FLOAT3_PARAM(GaussianBSSRDFClosure, radius),
-		CLOSURE_FLOAT_PARAM(GaussianBSSRDFClosure, params.texture_blur),
-		CLOSURE_STRING_KEYPARAM(GaussianBSSRDFClosure, label, "label"),
-		CLOSURE_FINISH_PARAM(GaussianBSSRDFClosure)
-	};
-	return params;
-}
-
-CCLOSURE_PREPARE(closure_bssrdf_gaussian_prepare, GaussianBSSRDFClosure)
-
-/* Burley */
-
-class BurleyBSSRDFClosure : public CBSSRDFClosure {
-public:
-	void setup(ShaderData *sd, int path_flag, float3 weight)
-	{
-		alloc(sd, path_flag, weight, CLOSURE_BSSRDF_BURLEY_ID);
-	}
-};
-
-ClosureParam *closure_bssrdf_burley_params()
-{
-	static ClosureParam params[] = {
-		CLOSURE_FLOAT3_PARAM(BurleyBSSRDFClosure, params.N),
-		CLOSURE_FLOAT3_PARAM(BurleyBSSRDFClosure, radius),
-		CLOSURE_FLOAT_PARAM(BurleyBSSRDFClosure, params.texture_blur),
-		CLOSURE_FLOAT3_PARAM(BurleyBSSRDFClosure, albedo),
-		CLOSURE_STRING_KEYPARAM(BurleyBSSRDFClosure, label, "label"),
-		CLOSURE_FINISH_PARAM(BurleyBSSRDFClosure)
-	};
-	return params;
-}
-
-CCLOSURE_PREPARE(closure_bssrdf_burley_prepare, BurleyBSSRDFClosure)
-
-/* Disney principled */
-
-class PrincipledBSSRDFClosure : public CBSSRDFClosure {
-public:
-	void setup(ShaderData *sd, int path_flag, float3 weight)
-	{
-		alloc(sd, path_flag, weight, CLOSURE_BSSRDF_PRINCIPLED_ID);
-	}
-};
-
-ClosureParam *closure_bssrdf_principled_params()
-{
-	static ClosureParam params[] = {
-		CLOSURE_FLOAT3_PARAM(PrincipledBSSRDFClosure, params.N),
-		CLOSURE_FLOAT3_PARAM(PrincipledBSSRDFClosure, radius),
-		CLOSURE_FLOAT_PARAM(PrincipledBSSRDFClosure, params.texture_blur),
-		CLOSURE_FLOAT3_PARAM(PrincipledBSSRDFClosure, albedo),
-		CLOSURE_FLOAT_PARAM(PrincipledBSSRDFClosure, params.roughness),
-		CLOSURE_STRING_KEYPARAM(PrincipledBSSRDFClosure, label, "label"),
-		CLOSURE_FINISH_PARAM(PrincipledBSSRDFClosure)
-	};
-	return params;
-}
-
-CCLOSURE_PREPARE(closure_bssrdf_principled_prepare, PrincipledBSSRDFClosure)
+CCLOSURE_PREPARE(closure_bssrdf_prepare, CBSSRDFClosure)
 
 CCL_NAMESPACE_END
 

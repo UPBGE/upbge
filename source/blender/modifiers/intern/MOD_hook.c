@@ -62,17 +62,10 @@ static void initData(ModifierData *md)
 	hmd->flag = 0;
 }
 
-static void copyData(ModifierData *md, ModifierData *target)
+static void copyData(const ModifierData *md, ModifierData *target)
 {
-	HookModifierData *hmd = (HookModifierData *) md;
+	const HookModifierData *hmd = (const HookModifierData *) md;
 	HookModifierData *thmd = (HookModifierData *) target;
-
-	if (thmd->curfalloff != NULL) {
-		curvemapping_free(thmd->curfalloff);
-	}
-	if (thmd->indexar != NULL) {
-		MEM_freeN(thmd->indexar);
-	}
 
 	modifier_copyData_generic(md, target);
 
@@ -99,7 +92,7 @@ static void freeData(ModifierData *md)
 
 	curvemapping_free(hmd->curfalloff);
 
-	if (hmd->indexar) MEM_freeN(hmd->indexar);
+	MEM_SAFE_FREE(hmd->indexar);
 }
 
 static bool isDisabled(ModifierData *md, int UNUSED(useRenderParams))
@@ -118,39 +111,31 @@ static void foreachObjectLink(
 	walk(userData, ob, &hmd->object, IDWALK_CB_NOP);
 }
 
-static void updateDepgraph(ModifierData *md, DagForest *forest,
-                           struct Main *UNUSED(bmain),
-                           struct Scene *UNUSED(scene),
-                           Object *UNUSED(ob),
-                           DagNode *obNode)
+static void updateDepgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
 	HookModifierData *hmd = (HookModifierData *) md;
 
 	if (hmd->object) {
-		DagNode *curNode = dag_get_node(forest, hmd->object);
+		DagNode *curNode = dag_get_node(ctx->forest, hmd->object);
 		
 		if (hmd->subtarget[0])
-			dag_add_relation(forest, curNode, obNode, DAG_RL_OB_DATA | DAG_RL_DATA_DATA, "Hook Modifier");
+			dag_add_relation(ctx->forest, curNode, ctx->obNode, DAG_RL_OB_DATA | DAG_RL_DATA_DATA, "Hook Modifier");
 		else
-			dag_add_relation(forest, curNode, obNode, DAG_RL_OB_DATA, "Hook Modifier");
+			dag_add_relation(ctx->forest, curNode, ctx->obNode, DAG_RL_OB_DATA, "Hook Modifier");
 	}
 }
 
-static void updateDepsgraph(ModifierData *md,
-                            struct Main *UNUSED(bmain),
-                            struct Scene *UNUSED(scene),
-                            Object *ob,
-                            struct DepsNodeHandle *node)
+static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
 	HookModifierData *hmd = (HookModifierData *)md;
 	if (hmd->object != NULL) {
 		if (hmd->subtarget[0]) {
-			DEG_add_bone_relation(node, hmd->object, hmd->subtarget, DEG_OB_COMP_BONE, "Hook Modifier");
+			DEG_add_bone_relation(ctx->node, hmd->object, hmd->subtarget, DEG_OB_COMP_BONE, "Hook Modifier");
 		}
-		DEG_add_object_relation(node, hmd->object, DEG_OB_COMP_TRANSFORM, "Hook Modifier");
+		DEG_add_object_relation(ctx->node, hmd->object, DEG_OB_COMP_TRANSFORM, "Hook Modifier");
 	}
 	/* We need own transformation as well. */
-	DEG_add_object_relation(node, ob, DEG_OB_COMP_TRANSFORM, "Hook Modifier");
+	DEG_add_object_relation(ctx->node, ctx->object, DEG_OB_COMP_TRANSFORM, "Hook Modifier");
 }
 
 struct HookData_cb {
@@ -279,8 +264,9 @@ static void hook_co_apply(struct HookData_cb *hd, const int j)
 	}
 }
 
-static void deformVerts_do(HookModifierData *hmd, Object *ob, DerivedMesh *dm,
-                           float (*vertexCos)[3], int numVerts)
+static void deformVerts_do(
+        HookModifierData *hmd, Object *ob, DerivedMesh *dm,
+        float (*vertexCos)[3], int numVerts)
 {
 	bPoseChannel *pchan = BKE_pose_channel_find_name(hmd->object->pose, hmd->subtarget);
 	float dmat[4][4];
@@ -376,9 +362,10 @@ static void deformVerts_do(HookModifierData *hmd, Object *ob, DerivedMesh *dm,
 	}
 }
 
-static void deformVerts(ModifierData *md, Object *ob, DerivedMesh *derivedData,
-                        float (*vertexCos)[3], int numVerts,
-                        ModifierApplyFlag UNUSED(flag))
+static void deformVerts(
+        ModifierData *md, Object *ob, DerivedMesh *derivedData,
+        float (*vertexCos)[3], int numVerts,
+        ModifierApplyFlag UNUSED(flag))
 {
 	HookModifierData *hmd = (HookModifierData *) md;
 	DerivedMesh *dm = derivedData;
@@ -392,8 +379,9 @@ static void deformVerts(ModifierData *md, Object *ob, DerivedMesh *derivedData,
 		dm->release(dm);
 }
 
-static void deformVertsEM(ModifierData *md, Object *ob, struct BMEditMesh *editData,
-                          DerivedMesh *derivedData, float (*vertexCos)[3], int numVerts)
+static void deformVertsEM(
+        ModifierData *md, Object *ob, struct BMEditMesh *editData,
+        DerivedMesh *derivedData, float (*vertexCos)[3], int numVerts)
 {
 	HookModifierData *hmd = (HookModifierData *) md;
 	DerivedMesh *dm = derivedData;

@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -17,7 +17,7 @@
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
- * 
+ *
  * Contributor(s): Blender Foundation.
  *
  * ***** END GPL LICENSE BLOCK *****
@@ -51,33 +51,33 @@ typedef struct GlyphCacheBLF {
 	unsigned int *textures;
 
 	/* size of the array. */
-	unsigned int ntex;
+	unsigned int textures_len;
 
 	/* and the last texture, aka. the current texture. */
-	unsigned int cur_tex;
+	unsigned int texture_current;
 
 	/* like bftgl, we draw every glyph in a big texture, so this is the
 	 * current position inside the texture.
 	 */
-	int x_offs;
-	int y_offs;
+	int offset_x;
+	int offset_y;
 
 	/* and the space from one to other. */
 	int pad;
 
 	/* and the bigger glyph in the font. */
-	int max_glyph_width;
-	int max_glyph_height;
+	int glyph_width_max;
+	int glyph_height_max;
 
 	/* next two integer power of two, to build the texture. */
 	int p2_width;
 	int p2_height;
 
 	/* number of glyphs in the font. */
-	int num_glyphs;
+	int glyphs_len_max;
 
-	/* number of glyphs that we load here. */
-	int rem_glyphs;
+	/* number of glyphs not yet loaded (decreases every glyph loaded). */
+	int glyphs_len_free;
 
 	/* ascender and descender value. */
 	float ascender;
@@ -106,8 +106,8 @@ typedef struct GlyphBLF {
 	unsigned int tex;
 
 	/* position inside the texture where this glyph is store. */
-	int xoff;
-	int yoff;
+	int offset_x;
+	int offset_y;
 
 	/* Bitmap data, from freetype. Take care that this
 	 * can be NULL.
@@ -130,7 +130,7 @@ typedef struct GlyphBLF {
 	float pos_y;
 
 	/* with value of zero mean that we need build the texture. */
-	short build_tex;
+	char build_tex;
 } GlyphBLF;
 
 typedef struct FontBufInfoBLF {
@@ -174,7 +174,7 @@ typedef struct FontBLF {
 
 	/* angle in radians. */
 	float angle;
-	
+
 	/* blur: 3 or 5 large kernel */
 	int blur;
 
@@ -209,7 +209,7 @@ typedef struct FontBLF {
 	unsigned int size;
 
 	/* max texture size. */
-	int max_tex_size;
+	int tex_size_max;
 
 	/* cache current OpenGL texture to save calls into the API */
 	unsigned int tex_bind_state;
@@ -244,6 +244,6 @@ typedef struct DirBLF {
 	char *path;
 } DirBLF;
 
-#define BLF_CURTEX_UNSET ((unsigned int)-1)
+#define BLF_TEXTURE_UNSET ((unsigned int)-1)
 
 #endif /* __BLF_INTERNAL_TYPES_H__ */

@@ -18,6 +18,7 @@
 
 shader node_particle_info(
     output float Index = 0.0,
+    output float Random = 0.0,
     output float Age = 0.0,
     output float Lifetime = 0.0,
     output point Location = point(0.0, 0.0, 0.0),
@@ -26,6 +27,7 @@ shader node_particle_info(
     output vector AngularVelocity = point(0.0, 0.0, 0.0))
 {
 	getattribute("particle:index", Index);
+	getattribute("particle:random", Random);
 	getattribute("particle:age", Age);
 	getattribute("particle:lifetime", Lifetime);
 	getattribute("particle:location", Location);

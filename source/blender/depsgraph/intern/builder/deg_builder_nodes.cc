@@ -114,39 +114,6 @@ extern "C" {
 
 namespace DEG {
 
-namespace {
-
-struct BuilderWalkUserData {
-	DepsgraphNodeBuilder *builder;
-};
-
-static void modifier_walk(void *user_data,
-                          struct Object * /*object*/,
-                          struct Object **obpoin,
-                          int /*cb_flag*/)
-{
-	BuilderWalkUserData *data = (BuilderWalkUserData *)user_data;
-	if (*obpoin) {
-		data->builder->build_object(NULL, *obpoin);
-	}
-}
-
-void constraint_walk(bConstraint * /*con*/,
-                     ID **idpoin,
-                     bool /*is_reference*/,
-                     void *user_data)
-{
-	BuilderWalkUserData *data = (BuilderWalkUserData *)user_data;
-	if (*idpoin) {
-		ID *id = *idpoin;
-		if (GS(id->name) == ID_OB) {
-			data->builder->build_object(NULL, (Object *)id);
-		}
-	}
-}
-
-}  /* namespace */
-
 /* ************ */
 /* Node Builder */
 
@@ -239,6 +206,22 @@ OperationDepsNode *DepsgraphNodeBuilder::add_operation_node(
 	                          name_tag);
 }
 
+OperationDepsNode *DepsgraphNodeBuilder::ensure_operation_node(
+        ID *id,
+        eDepsNode_Type comp_type,
+        const DepsEvalOperationCb& op,
+        eDepsOperation_Code opcode,
+        const char *name,
+        int name_tag)
+{
+	OperationDepsNode *operation =
+	        find_operation_node(id, comp_type, opcode, name, name_tag);
+	if (operation != NULL) {
+		return operation;
+	}
+	return add_operation_node(id, comp_type, op, opcode, name, name_tag);
+}
+
 bool DepsgraphNodeBuilder::has_operation_node(ID *id,
                                               eDepsNode_Type comp_type,
                                               const char *comp_name,
@@ -279,40 +262,62 @@ OperationDepsNode *DepsgraphNodeBuilder::find_operation_node(
 /* **** Build functions for entity nodes **** */
 
 void DepsgraphNodeBuilder::begin_build() {
-	/* LIB_TAG_DOIT is used to indicate whether node for given ID was already
-	 * created or not. This flag is being set in add_id_node(), so functions
-	 * shouldn't bother with setting it, they only might query this flag when
-	 * needed.
-	 */
-	BKE_main_id_tag_all(bmain_, LIB_TAG_DOIT, false);
-	/* XXX nested node trees are not included in tag-clearing above,
-	 * so we need to do this manually.
-	 */
-	FOREACH_NODETREE(bmain_, nodetree, id)
-	{
-		if (id != (ID *)nodetree) {
-			nodetree->id.tag &= ~LIB_TAG_DOIT;
-		}
+}
+
+void DepsgraphNodeBuilder::build_id(ID* id) {
+	if (id == NULL) {
+		return;
 	}
-	FOREACH_NODETREE_END;
+	switch (GS(id->name)) {
+		case ID_SCE:
+			build_scene((Scene *)id);
+			break;
+		case ID_GR:
+			build_group(NULL, (Group *)id);
+			break;
+		case ID_OB:
+			build_object(NULL, (Object *)id);
+			break;
+		case ID_NT:
+			build_nodetree((bNodeTree *)id);
+			break;
+		case ID_MA:
+			build_material((Material *)id);
+			break;
+		case ID_TE:
+			build_texture((Tex *)id);
+			break;
+		case ID_IM:
+			build_image((Image *)id);
+			break;
+		case ID_WO:
+			build_world((World *)id);
+			break;
+		case ID_MSK:
+			build_mask((Mask *)id);
+			break;
+		case ID_MC:
+			build_movieclip((MovieClip *)id);
+			break;
+		default:
+			/* fprintf(stderr, "Unhandled ID %s\n", id->name); */
+			break;
+	}
 }
 
 void DepsgraphNodeBuilder::build_group(Base *base, Group *group)
 {
-	ID *group_id = &group->id;
-	if (group_id->tag & LIB_TAG_DOIT) {
+	if (built_map_.checkIsBuiltAndTag(group)) {
 		return;
 	}
-	group_id->tag |= LIB_TAG_DOIT;
-
-	LINKLIST_FOREACH (GroupObject *, go, &group->gobject) {
+	LISTBASE_FOREACH (GroupObject *, go, &group->gobject) {
 		build_object(base, go->ob);
 	}
 }
 
 void DepsgraphNodeBuilder::build_object(Base *base, Object *object)
 {
-	const bool has_object = (object->id.tag & LIB_TAG_DOIT);
+	const bool has_object = built_map_.checkIsBuiltAndTag(object);
 	IDDepsNode *id_node = (has_object)
 	        ? graph_->find_id_node(&object->id)
 	        : add_id_node(&object->id);
@@ -334,7 +339,6 @@ void DepsgraphNodeBuilder::build_object(Base *base, Object *object)
 	if (has_object) {
 		return;
 	}
-	object->id.tag |= LIB_TAG_DOIT;
 	object->customdata_mask = 0;
 	/* Transform. */
 	build_object_transform(object);
@@ -346,7 +350,7 @@ void DepsgraphNodeBuilder::build_object(Base *base, Object *object)
 	if (object->modifiers.first != NULL) {
 		BuilderWalkUserData data;
 		data.builder = this;
-		modifiers_foreachObjectLink(object, modifier_walk, &data);
+		modifiers_foreachIDLink(object, modifier_walk, &data);
 	}
 	/* Constraints. */
 	if (object->constraints.first != NULL) {
@@ -362,6 +366,11 @@ void DepsgraphNodeBuilder::build_object(Base *base, Object *object)
 	 * on object's level animation, for example in case of rebuilding
 	 * pose for proxy.
 	 */
+	OperationDepsNode *op_node = add_operation_node(&object->id,
+	                                                DEG_NODE_TYPE_PARAMETERS,
+	                                                NULL,
+	                                                DEG_OPCODE_PARAMETERS_EVAL);
+	op_node->set_as_exit();
 	build_animdata(&object->id);
 	/* Particle systems. */
 	if (object->particlesystem.first != NULL) {
@@ -424,7 +433,7 @@ void DepsgraphNodeBuilder::build_object_data(Object *object)
 		default:
 		{
 			ID *obdata = (ID *)object->data;
-			if ((obdata->tag & LIB_TAG_DOIT) == 0) {
+			if (built_map_.checkIsBuilt(obdata) == 0) {
 				build_animdata(obdata);
 			}
 			break;
@@ -524,7 +533,7 @@ void DepsgraphNodeBuilder::build_animdata(ID *id)
 		}
 
 		/* drivers */
-		LINKLIST_FOREACH (FCurve *, fcu, &adt->drivers) {
+		LISTBASE_FOREACH (FCurve *, fcu, &adt->drivers) {
 			/* create driver */
 			build_driver(id, fcu);
 		}
@@ -536,51 +545,72 @@ void DepsgraphNodeBuilder::build_animdata(ID *id)
  * \param id: ID-Block that driver is attached to
  * \param fcu: Driver-FCurve
  */
-OperationDepsNode *DepsgraphNodeBuilder::build_driver(ID *id, FCurve *fcu)
+void DepsgraphNodeBuilder::build_driver(ID *id, FCurve *fcurve)
 {
 	/* Create data node for this driver */
-	/* TODO(sergey): Avoid creating same operation multiple times,
-	 * in the future we need to avoid lookup of the operation as well
-	 * and use some tagging magic instead.
-	 */
-	OperationDepsNode *driver_op = find_operation_node(id,
-	                                                   DEG_NODE_TYPE_PARAMETERS,
-	                                                   DEG_OPCODE_DRIVER,
-	                                                   fcu->rna_path ? fcu->rna_path : "",
-	                                                   fcu->array_index);
+	ensure_operation_node(id,
+	                      DEG_NODE_TYPE_PARAMETERS,
+	                      function_bind(BKE_animsys_eval_driver, _1, id, fcurve),
+	                      DEG_OPCODE_DRIVER,
+	                      fcurve->rna_path ? fcurve->rna_path : "",
+	                      fcurve->array_index);
+	build_driver_variables(id, fcurve);
+}
 
-	if (driver_op == NULL) {
-		driver_op = add_operation_node(id,
-		                               DEG_NODE_TYPE_PARAMETERS,
-		                               function_bind(BKE_animsys_eval_driver, _1, id, fcu),
-		                               DEG_OPCODE_DRIVER,
-		                               fcu->rna_path ? fcu->rna_path : "",
-		                               fcu->array_index);
+void DepsgraphNodeBuilder::build_driver_variables(ID * id, FCurve *fcurve)
+{
+	build_driver_id_property(id, fcurve->rna_path);
+	LISTBASE_FOREACH (DriverVar *, dvar, &fcurve->driver->variables) {
+		DRIVER_TARGETS_USED_LOOPER(dvar)
+		{
+			build_id(dtar->id);
+			build_driver_id_property(dtar->id, dtar->rna_path);
+		}
+		DRIVER_TARGETS_LOOPER_END
 	}
+}
 
-	/* return driver node created */
-	return driver_op;
+void DepsgraphNodeBuilder::build_driver_id_property(ID *id,
+                                                    const char *rna_path)
+{
+	if (id == NULL || rna_path == NULL) {
+		return;
+	}
+	PointerRNA id_ptr, ptr;
+	PropertyRNA *prop;
+	RNA_id_pointer_create(id, &id_ptr);
+	if (!RNA_path_resolve_full(&id_ptr, rna_path, &ptr, &prop, NULL)) {
+		return;
+	}
+	if (prop == NULL) {
+		return;
+	}
+	if (!RNA_property_is_idprop(prop)) {
+		return;
+	}
+	const char *prop_identifier = RNA_property_identifier((PropertyRNA *)prop);
+	ensure_operation_node(id,
+	                      DEG_NODE_TYPE_PARAMETERS,
+	                      NULL,
+	                      DEG_OPCODE_ID_PROPERTY,
+	                      prop_identifier);
 }
 
 /* Recursively build graph for world */
 void DepsgraphNodeBuilder::build_world(World *world)
 {
-	ID *world_id = &world->id;
-	if (world_id->tag & LIB_TAG_DOIT) {
+	if (built_map_.checkIsBuiltAndTag(world)) {
 		return;
 	}
-
+	ID *world_id = &world->id;
 	build_animdata(world_id);
-
 	/* world itself */
 	add_operation_node(world_id,
 	                   DEG_NODE_TYPE_PARAMETERS,
 	                   NULL,
 	                   DEG_OPCODE_PARAMETERS_EVAL);
-
 	/* textures */
 	build_texture_stack(world->mtex);
-
 	/* world's nodetree */
 	if (world->nodetree) {
 		build_nodetree(world->nodetree);
@@ -630,7 +660,7 @@ void DepsgraphNodeBuilder::build_rigidbody(Scene *scene)
 
 	/* objects - simulation participants */
 	if (rbw->group) {
-		LINKLIST_FOREACH (GroupObject *, go, &rbw->group->gobject) {
+		LISTBASE_FOREACH (GroupObject *, go, &rbw->group->gobject) {
 			Object *object = go->ob;
 
 			if (!object || (object->type != OB_MESH))
@@ -661,32 +691,40 @@ void DepsgraphNodeBuilder::build_particles(Object *object)
 	 *     blackbox evaluation step for one particle system referenced by
 	 *     the particle systems stack. All dependencies link to this operation.
 	 */
-
-	/* component for all particle systems */
+	/* Component for all particle systems. */
 	ComponentDepsNode *psys_comp =
 	        add_component_node(&object->id, DEG_NODE_TYPE_EVAL_PARTICLES);
-
 	add_operation_node(psys_comp,
 	                   function_bind(BKE_particle_system_eval_init,
 	                                 _1,
 	                                 scene_,
 	                                 object),
 	                   DEG_OPCODE_PARTICLE_SYSTEM_EVAL_INIT);
-
-	/* particle systems */
-	LINKLIST_FOREACH (ParticleSystem *, psys, &object->particlesystem) {
+	/* Build all particle systems. */
+	LISTBASE_FOREACH (ParticleSystem *, psys, &object->particlesystem) {
 		ParticleSettings *part = psys->part;
-
-		/* particle settings */
+		/* Particle settings. */
 		// XXX: what if this is used more than once!
 		build_animdata(&part->id);
-
-		/* this particle system */
+		/* This particle system evaluation. */
 		// TODO: for now, this will just be a placeholder "ubereval" node
 		add_operation_node(psys_comp,
 		                   NULL,
 		                   DEG_OPCODE_PARTICLE_SYSTEM_EVAL,
 		                   psys->name);
+		/* Visualization of particle system. */
+		switch (part->ren_as) {
+			case PART_DRAW_OB:
+				if (part->dup_ob != NULL) {
+					build_object(NULL, part->dup_ob);
+				}
+				break;
+			case PART_DRAW_GR:
+				if (part->dup_group != NULL) {
+					build_group(NULL, part->dup_group);
+				}
+				break;
+		}
 	}
 
 	/* pointcache */
@@ -721,17 +759,6 @@ void DepsgraphNodeBuilder::build_obdata_geom(Object *object)
 	ID *obdata = (ID *)object->data;
 	OperationDepsNode *op_node;
 
-	/* TODO(sergey): This way using this object's properties as driver target
-	 * works fine.
-	 *
-	 * Does this depend on other nodes?
-	 */
-	op_node = add_operation_node(&object->id,
-	                             DEG_NODE_TYPE_PARAMETERS,
-	                             NULL,
-	                             DEG_OPCODE_PARAMETERS_EVAL);
-	op_node->set_as_exit();
-
 	/* Temporary uber-update node, which does everything.
 	 * It is for the being we're porting old dependencies into the new system.
 	 * We'll get rid of this node as soon as all the granular update functions
@@ -742,6 +769,7 @@ void DepsgraphNodeBuilder::build_obdata_geom(Object *object)
 	op_node = add_operation_node(&object->id,
 	                             DEG_NODE_TYPE_GEOMETRY,
 	                             function_bind(BKE_object_eval_uber_data,
+	                                           bmain_,
 	                                           _1,
 	                                           scene_,
 	                                           object),
@@ -757,8 +785,8 @@ void DepsgraphNodeBuilder::build_obdata_geom(Object *object)
 
 	// TODO: "Done" operation
 
-	/* Cloyth modifier. */
-	LINKLIST_FOREACH (ModifierData *, md, &object->modifiers) {
+	/* Cloth modifier. */
+	LISTBASE_FOREACH (ModifierData *, md, &object->modifiers) {
 		if (md->type == eModifierType_Cloth) {
 			build_cloth(object);
 		}
@@ -777,7 +805,7 @@ void DepsgraphNodeBuilder::build_obdata_geom(Object *object)
 		// add geometry collider relations
 	}
 
-	if (obdata->tag & LIB_TAG_DOIT) {
+	if (built_map_.checkIsBuiltAndTag(obdata)) {
 		return;
 	}
 
@@ -811,7 +839,7 @@ void DepsgraphNodeBuilder::build_obdata_geom(Object *object)
 
 		case OB_MBALL:
 		{
-			Object *mom = BKE_mball_basis_find(scene_, object);
+			Object *mom = BKE_mball_basis_find(bmain_, bmain_->eval_ctx, scene_, object);
 			/* NOTE: Only the motherball gets evaluated, it's children are
 			 * having empty placeholders for the correct relations being built.
 			 */
@@ -897,20 +925,16 @@ void DepsgraphNodeBuilder::build_obdata_geom(Object *object)
 void DepsgraphNodeBuilder::build_camera(Object *object)
 {
 	/* TODO: Link scene-camera links in somehow... */
-	Camera *cam = (Camera *)object->data;
-	ID *camera_id = &cam->id;
-	if (camera_id->tag & LIB_TAG_DOIT) {
+	Camera *camera = (Camera *)object->data;
+	if (built_map_.checkIsBuiltAndTag(camera)) {
 		return;
 	}
-
-	build_animdata(&cam->id);
-
-	add_operation_node(camera_id,
+	build_animdata(&camera->id);
+	add_operation_node(&camera->id,
 	                   DEG_NODE_TYPE_PARAMETERS,
 	                   NULL,
 	                   DEG_OPCODE_PARAMETERS_EVAL);
-
-	if (cam->dof_ob != NULL) {
+	if (camera->dof_ob != NULL) {
 		/* TODO(sergey): For now parametrs are on object level. */
 		add_operation_node(&object->id, DEG_NODE_TYPE_PARAMETERS, NULL,
 		                   DEG_OPCODE_PLACEHOLDER, "Camera DOF");
@@ -920,49 +944,42 @@ void DepsgraphNodeBuilder::build_camera(Object *object)
 /* Lamps */
 void DepsgraphNodeBuilder::build_lamp(Object *object)
 {
-	Lamp *la = (Lamp *)object->data;
-	ID *lamp_id = &la->id;
-	if (lamp_id->tag & LIB_TAG_DOIT) {
+	Lamp *lamp = (Lamp *)object->data;
+	if (built_map_.checkIsBuiltAndTag(lamp)) {
 		return;
 	}
-
-	build_animdata(&la->id);
-
+	build_animdata(&lamp->id);
 	/* TODO(sergey): Is it really how we're supposed to work with drivers? */
-	add_operation_node(lamp_id,
+	add_operation_node(&lamp->id,
 	                   DEG_NODE_TYPE_PARAMETERS,
 	                   NULL,
 	                   DEG_OPCODE_PARAMETERS_EVAL);
-
 	/* lamp's nodetree */
-	if (la->nodetree) {
-		build_nodetree(la->nodetree);
-	}
-
+	build_nodetree(lamp->nodetree);
 	/* textures */
-	build_texture_stack(la->mtex);
+	build_texture_stack(lamp->mtex);
 }
 
 void DepsgraphNodeBuilder::build_nodetree(bNodeTree *ntree)
 {
-	if (!ntree)
+	if (ntree == NULL) {
 		return;
+	}
+	if (built_map_.checkIsBuiltAndTag(ntree)) {
+		return;
+	}
 
 	/* nodetree itself */
-	ID *ntree_id = &ntree->id;
 	OperationDepsNode *op_node;
-
-	build_animdata(ntree_id);
-
+	build_animdata(&ntree->id);
 	/* Parameters for drivers. */
-	op_node = add_operation_node(ntree_id,
+	op_node = add_operation_node(&ntree->id,
 	                             DEG_NODE_TYPE_PARAMETERS,
 	                             NULL,
 	                             DEG_OPCODE_PARAMETERS_EVAL);
 	op_node->set_as_exit();
-
 	/* nodetree's nodes... */
-	LINKLIST_FOREACH (bNode *, bnode, &ntree->nodes) {
+	LISTBASE_FOREACH (bNode *, bnode, &ntree->nodes) {
 		ID *id = bnode->id;
 		if (id == NULL) {
 			continue;
@@ -990,9 +1007,7 @@ void DepsgraphNodeBuilder::build_nodetree(bNodeTree *ntree)
 		}
 		else if (bnode->type == NODE_GROUP) {
 			bNodeTree *group_ntree = (bNodeTree *)id;
-			if ((group_ntree->id.tag & LIB_TAG_DOIT) == 0) {
-				build_nodetree(group_ntree);
-			}
+			build_nodetree(group_ntree);
 		}
 		else {
 			BLI_assert(!"Unknown ID type used for node");
@@ -1003,24 +1018,20 @@ void DepsgraphNodeBuilder::build_nodetree(bNodeTree *ntree)
 }
 
 /* Recursively build graph for material */
-void DepsgraphNodeBuilder::build_material(Material *ma)
+void DepsgraphNodeBuilder::build_material(Material *material)
 {
-	ID *ma_id = &ma->id;
-	if (ma_id->tag & LIB_TAG_DOIT) {
+	if (built_map_.checkIsBuiltAndTag(material)) {
 		return;
 	}
-
-	add_operation_node(ma_id, DEG_NODE_TYPE_SHADING, NULL,
+	add_operation_node(&material->id, DEG_NODE_TYPE_SHADING, NULL,
 	                   DEG_OPCODE_PLACEHOLDER, "Material Update");
 
 	/* material animation */
-	build_animdata(ma_id);
-
+	build_animdata(&material->id);
 	/* textures */
-	build_texture_stack(ma->mtex);
-
+	build_texture_stack(material->mtex);
 	/* material's nodetree */
-	build_nodetree(ma->nodetree);
+	build_nodetree(material->nodetree);
 }
 
 /* Texture-stack attached to some shading datablock */
@@ -1037,33 +1048,34 @@ void DepsgraphNodeBuilder::build_texture_stack(MTex **texture_stack)
 }
 
 /* Recursively build graph for texture */
-void DepsgraphNodeBuilder::build_texture(Tex *tex)
+void DepsgraphNodeBuilder::build_texture(Tex *texture)
 {
-	ID *tex_id = &tex->id;
-	if (tex_id->tag & LIB_TAG_DOIT) {
+	if (built_map_.checkIsBuiltAndTag(texture)) {
 		return;
 	}
-	tex_id->tag |= LIB_TAG_DOIT;
 	/* Texture itself. */
-	build_animdata(tex_id);
+	build_animdata(&texture->id);
 	/* Texture's nodetree. */
-	build_nodetree(tex->nodetree);
+	build_nodetree(texture->nodetree);
 	/* Special cases for different IDs which texture uses. */
-	if (tex->type == TEX_IMAGE) {
-		if (tex->ima != NULL) {
-			build_image(tex->ima);
+	if (texture->type == TEX_IMAGE) {
+		if (texture->ima != NULL) {
+			build_image(texture->ima);
 		}
 	}
+	/* Placeholder so we can add relations and tag ID node for update. */
+	add_operation_node(&texture->id,
+	                   DEG_NODE_TYPE_PARAMETERS,
+	                   NULL,
+	                   DEG_OPCODE_PLACEHOLDER);
 }
 
 void DepsgraphNodeBuilder::build_image(Image *image) {
-	ID *image_id = &image->id;
-	if (image_id->tag & LIB_TAG_DOIT) {
+	if (built_map_.checkIsBuiltAndTag(image)) {
 		return;
 	}
-	image_id->tag |= LIB_TAG_DOIT;
 	/* Placeholder so we can add relations and tag ID node for update. */
-	add_operation_node(image_id,
+	add_operation_node(&image->id,
 	                   DEG_NODE_TYPE_PARAMETERS,
 	                   NULL,
 	                   DEG_OPCODE_PLACEHOLDER,
@@ -1133,5 +1145,51 @@ void DepsgraphNodeBuilder::build_movieclip(MovieClip *clip) {
 	                   function_bind(BKE_movieclip_eval_update, _1, clip),
 	                   DEG_OPCODE_MOVIECLIP_EVAL);
 }
+
+/* **** ID traversal callbacks functions **** */
+
+void DepsgraphNodeBuilder::modifier_walk(void *user_data,
+                                         struct Object * /*object*/,
+                                         struct ID **idpoin,
+                                         int /*cb_flag*/)
+{
+	BuilderWalkUserData *data = (BuilderWalkUserData *)user_data;
+	ID *id = *idpoin;
+	if (id == NULL) {
+		return;
+	}
+	switch (GS(id->name)) {
+		case ID_OB:
+			data->builder->build_object(NULL, (Object *)id);
+			break;
+		case ID_TE:
+			data->builder->build_texture((Tex *)id);
+			break;
+		default:
+			/* pass */
+			break;
+	}
+}
+
+void DepsgraphNodeBuilder::constraint_walk(bConstraint * /*con*/,
+                                           ID **idpoin,
+                                           bool /*is_reference*/,
+                                           void *user_data)
+{
+	BuilderWalkUserData *data = (BuilderWalkUserData *)user_data;
+	ID *id = *idpoin;
+	if (id == NULL) {
+		return;
+	}
+	switch (GS(id->name)) {
+		case ID_OB:
+			data->builder->build_object(NULL, (Object *)id);
+			break;
+		default:
+			/* pass */
+			break;
+	}
+}
+
 
 }  // namespace DEG

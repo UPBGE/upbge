@@ -76,6 +76,8 @@
 
 #include "atomic_ops.h"
 
+#include "DEG_depsgraph.h"
+
 /* ***************************************** */
 /* AnimData API */
 
@@ -138,7 +140,7 @@ AnimData *BKE_animdata_from_id(ID *id)
 
 /* Add AnimData to the given ID-block. In order for this to work, we assume that 
  * the AnimData pointer is stored immediately after the given ID-block in the struct,
- * as per IdAdtTemplate. Also note that 
+ * as per IdAdtTemplate. Also note that
  */
 AnimData *BKE_animdata_add_id(ID *id)
 {
@@ -243,7 +245,7 @@ void BKE_animdata_free(ID *id, const bool do_id_user)
 			}
 				
 			/* free nla data */
-			free_nladata(&adt->nla_tracks);
+			BKE_nla_tracks_free(&adt->nla_tracks);
 			
 			/* free drivers - stored as a list of F-Curves */
 			free_fcurves(&adt->drivers);
@@ -282,7 +284,7 @@ AnimData *BKE_animdata_copy(Main *bmain, AnimData *adt, const bool do_action)
 	}
 
 	/* duplicate NLA data */
-	copy_nladata(&dadt->nla_tracks, &adt->nla_tracks);
+	BKE_nla_tracks_copy(bmain, &dadt->nla_tracks, &adt->nla_tracks);
 	
 	/* duplicate drivers (F-Curves) */
 	copy_fcurves(&dadt->drivers, &adt->drivers);
@@ -312,25 +314,27 @@ bool BKE_animdata_copy_id(Main *bmain, ID *id_to, ID *id_from, const bool do_act
 	return true;
 }
 
-void BKE_animdata_copy_id_action(ID *id, const bool set_newid)
+void BKE_animdata_copy_id_action(Main *bmain, ID *id, const bool set_newid)
 {
 	AnimData *adt = BKE_animdata_from_id(id);
 	if (adt) {
 		if (adt->action) {
 			id_us_min((ID *)adt->action);
-			adt->action = set_newid ? ID_NEW_SET(adt->action, BKE_action_copy(G.main, adt->action)) :
-			                          BKE_action_copy(G.main, adt->action);
+			adt->action = set_newid ? ID_NEW_SET(adt->action, BKE_action_copy(bmain, adt->action)) :
+			                          BKE_action_copy(bmain, adt->action);
 		}
 		if (adt->tmpact) {
 			id_us_min((ID *)adt->tmpact);
-			adt->tmpact = set_newid ? ID_NEW_SET(adt->tmpact, BKE_action_copy(G.main, adt->tmpact)) :
-			                          BKE_action_copy(G.main, adt->tmpact);
+			adt->tmpact = set_newid ? ID_NEW_SET(adt->tmpact, BKE_action_copy(bmain, adt->tmpact)) :
+			                          BKE_action_copy(bmain, adt->tmpact);
 		}
 	}
 }
 
 /* Merge copies of the data from the src AnimData into the destination AnimData */
-void BKE_animdata_merge_copy(ID *dst_id, ID *src_id, eAnimData_MergeCopy_Modes action_mode, bool fix_drivers)
+void BKE_animdata_merge_copy(
+        Main *bmain, ID *dst_id, ID *src_id,
+        eAnimData_MergeCopy_Modes action_mode, bool fix_drivers)
 {
 	AnimData *src = BKE_animdata_from_id(src_id);
 	AnimData *dst = BKE_animdata_from_id(dst_id);
@@ -348,8 +352,8 @@ void BKE_animdata_merge_copy(ID *dst_id, ID *src_id, eAnimData_MergeCopy_Modes a
 	/* handle actions... */
 	if (action_mode == ADT_MERGECOPY_SRC_COPY) {
 		/* make a copy of the actions */
-		dst->action = BKE_action_copy(G.main, src->action);
-		dst->tmpact = BKE_action_copy(G.main, src->tmpact);
+		dst->action = BKE_action_copy(bmain, src->action);
+		dst->tmpact = BKE_action_copy(bmain, src->tmpact);
 	}
 	else if (action_mode == ADT_MERGECOPY_SRC_REF) {
 		/* make a reference to it */
@@ -364,7 +368,7 @@ void BKE_animdata_merge_copy(ID *dst_id, ID *src_id, eAnimData_MergeCopy_Modes a
 	if (src->nla_tracks.first) {
 		ListBase tracks = {NULL, NULL};
 		
-		copy_nladata(&tracks, &src->nla_tracks);
+		BKE_nla_tracks_copy(bmain, &tracks, &src->nla_tracks);
 		BLI_movelisttolist(&dst->nla_tracks, &tracks);
 	}
 	
@@ -416,8 +420,8 @@ static bool animpath_matches_basepath(const char path[], const char basepath[])
 }
 
 /* Move F-Curves in src action to dst action, setting up all the necessary groups 
- * for this to happen, but only if the F-Curves being moved have the appropriate 
- * "base path". 
+ * for this to happen, but only if the F-Curves being moved have the appropriate
+ * "base path".
  *	- This is used when data moves from one datablock to another, causing the
  *	  F-Curves to need to be moved over too
  */
@@ -501,7 +505,8 @@ void action_move_fcurves_by_basepath(bAction *srcAct, bAction *dstAct, const cha
  * animation data is based off "basepath", creating new AnimData and
  * associated data as necessary
  */
-void BKE_animdata_separate_by_basepath(ID *srcID, ID *dstID, ListBase *basepaths)
+void BKE_animdata_separate_by_basepath(
+        Main *bmain, ID *srcID, ID *dstID, ListBase *basepaths)
 {
 	AnimData *srcAdt = NULL, *dstAdt = NULL;
 	LinkData *ld;
@@ -527,7 +532,7 @@ void BKE_animdata_separate_by_basepath(ID *srcID, ID *dstID, ListBase *basepaths
 	if (srcAdt->action) {
 		/* set up an action if necessary, and name it in a similar way so that it can be easily found again */
 		if (dstAdt->action == NULL) {
-			dstAdt->action = add_empty_action(G.main, srcAdt->action->id.name + 2);
+			dstAdt->action = BKE_action_add(bmain, srcAdt->action->id.name + 2);
 		}
 		else if (dstAdt->action == srcAdt->action) {
 			printf("Argh! Source and Destination share animation! ('%s' and '%s' both use '%s') Making new empty action\n",
@@ -535,7 +540,7 @@ void BKE_animdata_separate_by_basepath(ID *srcID, ID *dstID, ListBase *basepaths
 			
 			/* TODO: review this... */
 			id_us_min(&dstAdt->action->id);
-			dstAdt->action = add_empty_action(G.main, dstAdt->action->id.name + 2);
+			dstAdt->action = BKE_action_add(bmain, dstAdt->action->id.name + 2);
 		}
 			
 		/* loop over base paths, trying to fix for each one... */
@@ -818,7 +823,7 @@ char *BKE_animsys_fix_rna_path_rename(ID *owner_id, char *old_path, const char *
 	
 	/* if no action, no need to proceed */
 	if (ELEM(NULL, owner_id, old_path)) {
-		printf("early abort\n");
+		if (G.debug & G_DEBUG) printf("%s: early abort\n", __func__);
 		return old_path;
 	}
 	
@@ -841,9 +846,9 @@ char *BKE_animsys_fix_rna_path_rename(ID *owner_id, char *old_path, const char *
 	}
 	
 	/* fix given path */
-	printf("%s | %s  | oldpath = %p ", oldN, newN, old_path);
+	if (G.debug & G_DEBUG) printf("%s | %s  | oldpath = %p ", oldN, newN, old_path);
 	result = rna_path_rename_fix(owner_id, prefix, oldN, newN, old_path, verify_paths);
-	printf("result = %p\n", result);
+	if (G.debug & G_DEBUG) printf("path rename result = %p\n", result);
 	
 	/* free the temp names */
 	MEM_freeN(oldN);
@@ -1072,20 +1077,20 @@ static void adt_apply_all_fcurves_cb(ID *id, AnimData *adt, void *wrapper_data)
 }
 
 /* apply the given callback function on all F-Curves attached to data in main database */
-void BKE_fcurves_main_cb(Main *mainptr, ID_FCurve_Edit_Callback func, void *user_data)
+void BKE_fcurves_main_cb(Main *bmain, ID_FCurve_Edit_Callback func, void *user_data)
 {
 	/* Wrap F-Curve operation stuff to pass to the general AnimData-level func */
 	AllFCurvesCbWrapper wrapper = {func, user_data};
 	
 	/* Use the AnimData-based function so that we don't have to reimplement all that stuff */
-	BKE_animdata_main_cb(mainptr, adt_apply_all_fcurves_cb, &wrapper);
+	BKE_animdata_main_cb(bmain, adt_apply_all_fcurves_cb, &wrapper);
 }
 
 
 /* Whole Database Ops -------------------------------------------- */
 
 /* apply the given callback function on all data in main database */
-void BKE_animdata_main_cb(Main *mainptr, ID_AnimData_Edit_Callback func, void *user_data)
+void BKE_animdata_main_cb(Main *bmain, ID_AnimData_Edit_Callback func, void *user_data)
 {
 	ID *id;
 
@@ -1109,67 +1114,67 @@ void BKE_animdata_main_cb(Main *mainptr, ID_AnimData_Edit_Callback func, void *u
 	} (void)0
 	
 	/* nodes */
-	ANIMDATA_IDS_CB(mainptr->nodetree.first);
+	ANIMDATA_IDS_CB(bmain->nodetree.first);
 	
 	/* textures */
-	ANIMDATA_NODETREE_IDS_CB(mainptr->tex.first, Tex);
+	ANIMDATA_NODETREE_IDS_CB(bmain->tex.first, Tex);
 	
 	/* lamps */
-	ANIMDATA_NODETREE_IDS_CB(mainptr->lamp.first, Lamp);
+	ANIMDATA_NODETREE_IDS_CB(bmain->lamp.first, Lamp);
 	
 	/* materials */
-	ANIMDATA_NODETREE_IDS_CB(mainptr->mat.first, Material);
+	ANIMDATA_NODETREE_IDS_CB(bmain->mat.first, Material);
 	
 	/* cameras */
-	ANIMDATA_IDS_CB(mainptr->camera.first);
+	ANIMDATA_IDS_CB(bmain->camera.first);
 	
 	/* shapekeys */
-	ANIMDATA_IDS_CB(mainptr->key.first);
+	ANIMDATA_IDS_CB(bmain->key.first);
 	
 	/* metaballs */
-	ANIMDATA_IDS_CB(mainptr->mball.first);
+	ANIMDATA_IDS_CB(bmain->mball.first);
 	
 	/* curves */
-	ANIMDATA_IDS_CB(mainptr->curve.first);
+	ANIMDATA_IDS_CB(bmain->curve.first);
 	
 	/* armatures */
-	ANIMDATA_IDS_CB(mainptr->armature.first);
+	ANIMDATA_IDS_CB(bmain->armature.first);
 	
 	/* lattices */
-	ANIMDATA_IDS_CB(mainptr->latt.first);
+	ANIMDATA_IDS_CB(bmain->latt.first);
 	
 	/* meshes */
-	ANIMDATA_IDS_CB(mainptr->mesh.first);
+	ANIMDATA_IDS_CB(bmain->mesh.first);
 	
 	/* particles */
-	ANIMDATA_IDS_CB(mainptr->particle.first);
+	ANIMDATA_IDS_CB(bmain->particle.first);
 
 	/* speakers */
-	ANIMDATA_IDS_CB(mainptr->speaker.first);
+	ANIMDATA_IDS_CB(bmain->speaker.first);
 
 	/* movie clips */
-	ANIMDATA_IDS_CB(mainptr->movieclip.first);
+	ANIMDATA_IDS_CB(bmain->movieclip.first);
 
 	/* objects */
-	ANIMDATA_IDS_CB(mainptr->object.first);
+	ANIMDATA_IDS_CB(bmain->object.first);
 
 	/* masks */
-	ANIMDATA_IDS_CB(mainptr->mask.first);
+	ANIMDATA_IDS_CB(bmain->mask.first);
 	
 	/* worlds */
-	ANIMDATA_NODETREE_IDS_CB(mainptr->world.first, World);
+	ANIMDATA_NODETREE_IDS_CB(bmain->world.first, World);
 
 	/* scenes */
-	ANIMDATA_NODETREE_IDS_CB(mainptr->scene.first, Scene);
+	ANIMDATA_NODETREE_IDS_CB(bmain->scene.first, Scene);
 
 	/* line styles */
-	ANIMDATA_IDS_CB(mainptr->linestyle.first);
+	ANIMDATA_IDS_CB(bmain->linestyle.first);
 	
 	/* grease pencil */
-	ANIMDATA_IDS_CB(mainptr->gpencil.first);
+	ANIMDATA_IDS_CB(bmain->gpencil.first);
 
 	/* cache files */
-	ANIMDATA_IDS_CB(mainptr->cachefiles.first);
+	ANIMDATA_IDS_CB(bmain->cachefiles.first);
 }
 
 /* Fix all RNA-Paths throughout the database (directly access the Global.main version)
@@ -1179,7 +1184,7 @@ void BKE_animdata_main_cb(Main *mainptr, ID_AnimData_Edit_Callback func, void *u
 /* TODO: use BKE_animdata_main_cb for looping over all data  */
 void BKE_animdata_fix_paths_rename_all(ID *ref_id, const char *prefix, const char *oldName, const char *newName)
 {
-	Main *mainptr = G.main;
+	Main *bmain = G.main;  /* XXX UGLY! */
 	ID *id;
 	
 	/* macro for less typing 
@@ -1205,67 +1210,67 @@ void BKE_animdata_fix_paths_rename_all(ID *ref_id, const char *prefix, const cha
 	} (void)0
 	
 	/* nodes */
-	RENAMEFIX_ANIM_IDS(mainptr->nodetree.first);
+	RENAMEFIX_ANIM_IDS(bmain->nodetree.first);
 	
 	/* textures */
-	RENAMEFIX_ANIM_NODETREE_IDS(mainptr->tex.first, Tex);
+	RENAMEFIX_ANIM_NODETREE_IDS(bmain->tex.first, Tex);
 	
 	/* lamps */
-	RENAMEFIX_ANIM_NODETREE_IDS(mainptr->lamp.first, Lamp);
+	RENAMEFIX_ANIM_NODETREE_IDS(bmain->lamp.first, Lamp);
 	
 	/* materials */
-	RENAMEFIX_ANIM_NODETREE_IDS(mainptr->mat.first, Material);
+	RENAMEFIX_ANIM_NODETREE_IDS(bmain->mat.first, Material);
 	
 	/* cameras */
-	RENAMEFIX_ANIM_IDS(mainptr->camera.first);
+	RENAMEFIX_ANIM_IDS(bmain->camera.first);
 	
 	/* shapekeys */
-	RENAMEFIX_ANIM_IDS(mainptr->key.first);
+	RENAMEFIX_ANIM_IDS(bmain->key.first);
 	
 	/* metaballs */
-	RENAMEFIX_ANIM_IDS(mainptr->mball.first);
+	RENAMEFIX_ANIM_IDS(bmain->mball.first);
 	
 	/* curves */
-	RENAMEFIX_ANIM_IDS(mainptr->curve.first);
+	RENAMEFIX_ANIM_IDS(bmain->curve.first);
 	
 	/* armatures */
-	RENAMEFIX_ANIM_IDS(mainptr->armature.first);
+	RENAMEFIX_ANIM_IDS(bmain->armature.first);
 	
 	/* lattices */
-	RENAMEFIX_ANIM_IDS(mainptr->latt.first);
+	RENAMEFIX_ANIM_IDS(bmain->latt.first);
 	
 	/* meshes */
-	RENAMEFIX_ANIM_IDS(mainptr->mesh.first);
+	RENAMEFIX_ANIM_IDS(bmain->mesh.first);
 	
 	/* particles */
-	RENAMEFIX_ANIM_IDS(mainptr->particle.first);
+	RENAMEFIX_ANIM_IDS(bmain->particle.first);
 
 	/* speakers */
-	RENAMEFIX_ANIM_IDS(mainptr->speaker.first);
+	RENAMEFIX_ANIM_IDS(bmain->speaker.first);
 
 	/* movie clips */
-	RENAMEFIX_ANIM_IDS(mainptr->movieclip.first);
+	RENAMEFIX_ANIM_IDS(bmain->movieclip.first);
 
 	/* objects */
-	RENAMEFIX_ANIM_IDS(mainptr->object.first); 
+	RENAMEFIX_ANIM_IDS(bmain->object.first);
 
 	/* masks */
-	RENAMEFIX_ANIM_IDS(mainptr->mask.first);
+	RENAMEFIX_ANIM_IDS(bmain->mask.first);
 	
 	/* worlds */
-	RENAMEFIX_ANIM_NODETREE_IDS(mainptr->world.first, World);
+	RENAMEFIX_ANIM_NODETREE_IDS(bmain->world.first, World);
 	
 	/* linestyles */
-	RENAMEFIX_ANIM_IDS(mainptr->linestyle.first);
+	RENAMEFIX_ANIM_IDS(bmain->linestyle.first);
 	
 	/* grease pencil */
-	RENAMEFIX_ANIM_IDS(mainptr->gpencil.first);
+	RENAMEFIX_ANIM_IDS(bmain->gpencil.first);
 
 	/* cache files */
-	RENAMEFIX_ANIM_IDS(mainptr->cachefiles.first);
+	RENAMEFIX_ANIM_IDS(bmain->cachefiles.first);
 	
 	/* scenes */
-	RENAMEFIX_ANIM_NODETREE_IDS(mainptr->scene.first, Scene);
+	RENAMEFIX_ANIM_NODETREE_IDS(bmain->scene.first, Scene);
 }
 
 /* *********************************** */ 
@@ -2631,7 +2636,7 @@ static void animsys_evaluate_nla(ListBase *echannels, PointerRNA *ptr, AnimData 
 }
 
 /* NLA Evaluation function (mostly for use through do_animdata) 
- *	- All channels that will be affected are not cleared anymore. Instead, we just evaluate into 
+ *	- All channels that will be affected are not cleared anymore. Instead, we just evaluate into
  *		some temp channels, where values can be accumulated in one go.
  */
 static void animsys_calculate_nla(PointerRNA *ptr, AnimData *adt, float ctime)
@@ -2685,7 +2690,7 @@ static void animsys_evaluate_overrides(PointerRNA *ptr, AnimData *adt)
 /* Evaluation System - Public API */
 
 /* Overview of how this system works:
- *	1) Depsgraph sorts data as necessary, so that data is in an order that means 
+ *	1) Depsgraph sorts data as necessary, so that data is in an order that means
  *		that all dependencies are resolved before dependents.
  *	2) All normal animation is evaluated, so that drivers have some basis values to
  *		work with
@@ -2693,33 +2698,33 @@ static void animsys_evaluate_overrides(PointerRNA *ptr, AnimData *adt)
  *			which modify the effects of the NLA-stacks
  *		b.	Active Action is evaluated as per normal, on top of the results of the NLA tracks
  *
- * --------------< often in a separate phase... >------------------ 
+ * --------------< often in a separate phase... >------------------
  *
  *	3) Drivers/expressions are evaluated on top of this, in an order where dependencies are
- *		resolved nicely. 
+ *		resolved nicely.
  *	   Note: it may be necessary to have some tools to handle the cases where some higher-level
  *		drivers are added and cause some problematic dependencies that didn't exist in the local levels...
  *
- * --------------< always executed >------------------ 
+ * --------------< always executed >------------------
  *
  * Maintenance of editability of settings (XXX):
  *	In order to ensure that settings that are animated can still be manipulated in the UI without requiring
- *	that keyframes are added to prevent these values from being overwritten, we use 'overrides'. 
+ *	that keyframes are added to prevent these values from being overwritten, we use 'overrides'.
  *
  * Unresolved things:
  *	- Handling of multi-user settings (i.e. time-offset, group-instancing) -> big cache grids or nodal system? but stored where?
- *	- Multiple-block dependencies (i.e. drivers for settings are in both local and higher levels) -> split into separate lists? 
+ *	- Multiple-block dependencies (i.e. drivers for settings are in both local and higher levels) -> split into separate lists?
  *
  * Current Status:
- *	- Currently (as of September 2009), overrides we haven't needed to (fully) implement overrides. 
+ *	- Currently (as of September 2009), overrides we haven't needed to (fully) implement overrides.
  *    However, the code for this is relatively harmless, so is left in the code for now.
  */
 
 /* Evaluation loop for evaluation animation data 
  *
  * This assumes that the animation-data provided belongs to the ID block in question,
- * and that the flags for which parts of the anim-data settings need to be recalculated 
- * have been set already by the depsgraph. Now, we use the recalc 
+ * and that the flags for which parts of the anim-data settings need to be recalculated
+ * have been set already by the depsgraph. Now, we use the recalc
  */
 void BKE_animsys_evaluate_animdata(Scene *scene, ID *id, AnimData *adt, float ctime, short recalc)
 {
@@ -2918,15 +2923,13 @@ void BKE_animsys_evaluate_all_animation(Main *main, Scene *scene, float ctime)
 /* ************** */
 /* Evaluation API */
 
-#define DEBUG_PRINT if (G.debug & G_DEBUG_DEPSGRAPH) printf
-
 void BKE_animsys_eval_animdata(EvaluationContext *eval_ctx, ID *id)
 {
 	AnimData *adt = BKE_animdata_from_id(id);
 	Scene *scene = NULL; /* XXX: this is only needed for flushing RNA updates,
-	                      * which should get handled as part of the graph instead...
+	                      * which should get handled as part of the dependency graph instead...
 	                      */
-	DEBUG_PRINT("%s on %s, time=%f\n\n", __func__, id->name, (double)eval_ctx->ctime);
+	DEG_debug_print_eval_time(__func__, id->name, id, eval_ctx->ctime);
 	BKE_animsys_evaluate_animdata(scene, id, adt, eval_ctx->ctime, ADT_RECALC_ANIM);
 }
 
@@ -2939,11 +2942,8 @@ void BKE_animsys_eval_driver(EvaluationContext *eval_ctx,
 	PointerRNA id_ptr;
 	bool ok = false;
 
-	DEBUG_PRINT("%s on %s (%s[%d])\n",
-	            __func__,
-	            id->name,
-	            fcu->rna_path,
-	            fcu->array_index);
+	DEG_debug_print_eval_subdata_index(
+	        __func__, id->name, id, "fcu", fcu->rna_path, fcu, fcu->array_index);
 
 	RNA_id_pointer_create(id, &id_ptr);
 
@@ -2976,5 +2976,3 @@ void BKE_animsys_eval_driver(EvaluationContext *eval_ctx,
 		}
 	}
 }
-
-#undef DEBUG_PRINT

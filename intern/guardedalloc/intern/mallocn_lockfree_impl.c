@@ -171,7 +171,7 @@ void *MEM_lockfree_dupallocN(const void *vmemh)
 	void *newp = NULL;
 	if (vmemh) {
 		MemHead *memh = MEMHEAD_FROM_PTR(vmemh);
-		const size_t prev_size = MEM_allocN_len(vmemh);
+		const size_t prev_size = MEM_lockfree_allocN_len(vmemh);
 		if (UNLIKELY(MEMHEAD_IS_MMAP(memh))) {
 			newp = MEM_lockfree_mapallocN(prev_size, "dupli_mapalloc");
 		}
@@ -196,7 +196,7 @@ void *MEM_lockfree_reallocN_id(void *vmemh, size_t len, const char *str)
 
 	if (vmemh) {
 		MemHead *memh = MEMHEAD_FROM_PTR(vmemh);
-		size_t old_len = MEM_allocN_len(vmemh);
+		size_t old_len = MEM_lockfree_allocN_len(vmemh);
 
 		if (LIKELY(!MEMHEAD_IS_ALIGNED(memh))) {
 			newp = MEM_lockfree_mallocN(len, "realloc");
@@ -204,9 +204,9 @@ void *MEM_lockfree_reallocN_id(void *vmemh, size_t len, const char *str)
 		else {
 			MemHeadAligned *memh_aligned = MEMHEAD_ALIGNED_FROM_PTR(vmemh);
 			newp = MEM_lockfree_mallocN_aligned(
-				old_len,
-				(size_t)memh_aligned->alignment,
-				"realloc");
+			        len,
+			        (size_t)memh_aligned->alignment,
+			        "realloc");
 		}
 
 		if (newp) {
@@ -235,16 +235,17 @@ void *MEM_lockfree_recallocN_id(void *vmemh, size_t len, const char *str)
 
 	if (vmemh) {
 		MemHead *memh = MEMHEAD_FROM_PTR(vmemh);
-		size_t old_len = MEM_allocN_len(vmemh);
+		size_t old_len = MEM_lockfree_allocN_len(vmemh);
 
 		if (LIKELY(!MEMHEAD_IS_ALIGNED(memh))) {
 			newp = MEM_lockfree_mallocN(len, "recalloc");
 		}
 		else {
 			MemHeadAligned *memh_aligned = MEMHEAD_ALIGNED_FROM_PTR(vmemh);
-			newp = MEM_lockfree_mallocN_aligned(old_len,
-			                                    (size_t)memh_aligned->alignment,
-			                                    "recalloc");
+			newp = MEM_lockfree_mallocN_aligned(
+			        len,
+			        (size_t)memh_aligned->alignment,
+			        "recalloc");
 		}
 
 		if (newp) {
@@ -293,6 +294,21 @@ void *MEM_lockfree_callocN(size_t len, const char *str)
 	return NULL;
 }
 
+void *MEM_lockfree_calloc_arrayN(size_t len, size_t size, const char *str)
+{
+	size_t total_size;
+	if (UNLIKELY(!MEM_size_safe_multiply(len, size, &total_size))) {
+		print_error("Calloc array aborted due to integer overflow: "
+		            "len=" SIZET_FORMAT "x" SIZET_FORMAT " in %s, total %u\n",
+		            SIZET_ARG(len), SIZET_ARG(size), str,
+		            (unsigned int) mem_in_use);
+		abort();
+		return NULL;
+	}
+
+	return MEM_lockfree_callocN(total_size, str);
+}
+
 void *MEM_lockfree_mallocN(size_t len, const char *str)
 {
 	MemHead *memh;
@@ -316,6 +332,21 @@ void *MEM_lockfree_mallocN(size_t len, const char *str)
 	print_error("Malloc returns null: len=" SIZET_FORMAT " in %s, total %u\n",
 	            SIZET_ARG(len), str, (unsigned int) mem_in_use);
 	return NULL;
+}
+
+void *MEM_lockfree_malloc_arrayN(size_t len, size_t size, const char *str)
+{
+	size_t total_size;
+	if (UNLIKELY(!MEM_size_safe_multiply(len, size, &total_size))) {
+		print_error("Malloc array aborted due to integer overflow: "
+		            "len=" SIZET_FORMAT "x" SIZET_FORMAT " in %s, total %u\n",
+		            SIZET_ARG(len), SIZET_ARG(size), str,
+		            (unsigned int) mem_in_use);
+		abort();
+		return NULL;
+	}
+
+	return MEM_lockfree_mallocN(total_size, str);
 }
 
 void *MEM_lockfree_mallocN_aligned(size_t len, size_t alignment, const char *str)
@@ -439,7 +470,7 @@ void MEM_lockfree_set_error_callback(void (*func)(const char *))
 	error_callback = func;
 }
 
-bool MEM_lockfree_check_memory_integrity(void)
+bool MEM_lockfree_consistency_check(void)
 {
 	return true;
 }

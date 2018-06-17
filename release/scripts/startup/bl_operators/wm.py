@@ -59,8 +59,8 @@ rna_relative_prop = BoolProperty(
 def context_path_validate(context, data_path):
     try:
         value = eval("context.%s" % data_path) if data_path else Ellipsis
-    except AttributeError as e:
-        if str(e).startswith("'NoneType'"):
+    except AttributeError as ex:
+        if str(ex).startswith("'NoneType'"):
             # One of the items in the rna path is None, just ignore this
             value = Ellipsis
         else:
@@ -159,11 +159,12 @@ class BRUSH_OT_active_index_set(Operator):
             description="Brush number",
             )
 
-    _attr_dict = {"sculpt": "use_paint_sculpt",
-                  "vertex_paint": "use_paint_vertex",
-                  "weight_paint": "use_paint_weight",
-                  "image_paint": "use_paint_image",
-                  }
+    _attr_dict = {
+        "sculpt": "use_paint_sculpt",
+        "vertex_paint": "use_paint_vertex",
+        "weight_paint": "use_paint_weight",
+        "image_paint": "use_paint_image",
+    }
 
     def execute(self, context):
         attr = self._attr_dict.get(self.mode)
@@ -906,6 +907,15 @@ class WM_OT_path_open(Operator):
 
 
 def _wm_doc_get_id(doc_id, do_url=True, url_prefix=""):
+
+    def operator_exists_pair(a, b):
+        # Not fast, this is only for docs.
+        return b in dir(getattr(bpy.ops, a))
+
+    def operator_exists_single(a):
+        a, b = a.partition("_OT_")[::2]
+        return operator_exists_pair(a.lower(), b)
+
     id_split = doc_id.split(".")
     url = rna = None
 
@@ -919,7 +929,18 @@ def _wm_doc_get_id(doc_id, do_url=True, url_prefix=""):
         class_name, class_prop = id_split
 
         # an operator (common case - just button referencing an op)
-        if hasattr(bpy.types, class_name.upper() + "_OT_" + class_prop):
+        if operator_exists_pair(class_name, class_prop):
+            if do_url:
+                url = (
+                    "%s/bpy.ops.%s.html#bpy.ops.%s.%s" %
+                    (url_prefix, class_name, class_name, class_prop)
+                )
+            else:
+                rna = "bpy.ops.%s.%s" % (class_name, class_prop)
+        elif operator_exists_single(class_name):
+            # note: ignore the prop name since we don't have a way to link into it
+            class_name, class_prop = class_name.split("_OT_", 1)
+            class_name = class_name.lower()
             if do_url:
                 url = (
                     "%s/bpy.ops.%s.html#bpy.ops.%s.%s" %
@@ -928,48 +949,31 @@ def _wm_doc_get_id(doc_id, do_url=True, url_prefix=""):
             else:
                 rna = "bpy.ops.%s.%s" % (class_name, class_prop)
         else:
+            # an RNA setting, common case
             rna_class = getattr(bpy.types, class_name)
 
-            # an operator setting (selected from a running operator), rare case
-            # note: Py defined operators are subclass of Operator,
-            #       C defined operators are subclass of OperatorProperties.
-            #       we may need to check on this at some point.
-            if issubclass(rna_class, (bpy.types.Operator, bpy.types.OperatorProperties)):
-                # note: ignore the prop name since we don't have a way to link into it
-                class_name, class_prop = class_name.split("_OT_", 1)
-                class_name = class_name.lower()
+            # detect if this is a inherited member and use that name instead
+            rna_parent = rna_class.bl_rna
+            rna_prop = rna_parent.properties.get(class_prop)
+            if rna_prop:
+                rna_parent = rna_parent.base
+                while rna_parent and rna_prop == rna_parent.properties.get(class_prop):
+                    class_name = rna_parent.identifier
+                    rna_parent = rna_parent.base
+
                 if do_url:
                     url = (
-                        "%s/bpy.ops.%s.html#bpy.ops.%s.%s" %
+                        "%s/bpy.types.%s.html#bpy.types.%s.%s" %
                         (url_prefix, class_name, class_name, class_prop)
                     )
                 else:
-                    rna = "bpy.ops.%s.%s" % (class_name, class_prop)
+                    rna = "bpy.types.%s.%s" % (class_name, class_prop)
             else:
-                # an RNA setting, common case
-
-                # detect if this is a inherited member and use that name instead
-                rna_parent = rna_class.bl_rna
-                rna_prop = rna_parent.properties.get(class_prop)
-                if rna_prop:
-                    rna_parent = rna_parent.base
-                    while rna_parent and rna_prop == rna_parent.properties.get(class_prop):
-                        class_name = rna_parent.identifier
-                        rna_parent = rna_parent.base
-
-                    if do_url:
-                        url = (
-                            "%s/bpy.types.%s.html#bpy.types.%s.%s" %
-                            (url_prefix, class_name, class_name, class_prop)
-                        )
-                    else:
-                        rna = "bpy.types.%s.%s" % (class_name, class_prop)
+                # We assume this is custom property, only try to generate generic url/rna_id...
+                if do_url:
+                    url = ("%s/bpy.types.bpy_struct.html#bpy.types.bpy_struct.items" % (url_prefix,))
                 else:
-                    # We assume this is custom property, only try to generate generic url/rna_id...
-                    if do_url:
-                        url = ("%s/bpy.types.bpy_struct.html#bpy.types.bpy_struct.items" % (url_prefix,))
-                    else:
-                        rna = "bpy.types.bpy_struct"
+                    rna = "bpy.types.bpy_struct"
 
     return url if do_url else rna
 
@@ -985,9 +989,12 @@ class WM_OT_doc_view_manual(Operator):
     def _find_reference(rna_id, url_mapping, verbose=True):
         if verbose:
             print("online manual check for: '%s'... " % rna_id)
-        from fnmatch import fnmatch
+        from fnmatch import fnmatchcase
+        # XXX, for some reason all RNA ID's are stored lowercase
+        # Adding case into all ID's isn't worth the hassle so force lowercase.
+        rna_id = rna_id.lower()
         for pattern, url_suffix in url_mapping:
-            if fnmatch(rna_id, pattern):
+            if fnmatchcase(rna_id, pattern):
                 if verbose:
                     print("            match found: '%s' --> '%s'" % (pattern, url_suffix))
                 return url_suffix
@@ -1012,11 +1019,12 @@ class WM_OT_doc_view_manual(Operator):
 
         if url is None:
             self.report(
-                    {'WARNING'},
-                    "No reference available %r, "
-                    "Update info in 'rna_manual_reference.py' "
-                    "or callback to bpy.utils.manual_map()" %
-                    self.doc_id)
+                {'WARNING'},
+                "No reference available %r, "
+                "Update info in 'rna_manual_reference.py' "
+                "or callback to bpy.utils.manual_map()" %
+                self.doc_id
+            )
             return {'CANCELLED'}
         else:
             import webbrowser
@@ -1106,7 +1114,7 @@ class WM_OT_properties_edit(Operator):
             "use_soft_limits": self.use_soft_limits,
             "soft_range": (self.soft_min, self.soft_max),
             "hard_range": (self.min, self.max),
-            }
+        }
 
     def execute(self, context):
         from rna_prop_ui import (
@@ -1227,8 +1235,9 @@ class WM_OT_properties_edit(Operator):
             self.soft_min = prop_ui.get("soft_min", self.min)
             self.soft_max = prop_ui.get("soft_max", self.max)
             self.use_soft_limits = (
-                    self.min != self.soft_min or
-                    self.max != self.soft_max)
+                self.min != self.soft_min or
+                self.max != self.soft_max
+            )
 
         # store for comparison
         self._cmp_props = self._cmp_props_get()
@@ -1597,8 +1606,8 @@ class WM_OT_keyconfig_import(Operator):
                 shutil.copy(self.filepath, path)
             else:
                 shutil.move(self.filepath, path)
-        except Exception as e:
-            self.report({'ERROR'}, "Installing keymap failed: %s" % e)
+        except Exception as ex:
+            self.report({'ERROR'}, "Installing keymap failed: %s" % ex)
             return {'CANCELLED'}
 
         # sneaky way to check we're actually running the code.
@@ -1832,12 +1841,14 @@ class WM_OT_addon_enable(Operator):
             info_ver = info.get("blender", (0, 0, 0))
 
             if info_ver > bpy.app.version:
-                self.report({'WARNING'},
-                            ("This script was written Blender "
-                             "version %d.%d.%d and might not "
-                             "function (correctly), "
-                             "though it is enabled" %
-                             info_ver))
+                self.report(
+                    {'WARNING'},
+                    "This script was written Blender "
+                    "version %d.%d.%d and might not "
+                    "function (correctly), "
+                    "though it is enabled" %
+                    info_ver
+                )
             return {'FINISHED'}
         else:
 
@@ -2212,7 +2223,7 @@ class WM_OT_addon_userpref_show(Operator):
             info = addon_utils.module_bl_info(mod)
             info["show_expanded"] = True
 
-            bpy.context.user_preferences.active_section = 'ADDONS'
+            context.user_preferences.active_section = 'ADDONS'
             context.window_manager.addon_filter = 'All'
             context.window_manager.addon_search = info["name"]
             bpy.ops.screen.userpref_show('INVOKE_DEFAULT')

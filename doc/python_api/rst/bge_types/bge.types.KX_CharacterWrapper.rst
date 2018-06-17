@@ -1,7 +1,5 @@
 KX_CharacterWrapper(EXP_PyObjectPlus)
-=================================
-
-.. module:: bge.types
+=====================================
 
 base class --- :class:`EXP_PyObjectPlus`
 
@@ -60,7 +58,6 @@ base class --- :class:`EXP_PyObjectPlus`
    .. method:: jump()
 
       The character jumps based on it's jump speed.
-
    .. method:: setVelocity(velocity, time, local=False)
 
       Sets the character's linear velocity for a given period.

@@ -62,10 +62,11 @@ ArmatureExporter::ArmatureExporter(COLLADASW::StreamWriter *sw, const ExportSett
 }
 
 // write bone nodes
-void ArmatureExporter::add_armature_bones(Object *ob_arm, Scene *sce,
+void ArmatureExporter::add_armature_bones(bContext *C, Object *ob_arm, Scene *sce,
                                           SceneExporter *se,
                                           std::list<Object *>& child_objects)
 {
+	Main *bmain = CTX_data_main(C);
 	// write bone nodes
 
 	bArmature * armature = (bArmature *)ob_arm->data;
@@ -77,11 +78,11 @@ void ArmatureExporter::add_armature_bones(Object *ob_arm, Scene *sce,
 	for (Bone *bone = (Bone *)armature->bonebase.first; bone; bone = bone->next) {
 		// start from root bones
 		if (!bone->parent)
-			add_bone_node(bone, ob_arm, sce, se, child_objects);
+			add_bone_node(C, bone, ob_arm, sce, se, child_objects);
 	}
 
 	if (!is_edited) {
-		ED_armature_from_edit(armature);
+		ED_armature_from_edit(bmain, armature);
 		ED_armature_edit_free(armature);
 	}
 }
@@ -89,7 +90,7 @@ void ArmatureExporter::add_armature_bones(Object *ob_arm, Scene *sce,
 void ArmatureExporter::write_bone_URLs(COLLADASW::InstanceController &ins, Object *ob_arm, Bone *bone)
 {
 	if (bc_is_root_bone(bone, this->export_settings->deform_bones_only))
-		ins.addSkeleton(COLLADABU::URI(COLLADABU::Utils::EMPTY_STRING, get_joint_id(bone, ob_arm)));
+		ins.addSkeleton(COLLADABU::URI(COLLADABU::Utils::EMPTY_STRING, get_joint_id(ob_arm, bone)));
 	else {
 		for (Bone *child = (Bone *)bone->childbase.first; child; child = child->next) {
 			write_bone_URLs(ins, ob_arm, child);
@@ -116,11 +117,11 @@ bool ArmatureExporter::add_instance_controller(Object *ob)
 		write_bone_URLs(ins, ob_arm, bone);
 	}
 
-	InstanceWriter::add_material_bindings(ins.getBindMaterial(), 
-		ob, 
+	InstanceWriter::add_material_bindings(ins.getBindMaterial(),
+		ob,
 		this->export_settings->active_uv_only,
 		this->export_settings->export_texture_type);
-		
+
 	ins.add();
 	return true;
 }
@@ -149,7 +150,7 @@ void ArmatureExporter::find_objects_using_armature(Object *ob_arm, std::vector<O
 	Base *base = (Base *) sce->base.first;
 	while (base) {
 		Object *ob = base->object;
-		
+
 		if (ob->type == OB_MESH && get_assigned_armature(ob) == ob_arm) {
 			objects.push_back(ob);
 		}
@@ -160,14 +161,14 @@ void ArmatureExporter::find_objects_using_armature(Object *ob_arm, std::vector<O
 #endif
 
 // parent_mat is armature-space
-void ArmatureExporter::add_bone_node(Bone *bone, Object *ob_arm, Scene *sce,
+void ArmatureExporter::add_bone_node(bContext *C, Bone *bone, Object *ob_arm, Scene *sce,
                                      SceneExporter *se,
                                      std::list<Object *>& child_objects)
 {
 	if (!(this->export_settings->deform_bones_only && bone->flag & BONE_NO_DEFORM)) {
-		std::string node_id = get_joint_id(bone, ob_arm);
+		std::string node_id = get_joint_id(ob_arm, bone);
 		std::string node_name = std::string(bone->name);
-		std::string node_sid = get_joint_sid(bone, ob_arm);
+		std::string node_sid = get_joint_sid(bone);
 
 		COLLADASW::Node node(mSW);
 
@@ -234,7 +235,7 @@ void ArmatureExporter::add_bone_node(Bone *bone, Object *ob_arm, Scene *sce,
 						mul_m4_m4m4((*i)->parentinv, temp, (*i)->parentinv);
 					}
 
-					se->writeNodes(*i, sce);
+					se->writeNodes(C, *i, sce);
 
 					copy_m4_m4((*i)->parentinv, backup_parinv);
 					child_objects.erase(i++);
@@ -243,13 +244,13 @@ void ArmatureExporter::add_bone_node(Bone *bone, Object *ob_arm, Scene *sce,
 			}
 
 			for (Bone *child = (Bone *)bone->childbase.first; child; child = child->next) {
-				add_bone_node(child, ob_arm, sce, se, child_objects);
+				add_bone_node(C, child, ob_arm, sce, se, child_objects);
 			}
 			node.end();
 		}
 		else {
 			for (Bone *child = (Bone *)bone->childbase.first; child; child = child->next) {
-				add_bone_node(child, ob_arm, sce, se, child_objects);
+				add_bone_node(C, child, ob_arm, sce, se, child_objects);
 			}
 		}
 }
@@ -267,7 +268,7 @@ void ArmatureExporter::add_bone_transform(Object *ob_arm, Bone *bone, COLLADASW:
 	if (!has_restmat) {
 
 		/* Have no restpose matrix stored, try old style <= Blender 2.78 */
-		
+
 		bc_create_restpose_mat(this->export_settings, bone, bone_rest_mat, bone->arm_mat, true);
 
 		if (bone->parent) {

@@ -149,7 +149,7 @@
 #include "DNA_key_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_action_types.h"
-#include "DNA_object_force.h"
+#include "DNA_object_force_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_python_component_types.h"
 
@@ -691,7 +691,7 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject *gameobj, Object *blenderobj
 
 static KX_LodManager *BL_LodManagerFromBlenderObject(Object *ob, KX_Scene *scene, BL_SceneConverter& converter)
 {
-	if (BLI_listbase_count_ex(&ob->lodlevels, 2) <= 1) {
+	if (BLI_listbase_count(&ob->lodlevels) <= 1) {
 		return nullptr;
 	}
 

@@ -1641,9 +1641,9 @@ static PyObject *Matrix_rotate(MatrixObject *self, PyObject *value)
 PyDoc_STRVAR(Matrix_decompose_doc,
 ".. method:: decompose()\n"
 "\n"
-"   Return the translation, rotation and scale components of this matrix.\n"
+"   Return the translation, rotation, and scale components of this matrix.\n"
 "\n"
-"   :return: trans, rot, scale triple.\n"
+"   :return: tuple of translation, rotation, and scale\n"
 "   :rtype: (:class:`Vector`, :class:`Quaternion`, :class:`Vector`)"
 );
 static PyObject *Matrix_decompose(MatrixObject *self)
@@ -1680,7 +1680,8 @@ static PyObject *Matrix_decompose(MatrixObject *self)
 PyDoc_STRVAR(Matrix_lerp_doc,
 ".. function:: lerp(other, factor)\n"
 "\n"
-"   Returns the interpolation of two matrices.\n"
+"   Returns the interpolation of two matrices. Uses polar decomposition, see"
+"   \"Matrix Animation and Polar Decomposition\", Shoemake and Duff, 1992.\n"
 "\n"
 "   :arg other: value to interpolate with.\n"
 "   :type other: :class:`Matrix`\n"
@@ -1709,10 +1710,18 @@ static PyObject *Matrix_lerp(MatrixObject *self, PyObject *args)
 
 	/* TODO, different sized matrix */
 	if (self->num_col == 4 && self->num_row == 4) {
+#ifdef MATH_STANDALONE
+		blend_m4_m4m4((float (*)[4])mat, (float (*)[4])self->matrix, (float (*)[4])mat2->matrix, fac);
+#else
 		interp_m4_m4m4((float (*)[4])mat, (float (*)[4])self->matrix, (float (*)[4])mat2->matrix, fac);
+#endif
 	}
 	else if (self->num_col == 3 && self->num_row == 3) {
+#ifdef MATH_STANDALONE
+		blend_m3_m3m3((float (*)[3])mat, (float (*)[3])self->matrix, (float (*)[3])mat2->matrix, fac);
+#else
 		interp_m3_m3m3((float (*)[3])mat, (float (*)[3])self->matrix, (float (*)[3])mat2->matrix, fac);
+#endif
 	}
 	else {
 		PyErr_SetString(PyExc_ValueError,

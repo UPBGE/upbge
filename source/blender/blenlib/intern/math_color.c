@@ -83,24 +83,45 @@ void hsl_to_rgb_v(const float hsl[3], float r_rgb[3])
 	hsl_to_rgb(hsl[0], hsl[1], hsl[2], &r_rgb[0], &r_rgb[1], &r_rgb[2]);
 }
 
-void rgb_to_yuv(float r, float g, float b, float *ly, float *lu, float *lv)
+void rgb_to_yuv(float r, float g, float b, float *ly, float *lu, float *lv, int colorspace)
 {
 	float y, u, v;
-	y = 0.299f * r + 0.587f * g + 0.114f * b;
-	u = -0.147f * r - 0.289f * g + 0.436f * b;
-	v = 0.615f * r - 0.515f * g - 0.100f * b;
+
+	switch (colorspace) {
+		case BLI_YUV_ITU_BT601:
+			y = 0.299f * r + 0.587f * g + 0.114f * b;
+			u = -0.147f * r - 0.289f * g + 0.436f * b;
+			v = 0.615f * r - 0.515f * g - 0.100f * b;
+			break;
+		case BLI_YUV_ITU_BT709:
+		default:
+			y = 0.2126f * r + 0.7152f * g + 0.0722f * b;
+			u = -0.09991f * r - 0.33609f * g + 0.436f * b;
+			v = 0.615f * r - 0.55861f * g - 0.05639f * b;
+			break;
+	}
 
 	*ly = y;
 	*lu = u;
 	*lv = v;
 }
 
-void yuv_to_rgb(float y, float u, float v, float *lr, float *lg, float *lb)
+void yuv_to_rgb(float y, float u, float v, float *lr, float *lg, float *lb, int colorspace)
 {
 	float r, g, b;
-	r = y + 1.140f * v;
-	g = y - 0.394f * u - 0.581f * v;
-	b = y + 2.032f * u;
+
+	switch (colorspace) {
+		case BLI_YUV_ITU_BT601:
+			r = y + 1.140f * v;
+			g = y - 0.394f * u - 0.581f * v;
+			b = y + 2.032f * u;
+			break;
+		case BLI_YUV_ITU_BT709:
+			r = y + 1.28033f * v;
+			g = y - 0.21482f * u - 0.38059f * v;
+			b = y + 2.12798f * u;
+			break;
+	}
 
 	*lr = r;
 	*lg = g;
@@ -418,12 +439,12 @@ void rgba_uchar_to_float(float r_col[4], const unsigned char col_ub[4])
 
 void rgb_float_to_uchar(unsigned char r_col[3], const float col_f[3])
 {
-	F3TOCHAR3(col_f, r_col);
+	unit_float_to_uchar_clamp_v3(r_col, col_f);
 }
 
 void rgba_float_to_uchar(unsigned char r_col[4], const float col_f[4])
 {
-	F4TOCHAR4(col_f, r_col);
+	unit_float_to_uchar_clamp_v4(r_col, col_f);
 }
 
 /* ********************************* color transforms ********************************* */

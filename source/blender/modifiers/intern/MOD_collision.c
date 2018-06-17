@@ -69,7 +69,7 @@ static void freeData(ModifierData *md)
 {
 	CollisionModifierData *collmd = (CollisionModifierData *) md;
 	
-	if (collmd) {
+	if (collmd) {  /* Seriously? */
 		if (collmd->bvhtree) {
 			BLI_bvhtree_free(collmd->bvhtree);
 			collmd->bvhtree = NULL;
@@ -81,10 +81,7 @@ static void freeData(ModifierData *md)
 		MEM_SAFE_FREE(collmd->current_xnew);
 		MEM_SAFE_FREE(collmd->current_v);
 
-		if (collmd->tri) {
-			MEM_freeN((void *)collmd->tri);
-			collmd->tri = NULL;
-		}
+		MEM_SAFE_FREE(collmd->tri);
 
 		collmd->time_x = collmd->time_xnew = -1000;
 		collmd->mvert_num = 0;
@@ -98,11 +95,12 @@ static bool dependsOnTime(ModifierData *UNUSED(md))
 	return true;
 }
 
-static void deformVerts(ModifierData *md, Object *ob,
-                        DerivedMesh *derivedData,
-                        float (*vertexCos)[3],
-                        int UNUSED(numVerts),
-                        ModifierApplyFlag UNUSED(flag))
+static void deformVerts(
+        ModifierData *md, Object *ob,
+        DerivedMesh *derivedData,
+        float (*vertexCos)[3],
+        int UNUSED(numVerts),
+        ModifierApplyFlag UNUSED(flag))
 {
 	CollisionModifierData *collmd = (CollisionModifierData *) md;
 	DerivedMesh *dm = NULL;
@@ -158,7 +156,7 @@ static void deformVerts(ModifierData *md, Object *ob,
 				{
 					const MLoop *mloop = dm->getLoopArray(dm);
 					const MLoopTri *looptri = dm->getLoopTriArray(dm);
-					MVertTri *tri = MEM_mallocN(sizeof(*tri) * collmd->tri_num, __func__);
+					MVertTri *tri = MEM_malloc_arrayN(collmd->tri_num, sizeof(*tri), __func__);
 					DM_verttri_from_looptri(tri, mloop, looptri, collmd->tri_num);
 					collmd->tri = tri;
 				}

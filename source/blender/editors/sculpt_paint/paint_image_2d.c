@@ -432,7 +432,7 @@ static ImBuf *brush_painter_imbuf_new(BrushPainter *painter, int size, float pre
 				unsigned char *dst = (unsigned char *)ibuf->rect + (y * size + x) * 4;
 
 				rgb_float_to_uchar(dst, rgba);
-				dst[3] = FTOCHAR(rgba[3]);
+				dst[3] = unit_float_to_uchar_clamp(rgba[3]);
 			}
 		}
 	}
@@ -581,7 +581,7 @@ static void brush_painter_imbuf_partial_update(BrushPainter *painter, const floa
 		destx = desty = 0;
 		w = h = 0;
 	}
-	
+
 	x1 = min_ii(destx, ibuf->x);
 	y1 = min_ii(desty, ibuf->y);
 	x2 = min_ii(destx + w, ibuf->x);
@@ -1035,6 +1035,8 @@ static void paint_2d_do_making_brush(ImagePaintState *s,
 	ImBuf tmpbuf;
 	IMB_initImBuf(&tmpbuf, IMAPAINT_TILE_SIZE, IMAPAINT_TILE_SIZE, 32, 0);
 
+	ListBase *undo_tiles = ED_image_undo_get_tiles();
+
 	for (int ty = tiley; ty <= tileh; ty++) {
 		for (int tx = tilex; tx <= tilew; tx++) {
 			/* retrieve original pixels + mask from undo buffer */
@@ -1043,9 +1045,9 @@ static void paint_2d_do_making_brush(ImagePaintState *s,
 			int origy = region->desty - ty * IMAPAINT_TILE_SIZE;
 
 			if (s->canvas->rect_float)
-				tmpbuf.rect_float = image_undo_find_tile(s->image, s->canvas, tx, ty, &mask, false);
+				tmpbuf.rect_float = image_undo_find_tile(undo_tiles, s->image, s->canvas, tx, ty, &mask, false);
 			else
-				tmpbuf.rect = image_undo_find_tile(s->image, s->canvas, tx, ty, &mask, false);
+				tmpbuf.rect = image_undo_find_tile(undo_tiles, s->image, s->canvas, tx, ty, &mask, false);
 
 			IMB_rectblend(s->canvas, &tmpbuf, frombuf, mask,
 			              curveb, texmaskb, mask_max,
@@ -1070,7 +1072,10 @@ typedef struct Paint2DForeachData {
 	int tilew;
 } Paint2DForeachData;
 
-static void paint_2d_op_foreach_do(void *data_v, const int iter)
+static void paint_2d_op_foreach_do(
+        void *__restrict data_v,
+        const int iter,
+        const ParallelRangeTLS *__restrict UNUSED(tls))
 {
 	Paint2DForeachData *data = (Paint2DForeachData *)data_v;
 	paint_2d_do_making_brush(data->s, data->region, data->curveb,
@@ -1126,13 +1131,13 @@ static int paint_2d_op(void *state, ImBuf *ibufb, unsigned short *curveb, unsign
 		paint_2d_set_region(region, bpos[0], bpos[1], 0, 0, frombuf->x, frombuf->y);
 		tot = 1;
 	}
-	
+
 	/* blend into canvas */
 	for (a = 0; a < tot; a++) {
 		ED_imapaint_dirty_region(s->image, s->canvas,
 		                         region[a].destx, region[a].desty,
 		                         region[a].width, region[a].height, true);
-	
+
 		if (s->do_masking) {
 			/* masking, find original pixels tiles from undo buffer to composite over */
 			int tilex, tiley, tilew, tileh;
@@ -1156,9 +1161,12 @@ static int paint_2d_op(void *state, ImBuf *ibufb, unsigned short *curveb, unsign
 				data.blend = blend;
 				data.tilex = tilex;
 				data.tilew = tilew;
+
+				ParallelRangeSettings settings;
+				BLI_parallel_range_settings_defaults(&settings);
 				BLI_task_parallel_range(tiley, tileh + 1, &data,
 				                        paint_2d_op_foreach_do,
-				                        true);
+				                        &settings);
 
 			}
 		}
@@ -1223,7 +1231,7 @@ static int paint_2d_canvas_set(ImagePaintState *s, Image *ima)
 
 	/* set masking */
 	s->do_masking = paint_use_opacity_masking(s->brush);
-	
+
 	return 1;
 }
 

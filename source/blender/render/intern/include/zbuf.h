@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -46,7 +46,7 @@ void fillrect(int *rect, int x, int y, int val);
 
 /**
  * Converts a world coordinate into a homogeneous coordinate in view
- * coordinates. 
+ * coordinates.
  */
 void projectvert(const float v1[3], float winmat[4][4], float adr[4]);
 void projectverto(const float v1[3], float winmat[4][4], float adr[4]);
@@ -87,13 +87,13 @@ typedef struct APixstrMain {
 /* span fill in method, is also used to localize data for zbuffering */
 typedef struct ZSpan {
 	int rectx, recty;						/* range for clipping */
-	
+
 	int miny1, maxy1, miny2, maxy2;			/* actual filled in range */
 	const float *minp1, *maxp1, *minp2, *maxp2;	/* vertex pointers detect min/max range in */
 	float *span1, *span2;
-	
+
 	float zmulx, zmuly, zofsx, zofsy;		/* transform from hoco to zbuf co */
-	
+
 	int *rectz, *arectz;					/* zbuffers, arectz is for transparent */
 	int *rectz1;							/* secondary z buffer for shadowbuffer (2nd closest z) */
 	int *rectp;								/* polygon index buffer */
@@ -102,7 +102,7 @@ typedef struct ZSpan {
 	APixstr *apixbuf, *curpstr;				/* apixbuf for transparent */
 	APixstrand *curpstrand;					/* same for strands */
 	struct ListBase *apsmbase;
-	
+
 	int polygon_offset;						/* offset in Z */
 	float shad_alpha;						/* copy from material, used by irregular shadbuf */
 	int mask, apsmcounter;					/* in use by apixbuf */
@@ -112,10 +112,10 @@ typedef struct ZSpan {
 
 	void *sss_handle;						/* used by sss */
 	void (*sss_func)(void *, int, int, int, int, int);
-	
+
 	void (*zbuffunc)(struct ZSpan *, int, int, const float *, const float *, const float *, const float *);
 	void (*zbuflinefunc)(struct ZSpan *, int, int, const float *, const float *);
-	
+
 } ZSpan;
 
 /* exported to shadbuf.c */

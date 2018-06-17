@@ -441,7 +441,7 @@ void UI_popup_block_close(struct bContext *C, struct wmWindow *win, uiBlock *blo
  *
  * Functions for creating, drawing and freeing blocks. A Block is a
  * container of buttons and used for various purposes.
- * 
+ *
  * Begin/Define Buttons/End/Draw is the typical order in which these
  * function should be called, though for popup blocks Draw is left out.
  * Freeing blocks is done by the screen/ module automatically.
@@ -543,7 +543,7 @@ bool UI_but_online_manual_id_from_active(
  * - R: RNA
  * - O: operator */
 
-uiBut *uiDefBut(uiBlock *block, 
+uiBut *uiDefBut(uiBlock *block,
                 int type, int retval, const char *str,
                 int x1, int y1,
                 short x2, short y2,
@@ -563,7 +563,7 @@ uiBut *uiDefButR_prop(uiBlock *block, int type, int retval, const char *str, int
 uiBut *uiDefButO(uiBlock *block, int type, const char *opname, int opcontext, const char *str, int x, int y, short width, short height, const char *tip);
 uiBut *uiDefButO_ptr(uiBlock *block, int type, struct wmOperatorType *ot, int opcontext, const char *str, int x, int y, short width, short height, const char *tip);
 
-uiBut *uiDefIconBut(uiBlock *block, 
+uiBut *uiDefIconBut(uiBlock *block,
                     int type, int retval, int icon,
                     int x1, int y1,
                     short x2, short y2,
@@ -627,7 +627,7 @@ enum {
 typedef struct uiStringInfo {
 	int type;
 	char *strinfo;
-} uiStringInfo; 
+} uiStringInfo;
 
 /* Note: Expects pointers to uiStringInfo structs as parameters.
  *       Will fill them with translated strings, when possible.
@@ -660,6 +660,15 @@ void UI_but_string_info_get(struct bContext *C, uiBut *but, ...) ATTR_SENTINEL(0
 #define UI_ID_PIN           (1 << 9)
 #define UI_ID_PREVIEWS      (1 << 10)
 #define UI_ID_FULL          (UI_ID_RENAME | UI_ID_BROWSE | UI_ID_ADD_NEW | UI_ID_OPEN | UI_ID_ALONE | UI_ID_DELETE | UI_ID_LOCAL)
+
+/**
+ * Ways to limit what is displayed in ID-search popup.
+ * \note We may want to add LOCAL, LIBRARY ... as needed.
+ */
+enum {
+	UI_TEMPLATE_ID_FILTER_ALL = 0,
+	UI_TEMPLATE_ID_FILTER_AVAILABLE = 1,
+};
 
 int UI_icon_from_id(struct ID *id);
 int UI_icon_from_report_type(int type);
@@ -798,7 +807,7 @@ void UI_popup_handlers_remove_all(struct bContext *C, struct ListBase *handlers)
  * be used to reinitialize some internal state if user preferences change. */
 
 void UI_init(void);
-void UI_init_userdef(void);
+void UI_init_userdef(struct Main *bmain);
 void UI_reinit_font(void);
 void UI_reinit_gl_state(void);
 void UI_exit(void);
@@ -877,7 +886,6 @@ uiBlock *uiLayoutGetBlock(uiLayout *layout);
 void uiLayoutSetFunc(uiLayout *layout, uiMenuHandleFunc handlefunc, void *argv);
 void uiLayoutSetContextPointer(uiLayout *layout, const char *name, struct PointerRNA *ptr);
 void uiLayoutContextCopy(uiLayout *layout, struct bContextStore *context);
-const char *uiLayoutIntrospect(uiLayout *layout); // XXX - testing
 struct MenuType *UI_but_menutype_get(uiBut *but);
 void UI_menutype_draw(struct bContext *C, struct MenuType *mt, struct uiLayout *layout);
 
@@ -918,15 +926,18 @@ uiLayout *uiLayoutRadial(uiLayout *layout);
 
 /* templates */
 void uiTemplateHeader(uiLayout *layout, struct bContext *C);
-void uiTemplateID(uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, const char *propname,
-                  const char *newop, const char *openop, const char *unlinkop);
-void uiTemplateIDBrowse(uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, const char *propname,
-                        const char *newop, const char *openop, const char *unlinkop);
-void uiTemplateIDPreview(uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, const char *propname,
-                         const char *newop, const char *openop, const char *unlinkop, int rows, int cols);
-void uiTemplateAnyID(uiLayout *layout, struct PointerRNA *ptr, const char *propname, 
+void uiTemplateID(
+        uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, const char *propname,
+        const char *newop, const char *openop, const char *unlinkop, int filter);
+void uiTemplateIDBrowse(
+        uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, const char *propname,
+        const char *newop, const char *openop, const char *unlinkop, int filter);
+void uiTemplateIDPreview(
+        uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, const char *propname,
+        const char *newop, const char *openop, const char *unlinkop, int rows, int cols, int filter);
+void uiTemplateAnyID(uiLayout *layout, struct PointerRNA *ptr, const char *propname,
                      const char *proptypename, const char *text);
-void uiTemplatePathBuilder(uiLayout *layout, struct PointerRNA *ptr, const char *propname, 
+void uiTemplatePathBuilder(uiLayout *layout, struct PointerRNA *ptr, const char *propname,
                            struct PointerRNA *root_ptr, const char *text);
 uiLayout *uiTemplateModifier(uiLayout *layout, struct bContext *C, struct PointerRNA *ptr);
 uiLayout *uiTemplateConstraint(uiLayout *layout, struct PointerRNA *ptr);
@@ -1069,6 +1080,8 @@ void UI_context_active_but_prop_get_templateID(
         struct bContext *C,
         struct PointerRNA *r_ptr, struct PropertyRNA **r_prop);
 
+uiBut *UI_region_active_but_get(struct ARegion *ar);
+
 /* Styled text draw */
 void UI_fontstyle_set(const struct uiFontStyle *fs);
 void UI_fontstyle_draw_ex(
@@ -1112,7 +1125,7 @@ void UI_butstore_unregister(uiButStore *bs_handle, uiBut **but_p);
 
 /* ui_interface_region_tooltip.c */
 struct ARegion *UI_tooltip_create_from_button(struct bContext *C, struct ARegion *butregion, uiBut *but);
-void UI_tooltip_free(struct bContext *C, struct ARegion *ar);
+void UI_tooltip_free(struct bContext *C, struct bScreen *sc, struct ARegion *ar);
 
 /* How long before a tool-tip shows. */
 #define UI_TOOLTIP_DELAY 0.5

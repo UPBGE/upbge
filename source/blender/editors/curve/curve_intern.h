@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -18,7 +18,7 @@
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
  *
- * 
+ *
  * Contributor(s): Blender Foundation
  *
  * ***** END GPL LICENSE BLOCK *****
@@ -35,6 +35,7 @@
 /* internal exports only */
 struct ListBase;
 struct EditNurb;
+struct GHash;
 struct Object;
 struct wmOperatorType;
 struct ViewContext;
@@ -128,6 +129,10 @@ void CURVE_OT_extrude(struct wmOperatorType *ot);
 void CURVE_OT_cyclic_toggle(struct wmOperatorType *ot);
 
 void CURVE_OT_match_texture_space(struct wmOperatorType *ot);
+
+/* exported for editcurve_undo.c */
+struct GHash *ED_curve_keyindex_hash_duplicate(struct GHash *keyindex);
+void          ED_curve_keyindex_update_nurb(struct EditNurb *editnurb, struct Nurb *nu, struct Nurb *newnu);
 
 bool ED_curve_pick_vert(
         struct ViewContext *vc, short sel, const int mval[2],

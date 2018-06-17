@@ -109,7 +109,7 @@ GPUFrameBuffer *GPU_framebuffer_create(void)
 	{
 		return NULL;
 	}
-	
+
 	fb = MEM_callocN(sizeof(GPUFrameBuffer), "GPUFrameBuffer");
 	glGenFramebuffersEXT(1, &fb->object);
 
@@ -125,7 +125,7 @@ GPUFrameBuffer *GPU_framebuffer_create(void)
 	glReadBuffer(GL_NONE);
 	glDrawBuffer(GL_NONE);
 	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
-	
+
 	return fb;
 }
 
@@ -165,7 +165,7 @@ int GPU_framebuffer_texture_attach_target(GPUFrameBuffer *fb, GPUTexture *tex, i
 	/* Clean glError buffer. */
 	while (glGetError() != GL_NO_ERROR) {}
 
-	glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, attachment, 
+	glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, attachment,
 		target, GPU_texture_opengl_bindcode(tex), 0);
 
 	error = glGetError();
@@ -246,7 +246,7 @@ void GPU_texture_bind_as_framebuffer(GPUTexture *tex)
 		glDrawBuffer(GL_COLOR_ATTACHMENT0_EXT + fb_attachment);
 		glReadBuffer(GL_COLOR_ATTACHMENT0_EXT + fb_attachment);
 	}
-	
+
 	if (GPU_texture_target(tex) == GL_TEXTURE_2D_MULTISAMPLE) {
 		glEnable(GL_MULTISAMPLE);
 	}
@@ -265,19 +265,19 @@ void GPU_framebuffer_slots_bind(GPUFrameBuffer *fb, int slot)
 {
 	int numslots = 0, i;
 	GLenum attachments[4];
-	
+
 	if (!fb->colortex[slot]) {
 		fprintf(stderr, "Error, framebuffer slot empty!\n");
 		return;
 	}
-	
+
 	for (i = 0; i < 4; i++) {
 		if (fb->colortex[i]) {
 			attachments[numslots] = GL_COLOR_ATTACHMENT0_EXT + i;
 			numslots++;
 		}
 	}
-	
+
 	/* push attributes */
 	glPushAttrib(GL_ENABLE_BIT | GL_VIEWPORT_BIT);
 	glDisable(GL_SCISSOR_TEST);
@@ -362,21 +362,21 @@ bool GPU_framebuffer_bound(GPUFrameBuffer *fb)
 bool GPU_framebuffer_check_valid(GPUFrameBuffer *fb, char err_out[256])
 {
 	GLenum status;
-	
+
 	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fb->object);
 	GG.currentfb = fb->object;
-	
+
 	/* Clean glError buffer. */
 	while (glGetError() != GL_NO_ERROR) {}
-	
+
 	status = glCheckFramebufferStatusEXT(GL_FRAMEBUFFER_EXT);
-	
+
 	if (status != GL_FRAMEBUFFER_COMPLETE_EXT) {
 		GPU_framebuffer_restore();
 		gpu_print_framebuffer_error(status, err_out);
 		return false;
 	}
-	
+
 	return true;
 }
 
@@ -510,14 +510,14 @@ void GPU_framebuffer_blur(
 
 	scale_uniform = GPU_shader_get_uniform(blur_shader, "ScaleU");
 	texture_source_uniform = GPU_shader_get_uniform(blur_shader, "textureSource");
-		
+
 	/* Blurring horizontally */
 
 	/* We do the bind ourselves rather than using GPU_framebuffer_texture_bind() to avoid
 	 * pushing unnecessary matrices onto the OpenGL stack. */
 	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, blurfb->object);
 	glDrawBuffer(GL_COLOR_ATTACHMENT0_EXT);
-	
+
 	/* avoid warnings from texture binding */
 	GG.currentfb = blurfb->object;
 
@@ -550,9 +550,9 @@ void GPU_framebuffer_blur(
 
 	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fb->object);
 	glDrawBuffer(GL_COLOR_ATTACHMENT0_EXT);
-	
+
 	GG.currentfb = fb->object;
-	
+
 	glViewport(0, 0, GPU_texture_width(tex), GPU_texture_height(tex));
 	GPU_shader_uniform_vector(blur_shader, scale_uniform, 2, 1, scalev);
 	GPU_shader_uniform_texture(blur_shader, texture_source_uniform, blurtex);
@@ -795,7 +795,7 @@ GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, GPUHDRTyp
 	/* check validity at the very end! */
 	if (!GPU_framebuffer_check_valid(ofs->fb, err_out)) {
 		GPU_offscreen_free(ofs);
-		return NULL;		
+		return NULL;
 	}
 
 	GPU_framebuffer_restore();
@@ -817,7 +817,7 @@ void GPU_offscreen_free(GPUOffScreen *ofs)
 	if (ofs->rbdepth) {
 		GPU_renderbuffer_free(ofs->rbdepth);
 	}
-	
+
 	MEM_freeN(ofs);
 }
 

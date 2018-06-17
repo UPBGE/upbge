@@ -625,7 +625,7 @@ float defvert_array_find_weight_safe(const struct MDeformVert *dvert, const int 
 	 * (i.e. maximum weight, as if no vgroup was selected).
 	 * But in case of valid defgroup and NULL dvert data pointer, it means that vgroup **is** valid,
 	 * and just totally empty, so we shall return '0.0' value then!
-	*/
+	 */
 	if (defgroup == -1) {
 		return 1.0f;
 	}
@@ -1189,7 +1189,12 @@ bool data_transfer_layersmapping_vgroups(
 
 		if (fromlayers >= 0) {
 			idx_src = fromlayers;
-			BLI_assert(idx_src < BLI_listbase_count(&ob_src->defbase));
+			if (idx_src >= BLI_listbase_count(&ob_src->defbase)) {
+				/* This can happen when vgroups are removed from source object...
+				 * Remapping would be really tricky here, we'd need to go over all objects in Main everytime we delete
+				 * a vgroup... for now, simpler and safer to abort. */
+				return false;
+			}
 		}
 		else if ((idx_src = ob_src->actdef - 1) == -1) {
 			return false;

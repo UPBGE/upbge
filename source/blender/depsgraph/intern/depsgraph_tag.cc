@@ -180,7 +180,7 @@ void DEG_id_tag_update_ex(Main *bmain, ID *id, short flag)
 		/* Ideally should not happen, but old depsgraph allowed this. */
 		return;
 	}
-	DEG_DEBUG_PRINTF("%s: id=%s flag=%d\n", __func__, id->name, flag);
+	DEG_DEBUG_PRINTF(TAG, "%s: id=%s flag=%d\n", __func__, id->name, flag);
 	lib_id_recalc_tag_flag(bmain, id, flag);
 	for (Scene *scene = (Scene *)bmain->scene.first;
 	     scene != NULL;
@@ -328,22 +328,22 @@ void DEG_graph_on_visible_update(Main *bmain, Scene *scene)
 		return;
 	}
 	/* Special trick to get local view to work.  */
-	LINKLIST_FOREACH (Base *, base, &scene->base) {
+	LISTBASE_FOREACH (Base *, base, &scene->base) {
 		Object *object = base->object;
 		DEG::IDDepsNode *id_node = graph->find_id_node(&object->id);
 		id_node->layers = 0;
 	}
-	LINKLIST_FOREACH (Base *, base, &scene->base) {
+	LISTBASE_FOREACH (Base *, base, &scene->base) {
 		Object *object = base->object;
 		DEG::IDDepsNode *id_node = graph->find_id_node(&object->id);
 		id_node->layers |= base->lay;
-		if (object == scene->camera) {
+		if (object == scene->camera || object->type == OB_CAMERA) {
 			/* Camera should always be updated, it used directly by viewport. */
 			id_node->layers |= (unsigned int)(-1);
 		}
 	}
 	DEG::deg_graph_build_flush_layers(graph);
-	LINKLIST_FOREACH (Base *, base, &scene->base) {
+	LISTBASE_FOREACH (Base *, base, &scene->base) {
 		Object *object = base->object;
 		DEG::IDDepsNode *id_node = graph->find_id_node(&object->id);
 		GHASH_FOREACH_BEGIN(DEG::ComponentDepsNode *, comp, id_node->components)

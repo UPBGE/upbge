@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -18,7 +18,7 @@
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
  *
- * 
+ *
  * Contributor(s): Blender Foundation
  *
  * ***** END GPL LICENSE BLOCK *****
@@ -47,6 +47,7 @@ struct bScreen;
 struct ARegion;
 struct uiBlock;
 struct rcti;
+struct Main;
 
 /* regions */
 void    ED_region_do_listen(struct bScreen *sc, struct ScrArea *sa, struct ARegion *ar, struct wmNotifier *note);
@@ -97,12 +98,14 @@ void    ED_area_swapspace(struct bContext *C, ScrArea *sa1, ScrArea *sa2);
 int     ED_area_headersize(void);
 
 /* screens */
-void    ED_screens_initialize(struct wmWindowManager *wm);
-void    ED_screen_draw(struct wmWindow *win);
+void    ED_screens_initialize(struct Main *bmain, struct wmWindowManager *wm);
+void    ED_screen_draw_edges(struct wmWindow *win);
+void    ED_screen_draw_join_shape(struct ScrArea *sa1, struct ScrArea *sa2);
+void    ED_screen_draw_split_preview(struct ScrArea *sa, const int dir, const float fac);
 void    ED_screen_refresh(struct wmWindowManager *wm, struct wmWindow *win);
 void    ED_screen_do_listen(struct bContext *C, struct wmNotifier *note);
-bScreen *ED_screen_duplicate(struct wmWindow *win, struct bScreen *sc);
-bScreen *ED_screen_add(struct wmWindow *win, struct Scene *scene, const char *name);
+bScreen *ED_screen_duplicate(struct Main *bmain, struct wmWindow *win, struct bScreen *sc);
+bScreen *ED_screen_add(struct Main *bmain, struct wmWindow *win, struct Scene *scene, const char *name);
 bool    ED_screen_set(struct bContext *C, struct bScreen *sc);
 bool    ED_screen_delete(struct bContext *C, struct bScreen *sc);
 void    ED_screen_set_scene(struct bContext *C, struct bScreen *screen, struct Scene *scene);
@@ -137,6 +140,7 @@ int     ED_operator_screen_mainwinactive(struct bContext *C);
 int     ED_operator_areaactive(struct bContext *C);
 int     ED_operator_regionactive(struct bContext *C);
 
+int     ED_operator_scene(struct bContext *C);
 int     ED_operator_scene_editable(struct bContext *C);
 int     ED_operator_objectmode(struct bContext *C);
 

@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -955,9 +955,9 @@ void curvemapping_evaluate_premulRGB(const CurveMapping *cumap, unsigned char ve
 
 	curvemapping_evaluate_premulRGBF(cumap, vecout, vecin);
 
-	vecout_byte[0] = FTOCHAR(vecout[0]);
-	vecout_byte[1] = FTOCHAR(vecout[1]);
-	vecout_byte[2] = FTOCHAR(vecout[2]);
+	vecout_byte[0] = unit_float_to_uchar_clamp(vecout[0]);
+	vecout_byte[1] = unit_float_to_uchar_clamp(vecout[1]);
+	vecout_byte[2] = unit_float_to_uchar_clamp(vecout[2]);
 }
 
 int curvemapping_RGBA_does_something(const CurveMapping *cumap)
@@ -1034,7 +1034,7 @@ static void save_sample_line(Scopes *scopes, const int idx, const float fx, cons
 	float yuv[3];
 
 	/* vectorscope*/
-	rgb_to_yuv(rgb[0], rgb[1], rgb[2], &yuv[0], &yuv[1], &yuv[2]);
+	rgb_to_yuv(rgb[0], rgb[1], rgb[2], &yuv[0], &yuv[1], &yuv[2], BLI_YUV_ITU_BT709);
 	scopes->vecscope[idx + 0] = yuv[1];
 	scopes->vecscope[idx + 1] = yuv[2];
 
@@ -1165,7 +1165,9 @@ typedef struct ScopesUpdateDataChunk {
 	float min[3], max[3];
 } ScopesUpdateDataChunk;
 
-static void scopes_update_cb(void *userdata, void *userdata_chunk, const int y, const int UNUSED(threadid))
+static void scopes_update_cb(void *__restrict userdata, 
+                             const int y,
+                             const ParallelRangeTLS *__restrict tls)
 {
 	const ScopesUpdateData *data = userdata;
 
@@ -1175,7 +1177,7 @@ static void scopes_update_cb(void *userdata, void *userdata_chunk, const int y, 
 	const unsigned char *display_buffer = data->display_buffer;
 	const int ycc_mode = data->ycc_mode;
 
-	ScopesUpdateDataChunk *data_chunk = userdata_chunk;
+	ScopesUpdateDataChunk *data_chunk = tls->userdata_chunk;
 	unsigned int *bin_lum = data_chunk->bin_lum;
 	unsigned int *bin_r = data_chunk->bin_r;
 	unsigned int *bin_g = data_chunk->bin_g;
@@ -1259,7 +1261,8 @@ static void scopes_update_cb(void *userdata, void *userdata_chunk, const int y, 
 	}
 }
 
-static void scopes_update_finalize(void *userdata, void *userdata_chunk)
+static void scopes_update_finalize(void *__restrict userdata,
+                                   void *__restrict userdata_chunk)
 {
 	const ScopesUpdateData *data = userdata;
 	const ScopesUpdateDataChunk *data_chunk = userdata_chunk;
@@ -1387,8 +1390,16 @@ void scopes_update(Scopes *scopes, ImBuf *ibuf, const ColorManagedViewSettings *
 	ScopesUpdateDataChunk data_chunk = {{0}};
 	INIT_MINMAX(data_chunk.min, data_chunk.max);
 
-	BLI_task_parallel_range_finalize(0, ibuf->y, &data, &data_chunk, sizeof(data_chunk),
-	                                 scopes_update_cb, scopes_update_finalize, ibuf->y > 256, false);
+	ParallelRangeSettings settings;
+	BLI_parallel_range_settings_defaults(&settings);
+	settings.use_threading = (ibuf->y > 256);
+	settings.userdata_chunk = &data_chunk;
+	settings.userdata_chunk_size = sizeof(data_chunk);
+	settings.func_finalize = scopes_update_finalize;
+	BLI_task_parallel_range(0, ibuf->y,
+	                        &data,
+	                        scopes_update_cb,
+	                        &settings);
 
 	/* test for nicer distribution even - non standard, leave it out for a while */
 #if 0

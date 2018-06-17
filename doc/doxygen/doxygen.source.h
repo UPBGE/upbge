@@ -196,6 +196,10 @@
  *  \ingroup editors
  */
 
+/** \defgroup edlattice lattice
+ *  \ingroup editors
+ */
+
 /** \defgroup edmesh mesh
  *  \ingroup editors
  */
@@ -309,6 +313,10 @@
  */
 
 /** \defgroup edutil editor utilities
+ *  \ingroup editors
+ */
+
+/** \defgroup edundo undo utilities
  *  \ingroup editors
  */
 

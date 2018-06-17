@@ -46,15 +46,6 @@ struct wmTimer;
 struct Material;
 struct GPUFX;
 
-/* This is needed to not let VC choke on near and far... old
- * proprietary MS extensions... */
-#ifdef WIN32
-#undef near
-#undef far
-#define near clipsta
-#define far clipend
-#endif
-
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
 #include "DNA_image_types.h"
@@ -63,9 +54,13 @@ struct GPUFX;
 
 /* ******************************** */
 
-/* The near/far thing is a Win EXCEPTION. Thus, leave near/far in the
- * code, and patch for windows. */
- 
+/* The near/far thing is a Win EXCEPTION, caused by indirect includes from <windows.h>.
+ * Thus, leave near/far in the code, and undef for windows. */
+#ifdef _WIN32
+#  undef near
+#  undef far
+#endif
+
 /* Background Picture in 3D-View */
 typedef struct BGpic {
 	struct BGpic *next, *prev;
@@ -153,9 +148,10 @@ typedef struct RegionView3D {
 typedef struct View3D {
 	struct SpaceLink *next, *prev;
 	ListBase regionbase;		/* storage of regions for inactive spaces */
-	int spacetype;
-	float blockscale;
-	short blockhandler[8];
+	char spacetype;
+	char link_flag;
+	char _pad0[6];
+	/* End 'SpaceLink' header. */
 
 	float viewquat[4]  DNA_DEPRECATED;
 	float dist         DNA_DEPRECATED;

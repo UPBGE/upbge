@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -32,7 +32,7 @@
 static bNodeSocketTemplate sh_node_subsurface_scattering_in[] = {
 	{	SOCK_RGBA, 1, N_("Color"),			0.8f, 0.8f, 0.8f, 1.0f, 0.0f, 1.0f},
 	{	SOCK_FLOAT, 1, N_("Scale"),			1.0, 0.0f, 0.0f, 0.0f, 0.0f, 1000.0f},
-	{	SOCK_VECTOR, 1, N_("Radius"),		1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 100.0f},
+	{	SOCK_VECTOR, 1, N_("Radius"),		1.0f, 0.2f, 0.1f, 0.0f, 0.0f, 100.0f},
 	{	SOCK_FLOAT, 1, N_("Sharpness"),		0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_FACTOR},
 	{	SOCK_FLOAT, 1, N_("Texture Blur"),	0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_FACTOR},
 	{	SOCK_VECTOR, 1, N_("Normal"),		0.0f, 0.0f, 0.0f, 1.0f, -1.0f, 1.0f, PROP_NONE, SOCK_HIDE_VALUE},

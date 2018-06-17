@@ -433,6 +433,9 @@ static ShaderNode *add_node(Scene *scene,
 			case BL::ShaderNodeSubsurfaceScattering::falloff_BURLEY:
 				subsurface->falloff = CLOSURE_BSSRDF_BURLEY_ID;
 				break;
+			case BL::ShaderNodeSubsurfaceScattering::falloff_RANDOM_WALK:
+				subsurface->falloff = CLOSURE_BSSRDF_RANDOM_WALK_ID;
+				break;
 		}
 
 		node = subsurface;
@@ -532,6 +535,14 @@ static ShaderNode *add_node(Scene *scene,
 				principled->distribution = CLOSURE_BSDF_MICROFACET_MULTI_GGX_GLASS_ID;
 				break;
 		}
+		switch (b_principled_node.subsurface_method()) {
+			case BL::ShaderNodeBsdfPrincipled::subsurface_method_BURLEY:
+				principled->subsurface_method = CLOSURE_BSSRDF_PRINCIPLED_ID;
+				break;
+			case BL::ShaderNodeBsdfPrincipled::subsurface_method_RANDOM_WALK:
+				principled->subsurface_method = CLOSURE_BSSRDF_PRINCIPLED_RANDOM_WALK_ID;
+				break;
+		}
 		node = principled;
 	}
 	else if(b_node.is_a(&RNA_ShaderNodeBsdfTranslucent)) {
@@ -547,13 +558,22 @@ static ShaderNode *add_node(Scene *scene,
 		node = new EmissionNode();
 	}
 	else if(b_node.is_a(&RNA_ShaderNodeAmbientOcclusion)) {
-		node = new AmbientOcclusionNode();
+		BL::ShaderNodeAmbientOcclusion b_ao_node(b_node);
+		AmbientOcclusionNode *ao = new AmbientOcclusionNode();
+		ao->samples = b_ao_node.samples();
+		ao->inside = b_ao_node.inside();
+		ao->only_local = b_ao_node.only_local();
+		node = ao;
 	}
 	else if(b_node.is_a(&RNA_ShaderNodeVolumeScatter)) {
 		node = new ScatterVolumeNode();
 	}
 	else if(b_node.is_a(&RNA_ShaderNodeVolumeAbsorption)) {
 		node = new AbsorptionVolumeNode();
+	}
+	else if(b_node.is_a(&RNA_ShaderNodeVolumePrincipled)) {
+		PrincipledVolumeNode *principled = new PrincipledVolumeNode();
+		node = principled;
 	}
 	else if(b_node.is_a(&RNA_ShaderNodeNewGeometry)) {
 		node = new GeometryNode();
@@ -803,6 +823,22 @@ static ShaderNode *add_node(Scene *scene,
 		get_tex_mapping(&sky->tex_mapping, b_texture_mapping);
 		node = sky;
 	}
+	else if(b_node.is_a(&RNA_ShaderNodeTexIES)) {
+		BL::ShaderNodeTexIES b_ies_node(b_node);
+		IESLightNode *ies = new IESLightNode();
+		switch(b_ies_node.mode()) {
+			case BL::ShaderNodeTexIES::mode_EXTERNAL:
+				ies->filename = blender_absolute_path(b_data, b_ntree, b_ies_node.filepath());
+				break;
+			case BL::ShaderNodeTexIES::mode_INTERNAL:
+				ies->ies = get_text_datablock_content(b_ies_node.ies().ptr);
+				if(ies->ies.empty()) {
+					ies->ies = "\n";
+				}
+				break;
+		}
+		node = ies;
+	}
 	else if(b_node.is_a(&RNA_ShaderNodeNormalMap)) {
 		BL::ShaderNodeNormalMap b_normal_map_node(b_node);
 		NormalMapNode *nmap = new NormalMapNode();
@@ -871,6 +907,19 @@ static ShaderNode *add_node(Scene *scene,
 		BevelNode *bevel = new BevelNode();
 		bevel->samples = b_bevel_node.samples();
 		node = bevel;
+	}
+	else if(b_node.is_a(&RNA_ShaderNodeDisplacement)) {
+		BL::ShaderNodeDisplacement b_disp_node(b_node);
+		DisplacementNode *disp = new DisplacementNode();
+		disp->space = (NodeNormalMapSpace)b_disp_node.space();
+		node = disp;
+	}
+	else if(b_node.is_a(&RNA_ShaderNodeVectorDisplacement)) {
+		BL::ShaderNodeVectorDisplacement b_disp_node(b_node);
+		VectorDisplacementNode *disp = new VectorDisplacementNode();
+		disp->space = (NodeNormalMapSpace)b_disp_node.space();
+		disp->attribute = "";
+		node = disp;
 	}
 
 	if(node) {
@@ -1000,6 +1049,10 @@ static void add_nodes(Scene *scene,
 			for(b_node->internal_links.begin(b_link); b_link != b_node->internal_links.end(); ++b_link) {
 				BL::NodeSocket to_socket(b_link->to_socket());
 				SocketType::Type to_socket_type = convert_socket_type(to_socket);
+				if (to_socket_type == SocketType::UNDEFINED) {
+					continue;
+				}
+
 				ConvertNode *proxy = new ConvertNode(to_socket_type, to_socket_type, true);
 
 				input_map[b_link->from_socket().ptr.data] = proxy->inputs[0];
@@ -1023,6 +1076,10 @@ static void add_nodes(Scene *scene,
 			 */
 			for(b_node->inputs.begin(b_input); b_input != b_node->inputs.end(); ++b_input) {
 				SocketType::Type input_type = convert_socket_type(*b_input);
+				if (input_type == SocketType::UNDEFINED) {
+					continue;
+				}
+
 				ConvertNode *proxy = new ConvertNode(input_type, input_type, true);
 				graph->add(proxy);
 
@@ -1035,6 +1092,10 @@ static void add_nodes(Scene *scene,
 			}
 			for(b_node->outputs.begin(b_output); b_output != b_node->outputs.end(); ++b_output) {
 				SocketType::Type output_type = convert_socket_type(*b_output);
+				if (output_type == SocketType::UNDEFINED) {
+					continue;
+				}
+
 				ConvertNode *proxy = new ConvertNode(output_type, output_type, true);
 				graph->add(proxy);
 
@@ -1221,7 +1282,7 @@ void BlenderSync::sync_materials(bool update_all)
 			shader->heterogeneous_volume = !get_boolean(cmat, "homogeneous_volume");
 			shader->volume_sampling_method = get_volume_sampling(cmat);
 			shader->volume_interpolation_method = get_volume_interpolation(cmat);
-			shader->displacement_method = (experimental) ? get_displacement_method(cmat) : DISPLACE_BUMP;
+			shader->displacement_method = get_displacement_method(cmat);
 
 			shader->set_graph(graph);
 
@@ -1332,6 +1393,15 @@ void BlenderSync::sync_world(bool update_all)
 		background->transparent = get_boolean(cscene, "film_transparent");
 	else
 		background->transparent = b_scene.render().alpha_mode() == BL::RenderSettings::alpha_mode_TRANSPARENT;
+
+	if(background->transparent) {
+		background->transparent_glass = get_boolean(cscene, "film_transparent_glass");
+		background->transparent_roughness_threshold = get_float(cscene, "film_transparent_roughness");
+	}
+	else {
+		background->transparent_glass = false;
+		background->transparent_roughness_threshold = 0.0f;
+	}
 
 	background->use_shader = render_layer.use_background_shader;
 	background->use_ao = background->use_ao && render_layer.use_background_ao;

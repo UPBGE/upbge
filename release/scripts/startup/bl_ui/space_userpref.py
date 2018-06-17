@@ -18,7 +18,11 @@
 
 # <pep8 compliant>
 import bpy
-from bpy.types import Header, Menu, Panel
+from bpy.types import (
+    Header,
+    Menu,
+    Panel,
+)
 from bpy.app.translations import pgettext_iface as iface_
 from bpy.app.translations import contexts as i18n_contexts
 
@@ -134,7 +138,6 @@ class USERPREF_MT_app_templates(Menu):
             layout.operator_context = 'INVOKE_DEFAULT'
             props = layout.operator("wm.app_template_install")
 
-
     def draw(self, context):
         self.draw_ex(context, use_splash=False, use_default=True, use_install=True)
 
@@ -207,7 +210,6 @@ class USERPREF_PT_interface(Panel):
         return (userpref.active_section == 'INTERFACE')
 
     def draw(self, context):
-        import sys
         layout = self.layout
 
         userpref = context.user_preferences
@@ -240,9 +242,8 @@ class USERPREF_PT_interface(Panel):
 
         col.separator()
 
-        if sys.platform[:3] == "win":
-            col.label("Warnings")
-            col.prop(view, "use_quit_dialog")
+        col.label("Warnings")
+        col.prop(view, "use_quit_dialog")
 
         row.separator()
         row.separator()
@@ -270,17 +271,17 @@ class USERPREF_PT_interface(Panel):
         col.prop(view, "view2d_grid_spacing_min", text="Minimum Grid Spacing")
         col.prop(view, "timecode_style")
         col.prop(view, "view_frame_type")
-        if (view.view_frame_type == 'SECONDS'):
+        if view.view_frame_type == 'SECONDS':
             col.prop(view, "view_frame_seconds")
-        elif (view.view_frame_type == 'KEYFRAMES'):
+        elif view.view_frame_type == 'KEYFRAMES':
             col.prop(view, "view_frame_keyframes")
 
         row.separator()
         row.separator()
 
         col = row.column()
-        #Toolbox doesn't exist yet
-        #col.label(text="Toolbox:")
+        # Toolbox doesn't exist yet
+        # col.label(text="Toolbox:")
         #col.prop(view, "show_column_layout")
         #col.label(text="Open Toolbox Delay:")
         #col.prop(view, "open_left_mouse_delay", text="Hold LMB")
@@ -313,10 +314,14 @@ class USERPREF_PT_interface(Panel):
         sub.prop(view, "pie_menu_threshold")
         sub.prop(view, "pie_menu_confirm")
         col.separator()
-        col.separator()
-        col.separator()
 
         col.prop(view, "show_splash")
+        col.separator()
+
+        col.label(text="App Template:")
+        col.label(text="Options intended for use with app-templates only.")
+        col.prop(view, "show_layout_ui")
+        col.prop(view, "show_view3d_cursor")
 
 
 class USERPREF_PT_edit(Panel):
@@ -402,7 +407,7 @@ class USERPREF_PT_edit(Panel):
 
         sub = col.column()
 
-        #~ sub.active = edit.use_keyframe_insert_auto # incorrect, time-line can enable
+        # ~ sub.active = edit.use_keyframe_insert_auto # incorrect, time-line can enable
         sub.prop(edit, "use_keyframe_insert_available", text="Only Insert Available")
 
         col.separator()
@@ -614,7 +619,7 @@ class USERPREF_MT_interface_theme_presets(Menu):
     preset_xml_map = (
         ("user_preferences.themes[0]", "Theme"),
         ("user_preferences.ui_styles[0]", "ThemeStyle"),
-        )
+    )
     draw = Menu.draw_preset
 
 
@@ -634,20 +639,20 @@ class USERPREF_PT_theme(Panel):
             "split_normal",
             "bone_solid",
             "paint_curve_pivot",
-            },
+        },
         'GRAPH_EDITOR': {
             "handle_vertex_select",
-            },
+        },
         'IMAGE_EDITOR': {
             "paint_curve_pivot",
-            },
+        },
         'NODE_EDITOR': {
             "layout_node",
-            },
+        },
         'CLIP_EDITOR': {
             "handle_vertex_select",
-            }
         }
+    }
 
     @staticmethod
     def _theme_generic(split, themedata, theme_area):
@@ -933,8 +938,8 @@ class USERPREF_PT_theme(Panel):
         elif theme.theme_area == 'BONE_COLOR_SETS':
             col = split.column()
 
-            for i, ui in enumerate(theme.bone_color_sets):
-                col.label(text=iface_("Color Set %d:") % (i + 1), translate=False)  # i starts from 0
+            for i, ui in enumerate(theme.bone_color_sets, 1):
+                col.label(text=iface_("Color Set %d:") % i, translate=False)
 
                 row = col.row()
 
@@ -1210,7 +1215,7 @@ class USERPREF_PT_input(Panel):
 
         #sub.prop(inputs, "use_mouse_mmb_paste")
 
-        #col.separator()
+        # col.separator()
 
         sub = col.column()
         sub.prop(inputs, "invert_zoom_wheel", text="Invert Wheel Zoom Direction")
@@ -1296,22 +1301,23 @@ class USERPREF_MT_addons_online_resources(Menu):
         layout = self.layout
 
         layout.operator(
-                "wm.url_open", text="Add-ons Catalog", icon='URL',
-                ).url = "http://wiki.blender.org/index.php/Extensions:2.6/Py/Scripts"
+            "wm.url_open", text="Add-ons Catalog", icon='URL',
+        ).url = "http://wiki.blender.org/index.php/Extensions:2.6/Py/Scripts"
 
         layout.separator()
 
         layout.operator(
-                "wm.url_open", text="How to share your add-on", icon='URL',
-                ).url = "http://wiki.blender.org/index.php/Dev:Py/Sharing"
+            "wm.url_open", text="How to share your add-on", icon='URL',
+        ).url = "http://wiki.blender.org/index.php/Dev:Py/Sharing"
         layout.operator(
-                "wm.url_open", text="Add-on Guidelines", icon='URL',
-                ).url = "http://wiki.blender.org/index.php/Dev:2.5/Py/Scripts/Guidelines/Addons"
+            "wm.url_open", text="Add-on Guidelines", icon='URL',
+        ).url = "http://wiki.blender.org/index.php/Dev:2.5/Py/Scripts/Guidelines/Addons"
         layout.operator(
-                "wm.url_open", text="API Concepts", icon='URL',
-                ).url = bpy.types.WM_OT_doc_view._prefix + "/info_quickstart.html"
-        layout.operator("wm.url_open", text="Add-on Tutorial", icon='URL',
-                ).url = bpy.types.WM_OT_doc_view._prefix + "/info_tutorial_addon.html"
+            "wm.url_open", text="API Concepts", icon='URL',
+        ).url = bpy.types.WM_OT_doc_view._prefix + "/info_quickstart.html"
+        layout.operator(
+            "wm.url_open", text="Add-on Tutorial", icon='URL',
+        ).url = bpy.types.WM_OT_doc_view._prefix + "/info_tutorial_addon.html"
 
 
 class USERPREF_PT_addons(Panel):
@@ -1324,7 +1330,7 @@ class USERPREF_PT_addons(Panel):
         'OFFICIAL': 'FILE_BLEND',
         'COMMUNITY': 'POSE_DATA',
         'TESTING': 'MOD_EXPLODE',
-        }
+    }
 
     @classmethod
     def poll(cls, context):
@@ -1336,8 +1342,10 @@ class USERPREF_PT_addons(Panel):
         import os
 
         if not user_addon_paths:
-            for path in (bpy.utils.script_path_user(),
-                         bpy.utils.script_path_pref()):
+            for path in (
+                    bpy.utils.script_path_user(),
+                    bpy.utils.script_path_pref(),
+            ):
                 if path is not None:
                     user_addon_paths.append(os.path.join(path, "addons"))
 
@@ -1369,7 +1377,10 @@ class USERPREF_PT_addons(Panel):
         scripts_addons_folder = bpy.utils.user_resource('SCRIPTS', "addons")
 
         # collect the categories that can be filtered on
-        addons = [(mod, addon_utils.module_bl_info(mod)) for mod in addon_utils.modules(refresh=False)]
+        addons = [
+            (mod, addon_utils.module_bl_info(mod))
+            for mod in addon_utils.modules(refresh=False)
+        ]
 
         split = layout.split(percentage=0.2)
         col = split.column()
@@ -1397,12 +1408,12 @@ class USERPREF_PT_addons(Panel):
                 sub_col.label("    " + addon_file)
                 sub_col.label("    " + addon_path)
 
-
         if addon_utils.error_encoding:
-            self.draw_error(col,
-                            "One or more addons do not have UTF-8 encoding\n"
-                            "(see console for details)",
-                            )
+            self.draw_error(
+                col,
+                "One or more addons do not have UTF-8 encoding\n"
+                "(see console for details)",
+            )
 
         filter = context.window_manager.addon_filter
         search = context.window_manager.addon_search.lower()
@@ -1421,12 +1432,11 @@ class USERPREF_PT_addons(Panel):
 
             # check if addon should be visible with current filters
             if ((filter == "All") or
-                (filter == info["category"]) or
-                (filter == "Enabled" and is_enabled) or
-                (filter == "Disabled" and not is_enabled) or
-                (filter == "User" and (mod.__file__.startswith((scripts_addons_folder, userpref_addons_folder))))
-                ):
-
+                        (filter == info["category"]) or
+                        (filter == "Enabled" and is_enabled) or
+                    (filter == "Disabled" and not is_enabled) or
+                    (filter == "User" and (mod.__file__.startswith((scripts_addons_folder, userpref_addons_folder))))
+                    ):
                 if search and search not in info["name"].lower():
                     if info["author"]:
                         if search not in info["author"].lower():
@@ -1441,16 +1451,16 @@ class USERPREF_PT_addons(Panel):
                 row = colsub.row(align=True)
 
                 row.operator(
-                        "wm.addon_expand",
-                        icon='TRIA_DOWN' if info["show_expanded"] else 'TRIA_RIGHT',
-                        emboss=False,
-                        ).module = module_name
+                    "wm.addon_expand",
+                    icon='TRIA_DOWN' if info["show_expanded"] else 'TRIA_RIGHT',
+                    emboss=False,
+                ).module = module_name
 
                 row.operator(
-                        "wm.addon_disable" if is_enabled else "wm.addon_enable",
-                        icon='CHECKBOX_HLT' if is_enabled else 'CHECKBOX_DEHLT', text="",
-                        emboss=False,
-                        ).module = module_name
+                    "wm.addon_disable" if is_enabled else "wm.addon_enable",
+                    icon='CHECKBOX_HLT' if is_enabled else 'CHECKBOX_DEHLT', text="",
+                    emboss=False,
+                ).module = module_name
 
                 sub = row.row()
                 sub.active = is_enabled
@@ -1495,12 +1505,22 @@ class USERPREF_PT_addons(Panel):
                         split = colsub.row().split(percentage=0.15)
                         split.label(text="Internet:")
                         if info["wiki_url"]:
-                            split.operator("wm.url_open", text="Documentation", icon='HELP').url = info["wiki_url"]
-                        split.operator("wm.url_open", text="Report a Bug", icon='URL').url = info.get(
+                            split.operator(
+                                "wm.url_open", text="Documentation", icon='HELP',
+                            ).url = info["wiki_url"]
+                        # Only add "Report a Bug" button if tracker_url is set
+                        # or the add-on is bundled (use official tracker then).
+                        if info.get("tracker_url") or not user_addon:
+                            split.operator(
+                                "wm.url_open", text="Report a Bug", icon='URL',
+                            ).url = info.get(
                                 "tracker_url",
-                                "https://developer.blender.org/maniphest/task/edit/form/2")
+                                "https://developer.blender.org/maniphest/task/edit/form/2",
+                            )
                         if user_addon:
-                            split.operator("wm.addon_remove", text="Remove", icon='CANCEL').module = mod.__name__
+                            split.operator(
+                                "wm.addon_remove", text="Remove", icon='CANCEL',
+                            ).module = mod.__name__
 
                         for i in range(4 - tot_row):
                             split.separator()
@@ -1543,7 +1563,9 @@ class USERPREF_PT_addons(Panel):
                 row.label(text="", icon='ERROR')
 
                 if is_enabled:
-                    row.operator("wm.addon_disable", icon='CHECKBOX_HLT', text="", emboss=False).module = module_name
+                    row.operator(
+                        "wm.addon_disable", icon='CHECKBOX_HLT', text="", emboss=False,
+                    ).module = module_name
 
                 row.label(text=module_name, translate=False)
 

@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -60,6 +60,7 @@
 #include "ED_space_api.h"
 #include "ED_sound.h"
 #include "ED_uvedit.h"
+#include "ED_lattice.h"
 #include "ED_mball.h"
 #include "ED_logic.h"
 #include "ED_clip.h"
@@ -76,7 +77,7 @@ void ED_spacetypes_init(void)
 
 	/* UI_UNIT_X is now a variable, is used in some spacetype inits? */
 	U.widget_unit = 20;
-	
+
 	/* create space types */
 	ED_spacetype_outliner();
 	ED_spacetype_time();
@@ -97,13 +98,14 @@ void ED_spacetypes_init(void)
 	ED_spacetype_userpref();
 	ED_spacetype_clip();
 //	...
-	
+
 	/* register operator types for screen and all spaces */
 	ED_operatortypes_screen();
 	ED_operatortypes_anim();
 	ED_operatortypes_animchannels();
 	ED_operatortypes_gpencil();
 	ED_operatortypes_object();
+	ED_operatortypes_lattice();
 	ED_operatortypes_mesh();
 	ED_operatortypes_sculpt();
 	ED_operatortypes_uvedit();
@@ -118,10 +120,10 @@ void ED_spacetypes_init(void)
 	ED_operatortypes_logic();
 	ED_operatortypes_mask();
 	ED_operatortypes_io();
-	
+
 	ED_operatortypes_view2d();
 	ED_operatortypes_ui();
-	
+
 	/* register operators */
 	spacetypes = BKE_spacetypes_list();
 	for (type = spacetypes->first; type; type = type->next) {
@@ -176,7 +178,8 @@ void ED_spacetypes_keymap(wmKeyConfig *keyconf)
 	ED_keymap_anim(keyconf);
 	ED_keymap_animchannels(keyconf);
 	ED_keymap_gpencil(keyconf);
-	ED_keymap_object(keyconf); /* defines lattice also */
+	ED_keymap_object(keyconf);
+	ED_keymap_lattice(keyconf);
 	ED_keymap_mesh(keyconf);
 	ED_keymap_uvedit(keyconf);
 	ED_keymap_curve(keyconf);
@@ -205,32 +208,32 @@ void ED_spacetypes_keymap(wmKeyConfig *keyconf)
 
 typedef struct RegionDrawCB {
 	struct RegionDrawCB *next, *prev;
-	
+
 	void (*draw)(const struct bContext *, struct ARegion *, void *);
 	void *customdata;
-	
+
 	int type;
-	
+
 } RegionDrawCB;
 
-void *ED_region_draw_cb_activate(ARegionType *art, 
+void *ED_region_draw_cb_activate(ARegionType *art,
                                  void (*draw)(const struct bContext *, struct ARegion *, void *),
                                  void *customdata, int type)
 {
 	RegionDrawCB *rdc = MEM_callocN(sizeof(RegionDrawCB), "RegionDrawCB");
-	
+
 	BLI_addtail(&art->drawcalls, rdc);
 	rdc->draw = draw;
 	rdc->customdata = customdata;
 	rdc->type = type;
-	
+
 	return rdc;
 }
 
 void ED_region_draw_cb_exit(ARegionType *art, void *handle)
 {
 	RegionDrawCB *rdc;
-	
+
 	for (rdc = art->drawcalls.first; rdc; rdc = rdc->next) {
 		if (rdc == (RegionDrawCB *)handle) {
 			BLI_remlink(&art->drawcalls, rdc);
@@ -248,7 +251,7 @@ void *ED_region_draw_cb_customdata(void *handle)
 void ED_region_draw_cb_draw(const bContext *C, ARegion *ar, int type)
 {
 	RegionDrawCB *rdc;
-	
+
 	for (rdc = ar->type->drawcalls.first; rdc; rdc = rdc->next) {
 		if (rdc->type == type) {
 			UI_reinit_gl_state();
@@ -278,17 +281,17 @@ static void xxx_free(SpaceLink *UNUSED(sl))
 /* spacetype; init callback for usage, should be redoable */
 static void xxx_init(wmWindowManager *UNUSED(wm), ScrArea *UNUSED(sa))
 {
-	
+
 	/* link area to SpaceXXX struct */
-	
+
 	/* define how many regions, the order and types */
-	
+
 	/* add types to regions */
 }
 
 static SpaceLink *xxx_duplicate(SpaceLink *UNUSED(sl))
 {
-	
+
 	return NULL;
 }
 
@@ -306,16 +309,16 @@ static void xxx_keymap(wmKeyConfig *UNUSED(keyconf))
 void ED_spacetype_xxx(void)
 {
 	static SpaceType st;
-	
+
 	st.spaceid = SPACE_VIEW3D;
-	
+
 	st.new = xxx_new;
 	st.free = xxx_free;
 	st.init = xxx_init;
 	st.duplicate = xxx_duplicate;
 	st.operatortypes = xxx_operatortypes;
 	st.keymap = xxx_keymap;
-	
+
 	BKE_spacetype_register(&st);
 }
 

@@ -19,7 +19,7 @@
  * All rights reserved.
  *
  * Original Author: Lukas Toenne
- * Contributor(s): 
+ * Contributor(s):
  *
  * ***** END GPL LICENSE BLOCK *****
  */
@@ -30,7 +30,7 @@
 
 #pragma once
 
-#if (__cplusplus > 199711L)
+#if (__cplusplus > 199711L) || (defined(_MSC_VER) && _MSC_VER >= 1900)
 
 #include <functional>
 

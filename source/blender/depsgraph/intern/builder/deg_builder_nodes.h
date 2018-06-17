@@ -30,6 +30,7 @@
 
 #pragma once
 
+#include "intern/builder/deg_builder_map.h"
 #include "intern/depsgraph_types.h"
 
 struct Base;
@@ -98,6 +99,13 @@ struct DepsgraphNodeBuilder {
 	                                      const char *name = "",
 	                                      int name_tag = -1);
 
+	OperationDepsNode *ensure_operation_node(ID *id,
+	                                         eDepsNode_Type comp_type,
+	                                         const DepsEvalOperationCb& op,
+	                                         eDepsOperation_Code opcode,
+	                                         const char *name = "",
+	                                         int name_tag = -1);
+
 	bool has_operation_node(ID *id,
 	                        eDepsNode_Type comp_type,
 	                        const char *comp_name,
@@ -118,18 +126,21 @@ struct DepsgraphNodeBuilder {
 	                                       const char *name = "",
 	                                       int name_tag = -1);
 
+	void build_id(ID* id);
 	void build_scene(Scene *scene);
 	void build_group(Base *base, Group *group);
 	void build_object(Base *base, Object *object);
 	void build_object_data(Object *object);
 	void build_object_transform(Object *object);
 	void build_object_constraints(Object *object);
-	void build_pose_constraints(Object *object, bPoseChannel *pchan);
+	void build_pose_constraints(Object *object, bPoseChannel *pchan, int pchan_index);
 	void build_rigidbody(Scene *scene);
 	void build_particles(Object *object);
 	void build_cloth(Object *object);
 	void build_animdata(ID *id);
-	OperationDepsNode *build_driver(ID *id, FCurve *fcurve);
+	void build_driver(ID *id, FCurve *fcurve);
+	void build_driver_variables(ID *id, FCurve *fcurve);
+	void build_driver_id_property(ID *id, const char *rna_path);
 	void build_ik_pose(Object *object,
 	                   bPoseChannel *pchan,
 	                   bConstraint *con);
@@ -155,12 +166,28 @@ struct DepsgraphNodeBuilder {
 	void build_movieclip(MovieClip *clip);
 
 protected:
+	struct BuilderWalkUserData {
+		DepsgraphNodeBuilder *builder;
+	};
+
+	static void modifier_walk(void *user_data,
+	                          struct Object *object,
+	                          struct ID **idpoin,
+	                          int cb_flag);
+
+	static void constraint_walk(bConstraint *constraint,
+	                            ID **idpoin,
+	                            bool is_reference,
+	                            void *user_data);
+
 	/* State which never changes, same for the whole builder time. */
 	Main *bmain_;
 	Depsgraph *graph_;
 
 	/* State which demotes currently built entities. */
 	Scene *scene_;
+
+	BuilderMap built_map_;
 };
 
 }  // namespace DEG

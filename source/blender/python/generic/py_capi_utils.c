@@ -38,6 +38,8 @@
 
 #include "python_utildefines.h"
 
+#include "BLI_string.h"
+
 #ifndef MATH_STANDALONE
 /* only for BLI_strncpy_wchar_from_utf8, should replace with py funcs but too late in release now */
 #include "BLI_string_utf8.h"
@@ -144,6 +146,15 @@ PyObject *PyC_Tuple_PackArray_F32(const float *array, uint len)
 	return tuple;
 }
 
+PyObject *PyC_Tuple_PackArray_F64(const double *array, uint len)
+{
+	PyObject *tuple = PyTuple_New(len);
+	for (uint i = 0; i < len; i++) {
+		PyTuple_SET_ITEM(tuple, i, PyFloat_FromDouble(array[i]));
+	}
+	return tuple;
+}
+
 PyObject *PyC_Tuple_PackArray_I32(const int *array, uint len)
 {
 	PyObject *tuple = PyTuple_New(len);
@@ -225,22 +236,49 @@ int PyC_ParseBool(PyObject *o, void *p)
 /* for debugging */
 void PyC_ObSpit(const char *name, PyObject *var)
 {
+	const char *null_str = "<null>";
 	fprintf(stderr, "<%s> : ", name);
 	if (var == NULL) {
-		fprintf(stderr, "<NIL>");
+		fprintf(stderr, "%s\n", null_str);
 	}
 	else {
 		PyObject_Print(var, stderr, 0);
-		fprintf(stderr, " ref:%d ", (int)var->ob_refcnt);
-		fprintf(stderr, " ptr:%p", (void *)var);
-		
-		fprintf(stderr, " type:");
-		if (Py_TYPE(var))
-			fprintf(stderr, "%s", Py_TYPE(var)->tp_name);
-		else
-			fprintf(stderr, "<NIL>");
+		const PyTypeObject *type = Py_TYPE(var);
+		fprintf(stderr,
+		        " ref:%d, ptr:%p, type: %s\n",
+		        (int)var->ob_refcnt, (void *)var, type ? type->tp_name : null_str);
 	}
-	fprintf(stderr, "\n");
+}
+
+/**
+ * A version of #PyC_ObSpit that writes into a string (and doesn't take a name argument).
+ * Use for logging.
+ */
+void PyC_ObSpitStr(char *result, size_t result_len, PyObject *var)
+{
+	/* No name, creator of string can manage that. */
+	const char *null_str = "<null>";
+	if (var == NULL) {
+		BLI_snprintf(result, result_len, "%s", null_str);
+	}
+	else {
+		const PyTypeObject *type = Py_TYPE(var);
+		PyObject *var_str = PyObject_Repr(var);
+		if (var_str == NULL) {
+			/* We could print error here, but this may be used for generating errors - so don't for now. */
+			PyErr_Clear();
+		}
+		BLI_snprintf(
+		        result, result_len,
+		        " ref=%d, ptr=%p, type=%s, value=%.200s",
+		        (int)var->ob_refcnt,
+		        (void *)var,
+		        type ? type->tp_name : null_str,
+		        var_str ? _PyUnicode_AsString(var_str) : "<error>");
+		if (var_str != NULL) {
+			Py_DECREF(var_str);
+		}
+	}
 }
 
 void PyC_LineSpit(void)
@@ -257,7 +295,7 @@ void PyC_LineSpit(void)
 
 	PyErr_Clear();
 	PyC_FileAndNum(&filename, &lineno);
-	
+
 	fprintf(stderr, "%s:%d\n", filename, lineno);
 }
 
@@ -279,7 +317,7 @@ void PyC_StackSpit(void)
 void PyC_FileAndNum(const char **filename, int *lineno)
 {
 	PyFrameObject *frame;
-	
+
 	if (filename) *filename = NULL;
 	if (lineno)   *lineno = -1;
 
@@ -337,22 +375,22 @@ PyObject *PyC_Object_GetAttrStringArgs(PyObject *o, Py_ssize_t n, ...)
 	Py_ssize_t i;
 	PyObject *item = o;
 	const char *attr;
-	
+
 	va_list vargs;
 
 	va_start(vargs, n);
 	for (i = 0; i < n; i++) {
 		attr = va_arg(vargs, char *);
 		item = PyObject_GetAttrString(item, attr);
-		
-		if (item) 
+
+		if (item)
 			Py_DECREF(item);
 		else /* python will set the error value here */
 			break;
-		
+
 	}
 	va_end(vargs);
-	
+
 	Py_XINCREF(item); /* final value has is increfed, to match PyObject_GetAttrString */
 	return item;
 }
@@ -801,7 +839,7 @@ void PyC_RunQuicky(const char *filepath, int n, ...)
 			}
 		}
 		va_end(vargs);
-		
+
 		/* set the value so we can access it */
 		PyDict_SetItemString(py_dict, "values", values);
 		Py_DECREF(values);
@@ -827,7 +865,7 @@ void PyC_RunQuicky(const char *filepath, int n, ...)
 				for (i = 0; i * 2 < n; i++) {
 					const char *format = va_arg(vargs, char *);
 					void *ptr = va_arg(vargs, void *);
-					
+
 					PyObject *item;
 					PyObject *item_new;
 					/* prepend the string formatting and remake the tuple */

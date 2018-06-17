@@ -57,7 +57,7 @@
  * \section dna_genfile Overview
  *
  * - please note: no builtin security to detect input of double structs
- * - if you want a struct not to be in DNA file: add two hash marks above it (#<enter>#<enter>)
+ * - if you want a struct not to be in DNA file: add two hash marks above it `(#<enter>#<enter>)`.
  *
  * Structure DNA data is added to each blender file and to each executable, this to detect
  * in .blend files new variables in structs, changed array sizes, etc. It's also used for
@@ -173,7 +173,9 @@ void DNA_sdna_free(SDNA *sdna)
 	MEM_freeN(sdna->structs);
 
 #ifdef WITH_DNA_GHASH
-	BLI_ghash_free(sdna->structs_map, NULL, NULL);
+	if (sdna->structs_map) {
+		BLI_ghash_free(sdna->structs_map, NULL, NULL);
+	}
 #endif
 
 	MEM_freeN(sdna);

@@ -15,8 +15,8 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributor: 
- *		Jeroen Bakker 
+ * Contributor:
+ *		Jeroen Bakker
  *		Monique Dewanchand
  *		Lukas Tönne
  */
@@ -105,7 +105,7 @@ void ImageNode::convertToOperations(NodeConverter &converter, const CompositorCo
 					}
 
 					/* returns the image view to use for the current active view */
-					if (BLI_listbase_count_ex(&image->rr->views, 2) > 1) {
+					if (BLI_listbase_count_at_most(&image->rr->views, 2) > 1) {
 						const int view_image = imageuser->view;
 						const bool is_allview = (view_image == 0); /* if view selected == All (0) */
 

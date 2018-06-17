@@ -270,7 +270,7 @@ FCurve *iter_step_fcurve(FCurve *fcu_iter, const char rna_path[])
 
 /* Get list of LinkData's containing pointers to the F-Curves which control the types of data indicated 
  * Lists...
- *	- dst: list of LinkData's matching the criteria returned. 
+ *	- dst: list of LinkData's matching the criteria returned.
  *	  List must be freed after use, and is assumed to be empty when passed.
  *	- src: list of F-Curves to search through
  * Filters...
@@ -804,7 +804,7 @@ void bezt_add_to_cfra_elem(ListBase *lb, BezTriple *bezt)
 	
 	for (ce = lb->first; ce; ce = ce->next) {
 		/* double key? */
-		if (ce->cfra == bezt->vec[1][0]) {
+		if (IS_EQT(ce->cfra, bezt->vec[1][0], BEZT_BINARYSEARCH_THRESH)) {
 			if (bezt->f2 & SELECT) ce->sel = bezt->f2;
 			return;
 		}
@@ -879,7 +879,7 @@ void fcurve_store_samples(FCurve *fcu, void *data, int start, int end, FcuSample
 /* ***************************** F-Curve Sanity ********************************* */
 /* The functions here are used in various parts of Blender, usually after some editing
  * of keyframe data has occurred. They ensure that keyframe data is properly ordered and
- * that the handles are correctly 
+ * that the handles are correctly
  */
 
 /* Checks if the F-Curve has a Cycles modifier with simple settings that warrant transition smoothing */
@@ -1590,11 +1590,9 @@ static float dvar_eval_transChan(ChannelDriver *driver, DriverVar *dvar)
 		return 0.0f;
 	}
 	else if (dtar->transChan >= DTAR_TRANSCHAN_SCALEX) {
-		/* extract scale, and choose the right axis */
-		float scale[3];
-		
-		mat4_to_size(scale, mat);
-		return scale[dtar->transChan - DTAR_TRANSCHAN_SCALEX];
+		/* Extract scale, and choose the right axis,
+		 * inline 'mat4_to_size'. */
+		return len_v3(mat[dtar->transChan - DTAR_TRANSCHAN_SCALEX]);
 	}
 	else if (dtar->transChan >= DTAR_TRANSCHAN_ROTX) {
 		/* extract rotation as eulers (if needed) 

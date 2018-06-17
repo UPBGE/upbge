@@ -243,10 +243,10 @@ static int bpy_app_debug_set(PyObject *UNUSED(self), PyObject *value, void *clos
 		PyErr_SetString(PyExc_TypeError, "bpy.app.debug can only be True/False");
 		return -1;
 	}
-	
+
 	if (param)  G.debug |=  flag;
 	else        G.debug &= ~flag;
-	
+
 	return 0;
 }
 
@@ -297,7 +297,7 @@ static int bpy_app_debug_value_set(PyObject *UNUSED(self), PyObject *value, void
 		PyErr_SetString(PyExc_TypeError, "bpy.app.debug_value can only be set to a whole number");
 		return -1;
 	}
-	
+
 	G.debug_value = param;
 
 	WM_main_add_notifier(NC_WINDOW, NULL);
@@ -357,6 +357,11 @@ static PyGetSetDef bpy_app_getsets[] = {
 	{(char *)"debug_handlers",  bpy_app_debug_get, bpy_app_debug_set, (char *)bpy_app_debug_doc, (void *)G_DEBUG_HANDLERS},
 	{(char *)"debug_wm",        bpy_app_debug_get, bpy_app_debug_set, (char *)bpy_app_debug_doc, (void *)G_DEBUG_WM},
 	{(char *)"debug_depsgraph", bpy_app_debug_get, bpy_app_debug_set, (char *)bpy_app_debug_doc, (void *)G_DEBUG_DEPSGRAPH},
+	{(char *)"debug_depsgraph_build", bpy_app_debug_get, bpy_app_debug_set, (char *)bpy_app_debug_doc, (void *)G_DEBUG_DEPSGRAPH_BUILD},
+	{(char *)"debug_depsgraph_eval", bpy_app_debug_get, bpy_app_debug_set, (char *)bpy_app_debug_doc, (void *)G_DEBUG_DEPSGRAPH_EVAL},
+	{(char *)"debug_depsgraph_tag", bpy_app_debug_get, bpy_app_debug_set, (char *)bpy_app_debug_doc, (void *)G_DEBUG_DEPSGRAPH_TAG},
+	{(char *)"debug_depsgraph_time", bpy_app_debug_get, bpy_app_debug_set, (char *)bpy_app_debug_doc, (void *)G_DEBUG_DEPSGRAPH_TIME},
+	{(char *)"debug_depsgraph_pretty", bpy_app_debug_get, bpy_app_debug_set, (char *)bpy_app_debug_doc, (void *)G_DEBUG_DEPSGRAPH_PRETTY},
 	{(char *)"debug_simdata",   bpy_app_debug_get, bpy_app_debug_set, (char *)bpy_app_debug_doc, (void *)G_DEBUG_SIMDATA},
 	{(char *)"debug_gpumem",    bpy_app_debug_get, bpy_app_debug_set, (char *)bpy_app_debug_doc, (void *)G_DEBUG_GPU_MEM},
 
@@ -391,7 +396,7 @@ static void py_struct_seq_getset_init(void)
 PyObject *BPY_app_struct(void)
 {
 	PyObject *ret;
-	
+
 	PyStructSequence_InitType(&BlenderAppType, &app_info_desc);
 
 	ret = make_app_info();

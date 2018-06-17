@@ -48,6 +48,8 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_mesh_types.h"
+#include "DNA_screen_types.h"
+#include "DNA_space_types.h"
 
 #include "BKE_ccg.h"
 #include "BKE_context.h"
@@ -57,6 +59,7 @@
 #include "BKE_key.h"
 #include "BKE_mesh.h"
 #include "BKE_subsurf.h"
+#include "BKE_undo_system.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -64,12 +67,22 @@
 #include "GPU_buffers.h"
 
 #include "ED_paint.h"
+#include "ED_object.h"
+#include "ED_sculpt.h"
+#include "ED_undo.h"
 
 #include "bmesh.h"
 #include "paint_intern.h"
 #include "sculpt_intern.h"
 
-/************************** Undo *************************/
+
+typedef struct UndoSculpt {
+	ListBase nodes;
+
+	size_t undo_size;
+} UndoSculpt;
+
+static UndoSculpt *sculpt_undo_get_nodes(void);
 
 static void update_cb(PBVHNode *node, void *rebuild)
 {
@@ -130,7 +143,7 @@ static bool sculpt_undo_restore_coords(bContext *C, DerivedMesh *dm, SculptUndoN
 	SculptSession *ss = ob->sculpt;
 	MVert *mvert;
 	int *index;
-	
+
 	if (unode->maxvert) {
 		/* regular mesh restore */
 
@@ -143,7 +156,7 @@ static bool sculpt_undo_restore_coords(bContext *C, DerivedMesh *dm, SculptUndoN
 			if (kb) {
 				ob->shapenr = BLI_findindex(&key->block, kb) + 1;
 
-				BKE_sculpt_update_mesh_elements(scene, sd, ob, 0, false);
+				BKE_sculpt_update_mesh_elements(scene, sd, ob, false, false);
 				WM_event_add_notifier(C, NC_OBJECT | ND_DATA, ob);
 			}
 			else {
@@ -247,7 +260,7 @@ static bool sculpt_undo_restore_hidden(
 
 	if (unode->maxvert) {
 		MVert *mvert = ss->mvert;
-		
+
 		for (i = 0; i < unode->totvert; i++) {
 			MVert *v = &mvert[unode->index[i]];
 			if ((BLI_BITMAP_TEST(unode->vert_hidden, i) != 0) != ((v->flag & ME_HIDE) != 0)) {
@@ -259,12 +272,12 @@ static bool sculpt_undo_restore_hidden(
 	}
 	else if (unode->maxgrid && dm->getGridData) {
 		BLI_bitmap **grid_hidden = dm->getGridHidden(dm);
-		
+
 		for (i = 0; i < unode->totgrid; i++) {
 			SWAP(BLI_bitmap *,
 			     unode->grid_hidden[i],
 			     grid_hidden[unode->grids[i]]);
-			
+
 		}
 	}
 
@@ -278,7 +291,7 @@ static bool sculpt_undo_restore_mask(bContext *C, DerivedMesh *dm, SculptUndoNod
 	MVert *mvert;
 	float *vmask;
 	int *index, i, j;
-	
+
 	if (unode->maxvert) {
 		/* regular mesh restore */
 
@@ -316,7 +329,10 @@ static bool sculpt_undo_restore_mask(bContext *C, DerivedMesh *dm, SculptUndoNod
 	return 1;
 }
 
-static void sculpt_undo_bmesh_restore_generic_task_cb(void *userdata, const int n)
+static void sculpt_undo_bmesh_restore_generic_task_cb(
+        void *__restrict userdata,
+        const int n,
+        const ParallelRangeTLS *__restrict UNUSED(tls))
 {
 	PBVHNode **nodes = userdata;
 
@@ -344,9 +360,14 @@ static void sculpt_undo_bmesh_restore_generic(bContext *C,
 
 		BKE_pbvh_search_gather(ss->pbvh, NULL, NULL, &nodes, &totnode);
 
+		ParallelRangeSettings settings;
+		BLI_parallel_range_settings_defaults(&settings);
+		settings.use_threading = ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT);
 		BLI_task_parallel_range(
-		            0, totnode, nodes, sculpt_undo_bmesh_restore_generic_task_cb,
-		            ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT));
+		            0, totnode,
+		            nodes,
+		            sculpt_undo_bmesh_restore_generic_task_cb,
+		            &settings);
 
 		if (nodes)
 			MEM_freeN(nodes);
@@ -446,7 +467,7 @@ static int sculpt_undo_bmesh_restore(bContext *C,
 	return false;
 }
 
-static void sculpt_undo_restore(bContext *C, ListBase *lb)
+static void sculpt_undo_restore_list(bContext *C, ListBase *lb)
 {
 	Scene *scene = CTX_data_scene(C);
 	Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
@@ -469,7 +490,7 @@ static void sculpt_undo_restore(bContext *C, ListBase *lb)
 		}
 	}
 
-	BKE_sculpt_update_mesh_elements(scene, sd, ob, 0, need_mask);
+	BKE_sculpt_update_mesh_elements(scene, sd, ob, false, need_mask);
 
 	/* call _after_ sculpt_update_mesh_elements() which may update 'ob->derivedFinal' */
 	dm = mesh_get_derived_final(scene, ob, 0);
@@ -566,7 +587,7 @@ static void sculpt_undo_restore(bContext *C, ListBase *lb)
 	}
 }
 
-static void sculpt_undo_free(ListBase *lb)
+static void sculpt_undo_free_list(ListBase *lb)
 {
 	SculptUndoNode *unode;
 	int i;
@@ -609,6 +630,8 @@ static void sculpt_undo_free(ListBase *lb)
 	}
 }
 
+/* Most likely we don't need this. */
+#if 0
 static bool sculpt_undo_cleanup(bContext *C, ListBase *lb)
 {
 	Object *ob = CTX_data_active_object(C);
@@ -625,16 +648,17 @@ static bool sculpt_undo_cleanup(bContext *C, ListBase *lb)
 
 	return false;
 }
+#endif
 
 SculptUndoNode *sculpt_undo_get_node(PBVHNode *node)
 {
-	ListBase *lb = undo_paint_push_get_list(UNDO_PAINT_MESH);
+	UndoSculpt *usculpt = sculpt_undo_get_nodes();
 
-	if (!lb) {
+	if (usculpt == NULL) {
 		return NULL;
 	}
 
-	return BLI_findptr(lb, node, offsetof(SculptUndoNode, node));
+	return BLI_findptr(&usculpt->nodes, node, offsetof(SculptUndoNode, node));
 }
 
 static void sculpt_undo_alloc_and_store_hidden(PBVH *pbvh,
@@ -648,10 +672,10 @@ static void sculpt_undo_alloc_and_store_hidden(PBVH *pbvh,
 
 	BKE_pbvh_node_get_grids(pbvh, node, &grid_indices, &totgrid,
 	                        NULL, NULL, NULL);
-			
+
 	unode->grid_hidden = MEM_mapallocN(sizeof(*unode->grid_hidden) * totgrid,
 	                                   "unode->grid_hidden");
-		
+
 	for (i = 0; i < totgrid; i++) {
 		if (grid_hidden[grid_indices[i]])
 			unode->grid_hidden[i] = MEM_dupallocN(grid_hidden[grid_indices[i]]);
@@ -660,14 +684,15 @@ static void sculpt_undo_alloc_and_store_hidden(PBVH *pbvh,
 	}
 }
 
-static SculptUndoNode *sculpt_undo_alloc_node(Object *ob, PBVHNode *node,
-                                              SculptUndoType type)
+static SculptUndoNode *sculpt_undo_alloc_node(
+        Object *ob, PBVHNode *node,
+        SculptUndoType type)
 {
-	ListBase *lb = undo_paint_push_get_list(UNDO_PAINT_MESH);
+	UndoSculpt *usculpt = sculpt_undo_get_nodes();
 	SculptUndoNode *unode;
 	SculptSession *ss = ob->sculpt;
 	int totvert, allvert, totgrid, maxgrid, gridsize, *grids;
-	
+
 	unode = MEM_callocN(sizeof(SculptUndoNode), "SculptUndoNode");
 	BLI_strncpy(unode->idname, ob->id.name, sizeof(unode->idname));
 	unode->type = type;
@@ -682,29 +707,29 @@ static SculptUndoNode *sculpt_undo_alloc_node(Object *ob, PBVHNode *node,
 	}
 	else
 		maxgrid = 0;
-	
+
 	/* we will use this while sculpting, is mapalloc slow to access then? */
 
 	/* general TODO, fix count_alloc */
 	switch (type) {
 		case SCULPT_UNDO_COORDS:
-			unode->co = MEM_mapallocN(sizeof(float) * 3 * allvert, "SculptUndoNode.co");
-			unode->no = MEM_mapallocN(sizeof(short) * 3 * allvert, "SculptUndoNode.no");
-			undo_paint_push_count_alloc(UNDO_PAINT_MESH,
-			                            (sizeof(float) * 3 +
-			                             sizeof(short) * 3 +
-			                             sizeof(int)) * allvert);
+			unode->co = MEM_mapallocN(sizeof(float[3]) * allvert, "SculptUndoNode.co");
+			unode->no = MEM_mapallocN(sizeof(short[3]) * allvert, "SculptUndoNode.no");
+
+			usculpt->undo_size = (sizeof(float[3]) + sizeof(short[3]) + sizeof(int)) * allvert;
 			break;
 		case SCULPT_UNDO_HIDDEN:
 			if (maxgrid)
 				sculpt_undo_alloc_and_store_hidden(ss->pbvh, unode);
 			else
 				unode->vert_hidden = BLI_BITMAP_NEW(allvert, "SculptUndoNode.vert_hidden");
-		
+
 			break;
 		case SCULPT_UNDO_MASK:
 			unode->mask = MEM_mapallocN(sizeof(float) * allvert, "SculptUndoNode.mask");
-			undo_paint_push_count_alloc(UNDO_PAINT_MESH, (sizeof(float) * sizeof(int)) * allvert);
+
+			usculpt->undo_size += (sizeof(float) * sizeof(int)) * allvert;
+
 			break;
 		case SCULPT_UNDO_DYNTOPO_BEGIN:
 		case SCULPT_UNDO_DYNTOPO_END:
@@ -712,8 +737,8 @@ static SculptUndoNode *sculpt_undo_alloc_node(Object *ob, PBVHNode *node,
 			BLI_assert(!"Dynamic topology should've already been handled");
 			break;
 	}
-	
-	BLI_addtail(lb, unode);
+
+	BLI_addtail(&usculpt->nodes, unode);
 
 	if (maxgrid) {
 		/* multires */
@@ -764,7 +789,7 @@ static void sculpt_undo_store_hidden(Object *ob, SculptUndoNode *unode)
 		const int *vert_indices;
 		int allvert;
 		int i;
-		
+
 		BKE_pbvh_node_num_verts(pbvh, node, NULL, &allvert);
 		BKE_pbvh_node_get_verts(pbvh, node, &vert_indices, &mvert);
 		for (i = 0; i < allvert; i++) {
@@ -790,12 +815,13 @@ static SculptUndoNode *sculpt_undo_bmesh_push(Object *ob,
                                               PBVHNode *node,
                                               SculptUndoType type)
 {
-	ListBase *lb = undo_paint_push_get_list(UNDO_PAINT_MESH);
-	SculptUndoNode *unode = lb->first;
+	UndoSculpt *usculpt = sculpt_undo_get_nodes();
 	SculptSession *ss = ob->sculpt;
 	PBVHVertexIter vd;
 
-	if (!lb->first) {
+	SculptUndoNode *unode = usculpt->nodes.first;
+
+	if (unode == NULL) {
 		unode = MEM_callocN(sizeof(*unode), __func__);
 
 		BLI_strncpy(unode->idname, ob->id.name, sizeof(unode->idname));
@@ -834,7 +860,7 @@ static SculptUndoNode *sculpt_undo_bmesh_push(Object *ob,
 			unode->bm_entry = BM_log_entry_add(ss->bm_log);
 		}
 
-		BLI_addtail(lb, unode);
+		BLI_addtail(&usculpt->nodes, unode);
 	}
 
 	if (node) {
@@ -875,14 +901,15 @@ static SculptUndoNode *sculpt_undo_bmesh_push(Object *ob,
 	return unode;
 }
 
-SculptUndoNode *sculpt_undo_push_node(Object *ob, PBVHNode *node,
-                                      SculptUndoType type)
+SculptUndoNode *sculpt_undo_push_node(
+        Object *ob, PBVHNode *node,
+        SculptUndoType type)
 {
 	SculptSession *ss = ob->sculpt;
 	SculptUndoNode *unode;
 
 	/* list is manipulated by multiple threads, so we lock */
-	BLI_lock_thread(LOCK_CUSTOM1);
+	BLI_thread_lock(LOCK_CUSTOM1);
 
 	if (ss->bm ||
 	    ELEM(type,
@@ -892,17 +919,17 @@ SculptUndoNode *sculpt_undo_push_node(Object *ob, PBVHNode *node,
 		/* Dynamic topology stores only one undo node per stroke,
 		 * regardless of the number of PBVH nodes modified */
 		unode = sculpt_undo_bmesh_push(ob, node, type);
-		BLI_unlock_thread(LOCK_CUSTOM1);
+		BLI_thread_unlock(LOCK_CUSTOM1);
 		return unode;
 	}
 	else if ((unode = sculpt_undo_get_node(node))) {
-		BLI_unlock_thread(LOCK_CUSTOM1);
+		BLI_thread_unlock(LOCK_CUSTOM1);
 		return unode;
 	}
 
 	unode = sculpt_undo_alloc_node(ob, node, type);
-	
-	BLI_unlock_thread(LOCK_CUSTOM1);
+
+	BLI_thread_unlock(LOCK_CUSTOM1);
 
 	/* copy threaded, hopefully this is the performance critical part */
 
@@ -946,17 +973,18 @@ SculptUndoNode *sculpt_undo_push_node(Object *ob, PBVHNode *node,
 
 void sculpt_undo_push_begin(const char *name)
 {
-	ED_undo_paint_push_begin(UNDO_PAINT_MESH, name,
-	                         sculpt_undo_restore, sculpt_undo_free, sculpt_undo_cleanup);
+	UndoStack *ustack = ED_undo_stack_get();
+	bContext *C = NULL; /* special case, we never read from this. */
+	BKE_undosys_step_push_init_with_type(ustack, C, name, BKE_UNDOSYS_TYPE_SCULPT);
 }
 
-void sculpt_undo_push_end(const bContext *C)
+void sculpt_undo_push_end(void)
 {
-	ListBase *lb = undo_paint_push_get_list(UNDO_PAINT_MESH);
+	UndoSculpt *usculpt = sculpt_undo_get_nodes();
 	SculptUndoNode *unode;
 
 	/* we don't need normals in the undo stack */
-	for (unode = lb->first; unode; unode = unode->next) {
+	for (unode = usculpt->nodes.first; unode; unode = unode->next) {
 		if (unode->no) {
 			MEM_freeN(unode->no);
 			unode->no = NULL;
@@ -966,7 +994,97 @@ void sculpt_undo_push_end(const bContext *C)
 			BKE_pbvh_node_layer_disp_free(unode->node);
 	}
 
-	ED_undo_paint_push_end(UNDO_PAINT_MESH);
-
-	WM_file_tag_modified(C);
+	UndoStack *ustack = ED_undo_stack_get();
+	BKE_undosys_step_push(ustack, NULL, NULL);
 }
+
+/* -------------------------------------------------------------------- */
+/** \name Implements ED Undo System
+ * \{ */
+
+typedef struct SculptUndoStep {
+	UndoStep step;
+	/* note: will split out into list for multi-object-sculpt-mode. */
+	UndoSculpt data;
+} SculptUndoStep;
+
+static bool sculpt_undosys_poll(bContext *C)
+{
+	ScrArea *sa = CTX_wm_area(C);
+	if (sa && (sa->spacetype == SPACE_VIEW3D)) {
+		Object *obact = CTX_data_active_object(C);
+		if (obact && (obact->mode & OB_MODE_SCULPT)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+static void sculpt_undosys_step_encode_init(struct bContext *UNUSED(C), UndoStep *us_p)
+{
+	SculptUndoStep *us = (SculptUndoStep *)us_p;
+	/* dummy, memory is cleared anyway. */
+	BLI_listbase_clear(&us->data.nodes);
+}
+
+static bool sculpt_undosys_step_encode(struct bContext *UNUSED(C), UndoStep *us_p)
+{
+	/* dummy, encoding is done along the way by adding tiles
+	 * to the current 'SculptUndoStep' added by encode_init. */
+	SculptUndoStep *us = (SculptUndoStep *)us_p;
+	us->step.data_size = us->data.undo_size;
+	return true;
+}
+
+static void sculpt_undosys_step_decode(struct bContext *C, UndoStep *us_p, int UNUSED(dir))
+{
+	/* TODO(campbell): undo_system: use low-level API to set mode. */
+	ED_object_mode_set(C, OB_MODE_SCULPT);
+	BLI_assert(sculpt_undosys_poll(C));
+
+	SculptUndoStep *us = (SculptUndoStep *)us_p;
+	sculpt_undo_restore_list(C, &us->data.nodes);
+}
+
+static void sculpt_undosys_step_free(UndoStep *us_p)
+{
+	SculptUndoStep *us = (SculptUndoStep *)us_p;
+	sculpt_undo_free_list(&us->data.nodes);
+}
+
+/* Export for ED_undo_sys. */
+void ED_sculpt_undosys_type(UndoType *ut)
+{
+	ut->name = "Sculpt";
+	ut->poll = sculpt_undosys_poll;
+	ut->step_encode_init = sculpt_undosys_step_encode_init;
+	ut->step_encode = sculpt_undosys_step_encode;
+	ut->step_decode = sculpt_undosys_step_decode;
+	ut->step_free = sculpt_undosys_step_free;
+
+	ut->mode = BKE_UNDOTYPE_MODE_ACCUMULATE;
+	ut->use_context = true;
+
+	ut->step_size = sizeof(SculptUndoStep);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Utilities
+ * \{ */
+
+static UndoSculpt *sculpt_undosys_step_get_nodes(UndoStep *us_p)
+{
+	SculptUndoStep *us = (SculptUndoStep *)us_p;
+	return &us->data;
+}
+
+static UndoSculpt *sculpt_undo_get_nodes(void)
+{
+	UndoStack *ustack = ED_undo_stack_get();
+	UndoStep *us = BKE_undosys_stack_init_or_active_with_type(ustack, BKE_UNDOSYS_TYPE_SCULPT);
+	return sculpt_undosys_step_get_nodes(us);
+}
+
+/** \} */

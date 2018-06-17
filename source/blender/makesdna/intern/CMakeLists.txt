@@ -53,6 +53,7 @@ endif()
 # SRC_DNA_INC is defined in the parent dir
 
 add_cc_flags_custom_test(makesdna)
+setup_platform_linker_flags()
 
 add_executable(makesdna ${SRC} ${SRC_DNA_INC})
 
@@ -107,6 +108,7 @@ set(INC_SYS
 
 set(SRC
 	../../blenlib/intern/BLI_ghash.c
+	../../blenlib/intern/BLI_ghash_utils.c
 	../../blenlib/intern/BLI_mempool.c
 	../../blenlib/intern/endian_switch.c
 	../../blenlib/intern/hash_mm2a.c

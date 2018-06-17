@@ -23,7 +23,7 @@
  * Contributor(s): none yet.
  *
  * ***** END GPL LICENSE BLOCK *****
- * 
+ *
  */
 
 #ifndef __BLO_RUNTIME_H__
@@ -38,10 +38,13 @@ extern "C" {
 #endif
 
 struct BlendFileData;
+struct Main;
 struct ReportList;
 
 int BLO_is_a_runtime(const char *file);
 struct BlendFileData *BLO_read_runtime(const char *file, struct ReportList *reports);
+
+bool BLO_main_validate_libraries(struct Main *bmain, struct ReportList *reports);
 
 #ifdef __cplusplus
 }

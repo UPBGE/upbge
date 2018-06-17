@@ -16,7 +16,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * Contributor(s): zaghaghi
- * 
+ *
  * ***** END GPL LICENSE BLOCK *****
  */
 
@@ -51,7 +51,7 @@ typedef struct SunSky {
 	float backscattered_light;
 	float skyblendfac;
 	float sky_exposure;
-	
+
 	float atm_HGg;
 
 	float atm_SunIntensity;

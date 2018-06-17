@@ -1,8 +1,6 @@
 KX_Mesh(EXP_Value)
 ==================
 
-.. module:: bge.types
-
 base class --- :class:`EXP_Value`
 
 .. class:: KX_Mesh(EXP_Value)
@@ -137,7 +135,6 @@ base class --- :class:`EXP_Value`
       :type uv_index: integer
       :arg uv_index_from: optional uv index to copy from, -1 to transform the current uv.
       :type uv_index_from: integer
-
    .. method:: replaceMaterial(matid, material)
 
       Replace the material in slot :data:`matid` by the material :data:`material`.

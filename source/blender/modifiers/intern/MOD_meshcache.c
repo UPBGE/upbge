@@ -64,15 +64,6 @@ static void initData(ModifierData *md)
 	mcmd->up_axis      = 2;
 }
 
-static void copyData(ModifierData *md, ModifierData *target)
-{
-#if 0
-	MeshCacheModifierData *mcmd = (MeshCacheModifierData *)md;
-	MeshCacheModifierData *tmcmd = (MeshCacheModifierData *)target;
-#endif
-	modifier_copyData_generic(md, target);
-}
-
 static bool dependsOnTime(ModifierData *md)
 {
 	MeshCacheModifierData *mcmd = (MeshCacheModifierData *)md;
@@ -94,7 +85,7 @@ static void meshcache_do(
 {
 	const bool use_factor = mcmd->factor < 1.0f;
 	float (*vertexCos_Store)[3] = (use_factor || (mcmd->deform_mode == MOD_MESHCACHE_DEFORM_INTEGRATE)) ?
-	                              MEM_mallocN(sizeof(*vertexCos_Store) * numVerts, __func__) : NULL;
+	                              MEM_malloc_arrayN(numVerts, sizeof(*vertexCos_Store), __func__) : NULL;
 	float (*vertexCos)[3] = vertexCos_Store ? vertexCos_Store : vertexCos_Real;
 
 	Scene *scene = mcmd->modifier.scene;
@@ -161,7 +152,7 @@ static void meshcache_do(
 
 	/* would be nice if we could avoid doing this _every_ frame */
 	BLI_strncpy(filepath, mcmd->filepath, sizeof(filepath));
-	BLI_path_abs(filepath, ID_BLEND_PATH(G.main, (ID *)ob));
+	BLI_path_abs(filepath, ID_BLEND_PATH_FROM_GLOBAL((ID *)ob));
 
 	switch (mcmd->type) {
 		case MOD_MESHCACHE_TYPE_MDD:
@@ -197,8 +188,8 @@ static void meshcache_do(
 			/* the moons align! */
 			int i;
 
-			float (*vertexCos_Source)[3] = MEM_mallocN(sizeof(*vertexCos_Source) * numVerts, __func__);
-			float (*vertexCos_New)[3]    = MEM_mallocN(sizeof(*vertexCos_New) * numVerts, __func__);
+			float (*vertexCos_Source)[3] = MEM_malloc_arrayN(numVerts, sizeof(*vertexCos_Source), __func__);
+			float (*vertexCos_New)[3]    = MEM_malloc_arrayN(numVerts, sizeof(*vertexCos_New), __func__);
 			MVert *mv = me->mvert;
 
 			for (i = 0; i < numVerts; i++, mv++) {
@@ -272,11 +263,12 @@ static void meshcache_do(
 	}
 }
 
-static void deformVerts(ModifierData *md, Object *ob,
-                        DerivedMesh *derivedData,
-                        float (*vertexCos)[3],
-                        int numVerts,
-                        ModifierApplyFlag UNUSED(flag))
+static void deformVerts(
+        ModifierData *md, Object *ob,
+        DerivedMesh *derivedData,
+        float (*vertexCos)[3],
+        int numVerts,
+        ModifierApplyFlag UNUSED(flag))
 {
 	MeshCacheModifierData *mcmd = (MeshCacheModifierData *)md;
 
@@ -302,7 +294,7 @@ ModifierTypeInfo modifierType_MeshCache = {
 	                        eModifierTypeFlag_AcceptsLattice |
 	                        eModifierTypeFlag_SupportsEditmode,
 
-	/* copyData */          copyData,
+	/* copyData */          modifier_copyData_generic,
 	/* deformVerts */       deformVerts,
 	/* deformMatrices */    NULL,
 	/* deformVertsEM */     deformVertsEM,

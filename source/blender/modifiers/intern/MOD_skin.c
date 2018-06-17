@@ -28,7 +28,7 @@
 /* Implementation based in part off the paper "B-Mesh: A Fast Modeling
  * System for Base Meshes of 3D Articulated Shapes" (Zhongping Ji,
  * Ligang Liu, Yigang Wang)
- * 
+ *
  * Note that to avoid confusion with Blender's BMesh data structure,
  * this tool is renamed as the Skin modifier.
  *
@@ -36,7 +36,7 @@
  * http://www.math.zju.edu.cn/ligangliu/CAGD/Projects/BMesh/
  *
  * The main missing features in this code compared to the paper are:
- * 
+ *
  * + No mesh evolution. The paper suggests iteratively subsurfing the
  *   skin output and adapting the output to better conform with the
  *   spheres of influence surrounding each vertex.
@@ -134,16 +134,18 @@ typedef struct {
 	int mat_nr;
 } SkinOutput;
 
-static void add_poly(SkinOutput *so,
-                     BMVert *v1,
-                     BMVert *v2,
-                     BMVert *v3,
-                     BMVert *v4);
+static void add_poly(
+        SkinOutput *so,
+        BMVert *v1,
+        BMVert *v2,
+        BMVert *v3,
+        BMVert *v4);
 
 /***************************** Convex Hull ****************************/
 
-static bool is_quad_symmetric(BMVert *quad[4],
-                              const SkinModifierData *smd)
+static bool is_quad_symmetric(
+        BMVert *quad[4],
+        const SkinModifierData *smd)
 {
 	const float threshold = 0.0001f;
 	const float threshold_squared = threshold * threshold;
@@ -175,8 +177,9 @@ static bool is_quad_symmetric(BMVert *quad[4],
 }
 
 /* Returns true if the quad crosses the plane of symmetry, false otherwise */
-static bool quad_crosses_symmetry_plane(BMVert *quad[4],
-                                        const SkinModifierData *smd)
+static bool quad_crosses_symmetry_plane(
+        BMVert *quad[4],
+        const SkinModifierData *smd)
 {
 	int axis;
 
@@ -202,8 +205,9 @@ static bool quad_crosses_symmetry_plane(BMVert *quad[4],
 
 /* Returns true if the frame is filled by precisely two faces (and
  * outputs those faces to fill_faces), otherwise returns false. */
-static bool skin_frame_find_contained_faces(const Frame *frame,
-                                            BMFace *fill_faces[2])
+static bool skin_frame_find_contained_faces(
+        const Frame *frame,
+        BMFace *fill_faces[2])
 {
 	BMEdge *diag;
 
@@ -410,16 +414,17 @@ static void merge_frame_corners(Frame **frames, int totframe)
 	}
 }
 
-static Frame **collect_hull_frames(int v, SkinNode *frames,
-                                   const MeshElemMap *emap, const MEdge *medge,
-                                   int *tothullframe)
+static Frame **collect_hull_frames(
+        int v, SkinNode *frames,
+        const MeshElemMap *emap, const MEdge *medge,
+        int *tothullframe)
 {
 	SkinNode *f;
 	Frame **hull_frames;
 	int nbr, i;
 
 	(*tothullframe) = emap[v].count;
-	hull_frames = MEM_callocN(sizeof(Frame *) * (*tothullframe),
+	hull_frames = MEM_calloc_arrayN((*tothullframe), sizeof(Frame *),
 	                          "hull_from_frames.hull_frames");
 	i = 0;
 	for (nbr = 0; nbr < emap[v].count; nbr++) {
@@ -450,9 +455,10 @@ static void node_frames_init(SkinNode *nf, int totframe)
 		nf->seam_edges[i] = -1;
 }
 
-static void create_frame(Frame *frame, const float co[3],
-                         const float radius[2],
-                         float mat[3][3], float offset)
+static void create_frame(
+        Frame *frame, const float co[3],
+        const float radius[2],
+        float mat[3][3], float offset)
 {
 	float rx[3], ry[3], rz[3];
 	int i;
@@ -482,9 +488,10 @@ static float half_v2(const float v[2])
 	return (v[0] + v[1]) * 0.5f;
 }
 
-static void end_node_frames(int v, SkinNode *skin_nodes, const MVert *mvert,
-                            const MVertSkin *nodes, const MeshElemMap *emap,
-                            EMat *emat)
+static void end_node_frames(
+        int v, SkinNode *skin_nodes, const MVert *mvert,
+        const MVertSkin *nodes, const MeshElemMap *emap,
+        EMat *emat)
 {
 	const float *rad = nodes[v].radius;
 	float mat[3][3];
@@ -555,9 +562,10 @@ static int connection_node_mat(float mat[3][3], int v, const MeshElemMap *emap, 
 	return 0;
 }
 
-static void connection_node_frames(int v, SkinNode *skin_nodes, const MVert *mvert,
-                                   const MVertSkin *nodes, const MeshElemMap *emap,
-                                   EMat *emat)
+static void connection_node_frames(
+        int v, SkinNode *skin_nodes, const MVert *mvert,
+        const MVertSkin *nodes, const MeshElemMap *emap,
+        EMat *emat)
 {
 	const float *rad = nodes[v].radius;
 	float mat[3][3];
@@ -593,14 +601,15 @@ static void connection_node_frames(int v, SkinNode *skin_nodes, const MVert *mve
 	create_frame(&skin_nodes[v].frames[0], mvert[v].co, rad, mat, 0);
 }
 
-static SkinNode *build_frames(const MVert *mvert, int totvert,
-                              const MVertSkin *nodes, const MeshElemMap *emap,
-                              EMat *emat)
+static SkinNode *build_frames(
+        const MVert *mvert, int totvert,
+        const MVertSkin *nodes, const MeshElemMap *emap,
+        EMat *emat)
 {
 	SkinNode *skin_nodes;
 	int v;
 
-	skin_nodes = MEM_callocN(sizeof(SkinNode) * totvert, "build_frames.skin_nodes");
+	skin_nodes = MEM_calloc_arrayN(totvert, sizeof(SkinNode), "build_frames.skin_nodes");
 
 	for (v = 0; v < totvert; v++) {
 		if (emap[v].count <= 1)
@@ -652,9 +661,10 @@ typedef struct {
 	int e;
 } EdgeStackElem;
 
-static void build_emats_stack(BLI_Stack *stack, BLI_bitmap *visited_e, EMat *emat,
-                              const MeshElemMap *emap, const MEdge *medge,
-                              const MVertSkin *vs, const MVert *mvert)
+static void build_emats_stack(
+        BLI_Stack *stack, BLI_bitmap *visited_e, EMat *emat,
+        const MeshElemMap *emap, const MEdge *medge,
+        const MVertSkin *vs, const MVert *mvert)
 {
 	EdgeStackElem stack_elem;
 	float axis[3], angle;
@@ -705,13 +715,14 @@ static void build_emats_stack(BLI_Stack *stack, BLI_bitmap *visited_e, EMat *ema
 	}
 }
 
-static EMat *build_edge_mats(const MVertSkin *vs,
-                             const MVert *mvert,
-                             int totvert,
-                             const MEdge *medge,
-                             const MeshElemMap *emap,
-                             int totedge,
-                             bool *has_valid_root)
+static EMat *build_edge_mats(
+        const MVertSkin *vs,
+        const MVert *mvert,
+        int totvert,
+        const MEdge *medge,
+        const MeshElemMap *emap,
+        int totedge,
+        bool *has_valid_root)
 {
 	BLI_Stack *stack;
 	EMat *emat;
@@ -722,7 +733,7 @@ static EMat *build_edge_mats(const MVertSkin *vs,
 	stack = BLI_stack_new(sizeof(stack_elem), "build_edge_mats.stack");
 
 	visited_e = BLI_BITMAP_NEW(totedge, "build_edge_mats.visited_e");
-	emat = MEM_callocN(sizeof(EMat) * totedge, "build_edge_mats.emat");
+	emat = MEM_calloc_arrayN(totedge, sizeof(EMat), "build_edge_mats.emat");
 
 	/* Edge matrices are built from the root nodes, add all roots with
 	 * children to the stack */
@@ -763,8 +774,9 @@ static EMat *build_edge_mats(const MVertSkin *vs,
  * nodes, at least two intermediate frames are required. (This avoids
  * having any special cases for dealing with sharing a frame between
  * two hulls.) */
-static int calc_edge_subdivisions(const MVert *mvert, const MVertSkin *nodes,
-                                  const MEdge *e, const int *degree)
+static int calc_edge_subdivisions(
+        const MVert *mvert, const MVertSkin *nodes,
+        const MEdge *e, const int *degree)
 {
 	/* prevent memory errors [#38003] */
 #define NUM_SUBDIVISIONS_MAX 128
@@ -836,14 +848,14 @@ static DerivedMesh *subdivide_base(DerivedMesh *orig)
 	totorigedge = orig->getNumEdges(orig);
 
 	/* Get degree of all vertices */
-	degree = MEM_callocN(sizeof(int) * totorigvert, "degree");
+	degree = MEM_calloc_arrayN(totorigvert, sizeof(int), "degree");
 	for (i = 0; i < totorigedge; i++) {
 		degree[origedge[i].v1]++;
 		degree[origedge[i].v2]++;
 	}
 
 	/* Per edge, store how many subdivisions are needed */
-	edge_subd = MEM_callocN(sizeof(int) * totorigedge, "edge_subd");
+	edge_subd = MEM_calloc_arrayN(totorigedge, sizeof(int), "edge_subd");
 	for (i = 0, totsubd = 0; i < totorigedge; i++) {
 		edge_subd[i] += calc_edge_subdivisions(origvert, orignode,
 		                                       &origedge[i], degree);
@@ -882,7 +894,7 @@ static DerivedMesh *subdivide_base(DerivedMesh *orig)
 		if (origdvert) {
 			const MDeformVert *dv1 = &origdvert[e->v1];
 			const MDeformVert *dv2 = &origdvert[e->v2];
-			vgroups = MEM_callocN(sizeof(*vgroups) * dv1->totweight, "vgroup");
+			vgroups = MEM_calloc_arrayN(dv1->totweight, sizeof(*vgroups), "vgroup");
 
 			/* Only want vertex groups used by both vertices */
 			for (j = 0; j < dv1->totweight; j++) {
@@ -955,11 +967,12 @@ static DerivedMesh *subdivide_base(DerivedMesh *orig)
 /******************************* Output *******************************/
 
 /* Can be either quad or triangle */
-static void add_poly(SkinOutput *so,
-                     BMVert *v1,
-                     BMVert *v2,
-                     BMVert *v3,
-                     BMVert *v4)
+static void add_poly(
+        SkinOutput *so,
+        BMVert *v1,
+        BMVert *v2,
+        BMVert *v3,
+        BMVert *v4)
 {
 	BMVert *verts[4] = {v1, v2, v3, v4};
 	BMFace *f;
@@ -1030,9 +1043,10 @@ static void connect_frames(
 	}
 }
 
-static void output_frames(BMesh *bm,
-                          SkinNode *sn,
-                          const MDeformVert *input_dvert)
+static void output_frames(
+        BMesh *bm,
+        SkinNode *sn,
+        const MDeformVert *input_dvert)
 {
 	Frame *f;
 	int i, j;
@@ -1304,9 +1318,9 @@ static void skin_fix_hole_no_good_verts(BMesh *bm, Frame *frame, BMFace *split_f
 	else if (split_face->len > 4) {
 		/* Maintain a dynamic vert array containing the split_face's
 		 * vertices, avoids frequent allocs in collapse_face_corners() */
-		if (BLI_array_count(vert_buf) < split_face->len) {
+		if (BLI_array_len(vert_buf) < split_face->len) {
 			BLI_array_grow_items(vert_buf, (split_face->len -
-			                                BLI_array_count(vert_buf)));
+			                                BLI_array_len(vert_buf)));
 		}
 
 		/* Get split face's verts */
@@ -1470,7 +1484,7 @@ static void hull_merge_triangles(SkinOutput *so, const SkinModifierData *smd)
 	while (!BLI_heap_is_empty(heap)) {
 		BMFace *adj[2];
 
-		e = BLI_heap_popmin(heap);
+		e = BLI_heap_pop_min(heap);
 
 		if (BM_edge_face_pair(e, &adj[0], &adj[1])) {
 			/* If both triangles still free, and if they don't already
@@ -1907,15 +1921,6 @@ static void initData(ModifierData *md)
 	smd->symmetry_axes = MOD_SKIN_SYMM_X;
 }
 
-static void copyData(ModifierData *md, ModifierData *target)
-{
-#if 0
-	SkinModifierData *smd = (SkinModifierData *) md;
-	SkinModifierData *tsmd = (SkinModifierData *) target;
-#endif
-	modifier_copyData_generic(md, target);
-}
-
 static DerivedMesh *applyModifier(ModifierData *md,
                                   Object *UNUSED(ob),
                                   DerivedMesh *dm,
@@ -1941,7 +1946,7 @@ ModifierTypeInfo modifierType_Skin = {
 	/* type */              eModifierTypeType_Constructive,
 	/* flags */             eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsEditmode,
 
-	/* copyData */          copyData,
+	/* copyData */          modifier_copyData_generic,
 	/* deformVerts */       NULL,
 	/* deformMatrices */    NULL,
 	/* deformVertsEM */     NULL,

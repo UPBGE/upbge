@@ -30,6 +30,7 @@
 #    include "kernel/split/kernel_split_data.h"
 #    include "kernel/kernel_globals.h"
 
+#    include "kernel/kernel_color.h"
 #    include "kernel/kernels/cpu/kernel_cpu_image.h"
 #    include "kernel/kernel_film.h"
 #    include "kernel/kernel_path.h"
@@ -59,7 +60,6 @@
 #    include "kernel/split/kernel_buffer_update.h"
 #  endif  /* __SPLIT_KERNEL__ */
 #else
-#  include "util/util_debug.h"
 #  define STUB_ASSERT(arch, name) assert(!(#name " kernel stub for architecture " #arch " was called!"))
 
 #  ifdef __SPLIT_KERNEL__

@@ -52,6 +52,11 @@ void BM_loops_calc_normal_vcos(
         const bool use_split_normals, const float split_angle, float (*r_lnos)[3],
         struct MLoopNorSpaceArray *r_lnors_spacearr, short (*clnors_data)[2], const int cd_loop_clnors_offset);
 
+bool BM_loop_check_cyclic_smooth_fan(BMLoop *l_curr);
+
+
+void BM_edges_sharp_from_angle_set(BMesh *bm, const float split_angle);
+
 void bmesh_edit_begin(BMesh *bm, const BMOpTypeFlag type_flag);
 void bmesh_edit_end(BMesh *bm, const BMOpTypeFlag type_flag);
 
@@ -114,7 +119,7 @@ extern const BMAllocTemplate bm_mesh_chunksize_default;
 	(dm)->getNumEdges(dm),		\
 	(dm)->getNumLoops(dm),		\
 	(dm)->getNumPolys(dm),		\
-	}
+}
 #define _VA_BMALLOC_TEMPLATE_FROM_DM_2(dm_a, dm_b) { \
 	(CHECK_TYPE_INLINE(dm_a, DerivedMesh *), \
 	 CHECK_TYPE_INLINE(dm_b, DerivedMesh *), \
@@ -122,7 +127,7 @@ extern const BMAllocTemplate bm_mesh_chunksize_default;
 	(dm_a)->getNumEdges(dm_a)  + (dm_b)->getNumEdges(dm_b),	\
 	(dm_a)->getNumLoops(dm_a)  + (dm_b)->getNumLoops(dm_b),	\
 	(dm_a)->getNumPolys(dm_a)  + (dm_b)->getNumPolys(dm_b),	\
-	}
+}
 
 #define BMALLOC_TEMPLATE_FROM_DM(...) VA_NARGS_CALL_OVERLOAD(_VA_BMALLOC_TEMPLATE_FROM_DM_, __VA_ARGS__)
 

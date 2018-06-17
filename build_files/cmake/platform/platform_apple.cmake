@@ -29,6 +29,9 @@ endmacro()
 
 if(NOT DEFINED LIBDIR)
 	set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/darwin)
+	# Prefer lib directory paths
+	file(GLOB LIB_SUBDIRS ${LIBDIR}/*)
+	set(CMAKE_PREFIX_PATH ${LIB_SUBDIRS})
 else()
 	message(STATUS "Using pre-compiled LIBDIR: ${LIBDIR}")
 endif()
@@ -325,8 +328,8 @@ if(WITH_OPENVDB)
 endif()
 
 if(WITH_LLVM)
-	set(LLVM_ROOT_DIR ${LIBDIR}/llvm CACHE PATH	"Path to the LLVM installation")
-	set(LLVM_VERSION "3.4" CACHE STRING	"Version of LLVM to use")
+	set(LLVM_ROOT_DIR ${LIBDIR}/llvm)
+	set(LLVM_VERSION 3.4)
 	if(EXISTS "${LLVM_ROOT_DIR}/bin/llvm-config")
 		set(LLVM_CONFIG "${LLVM_ROOT_DIR}/bin/llvm-config")
 	else()
@@ -353,7 +356,7 @@ if(WITH_LLVM)
 			execute_process(COMMAND ${LLVM_CONFIG} --libfiles
 					OUTPUT_VARIABLE LLVM_LIBRARY
 					OUTPUT_STRIP_TRAILING_WHITESPACE)
-			string(REPLACE " " ";" LLVM_LIBRARY ${LLVM_LIBRARY})
+			string(REPLACE ".a /" ".a;/" LLVM_LIBRARY ${LLVM_LIBRARY})
 		else()
 			set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -lLLVM-3.4")
 		endif()
@@ -363,7 +366,7 @@ if(WITH_LLVM)
 endif()
 
 if(WITH_CYCLES_OSL)
-	set(CYCLES_OSL ${LIBDIR}/osl CACHE PATH "Path to OpenShadingLanguage installation")
+	set(CYCLES_OSL ${LIBDIR}/osl)
 
 	find_library(OSL_LIB_EXEC NAMES oslexec PATHS ${CYCLES_OSL}/lib)
 	find_library(OSL_LIB_COMP NAMES oslcomp PATHS ${CYCLES_OSL}/lib)
@@ -413,7 +416,7 @@ if(${XCODE_VERSION} VERSION_EQUAL 5 OR ${XCODE_VERSION} VERSION_GREATER 5)
 endif()
 # Get rid of eventually clashes, we export some symbols explicite as local
 set(PLATFORM_LINKFLAGS
-	"${PLATFORM_LINKFLAGS} -Xlinker -unexported_symbols_list -Xlinker ${CMAKE_SOURCE_DIR}/source/creator/osx_locals.map"
+	"${PLATFORM_LINKFLAGS} -Xlinker -unexported_symbols_list -Xlinker '${CMAKE_SOURCE_DIR}/source/creator/osx_locals.map'"
 )
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")

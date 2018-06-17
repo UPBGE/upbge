@@ -430,7 +430,7 @@ int BM_iter_mesh_count_flag(const char itype, BMesh *bm, const char hflag, const
 void bmiter__elem_of_mesh_begin(struct BMIter__elem_of_mesh *iter)
 {
 #ifdef USE_IMMUTABLE_ASSERT
-	((BMIter *)iter)->count = BLI_mempool_count(iter->pooliter.pool);
+	((BMIter *)iter)->count = BLI_mempool_len(iter->pooliter.pool);
 #endif
 	BLI_mempool_iternew(iter->pooliter.pool, &iter->pooliter);
 }
@@ -438,7 +438,7 @@ void bmiter__elem_of_mesh_begin(struct BMIter__elem_of_mesh *iter)
 void *bmiter__elem_of_mesh_step(struct BMIter__elem_of_mesh *iter)
 {
 #ifdef USE_IMMUTABLE_ASSERT
-	BLI_assert(((BMIter *)iter)->count <= BLI_mempool_count(iter->pooliter.pool));
+	BLI_assert(((BMIter *)iter)->count <= BLI_mempool_len(iter->pooliter.pool));
 #endif
 	return BLI_mempool_iterstep(&iter->pooliter);
 }
@@ -508,7 +508,7 @@ void  *bmiter__face_of_vert_step(struct BMIter__face_of_vert *iter)
 			iter->l_next = iter->l_first;
 		}
 	}
-	
+
 	if (!((BMIter *)iter)->count) {
 		iter->l_next = NULL;
 	}
@@ -549,7 +549,7 @@ void  *bmiter__loop_of_vert_step(struct BMIter__loop_of_vert *iter)
 			iter->l_next = iter->l_first;
 		}
 	}
-	
+
 	if (!((BMIter *)iter)->count) {
 		iter->l_next = NULL;
 	}
@@ -590,7 +590,7 @@ void  bmiter__loop_of_loop_begin(struct BMIter__loop_of_loop *iter)
 {
 	iter->l_first = iter->ldata;
 	iter->l_next = iter->l_first->radial_next;
-	
+
 	if (iter->l_next == iter->l_first)
 		iter->l_next = NULL;
 }
@@ -598,7 +598,7 @@ void  bmiter__loop_of_loop_begin(struct BMIter__loop_of_loop *iter)
 void  *bmiter__loop_of_loop_step(struct BMIter__loop_of_loop *iter)
 {
 	BMLoop *l_curr = iter->l_next;
-	
+
 	if (iter->l_next) {
 		iter->l_next = iter->l_next->radial_next;
 		if (iter->l_next == iter->l_first) {
@@ -696,7 +696,7 @@ void  *bmiter__edge_of_face_step(struct BMIter__edge_of_face *iter)
 			iter->l_next = NULL;
 		}
 	}
-	
+
 	return l_curr ? l_curr->e : NULL;
 }
 

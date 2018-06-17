@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -893,6 +893,12 @@ typedef struct NodeShaderUVMap {
 	char uv_map[64];
 } NodeShaderUVMap;
 
+typedef struct NodeShaderTexIES {
+	int mode;
+
+	char filepath[1024]; /* 1024 = FILE_MAX */
+} NodeShaderTexIES;
+
 typedef struct NodeSunBeams {
 	float source[2];
 
@@ -906,6 +912,9 @@ typedef struct NodeSunBeams {
 /* script node flag */
 #define NODE_SCRIPT_AUTO_UPDATE		1
 
+/* ies node mode */
+#define NODE_IES_INTERNAL		0
+#define NODE_IES_EXTERNAL		1
 
 /* frame node flags */
 #define NODE_FRAME_SHRINK		1	/* keep the bounding box minimal */
@@ -1029,12 +1038,15 @@ typedef struct NodeSunBeams {
 #define SHD_TANGENT_AXIS_Y			1
 #define SHD_TANGENT_AXIS_Z			2
 
-/* normal map space */
-#define SHD_NORMAL_MAP_TANGENT			0
-#define SHD_NORMAL_MAP_OBJECT			1
-#define SHD_NORMAL_MAP_WORLD			2
-#define SHD_NORMAL_MAP_BLENDER_OBJECT	3
-#define SHD_NORMAL_MAP_BLENDER_WORLD	4
+/* normal map, displacement space */
+#define SHD_SPACE_TANGENT			0
+#define SHD_SPACE_OBJECT			1
+#define SHD_SPACE_WORLD				2
+#define SHD_SPACE_BLENDER_OBJECT	3
+#define SHD_SPACE_BLENDER_WORLD		4
+
+#define SHD_AO_INSIDE				1
+#define SHD_AO_LOCAL				2
 
 /* math node clamp */
 #define SHD_MATH_CLAMP		1
@@ -1060,6 +1072,7 @@ enum {
 	NODE_MATH_GREATER = 16,
 	NODE_MATH_MOD     = 17,
 	NODE_MATH_ABS     = 18,
+	NODE_MATH_ATAN2   = 19,
 };
 
 /* mix rgb node flags */
@@ -1074,6 +1087,7 @@ enum {
 	SHD_SUBSURFACE_CUBIC			= 1,
 	SHD_SUBSURFACE_GAUSSIAN			= 2,
 	SHD_SUBSURFACE_BURLEY			= 3,
+	SHD_SUBSURFACE_RANDOM_WALK		= 4,
 };
 
 /* blur node */

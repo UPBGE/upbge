@@ -65,6 +65,7 @@
 /* can be called with C == NULL */
 static const EnumPropertyItem *group_object_active_itemf(bContext *C, PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), bool *r_free)
 {
+	Main *bmain = CTX_data_main(C);
 	Object *ob;
 	EnumPropertyItem *item = NULL, item_tmp = {0};
 	int totitem = 0;
@@ -82,7 +83,7 @@ static const EnumPropertyItem *group_object_active_itemf(bContext *C, PointerRNA
 
 		/* if 2 or more groups, add option to add to all groups */
 		group = NULL;
-		while ((group = BKE_group_object_find(group, ob)))
+		while ((group = BKE_group_object_find(bmain, group, ob)))
 			count++;
 
 		if (count >= 2) {
@@ -94,7 +95,7 @@ static const EnumPropertyItem *group_object_active_itemf(bContext *C, PointerRNA
 
 		/* add groups */
 		group = NULL;
-		while ((group = BKE_group_object_find(group, ob))) {
+		while ((group = BKE_group_object_find(bmain, group, ob))) {
 			item_tmp.identifier = item_tmp.name = group->id.name + 2;
 			/* item_tmp.icon = ICON_ARMATURE_DATA; */
 			item_tmp.value = i;
@@ -110,11 +111,11 @@ static const EnumPropertyItem *group_object_active_itemf(bContext *C, PointerRNA
 }
 
 /* get the group back from the enum index, quite awkward and UI specific */
-static Group *group_object_active_find_index(Object *ob, const int group_object_index)
+static Group *group_object_active_find_index(Main *bmain, Object *ob, const int group_object_index)
 {
 	Group *group = NULL;
 	int i = 0;
-	while ((group = BKE_group_object_find(group, ob))) {
+	while ((group = BKE_group_object_find(bmain, group, ob))) {
 		if (i == group_object_index) {
 			break;
 		}
@@ -130,7 +131,7 @@ static int objects_add_active_exec(bContext *C, wmOperator *op)
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
 	int single_group_index = RNA_enum_get(op->ptr, "group");
-	Group *single_group = group_object_active_find_index(ob, single_group_index);
+	Group *single_group = group_object_active_find_index(bmain, ob, single_group_index);
 	Group *group;
 	bool is_cycle = false;
 	bool updated = false;
@@ -181,7 +182,7 @@ void GROUP_OT_objects_add_active(wmOperatorType *ot)
 	ot->name = "Add Selected To Active Group";
 	ot->description = "Add the object to an object group that contains the active object";
 	ot->idname = "GROUP_OT_objects_add_active";
-	
+
 	/* api callbacks */
 	ot->exec = objects_add_active_exec;
 	ot->invoke = WM_menu_invoke;
@@ -203,13 +204,13 @@ static int objects_remove_active_exec(bContext *C, wmOperator *op)
 	Scene *scene = CTX_data_scene(C);
 	Object *ob = OBACT;
 	int single_group_index = RNA_enum_get(op->ptr, "group");
-	Group *single_group = group_object_active_find_index(ob, single_group_index);
+	Group *single_group = group_object_active_find_index(bmain, ob, single_group_index);
 	Group *group;
 	bool ok = false;
-	
+
 	if (ob == NULL)
 		return OPERATOR_CANCELLED;
-	
+
 	/* linking to same group requires its own loop so we can avoid
 	 * looking up the active objects groups each time */
 
@@ -221,19 +222,19 @@ static int objects_remove_active_exec(bContext *C, wmOperator *op)
 			/* Remove groups from selected objects */
 			CTX_DATA_BEGIN (C, Base *, base, selected_editable_bases)
 			{
-				BKE_group_object_unlink(group, base->object, scene, base);
+				BKE_group_object_unlink(bmain, group, base->object, scene, base);
 				ok = 1;
 			}
 			CTX_DATA_END;
 		}
 	}
-	
+
 	if (!ok)
 		BKE_report(op->reports, RPT_ERROR, "Active object contains no groups");
-	
+
 	DAG_relations_tag_update(bmain);
 	WM_event_add_notifier(C, NC_GROUP | NA_EDITED, NULL);
-	
+
 	return OPERATOR_FINISHED;
 }
 
@@ -245,12 +246,12 @@ void GROUP_OT_objects_remove_active(wmOperatorType *ot)
 	ot->name = "Remove Selected From Active Group";
 	ot->description = "Remove the object from an object group that contains the active object";
 	ot->idname = "GROUP_OT_objects_remove_active";
-	
+
 	/* api callbacks */
 	ot->exec = objects_remove_active_exec;
 	ot->invoke = WM_menu_invoke;
 	ot->poll = ED_operator_objectmode;
-	
+
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
@@ -268,13 +269,13 @@ static int group_objects_remove_all_exec(bContext *C, wmOperator *UNUSED(op))
 
 	CTX_DATA_BEGIN (C, Base *, base, selected_editable_bases)
 	{
-		BKE_object_groups_clear(scene, base, base->object);
+		BKE_object_groups_clear(bmain, scene, base, base->object);
 	}
 	CTX_DATA_END;
 
 	DAG_relations_tag_update(bmain);
 	WM_event_add_notifier(C, NC_GROUP | NA_EDITED, NULL);
-	
+
 	return OPERATOR_FINISHED;
 }
 
@@ -284,11 +285,11 @@ void GROUP_OT_objects_remove_all(wmOperatorType *ot)
 	ot->name = "Remove From All Groups";
 	ot->description = "Remove selected objects from all groups";
 	ot->idname = "GROUP_OT_objects_remove_all";
-	
+
 	/* api callbacks */
 	ot->exec = group_objects_remove_all_exec;
 	ot->poll = ED_operator_objectmode;
-	
+
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
@@ -299,7 +300,7 @@ static int group_objects_remove_exec(bContext *C, wmOperator *op)
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
 	int single_group_index = RNA_enum_get(op->ptr, "group");
-	Group *single_group = group_object_active_find_index(ob, single_group_index);
+	Group *single_group = group_object_active_find_index(bmain, ob, single_group_index);
 	Group *group;
 	bool updated = false;
 
@@ -315,7 +316,7 @@ static int group_objects_remove_exec(bContext *C, wmOperator *op)
 		/* now remove all selected objects from the group */
 		CTX_DATA_BEGIN (C, Base *, base, selected_editable_bases)
 		{
-			BKE_group_object_unlink(group, base->object, scene, base);
+			BKE_group_object_unlink(bmain, group, base->object, scene, base);
 			updated = true;
 		}
 		CTX_DATA_END;
@@ -360,11 +361,11 @@ static int group_create_exec(bContext *C, wmOperator *op)
 	Scene *scene = CTX_data_scene(C);
 	Group *group = NULL;
 	char name[MAX_ID_NAME - 2]; /* id name */
-	
+
 	RNA_string_get(op->ptr, "name", name);
-	
+
 	group = BKE_group_add(bmain, name);
-		
+
 	CTX_DATA_BEGIN (C, Base *, base, selected_bases)
 	{
 		BKE_group_object_add(group, base->object, scene, base);
@@ -373,7 +374,7 @@ static int group_create_exec(bContext *C, wmOperator *op)
 
 	DAG_relations_tag_update(bmain);
 	WM_event_add_notifier(C, NC_GROUP | NA_EDITED, NULL);
-	
+
 	return OPERATOR_FINISHED;
 }
 
@@ -383,14 +384,14 @@ void GROUP_OT_create(wmOperatorType *ot)
 	ot->name = "Create New Group";
 	ot->description = "Create an object group from selected objects";
 	ot->idname = "GROUP_OT_create";
-	
+
 	/* api callbacks */
 	ot->exec = group_create_exec;
 	ot->poll = ED_operator_objectmode;
-	
+
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-	
+
 	RNA_def_string(ot->srna, "name", "Group", MAX_ID_NAME - 2, "Name", "Name of the new group");
 }
 
@@ -420,7 +421,7 @@ void OBJECT_OT_group_add(wmOperatorType *ot)
 	ot->name = "Add to Group";
 	ot->idname = "OBJECT_OT_group_add";
 	ot->description = "Add an object to a new group";
-	
+
 	/* api callbacks */
 	ot->exec = group_add_exec;
 	ot->poll = ED_operator_objectmode;
@@ -472,7 +473,7 @@ void OBJECT_OT_group_link(wmOperatorType *ot)
 	ot->name = "Link to Group";
 	ot->idname = "OBJECT_OT_group_link";
 	ot->description = "Add an object to an existing group";
-	
+
 	/* api callbacks */
 	ot->exec = group_link_exec;
 	ot->invoke = WM_enum_search_invoke;
@@ -490,6 +491,7 @@ void OBJECT_OT_group_link(wmOperatorType *ot)
 
 static int group_remove_exec(bContext *C, wmOperator *UNUSED(op))
 {
+	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
 	Object *ob = ED_object_context(C);
 	Group *group = CTX_data_pointer_get_type(C, "group", &RNA_Group).data;
@@ -497,10 +499,10 @@ static int group_remove_exec(bContext *C, wmOperator *UNUSED(op))
 	if (!ob || !group)
 		return OPERATOR_CANCELLED;
 
-	BKE_group_object_unlink(group, ob, scene, NULL); /* base will be used if found */
+	BKE_group_object_unlink(bmain, group, ob, scene, NULL); /* base will be used if found */
 
 	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
-	
+
 	return OPERATOR_FINISHED;
 }
 
@@ -510,7 +512,7 @@ void OBJECT_OT_group_remove(wmOperatorType *ot)
 	ot->name = "Remove Group";
 	ot->idname = "OBJECT_OT_group_remove";
 	ot->description = "Remove the active object from this group";
-	
+
 	/* api callbacks */
 	ot->exec = group_remove_exec;
 	ot->poll = ED_operator_objectmode;

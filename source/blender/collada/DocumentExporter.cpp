@@ -62,7 +62,7 @@
 #include "COLLADASWInstanceNode.h"
 #include "COLLADASWBaseInputElement.h"
 
-extern "C" 
+extern "C"
 {
 #include "DNA_scene_types.h"
 #include "DNA_object_types.h"
@@ -181,8 +181,9 @@ static COLLADABU::NativeString make_temp_filepath(const char *name, const char *
 // COLLADA allows this through multiple <channel>s in <animation>.
 // For this to work, we need to know objects that use a certain action.
 
-int DocumentExporter::exportCurrentScene(Scene *sce)
+int DocumentExporter::exportCurrentScene(bContext *C, const EvaluationContext *eval_ctx, Scene *sce)
 {
+	Main *bmain = CTX_data_main(C);
 	PointerRNA sceneptr, unit_settings;
 	PropertyRNA *system; /* unused , *scale; */
 
@@ -258,14 +259,14 @@ int DocumentExporter::exportCurrentScene(Scene *sce)
 #endif
 	asset.getContributor().mAuthoringTool = version_buf;
 	asset.add();
-	
+
 	LinkNode *export_set = this->export_settings->export_set;
 	// <library_cameras>
 	if (bc_has_object_type(export_set, OB_CAMERA)) {
 		CamerasExporter ce(writer, this->export_settings);
 		ce.exportCameras(sce);
 	}
-	
+
 	// <library_lights>
 	if (bc_has_object_type(export_set, OB_LAMP)) {
 		LightsExporter le(writer, this->export_settings);
@@ -275,11 +276,11 @@ int DocumentExporter::exportCurrentScene(Scene *sce)
 	// <library_images>
 	ImagesExporter ie(writer, this->export_settings);
 	ie.exportImages(sce);
-	
+
 	// <library_effects>
 	EffectsExporter ee(writer, this->export_settings);
 	ee.exportEffects(sce);
-	
+
 	// <library_materials>
 	MaterialsExporter me(writer, this->export_settings);
 	me.exportMaterials(sce);
@@ -287,51 +288,34 @@ int DocumentExporter::exportCurrentScene(Scene *sce)
 	// <library_geometries>
 	if (bc_has_object_type(export_set, OB_MESH)) {
 		GeometryExporter ge(writer, this->export_settings);
-		ge.exportGeom(sce);
+		ge.exportGeom(bmain, sce);
 	}
 
 	// <library_controllers>
 	ArmatureExporter arm_exporter(writer, this->export_settings);
 	ControllerExporter controller_exporter(writer, this->export_settings);
-	if (bc_has_object_type(export_set, OB_ARMATURE) || this->export_settings->include_shapekeys) 
+	if (bc_has_object_type(export_set, OB_ARMATURE) || this->export_settings->include_shapekeys)
 	{
-		controller_exporter.export_controllers(sce);
+		controller_exporter.export_controllers(bmain, sce);
 	}
 
 	// <library_visual_scenes>
 
 	SceneExporter se(writer, &arm_exporter, this->export_settings);
-#if 0
-	/* The following code seems to be an obsolete workaround
-	   Comment out until it proofs correct that we no longer need it.
-	*/
 
-	// <library_animations>
-	AnimationExporter ae(writer, this->export_settings);
-	bool has_animations = ae.exportAnimations(sce);
+	if (this->export_settings->include_animations) {
+		// <library_animations>
+		AnimationExporter ae(writer, this->export_settings);
+		ae.exportAnimations(bmain, sce);
+	}
+	se.exportScene(C, sce);
 
-	if (has_animations && this->export_settings->export_transformation_type == BC_TRANSFORMATION_TYPE_MATRIX) {
-		// channels adressing <matrix> objects is not (yet) supported
-		// So we force usage of <location>, <translation> and <scale>
-		fprintf(stdout, 
-			"For animated Ojects we must use decomposed <matrix> elements,\n" \
-			"Forcing usage of TransLocRot transformation type.");
-		se.setExportTransformationType(BC_TRANSFORMATION_TYPE_TRANSROTLOC);
-	}
-	else {
-		se.setExportTransformationType(this->export_settings->export_transformation_type);
-	}
-#else
-	se.setExportTransformationType(this->export_settings->export_transformation_type);
-#endif
-	se.exportScene(sce);
-	
 	// <scene>
 	std::string scene_name(translate_id(id_name(sce)));
 	COLLADASW::Scene scene(writer, COLLADASW::URI(COLLADABU::Utils::EMPTY_STRING,
 	                                           scene_name));
 	scene.add();
-	
+
 	// close <Collada>
 	writer->endDocument();
 	delete writer;

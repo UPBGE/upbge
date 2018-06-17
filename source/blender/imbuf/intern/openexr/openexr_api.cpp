@@ -1028,13 +1028,13 @@ void IMB_exr_write_channels(void *handle)
 				for (size_t i = 0; i < num_pixels; ++i, ++cur) {
 					*cur = rect[i * echan->xstride];
 				}
-				half *rect_to_write = current_rect_half + (data->height - 1) * data->width;
+				half *rect_to_write = current_rect_half + (data->height - 1L) * data->width;
 				frameBuffer.insert(echan->name, Slice(Imf::HALF,  (char *)rect_to_write,
 				                                      sizeof(half), -data->width * sizeof(half)));
 				current_rect_half += num_pixels;
 			}
 			else {
-				float *rect = echan->rect + echan->xstride * (data->height - 1) * data->width;
+				float *rect = echan->rect + echan->xstride * (data->height - 1L) * data->width;
 				frameBuffer.insert(echan->name, Slice(Imf::FLOAT,  (char *)rect,
 				                                      echan->xstride * sizeof(float), -echan->ystride * sizeof(float)));
 			}
@@ -1059,11 +1059,11 @@ void IMB_exr_write_channels(void *handle)
 
 /* temporary function, used for FSA and Save Buffers */
 /* called once per tile * view */
-void IMB_exrtile_write_channels(void *handle, int partx, int party, int level, const char *viewname)
+void IMB_exrtile_write_channels(void *handle, int partx, int party, int level, const char *viewname, bool empty)
 {
+	/* Can write empty channels for incomplete renders. */
 	ExrHandle *data = (ExrHandle *)handle;
 	FrameBuffer frameBuffer;
-	ExrChannel *echan;
 	std::string view(viewname);
 	const int view_id = imb_exr_get_multiView_id(*data->multiView, view);
 
@@ -1071,28 +1071,32 @@ void IMB_exrtile_write_channels(void *handle, int partx, int party, int level, c
 	exr_printf("%s %-6s %-22s \"%s\"\n", "p", "view", "name", "internal_name");
 	exr_printf("---------------------------------------------------------------------\n");
 
-	for (echan = (ExrChannel *)data->channels.first; echan; echan = echan->next) {
+	if (!empty) {
+		ExrChannel *echan;
 
-		/* eventually we can make the parts' channels to include
-		   only the current view TODO */
-		if (strcmp(viewname, echan->m->view.c_str()) != 0)
-			continue;
+		for (echan = (ExrChannel *)data->channels.first; echan; echan = echan->next) {
 
-		exr_printf("%d %-6s %-22s \"%s\"\n",
-		           echan->m->part_number,
-		           echan->m->view.c_str(),
-		           echan->m->name.c_str(),
-		           echan->m->internal_name.c_str()
-		           );
+			/* eventually we can make the parts' channels to include
+			   only the current view TODO */
+			if (strcmp(viewname, echan->m->view.c_str()) != 0)
+				continue;
 
-		float *rect = echan->rect - echan->xstride * partx - echan->ystride * party;
-		frameBuffer.insert(echan->m->internal_name,
-		                   Slice(Imf::FLOAT,
-		                         (char *)rect,
-		                         echan->xstride * sizeof(float),
-		                         echan->ystride * sizeof(float)
-		                        )
-		                  );
+			exr_printf("%d %-6s %-22s \"%s\"\n",
+			           echan->m->part_number,
+			           echan->m->view.c_str(),
+			           echan->m->name.c_str(),
+			           echan->m->internal_name.c_str()
+			           );
+
+			float *rect = echan->rect - echan->xstride * partx - echan->ystride * party;
+			frameBuffer.insert(echan->m->internal_name,
+			                   Slice(Imf::FLOAT,
+			                         (char *)rect,
+			                         echan->xstride * sizeof(float),
+			                         echan->ystride * sizeof(float)
+			                        )
+			);
+		}
 	}
 
 	TiledOutputPart out (*data->mpofile, view_id);
@@ -1286,7 +1290,7 @@ static int imb_exr_split_channel_name(ExrChannel *echan, char *layname, char *pa
 		return 1;
 	}
 
-	/* last token is single character channel identifier */
+	/* last token is channel identifier */
 	len = imb_exr_split_token(name, end, &token);
 	if (len == 0) {
 		printf("multilayer read: bad channel name: %s\n", name);
@@ -1315,10 +1319,30 @@ static int imb_exr_split_channel_name(ExrChannel *echan, char *layname, char *pa
 				ok = true;
 			}
 		}
+		else if (BLI_strcaseeq(token, "red")) {
+			echan->chan_id = 'R';
+			ok = true;
+		}
+		else if (BLI_strcaseeq(token, "green")) {
+			echan->chan_id = 'G';
+			ok = true;
+		}
+		else if (BLI_strcaseeq(token, "blue")) {
+			echan->chan_id = 'B';
+			ok = true;
+		}
+		else if (BLI_strcaseeq(token, "alpha")) {
+			echan->chan_id = 'A';
+			ok = true;
+		}
+		else if (BLI_strcaseeq(token, "depth")) {
+			echan->chan_id = 'Z';
+			ok = true;
+		}
 
 		if (ok == false) {
 			BLI_strncpy(tokenbuf, token, std::min(len + 1, EXR_TOT_MAXNAME));
-			printf("multilayer read: channel token too long: %s\n", tokenbuf);
+			printf("multilayer read: unknown channel token: %s\n", tokenbuf);
 			return 0;
 		}
 	}
@@ -1597,14 +1621,13 @@ static bool exr_has_alpha(MultiPartInputFile& file)
 
 static bool imb_exr_is_multilayer_file(MultiPartInputFile& file)
 {
-	const StringAttribute *comments = file.header(0).findTypedAttribute<StringAttribute>("BlenderMultiChannel");
 	const ChannelList& channels = file.header(0).channels();
 	std::set <std::string> layerNames;
 
 	/* will not include empty layer names */
 	channels.layers(layerNames);
 
-	if (comments || layerNames.size() > 1)
+	if (layerNames.size() > 1)
 		return true;
 
 	if (layerNames.size()) {
@@ -1643,7 +1666,7 @@ static void imb_exr_type_by_channels(ChannelList& channels, StringVector& views,
 	}
 	else {
 		*r_singlelayer = false;
-		*r_multilayer = true;
+		*r_multilayer = (layerNames.size() > 1);
 		*r_multiview = false;
 		return;
 	}
@@ -1767,12 +1790,13 @@ struct ImBuf *imb_load_openexr(const unsigned char *mem, size_t size, int flags,
 					const Header & header = file->header(0);
 					Header::ConstIterator iter;
 
+					IMB_metadata_ensure(&ibuf->metadata);
 					for (iter = header.begin(); iter != header.end(); iter++) {
 						const StringAttribute *attrib = file->header(0).findTypedAttribute <StringAttribute> (iter.name());
 
 						/* not all attributes are string attributes so we might get some NULLs here */
 						if (attrib) {
-							IMB_metadata_add_field(ibuf, iter.name(), attrib->value().c_str());
+							IMB_metadata_set_field(ibuf->metadata, iter.name(), attrib->value().c_str());
 							ibuf->flags |= IB_metadata;
 						}
 					}

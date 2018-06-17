@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -18,7 +18,7 @@
  * The Original Code is Copyright (C) 2007 Blender Foundation.
  * All rights reserved.
  *
- * 
+ *
  * Contributor(s): Blender Foundation
  *
  * ***** END GPL LICENSE BLOCK *****
@@ -61,6 +61,7 @@
 #include "wm.h"
 
 #include "ED_screen.h"
+#include "BKE_undo_system.h"
 
 #ifdef WITH_PYTHON
 #include "BPY_extern.h"
@@ -103,7 +104,7 @@ void WM_operator_free(wmOperator *op)
 			WM_operator_free(opm);
 		}
 	}
-	
+
 	MEM_freeN(op);
 }
 
@@ -186,11 +187,11 @@ void wm_operator_register(bContext *C, wmOperator *op)
 void WM_operator_stack_clear(wmWindowManager *wm)
 {
 	wmOperator *op;
-	
+
 	while ((op = BLI_pophead(&wm->operators))) {
 		WM_operator_free(op);
 	}
-	
+
 	WM_main_add_notifier(NC_WM | ND_HISTORY, NULL);
 }
 
@@ -337,6 +338,14 @@ void WM_menutype_free(void)
 	menutypes_hash = NULL;
 }
 
+bool WM_menutype_poll(bContext *C, MenuType *mt)
+{
+	if (mt->poll != NULL) {
+		return mt->poll(C, mt);
+	}
+	return true;
+}
+
 /* ****************************************** */
 
 void WM_keymap_init(bContext *C)
@@ -350,7 +359,7 @@ void WM_keymap_init(bContext *C)
 		wm->addonconf = WM_keyconfig_new(wm, "Blender Addon");
 	if (!wm->userconf)
 		wm->userconf = WM_keyconfig_new(wm, "Blender User");
-	
+
 	/* initialize only after python init is done, for keymaps that
 	 * use python operators */
 	if (CTX_py_init_get(C) && (wm->initialized & WM_INIT_KEYMAP) == 0) {
@@ -372,8 +381,9 @@ void WM_keymap_init(bContext *C)
 
 void WM_check(bContext *C)
 {
+	Main *bmain = CTX_data_main(C);
 	wmWindowManager *wm = CTX_wm_manager(C);
-	
+
 	/* wm context */
 	if (wm == NULL) {
 		wm = CTX_data_main(C)->wm.first;
@@ -398,7 +408,7 @@ void WM_check(bContext *C)
 	/* case: fileread */
 	/* note: this runs in bg mode to set the screen context cb */
 	if ((wm->initialized & WM_INIT_WINDOW) == 0) {
-		ED_screens_initialize(wm);
+		ED_screens_initialize(bmain, wm);
 		wm->initialized |= WM_INIT_WINDOW;
 	}
 }
@@ -407,7 +417,7 @@ void wm_clear_default_size(bContext *C)
 {
 	wmWindowManager *wm = CTX_wm_manager(C);
 	wmWindow *win;
-	
+
 	/* wm context */
 	if (wm == NULL) {
 		wm = CTX_data_main(C)->wm.first;
@@ -417,7 +427,7 @@ void wm_clear_default_size(bContext *C)
 	if (wm == NULL || BLI_listbase_is_empty(&wm->windows)) {
 		return;
 	}
-	
+
 	for (win = wm->windows.first; win; win = win->next) {
 		win->sizex = 0;
 		win->sizey = 0;
@@ -433,16 +443,16 @@ void wm_add_default(bContext *C)
 	wmWindowManager *wm = BKE_libblock_alloc(CTX_data_main(C), ID_WM, "WinMan", 0);
 	wmWindow *win;
 	bScreen *screen = CTX_wm_screen(C); /* XXX from file read hrmf */
-	
+
 	CTX_wm_manager_set(C, wm);
 	win = wm_window_new(C);
 	win->screen = screen;
 	screen->winid = win->winid;
 	BLI_strncpy(win->screenname, screen->id.name + 2, sizeof(win->screenname));
-	
+
 	wm->winactive = win;
 	wm->file_saved = 1;
-	wm_window_make_drawable(wm, win); 
+	wm_window_make_drawable(wm, win);
 }
 
 
@@ -461,7 +471,7 @@ void wm_close_and_free(bContext *C, wmWindowManager *wm)
 		wm_draw_window_clear(win);
 		wm_window_free(C, wm, win);
 	}
-	
+
 	while ((op = BLI_pophead(&wm->operators))) {
 		WM_operator_free(op);
 	}
@@ -471,13 +481,18 @@ void wm_close_and_free(bContext *C, wmWindowManager *wm)
 	}
 
 	BLI_freelistN(&wm->queue);
-	
+
 	BLI_freelistN(&wm->paintcursors);
 
 	WM_drag_free_list(&wm->drags);
-	
+
 	wm_reports_free(wm);
-	
+
+	if (wm->undo_stack) {
+		BKE_undosys_stack_destroy(wm->undo_stack);
+		wm->undo_stack = NULL;
+	}
+
 	if (C && CTX_wm_manager(C) == wm) CTX_wm_manager_set(C, NULL);
 }
 
@@ -500,16 +515,16 @@ void WM_main(bContext *C)
 	wm_event_do_refresh_wm_and_depsgraph(C);
 
 	while (1) {
-		
+
 		/* get events from ghost, handle window events, add to window queues */
-		wm_window_process_events(C); 
-		
+		wm_window_process_events(C);
+
 		/* per window, all events to the window, screen, area and region handlers */
 		wm_event_do_handlers(C);
-		
+
 		/* events have left notes about changes, we handle and cache it */
 		wm_event_do_notifiers(C);
-		
+
 		/* execute cached changes draw */
 		wm_draw_update(C);
 	}

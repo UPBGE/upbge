@@ -1,8 +1,6 @@
 KX_2DFilter(BL_Shader)
 ======================
 
-.. module:: bge.types
-
 base class --- :class:`BL_Shader`
 
 .. class:: KX_2DFilter(BL_Shader)

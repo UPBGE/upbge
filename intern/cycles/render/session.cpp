@@ -55,7 +55,7 @@ Session::Session(const SessionParams& params_)
 
 	device = Device::create(params.device, stats, params.background);
 
-	if(params.background && params.output_path.empty()) {
+	if(params.background && !params.write_render_cb) {
 		buffers = NULL;
 		display = NULL;
 	}
@@ -101,7 +101,7 @@ Session::~Session()
 		wait();
 	}
 
-	if(!params.output_path.empty()) {
+	if(params.write_render_cb) {
 		/* tonemap and write out image if requested */
 		delete display;
 
@@ -109,8 +109,10 @@ Session::~Session()
 		display->reset(buffers->params);
 		tonemap(params.samples);
 
-		progress.set_status("Writing Image", params.output_path);
-		display->write(params.output_path);
+		int w = display->draw_width;
+		int h = display->draw_height;
+		uchar4 *pixels = display->rgba_byte.copy_from_device(0, w, h);
+		params.write_render_cb((uchar*)pixels, w, h, 4);
 	}
 
 	/* clean up */
@@ -656,13 +658,13 @@ DeviceRequestedFeatures Session::get_requested_device_features()
 	 */
 	requested_features.use_hair = false;
 	requested_features.use_object_motion = false;
-	requested_features.use_camera_motion = scene->camera->use_motion;
+	requested_features.use_camera_motion = scene->camera->use_motion();
 	foreach(Object *object, scene->objects) {
 		Mesh *mesh = object->mesh;
 		if(mesh->num_curves()) {
 			requested_features.use_hair = true;
 		}
-		requested_features.use_object_motion |= object->use_motion | mesh->use_motion_blur;
+		requested_features.use_object_motion |= object->use_motion() | mesh->use_motion_blur;
 		requested_features.use_camera_motion |= mesh->use_motion_blur;
 #ifdef WITH_OPENSUBDIV
 		if(mesh->subdivision_type != Mesh::SUBDIVISION_NONE) {

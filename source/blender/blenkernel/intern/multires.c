@@ -44,6 +44,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
+#include "BLI_task.h"
 
 #include "BKE_pbvh.h"
 #include "BKE_ccg.h"
@@ -439,7 +440,7 @@ int multiresModifier_reshapeFromDeformMod(Scene *scene, MultiresModifierData *mm
 	/* Create DerivedMesh for deformation modifier */
 	dm = get_multires_dm(scene, mmd, ob);
 	numVerts = dm->getNumVerts(dm);
-	deformedVerts = MEM_mallocN(sizeof(float[3]) * numVerts, "multiresReshape_deformVerts");
+	deformedVerts = MEM_malloc_arrayN(numVerts, sizeof(float[3]), "multiresReshape_deformVerts");
 
 	dm->getVertCos(dm, deformedVerts);
 	mti->deformVerts(md, ob, dm, deformedVerts, numVerts, 0);
@@ -532,7 +533,7 @@ static void multires_reallocate_mdisps(int totloop, MDisps *mdisps, int lvl)
 	/* reallocate displacements to be filled in */
 	for (i = 0; i < totloop; ++i) {
 		int totdisp = multires_grid_tot[lvl];
-		float (*disps)[3] = MEM_callocN(sizeof(float) * 3 * totdisp, "multires disps");
+		float (*disps)[3] = MEM_calloc_arrayN(totdisp, 3 * sizeof(float), "multires disps");
 
 		if (mdisps[i].disps)
 			MEM_freeN(mdisps[i].disps);
@@ -596,7 +597,7 @@ static void multires_grid_paint_mask_downsample(GridPaintMask *gpm, int level)
 {
 	if (level < gpm->level) {
 		int gridsize = BKE_ccg_gridsize(level);
-		float *data = MEM_callocN(sizeof(float) * SQUARE(gridsize),
+		float *data = MEM_calloc_arrayN(SQUARE(gridsize), sizeof(float),
 		                          "multires_grid_paint_mask_downsample");
 		int x, y;
 
@@ -641,7 +642,7 @@ static void multires_del_higher(MultiresModifierData *mmd, Object *ob, int lvl)
 					float (*disps)[3], (*ndisps)[3], (*hdisps)[3];
 					int totdisp = multires_grid_tot[lvl];
 
-					disps = MEM_callocN(sizeof(float) * 3 * totdisp, "multires disps");
+					disps = MEM_calloc_arrayN(totdisp, 3 * sizeof(float), "multires disps");
 
 					ndisps = disps;
 					hdisps = mdisp->disps;
@@ -784,7 +785,7 @@ void multiresModifier_base_apply(MultiresModifierData *mmd, Object *ob)
 
 	cddm = CDDM_from_mesh(me);
 	pmap = cddm->getPolyMap(ob, cddm);
-	origco = MEM_callocN(sizeof(float) * 3 * me->totvert, "multires apply base origco");
+	origco = MEM_calloc_arrayN(me->totvert, 3 * sizeof(float), "multires apply base origco");
 	for (i = 0; i < me->totvert; ++i)
 		copy_v3_v3(origco[i], me->mvert[i].co);
 
@@ -824,8 +825,8 @@ void multiresModifier_base_apply(MultiresModifierData *mmd, Object *ob)
 			 * BKE_mesh_calc_poly_normal_coords() */
 			fake_poly.totloop = p->totloop;
 			fake_poly.loopstart = 0;
-			fake_loops = MEM_mallocN(sizeof(MLoop) * p->totloop, "fake_loops");
-			fake_co = MEM_mallocN(sizeof(float) * 3 * p->totloop, "fake_co");
+			fake_loops = MEM_malloc_arrayN(p->totloop, sizeof(MLoop), "fake_loops");
+			fake_co = MEM_malloc_arrayN(p->totloop, 3 * sizeof(float), "fake_co");
 			
 			for (k = 0; k < p->totloop; ++k) {
 				int vndx = me->mloop[p->loopstart + k].v;
@@ -922,11 +923,11 @@ static void multires_subdivide(MultiresModifierData *mmd, Object *ob, int totlvl
 		lowGridData = lowdm->getGridData(lowdm);
 		lowdm->getGridKey(lowdm, &lowGridKey);
 
-		subGridData = MEM_callocN(sizeof(float *) * numGrids, "subGridData*");
+		subGridData = MEM_calloc_arrayN(numGrids, sizeof(float *), "subGridData*");
 
 		for (i = 0; i < numGrids; ++i) {
 			/* backup subsurf grids */
-			subGridData[i] = MEM_callocN(highGridKey.elem_size * highGridSize * highGridSize, "subGridData");
+			subGridData[i] = MEM_calloc_arrayN(highGridKey.elem_size, highGridSize * highGridSize, "subGridData");
 			memcpy(subGridData[i], highGridData[i], highGridKey.elem_size * highGridSize * highGridSize);
 
 			/* overwrite with current displaced grids */
@@ -1002,6 +1003,117 @@ static void grid_tangent_matrix(float mat[3][3], const CCGKey *key,
 	copy_v3_v3(mat[2], CCG_grid_elem_no(key, grid, x, y));
 }
 
+
+typedef struct MultiresThreadedData {
+	DispOp op;
+	CCGElem **gridData, **subGridData;
+	CCGKey *key;
+	CCGKey *sub_key;
+	MPoly *mpoly;
+	MDisps *mdisps;
+	GridPaintMask *grid_paint_mask;
+	int *gridOffset;
+	int gridSize, dGridSize, dSkip;
+	float (*smat)[3];
+} MultiresThreadedData;
+
+static void multires_disp_run_cb(
+        void *__restrict userdata,
+        const int pidx,
+        const ParallelRangeTLS *__restrict UNUSED(tls))
+{
+	MultiresThreadedData *tdata = userdata;
+
+	DispOp op = tdata->op;
+	CCGElem **gridData = tdata->gridData;
+	CCGElem **subGridData = tdata->subGridData;
+	CCGKey *key = tdata->key;
+	MPoly *mpoly = tdata->mpoly;
+	MDisps *mdisps = tdata->mdisps;
+	GridPaintMask *grid_paint_mask = tdata->grid_paint_mask;
+	int *gridOffset = tdata->gridOffset;
+	int gridSize = tdata->gridSize;
+	int dGridSize = tdata->dGridSize;
+	int dSkip = tdata->dSkip;
+
+	const int numVerts = mpoly[pidx].totloop;
+	int S, x, y, gIndex = gridOffset[pidx];
+
+	for (S = 0; S < numVerts; ++S, ++gIndex) {
+		GridPaintMask *gpm = grid_paint_mask ? &grid_paint_mask[gIndex] : NULL;
+		MDisps *mdisp = &mdisps[mpoly[pidx].loopstart + S];
+		CCGElem *grid = gridData[gIndex];
+		CCGElem *subgrid = subGridData[gIndex];
+		float (*dispgrid)[3] = NULL;
+
+		dispgrid = mdisp->disps;
+
+		/* if needed, reallocate multires paint mask */
+		if (gpm && gpm->level < key->level) {
+			gpm->level = key->level;
+			if (gpm->data) {
+				MEM_freeN(gpm->data);
+			}
+			gpm->data = MEM_calloc_arrayN(key->grid_area, sizeof(float), "gpm.data");
+		}
+
+		for (y = 0; y < gridSize; y++) {
+			for (x = 0; x < gridSize; x++) {
+				float *co = CCG_grid_elem_co(key, grid, x, y);
+				float *sco = CCG_grid_elem_co(key, subgrid, x, y);
+				float *data = dispgrid[dGridSize * y * dSkip + x * dSkip];
+				float mat[3][3], disp[3], d[3], mask;
+
+				/* construct tangent space matrix */
+				grid_tangent_matrix(mat, key, x, y, subgrid);
+
+				switch (op) {
+					case APPLY_DISPLACEMENTS:
+						/* Convert displacement to object space
+						 * and add to grid points */
+						mul_v3_m3v3(disp, mat, data);
+						add_v3_v3v3(co, sco, disp);
+						break;
+					case CALC_DISPLACEMENTS:
+						/* Calculate displacement between new and old
+						 * grid points and convert to tangent space */
+						sub_v3_v3v3(disp, co, sco);
+						invert_m3(mat);
+						mul_v3_m3v3(data, mat, disp);
+						break;
+					case ADD_DISPLACEMENTS:
+						/* Convert subdivided displacements to tangent
+						 * space and add to the original displacements */
+						invert_m3(mat);
+						mul_v3_m3v3(d, mat, co);
+						add_v3_v3(data, d);
+						break;
+				}
+
+				if (gpm) {
+					switch (op) {
+						case APPLY_DISPLACEMENTS:
+							/* Copy mask from gpm to DM */
+							*CCG_grid_elem_mask(key, grid, x, y) =
+							    paint_grid_paint_mask(gpm, key->level, x, y);
+							break;
+						case CALC_DISPLACEMENTS:
+							/* Copy mask from DM to gpm */
+							mask = *CCG_grid_elem_mask(key, grid, x, y);
+							gpm->data[y * gridSize + x] = CLAMPIS(mask, 0, 1);
+							break;
+						case ADD_DISPLACEMENTS:
+							/* Add mask displacement to gpm */
+							gpm->data[y * gridSize + x] +=
+							    *CCG_grid_elem_mask(key, grid, x, y);
+							break;
+					}
+				}
+			}
+		}
+	}
+}
+
 /* XXX WARNING: subsurf elements from dm and oldGridData *must* be of the same format (size),
  *              because this code uses CCGKey's info from dm to access oldGridData's normals
  *              (through the call to grid_tangent_matrix())! */
@@ -1014,7 +1126,7 @@ static void multiresModifier_disp_run(DerivedMesh *dm, Mesh *me, DerivedMesh *dm
 	MDisps *mdisps = CustomData_get_layer(&me->ldata, CD_MDISPS);
 	GridPaintMask *grid_paint_mask = NULL;
 	int *gridOffset;
-	int i, k, /*numGrids, */ gridSize, dGridSize, dSkip;
+	int i, gridSize, dGridSize, dSkip;
 	int totloop, totpoly;
 	
 	/* this happens in the dm made by bmesh_mdisps_space_set */
@@ -1050,98 +1162,34 @@ static void multiresModifier_disp_run(DerivedMesh *dm, Mesh *me, DerivedMesh *dm
 	if (key.has_mask)
 		grid_paint_mask = CustomData_get_layer(&me->ldata, CD_GRID_PAINT_MASK);
 
-	k = 0; /*current loop/mdisp index within the mloop array*/
-
-#pragma omp parallel for private(i) if (totloop * gridSize * gridSize >= CCG_OMP_LIMIT)
-
-	for (i = 0; i < totpoly; ++i) {
-		const int numVerts = mpoly[i].totloop;
-		int S, x, y, gIndex = gridOffset[i];
-
-		for (S = 0; S < numVerts; ++S, ++gIndex, ++k) {
-			GridPaintMask *gpm = grid_paint_mask ? &grid_paint_mask[gIndex] : NULL;
-			MDisps *mdisp = &mdisps[mpoly[i].loopstart + S];
-			CCGElem *grid = gridData[gIndex];
-			CCGElem *subgrid = subGridData[gIndex];
-			float (*dispgrid)[3] = NULL;
-
-			/* when adding new faces in edit mode, need to allocate disps */
-			if (!mdisp->disps)
-#pragma omp critical
-			{
-				multires_reallocate_mdisps(totloop, mdisps, totlvl);
-			}
-
-			dispgrid = mdisp->disps;
-
-			/* if needed, reallocate multires paint mask */
-			if (gpm && gpm->level < key.level) {
-				gpm->level = key.level;
-#pragma omp critical
-				{
-					if (gpm->data)
-						MEM_freeN(gpm->data);
-					gpm->data = MEM_callocN(sizeof(float) * key.grid_area, "gpm.data");
-				}
-			}
-
-			for (y = 0; y < gridSize; y++) {
-				for (x = 0; x < gridSize; x++) {
-					float *co = CCG_grid_elem_co(&key, grid, x, y);
-					float *sco = CCG_grid_elem_co(&key, subgrid, x, y);
-					float *data = dispgrid[dGridSize * y * dSkip + x * dSkip];
-					float mat[3][3], disp[3], d[3], mask;
-
-					/* construct tangent space matrix */
-					grid_tangent_matrix(mat, &key, x, y, subgrid);
-
-					switch (op) {
-						case APPLY_DISPLACEMENTS:
-							/* Convert displacement to object space
-							 * and add to grid points */
-							mul_v3_m3v3(disp, mat, data);
-							add_v3_v3v3(co, sco, disp);
-							break;
-						case CALC_DISPLACEMENTS:
-							/* Calculate displacement between new and old
-							 * grid points and convert to tangent space */
-							sub_v3_v3v3(disp, co, sco);
-							invert_m3(mat);
-							mul_v3_m3v3(data, mat, disp);
-							break;
-						case ADD_DISPLACEMENTS:
-							/* Convert subdivided displacements to tangent
-							 * space and add to the original displacements */
-							invert_m3(mat);
-							mul_v3_m3v3(d, mat, co);
-							add_v3_v3(data, d);
-							break;
-					}
-
-					if (gpm) {
-						switch (op) {
-							case APPLY_DISPLACEMENTS:
-								/* Copy mask from gpm to DM */
-								*CCG_grid_elem_mask(&key, grid, x, y) =
-								    paint_grid_paint_mask(gpm, key.level, x, y);
-								break;
-							case CALC_DISPLACEMENTS:
-								/* Copy mask from DM to gpm */
-								mask = *CCG_grid_elem_mask(&key, grid, x, y);
-								gpm->data[y * gridSize + x] = CLAMPIS(mask, 0, 1);
-								break;
-							case ADD_DISPLACEMENTS:
-								/* Add mask displacement to gpm */
-								gpm->data[y * gridSize + x] +=
-								    *CCG_grid_elem_mask(&key, grid, x, y);
-								break;
-						}
-					}
-				}
-			}
+	/* when adding new faces in edit mode, need to allocate disps */
+	for (i = 0; i < totloop; ++i) {
+		if (mdisps[i].disps == NULL) {
+			multires_reallocate_mdisps(totloop, mdisps, totlvl);
+			break;
 		}
 	}
-	
+
+	ParallelRangeSettings settings;
+	BLI_parallel_range_settings_defaults(&settings);
+	settings.min_iter_per_thread = CCG_TASK_LIMIT;
+
+	MultiresThreadedData data = {
+	    .op = op,
+	    .gridData = gridData,
+	    .subGridData = subGridData,
+	    .key = &key,
+	    .mpoly = mpoly,
+	    .mdisps = mdisps,
+	    .grid_paint_mask = grid_paint_mask,
+	    .gridOffset = gridOffset,
+	    .gridSize = gridSize,
+	    .dGridSize = dGridSize,
+	    .dSkip = dSkip
+	};
+
+	BLI_task_parallel_range(0, totpoly, &data, multires_disp_run_cb, &settings);
+
 	if (op == APPLY_DISPLACEMENTS) {
 		ccgSubSurf_stitchFaces(ccgdm->ss, 0, NULL, 0);
 		ccgSubSurf_updateNormals(ccgdm->ss, NULL, 0);
@@ -1199,12 +1247,12 @@ void multires_modifier_update_mdisps(struct DerivedMesh *dm)
 
 			BLI_assert(highGridKey.elem_size == lowGridKey.elem_size);
 
-			subGridData = MEM_callocN(sizeof(CCGElem *) * numGrids, "subGridData*");
-			diffGrid = MEM_callocN(lowGridKey.elem_size * lowGridSize * lowGridSize, "diff");
+			subGridData = MEM_calloc_arrayN(numGrids, sizeof(CCGElem *), "subGridData*");
+			diffGrid = MEM_calloc_arrayN(lowGridKey.elem_size, lowGridSize * lowGridSize, "diff");
 
 			for (i = 0; i < numGrids; ++i) {
 				/* backup subsurf grids */
-				subGridData[i] = MEM_callocN(highGridKey.elem_size * highGridSize * highGridSize, "subGridData");
+				subGridData[i] = MEM_calloc_arrayN(highGridKey.elem_size, highGridSize * highGridSize, "subGridData");
 				memcpy(subGridData[i], highGridData[i], highGridKey.elem_size * highGridSize * highGridSize);
 
 				/* write difference of subsurf and displaced low level into high subsurf */
@@ -1315,10 +1363,10 @@ void multires_set_space(DerivedMesh *dm, Object *ob, int from, int to)
 	gridData = subsurf->getGridData(subsurf);
 	subsurf->getGridKey(subsurf, &key);
 
-	subGridData = MEM_callocN(sizeof(CCGElem *) * numGrids, "subGridData*");
+	subGridData = MEM_calloc_arrayN(numGrids, sizeof(CCGElem *), "subGridData*");
 
 	for (i = 0; i < numGrids; i++) {
-		subGridData[i] = MEM_callocN(key.elem_size * gridSize * gridSize, "subGridData");
+		subGridData[i] = MEM_calloc_arrayN(key.elem_size, gridSize * gridSize, "subGridData");
 		memcpy(subGridData[i], gridData[i], key.elem_size * gridSize * gridSize);
 	}
 	
@@ -1332,8 +1380,7 @@ void multires_set_space(DerivedMesh *dm, Object *ob, int from, int to)
 
 	k = 0; /*current loop/mdisp index within the mloop array*/
 
-	//#pragma omp parallel for private(i) if (dm->numLoopData * gridSize * gridSize >= CCG_OMP_LIMIT)
-
+	/* TODO: Use BLI_task parallel range for that one too? */
 	for (i = 0; i < dm->numPolyData; ++i) {
 		const int numVerts = mpoly[i].totloop;
 		int S, x, y, gIndex = gridOffset[i];
@@ -1348,7 +1395,7 @@ void multires_set_space(DerivedMesh *dm, Object *ob, int from, int to)
 			if (!mdisp->disps) {
 				mdisp->totdisp = gridSize * gridSize;
 				mdisp->level = totlvl;
-				mdisp->disps = MEM_callocN(sizeof(float) * 3 * mdisp->totdisp, "disp in multires_set_space");
+				mdisp->disps = MEM_calloc_arrayN(mdisp->totdisp, 3 * sizeof(float), "disp in multires_set_space");
 			}
 
 			dispgrid = mdisp->disps;
@@ -1463,10 +1510,10 @@ DerivedMesh *multires_make_derived_from_derived(DerivedMesh *dm,
 	gridData = result->getGridData(result);
 	result->getGridKey(result, &key);
 
-	subGridData = MEM_mallocN(sizeof(CCGElem *) * numGrids, "subGridData*");
+	subGridData = MEM_malloc_arrayN(numGrids, sizeof(CCGElem *), "subGridData*");
 
 	for (i = 0; i < numGrids; i++) {
-		subGridData[i] = MEM_mallocN(key.elem_size * gridSize * gridSize, "subGridData");
+		subGridData[i] = MEM_malloc_arrayN(key.elem_size, gridSize * gridSize, "subGridData");
 		memcpy(subGridData[i], gridData[i], key.elem_size * gridSize * gridSize);
 	}
 
@@ -1556,7 +1603,7 @@ static void old_mdisps_convert(MFace *mface, MDisps *mdisp)
 	int x, y, S;
 	float (*disps)[3], (*out)[3], u = 0.0f, v = 0.0f; /* Quite gcc barking. */
 
-	disps = MEM_callocN(sizeof(float) * 3 * newtotdisp, "multires disps");
+	disps = MEM_calloc_arrayN(newtotdisp, 3 * sizeof(float), "multires disps");
 
 	out = disps;
 	for (S = 0; S < nvert; S++) {
@@ -1603,7 +1650,7 @@ void multires_load_old_250(Mesh *me)
 			int totdisp = mdisps[i].totdisp / nvert;
 			
 			for (j = 0; j < nvert; j++, k++) {
-				mdisps2[k].disps = MEM_callocN(sizeof(float) * 3 * totdisp, "multires disp in conversion");
+				mdisps2[k].disps = MEM_calloc_arrayN(totdisp, 3 * sizeof(float), "multires disp in conversion");
 				mdisps2[k].totdisp = totdisp;
 				mdisps2[k].level = mdisps[i].level;
 				memcpy(mdisps2[k].disps, mdisps[i].disps + totdisp * j, totdisp);
@@ -1663,8 +1710,8 @@ static void create_old_vert_face_map(ListBase **map, IndexNode **mem, const Mult
 	int i, j;
 	IndexNode *node = NULL;
 	
-	(*map) = MEM_callocN(sizeof(ListBase) * totvert, "vert face map");
-	(*mem) = MEM_callocN(sizeof(IndexNode) * totface * 4, "vert face map mem");
+	(*map) = MEM_calloc_arrayN(totvert, sizeof(ListBase), "vert face map");
+	(*mem) = MEM_calloc_arrayN(totface, 4 * sizeof(IndexNode), "vert face map mem");
 	node = *mem;
 	
 	/* Find the users */
@@ -1682,8 +1729,8 @@ static void create_old_vert_edge_map(ListBase **map, IndexNode **mem, const Mult
 	int i, j;
 	IndexNode *node = NULL;
 	
-	(*map) = MEM_callocN(sizeof(ListBase) * totvert, "vert edge map");
-	(*mem) = MEM_callocN(sizeof(IndexNode) * totedge * 2, "vert edge map mem");
+	(*map) = MEM_calloc_arrayN(totvert, sizeof(ListBase), "vert edge map");
+	(*mem) = MEM_calloc_arrayN(totedge, 2 * sizeof(IndexNode), "vert edge map mem");
 	node = *mem;
 	
 	/* Find the users */
@@ -1865,7 +1912,11 @@ static void multires_load_old_dm(DerivedMesh *dm, Mesh *me, int totlvl)
 	vsrc = mr->verts;
 	vdst = dm->getVertArray(dm);
 	totvert = (unsigned int)dm->getNumVerts(dm);
-	vvmap = MEM_callocN(sizeof(int) * totvert, "multires vvmap");
+	vvmap = MEM_calloc_arrayN(totvert, sizeof(int), "multires vvmap");
+
+	if (!vvmap) {
+		return;
+	}
 
 	lvl1 = mr->levels.first;
 	/* Load base verts */
@@ -1950,10 +2001,10 @@ static void multires_load_old_dm(DerivedMesh *dm, Mesh *me, int totlvl)
 		}
 
 		/* calculate vert to edge/face maps for each level (except the last) */
-		fmap = MEM_callocN(sizeof(ListBase *) * (mr->level_count - 1), "multires fmap");
-		emap = MEM_callocN(sizeof(ListBase *) * (mr->level_count - 1), "multires emap");
-		fmem = MEM_callocN(sizeof(IndexNode *) * (mr->level_count - 1), "multires fmem");
-		emem = MEM_callocN(sizeof(IndexNode *) * (mr->level_count - 1), "multires emem");
+		fmap = MEM_calloc_arrayN((mr->level_count - 1), sizeof(ListBase *), "multires fmap");
+		emap = MEM_calloc_arrayN((mr->level_count - 1), sizeof(ListBase *), "multires emap");
+		fmem = MEM_calloc_arrayN((mr->level_count - 1), sizeof(IndexNode *), "multires fmem");
+		emem = MEM_calloc_arrayN((mr->level_count - 1), sizeof(IndexNode *), "multires emem");
 		lvl = lvl1;
 		for (i = 0; i < (unsigned int)mr->level_count - 1; ++i) {
 			create_old_vert_face_map(fmap + i, fmem + i, lvl->faces, lvl->totvert, lvl->totface);
@@ -2174,6 +2225,56 @@ static void multires_sync_levels(Scene *scene, Object *ob_src, Object *ob_dst)
 	}
 }
 
+static void multires_apply_smat_cb(
+        void *__restrict userdata,
+        const int pidx,
+        const ParallelRangeTLS *__restrict UNUSED(tls))
+{
+	MultiresThreadedData *tdata = userdata;
+
+	CCGElem **gridData = tdata->gridData;
+	CCGElem **subGridData = tdata->subGridData;
+	CCGKey *dm_key = tdata->key;
+	CCGKey *subdm_key = tdata->sub_key;
+	MPoly *mpoly = tdata->mpoly;
+	MDisps *mdisps = tdata->mdisps;
+	int *gridOffset = tdata->gridOffset;
+	int gridSize = tdata->gridSize;
+	int dGridSize = tdata->dGridSize;
+	int dSkip = tdata->dSkip;
+	float (*smat)[3] = tdata->smat;
+
+	const int numVerts = mpoly[pidx].totloop;
+	MDisps *mdisp = &mdisps[mpoly[pidx].loopstart];
+	int S, x, y, gIndex = gridOffset[pidx];
+
+	for (S = 0; S < numVerts; ++S, ++gIndex, mdisp++) {
+		CCGElem *grid = gridData[gIndex];
+		CCGElem *subgrid = subGridData[gIndex];
+		float (*dispgrid)[3] = mdisp->disps;
+
+		for (y = 0; y < gridSize; y++) {
+			for (x = 0; x < gridSize; x++) {
+				float *co = CCG_grid_elem_co(dm_key, grid, x, y);
+				float *sco = CCG_grid_elem_co(subdm_key, subgrid, x, y);
+				float *data = dispgrid[dGridSize * y * dSkip + x * dSkip];
+				float mat[3][3], disp[3];
+
+				/* construct tangent space matrix */
+				grid_tangent_matrix(mat, dm_key, x, y, grid);
+
+				/* scale subgrid coord and calculate displacement */
+				mul_m3_v3(smat, sco);
+				sub_v3_v3v3(disp, sco, co);
+
+				/* convert difference to tangent space */
+				invert_m3(mat);
+				mul_v3_m3v3(data, mat, disp);
+			}
+		}
+	}
+}
+
 static void multires_apply_smat(Scene *scene, Object *ob, float smat[3][3])
 {
 	DerivedMesh *dm = NULL, *cddm = NULL, *subdm = NULL;
@@ -2205,7 +2306,7 @@ static void multires_apply_smat(Scene *scene, Object *ob, float smat[3][3])
 	cddm = mesh_get_derived_deform(scene, ob, CD_MASK_BAREMESH);
 
 	totvert = cddm->getNumVerts(cddm);
-	vertCos = MEM_mallocN(sizeof(*vertCos) * totvert, "multiresScale vertCos");
+	vertCos = MEM_malloc_arrayN(totvert, sizeof(*vertCos), "multiresScale vertCos");
 	cddm->getVertCos(cddm, vertCos);
 	for (i = 0; i < totvert; i++)
 		mul_m3_v3(smat, vertCos[i]);
@@ -2226,38 +2327,25 @@ static void multires_apply_smat(Scene *scene, Object *ob, float smat[3][3])
 	dGridSize = multires_side_tot[high_mmd.totlvl];
 	dSkip = (dGridSize - 1) / (gridSize - 1);
 
-#pragma omp parallel for private(i) if (me->totloop * gridSize * gridSize >= CCG_OMP_LIMIT)
-	for (i = 0; i < me->totpoly; ++i) {
-		const int numVerts = mpoly[i].totloop;
-		MDisps *mdisp = &mdisps[mpoly[i].loopstart];
-		int S, x, y, gIndex = gridOffset[i];
+	ParallelRangeSettings settings;
+	BLI_parallel_range_settings_defaults(&settings);
+	settings.min_iter_per_thread = CCG_TASK_LIMIT;
 
-		for (S = 0; S < numVerts; ++S, ++gIndex, mdisp++) {
-			CCGElem *grid = gridData[gIndex];
-			CCGElem *subgrid = subGridData[gIndex];
-			float (*dispgrid)[3] = mdisp->disps;
+	MultiresThreadedData data = {
+	    .gridData = gridData,
+	    .subGridData = subGridData,
+	    .key = &dm_key,
+	    .sub_key = &subdm_key,
+	    .mpoly = mpoly,
+	    .mdisps = mdisps,
+	    .gridOffset = gridOffset,
+	    .gridSize = gridSize,
+	    .dGridSize = dGridSize,
+	    .dSkip = dSkip,
+	    .smat = smat
+	};
 
-			for (y = 0; y < gridSize; y++) {
-				for (x = 0; x < gridSize; x++) {
-					float *co = CCG_grid_elem_co(&dm_key, grid, x, y);
-					float *sco = CCG_grid_elem_co(&subdm_key, subgrid, x, y);
-					float *data = dispgrid[dGridSize * y * dSkip + x * dSkip];
-					float mat[3][3], disp[3];
-
-					/* construct tangent space matrix */
-					grid_tangent_matrix(mat, &dm_key, x, y, grid);
-
-					/* scale subgrid coord and calculate displacement */
-					mul_m3_v3(smat, sco);
-					sub_v3_v3v3(disp, sco, co);
-
-					/* convert difference to tangent space */
-					invert_m3(mat);
-					mul_v3_m3v3(data, mat, disp);
-				}
-			}
-		}
-	}
+	BLI_task_parallel_range(0, me->totpoly, &data, multires_apply_smat_cb, &settings);
 
 	dm->release(dm);
 	subdm->release(subdm);
@@ -2326,7 +2414,7 @@ void multires_topology_changed(Mesh *me)
 		if (!mdisp->totdisp || !mdisp->disps) {
 			if (grid) {
 				mdisp->totdisp = grid;
-				mdisp->disps = MEM_callocN(3 * mdisp->totdisp * sizeof(float), "mdisp topology");
+				mdisp->disps = MEM_calloc_arrayN(3 * sizeof(float),  mdisp->totdisp, "mdisp topology");
 			}
 
 			continue;

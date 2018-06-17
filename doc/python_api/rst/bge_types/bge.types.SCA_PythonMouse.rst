@@ -1,7 +1,5 @@
 SCA_PythonMouse(EXP_PyObjectPlus)
-=============================
-
-.. module:: bge.types
+=================================
 
 base class --- :class:`EXP_PyObjectPlus`
 
@@ -48,4 +46,3 @@ base class --- :class:`EXP_PyObjectPlus`
       The visibility of the mouse cursor.
       
       :type: boolean
-

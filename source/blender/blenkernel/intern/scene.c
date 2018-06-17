@@ -145,6 +145,83 @@ static void remove_sequencer_fcurves(Scene *sce)
 	}
 }
 
+/* flag -- copying options (see BKE_library.h's LIB_ID_COPY_... flags for more). */
+ToolSettings *BKE_toolsettings_copy(ToolSettings *toolsettings, const int flag)
+{
+	if (toolsettings == NULL) {
+		return NULL;
+	}
+	ToolSettings *ts = MEM_dupallocN(toolsettings);
+	if (ts->vpaint) {
+		ts->vpaint = MEM_dupallocN(ts->vpaint);
+		BKE_paint_copy(&ts->vpaint->paint, &ts->vpaint->paint, flag);
+	}
+	if (ts->wpaint) {
+		ts->wpaint = MEM_dupallocN(ts->wpaint);
+		BKE_paint_copy(&ts->wpaint->paint, &ts->wpaint->paint, flag);
+	}
+	if (ts->sculpt) {
+		ts->sculpt = MEM_dupallocN(ts->sculpt);
+		BKE_paint_copy(&ts->sculpt->paint, &ts->sculpt->paint, flag);
+	}
+	if (ts->uvsculpt) {
+		ts->uvsculpt = MEM_dupallocN(ts->uvsculpt);
+		BKE_paint_copy(&ts->uvsculpt->paint, &ts->uvsculpt->paint, flag);
+	}
+
+	BKE_paint_copy(&ts->imapaint.paint, &ts->imapaint.paint, flag);
+	ts->imapaint.paintcursor = NULL;
+	ts->particle.paintcursor = NULL;
+	ts->particle.scene = NULL;
+	ts->particle.object = NULL;
+
+	/* duplicate Grease Pencil Drawing Brushes */
+	BLI_listbase_clear(&ts->gp_brushes);
+	for (bGPDbrush *brush = toolsettings->gp_brushes.first; brush; brush = brush->next) {
+		bGPDbrush *newbrush = BKE_gpencil_brush_duplicate(brush);
+		BLI_addtail(&ts->gp_brushes, newbrush);
+	}
+
+	/* duplicate Grease Pencil interpolation curve */
+	ts->gp_interpolate.custom_ipo = curvemapping_copy(ts->gp_interpolate.custom_ipo);
+	return ts;
+}
+
+void BKE_toolsettings_free(ToolSettings *toolsettings)
+{
+	if (toolsettings == NULL) {
+		return;
+	}
+	if (toolsettings->vpaint) {
+		BKE_paint_free(&toolsettings->vpaint->paint);
+		MEM_freeN(toolsettings->vpaint);
+	}
+	if (toolsettings->wpaint) {
+		BKE_paint_free(&toolsettings->wpaint->paint);
+		MEM_freeN(toolsettings->wpaint);
+	}
+	if (toolsettings->sculpt) {
+		BKE_paint_free(&toolsettings->sculpt->paint);
+		MEM_freeN(toolsettings->sculpt);
+	}
+	if (toolsettings->uvsculpt) {
+		BKE_paint_free(&toolsettings->uvsculpt->paint);
+		MEM_freeN(toolsettings->uvsculpt);
+	}
+	BKE_paint_free(&toolsettings->imapaint.paint);
+
+	/* free Grease Pencil Drawing Brushes */
+	BKE_gpencil_free_brushes(&toolsettings->gp_brushes);
+	BLI_freelistN(&toolsettings->gp_brushes);
+
+	/* free Grease Pencil interpolation curve */
+	if (toolsettings->gp_interpolate.custom_ipo) {
+		curvemapping_free(toolsettings->gp_interpolate.custom_ipo);
+	}
+
+	MEM_freeN(toolsettings);
+}
+
 /**
  * Only copy internal data of Scene ID from source to already allocated/initialized destination.
  * You probably nerver want to use that directly, use id_copy or BKE_id_copy_ex for typical needs.
@@ -217,41 +294,7 @@ void BKE_scene_copy_data(Main *bmain, Scene *sce_dst, const Scene *sce_src, cons
 	curvemapping_copy_data(&sce_dst->r.mblur_shutter_curve, &sce_src->r.mblur_shutter_curve);
 
 	/* tool settings */
-	if (sce_dst->toolsettings != NULL) {
-		ToolSettings *ts = sce_dst->toolsettings = MEM_dupallocN(sce_dst->toolsettings);
-		if (ts->vpaint) {
-			ts->vpaint = MEM_dupallocN(ts->vpaint);
-			BKE_paint_copy(&ts->vpaint->paint, &ts->vpaint->paint, flag_subdata);
-		}
-		if (ts->wpaint) {
-			ts->wpaint = MEM_dupallocN(ts->wpaint);
-			BKE_paint_copy(&ts->wpaint->paint, &ts->wpaint->paint, flag_subdata);
-		}
-		if (ts->sculpt) {
-			ts->sculpt = MEM_dupallocN(ts->sculpt);
-			BKE_paint_copy(&ts->sculpt->paint, &ts->sculpt->paint, flag_subdata);
-		}
-		if (ts->uvsculpt) {
-			ts->uvsculpt = MEM_dupallocN(ts->uvsculpt);
-			BKE_paint_copy(&ts->uvsculpt->paint, &ts->uvsculpt->paint, flag_subdata);
-		}
-
-		BKE_paint_copy(&ts->imapaint.paint, &ts->imapaint.paint, flag_subdata);
-		ts->imapaint.paintcursor = NULL;
-		ts->particle.paintcursor = NULL;
-		ts->particle.scene = NULL;
-		ts->particle.object = NULL;
-
-		/* duplicate Grease Pencil Drawing Brushes */
-		BLI_listbase_clear(&ts->gp_brushes);
-		for (bGPDbrush *brush = sce_src->toolsettings->gp_brushes.first; brush; brush = brush->next) {
-			bGPDbrush *newbrush = BKE_gpencil_brush_duplicate(brush);
-			BLI_addtail(&ts->gp_brushes, newbrush);
-		}
-
-		/* duplicate Grease Pencil interpolation curve */
-		ts->gp_interpolate.custom_ipo = curvemapping_copy(ts->gp_interpolate.custom_ipo);
-	}
+	sce_dst->toolsettings = BKE_toolsettings_copy(sce_dst->toolsettings, flag_subdata);
 
 	/* make a private copy of the avicodecdata */
 	if (sce_src->r.avicodecdata) {
@@ -290,7 +333,6 @@ Scene *BKE_scene_copy(Main *bmain, Scene *sce, int type)
 	/* TODO this should/could most likely be replaced by call to more generic code at some point...
 	 * But for now, let's keep it well isolated here. */
 	if (type == SCE_COPY_EMPTY) {
-		ToolSettings *ts;
 		ListBase rl, rv;
 
 		sce_copy = BKE_scene_add(bmain, sce->id.name + 2);
@@ -327,46 +369,7 @@ Scene *BKE_scene_copy(Main *bmain, Scene *sce, int type)
 		curvemapping_copy_data(&sce_copy->r.mblur_shutter_curve, &sce->r.mblur_shutter_curve);
 
 		/* tool settings */
-		sce_copy->toolsettings = MEM_dupallocN(sce->toolsettings);
-
-		ts = sce_copy->toolsettings;
-		if (ts) {
-			if (ts->vpaint) {
-				ts->vpaint = MEM_dupallocN(ts->vpaint);
-				BKE_paint_copy(&ts->vpaint->paint, &ts->vpaint->paint, 0);
-			}
-			if (ts->wpaint) {
-				ts->wpaint = MEM_dupallocN(ts->wpaint);
-				BKE_paint_copy(&ts->wpaint->paint, &ts->wpaint->paint, 0);
-			}
-			if (ts->sculpt) {
-				ts->sculpt = MEM_dupallocN(ts->sculpt);
-				BKE_paint_copy(&ts->sculpt->paint, &ts->sculpt->paint, 0);
-			}
-			if (ts->uvsculpt) {
-				ts->uvsculpt = MEM_dupallocN(ts->uvsculpt);
-				BKE_paint_copy(&ts->uvsculpt->paint, &ts->uvsculpt->paint, 0);
-			}
-
-			BKE_paint_copy(&ts->imapaint.paint, &ts->imapaint.paint, 0);
-			ts->imapaint.paintcursor = NULL;
-			id_us_plus((ID *)ts->imapaint.stencil);
-			id_us_plus((ID *)ts->imapaint.clone);
-			id_us_plus((ID *)ts->imapaint.canvas);
-			ts->particle.paintcursor = NULL;
-			ts->particle.scene = NULL;
-			ts->particle.object = NULL;
-
-			/* duplicate Grease Pencil Drawing Brushes */
-			BLI_listbase_clear(&ts->gp_brushes);
-			for (bGPDbrush *brush = sce->toolsettings->gp_brushes.first; brush; brush = brush->next) {
-				bGPDbrush *newbrush = BKE_gpencil_brush_duplicate(brush);
-				BLI_addtail(&ts->gp_brushes, newbrush);
-			}
-
-			/* duplicate Grease Pencil interpolation curve */
-			ts->gp_interpolate.custom_ipo = curvemapping_copy(ts->gp_interpolate.custom_ipo);
-		}
+		sce_copy->toolsettings = BKE_toolsettings_copy(sce->toolsettings, 0);
 
 		/* make a private copy of the avicodecdata */
 		if (sce->r.avicodecdata) {
@@ -422,7 +425,7 @@ Scene *BKE_scene_copy(Main *bmain, Scene *sce, int type)
 			/* Remove sequencer if not full copy */
 			/* XXX Why in Hell? :/ */
 			remove_sequencer_fcurves(sce_copy);
-			BKE_sequencer_editing_free(sce_copy);
+			BKE_sequencer_editing_free(sce_copy, true);
 		}
 
 		/* NOTE: part of SCE_COPY_LINK_DATA and SCE_COPY_FULL operations
@@ -457,12 +460,9 @@ void BKE_scene_free(Scene *sce)
 
 	BKE_animdata_free((ID *)sce, false);
 
-	/* check all sequences */
-	BKE_sequencer_clear_scene_in_allseqs(G.main, sce);
-
 	sce->basact = NULL;
 	BLI_freelistN(&sce->base);
-	BKE_sequencer_editing_free(sce);
+	BKE_sequencer_editing_free(sce, false);
 
 	BKE_keyingsets_free(&sce->keyingsets);
 
@@ -502,37 +502,8 @@ void BKE_scene_free(Scene *sce)
 	BLI_freelistN(&sce->r.layers);
 	BLI_freelistN(&sce->r.views);
 	
-	if (sce->toolsettings) {
-		if (sce->toolsettings->vpaint) {
-			BKE_paint_free(&sce->toolsettings->vpaint->paint);
-			MEM_freeN(sce->toolsettings->vpaint);
-		}
-		if (sce->toolsettings->wpaint) {
-			BKE_paint_free(&sce->toolsettings->wpaint->paint);
-			MEM_freeN(sce->toolsettings->wpaint);
-		}
-		if (sce->toolsettings->sculpt) {
-			BKE_paint_free(&sce->toolsettings->sculpt->paint);
-			MEM_freeN(sce->toolsettings->sculpt);
-		}
-		if (sce->toolsettings->uvsculpt) {
-			BKE_paint_free(&sce->toolsettings->uvsculpt->paint);
-			MEM_freeN(sce->toolsettings->uvsculpt);
-		}
-		BKE_paint_free(&sce->toolsettings->imapaint.paint);
-		
-		/* free Grease Pencil Drawing Brushes */
-		BKE_gpencil_free_brushes(&sce->toolsettings->gp_brushes);
-		BLI_freelistN(&sce->toolsettings->gp_brushes);
-		
-		/* free Grease Pencil interpolation curve */
-		if (sce->toolsettings->gp_interpolate.custom_ipo) {
-			curvemapping_free(sce->toolsettings->gp_interpolate.custom_ipo);
-		}
-		
-		MEM_freeN(sce->toolsettings);
-		sce->toolsettings = NULL;
-	}
+	BKE_toolsettings_free(sce->toolsettings);
+	sce->toolsettings = NULL;
 	
 	DAG_scene_free(sce);
 	if (sce->depsgraph)
@@ -737,7 +708,8 @@ void BKE_scene_init(Scene *sce)
 	pset->draw_step = 2;
 	pset->fade_frames = 2;
 	pset->selectmode = SCE_SELECT_PATH;
-	for (a = 0; a < PE_TOT_BRUSH; a++) {
+
+	for (a = 0; a < ARRAY_SIZE(pset->brush); a++) {
 		pset->brush[a].strength = 0.5f;
 		pset->brush[a].size = 50;
 		pset->brush[a].step = 10;
@@ -984,19 +956,19 @@ void BKE_scene_set_background(Main *bmain, Scene *scene)
 /* called from creator_args.c */
 Scene *BKE_scene_set_name(Main *bmain, const char *name)
 {
-	Scene *sce = (Scene *)BKE_libblock_find_name_ex(bmain, ID_SCE, name);
+	Scene *sce = (Scene *)BKE_libblock_find_name(bmain, ID_SCE, name);
 	if (sce) {
 		BKE_scene_set_background(bmain, sce);
-		printf("Scene switch for render: '%s' in file: '%s'\n", name, bmain->name);
+		printf("Scene switch for render: '%s' in file: '%s'\n", name, BKE_main_blendfile_path(bmain));
 		return sce;
 	}
 
-	printf("Can't find scene: '%s' in file: '%s'\n", name, bmain->name);
+	printf("Can't find scene: '%s' in file: '%s'\n", name, BKE_main_blendfile_path(bmain));
 	return NULL;
 }
 
 /* Used by metaballs, return *all* objects (including duplis) existing in the scene (including scene's sets) */
-int BKE_scene_base_iter_next(EvaluationContext *eval_ctx, SceneBaseIter *iter,
+int BKE_scene_base_iter_next(Main *bmain, EvaluationContext *eval_ctx, SceneBaseIter *iter,
                              Scene **scene, int val, Base **base, Object **ob)
 {
 	bool run_again = true;
@@ -1065,7 +1037,7 @@ int BKE_scene_base_iter_next(EvaluationContext *eval_ctx, SceneBaseIter *iter,
 						 * this enters eternal loop because of 
 						 * makeDispListMBall getting called inside of group_duplilist */
 						if ((*base)->object->dup_group == NULL) {
-							iter->duplilist = object_duplilist_ex(eval_ctx, (*scene), (*base)->object, false);
+							iter->duplilist = object_duplilist_ex(bmain, eval_ctx, (*scene), (*base)->object, false);
 							
 							iter->dupob = iter->duplilist->first;
 
@@ -1137,6 +1109,10 @@ Object *BKE_scene_camera_find(Scene *sc)
 #ifdef DURIAN_CAMERA_SWITCH
 Object *BKE_scene_camera_switch_find(Scene *scene)
 {
+	if (scene->r.mode & R_NO_CAMERA_SWITCH) {
+		return NULL;
+	}
+
 	TimeMarker *m;
 	int cfra = scene->r.cfra;
 	int frame = -(MAXFRAME + 1);
@@ -1294,7 +1270,7 @@ bool BKE_scene_validate_setscene(Main *bmain, Scene *sce)
 }
 
 /* This function is needed to cope with fractional frames - including two Blender rendering features
- * mblur (motion blur that renders 'subframes' and blurs them together), and fields rendering. 
+ * mblur (motion blur that renders 'subframes' and blurs them together), and fields rendering.
  */
 float BKE_scene_frame_get(const Scene *scene)
 {
@@ -1384,7 +1360,7 @@ static void scene_update_drivers(Main *UNUSED(bmain), Scene *scene)
 }
 
 /* deps hack - do extra recalcs at end */
-static void scene_depsgraph_hack(EvaluationContext *eval_ctx, Scene *scene, Scene *scene_parent)
+static void scene_depsgraph_hack(Main *bmain, EvaluationContext *eval_ctx, Scene *scene, Scene *scene_parent)
 {
 	Base *base;
 		
@@ -1393,7 +1369,7 @@ static void scene_depsgraph_hack(EvaluationContext *eval_ctx, Scene *scene, Scen
 	/* sets first, we allow per definition current scene to have
 	 * dependencies on sets, but not the other way around. */
 	if (scene->set)
-		scene_depsgraph_hack(eval_ctx, scene->set, scene_parent);
+		scene_depsgraph_hack(bmain, eval_ctx, scene->set, scene_parent);
 	
 	for (base = scene->base.first; base; base = base->next) {
 		Object *ob = base->object;
@@ -1408,7 +1384,7 @@ static void scene_depsgraph_hack(EvaluationContext *eval_ctx, Scene *scene, Scen
 				recalc |= OB_RECALC_DATA;
 			
 			ob->recalc |= recalc;
-			BKE_object_handle_update(eval_ctx, scene_parent, ob);
+			BKE_object_handle_update(bmain, eval_ctx, scene_parent, ob);
 			
 			if (ob->dup_group && (ob->transflag & OB_DUPLIGROUP)) {
 				GroupObject *go;
@@ -1417,7 +1393,7 @@ static void scene_depsgraph_hack(EvaluationContext *eval_ctx, Scene *scene, Scen
 					if (go->ob)
 						go->ob->recalc |= recalc;
 				}
-				BKE_group_handle_recalc_and_update(eval_ctx, scene_parent, ob, ob->dup_group);
+				BKE_group_handle_recalc_and_update(bmain, eval_ctx, scene_parent, ob, ob->dup_group);
 			}
 		}
 	}
@@ -1504,6 +1480,7 @@ typedef struct StatisicsEntry {
 typedef struct ThreadedObjectUpdateState {
 	/* TODO(sergey): We might want this to be per-thread object. */
 	EvaluationContext *eval_ctx;
+	Main *bmain;
 	Scene *scene;
 	Scene *scene_parent;
 	double base_time;
@@ -1512,6 +1489,8 @@ typedef struct ThreadedObjectUpdateState {
 	bool has_mballs;
 #endif
 
+	int num_threads;
+
 	/* Execution statistics */
 	bool has_updated_objects;
 	ListBase *statistics;
@@ -1519,17 +1498,17 @@ typedef struct ThreadedObjectUpdateState {
 
 static void scene_update_object_add_task(void *node, void *user_data);
 
-static void scene_update_all_bases(EvaluationContext *eval_ctx, Scene *scene, Scene *scene_parent)
+static void scene_update_all_bases(Main *bmain, EvaluationContext *eval_ctx, Scene *scene, Scene *scene_parent)
 {
 	Base *base;
 
 	for (base = scene->base.first; base; base = base->next) {
 		Object *object = base->object;
 
-		BKE_object_handle_update_ex(eval_ctx, scene_parent, object, scene->rigidbody_world, true);
+		BKE_object_handle_update_ex(bmain, eval_ctx, scene_parent, object, scene->rigidbody_world, true);
 
 		if (object->dup_group && (object->transflag & OB_DUPLIGROUP))
-			BKE_group_handle_recalc_and_update(eval_ctx, scene_parent, object, object->dup_group);
+			BKE_group_handle_recalc_and_update(bmain, eval_ctx, scene_parent, object, object->dup_group);
 
 		/* always update layer, so that animating layers works (joshua july 2010) */
 		/* XXX commented out, this has depsgraph issues anyway - and this breaks setting scenes
@@ -1547,6 +1526,7 @@ static void scene_update_object_func(TaskPool * __restrict pool, void *taskdata,
 	void *node = taskdata;
 	Object *object = DAG_get_node_object(node);
 	EvaluationContext *eval_ctx = state->eval_ctx;
+	Main *bmain = state->bmain;
 	Scene *scene = state->scene;
 	Scene *scene_parent = state->scene_parent;
 
@@ -1560,7 +1540,7 @@ static void scene_update_object_func(TaskPool * __restrict pool, void *taskdata,
 		double start_time = 0.0;
 		bool add_to_stats = false;
 
-		if (G.debug & G_DEBUG_DEPSGRAPH) {
+		if (G.debug & G_DEBUG_DEPSGRAPH_EVAL) {
 			if (object->recalc & OB_RECALC_ALL) {
 				printf("Thread %d: update object %s\n", threadid, object->id.name);
 			}
@@ -1577,7 +1557,7 @@ static void scene_update_object_func(TaskPool * __restrict pool, void *taskdata,
 		 * separately from main thread because of we've got no idea about
 		 * dependencies inside the group.
 		 */
-		BKE_object_handle_update_ex(eval_ctx, scene_parent, object, scene->rigidbody_world, false);
+		BKE_object_handle_update_ex(bmain, eval_ctx, scene_parent, object, scene->rigidbody_world, false);
 
 		/* Calculate statistics. */
 		if (add_to_stats) {
@@ -1611,10 +1591,9 @@ static void scene_update_object_add_task(void *node, void *user_data)
 
 static void print_threads_statistics(ThreadedObjectUpdateState *state)
 {
-	int i, tot_thread;
 	double finish_time;
 
-	if ((G.debug & G_DEBUG_DEPSGRAPH) == 0) {
+	if ((G.debug & G_DEBUG_DEPSGRAPH_EVAL) == 0) {
 		return;
 	}
 
@@ -1639,10 +1618,9 @@ static void print_threads_statistics(ThreadedObjectUpdateState *state)
 	}
 #else
 	finish_time = PIL_check_seconds_timer();
-	tot_thread = BLI_system_thread_count();
 	int total_objects = 0;
 
-	for (i = 0; i < tot_thread; i++) {
+	for (int i = 0; i < state->num_threads; i++) {
 		int thread_total_objects = 0;
 		double thread_total_time = 0.0;
 		StatisicsEntry *entry;
@@ -1720,6 +1698,7 @@ static void scene_update_objects(EvaluationContext *eval_ctx, Main *bmain, Scene
 	}
 
 	state.eval_ctx = eval_ctx;
+	state.bmain = bmain;
 	state.scene = scene;
 	state.scene_parent = scene_parent;
 
@@ -1733,12 +1712,13 @@ static void scene_update_objects(EvaluationContext *eval_ctx, Main *bmain, Scene
 	}
 
 	/* Those are only needed when blender is run with --debug argument. */
-	if (G.debug & G_DEBUG_DEPSGRAPH) {
+	if (G.debug & G_DEBUG_DEPSGRAPH_EVAL) {
 		const int tot_thread = BLI_task_scheduler_num_threads(task_scheduler);
 		state.statistics = MEM_callocN(tot_thread * sizeof(*state.statistics),
 		                               "scene update objects stats");
 		state.has_updated_objects = false;
 		state.base_time = PIL_check_seconds_timer();
+		state.num_threads = tot_thread;
 	}
 
 #ifdef MBALL_SINGLETHREAD_HACK
@@ -1751,7 +1731,7 @@ static void scene_update_objects(EvaluationContext *eval_ctx, Main *bmain, Scene
 	BLI_task_pool_work_and_wait(task_pool);
 	BLI_task_pool_free(task_pool);
 
-	if (G.debug & G_DEBUG_DEPSGRAPH) {
+	if (G.debug & G_DEBUG_DEPSGRAPH_EVAL) {
 		print_threads_statistics(&state);
 		MEM_freeN(state.statistics);
 	}
@@ -1776,7 +1756,7 @@ static void scene_update_objects(EvaluationContext *eval_ctx, Main *bmain, Scene
 #endif
 
 	if (need_singlethread_pass) {
-		scene_update_all_bases(eval_ctx, scene, scene_parent);
+		scene_update_all_bases(bmain, eval_ctx, scene, scene_parent);
 	}
 
 	if (need_free_scheduler) {
@@ -1845,7 +1825,11 @@ static void prepare_mesh_for_viewport_render(Main *bmain, Scene *scene)
 		{
 			if (check_rendered_viewport_visible(bmain)) {
 				BMesh *bm = mesh->edit_btmesh->bm;
-				BM_mesh_bm_to_me(bm, mesh, (&(struct BMeshToMeshParams){0}));
+				BM_mesh_bm_to_me(
+				        bmain, bm, mesh,
+				        (&(struct BMeshToMeshParams){
+				            .calc_object_remap = true,
+				        }));
 				DAG_id_tag_update(&mesh->id, 0);
 			}
 		}
@@ -1865,7 +1849,7 @@ void BKE_scene_update_tagged(EvaluationContext *eval_ctx, Main *bmain, Scene *sc
 	/* (re-)build dependency graph if needed */
 	for (sce_iter = scene; sce_iter; sce_iter = sce_iter->set) {
 		DAG_scene_relations_update(bmain, sce_iter);
-		/* Uncomment this to check if graph was properly tagged for update. */
+		/* Uncomment this to check if dependency graph was properly tagged for update. */
 #if 0
 #ifdef WITH_LEGACY_DEPSGRAPH
 		if (use_new_eval)
@@ -1977,7 +1961,7 @@ void BKE_scene_update_for_newframe_ex(EvaluationContext *eval_ctx, Main *bmain, 
 #ifdef WITH_LEGACY_DEPSGRAPH
 	bool use_new_eval = !DEG_depsgraph_use_legacy();
 #else
-	/* TODO(sergey): Pass to evaluation routines instead of storing layer in the graph? */
+	/* TODO(sergey): Pass to evaluation routines instead of storing layer in the dependency graph? */
 	(void) do_invisible_flush;
 #endif
 
@@ -2074,7 +2058,7 @@ void BKE_scene_update_for_newframe_ex(EvaluationContext *eval_ctx, Main *bmain, 
 
 #ifdef WITH_LEGACY_DEPSGRAPH
 	if (!use_new_eval) {
-		scene_depsgraph_hack(eval_ctx, sce, sce);
+		scene_depsgraph_hack(bmain, eval_ctx, sce, sce);
 	}
 #endif
 

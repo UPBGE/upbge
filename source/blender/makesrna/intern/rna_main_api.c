@@ -244,7 +244,7 @@ static Object *rna_Main_objects_new(Main *bmain, ReportList *reports, const char
 	id_us_min(&ob->id);
 
 	ob->data = data;
-	test_object_materials(ob, ob->data);
+	test_object_materials(bmain, ob, ob->data);
 
 	return ob;
 }
@@ -338,7 +338,7 @@ static Image *rna_Main_images_load(Main *bmain, ReportList *reports, const char 
 
 	errno = 0;
 	if (check_existing) {
-		ima = BKE_image_load_exists(filepath);
+		ima = BKE_image_load_exists(bmain, filepath);
 	}
 	else {
 		ima = BKE_image_load(bmain, filepath);
@@ -430,7 +430,7 @@ static World *rna_Main_worlds_new(Main *bmain, const char *name)
 	char safe_name[MAX_ID_NAME - 2];
 	rna_idname_validate(name, safe_name);
 
-	World *world = add_world(bmain, safe_name);
+	World *world = BKE_world_add(bmain, safe_name);
 	id_us_min(&world->id);
 	return world;
 }
@@ -481,7 +481,7 @@ static Text *rna_Main_texts_load(Main *bmain, ReportList *reports, const char *f
 	Text *txt;
 
 	errno = 0;
-	txt = BKE_text_load_ex(bmain, filepath, bmain->name, is_internal);
+	txt = BKE_text_load_ex(bmain, filepath, BKE_main_blendfile_path(bmain), is_internal);
 
 	if (!txt)
 		BKE_reportf(reports, RPT_ERROR, "Cannot read '%s': %s", filepath,
@@ -505,7 +505,7 @@ static bAction *rna_Main_actions_new(Main *bmain, const char *name)
 	char safe_name[MAX_ID_NAME - 2];
 	rna_idname_validate(name, safe_name);
 
-	bAction *act = add_empty_action(bmain, safe_name);
+	bAction *act = BKE_action_add(bmain, safe_name);
 	id_fake_user_clear(&act->id);
 	return act;
 }
@@ -515,7 +515,7 @@ static ParticleSettings *rna_Main_particles_new(Main *bmain, const char *name)
 	char safe_name[MAX_ID_NAME - 2];
 	rna_idname_validate(name, safe_name);
 
-	ParticleSettings *part = psys_new_settings(safe_name, bmain);
+	ParticleSettings *part = BKE_particlesettings_add(bmain, safe_name);
 	id_us_min(&part->id);
 	return part;
 }
@@ -1773,7 +1773,7 @@ void RNA_def_main_gpencil(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
 
 	func = RNA_def_function(srna, "new", "BKE_gpencil_data_addnew");
-	RNA_def_function_flag(func, FUNC_NO_SELF);
+	RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_MAIN);
 	parm = RNA_def_string(func, "name", "GreasePencil", 0, "", "New name for the data-block");
 	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
 	/* return type */

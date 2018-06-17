@@ -83,9 +83,9 @@ void bmo_triangle_fill_exec(BMesh *bm, BMOperator *op)
 	sf_vert_map = BLI_ghash_ptr_new_ex(__func__, BMO_slot_buffer_count(op->slots_in, "edges"));
 
 	BMO_slot_vec_get(op->slots_in, "normal", normal);
-	
+
 	BLI_scanfill_begin(&sf_ctx);
-	
+
 	BMO_ITER (e, &siter, op->slots_in, "edges", BM_EDGE) {
 		ScanFillVert *sf_verts[2];
 		BMVert **e_verts = &e->v1;
@@ -106,9 +106,9 @@ void bmo_triangle_fill_exec(BMesh *bm, BMOperator *op)
 		/* sf_edge = */ BLI_scanfill_edge_add(&sf_ctx, UNPACK2(sf_verts));
 		/* sf_edge->tmp.p = e; */ /* UNUSED */
 	}
-	nors_tot = BLI_ghash_size(sf_vert_map);
+	nors_tot = BLI_ghash_len(sf_vert_map);
 	BLI_ghash_free(sf_vert_map, NULL, NULL);
-	
+
 
 	if (is_zero_v3(normal)) {
 		/* calculate the normal from the cross product of vert-edge pairs.
@@ -225,7 +225,7 @@ void bmo_triangle_fill_exec(BMesh *bm, BMOperator *op)
 		f = BM_face_create_quad_tri(bm,
 		                            sf_tri->v1->tmp.p, sf_tri->v2->tmp.p, sf_tri->v3->tmp.p, NULL,
 		                            NULL, BM_CREATE_NO_DOUBLE);
-		
+
 		BMO_face_flag_enable(bm, f, ELE_NEW);
 		BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
 			if (!BMO_edge_flag_test(bm, l->e, EDGE_MARK)) {
@@ -233,9 +233,9 @@ void bmo_triangle_fill_exec(BMesh *bm, BMOperator *op)
 			}
 		}
 	}
-	
+
 	BLI_scanfill_end(&sf_ctx);
-	
+
 	if (use_beauty) {
 		BMOperator bmop;
 
@@ -252,7 +252,7 @@ void bmo_triangle_fill_exec(BMesh *bm, BMOperator *op)
 		BM_ITER_MESH_MUTABLE (e, e_next, &iter, bm, BM_EDGES_OF_MESH) {
 			if (BMO_edge_flag_test(bm, e, ELE_NEW)) {
 				/* in rare cases the edges face will have already been removed from the edge */
-				if (LIKELY(e->l)) {
+				if (LIKELY(BM_edge_is_manifold(e))) {
 					BMFace *f_new = BM_faces_join_pair(bm, e->l, e->l->radial_next, false);
 					if (f_new) {
 						BMO_face_flag_enable(bm, f_new, ELE_NEW);
@@ -262,8 +262,12 @@ void bmo_triangle_fill_exec(BMesh *bm, BMOperator *op)
 						BMO_error_clear(bm);
 					}
 				}
-				else {
+				else if (e->l == NULL) {
 					BM_edge_kill(bm, e);
+				}
+				else {
+					/* Edges with 1 or 3+ faces attached,
+					 * most likely caused by a degeneratge mesh. */
 				}
 			}
 		}

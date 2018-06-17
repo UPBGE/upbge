@@ -168,7 +168,7 @@ BMesh *BM_mesh_create(
 {
 	/* allocate the structure */
 	BMesh *bm = MEM_callocN(sizeof(BMesh), __func__);
-	
+
 	/* allocate the memory pools for the mesh elements */
 	bm_mempool_init(bm, allocsize, params->use_toolflags);
 
@@ -521,21 +521,19 @@ void BM_verts_calc_normal_vcos(BMesh *bm, const float (*fnos)[3], const float (*
 }
 
 /**
- * Helpers for #BM_mesh_loop_normals_update and #BM_loops_calc_normals_vnos
+ * Helpers for #BM_mesh_loop_normals_update and #BM_loops_calc_normal_vcos
  */
 static void bm_mesh_edges_sharp_tag(
-        BMesh *bm, const float (*vnos)[3], const float (*fnos)[3], float split_angle,
-        float (*r_lnos)[3])
+        BMesh *bm,
+        const float (*vnos)[3], const float (*fnos)[3], float (*r_lnos)[3],
+        const float split_angle, const bool do_sharp_edges_tag)
 {
 	BMIter eiter;
 	BMEdge *e;
 	int i;
 
 	const bool check_angle = (split_angle < (float)M_PI);
-
-	if (check_angle) {
-		split_angle = cosf(split_angle);
-	}
+	const float split_angle_cos = check_angle ? cosf(split_angle) : -1.0f;
 
 	{
 		char htype = BM_VERT | BM_LOOP;
@@ -560,7 +558,7 @@ static void bm_mesh_edges_sharp_tag(
 			if (check_angle) {
 				const float *no_a = fnos ? fnos[BM_elem_index_get(l_a->f)] : l_a->f->no;
 				const float *no_b = fnos ? fnos[BM_elem_index_get(l_b->f)] : l_b->f->no;
-				is_angle_smooth = (dot_v3v3(no_a, no_b) >= split_angle);
+				is_angle_smooth = (dot_v3v3(no_a, no_b) >= split_angle_cos);
 			}
 
 			/* We only tag edges that are *really* smooth:
@@ -570,20 +568,28 @@ static void bm_mesh_edges_sharp_tag(
 			 * and both its faces have compatible (non-flipped) normals,
 			 * i.e. both loops on the same edge do not share the same vertex.
 			 */
-			if (is_angle_smooth &&
-			    BM_elem_flag_test(e, BM_ELEM_SMOOTH) &&
+			if (BM_elem_flag_test(e, BM_ELEM_SMOOTH) &&
 			    BM_elem_flag_test(l_a->f, BM_ELEM_SMOOTH) &&
 			    BM_elem_flag_test(l_b->f, BM_ELEM_SMOOTH) &&
 			    l_a->v != l_b->v)
 			{
-				const float *no;
-				BM_elem_flag_enable(e, BM_ELEM_TAG);
+				if (is_angle_smooth) {
+					const float *no;
+					BM_elem_flag_enable(e, BM_ELEM_TAG);
 
-				/* linked vertices might be fully smooth, copy their normals to loop ones. */
-				no = vnos ? vnos[BM_elem_index_get(l_a->v)] : l_a->v->no;
-				copy_v3_v3(r_lnos[BM_elem_index_get(l_a)], no);
-				no = vnos ? vnos[BM_elem_index_get(l_b->v)] : l_b->v->no;
-				copy_v3_v3(r_lnos[BM_elem_index_get(l_b)], no);
+					/* linked vertices might be fully smooth, copy their normals to loop ones. */
+					if (r_lnos) {
+						no = vnos ? vnos[BM_elem_index_get(l_a->v)] : l_a->v->no;
+						copy_v3_v3(r_lnos[BM_elem_index_get(l_a)], no);
+						no = vnos ? vnos[BM_elem_index_get(l_b->v)] : l_b->v->no;
+						copy_v3_v3(r_lnos[BM_elem_index_get(l_b)], no);
+					}
+				}
+				else if (do_sharp_edges_tag) {
+					/* Note that we do not care about the other sharp-edge cases (sharp poly, non-manifold edge, etc.),
+					 * only tag edge as sharp when it is due to angle threashold. */
+					BM_elem_flag_disable(e, BM_ELEM_SMOOTH);
+				}
 			}
 		}
 	}
@@ -591,9 +597,11 @@ static void bm_mesh_edges_sharp_tag(
 	bm->elem_index_dirty &= ~BM_EDGE;
 }
 
-/* Check whether gievn loop is part of an unknown-so-far cyclic smooth fan, or not.
- * Needed because cyclic smooth fans have no obvious 'entry point', and yet we need to walk them once, and only once. */
-static bool bm_mesh_loop_check_cyclic_smooth_fan(BMLoop *l_curr)
+/**
+ * Check whether given loop is part of an unknown-so-far cyclic smooth fan, or not.
+ * Needed because cyclic smooth fans have no obvious 'entry point', and yet we need to walk them once, and only once.
+ */
+bool BM_loop_check_cyclic_smooth_fan(BMLoop *l_curr)
 {
 	BMLoop *lfan_pivot_next = l_curr;
 	BMEdge *e_next = l_curr->e;
@@ -659,7 +667,7 @@ static void bm_mesh_loops_calc_normals(
 		r_lnors_spacearr = &_lnors_spacearr;
 	}
 	if (r_lnors_spacearr) {
-		BKE_lnor_spacearr_init(r_lnors_spacearr, bm->totloop);
+		BKE_lnor_spacearr_init(r_lnors_spacearr, bm->totloop, MLNOR_SPACEARR_BMLOOP_PTR);
 		edge_vectors = BLI_stack_new(sizeof(float[3]), __func__);
 	}
 
@@ -694,7 +702,7 @@ static void bm_mesh_loops_calc_normals(
 			 * However, this would complicate the code, add more memory usage, and BM_vert_step_fan_loop()
 			 * is quite cheap in term of CPU cycles, so really think it's not worth it. */
 			if (BM_elem_flag_test(l_curr->e, BM_ELEM_TAG) &&
-			    (BM_elem_flag_test(l_curr, BM_ELEM_TAG) || !bm_mesh_loop_check_cyclic_smooth_fan(l_curr)))
+			    (BM_elem_flag_test(l_curr, BM_ELEM_TAG) || !BM_loop_check_cyclic_smooth_fan(l_curr)))
 			{
 			}
 			else if (!BM_elem_flag_test(l_curr->e, BM_ELEM_TAG) &&
@@ -728,7 +736,7 @@ static void bm_mesh_loops_calc_normals(
 
 					BKE_lnor_space_define(lnor_space, r_lnos[l_curr_index], vec_curr, vec_prev, NULL);
 					/* We know there is only one loop in this space, no need to create a linklist in this case... */
-					BKE_lnor_space_add_loop(r_lnors_spacearr, lnor_space, l_curr_index, false);
+					BKE_lnor_space_add_loop(r_lnors_spacearr, lnor_space, l_curr_index, l_curr, true);
 
 					if (has_clnors) {
 						short (*clnor)[2] = clnors_data ? &clnors_data[l_curr_index] :
@@ -847,7 +855,7 @@ static void bm_mesh_loops_calc_normals(
 
 					if (r_lnors_spacearr) {
 						/* Assign current lnor space to current 'vertex' loop. */
-						BKE_lnor_space_add_loop(r_lnors_spacearr, lnor_space, lfan_pivot_index, true);
+						BKE_lnor_space_add_loop(r_lnors_spacearr, lnor_space, lfan_pivot_index, lfan_pivot, false);
 						if (e_next != e_org) {
 							/* We store here all edges-normalized vectors processed. */
 							BLI_stack_push(edge_vectors, vec_next);
@@ -1008,7 +1016,7 @@ void BM_loops_calc_normal_vcos(
 	if (use_split_normals) {
 		/* Tag smooth edges and set lnos from vnos when they might be completely smooth...
 		 * When using custom loop normals, disable the angle feature! */
-		bm_mesh_edges_sharp_tag(bm, vnos, fnos, has_clnors ? (float)M_PI : split_angle, r_lnos);
+		bm_mesh_edges_sharp_tag(bm, vnos, fnos, r_lnos, has_clnors ? (float)M_PI : split_angle, false);
 
 		/* Finish computing lnos by accumulating face normals in each fan of faces defined by sharp edges. */
 		bm_mesh_loops_calc_normals(bm, vcos, fnos, r_lnos, r_lnors_spacearr, clnors_data, cd_loop_clnors_offset);
@@ -1017,6 +1025,20 @@ void BM_loops_calc_normal_vcos(
 		BLI_assert(!r_lnors_spacearr);
 		bm_mesh_loops_calc_normals_no_autosmooth(bm, vnos, fnos, r_lnos);
 	}
+}
+
+/** Define sharp edges as needed to mimic 'autosmooth' from angle threshold.
+ *
+ * Used when defining an empty custom loop normals data layer, to keep same shading as with autosmooth!
+ */
+void BM_edges_sharp_from_angle_set(BMesh *bm, const float split_angle)
+{
+	if (split_angle >= (float)M_PI) {
+		/* Nothing to do! */
+		return;
+	}
+
+	bm_mesh_edges_sharp_tag(bm, NULL, NULL, NULL, split_angle, true);
 }
 
 static void UNUSED_FUNCTION(bm_mdisps_space_set)(Object *ob, BMesh *bm, int from, int to)
@@ -1029,41 +1051,41 @@ static void UNUSED_FUNCTION(bm_mdisps_space_set)(Object *ob, BMesh *bm, int from
 		BMFace *f;
 		BMIter iter;
 		// int i = 0; // UNUSED
-		
+
 		multires_set_space(dm, ob, from, to);
-		
+
 		mdisps = CustomData_get_layer(&dm->loopData, CD_MDISPS);
-		
+
 		BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
 			BMLoop *l;
 			BMIter liter;
 			BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
 				MDisps *lmd = CustomData_bmesh_get(&bm->ldata, l->head.data, CD_MDISPS);
-				
+
 				if (!lmd->disps) {
 					printf("%s: warning - 'lmd->disps' == NULL\n", __func__);
 				}
-				
+
 				if (lmd->disps && lmd->totdisp == mdisps->totdisp) {
 					memcpy(lmd->disps, mdisps->disps, sizeof(float) * 3 * lmd->totdisp);
 				}
 				else if (mdisps->disps) {
 					if (lmd->disps)
 						MEM_freeN(lmd->disps);
-					
+
 					lmd->disps = MEM_dupallocN(mdisps->disps);
 					lmd->totdisp = mdisps->totdisp;
 					lmd->level = mdisps->level;
 				}
-				
+
 				mdisps++;
 				// i += 1;
 			}
 		}
-		
+
 		dm->needsFree = 1;
 		dm->release(dm);
-		
+
 		/* setting this to NULL prevents BKE_editmesh_free from freeing it */
 		em->bm = NULL;
 		BKE_editmesh_free(em);

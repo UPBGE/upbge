@@ -81,7 +81,6 @@ static CustomDataMask required_data_mask(Object *ob, ModifierData *md);
 static bool is_disabled(ModifierData *md, int useRenderParams);
 static float compute_volume(const float center[3], float (*vertexCos)[3], const MPoly *mpoly, int numPolys, const MLoop *mloop);
 static LaplacianSystem *init_laplacian_system(int a_numEdges, int a_numPolys, int a_numLoops, int a_numVerts);
-static void copy_data(ModifierData *md, ModifierData *target);
 static void delete_laplacian_system(LaplacianSystem *sys);
 static void fill_laplacian_matrix(LaplacianSystem *sys);
 static void init_data(ModifierData *md);
@@ -132,14 +131,14 @@ static LaplacianSystem *init_laplacian_system(int a_numEdges, int a_numPolys, in
 	sys->numLoops = a_numLoops;
 	sys->numVerts = a_numVerts;
 
-	sys->eweights =  MEM_callocN(sizeof(float) * sys->numEdges, __func__);
-	sys->fweights =  MEM_callocN(sizeof(float[3]) * sys->numLoops, __func__);
-	sys->numNeEd =  MEM_callocN(sizeof(short) * sys->numVerts, __func__);
-	sys->numNeFa =  MEM_callocN(sizeof(short) * sys->numVerts, __func__);
-	sys->ring_areas =  MEM_callocN(sizeof(float) * sys->numVerts, __func__);
-	sys->vlengths =  MEM_callocN(sizeof(float) * sys->numVerts, __func__);
-	sys->vweights =  MEM_callocN(sizeof(float) * sys->numVerts, __func__);
-	sys->zerola =  MEM_callocN(sizeof(short) * sys->numVerts, __func__);
+	sys->eweights =  MEM_calloc_arrayN(sys->numEdges, sizeof(float), __func__);
+	sys->fweights =  MEM_calloc_arrayN(sys->numLoops, sizeof(float[3]), __func__);
+	sys->numNeEd =  MEM_calloc_arrayN(sys->numVerts, sizeof(short), __func__);
+	sys->numNeFa =  MEM_calloc_arrayN(sys->numVerts, sizeof(short), __func__);
+	sys->ring_areas =  MEM_calloc_arrayN(sys->numVerts, sizeof(float), __func__);
+	sys->vlengths =  MEM_calloc_arrayN(sys->numVerts, sizeof(float), __func__);
+	sys->vweights =  MEM_calloc_arrayN(sys->numVerts, sizeof(float), __func__);
+	sys->zerola =  MEM_calloc_arrayN(sys->numVerts, sizeof(short), __func__);
 
 	return sys;
 }
@@ -472,16 +471,6 @@ static void init_data(ModifierData *md)
 	smd->defgrp_name[0] = '\0';
 }
 
-static void copy_data(ModifierData *md, ModifierData *target)
-{
-#if 0
-	LaplacianSmoothModifierData *smd = (LaplacianSmoothModifierData *) md;
-	LaplacianSmoothModifierData *tsmd = (LaplacianSmoothModifierData *) target;
-#endif
-
-	modifier_copyData_generic(md, target);
-}
-
 static bool is_disabled(ModifierData *md, int UNUSED(useRenderParams))
 {
 	LaplacianSmoothModifierData *smd = (LaplacianSmoothModifierData *) md;
@@ -506,8 +495,9 @@ static CustomDataMask required_data_mask(Object *UNUSED(ob), ModifierData *md)
 	return dataMask;
 }
 
-static void deformVerts(ModifierData *md, Object *ob, DerivedMesh *derivedData,
-                        float (*vertexCos)[3], int numVerts, ModifierApplyFlag UNUSED(flag))
+static void deformVerts(
+        ModifierData *md, Object *ob, DerivedMesh *derivedData,
+        float (*vertexCos)[3], int numVerts, ModifierApplyFlag UNUSED(flag))
 {
 	DerivedMesh *dm;
 
@@ -550,7 +540,7 @@ ModifierTypeInfo modifierType_LaplacianSmooth = {
 	/* flags */             eModifierTypeFlag_AcceptsMesh |
 	                        eModifierTypeFlag_SupportsEditmode,
 
-	/* copy_data */         copy_data,
+	/* copy_data */         modifier_copyData_generic,
 	/* deformVerts */       deformVerts,
 	/* deformMatrices */    NULL,
 	/* deformVertsEM */     deformVertsEM,

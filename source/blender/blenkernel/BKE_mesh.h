@@ -99,23 +99,7 @@ float (*BKE_mesh_orco_verts_get(struct Object *ob))[3];
 void   BKE_mesh_orco_verts_transform(struct Mesh *me, float (*orco)[3], int totvert, int invert);
 int test_index_face(struct MFace *mface, struct CustomData *mfdata, int mfindex, int nr);
 struct Mesh *BKE_mesh_from_object(struct Object *ob);
-void BKE_mesh_assign_object(struct Object *ob, struct Mesh *me);
-void BKE_mesh_from_metaball(struct ListBase *lb, struct Mesh *me);
-int  BKE_mesh_nurbs_to_mdata(
-        struct Object *ob, struct MVert **r_allvert, int *r_totvert,
-        struct MEdge **r_alledge, int *r_totedge, struct MLoop **r_allloop, struct MPoly **r_allpoly,
-        int *r_totloop, int *r_totpoly);
-int BKE_mesh_nurbs_displist_to_mdata(
-        struct Object *ob, const struct ListBase *dispbase,
-        struct MVert **r_allvert, int *r_totvert,
-        struct MEdge **r_alledge, int *r_totedge,
-        struct MLoop **r_allloop, struct MPoly **r_allpoly,
-        struct MLoopUV **r_alluv, int *r_totloop, int *r_totpoly);
-void BKE_mesh_from_nurbs_displist(
-        struct Object *ob, struct ListBase *dispbase, const bool use_orco_uv, const char *obdata_name);
-void BKE_mesh_from_nurbs(struct Object *ob);
-void BKE_mesh_to_curve_nurblist(struct DerivedMesh *dm, struct ListBase *nurblist, const int edge_users_test);
-void BKE_mesh_to_curve(struct Scene *scene, struct Object *ob);
+void BKE_mesh_assign_object(struct Main *bmain, struct Object *ob, struct Mesh *me);
 void BKE_mesh_material_index_remove(struct Mesh *me, short index);
 void BKE_mesh_material_index_clear(struct Mesh *me);
 void BKE_mesh_material_remap(struct Mesh *me, const unsigned int *remap, unsigned int remap_len);
@@ -134,9 +118,6 @@ bool BKE_mesh_uv_cdlayer_rename(struct Mesh *me, const char *old_name, const cha
 float (*BKE_mesh_vertexCos_get(const struct Mesh *me, int *r_numVerts))[3];
 
 void BKE_mesh_split_faces(struct Mesh *mesh, bool free_loop_normals);
-
-struct Mesh *BKE_mesh_new_from_object(struct Main *bmain, struct Scene *sce, struct Object *ob,
-                                      int apply_modifiers, int settings, int calc_tessface, int calc_undeformed);
 
 /* vertex level transformations & checks (no derived mesh) */
 
@@ -159,7 +140,28 @@ int  BKE_mesh_mselect_find(struct Mesh *me, int index, int type);
 int  BKE_mesh_mselect_active_get(struct Mesh *me, int type);
 void BKE_mesh_mselect_active_set(struct Mesh *me, int index, int type);
 
+/* *** mesh_convert.c *** */
 
+void BKE_mesh_from_metaball(struct ListBase *lb, struct Mesh *me);
+int  BKE_mesh_nurbs_to_mdata(
+        struct Object *ob, struct MVert **r_allvert, int *r_totvert,
+        struct MEdge **r_alledge, int *r_totedge, struct MLoop **r_allloop, struct MPoly **r_allpoly,
+        int *r_totloop, int *r_totpoly);
+int BKE_mesh_nurbs_displist_to_mdata(
+        struct Object *ob, const struct ListBase *dispbase,
+        struct MVert **r_allvert, int *r_totvert,
+        struct MEdge **r_alledge, int *r_totedge,
+        struct MLoop **r_allloop, struct MPoly **r_allpoly,
+        struct MLoopUV **r_alluv, int *r_totloop, int *r_totpoly);
+void BKE_mesh_from_nurbs_displist(
+        struct Main *bmain, struct Object *ob, struct ListBase *dispbase, const bool use_orco_uv, const char *obdata_name);
+void BKE_mesh_from_nurbs(struct Main *bmain, struct Object *ob);
+void BKE_mesh_to_curve_nurblist(struct DerivedMesh *dm, struct ListBase *nurblist, const int edge_users_test);
+void BKE_mesh_to_curve(struct Main *bmain, struct Scene *scene, struct Object *ob);
+
+struct Mesh *BKE_mesh_new_from_object(
+        struct Main *bmain, struct Scene *sce, struct Object *ob,
+        int apply_modifiers, int settings, int calc_tessface, int calc_undeformed);
 
 /* *** mesh_evaluate.c *** */
 
@@ -195,6 +197,17 @@ void BKE_mesh_loop_tangents_ex(
         struct ReportList *reports);
 void BKE_mesh_loop_tangents(
         struct Mesh *mesh, const char *uvmap, float (*r_looptangents)[4], struct ReportList *reports);
+void BKE_mesh_loop_manifold_fan_around_vert_next(
+        const struct MLoop *mloops, const struct MPoly *mpolys,
+        const int *loop_to_poly, const int *e2lfan_curr, const uint mv_pivot_index,
+        const struct MLoop **r_mlfan_curr, int *r_mlfan_curr_index, int *r_mlfan_vert_index, int *r_mpfan_curr_index);
+
+void BKE_edges_sharp_from_angle_set(
+        const struct MVert *mverts, const int numVerts,
+        struct MEdge *medges, const int numEdges,
+        struct MLoop *mloops, const int numLoops,
+        struct MPoly *mpolys, const float (*polynors)[3], const int numPolys,
+        const float split_angle);
 
 /**
  * References a contiguous loop-fan with normal offset vars.
@@ -205,17 +218,38 @@ typedef struct MLoopNorSpace {
 	float vec_ortho[3];     /* Third vector, orthogonal to vec_lnor and vec_ref. */
 	float ref_alpha;        /* Reference angle, around vec_ortho, in ]0, pi] range (0.0 marks that space as invalid). */
 	float ref_beta;         /* Reference angle, around vec_lnor, in ]0, 2pi] range (0.0 marks that space as invalid). */
-	struct LinkNode *loops; /* All indices (uint_in_ptr) of loops using this lnor space (i.e. smooth fan of loops). */
+	/* All loops using this lnor space (i.e. smooth fan of loops),
+	 * as (depending on owning MLoopNorSpaceArrary.data_type):
+	 *     - Indices (uint_in_ptr), or
+	 *     - BMLoop pointers. */
+	struct LinkNode *loops;
+	char flags;
 } MLoopNorSpace;
+/**
+ * MLoopNorSpace.flags
+ */
+enum {
+	MLNOR_SPACE_IS_SINGLE = 1 << 0,
+};
+
 /**
  * Collection of #MLoopNorSpace basic storage & pre-allocation.
  */
 typedef struct MLoopNorSpaceArray {
 	MLoopNorSpace **lspacearr;    /* MLoop aligned array */
 	struct LinkNode *loops_pool;  /* Allocated once, avoids to call BLI_linklist_prepend_arena() for each loop! */
+	char data_type;               /* Whether we store loop indices, or pointers to BMLoop. */
 	struct MemArena *mem;
 } MLoopNorSpaceArray;
-void BKE_lnor_spacearr_init(MLoopNorSpaceArray *lnors_spacearr, const int numLoops);
+/**
+ * MLoopNorSpaceArray.data_type
+ */
+enum {
+	MLNOR_SPACEARR_LOOP_INDEX = 0,
+	MLNOR_SPACEARR_BMLOOP_PTR = 1,
+};
+
+void BKE_lnor_spacearr_init(MLoopNorSpaceArray *lnors_spacearr, const int numLoops, const char data_type);
 void BKE_lnor_spacearr_clear(MLoopNorSpaceArray *lnors_spacearr);
 void BKE_lnor_spacearr_free(MLoopNorSpaceArray *lnors_spacearr);
 MLoopNorSpace *BKE_lnor_space_create(MLoopNorSpaceArray *lnors_spacearr);
@@ -223,7 +257,8 @@ void BKE_lnor_space_define(
         MLoopNorSpace *lnor_space, const float lnor[3], float vec_ref[3], float vec_other[3],
         struct BLI_Stack *edge_vectors);
 void BKE_lnor_space_add_loop(
-        MLoopNorSpaceArray *lnors_spacearr, MLoopNorSpace *lnor_space, const int ml_index, const bool add_to_list);
+        MLoopNorSpaceArray *lnors_spacearr, MLoopNorSpace *lnor_space,
+        const int ml_index, void *bm_loop, const bool is_single);
 void BKE_lnor_space_custom_data_to_normal(MLoopNorSpace *lnor_space, const short clnor_data[2], float r_custom_lnor[3]);
 void BKE_lnor_space_custom_normal_to_data(MLoopNorSpace *lnor_space, const float custom_lnor[3], short r_clnor_data[2]);
 
@@ -236,7 +271,7 @@ void BKE_mesh_normals_loop_split(
         const struct MVert *mverts, const int numVerts, struct MEdge *medges, const int numEdges,
         struct MLoop *mloops, float (*r_loopnors)[3], const int numLoops,
         struct MPoly *mpolys, const float (*polynors)[3], const int numPolys,
-        const bool use_split_normals, float split_angle,
+        const bool use_split_normals, const float split_angle,
         MLoopNorSpaceArray *r_lnors_spacearr, short (*clnors_data)[2], int *r_loop_to_poly);
 
 void BKE_mesh_normals_loop_custom_set(

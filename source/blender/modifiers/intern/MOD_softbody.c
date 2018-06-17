@@ -35,7 +35,7 @@
 #include <stdio.h>
 
 #include "DNA_scene_types.h"
-#include "DNA_object_force.h"
+#include "DNA_object_force_types.h"
 
 #include "BLI_utildefines.h"
 
@@ -48,11 +48,12 @@
 
 #include "MOD_modifiertypes.h"
 
-static void deformVerts(ModifierData *md, Object *ob,
-                        DerivedMesh *UNUSED(derivedData),
-                        float (*vertexCos)[3],
-                        int numVerts,
-                        ModifierApplyFlag UNUSED(flag))
+static void deformVerts(
+        ModifierData *md, Object *ob,
+        DerivedMesh *UNUSED(derivedData),
+        float (*vertexCos)[3],
+        int numVerts,
+        ModifierApplyFlag UNUSED(flag))
 {
 	sbObjectStep(md->scene, ob, (float)md->scene->r.cfra, vertexCos, numVerts);
 }
@@ -62,36 +63,27 @@ static bool dependsOnTime(ModifierData *UNUSED(md))
 	return true;
 }
 
-static void updateDepgraph(ModifierData *UNUSED(md), DagForest *forest,
-                           struct Main *UNUSED(bmain),
-                           Scene *scene, Object *ob, DagNode *obNode)
+static void updateDepgraph(ModifierData *UNUSED(md), const ModifierUpdateDepsgraphContext *ctx)
 {
-	if (ob->soft) {
+	if (ctx->object->soft) {
 #ifdef WITH_LEGACY_DEPSGRAPH
 		/* Actual code uses ccd_build_deflector_hash */
-		dag_add_collision_relations(forest, scene, ob, obNode, ob->soft->collision_group, ob->lay, eModifierType_Collision, NULL, false, "Softbody Collision");
+		dag_add_collision_relations(ctx->forest, ctx->scene, ctx->object, ctx->obNode, ctx->object->soft->collision_group, ctx->object->lay, eModifierType_Collision, NULL, false, "Softbody Collision");
 
-		dag_add_forcefield_relations(forest, scene, ob, obNode, ob->soft->effector_weights, true, 0, "Softbody Field");
+		dag_add_forcefield_relations(ctx->forest, ctx->scene, ctx->object, ctx->obNode, ctx->object->soft->effector_weights, true, 0, "Softbody Field");
 #else
-	(void)forest;
-	(void)scene;
-	(void)ob;
-	(void)obNode;
+	(void)ctx;
 #endif
 	}
 }
 
-static void updateDepsgraph(ModifierData *UNUSED(md),
-                            struct Main *UNUSED(bmain),
-                            struct Scene *scene,
-                            Object *ob,
-                            struct DepsNodeHandle *node)
+static void updateDepsgraph(ModifierData *UNUSED(md), const ModifierUpdateDepsgraphContext *ctx)
 {
-	if (ob->soft) {
+	if (ctx->object->soft) {
 		/* Actual code uses ccd_build_deflector_hash */
-		DEG_add_collision_relations(node, scene, ob, ob->soft->collision_group, ob->lay, eModifierType_Collision, NULL, false, "Softbody Collision");
+		DEG_add_collision_relations(ctx->node, ctx->scene, ctx->object, ctx->object->soft->collision_group, ctx->object->lay, eModifierType_Collision, NULL, false, "Softbody Collision");
 
-		DEG_add_forcefield_relations(node, scene, ob, ob->soft->effector_weights, true, 0, "Softbody Field");
+		DEG_add_forcefield_relations(ctx->node, ctx->scene, ctx->object, ctx->object->soft->effector_weights, true, 0, "Softbody Field");
 	}
 }
 

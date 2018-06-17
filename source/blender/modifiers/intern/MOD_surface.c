@@ -63,20 +63,17 @@ static void freeData(ModifierData *md)
 	if (surmd) {
 		if (surmd->bvhtree) {
 			free_bvhtree_from_mesh(surmd->bvhtree);
-			MEM_freeN(surmd->bvhtree);
+			MEM_SAFE_FREE(surmd->bvhtree);
 		}
 
-		if (surmd->dm)
+		if (surmd->dm) {
 			surmd->dm->release(surmd->dm);
+			surmd->dm = NULL;
+		}
 
-		if (surmd->x)
-			MEM_freeN(surmd->x);
+		MEM_SAFE_FREE(surmd->x);
 		
-		if (surmd->v)
-			MEM_freeN(surmd->v);
-
-		surmd->bvhtree = NULL;
-		surmd->dm = NULL;
+		MEM_SAFE_FREE(surmd->v);
 	}
 }
 
@@ -85,11 +82,12 @@ static bool dependsOnTime(ModifierData *UNUSED(md))
 	return true;
 }
 
-static void deformVerts(ModifierData *md, Object *ob,
-                        DerivedMesh *derivedData,
-                        float (*vertexCos)[3],
-                        int UNUSED(numVerts),
-                        ModifierApplyFlag UNUSED(flag))
+static void deformVerts(
+        ModifierData *md, Object *ob,
+        DerivedMesh *derivedData,
+        float (*vertexCos)[3],
+        int UNUSED(numVerts),
+        ModifierApplyFlag UNUSED(flag))
 {
 	SurfaceModifierData *surmd = (SurfaceModifierData *) md;
 	
@@ -130,8 +128,8 @@ static void deformVerts(ModifierData *md, Object *ob,
 				surmd->v = NULL;
 			}
 
-			surmd->x = MEM_callocN(numverts * sizeof(MVert), "MVert");
-			surmd->v = MEM_callocN(numverts * sizeof(MVert), "MVert");
+			surmd->x = MEM_calloc_arrayN(numverts, sizeof(MVert), "MVert");
+			surmd->v = MEM_calloc_arrayN(numverts, sizeof(MVert), "MVert");
 
 			surmd->numverts = numverts;
 
@@ -159,9 +157,9 @@ static void deformVerts(ModifierData *md, Object *ob,
 			surmd->bvhtree = MEM_callocN(sizeof(BVHTreeFromMesh), "BVHTreeFromMesh");
 
 		if (surmd->dm->getNumPolys(surmd->dm))
-			bvhtree_from_mesh_looptri(surmd->bvhtree, surmd->dm, 0.0, 2, 6);
+			bvhtree_from_mesh_get(surmd->bvhtree, surmd->dm, BVHTREE_FROM_LOOPTRI, 2);
 		else
-			bvhtree_from_mesh_edges(surmd->bvhtree, surmd->dm, 0.0, 2, 6);
+			bvhtree_from_mesh_get(surmd->bvhtree, surmd->dm, BVHTREE_FROM_EDGES, 2);
 	}
 }
 

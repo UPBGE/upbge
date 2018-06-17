@@ -51,6 +51,7 @@ bool kernel_path_subsurface_scatter(
 		int num_hits = subsurface_scatter_multi_intersect(kg,
 		                                                  &ss_isect,
 		                                                  sd,
+		                                                  state,
 		                                                  sc,
 		                                                  &lcg_state,
 		                                                  bssrdf_u, bssrdf_v,
@@ -71,9 +72,7 @@ bool kernel_path_subsurface_scatter(
 			                               hit,
 			                               sd,
 			                               state,
-			                               state->flag,
-			                               sc,
-			                               false);
+			                               sc);
 
 			kernel_path_surface_connect_light(kg, sd, emission_sd, *throughput, state, L);
 

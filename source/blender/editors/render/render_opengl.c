@@ -360,7 +360,7 @@ static void screen_opengl_render_doit(OGLRender *oglrender, RenderResult *rr)
 			draw_flags |= (draw_bgpic) ? V3D_OFSDRAW_USE_BACKGROUND : 0;
 
 			ibuf_view = ED_view3d_draw_offscreen_imbuf(
-			       scene, v3d, ar, sizex, sizey,
+			       oglrender->bmain, scene, v3d, ar, sizex, sizey,
 			       IB_rect, draw_flags, alpha_mode, oglrender->ofs_samples, viewname,
 			       oglrender->fx, oglrender->ofs, err_out);
 
@@ -372,7 +372,7 @@ static void screen_opengl_render_doit(OGLRender *oglrender, RenderResult *rr)
 		else {
 			draw_flags |= (V3D_OFSDRAW_USE_GPENCIL | V3D_OFSDRAW_USE_BACKGROUND);
 			ibuf_view = ED_view3d_draw_offscreen_imbuf_simple(
-			        scene, scene->camera, oglrender->sizex, oglrender->sizey,
+			        oglrender->bmain, scene, scene->camera, oglrender->sizex, oglrender->sizey,
 			        IB_rect, draw_flags, OB_SOLID,
 			        alpha_mode, oglrender->ofs_samples, viewname,
 			        oglrender->fx, oglrender->ofs, err_out);
@@ -407,7 +407,7 @@ static void screen_opengl_render_write(OGLRender *oglrender)
 	rr = RE_AcquireResultRead(oglrender->re);
 
 	BKE_image_path_from_imformat(
-	        name, scene->r.pic, oglrender->bmain->name, scene->r.cfra,
+	        name, scene->r.pic, BKE_main_blendfile_path(oglrender->bmain), scene->r.cfra,
 	        &scene->r.im_format, (scene->r.scemode & R_EXTENSION) != 0, false, NULL);
 
 	/* write images as individual images or stereo */
@@ -458,7 +458,7 @@ static void add_gpencil_renderpass(OGLRender *oglrender, RenderResult *rr, Rende
 	short oldalphamode = scene->r.alphamode;
 	/* set alpha transparent for gp */
 	scene->r.alphamode = R_ALPHAPREMUL;
-	
+
 	/* saves layer status */
 	short *oldsts = MEM_mallocN(BLI_listbase_count(&gpd->layers) * sizeof(short), "temp_gplayers_flag");
 	int i = 0;
@@ -480,7 +480,7 @@ static void add_gpencil_renderpass(OGLRender *oglrender, RenderResult *rr, Rende
 
 		/* render this gp layer */
 		screen_opengl_render_doit(oglrender, rr);
-		
+
 		/* add RendePass composite */
 		RenderPass *rp = RE_create_gp_pass(rr, gpl->info, rv->name);
 
@@ -698,8 +698,8 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
 	oglrender->re = RE_NewSceneRender(scene);
 
 	/* create image and image user */
-	oglrender->ima = BKE_image_verify_viewer(IMA_TYPE_R_RESULT, "Render Result");
-	BKE_image_signal(oglrender->ima, NULL, IMA_SIGNAL_FREE);
+	oglrender->ima = BKE_image_verify_viewer(oglrender->bmain, IMA_TYPE_R_RESULT, "Render Result");
+	BKE_image_signal(oglrender->bmain, oglrender->ima, NULL, IMA_SIGNAL_FREE);
 	BKE_image_backup_render(oglrender->scene, oglrender->ima, true);
 
 	oglrender->iuser.scene = scene;
@@ -936,7 +936,7 @@ static void write_result_func(TaskPool * __restrict pool,
 		char name[FILE_MAX];
 		BKE_image_path_from_imformat(name,
 		                             scene->r.pic,
-		                             oglrender->bmain->name,
+		                             BKE_main_blendfile_path(oglrender->bmain),
 		                             cfra,
 		                             &scene->r.im_format,
 		                             (scene->r.scemode & R_EXTENSION) != 0,
@@ -1027,7 +1027,7 @@ static bool screen_opengl_render_anim_step(bContext *C, wmOperator *op)
 
 	if (!is_movie) {
 		BKE_image_path_from_imformat(
-		        name, scene->r.pic, oglrender->bmain->name, scene->r.cfra,
+		        name, scene->r.pic, BKE_main_blendfile_path(oglrender->bmain), scene->r.cfra,
 		        &scene->r.im_format, (scene->r.scemode & R_EXTENSION) != 0, true, NULL);
 
 		if ((scene->r.mode & R_NO_OVERWRITE) && BLI_exists(name)) {
@@ -1105,7 +1105,7 @@ static int screen_opengl_render_modal(bContext *C, wmOperator *op, const wmEvent
 
 	/* run first because screen_opengl_render_anim_step can free oglrender */
 	WM_event_add_notifier(C, NC_SCENE | ND_RENDER_RESULT, oglrender->scene);
-	
+
 	if (anim == 0) {
 		screen_opengl_render_apply(op->customdata);
 		screen_opengl_render_end(C, op->customdata);
@@ -1135,16 +1135,16 @@ static int screen_opengl_render_invoke(bContext *C, wmOperator *op, const wmEven
 		if (!screen_opengl_render_anim_initialize(C, op))
 			return OPERATOR_CANCELLED;
 	}
-	
+
 	oglrender = op->customdata;
 	render_view_open(C, event->x, event->y, op->reports);
-	
+
 	/* view may be changed above (R_OUTPUT_WINDOW) */
 	oglrender->win = CTX_wm_window(C);
 
 	WM_event_add_modal_handler(C, op);
 	oglrender->timer = WM_event_add_timer(oglrender->wm, oglrender->win, TIMER, 0.01f);
-	
+
 	return OPERATOR_RUNNING_MODAL;
 }
 

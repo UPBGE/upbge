@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -57,19 +57,19 @@ static void node_shader_exec_texture(void *data, int UNUSED(thread), bNode *node
 		float vec[3], nor[3] = {0.0f, 0.0f, 0.0f};
 		int retval;
 		short which_output = node->custom1;
-		
+
 		short thread = shi->thread;
-		
+
 		/* out: value, color, normal */
-		
+
 		/* we should find out if a normal as output is needed, for now we do all */
 		texres.nor = nor;
 		texres.tr = texres.tg = texres.tb = 0.0f;
-		
+
 		/* don't use in[0]->hasinput, see material node for explanation */
 		if (sock_vector->link) {
 			nodestack_get_vec(vec, SOCK_VECTOR, in[0]);
-			
+
 			if (in[0]->datatype == NS_OSA_VECTORS) {
 				float *fp = in[0]->data;
 				retval = multitex_nodes((Tex *)node->id, vec, fp, fp + 3, shi->osatex, &texres, thread, which_output, NULL, NULL, NULL);
@@ -77,7 +77,7 @@ static void node_shader_exec_texture(void *data, int UNUSED(thread), bNode *node
 			else if (in[0]->datatype == NS_OSA_VALUES) {
 				const float *fp = in[0]->data;
 				float dxt[3], dyt[3];
-				
+
 				dxt[0] = fp[0]; dxt[1] = dxt[2] = 0.0f;
 				dyt[0] = fp[1]; dyt[1] = dyt[2] = 0.0f;
 				retval = multitex_nodes((Tex *)node->id, vec, dxt, dyt, shi->osatex, &texres, thread, which_output, NULL, NULL, NULL);
@@ -89,19 +89,19 @@ static void node_shader_exec_texture(void *data, int UNUSED(thread), bNode *node
 			copy_v3_v3(vec, shi->lo);
 			retval = multitex_nodes((Tex *)node->id, vec, NULL, NULL, 0, &texres, thread, which_output, NULL, NULL, NULL);
 		}
-		
+
 		/* stupid exception */
 		if ( ((Tex *)node->id)->type == TEX_STUCCI) {
 			texres.tin = 0.5f + 0.7f * texres.nor[0];
 			CLAMP(texres.tin, 0.0f, 1.0f);
 		}
-		
+
 		/* intensity and color need some handling */
 		if (texres.talpha)
 			out[0]->vec[0] = texres.ta;
 		else
 			out[0]->vec[0] = texres.tin;
-		
+
 		if ((retval & TEX_RGB) == 0) {
 			copy_v3_fl(out[1]->vec, out[0]->vec[0]);
 			out[1]->vec[3] = 1.0f;
@@ -110,13 +110,13 @@ static void node_shader_exec_texture(void *data, int UNUSED(thread), bNode *node
 			copy_v3_v3(out[1]->vec, &texres.tr);
 			out[1]->vec[3] = 1.0f;
 		}
-		
+
 		copy_v3_v3(out[2]->vec, nor);
-		
+
 		if (shi->do_preview) {
 			BKE_node_preview_set_pixel(execdata->preview, out[1]->vec, shi->xs, shi->ys, shi->do_manage);
 		}
-		
+
 	}
 }
 

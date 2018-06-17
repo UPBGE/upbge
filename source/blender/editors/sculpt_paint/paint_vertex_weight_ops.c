@@ -130,7 +130,7 @@ static int weight_from_bones_exec(bContext *C, wmOperator *op)
 	Mesh *me = ob->data;
 	int type = RNA_enum_get(op->ptr, "type");
 
-	create_vgroups_from_armature(op->reports, scene, ob, armob, type, (me->editflag & ME_EDIT_MIRROR_X));
+	ED_object_vgroup_calc_from_armature(op->reports, scene, ob, armob, type, (me->editflag & ME_EDIT_MIRROR_X));
 
 	DAG_id_tag_update(&me->id, 0);
 	WM_event_add_notifier(C, NC_GEOM | ND_DATA, me);
@@ -177,7 +177,7 @@ static int weight_sample_invoke(bContext *C, wmOperator *op, const wmEvent *even
 	Mesh *me;
 	bool changed = false;
 
-	view3d_set_viewcontext(C, &vc);
+	ED_view3d_viewcontext_init(C, &vc);
 	me = BKE_mesh_from_object(vc.obact);
 
 	if (me && me->dvert && vc.v3d && vc.rv3d && (vc.obact->actdef != 0)) {
@@ -292,7 +292,7 @@ static const EnumPropertyItem *weight_paint_sample_enum_itemf(
 			ViewContext vc;
 			Mesh *me;
 
-			view3d_set_viewcontext(C, &vc);
+			ED_view3d_viewcontext_init(C, &vc);
 			me = BKE_mesh_from_object(vc.obact);
 
 			if (me && me->dvert && vc.v3d && vc.rv3d && vc.obact->defbase.first) {
@@ -361,7 +361,7 @@ static int weight_sample_group_exec(bContext *C, wmOperator *op)
 {
 	int type = RNA_enum_get(op->ptr, "group");
 	ViewContext vc;
-	view3d_set_viewcontext(C, &vc);
+	ED_view3d_viewcontext_init(C, &vc);
 
 	BLI_assert(type + 1 >= 0);
 	vc.obact->actdef = type + 1;

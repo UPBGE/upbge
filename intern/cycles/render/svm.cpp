@@ -23,7 +23,6 @@
 #include "render/shader.h"
 #include "render/svm.h"
 
-#include "util/util_debug.h"
 #include "util/util_logging.h"
 #include "util/util_foreach.h"
 #include "util/util_progress.h"
@@ -59,7 +58,7 @@ void SVMShaderManager::device_update_shader(Scene *scene,
 	svm_nodes.push_back_slow(make_int4(NODE_SHADER_JUMP, 0, 0, 0));
 
 	SVMCompiler::Summary summary;
-	SVMCompiler compiler(scene->shader_manager, scene->image_manager);
+	SVMCompiler compiler(scene->shader_manager, scene->image_manager, scene->light_manager);
 	compiler.background = (shader == scene->default_background);
 	compiler.compile(scene, shader, svm_nodes, 0, &summary);
 
@@ -155,10 +154,13 @@ void SVMShaderManager::device_free(Device *device, DeviceScene *dscene, Scene *s
 
 /* Graph Compiler */
 
-SVMCompiler::SVMCompiler(ShaderManager *shader_manager_, ImageManager *image_manager_)
+SVMCompiler::SVMCompiler(ShaderManager *shader_manager_,
+                         ImageManager *image_manager_,
+                         LightManager *light_manager_)
 {
 	shader_manager = shader_manager_;
 	image_manager = image_manager_;
+	light_manager = light_manager_;
 	max_stack_use = 0;
 	current_type = SHADER_TYPE_SURFACE;
 	current_shader = NULL;
@@ -400,6 +402,12 @@ uint SVMCompiler::attribute(AttributeStandard std)
 	return shader_manager->get_attribute_id(std);
 }
 
+uint SVMCompiler::attribute_standard(ustring name)
+{
+	AttributeStandard std = Attribute::name_standard(name.c_str());
+	return (std)? attribute(std): attribute(name);
+}
+
 bool SVMCompiler::node_skip_input(ShaderNode * /*node*/, ShaderInput *input)
 {
 	/* nasty exception .. */
@@ -446,6 +454,10 @@ void SVMCompiler::generate_node(ShaderNode *node, ShaderNodeSet& done)
 
 	if(node->has_object_dependency()) {
 		current_shader->has_object_dependency = true;
+	}
+
+	if(node->has_attribute_dependency()) {
+		current_shader->has_attribute_dependency = true;
 	}
 
 	if(node->has_integrator_dependency()) {
@@ -723,7 +735,7 @@ void SVMCompiler::compile_type(Shader *shader, ShaderGraph *graph, ShaderType ty
 	}
 
 	/* clear all compiler state */
-	memset(&active_stack, 0, sizeof(active_stack));
+	memset((void *)&active_stack, 0, sizeof(active_stack));
 	current_svm_nodes.clear();
 
 	foreach(ShaderNode *node_iter, graph->nodes) {
@@ -831,6 +843,7 @@ void SVMCompiler::compile(Scene *scene,
 	shader->has_surface_spatial_varying = false;
 	shader->has_volume_spatial_varying = false;
 	shader->has_object_dependency = false;
+	shader->has_attribute_dependency = false;
 	shader->has_integrator_dependency = false;
 
 	/* generate bump shader */

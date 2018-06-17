@@ -51,7 +51,7 @@
 #include "DNA_movieclip_types.h"
 #include "DNA_mask_types.h"
 #include "DNA_node_types.h"
-#include "DNA_object_force.h"
+#include "DNA_object_force_types.h"
 #include "DNA_rigidbody_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_sensor_types.h"
@@ -689,6 +689,9 @@ void BKE_library_foreach_ID_link(Main *bmain, ID *id, LibraryIDLinkCallback call
 					library_foreach_ID_as_subdata_link((ID **)&material->nodetree, callback, user_data, flag, &data);
 				}
 				CALLBACK_INVOKE(material->group, IDWALK_CB_USER);
+				if (material->texpaintslot != NULL) {
+					CALLBACK_INVOKE(material->texpaintslot->ima, IDWALK_CB_NOP);
+				}
 				break;
 			}
 
@@ -1067,7 +1070,7 @@ bool BKE_library_id_can_use_idtype(ID *id_owner, const short id_type_used)
 			return true;
 #endif
 		case ID_ME:
-			return ELEM(id_type_used, ID_ME, ID_KE, ID_MA);
+			return ELEM(id_type_used, ID_ME, ID_KE, ID_MA, ID_IM);
 		case ID_CU:
 			return ELEM(id_type_used, ID_OB, ID_KE, ID_MA, ID_VF);
 		case ID_MB:

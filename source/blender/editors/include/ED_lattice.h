@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -18,7 +18,6 @@
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
  *
- * 
  * Contributor(s): Blender Foundation
  *
  * ***** END GPL LICENSE BLOCK *****
@@ -31,10 +30,19 @@
 #ifndef __ED_LATTICE_H__
 #define __ED_LATTICE_H__
 
+struct wmKeyConfig;
+struct UndoType;
 struct Object;
 
-void ED_lattice_editlatt_free(struct Object *ob);
-void ED_lattice_editlatt_make(struct Object *obedit);
-void ED_lattice_editlatt_load(struct Object *obedit);
+/* lattice_ops.c */
+void ED_operatortypes_lattice(void);
+void ED_keymap_lattice(struct wmKeyConfig *keyconf);
+
+/* editlattice_select.c */
+void ED_lattice_flags_set(struct Object *obedit, int flag);
+bool ED_lattice_select_pick(struct bContext *C, const int mval[2], bool extend, bool deselect, bool toggle);
+
+/* editlattice_undo.c */
+void ED_lattice_undosys_type(struct UndoType *ut);
 
 #endif  /* __ED_LATTICE_H__ */

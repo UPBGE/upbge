@@ -37,7 +37,7 @@
 
 #include "BLI_math.h"
 #include "BLI_heap.h"
-#include "BLI_polyfill2d_beautify.h"
+#include "BLI_polyfill_2d_beautify.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -392,7 +392,7 @@ void BM_mesh_beautify_fill(
 	bm->elem_index_dirty |= BM_EDGE;
 
 	while (BLI_heap_is_empty(eheap) == false) {
-		BMEdge *e = BLI_heap_popmin(eheap);
+		BMEdge *e = BLI_heap_pop_min(eheap);
 		i = BM_elem_index_get(e);
 		eheap_table[i] = NULL;
 

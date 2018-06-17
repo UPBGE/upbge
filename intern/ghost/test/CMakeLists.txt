@@ -103,7 +103,7 @@ suffix_relpaths(SRC_NEW "${SRC}" "../../guardedalloc/")
 include_directories(${INC_NEW})
 add_library(guardedalloc_lib ${SRC_NEW})
 
-# blenfont 
+# blenfont
 include(${CMAKE_SOURCE_DIR}/../../../source/blender/blenfont/CMakeLists.txt)
 suffix_relpaths(INC_NEW "${INC}" "../../../source/blender/blenfont/")
 suffix_relpaths(SRC_NEW "${SRC}" "../../../source/blender/blenfont/")
@@ -128,7 +128,7 @@ add_library(glewmx_lib ${SRC_NEW})
 include_directories(
 		"../../../source/blender/blenlib"
 		)
-add_library(bli_lib 
+add_library(bli_lib
 		"../../../source/blender/blenlib/intern/fileops.c"
 		"../../../source/blender/blenlib/intern/gsqueue.c"
 		"../../../source/blender/blenlib/intern/rct.c"
@@ -204,6 +204,7 @@ target_link_libraries(gears_c
 		string_lib
 		${OPENGL_gl_LIBRARY}
 		${OPENGL_glu_LIBRARY}
+		${CMAKE_DL_LIBS}
 		${PLATFORM_LINKLIBS}
 		)
 
@@ -218,6 +219,7 @@ target_link_libraries(gears_cpp
 		string_lib
 		${OPENGL_gl_LIBRARY}
 		${OPENGL_glu_LIBRARY}
+		${CMAKE_DL_LIBS}
 		${PLATFORM_LINKLIBS}
 		)
 
@@ -251,5 +253,6 @@ target_link_libraries(multitest_c
 		${OPENGL_glu_LIBRARY}
 		${FREETYPE_LIBRARY}
 		${ZLIB_LIBRARIES}
+		${CMAKE_DL_LIBS}
 		${PLATFORM_LINKLIBS}
 		)

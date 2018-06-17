@@ -18,7 +18,7 @@
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
  *
- * Contributor(s): 
+ * Contributor(s):
  * - Blender Foundation, 2003-2009
  * - Peter Schlaile <peter [at] schlaile [dot] de> 2005/2006
  *
@@ -84,6 +84,7 @@
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
 #include "IMB_colormanagement.h"
+#include "IMB_metadata.h"
 
 #include "BKE_context.h"
 #include "BKE_sound.h"
@@ -199,7 +200,7 @@ static void seq_free_strip(Strip *strip)
 }
 
 /* only give option to skip cache locally (static func) */
-static void BKE_sequence_free_ex(Scene *scene, Sequence *seq, const bool do_cache)
+static void BKE_sequence_free_ex(Scene *scene, Sequence *seq, const bool do_cache, const bool do_id_user)
 {
 	if (seq->strip)
 		seq_free_strip(seq->strip);
@@ -212,7 +213,7 @@ static void BKE_sequence_free_ex(Scene *scene, Sequence *seq, const bool do_cach
 		sh.free(seq);
 	}
 
-	if (seq->sound) {
+	if (seq->sound && do_id_user) {
 		id_us_min(((ID *)seq->sound));
 	}
 
@@ -236,7 +237,7 @@ static void BKE_sequence_free_ex(Scene *scene, Sequence *seq, const bool do_cach
 	}
 
 	if (seq->prop) {
-		IDP_FreeProperty(seq->prop);
+		IDP_FreeProperty_ex(seq->prop, do_id_user);
 		MEM_freeN(seq->prop);
 	}
 
@@ -261,7 +262,7 @@ static void BKE_sequence_free_ex(Scene *scene, Sequence *seq, const bool do_cach
 
 void BKE_sequence_free(Scene *scene, Sequence *seq)
 {
-	BKE_sequence_free_ex(scene, seq, true);
+	BKE_sequence_free_ex(scene, seq, true, true);
 }
 
 /* Function to free imbuf and anim data on changes */
@@ -291,7 +292,7 @@ static void seq_free_sequence_recurse(Scene *scene, Sequence *seq)
 		seq_free_sequence_recurse(scene, iseq);
 	}
 
-	BKE_sequence_free_ex(scene, seq, false);
+	BKE_sequence_free_ex(scene, seq, false, true);
 }
 
 
@@ -453,7 +454,7 @@ Editing *BKE_sequencer_editing_ensure(Scene *scene)
 	return scene->ed;
 }
 
-void BKE_sequencer_editing_free(Scene *scene)
+void BKE_sequencer_editing_free(Scene *scene, const bool do_id_user)
 {
 	Editing *ed = scene->ed;
 	Sequence *seq;
@@ -467,7 +468,7 @@ void BKE_sequencer_editing_free(Scene *scene)
 	SEQ_BEGIN (ed, seq)
 	{
 		/* handle cache freeing above */
-		BKE_sequence_free_ex(scene, seq, false);
+		BKE_sequence_free_ex(scene, seq, false, do_id_user);
 	}
 	SEQ_END
 
@@ -892,7 +893,7 @@ void BKE_sequence_reload_new_file(Scene *scene, Sequence *seq, const bool lock_r
 
 			BLI_join_dirfile(path, sizeof(path), seq->strip->dir,
 			                 seq->strip->stripdata->name);
-			BLI_path_abs(path, G.main->name);
+			BLI_path_abs(path, BKE_main_blendfile_path_from_global());
 
 			BKE_sequence_free_anim(seq);
 
@@ -941,6 +942,8 @@ void BKE_sequence_reload_new_file(Scene *scene, Sequence *seq, const bool lock_r
 			if ((!sanim) || (!sanim->anim)) {
 				return;
 			}
+
+			IMB_anim_load_metadata(sanim->anim);
 
 			seq->len = IMB_anim_get_duration(sanim->anim, seq->strip->proxy ? seq->strip->proxy->tc : IMB_TC_RECORD_RUN);
 
@@ -1537,7 +1540,7 @@ static void seq_open_anim_file(Scene *scene, Sequence *seq, bool openfile)
 
 	BLI_join_dirfile(name, sizeof(name),
 	                 seq->strip->dir, seq->strip->stripdata->name);
-	BLI_path_abs(name, G.main->name);
+	BLI_path_abs(name, BKE_main_blendfile_path_from_global());
 
 	proxy = seq->strip->proxy;
 
@@ -1554,7 +1557,7 @@ static void seq_open_anim_file(Scene *scene, Sequence *seq, bool openfile)
 		else {
 			BLI_strncpy(dir, seq->strip->proxy->dir, sizeof(dir));
 		}
-		BLI_path_abs(dir, G.main->name);
+		BLI_path_abs(dir, BKE_main_blendfile_path_from_global());
 	}
 
 	if (is_multiview && seq->views_format == R_IMF_VIEWS_INDIVIDUAL) {
@@ -1676,8 +1679,13 @@ static bool seq_proxy_get_fname(Editing *ed, Sequence *seq, int cfra, int render
 		else if (seq->type == SEQ_TYPE_IMAGE) {
 			fname[0] = 0;
 		}
+		else {
+			/* We could make a name here, except non-movie's don't generate proxies,
+			 * cancel until other types of sequence strips are supported. */
+			return false;
+		}
 		BLI_path_append(dir, sizeof(dir), fname);
-		BLI_path_abs(name, G.main->name);
+		BLI_path_abs(name, BKE_main_blendfile_path_from_global());
 	}
 	else if ((proxy->storage & SEQ_STORAGE_PROXY_CUSTOM_DIR) && (proxy->storage & SEQ_STORAGE_PROXY_CUSTOM_FILE)) {
 		BLI_strncpy(dir, seq->strip->proxy->dir, sizeof(dir));
@@ -1709,7 +1717,7 @@ static bool seq_proxy_get_fname(Editing *ed, Sequence *seq, int cfra, int render
 	{
 		char fname[FILE_MAXFILE];
 		BLI_join_dirfile(fname, PROXY_MAXFILE, dir, proxy->file);
-		BLI_path_abs(fname, G.main->name);
+		BLI_path_abs(fname, BKE_main_blendfile_path_from_global());
 		if (suffix[0] != '\0') {
 			/* TODO(sergey): This will actually append suffix after extension
 			 * which is weird but how was originally coded in multiview branch.
@@ -1735,7 +1743,7 @@ static bool seq_proxy_get_fname(Editing *ed, Sequence *seq, int cfra, int render
 		BLI_snprintf(name, PROXY_MAXFILE, "%s/proxy_misc/%d/####%s", dir, render_size, suffix);
 	}
 
-	BLI_path_abs(name, G.main->name);
+	BLI_path_abs(name, BKE_main_blendfile_path_from_global());
 	BLI_path_frame(name, frameno, 0);
 
 	strcat(name, ".jpg");
@@ -1880,7 +1888,7 @@ static bool seq_proxy_multiview_context_invalid(Sequence *seq, Scene *scene, con
 			char path[FILE_MAX];
 			BLI_join_dirfile(path, sizeof(path), seq->strip->dir,
 			                 seq->strip->stripdata->name);
-			BLI_path_abs(path, G.main->name);
+			BLI_path_abs(path, BKE_main_blendfile_path_from_global());
 			BKE_scene_multiview_view_prefix_get(scene, path, prefix, &ext);
 		}
 		else {
@@ -2833,7 +2841,7 @@ static ImBuf *seq_render_image_strip(const SeqRenderData *context, Sequence *seq
 
 	if (s_elem) {
 		BLI_join_dirfile(name, sizeof(name), seq->strip->dir, s_elem->name);
-		BLI_path_abs(name, G.main->name);
+		BLI_path_abs(name, BKE_main_blendfile_path_from_global());
 	}
 
 	flag = IB_rect | IB_metadata;
@@ -2950,7 +2958,7 @@ static ImBuf *seq_render_movie_strip(const SeqRenderData *context, Sequence *seq
 		int totviews;
 		int i;
 
-		if (totfiles != BLI_listbase_count_ex(&seq->anims, totfiles + 1))
+		if (totfiles != BLI_listbase_count_at_most(&seq->anims, totfiles + 1))
 			goto monoview_movie;
 
 		totviews = BKE_scene_multiview_num_views_get(&context->scene->r);
@@ -3199,11 +3207,12 @@ static ImBuf *seq_render_scene_strip(const SeqRenderData *context, Sequence *seq
 		int scemode;
 		int cfra;
 		float subframe;
+
 #ifdef DURIAN_CAMERA_SWITCH
-		ListBase markers;
+		int mode;
 #endif
 	} orig_data;
-	
+
 	/* Old info:
 	 * Hack! This function can be called from do_render_seq(), in that case
 	 * the seq->scene can already have a Render initialized with same name,
@@ -3263,7 +3272,7 @@ static ImBuf *seq_render_scene_strip(const SeqRenderData *context, Sequence *seq
 	orig_data.cfra = scene->r.cfra;
 	orig_data.subframe = scene->r.subframe;
 #ifdef DURIAN_CAMERA_SWITCH
-	orig_data.markers = scene->markers;
+	orig_data.mode = scene->r.mode;
 #endif
 
 	BKE_scene_frame_set(scene, frame);
@@ -3286,10 +3295,10 @@ static ImBuf *seq_render_scene_strip(const SeqRenderData *context, Sequence *seq
 
 	/* prevent eternal loop */
 	scene->r.scemode &= ~R_DOSEQ;
-	
+
 #ifdef DURIAN_CAMERA_SWITCH
 	/* stooping to new low's in hackyness :( */
-	BLI_listbase_clear(&scene->markers);
+	scene->r.mode |= R_NO_CAMERA_SWITCH;
 #endif
 
 	is_frame_update = (orig_data.cfra != scene->r.cfra) || (orig_data.subframe != scene->r.subframe);
@@ -3317,7 +3326,7 @@ static ImBuf *seq_render_scene_strip(const SeqRenderData *context, Sequence *seq
 		BKE_scene_update_for_newframe(context->eval_ctx, context->bmain, scene, scene->lay);
 		ibuf = sequencer_view3d_cb(
 		        /* set for OpenGL render (NULL when scrubbing) */
-		        scene, camera, width, height, IB_rect, draw_flags, context->scene->r.seq_prev_type,
+		        context->bmain, scene, camera, width, height, IB_rect, draw_flags, context->scene->r.seq_prev_type,
 		        scene->r.alphamode, context->gpu_samples, viewname,
 		        context->gpu_fx, context->gpu_offscreen, err_out);
 		if (ibuf == NULL) {
@@ -3409,7 +3418,7 @@ finally:
 
 #ifdef DURIAN_CAMERA_SWITCH
 	/* stooping to new low's in hackyness :( */
-	scene->markers = orig_data.markers;
+	scene->r.mode &= ~(orig_data.mode & R_NO_CAMERA_SWITCH);
 #endif
 
 	return ibuf;
@@ -4484,8 +4493,11 @@ Sequence *BKE_sequencer_foreground_frame_get(Scene *scene, int frame)
 	for (seq = ed->seqbasep->first; seq; seq = seq->next) {
 		if (seq->flag & SEQ_MUTE || seq->startdisp > frame || seq->enddisp <= frame)
 			continue;
-		/* only use elements you can see - not */
-		if (ELEM(seq->type, SEQ_TYPE_IMAGE, SEQ_TYPE_META, SEQ_TYPE_SCENE, SEQ_TYPE_MOVIE, SEQ_TYPE_COLOR)) {
+		/* Only use strips that generate an image, not ones that combine
+		 * other strips or apply some effect. */
+		if (ELEM(seq->type, SEQ_TYPE_IMAGE, SEQ_TYPE_META, SEQ_TYPE_SCENE,
+		         SEQ_TYPE_MOVIE, SEQ_TYPE_COLOR, SEQ_TYPE_TEXT))
+		{
 			if (seq->machine > best_machine) {
 				best_seq = seq;
 				best_machine = seq->machine;
@@ -5126,7 +5138,7 @@ void BKE_sequence_init_colorspace(Sequence *seq)
 		ImBuf *ibuf;
 
 		BLI_join_dirfile(name, sizeof(name), seq->strip->dir, seq->strip->stripdata->name);
-		BLI_path_abs(name, G.main->name);
+		BLI_path_abs(name, BKE_main_blendfile_path_from_global());
 
 		/* initialize input color space */
 		if (seq->type == SEQ_TYPE_IMAGE) {
@@ -5144,6 +5156,40 @@ void BKE_sequence_init_colorspace(Sequence *seq)
 			}
 		}
 	}
+}
+
+float BKE_sequence_get_fps(Scene *scene, Sequence *seq)
+{
+	switch (seq->type) {
+		case SEQ_TYPE_MOVIE:
+		{
+			seq_open_anim_file(scene, seq, true);
+			if (BLI_listbase_is_empty(&seq->anims)) {
+				return 0.0f;
+			}
+			StripAnim *strip_anim = seq->anims.first;
+			if (strip_anim->anim == NULL) {
+				return 0.0f;
+			}
+			short frs_sec;
+			float frs_sec_base;
+			if (IMB_anim_get_fps(strip_anim->anim, &frs_sec, &frs_sec_base, true)) {
+				return (float)frs_sec / frs_sec_base;
+			}
+			break;
+		}
+		case SEQ_TYPE_MOVIECLIP:
+			if (seq->clip != NULL) {
+				return BKE_movieclip_get_fps(seq->clip);
+			}
+			break;
+		case SEQ_TYPE_SCENE:
+			if (seq->scene != NULL) {
+				return (float)seq->scene->r.frs_sec / seq->scene->r.frs_sec_base;
+			}
+			break;
+	}
+	return 0.0f;
 }
 
 /* NOTE: this function doesn't fill in image names */
@@ -5260,6 +5306,7 @@ static void seq_anim_add_suffix(Scene *scene, struct anim *anim, const int view_
 
 Sequence *BKE_sequencer_add_movie_strip(bContext *C, ListBase *seqbasep, SeqLoadInfo *seq_load)
 {
+	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C); /* only for sound */
 	char path[sizeof(seq_load->path)];
 
@@ -5274,7 +5321,7 @@ Sequence *BKE_sequencer_add_movie_strip(bContext *C, ListBase *seqbasep, SeqLoad
 	int i;
 
 	BLI_strncpy(path, seq_load->path, sizeof(path));
-	BLI_path_abs(path, G.main->name);
+	BLI_path_abs(path, BKE_main_blendfile_path(bmain));
 
 	anim_arr = MEM_callocN(sizeof(struct anim *) * totfiles, "Video files");
 
@@ -5337,6 +5384,8 @@ Sequence *BKE_sequencer_add_movie_strip(bContext *C, ListBase *seqbasep, SeqLoad
 			break;
 		}
 	}
+
+	IMB_anim_load_metadata(anim_arr[0]);
 
 	seq->anim_preseek = IMB_anim_get_preseek(anim_arr[0]);
 	BLI_strncpy(seq->name + 2, "Movie", SEQ_NAME_MAXSTR - 2);
@@ -5662,10 +5711,10 @@ static void sequencer_all_free_anim_ibufs(ListBase *seqbase, int cfra)
 	}
 }
 
-void BKE_sequencer_all_free_anim_ibufs(int cfra)
+void BKE_sequencer_all_free_anim_ibufs(Main *bmain, int cfra)
 {
 	BKE_sequencer_cache_cleanup();
-	for (Scene *scene = G.main->scene.first;
+	for (Scene *scene = bmain->scene.first;
 	     scene != NULL;
 	     scene = scene->id.next)
 	{

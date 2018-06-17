@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -18,7 +18,7 @@
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
  *
- * 
+ *
  * Contributor(s): Blender Foundation
  *
  * ***** END GPL LICENSE BLOCK *****
@@ -82,7 +82,7 @@ static char *file_draw_tooltip_func(bContext *UNUSED(C), void *argN, const char 
 	return BLI_strdup(dyn_tooltip);
 }
 
-/* Note: This function uses pixelspace (0, 0, winx, winy), not view2d. 
+/* Note: This function uses pixelspace (0, 0, winx, winy), not view2d.
  * The controls are laid out as follows:
  *
  * -------------------------------------------
@@ -117,14 +117,14 @@ void file_draw_buttons(const bContext *C, ARegion *ar)
 	int available_w = max_x - min_x;
 	int line1_w     = available_w;
 	int line2_w     = available_w;
-	
+
 	uiBut *but;
 	uiBlock *block;
 	SpaceFile *sfile  = CTX_wm_space_file(C);
 	FileSelectParams *params = ED_fileselect_get_params(sfile);
 	ARegion *artmp;
 	const bool is_browse_only = (sfile->op == NULL);
-	
+
 	/* Initialize UI block. */
 	BLI_snprintf(uiblockstr, sizeof(uiblockstr), "win %p", (void *)ar);
 	block = UI_block_begin(C, ar, uiblockstr, UI_EMBOSS);
@@ -208,11 +208,11 @@ void file_draw_buttons(const bContext *C, ARegion *ar)
 				UI_but_flag_enable(but, UI_BUT_REDALERT);
 			}
 		}
-		
+
 		/* clear func */
 		UI_block_func_set(block, NULL, NULL, NULL);
 	}
-	
+
 	/* Filename number increment / decrement buttons. */
 	if (fnumbuttons && (params->flag & FILE_DIRSEL_ONLY) == 0) {
 		UI_block_align_begin(block);
@@ -229,7 +229,7 @@ void file_draw_buttons(const bContext *C, ARegion *ar)
 		RNA_int_set(UI_but_operator_ptr_get(but), "increment", 1);
 		UI_block_align_end(block);
 	}
-	
+
 	/* Execute / cancel buttons. */
 	if (loadbutton) {
 		const struct FileDirEntry *file = sfile->files ? filelist_file(sfile->files, params->active_file) : NULL;
@@ -250,7 +250,7 @@ void file_draw_buttons(const bContext *C, ARegion *ar)
 		uiDefButO(block, UI_BTYPE_BUT, "FILE_OT_cancel", WM_OP_EXEC_REGION_WIN, IFACE_("Cancel"),
 		          max_x - loadbutton, line2_y, loadbutton, btn_h, "");
 	}
-	
+
 	UI_block_end(C, block);
 	UI_block_draw(C, block);
 }
@@ -269,10 +269,10 @@ static void file_draw_icon(uiBlock *block, const char *path, int sx, int sy, int
 	uiBut *but;
 	int x, y;
 	// float alpha = 1.0f;
-	
+
 	x = sx;
 	y = sy - height;
-	
+
 	/*if (icon == ICON_FILE_BLANK) alpha = 0.375f;*/
 
 	but = uiDefIconBut(block, UI_BTYPE_LABEL, 0, icon, x, y, width, height, NULL, 0.0f, 0.0f, 0.0f, 0.0f, NULL);
@@ -317,7 +317,7 @@ void file_calc_previews(const bContext *C, ARegion *ar)
 {
 	SpaceFile *sfile = CTX_wm_space_file(C);
 	View2D *v2d = &ar->v2d;
-	
+
 	ED_fileselect_init_layout(sfile, ar);
 	UI_view2d_totRect_set(v2d, sfile->layout->width, sfile->layout->height);
 }
@@ -412,6 +412,7 @@ static void file_draw_preview(
 
 static void renamebutton_cb(bContext *C, void *UNUSED(arg1), char *oldname)
 {
+	Main *bmain = CTX_data_main(C);
 	char newname[FILE_MAX + 12];
 	char orgname[FILE_MAX + 12];
 	char filename[FILE_MAX + 12];
@@ -420,10 +421,11 @@ static void renamebutton_cb(bContext *C, void *UNUSED(arg1), char *oldname)
 	ScrArea *sa = CTX_wm_area(C);
 	ARegion *ar = CTX_wm_region(C);
 
-	BLI_make_file_string(G.main->name, orgname, sfile->params->dir, oldname);
+	const char *blendfile_path = BKE_main_blendfile_path(bmain);
+	BLI_make_file_string(blendfile_path, orgname, sfile->params->dir, oldname);
 	BLI_strncpy(filename, sfile->params->renameedit, sizeof(filename));
 	BLI_filename_make_safe(filename);
-	BLI_make_file_string(G.main->name, newname, sfile->params->dir, filename);
+	BLI_make_file_string(blendfile_path, newname, sfile->params->dir, filename);
 
 	if (!STREQ(orgname, newname)) {
 		if (!BLI_exists(newname)) {
@@ -458,7 +460,7 @@ static void draw_background(FileLayout *layout, View2D *v2d)
 		sy = (int)v2d->cur.ymax - i * (layout->tile_h + 2 * layout->tile_border_y) - layout->tile_border_y;
 
 		glRectf(v2d->cur.xmin, (float)sy, v2d->cur.xmax, (float)(sy + layout->tile_h + 2 * layout->tile_border_y));
-		
+
 	}
 }
 
@@ -522,11 +524,11 @@ void file_draw_list(const bContext *C, ARegion *ar)
 	const float thumb_icon_aspect = sqrtf(64.0f / (float)(params->thumbnail_size));
 
 	numfiles = filelist_files_ensure(files);
-	
+
 	if (params->display != FILE_IMGDISPLAY) {
 
 		draw_background(layout, v2d);
-	
+
 		draw_dividers(layout, v2d);
 	}
 
@@ -597,7 +599,7 @@ void file_draw_list(const bContext *C, ARegion *ar)
 				int colorid = (file_selflag & FILE_SEL_SELECTED) ? TH_HILITE : TH_BACK;
 				int shade = (params->highlight_file == i) || (file_selflag & FILE_SEL_HIGHLIGHTED) ? 35 : 0;
 
-				BLI_assert(i > 0 || FILENAME_IS_CURRPAR(file->relpath));
+				BLI_assert(i == 0 || !FILENAME_IS_CURRPAR(file->relpath));
 
 				draw_tile(sx, sy - 1, layout->tile_w + 4, sfile->layout->tile_h + layout->tile_border_y, colorid, shade);
 			}

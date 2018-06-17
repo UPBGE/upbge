@@ -23,6 +23,7 @@
 #include "kernel/split/kernel_split_data.h"
 
 #include "kernel/kernel_globals.h"
+#include "kernel/kernel_color.h"
 
 #ifdef __OSL__
 #  include "kernel/osl/osl_shader.h"
@@ -59,6 +60,14 @@ ccl_device_inline void kernel_split_path_end(KernelGlobals *kg, int ray_index)
 	ccl_global char *ray_state = kernel_split_state.ray_state;
 
 #ifdef __BRANCHED_PATH__
+#  ifdef __SUBSURFACE__
+	ccl_addr_space SubsurfaceIndirectRays *ss_indirect = &kernel_split_state.ss_rays[ray_index];
+
+	if(ss_indirect->num_rays) {
+		ASSIGN_RAY_STATE(ray_state, ray_index, RAY_UPDATE_BUFFER);
+	}
+	else
+#  endif  /* __SUBSURFACE__ */
 	if(IS_FLAG(ray_state, ray_index, RAY_BRANCHED_INDIRECT_SHARED)) {
 		int orig_ray = kernel_split_state.branched_state[ray_index].original_ray;
 

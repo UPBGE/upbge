@@ -41,7 +41,7 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_smoke_types.h"
-#include "DNA_object_force.h"
+#include "DNA_object_force_types.h"
 
 #include "BLI_utildefines.h"
 
@@ -68,9 +68,9 @@ static void initData(ModifierData *md)
 	smd->time = -1;
 }
 
-static void copyData(ModifierData *md, ModifierData *target)
+static void copyData(const ModifierData *md, ModifierData *target)
 {
-	SmokeModifierData *smd  = (SmokeModifierData *)md;
+	const SmokeModifierData *smd  = (const SmokeModifierData *)md;
 	SmokeModifierData *tsmd = (SmokeModifierData *)target;
 	
 	smokeModifier_copy(smd, tsmd);
@@ -101,9 +101,10 @@ static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
 	return dataMask;
 }
 
-static DerivedMesh *applyModifier(ModifierData *md, Object *ob, 
-                                  DerivedMesh *dm,
-                                  ModifierApplyFlag flag)
+static DerivedMesh *applyModifier(
+        ModifierData *md, Object *ob,
+        DerivedMesh *dm,
+        ModifierApplyFlag flag)
 {
 	SmokeModifierData *smd = (SmokeModifierData *) md;
 
@@ -130,47 +131,38 @@ static bool is_coll_cb(Object *UNUSED(ob), ModifierData *md)
 	return (smd->type & MOD_SMOKE_TYPE_COLL) && smd->coll;
 }
 
-static void updateDepgraph(ModifierData *md, DagForest *forest,
-                           struct Main *UNUSED(bmain),
-                           struct Scene *scene, struct Object *ob,
-                           DagNode *obNode)
+static void updateDepgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
 	SmokeModifierData *smd = (SmokeModifierData *) md;
 
 	if (smd && (smd->type & MOD_SMOKE_TYPE_DOMAIN) && smd->domain) {
 		/* Actual code uses get_collisionobjects */
 #ifdef WITH_LEGACY_DEPSGRAPH
-		dag_add_collision_relations(forest, scene, ob, obNode, smd->domain->fluid_group, ob->lay|scene->lay, eModifierType_Smoke, is_flow_cb, true, "Smoke Flow");
-		dag_add_collision_relations(forest, scene, ob, obNode, smd->domain->coll_group, ob->lay|scene->lay, eModifierType_Smoke, is_coll_cb, true, "Smoke Coll");
-		dag_add_forcefield_relations(forest, scene, ob, obNode, smd->domain->effector_weights, true, PFIELD_SMOKEFLOW, "Smoke Force Field");
+		dag_add_collision_relations(ctx->forest, ctx->scene, ctx->object, ctx->obNode, smd->domain->fluid_group, ctx->object->lay|ctx->scene->lay, eModifierType_Smoke, is_flow_cb, true, "Smoke Flow");
+		dag_add_collision_relations(ctx->forest, ctx->scene, ctx->object, ctx->obNode, smd->domain->coll_group, ctx->object->lay|ctx->scene->lay, eModifierType_Smoke, is_coll_cb, true, "Smoke Coll");
+		dag_add_forcefield_relations(ctx->forest, ctx->scene, ctx->object, ctx->obNode, smd->domain->effector_weights, true, PFIELD_SMOKEFLOW, "Smoke Force Field");
 #else
-	(void)forest;
-	(void)scene;
-	(void)ob;
-	(void)obNode;
+	(void)ctx;
 #endif
 	}
 }
 
-static void updateDepsgraph(ModifierData *md,
-                            struct Main *UNUSED(bmain),
-                            struct Scene *scene,
-                            Object *ob,
-                            struct DepsNodeHandle *node)
+static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
 	SmokeModifierData *smd = (SmokeModifierData *)md;
 
 	if (smd && (smd->type & MOD_SMOKE_TYPE_DOMAIN) && smd->domain) {
 		/* Actual code uses get_collisionobjects */
-		DEG_add_collision_relations(node, scene, ob, smd->domain->fluid_group, ob->lay|scene->lay, eModifierType_Smoke, is_flow_cb, true, "Smoke Flow");
-		DEG_add_collision_relations(node, scene, ob, smd->domain->coll_group, ob->lay|scene->lay, eModifierType_Smoke, is_coll_cb, true, "Smoke Coll");
+		DEG_add_collision_relations(ctx->node, ctx->scene, ctx->object, smd->domain->fluid_group, ctx->object->lay|ctx->scene->lay, eModifierType_Smoke, is_flow_cb, true, "Smoke Flow");
+		DEG_add_collision_relations(ctx->node, ctx->scene, ctx->object, smd->domain->coll_group, ctx->object->lay|ctx->scene->lay, eModifierType_Smoke, is_coll_cb, true, "Smoke Coll");
 
-		DEG_add_forcefield_relations(node, scene, ob, smd->domain->effector_weights, true, PFIELD_SMOKEFLOW, "Smoke Force Field");
+		DEG_add_forcefield_relations(ctx->node, ctx->scene, ctx->object, smd->domain->effector_weights, true, PFIELD_SMOKEFLOW, "Smoke Force Field");
 	}
 }
 
-static void foreachIDLink(ModifierData *md, Object *ob,
-                          IDWalkFunc walk, void *userData)
+static void foreachIDLink(
+        ModifierData *md, Object *ob,
+        IDWalkFunc walk, void *userData)
 {
 	SmokeModifierData *smd = (SmokeModifierData *) md;
 

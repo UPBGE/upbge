@@ -466,7 +466,7 @@ static void do_multires_bake(MultiresBakeRender *bkr, Image *ima, bool require_t
 			bake_data = initBakeData(bkr, ima);
 
 		if (tot_thread > 1)
-			BLI_init_threads(&threads, do_multires_bake_thread, tot_thread);
+			BLI_threadpool_init(&threads, do_multires_bake_thread, tot_thread);
 
 		handles = MEM_callocN(tot_thread * sizeof(MultiresBakeThread), "do_multires_bake handles");
 
@@ -509,12 +509,12 @@ static void do_multires_bake(MultiresBakeRender *bkr, Image *ima, bool require_t
 			init_bake_rast(&handle->bake_rast, ibuf, &handle->data, flush_pixel, bkr->do_update);
 
 			if (tot_thread > 1)
-				BLI_insert_thread(&threads, handle);
+				BLI_threadpool_insert(&threads, handle);
 		}
 
 		/* run threads */
 		if (tot_thread > 1)
-			BLI_end_threads(&threads);
+			BLI_threadpool_end(&threads);
 		else
 			do_multires_bake_thread(&handles[0]);
 
@@ -797,7 +797,7 @@ static void apply_heights_callback(DerivedMesh *lores_dm, DerivedMesh *hires_dm,
 	}
 	else {
 		char *rrgb = (char *)ibuf->rect + pixel * 4;
-		rrgb[0] = rrgb[1] = rrgb[2] = FTOCHAR(len);
+		rrgb[0] = rrgb[1] = rrgb[2] = unit_float_to_uchar_clamp(len);
 		rrgb[3] = 255;
 	}
 }
@@ -1169,7 +1169,7 @@ static void apply_ao_callback(DerivedMesh *lores_dm, DerivedMesh *hires_dm, void
 	}
 	else {
 		unsigned char *rrgb = (unsigned char *) ibuf->rect + pixel * 4;
-		rrgb[0] = rrgb[1] = rrgb[2] = FTOCHAR(value);
+		rrgb[0] = rrgb[1] = rrgb[2] = unit_float_to_uchar_clamp(value);
 		rrgb[3] = 255;
 	}
 }
@@ -1283,7 +1283,7 @@ static void finish_images(MultiresBakeRender *bkr, MultiresBakeResult *result)
 		}
 
 		BKE_image_release_ibuf(ima, ibuf, NULL);
-		DAG_id_tag_update(&ima->id, 0);		
+		DAG_id_tag_update(&ima->id, 0);
 	}
 }
 

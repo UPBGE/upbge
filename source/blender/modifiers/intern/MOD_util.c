@@ -65,10 +65,11 @@ void modifier_init_texture(const Scene *scene, Tex *tex)
 	}
 }
 
-void get_texture_coords(MappingInfoModifierData *dmd, Object *ob,
-                        DerivedMesh *dm,
-                        float (*co)[3], float (*texco)[3],
-                        int numVerts)
+void get_texture_coords(
+        MappingInfoModifierData *dmd, Object *ob,
+        DerivedMesh *dm,
+        float (*co)[3], float (*texco)[3],
+        int numVerts)
 {
 	int i;
 	int texmapping = dmd->texmapping;
@@ -87,7 +88,7 @@ void get_texture_coords(MappingInfoModifierData *dmd, Object *ob,
 			MPoly *mpoly = dm->getPolyArray(dm);
 			MPoly *mp;
 			MLoop *mloop = dm->getLoopArray(dm);
-			char *done = MEM_callocN(sizeof(*done) * numVerts,
+			char *done = MEM_calloc_arrayN(numVerts, sizeof(*done),
 			                         "get_texture_coords done");
 			int numPolys = dm->getNumPolys(dm);
 			char uvname[MAX_CUSTOMDATA_LAYER_NAME];
@@ -170,8 +171,9 @@ DerivedMesh *get_cddm(Object *ob, struct BMEditMesh *em, DerivedMesh *dm, float 
 }
 
 /* returns a derived mesh if dm == NULL, for deforming modifiers that need it */
-DerivedMesh *get_dm(Object *ob, struct BMEditMesh *em, DerivedMesh *dm,
-                    float (*vertexCos)[3], bool use_normals, bool use_orco)
+DerivedMesh *get_dm(
+        Object *ob, struct BMEditMesh *em, DerivedMesh *dm,
+        float (*vertexCos)[3], bool use_normals, bool use_orco)
 {
 	if (dm) {
 		/* pass */

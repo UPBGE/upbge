@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -45,7 +45,7 @@
 #include "DNA_material_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
-#include "DNA_object_force.h"
+#include "DNA_object_force_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
@@ -246,7 +246,7 @@ static void set_texture_context(const bContext *C, SpaceButs *sbuts)
 
 /************************* Texture User **************************/
 
-static void buttons_texture_user_property_add(ListBase *users, ID *id, 
+static void buttons_texture_user_property_add(ListBase *users, ID *id,
                                               PointerRNA ptr, PropertyRNA *prop,
                                               const char *category, int icon, const char *name)
 {
@@ -263,7 +263,7 @@ static void buttons_texture_user_property_add(ListBase *users, ID *id,
 	BLI_addtail(users, user);
 }
 
-static void buttons_texture_user_node_add(ListBase *users, ID *id, 
+static void buttons_texture_user_node_add(ListBase *users, ID *id,
                                           bNodeTree *ntree, bNode *node,
                                           const char *category, int icon, const char *name)
 {
@@ -290,10 +290,10 @@ static void buttons_texture_users_find_nodetree(ListBase *users, ID *id,
 			if (node->typeinfo->nclass == NODE_CLASS_TEXTURE) {
 				PointerRNA ptr;
 				/* PropertyRNA *prop; */ /* UNUSED */
-				
+
 				RNA_pointer_create(&ntree->id, &RNA_Node, node, &ptr);
 				/* prop = RNA_struct_find_property(&ptr, "texture"); */ /* UNUSED */
-				
+
 				buttons_texture_user_node_add(users, id, ntree, node,
 				                              category, RNA_struct_ui_icon(ptr.type), node->name);
 			}
@@ -470,7 +470,7 @@ void buttons_texture_context_compute(const bContext *C, SpaceButs *sbuts)
 	}
 	else {
 		/* set one user as active based on active index */
-		if (ct->index >= BLI_listbase_count_ex(&ct->users, ct->index + 1))
+		if (ct->index >= BLI_listbase_count_at_most(&ct->users, ct->index + 1))
 			ct->index = 0;
 
 		ct->user = BLI_findlink(&ct->users, ct->index);
@@ -646,7 +646,7 @@ static void template_texture_show(bContext *C, void *data_p, void *prop_p)
 	for (user = ct->users.first; user; user = user->next)
 		if (user->ptr.data == data_p && user->prop == prop_p)
 			break;
-	
+
 	if (user) {
 		/* select texture */
 		template_texture_select(C, user, NULL);
@@ -676,12 +676,12 @@ void uiTemplateTextureShow(uiLayout *layout, bContext *C, PointerRNA *ptr, Prope
 	for (user = ct->users.first; user; user = user->next)
 		if (user->ptr.data == ptr->data && user->prop == prop)
 			break;
-	
+
 	/* draw button */
 	if (user) {
 		uiBlock *block = uiLayoutGetBlock(layout);
 		uiBut *but;
-		
+
 		but = uiDefIconBut(block, UI_BTYPE_BUT, 0, ICON_BUTS, 0, 0, UI_UNIT_X, UI_UNIT_Y,
 		                   NULL, 0.0, 0.0, 0.0, 0.0, TIP_("Show texture in texture tab"));
 		UI_but_func_set(but, template_texture_show, user->ptr.data, user->prop);

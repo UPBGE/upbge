@@ -19,7 +19,7 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
- 
+
 /** \file AnimationImporter.h
  *  \ingroup collada
  */
@@ -75,10 +75,10 @@ private:
 	std::map<COLLADAFW::UniqueId, const COLLADAFW::AnimationList*> animlist_map;
 	std::vector<FCurve*> unused_curves;
 	std::map<COLLADAFW::UniqueId, Object*> joint_objects;
-	
+
 	FCurve *create_fcurve(int array_index, const char *rna_path);
-	
-	void create_bezt(FCurve *fcu, float frame, float output);
+
+	void add_bezt(FCurve *fcu, float frame, float value, eBezTriple_Interpolation ipo=BEZT_IPO_LIN);
 
 	// create one or several fcurves depending on the number of parameters being animated
 	void animation_to_fcurves(COLLADAFW::AnimationCurve *curve);
@@ -87,9 +87,9 @@ private:
 
 	void fcurve_is_used(FCurve *fcu);
 
-	void add_fcurves_to_object(Object *ob, std::vector<FCurve*>& curves, char *rna_path, int array_index, Animation *animated);
+	void add_fcurves_to_object(Main *bmain, Object *ob, std::vector<FCurve*>& curves, char *rna_path, int array_index, Animation *animated);
 
-	
+
 	int typeFlag;
 
 	std::string import_from_version;
@@ -121,7 +121,7 @@ private:
 		MATERIAL_TRANSPARENCY = 1 << 4,
 		MATERIAL_IOR = 1 << 5
 	};
-	
+
 	enum AnimationType
 		{
 			INANIMATE = 0,
@@ -144,7 +144,7 @@ public:
 
 	void set_import_from_version(std::string import_from_version);
 	bool write_animation(const COLLADAFW::Animation* anim);
-	
+
 	// called on post-process stage after writeVisualScenes
 	bool write_animation_list(const COLLADAFW::AnimationList* animlist);
 
@@ -153,17 +153,18 @@ public:
 	virtual void change_eul_to_quat(Object *ob, bAction *act);
 #endif
 
-	void translate_Animations(COLLADAFW::Node * Node,
+	void translate_Animations(Main *bmain, COLLADAFW::Node * Node,
 	                          std::map<COLLADAFW::UniqueId, COLLADAFW::Node*>& root_map,
 	                          std::multimap<COLLADAFW::UniqueId, Object*>& object_map,
-	                          std::map<COLLADAFW::UniqueId, const COLLADAFW::Object*> FW_object_map);
+	                          std::map<COLLADAFW::UniqueId, const COLLADAFW::Object*> FW_object_map,
+	                          std::map<COLLADAFW::UniqueId, Material*> uid_material_map);
 
 	AnimMix* get_animation_type( const COLLADAFW::Node * node, std::map<COLLADAFW::UniqueId, const COLLADAFW::Object*> FW_object_map );
 
-	void apply_matrix_curves(Object *ob, std::vector<FCurve*>& animcurves, COLLADAFW::Node* root, COLLADAFW::Node* node,
+	void apply_matrix_curves(Main *bmain, Object *ob, std::vector<FCurve*>& animcurves, COLLADAFW::Node* root, COLLADAFW::Node* node,
 	                         COLLADAFW::Transformation * tm );
-	
-	void add_bone_animation_sampled(Object *ob, std::vector<FCurve*>& animcurves, COLLADAFW::Node* root, COLLADAFW::Node* node, COLLADAFW::Transformation * tm);
+
+	void add_bone_animation_sampled(Main *bmain, Object *ob, std::vector<FCurve*>& animcurves, COLLADAFW::Node* root, COLLADAFW::Node* node, COLLADAFW::Transformation * tm);
 
 	void Assign_transform_animations(COLLADAFW::Transformation* transform,
 	                                 const COLLADAFW::AnimationList::AnimationBinding *binding,
@@ -174,18 +175,18 @@ public:
 	void Assign_lens_animations(const COLLADAFW::UniqueId& listid, ListBase *AnimCurves, const double aspect, Camera *cam, const char *anim_type, int fov_type);
 
 	int setAnimType ( const COLLADAFW::Animatable * prop, int type, int addition);
-	
+
 	void modify_fcurve(std::vector<FCurve*>* curves, const char *rna_path, int array_index );
 	void unused_fcurve(std::vector<FCurve*>* curves );
 	// prerequisites:
 	// animlist_map - map animlist id -> animlist
 	// curve_map - map anim id -> curve(s)
-	Object * translate_animation_OLD(COLLADAFW::Node *node,
+	Object * translate_animation_OLD(Main *bmain, COLLADAFW::Node *node,
 	                                 std::map<COLLADAFW::UniqueId, Object*>& object_map,
 	                                 std::map<COLLADAFW::UniqueId, COLLADAFW::Node*>& root_map,
 	                                 COLLADAFW::Transformation::TransformationType tm_type,
 	                                 Object *par_job = NULL);
-	
+
 	void find_frames( std::vector<float>* frames, std::vector<FCurve*>* curves );
 	void find_frames_old( std::vector<float>* frames, COLLADAFW::Node * node, COLLADAFW::Transformation::TransformationType tm_type );
 	// internal, better make it private
@@ -202,6 +203,8 @@ public:
 	// gives a world-space mat, end's mat not included
 	bool calc_joint_parent_mat_rest(float mat[4][4], float par[4][4], COLLADAFW::Node *node, COLLADAFW::Node *end);
 
+	float convert_to_focal_length(float in_xfov, int fov_type, float aspect, float sensorx);
+
 #ifdef ARMATURE_TEST
 	Object *get_joint_object(COLLADAFW::Node *root, COLLADAFW::Node *node, Object *par_job);
 #endif
@@ -213,8 +216,6 @@ public:
 #endif
 
 	void add_bone_fcurve(Object *ob, COLLADAFW::Node *node, FCurve *fcu);
-
-	void add_bezt(FCurve *fcu, float fra, float value);
 
 	void extra_data_importer(std::string elementName);
 };

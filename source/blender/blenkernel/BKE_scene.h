@@ -87,7 +87,7 @@ typedef struct SceneBaseIter {
 	int phase;
 } SceneBaseIter;
 
-int BKE_scene_base_iter_next(struct EvaluationContext *eval_ctx, struct SceneBaseIter *iter,
+int BKE_scene_base_iter_next(struct Main *bmain, struct EvaluationContext *eval_ctx, struct SceneBaseIter *iter,
                              struct Scene **scene, int val, struct Base **base, struct Object **ob);
 
 void BKE_scene_base_flag_to_objects(struct Scene *scene);
@@ -95,6 +95,9 @@ void BKE_scene_base_flag_from_objects(struct Scene *scene);
 
 void BKE_scene_set_background(struct Main *bmain, struct Scene *sce);
 struct Scene *BKE_scene_set_name(struct Main *bmain, const char *name);
+
+struct ToolSettings *BKE_toolsettings_copy(struct ToolSettings *toolsettings, const int flag);
+void BKE_toolsettings_free(struct ToolSettings *toolsettings);
 
 void BKE_scene_copy_data(struct Main *bmain, struct Scene *sce_dst, const struct Scene *sce_src, const int flag);
 struct Scene *BKE_scene_copy(struct Main *bmain, struct Scene *sce, int type);

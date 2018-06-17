@@ -218,9 +218,10 @@ ccl_device_inline bool motion_triangle_intersect(
 /* Special ray intersection routines for local intersections. In that case we
  * only want to intersect with primitives in the same object, and if case of
  * multiple hits we pick a single random primitive as the intersection point.
+ * Returns whether traversal should be stopped.
  */
 #ifdef __BVH_LOCAL__
-ccl_device_inline void motion_triangle_intersect_local(
+ccl_device_inline bool motion_triangle_intersect_local(
         KernelGlobals *kg,
         LocalIntersection *local_isect,
         float3 P,
@@ -237,7 +238,7 @@ ccl_device_inline void motion_triangle_intersect_local(
 	 * already know we are only intersecting the right object. */
 	if(object == OBJECT_NONE) {
 		if(kernel_tex_fetch(__prim_object, prim_addr) != local_object) {
-			return;
+			return false;
 		}
 	}
 
@@ -248,23 +249,35 @@ ccl_device_inline void motion_triangle_intersect_local(
 	motion_triangle_vertices(kg, local_object, prim, time, verts);
 	/* Ray-triangle intersection, unoptimized. */
 	float t, u, v;
-	if(ray_triangle_intersect(P,
-	                          dir,
-	                          tmax,
+	if(!ray_triangle_intersect(P,
+	                           dir,
+	                           tmax,
 #if defined(__KERNEL_SSE2__) && defined(__KERNEL_SSE__)
-	                          (ssef*)verts,
+	                           (ssef*)verts,
 #else
-	                          verts[0], verts[1], verts[2],
+	                           verts[0], verts[1], verts[2],
 #endif
-	                          &u, &v, &t))
+	                           &u, &v, &t))
 	{
+		return false;
+	}
+
+	/* If no actual hit information is requested, just return here. */
+	if(max_hits == 0) {
+		return true;
+	}
+
+	int hit;
+	if(lcg_state) {
+		/* Record up to max_hits intersections. */
 		for(int i = min(max_hits, local_isect->num_hits) - 1; i >= 0; --i) {
 			if(local_isect->hits[i].t == t) {
-				return;
+				return false;
 			}
 		}
+
 		local_isect->num_hits++;
-		int hit;
+
 		if(local_isect->num_hits <= max_hits) {
 			hit = local_isect->num_hits - 1;
 		}
@@ -275,20 +288,33 @@ ccl_device_inline void motion_triangle_intersect_local(
 			hit = lcg_step_uint(lcg_state) % local_isect->num_hits;
 
 			if(hit >= max_hits)
-				return;
+				return false;
 		}
-		/* Record intersection. */
-		Intersection *isect = &local_isect->hits[hit];
-		isect->t = t;
-		isect->u = u;
-		isect->v = v;
-		isect->prim = prim_addr;
-		isect->object = object;
-		isect->type = PRIMITIVE_MOTION_TRIANGLE;
-		/* Record geometric normal. */
-		local_isect->Ng[hit] = normalize(cross(verts[1] - verts[0],
-		                                    verts[2] - verts[0]));
 	}
+	else {
+		/* Record closest intersection only. */
+		if(local_isect->num_hits && t > local_isect->hits[0].t) {
+			return false;
+		}
+
+		hit = 0;
+		local_isect->num_hits = 1;
+	}
+
+	/* Record intersection. */
+	Intersection *isect = &local_isect->hits[hit];
+	isect->t = t;
+	isect->u = u;
+	isect->v = v;
+	isect->prim = prim_addr;
+	isect->object = object;
+	isect->type = PRIMITIVE_MOTION_TRIANGLE;
+
+	/* Record geometric normal. */
+	local_isect->Ng[hit] = normalize(cross(verts[1] - verts[0],
+	                                       verts[2] - verts[0]));
+
+	return false;
 }
 #endif  /* __BVH_LOCAL__ */
 

@@ -15,8 +15,8 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributor: 
- *		Jeroen Bakker 
+ * Contributor:
+ *		Jeroen Bakker
  *		Monique Dewanchand
  */
 
@@ -85,6 +85,9 @@ void MathNode::convertToOperations(NodeConverter &converter, const CompositorCon
 			break;
 		case NODE_MATH_ABS:
 			operation = new MathAbsoluteOperation();
+			break;
+		case NODE_MATH_ATAN2:
+			operation = new MathArcTan2Operation();
 			break;
 	}
 	

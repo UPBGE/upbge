@@ -1,7 +1,5 @@
 EXP_PyObjectPlus
-============
-
-.. module:: bge.types
+================
 
 .. class:: EXP_PyObjectPlus
 
@@ -18,4 +16,3 @@ EXP_PyObjectPlus
       The invalid attribute allows testing for this case without exception handling.
 
       :type: boolean
-

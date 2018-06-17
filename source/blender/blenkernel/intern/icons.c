@@ -48,7 +48,9 @@
 
 #include "BLI_utildefines.h"
 #include "BLI_ghash.h"
+#include "BLI_linklist_lockfree.h"
 #include "BLI_string.h"
+#include "BLI_threads.h"
 
 #include "BKE_icons.h"
 #include "BKE_global.h" /* only for G.background test */
@@ -71,6 +73,13 @@ static int gFirstIconId = 1;
 
 static GHash *gCachedPreviews = NULL;
 
+/* Queue of icons for deferred deletion. */
+typedef struct DeferredIconDeleteNode {
+	struct DeferredIconDeleteNode *next;
+	int icon_id;
+} DeferredIconDeleteNode;
+static LockfreeLinkList g_icon_delete_queue;
+
 static void icon_free(void *val)
 {
 	Icon *icon = val;
@@ -90,6 +99,7 @@ static void icon_free(void *val)
  * after the integer number range is used up */
 static int get_next_free_id(void)
 {
+	BLI_assert(BLI_thread_is_main());
 	int startId = gFirstIconId;
 
 	/* if we haven't used up the int number range, we just return the next int */
@@ -110,11 +120,15 @@ static int get_next_free_id(void)
 
 void BKE_icons_init(int first_dyn_id)
 {
+	BLI_assert(BLI_thread_is_main());
+
 	gNextIconId = first_dyn_id;
 	gFirstIconId = first_dyn_id;
 
-	if (!gIcons)
+	if (!gIcons) {
 		gIcons = BLI_ghash_int_new(__func__);
+		BLI_linklist_lockfree_init(&g_icon_delete_queue);
+	}
 
 	if (!gCachedPreviews) {
 		gCachedPreviews = BLI_ghash_str_new(__func__);
@@ -123,6 +137,8 @@ void BKE_icons_init(int first_dyn_id)
 
 void BKE_icons_free(void)
 {
+	BLI_assert(BLI_thread_is_main());
+
 	if (gIcons) {
 		BLI_ghash_free(gIcons, NULL, icon_free);
 		gIcons = NULL;
@@ -132,6 +148,22 @@ void BKE_icons_free(void)
 		BLI_ghash_free(gCachedPreviews, MEM_freeN, BKE_previewimg_freefunc);
 		gCachedPreviews = NULL;
 	}
+
+	BLI_linklist_lockfree_free(&g_icon_delete_queue, MEM_freeN);
+}
+
+void BKE_icons_deferred_free(void)
+{
+	BLI_assert(BLI_thread_is_main());
+
+	for (DeferredIconDeleteNode *node =
+	             (DeferredIconDeleteNode *)BLI_linklist_lockfree_begin(&g_icon_delete_queue);
+	     node != NULL;
+	     node = node->next)
+	{
+		BLI_ghash_remove(gIcons, SET_INT_IN_POINTER(node->icon_id), NULL, icon_free);
+	}
+	BLI_linklist_lockfree_clear(&g_icon_delete_queue, MEM_freeN);
 }
 
 static PreviewImage *previewimg_create_ex(size_t deferred_data_size)
@@ -431,23 +463,30 @@ void BKE_previewimg_ensure(PreviewImage *prv, const int size)
 	}
 }
 
-void BKE_icon_changed(int id)
+void BKE_icon_changed(const int icon_id)
 {
+	BLI_assert(BLI_thread_is_main());
+
 	Icon *icon = NULL;
 	
-	if (!id || G.background) return;
+	if (!icon_id || G.background) return;
 
-	icon = BLI_ghash_lookup(gIcons, SET_INT_IN_POINTER(id));
+	icon = BLI_ghash_lookup(gIcons, SET_INT_IN_POINTER(icon_id));
 	
 	if (icon) {
-		PreviewImage *prv = BKE_previewimg_id_ensure((ID *)icon->obj);
+		/* We *only* expect ID-tied icons here, not non-ID icon/preview! */
+		BLI_assert(icon->id_type != 0);
 
-		/* all previews changed */
-		if (prv) {
+		/* Do not enforce creation of previews for valid ID types using BKE_previewimg_id_ensure() here ,
+		 * we only want to ensure *existing* preview images are properly tagged as changed/invalid, that's all. */
+		PreviewImage **p_prv = BKE_previewimg_id_get_p((ID *)icon->obj);
+
+		/* If we have previews, they all are now invalid changed. */
+		if (p_prv && *p_prv) {
 			int i;
 			for (i = 0; i < NUM_ICON_SIZES; ++i) {
-				prv->flag[i] |= PRV_CHANGED;
-				prv->changed_timestamp[i]++;
+				(*p_prv)->flag[i] |= PRV_CHANGED;
+				(*p_prv)->changed_timestamp[i]++;
 			}
 		}
 	}
@@ -455,12 +494,14 @@ void BKE_icon_changed(int id)
 
 static int icon_id_ensure_create_icon(struct ID *id)
 {
+	BLI_assert(BLI_thread_is_main());
+
 	Icon *new_icon = NULL;
 
 	new_icon = MEM_mallocN(sizeof(Icon), __func__);
 
 	new_icon->obj = id;
-	new_icon->type = GS(id->name);
+	new_icon->id_type = GS(id->name);
 
 	/* next two lines make sure image gets created */
 	new_icon->drawinfo = NULL;
@@ -473,8 +514,12 @@ static int icon_id_ensure_create_icon(struct ID *id)
 
 int BKE_icon_id_ensure(struct ID *id)
 {
-	if (!id || G.background)
+	/* Never handle icons in non-main thread! */
+	BLI_assert(BLI_thread_is_main());
+
+	if (!id || G.background) {
 		return 0;
+	}
 
 	if (id->icon_id)
 		return id->icon_id;
@@ -536,7 +581,7 @@ int BKE_icon_preview_ensure(ID *id, PreviewImage *preview)
 	new_icon = MEM_mallocN(sizeof(Icon), __func__);
 
 	new_icon->obj = preview;
-	new_icon->type = 0;  /* Special, tags as non-ID icon/preview. */
+	new_icon->id_type = 0;  /* Special, tags as non-ID icon/preview. */
 
 	/* next two lines make sure image gets created */
 	new_icon->drawinfo = NULL;
@@ -547,8 +592,10 @@ int BKE_icon_preview_ensure(ID *id, PreviewImage *preview)
 	return preview->icon_id;
 }
 
-Icon *BKE_icon_get(int icon_id)
+Icon *BKE_icon_get(const int icon_id)
 {
+	BLI_assert(BLI_thread_is_main());
+
 	Icon *icon = NULL;
 
 	icon = BLI_ghash_lookup(gIcons, SET_INT_IN_POINTER(icon_id));
@@ -561,8 +608,10 @@ Icon *BKE_icon_get(int icon_id)
 	return icon;
 }
 
-void BKE_icon_set(int icon_id, struct Icon *icon)
+void BKE_icon_set(const int icon_id, struct Icon *icon)
 {
+	BLI_assert(BLI_thread_is_main());
+
 	void **val_p;
 
 	if (BLI_ghash_ensure_p(gIcons, SET_INT_IN_POINTER(icon_id), &val_p)) {
@@ -573,18 +622,34 @@ void BKE_icon_set(int icon_id, struct Icon *icon)
 	*val_p = icon;
 }
 
+static void icon_add_to_deferred_delete_queue(int icon_id)
+{
+	DeferredIconDeleteNode *node =
+	        MEM_mallocN(sizeof(DeferredIconDeleteNode), __func__);
+	node->icon_id = icon_id;
+	BLI_linklist_lockfree_insert(&g_icon_delete_queue,
+	                             (LockfreeLinkNode *)node);
+}
+
 void BKE_icon_id_delete(struct ID *id)
 {
-	if (!id->icon_id) return;  /* no icon defined for library object */
-
-	BLI_ghash_remove(gIcons, SET_INT_IN_POINTER(id->icon_id), NULL, icon_free);
+	const int icon_id = id->icon_id;
+	if (!icon_id) return;  /* no icon defined for library object */
 	id->icon_id = 0;
+
+	if (!BLI_thread_is_main()) {
+		icon_add_to_deferred_delete_queue(icon_id);
+		return;
+	}
+
+	BKE_icons_deferred_free();
+	BLI_ghash_remove(gIcons, SET_INT_IN_POINTER(icon_id), NULL, icon_free);
 }
 
 /**
  * Remove icon and free data.
  */
-void BKE_icon_delete(int icon_id)
+void BKE_icon_delete(const int icon_id)
 {
 	Icon *icon;
 
@@ -593,7 +658,7 @@ void BKE_icon_delete(int icon_id)
 	icon = BLI_ghash_popkey(gIcons, SET_INT_IN_POINTER(icon_id), NULL);
 
 	if (icon) {
-		if (icon->type) {
+		if (icon->id_type != 0) {
 			((ID *)(icon->obj))->icon_id = 0;
 		}
 		else {

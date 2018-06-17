@@ -23,7 +23,7 @@
 /** \file blender/makesrna/intern/rna_mesh_utils.h
  *  \ingroup RNA
  */
- 
+
 #ifndef __RNA_MESH_UTILS_H__
 #define __RNA_MESH_UTILS_H__
 
@@ -85,7 +85,7 @@
 		}                                                                                       \
 		else {                                                                                  \
 			layer = NULL;                                                                       \
-			}                                                                                   \
+		}                                                                                       \
 		return rna_pointer_inherit_refine(ptr, &RNA_##layer_rna_type, layer);                   \
 	}                                                                                           \
 	                                                                                            \

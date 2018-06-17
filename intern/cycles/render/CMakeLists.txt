@@ -23,6 +23,7 @@ set(SRC
 	mesh.cpp
 	mesh_displace.cpp
 	mesh_subdivision.cpp
+	mesh_volume.cpp
 	nodes.cpp
 	object.cpp
 	osl.cpp
@@ -71,4 +72,4 @@ include_directories(SYSTEM ${INC_SYS})
 
 add_definitions(${GL_DEFINITIONS})
 
-add_library(cycles_render ${SRC} ${SRC_HEADERS})
+cycles_add_library(cycles_render ${SRC} ${SRC_HEADERS})

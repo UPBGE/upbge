@@ -41,9 +41,8 @@ extern "C" {
 #include "BLI_compiler_compat.h"
 #include "BLI_utildefines_variadic.h"
 
-#ifndef NDEBUG /* for BLI_assert */
-#include <stdio.h>
-#endif
+/* We could remove in future. */
+#include "BLI_assert.h"
 
 #ifdef WITH_ASSERT_ABORT
 #include <stdlib.h>
@@ -229,29 +228,6 @@ extern "C" {
 	b = tmp;                                                                  \
 } (void)0
 
-
-#define FTOCHAR(val) ((CHECK_TYPE_INLINE(val, float)), \
-		(char)(((val) <= 0.0f) ? 0 : (((val) > (1.0f - 0.5f / 255.0f)) ? 255 : ((255.0f * (val)) + 0.5f))))
-#define FTOUSHORT(val) ((CHECK_TYPE_INLINE(val, float)), \
-		(unsigned short)((val >= 1.0f - 0.5f / 65535) ? 65535 : (val <= 0.0f) ? 0 : (val * 65535.0f + 0.5f)))
-#define USHORTTOUCHAR(val) ((unsigned char)(((val) >= 65535 - 128) ? 255 : ((val) + 128) >> 8))
-#define F3TOCHAR3(v2, v1) {                                                   \
-		(v1)[0] = FTOCHAR((v2[0]));                                           \
-		(v1)[1] = FTOCHAR((v2[1]));                                           \
-		(v1)[2] = FTOCHAR((v2[2]));                                           \
-} (void)0
-#define F3TOCHAR4(v2, v1) {                                                   \
-		(v1)[0] = FTOCHAR((v2[0]));                                           \
-		(v1)[1] = FTOCHAR((v2[1]));                                           \
-		(v1)[2] = FTOCHAR((v2[2]));                                           \
-		(v1)[3] = 255;                                                        \
-} (void)0
-#define F4TOCHAR4(v2, v1) {                                                   \
-		(v1)[0] = FTOCHAR((v2[0]));                                           \
-		(v1)[1] = FTOCHAR((v2[1]));                                           \
-		(v1)[2] = FTOCHAR((v2[2]));                                           \
-		(v1)[3] = FTOCHAR((v2[3]));                                           \
-} (void)0
 #define VECCOPY(v1, v2) {                                                     \
 		*(v1) =   *(v2);                                                      \
 		*(v1 + 1) = *(v2 + 1);                                                \
@@ -401,22 +377,51 @@ extern "C" {
 #define UNPACK4_EX(pre, a, post)  UNPACK3_EX(pre, a, post), (pre((a)[3])post)
 
 /* array helpers */
-#define ARRAY_LAST_ITEM(arr_start, arr_dtype, tot) \
-	(arr_dtype *)((char *)(arr_start) + (sizeof(*((arr_dtype *)NULL)) * (size_t)(tot - 1)))
+#define ARRAY_LAST_ITEM(arr_start, arr_dtype, arr_len) \
+	(arr_dtype *)((char *)(arr_start) + (sizeof(*((arr_dtype *)NULL)) * (size_t)(arr_len - 1)))
 
-#define ARRAY_HAS_ITEM(arr_item, arr_start, tot)  ( \
+#define ARRAY_HAS_ITEM(arr_item, arr_start, arr_len)  ( \
 	CHECK_TYPE_PAIR_INLINE(arr_start, arr_item), \
-	((unsigned int)((arr_item) - (arr_start)) < (unsigned int)(tot)))
+	((unsigned int)((arr_item) - (arr_start)) < (unsigned int)(arr_len)))
 
-#define ARRAY_DELETE(arr, index, tot_delete, tot)  { \
-		BLI_assert(index + tot_delete <= tot);  \
-		memmove(&(arr)[(index)], \
-		        &(arr)[(index) + (tot_delete)], \
-		         (((tot) - (index)) - (tot_delete)) * sizeof(*(arr))); \
-	} (void)0
+/**
+ * \note use faster #ARRAY_DELETE_REORDER_LAST when we can re-order.
+ */
+#define ARRAY_DELETE(arr, index, delete_len, arr_len) \
+	{ \
+		BLI_assert((&arr[index] >= arr) && ((index) + delete_len <= arr_len));  \
+		memmove(&(arr)[index], \
+		        &(arr)[(index) + (delete_len)], \
+		         (((arr_len) - (index)) - (delete_len)) * sizeof(*(arr))); \
+	} ((void)0)
+
+/**
+ * Re-ordering array removal.
+ *
+ * When removing single items this compiles down to:
+ * `if (index + 1 != arr_len) { arr[index] = arr[arr_len - 1]; }` (typical reordering removal),
+ * with removing multiple items, overlap is detected to avoid memcpy errors.
+ */
+#define ARRAY_DELETE_REORDER_LAST(arr, index, delete_len, arr_len) \
+	{ \
+		BLI_assert((&arr[index] >= arr) && ((index) + delete_len <= arr_len));  \
+		if ((index) + (delete_len) != (arr_len)) { \
+			if (((delete_len) == 1) || ((delete_len) <= ((arr_len) - ((index) + (delete_len))))) { \
+				memcpy(&(arr)[index], \
+				       &(arr)[(arr_len) - (delete_len)], \
+				       (delete_len) * sizeof(*(arr))); \
+			} \
+			else { \
+				memcpy(&(arr)[index], \
+				       &(arr)[(arr_len) - ((arr_len) - ((index) + (delete_len)))], \
+				       ((arr_len) - ((index) + (delete_len))) * sizeof(*(arr))); \
+			} \
+		} \
+	} ((void)0)
+
 
 /* assuming a static array */
-#if defined(__GNUC__) && !defined(__cplusplus) && !defined(__clang__)
+#if defined(__GNUC__) && !defined(__cplusplus) && !defined(__clang__) && !defined(__INTEL_COMPILER)
 #  define ARRAY_SIZE(arr) \
 	((sizeof(struct {int isnt_array : ((const void *)&(arr) == &(arr)[0]);}) * 0) + \
 	 (sizeof(arr) / sizeof(*(arr))))
@@ -551,13 +556,13 @@ extern bool BLI_memory_is_zero(const void *arr, const size_t arr_size);
 
 
 /* UNUSED macro, for function argument */
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(__clang__) 
 #  define UNUSED(x) UNUSED_ ## x __attribute__((__unused__))
 #else
 #  define UNUSED(x) UNUSED_ ## x
 #endif
 
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(__clang__) 
 #  define UNUSED_FUNCTION(x) __attribute__((__unused__)) UNUSED_ ## x
 #else
 #  define UNUSED_FUNCTION(x) UNUSED_ ## x
@@ -618,74 +623,6 @@ extern bool BLI_memory_is_zero(const void *arr, const size_t arr_size);
 #else
 #  define UNUSED_VARS_NDEBUG UNUSED_VARS
 #endif
-
-
-/* BLI_assert(), default only to print
- * for aborting need to define WITH_ASSERT_ABORT
- */
-/* For 'abort' only. */
-#include <stdlib.h>
-
-#ifndef NDEBUG
-#  include "BLI_system.h"
-#  ifdef WITH_ASSERT_ABORT
-#    define _BLI_DUMMY_ABORT abort
-#  else
-#    define _BLI_DUMMY_ABORT() (void)0
-#  endif
-#  if defined(__GNUC__) || defined(_MSC_VER) /* check __func__ is available */
-#    define BLI_assert(a)                                                     \
-	(void)((!(a)) ?  (                                                        \
-		(                                                                     \
-		BLI_system_backtrace(stderr),                                         \
-		fprintf(stderr,                                                       \
-			"BLI_assert failed: %s:%d, %s(), at \'%s\'\n",                    \
-			__FILE__, __LINE__, __func__, STRINGIFY(a)),                      \
-		_BLI_DUMMY_ABORT(),                                                   \
-		NULL)) : NULL)
-#  else
-#    define BLI_assert(a)                                                     \
-	(void)((!(a)) ?  (                                                        \
-		(                                                                     \
-		fprintf(stderr,                                                       \
-			"BLI_assert failed: %s:%d, at \'%s\'\n",                          \
-			__FILE__, __LINE__, STRINGIFY(a)),                                \
-		_BLI_DUMMY_ABORT(),                                                   \
-		NULL)) : NULL)
-#  endif
-#else
-#  define BLI_assert(a) (void)0
-#endif
-
-/* C++ can't use _Static_assert, expects static_assert() but c++0x only,
- * Coverity also errors out. */
-#if (!defined(__cplusplus)) && \
-    (!defined(__COVERITY__)) && \
-    (defined(__GNUC__) && ((__GNUC__ * 100 + __GNUC_MINOR__) >= 406))  /* gcc4.6+ only */
-#  define BLI_STATIC_ASSERT(a, msg) __extension__ _Static_assert(a, msg);
-#else
-/* Code adapted from http://www.pixelbeat.org/programming/gcc/static_assert.html */
-/* Note we need the two concats below because arguments to ## are not expanded, so we need to
- * expand __LINE__ with one indirection before doing the actual concatenation. */
-#  define ASSERT_CONCAT_(a, b) a##b
-#  define ASSERT_CONCAT(a, b) ASSERT_CONCAT_(a, b)
-   /* These can't be used after statements in c89. */
-#  if defined(__COUNTER__)  /* MSVC */
-#    define BLI_STATIC_ASSERT(a, msg) \
-         ; enum { ASSERT_CONCAT(static_assert_, __COUNTER__) = 1 / (int)(!!(a)) };
-#  else  /* older gcc, clang... */
-    /* This can't be used twice on the same line so ensure if using in headers
-     * that the headers are not included twice (by wrapping in #ifndef...#endif)
-     * Note it doesn't cause an issue when used on same line of separate modules
-     * compiled with gcc -combine -fwhole-program. */
-#    define BLI_STATIC_ASSERT(a, msg) \
-         ; enum { ASSERT_CONCAT(assert_line_, __LINE__) = 1 / (int)(!!(a)) };
-#  endif
-#endif
-
-
-#define BLI_STATIC_ASSERT_ALIGN(st, align) \
-  BLI_STATIC_ASSERT((sizeof(st) % (align) == 0), "Structure must be strictly aligned")
 
 /* hints for branch prediction, only use in code that runs a _lot_ where */
 #ifdef __GNUC__

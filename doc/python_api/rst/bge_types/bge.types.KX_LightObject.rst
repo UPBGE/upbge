@@ -1,8 +1,6 @@
 KX_LightObject(KX_GameObject)
 =============================
 
-.. module:: bge.types
-
 base class --- :class:`KX_GameObject`
 
 .. class:: KX_LightObject(KX_GameObject)
@@ -169,4 +167,3 @@ base class --- :class:`KX_GameObject`
    .. method:: updateShadow()
 
       Set the shadow to be updated next frame if the lamp uses a static shadow, see :data:`staticShadow`.
-

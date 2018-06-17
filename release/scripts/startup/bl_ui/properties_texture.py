@@ -1353,8 +1353,8 @@ class TEXTURE_PT_influence(TextureSlotPanel, Panel):
                 sub.prop(tex, "ior", text="IOR")
                 sub.prop(tex, "refraction_ratio", text="Ratio")
 
-                #~ sub = col.column()
-                #~ sub.active = tex.use_map_translucency or tex.map_emit or tex.map_alpha or tex.map_raymir or tex.map_hardness or tex.map_ambient or tex.map_specularity or tex.map_reflection or tex.map_mirror
+                # ~ sub = col.column()
+                # ~ sub.active = tex.use_map_translucency or tex.map_emit or tex.map_alpha or tex.map_raymir or tex.map_hardness or tex.map_ambient or tex.map_specularity or tex.map_reflection or tex.map_mirror
                 #~ sub.prop(tex, "default_value", text="Amount", slider=True)
             elif idblock.type == 'HALO':
                 layout.label(text="Halo:")
@@ -1445,6 +1445,7 @@ class TEXTURE_PT_influence(TextureSlotPanel, Panel):
             col = split.column()
             factor_but(col, "use_map_length", "length_factor", "Length")
             factor_but(col, "use_map_clump", "clump_factor", "Clump")
+            factor_but(col, "use_map_twist", "twist_factor", "Twist")
 
             col = split.column()
             factor_but(col, "use_map_kink_amp", "kink_amp_factor", "Kink Amplitude")

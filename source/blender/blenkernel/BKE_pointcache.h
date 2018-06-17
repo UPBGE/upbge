@@ -34,7 +34,7 @@
 
 #include "DNA_ID.h"
 #include "DNA_dynamicpaint_types.h"
-#include "DNA_object_force.h"
+#include "DNA_object_force_types.h"
 #include "DNA_boid_types.h"
 #include <stdio.h> /* for FILE */
 
@@ -140,7 +140,7 @@ typedef struct PTCacheID {
 	unsigned int default_step;
 	unsigned int max_step;
 
-	/* flags defined in DNA_object_force.h */
+	/* flags defined in DNA_object_force_types.h */
 	unsigned int data_types, info_types;
 
 	/* copies point data to cache data */
@@ -184,7 +184,7 @@ typedef struct PTCacheID {
 } PTCacheID;
 
 typedef struct PTCacheBaker {
-	struct Main *main;
+	struct Main *bmain;
 	struct Scene *scene;
 	int bake;
 	int render;
@@ -227,7 +227,6 @@ typedef struct PTCacheEditPoint {
 } PTCacheEditPoint;
 
 typedef struct PTCacheUndo {
-	struct PTCacheUndo *next, *prev;
 	struct PTCacheEditPoint *points;
 
 	/* particles stuff */
@@ -240,12 +239,11 @@ typedef struct PTCacheUndo {
 	struct ListBase mem_cache;
 
 	int totpoint;
-	char name[64];
+
+	size_t undo_size;
 } PTCacheUndo;
 
 typedef struct PTCacheEdit {
-	ListBase undo;
-	struct PTCacheUndo *curundo;
 	PTCacheEditPoint *points;
 
 	struct PTCacheID pid;
@@ -276,7 +274,8 @@ void BKE_ptcache_id_from_smoke(PTCacheID *pid, struct Object *ob, struct SmokeMo
 void BKE_ptcache_id_from_dynamicpaint(PTCacheID *pid, struct Object *ob, struct DynamicPaintSurface *surface);
 void BKE_ptcache_id_from_rigidbody(PTCacheID *pid, struct Object *ob, struct RigidBodyWorld *rbw);
 
-void BKE_ptcache_ids_from_object(struct ListBase *lb, struct Object *ob, struct Scene *scene, int duplis);
+void BKE_ptcache_ids_from_object(
+        struct Main *bmain, struct ListBase *lb, struct Object *ob, struct Scene *scene, int duplis);
 
 /***************** Global funcs ****************************/
 void BKE_ptcache_remove(void);

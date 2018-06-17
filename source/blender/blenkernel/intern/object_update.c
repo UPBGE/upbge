@@ -39,40 +39,35 @@
 #include "BLI_math.h"
 #include "BLI_threads.h"
 
-#include "BKE_global.h"
+#include "BKE_animsys.h"
 #include "BKE_armature.h"
 #include "BKE_action.h"
 #include "BKE_constraint.h"
 #include "BKE_depsgraph.h"
 #include "BKE_DerivedMesh.h"
-#include "BKE_animsys.h"
 #include "BKE_displist.h"
+#include "BKE_editmesh.h"
 #include "BKE_effect.h"
+#include "BKE_global.h"
+#include "BKE_image.h"
 #include "BKE_key.h"
 #include "BKE_lamp.h"
 #include "BKE_lattice.h"
-#include "BKE_editmesh.h"
+#include "BKE_main.h"
+#include "BKE_material.h"
 #include "BKE_object.h"
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
 #include "BKE_scene.h"
-#include "BKE_material.h"
-#include "BKE_image.h"
 
 #include "DEG_depsgraph.h"
-
-#ifdef WITH_LEGACY_DEPSGRAPH
-#  define DEBUG_PRINT if (!DEG_depsgraph_use_legacy() && G.debug & G_DEBUG_DEPSGRAPH) printf
-#else
-#  define DEBUG_PRINT if (G.debug & G_DEBUG_DEPSGRAPH) printf
-#endif
 
 static ThreadMutex material_lock = BLI_MUTEX_INITIALIZER;
 
 void BKE_object_eval_local_transform(EvaluationContext *UNUSED(eval_ctx),
                                      Object *ob)
 {
-	DEBUG_PRINT("%s on %s\n", __func__, ob->id.name);
+	DEG_debug_print_eval(__func__, ob->id.name, ob);
 
 	/* calculate local matrix */
 	BKE_object_to_mat4(ob, ob->obmat);
@@ -90,7 +85,7 @@ void BKE_object_eval_parent(EvaluationContext *UNUSED(eval_ctx),
 	float tmat[4][4];
 	float locmat[4][4];
 
-	DEBUG_PRINT("%s on %s\n", __func__, ob->id.name);
+	DEG_debug_print_eval(__func__, ob->id.name, ob);
 
 	/* get local matrix (but don't calculate it, as that was done already!) */
 	// XXX: redundant?
@@ -119,7 +114,7 @@ void BKE_object_eval_constraints(EvaluationContext *UNUSED(eval_ctx),
 	bConstraintOb *cob;
 	float ctime = BKE_scene_frame_get(scene);
 
-	DEBUG_PRINT("%s on %s\n", __func__, ob->id.name);
+	DEG_debug_print_eval(__func__, ob->id.name, ob);
 
 	/* evaluate constraints stack */
 	/* TODO: split this into:
@@ -137,23 +132,25 @@ void BKE_object_eval_constraints(EvaluationContext *UNUSED(eval_ctx),
 
 void BKE_object_eval_done(EvaluationContext *UNUSED(eval_ctx), Object *ob)
 {
-	DEBUG_PRINT("%s on %s\n", __func__, ob->id.name);
+	DEG_debug_print_eval(__func__, ob->id.name, ob);
 
 	/* Set negative scale flag in object. */
 	if (is_negative_m4(ob->obmat)) ob->transflag |= OB_NEG_SCALE;
 	else ob->transflag &= ~OB_NEG_SCALE;
 }
 
-void BKE_object_handle_data_update(EvaluationContext *eval_ctx,
-                                   Scene *scene,
-                                   Object *ob)
+void BKE_object_handle_data_update(
+        Main *bmain,
+        EvaluationContext *eval_ctx,
+        Scene *scene,
+        Object *ob)
 {
 	ID *data_id = (ID *)ob->data;
 	AnimData *adt = BKE_animdata_from_id(data_id);
 	Key *key;
 	float ctime = BKE_scene_frame_get(scene);
 
-	if (G.debug & G_DEBUG_DEPSGRAPH)
+	if (G.debug & G_DEBUG_DEPSGRAPH_EVAL)
 		printf("recalcdata %s\n", ob->id.name + 2);
 
 	/* TODO(sergey): Only used by legacy depsgraph. */
@@ -203,7 +200,7 @@ void BKE_object_handle_data_update(EvaluationContext *eval_ctx,
 			break;
 
 		case OB_MBALL:
-			BKE_displist_make_mball(eval_ctx, scene, ob);
+			BKE_displist_make_mball(bmain, eval_ctx, scene, ob);
 			break;
 
 		case OB_CURVE:
@@ -266,7 +263,7 @@ void BKE_object_handle_data_update(EvaluationContext *eval_ctx,
 					ob->transflag |= OB_DUPLIPARTS;
 				}
 
-				particle_system_update(scene, ob, psys, (eval_ctx->mode == DAG_EVAL_RENDER));
+				particle_system_update(bmain, scene, ob, psys, (eval_ctx->mode == DAG_EVAL_RENDER));
 				psys = psys->next;
 			}
 			else if (psys->flag & PSYS_DELETE) {
@@ -328,13 +325,13 @@ void BKE_object_eval_uber_transform(EvaluationContext *eval_ctx, Object *object)
 	}
 }
 
-void BKE_object_eval_uber_data(EvaluationContext *eval_ctx,
+void BKE_object_eval_uber_data(Main *bmain, EvaluationContext *eval_ctx,
                                Scene *scene,
                                Object *ob)
 {
-	DEBUG_PRINT("%s on %s\n", __func__, ob->id.name);
+	DEG_debug_print_eval(__func__, ob->id.name, ob);
 	BLI_assert(ob->type != OB_ARMATURE);
-	BKE_object_handle_data_update(eval_ctx, scene, ob);
+	BKE_object_handle_data_update(bmain, eval_ctx, scene, ob);
 
 	ob->recalc &= ~(OB_RECALC_DATA | OB_RECALC_TIME);
 }
@@ -343,7 +340,7 @@ void BKE_object_eval_cloth(EvaluationContext *UNUSED(eval_ctx),
                            Scene *scene,
                            Object *object)
 {
-	DEBUG_PRINT("%s on %s\n", __func__, object->id.name);
+	DEG_debug_print_eval(__func__, object->id.name, object);
 	BKE_ptcache_object_reset(scene, object, PTCACHE_RESET_DEPSGRAPH);
 }
 

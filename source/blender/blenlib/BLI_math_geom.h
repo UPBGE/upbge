@@ -85,6 +85,7 @@ bool is_quad_convex_v3(const float v1[3], const float v2[3], const float v3[3], 
 bool is_quad_convex_v2(const float v1[2], const float v2[2], const float v3[2], const float v4[2]);
 bool is_poly_convex_v2(const float verts[][2], unsigned int nr);
 int  is_quad_flip_v3(const float v1[3], const float v2[3], const float v3[3], const float v4[3]);
+bool is_quad_flip_v3_first_third_fast(const float v0[3], const float v1[3], const float v2[3], const float v3[3]);
 
 /********************************* Distance **********************************/
 
@@ -355,12 +356,18 @@ void transform_point_by_seg_v3(
         const float l_dst_p1[3], const float l_dst_p2[3],
         const float l_src_p1[3], const float l_src_p2[3]);
 
-void barycentric_weights_v2(const float v1[2], const float v2[2], const float v3[2],
-                            const float co[2], float w[3]);
-void barycentric_weights_v2_persp(const float v1[4], const float v2[4], const float v3[4],
-                                  const float co[2], float w[3]);
-void barycentric_weights_v2_quad(const float v1[2], const float v2[2], const float v3[2], const float v4[2],
-                                 const float co[2], float w[4]);
+void barycentric_weights_v2(
+        const float v1[2], const float v2[2], const float v3[2],
+        const float co[2], float w[3]);
+void barycentric_weights_v2_clamped(
+        const float v1[2], const float v2[2], const float v3[2],
+        const float co[2], float w[3]);
+void barycentric_weights_v2_persp(
+        const float v1[4], const float v2[4], const float v3[4],
+        const float co[2], float w[3]);
+void barycentric_weights_v2_quad(
+        const float v1[2], const float v2[2], const float v3[2], const float v4[2],
+        const float co[2], float w[4]);
 
 bool barycentric_coords_v2(const float v1[2], const float v2[2], const float v3[2], const float co[2], float w[3]);
 int barycentric_inside_triangle_v2(const float w[3]);

@@ -211,6 +211,7 @@ shader_node_categories = [
         NodeItem("ShaderNodeNewGeometry"),
         NodeItem("ShaderNodeWireframe"),
         NodeItem("ShaderNodeBevel"),
+        NodeItem("ShaderNodeAmbientOcclusion"),
         NodeItem("ShaderNodeObjectInfo"),
         NodeItem("ShaderNodeHairInfo"),
         NodeItem("ShaderNodeParticleInfo"),
@@ -243,10 +244,10 @@ shader_node_categories = [
         NodeItem("ShaderNodeEmission", poll=object_shader_nodes_poll),
         NodeItem("ShaderNodeBsdfHair", poll=object_shader_nodes_poll),
         NodeItem("ShaderNodeBackground", poll=world_shader_nodes_poll),
-        NodeItem("ShaderNodeAmbientOcclusion", poll=object_shader_nodes_poll),
         NodeItem("ShaderNodeHoldout", poll=object_shader_nodes_poll),
         NodeItem("ShaderNodeVolumeAbsorption"),
         NodeItem("ShaderNodeVolumeScatter"),
+        NodeItem("ShaderNodeVolumePrincipled"),
         ]),
     ShaderNewNodeCategory("SH_NEW_TEXTURE", "Texture", items=[
         NodeItem("ShaderNodeTexImage"),
@@ -261,6 +262,7 @@ shader_node_categories = [
         NodeItem("ShaderNodeTexChecker"),
         NodeItem("ShaderNodeTexBrick"),
         NodeItem("ShaderNodeTexPointDensity"),
+        NodeItem("ShaderNodeTexIES"),
         ]),
     ShaderNewNodeCategory("SH_NEW_OP_COLOR", "Color", items=[
         NodeItem("ShaderNodeMixRGB"),
@@ -274,6 +276,8 @@ shader_node_categories = [
     ShaderNewNodeCategory("SH_NEW_OP_VECTOR", "Vector", items=[
         NodeItem("ShaderNodeMapping"),
         NodeItem("ShaderNodeBump"),
+        NodeItem("ShaderNodeDisplacement"),
+        NodeItem("ShaderNodeVectorDisplacement"),
         NodeItem("ShaderNodeNormalMap"),
         NodeItem("ShaderNodeNormal"),
         NodeItem("ShaderNodeParallax"),

@@ -105,7 +105,7 @@
 
 /* ************************ Constraints - General Utilities *************************** */
 /* These functions here don't act on any specific constraints, and are therefore should/will
- * not require any of the special function-pointers afforded by the relevant constraint 
+ * not require any of the special function-pointers afforded by the relevant constraint
  * type-info structs.
  */
 
@@ -655,7 +655,7 @@ static void constraint_target_to_mat4(Object *ob, const char *substring, float m
 /* ************************* Specific Constraints ***************************** */
 /* Each constraint defines a set of functions, which will be called at the appropriate
  * times. In addition to this, each constraint should have a type-info struct, where
- * its functions are attached for use. 
+ * its functions are attached for use.
  */
  
 /* Template for type-info data:
@@ -664,7 +664,7 @@ static void constraint_target_to_mat4(Object *ob, const char *substring, float m
  *  - although the naming of functions doesn't matter, it would help for code
  *    readability, to follow the same naming convention as is presented here
  *  - any functions that a constraint doesn't need to define, don't define
- *    for such cases, just use NULL 
+ *    for such cases, just use NULL
  *  - these should be defined after all the functions have been defined, so that
  *    forward-definitions/prototypes don't need to be used!
  *	- keep this copy #if-def'd so that future constraints can get based off this
@@ -1018,8 +1018,11 @@ static void vectomat(const float vec[3], const float target_up[3], short axis, s
 		u[2] = 1;
 	}
 
+	/* note: even though 'n' is normalized, don't use 'project_v3_v3v3_normalized' below
+	 * because precision issues cause a problem in near degenerate states, see: T53455. */
+
 	/* project the up vector onto the plane specified by n */
-	project_v3_v3v3_normalized(proj, u, n); /* first u onto n... */
+	project_v3_v3v3(proj, u, n); /* first u onto n... */
 	sub_v3_v3v3(proj, u, proj); /* then onto the plane */
 	/* proj specifies the transformation of the up axis */
 
@@ -1923,14 +1926,15 @@ static void samevolume_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *
 	bSameVolumeConstraint *data = con->data;
 
 	float volume = data->volume;
-	float fac = 1.0f;
+	float fac = 1.0f, total_scale;
 	float obsize[3];
 
 	mat4_to_size(obsize, cob->matrix);
 	
 	/* calculate normalizing scale factor for non-essential values */
-	if (obsize[data->flag] != 0) 
-		fac = sqrtf(volume / obsize[data->flag]);
+	total_scale = obsize[0] * obsize[1] * obsize[2];
+	if (total_scale != 0)
+		fac = sqrtf(volume / total_scale);
 	
 	/* apply scaling factor to the channels not being kept */
 	switch (data->flag) {
@@ -2637,7 +2641,7 @@ static void distlimit_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *t
 			/* if soft-distance is enabled, start fading once owner is dist+softdist from the target */
 			else if (data->flag & LIMITDIST_USESOFT) {
 				if (dist <= (data->dist + data->soft)) {
-					
+					/* pass */
 				}
 			}
 		}
@@ -3504,9 +3508,9 @@ static void shrinkwrap_get_tarmat(bConstraint *con, bConstraintOb *cob, bConstra
 					nearest.dist_sq = FLT_MAX;
 
 					if (scon->shrinkType == MOD_SHRINKWRAP_NEAREST_VERTEX)
-						bvhtree_from_mesh_verts(&treeData, target, 0.0, 2, 6);
+						bvhtree_from_mesh_get(&treeData, target, BVHTREE_FROM_VERTS, 2);
 					else
-						bvhtree_from_mesh_looptri(&treeData, target, 0.0, 2, 6);
+						bvhtree_from_mesh_get(&treeData, target, BVHTREE_FROM_LOOPTRI, 2);
 					
 					if (treeData.tree == NULL) {
 						fail = true;
@@ -3558,15 +3562,14 @@ static void shrinkwrap_get_tarmat(bConstraint *con, bConstraintOb *cob, bConstra
 						break;
 					}
 
-					bvhtree_from_mesh_looptri(&treeData, target, scon->dist, 4, 6);
+					bvhtree_from_mesh_get(&treeData, target, BVHTREE_FROM_LOOPTRI, 4);
 					if (treeData.tree == NULL) {
 						fail = true;
 						break;
 					}
 
-					
-					if (BKE_shrinkwrap_project_normal(0, co, no, &transform, treeData.tree, &hit,
-					                                  treeData.raycast_callback, &treeData) == false)
+					if (BKE_shrinkwrap_project_normal(0, co, no, scon->dist, &transform, treeData.tree,
+					                                  &hit, treeData.raycast_callback, &treeData) == false)
 					{
 						fail = true;
 						break;
@@ -4174,7 +4177,7 @@ static void followtrack_evaluate(bConstraint *con, bConstraintOb *cob, ListBase 
 					sub_v3_v3v3(ray_nor, ray_end, ray_start);
 					normalize_v3(ray_nor);
 
-					bvhtree_from_mesh_looptri(&treeData, target, 0.0f, 4, 6);
+					bvhtree_from_mesh_get(&treeData, target, BVHTREE_FROM_LOOPTRI, 4);
 
 					hit.dist = BVH_RAYCAST_DIST_MAX;
 					hit.index = -1;
@@ -4525,7 +4528,7 @@ static void con_unlink_refs_cb(bConstraint *UNUSED(con), ID **idpoin, bool is_re
 
 /* Free data of a specific constraint if it has any info.
  * be sure to run BIK_clear_data() when freeing an IK constraint,
- * unless DAG_relations_tag_update is called. 
+ * unless DAG_relations_tag_update is called.
  */
 void BKE_constraint_free_data_ex(bConstraint *con, bool do_id_user)
 {
@@ -4859,7 +4862,7 @@ bool BKE_constraints_proxylocked_owner(Object *ob, bPoseChannel *pchan)
 
 /* This function is a relic from the prior implementations of the constraints system, when all
  * constraints either had one or no targets. It used to be called during the main constraint solving
- * loop, but is now only used for the remaining cases for a few constraints. 
+ * loop, but is now only used for the remaining cases for a few constraints.
  *
  * None of the actual calculations of the matrices should be done here! Also, this function is
  * not to be used by any new constraints, particularly any that have multiple targets.
@@ -4963,7 +4966,7 @@ void BKE_constraint_targets_for_solving_get(bConstraint *con, bConstraintOb *cob
 /* This function is called whenever constraints need to be evaluated. Currently, all
  * constraints that can be evaluated are every time this gets run.
  *
- * BKE_constraints_make_evalob and BKE_constraints_clear_evalob should be called before and 
+ * BKE_constraints_make_evalob and BKE_constraints_clear_evalob should be called before and
  * after running this function, to sort out cob
  */
 void BKE_constraints_solve(ListBase *conlist, bConstraintOb *cob, float ctime)

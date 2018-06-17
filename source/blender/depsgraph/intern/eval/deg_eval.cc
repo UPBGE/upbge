@@ -107,7 +107,10 @@ typedef struct CalculatePengindData {
 	unsigned int layers;
 } CalculatePengindData;
 
-static void calculate_pending_func(void *data_v, int i)
+static void calculate_pending_func(
+        void *__restrict data_v,
+        const int i,
+        const ParallelRangeTLS *__restrict /*tls*/)
 {
 	CalculatePengindData *data = (CalculatePengindData *)data_v;
 	Depsgraph *graph = data->graph;
@@ -141,15 +144,17 @@ static void calculate_pending_func(void *data_v, int i)
 static void calculate_pending_parents(Depsgraph *graph, unsigned int layers)
 {
 	const int num_operations = graph->operations.size();
-	const bool do_threads = num_operations > 256;
 	CalculatePengindData data;
 	data.graph = graph;
 	data.layers = layers;
+	ParallelRangeSettings settings;
+	BLI_parallel_range_settings_defaults(&settings);
+	settings.min_iter_per_thread = 1024;
 	BLI_task_parallel_range(0,
 	                        num_operations,
 	                        &data,
 	                        calculate_pending_func,
-	                        do_threads);
+	                        &settings);
 }
 
 static void initialize_execution(DepsgraphEvalState *state, Depsgraph *graph)
@@ -247,23 +252,25 @@ void deg_evaluate_on_refresh(EvaluationContext *eval_ctx,
                              Depsgraph *graph,
                              const unsigned int layers)
 {
-	/* Nothing to update, early out. */
-	if (BLI_gset_size(graph->entry_tags) == 0) {
-		return;
-	}
-	DEG_DEBUG_PRINTF("%s: layers:%u, graph->layers:%u\n",
-	                 __func__,
-	                 layers,
-	                 graph->layers);
 	/* Set time for the current graph evaluation context. */
 	TimeSourceDepsNode *time_src = graph->find_time_source();
 	eval_ctx->ctime = time_src->cfra;
+	/* Nothing to update, early out. */
+	if (BLI_gset_len(graph->entry_tags) == 0) {
+		return;
+	}
+	DEG_DEBUG_PRINTF(EVAL, "%s: layers:%u, graph->layers:%u\n",
+	                 __func__,
+	                 layers,
+	                 graph->layers);
+	const bool do_time_debug = ((G.debug & G_DEBUG_DEPSGRAPH_TIME) != 0);
+	const double start_time = do_time_debug ? PIL_check_seconds_timer() : 0;
 	/* Set up evaluation context for depsgraph itself. */
 	DepsgraphEvalState state;
 	state.eval_ctx = eval_ctx;
 	state.graph = graph;
 	state.layers = layers;
-	state.do_stats = (G.debug_value != 0);
+	state.do_stats = do_time_debug;
 	/* Set up task scheduler and pull for threaded evaluation. */
 	TaskScheduler *task_scheduler;
 	bool need_free_scheduler;
@@ -293,6 +300,10 @@ void deg_evaluate_on_refresh(EvaluationContext *eval_ctx,
 	deg_graph_clear_tags(graph);
 	if (need_free_scheduler) {
 		BLI_task_scheduler_free(task_scheduler);
+	}
+	if (do_time_debug) {
+		printf("Depsgraph updated in %f seconds.\n",
+		       PIL_check_seconds_timer() - start_time);
 	}
 }
 

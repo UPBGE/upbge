@@ -53,7 +53,7 @@
 
 #include "ED_node.h"  /* own include */
 
-#include "ED_util.h"
+#include "ED_undo.h"
 
 
 /************************* Node Socket Manipulation **************************/
@@ -64,7 +64,7 @@ typedef struct NodeLinkItem {
 	int socket_type;			/* socket type for compatibility check */
 	const char *socket_name;	/* ui label of the socket */
 	const char *node_name;		/* ui label of the node */
-	
+
 	/* extra settings */
 	bNodeTree *ngroup;		/* group node tree */
 } NodeLinkItem;
@@ -82,16 +82,16 @@ static bool node_link_item_compare(bNode *node, NodeLinkItem *item)
 		return true;
 }
 
-static void node_link_item_apply(bNode *node, NodeLinkItem *item)
+static void node_link_item_apply(Main *bmain, bNode *node, NodeLinkItem *item)
 {
 	if (node->type == NODE_GROUP) {
 		node->id = (ID *)item->ngroup;
-		ntreeUpdateTree(G.main, item->ngroup);
+		ntreeUpdateTree(bmain, item->ngroup);
 	}
 	else {
 		/* nothing to do for now */
 	}
-	
+
 	if (node->id)
 		id_us_plus(node->id);
 }
@@ -191,6 +191,7 @@ static void node_socket_remove(Main *bmain, bNodeTree *ntree, bNode *node_to, bN
 static void node_socket_add_replace(const bContext *C, bNodeTree *ntree, bNode *node_to, bNodeSocket *sock_to,
                                     int type, NodeLinkItem *item)
 {
+	Main *bmain = CTX_data_main(C);
 	bNode *node_from;
 	bNodeSocket *sock_from_tmp;
 	bNode *node_prev = NULL;
@@ -232,8 +233,8 @@ static void node_socket_add_replace(const bContext *C, bNodeTree *ntree, bNode *
 			node_from->locx = node_to->locx - (node_from->typeinfo->width + 50);
 			node_from->locy = node_to->locy - (node_from->typeinfo->height * index);
 		}
-		
-		node_link_item_apply(node_from, item);
+
+		node_link_item_apply(bmain, node_from, item);
 	}
 
 	nodeSetActive(ntree, node_from);
@@ -307,19 +308,19 @@ static void ui_node_link_items(NodeLinkArg *arg, int in_out, NodeLinkItem **r_it
 	/* XXX this should become a callback for node types! */
 	NodeLinkItem *items = NULL;
 	int totitems = 0;
-	
+
 	if (arg->node_type->type == NODE_GROUP) {
 		bNodeTree *ngroup;
 		int i;
-		
+
 		for (ngroup = arg->bmain->nodetree.first; ngroup; ngroup = ngroup->id.next) {
 			ListBase *lb = ((in_out == SOCK_IN) ? &ngroup->inputs : &ngroup->outputs);
 			totitems += BLI_listbase_count(lb);
 		}
-		
+
 		if (totitems > 0) {
 			items = MEM_callocN(sizeof(NodeLinkItem) * totitems, "ui node link items");
-			
+
 			i = 0;
 			for (ngroup = arg->bmain->nodetree.first; ngroup; ngroup = ngroup->id.next) {
 				ListBase *lb = (in_out == SOCK_IN ? &ngroup->inputs : &ngroup->outputs);
@@ -327,7 +328,7 @@ static void ui_node_link_items(NodeLinkArg *arg, int in_out, NodeLinkItem **r_it
 				int index;
 				for (stemp = lb->first, index = 0; stemp; stemp = stemp->next, ++index, ++i) {
 					NodeLinkItem *item = &items[i];
-					
+
 					item->socket_index = index;
 					/* note: int stemp->type is not fully reliable, not used for node group
 					 * interface sockets. use the typeinfo->type instead.
@@ -344,17 +345,17 @@ static void ui_node_link_items(NodeLinkArg *arg, int in_out, NodeLinkItem **r_it
 		bNodeSocketTemplate *socket_templates = (in_out == SOCK_IN ? arg->node_type->inputs : arg->node_type->outputs);
 		bNodeSocketTemplate *stemp;
 		int i;
-		
+
 		for (stemp = socket_templates; stemp && stemp->type != -1; ++stemp)
 			++totitems;
-		
+
 		if (totitems > 0) {
 			items = MEM_callocN(sizeof(NodeLinkItem) * totitems, "ui node link items");
-			
+
 			i = 0;
 			for (stemp = socket_templates; stemp && stemp->type != -1; ++stemp, ++i) {
 				NodeLinkItem *item = &items[i];
-				
+
 				item->socket_index = i;
 				item->socket_type = stemp->type;
 				item->socket_name = stemp->name;
@@ -362,7 +363,7 @@ static void ui_node_link_items(NodeLinkArg *arg, int in_out, NodeLinkItem **r_it
 			}
 		}
 	}
-	
+
 	*r_items = items;
 	*r_totitems = totitems;
 }
@@ -386,20 +387,13 @@ static void ui_node_link(bContext *C, void *arg_p, void *event_p)
 	ED_undo_push(C, "Node input modify");
 }
 
-static void ui_node_sock_name(bNodeSocket *sock, char name[UI_MAX_NAME_STR])
+static void ui_node_sock_name(bNodeTree *ntree, bNodeSocket *sock, char name[UI_MAX_NAME_STR])
 {
 	if (sock->link && sock->link->fromnode) {
 		bNode *node = sock->link->fromnode;
 		char node_name[UI_MAX_NAME_STR];
 
-		if (node->type == NODE_GROUP) {
-			if (node->id)
-				BLI_strncpy(node_name, node->id->name + 2, UI_MAX_NAME_STR);
-			else
-				BLI_strncpy(node_name, N_(node->typeinfo->ui_name), UI_MAX_NAME_STR);
-		}
-		else
-			BLI_strncpy(node_name, node->typeinfo->ui_name, UI_MAX_NAME_STR);
+		nodeLabel(ntree, node, node_name, sizeof(node_name));
 
 		if (BLI_listbase_is_empty(&node->inputs) &&
 		    node->outputs.first != node->outputs.last)
@@ -453,7 +447,7 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
 	NodeLinkArg *argN;
 	int first = 1;
 	int compatibility = 0;
-	
+
 	if (ntree->type == NTREE_SHADER) {
 		if (BKE_scene_use_new_shading_nodes(arg->scene))
 			compatibility = NODE_NEW_SHADING;
@@ -482,10 +476,10 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
 	}
 	NODE_TYPES_END
 
-	qsort(sorted_ntypes, BLI_array_count(sorted_ntypes), sizeof(bNodeType *), ui_node_item_name_compare);
+	qsort(sorted_ntypes, BLI_array_len(sorted_ntypes), sizeof(bNodeType *), ui_node_item_name_compare);
 
 	/* generate UI */
-	for (int j = 0; j < BLI_array_count(sorted_ntypes); j++) {
+	for (int j = 0; j < BLI_array_len(sorted_ntypes); j++) {
 		bNodeType *ntype = sorted_ntypes[j];
 		NodeLinkItem *items;
 		int totitems;
@@ -493,29 +487,29 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
 		const char *cur_node_name = NULL;
 		int i, num = 0;
 		int icon = ICON_NONE;
-		
+
 		arg->node_type = ntype;
-		
+
 		ui_node_link_items(arg, SOCK_OUT, &items, &totitems);
-		
+
 		for (i = 0; i < totitems; ++i)
 			if (ui_compatible_sockets(items[i].socket_type, sock->type))
 				num++;
-		
+
 		for (i = 0; i < totitems; ++i) {
 			if (!ui_compatible_sockets(items[i].socket_type, sock->type))
 				continue;
-			
+
 			if (first) {
 				column = uiLayoutColumn(layout, 0);
 				UI_block_layout_set_current(block, column);
-				
+
 				uiItemL(column, IFACE_(cname), ICON_NODE);
 				but = block->buttons.last;
-				
+
 				first = 0;
 			}
-			
+
 			if (num > 1) {
 				if (!cur_node_name || !STREQ(cur_node_name, items[i].node_name)) {
 					cur_node_name = items[i].node_name;
@@ -531,15 +525,15 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
 				BLI_strncpy(name, IFACE_(items[i].node_name), UI_MAX_NAME_STR);
 				icon = ICON_NONE;
 			}
-			
+
 			but = uiDefIconTextBut(block, UI_BTYPE_BUT, 0, icon, name, 0, 0, UI_UNIT_X * 4, UI_UNIT_Y,
 			                       NULL, 0.0, 0.0, 0.0, 0.0, TIP_("Add node to input"));
-			
+
 			argN = MEM_dupallocN(arg);
 			argN->item = items[i];
 			UI_but_funcN_set(but, ui_node_link, argN, NULL);
 		}
-		
+
 		if (items)
 			MEM_freeN(items);
 	}
@@ -612,7 +606,7 @@ void uiTemplateNodeLink(uiLayout *layout, bNodeTree *ntree, bNode *node, bNodeSo
 
 	if (sock->link || sock->type == SOCK_SHADER || (sock->flag & SOCK_HIDE_VALUE)) {
 		char name[UI_MAX_NAME_STR];
-		ui_node_sock_name(sock, name);
+		ui_node_sock_name(ntree, sock, name);
 		but = uiDefMenuBut(block, ui_template_node_link_menu, NULL, name, 0, 0, UI_UNIT_X * 4, UI_UNIT_Y, "");
 	}
 	else
@@ -746,7 +740,7 @@ static void ui_node_draw_input(uiLayout *layout, bContext *C, bNodeTree *ntree, 
 					col = uiLayoutColumn(row, false);
 					uiItemR(col, &inputptr, "default_value", 0, "", ICON_NONE);
 					break;
-					
+
 				default:
 					row = uiLayoutRow(split, false);
 					break;

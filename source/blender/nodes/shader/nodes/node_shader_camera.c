@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -45,7 +45,7 @@ static void node_shader_exec_camera(void *data, int UNUSED(thread), bNode *UNUSE
 {
 	if (data) {
 		ShadeInput *shi = ((ShaderCallData *)data)->shi;  /* Data we need for shading. */
-		
+
 		copy_v3_v3(out[0]->vec, shi->co);       /* get view vector */
 		out[1]->vec[0] = fabsf(shi->co[2]);      /* get view z-depth */
 		out[2]->vec[0] = normalize_v3(out[0]->vec); /* get view distance */

@@ -87,14 +87,12 @@ typedef struct BevList {
 	int charidx;
 	int *segbevcount;
 	float *seglen;
-
-	/* over-alloc */
-	BevPoint bevpoints[0];
+	BevPoint *bevpoints;
 } BevList;
 
 /**
  * Keyframes on F-Curves (allows code reuse of Bezier eval code) and
- * Points on Bezier Curves/Paths are generally BezTriples 
+ * Points on Bezier Curves/Paths are generally BezTriples
  *
  * \note alfa location in struct is abused by Key system
  *
@@ -118,7 +116,7 @@ typedef struct BezTriple {
 	char h1, h2; 				/* h1, h2: the handle type of the two handles */
 	char f1, f2, f3;			/* f1, f2, f3: used for selection status */
 	
-	char hide;					/* hide: used to indicate whether BezTriple is hidden (3D), type of keyframe (eBezTriple_KeyframeTypes) */
+	char hide;					/* hide: used to indicate whether BezTriple is hidden (3D), type of keyframe (eBezTriple_KeyframeType) */
 	
 	char easing;				/* easing: easing type for interpolation mode (eBezTriple_Easing) */
 	float back;					/* BEZT_IPO_BACK */

@@ -43,6 +43,7 @@
  */
 #include <string>
 #include <vector>
+#include <algorithm>
 
 struct bAction;
 struct ChannelDriver;
@@ -137,6 +138,7 @@ typedef enum eDepsOperation_Code {
 	DEG_OPCODE_OPERATION = 0,
 
 	/* Generic parameters evaluation. */
+	DEG_OPCODE_ID_PROPERTY,
 	DEG_OPCODE_PARAMETERS_EVAL,
 
 	// XXX: Placeholder while porting depsgraph code

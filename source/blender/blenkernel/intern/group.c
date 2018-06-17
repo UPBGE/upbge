@@ -223,11 +223,11 @@ bool BKE_group_object_cyclic_check(Main *bmain, Object *object, Group *group)
 	return group_object_cyclic_check_internal(object, group);
 }
 
-bool BKE_group_object_unlink(Group *group, Object *object, Scene *scene, Base *base)
+bool BKE_group_object_unlink(Main *bmain, Group *group, Object *object, Scene *scene, Base *base)
 {
 	if (group_object_unlink_internal(group, object)) {
 		/* object can be NULL */
-		if (object && BKE_group_object_find(NULL, object) == NULL) {
+		if (object && BKE_group_object_find(bmain, NULL, object) == NULL) {
 			if (scene && base == NULL)
 				base = BKE_scene_base_find(scene, object);
 
@@ -253,12 +253,12 @@ bool BKE_group_object_exists(Group *group, Object *ob)
 	}
 }
 
-Group *BKE_group_object_find(Group *group, Object *ob)
+Group *BKE_group_object_find(Main *bmain, Group *group, Object *ob)
 {
 	if (group)
 		group = group->id.next;
 	else
-		group = G.main->group.first;
+		group = bmain->group.first;
 	
 	while (group) {
 		if (BKE_group_object_exists(group, ob))
@@ -330,7 +330,8 @@ static void group_replaces_nla(Object *parent, Object *target, char mode)
  * you can draw everything, leaves tags in objects to signal it needs further updating */
 
 /* note: does not work for derivedmesh and render... it recreates all again in convertblender.c */
-void BKE_group_handle_recalc_and_update(EvaluationContext *eval_ctx, Scene *scene, Object *UNUSED(parent), Group *group)
+void BKE_group_handle_recalc_and_update(
+        Main *bmain, EvaluationContext *eval_ctx, Scene *scene, Object *UNUSED(parent), Group *group)
 {
 	GroupObject *go;
 	
@@ -370,7 +371,7 @@ void BKE_group_handle_recalc_and_update(EvaluationContext *eval_ctx, Scene *scen
 		for (go = group->gobject.first; go; go = go->next) {
 			if (go->ob) {
 				if (go->ob->recalc) {
-					BKE_object_handle_update(eval_ctx, scene, go->ob);
+					BKE_object_handle_update(bmain, eval_ctx, scene, go->ob);
 				}
 			}
 		}

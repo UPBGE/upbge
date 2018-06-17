@@ -554,7 +554,7 @@ PythonComponent *BKE_python_component_create_file(char *import, ReportList *repo
 
 	filecontent = BLI_str_replaceN((char *)orgfilecontent, "%Name%", classname);
 
-	BKE_text_write(text, (char *)filecontent);
+	BKE_text_write(text, NULL, (char *)filecontent);
 
 	MEM_freeN(filecontent);
 

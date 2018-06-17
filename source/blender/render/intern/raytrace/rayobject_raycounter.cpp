@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -80,7 +80,7 @@ void RE_RC_MERGE(RayCounter *dest, RayCounter *tmp)
 
 	dest->raycast.test += tmp->raycast.test;
 	dest->raycast.hit  += tmp->raycast.hit;
-	
+
 	dest->rayshadow_last_hit.test += tmp->rayshadow_last_hit.test;
 	dest->rayshadow_last_hit.hit  += tmp->rayshadow_last_hit.hit;
 

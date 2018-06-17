@@ -53,8 +53,8 @@
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_movieclip_types.h"
-#include "DNA_object_fluidsim.h"
-#include "DNA_object_force.h"
+#include "DNA_object_fluidsim_types.h"
+#include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_sequence_types.h"
@@ -325,7 +325,7 @@ void BKE_bpath_missing_files_find(Main *bmain, const char *searchpath, ReportLis
 	struct BPathFind_Data data = {NULL};
 	const int flag = BKE_BPATH_TRAVERSE_ABS | BKE_BPATH_TRAVERSE_RELOAD_EDITED;
 
-	data.basedir = bmain->name;
+	data.basedir = BKE_main_blendfile_path(bmain);
 	data.reports = reports;
 	data.searchdir = searchpath;
 	data.find_all = find_all;
@@ -442,7 +442,7 @@ void BKE_bpath_traverse_id(Main *bmain, ID *id, BPathVisitor visit_cb, const int
 							    /* image may have been painted onto (and not saved, T44543) */
 							    !BKE_image_is_dirty(ima))
 							{
-								BKE_image_signal(ima, NULL, IMA_SIGNAL_RELOAD);
+								BKE_image_signal(bmain, ima, NULL, IMA_SIGNAL_RELOAD);
 								BKE_image_walk_all_users(bmain, ima, bpath_traverse_image_user_cb);
 							}
 						}
@@ -560,6 +560,10 @@ void BKE_bpath_traverse_id(Main *bmain, ID *id, BPathVisitor visit_cb, const int
 						NodeShaderScript *nss = (NodeShaderScript *)node->storage;
 						rewrite_path_fixed(nss->filepath, visit_cb, absbase, bpath_user_data);
 					}
+					else if (node->type == SH_NODE_TEX_IES) {
+						NodeShaderTexIES *ies = (NodeShaderTexIES *)node->storage;
+						rewrite_path_fixed(ies->filepath, visit_cb, absbase, bpath_user_data);
+					}
 				}
 			}
 			break;
@@ -575,6 +579,10 @@ void BKE_bpath_traverse_id(Main *bmain, ID *id, BPathVisitor visit_cb, const int
 					if (node->type == SH_NODE_SCRIPT) {
 						NodeShaderScript *nss = (NodeShaderScript *)node->storage;
 						rewrite_path_fixed(nss->filepath, visit_cb, absbase, bpath_user_data);
+					}
+					else if (node->type == SH_NODE_TEX_IES) {
+						NodeShaderTexIES *ies = (NodeShaderTexIES *)node->storage;
+						rewrite_path_fixed(ies->filepath, visit_cb, absbase, bpath_user_data);
 					}
 				}
 			}
@@ -643,7 +651,7 @@ void BKE_bpath_traverse_id(Main *bmain, ID *id, BPathVisitor visit_cb, const int
 			/* keep packedfile paths always relative to the blend */
 			if (lib->packedfile == NULL) {
 				if (rewrite_path_fixed(lib->name, visit_cb, absbase, bpath_user_data)) {
-					BKE_library_filepath_set(lib, lib->name);
+					BKE_library_filepath_set(bmain, lib, lib->name);
 				}
 			}
 			break;

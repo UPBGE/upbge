@@ -73,10 +73,11 @@ ccl_device_inline bool triangle_intersect(KernelGlobals *kg,
 /* Special ray intersection routines for local intersection. In that case we
  * only want to intersect with primitives in the same object, and if case of
  * multiple hits we pick a single random primitive as the intersection point.
+ * Returns whether traversal should be stopped.
  */
 
 #ifdef __BVH_LOCAL__
-ccl_device_inline void triangle_intersect_local(
+ccl_device_inline bool triangle_intersect_local(
         KernelGlobals *kg,
         LocalIntersection *local_isect,
         float3 P,
@@ -92,7 +93,7 @@ ccl_device_inline void triangle_intersect_local(
 	 * already know we are only intersecting the right object. */
 	if(object == OBJECT_NONE) {
 		if(kernel_tex_fetch(__prim_object, prim_addr) != local_object) {
-			return;
+			return false;
 		}
 	}
 
@@ -115,31 +116,48 @@ ccl_device_inline void triangle_intersect_local(
 #endif
 	                           &u, &v, &t))
 	{
-		return;
+		return false;
 	}
 
-	for(int i = min(max_hits, local_isect->num_hits) - 1; i >= 0; --i) {
-		if(local_isect->hits[i].t == t) {
-			return;
+	/* If no actual hit information is requested, just return here. */
+	if(max_hits == 0) {
+		return true;
+	}
+
+	int hit;
+	if(lcg_state) {
+		/* Record up to max_hits intersections. */
+		for(int i = min(max_hits, local_isect->num_hits) - 1; i >= 0; --i) {
+			if(local_isect->hits[i].t == t) {
+				return false;
+			}
+		}
+
+		local_isect->num_hits++;
+
+		if(local_isect->num_hits <= max_hits) {
+			hit = local_isect->num_hits - 1;
+		}
+		else {
+			/* reservoir sampling: if we are at the maximum number of
+			 * hits, randomly replace element or skip it */
+			hit = lcg_step_uint(lcg_state) % local_isect->num_hits;
+
+			if(hit >= max_hits)
+				return false;
 		}
 	}
-
-	local_isect->num_hits++;
-	int hit;
-
-	if(local_isect->num_hits <= max_hits) {
-		hit = local_isect->num_hits - 1;
-	}
 	else {
-		/* reservoir sampling: if we are at the maximum number of
-		 * hits, randomly replace element or skip it */
-		hit = lcg_step_uint(lcg_state) % local_isect->num_hits;
+		/* Record closest intersection only. */
+		if(local_isect->num_hits && t > local_isect->hits[0].t) {
+			return false;
+		}
 
-		if(hit >= max_hits)
-			return;
+		hit = 0;
+		local_isect->num_hits = 1;
 	}
 
-	/* record intersection */
+	/* Record intersection. */
 	Intersection *isect = &local_isect->hits[hit];
 	isect->prim = prim_addr;
 	isect->object = object;
@@ -155,6 +173,8 @@ ccl_device_inline void triangle_intersect_local(
 	             tri_c = float4_to_float3(kernel_tex_fetch(__prim_tri_verts, tri_vindex+2));
 #endif
 	local_isect->Ng[hit] = normalize(cross(tri_b - tri_a, tri_c - tri_a));
+
+	return false;
 }
 #endif  /* __BVH_LOCAL__ */
 

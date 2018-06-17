@@ -109,11 +109,15 @@ void deg_editors_id_update(struct Main *bmain, struct ID *id);
 
 void deg_editors_scene_update(struct Main *bmain, struct Scene *scene, bool updated);
 
-#define DEG_DEBUG_PRINTF(...) \
+#define DEG_DEBUG_PRINTF(type, ...) \
 	do { \
-		if (G.debug & G_DEBUG_DEPSGRAPH) { \
+		if (G.debug & G_DEBUG_DEPSGRAPH_ ## type) { \
 			fprintf(stderr, __VA_ARGS__); \
 		} \
 	} while (0)
+
+bool deg_terminal_do_color(void);
+string deg_color_for_pointer(const void *pointer);
+string deg_color_end(void);
 
 }  // namespace DEG

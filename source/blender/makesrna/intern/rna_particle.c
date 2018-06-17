@@ -36,7 +36,7 @@
 #include "DNA_modifier_types.h"
 #include "DNA_cloth_types.h"
 #include "DNA_particle_types.h"
-#include "DNA_object_force.h"
+#include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_boid_types.h"
@@ -131,6 +131,7 @@ static const EnumPropertyItem part_hair_ren_as_items[] = {
 
 #include "BLI_math.h"
 
+#include "BKE_boids.h"
 #include "BKE_context.h"
 #include "BKE_cloth.h"
 #include "BKE_colortools.h"
@@ -296,7 +297,7 @@ static void rna_Particle_uv_on_emitter(ParticleData *particle, ReportList *repor
 
 	/* get uvco */
 	if (r_uv && ELEM(from, PART_FROM_FACE, PART_FROM_VOLUME)) {
-		
+
 		if (num != DMCACHE_NOTFOUND) {
 			MFace *mface;
 			MTFace *mtface;
@@ -345,7 +346,7 @@ static void rna_ParticleSystem_co_hair(ParticleSystem *particlesystem, Object *o
 
 	if (part == NULL || pars == NULL || !psys_check_enabled(object, particlesystem, particlesystem->renderdata != NULL))
 		return;
-	
+
 	if (part->ren_as == PART_DRAW_OB || part->ren_as == PART_DRAW_GR || part->ren_as == PART_DRAW_NOT)
 		return;
 
@@ -612,7 +613,8 @@ static void rna_ParticleSystem_mcol_on_emitter(ParticleSystem *particlesystem, R
 	}
 }
 
-static void rna_ParticleSystem_set_resolution(ParticleSystem *particlesystem, Scene *scene, Object *object, int resolution)
+static void rna_ParticleSystem_set_resolution(
+        ParticleSystem *particlesystem, Main *bmain, Scene *scene, Object *object, int resolution)
 {
 	if (resolution == eModifierMode_Render) {
 		ParticleSystemModifierData *psmd = psys_get_modifier(object, particlesystem);
@@ -622,17 +624,17 @@ static void rna_ParticleSystem_set_resolution(ParticleSystem *particlesystem, Sc
 
 		psys_render_set(object, particlesystem, mat, mat, 1, 1, 0.f);
 		psmd->flag &= ~eParticleSystemFlag_psys_updated;
-		particle_system_update(scene, object, particlesystem, true);
+		particle_system_update(bmain, scene, object, particlesystem, true);
 	}
 	else {
 		ParticleSystemModifierData *psmd = psys_get_modifier(object, particlesystem);
-		
+
 		if (particlesystem->renderdata) {
 			psys_render_restore(object, particlesystem);
 		}
-		
+
 		psmd->flag &= ~eParticleSystemFlag_psys_updated;
-		particle_system_update(scene, object, particlesystem, false);
+		particle_system_update(bmain, scene, object, particlesystem, false);
 	}
 }
 
@@ -640,7 +642,7 @@ static void particle_recalc(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRN
 {
 	if (ptr->type == &RNA_ParticleSystem) {
 		ParticleSystem *psys = (ParticleSystem *)ptr->data;
-		
+
 		psys->recalc = flag;
 
 		DAG_id_tag_update(ptr->id.data, OB_RECALC_DATA);
@@ -678,9 +680,31 @@ static void rna_Particle_change_type(Main *bmain, Scene *scene, PointerRNA *ptr)
 	DAG_relations_tag_update(bmain);
 }
 
-static void rna_Particle_change_physics(Main *bmain, Scene *scene, PointerRNA *ptr)
+static void rna_Particle_change_physics_type(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	particle_recalc(bmain, scene, ptr, PSYS_RECALC_RESET | PSYS_RECALC_PHYS);
+
+	ParticleSettings *part = (ParticleSettings *)ptr->data;
+
+	if (part->phystype == PART_PHYS_BOIDS && part->boids == NULL) {
+		BoidState *state;
+
+		part->boids = MEM_callocN(sizeof(BoidSettings), "Boid Settings");
+		boid_default_settings(part->boids);
+
+		state = boid_new_state(part->boids);
+		BLI_addtail(&state->rules, boid_new_rule(eBoidRuleType_Separate));
+		BLI_addtail(&state->rules, boid_new_rule(eBoidRuleType_Flock));
+
+		((BoidRule*)state->rules.first)->flag |= BOIDRULE_CURRENT;
+
+		state->flag |= BOIDSTATE_CURRENT;
+		BLI_addtail(&part->boids->states, state);
+	}
+	else if (part->phystype == PART_PHYS_FLUID && part->fluid == NULL) {
+		part->fluid = MEM_callocN(sizeof(SPHFluidSettings), "SPH Fluid Settings");
+		BKE_particlesettings_fluid_default_settings(part);
+	}
 }
 
 static void rna_Particle_redo_child(Main *bmain, Scene *scene, PointerRNA *ptr)
@@ -706,7 +730,7 @@ static ParticleSystem *rna_particle_system_for_target(Object *ob, ParticleTarget
 		for (pt = psys->targets.first; pt; pt = pt->next)
 			if (pt == target)
 				return psys;
-	
+
 	return NULL;
 }
 
@@ -734,7 +758,7 @@ static void rna_Particle_target_reset(Main *bmain, Scene *UNUSED(scene), Pointer
 			else
 				pt->flag &= ~PTARGET_VALID;
 		}
-		
+
 		psys->recalc = PSYS_RECALC_RESET;
 
 		DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
@@ -750,7 +774,7 @@ static void rna_Particle_target_redo(Main *UNUSED(bmain), Scene *UNUSED(scene), 
 		Object *ob = (Object *)ptr->id.data;
 		ParticleTarget *pt = (ParticleTarget *)ptr->data;
 		ParticleSystem *psys = rna_particle_system_for_target(ob, pt);
-		
+
 		psys->recalc = PSYS_RECALC_REDO;
 
 		DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
@@ -762,7 +786,7 @@ static void rna_Particle_hair_dynamics_update(Main *bmain, Scene *scene, Pointer
 {
 	Object *ob = (Object *)ptr->id.data;
 	ParticleSystem *psys = (ParticleSystem *)ptr->data;
-	
+
 	if (psys && !psys->clmd) {
 		psys->clmd = (ClothModifierData *)modifier_new(eModifierType_Cloth);
 		psys->clmd->sim_parms->goalspring = 0.0f;
@@ -921,26 +945,39 @@ static int rna_PartSettings_is_fluid_get(PointerRNA *ptr)
 static void rna_ParticleSettings_use_clump_curve_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	ParticleSettings *part = ptr->data;
-	
+
 	if (part->child_flag & PART_CHILD_USE_CLUMP_CURVE) {
 		if (!part->clumpcurve) {
 			BKE_particlesettings_clump_curve_init(part);
 		}
 	}
-	
+
 	rna_Particle_redo_child(bmain, scene, ptr);
 }
 
 static void rna_ParticleSettings_use_roughness_curve_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	ParticleSettings *part = ptr->data;
-	
+
 	if (part->child_flag & PART_CHILD_USE_ROUGH_CURVE) {
 		if (!part->roughcurve) {
 			BKE_particlesettings_rough_curve_init(part);
 		}
 	}
-	
+
+	rna_Particle_redo_child(bmain, scene, ptr);
+}
+
+static void rna_ParticleSettings_use_twist_curve_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	ParticleSettings *part = ptr->data;
+
+	if (part->child_flag & PART_CHILD_USE_TWIST_CURVE) {
+		if (!part->twistcurve) {
+			BKE_particlesettings_twist_curve_init(part);
+		}
+	}
+
 	rna_Particle_redo_child(bmain, scene, ptr);
 }
 
@@ -1015,7 +1052,7 @@ static void rna_ParticleTarget_name_get(PointerRNA *ptr, char *str)
 			Object *ob = (Object *) ptr->id.data;
 			psys = BLI_findlink(&ob->particlesystem, pt->psys - 1);
 		}
-		
+
 		if (psys) {
 			if (pt->ob)
 				sprintf(str, "%s: %s", pt->ob->id.name + 2, psys->name);
@@ -1048,10 +1085,10 @@ static int particle_id_check(PointerRNA *ptr)
 static char *rna_SPHFluidSettings_path(PointerRNA *ptr)
 {
 	SPHFluidSettings *fluid = (SPHFluidSettings *)ptr->data;
-	
+
 	if (particle_id_check(ptr)) {
 		ParticleSettings *part = (ParticleSettings *)ptr->id.data;
-		
+
 		if (part->fluid == fluid)
 			return BLI_sprintfN("fluid");
 	}
@@ -1193,7 +1230,7 @@ static PointerRNA rna_Particle_field1_get(PointerRNA *ptr)
 	/* weak */
 	if (!part->pd)
 		part->pd = object_add_collision_fields(0);
-	
+
 	return rna_pointer_inherit_refine(ptr, &RNA_FieldSettings, part->pd);
 }
 
@@ -1204,7 +1241,7 @@ static PointerRNA rna_Particle_field2_get(PointerRNA *ptr)
 	/* weak */
 	if (!part->pd2)
 		part->pd2 = object_add_collision_fields(0);
-	
+
 	return rna_pointer_inherit_refine(ptr, &RNA_FieldSettings, part->pd2);
 }
 
@@ -1300,6 +1337,7 @@ static void rna_ParticleVGroup_name_get_8(PointerRNA *ptr, char *value) { psys_v
 static void rna_ParticleVGroup_name_get_9(PointerRNA *ptr, char *value) { psys_vg_name_get__internal(ptr, value, 9); }
 static void rna_ParticleVGroup_name_get_10(PointerRNA *ptr, char *value) { psys_vg_name_get__internal(ptr, value, 10); }
 static void rna_ParticleVGroup_name_get_11(PointerRNA *ptr, char *value) { psys_vg_name_get__internal(ptr, value, 11); }
+static void rna_ParticleVGroup_name_get_12(PointerRNA *ptr, char *value) { psys_vg_name_get__internal(ptr, value, 12); }
 
 static int rna_ParticleVGroup_name_len_0(PointerRNA *ptr) { return psys_vg_name_len__internal(ptr, 0); }
 static int rna_ParticleVGroup_name_len_1(PointerRNA *ptr) { return psys_vg_name_len__internal(ptr, 1); }
@@ -1313,6 +1351,7 @@ static int rna_ParticleVGroup_name_len_8(PointerRNA *ptr) { return psys_vg_name_
 static int rna_ParticleVGroup_name_len_9(PointerRNA *ptr) { return psys_vg_name_len__internal(ptr, 9); }
 static int rna_ParticleVGroup_name_len_10(PointerRNA *ptr) { return psys_vg_name_len__internal(ptr, 10); }
 static int rna_ParticleVGroup_name_len_11(PointerRNA *ptr) { return psys_vg_name_len__internal(ptr, 11); }
+static int rna_ParticleVGroup_name_len_12(PointerRNA *ptr) { return psys_vg_name_len__internal(ptr, 12); }
 
 static void rna_ParticleVGroup_name_set_0(PointerRNA *ptr, const char *value) { psys_vg_name_set__internal(ptr, value, 0); }
 static void rna_ParticleVGroup_name_set_1(PointerRNA *ptr, const char *value) { psys_vg_name_set__internal(ptr, value, 1); }
@@ -1326,6 +1365,7 @@ static void rna_ParticleVGroup_name_set_8(PointerRNA *ptr, const char *value) { 
 static void rna_ParticleVGroup_name_set_9(PointerRNA *ptr, const char *value) { psys_vg_name_set__internal(ptr, value, 9); }
 static void rna_ParticleVGroup_name_set_10(PointerRNA *ptr, const char *value) { psys_vg_name_set__internal(ptr, value, 10); }
 static void rna_ParticleVGroup_name_set_11(PointerRNA *ptr, const char *value) { psys_vg_name_set__internal(ptr, value, 11); }
+static void rna_ParticleVGroup_name_set_12(PointerRNA *ptr, const char *value) { psys_vg_name_set__internal(ptr, value, 12); }
 
 
 #else
@@ -1354,7 +1394,7 @@ static void rna_def_particle_hair_key(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Location (Object Space)", "Location of the hair key in object space");
 	RNA_def_property_float_funcs(prop, "rna_ParticleHairKey_location_object_get",
 	                             "rna_ParticleHairKey_location_object_set", NULL);
-	
+
 	prop = RNA_def_property(srna, "co_local", PROP_FLOAT, PROP_TRANSLATION);
 	RNA_def_property_float_sdna(prop, NULL, "co");
 	RNA_def_property_ui_text(prop, "Location",
@@ -1740,7 +1780,7 @@ static void rna_def_particle_settings_mtex(BlenderRNA *brna)
 		{MTEX_SPHERE, "SPHERE", 0, "Sphere", "Map with Z as central axis"},
 		{0, NULL, 0, NULL, NULL}
 	};
-		
+
 	static const EnumPropertyItem prop_x_mapping_items[] = {
 		{0, "NONE", 0, "None", ""},
 		{1, "X", 0, "X", ""},
@@ -1748,7 +1788,7 @@ static void rna_def_particle_settings_mtex(BlenderRNA *brna)
 		{3, "Z", 0, "Z", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
-		
+
 	static const EnumPropertyItem prop_y_mapping_items[] = {
 		{0, "NONE", 0, "None", ""},
 		{1, "X", 0, "X", ""},
@@ -1756,7 +1796,7 @@ static void rna_def_particle_settings_mtex(BlenderRNA *brna)
 		{3, "Z", 0, "Z", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
-		
+
 	static const EnumPropertyItem prop_z_mapping_items[] = {
 		{0, "NONE", 0, "None", ""},
 		{1, "X", 0, "X", ""},
@@ -1794,19 +1834,19 @@ static void rna_def_particle_settings_mtex(BlenderRNA *brna)
 	RNA_def_property_enum_items(prop, prop_x_mapping_items);
 	RNA_def_property_ui_text(prop, "X Mapping", "");
 	RNA_def_property_update(prop, 0, "rna_Particle_reset");
-	
+
 	prop = RNA_def_property(srna, "mapping_y", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "projy");
 	RNA_def_property_enum_items(prop, prop_y_mapping_items);
 	RNA_def_property_ui_text(prop, "Y Mapping", "");
 	RNA_def_property_update(prop, 0, "rna_Particle_reset");
-	
+
 	prop = RNA_def_property(srna, "mapping_z", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "projz");
 	RNA_def_property_enum_items(prop, prop_z_mapping_items);
 	RNA_def_property_ui_text(prop, "Z Mapping", "");
 	RNA_def_property_update(prop, 0, "rna_Particle_reset");
-	
+
 	prop = RNA_def_property(srna, "mapping", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_items(prop, prop_mapping_items);
 	RNA_def_property_ui_text(prop, "Mapping", "");
@@ -1878,6 +1918,10 @@ static void rna_def_particle_settings_mtex(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Length", "Affect the child hair length");
 	RNA_def_property_update(prop, 0, "rna_Particle_redo_child");
 
+	prop = RNA_def_property(srna, "use_map_twist", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "mapto", PAMAP_TWIST);
+	RNA_def_property_ui_text(prop, "Twist", "Affect the child twist");
+	RNA_def_property_update(prop, 0, "rna_Particle_redo_child");
 
 	/* influence factors */
 	prop = RNA_def_property(srna, "time_factor", PROP_FLOAT, PROP_NONE);
@@ -1958,6 +2002,12 @@ static void rna_def_particle_settings_mtex(BlenderRNA *brna)
 	RNA_def_property_float_sdna(prop, NULL, "roughfac");
 	RNA_def_property_ui_range(prop, 0, 1, 10, 3);
 	RNA_def_property_ui_text(prop, "Rough Factor", "Amount texture affects child roughness");
+	RNA_def_property_update(prop, 0, "rna_Particle_redo_child");
+
+	prop = RNA_def_property(srna, "twist_factor", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "twistfac");
+	RNA_def_property_ui_range(prop, 0, 1, 10, 3);
+	RNA_def_property_ui_text(prop, "Twist Factor", "Amount texture affects child twist");
 	RNA_def_property_update(prop, 0, "rna_Particle_redo_child");
 }
 
@@ -2238,7 +2288,7 @@ static void rna_def_particle_settings(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_enum_items(prop, phys_type_items);
 	RNA_def_property_ui_text(prop, "Physics Type", "Particle physics type");
-	RNA_def_property_update(prop, 0, "rna_Particle_change_physics");
+	RNA_def_property_update(prop, 0, "rna_Particle_change_physics_type");
 
 	prop = RNA_def_property(srna, "rotation_mode", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "rotmode");
@@ -3092,7 +3142,7 @@ static void rna_def_particle_settings(BlenderRNA *brna)
 	RNA_def_property_ui_range(prop, 1.0f, 100.0f, 0.1, 3);
 	RNA_def_property_ui_text(prop, "Loop count", "Number of times the keys are looped");
 	RNA_def_property_update(prop, 0, "rna_Particle_redo");
-	
+
 	/* modified dm support */
 	prop = RNA_def_property(srna, "use_modifier_stack", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "use_modifier_stack", 0);
@@ -3143,7 +3193,7 @@ static void rna_def_particle_settings(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "BoidSettings");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Boid Settings", "");
-	
+
 	/* Fluid particles */
 	prop = RNA_def_property(srna, "fluid", PROP_POINTER, PROP_NONE);
 	RNA_def_property_struct_type(prop, "SPHFluidSettings");
@@ -3155,7 +3205,7 @@ static void rna_def_particle_settings(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "EffectorWeights");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Effector Weights", "");
-	
+
 	/* animation here? */
 	rna_def_animdata_common(srna);
 
@@ -3170,6 +3220,25 @@ static void rna_def_particle_settings(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "FieldSettings");
 	RNA_def_property_pointer_funcs(prop, "rna_Particle_field2_get", NULL, NULL, NULL);
 	RNA_def_property_ui_text(prop, "Force Field 2", "");
+
+	/* twist */
+	prop = RNA_def_property(srna, "twist", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_range(prop, -100000.0f, 100000.0f);
+	RNA_def_property_ui_range(prop, -10.0f, 10.0f, 0.1, 3);
+	RNA_def_property_ui_text(prop, "Twist", "Number of turns around parent allong the strand");
+	RNA_def_property_update(prop, 0, "rna_Particle_redo_child");
+
+	prop = RNA_def_property(srna, "use_twist_curve", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "child_flag", PART_CHILD_USE_TWIST_CURVE);
+	RNA_def_property_ui_text(prop, "Use Twist Curve", "Use a curve to define twist");
+	RNA_def_property_update(prop, 0, "rna_ParticleSettings_use_twist_curve_update");
+
+	prop = RNA_def_property(srna, "twist_curve", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "twistcurve");
+	RNA_def_property_struct_type(prop, "CurveMapping");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Twist Curve", "Curve defining twist");
+	RNA_def_property_update(prop, 0, "rna_Particle_redo_child");
 }
 
 static void rna_def_particle_target(BlenderRNA *brna)
@@ -3503,6 +3572,18 @@ static void rna_def_particle_system(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Vertex Group Field Negate", "Negate the effect of the field vertex group");
 	RNA_def_property_update(prop, 0, "rna_Particle_reset");
 
+	prop = RNA_def_property(srna, "vertex_group_twist", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_funcs(prop, "rna_ParticleVGroup_name_get_12", "rna_ParticleVGroup_name_len_12",
+	                              "rna_ParticleVGroup_name_set_12");
+	RNA_def_property_ui_text(prop, "Vertex Group Twist", "Vertex group to control twist");
+	RNA_def_property_update(prop, 0, "rna_Particle_redo_child");
+
+	prop = RNA_def_property(srna, "invert_vertex_group_twist", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "vg_neg", (1 << PSYS_VG_TWIST));
+	RNA_def_property_ui_text(prop, "Vertex Group Twist Negate",
+	                         "Negate the effect of the twist vertex group");
+	RNA_def_property_update(prop, 0, "rna_Particle_redo_child");
+
 	/* pointcache */
 	prop = RNA_def_property(srna, "point_cache", PROP_POINTER, PROP_NONE);
 	RNA_def_property_flag(prop, PROP_NEVER_NULL);
@@ -3547,6 +3628,7 @@ static void rna_def_particle_system(BlenderRNA *brna)
 	/* set viewport or render resolution */
 	func = RNA_def_function(srna, "set_resolution", "rna_ParticleSystem_set_resolution");
 	RNA_def_function_ui_description(func, "Set the resolution to use for the number of particles");
+	RNA_def_function_flag(func, FUNC_USE_MAIN);
 	RNA_def_pointer(func, "scene", "Scene", "", "Scene");
 	RNA_def_pointer(func, "object", "Object", "", "Object");
 	RNA_def_enum(func, "resolution", resolution_items, 0, "", "Resolution settings to apply");
@@ -3601,7 +3683,7 @@ void RNA_def_particle(BlenderRNA *brna)
 	rna_def_fluid_settings(brna);
 	rna_def_particle_hair_key(brna);
 	rna_def_particle_key(brna);
-	
+
 	rna_def_child_particle(brna);
 	rna_def_particle(brna);
 	rna_def_particle_dupliweight(brna);

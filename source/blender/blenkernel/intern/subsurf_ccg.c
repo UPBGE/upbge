@@ -58,6 +58,7 @@
 #include "BLI_edgehash.h"
 #include "BLI_math.h"
 #include "BLI_memarena.h"
+#include "BLI_task.h"
 #include "BLI_threads.h"
 
 #include "BKE_pbvh.h"
@@ -66,6 +67,7 @@
 #include "BKE_global.h"
 #include "BKE_mesh.h"
 #include "BKE_mesh_mapping.h"
+#include "BKE_modifier.h"
 #include "BKE_multires.h"
 #include "BKE_paint.h"
 #include "BKE_scene.h"
@@ -89,9 +91,6 @@
 
 /* assumes MLoop's are layed out 4 for each poly, in order */
 #define USE_LOOP_LAYOUT_FAST
-
-static ThreadRWMutex loops_cache_rwlock = BLI_RWLOCK_INITIALIZER;
-static ThreadRWMutex origindex_cache_rwlock = BLI_RWLOCK_INITIALIZER;
 
 static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
                                          int drawInteriorEdges,
@@ -362,7 +361,7 @@ static int ss_sync_from_uv(CCGSubSurf *ss, CCGSubSurf *origss, DerivedMesh *dm, 
 #ifdef USE_DYNSIZE
 		CCGVertHDL fverts[nverts];
 #else
-		BLI_array_empty(fverts);
+		BLI_array_clear(fverts);
 		BLI_array_grow_items(fverts, nverts);
 #endif
 
@@ -401,7 +400,7 @@ static int ss_sync_from_uv(CCGSubSurf *ss, CCGSubSurf *origss, DerivedMesh *dm, 
 #ifdef USE_DYNSIZE
 		CCGVertHDL fverts[nverts];
 #else
-		BLI_array_empty(fverts);
+		BLI_array_clear(fverts);
 		BLI_array_grow_items(fverts, nverts);
 #endif
 
@@ -745,7 +744,7 @@ static void ss_sync_ccg_from_derivedmesh(CCGSubSurf *ss,
 #ifdef USE_DYNSIZE
 		CCGVertHDL fVerts[mp->totloop];
 #else
-		BLI_array_empty(fVerts);
+		BLI_array_clear(fVerts);
 		BLI_array_grow_items(fVerts, mp->totloop);
 #endif
 
@@ -1479,77 +1478,107 @@ static void ccgDM_copyFinalFaceArray(DerivedMesh *dm, MFace *mface)
 	}
 }
 
+typedef struct CopyFinalLoopArrayData {
+	CCGDerivedMesh *ccgdm;
+	MLoop *mloop;
+	int grid_size;
+	int *grid_offset;
+	int edge_size;
+	size_t mloop_index;
+} CopyFinalLoopArrayData;
+
+static void copyFinalLoopArray_task_cb(
+        void *__restrict userdata,
+        const int iter,
+        const ParallelRangeTLS *__restrict UNUSED(tls))
+{
+	CopyFinalLoopArrayData *data = userdata;
+	CCGDerivedMesh *ccgdm = data->ccgdm;
+	CCGSubSurf *ss = ccgdm->ss;
+	const int grid_size = data->grid_size;
+	const int edge_size = data->edge_size;
+	CCGFace *f = ccgdm->faceMap[iter].face;
+	const int num_verts = ccgSubSurf_getFaceNumVerts(f);
+	const int grid_index = data->grid_offset[iter];
+	const size_t loop_index = 4 * (size_t)grid_index * (grid_size - 1) * (grid_size - 1);
+	MLoop *ml = &data->mloop[loop_index];
+	for (int S = 0; S < num_verts; S++) {
+		for (int y = 0; y < grid_size - 1; y++) {
+			for (int x = 0; x < grid_size - 1; x++) {
+
+				uint v1 = getFaceIndex(ss, f, S, x + 0, y + 0,
+				                       edge_size, grid_size);
+				uint v2 = getFaceIndex(ss, f, S, x + 0, y + 1,
+				                       edge_size, grid_size);
+				uint v3 = getFaceIndex(ss, f, S, x + 1, y + 1,
+				                       edge_size, grid_size);
+				uint v4 = getFaceIndex(ss, f, S, x + 1, y + 0,
+				                       edge_size, grid_size);
+
+				ml->v = v1;
+				ml->e = GET_UINT_FROM_POINTER(BLI_edgehash_lookup(ccgdm->ehash, v1, v2));
+				ml++;
+
+				ml->v = v2;
+				ml->e = GET_UINT_FROM_POINTER(BLI_edgehash_lookup(ccgdm->ehash, v2, v3));
+				ml++;
+
+				ml->v = v3;
+				ml->e = GET_UINT_FROM_POINTER(BLI_edgehash_lookup(ccgdm->ehash, v3, v4));
+				ml++;
+
+				ml->v = v4;
+				ml->e = GET_UINT_FROM_POINTER(BLI_edgehash_lookup(ccgdm->ehash, v4, v1));
+				ml++;
+			}
+		}
+	}
+}
+
 static void ccgDM_copyFinalLoopArray(DerivedMesh *dm, MLoop *mloop)
 {
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh *) dm;
 	CCGSubSurf *ss = ccgdm->ss;
-	int index;
-	int totface;
-	int gridSize = ccgSubSurf_getGridSize(ss);
-	int edgeSize = ccgSubSurf_getEdgeSize(ss);
-	int i = 0;
-	MLoop *mv;
-	/* DMFlagMat *faceFlags = ccgdm->faceFlags; */ /* UNUSED */
 
 	if (!ccgdm->ehash) {
-		BLI_rw_mutex_lock(&loops_cache_rwlock, THREAD_LOCK_WRITE);
+		BLI_mutex_lock(&ccgdm->loops_cache_lock);
 		if (!ccgdm->ehash) {
 			MEdge *medge;
+			EdgeHash *ehash;
 
-			ccgdm->ehash = BLI_edgehash_new_ex(__func__, ccgdm->dm.numEdgeData);
+			ehash = BLI_edgehash_new_ex(__func__, ccgdm->dm.numEdgeData);
 			medge = ccgdm->dm.getEdgeArray((DerivedMesh *)ccgdm);
 
-			for (i = 0; i < ccgdm->dm.numEdgeData; i++) {
-				BLI_edgehash_insert(ccgdm->ehash, medge[i].v1, medge[i].v2, SET_INT_IN_POINTER(i));
+			for (int i = 0; i < ccgdm->dm.numEdgeData; i++) {
+				BLI_edgehash_insert(ehash, medge[i].v1, medge[i].v2, SET_INT_IN_POINTER(i));
 			}
+
+			atomic_cas_ptr((void **)&ccgdm->ehash, ccgdm->ehash, ehash);
 		}
-		BLI_rw_mutex_unlock(&loops_cache_rwlock);
+		BLI_mutex_unlock(&ccgdm->loops_cache_lock);
 	}
 
-	BLI_rw_mutex_lock(&loops_cache_rwlock, THREAD_LOCK_READ);
-	totface = ccgSubSurf_getNumFaces(ss);
-	mv = mloop;
-	for (index = 0; index < totface; index++) {
-		CCGFace *f = ccgdm->faceMap[index].face;
-		int x, y, S, numVerts = ccgSubSurf_getFaceNumVerts(f);
-		/* int flag = (faceFlags) ? faceFlags[index * 2]: ME_SMOOTH; */ /* UNUSED */
-		/* int mat_nr = (faceFlags) ? faceFlags[index * 2 + 1]: 0; */ /* UNUSED */
+	CopyFinalLoopArrayData data;
+	data.ccgdm = ccgdm;
+	data.mloop = mloop;
+	data.grid_size = ccgSubSurf_getGridSize(ss);
+	data.grid_offset = dm->getGridOffset(dm);
+	data.edge_size = ccgSubSurf_getEdgeSize(ss);
 
-		for (S = 0; S < numVerts; S++) {
-			for (y = 0; y < gridSize - 1; y++) {
-				for (x = 0; x < gridSize - 1; x++) {
-					unsigned int v1, v2, v3, v4;
+	/* NOTE: For a dense subdivision we've got enough work for each face and
+	 * hence can dedicate whole thread to single face. For less dense
+	 * subdivision we handle multiple faces per thread.
+	 */
+	data.mloop_index = data.grid_size >= 5 ? 1 : 8;
 
-					v1 = getFaceIndex(ss, f, S, x + 0, y + 0,
-					                  edgeSize, gridSize);
+	ParallelRangeSettings settings;
+	BLI_parallel_range_settings_defaults(&settings);
+	settings.min_iter_per_thread = 1;
 
-					v2 = getFaceIndex(ss, f, S, x + 0, y + 1,
-					                  edgeSize, gridSize);
-					v3 = getFaceIndex(ss, f, S, x + 1, y + 1,
-					                  edgeSize, gridSize);
-					v4 = getFaceIndex(ss, f, S, x + 1, y + 0,
-					                  edgeSize, gridSize);
-
-					mv->v = v1;
-					mv->e = GET_UINT_FROM_POINTER(BLI_edgehash_lookup(ccgdm->ehash, v1, v2));
-					mv++; i++;
-
-					mv->v = v2;
-					mv->e = GET_UINT_FROM_POINTER(BLI_edgehash_lookup(ccgdm->ehash, v2, v3));
-					mv++; i++;
-
-					mv->v = v3;
-					mv->e = GET_UINT_FROM_POINTER(BLI_edgehash_lookup(ccgdm->ehash, v3, v4));
-					mv++; i++;
-
-					mv->v = v4;
-					mv->e = GET_UINT_FROM_POINTER(BLI_edgehash_lookup(ccgdm->ehash, v4, v1));
-					mv++; i++;
-				}
-			}
-		}
-	}
-	BLI_rw_mutex_unlock(&loops_cache_rwlock);
+	BLI_task_parallel_range(0, ccgSubSurf_getNumFaces(ss),
+	                        &data,
+	                        copyFinalLoopArray_task_cb,
+	                        &settings);
 }
 
 static void ccgDM_copyFinalPolyArray(DerivedMesh *dm, MPoly *mpoly)
@@ -4050,6 +4079,10 @@ static void ccgDM_release(DerivedMesh *dm)
 			MEM_freeN(ccgdm->edgeMap);
 			MEM_freeN(ccgdm->faceMap);
 		}
+
+		BLI_mutex_end(&ccgdm->loops_cache_lock);
+		BLI_rw_mutex_end(&ccgdm->origindex_cache_rwlock);
+
 		MEM_freeN(ccgdm);
 	}
 }
@@ -4064,14 +4097,14 @@ static void *ccgDM_get_vert_data_layer(DerivedMesh *dm, int type)
 		int a, index, totnone, totorig;
 
 		/* Avoid re-creation if the layer exists already */
-		BLI_rw_mutex_lock(&origindex_cache_rwlock, THREAD_LOCK_READ);
+		BLI_rw_mutex_lock(&ccgdm->origindex_cache_rwlock, THREAD_LOCK_READ);
 		origindex = DM_get_vert_data_layer(dm, CD_ORIGINDEX);
-		BLI_rw_mutex_unlock(&origindex_cache_rwlock);
+		BLI_rw_mutex_unlock(&ccgdm->origindex_cache_rwlock);
 		if (origindex) {
 			return origindex;
 		}
 
-		BLI_rw_mutex_lock(&origindex_cache_rwlock, THREAD_LOCK_WRITE);
+		BLI_rw_mutex_lock(&ccgdm->origindex_cache_rwlock, THREAD_LOCK_WRITE);
 		DM_add_vert_layer(dm, CD_ORIGINDEX, CD_CALLOC, NULL);
 		origindex = DM_get_vert_data_layer(dm, CD_ORIGINDEX);
 
@@ -4086,7 +4119,7 @@ static void *ccgDM_get_vert_data_layer(DerivedMesh *dm, int type)
 			CCGVert *v = ccgdm->vertMap[index].vert;
 			origindex[a] = ccgDM_getVertMapIndex(ccgdm->ss, v);
 		}
-		BLI_rw_mutex_unlock(&origindex_cache_rwlock);
+		BLI_rw_mutex_unlock(&ccgdm->origindex_cache_rwlock);
 
 		return origindex;
 	}
@@ -4412,7 +4445,7 @@ static struct PBVH *ccgDM_getPBVH(Object *ob, DerivedMesh *dm)
 {
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh *)dm;
 	CCGKey key;
-	int numGrids, grid_pbvh;
+	int numGrids;
 
 	CCG_key_top_level(&key, ccgdm->ss);
 
@@ -4424,35 +4457,85 @@ static struct PBVH *ccgDM_getPBVH(Object *ob, DerivedMesh *dm)
 	if (!ob->sculpt)
 		return NULL;
 
-	/* In vwpaint, we always use a grid_pbvh for multires/subsurf */
-	grid_pbvh = (!(ob->mode & OB_MODE_SCULPT) || ccgDM_use_grid_pbvh(ccgdm));
+	bool grid_pbvh = ccgDM_use_grid_pbvh(ccgdm);
+	if ((ob->mode & OB_MODE_SCULPT) == 0) {
+		/* In vwpaint, we may use a grid_pbvh for multires/subsurf, under certain conditions.
+		 * More complex cases break 'history' trail back to original vertices, in that case we fall back to
+		 * deformed cage only (i.e. original deformed mesh). */
+		VirtualModifierData virtualModifierData;
+		ModifierData *md = modifiers_getVirtualModifierList(ob, &virtualModifierData);
+
+		grid_pbvh = true;
+		bool has_one_ccg_modifier = false;
+		for (; md; md = md->next) {
+			/* We can only accept to use this ccgdm if:
+			 *   - it's the only active ccgdm in the stack.
+			 *   - there is no topology-modifying modifier in the stack.
+			 * Otherwise, there is no way to map back to original geometry from grid-generated PBVH.
+			 */
+			const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+
+			if (!modifier_isEnabled(NULL, md, eModifierMode_Realtime)) {
+				continue;
+			}
+			if (ELEM(mti->type, eModifierTypeType_OnlyDeform, eModifierTypeType_NonGeometrical)) {
+				continue;
+			}
+
+			if (ELEM(md->type, eModifierType_Subsurf, eModifierType_Multires)) {
+				if (has_one_ccg_modifier) {
+					/* We only allow a single active ccg modifier in the stack. */
+					grid_pbvh = false;
+					break;
+				}
+				has_one_ccg_modifier = true;
+				continue;
+			}
+
+			/* Any other non-deforming modifier makes it impossible to use grid pbvh. */
+			grid_pbvh = false;
+			break;
+		}
+	}
 
 	if (ob->sculpt->pbvh) {
+		/* Note that we have to clean up exisitng pbvh instead of updating it in case it does not match current
+		 * grid_pbvh status. */
 		if (grid_pbvh) {
-			/* pbvh's grids, gridadj and gridfaces points to data inside ccgdm
-			 * but this can be freed on ccgdm release, this updates the pointers
-			 * when the ccgdm gets remade, the assumption is that the topology
-			 * does not change. */
-			ccgdm_create_grids(dm);
-			BKE_pbvh_grids_update(ob->sculpt->pbvh, ccgdm->gridData, (void **)ccgdm->gridFaces,
-			                      ccgdm->gridFlagMats, ccgdm->gridHidden);
+			if (BKE_pbvh_get_ccgdm(ob->sculpt->pbvh) != NULL) {
+				/* pbvh's grids, gridadj and gridfaces points to data inside ccgdm
+				 * but this can be freed on ccgdm release, this updates the pointers
+				 * when the ccgdm gets remade, the assumption is that the topology
+				 * does not change. */
+				ccgdm_create_grids(dm);
+				BKE_pbvh_grids_update(ob->sculpt->pbvh, ccgdm->gridData, (void **)ccgdm->gridFaces,
+				                      ccgdm->gridFlagMats, ccgdm->gridHidden);
+			}
+			else {
+				BKE_pbvh_free(ob->sculpt->pbvh);
+				ob->sculpt->pbvh = NULL;
+			}
+		}
+		else if (BKE_pbvh_get_ccgdm(ob->sculpt->pbvh) != NULL) {
+			BKE_pbvh_free(ob->sculpt->pbvh);
+			ob->sculpt->pbvh = NULL;
 		}
 
 		ccgdm->pbvh = ob->sculpt->pbvh;
 	}
 
 	if (ccgdm->pbvh) {
-		/* For vertex paint, keep track of ccgdm */
-		if (!(ob->mode & OB_MODE_SCULPT)) {
+		/* For grid pbvh, keep track of ccgdm */
+		if (grid_pbvh) {
 			BKE_pbvh_set_ccgdm(ccgdm->pbvh, ccgdm);
 		}
 		return ccgdm->pbvh;
 	}
 
-	/* no pbvh exists yet, we need to create one. only in case of multires
+	/* No pbvh exists yet, we need to create one. only in case of multires
 	 * we build a pbvh over the modified mesh, in other cases the base mesh
 	 * is being sculpted, so we build a pbvh from that. */
-	/* Note: vwpaint always builds a pbvh over the modified mesh. */
+	/* Note: vwpaint tries to always build a pbvh over the modified mesh. */
 	if (grid_pbvh) {
 		ccgdm_create_grids(dm);
 
@@ -4478,13 +4561,27 @@ static struct PBVH *ccgDM_getPBVH(Object *ob, DerivedMesh *dm)
 		ob->sculpt->pbvh = ccgdm->pbvh = BKE_pbvh_new();
 		BKE_pbvh_build_mesh(ccgdm->pbvh, me->mpoly, me->mloop, me->mvert, me->totvert, &me->vdata,
 		                    looptri, looptris_num);
+
+		if (ob->sculpt->modifiers_active && ob->derivedDeform != NULL) {
+			DerivedMesh *deformdm = ob->derivedDeform;
+			float (*vertCos)[3];
+			int totvert;
+
+			totvert = deformdm->getNumVerts(deformdm);
+			vertCos = MEM_malloc_arrayN(totvert, sizeof(float[3]), "ccgDM_getPBVH vertCos");
+			deformdm->getVertCos(deformdm, vertCos);
+			BKE_pbvh_apply_vertCos(ccgdm->pbvh, vertCos);
+			MEM_freeN(vertCos);
+		}
 	}
 
-	if (ccgdm->pbvh)
+	if (ccgdm->pbvh != NULL) {
 		pbvh_show_diffuse_color_set(ccgdm->pbvh, ob->sculpt->show_diffuse_color);
+		pbvh_show_mask_set(ccgdm->pbvh, ob->sculpt->show_mask);
+	}
 
-	/* For vertex paint, keep track of ccgdm */
-	if (!(ob->mode & OB_MODE_SCULPT) && ccgdm->pbvh) {
+	/* For grid pbvh, keep track of ccgdm. */
+	if (grid_pbvh && ccgdm->pbvh) {
 		BKE_pbvh_set_ccgdm(ccgdm->pbvh, ccgdm);
 	}
 	return ccgdm->pbvh;
@@ -4743,7 +4840,7 @@ static void set_ccgdm_all_geometry(CCGDerivedMesh *ccgdm,
 		*((int *)ccgSubSurf_getFaceUserData(ss, f)) = vertNum;
 
 #ifndef USE_DYNSIZE
-		BLI_array_empty(loopidx);
+		BLI_array_clear(loopidx);
 		BLI_array_grow_items(loopidx, numVerts);
 #endif
 		for (s = 0; s < numVerts; s++) {
@@ -4751,7 +4848,7 @@ static void set_ccgdm_all_geometry(CCGDerivedMesh *ccgdm,
 		}
 
 #ifndef USE_DYNSIZE
-		BLI_array_empty(vertidx);
+		BLI_array_clear(vertidx);
 		BLI_array_grow_items(vertidx, numVerts);
 #endif
 		for (s = 0; s < numVerts; s++) {
@@ -5040,6 +5137,9 @@ static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
 	ccgdm->dm.numPolyData = ccgSubSurf_getNumFinalFaces(ss);
 	ccgdm->dm.numLoopData = ccgdm->dm.numPolyData * 4;
 	ccgdm->dm.numTessFaceData = 0;
+
+	BLI_mutex_init(&ccgdm->loops_cache_lock);
+	BLI_rw_mutex_init(&ccgdm->origindex_cache_rwlock);
 
 	return ccgdm;
 }

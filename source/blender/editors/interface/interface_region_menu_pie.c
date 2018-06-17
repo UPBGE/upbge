@@ -150,8 +150,16 @@ uiPieMenu *UI_pie_menu_begin(struct bContext *C, const char *title, int icon, co
 	}
 
 	pie->layout = UI_block_layout(pie->block_radial, UI_LAYOUT_VERTICAL, UI_LAYOUT_PIEMENU, 0, 0, 200, 0, 0, style);
-	pie->mx = event->x;
-	pie->my = event->y;
+
+	/* Open from where we started dragging. */
+	if (event->val == KM_CLICK_DRAG) {
+		pie->mx = event->prevclickx;
+		pie->my = event->prevclicky;
+	}
+	else {
+		pie->mx = event->x;
+		pie->my = event->y;
+	}
 
 	/* create title button */
 	if (title[0]) {
@@ -214,9 +222,10 @@ int UI_pie_menu_invoke(struct bContext *C, const char *idname, const wmEvent *ev
 		return OPERATOR_CANCELLED;
 	}
 
-	if (mt->poll && mt->poll(C, mt) == 0)
+	if (WM_menutype_poll(C, mt) == false) {
 		/* cancel but allow event to pass through, just like operators do */
 		return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
+	}
 
 	pie = UI_pie_menu_begin(C, IFACE_(mt->label), ICON_NONE, event);
 	layout = UI_pie_menu_layout(pie);

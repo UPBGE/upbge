@@ -1,7 +1,5 @@
 SCA_PythonJoystick(EXP_PyObjectPlus)
-================================
-
-.. module:: bge.types
+====================================
 
 base class --- :class:`EXP_PyObjectPlus`
 
@@ -74,4 +72,3 @@ base class --- :class:`EXP_PyObjectPlus`
       The number of hats for the joystick at this index. (read-only).
 
       :type: integer
-

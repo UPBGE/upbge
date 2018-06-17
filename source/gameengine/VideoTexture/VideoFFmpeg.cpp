@@ -219,7 +219,7 @@ int VideoFFmpeg::openStream(const char *filename, AVInputFormat *inputFormat, AV
 	}
 	m_baseFrameRate = (double)codecCtx->frame_rate / (double)codecCtx->frame_rate_base;
 #else
-	m_baseFrameRate = av_q2d(av_get_r_frame_rate_compat(formatCtx->streams[videoStream]));
+	m_baseFrameRate = av_q2d(av_get_r_frame_rate_compat(formatCtx, formatCtx->streams[videoStream]));
 #endif
 	if (m_baseFrameRate <= 0.0) {
 		m_baseFrameRate = defFrameRate;
@@ -452,8 +452,8 @@ bool VideoFFmpeg::startCache()
 			CachePacket *packet = new CachePacket();
 			BLI_addtail(&m_packetCacheFree, packet);
 		}
-		BLI_init_threads(&m_thread, cacheThread, 1);
-		BLI_insert_thread(&m_thread, this);
+		BLI_threadpool_init(&m_thread, cacheThread, 1);
+		BLI_threadpool_insert(&m_thread, this);
 		m_cacheStarted = true;
 	}
 	return m_cacheStarted;
@@ -463,7 +463,7 @@ void VideoFFmpeg::stopCache()
 {
 	if (m_cacheStarted) {
 		m_stopThread = true;
-		BLI_end_threads(&m_thread);
+		BLI_threadpool_end(&m_thread);
 		// now delete the cache
 		CacheFrame *frame;
 		CachePacket *packet;

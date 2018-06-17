@@ -63,16 +63,6 @@ static void initData(ModifierData *md)
 	cmd->object = NULL;
 }
 
-
-static void copyData(ModifierData *md, ModifierData *target)
-{
-#if 0
-	CastModifierData *cmd = (CastModifierData *) md;
-	CastModifierData *tcmd = (CastModifierData *) target;
-#endif
-	modifier_copyData_generic(md, target);
-}
-
 static bool isDisabled(ModifierData *md, int UNUSED(useRenderParams))
 {
 	CastModifierData *cmd = (CastModifierData *) md;
@@ -105,32 +95,24 @@ static void foreachObjectLink(
 	walk(userData, ob, &cmd->object, IDWALK_CB_NOP);
 }
 
-static void updateDepgraph(ModifierData *md, DagForest *forest,
-                           struct Main *UNUSED(bmain),
-                           struct Scene *UNUSED(scene),
-                           Object *UNUSED(ob),
-                           DagNode *obNode)
+static void updateDepgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
 	CastModifierData *cmd = (CastModifierData *) md;
 
 	if (cmd->object) {
-		DagNode *curNode = dag_get_node(forest, cmd->object);
+		DagNode *curNode = dag_get_node(ctx->forest, cmd->object);
 
-		dag_add_relation(forest, curNode, obNode, DAG_RL_OB_DATA,
+		dag_add_relation(ctx->forest, curNode, ctx->obNode, DAG_RL_OB_DATA,
 		                 "Cast Modifier");
 	}
 }
 
-static void updateDepsgraph(ModifierData *md,
-                            struct Main *UNUSED(bmain),
-                            struct Scene *UNUSED(scene),
-                            Object *object,
-                            struct DepsNodeHandle *node)
+static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
 	CastModifierData *cmd = (CastModifierData *)md;
 	if (cmd->object != NULL) {
-		DEG_add_object_relation(node, cmd->object, DEG_OB_COMP_TRANSFORM, "Cast Modifier");
-		DEG_add_object_relation(node, object, DEG_OB_COMP_TRANSFORM, "Cast Modifier");
+		DEG_add_object_relation(ctx->node, cmd->object, DEG_OB_COMP_TRANSFORM, "Cast Modifier");
+		DEG_add_object_relation(ctx->node, ctx->object, DEG_OB_COMP_TRANSFORM, "Cast Modifier");
 	}
 }
 
@@ -452,11 +434,12 @@ static void cuboid_do(
 	}
 }
 
-static void deformVerts(ModifierData *md, Object *ob,
-                        DerivedMesh *derivedData,
-                        float (*vertexCos)[3],
-                        int numVerts,
-                        ModifierApplyFlag UNUSED(flag))
+static void deformVerts(
+        ModifierData *md, Object *ob,
+        DerivedMesh *derivedData,
+        float (*vertexCos)[3],
+        int numVerts,
+        ModifierApplyFlag UNUSED(flag))
 {
 	DerivedMesh *dm = NULL;
 	CastModifierData *cmd = (CastModifierData *)md;
@@ -502,7 +485,7 @@ ModifierTypeInfo modifierType_Cast = {
 	                        eModifierTypeFlag_AcceptsLattice |
 	                        eModifierTypeFlag_SupportsEditmode,
 
-	/* copyData */          copyData,
+	/* copyData */          modifier_copyData_generic,
 	/* deformVerts */       deformVerts,
 	/* deformMatrices */    NULL,
 	/* deformVertsEM */     deformVertsEM,

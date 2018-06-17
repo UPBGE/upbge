@@ -48,7 +48,7 @@ struct LinkNode;
 /* *** editmesh_utils.c *** */
 
 /*
- * ok: the EDBM module is for editmode bmesh stuff.  in contrast, the 
+ * ok: the EDBM module is for editmode bmesh stuff.  in contrast, the
  * BMEdit module is for code shared with blenkernel that concerns
  * the BMEditMesh structure. */
 
@@ -106,9 +106,12 @@ void MESH_OT_extrude_verts_indiv(struct wmOperatorType *ot);
 void MESH_OT_extrude_edges_indiv(struct wmOperatorType *ot);
 void MESH_OT_extrude_faces_indiv(struct wmOperatorType *ot);
 void MESH_OT_dupli_extrude_cursor(struct wmOperatorType *ot);
-void MESH_OT_spin(struct wmOperatorType *ot);
+
+/* *** editmesh_extrude_screw.c *** */
 void MESH_OT_screw(struct wmOperatorType *ot);
 
+/* *** editmesh_extrude_spin.c *** */
+void MESH_OT_spin(struct wmOperatorType *ot);
 
 /* *** editmesh_inset.c *** */
 void MESH_OT_inset(struct wmOperatorType *ot);

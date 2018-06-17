@@ -71,6 +71,7 @@ char *BLI_sprintfN(const char *__restrict format, ...) ATTR_WARN_UNUSED_RESULT A
 size_t BLI_strescape(char *__restrict dst, const char *__restrict src, const size_t maxncpy) ATTR_NONNULL();
 
 size_t BLI_str_format_int_grouped(char dst[16], int num) ATTR_NONNULL();
+void   BLI_str_format_byte_unit(char dst[15], long long int size, const bool base_10) ATTR_NONNULL();
 
 int BLI_strcaseeq(const char *a, const char *b) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 char *BLI_strcasestr(const char *s, const char *find) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
@@ -102,6 +103,20 @@ int BLI_string_find_split_words(
         const char *str, const size_t len,
         const char delim, int r_words[][2], int words_max)
         ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
+
+/** \name String Copy/Format Macros
+ * Avoid repeating destination with `sizeof(..)`.
+ * \note `ARRAY_SIZE` allows pointers on some platforms.
+ * \{ */
+#define STRNCPY(dst, src) \
+    BLI_strncpy(dst, src, ARRAY_SIZE(dst))
+#define STRNCPY_RLEN(dst, src) \
+    BLI_strncpy_rlen(dst, src, ARRAY_SIZE(dst))
+#define SNPRINTF(dst, format, ...) \
+    BLI_snprintf(dst, ARRAY_SIZE(dst), format, __VA_ARGS__)
+#define SNPRINTF_RLEN(dst, format, ...) \
+    BLI_snprintf_rlen(dst, ARRAY_SIZE(dst), format, __VA_ARGS__)
+/** \} */
 
 #ifdef __cplusplus
 }

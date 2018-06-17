@@ -158,7 +158,7 @@ void bmo_dissolve_faces_exec(BMesh *bm, BMOperator *op)
 	}
 
 	BMO_slot_buffer_flag_enable(bm, op->slots_in, "faces", BM_FACE, FACE_MARK | FACE_TAG);
-	
+
 	/* collect region */
 	BMO_ITER (f, &oiter, op->slots_in, "faces", BM_FACE) {
 		BMFace *f_iter;
@@ -166,7 +166,7 @@ void bmo_dissolve_faces_exec(BMesh *bm, BMOperator *op)
 			continue;
 		}
 
-		BLI_array_empty(faces);
+		BLI_array_clear(faces);
 		faces = NULL; /* forces different allocatio */
 
 		BMW_init(&regwalker, bm, BMW_ISLAND_MANIFOLD,
@@ -178,8 +178,8 @@ void bmo_dissolve_faces_exec(BMesh *bm, BMOperator *op)
 			BLI_array_append(faces, f_iter);
 		}
 		BMW_end(&regwalker);
-		
-		for (i = 0; i < BLI_array_count(faces); i++) {
+
+		for (i = 0; i < BLI_array_len(faces); i++) {
 			f_iter = faces[i];
 			BMO_face_flag_disable(bm, f_iter, FACE_TAG);
 			BMO_face_flag_enable(bm, f_iter, FACE_ORIG);
@@ -190,7 +190,7 @@ void bmo_dissolve_faces_exec(BMesh *bm, BMOperator *op)
 			BMO_error_raise(bm, op, BMERR_DISSOLVEFACES_FAILED, NULL);
 			goto cleanup;
 		}
-		
+
 		BLI_array_append(faces, NULL);
 		BLI_array_append(regions, faces);
 	}
@@ -198,20 +198,20 @@ void bmo_dissolve_faces_exec(BMesh *bm, BMOperator *op)
 	/* track how many faces we should end up with */
 	int totface_target = bm->totface;
 
-	for (i = 0; i < BLI_array_count(regions); i++) {
+	for (i = 0; i < BLI_array_len(regions); i++) {
 		BMFace *f_new;
 		int tot = 0;
-		
+
 		faces = regions[i];
 		if (!faces[0]) {
 			BMO_error_raise(bm, op, BMERR_DISSOLVEFACES_FAILED,
 			                "Could not find boundary of dissolve region");
 			goto cleanup;
 		}
-		
+
 		while (faces[tot])
 			tot++;
-		
+
 		f_new = BM_faces_join(bm, faces, tot, true);
 
 		if (f_new) {
@@ -259,7 +259,7 @@ void bmo_dissolve_faces_exec(BMesh *bm, BMOperator *op)
 
 cleanup:
 	/* free/cleanup */
-	for (i = 0; i < BLI_array_count(regions); i++) {
+	for (i = 0; i < BLI_array_len(regions); i++) {
 		if (regions[i]) MEM_freeN(regions[i]);
 	}
 

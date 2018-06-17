@@ -96,33 +96,31 @@ KX_LodManager::KX_LodManager(Object *ob, KX_Scene *scene, BL_SceneConverter& con
 	:m_refcount(1),
 	m_distanceFactor(ob->lodfactor)
 {
-	if (BLI_listbase_count_ex(&ob->lodlevels, 2) > 1) {
-		Mesh *lodmesh = (Mesh *)ob->data;
-		Object *lodmatob = ob;
-		unsigned short level = 0;
+	Mesh *lodmesh = (Mesh *)ob->data;
+	Object *lodmatob = ob;
+	unsigned short level = 0;
 
-		for (LodLevel *lod = (LodLevel *)ob->lodlevels.first; lod; lod = lod->next) {
-			if (!lod->source || lod->source->type != OB_MESH) {
-				continue;
-			}
-			unsigned short flag = 0;
-			if (lod->flags & OB_LOD_USE_HYST) {
-				flag |= KX_LodLevel::USE_HYSTERESIS;
-			}
-
-			if (lod->flags & OB_LOD_USE_MESH) {
-				lodmesh = (Mesh *)lod->source->data;
-				flag |= KX_LodLevel::USE_MESH;
-			}
-
-			if (lod->flags & OB_LOD_USE_MAT) {
-				lodmatob = lod->source;
-				flag |= KX_LodLevel::USE_MATERIAL;
-			}
-
-			m_levels.emplace_back(lod->distance, lod->obhysteresis, level++,
-			                      BL_ConvertMesh(lodmesh, lodmatob, scene, converter), flag);
+	for (LodLevel *lod = (LodLevel *)ob->lodlevels.first; lod; lod = lod->next) {
+		if (!lod->source || lod->source->type != OB_MESH) {
+			continue;
 		}
+		unsigned short flag = 0;
+		if (lod->flags & OB_LOD_USE_HYST) {
+			flag |= KX_LodLevel::USE_HYSTERESIS;
+		}
+
+		if (lod->flags & OB_LOD_USE_MESH) {
+			lodmesh = (Mesh *)lod->source->data;
+			flag |= KX_LodLevel::USE_MESH;
+		}
+
+		if (lod->flags & OB_LOD_USE_MAT) {
+			lodmatob = lod->source;
+			flag |= KX_LodLevel::USE_MATERIAL;
+		}
+
+		m_levels.emplace_back(lod->distance, lod->obhysteresis, level++,
+		                      BL_ConvertMesh(lodmesh, lodmatob, scene, converter), flag);
 	}
 }
 

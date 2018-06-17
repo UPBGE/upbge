@@ -42,7 +42,8 @@
 #include "BLI_strict_flags.h"
 
 /* -------------------------------------------------------------------- */
-/* Draw Line */
+/** \name Draw Line
+ * \{ */
 
 /**
  * Plot a line from \a p1 to \a p2 (inclusive).
@@ -51,7 +52,7 @@
  */
 void BLI_bitmap_draw_2d_line_v2v2i(
         const int p1[2], const int p2[2],
-        bool (*callback)(int, int, void *), void *userData)
+        bool (*callback)(int, int, void *), void *user_data)
 {
 	/* Bresenham's line algorithm. */
 	int x1 = p1[0];
@@ -59,7 +60,7 @@ void BLI_bitmap_draw_2d_line_v2v2i(
 	int x2 = p2[0];
 	int y2 = p2[1];
 
-	if (callback(x1, y1, userData) == 0) {
+	if (callback(x1, y1, user_data) == 0) {
 		return;
 	}
 
@@ -90,7 +91,7 @@ void BLI_bitmap_draw_2d_line_v2v2i(
 			x1 += sign_x;
 			error += delta_y_step;
 
-			if (callback(x1, y1, userData) == 0) {
+			if (callback(x1, y1, user_data) == 0) {
 				return;
 			}
 		}
@@ -112,16 +113,193 @@ void BLI_bitmap_draw_2d_line_v2v2i(
 			y1 += sign_y;
 			error += delta_x_step;
 
-			if (callback(x1, y1, userData) == 0) {
+			if (callback(x1, y1, user_data) == 0) {
 				return;
 			}
 		}
 	}
 }
 
+/** \} */
 
 /* -------------------------------------------------------------------- */
-/* Draw Filled Polygon */
+/** \name Draw Filled Triangle
+ * \{ */
+
+/**
+ * Fill a triangle
+ *
+ * Standard algorithm,
+ * See: http://www.sunshine2k.de/coding/java/TriangleRasterization/TriangleRasterization.html
+ *
+ * Changes to the basic implementation:
+ *
+ * - Reuse slope calculation when drawing the second triangle.
+ * - Don't calculate the 4th point at all for the triangle split.
+ * - Order line drawing from left to right (minor detail).
+ * - 1-pixel offsets are applied so adjacent triangles don't overlap.
+ *
+ * This is not clipped, a clipped version can be added if needed.
+ */
+
+/* Macros could be moved to a shared location. */
+#define ORDERED_SWAP(ty, a, b) \
+	if (a > b) { SWAP(ty, a, b); } ((void)0)
+
+#define ORDERED_SWAP_BY(ty, a, b, by) \
+	if ((a by) > (b by)) { SWAP(ty, a, b); } ((void)0)
+
+#define ORDER_VARS2(ty, a, b) \
+	{ ORDERED_SWAP(ty, a, b); } ((void)0)
+
+#define ORDER_VARS3_BY(ty, a, b, c, by) \
+	{ \
+		ORDERED_SWAP_BY(ty, b, c, by); \
+		ORDERED_SWAP_BY(ty, a, c, by); \
+		ORDERED_SWAP_BY(ty, a, b, by); \
+	} ((void)0)
+
+static float inv_slope(const int a[2], const int b[2])
+{
+	return ((float)(a[0] - b[0]) /
+	        (float)(a[1] - b[1]));
+}
+
+/**
+ * <pre>
+ * *---*
+ *  \ /
+ *   *
+ * </pre>
+ */
+static void draw_tri_flat_max(
+        const int p[2],
+        const int max_y,
+        const float inv_slope1,
+        const float inv_slope2,
+        void (*callback)(int x, int x_end, int y, void *),
+        void *user_data)
+{
+	float cur_x1 = (float)p[0];
+	float cur_x2 = cur_x1;
+	/* start-end inclusive */
+	const int min_y = p[1];
+	const int max_y_end = max_y + 1;
+	for (int scanline_y = min_y; scanline_y != max_y_end; scanline_y += 1) {
+		callback((int)cur_x1, 1 + (int)cur_x2, scanline_y, user_data);
+		cur_x1 += inv_slope1;
+		cur_x2 += inv_slope2;
+	}
+}
+
+/**
+ * <pre>
+ *   *
+ *  / \
+ * *---*
+ * </pre>
+ */
+static void draw_tri_flat_min(
+        const int p[2],
+        const int min_y,
+        const float inv_slope1,
+        const float inv_slope2,
+        void (*callback)(int x, int x_end, int y, void *),
+        void *user_data)
+{
+	float cur_x1 = (float)p[0];
+	float cur_x2 = cur_x1;
+	/* start-end inclusive */
+	const int max_y = p[1];
+	const int min_y_end = min_y - 1;
+	for (int scanline_y = max_y; scanline_y != min_y_end; scanline_y -= 1) {
+		callback((int)cur_x1, 1 + (int)cur_x2, scanline_y, user_data);
+		cur_x1 -= inv_slope1;
+		cur_x2 -= inv_slope2;
+	}
+}
+
+/**
+ * \note Unclipped (clipped version can be added if needed).
+ */
+void BLI_bitmap_draw_2d_tri_v2i(
+        /* all 2d */
+        const int p1[2],
+        const int p2[2],
+        const int p3[2],
+        void (*callback)(int x, int x_end, int y, void *),
+        void *user_data)
+{
+	/* At first sort the three vertices by y-coordinate ascending so p1 is the top-most vertice */
+	ORDER_VARS3_BY(const int *, p1, p2, p3, [1]);
+
+	BLI_assert(p1[1] <= p2[1] && p2[1] <= p3[1]);
+
+	/* Check for trivial case of bottom-flat triangle. */
+	if (p2[1] == p3[1]) {
+		float inv_slope1 = inv_slope(p2, p1);
+		float inv_slope2 = inv_slope(p3, p1);
+		ORDER_VARS2(float, inv_slope1, inv_slope2);
+		BLI_assert(!(inv_slope1 > inv_slope2));
+		draw_tri_flat_max(
+		        p1, p2[1],
+		        inv_slope1, inv_slope2,
+		        callback, user_data);
+	}
+	else if (p1[1] == p2[1]) {
+		/* Check for trivial case of top-flat triangle. */
+		float inv_slope1 = inv_slope(p3, p1);
+		float inv_slope2 = inv_slope(p3, p2);
+		ORDER_VARS2(float, inv_slope2, inv_slope1);
+		BLI_assert(!(inv_slope1 < inv_slope2));
+		draw_tri_flat_min(
+		        p3, p2[1] + 1, /* avoid overlap */
+		        inv_slope1, inv_slope2,
+		        callback, user_data);
+	}
+	else {
+		/* General case - split the triangle in a top-flat and bottom-flat one. */
+		const float inv_slope_p21 = inv_slope(p2, p1);
+		const float inv_slope_p31 = inv_slope(p3, p1);
+		const float inv_slope_p32 = inv_slope(p3, p2);
+
+		float inv_slope1_max, inv_slope2_max;
+		float inv_slope2_min, inv_slope1_min;
+
+		if (inv_slope_p21 < inv_slope_p31) {
+			inv_slope1_max = inv_slope_p21;
+			inv_slope2_max = inv_slope_p31;
+			inv_slope2_min = inv_slope_p31;
+			inv_slope1_min = inv_slope_p32;
+		}
+		else {
+			inv_slope1_max = inv_slope_p31;
+			inv_slope2_max = inv_slope_p21;
+			inv_slope2_min = inv_slope_p32;
+			inv_slope1_min = inv_slope_p31;
+		}
+
+		draw_tri_flat_max(
+		        p1, p2[1],
+		        inv_slope1_max, inv_slope2_max,
+		        callback, user_data);
+		draw_tri_flat_min(
+		        p3, p2[1] + 1, /* avoid overlap */
+		        inv_slope1_min, inv_slope2_min,
+		        callback, user_data);
+	}
+}
+
+#undef ORDERED_SWAP
+#undef ORDERED_SWAP_BY
+#undef ORDER_VARS2
+#undef ORDER_VARS3_BY
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Draw Filled Polygon
+ * \{ */
 
 /* sort edge-segments on y, then x axis */
 static int draw_poly_v2i_n__span_y_sort(const void *a_p, const void *b_p, void *verts_p)
@@ -162,7 +340,7 @@ static int draw_poly_v2i_n__span_y_sort(const void *a_p, const void *b_p, void *
 }
 
 /**
- * Draws a filled polyon with support for self intersections.
+ * Draws a filled polygon with support for self intersections.
  *
  * \param callback: Takes the x, y coords and x-span (\a x_end is not inclusive),
  * note that \a x_end will always be greater than \a x, so we can use:
@@ -175,16 +353,16 @@ static int draw_poly_v2i_n__span_y_sort(const void *a_p, const void *b_p, void *
  */
 void BLI_bitmap_draw_2d_poly_v2i_n(
         const int xmin, const int ymin, const int xmax, const int ymax,
-        const int verts[][2], const int nr,
-        void (*callback)(int x, int x_end, int y, void *), void *userData)
+        const int verts[][2], const int verts_len,
+        void (*callback)(int x, int x_end, int y, void *), void *user_data)
 {
 	/* Originally by Darel Rex Finley, 2007.
 	 * Optimized by Campbell Barton, 2016 to track sorted intersections. */
 
-	int (*span_y)[2] = MEM_mallocN(sizeof(*span_y) * (size_t)nr, __func__);
+	int (*span_y)[2] = MEM_mallocN(sizeof(*span_y) * (size_t)verts_len, __func__);
 	int span_y_len = 0;
 
-	for (int i_curr = 0, i_prev = nr - 1; i_curr < nr; i_prev = i_curr++) {
+	for (int i_curr = 0, i_prev = verts_len - 1; i_curr < verts_len; i_prev = i_curr++) {
 		const int *co_prev = verts[i_prev];
 		const int *co_curr = verts[i_curr];
 
@@ -213,7 +391,7 @@ void BLI_bitmap_draw_2d_poly_v2i_n(
 	struct NodeX {
 		int span_y_index;
 		int x;
-	} *node_x = MEM_mallocN(sizeof(*node_x) * (size_t)(nr + 1), __func__);
+	} *node_x = MEM_mallocN(sizeof(*node_x) * (size_t)(verts_len + 1), __func__);
 	int node_x_len = 0;
 
 	int span_y_index = 0;
@@ -294,7 +472,7 @@ void BLI_bitmap_draw_2d_poly_v2i_n(
 				}
 				/* for single call per x-span */
 				if (x_src < x_dst) {
-					callback(x_src - xmin, x_dst - xmin, pixel_y - ymin, userData);
+					callback(x_src - xmin, x_dst - xmin, pixel_y - ymin, user_data);
 				}
 			}
 		}
@@ -334,3 +512,5 @@ void BLI_bitmap_draw_2d_poly_v2i_n(
 	MEM_freeN(span_y);
 	MEM_freeN(node_x);
 }
+
+/** \} */

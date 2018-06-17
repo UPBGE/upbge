@@ -55,6 +55,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
+#include <limits.h>
 #ifndef _WIN32
 #include <dirent.h>
 #else
@@ -66,8 +67,6 @@
 #include "BLI_path_util.h"
 
 #include "MEM_guardedalloc.h"
-
-#include "BKE_global.h"
 
 #ifdef WITH_AVI
 #  include "AVI_avi.h"
@@ -81,8 +80,11 @@
 
 #include "IMB_anim.h"
 #include "IMB_indexer.h"
+#include "IMB_metadata.h"
 
 #ifdef WITH_FFMPEG
+#  include "BKE_global.h"  /* ENDIAN_ORDER */
+
 #  include <libavformat/avformat.h>
 #  include <libavcodec/avcodec.h>
 #  include <libavutil/rational.h>
@@ -219,6 +221,7 @@ void IMB_free_anim(struct anim *anim)
 	free_anim_ffmpeg(anim);
 #endif
 	IMB_free_indices(anim);
+	IMB_metadata_free(anim->metadata);
 
 	MEM_freeN(anim);
 }
@@ -236,6 +239,26 @@ void IMB_close_anim_proxies(struct anim *anim)
 		return;
 
 	IMB_free_indices(anim);
+}
+
+struct IDProperty *IMB_anim_load_metadata(struct anim *anim)
+{
+#ifdef WITH_FFMPEG
+	AVDictionaryEntry *entry = NULL;
+
+	BLI_assert(anim->pFormatCtx != NULL);
+	av_log(anim->pFormatCtx, AV_LOG_DEBUG, "METADATA FETCH\n");
+
+	while (true) {
+		entry = av_dict_get(anim->pFormatCtx->metadata, "", entry, AV_DICT_IGNORE_SUFFIX);
+		if (entry == NULL) break;
+
+		/* Delay creation of the property group until there is actual metadata to put in there. */
+		IMB_metadata_ensure(&anim->metadata);
+		IMB_metadata_set_field(anim->metadata, entry->key, entry->value);
+	}
+#endif
+	return anim->metadata;
 }
 
 struct anim *IMB_open_anim(const char *name, int ib_flags, int streamindex, char colorspace[IM_MAX_SPACE])
@@ -510,7 +533,7 @@ static int startffmpeg(struct anim *anim)
 		return -1;
 	}
 
-	frame_rate = av_get_r_frame_rate_compat(pFormatCtx->streams[videoStream]);
+	frame_rate = av_get_r_frame_rate_compat(pFormatCtx, pFormatCtx->streams[videoStream]);
 	if (pFormatCtx->streams[videoStream]->nb_frames != 0) {
 		anim->duration = pFormatCtx->streams[videoStream]->nb_frames;
 	}
@@ -988,7 +1011,7 @@ static ImBuf *ffmpeg_fetchibuf(struct anim *anim, int position,
 
 	v_st = anim->pFormatCtx->streams[anim->videoStream];
 
-	frame_rate = av_q2d(av_get_r_frame_rate_compat(v_st));
+	frame_rate = av_q2d(av_get_r_frame_rate_compat(anim->pFormatCtx, v_st));
 
 	st_time = anim->pFormatCtx->start_time;
 	pts_time_base = av_q2d(v_st->time_base);
@@ -1365,16 +1388,32 @@ int IMB_anim_get_duration(struct anim *anim, IMB_Timecode_Type tc)
 bool IMB_anim_get_fps(struct anim *anim,
                      short *frs_sec, float *frs_sec_base, bool no_av_base)
 {
+	double frs_sec_base_double;
 	if (anim->frs_sec) {
-		*frs_sec = anim->frs_sec;
-		*frs_sec_base = anim->frs_sec_base;
+		if (anim->frs_sec > SHRT_MAX) {
+			/* We cannot store original rational in our short/float format,
+			 * we need to approximate it as best as we can... */
+			*frs_sec = SHRT_MAX;
+			frs_sec_base_double = anim->frs_sec_base * (double)SHRT_MAX / (double)anim->frs_sec;
+		}
+		else {
+			*frs_sec = anim->frs_sec;
+			frs_sec_base_double = anim->frs_sec_base;
+		}
 #ifdef WITH_FFMPEG
 		if (no_av_base) {
-			*frs_sec_base /= AV_TIME_BASE;
+			*frs_sec_base = (float)(frs_sec_base_double / AV_TIME_BASE);
+		}
+		else {
+			*frs_sec_base = (float)frs_sec_base_double;
 		}
 #else
 		UNUSED_VARS(no_av_base);
+		*frs_sec_base = (float)frs_sec_base_double;
 #endif
+		BLI_assert(*frs_sec > 0);
+		BLI_assert(*frs_sec_base > 0.0f);
+
 		return true;
 	}
 	return false;
