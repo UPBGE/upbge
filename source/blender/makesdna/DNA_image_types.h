@@ -100,12 +100,12 @@ enum {
 
 typedef struct Image {
 	ID id;
-	
+
 	char name[1024];			/* file path, 1024 = FILE_MAX */
-	
+
 	struct MovieCache *cache;	/* not written in file */
 	struct GPUTexture *gputexture[2]; /* not written in file 2 = TEXTARGET_COUNT */
-	
+
 	/* sources from: */
 	ListBase anims;
 	struct RenderResult *rr;
@@ -141,7 +141,7 @@ typedef struct Image {
 	char gen_type, gen_flag;
 	short gen_depth;
 	float gen_color[4];
-	
+
 	/* display aspect - for UV editing images resized for faster openGL display */
 	float aspx, aspy;
 

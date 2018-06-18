@@ -77,17 +77,17 @@ static void studiolight_free(struct StudioLight *sl)
 		GPU_texture_free(sl->equirectangular_radiance_gputexture);
 		sl->equirectangular_radiance_gputexture = NULL;
 	}
-	
+
 	if (sl->equirectangular_irradiance_gputexture) {
 		GPU_texture_free(sl->equirectangular_irradiance_gputexture);
 		sl->equirectangular_irradiance_gputexture = NULL;
 	}
-	
+
 	if (sl->equirectangular_radiance_buffer) {
 		IMB_freeImBuf(sl->equirectangular_radiance_buffer);
 		sl->equirectangular_radiance_buffer = NULL;
 	}
-	
+
 	if (sl->equirectangular_irradiance_buffer) {
 		IMB_freeImBuf(sl->equirectangular_irradiance_buffer);
 		sl->equirectangular_irradiance_buffer = NULL;
@@ -398,7 +398,7 @@ static float texel_coord_solid_angle(float a_U, float a_V, int a_Size)
 }
 
 BLI_INLINE void studiolight_evaluate_specular_radiance_buffer(
-        ImBuf *radiance_buffer, const float normal[3], float color[3], 
+        ImBuf *radiance_buffer, const float normal[3], float color[3],
         int xoffset, int yoffset, int zoffset, float zvalue)
 {
 	if (radiance_buffer == NULL) {
@@ -473,7 +473,7 @@ static void studiolight_calculate_irradiance_equirectangular_image(StudioLight *
 {
 	if (sl->flag & STUDIOLIGHT_EXTERNAL_FILE) {
 		/* check for cached irr file */
-		
+
 		BKE_studiolight_ensure_flag(sl, STUDIOLIGHT_RADIANCE_BUFFERS_CALCULATED);
 
 		float *colbuf = MEM_mallocN(STUDIOLIGHT_IRRADIANCE_EQUIRECTANGULAR_WIDTH * STUDIOLIGHT_IRRADIANCE_EQUIRECTANGULAR_HEIGHT * sizeof(float[4]), __func__);
@@ -549,7 +549,7 @@ static void studiolight_add_files_from_datafolder(const int folder_id, const cha
 			if ((dir[i].type & S_IFREG)) {
 				const char *filename = dir[i].relname;
 				const char *path = dir[i].path;
-				if (BLI_testextensie_array(filename, imb_ext_image)) {
+				if (BLI_path_extension_check_array(filename, imb_ext_image)) {
 					sl = studiolight_create(STUDIOLIGHT_EXTERNAL_FILE | flag);
 					BLI_strncpy(sl->name, filename, FILE_MAXFILE);
 					BLI_strncpy(sl->path, path, FILE_MAXFILE);
@@ -633,7 +633,7 @@ static uint *studiolight_radiance_preview(StudioLight *sl, int icon_size)
 				normal[0] = dx * 2.0f - 1.0f;
 				normal[1] = dy * 2.0f - 1.0f;
 				float dist = len_v2(normal);
-				normal[2] = sqrtf(1.0f - dist*dist);
+				normal[2] = sqrtf(1.0f - SQUARE(dist));
 
 				float direction[3];
 				reflect_v3_v3v3(direction, incoming, normal);
@@ -717,7 +717,7 @@ static uint *studiolight_irradiance_preview(StudioLight *sl, int icon_size)
 					normal[0] = dx * 2.0f - 1.0f;
 					normal[1] = dy * 2.0f - 1.0f;
 					float dist = len_v2(normal);
-					normal[2] = sqrtf(1.0f - dist*dist);
+					normal[2] = sqrtf(1.0f - SQUARE(dist));
 
 					float color[3];
 					mul_v3_v3fl(color, sl->diffuse_light[STUDIOLIGHT_X_POS], clamp_f(normal[0], 0.0, 1.0));

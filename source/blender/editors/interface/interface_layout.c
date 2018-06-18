@@ -1488,6 +1488,7 @@ void uiItemFullR(uiLayout *layout, PointerRNA *ptr, PropertyRNA *prop, int index
 #ifdef UI_PROP_DECORATE
 	struct {
 		bool use_prop_decorate;
+		int len;
 		uiLayout *layout;
 		uiBut *but;
 	} ui_decorate = {
@@ -1583,6 +1584,7 @@ void uiItemFullR(uiLayout *layout, PointerRNA *ptr, PropertyRNA *prop, int index
 		if (ui_decorate.use_prop_decorate) {
 			layout_row = uiLayoutRow(layout, true);
 			layout_row->space = 0;
+			ui_decorate.len = 1;
 		}
 #endif  /* UI_PROP_DECORATE */
 
@@ -1621,6 +1623,10 @@ void uiItemFullR(uiLayout *layout, PointerRNA *ptr, PropertyRNA *prop, int index
 					but->drawflag |= UI_BUT_TEXT_RIGHT;
 					but->drawflag &= ~UI_BUT_TEXT_LEFT;
 				}
+
+#ifdef UI_PROP_DECORATE
+				ui_decorate.len = len;
+#endif
 			}
 			else {
 				if (name) {
@@ -1635,7 +1641,12 @@ void uiItemFullR(uiLayout *layout, PointerRNA *ptr, PropertyRNA *prop, int index
 			/* Watch out! We can only write into the new column now. */
 			layout = uiLayoutColumn(layout_split, true);
 			layout->space = 0;
-			name = "";
+			if ((type == PROP_ENUM) && (flag & UI_ITEM_R_EXPAND)) {
+				/* pass (expanded enums each have their own name) */
+			}
+			else {
+				name = "";
+			}
 		}
 
 #ifdef UI_PROP_DECORATE
@@ -1702,14 +1713,14 @@ void uiItemFullR(uiLayout *layout, PointerRNA *ptr, PropertyRNA *prop, int index
 		layout_col->space = 0;
 		layout_col->emboss = UI_EMBOSS_NONE;
 		int i;
-		for (i = 0; but_decorate; i++) {
+		for (i = 0; i < ui_decorate.len && but_decorate; i++) {
 			/* The icons are set in 'ui_but_anim_flag' */
 			if (is_anim) {
 				but = uiDefIconBut(
 				        block, UI_BTYPE_BUT, 0, ICON_DOT, 0, 0, UI_UNIT_X, UI_UNIT_Y,
 				        NULL, 0.0, 0.0, 0.0, 0.0, TIP_("Animate property"));
 				UI_but_func_set(but, ui_but_anim_decorate_cb, but, NULL);
-				but->flag |= UI_BUT_DRAG_LOCK;
+				but->flag |= UI_BUT_UNDO | UI_BUT_DRAG_LOCK;
 			}
 			else {
 				/* We may show other information here in future, for now use empty space. */
@@ -1724,7 +1735,7 @@ void uiItemFullR(uiLayout *layout, PointerRNA *ptr, PropertyRNA *prop, int index
 			BLI_insertlinkafter(&block->buttons, but_decorate, but);
 			but_decorate = but->next;
 		}
-		BLI_assert(len ? i == len : i == 1);
+		BLI_assert(ELEM(i, 1, ui_decorate.len));
 	}
 #endif  /* UI_PROP_DECORATE */
 
