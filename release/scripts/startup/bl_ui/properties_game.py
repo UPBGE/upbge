@@ -18,7 +18,7 @@
 
 # <pep8 compliant>
 import bpy
-from bpy.types import Panel, Menu
+from bpy.types import Panel, Menu, UIList
 
 
 class PhysicsButtonsPanel:
@@ -461,6 +461,42 @@ class RENDER_PT_game_system(RenderButtonsPanel, Panel):
         col = row.column()
         col.label("Exit Key:")
         col.prop(gs, "exit_key", text="", event=True)
+
+class RENDER_UL_attachments(UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        if item is not None:
+            layout.prop(item, "name", text="", emboss=False, icon="TEXTURE")
+            layout.label(text=str(index))
+        else:
+            layout.label(text="", icon="TEXTURE")
+
+class RENDER_PT_game_attachments(RenderButtonsPanel, Panel):
+    bl_label = "Attachments"
+    COMPAT_ENGINES = {'BLENDER_GAME'}
+
+    def draw(self, context):
+        layout = self.layout
+
+        gs = context.scene.game_settings
+
+        row = layout.row()
+
+        row.template_list("RENDER_UL_attachments", "", gs, "attachment_slots", gs, "active_attachment_index", rows=2)
+
+        col = row.column(align=True)
+        col.operator("scene.render_attachment_new", icon='ZOOMIN', text="")
+        col.operator("scene.render_attachment_remove", icon='ZOOMOUT', text="")
+
+        attachment = gs.active_attachment
+
+        if attachment is not None:
+            row = layout.row()
+            row.prop(attachment, "type")
+            row.prop(attachment, "hdr")
+
+            if attachment.type == "CUSTOM":
+                row = layout.row()
+                row.prop(attachment, "size")
 
 
 class RENDER_PT_game_animations(RenderButtonsPanel, Panel):
@@ -1061,10 +1097,12 @@ classes = (
     RENDER_PT_game_stereo,
     RENDER_PT_game_shading,
     RENDER_PT_game_system,
+    RENDER_PT_game_attachments,
     RENDER_PT_game_animations,
     RENDER_PT_game_display,
     RENDER_PT_game_color_management,
     RENDER_PT_game_debug,
+	RENDER_UL_attachments,
     SCENE_PT_game_physics,
     SCENE_PT_game_physics_obstacles,
     SCENE_PT_game_navmesh,

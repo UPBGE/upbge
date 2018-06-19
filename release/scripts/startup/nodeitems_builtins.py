@@ -165,6 +165,7 @@ shader_node_categories = [
     ]),
     ShaderOldNodeCategory("SH_OUTPUT", "Output", items=[
         NodeItem("ShaderNodeOutput"),
+        NodeItem("ShaderNodeOutputAttachment"),
         NodeItem("NodeGroupOutput", poll=group_input_output_item_poll),
     ]),
     ShaderOldNodeCategory("SH_OP_COLOR", "Color", items=[

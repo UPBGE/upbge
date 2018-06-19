@@ -800,6 +800,7 @@ struct ShadeResult;
 #define SH_NODE_OBJECT			1000
 #define SH_NODE_TIME			1001
 #define SH_NODE_PARALLAX		1002
+#define SH_NODE_OUTPUT_ATTACHMENT 1003
 
 /* custom defines options for Material node */
 #define SH_NODE_MAT_DIFF   1

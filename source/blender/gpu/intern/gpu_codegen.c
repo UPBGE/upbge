@@ -643,7 +643,7 @@ static void codegen_declare_tmps(DynStr *ds, ListBase *nodes)
 	BLI_dynstr_append(ds, "\n");
 }
 
-static void codegen_call_functions(DynStr *ds, ListBase *nodes, GPUOutput *finaloutput)
+static void codegen_call_functions(DynStr *ds, ListBase *nodes, GPUNodeLink *finaloutputs[8])
 {
 	GPUNode *node;
 	GPUInput *input;
@@ -696,12 +696,17 @@ static void codegen_call_functions(DynStr *ds, ListBase *nodes, GPUOutput *final
 		BLI_dynstr_append(ds, ");\n");
 	}
 
-	BLI_dynstr_append(ds, "\n\tgl_FragColor = ");
-	codegen_convert_datatype(ds, finaloutput->type, GPU_VEC4, "tmp", finaloutput->id);
-	BLI_dynstr_append(ds, ";\n");
+	for (unsigned short i = 0; i < 8; ++i) {
+		if (finaloutputs[i]) {
+			output = finaloutputs[i]->output;
+			BLI_dynstr_appendf(ds, "\n\tgl_FragData[%i] = ", i);
+			codegen_convert_datatype(ds, output->type, GPU_VEC4, "tmp", output->id);
+			BLI_dynstr_append(ds, ";\n");
+		}
+	}
 }
 
-static char *code_generate_fragment(ListBase *nodes, GPUOutput *output)
+static char *code_generate_fragment(ListBase *nodes, GPUNodeLink *outputs[8])
 {
 	DynStr *ds = BLI_dynstr_new();
 	char *code;
@@ -759,7 +764,7 @@ static char *code_generate_fragment(ListBase *nodes, GPUOutput *output)
 #endif
 
 	codegen_declare_tmps(ds, nodes);
-	codegen_call_functions(ds, nodes, output);
+	codegen_call_functions(ds, nodes, outputs);
 
 	BLI_dynstr_append(ds, "}\n");
 
@@ -1736,14 +1741,18 @@ static void gpu_nodes_tag(GPUNodeLink *link)
 			gpu_nodes_tag(input->link);
 }
 
-static void gpu_nodes_prune(ListBase *nodes, GPUNodeLink *outlink)
+static void gpu_nodes_prune(ListBase *nodes, GPUNodeLink *outlinks[8])
 {
 	GPUNode *node, *next;
 
 	for (node = nodes->first; node; node = node->next)
 		node->tag = false;
 
-	gpu_nodes_tag(outlink);
+	for (unsigned short i = 0; i < 8; ++i) {
+		if (outlinks[i]) {
+			gpu_nodes_tag(outlinks[i]);
+		}
+	}
 
 	for (node = nodes->first; node; node = next) {
 		next = node->next;
@@ -1756,7 +1765,7 @@ static void gpu_nodes_prune(ListBase *nodes, GPUNodeLink *outlink)
 }
 
 GPUPass *GPU_generate_pass(
-        ListBase *nodes, GPUNodeLink *outlink,
+        ListBase *nodes, GPUNodeLink *outlinks[8],
         GPUVertexAttribs *attribs, int *builtins,
         const GPUMatType type, const char *UNUSED(name),
         const bool use_opensubdiv,
@@ -1775,13 +1784,13 @@ GPUPass *GPU_generate_pass(
 #endif
 
 	/* prune unused nodes */
-	gpu_nodes_prune(nodes, outlink);
+	gpu_nodes_prune(nodes, outlinks);
 
 	gpu_nodes_get_vertex_attributes(nodes, attribs);
 	gpu_nodes_get_builtin_flag(nodes, builtins);
 
 	/* generate code and compile with opengl */
-	fragmentcode = code_generate_fragment(nodes, outlink->output);
+	fragmentcode = code_generate_fragment(nodes, outlinks);
 	vertexcode = code_generate_vertex(nodes, type, use_instancing);
 	geometrycode = code_generate_geometry(nodes, use_opensubdiv);
 
@@ -1820,7 +1829,6 @@ GPUPass *GPU_generate_pass(
 	/* create pass */
 	pass = MEM_callocN(sizeof(GPUPass), "GPUPass");
 
-	pass->output = outlink->output;
 	pass->shader = shader;
 	pass->fragmentcode = fragmentcode;
 	pass->geometrycode = geometrycode;

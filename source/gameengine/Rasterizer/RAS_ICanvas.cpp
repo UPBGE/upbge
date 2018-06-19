@@ -23,6 +23,7 @@
  */
 
 #include "RAS_ICanvas.h"
+#include "RAS_OffScreen.h"
 #include "DNA_scene_types.h"
 
 #include "BKE_image.h"
@@ -34,6 +35,8 @@
 #include "BLI_string.h"
 
 #include "MEM_guardedalloc.h"
+
+#include "GPU_framebuffer.h"
 
 extern "C" {
 #  include "IMB_imbuf.h"
@@ -68,15 +71,14 @@ const int RAS_ICanvas::swapInterval[RAS_ICanvas::SWAP_CONTROL_MAX] = {
 	-1 // VSYNC_ADAPTIVE
 };
 
-RAS_ICanvas::RAS_ICanvas(RAS_Rasterizer *rasty)
+RAS_ICanvas::RAS_ICanvas(const RAS_OffScreen::AttachmentList& attachments)
 	:m_samples(0),
-	m_hdrType(RAS_Rasterizer::RAS_HDR_NONE),
+	m_attachments(attachments),
 	m_swapControl(VSYNC_OFF),
 	m_frame(1)
 {
 	m_taskscheduler = BLI_task_scheduler_create(TASK_SCHEDULER_AUTO_THREADS);
 	m_taskpool = BLI_task_pool_create(m_taskscheduler, nullptr);
-	m_rasterizer = rasty;
 }
 
 RAS_ICanvas::~RAS_ICanvas()
@@ -113,23 +115,59 @@ int RAS_ICanvas::GetSamples() const
 	return m_samples;
 }
 
-void RAS_ICanvas::SetHdrType(RAS_Rasterizer::HdrType type)
+int RAS_ICanvas::GetWidth() const
 {
-	m_hdrType = type;
+	return m_area.GetWidth();
 }
 
-RAS_Rasterizer::HdrType RAS_ICanvas::GetHdrType() const
+int RAS_ICanvas::GetHeight() const
 {
-	return m_hdrType;
+	return m_area.GetHeight();
 }
 
-void RAS_ICanvas::FlushScreenshots()
+int RAS_ICanvas::GetMaxX() const
+{
+	return m_area.GetMaxX();
+}
+
+int RAS_ICanvas::GetMaxY() const
+{
+	return m_area.GetMaxY();
+}
+
+
+float RAS_ICanvas::GetMouseNormalizedX(int x) const
+{
+	return float(x) / m_area.GetMaxX();
+}
+
+float RAS_ICanvas::GetMouseNormalizedY(int y) const
+{
+	return float(y) / m_area.GetMaxY();
+}
+
+const RAS_Rect &RAS_ICanvas::GetArea() const
+{
+	return m_area;
+}
+
+const int *RAS_ICanvas::GetViewPort() const
+{
+	return m_viewport;
+}
+
+void RAS_ICanvas::FlushScreenshots(RAS_Rasterizer *rasty)
 {
 	for (const Screenshot& screenshot : m_screenshots) {
-		SaveScreeshot(screenshot);
+		SaveScreeshot(screenshot, rasty);
 	}
 
 	m_screenshots.clear();
+}
+
+RAS_OffScreen *RAS_ICanvas::GetOffScreen(RAS_OffScreen::Type type)
+{
+	return m_offScreens[type].get();
 }
 
 void RAS_ICanvas::AddScreenshot(const std::string& path, int x, int y, int width, int height, ImageFormatData *format)
@@ -163,9 +201,9 @@ void save_screenshot_thread_func(TaskPool *__restrict UNUSED(pool), void *taskda
 }
 
 
-void RAS_ICanvas::SaveScreeshot(const Screenshot& screenshot)
+void RAS_ICanvas::SaveScreeshot(const Screenshot& screenshot, RAS_Rasterizer *rasty)
 {
-	unsigned int *pixels = m_rasterizer->MakeScreenshot(screenshot.x, screenshot.y, screenshot.width, screenshot.height);
+	unsigned int *pixels = rasty->MakeScreenshot(screenshot.x, screenshot.y, screenshot.width, screenshot.height);
 	if (!pixels) {
 		CM_Error("cannot allocate pixels array");
 		return;
@@ -189,4 +227,38 @@ void RAS_ICanvas::SaveScreeshot(const Screenshot& screenshot)
 	                   task,
 	                   true, // free task data
 	                   TASK_PRIORITY_LOW);
+}
+
+void RAS_ICanvas::UpdateOffScreens()
+{
+	const unsigned int width = GetWidth();
+	const unsigned int height = GetHeight();
+	for (unsigned short i = 0; i < RAS_OffScreen::RAS_OFFSCREEN_MAX; ++i) {
+		RAS_OffScreen::Type type = (RAS_OffScreen::Type)i;
+		// Check if the off screen type can support samples.
+		const bool sampleofs = ELEM(type, RAS_OffScreen::RAS_OFFSCREEN_EYE_LEFT0, RAS_OffScreen::RAS_OFFSCREEN_EYE_RIGHT0);
+
+		/* Some GPUs doesn't support high multisample value with GL_RGBA16F or GL_RGBA32F.
+		 * To avoid crashing we check if the off screen was created and if not decremente
+		 * the multisample value and try to create the off screen to find a supported value.
+		 */
+		for (int samples = m_samples; samples >= 0; --samples) {
+			RAS_OffScreen *ofs = new RAS_OffScreen(width, height, sampleofs ? samples : 0, m_attachments, type);
+			if (!ofs->GetValid()) {
+				delete ofs;
+				continue;
+			}
+
+			m_offScreens[type].reset(ofs);
+			m_samples = samples;
+			break;
+		}
+
+		/* Creating an off screen restore the default frame buffer object.
+		 * We have to rebind the last off screen. */
+		RAS_OffScreen *lastOffScreen = RAS_OffScreen::GetLastOffScreen();
+		if (lastOffScreen) {
+			lastOffScreen->Bind();
+		}
+	}
 }

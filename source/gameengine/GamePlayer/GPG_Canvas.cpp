@@ -44,13 +44,11 @@
 #include "MEM_guardedalloc.h"
 #include "DNA_space_types.h"
 
-GPG_Canvas::GPG_Canvas(RAS_Rasterizer *rasty, GHOST_IWindow *window)
-	:RAS_ICanvas(rasty),
-	m_window(window),
-	m_width(0),
-	m_height(0)
+GPG_Canvas::GPG_Canvas(RAS_Rasterizer *rasty, const RAS_OffScreen::AttachmentList& attachments, GHOST_IWindow *window)
+	:RAS_ICanvas(attachments),
+	m_window(window)
 {
-	m_rasterizer->GetViewport(m_viewport);
+	rasty->GetViewport(m_viewport);
 
 	if (m_window) {
 		GHOST_Rect bnds;
@@ -61,31 +59,6 @@ GPG_Canvas::GPG_Canvas(RAS_Rasterizer *rasty, GHOST_IWindow *window)
 
 GPG_Canvas::~GPG_Canvas()
 {
-}
-
-int GPG_Canvas::GetWidth() const
-{
-	return m_width;
-}
-
-int GPG_Canvas::GetHeight() const
-{
-	return m_height;
-}
-
-int GPG_Canvas::GetMaxX() const
-{
-	return (m_width - 1);
-}
-
-int GPG_Canvas::GetMaxY() const
-{
-	return (m_height - 1);
-}
-
-RAS_Rect &GPG_Canvas::GetWindowArea()
-{
-	return m_area;
 }
 
 void GPG_Canvas::BeginFrame()
@@ -106,14 +79,13 @@ void GPG_Canvas::EndDraw()
 
 void GPG_Canvas::Resize(int width, int height)
 {
-	m_width = width;
-	m_height = height;
-
 	// initialize area so that it's available for game logic on frame 1 (ImageViewport)
 	m_area.SetLeft(0);
 	m_area.SetBottom(0);
 	m_area.SetRight(width - 1);
 	m_area.SetTop(height - 1);
+
+	UpdateOffScreens();
 }
 
 void GPG_Canvas::SetViewPort(int x, int y, int width, int height)
@@ -130,11 +102,6 @@ void GPG_Canvas::UpdateViewPort(int x, int y, int width, int height)
 	m_viewport[1] = y;
 	m_viewport[2] = width;
 	m_viewport[3] = height;
-}
-
-const int *GPG_Canvas::GetViewPort()
-{
-	return m_viewport;
 }
 
 void GPG_Canvas::MakeScreenShot(const std::string& filename)
@@ -275,14 +242,4 @@ void GPG_Canvas::ConvertMousePosition(int x, int y, int &r_x, int &r_y, bool UNU
 
 	r_x = _x * fac;
 	r_y = _y * fac;
-}
-
-float GPG_Canvas::GetMouseNormalizedX(int x)
-{
-	return float(x) / GetMaxX();
-}
-
-float GPG_Canvas::GetMouseNormalizedY(int y)
-{
-	return float(y) / GetMaxY();
 }

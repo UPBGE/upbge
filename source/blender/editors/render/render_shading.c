@@ -44,6 +44,7 @@
 #include "BLI_utildefines.h"
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
+#include "BLI_string.h"
 
 #include "BLT_translation.h"
 
@@ -742,6 +743,63 @@ void SCENE_OT_render_view_remove(wmOperatorType *ot)
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+static int render_attachment_new_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Scene *scene = CTX_data_scene(C);
+	GameData *gm = &scene->gm;
+
+	if (!gm->attachments[gm->activeAttachment]) {
+		RenderAttachment *attach = MEM_callocN(sizeof(RenderAttachment), "RenderAttachment");
+		attach->type = GAME_ATTACHMENT_CUSTOM;
+		attach->size = 3;
+		attach->hdr = GAME_HDR_FULL_FLOAT;
+		BLI_strncpy(attach->name, "Attachment", MAX_NAME);
+		gm->attachments[gm->activeAttachment] = attach;
+	}
+
+	return OPERATOR_FINISHED;
+}
+
+void SCENE_OT_render_attachment_new(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Create Render Attachment";
+	ot->idname = "SCENE_OT_render_attachment_new";
+	ot->description = "Create a render attachment";
+
+	/* api callbacks */
+	ot->exec = render_attachment_new_exec;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
+}
+
+static int render_attachment_remove_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Scene *scene = CTX_data_scene(C);
+	GameData *gm = &scene->gm;
+	if (gm->attachments[gm->activeAttachment]) {
+		MEM_freeN(gm->attachments[gm->activeAttachment]);
+		gm->attachments[gm->activeAttachment] = NULL;
+	}
+
+	return OPERATOR_FINISHED;
+}
+
+void SCENE_OT_render_attachment_remove(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Remove Render Attachment";
+	ot->idname = "SCENE_OT_render_attachment_remove";
+	ot->description = "Remove the selected render attachment";
+
+	/* api callbacks */
+	ot->exec = render_attachment_remove_exec;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
 }
 
 #ifdef WITH_FREESTYLE

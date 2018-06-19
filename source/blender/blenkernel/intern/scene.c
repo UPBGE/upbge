@@ -518,6 +518,12 @@ void BKE_scene_free(Scene *sce)
 
 	BKE_previewimg_free(&sce->preview);
 	curvemapping_free_data(&sce->r.mblur_shutter_curve);
+
+	for (unsigned short i = 0; i < GAME_ATTACHMENT_COUNT; ++i) {
+		if (sce->gm.attachments[i]) {
+			MEM_freeN(sce->gm.attachments[i]);
+		}
+	}
 }
 
 void BKE_scene_init(Scene *sce)

@@ -116,7 +116,7 @@ KX_KetsjiEngine::SceneRenderData::SceneRenderData(KX_Scene *scene)
 {
 }
 
-KX_KetsjiEngine::FrameRenderData::FrameRenderData(RAS_Rasterizer::OffScreenType ofsType)
+KX_KetsjiEngine::FrameRenderData::FrameRenderData(RAS_OffScreen::Type ofsType)
 	:m_ofsType(ofsType)
 {
 }
@@ -311,7 +311,7 @@ void KX_KetsjiEngine::EndFrame()
 	m_rasterizer->EndFrame();
 
 	m_logger.StartLog(tc_logic);
-	m_canvas->FlushScreenshots();
+	m_canvas->FlushScreenshots(m_rasterizer);
 
 	// swap backbuffer (drawing into this buffer) <-> front/visible buffer
 	m_logger.StartLog(tc_latency);
@@ -581,9 +581,9 @@ KX_KetsjiEngine::RenderData KX_KetsjiEngine::GetRenderData()
 	const unsigned short numframes = (renderpereye) ? 2 : 1;
 
 	// The off screen corresponding to the frame.
-	static const RAS_Rasterizer::OffScreenType ofsType[] = {
-		RAS_Rasterizer::RAS_OFFSCREEN_EYE_LEFT0,
-		RAS_Rasterizer::RAS_OFFSCREEN_EYE_RIGHT0
+	static const RAS_OffScreen::Type ofsType[] = {
+		RAS_OffScreen::RAS_OFFSCREEN_EYE_LEFT0,
+		RAS_OffScreen::RAS_OFFSCREEN_EYE_RIGHT0
 	};
 
 	// Pre-compute the display area used for stereo or normal rendering.
@@ -667,9 +667,6 @@ void KX_KetsjiEngine::Render()
 
 	RenderData renderData = GetRenderData();
 
-	// Update all off screen to the current canvas size.
-	m_rasterizer->UpdateOffScreens(m_canvas);
-
 	const int width = m_canvas->GetWidth();
 	const int height = m_canvas->GetHeight();
 	// clear the entire game screen with the border color
@@ -687,7 +684,7 @@ void KX_KetsjiEngine::Render()
 
 	for (FrameRenderData& frameData : renderData.m_frameDataList) {
 		// Current bound off screen.
-		RAS_OffScreen *offScreen = m_rasterizer->GetOffScreen(frameData.m_ofsType);
+		RAS_OffScreen *offScreen = m_canvas->GetOffScreen(frameData.m_ofsType);
 		offScreen->Bind();
 
 		// Clear off screen only before the first scene render.
@@ -715,12 +712,12 @@ void KX_KetsjiEngine::Render()
 			/* Choose final render off screen target. If the current off screen is using multisamples we
 			 * are sure that it will be copied to a non-multisamples off screen before render the filters.
 			 * In this case the targeted off screen is the same as the current off screen. */
-			RAS_Rasterizer::OffScreenType target;
+			RAS_OffScreen::Type target;
 			if (offScreen->GetSamples() > 0) {
 				/* If the last scene is rendered it's useless to specify a multisamples off screen, we use then
 				 * a non-multisamples off screen and avoid an extra off screen blit. */
 				if (islastscene) {
-					target = RAS_Rasterizer::NextRenderOffScreen(frameData.m_ofsType);
+					target = RAS_OffScreen::NextRenderOffScreen(frameData.m_ofsType);
 				}
 				else {
 					target = frameData.m_ofsType;
@@ -729,11 +726,11 @@ void KX_KetsjiEngine::Render()
 			/* In case of non-multisamples a ping pong per scene render is made between a potentially multisamples
 			 * off screen and a non-multisamples off screen as the both doesn't use multisamples. */
 			else {
-				target = RAS_Rasterizer::NextRenderOffScreen(frameData.m_ofsType);
+				target = RAS_OffScreen::NextRenderOffScreen(frameData.m_ofsType);
 			}
 
 			// Render filters and get output off screen.
-			offScreen = PostRenderScene(scene, offScreen, m_rasterizer->GetOffScreen(target));
+			offScreen = PostRenderScene(scene, offScreen, m_canvas->GetOffScreen(target));
 			frameData.m_ofsType = offScreen->GetType();
 		}
 	}
@@ -742,13 +739,13 @@ void KX_KetsjiEngine::Render()
 
 	// Compositing per eye off screens to screen.
 	if (renderData.m_renderPerEye) {
-		RAS_OffScreen *leftofs = m_rasterizer->GetOffScreen(renderData.m_frameDataList[0].m_ofsType);
-		RAS_OffScreen *rightofs = m_rasterizer->GetOffScreen(renderData.m_frameDataList[1].m_ofsType);
+		RAS_OffScreen *leftofs = m_canvas->GetOffScreen(renderData.m_frameDataList[0].m_ofsType);
+		RAS_OffScreen *rightofs = m_canvas->GetOffScreen(renderData.m_frameDataList[1].m_ofsType);
 		m_rasterizer->DrawStereoOffScreenToScreen(m_canvas, leftofs, rightofs, renderData.m_stereoMode);
 	}
 	// Else simply draw the off screen to screen.
 	else {
-		m_rasterizer->DrawOffScreenToScreen(m_canvas, m_rasterizer->GetOffScreen(renderData.m_frameDataList[0].m_ofsType));
+		m_rasterizer->DrawOffScreenToScreen(m_canvas, m_canvas->GetOffScreen(renderData.m_frameDataList[0].m_ofsType));
 	}
 
 	EndFrame();

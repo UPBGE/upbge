@@ -2735,6 +2735,12 @@ static void write_scene(WriteData *wd, Scene *sce)
 
 	write_previews(wd, sce->preview);
 	write_curvemapping_curves(wd, &sce->r.mblur_shutter_curve);
+
+	for (unsigned short a = 0; a < GAME_ATTACHMENT_COUNT; a++) {
+		if (sce->gm.attachments[a]) {
+			writestruct(wd, DATA, RenderAttachment, 1, sce->gm.attachments[a]);
+		}
+	}
 }
 
 static void write_gpencil(WriteData *wd, bGPdata *gpd)

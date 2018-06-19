@@ -3637,6 +3637,17 @@ static void def_sh_output(StructRNA *srna)
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
+static void def_sh_output_attachment(StructRNA *srna)
+{
+	PropertyRNA *prop;
+
+	prop = RNA_def_property(srna, "attachment", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "custom1");
+	RNA_def_property_range(prop, 0, GAME_ATTACHMENT_COUNT);
+	RNA_def_property_ui_text(prop, "Attachment", "Attachment index");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
 static void def_sh_output_linestyle(StructRNA *srna)
 {
 	def_sh_output(srna);

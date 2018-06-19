@@ -104,7 +104,7 @@ struct GPUMaterial {
 
 	/* for creating the material */
 	ListBase nodes;
-	GPUNodeLink *outlink;
+	GPUNodeLink *outlinks[8];
 
 	/* for binding the material */
 	GPUPass *pass;
@@ -305,9 +305,16 @@ static void gpu_material_set_attrib_id(GPUMaterial *material)
 
 static int gpu_material_construct_end(GPUMaterial *material, const char *passname)
 {
-	if (material->outlink) {
-		GPUNodeLink *outlink = material->outlink;
-		material->pass = GPU_generate_pass(&material->nodes, outlink,
+	bool used = false;
+	for (unsigned short i = 0; i < 8; ++i) {
+		if (material->outlinks[i]) {
+			used = true;
+			break;
+		}
+	}
+
+	if (used) {
+		material->pass = GPU_generate_pass(&material->nodes, material->outlinks,
 			&material->attribs, &material->builtins, material->type,
 			passname,
 			material->flags & GPU_MATERIAL_OPENSUBDIV,
@@ -660,10 +667,9 @@ void GPU_material_vertex_attributes(GPUMaterial *material, GPUVertexAttribs *att
 	*attribs = material->attribs;
 }
 
-void GPU_material_output_link(GPUMaterial *material, GPUNodeLink *link)
+void GPU_material_output_link(GPUMaterial *material, GPUNodeLink *link, unsigned short index)
 {
-	if (!material->outlink)
-		material->outlink = link;
+	material->outlinks[index] = link;
 }
 
 void GPU_material_enable_alpha(GPUMaterial *material)
@@ -2015,6 +2021,7 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 	GPUNodeLink *emit, *mistfac;
 	Material *ma = shi->mat;
 	World *world = mat->scene->world;
+	RenderAttachment **attachments = mat->scene->gm.attachments;
 
 	mat->dynproperty |= DYN_LAMP_CO;
 	memset(shr, 0, sizeof(*shr));
@@ -2169,6 +2176,34 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 		mat->obcolalpha = 1;
 		GPU_link(mat, "shade_alpha_obcolor", shr->combined, GPU_material_builtin(mat, GPU_OBCOLOR), &shr->combined);
 	}
+
+	for (unsigned short i = 0; i < GAME_ATTACHMENT_COUNT; ++i) {
+		RenderAttachment *attachment = attachments[i];
+		if (attachment) {
+			switch (attachment->type) {
+				case GAME_ATTACHMENT_NORMAL:
+				{
+					GPUNodeLink *vn = shi->vn;
+					if (GPU_material_use_world_space_shading(mat)) {
+						GPU_link(mat, "vec_math_negate", vn, &vn);
+						GPU_link(mat, "direction_transform_m4v3", vn, GPU_builtin(GPU_INVERSE_VIEW_MATRIX), &vn);
+					}
+					GPU_link(mat, "set_rgb", vn, &mat->outlinks[i + 1]);
+					break;
+				}
+				case GAME_ATTACHMENT_ALBEDO:
+				{
+					GPUNodeLink *rgb = shi->rgb;
+					if (ma->shade_flag & MA_OBCOLOR) {
+						GPU_link(mat, "shade_obcolor", rgb,
+						GPU_material_builtin(mat, GPU_OBCOLOR), &rgb);
+					}
+					GPU_link(mat, "set_rgb", rgb, &mat->outlinks[i + 1]);
+					break;
+				}
+			}
+		}
+	}
 }
 
 static GPUNodeLink *GPU_blender_material(GPUMaterial *mat, Material *ma)
@@ -2236,7 +2271,7 @@ GPUMaterial *GPU_material_matcap(Scene *scene, Material *ma, GPUMaterialFlag fla
 		outlink = gpu_material_diffuse_bsdf(mat, ma);
 	}
 
-	GPU_material_output_link(mat, outlink);
+	GPU_material_output_link(mat, outlink, 0);
 
 	gpu_material_construct_end(mat, "matcap_pass");
 
@@ -2441,7 +2476,8 @@ static void gpu_material_old_world(struct GPUMaterial *mat, struct World *wo)
 			GPU_link(mat, "set_rgb", hor, &shi.rgb);
 		GPU_link(mat, "set_rgb", shi.rgb, &shr.combined);
 	}
-	GPU_material_output_link(mat, shr.combined);
+
+	GPU_material_output_link(mat, shr.combined, 0);
 }
 
 GPUMaterial *GPU_material_world(struct Scene *scene, struct World *wo, GPUMaterialFlag flags)
@@ -2472,9 +2508,11 @@ GPUMaterial *GPU_material_world(struct Scene *scene, struct World *wo, GPUMateri
 		gpu_material_old_world(mat, wo);
 	}
 
-	if (GPU_material_do_color_management(mat) && !(mat->flags & GPU_MATERIAL_NO_COLOR_MANAGEMENT))
-		if (mat->outlink)
-			GPU_link(mat, "linearrgb_to_srgb", mat->outlink, &mat->outlink);
+	if (GPU_material_do_color_management(mat) && !(mat->flags & GPU_MATERIAL_NO_COLOR_MANAGEMENT)) {
+		if (mat->outlinks[0]) {
+			GPU_link(mat, "linearrgb_to_srgb", mat->outlinks[0], &mat->outlinks[0]);
+		}
+	}
 
 	gpu_material_construct_end(mat, wo->id.name);
 
@@ -2493,7 +2531,6 @@ GPUMaterial *GPU_material_world(struct Scene *scene, struct World *wo, GPUMateri
 GPUMaterial *GPU_material_from_blender(Scene *scene, Material *ma, GPUMaterialFlag flags)
 {
 	GPUMaterial *mat;
-	GPUNodeLink *outlink;
 	LinkData *link;
 	ListBase *gpumaterials;
 
@@ -2535,6 +2572,7 @@ GPUMaterial *GPU_material_from_blender(Scene *scene, Material *ma, GPUMaterialFl
 			ntreeGPUMaterialNodes(ma->nodetree, mat, NODE_OLD_SHADING);
 	}
 	else {
+		GPUNodeLink *outlink;
 		if (new_shading_nodes) {
 			/* create simple diffuse material instead of nodes */
 			outlink = gpu_material_diffuse_bsdf(mat, ma);
@@ -2544,12 +2582,14 @@ GPUMaterial *GPU_material_from_blender(Scene *scene, Material *ma, GPUMaterialFl
 			outlink = GPU_blender_material(mat, ma);
 		}
 
-		GPU_material_output_link(mat, outlink);
+		GPU_material_output_link(mat, outlink, 0);
 	}
 
-	if (GPU_material_do_color_management(mat) && !(ma->sss_flag) && !(mat->flags & GPU_MATERIAL_NO_COLOR_MANAGEMENT))
-		if (mat->outlink)
-			GPU_link(mat, "linearrgb_to_srgb", mat->outlink, &mat->outlink);
+	if (GPU_material_do_color_management(mat) && !(ma->sss_flag) && !(mat->flags & GPU_MATERIAL_NO_COLOR_MANAGEMENT)) {
+		if (mat->outlinks[0]) {
+			GPU_link(mat, "linearrgb_to_srgb", mat->outlinks[0], &mat->outlinks[0]);
+		}
+	}
 
 	gpu_material_construct_end(mat, ma->id.name);
 
