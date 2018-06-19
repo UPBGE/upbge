@@ -55,23 +55,6 @@ inline unsigned int Size(const mt::vec2_packed&) { return 2; }
 inline unsigned int Size(const mt::vec3_packed&) { return 3; }
 inline unsigned int Size(const mt::vec4_packed&) { return 4; }
 
-template <int Size>
-inline void SetAxis(mt::Vector<float, Size>& vec, unsigned short axis, float value)
-{
-	vec[axis] = value;
-}
-
-inline void SetAxis(mt::Quaternion<float>& vec, unsigned short axis, float value)
-{
-	vec[axis] = value;
-}
-
-template <int Size>
-inline void SetAxis(mt::VectorPacked<float, Size>& vec, unsigned short axis, float value)
-{
-	vec.data[axis] = value;
-}
-
 /**
  *  Converts the given python matrix (column-major) to an MT class (row-major).
  */
@@ -198,7 +181,7 @@ bool PyVecTo(PyObject *pyval, T& vec)
 		}
 		
 		for (unsigned int x = 0; x < numitems; x++)
-			SetAxis(vec, x, PyFloat_AsDouble(PyTuple_GET_ITEM(pyval, x))); /* borrow ref */
+			vec[x] = PyFloat_AsDouble(PyTuple_GET_ITEM(pyval, x)); /* borrow ref */
 		
 		if (PyErr_Occurred()) {
 			PyErr_SetString(PyExc_AttributeError, "one or more of the items in the sequence was not a float");
@@ -229,7 +212,7 @@ bool PyVecTo(PyObject *pyval, T& vec)
 		
 		for (unsigned int x = 0; x < numitems; x++) {
 			PyObject *item = PySequence_GetItem(pyval, x); /* new ref */
-			SetAxis(vec, x, PyFloat_AsDouble(item));
+			vec[x] = PyFloat_AsDouble(item);
 			Py_DECREF(item);
 		}
 		

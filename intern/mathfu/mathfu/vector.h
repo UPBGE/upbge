@@ -140,6 +140,14 @@ struct VectorPacked {
     return *this;
   }
 
+  inline const T& operator[](int i) const {
+    return data[i];
+  }
+
+  inline T& operator[](int i) {
+    return data[i];
+  }
+
   /// Elements of the packed vector one per dimension.
   T data[d];
 };

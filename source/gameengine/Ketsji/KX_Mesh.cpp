@@ -317,12 +317,12 @@ PyObject *KX_Mesh::PyTransformUV(PyObject *args, PyObject *kwds)
 
 			if (0 <= uvindex && uvindex < format.uvSize) {
 				const mt::vec2_packed& uv = array->GetUv(j, uvindex);
-				array->SetUv(j, uvindex, (transform * mt::vec3(uv.data[0], uv.data[1], 0.0f)).xy());
+				array->SetUv(j, uvindex, (transform * mt::vec3(uv.x, uv.y, 0.0f)).xy());
 			}
 			else if (uvindex == -1) {
 				for (unsigned short k = 0; k < format.uvSize; ++k) {
 					const mt::vec2_packed& uv = array->GetUv(j, k);
-					array->SetUv(j, k, (transform * mt::vec3(uv.data[0], uv.data[1], 0.0f)).xy());
+					array->SetUv(j, k, (transform * mt::vec3(uv.x, uv.y, 0.0f)).xy());
 				}
 			}
 		}

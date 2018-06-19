@@ -186,6 +186,14 @@ struct VectorPacked<T, 3> {
     return *this;
   }
 
+  inline const T& operator[](int i) const {
+    return data[i];
+  }
+
+  inline T& operator[](int i) {
+    return data[i];
+  }
+
 #include "mathfu/internal/disable_warnings_begin.h"
   /// Elements of the packed vector one per dimension.
   union {
