@@ -111,7 +111,6 @@ protected:
 	/// Info about blender object convert from.
 	BL_ConvertObjectInfo *m_convertInfo;
 
-	bool								m_bIsNegativeScaling;
 	mt::vec4							m_objectColor;
 
 	// visible = user setting
@@ -809,7 +808,7 @@ public:
 		bool
 	IsNegativeScaling(
 		void
-	) { return m_bIsNegativeScaling; }
+	) { return m_sgNode->IsNegativeScaling(); }
 
 	/**
 	 * \section Logic bubbling methods.

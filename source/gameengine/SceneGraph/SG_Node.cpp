@@ -547,6 +547,11 @@ mt::mat3x4 SG_Node::GetLocalTransform() const
 	return mt::mat3x4(m_localRotation, m_localPosition, m_localScaling);
 }
 
+bool SG_Node::IsNegativeScaling() const
+{
+	return (m_worldScaling.x * m_worldScaling.y * m_worldScaling.z) < 0.0f;
+}
+
 bool SG_Node::ComputeWorldTransforms(const SG_Node *parent, bool& parentUpdated)
 {
 	return m_parent_relation->UpdateChildCoordinates(this, parent, parentUpdated);

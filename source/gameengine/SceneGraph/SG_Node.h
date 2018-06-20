@@ -337,6 +337,8 @@ public:
 	mt::mat3x4 GetWorldTransform() const;
 	mt::mat3x4 GetLocalTransform() const;
 
+	bool IsNegativeScaling() const;
+
 	bool ComputeWorldTransforms(const SG_Node *parent, bool& parentUpdated);
 
 	const std::shared_ptr<SG_Familly>& GetFamilly() const;

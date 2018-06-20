@@ -170,7 +170,7 @@ void KX_FontObject::UpdateBuckets()
 	RAS_TextUser *textUser = (RAS_TextUser *)m_meshUser;
 
 	textUser->SetColor(mt::vec4(color));
-	textUser->SetFrontFace(!m_bIsNegativeScaling);
+	textUser->SetFrontFace(!IsNegativeScaling());
 	textUser->SetFontId(m_fontid);
 	textUser->SetSize(size);
 	textUser->SetDpi(m_dpi);

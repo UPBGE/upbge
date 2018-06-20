@@ -112,7 +112,6 @@ KX_GameObject::KX_GameObject(void *sgReplicationInfo,
 	m_currentLodLevel(0),
 	m_meshUser(nullptr),
 	m_convertInfo(nullptr),
-	m_bIsNegativeScaling(false),
 	m_objectColor(mt::one4),
 	m_bVisible(true),
 	m_bOccluder(false),
@@ -144,7 +143,6 @@ KX_GameObject::KX_GameObject(const KX_GameObject& other)
 	m_currentLodLevel(0),
 	m_meshUser(nullptr),
 	m_convertInfo(other.m_convertInfo),
-	m_bIsNegativeScaling(other.m_bIsNegativeScaling),
 	m_objectColor(other.m_objectColor),
 	m_bVisible(other.m_bVisible),
 	m_bOccluder(other.m_bOccluder),
@@ -707,7 +705,7 @@ void KX_GameObject::UpdateBuckets()
 	}
 
 	m_meshUser->SetColor(m_objectColor);
-	m_meshUser->SetFrontFace(!m_bIsNegativeScaling);
+	m_meshUser->SetFrontFace(!IsNegativeScaling());
 	m_meshUser->ActivateMeshSlots();
 }
 
