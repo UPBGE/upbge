@@ -521,7 +521,7 @@ static int wm_handler_ui_call(bContext *C, wmEventHandler *handler, const wmEven
 	/* UI code doesn't handle return values - it just always returns break.
 	 * to make the DBL_CLICK conversion work, we just don't send this to UI, except mouse clicks */
 	if (((handler->flag & WM_HANDLER_ACCEPT_DBL_CLICK) == 0) &&
-	    (event->type != LEFTMOUSE) &&
+	    !ISMOUSE_BUTTON(event->type) &&
 	    (event->val == KM_DBL_CLICK))
 	{
 		return WM_HANDLER_CONTINUE;
@@ -2624,6 +2624,13 @@ static int wm_handlers_do(bContext *C, wmEvent *event, ListBase *handlers)
 				else if (event->val == KM_DBL_CLICK) {
 					event->val = KM_PRESS;
 					action |= wm_handlers_do_intern(C, event, handlers);
+					event->val = KM_RELEASE;
+					action |= wm_handlers_do_intern(C, event, handlers);
+
+					if (wm_action_not_handled(action)) {
+						event->val = KM_CLICK;
+						action |= wm_handlers_do_intern(C, event, handlers);
+					}
 
 					/* revert value if not handled */
 					if (wm_action_not_handled(action)) {

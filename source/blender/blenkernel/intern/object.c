@@ -1056,38 +1056,9 @@ BulletSoftBody *copy_bulletsoftbody(const BulletSoftBody *bsb, const int UNUSED(
 
 ParticleSystem *BKE_object_copy_particlesystem(ParticleSystem *psys, const int flag)
 {
-	ParticleSystem *psysn;
-	ParticleData *pa;
-	int p;
+	ParticleSystem *psysn = MEM_dupallocN(psys);
 
-	psysn = MEM_dupallocN(psys);
-	psysn->particles = MEM_dupallocN(psys->particles);
-	psysn->child = MEM_dupallocN(psys->child);
-
-	if (psys->part->type == PART_HAIR) {
-		for (p = 0, pa = psysn->particles; p < psysn->totpart; p++, pa++)
-			pa->hair = MEM_dupallocN(pa->hair);
-	}
-
-	if (psysn->particles && (psysn->particles->keys || psysn->particles->boid)) {
-		ParticleKey *key = psysn->particles->keys;
-		BoidParticle *boid = psysn->particles->boid;
-
-		if (key)
-			key = MEM_dupallocN(key);
-
-		if (boid)
-			boid = MEM_dupallocN(boid);
-
-		for (p = 0, pa = psysn->particles; p < psysn->totpart; p++, pa++) {
-			if (boid)
-				pa->boid = boid++;
-			if (key) {
-				pa->keys = key;
-				key += pa->totkey;
-			}
-		}
-	}
+	psys_copy_particles(psysn, psys);
 
 	if (psys->clmd) {
 		psysn->clmd = (ClothModifierData *)modifier_new(eModifierType_Cloth);
@@ -3745,6 +3716,7 @@ void BKE_object_groups_clear(Main *bmain, Object *ob)
 	Collection *collection = NULL;
 	while ((collection = BKE_collection_object_find(bmain, collection, ob))) {
 		BKE_collection_object_remove(bmain, collection, ob, false);
+		DEG_id_tag_update(&collection->id, DEG_TAG_COPY_ON_WRITE);
 	}
 }
 

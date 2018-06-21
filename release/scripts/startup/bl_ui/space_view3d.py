@@ -43,9 +43,9 @@ class VIEW3D_HT_header(Header):
         row = layout.row(align=True)
         row.template_header()
 
-        mode = 'OBJECT' if obj is None else obj.mode
+        object_mode = 'OBJECT' if obj is None else obj.mode
 
-        act_mode_item = bpy.types.Object.bl_rna.properties["mode"].enum_items[mode]
+        act_mode_item = bpy.types.Object.bl_rna.properties["mode"].enum_items[object_mode]
         layout.operator_menu_enum("object.mode_set", "mode", text=act_mode_item.name, icon=act_mode_item.icon)
         del act_mode_item
 
@@ -57,22 +57,24 @@ class VIEW3D_HT_header(Header):
 
         if obj:
             # Set above:
-            # mode = obj.mode
+            # object_mode = obj.mode
 
             # Particle edit
-            if mode == 'PARTICLE_EDIT':
+            if object_mode == 'PARTICLE_EDIT':
                 row = layout.row()
                 row.prop(tool_settings.particle_edit, "select_mode", text="", expand=True)
 
             # Occlude geometry
-            if ((((shading.type not in {'SOLID', 'TEXTURED'}) or not shading.show_xray) and
-                (mode == 'PARTICLE_EDIT' or (mode == 'EDIT' and obj.type == 'MESH'))) or
-                (mode in {'WEIGHT_PAINT', 'VERTEX_PAINT'})):
+            if (
+                    (((shading.type not in {'SOLID', 'TEXTURED'}) or not shading.show_xray) and
+                     (object_mode == 'PARTICLE_EDIT' or (object_mode == 'EDIT' and obj.type == 'MESH'))) or
+                    (object_mode in {'WEIGHT_PAINT', 'VERTEX_PAINT'})
+            ):
                 row = layout.row()
                 row.prop(view, "use_occlude_geometry", text="")
 
         # Pose
-        if obj and mode == 'POSE':
+        if obj and object_mode == 'POSE':
             row = layout.row(align=True)
             row.operator("pose.copy", text="", icon='COPYDOWN')
             row.operator("pose.paste", text="", icon='PASTEDOWN').flipped = False
@@ -96,7 +98,6 @@ class VIEW3D_HT_header(Header):
         layout.separator_spacer()
 
         # Mode & Transform Settings
-        object_mode = 'OBJECT' if obj is None else obj.mode
         scene = context.scene
 
         # Orientation & Pivot
@@ -196,7 +197,7 @@ class VIEW3D_HT_header(Header):
         sub.popover(space_type='VIEW_3D', region_type='HEADER', panel_type="VIEW3D_PT_shading")
 
         row = layout.row(align=True)
-        row.prop(overlay, "show_overlays", icon="WIRE", text="")
+        row.prop(overlay, "show_overlays", icon='WIRE', text="")
 
         sub = row.row(align=True)
         sub.active = overlay.show_overlays
@@ -1522,6 +1523,10 @@ class VIEW3D_MT_object(Menu):
 
         layout.separator()
 
+        layout.menu("VIEW3D_MT_object_showhide")
+
+        layout.separator()
+
         layout.operator("object.delete", text="Delete...").use_global = False
 
 
@@ -1876,6 +1881,20 @@ class VIEW3D_MT_object_quick_effects(Menu):
         layout.operator("object.quick_explode")
         layout.operator("object.quick_smoke")
         layout.operator("object.quick_fluid")
+
+
+class VIEW3D_MT_object_showhide(Menu):
+    bl_label = "Show/Hide"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator("object.hide_view_clear", text="Show Hidden")
+
+        layout.separator()
+
+        layout.operator("object.hide_view_set", text="Hide Selected").unselected = False
+        layout.operator("object.hide_view_set", text="Hide Unselected").unselected = True
 
 
 class VIEW3D_MT_make_single_user(Menu):
@@ -3518,7 +3537,7 @@ class VIEW3D_MT_edit_gpencil_interpolate(Menu):
         layout.operator("gpencil.interpolate_sequence", text="Sequence")
 
 
-class VIEW3D_PIE_object_mode(Menu):
+class VIEW3D_MT_object_mode_pie(Menu):
     bl_label = "Mode"
 
     def draw(self, context):
@@ -3528,9 +3547,9 @@ class VIEW3D_PIE_object_mode(Menu):
         pie.operator_enum("OBJECT_OT_mode_set", "mode")
 
 
-class VIEW3D_PIE_view(Menu):
+class VIEW3D_MT_view_pie(Menu):
     bl_label = "View"
-    bl_idname = "VIEW3D_PIE_view"
+    bl_idname = "VIEW3D_MT_view_pie"
 
     def draw(self, context):
         layout = self.layout
@@ -3655,7 +3674,7 @@ class VIEW3D_PT_shading_lighting(Panel):
             layout.row().prop(shading, "light", expand=True)
             if shading.light == 'STUDIO':
                 row = layout.row()
-                row.template_icon_view(shading, "studio_light")
+                row.template_icon_view(shading, "studio_light", show_labels=True)
                 sub = row.column()
                 sub.operator('wm.studiolight_userpref_show', emboss=False, text="", icon='PREFERENCES')
                 if shading.selected_studio_light.orientation == 'WORLD':
@@ -3663,19 +3682,19 @@ class VIEW3D_PT_shading_lighting(Panel):
 
             elif shading.light == 'MATCAP':
                 row = layout.row()
-                row.template_icon_view(shading, "studio_light")
+                row.template_icon_view(shading, "studio_light", show_labels=True)
                 sub = row.column()
                 sub.operator('VIEW3D_OT_toggle_matcap_flip', emboss=False, text="", icon='ARROW_LEFTRIGHT')
                 sub.operator('wm.studiolight_userpref_show', emboss=False, text="", icon='PREFERENCES')
 
         elif shading.type in ('MATERIAL'):
             row = layout.row()
-            row.template_icon_view(shading, "studio_light")
+            row.template_icon_view(shading, "studio_light", show_labels=True)
             sub = row.column()
             sub.operator('wm.studiolight_userpref_show', emboss=False, text="", icon='PREFERENCES')
             if shading.selected_studio_light.orientation == 'WORLD':
                 layout.row().prop(shading, "studiolight_rot_z")
-                layout.row().prop(shading, "studiolight_background")
+                layout.row().prop(shading, "studiolight_background_alpha")
             layout.prop(shading, "use_scene_light")
 
 
@@ -4150,10 +4169,10 @@ class VIEW3D_PT_context_properties(Panel):
     def _active_context_member(context):
         obj = context.object
         if obj:
-            mode = obj.mode
-            if mode == 'POSE':
+            object_mode = obj.mode
+            if object_mode == 'POSE':
                 return "active_pose_bone"
-            elif mode == 'EDIT' and obj.type == 'ARMATURE':
+            elif object_mode == 'EDIT' and obj.type == 'ARMATURE':
                 return "active_bone"
             else:
                 return "object"
@@ -4242,6 +4261,7 @@ classes = (
     VIEW3D_MT_object_collection,
     VIEW3D_MT_object_constraints,
     VIEW3D_MT_object_quick_effects,
+    VIEW3D_MT_object_showhide,
     VIEW3D_MT_make_single_user,
     VIEW3D_MT_make_links,
     VIEW3D_MT_object_game,
@@ -4309,8 +4329,8 @@ classes = (
     VIEW3D_MT_edit_armature_delete,
     VIEW3D_MT_edit_gpencil_transform,
     VIEW3D_MT_edit_gpencil_interpolate,
-    VIEW3D_PIE_object_mode,
-    VIEW3D_PIE_view,
+    VIEW3D_MT_object_mode_pie,
+    VIEW3D_MT_view_pie,
     VIEW3D_PT_grease_pencil,
     VIEW3D_PT_grease_pencil_palettecolor,
     VIEW3D_PT_view3d_properties,

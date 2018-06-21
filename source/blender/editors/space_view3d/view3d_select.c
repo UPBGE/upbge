@@ -424,10 +424,8 @@ static void do_lasso_select_objects(
 
 	for (base = vc->view_layer->object_bases.first; base; base = base->next) {
 		if (BASE_SELECTABLE(base)) { /* use this to avoid un-needed lasso lookups */
-			if (
-#ifdef USE_OBJECT_MODE_STRICT
-			    (is_pose_mode == false) &&
-#endif
+			if (((vc->scene->toolsettings->object_flag & SCE_OBJECT_MODE_LOCK) ?
+			     (is_pose_mode == false) : true) &&
 			    ED_view3d_project_base(vc->ar, base) == V3D_PROJ_RET_OK)
 			{
 				if (BLI_lasso_is_point_inside(mcords, moves, base->sx, base->sy, IS_CLIPPED)) {
@@ -1174,7 +1172,7 @@ static int selectbuffer_ret_hits_5(unsigned int *buffer, const int hits15, const
 /* so check three selection levels and compare */
 static int mixed_bones_object_selectbuffer(
         ViewContext *vc, unsigned int *buffer, const int mval[2],
-        bool use_cycle, bool enumerate,
+        bool use_cycle, bool enumerate, eV3DSelectObjectFilter select_filter,
         bool *r_do_nearest)
 {
 	rcti rect;
@@ -1213,7 +1211,7 @@ static int mixed_bones_object_selectbuffer(
 	view3d_opengl_select_cache_begin();
 
 	BLI_rcti_init_pt_radius(&rect, mval, 14);
-	hits15 = view3d_opengl_select(vc, buffer, MAXPICKBUF, &rect, select_mode);
+	hits15 = view3d_opengl_select(vc, buffer, MAXPICKBUF, &rect, select_mode, select_filter);
 	if (hits15 == 1) {
 		hits = selectbuffer_ret_hits_15(buffer, hits15);
 		goto finally;
@@ -1224,7 +1222,7 @@ static int mixed_bones_object_selectbuffer(
 
 		offs = 4 * hits15;
 		BLI_rcti_init_pt_radius(&rect, mval, 9);
-		hits9 = view3d_opengl_select(vc, buffer + offs, MAXPICKBUF - offs, &rect, select_mode);
+		hits9 = view3d_opengl_select(vc, buffer + offs, MAXPICKBUF - offs, &rect, select_mode, select_filter);
 		if (hits9 == 1) {
 			hits = selectbuffer_ret_hits_9(buffer, hits15, hits9);
 			goto finally;
@@ -1234,7 +1232,7 @@ static int mixed_bones_object_selectbuffer(
 
 			offs += 4 * hits9;
 			BLI_rcti_init_pt_radius(&rect, mval, 5);
-			hits5 = view3d_opengl_select(vc, buffer + offs, MAXPICKBUF - offs, &rect, select_mode);
+			hits5 = view3d_opengl_select(vc, buffer + offs, MAXPICKBUF - offs, &rect, select_mode, select_filter);
 			if (hits5 == 1) {
 				hits = selectbuffer_ret_hits_5(buffer, hits15, hits9, hits5);
 				goto finally;
@@ -1256,8 +1254,7 @@ static int mixed_bones_object_selectbuffer(
 finally:
 	view3d_opengl_select_cache_end();
 
-#ifdef USE_OBJECT_MODE_STRICT
-	{
+	if (vc->scene->toolsettings->object_flag & SCE_OBJECT_MODE_LOCK) {
 		const bool is_pose_mode = (vc->obact && vc->obact->mode & OB_MODE_POSE);
 		struct {
 			uint data[4];
@@ -1273,7 +1270,6 @@ finally:
 		}
 		hits = j;
 	}
-#endif
 
 	return hits;
 }
@@ -1377,7 +1373,10 @@ Base *ED_view3d_give_base_under_cursor(bContext *C, const int mval[2])
 
 	ED_view3d_viewcontext_init(C, &vc);
 
-	hits = mixed_bones_object_selectbuffer(&vc, buffer, mval, false, false, &do_nearest);
+	hits = mixed_bones_object_selectbuffer(
+	        &vc, buffer, mval,
+	        false, false, VIEW3D_SELECT_FILTER_NOP,
+	        &do_nearest);
 
 	if (hits > 0) {
 		const bool has_bones = selectbuffer_has_bones(buffer, hits);
@@ -1470,19 +1469,19 @@ static bool ed_object_select_pick(
 				if (base == startbase) break;
 			}
 		}
-#ifdef USE_OBJECT_MODE_STRICT
-		if (is_obedit == false) {
-			if (basact && !BKE_object_is_mode_compat(basact->object, object_mode)) {
-				if (object_mode == OB_MODE_OBJECT) {
-					struct Main *bmain = CTX_data_main(C);
-					ED_object_mode_generic_exit(bmain, vc.depsgraph, scene, basact->object);
-				}
-				if (!BKE_object_is_mode_compat(basact->object, object_mode)) {
-					basact = NULL;
+		if (scene->toolsettings->object_flag & SCE_OBJECT_MODE_LOCK) {
+			if (is_obedit == false) {
+				if (basact && !BKE_object_is_mode_compat(basact->object, object_mode)) {
+					if (object_mode == OB_MODE_OBJECT) {
+						struct Main *bmain = CTX_data_main(C);
+						ED_object_mode_generic_exit(bmain, vc.depsgraph, scene, basact->object);
+					}
+					if (!BKE_object_is_mode_compat(basact->object, object_mode)) {
+						basact = NULL;
+					}
 				}
 			}
 		}
-#endif
 	}
 	else {
 		unsigned int buffer[MAXPICKBUF];
@@ -1491,7 +1490,13 @@ static bool ed_object_select_pick(
 		// TIMEIT_START(select_time);
 
 		/* if objects have posemode set, the bones are in the same selection buffer */
-		hits = mixed_bones_object_selectbuffer(&vc, buffer, mval, true, enumerate, &do_nearest);
+		const eV3DSelectObjectFilter select_filter = (
+		        (scene->toolsettings->object_flag & SCE_OBJECT_MODE_LOCK) ?
+		        VIEW3D_SELECT_FILTER_OBJECT_MODE_LOCK : VIEW3D_SELECT_FILTER_NOP);
+		hits = mixed_bones_object_selectbuffer(
+		        &vc, buffer, mval,
+		        true, enumerate, select_filter,
+		        &do_nearest);
 
 		// TIMEIT_END(select_time);
 
@@ -1507,19 +1512,19 @@ static bool ed_object_select_pick(
 				basact = mouse_select_eval_buffer(&vc, buffer, hits, startbase, has_bones, do_nearest);
 			}
 
-#ifdef USE_OBJECT_MODE_STRICT
-			if (is_obedit == false) {
-				if (basact && !BKE_object_is_mode_compat(basact->object, object_mode)) {
-					if (object_mode == OB_MODE_OBJECT) {
-						struct Main *bmain = CTX_data_main(C);
-						ED_object_mode_generic_exit(bmain, vc.depsgraph, scene, basact->object);
-					}
-					if (!BKE_object_is_mode_compat(basact->object, object_mode)) {
-						basact = NULL;
+			if (scene->toolsettings->object_flag & SCE_OBJECT_MODE_LOCK) {
+				if (is_obedit == false) {
+					if (basact && !BKE_object_is_mode_compat(basact->object, object_mode)) {
+						if (object_mode == OB_MODE_OBJECT) {
+							struct Main *bmain = CTX_data_main(C);
+							ED_object_mode_generic_exit(bmain, vc.depsgraph, scene, basact->object);
+						}
+						if (!BKE_object_is_mode_compat(basact->object, object_mode)) {
+							basact = NULL;
+						}
 					}
 				}
 			}
-#endif
 
 			if (has_bones && basact) {
 				if (basact->object->type == OB_CAMERA) {
@@ -1609,19 +1614,19 @@ static bool ed_object_select_pick(
 		}
 	}
 
-#ifdef USE_OBJECT_MODE_STRICT
-	/* Disallow switching modes,
-	 * special exception for edit-mode - vertex-parent operator. */
-	if (is_obedit == false) {
-		if (oldbasact && basact) {
-			if ((oldbasact->object->mode != basact->object->mode) &&
-			    (oldbasact->object->mode & basact->object->mode) == 0)
-			{
-				basact = NULL;
+	if (scene->toolsettings->object_flag & SCE_OBJECT_MODE_LOCK) {
+		/* Disallow switching modes,
+		 * special exception for edit-mode - vertex-parent operator. */
+		if (is_obedit == false) {
+			if (oldbasact && basact) {
+				if ((oldbasact->object->mode != basact->object->mode) &&
+				    (oldbasact->object->mode & basact->object->mode) == 0)
+				{
+					basact = NULL;
+				}
 			}
 		}
 	}
-#endif
 
 	/* so, do we have something selected? */
 	if (basact) {
@@ -1972,7 +1977,9 @@ static int do_meta_box_select(
 	unsigned int buffer[MAXPICKBUF];
 	int hits;
 
-	hits = view3d_opengl_select(vc, buffer, MAXPICKBUF, rect, VIEW3D_SELECT_ALL);
+	hits = view3d_opengl_select(
+	        vc, buffer, MAXPICKBUF, rect,
+	        VIEW3D_SELECT_ALL, VIEW3D_SELECT_FILTER_NOP);
 
 	if (extend == false && select)
 		BKE_mball_deselect_all(mb);
@@ -2006,7 +2013,9 @@ static int do_armature_box_select(
 	unsigned int buffer[MAXPICKBUF];
 	int hits;
 
-	hits = view3d_opengl_select(vc, buffer, MAXPICKBUF, rect, VIEW3D_SELECT_ALL);
+	hits = view3d_opengl_select(
+	        vc, buffer, MAXPICKBUF, rect,
+	        VIEW3D_SELECT_ALL, VIEW3D_SELECT_FILTER_NOP);
 
 	uint objects_len = 0;
 	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(vc->view_layer, &objects_len);
@@ -2154,7 +2163,12 @@ static int do_object_pose_box_select(bContext *C, ViewContext *vc, rcti *rect, b
 
 	/* selection buffer now has bones potentially too, so we add MAXPICKBUF */
 	vbuffer = MEM_mallocN(4 * (totobj + MAXPICKELEMS) * sizeof(unsigned int), "selection buffer");
-	hits = view3d_opengl_select(vc, vbuffer, 4 * (totobj + MAXPICKELEMS), rect, VIEW3D_SELECT_ALL);
+	const eV3DSelectObjectFilter select_filter = (
+	        (vc->scene->toolsettings->object_flag & SCE_OBJECT_MODE_LOCK) ?
+	        VIEW3D_SELECT_FILTER_OBJECT_MODE_LOCK : VIEW3D_SELECT_FILTER_NOP);
+	hits = view3d_opengl_select(
+	        vc, vbuffer, 4 * (totobj + MAXPICKELEMS), rect,
+	        VIEW3D_SELECT_ALL, select_filter);
 	/*
 	 * LOGIC NOTES (theeth):
 	 * The buffer and ListBase have the same relative order, which makes the selection

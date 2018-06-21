@@ -79,9 +79,9 @@ const EnumPropertyItem rna_enum_space_type_items[] = {
 	/* Animation */
 	{0, "", ICON_NONE, "Animation", ""},
 	//{SPACE_ACTION, "TIMELINE", ICON_TIME, "Timeline", "Timeline and playback controls (NOTE: Switch to 'Timeline' mode)"}, /* XXX */
-	{SPACE_IPO, "GRAPH_EDITOR", ICON_IPO, "Graph Editor", "Edit drivers and keyframe interpolation"},
 	{SPACE_ACTION, "DOPESHEET_EDITOR", ICON_ACTION, "Dope Sheet", "Adjust timing of keyframes"},
-	{SPACE_NLA, "NLA_EDITOR", ICON_NLA, "NLA Editor", "Combine and layer Actions"},
+	{SPACE_IPO, "GRAPH_EDITOR", ICON_IPO, "Graph Editor", "Edit drivers and keyframe interpolation"},
+	{SPACE_NLA, "NLA_EDITOR", ICON_NLA, "Nonlinear Animation", "Combine and layer Actions"},
 
 	/* Scripting */
 	{0, "", ICON_NONE, "Scripting", ""},
@@ -107,6 +107,65 @@ const EnumPropertyItem rna_enum_space_type_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
+const EnumPropertyItem rna_enum_space_graph_mode_items[] = {
+	{SIPO_MODE_ANIMATION, "FCURVES", ICON_IPO, "Graph Editor",
+	 "Edit animation/keyframes displayed as 2D curves"},
+	{SIPO_MODE_DRIVERS, "DRIVERS", ICON_DRIVER, "Drivers", "Edit drivers"},
+	{0, NULL, 0, NULL, NULL}
+};
+
+#define SACT_ITEM_DOPESHEET \
+	{SACTCONT_DOPESHEET, "DOPESHEET", ICON_ACTION, "Dope Sheet", "Edit all keyframes in scene"}
+#define SACT_ITEM_TIMELINE \
+	{SACTCONT_TIMELINE, "TIMELINE", ICON_TIME, "Timeline", "Timeline and playback controls"}
+#define SACT_ITEM_ACTION \
+	{SACTCONT_ACTION, "ACTION", ICON_OBJECT_DATA, "Action Editor", "Edit keyframes in active object's Object-level action"}
+#define SACT_ITEM_SHAPEKEY \
+	{SACTCONT_SHAPEKEY, "SHAPEKEY", ICON_SHAPEKEY_DATA, "Shape Key Editor", "Edit keyframes in active object's Shape Keys action"}
+#define SACT_ITEM_GPENCIL \
+	{SACTCONT_GPENCIL, "GPENCIL", ICON_GREASEPENCIL, "Grease Pencil", "Edit timings for all Grease Pencil sketches in file"}
+#define SACT_ITEM_MASK \
+	{SACTCONT_MASK, "MASK", ICON_MOD_MASK, "Mask", "Edit timings for Mask Editor splines"}
+#define SACT_ITEM_CACHEFILE \
+	{SACTCONT_CACHEFILE, "CACHEFILE", ICON_FILE, "Cache File", "Edit timings for Cache File data-blocks"}
+
+#ifndef RNA_RUNTIME
+/* XXX: action-editor is currently for object-level only actions, so show that using object-icon hint */
+static EnumPropertyItem rna_enum_space_action_mode_all_items[] = {
+	SACT_ITEM_DOPESHEET,
+	SACT_ITEM_TIMELINE,
+	SACT_ITEM_ACTION,
+	SACT_ITEM_SHAPEKEY,
+	SACT_ITEM_GPENCIL,
+	SACT_ITEM_MASK,
+	SACT_ITEM_CACHEFILE,
+	{0, NULL, 0, NULL, NULL}
+};
+static EnumPropertyItem rna_enum_space_action_ui_mode_items[] = {
+	SACT_ITEM_DOPESHEET,
+	/* SACT_ITEM_TIMELINE, */
+	SACT_ITEM_ACTION,
+	SACT_ITEM_SHAPEKEY,
+	SACT_ITEM_GPENCIL,
+	SACT_ITEM_MASK,
+	SACT_ITEM_CACHEFILE,
+	{0, NULL, 0, NULL, NULL}
+};
+#endif
+/* expose as ui_mode */
+const EnumPropertyItem rna_enum_space_action_mode_items[] = {
+	SACT_ITEM_DOPESHEET,
+	SACT_ITEM_TIMELINE,
+	{0, NULL, 0, NULL, NULL}
+};
+
+#undef SACT_ITEM_DOPESHEET
+#undef SACT_ITEM_TIMELINE
+#undef SACT_ITEM_ACTION
+#undef SACT_ITEM_SHAPEKEY
+#undef SACT_ITEM_GPENCIL
+#undef SACT_ITEM_MASK
+#undef SACT_ITEM_CACHEFILE
 
 const EnumPropertyItem rna_enum_space_image_mode_items[] = {
 	{SI_MODE_VIEW, "VIEW", ICON_FILE_IMAGE, "View", "View the image and UV edit in mesh editmode"},
@@ -250,6 +309,9 @@ const EnumPropertyItem rna_enum_file_sort_items[] = {
 #include "DNA_screen_types.h"
 #include "DNA_userdef_types.h"
 
+#include "BLI_path_util.h"
+#include "BLI_string.h"
+
 #include "BKE_animsys.h"
 #include "BKE_brush.h"
 #include "BKE_colortools.h"
@@ -266,6 +328,7 @@ const EnumPropertyItem rna_enum_file_sort_items[] = {
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"
 
+#include "ED_anim_api.h"
 #include "ED_buttons.h"
 #include "ED_fileselect.h"
 #include "ED_image.h"
@@ -674,7 +737,7 @@ static PointerRNA rna_View3DShading_selected_studio_light_get(PointerRNA *ptr)
 {
 	View3D *v3d = (View3D *)ptr->data;
 	StudioLight *sl;
-	if (v3d->shading.light == V3D_LIGHTING_MATCAP) {
+	if (v3d->drawtype == OB_SOLID && v3d->shading.light == V3D_LIGHTING_MATCAP) {
 		sl = BKE_studiolight_find(v3d->shading.matcap, STUDIOLIGHT_FLAG_ALL);
 	}
 	else {
@@ -778,7 +841,7 @@ static const EnumPropertyItem *rna_View3DShading_studio_light_itemf(
 			int icon_id = sl->icon_id_irradiance;
 			bool show_studiolight = false;
 
-			if ((sl->flag & STUDIOLIGHT_INTERNAL)) {
+			if (sl->flag & STUDIOLIGHT_INTERNAL) {
 				/* always show internal lights */
 				show_studiolight = true;
 			}
@@ -1440,9 +1503,10 @@ static void rna_SpaceDopeSheetEditor_mode_update(bContext *C, PointerRNA *ptr)
 			saction->action = NULL;
 	}
 
-	/* Collapse summary channel and hide channel list for timeline */
+	/* Collapse (and show) summary channel and hide channel list for timeline */
 	if (saction->mode == SACTCONT_TIMELINE) {
 		saction->ads.flag |= ADS_FLAG_SUMMARY_COLLAPSED;
+		saction->ads.filterflag |= ADS_FILTER_SUMMARY;
 	}
 
 	if (sa && sa->spacedata.first == saction) {
@@ -1460,13 +1524,25 @@ static void rna_SpaceDopeSheetEditor_mode_update(bContext *C, PointerRNA *ptr)
 
 	/* recalculate extents of channel list */
 	saction->flag |= SACTION_TEMP_NEEDCHANSYNC;
+
+	/* store current mode as "old mode", so that returning from other editors doesn't always reset to "Action Editor" */
+	if (saction->mode != SACTCONT_TIMELINE) {
+		saction->mode_prev = saction->mode;
+	}
 }
 
 /* Space Graph Editor */
 
-static void rna_SpaceGraphEditor_display_mode_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
+static void rna_SpaceGraphEditor_display_mode_update(bContext *C, PointerRNA *ptr)
 {
 	ScrArea *sa = rna_area_from_space(ptr);
+	SpaceIpo *sipo = (SpaceIpo *)ptr->data;
+
+	/* for "Drivers" mode, enable all the necessary bits and pieces */
+	if (sipo->mode == SIPO_MODE_DRIVERS) {
+		ED_drivers_editor_init(C, sa);
+		ED_area_tag_redraw(sa);
+	}
 
 	/* after changing view mode, must force recalculation of F-Curve colors
 	 * which can only be achieved using refresh as opposed to redraw
@@ -1663,6 +1739,16 @@ static const EnumPropertyItem *rna_FileSelectParams_recursion_level_itemf(
 
 	*r_free = false;
 	return fileselectparams_recursion_level_items;
+}
+
+static void rna_FileSelectPrams_filter_glob_set(PointerRNA *ptr, const char *value)
+{
+	FileSelectParams *params = ptr->data;
+
+	BLI_strncpy(params->filter_glob, value, sizeof(params->filter_glob));
+
+	/* Remove stupi things like last group being a wildcard-only one... */
+	BLI_path_extension_glob_validate(params->filter_glob);
 }
 
 static void rna_FileBrowser_FSMenuEntry_path_get(PointerRNA *ptr, char *value)
@@ -2145,12 +2231,12 @@ static void rna_def_space_outliner(BlenderRNA *brna)
 	PropertyRNA *prop;
 
 	static const EnumPropertyItem display_mode_items[] = {
-		{SO_SCENES, "SCENES", 0, "Scenes", "Display scenes and their view layers, collections and objects"},
-		{SO_VIEW_LAYER, "VIEW_LAYER", 0, "View Layer", "Display collections and objects in the view layer"},
-		{SO_SEQUENCE, "SEQUENCE", 0, "Sequence", "Display sequence data-blocks"},
-		{SO_LIBRARIES, "LIBRARIES", 0, "Blender File", "Display data of current file and linked libraries"},
-		{SO_DATA_API, "DATA_API", 0, "Data API", "Display low level Blender data and its properties"},
-		{SO_ID_ORPHANS, "ORPHAN_DATA", 0, "Orphan Data",
+		{SO_SCENES, "SCENES", ICON_SCENE_DATA, "Scenes", "Display scenes and their view layers, collections and objects"},
+		{SO_VIEW_LAYER, "VIEW_LAYER",ICON_RENDER_RESULT, "View Layer", "Display collections and objects in the view layer"},
+		{SO_SEQUENCE, "SEQUENCE", ICON_SEQUENCE, "Sequence", "Display sequence data-blocks"},
+		{SO_LIBRARIES, "LIBRARIES", ICON_FILE_BLEND, "Blender File", "Display data of current file and linked libraries"},
+		{SO_DATA_API, "DATA_API", ICON_RNA, "Data API", "Display low level Blender data and its properties"},
+		{SO_ID_ORPHANS, "ORPHAN_DATA", ICON_EXTERNAL_DATA, "Orphan Data",
 		                "Display data-blocks which are unused and/or will be lost when the file is reloaded"},
 		{0, NULL, 0, NULL, NULL}
 	};
@@ -2426,10 +2512,10 @@ static void rna_def_space_view3d_shading(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
-	prop = RNA_def_property(srna, "studiolight_background", PROP_FLOAT, PROP_FACTOR);
+	prop = RNA_def_property(srna, "studiolight_background_alpha", PROP_FLOAT, PROP_FACTOR);
 	RNA_def_property_float_sdna(prop, NULL, "shading.studiolight_background");
 	RNA_def_property_float_default(prop, 0.0);
-	RNA_def_property_ui_text(prop, "Show Background", "Show the studiolight in the background");
+	RNA_def_property_ui_text(prop, "Background", "Show the studiolight in the background");
 	RNA_def_property_range(prop, 0.0f, 1.0f);
 	RNA_def_property_ui_range(prop, 0.00f, 1.0f, 1, 3);
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
@@ -3526,19 +3612,6 @@ static void rna_def_space_dopesheet(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 
-	/* XXX: action-editor is currently for object-level only actions, so show that using object-icon hint */
-	static EnumPropertyItem mode_items[] = {
-		{SACTCONT_TIMELINE, "TIMELINE", ICON_TIME, "Timeline", "Timeline and playback controls"},
-		{SACTCONT_DOPESHEET, "DOPESHEET", ICON_OOPS, "Dope Sheet", "Edit all keyframes in scene"},
-		{SACTCONT_ACTION, "ACTION", ICON_OBJECT_DATA, "Action Editor", "Edit keyframes in active object's Object-level action"},
-		{SACTCONT_SHAPEKEY, "SHAPEKEY", ICON_SHAPEKEY_DATA, "Shape Key Editor", "Edit keyframes in active object's Shape Keys action"},
-		{SACTCONT_GPENCIL, "GPENCIL", ICON_GREASEPENCIL, "Grease Pencil", "Edit timings for all Grease Pencil sketches in file"},
-		{SACTCONT_MASK, "MASK", ICON_MOD_MASK, "Mask", "Edit timings for Mask Editor splines"},
-		{SACTCONT_CACHEFILE, "CACHEFILE", ICON_FILE, "Cache File", "Edit timings for Cache File data-blocks"},
-		{0, NULL, 0, NULL, NULL}
-	};
-
-
 	srna = RNA_def_struct(brna, "SpaceDopeSheetEditor", "Space");
 	RNA_def_struct_sdna(srna, "SpaceAction");
 	RNA_def_struct_ui_text(srna, "Space Dope Sheet Editor", "Dope Sheet space data");
@@ -3552,10 +3625,17 @@ static void rna_def_space_dopesheet(BlenderRNA *brna)
 	RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
 	RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, "rna_SpaceDopeSheetEditor_action_update");
 
-	/* mode */
+	/* mode (hidden in the UI, see 'ui_mode') */
 	prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "mode");
-	RNA_def_property_enum_items(prop, mode_items);
+	RNA_def_property_enum_items(prop, rna_enum_space_action_mode_all_items);
+	RNA_def_property_ui_text(prop, "Mode", "Editing context being displayed");
+	RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_DOPESHEET, "rna_SpaceDopeSheetEditor_mode_update");
+
+	prop = RNA_def_property(srna, "ui_mode", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "mode");
+	RNA_def_property_enum_items(prop, rna_enum_space_action_ui_mode_items);
 	RNA_def_property_ui_text(prop, "Mode", "Editing context being displayed");
 	RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_DOPESHEET, "rna_SpaceDopeSheetEditor_mode_update");
@@ -3662,13 +3742,6 @@ static void rna_def_space_graph(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 
-	static const EnumPropertyItem mode_items[] = {
-		{SIPO_MODE_ANIMATION, "FCURVES", ICON_IPO, "F-Curve",
-		 "Edit animation/keyframes displayed as 2D curves"},
-		{SIPO_MODE_DRIVERS, "DRIVERS", ICON_DRIVER, "Drivers", "Edit drivers"},
-		{0, NULL, 0, NULL, NULL}
-	};
-
 	/* this is basically the same as the one for the 3D-View, but with some entries omitted */
 	static const EnumPropertyItem gpivot_items[] = {
 		{V3D_AROUND_CENTER_BOUNDS, "BOUNDING_BOX_CENTER", ICON_ROTATE, "Bounding Box Center", ""},
@@ -3687,8 +3760,9 @@ static void rna_def_space_graph(BlenderRNA *brna)
 	/* mode */
 	prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "mode");
-	RNA_def_property_enum_items(prop, mode_items);
+	RNA_def_property_enum_items(prop, rna_enum_space_graph_mode_items);
 	RNA_def_property_ui_text(prop, "Mode", "Editing context being displayed");
+	RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_GRAPH, "rna_SpaceGraphEditor_display_mode_update");
 
 	/* display */
@@ -4140,7 +4214,10 @@ static void rna_def_fileselect_params(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "filter_glob", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "filter_glob");
-	RNA_def_property_ui_text(prop, "Extension Filter", "");
+	RNA_def_property_ui_text(prop, "Extension Filter",
+	                         "UNIX shell-like filename patterns matching, supports wildcards ('*') "
+	                         "and list of patterns separated by ';'");
+	RNA_def_property_string_funcs(prop, NULL, NULL, "rna_FileSelectPrams_filter_glob_set");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_LIST, NULL);
 
 	prop = RNA_def_property(srna, "filter_search", PROP_STRING, PROP_NONE);

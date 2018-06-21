@@ -87,6 +87,7 @@ static void rna_Collection_objects_link(Collection *collection, Main *bmain, Rep
 		return;
 	}
 
+	DEG_id_tag_update(&collection->id, DEG_TAG_COPY_ON_WRITE);
 	DEG_relations_tag_update(bmain);
 	WM_main_add_notifier(NC_OBJECT | ND_DRAW, &object->id);
 }
@@ -98,6 +99,7 @@ static void rna_Collection_objects_unlink(Collection *collection, Main *bmain, R
 		return;
 	}
 
+	DEG_id_tag_update(&collection->id, DEG_TAG_COPY_ON_WRITE);
 	DEG_relations_tag_update(bmain);
 	WM_main_add_notifier(NC_OBJECT | ND_DRAW, &object->id);
 }
@@ -124,6 +126,7 @@ static void rna_Collection_children_link(Collection *collection, Main *bmain, Re
 		return;
 	}
 
+	DEG_id_tag_update(&collection->id, DEG_TAG_COPY_ON_WRITE);
 	DEG_relations_tag_update(bmain);
 	WM_main_add_notifier(NC_OBJECT | ND_DRAW, &child->id);
 }
@@ -135,6 +138,7 @@ static void rna_Collection_children_unlink(Collection *collection, Main *bmain, 
 		return;
 	}
 
+	DEG_id_tag_update(&collection->id, DEG_TAG_COPY_ON_WRITE);
 	DEG_relations_tag_update(bmain);
 	WM_main_add_notifier(NC_OBJECT | ND_DRAW, &child->id);
 }
@@ -145,8 +149,8 @@ static void rna_Collection_flag_update(Main *bmain, Scene *scene, PointerRNA *pt
 	BKE_collection_object_cache_free(collection);
 	BKE_main_collection_sync(bmain);
 
+	DEG_id_tag_update(&collection->id, DEG_TAG_COPY_ON_WRITE);
 	DEG_relations_tag_update(bmain);
-	DEG_id_tag_update(&collection->id, 0);
 	WM_main_add_notifier(NC_SCENE | ND_OB_SELECT, scene);
 }
 
@@ -260,21 +264,21 @@ void RNA_def_collections(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", COLLECTION_RESTRICT_SELECT);
 	RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_STATIC);
 	RNA_def_property_ui_icon(prop, ICON_RESTRICT_SELECT_OFF, 1);
-	RNA_def_property_ui_text(prop, "Restrict Select", "Disable collection object selection in the 3D viewport");
+	RNA_def_property_ui_text(prop, "Restrict Select", "Disable collection for viewport selection");
 	RNA_def_property_update(prop, NC_SCENE | ND_LAYER_CONTENT, "rna_Collection_flag_update");
 
 	prop = RNA_def_property(srna, "hide_viewport", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", COLLECTION_RESTRICT_VIEW);
 	RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_STATIC);
 	RNA_def_property_ui_icon(prop, ICON_RESTRICT_VIEW_OFF, 1);
-	RNA_def_property_ui_text(prop, "Restrict Viewport", "Hide collection objects in the 3D viewport");
+	RNA_def_property_ui_text(prop, "Restrict Viewport", "Disable collection in viewport");
 	RNA_def_property_update(prop, NC_SCENE | ND_LAYER_CONTENT, "rna_Collection_flag_update");
 
 	prop = RNA_def_property(srna, "hide_render", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", COLLECTION_RESTRICT_RENDER);
 	RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_STATIC);
 	RNA_def_property_ui_icon(prop, ICON_RESTRICT_RENDER_OFF, 1);
-	RNA_def_property_ui_text(prop, "Restrict Render", "Hide collection objects in renders");
+	RNA_def_property_ui_text(prop, "Restrict Render", "Disable collection in renders");
 	RNA_def_property_update(prop, NC_SCENE | ND_LAYER_CONTENT, "rna_Collection_flag_update");
 }
 

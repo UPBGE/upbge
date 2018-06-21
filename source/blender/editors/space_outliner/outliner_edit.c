@@ -253,6 +253,55 @@ void OUTLINER_OT_item_openclose(wmOperatorType *ot)
 	RNA_def_boolean(ot->srna, "all", 1, "All", "Close or open all items");
 }
 
+/* -------------------------------------------------------------------- */
+/** \name Object Mode Enter/Exit
+ * \{ */
+
+static void item_object_mode_enter_exit(
+        bContext *C, ReportList *reports, Object *ob,
+        bool enter)
+{
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	Object *obact = OBACT(view_layer);
+
+	if ((ob->type != obact->type) || ID_IS_LINKED(ob->data)) {
+		return;
+	}
+	if (((ob->mode & obact->mode) != 0) == enter) {
+		return;
+	}
+
+	if (ob == obact) {
+		BKE_report(reports, RPT_WARNING, "Active object mode not changed");
+		return;
+	}
+
+	Base *base = BKE_view_layer_base_find(view_layer, ob);
+	if (base == NULL) {
+		return;
+	}
+	Scene *scene = CTX_data_scene(C);
+	outliner_object_mode_toggle(C, scene, view_layer, base);
+}
+
+void item_object_mode_enter_cb(
+        bContext *C, ReportList *reports, Scene *UNUSED(scene), TreeElement *UNUSED(te),
+        TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
+{
+	Object *ob = (Object *)tselem->id;
+	item_object_mode_enter_exit(C, reports, ob, true);
+}
+
+void item_object_mode_exit_cb(
+        bContext *C, ReportList *reports, Scene *UNUSED(scene), TreeElement *UNUSED(te),
+        TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
+{
+	Object *ob = (Object *)tselem->id;
+	item_object_mode_enter_exit(C, reports, ob, false);
+}
+
+/** \} */
+
 /* Rename --------------------------------------------------- */
 
 static void do_item_rename(ARegion *ar, TreeElement *te, TreeStoreElem *tselem,
@@ -2317,6 +2366,7 @@ static int collection_drop_invoke(bContext *C, wmOperator *op, const wmEvent *ev
 	Object *ob = (Object *)BKE_libblock_find_name(bmain, ID_OB, childname);
 	BKE_collection_object_add(bmain, collection, ob);
 
+	DEG_id_tag_update(&collection->id, DEG_TAG_COPY_ON_WRITE);
 	DEG_relations_tag_update(bmain);
 	WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
 

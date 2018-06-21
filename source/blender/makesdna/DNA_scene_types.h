@@ -1400,7 +1400,8 @@ typedef struct ToolSettings {
 	float vgroup_weight;
 
 	float doublimit;	/* remove doubles limit */
-	short automerge;
+	char automerge;
+	char object_flag;
 
 	/* Selection Mode for Mesh */
 	short selectmode;
@@ -1954,6 +1955,11 @@ extern const char *RE_engine_id_CYCLES;
 /* ToolSettings.transform_flag */
 enum {
 	SCE_XFORM_AXIS_ALIGN = (1 << 0),
+};
+
+/* ToolSettings.object_flag */
+enum {
+	SCE_OBJECT_MODE_LOCK = (1 << 0),
 };
 
 /* ToolSettings.snap_flag */

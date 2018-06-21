@@ -33,7 +33,7 @@ from .properties_physics_common import (
 )
 
 
-class SCENE_MT_units_length_presets(PresetMenu):
+class SCENE_PT_units_length_presets(PresetMenu):
     """Unit of measure for properties that use length values"""
     bl_label = "Unit Presets"
     preset_subdir = "units_length"
@@ -83,7 +83,7 @@ class SCENE_PT_unit(SceneButtonsPanel, Panel):
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE'}
 
     def draw_header_preset(self, context):
-        SCENE_MT_units_length_presets.draw_panel_header(self.layout)
+        SCENE_PT_units_length_presets.draw_panel_header(self.layout)
 
     def draw(self, context):
         layout = self.layout
@@ -262,7 +262,6 @@ class SCENE_PT_color_management(SceneButtonsPanel, Panel):
 
         col = layout.column()
         col.prop(scene.display_settings, "display_device")
-        col.prop(scene.sequencer_colorspace_settings, "name", text="Sequencer Color Space")
 
         col.separator()
 
@@ -271,6 +270,10 @@ class SCENE_PT_color_management(SceneButtonsPanel, Panel):
         col.prop(view, "exposure")
         col.prop(view, "gamma")
         col.prop(view, "look")
+
+        col.separator()
+
+        col.prop(scene.sequencer_colorspace_settings, "name", text="Sequencer Color Space")
 
 
 class SCENE_PT_color_management_curves(SceneButtonsPanel, Panel):
@@ -366,6 +369,7 @@ class SCENE_PT_rigid_body_world(SceneButtonsPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
+        layout.use_property_split = True
 
         scene = context.scene
 
@@ -383,13 +387,11 @@ class SCENE_PT_rigid_body_world(SceneButtonsPanel, Panel):
             col.prop(rbw, "group")
             col.prop(rbw, "constraints")
 
-            split = col.split()
-
-            col = split.column()
+            col = col.column()
             col.prop(rbw, "time_scale", text="Speed")
             col.prop(rbw, "use_split_impulse")
 
-            col = split.column()
+            col = col.column()
             col.prop(rbw, "steps_per_second", text="Steps Per Second")
             col.prop(rbw, "solver_iterations", text="Solver Iterations")
 
@@ -500,7 +502,7 @@ class SCENE_PT_custom_props(SceneButtonsPanel, PropertyPanel, Panel):
 
 
 classes = (
-    SCENE_MT_units_length_presets,
+    SCENE_PT_units_length_presets,
     SCENE_UL_keying_set_paths,
     SCENE_PT_scene,
     SCENE_PT_unit,

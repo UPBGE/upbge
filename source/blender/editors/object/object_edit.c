@@ -149,6 +149,237 @@ Object *ED_object_active_context(bContext *C)
 	return ob;
 }
 
+/* ********************** object hiding *************************** */
+
+static int object_hide_poll(bContext *C)
+{
+	if (CTX_wm_space_outliner(C) != NULL) {
+		return ED_outliner_collections_editor_poll(C);
+	}
+	else {
+		return ED_operator_view3d_active(C);
+	}
+}
+
+static int object_hide_view_clear_exec(bContext *C, wmOperator *op)
+{
+	Scene *scene = CTX_data_scene(C);
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	const bool select = RNA_boolean_get(op->ptr, "select");
+	bool changed = false;
+
+	for (Base *base = view_layer->object_bases.first; base; base = base->next) {
+		if (base->flag & BASE_HIDE) {
+			base->flag &= ~BASE_HIDE;
+			changed = true;
+
+			if (select) {
+				ED_object_base_select(base, BA_SELECT);
+			}
+		}
+	}
+
+	if (!changed) {
+		return OPERATOR_CANCELLED;
+	}
+
+	BKE_layer_collection_sync(scene, view_layer);
+	DEG_id_tag_update(&scene->id, DEG_TAG_BASE_FLAGS_UPDATE);
+	WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
+
+	return OPERATOR_FINISHED;
+}
+
+void OBJECT_OT_hide_view_clear(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Show Hidden Objects";
+	ot->description = "Reveal temporarily hidden objects";
+	ot->idname = "OBJECT_OT_hide_view_clear";
+
+	/* api callbacks */
+	ot->exec = object_hide_view_clear_exec;
+	ot->poll = object_hide_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	PropertyRNA *prop = RNA_def_boolean(ot->srna, "select", false, "Select", "");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
+}
+
+static int object_hide_view_set_exec(bContext *C, wmOperator *op)
+{
+	Scene *scene = CTX_data_scene(C);
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	const bool unselected = RNA_boolean_get(op->ptr, "unselected");
+
+	/* Do nothing if no objects was selected. */
+	bool have_selected = false;
+	for (Base *base = view_layer->object_bases.first; base; base = base->next) {
+		if (base->flag & BASE_VISIBLED) {
+			if (base->flag & BASE_SELECTED) {
+				have_selected = true;
+				break;
+			}
+		}
+	}
+
+	if (!have_selected) {
+		return OPERATOR_CANCELLED;
+	}
+
+	/* Hide selected or unselected objects. */
+	for (Base *base = view_layer->object_bases.first; base; base = base->next) {
+		if (!(base->flag & BASE_VISIBLED)) {
+			continue;
+		}
+
+		if (!unselected) {
+			if (base->flag & BASE_SELECTED) {
+				ED_object_base_select(base, BA_DESELECT);
+				base->flag |= BASE_HIDE;
+			}
+		}
+		else {
+			if (!(base->flag & BASE_SELECTED)) {
+				ED_object_base_select(base, BA_DESELECT);
+				base->flag |= BASE_HIDE;
+			}
+		}
+	}
+
+	BKE_layer_collection_sync(scene, view_layer);
+	DEG_id_tag_update(&scene->id, DEG_TAG_BASE_FLAGS_UPDATE);
+	WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
+
+	return OPERATOR_FINISHED;
+}
+
+void OBJECT_OT_hide_view_set(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Hide Objects";
+	ot->description = "Temporarily hide objects from the viewport";
+	ot->idname = "OBJECT_OT_hide_view_set";
+
+	/* api callbacks */
+	ot->exec = object_hide_view_set_exec;
+	ot->poll = object_hide_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	PropertyRNA *prop;
+	prop = RNA_def_boolean(ot->srna, "unselected", 0, "Unselected", "Hide unselected rather than selected objects");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
+}
+
+static int object_hide_collection_exec(bContext *C, wmOperator *op)
+{
+	int index = RNA_int_get(op->ptr, "collection_index");
+	bool extend = (CTX_wm_window(C)->eventstate->shift != 0);
+
+	if (CTX_wm_window(C)->eventstate->alt != 0) {
+		index += 10;
+	}
+
+	Scene *scene = CTX_data_scene(C);
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	LayerCollection *lc = BKE_layer_collection_from_index(view_layer, index);
+
+	if (!lc) {
+		return OPERATOR_CANCELLED;
+	}
+
+	BKE_layer_collection_set_visible(scene, view_layer, lc, extend);
+
+	DEG_id_tag_update(&scene->id, DEG_TAG_BASE_FLAGS_UPDATE);
+	WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
+
+	return OPERATOR_FINISHED;
+}
+
+#define COLLECTION_INVALID_INDEX -1
+
+void ED_hide_collections_menu_draw(const bContext *C, uiLayout *layout)
+{
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	LayerCollection *lc_scene = view_layer->layer_collections.first;
+
+	uiLayoutSetOperatorContext(layout, WM_OP_EXEC_REGION_WIN);
+
+	for (LayerCollection *lc = lc_scene->layer_collections.first; lc; lc = lc->next) {
+		int index = BKE_layer_collection_findindex(view_layer, lc);
+		uiLayout *row = uiLayoutRow(layout, false);
+
+		if (lc->collection->flag & COLLECTION_RESTRICT_VIEW) {
+			continue;
+		}
+
+		if ((view_layer->runtime_flag & VIEW_LAYER_HAS_HIDE) &&
+		    !(lc->runtime_flag & LAYER_COLLECTION_HAS_VISIBLE_OBJECTS)) {
+			uiLayoutSetActive(row, false);
+		}
+
+		int icon = ICON_NONE;
+		if (BKE_layer_collection_has_selected_objects(view_layer, lc)) {
+			icon = ICON_LAYER_ACTIVE;
+		}
+		else if (lc->runtime_flag & LAYER_COLLECTION_HAS_OBJECTS) {
+			icon = ICON_LAYER_USED;
+		}
+
+		uiItemIntO(row,
+		           lc->collection->id.name + 2,
+		           icon,
+		           "OBJECT_OT_hide_collection",
+		           "collection_index",
+		           index);
+	}
+}
+
+static int object_hide_collection_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
+{
+	/* Immediately execute if collection index was specified. */
+	int index = RNA_int_get(op->ptr, "collection_index");
+	if (index != COLLECTION_INVALID_INDEX) {
+		return object_hide_collection_exec(C, op);
+	}
+
+	/* Open popup menu. */
+	const char *title = CTX_IFACE_(op->type->translation_context, op->type->name);
+	uiPopupMenu *pup = UI_popup_menu_begin(C, title, ICON_GROUP);
+	uiLayout *layout = UI_popup_menu_layout(pup);
+
+	ED_hide_collections_menu_draw(C, layout);
+
+	UI_popup_menu_end(C, pup);
+
+	return OPERATOR_INTERFACE;
+}
+
+void OBJECT_OT_hide_collection(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Hide Objects By Collection";
+	ot->description = "Show only objects in collection (Shift to extend)";
+	ot->idname = "OBJECT_OT_hide_collection";
+
+	/* api callbacks */
+	ot->exec = object_hide_collection_exec;
+	ot->invoke = object_hide_collection_invoke;
+	ot->poll = ED_operator_view3d_active;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	/* Properties. */
+	PropertyRNA *prop;
+	prop = RNA_def_int(ot->srna, "collection_index", COLLECTION_INVALID_INDEX, COLLECTION_INVALID_INDEX, INT_MAX,
+	                   "Collection Index", "Index of the collection to change visibility", 0, INT_MAX);
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
+}
 
 /* ******************* toggle editmode operator  ***************** */
 
@@ -753,7 +984,6 @@ static void copy_attr(Main *bmain, Scene *scene, ViewLayer *view_layer, short ev
 	Base *base;
 	Curve *cu, *cu1;
 	Nurb *nu;
-	bool do_depgraph_update = false;
 
 	if (ID_IS_LINKED(scene)) return;
 
@@ -941,8 +1171,8 @@ static void copy_attr(Main *bmain, Scene *scene, ViewLayer *view_layer, short ev
 				else if (event == 22) {
 					/* Copy the constraint channels over */
 					BKE_constraints_copy(&base->object->constraints, &ob->constraints, true);
-
-					do_depgraph_update = true;
+					DEG_id_tag_update(&base->object->id, DEG_TAG_COPY_ON_WRITE);
+					DEG_relations_tag_update(bmain);
 				}
 				else if (event == 23) {
 					base->object->softflag = ob->softflag;
@@ -953,6 +1183,9 @@ static void copy_attr(Main *bmain, Scene *scene, ViewLayer *view_layer, short ev
 					if (!modifiers_findByType(base->object, eModifierType_Softbody)) {
 						BLI_addhead(&base->object->modifiers, modifier_new(eModifierType_Softbody));
 					}
+
+					DEG_id_tag_update(&base->object->id, DEG_TAG_COPY_ON_WRITE);
+					DEG_relations_tag_update(bmain);
 				}
 				else if (event == 26) {
 #if 0 // XXX old animation system
@@ -993,9 +1226,6 @@ static void copy_attr(Main *bmain, Scene *scene, ViewLayer *view_layer, short ev
 			}
 		}
 	}
-
-	if (do_depgraph_update)
-		DEG_relations_tag_update(bmain);
 }
 
 static void UNUSED_FUNCTION(copy_attr_menu) (Main *bmain, Scene *scene, ViewLayer *view_layer, Object *obedit)
@@ -2074,8 +2304,6 @@ bool ED_object_editmode_calc_active_center(Object *obedit, const bool select_onl
 	return false;
 }
 
-#define COLLECTION_INVALID_INDEX -1
-
 static int move_to_collection_poll(bContext *C)
 {
 	if (CTX_wm_space_outliner(C) != NULL) {
@@ -2156,7 +2384,7 @@ static int move_to_collection_exec(bContext *C, wmOperator *op)
 	            is_link ? "linked" : "moved",
 	            collection->id.name + 2);
 
-	DEG_relations_tag_update(CTX_data_main(C));
+	DEG_relations_tag_update(bmain);
 	DEG_id_tag_update(&scene->id, DEG_TAG_COPY_ON_WRITE | DEG_TAG_SELECT_UPDATE);
 
 	WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
@@ -2396,4 +2624,3 @@ void OBJECT_OT_link_to_collection(wmOperatorType *ot)
 	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
-#undef COLLECTION_INVALID_INDEX

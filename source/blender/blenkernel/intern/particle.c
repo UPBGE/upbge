@@ -653,6 +653,51 @@ void psys_free(Object *ob, ParticleSystem *psys)
 	}
 }
 
+void psys_copy_particles(ParticleSystem *psys_dst, ParticleSystem *psys_src)
+{
+	/* Free existing particles. */
+	if (psys_dst->particles != psys_src->particles) {
+		psys_free_particles(psys_dst);
+	}
+	if (psys_dst->child != psys_src->child) {
+		psys_free_children(psys_dst);
+	}
+	/* Restore counters. */
+	psys_dst->totpart = psys_src->totpart;
+	psys_dst->totchild = psys_src->totchild;
+	/* Copy particles and children. */
+	psys_dst->particles = MEM_dupallocN(psys_src->particles);
+	psys_dst->child = MEM_dupallocN(psys_src->child);
+	if (psys_dst->part->type == PART_HAIR) {
+		ParticleData *pa;
+		int p;
+		for (p = 0, pa = psys_dst->particles; p < psys_dst->totpart; p++, pa++) {
+			pa->hair = MEM_dupallocN(pa->hair);
+		}
+	}
+	if (psys_dst->particles && (psys_dst->particles->keys || psys_dst->particles->boid)) {
+		ParticleKey *key = psys_dst->particles->keys;
+		BoidParticle *boid = psys_dst->particles->boid;
+		ParticleData *pa;
+		int p;
+		if (key != NULL) {
+			key = MEM_dupallocN(key);
+		}
+		if (boid != NULL) {
+			boid = MEM_dupallocN(boid);
+		}
+		for (p = 0, pa = psys_dst->particles; p < psys_dst->totpart; p++, pa++) {
+			if (boid != NULL) {
+				pa->boid = boid++;
+			}
+			if (key != NULL) {
+				pa->keys = key;
+				key += pa->totkey;
+			}
+		}
+	}
+}
+
 /************************************************/
 /*			Interpolation						*/
 /************************************************/
@@ -2779,7 +2824,6 @@ void psys_cache_edit_paths(Depsgraph *depsgraph, Scene *scene, Object *ob, PTCac
 	ParticleEditSettings *pset = &scene->toolsettings->particle;
 
 	ParticleSystem *psys = edit->psys;
-	ParticleSystemModifierData *psmd = psys_get_modifier(ob, psys);
 
 	ParticleData *pa = psys ? psys->particles : NULL;
 
@@ -2806,7 +2850,7 @@ void psys_cache_edit_paths(Depsgraph *depsgraph, Scene *scene, Object *ob, PTCac
 	CacheEditrPathsIterData iter_data;
 	iter_data.object = ob;
 	iter_data.edit = edit;
-	iter_data.psmd = psmd;
+	iter_data.psmd = edit->psmd_eval;
 	iter_data.pa = pa;
 	iter_data.segments = segments;
 	iter_data.use_weight = use_weight;
@@ -2836,7 +2880,7 @@ void psys_cache_edit_paths(Depsgraph *depsgraph, Scene *scene, Object *ob, PTCac
 		sim.scene = scene;
 		sim.ob = ob;
 		sim.psys = psys;
-		sim.psmd = psys_get_modifier(ob, psys);
+		sim.psmd = edit->psmd_eval;
 
 		psys_cache_child_paths(&sim, cfra, true, use_render_params);
 	}

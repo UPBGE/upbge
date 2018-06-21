@@ -3935,8 +3935,9 @@ static void direct_link_image(FileData *fd, Image *ima)
 		}
 	}
 	else {
-		LISTBASE_FOREACH(RenderSlot *, slot, &ima->renderslots)
+		LISTBASE_FOREACH(RenderSlot *, slot, &ima->renderslots) {
 			slot->render = NULL;
+		}
 		ima->last_render_slot = ima->render_slot;
 	}
 
@@ -5756,6 +5757,8 @@ static void direct_link_layer_collections(FileData *fd, ListBase *lb, bool maste
 			lc->collection = newdataadr(fd, lc->collection);
 		}
 
+		lc->runtime_flag = 0;
+
 		direct_link_layer_collections(fd, &lc->layer_collections, false);
 	}
 }
@@ -5778,6 +5781,7 @@ static void direct_link_view_layer(FileData *fd, ViewLayer *view_layer)
 	BLI_listbase_clear(&view_layer->drawdata);
 	view_layer->object_bases_array = NULL;
 	view_layer->object_bases_hash = NULL;
+	view_layer->runtime_flag = 0;
 }
 
 static void lib_link_layer_collection(FileData *fd, Library *lib, LayerCollection *layer_collection, bool master)
@@ -5797,9 +5801,6 @@ static void lib_link_layer_collection(FileData *fd, Library *lib, LayerCollectio
 
 static void lib_link_view_layer(FileData *fd, Library *lib, ViewLayer *view_layer)
 {
-	/* tag scene layer to update for collection tree evaluation */
-	view_layer->flag |= VIEW_LAYER_ENGINE_DIRTY;
-
 	for (FreestyleModuleConfig *fmc = view_layer->freestyle_config.modules.first; fmc; fmc = fmc->next) {
 		fmc->script = newlibadr(fd, lib, fmc->script);
 	}
@@ -5814,7 +5815,6 @@ static void lib_link_view_layer(FileData *fd, Library *lib, ViewLayer *view_laye
 
 		/* we only bump the use count for the collection objects */
 		base->object = newlibadr(fd, lib, base->object);
-		base->flag |= BASE_DIRTY_ENGINE_SETTINGS;
 
 		if (base->object == NULL) {
 			/* Free in case linked object got lost. */

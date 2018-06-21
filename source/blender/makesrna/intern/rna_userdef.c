@@ -712,21 +712,6 @@ static int rna_UserDef_studiolight_is_user_defined_get(PointerRNA *ptr)
 	return (sl->flag & STUDIOLIGHT_USER_DEFINED) > 0;
 }
 
-/* StudioLight.show_expanded */
-static int rna_UserDef_studiolight_show_expanded_get(PointerRNA *ptr)
-{
-	StudioLight *sl = (StudioLight *)ptr->data;
-	return (sl->flag & STUDIOLIGHT_UI_EXPANDED) > 0;
-}
-
-static void rna_UserDef_studiolight_show_expanded_set(PointerRNA *ptr, const bool value)
-{
-	StudioLight *sl = (StudioLight *)ptr->data;
-	sl->flag ^= STUDIOLIGHT_UI_EXPANDED;
-	sl->flag |= value ? STUDIOLIGHT_UI_EXPANDED : 0;
-}
-
-
 /* StudioLight.orientation */
 
 static int rna_UserDef_studiolight_orientation_get(PointerRNA *ptr)
@@ -1713,11 +1698,6 @@ static void rna_def_userdef_theme_space_view3d(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "wire", PROP_FLOAT, PROP_COLOR_GAMMA);
 	RNA_def_property_array(prop, 3);
 	RNA_def_property_ui_text(prop, "Wire", "");
-	RNA_def_property_update(prop, 0, "rna_userdef_update");
-
-	prop = RNA_def_property(srna, "wire_inactive", PROP_FLOAT, PROP_COLOR_GAMMA);
-	RNA_def_property_array(prop, 3);
-	RNA_def_property_ui_text(prop, "Wire Inactive", "Color for wireframe when in edit mode, but edge selection is not active");
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
 
 	prop = RNA_def_property(srna, "wire_edit", PROP_FLOAT, PROP_COLOR_GAMMA);
@@ -2831,7 +2811,7 @@ static void rna_def_userdef_theme_space_nla(BlenderRNA *brna)
 	srna = RNA_def_struct(brna, "ThemeNLAEditor", NULL);
 	RNA_def_struct_sdna(srna, "ThemeSpace");
 	RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
-	RNA_def_struct_ui_text(srna, "Theme NLA Editor", "Theme settings for the NLA Editor");
+	RNA_def_struct_ui_text(srna, "Theme Nonlinear Animation", "Theme settings for the NLA Editor");
 
 	rna_def_userdef_theme_spaces_main(srna);
 	rna_def_userdef_theme_spaces_list_main(srna);
@@ -3101,7 +3081,7 @@ static void rna_def_userdef_themes(BlenderRNA *brna)
 		{1, "VIEW_3D", ICON_VIEW3D, "3D View", ""},
 		{3, "GRAPH_EDITOR", ICON_IPO, "Graph Editor", ""},
 		{4, "DOPESHEET_EDITOR", ICON_ACTION, "Dope Sheet", ""},
-		{5, "NLA_EDITOR", ICON_NLA, "NLA Editor", ""},
+		{5, "NLA_EDITOR", ICON_NLA, "Nonlinear Animation", ""},
 		{6, "IMAGE_EDITOR", ICON_IMAGE_COL, "UV/Image Editor", ""},
 		{7, "SEQUENCE_EDITOR", ICON_SEQUENCE, "Video Sequence Editor", ""},
 		{8, "TEXT_EDITOR", ICON_TEXT, "Text Editor", ""},
@@ -3164,7 +3144,7 @@ static void rna_def_userdef_themes(BlenderRNA *brna)
 	RNA_def_property_flag(prop, PROP_NEVER_NULL);
 	RNA_def_property_pointer_sdna(prop, NULL, "tnla");
 	RNA_def_property_struct_type(prop, "ThemeNLAEditor");
-	RNA_def_property_ui_text(prop, "NLA Editor", "");
+	RNA_def_property_ui_text(prop, "Nonlinear Animation", "");
 
 	prop = RNA_def_property(srna, "dopesheet_editor", PROP_POINTER, PROP_NONE);
 	RNA_def_property_flag(prop, PROP_NEVER_NULL);
@@ -3303,10 +3283,6 @@ static void rna_def_userdef_studiolight(BlenderRNA *brna)
 	RNA_def_property_boolean_funcs(prop, "rna_UserDef_studiolight_is_user_defined_get", NULL);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "User Defined", "");
-
-	prop = RNA_def_property(srna, "show_expanded", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_funcs(prop, "rna_UserDef_studiolight_show_expanded_get", "rna_UserDef_studiolight_show_expanded_set");
-	RNA_def_property_ui_text(prop, "Show Expanded", "");
 
 	prop = RNA_def_property(srna, "orientation", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_items(prop, rna_enum_studio_light_orientation_items);

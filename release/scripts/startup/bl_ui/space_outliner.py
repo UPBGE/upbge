@@ -35,7 +35,20 @@ class OUTLINER_HT_header(Header):
         row = layout.row(align=True)
         row.template_header()
 
-        layout.prop(space, "display_mode", text="")
+        layout.prop(space, "display_mode", icon_only=True)
+
+        if display_mode in {'VIEW_LAYER'}:
+            layout.operator("outliner.collection_new", text="", icon="GROUP").nested = True
+
+        layout.separator_spacer()
+
+        row = layout.row(align=True)
+        row.prop(space, "use_filter_search", text="")
+        sub = row.row(align=True)
+        sub.prop(space, "filter_text", text="")
+        sub.enabled = space.use_filter_search
+
+        layout.separator_spacer()
 
         row = layout.row(align=True)
         if display_mode in {'VIEW_LAYER'}:
@@ -49,8 +62,6 @@ class OUTLINER_HT_header(Header):
             sub = row.row(align=True)
             sub.active = space.use_filter_id_type
             sub.prop(space, "filter_id_type", text="", icon_only=True)
-
-        OUTLINER_MT_editor_menus.draw_collapsible(context, layout)
 
         if space.display_mode == 'DATA_API':
             layout.separator()
@@ -70,12 +81,7 @@ class OUTLINER_HT_header(Header):
                 row = layout.row()
                 row.label(text="No Keying Set Active")
 
-        row = layout.row(align=True)
-        row.prop(space, "use_filter_search", text="")
-        if space.use_filter_search:
-            row.prop(space, "filter_text", text="")
-            row.prop(space, "use_filter_complete", text="")
-            row.prop(space, "use_filter_case_sensitive", text="")
+        OUTLINER_MT_editor_menus.draw_collapsible(context, layout)
 
 
 class OUTLINER_MT_editor_menus(Menu):
@@ -106,11 +112,18 @@ class OUTLINER_MT_view(Menu):
 
         space = context.space_data
 
+        layout.prop(space, "use_filter_complete", text="Exact Match Search")
+        layout.prop(space, "use_filter_case_sensitive", text="Case Sensitive Search")
+
+        layout.separator()
+
         if space.display_mode != 'DATA_API':
             layout.prop(space, "use_sort_alpha")
             layout.prop(space, "show_restrict_columns")
             layout.separator()
             layout.operator("outliner.show_active")
+
+        layout.separator()
 
         layout.operator("outliner.show_one_level", text="Show One Level")
         layout.operator("outliner.show_one_level", text="Hide One Level").open = False
@@ -205,6 +218,8 @@ class OUTLINER_MT_object(Menu):
         layout = self.layout
 
         space = context.space_data
+        obj = context.active_object
+        object_mode = 'OBJECT' if obj is None else obj.mode
 
         layout.operator("outliner.object_operation", text="Delete").type = 'DELETE'
         if space.display_mode == 'VIEW_LAYER' and not space.use_filter_collection:
@@ -217,6 +232,14 @@ class OUTLINER_MT_object(Menu):
         layout.operator("outliner.object_operation", text="Deselect").type = 'DESELECT'
 
         layout.separator()
+
+        if object_mode in {'EDIT', 'POSE'}:
+            name = bpy.types.Object.bl_rna.properties["mode"].enum_items[object_mode].name
+            layout.operator("outliner.object_operation", text=f"{name} Set").type = 'OBJECT_MODE_ENTER'
+            layout.operator("outliner.object_operation", text=f"{name} Clear").type = 'OBJECT_MODE_EXIT'
+            del name
+
+            layout.separator()
 
         if not (space.display_mode == 'VIEW_LAYER' and not space.use_filter_collection):
             layout.operator("outliner.id_operation", text="Unlink").type = 'UNLINK'

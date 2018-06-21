@@ -4,12 +4,7 @@ struct LightData {
 };
 
 struct WorldData {
-	vec4 diffuse_light_x_pos;
-	vec4 diffuse_light_x_neg;
-	vec4 diffuse_light_y_pos;
-	vec4 diffuse_light_y_neg;
-	vec4 diffuse_light_z_pos;
-	vec4 diffuse_light_z_neg;
+	vec3 spherical_harmonics_coefs[STUDIOLIGHT_SPHERICAL_HARMONICS_MAX_COMPONENTS];
 	vec4 background_color_low;
 	vec4 background_color_high;
 	vec4 object_outline_color;

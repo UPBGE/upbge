@@ -231,16 +231,16 @@ static const uint g_shape_preset_hold_action_face[2][3] = {{2, 0, 1}, {3, 5, 4}}
 static const int tria_ofs[ROUNDBOX_TRIA_MAX] = {
 	[ROUNDBOX_TRIA_NONE]              = 0,
 	[ROUNDBOX_TRIA_ARROWS]            = 0,
-	[ROUNDBOX_TRIA_SCROLL]            = 6,
-	[ROUNDBOX_TRIA_MENU]              = 22,
-	[ROUNDBOX_TRIA_CHECK]             = 28,
-	[ROUNDBOX_TRIA_HOLD_ACTION_ARROW] = 34,
+	[ROUNDBOX_TRIA_SCROLL]            = 12,
+	[ROUNDBOX_TRIA_MENU]              = 28,
+	[ROUNDBOX_TRIA_CHECK]             = 34,
+	[ROUNDBOX_TRIA_HOLD_ACTION_ARROW] = 40,
 };
 static const int tria_vcount[ROUNDBOX_TRIA_MAX] = {
 	[ROUNDBOX_TRIA_NONE]              = 0,
-	[ROUNDBOX_TRIA_ARROWS]            = 3,
+	[ROUNDBOX_TRIA_ARROWS]            = 6,
 	[ROUNDBOX_TRIA_SCROLL]            = 16,
-	[ROUNDBOX_TRIA_MENU]              = 3,
+	[ROUNDBOX_TRIA_MENU]              = 6,
 	[ROUNDBOX_TRIA_CHECK]             = 6,
 	[ROUNDBOX_TRIA_HOLD_ACTION_ARROW] = 3,
 };
@@ -297,8 +297,8 @@ static uint32_t set_tria_vertex(
         int tria_type, int tria_v, int tria_id, int jit_v)
 {
 	uint32_t *data = GWN_vertbuf_raw_step(vflag_step);
-	if (ELEM(tria_type, ROUNDBOX_TRIA_ARROWS, ROUNDBOX_TRIA_MENU)) {
-		tria_v += tria_id * 3;
+	if (ELEM(tria_type, ROUNDBOX_TRIA_ARROWS)) {
+		tria_v += tria_id * tria_vcount[ROUNDBOX_TRIA_ARROWS];
 	}
 	*data  = tria_ofs[tria_type] + tria_v;
 	*data |= jit_v << 6;
@@ -309,7 +309,7 @@ static uint32_t set_tria_vertex(
 
 static void roundbox_batch_add_tria(Gwn_VertBufRaw *vflag_step, int tria, uint32_t last_data)
 {
-	const int tria_num = ELEM(tria, ROUNDBOX_TRIA_CHECK, ROUNDBOX_TRIA_HOLD_ACTION_ARROW) ? 1 : 2;
+	const int tria_num = ELEM(tria, ROUNDBOX_TRIA_CHECK, ROUNDBOX_TRIA_HOLD_ACTION_ARROW, ROUNDBOX_TRIA_MENU) ? 1 : 2;
 	/* for each tria */
 	for (int t = 0; t < tria_num; ++t) {
 		for (int j = 0; j < WIDGET_AA_JITTER; j++) {
@@ -336,7 +336,7 @@ Gwn_Batch *ui_batch_roundbox_widget_get(int tria)
 		vcount += ((WIDGET_CURVE_RESOLU * 2) * 2) * WIDGET_AA_JITTER; /* emboss */
 		if (tria) {
 			vcount += (tria_vcount[tria] + 2) * WIDGET_AA_JITTER; /* tria1 */
-			if (!ELEM(tria, ROUNDBOX_TRIA_CHECK, ROUNDBOX_TRIA_HOLD_ACTION_ARROW)) {
+			if (!ELEM(tria, ROUNDBOX_TRIA_CHECK, ROUNDBOX_TRIA_HOLD_ACTION_ARROW, ROUNDBOX_TRIA_MENU)) {
 				vcount += (tria_vcount[tria] + 2) * WIDGET_AA_JITTER; /* tria2 */
 			}
 		}
@@ -2658,18 +2658,22 @@ static void widget_state_pie_menu_item(uiWidgetType *wt, int state)
 		copy_v4_v4_char(wt->wcol.inner, wt->wcol.item);
 		wt->wcol.inner[3] = 64;
 	}
-	/* regular disabled */
-	else if (state & (UI_BUT_DISABLED | UI_BUT_INACTIVE)) {
-		widget_state_blend(wt->wcol.text, wt->wcol.inner, 0.5f);
-	}
-	/* regular active */
-	else if (state & UI_SELECT) {
-		copy_v4_v4_char(wt->wcol.outline, wt->wcol.inner_sel);
-		copy_v3_v3_char(wt->wcol.text, wt->wcol.text_sel);
-	}
-	else if (state & UI_ACTIVE) {
-		copy_v4_v4_char(wt->wcol.inner, wt->wcol.item);
-		copy_v3_v3_char(wt->wcol.text, wt->wcol.text_sel);
+	else {
+		/* regular active */
+		if (state & (UI_SELECT | UI_ACTIVE)) {
+			copy_v3_v3_char(wt->wcol.text, wt->wcol.text_sel);
+		}
+		else if (state & (UI_BUT_DISABLED | UI_BUT_INACTIVE)) {
+			/* regular disabled */
+			widget_state_blend(wt->wcol.text, wt->wcol.inner, 0.5f);
+		}
+
+		if (state & UI_SELECT) {
+			copy_v4_v4_char(wt->wcol.outline, wt->wcol.inner_sel);
+		}
+		else if (state & UI_ACTIVE) {
+			copy_v4_v4_char(wt->wcol.inner, wt->wcol.item);
+		}
 	}
 }
 
@@ -2686,14 +2690,19 @@ static void widget_state_menu_item(uiWidgetType *wt, int state)
 		copy_v4_v4_char(wt->wcol.inner, wt->wcol.inner_sel);
 		wt->wcol.inner[3] = 64;
 	}
-	/* regular disabled */
-	else if (state & (UI_BUT_DISABLED | UI_BUT_INACTIVE)) {
-		widget_state_blend(wt->wcol.text, wt->wcol.inner, 0.5f);
-	}
-	/* regular active */
-	else if (state & UI_ACTIVE) {
-		copy_v4_v4_char(wt->wcol.inner, wt->wcol.inner_sel);
-		copy_v3_v3_char(wt->wcol.text, wt->wcol.text_sel);
+	else {
+		/* regular active */
+		if (state & UI_ACTIVE) {
+			copy_v3_v3_char(wt->wcol.text, wt->wcol.text_sel);
+		}
+		else if (state & (UI_BUT_DISABLED | UI_BUT_INACTIVE)) {
+			/* regular disabled */
+			widget_state_blend(wt->wcol.text, wt->wcol.inner, 0.5f);
+		}
+
+		if (state & UI_ACTIVE) {
+			copy_v4_v4_char(wt->wcol.inner, wt->wcol.inner_sel);
+		}
 	}
 }
 

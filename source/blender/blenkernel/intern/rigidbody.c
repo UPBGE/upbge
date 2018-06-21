@@ -1120,7 +1120,7 @@ RigidBodyWorld *BKE_rigidbody_get_world(Scene *scene)
 	return scene->rigidbody_world;
 }
 
-void BKE_rigidbody_remove_object(Scene *scene, Object *ob)
+void BKE_rigidbody_remove_object(struct Main *bmain, Scene *scene, Object *ob)
 {
 	RigidBodyWorld *rbw = scene->rigidbody_world;
 	RigidBodyOb *rbo = ob->rigidbody_object;
@@ -1155,6 +1155,7 @@ void BKE_rigidbody_remove_object(Scene *scene, Object *ob)
 			}
 			FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
 		}
+		BKE_collection_object_remove(bmain, rbw->group, ob, false);
 	}
 
 	/* remove object's settings */
@@ -1631,7 +1632,7 @@ void BKE_rigidbody_do_simulation(Depsgraph *depsgraph, Scene *scene, float ctime
 	}
 
 	/* advance simulation, we can only step one frame forward */
-	if (ctime == rbw->ltime + 1) {
+	if (compare_ff_relative(ctime, rbw->ltime + 1, FLT_EPSILON, 64)) {
 		/* write cache for first frame when on second frame */
 		if (rbw->ltime == startframe && (cache->flag & PTCACHE_OUTDATED || cache->last_exact == 0)) {
 			BKE_ptcache_write(&pid, startframe);
@@ -1676,7 +1677,7 @@ void BKE_rigidbody_world_id_loop(struct RigidBodyWorld *rbw, RigidbodyWorldIDFun
 struct RigidBodyOb *BKE_rigidbody_create_object(Scene *scene, Object *ob, short type) { return NULL; }
 struct RigidBodyCon *BKE_rigidbody_create_constraint(Scene *scene, Object *ob, short type) { return NULL; }
 struct RigidBodyWorld *BKE_rigidbody_get_world(Scene *scene) { return NULL; }
-void BKE_rigidbody_remove_object(Scene *scene, Object *ob) {}
+void BKE_rigidbody_remove_object(struct Main *bmain, Scene *scene, Object *ob) {}
 void BKE_rigidbody_remove_constraint(Scene *scene, Object *ob) {}
 void BKE_rigidbody_sync_transforms(RigidBodyWorld *rbw, Object *ob, float ctime) {}
 void BKE_rigidbody_aftertrans_update(Object *ob, float loc[3], float rot[3], float quat[4], float rotAxis[3], float rotAngle) {}
@@ -1690,6 +1691,27 @@ void BKE_rigidbody_do_simulation(Depsgraph *depsgraph, Scene *scene, float ctime
 #endif
 
 #endif  /* WITH_BULLET */
+
+
+/* Copy the pointcache from the evaluated to the original scene.
+ * This allows the re-evaluation of the original scene to use the
+ * physics cache.
+ */
+static void rigidbody_copy_cache_to_orig(Scene *scene_eval)
+{
+	if ((scene_eval->id.tag & LIB_TAG_COPIED_ON_WRITE) == 0) {
+		/* Scene is already an original, this function is a no-op. */
+		return;
+	}
+
+	Scene *scene_orig = (Scene *)DEG_get_original_id(&scene_eval->id);
+	RigidBodyWorld *rbw_orig = scene_orig->rigidbody_world;
+	RigidBodyWorld *rbw_eval = scene_eval->rigidbody_world;
+
+	BKE_ptcache_free_list(&rbw_orig->ptcaches);
+	rbw_orig->pointcache = BKE_ptcache_copy_list(&rbw_orig->ptcaches, &rbw_eval->ptcaches, LIB_ID_COPY_CACHES);
+}
+
 
 /* -------------------- */
 /* Depsgraph evaluation */
@@ -1710,10 +1732,18 @@ void BKE_rigidbody_eval_simulation(Depsgraph *depsgraph,
 {
 	float ctime = DEG_get_ctime(depsgraph);
 	DEG_debug_print_eval_time(depsgraph, __func__, scene->id.name, scene, ctime);
+
 	/* evaluate rigidbody sim */
-	if (BKE_scene_check_rigidbody_active(scene)) {
-		BKE_rigidbody_do_simulation(depsgraph, scene, ctime);
+	if (!BKE_scene_check_rigidbody_active(scene)) {
+		return;
 	}
+	BKE_rigidbody_do_simulation(depsgraph, scene, ctime);
+
+	/* Make sure re-evaluation can use the cache from this simulation */
+	if (!DEG_is_active(depsgraph)) {
+		return;
+	}
+	rigidbody_copy_cache_to_orig(scene);
 }
 
 void BKE_rigidbody_object_sync_transforms(Depsgraph *depsgraph,
