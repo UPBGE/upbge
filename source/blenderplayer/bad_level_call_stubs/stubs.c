@@ -600,6 +600,7 @@ void ED_view3d_clipping_enable(void) RET_NONE
 float ED_view3d_pixel_size_no_ui_scale(const struct RegionView3D *rv3d, const float co[3]) RET_ZERO
 
 
+
 void ED_view3d_init_mats_rv3d(struct Object *ob, struct RegionView3D *rv3d) RET_NONE
 void ED_region_info_draw_multiline(struct ARegion *ar, const char *text_array[], float fill_color[4], const bool full_redraw) RET_NONE
 void view3d_draw_bgpic_test(Scene *scene, ARegion *ar, View3D *v3d, const bool do_foreground, const bool do_camera_frame) RET_NONE
@@ -705,6 +706,8 @@ void ED_lattice_editlatt_load(struct Object *obedit) RET_NONE
 
 void ED_curve_editnurb_load(struct Object *obedit) RET_NONE
 void ED_curve_editnurb_make(struct Object *obedit) RET_NONE
+
+void ED_drivers_editor_init(struct bContext *C, struct ScrArea *sa) RET_NONE
 
 void uiItemR(uiLayout *layout, struct PointerRNA *ptr, const char *propname, int flag, const char *name, int icon) RET_NONE
 
