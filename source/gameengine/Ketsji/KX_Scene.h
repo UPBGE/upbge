@@ -278,7 +278,13 @@ public:
 	void RenderBuckets(const std::vector<KX_GameObject *>& objects, RAS_Rasterizer::DrawType drawingMode,
 			const mt::mat3x4& cameratransform, unsigned short viewportIndex,
 			RAS_Rasterizer *rasty, RAS_OffScreen *offScreen);
-	void RenderTextureRenderers(RAS_Rasterizer *rasty, const KX_SceneRenderData& sceneData);
+
+	/// Update lights settings.
+	void UpdateLights(RAS_Rasterizer *rasty);
+	/// Return list of shadow schedulers.
+	std::vector<KX_TextureRenderSchedule> ScheduleShadowsRender();
+	/// Return list of texture renderer schedules.
+	std::vector<KX_TextureRenderSchedule> ScheduleTexturesRender(RAS_Rasterizer *rasty, const KX_SceneRenderSchedule& sceneData);
 
 	/// Update all transforms according to the scenegraph.
 	static bool KX_ScenegraphUpdateFunc(SG_Node *node, void *gameobj, void *scene);
@@ -359,6 +365,7 @@ public:
 	KX_WorldInfo *GetWorldInfo() const;
 
 	std::vector<KX_GameObject *> CalculateVisibleMeshes(KX_Camera *cam, RAS_Rasterizer::StereoEye eye, int layer);
+	std::vector<KX_GameObject *> CalculateVisibleMeshes(bool frustumCulling, const SG_Frustum& frustum, int layer);
 	std::vector<KX_GameObject *> CalculateVisibleMeshes(const SG_Frustum& frustum, int layer);
 
 	RAS_DebugDraw& GetDebugDraw();
@@ -379,6 +386,7 @@ public:
 
 	/// Update the mesh for objects based on level of detail settings
 	void UpdateObjectLods(KX_Camera *cam, const std::vector<KX_GameObject *>& objects);
+	void UpdateObjectLods(const mt::vec3& camPos, float lodFactor, const std::vector<KX_GameObject *>& objects);
 
 	// LoD Hysteresis functions
 	void SetLodHysteresis(bool active);

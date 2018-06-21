@@ -37,6 +37,7 @@
 
 #include "SG_Frustum.h"
 
+#include "RAS_FramingManager.h"
 #include "RAS_CameraData.h"
 #include "RAS_Rasterizer.h"
 
@@ -50,6 +51,7 @@ class KX_Camera : public KX_GameObject
 	Py_Header
 protected:
 	friend class KX_Scene;
+
 	/** Camera parameters (clips distances, focal length). These
 	 * params are closely tied to Blender. In the gameengine, only the
 	 * projection and modelview matrices are relevant. There's a
@@ -94,7 +96,11 @@ protected:
 	 */
 	bool m_showDebugCameraFrustum;
 
+	// Frustum relative to the render frame used to get the projection matrix.
+	RAS_FrameFrustum m_frameFrustum;
+
 	void ExtractFrustum(RAS_Rasterizer::StereoEye eye);
+	void ComputeFrameFrustum(const RAS_Rect& viewport, const RAS_Rect& area, const RAS_FrameSettings& settings);
 
 public:
 
@@ -178,6 +184,8 @@ public:
 
 	bool GetActivityCulling() const;
 	void SetActivityCulling(bool enable);
+
+	const RAS_FrameFrustum& GetFrameFrustum() const;
 
 	const SG_Frustum& GetFrustum(RAS_Rasterizer::StereoEye eye);
 

@@ -121,12 +121,15 @@ public:
 	/// Get a layer texture bind code.
 	unsigned int GetBindCode(unsigned short index);
 
-	/// Setup rasterizer for rendering.
-	virtual void BeginRender(RAS_Rasterizer *rasty, unsigned short layer);
-	/// Undo the rasterizer setup.
-	virtual void EndRender(RAS_Rasterizer *rasty, unsigned short layer);
+	/// Setup frame buffer for rendering.
+	void BeginRender(RAS_Rasterizer *rasty, unsigned short layer);
+	/// Reset the frame buffer.
+	void EndRender(RAS_Rasterizer *rasty, unsigned short layer);
+
 	/// Setup rasterizer for a face render.
 	virtual void BeginRenderFace(RAS_Rasterizer *rasty, unsigned short layer, unsigned short face);
+	/// Unset rasterizer setup for the last face.
+	virtual void EndRenderFace(RAS_Rasterizer *rasty, unsigned short layer, unsigned short face);
 
 	/** Ensure to have the all layers for the number of viewport, returns the
 	 * usage of the layers, shared (only one) or unique (as much as viewport).

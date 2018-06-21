@@ -228,7 +228,10 @@ bool ImageRender::Render()
 	}
 
 	if (m_updateShadowBuffer) {
-		m_engine->RenderShadowBuffers(m_scene);
+		const KX_TextureRenderScheduleList shadowSchedule = m_scene->ScheduleShadowsRender();
+		for (const KX_TextureRenderSchedule& textureSchedule : shadowSchedule) {
+			m_engine->RenderTexture(m_scene, textureSchedule);
+		}
 	}
 
 	if (m_mirror) {

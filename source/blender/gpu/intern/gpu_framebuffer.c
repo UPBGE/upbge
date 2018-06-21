@@ -897,13 +897,3 @@ int GPU_offscreen_color_texture(const GPUOffScreen *ofs)
 	return GPU_texture_opengl_bindcode(ofs->color);
 }
 
-GPUTexture *GPU_offscreen_texture(const GPUOffScreen *ofs)
-{
-	return ofs->color;
-}
-
-GPUTexture *GPU_offscreen_depth_texture(const GPUOffScreen *ofs)
-{
-	return ofs->depth;
-}
-

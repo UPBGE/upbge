@@ -29,6 +29,7 @@
 
 #include "EXP_Value.h"
 #include "RAS_TextureRenderer.h"
+#include "KX_RenderSchedule.h"
 
 class KX_GameObject;
 class KX_Camera;
@@ -83,8 +84,7 @@ public:
 	float GetLodDistanceFactor() const;
 	void SetLodDistanceFactor(float lodfactor);
 
-	virtual mt::mat4 GetProjectionMatrix(RAS_Rasterizer *rasty, KX_Scene *scene, KX_Camera *sceneCamera,
-			const RAS_Rect& viewport, const RAS_Rect& area, RAS_Rasterizer::StereoMode stereoMode, RAS_Rasterizer::StereoEye eye) = 0;
+	virtual mt::mat4 GetProjectionMatrix(RAS_Rasterizer *rasty, const KX_CameraRenderSchedule& cameraData) = 0;
 
 	bool GetEnabled() const;
 	int GetIgnoreLayers() const;
@@ -97,10 +97,8 @@ public:
 	// Return true when the texture renderer need to be updated.
 	bool NeedUpdate();
 
-	/// Setup camera position and orientation shared by all the faces, returns true when the render will be made.
-	virtual bool Prepare(KX_Camera *sceneCamera, RAS_Rasterizer::StereoEye eye, KX_Camera *camera) = 0;
 	/// Setup camera position and orientation unique per faces, returns true when the render will be made.
-	virtual bool PrepareFace(KX_Camera *camera, unsigned short index) = 0;
+	virtual bool PrepareFace(const mt::mat4& sceneViewMat, unsigned short face, mt::mat3x4& camTrans) = 0;
 
 #ifdef WITH_PYTHON
 	EXP_PYMETHOD_DOC_NOARGS(KX_TextureRenderer, update);

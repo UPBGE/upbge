@@ -108,8 +108,6 @@ void KX_Camera::SetProjectionMatrix(const mt::mat4 & mat, RAS_Rasterizer::Stereo
 	view.frustumDirty = true;
 }
 
-
-
 /**
  * Sets the modelview matrix that is used by the rasterizer.
  */
@@ -119,8 +117,6 @@ void KX_Camera::SetModelviewMatrix(const mt::mat4 & mat, RAS_Rasterizer::StereoE
 	view.modelview = mat;
 	view.frustumDirty = true;
 }
-
-
 
 /**
  * Gets the projection matrix that is used by the rasterizer.
@@ -160,54 +156,18 @@ void KX_Camera::UpdateView(RAS_Rasterizer* rasty, KX_Scene* scene, RAS_Rasterize
 
 	// Update projection when setting changed.
 	if (view.projectionDirty) {
-		RAS_FrameFrustum frustum{};
+		// First compute the frame frustum.
+		ComputeFrameFrustum(viewport, area, scene->GetFramingType());
 
 		if (m_camdata.m_perspective) {
-			RAS_FramingManager::ComputeFrustum(
-				scene->GetFramingType(),
-				area,
-				viewport,
-				m_camdata.m_lens,
-				m_camdata.m_sensor_x,
-				m_camdata.m_sensor_y,
-				m_camdata.m_sensor_fit,
-				m_camdata.m_shift_x,
-				m_camdata.m_shift_y,
-				m_camdata.m_clipstart,
-				m_camdata.m_clipend,
-				frustum);
-
-			if (!m_camdata.m_useViewport) {
-				frustum.x1 *= m_camdata.m_zoom;
-				frustum.x2 *= m_camdata.m_zoom;
-				frustum.y1 *= m_camdata.m_zoom;
-				frustum.y2 *= m_camdata.m_zoom;
-			}
 			view.projection = rasty->GetFrustumMatrix(stereoMode, eye, m_camdata.m_focallength,
-				frustum.x1, frustum.x2, frustum.y1, frustum.y2, frustum.camnear, frustum.camfar);
+				m_frameFrustum.x1, m_frameFrustum.x2, m_frameFrustum.y1, m_frameFrustum.y2,
+				m_frameFrustum.camnear, m_frameFrustum.camfar);
 		}
 		else {
-			RAS_FramingManager::ComputeOrtho(
-				scene->GetFramingType(),
-				area,
-				viewport,
-				m_camdata.m_scale,
-				m_camdata.m_clipstart,
-				m_camdata.m_clipend,
-				m_camdata.m_sensor_fit,
-				m_camdata.m_shift_x,
-				m_camdata.m_shift_y,
-				frustum);
-
-			if (!m_camdata.m_useViewport) {
-				frustum.x1 *= m_camdata.m_zoom;
-				frustum.x2 *= m_camdata.m_zoom;
-				frustum.y1 *= m_camdata.m_zoom;
-				frustum.y2 *= m_camdata.m_zoom;
-			}
 			view.projection = rasty->GetOrthoMatrix(
-				frustum.x1, frustum.x2, frustum.y1, frustum.y2, frustum.camnear, frustum.camfar);
-
+				m_frameFrustum.x1, m_frameFrustum.x2, m_frameFrustum.y1, m_frameFrustum.y2,
+				m_frameFrustum.camnear, m_frameFrustum.camfar);
 		}
 
 		view.projectionDirty = false;
@@ -332,6 +292,50 @@ void KX_Camera::ExtractFrustum(RAS_Rasterizer::StereoEye eye)
 	}
 }
 
+void KX_Camera::ComputeFrameFrustum(const RAS_Rect& viewport, const RAS_Rect& area, const RAS_FrameSettings& settings)
+{
+	if (m_camdata.m_perspective) {
+		RAS_FramingManager::ComputeFrustum(
+			settings,
+			area,
+			viewport,
+			m_camdata.m_lens,
+			m_camdata.m_sensor_x,
+			m_camdata.m_sensor_y,
+			m_camdata.m_sensor_fit,
+			m_camdata.m_shift_x,
+			m_camdata.m_shift_y,
+			m_camdata.m_clipstart,
+			m_camdata.m_clipend,
+			m_frameFrustum);
+	}
+	else {
+		RAS_FramingManager::ComputeOrtho(
+			settings,
+			area,
+			viewport,
+			m_camdata.m_scale,
+			m_camdata.m_clipstart,
+			m_camdata.m_clipend,
+			m_camdata.m_sensor_fit,
+			m_camdata.m_shift_x,
+			m_camdata.m_shift_y,
+			m_frameFrustum);
+	}
+
+	if (!m_camdata.m_useViewport) {
+		m_frameFrustum.x1 *= m_camdata.m_zoom;
+		m_frameFrustum.x2 *= m_camdata.m_zoom;
+		m_frameFrustum.y1 *= m_camdata.m_zoom;
+		m_frameFrustum.y2 *= m_camdata.m_zoom;
+	}
+}
+
+const RAS_FrameFrustum& KX_Camera::GetFrameFrustum() const
+{
+	return m_frameFrustum;
+}
+
 const SG_Frustum& KX_Camera::GetFrustum(RAS_Rasterizer::StereoEye eye)
 {
 	ExtractFrustum(eye);
@@ -351,6 +355,7 @@ void KX_Camera::EnableViewport(bool viewport)
 
 void KX_Camera::SetViewport(int left, int bottom, int right, int top)
 {
+	InvalidateProjectionMatrix();
 	m_camdata.m_viewport = RAS_Rect(left, bottom, right, top);
 }
 

@@ -472,12 +472,14 @@ public:
 	/**
 	 * Get/Set viewport area
 	 */
+	void SetViewport(const RAS_Rect& area);
 	void SetViewport(int x, int y, int width, int height);
 	void GetViewport(int *rect);
 
 	/**
 	 * Set scissor mask
 	 */
+	void SetScissor(const RAS_Rect& area);
 	void SetScissor(int x, int y, int width, int height);
 
 	/**
