@@ -270,7 +270,7 @@ void RAS_OpenGLLight::BindShadowBuffer(RAS_ICanvas *canvas, KX_Camera *cam, mt::
 
 	/* setup rasterizer transformations */
 	m_rasterizer->SetProjectionMatrix(projectionmat);
-	m_rasterizer->SetViewMatrix(modelviewmat, cam->NodeGetWorldPosition(), cam->NodeGetLocalScaling());
+	m_rasterizer->SetViewMatrix(modelviewmat);
 }
 
 void RAS_OpenGLLight::UnbindShadowBuffer()

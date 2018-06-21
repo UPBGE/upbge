@@ -156,7 +156,7 @@ bool KX_TextureRendererManager::RenderRenderer(RAS_Rasterizer *rasty, KX_Texture
 		const mt::mat3x4 camtrans(m_camera->GetWorldToCamera());
 		const mt::mat4 viewmat = mt::mat4::FromAffineTransform(camtrans);
 
-		rasty->SetViewMatrix(viewmat, m_camera->NodeGetWorldPosition(), mt::one3);
+		rasty->SetViewMatrix(viewmat);
 		m_camera->SetModelviewMatrix(viewmat);
 
 		const std::vector<KX_GameObject *> objects = m_scene->CalculateVisibleMeshes(m_camera, ~renderer->GetIgnoreLayers());

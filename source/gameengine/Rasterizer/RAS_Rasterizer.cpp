@@ -798,28 +798,35 @@ mt::mat4 RAS_Rasterizer::GetViewMatrix(StereoMode stereoMode, StereoEye eye, con
 	return mt::mat4::FromAffineTransform(camtrans);
 }
 
-void RAS_Rasterizer::SetViewMatrix(const mt::mat4& viewmat, const mt::vec3& pos, const mt::vec3& scale)
+void RAS_Rasterizer::SetViewMatrix(const mt::mat4& viewmat, bool negscale)
 {
 	m_viewmatrix = viewmat;
-
-	// Don't making variable negX/negY/negZ allow drastic time saving.
-	if (scale[0] < 0.0f || scale[1] < 0.0f || scale[2] < 0.0f) {
-		const bool negX = (scale[0] < 0.0f);
-		const bool negY = (scale[1] < 0.0f);
-		const bool negZ = (scale[2] < 0.0f);
-//      m_viewmatrix.tscale((negX) ? -1.0f : 1.0f, (negY) ? -1.0f : 1.0f, (negZ) ? -1.0f : 1.0f, 1.0f);
-		// TODO
-		m_camnegscale = negX ^ negY ^ negZ;
-	}
-	else {
-		m_camnegscale = false;
-	}
-
 	m_viewinvmatrix = m_viewmatrix.Inverse();
-	m_campos = pos;
+	m_campos = m_viewinvmatrix.TranslationVector3D();
+	m_camnegscale = negscale;
 
 	SetMatrixMode(RAS_MODELVIEW);
 	LoadMatrix((float *)m_viewmatrix.Data());
+}
+
+void RAS_Rasterizer::SetViewMatrix(const mt::mat4& viewmat)
+{
+	SetViewMatrix(viewmat, false);
+}
+
+void RAS_Rasterizer::SetViewMatrix(mt::mat4 viewmat, const mt::vec3& scale)
+{
+	for (unsigned short i = 0; i < 3; ++i) {
+		// Negate row scaling if the scale is negative.
+		if (scale[i] < 0.0f) {
+			for (unsigned short j = 0; j < 4; ++j) {
+				viewmat(i, j) *= -1.0f;
+			}
+		}
+	}
+
+	const bool negscale = (scale.x * scale.y * scale.z) < 0.0f;
+	SetViewMatrix(viewmat, negscale);
 }
 
 void RAS_Rasterizer::SetViewport(int x, int y, int width, int height)

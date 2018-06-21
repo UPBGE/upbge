@@ -974,7 +974,7 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene, const CameraRenderData& came
 	m_rasterizer->SetEye(cameraFrameData.m_eye);
 
 	m_rasterizer->SetProjectionMatrix(rendercam->GetProjectionMatrix());
-	m_rasterizer->SetViewMatrix(rendercam->GetModelviewMatrix(), rendercam->NodeGetWorldPosition(), rendercam->NodeGetLocalScaling());
+	m_rasterizer->SetViewMatrix(rendercam->GetModelviewMatrix(), rendercam->NodeGetWorldScaling());
 
 	if (isFirstScene) {
 		KX_WorldInfo *worldInfo = scene->GetWorldInfo();
