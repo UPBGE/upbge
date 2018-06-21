@@ -53,19 +53,16 @@ public:
 	void ComputeClipPlane(const mt::vec3& mirrorObjWorldPos, const mt::mat3& mirrorObjWorldOri);
 
 	virtual void InvalidateProjectionMatrix();
-	virtual mt::mat4 GetProjectionMatrix(RAS_Rasterizer *rasty, KX_Scene *scene, KX_Camera *sceneCamera,
-			const RAS_Rect& viewport, const RAS_Rect& area, RAS_Rasterizer::StereoMode stereoMode, RAS_Rasterizer::StereoEye eye);
+	virtual mt::mat4 GetProjectionMatrix(RAS_Rasterizer *rasty, const KX_CameraRenderSchedule& cameraData);
 
 	const mt::vec3& GetNormal() const;
 	void SetNormal(const mt::vec3& normal);
 
-	virtual void BeginRender(RAS_Rasterizer *rasty, unsigned short layer);
-	virtual void EndRender(RAS_Rasterizer *rasty, unsigned short layer);
 	virtual void BeginRenderFace(RAS_Rasterizer *rasty, unsigned short layer, unsigned short face);
+	virtual void EndRenderFace(RAS_Rasterizer *rasty, unsigned short layer, unsigned short face);
 
 	virtual LayerUsage EnsureLayers(int viewportCount);
-	virtual bool Prepare(KX_Camera *sceneCamera, RAS_Rasterizer::StereoEye eye, KX_Camera *camera);
-	virtual bool PrepareFace(KX_Camera *camera, unsigned short index);
+	virtual bool PrepareFace(const mt::mat4& sceneViewMat, unsigned short face, mt::mat3x4& camTrans);
 
 #ifdef WITH_PYTHON
 	static PyObject *pyattr_get_normal(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);

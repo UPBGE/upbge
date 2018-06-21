@@ -204,6 +204,10 @@ void RAS_TextureRenderer::BeginRenderFace(RAS_Rasterizer *rasty, unsigned short 
 	rasty->Clear(RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT);
 }
 
+void RAS_TextureRenderer::EndRenderFace(RAS_Rasterizer *rasty, unsigned short layer, unsigned short face)
+{
+}
+
 void RAS_TextureRenderer::ReloadTexture()
 {
 	// Destruct all layers to force the recreation of the textures.

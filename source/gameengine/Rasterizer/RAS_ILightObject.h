@@ -91,7 +91,8 @@ public:
 	virtual mt::mat4 GetViewMat() = 0;
 	virtual mt::mat4 GetWinMat() = 0;
 	virtual int GetShadowLayer() = 0;
-	virtual void BindShadowBuffer(RAS_ICanvas *canvas, KX_Camera *cam, mt::mat3x4& camtrans) = 0;
+	virtual void GetShadowMatrix(mt::mat4& viewMat, mt::mat4& projMat) = 0;
+	virtual void BindShadowBuffer() = 0;
 	virtual void UnbindShadowBuffer() = 0;
 	virtual Image *GetTextureImage(short texslot) = 0;
 	virtual void Update(const mt::mat3x4& trans, bool hide) = 0;

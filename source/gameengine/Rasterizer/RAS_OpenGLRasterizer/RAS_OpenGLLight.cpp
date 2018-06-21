@@ -234,15 +234,19 @@ int RAS_OpenGLLight::GetShadowLayer()
 	}
 }
 
-void RAS_OpenGLLight::BindShadowBuffer(RAS_ICanvas *canvas, KX_Camera *cam, mt::mat3x4& camtrans)
+void RAS_OpenGLLight::GetShadowMatrix(mt::mat4& viewMat, mt::mat4& projMat)
 {
-	GPULamp *lamp;
-	float viewmat[4][4], winmat[4][4];
-	int winsize;
+	GPULamp *lamp = GetGPULamp();
+	GPU_lamp_update_buffer_mats(lamp);
+	viewMat = mt::mat4(GPU_lamp_get_viewmat(lamp));
+	projMat = mt::mat4(GPU_lamp_get_winmat(lamp));
+}
 
+void RAS_OpenGLLight::BindShadowBuffer()
+{
+	GPULamp *lamp = GetGPULamp();
 	/* bind framebuffer */
-	lamp = GetGPULamp();
-	GPU_lamp_shadow_buffer_bind(lamp, viewmat, &winsize, winmat);
+	GPU_lamp_shadow_buffer_bind(lamp);
 
 	if (GPU_lamp_shadow_buffer_type(lamp) == LA_SHADMAP_VARIANCE) {
 		m_rasterizer->SetShadowMode(RAS_Rasterizer::RAS_SHADOW_VARIANCE);
@@ -250,27 +254,6 @@ void RAS_OpenGLLight::BindShadowBuffer(RAS_ICanvas *canvas, KX_Camera *cam, mt::
 	else {
 		m_rasterizer->SetShadowMode(RAS_Rasterizer::RAS_SHADOW_SIMPLE);
 	}
-
-	/* GPU_lamp_shadow_buffer_bind() changes the viewport, so update the canvas */
-	canvas->UpdateViewPort(0, 0, winsize, winsize);
-
-	/* setup camera transformation */
-	mt::mat4 modelviewmat((float *)viewmat);
-	mt::mat4 projectionmat((float *)winmat);
-
-	const mt::mat3x4 trans = mt::mat3x4((float *)viewmat);
-	camtrans = trans.Inverse();
-
-	cam->SetModelviewMatrix(modelviewmat, RAS_Rasterizer::RAS_STEREO_LEFTEYE);
-	cam->SetProjectionMatrix(projectionmat, RAS_Rasterizer::RAS_STEREO_LEFTEYE);
-
-	cam->NodeSetLocalPosition(camtrans.TranslationVector3D());
-	cam->NodeSetLocalOrientation(camtrans.RotationMatrix());
-	cam->NodeUpdate();
-
-	/* setup rasterizer transformations */
-	m_rasterizer->SetProjectionMatrix(projectionmat);
-	m_rasterizer->SetViewMatrix(modelviewmat);
 }
 
 void RAS_OpenGLLight::UnbindShadowBuffer()

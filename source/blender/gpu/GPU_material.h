@@ -378,14 +378,14 @@ void GPU_lamp_free(struct Object *ob);
 
 bool GPU_lamp_has_shadow_buffer(GPULamp *lamp);
 void GPU_lamp_update_buffer_mats(GPULamp *lamp);
-void GPU_lamp_shadow_buffer_bind(GPULamp *lamp, float viewmat[4][4], int *winsize, float winmat[4][4]);
+void GPU_lamp_shadow_buffer_bind(GPULamp *lamp);
 void GPU_lamp_shadow_buffer_unbind(GPULamp *lamp);
 int GPU_lamp_shadow_buffer_type(GPULamp *lamp);
 int GPU_lamp_shadow_bind_code(GPULamp *lamp);
-const float *GPU_lamp_dynpersmat(GPULamp *lamp);
-const float *GPU_lamp_get_viewmat(GPULamp *lamp);
-const float *GPU_lamp_get_winmat(GPULamp *lamp);
-
+float (*GPU_lamp_dynpersmat(GPULamp *lamp))[4];
+float (*GPU_lamp_get_viewmat(GPULamp *lamp))[4];
+float (*GPU_lamp_get_winmat(GPULamp *lamp))[4];
+int GPU_lamp_shadow_size(GPULamp *lamp);
 
 void GPU_lamp_update(GPULamp *lamp, int lay, int hide, float obmat[4][4]);
 void GPU_lamp_update_colors(GPULamp *lamp, float r, float g, float b, float energy);

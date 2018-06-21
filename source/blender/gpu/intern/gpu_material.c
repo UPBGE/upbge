@@ -2962,10 +2962,8 @@ void GPU_lamp_update_buffer_mats(GPULamp *lamp)
 	mul_m4_m4m4(lamp->persmat, rangemat, persmat);
 }
 
-void GPU_lamp_shadow_buffer_bind(GPULamp *lamp, float viewmat[4][4], int *winsize, float winmat[4][4])
+void GPU_lamp_shadow_buffer_bind(GPULamp *lamp)
 {
-	GPU_lamp_update_buffer_mats(lamp);
-
 	/* opengl */
 	glDisable(GL_SCISSOR_TEST);
 	if (lamp->la->shadowmap_type == LA_SHADMAP_VARIANCE) {
@@ -2974,11 +2972,6 @@ void GPU_lamp_shadow_buffer_bind(GPULamp *lamp, float viewmat[4][4], int *winsiz
 	else {
 		GPU_texture_bind_as_framebuffer(lamp->depthtex);
 	}
-
-	/* set matrices */
-	copy_m4_m4(viewmat, lamp->viewmat);
-	copy_m4_m4(winmat, lamp->winmat);
-	*winsize = lamp->size;
 }
 
 void GPU_lamp_shadow_buffer_unbind(GPULamp *lamp)
@@ -3009,19 +3002,24 @@ int GPU_lamp_shadow_bind_code(GPULamp *lamp)
 	return -1;
 }
 
-const float *GPU_lamp_dynpersmat(GPULamp *lamp)
+float (*GPU_lamp_dynpersmat(GPULamp *lamp))[4]
 {
-	return &lamp->dynpersmat[0][0];
+	return lamp->dynpersmat;
 }
 
-const float *GPU_lamp_get_viewmat(GPULamp *lamp)
+float (*GPU_lamp_get_viewmat(GPULamp *lamp))[4]
 {
-	return &lamp->viewmat[0][0];
+	return lamp->viewmat;
 }
 
-const float *GPU_lamp_get_winmat(GPULamp *lamp)
+float (*GPU_lamp_get_winmat(GPULamp *lamp))[4]
 {
-	return &lamp->winmat[0][0];
+	return lamp->winmat;
+}
+
+int GPU_lamp_shadow_size(GPULamp *lamp)
+{
+	return lamp->size;
 }
 
 int GPU_lamp_shadow_layer(GPULamp *lamp)

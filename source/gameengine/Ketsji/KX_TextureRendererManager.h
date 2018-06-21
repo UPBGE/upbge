@@ -27,7 +27,7 @@
 #ifndef __KX_TEXTURE_RENDERER_MANAGER_H__
 #define __KX_TEXTURE_RENDERER_MANAGER_H__
 
-#include "KX_RenderData.h"
+#include "KX_RenderSchedule.h"
 
 class KX_GameObject;
 class KX_TextureRenderer;
@@ -39,14 +39,10 @@ class KX_TextureRendererManager
 private:
 	/// All existing renderers of this scene.
 	std::vector<KX_TextureRenderer *> m_renderers;
-	/// The camera used for renderers render, it's own by the renderer manager.
-	KX_Camera *m_camera;
-	/// The scene we are rendering for.
-	KX_Scene *m_scene;
 
-	/// Render a texture renderer, return true if the render was proceeded.
-	void RenderRenderer(RAS_Rasterizer *rasty, KX_TextureRenderer *renderer,
-			const std::vector<const KX_CameraRenderData *>& cameraDatas);
+	/// Schedule a texture renderer.
+	KX_TextureRenderScheduleList ScheduleRenderer(RAS_Rasterizer *rasty, KX_TextureRenderer *renderer,
+			const std::vector<const KX_CameraRenderSchedule *>& cameraSchedules);
 
 public:
 	enum RendererType {
@@ -54,7 +50,7 @@ public:
 		PLANAR
 	};
 
-	KX_TextureRendererManager(KX_Scene *scene);
+	KX_TextureRendererManager();
 	virtual ~KX_TextureRendererManager();
 
 	/// Invalidate renderers using the given game object as viewpoint object.
@@ -68,8 +64,8 @@ public:
 	*/
 	void AddRenderer(RendererType type, RAS_Texture *texture, KX_GameObject *viewpoint);
 
-	/// Execute all texture renderers.
-	void Render(RAS_Rasterizer *rasty, const KX_SceneRenderData& sceneData);
+	/// Schedule all texture renderers for rendering.
+	KX_TextureRenderScheduleList ScheduleRender(RAS_Rasterizer *rasty, const KX_SceneRenderSchedule& sceneSchedule);
 
 	/// Merge the content of an other renderer manager, used during lib loading.
 	void Merge(KX_TextureRendererManager *other);

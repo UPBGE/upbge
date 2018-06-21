@@ -227,9 +227,9 @@ bool ImageRender::Render()
 		return false;
 	}
 
-	if (m_updateShadowBuffer) {
+	/*if (m_updateShadowBuffer) {
 		m_engine->RenderShadowBuffers(m_scene);
-	}
+	}*/ // TODO
 
 	if (m_mirror) {
 		// mirror mode, compute camera frustum, position and orientation
