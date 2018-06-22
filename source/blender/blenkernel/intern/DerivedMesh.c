@@ -856,26 +856,18 @@ void DM_to_mesh(DerivedMesh *dm, Mesh *me, Object *ob, CustomDataMask mask, bool
 	}
 }
 
-void DM_to_meshkey(DerivedMesh *dm, Mesh *me, KeyBlock *kb)
+/** Utility function to convert an (evaluated) Mesh to a shape key block. */
+/* Just a shallow wrapper around BKE_keyblock_convert_from_mesh,
+ * that ensures both evaluated mesh and original one has same number of vertices. */
+void BKE_mesh_runtime_eval_to_meshkey(Mesh *me_deformed, Mesh *me, KeyBlock *kb)
 {
-	int a, totvert = dm->getNumVerts(dm);
-	float *fp;
-	MVert *mvert;
+	const int totvert = me_deformed->totvert;
 
 	if (totvert == 0 || me->totvert == 0 || me->totvert != totvert) {
 		return;
 	}
 
-	if (kb->data) MEM_freeN(kb->data);
-	kb->data = MEM_malloc_arrayN(me->key->elemsize, me->totvert, "kb->data");
-	kb->totelem = totvert;
-
-	fp = kb->data;
-	mvert = dm->getVertDataArray(dm, CD_MVERT);
-
-	for (a = 0; a < kb->totelem; a++, fp += 3, mvert++) {
-		copy_v3_v3(fp, mvert->co);
-	}
+	BKE_keyblock_convert_from_mesh(me_deformed, me->key, kb);
 }
 
 /**
@@ -2112,8 +2104,6 @@ static void mesh_calc_modifiers(
 		for (; md; md = md->next, curr = curr->next) {
 			const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
 
-			md->scene = scene;
-
 			if (!modifier_isEnabled(scene, md, required_mode)) {
 				continue;
 			}
@@ -2178,8 +2168,6 @@ static void mesh_calc_modifiers(
 
 	for (; md; md = md->next, curr = curr->next) {
 		const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
-
-		md->scene = scene;
 
 		if (!modifier_isEnabled(scene, md, required_mode)) {
 			continue;
@@ -2656,8 +2644,6 @@ static void editbmesh_calc_modifiers(
 	curr = datamasks;
 	for (i = 0; md; i++, md = md->next, curr = curr->next) {
 		const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
-
-		md->scene = scene;
 
 		if (!editbmesh_modifier_is_enabled(scene, md, dm)) {
 			continue;

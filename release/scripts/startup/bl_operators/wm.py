@@ -2504,7 +2504,7 @@ class WM_OT_studiolight_install(Operator):
 
         for filepath in filepaths:
             shutil.copy(str(filepath), str(path_studiolights))
-        userpref.studio_lights_refresh()
+            userpref.studio_lights.new(str(path_studiolights.joinpath(filepath.name)), self.orientation)
 
         # print message
         msg = (
@@ -2526,32 +2526,21 @@ class WM_OT_studiolight_uninstall(Operator):
     bl_label = "Uninstall Studio Light"
     index = bpy.props.IntProperty()
 
+    def _remove_path(self, path):
+        if path.exists():
+            path.unlink()
+
     def execute(self, context):
         import pathlib
         userpref = context.user_preferences
         for studio_light in userpref.studio_lights:
             if studio_light.index == self.index:
-                path = pathlib.Path(studio_light.path)
-                if path.exists():
-                    path.unlink()
-                    userpref.studio_lights_refresh()
-                    return {'FINISHED'}
+                self._remove_path(pathlib.Path(studio_light.path))
+                self._remove_path(pathlib.Path(studio_light.path_irr_cache))
+                self._remove_path(pathlib.Path(studio_light.path_sh_cache))
+                userpref.studio_lights.remove(studio_light)
+                return {'FINISHED'}
         return {'CANCELLED'}
-
-
-class WM_OT_studiolight_expand(Operator):
-    bl_idname = "wm.studiolight_expand"
-    bl_label = "Expand Studio Light"
-    index = bpy.props.IntProperty()
-
-    def execute(self, context):
-        userpref = context.user_preferences
-        for studio_light in userpref.studio_lights:
-            if studio_light.index == self.index:
-                studio_light.show_expanded = not studio_light.show_expanded
-                break
-
-        return {'FINISHED'}
 
 
 class WM_OT_studiolight_userpref_show(Operator):
@@ -2621,7 +2610,6 @@ classes = (
     WM_OT_owner_disable,
     WM_OT_owner_enable,
     WM_OT_url_open,
-    WM_OT_studiolight_expand,
     WM_OT_studiolight_install,
     WM_OT_studiolight_uninstall,
     WM_OT_studiolight_userpref_show,

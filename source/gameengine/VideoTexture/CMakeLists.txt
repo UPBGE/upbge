@@ -110,12 +110,6 @@ if(WITH_CODEC_FFMPEG)
 		${PTHREADS_INCLUDE_DIRS}
 	)
 	add_definitions(-DWITH_FFMPEG)
-
-	remove_strict_flags_file(
-		VideoFFmpeg.cpp
-		VideoDeckLink
-		DeckLink
-	)
 endif()
 
 if(WITH_GAMEENGINE_DECKLINK)

@@ -33,6 +33,7 @@
  */
 
 struct Mesh;
+struct Scene;
 
 typedef enum ModifierType {
 	eModifierType_None              = 0,
@@ -111,9 +112,6 @@ typedef struct ModifierData {
 	short flag;
 	short pad;
 	char name[64];  /* MAX_NAME */
-
-	/* XXX for timing info set by caller... solve later? (ton) */
-	struct Scene *scene;
 
 	char *error;
 } ModifierData;
@@ -607,7 +605,6 @@ typedef struct SoftbodyModifierData {
 typedef struct ClothModifierData {
 	ModifierData modifier;
 
-	struct Scene *scene;                  /* the context is here */
 	struct Cloth *clothObject;            /* The internal data structure for cloth. */
 	struct ClothSimSettings *sim_parms;   /* definition is in DNA_cloth_types.h */
 	struct ClothCollSettings *coll_parms; /* definition is in DNA_cloth_types.h */

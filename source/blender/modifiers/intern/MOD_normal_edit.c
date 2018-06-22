@@ -37,7 +37,6 @@
 #include "BLI_utildefines.h"
 #include "BLI_bitmap.h"
 
-#include "BKE_cdderivedmesh.h"
 #include "BKE_library.h"
 #include "BKE_library_query.h"
 #include "BKE_mesh.h"
@@ -525,7 +524,7 @@ static void foreachObjectLink(ModifierData *md, Object *ob, ObjectWalkFunc walk,
 	walk(userData, ob, &enmd->target, IDWALK_CB_NOP);
 }
 
-static bool isDisabled(ModifierData *md, int UNUSED(useRenderParams))
+static bool isDisabled(const struct Scene *UNUSED(scene), ModifierData *md, int UNUSED(useRenderParams))
 {
 	NormalEditModifierData *enmd = (NormalEditModifierData *)md;
 

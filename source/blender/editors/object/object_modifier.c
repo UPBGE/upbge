@@ -527,9 +527,7 @@ static int modifier_apply_shape(
 {
 	const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
 
-	md->scene = scene;
-
-	if (mti->isDisabled && mti->isDisabled(md, 0)) {
+	if (mti->isDisabled && mti->isDisabled(scene, md, 0)) {
 		BKE_report(reports, RPT_ERROR, "Modifier is disabled, skipping apply");
 		return 0;
 	}
@@ -568,7 +566,7 @@ static int modifier_apply_shape(
 			/* if that was the first key block added, then it was the basis.
 			 * Initialize it with the mesh, and add another for the modifier */
 			kb = BKE_keyblock_add(key, NULL);
-			BKE_keyblock_convert_from_mesh(me, kb);
+			BKE_keyblock_convert_from_mesh(me, key, kb);
 		}
 
 		kb = BKE_keyblock_add(key, md->name);
@@ -587,9 +585,7 @@ static int modifier_apply_obdata(ReportList *reports, Depsgraph *depsgraph, Scen
 {
 	const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
 
-	md->scene = scene;
-
-	if (mti->isDisabled && mti->isDisabled(md, 0)) {
+	if (mti->isDisabled && mti->isDisabled(scene, md, 0)) {
 		BKE_report(reports, RPT_ERROR, "Modifier is disabled, skipping apply");
 		return 0;
 	}
@@ -1154,13 +1150,14 @@ static int multires_poll(bContext *C)
 
 static int multires_higher_levels_delete_exec(bContext *C, wmOperator *op)
 {
+	Scene *scene = CTX_data_scene(C);
 	Object *ob = ED_object_active_context(C);
 	MultiresModifierData *mmd = (MultiresModifierData *)edit_modifier_property_get(op, ob, eModifierType_Multires);
 
 	if (!mmd)
 		return OPERATOR_CANCELLED;
 
-	multiresModifier_del_levels(mmd, ob, 1);
+	multiresModifier_del_levels(mmd, scene, ob, 1);
 
 	ED_object_iter_other(CTX_data_main(C), ob, true,
 	                     ED_object_multires_update_totlevels_cb,
@@ -1198,13 +1195,14 @@ void OBJECT_OT_multires_higher_levels_delete(wmOperatorType *ot)
 
 static int multires_subdivide_exec(bContext *C, wmOperator *op)
 {
+	Scene *scene = CTX_data_scene(C);
 	Object *ob = ED_object_active_context(C);
 	MultiresModifierData *mmd = (MultiresModifierData *)edit_modifier_property_get(op, ob, eModifierType_Multires);
 
 	if (!mmd)
 		return OPERATOR_CANCELLED;
 
-	multiresModifier_subdivide(mmd, ob, 0, mmd->simple);
+	multiresModifier_subdivide(mmd, scene, ob, 0, mmd->simple);
 
 	ED_object_iter_other(CTX_data_main(C), ob, true,
 	                     ED_object_multires_update_totlevels_cb,
@@ -1421,13 +1419,14 @@ void OBJECT_OT_multires_external_pack(wmOperatorType *ot)
 /********************* multires apply base ***********************/
 static int multires_base_apply_exec(bContext *C, wmOperator *op)
 {
+	Scene *scene = CTX_data_scene(C);
 	Object *ob = ED_object_active_context(C);
 	MultiresModifierData *mmd = (MultiresModifierData *)edit_modifier_property_get(op, ob, eModifierType_Multires);
 
 	if (!mmd)
 		return OPERATOR_CANCELLED;
 
-	multiresModifier_base_apply(mmd, ob);
+	multiresModifier_base_apply(mmd, scene, ob);
 
 	DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);

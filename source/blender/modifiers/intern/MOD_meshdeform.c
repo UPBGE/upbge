@@ -52,6 +52,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "DEG_depsgraph.h"
+#include "DEG_depsgraph_query.h"
 
 #include "MOD_util.h"
 
@@ -108,7 +109,7 @@ static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
 	return dataMask;
 }
 
-static bool isDisabled(ModifierData *md, int UNUSED(useRenderParams))
+static bool isDisabled(const struct Scene *UNUSED(scene), ModifierData *md, int UNUSED(useRenderParams))
 {
 	MeshDeformModifierData *mmd = (MeshDeformModifierData *) md;
 
@@ -294,7 +295,7 @@ static void meshdeformModifier_do(
 	if (!mmd->object || (!mmd->bindcagecos && !mmd->bindfunc))
 		return;
 
-	/* Get cage derivedmesh.
+	/* Get cage mesh.
 	 *
 	 * Only do this is the target object is in edit mode by itself, meaning
 	 * we don't allow linked edit meshes here.
@@ -324,8 +325,9 @@ static void meshdeformModifier_do(
 
 		/* progress bar redraw can make this recursive .. */
 		if (!recursive) {
+			Scene *scene = DEG_get_evaluated_scene(ctx->depsgraph);
 			recursive = 1;
-			mmd->bindfunc(md->scene, mmd, cagemesh, (float *)vertexCos, numVerts, cagemat);
+			mmd->bindfunc(scene, mmd, cagemesh, (float *)vertexCos, numVerts, cagemat);
 			recursive = 0;
 		}
 	}
@@ -392,7 +394,7 @@ static void meshdeformModifier_do(
 	                        meshdeform_vert_task,
 	                        &settings);
 
-	/* release cage derivedmesh */
+	/* release cage mesh */
 	MEM_freeN(dco);
 	MEM_freeN(cagecos);
 	if (cagemesh != NULL && free_cagemesh) {

@@ -333,7 +333,8 @@ void DepsgraphRelationBuilder::add_forcefield_relations(
         bool add_absorption,
         const char *name)
 {
-	ListBase *effectors = pdInitEffectors(NULL, scene, object, psys, eff, false);
+	::Depsgraph *depsgraph = reinterpret_cast<::Depsgraph*>(graph_);
+	ListBase *effectors = pdInitEffectors(depsgraph, scene, object, psys, eff, false);
 	if (effectors == NULL) {
 		return;
 	}
@@ -464,9 +465,9 @@ void DepsgraphRelationBuilder::build_collection(
 		}
 	}
 	const bool group_done = built_map_.checkIsBuiltAndTag(collection);
-	OperationKey object_local_transform_key(object != NULL ? &object->id : NULL,
+	OperationKey object_transform_final_key(object != NULL ? &object->id : NULL,
 	                                        DEG_NODE_TYPE_TRANSFORM,
-	                                        DEG_OPCODE_TRANSFORM_LOCAL);
+	                                        DEG_OPCODE_TRANSFORM_FINAL);
 	if (!group_done) {
 		LISTBASE_FOREACH (CollectionObject *, cob, &collection->gobject) {
 			if (allow_restrict_flags) {
@@ -487,7 +488,7 @@ void DepsgraphRelationBuilder::build_collection(
 		FOREACH_COLLECTION_VISIBLE_OBJECT_RECURSIVE_BEGIN(collection, ob, graph_->mode)
 		{
 			ComponentKey dupli_transform_key(&ob->id, DEG_NODE_TYPE_TRANSFORM);
-			add_relation(dupli_transform_key, object_local_transform_key, "Dupligroup");
+			add_relation(dupli_transform_key, object_transform_final_key, "Dupligroup");
 		}
 		FOREACH_COLLECTION_VISIBLE_OBJECT_RECURSIVE_END;
 	}
@@ -596,7 +597,13 @@ void DepsgraphRelationBuilder::build_object(Base *base, Object *object)
 		ComponentKey proxy_transform_key(&object->id, DEG_NODE_TYPE_TRANSFORM);
 		add_relation(ob_transform_key, proxy_transform_key, "Proxy Transform");
 	}
-
+	if (object->proxy_group != NULL) {
+		build_object(NULL, object->proxy_group);
+		OperationKey proxy_group_ubereval_key(&object->proxy_group->id,
+		                                      DEG_NODE_TYPE_TRANSFORM,
+		                                      DEG_OPCODE_TRANSFORM_OBJECT_UBEREVAL);
+		add_relation(proxy_group_ubereval_key, final_transform_key, "Proxy Group Transform");
+	}
 	/* Object dupligroup. */
 	if (object->dup_group != NULL) {
 		build_collection(DEG_COLLECTION_OWNER_OBJECT, object, object->dup_group);

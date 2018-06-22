@@ -35,7 +35,9 @@
 
 #include "BKE_customdata.h"  /* for CustomDataMask */
 
+struct CustomData;
 struct Depsgraph;
+struct KeyBlock;
 struct Mesh;
 struct MLoop;
 struct MLoopTri;
@@ -81,5 +83,14 @@ struct DerivedMesh *mesh_get_derived_deform(
 struct Mesh *mesh_get_eval_deform(
         struct Depsgraph *depsgraph, struct Scene *scene,
         struct Object *ob, CustomDataMask dataMask);
+
+void BKE_mesh_runtime_eval_to_meshkey(struct Mesh *me_deformed, struct Mesh *me, struct KeyBlock *kb);
+
+#ifndef NDEBUG
+char *BKE_mesh_runtime_debug_info(struct Mesh *me_eval);
+void BKE_mesh_runtime_debug_print(struct Mesh *me_eval);
+void BKE_mesh_runtime_debug_print_cdlayers(struct CustomData *data);
+bool BKE_mesh_runtime_is_valid(struct Mesh *me_eval);
+#endif  /* NDEBUG */
 
 #endif /* __BKE_MESH_RUNTIME_H__ */

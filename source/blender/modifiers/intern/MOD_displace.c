@@ -53,6 +53,7 @@
 #include "BKE_object.h"
 
 #include "DEG_depsgraph.h"
+#include "DEG_depsgraph_query.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -137,7 +138,7 @@ static void foreachTexLink(
 	walk(userData, ob, md, "texture");
 }
 
-static bool isDisabled(ModifierData *md, int UNUSED(useRenderParams))
+static bool isDisabled(const struct Scene *UNUSED(scene), ModifierData *md, int UNUSED(useRenderParams))
 {
 	DisplaceModifierData *dmd = (DisplaceModifierData *) md;
 	return ((!dmd->texture && dmd->direction == MOD_DISP_DIR_RGB_XYZ) || dmd->strength == 0.0f);
@@ -159,6 +160,7 @@ static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphConte
 
 typedef struct DisplaceUserdata {
 	/*const*/ DisplaceModifierData *dmd;
+	struct Scene *scene;
 	struct ImagePool *pool;
 	MDeformVert *dvert;
 	float weight;
@@ -205,7 +207,7 @@ static void displaceModifier_do_task(
 
 	if (dmd->texture) {
 		texres.nor = NULL;
-		BKE_texture_get_value_ex(dmd->modifier.scene, dmd->texture, tex_co[iter], &texres, data->pool, false);
+		BKE_texture_get_value_ex(data->scene, dmd->texture, tex_co[iter], &texres, data->pool, false);
 		delta = texres.tin - dmd->midlevel;
 	}
 	else {
@@ -330,6 +332,7 @@ static void displaceModifier_do(
 	}
 
 	DisplaceUserdata data = {NULL};
+	data.scene = DEG_get_evaluated_scene(ctx->depsgraph);
 	data.dmd = dmd;
 	data.dvert = dvert;
 	data.weight = weight;

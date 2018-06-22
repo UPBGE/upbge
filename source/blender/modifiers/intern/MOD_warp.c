@@ -46,6 +46,7 @@
 #include "BKE_colortools.h"
 
 #include "DEG_depsgraph.h"
+#include "DEG_depsgraph_query.h"
 
 #include "RE_shader_ext.h"
 
@@ -108,7 +109,7 @@ static void freeData(ModifierData *md)
 }
 
 
-static bool isDisabled(ModifierData *md, int UNUSED(userRenderParams))
+static bool isDisabled(const struct Scene *UNUSED(scene), ModifierData *md, int UNUSED(userRenderParams))
 {
 	WarpModifierData *wmd = (WarpModifierData *) md;
 
@@ -271,9 +272,10 @@ static void warpModifier_do(
 			fac *= weight;
 
 			if (tex_co) {
+				struct Scene *scene = DEG_get_evaluated_scene(ctx->depsgraph);
 				TexResult texres;
 				texres.nor = NULL;
-				BKE_texture_get_value(wmd->modifier.scene, wmd->texture, tex_co[i], &texres, false);
+				BKE_texture_get_value(scene, wmd->texture, tex_co[i], &texres, false);
 				fac *= texres.tin;
 			}
 
