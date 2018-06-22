@@ -44,7 +44,7 @@
 #include "LinearMath/btConvexHull.h"
 #include "BulletCollision/Gimpact/btGImpactShape.h"
 
-#include "BulletSoftBody/btSoftRigidDynamicsWorld.h"
+#include "BulletSoftBody/btSoftRigidDynamicsWorldMt.h"
 
 #include "BLI_utildefines.h"
 
@@ -59,7 +59,7 @@ float gAngularSleepingTreshold;
 
 CcdCharacter::CcdCharacter(CcdPhysicsController *ctrl, btMotionState *motionState,
                            btPairCachingGhostObject *ghost, btConvexShape *shape, float stepHeight)
-	:btKinematicCharacterController(ghost, shape, stepHeight, 2),
+	:btKinematicCharacterController(ghost, shape, stepHeight, btVector3(0.0f, 0.0f, 1.0f)),
 	m_ctrl(ctrl),
 	m_motionState(motionState),
 	m_jumps(0),
@@ -500,6 +500,7 @@ bool CcdPhysicsController::CreateSoftbody()
 	if (m_cci.m_do_anisotropic) {
 		m_object->setAnisotropicFriction(m_cci.m_anisotropicFriction);
 	}
+
 	return true;
 }
 
@@ -654,7 +655,7 @@ bool CcdPhysicsController::ReplaceControllerShape(btCollisionShape *newShape)
 
 	btSoftBody *softBody = GetSoftBody();
 	if (softBody) {
-		btSoftRigidDynamicsWorld *world = m_cci.m_physicsEnv->GetDynamicsWorld();
+		btSoftRigidDynamicsWorldMt *world = m_cci.m_physicsEnv->GetDynamicsWorld();
 		// remove the old softBody
 		world->removeSoftBody(softBody);
 
@@ -1013,7 +1014,7 @@ void CcdPhysicsController::RefreshCollisions()
 		return;
 	}
 
-	btSoftRigidDynamicsWorld *dw = m_cci.m_physicsEnv->GetDynamicsWorld();
+	btDynamicsWorld *dw = m_cci.m_physicsEnv->GetDynamicsWorld();
 	btBroadphaseProxy *proxy = m_object->getBroadphaseHandle();
 	btDispatcher *dispatcher = dw->getDispatcher();
 	btOverlappingPairCache *pairCache = dw->getPairCache();

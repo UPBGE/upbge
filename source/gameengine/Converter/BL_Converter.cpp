@@ -50,14 +50,6 @@
 #include "BL_ActionActuator.h"
 #include "KX_BlenderMaterial.h"
 
-#include "LA_SystemCommandLine.h"
-
-#include "DummyPhysicsEnvironment.h"
-
-#ifdef WITH_BULLET
-#  include "CcdPhysicsEnvironment.h"
-#endif
-
 #include "EXP_StringValue.h"
 
 #ifdef WITH_PYTHON
@@ -188,46 +180,11 @@ EXP_ListValue<EXP_StringValue> *BL_Converter::GetInactiveSceneNames()
 void BL_Converter::ConvertScene(BL_SceneConverter& converter, bool libloading)
 {
 	KX_Scene *scene = converter.GetScene();
-	// Find out which physics engine
-	Scene *blenderscene = scene->GetBlenderScene();
-
-	PHY_IPhysicsEnvironment *phy_env = nullptr;
-
-	e_PhysicsEngine physics_engine = UseBullet;
-
-	// This doesn't really seem to do anything except cause potential issues
-	// when doing threaded conversion, so it's disabled for now.
-	// SG_SetActiveStage(SG_STAGE_CONVERTER);
-
-	switch (blenderscene->gm.physicsEngine) {
-#ifdef WITH_BULLET
-		case WOPHY_BULLET:
-		{
-			SYS_SystemHandle syshandle = SYS_GetSystem(); /*unused*/
-			int visualizePhysics = SYS_GetCommandLineInt(syshandle, "show_physics", 0);
-
-			phy_env = CcdPhysicsEnvironment::Create(blenderscene, visualizePhysics);
-			physics_engine = UseBullet;
-			break;
-		}
-#endif
-		default:
-		case WOPHY_NONE:
-		{
-			// We should probably use some sort of factory here
-			phy_env = new DummyPhysicsEnvironment();
-			physics_engine = UseNone;
-			break;
-		}
-	}
-
-	scene->SetPhysicsEnvironment(phy_env);
 
 	BL_ConvertBlenderObjects(
 		m_maggie,
 		scene,
 		m_ketsjiEngine,
-		physics_engine,
 		m_ketsjiEngine->GetRasterizer(),
 		m_ketsjiEngine->GetCanvas(),
 		converter,

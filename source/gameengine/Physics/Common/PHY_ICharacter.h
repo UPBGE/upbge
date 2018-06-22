@@ -18,8 +18,8 @@ public:
 	virtual void Jump() = 0;
 	virtual bool OnGround() = 0;
 
-	virtual float GetGravity() = 0;
-	virtual void SetGravity(float gravity) = 0;
+	virtual mt::vec3 GetGravity() = 0;
+	virtual void SetGravity(const mt::vec3& gravity) = 0;
 
 	virtual unsigned char GetMaxJumps() = 0;
 	virtual void SetMaxJumps(unsigned char maxJumps) = 0;

@@ -30,27 +30,31 @@
 #include <vector>
 #include <set>
 #include <map>
-class CcdGraphicController;
 #include "LinearMath/btVector3.h"
 #include "LinearMath/btTransform.h"
+#include "BulletDynamics/ConstraintSolver/btContactSolverInfo.h"
+
+class PHY_IVehicle;
+class CcdGraphicController;
+class WrapperVehicle;
+class CcdOverlapFilterCallBack;
+class CcdShapeConstructionInfo;
 
 class btTypedConstraint;
 class btSimulationIslandManager;
 class btCollisionDispatcher;
 class btDispatcher;
-
-#include "BulletDynamics/ConstraintSolver/btContactSolverInfo.h"
-
-class WrapperVehicle;
+class btDefaultCollisionConfiguration;
 class btPersistentManifold;
 class btBroadphaseInterface;
 struct btDbvtBroadphase;
+class btGhostPairCallback;
 class btOverlappingPairCache;
 class btIDebugDraw;
 class btDynamicsWorld;
-class PHY_IVehicle;
-class CcdOverlapFilterCallBack;
-class CcdShapeConstructionInfo;
+class btSoftRigidDynamicsWorldMt;
+class btConstraintSolver;
+class btConstraintSolverPoolMt;
 
 /// Find the id of the closest node to a point in a soft body.
 int Ccd_FindClosestNode(btSoftBody *sb, const btVector3& worldPoint);
@@ -63,7 +67,6 @@ int Ccd_FindClosestNode(btSoftBody *sb, const btVector3& worldPoint);
 class CcdPhysicsEnvironment : public PHY_IPhysicsEnvironment, public mt::SimdClassAllocator
 {
 	friend class CcdOverlapFilterCallBack;
-	btVector3 m_gravity;
 
 	/// Removes the constraint and his references from the owner and the target.
 	void RemoveConstraint(btTypedConstraint *con, bool free);
@@ -75,15 +78,41 @@ class CcdPhysicsEnvironment : public PHY_IPhysicsEnvironment, public mt::SimdCla
 	void RestoreConstraint(CcdPhysicsController *ctrl, btTypedConstraint *con);
 
 protected:
+	btVector3 m_gravity;
+
 	btIDebugDraw *m_debugDrawer;
 
-	class btDefaultCollisionConfiguration *m_collisionConfiguration;
+	std::unique_ptr<btDefaultCollisionConfiguration> m_collisionConfiguration;
 	/// broadphase for dynamic world
-	class btBroadphaseInterface *m_broadphase;
+	std::unique_ptr<btBroadphaseInterface> m_broadphase;
 	/// for culling only
-	btOverlappingPairCache *m_cullingCache;
+	std::unique_ptr<btOverlappingPairCache> m_cullingCache;
 	/// broadphase for culling
-	struct btDbvtBroadphase *m_cullingTree;
+	std::unique_ptr<btDbvtBroadphase> m_cullingTree;
+
+	/** use explicit btSoftRigidDynamicsWorld/btDiscreteDynamicsWorld* so that we have access to
+	 * btDiscreteDynamicsWorld::addRigidBody(body,filter,group)
+	 * so that we can set the body collision filter/group at the time of creation
+	 * and not afterwards (breaks the collision system for radar/near sensor)
+	 * Ideally we would like to have access to this function from the btDynamicsWorld interface
+	 */
+	std::unique_ptr<btSoftRigidDynamicsWorldMt> m_dynamicsWorld;
+
+	std::unique_ptr<btConstraintSolverPoolMt> m_solverPool;
+	std::vector<btConstraintSolver *> m_solvers;
+	std::unique_ptr<btConstraintSolver> m_solverMt;
+
+	std::unique_ptr<CcdOverlapFilterCallBack> m_filterCallback;
+
+	std::unique_ptr<btGhostPairCallback> m_ghostPairCallback;
+
+	std::unique_ptr<btCollisionDispatcher> m_dispatcher;
+
+	std::set<CcdPhysicsController *> m_controllers;
+	std::vector<WrapperVehicle *> m_wrapperVehicles;
+
+	PHY_ResponseCallback m_triggerCallbacks[PHY_NUM_RESPONSE];
+	void *m_triggerCallbacksUserPtrs[PHY_NUM_RESPONSE];
 
 	/// solver iterations
 	int m_numIterations;
@@ -100,6 +129,7 @@ protected:
 	float m_contactBreakingThreshold;
 
 	void ProcessFhSprings(double curTime, float timeStep);
+	virtual void ExportFile(const std::string& filename);
 
 public:
 	CcdPhysicsEnvironment(PHY_SolverType solverType, bool useDbvtCulling);
@@ -147,7 +177,6 @@ public:
 	void SimulationSubtickCallback(btScalar timeStep);
 
 	virtual void DebugDrawWorld();
-//		virtual bool		proceedDeltaTimeOneStep(float timeStep);
 
 	virtual void SetFixedTimeStep(bool useFixedTimeStep, float fixedTimeStep)
 	{
@@ -235,7 +264,7 @@ public:
 	btBroadphaseInterface *GetBroadphase();
 	btDbvtBroadphase *GetCullingTree()
 	{
-		return m_cullingTree;
+		return m_cullingTree.get();
 	}
 
 	btDispatcher *GetDispatcher();
@@ -244,12 +273,12 @@ public:
 
 	void SyncMotionStates(float timeStep);
 
-	class btSoftRigidDynamicsWorld *GetDynamicsWorld()
+	btSoftRigidDynamicsWorldMt *GetDynamicsWorld()
 	{
-		return m_dynamicsWorld;
+		return m_dynamicsWorld.get();
 	}
 
-	class btConstraintSolver *GetConstraintSolver();
+	btConstraintSolver *GetConstraintSolver();
 
 	void MergeEnvironment(PHY_IPhysicsEnvironment *other_env);
 
@@ -267,33 +296,6 @@ public:
 	/* Set the rigid body joints constraints values for converted objects and replicated group instances. */
 	virtual void SetupObjectConstraints(KX_GameObject *obj_src, KX_GameObject *obj_dest,
 	                                    bRigidBodyJointConstraint *dat);
-
-protected:
-	std::set<CcdPhysicsController *> m_controllers;
-
-	PHY_ResponseCallback m_triggerCallbacks[PHY_NUM_RESPONSE];
-	void *m_triggerCallbacksUserPtrs[PHY_NUM_RESPONSE];
-
-	std::vector<WrapperVehicle *>    m_wrapperVehicles;
-
-	/** use explicit btSoftRigidDynamicsWorld/btDiscreteDynamicsWorld* so that we have access to
-	 * btDiscreteDynamicsWorld::addRigidBody(body,filter,group)
-	 * so that we can set the body collision filter/group at the time of creation
-	 * and not afterwards (breaks the collision system for radar/near sensor)
-	 * Ideally we would like to have access to this function from the btDynamicsWorld interface
-	 */
-	// class btDynamicsWorld *m_dynamicsWorld;
-	class btSoftRigidDynamicsWorld *m_dynamicsWorld;
-
-	class btConstraintSolver *m_solver;
-
-	class CcdOverlapFilterCallBack *m_filterCallback;
-
-	class btGhostPairCallback *m_ghostPairCallback;
-
-	class btDispatcher *m_ownDispatcher;
-
-	virtual void ExportFile(const std::string& filename);
 };
 
 class CcdCollData : public PHY_ICollData

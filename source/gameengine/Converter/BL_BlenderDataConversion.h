@@ -61,7 +61,7 @@ void BL_ConvertDerivedMeshToArray(DerivedMesh *dm, Mesh *me, const std::vector<B
 
 RAS_Deformer *BL_ConvertDeformer(KX_GameObject *object, KX_Mesh *meshobj);
 
-void BL_ConvertBlenderObjects(Main *maggie, KX_Scene *kxscene, KX_KetsjiEngine *ketsjiEngine, e_PhysicsEngine physics_engine,
+void BL_ConvertBlenderObjects(Main *maggie, KX_Scene *kxscene, KX_KetsjiEngine *ketsjiEngine,
 							  RAS_Rasterizer *rendertools, RAS_ICanvas *canvas, BL_SceneConverter& sceneconverter,
                               bool alwaysUseExpandFraming, float camZoom, bool libloading);
 
