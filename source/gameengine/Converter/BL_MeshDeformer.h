@@ -56,7 +56,7 @@ public:
 
 	BL_MeshDeformer(BL_DeformableGameObject *gameobj, Object *obj, RAS_Mesh *meshobj);
 	virtual ~BL_MeshDeformer();
-	virtual void Apply(RAS_IDisplayArray *array);
+	virtual void Apply(RAS_DisplayArray *array);
 	virtual bool Update()
 	{
 		return false;
@@ -79,8 +79,8 @@ protected:
 
 	// this is so m_transverts doesn't need to be converted
 	// before deformation
-	std::vector<std::array<float, 3> > m_transverts;
-	std::vector<std::array<float, 3> > m_transnors;
+	std::vector<mt::vec3_packed> m_transverts;
+	std::vector<mt::vec3_packed> m_transnors;
 	Object *m_objMesh;
 
 	BL_DeformableGameObject *m_gameobj;

@@ -30,8 +30,7 @@
 #include "BLI_math_vector.h"
 #include "KX_NavMeshObject.h"
 #include "KX_Mesh.h"
-#include "RAS_IDisplayArray.h"
-#include "RAS_Vertex.h"
+#include "RAS_DisplayArray.h"
 
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -247,7 +246,7 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices, int& nverts,
 		unsigned int numvertices = 0;
 
 		for (RAS_MeshMaterial *meshmat : meshobj->GetMeshMaterialList()) {
-			RAS_IDisplayArray *array = meshmat->GetDisplayArray();
+			RAS_DisplayArray *array = meshmat->GetDisplayArray();
 
 			numindices += array->GetTriangleIndexCount();
 			numvertices = std::max(numvertices, array->GetMaxOrigIndex() + 1);
@@ -264,7 +263,7 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices, int& nverts,
 		// Current index written.
 		unsigned int curind = 0;
 		for (RAS_MeshMaterial *meshmat : meshobj->GetMeshMaterialList()) {
-			RAS_IDisplayArray *array = meshmat->GetDisplayArray();
+			RAS_DisplayArray *array = meshmat->GetDisplayArray();
 			// Convert location of all vertices and remap if vertices weren't already converted.
 			for (unsigned int j = 0, numvert = array->GetVertexCount(); j < numvert; ++j) {
 				const RAS_VertexInfo& info = array->GetVertexInfo(j);
@@ -276,9 +275,7 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices, int& nverts,
 					continue;
 				}
 
-				RAS_Vertex vert = array->GetVertex(j);
-				const float *pos = vert.GetXYZ();
-				copy_v3_v3(&vertices[curvert * 3], pos);
+				copy_v3_v3(&vertices[curvert * 3], array->GetPosition(j).data);
 
 				// Register the vertex index where the position was converted in m_vertexArray.
 				vertRemap[origIndex] = curvert++;

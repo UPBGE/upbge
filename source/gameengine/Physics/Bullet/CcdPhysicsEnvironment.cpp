@@ -47,7 +47,7 @@
 #include "KX_Globals.h" // for KX_RasterizerDrawDebugLine
 #include "KX_Mesh.h"
 #include "BL_SceneConverter.h"
-#include "RAS_IDisplayArray.h"
+#include "RAS_DisplayArray.h"
 #include "RAS_MaterialBucket.h"
 #include "RAS_IPolygonMaterial.h"
 
@@ -1873,14 +1873,14 @@ struct  DbvtCullingCallback : btDbvt::ICollide {
 				// walk through the meshes and for each add to buffer
 				for (KX_Mesh *meshobj : gameobj->GetMeshList()) {
 					for (RAS_MeshMaterial *meshmat : meshobj->GetMeshMaterialList()) {
-						RAS_IDisplayArray *array = meshmat->GetDisplayArray();
+						RAS_DisplayArray *array = meshmat->GetDisplayArray();
 						const bool twoside = meshmat->GetBucket()->GetPolyMaterial()->IsTwoSided();
 						const float face = (twoside) ? 0.0f : ((negative) ? -1.0f : 1.0f);
 
 						for (unsigned int j = 0, size = array->GetTriangleIndexCount(); j < size; j += 3) {
-							m_ocb->appendOccluderM(array->GetVertex(array->GetTriangleIndex(j)).GetXYZ(),
-							                       array->GetVertex(array->GetTriangleIndex(j + 1)).GetXYZ(),
-							                       array->GetVertex(array->GetTriangleIndex(j + 2)).GetXYZ(),
+							m_ocb->appendOccluderM(array->GetPosition(array->GetTriangleIndex(j)).data,
+							                       array->GetPosition(array->GetTriangleIndex(j + 1)).data,
+							                       array->GetPosition(array->GetTriangleIndex(j + 2)).data,
 							                       face);
 						}
 					}

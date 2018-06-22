@@ -49,22 +49,21 @@
 #include <string>
 #include "BLI_math.h"
 
-void BL_MeshDeformer::Apply(RAS_IDisplayArray *UNUSED(array))
+void BL_MeshDeformer::Apply(RAS_DisplayArray *UNUSED(array))
 {
 	// only apply once per frame if the mesh is actually modified
 	if (m_lastDeformUpdate != m_gameobj->GetLastFrame()) {
 		// For each display array
 		for (const DisplayArraySlot& slot : m_slots) {
-			RAS_IDisplayArray *array = slot.m_displayArray;
+			RAS_DisplayArray *array = slot.m_displayArray;
 
 			//	For each vertex
 			for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
-				RAS_Vertex v = array->GetVertex(i);
 				const RAS_VertexInfo& vinfo = array->GetVertexInfo(i);
-				v.SetXYZ(m_bmesh->mvert[vinfo.GetOrigIndex()].co);
+				array->SetPosition(i, mt::vec3_packed(m_bmesh->mvert[vinfo.GetOrigIndex()].co));
 			}
 
-			array->NotifyUpdate(RAS_IDisplayArray::POSITION_MODIFIED);
+			array->NotifyUpdate(RAS_DisplayArray::POSITION_MODIFIED);
 		}
 
 		m_lastDeformUpdate = m_gameobj->GetLastFrame();
@@ -114,14 +113,12 @@ void BL_MeshDeformer::RecalcNormals()
 	 * since the GPU can do it faster */
 
 	/* set vertex normals to zero */
-	for (std::array<float, 3>& normal : m_transnors) {
-		normal = {{0.0f, 0.0f, 0.0f}};
-	}
+	std::fill(m_transnors.begin(), m_transnors.end(), mt::zero3);
 
 	for (const DisplayArraySlot& slot : m_slots) {
-		RAS_IDisplayArray *array = slot.m_displayArray;
+		RAS_DisplayArray *array = slot.m_displayArray;
 		for (unsigned int i = 0, size = array->GetTriangleIndexCount(); i < size; i += 3) {
-			const float *co[3];
+			mt::vec3_packed co[3];
 			bool flat = false;
 
 			for (unsigned short j = 0; j < 3; ++j) {
@@ -129,24 +126,23 @@ void BL_MeshDeformer::RecalcNormals()
 				const RAS_VertexInfo& vinfo = array->GetVertexInfo(index);
 				const unsigned int origindex = vinfo.GetOrigIndex();
 
-				co[j] = m_transverts[origindex].data();
+				co[j] = m_transverts[origindex];
 				flat |= (vinfo.GetFlag() & RAS_VertexInfo::FLAT);
 			}
 
-			float pnorm[3];
-			normal_tri_v3(pnorm, co[0], co[1], co[2]);
+			mt::vec3_packed pnorm;
+			normal_tri_v3(pnorm.data, co[0].data, co[1].data, co[2].data);
 
 			for (unsigned short j = 0; j < 3; ++j) {
 				const unsigned int index = array->GetTriangleIndex(i + j);
 
 				if (flat) {
-					RAS_Vertex vert = array->GetVertex(index);
-					vert.SetNormal(pnorm);
+					array->SetNormal(index, pnorm);
 				}
 				else {
 					const RAS_VertexInfo& vinfo = array->GetVertexInfo(index);
 					const unsigned int origindex = vinfo.GetOrigIndex();
-					add_v3_v3(m_transnors[origindex].data(), pnorm);
+					add_v3_v3(m_transnors[origindex].data, pnorm.data);
 				}
 			}
 		}
@@ -154,13 +150,12 @@ void BL_MeshDeformer::RecalcNormals()
 
 	// Assign smooth vertex normals.
 	for (const DisplayArraySlot& slot : m_slots) {
-		RAS_IDisplayArray *array = slot.m_displayArray;
+		RAS_DisplayArray *array = slot.m_displayArray;
 		for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
-			RAS_Vertex v = array->GetVertex(i);
 			const RAS_VertexInfo& vinfo = array->GetVertexInfo(i);
 
 			if (!(vinfo.GetFlag() & RAS_VertexInfo::FLAT)) {
-				v.SetNormal(m_transnors[vinfo.GetOrigIndex()].data());
+				array->SetNormal(i, m_transnors[vinfo.GetOrigIndex()]);
 			}
 		}
 	}
@@ -176,8 +171,8 @@ void BL_MeshDeformer::VerifyStorage()
 	}
 
 	for (unsigned int v = 0; v < totvert; ++v) {
-		copy_v3_v3(m_transverts[v].data(), m_bmesh->mvert[v].co);
-		normal_short_to_float_v3(m_transnors[v].data(), m_bmesh->mvert[v].no);
+		copy_v3_v3(m_transverts[v].data, m_bmesh->mvert[v].co);
+		normal_short_to_float_v3(m_transnors[v].data, m_bmesh->mvert[v].no);
 	}
 }
 

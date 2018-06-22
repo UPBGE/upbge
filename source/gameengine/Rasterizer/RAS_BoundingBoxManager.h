@@ -54,7 +54,7 @@ public:
 	 * \param arrayList The display arrays composing the mesh.
 	 * \see CreateBoundingBox.
 	 */
-	RAS_BoundingBox *CreateMeshBoundingBox(const RAS_IDisplayArrayList& arrayList);
+	RAS_BoundingBox *CreateMeshBoundingBox(const RAS_DisplayArrayList& arrayList);
 
 	/** Update all the active bounding boxes.
 	 * \param force Force updating bounding box even if the display arrays are not modified.

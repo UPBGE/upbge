@@ -20,16 +20,16 @@
  *
  * The Original Code is: all of this file.
  *
- * Contributor(s): none yet.
+ * Contributor(s): Tristan Porteries.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/Rasterizer/RAS_IVertex.cpp
+/** \file gameengine/Rasterizer/RAS_VertexInfo.cpp
  *  \ingroup bgerast
  */
 
-#include "RAS_Vertex.h"
+#include "RAS_VertexInfo.h"
 
 RAS_VertexInfo::RAS_VertexInfo(unsigned int origindex, bool flat)
 	:m_origindex(origindex)

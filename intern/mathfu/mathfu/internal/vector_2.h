@@ -157,6 +157,8 @@ struct VectorPacked<T, 2> {
   /// @param vector Vector to create the VectorPacked from.
   explicit VectorPacked(const Vector<T, 2>& vector) { vector.Pack(this); }
 
+  explicit VectorPacked(const T * const s) :x(s[0]), y(s[1]) {}
+
   /// Copy a Vector to a VectorPacked.
   ///
   /// Both VectorPacked and Vector must have the same number of dimensions.
@@ -165,6 +167,14 @@ struct VectorPacked<T, 2> {
   VectorPacked& operator=(const Vector<T, 2>& vector) {
     vector.Pack(this);
     return *this;
+  }
+
+  inline const T& operator[](int i) const {
+    return data[i];
+  }
+
+  inline T& operator[](int i) {
+    return data[i];
   }
 
 #include "mathfu/internal/disable_warnings_begin.h"

@@ -41,18 +41,18 @@ RAS_Deformer::~RAS_Deformer()
 void RAS_Deformer::InitializeDisplayArrays()
 {
 	for (RAS_MeshMaterial *meshmat : m_mesh->GetMeshMaterialList()) {
-		RAS_IDisplayArray *origArray = meshmat->GetDisplayArray();
+		RAS_DisplayArray *origArray = meshmat->GetDisplayArray();
 		/* Duplicate the display array bucket and the display array if needed to store
 		 * the mesh slot on a unique list (= display array bucket) and use an unique vertex
 		 * array (=display array). */
-		RAS_IDisplayArray *array = origArray->GetReplica();
+		RAS_DisplayArray *array = new RAS_DisplayArray(*origArray);
 
 		RAS_DisplayArrayBucket *arrayBucket = new RAS_DisplayArrayBucket(meshmat->GetBucket(), array, m_mesh, meshmat, this);
 
 		m_slots.push_back(
 			{array, origArray, meshmat, arrayBucket,
-			 {RAS_IDisplayArray::TANGENT_MODIFIED | RAS_IDisplayArray::UVS_MODIFIED | RAS_IDisplayArray::COLORS_MODIFIED,
-			  RAS_IDisplayArray::NONE_MODIFIED}});
+			 {RAS_DisplayArray::TANGENT_MODIFIED | RAS_DisplayArray::UVS_MODIFIED | RAS_DisplayArray::COLORS_MODIFIED,
+			  RAS_DisplayArray::NONE_MODIFIED}});
 	}
 
 	for (DisplayArraySlot& slot : m_slots) {
@@ -65,7 +65,7 @@ void RAS_Deformer::ProcessReplica()
 	m_boundingBox = m_boundingBox->GetReplica();
 
 	for (DisplayArraySlot& slot : m_slots) {
-		RAS_IDisplayArray *array = slot.m_displayArray = slot.m_displayArray->GetReplica();
+		RAS_DisplayArray *array = slot.m_displayArray = new RAS_DisplayArray(*slot.m_displayArray);
 		RAS_MeshMaterial *meshmat = slot.m_meshMaterial;
 		slot.m_displayArrayBucket = new RAS_DisplayArrayBucket(meshmat->GetBucket(), array, m_mesh, meshmat, this);
 		slot.m_origDisplayArray->AddUpdateClient(&slot.m_arrayUpdateClient);
@@ -77,7 +77,7 @@ RAS_Mesh *RAS_Deformer::GetMesh() const
 	return m_mesh;
 }
 
-RAS_IDisplayArray *RAS_Deformer::GetDisplayArray(unsigned short index) const
+RAS_DisplayArray *RAS_Deformer::GetDisplayArray(unsigned short index) const
 {
 	return m_slots[index].m_displayArray;
 }

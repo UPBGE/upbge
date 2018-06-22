@@ -1,9 +1,9 @@
 #include "RAS_AttributeArrayStorage.h"
 #include "RAS_StorageVao.h"
 
-RAS_AttributeArrayStorage::RAS_AttributeArrayStorage(RAS_IDisplayArray *array, RAS_DisplayArrayStorage *arrayStorage,
+RAS_AttributeArrayStorage::RAS_AttributeArrayStorage(const RAS_DisplayArrayLayout& layout, RAS_DisplayArrayStorage *arrayStorage,
                                                      const RAS_AttributeArray::AttribList& attribList)
-	:m_vao(new RAS_StorageVao(array, arrayStorage, attribList))
+	:m_vao(new RAS_StorageVao(layout, arrayStorage, attribList))
 {
 }
 

@@ -140,7 +140,7 @@ RAS_Mesh::PolygonInfo RAS_Mesh::GetPolygon(unsigned int index) const
 			// Convert to relative index.
 			index -= range.startIndex;
 
-			RAS_IDisplayArray *array = range.array;
+			RAS_DisplayArray *array = range.array;
 			PolygonInfo polyInfo{
 				array,
 				{array->GetTriangleIndex(index),
@@ -174,7 +174,7 @@ std::string RAS_Mesh::GetTextureName(unsigned int matid) const
 	return "";
 }
 
-RAS_MeshMaterial *RAS_Mesh::AddMaterial(RAS_MaterialBucket *bucket, unsigned int index, const RAS_VertexFormat& format)
+RAS_MeshMaterial *RAS_Mesh::AddMaterial(RAS_MaterialBucket *bucket, unsigned int index, const RAS_DisplayArray::Format& format)
 {
 	RAS_MeshMaterial *meshmat = GetMeshMaterialBlenderIndex(index);
 
@@ -187,7 +187,7 @@ RAS_MeshMaterial *RAS_Mesh::AddMaterial(RAS_MaterialBucket *bucket, unsigned int
 	return meshmat;
 }
 
-RAS_IDisplayArray *RAS_Mesh::GetDisplayArray(unsigned int matid) const
+RAS_DisplayArray *RAS_Mesh::GetDisplayArray(unsigned int matid) const
 {
 	RAS_MeshMaterial *mmat = GetMeshMaterial(matid);
 
@@ -195,7 +195,7 @@ RAS_IDisplayArray *RAS_Mesh::GetDisplayArray(unsigned int matid) const
 		return nullptr;
 	}
 
-	RAS_IDisplayArray *array = mmat->GetDisplayArray();
+	RAS_DisplayArray *array = mmat->GetDisplayArray();
 
 	return array;
 }
@@ -220,12 +220,11 @@ RAS_MeshUser *RAS_Mesh::AddMeshUser(void *clientobj, RAS_Deformer *deformer)
 
 void RAS_Mesh::EndConversion(RAS_BoundingBoxManager *boundingBoxManager)
 {
-	RAS_IDisplayArrayList arrayList;
+	RAS_DisplayArrayList arrayList;
 
 	// Construct a list of all the display arrays used by this mesh.
 	for (RAS_MeshMaterial *meshmat : m_materials) {
-		RAS_IDisplayArray *array = meshmat->GetDisplayArray();
-		array->UpdateCache();
+		RAS_DisplayArray *array = meshmat->GetDisplayArray();
 
 		const std::string materialname = meshmat->GetBucket()->GetPolyMaterial()->GetName();
 		if (array->GetVertexCount() == 0) {
@@ -257,7 +256,7 @@ void RAS_Mesh::EndConversion(RAS_BoundingBoxManager *boundingBoxManager)
 	unsigned int startIndex = 0;
 	for (unsigned short i = 0, size = m_materials.size(); i < size; ++i) {
 		RAS_MeshMaterial *meshmat = m_materials[i];
-		RAS_IDisplayArray *array = meshmat->GetDisplayArray();
+		RAS_DisplayArray *array = meshmat->GetDisplayArray();
 		const unsigned indexCount = array->GetTriangleIndexCount();
 		if (indexCount == 0) {
 			continue;

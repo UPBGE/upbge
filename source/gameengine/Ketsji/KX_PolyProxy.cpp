@@ -36,7 +36,7 @@
 #include "KX_Mesh.h"
 #include "RAS_Mesh.h"
 #include "RAS_MaterialBucket.h"
-#include "RAS_IDisplayArray.h"
+#include "RAS_DisplayArray.h"
 #include "KX_VertexProxy.h"
 #include "KX_BlenderMaterial.h"
 #include "EXP_ListWrapper.h"
@@ -186,8 +186,7 @@ unsigned int KX_PolyProxy::py_get_vertices_size()
 
 PyObject *KX_PolyProxy::py_get_vertices_item(unsigned int index)
 {
-	RAS_IDisplayArray *array = m_polygon.array;
-	KX_VertexProxy *vert = new KX_VertexProxy(array, array->GetVertex(m_polygon.indices[index]));
+	KX_VertexProxy *vert = new KX_VertexProxy(m_polygon.array, m_polygon.indices[index]);
 
 	return vert->NewProxy(true);
 }

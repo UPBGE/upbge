@@ -51,6 +51,9 @@ inline unsigned int Size(const mt::vec2&)                { return 2; }
 inline unsigned int Size(const mt::vec3&)                { return 3; }
 inline unsigned int Size(const mt::vec4&)                { return 4; }
 inline unsigned int Size(const mt::quat&)                { return 4; }
+inline unsigned int Size(const mt::vec2_packed&) { return 2; }
+inline unsigned int Size(const mt::vec3_packed&) { return 3; }
+inline unsigned int Size(const mt::vec4_packed&) { return 4; }
 
 /**
  *  Converts the given python matrix (column-major) to an MT class (row-major).

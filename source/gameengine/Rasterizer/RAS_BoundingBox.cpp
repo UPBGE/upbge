@@ -124,11 +124,11 @@ void RAS_BoundingBox::Update(bool force)
 {
 }
 
-RAS_MeshBoundingBox::RAS_MeshBoundingBox(RAS_BoundingBoxManager *manager, const RAS_IDisplayArrayList& displayArrayList)
+RAS_MeshBoundingBox::RAS_MeshBoundingBox(RAS_BoundingBoxManager *manager, const RAS_DisplayArrayList& displayArrayList)
 	:RAS_BoundingBox(manager)
 {
-	for (RAS_IDisplayArray *array : displayArrayList) {
-		m_slots.push_back({array, {RAS_IDisplayArray::POSITION_MODIFIED, RAS_IDisplayArray::NONE_MODIFIED},
+	for (RAS_DisplayArray *array : displayArrayList) {
+		m_slots.push_back({array, {RAS_DisplayArray::POSITION_MODIFIED, RAS_DisplayArray::NONE_MODIFIED},
 		                   mt::zero3, mt::zero3});
 	}
 
@@ -157,7 +157,7 @@ void RAS_MeshBoundingBox::Update(bool force)
 {
 	bool modified = false;
 	for (DisplayArraySlot& slot : m_slots) {
-		RAS_IDisplayArray *array = slot.m_displayArray;
+		RAS_DisplayArray *array = slot.m_displayArray;
 		// Select modified display array or all if the update is forced.
 		if (!slot.m_arrayUpdateClient.GetInvalidAndClear() && !force) {
 			continue;
@@ -169,8 +169,7 @@ void RAS_MeshBoundingBox::Update(bool force)
 
 		// For each vertex.
 		for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
-			RAS_Vertex vert = array->GetVertex(i);
-			const mt::vec3 vertPos = vert.xyz();
+			const mt::vec3 vertPos(array->GetPosition(i));
 
 			slot.m_aabbMin = mt::vec3::Min(slot.m_aabbMin, vertPos);
 			slot.m_aabbMax = mt::vec3::Max(slot.m_aabbMax, vertPos);

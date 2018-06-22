@@ -20,30 +20,56 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file RAS_IBatchDisplayArray.cpp
+/** \file RAS_VertexInfo.h
  *  \ingroup bgerast
  */
 
-#include "RAS_BatchDisplayArray.h"
+#ifndef __RAS_VERTEX_INFO_H__
+#define __RAS_VERTEX_INFO_H__
 
-#include "CM_Template.h"
+#include <cstdint>
 
-RAS_IBatchDisplayArray::RAS_IBatchDisplayArray(PrimitiveType type, const RAS_VertexFormat &format,
-                                               const RAS_VertexDataMemoryFormat& memoryFormat)
-	:RAS_IDisplayArray(type, format, memoryFormat)
+class RAS_VertexInfo
 {
-}
+public:
+	enum {
+		FLAT = 1,
+	};
 
-RAS_IBatchDisplayArray::~RAS_IBatchDisplayArray()
-{
-}
+private:
+	unsigned int m_origindex;
+	short m_softBodyIndex;
+	uint8_t m_flag;
 
-RAS_IBatchDisplayArray *RAS_IBatchDisplayArray::ConstructArray(RAS_IDisplayArray::PrimitiveType type, const RAS_VertexFormat &format)
-{
-	return CM_InstantiateTemplateSwitch<RAS_IBatchDisplayArray, RAS_BatchDisplayArray, RAS_VertexFormatTuple>(format, type, format);
-}
+public:
+	RAS_VertexInfo(unsigned int origindex, bool flat);
+	~RAS_VertexInfo();
 
-RAS_IDisplayArray::Type RAS_IBatchDisplayArray::GetType() const
-{
-	return BATCHING;
-}
+	inline const unsigned int GetOrigIndex() const
+	{
+		return m_origindex;
+	}
+
+	inline short int GetSoftBodyIndex() const
+	{
+		return m_softBodyIndex;
+	}
+
+	inline void SetSoftBodyIndex(short int sbIndex)
+	{
+		m_softBodyIndex = sbIndex;
+	}
+
+	inline const uint8_t GetFlag() const
+	{
+		return m_flag;
+	}
+
+	inline void SetFlag(const uint8_t flag)
+	{
+		m_flag = flag;
+	}
+};
+
+
+#endif  // __RAS_VERTEX_INFO_H__

@@ -9,7 +9,7 @@ RAS_DisplayArrayStorage::~RAS_DisplayArrayStorage()
 {
 }
 
-void RAS_DisplayArrayStorage::Construct(RAS_IDisplayArray *array)
+void RAS_DisplayArrayStorage::Construct(RAS_DisplayArray *array)
 {
 	m_vbo.reset(new RAS_StorageVbo(array));
 }
@@ -19,9 +19,9 @@ RAS_StorageVbo *RAS_DisplayArrayStorage::GetVbo() const
 	return m_vbo.get();
 }
 
-void RAS_DisplayArrayStorage::UpdateVertexData()
+void RAS_DisplayArrayStorage::UpdateVertexData(unsigned int modifiedFlag)
 {
-	m_vbo->UpdateVertexData();
+	m_vbo->UpdateVertexData(modifiedFlag);
 }
 
 void RAS_DisplayArrayStorage::UpdateSize()
@@ -49,7 +49,7 @@ void RAS_DisplayArrayStorage::IndexPrimitivesInstancing(unsigned int numslots)
 	m_vbo->IndexPrimitivesInstancing(numslots);
 }
 
-void RAS_DisplayArrayStorage::IndexPrimitivesBatching(const std::vector<void *>& indices, const std::vector<int>& counts)
+void RAS_DisplayArrayStorage::IndexPrimitivesBatching(const std::vector<intptr_t>& indices, const std::vector<int>& counts)
 {
 	m_vbo->IndexPrimitivesBatching(indices, counts);
 }

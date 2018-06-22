@@ -36,24 +36,22 @@
 
 #include "EXP_Value.h"
 
-#include "RAS_Vertex.h"
-
-class RAS_IDisplayArray;
+class RAS_DisplayArray;
 
 class KX_VertexProxy : public EXP_Value
 {
 	Py_Header
 
 protected:
-	RAS_Vertex m_vertex;
-	RAS_IDisplayArray *m_array;
+	unsigned int m_vertexIndex;
+	RAS_DisplayArray *m_array;
 
 public:
-	KX_VertexProxy(RAS_IDisplayArray *array, RAS_Vertex vertex);
+	KX_VertexProxy(RAS_DisplayArray *array, unsigned int vertexIndex);
 	virtual ~KX_VertexProxy();
 
-	RAS_Vertex& GetVertex();
-	RAS_IDisplayArray *GetDisplayArray();
+	unsigned int GetVertexIndex() const;
+	RAS_DisplayArray *GetDisplayArray() const;
 
 	// stuff for cvalue related things
 	std::string GetName();

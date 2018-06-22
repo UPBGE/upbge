@@ -22,15 +22,15 @@
 
 #include "RAS_MeshMaterial.h"
 #include "RAS_MaterialBucket.h"
-#include "RAS_IDisplayArray.h"
+#include "RAS_DisplayArray.h"
 #include "RAS_DisplayArrayBucket.h"
 
-RAS_MeshMaterial::RAS_MeshMaterial(RAS_Mesh *mesh, RAS_MaterialBucket *bucket, unsigned int index, const RAS_VertexFormat& format)
+RAS_MeshMaterial::RAS_MeshMaterial(RAS_Mesh *mesh, RAS_MaterialBucket *bucket, unsigned int index, const RAS_DisplayArray::Format& format)
 	:m_bucket(bucket),
 	m_index(index)
 {
-	RAS_IDisplayArray::PrimitiveType type = (bucket->IsWire()) ? RAS_IDisplayArray::LINES : RAS_IDisplayArray::TRIANGLES;
-	m_displayArray = RAS_IDisplayArray::ConstructArray(type, format);
+	RAS_DisplayArray::PrimitiveType type = (bucket->IsWire()) ? RAS_DisplayArray::LINES : RAS_DisplayArray::TRIANGLES;
+	m_displayArray = new RAS_DisplayArray(type, format);
 
 	m_displayArrayBucket = new RAS_DisplayArrayBucket(bucket, m_displayArray, mesh, this, nullptr);
 }
@@ -39,7 +39,7 @@ RAS_MeshMaterial::RAS_MeshMaterial(const RAS_MeshMaterial& other, RAS_Mesh *mesh
 	:m_bucket(other.m_bucket),
 	m_index(other.m_index)
 {
-	m_displayArray = other.m_displayArray->GetReplica();
+	m_displayArray = new RAS_DisplayArray(*other.m_displayArray);
 	m_displayArrayBucket = new RAS_DisplayArrayBucket(m_bucket, m_displayArray, mesh, this, nullptr);
 }
 
@@ -59,7 +59,7 @@ RAS_MaterialBucket *RAS_MeshMaterial::GetBucket() const
 	return m_bucket;
 }
 
-RAS_IDisplayArray *RAS_MeshMaterial::GetDisplayArray() const
+RAS_DisplayArray *RAS_MeshMaterial::GetDisplayArray() const
 {
 	return m_displayArray;
 }

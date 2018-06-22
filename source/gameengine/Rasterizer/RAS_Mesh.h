@@ -92,7 +92,7 @@ public:
 		};
 
 		/// Display array owning the polygon, used to get vertices.
-		RAS_IDisplayArray *array;
+		RAS_DisplayArray *array;
 		/// Polygon vertices indices in the display array.
 		unsigned int indices[3];
 		/// Polygon flags depending on material using this display array.
@@ -106,7 +106,7 @@ protected:
 	 * the individual polygon info. */
 	struct PolygonRangeInfo {
 		/// Display array owning polygons for this index range.
-		RAS_IDisplayArray *array;
+		RAS_DisplayArray *array;
 		/// Start absolute vertex index of the range.
 		unsigned int startIndex;
 		/// End absolute vertex index of the range.
@@ -155,9 +155,9 @@ public:
 	}
 
 	// mesh construction
-	RAS_MeshMaterial *AddMaterial(RAS_MaterialBucket *bucket, unsigned int index, const RAS_VertexFormat& format);
+	RAS_MeshMaterial *AddMaterial(RAS_MaterialBucket *bucket, unsigned int index, const RAS_DisplayArray::Format& format);
 
-	RAS_IDisplayArray *GetDisplayArray(unsigned int matid) const;
+	RAS_DisplayArray *GetDisplayArray(unsigned int matid) const;
 
 	unsigned int GetNumPolygons() const;
 	PolygonInfo GetPolygon(unsigned int index) const;

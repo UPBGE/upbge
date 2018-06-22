@@ -39,7 +39,7 @@ static const AttribData attribData[RAS_AttributeArray::RAS_ATTRIB_MAX] = {
 	{4, GL_UNSIGNED_BYTE, true} // RAS_ATTRIB_COLOR
 };
 
-RAS_StorageVao::RAS_StorageVao(RAS_IDisplayArray *array, RAS_DisplayArrayStorage *arrayStorage,
+RAS_StorageVao::RAS_StorageVao(const RAS_DisplayArrayLayout &layout, RAS_DisplayArrayStorage *arrayStorage,
                                const RAS_AttributeArray::AttribList& attribList)
 {
 	glGenVertexArrays(1, &m_id);
@@ -49,18 +49,14 @@ RAS_StorageVao::RAS_StorageVao(RAS_IDisplayArray *array, RAS_DisplayArrayStorage
 	vbo->BindVertexBuffer();
 	vbo->BindIndexBuffer();
 
-	const RAS_VertexDataMemoryFormat& memoryFormat = array->GetMemoryFormat();
-
-	const unsigned int stride = memoryFormat.size;
-
 	glEnableClientState(GL_VERTEX_ARRAY);
-	glVertexPointer(3, GL_FLOAT, stride, (const void *)memoryFormat.position);
+	glVertexPointer(3, GL_FLOAT, 0, (const void *)layout.position);
 
 	glEnableClientState(GL_NORMAL_ARRAY);
-	glNormalPointer(GL_FLOAT, stride, (const void *)memoryFormat.normal);
+	glNormalPointer(GL_FLOAT, 0, (const void *)layout.normal);
 
 	glEnableClientState(GL_COLOR_ARRAY);
-	glColorPointer(4, GL_UNSIGNED_BYTE, stride, (const void *)memoryFormat.colors);
+	glColorPointer(4, GL_UNSIGNED_BYTE, 0, (const void *)layout.colors);
 
 	for (const RAS_AttributeArray::Attrib& attrib : attribList) {
 		const RAS_AttributeArray::AttribType type = attrib.m_type;
@@ -68,27 +64,27 @@ RAS_StorageVao::RAS_StorageVao(RAS_IDisplayArray *array, RAS_DisplayArrayStorage
 		switch (type) {
 			case RAS_AttributeArray::RAS_ATTRIB_POS:
 			{
-				offset = memoryFormat.position;
+				offset = layout.position;
 				break;
 			}
 			case RAS_AttributeArray::RAS_ATTRIB_UV:
 			{
-				offset = memoryFormat.uvs + (attrib.m_layer * sizeof(float[2]));
+				offset = layout.uvs[attrib.m_layer];
 				break;
 			}
 			case RAS_AttributeArray::RAS_ATTRIB_NORM:
 			{
-				offset = memoryFormat.normal;
+				offset = layout.normal;
 				break;
 			}
 			case RAS_AttributeArray::RAS_ATTRIB_TANGENT:
 			{
-				offset = memoryFormat.tangent;
+				offset = layout.tangent;
 				break;
 			}
 			case RAS_AttributeArray::RAS_ATTRIB_COLOR:
 			{
-				offset = memoryFormat.colors + (attrib.m_layer * sizeof(int));
+				offset = layout.colors[attrib.m_layer];
 				break;
 			}
 			default:
@@ -104,11 +100,11 @@ RAS_StorageVao::RAS_StorageVao(RAS_IDisplayArray *array, RAS_DisplayArrayStorage
 		if (attrib.m_texco) {
 			glClientActiveTexture(GL_TEXTURE0 + loc);
 			glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-			glTexCoordPointer(data.size, data.type, stride, (const void *)offset);
+			glTexCoordPointer(data.size, data.type, 0, (const void *)offset);
 		}
 		else {
 			glEnableVertexAttribArray(loc);
-			glVertexAttribPointer(loc, data.size, data.type, data.normalized, stride, (const void *)offset);
+			glVertexAttribPointer(loc, data.size, data.type, data.normalized, 0, (const void *)offset);
 		}
 	}
 
