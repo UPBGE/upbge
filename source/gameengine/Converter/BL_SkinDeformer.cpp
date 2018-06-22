@@ -45,8 +45,6 @@
 #include "RAS_MeshUser.h"
 #include "RAS_BoundingBox.h"
 
-//#include "BL_ArmatureController.h"
-#include "BL_DeformableGameObject.h"
 #include "DNA_armature_types.h"
 #include "DNA_action_types.h"
 #include "DNA_mesh_types.h"
@@ -80,7 +78,7 @@ static short get_deformflags(Object *bmeshobj)
 	return flags;
 }
 
-BL_SkinDeformer::BL_SkinDeformer(BL_DeformableGameObject *gameobj,
+BL_SkinDeformer::BL_SkinDeformer(KX_GameObject *gameobj,
                                  Object *bmeshobj_old, // Blender object that owns the new mesh
                                  Object *bmeshobj_new, // Blender object that owns the original mesh
                                  RAS_Mesh *mesh,
@@ -103,15 +101,6 @@ BL_SkinDeformer::~BL_SkinDeformer()
 {
 }
 
-void BL_SkinDeformer::Relink(std::map<SCA_IObject *, SCA_IObject *>& map)
-{
-	if (m_armobj) {
-		m_armobj = static_cast<BL_ArmatureObject *>(map[m_armobj]);
-	}
-
-	BL_MeshDeformer::Relink(map);
-}
-
 void BL_SkinDeformer::Apply(RAS_DisplayArray *array)
 {
 	for (DisplayArraySlot& slot : m_slots) {
@@ -125,23 +114,6 @@ void BL_SkinDeformer::Apply(RAS_DisplayArray *array)
 			break;
 		}
 	}
-}
-
-RAS_Deformer *BL_SkinDeformer::GetReplica()
-{
-	BL_SkinDeformer *result;
-
-	result = new BL_SkinDeformer(*this);
-	/* there is m_armobj that must be fixed but we cannot do it now, it will be done in Relink */
-	result->ProcessReplica();
-	return result;
-}
-
-void BL_SkinDeformer::ProcessReplica()
-{
-	BL_MeshDeformer::ProcessReplica();
-	m_lastArmaUpdate = -1.0;
-	m_dfnrToPC.clear();
 }
 
 void BL_SkinDeformer::BlenderDeformVerts()

@@ -33,7 +33,6 @@
 #define __BL_MESHDEFORMER_H__
 
 #include "RAS_Deformer.h"
-#include "BL_DeformableGameObject.h"
 #include "DNA_object_types.h"
 #include "DNA_key_types.h"
 
@@ -43,7 +42,7 @@
 
 struct Object;
 struct Mesh;
-class BL_DeformableGameObject;
+class KX_GameObject;
 class RAS_Mesh;
 class RAS_IPolyMaterial;
 
@@ -52,9 +51,8 @@ class BL_MeshDeformer : public RAS_Deformer
 public:
 	void VerifyStorage();
 	void RecalcNormals();
-	virtual void Relink(std::map<SCA_IObject *, SCA_IObject *>& map);
 
-	BL_MeshDeformer(BL_DeformableGameObject *gameobj, Object *obj, RAS_Mesh *meshobj);
+	BL_MeshDeformer(KX_GameObject *gameobj, Object *obj, RAS_Mesh *meshobj);
 	virtual ~BL_MeshDeformer();
 	virtual void Apply(RAS_DisplayArray *array);
 	virtual bool Update()
@@ -64,15 +62,12 @@ public:
 	virtual void UpdateBuckets()
 	{
 	}
-	virtual RAS_Deformer *GetReplica()
-	{
-		return nullptr;
-	}
-	virtual void ProcessReplica();
 	Mesh *GetMesh()
 	{
 		return m_bmesh;
 	}
+
+	void SetLastFrame(double lastFrame);
 
 protected:
 	Mesh *m_bmesh;
@@ -83,8 +78,11 @@ protected:
 	std::vector<mt::vec3_packed> m_transnors;
 	Object *m_objMesh;
 
-	BL_DeformableGameObject *m_gameobj;
+	KX_GameObject *m_gameobj;
+	/// Last update frame.
 	double m_lastDeformUpdate;
+	/// Last action update frame.
+	double m_lastFrame;
 };
 
 #endif

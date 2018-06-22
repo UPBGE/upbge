@@ -67,6 +67,7 @@
 #include "KX_2DFilterManager.h"
 #include "RAS_BoundingBoxManager.h"
 #include "RAS_BucketManager.h"
+#include "RAS_Deformer.h"
 
 #include "EXP_FloatValue.h"
 #include "SCA_IController.h"
@@ -85,16 +86,9 @@
 #include "PHY_IGraphicController.h"
 #include "PHY_IPhysicsController.h"
 #include "BL_Converter.h"
+#include "BL_ArmatureObject.h"
 #include "KX_MotionState.h"
-
-#include "BL_ModifierDeformer.h"
-#include "BL_ShapeDeformer.h"
-#include "BL_DeformableGameObject.h"
 #include "KX_ObstacleSimulation.h"
-
-#ifdef WITH_BULLET
-#  include "KX_SoftBodyDeformer.h"
-#endif
 
 #ifdef WITH_PYTHON
 #  include "EXP_PythonCallBack.h"
@@ -562,9 +556,6 @@ KX_GameObject *KX_Scene::AddNodeReplicaObject(SG_Node *node, KX_GameObject *game
 		}
 	}
 
-	// Always make sure that the bounding box is valid.
-	newobj->UpdateBounds(true);
-
 	return newobj;
 }
 
@@ -777,6 +768,9 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
 	for (KX_GameObject *gameobj : m_logicHierarchicalGameObjects) {
 		// This will also relink the actuator to objects within the hierarchy.
 		gameobj->Relink(m_map_gameobject_to_replica);
+		gameobj->AddMeshUser();
+		// Always make sure that the bounding box is valid.
+		gameobj->UpdateBounds(true);
 		// Add the object in the layer of the parent.
 		gameobj->SetLayer(groupobj->GetLayer());
 	}
@@ -873,6 +867,10 @@ KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobj, KX_GameObj
 	for (KX_GameObject *gameobj : m_logicHierarchicalGameObjects) {
 		// This will also relink the actuators in the hierarchy.
 		gameobj->Relink(m_map_gameobject_to_replica);
+		gameobj->AddMeshUser();
+		// Always make sure that the bounding box is valid.
+		gameobj->UpdateBounds(true);
+
 		if (referenceobj) {
 			// Add the object in the layer of the reference object.
 			gameobj->SetLayer(referenceobj->GetLayer());

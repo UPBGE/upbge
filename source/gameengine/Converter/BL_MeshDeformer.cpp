@@ -38,8 +38,8 @@
 
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_DisplayArray.h"
-#include "BL_DeformableGameObject.h"
 #include "BL_MeshDeformer.h"
+#include "KX_GameObject.h"
 #include "RAS_BoundingBoxManager.h"
 #include "RAS_Mesh.h"
 #include "RAS_MeshUser.h"
@@ -52,7 +52,7 @@
 void BL_MeshDeformer::Apply(RAS_DisplayArray *UNUSED(array))
 {
 	// only apply once per frame if the mesh is actually modified
-	if (m_lastDeformUpdate != m_gameobj->GetLastFrame()) {
+	if (m_lastDeformUpdate != m_lastFrame) {
 		// For each display array
 		for (const DisplayArraySlot& slot : m_slots) {
 			RAS_DisplayArray *array = slot.m_displayArray;
@@ -66,16 +66,17 @@ void BL_MeshDeformer::Apply(RAS_DisplayArray *UNUSED(array))
 			array->NotifyUpdate(RAS_DisplayArray::POSITION_MODIFIED);
 		}
 
-		m_lastDeformUpdate = m_gameobj->GetLastFrame();
+		m_lastDeformUpdate = m_lastFrame;
 	}
 }
 
-BL_MeshDeformer::BL_MeshDeformer(BL_DeformableGameObject *gameobj, Object *obj, RAS_Mesh *meshobj)
+BL_MeshDeformer::BL_MeshDeformer(KX_GameObject *gameobj, Object *obj, RAS_Mesh *meshobj)
 	:RAS_Deformer(meshobj),
 	m_bmesh((Mesh *)(obj->data)),
 	m_objMesh(obj),
 	m_gameobj(gameobj),
-	m_lastDeformUpdate(-1.0)
+	m_lastDeformUpdate(-1.0),
+	m_lastFrame(0.0)
 {
 	KX_Scene *scene = m_gameobj->GetScene();
 	RAS_BoundingBoxManager *boundingBoxManager = scene->GetBoundingBoxManager();
@@ -86,20 +87,6 @@ BL_MeshDeformer::BL_MeshDeformer(BL_DeformableGameObject *gameobj, Object *obj, 
 
 BL_MeshDeformer::~BL_MeshDeformer()
 {
-}
-
-void BL_MeshDeformer::ProcessReplica()
-{
-	RAS_Deformer::ProcessReplica();
-	m_transverts.clear();
-	m_transnors.clear();
-	m_bDynamic = false;
-	m_lastDeformUpdate = -1.0;
-}
-
-void BL_MeshDeformer::Relink(std::map<SCA_IObject *, SCA_IObject *>& map)
-{
-	m_gameobj = static_cast<BL_DeformableGameObject *>(map[m_gameobj]);
 }
 
 /**
@@ -174,5 +161,10 @@ void BL_MeshDeformer::VerifyStorage()
 		copy_v3_v3(m_transverts[v].data, m_bmesh->mvert[v].co);
 		normal_short_to_float_v3(m_transnors[v].data, m_bmesh->mvert[v].no);
 	}
+}
+
+void BL_MeshDeformer::SetLastFrame(double lastFrame)
+{
+	m_lastFrame = lastFrame;
 }
 

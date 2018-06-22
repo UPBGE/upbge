@@ -38,6 +38,7 @@
 
 #include "KX_SoftBodyDeformer.h"
 #include "KX_Mesh.h"
+#include "KX_GameObject.h"
 
 #include "RAS_DisplayArray.h"
 #include "RAS_BoundingBoxManager.h"
@@ -50,7 +51,7 @@
 
 #include "btBulletDynamicsCommon.h"
 
-KX_SoftBodyDeformer::KX_SoftBodyDeformer(RAS_Mesh *pMeshObject, BL_DeformableGameObject *gameobj)
+KX_SoftBodyDeformer::KX_SoftBodyDeformer(RAS_Mesh *pMeshObject, KX_GameObject *gameobj)
 	:RAS_Deformer(pMeshObject),
 	m_gameobj(gameobj),
 	m_needUpdateAabb(true)
@@ -64,20 +65,6 @@ KX_SoftBodyDeformer::KX_SoftBodyDeformer(RAS_Mesh *pMeshObject, BL_DeformableGam
 
 KX_SoftBodyDeformer::~KX_SoftBodyDeformer()
 {
-}
-
-void KX_SoftBodyDeformer::Relink(std::map<SCA_IObject *, SCA_IObject *>& map)
-{
-	BL_DeformableGameObject *obj = static_cast<BL_DeformableGameObject *>(map[m_gameobj]);
-
-	if (obj) {
-		m_gameobj = obj;
-		m_mesh = m_gameobj->GetMeshList().front();
-	}
-	else {
-		m_gameobj = nullptr;
-		m_mesh = nullptr;
-	}
 }
 
 void KX_SoftBodyDeformer::Apply(RAS_DisplayArray *array)

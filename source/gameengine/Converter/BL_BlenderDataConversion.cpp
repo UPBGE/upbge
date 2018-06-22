@@ -111,7 +111,6 @@
 #include "BL_ConvertProperties.h"
 #include "BL_ConvertObjectInfo.h"
 #include "BL_ArmatureObject.h"
-#include "BL_DeformableGameObject.h"
 
 #include "CM_Message.h"
 
@@ -645,6 +644,89 @@ void BL_ConvertDerivedMeshToArray(DerivedMesh *dm, Mesh *me, const std::vector<B
 	}
 }
 
+RAS_Deformer *BL_ConvertDeformer(KX_GameObject *object, KX_Mesh *meshobj)
+{
+	Mesh *mesh = meshobj->GetMesh();
+
+	if (!mesh) {
+		return nullptr;
+	}
+
+	KX_Scene *scene = object->GetScene();
+	Scene *blenderScene = scene->GetBlenderScene();
+	// We must create a new deformer but which one?
+	KX_GameObject *parentobj = object->GetParent();
+	/* Object that owns the mesh. If this is not the current blender object, look at one of the object registered
+	 * along the blender mesh. */
+	Object *meshblendobj;
+	Object *blenderobj = object->GetBlenderObject();
+	if (blenderobj->data != mesh) {
+		meshblendobj = static_cast<Object *>(scene->GetLogicManager()->FindBlendObjByGameMeshName(meshobj->GetName()));
+	}
+	else {
+		meshblendobj = blenderobj;
+	}
+
+	const bool isParentArmature = parentobj && parentobj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE;
+	const bool bHasModifier = BL_ModifierDeformer::HasCompatibleDeformer(blenderobj);
+	const bool bHasShapeKey = mesh->key && mesh->key->type == KEY_RELATIVE;
+	const bool bHasDvert = mesh->dvert && blenderobj->defbase.first;
+	const bool bHasArmature = BL_ModifierDeformer::HasArmatureDeformer(blenderobj) &&
+	                          isParentArmature && meshblendobj && bHasDvert;
+#ifdef WITH_BULLET
+	const bool bHasSoftBody = (!parentobj && (blenderobj->gameflag & OB_SOFT_BODY));
+#endif
+
+	if (!meshblendobj) {
+		if (bHasModifier || bHasShapeKey || bHasDvert || bHasArmature) {
+			CM_FunctionWarning("new mesh is not used in an object from the current scene, you will get incorrect behavior.");
+			return nullptr;
+		}
+	}
+
+	RAS_Deformer *deformer = nullptr;
+	if (bHasModifier) {
+		if (isParentArmature) {
+			BL_ModifierDeformer *modifierDeformer = new BL_ModifierDeformer(object, blenderScene, meshblendobj, blenderobj,
+			                                                                meshobj, static_cast<BL_ArmatureObject *>(parentobj));
+			modifierDeformer->LoadShapeDrivers(parentobj);
+			deformer = modifierDeformer;
+		}
+		else {
+			deformer = new BL_ModifierDeformer(object, blenderScene, meshblendobj, blenderobj, meshobj, nullptr);
+		}
+	}
+	else if (bHasShapeKey) {
+		if (isParentArmature) {
+			BL_ShapeDeformer *shapeDeformer = new BL_ShapeDeformer(object, meshblendobj, blenderobj, meshobj,
+			                                                       static_cast<BL_ArmatureObject *>(parentobj));
+			shapeDeformer->LoadShapeDrivers(parentobj);
+			deformer = shapeDeformer;
+		}
+		else {
+			deformer = new BL_ShapeDeformer(object, meshblendobj, blenderobj, meshobj, nullptr);
+		}
+	}
+	else if (bHasArmature) {
+		deformer = new BL_SkinDeformer(object, meshblendobj, blenderobj, meshobj,
+		                                 static_cast<BL_ArmatureObject *>(parentobj));
+	}
+	else if (bHasDvert) {
+		deformer = new BL_MeshDeformer(object, meshblendobj, meshobj);
+	}
+#ifdef WITH_BULLET
+	else if (bHasSoftBody) {
+		deformer = new KX_SoftBodyDeformer(meshobj, object);
+	}
+#endif
+
+	if (deformer) {
+		deformer->InitializeDisplayArrays();
+	}
+
+	return deformer;
+}
+
 static void BL_CreateGraphicObjectNew(KX_GameObject *gameobj, KX_Scene *kxscene, bool isActive, e_PhysicsEngine physics_engine)
 {
 	switch (physics_engine) {
@@ -909,7 +991,7 @@ static KX_GameObject *BL_GameObjectFromBlenderObject(Object *ob, KX_Scene *kxsce
 			}
 
 
-			BL_DeformableGameObject *deformableGameObj = new BL_DeformableGameObject(kxscene, KX_Scene::m_callbacks);
+			KX_GameObject *deformableGameObj = new KX_GameObject(kxscene, KX_Scene::m_callbacks);
 			gameobj = deformableGameObj;
 
 			// set transformation
@@ -930,8 +1012,6 @@ static KX_GameObject *BL_GameObjectFromBlenderObject(Object *ob, KX_Scene *kxsce
 		case OB_ARMATURE:
 		{
 			gameobj = new BL_ArmatureObject(kxscene, KX_Scene::m_callbacks, ob, kxscene->GetBlenderScene());
-
-			kxscene->AddAnimatedObject(gameobj);
 
 			break;
 		}
@@ -1518,14 +1598,14 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 		}
 	}
 
-	// Load deformers
-	for (KX_GameObject *gameobj : sumolist) {
-		gameobj->LoadDeformer();
-	}
-
-	// Init mesh users and mesh slots once the deformers are available.
 	for (KX_GameObject *gameobj : objectlist) {
+		// Init mesh users, mesh slots and deformers.
 		gameobj->AddMeshUser();
+
+		// Add active armature for update.
+		if (gameobj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
+			kxscene->AddAnimatedObject(gameobj);
+		}
 	}
 
 	// Create graphic controller for culling.
@@ -1552,17 +1632,15 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 		kxscene->GetPhysicsEnvironment()->SetNumTimeSubSteps(blenderscene->gm.physubstep);
 	}
 
-	/* Now that the scenegraph is complete, let's instantiate the deformers.
-	 * We need that to create reusable derived mesh and physic shapes.
-	 */
 	for (KX_GameObject *gameobj : sumolist) {
+		/* Now that the scenegraph is complete, let's instantiate the deformers.
+		* We need that to create reusable derived mesh and physic shapes.
+		*/
 		if (gameobj->GetDeformer()) {
 			gameobj->GetDeformer()->UpdateBuckets();
 		}
-	}
 
-	// Set up armature constraints and shapekey drivers.
-	for (KX_GameObject *gameobj : sumolist) {
+		// Set up armature constraints and shapekey drivers.
 		if (gameobj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
 			BL_ArmatureObject *armobj = static_cast<BL_ArmatureObject *>(gameobj);
 			armobj->LoadConstraints(converter);

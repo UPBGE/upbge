@@ -44,8 +44,6 @@
 #include "DNA_object_types.h"
 #include "BKE_armature.h"
 
-#include "RAS_Deformer.h"
-
 struct Object;
 struct bPoseChannel;
 class RAS_Mesh;
@@ -54,16 +52,11 @@ class RAS_IPolyMaterial;
 class BL_SkinDeformer : public BL_MeshDeformer
 {
 public:
-	virtual void Relink(std::map<SCA_IObject *, SCA_IObject *>& map);
-
-	BL_SkinDeformer(BL_DeformableGameObject *gameobj,
+	BL_SkinDeformer(KX_GameObject *gameobj,
 					Object *bmeshobj_old,
 					Object *bmeshobj_new,
 					RAS_Mesh *mesh,
 					BL_ArmatureObject *arma);
-
-	virtual RAS_Deformer *GetReplica();
-	virtual void ProcessReplica();
 
 	virtual ~BL_SkinDeformer();
 	bool Update();

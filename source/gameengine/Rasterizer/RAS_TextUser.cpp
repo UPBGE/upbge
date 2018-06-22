@@ -30,7 +30,7 @@
 #include "RAS_DisplayArrayBucket.h"
 
 RAS_TextUser::RAS_TextUser(void *clientobj, RAS_BoundingBox *boundingBox)
-	:RAS_MeshUser(clientobj, boundingBox),
+	:RAS_MeshUser(clientobj, boundingBox, nullptr),
 	m_fontid(0),
 	m_size(0),
 	m_dpi(0),
