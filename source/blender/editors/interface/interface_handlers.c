@@ -6905,6 +6905,30 @@ static void popup_add_shortcut_func(bContext *C, void *arg1, void *UNUSED(arg2))
 	UI_popup_block_ex(C, menu_add_shortcut, NULL, menu_add_shortcut_cancel, but, NULL);
 }
 
+static void popup_user_menu_add_or_replace_func(bContext *C, void *arg1, void *arg2)
+{
+	uiBut *but = arg1;
+	bUserMenuItem *umi = arg2;
+	if (umi) {
+		ED_screen_user_menu_remove(umi);
+	}
+	char drawstr[sizeof(but->drawstr)];
+	STRNCPY(drawstr, but->drawstr);
+	if (but->flag & UI_BUT_HAS_SEP_CHAR) {
+		char *sep = strrchr(drawstr, UI_SEP_CHAR);
+		if (sep) {
+			*sep = '\0';
+		}
+	}
+	ED_screen_user_menu_add(C, drawstr, but->optype, but->opptr ? but->opptr->data : NULL, but->opcontext);
+}
+
+static void popup_user_menu_remove_func(bContext *UNUSED(C), void *UNUSED(arg1), void *arg2)
+{
+	bUserMenuItem *umi = arg2;
+	ED_screen_user_menu_remove(umi);
+}
+
 /**
  * menu to chow when right clicking on the panel header
  */
@@ -6970,46 +6994,36 @@ static void ui_but_menu_add_path_operators(uiLayout *layout, PointerRNA *ptr, Pr
 	RNA_string_set(&props_ptr, "filepath", dir);
 }
 
-static void ui_but_menu_lazy_init(
-        bContext *C, uiBut *but,
-        uiPopupMenu **pup_p, uiLayout **layout_p)
-{
-	if (*pup_p != NULL) {
-		return;
-	}
-
-	uiStringInfo label = {BUT_GET_LABEL, NULL};
-
-	/* highly unlikely getting the label ever fails */
-	UI_but_string_info_get(C, but, &label, NULL);
-
-	*pup_p = UI_popup_menu_begin(C, label.strinfo ? label.strinfo : "", ICON_NONE);
-	*layout_p = UI_popup_menu_layout(*pup_p);
-	if (label.strinfo) {
-		MEM_freeN(label.strinfo);
-	}
-	uiLayoutSetOperatorContext(*layout_p, WM_OP_INVOKE_DEFAULT);
-}
-
 static bool ui_but_menu(bContext *C, uiBut *but)
 {
-	uiPopupMenu *pup = NULL;
-	uiLayout *layout = NULL;
 	MenuType *mt = WM_menutype_find("WM_MT_button_context", true);
 	bool is_array, is_array_component;
 	wmOperatorType *ot;
 	PointerRNA op_ptr;
-
-/*	if ((but->rnapoin.data && but->rnaprop) == 0 && but->optype == NULL)*/
-/*		return 0;*/
 
 	/* having this menu for some buttons makes no sense */
 	if (but->type == UI_BTYPE_IMAGE) {
 		return false;
 	}
 
+	uiPopupMenu *pup;
+	uiLayout *layout;
+
+	{
+		uiStringInfo label = {BUT_GET_LABEL, NULL};
+
+		/* highly unlikely getting the label ever fails */
+		UI_but_string_info_get(C, but, &label, NULL);
+
+		pup = UI_popup_menu_begin(C, label.strinfo ? label.strinfo : "", ICON_NONE);
+		layout = UI_popup_menu_layout(pup);
+		if (label.strinfo) {
+			MEM_freeN(label.strinfo);
+		}
+		uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
+	}
+
 	if (but->rnapoin.data && but->rnaprop) {
-		ui_but_menu_lazy_init(C, but, &pup, &layout);
 		PointerRNA *ptr = &but->rnapoin;
 		PropertyRNA *prop = but->rnaprop;
 		const PropertyType type = RNA_property_type(prop);
@@ -7255,8 +7269,6 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 
 		/* We do have a shortcut, but only keyboard ones are editbale that way... */
 		if (kmi) {
-			ui_but_menu_lazy_init(C, but, &pup, &layout);
-
 			if (ISKEYBOARD(kmi->type)) {
 #if 0			/* would rather use a block but, but gets weirdly positioned... */
 				uiDefBlockBut(block, menu_change_shortcut, but, "Change Shortcut",
@@ -7283,12 +7295,31 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 		}
 		/* only show 'add' if there's a suitable key map for it to go in */
 		else if (WM_keymap_guess_opname(C, but->optype->idname)) {
-			ui_but_menu_lazy_init(C, but, &pup, &layout);
-
 			but2 = uiDefIconTextBut(block, UI_BTYPE_BUT, 0, ICON_HAND,
 			                        CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Add Shortcut"),
 			                        0, 0, w, UI_UNIT_Y, NULL, 0, 0, 0, 0, "");
 			UI_but_func_set(but2, popup_add_shortcut_func, but, NULL);
+		}
+
+		uiItemS(layout);
+
+		{
+			bUserMenuItem *umi = ED_screen_user_menu_find(
+			        C, but->optype, but->opptr ? but->opptr->data : NULL, but->opcontext);
+
+			but2 = uiDefIconTextBut(
+			        block, UI_BTYPE_BUT, 0, ICON_MENU_PANEL,
+			        CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Add to Favorites Menu"),
+			        0, 0, w, UI_UNIT_Y, NULL, 0, 0, 0, 0,
+			        "Add to a user defined context menu (stored in the user preferences)");
+			UI_but_func_set(but2, popup_user_menu_add_or_replace_func, but, umi);
+			if (umi) {
+				but2 = uiDefIconTextBut(
+				        block, UI_BTYPE_BUT, 0, ICON_CANCEL,
+				        CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Remove from Favorites Menu"),
+				        0, 0, w, UI_UNIT_Y, NULL, 0, 0, 0, 0, "");
+				UI_but_func_set(but2, popup_user_menu_remove_func, NULL, umi);
+			}
 		}
 
 		/* Set the operator pointer for python access */
@@ -7301,7 +7332,6 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 	if (ui_block_is_menu(but->block) == false) {
 		ARegion *ar = CTX_wm_region(C);
 		if (ar && (ar->regiontype == RGN_TYPE_HEADER)) {
-			ui_but_menu_lazy_init(C, but, &pup, &layout);
 			uiItemMenuF(layout, IFACE_("Header"), ICON_NONE, ED_screens_header_tools_menu_create, NULL);
 			uiItemS(layout);
 		}
@@ -7311,8 +7341,6 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 		char buf[512];
 
 		if (UI_but_online_manual_id(but, buf, sizeof(buf))) {
-			ui_but_menu_lazy_init(C, but, &pup, &layout);
-
 			PointerRNA ptr_props;
 			uiItemO(layout, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Online Manual"),
 			        ICON_URL, "WM_OT_doc_view_manual_ui_context");
@@ -7335,7 +7363,6 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 	}
 
 	if (but->optype) {
-		ui_but_menu_lazy_init(C, but, &pup, &layout);
 		uiItemO(layout, NULL,
 		        ICON_NONE, "UI_OT_copy_python_command_button");
 	}
@@ -7343,27 +7370,20 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 	/* perhaps we should move this into (G.debug & G_DEBUG) - campbell */
 	if (U.flag & USER_DEVELOPER_UI) {
 		if (ui_block_is_menu(but->block) == false) {
-			ui_but_menu_lazy_init(C, but, &pup, &layout);
 			uiItemFullO(layout, "UI_OT_editsource", NULL, ICON_NONE, NULL, WM_OP_INVOKE_DEFAULT, 0, NULL);
 		}
 	}
 
 	if (BKE_addon_find(&U.addons, "ui_translate")) {
-		ui_but_menu_lazy_init(C, but, &pup, &layout);
 		uiItemFullO(layout, "UI_OT_edittranslation_init", NULL, ICON_NONE, NULL, WM_OP_INVOKE_DEFAULT, 0, NULL);
 	}
 
 	mt = WM_menutype_find("WM_MT_button_context", true);
 	if (mt) {
-		ui_but_menu_lazy_init(C, but, &pup, &layout);
 		UI_menutype_draw(C, mt, uiLayoutColumn(layout, false));
 	}
 
-	if (pup != NULL) {
-		UI_popup_menu_end(C, pup);
-	}
-
-	return (pup != NULL);
+	return UI_popup_menu_end_or_cancel(C, pup);
 }
 
 static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, const wmEvent *event)
