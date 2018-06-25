@@ -1020,6 +1020,7 @@ static PyObject *gPySetGLSLMaterialSetting(PyObject *,
 	GlobalSettings *gs= KX_GetActiveEngine()->GetGlobalSettings();
 	char *setting;
 	int enable, flag, sceneflag;
+	Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
 
 	if (!PyArg_ParseTuple(args,"si:setGLSLMaterialSetting",&setting,&enable))
 		return nullptr;
@@ -1040,7 +1041,7 @@ static PyObject *gPySetGLSLMaterialSetting(PyObject *,
 
 	/* display lists and GLSL materials need to be remade */
 	if (sceneflag != gs->glslflag) {
-		GPU_materials_free();
+		GPU_materials_free(bmain);
 		if (KX_GetActiveEngine()) {
 			CListValue<KX_Scene> *scenes = KX_GetActiveEngine()->CurrentScenes();
 

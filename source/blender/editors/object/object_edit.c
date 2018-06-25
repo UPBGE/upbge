@@ -169,8 +169,8 @@ static int object_hide_view_clear_exec(bContext *C, wmOperator *op)
 	bool changed = false;
 
 	for (Base *base = view_layer->object_bases.first; base; base = base->next) {
-		if (base->flag & BASE_HIDE) {
-			base->flag &= ~BASE_HIDE;
+		if (base->flag & BASE_HIDDEN) {
+			base->flag &= ~BASE_HIDDEN;
 			changed = true;
 
 			if (select) {
@@ -217,7 +217,7 @@ static int object_hide_view_set_exec(bContext *C, wmOperator *op)
 	/* Do nothing if no objects was selected. */
 	bool have_selected = false;
 	for (Base *base = view_layer->object_bases.first; base; base = base->next) {
-		if (base->flag & BASE_VISIBLED) {
+		if (base->flag & BASE_VISIBLE) {
 			if (base->flag & BASE_SELECTED) {
 				have_selected = true;
 				break;
@@ -231,20 +231,20 @@ static int object_hide_view_set_exec(bContext *C, wmOperator *op)
 
 	/* Hide selected or unselected objects. */
 	for (Base *base = view_layer->object_bases.first; base; base = base->next) {
-		if (!(base->flag & BASE_VISIBLED)) {
+		if (!(base->flag & BASE_VISIBLE)) {
 			continue;
 		}
 
 		if (!unselected) {
 			if (base->flag & BASE_SELECTED) {
 				ED_object_base_select(base, BA_DESELECT);
-				base->flag |= BASE_HIDE;
+				base->flag |= BASE_HIDDEN;
 			}
 		}
 		else {
 			if (!(base->flag & BASE_SELECTED)) {
 				ED_object_base_select(base, BA_DESELECT);
-				base->flag |= BASE_HIDE;
+				base->flag |= BASE_HIDDEN;
 			}
 		}
 	}
@@ -318,7 +318,8 @@ void ED_hide_collections_menu_draw(const bContext *C, uiLayout *layout)
 		}
 
 		if ((view_layer->runtime_flag & VIEW_LAYER_HAS_HIDE) &&
-		    !(lc->runtime_flag & LAYER_COLLECTION_HAS_VISIBLE_OBJECTS)) {
+		    !(lc->runtime_flag & LAYER_COLLECTION_HAS_VISIBLE_OBJECTS))
+		{
 			uiLayoutSetActive(row, false);
 		}
 
@@ -2623,4 +2624,3 @@ void OBJECT_OT_link_to_collection(wmOperatorType *ot)
 	                      "Name of the newly added collection");
 	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
-

@@ -1448,17 +1448,6 @@ static int arg_handle_ge_parameters_set(int argc, const char **argv, void *data)
 #ifdef WITH_GAMEENGINE
 			SYS_WriteCommandLineInt(syshandle, argv[a], 1);
 #endif
-			/* doMipMap */
-			if (STREQ(argv[a], "nomipmap")) {
-				GPU_set_mipmap(0); //doMipMap = 0;
-			}
-			/* linearMipMap */
-			if (STREQ(argv[a], "linearmipmap")) {
-				GPU_set_mipmap(1);
-				GPU_set_linear_mipmap(1); //linearMipMap = 1;
-			}
-
-
 		} /* if (*(argv[a + 1]) == '=') */
 	}
 

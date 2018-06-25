@@ -65,6 +65,7 @@ extern "C" {
 #include "DNA_object_types.h"
 #include "DNA_rigidbody_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_speaker_types.h"
 #include "DNA_texture_types.h"
 #include "DNA_world_types.h"
 #include "DNA_object_force_types.h"
@@ -297,36 +298,25 @@ DepsRelation *DepsgraphRelationBuilder::add_operation_relation(
 
 void DepsgraphRelationBuilder::add_collision_relations(
         const OperationKey &key,
-        Scene *scene,
         Object *object,
         Collection *collection,
-        bool dupli,
         const char *name)
 {
-	unsigned int numcollobj;
-	Object **collobjs = get_collisionobjects_ext(scene,
-	                                             object,
-	                                             collection,
-	                                             &numcollobj,
-	                                             eModifierType_Collision,
-	                                             dupli);
-	for (unsigned int i = 0; i < numcollobj; i++) {
-		Object *ob1 = collobjs[i];
+	ListBase *relations = deg_build_collision_relations(graph_, collection);
 
-		ComponentKey trf_key(&ob1->id, DEG_NODE_TYPE_TRANSFORM);
-		add_relation(trf_key, key, name);
+	LISTBASE_FOREACH (CollisionRelation *, relation, relations) {
+		if (relation->ob != object) {
+			ComponentKey trf_key(&relation->ob->id, DEG_NODE_TYPE_TRANSFORM);
+			add_relation(trf_key, key, name);
 
-		ComponentKey coll_key(&ob1->id, DEG_NODE_TYPE_GEOMETRY);
-		add_relation(coll_key, key, name);
-	}
-	if (collobjs != NULL) {
-		MEM_freeN(collobjs);
+			ComponentKey coll_key(&relation->ob->id, DEG_NODE_TYPE_GEOMETRY);
+			add_relation(coll_key, key, name);
+		}
 	}
 }
 
 void DepsgraphRelationBuilder::add_forcefield_relations(
         const OperationKey &key,
-        Scene *scene,
         Object *object,
         ParticleSystem *psys,
         EffectorWeights *eff,
@@ -350,10 +340,8 @@ void DepsgraphRelationBuilder::add_forcefield_relations(
 			}
 			if (add_absorption && (relation->pd->flag & PFIELD_VISIBILITY)) {
 				add_collision_relations(key,
-				                        scene,
 				                        object,
 				                        NULL,
-				                        true,
 				                        "Force Absorption");
 			}
 		}
@@ -439,6 +427,9 @@ void DepsgraphRelationBuilder::build_id(ID *id)
 		case ID_MB:
 		case ID_LT:
 			build_object_data_geometry_datablock(id);
+			break;
+		case ID_SPK:
+			build_speaker((Speaker *)id);
 			break;
 		default:
 			fprintf(stderr, "Unhandled ID %s\n", id->name);
@@ -660,6 +651,9 @@ void DepsgraphRelationBuilder::build_object_data(Object *object)
 		case OB_LIGHTPROBE:
 			build_object_data_lightprobe(object);
 			break;
+		case OB_SPEAKER:
+			build_object_data_speaker(object);
+			break;
 	}
 	Key *key = BKE_key_from_object(object);
 	if (key != NULL) {
@@ -699,6 +693,19 @@ void DepsgraphRelationBuilder::build_object_data_lightprobe(Object *object)
 	                        DEG_NODE_TYPE_PARAMETERS,
 	                        DEG_OPCODE_LIGHT_PROBE_EVAL);
 	add_relation(probe_key, object_key, "LightProbe Update");
+}
+
+void DepsgraphRelationBuilder::build_object_data_speaker(Object *object)
+{
+	Speaker *speaker = (Speaker *)object->data;
+	build_speaker(speaker);
+	OperationKey probe_key(&speaker->id,
+	                       DEG_NODE_TYPE_PARAMETERS,
+	                       DEG_OPCODE_SPEAKER_EVAL);
+	OperationKey object_key(&object->id,
+	                        DEG_NODE_TYPE_PARAMETERS,
+	                        DEG_OPCODE_SPEAKER_EVAL);
+	add_relation(probe_key, object_key, "Speaker Update");
 }
 
 void DepsgraphRelationBuilder::build_object_parent(Object *object)
@@ -1568,10 +1575,8 @@ void DepsgraphRelationBuilder::build_particles(Object *object)
 		/* Collisions */
 		if (part->type != PART_HAIR) {
 			add_collision_relations(psys_key,
-			                        scene_,
 			                        object,
 			                        part->collision_group,
-			                        true,
 			                        "Particle Collision");
 		}
 		else if ((psys->flag & PSYS_HAIR_DYNAMICS) &&
@@ -1579,15 +1584,12 @@ void DepsgraphRelationBuilder::build_particles(Object *object)
 		         psys->clmd->coll_parms != NULL)
 		{
 			add_collision_relations(psys_key,
-			                        scene_,
 			                        object,
 			                        psys->clmd->coll_parms->group,
-			                        true,
 			                        "Hair Collision");
 		}
 		/* Effectors. */
 		add_forcefield_relations(psys_key,
-		                         scene_,
 		                         object,
 		                         psys,
 		                         part->effector_weights,
@@ -2135,6 +2137,14 @@ void DepsgraphRelationBuilder::build_lightprobe(LightProbe *probe)
 		return;
 	}
 	build_animdata(&probe->id);
+}
+
+void DepsgraphRelationBuilder::build_speaker(Speaker *speaker)
+{
+	if (built_map_.checkIsBuiltAndTag(speaker)) {
+		return;
+	}
+	build_animdata(&speaker->id);
 }
 
 void DepsgraphRelationBuilder::build_copy_on_write_relations()

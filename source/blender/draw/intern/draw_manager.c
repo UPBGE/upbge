@@ -1433,7 +1433,7 @@ void DRW_render_to_image(RenderEngine *engine, struct Depsgraph *depsgraph)
 	Render *render = engine->re;
 
 	if (G.background && DST.gl_context == NULL) {
-		WM_init_opengl();
+		WM_init_opengl(G_MAIN);
 	}
 
 	void *re_gl_context = RE_gl_context_get(render);
@@ -1695,7 +1695,7 @@ void DRW_draw_select_loop(
 			        DEG_ITER_OBJECT_FLAG_VISIBLE |
 			        DEG_ITER_OBJECT_FLAG_DUPLI)
 			{
-				if ((ob->base_flag & BASE_SELECTABLED) != 0) {
+				if ((ob->base_flag & BASE_SELECTABLE) != 0) {
 
 					if (object_filter_fn != NULL) {
 						if (ob->base_flag & BASE_FROMDUPLI) {

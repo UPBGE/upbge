@@ -1446,8 +1446,8 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 		Object *blenderobject = base->object;
 		allblobj.insert(blenderobject);
 
-		bool isInActiveLayer = (base->flag & BASE_VISIBLED) != 0;
-		blenderobject->lay = (base->flag & BASE_VISIBLED) != 0;
+		bool isInActiveLayer = (base->flag & BASE_VISIBLE) != 0;
+		blenderobject->lay = (base->flag & BASE_VISIBLE) != 0;
 
 		KX_GameObject* gameobj = gameobject_from_blenderobject(
 										blenderobject,

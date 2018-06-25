@@ -106,6 +106,8 @@ Depsgraph::Depsgraph(Scene *scene,
     ctime(BKE_scene_frame_get(scene)),
     scene_cow(NULL),
     is_active(false),
+	collision_relations(NULL),
+	smoke_collision_relations(NULL),
 	effector_relations(NULL)
 {
 	BLI_spin_init(&lock);

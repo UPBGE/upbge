@@ -39,7 +39,6 @@
 #include "BLI_math_vector.h"
 
 #include "BKE_appdir.h"
-#include "BKE_DerivedMesh.h"
 #include "BKE_sound.h"
 #include "BKE_addon.h"
 #include "BKE_studiolight.h"
@@ -101,9 +100,11 @@ static const EnumPropertyItem rna_enum_studio_light_orientation_items[] = {
 #include "DNA_screen_types.h"
 
 #include "BKE_blender.h"
+#include "BKE_DerivedMesh.h"
 #include "BKE_global.h"
-#include "BKE_main.h"
 #include "BKE_idprop.h"
+#include "BKE_main.h"
+#include "BKE_mesh_runtime.h"
 #include "BKE_pbvh.h"
 #include "BKE_paint.h"
 
@@ -216,31 +217,31 @@ static void rna_userdef_load_ui_update(Main *UNUSED(bmain), Scene *UNUSED(scene)
 
 static void rna_userdef_mipmap_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
-	GPU_set_mipmap(!(U.gameflags & USER_DISABLE_MIPMAP));
+	GPU_set_mipmap(bmain, !(U.gameflags & USER_DISABLE_MIPMAP));
 	rna_userdef_update(bmain, scene, ptr);
 }
 
 static void rna_userdef_anisotropic_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
-	GPU_set_anisotropic(U.anisotropic_filter);
+	GPU_set_anisotropic(bmain, U.anisotropic_filter);
 	rna_userdef_update(bmain, scene, ptr);
 }
 
 static void rna_userdef_gl_gpu_mipmaps(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
-	GPU_set_gpu_mipmapping(U.use_gpu_mipmap);
+	GPU_set_gpu_mipmapping(bmain, U.use_gpu_mipmap);
 	rna_userdef_update(bmain, scene, ptr);
 }
 
 static void rna_userdef_gl_texture_limit_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
-	GPU_free_images();
+	GPU_free_images(bmain);
 	rna_userdef_update(bmain, scene, ptr);
 }
 
 static void rna_userdef_gl_use_16bit_textures(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
-	GPU_free_images();
+	GPU_free_images(bmain);
 	rna_userdef_update(bmain, scene, ptr);
 }
 
@@ -371,7 +372,7 @@ static void rna_UserDef_weight_color_update(Main *bmain, Scene *scene, PointerRN
 	Object *ob;
 
 	bTheme *btheme = UI_GetTheme();
-	vDM_ColorBand_store((U.flag & USER_CUSTOM_RANGE) ? (&U.coba_weight) : NULL, btheme->tv3d.vertex_unreferenced);
+	BKE_mesh_runtime_color_band_store((U.flag & USER_CUSTOM_RANGE) ? (&U.coba_weight) : NULL, btheme->tv3d.vertex_unreferenced);
 
 	for (ob = bmain->object.first; ob; ob = ob->id.next) {
 		if (ob->mode & OB_MODE_WEIGHT_PAINT)
@@ -686,7 +687,7 @@ static void rna_StudioLights_remove(UserDef *UNUSED(userdef), StudioLight *studi
 	BKE_studiolight_remove(studio_light);
 }
 
-static StudioLight* rna_StudioLights_new(UserDef *UNUSED(userdef), const char* path, int orientation)
+static StudioLight *rna_StudioLights_new(UserDef *UNUSED(userdef), const char *path, int orientation)
 {
 	return BKE_studiolight_new(path, orientation);
 }
@@ -730,8 +731,7 @@ static void rna_UserDef_studiolight_path_irr_cache_get(PointerRNA *ptr, char *va
 static int rna_UserDef_studiolight_path_irr_cache_length(PointerRNA *ptr)
 {
 	StudioLight *sl = (StudioLight *)ptr->data;
-	if (sl->path_irr_cache)
-	{
+	if (sl->path_irr_cache) {
 		return strlen(sl->path_irr_cache);
 	}
 	return 0;
@@ -750,8 +750,7 @@ static void rna_UserDef_studiolight_path_sh_cache_get(PointerRNA *ptr, char *val
 static int rna_UserDef_studiolight_path_sh_cache_length(PointerRNA *ptr)
 {
 	StudioLight *sl = (StudioLight *)ptr->data;
-	if (sl->path_sh_cache)
-	{
+	if (sl->path_sh_cache) {
 		return strlen(sl->path_sh_cache);
 	}
 	return 0;
@@ -783,8 +782,7 @@ static void rna_UserDef_studiolight_spherical_harmonics_coefficients_get(Pointer
 {
 	StudioLight *sl = (StudioLight *)ptr->data;
 	float *value = values;
-	for (int i = 0; i < STUDIOLIGHT_SPHERICAL_HARMONICS_COMPONENTS; i++)
-	{
+	for (int i = 0; i < STUDIOLIGHT_SPHERICAL_HARMONICS_COMPONENTS; i++) {
 		copy_v3_v3(value, sl->spherical_harmonics_coefs[i]);
 		value += 3;
 	}

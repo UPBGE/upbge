@@ -228,11 +228,17 @@ ListBase *BKE_effector_relations_create(
         ViewLayer *view_layer,
         Collection *collection)
 {
-	const bool for_render = (DEG_get_mode(depsgraph) == DAG_EVAL_RENDER);
 	Base *base = BKE_collection_or_layer_objects(NULL, NULL, view_layer, collection);
+	const bool for_render = (DEG_get_mode(depsgraph) == DAG_EVAL_RENDER);
+	const int base_flag = (for_render) ? BASE_ENABLED_RENDER : BASE_ENABLED_VIEWPORT;
+
 	ListBase *relations = MEM_callocN(sizeof(ListBase), "effector relations");
 
 	for (; base; base = base->next) {
+		if (!(base->flag & base_flag)) {
+			continue;
+		}
+
 		Object *ob = base->object;
 
 		if (ob->pd && ob->pd->forcefield) {
@@ -267,11 +273,11 @@ void BKE_effector_relations_free(ListBase *lb)
 /* Create effective list of effectors from relations built beforehand. */
 ListBase *BKE_effectors_create(
         Depsgraph *depsgraph,
-        Scene *scene,
         Object *ob_src,
         ParticleSystem *psys_src,
         EffectorWeights *weights)
 {
+	Scene *scene = DEG_get_evaluated_scene(depsgraph);
 	ListBase *relations = DEG_get_effector_relations(depsgraph, weights->group);
 	ListBase *effectors = NULL;
 
@@ -420,7 +426,7 @@ static float eff_calc_visibility(ListBase *colliders, EffectorCache *eff, Effect
 		return visibility;
 
 	if (!colls)
-		colls = get_collider_cache(eff->scene, eff->ob, NULL);
+		colls = BKE_collider_cache_create(eff->depsgraph, eff->ob, NULL);
 
 	if (!colls)
 		return visibility;
@@ -458,7 +464,7 @@ static float eff_calc_visibility(ListBase *colliders, EffectorCache *eff, Effect
 	}
 
 	if (!colliders)
-		free_collider_cache(&colls);
+		BKE_collider_cache_free(&colls);
 
 	return visibility;
 }

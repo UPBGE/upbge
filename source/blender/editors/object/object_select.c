@@ -102,7 +102,7 @@ void ED_object_base_select(Base *base, eObjectSelect_Mode mode)
 	if (base) {
 		switch (mode) {
 			case BA_SELECT:
-				if ((base->flag & BASE_SELECTABLED) != 0) {
+				if ((base->flag & BASE_SELECTABLE) != 0) {
 					base->flag |= BASE_SELECTED;
 				}
 				break;
@@ -231,7 +231,7 @@ static bool object_select_all_by_obdata(bContext *C, void *obdata)
 
 	CTX_DATA_BEGIN (C, Base *, base, visible_bases)
 	{
-		if (((base->flag & BASE_SELECTED) == 0) && ((base->flag & BASE_SELECTABLED) != 0)) {
+		if (((base->flag & BASE_SELECTED) == 0) && ((base->flag & BASE_SELECTABLE) != 0)) {
 			if (base->object->data == obdata) {
 				ED_object_base_select(base, BA_SELECT);
 				changed = true;
@@ -249,7 +249,7 @@ static bool object_select_all_by_material(bContext *C, Material *mat)
 
 	CTX_DATA_BEGIN (C, Base *, base, visible_bases)
 	{
-		if (((base->flag & BASE_SELECTED) == 0) && ((base->flag & BASE_SELECTABLED) != 0)) {
+		if (((base->flag & BASE_SELECTED) == 0) && ((base->flag & BASE_SELECTABLE) != 0)) {
 			Object *ob = base->object;
 			Material *mat1;
 			int a;
@@ -276,7 +276,7 @@ static bool object_select_all_by_dup_group(bContext *C, Object *ob)
 
 	CTX_DATA_BEGIN (C, Base *, base, visible_bases)
 	{
-		if (((base->flag & BASE_SELECTED) == 0) && ((base->flag & BASE_SELECTABLED) != 0)) {
+		if (((base->flag & BASE_SELECTED) == 0) && ((base->flag & BASE_SELECTABLE) != 0)) {
 			Collection *dup_group_other = (base->object->transflag & OB_DUPLICOLLECTION) ? base->object->dup_group : NULL;
 			if (dup_group == dup_group_other) {
 				ED_object_base_select(base, BA_SELECT);
@@ -296,7 +296,7 @@ static bool object_select_all_by_particle(bContext *C, Object *ob)
 
 	CTX_DATA_BEGIN (C, Base *, base, visible_bases)
 	{
-		if (((base->flag & BASE_SELECTED) == 0) && ((base->flag & BASE_SELECTABLED) != 0)) {
+		if (((base->flag & BASE_SELECTED) == 0) && ((base->flag & BASE_SELECTABLE) != 0)) {
 			/* loop through other particles*/
 			ParticleSystem *psys;
 
@@ -324,7 +324,7 @@ static bool object_select_all_by_library(bContext *C, Library *lib)
 
 	CTX_DATA_BEGIN (C, Base *, base, visible_bases)
 	{
-		if (((base->flag & BASE_SELECTED) == 0) && ((base->flag & BASE_SELECTABLED) != 0)) {
+		if (((base->flag & BASE_SELECTED) == 0) && ((base->flag & BASE_SELECTABLE) != 0)) {
 			if (lib == base->object->id.lib) {
 				ED_object_base_select(base, BA_SELECT);
 				changed = true;
@@ -342,7 +342,7 @@ static bool object_select_all_by_library_obdata(bContext *C, Library *lib)
 
 	CTX_DATA_BEGIN (C, Base *, base, visible_bases)
 	{
-		if (((base->flag & BASE_SELECTED) == 0) && ((base->flag & BASE_SELECTABLED) != 0)) {
+		if (((base->flag & BASE_SELECTED) == 0) && ((base->flag & BASE_SELECTABLE) != 0)) {
 			if (base->object->data && lib == ((ID *)base->object->data)->lib) {
 				ED_object_base_select(base, BA_SELECT);
 				changed = true;
@@ -572,7 +572,7 @@ static bool select_grouped_collection(bContext *C, Object *ob)  /* Select object
 		collection = ob_collections[0];
 		CTX_DATA_BEGIN (C, Base *, base, visible_bases)
 		{
-			if (((base->flag & BASE_SELECTED) == 0) && ((base->flag & BASE_SELECTABLED) != 0)) {
+			if (((base->flag & BASE_SELECTED) == 0) && ((base->flag & BASE_SELECTABLE) != 0)) {
 				if (BKE_collection_has_object(collection, base->object)) {
 					ED_object_base_select(base, BA_SELECT);
 					changed = true;
@@ -965,7 +965,7 @@ static int object_select_same_collection_exec(bContext *C, wmOperator *op)
 
 	CTX_DATA_BEGIN (C, Base *, base, visible_bases)
 	{
-		if (((base->flag & BASE_SELECTED) == 0) && ((base->flag & BASE_SELECTABLED) != 0)) {
+		if (((base->flag & BASE_SELECTED) == 0) && ((base->flag & BASE_SELECTABLE) != 0)) {
 			if (BKE_collection_has_object(collection, base->object)) {
 				ED_object_base_select(base, BA_SELECT);
 			}

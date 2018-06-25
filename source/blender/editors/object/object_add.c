@@ -1021,7 +1021,21 @@ static int object_lamp_add_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 
 	ob = ED_object_add_type(C, OB_LAMP, get_lamp_defname(type), loc, rot, false, layer);
-	BKE_object_obdata_size_init(ob, RNA_float_get(op->ptr, "radius"));
+
+	float size = RNA_float_get(op->ptr, "radius");
+	/* Better defaults for lamp size. */
+	switch (type) {
+		case LA_LOCAL:
+		case LA_SPOT:
+			break;
+		case LA_AREA:
+			size *= 4.0f;
+			break;
+		default:
+			size *= 0.5f;
+			break;
+	}
+	BKE_object_obdata_size_init(ob, size);
 
 	la = (Lamp *)ob->data;
 	la->type = type;
@@ -2089,7 +2103,7 @@ static Base *object_add_duplicate_internal(Main *bmain, Scene *scene, ViewLayer 
 		DEG_id_tag_update(&obn->id, OB_RECALC_OB | OB_RECALC_DATA);
 
 		base = BKE_view_layer_base_find(view_layer, ob);
-		if ((base != NULL) && (base->flag & BASE_VISIBLED)) {
+		if ((base != NULL) && (base->flag & BASE_VISIBLE)) {
 			BKE_collection_object_add_from(bmain, scene, ob, obn);
 		}
 		else {

@@ -942,9 +942,11 @@ void RAS_Rasterizer::SetInvertFrontFace(bool invert)
 	m_invertFrontFace = invert;
 }
 
+#include "BKE_global.h"
 void RAS_Rasterizer::SetAnisotropicFiltering(short level)
 {
-	GPU_set_anisotropic((float)level);
+	Main *bmain = G.main;
+	GPU_set_anisotropic(bmain, (float)level);
 }
 
 short RAS_Rasterizer::GetAnisotropicFiltering()
@@ -954,17 +956,18 @@ short RAS_Rasterizer::GetAnisotropicFiltering()
 
 void RAS_Rasterizer::SetMipmapping(MipmapOption val)
 {
+	Main *bmain = G.main;
 	if (val == RAS_Rasterizer::RAS_MIPMAP_LINEAR) {
 		GPU_set_linear_mipmap(1);
-		GPU_set_mipmap(1);
+		GPU_set_mipmap(bmain, 1);
 	}
 	else if (val == RAS_Rasterizer::RAS_MIPMAP_NEAREST) {
 		GPU_set_linear_mipmap(0);
-		GPU_set_mipmap(1);
+		GPU_set_mipmap(bmain, 1);
 	}
 	else {
 		GPU_set_linear_mipmap(0);
-		GPU_set_mipmap(0);
+		GPU_set_mipmap(bmain, 0);
 	}
 }
 

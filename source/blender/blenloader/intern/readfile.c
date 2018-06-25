@@ -8887,6 +8887,7 @@ static BHead *read_userdef(BlendFileData *bfd, FileData *fd, BHead *bhead)
 
 	link_list(fd, &user->themes);
 	link_list(fd, &user->user_keymaps);
+	link_list(fd, &user->user_menus);
 	link_list(fd, &user->addons);
 	link_list(fd, &user->autoexec_paths);
 
@@ -8912,6 +8913,17 @@ static BHead *read_userdef(BlendFileData *bfd, FileData *fd, BHead *bhead)
 			direct_link_keymapitem(fd, kmi);
 	}
 
+	for (bUserMenu *um = user->user_menus.first; um; um = um->next) {
+		link_list(fd, &um->items);
+		for (bUserMenuItem *umi = um->items.first; umi; umi = umi->next) {
+			if (umi->type == USER_MENU_TYPE_OPERATOR) {
+				bUserMenuItem_Op *umi_op = (bUserMenuItem_Op *)umi;
+				umi_op->prop = newdataadr(fd, umi_op->prop);
+				IDP_DirectLinkGroup_OrFree(&umi_op->prop, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
+			}
+		}
+	}
+
 	for (addon = user->addons.first; addon; addon = addon->next) {
 		addon->prop = newdataadr(fd, addon->prop);
 		IDP_DirectLinkGroup_OrFree(&addon->prop, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
@@ -8921,12 +8933,6 @@ static BHead *read_userdef(BlendFileData *bfd, FileData *fd, BHead *bhead)
 	user->uifonts.first = user->uifonts.last= NULL;
 
 	link_list(fd, &user->uistyles);
-	link_list(fd, &user->user_menu_items);
-
-	for (bUserMenuItem *umi = user->user_menu_items.first; umi; umi = umi->next) {
-		umi->prop = newdataadr(fd, umi->prop);
-		IDP_DirectLinkGroup_OrFree(&umi->prop, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
-	}
 
 	/* free fd->datamap again */
 	oldnewmap_free_unused(fd->datamap);
@@ -10326,7 +10332,7 @@ static void add_loose_objects_to_scene(
 				if (flag & FILE_AUTOSELECT) {
 					/* Note that link_object_postprocess() already checks for FILE_AUTOSELECT flag,
 					 * but it will miss objects from non-instantiated collections... */
-					if (base->flag & BASE_SELECTABLED) {
+					if (base->flag & BASE_SELECTABLE) {
 						base->flag |= BASE_SELECTED;
 						BKE_scene_object_base_flag_sync_from_base(base);
 					}
@@ -10359,7 +10365,7 @@ static void add_collections_to_scene(
 				BKE_collection_object_add(bmain, active_collection, ob);
 				Base *base = BKE_view_layer_base_find(view_layer, ob);
 
-				if (base->flag & BASE_SELECTABLED) {
+				if (base->flag & BASE_SELECTABLE) {
 					base->flag |= BASE_SELECTED;
 				}
 
@@ -10470,7 +10476,7 @@ static void link_object_postprocess(ID *id, Main *bmain, Scene *scene, ViewLayer
 		BKE_scene_object_base_flag_sync_from_base(base);
 
 		if (flag & FILE_AUTOSELECT) {
-			if (base->flag & BASE_SELECTABLED) {
+			if (base->flag & BASE_SELECTABLE) {
 				base->flag |= BASE_SELECTED;
 				BKE_scene_object_base_flag_sync_from_base(base);
 			}
