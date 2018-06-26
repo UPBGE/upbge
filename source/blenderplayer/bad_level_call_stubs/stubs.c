@@ -643,8 +643,12 @@ void uiItemSpacer(struct uiLayout *layout) RET_NONE
 void uiTemplateIconView(struct uiLayout *layout, struct PointerRNA *ptr, const char *propname, int show_labels, float icon_scale) RET_NONE
 void uiTemplateIcon(uiLayout *layout, int icon_value, float icon_scale) RET_NONE
 
+void uiTemplateInputStatus(uiLayout *layout, struct bContext *C) RET_NONE
+
 void uiLayoutSetPropDecorate(uiLayout *layout, bool is_sep) RET_NONE
 bool uiLayoutGetPropDecorate(uiLayout *layout) RET_ZERO
+
+void ED_workspace_status_text(struct bContext *C, const char *str) RET_NONE
 
 
 void ED_object_base_free_and_unlink(struct Main *bmain, struct Scene *scene, struct Object *base) RET_NONE

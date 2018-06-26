@@ -460,15 +460,7 @@ void ED_region_do_draw(bContext *C, ARegion *ar)
 
 	UI_SetTheme(sa ? sa->spacetype : 0, at->regionid);
 
-	/* optional header info instead? */
-	if (ar->headerstr) {
-		UI_ThemeClearColor(TH_HEADER);
-		glClear(GL_COLOR_BUFFER_BIT);
-
-		UI_FontThemeColor(BLF_default(), TH_TEXT);
-		BLF_draw_default(UI_UNIT_X, 0.4f * UI_UNIT_Y, 0.0f, ar->headerstr, BLF_DRAW_STR_DUMMY_MAX);
-	}
-	else if (at->draw) {
+	if (at->draw) {
 		at->draw(C, ar);
 	}
 
@@ -639,26 +631,30 @@ void ED_area_tag_refresh(ScrArea *sa)
 /* *************************************************************** */
 
 /* use NULL to disable it */
-void ED_area_headerprint(ScrArea *sa, const char *str)
+void ED_workspace_status_text(bContext *C, const char *str)
 {
-	ARegion *ar;
+	wmWindow *win = CTX_wm_window(C);
+	WorkSpace *workspace = CTX_wm_workspace(C);
 
-	/* happens when running transform operators in backround mode */
-	if (sa == NULL)
+	/* Can be NULL when running operators in background mode. */
+	if (workspace == NULL)
 		return;
 
-	for (ar = sa->regionbase.first; ar; ar = ar->next) {
-		if (ar->regiontype == RGN_TYPE_HEADER) {
-			if (str) {
-				if (ar->headerstr == NULL)
-					ar->headerstr = MEM_mallocN(UI_MAX_DRAW_STR, "headerprint");
-				BLI_strncpy(ar->headerstr, str, UI_MAX_DRAW_STR);
-			}
-			else if (ar->headerstr) {
-				MEM_freeN(ar->headerstr);
-				ar->headerstr = NULL;
-			}
-			ED_region_tag_redraw(ar);
+	if (str) {
+		if (workspace->status_text == NULL)
+			workspace->status_text = MEM_mallocN(UI_MAX_DRAW_STR, "headerprint");
+		BLI_strncpy(workspace->status_text, str, UI_MAX_DRAW_STR);
+	}
+	else if (workspace->status_text) {
+		MEM_freeN(workspace->status_text);
+		workspace->status_text = NULL;
+	}
+
+	/* Redraw status bar. */
+	for (ScrArea *sa = win->global_areas.areabase.first; sa; sa = sa->next) {
+		if (sa->spacetype == SPACE_STATUSBAR) {
+			ED_area_tag_redraw(sa);
+			break;
 		}
 	}
 }
@@ -2208,26 +2204,33 @@ void ED_region_header_layout(const bContext *C, ARegion *ar)
 	uiLayout *layout;
 	HeaderType *ht;
 	Header header = {NULL};
-	int maxco, xco, yco;
-	int headery = ED_area_headersize();
 	bool region_layout_based = ar->flag & RGN_FLAG_DYNAMIC_SIZE;
+
+	/* Height of buttons and scaling needed to achieve it. */
+	const int buttony = min_ii(UI_UNIT_Y, ar->winy - 2 * UI_DPI_FAC);
+	const float buttony_scale = buttony / (float)UI_UNIT_Y;
+
+	/* Vertically center buttons. */
+	int xco = UI_HEADER_OFFSET;
+	int yco = buttony + (ar->winy - buttony) / 2;
+	int maxco = xco;
+
+	/* XXX workaround for 1 px alignment issue. Not sure what causes it... Would prefer a proper fix - Julian */
+	if (!ELEM(CTX_wm_area(C)->spacetype, SPACE_TOPBAR, SPACE_STATUSBAR)) {
+		yco -= 1;
+	}
 
 	/* set view2d view matrix for scrolling (without scrollers) */
 	UI_view2d_view_ortho(&ar->v2d);
 
-	xco = maxco = UI_HEADER_OFFSET;
-	yco = headery + (ar->winy - headery) / 2 - floor(0.2f * UI_UNIT_Y);
-
-	/* XXX workaround for 1 px alignment issue. Not sure what causes it... Would prefer a proper fix - Julian */
-	if (CTX_wm_area(C)->spacetype == SPACE_TOPBAR) {
-		xco += 1;
-		yco += 1;
-	}
-
 	/* draw all headers types */
 	for (ht = ar->type->headertypes.first; ht; ht = ht->next) {
 		block = UI_block_begin(C, ar, ht->idname, UI_EMBOSS);
-		layout = UI_block_layout(block, UI_LAYOUT_HORIZONTAL, UI_LAYOUT_HEADER, xco, yco, UI_UNIT_Y, 1, 0, style);
+		layout = UI_block_layout(block, UI_LAYOUT_HORIZONTAL, UI_LAYOUT_HEADER, xco, yco, buttony, 1, 0, style);
+
+		if (buttony_scale != 1.0f) {
+			uiLayoutSetScaleY(layout, buttony_scale);
+		}
 
 		if (ht->draw) {
 			header.type = ht;
@@ -2264,7 +2267,7 @@ void ED_region_header_layout(const bContext *C, ARegion *ar)
 	}
 
 	/* always as last  */
-	UI_view2d_totRect_set(&ar->v2d, maxco, headery);
+	UI_view2d_totRect_set(&ar->v2d, maxco, ar->winy);
 
 	/* restore view matrix */
 	UI_view2d_view_restore(C);

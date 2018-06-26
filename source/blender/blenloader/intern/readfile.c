@@ -2951,6 +2951,8 @@ static void direct_link_workspace(FileData *fd, WorkSpace *workspace, const Main
 		tref->properties = newdataadr(fd, tref->properties);
 		IDP_DirectLinkGroup_OrFree(&tref->properties, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
 	}
+
+	workspace->status_text = NULL;
 }
 
 static void lib_link_workspace_instance_hook(FileData *fd, WorkSpaceInstanceHook *hook, ID *id)
@@ -5757,8 +5759,6 @@ static void direct_link_layer_collections(FileData *fd, ListBase *lb, bool maste
 			lc->collection = newdataadr(fd, lc->collection);
 		}
 
-		lc->runtime_flag = 0;
-
 		direct_link_layer_collections(fd, &lc->layer_collections, false);
 	}
 }
@@ -5781,7 +5781,6 @@ static void direct_link_view_layer(FileData *fd, ViewLayer *view_layer)
 	BLI_listbase_clear(&view_layer->drawdata);
 	view_layer->object_bases_array = NULL;
 	view_layer->object_bases_hash = NULL;
-	view_layer->runtime_flag = 0;
 }
 
 static void lib_link_layer_collection(FileData *fd, Library *lib, LayerCollection *layer_collection, bool master)
@@ -6650,7 +6649,6 @@ static void direct_link_region(FileData *fd, ARegion *ar, int spacetype)
 	BLI_listbase_clear(&ar->panels_category);
 	BLI_listbase_clear(&ar->handlers);
 	BLI_listbase_clear(&ar->uiblocks);
-	ar->headerstr = NULL;
 	ar->visible = 0;
 	ar->type = NULL;
 	ar->do_draw = 0;
@@ -7149,6 +7147,7 @@ static void direct_link_windowmanager(FileData *fd, wmWindowManager *wm)
 		win->ghostwin = NULL;
 		win->gwnctx = NULL;
 		win->eventstate = NULL;
+		win->cursor_keymap_status = NULL;
 		win->tweak = NULL;
 #ifdef WIN32
 		win->ime_data = NULL;

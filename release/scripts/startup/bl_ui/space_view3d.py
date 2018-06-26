@@ -2670,7 +2670,7 @@ class VIEW3D_MT_edit_mesh_specials(Menu):
             layout.operator("mesh.merge", text="Merge Vertices...")
             layout.operator("mesh.remove_doubles", text="Remove Double Vertices")
             layout.operator("mesh.dissolve_verts")
-            layout.operator("mesh.delete", text="Delete Vertices").type = "VERT"
+            layout.operator("mesh.delete", text="Delete Vertices").type = 'VERT'
 
         # Edge Select Commands
         if select_mode[1]:
@@ -2681,7 +2681,7 @@ class VIEW3D_MT_edit_mesh_specials(Menu):
             layout.separator()
 
             layout.operator("mesh.dissolve_edges")
-            layout.operator("mesh.delete", text="Delete Edges").type = "EDGE"
+            layout.operator("mesh.delete", text="Delete Edges").type = 'EDGE'
 
         # Face Select Commands
         if select_mode[2]:
@@ -2711,7 +2711,7 @@ class VIEW3D_MT_edit_mesh_specials(Menu):
             layout.separator()
 
             layout.operator("mesh.dissolve_faces")
-            layout.operator("mesh.delete", text="Delete Faces").type = "FACE"
+            layout.operator("mesh.delete", text="Delete Faces").type = 'FACE'
 
         # General Mesh Commands
 
@@ -2997,17 +2997,21 @@ class VIEW3D_MT_edit_mesh_shading(Menu):
     def draw(self, context):
         layout = self.layout
 
-        layout.label(text="Faces:")
-        layout.operator("mesh.faces_shade_smooth", text="Smooth")
-        layout.operator("mesh.faces_shade_flat", text="Flat")
-        layout.label(text="Edges:")
-        layout.operator("mesh.mark_sharp", text="Smooth").clear = True
-        layout.operator("mesh.mark_sharp", text="Sharp")
-        layout.label(text="Vertices:")
-        props = layout.operator("mesh.mark_sharp", text="Smooth")
+        layout.operator("mesh.faces_shade_smooth", text="Smooth Faces")
+        layout.operator("mesh.faces_shade_flat", text="Flat Faces")
+
+        layout.separator()
+
+        layout.operator("mesh.mark_sharp", text="Smooth Edges").clear = True
+        layout.operator("mesh.mark_sharp", text="Sharp Edges")
+
+        layout.separator()
+
+        props = layout.operator("mesh.mark_sharp", text="Smooth Vertices")
         props.use_verts = True
         props.clear = True
-        layout.operator("mesh.mark_sharp", text="Sharp").use_verts = True
+
+        layout.operator("mesh.mark_sharp", text="Sharp Vertices").use_verts = True
 
 
 class VIEW3D_MT_edit_mesh_weights(Menu):
@@ -3809,7 +3813,7 @@ class VIEW3D_PT_overlay(Panel):
         #sub.prop(overlay, "show_onion_skins")
         sub.prop(overlay, "show_face_orientation")
         sub.prop(overlay, "show_backface_culling")
-        if shading.type == "MATERIAL":
+        if shading.type == 'MATERIAL':
             sub.prop(overlay, "show_look_dev")
 
         row = col.row()
@@ -4054,9 +4058,9 @@ class VIEW3D_PT_overlay_paint(Panel):
     def draw_header(self, context):
         layout = self.layout
         layout.label(text={
-            "PAINT_TEXTURE": "Texture Paint",
-            "PAINT_VERTEX":  "Vertex Paint",
-            "PAINT_WEIGHT":  "Weight Paint",
+            'PAINT_TEXTURE': "Texture Paint",
+            'PAINT_VERTEX': "Vertex Paint",
+            'PAINT_WEIGHT': "Weight Paint",
         }[context.mode])
 
     def draw(self, context):
@@ -4068,11 +4072,10 @@ class VIEW3D_PT_overlay_paint(Panel):
         col = layout.column()
         col.active = display_all
 
-
         col.prop(overlay, {
-            "PAINT_TEXTURE": "texture_paint_mode_opacity",
-            "PAINT_VERTEX":  "vertex_paint_mode_opacity",
-            "PAINT_WEIGHT":  "weight_paint_mode_opacity",
+            'PAINT_TEXTURE': "texture_paint_mode_opacity",
+            'PAINT_VERTEX': "vertex_paint_mode_opacity",
+            'PAINT_WEIGHT': "weight_paint_mode_opacity",
         }[context.mode], text="Opacity")
 
         if context.mode in {'PAINT_WEIGHT', 'PAINT_VERTEX'}:
