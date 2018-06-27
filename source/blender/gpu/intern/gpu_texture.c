@@ -679,8 +679,8 @@ GPUTexture *GPU_texture_create_buffer(GPUTextureFormat data_type, const GLuint b
 GPUTexture *GPU_texture_from_bindcode(int textarget, int bindcode)
 {
 	/* see GPUInput::textarget: it can take two values - GL_TEXTURE_2D and GL_TEXTURE_CUBE_MAP
-	* these values are correct for glDisable, so textarget can be safely used in
-	* GPU_texture_bind/GPU_texture_unbind through tex->target_base */
+	 * these values are correct for glDisable, so textarget can be safely used in
+	 * GPU_texture_bind/GPU_texture_unbind through tex->target_base */
 	/* (is any of this obsolete now that we don't glEnable/Disable textures?) */
 	GPUTexture *tex = MEM_callocN(sizeof(GPUTexture), "GPUTexture");
 	tex->bindcode = bindcode;
@@ -1259,46 +1259,6 @@ int GPU_texture_detach_framebuffer(GPUTexture *tex, GPUFrameBuffer *fb)
 
 	BLI_assert(!"Error: Texture: Framebuffer is not attached");
 	return 0;
-}
-
-void GPU_blend(bool enable)
-{
-	if (enable) {
-		glEnable(GL_BLEND);
-	}
-	else {
-		glDisable(GL_BLEND);
-	}
-}
-
-static GLenum gpu_get_gl_blendfunction(GPUBlendFunction blend)
-{
-	switch (blend) {
-		case GPU_ONE:
-			return GL_ONE;
-		case GPU_SRC_ALPHA:
-			return GL_SRC_ALPHA;
-		case GPU_ONE_MINUS_SRC_ALPHA:
-			return GL_ONE_MINUS_SRC_ALPHA;
-		default:
-			BLI_assert(!"Unhandled blend mode");
-			return GL_ZERO;
-	}
-}
-
-void GPU_blend_set_func_separate(
-        GPUBlendFunction src_rgb, GPUBlendFunction dst_rgb,
-        GPUBlendFunction src_alpha, GPUBlendFunction dst_alpha)
-{
-	glBlendFuncSeparate(gpu_get_gl_blendfunction(src_rgb),
-		gpu_get_gl_blendfunction(dst_rgb),
-		gpu_get_gl_blendfunction(src_alpha),
-		gpu_get_gl_blendfunction(dst_alpha));
-}
-
-void GPU_blend_set_func(GPUBlendFunction sfactor, GPUBlendFunction dfactor)
-{
-	glBlendFunc(gpu_get_gl_blendfunction(sfactor), gpu_get_gl_blendfunction(dfactor));
 }
 
 /***********************Game engine**************************/

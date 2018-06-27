@@ -212,18 +212,20 @@ static void select_deferred_shaders(WORKBENCH_PrivateData *wpd)
 
 
 /* Using Hammersley distribution */
-static float *create_disk_samples(int num_samples)
+static float *create_disk_samples(int num_samples, int num_iterations)
 {
 	/* vec4 to ensure memory alignment. */
-	float (*texels)[4] = MEM_mallocN(sizeof(float[4]) * num_samples, __func__);
+	const int total_samples = num_samples * num_iterations;
+	float(*texels)[4] = MEM_mallocN(sizeof(float[4]) * total_samples, __func__);
 	const float num_samples_inv = 1.0f / num_samples;
 
-	for (int i = 0; i < num_samples; i++) {
-		float r = (i + 0.5f) * num_samples_inv;
+	for (int i = 0; i < total_samples; i++) {
+		float it_add = (i / num_samples) * 0.499f;
+		float r = fmodf((i + 0.5f + it_add) * num_samples_inv, 1.0f);
 		double dphi;
 		BLI_hammersley_1D(i, &dphi);
 
-		float phi = (float)dphi * 2.0f * M_PI;
+		float phi = (float)dphi * 2.0f * M_PI + it_add;
 		texels[i][0] = cosf(phi);
 		texels[i][1] = sinf(phi);
 		/* This deliberatly distribute more samples
@@ -268,7 +270,6 @@ void workbench_deferred_engine_init(WORKBENCH_Data *vedata)
 {
 	WORKBENCH_FramebufferList *fbl = vedata->fbl;
 	WORKBENCH_StorageList *stl = vedata->stl;
-	WORKBENCH_TextureList *txl = vedata->txl;
 	WORKBENCH_PassList *psl = vedata->psl;
 	DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
 
@@ -382,14 +383,18 @@ void workbench_deferred_engine_init(WORKBENCH_Data *vedata)
 		const DRWContextState *draw_ctx = DRW_context_state_get();
 		Scene *scene = draw_ctx->scene;
 		/* AO Samples Tex */
-		const int ssao_samples = scene->display.matcap_ssao_samples;
+		int num_iterations = workbench_taa_calculate_num_iterations(vedata);
+
+		const int ssao_samples_single_iteration = scene->display.matcap_ssao_samples;
+		const int ssao_samples = MIN2(num_iterations * ssao_samples_single_iteration, 500);
+
 		if (e_data.sampling_ubo && (e_data.cached_sample_num != ssao_samples)) {
 			DRW_UBO_FREE_SAFE(e_data.sampling_ubo);
 			DRW_TEXTURE_FREE_SAFE(e_data.jitter_tx);
 		}
 
 		if (e_data.sampling_ubo == NULL) {
-			float *samples = create_disk_samples(ssao_samples);
+			float *samples = create_disk_samples(ssao_samples_single_iteration, num_iterations);
 			e_data.jitter_tx = create_jitter_texture(ssao_samples);
 			e_data.sampling_ubo = DRW_uniformbuffer_create(sizeof(float[4]) * ssao_samples, samples);
 			e_data.cached_sample_num = ssao_samples;
@@ -402,6 +407,19 @@ void workbench_deferred_engine_init(WORKBENCH_Data *vedata)
 		int state = DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL;
 		psl->prepass_pass = DRW_pass_create("Prepass", state);
 		psl->prepass_hair_pass = DRW_pass_create("Prepass", state);
+	}
+
+	{
+		if (TAA_ENABLED(wpd)) {
+			psl->effect_aa_pass = workbench_taa_create_pass(vedata, &e_data.composite_buffer_tx);
+		}
+		else if (FXAA_ENABLED(wpd)) {
+			psl->effect_aa_pass = workbench_fxaa_create_pass(&e_data.effect_buffer_tx);
+			stl->effects->jitter_index = 0;
+		}
+		else {
+			psl->effect_aa_pass = NULL;
+		}
 	}
 
 	{
@@ -420,19 +438,6 @@ void workbench_deferred_engine_init(WORKBENCH_Data *vedata)
 		DRW_shgroup_uniform_texture(grp, "ssao_jitter", e_data.jitter_tx);
 		DRW_shgroup_uniform_block(grp, "samples_block", e_data.sampling_ubo);
 		DRW_shgroup_call_add(grp, DRW_cache_fullscreen_quad_get(), NULL);
-	}
-
-	{
-		if (TAA_ENABLED(wpd)) {
-			psl->effect_aa_pass = workbench_taa_create_pass(txl, stl->effects, fbl, &e_data.composite_buffer_tx);
-		}
-		else if (FXAA_ENABLED(wpd)) {
-			psl->effect_aa_pass = workbench_fxaa_create_pass(&e_data.effect_buffer_tx);
-			stl->effects->jitter_index = 0;
-		}
-		else {
-			psl->effect_aa_pass = NULL;
-		}
 	}
 }
 
@@ -632,13 +637,13 @@ static void workbench_cache_populate_particles(WORKBENCH_Data *vedata, Object *o
 			int color_type = workbench_material_determine_color_type(wpd, image);
 			WORKBENCH_MaterialData *material = get_or_create_material_data(vedata, ob, mat, image, color_type);
 
-			struct GPUShader *shader = (color_type != V3D_SHADING_TEXTURE_COLOR)
-			                           ? wpd->prepass_solid_hair_sh
-			                           : wpd->prepass_texture_hair_sh;
+			struct GPUShader *shader = (color_type != V3D_SHADING_TEXTURE_COLOR) ?
+			        wpd->prepass_solid_hair_sh :
+			        wpd->prepass_texture_hair_sh;
 			DRWShadingGroup *shgrp = DRW_shgroup_hair_create(
-			                                ob, psys, md,
-			                                psl->prepass_hair_pass,
-			                                shader);
+			        ob, psys, md,
+			        psl->prepass_hair_pass,
+			        shader);
 			DRW_shgroup_stencil_mask(shgrp, 0xFF);
 			DRW_shgroup_uniform_int(shgrp, "object_id", &material->object_id, 1);
 			DRW_shgroup_uniform_block(shgrp, "material_block", material->material_ubo);
@@ -843,9 +848,8 @@ void workbench_deferred_draw_scene(WORKBENCH_Data *vedata)
 	DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
 	const bool taa_enabled = TAA_ENABLED(wpd);
 
-	if (taa_enabled)
-	{
-		workbench_taa_draw_scene_start(effect_info);
+	if (taa_enabled) {
+		workbench_taa_draw_scene_start(vedata);
 	}
 
 	/* clear in background */
@@ -883,8 +887,7 @@ void workbench_deferred_draw_scene(WORKBENCH_Data *vedata)
 	}
 
 	GPUTexture *final_color_tx = e_data.composite_buffer_tx;
-	if (taa_enabled)
-	{
+	if (taa_enabled) {
 		workbench_taa_draw_pass(effect_info, psl->effect_aa_pass);
 		final_color_tx = effect_info->final_color_tx;
 		workbench_taa_draw_scene_end(vedata);

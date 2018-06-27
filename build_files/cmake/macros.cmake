@@ -799,7 +799,7 @@ function(SETUP_BLENDER_SORTED_LIBS)
 	endif()
 
 	if(WITH_BULLET AND NOT WITH_SYSTEM_BULLET)
-		list(APPEND BLENDER_SORTED_LIBS extern_bullet)
+		list_insert_after(BLENDER_SORTED_LIBS "ge_logic_ngnetwork" "extern_bullet")
 	endif()
 
 	if(WITH_GAMEENGINE_DECKLINK)

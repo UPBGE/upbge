@@ -1,28 +1,90 @@
 
 #include "workbench_private.h"
+#include "BLI_jitter_2d.h"
 
 static struct {
 	struct GPUShader *effect_taa_sh;
-
+	float jitter_8[8][2];
+	float jitter_16[16][2];
+	float jitter_32[32][2];
 } e_data = {NULL};
 
 extern char datatoc_workbench_effect_taa_frag_glsl[];
 
-/*
- * Sub-sample positions for TAA8
- * first sample needs to be at 0.0f, 0.0f
- * as that sample depicts the z-buffer
- */
-static const float SAMPLE_LOCS_8[8][2] = {
-	{ 0.125f-0.125f,  0.375f-0.375f},
-	{-0.625f-0.125f, -0.625f-0.375f},
-	{ 0.875f-0.125f,  0.875f-0.375f},
-	{-0.875f-0.125f,  0.125f-0.375f},
-	{ 0.625f-0.125f, -0.125f-0.375f},
-	{-0.375f-0.125f,  0.625f-0.375f},
-	{ 0.375f-0.125f, -0.875f-0.375f},
-	{-0.125f-0.125f, -0.375f-0.375f},
-};
+
+static void workbench_taa_jitter_init_order(float (*table)[2], int num)
+{
+	BLI_jitter_init(table, num);
+
+	/* find closest element to center */
+	int closest_index = 0;
+	float closest_squared_distance = 1.0f;
+
+	for (int index = 0; index < num; index++) {
+		const float squared_dist = SQUARE(table[index][0]) + SQUARE(table[index][1]);
+		if (squared_dist < closest_squared_distance) {
+			closest_squared_distance = squared_dist;
+			closest_index = index;
+		}
+	}
+
+	/* move jitter table so that closest sample is in center */
+	for (int index = 0; index < num; index++) {
+		sub_v2_v2(table[index], table[closest_index]);
+	}
+
+	/* swap center sample to the start of the table */
+	if (closest_index != 0) {
+		swap_v2_v2(table[0], table[closest_index]);
+	}
+
+	/* sort list based on furtest distance with previous */
+	for (int i = 0; i < num - 2; i++) {
+		float f_squared_dist = 0.0;
+		int f_index = i;
+		for (int j = i + 1; j < num; j++) {
+			const float squared_dist = SQUARE(table[i][0] - table[j][0]) + SQUARE(table[i][1] - table[j][1]);
+			if (squared_dist > f_squared_dist) {
+				f_squared_dist = squared_dist;
+				f_index = j;
+			}
+		}
+		swap_v2_v2(table[i + 1], table[f_index]);
+	}
+}
+
+
+static void workbench_taa_jitter_init(void)
+{
+	workbench_taa_jitter_init_order(e_data.jitter_8, 8);
+	workbench_taa_jitter_init_order(e_data.jitter_16, 16);
+	workbench_taa_jitter_init_order(e_data.jitter_32, 32);
+}
+
+int workbench_taa_calculate_num_iterations(WORKBENCH_Data *vedata)
+{
+	WORKBENCH_StorageList *stl = vedata->stl;
+	WORKBENCH_PrivateData *wpd = stl->g_data;
+	int result = 1;
+	if (TAA_ENABLED(wpd)) {
+		if (IN_RANGE_INCL(
+		            wpd->user_preferences->gpu_viewport_quality,
+		            GPU_VIEWPORT_QUALITY_TAA8, GPU_VIEWPORT_QUALITY_TAA16))
+		{
+			result = 8;
+		}
+		else if (IN_RANGE_INCL(
+		                 wpd->user_preferences->gpu_viewport_quality,
+		                 GPU_VIEWPORT_QUALITY_TAA16, GPU_VIEWPORT_QUALITY_TAA32))
+		{
+			result = 16;
+		}
+		else {
+			result = 32;
+		}
+	}
+	return result;
+}
 
 void workbench_taa_engine_init(WORKBENCH_Data *vedata)
 {
@@ -30,22 +92,19 @@ void workbench_taa_engine_init(WORKBENCH_Data *vedata)
 	const DRWContextState *draw_ctx = DRW_context_state_get();
 	RegionView3D *rv3d = draw_ctx->rv3d;
 
-	if (e_data.effect_taa_sh == NULL)
-	{
+	if (e_data.effect_taa_sh == NULL) {
 		e_data.effect_taa_sh = DRW_shader_create_fullscreen(datatoc_workbench_effect_taa_frag_glsl, NULL);
+		workbench_taa_jitter_init();
 	}
 
 	/* reset complete drawing when navigating. */
-	if (effect_info->jitter_index != 0)
-	{
-		if (rv3d && rv3d->rflag & RV3D_NAVIGATING)
-		{
+	if (effect_info->jitter_index != 0) {
+		if (rv3d && rv3d->rflag & RV3D_NAVIGATING) {
 			effect_info->jitter_index = 0;
 		}
 	}
 
-	if (effect_info->view_updated)
-	{
+	if (effect_info->view_updated) {
 		effect_info->jitter_index = 0;
 		effect_info->view_updated = false;
 	}
@@ -56,7 +115,7 @@ void workbench_taa_engine_init(WORKBENCH_Data *vedata)
 		DRW_viewport_matrix_get(view, DRW_MAT_VIEW);
 		DRW_viewport_matrix_get(win, DRW_MAT_WIN);
 		mul_m4_m4m4(effect_info->curr_mat, view, win);
-		if(!equals_m4m4(effect_info->curr_mat, effect_info->last_mat)){
+		if (!equals_m4m4(effect_info->curr_mat, effect_info->last_mat)) {
 			effect_info->jitter_index = 0;
 		}
 	}
@@ -68,8 +127,13 @@ void workbench_taa_engine_free(void)
 }
 
 
-DRWPass *workbench_taa_create_pass(WORKBENCH_TextureList *txl, WORKBENCH_EffectInfo *effect_info, WORKBENCH_FramebufferList *fbl, GPUTexture **color_buffer_tx)
+DRWPass *workbench_taa_create_pass(WORKBENCH_Data *vedata, GPUTexture **color_buffer_tx)
 {
+	WORKBENCH_StorageList *stl = vedata->stl;
+	WORKBENCH_TextureList *txl = vedata->txl;
+	WORKBENCH_EffectInfo *effect_info = stl->effects;
+	WORKBENCH_FramebufferList *fbl = vedata->fbl;
+	WORKBENCH_PrivateData *wpd = stl->g_data;
 	/*
 	 * jitter_index is not updated yet. This will be done in during draw phase.
 	 * so for now it is inversed.
@@ -111,8 +175,7 @@ DRWPass *workbench_taa_create_pass(WORKBENCH_TextureList *txl, WORKBENCH_EffectI
 	DRW_shgroup_uniform_float(grp, "mixFactor", &effect_info->taa_mix_factor, 1);
 	DRW_shgroup_call_add(grp, DRW_cache_fullscreen_quad_get(), NULL);
 
-	if (previous_jitter_even)
-	{
+	if (previous_jitter_even) {
 		effect_info->final_color_tx = txl->history_buffer1_tx;
 		effect_info->final_color_fb = fbl->effect_taa_even_fb;
 	}
@@ -120,20 +183,44 @@ DRWPass *workbench_taa_create_pass(WORKBENCH_TextureList *txl, WORKBENCH_EffectI
 		effect_info->final_color_tx = txl->history_buffer2_tx;
 		effect_info->final_color_fb = fbl->effect_taa_uneven_fb;
 	}
+
+	/*
+	 * Set the offset for the cavity shader so every iteration different
+	 * samples will be selected
+	 */
+	wpd->ssao_params[3] = previous_jitter_index;
+
 	return pass;
 }
 
-void workbench_taa_draw_scene_start(WORKBENCH_EffectInfo *effect_info)
+void workbench_taa_draw_scene_start(WORKBENCH_Data *vedata)
 {
+	WORKBENCH_StorageList *stl = vedata->stl;
+	WORKBENCH_EffectInfo *effect_info = stl->effects;
 	const float *viewport_size = DRW_viewport_size_get();
-	const int samples = 8;
+	int num_samples = 8;
+	float (*samples)[2] = e_data.jitter_8;
 	float mix_factor;
+
+	num_samples = workbench_taa_calculate_num_iterations(vedata);
+	switch (num_samples) {
+		case 8:
+			samples = e_data.jitter_8;
+			break;
+		case 16:
+			samples = e_data.jitter_16;
+			break;
+		case 32:
+		default:
+			samples = e_data.jitter_32;
+			break;
+	}
 
 	mix_factor = 1.0f / (effect_info->jitter_index + 1);
 
-	const  int bitmask = samples - 1;
+	const int bitmask = num_samples - 1;
 	const int jitter_index = effect_info->jitter_index;
-	const float *transform_offset = SAMPLE_LOCS_8[jitter_index];
+	const float *transform_offset = samples[jitter_index];
 	effect_info->jitter_index = (jitter_index + 1) & bitmask;
 
 	/* construct new matrices from transform delta */
@@ -175,8 +262,7 @@ void workbench_taa_draw_scene_end(WORKBENCH_Data *vedata)
 	const WORKBENCH_FramebufferList *fbl = vedata->fbl;
 	const DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
 
-	if (effect_info->jitter_index == 1)
-	{
+	if (effect_info->jitter_index == 1) {
 		GPU_framebuffer_blit(dfbl->depth_only_fb, 0, fbl->depth_buffer_fb, 0, GPU_DEPTH_BIT);
 	}
 	else {
@@ -194,8 +280,7 @@ void workbench_taa_draw_pass(WORKBENCH_EffectInfo *effect_info, DRWPass *pass)
 	DRW_draw_pass(pass);
 
 	copy_m4_m4(effect_info->last_mat, effect_info->curr_mat);
-	if (effect_info->jitter_index != 0)
-	{
+	if (effect_info->jitter_index != 0) {
 		DRW_viewport_request_redraw();
 	}
 }
