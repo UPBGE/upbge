@@ -25,6 +25,9 @@
  */
 
 #include "RAS_BatchDisplayArray.h"
+#ifdef DEBUG
+#  include "CM_Message.h"
+#endif
 
 RAS_BatchDisplayArray::RAS_BatchDisplayArray(PrimitiveType type, const Format &format)
 	:RAS_DisplayArray(type, format)
