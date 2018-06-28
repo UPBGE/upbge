@@ -4,7 +4,7 @@
 #include "RAS_AttributeArray.h"
 
 class RAS_StorageVao;
-class RAS_DisplayArrayLayout;
+struct RAS_DisplayArrayLayout;
 
 class RAS_AttributeArrayStorage
 {

@@ -32,7 +32,7 @@
 
 #include <vector>
 
-class RAS_DisplayArrayLayout;
+struct RAS_DisplayArrayLayout;
 class RAS_DisplayArray;
 
 class RAS_StorageVbo

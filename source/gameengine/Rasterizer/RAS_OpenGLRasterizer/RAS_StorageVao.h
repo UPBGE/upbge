@@ -28,7 +28,7 @@
 
 #include "GPU_glew.h"
 
-class RAS_DisplayArrayLayout;
+struct RAS_DisplayArrayLayout;
 
 class RAS_StorageVao
 {
