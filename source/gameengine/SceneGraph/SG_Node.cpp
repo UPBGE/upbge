@@ -294,7 +294,7 @@ void SG_Node::SetWorldFromLocalTransform()
 	m_worldRotation = m_localRotation;
 }
 
-bool SG_Node::IsNegativeScaling() const
+bool SG_Node::IsNegativeScaling()
 {
 	UpdateSpatial();
 	return (m_worldScaling.x * m_worldScaling.y * m_worldScaling.z) < 0.0f;

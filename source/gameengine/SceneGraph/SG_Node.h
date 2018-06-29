@@ -366,7 +366,7 @@ public:
 	}
 
 	void SetWorldFromLocalTransform();
-	bool IsNegativeScaling() const;
+	bool IsNegativeScaling();
 
 	const std::shared_ptr<SG_Familly>& GetFamilly() const;
 	void SetFamilly(const std::shared_ptr<SG_Familly>& familly);
