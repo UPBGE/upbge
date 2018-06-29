@@ -713,13 +713,6 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
 		// Add to 'rootparent' list (this is the list of top hierarchy objects, updated each frame).
 		m_parentlist->Add(CM_AddRef(replica));
 
-		/* Set references for dupli-group
-		 * groupobj holds a list of all objects, that belongs to this group. */
-		groupobj->AddInstanceObjects(replica);
-
-		// Every object gets the reference to its dupli-group object.
-		replica->SetDupliGroupObject(groupobj);
-
 		// Recurse replication into children nodes.
 		const NodeList& children = gameobj->GetNode()->GetChildren();
 
@@ -756,6 +749,15 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
 
 		// Done with replica.
 		replica->Release();
+	}
+
+	// Do the linking of member objects to group object for every objects.
+	for (KX_GameObject *gameobj : m_logicHierarchicalGameObjects) {
+		/* Set references for dupli-group
+		 * groupobj holds a list of all objects, that belongs to this group. */
+		groupobj->AddInstanceObjects(gameobj);
+		// Every object gets the reference to its dupli-group object.
+		gameobj->SetDupliGroupObject(groupobj);
 	}
 
 	/* The logic must be replicated first because we need
