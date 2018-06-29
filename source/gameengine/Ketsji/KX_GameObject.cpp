@@ -1240,7 +1240,7 @@ void KX_GameObject::NodeSetGlobalOrientation(const mt::mat3& rot)
 {
 	SG_Node *parentSgNode = m_sgNode->GetParent();
 	if (parentSgNode) {
-		NodeSetLocalOrientation(parentSgNode->GetParent()->GetWorldOrientation().Inverse() * rot);
+		NodeSetLocalOrientation(parentSgNode->GetWorldOrientation().Inverse() * rot);
 	}
 	else {
 		NodeSetLocalOrientation(rot);
