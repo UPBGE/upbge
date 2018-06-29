@@ -1371,6 +1371,7 @@ static int area_snap_calc_location(
 			final_loc = m_loc;
 			if (delta != bigger && delta != -smaller) {
 				final_loc -= (m_loc % AREAGRID);
+				CLAMP(final_loc, origval - smaller, origval + bigger);
 			}
 			break;
 
@@ -1433,10 +1434,10 @@ static void area_move_apply_do(
 {
 	wmWindow *win = CTX_wm_window(C);
 	bScreen *sc = CTX_wm_screen(C);
-	bool doredraw = false;
-	CLAMP(delta, -smaller, bigger);
-
 	short final_loc = -1;
+	bool doredraw = false;
+
+	CLAMP(delta, -smaller, bigger);
 
 	if (snap_type == SNAP_NONE) {
 		final_loc = origval + delta;
@@ -1768,7 +1769,7 @@ static int area_split_apply(bContext *C, wmOperator *op)
 	fac = RNA_float_get(op->ptr, "factor");
 	dir = RNA_enum_get(op->ptr, "direction");
 
-	sd->narea = area_split(sc, sd->sarea, dir, fac, 0); /* 0 = no merge */
+	sd->narea = area_split(CTX_wm_window(C), sc, sd->sarea, dir, fac, 0); /* 0 = no merge */
 
 	if (sd->narea) {
 		ScrVert *sv;
@@ -4692,7 +4693,6 @@ void ED_operatortypes_screen(void)
 	WM_operatortype_append(SCREEN_OT_back_to_previous);
 	WM_operatortype_append(SCREEN_OT_spacedata_cleanup);
 	WM_operatortype_append(SCREEN_OT_screenshot);
-	WM_operatortype_append(SCREEN_OT_screencast);
 	WM_operatortype_append(SCREEN_OT_userpref_show);
 	WM_operatortype_append(SCREEN_OT_drivers_editor_show);
 	WM_operatortype_append(SCREEN_OT_region_blend);
@@ -4822,7 +4822,6 @@ void ED_keymap_screen(wmKeyConfig *keyconf)
 	RNA_boolean_set(kmi->ptr, "use_hide_panels", true);
 
 	WM_keymap_add_item(keymap, "SCREEN_OT_screenshot", F3KEY, KM_PRESS, KM_CTRL, 0);
-	WM_keymap_add_item(keymap, "SCREEN_OT_screencast", F3KEY, KM_PRESS, KM_ALT, 0);
 
 	kmi = WM_keymap_add_item(keymap, "SCREEN_OT_space_context_cycle", TABKEY, KM_PRESS, KM_CTRL, 0);
 	RNA_enum_set(kmi->ptr, "direction", SPACE_CONTEXT_CYCLE_NEXT);
