@@ -31,16 +31,20 @@ public:
 
 	virtual ~KX_BlenderMaterial();
 
-	virtual void Prepare(RAS_Rasterizer *rasty);
+	virtual void Prepare(RAS_Rasterizer *rasty, unsigned short viewportIndex);
 	virtual void Activate(RAS_Rasterizer *rasty);
 	virtual void Desactivate(RAS_Rasterizer *rasty);
 	virtual void ActivateInstancing(RAS_Rasterizer *rasty, RAS_InstancingBuffer *buffer);
 	virtual void ActivateMeshUser(RAS_MeshUser *meshUser, RAS_Rasterizer *rasty, const mt::mat3x4& camtrans);
 
-	void UpdateTextures();
-	void ApplyTextures();
-	void ActivateShaders(RAS_Rasterizer *rasty);
+	/// Update material textures data and bind code.
+	void UpdateTextures(unsigned short viewportIndex);
+	/// Select bind code in shared texture for next rendering.
+	void SetTexturesBindCode();
+	/// Bind all textures.
+	void BindTextures();
 
+	void ActivateShaders(RAS_Rasterizer *rasty);
 	void ActivateBlenderShaders(RAS_Rasterizer *rasty);
 
 	const RAS_Rasterizer::BlendFunc *GetBlendFunc() const;

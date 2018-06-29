@@ -276,9 +276,9 @@ public:
 	KX_TextureRendererManager *GetTextureRendererManager() const;
 	RAS_BoundingBoxManager *GetBoundingBoxManager() const;
 	void RenderBuckets(const std::vector<KX_GameObject *>& objects, RAS_Rasterizer::DrawType drawingMode,
-	                   const mt::mat3x4& cameratransform, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen);
-	void RenderTextureRenderers(KX_TextureRendererManager::RendererCategory category, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen,
-	                            KX_Camera *sceneCamera, const RAS_Rect& viewport, const RAS_Rect& area);
+			const mt::mat3x4& cameratransform, unsigned short viewportIndex,
+			RAS_Rasterizer *rasty, RAS_OffScreen *offScreen);
+	void RenderTextureRenderers(RAS_Rasterizer *rasty, const KX_SceneRenderData& sceneData);
 
 	/// Update all transforms according to the scenegraph.
 	static bool KX_ScenegraphUpdateFunc(SG_Node *node, void *gameobj, void *scene);

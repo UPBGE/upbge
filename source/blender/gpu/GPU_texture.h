@@ -79,6 +79,7 @@ GPUTexture *GPU_texture_create_2D_multisample(
 GPUTexture *GPU_texture_create_depth_multisample(int w, int h, int samples, bool compare, char err_out[256]);
 GPUTexture *GPU_texture_from_blender(
         struct Image *ima, struct ImageUser *iuser, int textarget, bool is_data, double time, int mipmap);
+GPUTexture *GPU_texture_from_bindcode(int textarget, int bindcode);
 GPUTexture *GPU_texture_from_preview(struct PreviewImage *prv, int mipmap);
 GPUTexture *GPU_texture_create_jitter(int w);
 GPUTexture *GPU_texture_global_jitter_64(void);

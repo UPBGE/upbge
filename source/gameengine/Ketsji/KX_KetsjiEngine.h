@@ -35,6 +35,7 @@
 
 #include <string>
 #include "KX_TimeCategoryLogger.h"
+#include "KX_RenderData.h"
 #include "EXP_Python.h"
 #include "KX_WorldInfo.h"
 #include "RAS_CameraData.h"
@@ -118,48 +119,6 @@ public:
 	};
 
 private:
-	struct CameraRenderData
-	{
-		CameraRenderData(KX_Camera *rendercam, KX_Camera *cullingcam, const RAS_Rect& area, const RAS_Rect& viewport,
-				RAS_Rasterizer::StereoMode stereoMode, RAS_Rasterizer::StereoEye eye);
-		CameraRenderData(const CameraRenderData& other);
-		~CameraRenderData();
-
-		/// Rendered camera, could be a temporary camera in case of stereo.
-		KX_Camera *m_renderCamera;
-		KX_Camera *m_cullingCamera;
-		RAS_Rect m_area;
-		RAS_Rect m_viewport;
-		RAS_Rasterizer::StereoMode m_stereoMode;
-		RAS_Rasterizer::StereoEye m_eye;
-	};
-
-	struct SceneRenderData
-	{
-		SceneRenderData(KX_Scene *scene);
-
-		KX_Scene *m_scene;
-		std::vector<CameraRenderData> m_cameraDataList;
-	};
-
-	/// Data used to render a frame.
-	struct FrameRenderData
-	{
-		FrameRenderData(RAS_OffScreen::Type ofsType);
-
-		RAS_OffScreen::Type m_ofsType;
-		std::vector<SceneRenderData> m_sceneDataList;
-	};
-
-	struct RenderData
-	{
-		RenderData(RAS_Rasterizer::StereoMode stereoMode, bool renderPerEye);
-
-		RAS_Rasterizer::StereoMode m_stereoMode;
-		bool m_renderPerEye;
-		std::vector<FrameRenderData> m_frameDataList;
-	};
-
 	struct FrameTimes
 	{
 		// Number of frames to proceed.
@@ -292,16 +251,17 @@ private:
 	/// Update and return the projection matrix of a camera depending on the viewport.
 	mt::mat4 GetCameraProjectionMatrix(KX_Scene *scene, KX_Camera *cam, RAS_Rasterizer::StereoMode stereoMode,
 			RAS_Rasterizer::StereoEye eye, const RAS_Rect& viewport, const RAS_Rect& area) const;
-	CameraRenderData GetCameraRenderData(KX_Scene *scene, KX_Camera *camera, KX_Camera *overrideCullingCam, const RAS_Rect& displayArea,
-			RAS_Rasterizer::StereoMode stereoMode, RAS_Rasterizer::StereoEye eye);
+	KX_CameraRenderData GetCameraRenderData(KX_Scene *scene, KX_Camera *camera, KX_Camera *overrideCullingCam,
+			const RAS_Rect& displayArea, RAS_Rasterizer::StereoMode stereoMode, RAS_Rasterizer::StereoEye eye,
+			unsigned short viewportIndex);
 	/// Compute frame render data per eyes (in case of stereo), scenes and camera.
-	RenderData GetRenderData();
+	KX_RenderData GetRenderData();
 
-	void RenderCamera(KX_Scene *scene, const CameraRenderData& cameraFrameData, RAS_OffScreen *offScreen, unsigned short pass, bool isFirstScene);
+	void RenderCamera(KX_Scene *scene, const KX_CameraRenderData& cameraFrameData, RAS_OffScreen *offScreen, unsigned short pass, bool isFirstScene);
 	RAS_OffScreen *PostRenderScene(KX_Scene *scene, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs);
 	void RenderDebugProperties();
 	/// Debug draw cameras frustum of a scene.
-	void DrawDebugCameraFrustum(KX_Scene *scene, const CameraRenderData& cameraFrameData);
+	void DrawDebugCameraFrustum(KX_Scene *scene, const KX_CameraRenderData& cameraFrameData);
 	/// Debug draw lights shadow frustum of a scene.
 	void DrawDebugShadowFrustum(KX_Scene *scene);
 

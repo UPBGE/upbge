@@ -2,6 +2,7 @@
 #define __KX_RENDER_DATA_H__
 
 #include "RAS_Rasterizer.h"
+#include "RAS_OffScreen.h"
 
 class KX_Scene;
 class KX_Camera;
@@ -41,9 +42,9 @@ struct KX_SceneRenderData
 /// Data used to render a frame.
 struct KX_FrameRenderData
 {
-	KX_FrameRenderData(RAS_Rasterizer::OffScreenType ofsType, const std::vector<RAS_Rasterizer::StereoEye>& eyes);
+	KX_FrameRenderData(RAS_OffScreen::Type ofsType, const std::vector<RAS_Rasterizer::StereoEye>& eyes);
 	
-	RAS_Rasterizer::OffScreenType m_ofsType;
+	RAS_OffScreen::Type m_ofsType;
 	std::vector<RAS_Rasterizer::StereoEye> m_eyes;
 };
 

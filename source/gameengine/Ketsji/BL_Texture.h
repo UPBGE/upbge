@@ -40,6 +40,8 @@ private:
 	bool m_isCubeMap;
 	MTex *m_mtex;
 	GPUTexture *m_gpuTex;
+	int m_imaTarget;
+	int m_target;
 
 	struct {
 		unsigned int bindcode;
@@ -62,6 +64,9 @@ private:
 		float uvsize[3];
 	} m_savedData;
 
+	/// Update bind code in GPUTexture and Image data.
+	void SetGPUBindCode(int bindCode);
+
 public:
 	BL_Texture(MTex *mtex);
 	virtual ~BL_Texture();
@@ -81,6 +86,7 @@ public:
 
 	enum {MaxUnits = 8};
 
+	virtual void UpdateBindCode();
 	virtual void CheckValidTexture();
 	virtual void ActivateTexture(int unit);
 	virtual void DisableTexture();

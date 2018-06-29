@@ -234,7 +234,7 @@ void KX_BlenderMaterial::EndFrame(RAS_Rasterizer *rasty)
 	RAS_Texture::DesactiveTextures();
 }
 
-void KX_BlenderMaterial::UpdateTextures()
+void KX_BlenderMaterial::UpdateTextures(unsigned short viewportIndex)
 {
 	/** We make sure that all gpu textures are the same in material textures here
 	 * than in gpu material. This is dones in a separated loop because the texture
@@ -244,16 +244,29 @@ void KX_BlenderMaterial::UpdateTextures()
 		RAS_Texture *tex = m_textures[i];
 		if (tex && tex->Ok()) {
 			tex->CheckValidTexture();
+			tex->ApplyRenderer(viewportIndex);
 		}
 	}
 }
 
-void KX_BlenderMaterial::ApplyTextures()
+void KX_BlenderMaterial::SetTexturesBindCode()
 {
 	// for each enabled unit
 	for (unsigned short i = 0; i < RAS_Texture::MaxUnits; i++) {
-		if (m_textures[i] && m_textures[i]->Ok()) {
-			m_textures[i]->ActivateTexture(i);
+		RAS_Texture *tex = m_textures[i];
+		if (tex && tex->Ok()) {
+			tex->UpdateBindCode();
+		}
+	}
+}
+
+void KX_BlenderMaterial::BindTextures()
+{
+	// for each enabled unit
+	for (unsigned short i = 0; i < RAS_Texture::MaxUnits; i++) {
+		RAS_Texture *tex = m_textures[i];
+		if (tex && tex->Ok()) {
+			tex->ActivateTexture(i);
 		}
 	}
 }
@@ -264,7 +277,7 @@ void KX_BlenderMaterial::SetShaderData(RAS_Rasterizer *ras)
 
 	m_shader->ApplyShader();
 
-	ApplyTextures();
+	BindTextures();
 
 	if (!m_userDefBlend) {
 		ras->SetAlphaBlend(m_alphablend);
@@ -296,9 +309,12 @@ void KX_BlenderMaterial::ActivateBlenderShaders(RAS_Rasterizer *rasty)
 	SetBlenderShaderData(rasty);
 }
 
-void KX_BlenderMaterial::Prepare(RAS_Rasterizer *rasty)
+void KX_BlenderMaterial::Prepare(RAS_Rasterizer *rasty, unsigned short viewportIndex)
 {
-	UpdateTextures();
+	// Update textures bind code
+	UpdateTextures(viewportIndex);
+
+	// Update lights data (layer...).
 	if (m_blenderShader && m_blenderShader->Ok()) {
 		m_blenderShader->UpdateLights(rasty);
 	}
@@ -306,6 +322,10 @@ void KX_BlenderMaterial::Prepare(RAS_Rasterizer *rasty)
 
 void KX_BlenderMaterial::Activate(RAS_Rasterizer *rasty)
 {
+	/* Update the textures bind code at each material bind as each material texture
+	 * could use a unique bind code. */
+	SetTexturesBindCode();
+
 	if (m_shader && m_shader->Ok()) {
 		ActivateShaders(rasty);
 	}
@@ -389,16 +409,14 @@ void KX_BlenderMaterial::ActivateMeshUser(RAS_MeshUser *meshUser, RAS_Rasterizer
 
 void KX_BlenderMaterial::ActivateGLMaterials(RAS_Rasterizer *rasty) const
 {
-	if (m_shader || !m_blenderShader) {
-		rasty->SetSpecularity(m_material->specr * m_material->spec, m_material->specg * m_material->spec,
-		                      m_material->specb * m_material->spec, m_material->spec);
-		rasty->SetShinyness(((float)m_material->har) / 4.0f);
-		rasty->SetDiffuse(m_material->r * m_material->ref + m_material->emit, m_material->g * m_material->ref + m_material->emit,
-		                  m_material->b * m_material->ref + m_material->emit, 1.0f);
-		rasty->SetEmissive(m_material->r * m_material->emit, m_material->g * m_material->emit,
-		                   m_material->b * m_material->emit, 1.0f);
-		rasty->SetAmbient(m_material->amb);
-	}
+	rasty->SetSpecularity(m_material->specr * m_material->spec, m_material->specg * m_material->spec,
+	                      m_material->specb * m_material->spec, m_material->spec);
+	rasty->SetShinyness(((float)m_material->har) / 4.0f);
+	rasty->SetDiffuse(m_material->r * m_material->ref + m_material->emit, m_material->g * m_material->ref + m_material->emit,
+	                  m_material->b * m_material->ref + m_material->emit, 1.0f);
+	rasty->SetEmissive(m_material->r * m_material->emit, m_material->g * m_material->emit,
+	                   m_material->b * m_material->emit, 1.0f);
+	rasty->SetAmbient(m_material->amb);
 }
 
 void KX_BlenderMaterial::UpdateIPO(const mt::vec4 &rgba,

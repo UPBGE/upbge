@@ -28,18 +28,23 @@
 #include "KX_GameObject.h"
 #include "KX_Globals.h"
 
+#include "GPU_draw.h"
+
 #include "DNA_texture_types.h"
 
-KX_TextureRenderer::KX_TextureRenderer(EnvMap *env, KX_GameObject *viewpoint)
-	:m_clipStart(env->clipsta),
-	m_clipEnd(env->clipend),
+KX_TextureRenderer::KX_TextureRenderer(MTex *mtex, KX_GameObject *viewpoint, LayerUsage layerUsage)
+	:RAS_TextureRenderer((mtex->tex->env->filtering == ENVMAP_MIPMAP_MIPMAP),
+			(mtex->tex->env->filtering == ENVMAP_MIPMAP_LINEAR), layerUsage),
+	m_mtex(mtex),
+	m_clipStart(mtex->tex->env->clipsta),
+	m_clipEnd(mtex->tex->env->clipend),
 	m_viewpointObject(viewpoint),
 	m_enabled(true),
-	m_ignoreLayers(env->notlay),
-	m_lodDistanceFactor(env->lodfactor),
+	m_ignoreLayers(mtex->tex->env->notlay),
+	m_lodDistanceFactor(mtex->tex->env->lodfactor),
+	m_autoUpdate(mtex->tex->env->flag & ENVMAP_AUTO_UPDATE),
 	m_forceUpdate(true)
 {
-	m_autoUpdate = (env->flag & ENVMAP_AUTO_UPDATE) != 0;
 }
 
 KX_TextureRenderer::~KX_TextureRenderer()
@@ -49,6 +54,11 @@ KX_TextureRenderer::~KX_TextureRenderer()
 std::string KX_TextureRenderer::GetName()
 {
 	return "KX_TextureRenderer";
+}
+
+MTex *KX_TextureRenderer::GetMTex() const
+{
+	return m_mtex;
 }
 
 KX_GameObject *KX_TextureRenderer::GetViewpointObject() const

@@ -29,8 +29,6 @@
 
 #include "KX_TextureRenderer.h"
 
-#include <unordered_map>
-
 class KX_PlanarMap : public KX_TextureRenderer, public mt::SimdClassAllocator
 {
 	Py_Header
@@ -41,15 +39,13 @@ private:
 	/// Clip plane equation values.
 	mt::vec4 m_clipPlane;
 
-	std::unordered_map<KX_Camera *, mt::mat4> m_projections;
-
 	enum Type {
 		REFLECTION,
 		REFRACTION
 	} m_type;
 
 public:
-	KX_PlanarMap(EnvMap *env, KX_GameObject *viewpoint);
+	KX_PlanarMap(MTex *mtex, KX_GameObject *viewpoint);
 	virtual ~KX_PlanarMap();
 
 	virtual std::string GetName();
@@ -57,17 +53,19 @@ public:
 	void ComputeClipPlane(const mt::vec3& mirrorObjWorldPos, const mt::mat3& mirrorObjWorldOri);
 
 	virtual void InvalidateProjectionMatrix();
-	virtual const mt::mat4& GetProjectionMatrix(RAS_Rasterizer *rasty, KX_Scene *scene, KX_Camera *sceneCamera,
-													const RAS_Rect& viewport, const RAS_Rect& area);
-
-	virtual void BeginRenderFace(RAS_Rasterizer *rasty) override;
-	virtual void EndRenderFace(RAS_Rasterizer *rasty) override;
+	virtual mt::mat4 GetProjectionMatrix(RAS_Rasterizer *rasty, KX_Scene *scene, KX_Camera *sceneCamera,
+			const RAS_Rect& viewport, const RAS_Rect& area, RAS_Rasterizer::StereoMode stereoMode, RAS_Rasterizer::StereoEye eye);
 
 	const mt::vec3& GetNormal() const;
 	void SetNormal(const mt::vec3& normal);
 
-	virtual bool SetupCamera(KX_Camera *sceneCamera, KX_Camera *camera);
-	virtual bool SetupCameraFace(KX_Camera *camera, unsigned short index);
+	virtual void BeginRender(RAS_Rasterizer *rasty, unsigned short layer);
+	virtual void EndRender(RAS_Rasterizer *rasty, unsigned short layer);
+	virtual void BeginRenderFace(RAS_Rasterizer *rasty, unsigned short layer, unsigned short face);
+
+	virtual LayerUsage EnsureLayers(int viewportCount);
+	virtual bool Prepare(KX_Camera *sceneCamera, RAS_Rasterizer::StereoEye eye, KX_Camera *camera);
+	virtual bool PrepareFace(KX_Camera *camera, unsigned short index);
 
 #ifdef WITH_PYTHON
 	static PyObject *pyattr_get_normal(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);

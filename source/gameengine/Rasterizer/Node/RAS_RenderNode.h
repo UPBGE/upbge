@@ -56,6 +56,7 @@ struct RAS_ManagerNodeData
 	RAS_Rasterizer::DrawType m_drawingMode;
 	bool m_sort;
 	bool m_shaderOverride;
+	unsigned short m_viewportIndex;
 };
 
 struct RAS_MaterialNodeData
