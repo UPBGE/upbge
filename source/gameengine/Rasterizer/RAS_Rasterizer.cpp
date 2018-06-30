@@ -814,19 +814,20 @@ void RAS_Rasterizer::SetViewMatrix(const mt::mat4& viewmat)
 	SetViewMatrix(viewmat, false);
 }
 
-void RAS_Rasterizer::SetViewMatrix(mt::mat4 viewmat, const mt::vec3& scale)
+void RAS_Rasterizer::SetViewMatrix(const mt::mat4 &viewmat, const mt::vec3& scale)
 {
+	mt::mat4 mat = viewmat;
 	for (unsigned short i = 0; i < 3; ++i) {
 		// Negate row scaling if the scale is negative.
 		if (scale[i] < 0.0f) {
 			for (unsigned short j = 0; j < 4; ++j) {
-				viewmat(i, j) *= -1.0f;
+				mat(i, j) *= -1.0f;
 			}
 		}
 	}
 
 	const bool negscale = (scale.x * scale.y * scale.z) < 0.0f;
-	SetViewMatrix(viewmat, negscale);
+	SetViewMatrix(mat, negscale);
 }
 
 void RAS_Rasterizer::SetViewport(int x, int y, int width, int height)

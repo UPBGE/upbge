@@ -498,7 +498,7 @@ public:
 	 */
 	void SetViewMatrix(const mt::mat4 &viewmat, bool negscale);
 	void SetViewMatrix(const mt::mat4 &viewmat);
-	void SetViewMatrix(mt::mat4 viewmat, const mt::vec3& scale);
+	void SetViewMatrix(const mt::mat4 &viewmat, const mt::vec3& scale);
 
 	/**
 	 * Get/Set viewport area
