@@ -1222,14 +1222,14 @@ RAS_ILightObject *RAS_Rasterizer::CreateLight()
 
 void RAS_Rasterizer::AddLight(RAS_ILightObject *lightobject)
 {
-	RAS_OpenGLLight *gllight = dynamic_cast<RAS_OpenGLLight *>(lightobject);
+	RAS_OpenGLLight *gllight = static_cast<RAS_OpenGLLight *>(lightobject);
 	BLI_assert(gllight);
 	m_lights.push_back(gllight);
 }
 
 void RAS_Rasterizer::RemoveLight(RAS_ILightObject *lightobject)
 {
-	RAS_OpenGLLight *gllight = dynamic_cast<RAS_OpenGLLight *>(lightobject);
+	RAS_OpenGLLight *gllight = static_cast<RAS_OpenGLLight *>(lightobject);
 	BLI_assert(gllight);
 
 	CM_ListRemoveIfFound(m_lights, gllight);

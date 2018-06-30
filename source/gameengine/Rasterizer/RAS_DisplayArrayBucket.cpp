@@ -324,13 +324,13 @@ void RAS_DisplayArrayBucket::RunBatchingNode(const RAS_DisplayArrayNodeTuple& tu
 	RAS_ManagerNodeData *managerData = tuple.m_managerData;
 	RAS_MaterialNodeData *materialData = tuple.m_materialData;
 
-	unsigned int nummeshslots = m_activeMeshSlots.size();
+	const unsigned int nummeshslots = m_activeMeshSlots.size();
 
 	// We must use a int instead of unsigned size to match GLsizei type.
 	std::vector<int> counts(nummeshslots);
 	std::vector<intptr_t> indices(nummeshslots);
 
-	RAS_BatchDisplayArray *batchArray = dynamic_cast<RAS_BatchDisplayArray *>(m_displayArray);
+	RAS_BatchDisplayArray *batchArray = static_cast<RAS_BatchDisplayArray *>(m_displayArray);
 
 	/* If the material use the transparency we must sort all mesh slots depending on the distance.
 	 * This code share the code used in RAS_BucketManager to do the sort.

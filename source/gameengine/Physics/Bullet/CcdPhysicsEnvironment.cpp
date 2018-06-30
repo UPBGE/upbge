@@ -1943,7 +1943,7 @@ btDispatcher *CcdPhysicsEnvironment::GetDispatcher()
 
 void CcdPhysicsEnvironment::MergeEnvironment(PHY_IPhysicsEnvironment *other_env)
 {
-	CcdPhysicsEnvironment *other = dynamic_cast<CcdPhysicsEnvironment *>(other_env);
+	CcdPhysicsEnvironment *other = static_cast<CcdPhysicsEnvironment *>(other_env);
 	if (other == nullptr) {
 		CM_Error("other scene is not using Bullet physics, not merging physics.");
 		return;
@@ -2189,7 +2189,7 @@ PHY_IVehicle *CcdPhysicsEnvironment::GetVehicleConstraint(int constraintId)
 PHY_ICharacter *CcdPhysicsEnvironment::GetCharacterController(KX_GameObject *ob)
 {
 	CcdPhysicsController *controller = (CcdPhysicsController *)ob->GetPhysicsController();
-	return (controller) ? dynamic_cast<CcdCharacter *>(controller->GetCharacterController()) : nullptr;
+	return (controller) ? static_cast<CcdCharacter *>(controller->GetCharacterController()) : nullptr;
 }
 
 

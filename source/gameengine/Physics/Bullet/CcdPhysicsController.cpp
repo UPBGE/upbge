@@ -1493,7 +1493,7 @@ void CcdPhysicsController::AddCompoundChild(PHY_IPhysicsController *child)
 	}
 	// other controller must be a bullet controller too
 	// verify that body and shape exist and match
-	CcdPhysicsController *childCtrl = dynamic_cast<CcdPhysicsController *>(child);
+	CcdPhysicsController *childCtrl = static_cast<CcdPhysicsController *>(child);
 	btRigidBody *rootBody = GetRigidBody();
 	btRigidBody *childBody = childCtrl->GetRigidBody();
 	if (!rootBody || !childBody) {
@@ -1569,7 +1569,7 @@ void CcdPhysicsController::RemoveCompoundChild(PHY_IPhysicsController *child)
 	}
 	// other controller must be a bullet controller too
 	// verify that body and shape exist and match
-	CcdPhysicsController *childCtrl = dynamic_cast<CcdPhysicsController *>(child);
+	CcdPhysicsController *childCtrl = static_cast<CcdPhysicsController *>(child);
 	btRigidBody *rootBody = GetRigidBody();
 	btRigidBody *childBody = childCtrl->GetRigidBody();
 	if (!rootBody || !childBody) {
