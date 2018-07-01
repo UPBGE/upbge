@@ -207,6 +207,8 @@ void RAS_DisplayArray::UpdateFrom(RAS_DisplayArray *other, int flag)
 			m_vertexData.colors[i] = other->m_vertexData.colors[i];
 		}
 	}
+
+	NotifyUpdate(flag);
 }
 
 const RAS_DisplayArray::Format& RAS_DisplayArray::GetFormat() const
