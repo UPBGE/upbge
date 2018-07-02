@@ -1101,6 +1101,7 @@ std::vector<KX_GameObject *> KX_Scene::CalculateVisibleMeshes(KX_Camera *cam, in
 
 std::vector<KX_GameObject *> KX_Scene::CalculateVisibleMeshes(const SG_Frustum& frustum, int layer)
 {
+	std::vector<KX_GameObject *> objects;
 	m_boundingBoxManager->Update(false);
 
 	bool dbvt_culling = false;
@@ -1118,23 +1119,19 @@ std::vector<KX_GameObject *> KX_Scene::CalculateVisibleMeshes(const SG_Frustum& 
 		const std::array<mt::vec4, 6>& planes = frustum.GetPlanes();
 		const mt::mat4& matrix = frustum.GetMatrix();
 		const int *viewport = KX_GetActiveEngine()->GetCanvas()->GetViewPort();
-		std::vector<KX_GameObject *> objects;
 		CullingInfo info(layer, objects);
 
 		dbvt_culling = m_physicsEnvironment->CullingTest(PhysicsCullingCallback, &info, planes, m_dbvtOcclusionRes, viewport, matrix);
-
-		m_boundingBoxManager->ClearModified();
-
-		if (dbvt_culling) {
-			return objects;
-		}
 	}
 
-	KX_CullingHandler handler(m_objectlist, frustum, layer);
+	if (!dbvt_culling) {
+		KX_CullingHandler handler(m_objectlist, frustum, layer);
+		objects = handler.Process();
+	}
 
 	m_boundingBoxManager->ClearModified();
 
-	return handler.Process();
+	return objects;
 }
 
 RAS_DebugDraw& KX_Scene::GetDebugDraw()
