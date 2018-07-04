@@ -621,25 +621,6 @@ public:
 	static void SynchronizeTransformFunc(SG_Node* node, void* gameobj, void* scene);
 
 	/**
-	 * Function to set IPO option at start of IPO
-	 */ 
-		void
-	InitIPO(
-		bool ipo_as_force,
-		bool ipo_add,
-		bool ipo_local
-	);
-
-	/**
-	 * Odd function to update an ipo. ???
-	 */ 
-		void
-	UpdateIPO(
-		float curframetime,
-		bool recurse
-	);
-
-	/**
 	 * \section Mesh accessor functions.
 	 */
 

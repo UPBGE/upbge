@@ -1415,8 +1415,6 @@ static void draw_actuator_action(uiLayout *layout, PointerRNA *ptr)
 		uiItemR(row, ptr, "frame_end", 0, NULL, ICON_NONE);
 	}
 
-	uiItemR(row, ptr, "apply_to_children", 0, NULL, ICON_NONE);
-
 	row = uiLayoutRow(layout, false);
 	uiItemR(row, ptr, "frame_blend_in", 0, NULL, ICON_NONE);
 	uiItemR(row, ptr, "priority", 0, NULL, ICON_NONE);

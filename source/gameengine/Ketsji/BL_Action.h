@@ -30,15 +30,21 @@
 #include <string>
 #include <vector>
 
+class KX_GameObject;
+class SG_Controller;
+
+struct bAction;
+struct bPose;
+
 class BL_Action
 {
 private:
-	struct bAction* m_action;
-	struct bAction* m_tmpaction;
-	struct bPose* m_blendpose;
-	struct bPose* m_blendinpose;
-	std::vector<class SG_Controller*> m_sg_contr_list;
-	class KX_GameObject* m_obj;
+	bAction* m_action;
+	bAction* m_tmpaction;
+	bPose* m_blendpose;
+	bPose* m_blendinpose;
+	std::vector<SG_Controller *> m_controllers;
+	KX_GameObject* m_obj;
 	std::vector<float>	m_blendshape;
 	std::vector<float>	m_blendinshape;
 
@@ -146,7 +152,6 @@ public:
 		ACT_IPOFLAG_FORCE = 1,
 		ACT_IPOFLAG_LOCAL = 2,
 		ACT_IPOFLAG_ADD = 4,
-		ACT_IPOFLAG_CHILD = 8,
 	};
 };
 

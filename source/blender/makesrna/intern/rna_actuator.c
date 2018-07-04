@@ -693,11 +693,6 @@ static void rna_def_action_actuator(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "L", "Let the Action act in local coordinates, used in Force and Add mode");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
-	prop = RNA_def_property(srna, "apply_to_children", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", ACT_IPOCHILD);
-	RNA_def_property_ui_text(prop, "Child", "Update Action on all children Objects as well");
-	RNA_def_property_update(prop, NC_LOGIC, NULL);
-
 	prop = RNA_def_property(srna, "blend_mode", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "blend_mode");
 	RNA_def_property_enum_items(prop, prop_blend_items);

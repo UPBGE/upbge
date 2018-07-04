@@ -59,7 +59,7 @@ extern "C" {
 #include "BKE_library.h"
 #include "BKE_global.h"
 
-BL_Action::BL_Action(class KX_GameObject *gameobj)
+BL_Action::BL_Action(KX_GameObject *gameobj)
 	:m_action(nullptr),
 	m_tmpaction(nullptr),
 	m_blendpose(nullptr),
@@ -106,21 +106,17 @@ void BL_Action::AddController(SG_Controller *cont)
 		return;
 	}
 
-	m_sg_contr_list.push_back(cont);
-	m_obj->GetNode()->AddController(cont);
+	m_controllers.push_back(cont);
 }
 
 void BL_Action::ClearControllerList()
 {
-	SG_Node *node = m_obj->GetNode();
-
 	// Clear out the controller list
-	for (SG_Controller *cont : m_sg_contr_list) {
-		node->RemoveController(cont);
+	for (SG_Controller *cont : m_controllers) {
 		delete cont;
 	}
 
-	m_sg_contr_list.clear();
+	m_controllers.clear();
 }
 
 bool BL_Action::Play(const std::string& name,
@@ -173,8 +169,6 @@ bool BL_Action::Play(const std::string& name,
 
 	// First get rid of any old controllers
 	ClearControllerList();
-
-	SG_Node *node = m_obj->GetNode();
 
 	// Create an SG_Controller
 	AddController(BL_CreateIPO(m_action, m_obj, kxscene));
@@ -251,7 +245,7 @@ bool BL_Action::IsDone()
 void BL_Action::InitIPO()
 {
 	// Initialize the IPOs
-	for (SG_Controller *cont : m_sg_contr_list) {
+	for (SG_Controller *cont : m_controllers) {
 		cont->SetOption(SG_Controller::SG_CONTR_IPO_RESET, true);
 		cont->SetOption(SG_Controller::SG_CONTR_IPO_IPO_AS_FORCE, m_ipo_flags & ACT_IPOFLAG_FORCE);
 		cont->SetOption(SG_Controller::SG_CONTR_IPO_IPO_ADD, m_ipo_flags & ACT_IPOFLAG_ADD);
@@ -415,6 +409,13 @@ void BL_Action::Update(float curtime, bool applyToObject)
 
 	m_requestIpo = true;
 
+	SG_Node *node = m_obj->GetNode();
+	// Update controllers time.
+	for (SG_Controller *cont : m_controllers) {
+        cont->SetSimulatedTime(m_localframe);        // update spatial controllers
+        cont->Update(node);
+    }
+
 	if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
 		BL_ArmatureObject *obj = (BL_ArmatureObject *)m_obj;
 
@@ -482,22 +483,17 @@ void BL_Action::Update(float curtime, bool applyToObject)
 			shape_deformer->SetLastFrame(curtime);
 		}
 	}
-}
-
-void BL_Action::UpdateIPOs()
-{
-	if (m_sg_contr_list.empty()) {
-		// Nothing to update or remove.
-		return;
-	}
-
-	if (m_requestIpo) {
-		m_obj->UpdateIPO(m_localframe, m_ipo_flags & ACT_IPOFLAG_CHILD);
-		m_requestIpo = false;
-	}
 
 	// If the action is done we can remove its scene graph IPO controller.
 	if (m_done) {
 		ClearControllerList();
+	}
+}
+
+void BL_Action::UpdateIPOs()
+{
+	if (m_requestIpo) {
+        m_obj->GetNode()->UpdateWorldDataThread();
+		m_requestIpo = false;
 	}
 }
