@@ -102,6 +102,8 @@ public:
 
 	virtual ~RAS_IPolyMaterial();
 
+	/// Prepare the material data for rendering.
+	virtual void Prepare(RAS_Rasterizer *rasty) = 0;
 	virtual void Activate(RAS_Rasterizer *rasty) = 0;
 	virtual void Desactivate(RAS_Rasterizer *rasty) = 0;
 	virtual void ActivateInstancing(RAS_Rasterizer *rasty, void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride) = 0;

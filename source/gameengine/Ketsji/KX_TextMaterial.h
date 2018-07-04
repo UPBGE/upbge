@@ -36,6 +36,7 @@ public:
 	KX_TextMaterial();
 	virtual ~KX_TextMaterial();
 
+	virtual void Prepare(RAS_Rasterizer *rasty);
 	virtual void Activate(RAS_Rasterizer *rasty);
 	virtual void Desactivate(RAS_Rasterizer *rasty);
 	virtual void ActivateInstancing(RAS_Rasterizer *rasty, void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride);

@@ -33,7 +33,8 @@
 #include "RAS_Deformer.h"
 
 RAS_MeshUser::RAS_MeshUser(void *clientobj, RAS_BoundingBox *boundingBox, RAS_Deformer *deformer)
-	:m_frontFace(true),
+	:m_layer((1 << 20) - 1),
+	m_frontFace(true),
 	m_color(mt::zero4),
 	m_boundingBox(boundingBox),
 	m_clientObject(clientobj),
@@ -59,6 +60,11 @@ RAS_MeshUser::~RAS_MeshUser()
 void RAS_MeshUser::NewMeshSlot(RAS_DisplayArrayBucket *arrayBucket)
 {
 	m_meshSlots.emplace_back(this, arrayBucket);
+}
+
+unsigned int RAS_MeshUser::GetLayer() const
+{
+	return m_layer;
 }
 
 bool RAS_MeshUser::GetFrontFace() const
@@ -99,6 +105,11 @@ RAS_BatchGroup *RAS_MeshUser::GetBatchGroup() const
 RAS_Deformer *RAS_MeshUser::GetDeformer()
 {
 	return m_deformer.get();
+}
+
+void RAS_MeshUser::SetLayer(unsigned int layer)
+{
+	m_layer = layer;
 }
 
 void RAS_MeshUser::SetFrontFace(bool frontFace)

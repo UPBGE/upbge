@@ -86,9 +86,9 @@ typedef struct GPUFunction {
 } GPUFunction;
 
 /* Indices match the GPUType enum */
-static const char *GPU_DATATYPE_STR[17] = {
+static const char *GPU_DATATYPE_STR[18] = {
 	"", "float", "vec2", "vec3", "vec4",
-	NULL, NULL, NULL, NULL, "mat3", NULL, NULL, NULL, NULL, NULL, NULL, "mat4",
+	NULL, NULL, NULL, NULL, "mat3", NULL, NULL, NULL, NULL, NULL, NULL, "mat4", "int"
 };
 
 /* GLSL code parsing for finding function definitions.
@@ -172,7 +172,7 @@ static void gpu_parse_functions_string(GHash *hash, char *code)
 
 			/* test for type */
 			type = GPU_NONE;
-			for (i = 1; i <= 16; i++) {
+			for (i = 1; i <= 17; i++) {
 				if (GPU_DATATYPE_STR[i] && gpu_str_prefix(code, GPU_DATATYPE_STR[i])) {
 					type = i;
 					break;
@@ -426,6 +426,8 @@ const char *GPU_builtin_name(GPUBuiltin builtin)
 		return "unftime";
 	else if (builtin == GPU_OBJECT_INFO)
 		return "unfobjectinfo";
+	else if (builtin == GPU_OBJECT_LAY)
+		return "unfobjectlay";
 	else
 		return "";
 }
@@ -1085,8 +1087,13 @@ void GPU_pass_update_uniforms(GPUPass *pass)
 	/* pass dynamic inputs to opengl, others were removed */
 	for (input = inputs->first; input; input = input->next) {
 		if (!(input->ima || input->tex || input->prv || input->texptr)) {
-			GPU_shader_uniform_vector(shader, input->shaderloc, input->type, 1,
-				input->dynamicvec);
+			if (input->type == GPU_INT) {
+				GPU_shader_uniform_vector_int(shader, input->shaderloc, 1, 1, (int *)input->dynamicvec);
+			}
+			else {
+				GPU_shader_uniform_vector(shader, input->shaderloc, input->type, 1,
+					input->dynamicvec);
+			}
 		}
 	}
 }
@@ -1441,7 +1448,7 @@ GPUNodeLink *GPU_uniform(float *num)
 	return link;
 }
 
-GPUNodeLink *GPU_dynamic_uniform(float *num, GPUDynamicType dynamictype, void *data)
+GPUNodeLink *GPU_dynamic_uniform(void *num, GPUDynamicType dynamictype, void *data)
 {
 	GPUNodeLink *link = GPU_node_link_create();
 

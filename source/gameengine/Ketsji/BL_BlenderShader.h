@@ -56,13 +56,12 @@ class BL_BlenderShader
 private:
 	Scene *m_blenderScene;
 	Material *m_mat;
-	int m_lightLayer;
 	int m_alphaBlend;
 	GPUMaterial *m_gpuMat;
 	CM_UpdateServer<RAS_IPolyMaterial> *m_materialUpdateServer;
 
 public:
-	BL_BlenderShader(KX_Scene *scene, Material *ma, int lightlayer, CM_UpdateServer<RAS_IPolyMaterial> *materialUpdateServer);
+	BL_BlenderShader(KX_Scene *scene, Material *ma, CM_UpdateServer<RAS_IPolyMaterial> *materialUpdateServer);
 	virtual ~BL_BlenderShader();
 
 	bool Ok() const;
@@ -76,6 +75,7 @@ public:
 	 */
 	const RAS_AttributeArray::AttribList GetAttribs(const RAS_Mesh::LayersInfo& layersInfo) const;
 
+	void UpdateLights(RAS_Rasterizer *rasty);
 	void Update(RAS_MeshSlot *ms, RAS_Rasterizer *rasty);
 
 	/// Return true if the shader uses a special vertex shader for geometry instancing.

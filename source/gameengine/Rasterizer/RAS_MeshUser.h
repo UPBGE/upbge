@@ -40,6 +40,8 @@ class RAS_Deformer;
 class RAS_MeshUser : public mt::SimdClassAllocator
 {
 private:
+	/// Lamp layer.
+	unsigned int m_layer;
 	/// OpenGL face wise.
 	bool m_frontFace;
 	/// Object color.
@@ -62,6 +64,7 @@ public:
 	virtual ~RAS_MeshUser();
 
 	void NewMeshSlot(RAS_DisplayArrayBucket *arrayBucket);
+	unsigned int GetLayer() const;
 	bool GetFrontFace() const;
 	const mt::vec4& GetColor() const;
 	float *GetMatrix();
@@ -71,6 +74,7 @@ public:
 	RAS_BatchGroup *GetBatchGroup() const;
 	RAS_Deformer *GetDeformer();
 
+	void SetLayer(unsigned int layer);
 	void SetFrontFace(bool frontFace);
 	void SetColor(const mt::vec4& color);
 	void SetBatchGroup(RAS_BatchGroup *batchGroup);

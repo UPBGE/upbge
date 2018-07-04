@@ -127,6 +127,7 @@ struct GPUMaterial {
 	int partangvel;
 
 	int objectinfoloc;
+	int objectlayloc;
 
 	int ininstposloc;
 	int ininstmatloc;
@@ -150,6 +151,7 @@ struct GPULamp {
 
 	int type, mode, lay, hide;
 
+	int dynlayer;
 	float dynenergy, dyncol[3];
 	float energy, col[3];
 
@@ -290,8 +292,12 @@ static int gpu_material_construct_end(GPUMaterial *material, const char *passnam
 			material->ininstmatloc = GPU_shader_get_attribute(shader, GPU_builtin_name(GPU_INSTANCING_MATRIX_ATTRIB));
 			material->ininstcolloc = GPU_shader_get_attribute(shader, GPU_builtin_name(GPU_INSTANCING_COLOR_ATTRIB));
 		}
-		if (material->builtins & GPU_OBJECT_INFO)
+		if (material->builtins & GPU_OBJECT_INFO) {
 			material->objectinfoloc = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_OBJECT_INFO));
+		}
+		if (material->builtins & GPU_OBJECT_LAY) {
+			material->objectlayloc = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_OBJECT_LAY));
+		}
 		return 1;
 	}
 	else {
@@ -381,60 +387,76 @@ void GPU_material_bind_instancing_attrib(GPUMaterial *material, void *matrixoffs
 	}
 }
 
+void GPU_material_update_lamps(GPUMaterial *material, float viewmat[4][4], float viewinv[4][4])
+{
+	for (LinkData *nlink = material->lamps.first; nlink; nlink = nlink->next) {
+		GPULamp *lamp = nlink->data;
+
+		lamp->dynenergy = lamp->energy;
+		copy_v3_v3(lamp->dyncol, lamp->col);
+
+		if (material->dynproperty & DYN_LAMP_VEC) {
+			copy_v3_v3(lamp->dynvec, lamp->vec);
+			normalize_v3(lamp->dynvec);
+			negate_v3(lamp->dynvec);
+			mul_mat3_m4_v3(viewmat, lamp->dynvec);
+		}
+
+		if (material->dynproperty & DYN_LAMP_CO) {
+			copy_v3_v3(lamp->dynco, lamp->co);
+			mul_m4_v3(viewmat, lamp->dynco);
+		}
+
+		if (material->dynproperty & DYN_LAMP_IMAT) {
+			mul_m4_m4m4(lamp->dynimat, lamp->imat, viewinv);
+		}
+
+		if (material->dynproperty & DYN_LAMP_PERSMAT) {
+			/* The lamp matrices are already updated if we're using shadow buffers */
+			if (!GPU_lamp_has_shadow_buffer(lamp)) {
+				GPU_lamp_update_buffer_mats(lamp);
+			}
+			mul_m4_m4m4(lamp->dynpersmat, lamp->persmat, viewinv);
+		}
+	}
+}
+
 void GPU_material_bind(
-        GPUMaterial *material, int oblay, int viewlay, double time, int mipmap,
+        GPUMaterial *material, int viewlay, double time, int mipmap,
         float viewmat[4][4], float viewinv[4][4], float camerafactors[4], bool scenelock)
 {
 	if (material->pass) {
 		GPUShader *shader = GPU_pass_shader(material->pass);
-		SceneRenderLayer *srl = scenelock ? BLI_findlink(&material->scene->r.layers, material->scene->r.actlay) : NULL;
 
-		if (material->ma) {
-			material->har = material->ma->har;
-		}
+		SceneRenderLayer *srl = scenelock ? BLI_findlink(&material->scene->r.layers, material->scene->r.actlay) : NULL;
 
 		if (srl)
 			viewlay &= srl->lay;
 
 		/* handle layer lamps */
-		if (material->type == GPU_MATERIAL_TYPE_MESH || material->use_instancing) {
+		if (material->type == GPU_MATERIAL_TYPE_MESH) {
 			for (LinkData *nlink = material->lamps.first; nlink; nlink = nlink->next) {
 				GPULamp *lamp = nlink->data;
-				if ((lamp->lay & viewlay) && (!(lamp->mode & LA_LAYER) || (lamp->lay & oblay)) &&
-				    GPU_lamp_visible(lamp, srl, material->ma))
-				{
-					lamp->dynenergy = lamp->energy;
-					copy_v3_v3(lamp->dyncol, lamp->col);
+				// If the lamp is hidden, disable all layers.
+				if (!GPU_lamp_visible(lamp, srl, material->ma)) {
+					lamp->dynlayer = 0;
+				}
+				// If the lamp isn't selecting a layer, enable all layers.
+				else if (!(lamp->mode & LA_LAYER)) {
+					lamp->dynlayer = (1 << 20) - 1;
+				}
+				// The lamp is in the same layer than the view, let the layer as it.
+				else if ((lamp->lay & viewlay)) {
+					lamp->dynlayer = lamp->lay;
 				}
 				else {
-					lamp->dynenergy = 0.0f;
-					lamp->dyncol[0] = lamp->dyncol[1] = lamp->dyncol[2] = 0.0f;
-				}
-
-				if (material->dynproperty & DYN_LAMP_VEC) {
-					copy_v3_v3(lamp->dynvec, lamp->vec);
-					normalize_v3(lamp->dynvec);
-					negate_v3(lamp->dynvec);
-					mul_mat3_m4_v3(viewmat, lamp->dynvec);
-				}
-
-				if (material->dynproperty & DYN_LAMP_CO) {
-					copy_v3_v3(lamp->dynco, lamp->co);
-					mul_m4_v3(viewmat, lamp->dynco);
-				}
-
-				if (material->dynproperty & DYN_LAMP_IMAT) {
-					mul_m4_m4m4(lamp->dynimat, lamp->imat, viewinv);
-				}
-
-				if (material->dynproperty & DYN_LAMP_PERSMAT) {
-					/* The lamp matrices are already updated if we're using shadow buffers */
-					if (!GPU_lamp_has_shadow_buffer(lamp)) {
-						GPU_lamp_update_buffer_mats(lamp);
-					}
-					mul_m4_m4m4(lamp->dynpersmat, lamp->persmat, viewinv);
+					lamp->dynlayer = 0;
 				}
 			}
+		}
+
+		if (material->ma) {
+			material->har = material->ma->har;
 		}
 
 		/* note material must be bound before setting uniforms */
@@ -474,7 +496,7 @@ GPUBuiltin GPU_get_material_builtins(GPUMaterial *material)
 }
 
 void GPU_material_bind_uniforms(
-        GPUMaterial *material, float obmat[4][4], float viewmat[4][4], const float obcol[4],
+        GPUMaterial *material, float obmat[4][4], float viewmat[4][4], const float obcol[4], int oblay,
         float autobumpscale, GPUParticleInfo *pi, float object_info[3])
 {
 	if (material->pass) {
@@ -527,7 +549,9 @@ void GPU_material_bind_uniforms(
 		if (material->builtins & GPU_OBJECT_INFO) {
 			GPU_shader_uniform_vector(shader, material->objectinfoloc, 3, 1, object_info);
 		}
-
+		if (material->builtins & GPU_OBJECT_LAY) {
+			GPU_shader_uniform_vector_int(shader, material->objectlayloc, 1, 1, &oblay);
+		}
 	}
 }
 
@@ -904,7 +928,7 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 	Material *ma = shi->mat;
 	GPUMaterial *mat = shi->gpumat;
 	GPUNodeLink *lv, *dist, *is, *inp, *i;
-	GPUNodeLink *outcol, *specfac, *t, *shadfac = NULL, *lcol;
+	GPUNodeLink *outcol, *specfac, *t, *shadfac = NULL, *lcol, *col, *energy;
 	float one = 1.0f;
 
 	if ((lamp->mode & LA_ONLYSHADOW) && !(ma->mode & MA_SHADOW))
@@ -919,6 +943,13 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 	if (ma->mode & MA_TANGENT_V)
 		GPU_link(mat, "shade_tangent_v", lv, GPU_attribute(CD_TANGENT, ""), &vn);
 #endif
+
+	GPU_link(mat, "lamp_visible",
+		GPU_dynamic_uniform(&lamp->dynlayer, GPU_DYNAMIC_LAMP_DYNVISI, lamp->ob),
+		GPU_builtin(GPU_OBJECT_LAY),
+		GPU_dynamic_uniform(lamp->dyncol, GPU_DYNAMIC_LAMP_DYNCOL, lamp->ob),
+		GPU_dynamic_uniform(&lamp->dynenergy, GPU_DYNAMIC_LAMP_DYNENERGY, lamp->ob),
+		&col, &energy);
 
 	GPU_link(mat, "shade_inp", vn, lv, &inp);
 
@@ -967,10 +998,9 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 	i = is;
 	GPU_link(mat, "shade_visifac", i, visifac, shi->refl, &i);
 
-	GPU_link(mat, "set_rgb", GPU_dynamic_uniform(lamp->dyncol, GPU_DYNAMIC_LAMP_DYNCOL, lamp->ob), &lcol);
+	GPU_link(mat, "set_rgb", col, &lcol);
 	shade_light_textures(mat, lamp, &lcol);
-	GPU_link(mat, "shade_mul_value_v3",
-	         GPU_dynamic_uniform(&lamp->dynenergy, GPU_DYNAMIC_LAMP_DYNENERGY, lamp->ob), lcol, &lcol);
+	GPU_link(mat, "shade_mul_value_v3", energy, lcol, &lcol);
 
 #if 0
 	if (ma->mode & MA_TANGENT_VN)
@@ -1036,9 +1066,7 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 
 			if (lamp->mode & LA_ONLYSHADOW) {
 				GPUNodeLink *shadrgb;
-				GPU_link(mat, "shade_only_shadow", i, shadfac,
-					GPU_dynamic_uniform(&lamp->dynenergy, GPU_DYNAMIC_LAMP_DYNENERGY, lamp->ob),
-					GPU_uniform(lamp->shadow_color), &shadrgb);
+				GPU_link(mat, "shade_only_shadow", i, shadfac, energy, GPU_uniform(lamp->shadow_color), &shadrgb);
 
 				if (!(lamp->mode & LA_NO_DIFF)) {
 					GPU_link(mat, "shade_only_shadow_diffuse", shadrgb, shi->rgb,
@@ -1065,8 +1093,7 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 		GPU_link(mat, "set_value", GPU_uniform(&one), &shadfac);
 
 	if (ma->sss_flag && lamp->type != LA_SPOT) {
-		GPU_link(mat, "set_sss", GPU_dynamic_uniform(&lamp->dynenergy, GPU_DYNAMIC_LAMP_DYNENERGY, lamp->ob), visifac,
-								 GPU_dynamic_uniform(lamp->dyncol, GPU_DYNAMIC_LAMP_DYNCOL, lamp->ob),
+		GPU_link(mat, "set_sss", energy, visifac, col,
 								 GPU_uniform(&ma->sss_scale), GPU_uniform((float *)&ma->sss_radius),
 								 shi->rgb, i, view, lv, vn, &shr->combined);
 		GPU_link(mat, "shade_add", shr->combined, shr->diff, &shr->diff);
@@ -2888,8 +2915,13 @@ GPUNodeLink *GPU_lamp_get_data(
 	GPUNodeLink *visifac;
 	GPUNodeLink *shadowfac;
 
-	*r_col = GPU_dynamic_uniform(lamp->dyncol, GPU_DYNAMIC_LAMP_DYNCOL, lamp->ob);
-	*r_energy = GPU_dynamic_uniform(&lamp->dynenergy, GPU_DYNAMIC_LAMP_DYNENERGY, lamp->ob);
+	GPU_link(mat, "lamp_visible",
+		GPU_dynamic_uniform(&lamp->dynlayer, GPU_DYNAMIC_LAMP_DYNVISI, lamp->ob),
+		GPU_builtin(GPU_OBJECT_LAY),
+		GPU_dynamic_uniform(lamp->dyncol, GPU_DYNAMIC_LAMP_DYNCOL, lamp->ob),
+		GPU_dynamic_uniform(&lamp->dynenergy, GPU_DYNAMIC_LAMP_DYNENERGY, lamp->ob),
+		r_col, r_energy);
+
 	visifac = lamp_get_visibility(mat, lamp, r_lv, r_dist);
 
 	shade_light_textures(mat, lamp, r_col);
@@ -3037,6 +3069,7 @@ GPUShaderExport *GPU_shader_export(struct Scene *scene, struct Material *ma)
 					case GPU_VEC4:
 					case GPU_MAT3:
 					case GPU_MAT4:
+					case GPU_INT:
 					case GPU_ATTRIB:
 						break;
 				}
@@ -3065,6 +3098,7 @@ GPUShaderExport *GPU_shader_export(struct Scene *scene, struct Material *ma)
 						break;
 
 					case GPU_NONE:
+					case GPU_INT:
 					case GPU_TEX2D:
 					case GPU_TEXCUBE:
 					case GPU_SHADOW2D:

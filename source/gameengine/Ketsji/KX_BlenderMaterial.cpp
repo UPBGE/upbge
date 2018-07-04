@@ -41,14 +41,13 @@
 #include "DNA_material_types.h"
 #include "DNA_scene_types.h"
 
-KX_BlenderMaterial::KX_BlenderMaterial(Material *mat, const std::string& name, int lightlayer)
+KX_BlenderMaterial::KX_BlenderMaterial(Material *mat, const std::string& name)
 	:RAS_IPolyMaterial(name),
 	m_material(mat),
 	m_shader(nullptr),
 	m_blenderShader(nullptr),
 	m_scene(nullptr),
-	m_userDefBlend(false),
-	m_lightLayer(lightlayer)
+	m_userDefBlend(false)
 {
 	// Save material data to restore on exit
 	m_savedData.r = m_material->r;
@@ -217,7 +216,7 @@ void KX_BlenderMaterial::InitScene(KX_Scene *scene)
 	m_scene = scene;
 
 	if (!m_blenderShader) {
-		m_blenderShader = new BL_BlenderShader(m_scene, m_material, m_lightLayer, this);
+		m_blenderShader = new BL_BlenderShader(m_scene, m_material, this);
 	}
 
 	if (!m_blenderShader->Ok()) {
@@ -232,6 +231,29 @@ void KX_BlenderMaterial::EndFrame(RAS_Rasterizer *rasty)
 	RAS_Texture::DesactiveTextures();
 }
 
+void KX_BlenderMaterial::UpdateTextures()
+{
+	/** We make sure that all gpu textures are the same in material textures here
+	 * than in gpu material. This is dones in a separated loop because the texture
+	 * regeneration can overide opengl bind settings of the previous texture.
+	 */
+	for (unsigned short i = 0; i < RAS_Texture::MaxUnits; i++) {
+		RAS_Texture *tex = m_textures[i];
+		if (tex && tex->Ok()) {
+			tex->CheckValidTexture();
+		}
+	}
+}
+
+void KX_BlenderMaterial::ApplyTextures()
+{
+	// for each enabled unit
+	for (unsigned short i = 0; i < RAS_Texture::MaxUnits; i++) {
+		if (m_textures[i] && m_textures[i]->Ok()) {
+			m_textures[i]->ActivateTexture(i);
+		}
+	}
+}
 
 void KX_BlenderMaterial::SetShaderData(RAS_Rasterizer *ras)
 {
@@ -239,22 +261,7 @@ void KX_BlenderMaterial::SetShaderData(RAS_Rasterizer *ras)
 
 	m_shader->ApplyShader();
 
-	/** We make sure that all gpu textures are the same in material textures here
-	 * than in gpu material. This is dones in a separated loop because the texture
-	 * regeneration can overide bind settings of the previous texture.
-	 */
-	for (unsigned short i = 0; i < RAS_Texture::MaxUnits; i++) {
-		if (m_textures[i] && m_textures[i]->Ok()) {
-			m_textures[i]->CheckValidTexture();
-		}
-	}
-
-	// for each enabled unit
-	for (unsigned short i = 0; i < RAS_Texture::MaxUnits; i++) {
-		if (m_textures[i] && m_textures[i]->Ok()) {
-			m_textures[i]->ActivateTexture(i);
-		}
-	}
+	ApplyTextures();
 
 	if (!m_userDefBlend) {
 		ras->SetAlphaBlend(m_alphablend);
@@ -284,6 +291,14 @@ void KX_BlenderMaterial::ActivateShaders(RAS_Rasterizer *rasty)
 void KX_BlenderMaterial::ActivateBlenderShaders(RAS_Rasterizer *rasty)
 {
 	SetBlenderShaderData(rasty);
+}
+
+void KX_BlenderMaterial::Prepare(RAS_Rasterizer *rasty)
+{
+	UpdateTextures();
+	if (m_blenderShader && m_blenderShader->Ok()) {
+		m_blenderShader->UpdateLights(rasty);
+	}
 }
 
 void KX_BlenderMaterial::Activate(RAS_Rasterizer *rasty)
