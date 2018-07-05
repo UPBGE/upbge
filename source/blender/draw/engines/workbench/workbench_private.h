@@ -41,7 +41,7 @@
 #define M_GOLDEN_RATION_CONJUGATE 0.618033988749895
 #define MAX_SHADERS (1 << 10)
 
-#define TEXTURE_DRAWING_ENABLED(wpd) (wpd->color_type & V3D_SHADING_TEXTURE_COLOR)
+#define TEXTURE_DRAWING_ENABLED(wpd) (wpd->shading.color_type & V3D_SHADING_TEXTURE_COLOR)
 #define FLAT_ENABLED(wpd) (wpd->shading.light == V3D_LIGHTING_FLAT)
 #define STUDIOLIGHT_ENABLED(wpd) (wpd->shading.light == V3D_LIGHTING_STUDIO)
 #define MATCAP_ENABLED(wpd) (wpd->shading.light == V3D_LIGHTING_MATCAP)
@@ -59,7 +59,6 @@
 #define NORMAL_VIEWPORT_COMP_PASS_ENABLED(wpd) (MATCAP_ENABLED(wpd) || STUDIOLIGHT_ENABLED(wpd) || SHADOW_ENABLED(wpd) || SPECULAR_HIGHLIGHT_ENABLED(wpd))
 #define NORMAL_VIEWPORT_PASS_ENABLED(wpd) (NORMAL_VIEWPORT_COMP_PASS_ENABLED(wpd) || CAVITY_ENABLED(wpd))
 #define NORMAL_ENCODING_ENABLED() (true)
-#define TEXTURE_DRAWING_ENABLED(wpd) (wpd->color_type & V3D_SHADING_TEXTURE_COLOR)
 
 
 typedef struct WORKBENCH_FramebufferList {
@@ -129,7 +128,7 @@ typedef struct WORKBENCH_UBO_World {
 	float background_color_low[4];
 	float background_color_high[4];
 	float object_outline_color[4];
-	float light_direction_vs[4];
+	float shadow_direction_vs[4];
 	WORKBENCH_UBO_Light lights[3];
 	int num_lights;
 	int matcap_orientation;
@@ -138,13 +137,6 @@ typedef struct WORKBENCH_UBO_World {
 } WORKBENCH_UBO_World;
 BLI_STATIC_ASSERT_ALIGN(WORKBENCH_UBO_World, 16)
 
-typedef struct WORKBENCH_UBO_Material {
-	float diffuse_color[4];
-	float specular_color[4];
-	float roughness;
-	float pad[3];
-} WORKBENCH_UBO_Material;
-BLI_STATIC_ASSERT_ALIGN(WORKBENCH_UBO_Material, 16)
 
 typedef struct WORKBENCH_PrivateData {
 	struct GHash *material_hash;
@@ -160,7 +152,6 @@ typedef struct WORKBENCH_PrivateData {
 	View3DShading shading;
 	StudioLight *studio_light;
 	UserDef *user_preferences;
-	int color_type;
 	struct GPUUniformBuffer *world_ubo;
 	struct DRWShadingGroup *shadow_shgrp;
 	struct DRWShadingGroup *depth_shgrp;
@@ -196,10 +187,9 @@ typedef struct WORKBENCH_EffectInfo {
 } WORKBENCH_EffectInfo;
 
 typedef struct WORKBENCH_MaterialData {
-	/* Solid color */
-	WORKBENCH_UBO_Material material_data;
-	struct GPUUniformBuffer *material_ubo;
-
+	float diffuse_color[4];
+	float specular_color[4];
+	float roughness;
 	int object_id;
 	int color_type;
 	Image *ima;
@@ -265,7 +255,6 @@ DRWPass *workbench_fxaa_create_pass(GPUTexture **color_buffer_tx);
 void workbench_taa_engine_init(WORKBENCH_Data *vedata);
 void workbench_taa_engine_free(void);
 DRWPass *workbench_taa_create_pass(WORKBENCH_Data *vedata, GPUTexture **color_buffer_tx);
-void workbench_taa_draw_pass(WORKBENCH_EffectInfo *effect_info, /*WORKBENCH_PrivateData *wpd, , GPUFrameBuffer *fb, GPUTexture *tx, */DRWPass *effect_aa_pass);
 void workbench_taa_draw_scene_start(WORKBENCH_Data *vedata);
 void workbench_taa_draw_scene_end(WORKBENCH_Data *vedata);
 void workbench_taa_view_updated(WORKBENCH_Data *vedata);
@@ -279,6 +268,8 @@ uint workbench_material_get_hash(WORKBENCH_MaterialData *material_template);
 int workbench_material_get_shader_index(WORKBENCH_PrivateData *wpd, bool use_textures, bool is_hair);
 void workbench_material_set_normal_world_matrix(
         DRWShadingGroup *grp, WORKBENCH_PrivateData *wpd, float persistent_matrix[3][3]);
+void workbench_material_shgroup_uniform(WORKBENCH_PrivateData *wpd, DRWShadingGroup *grp, WORKBENCH_MaterialData *material);
+void workbench_material_copy(WORKBENCH_MaterialData *dest_material, const WORKBENCH_MaterialData *source_material);
 
 /* workbench_studiolight.c */
 void studiolight_update_world(StudioLight *sl, WORKBENCH_UBO_World *wd);
@@ -291,7 +282,7 @@ bool studiolight_camera_in_object_shadow(WORKBENCH_PrivateData *wpd, Object *ob,
 void workbench_effect_info_init(WORKBENCH_EffectInfo *effect_info);
 void workbench_private_data_init(WORKBENCH_PrivateData *wpd);
 void workbench_private_data_free(WORKBENCH_PrivateData *wpd);
-void workbench_private_data_get_light_direction(WORKBENCH_PrivateData *wpd, float light_direction[3]);
+void workbench_private_data_get_light_direction(WORKBENCH_PrivateData *wpd, float r_light_direction[3]);
 
 extern DrawEngineType draw_engine_workbench_solid;
 extern DrawEngineType draw_engine_workbench_transparent;

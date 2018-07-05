@@ -390,7 +390,7 @@ static void node_composit_init_rlayers(const bContext *C, PointerRNA *ptr)
 	}
 }
 
-static int node_composit_poll_rlayers(bNodeType *UNUSED(ntype), bNodeTree *ntree)
+static bool node_composit_poll_rlayers(bNodeType *UNUSED(ntype), bNodeTree *ntree)
 {
 	if (STREQ(ntree->idname, "CompositorNodeTree")) {
 		Scene *scene;
@@ -442,6 +442,7 @@ void register_node_type_cmp_rlayers(void)
 	node_type_storage(&ntype, NULL, node_composit_free_rlayers, node_composit_copy_rlayers);
 	node_type_update(&ntype, cmp_node_rlayers_update, NULL);
 	node_type_init(&ntype, node_cmp_rlayers_outputs);
+	node_type_size_preset(&ntype, NODE_SIZE_LARGE);
 
 	nodeRegisterType(&ntype);
 }

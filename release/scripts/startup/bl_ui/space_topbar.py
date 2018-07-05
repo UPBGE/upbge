@@ -147,8 +147,14 @@ class TOPBAR_HT_lower_bar(Header):
             layout.popover_group(space_type='PROPERTIES', region_type='WINDOW', context=".weightpaint", category="")
         elif mode == 'PAINT_TEXTURE':
             layout.popover_group(space_type='PROPERTIES', region_type='WINDOW', context=".imagepaint", category="")
+        elif mode == 'EDIT_TEXT':
+            layout.popover_group(space_type='PROPERTIES', region_type='WINDOW', context=".text_edit", category="")
         elif mode == 'EDIT_ARMATURE':
             layout.popover_group(space_type='PROPERTIES', region_type='WINDOW', context=".armature_edit", category="")
+        elif mode == 'EDIT_METABALL':
+            layout.popover_group(space_type='PROPERTIES', region_type='WINDOW', context=".mball_edit", category="")
+        elif mode == 'EDIT_LATTICE':
+            layout.popover_group(space_type='PROPERTIES', region_type='WINDOW', context=".lattice_edit", category="")
         elif mode == 'EDIT_CURVE':
             layout.popover_group(space_type='PROPERTIES', region_type='WINDOW', context=".curve_edit", category="")
         elif mode == 'EDIT_MESH':
@@ -157,6 +163,8 @@ class TOPBAR_HT_lower_bar(Header):
             layout.popover_group(space_type='PROPERTIES', region_type='WINDOW', context=".posemode", category="")
         elif mode == 'PARTICLE':
             layout.popover_group(space_type='PROPERTIES', region_type='WINDOW', context=".particlemode", category="")
+        elif mode == 'OBJECT':
+            layout.popover_group(space_type='PROPERTIES', region_type='WINDOW', context=".objectmode", category="")
 
 
 class _draw_left_context_mode:
@@ -204,70 +212,6 @@ class _draw_left_context_mode:
         UnifiedPaintPanel.prop_unified_weight(layout, context, brush, "weight", slider=True, text="Weight")
         UnifiedPaintPanel.prop_unified_size(layout, context, brush, "size", slider=True, text="Radius")
         UnifiedPaintPanel.prop_unified_strength(layout, context, brush, "strength", slider=True, text="Strength")
-
-
-class TOPBAR_PT_pivot_point(Panel):
-    bl_space_type = 'TOPBAR'
-    bl_region_type = 'HEADER'
-    bl_label = "Pivot Point"
-
-    def draw(self, context):
-        toolsettings = context.tool_settings
-        obj = context.active_object
-        mode = context.mode
-
-        layout = self.layout
-        col = layout.column()
-        col.label("Pivot Point")
-        col.prop(toolsettings, "transform_pivot_point", expand=True)
-
-        col.separator()
-
-        if (obj is None) or (mode in {'OBJECT', 'POSE', 'WEIGHT_PAINT'}):
-            col.prop(
-                toolsettings,
-                "use_transform_pivot_point_align",
-                text="Center Points Only",
-            )
-
-
-class TOPBAR_PT_snapping(Panel):
-    bl_space_type = 'TOPBAR'
-    bl_region_type = 'HEADER'
-    bl_label = "Snapping"
-
-    def draw(self, context):
-        toolsettings = context.tool_settings
-        snap_elements = toolsettings.snap_elements
-        obj = context.active_object
-        mode = context.mode
-        object_mode = 'OBJECT' if obj is None else obj.mode
-
-        layout = self.layout
-        col = layout.column()
-        col.label("Snapping")
-        col.prop(toolsettings, "snap_elements", expand=True)
-
-        col.separator()
-        if 'INCREMENT' in snap_elements:
-            col.prop(toolsettings, "use_snap_grid_absolute")
-
-        if snap_elements != {'INCREMENT'}:
-            col.label("Target")
-            row = col.row(align=True)
-            row.prop(toolsettings, "snap_target", expand=True)
-
-            if obj:
-                if object_mode == 'EDIT':
-                    col.prop(toolsettings, "use_snap_self")
-                if object_mode in {'OBJECT', 'POSE', 'EDIT'}:
-                    col.prop(toolsettings, "use_snap_align_rotation", text="Align Rotation")
-
-            if 'FACE' in snap_elements:
-                col.prop(toolsettings, "use_snap_project", text="Project Elements")
-
-            if 'VOLUME' in snap_elements:
-                col.prop(toolsettings, "use_snap_peel_object")
 
 
 class INFO_MT_editor_menus(Menu):
@@ -499,6 +443,10 @@ class INFO_MT_edit(Menu):
 
         layout.separator()
 
+        layout.operator("wm.search_menu", text="Operator Search...")
+
+        layout.separator()
+
         # Should move elsewhere (impacts outliner & 3D view).
         tool_settings = context.tool_settings
         layout.prop(tool_settings, "lock_object_mode")
@@ -517,7 +465,16 @@ class INFO_MT_window(Menu):
         layout = self.layout
 
         layout.operator("wm.window_new")
+        layout.operator("wm.window_new_main")
+
+        layout.separator()
+
         layout.operator("wm.window_fullscreen_toggle", icon='FULLSCREEN_ENTER')
+
+        layout.separator()
+
+        layout.operator("screen.workspace_cycle", text="Next Workspace").direction = 'NEXT'
+        layout.operator("screen.workspace_cycle", text="Previous Workspace").direction = 'PREV'
 
         layout.separator()
 
@@ -575,11 +532,51 @@ class INFO_MT_help(Menu):
         layout.operator("wm.splash", icon='BLENDER')
 
 
+class TOPBAR_MT_file_specials(Menu):
+    bl_label = "File Context Menu"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator_context = 'INVOKE_AREA'
+        layout.operator("wm.link", text="Link", icon='LINK_BLEND')
+        layout.operator("wm.append", text="Append", icon='APPEND_BLEND')
+
+        layout.separator()
+
+        layout.menu("INFO_MT_file_import", icon='IMPORT')
+        layout.menu("INFO_MT_file_export", icon='EXPORT')
+
+
+class TOPBAR_MT_window_specials(Menu):
+    bl_label = "Window Context Menu"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator_context = 'EXEC_AREA'
+
+        layout.operator("wm.window_new")
+
+        layout.operator_context = 'INVOKE_AREA'
+
+        layout.operator("screen.area_dupli")
+
+        layout.separator()
+
+        layout.operator("screen.area_split", text="Horizontal Split").direction = 'HORIZONTAL'
+        layout.operator("screen.area_split", text="Vertical Split").direction = 'VERTICAL'
+
+        layout.separator()
+
+        layout.operator("screen.userpref_show", text="User Preferences...", icon='PREFERENCES')
+
+
 classes = (
     TOPBAR_HT_upper_bar,
     TOPBAR_HT_lower_bar,
-    TOPBAR_PT_pivot_point,
-    TOPBAR_PT_snapping,
+    TOPBAR_MT_file_specials,
+    TOPBAR_MT_window_specials,
     INFO_MT_editor_menus,
     INFO_MT_file,
     INFO_MT_file_import,

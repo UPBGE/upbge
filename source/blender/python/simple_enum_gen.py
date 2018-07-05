@@ -50,8 +50,10 @@ for d in defs.split('\n'):
     if not w:
         continue
 
-    try:		w.remove("#define")
-    except:	pass
+    try:
+        w.remove("#define")
+    except:
+        pass
 
     # print w
 
@@ -59,7 +61,3 @@ for d in defs.split('\n'):
     py_val = w[0]
 
     print '\tPyModule_AddObject(mod, "%s", PyLong_FromSize_t(%s));' % (val, py_val)
-
-
-
-

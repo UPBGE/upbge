@@ -752,10 +752,10 @@ void drawConstraint(TransInfo *t)
 			immBindBuiltinProgram(GPU_SHADER_3D_LINE_DASHED_UNIFORM_COLOR);
 
 			float viewport_size[4];
-			GPU_viewport_size_getf(viewport_size);
+			GPU_viewport_size_get_f(viewport_size);
 			immUniform2f("viewport_size", viewport_size[2], viewport_size[3]);
 
-			immUniform1i("num_colors", 0);  /* "simple" mode */
+			immUniform1i("colors_len", 0);  /* "simple" mode */
 			immUniformColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 			immUniform1f("dash_width", 2.0f);
 			immUniform1f("dash_factor", 0.5f);

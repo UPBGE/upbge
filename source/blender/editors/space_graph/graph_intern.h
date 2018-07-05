@@ -58,7 +58,7 @@ void graph_draw_ghost_curves(struct bAnimContext *ac, struct SpaceIpo *sipo, str
 
 void deselect_graph_keys(struct bAnimContext *ac, bool test, short sel, bool do_channels);
 
-void GRAPH_OT_select_all_toggle(struct wmOperatorType *ot);
+void GRAPH_OT_select_all(struct wmOperatorType *ot);
 void GRAPH_OT_select_border(struct wmOperatorType *ot);
 void GRAPH_OT_select_lasso(struct wmOperatorType *ot);
 void GRAPH_OT_select_circle(struct wmOperatorType *ot);
@@ -170,10 +170,10 @@ void graph_buttons_register(struct ARegionType *art);
 
 struct bAnimListElem *get_active_fcurve_channel(struct bAnimContext *ac);
 
-int graphop_visible_keyframes_poll(struct bContext *C);
-int graphop_editable_keyframes_poll(struct bContext *C);
-int graphop_active_fcurve_poll(struct bContext *C);
-int graphop_selected_fcurve_poll(struct bContext *C);
+bool graphop_visible_keyframes_poll(struct bContext *C);
+bool graphop_editable_keyframes_poll(struct bContext *C);
+bool graphop_active_fcurve_poll(struct bContext *C);
+bool graphop_selected_fcurve_poll(struct bContext *C);
 
 /* ***************************************** */
 /* graph_ops.c */

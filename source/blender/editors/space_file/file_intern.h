@@ -72,7 +72,7 @@ typedef enum WalkSelectDirection {
 void FILE_OT_highlight(struct wmOperatorType *ot);
 void FILE_OT_select(struct wmOperatorType *ot);
 void FILE_OT_select_walk(struct wmOperatorType *ot);
-void FILE_OT_select_all_toggle(struct wmOperatorType *ot);
+void FILE_OT_select_all(struct wmOperatorType *ot);
 void FILE_OT_select_border(struct wmOperatorType *ot);
 void FILE_OT_select_bookmark(struct wmOperatorType *ot);
 void FILE_OT_bookmark_add(struct wmOperatorType *ot);
@@ -130,4 +130,3 @@ void file_panels_register(struct ARegionType *art);
 void file_tile_boundbox(const ARegion *ar, FileLayout *layout, const int file, rcti *r_bounds);
 
 #endif /* __FILE_INTERN_H__ */
-

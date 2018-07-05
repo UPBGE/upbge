@@ -139,24 +139,25 @@ class IMAGE_MT_select(Menu):
     def draw(self, context):
         layout = self.layout
 
+        layout.operator("uv.select_all", text="All").action = 'SELECT'
+        layout.operator("uv.select_all", text="None").action = 'DESELECT'
+        layout.operator("uv.select_all", text="Invert").action = 'INVERT'
+
+        layout.separator()
+
         layout.operator("uv.select_border").pinned = False
         layout.operator("uv.select_border", text="Border Select Pinned").pinned = True
         layout.operator("uv.circle_select")
 
         layout.separator()
 
-        layout.operator("uv.select_all").action = 'TOGGLE'
-        layout.operator("uv.select_all", text="Inverse").action = 'INVERT'
+        layout.operator("uv.select_less", text="Less")
+        layout.operator("uv.select_more", text="More")
 
         layout.separator()
 
         layout.operator("uv.select_pinned")
         layout.operator("uv.select_linked").extend = False
-
-        layout.separator()
-
-        layout.operator("uv.select_less", text="Less")
-        layout.operator("uv.select_more", text="More")
 
         layout.separator()
 
@@ -501,8 +502,6 @@ class IMAGE_HT_header(Header):
         layout.separator_spacer()
 
         layout.template_ID(sima, "image", new="image.new", open="image.open")
-        if not show_render:
-            layout.prop(sima, "use_image_pin", text="")
 
         if show_maskedit:
             row = layout.row()
@@ -511,7 +510,10 @@ class IMAGE_HT_header(Header):
         layout.separator_spacer()
 
         if show_uvedit or show_maskedit or mode == 'PAINT':
-            layout.prop(sima, "use_realtime_update", icon_only=True, icon='LOCKED')
+            layout.prop(sima, "use_realtime_update", icon_only=True, icon='FILE_REFRESH')
+
+        if not show_render:
+            layout.prop(sima, "use_image_pin", text="")
 
         if show_uvedit:
             uvedit = sima.uv_editor
@@ -519,18 +521,19 @@ class IMAGE_HT_header(Header):
             mesh = context.edit_object.data
             layout.prop_search(mesh.uv_layers, "active", mesh, "uv_layers", text="")
 
+            # Snap
+            row = layout.row(align=True)
+            row.prop(toolsettings, "use_snap", text="")
+            row.prop(toolsettings, "snap_uv_element", icon_only=True)
+            if toolsettings.snap_uv_element != 'INCREMENT':
+                row.prop(toolsettings, "snap_target", text="")
+
             row = layout.row(align=True)
             row.prop(toolsettings, "proportional_edit", icon_only=True)
             # if toolsettings.proportional_edit != 'DISABLED':
             sub = row.row(align=True)
             sub.active = toolsettings.proportional_edit != 'DISABLED'
             sub.prop(toolsettings, "proportional_edit_falloff", icon_only=True)
-
-            row = layout.row(align=True)
-            row.prop(toolsettings, "use_snap", text="")
-            row.prop(toolsettings, "snap_uv_element", icon_only=True)
-            if toolsettings.snap_uv_element != 'INCREMENT':
-                row.prop(toolsettings, "snap_target", text="")
 
         layout.prop(sima, "pivot_point", icon_only=True)
 

@@ -263,7 +263,7 @@ const char *RE_engine_active_view_get(struct RenderEngine *engine) RET_NULL
 void RE_engine_active_view_set(struct RenderEngine *engine, const char *viewname) RET_NONE
 void RE_engine_get_camera_model_matrix(struct RenderEngine *engine, struct Object *camera, int use_spherical_stereo, float *r_modelmat) RET_NONE
 float RE_engine_get_camera_shift_x(struct RenderEngine *engine, struct Object *camera, int use_spherical_stereo) RET_ZERO
-int RE_engine_get_spherical_stereo(struct RenderEngine *engine, struct Object *camera) RET_ZERO
+bool RE_engine_get_spherical_stereo(struct RenderEngine *engine, struct Object *camera) RET_ZERO
 void RE_SetActiveRenderView(struct Render *re, const char *viewname) RET_NONE
 
 struct RenderPass *RE_pass_find_by_name(volatile struct RenderLayer *rl, const char *name, const char *viewname) RET_NULL
@@ -346,6 +346,10 @@ void wmOrtho2_region_pixelspace(const struct ARegion *ar) RET_NONE
 
 struct ViewLayer *WM_window_get_active_view_layer_ex(const struct wmWindow *win, struct Scene **r_scene) RET_NULL;
 struct ViewLayer *WM_window_get_active_view_layer(const struct wmWindow *win) RET_NULL;
+void WM_window_set_active_scene(struct Main *bmain, struct bContext *C, struct wmWindow *win,
+	struct Scene *scene_new) RET_NONE
+void WM_window_set_active_view_layer(struct wmWindow *win, struct ViewLayer *view_layer) RET_NONE
+
 
 void WM_autosave_init(wmWindowManager *wm) RET_NONE
 void WM_jobs_kill_all_except(struct wmWindowManager *wm, void *owner) RET_NONE
@@ -526,7 +530,7 @@ void WM_keymap_restore_to_default(struct wmKeyMap *keymap, struct bContext *C) R
 void WM_keymap_restore_item_to_default(struct bContext *C, struct wmKeyMap *keymap, struct wmKeyMapItem *kmi) RET_NONE
 void WM_keymap_properties_reset(struct wmKeyMapItem *kmi, struct IDProperty *properties) RET_NONE
 void WM_keyconfig_update_tag(struct wmKeyMap *keymap, struct wmKeyMapItem *kmi) RET_NONE
-int WM_keymap_item_compare(struct wmKeyMapItem *k1, struct wmKeyMapItem *k2) RET_ZERO
+bool WM_keymap_item_compare(struct wmKeyMapItem *k1, struct wmKeyMapItem *k2) RET_ZERO
 int	WM_keymap_map_type_get(struct wmKeyMapItem *kmi) RET_ZERO
 void WM_keyconfig_update(struct wmWindowManager *wm) RET_NONE
 struct wmKeyMapItem *WM_key_event_operator(const struct bContext *C, const char *opname, int opcontext, struct IDProperty *properties, const bool is_hotkey, struct wmKeyMap **r_keymap) RET_NULL
@@ -884,7 +888,7 @@ void RE_result_load_from_file(struct RenderResult *result, struct ReportList *re
 void RE_AcquireResultImage(struct Render *re, struct RenderResult *rr, const int view_id) RET_NONE
 void RE_ReleaseResult(struct Render *re) RET_NONE
 void RE_ReleaseResultImage(struct Render *re) RET_NONE
-int RE_engine_test_break(struct RenderEngine *engine) RET_ZERO
+bool RE_engine_test_break(struct RenderEngine *engine) RET_ZERO
 void RE_engines_init() RET_NONE
 void RE_engines_exit() RET_NONE
 void RE_engines_register(struct Main *bmain, RenderEngineType *render_type) RET_NONE
@@ -914,8 +918,8 @@ struct wmOperatorTypeMacro *WM_operatortype_macro_define(struct wmOperatorType *
 int WM_operator_call_py(struct bContext *C, struct wmOperatorType *ot, short context, struct PointerRNA *properties, struct ReportList *reports, const bool is_undo) RET_ZERO
 void WM_operatortype_remove_ptr(struct wmOperatorType *ot) RET_NONE
 bool WM_operatortype_remove(const char *idname) RET_ZERO
-int WM_operator_poll(struct bContext *C, struct wmOperatorType *ot) RET_ZERO
-int WM_operator_poll_context(struct bContext *C, struct wmOperatorType *ot, short context) RET_ZERO
+bool WM_operator_poll(struct bContext *C, struct wmOperatorType *ot) RET_ZERO
+bool WM_operator_poll_context(struct bContext *C, struct wmOperatorType *ot, short context) RET_ZERO
 int WM_operator_props_popup(struct bContext *C, struct wmOperator *op, const struct wmEvent *event) RET_ZERO
 void WM_operator_properties_free(struct PointerRNA *ptr) RET_NONE
 void WM_operator_properties_create(struct PointerRNA *ptr, const char *opstring) RET_NONE

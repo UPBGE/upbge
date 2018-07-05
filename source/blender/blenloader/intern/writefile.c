@@ -170,6 +170,7 @@
 #include "BKE_constraint.h"
 #include "BKE_global.h" // for G
 #include "BKE_idcode.h"
+#include "BKE_layer.h"
 #include "BKE_library.h" // for  set_listbasepointers
 #include "BKE_library_override.h"
 #include "BKE_main.h"
@@ -1151,7 +1152,6 @@ static void current_screen_compat(
 {
 	wmWindowManager *wm;
 	wmWindow *window = NULL;
-	WorkSpace *workspace;
 
 	/* find a global current screen in the first open window, to have
 	 * a reasonable default for reading in older versions */
@@ -1175,11 +1175,10 @@ static void current_screen_compat(
 			window = wm->windows.first;
 		}
 	}
-	workspace = (window) ? BKE_workspace_active_get(window->workspace_hook) : NULL;
 
 	*r_screen = (window) ? BKE_workspace_active_screen_get(window->workspace_hook) : NULL;
 	*r_scene = (window) ? window->scene : NULL;
-	*r_render_layer = (window) ? BKE_workspace_view_layer_get(workspace, *r_scene) : NULL;
+	*r_render_layer = (window && *r_scene) ? BKE_view_layer_find(*r_scene, window->view_layer_name) : NULL;
 }
 
 typedef struct RenderInfo {
@@ -1257,6 +1256,14 @@ static void write_userdef(WriteData *wd, const UserDef *userdef)
 				if (umi_op->prop) {
 					IDP_WriteProperty(umi_op->prop, wd);
 				}
+			}
+			else if (umi->type == USER_MENU_TYPE_MENU) {
+				const bUserMenuItem_Menu *umi_mt = (const bUserMenuItem_Menu *)umi;
+				writestruct(wd, DATA, bUserMenuItem_Menu, 1, umi_mt);
+			}
+			else if (umi->type == USER_MENU_TYPE_PROP) {
+				const bUserMenuItem_Prop *umi_pr = (const bUserMenuItem_Prop *)umi;
+				writestruct(wd, DATA, bUserMenuItem_Prop, 1, umi_pr);
 			}
 			else {
 				writestruct(wd, DATA, bUserMenuItem, 1, umi);
@@ -1990,9 +1997,13 @@ static void write_object(WriteData *wd, Object *ob)
 		write_motionpath(wd, ob->mpath);
 
 		writestruct(wd, DATA, PartDeflect, 1, ob->pd);
-		writestruct(wd, DATA, SoftBody, 1, ob->soft);
 		if (ob->soft) {
-			write_pointcaches(wd, &ob->soft->ptcaches);
+			/* Set deprecated pointers to prevent crashes of older Blenders */
+			ob->soft->pointcache = ob->soft->shared->pointcache;
+			ob->soft->ptcaches = ob->soft->shared->ptcaches;
+			writestruct(wd, DATA, SoftBody, 1, ob->soft);
+			writestruct(wd, DATA, SoftBody_Shared, 1, ob->soft->shared);
+			write_pointcaches(wd, &(ob->soft->shared->ptcaches));
 			writestruct(wd, DATA, EffectorWeights, 1, ob->soft->effector_weights);
 		}
 		writestruct(wd, DATA, BulletSoftBody, 1, ob->bsoft);
@@ -3820,7 +3831,6 @@ static void write_workspace(WriteData *wd, WorkSpace *workspace)
 	writestruct(wd, ID_WS, WorkSpace, 1, workspace);
 	writelist(wd, DATA, WorkSpaceLayout, layouts);
 	writelist(wd, DATA, WorkSpaceDataRelation, &workspace->hook_layout_relations);
-	writelist(wd, DATA, WorkSpaceSceneRelation, &workspace->scene_layer_relations);
 	writelist(wd, DATA, wmOwnerID, &workspace->owner_ids);
 	writelist(wd, DATA, bToolRef, &workspace->tools);
 	for (bToolRef *tref = workspace->tools.first; tref; tref = tref->next) {
@@ -4026,7 +4036,7 @@ static bool write_file_handle(
 				const bool do_override = !ELEM(override_storage, NULL, bmain) && id->override_static;
 
 				if (do_override) {
-					BKE_override_static_operations_store_start(override_storage, id);
+					BKE_override_static_operations_store_start(bmain, override_storage, id);
 				}
 
 				switch ((ID_Type)GS(id->name)) {

@@ -1107,7 +1107,12 @@ short insert_keyframe(
 	}
 
 	if (ret) {
-		DEG_id_tag_update(&adt->action->id, DEG_TAG_COPY_ON_WRITE);
+		if (act != NULL) {
+			DEG_id_tag_update(&act->id, DEG_TAG_COPY_ON_WRITE);
+		}
+		if (adt != NULL && adt->action != NULL && adt->action != act) {
+			DEG_id_tag_update(&adt->action->id, DEG_TAG_COPY_ON_WRITE);
+		}
 	}
 
 	return ret;
@@ -1331,7 +1336,7 @@ enum {
  * This is based on the standard ED_operator_areaactive callback,
  * except that it does special checks for a few spacetypes too...
  */
-static int modify_key_op_poll(bContext *C)
+static bool modify_key_op_poll(bContext *C)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	Scene *scene = CTX_data_scene(C);

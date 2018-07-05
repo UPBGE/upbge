@@ -844,6 +844,10 @@ void BKE_library_foreach_ID_link(Main *bmain, ID *id, LibraryIDLinkCallback call
 						}
 					}
 				}
+
+				for (ParticleDupliWeight *dw = psett->dupliweights.first; dw; dw = dw->next) {
+					CALLBACK_INVOKE(dw->ob, IDWALK_CB_NOP);
+				}
 				break;
 			}
 
@@ -968,10 +972,6 @@ void BKE_library_foreach_ID_link(Main *bmain, ID *id, LibraryIDLinkCallback call
 					CALLBACK_INVOKE(screen, IDWALK_CB_NOP);
 					/* allow callback to set a different screen */
 					BKE_workspace_layout_screen_set(layout, screen);
-				}
-
-				for (WorkSpaceSceneRelation *relation = workspace->scene_layer_relations.first; relation; relation = relation->next) {
-					CALLBACK_INVOKE(relation->scene, IDWALK_CB_NOP);
 				}
 				break;
 			}

@@ -461,10 +461,11 @@ void wm_add_default(Main *bmain, bContext *C)
 	WorkSpaceLayout *layout = BKE_workspace_layout_find_global(bmain, screen, &workspace);
 
 	CTX_wm_manager_set(C, wm);
-	win = wm_window_new(C);
+	win = wm_window_new(C, NULL);
 	win->scene = CTX_data_scene(C);
-	WM_window_set_active_workspace(win, workspace);
-	WM_window_set_active_layout(win, workspace, layout);
+	STRNCPY(win->view_layer_name, CTX_data_view_layer(C)->name);
+	BKE_workspace_active_set(win->workspace_hook, workspace);
+	BKE_workspace_hook_layout_for_workspace_set(win->workspace_hook, workspace, layout);
 	screen->winid = win->winid;
 
 	wm->winactive = win;
@@ -484,7 +485,8 @@ void wm_close_and_free(bContext *C, wmWindowManager *wm)
 		wm_autosave_timer_ended(wm);
 
 	while ((win = BLI_pophead(&wm->windows))) {
-		WM_window_set_active_workspace(win, NULL); /* prevent draw clear to use screen */
+		/* prevent draw clear to use screen */
+		BKE_workspace_active_set(win->workspace_hook, NULL);
 		wm_window_free(C, wm, win);
 	}
 
@@ -549,5 +551,3 @@ void WM_main(bContext *C)
 		wm_draw_update(C);
 	}
 }
-
-

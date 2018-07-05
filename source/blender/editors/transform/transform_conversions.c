@@ -61,7 +61,6 @@
 #include "BLI_bitmap.h"
 #include "BLI_rect.h"
 
-#include "BKE_DerivedMesh.h"
 #include "BKE_action.h"
 #include "BKE_armature.h"
 #include "BKE_constraint.h"
@@ -5463,10 +5462,6 @@ static void freeSeqData(TransInfo *t, TransDataContainer *tc, TransCustomData *c
 		MEM_freeN(ts->tdseq);
 		MEM_freeN(custom_data->data);
 		custom_data->data = NULL;
-	}
-	if (tc->data) {
-		MEM_freeN(tc->data); // XXX postTrans usually does this
-		tc->data = NULL;
 	}
 }
 

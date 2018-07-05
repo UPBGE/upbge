@@ -88,9 +88,8 @@ typedef struct SpaceType {
 	/* exit is called when the area is hidden or removed */
 	void (*exit)(struct wmWindowManager *wm, struct ScrArea *sa);
 	/* Listeners can react to bContext changes */
-	void (*listener)(struct bScreen *sc, struct ScrArea *sa,
-	                 struct wmNotifier *wmn, struct Scene *scene,
-	                 struct WorkSpace *workspace);
+	void (*listener)(struct wmWindow *win, struct ScrArea *sa,
+	                 struct wmNotifier *wmn, struct Scene *scene);
 
 	/* refresh context, called after filereads, ED_area_tag_refresh() */
 	void (*refresh)(const struct bContext *C, struct ScrArea *sa);
@@ -146,7 +145,7 @@ typedef struct ARegionType {
 	/* snap the size of the region (can be NULL for no snapping). */
 	int (*snap_size)(const struct ARegion *ar, int size, int axis);
 	/* contextual changes should be handled here */
-	void (*listener)(struct bScreen *sc, struct ScrArea *sa, struct ARegion *ar,
+	void (*listener)(struct wmWindow *win, struct ScrArea *sa, struct ARegion *ar,
 	                 struct wmNotifier *wmn, const struct Scene *scene);
 	/* Optional callback to generate subscriptions. */
 	void (*message_subscribe)(
@@ -204,13 +203,15 @@ typedef struct PanelType {
 	char category[BKE_ST_MAXNAME];            /* for category tabs */
 	char owner_id[BKE_ST_MAXNAME];            /* for work-spaces to selectively show. */
 	char parent_id[BKE_ST_MAXNAME];           /* parent idname for subpanels */
-	int space_type;
-	int region_type;
+	short space_type;
+	short region_type;
+	/* For popovers, 0 for default. */
+	int ui_units_x;
 
 	int flag;
 
 	/* verify if the panel should draw or not */
-	int (*poll)(const struct bContext *C, struct PanelType *pt);
+	bool (*poll)(const struct bContext *C, struct PanelType *pt);
 	/* draw header (optional) */
 	void (*draw_header)(const struct bContext *C, struct Panel *pa);
 	/* draw header preset (optional) */
@@ -289,7 +290,7 @@ typedef struct MenuType {
 	const char *description;
 
 	/* verify if the menu should draw or not */
-	int (*poll)(const struct bContext *C, struct MenuType *mt);
+	bool (*poll)(const struct bContext *C, struct MenuType *mt);
 	/* draw entirely, view changes should be handled here */
 	void (*draw)(const struct bContext *C, struct Menu *menu);
 
@@ -333,6 +334,7 @@ struct ARegion *BKE_area_find_region_active_win(struct ScrArea *sa);
 struct ARegion *BKE_area_find_region_xy(struct ScrArea *sa, const int regiontype, int x, int y);
 struct ScrArea *BKE_screen_find_area_from_space(struct bScreen *sc, struct SpaceLink *sl) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(1, 2);
 struct ScrArea *BKE_screen_find_big_area(struct bScreen *sc, const int spacetype, const short min);
+struct ScrArea *BKE_screen_area_map_find_area_xy(const struct ScrAreaMap *areamap, const int spacetype, int x, int y);
 struct ScrArea *BKE_screen_find_area_xy(struct bScreen *sc, const int spacetype, int x, int y);
 
 unsigned int BKE_screen_view3d_layer_active_ex(

@@ -62,28 +62,28 @@
 #include "logic_intern.h"
 
 /* ************* Generic Operator Helpers ************* */
-static int edit_sensor_poll(bContext *C)
+static bool edit_sensor_poll(bContext *C)
 {
 	PointerRNA ptr = CTX_data_pointer_get_type(C, "sensor", &RNA_Sensor);
 
 	if (ptr.data && ID_IS_LINKED(ptr.id.data)) return 0;
-	return 1;
+	return true;
 }
 
-static int edit_controller_poll(bContext *C)
+static bool edit_controller_poll(bContext *C)
 {
 	PointerRNA ptr = CTX_data_pointer_get_type(C, "controller", &RNA_Controller);
 
 	if (ptr.data && ID_IS_LINKED(ptr.id.data)) return 0;
-	return 1;
+	return true;
 }
 
-static int edit_actuator_poll(bContext *C)
+static bool edit_actuator_poll(bContext *C)
 {
 	PointerRNA ptr = CTX_data_pointer_get_type(C, "actuator", &RNA_Actuator);
 
 	if (ptr.data && ID_IS_LINKED(ptr.id.data)) return 0;
-	return 1;
+	return true;
 }
 
 static void edit_sensor_properties(wmOperatorType *ot)

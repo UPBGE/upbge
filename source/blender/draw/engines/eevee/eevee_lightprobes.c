@@ -1093,20 +1093,7 @@ static void glossy_filter_probe(
 		float bias = (i == 0) ? -1.0f : 1.0f;
 		pinfo->texel_size = 1.0f / mipsize;
 		pinfo->padding_size = powf(2.0f, (float)(maxlevel - min_lod_level - 1 - i));
-		/* XXX : WHY THE HECK DO WE NEED THIS ??? */
-		/* padding is incorrect without this! float precision issue? */
-		if (pinfo->padding_size > 32) {
-			pinfo->padding_size += 5;
-		}
-		if (pinfo->padding_size > 16) {
-			pinfo->padding_size += 4;
-		}
-		else if (pinfo->padding_size > 8) {
-			pinfo->padding_size += 2;
-		}
-		else if (pinfo->padding_size > 4) {
-			pinfo->padding_size += 1;
-		}
+		pinfo->padding_size *= pinfo->texel_size;
 		pinfo->layer = probe_idx;
 		pinfo->roughness = (float)i / ((float)maxlevel - 4.0f);
 		pinfo->roughness *= pinfo->roughness; /* Disney Roughness */
@@ -1252,9 +1239,9 @@ static void render_scene_to_probe(
 	/* Move to capture position */
 	negate_v3_v3(posmat[3], pos);
 
-	/* 1 - Render to each cubeface individually.
+	/* 1 - Render to each cube-face individually.
 	 * We do this instead of using geometry shader because a) it's faster,
-	 * b) it's easier than fixing the nodetree shaders (for view dependant effects). */
+	 * b) it's easier than fixing the node-tree shaders (for view dependent effects). */
 	pinfo->layer = 0;
 	perspective_m4(winmat, -clipsta, clipsta, -clipsta, clipsta, clipsta, clipend);
 
@@ -1351,7 +1338,7 @@ static void render_scene_to_planar(
 	EEVEE_draw_shadows(sldata, psl);
 
 	/* Since we are rendering with an inverted view matrix, we need
-	 * to invert the facing for backface culling to be the same. */
+	 * to invert the facing for back-face culling to be the same. */
 	DRW_state_invert_facing();
 	/* Set clipping plan */
 	copy_v4_v4(sldata->clip_data.clip_planes[0], ped->planer_eq_offset);

@@ -72,7 +72,6 @@ static struct {
 	struct GPUTexture *specular_buffer_tx; /* ref only, not alloced */
 	struct GPUTexture *normal_buffer_tx; /* ref only, not alloced */
 	struct GPUTexture *composite_buffer_tx; /* ref only, not alloced */
-	struct GPUTexture *effect_buffer_tx; /* ref only, not alloced */
 
 	SceneDisplay display; /* world light direction for shadows */
 	int next_object_id;
@@ -275,10 +274,10 @@ void workbench_deferred_engine_init(WORKBENCH_Data *vedata)
 
 	if (!stl->g_data) {
 		/* Alloc transient pointers */
-		stl->g_data = MEM_mallocN(sizeof(*stl->g_data), __func__);
+		stl->g_data = MEM_callocN(sizeof(*stl->g_data), __func__);
 	}
 	if (!stl->effects) {
-		stl->effects = MEM_mallocN(sizeof(*stl->effects), __func__);
+		stl->effects = MEM_callocN(sizeof(*stl->effects), __func__);
 		workbench_effect_info_init(stl->effects);
 	}
 
@@ -346,8 +345,6 @@ void workbench_deferred_engine_init(WORKBENCH_Data *vedata)
 		e_data.specular_buffer_tx = DRW_texture_pool_query_2D(size[0], size[1], GPU_RGBA8, &draw_engine_workbench_solid);
 		e_data.composite_buffer_tx = DRW_texture_pool_query_2D(
 		        size[0], size[1], GPU_RGBA16F, &draw_engine_workbench_solid);
-		e_data.effect_buffer_tx = DRW_texture_pool_query_2D(
-		        size[0], size[1], GPU_RGBA16F, &draw_engine_workbench_solid);
 
 		if (NORMAL_ENCODING_ENABLED()) {
 			e_data.normal_buffer_tx = DRW_texture_pool_query_2D(
@@ -375,7 +372,7 @@ void workbench_deferred_engine_init(WORKBENCH_Data *vedata)
 		});
 		GPU_framebuffer_ensure_config(&fbl->effect_fb, {
 			GPU_ATTACHMENT_NONE,
-			GPU_ATTACHMENT_TEXTURE(e_data.effect_buffer_tx),
+			GPU_ATTACHMENT_TEXTURE(e_data.color_buffer_tx),
 		});
 	}
 
@@ -410,7 +407,7 @@ void workbench_deferred_engine_init(WORKBENCH_Data *vedata)
 	}
 
 	{
-		workbench_aa_create_pass(vedata, &e_data.effect_buffer_tx);
+		workbench_aa_create_pass(vedata, &e_data.color_buffer_tx);
 	}
 
 	{
@@ -580,18 +577,10 @@ static WORKBENCH_MaterialData *get_or_create_material_data(
 		material = MEM_mallocN(sizeof(WORKBENCH_MaterialData), __func__);
 		material->shgrp = DRW_shgroup_create(
 		        color_type == V3D_SHADING_TEXTURE_COLOR ? wpd->prepass_texture_sh: wpd->prepass_solid_sh, psl->prepass_pass);
+		workbench_material_copy(material, &material_template);
 		DRW_shgroup_stencil_mask(material->shgrp, 0xFF);
-		material->object_id = material_template.object_id;
-		copy_v4_v4(material->material_data.diffuse_color, material_template.material_data.diffuse_color);
-		copy_v4_v4(material->material_data.specular_color, material_template.material_data.specular_color);
-		material->material_data.roughness = material_template.material_data.roughness;
-		if (color_type == V3D_SHADING_TEXTURE_COLOR) {
-			GPUTexture *tex = GPU_texture_from_blender(ima, NULL, GL_TEXTURE_2D, false, 0.0);
-			DRW_shgroup_uniform_texture(material->shgrp, "image", tex);
-		}
 		DRW_shgroup_uniform_int(material->shgrp, "object_id", &material->object_id, 1);
-		material->material_ubo = DRW_uniformbuffer_create(sizeof(WORKBENCH_UBO_Material), &material->material_data);
-		DRW_shgroup_uniform_block(material->shgrp, "material_block", material->material_ubo);
+		workbench_material_shgroup_uniform(wpd, material->shgrp, material);
 
 		BLI_ghash_insert(wpd->material_hash, SET_UINT_IN_POINTER(hash), material);
 	}
@@ -637,11 +626,7 @@ static void workbench_cache_populate_particles(WORKBENCH_Data *vedata, Object *o
 			        shader);
 			DRW_shgroup_stencil_mask(shgrp, 0xFF);
 			DRW_shgroup_uniform_int(shgrp, "object_id", &material->object_id, 1);
-			DRW_shgroup_uniform_block(shgrp, "material_block", material->material_ubo);
-			if (image) {
-				GPUTexture *tex = GPU_texture_from_blender(image, NULL, GL_TEXTURE_2D, false, 0.0f);
-				DRW_shgroup_uniform_texture(shgrp, "image", tex);
-			}
+			workbench_material_shgroup_uniform(wpd, shgrp, material);
 		}
 	}
 }

@@ -105,7 +105,7 @@ static ARegionType *region_type_find(ReportList *reports, int space_type, int re
 
 /* Panel */
 
-static int panel_poll(const bContext *C, PanelType *pt)
+static bool panel_poll(const bContext *C, PanelType *pt)
 {
 	extern FunctionRNA rna_Panel_poll_func;
 
@@ -123,7 +123,7 @@ static int panel_poll(const bContext *C, PanelType *pt)
 	pt->ext.call((bContext *)C, &ptr, func, &list);
 
 	RNA_parameter_get_lookup(&list, "visible", &ret);
-	visible = *(int *)ret;
+	visible = *(bool *)ret;
 
 	RNA_parameter_list_free(&list);
 
@@ -690,7 +690,7 @@ static StructRNA *rna_Header_refine(PointerRNA *htr)
 
 /* Menu */
 
-static int menu_poll(const bContext *C, MenuType *pt)
+static bool menu_poll(const bContext *C, MenuType *pt)
 {
 	extern FunctionRNA rna_Menu_poll_func;
 
@@ -698,7 +698,7 @@ static int menu_poll(const bContext *C, MenuType *pt)
 	ParameterList list;
 	FunctionRNA *func;
 	void *ret;
-	int visible;
+	bool visible;
 
 	RNA_pointer_create(NULL, pt->ext.srna, NULL, &ptr); /* dummy */
 	func = &rna_Menu_poll_func; /* RNA_struct_find_function(&ptr, "poll"); */
@@ -708,7 +708,7 @@ static int menu_poll(const bContext *C, MenuType *pt)
 	pt->ext.call((bContext *)C, &ptr, func, &list);
 
 	RNA_parameter_get_lookup(&list, "visible", &ret);
-	visible = *(int *)ret;
+	visible = *(bool *)ret;
 
 	RNA_parameter_list_free(&list);
 
@@ -1165,6 +1165,11 @@ static void rna_def_panel(BlenderRNA *brna)
 	RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
 	RNA_def_property_ui_text(prop, "Parent ID Name", "If this is set, the panel becomes a subpanel");
 
+	prop = RNA_def_property(srna, "bl_ui_units_x", PROP_INT, PROP_UNSIGNED);
+	RNA_def_property_int_sdna(prop, NULL, "type->ui_units_x");
+	RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
+	RNA_def_property_ui_text(prop, "Units X", "When set, defines popup panel width");
+
 	prop = RNA_def_property(srna, "use_pin", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", PNL_PIN);
 	RNA_def_property_ui_text(prop, "Pin",  "");
@@ -1437,4 +1442,3 @@ void RNA_def_ui(BlenderRNA *brna)
 }
 
 #endif /* RNA_RUNTIME */
-

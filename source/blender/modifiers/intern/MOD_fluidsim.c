@@ -65,7 +65,7 @@ static void freeData(ModifierData *md)
 	fluidsim_free(fluidmd);
 }
 
-static void copyData(const ModifierData *md, ModifierData *target)
+static void copyData(const ModifierData *md, ModifierData *target, const int UNUSED(flag))
 {
 	const FluidsimModifierData *fluidmd = (const FluidsimModifierData *) md;
 	FluidsimModifierData *tfluidmd = (FluidsimModifierData *) target;
@@ -76,11 +76,6 @@ static void copyData(const ModifierData *md, ModifierData *target)
 			tfluidmd->fss->meshVelocities = MEM_dupallocN(tfluidmd->fss->meshVelocities);
 		}
 	}
-
-	/* Seems to never be used, but for sqke of consistency... */
-	BLI_assert(fluidmd->point_cache == NULL);
-	BLI_assert(tfluidmd->point_cache == NULL);
-	tfluidmd->point_cache = NULL;
 }
 
 

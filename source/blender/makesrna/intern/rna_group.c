@@ -109,12 +109,14 @@ static void rna_Collection_objects_unlink(Collection *collection, Main *bmain, R
 }
 
 static bool rna_Collection_objects_override_apply(
+        Main *bmain,
         PointerRNA *ptr_dst, PointerRNA *UNUSED(ptr_src), PointerRNA *UNUSED(ptr_storage),
         PropertyRNA *UNUSED(prop_dst), PropertyRNA *UNUSED(prop_src), PropertyRNA *UNUSED(prop_storage),
         const int UNUSED(len_dst), const int UNUSED(len_src), const int UNUSED(len_storage),
         PointerRNA *ptr_item_dst, PointerRNA *ptr_item_src, PointerRNA *UNUSED(ptr_item_storage),
         IDOverrideStaticPropertyOperation *opop)
 {
+	(void)opop;
 	BLI_assert(opop->operation == IDOVERRIDESTATIC_OP_REPLACE &&
 	           "Unsupported RNA override operation on collections' objects");
 
@@ -142,7 +144,7 @@ static bool rna_Collection_objects_override_apply(
 	id_us_plus(&cob_dst->ob->id);
 
 	if (BKE_collection_is_in_scene(coll_dst)) {
-		BKE_main_collection_sync(G.main);  /* YUCK!!!!!!!!!!!!! */
+		BKE_main_collection_sync(bmain);
 	}
 
 	return true;
@@ -191,12 +193,14 @@ static void rna_Collection_children_unlink(Collection *collection, Main *bmain, 
 }
 
 static bool rna_Collection_children_override_apply(
+        Main *bmain,
         PointerRNA *ptr_dst, PointerRNA *UNUSED(ptr_src), PointerRNA *UNUSED(ptr_storage),
         PropertyRNA *UNUSED(prop_dst), PropertyRNA *UNUSED(prop_src), PropertyRNA *UNUSED(prop_storage),
         const int UNUSED(len_dst), const int UNUSED(len_src), const int UNUSED(len_storage),
         PointerRNA *ptr_item_dst, PointerRNA *ptr_item_src, PointerRNA *UNUSED(ptr_item_storage),
         IDOverrideStaticPropertyOperation *opop)
 {
+	(void)opop;
 	BLI_assert(opop->operation == IDOVERRIDESTATIC_OP_REPLACE &&
 	           "Unsupported RNA override operation on collections' objects");
 
@@ -224,7 +228,7 @@ static bool rna_Collection_children_override_apply(
 	id_us_plus(&collchild_dst->collection->id);
 
 	BKE_collection_object_cache_free(coll_dst);
-	BKE_main_collection_sync(G.main);  /* YUCK!!!!!!!!!!!!! */
+	BKE_main_collection_sync(bmain);
 
 	return true;
 }

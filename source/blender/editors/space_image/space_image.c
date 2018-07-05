@@ -51,6 +51,7 @@
 #include "BKE_scene.h"
 #include "BKE_screen.h"
 #include "BKE_material.h"
+#include "BKE_workspace.h"
 
 #include "DEG_depsgraph.h"
 
@@ -387,7 +388,7 @@ static void image_keymap(struct wmKeyConfig *keyconf)
 }
 
 /* dropboxes */
-static int image_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *UNUSED(event))
+static bool image_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *UNUSED(event))
 {
 	if (drag->type == WM_DRAG_PATH)
 		if (ELEM(drag->icon, 0, ICON_FILE_IMAGE, ICON_FILE_MOVIE, ICON_FILE_BLANK)) /* rule might not work? */
@@ -434,8 +435,7 @@ static void image_refresh(const bContext *C, ScrArea *sa)
 	}
 }
 
-static void image_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn, Scene *scene,
-                           WorkSpace *workspace)
+static void image_listener(wmWindow *win, ScrArea *sa, wmNotifier *wmn, Scene *UNUSED(scene))
 {
 	SpaceImage *sima = (SpaceImage *)sa->spacedata.first;
 
@@ -529,7 +529,7 @@ static void image_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn, Sc
 				case ND_TRANSFORM:
 				case ND_MODIFIER:
 				{
-					ViewLayer *view_layer = BKE_view_layer_from_workspace_get(scene, workspace);
+					ViewLayer *view_layer = WM_window_get_active_view_layer(win);
 					Object *ob = OBACT(view_layer);
 					if (ob && (ob == wmn->reference) && (ob->mode & OB_MODE_EDIT)) {
 						if (sima->lock && (sima->flag & SI_DRAWSHADOW)) {
@@ -821,7 +821,7 @@ static void image_main_region_draw(const bContext *C, ARegion *ar)
 }
 
 static void image_main_region_listener(
-        bScreen *UNUSED(sc), ScrArea *sa, ARegion *ar,
+        wmWindow *UNUSED(win), ScrArea *sa, ARegion *ar,
         wmNotifier *wmn, const Scene *UNUSED(scene))
 {
 	/* context changes */
@@ -877,7 +877,7 @@ static void image_buttons_region_draw(const bContext *C, ARegion *ar)
 }
 
 static void image_buttons_region_listener(
-        bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar,
+        wmWindow *UNUSED(win), ScrArea *UNUSED(sa), ARegion *ar,
         wmNotifier *wmn, const Scene *UNUSED(scene))
 {
 	/* context changes */
@@ -952,7 +952,7 @@ static void image_tools_region_draw(const bContext *C, ARegion *ar)
 }
 
 static void image_tools_region_listener(
-        bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar,
+        wmWindow *UNUSED(win), ScrArea *UNUSED(sa), ARegion *ar,
         wmNotifier *wmn, const Scene *UNUSED(scene))
 {
 	/* context changes */
@@ -1020,7 +1020,7 @@ static void image_header_region_draw(const bContext *C, ARegion *ar)
 }
 
 static void image_header_region_listener(
-        bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar,
+        wmWindow *UNUSED(win), ScrArea *UNUSED(sa), ARegion *ar,
         wmNotifier *wmn, const Scene *UNUSED(scene))
 {
 	/* context changes */

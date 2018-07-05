@@ -463,13 +463,13 @@ static void recalcData_graphedit(TransInfo *t)
 /* helper for recalcData() - for NLA Editor transforms */
 static void recalcData_nla(TransInfo *t)
 {
-	TransDataNla *tdn = t->custom.type.data;
 	SpaceNla *snla = (SpaceNla *)t->sa->spacedata.first;
 	Scene *scene = t->scene;
 	double secf = FPS;
 	int i;
 
 	TransDataContainer *tc = TRANS_DATA_CONTAINER_FIRST_SINGLE(t);
+	TransDataNla *tdn = tc->custom.type.data;
 
 	/* for each strip we've got, perform some additional validation of the values that got set before
 	 * using RNA to set the value (which does some special operations when setting these values to make
@@ -2336,4 +2336,3 @@ void transform_data_ext_rotate(TransData *td, float mat[3][3], bool use_drot)
 		copy_v3_v3(td->ext->rot, eul);
 	}
 }
-

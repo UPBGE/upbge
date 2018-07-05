@@ -675,7 +675,7 @@ static void rna_Window_scene_update(bContext *C, PointerRNA *ptr)
 		BPy_BEGIN_ALLOW_THREADS;
 #endif
 
-		WM_window_change_active_scene(bmain, C, win, win->new_scene);
+		WM_window_set_active_scene(bmain, C, win, win->new_scene);
 
 #ifdef WITH_PYTHON
 		BPy_END_ALLOW_THREADS;
@@ -751,7 +751,7 @@ static void rna_Window_screen_set(PointerRNA *ptr, PointerRNA value)
 	win->workspace_hook->temp_layout_store = layout_new;
 }
 
-static int rna_Window_screen_assign_poll(PointerRNA *UNUSED(ptr), PointerRNA value)
+static bool rna_Window_screen_assign_poll(PointerRNA *UNUSED(ptr), PointerRNA value)
 {
 	bScreen *screen = value.id.data;
 	return !screen->temp;
@@ -773,8 +773,8 @@ static void rna_workspace_screen_update(bContext *C, PointerRNA *ptr)
 static PointerRNA rna_Window_view_layer_get(PointerRNA *ptr)
 {
 	wmWindow *win = ptr->data;
-	Scene *scene;
-	ViewLayer *view_layer = WM_window_get_active_view_layer_ex(win, &scene);
+	Scene *scene = WM_window_get_active_scene(win);;
+	ViewLayer *view_layer = WM_window_get_active_view_layer(win);
 	PointerRNA scene_ptr;
 
 	RNA_id_pointer_create(&scene->id, &scene_ptr);
@@ -784,10 +784,9 @@ static PointerRNA rna_Window_view_layer_get(PointerRNA *ptr)
 static void rna_Window_view_layer_set(PointerRNA *ptr, PointerRNA value)
 {
 	wmWindow *win = ptr->data;
-	Scene *scene = WM_window_get_active_scene(win);
-	WorkSpace *workspace = WM_window_get_active_workspace(win);
+	ViewLayer *view_layer = value.data;
 
-	BKE_workspace_view_layer_set(workspace, value.data, scene);
+	WM_window_set_active_view_layer(win, view_layer);
 }
 
 static PointerRNA rna_KeyMapItem_properties_get(PointerRNA *ptr)
@@ -1073,7 +1072,7 @@ static void rna_wmClipboard_set(PointerRNA *UNUSED(ptr), const char *value)
 
 #ifdef WITH_PYTHON
 
-static int rna_operator_poll_cb(bContext *C, wmOperatorType *ot)
+static bool rna_operator_poll_cb(bContext *C, wmOperatorType *ot)
 {
 	extern FunctionRNA rna_Operator_poll_func;
 
@@ -1081,7 +1080,7 @@ static int rna_operator_poll_cb(bContext *C, wmOperatorType *ot)
 	ParameterList list;
 	FunctionRNA *func;
 	void *ret;
-	int visible;
+	bool visible;
 
 	RNA_pointer_create(NULL, ot->ext.srna, NULL, &ptr); /* dummy */
 	func = &rna_Operator_poll_func; /* RNA_struct_find_function(&ptr, "poll"); */
@@ -1091,7 +1090,7 @@ static int rna_operator_poll_cb(bContext *C, wmOperatorType *ot)
 	ot->ext.call(C, &ptr, func, &list);
 
 	RNA_parameter_get_lookup(&list, "visible", &ret);
-	visible = *(int *)ret;
+	visible = *(bool *)ret;
 
 	RNA_parameter_list_free(&list);
 
@@ -1142,7 +1141,7 @@ static bool rna_operator_check_cb(bContext *C, wmOperator *op)
 	op->type->ext.call(C, &opr, func, &list);
 
 	RNA_parameter_get_lookup(&list, "result", &ret);
-	result = (*(int *)ret) != 0;
+	result = (*(bool *)ret) != 0;
 
 	RNA_parameter_list_free(&list);
 
@@ -2040,6 +2039,9 @@ static void rna_def_window(BlenderRNA *brna)
 	srna = RNA_def_struct(brna, "Window", NULL);
 	RNA_def_struct_ui_text(srna, "Window", "Open window");
 	RNA_def_struct_sdna(srna, "wmWindow");
+
+	prop = RNA_def_property(srna, "parent", PROP_POINTER, PROP_NONE);
+	RNA_def_property_ui_text(prop, "Parent Window", "Active workspace and scene follow this window");
 
 	rna_def_window_stereo3d(brna);
 

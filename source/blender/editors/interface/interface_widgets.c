@@ -675,13 +675,16 @@ static void round_box__edges(uiWidgetBase *wt, int roundboxalign, const rcti *re
 	float facxi = (maxxi != minxi) ? 1.0f / (maxxi - minxi) : 0.0f; /* for uv, can divide by zero */
 	float facyi = (maxyi != minyi) ? 1.0f / (maxyi - minyi) : 0.0f;
 	int a, tot = 0, minsize;
-	const int hnum = ((roundboxalign & (UI_CNR_TOP_LEFT | UI_CNR_TOP_RIGHT)) == (UI_CNR_TOP_LEFT | UI_CNR_TOP_RIGHT) ||
-	                  (roundboxalign & (UI_CNR_BOTTOM_RIGHT | UI_CNR_BOTTOM_LEFT)) == (UI_CNR_BOTTOM_RIGHT | UI_CNR_BOTTOM_LEFT)) ? 1 : 2;
-	const int vnum = ((roundboxalign & (UI_CNR_TOP_LEFT | UI_CNR_BOTTOM_LEFT)) == (UI_CNR_TOP_LEFT | UI_CNR_BOTTOM_LEFT) ||
-	                  (roundboxalign & (UI_CNR_TOP_RIGHT | UI_CNR_BOTTOM_RIGHT)) == (UI_CNR_TOP_RIGHT | UI_CNR_BOTTOM_RIGHT)) ? 1 : 2;
+	const int hnum = (
+	        (roundboxalign & (UI_CNR_TOP_LEFT | UI_CNR_TOP_RIGHT)) == (UI_CNR_TOP_LEFT | UI_CNR_TOP_RIGHT) ||
+	        (roundboxalign & (UI_CNR_BOTTOM_RIGHT | UI_CNR_BOTTOM_LEFT)) == (UI_CNR_BOTTOM_RIGHT | UI_CNR_BOTTOM_LEFT)) ? 1 : 2;
+	const int vnum = (
+	        (roundboxalign & (UI_CNR_TOP_LEFT | UI_CNR_BOTTOM_LEFT)) == (UI_CNR_TOP_LEFT | UI_CNR_BOTTOM_LEFT) ||
+	        (roundboxalign & (UI_CNR_TOP_RIGHT | UI_CNR_BOTTOM_RIGHT)) == (UI_CNR_TOP_RIGHT | UI_CNR_BOTTOM_RIGHT)) ? 1 : 2;
 
-	minsize = min_ii(BLI_rcti_size_x(rect) * hnum,
-	                 BLI_rcti_size_y(rect) * vnum);
+	minsize = min_ii(
+	        BLI_rcti_size_x(rect) * hnum,
+	        BLI_rcti_size_y(rect) * vnum);
 
 	if (2.0f * rad > minsize)
 		rad = 0.5f * minsize;
@@ -1663,8 +1666,9 @@ static void ui_text_clip_right_label(uiFontStyle *fstyle, uiBut *but, const rcti
 	/* once the label's gone, chop off the least significant digits */
 	if (but->strwidth > okwidth) {
 		float strwidth;
-		drawstr_len = BLF_width_to_strlen(fstyle->uifont_id, but->drawstr + but->ofs,
-		                                  drawstr_len - but->ofs, okwidth, &strwidth) + but->ofs;
+		drawstr_len = BLF_width_to_strlen(
+		        fstyle->uifont_id, but->drawstr + but->ofs,
+		        drawstr_len - but->ofs, okwidth, &strwidth) + but->ofs;
 		but->strwidth = strwidth;
 		but->drawstr[drawstr_len] = 0;
 	}
@@ -1691,8 +1695,9 @@ static void widget_draw_text_ime_underline(
 			ofs_x = 0;
 		}
 
-		width = BLF_width(fstyle->uifont_id, drawstr + but->ofs,
-		                  ime_data->composite_len + but->pos - but->ofs);
+		width = BLF_width(
+		        fstyle->uifont_id, drawstr + but->ofs,
+		        ime_data->composite_len + but->pos - but->ofs);
 
 		rgba_uchar_to_float(fcol, wcol->text);
 		UI_draw_text_underline(rect->xmin + ofs_x, rect->ymin + 6 * U.pixelsize, min_ii(width, rect_x - 2) - ofs_x, 1, fcol);
@@ -1709,8 +1714,9 @@ static void widget_draw_text_ime_underline(
 				ofs_x = 0;
 			}
 
-			width = BLF_width(fstyle->uifont_id, drawstr + but->ofs,
-			                  sel_end + sel_start - but->ofs);
+			width = BLF_width(
+			        fstyle->uifont_id, drawstr + but->ofs,
+			        sel_end + sel_start - but->ofs);
 
 			UI_draw_text_underline(rect->xmin + ofs_x, rect->ymin + 6 * U.pixelsize, min_ii(width, rect_x - 2) - ofs_x, 2, fcol);
 		}
@@ -1763,9 +1769,10 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 
 			if (ime_data && ime_data->composite_len) {
 				/* insert composite string into cursor pos */
-				BLI_snprintf((char *)drawstr, UI_MAX_DRAW_STR, "%s%s%s",
-				             but->editstr, ime_data->str_composite,
-				             but->editstr + but->pos);
+				BLI_snprintf(
+				        (char *)drawstr, UI_MAX_DRAW_STR, "%s%s%s",
+				        but->editstr, ime_data->str_composite,
+				        but->editstr + but->pos);
 			}
 			else
 #endif
@@ -1872,7 +1879,7 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 #endif
 
 	/* cut string in 2 parts - only for menu entries */
-	if ((but->block->flag & (UI_BLOCK_LOOP | UI_BLOCK_SHOW_SHORTCUT_ALWAYS)) &&
+	if ((but->drawflag & UI_BUT_HAS_SHORTCUT) &&
 	    (but->editstr == NULL))
 	{
 		if (but->flag & UI_BUT_HAS_SEP_CHAR) {
@@ -1955,9 +1962,15 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 
 	/* part text right aligned */
 	if (drawstr_right) {
+		char col[4];
+		copy_v4_v4_char(col, wcol->text);
+		if (but->drawflag & UI_BUT_HAS_SHORTCUT) {
+			col[3] *= 0.5f;
+		}
+
 		fstyle->align = UI_STYLE_TEXT_RIGHT;
 		rect->xmax -= UI_TEXT_CLIP_MARGIN;
-		UI_fontstyle_draw(fstyle, rect, drawstr_right, (unsigned char *)wcol->text);
+		UI_fontstyle_draw(fstyle, rect, drawstr_right, (const uchar *)col);
 	}
 }
 
@@ -2444,8 +2457,9 @@ static void ui_hsv_cursor(float x, float y)
 	immUnbindProgram();
 }
 
-void ui_hsvcircle_vals_from_pos(float *val_rad, float *val_dist, const rcti *rect,
-                                const float mx, const float my)
+void ui_hsvcircle_vals_from_pos(
+        float *val_rad, float *val_dist, const rcti *rect,
+        const float mx, const float my)
 {
 	/* duplication of code... well, simple is better now */
 	const float centx = BLI_rcti_cent_x_fl(rect);
@@ -3517,30 +3531,6 @@ static void widget_menuiconbut(uiWidgetColors *wcol, rcti *rect, int UNUSED(stat
 	widgetbase_draw(&wtb, wcol);
 }
 
-static void widget_menunodebut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
-{
-	/* silly node link button hacks */
-	uiWidgetBase wtb;
-	uiWidgetColors wcol_backup = *wcol;
-	float rad;
-
-	widget_init(&wtb);
-
-	rad = wcol->roundness * U.widget_unit;
-	round_box_edges(&wtb, roundboxalign, rect, rad);
-
-	wcol->inner[0] = min_ii(wcol->inner[0] + 15, 255);
-	wcol->inner[1] = min_ii(wcol->inner[1] + 15, 255);
-	wcol->inner[2] = min_ii(wcol->inner[2] + 15, 255);
-	wcol->outline[0] = min_ii(wcol->outline[0] + 15, 255);
-	wcol->outline[1] = min_ii(wcol->outline[1] + 15, 255);
-	wcol->outline[2] = min_ii(wcol->outline[2] + 15, 255);
-
-	/* decoration */
-	widgetbase_draw(&wtb, wcol);
-	*wcol = wcol_backup;
-}
-
 static void widget_pulldownbut(uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
 {
 	float back[4];
@@ -3941,6 +3931,7 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 			break;
 
 		case UI_WTYPE_MENU_ICON_RADIO:
+		case UI_WTYPE_MENU_NODE_LINK:
 			wt.wcol_theme = &btheme->tui.wcol_menu;
 			wt.draw = widget_menuiconbut;
 			break;
@@ -3948,11 +3939,6 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 		case UI_WTYPE_MENU_POINTER_LINK:
 			wt.wcol_theme = &btheme->tui.wcol_menu;
 			wt.draw = widget_menubut;
-			break;
-
-		case UI_WTYPE_MENU_NODE_LINK:
-			wt.wcol_theme = &btheme->tui.wcol_menu;
-			wt.draw = widget_menunodebut;
 			break;
 
 		case UI_WTYPE_PULLDOWN:
@@ -4452,11 +4438,11 @@ void ui_draw_menu_back(uiStyle *UNUSED(style), uiBlock *block, rcti *rect)
  * because we need to pass in the original location so we know where to show the arrow.
  */
 static void ui_draw_popover_back_impl(
-        const uiWidgetColors *wcol, rcti *rect, int direction,
+        const uiWidgetColors *wcol, rcti *rect, int direction, const float unit_size,
         const float mval_origin[2])
 {
 	/* tsk, this isn't nice. */
-	const float unit_half = (BLI_rcti_size_x(rect) / UI_POPOVER_WIDTH_UNITS) / 2;
+	const float unit_half = unit_size / 2;
 	const float cent_x = mval_origin ? mval_origin[0] : BLI_rcti_cent_x(rect);
 	rect->ymax -= unit_half;
 	rect->ymin += unit_half;
@@ -4509,7 +4495,7 @@ void ui_draw_popover_back(ARegion *ar, uiStyle *UNUSED(style), uiBlock *block, r
 	if (block) {
 		float mval_origin[2] = {block->mx, block->my};
 		ui_window_to_block_fl(ar, block, &mval_origin[0], &mval_origin[1]);
-		ui_draw_popover_back_impl(wt->wcol_theme, rect, block->direction, mval_origin);
+		ui_draw_popover_back_impl(wt->wcol_theme, rect, block->direction, U.widget_unit / block->aspect,  mval_origin);
 	}
 	else {
 		wt->state(wt, 0);

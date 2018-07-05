@@ -1872,4 +1872,3 @@ void itasc_test_constraint(struct Object *ob, struct bConstraint *cons)
 			break;
 	}
 }
-

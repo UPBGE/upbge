@@ -1507,10 +1507,10 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 			immBindBuiltinProgram(GPU_SHADER_2D_LINE_DASHED_UNIFORM_COLOR);
 
 			float viewport_size[4];
-			GPU_viewport_size_getf(viewport_size);
+			GPU_viewport_size_get_f(viewport_size);
 			immUniform2f("viewport_size", viewport_size[2] / UI_DPI_FAC, viewport_size[3] / UI_DPI_FAC);
 
-			immUniform1i("num_colors", 0);  /* "simple" mode */
+			immUniform1i("colors_len", 0);  /* "simple" mode */
 			immUniformThemeColor(TH_GRID);  /* same color as line number background */
 			immUniform1f("dash_width", 2.0f);
 			immUniform1f("dash_factor", 0.5f);

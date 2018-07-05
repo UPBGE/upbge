@@ -70,8 +70,7 @@ GHOST_ContextWGL::GHOST_ContextWGL(
       m_contextFlags(contextFlags),
       m_alphaBackground(alphaBackground),
       m_contextResetNotificationStrategy(contextResetNotificationStrategy),
-      m_hGLRC(NULL),
-      m_init(false)
+      m_hGLRC(NULL)
 #ifndef NDEBUG
       ,
       m_dummyVendor(NULL),
@@ -140,10 +139,6 @@ GHOST_TSuccess GHOST_ContextWGL::getSwapInterval(int &intervalOut)
 
 GHOST_TSuccess GHOST_ContextWGL::activateDrawingContext()
 {
-	if (m_init == false) {
-		initContext();
-	}
-
 	if (WIN32_CHK(::wglMakeCurrent(m_hDC, m_hGLRC))) {
 		return GHOST_kSuccess;
 	}
@@ -893,23 +888,8 @@ GHOST_TSuccess GHOST_ContextWGL::initializeDrawingContext()
 		goto error;
 	}
 
-	initContext();
-
-	initClearGL();
-	::SwapBuffers(m_hDC);
-
-	return GHOST_kSuccess;
-error:
-	::wglMakeCurrent(prevHDC, prevHGLRC);
-	return GHOST_kFailure;
-
-}
-
-
-GHOST_TSuccess GHOST_ContextWGL::initContext()
-{
 	if (!WIN32_CHK(::wglMakeCurrent(m_hDC, m_hGLRC))) {
-		return GHOST_kFailure;
+		goto error;
 	}
 
 	initContextGLEW();
@@ -923,7 +903,8 @@ GHOST_TSuccess GHOST_ContextWGL::initContext()
 		glEnable(GL_POINT_SPRITE);
 	}
 
-	m_init = true;
+	initClearGL();
+	::SwapBuffers(m_hDC);
 
 #ifndef NDEBUG
 	const char *vendor = reinterpret_cast<const char*>(glGetString(GL_VENDOR));
@@ -938,6 +919,10 @@ GHOST_TSuccess GHOST_ContextWGL::initContext()
 #endif
 
 	return GHOST_kSuccess;
+error:
+	::wglMakeCurrent(prevHDC, prevHGLRC);
+	return GHOST_kFailure;
+
 }
 
 

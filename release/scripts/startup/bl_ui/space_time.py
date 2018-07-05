@@ -38,9 +38,9 @@ class TIME_HT_editor_buttons(Header):
 
         layout.separator_spacer()
 
-        row = layout.row(align=True)
-        row.prop(toolsettings, "use_keyframe_insert_auto", text="", toggle=True)
+        layout.prop(toolsettings, "use_keyframe_insert_auto", text="", toggle=True)
 
+        row = layout.row(align=True)
         row.operator("screen.frame_jump", text="", icon='REW').end = False
         row.operator("screen.keyframe_jump", text="", icon='PREV_KEYFRAME').next = False
         if not screen.is_animation_playing:
@@ -91,20 +91,24 @@ class TIME_MT_editor_menus(Menu):
 
     @staticmethod
     def draw_menus(layout, context):
-        layout.popover(
+        row = layout.row()
+        sub = row.row(align=True)
+        sub.popover(
             space_type='DOPESHEET_EDITOR',
             region_type='HEADER',
             panel_type="TIME_PT_playback",
             text="Playback",
         )
-        layout.popover(
+        sub.popover(
             space_type='DOPESHEET_EDITOR',
             region_type='HEADER',
             panel_type="TIME_PT_keyframing_settings",
             text="Keying",
         )
-        layout.menu("TIME_MT_view")
-        layout.menu("TIME_MT_marker")
+
+        sub = row.row(align=True)
+        sub.menu("TIME_MT_view")
+        sub.menu("TIME_MT_marker")
 
 
 class TIME_MT_marker(Menu):

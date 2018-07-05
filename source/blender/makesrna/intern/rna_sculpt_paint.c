@@ -247,7 +247,7 @@ static char *rna_ParticleEdit_path(PointerRNA *UNUSED(ptr))
 	return BLI_strdup("tool_settings.particle_edit");
 }
 
-static int rna_Brush_mode_poll(PointerRNA *ptr, PointerRNA value)
+static bool rna_Brush_mode_poll(PointerRNA *ptr, PointerRNA value)
 {
 	Scene *scene = (Scene *)ptr->id.data;
 	ToolSettings *ts = scene->toolsettings;
@@ -424,7 +424,7 @@ static void rna_ImaPaint_canvas_update(bContext *C, PointerRNA *UNUSED(ptr))
 	}
 }
 
-static int rna_ImaPaint_detect_data(ImagePaintSettings *imapaint)
+static bool rna_ImaPaint_detect_data(ImagePaintSettings *imapaint)
 {
 	return imapaint->missing_data == 0;
 }
@@ -577,8 +577,10 @@ static void rna_def_sculpt(BlenderRNA  *brna)
 		 "Relative Detail", "Mesh detail is relative to the brush size and detail size"},
 		{SCULPT_DYNTOPO_DETAIL_CONSTANT, "CONSTANT", 0,
 		 "Constant Detail", "Mesh detail is constant in object space according to detail size"},
-	    {SCULPT_DYNTOPO_DETAIL_BRUSH, "BRUSH", 0,
+		{SCULPT_DYNTOPO_DETAIL_BRUSH, "BRUSH", 0,
 		 "Brush Detail", "Mesh detail is relative to brush radius"},
+		{SCULPT_DYNTOPO_DETAIL_MANUAL, "MANUAL", 0,
+		 "Manual Detail", "Mesh detail does not change on each stroke, only when using Flood Fill"},
 		{0, NULL, 0, NULL, NULL}
 	};
 

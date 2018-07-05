@@ -144,9 +144,15 @@ class WindowManager(bpy_types.ID):
         finally:
             self.popmenu_end__internal(popup)
 
-    def popover(self, draw_func, keymap=None):
+    def popover(
+            self, draw_func, *,
+            ui_units_x=0,
+            keymap=None,
+    ):
         import bpy
-        popup = self.popover_begin__internal()
+        popup = self.popover_begin__internal(
+            ui_units_x=ui_units_x,
+        )
 
         try:
             draw_func(popup, bpy.context)
@@ -951,7 +957,6 @@ class Menu(StructRNA, _GenericUI, metaclass=RNAMeta):
             props = row.operator(add_operator, text="", icon='ZOOMIN')
             props.name = wm.preset_name
 
-
     def draw_preset(self, context):
         """
         Define these on the subclass:
@@ -978,7 +983,8 @@ class Menu(StructRNA, _GenericUI, metaclass=RNAMeta):
         # helper function for (optionally) collapsed header menus
         # only usable within headers
         if context.area.show_menus:
-            cls.draw_menus(layout, context)
+            # Align menus to space them closely.
+            cls.draw_menus(layout.row(align=True), context)
         else:
             layout.menu(cls.__name__, icon='COLLAPSEMENU')
 

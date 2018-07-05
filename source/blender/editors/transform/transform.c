@@ -1705,7 +1705,7 @@ static void drawArc(float size, float angle_start, float angle_end, int segments
 	immEnd();
 }
 
-static int helpline_poll(bContext *C)
+static bool helpline_poll(bContext *C)
 {
 	ARegion *ar = CTX_wm_region(C);
 
@@ -1757,10 +1757,10 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 			immBindBuiltinProgram(GPU_SHADER_2D_LINE_DASHED_UNIFORM_COLOR);
 
 			float viewport_size[4];
-			GPU_viewport_size_getf(viewport_size);
+			GPU_viewport_size_get_f(viewport_size);
 			immUniform2f("viewport_size", viewport_size[2], viewport_size[3]);
 
-			immUniform1i("num_colors", 0);  /* "simple" mode */
+			immUniform1i("colors_len", 0);  /* "simple" mode */
 			immUniformThemeColor(TH_VIEW_OVERLAY);
 			immUniform1f("dash_width", 6.0f);
 			immUniform1f("dash_factor", 0.5f);
@@ -1951,7 +1951,7 @@ static void drawTransformPixel(const struct bContext *UNUSED(C), ARegion *ar, vo
 void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
 {
 	ToolSettings *ts = CTX_data_tool_settings(C);
-	int constraint_axis[3] = {0, 0, 0};
+	bool constraint_axis[3] = {false, false, false};
 	int proportional = 0;
 	PropertyRNA *prop;
 
@@ -2073,13 +2073,13 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
 
 		if (t->con.mode & CON_APPLY) {
 			if (t->con.mode & CON_AXIS0) {
-				constraint_axis[0] = 1;
+				constraint_axis[0] = true;
 			}
 			if (t->con.mode & CON_AXIS1) {
-				constraint_axis[1] = 1;
+				constraint_axis[1] = true;
 			}
 			if (t->con.mode & CON_AXIS2) {
-				constraint_axis[2] = 1;
+				constraint_axis[2] = true;
 			}
 		}
 
@@ -2269,7 +2269,7 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 
 	/* Constraint init from operator */
 	if ((prop = RNA_struct_find_property(op->ptr, "constraint_axis")) && RNA_property_is_set(op->ptr, prop)) {
-		int constraint_axis[3];
+		bool constraint_axis[3];
 
 		RNA_property_boolean_get_array(op->ptr, prop, constraint_axis);
 
@@ -6972,11 +6972,9 @@ static void drawEdgeSlide(TransInfo *t)
 
 		/* Even mode */
 		if ((slp->use_even == true) || (is_clamp == false)) {
-			View3D *v3d = t->view;
 			const float line_size = UI_GetThemeValuef(TH_OUTLINE_WIDTH) + 0.5f;
 
-			if (v3d && v3d->zbuf)
-				GPU_depth_test(false);
+			GPU_depth_test(false);
 
 			GPU_blend(true);
 			GPU_blend_set_func_separate(GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
@@ -7074,8 +7072,7 @@ static void drawEdgeSlide(TransInfo *t)
 
 			GPU_blend(false);
 
-			if (v3d && v3d->zbuf)
-				GPU_depth_test(true);
+			GPU_depth_test(true);
 		}
 	}
 }
@@ -7603,7 +7600,6 @@ static void drawVertSlide(TransInfo *t)
 
 		/* Non-Prop mode */
 		{
-			View3D *v3d = t->view;
 			TransDataVertSlideVert *curr_sv = &sld->sv[sld->curr_sv_index];
 			TransDataVertSlideVert *sv;
 			const float ctrl_size = UI_GetThemeValuef(TH_FACEDOT_SIZE) + 1.5f;
@@ -7611,8 +7607,7 @@ static void drawVertSlide(TransInfo *t)
 			const int alpha_shade = -160;
 			int i;
 
-			if (v3d && v3d->zbuf)
-				GPU_depth_test(false);
+			GPU_depth_test(false);
 
 			GPU_blend(true);
 			GPU_blend_set_func_separate(GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
@@ -7688,10 +7683,10 @@ static void drawVertSlide(TransInfo *t)
 				immBindBuiltinProgram(GPU_SHADER_3D_LINE_DASHED_UNIFORM_COLOR);
 
 				float viewport_size[4];
-				GPU_viewport_size_getf(viewport_size);
+				GPU_viewport_size_get_f(viewport_size);
 				immUniform2f("viewport_size", viewport_size[2], viewport_size[3]);
 
-				immUniform1i("num_colors", 0);  /* "simple" mode */
+				immUniform1i("colors_len", 0);  /* "simple" mode */
 				immUniformColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 				immUniform1f("dash_width", 6.0f);
 				immUniform1f("dash_factor", 0.5f);
@@ -7706,8 +7701,7 @@ static void drawVertSlide(TransInfo *t)
 
 			gpuPopMatrix();
 
-			if (v3d && v3d->zbuf)
-				GPU_depth_test(true);
+			GPU_depth_test(true);
 		}
 	}
 }
@@ -8816,7 +8810,7 @@ static void applyTimeScale(TransInfo *t, const int UNUSED(mval[2]))
 /** \} */
 
 
-/* TODO, move to: transform_queries.c */
+/* TODO, move to: transform_query.c */
 bool checkUseAxisMatrix(TransInfo *t)
 {
 	/* currently only checks for editmode */

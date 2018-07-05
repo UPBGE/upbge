@@ -65,7 +65,7 @@ enum {
 	OUTLINER_ITEM_DRAG_CONFIRM,
 };
 
-static int outliner_item_drag_drop_poll(bContext *C)
+static bool outliner_item_drag_drop_poll(bContext *C)
 {
 	SpaceOops *soops = CTX_wm_space_outliner(C);
 	return ED_operator_outliner_active(C) &&
@@ -389,7 +389,7 @@ static int outliner_item_drag_drop_invoke(bContext *C, wmOperator *op, const wmE
  */
 static void OUTLINER_OT_item_drag_drop(wmOperatorType *ot)
 {
-	ot->name = "Drag and Drop Item";
+	ot->name = "Drag and Drop";
 	ot->idname = "OUTLINER_OT_item_drag_drop";
 	ot->description = "Change the hierarchical position of an item by repositioning it using drag and drop";
 
@@ -467,7 +467,7 @@ static wmKeyMap *outliner_item_drag_drop_modal_keymap(wmKeyConfig *keyconf)
 		{OUTLINER_ITEM_DRAG_CONFIRM, "CONFIRM", 0, "Confirm/Drop", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
-	const char *map_name = "Outliner Item Drap 'n Drop Modal Map";
+	const char *map_name = "Outliner Item Drag & Drop Modal Map";
 
 	wmKeyMap *keymap = WM_modalkeymap_get(keyconf, map_name);
 
@@ -542,24 +542,27 @@ void outliner_keymap(wmKeyConfig *keyconf)
 	kmi = WM_keymap_add_item(keymap, "OUTLINER_OT_show_one_level", PADMINUS, KM_PRESS, 0, 0);
 	RNA_boolean_set(kmi->ptr, "open", false); /* close */
 
-	WM_keymap_verify_item(keymap, "OUTLINER_OT_selected_toggle", AKEY, KM_PRESS, 0, 0);
-	WM_keymap_verify_item(keymap, "OUTLINER_OT_expanded_toggle", AKEY, KM_PRESS, KM_SHIFT, 0);
+	WM_keymap_add_item(keymap, "OUTLINER_OT_selected_toggle", AKEY, KM_PRESS, 0, 0);
+	WM_keymap_add_item(keymap, "OUTLINER_OT_expanded_toggle", AKEY, KM_PRESS, KM_SHIFT, 0);
 
 	/* keying sets - only for databrowse */
-	WM_keymap_verify_item(keymap, "OUTLINER_OT_keyingset_add_selected", KKEY, KM_PRESS, 0, 0);
-	WM_keymap_verify_item(keymap, "OUTLINER_OT_keyingset_remove_selected", KKEY, KM_PRESS, KM_ALT, 0);
+	WM_keymap_add_item(keymap, "OUTLINER_OT_keyingset_add_selected", KKEY, KM_PRESS, 0, 0);
+	WM_keymap_add_item(keymap, "OUTLINER_OT_keyingset_remove_selected", KKEY, KM_PRESS, KM_ALT, 0);
 
-	WM_keymap_verify_item(keymap, "ANIM_OT_keyframe_insert", IKEY, KM_PRESS, 0, 0);
-	WM_keymap_verify_item(keymap, "ANIM_OT_keyframe_delete", IKEY, KM_PRESS, KM_ALT, 0);
+	WM_keymap_add_item(keymap, "ANIM_OT_keyframe_insert", IKEY, KM_PRESS, 0, 0);
+	WM_keymap_add_item(keymap, "ANIM_OT_keyframe_delete", IKEY, KM_PRESS, KM_ALT, 0);
 
-	WM_keymap_verify_item(keymap, "OUTLINER_OT_drivers_add_selected", DKEY, KM_PRESS, 0, 0);
-	WM_keymap_verify_item(keymap, "OUTLINER_OT_drivers_delete_selected", DKEY, KM_PRESS, KM_ALT, 0);
+	/* Note: was D, Alt-D, keep these free for duplicate. */
+	WM_keymap_add_item(keymap, "OUTLINER_OT_drivers_add_selected", DKEY, KM_PRESS, KM_CTRL, 0);
+	WM_keymap_add_item(keymap, "OUTLINER_OT_drivers_delete_selected", DKEY, KM_PRESS, KM_CTRL | KM_ALT, 0);
 
-	WM_keymap_verify_item(keymap, "OUTLINER_OT_collection_new", CKEY, KM_PRESS, 0, 0);
-	WM_keymap_verify_item(keymap, "OUTLINER_OT_collection_delete", XKEY, KM_PRESS, 0, 0);
+	WM_keymap_add_item(keymap, "OUTLINER_OT_collection_new", CKEY, KM_PRESS, 0, 0);
 
-	WM_keymap_verify_item(keymap, "OBJECT_OT_move_to_collection", MKEY, KM_PRESS, 0, 0);
-	WM_keymap_verify_item(keymap, "OBJECT_OT_link_to_collection", MKEY, KM_PRESS, KM_SHIFT, 0);
+	WM_keymap_add_item(keymap, "OUTLINER_OT_collection_delete", XKEY, KM_PRESS, 0, 0);
+	WM_keymap_add_item(keymap, "OUTLINER_OT_collection_delete", DELKEY, KM_PRESS, 0, 0);
+
+	WM_keymap_add_item(keymap, "OBJECT_OT_move_to_collection", MKEY, KM_PRESS, 0, 0);
+	WM_keymap_add_item(keymap, "OBJECT_OT_link_to_collection", MKEY, KM_PRESS, KM_SHIFT, 0);
 
 	kmi = WM_keymap_add_item(keymap, "OBJECT_OT_hide_view_clear", HKEY, KM_PRESS, KM_ALT, 0);
 	RNA_boolean_set(kmi->ptr, "select", false);
@@ -570,4 +573,3 @@ void outliner_keymap(wmKeyConfig *keyconf)
 
 	outliner_item_drag_drop_modal_keymap(keyconf);
 }
-

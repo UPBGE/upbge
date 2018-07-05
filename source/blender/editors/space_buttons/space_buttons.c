@@ -225,16 +225,16 @@ static void buttons_main_region_layout_tool(const bContext *C, SpaceButs *sbuts,
 				ARRAY_SET_ITEMS(contexts, ".curve_edit");
 				break;
 			case CTX_MODE_EDIT_TEXT:
-				ARRAY_SET_ITEMS(contexts, ".todo");
+				ARRAY_SET_ITEMS(contexts, ".text_edit");
 				break;
 			case CTX_MODE_EDIT_ARMATURE:
 				ARRAY_SET_ITEMS(contexts, ".armature_edit");
 				break;
 			case CTX_MODE_EDIT_METABALL:
-				ARRAY_SET_ITEMS(contexts, ".todo");
+				ARRAY_SET_ITEMS(contexts, ".mball_edit");
 				break;
 			case CTX_MODE_EDIT_LATTICE:
-				ARRAY_SET_ITEMS(contexts, ".todo");
+				ARRAY_SET_ITEMS(contexts, ".lattice_edit");
 				break;
 			case CTX_MODE_POSE:
 				ARRAY_SET_ITEMS(contexts, ".posemode");
@@ -255,7 +255,7 @@ static void buttons_main_region_layout_tool(const bContext *C, SpaceButs *sbuts,
 				ARRAY_SET_ITEMS(contexts, ".particlemode");
 				break;
 			case CTX_MODE_OBJECT:
-				ARRAY_SET_ITEMS(contexts, ".todo");
+				ARRAY_SET_ITEMS(contexts, ".objectmode");
 				break;
 		}
 	}
@@ -283,7 +283,7 @@ static void buttons_main_region_layout(const bContext *C, ARegion *ar)
 }
 
 static void buttons_main_region_listener(
-        bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn,
+        wmWindow *UNUSED(win), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn,
         const Scene *UNUSED(scene))
 {
 	/* context changes */
@@ -361,8 +361,7 @@ static void buttons_area_redraw(ScrArea *sa, short buttons)
 
 /* reused! */
 static void buttons_area_listener(
-        bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn, Scene *UNUSED(scene),
-        WorkSpace *UNUSED(workspace))
+        wmWindow *UNUSED(win), ScrArea *sa, wmNotifier *wmn, Scene *UNUSED(scene))
 {
 	SpaceButs *sbuts = sa->spacedata.first;
 
@@ -632,4 +631,3 @@ void ED_spacetype_buttons(void)
 
 	BKE_spacetype_register(st);
 }
-

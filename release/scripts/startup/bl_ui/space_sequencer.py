@@ -83,23 +83,25 @@ class SEQUENCER_HT_header(Header):
 
         SEQUENCER_MT_editor_menus.draw_collapsible(context, layout)
 
+        if st.view_type == 'SEQUENCER':
+            layout.prop(st, "show_backdrop", text="Backdrop")
+
         layout.separator_spacer()
 
         layout.template_running_jobs()
 
+        if st.view_type == 'SEQUENCER':
+            layout.separator()
+            layout.operator("sequencer.refresh_all")
+
+        if st.view_type == 'SEQUENCER_PREVIEW':
+            layout.separator()
+            layout.operator("sequencer.refresh_all")
+
         if st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'}:
             layout.prop(st, "display_mode", expand=True, text="")
 
-        if st.view_type == 'SEQUENCER':
-            layout.separator()
-            layout.prop(st, "show_backdrop")
-            layout.operator("sequencer.refresh_all")
-
-        else:
-            if st.view_type == 'SEQUENCER_PREVIEW':
-                layout.separator()
-                layout.operator("sequencer.refresh_all")
-
+        if st.view_type != 'SEQUENCER':
             layout.prop(st, "preview_channels", expand=True, text="")
             layout.prop(st, "display_channel", text="Channel")
 
@@ -247,6 +249,12 @@ class SEQUENCER_MT_select(Menu):
     def draw(self, context):
         layout = self.layout
 
+        layout.operator("sequencer.select_all", text="All").action = 'SELECT'
+        layout.operator("sequencer.select_all", text="None").action = 'DESELECT'
+        layout.operator("sequencer.select_all", text="Invert").action = 'INVERT'
+
+        layout.separator()
+
         layout.operator("sequencer.select_active_side", text="Strips to the Left").side = 'LEFT'
         layout.operator("sequencer.select_active_side", text="Strips to the Right").side = 'RIGHT'
         props = layout.operator("sequencer.select", text="All Strips to the Left")
@@ -265,8 +273,6 @@ class SEQUENCER_MT_select(Menu):
         layout.operator("sequencer.select_linked")
         layout.operator("sequencer.select_less")
         layout.operator("sequencer.select_more")
-        layout.operator("sequencer.select_all").action = 'TOGGLE'
-        layout.operator("sequencer.select_all", text="Inverse").action = 'INVERT'
 
 
 class SEQUENCER_MT_marker(Menu):

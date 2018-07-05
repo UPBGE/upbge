@@ -169,10 +169,7 @@ void BKE_object_free_particlesystems(Object *ob)
 
 void BKE_object_free_softbody(Object *ob)
 {
-	if (ob->soft) {
-		sbFree(ob->soft);
-		ob->soft = NULL;
-	}
+	sbFree(ob);
 }
 
 void BKE_object_free_bulletsoftbody(Object *ob)
@@ -287,7 +284,7 @@ void BKE_object_link_modifiers(Scene *scene, struct Object *ob_dst, const struct
 
 		switch (md->type) {
 			case eModifierType_Softbody:
-				BKE_object_copy_softbody(ob_dst, ob_src);
+				BKE_object_copy_softbody(ob_dst, ob_src, 0);
 				break;
 			case eModifierType_Skin:
 				/* ensure skin-node customdata exists */
@@ -469,14 +466,7 @@ void BKE_object_free(Object *ob)
 	BKE_rigidbody_free_object(ob, NULL);
 	BKE_rigidbody_free_constraint(ob);
 
-	if (ob->soft) {
-		sbFree(ob->soft);
-		ob->soft = NULL;
-	}
-	if (ob->bsoft) {
-		bsbFree(ob->bsoft);
-		ob->bsoft = NULL;
-	}
+	sbFree(ob);
 
 	for (ObjectEngineData *oed = ob->drawdata.first; oed; oed = oed->next) {
 		if (oed->free != NULL) {

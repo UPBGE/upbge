@@ -119,7 +119,7 @@
 
 /*********************** Make Vertex Parent Operator ************************/
 
-static int vertex_parent_set_poll(bContext *C)
+static bool vertex_parent_set_poll(bContext *C)
 {
 	return ED_operator_editmesh(C) || ED_operator_editsurfcurve(C) || ED_operator_editlattice(C);
 }
@@ -2348,7 +2348,7 @@ static int make_override_static_exec(bContext *C, wmOperator *op)
 					new_ob->id.override_static->flag &= ~STATICOVERRIDE_AUTO;
 				}
 				/* We still want to store all objects' current override status (i.e. change of parent). */
-				BKE_override_static_operations_create(&new_ob->id, true);
+				BKE_override_static_operations_create(bmain, &new_ob->id, true);
 			}
 		}
 		FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
@@ -2392,7 +2392,7 @@ static int make_override_static_exec(bContext *C, wmOperator *op)
 	return success ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
-static int make_override_static_poll(bContext *C)
+static bool make_override_static_poll(bContext *C)
 {
 	Object *obact = CTX_data_active_object(C);
 

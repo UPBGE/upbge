@@ -120,7 +120,7 @@ class DopesheetFilterPopoverBase:
 
         # datablock filters
         layout.label("Include From Types:")
-        flow = layout.grid_flow(row_major=True, num_columns=2, even_rows=False, align=False)
+        flow = layout.grid_flow(row_major=True, columns=2, even_rows=False, align=False)
 
         flow.prop(dopesheet, "show_scenes", text="Scenes")
         flow.prop(dopesheet, "show_worlds", text="Worlds")
@@ -270,17 +270,15 @@ class DOPESHEET_HT_editor_buttons(Header):
             icon='FILTER',
         )
 
-        layout.separator()
+        # Grease Pencil mode doesn't need snapping, as it's frame-aligned only
+        if st.mode != 'GPENCIL':
+            layout.prop(st, "auto_snap", text="")
 
         row = layout.row(align=True)
         row.prop(toolsettings, "use_proportional_action", text="", icon_only=True)
         sub = row.row(align=True)
         sub.active = toolsettings.use_proportional_action
         sub.prop(toolsettings, "proportional_edit_falloff", text="", icon_only=True)
-
-        # Grease Pencil mode doesn't need snapping, as it's frame-aligned only
-        if st.mode != 'GPENCIL':
-            layout.prop(st, "auto_snap", text="")
 
         row = layout.row(align=True)
         row.operator("action.copy", text="", icon='COPYDOWN')
@@ -360,9 +358,9 @@ class DOPESHEET_MT_select(Menu):
     def draw(self, context):
         layout = self.layout
 
-        # This is a bit misleading as the operator's default text is "Select All" while it actually *toggles* All/None
-        layout.operator("action.select_all_toggle").invert = False
-        layout.operator("action.select_all_toggle", text="Invert Selection").invert = True
+        layout.operator("action.select_all", text="All").action = 'SELECT'
+        layout.operator("action.select_all", text="None").action = 'DESELECT'
+        layout.operator("action.select_all", text="Invert").action = 'INVERT'
 
         layout.separator()
         layout.operator("action.select_border").axis_range = False

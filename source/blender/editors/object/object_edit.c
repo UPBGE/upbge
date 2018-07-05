@@ -151,7 +151,7 @@ Object *ED_object_active_context(bContext *C)
 
 /* ********************** object hiding *************************** */
 
-static int object_hide_poll(bContext *C)
+static bool object_hide_poll(bContext *C)
 {
 	if (CTX_wm_space_outliner(C) != NULL) {
 		return ED_outliner_collections_editor_poll(C);
@@ -712,12 +712,14 @@ static int editmode_toggle_exec(bContext *C, wmOperator *op)
 
 	WM_msg_publish_rna_prop(mbus, &obact->id, obact, Object, mode);
 
-	WM_toolsystem_update_from_context_view3d(C);
+	if (G.background == false) {
+		WM_toolsystem_update_from_context_view3d(C);
+	}
 
 	return OPERATOR_FINISHED;
 }
 
-static int editmode_toggle_poll(bContext *C)
+static bool editmode_toggle_poll(bContext *C)
 {
 	Object *ob = CTX_data_active_object(C);
 
@@ -812,7 +814,9 @@ static int posemode_exec(bContext *C, wmOperator *op)
 
 	WM_msg_publish_rna_prop(mbus, &obact->id, obact, Object, mode);
 
-	WM_toolsystem_update_from_context_view3d(C);
+	if (G.background == false) {
+		WM_toolsystem_update_from_context_view3d(C);
+	}
 
 	return OPERATOR_FINISHED;
 }
@@ -1176,10 +1180,8 @@ static void copy_attr(Main *bmain, Scene *scene, ViewLayer *view_layer, short ev
 					DEG_relations_tag_update(bmain);
 				}
 				else if (event == 23) {
-					base->object->softflag = ob->softflag;
-					if (base->object->soft) sbFree(base->object->soft);
-
-					base->object->soft = copy_softbody(ob->soft, 0);
+					sbFree(base->object);
+					BKE_object_copy_softbody(base->object, ob, 0);
 
 					if (!modifiers_findByType(base->object, eModifierType_Softbody)) {
 						BLI_addhead(&base->object->modifiers, modifier_new(eModifierType_Softbody));
@@ -1455,7 +1457,7 @@ void OBJECT_OT_paths_calculate(wmOperatorType *ot)
 
 /* --------- */
 
-static int object_update_paths_poll(bContext *C)
+static bool object_update_paths_poll(bContext *C)
 {
 	if (ED_operator_object_active_editable(C)) {
 		Object *ob = ED_object_active_context(C);
@@ -1624,7 +1626,7 @@ static int shade_smooth_exec(bContext *C, wmOperator *op)
 	return (done) ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
-static int shade_poll(bContext *C)
+static bool shade_poll(bContext *C)
 {
 	return (CTX_data_edit_object(C) == NULL);
 }
@@ -1711,7 +1713,7 @@ static const EnumPropertyItem *object_mode_set_itemsf(
 	return item;
 }
 
-static int object_mode_set_poll(bContext *C)
+static bool object_mode_set_poll(bContext *C)
 {
 	/* Since Grease Pencil editmode is also handled here,
 	 * we have a special exception for allowing this operator
@@ -2305,7 +2307,7 @@ bool ED_object_editmode_calc_active_center(Object *obedit, const bool select_onl
 	return false;
 }
 
-static int move_to_collection_poll(bContext *C)
+static bool move_to_collection_poll(bContext *C)
 {
 	if (CTX_wm_space_outliner(C) != NULL) {
 		return ED_outliner_collections_editor_poll(C);

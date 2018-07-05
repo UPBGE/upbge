@@ -473,7 +473,7 @@ static int view3d_camera_to_view_exec(bContext *C, wmOperator *UNUSED(op))
 
 }
 
-static int view3d_camera_to_view_poll(bContext *C)
+static bool view3d_camera_to_view_poll(bContext *C)
 {
 	View3D *v3d;
 	ARegion *ar;
@@ -672,7 +672,7 @@ static int view3d_setobjectascamera_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-int ED_operator_rv3d_user_region_poll(bContext *C)
+bool ED_operator_rv3d_user_region_poll(bContext *C)
 {
 	View3D *v3d_dummy;
 	ARegion *ar_dummy;
@@ -1013,7 +1013,6 @@ int view3d_opengl_select(
 	ED_view3d_draw_setup_view(vc->win, depsgraph, scene, ar, v3d, vc->rv3d->viewmat, NULL, &rect);
 
 	if (v3d->drawtype > OB_WIRE) {
-		v3d->zbuf = true;
 		GPU_depth_test(true);
 	}
 
@@ -1059,7 +1058,6 @@ int view3d_opengl_select(
 	ED_view3d_draw_setup_view(vc->win, depsgraph, scene, ar, v3d, vc->rv3d->viewmat, NULL, NULL);
 
 	if (v3d->drawtype > OB_WIRE) {
-		v3d->zbuf = 0;
 		GPU_depth_test(false);
 	}
 
@@ -1085,7 +1083,7 @@ finally:
 /** \name View Layer Utilities
  * \{ */
 
-int ED_view3d_view_layer_set(int lay, const int *values, int *active)
+int ED_view3d_view_layer_set(int lay, const bool *values, int *active)
 {
 	int i, tot = 0;
 
@@ -1212,7 +1210,7 @@ static void game_set_commmandline_options(GameData *gm)
 
 #endif /* WITH_GAMEENGINE */
 
-static int game_engine_poll(bContext *C)
+static bool game_engine_poll(bContext *C)
 {
 	const wmWindow *win = CTX_wm_window(C);
 	const Scene *scene = WM_window_get_active_scene(win);
