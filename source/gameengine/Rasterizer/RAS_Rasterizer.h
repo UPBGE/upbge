@@ -316,7 +316,12 @@ private:
 	ShadowType m_shadowMode;
 
 	bool m_invertFrontFace;
-	bool m_last_frontface;
+
+	/// States to reduce OpenGL calls.
+	struct {
+		bool frontFace;
+		float polyOffset[2];
+	} m_state;
 
 	OverrideShaderType m_overrideShader;
 

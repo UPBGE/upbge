@@ -213,7 +213,6 @@ RAS_Rasterizer::RAS_Rasterizer()
 	m_drawingmode(RAS_TEXTURED),
 	m_shadowMode(RAS_SHADOW_NONE),
 	m_invertFrontFace(false),
-	m_last_frontface(true),
 	m_overrideShader(RAS_OVERRIDE_SHADER_NONE)
 {
 	m_impl.reset(new RAS_OpenGLRasterizer(this));
@@ -221,6 +220,10 @@ RAS_Rasterizer::RAS_Rasterizer()
 	m_numgllights = m_impl->GetNumLights();
 
 	InitOverrideShadersInterface();
+
+	m_state.frontFace = true;
+	m_state.polyOffset[0] = -1.0f;
+	m_state.polyOffset[1] = -1.0f;
 }
 
 RAS_Rasterizer::~RAS_Rasterizer()
@@ -306,6 +309,9 @@ void RAS_Rasterizer::Exit()
 void RAS_Rasterizer::BeginFrame(double time)
 {
 	m_time = time;
+
+	m_state.polyOffset[0] = -1.0f;
+	m_state.polyOffset[1] = -1.0f;
 
 	Enable(RAS_CULL_FACE);
 	Enable(RAS_DEPTH_TEST);
@@ -910,7 +916,12 @@ double RAS_Rasterizer::GetTime()
 
 void RAS_Rasterizer::SetPolygonOffset(DrawType drawingMode, float mult, float add)
 {
+	if (m_state.polyOffset[0] == mult && m_state.polyOffset[1] == add) {
+		return;
+	}
+
 	m_impl->SetPolygonOffset(mult, add);
+
 	EnableBit mode = RAS_POLYGON_OFFSET_FILL;
 	if (drawingMode < RAS_TEXTURED) {
 		mode = RAS_POLYGON_OFFSET_LINE;
@@ -921,6 +932,9 @@ void RAS_Rasterizer::SetPolygonOffset(DrawType drawingMode, float mult, float ad
 	else {
 		Disable(mode);
 	}
+
+	m_state.polyOffset[0] = mult;
+	m_state.polyOffset[1] = add;
 }
 
 void RAS_Rasterizer::EnableMotionBlur(float motionblurvalue)
@@ -954,13 +968,13 @@ void RAS_Rasterizer::SetFrontFace(bool ccw)
 	// Invert the front face if the camera has a negative scale or if we force to inverse the front face.
 	ccw ^= (m_camnegscale || m_invertFrontFace);
 
-	if (m_last_frontface == ccw) {
+	if (m_state.frontFace == ccw) {
 		return;
 	}
 
 	m_impl->SetFrontFace(ccw);
 
-	m_last_frontface = ccw;
+	m_state.frontFace = ccw;
 }
 
 void RAS_Rasterizer::SetInvertFrontFace(bool invert)
