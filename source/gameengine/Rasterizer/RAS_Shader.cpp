@@ -308,6 +308,8 @@ bool RAS_Shader::LinkProgram()
 		return false;
 	}
 
+	ExtractUniformInfos();
+
 	m_error = false;
 	return true;
 }
@@ -318,6 +320,20 @@ void RAS_Shader::ValidateProgram()
 	if (log) {
 		CM_Debug("---- GLSL Validation ----\n" << log);
 		MEM_freeN(log);
+	}
+}
+
+void RAS_Shader::ExtractUniformInfos()
+{
+	m_uniformInfos.clear();
+
+	GPUUniformInfo *infos;
+	const unsigned int count = GPU_shader_get_uniform_infos(m_shader, &infos);
+
+	for (unsigned short i = 0; i < count; ++i) {
+		const GPUUniformInfo& gpuinfo = infos[i];
+		const UniformInfo info = {gpuinfo.location, (unsigned short)gpuinfo.size, gpuinfo.type};
+		m_uniformInfos.emplace(gpuinfo.name, info);
 	}
 }
 
@@ -474,13 +490,14 @@ void RAS_Shader::BindAttribute(const std::string& attr, int loc)
 int RAS_Shader::GetUniformLocation(const std::string& name, bool debug)
 {
 	BLI_assert(m_shader != nullptr);
-	int location = GPU_shader_get_uniform(m_shader, name.c_str());
-
-	if (location == -1 && debug) {
-		CM_Error("invalid uniform value: " << name << ".");
+	const auto& it = m_uniformInfos.find(name);
+	if (it == m_uniformInfos.end()) {
+		if (debug) {
+			CM_Error("invalid uniform value: " << name << ".");
+		}
+		return -1;
 	}
-
-	return location;
+	return it->second.location;
 }
 
 void RAS_Shader::SetUniform(int uniform, const mt::vec2 &vec)
