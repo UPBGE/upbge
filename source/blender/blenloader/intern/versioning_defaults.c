@@ -52,7 +52,6 @@
 
 #include "BLO_readfile.h"
 
-
 /**
  * Override values in in-memory startup.blend, avoids resaving for small changes.
  */

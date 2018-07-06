@@ -49,6 +49,7 @@ struct GPUViewport;
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
 #include "DNA_image_types.h"
+#include "DNA_object_types.h"
 #include "DNA_movieclip_types.h"
 #include "DNA_gpu_types.h"
 
@@ -178,8 +179,8 @@ typedef struct View3DOverlay {
 
 	/* Other settings */
 	float wireframe_threshold;
+	int object_type_exclude;
 
-	int pad;
 } View3DOverlay;
 
 /* 3D ViewPort Struct */

@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Blender Foundation
+ * Copyright 2011-2017 Blender Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,16 +14,23 @@
  * limitations under the License.
  */
 
-#ifndef __UTIL_FOREACH_H__
-#define __UTIL_FOREACH_H__
+#ifndef __UTIL_TYPES_USHORT4_H__
+#define __UTIL_TYPES_USHORT4_H__
 
-/* Use Boost to get nice foreach() loops for STL data structures. */
-
-#if (__cplusplus > 199711L) || (defined(_MSC_VER) && _MSC_VER >= 1800)
-#  define foreach(x, y) for(x : y)
-#else
-#  include <boost/foreach.hpp>
-#  define foreach BOOST_FOREACH
+#ifndef __UTIL_TYPES_H__
+#  error "Do not include this file directly, include util_types.h instead."
 #endif
 
-#endif /* __UTIL_FOREACH_H__ */
+CCL_NAMESPACE_BEGIN
+
+#ifndef __KERNEL_GPU__
+
+struct ushort4 {
+	uint16_t x, y, z, w;
+};
+
+#endif
+
+CCL_NAMESPACE_END
+
+#endif  /* __UTIL_TYPES_USHORT4_H__ */
