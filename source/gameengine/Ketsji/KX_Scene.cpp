@@ -1456,7 +1456,7 @@ void KX_Scene::UpdateAnimations(double curtime, bool restrict)
 
 	DeformerTask deformTask(m_objectlist);
 	if (deformTask.Size() > 0) {
-		tbb::parallel_for(tbb::blocked_range<size_t>(0, deformTask.Size()), deformTask, tbb::static_partitioner());
+		tbb::parallel_for(tbb::blocked_range<size_t>(0, deformTask.Size()), deformTask);
 	}
 }
 
