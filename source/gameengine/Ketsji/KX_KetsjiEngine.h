@@ -34,19 +34,18 @@
 #define __KX_KETSJIENGINE_H__
 
 #include <string>
-#include "KX_ISystem.h"
 #include "KX_TimeCategoryLogger.h"
 #include "EXP_Python.h"
 #include "KX_WorldInfo.h"
 #include "RAS_CameraData.h"
 #include "RAS_Rasterizer.h"
 #include "RAS_DebugDraw.h"
+#include "CM_Clock.h"
 #include <vector>
 
 struct TaskScheduler;
 class KX_Scene;
 class KX_Camera;
-class KX_ISystem;
 class BL_Converter;
 class KX_NetworkMessageManager;
 class RAS_ICanvas;
@@ -151,13 +150,13 @@ private:
 		std::vector<FrameRenderData> m_frameDataList;
 	};
 
+	CM_Clock m_clock;
 	/// 2D Canvas (2D Rendering Device Context)
 	RAS_ICanvas *m_canvas;
 	/// 3D Rasterizer (3D Rendering)
 	RAS_Rasterizer *m_rasterizer;
 	/// Global debug draw, mainly used for profiling texts.
 	RAS_DebugDraw m_debugDraw;
-	KX_ISystem *m_kxsystem;
 	BL_Converter *m_converter;
 	KX_NetworkMessageManager *m_networkMessageManager;
 #ifdef WITH_PYTHON
@@ -307,7 +306,7 @@ private:
 	void EndFrame();
 
 public:
-	KX_KetsjiEngine(KX_ISystem *system);
+	KX_KetsjiEngine();
 	virtual ~KX_KetsjiEngine();
 
 	/// set the devices and stuff. the client must take care of creating these

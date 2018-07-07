@@ -60,13 +60,11 @@ set(SRC
 	LA_Launcher.cpp
 	LA_PlayerLauncher.cpp
 	LA_SystemCommandLine.cpp
-	LA_System.cpp
 
 	LA_BlenderLauncher.h
 	LA_Launcher.h
 	LA_PlayerLauncher.h
 	LA_SystemCommandLine.h
-	LA_System.h
 )
 
 if(WITH_GAMEENGINE_SECURITY)

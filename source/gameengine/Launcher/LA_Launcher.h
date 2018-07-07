@@ -28,7 +28,6 @@
 #define __LA_LAUNCHER_H__
 
 #include "KX_KetsjiEngine.h"
-#include "KX_ISystem.h"
 
 #include "RAS_Rasterizer.h"
 
@@ -37,7 +36,6 @@
 #include <string>
 
 class KX_Scene;
-class KX_ISystem;
 class BL_Converter;
 class KX_NetworkMessageManager;
 class RAS_ICanvas;
@@ -66,8 +64,6 @@ protected:
 
 	/// The gameengine itself.
 	KX_KetsjiEngine* m_ketsjiEngine;
-	/// The game engine's system abstraction.
-	KX_ISystem* m_kxsystem;
 	/// The game engine's input device abstraction.
 	DEV_InputDevice *m_inputDevice;
 	DEV_EventConsumer *m_eventConsumer;

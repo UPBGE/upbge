@@ -29,7 +29,6 @@
 #endif
 
 #include "LA_Launcher.h"
-#include "LA_System.h"
 #include "LA_SystemCommandLine.h"
 
 #include "RAS_ICanvas.h"
@@ -89,7 +88,6 @@ LA_Launcher::LA_Launcher(GHOST_ISystem *system, Main *maggie, Scene *scene, Glob
 	m_globalSettings(gs),
 	m_system(system),
 	m_ketsjiEngine(nullptr),
-	m_kxsystem(nullptr),
 	m_inputDevice(nullptr),
 	m_eventConsumer(nullptr),
 	m_canvas(nullptr),
@@ -234,13 +232,10 @@ void LA_Launcher::InitEngine()
 	m_eventConsumer = new DEV_EventConsumer(m_system, m_inputDevice, m_canvas);
 	m_system->addEventConsumer(m_eventConsumer);
 
-	// Create a ketsjisystem (only needed for timing and stuff).
-	m_kxsystem = new LA_System();
-
 	m_networkMessageManager = new KX_NetworkMessageManager();
 
 	// Create the ketsjiengine.
-	m_ketsjiEngine = new KX_KetsjiEngine(m_kxsystem);
+	m_ketsjiEngine = new KX_KetsjiEngine();
 	KX_SetActiveEngine(m_ketsjiEngine);
 
 	// Set the devices.
@@ -347,10 +342,6 @@ void LA_Launcher::ExitEngine()
 	if (m_ketsjiEngine) {
 		delete m_ketsjiEngine;
 		m_ketsjiEngine = nullptr;
-	}
-	if (m_kxsystem) {
-		delete m_kxsystem;
-		m_kxsystem = nullptr;
 	}
 	if (m_inputDevice) {
 		delete m_inputDevice;

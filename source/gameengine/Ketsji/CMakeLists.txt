@@ -177,7 +177,6 @@ set(SRC
 	KX_Globals.h
 	KX_IpoTransform.h
 	KX_IpoController.h
-	KX_ISystem.h
 	KX_KetsjiEngine.h
 	KX_LibLoadStatus.h
 	KX_LightObject.h
