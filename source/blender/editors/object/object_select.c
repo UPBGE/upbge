@@ -486,9 +486,9 @@ enum {
 	OBJECT_GRPSEL_HOOK               =  7,
 	OBJECT_GRPSEL_PASS               =  8,
 	OBJECT_GRPSEL_COLOR              =  9,
-	OBJECT_GRPSEL_PROPERTIES         = 10,
-	OBJECT_GRPSEL_KEYINGSET          = 11,
-	OBJECT_GRPSEL_LAMP_TYPE          = 12,
+	OBJECT_GRPSEL_KEYINGSET          = 10,
+	OBJECT_GRPSEL_LIGHT_TYPE          = 11,
+	OBJECT_GRPSEL_PROPERTIES         = 12,
 };
 
 static const EnumPropertyItem prop_select_grouped_types[] = {
@@ -503,7 +503,7 @@ static const EnumPropertyItem prop_select_grouped_types[] = {
 	{OBJECT_GRPSEL_COLOR, "COLOR", 0, "Color", "Object Color"},
 	{OBJECT_GRPSEL_PROPERTIES, "PROPERTIES", 0, "Properties", "Game Properties"},
 	{OBJECT_GRPSEL_KEYINGSET, "KEYINGSET", 0, "Keying Set", "Objects included in active Keying Set"},
-	{OBJECT_GRPSEL_LAMP_TYPE, "LAMP_TYPE", 0, "Lamp Type", "Matching lamp types"},
+	{OBJECT_GRPSEL_LIGHT_TYPE, "LIGHT_TYPE", 0, "Light Type", "Matching light types"},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -837,9 +837,9 @@ static int object_select_grouped_exec(bContext *C, wmOperator *op)
 		case OBJECT_GRPSEL_KEYINGSET:
 			changed |= select_grouped_keyingset(C, ob, op->reports);
 			break;
-		case OBJECT_GRPSEL_LAMP_TYPE:
+		case OBJECT_GRPSEL_LIGHT_TYPE:
 			if (ob->type != OB_LAMP) {
-				BKE_report(op->reports, RPT_ERROR, "Active object must be a lamp");
+				BKE_report(op->reports, RPT_ERROR, "Active object must be a light");
 				break;
 			}
 			changed |= select_grouped_lamptype(C, ob);

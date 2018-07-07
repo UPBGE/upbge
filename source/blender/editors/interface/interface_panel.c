@@ -117,12 +117,17 @@ static void panel_activate_state(const bContext *C, Panel *pa, uiHandlePanelStat
 /*********************** space specific code ************************/
 /* temporary code to remove all sbuts stuff from panel code         */
 
+/* SpaceButs.align */
+typedef enum eSpaceButtons_Align {
+	BUT_HORIZONTAL = 0,
+	BUT_VERTICAL = 1,
+	BUT_AUTO = 2,
+} eSpaceButtons_Align;
+
 static int panel_aligned(ScrArea *sa, ARegion *ar)
 {
-	if (sa->spacetype == SPACE_BUTS && ar->regiontype == RGN_TYPE_WINDOW) {
-		SpaceButs *sbuts = sa->spacedata.first;
-		return sbuts->align;
-	}
+	if (sa->spacetype == SPACE_BUTS && ar->regiontype == RGN_TYPE_WINDOW)
+		return BUT_VERTICAL;
 	else if (sa->spacetype == SPACE_USERPREF && ar->regiontype == RGN_TYPE_WINDOW)
 		return BUT_VERTICAL;
 	else if (sa->spacetype == SPACE_FILE && ar->regiontype == RGN_TYPE_CHANNELS)
@@ -180,10 +185,8 @@ static bool panels_need_realign(ScrArea *sa, ARegion *ar, Panel **pa_animate)
 	if (sa->spacetype == SPACE_BUTS && ar->regiontype == RGN_TYPE_WINDOW) {
 		SpaceButs *sbuts = sa->spacedata.first;
 
-		if (sbuts->align) {
-			if (sbuts->re_align || sbuts->mainbo != sbuts->mainb) {
-				return true;
-			}
+		if (sbuts->mainbo != sbuts->mainb) {
+			return true;
 		}
 	}
 	else if (sa->spacetype == SPACE_IMAGE && ar->regiontype == RGN_TYPE_PREVIEW) {
@@ -463,23 +466,6 @@ void UI_draw_icon_tri(float x, float y, char dir, const float color[4])
 	}
 	else { /* 'v' = vertical, down */
 		UI_draw_anti_tria(x - f5, y + f3, x + f5, y + f3, x, y - f7, color);
-	}
-}
-
-/* triangle 'icon' inside rect */
-static void ui_draw_tria_rect(const rctf *rect, char dir)
-{
-	float color[4];
-	UI_GetThemeColor3fv(TH_TITLE, color);
-	color[3] = 1.0f;
-
-	if (dir == 'h') {
-		float half = 0.5f * BLI_rctf_size_y(rect);
-		UI_draw_anti_tria(rect->xmin, rect->ymin, rect->xmin, rect->ymax, rect->xmax, rect->ymin + half, color);
-	}
-	else {
-		float half = 0.5f * BLI_rctf_size_x(rect);
-		UI_draw_anti_tria(rect->xmin, rect->ymax, rect->xmax, rect->ymax, rect->xmin + half, rect->ymin, color);
 	}
 }
 
@@ -850,12 +836,18 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, const rcti *rect, con
 
 	BLI_rctf_scale(&itemrect, 0.25f);
 
-	if (is_closed_y)
-		ui_draw_tria_rect(&itemrect, 'h');
-	else if (is_closed_x)
-		ui_draw_tria_rect(&itemrect, 'h');
-	else
-		ui_draw_tria_rect(&itemrect, 'v');
+	{
+		float tria_color[4];
+		UI_GetThemeColor3fv(TH_TITLE, tria_color);
+		tria_color[3] = 1.0f;
+
+		if (is_closed_y)
+			ui_draw_anti_tria_rect(&itemrect, 'h', tria_color);
+		else if (is_closed_x)
+			ui_draw_anti_tria_rect(&itemrect, 'h', tria_color);
+		else
+			ui_draw_anti_tria_rect(&itemrect, 'v', tria_color);
+	}
 }
 
 /************************** panel alignment *************************/

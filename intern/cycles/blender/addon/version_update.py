@@ -22,45 +22,6 @@ import math
 from bpy.app.handlers import persistent
 
 
-def check_is_new_shading_ntree(node_tree):
-    for node in node_tree.nodes:
-        # If material has any node with ONLY new shading system
-        # compatibility then it's considered a Cycles material
-        # and versioning code would need to perform on it.
-        #
-        # We can not check for whether NEW_SHADING in compatibility
-        # because some nodes could have compatibility with both old
-        # and new shading system and they can't be used for any
-        # decision here.
-        if node.shading_compatibility == {'NEW_SHADING'}:
-            return True
-
-        # If node is only compatible with old shading system
-        # then material can not be Cycles material and we
-        # can stopiterating nodes now.
-        if node.shading_compatibility == {'OLD_SHADING'}:
-            return False
-    return False
-
-
-def check_is_new_shading_material(material):
-    if not material.node_tree:
-        return False
-    return check_is_new_shading_ntree(material.node_tree)
-
-
-def check_is_new_shading_world(world):
-    if not world.node_tree:
-        return False
-    return check_is_new_shading_ntree(world.node_tree)
-
-
-def check_is_new_shading_lamp(lamp):
-    if not lamp.node_tree:
-        return False
-    return check_is_new_shading_ntree(lamp.node_tree)
-
-
 def foreach_notree_node(nodetree, callback, traversed):
     if nodetree in traversed:
         return
@@ -74,20 +35,20 @@ def foreach_notree_node(nodetree, callback, traversed):
 def foreach_cycles_node(callback):
     traversed = set()
     for material in bpy.data.materials:
-        if check_is_new_shading_material(material):
-                foreach_notree_node(material.node_tree,
-                                    callback,
-                                    traversed)
+        if material.node_tree:
+            foreach_notree_node(material.node_tree,
+                                callback,
+                                traversed)
     for world in bpy.data.worlds:
-        if check_is_new_shading_world(world):
-                foreach_notree_node(world.node_tree,
-                                    callback,
-                                    traversed)
-    for lamp in bpy.data.lamps:
-        if check_is_new_shading_world(lamp):
-                foreach_notree_node(lamp.node_tree,
-                                    callback,
-                                    traversed)
+        if world.node_tree:
+            foreach_notree_node(world.node_tree,
+                                callback,
+                                traversed)
+    for light in bpy.data.lights:
+        if light.node_tree:
+            foreach_notree_node(light.node_tree,
+                                callback,
+                                traversed)
 
 
 def displacement_node_insert(material, nodetree, traversed):
@@ -128,7 +89,7 @@ def displacement_node_insert(material, nodetree, traversed):
 def displacement_nodes_insert():
     traversed = set()
     for material in bpy.data.materials:
-        if check_is_new_shading_material(material):
+        if material.node_tree:
             displacement_node_insert(material, material.node_tree, traversed)
 
 def displacement_principled_nodes(node):
@@ -186,7 +147,7 @@ def square_roughness_node_insert(material, nodetree, traversed):
 def square_roughness_nodes_insert():
     traversed = set()
     for material in bpy.data.materials:
-        if check_is_new_shading_material(material):
+        if material.node_tree:
             square_roughness_node_insert(material, material.node_tree, traversed)
 
 
@@ -301,7 +262,7 @@ def ambient_occlusion_node_relink(material, nodetree, traversed):
 def ambient_occlusion_nodes_relink():
     traversed = set()
     for material in bpy.data.materials:
-        if check_is_new_shading_material(material):
+        if material.node_tree:
             ambient_occlusion_node_relink(material, material.node_tree, traversed)
 
 
@@ -393,12 +354,12 @@ def do_versions(self):
             if not cscene.is_property_set("tile_order"):
                 cscene.tile_order = 'CENTER'
 
-        for lamp in bpy.data.lamps:
-            clamp = lamp.cycles
+        for light in bpy.data.lights:
+            clight = light.cycles
 
             # MIS
-            if not clamp.is_property_set("use_multiple_importance_sampling"):
-                clamp.use_multiple_importance_sampling = False
+            if not clight.is_property_set("use_multiple_importance_sampling"):
+                clight.use_multiple_importance_sampling = False
 
         for mat in bpy.data.materials:
             cmat = mat.cycles

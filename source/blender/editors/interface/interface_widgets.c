@@ -533,6 +533,20 @@ void UI_draw_anti_tria(float x1, float y1, float x2, float y2, float x3, float y
 	GPU_blend(false);
 }
 
+/* triangle 'icon' inside rect */
+void ui_draw_anti_tria_rect(const rctf *rect, char dir, const float color[4])
+{
+	if (dir == 'h') {
+		float half = 0.5f * BLI_rctf_size_y(rect);
+		UI_draw_anti_tria(rect->xmin, rect->ymin, rect->xmin, rect->ymax, rect->xmax, rect->ymin + half, color);
+	}
+	else {
+		float half = 0.5f * BLI_rctf_size_x(rect);
+		UI_draw_anti_tria(rect->xmin, rect->ymax, rect->xmax, rect->ymax, rect->xmin + half, rect->ymin, color);
+	}
+}
+
+
 void UI_draw_anti_fan(float tri_array[][2], unsigned int length, const float color[4])
 {
 	float draw_color[4];
@@ -1256,8 +1270,8 @@ static int ui_but_draw_menu_icon(const uiBut *but)
 /* icons have been standardized... and this call draws in untransformed coordinates */
 
 static void widget_draw_icon_ex(
-        const uiBut *but, BIFIconID icon, float alpha, const rcti *rect, const bool show_menu_icon,
-        const int icon_size)
+        const uiBut *but, BIFIconID icon, float alpha,
+        const rcti *rect, const int icon_size)
 {
 	float xs = 0.0f, ys = 0.0f;
 	float aspect, height;
@@ -1332,20 +1346,35 @@ static void widget_draw_icon_ex(
 		}
 	}
 
-	if (show_menu_icon) {
-		xs = rect->xmax - UI_DPI_ICON_SIZE - aspect;
-		ys = (rect->ymin + rect->ymax - height) / 2.0f;
-
-		UI_icon_draw_aspect(xs, ys, ICON_RIGHTARROW_THIN, aspect, alpha);
-	}
-
 	GPU_blend(false);
 }
 
 static void widget_draw_icon(
-        const uiBut *but, BIFIconID icon, float alpha, const rcti *rect, const bool show_menu_icon)
+        const uiBut *but, BIFIconID icon, float alpha, const rcti *rect)
 {
-	widget_draw_icon_ex(but, icon, alpha, rect, show_menu_icon, ICON_DEFAULT_HEIGHT);
+	widget_draw_icon_ex(but, icon, alpha, rect, ICON_DEFAULT_HEIGHT);
+}
+
+static void widget_draw_submenu_tria(const uiBut *but, const rcti *rect, const uiWidgetColors *wcol)
+{
+	const float aspect = but->block->aspect / UI_DPI_FAC;
+	const int tria_height = (int)(ICON_DEFAULT_HEIGHT / aspect);
+	const int tria_width = (int)(ICON_DEFAULT_WIDTH / aspect) - 2 * U.pixelsize;
+	const int xs = rect->xmax - tria_width;
+	const int ys = (rect->ymin + rect->ymax - tria_height) / 2.0f;
+	float col[4];
+	rctf tria_rect;
+
+	rgba_uchar_to_float(col, (const uchar *)wcol->text);
+	col[3] *= 0.8f;
+
+	BLI_rctf_init(&tria_rect, xs, xs + tria_width, ys, ys + tria_height);
+	BLI_rctf_scale(&tria_rect, 0.4f);
+
+	GPU_blend(true);
+	UI_widgetbase_draw_cache_flush();
+	GPU_blend(false);
+	ui_draw_anti_tria_rect(&tria_rect, 'h', col);
 }
 
 static void ui_text_clip_give_prev_off(uiBut *but, const char *str)
@@ -1988,7 +2017,7 @@ static void widget_draw_text_icon(uiFontStyle *fstyle, uiWidgetColors *wcol, uiB
 	if (ELEM(but->type, UI_BTYPE_MENU, UI_BTYPE_POPOVER) && (but->flag & UI_BUT_NODE_LINK)) {
 		rcti temp = *rect;
 		temp.xmin = rect->xmax - BLI_rcti_size_y(rect) - 1;
-		widget_draw_icon(but, ICON_LAYER_USED, alpha, &temp, false);
+		widget_draw_icon(but, ICON_LAYER_USED, alpha, &temp);
 		rect->xmax = temp.xmin;
 	}
 
@@ -2058,17 +2087,17 @@ static void widget_draw_text_icon(uiFontStyle *fstyle, uiWidgetColors *wcol, uiB
 		else if (ui_block_is_menu(but->block))
 			rect->xmin += 0.3f * U.widget_unit;
 
-		widget_draw_icon(but, icon, alpha, rect, show_menu_icon);
+		widget_draw_icon(but, icon, alpha, rect);
+		if (show_menu_icon) {
+			BLI_assert(but->block->content_hints & BLOCK_CONTAINS_SUBMENU_BUT);
+			widget_draw_submenu_tria(but, rect, wcol);
+		}
 
 #ifdef USE_UI_TOOLBAR_HACK
 		but->block->aspect = aspect_orig;
 #endif
 
 		rect->xmin += icon_size;
-		/* without this menu keybindings will overlap the arrow icon [#38083] */
-		if (show_menu_icon) {
-			rect->xmax -= icon_size / 2.0f;
-		}
 	}
 
 	if (but->editstr || (but->drawflag & UI_BUT_TEXT_LEFT)) {
@@ -2078,6 +2107,12 @@ static void widget_draw_text_icon(uiFontStyle *fstyle, uiWidgetColors *wcol, uiB
 		rect->xmax -= (UI_TEXT_MARGIN_X * U.widget_unit) / but->block->aspect;
 	}
 
+	/* Menu contains sub-menu items with triangle icon on their right. Shortcut
+	 * strings should be drawn with some padding to the right then. */
+	if (ui_block_is_menu(but->block) && (but->block->content_hints & BLOCK_CONTAINS_SUBMENU_BUT)) {
+		rect->xmax -= UI_MENU_SUBMENU_PADDING;
+	}
+
 	/* extra icons, e.g. 'x' icon to clear text or icon for eyedropper */
 	if (extra_icon_type != UI_BUT_ICONEXTRA_NONE) {
 		rcti temp = *rect;
@@ -2085,10 +2120,10 @@ static void widget_draw_text_icon(uiFontStyle *fstyle, uiWidgetColors *wcol, uiB
 		temp.xmin = temp.xmax - (BLI_rcti_size_y(rect) * 1.08f);
 
 		if (extra_icon_type == UI_BUT_ICONEXTRA_CLEAR) {
-			widget_draw_icon(but, ICON_PANEL_CLOSE, alpha, &temp, false);
+			widget_draw_icon(but, ICON_PANEL_CLOSE, alpha, &temp);
 		}
 		else if (extra_icon_type == UI_BUT_ICONEXTRA_EYEDROPPER) {
-			widget_draw_icon(but, ICON_EYEDROPPER, alpha, &temp, false);
+			widget_draw_icon(but, ICON_EYEDROPPER, alpha, &temp);
 		}
 		else {
 			BLI_assert(0);
@@ -4644,6 +4679,7 @@ void ui_draw_widget_back_color(
 
 	if (use_shadow) {
 		GPU_blend(true);
+		GPU_blend_set_func_separate(GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
 		widget_softshadow(rect, UI_CNR_ALL, 0.25f * U.widget_unit);
 		GPU_blend(false);
 	}
