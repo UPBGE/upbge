@@ -1325,7 +1325,7 @@ if(WITH_BULLET AND WITH_SYSTEM_BULLET)
 		set(WITH_BULLET OFF)
 	endif()
 else()
-	set(BULLET_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/extern/bullet2/src")
+	set(BULLET_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/extern/bullet/src")
 	# set(BULLET_LIBRARIES "")
 endif()
 
