@@ -154,3 +154,10 @@ base class --- :class:`EXP_Value`
 
       :return: a duplicated mesh of the current used.
       :rtype: :class:`KX_Mesh`.
+
+   .. method:: constructBvh()
+
+      Return a BVH tree based on mesh geometry. Indices of tree elements match polygons indices.
+
+      :return: A BVH tree based on mesh geometry.
+      :rtype: :class:`mathutils.bvhtree.BVHTree`
