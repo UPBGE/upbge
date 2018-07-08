@@ -45,6 +45,7 @@ set(INC
 )
 
 set(INC_SYS
+	../../../intern/debugbreak
 	../../../intern/mathfu
 	${GLEW_INCLUDE_PATH}
 	${PYTHON_INCLUDE_DIRS}

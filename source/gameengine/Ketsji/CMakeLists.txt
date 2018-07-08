@@ -57,6 +57,7 @@ set(INC
 )
 
 set(INC_SYS
+	../../../intern/debugbreak
 	../../../intern/mathfu
 	../../../extern/recastnavigation/Recast/Include
 	../../../extern/recastnavigation/Detour/Include

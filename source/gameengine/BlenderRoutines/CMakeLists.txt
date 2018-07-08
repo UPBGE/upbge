@@ -32,6 +32,7 @@ set(INC
 )
 
 set(INC_SYS
+	../../../intern/debugbreak
 	../../../intern/mathfu
 	${PTHREADS_INCLUDE_DIRS}
 	${BOOST_INCLUDE_DIR}
