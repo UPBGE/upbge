@@ -121,7 +121,7 @@ static void nla_action_draw_keyframes(AnimData *adt, bAction *act, float y, floa
 	color[3] *= 2.5f;
 
 	Gwn_VertFormat *format = immVertexFormat();
-	unsigned int pos_id = GWN_vertformat_attr_add(format, "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+	uint pos_id = GWN_vertformat_attr_add(format, "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
 
 	immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
 
@@ -138,17 +138,17 @@ static void nla_action_draw_keyframes(AnimData *adt, bAction *act, float y, floa
 
 	/* count keys before drawing */
 	/* Note: It's safe to cast DLRBT_Tree, as it's designed to degrade down to a ListBase */
-	unsigned int key_ct = BLI_listbase_count((ListBase *)&keys);
+	uint key_len = BLI_listbase_count((ListBase *)&keys);
 
-	if (key_ct > 0) {
+	if (key_len > 0) {
 		format = immVertexFormat();
 		pos_id = GWN_vertformat_attr_add(format, "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
-		unsigned int size_id = GWN_vertformat_attr_add(format, "size", GWN_COMP_F32, 1, GWN_FETCH_FLOAT);
-		unsigned int color_id = GWN_vertformat_attr_add(format, "color", GWN_COMP_U8, 4, GWN_FETCH_INT_TO_FLOAT_UNIT);
-		unsigned int outline_color_id = GWN_vertformat_attr_add(format, "outlineColor", GWN_COMP_U8, 4, GWN_FETCH_INT_TO_FLOAT_UNIT);
+		uint size_id = GWN_vertformat_attr_add(format, "size", GWN_COMP_F32, 1, GWN_FETCH_FLOAT);
+		uint color_id = GWN_vertformat_attr_add(format, "color", GWN_COMP_U8, 4, GWN_FETCH_INT_TO_FLOAT_UNIT);
+		uint outline_color_id = GWN_vertformat_attr_add(format, "outlineColor", GWN_COMP_U8, 4, GWN_FETCH_INT_TO_FLOAT_UNIT);
 		immBindBuiltinProgram(GPU_SHADER_KEYFRAME_DIAMOND);
 		GPU_enable_program_point_size();
-		immBegin(GWN_PRIM_POINTS, key_ct);
+		immBegin(GWN_PRIM_POINTS, key_len);
 
 		/* - disregard the selection status of keyframes so they draw a certain way
 		 *	- size is 6.0f which is smaller than the editable keyframes, so that there is a distinction
@@ -706,7 +706,7 @@ void draw_nla_main_data(bAnimContext *ac, SpaceNla *snla, ARegion *ar)
 				{
 					AnimData *adt = ale->adt;
 
-					unsigned int pos = GWN_vertformat_attr_add(immVertexFormat(), "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+					uint pos = GWN_vertformat_attr_add(immVertexFormat(), "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
 					immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
 
 					/* just draw a semi-shaded rect spanning the width of the viewable area if there's data,

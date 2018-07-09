@@ -168,7 +168,7 @@ static void draw_uvs_shadow(Object *obedit)
 
 	const int cd_loop_uv_offset = CustomData_get_offset(&bm->ldata, CD_MLOOPUV);
 
-	unsigned int pos = GWN_vertformat_attr_add(immVertexFormat(), "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+	uint pos = GWN_vertformat_attr_add(immVertexFormat(), "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
 
 	immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
 
@@ -229,7 +229,7 @@ static void draw_uvs_stretch(SpaceImage *sima, Scene *scene, Object *obedit, BME
 				}
 			}
 
-			unsigned int pos = GWN_vertformat_attr_add(immVertexFormat(), "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+			uint pos = GWN_vertformat_attr_add(immVertexFormat(), "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
 
 			immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
 
@@ -309,8 +309,8 @@ static void draw_uvs_stretch(SpaceImage *sima, Scene *scene, Object *obedit, BME
 			col[3] = 0.5f; /* hard coded alpha, not that nice */
 
 			Gwn_VertFormat *format = immVertexFormat();
-			unsigned int pos = GWN_vertformat_attr_add(format, "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
-			unsigned int color = GWN_vertformat_attr_add(format, "color", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
+			uint pos = GWN_vertformat_attr_add(format, "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+			uint color = GWN_vertformat_attr_add(format, "color", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
 
 			immBindBuiltinProgram(GPU_SHADER_2D_SMOOTH_COLOR);
 
@@ -495,7 +495,7 @@ static void draw_uvs_other_mesh(Object *ob, const Image *curimage,
 static void draw_uvs_other(ViewLayer *view_layer, Object *obedit, const Image *curimage,
                            const int other_uv_filter)
 {
-	unsigned int pos = GWN_vertformat_attr_add(immVertexFormat(), "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+	uint pos = GWN_vertformat_attr_add(immVertexFormat(), "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
 
 	immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
 
@@ -536,7 +536,7 @@ static void draw_uvs_texpaint(SpaceImage *sima, Scene *scene, ViewLayer *view_la
 			mloopuv = me->mloopuv;
 		}
 
-		unsigned int pos = GWN_vertformat_attr_add(immVertexFormat(), "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+		uint pos = GWN_vertformat_attr_add(immVertexFormat(), "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
 
 		immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
 
@@ -765,7 +765,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, ViewLayer *view_layer, Obje
 	immEnd();
 
 	/* Then draw each face contour separately. */
-	if (loop_vbo->vertex_ct != 0) {
+	if (loop_vbo->vertex_len != 0) {
 		GWN_batch_program_use_begin(loop_batch);
 		unsigned int index = 0, loop_vbo_count;
 		BM_ITER_MESH(efa, &iter, bm, BM_FACES_OF_MESH) {
@@ -792,7 +792,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, ViewLayer *view_layer, Obje
 					/* Create a color buffer. */
 					static Gwn_VertFormat format = { 0 };
 					static uint shdr_col;
-					if (format.attrib_ct == 0) {
+					if (format.attr_len == 0) {
 						shdr_col = GWN_vertformat_attr_add(&format, "color", GWN_COMP_F32, 4, GWN_FETCH_FLOAT);
 					}
 

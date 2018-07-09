@@ -347,9 +347,9 @@ void DRW_shgroup_free(struct DRWShadingGroup *shgroup);
 void DRW_shgroup_call_add(DRWShadingGroup *shgroup, struct Gwn_Batch *geom, float (*obmat)[4]);
 void DRW_shgroup_call_range_add(
         DRWShadingGroup *shgroup, struct Gwn_Batch *geom, float (*obmat)[4], uint v_sta, uint v_count);
-void DRW_shgroup_call_procedural_points_add(DRWShadingGroup *shgroup, unsigned int point_count, float (*obmat)[4]);
-void DRW_shgroup_call_procedural_lines_add(DRWShadingGroup *shgroup, unsigned int line_count, float (*obmat)[4]);
-void DRW_shgroup_call_procedural_triangles_add(DRWShadingGroup *shgroup, unsigned int tria_count, float (*obmat)[4]);
+void DRW_shgroup_call_procedural_points_add(DRWShadingGroup *shgroup, uint point_len, float (*obmat)[4]);
+void DRW_shgroup_call_procedural_lines_add(DRWShadingGroup *shgroup, uint line_count, float (*obmat)[4]);
+void DRW_shgroup_call_procedural_triangles_add(DRWShadingGroup *shgroup, uint tria_count, float (*obmat)[4]);
 void DRW_shgroup_call_object_procedural_triangles_culled_add(DRWShadingGroup *shgroup, uint tria_count, struct Object *ob);
 void DRW_shgroup_call_object_add_ex(DRWShadingGroup *shgroup, struct Gwn_Batch *geom, struct Object *ob, bool bypass_culling);
 #define DRW_shgroup_call_object_add(shgroup, geom, ob) DRW_shgroup_call_object_add_ex(shgroup, geom, ob, false)
@@ -493,7 +493,7 @@ void DRW_state_lock(DRWState state);
 
 void DRW_state_invert_facing(void);
 
-void DRW_state_clip_planes_count_set(uint plane_ct);
+void DRW_state_clip_planes_count_set(uint plane_len);
 void DRW_state_clip_planes_reset(void);
 
 /* Culling, return true if object is inside view frustum. */

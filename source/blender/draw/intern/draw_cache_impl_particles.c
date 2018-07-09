@@ -66,8 +66,8 @@ static void particle_batch_cache_clear(ParticleSystem *psys);
 typedef struct ParticlePointCache {
 	Gwn_VertBuf *pos;
 	Gwn_Batch *points;
-	int elems_count;
-	int point_count;
+	int elems_len;
+	int point_len;
 } ParticlePointCache;
 
 typedef struct ParticleBatchCache {
@@ -82,11 +82,11 @@ typedef struct ParticleBatchCache {
 
 	Gwn_VertBuf *edit_inner_pos;
 	Gwn_Batch *edit_inner_points;
-	int edit_inner_point_count;
+	int edit_inner_point_len;
 
 	Gwn_VertBuf *edit_tip_pos;
 	Gwn_Batch *edit_tip_points;
-	int edit_tip_point_count;
+	int edit_tip_point_len;
 
 	/* Settings to determine if cache is invalid. */
 	bool is_dirty;
@@ -225,9 +225,9 @@ static void count_cache_segment_keys(
 	for (int i = 0; i < num_path_cache_keys; i++) {
 		ParticleCacheKey *path = pathcache[i];
 		if (path->segments > 0) {
-			hair_cache->strands_count++;
-			hair_cache->elems_count += path->segments + 2;
-			hair_cache->point_count += path->segments + 1;
+			hair_cache->strands_len++;
+			hair_cache->elems_len += path->segments + 2;
+			hair_cache->point_len += path->segments + 1;
 		}
 	}
 }
@@ -243,9 +243,9 @@ static void ensure_seg_pt_count(
 		return;
 	}
 
-	hair_cache->strands_count = 0;
-	hair_cache->elems_count = 0;
-	hair_cache->point_count = 0;
+	hair_cache->strands_len = 0;
+	hair_cache->elems_len = 0;
+	hair_cache->point_len = 0;
 
 	if (edit != NULL && edit->pathcache != NULL) {
 		count_cache_segment_keys(edit->pathcache, edit->totcached, hair_cache);
@@ -263,7 +263,7 @@ static void ensure_seg_pt_count(
 	}
 }
 
-static void particle_pack_mcol(MCol *mcol, unsigned short r_scol[3])
+static void particle_pack_mcol(MCol *mcol, ushort r_scol[3])
 {
 	/* Convert to linear ushort and swizzle */
 	r_scol[0] = unit_float_to_ushort_clamp(BLI_color_from_srgb_table[mcol->b]);
@@ -573,7 +573,7 @@ static int particle_batch_cache_fill_segments(
 				}
 				for (int k = 0; k < num_col_layers; k++) {
 					/* TODO Put the conversion outside the loop */
-					unsigned short scol[4];
+					ushort scol[4];
 					particle_pack_mcol(
 					        (is_simple && is_child) ?
 					        &(*r_parent_mcol)[psys->child[i].parent][k] : &mcol[k],
@@ -600,7 +600,7 @@ static int particle_batch_cache_fill_segments(
 			}
 			for (int k = 0; k < num_col_layers; k++) {
 				/* TODO Put the conversion outside the loop */
-				unsigned short scol[4];
+				ushort scol[4];
 				particle_pack_mcol(
 				        (is_simple && is_child) ?
 				        &(*r_parent_mcol)[psys->child[i].parent][k] : &mcol[k],
@@ -734,7 +734,7 @@ static int particle_batch_cache_fill_strands_data(
 				copy_v2_v2(t_uv, uv[k]);
 			}
 			for (int k = 0; k < num_col_layers; k++) {
-				unsigned short *scol = (unsigned short *)GWN_vertbuf_raw_step(col_step + k);
+				ushort *scol = (ushort *)GWN_vertbuf_raw_step(col_step + k);
 				particle_pack_mcol(
 				        (is_simple && is_child) ?
 				        &(*r_parent_mcol)[psys->child[i].parent][k] : &mcol[k],
@@ -761,7 +761,7 @@ static void particle_batch_cache_ensure_procedural_final_points(
 
 	/* Create a destination buffer for the tranform feedback. Sized appropriately */
 	/* Thoses are points! not line segments. */
-	GWN_vertbuf_data_alloc(cache->final[subdiv].proc_buf, cache->final[subdiv].strands_res * cache->strands_count);
+	GWN_vertbuf_data_alloc(cache->final[subdiv].proc_buf, cache->final[subdiv].strands_res * cache->strands_len);
 
 	/* Create vbo immediatly to bind to texture buffer. */
 	GWN_vertbuf_use(cache->final[subdiv].proc_buf);
@@ -814,13 +814,13 @@ static void particle_batch_cache_ensure_procedural_strand_data(
 
 	/* Strand Data */
 	cache->proc_strand_buf = GWN_vertbuf_create_with_format(&format_data);
-	GWN_vertbuf_data_alloc(cache->proc_strand_buf, cache->strands_count);
+	GWN_vertbuf_data_alloc(cache->proc_strand_buf, cache->strands_len);
 	GWN_vertbuf_attr_get_raw_data(cache->proc_strand_buf, data_id, &data_step);
 
 	/* UV layers */
 	for (int i = 0; i < cache->num_uv_layers; i++) {
 		cache->proc_uv_buf[i] = GWN_vertbuf_create_with_format(&format_uv);
-		GWN_vertbuf_data_alloc(cache->proc_uv_buf[i], cache->strands_count);
+		GWN_vertbuf_data_alloc(cache->proc_uv_buf[i], cache->strands_len);
 		GWN_vertbuf_attr_get_raw_data(cache->proc_uv_buf[i], uv_id, &uv_step[i]);
 
 		const char *name = CustomData_get_layer_name(&psmd->mesh_final->ldata, CD_MLOOPUV, i);
@@ -836,7 +836,7 @@ static void particle_batch_cache_ensure_procedural_strand_data(
 	/* Vertex colors */
 	for (int i = 0; i < cache->num_col_layers; i++) {
 		cache->proc_col_buf[i] = GWN_vertbuf_create_with_format(&format_col);
-		GWN_vertbuf_data_alloc(cache->proc_col_buf[i], cache->strands_count);
+		GWN_vertbuf_data_alloc(cache->proc_col_buf[i], cache->strands_len);
 		GWN_vertbuf_attr_get_raw_data(cache->proc_col_buf[i], col_id, &col_step[i]);
 
 		const char *name = CustomData_get_layer_name(&psmd->mesh_final->ldata, CD_MLOOPCOL, i);
@@ -942,7 +942,7 @@ static void particle_batch_cache_ensure_procedural_indices(
 
 	int verts_per_hair = cache->final[subdiv].strands_res * thickness_res;
 	/* +1 for primitive restart */
-	int element_count = (verts_per_hair + 1) * cache->strands_count;
+	int element_count = (verts_per_hair + 1) * cache->strands_len;
 	Gwn_PrimType prim_type = (thickness_res == 1) ? GWN_PRIM_LINE_STRIP : GWN_PRIM_TRI_STRIP;
 
 	static Gwn_VertFormat format = { 0 };
@@ -997,7 +997,7 @@ static void particle_batch_cache_ensure_procedural_pos(
 	uint pos_id = GWN_vertformat_attr_add(&format, "posTime", GWN_COMP_F32, 4, GWN_FETCH_FLOAT);
 
 	cache->proc_point_buf = GWN_vertbuf_create_with_format(&format);
-	GWN_vertbuf_data_alloc(cache->proc_point_buf, cache->point_count);
+	GWN_vertbuf_data_alloc(cache->proc_point_buf, cache->point_len);
 
 	Gwn_VertBufRaw pos_step;
 	GWN_vertbuf_attr_get_raw_data(cache->proc_point_buf, pos_id, &pos_step);
@@ -1109,13 +1109,13 @@ static void particle_batch_cache_ensure_pos_and_seg(
 	}
 
 	hair_cache->pos = GWN_vertbuf_create_with_format(&format);
-	GWN_vertbuf_data_alloc(hair_cache->pos, hair_cache->point_count);
+	GWN_vertbuf_data_alloc(hair_cache->pos, hair_cache->point_len);
 
 	Gwn_IndexBufBuilder elb;
 	GWN_indexbuf_init_ex(
 	        &elb,
 	        GWN_PRIM_LINE_STRIP,
-	        hair_cache->elems_count, hair_cache->point_count,
+	        hair_cache->elems_len, hair_cache->point_len,
 	        true);
 
 	if (num_uv_layers || num_col_layers) {
@@ -1196,7 +1196,7 @@ static void particle_batch_cache_ensure_pos(
 	}
 
 	static Gwn_VertFormat format = { 0 };
-	static unsigned pos_id, rot_id, val_id;
+	static uint pos_id, rot_id, val_id;
 	int i, curr_point;
 	ParticleData *pa;
 	ParticleKey state;
@@ -1219,7 +1219,7 @@ static void particle_batch_cache_ensure_pos(
 
 	GWN_VERTBUF_DISCARD_SAFE(point_cache->pos);
 
-	if (format.attrib_ct == 0) {
+	if (format.attr_len == 0) {
 		/* initialize vertex format */
 		pos_id = GWN_vertformat_attr_add(&format, "pos", GWN_COMP_F32, 4, GWN_FETCH_FLOAT);
 		rot_id = GWN_vertformat_attr_add(&format, "rot", GWN_COMP_F32, 4, GWN_FETCH_FLOAT);
@@ -1392,11 +1392,11 @@ static void ensure_edit_inner_points_count(
 	if (cache->edit_inner_pos != NULL) {
 		return;
 	}
-	cache->edit_inner_point_count = 0;
+	cache->edit_inner_point_len = 0;
 	for (int point_index = 0; point_index < edit->totpoint; point_index++) {
 		const PTCacheEditPoint *point = &edit->points[point_index];
 		BLI_assert(point->totkey >= 1);
-		cache->edit_inner_point_count += (point->totkey - 1);
+		cache->edit_inner_point_len += (point->totkey - 1);
 	}
 }
 
@@ -1420,18 +1420,18 @@ static void particle_batch_cache_ensure_edit_inner_pos(
 	}
 
 	static Gwn_VertFormat format = { 0 };
-	static unsigned pos_id, color_id;
+	static uint pos_id, color_id;
 
 	GWN_VERTBUF_DISCARD_SAFE(cache->edit_inner_pos);
 
-	if (format.attrib_ct == 0) {
+	if (format.attr_len == 0) {
 		/* initialize vertex format */
 		pos_id = GWN_vertformat_attr_add(&format, "pos", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
 		color_id = GWN_vertformat_attr_add(&format, "color", GWN_COMP_F32, 4, GWN_FETCH_FLOAT);
 	}
 
 	cache->edit_inner_pos = GWN_vertbuf_create_with_format(&format);
-	GWN_vertbuf_data_alloc(cache->edit_inner_pos, cache->edit_inner_point_count);
+	GWN_vertbuf_data_alloc(cache->edit_inner_pos, cache->edit_inner_point_len);
 
 	float selected_color[4], normal_color[4];
 	edit_colors_get(edit, selected_color, normal_color);
@@ -1479,7 +1479,7 @@ static void ensure_edit_tip_points_count(
 	if (cache->edit_tip_pos != NULL) {
 		return;
 	}
-	cache->edit_tip_point_count = edit->totpoint;
+	cache->edit_tip_point_len = edit->totpoint;
 }
 
 static void particle_batch_cache_ensure_edit_tip_pos(
@@ -1491,18 +1491,18 @@ static void particle_batch_cache_ensure_edit_tip_pos(
 	}
 
 	static Gwn_VertFormat format = { 0 };
-	static unsigned pos_id, color_id;
+	static uint pos_id, color_id;
 
 	GWN_VERTBUF_DISCARD_SAFE(cache->edit_tip_pos);
 
-	if (format.attrib_ct == 0) {
+	if (format.attr_len == 0) {
 		/* initialize vertex format */
 		pos_id = GWN_vertformat_attr_add(&format, "pos", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
 		color_id = GWN_vertformat_attr_add(&format, "color", GWN_COMP_F32, 4, GWN_FETCH_FLOAT);
 	}
 
 	cache->edit_tip_pos = GWN_vertbuf_create_with_format(&format);
-	GWN_vertbuf_data_alloc(cache->edit_tip_pos, cache->edit_tip_point_count);
+	GWN_vertbuf_data_alloc(cache->edit_tip_pos, cache->edit_tip_point_len);
 
 	float selected_color[4], normal_color[4];
 	edit_colors_get(edit, selected_color, normal_color);
