@@ -813,25 +813,100 @@ enum {
 	TFM_MODAL_INSERTOFS_TOGGLE_DIR         = 27,
 };
 
+static bool transform_modal_item_poll(const wmOperator *op, int value)
+{
+	const TransInfo *t = op->customdata;
+	switch (value) {
+		case TFM_MODAL_PROPSIZE:
+		case TFM_MODAL_PROPSIZE_UP:
+		case TFM_MODAL_PROPSIZE_DOWN:
+		{
+			if ((t->flag & T_PROP_EDIT) == 0) {
+				return false;
+			}
+			break;
+		}
+		case TFM_MODAL_ADD_SNAP:
+		case TFM_MODAL_REMOVE_SNAP:
+		{
+			if (t->spacetype != SPACE_VIEW3D) {
+				return false;
+			}
+			else if (t->tsnap.mode & (SCE_SNAP_MODE_INCREMENT | SCE_SNAP_MODE_GRID)) {
+				return false;
+			}
+			else if (!validSnap(t)) {
+				return false;
+			}
+			break;
+		}
+		case TFM_MODAL_AXIS_X:
+		case TFM_MODAL_AXIS_Y:
+		case TFM_MODAL_AXIS_Z:
+		case TFM_MODAL_PLANE_X:
+		case TFM_MODAL_PLANE_Y:
+		case TFM_MODAL_PLANE_Z:
+		{
+			if (t->flag & T_NO_CONSTRAINT) {
+				return false;
+			}
+			if (!ELEM(value, TFM_MODAL_AXIS_X, TFM_MODAL_AXIS_Y)) {
+				if (t->flag & T_2D_EDIT) {
+					return false;
+				}
+			}
+			break;
+		}
+		case TFM_MODAL_CONS_OFF:
+		{
+			if ((t->con.mode & CON_APPLY) == 0) {
+				return false;
+			}
+			break;
+		}
+		case TFM_MODAL_EDGESLIDE_UP:
+		case TFM_MODAL_EDGESLIDE_DOWN:
+		{
+			if (t->mode != TFM_EDGE_SLIDE) {
+				return false;
+			}
+			break;
+		}
+		case TFM_MODAL_INSERTOFS_TOGGLE_DIR:
+		{
+			if (t->spacetype != SPACE_NODE) {
+				return false;
+			}
+			break;
+		}
+		case TFM_MODAL_AUTOIK_LEN_INC:
+		case TFM_MODAL_AUTOIK_LEN_DEC:
+		{
+			if ((t->flag & T_AUTOIK) == 0) {
+				return false;
+			}
+			break;
+		}
+	}
+	return true;
+}
+
 /* called in transform_ops.c, on each regeneration of keymaps */
 wmKeyMap *transform_modal_keymap(wmKeyConfig *keyconf)
 {
 	static const EnumPropertyItem modal_items[] = {
-		{TFM_MODAL_CANCEL, "CANCEL", 0, "Cancel", ""},
 		{TFM_MODAL_CONFIRM, "CONFIRM", 0, "Confirm", ""},
-		{TFM_MODAL_TRANSLATE, "TRANSLATE", 0, "Translate", ""},
-		{TFM_MODAL_ROTATE, "ROTATE", 0, "Rotate", ""},
-		{TFM_MODAL_RESIZE, "RESIZE", 0, "Resize", ""},
-		{TFM_MODAL_SNAP_INV_ON, "SNAP_INV_ON", 0, "Invert Snap On", ""},
+		{TFM_MODAL_CANCEL, "CANCEL", 0, "Cancel", ""},
+		{TFM_MODAL_AXIS_X, "AXIS_X", 0, "X axis", ""},
+		{TFM_MODAL_AXIS_Y, "AXIS_Y", 0, "Y axis", ""},
+		{TFM_MODAL_AXIS_Z, "AXIS_Z", 0, "Z axis", ""},
+		{TFM_MODAL_PLANE_X, "PLANE_X", 0, "X plane", ""},
+		{TFM_MODAL_PLANE_Y, "PLANE_Y", 0, "Y plane", ""},
+		{TFM_MODAL_PLANE_Z, "PLANE_Z", 0, "Z plane", ""},
+		{TFM_MODAL_CONS_OFF, "CONS_OFF", 0, "Clear Constraints", ""},
+		{TFM_MODAL_SNAP_INV_ON, "SNAP_INV_ON", 0, "Invert Snap", ""},
 		{TFM_MODAL_SNAP_INV_OFF, "SNAP_INV_OFF", 0, "Invert Snap Off", ""},
 		{TFM_MODAL_SNAP_TOGGLE, "SNAP_TOGGLE", 0, "Snap Toggle", ""},
-		{TFM_MODAL_AXIS_X, "AXIS_X", 0, "Orientation X axis", ""},
-		{TFM_MODAL_AXIS_Y, "AXIS_Y", 0, "Orientation Y axis", ""},
-		{TFM_MODAL_AXIS_Z, "AXIS_Z", 0, "Orientation Z axis", ""},
-		{TFM_MODAL_PLANE_X, "PLANE_X", 0, "Orientation X plane", ""},
-		{TFM_MODAL_PLANE_Y, "PLANE_Y", 0, "Orientation Y plane", ""},
-		{TFM_MODAL_PLANE_Z, "PLANE_Z", 0, "Orientation Z plane", ""},
-		{TFM_MODAL_CONS_OFF, "CONS_OFF", 0, "Remove Constraints", ""},
 		{TFM_MODAL_ADD_SNAP, "ADD_SNAP", 0, "Add Snap Point", ""},
 		{TFM_MODAL_REMOVE_SNAP, "REMOVE_SNAP", 0, "Remove Last Snap Point", ""},
 		{NUM_MODAL_INCREMENT_UP, "INCREMENT_UP", 0, "Numinput Increment Up", ""},
@@ -844,6 +919,9 @@ wmKeyMap *transform_modal_keymap(wmKeyConfig *keyconf)
 		{TFM_MODAL_EDGESLIDE_DOWN, "EDGESLIDE_PREV_NEXT", 0, "Select previous Edge Slide Edge", ""},
 		{TFM_MODAL_PROPSIZE, "PROPORTIONAL_SIZE", 0, "Adjust Proportional Influence", ""},
 		{TFM_MODAL_INSERTOFS_TOGGLE_DIR, "INSERTOFS_TOGGLE_DIR", 0, "Toggle Direction for Node Auto-offset", ""},
+		{TFM_MODAL_TRANSLATE, "TRANSLATE", 0, "Translate", ""},
+		{TFM_MODAL_ROTATE, "ROTATE", 0, "Rotate", ""},
+		{TFM_MODAL_RESIZE, "RESIZE", 0, "Resize", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
 
@@ -853,12 +931,24 @@ wmKeyMap *transform_modal_keymap(wmKeyConfig *keyconf)
 	if (keymap && keymap->modal_items) return NULL;
 
 	keymap = WM_modalkeymap_add(keyconf, "Transform Modal Map", modal_items);
+	keymap->poll_modal_item = transform_modal_item_poll;
 
 	/* items for modal map */
-	WM_modalkeymap_add_item(keymap, ESCKEY,    KM_PRESS, KM_ANY, 0, TFM_MODAL_CANCEL);
-	WM_modalkeymap_add_item(keymap, LEFTMOUSE, KM_PRESS, KM_ANY, 0, TFM_MODAL_CONFIRM);
-	WM_modalkeymap_add_item(keymap, RETKEY,    KM_PRESS, KM_ANY, 0, TFM_MODAL_CONFIRM);
-	WM_modalkeymap_add_item(keymap, PADENTER,  KM_PRESS, KM_ANY, 0, TFM_MODAL_CONFIRM);
+	WM_modalkeymap_add_item(keymap, LEFTMOUSE,  KM_PRESS, KM_ANY, 0, TFM_MODAL_CONFIRM);
+	WM_modalkeymap_add_item(keymap, RETKEY,     KM_PRESS, KM_ANY, 0, TFM_MODAL_CONFIRM);
+	WM_modalkeymap_add_item(keymap, PADENTER,   KM_PRESS, KM_ANY, 0, TFM_MODAL_CONFIRM);
+	WM_modalkeymap_add_item(keymap, RIGHTMOUSE, KM_PRESS, KM_ANY, 0, TFM_MODAL_CANCEL);
+	WM_modalkeymap_add_item(keymap, ESCKEY,     KM_PRESS, KM_ANY, 0, TFM_MODAL_CANCEL);
+
+	WM_modalkeymap_add_item(keymap, XKEY, KM_PRESS, 0, 0, TFM_MODAL_AXIS_X);
+	WM_modalkeymap_add_item(keymap, YKEY, KM_PRESS, 0, 0, TFM_MODAL_AXIS_Y);
+	WM_modalkeymap_add_item(keymap, ZKEY, KM_PRESS, 0, 0, TFM_MODAL_AXIS_Z);
+
+	WM_modalkeymap_add_item(keymap, XKEY, KM_PRESS, KM_SHIFT, 0, TFM_MODAL_PLANE_X);
+	WM_modalkeymap_add_item(keymap, YKEY, KM_PRESS, KM_SHIFT, 0, TFM_MODAL_PLANE_Y);
+	WM_modalkeymap_add_item(keymap, ZKEY, KM_PRESS, KM_SHIFT, 0, TFM_MODAL_PLANE_Z);
+
+	WM_modalkeymap_add_item(keymap, CKEY, KM_PRESS, 0, 0, TFM_MODAL_CONS_OFF);
 
 	WM_modalkeymap_add_item(keymap, GKEY, KM_PRESS, 0, 0, TFM_MODAL_TRANSLATE);
 	WM_modalkeymap_add_item(keymap, RKEY, KM_PRESS, 0, 0, TFM_MODAL_ROTATE);
@@ -1410,21 +1500,6 @@ int transformEvent(TransInfo *t, const wmEvent *event)
 						handled = true;
 					}
 				}
-				else {
-					if (!(t->flag & T_NO_CONSTRAINT)) {
-						stopConstraint(t);
-						t->redraw |= TREDRAW_HARD;
-						handled = true;
-					}
-				}
-				break;
-			case XKEY:
-			case YKEY:
-			case ZKEY:
-				if (!(t->flag & T_NO_CONSTRAINT)) {
-					transform_event_xyz_constraint(t, event->type, cmode);
-					handled = true;
-				}
 				break;
 			case OKEY:
 				if (t->flag & T_PROP_EDIT && event->shift) {
@@ -1549,6 +1624,12 @@ int transformEvent(TransInfo *t, const wmEvent *event)
 	{
 		t->redraw |= TREDRAW_HARD;
 		handled = true;
+	}
+
+	if (t->redraw &&
+	    !ELEM(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE))
+	{
+		WM_window_status_area_tag_redraw(CTX_wm_window(t->context));
 	}
 
 	if (handled || t->redraw) {
