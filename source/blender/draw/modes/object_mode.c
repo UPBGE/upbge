@@ -908,7 +908,7 @@ static void OBJECT_cache_init(void *vedata)
 	}
 
 	{
-		DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL;
+		DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_POINT;
 		DRWPass *pass = psl->lightprobes = DRW_pass_create("Object Probe Pass", state);
 		struct Gwn_Batch *sphere = DRW_cache_sphere_get();
 		struct Gwn_Batch *quad = DRW_cache_quad_get();
@@ -1355,14 +1355,14 @@ static void DRW_shgroup_lamp(OBJECT_StorageList *stl, Object *ob, ViewLayer *vie
 	static float zero = 0.0f;
 
 	typedef struct LampEngineData {
-		ObjectEngineData engine_data;
+		DrawData dd;
 		float shape_mat[4][4];
 		float spot_blend_mat[4][4];
 	} LampEngineData;
 
 	LampEngineData *lamp_engine_data =
-	        (LampEngineData *)DRW_object_engine_data_ensure(
-	                ob,
+	        (LampEngineData *)DRW_drawdata_ensure(
+	                &ob->id,
 	                &draw_engine_object_type,
 	                sizeof(LampEngineData),
 	                NULL,
@@ -1712,7 +1712,7 @@ static void DRW_shgroup_speaker(OBJECT_StorageList *stl, Object *ob, ViewLayer *
 }
 
 typedef struct OBJECT_LightProbeEngineData {
-	ObjectEngineData engine_data;
+	DrawData dd;
 
 	float prb_mats[6][4][4];
 	float probe_cube_mat[4][4];
@@ -1733,8 +1733,8 @@ static void DRW_shgroup_lightprobe(OBJECT_StorageList *stl, OBJECT_PassList *psl
 	int theme_id = DRW_object_wire_theme_get(ob, view_layer, &color);
 
 	OBJECT_LightProbeEngineData *prb_data =
-	        (OBJECT_LightProbeEngineData *)DRW_object_engine_data_ensure(
-	                ob,
+	        (OBJECT_LightProbeEngineData *)DRW_drawdata_ensure(
+	                &ob->id,
 	                &draw_engine_object_type,
 	                sizeof(OBJECT_LightProbeEngineData),
 	                NULL,
@@ -1785,8 +1785,7 @@ static void DRW_shgroup_lightprobe(OBJECT_StorageList *stl, OBJECT_PassList *psl
 			DRW_shgroup_uniform_vec3(grp, "increment_y", prb_data->increment_y, 1);
 			DRW_shgroup_uniform_vec3(grp, "increment_z", prb_data->increment_z, 1);
 			DRW_shgroup_uniform_ivec3(grp, "grid_resolution", &prb->grid_resolution_x, 1);
-			DRW_shgroup_uniform_float(grp, "sphere_size", &prb->data_draw_size, 1);
-			DRW_shgroup_call_instances_add(grp, DRW_cache_sphere_get(), NULL, &prb_data->cell_count);
+			DRW_shgroup_call_procedural_points_add(grp, prb_data->cell_count, NULL);
 		}
 		else if (prb->type == LIGHTPROBE_TYPE_CUBE) {
 			prb_data->draw_size = prb->data_draw_size * 0.1f;
@@ -1794,6 +1793,9 @@ static void DRW_shgroup_lightprobe(OBJECT_StorageList *stl, OBJECT_PassList *psl
 			copy_v3_v3(prb_data->probe_cube_mat[3], ob->obmat[3]);
 
 			DRWShadingGroup *grp = shgroup_theme_id_to_probe_cube_outline_shgrp(stl, theme_id);
+			/* TODO remove or change the drawing of the cube probes. Theses line draws nothing on purpose
+			 * to keep the call ids correct. */
+			zero_m4(prb_data->probe_cube_mat);
 			DRW_shgroup_call_dynamic_add(grp, call_id, &prb_data->draw_size, prb_data->probe_cube_mat);
 		}
 		else {
@@ -2129,6 +2131,7 @@ static void OBJECT_cache_populate(void *vedata, Object *ob)
 
 	bool do_outlines = (draw_ctx->v3d->flag & V3D_SELECT_OUTLINE) && ((ob->base_flag & BASE_SELECTED) != 0);
 	bool show_relations = ((draw_ctx->v3d->flag & V3D_HIDE_HELPLINES) == 0);
+	const bool hide_object_extra = (v3d->overlay.flag & V3D_OVERLAY_HIDE_OBJECT_XTRAS) != 0;
 
 	if (do_outlines) {
 		if ((ob != draw_ctx->object_edit) && !((ob == draw_ctx->obact) && (draw_ctx->object_mode & OB_MODE_ALL_PAINT))) {
@@ -2154,6 +2157,9 @@ static void OBJECT_cache_populate(void *vedata, Object *ob)
 	switch (ob->type) {
 		case OB_MESH:
 		{
+			if (hide_object_extra) {
+				break;
+			}
 			if (ob != draw_ctx->object_edit) {
 				Mesh *me = ob->data;
 				if (me->totedge == 0) {
@@ -2186,6 +2192,9 @@ static void OBJECT_cache_populate(void *vedata, Object *ob)
 		case OB_LATTICE:
 		{
 			if (ob != draw_ctx->object_edit) {
+				if (hide_object_extra) {
+					break;
+				}
 				struct Gwn_Batch *geom = DRW_cache_lattice_wire_get(ob, false);
 				if (theme_id == TH_UNDEFINED) {
 					theme_id = DRW_object_wire_theme_get(ob, view_layer, NULL);
@@ -2199,6 +2208,9 @@ static void OBJECT_cache_populate(void *vedata, Object *ob)
 		case OB_CURVE:
 		{
 			if (ob != draw_ctx->object_edit) {
+				if (hide_object_extra) {
+					break;
+				}
 				struct Gwn_Batch *geom = DRW_cache_curve_edge_wire_get(ob);
 				if (theme_id == TH_UNDEFINED) {
 					theme_id = DRW_object_wire_theme_get(ob, view_layer, NULL);
@@ -2216,22 +2228,40 @@ static void OBJECT_cache_populate(void *vedata, Object *ob)
 			break;
 		}
 		case OB_LAMP:
+			if (hide_object_extra) {
+				break;
+			}
 			DRW_shgroup_lamp(stl, ob, view_layer);
 			break;
 		case OB_CAMERA:
-			DRW_shgroup_camera(stl, ob, view_layer);
+			if (hide_object_extra) {
+				break;
+			}
+			 DRW_shgroup_camera(stl, ob, view_layer);
 			break;
 		case OB_EMPTY:
+			if (hide_object_extra) {
+				break;
+			}
 			DRW_shgroup_empty(stl, psl, ob, view_layer);
 			break;
 		case OB_SPEAKER:
+			if (hide_object_extra) {
+				break;
+			}
 			DRW_shgroup_speaker(stl, ob, view_layer);
 			break;
 		case OB_LIGHTPROBE:
+			if (hide_object_extra) {
+				break;
+			}
 			DRW_shgroup_lightprobe(stl, psl, ob, view_layer);
 			break;
 		case OB_ARMATURE:
 		{
+			if (v3d->overlay.flag & V3D_OVERLAY_HIDE_BONES) {
+				break;
+			}
 			bArmature *arm = ob->data;
 			if (arm->edbo == NULL) {
 				if (DRW_state_is_select() || !DRW_pose_mode_armature(ob, draw_ctx->obact)) {

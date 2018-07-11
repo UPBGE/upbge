@@ -143,16 +143,10 @@ static void rna_userdef_update(Main *UNUSED(bmain), Scene *UNUSED(scene), Pointe
 }
 
 /* also used by buffer swap switching */
-static void rna_userdef_dpi_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *UNUSED(ptr))
+static void rna_userdef_dpi_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *UNUSED(ptr))
 {
 	/* font's are stored at each DPI level, without this we can easy load 100's of fonts */
 	BLF_cache_clear();
-
-	/* force setting drawable again */
-	wmWindowManager *wm = bmain->wm.first;
-	if (wm) {
-		wm->windrawable = NULL;
-	}
 
 	WM_main_add_notifier(NC_WINDOW, NULL);      /* full redraw */
 	WM_main_add_notifier(NC_SCREEN | NA_EDITED, NULL);    /* refresh region sizes */
@@ -1040,14 +1034,6 @@ static void rna_def_userdef_theme_ui_panel(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "sub_back", PROP_FLOAT, PROP_COLOR_GAMMA);
 	RNA_def_property_ui_text(prop, "Sub Background", "");
-	RNA_def_property_update(prop, 0, "rna_userdef_update");
-
-	prop = RNA_def_property(srna, "show_header", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_ui_text(prop, "Show Header", "");
-	RNA_def_property_update(prop, 0, "rna_userdef_update");
-
-	prop = RNA_def_property(srna, "show_back", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_ui_text(prop, "Show Background", "");
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
 }
 

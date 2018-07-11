@@ -386,6 +386,8 @@ enum {
 	V3D_OVERLAY_HIDE_TEXT         = (1 << 5),
 	V3D_OVERLAY_HIDE_MOTION_PATHS = (1 << 6),
 	V3D_OVERLAY_ONION_SKINS       = (1 << 7),
+	V3D_OVERLAY_HIDE_BONES        = (1 << 8),
+	V3D_OVERLAY_HIDE_OBJECT_XTRAS = (1 << 9),
 };
 
 /* View3DOverlay->edit_flag */

@@ -362,6 +362,8 @@ static void add_standard_uniforms(
         DRWShadingGroup *shgrp, EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata,
         int *ssr_id, float *refract_depth, bool use_ssrefraction, bool use_alpha_blend)
 {
+	LightCache *lcache = vedata->stl->g_data->light_cache;
+
 	if (ssr_id == NULL) {
 		static int no_ssr = -1.0f;
 		ssr_id = &no_ssr;
@@ -393,12 +395,12 @@ static void add_standard_uniforms(
 
 	/* TODO if diffuse bsdf */
 	if (true) {
-		DRW_shgroup_uniform_texture_ref(shgrp, "irradianceGrid", &sldata->irradiance_pool);
+		DRW_shgroup_uniform_texture_ref(shgrp, "irradianceGrid", &lcache->grid_tx.tex);
 	}
 
 	/* TODO if glossy bsdf */
 	if (true) {
-		DRW_shgroup_uniform_texture_ref(shgrp, "probeCubes", &sldata->probe_pool);
+		DRW_shgroup_uniform_texture_ref(shgrp, "probeCubes", &lcache->cube_tx.tex);
 		DRW_shgroup_uniform_texture_ref(shgrp, "probePlanars", &vedata->txl->planar_pool);
 		DRW_shgroup_uniform_int(shgrp, "outputSsrId", ssr_id, 1);
 	}
@@ -654,14 +656,14 @@ struct GPUMaterial *EEVEE_material_world_lightprobe_get(struct Scene *scene, Wor
 	const void *engine = &DRW_engine_viewport_eevee_type;
 	const int options = VAR_WORLD_PROBE;
 
-	GPUMaterial *mat = DRW_shader_find_from_world(wo, engine, options);
+	GPUMaterial *mat = DRW_shader_find_from_world(wo, engine, options, false);
 	if (mat != NULL) {
 		return mat;
 	}
 	return DRW_shader_create_from_world(
 	        scene, wo, engine, options,
 	        datatoc_background_vert_glsl, NULL, e_data.frag_shader_lib,
-	        SHADER_DEFINES "#define PROBE_CAPTURE\n");
+	        SHADER_DEFINES "#define PROBE_CAPTURE\n", false);
 }
 
 struct GPUMaterial *EEVEE_material_world_background_get(struct Scene *scene, World *wo)
@@ -669,14 +671,14 @@ struct GPUMaterial *EEVEE_material_world_background_get(struct Scene *scene, Wor
 	const void *engine = &DRW_engine_viewport_eevee_type;
 	int options = VAR_WORLD_BACKGROUND;
 
-	GPUMaterial *mat = DRW_shader_find_from_world(wo, engine, options);
+	GPUMaterial *mat = DRW_shader_find_from_world(wo, engine, options, true);
 	if (mat != NULL) {
 		return mat;
 	}
 	return DRW_shader_create_from_world(
 	        scene, wo, engine, options,
 	        datatoc_background_vert_glsl, NULL, e_data.frag_shader_lib,
-	        SHADER_DEFINES "#define WORLD_BACKGROUND\n");
+	        SHADER_DEFINES "#define WORLD_BACKGROUND\n", true);
 }
 
 struct GPUMaterial *EEVEE_material_world_volume_get(struct Scene *scene, World *wo)
@@ -684,7 +686,7 @@ struct GPUMaterial *EEVEE_material_world_volume_get(struct Scene *scene, World *
 	const void *engine = &DRW_engine_viewport_eevee_type;
 	int options = VAR_WORLD_VOLUME;
 
-	GPUMaterial *mat = DRW_shader_find_from_world(wo, engine, options);
+	GPUMaterial *mat = DRW_shader_find_from_world(wo, engine, options, true);
 	if (mat != NULL) {
 		return mat;
 	}
@@ -694,7 +696,7 @@ struct GPUMaterial *EEVEE_material_world_volume_get(struct Scene *scene, World *
 	mat = DRW_shader_create_from_world(
 	        scene, wo, engine, options,
 	        datatoc_volumetric_vert_glsl, datatoc_volumetric_geom_glsl, e_data.volume_shader_lib,
-	        defines);
+	        defines, true);
 
 	MEM_freeN(defines);
 
@@ -719,7 +721,7 @@ struct GPUMaterial *EEVEE_material_mesh_get(
 
 	options |= eevee_material_shadow_option(shadow_method);
 
-	GPUMaterial *mat = DRW_shader_find_from_material(ma, engine, options);
+	GPUMaterial *mat = DRW_shader_find_from_material(ma, engine, options, true);
 	if (mat) {
 		return mat;
 	}
@@ -729,7 +731,7 @@ struct GPUMaterial *EEVEE_material_mesh_get(
 	mat = DRW_shader_create_from_material(
 	        scene, ma, engine, options,
 	        e_data.vert_shader_str, NULL, e_data.frag_shader_lib,
-	        defines);
+	        defines, true);
 
 	MEM_freeN(defines);
 
@@ -741,7 +743,7 @@ struct GPUMaterial *EEVEE_material_mesh_volume_get(struct Scene *scene, Material
 	const void *engine = &DRW_engine_viewport_eevee_type;
 	int options = VAR_MAT_VOLUME;
 
-	GPUMaterial *mat = DRW_shader_find_from_material(ma, engine, options);
+	GPUMaterial *mat = DRW_shader_find_from_material(ma, engine, options, true);
 	if (mat != NULL) {
 		return mat;
 	}
@@ -751,7 +753,7 @@ struct GPUMaterial *EEVEE_material_mesh_volume_get(struct Scene *scene, Material
 	mat = DRW_shader_create_from_material(
 	        scene, ma, engine, options,
 	        datatoc_volumetric_vert_glsl, datatoc_volumetric_geom_glsl, e_data.volume_shader_lib,
-	        defines);
+	        defines, true);
 
 	MEM_freeN(defines);
 
@@ -775,7 +777,7 @@ struct GPUMaterial *EEVEE_material_mesh_depth_get(
 	if (is_shadow)
 		options |= VAR_MAT_SHADOW;
 
-	GPUMaterial *mat = DRW_shader_find_from_material(ma, engine, options);
+	GPUMaterial *mat = DRW_shader_find_from_material(ma, engine, options, true);
 	if (mat) {
 		return mat;
 	}
@@ -791,7 +793,8 @@ struct GPUMaterial *EEVEE_material_mesh_depth_get(
 	        (is_shadow) ? datatoc_shadow_vert_glsl : e_data.vert_shader_str,
 	        NULL,
 	        frag_str,
-	        defines);
+	        defines,
+	        true);
 
 	MEM_freeN(frag_str);
 	MEM_freeN(defines);
@@ -807,7 +810,7 @@ struct GPUMaterial *EEVEE_material_hair_get(
 
 	options |= eevee_material_shadow_option(shadow_method);
 
-	GPUMaterial *mat = DRW_shader_find_from_material(ma, engine, options);
+	GPUMaterial *mat = DRW_shader_find_from_material(ma, engine, options, true);
 	if (mat) {
 		return mat;
 	}
@@ -817,7 +820,7 @@ struct GPUMaterial *EEVEE_material_hair_get(
 	mat = DRW_shader_create_from_material(
 	        scene, ma, engine, options,
 	        e_data.vert_shader_str, NULL, e_data.frag_shader_lib,
-	        defines);
+	        defines, true);
 
 	MEM_freeN(defines);
 
@@ -973,7 +976,6 @@ void EEVEE_materials_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
 						DRW_shgroup_call_add(grp, geom, NULL);
 						break;
 					case GPU_MAT_QUEUED:
-						sldata->probes->all_materials_updated = false;
 						/* TODO Bypass probe compilation. */
 						col = compile_col;
 						break;
@@ -1230,7 +1232,6 @@ static void material_opaque(
 			}
 			case GPU_MAT_QUEUED:
 			{
-				sldata->probes->all_materials_updated = false;
 				/* TODO Bypass probe compilation. */
 				color_p = compile_col;
 				metal_p = spec_p = rough_p = &half;
@@ -1317,7 +1318,6 @@ static void material_transparent(
 			}
 			case GPU_MAT_QUEUED:
 			{
-				sldata->probes->all_materials_updated = false;
 				/* TODO Bypass probe compilation. */
 				color_p = compile_col;
 				metal_p = spec_p = rough_p = &half;
@@ -1647,7 +1647,6 @@ void EEVEE_hair_cache_populate(EEVEE_Data *vedata, EEVEE_ViewLayerData *sldata, 
 						}
 						case GPU_MAT_QUEUED:
 						{
-							sldata->probes->all_materials_updated = false;
 							color_p = compile_col;
 							metal_p = spec_p = rough_p = &half;
 							break;

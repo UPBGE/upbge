@@ -436,6 +436,8 @@ void BKE_object_free(Object *ob)
 {
 	BKE_animdata_free((ID *)ob, false);
 
+	DRW_drawdata_free((ID *)ob);
+
 	/* BKE_<id>_free shall never touch to ID->us. Never ever. */
 	BKE_object_free_modifiers(ob, LIB_ID_CREATE_NO_USER_REFCOUNT);
 
@@ -467,13 +469,6 @@ void BKE_object_free(Object *ob)
 	BKE_rigidbody_free_constraint(ob);
 
 	sbFree(ob);
-
-	for (ObjectEngineData *oed = ob->drawdata.first; oed; oed = oed->next) {
-		if (oed->free != NULL) {
-			oed->free(oed);
-		}
-	}
-	BLI_freelistN(&ob->drawdata);
 
 	BKE_sculptsession_free(ob);
 
@@ -1393,7 +1388,7 @@ void BKE_object_copy_data(Main *UNUSED(bmain), Object *ob_dst, const Object *ob_
 	ob_dst->derivedFinal = NULL;
 
 	BLI_listbase_clear(&ob_dst->gpulamp);
-	BLI_listbase_clear(&ob_dst->drawdata);
+	BLI_listbase_clear((ListBase *)&ob_dst->drawdata);
 	BLI_listbase_clear(&ob_dst->pc_ids);
 
 	ob_dst->avs = ob_src->avs;
@@ -2668,7 +2663,6 @@ void BKE_object_empty_draw_type_set(Object *ob, const int value)
 			ob->iuser->flag |= IMA_ANIM_ALWAYS;
 			ob->iuser->frames = 100;
 			ob->iuser->sfra = 1;
-			ob->iuser->fie_ima = 2;
 		}
 	}
 	else {

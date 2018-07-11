@@ -904,8 +904,8 @@ wmKeyMap *transform_modal_keymap(wmKeyConfig *keyconf)
 		{TFM_MODAL_PLANE_Y, "PLANE_Y", 0, "Y plane", ""},
 		{TFM_MODAL_PLANE_Z, "PLANE_Z", 0, "Z plane", ""},
 		{TFM_MODAL_CONS_OFF, "CONS_OFF", 0, "Clear Constraints", ""},
-		{TFM_MODAL_SNAP_INV_ON, "SNAP_INV_ON", 0, "Invert Snap", ""},
-		{TFM_MODAL_SNAP_INV_OFF, "SNAP_INV_OFF", 0, "Invert Snap Off", ""},
+		{TFM_MODAL_SNAP_INV_ON, "SNAP_INV_ON", 0, "Snap Invert", ""},
+		{TFM_MODAL_SNAP_INV_OFF, "SNAP_INV_OFF", 0, "Snap Invert (Off)", ""},
 		{TFM_MODAL_SNAP_TOGGLE, "SNAP_TOGGLE", 0, "Snap Toggle", ""},
 		{TFM_MODAL_ADD_SNAP, "ADD_SNAP", 0, "Add Snap Point", ""},
 		{TFM_MODAL_REMOVE_SNAP, "REMOVE_SNAP", 0, "Remove Last Snap Point", ""},
@@ -989,7 +989,7 @@ wmKeyMap *transform_modal_keymap(wmKeyConfig *keyconf)
 	return keymap;
 }
 
-static void transform_event_xyz_constraint(TransInfo *t, short key_type, char cmode)
+static void transform_event_xyz_constraint(TransInfo *t, short key_type, char cmode, bool is_plane)
 {
 	if (!(t->flag & T_NO_CONSTRAINT)) {
 		int constraint_axis, constraint_plane;
@@ -1036,23 +1036,27 @@ static void transform_event_xyz_constraint(TransInfo *t, short key_type, char cm
 		}
 		else if (!edit_2d) {
 			if (cmode == axis) {
-				if (t->con.orientation != V3D_MANIP_GLOBAL) {
+				if (t->con.orientation != t->current_orientation) {
 					stopConstraint(t);
 				}
 				else {
-					short orientation = (t->current_orientation != V3D_MANIP_GLOBAL ?
-					                     t->current_orientation : V3D_MANIP_LOCAL);
-					if (!(t->modifiers & MOD_CONSTRAINT_PLANE))
+					const short orientation = (
+					        (t->current_orientation != V3D_MANIP_GLOBAL) ? V3D_MANIP_GLOBAL : V3D_MANIP_LOCAL);
+					if (is_plane == false) {
 						setUserConstraint(t, orientation, constraint_axis, msg2);
-					else if (t->modifiers & MOD_CONSTRAINT_PLANE)
+					}
+					else {
 						setUserConstraint(t, orientation, constraint_plane, msg3);
+					}
 				}
 			}
 			else {
-				if (!(t->modifiers & MOD_CONSTRAINT_PLANE))
-					setUserConstraint(t, V3D_MANIP_GLOBAL, constraint_axis, msg2);
-				else if (t->modifiers & MOD_CONSTRAINT_PLANE)
-					setUserConstraint(t, V3D_MANIP_GLOBAL, constraint_plane, msg3);
+				if (is_plane == false) {
+					setUserConstraint(t, t->current_orientation, constraint_axis, msg2);
+				}
+				else {
+					setUserConstraint(t, t->current_orientation, constraint_plane, msg3);
+				}
 			}
 		}
 		t->redraw |= TREDRAW_HARD;
@@ -1232,57 +1236,42 @@ int transformEvent(TransInfo *t, const wmEvent *event)
 				break;
 			case TFM_MODAL_AXIS_X:
 				if (!(t->flag & T_NO_CONSTRAINT)) {
-					transform_event_xyz_constraint(t, XKEY, cmode);
+					transform_event_xyz_constraint(t, XKEY, cmode, false);
 					t->redraw |= TREDRAW_HARD;
 					handled = true;
 				}
 				break;
 			case TFM_MODAL_AXIS_Y:
 				if ((t->flag & T_NO_CONSTRAINT) == 0) {
-					transform_event_xyz_constraint(t, YKEY, cmode);
+					transform_event_xyz_constraint(t, YKEY, cmode, false);
 					t->redraw |= TREDRAW_HARD;
 					handled = true;
 				}
 				break;
 			case TFM_MODAL_AXIS_Z:
 				if ((t->flag & (T_NO_CONSTRAINT)) == 0) {
-					transform_event_xyz_constraint(t, ZKEY, cmode);
+					transform_event_xyz_constraint(t, ZKEY, cmode, false);
 					t->redraw |= TREDRAW_HARD;
 					handled = true;
 				}
 				break;
 			case TFM_MODAL_PLANE_X:
 				if ((t->flag & (T_NO_CONSTRAINT | T_2D_EDIT)) == 0) {
-					if (cmode == 'X') {
-						stopConstraint(t);
-					}
-					else {
-						setUserConstraint(t, t->current_orientation, (CON_AXIS1 | CON_AXIS2), IFACE_("locking %s X"));
-					}
+					transform_event_xyz_constraint(t, XKEY, cmode, true);
 					t->redraw |= TREDRAW_HARD;
 					handled = true;
 				}
 				break;
 			case TFM_MODAL_PLANE_Y:
 				if ((t->flag & (T_NO_CONSTRAINT | T_2D_EDIT)) == 0) {
-					if (cmode == 'Y') {
-						stopConstraint(t);
-					}
-					else {
-						setUserConstraint(t, t->current_orientation, (CON_AXIS0 | CON_AXIS2), IFACE_("locking %s Y"));
-					}
+					transform_event_xyz_constraint(t, YKEY, cmode, true);
 					t->redraw |= TREDRAW_HARD;
 					handled = true;
 				}
 				break;
 			case TFM_MODAL_PLANE_Z:
 				if ((t->flag & (T_NO_CONSTRAINT | T_2D_EDIT)) == 0) {
-					if (cmode == 'Z') {
-						stopConstraint(t);
-					}
-					else {
-						setUserConstraint(t, t->current_orientation, (CON_AXIS0 | CON_AXIS1), IFACE_("locking %s Z"));
-					}
+					transform_event_xyz_constraint(t, ZKEY, cmode, true);
 					t->redraw |= TREDRAW_HARD;
 					handled = true;
 				}

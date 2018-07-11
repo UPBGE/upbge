@@ -126,9 +126,9 @@ static char *workbench_build_forward_composite_frag(void)
 	return str;
 }
 
-static void workbench_init_object_data(ObjectEngineData *engine_data)
+static void workbench_init_object_data(DrawData *dd)
 {
-	WORKBENCH_ObjectData *data = (WORKBENCH_ObjectData *)engine_data;
+	WORKBENCH_ObjectData *data = (WORKBENCH_ObjectData *)dd;
 	data->object_id = ((e_data.next_object_id++) & 0xff) + 1;
 }
 
@@ -139,8 +139,8 @@ static WORKBENCH_MaterialData *get_or_create_material_data(
 	WORKBENCH_PassList *psl = vedata->psl;
 	WORKBENCH_PrivateData *wpd = stl->g_data;
 	WORKBENCH_MaterialData *material;
-	WORKBENCH_ObjectData *engine_object_data = (WORKBENCH_ObjectData *)DRW_object_engine_data_ensure(
-	        ob, &draw_engine_workbench_solid, sizeof(WORKBENCH_ObjectData), &workbench_init_object_data, NULL);
+	WORKBENCH_ObjectData *engine_object_data = (WORKBENCH_ObjectData *)DRW_drawdata_ensure(
+	        &ob->id, &draw_engine_workbench_solid, sizeof(WORKBENCH_ObjectData), &workbench_init_object_data, NULL);
 	WORKBENCH_MaterialData material_template;
 	DRWShadingGroup *grp;
 
@@ -176,14 +176,15 @@ static WORKBENCH_MaterialData *get_or_create_material_data(
 		material->shgrp = grp;
 
 		/* Depth */
-		if (workbench_material_determine_color_type(wpd, material->ima) == V3D_SHADING_TEXTURE_COLOR)
-		{
-			material->shgrp_object_outline = DRW_shgroup_create(e_data.object_outline_texture_sh, psl->object_outline_pass);
+		if (workbench_material_determine_color_type(wpd, material->ima) == V3D_SHADING_TEXTURE_COLOR) {
+			material->shgrp_object_outline = DRW_shgroup_create(
+			        e_data.object_outline_texture_sh, psl->object_outline_pass);
 			GPUTexture *tex = GPU_texture_from_blender(material->ima, NULL, GL_TEXTURE_2D, false, 0.0f);
 			DRW_shgroup_uniform_texture(material->shgrp_object_outline, "image", tex);
 		}
 		else {
-			material->shgrp_object_outline = DRW_shgroup_create(e_data.object_outline_sh, psl->object_outline_pass);
+			material->shgrp_object_outline = DRW_shgroup_create(
+			        e_data.object_outline_sh, psl->object_outline_pass);
 		}
 		material->object_id = engine_object_data->object_id;
 		DRW_shgroup_uniform_int(material->shgrp_object_outline, "object_id", &material->object_id, 1);

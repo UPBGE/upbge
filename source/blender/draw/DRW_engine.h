@@ -136,8 +136,15 @@ void DRW_opengl_context_destroy(void);
 void DRW_opengl_context_enable(void);
 void DRW_opengl_context_disable(void);
 
+void DRW_opengl_render_context_enable(void *re_gl_context);
+void DRW_opengl_render_context_disable(void *re_gl_context);
+void DRW_gawain_render_context_enable(void *re_gwn_context);
+void DRW_gawain_render_context_disable(void *re_gwn_context);
+
 void DRW_deferred_shader_remove(struct GPUMaterial *mat);
 
+struct DrawDataList *DRW_drawdatalist_from_id(struct ID *id);
+void DRW_drawdata_free(struct ID *id);
 
 /*************************************************Game engine************************************************/
 struct GPUTexture *DRW_game_render_loop(struct Main *bmain, struct Scene *scene, struct Object *maincam, int viewportsize[2],
@@ -145,4 +152,5 @@ struct GPUTexture *DRW_game_render_loop(struct Main *bmain, struct Scene *scene,
 void DRW_game_render_loop_finish(void);
 void DRW_game_render_loop_end(void);
 /********************************************End of game engine**********************************************/
+
 #endif /* __DRW_ENGINE_H__ */
