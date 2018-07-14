@@ -108,6 +108,7 @@ private:
 
 #ifdef WITH_PYTHON
 	PyObject *m_attrDict;
+	PyObject *m_removeCallbacks;
 	PyObject *m_drawCallbacks[MAX_DRAW_CALLBACK];
 #endif
 
@@ -455,6 +456,8 @@ public:
 	static int pyattr_set_overrideCullingCamera(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject *pyattr_get_drawing_callback(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_drawing_callback(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_remove_callback(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_remove_callback(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject *pyattr_get_gravity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_gravity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
@@ -464,6 +467,9 @@ public:
 
 	/// Run the registered python drawing functions.
 	void RunDrawingCallbacks(DrawingCallbackType callbackType, KX_Camera *camera);
+
+	// Run the registered python callbacks when the scene is removed.
+	void RunOnRemoveCallbacks();
 #endif
 };
 

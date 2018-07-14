@@ -362,6 +362,7 @@ public:
 	EXP_ListValue<KX_Scene> *CurrentScenes();
 	KX_Scene *FindScene(const std::string& scenename);
 	void AddScene(KX_Scene *scene);
+	void DestructScene(KX_Scene *scene);
 	void ConvertAndAddScene(const std::string& scenename, bool overlay);
 
 	void RemoveScene(const std::string& scenename);
@@ -441,7 +442,7 @@ public:
 	double GetAverageFrameRate();
 
 	/**
-	 * Gets the time scale multiplier 
+	 * Gets the time scale multiplier
 	 */
 	double GetTimeScale() const;
 
