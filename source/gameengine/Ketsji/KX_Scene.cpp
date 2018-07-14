@@ -204,6 +204,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
 #ifdef WITH_PYTHON
   m_attr_dict = nullptr;
+  m_removeCallbacks = nullptr;
 
   for (unsigned short i = 0; i < MAX_DRAW_CALLBACK; ++i) {
     m_drawCallbacks[i] = nullptr;
@@ -267,6 +268,12 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
 KX_Scene::~KX_Scene()
 {
+
+#ifdef WITH_PYTHON
+  RunOnRemoveCallbacks();
+#endif // WITH_PYTHON
+
+
   /* EEVEE INTEGRATION */
 
   m_isRuntime = false;  // eevee
@@ -395,6 +402,8 @@ KX_Scene::~KX_Scene()
     Py_CLEAR(m_attr_dict);
   }
 
+  // These may be nullptr but the macro checks.
+  Py_CLEAR(m_removeCallbacks);
   /* these may be nullptr but the macro checks */
   for (unsigned short i = 0; i < MAX_DRAW_CALLBACK; ++i) {
     Py_CLEAR(m_drawCallbacks[i]);
@@ -2472,6 +2481,17 @@ void KX_Scene::RunDrawingCallbacks(DrawingCallbackType callbackType, KX_Camera *
   }
 }
 
+void KX_Scene::RunOnRemoveCallbacks()
+{
+  PyObject *list = m_removeCallbacks;
+  if (!list || PyList_GET_SIZE(list) == 0) {
+    return;
+  }
+
+  PyObject *args[1] = { GetProxy() };
+  RunPythonCallBackList(list, args, 0, 1);
+}
+
 //----------------------------------------------------------------------------
 // Python
 
@@ -2785,6 +2805,36 @@ int KX_Scene::pyattr_set_drawing_callback(PyObjectPlus *self_v,
   return PY_SET_ATTR_SUCCESS;
 }
 
+PyObject *KX_Scene::pyattr_get_remove_callback(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+  KX_Scene *self = static_cast<KX_Scene *>(self_v);
+
+  if (!self->m_removeCallbacks) {
+    self->m_removeCallbacks = PyList_New(0);
+  }
+
+  Py_INCREF(self->m_removeCallbacks);
+
+  return self->m_removeCallbacks;
+}
+
+int KX_Scene::pyattr_set_remove_callback(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+  KX_Scene *self = static_cast<KX_Scene *>(self_v);
+
+  if (!PyList_CheckExact(value)) {
+    PyErr_SetString(PyExc_ValueError, "Expected a list");
+    return PY_SET_ATTR_FAIL;
+  }
+
+  Py_XDECREF(self->m_removeCallbacks);
+
+  Py_INCREF(value);
+  self->m_removeCallbacks = value;
+
+  return PY_SET_ATTR_SUCCESS;
+}
+
 PyObject *KX_Scene::pyattr_get_gravity(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
   KX_Scene *self = static_cast<KX_Scene *>(self_v);
@@ -2822,6 +2872,7 @@ PyAttributeDef KX_Scene::Attributes[] = {
                                pyattr_set_overrideCullingCamera),
     KX_PYATTRIBUTE_RW_FUNCTION(
         "pre_draw", KX_Scene, pyattr_get_drawing_callback, pyattr_set_drawing_callback),
+    KX_PYATTRIBUTE_RW_FUNCTION("onRemove", KX_Scene, pyattr_get_remove_callback, pyattr_set_remove_callback),
     KX_PYATTRIBUTE_RW_FUNCTION(
         "post_draw", KX_Scene, pyattr_get_drawing_callback, pyattr_set_drawing_callback),
     KX_PYATTRIBUTE_RW_FUNCTION(

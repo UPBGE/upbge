@@ -112,8 +112,9 @@ class KX_Scene : public CValue, public SCA_IScene {
   Py_Header
 
 #ifdef WITH_PYTHON
-      PyObject *m_attr_dict;
+  PyObject *m_attr_dict;
   PyObject *m_drawCallbacks[MAX_DRAW_CALLBACK];
+  PyObject *m_removeCallbacks;
 #endif
 
  protected:
@@ -596,6 +597,8 @@ class KX_Scene : public CValue, public SCA_IScene {
   static int pyattr_set_drawing_callback(PyObjectPlus *self_v,
                                          const KX_PYATTRIBUTE_DEF *attrdef,
                                          PyObject *value);
+  static PyObject *pyattr_get_remove_callback(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_set_remove_callback(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
   static PyObject *pyattr_get_gravity(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
   static int pyattr_set_gravity(PyObjectPlus *self_v,
                                 const KX_PYATTRIBUTE_DEF *attrdef,
@@ -609,6 +612,7 @@ class KX_Scene : public CValue, public SCA_IScene {
    * Run the registered python drawing functions.
    */
   void RunDrawingCallbacks(DrawingCallbackType callbackType, KX_Camera *camera);
+  void RunOnRemoveCallbacks();
 #endif
 
   /**

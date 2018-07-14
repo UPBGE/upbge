@@ -91,9 +91,9 @@ base class --- :class:`PyObjectPlus`
          scene.active_camera = scene.objects["Camera.001"]
 
       :type: :class:`KX_Camera`
-      
+
       .. note::
-         
+
          This can be set directly from python to avoid using the :class:`KX_SceneActuator`.
 
    .. attribute:: overrideCullingCamera
@@ -152,8 +152,20 @@ base class --- :class:`PyObjectPlus`
 
    .. attribute:: pre_draw_setup
 
-      A list of callables to be run before the drawing setup (i.e., before the model view and projection matrices are computed). 
+      A list of callables to be run before the drawing setup (i.e., before the model view and projection matrices are computed).
       The callbacks can take as argument the rendered camera, the camera could be temporary in case of stereo rendering.
+
+      :type: list
+
+   .. attribute:: onRemove
+
+      A list of callables to run when the scene is destroyed.
+
+         .. code-block:: python
+
+            @scene.onRemove.append
+            def callback(scene):
+                  print('exiting %s...' % scene.name)
 
       :type: list
 
