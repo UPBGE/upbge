@@ -49,11 +49,11 @@ class OUTLINER_HT_header(Header):
 
         row = layout.row(align=True)
         if display_mode in {'VIEW_LAYER'}:
-            row.popover(space_type='OUTLINER',
-                        region_type='HEADER',
-                        panel_type="OUTLINER_PT_filter",
-                        text="",
-                        icon='FILTER')
+            row.popover(
+                panel="OUTLINER_PT_filter",
+                text="",
+                icon='FILTER',
+            )
         elif display_mode in {'LIBRARIES', 'ORPHAN_DATA'}:
             row.prop(space, "use_filter_id_type", text="", icon='FILTER')
             sub = row.row(align=True)
@@ -220,8 +220,8 @@ class OUTLINER_MT_object(Menu):
 
         if object_mode in {'EDIT', 'POSE'}:
             name = bpy.types.Object.bl_rna.properties["mode"].enum_items[object_mode].name
-            layout.operator("outliner.object_operation", text=f"{name} Set").type = 'OBJECT_MODE_ENTER'
-            layout.operator("outliner.object_operation", text=f"{name} Clear").type = 'OBJECT_MODE_EXIT'
+            layout.operator("outliner.object_operation", text=f"{name:s} Set").type = 'OBJECT_MODE_ENTER'
+            layout.operator("outliner.object_operation", text=f"{name:s} Clear").type = 'OBJECT_MODE_EXIT'
             del name
 
             layout.separator()

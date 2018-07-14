@@ -1033,7 +1033,6 @@ static void ui_menu_block_set_keyaccels(uiBlock *block)
  * but this could be supported */
 void ui_but_add_shortcut(uiBut *but, const char *shortcut_str, const bool do_strip)
 {
-
 	if (do_strip && (but->flag & UI_BUT_HAS_SEP_CHAR)) {
 		char *cpoin = strrchr(but->str, UI_SEP_CHAR);
 		if (cpoin) {
@@ -1065,43 +1064,106 @@ void ui_but_add_shortcut(uiBut *but, const char *shortcut_str, const bool do_str
 	}
 }
 
+/* -------------------------------------------------------------------- */
+/** \name Find Key Shortcut for Button
+ *
+ * - #ui_but_event_operator_string (and helpers)
+ * - #ui_but_event_property_operator_string
+ * \{ */
+
+static bool ui_but_event_operator_string_from_operator(
+        const bContext *C, uiBut *but,
+        char *buf, const size_t buf_len)
+{
+	BLI_assert(but->optype != NULL);
+	bool found = false;
+	IDProperty *prop = (but->opptr) ? but->opptr->data : NULL;
+
+	if (WM_key_event_operator_string(
+	            C, but->optype->idname, but->opcontext, prop, true,
+	            buf, buf_len))
+	{
+		found = true;
+	}
+	return found;
+}
+
+static bool ui_but_event_operator_string_from_menu(
+        const bContext *C, uiBut *but,
+        char *buf, const size_t buf_len)
+{
+	MenuType *mt = UI_but_menutype_get(but);
+	BLI_assert(mt != NULL);
+
+	bool found = false;
+	IDProperty *prop_menu;
+
+	/* annoying, create a property */
+	IDPropertyTemplate val = {0};
+	prop_menu = IDP_New(IDP_GROUP, &val, __func__); /* dummy, name is unimportant  */
+	IDP_AddToGroup(prop_menu, IDP_NewString(mt->idname, "name", sizeof(mt->idname)));
+
+	if (WM_key_event_operator_string(
+	        C, "WM_OT_call_menu", WM_OP_INVOKE_REGION_WIN, prop_menu, true,
+	        buf, buf_len))
+	{
+		found = true;
+	}
+
+	IDP_FreeProperty(prop_menu);
+	MEM_freeN(prop_menu);
+	return found;
+}
+
+static bool ui_but_event_operator_string_from_panel(
+        const bContext *C, uiBut *but,
+        char *buf, const size_t buf_len)
+{
+	/** Nearly exact copy of #ui_but_event_operator_string_from_menu */
+	PanelType *pt = UI_but_paneltype_get(but);
+	BLI_assert(pt != NULL);
+
+	bool found = false;
+	IDProperty *prop_panel;
+
+	/* annoying, create a property */
+	IDPropertyTemplate val = {0};
+	prop_panel = IDP_New(IDP_GROUP, &val, __func__); /* dummy, name is unimportant  */
+	IDP_AddToGroup(prop_panel, IDP_NewString(pt->idname, "name", sizeof(pt->idname)));
+	IDP_AddToGroup(prop_panel, IDP_New(IDP_INT, &(IDPropertyTemplate){ .i = pt->space_type, }, "space_type"));
+	IDP_AddToGroup(prop_panel, IDP_New(IDP_INT, &(IDPropertyTemplate){ .i = pt->region_type, }, "region_type"));
+
+	for (int i = 0; i < 2; i++) {
+		/* FIXME(campbell): We can't reasonably search all configurations - long term. */
+		IDP_ReplaceInGroup(prop_panel, IDP_New(IDP_INT, &(IDPropertyTemplate){ .i = i, }, "keep_open"));
+		if (WM_key_event_operator_string(
+		            C, "WM_OT_call_panel", WM_OP_INVOKE_REGION_WIN, prop_panel, true,
+		            buf, buf_len))
+		{
+			found = true;
+			break;
+		}
+	}
+
+	IDP_FreeProperty(prop_panel);
+	MEM_freeN(prop_panel);
+	return found;
+}
+
 static bool ui_but_event_operator_string(
         const bContext *C, uiBut *but,
         char *buf, const size_t buf_len)
 {
-	MenuType *mt;
 	bool found = false;
 
-	if (but->optype) {
-		IDProperty *prop = (but->opptr) ? but->opptr->data : NULL;
-
-		if (WM_key_event_operator_string(
-		        C, but->optype->idname, but->opcontext, prop, true,
-		        buf, buf_len))
-		{
-			found = true;
-		}
+	if (but->optype != NULL) {
+		found = ui_but_event_operator_string_from_operator(C, but, buf, buf_len);
 	}
-	else if ((mt = UI_but_menutype_get(but))) {
-		IDProperty *prop_menu;
-		IDProperty *prop_menu_name;
-
-		/* annoying, create a property */
-		IDPropertyTemplate val = {0};
-		prop_menu = IDP_New(IDP_GROUP, &val, __func__); /* dummy, name is unimportant  */
-		IDP_AddToGroup(prop_menu, (prop_menu_name = IDP_NewString("", "name", sizeof(mt->idname))));
-
-		IDP_AssignString(prop_menu_name, mt->idname, sizeof(mt->idname));
-
-		if (WM_key_event_operator_string(
-		        C, "WM_OT_call_menu", WM_OP_INVOKE_REGION_WIN, prop_menu, true,
-		        buf, buf_len))
-		{
-			found = true;
-		}
-
-		IDP_FreeProperty(prop_menu);
-		MEM_freeN(prop_menu);
+	else if (UI_but_menutype_get(but) != NULL) {
+		found = ui_but_event_operator_string_from_menu(C, but, buf, buf_len);
+	}
+	else if (UI_but_paneltype_get(but) != NULL) {
+		found = ui_but_event_operator_string_from_panel(C, but, buf, buf_len);
 	}
 
 	return found;
@@ -1222,6 +1284,8 @@ static bool ui_but_event_property_operator_string(
 
 	return found;
 }
+
+/** \} */
 
 /**
  * This goes in a seemingly weird pattern:

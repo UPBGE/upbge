@@ -57,7 +57,6 @@ set(INC_SYS
 
 set(SRC
 	intern/wm.c
-	intern/wm_playanim.c
 	intern/wm_cursors.c
 	intern/wm_dragdrop.c
 	intern/wm_draw.c
@@ -69,13 +68,18 @@ set(SRC
 	intern/wm_init_exit.c
 	intern/wm_jobs.c
 	intern/wm_keymap.c
+	intern/wm_menu_type.c
 	intern/wm_operator_props.c
+	intern/wm_operator_type.c
 	intern/wm_operators.c
-	intern/wm_subwindow.c
-	intern/wm_window.c
+	intern/wm_panel_type.c
+	intern/wm_playanim.c
 	intern/wm_stereo.c
+	intern/wm_subwindow.c
 	intern/wm_toolsystem.c
 	intern/wm_tooltip.c
+	intern/wm_uilist_type.c
+	intern/wm_window.c
 	manipulators/intern/wm_manipulator.c
 	manipulators/intern/wm_manipulator_group.c
 	manipulators/intern/wm_manipulator_group_type.c

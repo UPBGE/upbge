@@ -434,6 +434,7 @@ class USERPREF_PT_edit(Panel):
 
         col.label(text="Transform:")
         col.prop(edit, "use_drag_immediately")
+        col.prop(edit, "use_numeric_input_advanced")
 
         row.separator()
         row.separator()
@@ -1472,7 +1473,6 @@ class USERPREF_PT_addons(Panel):
                 sub = row.row()
                 sub.active = is_enabled
                 sub.label(text="%s: %s" % (info["category"], info["name"]))
-
 
                 # WARNING: 2.8x exception, may be removed
                 # use disabled state for old add-ons, chances are they are broken.

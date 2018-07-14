@@ -908,6 +908,15 @@ static const EnumPropertyItem *rna_SpaceView3D_stereo3d_camera_itemf(
 		return stereo3d_camera_items;
 }
 
+static int rna_SpaceView3D_icon_from_show_object_viewport_get(PointerRNA *ptr)
+{
+	const View3D *v3d = (View3D *)ptr->data;
+	/* Ignore selection values when view is off, intent is to show if visible objects aren't selectable. */
+	const int view_value = (v3d->object_type_exclude_viewport != 0);
+	const int select_value = (v3d->object_type_exclude_select & ~v3d->object_type_exclude_viewport) != 0;
+	return ICON_VIS_SEL_11 + (view_value << 1) + select_value;
+}
+
 static PointerRNA rna_SpaceView3D_shading_get(PointerRNA *ptr)
 {
 	return rna_pointer_inherit_refine(ptr, &RNA_View3DShading, ptr->data);
@@ -2612,7 +2621,12 @@ static void rna_def_space_view3d_overlay(BlenderRNA *brna)
 	                         "Show an outline highlight around selected objects in non-wireframe views");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
-	prop = RNA_def_property(srna, "show_all_objects_origin", PROP_BOOLEAN, PROP_NONE);
+	prop = RNA_def_property(srna, "show_object_origins", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "overlay.flag", V3D_OVERLAY_HIDE_OBJECT_ORIGINS);
+	RNA_def_property_ui_text(prop, "Object Origins", "Show object center dots");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
+
+	prop = RNA_def_property(srna, "show_object_origins_all", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", V3D_DRAW_CENTERS);
 	RNA_def_property_ui_text(prop, "All Object Origins",
 	                         "Show the object origin center dot for all (selected and unselected) objects");
@@ -2656,14 +2670,14 @@ static void rna_def_space_view3d_overlay(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Face Orientation", "Show the Face Orientation Overlay");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
-	prop = RNA_def_property(srna, "show_bone_selection", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "overlay.flag", V3D_OVERLAY_BONE_SELECTION);
+	prop = RNA_def_property(srna, "show_bone_select", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "overlay.flag", V3D_OVERLAY_BONE_SELECT);
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_ui_text(prop, "Bone Selection", "Show the Bone Selection Overlay");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
-	prop = RNA_def_property(srna, "bone_selection_alpha", PROP_FLOAT, PROP_FACTOR);
-	RNA_def_property_float_sdna(prop, NULL, "overlay.bone_selection_alpha");
+	prop = RNA_def_property(srna, "bone_select_alpha", PROP_FLOAT, PROP_FACTOR);
+	RNA_def_property_float_sdna(prop, NULL, "overlay.bone_select_alpha");
 	RNA_def_property_float_default(prop, 0.5f);
 	RNA_def_property_ui_text(prop, "Opacity", "Opacity to use for bone selection");
 	RNA_def_property_range(prop, 0.0f, 1.0f);
@@ -2685,13 +2699,13 @@ static void rna_def_space_view3d_overlay(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "show_look_dev", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "overlay.flag", V3D_OVERLAY_LOOK_DEV);
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-	RNA_def_property_ui_text(prop, "Look Dev", "Show Look Development Balls and Palette");
+	RNA_def_property_ui_text(prop, "Look Dev Preview", "Show look development balls and palette");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
 	prop = RNA_def_property(srna, "show_wireframes", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "overlay.flag", V3D_OVERLAY_WIREFRAMES);
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-	RNA_def_property_ui_text(prop, "Wireframes", "Show face edges wires");
+	RNA_def_property_ui_text(prop, "Wireframe", "Show face edges wires");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
 	prop = RNA_def_property(srna, "wireframe_threshold", PROP_FLOAT, PROP_FACTOR);
@@ -3111,6 +3125,12 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 
 			}
 		}
+
+		/* Heper for drawing the icon. */
+		prop = RNA_def_property(srna, "icon_from_show_object_viewport", PROP_INT, PROP_NONE);
+		RNA_def_property_int_funcs(prop, "rna_SpaceView3D_icon_from_show_object_viewport_get", NULL, NULL);
+		RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+		RNA_def_property_ui_text(prop, "Visibility Iconm", "");
 	}
 
 	/* Nested Structs */
@@ -3560,7 +3580,7 @@ static void rna_def_space_sequencer(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "proxy_render_size", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "render_size");
 	RNA_def_property_enum_items(prop, proxy_render_size_items);
-	RNA_def_property_ui_text(prop, "Proxy render size",
+	RNA_def_property_ui_text(prop, "Proxy Render Size",
 	                         "Draw preview using full resolution or different proxy resolutions");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, NULL);
 

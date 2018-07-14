@@ -97,23 +97,6 @@ class VIEW3D_HT_header(Header):
 
         layout.separator_spacer()
 
-        # Viewport Settings
-        row = layout.row(align=True)
-        row.prop(shading, "type", text="", expand=True)
-
-        sub = row.row(align=True)
-        sub.enabled = shading.type != 'RENDERED'
-        sub.popover(space_type='VIEW_3D', region_type='HEADER', panel_type="VIEW3D_PT_shading")
-
-        row = layout.row(align=True)
-        row.prop(overlay, "show_overlays", icon='WIRE', text="")
-
-        sub = row.row(align=True)
-        sub.active = overlay.show_overlays
-        sub.popover(space_type='VIEW_3D', region_type='HEADER', panel_type="VIEW3D_PT_overlay")
-
-        layout.separator_spacer()
-
         # Mode & Transform Settings
         scene = context.scene
 
@@ -133,9 +116,7 @@ class VIEW3D_HT_header(Header):
 
             row = layout.row(align=True)
             row.popover(
-                space_type='VIEW_3D',
-                region_type='HEADER',
-                panel_type="VIEW3D_PT_transform_orientations",
+                panel="VIEW3D_PT_transform_orientations",
                 text=trans_name,
                 icon=trans_icon,
             )
@@ -172,11 +153,9 @@ class VIEW3D_HT_header(Header):
 
             sub = row.row(align=True)
             sub.popover(
-                space_type='VIEW_3D',
-                region_type='HEADER',
-                panel_type="VIEW3D_PT_snapping",
+                panel="VIEW3D_PT_snapping",
                 icon=icon,
-                text=""
+                text="",
             )
 
         # Proportional editing
@@ -216,12 +195,31 @@ class VIEW3D_HT_header(Header):
             act_pivot_point = bpy.types.ToolSettings.bl_rna.properties["transform_pivot_point"].enum_items[pivot_point]
             row = layout.row(align=True)
             row.popover(
-                space_type='VIEW_3D',
-                region_type='HEADER',
-                panel_type="VIEW3D_PT_pivot_point",
+                panel="VIEW3D_PT_pivot_point",
                 icon=act_pivot_point.icon,
                 text="",
             )
+
+        layout.separator_spacer()
+
+        # Viewport Settings
+        layout.popover(
+            panel="VIEW3D_PT_object_type_visibility",
+            icon_value=view.icon_from_show_object_viewport,
+            text="",
+        )
+
+        row = layout.row(align=True)
+        row.prop(overlay, "show_overlays", icon='WIRE', text="")
+        sub = row.row(align=True)
+        sub.active = overlay.show_overlays
+        sub.popover(panel="VIEW3D_PT_overlay")
+
+        row = layout.row(align=True)
+        row.prop(shading, "type", text="", expand=True)
+        sub = row.row(align=True)
+        sub.enabled = shading.type != 'RENDERED'
+        sub.popover(panel="VIEW3D_PT_shading")
 
 
 class VIEW3D_MT_editor_menus(Menu):
@@ -3715,9 +3713,9 @@ class VIEW3D_PT_view3d_cursor(Panel):
 
 class VIEW3D_PT_object_type_visibility(Panel):
     bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'
+    bl_region_type = 'HEADER'
     bl_label = "View Object Types"
-    bl_options = {'DEFAULT_CLOSED'}
+    bl_ui_units_x = 6
 
     def draw(self, context):
         layout = self.layout
@@ -3727,13 +3725,15 @@ class VIEW3D_PT_object_type_visibility(Panel):
 
         col = layout.column()
 
-        heading_pair = ("Visible", "Selectable")
         attr_object_types = (
+            # Geometry
             "mesh",
             "curve",
             "surf",
             "meta",
             "font",
+            None,
+            # Other
             "armature",
             "lattice",
             "empty",
@@ -3743,10 +3743,14 @@ class VIEW3D_PT_object_type_visibility(Panel):
             "speaker",
         )
 
-        attr_vis = [f"show_object_viewport_{attr}" for attr in attr_object_types]
-        attr_sel = [f"show_object_select_{attr}" for attr in attr_object_types]
+        for attr in attr_object_types:
+            if attr is None:
+                col.separator()
+                continue
 
-        for attr_v, attr_s in zip(attr_vis, attr_sel):
+            attr_v = "show_object_viewport_" f"{attr:s}"
+            attr_s = "show_object_select_" f"{attr:s}"
+
             icon_s = 'RESTRICT_SELECT_OFF' if getattr(view, attr_s) else 'RESTRICT_SELECT_ON'
 
             row = col.row(align=True)
@@ -3777,36 +3781,56 @@ class VIEW3D_PT_shading_lighting(Panel):
         view = context.space_data
         shading = view.shading
 
+        col = layout.column()
+        split = col.split(0.9)
+
         if shading.type == 'SOLID':
-            layout.row().prop(shading, "light", expand=True)
+            split.row().prop(shading, "light", expand=True)
+            col = split.column()
+
+            split = layout.split(0.9)
+            col = split.column()
+            sub = col.row()
+            sub.scale_y = 0.6 # smaller matcap/hdri preview
+
             if shading.light == 'STUDIO':
-                row = layout.row()
-                row.template_icon_view(shading, "studio_light", show_labels=True)
-                sub = row.column()
-                sub.operator('wm.studiolight_userpref_show', emboss=False, text="", icon='PREFERENCES')
+                sub.template_icon_view(shading, "studio_light", show_labels=True, scale=3)
+
                 if shading.selected_studio_light.orientation == 'WORLD':
-                    layout.row().prop(shading, "studiolight_rotate_z")
+                    col.prop(shading, "studiolight_rotate_z", text="Rotation")
+
+                col = split.column()
+                col.operator('wm.studiolight_userpref_show', emboss=False, text="", icon='PREFERENCES')
 
             elif shading.light == 'MATCAP':
-                row = layout.row()
-                row.template_icon_view(shading, "studio_light", show_labels=True)
-                sub = row.column()
-                sub.operator('VIEW3D_OT_toggle_matcap_flip', emboss=False, text="", icon='ARROW_LEFTRIGHT')
-                sub.operator('wm.studiolight_userpref_show', emboss=False, text="", icon='PREFERENCES')
+                sub.template_icon_view(shading, "studio_light", show_labels=True, scale=3)
+
+                col = split.column()
+                col.operator('wm.studiolight_userpref_show', emboss=False, text="", icon='PREFERENCES')
+                col.operator('VIEW3D_OT_toggle_matcap_flip', emboss=False, text="", icon='ARROW_LEFTRIGHT')
 
         elif shading.type == 'MATERIAL':
-            col = layout.column(align=True)
             col.prop(shading, "use_scene_lights")
             col.prop(shading, "use_scene_world")
 
             if not shading.use_scene_world:
-                row = layout.row()
-                row.template_icon_view(shading, "studio_light", show_labels=True)
-                sub = row.column()
-                sub.operator('wm.studiolight_userpref_show', emboss=False, text="", icon='PREFERENCES')
+                col = layout.column()
+                split = col.split(0.9)
+
+                col = split.column()
+                sub = col.row()
+                sub.scale_y = 0.6
+                sub.template_icon_view(shading, "studio_light", show_labels=True, scale=3)
+
+                col = split.column()
+                col.operator('wm.studiolight_userpref_show', emboss=False, text="", icon='PREFERENCES')
+
                 if shading.selected_studio_light.orientation == 'WORLD':
-                    layout.row().prop(shading, "studiolight_rotate_z")
-                    layout.row().prop(shading, "studiolight_background_alpha")
+                    split = layout.split(0.9)
+                    col = split.column()
+                    col.prop(shading, "studiolight_rotate_z", text="Rotation")
+                    col.prop(shading, "studiolight_background_alpha")
+                    col = split.column() # to align properly with above
 
 
 class VIEW3D_PT_shading_color(Panel):
@@ -3851,133 +3875,290 @@ class VIEW3D_PT_shading_options(Panel):
         view = context.space_data
         shading = view.shading
 
-        if not shading.light == 'MATCAP':
-            row = layout.row()
-            row.prop(shading, "show_specular_highlight")
+        col = layout.column()
 
-        row = layout.split(0.4)
-        row.prop(shading, "show_xray")
+        is_xray = shading.show_xray
+        is_shadows = shading.show_shadows
+
+        icon_x = 'CHECKBOX_HLT' if is_xray else 'CHECKBOX_DEHLT'
+        row = col.row()
+        row.prop(shading, "show_xray", text="")
         sub = row.row()
-        sub.active = shading.show_xray
-        sub.prop(shading, "xray_alpha", text="")
+        sub.active = is_xray
+        sub.prop(shading, "xray_alpha", text="X-Ray")
 
-        row = layout.split(0.4)
-        row.active = not shading.show_xray
-        row.prop(shading, "show_shadows")
-        sub = row.row()
-        sub.active = shading.show_shadows and not shading.show_xray
-        sub.prop(shading, "shadow_intensity", text="")
+        icon_s = 'CHECKBOX_HLT' if is_shadows else 'CHECKBOX_DEHLT'
+        row = col.row()
+        row.prop(shading, "show_shadows", text="")
+        row.active = not is_xray
+        sub = row.row(align=True)
+        sub.active = is_shadows
+        sub.prop(shading, "shadow_intensity", text="Shadow")
+        sub.popover(
+            panel="VIEW3D_PT_shading_options_shadow",
+            icon='SCRIPTWIN',
+            text=""
+        )
 
-        row = layout.split(0.4)
-        row.active = not shading.show_xray
+        col = layout.column()
+        row = col.row()
+        row.active = not is_xray
         row.prop(shading, "show_cavity")
-        sub = row.column(align=True)
-        sub.active = not shading.show_xray and shading.show_cavity
-        sub.prop(shading, "cavity_ridge_factor")
-        sub.prop(shading, "cavity_valley_factor")
 
-        row = layout.split(0.4)
+        if shading.show_cavity:
+            sub = col.row(align=True)
+            sub.active = not shading.show_xray and shading.show_cavity
+            sub.prop(shading, "cavity_ridge_factor")
+            sub.prop(shading, "cavity_valley_factor")
+            sub.popover(
+                panel="VIEW3D_PT_shading_options_ssao",
+                icon='SCRIPTWIN',
+                text=""
+            )
+
+        row = layout.split()
         row.prop(shading, "show_object_outline")
         sub = row.row()
         sub.active = shading.show_object_outline
         sub.prop(shading, "object_outline_color", text="")
 
-        layout.prop(view, "show_world")
+        col = layout.column()
+        if not shading.light == 'MATCAP':
+            col.prop(shading, "show_specular_highlight")
+
+        col.prop(view, "show_world")
+
+
+class VIEW3D_PT_shading_options_shadow(Panel):
+    bl_label = "Shadow Settings"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'HEADER'
+
+    @classmethod
+    def poll(cls, context):
+        return True
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        scene = context.scene
+
+        col = layout.column()
+        col.prop(scene.display, "light_direction")
+        col.prop(scene.display, "shadow_shift")
+
+
+class VIEW3D_PT_shading_options_ssao(Panel):
+    bl_label = "SSAO Settings"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'HEADER'
+
+    @classmethod
+    def poll(cls, context):
+        return True
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        scene = context.scene
+
+        col = layout.column(align=True)
+        col.prop(scene.display, "matcap_ssao_samples")
+        col.prop(scene.display, "matcap_ssao_distance")
+        col.prop(scene.display, "matcap_ssao_attenuation")
 
 
 class VIEW3D_PT_overlay(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'HEADER'
     bl_label = "Overlays"
-    bl_ui_units_x = 14
+    bl_ui_units_x = 13
+
+    def draw(self, context):
+        pass
+
+
+class VIEW3D_PT_overlay_manipulators(Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'HEADER'
+    bl_parent_id = 'VIEW3D_PT_overlay'
+    bl_label = "Manipulators"
+
+    def draw_header(self, context):
+        view = context.space_data
+        self.layout.prop(view, "show_manipulator", text="")
 
     def draw(self, context):
         layout = self.layout
 
         view = context.space_data
-        shading = view.shading
         overlay = view.overlay
         display_all = overlay.show_overlays
 
         col = layout.column()
         col.active = display_all
 
-        split = col.split()
+        row = col.row(align=True)
+        row.active = view.show_manipulator
+        row.prop(view, "show_manipulator_navigate", text="Navigate", toggle=True)
+        row.prop(view, "show_manipulator_context", text="Active Object", toggle=True)
+        row.prop(view, "show_manipulator_tool", text="Active Tools", toggle=True)
 
-        sub = split.column()
-        sub.prop(view, "show_manipulator", text="Manipulators")
-        has_manipulator = view.show_manipulator
-        subsub = sub.column()
-        subsub.active = has_manipulator
-        subsub.prop(view, "show_manipulator_navigate", text="Navigate")
-        del subsub
-        sub = split.column()
-        sub.active = has_manipulator
-        sub.prop(view, "show_manipulator_context", text="Active Object")
-        sub.prop(view, "show_manipulator_tool", text="Active Tools")
 
-        col.separator()
+class VIEW3D_PT_overlay_guides(Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'HEADER'
+    bl_parent_id = 'VIEW3D_PT_overlay'
+    bl_label = "Guides"
 
-        split = col.split()
-        sub = split.column()
-        sub.prop(overlay, "show_text", text="Text")
-        sub.prop(overlay, "show_cursor", text="3D Cursor")
-        sub.prop(overlay, "show_outline_selected")
-        sub.prop(overlay, "show_all_objects_origin")
+    def draw(self, context):
+        layout = self.layout
 
-        sub = split.column()
-        sub.prop(overlay, "show_relationship_lines")
-        sub.prop(overlay, "show_motion_paths")
-        #sub.prop(overlay, "show_onion_skins")
-        sub.prop(overlay, "show_face_orientation")
-        sub.prop(overlay, "show_backface_culling")
-        sub.prop(overlay, "show_ornaments", text="Ornaments")
-        sub.prop(overlay, "show_bones", text="Bones")
-        if shading.type == 'MATERIAL':
-            sub.prop(overlay, "show_look_dev")
-
-        row = col.row()
-        row.prop(overlay, "show_wireframes")
-        sub = row.row()
-        sub.active = overlay.show_wireframes
-        sub.prop(overlay, "wireframe_threshold", text="")
-
+        view = context.space_data
+        overlay = view.overlay
+        shading = view.shading
+        display_all = overlay.show_overlays
 
         col = layout.column()
         col.active = display_all
-        split = col.split(percentage=0.55)
-        split.prop(overlay, "show_floor", text="Grid Floor")
 
-        row = split.row(align=True)
-        row.prop(overlay, "show_axis_x", text="X", toggle=True)
-        row.prop(overlay, "show_axis_y", text="Y", toggle=True)
-        row.prop(overlay, "show_axis_z", text="Z", toggle=True)
+        split = col.split()
+        sub = split.column()
+        sub.prop(overlay, "show_floor", text="Grid")
 
         if overlay.show_floor:
             sub = col.column(align=True)
             sub.active = bool(overlay.show_floor or view.region_quadviews or not view.region_3d.is_perspective)
-            subsub = sub.column(align=True)
+            subsub = sub.row(align=True)
             subsub.active = overlay.show_floor
             subsub.prop(overlay, "grid_scale", text="Scale")
             subsub.prop(overlay, "grid_subdivisions", text="Subdivisions")
 
-        col.prop(view, "show_reconstruction", text="Motion Tracking")
+        sub = split.column()
+        row = sub.row()
+        row.label(text="Axes")
+
+        subrow = row.row(align=True)
+        subrow.prop(overlay, "show_axis_x", text="X", toggle=True)
+        subrow.prop(overlay, "show_axis_y", text="Y", toggle=True)
+        subrow.prop(overlay, "show_axis_z", text="Z", toggle=True)
+
+        split = col.split()
+        sub = split.column()
+        sub.prop(overlay, "show_text", text="Text Info")
+        sub = split.column()
+        sub.prop(overlay, "show_cursor", text="3D Cursor")
+
+        if shading.type == 'MATERIAL':
+            col.prop(overlay, "show_look_dev")
+
+
+class VIEW3D_PT_overlay_object(Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'HEADER'
+    bl_parent_id = 'VIEW3D_PT_overlay'
+    bl_label = "Objects"
+
+    def draw(self, context):
+        layout = self.layout
+        view = context.space_data
+        overlay = view.overlay
+        shading = view.shading
+        display_all = overlay.show_overlays
+
+        col = layout.column(align=True)
+        col.active = display_all
+
+        split = col.split()
+
+        sub = split.column(align=True)
+        sub.prop(overlay, "show_ornaments", text="Ornaments")
+        sub.prop(overlay, "show_relationship_lines")
+        sub.prop(overlay, "show_outline_selected")
+
+        sub = split.column(align=True)
+        sub.prop(overlay, "show_bones", text="Bones")
+        sub.prop(overlay, "show_motion_paths")
+        sub.prop(overlay, "show_object_origins", text="Origins")
+        subsub = sub.column()
+        subsub.active = overlay.show_object_origins
+        subsub.prop(overlay, "show_object_origins_all", text="Origins (All)")
+
+
+class VIEW3D_PT_overlay_geometry(Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'HEADER'
+    bl_parent_id = 'VIEW3D_PT_overlay'
+    bl_label = "Geometry"
+
+    def draw(self, context):
+        layout = self.layout
+        view = context.space_data
+        overlay = view.overlay
+        display_all = overlay.show_overlays
+
+        col = layout.column()
+        col.active = display_all
+
+        row = col.row()
+        row.prop(overlay, "show_wireframes", text="")
+        sub = row.row()
+        sub.active = overlay.show_wireframes
+        sub.prop(overlay, "wireframe_threshold", text="Wireframe")
+
+        col = layout.column(align=True)
+        col.active = display_all
+
+        split = col.split()
+        sub = split.column(align=True)
+        sub.prop(overlay, "show_backface_culling")
+
+        sub = split.column(align=True)
+        #sub.prop(overlay, "show_onion_skins")
+        sub.prop(overlay, "show_face_orientation")
+
+
+class VIEW3D_PT_overlay_motion_tracking(Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'HEADER'
+    bl_parent_id = 'VIEW3D_PT_overlay'
+    bl_label = "Motion Tracking"
+
+    def draw_header(self, context):
+        view = context.space_data
+        self.layout.prop(view, "show_reconstruction", text="")
+
+    def draw(self, context):
+        layout = self.layout
+        view = context.space_data
+        overlay = view.overlay
+        display_all = overlay.show_overlays
+
+        col = layout.column()
+        col.active = display_all
+
         if view.show_reconstruction:
-            sub = col.column(align=True)
+            split = col.split()
+
+            sub = split.column(align=True)
             sub.active = view.show_reconstruction
             sub.prop(view, "show_camera_path", text="Camera Path")
-            sub.prop(view, "show_bundle_names", text="3D Marker Names")
-            sub.label(text="Track Type and Size:")
-            row = sub.row(align=True)
+
+            sub = split.column()
+            sub.prop(view, "show_bundle_names", text="Marker Names")
+
+            col = layout.column()
+            col.label(text="Tracks:")
+            row = col.row(align=True)
             row.prop(view, "tracks_draw_type", text="")
-            row.prop(view, "tracks_draw_size", text="")
+            row.prop(view, "tracks_draw_size", text="Size")
 
 
 class VIEW3D_PT_overlay_edit_mesh(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'HEADER'
     bl_parent_id = 'VIEW3D_PT_overlay'
-    bl_label = "Edit Mesh"
+    bl_label = "Mesh Edit Mode"
 
     @classmethod
     def poll(cls, context):
@@ -3987,14 +4168,10 @@ class VIEW3D_PT_overlay_edit_mesh(Panel):
         layout = self.layout
 
         view = context.space_data
-        shading = view.shading
         overlay = view.overlay
-        tool_settings = context.tool_settings
         display_all = overlay.show_overlays
         data = context.active_object.data
-        statvis = tool_settings.statvis
         with_freestyle = bpy.app.build_options.freestyle
-        show_developer_ui = context.user_preferences.view.show_developer_ui
 
         col = layout.column()
         col.active = display_all
@@ -4002,34 +4179,135 @@ class VIEW3D_PT_overlay_edit_mesh(Panel):
         split = col.split()
 
         sub = split.column()
-        sub.prop(data, "show_faces", text="Faces")
         sub.prop(data, "show_edges", text="Edges")
-        sub.prop(data, "show_edge_crease", text="Creases")
-        sub.prop(data, "show_edge_sharp", text="Sharp", text_ctxt=i18n_contexts.plural)
-        sub.prop(data, "show_edge_bevel_weight", text="Bevel")
+        sub = split.column()
+        sub.prop(data, "show_faces", text="Faces")
+
+        row = col.row(align=True)
+        row.prop(data, "show_edge_crease", text="Creases", toggle=True)
+        row.prop(data, "show_edge_sharp", text="Sharp", text_ctxt=i18n_contexts.plural, toggle=True)
+        row.prop(data, "show_edge_bevel_weight", text="Bevel", toggle=True)
+
         if not with_freestyle:
-            sub.prop(data, "show_edge_seams", text="Seams")
+            row.prop(data, "show_edge_seams", text="Seams", toggle=True)
+
+
+class VIEW3D_PT_overlay_edit_mesh_shading(Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'HEADER'
+    bl_parent_id = 'VIEW3D_PT_overlay_edit_mesh'
+    bl_label = "Shading"
+
+    @classmethod
+    def poll(cls, context):
+        return context.mode == 'EDIT_MESH'
+
+    def draw(self, context):
+        layout = self.layout
+
+        view = context.space_data
+        overlay = view.overlay
+        tool_settings = context.tool_settings
+        display_all = overlay.show_overlays
+        data = context.active_object.data
+        statvis = tool_settings.statvis
+
+        col = layout.column()
+        col.active = display_all
+
+        col.prop(overlay, "show_occlude_wire")
+
+        col.prop(overlay, "show_weight", text="Vertex Group Weights")
+        if overlay.show_weight:
+            row = col.split()
+            row.label(text="Zero Weights")
+            row.prop(tool_settings, "vertex_group_user", text="")
+
+        col.prop(data, "show_statvis", text="Mesh Analysis")
+        if data.show_statvis:
+            col = col.column()
+
+            sub = col.split()
+            sub.active = data.show_statvis
+            sub.label(text="Type")
+            sub.prop(statvis, "type", text="")
+
+            statvis_type = statvis.type
+            if statvis_type == 'OVERHANG':
+                row = col.row(align=True)
+                row.prop(statvis, "overhang_min", text="Minimum")
+                row.prop(statvis, "overhang_max", text="Maximum")
+                col.row().prop(statvis, "overhang_axis", expand=True)
+            elif statvis_type == 'THICKNESS':
+                row = col.row(align=True)
+                row.prop(statvis, "thickness_min", text="Minimum")
+                row.prop(statvis, "thickness_max", text="Maximum")
+                col.prop(statvis, "thickness_samples")
+            elif statvis_type == 'INTERSECT':
+                pass
+            elif statvis_type == 'DISTORT':
+                row = col.row(align=True)
+                row.prop(statvis, "distort_min", text="Minimum")
+                row.prop(statvis, "distort_max", text="Maximum")
+            elif statvis_type == 'SHARP':
+                row = col.row(align=True)
+                row.prop(statvis, "sharp_min", text="Minimum")
+                row.prop(statvis, "sharp_max", text="Maximum")
+
+
+class VIEW3D_PT_overlay_edit_mesh_measurement(Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'HEADER'
+    bl_parent_id = 'VIEW3D_PT_overlay_edit_mesh'
+    bl_label = "Measurement"
+
+    @classmethod
+    def poll(cls, context):
+        return context.mode == 'EDIT_MESH'
+
+    def draw(self, context):
+        layout = self.layout
+
+        view = context.space_data
+        overlay = view.overlay
+        display_all = overlay.show_overlays
+        data = context.active_object.data
+
+        col = layout.column()
+        col.active = display_all
+
+        split = col.split()
 
         sub = split.column()
-        sub.prop(overlay, "show_occlude_wire")
         sub.prop(data, "show_extra_edge_length", text="Edge Length")
         sub.prop(data, "show_extra_edge_angle", text="Edge Angle")
+
+        sub = split.column()
         sub.prop(data, "show_extra_face_area", text="Face Area")
         sub.prop(data, "show_extra_face_angle", text="Face Angle")
 
-        if show_developer_ui:
-            sub.prop(data, "show_extra_indices", text="Indices")
 
-        if with_freestyle:
-            col.label(text="Freestyle:")
-            row = col.row()
-            row.prop(data, "show_freestyle_edge_marks", text="Edge Marks")
-            row.prop(data, "show_freestyle_face_marks", text="Face Marks")
-            row.prop(data, "show_edge_seams", text="Seams")
+class VIEW3D_PT_overlay_edit_mesh_normals(Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'HEADER'
+    bl_parent_id = 'VIEW3D_PT_overlay_edit_mesh'
+    bl_label = "Normals"
 
-        col.label(text="Normals:")
+    @classmethod
+    def poll(cls, context):
+        return context.mode == 'EDIT_MESH'
+
+    def draw(self, context):
+        layout = self.layout
+
+        view = context.space_data
+        overlay = view.overlay
+        display_all = overlay.show_overlays
+
+        col = layout.column()
+        col.active = display_all
+
         row = col.row(align=True)
-
         row.prop(overlay, "show_vertex_normals", text="", icon='VERTEXSEL')
         row.prop(overlay, "show_split_normals", text="", icon='LOOPSEL')
         row.prop(overlay, "show_face_normals", text="", icon='FACESEL')
@@ -4038,37 +4316,56 @@ class VIEW3D_PT_overlay_edit_mesh(Panel):
         sub.active = overlay.show_vertex_normals or overlay.show_face_normals or overlay.show_split_normals
         sub.prop(overlay, "normals_length", text="Size")
 
-        col.prop(overlay, "show_weight")
-        if overlay.show_weight:
-            col.label("Show Zero Weights:")
-            col.row().prop(tool_settings, "vertex_group_user", expand=True)
 
-        col.prop(data, "show_statvis", text="Mesh Analysis")
-        if data.show_statvis:
-            sub = col.column()
-            sub.active = data.show_statvis
-            sub.prop(statvis, "type")
-            statvis_type = statvis.type
-            if statvis_type == 'OVERHANG':
-                row = sub.row(align=True)
-                row.prop(statvis, "overhang_min", text="")
-                row.prop(statvis, "overhang_max", text="")
-                sub.row().prop(statvis, "overhang_axis", expand=True)
-            elif statvis_type == 'THICKNESS':
-                row = sub.row(align=True)
-                row.prop(statvis, "thickness_min", text="")
-                row.prop(statvis, "thickness_max", text="")
-                sub.prop(statvis, "thickness_samples")
-            elif statvis_type == 'INTERSECT':
-                pass
-            elif statvis_type == 'DISTORT':
-                row = sub.row(align=True)
-                row.prop(statvis, "distort_min", text="")
-                row.prop(statvis, "distort_max", text="")
-            elif statvis_type == 'SHARP':
-                row = sub.row(align=True)
-                row.prop(statvis, "sharp_min", text="")
-                row.prop(statvis, "sharp_max", text="")
+class VIEW3D_PT_overlay_edit_mesh_freestyle(Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'HEADER'
+    bl_parent_id = 'VIEW3D_PT_overlay'
+    bl_label = "Freestyle"
+
+    @classmethod
+    def poll(cls, context):
+        return context.mode == 'EDIT_MESH' and bpy.app.build_options.freestyle
+
+    def draw(self, context):
+        layout = self.layout
+
+        view = context.space_data
+        overlay = view.overlay
+        display_all = overlay.show_overlays
+        data = context.active_object.data
+
+        col = layout.column()
+        col.active = display_all
+
+        row = col.row()
+        row.prop(data, "show_freestyle_edge_marks", text="Edge Marks")
+        row.prop(data, "show_freestyle_face_marks", text="Face Marks")
+        row.prop(data, "show_edge_seams", text="Seams")
+
+
+class VIEW3D_PT_overlay_edit_mesh_developer(Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'HEADER'
+    bl_parent_id = 'VIEW3D_PT_overlay_edit_mesh'
+    bl_label = "Developer"
+
+    @classmethod
+    def poll(cls, context):
+        return context.mode == 'EDIT_MESH' and context.user_preferences.view.show_developer_ui
+
+    def draw(self, context):
+        layout = self.layout
+
+        view = context.space_data
+        overlay = view.overlay
+        display_all = overlay.show_overlays
+        data = context.active_object.data
+
+        col = layout.column()
+        col.active = display_all
+
+        col.prop(data, "show_extra_indices", text="Indices")
 
 
 class VIEW3D_PT_overlay_edit_curve(Panel):
@@ -4138,11 +4435,12 @@ class VIEW3D_PT_overlay_pose(Panel):
         col = layout.column()
         col.active = display_all
         col.prop(overlay, "show_transparent_bones")
-        row = col.split(0.65)
-        row.prop(overlay, "show_bone_selection")
-        sub = row.column()
-        sub.active = display_all and overlay.show_bone_selection
-        sub.prop(overlay, "bone_selection_alpha", text="")
+
+        row = col.row()
+        row.prop(overlay, "show_bone_select", text="")
+        sub = row.row()
+        sub.active = display_all and overlay.show_bone_select
+        sub.prop(overlay, "bone_select_alpha", text="Fade Geometry")
 
 
 class VIEW3D_PT_overlay_edit_armature(Panel):
@@ -4542,8 +4840,20 @@ classes = (
     VIEW3D_PT_shading_lighting,
     VIEW3D_PT_shading_color,
     VIEW3D_PT_shading_options,
+    VIEW3D_PT_shading_options_shadow,
+    VIEW3D_PT_shading_options_ssao,
     VIEW3D_PT_overlay,
+    VIEW3D_PT_overlay_manipulators,
+    VIEW3D_PT_overlay_guides,
+    VIEW3D_PT_overlay_object,
+    VIEW3D_PT_overlay_geometry,
+    VIEW3D_PT_overlay_motion_tracking,
     VIEW3D_PT_overlay_edit_mesh,
+    VIEW3D_PT_overlay_edit_mesh_shading,
+    VIEW3D_PT_overlay_edit_mesh_measurement,
+    VIEW3D_PT_overlay_edit_mesh_normals,
+    VIEW3D_PT_overlay_edit_mesh_freestyle,
+    VIEW3D_PT_overlay_edit_mesh_developer,
     VIEW3D_PT_overlay_edit_curve,
     VIEW3D_PT_overlay_edit_armature,
     VIEW3D_PT_overlay_pose,

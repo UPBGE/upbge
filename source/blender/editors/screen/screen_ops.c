@@ -748,7 +748,6 @@ static AZone *area_actionzone_refresh_xy(ScrArea *sa, const int xy[2], const boo
 						if (az->direction == AZ_SCROLL_HOR) {
 							az->alpha = 1.0f;
 							v2d->alpha_hor = 255;
-							v2d->size_hor = V2D_SCROLL_HEIGHT;
 							redraw = true;
 						}
 					}
@@ -756,7 +755,6 @@ static AZone *area_actionzone_refresh_xy(ScrArea *sa, const int xy[2], const boo
 						if (az->direction == AZ_SCROLL_VERT) {
 							az->alpha = 1.0f;
 							v2d->alpha_vert = 255;
-							v2d->size_vert = V2D_SCROLL_WIDTH;
 							redraw = true;
 						}
 					}
@@ -770,9 +768,6 @@ static AZone *area_actionzone_refresh_xy(ScrArea *sa, const int xy[2], const boo
 							alpha = 1.0f - dist_fac;
 
 							v2d->alpha_hor = alpha * 255;
-							v2d->size_hor = round_fl_to_int(
-							        V2D_SCROLL_HEIGHT -
-							        ((V2D_SCROLL_HEIGHT - V2D_SCROLL_HEIGHT_MIN) * dist_fac));
 						}
 						else if (az->direction == AZ_SCROLL_VERT) {
 							dist_fac = BLI_rcti_length_x(&v2d->vert, local_xy[0]) / AZONEFADEIN;
@@ -780,9 +775,6 @@ static AZone *area_actionzone_refresh_xy(ScrArea *sa, const int xy[2], const boo
 							alpha = 1.0f - dist_fac;
 
 							v2d->alpha_vert = alpha * 255;
-							v2d->size_vert = round_fl_to_int(
-							        V2D_SCROLL_WIDTH -
-							        ((V2D_SCROLL_WIDTH - V2D_SCROLL_WIDTH_MIN) * dist_fac));
 						}
 						az->alpha = alpha;
 						redraw = true;
@@ -1214,11 +1206,11 @@ typedef struct sAreaMoveData {
 		SNAP_NONE = 0,
 		/* Snap to an invisible grid with a unit defined in AREAGRID */
 		SNAP_AREAGRID,
-		/* Snap to mid-point and adjacent edges. */
-		SNAP_MIDPOINT_AND_ADJACENT,
+		/* Snap to fraction (half, third.. etc) and adjacent edges. */
+		SNAP_FRACTION_AND_ADJACENT,
 		/* Snap to either bigger or smaller, nothing in-between (used for
 		 * global areas). This has priority over other snap types, if it is
-		 * used, toggling SNAP_MIDPOINT_AND_ADJACENT doesn't work. */
+		 * used, toggling SNAP_FRACTION_AND_ADJACENT doesn't work. */
 		SNAP_BIGGER_SMALLER_ONLY,
 	} snap_type;
 } sAreaMoveData;
@@ -1363,32 +1355,50 @@ static int area_snap_calc_location(
         const int bigger, const int smaller)
 {
 	BLI_assert(snap_type != SNAP_NONE);
-	int final_loc = -1;
-	const int m_loc = origval + delta;
+	int m_cursor_final = -1;
+	const int m_cursor = origval + delta;
+	const int m_span = (float)(bigger + smaller);
+	const int m_min = origval - smaller;
+	// const int axis_max = axis_min + m_span;
 
 	switch (snap_type) {
 		case SNAP_AREAGRID:
-			final_loc = m_loc;
+			m_cursor_final = m_cursor;
 			if (delta != bigger && delta != -smaller) {
-				final_loc -= (m_loc % AREAGRID);
-				CLAMP(final_loc, origval - smaller, origval + bigger);
+				m_cursor_final -= (m_cursor % AREAGRID);
+				CLAMP(m_cursor_final, origval - smaller, origval + bigger);
 			}
 			break;
 
 		case SNAP_BIGGER_SMALLER_ONLY:
-			final_loc = (m_loc >= bigger) ? bigger : smaller;
+			m_cursor_final = (m_cursor >= bigger) ? bigger : smaller;
 			break;
 
-		case SNAP_MIDPOINT_AND_ADJACENT:
+		case SNAP_FRACTION_AND_ADJACENT:
 		{
 			const int axis = (dir == 'v') ? 0 : 1;
-			int snap_dist;
-			int dist;
+			int snap_dist_best = INT_MAX;
 			{
-				/* Test the snap to middle. */
-				int middle = origval + (bigger - smaller) / 2;
-				snap_dist = abs(m_loc - middle);
-				final_loc = middle;
+				const float div_array[] = {
+					/* Middle. */
+					1.0f / 2.0f,
+					/* Thirds. */
+					1.0f / 3.0f, 2.0f / 3.0f,
+					/* Quaters. */
+					1.0f / 4.0f, 3.0f / 4.0f,
+					/* Eighth. */
+					1.0f / 8.0f, 3.0f / 8.0f,
+					5.0f / 8.0f, 7.0f / 8.0f,
+				};
+				/* Test the snap to the best division. */
+				for (int i = 0; i < ARRAY_SIZE(div_array); i++) {
+					const int m_cursor_test = m_min + round_fl_to_int(m_span * div_array[i]);
+					const int snap_dist_test = abs(m_cursor - m_cursor_test);
+					if (snap_dist_best >= snap_dist_test) {
+						snap_dist_best = snap_dist_test;
+						m_cursor_final = m_cursor_test;
+					}
+				}
 			}
 
 			for (const ScrVert *v1 = sc->vertbase.first; v1; v1 = v1->next) {
@@ -1405,10 +1415,10 @@ static int area_snap_calc_location(
 						const int v_loc2 = (&v2->vec.x)[axis];
 						/* Do not snap to the vertices at the ends. */
 						if ((origval - smaller) < v_loc2 && v_loc2 < (origval + bigger)) {
-							dist = abs(m_loc - v_loc2);
-							if (dist <= snap_dist) {
-								snap_dist = dist;
-								final_loc = v_loc2;
+							const int snap_dist_test = abs(m_cursor - v_loc2);
+							if (snap_dist_best >= snap_dist_test) {
+								snap_dist_best = snap_dist_test;
+								m_cursor_final = v_loc2;
 							}
 						}
 					}
@@ -1421,9 +1431,9 @@ static int area_snap_calc_location(
 	}
 
 	BLI_assert(ELEM(snap_type, SNAP_BIGGER_SMALLER_ONLY) ||
-	           IN_RANGE_INCL(final_loc, origval - smaller, origval + bigger));
+	           IN_RANGE_INCL(m_cursor_final, origval - smaller, origval + bigger));
 
-	return final_loc;
+	return m_cursor_final;
 }
 
 /* moves selected screen edge amount of delta, used by split & move */
@@ -1575,7 +1585,7 @@ static int area_move_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
 				case KM_MODAL_SNAP_ON:
 					if (md->snap_type != SNAP_BIGGER_SMALLER_ONLY) {
-						md->snap_type = SNAP_MIDPOINT_AND_ADJACENT;
+						md->snap_type = SNAP_FRACTION_AND_ADJACENT;
 					}
 					break;
 
@@ -2057,7 +2067,7 @@ static int area_split_modal(bContext *C, wmOperator *op, const wmEvent *event)
 		if (sd->previewmode == 0) {
 			if (sd->do_snap) {
 				const int snap_loc = area_snap_calc_location(
-				        CTX_wm_screen(C), SNAP_MIDPOINT_AND_ADJACENT, sd->delta, sd->origval, dir,
+				        CTX_wm_screen(C), SNAP_FRACTION_AND_ADJACENT, sd->delta, sd->origval, dir,
 				        sd->bigger, sd->smaller);
 				sd->delta = snap_loc - sd->origval;
 			}
@@ -2085,7 +2095,7 @@ static int area_split_modal(bContext *C, wmOperator *op, const wmEvent *event)
 					sa->v1->editflag = sa->v2->editflag = sa->v3->editflag = sa->v4->editflag = 1;
 
 					const int snap_loc = area_snap_calc_location(
-					        CTX_wm_screen(C), SNAP_MIDPOINT_AND_ADJACENT, sd->delta, sd->origval, dir,
+					        CTX_wm_screen(C), SNAP_FRACTION_AND_ADJACENT, sd->delta, sd->origval, dir,
 					        sd->origmin + sd->origsize, -sd->origmin);
 
 					sa->v1->editflag = sa->v2->editflag = sa->v3->editflag = sa->v4->editflag = 0;

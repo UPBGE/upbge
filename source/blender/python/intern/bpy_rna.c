@@ -7423,29 +7423,38 @@ static int deferred_register_prop(StructRNA *srna, PyObject *key, PyObject *item
 
 static int pyrna_deferred_register_props(StructRNA *srna, PyObject *class_dict)
 {
+	PyObject *fields_dict;
 	PyObject *item, *key;
-	PyObject *order;
 	Py_ssize_t pos = 0;
 	int ret = 0;
 
 	/* in both cases PyDict_CheckExact(class_dict) will be true even
 	 * though Operators have a metaclass dict namespace */
+	if ((fields_dict = PyDict_GetItem(class_dict, bpy_intern_str___annotations__)) && PyDict_CheckExact(fields_dict)) {
+		while (PyDict_Next(fields_dict, &pos, &key, &item)) {
+			ret = deferred_register_prop(srna, key, item);
 
-	if ((order = PyDict_GetItem(class_dict, bpy_intern_str_order)) && PyList_CheckExact(order)) {
-		for (pos = 0; pos < PyList_GET_SIZE(order); pos++) {
-			key = PyList_GET_ITEM(order, pos);
-			/* however unlikely its possible
-			 * fails in py 3.3 beta with __qualname__ */
-			if ((item = PyDict_GetItem(class_dict, key))) {
-				ret = deferred_register_prop(srna, key, item);
-				if (ret != 0) {
-					break;
-				}
+			if (ret != 0) {
+				break;
 			}
 		}
 	}
-	else {
+
+	{
+		/* This block can be removed once 2.8x is released and fields are in use. */
+		bool has_warning = false;
 		while (PyDict_Next(class_dict, &pos, &key, &item)) {
+			if (pyrna_is_deferred_prop(item)) {
+				if (!has_warning) {
+					printf("Warning: class %.200s "
+					       "contains a properties which should be a field!\n",
+					       RNA_struct_identifier(srna));
+					PyC_LineSpit();
+					has_warning = true;
+				}
+				printf("    make field: %.200s.%.200s\n",
+				       RNA_struct_identifier(srna), _PyUnicode_AsString(key));
+			}
 			ret = deferred_register_prop(srna, key, item);
 
 			if (ret != 0)
@@ -7650,10 +7659,12 @@ static int bpy_class_validate_recursive(PointerRNA *dummyptr, StructRNA *srna, v
 		if (!(flag & PROP_REGISTER))
 			continue;
 
+		/* TODO(campbell): Use Python3.7x _PyObject_LookupAttr(), also in the macro below. */
 		identifier = RNA_property_identifier(prop);
 		item = PyObject_GetAttrString(py_class, identifier);
 
 		if (item == NULL) {
+			PyErr_Clear();
 			/* Sneaky workaround to use the class name as the bl_idname */
 
 #define     BPY_REPLACEMENT_STRING(rna_attr, py_attr)                         \
@@ -7668,6 +7679,9 @@ static int bpy_class_validate_recursive(PointerRNA *dummyptr, StructRNA *srna, v
 						}                                                     \
 					}                                                         \
 					Py_DECREF(item);                                          \
+				}                                                             \
+				else {                                                        \
+					PyErr_Clear();                                            \
 				}                                                             \
 			}  /* intentionally allow else here */
 

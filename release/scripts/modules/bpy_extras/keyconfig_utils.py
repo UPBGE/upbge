@@ -407,6 +407,7 @@ def keyconfig_test(kc):
             result = True
     return result
 
+
 # Note, we may eventually replace existing logic with this
 # so key configs are always data.
 from .keyconfig_utils_experimental import (

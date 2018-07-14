@@ -32,6 +32,7 @@
 #include <string.h>
 #include <stdio.h>
 
+#include "DNA_lightprobe_types.h"
 #include "DNA_material_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
@@ -332,9 +333,8 @@ static SpaceLink *view3d_new(const ScrArea *UNUSED(sa), const Scene *scene)
 	v3d->shading.cavity_ridge_factor = 1.0f;
 	copy_v3_fl(v3d->shading.single_color, 0.8f);
 
-	v3d->overlay.flag = V3D_OVERLAY_LOOK_DEV;
 	v3d->overlay.wireframe_threshold = 0.5f;
-	v3d->overlay.bone_selection_alpha = 0.5f;
+	v3d->overlay.bone_select_alpha = 0.5f;
 	v3d->overlay.texture_paint_mode_opacity = 0.8;
 	v3d->overlay.weight_paint_mode_opacity = 0.8;
 	v3d->overlay.vertex_paint_mode_opacity = 0.8;
@@ -684,6 +684,13 @@ static void view3d_id_path_drop_copy(wmDrag *drag, wmDropBox *drop)
 static void view3d_lightcache_update(bContext *C)
 {
 	PointerRNA op_ptr;
+
+	Scene *scene = CTX_data_scene(C);
+
+	if (strcmp(scene->r.engine, RE_engine_id_BLENDER_EEVEE) != 0) {
+		/* Only do auto bake if eevee is the active engine */
+		return;
+	}
 
 	WM_operator_properties_create(&op_ptr, "SCENE_OT_light_cache_bake");
 	RNA_int_set(&op_ptr, "delay", 200);
@@ -1424,9 +1431,13 @@ static void space_view3d_listener(
 
 static void space_view3d_refresh(const bContext *C, ScrArea *UNUSED(sa))
 {
-	/* This is only used by the auto lightprobe refresh for the moment.
-	 * So we don't need to check anything to know what to do. */
-	view3d_lightcache_update((bContext *)C);
+	Scene *scene = CTX_data_scene(C);
+	LightCache *lcache = scene->eevee.light_cache;
+
+	if (lcache && (lcache->flag & LIGHTCACHE_UPDATE_AUTO) != 0) {
+		lcache->flag &= ~LIGHTCACHE_UPDATE_AUTO;
+		view3d_lightcache_update((bContext *)C);
+	}
 }
 
 const char *view3d_context_dir[] = {

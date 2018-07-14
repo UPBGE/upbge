@@ -350,6 +350,9 @@ void WM_window_set_active_scene(struct Main *bmain, struct bContext *C, struct w
 	struct Scene *scene_new) RET_NONE
 void WM_window_set_active_view_layer(struct wmWindow *win, struct ViewLayer *view_layer) RET_NONE
 
+bool WM_paneltype_add(struct PanelType *mt) RET_ZERO
+void WM_paneltype_remove(struct PanelType *mt) RET_NONE
+
 
 void WM_autosave_init(wmWindowManager *wm) RET_NONE
 void WM_jobs_kill_all_except(struct wmWindowManager *wm, void *owner) RET_NONE

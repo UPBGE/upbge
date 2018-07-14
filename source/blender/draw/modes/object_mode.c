@@ -468,33 +468,54 @@ static void OBJECT_engine_init(void *vedata)
 
 			if (ELEM(rv3d->view, RV3D_VIEW_RIGHT, RV3D_VIEW_LEFT)) {
 				e_data.grid_flag = PLANE_YZ;
-				e_data.grid_flag |= SHOW_AXIS_Y;
-				e_data.grid_flag |= SHOW_AXIS_Z;
-				e_data.grid_flag |= SHOW_GRID;
-				e_data.grid_flag |= GRID_BACK;
+				if (show_axis_y) {
+					e_data.grid_flag |= SHOW_AXIS_Y;
+				}
+				if (show_axis_z) {
+					e_data.grid_flag |= SHOW_AXIS_Z;
+				}
+				if (show_floor) {
+					e_data.grid_flag |= SHOW_GRID;
+					e_data.grid_flag |= GRID_BACK;
+				}
 			}
 			else if (ELEM(rv3d->view, RV3D_VIEW_TOP, RV3D_VIEW_BOTTOM)) {
 				e_data.grid_flag = PLANE_XY;
-				e_data.grid_flag |= SHOW_AXIS_X;
-				e_data.grid_flag |= SHOW_AXIS_Y;
-				e_data.grid_flag |= SHOW_GRID;
-				e_data.grid_flag |= GRID_BACK;
+				if (show_axis_x) {
+					e_data.grid_flag |= SHOW_AXIS_X;
+				}
+				if (show_axis_y) {
+					e_data.grid_flag |= SHOW_AXIS_Y;
+				}
+				if (show_floor) {
+					e_data.grid_flag |= SHOW_GRID;
+					e_data.grid_flag |= GRID_BACK;
+				}
 			}
 			else if (ELEM(rv3d->view, RV3D_VIEW_FRONT, RV3D_VIEW_BACK)) {
 				e_data.grid_flag = PLANE_XZ;
-				e_data.grid_flag |= SHOW_AXIS_X;
-				e_data.grid_flag |= SHOW_AXIS_Z;
-				e_data.grid_flag |= SHOW_GRID;
-				e_data.grid_flag |= GRID_BACK;
+				if (show_axis_x) {
+					e_data.grid_flag |= SHOW_AXIS_X;
+				}
+				if (show_axis_z) {
+					e_data.grid_flag |= SHOW_AXIS_Z;
+				}
+				if (show_floor) {
+					e_data.grid_flag |= SHOW_GRID;
+					e_data.grid_flag |= GRID_BACK;
+				}
 			}
 			else { /* RV3D_VIEW_USER */
 				e_data.grid_flag = PLANE_XY;
-				if (show_axis_x)
+				if (show_axis_x) {
 					e_data.grid_flag |= SHOW_AXIS_X;
-				if (show_axis_y)
+				}
+				if (show_axis_y) {
 					e_data.grid_flag |= SHOW_AXIS_Y;
-				if (show_floor)
+				}
+				if (show_floor) {
 					e_data.grid_flag |= SHOW_GRID;
+				}
 			}
 		}
 
@@ -1954,6 +1975,10 @@ static void DRW_shgroup_relationship_lines(OBJECT_StorageList *stl, Object *ob)
 
 static void DRW_shgroup_object_center(OBJECT_StorageList *stl, Object *ob, ViewLayer *view_layer, View3D *v3d)
 {
+	if (v3d->overlay.flag & V3D_OVERLAY_HIDE_OBJECT_ORIGINS) {
+		return;
+	}
+
 	const bool is_library = ob->id.us > 1 || ID_IS_LINKED(ob);
 	DRWShadingGroup *shgroup;
 
