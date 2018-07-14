@@ -196,6 +196,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
 #ifdef WITH_PYTHON
 	m_attrDict = nullptr;
+	m_removeCallbacks = nullptr;
 
 	for (unsigned short i = 0; i < MAX_DRAW_CALLBACK; ++i) {
 		m_drawCallbacks[i] = nullptr;
@@ -283,6 +284,7 @@ KX_Scene::~KX_Scene()
 	}
 
 	// These may be nullptr but the macro checks.
+	Py_CLEAR(m_removeCallbacks);
 	for (unsigned short i = 0; i < MAX_DRAW_CALLBACK; ++i) {
 		Py_CLEAR(m_drawCallbacks[i]);
 	}
@@ -1731,6 +1733,17 @@ void KX_Scene::RunDrawingCallbacks(DrawingCallbackType callbackType, KX_Camera *
 	}
 }
 
+void KX_Scene::RunOnRemoveCallbacks()
+{
+	PyObject *list = m_removeCallbacks;
+	if (!list || PyList_GET_SIZE(list) == 0) {
+		return;
+	}
+
+	PyObject *args[1] = { GetProxy() };
+	EXP_RunPythonCallBackList(list, args, 0, 1);
+}
+
 PyTypeObject KX_Scene::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_Scene",
@@ -2056,6 +2069,36 @@ int KX_Scene::pyattr_set_drawing_callback(EXP_PyObjectPlus *self_v, const EXP_PY
 	return PY_SET_ATTR_SUCCESS;
 }
 
+PyObject *KX_Scene::pyattr_get_remove_callback(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_Scene *self = static_cast<KX_Scene *>(self_v);
+
+	if (!self->m_removeCallbacks) {
+		self->m_removeCallbacks = PyList_New(0);
+	}
+
+	Py_INCREF(self->m_removeCallbacks);
+
+	return self->m_removeCallbacks;
+}
+
+int KX_Scene::pyattr_set_remove_callback(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	KX_Scene *self = static_cast<KX_Scene *>(self_v);
+
+	if (!PyList_CheckExact(value)) {
+		PyErr_SetString(PyExc_ValueError, "Expected a list");
+		return PY_SET_ATTR_FAIL;
+	}
+
+	Py_XDECREF(self->m_removeCallbacks);
+
+	Py_INCREF(value);
+	self->m_removeCallbacks = value;
+
+	return PY_SET_ATTR_SUCCESS;
+}
+
 PyObject *KX_Scene::pyattr_get_gravity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_Scene *self = static_cast<KX_Scene *>(self_v);
@@ -2090,6 +2133,7 @@ PyAttributeDef KX_Scene::Attributes[] = {
 	EXP_PYATTRIBUTE_RW_FUNCTION("pre_draw", KX_Scene, pyattr_get_drawing_callback, pyattr_set_drawing_callback),
 	EXP_PYATTRIBUTE_RW_FUNCTION("post_draw", KX_Scene, pyattr_get_drawing_callback, pyattr_set_drawing_callback),
 	EXP_PYATTRIBUTE_RW_FUNCTION("pre_draw_setup", KX_Scene, pyattr_get_drawing_callback, pyattr_set_drawing_callback),
+	EXP_PYATTRIBUTE_RW_FUNCTION("onRemove", KX_Scene, pyattr_get_remove_callback, pyattr_set_remove_callback),
 	EXP_PYATTRIBUTE_RW_FUNCTION("gravity", KX_Scene, pyattr_get_gravity, pyattr_set_gravity),
 	EXP_PYATTRIBUTE_BOOL_RO("suspended", KX_Scene, m_suspend),
 	EXP_PYATTRIBUTE_BOOL_RO("activityCulling", KX_Scene, m_activityCulling),

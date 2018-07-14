@@ -1054,7 +1054,7 @@ void KX_KetsjiEngine::StopEngine()
 
 		while (m_scenes->GetCount() > 0) {
 			KX_Scene *scene = m_scenes->GetFront();
-			m_converter->RemoveScene(scene);
+			DestructScene(scene);
 			// WARNING: here the scene is a dangling pointer.
 			m_scenes->Remove(0);
 		}
@@ -1296,7 +1296,7 @@ void KX_KetsjiEngine::RemoveScheduledScenes()
 
 			KX_Scene *scene = FindScene(scenename);
 			if (scene) {
-				m_converter->RemoveScene(scene);
+				DestructScene(scene);
 				m_scenes->RemoveValue(scene);
 			}
 		}
@@ -1408,7 +1408,8 @@ void KX_KetsjiEngine::ReplaceScheduledScenes()
 					// avoid crash if the new scene doesn't exist, just do nothing
 					Scene *blScene = m_converter->GetBlenderSceneForName(newscenename);
 					if (blScene) {
-						m_converter->RemoveScene(scene);
+						DestructScene(scene);
+						m_scenes->RemoveValue(scene);
 
 						KX_Scene *tmpscene = CreateScene(blScene);
 						ConvertScene(tmpscene);
@@ -1441,6 +1442,12 @@ void KX_KetsjiEngine::ResumeScene(const std::string& scenename)
 	if (scene) {
 		scene->Resume();
 	}
+}
+
+void KX_KetsjiEngine::DestructScene(KX_Scene *scene)
+{
+	scene->RunOnRemoveCallbacks();
+	m_converter->RemoveScene(scene);
 }
 
 double KX_KetsjiEngine::GetTicRate()
