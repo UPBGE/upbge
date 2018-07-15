@@ -238,7 +238,7 @@ class USERPREF_PT_interface(Panel):
 
         col.separator()
 
-        # col.prop(view, "show_manipulator_navigate")
+        # col.prop(view, "show_gizmo_navigate")
 
         sub = col.column(align=True)
 
@@ -258,10 +258,10 @@ class USERPREF_PT_interface(Panel):
         #col.label(text="Open Toolbox Delay:")
         #col.prop(view, "open_left_mouse_delay", text="Hold LMB")
         #col.prop(view, "open_right_mouse_delay", text="Hold RMB")
-        col.prop(view, "show_manipulator", text="Manipulators")
+        col.prop(view, "show_gizmo", text="Gizmos")
         sub = col.column()
-        sub.active = view.show_manipulator
-        sub.prop(view, "manipulator_size", text="Size")
+        sub.active = view.show_gizmo
+        sub.prop(view, "gizmo_size", text="Size")
 
         col.separator()
 
@@ -273,7 +273,7 @@ class USERPREF_PT_interface(Panel):
         row.separator()
 
         col = row.column()
-        col.label(text="View Manipulation:")
+        col.label(text="View Gizmos:")
         col.prop(view, "use_mouse_depth_cursor")
         col.prop(view, "use_cursor_lock_adjust")
         col.prop(view, "use_mouse_depth_navigate")
@@ -917,7 +917,7 @@ class USERPREF_PT_theme(Panel):
             col.separator()
             col.separator()
 
-            col.label("Axis & Manipulator Colors:")
+            col.label("Axis & Gizmo Colors:")
 
             row = col.row()
 
@@ -935,10 +935,10 @@ class USERPREF_PT_theme(Panel):
             padding = subsplit.split(percentage=0.15)
             colsub = padding.column()
             colsub = padding.column()
-            colsub.row().prop(ui, "manipulator_primary")
-            colsub.row().prop(ui, "manipulator_secondary")
-            colsub.row().prop(ui, "manipulator_a")
-            colsub.row().prop(ui, "manipulator_b")
+            colsub.row().prop(ui, "gizmo_primary")
+            colsub.row().prop(ui, "gizmo_secondary")
+            colsub.row().prop(ui, "gizmo_a")
+            colsub.row().prop(ui, "gizmo_b")
 
             col.separator()
             col.separator()

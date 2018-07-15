@@ -865,7 +865,7 @@ KX_PYMETHODDEF_DOC_O(KX_Camera, getScreenPosition,
 
 	KX_GetActiveEngine()->GetCanvas()->GetViewportArea().Pack(viewport);
 
-	gpuProject(vec, modelmatrix, projmatrix, viewport, win);
+	GPU_matrix_project(vec, modelmatrix, projmatrix, viewport, win);
 
 	vect[0] =  (win[0] - viewport[0]) / viewport[2];
 	vect[1] =  (win[1] - viewport[1]) / viewport[3];
@@ -914,7 +914,7 @@ KX_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenVect,
 
 	vec[2] = 0.f;
 
-	gpuUnProject(vec, modelmatrix, projmatrix, viewport, win);
+	GPU_matrix_unproject(vec, modelmatrix, projmatrix, viewport, win);
 
 	MT_Vector3 campos = NodeGetWorldPosition();
 	MT_Vector3 screenpos(win[0], win[1], win[2]);

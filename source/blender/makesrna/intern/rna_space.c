@@ -2565,7 +2565,7 @@ static void rna_def_space_view3d_overlay(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "show_overlays", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag2", V3D_RENDER_OVERRIDE);
-	RNA_def_property_ui_text(prop, "Show Overlays", "Display overlays like manipulators and outlines");
+	RNA_def_property_ui_text(prop, "Show Overlays", "Display overlays like gizmos and outlines");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
 	prop = RNA_def_property(srna, "show_floor", PROP_BOOLEAN, PROP_NONE);
@@ -2942,24 +2942,24 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 	RNA_def_property_ui_icon(prop, ICON_ORTHO, 0);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
-	prop = RNA_def_property(srna, "show_manipulator", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_negative_sdna(prop, NULL, "mpr_flag", V3D_MANIPULATOR_HIDE);
-	RNA_def_property_ui_text(prop, "Manipulator", "Show manipulators of all types");
+	prop = RNA_def_property(srna, "show_gizmo", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "gizmo_flag", V3D_GIZMO_HIDE);
+	RNA_def_property_ui_text(prop, "Show Gizmo", "Show gizmos of all types");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
-	prop = RNA_def_property(srna, "show_manipulator_navigate", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_negative_sdna(prop, NULL, "mpr_flag", V3D_MANIPULATOR_HIDE_NAVIGATE);
-	RNA_def_property_ui_text(prop, "Navigate Manipulator", "");
+	prop = RNA_def_property(srna, "show_gizmo_navigate", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "gizmo_flag", V3D_GIZMO_HIDE_NAVIGATE);
+	RNA_def_property_ui_text(prop, "Navigate Gizmo", "");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
-	prop = RNA_def_property(srna, "show_manipulator_context", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_negative_sdna(prop, NULL, "mpr_flag", V3D_MANIPULATOR_HIDE_CONTEXT);
-	RNA_def_property_ui_text(prop, "Context Manipulator", "Context sensitive manipulators for the active item");
+	prop = RNA_def_property(srna, "show_gizmo_context", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "gizmo_flag", V3D_GIZMO_HIDE_CONTEXT);
+	RNA_def_property_ui_text(prop, "Context Gizmo", "Context sensitive gizmos for the active item");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
-	prop = RNA_def_property(srna, "show_manipulator_tool", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_negative_sdna(prop, NULL, "mpr_flag", V3D_MANIPULATOR_HIDE_TOOL);
-	RNA_def_property_ui_text(prop, "Tool Manipulator", "Active tool manipulator");
+	prop = RNA_def_property(srna, "show_gizmo_tool", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "gizmo_flag", V3D_GIZMO_HIDE_TOOL);
+	RNA_def_property_ui_text(prop, "Tool Gizmo", "Active tool gizmo");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
 	prop = RNA_def_property(srna, "lock_camera_and_layers", PROP_BOOLEAN, PROP_NONE);

@@ -74,7 +74,7 @@ ToolDef = namedtuple(
         "icon",
         # An optional cursor to use when this tool is active.
         "cursor",
-        # An optional manipulator group to activate when the tool is set or None for no widget.
+        # An optional gizmo group to activate when the tool is set or None for no gizmo.
         "widget",
         # Optional keymap for tool, either:
         # - A function that populates a keymaps passed in as an argument.
@@ -569,7 +569,7 @@ def _activate_by_item(context, space_type, item, index):
         name=item.text,
         keymap=item.keymap[0].name if item.keymap is not None else "",
         cursor=item.cursor or 'DEFAULT',
-        manipulator_group=item.widget or "",
+        gizmo_group=item.widget or "",
         data_block=item.data_block or "",
         operator=item.operator or "",
         index=index,

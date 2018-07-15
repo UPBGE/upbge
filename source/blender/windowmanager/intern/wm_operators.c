@@ -2118,8 +2118,8 @@ static void radial_control_paint_tex(RadialControl *rc, float radius, float alph
 		/* set up rotation if available */
 		if (rc->rot_prop) {
 			rot = RNA_property_float_get(&rc->rot_ptr, rc->rot_prop);
-			gpuPushMatrix();
-			gpuRotate2D(RAD2DEGF(rot));
+			GPU_matrix_push();
+			GPU_matrix_rotate_2d(RAD2DEGF(rot));
 		}
 
 		/* draw textured quad */
@@ -2141,7 +2141,7 @@ static void radial_control_paint_tex(RadialControl *rc, float radius, float alph
 
 		/* undo rotation */
 		if (rc->rot_prop)
-			gpuPopMatrix();
+			GPU_matrix_pop();
 	}
 	else {
 		/* flat color if no texture available */
@@ -2208,7 +2208,7 @@ static void radial_control_paint_cursor(bContext *UNUSED(C), int x, int y, void 
 	/* Keep cursor in the original place */
 	x = rc->initial_mouse[0];
 	y = rc->initial_mouse[1];
-	gpuTranslate2f((float)x, (float)y);
+	GPU_matrix_translate_2f((float)x, (float)y);
 
 	glEnable(GL_BLEND);
 	glEnable(GL_LINE_SMOOTH);
@@ -2216,7 +2216,7 @@ static void radial_control_paint_cursor(bContext *UNUSED(C), int x, int y, void 
 	/* apply zoom if available */
 	if (rc->zoom_prop) {
 		RNA_property_float_get_array(&rc->zoom_ptr, rc->zoom_prop, zoom);
-		gpuScale2fv(zoom);
+		GPU_matrix_scale_2fv(zoom);
 	}
 
 	/* draw rotated texture */
@@ -2233,23 +2233,23 @@ static void radial_control_paint_cursor(bContext *UNUSED(C), int x, int y, void 
 	immUniformColor3fvAlpha(col, 0.5f);
 
 	if (rc->subtype == PROP_ANGLE) {
-		gpuPushMatrix();
+		GPU_matrix_push();
 
 		/* draw original angle line */
-		gpuRotate2D(RAD2DEGF(rc->initial_value));
+		GPU_matrix_rotate_2d(RAD2DEGF(rc->initial_value));
 		immBegin(GWN_PRIM_LINES, 2);
 		immVertex2f(pos, (float)WM_RADIAL_CONTROL_DISPLAY_MIN_SIZE, 0.0f);
 		immVertex2f(pos, (float)WM_RADIAL_CONTROL_DISPLAY_SIZE, 0.0f);
 		immEnd();
 
 		/* draw new angle line */
-		gpuRotate2D(RAD2DEGF(rc->current_value - rc->initial_value));
+		GPU_matrix_rotate_2d(RAD2DEGF(rc->current_value - rc->initial_value));
 		immBegin(GWN_PRIM_LINES, 2);
 		immVertex2f(pos, (float)WM_RADIAL_CONTROL_DISPLAY_MIN_SIZE, 0.0f);
 		immVertex2f(pos, (float)WM_RADIAL_CONTROL_DISPLAY_SIZE, 0.0f);
 		immEnd();
 
-		gpuPopMatrix();
+		GPU_matrix_pop();
 	}
 
 	/* draw circles on top */
@@ -3248,9 +3248,9 @@ void wm_operatortypes_register(void)
 	WM_operatortype_append(WM_OT_previews_clear);
 	WM_operatortype_append(WM_OT_doc_view_manual_ui_context);
 
-	/* manipulators */
-	WM_operatortype_append(MANIPULATORGROUP_OT_manipulator_select);
-	WM_operatortype_append(MANIPULATORGROUP_OT_manipulator_tweak);
+	/* gizmos */
+	WM_operatortype_append(GIZMOGROUP_OT_gizmo_select);
+	WM_operatortype_append(GIZMOGROUP_OT_gizmo_tweak);
 }
 
 /* circleselect-like modal operators */
@@ -3584,7 +3584,7 @@ void wm_window_keymap(wmKeyConfig *keyconf)
 	RNA_float_set(kmi->ptr, "value", 1.0f / 1.5f);
 #endif /* WITH_INPUT_NDOF */
 
-	wm_manipulators_keymap(keyconf);
+	wm_gizmos_keymap(keyconf);
 	gesture_circle_modal_keymap(keyconf);
 	gesture_border_modal_keymap(keyconf);
 	gesture_zoom_border_modal_keymap(keyconf);

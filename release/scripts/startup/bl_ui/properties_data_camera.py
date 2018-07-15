@@ -62,13 +62,10 @@ class DATA_PT_context_camera(CameraButtonsPanel, Panel):
         cam = context.camera
         space = context.space_data
 
-        split = layout.split(percentage=0.65)
         if ob:
-            split.template_ID(ob, "data")
-            split.separator()
+            layout.template_ID(ob, "data")
         elif cam:
-            split.template_ID(space, "pin_id")
-            split.separator()
+            layout.template_ID(space, "pin_id")
 
 
 class DATA_PT_lens(CameraButtonsPanel, Panel):
@@ -366,7 +363,7 @@ class DATA_PT_camera_background_image(CameraButtonsPanel, Panel):
 
 
 class DATA_PT_camera_display(CameraButtonsPanel, Panel):
-    bl_label = "Display"
+    bl_label = "Viewport Display"
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE'}
 

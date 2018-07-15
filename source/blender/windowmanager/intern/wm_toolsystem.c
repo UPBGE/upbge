@@ -131,9 +131,9 @@ static void toolsystem_unlink_ref(bContext *C, WorkSpace *workspace, bToolRef *t
 {
 	bToolRef_Runtime *tref_rt = tref->runtime;
 
-	if (tref_rt->manipulator_group[0]) {
-		wmManipulatorGroupType *wgt = WM_manipulatorgrouptype_find(tref_rt->manipulator_group, false);
-		if (wgt != NULL) {
+	if (tref_rt->gizmo_group[0]) {
+		wmGizmoGroupType *gzgt = WM_gizmogrouptype_find(tref_rt->gizmo_group, false);
+		if (gzgt != NULL) {
 			bool found = false;
 
 			/* TODO(campbell) */
@@ -144,7 +144,7 @@ static void toolsystem_unlink_ref(bContext *C, WorkSpace *workspace, bToolRef *t
 			for (wmWindow *win = wm->windows.first; win; win = win->next) {
 				const WorkSpace *workspace_iter = WM_window_get_active_workspace(win);
 				if (workspace != workspace_iter) {
-					if (STREQ(workspace->tool.manipulator_group, workspace_iter->tool.manipulator_group)) {
+					if (STREQ(workspace->tool.gizmo_group, workspace_iter->tool.gizmo_group)) {
 						found = true;
 						break;
 					}
@@ -154,8 +154,8 @@ static void toolsystem_unlink_ref(bContext *C, WorkSpace *workspace, bToolRef *t
 			UNUSED_VARS(workspace);
 #endif
 			if (!found) {
-				wmManipulatorMapType *mmap_type = WM_manipulatormaptype_ensure(&wgt->mmap_params);
-				WM_manipulatormaptype_group_unlink(C, bmain, mmap_type, wgt);
+				wmGizmoMapType *gzmap_type = WM_gizmomaptype_ensure(&gzgt->gzmap_params);
+				WM_gizmomaptype_group_unlink(C, bmain, gzmap_type, gzgt);
 			}
 		}
 	}
@@ -171,11 +171,11 @@ void WM_toolsystem_unlink(bContext *C, WorkSpace *workspace, const bToolKey *tke
 static void toolsystem_ref_link(bContext *C, WorkSpace *workspace, bToolRef *tref)
 {
 	bToolRef_Runtime *tref_rt = tref->runtime;
-	if (tref_rt->manipulator_group[0]) {
-		const char *idname = tref_rt->manipulator_group;
-		wmManipulatorGroupType *wgt = WM_manipulatorgrouptype_find(idname, false);
-		if (wgt != NULL) {
-			WM_manipulator_group_type_ensure_ptr(wgt);
+	if (tref_rt->gizmo_group[0]) {
+		const char *idname = tref_rt->gizmo_group;
+		wmGizmoGroupType *gzgt = WM_gizmogrouptype_find(idname, false);
+		if (gzgt != NULL) {
+			WM_gizmo_group_type_ensure_ptr(gzgt);
 		}
 		else {
 			CLOG_WARN(WM_LOG_TOOLS, "'%s' widget not found", idname);

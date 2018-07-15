@@ -54,6 +54,7 @@
 
 #include "GPU_draw.h"
 #include "GPU_batch.h"
+#include "GPU_batch_presets.h"
 #include "GPU_immediate.h"
 #include "GPU_matrix.h"
 #include "GPU_state.h"
@@ -874,6 +875,8 @@ static void node_shader_buts_tex_musgrave(uiLayout *layout, bContext *UNUSED(C),
 static void node_shader_buts_tex_voronoi(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
 	uiItemR(layout, ptr, "coloring", 0, "", ICON_NONE);
+	uiItemR(layout, ptr, "distance", 0, "", ICON_NONE);
+	uiItemR(layout, ptr, "feature", 0, "", ICON_NONE);
 }
 
 static void node_shader_buts_tex_pointdensity(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
@@ -3190,8 +3193,8 @@ void draw_nodespace_back_pix(const bContext *C, ARegion *ar, SpaceNode *snode, b
 	if (ibuf) {
 		float x, y;
 
-		gpuPushProjectionMatrix();
-		gpuPushMatrix();
+		GPU_matrix_push_projection();
+		GPU_matrix_push();
 
 		/* somehow the offset has to be calculated inverse */
 		wmOrtho2_region_pixelspace(ar);
@@ -3274,8 +3277,8 @@ void draw_nodespace_back_pix(const bContext *C, ARegion *ar, SpaceNode *snode, b
 			}
 		}
 
-		gpuPopProjectionMatrix();
-		gpuPopMatrix();
+		GPU_matrix_pop_projection();
+		GPU_matrix_pop();
 	}
 
 	BKE_image_release_ibuf(ima, ibuf, lock);

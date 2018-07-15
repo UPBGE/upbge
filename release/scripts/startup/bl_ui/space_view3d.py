@@ -51,7 +51,7 @@ class VIEW3D_HT_header(Header):
 
         layout.template_header_3D_mode()
 
-        # Contains buttons like Mode, Pivot, Manipulator, Layer, Mesh Select Mode...
+        # Contains buttons like Mode, Pivot, Layer, Mesh Select Mode...
         shading_type = view.shading.type
         shading_item = bpy.types.View3DShading.bl_rna.properties["type"].enum_items[shading_type]
 
@@ -3978,15 +3978,15 @@ class VIEW3D_PT_overlay(Panel):
         pass
 
 
-class VIEW3D_PT_overlay_manipulators(Panel):
+class VIEW3D_PT_overlay_gizmo(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'HEADER'
     bl_parent_id = 'VIEW3D_PT_overlay'
-    bl_label = "Manipulators"
+    bl_label = "Gizmo"
 
     def draw_header(self, context):
         view = context.space_data
-        self.layout.prop(view, "show_manipulator", text="")
+        self.layout.prop(view, "show_gizmo", text="")
 
     def draw(self, context):
         layout = self.layout
@@ -3999,10 +3999,10 @@ class VIEW3D_PT_overlay_manipulators(Panel):
         col.active = display_all
 
         row = col.row(align=True)
-        row.active = view.show_manipulator
-        row.prop(view, "show_manipulator_navigate", text="Navigate", toggle=True)
-        row.prop(view, "show_manipulator_context", text="Active Object", toggle=True)
-        row.prop(view, "show_manipulator_tool", text="Active Tools", toggle=True)
+        row.active = view.show_gizmo
+        row.prop(view, "show_gizmo_navigate", text="Navigate", toggle=True)
+        row.prop(view, "show_gizmo_context", text="Active Object", toggle=True)
+        row.prop(view, "show_gizmo_tool", text="Active Tools", toggle=True)
 
 
 class VIEW3D_PT_overlay_guides(Panel):
@@ -4843,7 +4843,7 @@ classes = (
     VIEW3D_PT_shading_options_shadow,
     VIEW3D_PT_shading_options_ssao,
     VIEW3D_PT_overlay,
-    VIEW3D_PT_overlay_manipulators,
+    VIEW3D_PT_overlay_gizmo,
     VIEW3D_PT_overlay_guides,
     VIEW3D_PT_overlay_object,
     VIEW3D_PT_overlay_geometry,

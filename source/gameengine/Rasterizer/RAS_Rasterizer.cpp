@@ -324,7 +324,7 @@ void RAS_Rasterizer::BeginFrame(double time)
 {
 	m_time = time;
 
-	gpuMatrixReset();
+	GPU_matrix_reset();
 
 	SetFrontFace(true);
 

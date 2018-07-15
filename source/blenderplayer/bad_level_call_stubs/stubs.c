@@ -167,7 +167,7 @@ struct wmManipulatorMap;
 #include "../blender/editors/include/ED_keyframes_edit.h"
 #include "../blender/editors/include/ED_keyframing.h"
 #include "../blender/editors/include/ED_lattice.h"
-#include "../blender/editors/include/ED_manipulator_library.h"
+//#include "../blender/editors/include/ED_manipulator_library.h"
 #include "../blender/editors/include/ED_mball.h"
 #include "../blender/editors/include/ED_mesh.h"
 #include "../blender/editors/include/ED_node.h"
@@ -190,7 +190,7 @@ struct wmManipulatorMap;
 #include "../blender/gpu/GPU_immediate.h"
 #include "../blender/gpu/GPU_matrix.h"
 #include "../blender/python/BPY_extern.h"
-#include "../blender/python/intern/bpy_manipulator_wrap.h"
+//#include "../blender/python/intern/bpy_manipulator_wrap.h"
 #include "../blender/render/extern/include/RE_engine.h"
 #include "../blender/render/extern/include/RE_pipeline.h"
 #include "../blender/render/extern/include/RE_render_ext.h"
@@ -433,7 +433,37 @@ const struct ListBase *WM_manipulatormap_group_list(struct wmManipulatorMap *mma
 void WM_manipulator_calc_matrix_final(const struct wmManipulator *mpr, float r_mat[4][4]) RET_NONE
 struct wmManipulatorProperty *WM_manipulator_target_property_find(struct wmManipulator *mpr, const char *idname) RET_NULL
 bool WM_manipulator_target_property_is_valid(const struct wmManipulatorProperty *mpr_prop) RET_ZERO
-void WM_manipulatormap_draw(struct wmManipulatorMap *mmap, const struct bContext *C, const eWM_ManipulatorMapDrawStep drawstep) RET_NONE
+//void WM_manipulatormap_draw(struct wmManipulatorMap *mmap, const struct bContext *C, const eWM_ManipulatorMapDrawStep drawstep) RET_NONE
+
+
+struct wmGizmoGroupType *WM_gizmogrouptype_find(const char *idname, bool quiet) RET_NULL
+void WM_gizmo_group_type_add_ptr(struct wmGizmoGroupType *gzgt) RET_NONE
+void WM_gizmo_group_type_remove_ptr(struct Main *bmain, struct wmGizmoGroupType *gzgt) RET_NONE
+struct wmGizmo *WM_gizmo_new_ptr(const struct wmGizmoType *gzt, struct wmGizmoGroup *gzgroup, struct PointerRNA *properties) RET_NULL
+void WM_gizmo_unlink(ListBase *gizmolist, struct wmGizmoMap *gzmap, struct wmGizmo *gz,	struct bContext *C) RET_NONE
+bool WM_gizmo_select_set(struct wmGizmoMap *gzmap, struct wmGizmo *gz, bool select) RET_ZERO
+struct PointerRNA *WM_gizmo_operator_set(struct wmGizmo *gz, int part_index, struct wmOperatorType *ot, struct IDProperty *properties) RET_NULL
+void WM_gizmo_calc_matrix_final(const struct wmGizmo *gz, float r_mat[4][4]) RET_NONE
+const struct wmGizmoType *WM_gizmotype_find(const char *idname, bool quiet) RET_NULL
+void WM_gizmotype_append_ptr(void(*mnpfunc)(struct wmGizmoType *, void *), void *userdata) RET_NONE
+void WM_gizmotype_remove_ptr(struct bContext *C, struct Main *bmain, struct wmGizmoType *gzt) RET_NONE
+struct wmGizmoGroupType *WM_gizmogrouptype_append_ptr(void(*mnpfunc)(struct wmGizmoGroupType *, void *), void *userdata) RET_NULL
+struct wmGizmoProperty *WM_gizmo_target_property_find(struct wmGizmo *gz, const char *idname) RET_NULL
+void WM_gizmo_target_property_def_rna_ptr(struct wmGizmo *gz, const struct wmGizmoPropertyType *gz_prop_type, struct PointerRNA *ptr, struct PropertyRNA *prop, int index) RET_NONE
+bool WM_gizmo_target_property_is_valid(const struct wmGizmoProperty *gz_prop) RET_ZERO
+const struct wmGizmoPropertyType *WM_gizmotype_target_property_find(const struct wmGizmoType *gzt, const char *idname) RET_NULL
+const struct ListBase *WM_gizmomap_group_list(struct wmGizmoMap *gzmap) RET_NULL
+struct wmGizmoMapType *WM_gizmomaptype_ensure(const struct wmGizmoMapType_Params *gzmap_params) RET_NULL
+void WM_gizmo_group_type_add_ptr_ex(struct wmGizmoGroupType *gzgt, struct wmGizmoMapType *gzmap_type) RET_NONE
+void WM_gizmomap_draw(struct wmGizmoMap *gzmap, const struct bContext *C, const eWM_GizmoFlagMapDrawStep drawstep) RET_NONE
+
+void BPY_RNA_gizmo_wrapper(struct wmGizmoType *gzt, void *userdata) RET_NONE
+void BPY_RNA_gizmogroup_wrapper(struct wmGizmoGroupType *gzgt, void *userdata) RET_NONE
+void ED_gizmo_draw_preset_box(const struct wmGizmo *gz, float mat[4][4], int select_id) RET_NONE
+void ED_gizmo_draw_preset_arrow(const struct wmGizmo *gz, float mat[4][4], int axis, int select_id) RET_NONE
+void ED_gizmo_draw_preset_circle(const struct wmGizmo *gz, float mat[4][4], int axis, int select_id) RET_NONE
+void ED_gizmo_draw_preset_facemap(const struct bContext *C, const struct wmGizmo *gz, struct Scene *scene, struct Object *ob, const int facemap, int select_id) RET_NONE
+
 
 #ifdef WITH_INPUT_NDOF
     void WM_ndof_deadzone_set(float deadzone) RET_NONE

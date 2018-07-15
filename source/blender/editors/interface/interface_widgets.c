@@ -56,6 +56,7 @@
 
 #include "GPU_basic_shader.h"
 #include "GPU_batch.h"
+#include "GPU_batch_presets.h"
 #include "GPU_immediate.h"
 #include "GPU_immediate_util.h"
 #include "GPU_matrix.h"
@@ -1110,7 +1111,7 @@ void UI_widgetbase_draw_cache_flush(void)
 		GWN_batch_uniform_4fv_array(batch, "parameters", MAX_WIDGET_PARAMETERS * MAX_WIDGET_BASE_BATCH,
 		                            (float *)g_widget_base_batch.params);
 		GWN_batch_uniform_3fv(batch, "checkerColorAndSize", checker_params);
-		gpuBindMatrices(batch->interface);
+		GPU_matrix_bind(batch->interface);
 		GWN_batch_draw_range_ex(batch, 0, g_widget_base_batch.count, true);
 		GWN_batch_program_use_end(batch);
 	}
@@ -4611,8 +4612,8 @@ void ui_draw_pie_center(uiBlock *block)
 	float angle = atan2f(pie_dir[1], pie_dir[0]);
 	float range = (block->pie_data.flags & UI_PIE_DEGREES_RANGE_LARGE) ? M_PI_2 : M_PI_4;
 
-	gpuPushMatrix();
-	gpuTranslate2f(cx, cy);
+	GPU_matrix_push();
+	GPU_matrix_translate_2f(cx, cy);
 
 	GPU_blend(true);
 	if (btheme->tui.wcol_pie_menu.shaded) {
@@ -4658,7 +4659,7 @@ void ui_draw_pie_center(uiBlock *block)
 	}
 
 	GPU_blend(false);
-	gpuPopMatrix();
+	GPU_matrix_pop();
 }
 
 

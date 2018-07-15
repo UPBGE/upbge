@@ -1116,7 +1116,7 @@ void drawLine(TransInfo *t, const float center[3], const float dir[3], char axis
 	if (t->spacetype == SPACE_VIEW3D) {
 		View3D *v3d = t->view;
 
-		gpuPushMatrix();
+		GPU_matrix_push();
 
 		copy_v3_v3(v3, dir);
 		mul_v3_fl(v3, v3d->far);
@@ -1144,7 +1144,7 @@ void drawLine(TransInfo *t, const float center[3], const float dir[3], char axis
 
 		immUnbindProgram();
 
-		gpuPopMatrix();
+		GPU_matrix_pop();
 	}
 }
 
@@ -1348,10 +1348,10 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 		t->view = v3d;
 		t->animtimer = (animscreen) ? animscreen->animtimer : NULL;
 
-		/* turn manipulator off during transform */
+		/* turn gizmo off during transform */
 		if (t->flag & T_MODAL) {
-			t->mpr_flag = v3d->mpr_flag;
-			v3d->mpr_flag = V3D_MANIPULATOR_HIDE;
+			t->gizmo_flag = v3d->gizmo_flag;
+			v3d->gizmo_flag = V3D_GIZMO_HIDE;
 		}
 
 		if (t->scene->toolsettings->transform_flag & SCE_XFORM_AXIS_ALIGN) {
@@ -1688,9 +1688,9 @@ void postTrans(bContext *C, TransInfo *t)
 	}
 	else if (t->spacetype == SPACE_VIEW3D) {
 		View3D *v3d = t->sa->spacedata.first;
-		/* restore manipulator */
+		/* restore gizmo */
 		if (t->flag & T_MODAL) {
-			v3d->mpr_flag = t->mpr_flag;
+			v3d->gizmo_flag = t->gizmo_flag;
 		}
 	}
 
