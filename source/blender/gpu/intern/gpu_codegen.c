@@ -69,7 +69,7 @@ enum {
 	MAX_FUNCTION_NAME = 64
 };
 enum {
-	MAX_PARAMETER = 32
+	MAX_PARAMETER = 64
 };
 
 typedef enum {

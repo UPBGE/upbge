@@ -26,6 +26,8 @@
  */
 
 #include "../node_shader_util.h"
+#include "BKE_scene.h"
+#include "GPU_material.h"
 
 /* **************** OUTPUT ******************** */
 
@@ -66,19 +68,59 @@ static void node_shader_init_principled(bNodeTree *UNUSED(ntree), bNode *node)
 
 static int node_shader_gpu_bsdf_principled(GPUMaterial *mat, bNode *UNUSED(node), bNodeExecData *UNUSED(execdata), GPUNodeStack *in, GPUNodeStack *out)
 {
+	Base *base;
+	Scene *sce_iter, *sce;
+	GPUNodeLink *summation;
+	GPUNodeLink *col, *lv, *dist, *visifac, *shadow, *energy, *summation_partial;
+	GPUNodeLink *in0, *in1, *in2, *in3, *in4, *in5, *in6, *in7, *in8, *in9, *in10;
+	GPUNodeLink *in11, *in12, *in13, *in14, *in15, *in16, *in17, *in18, *in19; 
+	bool first_time = true;
+
+	sce = GPU_material_scene(mat);
+
 	// normal
 	if (!in[17].link)
 		in[17].link = GPU_builtin(GPU_VIEW_NORMAL);
 	else
 		GPU_link(mat, "direction_transform_m4v3", in[17].link, GPU_builtin(GPU_VIEW_MATRIX), &in[17].link);
-
+	
 	// clearcoat normal
 	if (!in[18].link)
 		in[18].link = GPU_builtin(GPU_VIEW_NORMAL);
 	else
 		GPU_link(mat, "direction_transform_m4v3", in[18].link, GPU_builtin(GPU_VIEW_MATRIX), &in[18].link);
+	
 
-	return GPU_stack_link(mat, "node_bsdf_principled", in, out, GPU_builtin(GPU_VIEW_POSITION));
+/*	for (LinkData *nlink = mat->lamps.first; nlink; nlink = nlink->next) { //error: C2037: to the left of 'lamps' is specified 'GPUMaterial' struct/union without define 
+		GPULamp *lamp = nlink->data;*/
+
+	for (SETLOOPER(sce, sce_iter, base)) {
+		Object *ob = base->object;
+
+		if (ob->type == OB_LAMP) {
+			GPULamp *lamp = GPU_lamp_from_blender(sce, ob, NULL);
+			if (lamp) {
+				visifac = GPU_lamp_get_data(mat, lamp, &col, &lv, &dist, &shadow, &energy);
+
+				if (first_time) {
+					GPU_stack_link(mat, "node_bsdf_principled_adquired_in", in, out, &in0, &in1, &in2, &in3, &in4, &in5,
+					               &in6, &in7, &in8, &in9, &in10, &in11, &in12, &in13, &in14, &in15, &in16, &in17, &in18,
+					               &in19); 
+					GPU_link(mat, "node_bsdf_principled_summation_init", &summation);
+
+					first_time = false;
+				}
+
+				GPU_link(mat, "node_bsdf_principled", in0, in1, in2, in3, in4, in5, in6, in7, 
+				         in8, in9, in10, in11, in12, in13, in14, in15, in16, in17, in18, in19, GPU_builtin(GPU_VIEW_POSITION),
+				         col, energy, lv, visifac, &summation_partial);
+				GPU_link(mat, "node_bsdf_principled_add", summation_partial, summation, &summation);
+
+			}
+		}
+	}
+	bool ret = GPU_link(mat, "node_bsdf_principled_result", summation, &out[0].link);
+	return ret;
 }
 
 static void node_shader_update_principled(bNodeTree *UNUSED(ntree), bNode *node)
@@ -103,7 +145,7 @@ void register_node_type_sh_bsdf_principled(void)
 	static bNodeType ntype;
 
 	sh_node_type_base(&ntype, SH_NODE_BSDF_PRINCIPLED, "Principled BSDF", NODE_CLASS_SHADER, 0);
-	node_type_compatibility(&ntype, NODE_NEW_SHADING);
+	node_type_compatibility(&ntype, NODE_OLD_SHADING | NODE_NEW_SHADING);
 	node_type_socket_templates(&ntype, sh_node_bsdf_principled_in, sh_node_bsdf_principled_out);
 	node_type_size_preset(&ntype, NODE_SIZE_LARGE);
 	node_type_init(&ntype, node_shader_init_principled);
