@@ -35,7 +35,7 @@ class KX_PythonComponent : public EXP_Value
 	Py_Header
 
 private:
-	PythonComponent *m_pc;
+	PyObject *m_startArgs;
 	KX_GameObject *m_gameobj;
 	std::string m_name;
 	bool m_init;
@@ -53,7 +53,7 @@ public:
 	KX_GameObject *GetGameObject() const;
 	void SetGameObject(KX_GameObject *gameobj);
 
-	void SetBlenderPythonComponent(PythonComponent *pc);
+	void SetStartArgs(PyObject *args);
 
 	void Start();
 	void Update();

@@ -47,6 +47,7 @@ PyMODINIT_FUNC initGameLogicPythonBinding(void);
 PyMODINIT_FUNC initGameKeysPythonBinding(void);
 PyMODINIT_FUNC initRasterizerPythonBinding(void);
 PyMODINIT_FUNC initVideoTexturePythonBinding(void);
+PyMODINIT_FUNC initNodesPythonBinding();
 
 // Add a python include path.
 void appendPythonPath(const std::string& path);

@@ -8,6 +8,7 @@ class LogicNode(bpy.types.Node):
     bl_triggers_out = ["Trigger Out"]
     bl_outputs = {}
     bl_inputs = {}
+    bl_props = {}
 
     def add_trigger_in(self, name):
         self.inputs.new("NodeSocketLogic", name)
@@ -25,9 +26,22 @@ class LogicNode(bpy.types.Node):
         for name, socket in self.bl_outputs.items():
             self.outputs.new(socket, name)
 
+    def draw_buttons(self, context, layout):
+        for prop_name in self.bl_props:
+            layout.prop(self, prop_name)
+
 class LogicNodeBoolean(LogicNode):
     bl_idname = "LogicNodeBoolean"
     bl_label = "Logic Boolean"
+    mode = bpy.props.EnumProperty(name="Operation", items=[
+            ("AND", "and", "", 0),
+            ("NAND", "non and", "", 1),
+            ("OR", "or", "", 2),
+            ("NOR", "non or", "", 3),
+            ("XOR", "xor", "", 4),
+            ("NXOR", "non xor", "", 5)
+        ])
+    bl_props = ["mode"]
 
     def unlinked_triggers(self):
         return [input for input in self.inputs if input.bl_idname == "NodeSocketLogic" and not input.is_linked]
@@ -41,6 +55,9 @@ class LogicNodeBoolean(LogicNode):
         unlinked = self.unlinked_triggers()
         if len(unlinked) == 1:
             self.add_trigger_in("Trigger In")
+
+    def draw_buttons(self, context, layout):
+        layout.prop(self, "mode")
 
 class LogicNodeBasicMotion(LogicNode):
     bl_idname = "LogicNodeBasicMotion"
@@ -58,11 +75,14 @@ class LogicNodeCategory(SortedNodeCategory):
         return (context.space_data.tree_type == "LogicNodeTree")
 
 logic_node_categories = [
-    LogicNodeCategory("BOOLEAN", "Boolean", items=[
+    LogicNodeCategory("LOG_BOOLEAN", "Boolean", items=[
         NodeItem("LogicNodeBoolean"),
         ]),
-    LogicNodeCategory("MOTION", "Motion", items=[
+    LogicNodeCategory("LOG_MOTION", "Motion", items=[
         NodeItem("LogicNodeBasicMotion"),
+        ]),
+    LogicNodeCategory("LOG_INPUT", "Input", items=[
+        NodeItem("LogicNodeRoot"),
         ])
     ]
 

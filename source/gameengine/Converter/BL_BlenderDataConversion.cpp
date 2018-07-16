@@ -88,6 +88,7 @@
 #include "KX_BlenderMaterial.h"
 #include "KX_TextureRendererManager.h"
 #include "KX_Globals.h"
+#include "KX_PyMath.h"
 #include "KX_PyConstraintBinding.h"
 #include "KX_KetsjiEngine.h"
 #include "KX_NodeRelationships.h"
@@ -95,6 +96,9 @@
 #include "KX_MotionState.h"
 #include "KX_NavMeshObject.h"
 #include "KX_ObstacleSimulation.h"
+
+#include "LOG_Node.h"
+#include "LOG_Tree.h"
 
 #include "BL_BlenderDataConversion.h"
 #include "BL_Texture.h"
@@ -161,6 +165,7 @@ extern "C" {
 #  include "BKE_image.h"
 #  include "IMB_imbuf_types.h"
 #  include "BKE_displist.h"
+#  include "BKE_node.h"
 
 extern Material defmaterial;
 }
@@ -1167,9 +1172,7 @@ static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderob
 			continue;
 		}
 
-		// Every thing checks out, now generate the args dictionary and init the component
-		args = PyTuple_Pack(1, gameobj->GetProxy());
-
+		args = PyTuple_New(0);
 		pycomp = PyObject_Call(cls, args, nullptr);
 
 		if (PyErr_Occurred()) {
@@ -1178,7 +1181,8 @@ static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderob
 		}
 		else {
 			KX_PythonComponent *comp = static_cast<KX_PythonComponent *>(EXP_PROXY_REF(pycomp));
-			comp->SetBlenderPythonComponent(pc);
+			PyObject *arg_dict = (PyObject *)BKE_python_component_argument_dict_new(pc);
+			comp->SetStartArgs(arg_dict);
 			comp->SetGameObject(gameobj);
 			components->Add(comp);
 		}
@@ -1194,6 +1198,205 @@ static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderob
 	gameobj->SetComponents(components);
 #endif  // WITH_PYTHON
 }
+
+#ifdef WITH_PYTHON
+
+static LOG_Node *BL_ConvertLogicNode(bNode *bnode, PyObject *mod, LOG_Tree *tree)
+{
+	CM_Debug("convert node " << bnode->idname);
+
+	PyObject *cls = PyObject_GetAttrString(mod, bnode->idname);
+	if (!cls) {
+		CM_Error("could not find node class \"" << bnode->idname << "\"");
+	}
+
+	PyObject *args = PyTuple_New(0);
+	PyObject *pynode = PyObject_Call(cls, args, nullptr);
+
+	if (PyErr_Occurred()) {
+		PyErr_Print();
+		return nullptr;
+	}
+
+	LOG_Node *node = static_cast<LOG_Node *>(EXP_PROXY_REF(pynode));
+
+	tree->AddNode(node, (bnode->type == LOGIC_NODE_ROOT));
+
+	return node;
+}
+
+static LOG_NodeSocket BL_ConvertLogicNodeSocket(bNodeSocket *bsock, const std::unordered_map<bNode *, LOG_Node *>& convertedNodes, 
+		std::unordered_map<bNodeSocket *, LOG_NodeSocket>& convertedSockets)
+{
+	const auto& it = convertedSockets.find(bsock);
+	if (it != convertedSockets.end()) {
+		CM_Debug("\t\tcache");
+		return it->second;
+	}
+
+	PyObject *value = nullptr;
+	bNodeSocketType *typeinfo = bsock->typeinfo;
+	switch (typeinfo->type) {
+		case SOCK_FLOAT:
+		{
+			switch (typeinfo->subtype) {
+				case PROP_ANGLE:
+				{
+					value = PyFloat_FromDouble(DEG2RAD(*((float *)bsock->default_value)));
+					break;
+				}
+				default:
+				{
+					value = PyFloat_FromDouble(*((float *)bsock->default_value));
+					break;
+				}
+			}
+			break;
+		}
+		case SOCK_VECTOR:
+		{
+			switch (typeinfo->subtype) {
+				case PROP_VELOCITY:
+				case PROP_DIRECTION:
+				case PROP_ACCELERATION:
+				case PROP_TRANSLATION:
+				case PROP_EULER:
+				case PROP_AXISANGLE:
+				case PROP_XYZ:
+				{
+					value = PyObjectFrom(mt::vec3((float *)bsock->default_value));
+					break;
+				}
+				case PROP_QUATERNION:
+				{
+					value = PyObjectFrom(mt::quat((float *)bsock->default_value));
+					break;
+				}
+				case PROP_COORDS:
+				{
+					value = PyObjectFrom(mt::vec4((float *)bsock->default_value));
+					break;
+				}
+			}
+			break;
+		}
+		case SOCK_RGBA:
+		{
+			value = PyObjectFrom(((float *)bsock->default_value));
+			break;
+		}
+		case SOCK_BOOLEAN:
+		{
+			value = PyBool_FromLong(*((bool *)bsock->default_value));
+			break;
+		}
+		case SOCK_INT:
+		{
+			value = PyLong_FromLong(*((int *)bsock->default_value));
+			break;
+		}
+		case SOCK_STRING:
+		{
+			value = PyUnicode_FromStdString((char *)bsock->default_value);
+			break;
+		}
+		case SOCK_LOGIC:
+		{
+			if (bsock->link) {
+				LOG_Node *outNode = convertedNodes.find(bsock->link->tonode)->second;
+				value = outNode->GetProxy();
+			}
+			break;
+		}
+		default:
+		{
+			BLI_assert(false);
+		}
+	}
+	CM_Debug("\t\t" << value << ", " << bsock->type);
+
+	if (value) {
+		const LOG_NodeSocket socket(bsock->name, value);
+		convertedSockets[bsock] = socket;
+		return socket;
+	}
+
+	return LOG_NodeSocket(bsock->name, nullptr);
+}
+
+static void BL_ConvertLogicNodeSockets(LOG_Node *node, bNode *bnode, const std::unordered_map<bNode *, LOG_Node *>& convertedNodes, 
+		std::unordered_map<bNodeSocket *, LOG_NodeSocket>& convertedSockets)
+{
+	CM_Debug("converting sockets of node " << bnode->idname);
+	CM_Debug("\tinputs:")
+	for (bNodeSocket *in = (bNodeSocket *)bnode->inputs.first; in; in = in->next) {
+		const LOG_NodeSocket socket = BL_ConvertLogicNodeSocket(in, convertedNodes, convertedSockets);
+		CM_Debug("\t\tin : " << in << ", socket : " << socket.GetValue());
+		if (socket.GetValue()) {
+			node->AddInput(socket);
+		}
+	}
+
+	CM_Debug("\toutputs:")
+	for (bNodeSocket *out = (bNodeSocket *)bnode->outputs.first; out; out = out->next) {
+		const LOG_NodeSocket socket = BL_ConvertLogicNodeSocket(out, convertedNodes, convertedSockets);
+		CM_Debug("\t\tout : " << out << ", socket : " << socket.GetValue());
+		if (socket.GetValue()) {
+			node->AddOutput(socket);
+		}
+	}
+}
+
+static void BL_ConvertLogicNodesObject(KX_GameObject *gameobj, Object *blenderobj)
+{
+	bNodeTree *btree = blenderobj->logicNodeTree;
+	if (!btree) {
+		return;
+	}
+
+	// Update the sockets link.
+	btree->update |= NTREE_UPDATE_LINKS;
+	ntreeUpdateTree(G.main, btree); // TODO check G.main for libloading.
+
+	bNode **bnodes;
+	int numNodes;
+	// Get all the blender nodes.
+	ntreeGetDependencyList(btree, &bnodes, &numNodes);
+
+	if (numNodes == 0) {
+		return;
+	}
+
+	PyObject *mod = PyImport_ImportModule("bge.nodes");
+
+	LOG_Tree *tree = new LOG_Tree();
+
+	std::unordered_map<bNode *, LOG_Node *> convertedNodes;
+	for (unsigned short i = 0; i < numNodes; ++i) {
+		bNode *bnode = bnodes[i];
+		LOG_Node *node = BL_ConvertLogicNode(bnode, mod, tree);
+		convertedNodes[bnode] = node;
+	}
+
+	std::unordered_map<bNodeSocket *, LOG_NodeSocket> convertedSockets;
+	for (unsigned short i = 0; i < numNodes; ++i) {
+		bNode *bnode = bnodes[i];
+		BL_ConvertLogicNodeSockets(convertedNodes[bnode], bnode, convertedNodes, convertedSockets);
+	}
+
+	/*if (!broot) {
+		CM_Warning("object \"" << gameobj->GetName() << "\" has a logic tree without root node, the logic is ignored.");
+		return;
+	}*/
+
+	Py_DECREF(mod);
+
+	tree->SetGameObject(gameobj);
+	tree->Start();
+	tree->Update();
+}
+
+#endif  // WITH_PYTHON
 
 /* helper for BL_ConvertBlenderObjects, avoids code duplication
  * note: all var names match args are passed from the caller */
@@ -1784,11 +1987,13 @@ void BL_PostConvertBlenderObjects(KX_Scene *kxscene, const BL_SceneConverter& sc
 		for (KX_GameObject *gameobj : sumolist) {
 			Object *blenderobj = gameobj->GetBlenderObject();
 			BL_ConvertComponentsObject(gameobj, blenderobj);
+			BL_ConvertLogicNodesObject(gameobj, blenderobj);
 		}
 
 		for (KX_GameObject *gameobj : objectlist) {
 			if (gameobj->GetComponents()) {
 				// Register object for component update.
+				// TODO register in logic manager for component and nodes.
 				kxscene->GetPythonComponentManager().RegisterObject(gameobj);
 			}
 		}

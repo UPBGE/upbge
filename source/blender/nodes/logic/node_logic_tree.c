@@ -139,7 +139,7 @@ static void local_merge(bNodeTree *localtree, bNodeTree *ntree)
 static void update(bNodeTree *ntree)
 {
 	ntreeSetOutput(ntree);
-	
+
 	ntree_update_reroute_nodes(ntree);
 	
 	if (ntree->update & NTREE_UPDATE_NODES) {

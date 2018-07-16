@@ -33,6 +33,7 @@ set(INC
 	../Expressions
 	../GameLogic
 	../Launcher
+	../Logic
 	../Physics/Common
 	../Rasterizer
 	../Rasterizer/Node

@@ -1488,6 +1488,23 @@ static StructRNA *rna_Node_register(
 	return nt->ext.srna;
 }
 
+static StructRNA *rna_LogicNode_register(
+        Main *bmain, ReportList *reports,
+        void *data, const char *identifier,
+        StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free)
+{
+	bNodeType *nt = rna_Node_register_base(bmain, reports, &RNA_LogicNode, data, identifier, validate, call, free);
+	if (!nt)
+		return NULL;
+
+	nodeRegisterType(nt);
+
+	/* update while blender is running */
+	WM_main_add_notifier(NC_NODE | NA_EDITED, NULL);
+
+	return nt->ext.srna;
+}
+
 static StructRNA *rna_ShaderNode_register(
         Main *bmain, ReportList *reports,
         void *data, const char *identifier,
@@ -7168,6 +7185,16 @@ static void def_tex_bricks(StructRNA *srna)
 
 /* -------------------------------------------------------------------------- */
 
+static void rna_def_logic_node(BlenderRNA *brna)
+{
+	StructRNA *srna;
+
+	srna = RNA_def_struct(brna, "LogicNode", "NodeInternal");
+	RNA_def_struct_ui_text(srna, "Logic Node", "Object logic node");
+	RNA_def_struct_sdna(srna, "bNode");
+	RNA_def_struct_register_funcs(srna, "rna_LogicNode_register", "rna_Node_unregister", NULL);
+}
+
 static void rna_def_shader_node(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -8735,6 +8762,7 @@ void RNA_def_nodetree(BlenderRNA *brna)
 	rna_def_node_link(brna);
 
 	rna_def_internal_node(brna);
+	rna_def_logic_node(brna);
 	rna_def_shader_node(brna);
 	rna_def_compositor_node(brna);
 	rna_def_texture_node(brna);

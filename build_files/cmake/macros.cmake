@@ -617,6 +617,7 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		ge_phys_dummy
 		ge_phys_bullet
 		ge_logic_ketsji
+		ge_game_logic
 		ge_logic
 		ge_device
 		ge_rasterizer

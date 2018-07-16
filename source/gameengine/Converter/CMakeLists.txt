@@ -33,6 +33,7 @@ set(INC
 	../Ketsji
 	../Ketsji/KXNetwork
 	../Launcher
+	../Logic/
 	../Physics/Bullet
 	../Physics/Dummy
 	../Physics/Common

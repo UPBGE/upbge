@@ -19,56 +19,39 @@
 #
 # The Original Code is: all of this file.
 #
-# Contributor(s): Jacques Beaurain.
+# Contributor(s): Tristan Porteries.
 #
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC
 	.
 	../Common
-	../Device
+	../Converter
 	../Expressions
+	../GameLogic
+	../Ketsji
 	../Rasterizer
 	../SceneGraph
 	../../blender/blenlib
 	../../blender/python/generic
+	../../../intern/guardedalloc
+	../../../intern/string
 	../../../intern/termcolor
-	../../../intern/ghost
 )
 
 set(INC_SYS
 	../../../intern/debugbreak
 	../../../intern/mathfu
-	${BOOST_INCLUDE_DIR}
 )
 
 set(SRC
-	SCA_IInputDevice.cpp
-	SCA_InputEvent.cpp
-	SCA_PythonJoystick.cpp
-	SCA_PythonKeyboard.cpp
-	SCA_PythonMouse.cpp
+	LOG_Node.cpp
+	LOG_Tree.cpp
+	LOG_NodeSocket.cpp
 
-	SCA_IInputDevice.h
-	SCA_InputEvent.h
-	SCA_PythonJoystick.h
-	SCA_PythonKeyboard.h
-	SCA_PythonMouse.h
+	LOG_Node.h
+	LOG_Tree.h
+	LOG_NodeSocket.h
 )
 
-if(WITH_SDL)
-	list(APPEND INC_SYS
-		${SDL_INCLUDE_DIR}
-	)
-
-	add_definitions(-DWITH_SDL)
-
-	if(WITH_GHOST_SDL)
-		add_definitions(-DWITH_GHOST_SDL)
-	endif()
-	if(WITH_SDL_DYNLOAD)
-		add_definitions(-DWITH_SDL_DYNLOAD)
-	endif()
-endif()
-
-blender_add_lib(ge_game_logic "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(ge_logic "${SRC}" "${INC}" "${INC_SYS}")

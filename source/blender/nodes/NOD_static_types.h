@@ -40,6 +40,8 @@ DefNode( Node,           NODE_GROUP_INPUT,        def_group_input,        "GROUP
 DefNode( Node,           NODE_GROUP_OUTPUT,       def_group_output,       "GROUP_OUTPUT",   GroupOutput,      "Group Output",      ""              )
 DefNode( Node,           NODE_REROUTE,            0,                      "REROUTE",        Reroute,          "Reroute",           ""              )
 
+DefNode( LogicNode,      LOGIC_NODE_ROOT,         0,                      "ROOT",           Root,             "Root",              ""       )
+
 DefNode( ShaderNode,     SH_NODE_OUTPUT,          def_sh_output,          "OUTPUT",         Output,           "Output",            ""              )
 DefNode( ShaderNode,     SH_NODE_MATERIAL,        def_sh_material,        "MATERIAL",       Material,         "Material",          ""              )
 DefNode( ShaderNode,     SH_NODE_RGB,             0,                      "RGB",            RGB,              "RGB",               ""              )

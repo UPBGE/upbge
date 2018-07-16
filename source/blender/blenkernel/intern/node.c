@@ -2983,6 +2983,7 @@ static void ntree_update_link_pointers(bNodeTree *ntree)
 
 	for (link = ntree->links.first; link; link = link->next) {
 		link->tosock->link = link;
+		link->fromsock->link = link;
 	}
 
 	ntreeTagUsedSockets(ntree);
@@ -3568,6 +3569,7 @@ static void registerCompositNodes(void)
 
 static void registerLogicNodes(void)
 {
+	register_node_type_logic_root();
 }
 
 static void registerShaderNodes(void)

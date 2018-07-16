@@ -15,29 +15,33 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2005 Blender Foundation.
- * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
+ * Contributor(s): Tristan Porteries.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file NOD_logic.h
- *  \ingroup nodes
+/** \file blender/nodes/shader/nodes/node_logic_root.c
+ *  \ingroup lognodes
  */
 
-#ifndef __NOD_LOGIC_H__
-#define __NOD_LOGIC_H__
+#include "node_logic_util.h"
 
-#include "BKE_node.h"
+static bNodeSocketTemplate node_root_in[] = {
+	{ -1, 0, "" }
+};
 
-extern struct bNodeTreeType *ntreeType_Logic;
+static bNodeSocketTemplate node_root_out[] = {
+	{SOCK_LOGIC, 0, "Trigger Out"},
+	{ -1, 0, "" }
+};
 
-void register_node_tree_type_logic(void);
+void register_node_type_logic_root(void)
+{
+	static bNodeType ntype;
 
-void register_node_type_logic_root(void);
+	logic_node_type_base(&ntype, LOGIC_NODE_ROOT, "Root", NODE_CLASS_INPUT, 0);
+	node_type_socket_templates(&ntype, node_root_in, node_root_out);
+	node_type_storage(&ntype, "", NULL, NULL);
 
-#endif
+	nodeRegisterType(&ntype);
+}

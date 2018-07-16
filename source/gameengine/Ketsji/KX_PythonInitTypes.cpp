@@ -65,6 +65,7 @@
 #include "SCA_PythonMouse.h"
 #include "KX_NavMeshObject.h"
 #include "KX_CollisionContactPoints.h"
+#include "LOG_Node.h"
 #include "EXP_ListWrapper.h"
 #include "Texture.h"
 
@@ -195,6 +196,7 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
 		PyType_Ready_Attr(dict, KX_VehicleWrapper, init_getset);
 		PyType_Ready_Attr(dict, KX_VertexProxy, init_getset);
 		PyType_Ready_Attr(dict, KX_CollisionContactPoint, init_getset);
+		PyType_Ready_Attr(dict, LOG_Node, init_getset);
 		PyType_Ready_Attr(dict, EXP_PyObjectPlus, init_getset);
 		PyType_Ready_Attr(dict, SCA_InputEvent, init_getset);
 		PyType_Ready_Attr(dict, SCA_PythonJoystick, init_getset);

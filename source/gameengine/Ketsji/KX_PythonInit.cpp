@@ -1569,6 +1569,29 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
 	return m;
 }
 
+PyMODINIT_FUNC initNodesPythonBinding()
+{
+	PyObject *syspath = PySys_GetObject("path");
+
+	char filepath[FILE_MAX];
+	BLI_strncpy(filepath, BKE_appdir_folder_id(BLENDER_SYSTEM_SCRIPTS, "bge"), sizeof(filepath));
+
+	PyObject *pypath = PyC_UnicodeFromByte(filepath);
+	PyList_Insert(syspath, 0, pypath);
+	Py_DECREF(pypath);
+
+	PyObject *mod = PyImport_ImportModule("nodes");
+
+	PySequence_DelItem(syspath, 0);
+
+	// Check for errors
+	if (PyErr_Occurred()) {
+		Py_FatalError("can't initialize module bge.nodes");
+	}
+
+	return mod;
+}
+
 /**
  * Explanation of
  *
@@ -1735,17 +1758,8 @@ static void addSubModule(PyObject *modules, PyObject *mod, PyObject *submod, con
 
 PyMODINIT_FUNC initBGE()
 {
-	PyObject *modules = PyThreadState_GET()->interp->modules;
 
 	PyObject *mod = PyModule_Create(&BGE_module_def);
-
-	addSubModule(modules, mod, initApplicationPythonBinding(), "bge.app");
-	addSubModule(modules, mod, initConstraintPythonBinding(), "bge.constraints");
-	addSubModule(modules, mod, initGameKeysPythonBinding(), "bge.events");
-	addSubModule(modules, mod, initGameLogicPythonBinding(), "bge.logic");
-	addSubModule(modules, mod, initRasterizerPythonBinding(), "bge.render");
-	addSubModule(modules, mod, initGameTypesPythonBinding(), "bge.types");
-	addSubModule(modules, mod, initVideoTexturePythonBinding(), "bge.texture");
 
 	return mod;
 }
@@ -1832,6 +1846,16 @@ void initGamePython(Main *main, PyObject *pyGlobalDict)
 
 	PyObject *mod = initBGE();
 	PyDict_SetItemString(modules, "bge", mod);
+
+	addSubModule(modules, mod, initApplicationPythonBinding(), "bge.app");
+	addSubModule(modules, mod, initConstraintPythonBinding(), "bge.constraints");
+	addSubModule(modules, mod, initGameKeysPythonBinding(), "bge.events");
+	addSubModule(modules, mod, initGameLogicPythonBinding(), "bge.logic");
+	addSubModule(modules, mod, initRasterizerPythonBinding(), "bge.render");
+	addSubModule(modules, mod, initGameTypesPythonBinding(), "bge.types");
+	addSubModule(modules, mod, initVideoTexturePythonBinding(), "bge.texture");
+	addSubModule(modules, mod, initNodesPythonBinding(), "bge.nodes");
+
 	Py_DECREF(mod);
 
 	EXP_PyObjectPlus::NullDeprecationWarning();
