@@ -55,13 +55,13 @@
  * but for now this replaces it because its unused. */
 
 UvVertMap *BKE_mesh_uv_vert_map_create(
-        struct MPoly *mpoly, struct MLoop *mloop, struct MLoopUV *mloopuv,
+        const MPoly *mpoly, const MLoop *mloop, const MLoopUV *mloopuv,
         unsigned int totpoly, unsigned int totvert,
         const float limit[2], const bool selected, const bool use_winding)
 {
 	UvVertMap *vmap;
 	UvMapVert *buf;
-	MPoly *mp;
+	const MPoly *mp;
 	unsigned int a;
 	int i, totuv, nverts;
 
@@ -103,8 +103,8 @@ UvVertMap *BKE_mesh_uv_vert_map_create(
 			nverts = mp->totloop;
 
 			for (i = 0; i < nverts; i++) {
-				buf->tfindex = (unsigned char)i;
-				buf->f = a;
+				buf->loop_of_poly_index = (unsigned short)i;
+				buf->poly_index = a;
 				buf->separate = 0;
 				buf->next = vmap->vert[mloop[mp->loopstart + i].v];
 				vmap->vert[mloop[mp->loopstart + i].v] = buf;
@@ -126,7 +126,8 @@ UvVertMap *BKE_mesh_uv_vert_map_create(
 	for (a = 0; a < totvert; a++) {
 		UvMapVert *newvlist = NULL, *vlist = vmap->vert[a];
 		UvMapVert *iterv, *v, *lastv, *next;
-		float *uv, *uv2, uvdiff[2];
+		const float *uv, *uv2;
+		float uvdiff[2];
 
 		while (vlist) {
 			v = vlist;
@@ -134,19 +135,19 @@ UvVertMap *BKE_mesh_uv_vert_map_create(
 			v->next = newvlist;
 			newvlist = v;
 
-			uv = mloopuv[mpoly[v->f].loopstart + v->tfindex].uv;
+			uv = mloopuv[mpoly[v->poly_index].loopstart + v->loop_of_poly_index].uv;
 			lastv = NULL;
 			iterv = vlist;
 
 			while (iterv) {
 				next = iterv->next;
 
-				uv2 = mloopuv[mpoly[iterv->f].loopstart + iterv->tfindex].uv;
+				uv2 = mloopuv[mpoly[iterv->poly_index].loopstart + iterv->loop_of_poly_index].uv;
 				sub_v2_v2v2(uvdiff, uv2, uv);
 
 
 				if (fabsf(uv[0] - uv2[0]) < limit[0] && fabsf(uv[1] - uv2[1]) < limit[1] &&
-				    (!use_winding || winding[iterv->f] == winding[v->f]))
+				    (!use_winding || winding[iterv->poly_index] == winding[v->poly_index]))
 				{
 					if (lastv) lastv->next = next;
 					else vlist = next;
