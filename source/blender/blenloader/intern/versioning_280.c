@@ -1641,5 +1641,27 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 			}
 		}
 
+		if (!DNA_struct_elem_find(fd->filesdna, "View3DShading", "short", "type")) {
+			for (bScreen *screen = bmain->screen.first; screen; screen = screen->id.next) {
+				for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
+					for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
+						if (sl->spacetype == SPACE_VIEW3D) {
+							View3D *v3d = (View3D *)sl;
+							if (v3d->drawtype == OB_RENDER) {
+								v3d->drawtype = OB_SOLID;
+							}
+							v3d->shading.type = v3d->drawtype;
+							v3d->shading.prev_type = OB_SOLID;
+						}
+					}
+				}
+			}
+		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "SceneDisplay", "View3DShading", "shading")) {
+			for (Scene *scene = bmain->scene.first; scene; scene = scene->id.next) {
+				BKE_screen_view3d_shading_init(&scene->display.shading);
+			}
+		}
 	}
 }

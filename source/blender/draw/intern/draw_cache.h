@@ -40,6 +40,7 @@ struct Gwn_Batch *DRW_cache_cursor_get(bool crosshair_lines);
 
 /* Common Shapes */
 struct Gwn_Batch *DRW_cache_fullscreen_quad_get(void);
+struct Gwn_Batch *DRW_cache_fullscreen_quad_texcoord_get(void);
 struct Gwn_Batch *DRW_cache_quad_get(void);
 struct Gwn_Batch *DRW_cache_cube_get(void);
 struct Gwn_Batch *DRW_cache_sphere_get(void);
@@ -66,7 +67,10 @@ struct Gwn_Batch *DRW_cache_empty_cube_get(void);
 struct Gwn_Batch *DRW_cache_circle_get(void);
 struct Gwn_Batch *DRW_cache_square_get(void);
 struct Gwn_Batch *DRW_cache_empty_sphere_get(void);
+struct Gwn_Batch *DRW_cache_empty_cylinder_get(void);
 struct Gwn_Batch *DRW_cache_empty_cone_get(void);
+struct Gwn_Batch *DRW_cache_empty_capsule_cap_get(void);
+struct Gwn_Batch *DRW_cache_empty_capsule_body_get(void);
 struct Gwn_Batch *DRW_cache_arrows_get(void);
 struct Gwn_Batch *DRW_cache_axis_names_get(void);
 struct Gwn_Batch *DRW_cache_image_plane_get(void);

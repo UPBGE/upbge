@@ -51,6 +51,7 @@ static struct DRWShapeCache {
 	Gwn_Batch *drw_cursor;
 	Gwn_Batch *drw_cursor_only_circle;
 	Gwn_Batch *drw_fullscreen_quad;
+	Gwn_Batch *drw_fullscreen_quad_texcoord;
 	Gwn_Batch *drw_quad;
 	Gwn_Batch *drw_sphere;
 	Gwn_Batch *drw_screenspace_circle;
@@ -63,6 +64,9 @@ static struct DRWShapeCache {
 	Gwn_Batch *drw_line_endpoints;
 	Gwn_Batch *drw_empty_cube;
 	Gwn_Batch *drw_empty_sphere;
+	Gwn_Batch *drw_empty_cylinder;
+	Gwn_Batch *drw_empty_capsule_body;
+	Gwn_Batch *drw_empty_capsule_cap;
 	Gwn_Batch *drw_empty_cone;
 	Gwn_Batch *drw_arrows;
 	Gwn_Batch *drw_axis_names;
@@ -282,6 +286,35 @@ Gwn_Batch *DRW_cache_fullscreen_quad_get(void)
 		SHC.drw_fullscreen_quad = GWN_batch_create_ex(GWN_PRIM_TRIS, vbo, NULL, GWN_BATCH_OWNS_VBO);
 	}
 	return SHC.drw_fullscreen_quad;
+}
+
+Gwn_Batch *DRW_cache_fullscreen_quad_texcoord_get(void)
+{
+	if (!SHC.drw_fullscreen_quad_texcoord) {
+		/* Use a triangle instead of a real quad */
+		/* https://www.slideshare.net/DevCentralAMD/vertex-shader-tricks-bill-bilodeau - slide 14 */
+		float pos[3][2] = {{-1.0f, -1.0f}, { 3.0f, -1.0f}, {-1.0f,  3.0f}};
+		float texCoord[3][2] = {{ 0.0f,  0.0f}, { 2.0f,  0.0f}, { 0.0f,  2.0f}};
+
+		/* Position Only 2D format */
+		static Gwn_VertFormat format = { 0 };
+		static struct { uint pos, texCoord; } attr_id;
+		if (format.attr_len == 0) {
+			attr_id.pos = GWN_vertformat_attr_add(&format, "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+			attr_id.texCoord = GWN_vertformat_attr_add(&format, "texCoord", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+		}
+
+		Gwn_VertBuf *vbo = GWN_vertbuf_create_with_format(&format);
+		GWN_vertbuf_data_alloc(vbo, 3);
+
+		for (int i = 0; i < 3; ++i) {
+			GWN_vertbuf_attr_set(vbo, attr_id.pos, i, pos[i]);
+			GWN_vertbuf_attr_set(vbo, attr_id.texCoord, i, texCoord[i]);
+		}
+
+		SHC.drw_fullscreen_quad_texcoord = GWN_batch_create_ex(GWN_PRIM_TRIS, vbo, NULL, GWN_BATCH_OWNS_VBO);
+	}
+	return SHC.drw_fullscreen_quad_texcoord;
 }
 
 /* Just a regular quad with 4 vertices. */
@@ -781,6 +814,144 @@ Gwn_Batch *DRW_cache_empty_cone_get(void)
 		SHC.drw_empty_cone = GWN_batch_create_ex(GWN_PRIM_LINES, vbo, NULL, GWN_BATCH_OWNS_VBO);
 	}
 	return SHC.drw_empty_cone;
+#undef NSEGMENTS
+}
+
+Gwn_Batch *DRW_cache_empty_cylinder_get(void)
+{
+#define NSEGMENTS 12
+	if (!SHC.drw_empty_cylinder) {
+		/* a single ring of vertices */
+		float p[NSEGMENTS][2];
+		for (int i = 0; i < NSEGMENTS; ++i) {
+			float angle = 2 * M_PI * ((float)i / (float)NSEGMENTS);
+			p[i][0] = cosf(angle);
+			p[i][1] = sinf(angle);
+		}
+
+		/* Position Only 3D format */
+		static Gwn_VertFormat format = { 0 };
+		static struct { uint pos; } attr_id;
+		if (format.attr_len == 0) {
+			attr_id.pos = GWN_vertformat_attr_add(&format, "pos", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
+		}
+
+		Gwn_VertBuf *vbo = GWN_vertbuf_create_with_format(&format);
+		GWN_vertbuf_data_alloc(vbo, NSEGMENTS * 6);
+
+		for (int i = 0; i < NSEGMENTS; ++i) {
+			float cv[2], pv[2], v[3];
+			cv[0] = p[(i) % NSEGMENTS][0];
+			cv[1] = p[(i) % NSEGMENTS][1];
+			pv[0] = p[(i + 1) % NSEGMENTS][0];
+			pv[1] = p[(i + 1) % NSEGMENTS][1];
+
+			/* cylinder sides */
+			copy_v3_fl3(v, cv[0], cv[1], -1.0f);
+			GWN_vertbuf_attr_set(vbo, attr_id.pos, i * 6, v);
+			copy_v3_fl3(v, cv[0], cv[1],  1.0f);
+			GWN_vertbuf_attr_set(vbo, attr_id.pos, i * 6 + 1, v);
+
+			/* top ring */
+			copy_v3_fl3(v, cv[0], cv[1],  1.0f);
+			GWN_vertbuf_attr_set(vbo, attr_id.pos, i * 6 + 2, v);
+			copy_v3_fl3(v, pv[0], pv[1],  1.0f);
+			GWN_vertbuf_attr_set(vbo, attr_id.pos, i * 6 + 3, v);
+
+			/* bottom ring */
+			copy_v3_fl3(v, cv[0], cv[1], -1.0f);
+			GWN_vertbuf_attr_set(vbo, attr_id.pos, i * 6 + 4, v);
+			copy_v3_fl3(v, pv[0], pv[1], -1.0f);
+			GWN_vertbuf_attr_set(vbo, attr_id.pos, i * 6 + 5, v);
+		}
+
+		SHC.drw_empty_cylinder = GWN_batch_create_ex(GWN_PRIM_LINES, vbo, NULL, GWN_BATCH_OWNS_VBO);
+	}
+	return SHC.drw_empty_cylinder;
+#undef NSEGMENTS
+}
+
+Gwn_Batch *DRW_cache_empty_capsule_body_get(void)
+{
+	if (!SHC.drw_empty_capsule_body) {
+		const float pos[8][3] = {
+			{ 1.0f,  0.0f, 1.0f},
+			{ 1.0f,  0.0f, 0.0f},
+			{ 0.0f,  1.0f, 1.0f},
+			{ 0.0f,  1.0f, 0.0f},
+			{-1.0f,  0.0f, 1.0f},
+			{-1.0f,  0.0f, 0.0f},
+			{ 0.0f, -1.0f, 1.0f},
+			{ 0.0f, -1.0f, 0.0f}
+		};
+
+		/* Position Only 3D format */
+		static Gwn_VertFormat format = { 0 };
+		static struct { uint pos; } attr_id;
+		if (format.attr_len == 0) {
+			attr_id.pos = GWN_vertformat_attr_add(&format, "pos", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
+		}
+
+		Gwn_VertBuf *vbo = GWN_vertbuf_create_with_format(&format);
+		GWN_vertbuf_data_alloc(vbo, 8);
+		GWN_vertbuf_attr_fill(vbo, attr_id.pos, pos);
+
+		SHC.drw_empty_capsule_body = GWN_batch_create_ex(GWN_PRIM_LINES, vbo, NULL, GWN_BATCH_OWNS_VBO);
+	}
+	return SHC.drw_empty_capsule_body;
+}
+
+Gwn_Batch *DRW_cache_empty_capsule_cap_get(void)
+{
+#define NSEGMENTS 24 /* Must be multiple of 2. */
+	if (!SHC.drw_empty_capsule_cap) {
+		/* a single ring of vertices */
+		float p[NSEGMENTS][2];
+		for (int i = 0; i < NSEGMENTS; ++i) {
+			float angle = 2 * M_PI * ((float)i / (float)NSEGMENTS);
+			p[i][0] = cosf(angle);
+			p[i][1] = sinf(angle);
+		}
+
+		/* Position Only 3D format */
+		static Gwn_VertFormat format = { 0 };
+		static struct { uint pos; } attr_id;
+		if (format.attr_len == 0) {
+			attr_id.pos = GWN_vertformat_attr_add(&format, "pos", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
+		}
+
+		Gwn_VertBuf *vbo = GWN_vertbuf_create_with_format(&format);
+		GWN_vertbuf_data_alloc(vbo, (NSEGMENTS * 2) * 2);
+
+		/* Base circle */
+		int vidx = 0;
+		for (int i = 0; i < NSEGMENTS; ++i) {
+			float v[3] = {0.0f, 0.0f, 0.0f};
+			copy_v2_v2(v, p[(i) % NSEGMENTS]);
+			GWN_vertbuf_attr_set(vbo, attr_id.pos, vidx++, v);
+			copy_v2_v2(v, p[(i+1) % NSEGMENTS]);
+			GWN_vertbuf_attr_set(vbo, attr_id.pos, vidx++, v);
+		}
+
+		for (int i = 0; i < NSEGMENTS / 2; ++i) {
+			float v[3] = {0.0f, 0.0f, 0.0f};
+			int ci = i % NSEGMENTS;
+			int pi = (i + 1) % NSEGMENTS;
+			/* Y half circle */
+			copy_v3_fl3(v, p[ci][0], 0.0f, p[ci][1]);
+			GWN_vertbuf_attr_set(vbo, attr_id.pos, vidx++, v);
+			copy_v3_fl3(v, p[pi][0], 0.0f, p[pi][1]);
+			GWN_vertbuf_attr_set(vbo, attr_id.pos, vidx++, v);
+			/* X half circle */
+			copy_v3_fl3(v, 0.0f, p[ci][0], p[ci][1]);
+			GWN_vertbuf_attr_set(vbo, attr_id.pos, vidx++, v);
+			copy_v3_fl3(v, 0.0f, p[pi][0], p[pi][1]);
+			GWN_vertbuf_attr_set(vbo, attr_id.pos, vidx++, v);
+		}
+
+		SHC.drw_empty_capsule_cap = GWN_batch_create_ex(GWN_PRIM_LINES, vbo, NULL, GWN_BATCH_OWNS_VBO);
+	}
+	return SHC.drw_empty_capsule_cap;
 #undef NSEGMENTS
 }
 

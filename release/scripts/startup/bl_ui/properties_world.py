@@ -37,7 +37,7 @@ class WorldButtonsPanel:
 class WORLD_PT_context_world(WorldButtonsPanel, Panel):
     bl_label = ""
     bl_options = {'HIDE_HEADER'}
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_OPENGL'}
 
     @classmethod
     def poll(cls, context):
@@ -83,14 +83,13 @@ class EEVEE_WORLD_PT_mist(WorldButtonsPanel, Panel):
 
 
 class WORLD_PT_custom_props(WorldButtonsPanel, PropertyPanel, Panel):
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME', 'BLENDER_EEVEE'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_OPENGL'}
     _context_path = "world"
     _property_type = bpy.types.World
 
 
 class EEVEE_WORLD_PT_surface(WorldButtonsPanel, Panel):
     bl_label = "Surface"
-    bl_context = "world"
     COMPAT_ENGINES = {'BLENDER_EEVEE'}
 
     @classmethod
@@ -119,13 +118,29 @@ class EEVEE_WORLD_PT_surface(WorldButtonsPanel, Panel):
             else:
                 layout.label(text="No output node")
         else:
-            layout.prop(world, "horizon_color", text="Color")
+            layout.prop(world, "color")
+
+
+class WORLD_PT_viewport_display(WorldButtonsPanel, Panel):
+    bl_label = "Viewport Display"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.world
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        world = context.world
+        layout.prop(world, "color")
 
 
 classes = (
     WORLD_PT_context_world,
     EEVEE_WORLD_PT_surface,
     EEVEE_WORLD_PT_mist,
+    WORLD_PT_viewport_display,
     WORLD_PT_custom_props,
 )
 

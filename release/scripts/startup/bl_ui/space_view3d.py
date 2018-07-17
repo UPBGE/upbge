@@ -642,9 +642,12 @@ class VIEW3D_MT_view_align(Menu):
 
         layout.separator()
 
-        layout.operator("view3d.view_all", text="Center Cursor and View All").center = True
         layout.operator("view3d.camera_to_view", text="Align Active Camera to View")
         layout.operator("view3d.camera_to_view_selected", text="Align Active Camera to Selected")
+
+        layout.separator()
+
+        layout.operator("view3d.view_all", text="Center Cursor and View All").center = True
         layout.operator("view3d.view_center_cursor")
 
         layout.separator()
@@ -667,6 +670,8 @@ class VIEW3D_MT_view_align_selected(Menu):
         props.align_active = True
         props.type = 'BOTTOM'
 
+        layout.separator()
+
         props = layout.operator("view3d.view_axis", text="Front")
         props.align_active = True
         props.type = 'FRONT'
@@ -674,6 +679,8 @@ class VIEW3D_MT_view_align_selected(Menu):
         props = layout.operator("view3d.view_axis", text="Back")
         props.align_active = True
         props.type = 'BACK'
+
+        layout.separator()
 
         props = layout.operator("view3d.view_axis", text="Right")
         props.align_active = True
@@ -1541,8 +1548,8 @@ class VIEW3D_MT_object(Menu):
 
         layout.separator()
 
-        layout.operator("object.shade_smooth", text="Smooth Shading")
-        layout.operator("object.shade_flat", text="Flat Shading")
+        layout.operator("object.shade_smooth")
+        layout.operator("object.shade_flat")
 
         layout.separator()
 
@@ -2679,6 +2686,9 @@ class VIEW3D_MT_edit_mesh(Menu):
         layout.menu("VIEW3D_MT_edit_mesh_showhide")
         layout.operator_menu_enum("mesh.separate", "type")
         layout.menu("VIEW3D_MT_edit_mesh_clean")
+
+        layout.separator()
+
         layout.menu("VIEW3D_MT_edit_mesh_delete")
 
 
@@ -2903,14 +2913,11 @@ class VIEW3D_MT_edit_mesh_edges_data(Menu):
         props.use_verts = True
         props.clear = True
 
-        layout.separator()
-
-        layout.separator()
-
         if with_freestyle:
+            layout.separator()
+
             layout.operator("mesh.mark_freestyle_edge").clear = False
             layout.operator("mesh.mark_freestyle_edge", text="Clear Freestyle Edge").clear = True
-            layout.separator()
 
 
 class VIEW3D_MT_edit_mesh_edges(Menu):
@@ -3765,6 +3772,15 @@ class VIEW3D_PT_shading(Panel):
     bl_label = "Shading"
     bl_ui_units_x = 11
 
+    @classmethod
+    def get_shading(cls, context):
+        # Get settings from 3D viewport or OpenGL render engine
+        view = context.space_data
+        if view.type == 'VIEW_3D':
+            return view.shading
+        else:
+            return context.scene.display.shading
+
     def draw(self, context):
         pass
 
@@ -3777,9 +3793,7 @@ class VIEW3D_PT_shading_lighting(Panel):
 
     def draw(self, context):
         layout = self.layout
-
-        view = context.space_data
-        shading = view.shading
+        shading = VIEW3D_PT_shading.get_shading(context)
 
         col = layout.column()
         split = col.split(0.9)
@@ -3841,15 +3855,13 @@ class VIEW3D_PT_shading_color(Panel):
 
     @classmethod
     def poll(cls, context):
-        view = context.space_data
-        shading = view.shading
+        shading = VIEW3D_PT_shading.get_shading(context)
         return shading.type == 'SOLID'
 
     def draw(self, context):
         layout = self.layout
 
-        view = context.space_data
-        shading = view.shading
+        shading = VIEW3D_PT_shading.get_shading(context)
 
         layout.row().prop(shading, "color_type", expand=True)
 
@@ -3865,15 +3877,13 @@ class VIEW3D_PT_shading_options(Panel):
 
     @classmethod
     def poll(cls, context):
-        view = context.space_data
-        shading = view.shading
+        shading = VIEW3D_PT_shading.get_shading(context)
         return shading.type == 'SOLID'
 
     def draw(self, context):
         layout = self.layout
 
-        view = context.space_data
-        shading = view.shading
+        shading = VIEW3D_PT_shading.get_shading(context)
 
         col = layout.column()
 
@@ -3926,7 +3936,9 @@ class VIEW3D_PT_shading_options(Panel):
         if not shading.light == 'MATCAP':
             col.prop(shading, "show_specular_highlight")
 
-        col.prop(view, "show_world")
+        view = context.space_data
+        if view.type == 'VIEW_3D':
+            col.prop(view, "show_world")
 
 
 class VIEW3D_PT_shading_options_shadow(Panel):
@@ -4517,9 +4529,9 @@ class VIEW3D_PT_pivot_point(Panel):
         col.label("Pivot Point")
         col.prop(toolsettings, "transform_pivot_point", expand=True)
 
-        col.separator()
-
         if (obj is None) or (mode in {'OBJECT', 'POSE', 'WEIGHT_PAINT'}):
+            col.separator()
+
             col.prop(
                 toolsettings,
                 "use_transform_pivot_point_align",
