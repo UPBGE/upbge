@@ -3738,7 +3738,7 @@ class VIEW3D_PT_object_type_visibility(Panel):
             "lattice",
             "empty",
             "camera",
-            "lamp",
+            "light",
             "light_probe",
             "speaker",
         )
