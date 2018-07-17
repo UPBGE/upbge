@@ -709,6 +709,7 @@ static int navmesh_clear_exec(bContext *C, wmOperator *UNUSED(op))
 	Mesh *me = ob->data;
 
 	CustomData_free_layers(&me->pdata, CD_RECAST, me->totpoly);
+	ob->gameflag &= ~OB_NAVMESH;
 
 	DAG_id_tag_update(&me->id, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_GEOM | ND_DATA, &me->id);
@@ -719,7 +720,7 @@ static int navmesh_clear_exec(bContext *C, wmOperator *UNUSED(op))
 void MESH_OT_navmesh_clear(struct wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name = "NavMesh Clear Data";
+	ot->name = "Remove NavMesh";
 	ot->description = "Remove navmesh data from this mesh";
 	ot->idname = "MESH_OT_navmesh_clear";
 
