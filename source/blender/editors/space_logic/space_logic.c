@@ -58,6 +58,8 @@
 
 #include "logic_intern.h"
 
+#include "GPU_framebuffer.h"
+
 /* ******************** manage regions ********************* */
 
 ARegion *logic_has_buttons_region(ScrArea *sa)
@@ -254,7 +256,7 @@ static void logic_main_region_draw(const bContext *C, ARegion *ar)
 	
 	/* clear and setup matrix */
 	UI_ThemeClearColor(TH_BACK);
-	glClear(GL_COLOR_BUFFER_BIT);
+	GPU_clear(GPU_COLOR_BIT);
 	
 	UI_view2d_view_ortho(v2d);
 	
