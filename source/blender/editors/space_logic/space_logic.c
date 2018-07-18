@@ -197,9 +197,7 @@ static void logic_refresh(const bContext *UNUSED(C), ScrArea *UNUSED(sa))
 
 }
 
-static void logic_listener(
-        bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar,
-        wmNotifier *wmn, const Scene *UNUSED(scene))
+static void logic_listener(wmWindow *UNUSED(win), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn, const Scene *UNUSED(scene))
 {
 	/* context changes */
 	switch (wmn->category) {
@@ -288,7 +286,7 @@ static void logic_buttons_region_init(wmWindowManager *wm, ARegion *ar)
 
 static void logic_buttons_region_draw(const bContext *C, ARegion *ar)
 {
-	ED_region_panels(C, ar, NULL, -1, true);
+	ED_region_panels(C, ar);
 }
 
 /************************* header region **************************/
