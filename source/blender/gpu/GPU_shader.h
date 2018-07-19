@@ -89,10 +89,12 @@ void *GPU_shader_get_interface(GPUShader *shader);
 int GPU_shader_get_uniform(GPUShader *shader, const char *name);
 int GPU_shader_get_builtin_uniform(GPUShader *shader, int builtin);
 int GPU_shader_get_uniform_block(GPUShader *shader, const char *name);
-void GPU_shader_uniform_vector(GPUShader *shader, int location, int length,
-	int arraysize, const float *value);
-void GPU_shader_uniform_vector_int(GPUShader *shader, int location, int length,
-	int arraysize, const int *value);
+void GPU_shader_uniform_vector(
+        GPUShader *shader, int location, int length,
+        int arraysize, const float *value);
+void GPU_shader_uniform_vector_int(
+        GPUShader *shader, int location, int length,
+        int arraysize, const int *value);
 
 void GPU_shader_uniform_buffer(GPUShader *shader, int location, struct GPUUniformBuffer *ubo);
 void GPU_shader_uniform_texture(GPUShader *shader, int location, struct GPUTexture *tex);
@@ -103,7 +105,7 @@ int GPU_shader_get_attribute(GPUShader *shader, const char *name);
 
 /******************************************Game engine*****************************************/
 char *GPU_shader_validate(GPUShader *shader);
-void GPU_shader_uniform_float(GPUShader *UNUSED(shader), int location, float value);
+void GPU_shader_uniform_float(GPUShader *shader, int location, float value);
 void GPU_shader_bind_attributes(GPUShader *shader, int *locations, const char **names, int len);
 // GPU_shader_get_uniform doesn't handle array uniforms e.g: uniform vec2 bgl_TextureCoordinateOffset[9];
 int GPU_shader_get_uniform_location_old(GPUShader *shader, const char *name);
@@ -392,7 +394,7 @@ typedef struct GPUVertexAttribs {
 		int glinfoindoex;
 		int gltexco;
 		int attribid;
-		char name[64];	/* MAX_CUSTOMDATA_LAYER_NAME */
+		char name[64];  /* MAX_CUSTOMDATA_LAYER_NAME */
 	} layer[GPU_MAX_ATTRIB];
 
 	int totlayer;

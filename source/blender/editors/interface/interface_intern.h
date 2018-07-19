@@ -774,9 +774,9 @@ enum {
 	ROUNDBOX_TRIA_MAX, /* don't use */
 };
 
-struct Gwn_Batch *ui_batch_roundbox_get(bool filled, bool antialiased);
-struct Gwn_Batch *ui_batch_roundbox_widget_get(int tria);
-struct Gwn_Batch *ui_batch_roundbox_shadow_get(void);
+struct GPUBatch *ui_batch_roundbox_get(bool filled, bool antialiased);
+struct GPUBatch *ui_batch_roundbox_widget_get(int tria);
+struct GPUBatch *ui_batch_roundbox_shadow_get(void);
 
 void ui_draw_anti_tria_rect(const rctf *rect, char dir, const float color[4]);
 void ui_draw_menu_back(struct uiStyle *style, uiBlock *block, rcti *rect);
@@ -868,6 +868,7 @@ struct wmKeyMap *eyedropper_colorband_modal_keymap(struct wmKeyConfig *keyconf);
 
 /* interface_eyedropper_color.c */
 void UI_OT_eyedropper_color(struct wmOperatorType *ot);
+void UI_OT_eyedropper_color_crypto(struct wmOperatorType *ot);
 
 /* interface_eyedropper_colorband.c */
 void UI_OT_eyedropper_colorband(struct wmOperatorType *ot);

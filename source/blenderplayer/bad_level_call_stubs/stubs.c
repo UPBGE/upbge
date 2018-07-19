@@ -901,6 +901,7 @@ void uiTemplateCacheFile(uiLayout *layout, struct bContext *C, struct PointerRNA
 void *RE_gl_context_get(struct Render *re) RET_NULL
 void *RE_gwn_context_get(struct Render *re) RET_NULL
 void RE_ClearResult(struct Render *re) RET_NONE
+void *RE_gpu_context_get(Render *re) RET_NULL
 
 
 struct RenderResult *RE_engine_begin_result(RenderEngine *engine, int x, int y, int w, int h, const char *layername, const char *viewname) RET_NULL

@@ -3348,6 +3348,10 @@ static void direct_link_nodetree(FileData *fd, bNodeTree *ntree)
 					direct_link_curvemapping(fd, node->storage);
 				else if (ELEM(node->type, CMP_NODE_IMAGE, CMP_NODE_R_LAYERS, CMP_NODE_VIEWER, CMP_NODE_SPLITVIEWER))
 					((ImageUser *)node->storage)->ok = 1;
+				else if (node->type==CMP_NODE_CRYPTOMATTE) {
+					NodeCryptomatte *nc = (NodeCryptomatte *) node->storage;
+					nc->matte_id = newdataadr(fd, nc->matte_id);
+				}
 			}
 			else if ( ntree->type==NTREE_TEXTURE) {
 				if (node->type==TEX_NODE_CURVE_RGB || node->type==TEX_NODE_CURVE_TIME)
@@ -7221,7 +7225,7 @@ static void direct_link_windowmanager(FileData *fd, wmWindowManager *wm)
 		direct_link_area_map(fd, &win->global_areas);
 
 		win->ghostwin = NULL;
-		win->gwnctx = NULL;
+		win->gpuctx = NULL;
 		win->eventstate = NULL;
 		win->cursor_keymap_status = NULL;
 		win->tweak = NULL;

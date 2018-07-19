@@ -2488,9 +2488,9 @@ class WM_OT_studiolight_install(Operator):
     )
     orientation: EnumProperty(
         items=(
-            ("MATCAP", "MatCap", ""),
-            ("WORLD", "World", ""),
-            ("CAMERA", "Camera", ""),
+            ('MATCAP', "MatCap", ""),
+            ('WORLD', "World", ""),
+            ('CAMERA', "Camera", ""),
         )
     )
 
