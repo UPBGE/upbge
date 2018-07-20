@@ -21,6 +21,7 @@
 #include <float.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <cstdlib>
 
 #include <algorithm>
 #include <memory>
@@ -508,6 +509,8 @@ uint32_t RoundUpToTypeBoundary(uint32_t v) {
 inline void *AllocateAligned(size_t n) {
 #if defined(_MSC_VER) && _MSC_VER >= 1900  // MSVC 2015
   return _aligned_malloc(n, MATHFU_ALIGNMENT);
+#elif defined(__APPLE__)
+  return malloc(n);
 #elif defined(__GNUC__)
   return aligned_alloc(MATHFU_ALIGNMENT, n);
 #else
