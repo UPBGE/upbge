@@ -3078,7 +3078,7 @@ void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter& converter, KX_GameO
 
 	ci.m_collisionFilterGroup =
 		(isbulletsensor) ? short(CcdConstructionInfo::SensorFilter) :
-		(isbulletdyna) ? short(CcdConstructionInfo::DefaultFilter) :
+		(isbulletdyna) ? short(CcdConstructionInfo::DynamicFilter) :
 		(isbulletchar) ? short(CcdConstructionInfo::CharacterFilter) :
 		short(CcdConstructionInfo::StaticFilter);
 	ci.m_collisionFilterMask =

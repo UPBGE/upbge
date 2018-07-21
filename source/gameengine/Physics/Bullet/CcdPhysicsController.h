@@ -208,13 +208,13 @@ struct CcdConstructionInfo {
 	 */
 	enum CollisionFilterGroups
 	{
-		DefaultFilter = 1,
+		DynamicFilter = 1,
 		StaticFilter = 2,
 		KinematicFilter = 4,
 		DebrisFilter = 8,
 		SensorFilter = 16,
 		CharacterFilter = 32,
-		AllFilter = DefaultFilter | StaticFilter | KinematicFilter | DebrisFilter | SensorFilter | CharacterFilter,
+		AllFilter = DynamicFilter | StaticFilter | KinematicFilter | DebrisFilter | SensorFilter | CharacterFilter,
 	};
 
 	CcdConstructionInfo()
@@ -268,7 +268,7 @@ struct CcdConstructionInfo {
 		m_bSensor(false),
 		m_bCharacter(false),
 		m_bGimpact(false),
-		m_collisionFilterGroup(DefaultFilter),
+		m_collisionFilterGroup(DynamicFilter),
 		m_collisionFilterMask(AllFilter),
 		m_collisionGroup(0xFFFF),
 		m_collisionMask(0xFFFF),
