@@ -173,6 +173,7 @@ typedef struct ShaderPreview {
 	int sizex, sizey;
 	unsigned int *pr_rect;
 	int pr_method;
+	bool own_id_copy;
 
 	Main *bmain;
 	Main *pr_main;
@@ -334,6 +335,10 @@ static ID *duplicate_ids(ID *id, Depsgraph *depsgraph)
 			return (ID *)BKE_lamp_localize((Lamp *)id_eval);
 		case ID_WO:
 			return (ID *)BKE_world_localize((World *)id_eval);
+		case ID_IM:
+		case ID_BR:
+		case ID_SCR:
+			return NULL;
 		default:
 			BLI_assert(!"ID type preview not supported.");
 			return NULL;
@@ -833,7 +838,34 @@ static void shader_preview_free(void *customdata)
 	ShaderPreview *sp = customdata;
 	Main *pr_main = sp->pr_main;
 
+	if (sp->matcopy) {
+		sp->id_copy = (ID *)sp->matcopy;
+		BLI_remlink(&pr_main->mat, sp->matcopy);
+	}
+	if (sp->texcopy) {
+		sp->id_copy = (ID *)sp->texcopy;
+		BLI_remlink(&pr_main->tex, sp->texcopy);
+	}
+	if (sp->worldcopy) {
+		sp->id_copy = (ID *)sp->worldcopy;
+		BLI_remlink(&pr_main->world, sp->worldcopy);
+	}
+	if (sp->lampcopy) {
+		sp->id_copy = (ID *)sp->lampcopy;
+		BLI_remlink(&pr_main->lamp, sp->lampcopy);
+	}
 	if (sp->id_copy) {
+		/* node previews */
+		shader_preview_updatejob(sp);
+	}
+	if (sp->id_copy && sp->own_id_copy) {
+		struct IDProperty *properties;
+		/* get rid of copied ID */
+		properties = IDP_GetProperties(sp->id_copy, false);
+		if (properties) {
+			IDP_FreeProperty(properties);
+			MEM_freeN(properties);
+		}
 		switch (GS(sp->id_copy->name)) {
 			case ID_MA:
 				BKE_material_free((Material *)sp->id_copy);
@@ -852,72 +884,6 @@ static void shader_preview_free(void *customdata)
 				break;
 		}
 		MEM_freeN(sp->id_copy);
-	}
-	if (sp->matcopy) {
-		struct IDProperty *properties;
-
-		/* node previews */
-		shader_preview_updatejob(sp);
-
-		/* get rid of copied material */
-		BLI_remlink(&pr_main->mat, sp->matcopy);
-
-		BKE_material_free(sp->matcopy);
-
-		properties = IDP_GetProperties((ID *)sp->matcopy, false);
-		if (properties) {
-			IDP_FreeProperty(properties);
-			MEM_freeN(properties);
-		}
-		MEM_freeN(sp->matcopy);
-	}
-	if (sp->texcopy) {
-		struct IDProperty *properties;
-		/* node previews */
-		shader_preview_updatejob(sp);
-
-		/* get rid of copied texture */
-		BLI_remlink(&pr_main->tex, sp->texcopy);
-		BKE_texture_free(sp->texcopy);
-
-		properties = IDP_GetProperties((ID *)sp->texcopy, false);
-		if (properties) {
-			IDP_FreeProperty(properties);
-			MEM_freeN(properties);
-		}
-		MEM_freeN(sp->texcopy);
-	}
-	if (sp->worldcopy) {
-		struct IDProperty *properties;
-		/* node previews */
-		shader_preview_updatejob(sp);
-
-		/* get rid of copied world */
-		BLI_remlink(&pr_main->world, sp->worldcopy);
-		BKE_world_free(sp->worldcopy);
-
-		properties = IDP_GetProperties((ID *)sp->worldcopy, false);
-		if (properties) {
-			IDP_FreeProperty(properties);
-			MEM_freeN(properties);
-		}
-		MEM_freeN(sp->worldcopy);
-	}
-	if (sp->lampcopy) {
-		struct IDProperty *properties;
-		/* node previews */
-		shader_preview_updatejob(sp);
-
-		/* get rid of copied lamp */
-		BLI_remlink(&pr_main->lamp, sp->lampcopy);
-		BKE_lamp_free(sp->lampcopy);
-
-		properties = IDP_GetProperties((ID *)sp->lampcopy, false);
-		if (properties) {
-			IDP_FreeProperty(properties);
-			MEM_freeN(properties);
-		}
-		MEM_freeN(sp->lampcopy);
 	}
 
 	MEM_freeN(sp);
@@ -1135,6 +1101,7 @@ static void icon_preview_startjob_all_sizes(void *customdata, short *stop, short
 		sp->id = ip->id;
 		sp->id_copy = ip->id_copy;
 		sp->bmain = ip->bmain;
+		sp->own_id_copy = false;
 
 		if (is_render) {
 			BLI_assert(ip->id);
@@ -1177,6 +1144,15 @@ static void icon_preview_endjob(void *customdata)
 			}
 		}
 #endif
+	}
+
+	if (ip->id_copy) {
+		/* Feels a bit hacky just to reuse shader_preview_free() */
+		ShaderPreview *sp = MEM_callocN(sizeof(ShaderPreview), "Icon ShaderPreview");
+		sp->id_copy = ip->id_copy;
+		sp->own_id_copy = true;
+		shader_preview_free(sp);
+		ip->id_copy = NULL;
 	}
 
 	if (ip->owner) {
@@ -1294,6 +1270,7 @@ void ED_preview_shader_job(const bContext *C, void *owner, ID *id, ID *parent, M
 	sp->pr_method = method;
 	sp->id = id;
 	sp->id_copy = duplicate_ids(id, sp->depsgraph);
+	sp->own_id_copy = true;
 	sp->parent = parent;
 	sp->slot = slot;
 	sp->bmain = CTX_data_main(C);

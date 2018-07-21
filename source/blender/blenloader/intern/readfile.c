@@ -7915,6 +7915,7 @@ static void direct_link_speaker(FileData *fd, Speaker *spk)
 
 static void direct_link_sound(FileData *fd, bSound *sound)
 {
+	sound->tags = 0;
 	sound->handle = NULL;
 	sound->playback_handle = NULL;
 
@@ -7926,6 +7927,7 @@ static void direct_link_sound(FileData *fd, bSound *sound)
 
 	if (fd->soundmap) {
 		sound->waveform = newsoundadr(fd, sound->waveform);
+		sound->tags |= SOUND_TAGS_WAVEFORM_NO_RELOAD;
 	}
 	else {
 		sound->waveform = NULL;
@@ -7936,7 +7938,7 @@ static void direct_link_sound(FileData *fd, bSound *sound)
 		BLI_spin_init(sound->spinlock);
 	}
 	/* clear waveform loading flag */
-	sound->flags &= ~SOUND_FLAGS_WAVEFORM_LOADING;
+	sound->tags &= ~SOUND_TAGS_WAVEFORM_LOADING;
 
 	sound->packedfile = direct_link_packedfile(fd, sound->packedfile);
 	sound->newpackedfile = direct_link_packedfile(fd, sound->newpackedfile);
