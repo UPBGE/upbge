@@ -327,6 +327,11 @@ if(WITH_OPENVDB)
 	set(OPENVDB_DEFINITIONS)
 endif()
 
+if(WITH_GAMEENGINE)
+	set(TBB_LIBRARIES ${LIBDIR}/tbb/lib/libtbb.a)
+	set(TBB_INCLUDE_DIR ${LIBDIR}/tbb/include)
+endif()
+
 if(WITH_LLVM)
 	set(LLVM_ROOT_DIR ${LIBDIR}/llvm)
 	set(LLVM_VERSION 3.4)

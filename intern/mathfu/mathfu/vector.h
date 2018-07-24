@@ -969,9 +969,13 @@ static inline T DotProductHelper(const Vector<T, 4>& v1,
 
 template <class T, int d>
 static inline bool FuzzyZeroHelper(const Vector<T, d>& v) {
-  T abs = 0;
+  T absolute = 0;
   for (int i = 0; i < d; ++i) {
-    abs += std::abs(v[i]);
+#ifdef __APPLE__
+    absolute += abs(v[i]);
+#else
+    absolute += std::abs(v[i]);
+#endif
   }
 
   return FuzzyZero(abs);
