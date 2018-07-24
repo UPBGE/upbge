@@ -54,7 +54,7 @@ const GHOST_TUns8 *GHOST_SystemPathsWin32::getSystemDir(int, const char *version
 
 	if (hResult == S_OK) {
 		conv_utf_16_to_8(knownpath_16, knownpath, MAX_PATH * 3);
-		strcat(knownpath, "\\Blender Foundation\\Blender\\");
+		strcat(knownpath, "\\UPBGE\\Blender\\");
 		strcat(knownpath, versionstr);
 		return (GHOST_TUns8*)knownpath;
 	}
@@ -71,7 +71,7 @@ const GHOST_TUns8 *GHOST_SystemPathsWin32::getUserDir(int, const char *versionst
 
 	if (hResult == S_OK) {
 		conv_utf_16_to_8(knownpath_16, knownpath, MAX_PATH * 3);
-		strcat(knownpath, "\\Blender Foundation\\Blender\\");
+		strcat(knownpath, "\\UPBGE\\Blender\\");
 		strcat(knownpath, versionstr);
 		return (GHOST_TUns8*)knownpath;
 	}

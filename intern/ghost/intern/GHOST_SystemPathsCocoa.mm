@@ -59,7 +59,7 @@ const GHOST_TUns8* GHOST_SystemPathsCocoa::getSystemDir(int, const char *version
 		return NULL;
 	}
 	
-	snprintf(tempPath, sizeof(tempPath), "%s/Blender/%s", [basePath cStringUsingEncoding:NSASCIIStringEncoding], versionstr);
+	snprintf(tempPath, sizeof(tempPath), "%s/UPBGE/%s", [basePath cStringUsingEncoding:NSASCIIStringEncoding], versionstr);
 	
 	[pool drain];
 	return (GHOST_TUns8*)tempPath;
@@ -81,7 +81,7 @@ const GHOST_TUns8* GHOST_SystemPathsCocoa::getUserDir(int, const char *versionst
 		return NULL;
 	}
 
-	snprintf(tempPath, sizeof(tempPath), "%s/Blender/%s", [basePath cStringUsingEncoding:NSASCIIStringEncoding], versionstr);
+	snprintf(tempPath, sizeof(tempPath), "%s/UPBGE/%s", [basePath cStringUsingEncoding:NSASCIIStringEncoding], versionstr);
 	
 	[pool drain];
 	return (GHOST_TUns8*)tempPath;
