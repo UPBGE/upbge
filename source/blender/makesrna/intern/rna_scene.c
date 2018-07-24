@@ -4866,6 +4866,7 @@ static void rna_def_scene_render_view(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "use", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "viewflag", SCE_VIEW_DISABLE);
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_ui_text(prop, "Enabled", "Disable or enable the render view");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 }
@@ -6022,7 +6023,8 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "use_single_layer", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "scemode", R_SINGLE_LAYER);
-	RNA_def_property_ui_text(prop, "Render Single Layer", "Only render the active layer");
+	RNA_def_property_ui_text(prop, "Render Single Layer", "Only render the active layer. Only affects rendering from the interface, ignored for rendering from command line");
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
 	/* views (stereoscopy et al) */
@@ -6624,12 +6626,6 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
 	RNA_def_property_int_default(prop, 16);
 	RNA_def_property_range(prop, 1, 128);
 	RNA_def_property_ui_text(prop, "Volumetric Shadow Samples", "Number of samples to compute volumetric shadowing");
-	RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_STATIC);
-
-	prop = RNA_def_property(srna, "use_volumetric_colored_transmittance", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", SCE_EEVEE_VOLUMETRIC_COLORED);
-	RNA_def_property_boolean_default(prop, 1);
-	RNA_def_property_ui_text(prop, "Colored Transmittance", "Enable wavelength dependent volumetric transmittance");
 	RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_STATIC);
 
 	/* Ambient Occlusion */

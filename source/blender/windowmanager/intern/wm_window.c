@@ -123,7 +123,6 @@ static struct WMInitStruct {
 /* ******** win open & close ************ */
 
 static void wm_window_set_drawable(wmWindowManager *wm, wmWindow *win, bool activate);
-static void wm_window_clear_drawable(wmWindowManager *wm);
 
 /* XXX this one should correctly check for apple top header...
  * done for Cocoa : returns window contents (and not frame) max size*/
@@ -202,7 +201,6 @@ static void wm_ghostwindow_destroy(wmWindowManager *wm, wmWindow *win)
 		GHOST_DisposeWindow(g_system, win->ghostwin);
 		win->ghostwin = NULL;
 		win->gpuctx = NULL;
-
 	}
 }
 
@@ -1103,7 +1101,7 @@ static void wm_window_set_drawable(wmWindowManager *wm, wmWindow *win, bool acti
 	immActivate();
 }
 
-static void wm_window_clear_drawable(wmWindowManager *wm)
+void wm_window_clear_drawable(wmWindowManager *wm)
 {
 	if (wm->windrawable) {
 		BLF_batch_reset();
@@ -2169,7 +2167,12 @@ ViewLayer *WM_window_get_active_view_layer(const wmWindow *win)
 		return view_layer;
 	}
 
-	return BKE_view_layer_default_view(scene);
+	view_layer = BKE_view_layer_default_view(scene);
+	if (view_layer) {
+		WM_window_set_active_view_layer((wmWindow*)win, view_layer);
+	}
+
+	return view_layer;
 }
 
 void WM_window_set_active_view_layer(wmWindow *win, ViewLayer *view_layer)

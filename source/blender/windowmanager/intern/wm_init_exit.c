@@ -118,6 +118,7 @@
 #include "ED_undo.h"
 
 #include "UI_interface.h"
+#include "UI_resources.h"
 #include "BLF_api.h"
 #include "BLT_lang.h"
 
@@ -240,6 +241,11 @@ void WM_init(bContext *C, int argc, const char **argv)
 	BLF_init(); /* Please update source/gamengine/GamePlayer/GPG_ghost.cpp if you change this */
 	BLT_lang_init();
 
+	/* Init icons before reading .blend files for preview icons, which can
+	 * get triggered by the depsgraph. This is also done in background mode
+	 * for scripts that do background processing with preview icons. */
+	BKE_icons_init(BIFICONID_LAST);
+
 	/* reports cant be initialized before the wm,
 	 * but keep before file reading, since that may report errors */
 	wm_init_reports(C);
@@ -261,13 +267,6 @@ void WM_init(bContext *C, int argc, const char **argv)
 
 		UI_init();
 		BKE_studiolight_init();
-	}
-	else {
-		/* Note: Currently only inits icons, which we now want in background mode too
-		 * (scripts could use those in background processing...).
-		 * In case we do more later, we may need to pass a 'background' flag.
-		 * Called from 'UI_init' above */
-		BKE_icons_init(1);
 	}
 
 	ED_spacemacros_init();
