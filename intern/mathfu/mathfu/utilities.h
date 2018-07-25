@@ -290,12 +290,12 @@ inline bool FuzzyZeroHelper(const T &x) {
 
 template <>
 inline bool FuzzyZeroHelper(const float &x) {
-  return (std::abs(x) < FLT_EPSILON);
+  return (abs(x) < FLT_EPSILON);
 }
 
 template <>
 inline bool FuzzyZeroHelper(const double &x) {
-  return (std::abs(x) < DBL_EPSILON);
+  return (abs(x) < DBL_EPSILON);
 }
 
 template <class T>
