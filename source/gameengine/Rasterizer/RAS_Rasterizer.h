@@ -47,11 +47,12 @@
 #include <memory>
 
 class RAS_OpenGLRasterizer;
+class RAS_OpenGLDebugDraw;
 class RAS_OpenGLLight;
 class RAS_ICanvas;
 class RAS_OffScreen;
 class RAS_MeshSlot;
-class RAS_DisplayArray;
+class RAS_DebugDraw;
 class RAS_ILightObject;
 class RAS_ISync;
 struct KX_ClientObjectInfo;
@@ -327,6 +328,7 @@ private:
 	OverrideShaderType m_overrideShader;
 
 	std::unique_ptr<RAS_OpenGLRasterizer> m_impl;
+	std::unique_ptr<RAS_OpenGLDebugDraw> m_debugDrawImpl;
 
 	/// Initialize custom shader interface containing uniform location.
 	void InitOverrideShadersInterface();
@@ -664,6 +666,8 @@ public:
 	 * Render Tools
 	 */
 	void GetTransform(const mt::mat4& origmat, int objectdrawmode, float mat[16]);
+
+	void FlushDebug(RAS_ICanvas *canvas, RAS_DebugDraw *debugDraw);
 
 	void DisableForText();
 	/**

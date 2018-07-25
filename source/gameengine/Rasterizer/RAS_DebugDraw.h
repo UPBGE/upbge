@@ -36,11 +36,10 @@
 
 class RAS_Rasterizer;
 class RAS_ICanvas;
-class RAS_OpenGLDebugDraw;
 
 class RAS_DebugDraw
 {
-	friend RAS_OpenGLDebugDraw;
+	friend class RAS_OpenGLDebugDraw;
 
 private:
 	struct Shape
@@ -97,8 +96,6 @@ private:
 	std::vector<Frustum> m_frustums;
 	std::vector<Text2d> m_texts2d;
 	std::vector<Box2d> m_boxes2d;
-
-	std::unique_ptr<RAS_OpenGLDebugDraw> m_impl;
 
 public:
 	RAS_DebugDraw();

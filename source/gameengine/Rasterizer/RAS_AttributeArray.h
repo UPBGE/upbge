@@ -31,6 +31,7 @@
 
 #include <vector>
 
+class RAS_DisplayArray;
 class RAS_AttributeArrayStorage;
 class RAS_DisplayArrayStorage;
 

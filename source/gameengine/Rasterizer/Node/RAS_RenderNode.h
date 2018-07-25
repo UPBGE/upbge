@@ -32,6 +32,7 @@
 
 class RAS_BucketManager;
 class RAS_MaterialBucket;
+class RAS_DisplayArray;
 class RAS_DisplayArrayBucket;
 class RAS_MeshSlot;
 class RAS_IPolyMaterial;
