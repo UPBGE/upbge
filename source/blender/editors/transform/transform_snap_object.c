@@ -172,6 +172,26 @@ static void min_max_from_bmesh(
 	}
 }
 
+static SnapObjectData_Mesh *snap_object_data_mesh_create(SnapObjectContext *sctx)
+{
+	SnapObjectData_Mesh *sod = BLI_memarena_calloc(sctx->cache.mem_arena, sizeof(*sod));
+	sod->sd.type = SNAP_MESH;
+	/* start assuming that it has each of these element types */
+	sod->has_looptris = true;
+	sod->has_loose_edge = true;
+	sod->has_loose_vert = true;
+
+	return sod;
+}
+
+static SnapObjectData_EditMesh *snap_object_data_editmesh_create(SnapObjectContext *sctx, BMesh *bm)
+{
+	SnapObjectData_EditMesh *sod = BLI_memarena_calloc(sctx->cache.mem_arena, sizeof(*sod));
+	sod->sd.type = SNAP_EDIT_MESH;
+	min_max_from_bmesh(bm, sod->min, sod->max);
+
+	return sod;
+}
 
 /**
  * Walks through all objects in the scene to create the list of objets to snap.
@@ -186,7 +206,7 @@ static void iter_snap_objects(
         IterSnapObjsCallback sob_callback,
         void *data)
 {
-	ViewLayer *view_layer = DEG_get_evaluated_view_layer(sctx->depsgraph);
+	ViewLayer *view_layer = DEG_get_input_view_layer(sctx->depsgraph);
 	const eSnapSelect snap_select = params->snap_select;
 	const bool use_object_edit_cage = params->use_object_edit_cage;
 
@@ -196,17 +216,17 @@ static void iter_snap_objects(
 		    !((snap_select == SNAP_NOT_SELECTED && ((base->flag & BASE_SELECTED) || (base->flag_legacy & BA_WAS_SEL))) ||
 		      (snap_select == SNAP_NOT_ACTIVE && base == base_act)))
 		{
-			Object *obj = base->object;
-			if (obj->transflag & OB_DUPLI) {
+			Object *obj_eval = DEG_get_evaluated_object(sctx->depsgraph, base->object);
+			if (obj_eval->transflag & OB_DUPLI) {
 				DupliObject *dupli_ob;
-				ListBase *lb = object_duplilist(sctx->depsgraph, sctx->scene, obj);
+				ListBase *lb = object_duplilist(sctx->depsgraph, sctx->scene, obj_eval);
 				for (dupli_ob = lb->first; dupli_ob; dupli_ob = dupli_ob->next) {
 					sob_callback(sctx, use_object_edit_cage, dupli_ob->ob, dupli_ob->mat, data);
 				}
 				free_object_duplilist(lb);
 			}
 
-			sob_callback(sctx, use_object_edit_cage, obj, obj->obmat, data);
+			sob_callback(sctx, use_object_edit_cage, obj_eval, obj_eval->obmat, data);
 		}
 	}
 }
@@ -386,8 +406,7 @@ static bool raycastMesh(
 		sod = *sod_p;
 	}
 	else {
-		sod = *sod_p = BLI_memarena_calloc(sctx->cache.mem_arena, sizeof(*sod));
-		sod->sd.type = SNAP_MESH;
+		sod = *sod_p = snap_object_data_mesh_create(sctx);
 	}
 
 	BVHTreeFromMesh *treedata = &sod->treedata;
@@ -525,9 +544,7 @@ static bool raycastEditMesh(
 		sod = *sod_p;
 	}
 	else {
-		sod = *sod_p = BLI_memarena_calloc(sctx->cache.mem_arena, sizeof(*sod));
-		sod->sd.type = SNAP_EDIT_MESH;
-		min_max_from_bmesh(em->bm, sod->min, sod->max);
+		sod = *sod_p = snap_object_data_editmesh_create(sctx, em->bm);
 	}
 
 	{
@@ -1838,12 +1855,7 @@ static short snapMesh(
 		sod = *sod_p;
 	}
 	else {
-		sod = *sod_p = BLI_memarena_calloc(sctx->cache.mem_arena, sizeof(*sod));
-		sod->sd.type = SNAP_MESH;
-		/* start assuming that it has each of these element types */
-		sod->has_looptris = true;
-		sod->has_loose_edge = true;
-		sod->has_loose_vert = true;
+		sod = *sod_p = snap_object_data_mesh_create(sctx);
 	}
 
 	BVHTreeFromMesh *treedata, dummy_treedata;
@@ -2050,9 +2062,7 @@ static short snapEditMesh(
 		sod = *sod_p;
 	}
 	else {
-		sod = *sod_p = BLI_memarena_calloc(sctx->cache.mem_arena, sizeof(*sod));
-		sod->sd.type = SNAP_EDIT_MESH;
-		min_max_from_bmesh(em->bm, sod->min, sod->max);
+		sod = *sod_p = snap_object_data_editmesh_create(sctx, em->bm);
 	}
 
 	float dist_px_sq = SQUARE(*dist_px);
