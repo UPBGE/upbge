@@ -88,14 +88,14 @@ KX_Scene *KX_LibLoadStatus::GetMergeScene() const
 	return m_mergescene;
 }
 
-const std::vector<Scene *>& KX_LibLoadStatus::GetBlenderScenes() const
+const std::vector<KX_Scene *>& KX_LibLoadStatus::GetScenes() const
 {
-	return m_blenderScenes;
+	return m_scenes;
 }
 
-void KX_LibLoadStatus::SetBlenderScenes(const std::vector<Scene *>& scenes)
+void KX_LibLoadStatus::SetScenes(const std::vector<KX_Scene *>& scenes)
 {
-	m_blenderScenes = scenes;
+	m_scenes = scenes;
 }
 
 const std::vector<BL_SceneConverter>& KX_LibLoadStatus::GetSceneConverters() const

@@ -316,17 +316,15 @@ static void async_convert(TaskPool *pool, void *ptr, int UNUSED(threadid))
 	KX_KetsjiEngine *engine = status->GetEngine();
 	BL_Converter *converter = status->GetConverter();
 
-	const std::vector<Scene *>& blenderScenes = status->GetBlenderScenes();
+	const std::vector<KX_Scene *>& scenes = status->GetScenes();
 
-	for (Scene *blenderScene : blenderScenes) {
-		KX_Scene *scene = engine->CreateScene(blenderScene);
-
+	for (KX_Scene *scene : scenes) {
 		BL_SceneConverter sceneConverter(scene);
 		converter->ConvertScene(sceneConverter, true);
 
 		status->AddSceneConverter(std::move(sceneConverter));
 
-		status->AddProgress((1.0f / blenderScenes.size()) * 0.9f); // We'll call conversion 90% and merging 10% for now
+		status->AddProgress((1.0f / scenes.size()) * 0.9f); // We'll call conversion 90% and merging 10% for now
 	}
 
 	status->GetConverter()->AddScenesToMergeQueue(status);
@@ -459,17 +457,19 @@ KX_LibLoadStatus *BL_Converter::LinkBlendFile(BlendHandle *blendlib, const char 
 		// Merge all new linked in scene into the existing one
 
 		if (options & LIB_LOAD_ASYNC) {
-			std::vector<Scene *> blenderScenes;
-			for (Scene *scene = (Scene *)main_newlib->scene.first; scene; scene = (Scene *)scene->id.next) {
+			std::vector<KX_Scene *> scenes;
+			for (Scene *bscene = (Scene *)main_newlib->scene.first; bscene; bscene = (Scene *)bscene->id.next) {
 				if (options & LIB_LOAD_VERBOSE) {
-					CM_Debug("scene name: " << scene->id.name + 2);
+					CM_Debug("scene name: " << bscene->id.name + 2);
 				}
 
+				KX_Scene *scene = m_ketsjiEngine->CreateScene(bscene);
+
 				// Build list of scene to convert.
-				blenderScenes.push_back(scene);
+				scenes.push_back(scene);
 			}
 
-			status->SetBlenderScenes(blenderScenes);
+			status->SetScenes(scenes);
 			BLI_task_pool_push(m_threadinfo.m_pool, async_convert, (void *)status, false, TASK_PRIORITY_LOW);
 		}
 		else {

@@ -33,7 +33,6 @@
 class BL_Converter;
 class KX_KetsjiEngine;
 class KX_Scene;
-struct Scene;
 
 class KX_LibLoadStatus : public EXP_PyObjectPlus
 {
@@ -42,7 +41,7 @@ private:
 	BL_Converter *m_converter;
 	KX_KetsjiEngine *m_engine;
 	KX_Scene *m_mergescene;
-	std::vector<Scene *> m_blenderScenes;
+	std::vector<KX_Scene *> m_scenes;
 	std::vector<BL_SceneConverter> m_sceneConvertes;
 	std::string m_libname;
 
@@ -70,8 +69,8 @@ public:
 	KX_KetsjiEngine *GetEngine() const;
 	KX_Scene *GetMergeScene() const;
 
-	const std::vector<Scene *>& GetBlenderScenes() const;
-	void SetBlenderScenes(const std::vector<Scene *>& scenes);
+	const std::vector<KX_Scene *>& GetScenes() const;
+	void SetScenes(const std::vector<KX_Scene *>& scenes);
 	const std::vector<BL_SceneConverter>& GetSceneConverters() const;
 	void AddSceneConverter(BL_SceneConverter&& converter);
 

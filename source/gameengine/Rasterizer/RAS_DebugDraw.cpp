@@ -25,7 +25,7 @@
  */
 
 #include "RAS_DebugDraw.h"
-#include "RAS_OpenGLDebugDraw.h"
+#include "RAS_Rasterizer.h"
 
 RAS_DebugDraw::Shape::Shape(const mt::vec4& color)
 {
@@ -76,7 +76,6 @@ RAS_DebugDraw::Box2d::Box2d(const mt::vec2& pos, const mt::vec2& size, const mt:
 }
 
 RAS_DebugDraw::RAS_DebugDraw()
-	:m_impl(new RAS_OpenGLDebugDraw())
 {
 }
 
@@ -115,7 +114,7 @@ void RAS_DebugDraw::Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas)
 		return;
 	}
 
-	m_impl->Flush(rasty, canvas, this);
+	rasty->FlushDebug(canvas, this);
 
 	m_lines.clear();
 	m_aabbs.clear();
