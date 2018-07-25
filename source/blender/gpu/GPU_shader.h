@@ -73,6 +73,16 @@ void GPU_shader_unbind(void);
 
 int GPU_shader_program(GPUShader *shader);
 
+typedef struct GPUUniformInfo
+{
+	unsigned int location;
+	unsigned int size;
+	unsigned int type;
+	char name[255];
+} GPUUniformInfo;
+
+int GPU_shader_get_uniform_infos(GPUShader *shader, GPUUniformInfo **infos);
+
 void *GPU_shader_get_interface(GPUShader *shader);
 void GPU_shader_set_interface(GPUShader *shader, void *interface);
 int GPU_shader_get_uniform(GPUShader *shader, const char *name);

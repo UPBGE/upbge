@@ -598,6 +598,27 @@ void GPU_shader_free(GPUShader *shader)
 	MEM_freeN(shader);
 }
 
+int GPU_shader_get_uniform_infos(GPUShader *shader, GPUUniformInfo **infos)
+{
+	int count;
+	glGetProgramiv(shader->program, GL_ACTIVE_UNIFORMS, &count);
+
+	if (count == 0) {
+		*infos = NULL;
+		return 0;
+	}
+
+	*infos = MEM_callocN(sizeof(GPUUniformInfo) * count, "GPUUniformInfo");
+
+	for (unsigned int i = 0; i < count; ++i) {
+		GPUUniformInfo *info = &((*infos)[i]);
+		glGetActiveUniform(shader->program, i, 255, NULL, (int *)&info->size, &info->type, info->name);
+		info->location = GPU_shader_get_uniform(shader, info->name);
+	}
+
+	return count;
+}
+
 int GPU_shader_get_uniform(GPUShader *shader, const char *name)
 {
 	return glGetUniformLocation(shader->program, name);

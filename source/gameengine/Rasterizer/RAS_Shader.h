@@ -10,6 +10,7 @@
 
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 #define SORT_UNIFORMS 1
 
@@ -107,6 +108,16 @@ public:
 	};
 
 protected:
+	struct UniformInfo
+	{
+		unsigned int location;
+		unsigned short size;
+		unsigned int type;
+	};
+
+	/// Information (location, type, size) on existing uniforms.
+	std::unordered_map<std::string, UniformInfo> m_uniformInfos;
+
 	typedef std::vector<RAS_Uniform *> RAS_UniformVec;
 	typedef std::vector<RAS_DefUniform *> RAS_UniformVecDef;
 
@@ -129,6 +140,7 @@ protected:
 	// Compiles and links the shader
 	virtual bool LinkProgram();
 	void ValidateProgram();
+	void ExtractUniformInfos();
 
 	// search by location
 	RAS_Uniform *FindUniform(const int location);
@@ -139,6 +151,7 @@ protected:
 public:
 	RAS_Shader();
 	virtual ~RAS_Shader();
+
 
 	bool GetError();
 	bool Ok() const;
