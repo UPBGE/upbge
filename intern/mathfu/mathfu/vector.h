@@ -971,14 +971,10 @@ template <class T, int d>
 static inline bool FuzzyZeroHelper(const Vector<T, d>& v) {
   T absolute = 0;
   for (int i = 0; i < d; ++i) {
-#ifdef __APPLE__
     absolute += abs(v[i]);
-#else
-    absolute += std::abs(v[i]);
-#endif
   }
 
-  return FuzzyZero(abs);
+  return FuzzyZero(absolute);
 }
 
 /// @cond MATHFU_INTERNAL

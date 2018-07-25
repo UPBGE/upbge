@@ -290,20 +290,12 @@ inline bool FuzzyZeroHelper(const T &x) {
 
 template <>
 inline bool FuzzyZeroHelper(const float &x) {
-#ifdef __APPLE__
   return (abs(x) < FLT_EPSILON);
-#else
-  return (std::abs(x) < FLT_EPSILON);
-#endif
 }
 
 template <>
 inline bool FuzzyZeroHelper(const double &x) {
-#ifdef __APPLE__
   return (abs(x) < DBL_EPSILON);
-#else
-  return (std::abs(x) < DBL_EPSILON);
-#endif
 }
 
 template <class T>
