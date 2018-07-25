@@ -266,6 +266,7 @@ void KX_GameObject::TagForUpdate()
 	if (ob) {
 		copy_m4_m4(ob->obmat, obmat);
 		DEG_id_tag_update(&ob->id, NC_OBJECT | ND_TRANSFORM);
+		DEG_id_tag_update(&ob->id, DEG_TAG_COPY_ON_WRITE);
 
 		if (!staticObject && ELEM(ob->type, OB_MESH, OB_CURVE, OB_FONT)) {
 			if (m_castShadows) {

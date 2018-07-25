@@ -402,7 +402,7 @@ int main(
 
 	main_args_setup(C, ba, &syshandle);
 
-	DEG_depsgraph_disable_copy_on_write(); // Game engine transition
+	//DEG_depsgraph_disable_copy_on_write(); // Game engine transition
 
 	BLI_argsParse(ba, 1, NULL, NULL);
 

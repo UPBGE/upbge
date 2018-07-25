@@ -2665,14 +2665,11 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam, int
 
 	
 
-	DEG_OBJECT_ITER_BEGIN(depsgraph, ob,
-		DEG_ITER_OBJECT_FLAG_LINKED_DIRECTLY |
-		DEG_ITER_OBJECT_FLAG_LINKED_VIA_SET |
-		DEG_ITER_OBJECT_FLAG_DUPLI)
+	DEG_OBJECT_ITER_FOR_RENDER_ENGINE_BEGIN(depsgraph, ob)
 	{
 		drw_engines_cache_populate(ob);
 	}
-	DEG_OBJECT_ITER_END;
+	DEG_OBJECT_ITER_FOR_RENDER_ENGINE_END;
 
 	drw_engines_cache_finish();
 	DRW_render_instance_buffer_finish();
