@@ -347,7 +347,7 @@ Object *BlenderSync::sync_object(BL::Depsgraph& b_depsgraph,
 	/* Visibility flags for both parent and child. */
 	PointerRNA cobject = RNA_pointer_get(&b_ob.ptr, "cycles");
 	bool use_holdout = get_boolean(cobject, "is_holdout") ||
-	                   b_ob.holdout_get(b_view_layer);
+	                   b_parent.holdout_get(b_view_layer);
 	uint visibility = object_ray_visibility(b_ob) & PATH_RAY_ALL_VISIBILITY;
 
 	if(b_parent.ptr.data != b_ob.ptr.data) {
@@ -361,12 +361,11 @@ Object *BlenderSync::sync_object(BL::Depsgraph& b_depsgraph,
 	}
 #endif
 
-	/* TODO: hide objects not on render layer from camera rays. */
-#if 0
-	if(!(layer_flag & view_layer.layer)) {
+	/* Clear camera visibility for indirect only objects. */
+	bool use_indirect_only = b_parent.indirect_only_get(b_view_layer);
+	if(use_indirect_only) {
 		visibility &= ~PATH_RAY_CAMERA;
 	}
-#endif
 
 	/* Don't export completely invisible objects. */
 	if(visibility == 0) {
