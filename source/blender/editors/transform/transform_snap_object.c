@@ -537,6 +537,8 @@ static bool raycastEditMesh(
 	BVHTreeFromEditMesh *treedata = NULL;
 	Object *em_ob = em->ob;
 
+	BLI_assert(em_ob->data == BKE_object_get_pre_modified_mesh(ob));
+
 	void **sod_p;
 	/* Use `em->ob` as the key in ghash since the editmesh is used
 	 * to create bvhtree and is the same for each linked object. */
@@ -2054,6 +2056,9 @@ static short snapEditMesh(
 	SnapObjectData_EditMesh *sod = NULL;
 	BVHTreeFromEditMesh *treedata_vert = NULL, *treedata_edge = NULL;
 	Object *em_ob = em->ob;
+
+	BLI_assert(em_ob->data == BKE_object_get_pre_modified_mesh(ob));
+	UNUSED_VARS_NDEBUG(ob);
 
 	void **sod_p;
 	/* Use `em->ob` as the key in ghash since the editmesh is used
