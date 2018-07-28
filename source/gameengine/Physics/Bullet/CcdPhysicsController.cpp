@@ -2142,6 +2142,11 @@ btCollisionShape *CcdShapeConstructionInfo::CreateBulletShape(btScalar margin, b
 			BLI_assert(false);
 		}
 	}
+
+	if (collisionShape) {
+		collisionShape->setUserPointer(this);
+	}
+
 	return collisionShape;
 }
 

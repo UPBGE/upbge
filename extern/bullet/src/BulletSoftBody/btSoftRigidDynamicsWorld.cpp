@@ -317,7 +317,8 @@ void	btSoftRigidDynamicsWorld::rayTestSingle(const btTransform& rayFromTrans,con
 						(collisionObject,
 						 &shapeInfo,
 						 normal,
-						 softResult.fraction);
+						 softResult.fraction,
+						 -1);
 					bool	normalInWorldSpace = true;
 					resultCallback.addSingleResult(rayResult,normalInWorldSpace);
 				}

@@ -188,11 +188,13 @@ public:
 		LocalRayResult(const btCollisionObject*	collisionObject, 
 			LocalShapeInfo*	localShapeInfo,
 			const btVector3&		hitNormalLocal,
-			btScalar hitFraction)
+			btScalar hitFraction,
+			int childIndex)
 		:m_collisionObject(collisionObject),
 		m_localShapeInfo(localShapeInfo),
 		m_hitNormalLocal(hitNormalLocal),
-		m_hitFraction(hitFraction)
+		m_hitFraction(hitFraction),
+		m_childIndex(childIndex)
 		{
 		}
 
@@ -200,7 +202,7 @@ public:
 		LocalShapeInfo*			m_localShapeInfo;
 		btVector3				m_hitNormalLocal;
 		btScalar				m_hitFraction;
-
+		int m_childIndex;
 	};
 
 	///RayResultCallback is used to report new raycast results

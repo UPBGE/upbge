@@ -340,8 +340,8 @@ void	btCollisionWorld::rayTestSingleInternal(const btTransform& rayFromTrans,con
 						collisionObjectWrap->getCollisionObject(),
 						0,
 						castResult.m_normal,
-						castResult.m_fraction
-						);
+						castResult.m_fraction,
+						-1);
 
 					bool normalInWorldSpace = true;
 					resultCallback.addSingleResult(localRayResult, normalInWorldSpace);
@@ -386,7 +386,8 @@ void	btCollisionWorld::rayTestSingleInternal(const btTransform& rayFromTrans,con
 							(m_collisionObject,
 							&shapeInfo,
 							hitNormalWorld,
-							hitFraction);
+							hitFraction,
+							-1);
 
 						bool	normalInWorldSpace = true;
 						return m_resultCallback->addSingleResult(rayResult,normalInWorldSpace);
@@ -468,7 +469,8 @@ void	btCollisionWorld::rayTestSingleInternal(const btTransform& rayFromTrans,con
 							(m_collisionObject,
 							&shapeInfo,
 							hitNormalWorld,
-							hitFraction);
+							hitFraction,
+							-1);
 
 						bool	normalInWorldSpace = true;
 						return m_resultCallback->addSingleResult(rayResult,normalInWorldSpace);
@@ -509,11 +511,7 @@ void	btCollisionWorld::rayTestSingleInternal(const btTransform& rayFromTrans,con
 
 					virtual btScalar addSingleResult (btCollisionWorld::LocalRayResult &r, bool b)
 					{
-						btCollisionWorld::LocalShapeInfo shapeInfo;
-						shapeInfo.m_shapePart = -1;
-						shapeInfo.m_triangleIndex = m_i;
-						if (r.m_localShapeInfo == NULL)
-							r.m_localShapeInfo = &shapeInfo;
+						r.m_childIndex = m_i;
 
 						const btScalar result = m_userCallback->addSingleResult(r, b);
 						m_closestHitFraction = m_userCallback->m_closestHitFraction;

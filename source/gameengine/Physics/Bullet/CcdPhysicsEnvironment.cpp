@@ -1101,13 +1101,13 @@ void CcdPhysicsEnvironment::RemoveConstraintById(int constraintId, bool free)
 
 struct  FilterClosestRayResultCallback : public btCollisionWorld::ClosestRayResultCallback {
 	PHY_IRayCastFilterCallback& m_phyRayFilter;
-	const btCollisionShape *m_hitTriangleShape;
+	int m_hitChildIndex;
 	int m_hitTriangleIndex;
 
 	FilterClosestRayResultCallback(PHY_IRayCastFilterCallback& phyRayFilter, const btVector3& rayFrom, const btVector3& rayTo)
 		:btCollisionWorld::ClosestRayResultCallback(rayFrom, rayTo),
 		m_phyRayFilter(phyRayFilter),
-		m_hitTriangleShape(nullptr),
+		m_hitChildIndex(-1),
 		m_hitTriangleIndex(0)
 	{
 	}
@@ -1134,21 +1134,18 @@ struct  FilterClosestRayResultCallback : public btCollisionWorld::ClosestRayResu
 
 	virtual btScalar addSingleResult(btCollisionWorld::LocalRayResult& rayResult, bool normalInWorldSpace)
 	{
-		//CcdPhysicsController* curHit = static_cast<CcdPhysicsController*>(rayResult.m_collisionObject->getUserPointer());
-		// save shape information as ClosestRayResultCallback::AddSingleResult() does not do it
+		m_hitChildIndex = rayResult.m_childIndex;
 		if (rayResult.m_localShapeInfo) {
-			m_hitTriangleShape = rayResult.m_collisionObject->getCollisionShape();
 			m_hitTriangleIndex = rayResult.m_localShapeInfo->m_triangleIndex;
 		}
 		else {
-			m_hitTriangleShape = nullptr;
 			m_hitTriangleIndex = 0;
 		}
 		return ClosestRayResultCallback::addSingleResult(rayResult, normalInWorldSpace);
 	}
 };
 
-static bool GetHitTriangle(btCollisionShape *shape, CcdShapeConstructionInfo *shapeInfo, int hitTriangleIndex, btVector3 triangle[])
+static bool GetHitTriangle(const btCollisionShape *shape, CcdShapeConstructionInfo *shapeInfo, int hitTriangleIndex, btVector3 triangle[])
 {
 	// this code is copied from Bullet
 	const unsigned char *vertexbase;
@@ -1198,132 +1195,119 @@ PHY_IPhysicsController *CcdPhysicsEnvironment::RayTest(PHY_IRayCastFilterCallbac
 
 	//Either Ray Cast with or without filtering
 
-	//btCollisionWorld::ClosestRayResultCallback rayCallback(rayFrom,rayTo);
 	FilterClosestRayResultCallback rayCallback(filterCallback, rayFrom, rayTo);
-
 	PHY_RayCastResult result;
 
 	// don't collision with sensor object
 	rayCallback.m_collisionFilterMask = CcdConstructionInfo::AllFilter ^ CcdConstructionInfo::SensorFilter;
 	// use faster (less accurate) ray callback, works better with 0 collision margins
 	rayCallback.m_flags |= btTriangleRaycastCallback::kF_UseSubSimplexConvexCastRaytest;
-	//, ,filterCallback.m_faceNormal);
 
 	m_dynamicsWorld->rayTest(rayFrom, rayTo, rayCallback);
 	if (rayCallback.hasHit()) {
+		const btCollisionObject *object = rayCallback.m_collisionObject;
+		const btCollisionShape *shape = object->getCollisionShape();
+
 		CcdPhysicsController *controller = static_cast<CcdPhysicsController *>(rayCallback.m_collisionObject->getUserPointer());
 		result.m_controller = controller;
-		result.m_hitPoint[0] = rayCallback.m_hitPointWorld.getX();
-		result.m_hitPoint[1] = rayCallback.m_hitPointWorld.getY();
-		result.m_hitPoint[2] = rayCallback.m_hitPointWorld.getZ();
+		result.m_hitPoint = ToMt(rayCallback.m_hitPointWorld);
 
-		if (rayCallback.m_hitTriangleShape != nullptr) {
-			// identify the mesh polygon
-			CcdShapeConstructionInfo *shapeInfo = controller->m_shapeInfo;
-			if (shapeInfo) {
-				btCollisionShape *shape = controller->GetCollisionObject()->getCollisionShape();
-				if (shape->isCompound()) {
-					btCompoundShape *compoundShape = (btCompoundShape *)shape;
-					CcdShapeConstructionInfo *compoundShapeInfo = shapeInfo;
-					// need to search which sub-shape has been hit
-					for (int i = 0; i < compoundShape->getNumChildShapes(); i++) {
-						shapeInfo = compoundShapeInfo->GetChildShape(i);
-						shape = compoundShape->getChildShape(i);
-						if (shape == rayCallback.m_hitTriangleShape) {
-							break;
-						}
+		if (shape) {
+			if (shape->isCompound()) {
+				const btCompoundShape *compoundShape = static_cast<const btCompoundShape *>(shape);
+				shape = compoundShape->getChildShape(rayCallback.m_hitChildIndex);
+			}
+
+			CcdShapeConstructionInfo *shapeInfo = static_cast<CcdShapeConstructionInfo *>(shape->getUserPointer());
+			if (shapeInfo && rayCallback.m_hitTriangleIndex < shapeInfo->m_polygonIndexArray.size()) {
+				// save original collision shape triangle for soft body
+				const int hitTriangleIndex = rayCallback.m_hitTriangleIndex;
+
+				result.m_meshObject = shapeInfo->GetMesh();
+				if (shape->isSoftBody()) {
+					// soft body using different face numbering because of randomization
+					// hopefully we have stored the original face number in m_tag
+					const btSoftBody *softBody = static_cast<const btSoftBody *>(object);
+					if (softBody->m_faces[hitTriangleIndex].m_tag != 0) {
+						rayCallback.m_hitTriangleIndex = (int)((uintptr_t)(softBody->m_faces[hitTriangleIndex].m_tag) - 1);
 					}
 				}
-				if (shape == rayCallback.m_hitTriangleShape &&
-				    rayCallback.m_hitTriangleIndex < shapeInfo->m_polygonIndexArray.size()) {
-					// save original collision shape triangle for soft body
-					int hitTriangleIndex = rayCallback.m_hitTriangleIndex;
-
-					result.m_meshObject = shapeInfo->GetMesh();
+				// retrieve the original mesh polygon (in case of quad->tri conversion)
+				result.m_polygon = shapeInfo->m_polygonIndexArray[rayCallback.m_hitTriangleIndex];
+				// hit triangle in world coordinate, for face normal and UV coordinate
+				btVector3 triangle[3];
+				bool triangleOK = false;
+				if (filterCallback.m_faceUV && (3 * rayCallback.m_hitTriangleIndex) < shapeInfo->m_triFaceUVcoArray.size()) {
+					// interpolate the UV coordinate of the hit point
+					CcdShapeConstructionInfo::UVco *uvCo = &shapeInfo->m_triFaceUVcoArray[3 * rayCallback.m_hitTriangleIndex];
+					// 1. get the 3 coordinate of the triangle in world space
+					btVector3 v1, v2, v3;
 					if (shape->isSoftBody()) {
-						// soft body using different face numbering because of randomization
-						// hopefully we have stored the original face number in m_tag
-						const btSoftBody *softBody = static_cast<const btSoftBody *>(rayCallback.m_collisionObject);
-						if (softBody->m_faces[hitTriangleIndex].m_tag != 0) {
-							rayCallback.m_hitTriangleIndex = (int)((uintptr_t)(softBody->m_faces[hitTriangleIndex].m_tag) - 1);
-						}
+						// soft body give points directly in world coordinate
+						const btSoftBody *softBody = static_cast<const btSoftBody *>(object);
+						v1 = softBody->m_faces[hitTriangleIndex].m_n[0]->m_x;
+						v2 = softBody->m_faces[hitTriangleIndex].m_n[1]->m_x;
+						v3 = softBody->m_faces[hitTriangleIndex].m_n[2]->m_x;
 					}
-					// retrieve the original mesh polygon (in case of quad->tri conversion)
-					result.m_polygon = shapeInfo->m_polygonIndexArray[rayCallback.m_hitTriangleIndex];
-					// hit triangle in world coordinate, for face normal and UV coordinate
-					btVector3 triangle[3];
-					bool triangleOK = false;
-					if (filterCallback.m_faceUV && (3 * rayCallback.m_hitTriangleIndex) < shapeInfo->m_triFaceUVcoArray.size()) {
-						// interpolate the UV coordinate of the hit point
-						CcdShapeConstructionInfo::UVco *uvCo = &shapeInfo->m_triFaceUVcoArray[3 * rayCallback.m_hitTriangleIndex];
-						// 1. get the 3 coordinate of the triangle in world space
-						btVector3 v1, v2, v3;
-						if (shape->isSoftBody()) {
-							// soft body give points directly in world coordinate
-							const btSoftBody *softBody = static_cast<const btSoftBody *>(rayCallback.m_collisionObject);
-							v1 = softBody->m_faces[hitTriangleIndex].m_n[0]->m_x;
-							v2 = softBody->m_faces[hitTriangleIndex].m_n[1]->m_x;
-							v3 = softBody->m_faces[hitTriangleIndex].m_n[2]->m_x;
+					else {
+						// for rigid body we must apply the world transform
+						triangleOK = GetHitTriangle(shape, shapeInfo, hitTriangleIndex, triangle);
+						if (!triangleOK) {
+							// if we cannot get the triangle, no use to continue
+							goto SKIP_UV_NORMAL;
 						}
-						else {
-							// for rigid body we must apply the world transform
-							triangleOK = GetHitTriangle(shape, shapeInfo, hitTriangleIndex, triangle);
-							if (!triangleOK) {
-								// if we cannot get the triangle, no use to continue
-								goto SKIP_UV_NORMAL;
-							}
-							v1 = rayCallback.m_collisionObject->getWorldTransform()(triangle[0]);
-							v2 = rayCallback.m_collisionObject->getWorldTransform()(triangle[1]);
-							v3 = rayCallback.m_collisionObject->getWorldTransform()(triangle[2]);
-						}
-						// 2. compute barycentric coordinate of the hit point
-						btVector3 v = v2 - v1;
-						btVector3 w = v3 - v1;
-						btVector3 u = v.cross(w);
-						btScalar A = u.length();
-
-						v = v2 - rayCallback.m_hitPointWorld;
-						w = v3 - rayCallback.m_hitPointWorld;
-						u = v.cross(w);
-						btScalar A1 = u.length();
-
-						v = rayCallback.m_hitPointWorld - v1;
-						w = v3 - v1;
-						u = v.cross(w);
-						btScalar A2 = u.length();
-
-						btVector3 baryCo;
-						baryCo.setX(A1 / A);
-						baryCo.setY(A2 / A);
-						baryCo.setZ(1.0f - baryCo.getX() - baryCo.getY());
-						// 3. compute UV coordinate
-						result.m_hitUV[0] = baryCo.getX() * uvCo[0].uv[0] + baryCo.getY() * uvCo[1].uv[0] + baryCo.getZ() * uvCo[2].uv[0];
-						result.m_hitUV[1] = baryCo.getX() * uvCo[0].uv[1] + baryCo.getY() * uvCo[1].uv[1] + baryCo.getZ() * uvCo[2].uv[1];
-						result.m_hitUVOK = 1;
+						const btTransform& trans = object->getWorldTransform();
+						v1 = trans(triangle[0]);
+						v2 = trans(triangle[1]);
+						v3 = trans(triangle[2]);
 					}
+					// 2. compute barycentric coordinate of the hit point
+					btVector3 v = v2 - v1;
+					btVector3 w = v3 - v1;
+					btVector3 u = v.cross(w);
+					btScalar A = u.length();
 
-					// Bullet returns the normal from "outside".
-					// If the user requests the real normal, compute it now
-					if (filterCallback.m_faceNormal) {
-						if (shape->isSoftBody()) {
-							// we can get the real normal directly from the body
-							const btSoftBody *softBody = static_cast<const btSoftBody *>(rayCallback.m_collisionObject);
-							rayCallback.m_hitNormalWorld = softBody->m_faces[hitTriangleIndex].m_normal;
-						}
-						else {
-							if (!triangleOK) {
-								triangleOK = GetHitTriangle(shape, shapeInfo, hitTriangleIndex, triangle);
-							}
-							if (triangleOK) {
-								btVector3 triangleNormal;
-								triangleNormal = (triangle[1] - triangle[0]).cross(triangle[2] - triangle[0]);
-								rayCallback.m_hitNormalWorld = rayCallback.m_collisionObject->getWorldTransform().getBasis() * triangleNormal;
-							}
-						}
-					}
-SKIP_UV_NORMAL:
-					;
+					v = v2 - rayCallback.m_hitPointWorld;
+					w = v3 - rayCallback.m_hitPointWorld;
+					u = v.cross(w);
+					btScalar A1 = u.length();
+
+					v = rayCallback.m_hitPointWorld - v1;
+					w = v3 - v1;
+					u = v.cross(w);
+					btScalar A2 = u.length();
+
+					btVector3 baryCo;
+					baryCo.setX(A1 / A);
+					baryCo.setY(A2 / A);
+					baryCo.setZ(1.0f - baryCo.getX() - baryCo.getY());
+					// 3. compute UV coordinate
+					result.m_hitUV[0] = baryCo.getX() * uvCo[0].uv[0] + baryCo.getY() * uvCo[1].uv[0] + baryCo.getZ() * uvCo[2].uv[0];
+					result.m_hitUV[1] = baryCo.getX() * uvCo[0].uv[1] + baryCo.getY() * uvCo[1].uv[1] + baryCo.getZ() * uvCo[2].uv[1];
+					result.m_hitUVOK = 1;
 				}
+
+				// Bullet returns the normal from "outside".
+				// If the user requests the real normal, compute it now
+				if (filterCallback.m_faceNormal) {
+					if (shape->isSoftBody()) {
+						// we can get the real normal directly from the body
+						const btSoftBody *softBody = static_cast<const btSoftBody *>(rayCallback.m_collisionObject);
+						rayCallback.m_hitNormalWorld = softBody->m_faces[hitTriangleIndex].m_normal;
+					}
+					else {
+						if (!triangleOK) {
+							triangleOK = GetHitTriangle(shape, shapeInfo, hitTriangleIndex, triangle);
+						}
+						if (triangleOK) {
+							btVector3 triangleNormal;
+							triangleNormal = (triangle[1] - triangle[0]).cross(triangle[2] - triangle[0]);
+							rayCallback.m_hitNormalWorld = rayCallback.m_collisionObject->getWorldTransform().getBasis() * triangleNormal;
+						}
+					}
+				}
+SKIP_UV_NORMAL:
+				;
 			}
 		}
 		if (rayCallback.m_hitNormalWorld.length2() > (SIMD_EPSILON * SIMD_EPSILON)) {
@@ -1332,9 +1316,8 @@ SKIP_UV_NORMAL:
 		else {
 			rayCallback.m_hitNormalWorld.setValue(1.0f, 0.0f, 0.0f);
 		}
-		result.m_hitNormal[0] = rayCallback.m_hitNormalWorld.getX();
-		result.m_hitNormal[1] = rayCallback.m_hitNormalWorld.getY();
-		result.m_hitNormal[2] = rayCallback.m_hitNormalWorld.getZ();
+
+		result.m_hitNormal = ToMt(rayCallback.m_hitNormalWorld);
 		filterCallback.reportHit(&result);
 	}
 
@@ -3004,6 +2987,7 @@ void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter& converter, KX_GameO
 		// create the compound shape manually as we already have the child shape
 		btCompoundShape *compoundShape = new btCompoundShape();
 		compoundShape->addChildShape(shapeInfo->m_childTrans, bm);
+		compoundShape->setUserPointer(compoundShapeInfo);
 		// now replace the shape
 		bm = compoundShape;
 		shapeInfo->Release();
