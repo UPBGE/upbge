@@ -59,8 +59,6 @@ KX_Camera::KX_Camera(void *sgReplicationInfo,
 	m_activityCulling(false),
 	m_showDebugCameraFrustum(false)
 {
-	// setting a name would be nice...
-	m_name = "cam";
 }
 
 
