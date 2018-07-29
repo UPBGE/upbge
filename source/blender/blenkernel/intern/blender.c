@@ -73,6 +73,7 @@ Global G;
 UserDef U;
 
 char versionstr[48] = "";
+char upbge_versionstr[48] = "";
 
 /* ********** free ********** */
 
@@ -88,46 +89,57 @@ void BKE_blender_free(void)
 	}
 
 	BKE_spacetypes_free();      /* after free main, it uses space callbacks */
-	
+
 	IMB_exit();
 	BKE_cachefiles_exit();
 	BKE_images_exit();
 	DAG_exit();
 
 	BKE_brush_system_exit();
-	RE_texture_rng_exit();	
+	RE_texture_rng_exit();
 
 	BLI_callback_global_finalize();
 
 	BKE_sequencer_cache_destruct();
 	IMB_moviecache_destruct();
-	
+
 	free_nodesystem();
 }
 
-void BKE_blender_version_string(char *version_str, size_t maxncpy, short version, short subversion, bool v_prefix, bool include_subversion)
+void BKE_blender_version_string(char *version_str, size_t maxncpy, short version, short subversion, bool v_prefix, bool include_subversion, bool upbge)
 {
 	const char *prefix = v_prefix ? "v" : "";
 
-	if (include_subversion && subversion > 0) {
-		BLI_snprintf(version_str, maxncpy, "%s%d.%02d.%d", prefix, version / 100, version % 100, subversion);
+	if (upbge) {
+		if (include_subversion) {
+			BLI_snprintf(version_str, maxncpy, "%s0.%d.%d", prefix, version, subversion);
+		}
+		else {
+			BLI_snprintf(version_str, maxncpy, "%s0.%d", prefix, version);
+		}
 	}
 	else {
-		BLI_snprintf(version_str, maxncpy, "%s%d.%02d", prefix, version / 100, version % 100);
+		if (include_subversion && subversion > 0) {
+			BLI_snprintf(version_str, maxncpy, "%s%d.%02d.%d", prefix, version / 100, version % 100, subversion);
+		}
+		else {
+			BLI_snprintf(version_str, maxncpy, "%s%d.%02d", prefix, version / 100, version % 100);
+		}
 	}
 }
 
 void BKE_blender_globals_init(void)
 {
 	memset(&G, 0, sizeof(Global));
-	
+
 	U.savetime = 1;
 
 	G_MAIN = BKE_main_new();
 
 	strcpy(G.ima, "//");
 
-	BKE_blender_version_string(versionstr, sizeof(versionstr), BLENDER_VERSION, BLENDER_SUBVERSION, true, true);
+	BKE_blender_version_string(versionstr, sizeof(versionstr), BLENDER_VERSION, BLENDER_SUBVERSION, true, true, false);
+	BKE_blender_version_string(upbge_versionstr, sizeof(versionstr), UPBGE_VERSION, UPBGE_SUBVERSION, true, true, true);
 
 #ifndef WITH_PYTHON_SECURITY /* default */
 	G.f |= G_SCRIPT_AUTOEXEC;
@@ -321,7 +333,7 @@ int BKE_blender_test_break(void)
 		if (blender_test_break_cb)
 			blender_test_break_cb();
 	}
-	
+
 	return (G.is_break == true);
 }
 

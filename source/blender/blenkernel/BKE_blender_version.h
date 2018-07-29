@@ -43,5 +43,6 @@
 #define BLENDER_VERSION_CYCLE   alpha
 
 extern char versionstr[]; /* from blender.c */
+extern char upbge_versionstr[]; /* from blender.c */
 
 #endif  /* __BKE_BLENDER_VERSION_H__ */
