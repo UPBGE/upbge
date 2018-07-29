@@ -183,6 +183,7 @@ KX_GameObject::~KX_GameObject()
 
 	if (ob) {
 		copy_m4_m4(ob->obmat, m_savedObmat);
+		DEG_id_tag_update(&ob->id, DEG_TAG_COPY_ON_WRITE);
 	}
 
 	KX_Scene *scene = GetScene();
