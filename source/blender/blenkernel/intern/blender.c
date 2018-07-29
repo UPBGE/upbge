@@ -89,20 +89,20 @@ void BKE_blender_free(void)
 	}
 
 	BKE_spacetypes_free();      /* after free main, it uses space callbacks */
-
+	
 	IMB_exit();
 	BKE_cachefiles_exit();
 	BKE_images_exit();
 	DAG_exit();
 
 	BKE_brush_system_exit();
-	RE_texture_rng_exit();
+	RE_texture_rng_exit();	
 
 	BLI_callback_global_finalize();
 
 	BKE_sequencer_cache_destruct();
 	IMB_moviecache_destruct();
-
+	
 	free_nodesystem();
 }
 
@@ -131,7 +131,7 @@ void BKE_blender_version_string(char *version_str, size_t maxncpy, short version
 void BKE_blender_globals_init(void)
 {
 	memset(&G, 0, sizeof(Global));
-
+	
 	U.savetime = 1;
 
 	G_MAIN = BKE_main_new();
@@ -333,7 +333,7 @@ int BKE_blender_test_break(void)
 		if (blender_test_break_cb)
 			blender_test_break_cb();
 	}
-
+	
 	return (G.is_break == true);
 }
 
