@@ -106,25 +106,27 @@ void BKE_blender_free(void)
 	free_nodesystem();
 }
 
-void BKE_blender_version_string(char *version_str, size_t maxncpy, short version, short subversion, bool v_prefix, bool include_subversion, bool upbge)
+void BKE_blender_version_string(char *version_str, size_t maxncpy, short version, short subversion, bool v_prefix, bool include_subversion)
 {
 	const char *prefix = v_prefix ? "v" : "";
 
-	if (upbge) {
-		if (include_subversion) {
-			BLI_snprintf(version_str, maxncpy, "%s0.%d.%d", prefix, version, subversion);
-		}
-		else {
-			BLI_snprintf(version_str, maxncpy, "%s0.%d", prefix, version);
-		}
+	if (include_subversion && subversion > 0) {
+		BLI_snprintf(version_str, maxncpy, "%s%d.%02d.%d", prefix, version / 100, version % 100, subversion);
 	}
 	else {
-		if (include_subversion && subversion > 0) {
-			BLI_snprintf(version_str, maxncpy, "%s%d.%02d.%d", prefix, version / 100, version % 100, subversion);
-		}
-		else {
-			BLI_snprintf(version_str, maxncpy, "%s%d.%02d", prefix, version / 100, version % 100);
-		}
+		BLI_snprintf(version_str, maxncpy, "%s%d.%02d", prefix, version / 100, version % 100);
+	}
+}
+
+void BKE_upbge_version_string(char *version_str, size_t maxncpy, short version, short subversion, bool v_prefix, bool include_subversion)
+{
+	const char *prefix = v_prefix ? "v" : "";
+
+	if (include_subversion) {
+		BLI_snprintf(version_str, maxncpy, "%s0.%d.%d", prefix, version, subversion);
+	}
+	else {
+		BLI_snprintf(version_str, maxncpy, "%s0.%d", prefix, version);
 	}
 }
 
@@ -138,8 +140,8 @@ void BKE_blender_globals_init(void)
 
 	strcpy(G.ima, "//");
 
-	BKE_blender_version_string(versionstr, sizeof(versionstr), BLENDER_VERSION, BLENDER_SUBVERSION, true, true, false);
-	BKE_blender_version_string(upbge_versionstr, sizeof(versionstr), UPBGE_VERSION, UPBGE_SUBVERSION, true, true, true);
+	BKE_blender_version_string(versionstr, sizeof(versionstr), BLENDER_VERSION, BLENDER_SUBVERSION, true, true);
+	BKE_upbge_version_string(upbge_versionstr, sizeof(versionstr), UPBGE_VERSION, UPBGE_SUBVERSION, true, true);
 
 #ifndef WITH_PYTHON_SECURITY /* default */
 	G.f |= G_SCRIPT_AUTOEXEC;
