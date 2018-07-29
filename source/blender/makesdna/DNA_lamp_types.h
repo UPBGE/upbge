@@ -62,6 +62,7 @@ typedef struct Lamp {
 	
 	float att1, att2;	/* Quad1 and Quad2 attenuation */
 	float coeff_const, coeff_lin, coeff_quad, coeff_pad;
+	float cutoff, pad7;
 	struct CurveMapping *curfalloff;
 	short falloff_type;
 	short pad2;
@@ -178,7 +179,7 @@ typedef struct Lamp {
 #define LA_FALLOFF_CURVE			3
 #define LA_FALLOFF_SLIDERS			4
 #define LA_FALLOFF_INVCOEFFICIENTS	5
-
+#define LA_FALLOFF_INVSQUARE_CUTOFF	6
 
 /* buftype, no flag */
 #define LA_SHADBUF_REGULAR		0

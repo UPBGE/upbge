@@ -426,6 +426,7 @@ static void rna_def_lamp_falloff(StructRNA *srna)
 		{LA_FALLOFF_CONSTANT, "CONSTANT", 0, "Constant", ""},
 		{LA_FALLOFF_INVLINEAR, "INVERSE_LINEAR", 0, "Inverse Linear", ""},
 		{LA_FALLOFF_INVSQUARE, "INVERSE_SQUARE", 0, "Inverse Square", ""},
+		{LA_FALLOFF_INVSQUARE_CUTOFF, "INVSQUARE_CUTOFF", 0, "Inverse Square Cutoff", ""},
 		{LA_FALLOFF_INVCOEFFICIENTS, "INVERSE_COEFFICIENTS", 0, "Inverse Coefficients", ""},
 		{LA_FALLOFF_CURVE, "CUSTOM_CURVE", 0, "Custom Curve", ""},
 		{LA_FALLOFF_SLIDERS, "LINEAR_QUADRATIC_WEIGHTED", 0, "Lin/Quad Weighted", ""},
@@ -478,6 +479,12 @@ static void rna_def_lamp_falloff(StructRNA *srna)
 	RNA_def_property_range(prop, 0.0f, FLT_MAX);
 	RNA_def_property_ui_text(prop, "Quadratic Coefficient",
 	                         "Quadratic distance attenuation coefficient");
+	RNA_def_property_update(prop, 0, "rna_Lamp_draw_update");
+
+	prop = RNA_def_property(srna, "cutoff_threshold", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "cutoff");
+	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_ui_text(prop, "Cutoff", "Cutoff Threshold");
 	RNA_def_property_update(prop, 0, "rna_Lamp_draw_update");
 }
 

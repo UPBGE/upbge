@@ -1847,6 +1847,16 @@ void lamp_falloff_curve(float lampdist, sampler2D curvemap, float dist, out floa
 	visifac = texture2D(curvemap, vec2(dist / lampdist, 0.0)).x;
 }
 
+void lamp_falloff_invsquarecutoff(float radius, float dist, float cutoff, out float visifac)
+{
+	float d = max(dist - radius, 0.0);
+	float denom = d / radius + 1.0;
+ 	float att = 1.0 / (denom * denom);
+	att = (att - cutoff) / (1.0 - cutoff);
+	att = max(att, 0.0);
+ 	visifac = att;
+}
+
 void lamp_visibility_sphere(float lampdist, float dist, float visifac, out float outvisifac)
 {
 	float t = lampdist - dist;

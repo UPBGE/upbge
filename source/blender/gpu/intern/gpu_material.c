@@ -152,6 +152,7 @@ struct GPULamp {
 
 	float dynenergy, dyncol[3];
 	float energy, col[3];
+	float cutoff;
 
 	float co[3], vec[3];
 	float dynco[3], dynvec[3];
@@ -658,6 +659,15 @@ static GPUNodeLink *lamp_get_visibility(GPUMaterial *mat, GPULamp *lamp, GPUNode
 				         GPU_select_uniform(&lamp->dist, GPU_DYNAMIC_LAMP_DISTANCE, lamp->ob, ma),
 				         GPU_texture(size, array), *dist, &visifac);
 
+				break;
+			}
+			case LA_FALLOFF_INVSQUARE_CUTOFF:
+			{
+				GPU_link(mat, "lamp_falloff_invsquarecutoff",
+						 GPU_select_uniform(&lamp->dist, GPU_DYNAMIC_LAMP_DISTANCE, lamp->ob, ma),
+						 *dist,
+						 GPU_select_uniform(&lamp->cutoff, GPU_DYNAMIC_LAMP_CUTOFF, lamp->ob, ma),
+						 &visifac);
 				break;
 			}
 		}
@@ -2591,6 +2601,7 @@ static void gpu_lamp_from_blender(Scene *scene, Object *ob, Object *par, Lamp *l
 	lamp->coeff_lin = la->coeff_lin;
 	lamp->coeff_quad = la->coeff_quad;
 	lamp->curfalloff = la->curfalloff;
+	lamp->cutoff = la->cutoff;
 
 	/* initshadowbuf */
 	lamp->bias = 0.02f * la->bias;
