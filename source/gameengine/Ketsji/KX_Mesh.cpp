@@ -53,6 +53,14 @@
 #include "EXP_PyObjectPlus.h"
 #include "EXP_ListWrapper.h"
 
+#include "BLI_kdopbvh.h"
+
+#include "MEM_guardedalloc.h"
+
+extern "C" {
+#  include "mathutils_bvhtree.h"
+}
+
 KX_Mesh::KX_Mesh(KX_Scene *scene, Mesh *mesh, const RAS_Mesh::LayersInfo& layersInfo)
 	:RAS_Mesh(mesh, layersInfo),
 	m_scene(scene)
@@ -108,6 +116,7 @@ PyMethodDef KX_Mesh::Methods[] = {
 	{"transformUV", (PyCFunction)KX_Mesh::sPyTransformUV, METH_VARARGS},
 	{"replaceMaterial", (PyCFunction)KX_Mesh::sPyReplaceMaterial, METH_VARARGS},
 	{"copy", (PyCFunction)KX_Mesh::sPyCopy, METH_NOARGS},
+	{"constructBvh", (PyCFunction)KX_Mesh::sPyConstructBvh, METH_VARARGS},
 	{nullptr, nullptr} //Sentinel
 };
 
@@ -390,6 +399,70 @@ PyObject *KX_Mesh::PyCopy()
 	KX_GetActiveEngine()->GetConverter()->RegisterMesh(m_scene, dupli);
 
 	return dupli->GetProxy();
+}
+
+PyObject *KX_Mesh::PyConstructBvh(PyObject *args, PyObject *kwds)
+{
+	float epsilon = 0.0f;
+
+	if (!PyArg_ParseTuple(args, "|f:constructBvh", &epsilon)) {
+		return nullptr;
+	}
+
+	BVHTree *tree = BLI_bvhtree_new(m_numPolygons, epsilon, 4, 6);
+
+	unsigned int numVert = 0;
+	// Compute the totale number of vertices.
+	for (const PolygonRangeInfo& range : m_polygonRanges) {
+		numVert += range.array->GetVertexCount();
+	}
+
+	float (*coords)[3] = (float (*)[3])MEM_mallocN(sizeof(float[3]) * numVert, __func__);
+	// Convert the vertices.
+	{
+		unsigned vertBase = 0;
+		for (const PolygonRangeInfo& range : m_polygonRanges) {
+			RAS_DisplayArray *array = range.array;
+			for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
+				copy_v3_v3(coords[vertBase + i], array->GetPosition(i).data);
+			}
+			vertBase += array->GetVertexCount();
+		}
+	}
+
+	unsigned int *tris = (unsigned int *)MEM_mallocN(sizeof(unsigned int) * 3 * m_numPolygons, __func__);
+	// Convert the indices.
+	{
+		unsigned int index = 0;
+		unsigned int vertBase = 0;
+		for (const PolygonRangeInfo& range : m_polygonRanges) {
+			// Iterate by triangle (3 indices).
+			for (; index < range.endIndex; index += 3) {
+				// Get the relative triangle base index.
+				const unsigned int triBase = index - range.startIndex;
+				float co[3][3];
+
+				for (unsigned short i = 0; i < 3; ++i) {
+					// Get the absolute the vertex index.
+					const unsigned int vertIndex = vertBase + range.array->GetTriangleIndex(triBase + i);
+
+					tris[index + i] = vertIndex;
+					copy_v3_v3(co[i], coords[vertIndex]);
+				}
+
+				BLI_bvhtree_insert(tree, index / 3, co[0], 3);
+			}
+			vertBase += range.array->GetVertexCount();
+		}
+	}
+
+	BLI_bvhtree_balance(tree);
+
+	return bvhtree_CreatePyObject(
+		tree, epsilon,
+		coords, numVert,
+		(unsigned int (*)[3])tris, m_numPolygons * 3,
+		nullptr, nullptr);
 }
 
 PyObject *KX_Mesh::pyattr_get_materials(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
