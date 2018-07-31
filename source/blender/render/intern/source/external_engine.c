@@ -76,7 +76,7 @@ static RenderEngineType internal_render_type = {
 
 static RenderEngineType internal_game_type = {
 	NULL, NULL,
-	"BLENDER_GAME", N_("Blender Game"), RE_INTERNAL | RE_GAME,
+	"BLENDER_GAME", N_("UPBGE"), RE_INTERNAL | RE_GAME,
 	NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 	{NULL, NULL, NULL}
 };

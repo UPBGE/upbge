@@ -1292,6 +1292,7 @@ class INFO_MT_add(Menu):
     bl_label = "Add"
 
     def draw(self, context):
+        rd = context.scene.render.engine
         layout = self.layout
 
         # note, don't use 'EXEC_SCREEN' or operators wont get the 'v3d' context.
@@ -1316,8 +1317,9 @@ class INFO_MT_add(Menu):
         layout.operator_menu_enum("object.empty_add", "type", text="Empty", icon='OUTLINER_OB_EMPTY')
         layout.separator()
 
-        layout.operator("object.speaker_add", text="Speaker", icon='OUTLINER_OB_SPEAKER')
-        layout.separator()
+        if rd != "BLENDER_GAME":
+            layout.operator("object.speaker_add", text="Speaker", icon='OUTLINER_OB_SPEAKER')
+            layout.separator()
 
         if INFO_MT_camera_add.is_extended():
             layout.menu("INFO_MT_camera_add", icon='OUTLINER_OB_CAMERA')
@@ -1327,8 +1329,10 @@ class INFO_MT_add(Menu):
         layout.menu("INFO_MT_lamp_add", icon='OUTLINER_OB_LAMP')
         layout.separator()
 
-        layout.operator_menu_enum("object.effector_add", "type", text="Force Field", icon='OUTLINER_OB_FORCE_FIELD')
-        layout.separator()
+        print(rd)
+        if rd != "BLENDER_GAME":
+            layout.operator_menu_enum("object.effector_add", "type", text="Force Field", icon='OUTLINER_OB_FORCE_FIELD')
+            layout.separator()
 
         if len(bpy.data.groups) > 10:
             layout.operator_context = 'INVOKE_REGION_WIN'
