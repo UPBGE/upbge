@@ -54,6 +54,7 @@
 #include "EXP_ListWrapper.h"
 
 #include "BLI_kdopbvh.h"
+#include "BLI_compiler_compat.h" // For MSVC __func__
 
 #include "MEM_guardedalloc.h"
 
