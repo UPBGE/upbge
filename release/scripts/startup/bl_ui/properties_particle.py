@@ -849,13 +849,13 @@ class PARTICLE_PT_physics_boids_movement(ParticleButtonsPanel, Panel):
         part = particle_get_settings(context)
         boids = part.boids
 
-        col=layout.column()
+        col = layout.column()
 
         col.prop(boids, "use_flight")
         col.prop(boids, "use_land")
         col.prop(boids, "use_climb")
 
-        col=layout.column()
+        col = layout.column()
 
         col.active = boids.use_flight
         sub = col.column()
@@ -870,7 +870,7 @@ class PARTICLE_PT_physics_boids_movement(ParticleButtonsPanel, Panel):
 
         layout.separator()
 
-        col=layout.column()
+        col = layout.column()
         col.active = boids.use_land or boids.use_climb
         col.prop(boids, "land_speed_max")
         col.prop(boids, "land_jump_speed")
@@ -882,6 +882,7 @@ class PARTICLE_PT_physics_boids_movement(ParticleButtonsPanel, Panel):
         layout.separator()
 
         layout.prop(part, "collision_group")
+
 
 class PARTICLE_PT_physics_boids_battle(ParticleButtonsPanel, Panel):
     bl_label = "Battle"
@@ -902,13 +903,14 @@ class PARTICLE_PT_physics_boids_battle(ParticleButtonsPanel, Panel):
         part = particle_get_settings(context)
         boids = part.boids
 
-        col=layout.column()
+        col = layout.column()
 
         col.prop(boids, "health")
         col.prop(boids, "strength")
         col.prop(boids, "aggression")
         col.prop(boids, "accuracy")
         col.prop(boids, "range")
+
 
 class PARTICLE_PT_physics_boids_misc(ParticleButtonsPanel, Panel):
     bl_label = "Misc"
@@ -929,7 +931,7 @@ class PARTICLE_PT_physics_boids_misc(ParticleButtonsPanel, Panel):
         part = particle_get_settings(context)
         boids = part.boids
 
-        col=layout.column()
+        col = layout.column()
 
         col.prop(boids, "bank", slider=True)
         col.prop(boids, "pitch", slider=True)
@@ -953,7 +955,6 @@ class PARTICLE_PT_physics_relations(ParticleButtonsPanel, Panel):
 
         psys = context.particle_system
         part = particle_get_settings(context)
-
 
         row = layout.row()
         row.template_list("UI_UL_list", "particle_targets", psys, "targets",
@@ -995,7 +996,6 @@ class PARTICLE_PT_physics_relations(ParticleButtonsPanel, Panel):
                 #sub.alert = key.valid
                 sub.prop(key, "object")
                 sub.prop(key, "system", text="System")
-
 
 
 class PARTICLE_PT_physics_deflection(ParticleButtonsPanel, Panel):

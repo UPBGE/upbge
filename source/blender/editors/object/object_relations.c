@@ -70,6 +70,7 @@
 #include "BKE_DerivedMesh.h"
 #include "BKE_displist.h"
 #include "BKE_global.h"
+#include "BKE_gpencil.h"
 #include "BKE_fcurve.h"
 #include "BKE_idprop.h"
 #include "BKE_lamp.h"
@@ -1610,21 +1611,11 @@ void OBJECT_OT_make_links_data(wmOperatorType *ot)
 
 /**************************** Make Single User ********************************/
 
-static Object *single_object_users_object(Main *bmain, Scene *scene, Object *ob)
+static Object *single_object_users_object(Main *bmain, Object *ob)
 {
 	/* base gets copy of object */
 	Object *obn = ID_NEW_SET(ob, BKE_object_copy(bmain, ob));
 
-	/* remap gpencil parenting */
-
-	if (scene->gpd) {
-		bGPdata *gpd = scene->gpd;
-		for (bGPDlayer *gpl = gpd->layers.first; gpl; gpl = gpl->next) {
-			if (gpl->parent == ob) {
-				gpl->parent = obn;
-			}
-		}
-	}
 
 	id_us_plus(&obn->id);
 	id_us_min(&ob->id);
@@ -1649,7 +1640,7 @@ static void single_object_users_collection(Main *bmain, Scene *scene, Collection
 		/* an object may be in more than one collection */
 		if ((ob->id.newid == NULL) && ((ob->flag & flag) == flag)) {
 			if (!ID_IS_LINKED(ob) && ob->id.us > 1) {
-				cob->ob = single_object_users_object(bmain, scene, cob->ob);
+				cob->ob = single_object_users_object(bmain, cob->ob);
 			}
 		}
 	}
@@ -1705,6 +1696,7 @@ static void single_object_users(Main *bmain, Scene *scene, View3D *v3d, const in
 	/* collection pointers in scene */
 	BKE_scene_groups_relink(scene);
 
+	/* active camera */
 	ID_NEW_REMAP(scene->camera);
 	if (v3d) ID_NEW_REMAP(v3d->camera);
 
@@ -1802,13 +1794,16 @@ static void single_obdata_users(Main *bmain, Scene *scene, ViewLayer *view_layer
 					case OB_ARMATURE:
 						DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
 						ob->data = ID_NEW_SET(ob->data, BKE_armature_copy(bmain, ob->data));
-						BKE_pose_rebuild(bmain, ob, ob->data);
+						BKE_pose_rebuild(bmain, ob, ob->data, true);
 						break;
 					case OB_SPEAKER:
 						ob->data = ID_NEW_SET(ob->data, BKE_speaker_copy(bmain, ob->data));
 						break;
 					case OB_LIGHTPROBE:
 						ob->data = ID_NEW_SET(ob->data, BKE_lightprobe_copy(bmain, ob->data));
+						break;
+					case OB_GPENCIL:
+						ob->data = ID_NEW_SET(ob->data, BKE_gpencil_copy(bmain, ob->data));
 						break;
 					default:
 						printf("ERROR %s: can't copy %s\n", __func__, id->name);
@@ -1943,10 +1938,6 @@ void ED_object_single_users(Main *bmain, Scene *scene, const bool full, const bo
 			for (bNode *node = scene->nodetree->nodes.first; node; node = node->next) {
 				IDP_RelinkProperty(node->prop);
 			}
-		}
-
-		if (scene->gpd) {
-			IDP_RelinkProperty(scene->gpd->id.properties);
 		}
 
 		if (scene->world) {

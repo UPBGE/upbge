@@ -265,6 +265,13 @@ data_to_c_simple(shaders/gpu_shader_black_vert.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_frame_buffer_frag.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_frame_buffer_vert.glsl SRC)
 
+data_to_c_simple(shaders/gpu_shader_gpencil_stroke_vert.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_gpencil_stroke_frag.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_gpencil_stroke_geom.glsl SRC)
+
+data_to_c_simple(shaders/gpu_shader_gpencil_fill_vert.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_gpencil_fill_frag.glsl SRC)
+
 if(WITH_GAMEENGINE)
 	add_definitions(-DWITH_GAMEENGINE)
 endif()

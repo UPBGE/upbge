@@ -548,9 +548,13 @@ void update_special_pointers(const Depsgraph *depsgraph,
 				object_cow->runtime.mesh_orig = (Mesh *)object_cow->data;
 			}
 			if (object_cow->type == OB_ARMATURE) {
-				BKE_pose_remap_bone_pointers((bArmature *)object_cow->data,
-				                             object_cow->pose);
-				update_pose_orig_pointers(object_orig->pose, object_cow->pose);
+				const bArmature *armature_orig = (bArmature *)object_orig->data;
+				bArmature *armature_cow = (bArmature *)object_cow->data;
+				BKE_pose_remap_bone_pointers(armature_cow, object_cow->pose);
+				if (armature_orig->edbo == NULL) {
+					update_pose_orig_pointers(object_orig->pose,
+					                          object_cow->pose);
+				}
 			}
 			update_particle_system_orig_pointers(object_orig, object_cow);
 			break;
@@ -753,7 +757,7 @@ static void deg_restore_object_runtime(
 	Mesh *mesh_orig = object->runtime.mesh_orig;
 	object->runtime = object_runtime_backup->runtime;
 	object->runtime.mesh_orig = mesh_orig;
-	if (object->runtime.mesh_eval != NULL) {
+	if (object->type == OB_MESH && object->runtime.mesh_eval != NULL) {
 		if (object->id.recalc & ID_RECALC_GEOMETRY) {
 			/* If geometry is tagged for update it means, that part of
 			 * evaluated mesh are not valid anymore. In this case we can not
@@ -769,14 +773,12 @@ static void deg_restore_object_runtime(
 			/* Do same thing as object update: override actual object data
 			 * pointer with evaluated datablock.
 			 */
-			if (object->type == OB_MESH) {
-				object->data = mesh_eval;
-				/* Evaluated mesh simply copied edit_btmesh pointer from
-				 * original mesh during update, need to make sure no dead
-				 * pointers are left behind.
-				*/
-				mesh_eval->edit_btmesh = mesh_orig->edit_btmesh;
-			}
+			object->data = mesh_eval;
+			/* Evaluated mesh simply copied edit_btmesh pointer from
+			 * original mesh during update, need to make sure no dead
+			 * pointers are left behind.
+			*/
+			mesh_eval->edit_btmesh = mesh_orig->edit_btmesh;
 		}
 	}
 	object->base_flag = object_runtime_backup->base_flag;

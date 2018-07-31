@@ -31,6 +31,8 @@ set(INC
 	../../makesdna
 	../../makesrna
 	../../modifiers
+	../../gpencil_modifiers
+	../../shader_fx
 	../../python
 	../../render/extern/include
 	../../windowmanager
@@ -54,6 +56,8 @@ set(SRC
 	object_lod.c
 	object_modes.c
 	object_modifier.c
+	object_gpencil_modifier.c
+	object_shader_fx.c
 	object_ops.c
 	object_random.c
 	object_relations.c

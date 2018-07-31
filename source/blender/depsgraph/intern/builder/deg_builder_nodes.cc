@@ -77,6 +77,8 @@ extern "C" {
 #include "BKE_curve.h"
 #include "BKE_effect.h"
 #include "BKE_fcurve.h"
+#include "BKE_gpencil.h"
+#include "BKE_gpencil_modifier.h"
 #include "BKE_idcode.h"
 #include "BKE_key.h"
 #include "BKE_lattice.h"
@@ -93,6 +95,7 @@ extern "C" {
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
 #include "BKE_rigidbody.h"
+#include "BKE_shader_fx.h"
 #include "BKE_sound.h"
 #include "BKE_tracking.h"
 #include "BKE_world.h"
@@ -518,6 +521,18 @@ void DepsgraphNodeBuilder::build_object(int base_index,
 		data.builder = this;
 		modifiers_foreachIDLink(object, modifier_walk, &data);
 	}
+	/* Grease Pencil Modifiers. */
+	if (object->greasepencil_modifiers.first != NULL) {
+		BuilderWalkUserData data;
+		data.builder = this;
+		BKE_gpencil_modifiers_foreachIDLink(object, modifier_walk, &data);
+	}
+	/* Shadr FX. */
+	if (object->shader_fx.first != NULL) {
+		BuilderWalkUserData data;
+		data.builder = this;
+		BKE_shaderfx_foreachIDLink(object, modifier_walk, &data);
+	}
 	/* Constraints. */
 	if (object->constraints.first != NULL) {
 		BuilderWalkUserData data;
@@ -541,10 +556,6 @@ void DepsgraphNodeBuilder::build_object(int base_index,
 	/* Particle systems. */
 	if (object->particlesystem.first != NULL) {
 		build_particles(object);
-	}
-	/* Grease pencil. */
-	if (object->gpd != NULL) {
-		build_gpencil(object->gpd);
 	}
 	/* Proxy object to copy from. */
 	if (object->proxy_from != NULL) {
@@ -596,6 +607,7 @@ void DepsgraphNodeBuilder::build_object_data(Object *object)
 		case OB_SURF:
 		case OB_MBALL:
 		case OB_LATTICE:
+		case OB_GPENCIL:
 			build_object_data_geometry(object);
 			/* TODO(sergey): Only for until we support granular
 			 * update of curves.
@@ -1213,6 +1225,20 @@ void DepsgraphNodeBuilder::build_object_data_geometry_datablock(ID *obdata)
 			                                           _1,
 			                                           (Lattice *)obdata_cow),
 			                                           DEG_OPCODE_PLACEHOLDER,
+			                                           "Geometry Eval");
+			op_node->set_as_entry();
+			break;
+		}
+
+		case ID_GD:
+		{
+			/* GPencil evaluation operations. */
+			op_node = add_operation_node(obdata,
+			                             DEG_NODE_TYPE_GEOMETRY,
+			                             function_bind(BKE_gpencil_eval_geometry,
+			                                           _1,
+													   (bGPdata *)obdata_cow),
+													   DEG_OPCODE_PLACEHOLDER,
 			                                           "Geometry Eval");
 			op_node->set_as_entry();
 			break;
