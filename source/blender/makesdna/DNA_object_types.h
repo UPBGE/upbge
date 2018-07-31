@@ -142,6 +142,10 @@ typedef struct Object_Runtime {
 	 * It has deforemation only modifiers applied on it.
 	 */
 	struct Mesh *mesh_deform_eval;
+
+
+	/* Runtime evaluated curve-specific data, not stored in the file. */
+	struct CurveCache *curve_cache;
 } Object_Runtime;
 
 typedef struct Object {
@@ -328,9 +332,6 @@ typedef struct Object {
 	uint64_t customdata_mask; /* (extra) custom data layer mask to use for creating derivedmesh, set by depsgraph */
 	unsigned int state;			/* bit masks of game controllers that are active */
 	unsigned int init_state;	/* bit masks of initial state as recorded by the users */
-
-	/* Runtime valuated curve-specific data, not stored in the file */
-	struct CurveCache *curve_cache;
 
 	ListBase pc_ids;
 
