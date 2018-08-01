@@ -181,7 +181,7 @@ class VIEW3D_HT_header(Header):
         # Proportional editing
         if obj:
             gpd = context.gpencil_data
-            if gpd is not None:
+            if gpd is not None and obj.type == 'GPENCIL':
                 if gpd.use_stroke_edit_mode or gpd.is_stroke_sculpt_mode:
                     row = layout.row(align=True)
                     row.prop(tool_settings, "proportional_edit", icon_only=True)
@@ -3607,7 +3607,7 @@ class VIEW3D_MT_edit_gpencil(Menu):
         layout.separator()
 
         layout.operator_menu_enum("gpencil.move_to_layer", "layer", text="Move to Layer")
-        layout.operator("gpencil.stroke_change_color", text="Change Color")
+        layout.operator("gpencil.stroke_change_color", text="Assign Material")
         layout.operator_menu_enum("gpencil.stroke_arrange", "direction", text="Arrange Strokes...")
 
         layout.separator()
@@ -3657,7 +3657,7 @@ class VIEW3D_MT_sculpt_gpencil(Menu):
         layout.separator()
 
         layout.operator_menu_enum("gpencil.move_to_layer", "layer", text="Move to Layer")
-        layout.operator("gpencil.stroke_change_color", text="Change Color")
+        layout.operator("gpencil.stroke_change_color", text="Assign Material")
         layout.operator_menu_enum("gpencil.stroke_arrange", "direction", text="Arrange Strokes...")
 
         layout.separator()

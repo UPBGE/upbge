@@ -1619,11 +1619,11 @@ void DRW_draw_render_loop_offscreen(
 }
 
 /* helper to check if exit object type to render */
-static bool DRW_render_check_object_type(struct Depsgraph *depsgraph, short obtype)
+static bool DRW_render_check_grease_pencil(Depsgraph *depsgraph)
 {
 	DEG_OBJECT_ITER_FOR_RENDER_ENGINE_BEGIN(depsgraph, ob)
 	{
-		if ((ob->type == obtype) && (DRW_check_object_visible_within_active_context(ob))) {
+		if ((ob->type == OB_GPENCIL) && (DRW_check_object_visible_within_active_context(ob))) {
 			return true;
 		}
 	}
@@ -1632,13 +1632,11 @@ static bool DRW_render_check_object_type(struct Depsgraph *depsgraph, short obty
 	return false;
 }
 
-static void DRW_render_gpencil_to_image(RenderEngine *engine, struct Depsgraph *depsgraph, struct RenderLayer *render_layer, const rcti *rect)
+static void DRW_render_gpencil_to_image(RenderEngine *engine, struct RenderLayer *render_layer, const rcti *rect)
 {
 	if (draw_engine_gpencil_type.render_to_image) {
-		if (DRW_render_check_object_type(depsgraph, OB_GPENCIL)) {
-			ViewportEngineData *gpdata = drw_viewport_engine_data_ensure(&draw_engine_gpencil_type);
-			draw_engine_gpencil_type.render_to_image(gpdata, engine, render_layer, rect);
-		}
+		ViewportEngineData *gpdata = drw_viewport_engine_data_ensure(&draw_engine_gpencil_type);
+		draw_engine_gpencil_type.render_to_image(gpdata, engine, render_layer, rect);
 	}
 }
 
@@ -1652,14 +1650,36 @@ void DRW_render_gpencil(struct RenderEngine *engine, struct Depsgraph *depsgraph
 		return;
 	}
 
+	/* Early out if there are no grease pencil objects, especially important
+	 * to avoid failing in in background renders without OpenGL context. */
+	if (!DRW_render_check_grease_pencil(depsgraph)) {
+		return;
+	}
+
 	Scene *scene = DEG_get_evaluated_scene(depsgraph);
 	ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
 	RenderEngineType *engine_type = engine->type;
 	RenderData *r = &scene->r;
 	Render *render = engine->re;
 	/* Changing Context */
-	/* GPXX Review this context */
-	DRW_opengl_context_enable();
+	if (G.background && DST.gl_context == NULL) {
+		WM_init_opengl(G_MAIN);
+	}
+
+	void *re_gl_context = RE_gl_context_get(render);
+	void *re_gpu_context = NULL;
+
+	/* Changing Context */
+	if (re_gl_context != NULL) {
+		DRW_opengl_render_context_enable(re_gl_context);
+		/* We need to query gpu context after a gl context has been bound. */
+		re_gpu_context = RE_gpu_context_get(render);
+		DRW_gawain_render_context_enable(re_gpu_context);
+	}
+	else {
+		DRW_opengl_context_enable();
+	}
+
 	/* Reset before using it. */
 	drw_state_prepare_clean_for_draw(&DST);
 	DST.options.is_image_render = true;
@@ -1696,7 +1716,7 @@ void DRW_render_gpencil(struct RenderEngine *engine, struct Depsgraph *depsgraph
 	RenderResult *render_result = RE_engine_get_result(engine);
 	RenderLayer *render_layer = render_result->layers.first;
 
-	DRW_render_gpencil_to_image(engine, depsgraph, render_layer, &render_rect);
+	DRW_render_gpencil_to_image(engine, render_layer, &render_rect);
 
 	/* Force cache to reset. */
 	drw_viewport_cache_resize();
@@ -1798,7 +1818,9 @@ void DRW_render_to_image(RenderEngine *engine, struct Depsgraph *depsgraph)
 		RE_SetActiveRenderView(render, render_view->name);
 		engine_type->draw_engine->render_to_image(data, engine, render_layer, &render_rect);
 		/* grease pencil: render result is merged in the previous render result. */
-		DRW_render_gpencil_to_image(engine, depsgraph, render_layer, &render_rect);
+		if (DRW_render_check_grease_pencil(depsgraph)) {
+			DRW_render_gpencil_to_image(engine, render_layer, &render_rect);
+		}
 		DST.buffer_finish_called = false;
 	}
 

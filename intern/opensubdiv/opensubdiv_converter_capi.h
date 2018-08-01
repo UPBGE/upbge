@@ -19,6 +19,8 @@
 #ifndef OPENSUBDIV_CONVERTER_CAPI_H_
 #define OPENSUBDIV_CONVERTER_CAPI_H_
 
+#include <stdint.h>  // for bool
+
 #include "opensubdiv_capi_type.h"
 
 #ifdef __cplusplus
@@ -32,8 +34,20 @@ typedef struct OpenSubdiv_Converter {
   OpenSubdiv_FVarLinearInterpolation (*getFVarLinearInterpolation)(
       const struct OpenSubdiv_Converter* converter);
 
+  // Denotes whether this converter specifies full topology, which includes
+  // vertices, edges, faces, vertices+edges of a face and edges/faces of a
+  // vertex.
+  // Otherwise this converter will only provide number of vertices and faces,
+  // and vertices of faces. The rest of topology will be created by OpenSubdiv.
+  //
+  // NOTE: Even if converter does not provide full topology, it still needs
+  // to provide number of edges and vertices-of-edge. Those are used to assign
+  // topology tags.
+  bool (*specifiesFullTopology)(const struct OpenSubdiv_Converter* converter);
+
   //////////////////////////////////////////////////////////////////////////////
   // Global geometry counters.
+
   // Number of faces/edges/vertices in the base mesh.
   int (*getNumFaces)(const struct OpenSubdiv_Converter* converter);
   int (*getNumEdges)(const struct OpenSubdiv_Converter* converter);
@@ -91,6 +105,15 @@ typedef struct OpenSubdiv_Converter {
   void (*getVertexFaces)(const struct OpenSubdiv_Converter* converter,
                          const int vertex_index,
                          int* vertex_faces);
+
+  // Check whether vertex is to be marked as an infinite sharp.
+  // This is a way to make sharp vertices which are adjacent to a loose edges.
+  bool (*isInfiniteSharpVertex)(const struct OpenSubdiv_Converter* converter,
+                                const int vertex_index);
+
+  // If vertex is not infinitely sharp, this is it's actual sharpness.
+  float (*getVertexSharpness)(const struct OpenSubdiv_Converter* converter,
+                              const int vertex_index);
 
   //////////////////////////////////////////////////////////////////////////////
   // Face-varying data.
