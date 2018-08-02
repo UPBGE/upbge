@@ -96,8 +96,22 @@ RAS_BucketManager::~RAS_BucketManager()
 	}
 }
 
+void RAS_BucketManager::PrepareBuckets(RAS_Rasterizer *rasty, RAS_BucketManager::BucketType bucketType)
+{
+	if (m_nodeData.m_shaderOverride) {
+		return;
+	}
+
+	for (RAS_MaterialBucket *bucket : m_buckets[bucketType]) {
+		RAS_IPolyMaterial *mat = bucket->GetPolyMaterial();
+		mat->Prepare(rasty);
+	}
+}
+
 void RAS_BucketManager::RenderSortedBuckets(RAS_Rasterizer *rasty, RAS_BucketManager::BucketType bucketType)
 {
+	PrepareBuckets(rasty, bucketType);
+
 	BucketList& solidBuckets = m_buckets[bucketType];
 	RAS_UpwardTreeLeafs leafs;
 	for (RAS_MaterialBucket *bucket : solidBuckets) {
@@ -133,6 +147,8 @@ void RAS_BucketManager::RenderSortedBuckets(RAS_Rasterizer *rasty, RAS_BucketMan
 
 void RAS_BucketManager::RenderBasicBuckets(RAS_Rasterizer *rasty, RAS_BucketManager::BucketType bucketType)
 {
+	PrepareBuckets(rasty, bucketType);
+
 	RAS_UpwardTreeLeafs leafs;
 	for (RAS_MaterialBucket *bucket : m_buckets[bucketType]) {
 		bucket->GenerateTree(m_downwardNode, m_upwardNode, leafs, m_nodeData.m_drawingMode, false);

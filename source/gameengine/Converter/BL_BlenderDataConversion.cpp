@@ -423,7 +423,7 @@ static void BL_GetUvRgba(const RAS_Mesh::LayersInfo& layersInfo, std::vector<MLo
 	}
 }
 
-static RAS_MaterialBucket *BL_ConvertMaterial(Material *ma, int lightlayer, KX_Scene *scene, BL_SceneConverter& converter)
+static RAS_MaterialBucket *BL_ConvertMaterial(Material *ma, KX_Scene *scene, BL_SceneConverter& converter)
 {
 	KX_BlenderMaterial *mat = converter.FindMaterial(ma);
 
@@ -434,7 +434,7 @@ static RAS_MaterialBucket *BL_ConvertMaterial(Material *ma, int lightlayer, KX_S
 			name = "MA";
 		}
 
-		mat = new KX_BlenderMaterial(ma, name, lightlayer);
+		mat = new KX_BlenderMaterial(ma, name);
 
 		// this is needed to free up memory afterwards.
 		converter.RegisterMaterial(mat, ma);
@@ -452,7 +452,6 @@ static RAS_MaterialBucket *BL_ConvertMaterial(Material *ma, int lightlayer, KX_S
 KX_Mesh *BL_ConvertMesh(Mesh *me, Object *blenderobj, KX_Scene *scene, BL_SceneConverter& converter)
 {
 	KX_Mesh *meshobj;
-	const int lightlayer = blenderobj ? blenderobj->lay : (1 << 20) - 1; // all layers if no object.
 
 	// Without checking names, we get some reuse we don't want that can cause
 	// problems with material LoDs.
@@ -512,7 +511,7 @@ KX_Mesh *BL_ConvertMesh(Mesh *me, Object *blenderobj, KX_Scene *scene, BL_SceneC
 			ma = &defmaterial;
 		}
 
-		RAS_MaterialBucket *bucket = BL_ConvertMaterial(ma, lightlayer, scene, converter);
+		RAS_MaterialBucket *bucket = BL_ConvertMaterial(ma, scene, converter);
 		RAS_MeshMaterial *meshmat = meshobj->AddMaterial(bucket, i, vertformat);
 		RAS_IPolyMaterial *mat = meshmat->GetBucket()->GetPolyMaterial();
 

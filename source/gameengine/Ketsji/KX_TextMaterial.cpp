@@ -39,6 +39,10 @@ KX_TextMaterial::~KX_TextMaterial()
 {
 }
 
+void KX_TextMaterial::Prepare(RAS_Rasterizer *rasty)
+{
+}
+
 void KX_TextMaterial::Activate(RAS_Rasterizer *rasty)
 {
 }

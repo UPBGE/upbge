@@ -212,7 +212,7 @@ void KX_WorldInfo::RenderBackground(RAS_Rasterizer *rasty)
 			GPUMaterial *gpumat = GPU_material_world(m_scene, m_scene->world);
 
 			static float texcofac[4] = { 0.0f, 0.0f, 1.0f, 1.0f };
-			GPU_material_bind(gpumat, 0xFFFFFFFF, m_scene->lay, 1.0f, false, rasty->GetViewMatrix().Data(),
+			GPU_material_bind(gpumat, m_scene->lay, 1.0f, false, rasty->GetViewMatrix().Data(),
 			                  rasty->GetViewInvMatrix().Data(), texcofac, false);
 
 			rasty->Disable(RAS_Rasterizer::RAS_CULL_FACE);

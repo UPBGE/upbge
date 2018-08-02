@@ -708,11 +708,12 @@ void KX_GameObject::UpdateBuckets()
 	// Update datas and add mesh slot to be rendered only if the object is not culled.
 	if (m_sgNode->IsDirty(SG_Node::DIRTY_RENDER)) {
 		NodeGetWorldTransform().PackFromAffineTransform(m_meshUser->GetMatrix());
+		m_meshUser->SetFrontFace(!IsNegativeScaling());
 		m_sgNode->ClearDirty(SG_Node::DIRTY_RENDER);
 	}
 
+	m_meshUser->SetLayer(m_layer);
 	m_meshUser->SetColor(m_objectColor);
-	m_meshUser->SetFrontFace(!IsNegativeScaling());
 	m_meshUser->ActivateMeshSlots();
 }
 

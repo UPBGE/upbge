@@ -2070,6 +2070,13 @@ void shade_diffuse_oren_nayer(float nl, vec3 n, vec3 l, vec3 v, float rough, out
 	}
 }
 
+void lamp_visible(int lay, int oblay, vec3 col, float energy, out vec3 outcol, out float outenergy)
+{
+	int mask = min((lay & oblay), 1);
+	outcol = col * mask;
+	outenergy = energy * mask;
+}
+
 void shade_diffuse_toon(vec3 n, vec3 l, vec3 v, float size, float tsmooth, out float is)
 {
 	float rslt = dot(n, l);
