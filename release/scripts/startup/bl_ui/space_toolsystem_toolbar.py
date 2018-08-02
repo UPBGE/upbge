@@ -40,9 +40,6 @@ def generate_from_brushes_ex(
         brush_category_attr,
         brush_category_layout,
 ):
-    def draw_settings(context, layout, tool):
-        _defs_gpencil_paint.draw_settings_common(context, layout, tool)
-
     # Categories
     brush_categories = {}
     if context.mode != 'GPENCIL_PAINT':
@@ -60,12 +57,18 @@ def generate_from_brushes_ex(
                     )
                 )
     else:
+        def draw_settings(context, layout, tool):
+            _defs_gpencil_paint.draw_settings_common(context, layout, tool)
+
         for brush_type in brush_category_layout:
             for brush in context.blend_data.brushes:
                 if getattr(brush, brush_test_attr) and brush.gpencil_settings.gp_icon == brush_type[0]:
                     category = brush_type[0]
                     name = brush.name
+                    text = name
 
+                    # XXX, disabled since changing the brush needs to sync back to the tool.
+                    """
                     # rename default brushes for tool bar
                     if name.startswith("Draw "):
                         text = name.replace("Draw ", "")
@@ -75,30 +78,20 @@ def generate_from_brushes_ex(
                         text = name.replace(" Area", "")
                     else:
                         text = name
-
-                    # define icon
-                    gp_icon = brush.gpencil_settings.gp_icon
-                    if gp_icon == 'PENCIL':
-                        icon_name = 'draw_pencil'
-                    elif gp_icon == 'PEN':
-                        icon_name = 'draw_pen'
-                    elif gp_icon == 'INK':
-                        icon_name = 'draw_ink'
-                    elif gp_icon == 'INKNOISE':
-                        icon_name = 'draw_noise'
-                    elif gp_icon == 'BLOCK':
-                        icon_name = 'draw_block'
-                    elif gp_icon == 'MARKER':
-                        icon_name = 'draw_marker'
-                    elif gp_icon == 'FILL':
-                        icon_name = 'draw_fill'
-                    elif gp_icon == 'SOFT':
-                        icon_name = 'draw.eraser_soft'
-                    elif gp_icon == 'HARD':
-                        icon_name = 'draw.eraser_hard'
-                    elif gp_icon == 'STROKE':
-                        icon_name = 'draw.eraser_stroke'
-
+                    """
+                    # Define icon.
+                    icon_name = {
+                        'PENCIL': 'draw_pencil',
+                        'PEN': 'draw_pen',
+                        'INK': 'draw_ink',
+                        'INKNOISE': 'draw_noise',
+                        'BLOCK': 'draw_block',
+                        'MARKER': 'draw_marker',
+                        'FILL': 'draw_fill',
+                        'SOFT': 'draw.eraser_soft',
+                        'HARD': 'draw.eraser_hard',
+                        'STROKE': 'draw.eraser_stroke',
+                    }[category]
                     brush_categories.setdefault(category, []).append(
                         ToolDef.from_dict(
                             dict(
@@ -136,6 +129,28 @@ def generate_from_brushes_ex(
         print(brush_categories)
     assert(len(brush_categories) == 0)
     return tool_defs
+
+
+def generate_from_enum_ex(
+        context, *,
+        icon_prefix,
+        data,
+        attr,
+):
+    tool_defs = []
+    for enum in data.rna_type.properties[attr].enum_items_static:
+        name = enum.name
+        identifier = enum.identifier
+        tool_defs.append(
+            ToolDef.from_dict(
+                dict(
+                    text=name,
+                    icon=icon_prefix + identifier.lower(),
+                    data_block=identifier,
+                )
+            )
+        )
+    return tuple(tool_defs)
 
 
 class _defs_view3d_generic:
@@ -826,6 +841,18 @@ class _defs_pose:
             keymap=(
                 ("pose.relax", dict(), dict(type='ACTIONMOUSE', value='PRESS')),
             ),
+        )
+
+
+class _defs_particle:
+
+    @staticmethod
+    def generate_from_brushes(context):
+        return generate_from_enum_ex(
+            context,
+            icon_prefix="brush.particle.",
+            data=context.tool_settings.particle_edit,
+            attr="tool",
         )
 
 
@@ -1539,9 +1566,7 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
             _defs_edit_curve.extrude_cursor,
         ],
         'PARTICLE': [
-            # TODO(campbell): use cursor click tool to allow paint tools to run,
-            # we need to integrate particle system tools properly.
-            _defs_view3d_generic.cursor_click,
+            _defs_particle.generate_from_brushes,
         ],
         'SCULPT': [
             _defs_sculpt.generate_from_brushes,

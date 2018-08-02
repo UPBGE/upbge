@@ -289,16 +289,16 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
         if context.particle_edit_object:
             tool = settings.tool
 
-            layout.column().prop(settings, "tool", expand=True)
-
             if tool != 'NONE':
+                layout.column().prop(settings, "tool")
                 col = layout.column()
                 col.prop(brush, "size", slider=True)
-                if tool != 'ADD':
+                if tool == 'ADD':
+                    col.prop(brush, "count")
+                else:
                     col.prop(brush, "strength", slider=True)
 
             if tool == 'ADD':
-                col.prop(brush, "count")
                 col = layout.column()
                 col.prop(settings, "use_default_interpolate")
                 col.prop(brush, "steps", slider=True)
