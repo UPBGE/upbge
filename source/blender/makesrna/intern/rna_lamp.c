@@ -481,9 +481,16 @@ static void rna_def_lamp_falloff(StructRNA *srna)
 	                         "Quadratic distance attenuation coefficient");
 	RNA_def_property_update(prop, 0, "rna_Lamp_draw_update");
 
+	prop = RNA_def_property(srna, "radius", PROP_FLOAT, PROP_DISTANCE);
+	RNA_def_property_float_sdna(prop, NULL, "radius");
+	RNA_def_property_range(prop, 0.001, FLT_MAX);
+	RNA_def_property_ui_range(prop, 0.001, 1000, 1, 3);
+	RNA_def_property_ui_text(prop, "Radius", "The ligth's radius");
+	RNA_def_property_update(prop, 0, "rna_Lamp_draw_update");
+
 	prop = RNA_def_property(srna, "cutoff_threshold", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "cutoff");
-	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_range(prop, 0.000f, 0.999f);
 	RNA_def_property_ui_text(prop, "Cutoff", "Cutoff Threshold");
 	RNA_def_property_update(prop, 0, "rna_Lamp_draw_update");
 }

@@ -113,6 +113,7 @@ class DATA_PT_lamp(DataButtonsPanel, Panel):
             elif lamp.falloff_type == 'INVSQUARE_CUTOFF':
                 col.label(text="Inverse Square Cutoff:")
                 sub = col.column(align=True)
+                sub.prop(lamp, "radius", text="Radius")
                 sub.prop(lamp, "cutoff_threshold", text="CutOff")
 
             col.prop(lamp, "use_sphere")
