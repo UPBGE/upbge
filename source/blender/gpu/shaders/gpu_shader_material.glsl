@@ -1849,8 +1849,8 @@ void lamp_falloff_curve(float lampdist, sampler2D curvemap, float dist, out floa
 
 void lamp_falloff_invsquarecutoff(float radius, float dist, float cutoff, out float visifac)
 {
-	float d = max(dist - radius, 0.0);
-	if (d == 0.0) {
+	float d = dist - radius;
+	if (d <= 0.0) {
 		visifac = 1.0;
 	}
 	else {
