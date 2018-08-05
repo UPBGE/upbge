@@ -335,6 +335,10 @@ void RAS_Shader::ExtractUniformInfos()
 		const UniformInfo info = {gpuinfo.location, (unsigned short)gpuinfo.size, gpuinfo.type};
 		m_uniformInfos.emplace(gpuinfo.name, info);
 	}
+
+	if (infos) {
+		MEM_freeN(infos);
+	}
 }
 
 bool RAS_Shader::GetError()
