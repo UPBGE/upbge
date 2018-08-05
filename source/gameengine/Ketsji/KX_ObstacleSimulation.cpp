@@ -607,7 +607,6 @@ static void processSamples(KX_Obstacle *activeObst, KX_NavMeshObject *activeNavM
 	res = mt::zero2;
 
 	const float ivmax = 1.0f / vmax;
-	const mt::vec2 adir = activeObst->pvel.SafeNormalized(mt::zero2);
 	const mt::vec2 activeObstPos = activeObst->m_pos.xy();
 
 	float minPenalty = FLT_MAX;
