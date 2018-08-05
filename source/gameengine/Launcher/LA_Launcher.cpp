@@ -173,6 +173,11 @@ void LA_Launcher::InitEngine()
 	m_rasterizer = new RAS_Rasterizer();
 
 	// Stereo parameters - Eye Separation from the UI - stereomode from the command-line/UI
+	static const RAS_Rasterizer::ColorManagement colorManagementTable[] = {
+		RAS_Rasterizer::RAS_COLOR_MANAGEMENT_LINEAR, // GAME_COLOR_MANAGEMENT_LINEAR
+		RAS_Rasterizer::RAS_COLOR_MANAGEMENT_SRGB // GAME_COLOR_MANAGEMENT_SRGB
+	};
+	m_rasterizer->SetColorManagment(colorManagementTable[gm.colorManagement]);
 	m_rasterizer->SetStereoMode(m_stereoMode);
 	m_rasterizer->SetEyeSeparation(m_startScene->gm.eyeseparation);
 	m_rasterizer->SetDrawingMode(GetRasterizerDrawMode());

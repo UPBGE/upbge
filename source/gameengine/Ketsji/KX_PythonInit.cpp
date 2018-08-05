@@ -1123,6 +1123,10 @@ static PyObject *gPySetGLSLMaterialSetting(PyObject *,
 				if (scene->GetBucketManager()) {
 					scene->GetBucketManager()->ReloadMaterials();
 				}
+				KX_WorldInfo *world = scene->GetWorldInfo();
+				if (world) {
+					world->ReloadMaterial();
+				}
 			}
 		}
 	}

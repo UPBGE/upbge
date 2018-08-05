@@ -219,6 +219,19 @@ public:
 		RAS_HDR_MAX
 	};
 
+	enum ColorManagement {
+		RAS_COLOR_MANAGEMENT_LINEAR = 0,
+		RAS_COLOR_MANAGEMENT_SRGB,
+		RAS_COLOR_MANAGEMENT_MAX
+	};
+
+	enum ShaderToScreen {
+		RAS_SHADER_TO_SCREEN_NORMAL = 0,
+		RAS_SHADER_TO_SCREEN_STEREO_STIPPLE,
+		RAS_SHADER_TO_SCREEN_STEREO_ANAGLYPH,
+		RAS_SHADER_TO_SCREEN_MAX
+	};
+
 	/** Return the output frame buffer normally used for the input frame buffer
 	 * index in case of filters render.
 	 * \param index The input frame buffer, can be a non-filter frame buffer.
@@ -296,6 +309,8 @@ private:
 	float m_focallength;
 	bool m_setfocallength;
 	int m_noOfScanlines;
+
+	ColorManagement m_colorManagement;
 
 	/* motion blur */
 	unsigned short m_motionblur;
@@ -441,7 +456,7 @@ public:
 	 * \param canvas The canvas containing the screen viewport.
 	 * \param index The off screen index to read from.
 	 */
-	void DrawOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *offScreen);
+	void DrawOffScreenToScreen(RAS_ICanvas *canvas, RAS_OffScreen *offScreen);
 
 	/** Draw each stereo off screen to screen.
 	 * \param canvas The canvas containing the screen viewport.
@@ -449,7 +464,7 @@ public:
 	 * \param righteyeindex The right off screen index.
 	 * \param stereoMode The stereo category.
 	 */
-	void DrawStereoOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *leftOffScreen, RAS_OffScreen *rightOffScreen, StereoMode stereoMode);
+	void DrawStereoOffScreenToScreen(RAS_ICanvas *canvas, RAS_OffScreen *leftOffScreen, RAS_OffScreen *rightOffScreen, StereoMode stereoMode);
 
 	/**
 	 * GetRenderArea computes the render area from the 2d canvas.
@@ -646,6 +661,8 @@ public:
 	void SetFrontFace(bool ccw);
 
 	void SetInvertFrontFace(bool invert);
+
+	void SetColorManagment(ColorManagement colorManagement);
 
 	void SetAnisotropicFiltering(short level);
 	short GetAnisotropicFiltering();

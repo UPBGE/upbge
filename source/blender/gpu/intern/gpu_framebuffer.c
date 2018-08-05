@@ -610,11 +610,11 @@ GPURenderBuffer *GPU_renderbuffer_create(int width, int height, int samples, GPU
 		rb->depth = true;
 	}
 	else {
-		GLenum internalformat = GL_RGBA8;
+		GLenum internalformat = GL_RGBA12;
 		switch (hdrtype) {
 			case GPU_HDR_NONE:
 			{
-				internalformat = GL_RGBA8;
+				internalformat = GL_RGBA12;
 				break;
 			}
 			/* the following formats rely on ARB_texture_float or OpenGL 3.0 */

@@ -85,14 +85,12 @@ KX_FontObject::KX_FontObject(void *sgReplicationInfo,
                              SG_Callbacks callbacks,
                              RAS_Rasterizer *rasterizer,
                              RAS_BoundingBoxManager *boundingBoxManager,
-                             Object *ob,
-                             bool do_color_management)
+                             Object *ob)
 	:KX_GameObject(sgReplicationInfo, callbacks),
 	m_object(ob),
 	m_dpi(72),
 	m_resolution(1.0f),
-	m_rasterizer(rasterizer),
-	m_do_color_management(do_color_management)
+	m_rasterizer(rasterizer)
 {
 	Curve *text = static_cast<Curve *> (ob->data);
 	m_fsize = text->fsize;
@@ -150,15 +148,6 @@ void KX_FontObject::UpdateBuckets()
 		m_sgNode->ClearDirty(SG_Node::DIRTY_RENDER);
 	}
 
-	// Font Objects don't use the glsl shader, this color management code is copied from gpu_shader_material.glsl
-	float color[4];
-	if (m_do_color_management) {
-		linearrgb_to_srgb_v4(color, m_objectColor.Data());
-	}
-	else {
-		m_objectColor.Pack(color);
-	}
-
 	// HARDCODED MULTIPLICATION FACTOR - this will affect the render resolution directly
 	const float RES = BGE_FONT_RES * m_resolution;
 
@@ -171,7 +160,7 @@ void KX_FontObject::UpdateBuckets()
 	mt::vec3 spacing = NodeGetWorldOrientation() * mt::vec3(0.0f, m_fsize * m_line_spacing, 0.0f) * NodeGetWorldScaling()[1];
 
 	textUser->SetLayer(m_layer);
-	textUser->SetColor(mt::vec4(color));
+	textUser->SetColor(m_objectColor);
 	textUser->SetFontId(m_fontid);
 	textUser->SetSize(size);
 	textUser->SetDpi(m_dpi);

@@ -15,6 +15,22 @@ uniform sampler2D depthtex;
 uniform int stippleid;
 #endif
 
+float linearrgb_to_srgb(float c)
+{
+	if (c < 0.0031308)
+		return (c < 0.0) ? 0.0 : c * 12.92;
+	else
+		return 1.055 * pow(c, 1.0 / 2.4) - 0.055;
+}
+
+void linearrgb_to_srgb(vec4 col_from, out vec4 col_to)
+{
+	col_to.r = linearrgb_to_srgb(col_from.r);
+	col_to.g = linearrgb_to_srgb(col_from.g);
+	col_to.b = linearrgb_to_srgb(col_from.b);
+	col_to.a = col_from.a;
+}
+
 void main()
 {
 	vec2 co = gl_TexCoord[0].xy;
@@ -44,5 +60,9 @@ void main()
 #  ifdef DEPTH
 	gl_FragDepth = texture2D(depthtex, co).x;
 #  endif
+#endif
+
+#ifdef COLOR_MANAGEMENT
+	linearrgb_to_srgb(gl_FragColor, gl_FragColor);
 #endif
 }

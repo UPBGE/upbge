@@ -873,6 +873,8 @@ typedef struct GameData {
 	/* Scene LoD */
 	short lodflag, pad2;
 	int scehysteresis;
+
+	short colorManagement, pad3[3];
 } GameData;
 
 /* GameData.stereoflag */
@@ -916,7 +918,6 @@ typedef struct GameData {
 #define GAME_GLSL_NO_EXTRA_TEX				(1 << 11)
 #define GAME_IGNORE_DEPRECATION_WARNINGS	(1 << 12)
 #define GAME_SHOW_MOUSE						(1 << 14)
-#define GAME_GLSL_NO_COLOR_MANAGEMENT		(1 << 15)
 #define GAME_SHOW_OBSTACLE_SIMULATION		(1 << 16)
 #ifdef DNA_DEPRECATED
 #  define GAME_SHOW_BOUNDING_BOX			(1 << 18)
@@ -958,6 +959,12 @@ enum {
 	GAME_SOLVER_NNCG,
 	GAME_SOLVER_MLCP_DANTZIG,
 	GAME_SOLVER_MLCP_LEMKE,
+};
+
+/* GameData.colorManagement */
+enum {
+	GAME_COLOR_MANAGEMENT_LINEAR = 0,
+	GAME_COLOR_MANAGEMENT_SRGB
 };
 
 /* UV Paint */

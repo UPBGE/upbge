@@ -491,6 +491,15 @@ class RENDER_PT_game_display(RenderButtonsPanel, Panel):
         col.row().prop(gs, "frame_type", expand=True)
         col.prop(gs, "frame_color", text="")
 
+class RENDER_PT_game_color_management(RenderButtonsPanel, Panel):
+    bl_label = "Color Management"
+    COMPAT_ENGINES = {'BLENDER_GAME'}
+
+    def draw(self, context):
+        layout = self.layout
+        gs = context.scene.game_settings
+
+        layout.prop(gs, "color_management")
 
 class RENDER_PT_game_debug(RenderButtonsPanel, Panel):
     bl_label = "Debug"
@@ -1028,6 +1037,7 @@ classes = (
     RENDER_PT_game_system,
     RENDER_PT_game_animations,
     RENDER_PT_game_display,
+    RENDER_PT_game_color_management,
     RENDER_PT_game_debug,
     SCENE_PT_game_physics,
     SCENE_PT_game_physics_obstacles,

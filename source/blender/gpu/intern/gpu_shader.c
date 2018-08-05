@@ -87,9 +87,9 @@ static struct GPUShadersGlobal {
 		GPUShader *smoke_coba;
 		GPUShader *black;
 		GPUShader *black_instancing;
-		GPUShader *draw_frame_buffer;
-		GPUShader *stereo_stipple;
-		GPUShader *stereo_anaglyph;
+		GPUShader *draw_frame_buffer[2];
+		GPUShader *stereo_stipple[2];
+		GPUShader *stereo_anaglyph[2];
 		GPUShader *frustum_line;
 		GPUShader *frustum_solid;
 		GPUShader *flat_color;
@@ -855,25 +855,46 @@ GPUShader *GPU_shader_get_builtin_shader(GPUBuiltinShader shader)
 			retval = GG.shaders.black_instancing;
 			break;
 		case GPU_SHADER_DRAW_FRAME_BUFFER:
-			if (!GG.shaders.draw_frame_buffer)
-				GG.shaders.draw_frame_buffer = GPU_shader_create(
+			if (!GG.shaders.draw_frame_buffer[0])
+				GG.shaders.draw_frame_buffer[0] = GPU_shader_create(
 					datatoc_gpu_shader_frame_buffer_vert_glsl, datatoc_gpu_shader_frame_buffer_frag_glsl,
 					NULL, NULL, NULL, 0, 0, 0);
-			retval = GG.shaders.draw_frame_buffer;
+			retval = GG.shaders.draw_frame_buffer[0];
+			break;
+		case GPU_SHADER_DRAW_FRAME_BUFFER_SRGB:
+			if (!GG.shaders.draw_frame_buffer[1])
+				GG.shaders.draw_frame_buffer[1] = GPU_shader_create(
+					datatoc_gpu_shader_frame_buffer_vert_glsl, datatoc_gpu_shader_frame_buffer_frag_glsl,
+					NULL, NULL, "#define COLOR_MANAGEMENT;\n", 0, 0, 0);
+			retval = GG.shaders.draw_frame_buffer[1];
 			break;
 		case GPU_SHADER_STEREO_STIPPLE:
-			if (!GG.shaders.stereo_stipple)
-				GG.shaders.stereo_stipple = GPU_shader_create(
+			if (!GG.shaders.stereo_stipple[0])
+				GG.shaders.stereo_stipple[0] = GPU_shader_create(
 					datatoc_gpu_shader_frame_buffer_vert_glsl, datatoc_gpu_shader_frame_buffer_frag_glsl,
 					NULL, NULL, "#define STIPPLE;\n", 0, 0, 0);
-			retval = GG.shaders.stereo_stipple;
+			retval = GG.shaders.stereo_stipple[0];
+			break;
+		case GPU_SHADER_STEREO_STIPPLE_SRGB:
+			if (!GG.shaders.stereo_stipple[1])
+				GG.shaders.stereo_stipple[1] = GPU_shader_create(
+					datatoc_gpu_shader_frame_buffer_vert_glsl, datatoc_gpu_shader_frame_buffer_frag_glsl,
+					NULL, NULL, "#define COLOR_MANAGEMENT;\n #define STIPPLE;\n", 0, 0, 0);
+			retval = GG.shaders.stereo_stipple[1];
 			break;
 		case GPU_SHADER_STEREO_ANAGLYPH:
-			if (!GG.shaders.stereo_anaglyph)
-				GG.shaders.stereo_anaglyph = GPU_shader_create(
+			if (!GG.shaders.stereo_anaglyph[0])
+				GG.shaders.stereo_anaglyph[0] = GPU_shader_create(
 					datatoc_gpu_shader_frame_buffer_vert_glsl, datatoc_gpu_shader_frame_buffer_frag_glsl,
 					NULL, NULL, "#define ANAGLYPH;\n", 0, 0, 0);
-			retval = GG.shaders.stereo_anaglyph;
+			retval = GG.shaders.stereo_anaglyph[0];
+			break;
+		case GPU_SHADER_STEREO_ANAGLYPH_SRGB:
+			if (!GG.shaders.stereo_anaglyph[1])
+				GG.shaders.stereo_anaglyph[1] = GPU_shader_create(
+					datatoc_gpu_shader_frame_buffer_vert_glsl, datatoc_gpu_shader_frame_buffer_frag_glsl,
+					NULL, NULL, "#define COLOR_MANAGEMENT;\n #define ANAGLYPH;\n", 0, 0, 0);
+			retval = GG.shaders.stereo_anaglyph[1];
 			break;
 		case GPU_SHADER_FRUSTUM_LINE:
 			if (!GG.shaders.frustum_line)
@@ -1029,19 +1050,21 @@ void GPU_shader_free_builtin_shaders(void)
 		GG.shaders.black_instancing = NULL;
 	}
 
-	if (GG.shaders.draw_frame_buffer) {
-		GPU_shader_free(GG.shaders.draw_frame_buffer);
-		GG.shaders.draw_frame_buffer = NULL;
-	}
+	for (unsigned short i = 0; i < 2; ++i) {
+		if (GG.shaders.draw_frame_buffer[i]) {
+			GPU_shader_free(GG.shaders.draw_frame_buffer[i]);
+			GG.shaders.draw_frame_buffer[i] = NULL;
+		}
 
-	if (GG.shaders.stereo_stipple) {
-		GPU_shader_free(GG.shaders.stereo_stipple);
-		GG.shaders.stereo_stipple = NULL;
-	}
+		if (GG.shaders.stereo_stipple[i]) {
+			GPU_shader_free(GG.shaders.stereo_stipple[i]);
+			GG.shaders.stereo_stipple[i] = NULL;
+		}
 
-	if (GG.shaders.stereo_anaglyph) {
-		GPU_shader_free(GG.shaders.stereo_anaglyph);
-		GG.shaders.stereo_anaglyph = NULL;
+		if (GG.shaders.stereo_anaglyph[i]) {
+			GPU_shader_free(GG.shaders.stereo_anaglyph[i]);
+			GG.shaders.stereo_anaglyph[i] = NULL;
+		}
 	}
 
 	if (GG.shaders.frustum_line) {

@@ -132,6 +132,12 @@ typedef enum GPUBlendMode {
 	GPU_BLEND_ALPHA_TO_COVERAGE = 16
 } GPUBlendMode;
 
+typedef enum GPUMaterialFlag {
+	GPU_MATERIAL_OPENSUBDIV = (1 << 0),
+	GPU_MATERIAL_INSTANCING = (1 << 1),
+	GPU_MATERIAL_NO_COLOR_MANAGEMENT = (1 << 2)
+} GPUMaterialFlag;
+
 typedef struct GPUNodeStack {
 	GPUType type;
 	const char *name;
@@ -262,10 +268,10 @@ GPUBuiltin GPU_get_material_builtins(GPUMaterial *material);
 GPUBlendMode GPU_material_alpha_blend(GPUMaterial *material, const float obcol[4]);
 
 /* High level functions to create and use GPU materials */
-GPUMaterial *GPU_material_world(struct Scene *scene, struct World *wo);
+GPUMaterial *GPU_material_world(struct Scene *scene, struct World *wo, GPUMaterialFlag flags);
 
-GPUMaterial *GPU_material_from_blender(struct Scene *scene, struct Material *ma, bool use_opensubdiv, bool is_instancing);
-GPUMaterial *GPU_material_matcap(struct Scene *scene, struct Material *ma, bool use_opensubdiv);
+GPUMaterial *GPU_material_from_blender(struct Scene *scene, struct Material *ma, GPUMaterialFlag flags);
+GPUMaterial *GPU_material_matcap(struct Scene *scene, struct Material *ma, GPUMaterialFlag flags);
 void GPU_material_free(struct ListBase *gpumaterial);
 
 void GPU_materials_free(struct Main *bmain);

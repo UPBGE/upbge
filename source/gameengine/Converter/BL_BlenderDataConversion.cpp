@@ -1012,10 +1012,9 @@ static KX_GameObject *BL_GameObjectFromBlenderObject(Object *ob, KX_Scene *kxsce
 
 		case OB_FONT:
 		{
-			bool do_color_management = BKE_scene_check_color_management_enabled(blenderscene);
 			// Font objects have no bounding box.
 			KX_FontObject *fontobj = new KX_FontObject(kxscene, KX_Scene::m_callbacks, rendertools,
-			                                           kxscene->GetBoundingBoxManager(), ob, do_color_management);
+			                                           kxscene->GetBoundingBoxManager(), ob);
 			gameobj = fontobj;
 
 			kxscene->GetFontList()->Add(CM_AddRef(fontobj));
