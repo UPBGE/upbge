@@ -73,29 +73,6 @@ static void copyData(const GpencilModifierData *md, GpencilModifierData *target)
 	BKE_gpencil_modifier_copyData_generic(md, target);
 }
 
-static void clip_stroke(MirrorGpencilModifierData *mmd, bGPDstroke *gps)
-{
-	int i;
-	bGPDspoint *pt;
-	float fpt[3];
-	if ((mmd->flag & GP_MIRROR_CLIPPING) == 0) {
-		return;
-	}
-
-	for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
-		copy_v3_v3(fpt, &pt->x);
-		for (int xi = 0; xi < 3; ++xi) {
-			if (mmd->flag & (GP_MIRROR_AXIS_X << xi)) {
-				if (fpt[xi] >= 0.0f) {
-					fpt[xi] = 0.0f;
-				}
-			}
-		}
-		copy_v3_v3(&pt->x, fpt);
-	}
-
-}
-
 static void update_position(Object *ob, MirrorGpencilModifierData *mmd, bGPDstroke *gps, int axis)
 {
 	int i;
@@ -138,20 +115,18 @@ static void generateStrokes(
 	int tot_strokes;
 	int i;
 
-	/* count strokes to avoid infinite loop after adding new strokes to tail of listbase */
-	tot_strokes = BLI_listbase_count(&gpf->strokes);
+	/* check each axis for mirroring */
+	for (int xi = 0; xi < 3; ++xi) {
+		if (mmd->flag & (GP_MIRROR_AXIS_X << xi)) {
 
-	for (i = 0, gps = gpf->strokes.first; i < tot_strokes; i++, gps = gps->next) {
-		if (is_stroke_affected_by_modifier(
-		            ob, mmd->layername, mmd->pass_index, 1, gpl, gps,
-		            mmd->flag & GP_MIRROR_INVERT_LAYER, mmd->flag & GP_MIRROR_INVERT_PASS))
-		{
-			/* check each axis for mirroring */
-			for (int xi = 0; xi < 3; ++xi) {
-				if (mmd->flag & (GP_MIRROR_AXIS_X << xi)) {
-					/* clip before duplicate */
-					clip_stroke(mmd, gps);
+			/* count strokes to avoid infinite loop after adding new strokes to tail of listbase */
+			tot_strokes = BLI_listbase_count(&gpf->strokes);
 
+			for (i = 0, gps = gpf->strokes.first; i < tot_strokes; i++, gps = gps->next) {
+				if (is_stroke_affected_by_modifier(
+					ob, mmd->layername, mmd->pass_index, 1, gpl, gps,
+					mmd->flag & GP_MIRROR_INVERT_LAYER, mmd->flag & GP_MIRROR_INVERT_PASS))
+				{
 					gps_new = BKE_gpencil_stroke_duplicate(gps);
 					update_position(ob, mmd, gps_new, xi);
 					BLI_addtail(&gpf->strokes, gps_new);
@@ -165,13 +140,9 @@ static void bakeModifier(
         Main *bmain, Depsgraph *depsgraph,
         GpencilModifierData *md, Object *ob)
 {
-	MirrorGpencilModifierData *mmd = (MirrorGpencilModifierData *)md;
 	Scene *scene = DEG_get_evaluated_scene(depsgraph);
 	bGPdata *gpd = ob->data;
 	int oldframe = (int)DEG_get_ctime(depsgraph);
-
-	if (mmd->object == NULL)
-		return;
 
 	for (bGPDlayer *gpl = gpd->layers.first; gpl; gpl = gpl->next) {
 		for (bGPDframe *gpf = gpl->frames.first; gpf; gpf = gpf->next) {
