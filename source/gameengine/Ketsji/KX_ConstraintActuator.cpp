@@ -52,18 +52,15 @@ KX_ConstraintActuator::KX_ConstraintActuator(SCA_IObject *gameobj,
                                              int rotDampTime,
                                              float minBound,
                                              float maxBound,
-                                             float refDir[3],
+                                             const mt::vec3& refDir,
                                              int locrotxyz,
                                              int time,
                                              int option,
                                              char *property) :
 	SCA_IActuator(gameobj, KX_ACT_CONSTRAINT),
-	m_refDirVector(refDir),
+	m_refDirection(refDir),
 	m_currentTime(0)
 {
-	m_refDirection[0] = refDir[0];
-	m_refDirection[1] = refDir[1];
-	m_refDirection[2] = refDir[2];
 	m_posDampTime = posDampTime;
 	m_rotDampTime = rotDampTime;
 	m_locrot   = locrotxyz;
@@ -84,17 +81,14 @@ KX_ConstraintActuator::KX_ConstraintActuator(SCA_IObject *gameobj,
 		case KX_ACT_CONSTRAINT_ORIY:
 		case KX_ACT_CONSTRAINT_ORIZ:
 		{
-			float len = m_refDirVector.Length();
+			float len = m_refDirection.Length();
 			if (mt::FuzzyZero(len)) {
 				// missing a valid direction
 				CM_LogicBrickWarning(this, "there is no valid reference direction!");
 				m_locrot = KX_ACT_CONSTRAINT_NODEF;
 			}
 			else {
-				m_refDirection[0] /= len;
-				m_refDirection[1] /= len;
-				m_refDirection[2] /= len;
-				m_refDirVector /= len;
+				m_refDirection /= len;
 			}
 			m_minimumBound = cosf(minBound);
 			m_maximumBound = cosf(maxBound);
@@ -218,7 +212,7 @@ bool KX_ConstraintActuator::Update(double curtime)
 				if ((m_maximumBound < (1.0f - FLT_EPSILON)) || (m_minimumBound < (1.0f - FLT_EPSILON))) {
 					// reference direction needs to be evaluated
 					// 1. get the cosine between current direction and target
-					cosangle = mt::dot(direction, m_refDirVector);
+					cosangle = mt::dot(direction, m_refDirection);
 					if (cosangle >= (m_maximumBound - FLT_EPSILON) && cosangle <= (m_minimumBound + FLT_EPSILON)) {
 						// no change to do
 						result = true;
@@ -227,31 +221,31 @@ bool KX_ConstraintActuator::Update(double curtime)
 					// 2. define a new reference direction
 					//    compute local axis with reference direction as X and
 					//    Y in direction X refDirection plane
-					mt::vec3 zaxis = mt::cross(m_refDirVector, direction);
+					mt::vec3 zaxis = mt::cross(m_refDirection, direction);
 					if (mt::FuzzyZero(zaxis.LengthSquared())) {
 						// direction and refDirection are identical,
 						// choose any other direction to define plane
 						if (direction[0] < 0.9999f) {
-							zaxis = mt::cross(m_refDirVector, mt::axisX3);
+							zaxis = mt::cross(m_refDirection, mt::axisX3);
 						}
 						else {
-							zaxis = mt::cross(m_refDirVector, mt::axisY3);
+							zaxis = mt::cross(m_refDirection, mt::axisY3);
 						}
 					}
-					mt::vec3 yaxis = mt::cross(zaxis, m_refDirVector);
+					mt::vec3 yaxis = mt::cross(zaxis, m_refDirection);
 					yaxis.Normalize();
 					if (cosangle > m_minimumBound) {
 						// angle is too close to reference direction,
 						// choose a new reference that is exactly at minimum angle
-						refDirection = m_minimumBound * m_refDirVector + m_minimumSine * yaxis;
+						refDirection = m_minimumBound * m_refDirection + m_minimumSine * yaxis;
 					}
 					else {
 						// angle is too large, choose new reference direction at maximum angle
-						refDirection = m_maximumBound * m_refDirVector + m_maximumSine * yaxis;
+						refDirection = m_maximumBound * m_refDirection + m_maximumSine * yaxis;
 					}
 				}
 				else {
-					refDirection = m_refDirVector;
+					refDirection = m_refDirection;
 				}
 				// apply damping on the direction
 				direction = filter * direction + (1.0f - filter) * refDirection;
@@ -504,7 +498,7 @@ bool KX_ConstraintActuator::Update(double curtime)
 						// Fh force is stored in m_maximum
 						float springForce = springExtent * m_maximumBound;
 						// damping is stored in m_refDirection [0] = damping, [1] = rot damping
-						float springDamp = relativeVelocityRay * m_refDirVector[0];
+						float springDamp = relativeVelocityRay * m_refDirection[0];
 						mt::vec3 newVelocity = spc->GetLinearVelocity() - (springForce + springDamp) * direction;
 						if (m_option & KX_ACT_CONSTRAINT_NORMAL) {
 							newVelocity += (springForce + springDamp) * (newnormal - mt::dot(newnormal, direction) * direction);
@@ -515,7 +509,7 @@ bool KX_ConstraintActuator::Update(double curtime)
 							mt::vec3 angVelocity = spc->GetAngularVelocity();
 							// remove component that is parallel to normal
 							angVelocity -= mt::dot(angVelocity, newnormal) * newnormal;
-							mt::vec3 angDamp = angVelocity * (mt::FuzzyZero(m_refDirVector[1]) ? m_refDirVector[0] : m_refDirVector[1]);
+							mt::vec3 angDamp = angVelocity * (mt::FuzzyZero(m_refDirection[1]) ? m_refDirection[0] : m_refDirection[1]);
 							spc->SetAngularVelocity(spc->GetAngularVelocity() + (angSpring - angDamp), false);
 						}
 					}
@@ -630,7 +624,7 @@ int KX_ConstraintActuator::pyattr_check_direction(EXP_PyObjectPlus *self_v, cons
 		PyErr_SetString(PyExc_ValueError, "actuator.direction = vec: KX_ConstraintActuator, invalid direction");
 		return 1;
 	}
-	act->m_refDirVector = dir / len;
+	act->m_refDirection = dir / len;
 	return 0;
 }
 

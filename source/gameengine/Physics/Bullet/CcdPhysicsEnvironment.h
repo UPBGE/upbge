@@ -59,6 +59,22 @@ class btConstraintSolverPoolMt;
 /// Find the id of the closest node to a point in a soft body.
 int Ccd_FindClosestNode(btSoftBody *sb, const btVector3& worldPoint);
 
+class CcdDebugDraw : public btIDebugDraw
+{
+private:
+	int m_debugMode;
+
+public:
+	CcdDebugDraw();
+
+	virtual void drawLine(const btVector3& from, const btVector3& to, const btVector3& color);
+	virtual void reportErrorWarning(const char *warningString);
+	virtual void drawContactPoint(const btVector3& PointOnB, const btVector3& normalOnB, float distance, int lifeTime, const btVector3& color);
+	virtual void setDebugMode(int debugMode);
+	virtual int getDebugMode() const;
+	virtual void draw3dText(const btVector3& location, const char *textString);
+};
+
 /** CcdPhysicsEnvironment is an experimental mainloop for physics simulation using optional continuous collision detection.
  * Physics Environment takes care of stepping the simulation and is a container for physics entities.
  * It stores rigidbodies,constraints, materials etc.
@@ -80,7 +96,7 @@ class CcdPhysicsEnvironment : public PHY_IPhysicsEnvironment, public mt::SimdCla
 protected:
 	btVector3 m_gravity;
 
-	btIDebugDraw *m_debugDrawer;
+	CcdDebugDraw m_debugDrawer;
 
 	std::unique_ptr<btDefaultCollisionConfiguration> m_collisionConfiguration;
 	/// broadphase for dynamic world
@@ -141,8 +157,6 @@ public:
 	/////////////////////////////////////
 
 	/// Perform an integration step of duration 'timeStep'.
-
-	virtual void SetDebugDrawer(btIDebugDraw *debugDrawer);
 
 	virtual void SetNumIterations(int numIter);
 	virtual void SetNumTimeSubSteps(int numTimeSubSteps)

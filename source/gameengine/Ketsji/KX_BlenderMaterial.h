@@ -26,15 +26,18 @@ class KX_BlenderMaterial : public EXP_Value, public RAS_IPolyMaterial
 	Py_Header
 
 public:
-	KX_BlenderMaterial(Material *mat, const std::string& name, int lightlayer);
+	KX_BlenderMaterial(Material *mat, const std::string& name);
 
 	virtual ~KX_BlenderMaterial();
 
+	virtual void Prepare(RAS_Rasterizer *rasty);
 	virtual void Activate(RAS_Rasterizer *rasty);
 	virtual void Desactivate(RAS_Rasterizer *rasty);
 	virtual void ActivateInstancing(RAS_Rasterizer *rasty, void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride);
 	virtual void ActivateMeshSlot(RAS_MeshSlot *ms, RAS_Rasterizer *rasty, const mt::mat3x4& camtrans);
 
+	void UpdateTextures();
+	void ApplyTextures();
 	void ActivateShaders(RAS_Rasterizer *rasty);
 
 	void ActivateBlenderShaders(RAS_Rasterizer *rasty);
@@ -110,7 +113,6 @@ private:
 	KX_Scene *m_scene;
 	bool m_userDefBlend;
 	RAS_Rasterizer::BlendFunc m_blendFunc[2];
-	int m_lightLayer;
 
 	struct {
 		float r, g, b, a;

@@ -43,29 +43,16 @@
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
 
-KX_AddObjectActuator::KX_AddObjectActuator(KX_GameObject *gameobj,
-                                           KX_GameObject *original,
-                                           float time,
-                                           KX_Scene *scene,
-                                           const float *linvel,
-                                           bool linv_local,
-                                           const float *angvel,
-                                           bool angv_local)
-	:
-	SCA_IActuator(gameobj, KX_ACT_ADD_OBJECT),
+KX_AddObjectActuator::KX_AddObjectActuator(KX_GameObject *gameobj, KX_GameObject *original, float time, KX_Scene* scene,
+		const mt::vec3& linvel, bool linv_local, const mt::vec3& angvel, bool angv_local)
+	:SCA_IActuator(gameobj, KX_ACT_ADD_OBJECT),
 	m_OriginalObject(original),
 	m_scene(scene),
-
+	m_linear_velocity(linvel),
 	m_localLinvFlag(linv_local),
+	m_angular_velocity(angvel),
 	m_localAngvFlag(angv_local)
 {
-	m_linear_velocity[0] = linvel[0];
-	m_linear_velocity[1] = linvel[1];
-	m_linear_velocity[2] = linvel[2];
-	m_angular_velocity[0] = angvel[0];
-	m_angular_velocity[1] = angvel[1];
-	m_angular_velocity[2] = angvel[2];
-
 	if (m_OriginalObject) {
 		m_OriginalObject->RegisterActuator(this);
 	}
@@ -207,9 +194,9 @@ PyAttributeDef KX_AddObjectActuator::Attributes[] = {
 	EXP_PYATTRIBUTE_RW_FUNCTION("object", KX_AddObjectActuator, pyattr_get_object, pyattr_set_object),
 	EXP_PYATTRIBUTE_RO_FUNCTION("objectLastCreated", KX_AddObjectActuator, pyattr_get_objectLastCreated),
 	EXP_PYATTRIBUTE_FLOAT_RW("time", 0.0f, FLT_MAX, KX_AddObjectActuator, m_timeProp),
-	EXP_PYATTRIBUTE_FLOAT_ARRAY_RW("linearVelocity", -FLT_MAX, FLT_MAX, KX_AddObjectActuator, m_linear_velocity, 3),
-	EXP_PYATTRIBUTE_FLOAT_ARRAY_RW("angularVelocity", -FLT_MAX, FLT_MAX, KX_AddObjectActuator, m_angular_velocity, 3),
-	EXP_PYATTRIBUTE_NULL    //Sentinel
+	EXP_PYATTRIBUTE_VECTOR_RW("linearVelocity", -FLT_MAX, FLT_MAX, KX_AddObjectActuator, m_linear_velocity, 3),
+	EXP_PYATTRIBUTE_VECTOR_RW("angularVelocity", -FLT_MAX, FLT_MAX, KX_AddObjectActuator, m_angular_velocity, 3),
+	EXP_PYATTRIBUTE_NULL	//Sentinel
 };
 
 PyObject *KX_AddObjectActuator::pyattr_get_object(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef)
@@ -271,8 +258,8 @@ void KX_AddObjectActuator::InstantAddObject()
 		// Add an identical object, with properties inherited from the original object
 		// Now it needs to be added to the current scene.
 		KX_GameObject *replica = m_scene->AddReplicaObject(m_OriginalObject, static_cast<KX_GameObject *>(GetParent()), m_timeProp);
-		replica->SetLinearVelocity(mt::vec3(m_linear_velocity), m_localLinvFlag);
-		replica->SetAngularVelocity(mt::vec3(m_angular_velocity), m_localAngvFlag);
+		replica->SetLinearVelocity(m_linear_velocity, m_localLinvFlag);
+		replica->SetAngularVelocity(m_angular_velocity, m_localAngvFlag);
 
 		// keep a copy of the last object, to allow python scripters to change it
 		if (m_lastCreatedObject) {

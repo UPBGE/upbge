@@ -44,20 +44,16 @@ private:
 
 	bool m_visible;
 
-	bool m_use_axis_x; /* 0 for calculate axis, 1 for ignore axis */
-	bool m_use_axis_y;
-	float m_threshold[2];
-	bool m_reset_x; /* 0=reset, 1=free */
-	bool m_reset_y;
+	bool m_use_axis[2]; /* 0 for calculate axis, 1 for ignore axis */
+	mt::vec2 m_threshold;
+	bool m_reset[2]; /* 0=reset, 1=free */
 	int m_object_axis[2]; /* 0=x, 1=y, 2=z */
-	bool m_local_x; /* 0=local, 1=global*/
-	bool m_local_y;
-	float m_sensitivity[2];
-	float m_limit_x[2];
-	float m_limit_y[2];
+	bool m_local[2]; /* 0=local, 1=global*/
+	mt::vec2 m_sensitivity;
+	mt::vec2 m_limit[2];
 
-	float m_oldposition[2];
-	float m_angle[2];
+	mt::vec2 m_oldPosition;
+	mt::vec2 m_angle;
 
 public:
 
@@ -74,22 +70,9 @@ public:
 		KX_ACT_MOUSE_MAX
 	};
 
-	KX_MouseActuator(
-		SCA_IObject* gameobj,
-		KX_KetsjiEngine* ketsjiEngine,
-		SCA_MouseManager* eventmgr,
-		int acttype,
-		bool visible,
-		bool* use_axis,
-		float* threshold,
-		bool* reset,
-		int* object_axis,
-		bool* local,
-		float* sensitivity,
-		float* limit_x,
-		float* limit_y
-	);
-
+	KX_MouseActuator(SCA_IObject* gameobj, KX_KetsjiEngine* ketsjiEngine, SCA_MouseManager* eventmgr,
+		int acttype, bool visible, const bool use_axis[2], const mt::vec2& threshold, const bool reset[2],
+		const int object_axis[2], const bool local[2], const mt::vec2& sensitivity, const mt::vec2 limit[2]);
 
 	~KX_MouseActuator();
 
@@ -100,8 +83,8 @@ public:
 
 	virtual bool Update();
 
-	virtual void getMousePosition(float*);
-	virtual void setMousePosition(float, float);
+	mt::vec2 GetMousePosition() const;
+	void SetMousePosition(const mt::vec2& pos);
 
 
 #ifdef WITH_PYTHON

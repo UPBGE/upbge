@@ -27,6 +27,7 @@
 #include "SCA_IInputDevice.h"
 #include "RAS_ICanvas.h"
 #include "KX_GameObject.h"
+#include "KX_PyMath.h"
 #include "BLI_utildefines.h"
 #include "limits.h"
 
@@ -40,46 +41,28 @@
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
 
-KX_MouseActuator::KX_MouseActuator(SCA_IObject *gameobj,
-
-                                   KX_KetsjiEngine *ketsjiEngine,
-                                   SCA_MouseManager *eventmgr,
-                                   int acttype,
-                                   bool visible,
-                                   bool *use_axis,
-                                   float *threshold,
-                                   bool *reset,
-                                   int *object_axis,
-                                   bool *local,
-                                   float *sensitivity,
-                                   float *limit_x,
-                                   float *limit_y) :
-	SCA_IActuator(gameobj, KX_ACT_MOUSE),
+KX_MouseActuator::KX_MouseActuator(SCA_IObject* gameobj, KX_KetsjiEngine* ketsjiEngine, SCA_MouseManager* eventmgr,
+		int acttype, bool visible, const bool use_axis[2], const mt::vec2& threshold, const bool reset[2],
+		const int object_axis[2], const bool local[2], const mt::vec2& sensitivity, const mt::vec2 limit[2])
+	:SCA_IActuator(gameobj, KX_ACT_MOUSE),
 	m_ketsji(ketsjiEngine),
 	m_eventmgr(eventmgr),
 	m_type(acttype),
 	m_visible(visible),
-	m_use_axis_x(use_axis[0]),
-	m_use_axis_y(use_axis[1]),
-	m_reset_x(reset[0]),
-	m_reset_y(reset[1]),
-	m_local_x(local[0]),
-	m_local_y(local[1])
+	m_threshold(threshold),
+	m_sensitivity(sensitivity),
+	m_oldPosition(-1.0f, -1.0f),
+	m_angle(mt::zero2)
 {
+	for (unsigned short i = 0; i < 2; ++i) {
+		m_use_axis[i] = use_axis[i];
+		m_reset[i] = reset[i];
+		m_object_axis[i] = object_axis[i];
+		m_local[i] = local[i];
+		m_limit[i] = limit[i];
+	}
+
 	m_canvas = m_ketsji->GetCanvas();
-	m_oldposition[0] = m_oldposition[1] = -1.f;
-	m_limit_x[0] = limit_x[0];
-	m_limit_x[1] = limit_x[1];
-	m_limit_y[0] = limit_y[0];
-	m_limit_y[1] = limit_y[1];
-	m_threshold[0] = threshold[0];
-	m_threshold[1] = threshold[1];
-	m_object_axis[0] = object_axis[0];
-	m_object_axis[1] = object_axis[1];
-	m_sensitivity[0] = sensitivity[0];
-	m_sensitivity[1] = sensitivity[1];
-	m_angle[0] = 0.f;
-	m_angle[1] = 0.f;
 }
 
 KX_MouseActuator::~KX_MouseActuator()
@@ -95,8 +78,7 @@ bool KX_MouseActuator::Update()
 
 	if (bNegativeEvent) {
 		// Reset previous position on negative events.
-		m_oldposition[0] = -1.0f;
-		m_oldposition[1] = -1.0f;
+		m_oldPosition = mt::vec2(-1.0f, -1.0f);
 		return false;
 	}
 
@@ -123,173 +105,98 @@ bool KX_MouseActuator::Update()
 		{
 			if (m_mouse) {
 
-				float position[2];
-				float movement[2];
+				const mt::vec2 position = GetMousePosition();
+				mt::vec2 movement = position;
 				mt::vec3 rotation;
-				float setposition[2] = {0.0f};
-				float center_x = 0.5f, center_y = 0.5f;
-
-				getMousePosition(position);
-
-				movement[0] = position[0];
-				movement[1] = position[1];
+				mt::vec2 setposition = mt::zero2;
+				
+				mt::vec2 center(0.5f, 0.5f);
 
 				//preventing undesired drifting when resolution is odd
 				if ((m_canvas->GetWidth() % 2) == 0) {
-					center_x = float(m_canvas->GetMaxX() / 2) / m_canvas->GetMaxX();
+					center.x = float(m_canvas->GetMaxX() / 2) / m_canvas->GetMaxX();
 				}
 				if ((m_canvas->GetHeight() % 2) == 0) {
-					center_y = float(m_canvas->GetMaxY() / 2) / m_canvas->GetMaxY();
+					center.y = float(m_canvas->GetMaxY() / 2) / m_canvas->GetMaxY();
 				}
 
 				//preventing initial skipping.
-				if ((m_oldposition[0] <= -0.9f) && (m_oldposition[1] <= -0.9f)) {
+				if ((m_oldPosition.x <= -0.9f) && (m_oldPosition.y <= -0.9f)) {
+					for (unsigned short i = 0; i < 2; ++i) {
+						if (m_reset[i]) {
+							m_oldPosition[i] = center[i];
+						}
+						else {
+							m_oldPosition[i] = position[i];
+						}
+					}
 
-					if (m_reset_x) {
-						m_oldposition[0] = center_x;
-					}
-					else {
-						m_oldposition[0] = position[0];
-					}
-
-					if (m_reset_y) {
-						m_oldposition[1] = center_y;
-					}
-					else {
-						m_oldposition[1] = position[1];
-					}
-					setMousePosition(m_oldposition[0], m_oldposition[1]);
+					SetMousePosition(m_oldPosition);
 					break;
 				}
 
-				//Calculating X axis.
-				if (m_use_axis_x) {
+				for (unsigned short i = 0; i < 2; ++i) {
+					if (m_use_axis[i]) {
+						if (m_reset[i]) {
+							setposition[i] = center[i];
+							movement[i] -= center[i];
+						}
+						else {
+							setposition[i] = position[i];
+							movement[i] -= m_oldPosition[i];
+						}
 
-					if (m_reset_x) {
-						setposition[0] = center_x;
-						movement[0] -= center_x;
+						movement[i] *= -1.0f;
+
+						// Don't apply the rotation when we are under a certain threshold for mouse movement.
+						if (((movement[i] > (m_threshold[i] / 10.0f)) ||
+							((movement[i] * (-1.0f)) > (m_threshold[i] / 10.0f)))) {
+
+							movement[i] *= m_sensitivity[i];
+
+							if ((m_limit[i][0] != 0.0f) && ((m_angle[i] + movement[i]) <= m_limit[i][0])) {
+								movement[i] = m_limit[i][0] - m_angle[i];
+							}
+
+							if ((m_limit[i][1] != 0.0f) && ((m_angle[i] + movement[i]) >= m_limit[i][1])) {
+								movement[i] = m_limit[i][1] - m_angle[i];
+							}
+
+							m_angle[i] += movement[i];
+
+							switch (m_object_axis[i]) {
+								case KX_ACT_MOUSE_OBJECT_AXIS_X:
+								{
+									rotation = mt::vec3(movement[i], 0.0f, 0.0f);
+									break;
+								}
+								case KX_ACT_MOUSE_OBJECT_AXIS_Y:
+								{
+									rotation = mt::vec3(0.0f, movement[i], 0.0f);
+									break;
+								}
+								case KX_ACT_MOUSE_OBJECT_AXIS_Z:
+								{
+									rotation = mt::vec3(0.0f, 0.0f, movement[i]);
+									break;
+								}
+								default:
+									break;
+							}
+							parent->ApplyRotation(rotation, m_local[i]);
+						}
 					}
 					else {
-						setposition[0] = position[0];
-						movement[0] -= m_oldposition[0];
+						setposition[i] = center[i];
 					}
-
-					movement[0] *= -1.0f;
-
-					/* Don't apply the rotation when we are under a certain threshold for mouse
-					   movement */
-
-					if (((movement[0] > (m_threshold[0] / 10.0f)) ||
-					     ((movement[0] * (-1.0f)) > (m_threshold[0] / 10.0f)))) {
-
-						movement[0] *= m_sensitivity[0];
-
-						if ((m_limit_x[0] != 0.0f) && ((m_angle[0] + movement[0]) <= m_limit_x[0])) {
-							movement[0] = m_limit_x[0] - m_angle[0];
-						}
-
-						if ((m_limit_x[1] != 0.0f) && ((m_angle[0] + movement[0]) >= m_limit_x[1])) {
-							movement[0] = m_limit_x[1] - m_angle[0];
-						}
-
-						m_angle[0] += movement[0];
-
-						switch (m_object_axis[0]) {
-							case KX_ACT_MOUSE_OBJECT_AXIS_X:
-							{
-								rotation = mt::vec3(movement[0], 0.0f, 0.0f);
-								break;
-							}
-							case KX_ACT_MOUSE_OBJECT_AXIS_Y:
-							{
-								rotation = mt::vec3(0.0f, movement[0], 0.0f);
-								break;
-							}
-							case KX_ACT_MOUSE_OBJECT_AXIS_Z:
-							{
-								rotation = mt::vec3(0.0f, 0.0f, movement[0]);
-								break;
-							}
-							default:
-							{
-								break;
-							}
-						}
-						parent->ApplyRotation(rotation, m_local_x);
-					}
-				}
-				else {
-					setposition[0] = center_x;
-				}
-
-				//Calculating Y axis.
-				if (m_use_axis_y) {
-
-					if (m_reset_y) {
-						setposition[1] = center_y;
-						movement[1] -= center_y;
-					}
-					else {
-						setposition[1] = position[1];
-						movement[1] -= m_oldposition[1];
-					}
-
-					movement[1] *= -1.0f;
-
-					/* Don't apply the rotation when we are under a certain threshold for mouse
-					   movement */
-
-					if (((movement[1] > (m_threshold[1] / 10.0f)) ||
-					     ((movement[1] * (-1.0f)) > (m_threshold[1] / 10.0f)))) {
-
-						movement[1] *= m_sensitivity[1];
-
-						if ((m_limit_y[0] != 0.0f) && ((m_angle[1] + movement[1]) <= m_limit_y[0])) {
-							movement[1] = m_limit_y[0] - m_angle[1];
-						}
-
-						if ((m_limit_y[1] != 0.0f) && ((m_angle[1] + movement[1]) >= m_limit_y[1])) {
-							movement[1] = m_limit_y[1] - m_angle[1];
-						}
-
-						m_angle[1] += movement[1];
-
-						switch (m_object_axis[1]) {
-							case KX_ACT_MOUSE_OBJECT_AXIS_X:
-							{
-								rotation = mt::vec3(movement[1], 0.0f, 0.0f);
-								break;
-							}
-							case KX_ACT_MOUSE_OBJECT_AXIS_Y:
-							{
-								rotation = mt::vec3(0.0f, movement[1], 0.0f);
-								break;
-							}
-							case KX_ACT_MOUSE_OBJECT_AXIS_Z:
-							{
-								rotation = mt::vec3(0.0f, 0.0f, movement[1]);
-								break;
-							}
-							default:
-							{
-								break;
-							}
-						}
-						parent->ApplyRotation(rotation, m_local_y);
-					}
-				}
-				else {
-					setposition[1] = center_y;
 				}
 
 				// only trigger mouse event when it is necessary
-				if (m_oldposition[0] != position[0] || m_oldposition[1] != position[1]) {
-					setMousePosition(setposition[0], setposition[1]);
+				if (m_oldPosition != position) {
+					SetMousePosition(setposition);
 				}
 
-				m_oldposition[0] = position[0];
-				m_oldposition[1] = position[1];
-
+				m_oldPosition = position;
 			}
 			break;
 		}
@@ -324,22 +231,22 @@ void KX_MouseActuator::Replace_IScene(SCA_IScene *scene)
 	m_eventmgr = (SCA_MouseManager *)logicmgr->FindEventManager(m_eventmgr->GetType());
 }
 
-void KX_MouseActuator::getMousePosition(float *pos)
+mt::vec2 KX_MouseActuator::GetMousePosition() const
 {
 	BLI_assert(m_mouse);
 	const SCA_InputEvent & xevent = m_mouse->GetInput(SCA_IInputDevice::MOUSEX);
 	const SCA_InputEvent & yevent = m_mouse->GetInput(SCA_IInputDevice::MOUSEY);
 
-	pos[0] = m_canvas->GetMouseNormalizedX(xevent.m_values[xevent.m_values.size() - 1]);
-	pos[1] = m_canvas->GetMouseNormalizedY(yevent.m_values[yevent.m_values.size() - 1]);
+	return mt::vec2(m_canvas->GetMouseNormalizedX(xevent.m_values[xevent.m_values.size() - 1]),
+					m_canvas->GetMouseNormalizedY(yevent.m_values[yevent.m_values.size() - 1]));
 }
 
-void KX_MouseActuator::setMousePosition(float fx, float fy)
+void KX_MouseActuator::SetMousePosition(const mt::vec2& pos)
 {
 	int x, y;
 
-	x = (int)(fx * m_canvas->GetMaxX());
-	y = (int)(fy * m_canvas->GetMaxY());
+	x = (int)(pos.x * m_canvas->GetMaxX());
+	y = (int)(pos.y * m_canvas->GetMaxY());
 
 	m_canvas->SetMousePosition(x, y);
 }
@@ -382,15 +289,15 @@ PyMethodDef KX_MouseActuator::Methods[] = {
 
 PyAttributeDef KX_MouseActuator::Attributes[] = {
 	EXP_PYATTRIBUTE_BOOL_RW("visible", KX_MouseActuator, m_visible),
-	EXP_PYATTRIBUTE_BOOL_RW("use_axis_x", KX_MouseActuator, m_use_axis_x),
-	EXP_PYATTRIBUTE_BOOL_RW("use_axis_y", KX_MouseActuator, m_use_axis_y),
-	EXP_PYATTRIBUTE_FLOAT_ARRAY_RW("threshold", 0.0f, 0.5f, KX_MouseActuator, m_threshold, 2),
-	EXP_PYATTRIBUTE_BOOL_RW("reset_x", KX_MouseActuator, m_reset_x),
-	EXP_PYATTRIBUTE_BOOL_RW("reset_y", KX_MouseActuator, m_reset_y),
+	EXP_PYATTRIBUTE_BOOL_RW("use_axis_x", KX_MouseActuator, m_use_axis[0]),
+	EXP_PYATTRIBUTE_BOOL_RW("use_axis_y", KX_MouseActuator, m_use_axis[1]),
+	EXP_PYATTRIBUTE_VECTOR_RW("threshold", 0.0f, 0.5f, KX_MouseActuator, m_threshold, 2),
+	EXP_PYATTRIBUTE_BOOL_RW("reset_x", KX_MouseActuator, m_reset[0]),
+	EXP_PYATTRIBUTE_BOOL_RW("reset_y", KX_MouseActuator, m_reset[1]),
 	EXP_PYATTRIBUTE_INT_ARRAY_RW("object_axis", 0, 2, 1, KX_MouseActuator, m_object_axis, 2),
-	EXP_PYATTRIBUTE_BOOL_RW("local_x", KX_MouseActuator, m_local_x),
-	EXP_PYATTRIBUTE_BOOL_RW("local_y", KX_MouseActuator, m_local_y),
-	EXP_PYATTRIBUTE_FLOAT_ARRAY_RW("sensitivity", -FLT_MAX, FLT_MAX, KX_MouseActuator, m_sensitivity, 2),
+	EXP_PYATTRIBUTE_BOOL_RW("local_x", KX_MouseActuator, m_local[0]),
+	EXP_PYATTRIBUTE_BOOL_RW("local_y", KX_MouseActuator, m_local[1]),
+	EXP_PYATTRIBUTE_VECTOR_RW("sensitivity", -FLT_MAX, FLT_MAX, KX_MouseActuator, m_sensitivity, 2),
 	EXP_PYATTRIBUTE_RW_FUNCTION("limit_x", KX_MouseActuator, pyattr_get_limit_x, pyattr_set_limit_x),
 	EXP_PYATTRIBUTE_RW_FUNCTION("limit_y", KX_MouseActuator, pyattr_get_limit_y, pyattr_set_limit_y),
 	EXP_PYATTRIBUTE_RW_FUNCTION("angle", KX_MouseActuator, pyattr_get_angle, pyattr_set_angle),
@@ -400,32 +307,19 @@ PyAttributeDef KX_MouseActuator::Attributes[] = {
 PyObject *KX_MouseActuator::pyattr_get_limit_x(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_MouseActuator *self = static_cast<KX_MouseActuator *>(self_v);
-	return PyObjectFrom(mt::vec2(self->m_limit_x[0] / (float)M_PI * 180.0f, self->m_limit_x[1] / (float)M_PI * 180.0f));
+	return PyObjectFrom(mt::vec2(self->m_limit[0]) / (float)M_PI * 180.0f);
 }
 
 int KX_MouseActuator::pyattr_set_limit_x(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
-	PyObject *item1, *item2;
 	KX_MouseActuator *self = static_cast<KX_MouseActuator *>(self_v);
 
-	if (!PyList_Check(value)) {
+	mt::vec2 vec;
+	if (!PyVecTo(value, vec)) {
 		return PY_SET_ATTR_FAIL;
 	}
 
-	if (PyList_Size(value) != 2) {
-		return PY_SET_ATTR_FAIL;
-	}
-
-	item1 = PyList_GET_ITEM(value, 0);
-	item2 = PyList_GET_ITEM(value, 1);
-
-	if (!(PyFloat_Check(item1)) || !(PyFloat_Check(item2))) {
-		return PY_SET_ATTR_FAIL;
-	}
-	else {
-		self->m_limit_x[0] = (float)((PyFloat_AsDouble(item1) * M_PI) / 180.0f);
-		self->m_limit_x[1] = (float)((PyFloat_AsDouble(item2) * M_PI) / 180.0f);
-	}
+	self->m_limit[0] = vec * ((float)M_PI / 180.0f);
 
 	return PY_SET_ATTR_SUCCESS;
 }
@@ -433,32 +327,19 @@ int KX_MouseActuator::pyattr_set_limit_x(EXP_PyObjectPlus *self_v, const EXP_PYA
 PyObject *KX_MouseActuator::pyattr_get_limit_y(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_MouseActuator *self = static_cast<KX_MouseActuator *>(self_v);
-	return PyObjectFrom(mt::vec2(self->m_limit_y[0] / (float)M_PI * 180.0f, self->m_limit_y[1] / (float)M_PI * 180.0f));
+	return PyObjectFrom(mt::vec2(self->m_limit[1]) / (float)M_PI * 180.0f);
 }
 
 int KX_MouseActuator::pyattr_set_limit_y(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
-	PyObject *item1, *item2;
 	KX_MouseActuator *self = static_cast<KX_MouseActuator *>(self_v);
 
-	if (!PyList_Check(value)) {
+	mt::vec2 vec;
+	if (!PyVecTo(value, vec)) {
 		return PY_SET_ATTR_FAIL;
 	}
 
-	if (PyList_Size(value) != 2) {
-		return PY_SET_ATTR_FAIL;
-	}
-
-	item1 = PyList_GET_ITEM(value, 0);
-	item2 = PyList_GET_ITEM(value, 1);
-
-	if (!(PyFloat_Check(item1)) || !(PyFloat_Check(item2))) {
-		return PY_SET_ATTR_FAIL;
-	}
-	else {
-		self->m_limit_y[0] = (float)((PyFloat_AsDouble(item1) * M_PI) / 180.0f);
-		self->m_limit_y[1] = (float)((PyFloat_AsDouble(item2) * M_PI) / 180.0f);
-	}
+	self->m_limit[1] = vec * ((float)M_PI / 180.0f);
 
 	return PY_SET_ATTR_SUCCESS;
 }
@@ -466,32 +347,19 @@ int KX_MouseActuator::pyattr_set_limit_y(EXP_PyObjectPlus *self_v, const EXP_PYA
 PyObject *KX_MouseActuator::pyattr_get_angle(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_MouseActuator *self = static_cast<KX_MouseActuator *>(self_v);
-	return PyObjectFrom(mt::vec2(self->m_angle[0] / (float)M_PI * 180.0f, self->m_angle[1] / (float)M_PI * 180.0f));
+	return PyObjectFrom(mt::vec2(self->m_angle) / (float)M_PI * 180.0f);
 }
 
 int KX_MouseActuator::pyattr_set_angle(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
-	PyObject *item1, *item2;
 	KX_MouseActuator *self = static_cast<KX_MouseActuator *>(self_v);
 
-	if (!PyList_Check(value)) {
+	mt::vec2 vec;
+	if (!PyVecTo(value, vec)) {
 		return PY_SET_ATTR_FAIL;
 	}
 
-	if (PyList_Size(value) != 2) {
-		return PY_SET_ATTR_FAIL;
-	}
-
-	item1 = PyList_GET_ITEM(value, 0);
-	item2 = PyList_GET_ITEM(value, 1);
-
-	if (!(PyFloat_Check(item1)) || !(PyFloat_Check(item2))) {
-		return PY_SET_ATTR_FAIL;
-	}
-	else {
-		self->m_angle[0] = ((float)(PyFloat_AsDouble(item1) * M_PI) / 180.0f);
-		self->m_angle[1] = ((float)(PyFloat_AsDouble(item2) * M_PI) / 180.0f);
-	}
+	self->m_angle = vec * ((float)M_PI / 180.0f);
 
 	return PY_SET_ATTR_SUCCESS;
 }
@@ -501,54 +369,30 @@ PyObject *KX_MouseActuator::PyReset()
 	mt::vec3 rotation;
 	KX_GameObject *parent = static_cast<KX_GameObject *>(GetParent());
 
-	switch (m_object_axis[0]) {
-		case KX_ACT_MOUSE_OBJECT_AXIS_X:
-		{
-			rotation = mt::vec3(-1.0f * m_angle[0], 0.0f, 0.0f);
-			break;
+	for (unsigned short i = 0; i < 2; ++i) {
+		switch (m_object_axis[i]) {
+			case KX_ACT_MOUSE_OBJECT_AXIS_X:
+			{
+				rotation = mt::vec3(-1.0f * m_angle[i], 0.0f, 0.0f);
+				break;
+			}
+			case KX_ACT_MOUSE_OBJECT_AXIS_Y:
+			{
+				rotation = mt::vec3(0.0f, -1.0f * m_angle[i], 0.0f);
+				break;
+			}
+			case KX_ACT_MOUSE_OBJECT_AXIS_Z:
+			{
+				rotation = mt::vec3(0.0f, 0.0f, -1.0f * m_angle[i]);
+				break;
+			}
+			default:
+				break;
 		}
-		case KX_ACT_MOUSE_OBJECT_AXIS_Y:
-		{
-			rotation = mt::vec3(0.0f, -1.0f * m_angle[0], 0.0f);
-			break;
-		}
-		case KX_ACT_MOUSE_OBJECT_AXIS_Z:
-		{
-			rotation = mt::vec3(0.0f, 0.0f, -1.0f * m_angle[0]);
-			break;
-		}
-		default:
-		{
-			break;
-		}
+		parent->ApplyRotation(rotation, m_local[i]);
 	}
-	parent->ApplyRotation(rotation, m_local_x);
 
-	switch (m_object_axis[1]) {
-		case KX_ACT_MOUSE_OBJECT_AXIS_X:
-		{
-			rotation = mt::vec3(-1.0f * m_angle[1], 0.0f, 0.0f);
-			break;
-		}
-		case KX_ACT_MOUSE_OBJECT_AXIS_Y:
-		{
-			rotation = mt::vec3(0.0f, -1.0f * m_angle[1], 0.0f);
-			break;
-		}
-		case KX_ACT_MOUSE_OBJECT_AXIS_Z:
-		{
-			rotation = mt::vec3(0.0f, 0.0f, -1.0f * m_angle[1]);
-			break;
-		}
-		default:
-		{
-			break;
-		}
-	}
-	parent->ApplyRotation(rotation, m_local_y);
-
-	m_angle[0] = 0.0f;
-	m_angle[1] = 0.0f;
+	m_angle = mt::zero2;
 
 	Py_RETURN_NONE;
 }

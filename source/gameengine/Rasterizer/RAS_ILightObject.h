@@ -63,9 +63,9 @@ public:
 	float	m_shadowbias;
 	float	m_shadowbleedbias;
 	short	m_shadowmaptype;
-	float	m_shadowcolor[3];
+	mt::vec3 m_shadowcolor;
 
-	float	m_color[3];
+	mt::vec3 m_color;
 
 	float	m_att1;
 	float	m_att2;

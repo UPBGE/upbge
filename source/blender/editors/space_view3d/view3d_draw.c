@@ -3107,7 +3107,7 @@ static void view3d_main_region_clear(Scene *scene, View3D *v3d, ARegion *ar)
 		GPUMaterial *gpumat = GPU_material_world(scene, scene->world);
 
 		/* calculate full shader for background */
-		GPU_material_bind(gpumat, 1, 1, 1.0, true, rv3d->viewmat, rv3d->viewinv, rv3d->viewcamtexcofac, (v3d->scenelock != 0));
+		GPU_material_bind(gpumat, 1, 1.0, true, rv3d->viewmat, rv3d->viewinv, rv3d->viewcamtexcofac, (v3d->scenelock != 0));
 
 		bool material_not_bound = !GPU_material_bound(gpumat);
 

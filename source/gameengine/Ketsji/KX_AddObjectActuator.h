@@ -55,12 +55,12 @@ class KX_AddObjectActuator : public SCA_IActuator
 	KX_Scene *m_scene;
 
 	/// Linear velocity upon creation of the object. 
-	float  m_linear_velocity[3];
+	mt::vec3 m_linear_velocity;
 	/// Apply the velocity locally 
 	bool m_localLinvFlag;
 	
 	/// Angular velocity upon creation of the object. 
-	float  m_angular_velocity[3];
+	mt::vec3 m_angular_velocity;
 	/// Apply the velocity locally 
 	bool m_localAngvFlag; 
 	
@@ -73,16 +73,8 @@ public:
 	 * available. Use with care!
 	 */
 
-	KX_AddObjectActuator(
-		KX_GameObject *gameobj,
-		KX_GameObject *original,
-		float time,
-		KX_Scene* scene,
-		const float *linvel,
-		bool linv_local,
-		const float *angvel,
-		bool angv_local
-	);
+	KX_AddObjectActuator(KX_GameObject *gameobj, KX_GameObject *original, float time, KX_Scene* scene,
+		const mt::vec3& linvel, bool linv_local, const mt::vec3& angvel, bool angv_local);
 
 	~KX_AddObjectActuator(void);
 
