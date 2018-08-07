@@ -576,6 +576,7 @@ typedef struct LampRen {
 	short falloff_type;
 	float ld1, ld2;
 	float coeff_const, coeff_lin, coeff_quad;
+	float radius, cutoff;
 	struct CurveMapping *curfalloff;
 
 	/* copied from Lamp, to decouple more rendering stuff */

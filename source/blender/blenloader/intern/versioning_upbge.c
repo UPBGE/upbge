@@ -301,5 +301,12 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
 				}
 			}
 		} FOREACH_NODETREE_END
+		
+		if (!DNA_struct_elem_find(fd->filesdna, "Lamp", "float", "cutoff")) {
+			for (Lamp *lamp = main->lamp.first; lamp; lamp = lamp->id.next) {
+				lamp->radius = 8.0f;
+				lamp->cutoff = 0.001f;
+			}
+		}
 	}
 }

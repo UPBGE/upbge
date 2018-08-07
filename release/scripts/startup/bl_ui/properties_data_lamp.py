@@ -110,6 +110,12 @@ class DATA_PT_lamp(DataButtonsPanel, Panel):
                 sub.prop(lamp, "linear_coefficient", text="Linear")
                 sub.prop(lamp, "quadratic_coefficient", text="Quadratic")
 
+            elif lamp.falloff_type == 'INVSQUARE_CUTOFF':
+                col.label(text="Inverse Square Cutoff:")
+                sub = col.column(align=True)
+                sub.prop(lamp, "radius", text="Radius")
+                sub.prop(lamp, "cutoff_threshold", text="CutOff")
+
             col.prop(lamp, "use_sphere")
 
         if lamp.type == 'AREA':
