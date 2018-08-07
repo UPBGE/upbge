@@ -311,13 +311,5 @@ void BLO_update_defaults_startup_blend(Main *bmain)
 			br->flag |= BRUSH_ACCUMULATE;
 		}
 	}
-
-	for (Lamp *lamp = bmain->lamp.first; lamp; lamp = lamp->id.next) {
-			lamp->cutoff = 0.1f;
-			lamp->radius = 8.0f;
-			lamp->coeff_const = 1.0f;
-			lamp->coeff_lin = 0.05f;
-			lamp->coeff_quad = 0.001f;
-	}
 }
 

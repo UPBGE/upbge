@@ -3823,6 +3823,8 @@ static GroupObject *add_render_lamp(Render *re, Object *ob)
 	lar->coeff_lin= la->coeff_lin;
 	lar->coeff_quad= la->coeff_quad;
 	lar->curfalloff = curvemapping_copy(la->curfalloff);
+	lar->radius = la->radius;
+	lar->cutoff = la->cutoff;
 
 	if (lar->curfalloff) {
 		/* so threads don't conflict on init */

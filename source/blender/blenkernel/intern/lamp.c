@@ -84,6 +84,8 @@ void BKE_lamp_init(Lamp *la)
 	la->coeff_lin = 0.0f;
 	la->coeff_quad = 0.0f;
 	la->curfalloff = curvemapping_add(1, 0.0f, 1.0f, 1.0f, 0.0f);
+	la->radius = 8.0f;
+	la->cutoff = 0.001f;
 	la->sun_effect_type = 0;
 	la->horizon_brightness = 1.0;
 	la->spread = 1.0;
