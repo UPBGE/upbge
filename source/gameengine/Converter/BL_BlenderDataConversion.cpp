@@ -513,7 +513,7 @@ KX_Mesh *BL_ConvertMesh(Mesh *me, Object *blenderobj, KX_Scene *scene, BL_SceneC
 
 		RAS_MaterialBucket *bucket = BL_ConvertMaterial(ma, scene, converter);
 		RAS_MeshMaterial *meshmat = meshobj->AddMaterial(bucket, i, vertformat);
-		RAS_IPolyMaterial *mat = meshmat->GetBucket()->GetPolyMaterial();
+		RAS_IPolyMaterial *mat = meshmat->GetBucket()->GetMaterial();
 
 		mats[i] = {meshmat->GetDisplayArray(), bucket, mat->IsVisible(), mat->IsTwoSided(), mat->IsCollider(), mat->IsWire()};
 	}
@@ -1688,7 +1688,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 	for (KX_GameObject *gameobj : sumolist) {
 		for (KX_Mesh *mesh : gameobj->GetMeshList()) {
 			for (RAS_MeshMaterial *meshmat : mesh->GetMeshMaterialList()) {
-				RAS_IPolyMaterial *polymat = meshmat->GetBucket()->GetPolyMaterial();
+				RAS_IPolyMaterial *polymat = meshmat->GetBucket()->GetMaterial();
 
 				for (unsigned short k = 0; k < RAS_Texture::MaxUnits; ++k) {
 					RAS_Texture *tex = polymat->GetTexture(k);

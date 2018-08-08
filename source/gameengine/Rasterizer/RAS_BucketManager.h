@@ -90,9 +90,9 @@ protected:
 	RAS_ManagerDownwardNode m_downwardNode;
 	RAS_ManagerUpwardNode m_upwardNode;
 
-	struct TextMaterial
+	struct TextData
 	{
-		RAS_IPolyMaterial *m_material;
+		RAS_MaterialBucket *m_bucket;
 		RAS_DisplayArrayBucket *m_arrayBucket;
 	} m_text;
 
@@ -116,7 +116,7 @@ public:
 	void RemoveMaterial(RAS_IPolyMaterial *mat);
 
 	// for merging
-	void MergeBucketManager(RAS_BucketManager *other, SCA_IScene *scene);
+	void Merge(RAS_BucketManager *other, SCA_IScene *scene);
 
 private:
 	void PrepareBuckets(RAS_Rasterizer *rasty, BucketType bucketType);

@@ -89,7 +89,7 @@ RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_D
 	m_nodeData.m_attribStorage = nullptr;
 	m_nodeData.m_applyMatrix = (!m_deformer || !m_deformer->SkipVertexTransform());
 
-	RAS_IPolyMaterial *material = bucket->GetPolyMaterial();
+	RAS_IPolyMaterial *material = bucket->GetMaterial();
 	material->AddUpdateClient(&m_materialUpdateClient);
 }
 
@@ -162,7 +162,7 @@ void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_Rasterizer::DrawType draw
 		}
 
 		if (m_materialUpdateClient.GetInvalidAndClear()) {
-			RAS_IPolyMaterial *polymat = m_bucket->GetPolyMaterial();
+			RAS_IPolyMaterial *polymat = m_bucket->GetMaterial();
 			const RAS_Mesh::LayersInfo& layersInfo = m_mesh->GetLayersInfo();
 			const RAS_AttributeArray::AttribList attribList = polymat->GetAttribs(layersInfo);
 
@@ -384,6 +384,6 @@ void RAS_DisplayArrayBucket::ChangeMaterialBucket(RAS_MaterialBucket *bucket)
 	m_bucket = bucket;
 
 	// Change of material update looking.
-	RAS_IPolyMaterial *material = bucket->GetPolyMaterial();
+	RAS_IPolyMaterial *material = bucket->GetMaterial();
 	material->MoveUpdateClient(&m_materialUpdateClient, RAS_IPolyMaterial::ATTRIBUTES_MODIFIED);
 }

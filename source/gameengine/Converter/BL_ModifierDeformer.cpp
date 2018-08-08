@@ -176,7 +176,7 @@ void BL_ModifierDeformer::UpdateTransverts()
 		RAS_DisplayArray *array = slot.m_displayArray;
 		array->Clear();
 
-		RAS_IPolyMaterial *mat = meshmat->GetBucket()->GetPolyMaterial();
+		RAS_IPolyMaterial *mat = meshmat->GetBucket()->GetMaterial();
 		mats[i] = {array, meshmat->GetBucket(), mat->IsVisible(), mat->IsTwoSided(), mat->IsCollider(), mat->IsWire()};
 	}
 

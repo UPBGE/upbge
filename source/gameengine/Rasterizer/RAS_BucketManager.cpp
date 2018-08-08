@@ -80,16 +80,14 @@ RAS_BucketManager::RAS_BucketManager(RAS_IPolyMaterial *textMaterial)
 	:m_downwardNode(this, &m_nodeData, nullptr, nullptr),
 	m_upwardNode(this, &m_nodeData, nullptr, nullptr)
 {
-	m_text.m_material = textMaterial;
 	bool created;
-	RAS_MaterialBucket *bucket = FindBucket(m_text.m_material, created);
-	m_text.m_arrayBucket = new RAS_DisplayArrayBucket(bucket, nullptr, nullptr, nullptr, nullptr);
+	m_text.m_bucket = FindBucket(textMaterial, created);
+	m_text.m_arrayBucket = new RAS_DisplayArrayBucket(m_text.m_bucket, nullptr, nullptr, nullptr, nullptr);
 }
 
 RAS_BucketManager::~RAS_BucketManager()
 {
 	delete m_text.m_arrayBucket;
-	delete m_text.m_material;
 
 	for (RAS_MaterialBucket *bucket : m_buckets[ALL_BUCKET]) {
 		delete bucket;
@@ -103,7 +101,7 @@ void RAS_BucketManager::PrepareBuckets(RAS_Rasterizer *rasty, RAS_BucketManager:
 	}
 
 	for (RAS_MaterialBucket *bucket : m_buckets[bucketType]) {
-		RAS_IPolyMaterial *mat = bucket->GetPolyMaterial();
+		RAS_IPolyMaterial *mat = bucket->GetMaterial();
 		mat->Prepare(rasty);
 	}
 }
@@ -334,7 +332,7 @@ RAS_MaterialBucket *RAS_BucketManager::FindBucket(RAS_IPolyMaterial *material, b
 	bucketCreated = false;
 
 	for (RAS_MaterialBucket *bucket : m_buckets[ALL_BUCKET]) {
-		if (bucket->GetPolyMaterial() == material) {
+		if (bucket->GetMaterial() == material) {
 			return bucket;
 		}
 	}
@@ -376,8 +374,8 @@ RAS_DisplayArrayBucket *RAS_BucketManager::GetTextDisplayArrayBucket() const
 void RAS_BucketManager::ReloadMaterials(RAS_IPolyMaterial *mat)
 {
 	for (RAS_MaterialBucket *bucket : m_buckets[ALL_BUCKET]) {
-		if (mat == nullptr || (mat == bucket->GetPolyMaterial())) {
-			bucket->GetPolyMaterial()->ReloadMaterial();
+		if (mat == nullptr || (mat == bucket->GetMaterial())) {
+			bucket->GetMaterial()->ReloadMaterial();
 		}
 	}
 }
@@ -389,7 +387,7 @@ void RAS_BucketManager::RemoveMaterial(RAS_IPolyMaterial *mat)
 		BucketList& buckets = m_buckets[i];
 		for (BucketList::iterator it = buckets.begin(); it != buckets.end(); ) {
 			RAS_MaterialBucket *bucket = *it;
-			if (mat == bucket->GetPolyMaterial()) {
+			if (mat == bucket->GetMaterial()) {
 				it = buckets.erase(it);
 				if (i == ALL_BUCKET) {
 					delete bucket;
@@ -402,12 +400,14 @@ void RAS_BucketManager::RemoveMaterial(RAS_IPolyMaterial *mat)
 	}
 }
 
-void RAS_BucketManager::MergeBucketManager(RAS_BucketManager *other, SCA_IScene *scene)
+void RAS_BucketManager::Merge(RAS_BucketManager *other, SCA_IScene *scene)
 {
 	for (unsigned short i = 0; i < NUM_BUCKET_TYPE; ++i) {
 		BucketList& buckets = m_buckets[i];
 		BucketList& otherbuckets = other->m_buckets[i];
-		buckets.insert(buckets.begin(), otherbuckets.begin(), otherbuckets.end());
+
+		// Skip the text bucket.
+		std::remove_copy(otherbuckets.begin(), otherbuckets.end(), std::back_inserter(buckets), other->m_text.m_bucket);
 		otherbuckets.clear();
 	}
 }

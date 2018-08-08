@@ -1905,7 +1905,7 @@ struct  DbvtCullingCallback : btDbvt::ICollide {
 				for (KX_Mesh *meshobj : gameobj->GetMeshList()) {
 					for (RAS_MeshMaterial *meshmat : meshobj->GetMeshMaterialList()) {
 						RAS_DisplayArray *array = meshmat->GetDisplayArray();
-						const bool twoside = meshmat->GetBucket()->GetPolyMaterial()->IsTwoSided();
+						const bool twoside = meshmat->GetBucket()->GetMaterial()->IsTwoSided();
 						const float face = (twoside) ? 0.0f : ((negative) ? -1.0f : 1.0f);
 
 						for (unsigned int j = 0, size = array->GetTriangleIndexCount(); j < size; j += 3) {

@@ -915,7 +915,7 @@ ImageRender::ImageRender(KX_Scene *scene, KX_GameObject *observer, KX_GameObject
 	// locate the vertex assigned to mat and do following calculation in mesh coordinates
 	for (KX_Mesh *mesh : mirror->GetMeshList()) {
 		for (RAS_MeshMaterial *meshmat : mesh->GetMeshMaterialList()) {
-			if (meshmat->GetBucket()->GetPolyMaterial() == mat) {
+			if (meshmat->GetBucket()->GetMaterial() == mat) {
 				RAS_DisplayArray *array = meshmat->GetDisplayArray();
 				for (unsigned int j = 0, indexCount = array->GetTriangleIndexCount(); j < indexCount; j += 3) {
 					float normal[3];

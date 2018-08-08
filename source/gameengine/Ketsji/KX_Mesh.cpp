@@ -372,7 +372,7 @@ PyObject *KX_Mesh::PyReplaceMaterial(PyObject *args, PyObject *kwds)
 		return nullptr;
 	}
 
-	KX_Scene *scene = (KX_Scene *)meshmat->GetBucket()->GetPolyMaterial()->GetScene();
+	KX_Scene *scene = (KX_Scene *)meshmat->GetBucket()->GetMaterial()->GetScene();
 	if (scene != mat->GetScene()) {
 		PyErr_Format(PyExc_ValueError, "Mesh successor scene doesn't match current mesh scene");
 		return nullptr;
@@ -476,7 +476,7 @@ PyObject *KX_Mesh::pyattr_get_materials(EXP_PyObjectPlus *self_v, const EXP_PYAT
 
 	for (unsigned short i = 0; i < tot; ++i) {
 		RAS_MeshMaterial *mmat = self->m_materials[i];
-		RAS_IPolyMaterial *polymat = mmat->GetBucket()->GetPolyMaterial();
+		RAS_IPolyMaterial *polymat = mmat->GetBucket()->GetMaterial();
 		KX_BlenderMaterial *mat = static_cast<KX_BlenderMaterial *>(polymat);
 		PyList_SET_ITEM(materials, i, mat->GetProxy());
 	}

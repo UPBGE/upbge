@@ -86,7 +86,7 @@ std::string RAS_Mesh::GetMaterialName(unsigned int matid) const
 	RAS_MeshMaterial *mmat = GetMeshMaterial(matid);
 
 	if (mmat) {
-		return mmat->GetBucket()->GetPolyMaterial()->GetName();
+		return mmat->GetBucket()->GetMaterial()->GetName();
 	}
 
 	return "";
@@ -116,7 +116,7 @@ RAS_MeshMaterial *RAS_Mesh::FindMaterialName(const std::string& name) const
 {
 	for (RAS_MeshMaterial *meshmat : m_materials) {
 		// Check without the MA prefix.
-		if (name == std::string(meshmat->GetBucket()->GetPolyMaterial()->GetName(), 2)) {
+		if (name == std::string(meshmat->GetBucket()->GetMaterial()->GetName(), 2)) {
 			return meshmat;
 		}
 	}
@@ -168,7 +168,7 @@ std::string RAS_Mesh::GetTextureName(unsigned int matid) const
 	RAS_MeshMaterial *mmat = GetMeshMaterial(matid);
 
 	if (mmat) {
-		return mmat->GetBucket()->GetPolyMaterial()->GetTextureName();
+		return mmat->GetBucket()->GetMaterial()->GetTextureName();
 	}
 
 	return "";
@@ -226,7 +226,7 @@ void RAS_Mesh::EndConversion(RAS_BoundingBoxManager *boundingBoxManager)
 	for (RAS_MeshMaterial *meshmat : m_materials) {
 		RAS_DisplayArray *array = meshmat->GetDisplayArray();
 
-		const std::string materialname = meshmat->GetBucket()->GetPolyMaterial()->GetName();
+		const std::string materialname = meshmat->GetBucket()->GetMaterial()->GetName();
 		if (array->GetVertexCount() == 0) {
 			CM_Warning("mesh \"" << m_name << "\" has no vertices for material \"" << materialname
 			                     << "\". It introduces performance decrease for empty render.");
@@ -265,7 +265,7 @@ void RAS_Mesh::EndConversion(RAS_BoundingBoxManager *boundingBoxManager)
 		// Compute absolute array end index.
 		const unsigned int endIndex = startIndex + indexCount - 1;
 
-		RAS_IPolyMaterial *polymat = meshmat->GetBucket()->GetPolyMaterial();
+		RAS_IPolyMaterial *polymat = meshmat->GetBucket()->GetMaterial();
 		PolygonInfo::Flags flags =
 			((polymat->IsVisible()) ? PolygonInfo::VISIBLE : PolygonInfo::NONE |
 			 (polymat->IsCollider()) ? PolygonInfo::COLLIDER : PolygonInfo::NONE |

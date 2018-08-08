@@ -101,3 +101,10 @@ const RAS_AttributeArray::AttribList KX_TextMaterial::GetAttribs(const RAS_Mesh:
 {
 	return {};
 }
+
+KX_TextMaterial *KX_TextMaterial::GetSingleton()
+{
+	static KX_TextMaterial singleton;
+	return &singleton;
+}
+

@@ -54,6 +54,8 @@ public:
 						   float emit, float ambient, float alpha, float specalpha);
 
 	virtual const RAS_AttributeArray::AttribList GetAttribs(const RAS_Mesh::LayersInfo& layersInfo) const;
+
+	static KX_TextMaterial *GetSingleton();
 };
 
 #endif  // __KX_TEXTMATERIAL_H__

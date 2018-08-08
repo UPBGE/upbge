@@ -63,7 +63,7 @@ RAS_MaterialBucket::~RAS_MaterialBucket()
 {
 }
 
-RAS_IPolyMaterial *RAS_MaterialBucket::GetPolyMaterial() const
+RAS_IPolyMaterial *RAS_MaterialBucket::GetMaterial() const
 {
 	return m_material;
 }

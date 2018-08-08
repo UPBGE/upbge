@@ -48,7 +48,7 @@ public:
 	virtual ~RAS_MaterialBucket();
 
 	// Material Properties
-	RAS_IPolyMaterial *GetPolyMaterial() const;
+	RAS_IPolyMaterial *GetMaterial() const;
 	bool IsAlpha() const;
 	bool IsZSort() const;
 	bool IsWire() const;

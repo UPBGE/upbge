@@ -104,7 +104,7 @@ bool RAS_BatchGroup::MergeMeshSlot(RAS_BatchGroup::Batch& batch, RAS_MeshSlot& s
 bool RAS_BatchGroup::SplitMeshSlot(RAS_MeshSlot& slot)
 {
 	RAS_MaterialBucket *bucket = slot.m_displayArrayBucket->GetBucket();
-	RAS_IPolyMaterial *material = bucket->GetPolyMaterial();
+	RAS_IPolyMaterial *material = bucket->GetMaterial();
 
 	std::map<RAS_IPolyMaterial *, Batch>::iterator bit = m_batchs.find(material);
 	if (bit == m_batchs.end()) {
@@ -144,7 +144,7 @@ bool RAS_BatchGroup::MergeMeshUser(RAS_MeshUser *meshUser, const mt::mat4& mat)
 	for (RAS_MeshSlot& meshSlot : meshUser->GetMeshSlots()) {
 		RAS_DisplayArrayBucket *arrayBucket = meshSlot.m_displayArrayBucket;
 		RAS_MaterialBucket *bucket = arrayBucket->GetBucket();
-		RAS_IPolyMaterial *material = bucket->GetPolyMaterial();
+		RAS_IPolyMaterial *material = bucket->GetMaterial();
 
 		Batch& batch = m_batchs[material];
 		// Create the batch if it is empty.

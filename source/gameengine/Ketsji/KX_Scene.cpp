@@ -188,8 +188,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_networkScene = new KX_NetworkMessageScene(messageManager);
 
 	m_rendererManager = new KX_TextureRendererManager(this);
-	KX_TextMaterial *textMaterial = new KX_TextMaterial();
-	m_bucketmanager = new RAS_BucketManager(textMaterial);
+	m_bucketmanager = new RAS_BucketManager(KX_TextMaterial::GetSingleton());
 	m_boundingBoxManager = new RAS_BoundingBoxManager();
 
 	m_animationPool = BLI_task_pool_create(KX_GetActiveEngine()->GetTaskScheduler(), &m_animationPoolData);
@@ -1599,14 +1598,26 @@ static void MergeScene_GameObject(KX_GameObject *gameobj, KX_Scene *to, KX_Scene
 			}
 		}
 	}
-	// If the object is a light, update it's scene.
-	if (gameobj->GetGameObjectType() == SCA_IObject::OBJ_LIGHT) {
-		static_cast<KX_LightObject *>(gameobj)->UpdateScene(to);
-	}
-
-	// All armatures should be in the animated object list to be umpdated.
-	if (gameobj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
-		to->AddAnimatedObject(gameobj);
+	switch (gameobj->GetGameObjectType()) {
+		// If the object is a light, update it's scene.
+		case SCA_IObject::OBJ_LIGHT:
+		{
+			static_cast<KX_LightObject *>(gameobj)->UpdateScene(to);
+			break;
+		}
+		// All armatures should be in the animated object list to be umpdated.
+		case SCA_IObject::OBJ_ARMATURE:
+		{
+			to->AddAnimatedObject(gameobj);
+			break;
+		}
+		// Force recreation of text users to link them to the merged scene text material.
+		case SCA_IObject::OBJ_TEXT:
+		{
+			gameobj->RemoveMeshes();
+			gameobj->AddMeshUser();
+			break;
+		}
 	}
 
 	// Add the object to the scene's logic manager.
@@ -1631,7 +1642,7 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 		return false;
 	}
 
-	m_bucketmanager->MergeBucketManager(other->GetBucketManager(), this);
+	m_bucketmanager->Merge(other->GetBucketManager(), this);
 	m_boundingBoxManager->Merge(other->GetBoundingBoxManager());
 	m_rendererManager->Merge(other->GetTextureRendererManager());
 
