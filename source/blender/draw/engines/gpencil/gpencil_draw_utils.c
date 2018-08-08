@@ -754,7 +754,7 @@ static void gpencil_draw_strokes(
 	DRWShadingGroup *strokegrp;
 	float viewmatrix[4][4];
 	const bool is_multiedit = (bool)GPENCIL_MULTIEDIT_SESSIONS_ON(gpd);
-	const bool playing = (bool)stl->storage->playing;
+	const bool playing = stl->storage->is_playing;
 	const bool is_render = (bool)stl->storage->is_render;
 	const bool is_mat_preview = (bool)stl->storage->is_mat_preview;
 	const bool overlay_multiedit = v3d != NULL ? (v3d->gp_flag & V3D_GP_SHOW_MULTIEDIT_LINES) : true;
@@ -1141,7 +1141,7 @@ void DRW_gpencil_populate_multiedit(GPENCIL_e_data *e_data, void *vedata, Scene 
 	cache->cache_idx = 0;
 
 	/* check if playing animation */
-	bool playing = (bool)stl->storage->playing;
+	bool playing = stl->storage->is_playing;
 
 	/* draw strokes */
 	for (bGPDlayer *gpl = gpd->layers.first; gpl; gpl = gpl->next) {
@@ -1187,7 +1187,7 @@ void DRW_gpencil_populate_datablock(GPENCIL_e_data *e_data, void *vedata, Scene 
 	const bool overlay = v3d != NULL ? (bool)((v3d->flag2 & V3D_RENDER_OVERRIDE) == 0) : true;
 
 	/* check if playing animation */
-	bool playing = (bool)stl->storage->playing;
+	bool playing = stl->storage->is_playing;
 
 	GpencilBatchCache *cache = gpencil_batch_cache_get(ob, cfra_eval);
 	cache->cache_idx = 0;
@@ -1263,6 +1263,7 @@ static void gp_instance_modifier_make_instances(GPENCIL_StorageList *stl, Object
 {
 	/* reset random */
 	mmd->rnd[0] = 1;
+	int e = 0;
 
 	/* Generate instances */
 	for (int x = 0; x < mmd->count[0]; x++) {
@@ -1284,6 +1285,18 @@ static void gp_instance_modifier_make_instances(GPENCIL_StorageList *stl, Object
 
 				/* add object to cache */
 				newob = MEM_dupallocN(ob);
+
+				/* Create a unique name or the object hash used in draw will fail.
+				 * the name must be unique in the hash, not in the scene because
+				 * the object never is linked to scene and is removed after drawing.
+				 *
+				 * It uses special characters to be sure the name cannot be equal
+				 * to any existing name because UI limits the use of special characters.
+				 *
+				 * Name = OB\t_{pointer}_{index}
+				 */
+				sprintf(newob->id.name, "OB\t_%p_%d", &ob, e++);
+
 				mul_m4_m4m4(newob->obmat, ob->obmat, mat);
 
 				/* apply scale */

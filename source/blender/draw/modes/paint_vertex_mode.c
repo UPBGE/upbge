@@ -36,6 +36,8 @@
 #include "DNA_mesh_types.h"
 #include "DNA_view3d_types.h"
 
+#include "DEG_depsgraph_query.h"
+
 extern struct GPUUniformBuffer *globals_ubo; /* draw_common.c */
 extern struct GlobalsUboStorage ts; /* draw_common.c */
 
@@ -125,6 +127,7 @@ static void PAINT_VERTEX_cache_init(void *vedata)
 		        DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL);
 
 		stl->g_data->lwire_shgrp = DRW_shgroup_create(e_data.wire_overlay_shader, psl->wire_overlay);
+		DRW_shgroup_uniform_block(stl->g_data->lwire_shgrp, "globalsBlock", globals_ubo);
 	}
 
 	{
@@ -146,6 +149,8 @@ static void PAINT_VERTEX_cache_populate(void *vedata, Object *ob)
 	const View3D *v3d = draw_ctx->v3d;
 
 	if ((ob->type == OB_MESH) && (ob == draw_ctx->obact)) {
+		/* We're always painting on original, display original data. */
+		ob = DEG_get_original_object(ob);
 		const Mesh *me = ob->data;
 		const bool use_wire = (v3d->overlay.paint_flag & V3D_OVERLAY_PAINT_WIRE) != 0;
 		const bool use_surface = v3d->overlay.vertex_paint_mode_opacity != 0.0f;

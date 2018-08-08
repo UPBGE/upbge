@@ -128,30 +128,42 @@ static void bakeModifier(
 				copy_v4_v4(gps->runtime.tmp_stroke_rgba, gp_style->stroke_rgba);
 				copy_v4_v4(gps->runtime.tmp_fill_rgba, gp_style->fill_rgba);
 
+				deformStroke(md, depsgraph, ob, gpl, gps);
+
 				/* look for color */
 				if (mmd->flag & GP_TINT_CREATE_COLORS) {
 					Material *newmat = (Material *)BLI_ghash_lookup(gh_color, mat->id.name);
 					if (newmat == NULL) {
 						BKE_object_material_slot_add(bmain, ob);
 						newmat = BKE_material_copy(bmain, mat);
+						newmat->preview = NULL;
+
 						assign_material(bmain, ob, newmat, ob->totcol, BKE_MAT_ASSIGN_USERPREF);
 
 						copy_v4_v4(newmat->gp_style->stroke_rgba, gps->runtime.tmp_stroke_rgba);
 						copy_v4_v4(newmat->gp_style->fill_rgba, gps->runtime.tmp_fill_rgba);
 
 						BLI_ghash_insert(gh_color, mat->id.name, newmat);
+						DEG_id_tag_update(&newmat->id, DEG_TAG_COPY_ON_WRITE);
 					}
 					/* reasign color index */
 					int idx = BKE_object_material_slot_find_index(ob, newmat);
 					gps->mat_nr = idx - 1;
 				}
 				else {
-					/* reuse existing color */
-					copy_v4_v4(gp_style->stroke_rgba, gps->runtime.tmp_stroke_rgba);
-					copy_v4_v4(gp_style->fill_rgba, gps->runtime.tmp_fill_rgba);
+					/* reuse existing color (but update only first time) */
+					if (BLI_ghash_lookup(gh_color, mat->id.name) == NULL) {
+						copy_v4_v4(gp_style->stroke_rgba, gps->runtime.tmp_stroke_rgba);
+						copy_v4_v4(gp_style->fill_rgba, gps->runtime.tmp_fill_rgba);
+						BLI_ghash_insert(gh_color, mat->id.name, mat);
+					}
+					/* update previews (icon and thumbnail) */
+					if (mat->preview != NULL) {
+						mat->preview->flag[ICON_SIZE_ICON] |= PRV_CHANGED;
+						mat->preview->flag[ICON_SIZE_PREVIEW] |= PRV_CHANGED;
+					}
+					DEG_id_tag_update(&mat->id, DEG_TAG_COPY_ON_WRITE);
 				}
-
-				deformStroke(md, depsgraph, ob, gpl, gps);
 			}
 		}
 	}
