@@ -1235,6 +1235,7 @@ float lamp_get_visibility(LampRen *lar, const float co[3], float lv[3], float *d
 					visifac = curvemapping_evaluateF(lar->curfalloff, 0, dist[0]/lar->dist);
 					break;
 				case LA_FALLOFF_INVSQUARE_CUTOFF:
+				{
 					float d = lar->dist - lar->radius;
 					if (d <= 0.0f) {
 						visifac = 1.0f;
@@ -1243,9 +1244,10 @@ float lamp_get_visibility(LampRen *lar, const float co[3], float lv[3], float *d
 						float denom = d / lar->radius + 1.0f;  
 						float att = 1.0f / (denom * denom);  
 						att = (att - lar->cutoff) / (1.0f - lar->cutoff);  
-						att = max(att, 0.0f);  
+						att = max_ff(att, 0.0f);  
 						visifac = att;
 					}
+				}
 				break;
 			}
 
