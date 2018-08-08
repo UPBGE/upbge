@@ -35,6 +35,7 @@
 #include "KX_Scene.h"
 #include "KX_Globals.h"
 #include "KX_PyMath.h"
+#include "KX_RayCast.h"
 
 #include "RAS_ICanvas.h"
 
@@ -883,24 +884,21 @@ EXP_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenVect,
                             "getScreenVect()\n"
                             )
 {
-	double x, y;
-	if (!PyArg_ParseTuple(args, "dd:getScreenVect", &x, &y)) {
+	float x, y;
+	if (!PyArg_ParseTuple(args, "ff:getScreenVect", &x, &y)) {
 		return nullptr;
 	}
 
 	y = 1.0 - y; //to follow Blender window coordinate system (Top-Down)
 
 	const mt::mat4 modelmatrix = mt::mat4::FromAffineTransform(GetWorldToCamera());
-	const mt::mat4& projmatrix = this->GetProjectionMatrix();
 
 	RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
 	const int width = canvas->GetWidth();
 	const int height = canvas->GetHeight();
 
-	const mt::vec3 vect(x *width, y *height, 0.0f);
-
-	const mt::vec3 screenpos = mt::mat4::UnProject(vect, modelmatrix, projmatrix, width, height);
-
+	const mt::vec3 vect(x * width, y * height, 0.0f);
+	const mt::vec3 screenpos = mt::mat4::UnProject(vect, modelmatrix, m_projection_matrix, width, height);
 	const mt::vec3 ret = (NodeGetLocalPosition() - screenpos).Normalized();
 
 	return PyObjectFrom(ret);
@@ -910,44 +908,56 @@ EXP_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenRay,
                             "getScreenRay()\n"
                             )
 {
-	mt::vec3 vect;
-	double x, y, dist;
+	float x, y, dist;
 	char *propName = nullptr;
 
-	if (!PyArg_ParseTuple(args, "ddd|s:getScreenRay", &x, &y, &dist, &propName)) {
+	if (!PyArg_ParseTuple(args, "fff|s:getScreenRay", &x, &y, &dist, &propName)) {
 		return nullptr;
 	}
 
-	PyObject *argValue = PyTuple_New(2);
-	PyTuple_SET_ITEM(argValue, 0, PyFloat_FromDouble(x));
-	PyTuple_SET_ITEM(argValue, 1, PyFloat_FromDouble(y));
+	y = 1.0 - y; //to follow Blender window coordinate system (Top-Down)
 
-	if (!PyVecTo(PygetScreenVect(argValue), vect)) {
-		Py_DECREF(argValue);
-		PyErr_SetString(PyExc_TypeError,
-		                "Error in getScreenRay. Invalid 2D coordinate. "
-		                "Expected a normalized 2D screen coordinate, "
-		                "a distance and an optional property argument");
-		return nullptr;
+	const mt::mat4 modelmatrix = mt::mat4::FromAffineTransform(GetWorldToCamera());
+
+	RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
+	const int width = canvas->GetWidth();
+	const int height = canvas->GetHeight();
+
+	mt::vec3 fromPoint;
+	mt::vec3 toPoint;
+
+	// Unproject a point in near plane.
+	const mt::vec3 point(x * width, y * height, 0.0f);
+	const mt::vec3 screenpos = mt::mat4::UnProject(point, modelmatrix, m_projection_matrix, width, height);
+
+	// For perpspective the vector is from camera center to unprojected point.
+	if (m_camdata.m_perspective) {
+		fromPoint = NodeGetWorldPosition();
+		toPoint = screenpos;
 	}
-	Py_DECREF(argValue);
-
-	dist = -dist;
-	vect += NodeGetWorldPosition();
-
-	argValue = (propName ? PyTuple_New(3) : PyTuple_New(2));
-	if (argValue) {
-		PyTuple_SET_ITEM(argValue, 0, PyObjectFrom(vect));
-		PyTuple_SET_ITEM(argValue, 1, PyFloat_FromDouble(dist));
-		if (propName) {
-			PyTuple_SET_ITEM(argValue, 2, PyUnicode_FromString(propName));
-		}
-
-		PyObject *ret = this->PyrayCastTo(argValue, nullptr);
-		Py_DECREF(argValue);
-		return ret;
+	// For orthographic the vector is the same as the -Z rotation axis but start from unprojected point.
+	else {
+		fromPoint = screenpos;
+		toPoint = fromPoint - NodeGetWorldOrientation().GetColumn(2);
 	}
 
-	return nullptr;
+	if (dist != 0.0f) {
+		toPoint = fromPoint + dist * (toPoint - fromPoint).SafeNormalized(mt::axisX3);
+	}
+
+	PHY_IPhysicsEnvironment *pe = GetScene()->GetPhysicsEnvironment();
+	PHY_IPhysicsController *spc = m_physicsController.get();
+	KX_GameObject *parent = GetParent();
+	if (!spc && parent) {
+		spc = parent->GetPhysicsController();
+	}
+
+	RayCastData rayData("", false, (1u << OB_MAX_COL_MASKS) - 1);
+	KX_RayCast::Callback<KX_Camera, RayCastData> callback(this, spc, &rayData);
+	if (KX_RayCast::RayTest(pe, fromPoint, toPoint, callback) && rayData.m_hitObject) {
+		return rayData.m_hitObject->GetProxy();
+	}
+
+	Py_RETURN_NONE;
 }
 #endif
