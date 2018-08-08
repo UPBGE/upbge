@@ -147,7 +147,15 @@ public:
 	 * This structure is created during ray cast and passed as argument 
 	 * "data" to functions KX_GameObject::NeedRayCast and KX_GameObject::RayHit.
 	 */
-	struct RayCastData;
+	struct RayCastData
+	{
+		RayCastData(const std::string& prop, bool xray, unsigned int mask);
+
+		std::string m_prop;
+		bool m_xray;
+		unsigned int m_mask;
+		KX_GameObject *m_hitObject;
+	};
 
 	/**
 	 * Helper function for modules that can't include KX_ClientObjectInfo.h

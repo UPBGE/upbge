@@ -3886,20 +3886,13 @@ EXP_PYMETHODDEF_DOC_O(KX_GameObject, getVectTo,
 	return returnValue;
 }
 
-struct KX_GameObject::RayCastData {
-	RayCastData(std::string prop, bool xray, unsigned int mask)
-		:m_prop(prop),
-		m_xray(xray),
-		m_mask(mask),
-		m_hitObject(nullptr)
-	{
-	}
-
-	std::string m_prop;
-	bool m_xray;
-	unsigned int m_mask;
-	KX_GameObject *m_hitObject;
-};
+KX_GameObject::RayCastData::RayCastData(const std::string& prop, bool xray, unsigned int mask)
+	:m_prop(prop),
+	m_xray(xray),
+	m_mask(mask),
+	m_hitObject(nullptr)
+{
+}
 
 static bool CheckRayCastObject(KX_GameObject *obj, KX_GameObject::RayCastData *rayData)
 {
@@ -4104,14 +4097,14 @@ EXP_PYMETHODDEF_DOC(KX_GameObject, rayCast,
 
 	if (dist != 0.0f) {
 		mt::vec3 toDir = toPoint - fromPoint;
-		if (mt::FuzzyZero(toDir.LengthSquared())) {
+		if (mt::FuzzyZero(toDir)) {
 			//return Py_BuildValue("OOO", Py_None, Py_None, Py_None);
 			return none_tuple_3();
 		}
 		toDir.Normalize();
 		toPoint = fromPoint + (dist) * toDir;
 	}
-	else if (mt::FuzzyZero((toPoint - fromPoint).LengthSquared())) {
+	else if (mt::FuzzyZero(toPoint - fromPoint)) {
 		//return Py_BuildValue("OOO", Py_None, Py_None, Py_None);
 		return none_tuple_3();
 	}
