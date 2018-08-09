@@ -39,7 +39,7 @@
 #include "RAS_Deformer.h"
 #include "RAS_Rasterizer.h"
 #include "RAS_InstancingBuffer.h"
-#include "RAS_BucketManager.h"
+#include "RAS_SortedMeshSlot.h"
 
 #include <algorithm>
 
@@ -256,16 +256,7 @@ void RAS_DisplayArrayBucket::RunInstancingNode(const RAS_DisplayArrayNodeTuple& 
 	 * This code share the code used in RAS_BucketManager to do the sort.
 	 */
 	if (managerData->m_sort) {
-		std::vector<RAS_BucketManager::SortedMeshSlot> sortedMeshSlots(nummeshslots);
-
-		const mt::mat3x4& trans = managerData->m_trans;
-		const mt::vec3 pnorm(trans[2], trans[5], trans[8]);
-		std::transform(m_activeMeshSlots.begin(), m_activeMeshSlots.end(), sortedMeshSlots.end(),
-		               [&pnorm](RAS_MeshSlot *slot) {
-			return RAS_BucketManager::SortedMeshSlot(slot, pnorm);
-		});
-
-		std::sort(sortedMeshSlots.begin(), sortedMeshSlots.end(), RAS_BucketManager::backtofront());
+		const RAS_SortedMeshSlotList sortedMeshSlots = RAS_SortedMeshSlot::Sort(m_activeMeshSlots, managerData->m_trans);
 		RAS_MeshSlotList meshSlots(nummeshslots);
 		for (unsigned int i = 0; i < nummeshslots; ++i) {
 			meshSlots[i] = sortedMeshSlots[i].m_ms;
@@ -336,16 +327,8 @@ void RAS_DisplayArrayBucket::RunBatchingNode(const RAS_DisplayArrayNodeTuple& tu
 	 * This code share the code used in RAS_BucketManager to do the sort.
 	 */
 	if (managerData->m_sort) {
-		std::vector<RAS_BucketManager::SortedMeshSlot> sortedMeshSlots(nummeshslots);
+		const RAS_SortedMeshSlotList sortedMeshSlots = RAS_SortedMeshSlot::Sort(m_activeMeshSlots, managerData->m_trans);
 
-		const mt::mat3x4& trans = managerData->m_trans;
-		const mt::vec3 pnorm(trans[2], trans[5], trans[8]);
-		std::transform(m_activeMeshSlots.begin(), m_activeMeshSlots.end(), sortedMeshSlots.begin(),
-		               [&pnorm](RAS_MeshSlot *slot) {
-			return RAS_BucketManager::SortedMeshSlot(slot, pnorm);
-		});
-
-		std::sort(sortedMeshSlots.begin(), sortedMeshSlots.end(), RAS_BucketManager::backtofront());
 		for (unsigned int i = 0; i < nummeshslots; ++i) {
 			const short index = sortedMeshSlots[i].m_ms->m_batchPartIndex;
 			indices[i] = batchArray->GetPartIndexOffset(index);

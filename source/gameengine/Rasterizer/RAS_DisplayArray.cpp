@@ -211,6 +211,38 @@ void RAS_DisplayArray::UpdateFrom(RAS_DisplayArray *other, int flag)
 	NotifyUpdate(flag);
 }
 
+void RAS_DisplayArray::GetAabb(mt::vec3& aabbMin, mt::vec3& aabbMax) const
+{
+	aabbMin = m_aabbMin;
+	aabbMax = m_aabbMax;
+}
+
+const mt::vec3& RAS_DisplayArray::GetAabbCenter() const
+{
+	return m_aabbCenter;
+}
+
+float RAS_DisplayArray::GetAabbRadius() const
+{
+	return m_aabbRadius;
+}
+
+void RAS_DisplayArray::UpdateAabb()
+{
+	m_aabbMin = mt::vec3(FLT_MAX);
+	m_aabbMax = mt::vec3(-FLT_MAX);
+
+	for (const mt::vec3_packed& pos : m_vertexData.positions) {
+		const mt::vec3 p(pos);
+
+		m_aabbMin = mt::vec3::Min(m_aabbMin, p);
+		m_aabbMax = mt::vec3::Max(m_aabbMax, p);
+	}
+
+	m_aabbCenter = (m_aabbMin + m_aabbMax) * 0.5f;
+	m_aabbRadius = (m_aabbMax - m_aabbMin).Length() * 0.5f;
+}
+
 const RAS_DisplayArray::Format& RAS_DisplayArray::GetFormat() const
 {
 	return m_format;

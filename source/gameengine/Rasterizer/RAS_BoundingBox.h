@@ -87,15 +87,10 @@ private:
 	{
 		RAS_DisplayArray *m_displayArray;
 		CM_UpdateClient<RAS_DisplayArray> m_arrayUpdateClient;
-		/// AABB minimum of only this display array.
-		mt::vec3 m_aabbMin;
-		/// AABB maximum of only this display array.
-		mt::vec3 m_aabbMax;
 	};
 
 	/// The sub AABB per display array.
-	// Use aligned allocator because DisplayArraySlot use aligned members.
-	std::vector<DisplayArraySlot, mt::simd_allocator<DisplayArraySlot> > m_slots;
+	std::vector<DisplayArraySlot> m_slots;
 
 public:
 	RAS_MeshBoundingBox(RAS_BoundingBoxManager *manager, const RAS_DisplayArrayList& displayArrayList);

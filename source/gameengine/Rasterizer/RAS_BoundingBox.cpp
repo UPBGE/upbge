@@ -128,8 +128,7 @@ RAS_MeshBoundingBox::RAS_MeshBoundingBox(RAS_BoundingBoxManager *manager, const 
 	:RAS_BoundingBox(manager)
 {
 	for (RAS_DisplayArray *array : displayArrayList) {
-		m_slots.push_back({array, {RAS_DisplayArray::POSITION_MODIFIED, RAS_DisplayArray::NONE_MODIFIED},
-		                   mt::zero3, mt::zero3});
+		m_slots.push_back({array, {RAS_DisplayArray::POSITION_MODIFIED, RAS_DisplayArray::NONE_MODIFIED}});
 	}
 
 	for (DisplayArraySlot& slot : m_slots) {
@@ -164,16 +163,7 @@ void RAS_MeshBoundingBox::Update(bool force)
 		}
 		modified = true;
 
-		slot.m_aabbMin = mt::vec3(FLT_MAX);
-		slot.m_aabbMax = mt::vec3(-FLT_MAX);
-
-		// For each vertex.
-		for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
-			const mt::vec3 vertPos(array->GetPosition(i));
-
-			slot.m_aabbMin = mt::vec3::Min(slot.m_aabbMin, vertPos);
-			slot.m_aabbMax = mt::vec3::Max(slot.m_aabbMax, vertPos);
-		}
+		array->UpdateAabb();
 	}
 
 	if (modified) {
@@ -181,8 +171,12 @@ void RAS_MeshBoundingBox::Update(bool force)
 		m_aabbMax = mt::vec3(-FLT_MAX);
 
 		for (const DisplayArraySlot& slot : m_slots) {
-			m_aabbMin = mt::vec3::Min(m_aabbMin, slot.m_aabbMin);
-			m_aabbMax = mt::vec3::Max(m_aabbMax, slot.m_aabbMax);
+			mt::vec3 aabbMin;
+			mt::vec3 aabbMax;
+			slot.m_displayArray->GetAabb(aabbMin, aabbMax);
+
+			m_aabbMin = mt::vec3::Min(m_aabbMin, aabbMin);
+			m_aabbMax = mt::vec3::Max(m_aabbMax, aabbMax);
 		}
 	}
 

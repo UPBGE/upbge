@@ -39,40 +39,12 @@
 #include "RAS_MeshUser.h"
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_Rasterizer.h"
+#include "RAS_SortedMeshSlot.h"
 
 #include "RAS_BucketManager.h"
 
 #include <algorithm>
 /* sorting */
-
-RAS_BucketManager::SortedMeshSlot::SortedMeshSlot(RAS_MeshSlot *ms, const mt::vec3& pnorm)
-	:m_ms(ms)
-{
-	// would be good to use the actual bounding box center instead
-	const mt::vec3 pos = m_ms->m_meshUser->GetMatrix().TranslationVector3D();
-
-	m_z = mt::dot(pnorm, pos);
-}
-
-RAS_BucketManager::SortedMeshSlot::SortedMeshSlot(RAS_MeshSlotUpwardNode *node, const mt::vec3& pnorm)
-	:m_node(node)
-{
-	RAS_MeshSlot *ms = m_node->GetOwner();
-	// would be good to use the actual bounding box center instead
-	const mt::vec3 pos = ms->m_meshUser->GetMatrix().TranslationVector3D();
-
-	m_z = mt::dot(pnorm, pos);
-}
-
-bool RAS_BucketManager::backtofront::operator()(const SortedMeshSlot &a, const SortedMeshSlot &b)
-{
-	return (a.m_z < b.m_z) || (a.m_z == b.m_z && a.m_ms < b.m_ms);
-}
-
-bool RAS_BucketManager::fronttoback::operator()(const SortedMeshSlot &a, const SortedMeshSlot &b)
-{
-	return (a.m_z > b.m_z) || (a.m_z == b.m_z && a.m_ms > b.m_ms);
-}
 
 RAS_BucketManager::RAS_BucketManager(RAS_IPolyMaterial *textMaterial)
 	:m_downwardNode(this, &m_nodeData, nullptr, nullptr),
@@ -120,22 +92,11 @@ void RAS_BucketManager::RenderSortedBuckets(RAS_Rasterizer *rasty, RAS_BucketMan
 		m_downwardNode.Execute(RAS_DummyNodeTuple());
 	}
 	if (!leafs.empty()) {
-		/* Camera's near plane equation: pnorm.dot(point) + pval,
-		 * but we leave out pval since it's constant anyway */
-		const mt::mat3x4& trans = m_nodeData.m_trans;
-		const mt::vec3 pnorm(trans[2], trans[5], trans[8]);
-		std::vector<SortedMeshSlot> sortedSlots(leafs.size());
-		// Generate all SortedMeshSlot corresponding to all the leafs nodes.
-		std::transform(leafs.begin(), leafs.end(), sortedSlots.begin(),
-		               [&pnorm](RAS_MeshSlotUpwardNode *node) {
-			return SortedMeshSlot(node, pnorm);
-		});
+		const RAS_SortedMeshSlotList sortedSlots = RAS_SortedMeshSlot::Sort(leafs, m_nodeData.m_trans);
 
-		std::sort(sortedSlots.begin(), sortedSlots.end(), backtofront());
-
-		std::vector<SortedMeshSlot>::const_iterator it = sortedSlots.begin();
+		std::vector<RAS_SortedMeshSlot>::const_iterator it = sortedSlots.begin();
 		RAS_MeshSlotUpwardNodeIterator iterator((it++)->m_node);
-		for (std::vector<SortedMeshSlot>::const_iterator end = sortedSlots.end(); it != end; ++it) {
+		for (std::vector<RAS_SortedMeshSlot>::const_iterator end = sortedSlots.end(); it != end; ++it) {
 			iterator.NextNode(it->m_node);
 		}
 	}

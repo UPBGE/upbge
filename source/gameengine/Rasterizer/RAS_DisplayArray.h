@@ -44,7 +44,7 @@
 class RAS_BatchDisplayArray;
 class RAS_StorageVbo;
 
-class RAS_DisplayArray : public CM_UpdateServer<RAS_DisplayArray>
+class RAS_DisplayArray : public CM_UpdateServer<RAS_DisplayArray>, public mt::SimdClassAllocator
 {
 	friend RAS_BatchDisplayArray;
 	friend RAS_StorageVbo;
@@ -132,6 +132,12 @@ protected:
 	 * This list is stored here because we sort per array not per entire mesh.
 	 */
 	std::vector<mt::vec3, mt::simd_allocator<mt::vec3> > m_polygonCenters;
+
+	/// AABB used for culling or for sorting center.
+	mt::vec3 m_aabbMin;
+	mt::vec3 m_aabbMax;
+	mt::vec3 m_aabbCenter;
+	float m_aabbRadius;
 
 	/// The OpenGL data storage used for rendering.
 	RAS_DisplayArrayStorage m_storage;
@@ -294,6 +300,11 @@ public:
 	 * \param flag The flag coresponding to datas to copy.
 	 */
 	void UpdateFrom(RAS_DisplayArray *other, int flag);
+
+	void GetAabb(mt::vec3& aabbMin, mt::vec3& aabbMax) const;
+	const mt::vec3& GetAabbCenter() const;
+	float GetAabbRadius() const;
+	void UpdateAabb();
 
 	/// Return the primitive type used for indices.
 	PrimitiveType GetPrimitiveType() const;
