@@ -153,7 +153,7 @@ void BL_BlenderShader::Update(RAS_MeshSlot *ms, RAS_Rasterizer *rasty)
 	RAS_MeshUser *meshUser = ms->m_meshUser;
 	const float (&obcol)[4] = meshUser->GetColor().Data();
 
-	GPU_material_bind_uniforms(m_gpuMat, (float(*)[4])meshUser->GetMatrix(), rasty->GetViewMatrix().Data(),
+	GPU_material_bind_uniforms(m_gpuMat, meshUser->GetMatrix().Data(), rasty->GetViewMatrix().Data(),
 			obcol, meshUser->GetLayer(), 1.0f, nullptr, nullptr);
 
 	m_alphaBlend = GPU_material_alpha_blend(m_gpuMat, obcol);

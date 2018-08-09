@@ -130,11 +130,11 @@ void KX_FontObject::AddMeshUser()
 {
 	m_meshUser = new RAS_TextUser(&m_clientInfo, m_boundingBox);
 
-	// Make sure the mesh user get the matrix even if the object doesn't move.
-	NodeGetWorldTransform().PackFromAffineTransform(m_meshUser->GetMatrix());
-
 	RAS_BucketManager *bucketManager = GetScene()->GetBucketManager();
 	RAS_DisplayArrayBucket *arrayBucket = bucketManager->GetTextDisplayArrayBucket();
+
+	m_meshUser->SetMatrix(mt::mat4::FromAffineTransform(NodeGetWorldTransform()));
+	m_meshUser->SetFrontFace(!IsNegativeScaling());
 
 	m_meshUser->NewMeshSlot(arrayBucket);
 }
@@ -145,8 +145,8 @@ void KX_FontObject::UpdateBuckets()
 
 	// Update datas and add mesh slot to be rendered only if the object is not culled.
 	if (m_sgNode->IsDirty(SG_Node::DIRTY_RENDER)) {
-		NodeGetWorldTransform().PackFromAffineTransform(m_meshUser->GetMatrix());
-		textUser->SetFrontFace(!IsNegativeScaling());
+		m_meshUser->SetMatrix(mt::mat4::FromAffineTransform(NodeGetWorldTransform()));
+		m_meshUser->SetFrontFace(!IsNegativeScaling());
 		m_sgNode->ClearDirty(SG_Node::DIRTY_RENDER);
 	}
 

@@ -680,7 +680,7 @@ void RAS_Rasterizer::IndexPrimitivesText(RAS_MeshSlot *ms)
 	RAS_TextUser *textUser = (RAS_TextUser *)ms->m_meshUser;
 
 	float mat[16];
-	memcpy(mat, textUser->GetMatrix(), sizeof(float) * 16);
+	textUser->GetMatrix().Pack(mat);
 
 	const mt::vec3& spacing = textUser->GetSpacing();
 	const mt::vec3& offset = textUser->GetOffset();
@@ -1257,12 +1257,12 @@ bool RAS_Rasterizer::RayHit(struct KX_ClientObjectInfo *client, KX_RayCast *resu
 			return false;
 		}
 
-		float *origmat = raytransform->origmat;
+		const mt::mat4& origmat = raytransform->origmat;
 		float *mat = raytransform->mat;
 		const mt::vec3& scale = raytransform->scale;
 		const mt::vec3& point = result->m_hitPoint;
 		mt::vec3 resultnormal(result->m_hitNormal);
-		mt::vec3 left(&origmat[0]);
+		mt::vec3 left = origmat.GetColumn(0).xyz();
 		mt::vec3 dir = -(mt::cross(left, resultnormal)).SafeNormalized(mt::axisX3);
 		left = (mt::cross(dir, resultnormal)).SafeNormalized(mt::axisX3);
 		// for the up vector, we take the 'resultnormal' returned by the physics
@@ -1293,11 +1293,11 @@ bool RAS_Rasterizer::NeedRayCast(KX_ClientObjectInfo *UNUSED(info), void *UNUSED
 	return true;
 }
 
-void RAS_Rasterizer::GetTransform(float *origmat, int objectdrawmode, float mat[16])
+void RAS_Rasterizer::GetTransform(const mt::mat4& origmat, int objectdrawmode, float mat[16])
 {
 	if (objectdrawmode == RAS_IPolyMaterial::RAS_NORMAL) {
 		// 'normal' object
-		memcpy(mat, origmat, sizeof(float) * 16);
+		origmat.Pack(mat);
 	}
 	else if (ELEM(objectdrawmode, RAS_IPolyMaterial::RAS_HALO, RAS_IPolyMaterial::RAS_BILLBOARD)) {
 		// rotate the billboard/halo
@@ -1376,7 +1376,7 @@ void RAS_Rasterizer::GetTransform(float *origmat, int objectdrawmode, float mat[
 		KX_RayCast::Callback<RAS_Rasterizer, RayCastTranform> callback(this, physics_controller, &raytransform);
 		if (!KX_RayCast::RayTest(physics_environment, frompoint, topoint, callback)) {
 			// couldn't find something to cast the shadow on...
-			memcpy(mat, origmat, sizeof(float) * 16);
+			origmat.Pack(mat);
 		}
 	}
 }

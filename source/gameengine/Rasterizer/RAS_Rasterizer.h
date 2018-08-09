@@ -256,7 +256,7 @@ private:
 		/// The object scale.
 		mt::vec3 scale;
 		/// The original object matrix.
-		float *origmat;
+		mt::mat4 origmat;
 		/// The output matrix.
 		float *mat;
 	};
@@ -662,7 +662,7 @@ public:
 	/**
 	 * Render Tools
 	 */
-	void GetTransform(float *origmat, int objectdrawmode, float mat[16]);
+	void GetTransform(const mt::mat4& origmat, int objectdrawmode, float mat[16]);
 
 	void DisableForText();
 	/**

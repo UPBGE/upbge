@@ -698,8 +698,9 @@ void KX_GameObject::AddMeshUser()
 	for (size_t i = 0; i < m_meshes.size(); ++i) {
 		RAS_Deformer *deformer = BL_ConvertDeformer(this, m_meshes[i]);
 		m_meshUser = m_meshes[i]->AddMeshUser(&m_clientInfo, deformer);
-		// Make sure the mesh user get the matrix even if the object doesn't move.
-		NodeGetWorldTransform().PackFromAffineTransform(m_meshUser->GetMatrix());
+
+		m_meshUser->SetMatrix(mt::mat4::FromAffineTransform(NodeGetWorldTransform()));
+		m_meshUser->SetFrontFace(!IsNegativeScaling());
 	}
 }
 
@@ -707,7 +708,7 @@ void KX_GameObject::UpdateBuckets()
 {
 	// Update datas and add mesh slot to be rendered only if the object is not culled.
 	if (m_sgNode->IsDirty(SG_Node::DIRTY_RENDER)) {
-		NodeGetWorldTransform().PackFromAffineTransform(m_meshUser->GetMatrix());
+		m_meshUser->SetMatrix(mt::mat4::FromAffineTransform(NodeGetWorldTransform()));
 		m_meshUser->SetFrontFace(!IsNegativeScaling());
 		m_sgNode->ClearDirty(SG_Node::DIRTY_RENDER);
 	}

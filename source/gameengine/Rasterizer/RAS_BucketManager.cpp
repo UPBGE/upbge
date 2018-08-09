@@ -49,8 +49,7 @@ RAS_BucketManager::SortedMeshSlot::SortedMeshSlot(RAS_MeshSlot *ms, const mt::ve
 	:m_ms(ms)
 {
 	// would be good to use the actual bounding box center instead
-	float *matrix = m_ms->m_meshUser->GetMatrix();
-	const mt::vec3 pos(matrix[12], matrix[13], matrix[14]);
+	const mt::vec3 pos = m_ms->m_meshUser->GetMatrix().TranslationVector3D();
 
 	m_z = mt::dot(pnorm, pos);
 }
@@ -60,8 +59,7 @@ RAS_BucketManager::SortedMeshSlot::SortedMeshSlot(RAS_MeshSlotUpwardNode *node, 
 {
 	RAS_MeshSlot *ms = m_node->GetOwner();
 	// would be good to use the actual bounding box center instead
-	float *matrix = ms->m_meshUser->GetMatrix();
-	const mt::vec3 pos(matrix[12], matrix[13], matrix[14]);
+	const mt::vec3 pos = ms->m_meshUser->GetMatrix().TranslationVector3D();
 
 	m_z = mt::dot(pnorm, pos);
 }

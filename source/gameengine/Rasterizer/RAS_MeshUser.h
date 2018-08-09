@@ -47,7 +47,7 @@ private:
 	/// Object color.
 	mt::vec4 m_color;
 	/// Object transformation matrix.
-	float m_matrix[16];
+	mt::mat4 m_matrix;
 	/// Bounding box corresponding to a mesh or deformer.
 	RAS_BoundingBox *m_boundingBox;
 	/// Client object owner of this mesh user.
@@ -67,7 +67,7 @@ public:
 	unsigned int GetLayer() const;
 	bool GetFrontFace() const;
 	const mt::vec4& GetColor() const;
-	float *GetMatrix();
+	const mt::mat4& GetMatrix() const;
 	RAS_BoundingBox *GetBoundingBox() const;
 	void *GetClientObject() const;
 	std::vector<RAS_MeshSlot>& GetMeshSlots();
@@ -77,6 +77,7 @@ public:
 	void SetLayer(unsigned int layer);
 	void SetFrontFace(bool frontFace);
 	void SetColor(const mt::vec4& color);
+	void SetMatrix(const mt::mat4& matrix);
 	void SetBatchGroup(RAS_BatchGroup *batchGroup);
 
 	void ActivateMeshSlots();

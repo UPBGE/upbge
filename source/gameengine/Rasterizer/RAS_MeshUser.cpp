@@ -77,7 +77,7 @@ const mt::vec4& RAS_MeshUser::GetColor() const
 	return m_color;
 }
 
-float *RAS_MeshUser::GetMatrix()
+const mt::mat4& RAS_MeshUser::GetMatrix() const
 {
 	return m_matrix;
 }
@@ -120,6 +120,11 @@ void RAS_MeshUser::SetFrontFace(bool frontFace)
 void RAS_MeshUser::SetColor(const mt::vec4& color)
 {
 	m_color = color;
+}
+
+void RAS_MeshUser::SetMatrix(const mt::mat4& matrix)
+{
+	m_matrix = matrix;
 }
 
 void RAS_MeshUser::SetBatchGroup(RAS_BatchGroup *batchGroup)
