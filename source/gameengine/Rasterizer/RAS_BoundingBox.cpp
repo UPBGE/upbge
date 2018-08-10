@@ -53,7 +53,7 @@ RAS_BoundingBox *RAS_BoundingBox::GetReplica()
 
 void RAS_BoundingBox::ProcessReplica()
 {
-	m_users = 1;
+	m_users = 0;
 	m_manager->m_boundingBoxList.push_back(this);
 }
 
@@ -81,6 +81,7 @@ void RAS_BoundingBox::RemoveUser()
 
 void RAS_BoundingBox::SetManager(RAS_BoundingBoxManager *manager)
 {
+	BLI_assert(m_manager);
 	m_manager = manager;
 }
 
