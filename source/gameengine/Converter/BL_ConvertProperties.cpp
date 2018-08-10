@@ -231,6 +231,7 @@ void BL_ConvertTextProperty(Object *object, KX_FontObject *fontobj, SCA_TimeEven
 			if (isInActiveLayer) {
 				timemgr->AddTimeProperty(propval);
 			}
+			break;
 		}
 		default:
 		{
