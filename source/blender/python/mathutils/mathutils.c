@@ -442,7 +442,7 @@ unsigned char Mathutils_RegisterCallback(Mathutils_Callback *cb)
 			return i;
 	}
 
-	BLI_assert(i + 1 < MATHUTILS_TOT_CB);
+	BLI_assert(i < MATHUTILS_TOT_CB);
 
 	mathutils_callbacks[i] = cb;
 	return i;
