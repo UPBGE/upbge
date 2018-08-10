@@ -56,7 +56,7 @@ RAS_StorageVao::RAS_StorageVao(const RAS_DisplayArrayLayout &layout, RAS_Display
 	glNormalPointer(GL_FLOAT, 0, (const void *)layout.normal);
 
 	glEnableClientState(GL_COLOR_ARRAY);
-	glColorPointer(4, GL_UNSIGNED_BYTE, 0, (const void *)layout.colors);
+	glColorPointer(4, GL_UNSIGNED_BYTE, 0, (const void *)layout.colors[0]);
 
 	for (const RAS_AttributeArray::Attrib& attrib : attribList) {
 		const RAS_AttributeArray::AttribType type = attrib.m_type;
