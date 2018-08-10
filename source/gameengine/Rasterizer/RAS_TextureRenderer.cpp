@@ -38,8 +38,6 @@
 
 #include "DNA_texture_types.h"
 
-#include "CM_Message.h"
-
 RAS_TextureRenderer::Face::Face(int target)
 	:m_fbo(nullptr),
 	m_rb(nullptr),
@@ -136,17 +134,7 @@ void RAS_TextureRenderer::GetValidTexture()
 		GPU_texture_free(m_gpuTex);
 	}
 
-	Image *ima = texture->GetImage();
-	unsigned int bindCode;
-	GPU_create_gl_tex(&bindCode, nullptr, nullptr, 1024, 1024, RAS_Texture::GetTexture2DType(), false, false, ima);
-	CM_Debug("bind code : " << bindCode);
 	m_gpuTex = gputex;
-	GPU_texture_set_opengl_bindcode(m_gpuTex, bindCode);
-
-	for (RAS_Texture *user : m_textureUsers) {
-		user->SetBindCode(bindCode);
-	}
-// 	ima->bindcode[TEXTARGET_TEXTURE_2D] = bindCode;
 
 	// Increment reference to make sure the gpu texture will not be freed by someone else.
 	GPU_texture_ref(m_gpuTex);
