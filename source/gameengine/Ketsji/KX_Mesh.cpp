@@ -417,8 +417,9 @@ PyObject *KX_Mesh::PyConstructBvh(PyObject *args, PyObject *kwds)
 	for (const PolygonRangeInfo& range : m_polygonRanges) {
 		numVert += range.array->GetVertexCount();
 	}
-
-	float (*coords)[3] = (float (*)[3])MEM_mallocN(sizeof(float[3]) * numVert, __func__);
+	
+	const char *function_macro = __func__; //Workaround for MSVC2015
+	float (*coords)[3] = (float (*)[3])MEM_mallocN(sizeof(float[3]) * numVert, function_macro);
 	// Convert the vertices.
 	{
 		unsigned vertBase = 0;
