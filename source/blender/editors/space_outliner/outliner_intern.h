@@ -67,23 +67,6 @@ typedef enum TreeTraversalAction {
 	TRAVERSE_SKIP_CHILDS,
 } TreeTraversalAction;
 
-/**
- * Callback type for reinserting elements at a different position, used to allow user customizable element order.
- */
-typedef void (*TreeElementReinsertFunc)(struct Main *bmain,
-                                        struct Scene *scene,
-                                        struct SpaceOops *soops,
-                                        struct TreeElement *insert_element,
-                                        struct TreeElement *insert_handle,
-                                        TreeElementInsertType action,
-                                        const struct wmEvent *event);
-/**
- * Executed on (almost) each mouse move while dragging. It's supposed to give info
- * if reinserting insert_element before/after/into insert_handle would be allowed.
- * It's allowed to change the reinsert info here for non const pointers.
- */
-typedef bool (*TreeElementReinsertPollFunc)(const struct TreeElement *insert_element,
-                                            struct TreeElement **io_insert_handle, TreeElementInsertType *io_action);
 typedef TreeTraversalAction (*TreeTraversalFunc)(struct TreeElement *te, void *customdata);
 
 
@@ -99,18 +82,12 @@ typedef struct TreeElement {
 	const char *name;
 	void *directdata;          // Armature Bones, Base, Sequence, Strip...
 	PointerRNA rnaptr;         // RNA Pointer
-
-	/* callbacks - TODO should be moved into a type (like TreeElementType) */
-	TreeElementReinsertFunc reinsert;
-	TreeElementReinsertPollFunc reinsert_poll;
-
-	struct {
-		TreeElementInsertType insert_type;
-		/* the element before/after/into which we may insert the dragged one (NULL to insert at top) */
-		struct TreeElement *insert_handle;
-		void *tooltip_draw_handle;
-	} *drag_data;
 } TreeElement;
+
+typedef struct TreeElementIcon {
+	struct ID *drag_id, *drag_parent;
+	int icon;
+} TreeElementIcon;
 
 #define TREESTORE_ID_TYPE(_id) \
 	(ELEM(GS((_id)->name), ID_SCE, ID_LI, ID_OB, ID_ME, ID_CU, ID_MB, ID_NT, ID_MA, ID_TE, ID_IM, ID_LT, ID_LA, ID_CA) || \
@@ -126,6 +103,7 @@ enum {
 	TE_LAZY_CLOSED = (1 << 2),
 	TE_FREE_NAME   = (1 << 3),
 	TE_DISABLED    = (1 << 4),
+	TE_DRAGGING    = (1 << 5),
 };
 
 /* button events */
@@ -209,6 +187,8 @@ TreeTraversalAction outliner_find_selected_objects(struct TreeElement *te, void 
 void draw_outliner(const struct bContext *C);
 void restrictbutton_gr_restrict_flag(void *poin, void *poin2, int flag);
 
+TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te);
+
 /* outliner_select.c -------------------------------------------- */
 eOLDrawState tree_element_type_active(
         struct bContext *C, struct Scene *scene, struct ViewLayer *view_layer, struct SpaceOops *soops,
@@ -284,9 +264,17 @@ void item_object_mode_exit_cb(
         struct bContext *C, struct ReportList *reports, struct Scene *scene,
         TreeElement *te, struct TreeStoreElem *tsep, struct TreeStoreElem *tselem, void *user_data);
 
-TreeElement *outliner_dropzone_find(const struct SpaceOops *soops, const float fmval[2], const bool children);
-
 void outliner_set_coordinates(struct ARegion *ar, struct SpaceOops *soops);
+
+/* outliner_dragdrop.c */
+void outliner_dropboxes(void);
+
+void OUTLINER_OT_item_drag_drop(struct wmOperatorType *ot);
+void OUTLINER_OT_parent_drop(struct wmOperatorType *ot);
+void OUTLINER_OT_parent_clear(struct wmOperatorType *ot);
+void OUTLINER_OT_scene_drop(struct wmOperatorType *ot);
+void OUTLINER_OT_material_drop(struct wmOperatorType *ot);
+void OUTLINER_OT_collection_drop(struct wmOperatorType *ot);
 
 /* ...................................................... */
 
@@ -318,12 +306,6 @@ void OUTLINER_OT_drivers_add_selected(struct wmOperatorType *ot);
 void OUTLINER_OT_drivers_delete_selected(struct wmOperatorType *ot);
 
 void OUTLINER_OT_orphans_purge(struct wmOperatorType *ot);
-
-void OUTLINER_OT_parent_drop(struct wmOperatorType *ot);
-void OUTLINER_OT_parent_clear(struct wmOperatorType *ot);
-void OUTLINER_OT_scene_drop(struct wmOperatorType *ot);
-void OUTLINER_OT_material_drop(struct wmOperatorType *ot);
-void OUTLINER_OT_collection_drop(struct wmOperatorType *ot);
 
 /* outliner_tools.c ---------------------------------------------- */
 

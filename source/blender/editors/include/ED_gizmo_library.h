@@ -40,7 +40,11 @@ void ED_gizmotypes_dial_3d(void);
 void ED_gizmotypes_grab_3d(void);
 void ED_gizmotypes_facemap_3d(void);
 void ED_gizmotypes_primitive_3d(void);
+void ED_gizmotypes_blank_3d(void);
 
+struct bContext;
+struct Object;
+struct Scene;
 struct wmGizmo;
 struct wmGizmoGroup;
 

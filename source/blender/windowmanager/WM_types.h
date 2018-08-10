@@ -111,6 +111,7 @@ struct wmEvent;
 struct wmWindowManager;
 struct wmMsgBus;
 struct wmOperator;
+struct ID;
 struct ImBuf;
 
 #include "RNA_types.h"
@@ -660,6 +661,12 @@ typedef enum wmDragFlags {
 
 /* note: structs need not exported? */
 
+typedef struct wmDragID {
+	struct wmDragID  *next, *prev;
+	struct ID *id;
+	struct ID *from_parent;
+} wmDragID;
+
 typedef struct wmDrag {
 	struct wmDrag *next, *prev;
 
@@ -674,6 +681,8 @@ typedef struct wmDrag {
 
 	char opname[200]; /* if set, draws operator name*/
 	unsigned int flags;
+
+	ListBase ids; /* List of wmDragIDs, all are guaranteed to have the same ID type. */
 } wmDrag;
 
 /* dropboxes are like keymaps, part of the screen/area/region definition */
@@ -682,7 +691,7 @@ typedef struct wmDropBox {
 	struct wmDropBox *next, *prev;
 
 	/* test if the dropbox is active, then can print optype name */
-	bool (*poll)(struct bContext *, struct wmDrag *, const wmEvent *);
+	bool (*poll)(struct bContext *, struct wmDrag *, const wmEvent *, const char **);
 
 	/* before exec, this copies drag info to wmDrop properties */
 	void (*copy)(struct wmDrag *, struct wmDropBox *);
