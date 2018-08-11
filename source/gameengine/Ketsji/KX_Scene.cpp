@@ -276,6 +276,10 @@ KX_Scene::~KX_Scene()
 		delete m_boundingBoxManager;
 	}
 
+	if (m_worldinfo) {
+		delete m_worldinfo;
+	}
+
 #ifdef WITH_PYTHON
 	if (m_attrDict) {
 		PyDict_Clear(m_attrDict);
@@ -1644,6 +1648,7 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 	m_bucketmanager->Merge(other->GetBucketManager(), this);
 	m_boundingBoxManager->Merge(other->GetBoundingBoxManager());
 	m_rendererManager->Merge(other->GetTextureRendererManager());
+	m_componentManager.Merge(other->GetPythonComponentManager());
 
 	for (KX_GameObject *gameobj : *other->GetObjectList()) {
 		MergeScene_GameObject(gameobj, this, other);

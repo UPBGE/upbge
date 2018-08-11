@@ -35,7 +35,6 @@
 
 #include "KX_Scene.h"
 #include "KX_GameObject.h"
-#include "KX_WorldInfo.h"
 #include "KX_Mesh.h"
 #include "RAS_BucketManager.h"
 #include "KX_PhysicsEngineEnums.h"
@@ -191,29 +190,15 @@ void BL_Converter::ConvertScene(BL_SceneConverter& converter, bool libloading)
 		m_alwaysUseExpandFraming,
 		m_camZoom,
 		libloading);
-
-	m_sceneSlots.emplace(scene, converter);
 }
 
-void BL_Converter::FinalizeSceneData(const BL_SceneConverter& converter, KX_Scene *mergeScene)
+void BL_Converter::PostConvertScene(const BL_SceneConverter& converter)
 {
-	for (KX_Mesh *mesh : converter.m_meshobjects) {
-		mesh->ReplaceScene(mergeScene);
-	}
-
-	for (KX_BlenderMaterial *mat : converter.m_materials) {
-		// Do this after lights are available so materials can use the lights in shaders.
-		mat->InitScene(mergeScene);
-	}
+	BL_PostConvertBlenderObjects(converter.GetScene(), converter);
 }
 
 void BL_Converter::RemoveScene(KX_Scene *scene)
 {
-	KX_WorldInfo *world = scene->GetWorldInfo();
-	if (world) {
-		delete world;
-	}
-
 #ifdef WITH_PYTHON
 	Texture::FreeAllTextures(scene);
 #endif  // WITH_PYTHON
@@ -280,11 +265,7 @@ void BL_Converter::MergeAsyncLoads()
 	for (KX_LibLoadStatus *libload : m_mergequeue) {
 		KX_Scene *mergeScene = libload->GetMergeScene();
 		for (const BL_SceneConverter& converter : libload->GetSceneConverters()) {
-			KX_Scene *scene = converter.GetScene();
-			MergeScene(mergeScene, scene);
-			// Finalize material and mesh conversion.
-			FinalizeSceneData(converter, mergeScene);
-			delete scene;
+			MergeScene(mergeScene, converter);
 		}
 
 		libload->Finish();
@@ -313,7 +294,6 @@ void BL_Converter::AddScenesToMergeQueue(KX_LibLoadStatus *status)
 static void async_convert(TaskPool *pool, void *ptr, int UNUSED(threadid))
 {
 	KX_LibLoadStatus *status = static_cast<KX_LibLoadStatus *>(ptr);
-	KX_KetsjiEngine *engine = status->GetEngine();
 	BL_Converter *converter = status->GetConverter();
 
 	const std::vector<KX_Scene *>& scenes = status->GetScenes();
@@ -438,9 +418,8 @@ KX_LibLoadStatus *BL_Converter::LinkBlendFile(BlendHandle *blendlib, const char 
 			scene_merge->GetLogicManager()->RegisterMeshName(meshobj->GetName(), meshobj);
 		}
 
-		// Finalize material and mesh conversion.
-		FinalizeSceneData(sceneConverter, scene_merge);
-		m_sceneSlots[scene_merge].Merge(sceneConverter);
+		MergeSceneData(scene_merge, sceneConverter);
+		FinalizeSceneData(sceneConverter);
 	}
 	else if (idcode == ID_AC) {
 		// Convert all actions
@@ -483,13 +462,7 @@ KX_LibLoadStatus *BL_Converter::LinkBlendFile(BlendHandle *blendlib, const char 
 
 				BL_SceneConverter sceneConverter(other);
 				ConvertScene(sceneConverter, true);
-
-				MergeScene(scene_merge, other);
-
-				// Finalize material and mesh conversion.
-				FinalizeSceneData(sceneConverter, scene_merge);
-
-				delete other;
+				MergeScene(scene_merge, sceneConverter);
 			}
 		}
 
@@ -706,16 +679,39 @@ bool BL_Converter::FreeBlendFile(const std::string& path)
 	return FreeBlendFile(GetMainDynamicPath(path));
 }
 
-void BL_Converter::MergeScene(KX_Scene *to, KX_Scene *from)
+void BL_Converter::MergeSceneData(KX_Scene *to, const BL_SceneConverter& converter)
 {
+	for (KX_Mesh *mesh : converter.m_meshobjects) {
+		mesh->ReplaceScene(to);
+	}
+
+	// Do this after lights are available (scene merged) so materials can use the lights in shaders.
+	for (KX_BlenderMaterial *mat : converter.m_materials) {
+		mat->ReplaceScene(to);
+	}
+
+	m_sceneSlots[to].Merge(converter);
+}
+
+void BL_Converter::MergeScene(KX_Scene *to, const BL_SceneConverter& converter)
+{
+	PostConvertScene(converter);
+
+	MergeSceneData(to, converter);
+
+	KX_Scene *from = converter.GetScene();
 	to->MergeScene(from);
 
-	m_sceneSlots[to].Merge(m_sceneSlots[from]);
-	m_sceneSlots.erase(from);
+	FinalizeSceneData(converter);
 
-	// Delete from scene's world info.
-	delete from->GetWorldInfo();
-	from->SetWorldInfo(nullptr);
+	delete from;
+}
+
+void BL_Converter::FinalizeSceneData(const BL_SceneConverter& converter)
+{
+	for (KX_BlenderMaterial *mat : converter.m_materials) {
+		mat->InitShader();
+	}
 }
 
 /** This function merges a mesh from the current scene into another main
@@ -797,9 +793,8 @@ KX_Mesh *BL_Converter::ConvertMeshSpecial(KX_Scene *kx_scene, Main *maggie, cons
 	KX_Mesh *meshobj = BL_ConvertMesh((Mesh *)me, nullptr, kx_scene, sceneConverter);
 	kx_scene->GetLogicManager()->RegisterMeshName(meshobj->GetName(), meshobj);
 
-	// Finalize material and mesh conversion.
-	FinalizeSceneData(sceneConverter, kx_scene);
-	m_sceneSlots[kx_scene].Merge(sceneConverter);
+	MergeSceneData(kx_scene, sceneConverter);
+	FinalizeSceneData(sceneConverter);
 
 	return meshobj;
 }

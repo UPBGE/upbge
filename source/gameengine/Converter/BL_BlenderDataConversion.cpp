@@ -434,7 +434,7 @@ static RAS_MaterialBucket *BL_ConvertMaterial(Material *ma, KX_Scene *scene, BL_
 			name = "MA";
 		}
 
-		mat = new KX_BlenderMaterial(ma, name);
+		mat = new KX_BlenderMaterial(ma, name, scene);
 
 		// this is needed to free up memory afterwards.
 		converter.RegisterMaterial(mat, ma);
@@ -1195,7 +1195,6 @@ static void bl_ConvertBlenderObject_Single(BL_SceneConverter& converter,
                                            std::vector<BL_ParentChildLink> &vec_parent_child,
                                            EXP_ListValue<KX_GameObject> *logicbrick_conversionlist,
                                            EXP_ListValue<KX_GameObject> *objectlist, EXP_ListValue<KX_GameObject> *inactivelist,
-                                           EXP_ListValue<KX_GameObject> *sumolist,
                                            KX_Scene *kxscene, KX_GameObject *gameobj,
                                            SCA_LogicManager *logicmgr, SCA_TimeEventManager *timemgr,
                                            bool isInActiveLayer)
@@ -1218,8 +1217,6 @@ static void bl_ConvertBlenderObject_Single(BL_SceneConverter& converter,
 	gameobj->NodeSetLocalOrientation(rotation);
 	gameobj->NodeSetLocalScale(scale);
 	gameobj->NodeUpdate();
-
-	sumolist->Add(CM_AddRef(gameobj));
 
 	BL_ConvertProperties(blenderobject, gameobj, timemgr, kxscene, isInActiveLayer);
 
@@ -1293,7 +1290,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 	                               blenderobject,                      \
 	                               vec_parent_child,                   \
 	                               logicbrick_conversionlist,          \
-	                               objectlist, inactivelist, sumolist, \
+	                               objectlist, inactivelist, \
 	                               kxscene, gameobj,                   \
 	                               logicmgr, timemgr,                  \
 	                               isInActiveLayer                     \
@@ -1416,9 +1413,6 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 	kxscene->SetObstacleSimulation(obstacleSimulation);
 
 	int activeLayerBitInfo = blenderscene->lay;
-
-	// List of all object converted, active and inactive.
-	EXP_ListValue<KX_GameObject> *sumolist = new EXP_ListValue<KX_GameObject>();
 
 	std::vector<BL_ParentChildLink> vec_parent_child;
 
@@ -1547,9 +1541,6 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 			// The returned list by GetChildrenRecursive is not owned by anyone and must not own items, so no AddRef().
 			childrenlist.push_back(childobj);
 			for (KX_GameObject *obj : childrenlist) {
-				if (sumolist->RemoveValue(obj)) {
-					obj->Release();
-				}
 				if (logicbrick_conversionlist->RemoveValue(obj)) {
 					obj->Release();
 				}
@@ -1602,6 +1593,8 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 		parentobj->GetNode()->AddChild(link.m_gamechildnode);
 	}
 	vec_parent_child.clear();
+
+	const std::vector<KX_GameObject *>& sumolist = converter.GetObjects();
 
 	// Find 'root' parents (object that has not parents in SceneGraph).
 	for (KX_GameObject *gameobj : sumolist) {
@@ -1788,11 +1781,14 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 				continue;
 			}
 
-			KX_GameObject *gotar = sumolist->FindValue(dat->tar->id.name + 2);
-
-			if (gotar && (gotar->GetLayer() & activeLayerBitInfo) && gotar->GetPhysicsController() &&
-			    (gameobj->GetLayer() & activeLayerBitInfo) && gameobj->GetPhysicsController()) {
-				physEnv->SetupObjectConstraints(gameobj, gotar, dat);
+			for (KX_GameObject *gotar : sumolist) {
+				if (gotar->GetName() == (dat->tar->id.name + 2) &&
+					(gotar->GetLayer() & activeLayerBitInfo) && gotar->GetPhysicsController() &&
+					(gameobj->GetLayer() & activeLayerBitInfo) && gameobj->GetPhysicsController())
+				{
+					physEnv->SetupObjectConstraints(gameobj, gotar, dat);
+					break;
+				}
 			}
 		}
 	}
@@ -1857,6 +1853,31 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 		gameobj->ResetState();
 	}
 
+	// Cleanup converted set of group objects.
+	convertedlist->Release();
+	logicbrick_conversionlist->Release();
+
+	/* Instantiate dupli group, we will loop trough the object
+	 * that are in active layers. Note that duplicating group
+	 * has the effect of adding objects at the end of objectlist.
+	 * Only loop through the first part of the list.
+	 */
+	int objcount = objectlist->GetCount();
+	for (unsigned int i = 0; i < objcount; ++i) {
+		KX_GameObject *gameobj = objectlist->GetValue(i);
+		if (gameobj->IsDupliGroup()) {
+			kxscene->DupliGroupRecurse(gameobj, 0);
+		}
+	}
+}
+
+void BL_PostConvertBlenderObjects(KX_Scene *kxscene, const BL_SceneConverter& sceneconverter)
+{
+	const std::vector<KX_GameObject *>& sumolist = sceneconverter.GetObjects();
+	EXP_ListValue<KX_GameObject> *objectlist = kxscene->GetObjectList();
+
+#ifdef WITH_PYTHON
+
 	// Convert the python components of each object if the component execution is available.
 	if (G.f & G_SCRIPT_AUTOEXEC) {
 		for (KX_GameObject *gameobj : sumolist) {
@@ -1875,22 +1896,6 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 		CM_Warning("Python components auto-execution disabled");
 	}
 
-	// Cleanup converted set of group objects.
-	convertedlist->Release();
-	sumolist->Release();
-	logicbrick_conversionlist->Release();
-
-	/* Instantiate dupli group, we will loop trough the object
-	 * that are in active layers. Note that duplicating group
-	 * has the effect of adding objects at the end of objectlist.
-	 * Only loop through the first part of the list.
-	 */
-	int objcount = objectlist->GetCount();
-	for (unsigned int i = 0; i < objcount; ++i) {
-		KX_GameObject *gameobj = objectlist->GetValue(i);
-		if (gameobj->IsDupliGroup()) {
-			kxscene->DupliGroupRecurse(gameobj, 0);
-		}
-	}
+#endif  // WITH_PYTHON
 }
 

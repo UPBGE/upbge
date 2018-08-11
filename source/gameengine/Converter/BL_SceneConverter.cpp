@@ -33,6 +33,8 @@
 #include "BL_ConvertObjectInfo.h"
 #include "KX_GameObject.h"
 
+#include "CM_List.h"
+
 BL_SceneConverter::BL_SceneConverter(KX_Scene *scene)
 	:m_scene(scene)
 {
@@ -43,6 +45,7 @@ BL_SceneConverter::BL_SceneConverter(BL_SceneConverter&& other)
 	m_materials(std::move(other.m_materials)),
 	m_meshobjects(std::move(other.m_meshobjects)),
 	m_objectInfos(std::move(other.m_objectInfos)),
+	m_objects(std::move(other.m_objects)),
 	m_blenderToObjectInfos(std::move(other.m_blenderToObjectInfos)),
 	m_map_blender_to_gameobject(std::move(other.m_map_blender_to_gameobject)),
 	m_map_mesh_to_gamemesh(std::move(other.m_map_mesh_to_gamemesh)),
@@ -61,6 +64,7 @@ void BL_SceneConverter::RegisterGameObject(KX_GameObject *gameobject, Object *fo
 {
 	// only maintained while converting, freed during game runtime
 	m_map_blender_to_gameobject[for_blenderobject] = gameobject;
+	m_objects.push_back(gameobject);
 }
 
 /** only need to run this during conversion since
@@ -76,6 +80,8 @@ void BL_SceneConverter::UnregisterGameObject(KX_GameObject *gameobject)
 			m_map_blender_to_gameobject.erase(it);
 		}
 	}
+
+	CM_ListRemoveIfFound(m_objects, gameobject);
 }
 
 KX_GameObject *BL_SceneConverter::FindGameObject(Object *for_blenderobject)
@@ -139,4 +145,9 @@ BL_ConvertObjectInfo *BL_SceneConverter::GetObjectInfo(Object *blenderobj)
 	}
 
 	return it->second;
+}
+
+const std::vector<KX_GameObject *> &BL_SceneConverter::GetObjects() const
+{
+	return m_objects;
 }

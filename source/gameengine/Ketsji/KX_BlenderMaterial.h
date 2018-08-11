@@ -26,7 +26,7 @@ class KX_BlenderMaterial : public EXP_Value, public RAS_IPolyMaterial
 	Py_Header
 
 public:
-	KX_BlenderMaterial(Material *mat, const std::string& name);
+	KX_BlenderMaterial(Material *mat, const std::string& name, KX_Scene *scene);
 
 	virtual ~KX_BlenderMaterial();
 
@@ -52,11 +52,8 @@ public:
 	virtual SCA_IScene *GetScene() const;
 	virtual void ReloadMaterial();
 
-	/** Set scene owning this material and generate blender shader using
-	 * scene lights.
-	 * \param scene The scene material owner.
-	 */
-	void InitScene(KX_Scene *scene);
+	void ReplaceScene(KX_Scene *scene);
+	void InitShader();
 
 	static void EndFrame(RAS_Rasterizer *rasty);
 

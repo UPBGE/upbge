@@ -34,3 +34,9 @@ void KX_PythonComponentManager::UpdateComponents()
 		gameobj->UpdateComponents();
 	}
 }
+
+void KX_PythonComponentManager::Merge(KX_PythonComponentManager& other)
+{
+	m_objects.insert(m_objects.end(), other.m_objects.begin(), other.m_objects.end());
+	other.m_objects.clear();
+}
