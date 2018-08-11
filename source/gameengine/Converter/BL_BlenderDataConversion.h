@@ -64,6 +64,8 @@ RAS_Deformer *BL_ConvertDeformer(KX_GameObject *object, KX_Mesh *meshobj);
 void BL_ConvertBlenderObjects(Main *maggie, KX_Scene *kxscene, KX_KetsjiEngine *ketsjiEngine,
 							  RAS_Rasterizer *rendertools, RAS_ICanvas *canvas, BL_SceneConverter& sceneconverter,
                               bool alwaysUseExpandFraming, float camZoom, bool libloading);
+// Non-multithreadable conversion.
+void BL_PostConvertBlenderObjects(KX_Scene *kxscene, const BL_SceneConverter& sceneconverter);
 
 
 SCA_IInputDevice::SCA_EnumInputs BL_ConvertKeyCode(int key_code);

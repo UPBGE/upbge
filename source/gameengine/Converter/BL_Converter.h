@@ -106,20 +106,36 @@ private:
 	bool m_alwaysUseExpandFraming;
 	float m_camZoom;
 
+	/** Merge all data contained in the scene converter to the scene slot of
+	 * the destination scene and update the data to use the destination scene.
+	 * \param to The destination scene.
+	 * \param converter The scene converted of the data to merge.
+	 */
+	void MergeSceneData(KX_Scene *to, const BL_SceneConverter& converter);
+
+	/** Complete process of scene merging:
+	 * - post convert
+	 * - merge data
+	 * - merge scene (KX_Scene::MergeScene)
+	 * - finalize data
+	 */
+	void MergeScene(KX_Scene *to, const BL_SceneConverter& converter);
+
 public:
 	BL_Converter(Main *maggie, KX_KetsjiEngine *engine, bool alwaysUseExpandFraming, float camZoom);
 	virtual ~BL_Converter();
 
 	void ConvertScene(BL_SceneConverter& converter, bool libloading);
 
-	/** Generate shaders and mesh attributes depending on.
-	 * This function is separated from ConvertScene to be synchronized when compiling shaders
-	 * and select a scene to generate shaders with. This last point is used for scene libload
-	 * merging.
+	/** Convert all scene data that can't in a separate thread such as python components.
 	 * \param converter The scene convert to finalize.
-	 * \param mergeScene The scene used to generate shaders.
 	 */
-	void FinalizeSceneData(const BL_SceneConverter& converter, KX_Scene *mergeScene);
+	void PostConvertScene(const BL_SceneConverter& converter);
+
+	/** Finalize all data depending on scene context after a potential scene merging,
+	 * such as shader creation depending on lights into scene.
+	 */
+	void FinalizeSceneData(const BL_SceneConverter& converter);
 
 	/** This function removes all entities stored in the converter for that scene
 	 * It should be used instead of direct delete scene
@@ -150,8 +166,6 @@ public:
 	bool FreeBlendFile(const std::string& path);
 
 	KX_Mesh *ConvertMeshSpecial(KX_Scene *kx_scene, Main *maggie, const std::string& name);
-
-	void MergeScene(KX_Scene *to, KX_Scene *from);
 
 	void MergeAsyncLoads();
 	void FinalizeAsyncLoads();

@@ -41,12 +41,12 @@
 #include "DNA_material_types.h"
 #include "DNA_scene_types.h"
 
-KX_BlenderMaterial::KX_BlenderMaterial(Material *mat, const std::string& name)
+KX_BlenderMaterial::KX_BlenderMaterial(Material *mat, const std::string& name, KX_Scene *scene)
 	:RAS_IPolyMaterial(name),
 	m_material(mat),
 	m_shader(nullptr),
 	m_blenderShader(nullptr),
-	m_scene(nullptr),
+	m_scene(scene),
 	m_userDefBlend(false)
 {
 	// Save material data to restore on exit
@@ -198,6 +198,11 @@ void KX_BlenderMaterial::ReloadMaterial()
 	}
 }
 
+void KX_BlenderMaterial::ReplaceScene(KX_Scene *scene)
+{
+	m_scene = scene;
+}
+
 void KX_BlenderMaterial::InitTextures()
 {
 	// for each unique material...
@@ -211,13 +216,12 @@ void KX_BlenderMaterial::InitTextures()
 	}
 }
 
-void KX_BlenderMaterial::InitScene(KX_Scene *scene)
+void KX_BlenderMaterial::InitShader()
 {
-	m_scene = scene;
+	BLI_assert(!m_blenderShader);
+	BLI_assert(m_scene);
 
-	if (!m_blenderShader) {
-		m_blenderShader = new BL_BlenderShader(m_scene, m_material, this);
-	}
+	m_blenderShader = new BL_BlenderShader(m_scene, m_material, this);
 
 	if (!m_blenderShader->Ok()) {
 		delete m_blenderShader;

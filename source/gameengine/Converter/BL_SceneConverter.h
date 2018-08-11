@@ -65,6 +65,8 @@ private:
 	std::vector<KX_BlenderMaterial *> m_materials;
 	std::vector<KX_Mesh *> m_meshobjects;
 	std::vector<BL_ConvertObjectInfo *> m_objectInfos;
+	// List of all object converted, active and inactive.
+	std::vector<KX_GameObject *> m_objects;
 
 	std::map<Object *, BL_ConvertObjectInfo *> m_blenderToObjectInfos;
 	std::map<Object *, KX_GameObject *> m_map_blender_to_gameobject;
@@ -101,6 +103,8 @@ public:
 	SCA_IController *FindGameController(bController *for_controller);
 
 	BL_ConvertObjectInfo *GetObjectInfo(Object *blenderobj);
+
+	const std::vector<KX_GameObject *>& GetObjects() const;
 };
 
 #endif  // __KX_BLENDERSCENECONVERTER_H__

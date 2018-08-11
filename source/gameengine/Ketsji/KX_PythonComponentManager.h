@@ -18,6 +18,8 @@ public:
 	void UnregisterObject(KX_GameObject *gameobj);
 
 	void UpdateComponents();
+
+	void Merge(KX_PythonComponentManager& other);
 };
 
 #endif  // __KX_PYTHON_COMPONENT_H__

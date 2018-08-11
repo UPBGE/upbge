@@ -2060,9 +2060,6 @@ void initPlayerPython(int argc, char **argv)
 	PySys_SetObject("argv", py_argv);
 	Py_DECREF(py_argv);
 
-	// Initialize thread support (also acquires lock).
-	PyEval_InitThreads();
-
 	bpy_import_init(PyEval_GetBuiltins());
 
 	/* The modules are imported to call their init functions to ensure the types they own are ready
