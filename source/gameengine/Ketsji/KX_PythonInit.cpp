@@ -243,8 +243,7 @@ static PyObject *gPyStartGame(PyObject *, PyObject *args)
 		return nullptr;
 	}
 
-	KX_GetActiveEngine()->RequestExit(KX_ExitRequest::START_OTHER_GAME);
-	KX_GetActiveEngine()->SetNameNextGame(blendfile);
+	KX_GetActiveEngine()->RequestExit(KX_ExitInfo::START_OTHER_GAME, blendfile);
 
 	Py_RETURN_NONE;
 }
@@ -255,7 +254,7 @@ PyDoc_STRVAR(gPyEndGame_doc,
              );
 static PyObject *gPyEndGame(PyObject *)
 {
-	KX_GetActiveEngine()->RequestExit(KX_ExitRequest::QUIT_GAME);
+	KX_GetActiveEngine()->RequestExit(KX_ExitInfo::QUIT_GAME);
 
 	Py_RETURN_NONE;
 }
@@ -266,8 +265,7 @@ PyDoc_STRVAR(gPyRestartGame_doc,
              );
 static PyObject *gPyRestartGame(PyObject *)
 {
-	KX_GetActiveEngine()->RequestExit(KX_ExitRequest::RESTART_GAME);
-	KX_GetActiveEngine()->SetNameNextGame(KX_GetMainPath());
+	KX_GetActiveEngine()->RequestExit(KX_ExitInfo::RESTART_GAME, KX_GetMainPath());
 
 	Py_RETURN_NONE;
 }
@@ -368,7 +366,7 @@ static PyObject *gPySetExitKey(PyObject *, PyObject *args)
 	if (!PyArg_ParseTuple(args, "h:setExitKey", &exitkey)) {
 		return nullptr;
 	}
-	KX_GetActiveEngine()->SetExitKey(exitkey);
+	KX_GetActiveEngine()->SetExitKey((SCA_IInputDevice::SCA_EnumInputs)exitkey);
 	Py_RETURN_NONE;
 }
 

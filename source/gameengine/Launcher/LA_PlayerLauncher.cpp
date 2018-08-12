@@ -138,7 +138,7 @@ void LA_PlayerLauncher::ExitEngine()
 	BKE_sound_exit();
 }
 
-bool LA_PlayerLauncher::EngineNextFrame()
+KX_ExitInfo LA_PlayerLauncher::EngineNextFrame()
 {
 	if (m_inputDevice->GetInput(SCA_IInputDevice::WINRESIZE).Find(SCA_InputEvent::ACTIVE)) {
 		GHOST_Rect bnds;

@@ -40,6 +40,7 @@
 #include "RAS_CameraData.h"
 #include "RAS_Rasterizer.h"
 #include "RAS_DebugDraw.h"
+#include "SCA_IInputDevice.h" // For SCA_IInputDevice::SCA_EnumInputs.
 #include "CM_Clock.h"
 #include <vector>
 
@@ -55,16 +56,25 @@ class SCA_IInputDevice;
 template <class T>
 class EXP_ListValue;
 
-enum class KX_ExitRequest
+struct KX_ExitInfo
 {
-	NO_REQUEST = 0,
-	QUIT_GAME,
-	RESTART_GAME,
-	START_OTHER_GAME,
-	NO_SCENES_LEFT,
-	BLENDER_ESC,
-	OUTSIDE,
-	MAX
+	enum Code {
+		NO_REQUEST = 0,
+		QUIT_GAME,
+		RESTART_GAME,
+		START_OTHER_GAME,
+		NO_SCENES_LEFT,
+		BLENDER_ESC,
+		OUTSIDE,
+		MAX
+	};
+
+	Code m_code;
+
+	/// Extra information on behaviour after exit (e.g starting an other game)
+	std::string m_fileName;
+
+	KX_ExitInfo();
 };
 
 enum class KX_DebugOption
@@ -199,10 +209,9 @@ private:
 	bool m_doRender;  /* whether or not the scene should be rendered after the logic frame */
 
 	/// Key used to exit the BGE
-	short m_exitkey;
+	SCA_IInputDevice::SCA_EnumInputs m_exitKey;
 
-	KX_ExitRequest m_exitcode;
-	std::string m_exitstring;
+	KX_ExitInfo m_exitInfo;
 
 	std::string m_overrideSceneName;
 	RAS_CameraData m_overrideCamData;
@@ -354,10 +363,10 @@ public:
 	void StopEngine();
 	void Export(const std::string& filename);
 
-	void RequestExit(KX_ExitRequest exitrequestmode);
-	void SetNameNextGame(const std::string& nextgame);
-	KX_ExitRequest GetExitCode();
-	const std::string& GetExitString();
+	void RequestExit(KX_ExitInfo::Code code);
+	void RequestExit(KX_ExitInfo::Code code, const std::string& fileName);
+
+	const KX_ExitInfo& GetExitInfo() const;
 
 	EXP_ListValue<KX_Scene> *CurrentScenes();
 	KX_Scene *FindScene(const std::string& scenename);
@@ -451,9 +460,8 @@ public:
 	 */
 	void SetTimeScale(double timeScale);
 
-	void SetExitKey(short key);
-
-	short GetExitKey();
+	void SetExitKey(SCA_IInputDevice::SCA_EnumInputs key);
+	SCA_IInputDevice::SCA_EnumInputs GetExitKey() const;
 
 	/**
 	 * Activate or deactivates the render of the scene after the logic frame

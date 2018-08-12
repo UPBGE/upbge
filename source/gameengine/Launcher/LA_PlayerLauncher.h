@@ -67,5 +67,5 @@ public:
 	virtual void InitEngine();
 	virtual void ExitEngine();
 
-	virtual bool EngineNextFrame();
+	virtual KX_ExitInfo EngineNextFrame();
 };

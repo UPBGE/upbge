@@ -54,9 +54,6 @@ protected:
 	Main *m_maggie;
 	KX_Scene *m_kxStartScene;
 
-	/// \section Exit state.
-	KX_ExitRequest m_exitRequested;
-	std::string m_exitString;
 	GlobalSettings *m_globalSettings;
 
 	/// GHOST system abstraction.
@@ -138,8 +135,6 @@ public:
 	void SetPythonGlobalDict(PyObject *globalDict);
 #endif  // WITH_PYTHON
 
-	KX_ExitRequest GetExitRequested();
-	const std::string& GetExitString();
 	GlobalSettings *GetGlobalSettings();
 
 	inline KX_Scene *GetStartScene() const
@@ -153,9 +148,9 @@ public:
 	virtual void ExitEngine();
 
 	/// Compute next frame.
-	virtual bool EngineNextFrame();
+	virtual KX_ExitInfo EngineNextFrame();
 	/// Execute the loop of the engine, return when receive a exit request from the engine.
-	void EngineMainLoop();
+	KX_ExitInfo EngineMainLoop();
 
 #ifdef WITH_PYTHON
 	static int PythonEngineNextFrame(void *state);

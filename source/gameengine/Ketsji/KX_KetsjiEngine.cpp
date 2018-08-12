@@ -78,6 +78,10 @@
 
 #define DEFAULT_LOGIC_TIC_RATE 60.0
 
+KX_ExitInfo::KX_ExitInfo()
+	:m_code(NO_REQUEST)
+{
+}
 
 KX_KetsjiEngine::CameraRenderData::CameraRenderData(KX_Camera *rendercam, KX_Camera *cullingcam, const RAS_Rect& area,
                                                     const RAS_Rect& viewport, RAS_Rasterizer::StereoMode stereoMode, RAS_Rasterizer::StereoEye eye)
@@ -166,19 +170,14 @@ KX_KetsjiEngine::KX_KetsjiEngine()
 	m_ticrate(DEFAULT_LOGIC_TIC_RATE),
 	m_anim_framerate(25.0),
 	m_doRender(true),
-	m_exitkey(130),
-	m_exitcode(KX_ExitRequest::NO_REQUEST),
-	m_exitstring(""),
+	m_exitKey(SCA_IInputDevice::ENDKEY),
 	m_logger(KX_TimeCategoryLogger(m_clock, 25)),
 	m_average_framerate(0.0),
 	m_showBoundingBox(KX_DebugOption::DISABLE),
 	m_showArmature(KX_DebugOption::DISABLE),
 	m_showCameraFrustum(KX_DebugOption::DISABLE),
 	m_showShadowFrustum(KX_DebugOption::DISABLE),
-	m_globalsettings(
-{
-	0
-}),
+	m_globalsettings({0}),
 	m_taskscheduler(BLI_task_scheduler_create(TASK_SCHEDULER_AUTO_THREADS))
 {
 	for (int i = tc_first; i < tc_numCategories; i++) {
@@ -727,31 +726,20 @@ void KX_KetsjiEngine::Render()
 	EndFrame();
 }
 
-void KX_KetsjiEngine::RequestExit(KX_ExitRequest exitrequestmode)
+void KX_KetsjiEngine::RequestExit(KX_ExitInfo::Code code)
 {
-	m_exitcode = exitrequestmode;
+	RequestExit(code, "");
 }
 
-void KX_KetsjiEngine::SetNameNextGame(const std::string& nextgame)
+void KX_KetsjiEngine::RequestExit(KX_ExitInfo::Code code, const std::string& fileName)
 {
-	m_exitstring = nextgame;
+	m_exitInfo.m_code = code;
+	m_exitInfo.m_fileName = fileName;
 }
 
-KX_ExitRequest KX_KetsjiEngine::GetExitCode()
+const KX_ExitInfo& KX_KetsjiEngine::GetExitInfo() const
 {
-	// if a game actuator has set an exit code or if there are no scenes left
-	if (m_exitcode == KX_ExitRequest::NO_REQUEST) {
-		if (m_scenes->Empty()) {
-			m_exitcode = KX_ExitRequest::NO_SCENES_LEFT;
-		}
-	}
-
-	return m_exitcode;
-}
-
-const std::string& KX_KetsjiEngine::GetExitString()
-{
-	return m_exitstring;
+	return m_exitInfo;
 }
 
 void KX_KetsjiEngine::EnableCameraOverride(const std::string& forscene, const mt::mat4& projmat,
@@ -1540,14 +1528,14 @@ double KX_KetsjiEngine::GetAverageFrameRate()
 	return m_average_framerate;
 }
 
-void KX_KetsjiEngine::SetExitKey(short key)
+void KX_KetsjiEngine::SetExitKey(SCA_IInputDevice::SCA_EnumInputs key)
 {
-	m_exitkey = key;
+	m_exitKey = key;
 }
 
-short KX_KetsjiEngine::GetExitKey()
+SCA_IInputDevice::SCA_EnumInputs KX_KetsjiEngine::GetExitKey() const
 {
-	return m_exitkey;
+	return m_exitKey;
 }
 
 void KX_KetsjiEngine::SetRender(bool render)
@@ -1569,6 +1557,10 @@ void KX_KetsjiEngine::ProcessScheduledScenes()
 		ReplaceScheduledScenes();
 		RemoveScheduledScenes();
 		AddScheduledScenes();
+	}
+
+	if (m_scenes->Empty()) {
+		RequestExit(KX_ExitInfo::NO_SCENES_LEFT);
 	}
 }
 

@@ -78,13 +78,22 @@ extern "C" {
 #  include AUD_DEVICE_H
 #endif
 
+#ifdef WITH_PYTHON
+
+struct PythonMainLoopState
+{
+	KX_ExitInfo m_exitInfo;
+	LA_Launcher *m_launcher;
+};
+
+#endif
+
 LA_Launcher::LA_Launcher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs,
                          RAS_Rasterizer::StereoMode stereoMode, int samples, bool alwaysUseExpandFraming, int argc, char **argv)
 	:m_startSceneName(scene->id.name + 2),
 	m_startScene(scene),
 	m_maggie(maggie),
 	m_kxStartScene(nullptr),
-	m_exitRequested(KX_ExitRequest::NO_REQUEST),
 	m_globalSettings(gs),
 	m_system(system),
 	m_ketsjiEngine(nullptr),
@@ -117,19 +126,9 @@ void LA_Launcher::SetPythonGlobalDict(PyObject *globalDict)
 }
 #endif  // WITH_PYTHON
 
-KX_ExitRequest LA_Launcher::GetExitRequested()
-{
-	return m_exitRequested;
-}
-
 GlobalSettings *LA_Launcher::GetGlobalSettings()
 {
 	return m_ketsjiEngine->GetGlobalSettings();
-}
-
-const std::string& LA_Launcher::GetExitString()
-{
-	return m_exitString;
 }
 
 void LA_Launcher::InitEngine()
@@ -320,12 +319,6 @@ void LA_Launcher::ExitEngine()
 	DEV_Joystick::Close();
 	m_ketsjiEngine->StopEngine();
 
-	// Do we will stop ?
-	if ((m_exitRequested != KX_ExitRequest::RESTART_GAME) && (m_exitRequested != KX_ExitRequest::START_OTHER_GAME)) {
-		// Then set the cursor back to normal here to avoid set the cursor visible between two game load.
-		m_canvas->SetMouseState(RAS_ICanvas::MOUSE_NORMAL);
-	}
-
 	// Set anisotropic settign back to its original value.
 	m_rasterizer->SetAnisotropicFiltering(m_savedData.anisotropic);
 
@@ -371,8 +364,6 @@ void LA_Launcher::ExitEngine()
 	// Stop all remaining playing sounds.
 	AUD_Device_stopAll(BKE_sound_get_device());
 #endif  // WITH_AUDASPACE
-
-	m_exitRequested = KX_ExitRequest::NO_REQUEST;
 }
 
 #ifdef WITH_PYTHON
@@ -417,16 +408,13 @@ void LA_Launcher::HandlePythonConsole()
 
 int LA_Launcher::PythonEngineNextFrame(void *state)
 {
-	LA_Launcher *launcher = (LA_Launcher *)state;
-	bool run = launcher->EngineNextFrame();
-	if (run) {
+	PythonMainLoopState *pstate = (PythonMainLoopState *)state;
+	pstate->m_exitInfo = pstate->m_launcher->EngineNextFrame();
+	if (pstate->m_exitInfo.m_code == KX_ExitInfo::NO_REQUEST) {
 		return 0;
 	}
 	else {
-		KX_ExitRequest exitcode = launcher->GetExitRequested();
-		if (exitcode != KX_ExitRequest::NO_REQUEST) {
-			CM_Error("Exit code " << (int)exitcode << ": " << launcher->GetExitString());
-		}
+		CM_Error("Exit code " << (int)pstate->m_exitInfo.m_code << ": " << pstate->m_exitInfo.m_fileName);
 		return 1;
 	}
 }
@@ -463,7 +451,7 @@ void LA_Launcher::RunPythonMainLoop(const std::string& pythonCode)
 
 #endif  // WITH_PYTHON
 
-bool LA_Launcher::EngineNextFrame()
+KX_ExitInfo LA_Launcher::EngineNextFrame()
 {
 #ifdef WITH_PYTHON
 	// Check if we can create a python console debugging.
@@ -473,10 +461,9 @@ bool LA_Launcher::EngineNextFrame()
 	bool renderFrame = m_ketsjiEngine->NextFrame();
 
 	// First check if we want to exit.
-	m_exitRequested = m_ketsjiEngine->GetExitCode();
-	m_exitString = m_ketsjiEngine->GetExitString();
+	KX_ExitInfo exitInfo = m_ketsjiEngine->GetExitInfo();
 
-	if (m_exitRequested == KX_ExitRequest::NO_REQUEST) {
+	if (exitInfo.m_code == KX_ExitInfo::NO_REQUEST) {
 		if (renderFrame) {
 			RenderEngine();
 		}
@@ -485,22 +472,23 @@ bool LA_Launcher::EngineNextFrame()
 	m_system->processEvents(false);
 	m_system->dispatchEvents();
 
-	if (m_inputDevice->GetInput((SCA_IInputDevice::SCA_EnumInputs)m_ketsjiEngine->GetExitKey()).Find(SCA_InputEvent::ACTIVE) &&
+	SCA_IInputDevice::SCA_EnumInputs exitKey = m_ketsjiEngine->GetExitKey();
+	if (m_inputDevice->GetInput(exitKey).Find(SCA_InputEvent::ACTIVE) &&
 	    !m_inputDevice->GetHookExitKey()) {
-		m_inputDevice->ConvertEvent((SCA_IInputDevice::SCA_EnumInputs)m_ketsjiEngine->GetExitKey(), 0, 0);
-		m_exitRequested = KX_ExitRequest::BLENDER_ESC;
+		m_inputDevice->ConvertEvent(exitKey, 0, 0);
+		exitInfo.m_code = KX_ExitInfo::BLENDER_ESC;
 	}
 	else if (m_inputDevice->GetInput(SCA_IInputDevice::WINCLOSE).Find(SCA_InputEvent::ACTIVE) ||
 	         m_inputDevice->GetInput(SCA_IInputDevice::WINQUIT).Find(SCA_InputEvent::ACTIVE)) {
 		m_inputDevice->ConvertEvent(SCA_IInputDevice::WINCLOSE, 0, 0);
 		m_inputDevice->ConvertEvent(SCA_IInputDevice::WINQUIT, 0, 0);
-		m_exitRequested = KX_ExitRequest::OUTSIDE;
+		exitInfo.m_code = KX_ExitInfo::OUTSIDE;
 	}
 
-	return (m_exitRequested == KX_ExitRequest::NO_REQUEST);
+	return exitInfo;
 }
 
-void LA_Launcher::EngineMainLoop()
+KX_ExitInfo LA_Launcher::EngineMainLoop()
 {
 #ifdef WITH_PYTHON
 	std::string pythonCode;
@@ -509,22 +497,27 @@ void LA_Launcher::EngineMainLoop()
 		// Set python environement variable.
 		KX_SetActiveScene(m_kxStartScene);
 
-		pynextframestate.state = this;
+		PythonMainLoopState state;
+		pynextframestate.state = &state;
 		pynextframestate.func = &PythonEngineNextFrame;
 
 		CM_Debug("Yielding control to Python script '" << pythonFileName << "'...");
 		RunPythonMainLoop(pythonCode);
 		CM_Debug("Exit Python script '" << pythonFileName << "'");
+
+		return state.m_exitInfo;
 	}
 	else {
 		pynextframestate.state = nullptr;
 		pynextframestate.func = nullptr;
 #endif  // WITH_PYTHON
 
-	bool run = true;
-	while (run) {
-		run  = EngineNextFrame();
+	KX_ExitInfo exitInfo;
+	while (exitInfo.m_code == KX_ExitInfo::NO_REQUEST) {
+		exitInfo = EngineNextFrame();
 	}
+
+	return exitInfo;
 
 #ifdef WITH_PYTHON
 }

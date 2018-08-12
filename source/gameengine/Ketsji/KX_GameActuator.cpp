@@ -97,8 +97,7 @@ bool KX_GameActuator::Update()
 		{
 			if (m_ketsjiengine) {
 				std::string exitstring = "start other game";
-				m_ketsjiengine->RequestExit(KX_ExitRequest::START_OTHER_GAME);
-				m_ketsjiengine->SetNameNextGame(m_filename);
+				m_ketsjiengine->RequestExit(KX_ExitInfo::START_OTHER_GAME, m_filename);
 				m_scene->AddDebugProperty((this)->GetParent(), exitstring);
 			}
 
@@ -108,8 +107,7 @@ bool KX_GameActuator::Update()
 		{
 			if (m_ketsjiengine) {
 				std::string exitstring = "restarting game";
-				m_ketsjiengine->RequestExit(KX_ExitRequest::RESTART_GAME);
-				m_ketsjiengine->SetNameNextGame(m_filename);
+				m_ketsjiengine->RequestExit(KX_ExitInfo::RESTART_GAME, m_filename);
 				m_scene->AddDebugProperty((this)->GetParent(), exitstring);
 			}
 			break;
@@ -118,7 +116,7 @@ bool KX_GameActuator::Update()
 		{
 			if (m_ketsjiengine) {
 				std::string exitstring = "quiting game";
-				m_ketsjiengine->RequestExit(KX_ExitRequest::QUIT_GAME);
+				m_ketsjiengine->RequestExit(KX_ExitInfo::QUIT_GAME);
 				m_scene->AddDebugProperty((this)->GetParent(), exitstring);
 			}
 			break;

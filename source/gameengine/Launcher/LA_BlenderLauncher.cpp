@@ -172,7 +172,7 @@ void LA_BlenderLauncher::RenderEngine()
 	LA_Launcher::RenderEngine();
 }
 
-bool LA_BlenderLauncher::EngineNextFrame()
+KX_ExitInfo LA_BlenderLauncher::EngineNextFrame()
 {
 	// Free all window manager events unused.
 	wm_event_free_all(m_window);
