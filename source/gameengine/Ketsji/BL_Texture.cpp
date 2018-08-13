@@ -43,10 +43,10 @@ BL_Texture::BL_Texture(GPUInput *input)
 	m_gpuTex(nullptr),
 	m_input(input)
 {
-	m_isCubeMap = input->textarget == GetCubeMapTextureType();
+	m_isCubeMap = false;
 	m_name = input->ima->id.name;
 
-	m_gpuTex = GPU_texture_from_blender(input->ima, input->iuser, input->textarget, input->image_isdata, 0.0f);
+	m_gpuTex = GPU_texture_from_blender(input->ima, input->iuser, GL_TEXTURE_2D, input->image_isdata, 0.0f);
 
 	if (m_gpuTex) {
 		m_bindCode = GPU_texture_opengl_bindcode(m_gpuTex);
@@ -81,7 +81,7 @@ void BL_Texture::CheckValidTexture()
 		GPU_texture_set_opengl_bindcode(m_gpuTex, m_savedData.bindcode);
 		GPU_texture_free(m_gpuTex);
 
-		m_gpuTex = (m_input->ima ? GPU_texture_from_blender(m_input->ima, m_input->iuser, m_input->textarget, false, 0.0) : nullptr);
+		m_gpuTex = (m_input->ima ? GPU_texture_from_blender(m_input->ima, m_input->iuser, GL_TEXTURE_2D, false, 0.0) : nullptr);
 
 		if (m_gpuTex) {
 			int bindCode = GPU_texture_opengl_bindcode(m_gpuTex);
@@ -127,7 +127,7 @@ GPUTexture *BL_Texture::GetGPUTexture() const
 
 unsigned int BL_Texture::GetTextureType()
 {
-	return m_input->textarget;
+	return GL_TEXTURE_2D;
 }
 
 void BL_Texture::ActivateTexture(int unit)

@@ -524,10 +524,12 @@ typedef enum eBConstraint_Flags {
 	CONSTRAINT_PROXY_LOCAL = (1<<8),
 		/* indicates that constraint is temporarily disabled (only used in GE) */
 	CONSTRAINT_OFF = (1<<9),
-		/* use bbone curve shape when calculating headtail values */
+		/* use bbone curve shape when calculating headtail values (also used by dependency graph!) */
 	CONSTRAINT_BBONE_SHAPE = (1<<10),
 		/* That constraint has been inserted in local override (i.e. it can be fully edited!). */
 	CONSTRAINT_STATICOVERRIDE_LOCAL = (1 << 11),
+		/* use full transformation (not just segment locations) - only set at runtime  */
+	CONSTRAINT_BBONE_SHAPE_FULL = (1 << 12),
 } eBConstraint_Flags;
 
 /* bConstraint->ownspace/tarspace */
@@ -584,7 +586,8 @@ typedef enum eCopyScale_Flags {
 	SIZELIKE_X		= (1<<0),
 	SIZELIKE_Y		= (1<<1),
 	SIZELIKE_Z		= (1<<2),
-	SIZELIKE_OFFSET = (1<<3)
+	SIZELIKE_OFFSET = (1<<3),
+	SIZELIKE_MULTIPLY = (1<<4),
 } eCopyScale_Flags;
 
 /* bTransformConstraint.to/from */

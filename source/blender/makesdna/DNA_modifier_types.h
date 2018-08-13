@@ -162,7 +162,7 @@ typedef struct SubsurfModifierData {
 
 	short subdivType, levels, renderLevels, flags;
 	short uv_smooth;
-	short use_opensubdiv;
+	short quality;
 	short pad[2];
 
 	void *emCache, *mCache;

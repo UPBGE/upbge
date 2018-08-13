@@ -1250,10 +1250,12 @@ static void rna_def_modifier_subsurf(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "UV Smooth", "Controls how smoothing is applied to UVs");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
-#ifdef WITH_OPENSUBDIV
-	prop = RNA_def_property(srna, "use_opensubdiv", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "use_opensubdiv", 1);
-	RNA_def_property_ui_text(prop, "Use OpenSubdiv", "Use OpenSubdiv for the subdivisions (viewport only)");
+#ifdef WITH_OPENSUBDIV_MODIFIER
+	prop = RNA_def_property(srna, "quality", PROP_INT, PROP_UNSIGNED);
+	RNA_def_property_int_sdna(prop, NULL, "quality");
+	RNA_def_property_range(prop, 1, 10);
+	RNA_def_property_ui_range(prop, 1, 6, 1, -1);
+	RNA_def_property_ui_text(prop, "Quality", "Accuracy of vertex positions, lower value is faster but less precise");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 #endif
 }

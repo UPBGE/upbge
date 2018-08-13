@@ -986,6 +986,8 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
             col.label(text="Subdivisions:")
             col.prop(md, "levels", text="View")
             col.prop(md, "render_levels", text="Render")
+            if hasattr(md, "quality"):
+                col.prop(md, "quality")
 
         col = split.column()
         col.label(text="Options:")
@@ -995,8 +997,6 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         sub.prop(md, "uv_smooth", text="")
 
         col.prop(md, "show_only_control_edges")
-        if hasattr(md, "use_opensubdiv"):
-            col.prop(md, "use_opensubdiv")
 
         if show_adaptive_options and ob.cycles.use_adaptive_subdivision:
             col = layout.column(align=True)

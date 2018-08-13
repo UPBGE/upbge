@@ -519,7 +519,7 @@ static void rna_def_constraint_headtail_common(StructRNA *srna)
 	prop = RNA_def_property(srna, "use_bbone_shape", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, "bConstraint", "flag", CONSTRAINT_BBONE_SHAPE);
 	RNA_def_property_ui_text(prop, "Follow B-Bone", "Follow shape of B-Bone segments when calculating Head/Tail position");
-	RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
+	RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_dependency_update");
 }
 
 static void rna_def_constraint_target_common(StructRNA *srna)
@@ -963,7 +963,12 @@ static void rna_def_constraint_size_like(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "use_offset", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", SIZELIKE_OFFSET);
-	RNA_def_property_ui_text(prop, "Offset", "Add original scale into copied scale");
+	RNA_def_property_ui_text(prop, "Offset", "Combine original scale with copied scale");
+	RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
+
+	prop = RNA_def_property(srna, "use_add", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", SIZELIKE_MULTIPLY);
+	RNA_def_property_ui_text(prop, "Additive", "Use addition instead of multiplication to combine scale (2.7 compatibility)");
 	RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
 }
 
