@@ -27,30 +27,27 @@
 
 #include "BLI_utildefines.h"
 
-#ifdef WITH_OPENSUBDIV
-#  include "opensubdiv_converter_capi.h"
-#endif
+#include "opensubdiv_converter_capi.h"
 
 void BKE_subdiv_converter_free(struct OpenSubdiv_Converter *converter)
 {
-#ifdef WITH_OPENSUBDIV
 	if (converter->freeUserData) {
 		converter->freeUserData(converter);
 	}
-#else
-	UNUSED_VARS(converter);
-#endif
 }
 
 /*OpenSubdiv_FVarLinearInterpolation*/ int
 BKE_subdiv_converter_fvar_linear_from_settings(const SubdivSettings *settings)
 {
-#ifdef WITH_OPENSUBDIV
 	switch (settings->fvar_linear_interpolation) {
 		case SUBDIV_FVAR_LINEAR_INTERPOLATION_NONE:
 			return OSD_FVAR_LINEAR_INTERPOLATION_NONE;
 		case SUBDIV_FVAR_LINEAR_INTERPOLATION_CORNERS_ONLY:
 			return OSD_FVAR_LINEAR_INTERPOLATION_CORNERS_ONLY;
+		case SUBDIV_FVAR_LINEAR_INTERPOLATION_CORNERS_AND_JUNCTIONS:
+			return OSD_FVAR_LINEAR_INTERPOLATION_CORNERS_PLUS1;
+		case SUBDIV_FVAR_LINEAR_INTERPOLATION_CORNERS_JUNCTIONS_AND_CONCAVE:
+			return OSD_FVAR_LINEAR_INTERPOLATION_CORNERS_PLUS2;
 		case SUBDIV_FVAR_LINEAR_INTERPOLATION_BOUNDARIES:
 			return OSD_FVAR_LINEAR_INTERPOLATION_BOUNDARIES;
 		case SUBDIV_FVAR_LINEAR_INTERPOLATION_ALL:
@@ -58,8 +55,4 @@ BKE_subdiv_converter_fvar_linear_from_settings(const SubdivSettings *settings)
 	}
 	BLI_assert(!"Unknown fvar linear interpolation");
 	return OSD_FVAR_LINEAR_INTERPOLATION_NONE;
-#else
-	UNUSED_VARS(settings);
-	return 0;
-#endif
 }
