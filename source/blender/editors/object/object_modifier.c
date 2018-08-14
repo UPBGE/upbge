@@ -630,7 +630,7 @@ static int modifier_apply_obdata(ReportList *reports, Depsgraph *depsgraph, Scen
 		ModifierEvalContext mectx = {depsgraph, ob, 0};
 
 		if (ELEM(mti->type, eModifierTypeType_Constructive, eModifierTypeType_Nonconstructive)) {
-			BKE_report(reports, RPT_ERROR, "Cannot apply constructive modifiers on curve");
+			BKE_report(reports, RPT_ERROR, "Transform curve to mesh in order to apply constructive modifiers");
 			return 0;
 		}
 
@@ -826,11 +826,6 @@ bool edit_modifier_poll_generic(bContext *C, StructRNA *rna_type, int obtype_fla
 {
 	PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", rna_type);
 	Object *ob = (ptr.id.data) ? ptr.id.data : ED_object_active_context(C);
-
-	if (!ptr.data) {
-		CTX_wm_operator_poll_msg_set(C, "Context missing 'modifier'");
-		return 0;
-	}
 
 	if (!ob || ID_IS_LINKED(ob)) return 0;
 	if (obtype_flag && ((1 << ob->type) & obtype_flag) == 0) return 0;

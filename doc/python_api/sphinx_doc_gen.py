@@ -135,22 +135,6 @@ def handle_args():
                         help="Path of the API docs (default=<script dir>)",
                         required=False)
 
-    parser.add_argument("-T", "--sphinx-theme",
-                        dest="sphinx_theme",
-                        type=str,
-                        default="classic",
-                        help="Sphinx theme (default='classic'), "
-                        "see: http://sphinx-doc.org/theming.html",
-                        required=False)
-
-    parser.add_argument("-N", "--sphinx-named-output",
-                        dest="sphinx_named_output",
-                        default=False,
-                        action='store_true',
-                        help="Add the theme name to the html dir name.\n"
-                             "Example: \"sphinx-out_haiku\" (default=False)",
-                        required=False)
-
     parser.add_argument("-B", "--sphinx-build",
                         dest="sphinx_build",
                         default=False,
@@ -231,14 +215,6 @@ else:
     EXCLUDE_INFO_DOCS = True
     EXCLUDE_MODULES = [
         "aud",
-        "bge",
-        "bge.app"
-        "bge.constraints",
-        "bge.events",
-        "bge.logic",
-        "bge.render",
-        "bge.texture",
-        "bge.types",
         "bgl",
         "blf",
         "bmesh",
@@ -340,10 +316,6 @@ EXTRA_SOURCE_FILES = (
     "../../../release/scripts/templates_py/operator_simple.py",
     "../../../release/scripts/templates_py/ui_panel_simple.py",
     "../../../release/scripts/templates_py/ui_previews_custom_icon.py",
-    "../examples/bge.constraints.py",
-    "../examples/bge.texture.1.py",
-    "../examples/bge.texture.2.py",
-    "../examples/bge.texture.py",
     "../examples/bmesh.ops.1.py",
     "../examples/bpy.app.translations.py",
     "../static/favicon.ico",
@@ -377,6 +349,7 @@ INFO_DOCS = (
      "Tips and Tricks: Hints to help you while writing scripts for Blender"),
     ("info_gotcha.rst",
      "Gotcha's: some of the problems you may come up against when writing scripts"),
+     ("change_log.rst", "List of changes since last Blender release"),
 )
 
 # only support for properties atm.
@@ -454,15 +427,9 @@ BLENDER_ZIP_FILENAME = "%s.zip" % REFERENCE_NAME
 
 # -------------------------------SPHINX-----------------------------------------
 
-if ARGS.sphinx_theme == "blender-org":
-    SPHINX_THEME_DIR = os.path.join(ARGS.output_dir, ARGS.sphinx_theme)
-    SPHINX_THEME_SVN_DIR = os.path.join(SCRIPT_DIR, ARGS.sphinx_theme)
-
 SPHINX_IN = os.path.join(ARGS.output_dir, "sphinx-in")
 SPHINX_IN_TMP = SPHINX_IN + "-tmp"
 SPHINX_OUT = os.path.join(ARGS.output_dir, "sphinx-out")
-if ARGS.sphinx_named_output:
-    SPHINX_OUT += "_%s" % ARGS.sphinx_theme
 
 # html build
 if ARGS.sphinx_build:
@@ -533,22 +500,7 @@ def is_struct_seq(value):
 
 
 def undocumented_message(module_name, type_name, identifier):
-    return "Undocumented"
-
-    """
-    if str(type_name).startswith('<module'):
-        preloadtitle = '%s.%s' % (module_name, identifier)
-    else:
-        preloadtitle = '%s.%s.%s' % (module_name, type_name, identifier)
-    message = ("Undocumented (`contribute "
-               "<http://wiki.blender.org/index.php/"
-               "Dev:2.5/Py/API/Generating_API_Reference/Contribute"
-               "?action=edit"
-               "&section=new"
-               "&preload=Dev:2.5/Py/API/Generating_API_Reference/Contribute/Howto-message"
-               "&preloadtitle=%s>`_)\n\n" % preloadtitle)
-    return message
-    """
+    return "Undocumented `contribute <https://developer.blender.org/T51061>`"
 
 
 def range_str(val):
@@ -856,7 +808,8 @@ def pymodule2sphinx(basepath, module_name, module, title):
 
             for submod_name, submod in submod_ls:
                 submod_name_full = "%s.%s" % (module_name, submod_name)
-                fw("   %s.rst\n\n" % submod_name_full)
+                fw("   %s.rst\n" % submod_name_full)
+            fw("\n")
 
                 pymodule2sphinx(basepath, submod_name_full, submod, "%s submodule" % module_name)
         del submod_ls
@@ -1586,7 +1539,7 @@ def pyrna2sphinx(basepath):
 
     # operators
     def write_ops():
-        API_BASEURL = "https://developer.blender.org/diffusion/B/browse/master/release/scripts "
+        API_BASEURL = "https://developer.blender.org/diffusion/B/browse/master/release/scripts"
         API_BASEURL_ADDON = "https://developer.blender.org/diffusion/BA"
         API_BASEURL_ADDON_CONTRIB = "https://developer.blender.org/diffusion/BAC"
 
@@ -1655,22 +1608,17 @@ def write_sphinx_conf_py(basepath):
     fw("extensions = ['sphinx.ext.intersphinx']\n\n")
     fw("intersphinx_mapping = {'blender_manual': ('https://docs.blender.org/manual/en/dev/', None)}\n\n")
     fw("project = 'Blender'\n")
-    # fw("master_doc = 'index'\n")
+    fw("master_doc = 'index'\n")
     fw("copyright = u'Blender Foundation'\n")
-    fw("version = '%s - API'\n" % BLENDER_VERSION_DOTS)
-    fw("release = '%s - API'\n" % BLENDER_VERSION_DOTS)
+    fw("version = '%s'\n" % BLENDER_VERSION_DOTS)
+    fw("release = '%s'\n" % BLENDER_VERSION_DOTS)
 
     # Quiet file not in table-of-contents warnings.
     fw("exclude_patterns = [\n")
     fw("    'include__bmesh.rst',\n")
     fw("]\n\n")
 
-    if ARGS.sphinx_theme != 'default':
-        fw("html_theme = '%s'\n" % ARGS.sphinx_theme)
-
-    if ARGS.sphinx_theme == "blender-org":
-        fw("html_theme_path = ['../']\n")
-
+    fw("html_theme = 'sphinx_rtd_theme'\n")
     # not helpful since the source is generated, adds to upload size.
     fw("html_copy_source = False\n")
     fw("html_show_sphinx = False\n")
@@ -1717,7 +1665,7 @@ def write_rst_contents(basepath):
     '''
     Write the rst file of the main page, needed for sphinx (index.html)
     '''
-    filepath = os.path.join(basepath, "contents.rst")
+    filepath = os.path.join(basepath, "index.rst")
     file = open(filepath, "w", encoding="utf-8")
     fw = file.write
 
@@ -1730,21 +1678,19 @@ def write_rst_contents(basepath):
     # fw("`A PDF version of this document is also available <%s>`_\n" % BLENDER_PDF_FILENAME)
     fw("This site can be downloaded for offline use `Download the full Documentation (zipped HTML files) <%s>`_\n" %
        BLENDER_ZIP_FILENAME)
-
     fw("\n")
 
     if not EXCLUDE_INFO_DOCS:
-        fw(title_string("Blender/Python Documentation", "=", double=True))
-
         fw(".. toctree::\n")
-        fw("   :maxdepth: 1\n\n")
+        fw("   :maxdepth: 1\n")
+        fw("   :caption: Blender/Python Documentation\n\n")
         for info, info_desc in INFO_DOCS:
-            fw("   %s <%s>\n\n" % (info_desc, info))
+            fw("   %s <%s>\n" % (info_desc, info))
         fw("\n")
 
-    fw(title_string("Application Modules", "=", double=True))
     fw(".. toctree::\n")
-    fw("   :maxdepth: 1\n\n")
+    fw("   :maxdepth: 1\n")
+    fw("   :caption: Application Modules\n\n")
 
     app_modules = (
         "bpy.context",  # note: not actually a module
@@ -1764,11 +1710,12 @@ def write_rst_contents(basepath):
 
     for mod in app_modules:
         if mod not in EXCLUDE_MODULES:
-            fw("   %s\n\n" % mod)
+            fw("   %s\n" % mod)
+    fw("\n")
 
-    fw(title_string("Standalone Modules", "=", double=True))
     fw(".. toctree::\n")
-    fw("   :maxdepth: 1\n\n")
+    fw("   :maxdepth: 1\n")
+    fw("   :caption: Standalone Modules\n\n")
 
     standalone_modules = (
         # submodules are added in parent page
@@ -1778,46 +1725,12 @@ def write_rst_contents(basepath):
 
     for mod in standalone_modules:
         if mod not in EXCLUDE_MODULES:
-            fw("   %s\n\n" % mod)
+            fw("   %s\n" % mod)
+    fw("\n")
 
     # special case, this 'bmesh.ops.rst' is extracted from C source
     if "bmesh.ops" not in EXCLUDE_MODULES:
         execfile(os.path.join(SCRIPT_DIR, "rst_from_bmesh_opdefines.py"))
-
-    # game engine
-    if "bge" not in EXCLUDE_MODULES:
-        fw(title_string("Game Engine Modules", "=", double=True))
-        fw(".. toctree::\n")
-        fw("   :maxdepth: 1\n\n")
-        fw("   bge.types.rst\n\n")
-        fw("   bge.logic.rst\n\n")
-        fw("   bge.render.rst\n\n")
-        fw("   bge.texture.rst\n\n")
-        fw("   bge.events.rst\n\n")
-        fw("   bge.constraints.rst\n\n")
-        fw("   bge.app.rst\n\n")
-
-    # rna generated change log
-    fw(title_string("API Info", "=", double=True))
-    fw(".. toctree::\n")
-    fw("   :maxdepth: 1\n\n")
-    fw("   change_log.rst\n\n")
-
-    fw("\n")
-    fw("\n")
-    fw(".. note:: The Blender Python API has areas which are still in development.\n")
-    fw("   \n")
-    fw("   The following areas are subject to change.\n")
-    fw("      * operator behavior, names and arguments\n")
-    fw("      * mesh creation and editing functions\n")
-    fw("   \n")
-    fw("   These parts of the API are relatively stable and are unlikely to change significantly\n")
-    fw("      * data API, access to attributes of Blender data such as mesh verts, material color,\n")
-    fw("        timeline frames and scene objects\n")
-    fw("      * user interface functions for defining buttons, creation of menus, headers, panels\n")
-    fw("      * render engine integration\n")
-    fw("      * modules: bgl, mathutils & game engine.\n")
-    fw("\n")
 
     file.close()
 
@@ -1920,6 +1833,7 @@ def write_rst_importable_modules(basepath):
         "bpy.app": "Application Data",
         "bpy.app.handlers": "Application Handlers",
         "bpy.app.translations": "Application Translations",
+        "bpy.app.icons": "Application Icons",
         "bpy.props": "Property Definitions",
         "idprop.types": "ID Property Access",
         "mathutils": "Math Types & Utilities",
@@ -1952,35 +1866,18 @@ def copy_handwritten_rsts(basepath):
 
     # TODO put this docs in Blender's code and use import as per modules above
     handwritten_modules = [
-        "bge.logic",
-        "bge.render",
-        "bge.texture",
-        "bge.events",
-        "bge.constraints",
-        "bge.app",
         "bgl",  # "Blender OpenGl wrapper"
         "gpu",  # "GPU Shader Module"
-
         "bmesh.ops",  # generated by rst_from_bmesh_opdefines.py
 
         # includes...
         "include__bmesh",
     ]
+
     for mod_name in handwritten_modules:
         if mod_name not in EXCLUDE_MODULES:
             # copy2 keeps time/date stamps
             shutil.copy2(os.path.join(RST_DIR, "%s.rst" % mod_name), basepath)
-
-    if "bge.types" not in EXCLUDE_MODULES:
-        shutil.copy2(os.path.join(RST_DIR, "bge.types.rst"), basepath)
-
-        bge_types_dir = os.path.join(RST_DIR, "bge_types")
-
-        for i in os.listdir(bge_types_dir):
-            if i.startswith("."):
-                # Avoid things like .svn dir...
-                continue
-            shutil.copy2(os.path.join(bge_types_dir, i), basepath)
 
     # changelog
     shutil.copy2(os.path.join(RST_DIR, "change_log.rst"), basepath)
@@ -2138,15 +2035,6 @@ def main():
                         ignore=shutil.ignore_patterns(*(".svn",)),
                         copy_function=shutil.copy)
 
-        # eventually, copy the theme dir
-        if ARGS.sphinx_theme == "blender-org":
-            if os.path.exists(SPHINX_THEME_DIR):
-                shutil.rmtree(SPHINX_THEME_DIR, True)
-            shutil.copytree(SPHINX_THEME_SVN_DIR,
-                            SPHINX_THEME_DIR,
-                            ignore=shutil.ignore_patterns(*(".svn",)),
-                            copy_function=shutil.copy)
-
     # dump the api in rst files
     if os.path.exists(SPHINX_IN_TMP):
         shutil.rmtree(SPHINX_IN_TMP, True)
@@ -2209,8 +2097,6 @@ def main():
             shutil.copytree(SPHINX_OUT,
                             REFERENCE_PATH,
                             ignore=shutil.ignore_patterns(*ignores))
-            shutil.copy(os.path.join(REFERENCE_PATH, "contents.html"),
-                        os.path.join(REFERENCE_PATH, "index.html"))
 
             # zip REFERENCE_PATH
             basename = os.path.join(ARGS.output_dir, REFERENCE_NAME)
