@@ -37,28 +37,45 @@ struct GPUBuffer;
 
 class RAS_InstancingBuffer
 {
+public:
+	/// Item to pack.
+	enum Attrib
+	{
+		/// Pack matrix and positions, needed for all shaders.
+		DEFAULT_ATTRIBS = 0,
+		/// Pack object color.
+		COLOR_ATTRIB = (1 << 0),
+		/// Pack object layer.
+		LAYER_ATTRIB = (1 << 1)
+	};
+
+private:
+	/// Memory size of packed items.
+	enum MemorySize
+	{
+		MATRIX_MEMORY_SIZE = sizeof(float[9]),
+		POSITION_MEMORY_SIZE = sizeof(float[3]),
+		COLOR_MEMORY_SIZE = sizeof(float[4]),
+		LAYER_MEMORY_SIZE = sizeof(int)
+	};
+
 	/// The OpenGL VBO.
 	GPUBuffer *m_vbo;
 	/// The matrix offset in the VBO.
-	void *m_matrixOffset;
+	intptr_t m_matrixOffset;
 	/// The position offset in the VBO.
-	void *m_positionOffset;
+	intptr_t m_positionOffset;
 	/// The color offset in the VBO.
-	void *m_colorOffset;
-	/// The instance structure stride in the VBO.
-	unsigned int m_stride;
+	intptr_t m_colorOffset;
+	/// The layer offset in the VBO.
+	intptr_t m_layerOffset;
 
-	/// Structure used to store object info for geometry instancing objects render.
-	struct InstancingObject
-	{
-		float matrix[9];
-		float position[3];
-		unsigned char color[4];
-	};
+	/// Attributes to update.
+	Attrib m_attribs;
 
 public:
-	RAS_InstancingBuffer();
-	virtual ~RAS_InstancingBuffer();
+	RAS_InstancingBuffer(Attrib attribs);
+	~RAS_InstancingBuffer();
 
 	/// Realloc the VBO.
 	void Realloc(unsigned int size);
@@ -72,23 +89,24 @@ public:
 	 * \param drawingmode The material drawing mode used to detect a billboard/halo/shadow material.
 	 * \param meshSlots The list of all non-culled and visible mesh slots (= game object).
 	 */
-	void Update(RAS_Rasterizer *rasty, int drawingmode, RAS_MeshSlotList &meshSlots);
+	void Update(RAS_Rasterizer *rasty, int drawingmode, const RAS_MeshSlotList &meshSlots);
 
-	inline void *GetMatrixOffset() const
+	inline intptr_t GetMatrixOffset() const
 	{
 		return m_matrixOffset;
 	}
-	inline void *GetPositionOffset() const
+	inline intptr_t GetPositionOffset() const
 	{
 		return m_positionOffset;
 	}
-	inline void *GetColorOffset() const
+	inline intptr_t GetColorOffset() const
 	{
 		return m_colorOffset;
 	}
-	inline unsigned int GetStride() const
+
+	inline intptr_t GetLayerOffset() const
 	{
-		return m_stride;
+		return m_layerOffset;
 	}
 };
 

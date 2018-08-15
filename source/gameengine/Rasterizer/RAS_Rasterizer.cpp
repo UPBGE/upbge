@@ -34,6 +34,7 @@
 #include "RAS_OpenGLDebugDraw.h"
 #include "RAS_IMaterial.h"
 #include "RAS_DisplayArrayBucket.h"
+#include "RAS_InstancingBuffer.h"
 
 #include "RAS_ICanvas.h"
 #include "RAS_OffScreen.h"
@@ -1160,11 +1161,11 @@ RAS_Rasterizer::OverrideShaderType RAS_Rasterizer::GetOverrideShader()
 	return m_overrideShader;
 }
 
-void RAS_Rasterizer::ActivateOverrideShaderInstancing(void *matrixoffset, void *positionoffset, unsigned int stride)
+void RAS_Rasterizer::ActivateOverrideShaderInstancing(RAS_InstancingBuffer *buffer)
 {
 	GPUShader *shader = GetOverrideGPUShader(m_overrideShader);
 	if (shader) {
-		GPU_shader_bind_instancing_attrib(shader, matrixoffset, positionoffset, stride);
+		GPU_shader_bind_instancing_attrib(shader, (void *)buffer->GetMatrixOffset(), (void *)buffer->GetPositionOffset());
 	}
 }
 

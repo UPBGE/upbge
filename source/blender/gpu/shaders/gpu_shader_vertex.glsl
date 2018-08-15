@@ -11,10 +11,12 @@ out block {
 in mat3 ininstmatrix;
 in vec3 ininstposition;
 in vec4 ininstcolor;
+in int ininstlayer;
 
 out vec4 varinstcolor;
 out mat4 varinstmat;
 out mat4 varinstinvmat;
+flat out int varinstlayer;
 
 uniform mat4 unfviewmat;
 #endif
@@ -114,6 +116,7 @@ void main()
 	varinstinvmat = varinstmat;
 #endif
 	varinstcolor = ininstcolor;
+	varinstlayer = ininstlayer;
 
 	position *= instmat;
 	normal *= ininstmatrix;

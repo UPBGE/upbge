@@ -34,6 +34,7 @@
 #include "RAS_BucketManager.h"
 #include "RAS_Mesh.h"
 #include "RAS_MeshUser.h"
+#include "RAS_InstancingBuffer.h"
 #include "RAS_Rasterizer.h"
 #include "RAS_IMaterial.h"
 
@@ -110,6 +111,21 @@ const RAS_AttributeArray::AttribList BL_BlenderShader::GetAttribs(const RAS_Mesh
 	return attribs;
 }
 
+RAS_InstancingBuffer::Attrib BL_BlenderShader::GetInstancingAttribs() const
+{
+	GPUBuiltin builtins = GPU_get_material_builtins(m_gpuMat);
+
+	RAS_InstancingBuffer::Attrib attrib = RAS_InstancingBuffer::DEFAULT_ATTRIBS;
+	if (builtins & GPU_INSTANCING_COLOR) {
+		attrib = (RAS_InstancingBuffer::Attrib)(attrib | RAS_InstancingBuffer::COLOR_ATTRIB);
+	}
+	if (builtins & GPU_INSTANCING_LAYER) {
+		attrib = (RAS_InstancingBuffer::Attrib)(attrib | RAS_InstancingBuffer::LAYER_ATTRIB);
+	}
+
+	return attrib;
+}
+
 bool BL_BlenderShader::Ok() const
 {
 	return (m_gpuMat != nullptr);
@@ -166,9 +182,10 @@ bool BL_BlenderShader::UseInstancing() const
 	return (GPU_instanced_drawing_support() && (m_mat->shade_flag & MA_INSTANCING));
 }
 
-void BL_BlenderShader::ActivateInstancing(void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride)
+void BL_BlenderShader::ActivateInstancing(RAS_InstancingBuffer *buffer)
 {
-	GPU_material_bind_instancing_attrib(m_gpuMat, matrixoffset, positionoffset, coloroffset, stride);
+	GPU_material_bind_instancing_attrib(m_gpuMat, (void *)buffer->GetMatrixOffset(), (void *)buffer->GetPositionOffset(),
+			(void *)buffer->GetColorOffset(), (void *)buffer->GetLayerOffset());
 }
 
 int BL_BlenderShader::GetAlphaBlend()
