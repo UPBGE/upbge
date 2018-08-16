@@ -221,7 +221,8 @@ RAS_Rasterizer::RAS_Rasterizer()
 
 	InitOverrideShadersInterface();
 
-	m_state.frontFace = true;
+	m_state.frontFace = -1;
+	m_state.cullFace = -1;
 	m_state.polyOffset[0] = -1.0f;
 	m_state.polyOffset[1] = -1.0f;
 }
@@ -283,7 +284,7 @@ void RAS_Rasterizer::Init()
 
 void RAS_Rasterizer::Exit()
 {
-	Enable(RAS_CULL_FACE);
+	SetCullFace(true);
 	Enable(RAS_DEPTH_TEST);
 
 	SetClearDepth(1.0f);
@@ -313,7 +314,7 @@ void RAS_Rasterizer::BeginFrame(double time)
 	m_state.polyOffset[0] = -1.0f;
 	m_state.polyOffset[1] = -1.0f;
 
-	Enable(RAS_CULL_FACE);
+	SetCullFace(true);
 	Enable(RAS_DEPTH_TEST);
 
 	Disable(RAS_BLEND);
@@ -444,14 +445,13 @@ void RAS_Rasterizer::DrawOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *offScreen
 	SetViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
 	SetScissor(viewport[0], viewport[1], viewport[2], viewport[3]);
 
-	Disable(RAS_CULL_FACE);
+	SetFrontFace(true);
 	SetDepthFunc(RAS_ALWAYS);
 
 	RAS_OffScreen::RestoreScreen();
 	DrawOffScreen(offScreen, nullptr);
 
 	SetDepthFunc(RAS_LEQUAL);
-	Enable(RAS_CULL_FACE);
 }
 
 void RAS_Rasterizer::DrawStereoOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *leftOffScreen, RAS_OffScreen *rightOffScreen,
@@ -471,7 +471,7 @@ void RAS_Rasterizer::DrawStereoOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *lef
 	SetViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
 	SetScissor(viewport[0], viewport[1], viewport[2], viewport[3]);
 
-	Disable(RAS_CULL_FACE);
+	SetFrontFace(true);
 	SetDepthFunc(RAS_ALWAYS);
 
 	RAS_OffScreen::RestoreScreen();
@@ -517,7 +517,6 @@ void RAS_Rasterizer::DrawStereoOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *lef
 	}
 
 	SetDepthFunc(RAS_LEQUAL);
-	Enable(RAS_CULL_FACE);
 }
 
 RAS_Rect RAS_Rasterizer::GetRenderArea(RAS_ICanvas *canvas, StereoMode stereoMode, StereoEye eye)
@@ -863,6 +862,11 @@ bool RAS_Rasterizer::GetCameraOrtho()
 
 void RAS_Rasterizer::SetCullFace(bool enable)
 {
+	if (enable == m_state.cullFace) {
+		return;
+	}
+	m_state.cullFace = enable;
+
 	if (enable) {
 		Enable(RAS_CULL_FACE);
 	}
@@ -1386,7 +1390,7 @@ void RAS_Rasterizer::DisableForText()
 	SetAlphaBlend(GPU_BLEND_ALPHA);
 	SetLines(false); /* needed for texture fonts otherwise they render as wireframe */
 
-	Enable(RAS_CULL_FACE);
+	SetCullFace(true);
 
 	DisableLights();
 

@@ -215,14 +215,13 @@ void KX_WorldInfo::RenderBackground(RAS_Rasterizer *rasty)
 			GPU_material_bind(gpumat, m_scene->lay, 1.0f, false, rasty->GetViewMatrix().Data(),
 			                  rasty->GetViewInvMatrix().Data(), texcofac, false);
 
-			rasty->Disable(RAS_Rasterizer::RAS_CULL_FACE);
+			rasty->SetFrontFace(true);
 			rasty->Enable(RAS_Rasterizer::RAS_DEPTH_TEST);
 			rasty->SetDepthFunc(RAS_Rasterizer::RAS_ALWAYS);
 
 			rasty->DrawOverlayPlane();
 
 			rasty->SetDepthFunc(RAS_Rasterizer::RAS_LEQUAL);
-			rasty->Enable(RAS_Rasterizer::RAS_CULL_FACE);
 
 			GPU_material_unbind(gpumat);
 		}
