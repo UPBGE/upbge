@@ -43,6 +43,7 @@ set(SRC
 	src/BulletDynamics/Featherstone/btMultiBodyJointLimitConstraint.cpp
 	src/BulletDynamics/Featherstone/btMultiBodyConstraint.cpp
 	src/BulletDynamics/Featherstone/btMultiBodyConstraintSolver.cpp
+	src/BulletDynamics/Featherstone/btMultiBodyMLCPConstraintSolver.cpp
 	src/BulletDynamics/Dynamics/btSimpleDynamicsWorld.cpp
 	src/BulletDynamics/Dynamics/btDiscreteDynamicsWorld.cpp
 	src/BulletDynamics/Dynamics/btDiscreteDynamicsWorldMt.cpp
@@ -247,6 +248,43 @@ set(SRC
 	src/BulletCollision/NarrowPhaseCollision/btPersistentManifold.cpp
 	src/BulletCollision/NarrowPhaseCollision/btPolyhedralContactClipping.cpp
 	src/BulletDynamics/Dynamics/Bullet-C-API.cpp
+	src/Extras/ConvexDecomposition/bestfit.cpp
+	src/Extras/ConvexDecomposition/bestfitobb.cpp
+	src/Extras/ConvexDecomposition/cd_hull.cpp
+	src/Extras/ConvexDecomposition/cd_wavefront.cpp
+	src/Extras/ConvexDecomposition/concavity.cpp
+	src/Extras/ConvexDecomposition/ConvexBuilder.cpp
+	src/Extras/ConvexDecomposition/ConvexDecomposition.cpp
+	src/Extras/ConvexDecomposition/fitsphere.cpp
+	src/Extras/ConvexDecomposition/float_math.cpp
+	src/Extras/ConvexDecomposition/meshvolume.cpp
+	src/Extras/ConvexDecomposition/planetri.cpp
+	src/Extras/ConvexDecomposition/raytri.cpp
+	src/Extras/ConvexDecomposition/splitplane.cpp
+	src/Extras/ConvexDecomposition/vlookup.cpp
+	src/Extras/GIMPACTUtils/btGImpactConvexDecompositionShape.cpp
+	src/Extras/HACD/hacdGraph.cpp
+	src/Extras/HACD/hacdHACD.cpp
+	src/Extras/HACD/hacdICHull.cpp
+	src/Extras/HACD/hacdManifoldMesh.cpp
+	src/Extras/InverseDynamics/btMultiBodyTreeCreator.cpp
+	src/Extras/InverseDynamics/CloneTreeCreator.cpp
+	src/Extras/InverseDynamics/CoilCreator.cpp
+	src/Extras/InverseDynamics/DillCreator.cpp
+	src/Extras/InverseDynamics/IDRandomUtil.cpp
+	src/Extras/InverseDynamics/invdyn_bullet_comparison.cpp
+	src/Extras/InverseDynamics/MultiBodyNameMap.cpp
+	src/Extras/InverseDynamics/MultiBodyTreeCreator.cpp
+	src/Extras/InverseDynamics/MultiBodyTreeDebugGraph.cpp
+	src/Extras/InverseDynamics/RandomTreeCreator.cpp
+	src/Extras/InverseDynamics/SimpleTreeCreator.cpp
+	src/Extras/InverseDynamics/User2InternalIndex.cpp
+	src/Extras/VHACD/src/btConvexHullComputer.cpp
+	src/Extras/VHACD/src/VHACD.cpp
+	src/Extras/VHACD/src/vhacdICHull.cpp
+	src/Extras/VHACD/src/vhacdManifoldMesh.cpp
+	src/Extras/VHACD/src/vhacdMesh.cpp
+	src/Extras/VHACD/src/vhacdVolume.cpp
 
 	src/BulletDynamics/Featherstone/btMultiBodyLink.h
 	src/BulletDynamics/Featherstone/btMultiBodyFixedConstraint.h
@@ -262,6 +300,7 @@ set(SRC
 	src/BulletDynamics/Featherstone/btMultiBodyJointFeedback.h
 	src/BulletDynamics/Featherstone/btMultiBodyLinkCollider.h
 	src/BulletDynamics/Featherstone/btMultiBodyJointMotor.h
+	src/BulletDynamics/Featherstone/btMultiBodyMLCPConstraintSolver.h
 	src/BulletDynamics/Dynamics/btDiscreteDynamicsWorldMt.h
 	src/BulletDynamics/Dynamics/btRigidBody.h
 	src/BulletDynamics/Dynamics/btActionInterface.h
@@ -637,6 +676,45 @@ set(SRC
 	src/BulletCollision/NarrowPhaseCollision/btComputeGjkEpaPenetration.h
 	src/BulletCollision/NarrowPhaseCollision/btGjkCollisionDescription.h
 	src/Bullet-C-Api.h
+	src/Extras/ConvexDecomposition/bestfit.h
+	src/Extras/ConvexDecomposition/bestfitobb.h
+	src/Extras/ConvexDecomposition/cd_hull.h
+	src/Extras/ConvexDecomposition/cd_vector.h
+	src/Extras/ConvexDecomposition/cd_wavefront.h
+	src/Extras/ConvexDecomposition/concavity.h
+	src/Extras/ConvexDecomposition/ConvexBuilder.h
+	src/Extras/ConvexDecomposition/ConvexDecomposition.h
+	src/Extras/ConvexDecomposition/fitsphere.h
+	src/Extras/ConvexDecomposition/float_math.h
+	src/Extras/ConvexDecomposition/meshvolume.h
+	src/Extras/ConvexDecomposition/planetri.h
+	src/Extras/ConvexDecomposition/raytri.h
+	src/Extras/ConvexDecomposition/splitplane.h
+	src/Extras/ConvexDecomposition/vlookup.h
+	src/Extras/GIMPACTUtils/btGImpactConvexDecompositionShape.h
+	src/Extras/HACD/hacdCircularList.h
+	src/Extras/HACD/hacdGraph.h
+	src/Extras/HACD/hacdHACD.h
+	src/Extras/HACD/hacdICHull.h
+	src/Extras/HACD/hacdManifoldMesh.h
+	src/Extras/HACD/hacdVector.h
+	src/Extras/HACD/hacdVersion.h
+	src/Extras/InverseDynamics/BulletInverseDynamicsUtilsCommon.h
+	src/Extras/VHACD/inc/btConvexHullComputer.h
+	src/Extras/VHACD/inc/btMinMax.h
+	src/Extras/VHACD/inc/btScalar.h
+	src/Extras/VHACD/inc/btVector3.h
+	src/Extras/VHACD/inc/vhacdCircularList.h
+	src/Extras/VHACD/inc/vhacdICHull.h
+	src/Extras/VHACD/inc/vhacdManifoldMesh.h
+	src/Extras/VHACD/inc/vhacdMesh.h
+	src/Extras/VHACD/inc/vhacdMutex.h
+	src/Extras/VHACD/inc/vhacdSArray.h
+	src/Extras/VHACD/inc/vhacdTimer.h
+	src/Extras/VHACD/inc/vhacdVector.h
+	src/Extras/VHACD/inc/vhacdVHACD.h
+	src/Extras/VHACD/inc/vhacdVolume.h
+	src/Extras/VHACD/public/VHACD.h
 )
 
 add_definitions(

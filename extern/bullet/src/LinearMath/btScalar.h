@@ -14,9 +14,6 @@ subject to the following restrictions:
 
 #ifndef BT_SCALAR_H
 #define BT_SCALAR_H
-#if defined(_MSC_VER) && defined(__clang__) /* clang supplies it's own overloads already */
-#define BT_NO_SIMD_OPERATOR_OVERLOADS
-#endif
 
 #ifdef BT_MANAGED_CODE
 //Aligned data types not supported in managed code
@@ -104,7 +101,7 @@ inline int btGetVersion()
 			#ifdef BT_USE_SSE
 
 #if (_MSC_FULL_VER >= 170050727)//Visual Studio 2012 can compile SSE4/FMA3 (but SSE4/FMA3 is not enabled by default)
-			//#define BT_ALLOW_SSE4 //disable this cause blender targets sse2 
+			#define BT_ALLOW_SSE4
 #endif //(_MSC_FULL_VER >= 160040219)
 
 			//BT_USE_SSE_IN_API is disabled under Windows by default, because 
@@ -123,7 +120,7 @@ inline int btGetVersion()
 	#endif //__MINGW32__
 
 	#ifdef BT_DEBUG
-		#if defined(_MSC_VER) && !defined(__clang__)
+		#ifdef _MSC_VER
 			#include <stdio.h>
 			#define btAssert(x) { if(!(x)){printf("Assert "__FILE__ ":%u (%s)\n", __LINE__, #x);__debugbreak();	}}
 		#else//_MSC_VER

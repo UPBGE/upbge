@@ -15,7 +15,7 @@ subject to the following restrictions:
 
 
 /**
- * @page Bullet Documentation
+ * @mainpage Bullet Documentation
  *
  * @section intro_sec Introduction
  * Bullet is a Collision Detection and Rigid Body Dynamics Library. The Library is Open Source and free for commercial use, under the ZLib license ( http://opensource.org/licenses/zlib-license.php ).
