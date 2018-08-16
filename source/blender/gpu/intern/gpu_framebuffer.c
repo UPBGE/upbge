@@ -523,20 +523,11 @@ void GPU_framebuffer_blur(
 
 	GPU_shader_bind(blur_shader);
 	GPU_shader_uniform_vector(blur_shader, scale_uniform, 2, 1, scaleh);
+	GPU_texture_bind(tex, 0);
 	GPU_shader_uniform_texture(blur_shader, texture_source_uniform, tex);
 	glViewport(0, 0, GPU_texture_width(blurtex), GPU_texture_height(blurtex));
 
-	/* Preparing to draw quad */
-	glMatrixMode(GL_TEXTURE);
-	glLoadIdentity();
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-
 	glDisable(GL_DEPTH_TEST);
-
-	GPU_texture_bind(tex, 0);
 
 	/* Drawing quad */
 	glBegin(GL_QUADS);
@@ -553,10 +544,10 @@ void GPU_framebuffer_blur(
 
 	GG.currentfb = fb->object;
 
-	glViewport(0, 0, GPU_texture_width(tex), GPU_texture_height(tex));
 	GPU_shader_uniform_vector(blur_shader, scale_uniform, 2, 1, scalev);
-	GPU_shader_uniform_texture(blur_shader, texture_source_uniform, blurtex);
 	GPU_texture_bind(blurtex, 0);
+	GPU_shader_uniform_texture(blur_shader, texture_source_uniform, blurtex);
+	glViewport(0, 0, GPU_texture_width(tex), GPU_texture_height(tex));
 
 	glBegin(GL_QUADS);
 	glTexCoord2d(0, 0); glVertex2f(1, 1);
@@ -567,6 +558,8 @@ void GPU_framebuffer_blur(
 
 	GPU_texture_unbind(blurtex);
 	GPU_shader_unbind();
+
+	glEnable(GL_DEPTH_TEST);
 }
 
 /* GPURenderBuffer */
