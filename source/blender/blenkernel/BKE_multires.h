@@ -86,6 +86,9 @@ int multires_get_level(struct Scene *scene, struct Object *ob, const struct Mult
                        bool render, bool ignore_simplify);
 struct DerivedMesh *get_multires_dm(struct Depsgraph *depsgraph, struct Scene *scene, struct MultiresModifierData *mmd,
                                     struct Object *ob);
+struct Mesh *get_multires_mesh(
+        struct Depsgraph *depsgraph, struct Scene *scene,
+        struct MultiresModifierData *mmd, struct Object *ob);
 void multiresModifier_del_levels(struct MultiresModifierData *mmd, struct Scene *scene, struct Object *object, int direction);
 void multiresModifier_base_apply(struct MultiresModifierData *mmd, struct Scene *scene, struct Object *ob);
 void multiresModifier_subdivide(struct MultiresModifierData *mmd, struct Scene *scene, struct Object *ob, int updateblock, int simple);
@@ -95,8 +98,9 @@ int multiresModifier_reshape(struct Depsgraph *depsgraph, struct Scene *scene, s
                              struct Object *dst, struct Object *src);
 int multiresModifier_reshapeFromDM(struct Depsgraph *depsgraph, struct Scene *scene, struct MultiresModifierData *mmd,
                                    struct Object *ob, struct DerivedMesh *srcdm);
-int multiresModifier_reshapeFromDeformMod(struct Depsgraph *depsgraph, struct Scene *scene, struct MultiresModifierData *mmd,
-                                          struct Object *ob, struct ModifierData *md);
+bool multiresModifier_reshapeFromDeformModifier(
+        struct Depsgraph *depsgraph, struct Scene *scene, struct MultiresModifierData *mmd,
+        struct Object *ob, struct ModifierData *md);
 
 void multires_stitch_grids(struct Object *);
 
