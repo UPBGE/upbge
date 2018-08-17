@@ -75,7 +75,7 @@ float AUD_OpenALReverbEffect::getGain() const
 
 void AUD_OpenALReverbEffect::setGain(float gain)
 {
-	m_gain = gain;
+	m_gain = std::max(AL_REVERB_MIN_GAIN, std::min(gain, AL_REVERB_MAX_GAIN));
 }
 
 float AUD_OpenALReverbEffect::getGainHF() const
@@ -85,7 +85,7 @@ float AUD_OpenALReverbEffect::getGainHF() const
 
 void AUD_OpenALReverbEffect::setGainHF(float gain_hf)
 {
-	m_gain_hf = gain_hf;
+	m_gain_hf = std::max(AL_REVERB_MIN_GAINHF, std::min(gain_hf, AL_REVERB_MAX_GAINHF));
 }
 
 float AUD_OpenALReverbEffect::getDecayTime() const
@@ -93,9 +93,9 @@ float AUD_OpenALReverbEffect::getDecayTime() const
 	return m_decay_time;
 }
 
-void AUD_OpenALReverbEffect::setDecayTime(float decayTime)
+void AUD_OpenALReverbEffect::setDecayTime(float decay_time)
 {
-	m_decay_time = decayTime;
+	m_decay_time = std::max(AL_REVERB_MIN_DECAY_TIME, std::min(decay_time, AL_REVERB_MAX_DECAY_TIME));
 }
 
 float AUD_OpenALReverbEffect::getDecayHFRatio() const
@@ -105,7 +105,7 @@ float AUD_OpenALReverbEffect::getDecayHFRatio() const
 
 void AUD_OpenALReverbEffect::setDecayHFRatio(float decay_hf_ratio)
 {
-	m_decay_hf_ratio = decay_hf_ratio;
+	m_decay_hf_ratio = std::max(AL_REVERB_MIN_DECAY_HFRATIO, std::min(decay_hf_ratio, AL_REVERB_MAX_DECAY_HFRATIO));
 }
 
 float AUD_OpenALReverbEffect::getReflectionsGain() const
@@ -115,7 +115,7 @@ float AUD_OpenALReverbEffect::getReflectionsGain() const
 
 void AUD_OpenALReverbEffect::setReflectionsGain(float reflections_gain)
 {
-	m_reflections_gain = reflections_gain;
+	m_reflections_gain = std::max(AL_REVERB_MIN_REFLECTIONS_GAIN, std::min(reflections_gain, AL_REVERB_MAX_REFLECTIONS_GAIN));
 }
 
 float AUD_OpenALReverbEffect::getReflectionsDelay() const
@@ -125,7 +125,7 @@ float AUD_OpenALReverbEffect::getReflectionsDelay() const
 
 void AUD_OpenALReverbEffect::setReflectionsDelay(float reflections_delay)
 {
-	m_reflections_delay = reflections_delay;
+	m_reflections_delay = std::max(AL_REVERB_MIN_REFLECTIONS_DELAY, std::min(reflections_delay, AL_REVERB_MAX_REFLECTIONS_DELAY));
 }
 
 float AUD_OpenALReverbEffect::getLateReverbGain() const
@@ -135,7 +135,7 @@ float AUD_OpenALReverbEffect::getLateReverbGain() const
 
 void AUD_OpenALReverbEffect::setLateReverbGain(float late_reverb_gain)
 {
-	m_late_reverb_gain = late_reverb_gain;
+	m_late_reverb_gain = std::max(AL_REVERB_MIN_LATE_REVERB_GAIN, std::min(late_reverb_gain, AL_REVERB_MAX_LATE_REVERB_GAIN));
 }
 
 float AUD_OpenALReverbEffect::getLateReverbDelay() const
@@ -145,7 +145,7 @@ float AUD_OpenALReverbEffect::getLateReverbDelay() const
 
 void AUD_OpenALReverbEffect::setLateReverbDelay(float late_reverb_delay)
 {
-	m_late_reverb_delay = late_reverb_delay;
+	m_late_reverb_delay = std::max(AL_REVERB_MIN_LATE_REVERB_DELAY, std::min(late_reverb_delay, AL_REVERB_MAX_LATE_REVERB_DELAY));
 }
 
 float AUD_OpenALReverbEffect::getAirAbsorptionGainHF() const
@@ -155,7 +155,7 @@ float AUD_OpenALReverbEffect::getAirAbsorptionGainHF() const
 
 void AUD_OpenALReverbEffect::setAirAbsorptionGainHF(float air_absorption_gain_hf)
 {
-	m_air_absorption_gain_hf = air_absorption_gain_hf;
+	m_air_absorption_gain_hf = std::max(AL_REVERB_MIN_AIR_ABSORPTION_GAINHF, std::min(air_absorption_gain_hf, AL_REVERB_MAX_AIR_ABSORPTION_GAINHF));
 }
 
 float AUD_OpenALReverbEffect::getRoomRolloffFactor() const
@@ -165,7 +165,7 @@ float AUD_OpenALReverbEffect::getRoomRolloffFactor() const
 
 void AUD_OpenALReverbEffect::setRoomRolloffFactor(float room_rolloff_factor)
 {
-	m_room_rolloff_factor = room_rolloff_factor;
+	m_room_rolloff_factor = std::max(AL_REVERB_MIN_ROOM_ROLLOFF_FACTOR, std::min(room_rolloff_factor, AL_REVERB_MAX_ROOM_ROLLOFF_FACTOR));
 }
 
 int AUD_OpenALReverbEffect::getDecayLimitHF() const
@@ -175,7 +175,7 @@ int AUD_OpenALReverbEffect::getDecayLimitHF() const
 
 void AUD_OpenALReverbEffect::setDecayLimitHF(int decay_limit_hf)
 {
-	m_decay_limit_hf = decay_limit_hf;
+	m_decay_limit_hf = std::max(AL_REVERB_MIN_DECAY_LIMITHF, std::min(decay_limit_hf, AL_REVERB_MAX_DECAY_LIMITHF));
 }
 
 float AUD_OpenALReverbEffect::getDensity() const
@@ -185,7 +185,7 @@ float AUD_OpenALReverbEffect::getDensity() const
 
 void AUD_OpenALReverbEffect::setDensity(float density)
 {
-	m_density = density;
+	m_density = std::max(AL_REVERB_MIN_DENSITY, std::min(density, AL_REVERB_MAX_DENSITY));
 }
 
 float AUD_OpenALReverbEffect::getDiffusion() const
@@ -195,5 +195,6 @@ float AUD_OpenALReverbEffect::getDiffusion() const
 
 void AUD_OpenALReverbEffect::setDiffusion(float diffusion)
 {
-	m_diffusion = diffusion;
+	m_diffusion = std::max(AL_REVERB_MIN_DIFFUSION, std::min(diffusion, AL_REVERB_MAX_DIFFUSION));
 }
+

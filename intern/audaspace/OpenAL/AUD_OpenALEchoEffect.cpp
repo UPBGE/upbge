@@ -58,7 +58,7 @@ float AUD_OpenALEchoEffect::getDamping() const
 
 void AUD_OpenALEchoEffect::setDamping(float damping)
 {
-	m_damping = damping;
+	m_damping = std::max(AL_ECHO_MIN_DAMPING, std::min(damping, AL_ECHO_MAX_DAMPING));
 }
 
 float AUD_OpenALEchoEffect::getDelay() const
@@ -68,7 +68,7 @@ float AUD_OpenALEchoEffect::getDelay() const
 
 void AUD_OpenALEchoEffect::setDelay(float delay)
 {
-	m_delay = delay;
+	m_delay = std::max(AL_ECHO_MIN_DELAY, std::min(delay, AL_ECHO_MAX_DELAY));
 }
 
 float AUD_OpenALEchoEffect::getFeedback() const
@@ -78,7 +78,7 @@ float AUD_OpenALEchoEffect::getFeedback() const
 
 void AUD_OpenALEchoEffect::setFeedback(float feedback)
 {
-	m_feedback = feedback;
+	m_feedback = std::max(AL_ECHO_MIN_FEEDBACK, std::min(feedback, AL_ECHO_MAX_FEEDBACK));
 }
 
 float AUD_OpenALEchoEffect::getLRDelay() const
@@ -88,7 +88,7 @@ float AUD_OpenALEchoEffect::getLRDelay() const
 
 void AUD_OpenALEchoEffect::setLRDelay(float lr_delay)
 {
-	m_lr_delay = lr_delay;
+	m_lr_delay = std::max(AL_ECHO_MIN_LRDELAY, std::min(lr_delay, AL_ECHO_MAX_LRDELAY));
 }
 
 float AUD_OpenALEchoEffect::getSpread() const
@@ -98,5 +98,6 @@ float AUD_OpenALEchoEffect::getSpread() const
 
 void AUD_OpenALEchoEffect::setSpread(float spread)
 {
-	m_spread = spread;
+	m_spread = std::max(AL_ECHO_MIN_SPREAD, std::min(spread, AL_ECHO_MAX_SPREAD));
 }
+
