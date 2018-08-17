@@ -29,6 +29,12 @@
 
 #include <AL/al.h>
 
+#ifdef WIN32
+#	ifndef NOMINMAX
+#		define NOMINMAX
+#	endif
+#endif
+
 class AUD_IOpenALEffectParams
 {
 public:

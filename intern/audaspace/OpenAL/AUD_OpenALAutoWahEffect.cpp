@@ -31,6 +31,8 @@
 #include <AL/alc.h>
 #include <AL/efx.h>
 
+#include <algorithm>
+
 AUD_OpenALAutoWahEffect::AUD_OpenALAutoWahEffect()
 {
 	m_attack_time = AL_AUTOWAH_DEFAULT_ATTACK_TIME;
@@ -68,7 +70,6 @@ void AUD_OpenALAutoWahEffect::setReleaseTime(float release_time)
 {
 	m_release_time = std::max(AL_AUTOWAH_MIN_RELEASE_TIME, std::min(release_time, AL_AUTOWAH_MAX_RELEASE_TIME));
 }
-
 
 float AUD_OpenALAutoWahEffect::getResonance() const
 {

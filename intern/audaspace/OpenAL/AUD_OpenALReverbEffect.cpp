@@ -31,6 +31,8 @@
 #include <AL/alc.h>
 #include <AL/efx.h>
 
+#include <algorithm>
+
 AUD_OpenALReverbEffect::AUD_OpenALReverbEffect()
 {
 	m_density = AL_REVERB_DEFAULT_DENSITY;
@@ -175,7 +177,7 @@ int AUD_OpenALReverbEffect::getDecayLimitHF() const
 
 void AUD_OpenALReverbEffect::setDecayLimitHF(int decay_limit_hf)
 {
-	m_decay_limit_hf = std::max(AL_REVERB_MIN_DECAY_LIMITHF, std::min(decay_limit_hf, AL_REVERB_MAX_DECAY_LIMITHF));
+	m_decay_limit_hf = std::max(AL_REVERB_MIN_DECAY_HFLIMIT, std::min(decay_limit_hf, AL_REVERB_MAX_DECAY_HFLIMIT));
 }
 
 float AUD_OpenALReverbEffect::getDensity() const

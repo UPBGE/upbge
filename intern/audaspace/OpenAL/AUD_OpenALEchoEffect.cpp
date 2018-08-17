@@ -31,6 +31,8 @@
 #include <AL/alc.h>
 #include <AL/efx.h>
 
+#include <algorithm>
+
 AUD_OpenALEchoEffect::AUD_OpenALEchoEffect()
 {
 	m_damping = AL_ECHO_DEFAULT_DAMPING;

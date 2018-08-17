@@ -31,6 +31,8 @@
 #include <AL/alc.h>
 #include <AL/efx.h>
 
+#include <algorithm>
+
 AUD_OpenALChorusEffect::AUD_OpenALChorusEffect()
 {
 	m_waveform = AL_CHORUS_DEFAULT_WAVEFORM;
@@ -53,12 +55,12 @@ void AUD_OpenALChorusEffect::applyParams(ALuint effect)
 	alEffectf(effect, AL_CHORUS_FEEDBACK, m_feedback);
 }
 
-unsigned int AUD_OpenALChorusEffect::getWaveform() const
+int AUD_OpenALChorusEffect::getWaveform() const
 {
 	return m_waveform;
 }
 
-void AUD_OpenALChorusEffect::setWaveform(unsigned int waveform)
+void AUD_OpenALChorusEffect::setWaveform(int waveform)
 {
 	m_waveform = std::max(AL_CHORUS_MIN_WAVEFORM, std::min(waveform, AL_CHORUS_MAX_WAVEFORM));
 }

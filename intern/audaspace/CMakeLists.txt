@@ -278,12 +278,22 @@ if(WITH_OPENAL)
 		OpenAL/AUD_OpenALEffect.cpp
 		OpenAL/AUD_OpenALReverbEffect.cpp
 		OpenAL/AUD_OpenALEchoEffect.cpp
-
+		OpenAL/AUD_OpenALChorusEffect.cpp
+		OpenAL/AUD_OpenALAutoWahEffect.cpp
+		OpenAL/AUD_OpenALCompressorEffect.cpp
+		OpenAL/AUD_OpenALDistortionEffect.cpp
+		OpenAL/AUD_OpenALFlangerEffect.cpp
+		
 		OpenAL/AUD_OpenALDevice.h
 		OpenAL/AUD_OpenALEffect.h
 		OpenAL/AUD_IOpenALEffectParams.h
 		OpenAL/AUD_OpenALReverbEffect.h
 		OpenAL/AUD_OpenALEchoEffect.h
+		OpenAL/AUD_OpenALChorusEffect.h
+		OpenAL/AUD_OpenALAutoWahEffect.h
+		OpenAL/AUD_OpenALCompressorEffect.h
+		OpenAL/AUD_OpenALDistortionEffect.h
+		OpenAL/AUD_OpenALFlangerEffect.h
 	)
 endif()
 

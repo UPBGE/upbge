@@ -31,9 +31,11 @@
 #include <AL/alc.h>
 #include <AL/efx.h>
 
+#include <algorithm>
+
 AUD_OpenALDistortionEffect::AUD_OpenALDistortionEffect()
 {
-	m_edge = = AL_DISTORTION_DEFAULT_EDGE;
+	m_edge = AL_DISTORTION_DEFAULT_EDGE;
 	m_gain = AL_DISTORTION_DEFAULT_GAIN;
 	m_lowpass_cutoff = AL_DISTORTION_DEFAULT_LOWPASS_CUTOFF;
 	m_eq_center = AL_DISTORTION_DEFAULT_EQCENTER;
@@ -61,7 +63,7 @@ void AUD_OpenALDistortionEffect::setEdge(float edge)
 	m_edge = std::max(AL_DISTORTION_MIN_EDGE, std::min(edge, AL_DISTORTION_MAX_EDGE));
 }
 
-int AUD_OpenALDistortionEffect::getGain() const
+float AUD_OpenALDistortionEffect::getGain() const
 {
 	return m_gain;
 }

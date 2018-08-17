@@ -31,6 +31,8 @@
 #include <AL/alc.h>
 #include <AL/efx.h>
 
+#include <algorithm>
+
 AUD_OpenALFlangerEffect::AUD_OpenALFlangerEffect()
 {
 	m_waveform = AL_FLANGER_DEFAULT_WAVEFORM;
@@ -53,14 +55,14 @@ void AUD_OpenALFlangerEffect::applyParams(ALuint effect)
 	alEffectf(effect, AL_FLANGER_DELAY, m_delay);
 }
 
-unsigned int AUD_OpenALFlangerEffect::getWavefrom() const
+int AUD_OpenALFlangerEffect::getWaveform() const
 {
-	return m_wavefrom;
+	return m_waveform;
 }
 
-void AUD_OpenALFlangerEffect::setWavefrom(unsigned int wavefrom)
+void AUD_OpenALFlangerEffect::setWaveform(int waveform)
 {
-	m_wavefrom = std::max(AL_FLANGER_MIN_WAVEFORM, std::min(wavefrom, AL_FLANGER_MAX_WAVEFORM));
+	m_waveform = std::max(AL_FLANGER_MIN_WAVEFORM, std::min(waveform, AL_FLANGER_MAX_WAVEFORM));
 }
 
 int AUD_OpenALFlangerEffect::getPhase() const

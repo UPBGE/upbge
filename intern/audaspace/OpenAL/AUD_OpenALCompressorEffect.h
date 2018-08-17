@@ -36,11 +36,11 @@ public:
 
 	void applyParams(ALuint effect);
 
-	unsigned int getCompressor() const;
-	void setCompressor(unsigned int compressor_onoff);
+	int getCompressor() const;
+	void setCompressor(int compressor_onoff);
 
 private:
-	unsigned int m_compressor_onoff;
+	int m_compressor_onoff;
 
 };
 

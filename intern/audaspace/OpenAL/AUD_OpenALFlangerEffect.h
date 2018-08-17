@@ -36,8 +36,8 @@ public:
 
 	void applyParams(ALuint effect);
 
-	unsigned int getWaveform() const;
-	void setWaveform(unsigned int edge);
+	int getWaveform() const;
+	void setWaveform(int edge);
 	int getPhase() const;
 	void setPhase(int gain);
 	float getRate() const;
@@ -50,7 +50,7 @@ public:
 	void setDelay(float delay);
 
 private:
-	unsigned int m_waveform;
+	int m_waveform;
 	int m_phase;
 	float m_rate;
 	float m_depth;

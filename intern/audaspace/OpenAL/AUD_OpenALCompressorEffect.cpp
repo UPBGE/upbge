@@ -31,6 +31,8 @@
 #include <AL/alc.h>
 #include <AL/efx.h>
 
+#include <algorithm>
+
 AUD_OpenALCompressorEffect::AUD_OpenALCompressorEffect()
 {
 	m_compressor_onoff = AL_COMPRESSOR_DEFAULT_ONOFF;
@@ -43,12 +45,12 @@ void AUD_OpenALCompressorEffect::applyParams(ALuint effect)
 	alEffectf(effect, AL_COMPRESSOR_ONOFF, m_compressor_onoff);
 }
 
-unsigned int AUD_OpenALCompressorEffect::getCompressor() const
+int AUD_OpenALCompressorEffect::getCompressor() const
 {
-	return m_compressor;
+	return m_compressor_onoff;
 }
 
-void AUD_OpenALCompressorEffect::setCompressor(unsigned int compressor_onoff)
+void AUD_OpenALCompressorEffect::setCompressor(int compressor_onoff)
 {
-	m_wavefrom = std::max(AL_COMPRESSOR_MIN_ONOFF, std::min(compressor_onoff, AL_COMPRESSOR_MAX_ONOFF));
+	m_compressor_onoff = std::max(AL_COMPRESSOR_MIN_ONOFF, std::min(compressor_onoff, AL_COMPRESSOR_MAX_ONOFF));
 }

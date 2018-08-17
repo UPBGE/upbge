@@ -44,12 +44,11 @@ AUD_OpenALEffect::AUD_OpenALEffect(AUD_IOpenALEffectParams* params)
 
 AUD_OpenALEffect::~AUD_OpenALEffect()
 {
-	if (m_slot)
-	{
+	if (m_slot) {
 		alDeleteAuxiliaryEffectSlots(1, &m_slot);
 	}
-	if (m_effect_id)
-	{
+	
+	if (m_effect_id) {
 		alDeleteEffects(1, &m_effect_id);
 	}
 }
