@@ -43,6 +43,8 @@ typedef struct PythonComponent {
 	ListBase properties;
 	char name[64];
 	char module[64];
+	int flag;
+	int pad;
 } PythonComponent;
 
 
@@ -55,5 +57,9 @@ typedef struct PythonComponent {
 #define CPROP_TYPE_VEC2        5
 #define CPROP_TYPE_VEC3        6
 #define CPROP_TYPE_VEC4        7
+
+enum {
+	COMPONENT_SHOW = (1 << 0)
+};
 
 #endif /* __DNA_COMPONENT_TYPES_H__ */
