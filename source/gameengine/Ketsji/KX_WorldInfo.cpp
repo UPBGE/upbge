@@ -535,7 +535,7 @@ PyObject *KX_WorldInfo::pyattr_get_mist_color(EXP_PyObjectPlus *self_v, const EX
 {
 #ifdef USE_MATHUTILS
 	return Color_CreatePyObject_cb(
-		EXP_PROXY_FROM_REF_BORROW(self_v),
+		EXP_PROXY_FROM_REF_BORROW(self_v), 3,
 		mathutils_world_color_cb_index, MATHUTILS_COL_CB_MIST_COLOR);
 #else
 	KX_WorldInfo *self = static_cast<KX_WorldInfo *>(self_v);
@@ -584,7 +584,7 @@ PyObject *KX_WorldInfo::pyattr_get_background_color(EXP_PyObjectPlus *self_v, co
 {
 #ifdef USE_MATHUTILS
 	return Color_CreatePyObject_cb(
-		EXP_PROXY_FROM_REF_BORROW(self_v),
+		EXP_PROXY_FROM_REF_BORROW(self_v), 3,
 		mathutils_world_color_cb_index, MATHUTILS_COL_CB_BACK_COLOR);
 #else
 	KX_WorldInfo *self = static_cast<KX_WorldInfo *>(self_v);
@@ -633,7 +633,7 @@ PyObject *KX_WorldInfo::pyattr_get_ambient_color(EXP_PyObjectPlus *self_v, const
 {
 #ifdef USE_MATHUTILS
 	return Color_CreatePyObject_cb(
-		EXP_PROXY_FROM_REF_BORROW(self_v),
+		EXP_PROXY_FROM_REF_BORROW(self_v), 3,
 		mathutils_world_color_cb_index, MATHUTILS_COL_CB_AMBIENT_COLOR);
 #else
 	KX_WorldInfo *self = static_cast<KX_WorldInfo *>(self_v);

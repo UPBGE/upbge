@@ -724,12 +724,12 @@ PyObject *pyrna_math_object_from_array(PointerRNA *ptr, PropertyRNA *prop)
 			case PROP_COLOR_GAMMA:
 				if (len == 3) { /* color */
 					if (is_thick) {
-						ret = Color_CreatePyObject(NULL, NULL);
+						ret = Color_CreatePyObject(NULL, 3, NULL);
 						RNA_property_float_get_array(ptr, prop, ((ColorObject *)ret)->col);
 					}
 					else {
 						PyObject *col_cb = Color_CreatePyObject_cb(
-						        ret, mathutils_rna_array_cb_index, MATHUTILS_CB_SUBTYPE_COLOR);
+						        ret, 3, mathutils_rna_array_cb_index, MATHUTILS_CB_SUBTYPE_COLOR);
 						Py_DECREF(ret); /* the color owns now */
 						ret = col_cb; /* return the color instead */
 					}

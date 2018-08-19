@@ -519,7 +519,7 @@ PyDoc_STRVAR(StrokeAttribute_color_doc,
 
 static PyObject *StrokeAttribute_color_get(BPy_StrokeAttribute *self, void *UNUSED(closure))
 {
-	return Color_CreatePyObject_cb((PyObject *)self, StrokeAttribute_mathutils_cb_index, MATHUTILS_SUBTYPE_COLOR);
+	return Color_CreatePyObject_cb((PyObject *)self, 3, StrokeAttribute_mathutils_cb_index, MATHUTILS_SUBTYPE_COLOR);
 }
 
 static int StrokeAttribute_color_set(BPy_StrokeAttribute *self, PyObject *value, void *UNUSED(closure))

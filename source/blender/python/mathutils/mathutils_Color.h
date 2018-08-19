@@ -35,6 +35,8 @@ extern PyTypeObject color_Type;
 
 typedef struct {
 	BASE_MATH_MEMBERS(col);
+
+	int size; /* color size 3 or 4 (alpha) */
 } ColorObject;
 
 /* struct data contains a pointer to the actual data that the
@@ -44,15 +46,15 @@ typedef struct {
 
 /* prototypes */
 PyObject *Color_CreatePyObject(
-        const float col[3],
+        const float *col, int size,
         PyTypeObject *base_type
         ) ATTR_WARN_UNUSED_RESULT;
 PyObject *Color_CreatePyObject_wrap(
-        float col[3],
+        float *col, int size,
         PyTypeObject *base_type
         ) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(1);
 PyObject *Color_CreatePyObject_cb(
-        PyObject *cb_user,
+        PyObject *cb_user, int size,
         unsigned char cb_type, unsigned char cb_subtype
         ) ATTR_WARN_UNUSED_RESULT;
 

@@ -744,7 +744,7 @@ int KX_BlenderMaterial::pyattr_set_specular_intensity(EXP_PyObjectPlus *self_v, 
 PyObject *KX_BlenderMaterial::pyattr_get_specular_color(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 #ifdef USE_MATHUTILS
-	return Color_CreatePyObject_cb(EXP_PROXY_FROM_REF(self_v), mathutils_kxblendermaterial_color_cb_index, MATHUTILS_COL_CB_MATERIAL_SPECULAR_COLOR);
+	return Color_CreatePyObject_cb(EXP_PROXY_FROM_REF(self_v), 3, mathutils_kxblendermaterial_color_cb_index, MATHUTILS_COL_CB_MATERIAL_SPECULAR_COLOR);
 #else
 	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
 	Material *mat = self->GetBlenderMaterial();
@@ -792,7 +792,7 @@ int KX_BlenderMaterial::pyattr_set_diffuse_intensity(EXP_PyObjectPlus *self_v, c
 PyObject *KX_BlenderMaterial::pyattr_get_diffuse_color(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 #ifdef USE_MATHUTILS
-	return Color_CreatePyObject_cb(EXP_PROXY_FROM_REF(self_v), mathutils_kxblendermaterial_color_cb_index, MATHUTILS_COL_CB_MATERIAL_DIFFUSE_COLOR);
+	return Color_CreatePyObject_cb(EXP_PROXY_FROM_REF(self_v), 3, mathutils_kxblendermaterial_color_cb_index, MATHUTILS_COL_CB_MATERIAL_DIFFUSE_COLOR);
 #else
 	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
 	Material *mat = self->GetBlenderMaterial();

@@ -87,7 +87,7 @@ static PyObject *Vector_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 			copy_vn_fl(vec, size, 0.0f);
 			break;
 		case 1:
-			if ((size = mathutils_array_parse_alloc(&vec, 2, PyTuple_GET_ITEM(args, 0), "mathutils.Vector()")) == -1) {
+			if ((size = mathutils_array_parse_alloc(&vec, 2, INT_MAX, PyTuple_GET_ITEM(args, 0), "mathutils.Vector()")) == -1) {
 				return NULL;
 			}
 			break;
@@ -302,7 +302,7 @@ static PyObject *C_Vector_Repeat(PyObject *cls, PyObject *args)
 		return NULL;
 	}
 
-	if ((value_size = mathutils_array_parse_alloc(&iter_vec, 2, value,
+	if ((value_size = mathutils_array_parse_alloc(&iter_vec, 2, INT_MAX, value,
 	                                              "Vector.Repeat(vector, size), invalid 'vector' arg")) == -1)
 	{
 		return NULL;
@@ -951,7 +951,7 @@ static PyObject *Vector_dot(VectorObject *self, PyObject *value)
 	if (BaseMath_ReadCallback(self) == -1)
 		return NULL;
 
-	if (mathutils_array_parse_alloc(&tvec, self->size, value, "Vector.dot(other), invalid 'other' arg") == -1) {
+	if (mathutils_array_parse_alloc(&tvec, self->size, INT_MAX, value, "Vector.dot(other), invalid 'other' arg") == -1) {
 		return NULL;
 	}
 
@@ -1183,7 +1183,7 @@ static PyObject *Vector_lerp(VectorObject *self, PyObject *args)
 		return NULL;
 	}
 
-	if (mathutils_array_parse_alloc(&tvec, size, value, "Vector.lerp(other), invalid 'other' arg") == -1) {
+	if (mathutils_array_parse_alloc(&tvec, size, INT_MAX, value, "Vector.lerp(other), invalid 'other' arg") == -1) {
 		return NULL;
 	}
 
@@ -1484,7 +1484,7 @@ static int Vector_ass_slice(VectorObject *self, int begin, int end, PyObject *se
 	begin = MIN2(begin, end);
 
 	size = (end - begin);
-	if (mathutils_array_parse_alloc(&vec, size, seq, "vector[begin:end] = [...]") == -1) {
+	if (mathutils_array_parse_alloc(&vec, size, INT_MAX, seq, "vector[begin:end] = [...]") == -1) {
 		return -1;
 	}
 
