@@ -5562,6 +5562,10 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 				}
 			}
 		}
+		else if (md->type == eModifierType_Bevel) {
+			BevelModifierData *bmd = (BevelModifierData *)md;
+			bmd->clnordata.faceHash = NULL;
+		}
 	}
 }
 
