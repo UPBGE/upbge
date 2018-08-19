@@ -98,7 +98,7 @@ PyObject *PyObjectFrom(const mt::quat &qrot)
 PyObject *PyColorFromVector(const mt::vec3 &vec)
 {
 #ifdef USE_MATHUTILS
-	return Color_CreatePyObject(vec.Data(), nullptr);
+	return Color_CreatePyObject(vec.Data(), 3, nullptr);
 #else
 	return PyObjectFrom(vec);
 #endif
