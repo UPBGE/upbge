@@ -498,6 +498,7 @@ KX_ExitInfo LA_Launcher::EngineMainLoop()
 		KX_SetActiveScene(m_kxStartScene);
 
 		PythonMainLoopState state;
+		state.m_launcher = this;
 		pynextframestate.state = &state;
 		pynextframestate.func = &PythonEngineNextFrame;
 
