@@ -267,6 +267,8 @@ public:
 
 	void RemoveCcdGraphicController(CcdGraphicController *ctrl);
 
+	void RefitCcdPhysicsControllerShape(CcdShapeConstructionInfo *shapeInfo);
+
 	/**
 	 * Update all physics controllers shape which use the same shape construction info.
 	 * Call RecreateControllerShape on controllers which use the same shape

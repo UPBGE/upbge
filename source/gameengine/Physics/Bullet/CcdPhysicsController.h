@@ -48,6 +48,7 @@ class CcdPhysicsController;
 class btMotionState;
 class RAS_Mesh;
 class RAS_Deformer;
+class RAS_DisplayArray;
 class btCollisionShape;
 
 #define CCD_BSB_SHAPE_MATCHING  2
@@ -66,6 +67,12 @@ class btCollisionShape;
 class CcdShapeConstructionInfo : public CM_RefCount<CcdShapeConstructionInfo>, public mt::SimdClassAllocator
 {
 public:
+	enum UpdateMeshStatus
+	{
+		UPDATE_RECREATE = 0,
+		UPDATE_REFIT,
+		UPDATE_FAILED
+	};
 
 	struct UVco
 	{
@@ -83,9 +90,10 @@ public:
 		m_userData(nullptr),
 		m_mesh(nullptr),
 		m_triangleIndexVertexArray(nullptr),
-		m_forceReInstance(false),
 		m_weldingThreshold1(0.0f),
-		m_shapeProxy(nullptr)
+		m_shapeProxy(nullptr),
+		m_aabbMin(0.0f, 0.0f, 0.0f),
+		m_aabbMax(0.0f, 0.0f, 0.0f)
 	{
 		m_childTrans.setIdentity();
 	}
@@ -134,7 +142,7 @@ public:
 		return true;
 	}
 
-	bool UpdateMesh(class KX_GameObject *gameobj, class RAS_Mesh *mesh);
+	UpdateMeshStatus UpdateMesh(class KX_GameObject *gameobj, class RAS_Mesh *mesh);
 
 	CcdShapeConstructionInfo *GetReplica();
 
@@ -147,6 +155,8 @@ public:
 	}
 
 	RAS_Mesh *GetMesh() const;
+	const btVector3& GetAabbMin() const;
+	const btVector3& GetAabbMax() const;
 
 	btCollisionShape *CreateBulletShape(btScalar margin, bool useGimpact = false, bool useBvh = true);
 
@@ -185,20 +195,42 @@ protected:
 	using MeshShapeKey = std::tuple<RAS_Mesh *, RAS_Deformer *, PHY_ShapeType>;
 	using MeshShapeMap = std::map<MeshShapeKey, CcdShapeConstructionInfo *>;
 
+	/** Information about the converted display arrays. Used to detect update 
+	 * of the same display arrays.
+	 */
+	struct MeshPart
+	{
+		RAS_DisplayArray *m_array;
+		unsigned int m_vertexCount;
+		unsigned int m_indexCount;
+		unsigned int m_startIndex;
+	};
+
+	friend bool operator==(const MeshPart& p1, const MeshPart& p2);
+
 	static MeshShapeMap m_meshShapeMap;
+
+	std::vector<MeshPart> m_meshParts;
 	/// Converted original mesh.
 	RAS_Mesh *m_mesh;
 	/// The list of vertexes and indexes for the triangle mesh, shared between Bullet shape.
 	btTriangleIndexVertexArray *m_triangleIndexVertexArray;
 	/// for compound shapes
 	std::vector<CcdShapeConstructionInfo *> m_shapeArray;
-	///use gimpact for concave dynamic/moving collision detection
-	bool m_forceReInstance;
 	///welding closeby vertices together can improve softbody stability etc.
 	float m_weldingThreshold1;
 	/// only used for PHY_SHAPE_PROXY, pointer to actual shape info
 	CcdShapeConstructionInfo *m_shapeProxy;
+	/// AABB of the triangle mesh.
+	btVector3 m_aabbMin;
+	btVector3 m_aabbMax;
 };
+
+inline bool operator==(const CcdShapeConstructionInfo::MeshPart& p1, const CcdShapeConstructionInfo::MeshPart& p2)
+{
+	return ((p1.m_array == p2.m_array) && (p1.m_vertexCount == p2.m_vertexCount)
+			&& (p1.m_indexCount == p2.m_indexCount) && (p1.m_startIndex == p2.m_startIndex));
+}
 
 struct CcdConstructionInfo {
 
@@ -617,6 +649,9 @@ public:
 	 * \param newShape The new Bullet shape to set, if is nullptr we create a new Bullet shape
 	 */
 	bool ReplaceControllerShape(btCollisionShape *newShape);
+
+	/// Update triangle mesh shape after its vertex array update.
+	void RefitCollisionShape();
 
 	virtual ~CcdPhysicsController();
 

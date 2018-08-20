@@ -730,6 +730,18 @@ void CcdPhysicsEnvironment::RemoveCcdGraphicController(CcdGraphicController *ctr
 	}
 }
 
+void CcdPhysicsEnvironment::RefitCcdPhysicsControllerShape(CcdShapeConstructionInfo *shapeInfo)
+{
+	for (CcdPhysicsController *ctrl : m_controllers) {
+		if (ctrl->GetShapeInfo() != shapeInfo) {
+			continue;
+		}
+
+		ctrl->RefitCollisionShape();
+		RefreshCcdPhysicsController(ctrl);
+	}
+}
+
 void CcdPhysicsEnvironment::UpdateCcdPhysicsControllerShape(CcdShapeConstructionInfo *shapeInfo)
 {
 	for (CcdPhysicsController *ctrl : m_controllers) {

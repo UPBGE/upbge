@@ -678,6 +678,24 @@ bool CcdPhysicsController::ReplaceControllerShape(btCollisionShape *newShape)
 	return true;
 }
 
+void CcdPhysicsController::RefitCollisionShape()
+{
+	switch (m_collisionShape->getShapeType()) {
+		case SCALED_TRIANGLE_MESH_SHAPE_PROXYTYPE:
+		{
+			btBvhTriangleMeshShape *triShape = static_cast<btScaledBvhTriangleMeshShape *>(m_collisionShape)->getChildShape();
+			triShape->refitTree(m_shapeInfo->GetAabbMin(), m_shapeInfo->GetAabbMax());
+			break;
+		}
+		case GIMPACT_SHAPE_PROXYTYPE:
+		{
+			btGImpactMeshShape *gimpactShape = static_cast<btGImpactMeshShape *>(m_collisionShape);
+			gimpactShape->refitTree();
+		}
+	}
+
+}
+
 CcdPhysicsController::~CcdPhysicsController()
 {
 	//will be reference counted, due to sharing
@@ -1690,11 +1708,24 @@ bool CcdPhysicsController::ReinstancePhysicsShape(KX_GameObject *from_gameobj, R
 		m_shapeInfo = newShapeInfo;
 	}
 
-	/* updates the arrays used for making the new bullet mesh */
-	m_shapeInfo->UpdateMesh(from_gameobj, from_meshobj);
-
-	/* create the new bullet mesh */
-	m_cci.m_physicsEnv->UpdateCcdPhysicsControllerShape(m_shapeInfo);
+	// Updates the arrays used for making the new bullet mesh.
+	switch (m_shapeInfo->UpdateMesh(from_gameobj, from_meshobj)) {
+		case CcdShapeConstructionInfo::UPDATE_FAILED:
+		{
+			return false;
+		}
+		case CcdShapeConstructionInfo::UPDATE_RECREATE:
+		{
+			// Create the new bullet mesh.
+			m_cci.m_physicsEnv->UpdateCcdPhysicsControllerShape(m_shapeInfo);
+			break;
+		}
+		case CcdShapeConstructionInfo::UPDATE_REFIT:
+		{
+			m_cci.m_physicsEnv->RefitCcdPhysicsControllerShape(m_shapeInfo);
+			break;
+		}
+	}
 
 	return true;
 }
@@ -1785,7 +1816,6 @@ void CcdShapeConstructionInfo::ProcessReplica()
 	m_userData = nullptr;
 	m_mesh = nullptr;
 	m_triangleIndexVertexArray = nullptr;
-	m_forceReInstance = false;
 	m_shapeProxy = nullptr;
 	m_vertexArray.clear();
 	m_polygonIndexArray.clear();
@@ -1797,14 +1827,14 @@ void CcdShapeConstructionInfo::ProcessReplica()
 /* Updates the arrays used by CreateBulletShape(),
  * take care that recalcLocalAabb() runs after CreateBulletShape is called.
  * */
-bool CcdShapeConstructionInfo::UpdateMesh(KX_GameObject *gameobj, RAS_Mesh *meshobj)
+CcdShapeConstructionInfo::UpdateMeshStatus CcdShapeConstructionInfo::UpdateMesh(KX_GameObject *gameobj, RAS_Mesh *meshobj)
 {
 	if (!gameobj && !meshobj) {
-		return false;
+		return UPDATE_FAILED;
 	}
 
 	if (!ELEM(m_shapeType, PHY_SHAPE_MESH, PHY_SHAPE_POLYTOPE)) {
-		return false;
+		return UPDATE_FAILED;
 	}
 
 	RAS_Deformer *deformer = nullptr;
@@ -1827,21 +1857,20 @@ bool CcdShapeConstructionInfo::UpdateMesh(KX_GameObject *gameobj, RAS_Mesh *mesh
 
 	// Can't find the mesh object.
 	if (!meshobj) {
-		return false;
+		return UPDATE_FAILED;
 	}
-
-	RAS_DisplayArrayList displayArrays;
 
 	// Indices count.
 	unsigned int numIndices = 0;
 	// Original (without split of normal or UV) vertex count.
 	unsigned int numVertices = 0;
 
-	/// Absolute polygon start index for each used display arrays.
-	std::vector<unsigned int> polygonStartIndices;
-	unsigned int curPolygonStartIndex = 0;
+	unsigned int curIndex = 0;
 
-	// Compute indices count and maximum vertex count.
+	// Information of the converted display arrays.
+	std::vector<MeshPart> parts;
+
+	// Compute mesh part informations, vertex and index count and shift.
 	for (unsigned int i = 0, numMat = meshobj->GetNumMaterials(); i < numMat; ++i) {
 		RAS_MeshMaterial *meshmat = meshobj->GetMeshMaterial(i);
 		RAS_IMaterial *mat = meshmat->GetBucket()->GetMaterial();
@@ -1851,102 +1880,25 @@ bool CcdShapeConstructionInfo::UpdateMesh(KX_GameObject *gameobj, RAS_Mesh *mesh
 
 		// If collisions are disabled: do nothing.
 		if (mat->IsCollider()) {
+			// Create the mesh part.
+			MeshPart part;
+			part.m_array = array;
+			part.m_vertexCount = array->GetVertexCount();
+			part.m_indexCount = indicesCount;
+			part.m_startIndex = curIndex;
+			parts.push_back(part);
+
 			numIndices += indicesCount;
 			numVertices = std::max(numVertices, array->GetMaxOrigIndex() + 1);
-			// Add valid display arrays.
-			displayArrays.push_back(array);
-			polygonStartIndices.push_back(curPolygonStartIndex);
 		}
 
-		curPolygonStartIndex += indicesCount / 3;
+		// Still advance indices to respect the polygon index access.
+		curIndex += indicesCount;
 	}
 
 	// Detect mesh without triangles.
 	if (numIndices == 0 && m_shapeType == PHY_SHAPE_MESH) {
-		return false;
-	}
-
-	m_vertexArray.resize(numVertices * 3);
-	m_vertexRemap.resize(numVertices);
-	// resize() doesn't initialize all values if the vector wasn't empty before. Prefer fill explicitly.
-	std::fill(m_vertexRemap.begin(), m_vertexRemap.end(), -1);
-
-	// Current vertex written.
-	unsigned int curVert = 0;
-
-	for (RAS_DisplayArray *array : displayArrays) {
-		// Convert location of all vertices and remap if vertices weren't already converted.
-		for (unsigned int j = 0, numvert = array->GetVertexCount(); j < numvert; ++j) {
-			const RAS_VertexInfo& info = array->GetVertexInfo(j);
-			const unsigned int origIndex = info.GetOrigIndex();
-			/* Avoid double conversion of two unique vertices using the same base:
-			 * using the same original vertex and so the same position.
-			 */
-			if (m_vertexRemap[origIndex] != -1) {
-				continue;
-			}
-
-			const mt::vec3_packed& pos = array->GetPosition(j);
-			m_vertexArray[curVert * 3] = pos.x;
-			m_vertexArray[curVert * 3 + 1] = pos.y;
-			m_vertexArray[curVert * 3 + 2] = pos.z;
-
-			// Register the vertex index where the position was converted in m_vertexArray.
-			m_vertexRemap[origIndex] = curVert++;
-		}
-	}
-
-	// Convex shapes don't need indices.
-	if (m_shapeType == PHY_SHAPE_MESH) {
-		m_triFaceArray.resize(numIndices);
-		m_triFaceUVcoArray.resize(numIndices);
-		m_polygonIndexArray.resize(numIndices / 3);
-
-		// Current triangle written.
-		unsigned int curTri = 0;
-
-		for (unsigned short i = 0, numArray = displayArrays.size(); i < numArray; ++i) {
-			RAS_DisplayArray *array = displayArrays[i];
-			const unsigned int polygonStartIndex = polygonStartIndices[i];
-
-			// Convert triangles using remaped vertices index.
-			for (unsigned int j = 0, numind = array->GetTriangleIndexCount(); j < numind; j += 3) {
-				// Should match polygon access index with RAS_Mesh::GetPolygon.
-				m_polygonIndexArray[curTri] = polygonStartIndex + j / 3;
-
-				for (unsigned short k = 0; k < 3; ++k) {
-					const unsigned int index = array->GetTriangleIndex(j + k);
-					const unsigned int curInd = curTri * 3 + k;
-
-					// Convert UV for raycast UV computation.
-					const mt::vec2_packed& uv = array->GetUv(index, 0);
-					m_triFaceUVcoArray[curInd] = {{uv.x, uv.y}};
-
-					// Get vertex index from original index to m_vertexArray vertex index.
-					const RAS_VertexInfo& info = array->GetVertexInfo(index);
-					const unsigned int origIndex = info.GetOrigIndex();
-					m_triFaceArray[curInd] = m_vertexRemap[origIndex];
-				}
-				++curTri;
-			}
-		}
-	}
-
-#if 0
-	CM_Debug("# vert count " << m_vertexArray.size());
-	for (int i = 0; i < m_vertexArray.size(); i += 3) {
-		CM_Debug("v " << m_vertexArray[i] << " " << m_vertexArray[i + 1] << " " << m_vertexArray[i + 2]);
-	}
-
-	CM_Debug("# face count " << m_triFaceArray.size());
-	for (int i = 0; i < m_triFaceArray.size(); i += 3) {
-		CM_Debug("f " << m_triFaceArray[i] + 1 << " " << m_triFaceArray[i + 1] + 1 << " " << m_triFaceArray[i + 2] + 1);
-	}
-#endif
-
-	// Force recreation of the m_triangleIndexVertexArray.
-	if (m_triangleIndexVertexArray) {
-		m_forceReInstance = true;
+		return UPDATE_FAILED;
 	}
 
 	/* Make sure to also replace the mesh in the shape map! Otherwise we leave dangling references when we free.
@@ -1963,10 +1915,152 @@ bool CcdShapeConstructionInfo::UpdateMesh(KX_GameObject *gameobj, RAS_Mesh *mesh
 
 	// Register mesh object to shape.
 	m_meshShapeMap[MeshShapeKey(meshobj, deformer, m_shapeType)] = this;
-
 	m_mesh = meshobj;
 
-	return true;
+	m_vertexArray.resize(numVertices * 3);
+	m_vertexRemap.resize(numVertices);
+	// resize() doesn't initialize all values if the vector wasn't empty before. Prefer fill explicitly.
+	std::fill(m_vertexRemap.begin(), m_vertexRemap.end(), -1);
+
+	// Current vertex written.
+	unsigned int curVert = 0;
+
+	m_aabbMin = btVector3(BT_LARGE_FLOAT, BT_LARGE_FLOAT, BT_LARGE_FLOAT);
+	m_aabbMax = btVector3(-BT_LARGE_FLOAT, -BT_LARGE_FLOAT, -BT_LARGE_FLOAT);
+
+	for (const MeshPart& part : parts) {
+		RAS_DisplayArray *array = part.m_array;
+		// Convert location of all vertices and remap if vertices weren't already converted.
+		for (unsigned int j = 0; j < part.m_vertexCount; ++j) {
+			const RAS_VertexInfo& info = array->GetVertexInfo(j);
+			const unsigned int origIndex = info.GetOrigIndex();
+			/* Avoid double conversion of two unique vertices using the same base:
+			 * using the same original vertex and so the same position.
+			 */
+			if (m_vertexRemap[origIndex] != -1) {
+				continue;
+			}
+
+			const mt::vec3_packed& pos = array->GetPosition(j);
+			m_vertexArray[curVert * 3] = pos.x;
+			m_vertexArray[curVert * 3 + 1] = pos.y;
+			m_vertexArray[curVert * 3 + 2] = pos.z;
+
+			const btVector3 bpos(pos.x, pos.y, pos.z);
+			m_aabbMin.setMin(bpos);
+			m_aabbMax.setMax(bpos);
+
+			// Register the vertex index where the position was converted in m_vertexArray.
+			m_vertexRemap[origIndex] = curVert++;
+		}
+	}
+
+	// Detect if the mesh parts are equivalent despite the assomption that an array doesn't change its indices order.
+	if (parts != m_meshParts) {
+		// Convex shapes don't need indices.
+		if (m_shapeType == PHY_SHAPE_MESH) {
+			m_triFaceArray.resize(numIndices);
+			m_triFaceUVcoArray.resize(numIndices);
+			m_polygonIndexArray.resize(numIndices / 3);
+
+			// Current triangle written.
+			unsigned int curTri = 0;
+
+			for (const MeshPart& part : parts) {
+				RAS_DisplayArray *array = part.m_array;
+				const unsigned int startIndex = part.m_startIndex;
+
+				// Convert triangles using remaped vertices index.
+				for (unsigned int j = 0; j < part.m_indexCount; j += 3) {
+					// Should match polygon access index with RAS_Mesh::GetPolygon.
+					m_polygonIndexArray[curTri] = (startIndex + j) / 3;
+
+					for (unsigned short k = 0; k < 3; ++k) {
+						const unsigned int index = array->GetTriangleIndex(j + k);
+						const unsigned int curInd = curTri * 3 + k;
+
+						// Convert UV for raycast UV computation.
+						const mt::vec2_packed& uv = array->GetUv(index, 0);
+						m_triFaceUVcoArray[curInd] = {{uv.x, uv.y}};
+
+						// Get vertex index from original index to m_vertexArray vertex index.
+						const RAS_VertexInfo& info = array->GetVertexInfo(index);
+						const unsigned int origIndex = info.GetOrigIndex();
+						m_triFaceArray[curInd] = m_vertexRemap[origIndex];
+					}
+					++curTri;
+				}
+			}
+		}
+
+		if (m_triangleIndexVertexArray) {
+			delete m_triangleIndexVertexArray;
+		}
+
+		// Create bullet triangle index and vertex array.
+
+		///enable welding, only for the objects that need it (such as soft bodies)
+		if (0.0f != m_weldingThreshold1) {
+			btTriangleMesh *collisionMeshData = new btTriangleMesh(true, false);
+			collisionMeshData->m_weldingThreshold = m_weldingThreshold1;
+			bool removeDuplicateVertices = true;
+			// m_vertexArray not in multiple of 3 anymore, use m_triFaceArray
+			for (unsigned int i = 0; i < m_triFaceArray.size(); i += 3) {
+				btScalar *bt = &m_vertexArray[3 * m_triFaceArray[i]];
+				btVector3 v1(bt[0], bt[1], bt[2]);
+				bt = &m_vertexArray[3 * m_triFaceArray[i + 1]];
+				btVector3 v2(bt[0], bt[1], bt[2]);
+				bt = &m_vertexArray[3 * m_triFaceArray[i + 2]];
+				btVector3 v3(bt[0], bt[1], bt[2]);
+				collisionMeshData->addTriangle(v1, v2, v3, removeDuplicateVertices);
+			}
+			m_triangleIndexVertexArray = collisionMeshData;
+		}
+		else {
+			m_triangleIndexVertexArray = new btTriangleIndexVertexArray(
+				m_triFaceArray.size() / 3,
+				m_triFaceArray.data(),
+				3 * sizeof(int),
+				m_vertexArray.size() / 3,
+				&m_vertexArray[0],
+				3 * sizeof(btScalar));
+		}
+
+		m_meshParts = parts;
+
+		return UPDATE_RECREATE;
+	}
+	else {
+		unsigned char *vertexbase;
+		int numverts;
+		PHY_ScalarType type;
+		int stride;
+		unsigned char *indexbase;
+		int indexstride;
+		int numfaces;
+		PHY_ScalarType indicestype;
+
+		m_triangleIndexVertexArray->getLockedVertexIndexBase(&vertexbase, numverts, type, stride, &indexbase, indexstride, numfaces, indicestype, 0);
+		BLI_assert(numverts == numVertices);
+
+		memcpy(vertexbase, &m_vertexArray[0], sizeof(float) * numVertices * 3);
+
+		m_triangleIndexVertexArray->unLockVertexBase(0);
+
+		return UPDATE_REFIT;
+	}
+
+#if 0
+	CM_Debug("# vert count " << m_vertexArray.size());
+	for (int i = 0; i < m_vertexArray.size(); i += 3) {
+		CM_Debug("v " << m_vertexArray[i] << " " << m_vertexArray[i + 1] << " " << m_vertexArray[i + 2]);
+	}
+
+	CM_Debug("# face count " << m_triFaceArray.size());
+	for (int i = 0; i < m_triFaceArray.size(); i += 3) {
+		CM_Debug("f " << m_triFaceArray[i] + 1 << " " << m_triFaceArray[i + 1] + 1 << " " << m_triFaceArray[i + 2] + 1);
+	}
+#endif
 }
 
 bool CcdShapeConstructionInfo::SetProxy(CcdShapeConstructionInfo *shapeInfo)
@@ -1983,6 +2077,16 @@ bool CcdShapeConstructionInfo::SetProxy(CcdShapeConstructionInfo *shapeInfo)
 RAS_Mesh *CcdShapeConstructionInfo::GetMesh() const
 {
 	return m_mesh;
+}
+
+const btVector3& CcdShapeConstructionInfo::GetAabbMin() const
+{
+	return m_aabbMin;
+}
+
+const btVector3& CcdShapeConstructionInfo::GetAabbMax() const
+{
+	return m_aabbMax;
 }
 
 btCollisionShape *CcdShapeConstructionInfo::CreateBulletShape(btScalar margin, bool useGimpact, bool useBvh)
@@ -2051,61 +2155,12 @@ btCollisionShape *CcdShapeConstructionInfo::CreateBulletShape(btScalar margin, b
 			// One possible optimization is to use directly the btBvhTriangleMeshShape when the scale is 1,1,1
 			// and btScaledBvhTriangleMeshShape otherwise.
 			if (useGimpact) {
-				if (!m_triangleIndexVertexArray || m_forceReInstance) {
-					if (m_triangleIndexVertexArray) {
-						delete m_triangleIndexVertexArray;
-					}
-
-					m_triangleIndexVertexArray = new btTriangleIndexVertexArray(
-						m_triFaceArray.size() / 3,
-						m_triFaceArray.data(),
-						3 * sizeof(int),
-						m_vertexArray.size() / 3,
-						&m_vertexArray[0],
-						3 * sizeof(btScalar));
-					m_forceReInstance = false;
-				}
-
 				btGImpactMeshShape *gimpactShape = new btGImpactMeshShape(m_triangleIndexVertexArray);
 				gimpactShape->setMargin(margin);
 				gimpactShape->updateBound();
 				collisionShape = gimpactShape;
 			}
 			else {
-				if (!m_triangleIndexVertexArray || m_forceReInstance) {
-					///enable welding, only for the objects that need it (such as soft bodies)
-					if (0.0f != m_weldingThreshold1) {
-						btTriangleMesh *collisionMeshData = new btTriangleMesh(true, false);
-						collisionMeshData->m_weldingThreshold = m_weldingThreshold1;
-						bool removeDuplicateVertices = true;
-						// m_vertexArray not in multiple of 3 anymore, use m_triFaceArray
-						for (unsigned int i = 0; i < m_triFaceArray.size(); i += 3) {
-							btScalar *bt = &m_vertexArray[3 * m_triFaceArray[i]];
-							btVector3 v1(bt[0], bt[1], bt[2]);
-							bt = &m_vertexArray[3 * m_triFaceArray[i + 1]];
-							btVector3 v2(bt[0], bt[1], bt[2]);
-							bt = &m_vertexArray[3 * m_triFaceArray[i + 2]];
-							btVector3 v3(bt[0], bt[1], bt[2]);
-							collisionMeshData->addTriangle(v1, v2, v3, removeDuplicateVertices);
-						}
-						m_triangleIndexVertexArray = collisionMeshData;
-					}
-					else {
-						if (m_triangleIndexVertexArray) {
-							delete m_triangleIndexVertexArray;
-						}
-						m_triangleIndexVertexArray = new btTriangleIndexVertexArray(
-							m_triFaceArray.size() / 3,
-							m_triFaceArray.data(),
-							3 * sizeof(int),
-							m_vertexArray.size() / 3,
-							&m_vertexArray[0],
-							3 * sizeof(btScalar));
-					}
-
-					m_forceReInstance = false;
-				}
-
 				btBvhTriangleMeshShape *unscaledShape = new btBvhTriangleMeshShape(m_triangleIndexVertexArray, true, useBvh);
 				unscaledShape->setMargin(margin);
 				collisionShape = new btScaledBvhTriangleMeshShape(unscaledShape, btVector3(1.0f, 1.0f, 1.0f));

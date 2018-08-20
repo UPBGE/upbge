@@ -102,6 +102,15 @@ protected:
     	m_localAABB = m_box_set.getGlobalBox();
     }
 
+    virtual void calcLocalAABBRefit()
+    {
+		lockChildShapes();
+   		m_box_set.buildSet();
+    	unlockChildShapes();
+
+    	m_localAABB = m_box_set.getGlobalBox();
+    }
+
 
 public:
 	btGImpactShapeInterface()
@@ -124,6 +133,13 @@ public:
     {
     	if(!m_needs_update) return;
     	calcLocalAABB();
+    	m_needs_update  = false;
+    }
+
+    SIMD_FORCE_INLINE void refitTree()
+    {
+    	if(!m_needs_update) return;
+    	calcLocalAABBRefit();
     	m_needs_update  = false;
     }
 
@@ -910,6 +926,17 @@ protected:
     	while(i--)
     	{
     		m_mesh_parts[i]->updateBound();
+    		m_localAABB.merge(m_mesh_parts[i]->getLocalBox());
+    	}
+    }
+
+    virtual void calcLocalAABBRefit()
+    {
+    	m_localAABB.invalidate();
+    	int i = m_mesh_parts.size();
+    	while(i--)
+    	{
+    		m_mesh_parts[i]->refitTree();
     		m_localAABB.merge(m_mesh_parts[i]->getLocalBox());
     	}
     }
