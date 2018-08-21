@@ -149,9 +149,9 @@ void main()
 	normal *= ininstmatrix;
 #endif
 
-	//if (useshwskin) {
+	if (useshwskin) {
 		hardware_skinning(gl_Vertex, gl_Normal, position, normal);
-	//}
+	}
 
 	vec4 co = gl_ModelViewMatrix * position;
 
