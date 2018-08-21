@@ -50,6 +50,13 @@ class RAS_Rasterizer;
 class RAS_Deformer
 {
 public:
+	struct SkinVertData
+	{
+		float weights[4];
+		char indexes[4];
+		char num_bones;
+	};
+
 	RAS_Deformer(RAS_Mesh *mesh);
 	virtual ~RAS_Deformer();
 
@@ -80,9 +87,8 @@ public:
 	RAS_DisplayArray *GetDisplayArray(unsigned short index) const;
 	RAS_DisplayArrayBucket *GetDisplayArrayBucket(unsigned short index) const;
 
-	virtual void HandleGPUUniforms(RAS_Rasterizer *rasty) {}
-	virtual void BeginHandleGPUAttribs(RAS_DisplayArray *array) {}
-	virtual void EndHandleGPUAttribs() {}
+	virtual const SkinVertData *GetSkinningVertData(RAS_DisplayArray *array) const;
+	virtual const float *GetPoseMatrices() const;
 
 protected:
 	/// Struct wrapping display arrays owned/used by the deformer.

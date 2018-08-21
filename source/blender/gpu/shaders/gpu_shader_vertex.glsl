@@ -21,9 +21,9 @@ uniform mat4 unfviewmat;
 
 attribute vec4 weight;
 attribute vec4 index;
-attribute float numbones;
+attribute int numbones;
 uniform bool useshwskin;
-uniform  mat4 bonematrices[128];
+uniform mat4 bonematrices[128];
 
 out vec3 varposition;
 out vec3 varnormal;
@@ -40,15 +40,13 @@ void hardware_skinning(in vec4 position, in vec3 normal, out vec4 transpos, out 
 	vec4 curidx = index;
 	vec4 curweight = weight;
 
-	for (int i = 0; i < int(numbones); ++i)
+	for (int i = 0; i < numbones; ++i)
 	{
 		mat4 m44 = bonematrices[int(curidx.x)];
 
 		transpos += m44 * position * curweight.x;
 
-		mat3 m33 = mat3(m44[0].xyz,
-						m44[1].xyz,
-						m44[2].xyz);
+		mat3 m33 = mat3(m44);
 
 		transnorm += m33 * normal * curweight.x;
 

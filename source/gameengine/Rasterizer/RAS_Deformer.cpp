@@ -74,3 +74,14 @@ RAS_DisplayArrayBucket *RAS_Deformer::GetDisplayArrayBucket(unsigned short index
 {
 	return m_slots[index].m_displayArrayBucket;
 }
+
+const RAS_Deformer::SkinVertData *RAS_Deformer::GetSkinningVertData(RAS_DisplayArray *array) const
+{
+	return nullptr;
+}
+
+const float *RAS_Deformer::GetPoseMatrices() const
+{
+	return nullptr;
+}
+
