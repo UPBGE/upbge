@@ -210,6 +210,33 @@ class TEXT_MT_text(Menu):
             layout.column()
             layout.operator("text.run_script")
 
+class TEXT_MT_templates_bge_python(Menu):
+    bl_label = "Python"
+
+    def draw(self, context):
+        self.path_menu(
+            bpy.utils.script_paths("templates_bge/python"),
+            "text.open",
+            props_default={"internal": True},
+        )
+
+class TEXT_MT_templates_bge_components(Menu):
+    bl_label = "Components"
+
+    def draw(self, context):
+        self.path_menu(
+            bpy.utils.script_paths("templates_bge/components"),
+            "text.open",
+            props_default={"internal": True},
+        )
+
+class TEXT_MT_templates_bge(Menu):
+    bl_label = "Game Engine"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.menu("TEXT_MT_templates_bge_python")
+        layout.menu("TEXT_MT_templates_bge_components")
 
 class TEXT_MT_templates_py(Menu):
     bl_label = "Python"
@@ -238,6 +265,7 @@ class TEXT_MT_templates(Menu):
 
     def draw(self, context):
         layout = self.layout
+        layout.menu("TEXT_MT_templates_bge")
         layout.menu("TEXT_MT_templates_py")
         layout.menu("TEXT_MT_templates_osl")
 
@@ -353,6 +381,9 @@ classes = (
     TEXT_MT_view,
     TEXT_MT_text,
     TEXT_MT_templates,
+    TEXT_MT_templates_bge_python,
+    TEXT_MT_templates_bge_components,    
+    TEXT_MT_templates_bge,
     TEXT_MT_templates_py,
     TEXT_MT_templates_osl,
     TEXT_MT_edit_select,
