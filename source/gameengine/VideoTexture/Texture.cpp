@@ -45,7 +45,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "RAS_MaterialBucket.h"
-#include "RAS_IPolygonMaterial.h"
+#include "RAS_IMaterial.h"
 #include "RAS_Texture.h"
 
 #include "KX_KetsjiEngine.h"
@@ -194,7 +194,7 @@ void loadTexture(unsigned int texId, unsigned int *texture, short *size,
 
 
 // get pointer to material
-RAS_IPolyMaterial *getMaterial(KX_GameObject *gameObj, short matID)
+RAS_IMaterial *getMaterial(KX_GameObject *gameObj, short matID)
 {
 	// get pointer to texture image
 	const std::vector<KX_Mesh *>& meshes = gameObj->GetMeshList();
@@ -227,7 +227,7 @@ short getMaterialID(PyObject *obj, const char *name)
 			break;
 		}
 
-		RAS_IPolyMaterial *mat = getMaterial(gameObj, matID);
+		RAS_IMaterial *mat = getMaterial(gameObj, matID);
 		// if material is not available, report that no material was found
 		if (mat == nullptr) {
 			break;
@@ -301,7 +301,7 @@ static int Texture_init(PyObject *self, PyObject *args, PyObject *kwds)
 		{
 			tex->m_scene = gameObj->GetScene();
 			// get pointer to texture image
-			RAS_IPolyMaterial *mat = getMaterial(gameObj, matID);
+			RAS_IMaterial *mat = getMaterial(gameObj, matID);
 			KX_LightObject *lamp = nullptr;
 			if (gameObj->GetGameObjectType() == SCA_IObject::OBJ_LIGHT) {
 				lamp = (KX_LightObject *)gameObj;

@@ -35,14 +35,14 @@
 #include "RAS_Mesh.h"
 #include "RAS_MeshUser.h"
 #include "RAS_Rasterizer.h"
-#include "RAS_IPolygonMaterial.h"
+#include "RAS_IMaterial.h"
 
 #include "KX_Scene.h"
 
 #include <cstring>
 
 BL_BlenderShader::BL_BlenderShader(KX_Scene *scene, struct Material *ma,
-		CM_UpdateServer<RAS_IPolyMaterial> *materialUpdateServer)
+		CM_UpdateServer<RAS_IMaterial> *materialUpdateServer)
 	:m_blenderScene(scene->GetBlenderScene()),
 	m_mat(ma),
 	m_alphaBlend(GPU_BLEND_SOLID),
@@ -125,7 +125,7 @@ void BL_BlenderShader::ReloadMaterial()
 
 	m_gpuMat = (m_mat) ? GPU_material_from_blender(m_blenderScene, m_mat, false, UseInstancing()) : nullptr;
 
-	m_materialUpdateServer->NotifyUpdate(RAS_IPolyMaterial::SHADER_MODIFIED);
+	m_materialUpdateServer->NotifyUpdate(RAS_IMaterial::SHADER_MODIFIED);
 }
 
 void BL_BlenderShader::BindProg(RAS_Rasterizer *rasty)

@@ -34,7 +34,7 @@
 #include "RAS_Mesh.h"
 #include "RAS_MeshUser.h"
 #include "RAS_BoundingBoxManager.h"
-#include "RAS_IPolygonMaterial.h"
+#include "RAS_IMaterial.h"
 #include "RAS_BucketManager.h"
 #include "RAS_DisplayArray.h"
 #include "RAS_Deformer.h"
@@ -265,11 +265,11 @@ void RAS_Mesh::EndConversion(RAS_BoundingBoxManager *boundingBoxManager)
 		// Compute absolute array end index.
 		const unsigned int endIndex = startIndex + indexCount - 1;
 
-		RAS_IPolyMaterial *polymat = meshmat->GetBucket()->GetMaterial();
+		RAS_IMaterial *mat = meshmat->GetBucket()->GetMaterial();
 		PolygonInfo::Flags flags =
-			((polymat->IsVisible()) ? PolygonInfo::VISIBLE : PolygonInfo::NONE |
-			 (polymat->IsCollider()) ? PolygonInfo::COLLIDER : PolygonInfo::NONE |
-			 (polymat->IsTwoSided()) ? PolygonInfo::TWOSIDE : PolygonInfo::NONE);
+			((mat->IsVisible()) ? PolygonInfo::VISIBLE : PolygonInfo::NONE |
+			 (mat->IsCollider()) ? PolygonInfo::COLLIDER : PolygonInfo::NONE |
+			 (mat->IsTwoSided()) ? PolygonInfo::TWOSIDE : PolygonInfo::NONE);
 
 		m_polygonRanges.push_back({array, startIndex, endIndex, flags, i});
 

@@ -32,7 +32,7 @@
 
 #include "KX_PythonInit.h"
 
-#include <RAS_IPolygonMaterial.h>
+#include <RAS_IMaterial.h>
 
 //Old API
 //#include "TexPlayer.h"

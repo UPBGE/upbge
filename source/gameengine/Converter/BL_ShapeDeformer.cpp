@@ -36,7 +36,7 @@
 #include "MEM_guardedalloc.h"
 #include "BL_ShapeDeformer.h"
 #include <string>
-#include "RAS_IPolygonMaterial.h"
+#include "RAS_IMaterial.h"
 #include "RAS_Mesh.h"
 
 #include "DNA_anim_types.h"

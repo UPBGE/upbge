@@ -29,7 +29,7 @@
 
 #include "RAS_DisplayArrayBucket.h"
 
-class RAS_IPolyMaterial;
+class RAS_IMaterial;
 class RAS_BatchDisplayArray;
 
 class RAS_BatchGroup
@@ -56,7 +56,7 @@ private:
 	};
 
 	/// The batch per material.
-	std::map<RAS_IPolyMaterial *, Batch> m_batchs;
+	std::map<RAS_IMaterial *, Batch> m_batchs;
 
 	/** Merge the display array of the passed mesh slot.
 	 * \param slot The mesh slot using the display array to merge.

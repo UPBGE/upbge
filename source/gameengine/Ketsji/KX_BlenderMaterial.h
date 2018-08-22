@@ -6,7 +6,7 @@
 #ifndef __KX_BLENDERMATERIAL_H__
 #define __KX_BLENDERMATERIAL_H__
 
-#include "RAS_IPolygonMaterial.h"
+#include "RAS_IMaterial.h"
 #include "BL_Texture.h"
 
 #include "EXP_Value.h"
@@ -21,7 +21,7 @@ struct Material;
 void KX_BlenderMaterial_Mathutils_Callback_Init(void);
 #endif
 
-class KX_BlenderMaterial : public EXP_Value, public RAS_IPolyMaterial
+class KX_BlenderMaterial : public EXP_Value, public RAS_IMaterial
 {
 	Py_Header
 

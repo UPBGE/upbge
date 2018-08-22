@@ -47,7 +47,7 @@
 struct Object;
 struct bPoseChannel;
 class RAS_Mesh;
-class RAS_IPolyMaterial;
+class RAS_IMaterial;
 
 class BL_SkinDeformer : public BL_MeshDeformer
 {

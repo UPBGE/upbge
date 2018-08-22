@@ -34,7 +34,7 @@
 
 #include "RAS_DisplayArrayBucket.h"
 
-class RAS_IPolyMaterial;
+class RAS_IMaterial;
 class RAS_Rasterizer;
 
 /* Contains a list of display arrays with the same material,
@@ -44,11 +44,11 @@ class RAS_Rasterizer;
 class RAS_MaterialBucket
 {
 public:
-	RAS_MaterialBucket(RAS_IPolyMaterial *mat);
+	RAS_MaterialBucket(RAS_IMaterial *mat);
 	virtual ~RAS_MaterialBucket();
 
 	// Material Properties
-	RAS_IPolyMaterial *GetMaterial() const;
+	RAS_IMaterial *GetMaterial() const;
 	bool IsAlpha() const;
 	bool IsZSort() const;
 	bool IsWire() const;
@@ -74,7 +74,7 @@ public:
 	void MoveDisplayArrayBucket(RAS_MeshMaterial *meshmat, RAS_MaterialBucket *bucket);
 
 private:
-	RAS_IPolyMaterial *m_material;
+	RAS_IMaterial *m_material;
 	RAS_DisplayArrayBucketList m_displayArrayBucketList;
 
 	RAS_MaterialNodeData m_nodeData;

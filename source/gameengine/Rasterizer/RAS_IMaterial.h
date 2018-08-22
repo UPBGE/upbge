@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file RAS_IPolygonMaterial.h
+/** \file RAS_IMaterial.h
  *  \ingroup bgerast
  */
 
@@ -50,7 +50,7 @@ struct GameSettings;
 /**
  * Polygon Material on which the material buckets are sorted
  */
-class RAS_IPolyMaterial : public CM_UpdateServer<RAS_IPolyMaterial>
+class RAS_IMaterial : public CM_UpdateServer<RAS_IMaterial>
 {
 public:
 	enum Props
@@ -98,9 +98,9 @@ protected:
 	RAS_Texture *m_textures[RAS_Texture::MaxUnits];
 
 public:
-	RAS_IPolyMaterial(const std::string& name);
+	RAS_IMaterial(const std::string& name);
 
-	virtual ~RAS_IPolyMaterial();
+	virtual ~RAS_IMaterial();
 
 	/// Prepare the material data for rendering.
 	virtual void Prepare(RAS_Rasterizer *rasty) = 0;

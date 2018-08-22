@@ -101,19 +101,19 @@ public:
 	/** Initialize bucket manager and create material bucket for the text material.
 	 * \param textMaterial The material used to render texts.
 	 */
-	RAS_BucketManager(RAS_IPolyMaterial *textMaterial);
+	RAS_BucketManager(RAS_IMaterial *textMaterial);
 	virtual ~RAS_BucketManager();
 
 	void Renderbuckets(RAS_Rasterizer::DrawType drawingMode, const mt::mat3x4& cameratrans, RAS_Rasterizer *rasty,
 			RAS_OffScreen *offScreen);
 
-	RAS_MaterialBucket *FindBucket(RAS_IPolyMaterial *material, bool &bucketCreated);
+	RAS_MaterialBucket *FindBucket(RAS_IMaterial *material, bool &bucketCreated);
 	RAS_DisplayArrayBucket *GetTextDisplayArrayBucket() const;
 
-	void ReloadMaterials(RAS_IPolyMaterial *material = nullptr);
+	void ReloadMaterials(RAS_IMaterial *material = nullptr);
 
 	// freeing scenes only
-	void RemoveMaterial(RAS_IPolyMaterial *mat);
+	void RemoveMaterial(RAS_IMaterial *mat);
 
 	// for merging
 	void Merge(RAS_BucketManager *other, SCA_IScene *scene);

@@ -26,7 +26,7 @@
 
 #include "RAS_BatchGroup.h"
 #include "RAS_BatchDisplayArray.h"
-#include "RAS_IPolygonMaterial.h"
+#include "RAS_IMaterial.h"
 #include "RAS_MaterialBucket.h"
 #include "RAS_MeshUser.h"
 #include "RAS_MeshSlot.h"
@@ -104,9 +104,9 @@ bool RAS_BatchGroup::MergeMeshSlot(RAS_BatchGroup::Batch& batch, RAS_MeshSlot& s
 bool RAS_BatchGroup::SplitMeshSlot(RAS_MeshSlot& slot)
 {
 	RAS_MaterialBucket *bucket = slot.m_displayArrayBucket->GetBucket();
-	RAS_IPolyMaterial *material = bucket->GetMaterial();
+	RAS_IMaterial *material = bucket->GetMaterial();
 
-	std::map<RAS_IPolyMaterial *, Batch>::iterator bit = m_batchs.find(material);
+	std::map<RAS_IMaterial *, Batch>::iterator bit = m_batchs.find(material);
 	if (bit == m_batchs.end()) {
 		CM_Error("could not found corresponding material \"" << material->GetName() << "\"");
 		return false;
@@ -144,7 +144,7 @@ bool RAS_BatchGroup::MergeMeshUser(RAS_MeshUser *meshUser, const mt::mat4& mat)
 	for (RAS_MeshSlot& meshSlot : meshUser->GetMeshSlots()) {
 		RAS_DisplayArrayBucket *arrayBucket = meshSlot.m_displayArrayBucket;
 		RAS_MaterialBucket *bucket = arrayBucket->GetBucket();
-		RAS_IPolyMaterial *material = bucket->GetMaterial();
+		RAS_IMaterial *material = bucket->GetMaterial();
 
 		Batch& batch = m_batchs[material];
 		// Create the batch if it is empty.

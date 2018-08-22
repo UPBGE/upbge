@@ -42,7 +42,7 @@
 #include "DNA_scene_types.h"
 
 KX_BlenderMaterial::KX_BlenderMaterial(Material *mat, const std::string& name, KX_Scene *scene)
-	:RAS_IPolyMaterial(name),
+	:RAS_IMaterial(name),
 	m_material(mat),
 	m_shader(nullptr),
 	m_blenderShader(nullptr),
@@ -167,7 +167,7 @@ void KX_BlenderMaterial::GetRGBAColor(unsigned char *rgba) const
 		*rgba++ = (unsigned char)(m_material->alpha * 255.0f);
 	}
 	else {
-		RAS_IPolyMaterial::GetRGBAColor(rgba);
+		RAS_IMaterial::GetRGBAColor(rgba);
 	}
 }
 
@@ -351,7 +351,7 @@ void KX_BlenderMaterial::ActivateInstancing(RAS_Rasterizer *rasty, void *matrixo
 
 bool KX_BlenderMaterial::UsesLighting() const
 {
-	if (!RAS_IPolyMaterial::UsesLighting()) {
+	if (!RAS_IMaterial::UsesLighting()) {
 		return false;
 	}
 

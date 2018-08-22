@@ -13,7 +13,7 @@
 #include "SG_Interpolator.h"
 #include "mathfu.h"
 
-class RAS_IPolyMaterial;
+class RAS_IMaterial;
 
 class KX_MaterialIpoController : public SG_Controller, public mt::SimdClassAllocator
 {
@@ -29,11 +29,11 @@ public:
 	float			m_specAlpha;
 
 private:
-	RAS_IPolyMaterial *m_material;
+	RAS_IMaterial *m_material;
 
 public:
-	KX_MaterialIpoController(RAS_IPolyMaterial *polymat) : 
-				m_material(polymat)
+	KX_MaterialIpoController(RAS_IMaterial *mat) : 
+				m_material(mat)
 		{}
 	virtual ~KX_MaterialIpoController() = default;
 	virtual bool Update(SG_Node *node);

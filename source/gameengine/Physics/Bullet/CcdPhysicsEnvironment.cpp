@@ -51,7 +51,7 @@
 #include "BL_SceneConverter.h"
 #include "RAS_DisplayArray.h"
 #include "RAS_MaterialBucket.h"
-#include "RAS_IPolygonMaterial.h"
+#include "RAS_IMaterial.h"
 
 #include "DNA_scene_types.h"
 #include "DNA_world_types.h"

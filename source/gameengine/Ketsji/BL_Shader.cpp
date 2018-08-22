@@ -27,7 +27,7 @@
 
 #include "RAS_MeshSlot.h"
 #include "RAS_MeshUser.h"
-#include "RAS_IPolygonMaterial.h"
+#include "RAS_IMaterial.h"
 
 #include "KX_PyMath.h"
 #include "KX_PythonInit.h"
@@ -43,7 +43,7 @@
 
 #include "CM_Message.h"
 
-BL_Shader::BL_Shader(CM_UpdateServer<RAS_IPolyMaterial> *materialUpdateServer)
+BL_Shader::BL_Shader(CM_UpdateServer<RAS_IMaterial> *materialUpdateServer)
 	:m_attr(SHD_NONE),
 	m_materialUpdateServer(materialUpdateServer)
 {
@@ -68,7 +68,7 @@ bool BL_Shader::LinkProgram()
 	// Can be null in case of filter shaders.
 	if (m_materialUpdateServer) {
 		// Notify all clients tracking this shader that shader is recompiled and attributes are invalidated.
-		m_materialUpdateServer->NotifyUpdate(RAS_IPolyMaterial::SHADER_MODIFIED | RAS_IPolyMaterial::ATTRIBUTES_MODIFIED);
+		m_materialUpdateServer->NotifyUpdate(RAS_IMaterial::SHADER_MODIFIED | RAS_IMaterial::ATTRIBUTES_MODIFIED);
 	}
 
 	return RAS_Shader::LinkProgram();
@@ -918,7 +918,7 @@ EXP_PYMETHODDEF_DOC(BL_Shader, setAttrib, "setAttrib(enum)")
 	// Can be null in case of filter shaders.
 	if (m_materialUpdateServer) {
 		// Notify all clients tracking this shader that attributes are modified.
-		m_materialUpdateServer->NotifyUpdate(RAS_IPolyMaterial::ATTRIBUTES_MODIFIED);
+		m_materialUpdateServer->NotifyUpdate(RAS_IMaterial::ATTRIBUTES_MODIFIED);
 	}
 
 	BindAttribute("Tangent", m_attr);

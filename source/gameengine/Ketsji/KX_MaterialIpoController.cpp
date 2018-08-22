@@ -25,7 +25,7 @@
 #include "KX_MaterialIpoController.h"
 #include "KX_GameObject.h"
 
-#include "RAS_IPolygonMaterial.h"
+#include "RAS_IMaterial.h"
 
 bool KX_MaterialIpoController::Update(SG_Node *node)
 {

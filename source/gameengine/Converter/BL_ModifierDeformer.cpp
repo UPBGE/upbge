@@ -37,7 +37,7 @@
 #include "BL_ModifierDeformer.h"
 #include "BL_BlenderDataConversion.h"
 #include <string>
-#include "RAS_IPolygonMaterial.h"
+#include "RAS_IMaterial.h"
 #include "RAS_MaterialBucket.h"
 #include "RAS_Mesh.h"
 #include "RAS_MeshUser.h"
@@ -176,7 +176,7 @@ void BL_ModifierDeformer::UpdateTransverts()
 		RAS_DisplayArray *array = slot.m_displayArray;
 		array->Clear();
 
-		RAS_IPolyMaterial *mat = meshmat->GetBucket()->GetMaterial();
+		RAS_IMaterial *mat = meshmat->GetBucket()->GetMaterial();
 		mats[i] = {array, meshmat->GetBucket(), mat->IsVisible(), mat->IsTwoSided(), mat->IsCollider(), mat->IsWire()};
 	}
 

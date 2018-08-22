@@ -30,7 +30,7 @@
  */
 
 #include "RAS_OpenGLRasterizer.h"
-#include "RAS_IPolygonMaterial.h"
+#include "RAS_IMaterial.h"
 
 #include "GPU_glew.h"
 

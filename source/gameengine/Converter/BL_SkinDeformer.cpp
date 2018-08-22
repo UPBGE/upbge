@@ -39,7 +39,7 @@
 
 #include "BL_SkinDeformer.h"
 #include <string>
-#include "RAS_IPolygonMaterial.h"
+#include "RAS_IMaterial.h"
 #include "RAS_DisplayArray.h"
 #include "RAS_Mesh.h"
 #include "RAS_MeshUser.h"

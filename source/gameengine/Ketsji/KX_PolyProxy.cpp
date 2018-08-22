@@ -261,8 +261,7 @@ EXP_PYMETHODDEF_DOC_NOARGS(KX_PolyProxy, getMaterial,
                            "getMaterial() : returns a material\n")
 {
 	RAS_MeshMaterial *meshmat = m_mesh->GetMeshMaterial(m_polygon.matId);
-	RAS_IPolyMaterial *polymat = meshmat->GetBucket()->GetMaterial();
-	KX_BlenderMaterial *mat = static_cast<KX_BlenderMaterial *>(polymat);
+	KX_BlenderMaterial *mat = static_cast<KX_BlenderMaterial *>(meshmat->GetBucket()->GetMaterial());
 	return mat->GetProxy();
 }
 

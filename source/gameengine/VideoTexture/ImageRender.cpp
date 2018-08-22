@@ -782,7 +782,7 @@ static int ImageMirror_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 		}
 
 		// locate the material in the mirror
-		RAS_IPolyMaterial *material = getMaterial(mirrorPtr, materialID);
+		RAS_IMaterial *material = getMaterial(mirrorPtr, materialID);
 		if (material == nullptr) {
 			THRWEXCP(MaterialNotAvail, S_OK);
 		}
@@ -854,7 +854,7 @@ static PyGetSetDef imageMirrorGetSets[] =
 
 
 // constructor
-ImageRender::ImageRender(KX_Scene *scene, KX_GameObject *observer, KX_GameObject *mirror, RAS_IPolyMaterial *mat, unsigned int width, unsigned int height, unsigned short samples, int hdr) :
+ImageRender::ImageRender(KX_Scene *scene, KX_GameObject *observer, KX_GameObject *mirror, RAS_IMaterial *mat, unsigned int width, unsigned int height, unsigned short samples, int hdr) :
 	ImageViewport(width, height),
 	m_render(false),
 	m_updateShadowBuffer(false),

@@ -44,7 +44,7 @@ struct Object;
 struct Mesh;
 class KX_GameObject;
 class RAS_Mesh;
-class RAS_IPolyMaterial;
+class RAS_IMaterial;
 
 class BL_MeshDeformer : public RAS_Deformer
 {

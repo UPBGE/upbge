@@ -51,7 +51,7 @@ class ImageRender : public ImageViewport, public mt::SimdClassAllocator
 public:
 	/// constructor
 	ImageRender(KX_Scene *scene, KX_Camera *camera, unsigned int width, unsigned int height, unsigned short samples, int hrd);
-	ImageRender(KX_Scene *scene, KX_GameObject *observer, KX_GameObject *mirror, RAS_IPolyMaterial * mat, unsigned int width, unsigned int height, unsigned short samples, int hrd);
+	ImageRender(KX_Scene *scene, KX_GameObject *observer, KX_GameObject *mirror, RAS_IMaterial * mat, unsigned int width, unsigned int height, unsigned short samples, int hrd);
 
 	/// destructor
 	virtual ~ImageRender (void);

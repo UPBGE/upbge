@@ -70,7 +70,7 @@ private:
 	/// The vertex buffer object containing all the data used for the instancing rendering.
 	std::unique_ptr<RAS_InstancingBuffer> m_instancingBuffer;
 
-	CM_UpdateClient<RAS_IPolyMaterial> m_materialUpdateClient;
+	CM_UpdateClient<RAS_IMaterial> m_materialUpdateClient;
 	CM_UpdateClient<RAS_DisplayArray> m_arrayUpdateClient;
 
 	RAS_DisplayArrayNodeData m_nodeData;

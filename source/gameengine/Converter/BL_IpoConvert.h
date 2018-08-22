@@ -37,7 +37,7 @@ struct bAction;
 class SG_Controller;
 class KX_GameObject;
 class KX_Scene;
-class RAS_IPolyMaterial;
+class RAS_IMaterial;
 
 SG_Controller *BL_CreateIPO(bAction *action,
 	KX_GameObject* gameobj,
@@ -61,7 +61,7 @@ SG_Controller *BL_CreateCameraIPO(bAction *action,
 
 SG_Controller *BL_CreateMaterialIpo(
 	bAction *action,
-	RAS_IPolyMaterial *polymat,
+	RAS_IMaterial *mat,
 	KX_GameObject* gameobj,
 	KX_Scene *scene);
 

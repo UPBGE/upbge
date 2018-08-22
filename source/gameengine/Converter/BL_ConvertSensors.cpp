@@ -52,7 +52,7 @@
                                  * probably misplaced */
 /* end of blender include block */
 
-#include "RAS_IPolygonMaterial.h"
+#include "RAS_IMaterial.h"
 // Sensors
 #include "KX_GameObject.h"
 #include "RAS_Mesh.h"

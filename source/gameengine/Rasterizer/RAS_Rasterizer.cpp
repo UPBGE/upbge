@@ -32,7 +32,7 @@
 #include "RAS_Rasterizer.h"
 #include "RAS_OpenGLRasterizer.h"
 #include "RAS_OpenGLDebugDraw.h"
-#include "RAS_IPolygonMaterial.h"
+#include "RAS_IMaterial.h"
 #include "RAS_DisplayArrayBucket.h"
 
 #include "RAS_ICanvas.h"
@@ -1301,11 +1301,11 @@ bool RAS_Rasterizer::NeedRayCast(KX_ClientObjectInfo *UNUSED(info), void *UNUSED
 
 void RAS_Rasterizer::GetTransform(const mt::mat4& origmat, int objectdrawmode, float mat[16])
 {
-	if (objectdrawmode == RAS_IPolyMaterial::RAS_NORMAL) {
+	if (objectdrawmode == RAS_IMaterial::RAS_NORMAL) {
 		// 'normal' object
 		origmat.Pack(mat);
 	}
-	else if (ELEM(objectdrawmode, RAS_IPolyMaterial::RAS_HALO, RAS_IPolyMaterial::RAS_BILLBOARD)) {
+	else if (ELEM(objectdrawmode, RAS_IMaterial::RAS_HALO, RAS_IMaterial::RAS_BILLBOARD)) {
 		// rotate the billboard/halo
 		//page 360/361 3D Game Engine Design, David Eberly for a discussion
 		// on screen aligned and axis aligned billboards
@@ -1329,7 +1329,7 @@ void RAS_Rasterizer::GetTransform(const mt::mat4& origmat, int objectdrawmode, f
 		// get scaling of halo object
 		const mt::vec3& scale = mt::vec3(len_v3(&origmat[0]), len_v3(&origmat[4]), len_v3(&origmat[8]));
 
-		if (objectdrawmode & RAS_IPolyMaterial::RAS_HALO) {
+		if (objectdrawmode & RAS_IMaterial::RAS_HALO) {
 			up = (up - mt::dot(up, left) * left).SafeNormalized(mt::axisX3);
 		}
 		else {

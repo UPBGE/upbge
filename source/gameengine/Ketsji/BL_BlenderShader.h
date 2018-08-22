@@ -45,7 +45,7 @@ struct Scene;
 struct GPUMaterial;
 class KX_Scene;
 class RAS_MeshSlot;
-class RAS_IPolyMaterial;
+class RAS_IMaterial;
 
 /**
  * BL_BlenderShader
@@ -58,10 +58,10 @@ private:
 	Material *m_mat;
 	int m_alphaBlend;
 	GPUMaterial *m_gpuMat;
-	CM_UpdateServer<RAS_IPolyMaterial> *m_materialUpdateServer;
+	CM_UpdateServer<RAS_IMaterial> *m_materialUpdateServer;
 
 public:
-	BL_BlenderShader(KX_Scene *scene, Material *ma, CM_UpdateServer<RAS_IPolyMaterial> *materialUpdateServer);
+	BL_BlenderShader(KX_Scene *scene, Material *ma, CM_UpdateServer<RAS_IMaterial> *materialUpdateServer);
 	virtual ~BL_BlenderShader();
 
 	bool Ok() const;

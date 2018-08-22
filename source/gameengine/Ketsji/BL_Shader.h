@@ -16,7 +16,7 @@
 #include "CM_Update.h"
 
 class RAS_MeshSlot;
-class RAS_IPolyMaterial;
+class RAS_IMaterial;
 
 class BL_Shader : public EXP_Value, public virtual RAS_Shader
 {
@@ -39,12 +39,12 @@ private:
 #endif  // WITH_PYTHON
 
 	AttribTypes m_attr;
-	CM_UpdateServer<RAS_IPolyMaterial> *m_materialUpdateServer;
+	CM_UpdateServer<RAS_IMaterial> *m_materialUpdateServer;
 
 	virtual bool LinkProgram();
 
 public:
-	BL_Shader(CM_UpdateServer<RAS_IPolyMaterial> *materialUpdateServer);
+	BL_Shader(CM_UpdateServer<RAS_IMaterial> *materialUpdateServer);
 	virtual ~BL_Shader();
 
 	virtual std::string GetName();

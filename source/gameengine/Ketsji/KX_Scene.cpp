@@ -42,7 +42,7 @@
 #include "KX_BlenderMaterial.h"
 #include "KX_TextMaterial.h"
 #include "KX_FontObject.h"
-#include "RAS_IPolygonMaterial.h"
+#include "RAS_IMaterial.h"
 #include "EXP_ListValue.h"
 #include "SCA_LogicManager.h"
 #include "SCA_TimeEventManager.h"
@@ -1395,11 +1395,6 @@ void KX_Scene::UpdateParents()
 	while ((node = SG_Node::GetNextRescheduled(m_sghead))) {
 		node->Schedule(m_sghead);
 	}
-}
-
-RAS_MaterialBucket *KX_Scene::FindBucket(RAS_IPolyMaterial *polymat, bool &bucketCreated)
-{
-	return m_bucketmanager->FindBucket(polymat, bucketCreated);
 }
 
 void KX_Scene::RenderBuckets(const std::vector<KX_GameObject *>& objects, RAS_Rasterizer::DrawType drawingMode, const mt::mat3x4& cameratransform,

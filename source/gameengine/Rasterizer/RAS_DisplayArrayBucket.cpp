@@ -34,7 +34,7 @@
 #include "RAS_DisplayArrayStorage.h"
 #include "RAS_AttributeArrayStorage.h"
 #include "RAS_MaterialBucket.h"
-#include "RAS_IPolygonMaterial.h"
+#include "RAS_IMaterial.h"
 #include "RAS_Mesh.h"
 #include "RAS_Deformer.h"
 #include "RAS_Rasterizer.h"
@@ -61,7 +61,7 @@ RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_D
 	m_arrayStorage(nullptr),
 	m_attribArray(m_displayArray),
 	m_instancingBuffer(nullptr),
-	m_materialUpdateClient(RAS_IPolyMaterial::ATTRIBUTES_MODIFIED, RAS_IPolyMaterial::ATTRIBUTES_MODIFIED),
+	m_materialUpdateClient(RAS_IMaterial::ATTRIBUTES_MODIFIED, RAS_IMaterial::ATTRIBUTES_MODIFIED),
 	m_arrayUpdateClient(RAS_DisplayArray::ANY_MODIFIED, RAS_DisplayArray::STORAGE_INVALID),
 	m_instancingNode(this, &m_nodeData, &RAS_DisplayArrayBucket::RunInstancingNode, nullptr),
 	m_batchingNode(this, &m_nodeData, &RAS_DisplayArrayBucket::RunBatchingNode, nullptr)
@@ -89,7 +89,7 @@ RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_D
 	m_nodeData.m_attribStorage = nullptr;
 	m_nodeData.m_applyMatrix = (!m_deformer || !m_deformer->SkipVertexTransform());
 
-	RAS_IPolyMaterial *material = bucket->GetMaterial();
+	RAS_IMaterial *material = bucket->GetMaterial();
 	material->AddUpdateClient(&m_materialUpdateClient);
 }
 
@@ -162,9 +162,9 @@ void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_Rasterizer::DrawType draw
 		}
 
 		if (m_materialUpdateClient.GetInvalidAndClear()) {
-			RAS_IPolyMaterial *polymat = m_bucket->GetMaterial();
+			RAS_IMaterial *mat = m_bucket->GetMaterial();
 			const RAS_Mesh::LayersInfo& layersInfo = m_mesh->GetLayersInfo();
-			const RAS_AttributeArray::AttribList attribList = polymat->GetAttribs(layersInfo);
+			const RAS_AttributeArray::AttribList attribList = mat->GetAttribs(layersInfo);
 
 			m_attribArray = RAS_AttributeArray(attribList, m_displayArray);
 		}
@@ -247,7 +247,7 @@ void RAS_DisplayArrayBucket::RunInstancingNode(const RAS_DisplayArrayNodeTuple& 
 		m_instancingBuffer.reset(new RAS_InstancingBuffer());
 	}
 
-	RAS_IPolyMaterial *material = materialData->m_material;
+	RAS_IMaterial *material = materialData->m_material;
 
 	// Bind the instancing buffer to work on it.
 	m_instancingBuffer->Realloc(nummeshslots);
@@ -384,6 +384,6 @@ void RAS_DisplayArrayBucket::ChangeMaterialBucket(RAS_MaterialBucket *bucket)
 	m_bucket = bucket;
 
 	// Change of material update looking.
-	RAS_IPolyMaterial *material = bucket->GetMaterial();
-	material->MoveUpdateClient(&m_materialUpdateClient, RAS_IPolyMaterial::ATTRIBUTES_MODIFIED);
+	RAS_IMaterial *material = bucket->GetMaterial();
+	material->MoveUpdateClient(&m_materialUpdateClient, RAS_IMaterial::ATTRIBUTES_MODIFIED);
 }

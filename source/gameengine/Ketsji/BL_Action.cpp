@@ -180,8 +180,8 @@ bool BL_Action::Play(const std::string& name,
 	// Now try materials
 	for (KX_Mesh *mesh : m_obj->GetMeshList()) {
 		for (RAS_MeshMaterial *meshmat : mesh->GetMeshMaterialList()) {
-			RAS_IPolyMaterial *polymat = meshmat->GetBucket()->GetMaterial();
-			AddController(BL_CreateMaterialIpo(m_action, polymat, m_obj, kxscene));
+			RAS_IMaterial *mat = meshmat->GetBucket()->GetMaterial();
+			AddController(BL_CreateMaterialIpo(m_action, mat, m_obj, kxscene));
 		}
 	}
 

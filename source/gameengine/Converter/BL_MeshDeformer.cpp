@@ -36,7 +36,7 @@
 #  pragma warning( disable:4786 )
 #endif
 
-#include "RAS_IPolygonMaterial.h"
+#include "RAS_IMaterial.h"
 #include "RAS_DisplayArray.h"
 #include "BL_MeshDeformer.h"
 #include "KX_GameObject.h"

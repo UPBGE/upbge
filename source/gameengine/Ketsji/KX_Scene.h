@@ -78,7 +78,7 @@ class RAS_Mesh;
 class RAS_BoundingBoxManager;
 class RAS_BucketManager;
 class RAS_MaterialBucket;
-class RAS_IPolyMaterial;
+class RAS_IMaterial;
 class RAS_Rasterizer;
 class RAS_OffScreen;
 class RAS_2DFilterManager;
@@ -270,7 +270,6 @@ public:
 	RAS_BucketManager *GetBucketManager() const;
 	KX_TextureRendererManager *GetTextureRendererManager() const;
 	RAS_BoundingBoxManager *GetBoundingBoxManager() const;
-	RAS_MaterialBucket *FindBucket(RAS_IPolyMaterial *polymat, bool &bucketCreated);
 	void RenderBuckets(const std::vector<KX_GameObject *>& objects, RAS_Rasterizer::DrawType drawingMode,
 	                   const mt::mat3x4& cameratransform, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen);
 	void RenderTextureRenderers(KX_TextureRendererManager::RendererCategory category, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen,

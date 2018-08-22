@@ -40,7 +40,7 @@
 
 struct ImBuf;
 class RAS_Texture;
-class RAS_IPolyMaterial;
+class RAS_IMaterial;
 class KX_Scene;
 class KX_GameObject;
 
@@ -110,7 +110,7 @@ void loadTexture(unsigned int texId, unsigned int *texture, short *size,
 				 bool mipmap, unsigned int internalFormat);
 
 // get material
-RAS_IPolyMaterial *getMaterial(KX_GameObject *gameObj, short matID);
+RAS_IMaterial *getMaterial(KX_GameObject *gameObj, short matID);
 
 // get material ID
 short getMaterialID(PyObject *obj, const char *name);

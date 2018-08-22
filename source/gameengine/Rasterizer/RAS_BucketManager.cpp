@@ -37,7 +37,7 @@
 #include "RAS_MaterialBucket.h"
 #include "RAS_Mesh.h"
 #include "RAS_MeshUser.h"
-#include "RAS_IPolygonMaterial.h"
+#include "RAS_IMaterial.h"
 #include "RAS_Rasterizer.h"
 
 #include "RAS_BucketManager.h"
@@ -74,7 +74,7 @@ bool RAS_BucketManager::fronttoback::operator()(const SortedMeshSlot &a, const S
 	return (a.m_z > b.m_z) || (a.m_z == b.m_z && a.m_ms > b.m_ms);
 }
 
-RAS_BucketManager::RAS_BucketManager(RAS_IPolyMaterial *textMaterial)
+RAS_BucketManager::RAS_BucketManager(RAS_IMaterial *textMaterial)
 	:m_downwardNode(this, &m_nodeData, nullptr, nullptr),
 	m_upwardNode(this, &m_nodeData, nullptr, nullptr)
 {
@@ -99,7 +99,7 @@ void RAS_BucketManager::PrepareBuckets(RAS_Rasterizer *rasty, RAS_BucketManager:
 	}
 
 	for (RAS_MaterialBucket *bucket : m_buckets[bucketType]) {
-		RAS_IPolyMaterial *mat = bucket->GetMaterial();
+		RAS_IMaterial *mat = bucket->GetMaterial();
 		mat->Prepare(rasty);
 	}
 }
@@ -325,7 +325,7 @@ void RAS_BucketManager::Renderbuckets(RAS_Rasterizer::DrawType drawingMode, cons
 	rasty->SetClientObject(nullptr);
 }
 
-RAS_MaterialBucket *RAS_BucketManager::FindBucket(RAS_IPolyMaterial *material, bool &bucketCreated)
+RAS_MaterialBucket *RAS_BucketManager::FindBucket(RAS_IMaterial *material, bool &bucketCreated)
 {
 	bucketCreated = false;
 
@@ -369,7 +369,7 @@ RAS_DisplayArrayBucket *RAS_BucketManager::GetTextDisplayArrayBucket() const
 	return m_text.m_arrayBucket;
 }
 
-void RAS_BucketManager::ReloadMaterials(RAS_IPolyMaterial *mat)
+void RAS_BucketManager::ReloadMaterials(RAS_IMaterial *mat)
 {
 	for (RAS_MaterialBucket *bucket : m_buckets[ALL_BUCKET]) {
 		if (mat == nullptr || (mat == bucket->GetMaterial())) {
@@ -379,7 +379,7 @@ void RAS_BucketManager::ReloadMaterials(RAS_IPolyMaterial *mat)
 }
 
 /* frees the bucket, only used when freeing scenes */
-void RAS_BucketManager::RemoveMaterial(RAS_IPolyMaterial *mat)
+void RAS_BucketManager::RemoveMaterial(RAS_IMaterial *mat)
 {
 	for (unsigned short i = 0; i < NUM_BUCKET_TYPE; ++i) {
 		BucketList& buckets = m_buckets[i];

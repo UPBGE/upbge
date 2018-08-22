@@ -28,9 +28,9 @@
 #ifndef __KX_TEXTMATERIAL_H__
 #define __KX_TEXTMATERIAL_H__
 
-#include "RAS_IPolygonMaterial.h"
+#include "RAS_IMaterial.h"
 
-class KX_TextMaterial : public RAS_IPolyMaterial
+class KX_TextMaterial : public RAS_IMaterial
 {
 public:
 	KX_TextMaterial();

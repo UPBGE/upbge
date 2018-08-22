@@ -30,7 +30,7 @@
  */
 
 #include "RAS_MaterialBucket.h"
-#include "RAS_IPolygonMaterial.h"
+#include "RAS_IMaterial.h"
 #include "RAS_Rasterizer.h"
 #include "RAS_Mesh.h"
 #include "RAS_MeshUser.h"
@@ -46,7 +46,7 @@
 #  include <windows.h>
 #endif // WIN32
 
-RAS_MaterialBucket::RAS_MaterialBucket(RAS_IPolyMaterial *mat)
+RAS_MaterialBucket::RAS_MaterialBucket(RAS_IMaterial *mat)
 	:m_material(mat),
 	m_downwardNode(this, &m_nodeData, &RAS_MaterialBucket::BindNode, &RAS_MaterialBucket::UnbindNode),
 	m_upwardNode(this, &m_nodeData, &RAS_MaterialBucket::BindNode, &RAS_MaterialBucket::UnbindNode)
@@ -63,7 +63,7 @@ RAS_MaterialBucket::~RAS_MaterialBucket()
 {
 }
 
-RAS_IPolyMaterial *RAS_MaterialBucket::GetMaterial() const
+RAS_IMaterial *RAS_MaterialBucket::GetMaterial() const
 {
 	return m_material;
 }

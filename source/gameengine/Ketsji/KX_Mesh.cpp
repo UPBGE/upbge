@@ -36,7 +36,7 @@
 
 #include "BL_Converter.h"
 
-#include "RAS_IPolygonMaterial.h"
+#include "RAS_IMaterial.h"
 #include "RAS_DisplayArray.h"
 #include "RAS_BucketManager.h"
 #include "SCA_LogicManager.h"
@@ -477,8 +477,7 @@ PyObject *KX_Mesh::pyattr_get_materials(EXP_PyObjectPlus *self_v, const EXP_PYAT
 
 	for (unsigned short i = 0; i < tot; ++i) {
 		RAS_MeshMaterial *mmat = self->m_materials[i];
-		RAS_IPolyMaterial *polymat = mmat->GetBucket()->GetMaterial();
-		KX_BlenderMaterial *mat = static_cast<KX_BlenderMaterial *>(polymat);
+		KX_BlenderMaterial *mat = static_cast<KX_BlenderMaterial *>(mmat->GetBucket()->GetMaterial());
 		PyList_SET_ITEM(materials, i, mat->GetProxy());
 	}
 	return materials;

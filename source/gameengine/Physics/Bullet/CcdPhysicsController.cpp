@@ -32,7 +32,7 @@
 #include "CcdPhysicsEnvironment.h"
 
 #include "RAS_Deformer.h"
-#include "RAS_IPolygonMaterial.h"
+#include "RAS_IMaterial.h"
 #include "RAS_MaterialBucket.h"
 
 #include "KX_GameObject.h"
@@ -1844,7 +1844,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(KX_GameObject *gameobj, RAS_Mesh *mesh
 	// Compute indices count and maximum vertex count.
 	for (unsigned int i = 0, numMat = meshobj->GetNumMaterials(); i < numMat; ++i) {
 		RAS_MeshMaterial *meshmat = meshobj->GetMeshMaterial(i);
-		RAS_IPolyMaterial *mat = meshmat->GetBucket()->GetMaterial();
+		RAS_IMaterial *mat = meshmat->GetBucket()->GetMaterial();
 
 		RAS_DisplayArray *array = (deformer) ? deformer->GetDisplayArray(i) : meshmat->GetDisplayArray();
 		const unsigned int indicesCount = array->GetTriangleIndexCount();

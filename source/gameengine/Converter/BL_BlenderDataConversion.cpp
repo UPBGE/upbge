@@ -68,7 +68,7 @@
 #include "RAS_ICanvas.h"
 #include "RAS_BucketManager.h"
 #include "RAS_BoundingBoxManager.h"
-#include "RAS_IPolygonMaterial.h"
+#include "RAS_IMaterial.h"
 
 #include "SG_Node.h"
 #include "SG_BBox.h"
@@ -443,7 +443,7 @@ static RAS_MaterialBucket *BL_ConvertMaterial(Material *ma, KX_Scene *scene, BL_
 	// see if a bucket was reused or a new one was created
 	// this way only one KX_BlenderMaterial object has to exist per bucket
 	bool bucketCreated;
-	RAS_MaterialBucket *bucket = scene->FindBucket(mat, bucketCreated);
+	RAS_MaterialBucket *bucket = scene->GetBucketManager()->FindBucket(mat, bucketCreated);
 
 	return bucket;
 }
@@ -513,7 +513,7 @@ KX_Mesh *BL_ConvertMesh(Mesh *me, Object *blenderobj, KX_Scene *scene, BL_SceneC
 
 		RAS_MaterialBucket *bucket = BL_ConvertMaterial(ma, scene, converter);
 		RAS_MeshMaterial *meshmat = meshobj->AddMaterial(bucket, i, vertformat);
-		RAS_IPolyMaterial *mat = meshmat->GetBucket()->GetMaterial();
+		RAS_IMaterial *mat = meshmat->GetBucket()->GetMaterial();
 
 		mats[i] = {meshmat->GetDisplayArray(), bucket, mat->IsVisible(), mat->IsTwoSided(), mat->IsCollider(), mat->IsWire()};
 	}
@@ -1681,10 +1681,10 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 	for (KX_GameObject *gameobj : sumolist) {
 		for (KX_Mesh *mesh : gameobj->GetMeshList()) {
 			for (RAS_MeshMaterial *meshmat : mesh->GetMeshMaterialList()) {
-				RAS_IPolyMaterial *polymat = meshmat->GetBucket()->GetMaterial();
+				RAS_IMaterial *mat = meshmat->GetBucket()->GetMaterial();
 
 				for (unsigned short k = 0; k < RAS_Texture::MaxUnits; ++k) {
-					RAS_Texture *tex = polymat->GetTexture(k);
+					RAS_Texture *tex = mat->GetTexture(k);
 					if (!tex || !tex->Ok()) {
 						continue;
 					}
