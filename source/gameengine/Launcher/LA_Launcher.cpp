@@ -32,6 +32,7 @@
 #include "LA_SystemCommandLine.h"
 
 #include "RAS_ICanvas.h"
+#include "RAS_OverrideShader.h"
 
 #include "GPG_Canvas.h"
 
@@ -169,6 +170,8 @@ void LA_Launcher::InitEngine()
 		}
 	}
 	m_pythonConsole.use = (gm.flag & GAME_PYTHON_CONSOLE);
+
+	RAS_OverrideShader::InitShaders();
 
 	m_rasterizer = new RAS_Rasterizer();
 
@@ -355,6 +358,8 @@ void LA_Launcher::ExitEngine()
 		delete m_networkMessageManager;
 		m_networkMessageManager = nullptr;
 	}
+
+	RAS_OverrideShader::DeinitShaders();
 
 	// Call this after we're sure nothing needs Python anymore (e.g., destructors).
 	exitGamePython();

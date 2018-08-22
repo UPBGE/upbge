@@ -35,7 +35,6 @@
 RAS_IMaterial::RAS_IMaterial(const std::string& name)
 	:m_name(name),
 	m_drawingMode(0),
-	m_alphablend(0),
 	m_zoffset(0.0f),
 	m_rasMode(0),
 	m_flag(0)
@@ -89,14 +88,6 @@ bool RAS_IMaterial::IsCollider() const
 	return (m_rasMode & RAS_COLLIDER);
 }
 
-void RAS_IMaterial::GetRGBAColor(unsigned char *rgba) const
-{
-	*rgba++ = 0xFF;
-	*rgba++ = 0xFF;
-	*rgba++ = 0xFF;
-	*rgba++ = 0xFF;
-}
-
 bool RAS_IMaterial::IsAlpha() const
 {
 	return (m_rasMode & (RAS_ALPHA | RAS_ZSORT));
@@ -117,11 +108,6 @@ int RAS_IMaterial::GetDrawingMode() const
 	return m_drawingMode;
 }
 
-int RAS_IMaterial::GetAlphaBlend() const
-{
-	return m_alphablend;
-}
-
 float RAS_IMaterial::GetZOffset() const
 {
 	return m_zoffset;
@@ -137,12 +123,6 @@ unsigned int RAS_IMaterial::GetFlag() const
 	return m_flag;
 }
 
-bool RAS_IMaterial::UsesLighting() const
-{
-	// Return false only if material is shadeless.
-	return (m_flag & RAS_MULTILIGHT);
-}
-
 bool RAS_IMaterial::CastsShadows() const
 {
 	return (m_flag & RAS_CASTSHADOW) != 0;
@@ -156,4 +136,35 @@ bool RAS_IMaterial::OnlyShadow() const
 RAS_Texture *RAS_IMaterial::GetTexture(unsigned int index)
 {
 	return m_textures[index];
+}
+
+void RAS_IMaterial::UpdateTextures()
+{
+	/** We make sure that all gpu textures are the same in material textures here
+	 * than in gpu material.
+	 */
+	for (unsigned short i = 0; i < RAS_Texture::MaxUnits; i++) {
+		RAS_Texture *tex = m_textures[i];
+		if (tex && tex->Ok()) {
+			tex->CheckValidTexture();
+		}
+	}
+}
+
+void RAS_IMaterial::ActivateTextures()
+{
+	for (unsigned short i = 0; i < RAS_Texture::MaxUnits; i++) {
+		if (m_textures[i] && m_textures[i]->Ok()) {
+			m_textures[i]->ActivateTexture(i);
+		}
+	}
+}
+
+void RAS_IMaterial::DeactivateTextures()
+{
+	for (unsigned short i = 0; i < RAS_Texture::MaxUnits; i++) {
+		if (m_textures[i] && m_textures[i]->Ok()) {
+			m_textures[i]->DisableTexture();
+		}
+	}
 }

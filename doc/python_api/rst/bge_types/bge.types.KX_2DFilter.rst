@@ -1,11 +1,11 @@
-KX_2DFilter(BL_Shader)
+KX_2DFilter(KX_Shader)
 ======================
 
-base class --- :class:`BL_Shader`
+base class --- :class:`KX_Shader`
 
-.. class:: KX_2DFilter(BL_Shader)
+.. class:: KX_2DFilter(KX_Shader)
 
-   2D filter shader object. Can be alterated with :class:`BL_Shader`'s functions.
+   2D filter shader object. Can be alterated with :class:`KX_Shader`'s functions.
 
    .. warning::
 
@@ -43,7 +43,7 @@ base class --- :class:`BL_Shader`
    .. method:: setTexture(index, bindCode, samplerName="")
 
       Set specified texture bind code :data:`bindCode` in specified slot :data:`index`. Any call to :data:`setTexture`
-      should be followed by a call to :data:`BL_Shader.setSampler` with the same :data:`index` if :data:`sampleName` is not specified.
+      should be followed by a call to :data:`KX_Shader.setSampler` with the same :data:`index` if :data:`sampleName` is not specified.
 
       :arg index: The texture slot.
       :type index: integer
@@ -55,7 +55,7 @@ base class --- :class:`BL_Shader`
    .. method:: setCubeMap(index, bindCode, samplerName="")
 
       Set specified cube map texture bind code :data:`bindCode` in specified slot :data:`index`. Any call to :data:`setCubeMap`
-      should be followed by a call to :data:`BL_Shader.setSampler` with the same :data:`index` if :data:`sampleName` is not specified.
+      should be followed by a call to :data:`KX_Shader.setSampler` with the same :data:`index` if :data:`sampleName` is not specified.
 
       :arg index: The texture slot.
       :type index: integer

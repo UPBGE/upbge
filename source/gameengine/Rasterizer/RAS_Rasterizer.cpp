@@ -223,9 +223,7 @@ RAS_Rasterizer::RAS_Rasterizer()
 	m_clientobject(nullptr),
 	m_auxilaryClientInfo(nullptr),
 	m_drawingmode(RAS_TEXTURED),
-	m_shadowMode(RAS_SHADOW_NONE),
-	m_invertFrontFace(false),
-	m_overrideShader(RAS_OVERRIDE_SHADER_NONE)
+	m_invertFrontFace(false)
 {
 	m_impl.reset(new RAS_OpenGLRasterizer(this));
 	m_debugDrawImpl.reset(new RAS_OpenGLDebugDraw());
@@ -369,16 +367,6 @@ void RAS_Rasterizer::SetDrawingMode(RAS_Rasterizer::DrawType drawingmode)
 RAS_Rasterizer::DrawType RAS_Rasterizer::GetDrawingMode()
 {
 	return m_drawingmode;
-}
-
-void RAS_Rasterizer::SetShadowMode(RAS_Rasterizer::ShadowType shadowmode)
-{
-	m_shadowMode = shadowmode;
-}
-
-RAS_Rasterizer::ShadowType RAS_Rasterizer::GetShadowMode()
-{
-	return m_shadowMode;
 }
 
 void RAS_Rasterizer::SetDepthMask(DepthMask depthmask)
@@ -1104,68 +1092,6 @@ void RAS_Rasterizer::InitOverrideShadersInterface()
 				GPU_shader_set_interface(shader, interface);
 			}
 		}
-	}
-}
-
-GPUShader *RAS_Rasterizer::GetOverrideGPUShader(OverrideShaderType type)
-{
-	GPUShader *shader = nullptr;
-	switch (type) {
-		case RAS_OVERRIDE_SHADER_NONE:
-		{
-			break;
-		}
-		case RAS_OVERRIDE_SHADER_BLACK:
-		{
-			shader = GPU_shader_get_builtin_shader(GPU_SHADER_BLACK);
-			break;
-		}
-		case RAS_OVERRIDE_SHADER_BLACK_INSTANCING:
-		{
-			shader = GPU_shader_get_builtin_shader(GPU_SHADER_BLACK_INSTANCING);
-			break;
-		}
-		case RAS_OVERRIDE_SHADER_SHADOW_VARIANCE:
-		{
-			shader = GPU_shader_get_builtin_shader(GPU_SHADER_VSM_STORE);
-			break;
-		}
-		case RAS_OVERRIDE_SHADER_SHADOW_VARIANCE_INSTANCING:
-		{
-			shader = GPU_shader_get_builtin_shader(GPU_SHADER_VSM_STORE_INSTANCING);
-			break;
-		}
-	}
-
-	return shader;
-}
-
-void RAS_Rasterizer::SetOverrideShader(RAS_Rasterizer::OverrideShaderType type)
-{
-	if (type == m_overrideShader) {
-		return;
-	}
-
-	GPUShader *shader = GetOverrideGPUShader(type);
-	if (shader) {
-		GPU_shader_bind(shader);
-	}
-	else {
-		GPU_shader_unbind();
-	}
-	m_overrideShader = type;
-}
-
-RAS_Rasterizer::OverrideShaderType RAS_Rasterizer::GetOverrideShader()
-{
-	return m_overrideShader;
-}
-
-void RAS_Rasterizer::ActivateOverrideShaderInstancing(RAS_InstancingBuffer *buffer)
-{
-	GPUShader *shader = GetOverrideGPUShader(m_overrideShader);
-	if (shader) {
-		GPU_shader_bind_instancing_attrib(shader, (void *)buffer->GetMatrixOffset(), (void *)buffer->GetPositionOffset());
 	}
 }
 

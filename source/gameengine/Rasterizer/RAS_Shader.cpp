@@ -169,9 +169,6 @@ RAS_Shader::RAS_Shader()
 	m_error(false),
 	m_dirty(true)
 {
-	for (unsigned short i = 0; i < MAX_PROGRAM; ++i) {
-		m_progs[i] = "";
-	}
 }
 
 RAS_Shader::~RAS_Shader()
@@ -364,7 +361,7 @@ void RAS_Shader::ExtractUniformInfos()
 	std::sort(m_uniformInfos.begin(), m_uniformInfos.end());
 }
 
-bool RAS_Shader::GetError()
+bool RAS_Shader::GetError() const
 {
 	return m_error;
 }

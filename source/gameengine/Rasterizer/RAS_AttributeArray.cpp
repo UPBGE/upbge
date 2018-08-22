@@ -28,14 +28,12 @@
 #include "RAS_AttributeArrayStorage.h"
 #include "RAS_DisplayArray.h"
 
-RAS_AttributeArray::RAS_AttributeArray(RAS_DisplayArray *array)
-	:m_array(array)
+RAS_AttributeArray::RAS_AttributeArray()
 {
 }
 
 RAS_AttributeArray::RAS_AttributeArray(const AttribList& attribs, RAS_DisplayArray *array)
-	:m_attribs(attribs),
-	m_array(array)
+	:m_storage(new RAS_AttributeArrayStorage(array->GetLayout(), &array->GetStorage(), attribs))
 {
 }
 
@@ -45,29 +43,12 @@ RAS_AttributeArray::~RAS_AttributeArray()
 
 RAS_AttributeArray& RAS_AttributeArray::operator=(RAS_AttributeArray&& other)
 {
-	m_array = other.m_array;
-	m_attribs = std::move(other.m_attribs);
-
-	for (std::unique_ptr<RAS_AttributeArrayStorage>& storage : m_storages) {
-		storage.reset(nullptr);
-	}
+	m_storage = std::move(other.m_storage);
 
 	return *this;
 }
 
-RAS_AttributeArrayStorage *RAS_AttributeArray::GetStorage(RAS_Rasterizer::DrawType drawingMode)
+RAS_AttributeArrayStorage *RAS_AttributeArray::GetStorage() const
 {
-	std::unique_ptr<RAS_AttributeArrayStorage>& storage = m_storages[drawingMode];
-	if (!storage) {
-		storage.reset(new RAS_AttributeArrayStorage(m_array->GetLayout(), &m_array->GetStorage(), m_attribs));
-	}
-
-	return storage.get();
-}
-
-void RAS_AttributeArray::Clear()
-{
-	for (std::unique_ptr<RAS_AttributeArrayStorage> &storage : m_storages) {
-		storage.reset(nullptr);
-	}
+	return m_storage.get();
 }

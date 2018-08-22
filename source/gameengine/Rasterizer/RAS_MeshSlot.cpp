@@ -31,7 +31,7 @@
 
 #include "RAS_MeshSlot.h"
 #include "RAS_MeshUser.h"
-#include "RAS_IMaterial.h"
+#include "RAS_IMaterialShader.h"
 #include "RAS_DisplayArray.h"
 #include "RAS_DisplayArrayStorage.h"
 #include "RAS_Mesh.h"
@@ -81,18 +81,20 @@ void RAS_MeshSlot::GenerateTree(RAS_DisplayArrayUpwardNode& root, RAS_UpwardTree
 void RAS_MeshSlot::RunNode(const RAS_MeshSlotNodeTuple& tuple)
 {
 	RAS_ManagerNodeData *managerData = tuple.m_managerData;
+	RAS_ShaderNodeData *shaderData = tuple.m_shaderData;
 	RAS_MaterialNodeData *materialData = tuple.m_materialData;
 	RAS_DisplayArrayNodeData *displayArrayData = tuple.m_displayArrayData;
 	RAS_Rasterizer *rasty = managerData->m_rasty;
+
 	rasty->SetClientObject(m_meshUser->GetClientObject());
 	rasty->SetFrontFace(m_meshUser->GetFrontFace());
 
 	RAS_DisplayArrayStorage *storage = displayArrayData->m_arrayStorage;
 
-	if (!managerData->m_shaderOverride) {
-		materialData->m_material->ActivateMeshUser(m_meshUser, rasty, managerData->m_trans);
+	shaderData->m_shader->ActivateMeshUser(m_meshUser, rasty, managerData->m_trans);
 
-		if (materialData->m_zsort && storage) {
+	{
+		if (materialData->m_zsort && storage) { // TODO not with shadow actualiser m_zsort avec le mode de shader
 			displayArrayData->m_array->SortPolygons(
 					managerData->m_trans * mt::mat4::ToAffineTransform(m_meshUser->GetMatrix()), storage->GetIndexMap());
 			storage->FlushIndexMap();

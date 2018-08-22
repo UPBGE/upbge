@@ -1,9 +1,9 @@
-KX_BlenderMaterial(EXP_PyObjectPlus)
+BL_Material(EXP_PyObjectPlus)
 ====================================
 
 base class --- :class:`EXP_PyObjectPlus`
 
-.. class:: KX_BlenderMaterial(EXP_PyObjectPlus)
+.. class:: BL_Material(EXP_PyObjectPlus)
 
    This is the interface to materials in the game engine.
 
@@ -66,7 +66,7 @@ base class --- :class:`EXP_PyObjectPlus`
 
       The material's shader.
 
-      :type: :class:`BL_Shader`
+      :type: :class:`KX_MaterialShader`
 
    .. attribute:: blending
 
@@ -79,7 +79,7 @@ base class --- :class:`EXP_PyObjectPlus`
       Returns the material's shader.
 
       :return: the material's shader
-      :rtype: :class:`BL_Shader`
+      :rtype: :class:`KX_MaterialShader`
 
    .. method:: getTextureBindcode(textureslot)
 

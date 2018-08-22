@@ -48,7 +48,7 @@
 #include "KX_NavMeshObject.h"
 #include "KX_Mesh.h"
 #include "KX_PolyProxy.h"
-#include "KX_BlenderMaterial.h"
+#include "BL_Material.h"
 #include "SG_Controller.h"
 #include "PHY_IGraphicController.h"
 #include "SG_Node.h"
@@ -605,7 +605,7 @@ void KX_GameObject::RemoveRessources(const BL_Resource::Library& libraryId)
 		else {
 			// If one of the material used by the mesh comes from this library, remove all meshes too.
 			for (RAS_MeshMaterial *meshmat : mesh->GetMeshMaterialList()) {
-				if (static_cast<KX_BlenderMaterial *>(meshmat->GetBucket()->GetMaterial())->Belong(libraryId)) {
+				if (static_cast<BL_Material *>(meshmat->GetBucket()->GetMaterial())->Belong(libraryId)) {
 					RemoveMeshes();
 					break;
 				}

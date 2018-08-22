@@ -165,7 +165,7 @@ public:
 	virtual ~RAS_Shader();
 
 
-	bool GetError();
+	bool GetError() const;
 	bool Ok() const;
 	GPUShader *GetGPUShader();
 

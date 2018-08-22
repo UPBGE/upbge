@@ -869,8 +869,14 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 
 				/* render */
 				m_rasterizer->Clear(RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT | RAS_Rasterizer::RAS_COLOR_BUFFER_BIT);
+
+				static const RAS_Rasterizer::DrawType drawingModeTable[] = {
+					RAS_Rasterizer::RAS_SHADOW, // RAS_ILightObject::SHADOW_SIMPLE
+					RAS_Rasterizer::RAS_SHADOW_VARIANCE // RAS_ILightObject::SHADOW_VARIANCE
+				};
+
 				// Send a nullptr off screen because the viewport is binding it's using its own private one.
-				scene->RenderBuckets(objects, RAS_Rasterizer::RAS_SHADOW, camtrans, m_rasterizer, nullptr);
+				scene->RenderBuckets(objects, drawingModeTable[raslight->m_shadowType], camtrans, m_rasterizer, nullptr);
 
 				/* unbind framebuffer object, restore drawmode, free camera */
 				raslight->UnbindShadowBuffer();

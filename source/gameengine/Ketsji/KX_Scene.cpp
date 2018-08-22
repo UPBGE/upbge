@@ -39,8 +39,7 @@
 #include "KX_Globals.h"
 #include "BLI_utildefines.h"
 #include "KX_KetsjiEngine.h"
-#include "KX_BlenderMaterial.h"
-#include "KX_TextMaterial.h"
+#include "BL_Material.h"
 #include "KX_FontObject.h"
 #include "RAS_IMaterial.h"
 #include "EXP_ListValue.h"
@@ -189,7 +188,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_networkScene = new KX_NetworkMessageScene(messageManager);
 
 	m_rendererManager = new KX_TextureRendererManager(this);
-	m_bucketmanager = new RAS_BucketManager(KX_TextMaterial::GetSingleton());
+	m_bucketmanager = new RAS_BucketManager();
 	m_boundingBoxManager = new RAS_BoundingBoxManager();
 
 	m_animationPool = BLI_task_pool_create(KX_GetActiveEngine()->GetTaskScheduler(), &m_animationPoolData);
@@ -1417,7 +1416,7 @@ void KX_Scene::RenderBuckets(const std::vector<KX_GameObject *>& objects, RAS_Ra
 	}
 
 	m_bucketmanager->Renderbuckets(drawingMode, cameratransform, rasty, offScreen);
-	KX_BlenderMaterial::EndFrame(rasty);
+	BL_Material::EndFrame(rasty);
 }
 
 void KX_Scene::RenderTextureRenderers(KX_TextureRendererManager::RendererCategory category, RAS_Rasterizer *rasty,

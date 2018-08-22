@@ -175,7 +175,7 @@ bool KX_TextureRendererManager::RenderRenderer(RAS_Rasterizer *rasty, KX_Texture
 		// Now the objects are culled and we can render the scene.
 		m_scene->GetWorldInfo()->RenderBackground(rasty);
 		// Send a nullptr off screen because we use a set of FBO with shared textures, not an off screen.
-		m_scene->RenderBuckets(objects, RAS_Rasterizer::RAS_RENDERER, camtrans, rasty, nullptr);
+		m_scene->RenderBuckets(objects, RAS_Rasterizer::RAS_TEXTURED, camtrans, rasty, nullptr);
 
 		renderer->EndRenderFace(rasty);
 	}

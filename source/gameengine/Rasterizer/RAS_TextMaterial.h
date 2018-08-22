@@ -20,32 +20,26 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file KX_TextMaterial.h
+/** \file RAS_TextMaterial.h
  *  \ingroup ketsji
  *  \brief Fake material used for all text objects.
  */
 
-#ifndef __KX_TEXTMATERIAL_H__
-#define __KX_TEXTMATERIAL_H__
+#ifndef __RAS_TEXTMATERIAL_H__
+#define __RAS_TEXTMATERIAL_H__
 
 #include "RAS_IMaterial.h"
 
-class KX_TextMaterial : public RAS_IMaterial
+class RAS_TextMaterial : public RAS_IMaterial
 {
 public:
-	KX_TextMaterial();
-	virtual ~KX_TextMaterial();
+	RAS_TextMaterial();
+	virtual ~RAS_TextMaterial();
 
-	virtual void Prepare(RAS_Rasterizer *rasty);
-	virtual void Activate(RAS_Rasterizer *rasty);
-	virtual void Desactivate(RAS_Rasterizer *rasty);
-	virtual void ActivateInstancing(RAS_Rasterizer *rasty, RAS_InstancingBuffer *buffer);
-	virtual void DesactivateInstancing();
-	virtual void ActivateMeshUser(RAS_MeshUser *meshUser, RAS_Rasterizer *rasty, const mt::mat3x4& camtrans);
+	virtual void Prepare();
 
+	virtual RAS_IMaterialShader *GetShader(RAS_Rasterizer::DrawType drawingMode) const;
 	virtual const std::string GetTextureName() const;
-	virtual Material *GetBlenderMaterial() const;
-	virtual Scene *GetBlenderScene() const;
 	virtual SCA_IScene *GetScene() const;
 	virtual bool UseInstancing() const;
 	virtual void ReloadMaterial();
@@ -53,10 +47,7 @@ public:
 	virtual void UpdateIPO(const mt::vec4 &rgba, const mt::vec3 &specrgb, float hard, float spec, float ref,
 						   float emit, float ambient, float alpha, float specalpha);
 
-	virtual const RAS_AttributeArray::AttribList GetAttribs(const RAS_Mesh::LayersInfo& layersInfo) const;
-	virtual RAS_InstancingBuffer::Attrib GetInstancingAttribs() const;
-
-	static KX_TextMaterial *GetSingleton();
+	static RAS_TextMaterial *GetSingleton();
 };
 
-#endif  // __KX_TEXTMATERIAL_H__
+#endif  // __RAS_TEXTMATERIAL_H__

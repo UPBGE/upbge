@@ -49,7 +49,7 @@ base class --- :class:`EXP_Value`
 
    .. attribute:: materials
 
-      :type: list of :class:`KX_BlenderMaterial` type
+      :type: list of :class:`BL_Material` type
 
    .. attribute:: numPolygons
 
@@ -142,7 +142,7 @@ base class --- :class:`EXP_Value`
       :arg matid: The material index.
       :type matid: integer
       :arg material: The material replacement.
-      :type material: :class:`KX_BlenderMaterial`
+      :type material: :class:`BL_Material`
 
       .. warning::
 

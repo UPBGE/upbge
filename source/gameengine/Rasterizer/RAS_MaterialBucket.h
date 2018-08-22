@@ -37,49 +37,35 @@
 class RAS_IMaterial;
 class RAS_Rasterizer;
 
-/* Contains a list of display arrays with the same material,
- * and a mesh slot for each mesh that uses display arrays in
- * this bucket */
-
 class RAS_MaterialBucket
 {
+private:
+	RAS_IMaterial *m_material;
+	RAS_DisplayArrayBucketList m_displayArrayBucketList;
+
+	RAS_MaterialDownwardNode m_downwardNode;
+	RAS_MaterialUpwardNode m_upwardNode;
+	RAS_MaterialNodeData m_nodeData;
+
 public:
 	RAS_MaterialBucket(RAS_IMaterial *mat);
 	virtual ~RAS_MaterialBucket();
 
 	// Material Properties
 	RAS_IMaterial *GetMaterial() const;
-	bool IsAlpha() const;
-	bool IsZSort() const;
-	bool IsWire() const;
-	bool UseInstancing() const;
-
-	// Rendering
-	void ActivateMaterial(RAS_Rasterizer *rasty);
-	void DesactivateMaterial(RAS_Rasterizer *rasty);
 
 	// Render nodes.
 	void GenerateTree(RAS_ManagerDownwardNode& downwardRoot, RAS_ManagerUpwardNode& upwardRoot,
-			RAS_UpwardTreeLeafs& upwardLeafs, RAS_Rasterizer::DrawType drawingMode, bool sort);
+			RAS_UpwardTreeLeafs& upwardLeafs, RAS_Rasterizer *rasty, RAS_Rasterizer::DrawType drawingMode,
+			bool sort);
 	void BindNode(const RAS_MaterialNodeTuple& tuple);
-	void UnbindNode(const RAS_MaterialNodeTuple& tuple);
 
 	void RemoveActiveMeshSlots();
 
 	void AddDisplayArrayBucket(RAS_DisplayArrayBucket *bucket);
 	void RemoveDisplayArrayBucket(RAS_DisplayArrayBucket *bucket);
 
-	RAS_DisplayArrayBucketList& GetDisplayArrayBucketList();
-
 	void MoveDisplayArrayBucket(RAS_MeshMaterial *meshmat, RAS_MaterialBucket *bucket);
-
-private:
-	RAS_IMaterial *m_material;
-	RAS_DisplayArrayBucketList m_displayArrayBucketList;
-
-	RAS_MaterialNodeData m_nodeData;
-	RAS_MaterialDownwardNode m_downwardNode;
-	RAS_MaterialUpwardNode m_upwardNode;
 };
 
 #endif  // __RAS_MATERIAL_BUCKET_H__

@@ -35,6 +35,7 @@
 #include "RAS_AttributeArrayStorage.h"
 #include "RAS_MaterialBucket.h"
 #include "RAS_IMaterial.h"
+#include "RAS_IMaterialShader.h"
 #include "RAS_Mesh.h"
 #include "RAS_MeshUser.h"
 #include "RAS_Deformer.h"
@@ -61,7 +62,6 @@ RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_D
 	m_meshMaterial(meshmat),
 	m_deformer(deformer),
 	m_arrayStorage(nullptr),
-	m_attribArray(m_displayArray),
 	m_materialUpdateClient(RAS_IMaterial::ATTRIBUTES_MODIFIED, RAS_IMaterial::ATTRIBUTES_MODIFIED),
 	m_arrayUpdateClient(RAS_DisplayArray::ANY_MODIFIED, RAS_DisplayArray::STORAGE_INVALID),
 	m_instancingNode(this, &m_nodeData, &RAS_DisplayArrayBucket::RunInstancingNode, nullptr),
@@ -134,7 +134,7 @@ bool RAS_DisplayArrayBucket::UseBatching() const
 	return (m_displayArray && m_displayArray->GetType() == RAS_DisplayArray::BATCHING);
 }
 
-void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_Rasterizer::DrawType drawingMode, bool instancing)
+void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_Rasterizer::DrawType drawingMode, RAS_IMaterialShader::GeomType geomMode)
 {
 	if (m_deformer) {
 		m_deformer->Apply(m_displayArray);
@@ -148,8 +148,6 @@ void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_Rasterizer::DrawType draw
 			}
 			else if (modifiedFlag & RAS_DisplayArray::SIZE_MODIFIED) {
 				m_arrayStorage->UpdateSize();
-				// Invalidate all existing attribute storages.
-				m_attribArray.Clear();
 			}
 			// Set the display array storage modified if the mesh is modified.
 			else if (modifiedFlag & RAS_DisplayArray::MESH_MODIFIED) {
@@ -162,22 +160,30 @@ void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_Rasterizer::DrawType draw
 			}
 		}
 
-		if (m_materialUpdateClient.GetInvalidAndClear()) {
+		/* Recreate the attribute (linking the shaders to a mesh) when the material changed
+		 * or the mesh (display array) was resized.
+		 */
+		if (m_materialUpdateClient.GetInvalidAndClear() || modifiedFlag & RAS_DisplayArray::SIZE_MODIFIED) {
 			RAS_IMaterial *mat = m_bucket->GetMaterial();
 			const RAS_Mesh::LayersInfo& layersInfo = m_mesh->GetLayersInfo();
-			const RAS_AttributeArray::AttribList attribList = mat->GetAttribs(layersInfo);
 
-			m_attribArray = RAS_AttributeArray(attribList, m_displayArray);
+			// Construct the attribute array for all shader used by the material.
+			for (unsigned short i = 0; i < RAS_Rasterizer::RAS_DRAW_MAX; ++i) {
+				RAS_IMaterialShader *shader = mat->GetShader((RAS_Rasterizer::DrawType)i);
+				const RAS_AttributeArray::AttribList attribList = shader->GetAttribs(layersInfo);
+				m_attribArrays[i] = RAS_AttributeArray(attribList, m_displayArray);
+			}
 		}
 
-		m_nodeData.m_attribStorage = m_attribArray.GetStorage(drawingMode);
+		m_nodeData.m_attribStorage = m_attribArrays[drawingMode].GetStorage();
 	}
 
-	if (instancing) {
+	if (geomMode == RAS_IMaterialShader::GEOM_INSTANCING) {
 		// Create the instancing buffer only if needed.
 		if (!m_instancingBuffer[drawingMode]) {
 			RAS_IMaterial *mat = m_bucket->GetMaterial();
-			m_instancingBuffer[drawingMode].reset(new RAS_InstancingBuffer(mat->GetInstancingAttribs()));
+			RAS_IMaterialShader *shader = mat->GetShader(drawingMode);
+			m_instancingBuffer[drawingMode].reset(new RAS_InstancingBuffer(shader->GetInstancingAttribs()));
 		}
 
 		m_nodeData.m_instancingBuffer = m_instancingBuffer[drawingMode].get();
@@ -185,16 +191,17 @@ void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_Rasterizer::DrawType draw
 }
 
 void RAS_DisplayArrayBucket::GenerateTree(RAS_MaterialDownwardNode& downwardRoot, RAS_MaterialUpwardNode& upwardRoot,
-                                          RAS_UpwardTreeLeafs& upwardLeafs, RAS_Rasterizer::DrawType drawingMode, bool sort, bool instancing)
+		RAS_UpwardTreeLeafs& upwardLeafs, RAS_Rasterizer::DrawType drawingMode, bool sort,
+		RAS_IMaterialShader::GeomType geomMode)
 {
 	if (m_activeMeshSlots.empty()) {
 		return;
 	}
 
 	// Update deformer and render settings.
-	UpdateActiveMeshSlots(drawingMode, instancing);
+	UpdateActiveMeshSlots(drawingMode, geomMode);
 
-	if (instancing) {
+	if (geomMode == RAS_IMaterialShader::GEOM_INSTANCING) {
 		downwardRoot.AddChild(&m_instancingNode);
 	}
 	else if (UseBatching()) {
@@ -248,12 +255,13 @@ void RAS_DisplayArrayBucket::RunDownwardNodeNoArray(const RAS_DisplayArrayNodeTu
 void RAS_DisplayArrayBucket::RunInstancingNode(const RAS_DisplayArrayNodeTuple& tuple)
 {
 	RAS_ManagerNodeData *managerData = tuple.m_managerData;
+	RAS_ShaderNodeData *shaderData = tuple.m_shaderData;
 	RAS_MaterialNodeData *materialData = tuple.m_materialData;
 	RAS_Rasterizer *rasty = managerData->m_rasty;
 
 	const unsigned int nummeshslots = m_activeMeshSlots.size();
 
-	RAS_IMaterial *material = materialData->m_material;
+	RAS_IMaterialShader *shader = shaderData->m_shader;
 	RAS_InstancingBuffer *buffer = m_nodeData.m_instancingBuffer;
 
 	// Bind the instancing buffer to work on it.
@@ -293,17 +301,7 @@ void RAS_DisplayArrayBucket::RunInstancingNode(const RAS_DisplayArrayNodeTuple& 
 	buffer->Bind();
 
 	// Bind all vertex attributs for the used material and the given buffer offset.
-	if (managerData->m_shaderOverride) {
-		rasty->ActivateOverrideShaderInstancing(buffer);
-	}
-	else {
-		material->ActivateInstancing(rasty, buffer);
-	}
-
-	/* Because the geometry instancing use setting for all instances we use the original alpha blend.
-	 * This requierd that the user use "alpha blend" mode if he will mutate object color alpha.
-	 */
-	rasty->SetAlphaBlend(material->GetAlphaBlend());
+	shader->ActivateInstancing(rasty, buffer);
 
 	/* It's a major issue of the geometry instancing : we can't manage face wise.
 	 * To be sure we don't use the old face wise we force it to true. */
@@ -321,9 +319,9 @@ void RAS_DisplayArrayBucket::RunInstancingNode(const RAS_DisplayArrayNodeTuple& 
 void RAS_DisplayArrayBucket::RunBatchingNode(const RAS_DisplayArrayNodeTuple& tuple)
 {
 	RAS_ManagerNodeData *managerData = tuple.m_managerData;
-	RAS_MaterialNodeData *materialData = tuple.m_materialData;
+	RAS_ShaderNodeData *shaderData = tuple.m_shaderData;
 
-	RAS_IMaterial *material = materialData->m_material;
+	RAS_IMaterialShader *shader = shaderData->m_shader;
 	const unsigned int nummeshslots = m_activeMeshSlots.size();
 
 	// We must use a int instead of unsigned size to match GLsizei type.
@@ -362,11 +360,6 @@ void RAS_DisplayArrayBucket::RunBatchingNode(const RAS_DisplayArrayNodeTuple& tu
 
 	RAS_Rasterizer *rasty = managerData->m_rasty;
 
-	/* Because the batching use setting for all instances we use the original alpha blend.
-	 * This requierd that the user use "alpha blend" mode if he will mutate object color alpha.
-	 */
-	rasty->SetAlphaBlend(materialData->m_material->GetAlphaBlend());
-
 	/* It's a major issue of the batching : we can't manage face wise per object.
 	 * To be sure we don't use the old face wise we force it to true. */
 	rasty->SetFrontFace(true);
@@ -374,7 +367,7 @@ void RAS_DisplayArrayBucket::RunBatchingNode(const RAS_DisplayArrayNodeTuple& tu
 	// Retrieve batch group from first active mesh slot.
 	RAS_BatchGroup *group = m_activeMeshSlots.front()->m_meshUser->GetBatchGroup();
 	// Use batch group reference mesh user for layer and object color.
-	material->ActivateMeshUser(group->GetReferenceMeshUser(), rasty, managerData->m_trans);
+	shader->ActivateMeshUser(group->GetReferenceMeshUser(), rasty, managerData->m_trans);
 
 	RAS_AttributeArrayStorage *attribStorage = m_nodeData.m_attribStorage;
 	attribStorage->BindPrimitives();

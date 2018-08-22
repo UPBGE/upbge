@@ -50,6 +50,12 @@ public:
 		LIGHT_HEMI
 	};
 
+	enum ShadowType
+	{
+		SHADOW_SIMPLE = 0,
+		SHADOW_VARIANCE
+	};
+
 	bool	m_modified;
 	int		m_layer;
 	void	*m_scene;
@@ -74,6 +80,7 @@ public:
 	float	m_spotblend;
 
 	LightType	m_type;
+	ShadowType m_shadowType;
 	
 	bool	m_nodiffuse;
 	bool	m_nospecular;

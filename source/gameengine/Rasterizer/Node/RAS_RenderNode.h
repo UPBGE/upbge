@@ -35,12 +35,13 @@ class RAS_MaterialBucket;
 class RAS_DisplayArray;
 class RAS_DisplayArrayBucket;
 class RAS_MeshSlot;
-class RAS_IMaterial;
+class RAS_IMaterialShader;
 class RAS_Rasterizer;
 class RAS_DisplayArrayStorage;
 class RAS_AttributeArrayStorage;
 
 class RAS_MaterialDownwardNode;
+class RAS_ShaderDownwardNode;
 class RAS_ManagerDownwardNode;
 class RAS_DisplayArrayDownwardNode;
 
@@ -55,12 +56,15 @@ struct RAS_ManagerNodeData
 	RAS_Rasterizer *m_rasty;
 	RAS_Rasterizer::DrawType m_drawingMode;
 	bool m_sort;
-	bool m_shaderOverride;
+};
+
+struct RAS_ShaderNodeData
+{
+	RAS_IMaterialShader *m_shader;
 };
 
 struct RAS_MaterialNodeData
 {
-	RAS_IMaterial *m_material;
 	int m_drawingMode;
 	bool m_cullFace;
 	bool m_zsort;
@@ -81,13 +85,25 @@ struct RAS_MeshSlotNodeData
 {
 };
 
-/// Data passed to material node.
-struct RAS_MaterialNodeTuple
+/// Data passed to shader node.
+struct RAS_ShaderNodeTuple
 {
 	RAS_ManagerNodeData *m_managerData;
 
-	RAS_MaterialNodeTuple(const RAS_DummyNodeTuple& dummyTuple, RAS_ManagerNodeData *managerData)
+	RAS_ShaderNodeTuple(const RAS_DummyNodeTuple& dummyTuple, RAS_ManagerNodeData *managerData)
 		:m_managerData(managerData)
+	{
+	}
+};
+
+/// Data passed to material node.
+struct RAS_MaterialNodeTuple : RAS_ShaderNodeTuple
+{
+	RAS_ShaderNodeData *m_shaderData;
+
+	RAS_MaterialNodeTuple(const RAS_ShaderNodeTuple& shaderTuple, RAS_ShaderNodeData *shaderData)
+		:RAS_ShaderNodeTuple(shaderTuple),
+		m_shaderData(shaderData)
 	{
 	}
 };
@@ -128,6 +144,14 @@ struct RAS_ManagerNodeInfo
 	using Leaf = std::false_type;
 };
 
+struct RAS_ShaderNodeInfo
+{
+	using OwnerType = RAS_IMaterialShader;
+	using DataType = RAS_ShaderNodeData;
+	using TupleType = RAS_ShaderNodeTuple;
+	using Leaf = std::false_type;
+};
+
 struct RAS_MaterialNodeInfo
 {
 	using OwnerType = RAS_MaterialBucket;
@@ -162,15 +186,26 @@ struct RAS_MeshSlotNodeInfo
 	using Leaf = std::true_type;
 };
 
-class RAS_ManagerDownwardNode : public RAS_DownwardNode<RAS_ManagerNodeInfo, RAS_MaterialDownwardNode>
+class RAS_ManagerDownwardNode : public RAS_DownwardNode<RAS_ManagerNodeInfo, RAS_ShaderDownwardNode>
 {
 public:
 	RAS_ManagerDownwardNode(OwnerType *owner, DataType *data, Function bind, Function unbind)
-		:RAS_DownwardNode<RAS_ManagerNodeInfo, RAS_MaterialDownwardNode>::RAS_DownwardNode(owner, data, bind, unbind)
+		:RAS_DownwardNode<RAS_ManagerNodeInfo, RAS_ShaderDownwardNode>::RAS_DownwardNode(owner, data, bind, unbind)
 	{
 	}
 
 	RAS_ManagerDownwardNode() = default;
+};
+
+class RAS_ShaderDownwardNode : public RAS_DownwardNode<RAS_ShaderNodeInfo, RAS_MaterialDownwardNode>
+{
+public:
+	RAS_ShaderDownwardNode(OwnerType *owner, DataType *data, Function bind, Function unbind)
+		:RAS_DownwardNode<RAS_ShaderNodeInfo, RAS_MaterialDownwardNode>::RAS_DownwardNode(owner, data, bind, unbind)
+	{
+	}
+
+	RAS_ShaderDownwardNode() = default;
 };
 
 class RAS_MaterialDownwardNode : public RAS_DownwardNode<RAS_MaterialNodeInfo, RAS_DisplayArrayDownwardNode>
@@ -206,11 +241,22 @@ public:
 	RAS_ManagerUpwardNode() = default;
 };
 
-class RAS_MaterialUpwardNode : public RAS_UpwardNode<RAS_MaterialNodeInfo, RAS_ManagerUpwardNode>
+class RAS_ShaderUpwardNode : public RAS_UpwardNode<RAS_ShaderNodeInfo, RAS_ManagerUpwardNode>
+{
+public:
+	RAS_ShaderUpwardNode(OwnerType *owner, DataType *data, Function bind, Function unbind)
+		:RAS_UpwardNode<RAS_ShaderNodeInfo, RAS_ManagerUpwardNode>::RAS_UpwardNode(owner, data, bind, unbind)
+	{
+	}
+
+	RAS_ShaderUpwardNode() = default;
+};
+
+class RAS_MaterialUpwardNode : public RAS_UpwardNode<RAS_MaterialNodeInfo, RAS_ShaderUpwardNode>
 {
 public:
 	RAS_MaterialUpwardNode(OwnerType *owner, DataType *data, Function bind, Function unbind)
-		:RAS_UpwardNode<RAS_MaterialNodeInfo, RAS_ManagerUpwardNode>::RAS_UpwardNode(owner, data, bind, unbind)
+		:RAS_UpwardNode<RAS_MaterialNodeInfo, RAS_ShaderUpwardNode>::RAS_UpwardNode(owner, data, bind, unbind)
 	{
 	}
 

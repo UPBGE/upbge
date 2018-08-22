@@ -29,7 +29,8 @@ RAS_MeshMaterial::RAS_MeshMaterial(RAS_Mesh *mesh, RAS_MaterialBucket *bucket, u
 	:m_bucket(bucket),
 	m_index(index)
 {
-	RAS_DisplayArray::PrimitiveType type = (bucket->IsWire()) ? RAS_DisplayArray::LINES : RAS_DisplayArray::TRIANGLES;
+	const bool isWire = bucket->GetMaterial()->IsWire();
+	RAS_DisplayArray::PrimitiveType type = isWire ? RAS_DisplayArray::LINES : RAS_DisplayArray::TRIANGLES;
 	m_displayArray = new RAS_DisplayArray(type, format);
 
 	m_displayArrayBucket = new RAS_DisplayArrayBucket(bucket, m_displayArray, mesh, this, nullptr);

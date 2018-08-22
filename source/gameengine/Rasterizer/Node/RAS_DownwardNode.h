@@ -55,11 +55,15 @@ public:
 	typedef std::vector<ChildType *> ChildTypeList;
 
 private:
+	/// Children nodes.
 	ChildTypeList m_children;
+	/// True when the node is linked to a parent node (used to avoid redundant insertion).
+	bool m_linked;
 
 public:
 	RAS_DownwardNode(OwnerType *owner, DataType *data, Function bind, Function unbind)
-		:RAS_BaseNode<NodeInfo>(owner, data, bind, unbind)
+		:RAS_BaseNode<NodeInfo>(owner, data, bind, unbind),
+		m_linked(false)
 	{
 	}
 
@@ -83,14 +87,27 @@ public:
 	/// Add a child node if it is valid.
 	inline void AddChild(ChildType *child)
 	{
-		if (child->GetValid()) {
+		if (child->GetValid() && !child->GetLinked()) {
 			m_children.push_back(child);
 		}
+	}
+
+	inline bool GetLinked() const
+	{
+		return m_linked;
+	}
+
+	inline void SetLinked(bool linked)
+	{
+		m_linked = linked;
 	}
 
 	inline void Clear()
 	{
 		if (!Leaf()) {
+			for (ChildType *child : m_children) {
+				child->SetLinked(false);
+			}
 			m_children.clear();
 		}
 	}

@@ -73,8 +73,8 @@ public:
 	enum DrawType {
 		RAS_WIREFRAME = 0,
 		RAS_TEXTURED,
-		RAS_RENDERER,
 		RAS_SHADOW,
+		RAS_SHADOW_VARIANCE,
 		RAS_DRAW_MAX,
 	};
 
@@ -126,23 +126,6 @@ public:
 		RAS_MIPMAP_LINEAR,
 
 		RAS_MIPMAP_MAX,  /* Should always be last */
-	};
-
-	/**
-	 * Override shaders
-	 */
-	enum OverrideShaderType {
-		RAS_OVERRIDE_SHADER_NONE,
-		RAS_OVERRIDE_SHADER_BLACK,
-		RAS_OVERRIDE_SHADER_BLACK_INSTANCING,
-		RAS_OVERRIDE_SHADER_SHADOW_VARIANCE,
-		RAS_OVERRIDE_SHADER_SHADOW_VARIANCE_INSTANCING,
-	};
-
-	enum ShadowType {
-		RAS_SHADOW_NONE,
-		RAS_SHADOW_SIMPLE,
-		RAS_SHADOW_VARIANCE,
 	};
 
 	enum EnableBit {
@@ -330,7 +313,6 @@ private:
 	OffScreens m_offScreens;
 
 	DrawType m_drawingmode;
-	ShadowType m_shadowMode;
 
 	bool m_invertFrontFace;
 
@@ -341,16 +323,11 @@ private:
 		float polyOffset[2];
 	} m_state;
 
-	OverrideShaderType m_overrideShader;
-
 	std::unique_ptr<RAS_OpenGLRasterizer> m_impl;
 	std::unique_ptr<RAS_OpenGLDebugDraw> m_debugDrawImpl;
 
 	/// Initialize custom shader interface containing uniform location.
 	void InitOverrideShadersInterface();
-
-	/// Return GPUShader coresponding to the override shader enumeration.
-	GPUShader *GetOverrideGPUShader(OverrideShaderType type);
 
 public:
 	RAS_Rasterizer();
@@ -555,12 +532,6 @@ public:
 	 */
 	DrawType GetDrawingMode();
 
-	/// \param shadowmode = RAS_SHADOW_SIMPLE, RAS_SHADOW_VARIANCE.
-	void SetShadowMode(ShadowType shadowmode);
-
-	/// \return the current drawing mode: RAS_SHADOW_SIMPLE, RAS_SHADOW_VARIANCE.
-	ShadowType GetShadowMode();
-
 	/**
 	 * Sets face culling
 	 */
@@ -670,10 +641,6 @@ public:
 
 	void SetMipmapping(MipmapOption val);
 	MipmapOption GetMipmapping();
-
-	void SetOverrideShader(OverrideShaderType type);
-	OverrideShaderType GetOverrideShader();
-	void ActivateOverrideShaderInstancing(RAS_InstancingBuffer *buffer);
 
 	/// \see KX_RayCast
 	bool RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, RayCastTranform *raytransform);

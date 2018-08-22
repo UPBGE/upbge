@@ -73,6 +73,7 @@ set(SRC
 	BL_ArmatureObject.cpp
 	BL_BlenderDataConversion.cpp
 	BL_Converter.cpp
+	BL_MaterialShader.cpp
 	BL_MeshDeformer.cpp
 	BL_ModifierDeformer.cpp
 	BL_Resource.cpp
@@ -95,6 +96,7 @@ set(SRC
 	BL_ArmatureObject.h
 	BL_BlenderDataConversion.h
 	BL_Converter.h
+	BL_MaterialShader.h
 	BL_MeshDeformer.h
 	BL_ModifierDeformer.h
 	BL_Resource.h

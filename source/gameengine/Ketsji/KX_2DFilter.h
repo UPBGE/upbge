@@ -28,7 +28,7 @@
 #define __KX_2DFILTER_H__
 
 #include "RAS_2DFilter.h"
-#include "BL_Shader.h"
+#include "KX_Shader.h"
 
 #ifdef _MSC_VER
 /* KX_2DFilter uses a diamond inheritance from a virtual pure base class. Only one branch of the diamond
@@ -38,7 +38,7 @@
 #  pragma warning(disable:4250)
 #endif
 
-class KX_2DFilter : public RAS_2DFilter, public BL_Shader
+class KX_2DFilter : public RAS_2DFilter, public KX_Shader
 {
 	Py_Header
 public:

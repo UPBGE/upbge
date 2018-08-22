@@ -35,6 +35,8 @@
 #include "CM_Update.h"
 
 #include "RAS_MeshSlot.h"
+#include "RAS_IMaterial.h"
+#include "RAS_IMaterialShader.h"
 #include "RAS_AttributeArray.h"
 
 #include <vector>
@@ -65,7 +67,7 @@ private:
 
 	RAS_DisplayArrayStorage *m_arrayStorage;
 	/// Attribute array used for each different render categories.
-	RAS_AttributeArray m_attribArray;
+	RAS_AttributeArray m_attribArrays[RAS_Rasterizer::RAS_DRAW_MAX];
 
 	/// The vertex buffer object containing all the data used for the instancing rendering for each drawing category.
 	std::unique_ptr<RAS_InstancingBuffer> m_instancingBuffer[RAS_Rasterizer::RAS_DRAW_MAX];
@@ -79,6 +81,8 @@ private:
 
 	RAS_DisplayArrayDownwardNode m_instancingNode;
 	RAS_DisplayArrayDownwardNode m_batchingNode;
+
+	void UpdateActiveMeshSlots(RAS_Rasterizer::DrawType drawingMode, RAS_IMaterialShader::GeomType geomMode);
 
 public:
 	RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_DisplayArray *array,
@@ -99,11 +103,9 @@ public:
 	/// \section Render Infos
 	bool UseBatching() const;
 
-	/// Update render infos.
-	void UpdateActiveMeshSlots(RAS_Rasterizer::DrawType drawingMode, bool instancing);
-
 	void GenerateTree(RAS_MaterialDownwardNode& downwardRoot, RAS_MaterialUpwardNode& upwardRoot,
-			RAS_UpwardTreeLeafs& upwardLeafs, RAS_Rasterizer::DrawType drawingMode, bool sort, bool instancing);
+			RAS_UpwardTreeLeafs& upwardLeafs, RAS_Rasterizer::DrawType drawingMode, bool sort,
+			RAS_IMaterialShader::GeomType geomMode);
 	void BindUpwardNode(const RAS_DisplayArrayNodeTuple& tuple);
 	void UnbindUpwardNode(const RAS_DisplayArrayNodeTuple& tuple);
 	void RunDownwardNode(const RAS_DisplayArrayNodeTuple& tuple);

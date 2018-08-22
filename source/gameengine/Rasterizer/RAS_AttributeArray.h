@@ -59,22 +59,19 @@ public:
 	 * hashed name: (attrib type, texco, layer(optional)).
 	 */
 	using AttribList = std::vector<Attrib>;
+	using AttribTable = std::array<AttribList, RAS_Rasterizer::RAS_DRAW_MAX>;
 
 private:
-	std::array<std::unique_ptr<RAS_AttributeArrayStorage>, RAS_Rasterizer::RAS_DRAW_MAX> m_storages;
-	AttribList m_attribs;
-	RAS_DisplayArray *m_array;
+	std::unique_ptr<RAS_AttributeArrayStorage> m_storage;
 
 public:
-	RAS_AttributeArray(RAS_DisplayArray *array);
+	RAS_AttributeArray();
 	RAS_AttributeArray(const AttribList& attribs, RAS_DisplayArray *array);
 	~RAS_AttributeArray();
 
 	RAS_AttributeArray& operator=(RAS_AttributeArray&& other);
 
-	RAS_AttributeArrayStorage *GetStorage(RAS_Rasterizer::DrawType drawingMode);
-	/// Used to invalidate all attribute array in case of array storage resizing.
-	void Clear();
+	RAS_AttributeArrayStorage *GetStorage() const;
 };
 
 #endif  // __RAS_ATTRIBUTE_ARRAY_H__

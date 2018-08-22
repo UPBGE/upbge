@@ -47,7 +47,7 @@
 #include "BL_BlenderDataConversion.h"
 #include "BL_ConvertObjectInfo.h"
 #include "BL_ActionActuator.h"
-#include "KX_BlenderMaterial.h"
+#include "BL_Material.h"
 
 #include "EXP_StringValue.h"
 
@@ -106,7 +106,7 @@ void BL_Converter::SceneSlot::Merge(BL_Converter::SceneSlot& other)
 
 void BL_Converter::SceneSlot::Merge(const BL_SceneConverter& converter)
 {
-	for (KX_BlenderMaterial *mat : converter.m_materials) {
+	for (BL_Material *mat : converter.m_materials) {
 		m_materials.emplace_back(mat);
 	}
 	for (KX_Mesh *meshobj : converter.m_meshobjects) {
@@ -581,8 +581,8 @@ bool BL_Converter::FreeBlendFileData(Main *maggie)
 		}
 
 		// Free materials.
-		for (UniquePtrList<KX_BlenderMaterial>::iterator it = sceneSlot.m_materials.begin(); it != sceneSlot.m_materials.end(); ) {
-			KX_BlenderMaterial *mat = it->get();
+		for (UniquePtrList<BL_Material>::iterator it = sceneSlot.m_materials.begin(); it != sceneSlot.m_materials.end(); ) {
+			BL_Material *mat = it->get();
 			if (mat->Belong(libraryId)) {
 				scene->GetBucketManager()->RemoveMaterial(mat);
 				it = sceneSlot.m_materials.erase(it);
@@ -662,7 +662,7 @@ void BL_Converter::MergeSceneData(KX_Scene *to, const BL_SceneConverter& convert
 	}
 
 	// Do this after lights are available (scene merged) so materials can use the lights in shaders.
-	for (KX_BlenderMaterial *mat : converter.m_materials) {
+	for (BL_Material *mat : converter.m_materials) {
 		mat->ReplaceScene(to);
 	}
 
@@ -685,7 +685,7 @@ void BL_Converter::MergeScene(KX_Scene *to, const BL_SceneConverter& converter)
 
 void BL_Converter::ReloadShaders(KX_Scene *scene)
 {
-	for (std::unique_ptr<KX_BlenderMaterial>& mat : m_sceneSlots[scene].m_materials) {
+	for (std::unique_ptr<BL_Material>& mat : m_sceneSlots[scene].m_materials) {
 		mat->ReloadMaterial();
 	}
 
@@ -697,7 +697,7 @@ void BL_Converter::ReloadShaders(KX_Scene *scene)
 
 void BL_Converter::ReloadShaders(const BL_SceneConverter& converter)
 {
-	for (KX_BlenderMaterial *mat : converter.m_materials) {
+	for (BL_Material *mat : converter.m_materials) {
 		mat->ReloadMaterial();
 	}
 }

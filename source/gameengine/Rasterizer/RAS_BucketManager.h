@@ -72,14 +72,9 @@ protected:
 	enum BucketType {
 		SOLID_BUCKET = 0,
 		ALPHA_BUCKET,
-		SOLID_INSTANCING_BUCKET,
-		ALPHA_INSTANCING_BUCKET,
+		SOLID_ALPHA_BUCKET,
 		ALPHA_DEPTH_BUCKET,
-		ALPHA_DEPTH_INSTANCING_BUCKET,
-		SOLID_SHADOW_BUCKET,
-		ALPHA_SHADOW_BUCKET,
-		SOLID_SHADOW_INSTANCING_BUCKET,
-		ALPHA_SHADOW_INSTANCING_BUCKET,
+		SHADOW_BUCKET,
 		ALL_BUCKET,
 		NUM_BUCKET_TYPE,
 	};
@@ -97,17 +92,13 @@ protected:
 	} m_text;
 
 public:
-
-	/** Initialize bucket manager and create material bucket for the text material.
-	 * \param textMaterial The material used to render texts.
-	 */
-	RAS_BucketManager(RAS_IMaterial *textMaterial);
+	RAS_BucketManager();
 	virtual ~RAS_BucketManager();
 
 	void Renderbuckets(RAS_Rasterizer::DrawType drawingMode, const mt::mat3x4& cameratrans, RAS_Rasterizer *rasty,
 			RAS_OffScreen *offScreen);
 
-	RAS_MaterialBucket *FindBucket(RAS_IMaterial *material, bool &bucketCreated);
+	RAS_MaterialBucket *FindBucket(RAS_IMaterial *material);
 	RAS_DisplayArrayBucket *GetTextDisplayArrayBucket() const;
 
 	void ReloadMaterials(RAS_IMaterial *material = nullptr);
@@ -119,7 +110,6 @@ public:
 	void Merge(RAS_BucketManager *other, SCA_IScene *scene);
 
 private:
-	void PrepareBuckets(RAS_Rasterizer *rasty, BucketType bucketType);
 	void RenderBasicBuckets(RAS_Rasterizer *rasty, BucketType bucketType);
 	void RenderSortedBuckets(RAS_Rasterizer *rasty, BucketType bucketType);
 };

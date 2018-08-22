@@ -36,7 +36,7 @@ class SG_Controller;
 class BL_ActionData;
 class KX_GameObject;
 class KX_Scene;
-class RAS_IMaterial;
+class BL_Material;
 
 SG_Controller *BL_CreateIPO(BL_ActionData *action,
 	KX_GameObject* gameobj,
@@ -60,7 +60,7 @@ SG_Controller *BL_CreateCameraIPO(BL_ActionData *action,
 
 SG_Controller *BL_CreateMaterialIpo(
 	BL_ActionData *action,
-	RAS_IMaterial *mat,
+	BL_Material *mat,
 	KX_GameObject* gameobj,
 	KX_Scene *scene);
 

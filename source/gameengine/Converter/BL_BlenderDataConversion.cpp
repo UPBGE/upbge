@@ -88,7 +88,7 @@
 #include "KX_PythonComponent.h"
 #include "KX_WorldInfo.h"
 #include "KX_Mesh.h"
-#include "KX_BlenderMaterial.h"
+#include "BL_Material.h"
 #include "KX_TextureRendererManager.h"
 #include "KX_Globals.h"
 #include "KX_PyConstraintBinding.h"
@@ -426,7 +426,7 @@ static void BL_GetUvRgba(const RAS_Mesh::LayersInfo& layersInfo, std::vector<MLo
 
 static RAS_MaterialBucket *BL_ConvertMaterial(Material *ma, KX_Scene *scene, BL_SceneConverter& converter)
 {
-	KX_BlenderMaterial *mat = converter.FindMaterial(ma);
+	BL_Material *mat = converter.FindMaterial(ma);
 
 	if (!mat) {
 		std::string name = ma->id.name;
@@ -435,16 +435,15 @@ static RAS_MaterialBucket *BL_ConvertMaterial(Material *ma, KX_Scene *scene, BL_
 			name = "MA";
 		}
 
-		mat = new KX_BlenderMaterial(ma, name, scene);
+		mat = new BL_Material(ma, name, scene);
 
 		// this is needed to free up memory afterwards.
 		converter.RegisterMaterial(mat, ma);
 	}
 
 	// see if a bucket was reused or a new one was created
-	// this way only one KX_BlenderMaterial object has to exist per bucket
-	bool bucketCreated;
-	RAS_MaterialBucket *bucket = scene->GetBucketManager()->FindBucket(mat, bucketCreated);
+	// this way only one KX_Material object has to exist per bucket
+	RAS_MaterialBucket *bucket = scene->GetBucketManager()->FindBucket(mat);
 
 	return bucket;
 }
@@ -887,27 +886,21 @@ static KX_LightObject *BL_GameLightFromBlenderLamp(Lamp *la, unsigned int layerf
 	lightobj->m_nodiffuse = (la->mode & LA_NO_DIFF) != 0;
 	lightobj->m_nospecular = (la->mode & LA_NO_SPEC) != 0;
 
-	switch (la->type) {
-		case LA_SUN:
-		{
-			lightobj->m_type = RAS_ILightObject::LIGHT_SUN;
-			break;
-		}
-		case LA_SPOT:
-		{
-			lightobj->m_type = RAS_ILightObject::LIGHT_SPOT;
-			break;
-		}
-		case LA_HEMI:
-		{
-			lightobj->m_type = RAS_ILightObject::LIGHT_HEMI;
-			break;
-		}
-		default:
-		{
-			lightobj->m_type = RAS_ILightObject::LIGHT_NORMAL;
-		}
-	}
+	static const RAS_ILightObject::LightType lightTypeTable[] = {
+		RAS_ILightObject::LIGHT_NORMAL, // LA_LOCAL
+		RAS_ILightObject::LIGHT_SUN, // LA_SUN
+		RAS_ILightObject::LIGHT_SPOT, // LA_SPOT
+		RAS_ILightObject::LIGHT_HEMI, // LA_HEMI
+		RAS_ILightObject::LIGHT_NORMAL // LA_AREA
+	};
+
+	static const RAS_ILightObject::ShadowType shadowTypeTable[] = {
+		RAS_ILightObject::SHADOW_SIMPLE, // LA_SHADMAP_SIMPLE
+		RAS_ILightObject::SHADOW_VARIANCE // LA_SHADMAP_VARIANCE
+	};
+
+	lightobj->m_type = lightTypeTable[la->type];
+	lightobj->m_shadowType = shadowTypeTable[la->shadowmap_type];
 
 	KX_LightObject *gamelight = new KX_LightObject(kxscene, KX_Scene::m_callbacks, rasterizer, lightobj);
 
@@ -1875,7 +1868,7 @@ void BL_PostConvertBlenderObjects(KX_Scene *kxscene, const BL_SceneConverter& sc
 #endif  // WITH_PYTHON
 
 	// Init textures for all materials.
-	for (KX_BlenderMaterial *mat : sceneconverter.GetMaterials()) {
+	for (BL_Material *mat : sceneconverter.GetMaterials()) {
 		mat->InitTextures();
 	}
 

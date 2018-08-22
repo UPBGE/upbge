@@ -1,5 +1,5 @@
 
-/** \file KX_BlenderMaterial.h
+/** \file BL_Material.h
  *  \ingroup ketsji
  */
 
@@ -14,46 +14,36 @@
 
 class SCA_IScene;
 class KX_Scene;
-class BL_BlenderShader;
-class BL_Shader;
+class KX_MaterialShader;
+class BL_MaterialShader;
 struct Material;
 
 #ifdef USE_MATHUTILS
-void KX_BlenderMaterial_Mathutils_Callback_Init(void);
+void BL_Material_Mathutils_Callback_Init(void);
 #endif
 
-class KX_BlenderMaterial : public EXP_Value, public BL_Resource, public RAS_IMaterial
+class BL_Material : public EXP_Value, public BL_Resource, public RAS_IMaterial
 {
 	Py_Header
 
 public:
-	KX_BlenderMaterial(Material *mat, const std::string& name, KX_Scene *scene);
+	BL_Material(Material *mat, const std::string& name, KX_Scene *scene);
+	virtual ~BL_Material();
 
-	virtual ~KX_BlenderMaterial();
+	bool GetUserBlend() const;
+	const RAS_Rasterizer::BlendFunc (&GetBlendFunc() const)[2];
 
-	virtual void Prepare(RAS_Rasterizer *rasty);
-	virtual void Activate(RAS_Rasterizer *rasty);
-	virtual void Desactivate(RAS_Rasterizer *rasty);
-	virtual void ActivateInstancing(RAS_Rasterizer *rasty, RAS_InstancingBuffer *buffer);
-	virtual void ActivateMeshUser(RAS_MeshUser *meshUser, RAS_Rasterizer *rasty, const mt::mat3x4& camtrans);
+	Material *GetBlenderMaterial() const;
 
-	void UpdateTextures();
-	void ApplyTextures();
-	void ActivateShaders(RAS_Rasterizer *rasty);
-
-	void ActivateBlenderShaders(RAS_Rasterizer *rasty);
-
-	const RAS_Rasterizer::BlendFunc *GetBlendFunc() const;
-	virtual bool UseInstancing() const;
+	virtual RAS_IMaterialShader *GetShader(RAS_Rasterizer::DrawType drawingMode) const;
 	virtual const std::string GetTextureName() const;
-	virtual Material *GetBlenderMaterial() const;
-	virtual bool UsesLighting() const;
-	virtual void GetRGBAColor(unsigned char *rgba) const;
-	virtual Scene *GetBlenderScene() const;
 	virtual SCA_IScene *GetScene() const;
 	virtual void ReloadMaterial();
+	virtual void Prepare();
 
 	void InitTextures();
+	void UpdateTextures();
+	void ApplyTextures();
 
 	void ReplaceScene(KX_Scene *scene);
 
@@ -62,9 +52,6 @@ public:
 	// for ipos
 	virtual void UpdateIPO(const mt::vec4 &rgba, const mt::vec3 &specrgb, float hard, float spec, float ref,
 						   float emit, float ambient, float alpha, float specalpha);
-
-	virtual const RAS_AttributeArray::AttribList GetAttribs(const RAS_Mesh::LayersInfo& layersInfo) const;
-	virtual RAS_InstancingBuffer::Attrib GetInstancingAttribs() const;
 
 	// Stuff for cvalue related things.
 	virtual std::string GetName();
@@ -99,18 +86,21 @@ public:
 	PyObject *py_get_textures_item(unsigned int index);
 	std::string py_get_textures_item_name(unsigned int index);
 
-	EXP_PYMETHOD_DOC(KX_BlenderMaterial, getShader);
-	EXP_PYMETHOD_DOC(KX_BlenderMaterial, getTextureBindcode);
+	EXP_PYMETHOD_DOC(BL_Material, getShader);
+	EXP_PYMETHOD_DOC(BL_Material, getTextureBindcode);
 
-	EXP_PYMETHOD_DOC(KX_BlenderMaterial, setBlending);
+	EXP_PYMETHOD_DOC(BL_Material, setBlending);
 
 #endif  // WITH_PYTHON
 
 private:
-	Material *m_material;
-	BL_Shader *m_shader;
-	BL_BlenderShader *m_blenderShader;
 	KX_Scene *m_scene;
+	Material *m_material;
+
+	std::unique_ptr<KX_MaterialShader> m_customShader;
+	std::unique_ptr<BL_MaterialShader> m_blenderShader;
+
+	int m_alphaBlend;
 	bool m_userDefBlend;
 	RAS_Rasterizer::BlendFunc m_blendFunc[2];
 
@@ -124,15 +114,10 @@ private:
 		float ambient;
 		float specularalpha;
 	} m_savedData;
-
-	void ActivateGLMaterials(RAS_Rasterizer *rasty) const;
-
-	void SetBlenderShaderData(RAS_Rasterizer *ras);
-	void SetShaderData(RAS_Rasterizer *ras);
 };
 
 #ifdef WITH_PYTHON
-bool ConvertPythonToMaterial(PyObject *value, KX_BlenderMaterial **material, bool py_none_ok, const char *error_prefix);
+bool ConvertPythonToMaterial(PyObject *value, BL_Material **material, bool py_none_ok, const char *error_prefix);
 #endif  // WITH_PYTHON
 
 #endif

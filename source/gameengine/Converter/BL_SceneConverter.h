@@ -40,7 +40,7 @@
 class SCA_IActuator;
 class SCA_IController;
 class KX_Mesh;
-class KX_BlenderMaterial;
+class BL_Material;
 class BL_Converter;
 class BL_ConvertObjectInfo;
 class BL_ActionData;
@@ -67,7 +67,7 @@ private:
 
 	/// Ressources from the scene.
 
-	std::vector<KX_BlenderMaterial *> m_materials;
+	std::vector<BL_Material *> m_materials;
 	std::vector<KX_Mesh *> m_meshobjects;
 	std::vector<BL_ConvertObjectInfo *> m_objectInfos;
 	std::vector<BL_ActionData *> m_actions;
@@ -78,7 +78,7 @@ private:
 	std::map<Object *, BL_ConvertObjectInfo *> m_blenderToObjectInfos;
 	std::map<Object *, KX_GameObject *> m_map_blender_to_gameobject;
 	std::map<Mesh *, KX_Mesh *> m_map_mesh_to_gamemesh;
-	std::map<Material *, KX_BlenderMaterial *> m_map_mesh_to_polyaterial;
+	std::map<Material *, BL_Material *> m_map_mesh_to_polyaterial;
 	std::map<bActuator *, SCA_IActuator *> m_map_blender_to_gameactuator;
 	std::map<bController *, SCA_IController *> m_map_blender_to_gamecontroller;
 
@@ -99,8 +99,8 @@ public:
 	void RegisterGameMesh(KX_Mesh *gamemesh, Mesh *for_blendermesh);
 	KX_Mesh *FindGameMesh(Mesh *for_blendermesh) const;
 
-	void RegisterMaterial(KX_BlenderMaterial *blmat, Material *mat);
-	KX_BlenderMaterial *FindMaterial(Material *mat) const;
+	void RegisterMaterial(BL_Material *blmat, Material *mat);
+	BL_Material *FindMaterial(Material *mat) const;
 
 	void RegisterActionData(BL_ActionData *data);
 
@@ -113,7 +113,7 @@ public:
 	BL_ConvertObjectInfo *GetObjectInfo(Object *blenderobj);
 
 	const std::vector<KX_GameObject *>& GetObjects() const;
-	const std::vector<KX_BlenderMaterial *>& GetMaterials() const;
+	const std::vector<BL_Material *>& GetMaterials() const;
 };
 
 #endif  // __KX_BLENDERSCENECONVERTER_H__

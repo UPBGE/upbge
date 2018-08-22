@@ -72,6 +72,7 @@ set(SRC
 	RAS_DisplayArrayStorage.cpp
 	RAS_FramingManager.cpp
 	RAS_ICanvas.cpp
+	RAS_IMaterialShader.cpp
 	RAS_InstancingBuffer.cpp
 	RAS_IMaterial.cpp
 	RAS_Rasterizer.cpp
@@ -81,10 +82,13 @@ set(SRC
 	RAS_MeshSlot.cpp
 	RAS_MeshUser.cpp
 	RAS_OffScreen.cpp
+	RAS_OverrideShader.cpp
 	RAS_Query.cpp
 	RAS_Shader.cpp
 	RAS_Texture.cpp
 	RAS_TextureRenderer.cpp
+	RAS_TextMaterial.cpp
+	RAS_TextShader.cpp
 	RAS_TextUser.cpp
 	RAS_VertexInfo.cpp
 
@@ -110,6 +114,7 @@ set(SRC
 	RAS_IMaterial.h
 	RAS_Rasterizer.h
 	RAS_ILightObject.h
+	RAS_IMaterialShader.h
 	RAS_InstancingBuffer.h
 	RAS_ISync.h
 	RAS_MaterialBucket.h
@@ -118,11 +123,14 @@ set(SRC
 	RAS_MeshSlot.h
 	RAS_MeshUser.h
 	RAS_OffScreen.h
+	RAS_OverrideShader.h
 	RAS_Query.h
 	RAS_Rect.h
 	RAS_Shader.h
 	RAS_Texture.h
 	RAS_TextureRenderer.h
+	RAS_TextMaterial.h
+	RAS_TextShader.h
 	RAS_TextUser.h
 	RAS_VertexInfo.h
 )
