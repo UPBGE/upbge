@@ -19,8 +19,8 @@ out mat4 varinstinvmat;
 uniform mat4 unfviewmat;
 #endif
 
-attribute vec4 weight;
-attribute vec4 index;
+attribute vec4 weights;
+attribute ivec4 indices;
 attribute int numbones;
 uniform bool useshwskin;
 uniform mat4 bonematrices[128];
@@ -37,12 +37,11 @@ void hardware_skinning(in vec4 position, in vec3 normal, out vec4 transpos, out 
 	transpos = vec4(0.0);
 	transnorm = vec3(0.0);
 
-	vec4 curidx = index;
-	vec4 curweight = weight;
+	ivec4 curidx = indices;
+	vec4 curweight = weights;
 
-	for (int i = 0; i < numbones; ++i)
-	{
-		mat4 m44 = bonematrices[int(curidx.x)];
+	for (int i = 0; i < numbones; ++i) {
+		mat4 m44 = bonematrices[curidx.x];
 
 		transpos += m44 * position * curweight.x;
 
@@ -147,9 +146,9 @@ void main()
 	normal *= ininstmatrix;
 #endif
 
-	if (useshwskin) {
-		hardware_skinning(gl_Vertex, gl_Normal, position, normal);
-	}
+// 	if (useshwskin) {
+		hardware_skinning(position, normal, position, normal);
+// 	}
 
 	vec4 co = gl_ModelViewMatrix * position;
 

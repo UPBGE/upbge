@@ -120,7 +120,6 @@ struct GPUMaterial {
 	int obcolloc, obautobumpscaleloc;
 	int cameratexcofacloc;
 	int timeloc;
-	int useshwskinloc;
 
 	int partscalarpropsloc;
 	int partcoloc;
@@ -133,6 +132,12 @@ struct GPUMaterial {
 	int ininstposloc;
 	int ininstmatloc;
 	int ininstcolloc;
+
+	int inskinweights;
+	int inskinindices;
+	int inskinnumbones;
+	int useshwskinloc;
+	int bonematricesloc;
 
 	bool use_instancing;
 
@@ -301,7 +306,11 @@ static int gpu_material_construct_end(GPUMaterial *material, const char *passnam
 			material->objectlayloc = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_OBJECT_LAY));
 		}
 
+		material->inskinweights = GPU_shader_get_uniform(shader, "weights");
+		material->inskinindices = GPU_shader_get_uniform(shader, "indices");
+		material->inskinnumbones = GPU_shader_get_uniform(shader, "numbones");
 		material->useshwskinloc = GPU_shader_get_uniform(shader, "useshwskin");
+		material->bonematricesloc = GPU_shader_get_uniform(shader, "bonematrices");
 
 		return 1;
 	}
@@ -390,6 +399,23 @@ void GPU_material_bind_instancing_attrib(GPUMaterial *material, void *matrixoffs
 		glVertexAttribPointerARB(material->ininstcolloc, 4, GL_UNSIGNED_BYTE, GL_TRUE, stride, coloroffset);
 		glVertexAttribDivisorARB(material->ininstcolloc, 1);
 	}
+}
+
+void GPU_material_bind_skinning_attrib(GPUMaterial *material, void *weights, void *indices, void *numbones, unsigned int stride, void *matrices, unsigned int nummatrices)
+{
+	GPUShader *shader = GPU_pass_shader(material->pass);
+
+	GPU_shader_uniform_int(shader, material->useshwskinloc, 1);
+	GPU_shader_uniform_vector(shader, material->bonematricesloc, 16, nummatrices, matrices);
+
+	glEnableVertexAttribArray(material->inskinweights);
+	glVertexAttribPointer(material->inskinweights, 4, GL_FLOAT, GL_FALSE, stride, weights);
+
+	glEnableVertexAttribArray(material->inskinindices);
+	glVertexAttribPointer(material->inskinweights, 4, GL_UNSIGNED_BYTE, GL_FALSE, stride, indices);
+
+	glEnableVertexAttribArray(material->inskinnumbones);
+	glVertexAttribPointer(material->inskinnumbones, 1, GL_UNSIGNED_BYTE, GL_FALSE, stride, numbones);
 }
 
 void GPU_material_update_lamps(GPUMaterial *material, float viewmat[4][4], float viewinv[4][4])
@@ -557,10 +583,6 @@ void GPU_material_bind_uniforms(
 		if (material->builtins & GPU_OBJECT_LAY) {
 			GPU_shader_uniform_vector_int(shader, material->objectlayloc, 1, 1, &oblay);
 		}
-
-		// This is enabled later as needed
-		GPU_shader_uniform_int(shader, material->useshwskinloc, 0);
-
 	}
 }
 

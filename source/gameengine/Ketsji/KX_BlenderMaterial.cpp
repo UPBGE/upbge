@@ -349,6 +349,13 @@ void KX_BlenderMaterial::ActivateInstancing(RAS_Rasterizer *rasty, void *matrixo
 	}
 }
 
+void KX_BlenderMaterial::ActivateSkinning(RAS_Rasterizer *rasty, const RAS_Deformer::SkinShaderData& skinData)
+{
+	if (m_blenderShader) {
+		m_blenderShader->ActivateSkinning(skinData);
+	}
+}
+
 bool KX_BlenderMaterial::UsesLighting() const
 {
 	if (!RAS_IPolyMaterial::UsesLighting()) {

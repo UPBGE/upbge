@@ -92,8 +92,7 @@ BL_SkinDeformer::BL_SkinDeformer(KX_GameObject *gameobj,
 	:BL_MeshDeformer(gameobj, bmeshobj_old, mesh),
 	m_armobj(arma),
 	m_lastArmaUpdate(-1),
-	m_copyNormals(false),
-	m_poseMatrices(NULL)
+	m_copyNormals(false)
 {
 	// this is needed to ensure correct deformation of mesh:
 	// the deformation is done with Blender's armature_deform_verts() function
@@ -117,12 +116,17 @@ BL_SkinDeformer::BL_SkinDeformer(KX_GameObject *gameobj,
 			m_dfnrToPC[i] = nullptr;
 		}
 	}
-
-	VerifyHardwareSkinning();
 }
 
 BL_SkinDeformer::~BL_SkinDeformer()
 {
+}
+
+void BL_SkinDeformer::Initialize()
+{
+	BL_MeshDeformer::Initialize();
+
+	VerifyHardwareSkinning();
 }
 
 void BL_SkinDeformer::VerifyHardwareSkinning()
@@ -134,10 +138,10 @@ void BL_SkinDeformer::VerifyHardwareSkinning()
 	// Check to see if we can do this skinning in hardware, and fallback to software if we cannot.
 	// Each matrix is sixteen components, and we don't want to use more than half of the available components (or maybe so).
 	const unsigned int defbase_tot = m_dfnrToPC.size();
-	const unsigned int max = CLAMP_MAX(GPU_max_vertex_uniform_components() / 16, 128);
+	const unsigned int max = clamp_i(GPU_max_vertex_uniform_components() / 16, 0, 128);
 
 	if (defbase_tot > max) {
-		printf("Skinned mesh with %d bones not supported by hardware (max: %d): %s. Using software skinning.\n",
+		printf("Skinned mesh with %u bones not supported by hardware (max: %d): %s. Using software skinning.\n",
 		       defbase_tot, max, m_objMesh->id.name);
 		m_armobj->SetVertDeformType(ARM_VDEF_BGE_CPU);
 	}
@@ -167,21 +171,21 @@ void BL_SkinDeformer::Apply(RAS_DisplayArray *array)
 	}
 }
 
-const RAS_Deformer::SkinVertData *BL_SkinDeformer::GetSkinningVertData(RAS_DisplayArray *array) const
+bool BL_SkinDeformer::UseShaderSkinning() const
+{
+	return (m_armobj->GetVertDeformType() == ARM_VDEF_BGE_GPU);
+}
+
+RAS_Deformer::SkinShaderData BL_SkinDeformer::GetSkinningShaderData(RAS_DisplayArray *array) const
 {
 	for (unsigned short i = 0, size = m_slots.size(); i < size; ++i) { // TODO une classes de donnée de deformation par array: RAS_DeformerArrayData stocké dans le DAB.
 		if (m_slots[i].m_displayArray == array) {
-			return m_skinVertData[i].data();
+			return {m_skinVertData[i].data(), reinterpret_cast<const float *>(m_poseMatrices.data()), (unsigned char)m_poseMatrices.size()};
 		}
 	}
 
 	BLI_assert(false);
-	return nullptr;
-}
-
-const float *BL_SkinDeformer::GetPoseMatrices() const
-{
-	return reinterpret_cast<const float *>(m_poseMatrices.data());
+	return {nullptr, nullptr, 0};
 }
 
 void BL_SkinDeformer::BlenderDeformVerts()
@@ -204,7 +208,6 @@ void BL_SkinDeformer::BlenderDeformVerts()
 
 void BL_SkinDeformer::DeformVerts()
 {
-	Object *par_arma = m_armobj->GetArmatureObject();
 	MDeformVert *dverts = m_bmesh->dvert;
 	Eigen::Matrix4f pre_mat, post_mat, chan_mat, norm_chan_mat;
 
@@ -283,58 +286,53 @@ void BL_SkinDeformer::GPUDeformVerts()
 		}
 	}
 
-	for (unsigned short i = 0, size = m_slots.size(); i < size; ++i) {
-		std::vector<SkinVertData>& skinverts = m_skinVertData[i];
-		RAS_DisplayArray *array = m_slots[i].m_displayArray;
+	for (unsigned short k = 0, size = m_slots.size(); k < size; ++k) {
+		std::vector<SkinVertData>& skinverts = m_skinVertData[k];
+		RAS_DisplayArray *array = m_slots[k].m_displayArray;
 
 		for (unsigned int i = 0, size = skinverts.size(); i < size; ++i) {
 			const RAS_VertexInfo& vinfo = array->GetVertexInfo(i);
-			MDeformVert* dv = &m_bmesh->dvert[vinfo.GetOrigIndex()];
+			MDeformVert *dv = &m_bmesh->dvert[vinfo.GetOrigIndex()];
+			SkinVertData& data = skinverts[i];
 
 			if (dv->totweight <= 4) {
 					// We have no more than four weights, just copy them over.
-					skinverts[i].num_bones = dv->totweight;
+					data.numbones = dv->totweight;
 
 					MDeformWeight *dw = dv->dw;
-					for (int j = 0; j < dv->totweight && j < 4; ++j, ++dw) {
-						skinverts[i].indexes[j] = dw->def_nr;
-						skinverts[i].weights[j] = dw->weight;
+					for (unsigned short j = 0; j < dv->totweight && j < 4; ++j, ++dw) {
+						data.indices[j] = dw->def_nr;
+						data.weights[j] = dw->weight;
 					}
 			}
 			else {
 				// We have more than four weights, pick the four most influential bones
-				float indexes[4] = {-1.0f};
-				float weights[4] = {0.0f};
-
 				unsigned short j;
 				for (j = 0; j < 4; ++j) {
 					float maxval = -1.0f;
-					float maxidx = -1.0f;
+					unsigned char maxidx;
 
 					MDeformWeight *dw = dv->dw;
-					for (int k = 0; k < dv->totweight; ++k, ++dw) {
-						if (dw->weight > maxval && !ELEM(dw->def_nr, indexes[0], indexes[1], indexes[2], indexes[3])) {
+					for (unsigned short k = 0; k < dv->totweight; ++k, ++dw) {
+						if (dw->weight > maxval && !ELEM(dw->def_nr, data.indices[0], data.indices[1], data.indices[2], data.indices[3])) {
 							maxval = dw->weight;
 							maxidx = dw->def_nr;
 						}
 					}
 
-					if (maxval <= 0) {
+					if (maxval <= 0.0f) {
 						break;
 					}
 
-					indexes[j] = maxidx;
-					weights[j] = maxval;
+					data.indices[j] = maxidx;
+					data.weights[j] = maxval;
 
 					dw = dv->dw;
 				}
 
-				skinverts[i].num_bones = j;
+				data.numbones = j;
 
-				normalize_vn(weights, 4);
-
-				memcpy(skinverts[i].indexes, indexes, 4*sizeof(float));
-				memcpy(skinverts[i].weights, weights, 4*sizeof(float));
+				normalize_vn(data.weights, 4);
 			}
 		}
 	}

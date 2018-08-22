@@ -55,7 +55,7 @@ void KX_TextMaterial::ActivateInstancing(RAS_Rasterizer *rasty, void *matrixoffs
 {
 }
 
-void KX_TextMaterial::DesactivateInstancing()
+void KX_TextMaterial::ActivateSkinning(RAS_Rasterizer *rasty, const RAS_Deformer::SkinShaderData& skinData)
 {
 }
 

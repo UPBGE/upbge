@@ -58,6 +58,9 @@ public:
 					BL_ArmatureObject *arma);
 
 	virtual ~BL_SkinDeformer();
+
+	virtual void Initialize();
+
 	bool Update();
 	bool UpdateInternal(bool shape_applied);
 	virtual void Apply(RAS_DisplayArray *array);
@@ -79,8 +82,8 @@ public:
 		m_lastArmaUpdate = -1.0;
 	}
 
-	virtual const SkinVertData *GetSkinningVertData(RAS_DisplayArray *array) const;
-	virtual const float *GetPoseMatrices() const;
+	virtual bool UseShaderSkinning() const;
+	virtual SkinShaderData GetSkinningShaderData(RAS_DisplayArray *array) const;
 
 protected:
 	BL_ArmatureObject *m_armobj; // Our parent object

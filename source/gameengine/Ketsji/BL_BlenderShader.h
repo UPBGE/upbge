@@ -35,6 +35,7 @@
 #include "RAS_AttributeArray.h"
 #include "RAS_Mesh.h"
 #include "RAS_Texture.h" // for MaxUnits
+#include "RAS_Deformer.h" // For RAS_Deformer::SkinShaderData.
 
 #include "CM_Update.h"
 
@@ -81,6 +82,7 @@ public:
 	/// Return true if the shader uses a special vertex shader for geometry instancing.
 	bool UseInstancing() const;
 	void ActivateInstancing(void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride);
+	void ActivateSkinning(const RAS_Deformer::SkinShaderData& skinData);
 
 	void ReloadMaterial();
 	int GetAlphaBlend();

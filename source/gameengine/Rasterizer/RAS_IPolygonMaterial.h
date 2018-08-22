@@ -35,6 +35,7 @@
 #include "RAS_Texture.h"
 #include "RAS_Mesh.h"
 #include "RAS_AttributeArray.h"
+#include "RAS_Deformer.h"
 
 #include "CM_Update.h"
 
@@ -107,6 +108,7 @@ public:
 	virtual void Activate(RAS_Rasterizer *rasty) = 0;
 	virtual void Desactivate(RAS_Rasterizer *rasty) = 0;
 	virtual void ActivateInstancing(RAS_Rasterizer *rasty, void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride) = 0;
+	virtual void ActivateSkinning(RAS_Rasterizer *rasty, const RAS_Deformer::SkinShaderData& skinData) = 0;
 	virtual void ActivateMeshSlot(RAS_MeshSlot *ms, RAS_Rasterizer *rasty, const mt::mat3x4& camtrans) = 0;
 
 	bool IsAlpha() const;

@@ -132,8 +132,6 @@ void BL_BlenderShader::BindProg(RAS_Rasterizer *rasty)
 {
 	GPU_material_bind(m_gpuMat, m_blenderScene->lay, rasty->GetTime(), 1,
 					  rasty->GetViewMatrix().Data(), rasty->GetViewInvMatrix().Data(), nullptr, false);
-
-	rasty->SetCurrentProgram(GPU_material_shader(m_gpuMat));
 }
 
 void BL_BlenderShader::UnbindProg()
@@ -169,6 +167,12 @@ bool BL_BlenderShader::UseInstancing() const
 void BL_BlenderShader::ActivateInstancing(void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride)
 {
 	GPU_material_bind_instancing_attrib(m_gpuMat, matrixoffset, positionoffset, coloroffset, stride);
+}
+
+void BL_BlenderShader::ActivateSkinning(const RAS_Deformer::SkinShaderData& skinData)
+{
+	GPU_material_bind_skinning_attrib(m_gpuMat, (void *)&skinData.m_vertData->weights, (void *)&skinData.m_vertData->indices, (void *)&skinData.m_vertData->numbones,
+			sizeof(RAS_Deformer::SkinVertData), (void *)skinData.m_boneMatrices, skinData.m_numBones);
 }
 
 int BL_BlenderShader::GetAlphaBlend()

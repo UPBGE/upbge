@@ -51,6 +51,8 @@
 #  include <windows.h>
 #endif // WIN32
 
+#include "CM_Message.h"
+
 RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_DisplayArray *array,
                                                RAS_Mesh *mesh, RAS_MeshMaterial *meshmat, RAS_Deformer *deformer)
 	:m_bucket(bucket),
@@ -70,9 +72,17 @@ RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_D
 
 	// Display array can be null in case of text.
 	if (m_displayArray) {
-		m_downwardNode = RAS_DisplayArrayDownwardNode(this, &m_nodeData, &RAS_DisplayArrayBucket::RunDownwardNode, nullptr);
-		m_upwardNode = RAS_DisplayArrayUpwardNode(this, &m_nodeData, &RAS_DisplayArrayBucket::BindUpwardNode,
-		                                          &RAS_DisplayArrayBucket::UnbindUpwardNode);
+		if (m_deformer && m_deformer->UseShaderSkinning()) {
+			CM_Debug("register skinning nodes");
+			m_downwardNode = RAS_DisplayArrayDownwardNode(this, &m_nodeData, &RAS_DisplayArrayBucket::RunDownwardNodeSkinning, nullptr);
+			m_upwardNode = RAS_DisplayArrayUpwardNode(this, &m_nodeData, &RAS_DisplayArrayBucket::BindUpwardNodeSkinning,
+					&RAS_DisplayArrayBucket::UnbindUpwardNode);
+		}
+		else {
+			m_downwardNode = RAS_DisplayArrayDownwardNode(this, &m_nodeData, &RAS_DisplayArrayBucket::RunDownwardNode, nullptr);
+			m_upwardNode = RAS_DisplayArrayUpwardNode(this, &m_nodeData, &RAS_DisplayArrayBucket::BindUpwardNode,
+					&RAS_DisplayArrayBucket::UnbindUpwardNode);
+		}
 
 		m_arrayStorage = &m_displayArray->GetStorage();
 		m_displayArray->AddUpdateClient(&m_arrayUpdateClient);
@@ -206,6 +216,17 @@ void RAS_DisplayArrayBucket::BindUpwardNode(const RAS_DisplayArrayNodeTuple& tup
 	m_nodeData.m_attribStorage->BindPrimitives();
 }
 
+void RAS_DisplayArrayBucket::BindUpwardNodeSkinning(const RAS_DisplayArrayNodeTuple& tuple)
+{
+	m_nodeData.m_attribStorage->BindPrimitives();
+
+	RAS_ManagerNodeData *managerData = tuple.m_managerData;
+	RAS_MaterialNodeData *materialData = tuple.m_materialData;
+
+	const RAS_Deformer::SkinShaderData shaderData = m_deformer->GetSkinningShaderData(m_displayArray);
+	materialData->m_material->ActivateSkinning(managerData->m_rasty, shaderData);
+}
+
 void RAS_DisplayArrayBucket::UnbindUpwardNode(const RAS_DisplayArrayNodeTuple& tuple)
 {
 	m_nodeData.m_attribStorage->UnbindPrimitives();
@@ -215,6 +236,26 @@ void RAS_DisplayArrayBucket::RunDownwardNode(const RAS_DisplayArrayNodeTuple& tu
 {
 	RAS_AttributeArrayStorage *attribStorage = m_nodeData.m_attribStorage;
 	attribStorage->BindPrimitives();
+
+	const RAS_MeshSlotNodeTuple msTuple(tuple, &m_nodeData);
+	for (RAS_MeshSlot *ms : m_activeMeshSlots) {
+		// Reuse the node function without spend time storing RAS_MeshSlot under nodes.
+		ms->RunNode(msTuple);
+	}
+
+	attribStorage->UnbindPrimitives();
+}
+
+void RAS_DisplayArrayBucket::RunDownwardNodeSkinning(const RAS_DisplayArrayNodeTuple& tuple)
+{
+	RAS_AttributeArrayStorage *attribStorage = m_nodeData.m_attribStorage;
+	attribStorage->BindPrimitives();
+
+	RAS_ManagerNodeData *managerData = tuple.m_managerData;
+	RAS_MaterialNodeData *materialData = tuple.m_materialData;
+
+	const RAS_Deformer::SkinShaderData shaderData = m_deformer->GetSkinningShaderData(m_displayArray);
+	materialData->m_material->ActivateSkinning(managerData->m_rasty, shaderData);
 
 	const RAS_MeshSlotNodeTuple msTuple(tuple, &m_nodeData);
 	for (RAS_MeshSlot *ms : m_activeMeshSlots) {

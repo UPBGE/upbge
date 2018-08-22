@@ -53,14 +53,21 @@ public:
 	struct SkinVertData
 	{
 		float weights[4];
-		char indexes[4];
-		char num_bones;
+		unsigned char indices[4];
+		unsigned char numbones;
+	};
+
+	struct SkinShaderData
+	{
+		const SkinVertData *m_vertData;
+		const float *m_boneMatrices;
+		unsigned char m_numBones;
 	};
 
 	RAS_Deformer(RAS_Mesh *mesh);
 	virtual ~RAS_Deformer();
 
-	void InitializeDisplayArrays();
+	virtual void Initialize();
 
 	virtual void Apply(RAS_DisplayArray *array) = 0;
 	virtual bool Update(void)=0;
@@ -76,6 +83,7 @@ public:
 	{
 		return false;
 	}
+	virtual bool UseShaderSkinning() const;
 
 	RAS_BoundingBox *GetBoundingBox() const
 	{
@@ -87,10 +95,11 @@ public:
 	RAS_DisplayArray *GetDisplayArray(unsigned short index) const;
 	RAS_DisplayArrayBucket *GetDisplayArrayBucket(unsigned short index) const;
 
-	virtual const SkinVertData *GetSkinningVertData(RAS_DisplayArray *array) const;
-	virtual const float *GetPoseMatrices() const;
+	virtual SkinShaderData GetSkinningShaderData(RAS_DisplayArray *array) const;
 
 protected:
+	void InitializeDisplayArrays();
+
 	/// Struct wrapping display arrays owned/used by the deformer.
 	struct DisplayArraySlot
 	{

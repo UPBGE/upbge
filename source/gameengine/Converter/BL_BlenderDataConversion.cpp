@@ -723,7 +723,7 @@ RAS_Deformer *BL_ConvertDeformer(KX_GameObject *object, KX_Mesh *meshobj)
 #endif
 
 	if (deformer) {
-		deformer->InitializeDisplayArrays();
+		deformer->Initialize();
 	}
 
 	return deformer;

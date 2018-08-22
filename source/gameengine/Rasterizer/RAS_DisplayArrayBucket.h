@@ -105,8 +105,10 @@ public:
 	void GenerateTree(RAS_MaterialDownwardNode& downwardRoot, RAS_MaterialUpwardNode& upwardRoot,
 			RAS_UpwardTreeLeafs& upwardLeafs, RAS_Rasterizer::DrawType drawingMode, bool sort, bool instancing);
 	void BindUpwardNode(const RAS_DisplayArrayNodeTuple& tuple);
+	void BindUpwardNodeSkinning(const RAS_DisplayArrayNodeTuple& tuple);
 	void UnbindUpwardNode(const RAS_DisplayArrayNodeTuple& tuple);
 	void RunDownwardNode(const RAS_DisplayArrayNodeTuple& tuple);
+	void RunDownwardNodeSkinning(const RAS_DisplayArrayNodeTuple& tuple);
 	void RunDownwardNodeNoArray(const RAS_DisplayArrayNodeTuple& tuple);
 	void RunInstancingNode(const RAS_DisplayArrayNodeTuple& tuple);
 	void RunBatchingNode(const RAS_DisplayArrayNodeTuple& tuple);

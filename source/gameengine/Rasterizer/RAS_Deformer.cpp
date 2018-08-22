@@ -38,6 +38,36 @@ RAS_Deformer::~RAS_Deformer()
 	}
 }
 
+void RAS_Deformer::Initialize()
+{
+	InitializeDisplayArrays();
+}
+
+bool RAS_Deformer::UseShaderSkinning() const
+{
+	return false;
+}
+
+RAS_Mesh *RAS_Deformer::GetMesh() const
+{
+	return m_mesh;
+}
+
+RAS_DisplayArray *RAS_Deformer::GetDisplayArray(unsigned short index) const
+{
+	return m_slots[index].m_displayArray;
+}
+
+RAS_DisplayArrayBucket *RAS_Deformer::GetDisplayArrayBucket(unsigned short index) const
+{
+	return m_slots[index].m_displayArrayBucket;
+}
+
+RAS_Deformer::SkinShaderData RAS_Deformer::GetSkinningShaderData(RAS_DisplayArray *array) const
+{
+	return {nullptr, nullptr, 0};
+}
+
 void RAS_Deformer::InitializeDisplayArrays()
 {
 	for (RAS_MeshMaterial *meshmat : m_mesh->GetMeshMaterialList()) {
@@ -59,29 +89,3 @@ void RAS_Deformer::InitializeDisplayArrays()
 		slot.m_origDisplayArray->AddUpdateClient(&slot.m_arrayUpdateClient);
 	}
 }
-
-RAS_Mesh *RAS_Deformer::GetMesh() const
-{
-	return m_mesh;
-}
-
-RAS_DisplayArray *RAS_Deformer::GetDisplayArray(unsigned short index) const
-{
-	return m_slots[index].m_displayArray;
-}
-
-RAS_DisplayArrayBucket *RAS_Deformer::GetDisplayArrayBucket(unsigned short index) const
-{
-	return m_slots[index].m_displayArrayBucket;
-}
-
-const RAS_Deformer::SkinVertData *RAS_Deformer::GetSkinningVertData(RAS_DisplayArray *array) const
-{
-	return nullptr;
-}
-
-const float *RAS_Deformer::GetPoseMatrices() const
-{
-	return nullptr;
-}
-

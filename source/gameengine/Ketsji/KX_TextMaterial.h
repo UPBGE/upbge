@@ -40,7 +40,7 @@ public:
 	virtual void Activate(RAS_Rasterizer *rasty);
 	virtual void Desactivate(RAS_Rasterizer *rasty);
 	virtual void ActivateInstancing(RAS_Rasterizer *rasty, void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride);
-	virtual void DesactivateInstancing();
+	virtual void ActivateSkinning(RAS_Rasterizer *rasty, const RAS_Deformer::SkinShaderData& skinData);
 	virtual void ActivateMeshSlot(RAS_MeshSlot *ms, RAS_Rasterizer *rasty, const mt::mat3x4& camtrans);
 
 	virtual const std::string GetTextureName() const;
