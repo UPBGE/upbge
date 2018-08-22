@@ -37,6 +37,7 @@
 #include "CM_Message.h"
 
 #include <boost/format.hpp>
+#include <thread>
 
 #include "BLI_task.h"
 
@@ -349,34 +350,46 @@ bool KX_KetsjiEngine::NextFrame()
 	 * XXX render.fps is not considred anywhere.
 	 */
 
-	double timestep = m_timescale / m_ticrate;
-	if (!(m_flags & USE_EXTERNAL_CLOCK)) {
+	// Number of logic/physics frames to proceed.
+	int frames;
+	double timestep;
+
+	if (m_flags & USE_EXTERNAL_CLOCK) {
+		// Always proceed a frame when the user control time.
+		frames = 1;
+	}
+	else {
 		double current_time = m_clock.GetTimeSecond();
 		double dt = current_time - m_previousRealTime;
 		m_previousRealTime = current_time;
 		m_clockTime += dt * m_timescale;
 
-		if (!(m_flags & FIXED_FRAMERATE)) {
+		const double deltatime = m_clockTime - m_frameTime;
+		if (deltatime < 0.0) {
+			// We got here too quickly, which means there is nothing to do, just return and don't render.
+			// Not sure if this is the best fix, but it seems to stop the jumping framerate issue (#33088)
+			return false;
+		}
+
+		// Compute the number of logic frames to do each update in case of fixed framerate.
+		if (m_flags & FIXED_FRAMERATE) {
+			timestep = m_timescale / m_ticrate;
+			const double scale = m_ticrate / m_timescale + 1e-6;
+			frames = int(deltatime * scale);
+
+			// If the elapsed time induce a higher framerate, sleep until the next frame time point.
+			if (frames == 0) {
+				const double sleeptime = 1.0 / scale - deltatime;
+				std::this_thread::sleep_for(std::chrono::nanoseconds((long)(sleeptime * 1.0e9)));
+				frames = 1;
+			}
+		}
+		else {
 			timestep = dt * m_timescale;
+			// In case of non-fixed framerate, we always proceed one frame.
+			frames = 1;
 		}
 	}
-
-	double deltatime = m_clockTime - m_frameTime;
-	if (deltatime < 0.0) {
-		// We got here too quickly, which means there is nothing to do, just return and don't render.
-		// Not sure if this is the best fix, but it seems to stop the jumping framerate issue (#33088)
-		return false;
-	}
-
-	// In case of non-fixed framerate, we always proceed one frame.
-	int frames = 1;
-
-	// Compute the number of logic frames to do each update in case of fixed framerate.
-	if (m_flags & FIXED_FRAMERATE) {
-		frames = int(deltatime * m_ticrate / m_timescale + 1e-6);
-	}
-
-//	CM_Debug("dt = " << dt << ", deltatime = " << deltatime << ", frames = " << frames);
 
 	double framestep = timestep;
 
@@ -385,7 +398,7 @@ bool KX_KetsjiEngine::NextFrame()
 		frames = m_maxPhysicsFrame;
 	}
 
-	bool doRender = frames > 0;
+	const bool doRender = frames > 0;
 
 	if (frames > m_maxLogicFrame) {
 		framestep = (frames * timestep) / m_maxLogicFrame;
