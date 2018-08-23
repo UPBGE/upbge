@@ -435,6 +435,24 @@ KX_LibLoadStatus *BL_Converter::LinkBlendFile(BlendHandle *blendlib, const char 
 	else if (idcode == ID_SCE) {
 		// Merge all new linked in scene into the existing one
 
+#ifdef WITH_PYTHON
+		// Handle any text datablocks
+		if (options & LIB_LOAD_LOAD_SCRIPTS) {
+			addImportMain(main_newlib);
+		}
+#endif
+		// Now handle all the actions
+		if (options & LIB_LOAD_LOAD_ACTIONS) {
+			ID *action;
+
+			for (action = (ID *)main_newlib->action.first; action; action = (ID *)action->next) {
+				if (options & LIB_LOAD_VERBOSE) {
+					CM_Debug("action name: " << action->name + 2);
+				}
+				scene_merge->GetLogicManager()->RegisterActionName(action->name + 2, action);
+			}
+		}
+
 		if (options & LIB_LOAD_ASYNC) {
 			std::vector<KX_Scene *> scenes;
 			for (Scene *bscene = (Scene *)main_newlib->scene.first; bscene; bscene = (Scene *)bscene->id.next) {
@@ -463,25 +481,6 @@ KX_LibLoadStatus *BL_Converter::LinkBlendFile(BlendHandle *blendlib, const char 
 				BL_SceneConverter sceneConverter(other);
 				ConvertScene(sceneConverter, true);
 				MergeScene(scene_merge, sceneConverter);
-			}
-		}
-
-#ifdef WITH_PYTHON
-		// Handle any text datablocks
-		if (options & LIB_LOAD_LOAD_SCRIPTS) {
-			addImportMain(main_newlib);
-		}
-#endif
-
-		// Now handle all the actions
-		if (options & LIB_LOAD_LOAD_ACTIONS) {
-			ID *action;
-
-			for (action = (ID *)main_newlib->action.first; action; action = (ID *)action->next) {
-				if (options & LIB_LOAD_VERBOSE) {
-					CM_Debug("action name: " << action->name + 2);
-				}
-				scene_merge->GetLogicManager()->RegisterActionName(action->name + 2, action);
 			}
 		}
 	}
