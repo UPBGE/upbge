@@ -112,6 +112,7 @@
 #include "BL_ConvertProperties.h"
 #include "BL_ConvertObjectInfo.h"
 #include "BL_ArmatureObject.h"
+#include "BL_ActionData.h"
 
 #include "LA_SystemCommandLine.h"
 
@@ -524,7 +525,10 @@ KX_Mesh *BL_ConvertMesh(Mesh *me, Object *blenderobj, KX_Scene *scene, BL_SceneC
 
 	dm->release(dm);
 
+	// Needed for python scripting.
+	scene->GetLogicManager()->RegisterMeshName(meshobj->GetName(), meshobj);
 	converter.RegisterGameMesh(meshobj, me);
+
 	return meshobj;
 }
 
@@ -727,6 +731,23 @@ RAS_Deformer *BL_ConvertDeformer(KX_GameObject *object, KX_Mesh *meshobj)
 	}
 
 	return deformer;
+}
+
+BL_ActionData *BL_ConvertAction(bAction *action, KX_Scene *scene, BL_SceneConverter& converter)
+{
+	BL_ActionData *data = new BL_ActionData(action);
+	converter.RegisterActionData(data);
+	scene->GetLogicManager()->RegisterActionName(action->id.name + 2, data);
+
+	return data;
+}
+
+void BL_ConvertActions(KX_Scene *scene, Main *maggie, BL_SceneConverter& converter)
+{
+	// Convert all actions and register.
+	for (bAction *act = (bAction *)maggie->action.first; act; act = (bAction *)act->id.next) {
+		BL_ConvertAction(act, scene, converter);
+	}
 }
 
 static void BL_CreateGraphicObjectNew(KX_GameObject *gameobj, KX_Scene *kxscene, bool isActive, PHY_IPhysicsEnvironment *phyEnv)
@@ -967,9 +988,6 @@ static KX_GameObject *BL_GameObjectFromBlenderObject(Object *ob, KX_Scene *kxsce
 		{
 			Mesh *mesh = static_cast<Mesh *>(ob->data);
 			KX_Mesh *meshobj = BL_ConvertMesh(mesh, ob, kxscene, converter);
-
-			// needed for python scripting
-			kxscene->GetLogicManager()->RegisterMeshName(meshobj->GetName(), meshobj);
 
 			if (ob->gameflag & OB_NAVMESH) {
 				gameobj = new KX_NavMeshObject(kxscene, KX_Scene::m_callbacks);
@@ -1423,12 +1441,6 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 	SCA_TimeEventManager *timemgr = kxscene->GetTimeEventManager();
 
 	EXP_ListValue<KX_GameObject> *logicbrick_conversionlist = new EXP_ListValue<KX_GameObject>();
-
-	// Convert actions to actionmap.
-	bAction *curAct;
-	for (curAct = (bAction *)maggie->action.first; curAct; curAct = (bAction *)curAct->id.next) {
-		logicmgr->RegisterActionName(curAct->id.name + 2, curAct);
-	}
 
 	BL_SetBlenderSceneBackground(blenderscene);
 

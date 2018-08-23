@@ -31,20 +31,26 @@
 
 #include "BL_SceneConverter.h"
 #include "BL_ConvertObjectInfo.h"
+#include "BL_ActionData.h"
 #include "KX_GameObject.h"
+#include "KX_Mesh.h"
+#include "KX_BlenderMaterial.h"
 
 #include "CM_List.h"
 
-BL_SceneConverter::BL_SceneConverter(KX_Scene *scene)
-	:m_scene(scene)
+BL_SceneConverter::BL_SceneConverter(KX_Scene *scene, const BL_Resource::Library& libraryId)
+	:m_scene(scene),
+	m_libraryId(libraryId)
 {
 }
 
 BL_SceneConverter::BL_SceneConverter(BL_SceneConverter&& other)
 	:m_scene(other.m_scene),
+	m_libraryId(other.m_libraryId),
 	m_materials(std::move(other.m_materials)),
 	m_meshobjects(std::move(other.m_meshobjects)),
 	m_objectInfos(std::move(other.m_objectInfos)),
+	m_actions(std::move(other.m_actions)),
 	m_objects(std::move(other.m_objects)),
 	m_blenderToObjectInfos(std::move(other.m_blenderToObjectInfos)),
 	m_map_blender_to_gameobject(std::move(other.m_map_blender_to_gameobject)),
@@ -91,6 +97,8 @@ KX_GameObject *BL_SceneConverter::FindGameObject(Object *for_blenderobject)
 
 void BL_SceneConverter::RegisterGameMesh(KX_Mesh *gamemesh, Mesh *for_blendermesh)
 {
+	gamemesh->SetOwner(m_libraryId);
+
 	if (for_blendermesh) { // dynamically loaded meshes we don't want to keep lookups for
 		m_map_mesh_to_gamemesh[for_blendermesh] = gamemesh;
 	}
@@ -104,6 +112,8 @@ KX_Mesh *BL_SceneConverter::FindGameMesh(Mesh *for_blendermesh)
 
 void BL_SceneConverter::RegisterMaterial(KX_BlenderMaterial *blmat, Material *mat)
 {
+	blmat->SetOwner(m_libraryId);
+
 	if (mat) {
 		m_map_mesh_to_polyaterial[mat] = blmat;
 	}
@@ -113,6 +123,12 @@ void BL_SceneConverter::RegisterMaterial(KX_BlenderMaterial *blmat, Material *ma
 KX_BlenderMaterial *BL_SceneConverter::FindMaterial(Material *mat)
 {
 	return m_map_mesh_to_polyaterial[mat];
+}
+
+void BL_SceneConverter::RegisterActionData(BL_ActionData *data)
+{
+	data->SetOwner(m_libraryId);
+	m_actions.push_back(data);
 }
 
 void BL_SceneConverter::RegisterGameActuator(SCA_IActuator *act, bActuator *for_actuator)
@@ -139,7 +155,9 @@ BL_ConvertObjectInfo *BL_SceneConverter::GetObjectInfo(Object *blenderobj)
 {
 	const auto& it = m_blenderToObjectInfos.find(blenderobj);
 	if (it == m_blenderToObjectInfos.end()) {
-		BL_ConvertObjectInfo *info = m_blenderToObjectInfos[blenderobj] = new BL_ConvertObjectInfo{blenderobj, {}};
+		BL_ConvertObjectInfo *info = m_blenderToObjectInfos[blenderobj] = new BL_ConvertObjectInfo(blenderobj);
+		info->SetOwner(m_libraryId);
+
 		m_objectInfos.push_back(info);
 		return info;
 	}

@@ -30,6 +30,7 @@
 #include "BL_ArmatureObject.h"
 #include "BL_ShapeDeformer.h"
 #include "BL_IpoConvert.h"
+#include "BL_ActionData.h"
 #include "KX_GameObject.h"
 #include "KX_Globals.h"
 #include "KX_Mesh.h"
@@ -60,7 +61,7 @@ extern "C" {
 #include "BKE_global.h"
 
 BL_Action::BL_Action(KX_GameObject *gameobj)
-	:m_action(nullptr),
+	:m_actionData(nullptr),
 	m_tmpaction(nullptr),
 	m_blendpose(nullptr),
 	m_blendinpose(nullptr),
@@ -137,13 +138,13 @@ bool BL_Action::Play(const std::string& name,
 		return false;
 	}
 	m_priority = priority;
-	bAction *prev_action = m_action;
+	BL_ActionData *prev_action = m_actionData;
 
 	KX_Scene *kxscene = m_obj->GetScene();
 
 	// First try to load the action
-	m_action = (bAction *)kxscene->GetLogicManager()->GetActionByName(name);
-	if (!m_action) {
+	m_actionData = static_cast<BL_ActionData *>(kxscene->GetLogicManager()->GetActionByName(name));
+	if (!m_actionData) {
 		CM_Error("failed to load action: " << name);
 		m_done = true;
 		return false;
@@ -155,7 +156,7 @@ bool BL_Action::Play(const std::string& name,
 	// However, this may eventually lead to issues where a user wants to override an already
 	// playing action with the same action and settings. If this becomes an issue,
 	// then this fix may have to be re-evaluated.
-	if (!IsDone() && m_action == prev_action && m_startframe == start && m_endframe == end
+	if (!IsDone() && m_actionData == prev_action && m_startframe == start && m_endframe == end
 	    && m_priority == priority && m_speed == playback_speed) {
 		return false;
 	}
@@ -165,32 +166,33 @@ bool BL_Action::Play(const std::string& name,
 		BKE_libblock_free(G.main, m_tmpaction);
 		m_tmpaction = nullptr;
 	}
-	m_tmpaction = BKE_action_copy(G.main, m_action);
+
+	m_tmpaction = BKE_action_copy(G.main, m_actionData->GetAction());
 
 	// First get rid of any old controllers
 	ClearControllerList();
 
 	// Create an SG_Controller
-	AddController(BL_CreateIPO(m_action, m_obj, kxscene));
+	AddController(BL_CreateIPO(m_actionData, m_obj, kxscene));
 	// World
-	AddController(BL_CreateWorldIPO(m_action, kxscene->GetBlenderScene()->world, kxscene));
+	AddController(BL_CreateWorldIPO(m_actionData, kxscene->GetBlenderScene()->world, kxscene));
 	// Try obcolor
-	AddController(BL_CreateObColorIPO(m_action, m_obj, kxscene));
+	AddController(BL_CreateObColorIPO(m_actionData, m_obj, kxscene));
 
 	// Now try materials
 	for (KX_Mesh *mesh : m_obj->GetMeshList()) {
 		for (RAS_MeshMaterial *meshmat : mesh->GetMeshMaterialList()) {
 			RAS_IMaterial *mat = meshmat->GetBucket()->GetMaterial();
-			AddController(BL_CreateMaterialIpo(m_action, mat, m_obj, kxscene));
+			AddController(BL_CreateMaterialIpo(m_actionData, mat, m_obj, kxscene));
 		}
 	}
 
 	// Extra controllers
 	if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_LIGHT) {
-		AddController(BL_CreateLampIPO(m_action, m_obj, kxscene));
+		AddController(BL_CreateLampIPO(m_actionData, m_obj, kxscene));
 	}
 	else if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_CAMERA) {
-		AddController(BL_CreateCameraIPO(m_action, m_obj, kxscene));
+		AddController(BL_CreateCameraIPO(m_actionData, m_obj, kxscene));
 	}
 
 	m_ipo_flags = ipo_flags;
@@ -253,9 +255,9 @@ void BL_Action::InitIPO()
 	}
 }
 
-bAction *BL_Action::GetAction()
+BL_ActionData *BL_Action::GetActionData()
 {
-	return (IsDone()) ? nullptr : m_action;
+	return (IsDone()) ? nullptr : m_actionData;
 }
 
 float BL_Action::GetFrame()
@@ -265,12 +267,7 @@ float BL_Action::GetFrame()
 
 const std::string BL_Action::GetName()
 {
-	if (m_action != nullptr) {
-		return m_action->id.name + 2;
-	}
-	else {
-		return "";
-	}
+	return (m_actionData) ? m_actionData->GetName() : "";
 }
 
 void BL_Action::SetFrame(float frame)

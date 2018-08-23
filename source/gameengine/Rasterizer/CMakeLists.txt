@@ -28,6 +28,7 @@ set(INC
 	Node
 	RAS_OpenGLRasterizer
 	../Common
+	../Converter
 	../Expressions
 	../Ketsji
 	../Physics/Common

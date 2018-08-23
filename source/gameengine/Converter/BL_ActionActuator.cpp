@@ -64,7 +64,7 @@ BL_ActionActuator::BL_ActionActuator(SCA_IObject *gameobj,
                                      const std::string& framepropname,
                                      float starttime,
                                      float endtime,
-                                     struct bAction *action,
+                                     const std::string& actionName,
                                      short playtype,
                                      short blend_mode,
                                      short blendin,
@@ -85,7 +85,7 @@ BL_ActionActuator::BL_ActionActuator(SCA_IObject *gameobj,
 	m_priority(priority),
 	m_layer(layer),
 	m_ipo_flags(ipo_flags),
-	m_action(action),
+	m_actionName(actionName),
 	m_propname(propname),
 	m_framepropname(framepropname)
 {
@@ -121,7 +121,7 @@ bool BL_ActionActuator::Update(double curtime)
 	float end = m_endframe;
 
 	// If we don't have an action, we can't do anything
-	if (!m_action) {
+	if (m_actionName.empty()) {
 		return false;
 	}
 
@@ -174,7 +174,7 @@ bool BL_ActionActuator::Update(double curtime)
 	}
 
 	// If a different action is playing, we've been overruled and are no longer active
-	if (obj->GetCurrentAction(m_layer) != m_action && !obj->IsActionDone(m_layer)) {
+	if (obj->GetCurrentActionName(m_layer) != m_actionName && !obj->IsActionDone(m_layer)) {
 		m_flag &= ~ACT_FLAG_ACTIVE;
 	}
 
@@ -229,8 +229,8 @@ bool BL_ActionActuator::Update(double curtime)
 	}
 	else if ((m_flag & ACT_FLAG_ACTIVE) && negativeEvent) {
 		m_localtime = obj->GetActionFrame(m_layer);
-		bAction *curr_action = obj->GetCurrentAction(m_layer);
-		if (curr_action && curr_action != m_action) {
+		const std::string curr_action = obj->GetCurrentActionName(m_layer);
+		if (!curr_action.empty() && curr_action != m_actionName) {
 			// Someone changed the action on us, so we wont mess with it
 			// Hopefully there wont be too many problems with two actuators using
 			// the same action...
@@ -262,7 +262,7 @@ bool BL_ActionActuator::Update(double curtime)
 				// Convert into a play action and play back to the beginning
 				float temp = end;
 				end = start;
-				start = curr_action ? obj->GetActionFrame(m_layer) : temp;
+				start = curr_action.empty() ? temp : obj->GetActionFrame(m_layer);
 				Play(obj, start, end, BL_Action::ACT_MODE_PLAY);
 				m_flag |= ACT_FLAG_PLAY_END;
 				break;
@@ -287,7 +287,7 @@ void BL_ActionActuator::DecLink()
 bool BL_ActionActuator::Play(KX_GameObject *obj, float start, float end, short mode)
 {
 	const short blendmode = (m_blendmode == ACT_ACTION_ADD) ? BL_Action::ACT_BLEND_ADD : BL_Action::ACT_BLEND_BLEND;
-	return obj->PlayAction(m_action->id.name + 2, start, end, m_layer, m_priority, m_blendin, mode, m_layer_weight, m_ipo_flags, 1.0f, blendmode);
+	return obj->PlayAction(m_actionName, start, end, m_layer, m_priority, m_blendin, mode, m_layer_weight, m_ipo_flags, 1.0f, blendmode);
 }
 
 #ifdef WITH_PYTHON
@@ -341,7 +341,7 @@ PyAttributeDef BL_ActionActuator::Attributes[] = {
 PyObject *BL_ActionActuator::pyattr_get_action(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	BL_ActionActuator *self = static_cast<BL_ActionActuator *>(self_v);
-	return PyUnicode_FromString(self->GetAction() ? self->GetAction()->id.name + 2 : "");
+	return PyUnicode_FromStdString(self->m_actionName);
 }
 
 int BL_ActionActuator::pyattr_set_action(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
@@ -353,18 +353,16 @@ int BL_ActionActuator::pyattr_set_action(EXP_PyObjectPlus *self_v, const EXP_PYA
 		return PY_SET_ATTR_FAIL;
 	}
 
-	bAction *action = nullptr;
 	std::string val = _PyUnicode_AsString(value);
 
-	if (val != "") {
-		action = (bAction *)self->GetLogicManager()->GetActionByName(val);
-		if (!action) {
+	if (!val.empty()) {
+		if (!self->GetLogicManager()->GetActionByName(val)) {
 			PyErr_SetString(PyExc_ValueError, "actuator.action = val: Action Actuator, action not found!");
 			return PY_SET_ATTR_FAIL;
 		}
 	}
 
-	self->SetAction(action);
+	self->m_actionName = val;
 	return PY_SET_ATTR_SUCCESS;
 
 }
