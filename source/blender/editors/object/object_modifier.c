@@ -605,7 +605,7 @@ static int modifier_apply_obdata(ReportList *reports, Depsgraph *depsgraph, Scen
 			multires_force_update(ob);
 
 		if (mmd && mmd->totlvl && mti->type == eModifierTypeType_OnlyDeform) {
-			if (!multiresModifier_reshapeFromDeformModifier(depsgraph, scene, mmd, ob, md)) {
+			if (!multiresModifier_reshapeFromDeformModifier(depsgraph, mmd, ob, md)) {
 				BKE_report(reports, RPT_ERROR, "Multires modifier returned error, skipping apply");
 				return 0;
 			}
@@ -1250,7 +1250,6 @@ static int multires_reshape_exec(bContext *C, wmOperator *op)
 {
 	Depsgraph *depsgraph = CTX_data_depsgraph(C);
 	Object *ob = ED_object_active_context(C), *secondob = NULL;
-	Scene *scene = CTX_data_scene(C);
 	MultiresModifierData *mmd = (MultiresModifierData *)edit_modifier_property_get(op, ob, eModifierType_Multires);
 
 	if (!mmd)
@@ -1275,7 +1274,7 @@ static int multires_reshape_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 
-	if (!multiresModifier_reshape(depsgraph, scene, mmd, ob, secondob)) {
+	if (!multiresModifier_reshape(depsgraph, mmd, ob, secondob)) {
 		BKE_report(op->reports, RPT_ERROR, "Objects do not have the same number of vertices");
 		return OPERATOR_CANCELLED;
 	}

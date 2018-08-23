@@ -106,6 +106,7 @@ extern char datatoc_gpu_shader_uniform_color_frag_glsl[];
 /* *********** LISTS *********** */
 typedef struct OBJECT_PassList {
 	struct DRWPass *non_meshes[2];
+	struct DRWPass *spot_shapes[2];
 	struct DRWPass *ob_center;
 	struct DRWPass *outlines;
 	struct DRWPass *outlines_search;
@@ -146,6 +147,7 @@ typedef struct OBJECT_Data {
 typedef struct OBJECT_ShadingGroupList {
 	/* Reference only */
 	struct DRWPass *non_meshes;
+	struct DRWPass *spot_shapes;
 	struct DRWPass *bone_solid;
 	struct DRWPass *bone_outline;
 	struct DRWPass *bone_wire;
@@ -209,6 +211,10 @@ typedef struct OBJECT_ShadingGroupList {
 	DRWShadingGroup *lamp_spot_blend;
 	DRWShadingGroup *lamp_spot_pyramid;
 	DRWShadingGroup *lamp_spot_blend_rect;
+	DRWShadingGroup *lamp_spot_volume;
+	DRWShadingGroup *lamp_spot_volume_rect;
+	DRWShadingGroup *lamp_spot_volume_outside;
+	DRWShadingGroup *lamp_spot_volume_rect_outside;
 
 	/* Helpers */
 	DRWShadingGroup *relationship_lines;
@@ -1100,8 +1106,7 @@ static void OBJECT_cache_init(void *vedata)
 
 		DRWState state =
 		        DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH |
-		        DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_BLEND | DRW_STATE_POINT;
-		state |= DRW_STATE_WIRE;
+		        DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_BLEND | DRW_STATE_POINT | DRW_STATE_WIRE;
 		sgl->non_meshes = psl->non_meshes[i] = DRW_pass_create("Non Meshes Pass", state);
 
 		/* Empties */
@@ -1292,6 +1297,28 @@ static void OBJECT_cache_init(void *vedata)
 		/* TODO port to shader stipple */
 		geom = DRW_cache_field_cone_limit_get();
 		sgl->field_cone_limit = shgroup_instance_scaled(sgl->non_meshes, geom);
+
+		/* Spot shapes */
+		state = DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_BLEND | DRW_STATE_CULL_FRONT;
+		sgl->spot_shapes = psl->spot_shapes[i] = DRW_pass_create("Spot Shape Pass", state);
+		float cone_spot_alpha = 0.5f;
+
+		geom = DRW_cache_lamp_spot_volume_get();
+		sgl->lamp_spot_volume = shgroup_instance_alpha(sgl->spot_shapes, geom, cone_spot_alpha);
+
+		geom = DRW_cache_lamp_spot_square_volume_get();
+		sgl->lamp_spot_volume_rect = shgroup_instance_alpha(sgl->spot_shapes, geom, cone_spot_alpha);
+
+		cone_spot_alpha = 0.3f;
+		geom = DRW_cache_lamp_spot_volume_get();
+		sgl->lamp_spot_volume_outside = shgroup_instance_alpha(sgl->spot_shapes, geom, cone_spot_alpha);
+		DRW_shgroup_state_disable(sgl->lamp_spot_volume_outside, DRW_STATE_CULL_FRONT);
+		DRW_shgroup_state_enable(sgl->lamp_spot_volume_outside, DRW_STATE_CULL_BACK);
+
+		geom = DRW_cache_lamp_spot_square_volume_get();
+		sgl->lamp_spot_volume_rect_outside = shgroup_instance_alpha(sgl->spot_shapes, geom, cone_spot_alpha);
+		DRW_shgroup_state_disable(sgl->lamp_spot_volume_rect_outside, DRW_STATE_CULL_FRONT);
+		DRW_shgroup_state_enable(sgl->lamp_spot_volume_rect_outside, DRW_STATE_CULL_BACK);
 	}
 
 	{
@@ -1429,8 +1456,9 @@ static void DRW_shgroup_lamp(OBJECT_ShadingGroupList *sgl, Object *ob, ViewLayer
 	else if (la->type == LA_SPOT) {
 		float size[3], sizemat[4][4];
 		static float one = 1.0f;
+		float cone_inside[3] = {0.0f, 0.0f, 0.0f};
+		float cone_outside[3] = {1.0f, 1.0f, 1.0f};
 		float blend = 1.0f - pow2f(la->spotblend);
-
 		size[0] = size[1] = sinf(la->spotsize * 0.5f) * la->dist;
 		size[2] = cosf(la->spotsize * 0.5f) * la->dist;
 
@@ -1452,6 +1480,12 @@ static void DRW_shgroup_lamp(OBJECT_ShadingGroupList *sgl, Object *ob, ViewLayer
 			if (blend != 0.0f && blend != 1.0f) {
 				DRW_shgroup_call_dynamic_add(sgl->lamp_spot_blend_rect, color, &one, spotblendmat);
 			}
+
+			if (la->mode & LA_SHOW_CONE) {
+
+				DRW_shgroup_call_dynamic_add(sgl->lamp_spot_volume_rect, cone_inside, &one, shapemat);
+				DRW_shgroup_call_dynamic_add(sgl->lamp_spot_volume_rect_outside, cone_outside, &one, shapemat);
+			}
 		}
 		else {
 			DRW_shgroup_call_dynamic_add(sgl->lamp_spot_cone, color, shapemat);
@@ -1461,6 +1495,11 @@ static void DRW_shgroup_lamp(OBJECT_ShadingGroupList *sgl, Object *ob, ViewLayer
 			 * confusing because it doesn't show the actual blend size */
 			if (blend != 0.0f && blend != 1.0f) {
 				DRW_shgroup_call_dynamic_add(sgl->lamp_spot_blend, color, &one, spotblendmat);
+			}
+
+			if (la->mode & LA_SHOW_CONE) {
+				DRW_shgroup_call_dynamic_add(sgl->lamp_spot_volume, cone_inside, &one, shapemat);
+				DRW_shgroup_call_dynamic_add(sgl->lamp_spot_volume_outside, cone_outside, &one, shapemat);
 			}
 		}
 
@@ -1635,7 +1674,7 @@ static void DRW_shgroup_camera(OBJECT_ShadingGroupList *sgl, Object *ob, ViewLay
 
 	/* Motion Tracking. */
 	MovieClip *clip = BKE_object_movieclip_get(scene, ob, false);
-	if ((v3d->flag2 & V3D_SHOW_RECONSTRUCTION) && (clip != NULL)){
+	if ((v3d->flag2 & V3D_SHOW_RECONSTRUCTION) && (clip != NULL)) {
 		BLI_assert(BLI_listbase_is_empty(&sgl->camera_path));
 		const bool is_select = DRW_state_is_select();
 		const bool is_solid_bundle = (v3d->bundle_drawtype == OB_EMPTY_SPHERE) &&
@@ -1668,7 +1707,7 @@ static void DRW_shgroup_camera(OBJECT_ShadingGroupList *sgl, Object *ob, ViewLay
 		{
 			float tracking_object_mat[4][4];
 
-			if (tracking_object->flag & TRACKING_OBJECT_CAMERA){
+			if (tracking_object->flag & TRACKING_OBJECT_CAMERA) {
 				copy_m4_m4(tracking_object_mat, camera_mat);
 			}
 			else {
@@ -2833,9 +2872,10 @@ static void OBJECT_draw_scene(void *vedata)
 
 //	DRW_draw_pass(psl->bone_envelope);  /* Never drawn in Object mode currently. */
 
-	MULTISAMPLE_SYNC_ENABLE(dfbl, dtxl)
+	MULTISAMPLE_SYNC_ENABLE(dfbl, dtxl);
 
 	/* This needs to be drawn after the oultine */
+	DRW_draw_pass(stl->g_data->sgl.spot_shapes);
 	DRW_draw_pass(stl->g_data->sgl.bone_solid);
 	DRW_draw_pass(stl->g_data->sgl.bone_wire);
 	DRW_draw_pass(stl->g_data->sgl.bone_outline);
@@ -2907,10 +2947,10 @@ static void OBJECT_draw_scene(void *vedata)
 	batch_camera_path_free(&stl->g_data->sgl.camera_path);
 
 	if (!DRW_pass_is_empty(stl->g_data->sgl_ghost.bone_solid) ||
-		!DRW_pass_is_empty(stl->g_data->sgl_ghost.bone_wire) ||
-		!DRW_pass_is_empty(stl->g_data->sgl_ghost.bone_outline) ||
-		!DRW_pass_is_empty(stl->g_data->sgl_ghost.non_meshes) ||
-		!DRW_pass_is_empty(stl->g_data->sgl_ghost.bone_axes))
+	    !DRW_pass_is_empty(stl->g_data->sgl_ghost.bone_wire) ||
+	    !DRW_pass_is_empty(stl->g_data->sgl_ghost.bone_outline) ||
+	    !DRW_pass_is_empty(stl->g_data->sgl_ghost.non_meshes) ||
+	    !DRW_pass_is_empty(stl->g_data->sgl_ghost.bone_axes))
 	{
 		if (DRW_state_is_fbo()) {
 			/* meh, late init to not request a depth buffer we won't use. */
@@ -2927,6 +2967,7 @@ static void OBJECT_draw_scene(void *vedata)
 			GPU_framebuffer_clear_depth(fbl->ghost_fb, 1.0f);
 		}
 
+		DRW_draw_pass(stl->g_data->sgl_ghost.spot_shapes);
 		DRW_draw_pass(stl->g_data->sgl_ghost.bone_solid);
 		DRW_draw_pass(stl->g_data->sgl_ghost.bone_wire);
 		DRW_draw_pass(stl->g_data->sgl_ghost.bone_outline);

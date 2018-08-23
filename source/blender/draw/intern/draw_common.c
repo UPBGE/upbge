@@ -396,6 +396,23 @@ DRWShadingGroup *shgroup_instance(DRWPass *pass, struct GPUBatch *geom)
 	});
 
 	DRWShadingGroup *grp = DRW_shgroup_instance_create(sh_inst, pass, geom, g_formats.instance_sized);
+	DRW_shgroup_uniform_float_copy(grp, "alpha", 1.0f);
+
+	return grp;
+}
+
+DRWShadingGroup *shgroup_instance_alpha(DRWPass *pass, struct GPUBatch *geom, float alpha)
+{
+	GPUShader *sh_inst = GPU_shader_get_builtin_shader(GPU_SHADER_INSTANCE_VARIYING_COLOR_VARIYING_SIZE);
+
+	DRW_shgroup_instance_format(g_formats.instance_sized, {
+		{"color",               DRW_ATTRIB_FLOAT, 4},
+		{"size",                DRW_ATTRIB_FLOAT, 1},
+		{"InstanceModelMatrix", DRW_ATTRIB_FLOAT, 16}
+	});
+
+	DRWShadingGroup *grp = DRW_shgroup_instance_create(sh_inst, pass, geom, g_formats.instance_sized);
+	DRW_shgroup_uniform_float_copy(grp, "alpha", alpha);
 
 	return grp;
 }
@@ -405,7 +422,7 @@ DRWShadingGroup *shgroup_instance_empty_axes(DRWPass *pass, struct GPUBatch *geo
 	if (g_shaders.empty_axes_sh == NULL) {
 		g_shaders.empty_axes_sh = DRW_shader_create(
 		        datatoc_object_empty_axes_vert_glsl, NULL,
-	            datatoc_gpu_shader_flat_color_frag_glsl, NULL);
+		        datatoc_gpu_shader_flat_color_frag_glsl, NULL);
 	}
 
 	DRW_shgroup_instance_format(g_formats.instance_sized, {

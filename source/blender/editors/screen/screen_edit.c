@@ -848,7 +848,7 @@ void ED_screen_global_areas_refresh(wmWindow *win)
 	if ((win->parent != NULL) || screen->temp) {
 		if (win->global_areas.areabase.first) {
 			screen->do_refresh = true;
-		    BKE_screen_area_map_free(&win->global_areas);
+			BKE_screen_area_map_free(&win->global_areas);
 		}
 		return;
 	}
@@ -1156,6 +1156,7 @@ ScrArea *ED_screen_state_toggle(bContext *C, wmWindow *win, ScrArea *sa, const s
 		oldscreen = WM_window_get_active_screen(win); /* the one disappearing */
 
 		sc->state = SCREENNORMAL;
+		sc->flag = oldscreen->flag;
 
 		/* find old area to restore from */
 		ScrArea *fullsa = NULL;
@@ -1223,6 +1224,7 @@ ScrArea *ED_screen_state_toggle(bContext *C, wmWindow *win, ScrArea *sa, const s
 		sc->state = state;
 		sc->redraws_flag = oldscreen->redraws_flag;
 		sc->temp = oldscreen->temp;
+		sc->flag = oldscreen->flag;
 
 		/* timer */
 		sc->animtimer = oldscreen->animtimer;

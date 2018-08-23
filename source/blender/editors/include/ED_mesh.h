@@ -35,6 +35,7 @@
 extern "C" {
 #endif
 
+struct Base;
 struct ID;
 struct View3D;
 struct ARegion;
@@ -169,6 +170,13 @@ struct BMFace *EDBM_face_find_nearest_ex(
 struct BMFace *EDBM_face_find_nearest(
         struct ViewContext *vc, float *r_dist);
 
+bool EDBM_unified_findnearest(
+        struct ViewContext *vc,
+        struct Base **r_base,
+        struct BMVert **r_eve,
+        struct BMEdge **r_eed,
+        struct BMFace **r_efa);
+
 bool EDBM_select_pick(struct bContext *C, const int mval[2], bool extend, bool deselect, bool toggle);
 
 void EDBM_selectmode_set(struct BMEditMesh *em);
@@ -192,13 +200,23 @@ void em_setup_viewcontext(struct bContext *C, struct ViewContext *vc);  /* renam
 
 extern unsigned int bm_vertoffs, bm_solidoffs, bm_wireoffs;
 
+/* editmesh_preselect.c */
+struct EditMesh_PreSelEdgeRing;
+struct EditMesh_PreSelEdgeRing *EDBM_preselect_edgering_create(void);
+void EDBM_preselect_edgering_destroy(struct EditMesh_PreSelEdgeRing *psel);
+void EDBM_preselect_edgering_clear(struct EditMesh_PreSelEdgeRing *psel);
+void EDBM_preselect_edgering_draw(struct EditMesh_PreSelEdgeRing *psel, const float matrix[4][4]);
+void EDBM_preselect_edgering_update_from_edge(
+        struct EditMesh_PreSelEdgeRing *psel,
+        struct BMesh *bm, struct BMEdge *eed_start, int previewlines, const float (*coords)[3]);
+
 /* mesh_ops.c */
 void        ED_operatortypes_mesh(void);
 void        ED_operatormacros_mesh(void);
 void        ED_keymap_mesh(struct wmKeyConfig *keyconf);
 
 /* editmesh_tools.c (could be moved) */
-void EMBM_project_snap_verts(struct bContext *C, struct ARegion *ar, struct BMEditMesh *em);
+void EDBM_project_snap_verts(struct bContext *C, struct ARegion *ar, struct BMEditMesh *em);
 
 
 /* editface.c */
