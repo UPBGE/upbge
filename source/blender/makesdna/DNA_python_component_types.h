@@ -55,5 +55,7 @@ typedef struct PythonComponent {
 #define CPROP_TYPE_VEC2        5
 #define CPROP_TYPE_VEC3        6
 #define CPROP_TYPE_VEC4        7
+#define CPROP_TYPE_COL3        8
+#define CPROP_TYPE_COL4        9
 
 #endif /* __DNA_COMPONENT_TYPES_H__ */

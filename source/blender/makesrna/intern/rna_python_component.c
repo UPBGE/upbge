@@ -53,6 +53,10 @@ static StructRNA* rna_PythonComponentProperty_refine(struct PointerRNA *ptr)
 			return &RNA_ComponentVector3DProperty;
 		case CPROP_TYPE_VEC4:
 			return &RNA_ComponentVector4DProperty;
+		case CPROP_TYPE_COL3:
+			return &RNA_ComponentColor3Property;
+		case CPROP_TYPE_COL4:
+			return &RNA_ComponentColor4Property;
 		default:
 			return &RNA_PythonComponentProperty;
 	}
@@ -221,6 +225,28 @@ static void rna_def_py_component_property(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "Python Component Vector 4D Property", "A 4D vector property of a Python Component");
 
 	prop = RNA_def_property(srna, "value", PROP_FLOAT, PROP_COORDS);
+	RNA_def_property_float_sdna(prop, NULL, "vec");
+	RNA_def_property_array(prop, 4);
+	RNA_def_property_ui_text(prop, "Value", "Property value");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+	/* Color 3 */
+	srna = RNA_def_struct(brna, "ComponentColor3Property", "PythonComponentProperty");
+	RNA_def_struct_sdna(srna, "PythonComponentProperty");
+	RNA_def_struct_ui_text(srna, "Python Component Color 3 Property", "A 3 channels color property of a Python Component");
+
+	prop = RNA_def_property(srna, "value", PROP_FLOAT, PROP_COLOR);
+	RNA_def_property_float_sdna(prop, NULL, "vec");
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_ui_text(prop, "Value", "Property value");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+	/* Color 4 */
+	srna = RNA_def_struct(brna, "ComponentColor4Property", "PythonComponentProperty");
+	RNA_def_struct_sdna(srna, "PythonComponentProperty");
+	RNA_def_struct_ui_text(srna, "Python Component Color 4 Property", "A 4 channels color property of a Python Component");
+
+	prop = RNA_def_property(srna, "value", PROP_FLOAT, PROP_COLOR);
 	RNA_def_property_float_sdna(prop, NULL, "vec");
 	RNA_def_property_array(prop, 4);
 	RNA_def_property_ui_text(prop, "Value", "Property value");

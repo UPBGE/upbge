@@ -41,6 +41,7 @@
 #ifdef WITH_PYTHON
 #include "Python.h"
 #include "generic/py_capi_utils.h"
+#include "mathutils/mathutils.h"
 #endif
 
 #include <string.h>
@@ -260,6 +261,25 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
 			}
 			Py_DECREF(iterator);
 			cprop->itemval = 0;
+		}
+		else if (ColorObject_Check(pyvalue)) {
+			ColorObject *color = (ColorObject *)pyvalue;
+			switch (color->size) {
+				case 3:
+				{
+					cprop->type = CPROP_TYPE_COL3;
+					break;
+				}
+				case 4:
+				{
+					cprop->type = CPROP_TYPE_COL4;
+					break;
+				}
+			}
+
+			for (unsigned short j = 0; j < color->size; ++j) {
+				cprop->vec[j] = color->col[j];
+			}
 		}
 		else if (PySequence_Check(pyvalue)) {
 			int len = PySequence_Size(pyvalue);
@@ -654,10 +674,24 @@ void *BKE_python_component_argument_dict_new(PythonComponent *pc)
 			LinkData *link = BLI_findlink(&cprop->enumval, cprop->itemval);
 			value = PyUnicode_FromString(link->data);
 		}
-		else if (cprop->type == CPROP_TYPE_VEC2 ||
-				 cprop->type == CPROP_TYPE_VEC3 ||
-				 cprop->type == CPROP_TYPE_VEC4)
-		{
+		else if (ELEM(cprop->type, CPROP_TYPE_COL3, CPROP_TYPE_COL4)) {
+			int size;
+			switch (cprop->type) {
+				case CPROP_TYPE_COL3:
+				{
+					size = 3;
+					break;
+				}
+				case CPROP_TYPE_COL4:
+				{
+					size = 4;
+					break;
+				}
+			}
+
+			value = Color_CreatePyObject(cprop->vec, size, NULL);
+		}
+		else if (ELEM(cprop->type, CPROP_TYPE_VEC2, CPROP_TYPE_VEC3, CPROP_TYPE_VEC4)) {
 			int size;
 			switch (cprop->type) {
 				case CPROP_TYPE_VEC2:
