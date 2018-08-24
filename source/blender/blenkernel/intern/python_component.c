@@ -704,11 +704,8 @@ void *BKE_python_component_argument_dict_new(PythonComponent *pc)
 					size = 4;
 					break;
 			}
-			value = PyList_New(size);
-			// Fill the vector list.
-			for (unsigned int i = 0; i < size; ++i) {
-				PyList_SetItem(value, i, PyFloat_FromDouble(cprop->vec[i]));
-			}
+
+			value = Vector_CreatePyObject(cprop->vec, size, NULL);
 		}
 		else {
 			cprop = cprop->next;
