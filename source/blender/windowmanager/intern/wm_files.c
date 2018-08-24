@@ -325,6 +325,11 @@ static void wm_init_userdef(Main *bmain, const bool read_userdef_from_memory)
 	/* versioning is here */
 	UI_init_userdef(bmain);
 
+	/* avoid re-saving for every small change to our prefs, allow overrides */
+	if (read_userdef_from_memory) {
+		BLO_update_defaults_userpref_blend();
+	}
+
 	MEM_CacheLimiter_set_maximum(((size_t)U.memcachelimit) * 1024 * 1024);
 	BKE_sound_init(bmain);
 
@@ -335,11 +340,6 @@ static void wm_init_userdef(Main *bmain, const bool read_userdef_from_memory)
 	/* enabled by default, unless explicitly enabled in the command line which overrides */
 	if ((G.f & G_SCRIPT_OVERRIDE_PREF) == 0) {
 		SET_FLAG_FROM_TEST(G.f, (U.flag & USER_SCRIPT_AUTOEXEC_DISABLE) == 0, G_SCRIPT_AUTOEXEC);
-	}
-
-	/* avoid re-saving for every small change to our prefs, allow overrides */
-	if (read_userdef_from_memory) {
-		BLO_update_defaults_userpref_blend();
 	}
 
 	/* update tempdir from user preferences */
