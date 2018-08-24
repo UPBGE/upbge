@@ -2004,6 +2004,7 @@ static void addSubModule(PyObject *modules, PyObject *mod, PyObject *submod, con
 PyMODINIT_FUNC initBGE()
 {
 	PyObject *modules = PyThreadState_GET()->interp->modules;
+
 	PyObject *mod = PyModule_Create(&BGE_module_def);
 
 	addSubModule(modules, mod, initApplicationPythonBinding(), "bge.app");
@@ -2097,8 +2098,8 @@ void initGamePython(Main *main, PyObject *pyGlobalDict)
 	EXP_PyObjectPlus::NullDeprecationWarning();
 
 	PyObject *gameLogic = PyDict_GetItemString(modules, "GameLogic");
-	PyDict_SetItemString(PyModule_GetDict(gameLogic), "globalDict", pyGlobalDict);
-	Py_DECREF(gameLogic);
+	PyModule_AddObject(gameLogic, "globalDict", pyGlobalDict);
+	Py_INCREF(pyGlobalDict);
 }
 
 void exitGamePython()
