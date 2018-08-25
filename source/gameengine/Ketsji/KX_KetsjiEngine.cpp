@@ -1297,6 +1297,8 @@ void KX_KetsjiEngine::ConvertScene(KX_Scene *scene)
 {
 	BL_SceneConverter sceneConverter(scene);
 	m_converter->ConvertScene(sceneConverter, false);
+	m_converter->PostConvertScene(sceneConverter);
+	m_converter->FinalizeSceneData(sceneConverter);
 }
 
 void KX_KetsjiEngine::AddScheduledScenes()
