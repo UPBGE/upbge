@@ -30,8 +30,7 @@ BL_ResourceCollection::BL_ResourceCollection(const BL_SceneConverter& converter)
 		m_nameToActions[action->GetName()] = action;
 	}
 
-	for (const auto& pair : converter.m_map_blender_to_gameobject) {
-		KX_GameObject *obj = pair.second;
+	for (KX_GameObject *obj : converter.m_objects) {
 		m_nameToObjects[obj->GetName()] = obj;
 	}
 }
