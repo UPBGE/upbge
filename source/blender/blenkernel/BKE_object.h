@@ -320,6 +320,8 @@ struct MovieClip *BKE_object_movieclip_get(struct Scene *scene, struct Object *o
 
 void BKE_object_runtime_reset(struct Object *object);
 
+void BKE_object_batch_cache_dirty_tag(struct Object *ob);
+
 /* this function returns a superset of the scenes selection based on relationships */
 
 typedef enum eObRelationTypes {

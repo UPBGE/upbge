@@ -623,7 +623,7 @@ static bool calc_curve_deform(Object *par, float co[3],
 	if (is_neg_axis) {
 		index = axis - 3;
 		if (cu->flag & CU_STRETCH)
-			fac = (-co[index] - cd->dmax[index]) / (cd->dmax[index] - cd->dmin[index]);
+			fac = -(co[index] - cd->dmax[index]) / (cd->dmax[index] - cd->dmin[index]);
 		else
 			fac = -(co[index] - cd->dmax[index]) / (par->runtime.curve_cache->path->totdist);
 	}
@@ -1254,13 +1254,13 @@ void BKE_lattice_eval_geometry(struct Depsgraph *UNUSED(depsgraph),
 }
 
 /* Draw Engine */
-void (*BKE_lattice_batch_cache_dirty_cb)(Lattice *lt, int mode) = NULL;
+void (*BKE_lattice_batch_cache_dirty_tag_cb)(Lattice *lt, int mode) = NULL;
 void (*BKE_lattice_batch_cache_free_cb)(Lattice *lt) = NULL;
 
-void BKE_lattice_batch_cache_dirty(Lattice *lt, int mode)
+void BKE_lattice_batch_cache_dirty_tag(Lattice *lt, int mode)
 {
 	if (lt->batch_cache) {
-		BKE_lattice_batch_cache_dirty_cb(lt, mode);
+		BKE_lattice_batch_cache_dirty_tag_cb(lt, mode);
 	}
 }
 void BKE_lattice_batch_cache_free(Lattice *lt)

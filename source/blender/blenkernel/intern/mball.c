@@ -238,6 +238,23 @@ void BKE_mball_texspace_calc(Object *ob)
 	bb->flag &= ~BOUNDBOX_DIRTY;
 }
 
+/** Return or compute bbox for given metaball object. */
+BoundBox *BKE_mball_boundbox_get(Object *ob)
+{
+	BLI_assert(ob->type == OB_MBALL);
+
+	if (ob->bb != NULL && (ob->bb->flag & BOUNDBOX_DIRTY) == 0) {
+		return ob->bb;
+	}
+
+	/* This should always only be called with evaluated objects, but currently RNA is a problem here... */
+	if (ob->runtime.curve_cache != NULL) {
+		BKE_mball_texspace_calc(ob);
+	}
+
+	return ob->bb;
+}
+
 float *BKE_mball_make_orco(Object *ob, ListBase *dispbase)
 {
 	BoundBox *bb;
@@ -565,13 +582,13 @@ void BKE_mball_select_swap(struct MetaBall *mb)
 
 /* Draw Engine */
 
-void (*BKE_mball_batch_cache_dirty_cb)(MetaBall *mb, int mode) = NULL;
+void (*BKE_mball_batch_cache_dirty_tag_cb)(MetaBall *mb, int mode) = NULL;
 void (*BKE_mball_batch_cache_free_cb)(MetaBall *mb) = NULL;
 
-void BKE_mball_batch_cache_dirty(MetaBall *mb, int mode)
+void BKE_mball_batch_cache_dirty_tag(MetaBall *mb, int mode)
 {
 	if (mb->batch_cache) {
-		BKE_mball_batch_cache_dirty_cb(mb, mode);
+		BKE_mball_batch_cache_dirty_tag_cb(mb, mode);
 	}
 }
 void BKE_mball_batch_cache_free(MetaBall *mb)

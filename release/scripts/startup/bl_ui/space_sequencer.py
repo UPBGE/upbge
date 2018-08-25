@@ -21,7 +21,7 @@ import bpy
 from bpy.types import Header, Menu, Panel
 from rna_prop_ui import PropertyPanel
 from .properties_grease_pencil_common import (
-    GreasePencilDataPanel,
+    AnnotationDataPanel,
     GreasePencilToolsPanel,
 )
 from bpy.app.translations import pgettext_iface as iface_
@@ -1248,7 +1248,7 @@ class SEQUENCER_PT_modifiers(SequencerButtonsPanel, Panel):
                     box.prop(mod, "color_multiply")
                     draw_color_balance(box, mod.color_balance)
                 elif mod.type == 'CURVES':
-                    box.template_curve_mapping(mod, "curve_mapping", type='COLOR')
+                    box.template_curve_mapping(mod, "curve_mapping", type='COLOR', show_tone=True)
                 elif mod.type == 'HUE_CORRECT':
                     box.template_curve_mapping(mod, "curve_mapping", type='HUE')
                 elif mod.type == 'BRIGHT_CONTRAST':
@@ -1272,7 +1272,7 @@ class SEQUENCER_PT_modifiers(SequencerButtonsPanel, Panel):
                         col.prop(mod, "gamma")
 
 
-class SEQUENCER_PT_grease_pencil(GreasePencilDataPanel, SequencerButtonsPanel_Output, Panel):
+class SEQUENCER_PT_grease_pencil(AnnotationDataPanel, SequencerButtonsPanel_Output, Panel):
     bl_space_type = 'SEQUENCE_EDITOR'
     bl_region_type = 'UI'
 

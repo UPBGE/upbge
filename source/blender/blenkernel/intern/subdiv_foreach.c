@@ -335,7 +335,7 @@ static void subdiv_foreach_corner_vertices_regular_do(
 			continue;
 		}
 		const int coarse_vertex_index = coarse_loop->v;
-		const int subdiv_vertex_index = 
+		const int subdiv_vertex_index =
 		        ctx->vertices_corner_offset + coarse_vertex_index;
 		const float u = weights[corner][0];
 		const float v = weights[corner][1];
@@ -746,15 +746,14 @@ static void subdiv_foreach_inner_vertices_special(
 	const int coarse_poly_index = coarse_poly - coarse_mesh->mpoly;
 	int ptex_face_index = ctx->face_ptex_offset[coarse_poly_index];
 	const int start_vertex_index = ctx->subdiv_vertex_offset[coarse_poly_index];
-	int subdiv_vertex_index =
-	        ctx->vertices_inner_offset + start_vertex_index;
+	int subdiv_vertex_index = ctx->vertices_inner_offset + start_vertex_index;
 	ctx->foreach_context->vertex_inner(
-			ctx->foreach_context,
+	        ctx->foreach_context,
 	        tls,
-			ptex_face_index,
-			1.0f, 1.0f,
-			coarse_poly_index, 0,
-			subdiv_vertex_index);
+	        ptex_face_index,
+	        1.0f, 1.0f,
+	        coarse_poly_index, 0,
+	        subdiv_vertex_index);
 	subdiv_vertex_index++;
 	for (int corner = 0;
 	     corner < coarse_poly->totloop;
@@ -1135,9 +1134,9 @@ static void subdiv_foreach_edges_all_patches_special(
 			const bool flip = (coarse_edge->v2 == coarse_loop->v);
 			int side_start_index =
 			        start_vertex_index + num_inner_vertices_per_ptex * corner;
-			for (int i = 0; i < ptex_face_resolution - 2;
-			     i++,
-				 subdiv_edge_index++)
+			for (int i = 0;
+			     i < ptex_face_resolution - 2;
+			     i++, subdiv_edge_index++)
 			{
 				const int v1 = (flip)
 				                   ? (start_edge_vertex + (resolution - i - 3))
@@ -1240,7 +1239,7 @@ static void subdiv_foreach_loops_of_poly(
         int subdiv_loop_start_index,
         const int ptex_face_index,
         const int coarse_poly_index,
-		const int coarse_corner_index,
+        const int coarse_corner_index,
         const int rotation,
         /*const*/ int v0, /*const*/ int e0,
         /*const*/ int v1, /*const*/ int e1,
@@ -1862,7 +1861,7 @@ static void subdiv_foreach_polys(SubdivForeachTaskContext *ctx,
 			        ctx->foreach_context,
 			        tls,
 			        poly_index,
-			        subdiv_polyon_index, 
+			        subdiv_polyon_index,
 			        loopstart, 4);
 		}
 	}

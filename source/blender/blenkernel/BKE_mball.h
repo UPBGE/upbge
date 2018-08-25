@@ -32,6 +32,7 @@
  *  \since March 2001
  *  \author nzc
  */
+struct BoundBox;
 struct Depsgraph;
 struct Main;
 struct MetaBall;
@@ -54,6 +55,7 @@ bool BKE_mball_is_basis(struct Object *ob);
 struct Object *BKE_mball_basis_find(struct Scene *scene, struct Object *ob);
 
 void BKE_mball_texspace_calc(struct Object *ob);
+struct BoundBox *BKE_mball_boundbox_get(struct Object *ob);
 float *BKE_mball_make_orco(struct Object *ob, struct ListBase *dispbase);
 
 void BKE_mball_properties_copy(struct Scene *scene, struct Object *active_object);
@@ -81,7 +83,7 @@ struct Depsgraph;
 enum {
 	BKE_MBALL_BATCH_DIRTY_ALL = 0,
 };
-void BKE_mball_batch_cache_dirty(struct MetaBall *mb, int mode);
+void BKE_mball_batch_cache_dirty_tag(struct MetaBall *mb, int mode);
 void BKE_mball_batch_cache_free(struct MetaBall *mb);
 
 #endif

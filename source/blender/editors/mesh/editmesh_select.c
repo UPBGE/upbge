@@ -1729,21 +1729,32 @@ static void mouse_mesh_loop_edge(BMEditMesh *em, BMEdge *eed, bool select, bool 
 
 static bool mouse_mesh_loop(bContext *C, const int mval[2], bool extend, bool deselect, bool toggle, bool ring)
 {
+	Base *basact = NULL;
+	BMVert *eve = NULL;
+	BMEdge *eed = NULL;
+	BMFace *efa = NULL;
+
 	ViewContext vc;
 	BMEditMesh *em;
-	BMEdge *eed;
 	bool select = true;
 	bool select_clear = false;
 	bool select_cycle = true;
-	float dist = ED_view3d_select_dist_px() * 0.6666f;
 	float mvalf[2];
 
 	em_setup_viewcontext(C, &vc);
 	mvalf[0] = (float)(vc.mval[0] = mval[0]);
 	mvalf[1] = (float)(vc.mval[1] = mval[1]);
-	em = vc.em;
 
-	eed = EDBM_edge_find_nearest_ex(&vc, &dist, NULL, true, true, NULL);
+	BMEditMesh *em_original = vc.em;
+	const short selectmode = em_original->selectmode;
+	em_original->selectmode = SCE_SELECT_EDGE;
+
+	if (EDBM_unified_findnearest(&vc, &basact, &eve, &eed, &efa)) {
+		ED_view3d_viewcontext_init_object(&vc, basact->object);
+		em = vc.em;
+	}
+	em_original->selectmode = selectmode;
+
 	if (eed == NULL) {
 		return false;
 	}
@@ -1814,9 +1825,10 @@ static bool mouse_mesh_loop(bContext *C, const int mval[2], bool extend, bool de
 		}
 		else if (em->selectmode & SCE_SELECT_FACE) {
 			/* Select the face of eed which is the nearest of mouse. */
-			BMFace *f, *efa = NULL;
+			BMFace *f;
 			BMIter iterf;
 			float best_dist = FLT_MAX;
+			efa = NULL;
 
 			/* We can't be sure this has already been set... */
 			ED_view3d_init_mats_rv3d(vc.obedit, vc.rv3d);
@@ -4318,70 +4330,101 @@ void MESH_OT_select_ungrouped(wmOperatorType *ot)
 /** \name Select Axis Operator
  * \{ */
 
+enum {
+	SELECT_AXIS_POSITIVE = 0,
+	SELECT_AXIS_NEGATIVE = 1,
+	SELECT_AXIS_ALIGNED = 2,
+};
+
+enum {
+	SELECT_AXIS_X = 0,
+	SELECT_AXIS_Y = 1,
+	SELECT_AXIS_Z = 2,
+};
+
 /* BMESH_TODO - some way to select on an arbitrary axis */
 static int edbm_select_axis_exec(bContext *C, wmOperator *op)
 {
+	ViewLayer *view_layer = CTX_data_view_layer(C);
 	Object *obedit = CTX_data_edit_object(C);
 	BMEditMesh *em = BKE_editmesh_from_object(obedit);
-	BMesh *bm = em->bm;
-	BMVert *v_act = BM_mesh_active_vert_get(bm);
+	BMVert *v_act = BM_mesh_active_vert_get(em->bm);
 	const int axis = RNA_enum_get(op->ptr, "axis");
-	const int mode = RNA_enum_get(op->ptr, "mode"); /* -1 == aligned, 0 == neg, 1 == pos */
+	const int mode = RNA_enum_get(op->ptr, "mode");
 
 	if (v_act == NULL) {
 		BKE_report(op->reports, RPT_WARNING, "This operator requires an active vertex (last selected)");
 		return OPERATOR_CANCELLED;
 	}
-	else {
-		BMVert *v;
-		BMIter iter;
-		const float limit = RNA_float_get(op->ptr, "threshold");
-		float value = v_act->co[axis];
 
-		if (mode == 0)
-			value -= limit;
-		else if (mode == 1)
-			value += limit;
+	BMVert *v;
+	BMIter iter;
+	const float limit = RNA_float_get(op->ptr, "threshold");
+
+	float value;
+	float vertex_world[3];
+
+	mul_v3_m4v3(vertex_world, obedit->obmat, v_act->co);
+	value = vertex_world[axis];
+
+	if (mode == SELECT_AXIS_NEGATIVE) {
+		value += limit;
+	}
+	else if (mode == SELECT_AXIS_POSITIVE) {
+		value -= limit;
+	}
+
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object *obedit_iter = objects[ob_index];
+		BMEditMesh *em_iter = BKE_editmesh_from_object(obedit_iter);
+		BMesh *bm = em_iter->bm;
 
 		BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
 			if (!BM_elem_flag_test(v, BM_ELEM_HIDDEN)) {
+				float v_iter_world[3];
+				mul_v3_m4v3(v_iter_world, obedit_iter->obmat, v->co);
 				switch (mode) {
-					case -1: /* aligned */
-						if (fabsf(v->co[axis] - value) < limit)
+					case SELECT_AXIS_ALIGNED:
+						if (fabsf(v_iter_world[axis] - value) < limit) {
 							BM_vert_select_set(bm, v, true);
+						}
 						break;
-					case 0: /* neg */
-						if (v->co[axis] > value)
+					case SELECT_AXIS_NEGATIVE:
+						if (v_iter_world[axis] < value) {
 							BM_vert_select_set(bm, v, true);
+						}
 						break;
-					case 1: /* pos */
-						if (v->co[axis] < value)
+					case SELECT_AXIS_POSITIVE:
+						if (v_iter_world[axis] > value) {
 							BM_vert_select_set(bm, v, true);
+						}
 						break;
 				}
 			}
 		}
+		EDBM_selectmode_flush(em);
+		WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit_iter->data);
+		DEG_id_tag_update(obedit_iter->data, DEG_TAG_SELECT_UPDATE);
 	}
-
-	EDBM_selectmode_flush(em);
-	WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
-
+	MEM_freeN(objects);
 	return OPERATOR_FINISHED;
 }
 
 void MESH_OT_select_axis(wmOperatorType *ot)
 {
 	static const EnumPropertyItem axis_mode_items[] = {
-		{0,  "POSITIVE", 0, "Positive Axis", ""},
-		{1,  "NEGATIVE", 0, "Negative Axis", ""},
-		{-1, "ALIGNED",  0, "Aligned Axis", ""},
+		{SELECT_AXIS_POSITIVE,  "POSITIVE", 0, "Positive Axis", ""},
+		{SELECT_AXIS_NEGATIVE,  "NEGATIVE", 0, "Negative Axis", ""},
+		{SELECT_AXIS_ALIGNED, "ALIGNED",  0, "Aligned Axis", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
 
 	static const EnumPropertyItem axis_items_xyz[] = {
-		{0, "X_AXIS", 0, "X Axis", ""},
-		{1, "Y_AXIS", 0, "Y Axis", ""},
-		{2, "Z_AXIS", 0, "Z Axis", ""},
+		{SELECT_AXIS_X, "X_AXIS", 0, "X Axis", ""},
+		{SELECT_AXIS_Y, "Y_AXIS", 0, "Y Axis", ""},
+		{SELECT_AXIS_Z, "Z_AXIS", 0, "Z Axis", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
 
@@ -4398,8 +4441,8 @@ void MESH_OT_select_axis(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
 	/* properties */
-	RNA_def_enum(ot->srna, "mode", axis_mode_items, 0, "Axis Mode", "Axis side to use when selecting");
-	RNA_def_enum(ot->srna, "axis", axis_items_xyz, 0, "Axis", "Select the axis to compare each vertex on");
+	RNA_def_enum(ot->srna, "mode", axis_mode_items, SELECT_AXIS_POSITIVE, "Axis Mode", "Axis side to use when selecting");
+	RNA_def_enum(ot->srna, "axis", axis_items_xyz, SELECT_AXIS_X, "Axis", "Select the axis to compare each vertex on");
 	RNA_def_float(ot->srna, "threshold", 0.0001f, 0.000001f, 50.0f,  "Threshold", "", 0.00001f, 10.0f);
 }
 

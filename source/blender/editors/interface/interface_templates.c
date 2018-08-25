@@ -823,38 +823,45 @@ static void template_ID(
 	UI_block_align_end(block);
 }
 
+
+ID *UI_context_active_but_get_tab_ID(bContext *C)
+{
+	uiBut *but = UI_context_active_but_get(C);
+
+	if (but && but->type == UI_BTYPE_TAB) {
+		return but->custom_data;
+	}
+	else {
+		return NULL;
+	}
+}
+
 static void template_ID_tabs(
         bContext *C, uiLayout *layout, TemplateID *template, StructRNA *type, int flag,
-        const char *newop, const char *UNUSED(openop), const char *unlinkop)
+        const char *newop, const char *UNUSED(openop), const char *menu)
 {
 	const ARegion *region = CTX_wm_region(C);
 	const PointerRNA active_ptr = RNA_property_pointer_get(&template->ptr, template->prop);
+	MenuType *mt = WM_menutype_find(menu, false);
+
 	const int but_align = (region->alignment == RGN_ALIGN_TOP) ? UI_BUT_ALIGN_DOWN : UI_BUT_ALIGN_TOP;
 	const int but_height = UI_UNIT_Y * 1.1;
 
 	uiBlock *block = uiLayoutGetBlock(layout);
 	uiStyle *style = UI_style_get_dpi();
 
-
 	for (ID *id = template->idlb->first; id; id = id->next) {
-		wmOperatorType *unlink_ot = WM_operatortype_find(unlinkop, false);
-		const bool is_active = active_ptr.data == id;
-		const unsigned int but_width = (
-		        UI_fontstyle_string_width(&style->widgetlabel, id->name + 2) + UI_UNIT_X +
-		        (is_active ? ICON_DEFAULT_WIDTH_SCALE : 0));
-		uiButTab *tab;
+		const int name_width = UI_fontstyle_string_width(&style->widgetlabel, id->name + 2);
+		const int but_width = name_width + UI_UNIT_X;
 
-		tab = (uiButTab *)uiDefButR_prop(
-		        block, UI_BTYPE_TAB, 0, "", 0, 0, but_width, UI_UNIT_Y * 1.1,
+		uiButTab *tab = (uiButTab *)uiDefButR_prop(
+		        block, UI_BTYPE_TAB, 0, id->name + 2, 0, 0, but_width, but_height,
 		        &template->ptr, template->prop, 0, 0.0f,
 		        sizeof(id->name) - 2, 0.0f, 0.0f, "");
 		UI_but_funcN_set(&tab->but, template_ID_set_property_cb, MEM_dupallocN(template), id);
 		tab->but.custom_data = (void *)id;
-		tab->unlink_ot = unlink_ot;
+		tab->menu = mt;
 
-		if (is_active) {
-			UI_but_flag_enable(&tab->but, UI_BUT_VALUE_CLEAR);
-		}
 		UI_but_drawflag_enable(&tab->but, but_align);
 	}
 
@@ -2943,7 +2950,7 @@ static void curvemap_buttons_reset(bContext *C, void *cb_v, void *cumap_v)
 /* still unsure how this call evolves... we use labeltype for defining what curve-channels to show */
 static void curvemap_buttons_layout(
         uiLayout *layout, PointerRNA *ptr, char labeltype, bool levels,
-        bool brush, bool neg_slope, RNAUpdateCb *cb)
+        bool brush, bool neg_slope, bool tone, RNAUpdateCb *cb)
 {
 	CurveMapping *cumap = ptr->data;
 	CurveMap *cm = &cumap->cm[cumap->cur];
@@ -2956,6 +2963,11 @@ static void curvemap_buttons_layout(
 	int bg = -1, i;
 
 	block = uiLayoutGetBlock(layout);
+
+	if (tone) {
+		split = uiLayoutSplit(layout, 0.0f, false);
+		uiItemR(uiLayoutRow(split, false), ptr, "tone", 0, NULL, ICON_NONE);
+	}
 
 	/* curve chooser */
 	row = uiLayoutRow(layout, false);
@@ -3108,7 +3120,7 @@ static void curvemap_buttons_layout(
 
 void uiTemplateCurveMapping(
         uiLayout *layout, PointerRNA *ptr, const char *propname, int type,
-        bool levels, bool brush, bool neg_slope)
+        bool levels, bool brush, bool neg_slope, bool tone)
 {
 	RNAUpdateCb *cb;
 	PropertyRNA *prop = RNA_struct_find_property(ptr, propname);
@@ -3139,7 +3151,7 @@ void uiTemplateCurveMapping(
 	id = cptr.id.data;
 	UI_block_lock_set(block, (id && ID_IS_LINKED(id)), ERROR_LIBDATA_MESSAGE);
 
-	curvemap_buttons_layout(layout, &cptr, type, levels, brush, neg_slope, cb);
+	curvemap_buttons_layout(layout, &cptr, type, levels, brush, neg_slope, tone, cb);
 
 	UI_block_lock_clear(block);
 
@@ -4869,7 +4881,7 @@ void uiTemplateColormanagedViewSettings(uiLayout *layout, bContext *UNUSED(C), P
 	col = uiLayoutColumn(layout, false);
 	uiItemR(col, &view_transform_ptr, "use_curve_mapping", 0, NULL, ICON_NONE);
 	if (view_settings->flag & COLORMANAGE_VIEW_USE_CURVES)
-		uiTemplateCurveMapping(col, &view_transform_ptr, "curve_mapping", 'c', true, false, false);
+		uiTemplateCurveMapping(col, &view_transform_ptr, "curve_mapping", 'c', true, false, false, false);
 }
 
 /********************************* Component Menu *************************************/

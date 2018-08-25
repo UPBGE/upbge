@@ -1,6 +1,6 @@
 
 /* Infinite grid
- * Clément Foucault */
+ * Author: Clément Foucault */
 
 out vec4 FragColor;
 
@@ -199,16 +199,22 @@ void main()
 		vec3 axes = get_axes(axes_dist, axes_fwidth, 0.1);
 
 		if ((gridFlag & AXIS_X) != 0) {
-			FragColor = mix(FragColor, colorGridAxisX, axes.x);
+			FragColor.a = max(FragColor.a, axes.x);
+			FragColor.rgb = (axes.x < 1e-8) ? FragColor.rgb : colorGridAxisX.rgb;
 		}
 		if ((gridFlag & AXIS_Y) != 0) {
-			FragColor = mix(FragColor, colorGridAxisY, axes.y);
+			FragColor.a = max(FragColor.a, axes.y);
+			FragColor.rgb = (axes.y < 1e-8) ? FragColor.rgb : colorGridAxisY.rgb;
 		}
 		if ((gridFlag & AXIS_Z) != 0) {
-			FragColor = mix(FragColor, colorGridAxisZ, axes.z);
+			FragColor.a = max(FragColor.a, axes.z);
+			FragColor.rgb = (axes.z < 1e-8) ? FragColor.rgb : colorGridAxisZ.rgb;
 		}
 	}
 
+	/* Add a small bias so the grid will always
+	 * be on top of a mesh with the same depth. */
+	float grid_depth = gl_FragCoord.z - 6e-8 - fwidth(gl_FragCoord.z);
 	float scene_depth = texture(depthBuffer, sPos).r;
 	if ((gridFlag & GRID_BACK) != 0) {
 		fade *= (scene_depth == 1.0) ? 1.0 : 0.0;
@@ -217,12 +223,9 @@ void main()
 		/* Manual, non hard, depth test:
 		 * Progressively fade the grid below occluders
 		 * (avoids poping visuals due to depth buffer precision) */
-		/* Add a small bias so the grid will always
-		 * be on top of a mesh with the same depth. */
-		float grid_depth = gl_FragCoord.z - 1e-8;
 		/* Harder settings tend to flicker more,
 		 * but have less "see through" appearance. */
-		const float test_hardness = 1e4;
+		const float test_hardness = 1e7;
 		fade *= 1.0 - clamp((grid_depth - scene_depth) * test_hardness, 0.0, 1.0);
 	}
 

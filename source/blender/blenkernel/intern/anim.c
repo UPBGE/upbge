@@ -340,7 +340,7 @@ static void motionpaths_calc_update_scene(Main *bmain,
 /* ........ */
 
 /* perform baking for the targets on the current frame */
-static void motionpaths_calc_bake_targets(Scene *scene, ListBase *targets)
+static void motionpaths_calc_bake_targets(ListBase *targets, int cframe)
 {
 	MPathTarget *mpt;
 
@@ -352,12 +352,12 @@ static void motionpaths_calc_bake_targets(Scene *scene, ListBase *targets)
 		/* current frame must be within the range the cache works for
 		 *	- is inclusive of the first frame, but not the last otherwise we get buffer overruns
 		 */
-		if ((CFRA < mpath->start_frame) || (CFRA >= mpath->end_frame)) {
+		if ((cframe < mpath->start_frame) || (cframe >= mpath->end_frame)) {
 			continue;
 		}
 
 		/* get the relevant cache vert to write to */
-		mpv = mpath->points + (CFRA - mpath->start_frame);
+		mpv = mpath->points + (cframe - mpath->start_frame);
 
 		Object *ob_eval = mpt->ob_eval;
 
@@ -386,7 +386,7 @@ static void motionpaths_calc_bake_targets(Scene *scene, ListBase *targets)
 			copy_v3_v3(mpv->co, ob_eval->obmat[3]);
 		}
 
-		float mframe = (float)(CFRA);
+		float mframe = (float)(cframe);
 
 		/* Tag if it's a keyframe */
 		if (BLI_dlrbTree_search_exact(&mpt->keys, compare_ak_cfraPtr, &mframe)) {
@@ -466,18 +466,22 @@ static void motionpaths_calc_bake_targets(Scene *scene, ListBase *targets)
 	}
 
 	/* calculate path over requested range */
+	printf("Calculating MotionPaths between frames %d - %d (%d frames)\n", sfra, efra, efra - sfra + 1);
 	for (CFRA = sfra; CFRA <= efra; CFRA++) {
 		/* update relevant data for new frame */
 		motionpaths_calc_update_scene(bmain, depsgraph);
 
 		/* perform baking for targets */
-		motionpaths_calc_bake_targets(scene, targets);
+		motionpaths_calc_bake_targets(targets, CFRA);
 	}
 
 	/* reset original environment */
-	// XXX: Soon to be obsolete
+	/* NOTE: We shouldn't need to reevaluate the main scene,
+	 * as the depsgraph passed in calculates the results on a
+	 * a copy-on-write copy of the data. That said, we have to
+	 * restore the current frame settings
+	 */
 	CFRA = cfra;
-	motionpaths_calc_update_scene(bmain, depsgraph);
 
 	/* clear recalc flags from targets */
 	for (mpt = targets->first; mpt; mpt = mpt->next) {

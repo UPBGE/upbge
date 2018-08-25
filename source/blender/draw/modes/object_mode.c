@@ -634,7 +634,7 @@ static void OBJECT_engine_init(void *vedata)
 		float dist;
 		if (rv3d->persp == RV3D_CAMOB && v3d->camera) {
 			Object *camera_object = DEG_get_evaluated_object(draw_ctx->depsgraph, v3d->camera);
-			dist = ((Camera *)camera_object)->clipend;
+			dist = ((Camera *)(camera_object->data))->clipend;
 		}
 		else {
 			dist = v3d->far;
@@ -1042,7 +1042,7 @@ static void OBJECT_cache_init(void *vedata)
 		DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND;
 		psl->grid = DRW_pass_create("Infinite Grid Pass", state);
 
-		struct GPUBatch *quad = DRW_cache_fullscreen_quad_get();
+		struct GPUBatch *geom = DRW_cache_grid_get();
 		static float mat[4][4];
 		unit_m4(mat);
 
@@ -1058,7 +1058,7 @@ static void OBJECT_cache_init(void *vedata)
 		DRW_shgroup_uniform_block(grp, "globalsBlock", globals_ubo);
 		DRW_shgroup_uniform_vec2(grp, "viewportSize", DRW_viewport_size_get(), 1);
 		DRW_shgroup_uniform_texture_ref(grp, "depthBuffer", &dtxl->depth);
-		DRW_shgroup_call_add(grp, quad, mat);
+		DRW_shgroup_call_add(grp, geom, mat);
 
 		grp = DRW_shgroup_create(e_data.grid_sh, psl->grid);
 		DRW_shgroup_uniform_int(grp, "gridFlag", &e_data.grid_flag, 1);
@@ -1066,7 +1066,7 @@ static void OBJECT_cache_init(void *vedata)
 		DRW_shgroup_uniform_vec3(grp, "planeAxes", e_data.grid_axes, 1);
 		DRW_shgroup_uniform_block(grp, "globalsBlock", globals_ubo);
 		DRW_shgroup_uniform_texture_ref(grp, "depthBuffer", &dtxl->depth);
-		DRW_shgroup_call_add(grp, quad, mat);
+		DRW_shgroup_call_add(grp, geom, mat);
 
 		grp = DRW_shgroup_create(e_data.grid_sh, psl->grid);
 		DRW_shgroup_uniform_int(grp, "gridFlag", &e_data.zpos_flag, 1);
@@ -1074,7 +1074,7 @@ static void OBJECT_cache_init(void *vedata)
 		DRW_shgroup_uniform_vec3(grp, "planeAxes", e_data.zplane_axes, 1);
 		DRW_shgroup_uniform_block(grp, "globalsBlock", globals_ubo);
 		DRW_shgroup_uniform_texture_ref(grp, "depthBuffer", &dtxl->depth);
-		DRW_shgroup_call_add(grp, quad, mat);
+		DRW_shgroup_call_add(grp, geom, mat);
 	}
 
 	for (int i = 0; i < 2; ++i) {
@@ -2754,6 +2754,9 @@ static void OBJECT_cache_populate(void *vedata, Object *ob)
 			DRW_shgroup_empty(sgl, ob, view_layer);
 			break;
 		case OB_GPENCIL:
+			if (hide_object_extra) {
+				break;
+			}
 			DRW_shgroup_gpencil(sgl, ob, view_layer);
 			break;
 		case OB_SPEAKER:
