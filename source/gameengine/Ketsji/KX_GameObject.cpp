@@ -552,7 +552,7 @@ static void setGraphicController_recursive(SG_Node *node)
 void KX_GameObject::ActivateGraphicController(bool recurse)
 {
 	if (m_graphicController) {
-		m_graphicController->Activate(m_bVisible);
+		m_graphicController->Activate(m_bVisible || m_bOccluder);
 	}
 	if (recurse) {
 		setGraphicController_recursive(m_sgNode.get());
@@ -899,7 +899,7 @@ void KX_GameObject::SetVisible(bool v,
 {
 	m_bVisible = v;
 	if (m_graphicController) {
-		m_graphicController->Activate(m_bVisible);
+		m_graphicController->Activate(m_bVisible || m_bOccluder);
 	}
 	if (recursive) {
 		setVisible_recursive(m_sgNode.get(), v);
@@ -926,6 +926,9 @@ void KX_GameObject::SetOccluder(bool v,
                                 bool recursive)
 {
 	m_bOccluder = v;
+	if (m_graphicController) {
+		m_graphicController->Activate(m_bVisible || m_bOccluder);
+	}
 	if (recursive) {
 		setOccluder_recursive(m_sgNode.get(), v);
 	}
