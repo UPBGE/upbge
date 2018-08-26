@@ -355,7 +355,7 @@ static void gpu_set_alpha_blend(GPUBlendMode alphablend)
 		glDisable(GL_BLEND);
 		glDisable(GL_SAMPLE_ALPHA_TO_COVERAGE);
 		glEnable(GL_ALPHA_TEST);
-		glAlphaFunc(GL_GREATER, 0.5f);
+		glAlphaFunc(GL_GREATER, U.glalphaclip);
 	}
 	else if (alphablend == GPU_BLEND_ALPHA_TO_COVERAGE) {
 		glEnable(GL_ALPHA_TEST);
