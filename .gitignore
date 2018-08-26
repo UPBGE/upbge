@@ -17,6 +17,8 @@ CMakeLists.txt.user
 *.config
 *.files
 *.includes
+*.creator
+*.creator.user
 
 # ms-windows
 Thumbs.db
