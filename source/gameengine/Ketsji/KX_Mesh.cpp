@@ -117,7 +117,7 @@ PyMethodDef KX_Mesh::Methods[] = {
 	{"transformUV", (PyCFunction)KX_Mesh::sPyTransformUV, METH_VARARGS},
 	{"replaceMaterial", (PyCFunction)KX_Mesh::sPyReplaceMaterial, METH_VARARGS},
 	{"copy", (PyCFunction)KX_Mesh::sPyCopy, METH_NOARGS},
-	{"constructBvh", (PyCFunction)KX_Mesh::sPyConstructBvh, METH_VARARGS},
+	{"constructBvh", (PyCFunction)KX_Mesh::sPyConstructBvh, METH_VARARGS | METH_KEYWORDS},
 	{nullptr, nullptr} //Sentinel
 };
 
@@ -405,8 +405,14 @@ PyObject *KX_Mesh::PyCopy()
 PyObject *KX_Mesh::PyConstructBvh(PyObject *args, PyObject *kwds)
 {
 	float epsilon = 0.0f;
+	PyObject *pymat = nullptr;
 
-	if (!PyArg_ParseTuple(args, "|f:constructBvh", &epsilon)) {
+	if (!EXP_ParseTupleArgsAndKeywords(args, kwds, "|Of:constructBvh", {"transform", "epsilon", 0}, &pymat, &epsilon)) {
+		return nullptr;
+	}
+
+	mt::mat4 mat = mt::mat4::Identity();
+	if (pymat && !PyMatTo(pymat, mat)) {
 		return nullptr;
 	}
 
@@ -426,7 +432,8 @@ PyObject *KX_Mesh::PyConstructBvh(PyObject *args, PyObject *kwds)
 		for (const PolygonRangeInfo& range : m_polygonRanges) {
 			RAS_DisplayArray *array = range.array;
 			for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
-				copy_v3_v3(coords[vertBase + i], array->GetPosition(i).data);
+				const mt::vec3 pos = mat * mt::vec3(array->GetPosition(i));
+				pos.Pack(coords[vertBase + i]);
 			}
 			vertBase += array->GetVertexCount();
 		}
