@@ -81,6 +81,8 @@
 #include "BKE_paint.h"
 #include "BKE_object.h"
 
+#include "BLT_translation.h"
+
 #include "BLO_readfile.h"
 #include "readfile.h"
 
@@ -408,7 +410,7 @@ static void do_version_layers_to_collections(Main *bmain, Scene *scene)
 
 					BLI_snprintf(name,
 					             sizeof(collection_master->id.name),
-					             "Collection %d",
+					             DATA_("Collection %d"),
 					             layer + 1);
 
 					Collection *collection = BKE_collection_add(bmain, collection_master, name);
@@ -564,6 +566,21 @@ static void do_version_layers_to_collections(Main *bmain, Scene *scene)
 	scene->basact = NULL;
 }
 
+static void do_version_collection_propagate_lib_to_children(Collection *collection)
+{
+	if (collection->id.lib != NULL) {
+		for (CollectionChild *collection_child = collection->children.first;
+		     collection_child != NULL;
+		     collection_child = collection_child->next)
+		{
+			if (collection_child->collection->id.lib == NULL) {
+				collection_child->collection->id.lib = collection->id.lib;
+			}
+			do_version_collection_propagate_lib_to_children(collection_child->collection);
+		}
+	}
+}
+
 void do_versions_after_linking_280(Main *bmain)
 {
 	bool use_collection_compat_28 = true;
@@ -580,22 +597,41 @@ void do_versions_after_linking_280(Main *bmain)
 				continue;
 			}
 
-			Collection *collection_hidden = NULL;
+			Collection *hidden_collection_array[20] = {NULL};
 			for (CollectionObject *cob = collection->gobject.first, *cob_next = NULL; cob; cob = cob_next) {
 				cob_next = cob->next;
 				Object *ob = cob->ob;
 
 				if (!(ob->lay & collection->layer)) {
-					if (collection_hidden == NULL) {
-						collection_hidden = BKE_collection_add(bmain, collection, "Hidden");
-						collection_hidden->id.lib = collection->id.lib;
-						collection_hidden->flag |= COLLECTION_RESTRICT_VIEW | COLLECTION_RESTRICT_RENDER;
+					/* Find or create hidden collection matching object's first layer. */
+					Collection **collection_hidden = NULL;
+					int coll_idx = 0;
+					for (; coll_idx < 20; coll_idx++) {
+						if (ob->lay & (1 << coll_idx)) {
+							collection_hidden = &hidden_collection_array[coll_idx];
+							break;
+						}
+					}
+					BLI_assert(collection_hidden != NULL);
+
+					if (*collection_hidden == NULL) {
+						char name[MAX_ID_NAME];
+						BLI_snprintf(name, sizeof(name), DATA_("Hidden %d"), coll_idx + 1);
+						*collection_hidden = BKE_collection_add(bmain, collection, name);
+						(*collection_hidden)->flag |= COLLECTION_RESTRICT_VIEW | COLLECTION_RESTRICT_RENDER;
 					}
 
-					BKE_collection_object_add(bmain, collection_hidden, ob);
+					BKE_collection_object_add(bmain, *collection_hidden, ob);
 					BKE_collection_object_remove(bmain, collection, ob, true);
 				}
 			}
+		}
+
+		/* We need to assign lib pointer to generated hidden collections *after* all have been created, otherwise we'll
+		 * end up with several datablocks sharing same name/library, which is FORBIDDEN!
+		 * Note: we need this to be recursive, since a child collection may be sorted before its parent in bmain... */
+		for (Collection *collection = bmain->collection.first; collection != NULL; collection = collection->id.next) {
+			do_version_collection_propagate_lib_to_children(collection);
 		}
 
 		/* Convert layers to collections. */

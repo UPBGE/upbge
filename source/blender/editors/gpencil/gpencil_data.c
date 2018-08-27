@@ -1683,14 +1683,15 @@ static int gpencil_vertex_group_invert_exec(bContext *C, wmOperator *UNUSED(op))
 	{
 		for (int i = 0; i < gps->totpoints; i++) {
 			dvert = &gps->dvert[i];
-			if (dvert->dw == NULL) {
-				BKE_gpencil_vgroup_add_point_weight(dvert, def_nr, 1.0f);
+			MDeformWeight *dw = defvert_find_index(dvert, def_nr);
+			if (dw == NULL) {
+				defvert_add_index_notest(dvert, def_nr, 1.0f);
 			}
-			else if (dvert->dw->weight == 1.0f) {
-				BKE_gpencil_vgroup_remove_point_weight(dvert, def_nr);
+			else if (dw->weight == 1.0f) {
+				defvert_remove_group(dvert, dw);
 			}
 			else {
-				dvert->dw->weight = 1.0f - dvert->dw->weight;
+				dw->weight = 1.0f - dw->weight;
 			}
 		}
 	}
@@ -1763,10 +1764,8 @@ static int gpencil_vertex_group_smooth_exec(bContext *C, wmOperator *op)
 					ptc = &gps->points[i];
 				}
 
-				float wa = BKE_gpencil_vgroup_use_index(dverta, def_nr);
-				float wb = BKE_gpencil_vgroup_use_index(dvertb, def_nr);
-				CLAMP_MIN(wa, 0.0f);
-				CLAMP_MIN(wb, 0.0f);
+				float wa = defvert_find_weight(dverta, def_nr);
+				float wb = defvert_find_weight(dvertb, def_nr);
 
 				/* the optimal value is the corresponding to the interpolation of the weight
 				*  at the distance of point b
@@ -1774,8 +1773,10 @@ static int gpencil_vertex_group_smooth_exec(bContext *C, wmOperator *op)
 				const float opfac = line_point_factor_v3(&ptb->x, &pta->x, &ptc->x);
 				const float optimal = interpf(wa, wb, opfac);
 				/* Based on influence factor, blend between original and optimal */
-				wb = interpf(wb, optimal, fac);
-				BKE_gpencil_vgroup_add_point_weight(dvertb, def_nr, wb);
+				MDeformWeight *dw = defvert_verify_index(dvertb, def_nr);
+				if (dw) {
+					dw->weight = interpf(wb, optimal, fac);
+				}
 			}
 		}
 	}

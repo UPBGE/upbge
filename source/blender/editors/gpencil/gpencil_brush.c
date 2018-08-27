@@ -57,6 +57,7 @@
 #include "DNA_object_types.h"
 
 #include "BKE_context.h"
+#include "BKE_deform.h"
 #include "BKE_gpencil.h"
 #include "BKE_library.h"
 #include "BKE_report.h"
@@ -876,6 +877,9 @@ static bool gp_brush_weight_apply(
         tGP_BrushEditData *gso, bGPDstroke *gps, int pt_index,
         const int radius, const int co[2])
 {
+	/* create dvert */
+	BKE_gpencil_dvert_ensure(gps);
+
 	bGPDspoint *pt = gps->points + pt_index;
 	MDeformVert *dvert = gps->dvert + pt_index;
 	float inf;
@@ -894,14 +898,8 @@ static bool gp_brush_weight_apply(
 		}
 	}
 	/* get current weight */
-	float curweight = 0.0f;
-	for (int i = 0; i < dvert->totweight; i++) {
-		MDeformWeight *gpw = &dvert->dw[i];
-		if (gpw->def_nr == gso->vrgroup) {
-			curweight = gpw->weight;
-			break;
-		}
-	}
+	MDeformWeight *dw = defvert_verify_index(dvert, gso->vrgroup);
+	float curweight = dw ? dw->weight : 0.0f;
 
 	if (gp_brush_invert_check(gso)) {
 		/* reduce weight */
@@ -913,7 +911,9 @@ static bool gp_brush_weight_apply(
 	}
 
 	CLAMP(curweight, 0.0f, 1.0f);
-	BKE_gpencil_vgroup_add_point_weight(dvert, gso->vrgroup, curweight);
+	if (dw) {
+		dw->weight = curweight;
+	}
 
 	/* weight should stay within [0.0, 1.0]	*/
 	if (pt->pressure < 0.0f)
@@ -1055,8 +1055,10 @@ static void gp_brush_clone_add(bContext *C, tGP_BrushEditData *gso)
 			new_stroke = MEM_dupallocN(gps);
 
 			new_stroke->points = MEM_dupallocN(gps->points);
-			new_stroke->dvert = MEM_dupallocN(gps->dvert);
-			BKE_gpencil_stroke_weights_duplicate(gps, new_stroke);
+			if (gps->dvert != NULL) {
+				new_stroke->dvert = MEM_dupallocN(gps->dvert);
+				BKE_gpencil_stroke_weights_duplicate(gps, new_stroke);
+			}
 			new_stroke->triangles = MEM_dupallocN(gps->triangles);
 
 			new_stroke->next = new_stroke->prev = NULL;

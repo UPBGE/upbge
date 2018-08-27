@@ -35,8 +35,9 @@
 #include "DNA_screen_types.h"
 #include "DNA_view3d_types.h"
 
-#include "BKE_gpencil.h"
 #include "BKE_action.h"
+#include "BKE_deform.h"
+#include "BKE_gpencil.h"
 
 #include "DRW_render.h"
 
@@ -499,11 +500,10 @@ GPUBatch *DRW_gpencil_get_edit_geom(bGPDstroke *gps, float alpha, short dflag)
 	int idx = 0;
 	float fcolor[4];
 	float fsize = 0;
-	for (int i = 0; i < gps->totpoints; i++, pt++, dvert++) {
+	for (int i = 0; i < gps->totpoints; i++, pt++) {
 		/* weight paint */
 		if (is_weight_paint) {
-			float weight = BKE_gpencil_vgroup_use_index(dvert, vgindex);
-			CLAMP(weight, 0.0f, 1.0f);
+			float weight = gps->dvert ? defvert_find_weight(dvert, vgindex) : 0.0f;
 			float hue = 2.0f * (1.0f - weight) / 3.0f;
 			hsv_to_rgb(hue, 1.0f, 1.0f, &selectColor[0], &selectColor[1], &selectColor[2]);
 			selectColor[3] = 1.0f;
@@ -535,6 +535,9 @@ GPUBatch *DRW_gpencil_get_edit_geom(bGPDstroke *gps, float alpha, short dflag)
 		GPU_vertbuf_attr_set(vbo, size_id, idx, &fsize);
 		GPU_vertbuf_attr_set(vbo, pos_id, idx, &pt->x);
 		idx++;
+		if (gps->dvert != NULL) {
+			dvert++;
+		}
 	}
 
 	return GPU_batch_create_ex(GPU_PRIM_POINTS, vbo, NULL, GPU_BATCH_OWNS_VBO);
@@ -571,23 +574,14 @@ GPUBatch *DRW_gpencil_get_edlin_geom(bGPDstroke *gps, float alpha, short UNUSED(
 
 	/* Draw all the stroke lines (selected or not) */
 	bGPDspoint *pt = gps->points;
-
-	/* GPXX: for some converted files, this struct could be null
-	 * maybe we can remove this and move to versioning code after
-	 * merge */
-	if (gps->dvert == NULL) {
-		gps->dvert = MEM_callocN(sizeof(MDeformVert) * gps->totpoints, "gp_stroke_weights");
-	}
-
 	MDeformVert *dvert = gps->dvert;
 
 	int idx = 0;
 	float fcolor[4];
-	for (int i = 0; i < gps->totpoints; i++, pt++, dvert++) {
+	for (int i = 0; i < gps->totpoints; i++, pt++) {
 		/* weight paint */
 		if (is_weight_paint) {
-			float weight = BKE_gpencil_vgroup_use_index(dvert, vgindex);
-			CLAMP(weight, 0.0f, 1.0f);
+			float weight = gps->dvert ? defvert_find_weight(dvert, vgindex) : 0.0f;
 			float hue = 2.0f * (1.0f - weight) / 3.0f;
 			hsv_to_rgb(hue, 1.0f, 1.0f, &selectColor[0], &selectColor[1], &selectColor[2]);
 			selectColor[3] = 1.0f;
@@ -605,6 +599,10 @@ GPUBatch *DRW_gpencil_get_edlin_geom(bGPDstroke *gps, float alpha, short UNUSED(
 		GPU_vertbuf_attr_set(vbo, color_id, idx, fcolor);
 		GPU_vertbuf_attr_set(vbo, pos_id, idx, &pt->x);
 		idx++;
+
+		if (gps->dvert != NULL) {
+			dvert++;
+		}
 	}
 
 	return GPU_batch_create_ex(GPU_PRIM_LINE_STRIP, vbo, NULL, GPU_BATCH_OWNS_VBO);
