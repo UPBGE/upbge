@@ -86,6 +86,8 @@ static PyStructSequence_Field app_info_fields[] = {
 	{(char *)"version", (char *)"The Blender version as a tuple of 3 numbers. eg. (2, 50, 11)"},
 	{(char *)"version_string", (char *)"The Blender version formatted as a string"},
 	{(char *)"version_char", (char *)"The Blender version character (for minor releases)"},
+	{(char *)"upbge_version", (char *)"The UPBGE version as a tuple of 3 numbers. eg. (0, 2, 4)"},
+	{(char *)"upbge_version_string", (char *)"The UPBGE version formatted as a string"},
 	{(char *)"version_cycle", (char *)"The release status of this build alpha/beta/rc/release"},
 	{(char *)"binary_path", (char *)"The location of blenders executable, useful for utilities that spawn new instances"},
 	{(char *)"background", (char *)"Boolean, True when blender is running without a user interface (started with -b)"},
@@ -162,6 +164,11 @@ static PyObject *make_app_info(void)
 	                                BLENDER_VERSION / 100, BLENDER_VERSION % 100, BLENDER_SUBVERSION));
 
 	SetStrItem(STRINGIFY(BLENDER_VERSION_CHAR));
+
+	SetObjItem(PyC_Tuple_Pack_I32(UPBGE_VERSION / 100, UPBGE_VERSION % 100, UPBGE_SUBVERSION));
+	SetObjItem(PyUnicode_FromFormat("%d.%d (sub %d)",
+									UPBGE_VERSION / 100, UPBGE_VERSION % 100, UPBGE_SUBVERSION));
+
 	SetStrItem(STRINGIFY(BLENDER_VERSION_CYCLE));
 	SetStrItem(BKE_appdir_program_path());
 	SetObjItem(PyBool_FromLong(G.background));
