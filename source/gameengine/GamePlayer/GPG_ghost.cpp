@@ -771,7 +771,7 @@ int main(int argc,
 	// XXX add the ability to change this values to the command line parsing.
 	U.mixbufsize = 2048;
 	U.audiodevice = 2;
-	U.audiorate = 44100;
+	U.audiorate = 48000;
 	U.audioformat = 0x24;
 	U.audiochannels = 2;
 
