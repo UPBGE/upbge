@@ -270,6 +270,8 @@ class MATERIAL_PT_diffuse(MaterialButtonsPanel, Panel):
         col.active = (not mat.use_shadeless)
         col.prop(mat, "diffuse_shader", text="")
         col.prop(mat, "use_diffuse_ramp", text="Ramp")
+        col = layout.column()
+        col.prop(mat, "use_energy_conservation", text="Energy Conservation")
 
         col = layout.column()
         col.active = (not mat.use_shadeless)
@@ -285,6 +287,10 @@ class MATERIAL_PT_diffuse(MaterialButtonsPanel, Panel):
             row = col.row()
             row.prop(mat, "diffuse_fresnel", text="Fresnel")
             row.prop(mat, "diffuse_fresnel_factor", text="Factor")
+        elif mat.diffuse_shader == 'LAMBERT_CUSTOM':
+            col.prop(mat, "diffuse_metallic_bsdf")
+        elif mat.diffuse_shader == 'BURLEY':
+            col.prop(mat, "diffuse_roughness_bsdf")
 
         if mat.use_diffuse_ramp:
             col = layout.column()
@@ -340,6 +346,10 @@ class MATERIAL_PT_specular(MaterialButtonsPanel, Panel):
             row = col.row()
             row.prop(mat, "specular_toon_size", text="Size")
             row.prop(mat, "specular_toon_smooth", text="Smooth")
+        elif mat.specular_shader == 'GGX':
+            row = col.row()
+            row.prop(mat, "specular_roughness_bsdf", text="Roughness")
+            row.prop(mat, "specular_metallic_bsdf", text="Metallic")
 
         if mat.use_specular_ramp:
             layout.separator()

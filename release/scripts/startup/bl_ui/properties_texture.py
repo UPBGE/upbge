@@ -1219,6 +1219,10 @@ class TEXTURE_PT_game_influence(TextureSlotPanel, Panel):
             col.prop(tex, "lod_bias")
 
             col = split.column()
+            col.label(text="PBR:")
+            factor_but(col, "use_map_roughness", "roughness_factor", "Roughness")
+            factor_but(col, "use_map_metallic", "metallic_factor", "Metallic")
+
             col.label(text="Shading:")
             factor_but(col, "use_map_ambient", "ambient_factor", "Ambient")
             factor_but(col, "use_map_emit", "emit_factor", "Emit")

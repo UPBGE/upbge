@@ -1058,12 +1058,23 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 			else if (ma->diff_shader == MA_DIFF_FRESNEL)
 				GPU_link(mat, "shade_diffuse_fresnel", vn, lv, view,
 				         GPU_uniform(&ma->param[0]), GPU_uniform(&ma->param[1]), &is);
+			else if (ma->diff_shader == MA_DIFF_LAMBERT_CUSTOM_BSDF)
+				GPU_link(mat, "shade_diffuse_BSDF_Custom_Lambert",
+				         shi->metallic, &is);
+			else if (ma->diff_shader == MA_DIFF_BURLEY_BSDF)
+				GPU_link(mat, "shade_diffuse_BSDF_Burley", inp, vn, lv, view,
+				         shi->roughness, &is);
 		}
 	}
 
 	if (!(mat->scene->gm.flag & GAME_GLSL_NO_SHADERS))
 		if (ma->shade_flag & MA_CUBIC)
 			GPU_link(mat, "shade_cubic", is, &is);
+
+	/* Energy conservation */
+	if (ma->shade_flag & MA_ENERGY_CONSERV) {
+		GPU_link(mat, "shade_energy_conservation", shi->refl, shi->spec, &shi->refl);
+	}
 
 	i = is;
 	GPU_link(mat, "shade_visifac", i, visifac, shi->refl, &i);
@@ -1205,6 +1216,10 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 			else if (ma->spec_shader == MA_SPEC_WARDISO) {
 				GPU_link(mat, "shade_wardiso_spec", vn, lv, view,
 				         GPU_uniform(&ma->rms), &specfac);
+			}
+			else if (ma->spec_shader == MA_SPEC_GGX_BSDF) {
+				GPU_link(mat, "shade_BSDF_ggx_spec", inp, vn, lv, view,
+				         shi->roughness, shi->metallic, &specfac);
 			}
 			else {
 				GPU_link(mat, "shade_toon_spec", vn, lv, view,
@@ -1916,6 +1931,28 @@ static void do_material_tex(GPUShadeInput *shi)
 					        mtex->blendtype, &shi->amb);
 					GPU_link(mat, "mtex_value_clamp", shi->amb, &shi->amb);
 				}
+				if (!(mat->scene->gm.flag & GAME_GLSL_NO_EXTRA_TEX) && mtex->mapto & MAP_ROUGHNESS) {
+					GPUNodeLink *roughnessfac;
+
+					if (mtex->roughnessfac == 1.0f && (ma->constflag & MA_CONSTANT_TEXTURE)) roughnessfac = stencil;
+					else GPU_link(mat, "math_roughness_multiply_comp", GPU_select_uniform(&mtex->roughnessfac, GPU_DYNAMIC_TEX_ROUGHNESS, NULL, ma), stencil, &roughnessfac);
+
+					texture_value_blend(
+					        mat, GPU_uniform(&mtex->def_var), shi->roughness, tin, roughnessfac,
+					        mtex->blendtype, &shi->roughness);
+					GPU_link(mat, "mtex_value_clamp_positive", shi->roughness, &shi->roughness);
+				}
+				if (!(mat->scene->gm.flag & GAME_GLSL_NO_EXTRA_TEX) && mtex->mapto & MAP_METALLIC) {
+					GPUNodeLink *metallicfac;
+
+					if (mtex->metallicfac == 1.0f && (ma->constflag & MA_CONSTANT_TEXTURE)) metallicfac = stencil;
+					else GPU_link(mat, "math_multiply", GPU_select_uniform(&mtex->metallicfac, GPU_DYNAMIC_TEX_METALLIC, NULL, ma), stencil, &metallicfac);
+
+					texture_value_blend(
+					        mat, GPU_uniform(&mtex->def_var), shi->metallic, tin, metallicfac,
+					        mtex->blendtype, &shi->metallic);
+					GPU_link(mat, "mtex_value_clamp_positive", shi->metallic, &shi->metallic);
+				}
 			}
 		}
 	}
@@ -1945,6 +1982,8 @@ void GPU_shadeinput_set(GPUMaterial *mat, Material *ma, GPUShadeInput *shi)
 	GPU_link(mat, "set_value", GPU_select_uniform(&ma->spec, GPU_DYNAMIC_MAT_SPEC, ma, ma), &shi->spec);
 	GPU_link(mat, "set_value", GPU_select_uniform(&ma->emit, GPU_DYNAMIC_MAT_EMIT, ma, ma), &shi->emit);
 	GPU_link(mat, "set_value", GPU_select_uniform(&mat->har, GPU_DYNAMIC_MAT_HARD, ma, ma), &shi->har);
+	GPU_link(mat, "set_value", GPU_select_uniform(&ma->roughness_bsdf, GPU_DYNAMIC_MAT_ROUGHNESS, ma, ma), &shi->roughness);
+	GPU_link(mat, "set_value", GPU_select_uniform(&ma->metallic_bsdf, GPU_DYNAMIC_MAT_METALLIC, ma, ma), &shi->metallic);
 	GPU_link(mat, "set_value", GPU_select_uniform(&ma->amb, GPU_DYNAMIC_MAT_AMB, ma, ma), &shi->amb);
 	GPU_link(mat, "set_value", GPU_select_uniform(&ma->spectra, GPU_DYNAMIC_MAT_SPECTRA, ma, ma), &shi->spectra);
 	GPU_link(mat, "shade_view", material_builtin(mat, GPU_VIEW_POSITION), &shi->view);

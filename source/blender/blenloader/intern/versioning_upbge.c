@@ -333,5 +333,37 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
 				}
 			}
 		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "Material", "float", "roughness_bsdf")) {
+			for (Material *mat = main->mat.first; mat; mat = mat->id.next) {
+				mat->roughness_bsdf = 0.5f;
+				mat->metallic_bsdf = 0.5f;
+				mat->shade_flag |= MA_ENERGY_CONSERV;
+			}
+		}
+
+		for (Material *ma = main->mat.first; ma; ma = ma->id.next) {
+			if (ma->mtex) {
+				MTex *mtex;
+				float varfac;
+				int neg;
+				
+				for (int i = 0; i < MAX_MTEX; i++) {
+					if (ma->mtex[i]) {
+						mtex = ma->mtex[i];
+			
+						neg = mtex->maptoneg;
+						varfac = mtex->varfac;
+			
+						mtex->roughnessfac = (neg & MAP_ROUGHNESS)? -varfac: varfac;
+						if (mtex->roughnessfac > 0.99f)
+							mtex->roughnessfac = 0.99f;
+						if (mtex->roughnessfac < -0.99f)
+							mtex->roughnessfac = -0.99f;
+						mtex->metallicfac = (neg & MAP_METALLIC)? -varfac: varfac;
+					}
+				}
+			}
+		}
 	}
 }

@@ -624,6 +624,16 @@ static void rna_def_material_mtex(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Warp", "Let the texture warp texture coordinates of next channels");
 	RNA_def_property_update(prop, 0, "rna_Material_update");
 
+	prop = RNA_def_property(srna, "use_map_roughness", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "mapto", MAP_ROUGHNESS);
+	RNA_def_property_ui_text(prop, "Roughness", "Let the texture affects the roughness value");
+	RNA_def_property_update(prop, 0, "rna_Material_update");
+
+	prop = RNA_def_property(srna, "use_map_metallic", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "mapto", MAP_METALLIC);
+	RNA_def_property_ui_text(prop, "Metallic", "Let the texture affects the metallic value");
+	RNA_def_property_update(prop, 0, "rna_Material_update");
+
 	prop = RNA_def_property(srna, "mapping_x", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "projx");
 	RNA_def_property_enum_items(prop, prop_x_mapping_items);
@@ -746,6 +756,19 @@ static void rna_def_material_mtex(BlenderRNA *brna)
 	RNA_def_property_float_sdna(prop, NULL, "hardfac");
 	RNA_def_property_ui_range(prop, -1, 1, 10, 3);
 	RNA_def_property_ui_text(prop, "Hardness Factor", "Amount texture affects hardness");
+	RNA_def_property_update(prop, 0, "rna_Material_update");
+
+	prop = RNA_def_property(srna, "roughness_factor", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "roughnessfac");
+	RNA_def_property_range(prop, 0, 0.99);
+	RNA_def_property_ui_range(prop, 0, 0.99, 10, 3);
+	RNA_def_property_ui_text(prop, "Roughness Factor", "Amount texture affects roughness");
+	RNA_def_property_update(prop, 0, "rna_Material_update");
+
+	prop = RNA_def_property(srna, "metallic_factor", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "metallicfac");
+	RNA_def_property_ui_range(prop, 0, 1, 10, 3);
+	RNA_def_property_ui_text(prop, "Metallic Factor", "Amount texture affects metallic");
 	RNA_def_property_update(prop, 0, "rna_Material_update");
 
 	prop = RNA_def_property(srna, "raymir_factor", PROP_FLOAT, PROP_NONE);
@@ -1063,6 +1086,8 @@ static void rna_def_material_diffuse(StructRNA *srna)
 		{MA_DIFF_TOON, "TOON", 0, "Toon", "Use a toon shader"},
 		{MA_DIFF_MINNAERT, "MINNAERT", 0, "Minnaert", "Use a Minnaert shader"},
 		{MA_DIFF_FRESNEL, "FRESNEL", 0, "Fresnel", "Use a Fresnel shader"},
+		{MA_DIFF_LAMBERT_CUSTOM_BSDF, "LAMBERT_CUSTOM", 0, "Lambert Custom BSDF", "Use a Lambert Custom BSDF shader"},
+		{MA_DIFF_BURLEY_BSDF, "BURLEY", 0, "Burley BSDF", "Use a Burley BSDF shader"},
 		{0, NULL, 0, NULL, NULL}
 	};
 
@@ -1110,6 +1135,18 @@ static void rna_def_material_diffuse(StructRNA *srna)
 	prop = RNA_def_property(srna, "darkness", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_range(prop, 0.0f, 2.0f);
 	RNA_def_property_ui_text(prop, "Darkness", "Minnaert darkness");
+	RNA_def_property_update(prop, 0, "rna_Material_update");
+
+	prop = RNA_def_property(srna, "diffuse_roughness_bsdf", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "roughness_bsdf");
+	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_ui_text(prop, "Roughness", "BSDF Roughness");
+	RNA_def_property_update(prop, 0, "rna_Material_update");
+
+	prop = RNA_def_property(srna, "diffuse_metallic_bsdf", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "metallic_bsdf");
+	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_ui_text(prop, "Metallic", "BSDF MEtallic");
 	RNA_def_property_update(prop, 0, "rna_Material_update");
 }
 
@@ -1651,6 +1688,7 @@ static void rna_def_material_specularity(StructRNA *srna)
 		{MA_SPEC_BLINN, "BLINN", 0, "Blinn", "Use a Blinn shader"},
 		{MA_SPEC_TOON, "TOON", 0, "Toon", "Use a toon shader"},
 		{MA_SPEC_WARDISO, "WARDISO", 0, "WardIso", "Use a Ward anisotropic shader"},
+		{MA_SPEC_GGX_BSDF, "GGX", 0, "Optimized GGX BSDF", "Use an optimized GGX BSDF shader"},
 		{0, NULL, 0, NULL, NULL}
 	};
 
@@ -1679,8 +1717,20 @@ static void rna_def_material_specularity(StructRNA *srna)
 
 	prop = RNA_def_property(srna, "specular_ior", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "refrac");
-	RNA_def_property_range(prop, 1, 10);
+	RNA_def_property_range(prop, 1.0f, 10.0f);
 	RNA_def_property_ui_text(prop, "Specular IOR", "Specular index of refraction");
+	RNA_def_property_update(prop, 0, "rna_Material_update");
+
+	prop = RNA_def_property(srna, "specular_roughness_bsdf", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "roughness_bsdf");
+	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_ui_text(prop, "Roughness", "Roughness");
+	RNA_def_property_update(prop, 0, "rna_Material_update");
+
+	prop = RNA_def_property(srna, "specular_metallic_bsdf", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "metallic_bsdf");
+	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_ui_text(prop, "Metallic", "Metallic");
 	RNA_def_property_update(prop, 0, "rna_Material_update");
 
 	prop = RNA_def_property(srna, "specular_toon_size", PROP_FLOAT, PROP_NONE);
@@ -1904,6 +1954,12 @@ void RNA_def_material(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "shade_flag", MA_CUBIC);
 	RNA_def_property_ui_text(prop, "Cubic Interpolation",
 	                         "Use cubic interpolation for diffuse values, for smoother transitions");
+	RNA_def_property_update(prop, 0, "rna_Material_update");
+
+	prop = RNA_def_property(srna, "use_energy_conservation", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "shade_flag", MA_ENERGY_CONSERV);
+	RNA_def_property_ui_text(prop, "Energy conservation",
+	                         "Use energy conservation, for real shading behaviour");
 	RNA_def_property_update(prop, 0, "rna_Material_update");
 
 	prop = RNA_def_property(srna, "use_object_color", PROP_BOOLEAN, PROP_NONE);

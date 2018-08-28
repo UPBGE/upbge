@@ -737,6 +737,61 @@ static float WardIso_Spec(const float n[3], const float l[3], const float v[3], 
 	return i;
 }
 
+// BSDF GGX spec for UPBGE -- http://filmicworlds.com/blog/optimizing-ggx-shaders-with-dotlh/ Optimization 1 (public license)
+
+static float G1V_F(float lh, float k)
+{
+	return 1.0f / (lh * (1.0f - k) + k);
+}
+
+static float GGX_BSDF_Spec(const float n[3], const float l[3], const float v[3], float roughness, float reflectance, int tangent)
+{
+	float nl, nh, lh, h[3], alpha, alphaSqr, denom, D, F, G1V, k;
+
+	/* half-way vector */
+	h[0] = l[0] + v[0];
+	h[1] = l[1] + v[1];
+	h[2] = l[2] + v[2];
+	normalize_v3(h);
+
+	/* Dot product between surface normal and light vector */
+	nl = dot_v3v3(n, l);
+	if (tangent) nl = sasqrt(1.0f - nl * nl);
+	if (nl <= 0.0f) {
+		nl = 0.0f;
+	}
+
+	/* Dot product between light vector and half-way vector */
+	lh = dot_v3v3(l, h);
+	if (tangent) lh = sasqrt(1.0f - lh * lh);
+	if (lh <= 0.0f) {
+		lh = 0.0f;
+	}
+
+	/* Dot product between surface normal and half-way vector */
+	nh = dot_v3v3(n, h);
+	if (tangent) nh = sasqrt(1.0f - nh * nh);
+	if (nh <= 0.0f) {
+		nh = 0.0f;
+	}
+
+	alpha = roughness * roughness;
+
+	// D
+	alphaSqr = alpha * alpha;
+	denom = nh * nh * (alphaSqr - 1.0f) + 1.0f;
+	D = alphaSqr /((float)M_PI * denom * denom);
+
+	// F
+	F = reflectance + (1.0f - reflectance) * (pow(1.0f - lh, 5.0f));
+
+	// G1V
+	k = 0.5f * alpha;
+	G1V = G1V_F(lh, k);
+
+	return (nl * D * F * G1V * G1V);
+}
+
 /* cartoon render diffuse */
 static float Toon_Diff(const float n[3], const float l[3], const float UNUSED(v[3]), float size, float smooth)
 {
@@ -841,6 +896,48 @@ static float Minnaert_Diff(float nl, const float n[3], const float v[3], float d
 static float Fresnel_Diff(float *vn, float *lv, float *UNUSED(view), float fac_i, float fac)
 {
 	return fresnel_fac(lv, vn, fac_i, fac);
+}
+
+// BSDF Burley diffuse shader from Urho3D https://github.com/urho3d/Urho3D (MIT License)
+
+static float Lambert_Custom_BSDF_Diff(const float reflectance)
+{
+	return (reflectance / (float)M_PI);
+}
+
+static float mix_fff(float x, float y, float a) /* Performs linear interpolation between 'x' and 'y' using 'a' to weight between them */
+{
+	return (x * (1.0f - a) + y * a);
+}
+
+static float Burley_BSDF_Diff(const float nl, const float n[3], const float l[3], const float v[3], const float roughness)
+{
+	float h[3], nv, vh, energy_bias, energy_factor, fd90, f0, light_scatter, view_scatter;
+
+	/* half-way vector */
+	h[0]= v[0]+l[0];
+	h[1]= v[1]+l[1];
+	h[2]= v[2]+l[2];
+	normalize_v3(h);
+
+	/* nv = dot product between surface normal and view vector */
+	nv = dot_v3v3(n, v);
+	if (nv <= 0.0f)
+		nv = 0.0f;
+
+	/* vh = dot product between view vector and half-way vector*/
+	vh = dot_v3v3(v, h);
+	if (vh <= 0.0f)
+		vh = 0.0f;
+
+	energy_bias = mix_fff(roughness, 0.0, 0.5);
+	energy_factor = mix_fff(roughness, 1.0, 1.0 / 1.51);
+	fd90 = energy_bias + 2.0 * vh * vh * roughness;
+	f0 = 1.0f;
+	light_scatter = f0 + (fd90 - f0) * pow(1.0f - nl, 5.0f);
+	view_scatter = f0 + (fd90 - f0) * pow(1.0f - nv, 5.0f);
+
+	return (light_scatter * view_scatter * energy_factor);
 }
 
 /* --------------------------------------------- */
@@ -1441,6 +1538,8 @@ static void shade_one_light(LampRen *lar, ShadeInput *shi, ShadeResult *shr, int
 		else if (ma->diff_shader==MA_DIFF_TOON) is= Toon_Diff(vn, lv, view, ma->param[0], ma->param[1]);
 		else if (ma->diff_shader==MA_DIFF_MINNAERT) is= Minnaert_Diff(inp, vn, view, ma->darkness);
 		else if (ma->diff_shader==MA_DIFF_FRESNEL) is= Fresnel_Diff(vn, lv, view, ma->param[0], ma->param[1]);
+		else if (ma->diff_shader==MA_DIFF_LAMBERT_CUSTOM_BSDF) is= Lambert_Custom_BSDF_Diff(ma->metallic_bsdf);
+		else if (ma->diff_shader==MA_DIFF_BURLEY_BSDF) is= Burley_BSDF_Diff(inp, vn, lv, view, ma->roughness_bsdf);
 		else is= inp;  /* Lambert */
 	}
 
@@ -1450,6 +1549,11 @@ static void shade_one_light(LampRen *lar, ShadeInput *shi, ShadeResult *shr, int
 	}
 
 	i= is*phongcorr;
+
+	/* Energy conservation */
+	if (ma->shade_flag & MA_ENERGY_CONSERV) {
+		shi->refl = shi->refl * (1.0f - min_ff(shi->spec, 1.0f));
+	}
 
 	if (i>0.0f) {
 		i*= visifac*shi->refl;
@@ -1589,6 +1693,8 @@ static void shade_one_light(LampRen *lar, ShadeInput *shi, ShadeResult *shr, int
 					specfac= Blinn_Spec(vn, lv, view, ma->refrac, (float)shi->har, (vlr->flag & R_TANGENT) || (ma->mode & MA_TANGENT_V));
 				else if (ma->spec_shader==MA_SPEC_WARDISO)
 					specfac= WardIso_Spec( vn, lv, view, ma->rms, (vlr->flag & R_TANGENT) || (ma->mode & MA_TANGENT_V));
+				else if (ma->spec_shader==MA_SPEC_GGX_BSDF)
+					specfac= GGX_BSDF_Spec(vn, lv, view, ma->roughness_bsdf, ma->metallic_bsdf, (vlr->flag & R_TANGENT) || (ma->mode & MA_TANGENT_V));
 				else
 					specfac= Toon_Spec(vn, lv, view, ma->param[2], ma->param[3], (vlr->flag & R_TANGENT) || (ma->mode & MA_TANGENT_V));
 

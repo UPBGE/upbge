@@ -226,6 +226,8 @@ typedef enum GPUDynamicType {
 	GPU_DYNAMIC_MAT_ALPHA            = 8  | GPU_DYNAMIC_GROUP_MAT,
 	GPU_DYNAMIC_MAT_MIR              = 9  | GPU_DYNAMIC_GROUP_MAT,
 	GPU_DYNAMIC_MAT_SPECTRA          = 10 | GPU_DYNAMIC_GROUP_MAT,
+	GPU_DYNAMIC_MAT_ROUGHNESS        = 11 | GPU_DYNAMIC_GROUP_MAT,
+	GPU_DYNAMIC_MAT_METALLIC         = 12 | GPU_DYNAMIC_GROUP_MAT,
 
 	GPU_DYNAMIC_TEX_COLINTENS        = 1  | GPU_DYNAMIC_GROUP_TEX,
 	GPU_DYNAMIC_TEX_COLFAC           = 2  | GPU_DYNAMIC_GROUP_TEX,
@@ -241,6 +243,8 @@ typedef enum GPUDynamicType {
 	GPU_DYNAMIC_TEX_LODBIAS          = 12 | GPU_DYNAMIC_GROUP_TEX,
 	GPU_DYNAMIC_TEX_IOR              = 13 | GPU_DYNAMIC_GROUP_TEX,
 	GPU_DYNAMIC_TEX_REFRRATIO        = 14 | GPU_DYNAMIC_GROUP_TEX,
+	GPU_DYNAMIC_TEX_ROUGHNESS        = 15 | GPU_DYNAMIC_GROUP_TEX,
+	GPU_DYNAMIC_TEX_METALLIC         = 16 | GPU_DYNAMIC_GROUP_TEX,
 
 	GPU_DYNAMIC_TEX_UVOFFSET         = 1  | GPU_DYNAMIC_GROUP_TEX_UV,
 	GPU_DYNAMIC_TEX_UVSIZE           = 2  | GPU_DYNAMIC_GROUP_TEX_UV,
@@ -308,7 +312,7 @@ typedef struct GPUShadeInput {
 
 	GPUNodeLink *rgb, *specrgb, *vn, *view, *vcol, *ref;
 	GPUNodeLink *alpha, *refl, *spec, *emit, *har, *amb;
-	GPUNodeLink *spectra, *mir, *refcol;
+	GPUNodeLink *spectra, *mir, *refcol, *roughness, *metallic;
 } GPUShadeInput;
 
 typedef struct GPUShadeResult {

@@ -298,6 +298,11 @@ void math_multiply(float val1, float val2, out float outval)
 	outval = val1 * val2;
 }
 
+void math_roughness_multiply_comp(float val1, float val2, out float outval)
+{
+	outval = 1.0 - (val1 * val2);
+}
+
 void math_divide(float val1, float val2, out float outval)
 {
 	if (val2 == 0.0)
@@ -2140,6 +2145,30 @@ void shade_diffuse_minnaert(float nl, vec3 n, vec3 v, float darkness, out float 
 	}
 }
 
+// BSDF Burley diffuse shader from Urho3D https://github.com/urho3d/Urho3D (MIT License)
+
+void shade_diffuse_BSDF_Custom_Lambert(float reflectance, out float is)
+{
+	is = (reflectance / M_PI);
+}
+
+void shade_diffuse_BSDF_Burley(float nl, vec3 n, vec3 l, vec3 v, float roughness, out float is)
+{
+	vec3 h = normalize(v + l);
+	float nv = max(dot(n, v), 0.0);
+	float vh = max(dot(v, h), 0.0);
+
+	float energy_bias = mix(roughness, 0.0, 0.5);
+	float energy_factor = mix(roughness, 1.0, 1.0 / 1.51);
+	float fd90 = energy_bias + 2.0 * vh * vh * roughness;
+	float f0 = 1.0;
+	float light_scatter = f0 + (fd90 - f0) * pow(1.0 - nl, 5.0);
+	float view_scatter = f0 + (fd90 - f0) * pow(1.0 - nv, 5.0);
+
+	is = light_scatter * view_scatter * energy_factor;
+}
+
+
 float fresnel_fac(vec3 view, vec3 vn, float grad, float fac)
 {
 	float t1, t2;
@@ -2328,6 +2357,38 @@ void shade_toon_spec(vec3 n, vec3 l, vec3 v, float size, float tsmooth, out floa
 	specfac = rslt;
 }
 
+// BSDF Optimized GGX spec for UPBGE -- http://filmicworlds.com/blog/optimizing-ggx-shaders-with-dotlh/ Optimization 1 (public domain)
+
+float G1V_F(float LdotH, float k)
+{
+	return 1.0 /(LdotH * (1.0 - k) + k);
+}
+
+void shade_BSDF_ggx_spec(float nl, vec3 n, vec3 l, vec3 v, float roughness, float reflectance, out float specfac)
+{
+	float alpha = roughness * roughness;
+
+	vec3 h = normalize(l + v);
+
+	nl = max(0.0, nl);
+	float lh = max(0.0, dot(l,h));
+	float nh = max(0.0, dot(n,h));
+
+	// D
+	float alphaSqr = alpha * alpha;
+	float denom = nh * nh * (alphaSqr - 1.0) + 1.0;
+	float D = alphaSqr /(M_PI * denom * denom);
+
+	// F
+	float F = reflectance + (1.0 - reflectance) * (pow(1.0 - lh, 5.0));
+
+	// G1V
+	float k = 0.5 * alpha;
+	float G1V = G1V_F(lh, k);
+
+	specfac = nl * D * F * G1V * G1V;
+}
+
 void shade_spec_area_inp(float specfac, float inp, out float outspecfac)
 {
 	outspecfac = specfac * inp;
@@ -2336,6 +2397,11 @@ void shade_spec_area_inp(float specfac, float inp, out float outspecfac)
 void shade_spec_t(float shadfac, float spec, float visifac, float specfac, out float t)
 {
 	t = shadfac * spec * visifac * specfac;
+}
+
+void shade_energy_conservation(float diff, float spec, out float diff_out)
+{
+	diff_out = diff * (1.0 - min(spec, 1.0));
 }
 
 void shade_add_spec(float t, vec3 lampcol, vec3 speccol, out vec3 outcol)

@@ -60,6 +60,8 @@ BL_Texture::BL_Texture(MTex *mtex)
 	m_savedData.specintensfac = m_mtex->specfac;
 	m_savedData.speccolorfac = m_mtex->colspecfac;
 	m_savedData.hardnessfac = m_mtex->hardfac;
+	m_savedData.roughnessfac = m_mtex->roughnessfac;
+	m_savedData.metallicfac = m_mtex->metallicfac;	
 	m_savedData.emitfac = m_mtex->emitfac;
 	m_savedData.mirrorfac = m_mtex->mirrfac;
 	m_savedData.normalfac = m_mtex->norfac;
@@ -88,6 +90,8 @@ BL_Texture::~BL_Texture()
 	m_mtex->specfac = m_savedData.specintensfac;
 	m_mtex->colspecfac = m_savedData.speccolorfac;
 	m_mtex->hardfac = m_savedData.hardnessfac;
+	m_mtex->roughnessfac = m_savedData.roughnessfac;
+	m_mtex->metallicfac = m_savedData.metallicfac;
 	m_mtex->emitfac = m_savedData.emitfac;
 	m_mtex->mirrfac = m_savedData.mirrorfac;
 	m_mtex->norfac = m_savedData.normalfac;

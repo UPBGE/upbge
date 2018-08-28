@@ -395,6 +395,8 @@ void BKE_texture_mtex_default(MTex *mtex)
 	mtex->specfac = 1.0f;
 	mtex->emitfac = 1.0f;
 	mtex->hardfac = 1.0f;
+	mtex->roughnessfac = 0.99f;
+	mtex->metallicfac = 1.0f;
 	mtex->raymirrfac = 1.0f;
 	mtex->translfac = 1.0f;
 	mtex->ambfac = 1.0f;
