@@ -14,47 +14,28 @@
 # along with this program; if not, write to the Free Software Foundation,
 # Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
-# The Original Code is Copyright (C) 2006, Blender Foundation
-# All rights reserved.
-#
-# The Original Code is: all of this file.
-#
-# Contributor(s): Jacques Beaurain.
-#
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC
 	.
-	../Common
-	../../blender/blenlib
+	../mathfu
 )
 
 set(INC_SYS
-	../../../intern/debugbreak
-	../../../intern/fast-bvh
-	../../../intern/mathfu
+	
 )
 
 set(SRC
-	SG_BBox.cpp
-	SG_Controller.cpp
-	SG_CullingNode.cpp
-	SG_Familly.cpp
-	SG_Frustum.cpp
-	SG_Interpolator.cpp
-	SG_Node.cpp
+	BBox.cpp
+	BVH.cpp
 
-	SG_BBox.h
-	SG_Controller.h
-	SG_CullingNode.h
-	SG_DList.h
-	SG_Familly.h
-	SG_Frustum.h
-	SG_Interpolator.h
-	SG_Node.h
-	SG_ParentRelation.h
-	SG_ScalarInterpolator.h
-	SG_QList.h
+	BBox.h
+	BVH.h
+	IntersectionInfo.h
+	Object.h
+	Ray.h
+	Stopwatch.h
 )
 
-blender_add_lib(ge_scenegraph "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(bf_intern_fast_bvh "${SRC}" "${INC}" "${INC_SYS}")
+

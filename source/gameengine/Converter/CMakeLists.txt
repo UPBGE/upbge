@@ -57,6 +57,7 @@ set(INC
 
 set(INC_SYS
 	../../../intern/debugbreak
+	../../../intern/fast-bvh
 	../../../intern/mathfu
 	../../../extern/recastnavigation/Detour/Include
 	${EIGEN3_INCLUDE_DIRS}

@@ -153,6 +153,7 @@ endif()
 		bf_intern_eigen
 		bf_intern_libmv
 		bf_intern_audaspace
+		bf_intern_fast_bvh
 
 		extern_bullet
 		extern_openjpeg

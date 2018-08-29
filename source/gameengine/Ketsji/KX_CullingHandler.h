@@ -12,6 +12,8 @@
 #	endif
 #endif
 
+#include "BVH.h"
+
 class KX_GameObject;
 
 class KX_CullingHandler
@@ -23,13 +25,14 @@ private:
 	const SG_Frustum& m_frustum;
 	/// Layer to ignore some objects.
 	int m_layer;
-
+	bvh::BVH m_tree;
 
 public:
 	KX_CullingHandler(EXP_ListValue<KX_GameObject> *objects, const SG_Frustum& frustum, int layer);
 	~KX_CullingHandler() = default;
 
 	bool Test(const mt::mat3x4& trans, const mt::vec3& scale, const SG_BBox& aabb) const;
+	bool Test(bvh::BVHFlatNode& node);
 
 	/// Process the culling of all object and return a list of non-culled objects.
 	std::vector<KX_GameObject *> Process();

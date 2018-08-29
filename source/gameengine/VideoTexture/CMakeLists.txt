@@ -53,6 +53,7 @@ set(INC
 
 set(INC_SYS
 	../../../intern/debugbreak
+	../../../intern/fast-bvh
 	../../../intern/mathfu
 	${GLEW_INCLUDE_PATH}
 	${BOOST_INCLUDE_DIR}

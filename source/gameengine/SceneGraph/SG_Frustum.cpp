@@ -114,6 +114,46 @@ static bool aabbIntersect(const mt::vec3& min1, const mt::vec3& max1, const mt::
 	return true;
 }
 
+SG_Frustum::TestType SG_Frustum::AabbInsideFrustum(const mt::vec3& min, const mt::vec3& max) const
+{
+	TestType result = INSIDE;
+
+	for (const mt::vec4& wplane : m_planes) {
+		// Compute frustum plane in object space.
+		const mt::vec4 oplane = wplane;
+
+		// Test near and far AABB vertices.
+		mt::vec3 near;
+		mt::vec3 far;
+
+		// Generate nearest and further points from the positive plane side.
+		getNearFarAabbPoint(oplane, min, max, near, far);
+
+		// If the near point to the plane is out, all the other points are out.
+		if (planeSide(oplane, far) < 0.0f) {
+			return OUTSIDE;
+		}
+		// If the far plane is out, the AABB is intersecting this plane.
+		else if (result != INTERSECT && planeSide(oplane, near) < 0.0f) {
+			result = INTERSECT;
+		}
+	}
+
+	/* Big object can intersect two "orthogonal" planes without be inside the frustum.
+	 * In this case the object is outside the AABB of the frustum. */
+	if (result == INTERSECT) {
+		mt::vec3 fmin;
+		mt::vec3 fmax;
+		mt::FrustumAabb(m_matrix.Inverse(), fmin, fmax);
+
+		if (!aabbIntersect(min, max, fmin, fmax)) {
+			return OUTSIDE;
+		}
+	}
+
+	return result;
+}
+
 SG_Frustum::TestType SG_Frustum::AabbInsideFrustum(const mt::vec3& min, const mt::vec3& max, const mt::mat4& mat) const
 {
 	TestType result = INSIDE;

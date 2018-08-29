@@ -673,6 +673,7 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		bf_intern_libmv
 		bf_intern_glew_mx
 		bf_intern_clog
+		bf_intern_fast_bvh
 
 		extern_lzma
 		extern_curve_fit_nd

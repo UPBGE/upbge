@@ -2,6 +2,7 @@
 #include "KX_GameObject.h"
 
 #include "SG_Node.h"
+#include "BVH.h"
 
 #include "tbb/tbb.h"
 
@@ -57,6 +58,14 @@ KX_CullingHandler::KX_CullingHandler(EXP_ListValue<KX_GameObject> *objects, cons
 	m_frustum(frustum),
 	m_layer(layer)
 {
+	std::vector<bvh::Object *> nodes;
+	for (KX_GameObject *obj : objects) {
+		if (obj->Renderable(m_layer)) {
+			nodes.push_back(&obj->GetCullingNode());
+		}
+	}
+
+	m_tree = bvh::BVH(&nodes);
 }
 
 bool KX_CullingHandler::Test(const mt::mat3x4& trans, const mt::vec3& scale, const SG_BBox& aabb) const
@@ -78,9 +87,37 @@ bool KX_CullingHandler::Test(const mt::mat3x4& trans, const mt::vec3& scale, con
 	return culled;
 }
 
+bool KX_CullingHandler::Test(bvh::BVHFlatNode& node)
+{
+	const bvh::BBox& box = node.bbox;
+	const mt::vec3 diag = box.max - box.min;
+	SG_Frustum::TestType test = m_frustum.SphereInsideFrustum((box.min + diag * 0.5f), diag.Length());
+
+	// First test if the sphere is in the frustum as it is faster to test than box.
+	if (test == SG_Frustum::INSIDE) {
+		return false;
+	}
+	else if (test == SG_Frustum::OUTSIDE) {
+		return true;
+	}
+
+	test = m_frustum.AabbInsideFrustum(box.min, box.max);
+	if (test == SG_Frustum::INSIDE) {
+		return false;
+	}
+	else if (test == SG_Frustum::OUTSIDE) {
+		return true;
+	}
+
+	return true;
+}
+
 std::vector<KX_GameObject *> KX_CullingHandler::Process()
 {
-	CullTask task(m_objects, *this, m_layer);
-	tbb::parallel_reduce(tbb::blocked_range<size_t>(0, m_objects->GetCount()), task);
-	return task.m_activeObjects;
+	/*CullTask task(m_objects, *this, m_layer);
+	tbb::parallel_reduce(tbb::blocked_range<size_t>(0, m_objects->GetCount()), task);*/
+
+	Test(*m_tree.flatTree);
+
+	return {};
 }

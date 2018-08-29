@@ -32,6 +32,7 @@ public:
 	TestType PointInsideFrustum(const mt::vec3& point) const;
 	TestType SphereInsideFrustum(const mt::vec3& center, float radius) const;
 	TestType BoxInsideFrustum(const std::array<mt::vec3, 8>& box) const;
+	TestType AabbInsideFrustum(const mt::vec3& min, const mt::vec3& max) const;
 	TestType AabbInsideFrustum(const mt::vec3& min, const mt::vec3& max, const mt::mat4& mat) const;
 	TestType FrustumInsideFrustum(const SG_Frustum& frustum) const;
 };

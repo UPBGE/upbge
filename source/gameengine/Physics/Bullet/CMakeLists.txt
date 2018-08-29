@@ -46,6 +46,7 @@ set(INC
 
 set(INC_SYS
 	../../../../intern/debugbreak
+	../../../../intern/fast-bvh
 	../../../../intern/mathfu
 	${PYTHON_INCLUDE_DIRS}
 	${BOOST_INCLUDE_DIR}
