@@ -31,6 +31,7 @@
 
 #include "EXP_BaseListWrapper.h"
 
+// TODO ne pas utiliser PyObject.
 template <class Object,
 	unsigned int (Object::*GetSizeFunc)(),
 	PyObject *(Object::*GetItemFunc)(unsigned int),
