@@ -98,6 +98,7 @@
 #include "KX_ObstacleSimulation.h"
 
 #include "LOG_Node.h"
+#include "LOG_NodeSocket.h"
 #include "LOG_Tree.h"
 
 #include "BL_BlenderDataConversion.h"
@@ -1225,8 +1226,8 @@ static LOG_Node *BL_ConvertLogicNode(bNode *bnode, PyObject *mod, LOG_Tree *tree
 	return node;
 }
 
-static LOG_NodeSocket BL_ConvertLogicNodeSocket(bNodeSocket *bsock, const std::unordered_map<bNode *, LOG_Node *>& convertedNodes, 
-		std::unordered_map<bNodeSocket *, LOG_NodeSocket>& convertedSockets)
+static LOG_NodeSocket *BL_ConvertLogicNodeSocket(bNodeSocket *bsock, const std::unordered_map<bNode *, LOG_Node *>& convertedNodes, 
+		std::unordered_map<bNodeSocket *, LOG_NodeSocket *>& convertedSockets)
 {
 	const auto& it = convertedSockets.find(bsock);
 	if (it != convertedSockets.end()) {
@@ -1239,15 +1240,16 @@ static LOG_NodeSocket BL_ConvertLogicNodeSocket(bNodeSocket *bsock, const std::u
 	switch (typeinfo->type) {
 		case SOCK_FLOAT:
 		{
-			switch (typeinfo->subtype) {
+			bNodeSocketValueFloat *val = (bNodeSocketValueFloat *)bsock->default_value;
+			switch (val->subtype) {
 				case PROP_ANGLE:
 				{
-					value = PyFloat_FromDouble(DEG2RAD(*((float *)bsock->default_value)));
+					value = PyFloat_FromDouble(DEG2RAD(val->value));
 					break;
 				}
 				default:
 				{
-					value = PyFloat_FromDouble(*((float *)bsock->default_value));
+					value = PyFloat_FromDouble(val->value);
 					break;
 				}
 			}
@@ -1255,26 +1257,21 @@ static LOG_NodeSocket BL_ConvertLogicNodeSocket(bNodeSocket *bsock, const std::u
 		}
 		case SOCK_VECTOR:
 		{
+			bNodeSocketValueVector *val = (bNodeSocketValueVector *)bsock->default_value;
 			switch (typeinfo->subtype) {
-				case PROP_VELOCITY:
-				case PROP_DIRECTION:
-				case PROP_ACCELERATION:
-				case PROP_TRANSLATION:
-				case PROP_EULER:
-				case PROP_AXISANGLE:
-				case PROP_XYZ:
-				{
-					value = PyObjectFrom(mt::vec3((float *)bsock->default_value));
-					break;
-				}
 				case PROP_QUATERNION:
 				{
-					value = PyObjectFrom(mt::quat((float *)bsock->default_value));
+					value = PyObjectFrom(mt::quat(val->value));
 					break;
 				}
 				case PROP_COORDS:
 				{
-					value = PyObjectFrom(mt::vec4((float *)bsock->default_value));
+					value = PyObjectFrom(mt::vec4(val->value));
+					break;
+				}
+				default:
+				{
+					value = PyObjectFrom(mt::vec3(val->value));
 					break;
 				}
 			}
@@ -1282,22 +1279,26 @@ static LOG_NodeSocket BL_ConvertLogicNodeSocket(bNodeSocket *bsock, const std::u
 		}
 		case SOCK_RGBA:
 		{
-			value = PyObjectFrom(((float *)bsock->default_value));
+			bNodeSocketValueRGBA *val = (bNodeSocketValueRGBA *)bsock->default_value; // TODO mathutils.Color
+			value = PyObjectFrom(val->value);
 			break;
 		}
 		case SOCK_BOOLEAN:
 		{
-			value = PyBool_FromLong(*((bool *)bsock->default_value));
+			bNodeSocketValueBoolean *val = (bNodeSocketValueBoolean *)bsock->default_value;
+			value = PyBool_FromLong(val->value);
 			break;
 		}
 		case SOCK_INT:
 		{
-			value = PyLong_FromLong(*((int *)bsock->default_value));
+			bNodeSocketValueInt *val = (bNodeSocketValueInt *)bsock->default_value;
+			value = PyLong_FromLong(val->value);
 			break;
 		}
 		case SOCK_STRING:
 		{
-			value = PyUnicode_FromStdString((char *)bsock->default_value);
+			bNodeSocketValueString *val = (bNodeSocketValueString *)bsock->default_value;
+			value = PyUnicode_FromStdString(val->value);
 			break;
 		}
 		case SOCK_LOGIC:
@@ -1306,6 +1307,10 @@ static LOG_NodeSocket BL_ConvertLogicNodeSocket(bNodeSocket *bsock, const std::u
 				LOG_Node *outNode = convertedNodes.find(bsock->link->tonode)->second;
 				value = outNode->GetProxy();
 			}
+			else {
+				value = Py_None;
+				Py_INCREF(Py_None);
+			}
 			break;
 		}
 		default:
@@ -1313,35 +1318,34 @@ static LOG_NodeSocket BL_ConvertLogicNodeSocket(bNodeSocket *bsock, const std::u
 			BLI_assert(false);
 		}
 	}
-	CM_Debug("\t\t" << value << ", " << bsock->type);
 
-	if (value) {
-		const LOG_NodeSocket socket(bsock->name, value);
-		convertedSockets[bsock] = socket;
-		return socket;
+	if (!value) {
+		return nullptr;
 	}
 
-	return LOG_NodeSocket(bsock->name, nullptr);
+	LOG_NodeSocket *socket = new LOG_NodeSocket(bsock->name, value);
+	convertedSockets[bsock] = socket;
+	return socket;
 }
 
 static void BL_ConvertLogicNodeSockets(LOG_Node *node, bNode *bnode, const std::unordered_map<bNode *, LOG_Node *>& convertedNodes, 
-		std::unordered_map<bNodeSocket *, LOG_NodeSocket>& convertedSockets)
+		std::unordered_map<bNodeSocket *, LOG_NodeSocket *>& convertedSockets)
 {
 	CM_Debug("converting sockets of node " << bnode->idname);
 	CM_Debug("\tinputs:")
 	for (bNodeSocket *in = (bNodeSocket *)bnode->inputs.first; in; in = in->next) {
-		const LOG_NodeSocket socket = BL_ConvertLogicNodeSocket(in, convertedNodes, convertedSockets);
-		CM_Debug("\t\tin : " << in << ", socket : " << socket.GetValue());
-		if (socket.GetValue()) {
+		LOG_NodeSocket *socket = BL_ConvertLogicNodeSocket(in, convertedNodes, convertedSockets);
+		CM_Debug("\t\tin : " << in->name << ", socket : " << socket->GetValue());
+		if (socket->GetValue()) {
 			node->AddInput(socket);
 		}
 	}
 
 	CM_Debug("\toutputs:")
 	for (bNodeSocket *out = (bNodeSocket *)bnode->outputs.first; out; out = out->next) {
-		const LOG_NodeSocket socket = BL_ConvertLogicNodeSocket(out, convertedNodes, convertedSockets);
-		CM_Debug("\t\tout : " << out << ", socket : " << socket.GetValue());
-		if (socket.GetValue()) {
+		LOG_NodeSocket *socket = BL_ConvertLogicNodeSocket(out, convertedNodes, convertedSockets);
+		CM_Debug("\t\tout : " << out->name << ", socket : " << socket->GetValue());
+		if (socket->GetValue()) {
 			node->AddOutput(socket);
 		}
 	}
@@ -1378,7 +1382,7 @@ static void BL_ConvertLogicNodesObject(KX_GameObject *gameobj, Object *blenderob
 		convertedNodes[bnode] = node;
 	}
 
-	std::unordered_map<bNodeSocket *, LOG_NodeSocket> convertedSockets;
+	std::unordered_map<bNodeSocket *, LOG_NodeSocket *> convertedSockets;
 	for (unsigned short i = 0; i < numNodes; ++i) {
 		bNode *bnode = bnodes[i];
 		BL_ConvertLogicNodeSockets(convertedNodes[bnode], bnode, convertedNodes, convertedSockets);

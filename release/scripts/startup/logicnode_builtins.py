@@ -56,9 +56,6 @@ class LogicNodeBoolean(LogicNode):
         if len(unlinked) == 1:
             self.add_trigger_in("Trigger In")
 
-    def draw_buttons(self, context, layout):
-        layout.prop(self, "mode")
-
 class LogicNodeBasicMotion(LogicNode):
     bl_idname = "LogicNodeBasicMotion"
     bl_label = "Logic Basic Motion"

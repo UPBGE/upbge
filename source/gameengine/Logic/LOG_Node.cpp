@@ -1,4 +1,5 @@
 #include "LOG_Node.h"
+#include "LOG_NodeSocket.h"
 
 #include "KX_GameObject.h"
 
@@ -56,12 +57,12 @@ void LOG_Node::SetGameObject(KX_GameObject *gameobj)
 	m_object = gameobj;
 }
 
-void LOG_Node::AddInput(const LOG_NodeSocket& socket)
+void LOG_Node::AddInput(LOG_NodeSocket *socket)
 {
 	m_inputs.push_back(socket);
 }
 
-void LOG_Node::AddOutput(const LOG_NodeSocket& socket)
+void LOG_Node::AddOutput(LOG_NodeSocket *socket)
 {
 	m_outputs.push_back(socket);
 }
@@ -154,12 +155,12 @@ unsigned int LOG_Node::py_get_inputs_size()
 
 PyObject *LOG_Node::py_get_inputs_item(unsigned int index)
 {
-	return m_inputs[index].GetValue();
+	return m_inputs[index]->GetValue();
 }
 
 std::string LOG_Node::py_get_inputs_name(unsigned int index)
 {
-	return m_inputs[index].GetName();
+	return m_inputs[index]->GetName();
 }
 
 unsigned int LOG_Node::py_get_outputs_size()
@@ -169,18 +170,18 @@ unsigned int LOG_Node::py_get_outputs_size()
 
 PyObject *LOG_Node::py_get_outputs_item(unsigned int index)
 {
-	return m_outputs[index].GetValue();
+	return m_outputs[index]->GetValue();
 }
 
 bool LOG_Node::py_set_outputs_item(unsigned int index, PyObject *value)
 {
-	m_outputs[index].SetValue(value);
+	m_outputs[index]->SetValue(value);
 	return true;
 }
 
 std::string LOG_Node::py_get_outputs_name(unsigned int index)
 {
-	return m_outputs[index].GetName();
+	return m_outputs[index]->GetName();
 }
 
 unsigned int LOG_Node::py_get_properties_size()
@@ -190,18 +191,18 @@ unsigned int LOG_Node::py_get_properties_size()
 
 PyObject *LOG_Node::py_get_properties_item(unsigned int index)
 {
-	return m_properties[index].GetValue();
+	return m_properties[index]->GetValue();
 }
 
 bool LOG_Node::py_set_properties_item(unsigned int index, PyObject *value)
 {
-	m_properties[index].SetValue(value);
+	m_properties[index]->SetValue(value);
 	return true;
 }
 
 std::string LOG_Node::py_get_properties_name(unsigned int index)
 {
-	return m_properties[index].GetName();
+	return m_properties[index]->GetName();
 }
 
 PyObject *LOG_Node::pyattr_get_object(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)

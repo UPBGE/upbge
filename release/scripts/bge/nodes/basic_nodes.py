@@ -12,6 +12,7 @@ class LogicNodeBoolean(bge.types.LOG_Node):
 		print(type(self), self.inputs, self.outputs, self.properties)
 
 	def update(self):
+		print(self.outputs)
 		return self.outputs["Trigger Out"]
 
 class LogicNodeBasicMotion(bge.types.LOG_Node):

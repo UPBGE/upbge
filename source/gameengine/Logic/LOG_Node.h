@@ -1,10 +1,10 @@
 #ifndef __LOG_NODE_H__
 #define __LOG_NODE_H__
 
-#include "LOG_NodeSocket.h"
 #include "EXP_Value.h"
 #include "EXP_ListWrapper.h"
 
+class LOG_NodeSocket;
 class KX_GameObject;
 
 class LOG_Node : public EXP_Value
@@ -14,9 +14,9 @@ class LOG_Node : public EXP_Value
 private:
 	KX_GameObject *m_object;
 
-	std::vector<LOG_NodeSocket> m_inputs;
-	std::vector<LOG_NodeSocket> m_outputs;
-	std::vector<LOG_NodeSocket> m_properties;
+	std::vector<LOG_NodeSocket *> m_inputs;
+	std::vector<LOG_NodeSocket *> m_outputs;
+	std::vector<LOG_NodeSocket *> m_properties;
 
 	EXP_BaseListWrapper *m_inputsWrapper;
 	EXP_BaseListWrapper *m_outputsWrapper;
@@ -34,8 +34,8 @@ public:
 	KX_GameObject *GetGameObject() const;
 	void SetGameObject(KX_GameObject *gameobj);
 
-	void AddInput(const LOG_NodeSocket& socket);
-	void AddOutput(const LOG_NodeSocket& socket);
+	void AddInput(LOG_NodeSocket *socket);
+	void AddOutput(LOG_NodeSocket *socket);
 
 	void Start();
 	/// Update the outputs socket and return the next node to execute.
