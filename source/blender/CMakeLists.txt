@@ -34,6 +34,7 @@ set(SRC_DNA_INC
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_cachefile_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_camera_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_cloth_types.h
+	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_collection_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_color_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_constraint_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_controller_types.h
@@ -48,9 +49,7 @@ set(SRC_DNA_INC
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_genfile.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_gpencil_modifier_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_gpencil_types.h
-	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_shader_fx_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_gpu_types.h
-	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_group_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_image_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_ipo_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_key_types.h
@@ -60,16 +59,18 @@ set(SRC_DNA_INC
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_lightprobe_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_linestyle_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_listBase.h
+	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_mask_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_material_types.h
-	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_mesh_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_meshdata_types.h
+	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_mesh_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_meta_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_modifier_types.h
+	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_movieclip_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_nla_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_node_types.h
+	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_object_enums.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_object_fluidsim_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_object_force_types.h
-	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_object_enums.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_object_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_outliner_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_packedFile_types.h
@@ -81,12 +82,14 @@ set(SRC_DNA_INC
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_sdna_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_sensor_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_sequence_types.h
+	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_shader_fx_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_smoke_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_sound_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_space_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_speaker_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_text_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_texture_types.h
+	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_tracking_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_userdef_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_vec_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_vfont_types.h
@@ -95,9 +98,6 @@ set(SRC_DNA_INC
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_windowmanager_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_workspace_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_world_types.h
-	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_movieclip_types.h
-	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_tracking_types.h
-	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_mask_types.h
 )
 
 add_subdirectory(datatoc)

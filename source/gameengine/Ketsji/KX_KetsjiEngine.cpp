@@ -373,7 +373,7 @@ bool KX_KetsjiEngine::NextFrame()
 		frames = m_maxPhysicsFrame;
 	}
 
-	bool doRender = frames > 0;
+	bool doRender = frames > 0; 
 
 	if (frames > m_maxLogicFrame) {
 		framestep = (frames * timestep) / m_maxLogicFrame;
@@ -866,8 +866,8 @@ MT_Matrix4x4 KX_KetsjiEngine::GetCameraProjectionMatrix(KX_Scene *scene, KX_Came
 void KX_KetsjiEngine::RenderCamera(KX_Scene *scene, const CameraRenderData& cameraFrameData, unsigned short pass)
 {
 	KX_Camera *rendercam = cameraFrameData.m_renderCamera;
-	KX_Camera *cullingcam = cameraFrameData.m_cullingCamera;
-	const RAS_Rect &area = cameraFrameData.m_area;
+	//KX_Camera *cullingcam = cameraFrameData.m_cullingCamera;
+	//const RAS_Rect &area = cameraFrameData.m_area;
 	const RAS_Rect &viewport = cameraFrameData.m_viewport;
 
 	KX_SetActiveScene(scene);
@@ -1121,7 +1121,6 @@ void KX_KetsjiEngine::DrawDebugShadowFrustum(KX_Scene *scene, RAS_DebugDraw& deb
 	}
 
 	for (KX_LightObject *light : scene->GetLightList()) {
-		RAS_ILightObject *raslight = light->GetLightData();
 		if (m_showShadowFrustum == KX_DebugOption::FORCE || light->GetShowShadowFrustum()) {
 			debugDraw.DrawCameraFrustum(light->GetShadowFrustumMatrix().inverse());
 		}

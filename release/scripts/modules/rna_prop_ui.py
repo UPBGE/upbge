@@ -165,7 +165,7 @@ def draw(layout, context, context_member, property_type, use_edit=True):
         box = row.box()
 
         if use_edit:
-            split = box.split(percentage=0.75)
+            split = box.split(factor=0.75)
             row = split.row(align=True)
         else:
             row = box.row(align=True)
@@ -214,7 +214,7 @@ class PropertyPanel:
         rna_item, context_member = rna_idprop_context_value(context, self._context_path, self._property_type)
         tot = len(rna_item.keys())
         if tot:
-            self.layout().label("%d:" % tot)
+            self.layout().label(text="%d:" % tot)
     """
 
     def draw(self, context):

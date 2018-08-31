@@ -193,7 +193,7 @@ void ED_keymap_armature(wmKeyConfig *keyconf)
 	wmKeyMapItem *kmi;
 
 	/* Armature ------------------------ */
-	keymap = WM_keymap_find(keyconf, "Armature", 0, 0);
+	keymap = WM_keymap_ensure(keyconf, "Armature", 0, 0);
 	keymap->poll = ED_operator_editarmature;
 
 	/* only set in editmode armature, by space_view3d listener */
@@ -294,13 +294,13 @@ void ED_keymap_armature(wmKeyConfig *keyconf)
 
 	/* Pose ------------------------ */
 	/* only set in posemode, by space_view3d listener */
-	keymap = WM_keymap_find(keyconf, "Pose", 0, 0);
+	keymap = WM_keymap_ensure(keyconf, "Pose", 0, 0);
 	keymap->poll = ED_operator_posemode;
 
 	/* set parent and add object are object-based operators, but we make them
 	 * available here because it's useful to do in pose mode too */
 	WM_keymap_add_item(keymap, "OBJECT_OT_parent_set", PKEY, KM_PRESS, KM_CTRL, 0);
-	WM_keymap_add_menu(keymap, "INFO_MT_add", AKEY, KM_PRESS, KM_SHIFT, 0);
+	WM_keymap_add_menu(keymap, "VIEW3D_MT_add", AKEY, KM_PRESS, KM_SHIFT, 0);
 
 	kmi = WM_keymap_add_item(keymap, "POSE_OT_hide", HKEY, KM_PRESS, 0, 0);
 	RNA_boolean_set(kmi->ptr, "unselected", false);

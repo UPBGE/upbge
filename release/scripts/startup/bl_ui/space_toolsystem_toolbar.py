@@ -196,6 +196,7 @@ class _defs_view3d_generic:
             ),
         )
 
+
 def _defs_annotate_factory():
 
     class _defs_annotate:
@@ -237,7 +238,7 @@ def _defs_annotate_factory():
                 _defs_annotate.draw_settings_common(context, layout, tool)
 
             return dict(
-                text="Draw Line",
+                text="Annotate Line",
                 icon="ops.gpencil.draw.line",
                 cursor='CROSSHAIR',
                 keymap=(
@@ -254,7 +255,7 @@ def _defs_annotate_factory():
                 _defs_annotate.draw_settings_common(context, layout, tool)
 
             return dict(
-                text="Draw Polygon",
+                text="Annotate Polygon",
                 icon="ops.gpencil.draw.poly",
                 cursor='CROSSHAIR',
                 keymap=(
@@ -273,7 +274,7 @@ def _defs_annotate_factory():
                 layout.prop(user_prefs.edit, "grease_pencil_eraser_radius", text="Radius")
 
             return dict(
-                text="Eraser",
+                text="Annotate Eraser",
                 icon="ops.gpencil.draw.eraser",
                 cursor='CROSSHAIR',  # XXX: Always show brush circle when enabled
                 keymap=(
@@ -284,6 +285,7 @@ def _defs_annotate_factory():
                 draw_settings=draw_settings,
             )
     return _defs_annotate
+
 
 # Needed so annotation gets a keymap per space type.
 _defs_annotate_image = _defs_annotate_factory()
@@ -398,6 +400,9 @@ class _defs_view3d_select:
 
     @ToolDef.from_fn
     def circle():
+        def draw_settings(context, layout, tool):
+            props = tool.operator_properties("view3d.select_circle")
+            layout.prop(props, "radius")
         return dict(
             text="Select Circle",
             icon="ops.generic.select_circle",
@@ -410,6 +415,7 @@ class _defs_view3d_select:
                  dict(deselect=True),
                  dict(type='ACTIONMOUSE', value='PRESS', ctrl=True)),
             ),
+            draw_settings=draw_settings,
         )
 
     @ToolDef.from_fn
@@ -483,7 +489,9 @@ class _defs_edit_armature:
             icon="ops.armature.extrude_move",
             widget=None,
             keymap=(
-                ("armature.click_extrude", dict(), dict(type='ACTIONMOUSE', value='PRESS')),
+                ("armature.extrude_move",
+                 dict(TRANSFORM_OT_translate=dict(release_confirm=True)),
+                 dict(type='EVT_TWEAK_A', value='ANY')),
             ),
         )
 
@@ -505,7 +513,7 @@ class _defs_edit_mesh:
     def cube_add():
         return dict(
             text="Add Cube",
-            icon="ops.mesh.primitive_cube_add_manipulator",
+            icon="ops.mesh.primitive_cube_add_gizmo",
             widget=None,
             keymap=(
                 ("view3d.cursor3d", dict(), dict(type='ACTIONMOUSE', value='CLICK')),
@@ -670,9 +678,28 @@ class _defs_edit_mesh:
             widget="MESH_GGT_extrude",
             operator="view3d.edit_mesh_extrude_move_normal",
             keymap=(
-                ("mesh.extrude_context_move", dict(TRANSFORM_OT_translate=dict(release_confirm=True)),
+                ("mesh.extrude_context_move",
+                 dict(TRANSFORM_OT_translate=dict(release_confirm=True)),
                  dict(type='EVT_TWEAK_A', value='ANY')),
             ),
+        )
+
+    @ToolDef.from_fn
+    def extrude_normals():
+        def draw_settings(context, layout, tool):
+            props = tool.operator_properties("mesh.extrude_region_shrink_fatten")
+            props_macro = props.TRANSFORM_OT_shrink_fatten
+            layout.prop(props_macro, "use_even_offset")
+        return dict(
+            text="Extrude Along Normals",
+            icon="ops.mesh.extrude_region_shrink_fatten",
+            widget=None,
+            keymap=(
+                ("mesh.extrude_region_shrink_fatten",
+                 dict(TRANSFORM_OT_shrink_fatten=dict(release_confirm=True)),
+                 dict(type='EVT_TWEAK_A', value='ANY')),
+            ),
+            draw_settings=draw_settings,
         )
 
     @ToolDef.from_fn
@@ -751,6 +778,30 @@ class _defs_edit_mesh:
             widget=None,
             keymap=(
                 ("transform.vertex_random", dict(),
+                 dict(type='ACTIONMOUSE', value='PRESS')),
+            ),
+        )
+
+    @ToolDef.from_fn
+    def shear():
+        return dict(
+            text="Shear",
+            icon="ops.transform.shear",
+            widget=None,
+            keymap=(
+                ("transform.shear", dict(release_confirm=True),
+                 dict(type='ACTIONMOUSE', value='PRESS')),
+            ),
+        )
+
+    @ToolDef.from_fn
+    def tosphere():
+        return dict(
+            text="To Sphere",
+            icon="ops.transform.tosphere",
+            widget=None,
+            keymap=(
+                ("transform.tosphere", dict(release_confirm=True),
                  dict(type='ACTIONMOUSE', value='PRESS')),
             ),
         )
@@ -848,6 +899,19 @@ class _defs_edit_curve:
                 ("curve.draw", dict(wait_for_input=False), dict(type='ACTIONMOUSE', value='PRESS')),
             ),
             draw_settings=draw_settings,
+        )
+
+    @ToolDef.from_fn
+    def extrude():
+        return dict(
+            text="Extrude",
+            icon=None,
+            widget=None,
+            keymap=(
+                ("curve.extrude_move",
+                 dict(TRANSFORM_OT_translate=dict(release_confirm=True)),
+                 dict(type='EVT_TWEAK_A', value='ANY')),
+            ),
         )
 
     @ToolDef.from_fn
@@ -960,7 +1024,13 @@ class _defs_sculpt:
             ),
         )
 
+
 class _defs_vertex_paint:
+
+    @staticmethod
+    def poll_select_mask(context):
+        mesh = context.object.data
+        return mesh.use_paint_mask
 
     @staticmethod
     def generate_from_brushes(context):
@@ -1004,6 +1074,11 @@ class _defs_texture_paint:
 
 
 class _defs_weight_paint:
+
+    @staticmethod
+    def poll_select_mask(context):
+        mesh = context.object.data
+        return (mesh.use_paint_mask or mesh.use_paint_mask_vertex)
 
     @staticmethod
     def generate_from_brushes(context):
@@ -1129,7 +1204,6 @@ class _defs_gpencil_paint:
             row.template_greasepencil_color(gp_settings, "material", rows=3, cols=8, scale=0.8)
         row.prop(gp_settings, "pin_material", text="")
 
-
     @staticmethod
     def draw_settings_common(context, layout, tool):
         ob = context.active_object
@@ -1194,7 +1268,7 @@ class _defs_gpencil_edit:
             widget=None,
             keymap=(
                 ("transform.bend",
-                 dict(),
+                 dict(release_confirm=True),
                  dict(type='EVT_TWEAK_A', value='ANY')),
             ),
         )
@@ -1207,7 +1281,7 @@ class _defs_gpencil_edit:
             widget=None,
             keymap=(
                 ("transform.mirror",
-                 dict(),
+                 dict(release_confirm=True),
                  dict(type='EVT_TWEAK_A', value='ANY')),
             ),
         )
@@ -1220,7 +1294,7 @@ class _defs_gpencil_edit:
             widget=None,
             keymap=(
                 ("transform.shear",
-                 dict(),
+                 dict(release_confirm=True),
                  dict(type='EVT_TWEAK_A', value='ANY')),
             ),
         )
@@ -1233,7 +1307,7 @@ class _defs_gpencil_edit:
             widget=None,
             keymap=(
                 ("transform.tosphere",
-                 dict(),
+                 dict(release_confirm=True),
                  dict(type='EVT_TWEAK_A', value='ANY')),
             ),
         )
@@ -1617,6 +1691,7 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
             None,
             (
                 _defs_edit_mesh.extrude,
+                _defs_edit_mesh.extrude_normals,
                 _defs_edit_mesh.extrude_individual,
                 _defs_edit_mesh.extrude_cursor,
             ),
@@ -1648,6 +1723,10 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
                 _defs_edit_mesh.push_pull,
             ),
             (
+                _defs_edit_mesh.shear,
+                _defs_edit_mesh.tosphere,
+            ),
+            (
                 _defs_edit_mesh.rip_region,
                 _defs_edit_mesh.rip_edge,
             ),
@@ -1661,7 +1740,10 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
             *_tools_annotate,
             None,
             _defs_edit_curve.draw,
-            _defs_edit_curve.extrude_cursor,
+            (
+                _defs_edit_curve.extrude,
+                _defs_edit_curve.extrude_cursor,
+            )
         ],
         'PARTICLE': [
             _defs_view3d_generic.cursor,
@@ -1678,6 +1760,12 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
         ],
         'PAINT_VERTEX': [
             _defs_vertex_paint.generate_from_brushes,
+            None,
+            lambda context: (
+                VIEW3D_PT_tools_active._tools_select
+                if _defs_vertex_paint.poll_select_mask(context)
+                else ()
+            ),
         ],
         'PAINT_WEIGHT': [
             # TODO, check for mixed pose mode
@@ -1687,8 +1775,11 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
             _defs_weight_paint.sample_weight,
             _defs_weight_paint.sample_weight_group,
             None,
-            # TODO, override brush events
-            *_tools_select,
+            lambda context: (
+                VIEW3D_PT_tools_active._tools_select
+                if _defs_weight_paint.poll_select_mask(context)
+                else ()
+            ),
             None,
             _defs_weight_paint.gradient,
         ],

@@ -282,7 +282,7 @@ class MATERIAL_PT_gpencil_preview(GPMaterialButtonsPanel, Panel):
 
     def draw(self, context):
         ma = context.object.active_material
-        self.layout.label(ma.name)
+        self.layout.label(text=ma.name)
         self.layout.template_preview(ma)
 
 
@@ -305,6 +305,7 @@ class MATERIAL_PT_gpencil_options(GPMaterialButtonsPanel, Panel):
         if ma is not None and ma.grease_pencil is not None:
             gpcolor = ma.grease_pencil
             layout.prop(gpcolor, "pass_index")
+
 
 class MATERIAL_PT_gpencil_material_presets(PresetMenu):
     """Material settings"""

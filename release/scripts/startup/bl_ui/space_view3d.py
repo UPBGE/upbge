@@ -232,7 +232,7 @@ class VIEW3D_HT_header(Header):
         )
 
         row = layout.row(align=True)
-        row.prop(overlay, "show_overlays", icon='WIRE', text="")
+        row.prop(overlay, "show_overlays", icon='OVERLAY', text="")
         sub = row.row(align=True)
         sub.active = overlay.show_overlays
         sub.popover(panel="VIEW3D_PT_overlay")
@@ -276,17 +276,17 @@ class VIEW3D_MT_editor_menus(Menu):
         if gp_edit:
             pass
         elif mode_string == 'OBJECT':
-            layout.menu("INFO_MT_add", text="Add")
+            layout.menu("VIEW3D_MT_add", text="Add")
         elif mode_string == 'EDIT_MESH':
-            layout.menu("INFO_MT_mesh_add", text="Add")
+            layout.menu("VIEW3D_MT_mesh_add", text="Add")
         elif mode_string == 'EDIT_CURVE':
-            layout.menu("INFO_MT_curve_add", text="Add")
+            layout.menu("VIEW3D_MT_curve_add", text="Add")
         elif mode_string == 'EDIT_SURFACE':
-            layout.menu("INFO_MT_surface_add", text="Add")
+            layout.menu("VIEW3D_MT_surface_add", text="Add")
         elif mode_string == 'EDIT_METABALL':
-            layout.menu("INFO_MT_metaball_add", text="Add")
+            layout.menu("VIEW3D_MT_metaball_add", text="Add")
         elif mode_string == 'EDIT_ARMATURE':
-            layout.menu("INFO_MT_edit_armature_add", text="Add")
+            layout.menu("TOPBAR_MT_edit_armature_add", text="Add")
 
         if gp_edit:
             if obj and obj.mode == 'GPENCIL_PAINT':
@@ -542,7 +542,7 @@ class VIEW3D_MT_edit_proportional(Menu):
 
         layout.separator()
 
-        layout.label("Falloff:")
+        layout.label(text="Falloff:")
         layout.props_enum(tool_settings, "proportional_edit_falloff")
 
 
@@ -638,7 +638,7 @@ class VIEW3D_MT_view_navigation(Menu):
         layout = self.layout
 
         layout.operator_enum("view3d.view_orbit", "type")
-        props = layout.operator("view3d.view_orbit", "Orbit Opposite")
+        props = layout.operator("view3d.view_orbit", text="Orbit Opposite")
         props.type = 'ORBITRIGHT'
         props.angle = pi
 
@@ -1314,9 +1314,8 @@ class VIEW3D_MT_angle_control(Menu):
                 layout.prop(tex_slot, "use_random", text="Random")
 
 
-# XXX: INFO_MT_ names used to keep backwards compatibility (Add-ons etc. that hook into the menu)
-class INFO_MT_mesh_add(Menu):
-    bl_idname = "INFO_MT_mesh_add"
+class VIEW3D_MT_mesh_add(Menu):
+    bl_idname = "VIEW3D_MT_mesh_add"
     bl_label = "Mesh"
 
     def draw(self, context):
@@ -1339,8 +1338,8 @@ class INFO_MT_mesh_add(Menu):
         layout.operator("mesh.primitive_monkey_add", text="Monkey", icon='MESH_MONKEY')
 
 
-class INFO_MT_curve_add(Menu):
-    bl_idname = "INFO_MT_curve_add"
+class VIEW3D_MT_curve_add(Menu):
+    bl_idname = "VIEW3D_MT_curve_add"
     bl_label = "Curve"
 
     def draw(self, context):
@@ -1362,8 +1361,8 @@ class INFO_MT_curve_add(Menu):
         layout.operator("curve.draw", icon='LINE_DATA')
 
 
-class INFO_MT_surface_add(Menu):
-    bl_idname = "INFO_MT_surface_add"
+class VIEW3D_MT_surface_add(Menu):
+    bl_idname = "VIEW3D_MT_surface_add"
     bl_label = "Surface"
 
     def draw(self, context):
@@ -1380,8 +1379,8 @@ class INFO_MT_surface_add(Menu):
         layout.operator("surface.primitive_nurbs_surface_torus_add", text="Nurbs Torus", icon='SURFACE_NTORUS')
 
 
-class INFO_MT_metaball_add(Menu):
-    bl_idname = "INFO_MT_metaball_add"
+class VIEW3D_MT_metaball_add(Menu):
+    bl_idname = "VIEW3D_MT_metaball_add"
     bl_label = "Metaball"
 
     def draw(self, context):
@@ -1391,8 +1390,8 @@ class INFO_MT_metaball_add(Menu):
         layout.operator_enum("object.metaball_add", "type")
 
 
-class INFO_MT_edit_curve_add(Menu):
-    bl_idname = "INFO_MT_edit_curve_add"
+class TOPBAR_MT_edit_curve_add(Menu):
+    bl_idname = "TOPBAR_MT_edit_curve_add"
     bl_label = "Add"
 
     def draw(self, context):
@@ -1402,13 +1401,13 @@ class INFO_MT_edit_curve_add(Menu):
         layout.operator_context = 'EXEC_REGION_WIN'
 
         if is_surf:
-            INFO_MT_surface_add.draw(self, context)
+            VIEW3D_MT_surface_add.draw(self, context)
         else:
-            INFO_MT_curve_add.draw(self, context)
+            VIEW3D_MT_curve_add.draw(self, context)
 
 
-class INFO_MT_edit_armature_add(Menu):
-    bl_idname = "INFO_MT_edit_armature_add"
+class TOPBAR_MT_edit_armature_add(Menu):
+    bl_idname = "TOPBAR_MT_edit_armature_add"
     bl_label = "Armature"
 
     def draw(self, context):
@@ -1418,8 +1417,8 @@ class INFO_MT_edit_armature_add(Menu):
         layout.operator("armature.bone_primitive_add", text="Single Bone", icon='BONE_DATA')
 
 
-class INFO_MT_armature_add(Menu):
-    bl_idname = "INFO_MT_armature_add"
+class VIEW3D_MT_armature_add(Menu):
+    bl_idname = "VIEW3D_MT_armature_add"
     bl_label = "Armature"
 
     def draw(self, context):
@@ -1429,8 +1428,8 @@ class INFO_MT_armature_add(Menu):
         layout.operator("object.armature_add", text="Single Bone", icon='BONE_DATA')
 
 
-class INFO_MT_light_add(Menu):
-    bl_idname = "INFO_MT_light_add"
+class VIEW3D_MT_light_add(Menu):
+    bl_idname = "VIEW3D_MT_light_add"
     bl_label = "Light"
 
     def draw(self, context):
@@ -1440,8 +1439,8 @@ class INFO_MT_light_add(Menu):
         layout.operator_enum("object.light_add", "type")
 
 
-class INFO_MT_lightprobe_add(Menu):
-    bl_idname = "INFO_MT_lightprobe_add"
+class VIEW3D_MT_lightprobe_add(Menu):
+    bl_idname = "VIEW3D_MT_lightprobe_add"
     bl_label = "Light Probe"
 
     def draw(self, context):
@@ -1451,8 +1450,8 @@ class INFO_MT_lightprobe_add(Menu):
         layout.operator_enum("object.lightprobe_add", "type")
 
 
-class INFO_MT_camera_add(Menu):
-    bl_idname = "INFO_MT_camera_add"
+class VIEW3D_MT_camera_add(Menu):
+    bl_idname = "VIEW3D_MT_camera_add"
     bl_label = "Camera"
 
     def draw(self, context):
@@ -1461,7 +1460,7 @@ class INFO_MT_camera_add(Menu):
         layout.operator("object.camera_add", text="Camera", icon='OUTLINER_OB_CAMERA')
 
 
-class INFO_MT_add(Menu):
+class VIEW3D_MT_add(Menu):
     bl_label = "Add"
 
     def draw(self, context):
@@ -1474,18 +1473,18 @@ class INFO_MT_add(Menu):
         layout.operator_context = 'EXEC_REGION_WIN'
 
         # layout.operator_menu_enum("object.mesh_add", "type", text="Mesh", icon='OUTLINER_OB_MESH')
-        layout.menu("INFO_MT_mesh_add", icon='OUTLINER_OB_MESH')
+        layout.menu("VIEW3D_MT_mesh_add", icon='OUTLINER_OB_MESH')
 
         # layout.operator_menu_enum("object.curve_add", "type", text="Curve", icon='OUTLINER_OB_CURVE')
-        layout.menu("INFO_MT_curve_add", icon='OUTLINER_OB_CURVE')
+        layout.menu("VIEW3D_MT_curve_add", icon='OUTLINER_OB_CURVE')
         # layout.operator_menu_enum("object.surface_add", "type", text="Surface", icon='OUTLINER_OB_SURFACE')
-        layout.menu("INFO_MT_surface_add", icon='OUTLINER_OB_SURFACE')
-        layout.menu("INFO_MT_metaball_add", text="Metaball", icon='OUTLINER_OB_META')
+        layout.menu("VIEW3D_MT_surface_add", icon='OUTLINER_OB_SURFACE')
+        layout.menu("VIEW3D_MT_metaball_add", text="Metaball", icon='OUTLINER_OB_META')
         layout.operator("object.text_add", text="Text", icon='OUTLINER_OB_FONT')
         layout.operator_menu_enum("object.gpencil_add", "type", text="Grease Pencil", icon='OUTLINER_OB_GREASEPENCIL')
         layout.separator()
 
-        layout.menu("INFO_MT_armature_add", icon='OUTLINER_OB_ARMATURE')
+        layout.menu("VIEW3D_MT_armature_add", icon='OUTLINER_OB_ARMATURE')
         layout.operator("object.add", text="Lattice", icon='OUTLINER_OB_LATTICE').type = 'LATTICE'
         layout.operator_menu_enum("object.empty_add", "type", text="Empty", icon='OUTLINER_OB_EMPTY')
         layout.separator()
@@ -1493,14 +1492,14 @@ class INFO_MT_add(Menu):
         layout.operator("object.speaker_add", text="Speaker", icon='OUTLINER_OB_SPEAKER')
         layout.separator()
 
-        if INFO_MT_camera_add.is_extended():
-            layout.menu("INFO_MT_camera_add", icon='OUTLINER_OB_CAMERA')
+        if VIEW3D_MT_camera_add.is_extended():
+            layout.menu("VIEW3D_MT_camera_add", icon='OUTLINER_OB_CAMERA')
         else:
-            INFO_MT_camera_add.draw(self, context)
+            VIEW3D_MT_camera_add.draw(self, context)
 
-        layout.menu("INFO_MT_light_add", icon='OUTLINER_OB_LIGHT')
+        layout.menu("VIEW3D_MT_light_add", icon='OUTLINER_OB_LIGHT')
         layout.separator()
-        layout.menu("INFO_MT_lightprobe_add", icon='OUTLINER_OB_LIGHTPROBE')
+        layout.menu("VIEW3D_MT_lightprobe_add", icon='OUTLINER_OB_LIGHTPROBE')
         layout.separator()
 
         layout.operator_menu_enum("object.effector_add", "type", text="Force Field", icon='OUTLINER_OB_FORCE_FIELD')
@@ -3093,8 +3092,8 @@ class VIEW3D_MT_edit_mesh_normals(Menu):
         layout.operator("mesh.smoothen_normals", text="Smoothen")
 
         layout.label(text="Face Strength")
-        layout.operator("mesh.mod_weighted_strength", text="Face select", icon = "FACESEL").set = False
-        layout.operator("mesh.mod_weighted_strength", text="Set Strength", icon = "ZOOMIN").set = True
+        layout.operator("mesh.mod_weighted_strength", text="Face Select", icon='FACESEL').set = False
+        layout.operator("mesh.mod_weighted_strength", text="Set Strength", icon='ZOOMIN').set = True
 
 
 class VIEW3D_MT_edit_mesh_shading(Menu):
@@ -3560,6 +3559,15 @@ class VIEW3D_MT_edit_armature_delete(Menu):
 
 
 # ********** Grease Pencil Stroke menus **********
+class VIEW3D_MT_gpencil_autoweights(Menu):
+    bl_label = "Generate Weights"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.operator("gpencil.generate_weights", text="With Empty Groups").mode = 'NAME'
+        layout.operator("gpencil.generate_weights", text="With Automatic Weights").mode = 'AUTO'
+
+
 class VIEW3D_MT_gpencil_simplify(Menu):
     bl_label = "Simplify"
 
@@ -3595,6 +3603,28 @@ class VIEW3D_MT_assign_material(Menu):
         for slot in ob.material_slots:
             mat = slot.material
             layout.operator("gpencil.stroke_change_color", text=mat.name).material = mat.name
+
+
+class VIEW3D_MT_gpencil_copy_layer(Menu):
+    bl_label = "Copy Layer to Object"
+
+    def draw(self, context):
+        layout = self.layout
+        view_layer = context.view_layer
+        obact = context.active_object
+        gpl = context.active_gpencil_layer
+
+        done = False
+        if gpl is not None:
+            for ob in view_layer.objects:
+                if ob.type == 'GPENCIL' and ob != obact:
+                    layout.operator("gpencil.layer_duplicate_object", text=ob.name).object = ob.name
+                    done = True
+
+            if done is False:
+                layout.label(text="No destination object", icon="ERROR")
+        else:
+            layout.label(text="No layer to copy", icon="ERROR")
 
 
 class VIEW3D_MT_edit_gpencil(Menu):
@@ -3706,6 +3736,9 @@ class VIEW3D_MT_weight_gpencil(Menu):
 
         layout.operator("gpencil.vertex_group_invert", text="Invert")
         layout.operator("gpencil.vertex_group_smooth", text="Smooth")
+
+        layout.separator()
+        layout.menu("VIEW3D_MT_gpencil_autoweights")
 
 
 class VIEW3D_MT_gpencil_animation(Menu):
@@ -3950,13 +3983,13 @@ class VIEW3D_PT_shading_lighting(Panel):
         shading = VIEW3D_PT_shading.get_shading(context)
 
         col = layout.column()
-        split = col.split(0.9)
+        split = col.split(factor=0.9)
 
         if shading.type == 'SOLID':
             split.row().prop(shading, "light", expand=True)
             col = split.column()
 
-            split = layout.split(0.9)
+            split = layout.split(factor=0.9)
             col = split.column()
             sub = col.row()
             sub.scale_y = 0.6  # smaller matcap/hdri preview
@@ -3983,7 +4016,7 @@ class VIEW3D_PT_shading_lighting(Panel):
 
             if not shading.use_scene_world:
                 col = layout.column()
-                split = col.split(0.9)
+                split = col.split(factor=0.9)
 
                 col = split.column()
                 sub = col.row()
@@ -3994,7 +4027,7 @@ class VIEW3D_PT_shading_lighting(Panel):
                 col.operator('wm.studiolight_userpref_show', emboss=False, text="", icon='PREFERENCES')
 
                 if shading.selected_studio_light.orientation == 'WORLD':
-                    split = layout.split(0.9)
+                    split = layout.split(factor=0.9)
                     col = split.column()
                     col.prop(shading, "studiolight_rotate_z", text="Rotation")
                     col.prop(shading, "studiolight_background_alpha")
@@ -4024,7 +4057,7 @@ class VIEW3D_PT_shading_color(Panel):
         layout = self.layout
         shading = VIEW3D_PT_shading.get_shading(context)
 
-        layout.row().label("Background")
+        layout.row().label(text="Background")
         layout.row().prop(shading, 'background_type', expand=True)
         if shading.background_type == 'VIEWPORT':
             layout.row().prop(shading, "background_color", text="")
@@ -4357,6 +4390,9 @@ class VIEW3D_PT_overlay_edit_mesh(Panel):
         sub.prop(data, "show_edges", text="Edges")
         sub = split.column()
         sub.prop(data, "show_faces", text="Faces")
+        sub = split.column()
+        sub.active = view.use_occlude_geometry
+        sub.prop(data, "show_face_center", text="Center")
 
         row = col.row(align=True)
         row.prop(data, "show_edge_crease", text="Creases", toggle=True)
@@ -4689,7 +4725,7 @@ class VIEW3D_PT_pivot_point(Panel):
 
         layout = self.layout
         col = layout.column()
-        col.label("Pivot Point")
+        col.label(text="Pivot Point")
         col.prop(toolsettings, "transform_pivot_point", expand=True)
 
         if (obj is None) or (mode in {'OBJECT', 'POSE', 'WEIGHT_PAINT'}):
@@ -4716,7 +4752,7 @@ class VIEW3D_PT_snapping(Panel):
 
         layout = self.layout
         col = layout.column()
-        col.label("Snapping")
+        col.label(text="Snapping")
         col.prop(toolsettings, "snap_elements", expand=True)
 
         col.separator()
@@ -4724,7 +4760,7 @@ class VIEW3D_PT_snapping(Panel):
             col.prop(toolsettings, "use_snap_grid_absolute")
 
         if snap_elements != {'INCREMENT'}:
-            col.label("Target")
+            col.label(text="Target")
             row = col.row(align=True)
             row.prop(toolsettings, "snap_target", expand=True)
 
@@ -4749,7 +4785,7 @@ class VIEW3D_PT_transform_orientations(Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.label("Transform Orientations")
+        layout.label(text="Transform Orientations")
 
         scene = context.scene
         orientation = scene.current_orientation
@@ -4979,6 +5015,9 @@ class VIEW3D_MT_gpencil_edit_specials(Menu):
         layout.operator_menu_enum("gpencil.stroke_arrange", "direction", text="Arrange Strokes")
 
         layout.separator()
+        layout.menu("VIEW3D_MT_gpencil_copy_layer")
+
+        layout.separator()
 
         layout.operator("gpencil.stroke_join", text="Join").type = 'JOIN'
         layout.operator("gpencil.stroke_join", text="Join & Copy").type = 'JOINCOPY'
@@ -4998,7 +5037,6 @@ class VIEW3D_MT_gpencil_sculpt_specials(Menu):
 
     def draw(self, context):
         layout = self.layout
-        is_3d_view = context.space_data.type == 'VIEW_3D'
 
         layout.operator_context = 'INVOKE_REGION_WIN'
         layout.menu("VIEW3D_MT_assign_material")
@@ -5013,6 +5051,9 @@ class VIEW3D_MT_gpencil_sculpt_specials(Menu):
         layout.operator("gpencil.stroke_simplify_fixed", text="Simplify")
         layout.operator("gpencil.stroke_simplify", text="Simplify Adaptative")
 
+        if context.mode == 'GPENCIL_WEIGHT':
+            layout.separator()
+            layout.menu("VIEW3D_MT_gpencil_autoweights")
 
 classes = (
     VIEW3D_HT_header,
@@ -5052,17 +5093,17 @@ classes = (
     VIEW3D_MT_select_paint_mask,
     VIEW3D_MT_select_paint_mask_vertex,
     VIEW3D_MT_angle_control,
-    INFO_MT_mesh_add,
-    INFO_MT_curve_add,
-    INFO_MT_surface_add,
-    INFO_MT_metaball_add,
-    INFO_MT_edit_curve_add,
-    INFO_MT_edit_armature_add,
-    INFO_MT_armature_add,
-    INFO_MT_light_add,
-    INFO_MT_lightprobe_add,
-    INFO_MT_camera_add,
-    INFO_MT_add,
+    VIEW3D_MT_mesh_add,
+    VIEW3D_MT_curve_add,
+    VIEW3D_MT_surface_add,
+    VIEW3D_MT_metaball_add,
+    TOPBAR_MT_edit_curve_add,
+    TOPBAR_MT_edit_armature_add,
+    VIEW3D_MT_armature_add,
+    VIEW3D_MT_light_add,
+    VIEW3D_MT_lightprobe_add,
+    VIEW3D_MT_camera_add,
+    VIEW3D_MT_add,
     VIEW3D_MT_object,
     VIEW3D_MT_object_animation,
     VIEW3D_MT_object_rigid_body,
@@ -5130,6 +5171,7 @@ classes = (
     VIEW3D_MT_weight_gpencil,
     VIEW3D_MT_gpencil_animation,
     VIEW3D_MT_gpencil_simplify,
+    VIEW3D_MT_gpencil_copy_layer,
     VIEW3D_MT_edit_curve,
     VIEW3D_MT_edit_curve_ctrlpoints,
     VIEW3D_MT_edit_curve_segments,
@@ -5158,6 +5200,7 @@ classes = (
     VIEW3D_PT_object_type_visibility,
     VIEW3D_PT_grease_pencil,
     VIEW3D_PT_gpencil_multi_frame,
+    VIEW3D_MT_gpencil_autoweights,
     VIEW3D_MT_gpencil_edit_specials,
     VIEW3D_MT_gpencil_sculpt_specials,
     VIEW3D_PT_quad_view,

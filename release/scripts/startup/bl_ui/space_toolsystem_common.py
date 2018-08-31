@@ -273,7 +273,7 @@ class ToolSelectPanelHelper:
         if space_type == 'VIEW_3D':
             if mode is None:
                 mode = context.mode
-            tool = context.workspace.tools.from_space_view3d_mode(mode, create)
+            tool = context.workspace.tools.from_space_view3d_mode(mode, create=create)
             if tool is not None:
                 tool.refresh_from_context()
                 return tool
@@ -284,7 +284,7 @@ class ToolSelectPanelHelper:
                     mode = 'VIEW'
                 else:
                     mode = space_data.mode
-            tool = context.workspace.tools.from_space_image_mode(mode, create)
+            tool = context.workspace.tools.from_space_image_mode(mode, create=create)
             if tool is not None:
                 tool.refresh_from_context()
                 return tool
@@ -377,7 +377,7 @@ class ToolSelectPanelHelper:
         while True:
             if is_sep is True:
                 if column_index != column_last:
-                    row.label("")
+                    row.label(text="")
                 col = layout.column(align=True)
                 row = col.row(align=True)
                 row.scale_x = scale_x
@@ -387,7 +387,7 @@ class ToolSelectPanelHelper:
             is_sep = yield row
             if is_sep is None:
                 if column_index == column_last:
-                    row.label("")
+                    row.label(text="")
                     yield None
                     return
 
@@ -513,19 +513,25 @@ class ToolSelectPanelHelper:
         self.draw_cls(self.layout, context)
 
     @staticmethod
-    def draw_active_tool_header(context, layout):
+    def draw_active_tool_header(
+            context, layout,
+            *,
+            show_tool_name=False,
+    ):
         # BAD DESIGN WARNING: last used tool
         workspace = context.workspace
         space_type = workspace.tools_space_type
         mode = workspace.tools_mode
         item, tool, icon_value = ToolSelectPanelHelper._tool_get_active(context, space_type, mode, with_icon=True)
         if item is None:
-            return
-        # Note: we could show 'item.text' here but it makes the layout jitter when switcuing tools.
-        layout.label(" ", icon_value=icon_value)
+            return None
+        # Note: we could show 'item.text' here but it makes the layout jitter when switching tools.
+        # Add some spacing since the icon is currently assuming regular small icon size.
+        layout.label(text="    " + item.text if show_tool_name else " ", icon_value=icon_value)
         draw_settings = item.draw_settings
         if draw_settings is not None:
             draw_settings(context, layout, tool)
+        return tool
 
 
 # The purpose of this menu is to be a generic popup to select between tools
@@ -553,7 +559,7 @@ class WM_MT_toolsystem_submenu(Menu):
         cls, item_group = self._tool_group_from_button(context)
         if item_group is None:
             # Should never happen, just in case
-            layout.label("Unable to find toolbar group")
+            layout.label(text="Unable to find toolbar group")
             return
 
         for item in item_group:

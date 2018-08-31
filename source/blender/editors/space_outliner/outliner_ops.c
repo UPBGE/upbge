@@ -33,7 +33,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math.h"
 
-#include "DNA_group_types.h"
+#include "DNA_collection_types.h"
 
 #include "BLT_translation.h"
 
@@ -120,7 +120,7 @@ void outliner_operatortypes(void)
 
 void outliner_keymap(wmKeyConfig *keyconf)
 {
-	wmKeyMap *keymap = WM_keymap_find(keyconf, "Outliner", SPACE_OUTLINER, 0);
+	wmKeyMap *keymap = WM_keymap_ensure(keyconf, "Outliner", SPACE_OUTLINER, 0);
 	wmKeyMapItem *kmi;
 
 	WM_keymap_add_item(keymap, "OUTLINER_OT_highlight_update", MOUSEMOVE, KM_ANY, KM_ANY, 0);

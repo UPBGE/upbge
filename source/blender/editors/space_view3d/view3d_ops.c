@@ -33,8 +33,8 @@
 #include <math.h>
 
 
+#include "DNA_collection_types.h"
 #include "DNA_object_types.h"
-#include "DNA_group_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
@@ -238,13 +238,13 @@ void view3d_keymap(wmKeyConfig *keyconf)
 	wmKeyMap *keymap;
 	wmKeyMapItem *kmi;
 
-	keymap = WM_keymap_find(keyconf, "3D View Generic", SPACE_VIEW3D, 0);
+	keymap = WM_keymap_ensure(keyconf, "3D View Generic", SPACE_VIEW3D, 0);
 
 	WM_keymap_add_item(keymap, "VIEW3D_OT_properties", NKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "VIEW3D_OT_toolshelf", TKEY, KM_PRESS, 0, 0);
 
 	/* only for region 3D window */
-	keymap = WM_keymap_find(keyconf, "3D View", SPACE_VIEW3D, 0);
+	keymap = WM_keymap_ensure(keyconf, "3D View", SPACE_VIEW3D, 0);
 
 	WM_keymap_verify_item(keymap, "VIEW3D_OT_cursor3d", ACTIONMOUSE, KM_CLICK, 0, 0);
 

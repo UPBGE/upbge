@@ -2877,6 +2877,7 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam, int
 	/* Init engines */
 	drw_engines_init();
 	drw_engines_cache_init();
+	drw_engines_world_update(scene);
 
 	
 

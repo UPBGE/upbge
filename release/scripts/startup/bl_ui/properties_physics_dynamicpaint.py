@@ -43,7 +43,10 @@ class PHYSICS_UL_dynapaint_surfaces(UIList):
 
             if surf.use_color_preview:
                 row.prop(
-                    surf, "show_preview", text="", emboss=False,
+                    surf,
+                    "show_preview",
+                    text="",
+                    emboss=False,
                     icon='RESTRICT_VIEW_OFF' if surf.show_preview else 'RESTRICT_VIEW_ON'
                 )
             row.prop(surf, "is_active", text="")
@@ -466,7 +469,7 @@ class PHYSICS_PT_dp_canvas_output_bake(PhysicButtonsPanel, Panel):
 
         row = layout.row(align=True)
         row.alignment = 'RIGHT'
-        row.label("Cache Path")
+        row.label(text="Cache Path")
 
         layout.prop(surface, "image_output_path", text="")
         layout.operator("dpaint.bake", text="Bake Image Sequence", icon='MOD_DYNAMICPAINT')

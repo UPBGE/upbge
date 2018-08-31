@@ -31,9 +31,6 @@ if(BUILD_MODE STREQUAL Release)
 		COMMAND # jpeg rename libfile + copy include
 				${CMAKE_COMMAND} -E copy ${LIBDIR}/jpg/lib/jpeg-static.lib ${HARVEST_TARGET}/jpeg/lib/libjpeg.lib &&
 				${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/jpg/include/ ${HARVEST_TARGET}/jpeg/include/ &&
-				# pthreads, rename include dir
-				${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/pthreads/inc/ ${HARVEST_TARGET}/pthreads/include/ &&
-				${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/pthreads/lib/ ${HARVEST_TARGET}/pthreads/lib &&
 				# OpenImageIO
 				${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/OpenImageIO/include ${HARVEST_TARGET}/OpenImageIO/include &&
 				${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/OpenImageIO/lib ${HARVEST_TARGET}/OpenImageIO/lib &&
@@ -113,7 +110,6 @@ endfunction()
 
 harvest(alembic/include alembic/include "*.h")
 harvest(alembic/lib/libAlembic.a alembic/lib/libAlembic.a)
-harvest(blosc/lib openvdb/lib "*.a")
 harvest(boost/include boost/include "*")
 harvest(boost/lib boost/lib "*.a")
 harvest(ffmpeg/include ffmpeg/include "*.h")
@@ -138,6 +134,18 @@ harvest(ogg/lib ffmpeg/lib "*.a")
 harvest(openal/include openal/include "*.h")
 if(UNIX AND NOT APPLE)
 	harvest(openal/lib openal/lib "*.a")
+
+	harvest(blosc/include blosc/include "*.h")
+	harvest(blosc/lib blosc/lib "*.a")
+
+	harvest(zlib/include zlib/include "*.h")
+	harvest(zlib/lib zlib/lib "*.a")
+
+	harvest(xml2/include xml2/include "*.h")
+	harvest(xml2/lib xml2/lib "*.a")
+else()
+	harvest(blosc/lib openvdb/lib "*.a")
+	harvest(xml2/lib opencollada/lib "*.a")
 endif()
 harvest(opencollada/include/opencollada opencollada/include "*.h")
 harvest(opencollada/lib/opencollada opencollada/lib "*.a")
@@ -181,7 +189,6 @@ harvest(vorbis/lib ffmpeg/lib "*.a")
 harvest(vpx/lib ffmpeg/lib "*.a")
 harvest(webp/lib ffmpeg/lib "*.a")
 harvest(x264/lib ffmpeg/lib "*.a")
-harvest(xml2/lib opencollada/lib "*.a")
 harvest(xvidcore/lib ffmpeg/lib "*.a")
 
 endif()

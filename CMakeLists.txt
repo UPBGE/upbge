@@ -167,6 +167,7 @@ option_defaults_init(
 	_init_FFTW3
 	_init_GAMEENGINE
 	_init_OPENSUBDIV
+	_init_SYSTEM_OPENJPG
 )
 
 # customize...
@@ -183,11 +184,13 @@ if(UNIX AND NOT APPLE)
 	set(_init_SDL                            OFF)
 	set(_init_FFTW3                          OFF)
 	set(_init_OPENSUBDIV                     OFF)
+	set(_init_SYSTEM_OPENJPG                 OFF)
 elseif(WIN32)
 	set(_init_JACK                           OFF)
 elseif(APPLE)
 	set(_init_JACK                           OFF)
 	set(_init_OPENSUBDIV                     OFF)
+	set(_init_SYSTEM_OPENJPG                 OFF)
 endif()
 
 
@@ -314,7 +317,7 @@ endif()
 
 
 # (unix defaults to System OpenJPEG On)
-option(WITH_SYSTEM_OPENJPEG "Use the operating systems OpenJPEG library" OFF)
+option(WITH_SYSTEM_OPENJPEG "Use the operating systems OpenJPEG library" ${_init_SYSTEM_OPENJPG})
 
 if(UNIX AND NOT APPLE)
 	option(WITH_SYSTEM_EIGEN3 "Use the systems Eigen3 library" OFF)
@@ -639,12 +642,6 @@ endif()
 
 if(NOT WITH_GAMEENGINE AND WITH_PLAYER)
 	message(FATAL_ERROR "WITH_PLAYER requires WITH_GAMEENGINE")
-endif()
-
-if(NOT WITH_CXX11)
-	if(WITH_AUDASPACE AND NOT WITH_SYSTEM_AUDASPACE)
-		message(FATAL_ERROR "WITH_AUDASPACE requires WITH_CXX11")
-	endif()
 endif()
 
 if(NOT WITH_AUDASPACE)
@@ -1500,6 +1497,7 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "MSVC")
 		# warning level:
 		"/W3"
 		"/w34062"  # switch statement contains 'default' but no 'case' labels
+		"/w34189"  # local variable is initialized but not referenced
 		# disable:
 		"/wd4018"  # signed/unsigned mismatch
 		"/wd4146"  # unary minus operator applied to unsigned type, result still unsigned

@@ -454,6 +454,7 @@ typedef enum DenoisingPassOffsets {
 	DENOISING_PASS_SHADOW_B           = 17,
 	DENOISING_PASS_COLOR              = 20,
 	DENOISING_PASS_COLOR_VAR          = 23,
+	DENOISING_PASS_CLEAN              = 26,
 
 	DENOISING_PASS_SIZE_BASE          = 26,
 	DENOISING_PASS_SIZE_CLEAN         = 3,
@@ -1383,8 +1384,9 @@ typedef enum KernelBVHLayout {
 
 	BVH_LAYOUT_BVH2 = (1 << 0),
 	BVH_LAYOUT_BVH4 = (1 << 1),
+	BVH_LAYOUT_BVH8 = (1 << 2),
 
-	BVH_LAYOUT_DEFAULT = BVH_LAYOUT_BVH4,
+	BVH_LAYOUT_DEFAULT = BVH_LAYOUT_BVH8,
 	BVH_LAYOUT_ALL = (unsigned int)(-1),
 } KernelBVHLayout;
 

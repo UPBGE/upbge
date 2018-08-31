@@ -34,7 +34,7 @@ extern "C" {
 #include "RNA_types.h"
 
 #include "DNA_camera_types.h"
-#include "DNA_group_types.h"
+#include "DNA_collection_types.h"
 #include "DNA_listBase.h"
 #include "DNA_linestyle_types.h"
 #include "DNA_material_types.h"
@@ -193,17 +193,17 @@ BlenderStrokeRenderer::~BlenderStrokeRenderer()
 		}
 #endif
 		switch (ob->type) {
-		case OB_MESH:
-			BKE_libblock_free(freestyle_bmain, ob);
-			BKE_libblock_free(freestyle_bmain, data);
-			break;
-		case OB_CAMERA:
-			BKE_libblock_free(freestyle_bmain, ob);
-			BKE_libblock_free(freestyle_bmain, data);
-			freestyle_scene->camera = NULL;
-			break;
-		default:
-			cerr << "Warning: unexpected object in the scene: " << name[0] << name[1] << ":" << (name + 2) << endl;
+			case OB_MESH:
+				BKE_libblock_free(freestyle_bmain, ob);
+				BKE_libblock_free(freestyle_bmain, data);
+				break;
+			case OB_CAMERA:
+				BKE_libblock_free(freestyle_bmain, ob);
+				BKE_libblock_free(freestyle_bmain, data);
+				freestyle_scene->camera = NULL;
+				break;
+			default:
+				cerr << "Warning: unexpected object in the scene: " << name[0] << name[1] << ":" << (name + 2) << endl;
 		}
 	}
 

@@ -623,6 +623,7 @@ extern StructRNA RNA_MirrorGpencilModifier;
 extern StructRNA RNA_SmoothGpencilModifier;
 extern StructRNA RNA_HookGpencilModifier;
 extern StructRNA RNA_OffsetGpencilModifier;
+extern StructRNA RNA_ArmatureGpencilModifier;
 extern StructRNA RNA_ShaderFx;
 extern StructRNA RNA_ShaderFxBlur;
 extern StructRNA RNA_ShaderFxColorize;

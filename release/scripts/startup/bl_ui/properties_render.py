@@ -232,7 +232,7 @@ class RENDER_PT_game_debug(RenderButtonsPanel, Panel):
         row.prop(gs, "vsync")
 
         row = layout.row()
-        row.label("Exit Key")
+        row.label(text="Exit Key")
         row.prop(gs, "exit_key", text="", event=True)
 
         flow = layout.column_flow()
@@ -306,7 +306,7 @@ class RENDER_PT_stamp(RenderButtonsPanel, Panel):
         if rd.use_sequencer:
             col.prop(rd, "use_stamp_strip_meta", text="Use Strip Metadata")
 
-        row = layout.split(percentage=0.3)
+        row = layout.split(factor=0.3)
         row.prop(rd, "use_stamp_note", text="Note")
         sub = row.row()
         sub.active = rd.use_stamp_note
@@ -458,14 +458,14 @@ class RENDER_UL_renderviews(UIList):
         view = item
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
             if view.name in {"left", "right"}:
-                layout.label(view.name, icon_value=icon + (not view.use))
+                layout.label(text=view.name, icon_value=icon + (not view.use))
             else:
                 layout.prop(view, "name", text="", index=index, icon_value=icon, emboss=False)
             layout.prop(view, "use", text="", index=index)
 
         elif self.layout_type == 'GRID':
             layout.alignment = 'CENTER'
-            layout.label("", icon_value=icon + (not view.use))
+            layout.label(text="", icon_value=icon + (not view.use))
 
 
 class RENDER_PT_stereoscopy(RenderButtonsPanel, Panel):
@@ -806,9 +806,9 @@ class RENDER_PT_eevee_indirect_lighting(RenderButtonsPanel, Panel):
         col.prop(props, "gi_visibility_resolution", text="Diffuse Occlusion")
 
         layout.use_property_split = False
-        row = layout.split(percentage=0.5)
+        row = layout.split(factor=0.5)
         row.alignment = 'RIGHT'
-        row.label("Cubemap Display")
+        row.label(text="Cubemap Display")
 
         sub = row.row(align=True)
         sub.prop(props, "gi_cubemap_draw_size", text="Size")
@@ -817,9 +817,9 @@ class RENDER_PT_eevee_indirect_lighting(RenderButtonsPanel, Panel):
         else:
             sub.prop(props, "gi_show_cubemaps", text="", toggle=True, icon='HIDE_ON')
 
-        row = layout.split(percentage=0.5)
+        row = layout.split(factor=0.5)
         row.alignment = 'RIGHT'
-        row.label("Irradiance Display")
+        row.label(text="Irradiance Display")
 
         sub = row.row(align=True)
         sub.prop(props, "gi_irradiance_draw_size", text="Size")

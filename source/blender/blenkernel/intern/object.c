@@ -39,10 +39,10 @@
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_camera_types.h"
+#include "DNA_collection_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_gpencil_types.h"
 #include "DNA_gpencil_modifier_types.h"
-#include "DNA_group_types.h"
 #include "DNA_key_types.h"
 #include "DNA_lamp_types.h"
 #include "DNA_lattice_types.h"
@@ -2067,6 +2067,11 @@ static bool ob_parcurve(Depsgraph *depsgraph, Scene *UNUSED(scene), Object *ob, 
 			return false;
 		}
 		BKE_displist_make_curveTypes(depsgraph, scene, par, 0);
+	}
+#else
+	/* See: T56619 */
+	if (par->runtime.curve_cache == NULL) {
+		return false;
 	}
 #endif
 

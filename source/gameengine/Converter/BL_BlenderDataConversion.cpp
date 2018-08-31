@@ -127,7 +127,6 @@
 #include "DNA_texture_types.h"
 #include "DNA_image_types.h"
 #include "DNA_lamp_types.h"
-#include "DNA_group_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_property_types.h"

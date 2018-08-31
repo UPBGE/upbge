@@ -596,6 +596,8 @@ set_property(GLOBAL PROPERTY ICON_GEOM_NAMES
 	ops.armature.bone.roll
 	ops.armature.extrude.cursor
 	ops.armature.extrude
+	ops.curve.draw
+	ops.curve.dupli_extrude_cursor
 	ops.generic.cursor
 	ops.generic.select_border
 	ops.generic.select_circle
@@ -623,17 +625,18 @@ set_property(GLOBAL PROPERTY ICON_GEOM_NAMES
 	ops.mesh.dupli_extrude_cursor
 	ops.mesh.extrude_faces_move
 	ops.mesh.extrude_region_move
+	ops.mesh.extrude_region_shrink_fatten
 	ops.mesh.inset
 	ops.mesh.knife_tool
 	ops.mesh.loopcut_slide
 	ops.mesh.offset_edge_loops_slide
 	ops.mesh.polybuild_hover
-	ops.mesh.primitive_cone_add_manipulator
-	ops.mesh.primitive_cube_add_manipulator
-	ops.mesh.primitive_cylinder_add_manipulator
-	ops.mesh.primitive_grid_add_manipulator
-	ops.mesh.primitive_sphere_add_manipulator
-	ops.mesh.primitive_torus_add_manipulator
+	ops.mesh.primitive_cone_add_gizmo
+	ops.mesh.primitive_cube_add_gizmo
+	ops.mesh.primitive_cylinder_add_gizmo
+	ops.mesh.primitive_grid_add_gizmo
+	ops.mesh.primitive_sphere_add_gizmo
+	ops.mesh.primitive_torus_add_gizmo
 	ops.mesh.rip
 	ops.mesh.rip_edge
 	ops.mesh.spin
@@ -649,7 +652,9 @@ set_property(GLOBAL PROPERTY ICON_GEOM_NAMES
 	ops.transform.resize.cage
 	ops.transform.resize
 	ops.transform.rotate
+	ops.transform.shear
 	ops.transform.shrink_fatten
+	ops.transform.tosphere
 	ops.transform.transform
 	ops.transform.translate
 	ops.transform.vert_slide

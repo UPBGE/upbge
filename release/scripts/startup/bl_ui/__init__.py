@@ -43,7 +43,6 @@ _modules = [
     "properties_data_shaderfx",
     "properties_data_lightprobe",
     "properties_data_speaker",
-    "properties_data_workspace",
     "properties_game",
     "properties_mask_common",
     "properties_material",
@@ -93,6 +92,9 @@ _modules = [
     "space_userpref",
     "space_view3d",
     "space_view3d_toolbar",
+
+    # XXX, keep last so panels show after all other tool options.
+    "properties_workspace",
 ]
 
 import bpy

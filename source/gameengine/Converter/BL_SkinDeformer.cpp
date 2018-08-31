@@ -199,7 +199,7 @@ void BL_SkinDeformer::BlenderDeformVerts()
 	// set reference matrix
 	copy_m4_m4(m_objMesh->obmat, m_obmat);
 
-	armature_deform_verts(par_arma, m_objMesh, nullptr, m_transverts, nullptr, m_bmesh->totvert, m_deformflags, nullptr, nullptr);
+	armature_deform_verts(par_arma, m_objMesh, nullptr, m_transverts, nullptr, m_bmesh->totvert, m_deformflags, nullptr, nullptr, nullptr);
 
 	// restore matrix
 	copy_m4_m4(m_objMesh->obmat, obmat);

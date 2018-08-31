@@ -65,7 +65,7 @@ class PHYSICS_PT_smoke(PhysicButtonsPanel, Panel):
         if not bpy.app.build_options.mod_smoke:
             col = layout.column(align=True)
             col.alignment = 'RIGHT'
-            col.label("Built without Smoke modifier")
+            col.label(text="Built without Smoke modifier")
             return
 
         md = context.smoke
@@ -262,7 +262,6 @@ class PHYSICS_PT_smoke_behavior(PhysicButtonsPanel, Panel):
         col.prop(domain, "vorticity")
 
 
-
 class PHYSICS_PT_smoke_behavior_dissolve(PhysicButtonsPanel, Panel):
     bl_label = "Dissolve"
     bl_parent_id = 'PHYSICS_PT_smoke_behavior'
@@ -323,7 +322,6 @@ class PHYSICS_PT_smoke_flow_texture(PhysicButtonsPanel, Panel):
 
         self.layout.prop(flow_smoke, "use_texture", text="")
 
-
     def draw(self, context):
         layout = self.layout
         layout.use_property_split = True
@@ -331,7 +329,6 @@ class PHYSICS_PT_smoke_flow_texture(PhysicButtonsPanel, Panel):
 
         ob = context.object
         flow_smoke = context.smoke.flow_settings
-
 
         sub = flow.column()
         sub.active = flow_smoke.use_texture
@@ -349,6 +346,7 @@ class PHYSICS_PT_smoke_flow_texture(PhysicButtonsPanel, Panel):
             sub.prop(flow_smoke, "texture_size")
 
         sub.prop(flow_smoke, "texture_offset")
+
 
 class PHYSICS_PT_smoke_fire(PhysicButtonsPanel, Panel):
     bl_label = "Flames"
@@ -529,7 +527,7 @@ class PHYSICS_PT_smoke_cache(PhysicButtonsPanel, Panel):
             if not bpy.app.build_options.openvdb:
                 row = layout.row(align=True)
                 row.alignment = 'RIGHT'
-                row.label("Built without OpenVDB support")
+                row.label(text="Built without OpenVDB support")
                 return
 
             col = flow.column()

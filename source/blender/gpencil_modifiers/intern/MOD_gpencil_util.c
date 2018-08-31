@@ -77,6 +77,7 @@ void gpencil_modifier_type_init(GpencilModifierTypeInfo *types[])
 	INIT_GP_TYPE(Smooth);
 	INIT_GP_TYPE(Hook);
 	INIT_GP_TYPE(Offset);
+	INIT_GP_TYPE(Armature);
 #undef INIT_GP_TYPE
 }
 
@@ -149,8 +150,8 @@ float get_modifier_point_weight(MDeformVert *dvert, bool inverse, int def_nr)
 
 /* set material when apply modifiers (used in tint and color modifier) */
 void gpencil_apply_modifier_material(
-	Main *bmain, Object *ob, Material *mat,
-	GHash *gh_color, bGPDstroke *gps, bool crt_material)
+        Main *bmain, Object *ob, Material *mat,
+        GHash *gh_color, bGPDstroke *gps, bool crt_material)
 {
 	MaterialGPencilStyle *gp_style = mat->gp_style;
 

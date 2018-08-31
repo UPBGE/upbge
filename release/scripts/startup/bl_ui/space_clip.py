@@ -756,7 +756,7 @@ class CLIP_PT_tracking_lens(Panel):
         clip = sc.clip
 
         row = layout.row(align=True)
-        sub = row.split(percentage=0.65, align=True)
+        sub = row.split(factor=0.65, align=True)
         if clip.tracking.camera.units == 'MILLIMETERS':
             sub.prop(clip.tracking.camera, "focal_length")
         else:
@@ -842,7 +842,7 @@ class CLIP_PT_marker_display(CLIP_PT_clip_view_panel, Panel):
 
         col = layout.column(align=True)
         row = col.row(align=True)
-        row.prop(sc, "show_disabled", "Disabled")
+        row.prop(sc, "show_disabled", text="Disabled")
         row.prop(sc, "show_names", text="Info")
 
         row = col.row(align=True)
