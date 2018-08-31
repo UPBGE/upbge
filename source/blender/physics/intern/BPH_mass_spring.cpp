@@ -67,7 +67,7 @@ static int cloth_count_nondiag_blocks(Cloth *cloth)
 	for (link = cloth->springs; link; link = link->next) {
 		ClothSpring *spring = (ClothSpring *)link->link;
 		switch (spring->type) {
-			case CLOTH_SPRING_TYPE_BENDING_ANG:
+			case CLOTH_SPRING_TYPE_BENDING_HAIR:
 				/* angular bending combines 3 vertices */
 				nondiag += 3;
 				break;
@@ -341,29 +341,66 @@ BLI_INLINE void cloth_calc_spring_force(ClothModifierData *clmd, ClothSpring *s)
 	Cloth *cloth = clmd->clothObject;
 	ClothSimSettings *parms = clmd->sim_parms;
 	Implicit_Data *data = cloth->implicit;
-
-	bool no_compress = parms->flags & CLOTH_SIMSETTINGS_FLAG_NO_SPRING_COMPRESS;
+	bool new_compress = parms->bending_model == CLOTH_BENDING_ANGULAR;
+	bool resist_compress = (parms->flags & CLOTH_SIMSETTINGS_FLAG_RESIST_SPRING_COMPRESS) && !new_compress;
 
 	s->flags &= ~CLOTH_SPRING_FLAG_NEEDED;
 
-	// calculate force of structural + shear springs
-	if ((s->type & CLOTH_SPRING_TYPE_STRUCTURAL) || (s->type & CLOTH_SPRING_TYPE_SHEAR) || (s->type & CLOTH_SPRING_TYPE_SEWING) ) {
-#ifdef CLOTH_FORCE_SPRING_STRUCTURAL
+	/* Calculate force of bending springs. */
+	if (s->type & CLOTH_SPRING_TYPE_BENDING) {
+#ifdef CLOTH_FORCE_SPRING_BEND
 		float k, scaling;
 
 		s->flags |= CLOTH_SPRING_FLAG_NEEDED;
 
-		scaling = parms->structural + s->stiffness * fabsf(parms->max_struct - parms->structural);
-		k = scaling / (parms->avg_spring_len + FLT_EPSILON);
+		scaling = parms->bending + s->ang_stiffness * fabsf(parms->max_bend - parms->bending);
+		k = scaling * s->restlen * 0.1f; /* Multiplying by 0.1, just to scale the forces to more reasonable values. */
+
+		BPH_mass_spring_force_spring_angular(data, s->ij, s->kl, s->pa, s->pb, s->la, s->lb,
+		                                     s->restang, k, parms->bending_damping);
+#endif
+	}
+
+	/* Calculate force of structural + shear springs. */
+	if (s->type & (CLOTH_SPRING_TYPE_STRUCTURAL | CLOTH_SPRING_TYPE_SEWING)) {
+#ifdef CLOTH_FORCE_SPRING_STRUCTURAL
+		float k_tension, scaling_tension;
+
+		s->flags |= CLOTH_SPRING_FLAG_NEEDED;
+
+		scaling_tension = parms->tension + s->lin_stiffness * fabsf(parms->max_tension - parms->tension);
+		k_tension = scaling_tension / (parms->avg_spring_len + FLT_EPSILON);
 
 		if (s->type & CLOTH_SPRING_TYPE_SEWING) {
 			// TODO: verify, half verified (couldn't see error)
 			// sewing springs usually have a large distance at first so clamp the force so we don't get tunnelling through colission objects
-			BPH_mass_spring_force_spring_linear(data, s->ij, s->kl, s->restlen, k, parms->Cdis, no_compress, parms->max_sewing);
+			BPH_mass_spring_force_spring_linear(data, s->ij, s->kl, s->restlen,
+			                                    k_tension, parms->tension_damp,
+			                                    0.0f, 0.0f, false, false, parms->max_sewing);
 		}
 		else {
-			BPH_mass_spring_force_spring_linear(data, s->ij, s->kl, s->restlen, k, parms->Cdis, no_compress, 0.0f);
+			float k_compression, scaling_compression;
+			scaling_compression = parms->compression + s->lin_stiffness * fabsf(parms->max_compression - parms->compression);
+			k_compression = scaling_compression / (parms->avg_spring_len + FLT_EPSILON);
+
+			BPH_mass_spring_force_spring_linear(data, s->ij, s->kl, s->restlen,
+			                                    k_tension, parms->tension_damp,
+			                                    k_compression, parms->compression_damp,
+			                                    resist_compress, new_compress, 0.0f);
 		}
+#endif
+	}
+	else if (s->type & CLOTH_SPRING_TYPE_SHEAR) {
+#ifdef CLOTH_FORCE_SPRING_SHEAR
+		float k, scaling;
+
+		s->flags |= CLOTH_SPRING_FLAG_NEEDED;
+
+		scaling = parms->shear + s->lin_stiffness * fabsf(parms->max_shear - parms->shear);
+		k = scaling / (parms->avg_spring_len + FLT_EPSILON);
+
+		BPH_mass_spring_force_spring_linear(data, s->ij, s->kl, s->restlen, k, parms->shear_damp,
+		                                    0.0f, 0.0f, resist_compress, false, 0.0f);
 #endif
 	}
 	else if (s->type & CLOTH_SPRING_TYPE_BENDING) {  /* calculate force of bending springs */
@@ -372,7 +409,7 @@ BLI_INLINE void cloth_calc_spring_force(ClothModifierData *clmd, ClothSpring *s)
 
 		s->flags |= CLOTH_SPRING_FLAG_NEEDED;
 
-		scaling = parms->bending + s->stiffness * fabsf(parms->max_bend - parms->bending);
+		scaling = parms->bending + s->lin_stiffness * fabsf(parms->max_bend - parms->bending);
 		kb = scaling / (20.0f * (parms->avg_spring_len + FLT_EPSILON));
 
 		// Fix for [#45084] for cloth stiffness must have cb proportional to kb
@@ -381,7 +418,7 @@ BLI_INLINE void cloth_calc_spring_force(ClothModifierData *clmd, ClothSpring *s)
 		BPH_mass_spring_force_spring_bending(data, s->ij, s->kl, s->restlen, kb, cb);
 #endif
 	}
-	else if (s->type & CLOTH_SPRING_TYPE_BENDING_ANG) {
+	else if (s->type & CLOTH_SPRING_TYPE_BENDING_HAIR) {
 #ifdef CLOTH_FORCE_SPRING_BEND
 		float kb, cb, scaling;
 
@@ -391,14 +428,14 @@ BLI_INLINE void cloth_calc_spring_force(ClothModifierData *clmd, ClothSpring *s)
 		 * this is crap, but needed due to cloth/hair mixing ...
 		 * max_bend factor is not even used for hair, so ...
 		 */
-		scaling = s->stiffness * parms->bending;
+		scaling = s->lin_stiffness * parms->bending;
 		kb = scaling / (20.0f * (parms->avg_spring_len + FLT_EPSILON));
 
 		// Fix for [#45084] for cloth stiffness must have cb proportional to kb
 		cb = kb * parms->bending_damping;
 
 		/* XXX assuming same restlen for ij and jk segments here, this can be done correctly for hair later */
-		BPH_mass_spring_force_spring_bending_angular(data, s->ij, s->kl, s->mn, s->target, kb, cb);
+		BPH_mass_spring_force_spring_bending_hair(data, s->ij, s->kl, s->mn, s->target, kb, cb);
 
 #if 0
 		{

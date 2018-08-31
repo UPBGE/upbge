@@ -59,8 +59,8 @@ if 'cmake' in builder:
     bits = 64
 
     # Config file to be used (relative to blender's sources root)
-    cmake_config_file = "build_files/cmake/config/blender_full.cmake"
-    cmake_player_config_file = None
+    cmake_config_file = "build_files/cmake/config/blender_release.cmake"
+	cmake_player_config_file = None
     cmake_cuda_config_file = None
 
     # Set build options.

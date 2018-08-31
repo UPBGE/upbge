@@ -133,11 +133,17 @@ ClothVertex;
 typedef struct ClothSpring {
 	int	ij;		/* Pij from the paper, one end of the spring.	*/
 	int	kl;		/* Pkl from the paper, one end of the spring.	*/
-	int mn;
-	float	restlen;	/* The original length of the spring.	*/
-	int	type;		/* types defined in BKE_cloth.h ("springType") */
-	int	flags; 		/* defined in BKE_cloth.h, e.g. deactivated due to tearing */
-	float 	stiffness;	/* stiffness factor from the vertex groups */
+	int mn;		/* For hair springs: third vertex index; For bending springs: edge index; */
+	int *pa;	/* Array of vert indices for poly a (for bending springs). */
+	int *pb;	/* Array of vert indices for poly b (for bending springs). */
+	int la;		/* Length of *pa. */
+	int lb;		/* Length of *pb. */
+	float restlen;	/* The original length of the spring. */
+	float restang;	/* The original angle of the bending springs. */
+	int	type;		/* Types defined in BKE_cloth.h ("springType"). */
+	int	flags; 		/* Defined in BKE_cloth.h, e.g. deactivated due to tearing. */
+	float lin_stiffness;	/* Linear stiffness factor from the vertex groups. */
+	float ang_stiffness;	/* Angular stiffness factor from the vertex groups. */
 	float editrestlen;
 
 	/* angular bending spring target and derivatives */
@@ -167,10 +173,16 @@ typedef enum {
 	CLOTH_SIMSETTINGS_FLAG_TEARING = ( 1 << 4 ),// true if tearing is enabled
 	CLOTH_SIMSETTINGS_FLAG_SCALING = ( 1 << 8 ), /* is advanced scaling active? */
 	CLOTH_SIMSETTINGS_FLAG_CCACHE_EDIT = (1 << 12),	/* edit cache in editmode */
-	CLOTH_SIMSETTINGS_FLAG_NO_SPRING_COMPRESS = (1 << 13), /* don't allow spring compression */
+	CLOTH_SIMSETTINGS_FLAG_RESIST_SPRING_COMPRESS = (1 << 13), /* don't allow spring compression */
 	CLOTH_SIMSETTINGS_FLAG_SEW = (1 << 14), /* pull ends of loose edges together */
 	CLOTH_SIMSETTINGS_FLAG_DYNAMIC_BASEMESH = (1 << 15), /* make simulation respect deformations in the base object */
 } CLOTH_SIMSETTINGS_FLAGS;
+
+/* ClothSimSettings.bending_model. */
+typedef enum {
+	CLOTH_BENDING_LINEAR	= 0,
+	CLOTH_BENDING_ANGULAR	= 1,
+} CLOTH_BENDING_MODEL;
 
 /* COLLISION FLAGS */
 typedef enum {
@@ -180,12 +192,12 @@ typedef enum {
 
 /* Spring types as defined in the paper.*/
 typedef enum {
-	CLOTH_SPRING_TYPE_STRUCTURAL  = (1 << 1),
-	CLOTH_SPRING_TYPE_SHEAR       = (1 << 2),
-	CLOTH_SPRING_TYPE_BENDING     = (1 << 3),
-	CLOTH_SPRING_TYPE_GOAL        = (1 << 4),
-	CLOTH_SPRING_TYPE_SEWING      = (1 << 5),
-	CLOTH_SPRING_TYPE_BENDING_ANG = (1 << 6),
+	CLOTH_SPRING_TYPE_STRUCTURAL   = (1 << 1),
+	CLOTH_SPRING_TYPE_SHEAR        = (1 << 2),
+	CLOTH_SPRING_TYPE_BENDING      = (1 << 3),
+	CLOTH_SPRING_TYPE_GOAL         = (1 << 4),
+	CLOTH_SPRING_TYPE_SEWING       = (1 << 5),
+	CLOTH_SPRING_TYPE_BENDING_HAIR = (1 << 6),
 } CLOTH_SPRING_TYPES;
 
 /* SPRING FLAGS */

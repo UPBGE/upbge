@@ -50,6 +50,7 @@ extern "C" {
 #define CLOTH_FORCE_GRAVITY
 #define CLOTH_FORCE_DRAG
 #define CLOTH_FORCE_SPRING_STRUCTURAL
+#define CLOTH_FORCE_SPRING_SHEAR
 #define CLOTH_FORCE_SPRING_BEND
 #define CLOTH_FORCE_SPRING_GOAL
 #define CLOTH_FORCE_EFFECTORS
@@ -114,11 +115,16 @@ void BPH_mass_spring_force_edge_wind(struct Implicit_Data *data, int v1, int v2,
 void BPH_mass_spring_force_vertex_wind(struct Implicit_Data *data, int v, float radius, const float (*winvec)[3]);
 /* Linear spring force between two points */
 bool BPH_mass_spring_force_spring_linear(struct Implicit_Data *data, int i, int j, float restlen,
-                                         float stiffness, float damping, bool no_compress, float clamp_force);
+                                         float stiffness_tension, float damping_tension,
+                                         float stiffness_compression, float damping_compression,
+                                         bool resist_compress, bool new_compress, float clamp_force);
+/* Angular spring force between two polygons */
+bool BPH_mass_spring_force_spring_angular(struct Implicit_Data *data, int i, int j, int *i_a, int *i_b, int len_a, int len_b,
+                                          float restang, float stiffness, float damping);
 /* Bending force, forming a triangle at the base of two structural springs */
 bool BPH_mass_spring_force_spring_bending(struct Implicit_Data *data, int i, int j, float restlen, float kb, float cb);
 /* Angular bending force based on local target vectors */
-bool BPH_mass_spring_force_spring_bending_angular(struct Implicit_Data *data, int i, int j, int k,
+bool BPH_mass_spring_force_spring_bending_hair(struct Implicit_Data *data, int i, int j, int k,
                                                   const float target[3], float stiffness, float damping);
 /* Global goal spring */
 bool BPH_mass_spring_force_spring_goal(struct Implicit_Data *data, int i, const float goal_x[3], const float goal_v[3],
