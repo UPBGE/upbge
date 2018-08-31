@@ -232,9 +232,9 @@ void LA_Launcher::InitEngine()
 	m_ketsjiEngine->SetFlag(flags, true);
 	m_ketsjiEngine->SetRender(true);
 
-	m_ketsjiEngine->SetTicRate(60.0f);//);
-	m_ketsjiEngine->SetMaxLogicFrame(5.0f);//gm.maxlogicstep);
-	m_ketsjiEngine->SetMaxPhysicsFrame(5.0f);// gm.maxphystep);
+	m_ketsjiEngine->SetTicRate(gm.ticrate);
+	m_ketsjiEngine->SetMaxLogicFrame(gm.maxlogicstep);
+	m_ketsjiEngine->SetMaxPhysicsFrame(gm.maxphystep);
 
 	// Set the global settings (carried over if restart/load new files).
 	m_ketsjiEngine->SetGlobalSettings(m_globalSettings);
