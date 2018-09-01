@@ -45,15 +45,18 @@ class LOGIC_PT_components(bpy.types.Panel):
         for i, c in enumerate(game.components):
             box = layout.box()
             row = box.row()
-            row.prop(c, "name", text="")
+            row.prop(c, "show_expanded", text="", emboss=False)
+            row.label(c.name)
             row.operator("logic.python_component_reload", text="", icon='RECOVER_LAST').index = i
             row.operator("logic.python_component_remove", text="", icon='X').index = i
 
-            for prop in c.properties:
-                row = box.row()
-                row.label(text=prop.name)
-                col = row.column()
-                col.prop(prop, "value", text="")
+            if c.show_expanded and len(c.properties) > 0:
+                box = box.box()
+                for prop in c.properties:
+                    row = box.row()
+                    row.label(text=prop.name)
+                    col = row.column()
+                    col.prop(prop, "value", text="")
 
 
 class LOGIC_PT_properties(Panel):
