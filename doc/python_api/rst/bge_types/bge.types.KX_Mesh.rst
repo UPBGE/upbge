@@ -155,9 +155,13 @@ base class --- :class:`EXP_Value`
       :return: a duplicated mesh of the current used.
       :rtype: :class:`KX_Mesh`.
 
-   .. method:: constructBvh()
+   .. method:: constructBvh(transform=mathutils.Matrix.Identity(4), epsilon=0)
 
       Return a BVH tree based on mesh geometry. Indices of tree elements match polygons indices.
 
+      :arg transform: The transform 4x4 matrix applied to vertices.
+      :type transform: :class:`mathutils.Matrix`
+      :arg epsilon: The tree distance epsilon.
+      :type epsilon: float
       :return: A BVH tree based on mesh geometry.
       :rtype: :class:`mathutils.bvhtree.BVHTree`
