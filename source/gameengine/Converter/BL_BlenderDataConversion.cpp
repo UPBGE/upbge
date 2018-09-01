@@ -738,8 +738,8 @@ static void BL_CreateGraphicObjectNew(KX_GameObject *gameobj, KX_Scene *kxscene,
 	gameobj->SetGraphicController(ctrl);
 	ctrl->SetNewClientInfo(&gameobj->GetClientInfo());
 	if (isActive) {
-		// add first, this will create the proxy handle, only if the object is visible
-		if (gameobj->GetVisible()) {
+		// add first, this will create the proxy handle, only if the object is visible or occluder
+		if (gameobj->GetVisible() || gameobj->GetOccluder()) {
 			env->AddCcdGraphicController(ctrl);
 		}
 	}
