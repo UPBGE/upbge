@@ -720,6 +720,30 @@ class SCENE_PT_game_console(SceneButtonsPanel, Panel):
         row.prop(gs, "python_console_key4", text="", event=True)
 
 
+class SCENE_PT_game_audio(SceneButtonsPanel, Panel):
+    bl_label = "Audio"
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = {'BLENDER_GAME'}
+
+    @classmethod
+    def poll(cls, context):
+        scene = context.scene
+        return (scene and scene.render.engine in cls.COMPAT_ENGINES)
+
+    def draw(self, context):
+        layout = self.layout
+
+        scene = context.scene
+
+        split = layout.split()
+
+        col = layout.column()
+        col.prop(scene, "audio_distance_model", text="Distance Model")
+        col = layout.column(align=True)
+        col.prop(scene, "audio_doppler_speed", text="Speed")
+        col.prop(scene, "audio_doppler_factor", text="Doppler")
+
+
 class WorldButtonsPanel:
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
@@ -1034,6 +1058,7 @@ classes = (
     SCENE_PT_game_navmesh,
     SCENE_PT_game_hysteresis,
     SCENE_PT_game_console,
+    SCENE_PT_game_audio,
     WORLD_PT_game_context_world,
     WORLD_PT_game_world,
     WORLD_PT_game_environment_lighting,
