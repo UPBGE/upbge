@@ -223,6 +223,7 @@ class USERPREF_PT_interface(Panel):
         col.prop(view, "ui_line_width", text="Line Width")
         col.prop(view, "show_tooltips")
         col.prop(view, "show_tooltips_python")
+        col.prop(view, "show_developer_ui")
         col.prop(view, "show_object_info", text="Object Info")
         col.prop(view, "show_large_cursors")
         col.prop(view, "show_view_name", text="View Name")
@@ -493,12 +494,6 @@ class USERPREF_PT_system(Panel):
 
         col.separator()
 
-        col.label(text="Screencast:")
-        col.prop(system, "screencast_fps")
-        col.prop(system, "screencast_wait_time")
-
-        col.separator()
-
         if bpy.app.build_options.cycles:
             addon = userpref.addons.get("cycles")
             if addon is not None:
@@ -543,7 +538,10 @@ class USERPREF_PT_system(Panel):
         col.separator()
 
         col.label(text="Text Draw Options:")
-        col.prop(system, "use_text_antialiasing")
+        col.prop(system, "use_text_antialiasing", text="Anti-aliasing")
+        sub = col.column()
+        sub.active = system.use_text_antialiasing
+        sub.prop(system, "text_hinting", text="Hinting")
 
         col.separator()
 
@@ -939,7 +937,7 @@ class USERPREF_PT_theme(Panel):
             col = split.column()
 
             for i, ui in enumerate(theme.bone_color_sets, 1):
-                col.label(text=iface_("Color Set %d:") % i, translate=False)
+                col.label(iface_(f"Color Set {i:d}"), translate=False)
 
                 row = col.row()
 

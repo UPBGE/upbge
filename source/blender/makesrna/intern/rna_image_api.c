@@ -118,7 +118,9 @@ static void rna_Image_save_render(Image *image, bContext *C, ReportList *reports
 
 static void rna_Image_save(Image *image, Main *bmain, bContext *C, ReportList *reports)
 {
-	ImBuf *ibuf = BKE_image_acquire_ibuf(image, NULL, NULL);
+	void *lock;
+
+	ImBuf *ibuf = BKE_image_acquire_ibuf(image, NULL, &lock);
 	if (ibuf) {
 		char filename[FILE_MAX];
 		BLI_strncpy(filename, image->name, sizeof(filename));
@@ -145,13 +147,13 @@ static void rna_Image_save(Image *image, Main *bmain, bContext *C, ReportList *r
 		BKE_reportf(reports, RPT_ERROR, "Image '%s' does not have any image data", image->id.name + 2);
 	}
 
-	BKE_image_release_ibuf(image, ibuf, NULL);
+	BKE_image_release_ibuf(image, ibuf, lock);
 	WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, image);
 }
 
 static void rna_Image_pack(
         Image *image, Main *bmain, bContext *C, ReportList *reports,
-        int as_png, const char *data, int data_len)
+        bool as_png, const char *data, int data_len)
 {
 	ImBuf *ibuf = BKE_image_acquire_ibuf(image, NULL, NULL);
 
@@ -241,7 +243,7 @@ static int rna_Image_gl_load(Image *image, ReportList *reports, int frame, int f
 
 	if (ibuf == NULL || ibuf->rect == NULL) {
 		BKE_reportf(reports, RPT_ERROR, "Image '%s' does not have any image data", image->id.name + 2);
-		BKE_image_release_ibuf(image, ibuf, NULL);
+		BKE_image_release_ibuf(image, ibuf, lock);
 		return (int)GL_INVALID_OPERATION;
 	}
 
@@ -258,7 +260,7 @@ static int rna_Image_gl_load(Image *image, ReportList *reports, int frame, int f
 		image->bindcode[TEXTARGET_TEXTURE_2D] = 0;
 	}
 
-	BKE_image_release_ibuf(image, ibuf, NULL);
+	BKE_image_release_ibuf(image, ibuf, lock);
 
 	return error;
 }
@@ -396,4 +398,3 @@ void RNA_api_image(StructRNA *srna)
 }
 
 #endif
-

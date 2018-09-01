@@ -35,9 +35,9 @@ message("mingw_LIBDIR = ${mingw_LIBDIR}")
 
 message("Checking for mingw64")
 # download ming64
-if(NOT EXISTS "${DOWNLOAD_DIR}/x86_64-w64-mingw32-gcc-4.8.0-win64_rubenvb.7z")
+if(NOT EXISTS "${DOWNLOAD_DIR}/x86_64-4.9.4-release-win32-seh-rt_v5-rev0.7z")
 	message("Downloading mingw64")
-	file(DOWNLOAD "https://nchc.dl.sourceforge.net/project/mingw-w64/Toolchains%20targetting%20Win64/Personal%20Builds/rubenvb/gcc-4.8-release/x86_64-w64-mingw32-gcc-4.8.0-win64_rubenvb.7z" "${DOWNLOAD_DIR}/x86_64-w64-mingw32-gcc-4.8.0-win64_rubenvb.7z")
+	file(DOWNLOAD "https://nchc.dl.sourceforge.net/project/mingw-w64/Toolchains%20targetting%20Win64/Personal%20Builds/mingw-builds/4.9.4/threads-win32/seh/x86_64-4.9.4-release-win32-seh-rt_v5-rev0.7z" "${DOWNLOAD_DIR}/x86_64-4.9.4-release-win32-seh-rt_v5-rev0.7z")
 endif()
 
 # make mingw root directory
@@ -49,10 +49,10 @@ if(NOT EXISTS "${DOWNLOAD_DIR}/mingw")
 endif()
 
 # extract mingw64
-if((NOT EXISTS "${DOWNLOAD_DIR}/mingw/mingw64/mingw64env.cmd") AND (EXISTS "${DOWNLOAD_DIR}/x86_64-w64-mingw32-gcc-4.8.0-win64_rubenvb.7z"))
+if((NOT EXISTS "${DOWNLOAD_DIR}/mingw/mingw64/ming64sh.cmd") AND (EXISTS "${DOWNLOAD_DIR}/x86_64-4.9.4-release-win32-seh-rt_v5-rev0.7z"))
 	message("Extracting mingw64")
 	execute_process(
-		COMMAND ${CMAKE_COMMAND} -E tar jxf ${DOWNLOAD_DIR}/x86_64-w64-mingw32-gcc-4.8.0-win64_rubenvb.7z
+		COMMAND ${CMAKE_COMMAND} -E tar jxf ${DOWNLOAD_DIR}/x86_64-4.9.4-release-win32-seh-rt_v5-rev0.7z
 		WORKING_DIRECTORY ${DOWNLOAD_DIR}/mingw
 	)
 endif()
@@ -78,23 +78,24 @@ if((NOT EXISTS "${DOWNLOAD_DIR}/mingw/mingw64/bin/pkg-config.exe") AND (EXISTS "
 endif()
 
 message("Checking for nasm")
-if(NOT EXISTS "${DOWNLOAD_DIR}/nasm-2.12.01-win64.zip")
+if(NOT EXISTS "${DOWNLOAD_DIR}/nasm-2.13.02-win64.zip")
 	message("Downloading nasm")
-	file(DOWNLOAD "http://www.nasm.us/pub/nasm/releasebuilds/2.12.01/win64/nasm-2.12.01-win64.zip" "${DOWNLOAD_DIR}/nasm-2.12.01-win64.zip")
+	file(DOWNLOAD "http://www.nasm.us/pub/nasm/releasebuilds/2.13.02/win64/nasm-2.13.02-win64.zip" "${DOWNLOAD_DIR}/nasm-2.13.02-win64.zip")
 endif()
 
 # extract nasm
-if((NOT EXISTS "${DOWNLOAD_DIR}/mingw/mingw64/bin/nasm.exe") AND (EXISTS "${DOWNLOAD_DIR}/nasm-2.12.01-win64.zip"))
+if((NOT EXISTS "${DOWNLOAD_DIR}/mingw/mingw64/bin/nasm.exe") AND (EXISTS "${DOWNLOAD_DIR}/nasm-2.13.02-win64.zip"))
 	message("Extracting nasm")
 	execute_process(
-		COMMAND ${CMAKE_COMMAND} -E tar jxf "${DOWNLOAD_DIR}/nasm-2.12.01-win64.zip"
+		COMMAND ${CMAKE_COMMAND} -E tar jxf "${DOWNLOAD_DIR}/nasm-2.13.02-win64.zip"
 		WORKING_DIRECTORY ${DOWNLOAD_DIR}/
 	)
 	execute_process(
-		COMMAND ${CMAKE_COMMAND} -E copy "${DOWNLOAD_DIR}/nasm-2.12.01/nasm.exe" "${DOWNLOAD_DIR}/mingw/mingw64/bin/nasm.exe"
+		COMMAND ${CMAKE_COMMAND} -E copy "${DOWNLOAD_DIR}/nasm-2.13.02/nasm.exe" "${DOWNLOAD_DIR}/mingw/mingw64/bin/nasm.exe"
 	)
 
 endif()
+SET(NASM_PATH ${DOWNLOAD_DIR}/mingw/mingw64/bin/nasm.exe)
 
 message("Checking for mingwGet")
 if(NOT EXISTS "${DOWNLOAD_DIR}/mingw-get-0.6.2-mingw32-beta-20131004-1-bin.zip")
@@ -115,6 +116,14 @@ if((EXISTS "${DOWNLOAD_DIR}/mingw/mingw64/bin/mingw-get.exe") AND (NOT EXISTS "$
 	message("Installing MSYS")
 	execute_process(
 		COMMAND ${DOWNLOAD_DIR}/mingw/mingw64/bin/mingw-get install msys msys-patch
+		WORKING_DIRECTORY  ${DOWNLOAD_DIR}/mingw/mingw64/bin/
+	)
+endif()
+
+if((EXISTS "${DOWNLOAD_DIR}/mingw/mingw64/bin/mingw-get.exe") AND (NOT EXISTS "${DOWNLOAD_DIR}/mingw/mingw64/msys/1.0/bin/mktemp.exe"))
+	message("Installing mktemp")
+	execute_process(
+		COMMAND ${DOWNLOAD_DIR}/mingw/mingw64/bin/mingw-get install msys msys-mktemp
 		WORKING_DIRECTORY  ${DOWNLOAD_DIR}/mingw/mingw64/bin/
 	)
 endif()
@@ -216,4 +225,3 @@ if(NOT EXISTS "${DOWNLOAD_DIR}/mingw/mingw64/bin/x86_64-w64-mingw32-ranlib.exe")
 		COMMAND ${CMAKE_COMMAND} -E copy "${DOWNLOAD_DIR}/mingw/mingw64/bin/ranlib.exe" "${DOWNLOAD_DIR}/mingw/mingw64/bin/x86_64-w64-mingw32-ranlib.exe"
 	)
 endif()
-

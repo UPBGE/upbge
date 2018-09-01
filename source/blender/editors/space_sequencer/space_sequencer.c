@@ -370,7 +370,7 @@ static void sequencer_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn
 
 /* ************* dropboxes ************* */
 
-static int image_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
+static bool image_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 {
 	ARegion *ar = CTX_wm_region(C);
 	Scene *scene = CTX_data_scene(C);
@@ -384,7 +384,7 @@ static int image_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 	return 0;
 }
 
-static int movie_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
+static bool movie_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 {
 	ARegion *ar = CTX_wm_region(C);
 	Scene *scene = CTX_data_scene(C);
@@ -397,7 +397,7 @@ static int movie_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 	return 0;
 }
 
-static int sound_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
+static bool sound_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 {
 	ARegion *ar = CTX_wm_region(C);
 	Scene *scene = CTX_data_scene(C);
@@ -475,15 +475,15 @@ static void sequencer_main_region_init(wmWindowManager *wm, ARegion *ar)
 	UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_CUSTOM, ar->winx, ar->winy);
 
 #if 0
-	keymap = WM_keymap_find(wm->defaultconf, "Mask Editing", 0, 0);
+	keymap = WM_keymap_ensure(wm->defaultconf, "Mask Editing", 0, 0);
 	WM_event_add_keymap_handler_bb(&ar->handlers, keymap, &ar->v2d.mask, &ar->winrct);
 #endif
 
-	keymap = WM_keymap_find(wm->defaultconf, "SequencerCommon", SPACE_SEQ, 0);
+	keymap = WM_keymap_ensure(wm->defaultconf, "SequencerCommon", SPACE_SEQ, 0);
 	WM_event_add_keymap_handler_bb(&ar->handlers, keymap, &ar->v2d.mask, &ar->winrct);
 
 	/* own keymap */
-	keymap = WM_keymap_find(wm->defaultconf, "Sequencer", SPACE_SEQ, 0);
+	keymap = WM_keymap_ensure(wm->defaultconf, "Sequencer", SPACE_SEQ, 0);
 	WM_event_add_keymap_handler_bb(&ar->handlers, keymap, &ar->v2d.mask, &ar->winrct);
 
 	/* add drop boxes */
@@ -530,7 +530,7 @@ static void sequencer_main_region_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(
 				ED_region_tag_redraw(ar);
 			break;
 		case NC_SCREEN:
-			if (ELEM(wmn->data, ND_SCREENCAST, ND_ANIMPLAY))
+			if (ELEM(wmn->data, ND_ANIMPLAY))
 				ED_region_tag_redraw(ar);
 			break;
 	}
@@ -556,15 +556,15 @@ static void sequencer_preview_region_init(wmWindowManager *wm, ARegion *ar)
 	UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_CUSTOM, ar->winx, ar->winy);
 
 #if 0
-	keymap = WM_keymap_find(wm->defaultconf, "Mask Editing", 0, 0);
+	keymap = WM_keymap_ensure(wm->defaultconf, "Mask Editing", 0, 0);
 	WM_event_add_keymap_handler_bb(&ar->handlers, keymap, &ar->v2d.mask, &ar->winrct);
 #endif
 
-	keymap = WM_keymap_find(wm->defaultconf, "SequencerCommon", SPACE_SEQ, 0);
+	keymap = WM_keymap_ensure(wm->defaultconf, "SequencerCommon", SPACE_SEQ, 0);
 	WM_event_add_keymap_handler_bb(&ar->handlers, keymap, &ar->v2d.mask, &ar->winrct);
 
 	/* own keymap */
-	keymap = WM_keymap_find(wm->defaultconf, "SequencerPreview", SPACE_SEQ, 0);
+	keymap = WM_keymap_ensure(wm->defaultconf, "SequencerPreview", SPACE_SEQ, 0);
 	WM_event_add_keymap_handler_bb(&ar->handlers, keymap, &ar->v2d.mask, &ar->winrct);
 }
 
@@ -659,7 +659,7 @@ static void sequencer_buttons_region_init(wmWindowManager *wm, ARegion *ar)
 {
 	wmKeyMap *keymap;
 
-	keymap = WM_keymap_find(wm->defaultconf, "SequencerCommon", SPACE_SEQ, 0);
+	keymap = WM_keymap_ensure(wm->defaultconf, "SequencerCommon", SPACE_SEQ, 0);
 	WM_event_add_keymap_handler_bb(&ar->handlers, keymap, &ar->v2d.mask, &ar->winrct);
 
 	ED_region_panels_init(wm, ar);

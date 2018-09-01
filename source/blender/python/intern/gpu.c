@@ -359,4 +359,3 @@ PyObject *GPU_initPython(void)
 	PyDict_SetItem(PyImport_GetModuleDict(), PyModule_GetNameObject(module), module);
 	return module;
 }
-

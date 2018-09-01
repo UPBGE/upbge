@@ -549,7 +549,7 @@ static PyObject *gPyGetBlendFileList(PyObject *, PyObject *args)
 	}
 
 	while ((dirp = readdir(dp)) != nullptr) {
-		if (BLI_testextensie(dirp->d_name, ".blend")) {
+		if (BLI_path_extension_check(dirp->d_name, ".blend")) {
 			value = PyC_UnicodeFromByte(dirp->d_name);
 			PyList_Append(list, value);
 			Py_DECREF(value);
@@ -1113,7 +1113,7 @@ static PyObject *gPySetGLSLMaterialSetting(PyObject *,
 
 	/* display lists and GLSL materials need to be remade */
 	if (sceneflag != gs->glslflag) {
-		GPU_materials_free();
+		GPU_materials_free(G.main);
 		if (KX_GetActiveEngine()) {
 			EXP_ListValue<KX_Scene> *scenes = KX_GetActiveEngine()->CurrentScenes();
 
@@ -2662,7 +2662,7 @@ std::string pathGamePythonConfig()
 	int len = path.size();
 
 	/* replace extension */
-	if (BLI_testextensie(path.c_str(), ".blend")) {
+	if (BLI_path_extension_check(path.c_str(), ".blend")) {
 		path = path.substr(0, len - 6) + std::string(".bgeconf");
 	}
 	else {

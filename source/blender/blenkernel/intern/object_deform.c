@@ -132,7 +132,7 @@ bDeformGroup *BKE_object_defgroup_add_name(Object *ob, const char *name)
 /**
  * Add a vgroup of default name to object. *Does not* handle MDeformVert data at all!
  */
-bDeformGroup *BKE_object_defgroup_add(Object *ob) 
+bDeformGroup *BKE_object_defgroup_add(Object *ob)
 {
 	return BKE_object_defgroup_add_name(ob, DATA_("Group"));
 }
@@ -781,4 +781,3 @@ void BKE_object_defgroup_subset_to_index_array(
 		}
 	}
 }
-

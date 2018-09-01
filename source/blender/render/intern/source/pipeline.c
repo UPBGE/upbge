@@ -198,7 +198,8 @@ static void stats_background(void *UNUSED(arg), RenderStats *rs)
 	/* Flush stdout to be sure python callbacks are printing stuff after blender. */
 	fflush(stdout);
 
-	BLI_callback_exec(G.main, NULL, BLI_CB_EVT_RENDER_STATS);
+	/* NOTE: using G_MAIN seems valid here??? Not sure it's actually even used anyway, we could as well pass NULL? */
+	BLI_callback_exec(G_MAIN, NULL, BLI_CB_EVT_RENDER_STATS);
 
 	fputc('\n', stdout);
 	fflush(stdout);
@@ -3409,7 +3410,7 @@ bool RE_WriteRenderViewsImage(ReportList *reports, RenderResult *rr, Scene *scen
 					ImageFormatData imf = rd->im_format;
 					imf.imtype = R_IMF_IMTYPE_JPEG90;
 
-					if (BLI_testextensie(name, ".exr"))
+					if (BLI_path_extension_check(name, ".exr"))
 						name[strlen(name) - 4] = 0;
 					BKE_image_path_ensure_ext_from_imformat(name, &imf);
 
@@ -3464,7 +3465,7 @@ bool RE_WriteRenderViewsImage(ReportList *reports, RenderResult *rr, Scene *scen
 				ImageFormatData imf = rd->im_format;
 				imf.imtype = R_IMF_IMTYPE_JPEG90;
 
-				if (BLI_testextensie(name, ".exr"))
+				if (BLI_path_extension_check(name, ".exr"))
 					name[strlen(name) - 4] = 0;
 
 				BKE_image_path_ensure_ext_from_imformat(name, &imf);
@@ -3577,7 +3578,8 @@ static int do_write_image_or_movie(Render *re, Main *bmain, Scene *scene, bMovie
 	/* Flush stdout to be sure python callbacks are printing stuff after blender. */
 	fflush(stdout);
 
-	BLI_callback_exec(re->main, NULL, BLI_CB_EVT_RENDER_STATS);
+	/* NOTE: using G_MAIN seems valid here??? Not sure it's actually even used anyway, we could as well pass NULL? */
+	BLI_callback_exec(G_MAIN, NULL, BLI_CB_EVT_RENDER_STATS);
 
 	BLI_timecode_string_from_time_simple(name, sizeof(name), re->i.lastframetime - render_time);
 	printf(" (Saving: %s)\n", name);

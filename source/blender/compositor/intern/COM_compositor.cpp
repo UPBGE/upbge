@@ -88,13 +88,13 @@ void COM_execute(RenderData *rd, Scene *scene, bNodeTree *editingtree, int rende
 	editingtree->progress(editingtree->prh, 0.0);
 	editingtree->stats_draw(editingtree->sdh, IFACE_("Compositing"));
 
-	bool twopass = (editingtree->flag & NTREE_TWO_PASS) > 0 && !rendering;
+	bool twopass = (editingtree->flag & NTREE_TWO_PASS) && !rendering;
 	/* initialize execution system */
 	if (twopass) {
 		ExecutionSystem *system = new ExecutionSystem(rd, scene, editingtree, rendering, twopass, viewSettings, displaySettings, viewName);
 		system->execute();
 		delete system;
-		
+
 		if (editingtree->test_break(editingtree->tbh)) {
 			// during editing multiple calls to this method can be triggered.
 			// make sure one the last one will be doing the work.

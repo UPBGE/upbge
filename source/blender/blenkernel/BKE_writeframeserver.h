@@ -36,7 +36,7 @@
 extern "C" {
 #endif
 
-struct RenderData;	
+struct RenderData;
 struct ReportList;
 struct Scene;
 
@@ -56,4 +56,3 @@ void BKE_frameserver_context_free(void *context_v);
 #endif
 
 #endif
-

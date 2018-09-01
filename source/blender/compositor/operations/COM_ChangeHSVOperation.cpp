@@ -52,12 +52,12 @@ void ChangeHSVOperation::executePixelSampled(float output[4], float x, float y, 
 {
 	float inputColor1[4];
 	float hue[4], saturation[4], value[4];
-	
+
 	this->m_inputOperation->readSampled(inputColor1, x, y, sampler);
 	this->m_hueOperation->readSampled(hue, x, y, sampler);
 	this->m_saturationOperation->readSampled(saturation, x, y, sampler);
 	this->m_valueOperation->readSampled(value, x, y, sampler);
-	
+
 	output[0] = inputColor1[0] + (hue[0] - 0.5f);
 	if      (output[0] > 1.0f) output[0] -= 1.0f;
 	else if (output[0] < 0.0f) output[0] += 1.0f;
@@ -65,4 +65,3 @@ void ChangeHSVOperation::executePixelSampled(float output[4], float x, float y, 
 	output[2] = inputColor1[2] * value[0];
 	output[3] = inputColor1[3];
 }
-

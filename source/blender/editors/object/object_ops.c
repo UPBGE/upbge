@@ -274,7 +274,7 @@ void ED_operatormacros_object(void)
 
 }
 
-static int object_mode_poll(bContext *C)
+static bool object_mode_poll(bContext *C)
 {
 	Object *ob = CTX_data_active_object(C);
 	return (!ob || ob->mode == OB_MODE_OBJECT);
@@ -287,7 +287,7 @@ void ED_keymap_object(wmKeyConfig *keyconf)
 	int i;
 
 	/* Objects, Regardless of Mode -------------------------------------------------- */
-	keymap = WM_keymap_find(keyconf, "Object Non-modal", 0, 0);
+	keymap = WM_keymap_ensure(keyconf, "Object Non-modal", 0, 0);
 
 	/* Note: this keymap works disregarding mode */
 	kmi = WM_keymap_add_item(keymap, "OBJECT_OT_mode_set", TABKEY, KM_PRESS, 0, 0);
@@ -310,7 +310,7 @@ void ED_keymap_object(wmKeyConfig *keyconf)
 
 	/* Object Mode ---------------------------------------------------------------- */
 	/* Note: this keymap gets disabled in non-objectmode,  */
-	keymap = WM_keymap_find(keyconf, "Object Mode", 0, 0);
+	keymap = WM_keymap_ensure(keyconf, "Object Mode", 0, 0);
 	keymap->poll = object_mode_poll;
 
 	/* object mode supports PET now */

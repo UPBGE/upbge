@@ -20,8 +20,8 @@
  *		Monique Dewanchand
  */
 
-#ifndef _COM_DotproductOperation_h_
-#define _COM_DotproductOperation_h_
+#ifndef __COM_DOTPRODUCTOPERATION_H__
+#define __COM_DOTPRODUCTOPERATION_H__
 
 #include "COM_NodeOperation.h"
 
@@ -32,7 +32,7 @@ private:
 public:
 	DotproductOperation();
 	void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
-	
+
 	void initExecution();
 	void deinitExecution();
 

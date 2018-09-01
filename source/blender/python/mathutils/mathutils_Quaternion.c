@@ -33,6 +33,7 @@
 #include "BLI_utildefines.h"
 
 #include "../generic/python_utildefines.h"
+#include "../generic/py_capi_utils.h"
 
 #ifndef MATH_STANDALONE
 #  include "BLI_dynstr.h"
@@ -496,8 +497,9 @@ static PyObject *Quaternion_copy(QuaternionObject *self)
 }
 static PyObject *Quaternion_deepcopy(QuaternionObject *self, PyObject *args)
 {
-	if (!mathutils_deepcopy_args_check(args))
+	if (!PyC_CheckArgs_DeepCopy(args)) {
 		return NULL;
+	}
 	return Quaternion_copy(self);
 }
 
@@ -1098,7 +1100,8 @@ static PyObject *Quaternion_new(PyTypeObject *type, PyObject *args, PyObject *kw
 {
 	PyObject *seq = NULL;
 	double angle = 0.0f;
-	float quat[QUAT_SIZE] = {0.0f, 0.0f, 0.0f, 0.0f};
+	float quat[QUAT_SIZE];
+	unit_qt(quat);
 
 	if (kwds && PyDict_Size(kwds)) {
 		PyErr_SetString(PyExc_TypeError,
@@ -1393,4 +1396,3 @@ PyObject *Quaternion_CreatePyObject_cb(PyObject *cb_user,
 
 	return (PyObject *)self;
 }
-

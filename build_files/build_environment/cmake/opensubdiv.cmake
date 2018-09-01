@@ -33,22 +33,28 @@ set(OPENSUBDIV_EXTRA_ARGS
 )
 
 if(WIN32)
-	#no cuda support for vc15 yet
-	if(msvc15)
-		set(OPENSUBDIV_CUDA ON)
-	else()
-		set(OPENSUBDIV_CUDA ON)
-	endif()
-
 	set(OPENSUBDIV_EXTRA_ARGS
 		${OPENSUBDIV_EXTRA_ARGS}
-		-DNO_CUDA=${OPENSUBDIV_CUDA}
+		-DTBB_INCLUDE_DIR=${LIBDIR}/tbb/include
+		-DTBB_LIBRARIES=${LIBDIR}/tbb/lib/tbb_static.lib
 		-DCLEW_INCLUDE_DIR=${LIBDIR}/clew/include/CL
 		-DCLEW_LIBRARY=${LIBDIR}/clew/lib/clew${LIBEXT}
 		-DCUEW_INCLUDE_DIR=${LIBDIR}/cuew/include
 		-DCUEW_LIBRARY=${LIBDIR}/cuew/lib/cuew${LIBEXT}
 		-DCMAKE_EXE_LINKER_FLAGS_RELEASE=libcmt.lib
 	)
+	if("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
+		set(OPENSUBDIV_EXTRA_ARGS
+			${OPENSUBDIV_EXTRA_ARGS}
+			-DNO_CUDA=OFF
+		)
+	else()
+		set(OPENSUBDIV_EXTRA_ARGS
+			${OPENSUBDIV_EXTRA_ARGS}
+			-DNO_CUDA=ON
+		)
+	endif()
+
 else()
 	set(OPENSUBDIV_EXTRA_ARGS
 		${OPENSUBDIV_EXTRA_ARGS}
@@ -69,10 +75,28 @@ ExternalProject_Add(external_opensubdiv
 	INSTALL_DIR ${LIBDIR}/opensubdiv
 )
 
+if(WIN32)
+	if(BUILD_MODE STREQUAL Release)
+		ExternalProject_Add_Step(external_opensubdiv after_install
+			COMMAND ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/opensubdiv/lib ${HARVEST_TARGET}/opensubdiv/lib
+			COMMAND ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/opensubdiv/include ${HARVEST_TARGET}/opensubdiv/include
+			DEPENDEES install
+		)
+	endif()
+	if(BUILD_MODE STREQUAL Debug)
+		ExternalProject_Add_Step(external_opensubdiv after_install
+			COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/opensubdiv/lib/osdCPU.lib ${HARVEST_TARGET}/opensubdiv/lib/osdCPU_d.lib
+			COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/opensubdiv/lib/osdGPU.lib ${HARVEST_TARGET}/opensubdiv/lib/osdGPU_d.lib
+			DEPENDEES install
+		)
+	endif()
+endif()
+
 add_dependencies(
 	external_opensubdiv
 	external_glew
 	external_glfw
 	external_clew
 	external_cuew
+	external_tbb
 )

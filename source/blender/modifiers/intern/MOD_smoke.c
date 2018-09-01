@@ -57,10 +57,10 @@
 
 #include "MOD_modifiertypes.h"
 
-static void initData(ModifierData *md) 
+static void initData(ModifierData *md)
 {
 	SmokeModifierData *smd = (SmokeModifierData *) md;
-	
+
 	smd->domain = NULL;
 	smd->flow = NULL;
 	smd->coll = NULL;
@@ -72,14 +72,14 @@ static void copyData(const ModifierData *md, ModifierData *target)
 {
 	const SmokeModifierData *smd  = (const SmokeModifierData *)md;
 	SmokeModifierData *tsmd = (SmokeModifierData *)target;
-	
+
 	smokeModifier_copy(smd, tsmd);
 }
 
 static void freeData(ModifierData *md)
 {
 	SmokeModifierData *smd = (SmokeModifierData *) md;
-	
+
 	smokeModifier_free(smd);
 }
 
@@ -138,8 +138,8 @@ static void updateDepgraph(ModifierData *md, const ModifierUpdateDepsgraphContex
 	if (smd && (smd->type & MOD_SMOKE_TYPE_DOMAIN) && smd->domain) {
 		/* Actual code uses get_collisionobjects */
 #ifdef WITH_LEGACY_DEPSGRAPH
-		dag_add_collision_relations(ctx->forest, ctx->scene, ctx->object, ctx->obNode, smd->domain->fluid_group, ctx->object->lay|ctx->scene->lay, eModifierType_Smoke, is_flow_cb, true, "Smoke Flow");
-		dag_add_collision_relations(ctx->forest, ctx->scene, ctx->object, ctx->obNode, smd->domain->coll_group, ctx->object->lay|ctx->scene->lay, eModifierType_Smoke, is_coll_cb, true, "Smoke Coll");
+		dag_add_collision_relations(ctx->forest, ctx->scene, ctx->object, ctx->obNode, smd->domain->fluid_group, ctx->object->lay | ctx->scene->lay, eModifierType_Smoke, is_flow_cb, true, "Smoke Flow");
+		dag_add_collision_relations(ctx->forest, ctx->scene, ctx->object, ctx->obNode, smd->domain->coll_group, ctx->object->lay | ctx->scene->lay, eModifierType_Smoke, is_coll_cb, true, "Smoke Coll");
 		dag_add_forcefield_relations(ctx->forest, ctx->scene, ctx->object, ctx->obNode, smd->domain->effector_weights, true, PFIELD_SMOKEFLOW, "Smoke Force Field");
 #else
 	(void)ctx;
@@ -153,8 +153,8 @@ static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphConte
 
 	if (smd && (smd->type & MOD_SMOKE_TYPE_DOMAIN) && smd->domain) {
 		/* Actual code uses get_collisionobjects */
-		DEG_add_collision_relations(ctx->node, ctx->scene, ctx->object, smd->domain->fluid_group, ctx->object->lay|ctx->scene->lay, eModifierType_Smoke, is_flow_cb, true, "Smoke Flow");
-		DEG_add_collision_relations(ctx->node, ctx->scene, ctx->object, smd->domain->coll_group, ctx->object->lay|ctx->scene->lay, eModifierType_Smoke, is_coll_cb, true, "Smoke Coll");
+		DEG_add_collision_relations(ctx->node, ctx->scene, ctx->object, smd->domain->fluid_group, ctx->object->lay | ctx->scene->lay, eModifierType_Smoke, is_flow_cb, true, "Smoke Flow");
+		DEG_add_collision_relations(ctx->node, ctx->scene, ctx->object, smd->domain->coll_group, ctx->object->lay | ctx->scene->lay, eModifierType_Smoke, is_coll_cb, true, "Smoke Coll");
 
 		DEG_add_forcefield_relations(ctx->node, ctx->scene, ctx->object, smd->domain->effector_weights, true, PFIELD_SMOKEFLOW, "Smoke Force Field");
 	}

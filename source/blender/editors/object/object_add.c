@@ -321,7 +321,8 @@ bool ED_object_add_generic_get_opts(bContext *C, wmOperator *op, const char view
 
 	/* Get layers! */
 	{
-		int a, layer_values[20];
+		int a;
+		bool layer_values[20];
 		if (!layer)
 			layer = &_layer;
 
@@ -860,7 +861,7 @@ static int empty_drop_named_image_invoke(bContext *C, wmOperator *op, const wmEv
 
 		/* add under the mouse */
 		ED_object_location_from_view(C, ob->loc);
-		ED_view3d_cursor3d_position(C, ob->loc, event->mval);
+		ED_view3d_cursor3d_position(C, event->mval, ob->loc);
 	}
 
 	BKE_object_empty_draw_type_set(ob, OB_EMPTY_IMAGE);
@@ -984,7 +985,7 @@ static int group_instance_add_exec(bContext *C, wmOperator *op)
 			const int mval[2] = {event->x - ar->winrct.xmin,
 			                     event->y - ar->winrct.ymin};
 			ED_object_location_from_view(C, loc);
-			ED_view3d_cursor3d_position(C, loc, mval);
+			ED_view3d_cursor3d_position(C, mval, loc);
 			RNA_float_set_array(op->ptr, "location", loc);
 		}
 	}
@@ -1581,7 +1582,7 @@ static void curvetomesh(Main *bmain, Scene *scene, Object *ob)
 	}
 }
 
-static int convert_poll(bContext *C)
+static bool convert_poll(bContext *C)
 {
 	Object *obact = CTX_data_active_object(C);
 	Scene *scene = CTX_data_scene(C);
@@ -1620,7 +1621,7 @@ static int convert_exec(bContext *C, wmOperator *op)
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
 	Base *basen = NULL, *basact = NULL;
-	Object *ob, *ob1, *newob, *obact = CTX_data_active_object(C);
+	Object *ob, *ob1, *obact = CTX_data_active_object(C);
 	DerivedMesh *dm;
 	Curve *cu;
 	Nurb *nu;
@@ -1688,6 +1689,7 @@ static int convert_exec(bContext *C, wmOperator *op)
 	}
 
 	for (CollectionPointerLink *link = selected_editable_bases.first; link; link = link->next) {
+		Object *newob = NULL;
 		Base *base = link->ptr.data;
 		ob = base->object;
 
@@ -1900,6 +1902,11 @@ static int convert_exec(bContext *C, wmOperator *op)
 		}
 		else {
 			continue;
+		}
+
+		/* Ensure new object has consistent material data with its new obdata. */
+		if (newob) {
+			test_object_materials(bmain, newob, newob->data);
 		}
 
 		/* tag obdata if it was been changed */
@@ -2384,7 +2391,7 @@ static int add_named_exec(bContext *C, wmOperator *op)
 		const int mval[2] = {event->x - ar->winrct.xmin,
 		                     event->y - ar->winrct.ymin};
 		ED_object_location_from_view(C, basen->object->loc);
-		ED_view3d_cursor3d_position(C, basen->object->loc, mval);
+		ED_view3d_cursor3d_position(C, mval, basen->object->loc);
 	}
 
 	ED_base_object_select(basen, BA_SELECT);
@@ -2424,7 +2431,7 @@ void OBJECT_OT_add_named(wmOperatorType *ot)
 
 /**************************** Join *************************/
 
-static int join_poll(bContext *C)
+static bool join_poll(bContext *C)
 {
 	Object *ob = CTX_data_active_object(C);
 
@@ -2477,7 +2484,7 @@ void OBJECT_OT_join(wmOperatorType *ot)
 
 /**************************** Join as Shape Key*************************/
 
-static int join_shapes_poll(bContext *C)
+static bool join_shapes_poll(bContext *C)
 {
 	Object *ob = CTX_data_active_object(C);
 

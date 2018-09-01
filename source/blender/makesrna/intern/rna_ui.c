@@ -105,7 +105,7 @@ static ARegionType *region_type_find(ReportList *reports, int space_type, int re
 
 /* Panel */
 
-static int panel_poll(const bContext *C, PanelType *pt)
+static bool panel_poll(const bContext *C, PanelType *pt)
 {
 	extern FunctionRNA rna_Panel_poll_func;
 
@@ -123,7 +123,7 @@ static int panel_poll(const bContext *C, PanelType *pt)
 	pt->ext.call((bContext *)C, &ptr, func, &list);
 
 	RNA_parameter_get_lookup(&list, "visible", &ret);
-	visible = *(int *)ret;
+	visible = *(bool *)ret;
 
 	RNA_parameter_list_free(&list);
 
@@ -643,7 +643,7 @@ static StructRNA *rna_Header_refine(PointerRNA *htr)
 
 /* Menu */
 
-static int menu_poll(const bContext *C, MenuType *pt)
+static bool menu_poll(const bContext *C, MenuType *pt)
 {
 	extern FunctionRNA rna_Menu_poll_func;
 
@@ -651,7 +651,7 @@ static int menu_poll(const bContext *C, MenuType *pt)
 	ParameterList list;
 	FunctionRNA *func;
 	void *ret;
-	int visible;
+	bool visible;
 
 	RNA_pointer_create(NULL, pt->ext.srna, NULL, &ptr); /* dummy */
 	func = &rna_Menu_poll_func; /* RNA_struct_find_function(&ptr, "poll"); */
@@ -661,7 +661,7 @@ static int menu_poll(const bContext *C, MenuType *pt)
 	pt->ext.call((bContext *)C, &ptr, func, &list);
 
 	RNA_parameter_get_lookup(&list, "visible", &ret);
-	visible = *(int *)ret;
+	visible = *(bool *)ret;
 
 	RNA_parameter_list_free(&list);
 
@@ -797,22 +797,22 @@ static void rna_Menu_bl_description_set(PointerRNA *ptr, const char *value)
 
 /* UILayout */
 
-static int rna_UILayout_active_get(PointerRNA *ptr)
+static bool rna_UILayout_active_get(PointerRNA *ptr)
 {
 	return uiLayoutGetActive(ptr->data);
 }
 
-static void rna_UILayout_active_set(PointerRNA *ptr, int value)
+static void rna_UILayout_active_set(PointerRNA *ptr, bool value)
 {
 	uiLayoutSetActive(ptr->data, value);
 }
 
-static int rna_UILayout_alert_get(PointerRNA *ptr)
+static bool rna_UILayout_alert_get(PointerRNA *ptr)
 {
 	return uiLayoutGetRedAlert(ptr->data);
 }
 
-static void rna_UILayout_alert_set(PointerRNA *ptr, int value)
+static void rna_UILayout_alert_set(PointerRNA *ptr, bool value)
 {
 	uiLayoutSetRedAlert(ptr->data, value);
 }
@@ -827,12 +827,12 @@ static int rna_UILayout_op_context_get(PointerRNA *ptr)
 	return uiLayoutGetOperatorContext(ptr->data);
 }
 
-static int rna_UILayout_enabled_get(PointerRNA *ptr)
+static bool rna_UILayout_enabled_get(PointerRNA *ptr)
 {
 	return uiLayoutGetEnabled(ptr->data);
 }
 
-static void rna_UILayout_enabled_set(PointerRNA *ptr, int value)
+static void rna_UILayout_enabled_set(PointerRNA *ptr, bool value)
 {
 	uiLayoutSetEnabled(ptr->data, value);
 }
@@ -843,12 +843,12 @@ static int rna_UILayout_red_alert_get(PointerRNA *ptr)
 	return uiLayoutGetRedAlert(ptr->data);
 }
 
-static void rna_UILayout_red_alert_set(PointerRNA *ptr, int value)
+static void rna_UILayout_red_alert_set(PointerRNA *ptr, bool value)
 {
 	uiLayoutSetRedAlert(ptr->data, value);
 }
 
-static int rna_UILayout_keep_aspect_get(PointerRNA *ptr)
+static bool rna_UILayout_keep_aspect_get(PointerRNA *ptr)
 {
 	return uiLayoutGetKeepAspect(ptr->data);
 }
@@ -1303,4 +1303,3 @@ void RNA_def_ui(BlenderRNA *brna)
 }
 
 #endif /* RNA_RUNTIME */
-

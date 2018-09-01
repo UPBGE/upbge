@@ -19,8 +19,8 @@
  *		Dalai Felinto
  */
 
-#ifndef _COM_LuminanceMatteOperation_h
-#define _COM_LuminanceMatteOperation_h
+#ifndef __COM_LUMINANCEMATTEOPERATION_H__
+#define __COM_LUMINANCEMATTEOPERATION_H__
 #include "COM_MixOperation.h"
 
 
@@ -37,15 +37,15 @@ public:
 	 * Default constructor
 	 */
 	LuminanceMatteOperation();
-	
+
 	/**
 	 * the inner loop of this program
 	 */
 	void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
-	
+
 	void initExecution();
 	void deinitExecution();
-	
+
 	void setSettings(NodeChroma *nodeChroma) { this->m_settings = nodeChroma; }
 };
 #endif

@@ -20,8 +20,8 @@
  *		Monique Dewanchand
  */
 
-#ifndef _COM_HueSaturationValueCorrectOperation_h
-#define _COM_HueSaturationValueCorrectOperation_h
+#ifndef __COM_HUESATURATIONVALUECORRECTOPERATION_H__
+#define __COM_HUESATURATIONVALUECORRECTOPERATION_H__
 #include "COM_NodeOperation.h"
 #include "COM_CurveBaseOperation.h"
 
@@ -33,17 +33,17 @@ private:
 	SocketReader *m_inputProgram;
 public:
 	HueSaturationValueCorrectOperation();
-	
+
 	/**
 	 * the inner loop of this program
 	 */
 	void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
-	
+
 	/**
 	 * Initialize the execution
 	 */
 	void initExecution();
-	
+
 	/**
 	 * Deinitialize the execution
 	 */

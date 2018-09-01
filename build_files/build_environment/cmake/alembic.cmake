@@ -26,6 +26,12 @@ if(ALEMBIC_HDF5)
 	endif()
 endif()
 
+if(WIN32)
+	set(ALEMBIC_ILMBASE ${LIBDIR}/openexr)
+else()
+	set(ALEMBIC_ILMBASE ${LIBDIR}/ilmbase)
+endif()
+
 set(ALEMBIC_EXTRA_ARGS
 	-DBUILDSTATIC=ON
 	-DLINKSTATIC=ON
@@ -38,12 +44,13 @@ set(ALEMBIC_EXTRA_ARGS
 	-DBoost_DEBUG=ON
 	-DBOOST_ROOT=${LIBDIR}/boost
 	-DBoost_NO_SYSTEM_PATHS=ON
-	-DILMBASE_ROOT=${LIBDIR}/ilmbase
-	-DALEMBIC_ILMBASE_INCLUDE_DIRECTORY=${LIBDIR}/ilmbase/include/OpenEXR
-	-DALEMBIC_ILMBASE_HALF_LIB=${LIBDIR}/ilmbase/lib/${LIBPREFIX}Half${LIBEXT}
-	-DALEMBIC_ILMBASE_IMATH_LIB=${LIBDIR}/ilmbase/lib/${LIBPREFIX}Imath-2_2${LIBEXT}
-	-DALEMBIC_ILMBASE_ILMTHREAD_LIB=${LIBDIR}/ilmbase/lib/${LIBPREFIX}IlmThread-2_2${LIBEXT}
-	-DALEMBIC_ILMBASE_IEX_LIB=${LIBDIR}/ilmbase/lib/${LIBPREFIX}Iex-2_2${LIBEXT}
+	-DILMBASE_ROOT=${ALEMBIC_ILMBASE}
+	-DALEMBIC_ILMBASE_INCLUDE_DIRECTORY=${ALEMBIC_ILMBASE}/include/OpenEXR
+	-DALEMBIC_ILMBASE_HALF_LIB=${ALEMBIC_ILMBASE}/lib/${LIBPREFIX}Half${ILMBASE_VERSION_POSTFIX}${LIBEXT}
+	-DALEMBIC_ILMBASE_IMATH_LIB=${ALEMBIC_ILMBASE}/lib/${LIBPREFIX}Imath${ILMBASE_VERSION_POSTFIX}${LIBEXT}
+	-DALEMBIC_ILMBASE_ILMTHREAD_LIB=${ALEMBIC_ILMBASE}/lib/${LIBPREFIX}IlmThread${ILMBASE_VERSION_POSTFIX}${LIBEXT}
+	-DALEMBIC_ILMBASE_IEX_LIB=${ALEMBIC_ILMBASE}/lib/${LIBPREFIX}Iex${ILMBASE_VERSION_POSTFIX}${LIBEXT}
+	-DALEMBIC_ILMBASE_IEXMATH_LIB=${ALEMBIC_ILMBASE}/lib/${LIBPREFIX}IexMath${ILMBASE_VERSION_POSTFIX}${LIBEXT}
 	-DUSE_PYILMBASE=0
 	-DUSE_PYALEMBIC=0
 	-DUSE_ARNOLD=0
@@ -72,9 +79,27 @@ ExternalProject_Add(external_alembic
 	INSTALL_DIR ${LIBDIR}/alembic
 )
 
+if(WIN32)
+	if(BUILD_MODE STREQUAL Release)
+		ExternalProject_Add_Step(external_alembic after_install
+			COMMAND ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/alembic ${HARVEST_TARGET}/alembic
+			DEPENDEES install
+		)
+	endif()
+	if(BUILD_MODE STREQUAL Debug)
+		ExternalProject_Add_Step(external_alembic after_install
+			COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/alembic/lib/alembic.lib ${HARVEST_TARGET}/alembic/lib/alembic_d.lib
+			DEPENDEES install
+		)
+	endif()
+endif()
+
+
+
 add_dependencies(
 	external_alembic
 	external_boost
 	external_zlib
 	external_ilmbase
+	external_openexr
 )

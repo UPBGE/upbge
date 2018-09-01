@@ -16,10 +16,10 @@
 #
 # ***** END GPL LICENSE BLOCK *****
 
-set(FFMPEG_CFLAGS "-I${mingw_LIBDIR}/lame/include -I${mingw_LIBDIR}/openjpeg/include/ -I${mingw_LIBDIR}/ogg/include -I${mingw_LIBDIR}/vorbis/include -I${mingw_LIBDIR}/theora/include -I${mingw_LIBDIR}/vpx/include -I${mingw_LIBDIR}/x264/include -I${mingw_LIBDIR}/xvidcore/include -I${mingw_LIBDIR}/dirac/include/dirac -I${mingw_LIBDIR}/schroedinger/include/schroedinger-1.0 -I${mingw_LIBDIR}/zlib/include")
-set(FFMPEG_LDFLAGS "-L${mingw_LIBDIR}/lame/lib -L${mingw_LIBDIR}/openjpeg/lib -L${mingw_LIBDIR}/ogg/lib -L${mingw_LIBDIR}/vorbis/lib -L${mingw_LIBDIR}/theora/lib -L${mingw_LIBDIR}/vpx/lib -L${mingw_LIBDIR}/x264/lib -L${mingw_LIBDIR}/xvidcore/lib -L${mingw_LIBDIR}/dirac/lib -L${mingw_LIBDIR}/schroedinger/lib -L${mingw_LIBDIR}/orc/lib -L${mingw_LIBDIR}/zlib/lib")
-set(FFMPEG_EXTRA_FLAGS --extra-cflags=${FFMPEG_CFLAGS} --extra-ldflags=${FFMPEG_LDFLAGS})
-set(FFMPEG_ENV PKG_CONFIG_PATH=${mingw_LIBDIR}/schroedinger/lib/pkgconfig:${mingw_LIBDIR}/orc/lib/pkgconfig:${mingw_LIBDIR}/x264/lib/pkgconfig:${mingw_LIBDIR})
+set(FFMPEG_CFLAGS "-I${mingw_LIBDIR}/lame/include -I${mingw_LIBDIR}/openjpeg/include/ -I${mingw_LIBDIR}/ogg/include -I${mingw_LIBDIR}/vorbis/include -I${mingw_LIBDIR}/theora/include -I${mingw_LIBDIR}/vpx/include -I${mingw_LIBDIR}/x264/include -I${mingw_LIBDIR}/xvidcore/include -I${mingw_LIBDIR}/zlib/include")
+set(FFMPEG_LDFLAGS "-L${mingw_LIBDIR}/lame/lib -L${mingw_LIBDIR}/openjpeg/lib -L${mingw_LIBDIR}/ogg/lib -L${mingw_LIBDIR}/vorbis/lib -L${mingw_LIBDIR}/theora/lib -L${mingw_LIBDIR}/vpx/lib -L${mingw_LIBDIR}/x264/lib -L${mingw_LIBDIR}/xvidcore/lib -L${mingw_LIBDIR}/zlib/lib")
+set(FFMPEG_EXTRA_FLAGS --pkg-config-flags=--static --extra-cflags=${FFMPEG_CFLAGS} --extra-ldflags=${FFMPEG_LDFLAGS})
+set(FFMPEG_ENV PKG_CONFIG_PATH=${mingw_LIBDIR}/openjpeg/lib/pkgconfig:${mingw_LIBDIR}/x264/lib/pkgconfig:${mingw_LIBDIR}/vorbis/lib/pkgconfig:${mingw_LIBDIR}/ogg/lib/pkgconfig:${mingw_LIBDIR})
 
 if(WIN32)
 	set(FFMPEG_ENV set ${FFMPEG_ENV} &&)
@@ -31,6 +31,12 @@ if(WIN32)
 		--disable-pthreads
 		--enable-libopenjpeg
 	)
+	if("${CMAKE_SIZEOF_VOID_P}" EQUAL "4")
+		set(FFMPEG_EXTRA_FLAGS
+			${FFMPEG_EXTRA_FLAGS}
+			--x86asmexe=yasm
+		)
+	endif()
 else()
 	set(FFMPEG_EXTRA_FLAGS
 		${FFMPEG_EXTRA_FLAGS}
@@ -51,6 +57,11 @@ ExternalProject_Add(external_ffmpeg
 	URL ${FFMPEG_URI}
 	DOWNLOAD_DIR ${DOWNLOAD_DIR}
 	URL_HASH MD5=${FFMPEG_HASH}
+	# OpenJpeg is compiled with pthread support on Linux, which is all fine and is what we
+	# want for maximum runtime performance, but due to static nature of that library we
+	# need to force ffmpeg to link against pthread, otherwise test program used by autoconf
+	# will fail. This patch does that in a way that is compatible with multiple distributions.
+	PATCH_COMMAND ${PATCH_CMD} --verbose -p 1 -N -d ${BUILD_DIR}/ffmpeg/src/external_ffmpeg < ${PATCH_DIR}/ffmpeg.diff
 	PREFIX ${BUILD_DIR}/ffmpeg
 	CONFIGURE_COMMAND ${CONFIGURE_ENV_NO_PERL} &&
 		cd ${BUILD_DIR}/ffmpeg/src/external_ffmpeg/ &&
@@ -63,7 +74,6 @@ ExternalProject_Add(external_ffmpeg
 		--disable-libspeex
 		--enable-libvpx
 		--prefix=${LIBDIR}/ffmpeg
-		--enable-libschroedinger
 		--enable-libtheora
 		--enable-libvorbis
 		--enable-zlib
@@ -73,7 +83,6 @@ ExternalProject_Add(external_ffmpeg
 		--disable-nonfree
 		--enable-gpl
 		--disable-postproc
-		--disable-x11grab
 		--enable-libmp3lame
 		--disable-librtmp
 		--enable-libx264
@@ -91,9 +100,8 @@ ExternalProject_Add(external_ffmpeg
 		--disable-securetransport
 		--disable-indev=avfoundation
 		--disable-indev=qtkit
-		--disable-sdl
+		--disable-sdl2
 		--disable-gnutls
-		--disable-vda
 		--disable-videotoolbox
 		--disable-libxcb
 		--disable-xlib
@@ -103,7 +111,7 @@ ExternalProject_Add(external_ffmpeg
 		--disable-indev=jack
 		--disable-indev=alsa
 		--disable-outdev=alsa
-	PATCH_COMMAND ${PATCH_CMD} --verbose -p 0 -N -d ${BUILD_DIR}/ffmpeg/src/external_ffmpeg < ${PATCH_DIR}/ffmpeg.diff
+		--disable-crystalhd
 	BUILD_COMMAND ${CONFIGURE_ENV_NO_PERL} && cd ${BUILD_DIR}/ffmpeg/src/external_ffmpeg/ && make -j${MAKE_THREADS}
 	INSTALL_COMMAND ${CONFIGURE_ENV_NO_PERL} && cd ${BUILD_DIR}/ffmpeg/src/external_ffmpeg/ && make install
 	CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${LIBDIR}/ffmpeg ${DEFAULT_CMAKE_FLAGS}
@@ -121,7 +129,6 @@ add_dependencies(
 	external_openjpeg
 	external_xvidcore
 	external_x264
-	external_schroedinger
 	external_vpx
 	external_theora
 	external_vorbis
@@ -132,5 +139,13 @@ if(WIN32)
 	add_dependencies(
 		external_ffmpeg
 		external_zlib_mingw
+	)
+endif()
+
+if(BUILD_MODE STREQUAL Release AND WIN32)
+	ExternalProject_Add_Step(external_ffmpeg after_install
+		COMMAND ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/ffmpeg/include ${HARVEST_TARGET}/ffmpeg/include
+		COMMAND ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/ffmpeg/bin ${HARVEST_TARGET}/ffmpeg/lib
+		DEPENDEES install
 	)
 endif()

@@ -20,8 +20,8 @@
  *		Monique Dewanchand
  */
 
-#ifndef _COM_InpaintOperation_h
-#define _COM_InpaintOperation_h
+#ifndef __COM_INPAINTOPERATION_H__
+#define __COM_INPAINTOPERATION_H__
 #include "COM_NodeOperation.h"
 
 class InpaintSimpleOperation : public NodeOperation {
@@ -30,9 +30,9 @@ protected:
 	 * Cached reference to the inputProgram
 	 */
 	SocketReader *m_inputImageProgram;
-	
+
 	int m_iterations;
-	
+
 	float *m_cached_buffer;
 	bool m_cached_buffer_ready;
 
@@ -41,25 +41,25 @@ protected:
 	short *m_manhatten_distance;
 public:
 	InpaintSimpleOperation();
-	
+
 	/**
 	 * the inner loop of this program
 	 */
 	void executePixel(float output[4], int x, int y, void *data);
-	
+
 	/**
 	 * Initialize the execution
 	 */
 	void initExecution();
-	
+
 	void *initializeTileData(rcti *rect);
 	/**
 	 * Deinitialize the execution
 	 */
 	void deinitExecution();
-	
+
 	void setIterations(int iterations) { this->m_iterations = iterations; }
-	
+
 	bool determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output);
 
 private:

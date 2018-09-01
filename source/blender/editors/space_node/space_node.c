@@ -593,7 +593,7 @@ static void node_buttons_region_init(wmWindowManager *wm, ARegion *ar)
 
 	ED_region_panels_init(wm, ar);
 
-	keymap = WM_keymap_find(wm->defaultconf, "Node Generic", SPACE_NODE, 0);
+	keymap = WM_keymap_ensure(wm->defaultconf, "Node Generic", SPACE_NODE, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 }
 
@@ -609,7 +609,7 @@ static void node_toolbar_region_init(wmWindowManager *wm, ARegion *ar)
 
 	ED_region_panels_init(wm, ar);
 
-	keymap = WM_keymap_find(wm->defaultconf, "Node Generic", SPACE_NODE, 0);
+	keymap = WM_keymap_ensure(wm->defaultconf, "Node Generic", SPACE_NODE, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 }
 
@@ -644,10 +644,10 @@ static void node_main_region_init(wmWindowManager *wm, ARegion *ar)
 	UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_CUSTOM, ar->winx, ar->winy);
 
 	/* own keymaps */
-	keymap = WM_keymap_find(wm->defaultconf, "Node Generic", SPACE_NODE, 0);
+	keymap = WM_keymap_ensure(wm->defaultconf, "Node Generic", SPACE_NODE, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 
-	keymap = WM_keymap_find(wm->defaultconf, "Node Editor", SPACE_NODE, 0);
+	keymap = WM_keymap_ensure(wm->defaultconf, "Node Editor", SPACE_NODE, 0);
 	WM_event_add_keymap_handler_bb(&ar->handlers, keymap, &ar->v2d.mask, &ar->winrct);
 
 	/* add drop boxes */
@@ -664,7 +664,7 @@ static void node_main_region_draw(const bContext *C, ARegion *ar)
 
 /* ************* dropboxes ************* */
 
-static int node_ima_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *UNUSED(event))
+static bool node_ima_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *UNUSED(event))
 {
 	if (drag->type == WM_DRAG_ID) {
 		ID *id = drag->poin;
@@ -678,7 +678,7 @@ static int node_ima_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *
 	return 0;
 }
 
-static int node_mask_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *UNUSED(event))
+static bool node_mask_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *UNUSED(event))
 {
 	if (drag->type == WM_DRAG_ID) {
 		ID *id = drag->poin;
@@ -747,7 +747,6 @@ static void node_region_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegi
 			break;
 		case NC_SCREEN:
 			switch (wmn->data) {
-				case ND_SCREENCAST:
 				case ND_ANIMPLAY:
 					ED_region_tag_redraw(ar);
 					break;
@@ -968,4 +967,3 @@ void ED_spacetype_node(void)
 
 	BKE_spacetype_register(st);
 }
-

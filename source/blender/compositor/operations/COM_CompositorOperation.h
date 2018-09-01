@@ -20,8 +20,8 @@
  *		Monique Dewanchand
  */
 
-#ifndef _COM_CompositorOperation_h
-#define _COM_CompositorOperation_h
+#ifndef __COM_COMPOSITOROPERATION_H__
+#define __COM_COMPOSITOROPERATION_H__
 #include "COM_NodeOperation.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
@@ -100,4 +100,3 @@ public:
 	void setActive(bool active) { this->m_active = active; }
 };
 #endif
-

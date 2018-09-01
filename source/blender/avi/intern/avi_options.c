@@ -49,7 +49,7 @@ AviError AVI_set_compress_option(AviMovie *movie, int option_type, int stream, A
 	int useconds;
 
 	(void)stream; /* unused */
-	
+
 	if (movie->header->TotalFrames != 0)  /* Can't change params after we have already started writing frames */
 		return AVI_ERROR_OPTION;
 
@@ -129,4 +129,3 @@ AviError AVI_set_compress_option(AviMovie *movie, int option_type, int stream, A
 
 	return AVI_ERROR_NONE;
 }
-

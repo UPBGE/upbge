@@ -174,7 +174,7 @@ typedef struct BuildModifierData {
 
 	float start, length;
 	short flag;
-	
+
 	short randomize;      /* (bool) whether order of vertices is randomized - legacy files (for readfile conversion) */
 	int seed;             /* (int) random seed */
 } BuildModifierData;
@@ -612,7 +612,7 @@ typedef struct ClothModifierData {
 	float hair_grid_max[3];
 	int hair_grid_res[3];
 	float hair_grid_cellsize;
-	
+
 	struct ClothSolverResult *solver_result;
 } ClothModifierData;
 
@@ -960,7 +960,7 @@ typedef struct OceanModifierData {
 
 	struct Ocean *ocean;
 	struct OceanCache *oceancache;
-	
+
 	int resolution;
 	int spatial_size;
 
@@ -1009,10 +1009,10 @@ enum {
 
 enum {
 	MOD_OCEAN_REFRESH_RESET        = (1 << 0),
-	MOD_OCEAN_REFRESH_SIM          = (1 << 1),
-	MOD_OCEAN_REFRESH_ADD          = (1 << 2),
+	/* MOD_OCEAN_REFRESH_SIM          = (1 << 1), */
+	/* MOD_OCEAN_REFRESH_ADD          = (1 << 2), */
 	MOD_OCEAN_REFRESH_CLEAR_CACHE  = (1 << 3),
-	MOD_OCEAN_REFRESH_TOPOLOGY     = (1 << 4),
+	/* MOD_OCEAN_REFRESH_TOPOLOGY     = (1 << 4), */
 };
 
 enum {

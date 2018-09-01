@@ -79,7 +79,7 @@ typedef struct BGpic {
 /* ********************************* */
 
 typedef struct RegionView3D {
-	
+
 	float winmat[4][4];			/* GL_PROJECTION matrix */
 	float viewmat[4][4];		/* GL_MODELVIEW matrix */
 	float viewinv[4][4];		/* inverse of viewmat */
@@ -162,10 +162,10 @@ typedef struct View3D {
 
 	unsigned int lay_prev; /* for active layer toggle */
 	unsigned int lay_used; /* used while drawing */
-	
+
 	short persp  DNA_DEPRECATED;
 	short view   DNA_DEPRECATED;
-	
+
 	struct Object *camera, *ob_centre;
 	rctf render_border;
 
@@ -173,20 +173,21 @@ typedef struct View3D {
 	struct BGpic *bgpic  DNA_DEPRECATED; /* deprecated, use bgpicbase, only kept for do_versions(...) */
 
 	struct View3D *localvd; /* allocated backup of its self while in localview */
-	
+
 	char ob_centre_bone[64];		/* optional string for armature bone to define center, MAXBONENAME */
-	
+
 	unsigned int lay;
 	int layact;
-	
+
 	/**
 	 * The drawing mode for the 3d display. Set to OB_BOUNDBOX, OB_WIRE, OB_SOLID,
 	 * OB_TEXTURE, OB_MATERIAL or OB_RENDER */
-	short drawtype;
-	short ob_centre_cursor;		/* optional bool for 3d cursor to define center */
+	char drawtype;
+	char ob_centre_cursor;		/* optional bool for 3d cursor to define center */
 	short scenelock, around;
-	short flag, flag2;
-	
+	short flag;
+	int flag2;
+
 	float lens, grid;
 	float near, far;
 	float ofs[3]  DNA_DEPRECATED;			/* XXX deprecated */
@@ -200,9 +201,9 @@ typedef struct View3D {
 
 	/* transform widget info */
 	char twtype, twmode, twflag;
-	
-	short flag3;
-	
+
+	short _pad1;
+
 	/* afterdraw, for xray & transparent */
 	struct ListBase afterdraw_transp;
 	struct ListBase afterdraw_xray;
@@ -297,7 +298,7 @@ typedef struct View3D {
 #define RV3D_VIEW_IS_AXIS(view) \
 	(((view) >= RV3D_VIEW_FRONT) && ((view) <= RV3D_VIEW_BOTTOM))
 
-/* View3d->flag2 (short) */
+/* View3d->flag2 (int) */
 #define V3D_RENDER_OVERRIDE		(1 << 2)
 #define V3D_SOLID_TEX			(1 << 3)
 #define V3D_SHOW_GPENCIL		(1 << 4)
@@ -312,11 +313,9 @@ typedef struct View3D {
 #define V3D_SHOW_SOLID_MATCAP	(1 << 13)	/* runtime flag */
 #define V3D_OCCLUDE_WIRE		(1 << 14)
 #define V3D_SHADELESS_TEX		(1 << 15)
+#define V3D_SHOW_WORLD			(1 << 16)
+#define V3D_SHOW_MIST			(1 << 17)
 
-
-/* View3d->flag3 (short) */
-#define V3D_SHOW_WORLD			(1 << 0)
-#define V3D_SHOW_MIST			(1 << 1)
 
 /* View3D->around */
 enum {
@@ -399,4 +398,3 @@ enum {
 #define RV3D_CAMZOOM_MAX_FACTOR 44.9852813742385702928f
 
 #endif
-

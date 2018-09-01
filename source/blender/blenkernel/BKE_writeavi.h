@@ -38,7 +38,7 @@ extern "C" {
 
 /* generic blender movie support, could move to own module */
 
-struct RenderData;	
+struct RenderData;
 struct ReportList;
 struct Scene;
 
@@ -63,4 +63,3 @@ void BKE_context_create(bMovieHandle *mh);
 #endif
 
 #endif
-

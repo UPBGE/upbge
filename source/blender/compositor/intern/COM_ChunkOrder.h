@@ -20,8 +20,8 @@
  *		Monique Dewanchand
  */
 
-#ifndef _COM_ChunkOrder_h_
-#define _COM_ChunkOrder_h_
+#ifndef __COM_CHUNKORDER_H__
+#define __COM_CHUNKORDER_H__
 
 #include "COM_ChunkOrderHotspot.h"
 class ChunkOrder {
@@ -34,7 +34,7 @@ public:
 	ChunkOrder();
 	void determineDistance(ChunkOrderHotspot **hotspots, unsigned int numberOfHotspots);
 	friend bool operator<(const ChunkOrder &a, const ChunkOrder &b);
-	
+
 	void setChunkNumber(unsigned int chunknumber) { this->m_number = chunknumber; }
 	void setX(int x) { this->m_x = x; }
 	void setY(int y) { this->m_y = y; }

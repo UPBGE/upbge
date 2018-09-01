@@ -22,7 +22,7 @@
 set(OPENJPEG_EXTRA_ARGS -DBUILD_SHARED_LIBS=OFF)
 
 if(WIN32)
-	set(OPENJPEG_EXTRA_ARGS -G "MSYS Makefiles")
+	set(OPENJPEG_EXTRA_ARGS -G "MSYS Makefiles" -DBUILD_PKGCONFIG_FILES=On)
 else()
 	set(OPENJPEG_EXTRA_ARGS ${DEFAULT_CMAKE_FLAGS})
 endif()
@@ -58,7 +58,7 @@ if(MSVC)
 	endif()
 endif()
 
-set(OPENJPEG_LIBRARY libopenjpeg${LIBEXT})
+set(OPENJPEG_LIBRARY libopenjp2${LIBEXT})
 if(MSVC)
 	set_target_properties(external_openjpeg PROPERTIES FOLDER Mingw)
 endif()

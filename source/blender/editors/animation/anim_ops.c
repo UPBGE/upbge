@@ -45,6 +45,7 @@
 #include "BKE_global.h"
 #include "BKE_main.h"
 #include "BKE_sound.h"
+#include "BKE_scene.h"
 
 #include "UI_view2d.h"
 
@@ -64,7 +65,7 @@
 /* ********************** frame change operator ***************************/
 
 /* Check if the operator can be run from the current context */
-static int change_frame_poll(bContext *C)
+static bool change_frame_poll(bContext *C)
 {
 	ScrArea *sa = CTX_wm_area(C);
 
@@ -98,8 +99,13 @@ static void change_frame_apply(bContext *C, wmOperator *op)
 	float frame = RNA_float_get(op->ptr, "frame");
 	bool do_snap = RNA_boolean_get(op->ptr, "snap");
 
-	if (do_snap && CTX_wm_space_seq(C)) {
-		frame = BKE_sequencer_find_next_prev_edit(scene, frame, SEQ_SIDE_BOTH, true, false, false);
+	if (do_snap) {
+		if (CTX_wm_space_seq(C)) {
+			frame = BKE_sequencer_find_next_prev_edit(scene, frame, SEQ_SIDE_BOTH, true, false, false);
+		}
+		else {
+			frame = BKE_scene_frame_snap_by_seconds(scene, 1.0, frame);
+		}
 	}
 
 	/* set the new frame number */
@@ -416,7 +422,7 @@ void ED_operatortypes_anim(void)
 
 void ED_keymap_anim(wmKeyConfig *keyconf)
 {
-	wmKeyMap *keymap = WM_keymap_find(keyconf, "Animation", 0, 0);
+	wmKeyMap *keymap = WM_keymap_ensure(keyconf, "Animation", 0, 0);
 	wmKeyMapItem *kmi;
 
 	/* frame management */

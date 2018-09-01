@@ -179,8 +179,8 @@ void snode_dag_update(struct bContext *C, struct SpaceNode *snode);
 void snode_set_context(const struct bContext *C);
 
 void snode_update(struct SpaceNode *snode, struct bNode *node);
-int composite_node_active(struct bContext *C);
-int composite_node_editable(struct bContext *C);
+bool composite_node_active(struct bContext *C);
+bool composite_node_editable(struct bContext *C);
 
 int node_has_hidden_sockets(bNode *node);
 void node_set_hidden_sockets(SpaceNode *snode, bNode *node, int set);
@@ -221,6 +221,9 @@ void NODE_OT_shader_script_update(struct wmOperatorType *ot);
 
 void NODE_OT_viewer_border(struct wmOperatorType *ot);
 void NODE_OT_clear_viewer_border(struct wmOperatorType *ot);
+
+void NODE_OT_cryptomatte_layer_add(struct wmOperatorType *ot);
+void NODE_OT_cryptomatte_layer_remove(struct wmOperatorType *ot);
 
 extern const char *node_context_dir[];
 

@@ -200,6 +200,9 @@ endif()
 
 if(WITH_CYCLES_OSL)
 	add_definitions(-DWITH_OSL)
+	#osl 1.9.x
+	add_definitions(-DOSL_STATIC_BUILD)
+	#pre 1.9
 	add_definitions(-DOSL_STATIC_LIBRARY)
 	include_directories(
 		SYSTEM
@@ -223,31 +226,6 @@ if(WITH_CYCLES_STANDALONE)
 endif()
 # TODO(sergey): Consider removing it, only causes confusion in interface.
 set(WITH_CYCLES_DEVICE_MULTI TRUE)
-
-if(CYCLES_STANDALONE_REPOSITORY)
-	TEST_UNORDERED_MAP_SUPPORT()
-endif()
-if(WITH_CXX11)
-	add_definitions(-DCYCLES_STD_UNORDERED_MAP)
-elseif(HAVE_STD_UNORDERED_MAP_HEADER)
-	if(HAVE_UNORDERED_MAP_IN_STD_NAMESPACE)
-		add_definitions(-DCYCLES_STD_UNORDERED_MAP)
-	else()
-		if(HAVE_UNORDERED_MAP_IN_TR1_NAMESPACE)
-			add_definitions(-DCYCLES_STD_UNORDERED_MAP_IN_TR1_NAMESPACE)
-		else()
-			add_definitions(-DCYCLES_NO_UNORDERED_MAP)
-			message(STATUS "Replacing unordered_map/set with map/set (warning: slower!)")
-		endif()
-	endif()
-else()
-	if(HAVE_UNORDERED_MAP_IN_TR1_NAMESPACE)
-		add_definitions(-DCYCLES_TR1_UNORDERED_MAP)
-	else()
-		add_definitions(-DCYCLES_NO_UNORDERED_MAP)
-		message(STATUS "Replacing unordered_map/set with map/set (warning: slower!)")
-	endif()
-endif()
 
 # Logging capabilities using GLog library.
 if(WITH_CYCLES_LOGGING)
@@ -355,4 +333,3 @@ endif()
 if(NOT WITH_BLENDER AND WITH_CYCLES_STANDALONE)
 	delayed_do_install(${CMAKE_BINARY_DIR}/bin)
 endif()
-

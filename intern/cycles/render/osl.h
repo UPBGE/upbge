@@ -26,6 +26,7 @@
 #include "render/shader.h"
 
 #ifdef WITH_OSL
+#include <OSL/llvm_util.h>
 #include <OSL/oslcomp.h>
 #include <OSL/oslexec.h>
 #include <OSL/oslquery.h>
@@ -171,4 +172,3 @@ private:
 CCL_NAMESPACE_END
 
 #endif /* __OSL_H__  */
-

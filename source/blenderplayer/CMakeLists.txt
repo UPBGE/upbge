@@ -119,7 +119,26 @@ endif()
 		bf_blenkernel
 		bf_physics
 		bf_depsgraph
+		bf_physics
+		bf_intern_rigidbody
+		bf_blenloader
+		ge_blen_routines
+		bf_editor_datafiles
+		ge_converter 
+		ge_logic_ketsji 
+		ge_phys_bullet 
+		ge_phys_dummy
+		ge_logic 
+		ge_rasterizer 
+		ge_oglrasterizer 
+		ge_logic_expressions 
+		ge_scenegraph
 		bf_ikplugin
+		bf_intern_itasc
+		bf_intern_iksolver
+		bf_intern_smoke
+		bf_modifiers
+		bf_intern_moto 
 		bf_nodes
 		bf_gpu
 		bf_imbuf

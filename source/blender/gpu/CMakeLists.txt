@@ -164,4 +164,3 @@ if(WITH_OPENSUBDIV)
 endif()
 
 blender_add_lib(bf_gpu "${SRC}" "${INC}" "${INC_SYS}")
-

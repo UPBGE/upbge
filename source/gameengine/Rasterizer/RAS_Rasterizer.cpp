@@ -54,6 +54,7 @@
 #include "BLI_math_vector.h"
 
 extern "C" {
+#  include "BKE_global.h"
 #  include "BLF_api.h"
 }
 
@@ -990,7 +991,7 @@ void RAS_Rasterizer::SetInvertFrontFace(bool invert)
 
 void RAS_Rasterizer::SetAnisotropicFiltering(short level)
 {
-	GPU_set_anisotropic((float)level);
+	GPU_set_anisotropic(G.main, (float)level);
 }
 
 short RAS_Rasterizer::GetAnisotropicFiltering()
@@ -1004,19 +1005,19 @@ void RAS_Rasterizer::SetMipmapping(MipmapOption val)
 		case RAS_Rasterizer::RAS_MIPMAP_LINEAR:
 		{
 			GPU_set_linear_mipmap(1);
-			GPU_set_mipmap(1);
+			GPU_set_mipmap(G.main, 1);
 			break;
 		}
 		case RAS_Rasterizer::RAS_MIPMAP_NEAREST:
 		{
 			GPU_set_linear_mipmap(0);
-			GPU_set_mipmap(1);
+			GPU_set_mipmap(G.main, 1);
 			break;
 		}
 		default:
 		{
 			GPU_set_linear_mipmap(0);
-			GPU_set_mipmap(0);
+			GPU_set_mipmap(G.main, 0);
 		}
 	}
 }

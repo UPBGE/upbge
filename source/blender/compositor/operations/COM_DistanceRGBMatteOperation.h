@@ -19,8 +19,8 @@
  *		Dalai Felinto
  */
 
-#ifndef _COM_DistanceRGBMatteOperation_h
-#define _COM_DistanceRGBMatteOperation_h
+#ifndef __COM_DISTANCERGBMATTEOPERATION_H__
+#define __COM_DISTANCERGBMATTEOPERATION_H__
 #include "COM_MixOperation.h"
 
 
@@ -41,15 +41,15 @@ public:
 	 * Default constructor
 	 */
 	DistanceRGBMatteOperation();
-	
+
 	/**
 	 * the inner loop of this program
 	 */
 	void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
-	
+
 	void initExecution();
 	void deinitExecution();
-	
+
 	void setSettings(NodeChroma *nodeChroma) { this->m_settings = nodeChroma; }
 };
 #endif

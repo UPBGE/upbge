@@ -93,18 +93,6 @@
 
 static void ui_but_free(const bContext *C, uiBut *but);
 
-bool ui_block_is_menu(const uiBlock *block)
-{
-	return (((block->flag & UI_BLOCK_LOOP) != 0) &&
-	        /* non-menu popups use keep-open, so check this is off */
-	        ((block->flag & UI_BLOCK_KEEP_OPEN) == 0));
-}
-
-bool ui_block_is_pie_menu(const uiBlock *block)
-{
-	return ((block->flag & UI_BLOCK_RADIAL) != 0);
-}
-
 static bool ui_but_is_unit_radians_ex(UnitSettings *unit, const int unit_type)
 {
 	return (unit->system_rotation == USER_UNIT_ROT_RADIANS && unit_type == PROP_UNIT_ROTATION);
@@ -954,7 +942,6 @@ static void ui_menu_block_set_keyaccels(uiBlock *block)
  * but this could be supported */
 void ui_but_add_shortcut(uiBut *but, const char *shortcut_str, const bool do_strip)
 {
-
 	if (do_strip && (but->flag & UI_BUT_HAS_SEP_CHAR)) {
 		char *cpoin = strrchr(but->str, UI_SEP_CHAR);
 		if (cpoin) {
@@ -973,10 +960,11 @@ void ui_but_add_shortcut(uiBut *but, const char *shortcut_str, const bool do_str
 		else {
 			butstr_orig = BLI_strdup(but->str);
 		}
-		BLI_snprintf(but->strdata,
-		             sizeof(but->strdata),
-		             "%s" UI_SEP_CHAR_S "%s",
-		             butstr_orig, shortcut_str);
+		BLI_snprintf(
+		        but->strdata,
+		        sizeof(but->strdata),
+		        "%s" UI_SEP_CHAR_S "%s",
+		        butstr_orig, shortcut_str);
 		MEM_freeN(butstr_orig);
 		but->str = but->strdata;
 		but->flag |= UI_BUT_HAS_SEP_CHAR;
@@ -984,43 +972,68 @@ void ui_but_add_shortcut(uiBut *but, const char *shortcut_str, const bool do_str
 	}
 }
 
+/* -------------------------------------------------------------------- */
+/** \name Find Key Shortcut for Button
+ *
+ * - #ui_but_event_operator_string (and helpers)
+ * - #ui_but_event_property_operator_string
+ * \{ */
+
+static bool ui_but_event_operator_string_from_operator(
+        const bContext *C, uiBut *but,
+        char *buf, const size_t buf_len)
+{
+	BLI_assert(but->optype != NULL);
+	bool found = false;
+	IDProperty *prop = (but->opptr) ? but->opptr->data : NULL;
+
+	if (WM_key_event_operator_string(
+	            C, but->optype->idname, but->opcontext, prop, true,
+	            buf, buf_len))
+	{
+		found = true;
+	}
+	return found;
+}
+
+static bool ui_but_event_operator_string_from_menu(
+        const bContext *C, uiBut *but,
+        char *buf, const size_t buf_len)
+{
+	MenuType *mt = UI_but_menutype_get(but);
+	BLI_assert(mt != NULL);
+
+	bool found = false;
+	IDProperty *prop_menu;
+
+	/* annoying, create a property */
+	IDPropertyTemplate val = {0};
+	prop_menu = IDP_New(IDP_GROUP, &val, __func__); /* dummy, name is unimportant  */
+	IDP_AddToGroup(prop_menu, IDP_NewString(mt->idname, "name", sizeof(mt->idname)));
+
+	if (WM_key_event_operator_string(
+	        C, "WM_OT_call_menu", WM_OP_INVOKE_REGION_WIN, prop_menu, true,
+	        buf, buf_len))
+	{
+		found = true;
+	}
+
+	IDP_FreeProperty(prop_menu);
+	MEM_freeN(prop_menu);
+	return found;
+}
+
 static bool ui_but_event_operator_string(
         const bContext *C, uiBut *but,
         char *buf, const size_t buf_len)
 {
-	MenuType *mt;
 	bool found = false;
 
-	if (but->optype) {
-		IDProperty *prop = (but->opptr) ? but->opptr->data : NULL;
-
-		if (WM_key_event_operator_string(
-		        C, but->optype->idname, but->opcontext, prop, true,
-		        buf, buf_len))
-		{
-			found = true;
-		}
+	if (but->optype != NULL) {
+		found = ui_but_event_operator_string_from_operator(C, but, buf, buf_len);
 	}
-	else if ((mt = UI_but_menutype_get(but))) {
-		IDProperty *prop_menu;
-		IDProperty *prop_menu_name;
-
-		/* annoying, create a property */
-		IDPropertyTemplate val = {0};
-		prop_menu = IDP_New(IDP_GROUP, &val, __func__); /* dummy, name is unimportant  */
-		IDP_AddToGroup(prop_menu, (prop_menu_name = IDP_NewString("", "name", sizeof(mt->idname))));
-
-		IDP_AssignString(prop_menu_name, mt->idname, sizeof(mt->idname));
-
-		if (WM_key_event_operator_string(
-		        C, "WM_OT_call_menu", WM_OP_INVOKE_REGION_WIN, prop_menu, true,
-		        buf, buf_len))
-		{
-			found = true;
-		}
-
-		IDP_FreeProperty(prop_menu);
-		MEM_freeN(prop_menu);
+	else if (UI_but_menutype_get(but) != NULL) {
+		found = ui_but_event_operator_string_from_menu(C, but, buf, buf_len);
 	}
 
 	return found;
@@ -1141,6 +1154,8 @@ static bool ui_but_event_property_operator_string(
 
 	return found;
 }
+
+/** \} */
 
 /**
  * This goes in a seemingly weird pattern:
@@ -2131,8 +2146,9 @@ static void ui_get_but_string_unit(uiBut *but, char *str, int len_max, double va
 		precision = float_precision;
 	}
 
-	bUnit_AsString(str, len_max, ui_get_but_scale_unit(but, value), precision,
-	               unit->system, RNA_SUBTYPE_UNIT_VALUE(unit_type), do_split, pad);
+	bUnit_AsString(
+	        str, len_max, ui_get_but_scale_unit(but, value), precision,
+	        unit->system, RNA_SUBTYPE_UNIT_VALUE(unit_type), do_split, pad);
 }
 
 static float ui_get_but_step_unit(uiBut *but, float step_default)
@@ -2349,8 +2365,9 @@ static bool ui_set_but_string_eval_num_unit(bContext *C, uiBut *but, const char 
 
 	/* ugly, use the draw string to get the value,
 	 * this could cause problems if it includes some text which resolves to a unit */
-	bUnit_ReplaceString(str_unit_convert, sizeof(str_unit_convert), but->drawstr,
-	                    ui_get_but_scale_unit(but, 1.0), but->block->unit->system, RNA_SUBTYPE_UNIT_VALUE(unit_type));
+	bUnit_ReplaceString(
+	        str_unit_convert, sizeof(str_unit_convert), but->drawstr,
+	        ui_get_but_scale_unit(but, 1.0), but->block->unit->system, RNA_SUBTYPE_UNIT_VALUE(unit_type));
 
 	return BPY_execute_string_as_number(C, str_unit_convert, true, r_value);
 }
@@ -3403,12 +3420,14 @@ static void ui_def_but_rna__menu(bContext *UNUSED(C), uiLayout *layout, void *bu
 		}
 		else {
 			if (item->icon) {
-				uiDefIconTextButI(block, UI_BTYPE_BUT_MENU, B_NOP, item->icon, item->name, 0, 0,
-				                  UI_UNIT_X * 5, UI_UNIT_Y, &handle->retvalue, item->value, 0.0, 0, -1, item->description);
+				uiDefIconTextButI(
+				        block, UI_BTYPE_BUT_MENU, B_NOP, item->icon, item->name, 0, 0,
+				        UI_UNIT_X * 5, UI_UNIT_Y, &handle->retvalue, item->value, 0.0, 0, -1, item->description);
 			}
 			else {
-				uiDefButI(block, UI_BTYPE_BUT_MENU, B_NOP, item->name, 0, 0,
-				          UI_UNIT_X * 5, UI_UNIT_X, &handle->retvalue, item->value, 0.0, 0, -1, item->description);
+				uiDefButI(
+				        block, UI_BTYPE_BUT_MENU, B_NOP, item->name, 0, 0,
+				        UI_UNIT_X * 5, UI_UNIT_X, &handle->retvalue, item->value, 0.0, 0, -1, item->description);
 			}
 		}
 	}
@@ -4753,4 +4772,3 @@ void UI_exit(void)
 	ui_resources_free();
 	ui_but_clipboard_free();
 }
-

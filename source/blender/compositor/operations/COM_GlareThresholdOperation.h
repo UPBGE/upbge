@@ -20,8 +20,8 @@
  *		Monique Dewanchand
  */
 
-#ifndef _COM_GlareScaleOperation_h
-#define _COM_GlareScaleOperation_h
+#ifndef __COM_GLARETHRESHOLDOPERATION_H__
+#define __COM_GLARETHRESHOLDOPERATION_H__
 #include "COM_NodeOperation.h"
 #include "DNA_lamp_types.h"
 
@@ -57,7 +57,7 @@ public:
 	void setGlareSettings(NodeGlare *settings) {
 		this->m_settings = settings;
 	}
-	
+
 	void determineResolution(unsigned int resolution[2], unsigned int preferredResolution[2]);
 };
 #endif

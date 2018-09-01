@@ -548,7 +548,7 @@ void LightManager::device_update_background(Device *device,
 	/* get the resolution from the light's size (we stuff it in there) */
 	int2 res = make_int2(background_light->map_resolution, background_light->map_resolution/2);
 	/* If the resolution isn't set manually, try to find an environment texture. */
-	if (res.x == 0) {
+	if(res.x == 0) {
 		Shader *shader = (scene->background->shader) ? scene->background->shader : scene->default_background;
 		foreach(ShaderNode *node, shader->graph->nodes) {
 			if(node->type == EnvironmentTextureNode::node_type) {
@@ -560,12 +560,12 @@ void LightManager::device_update_background(Device *device,
 				}
 			}
 		}
-		if (res.x > 0 && res.y > 0) {
+		if(res.x > 0 && res.y > 0) {
 			VLOG(2) << "Automatically set World MIS resolution to " << res.x << " by " << res.y << "\n";
 		}
 	}
 	/* If it's still unknown, just use the default. */
-	if (res.x == 0 || res.y == 0) {
+	if(res.x == 0 || res.y == 0) {
 		res = make_int2(1024, 512);
 		VLOG(2) << "Setting World MIS resolution to default\n";
 	}
@@ -586,7 +586,7 @@ void LightManager::device_update_background(Device *device,
 	double time_start = time_dt();
 	if(max(res.x, res.y) < 512) {
 		/* Small enough resolution, faster to do single-threaded. */
-		background_cdf(0, res.x, res.x, res.y, &pixels, cond_cdf);
+		background_cdf(0, res.y, res.x, res.y, &pixels, cond_cdf);
 	}
 	else {
 		/* Threaded evaluation for large resolution. */
@@ -759,7 +759,7 @@ void LightManager::device_update_points(Device *,
 			float area = len(axisu)*len(axisv);
 			float invarea = (area > 0.0f)? 1.0f/area: 1.0f;
 			float3 dir = light->dir;
-			
+
 			dir = safe_normalize(dir);
 
 			if(light->use_mis && area > 0.0f)
@@ -788,7 +788,7 @@ void LightManager::device_update_points(Device *,
 			float spot_angle = cosf(light->spot_angle*0.5f);
 			float spot_smooth = (1.0f - spot_angle)*light->spot_smooth;
 			float3 dir = light->dir;
-			
+
 			dir = safe_normalize(dir);
 
 			if(light->use_mis && radius > 0.0f)
@@ -1027,4 +1027,3 @@ void LightManager::device_update_ies(DeviceScene *dscene)
 }
 
 CCL_NAMESPACE_END
-

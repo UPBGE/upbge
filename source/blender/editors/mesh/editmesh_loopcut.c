@@ -594,7 +594,7 @@ static int loopcut_init(bContext *C, wmOperator *op, const wmEvent *event)
 	{
 		Scene *scene = CTX_data_scene(C);
 		ToolSettings *settings = scene->toolsettings;
-		const int mesh_select_mode[3] = {
+		const bool mesh_select_mode[3] = {
 		    (settings->selectmode & SCE_SELECT_VERTEX) != 0,
 		    (settings->selectmode & SCE_SELECT_EDGE)   != 0,
 		    (settings->selectmode & SCE_SELECT_FACE)   != 0,
@@ -771,7 +771,7 @@ static int loopcut_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	if (cuts != lcd->cuts) {
 		/* allow zero so you can backspace and type in a value
 		 * otherwise 1 as minimum would make more sense */
-		lcd->cuts = CLAMPIS(cuts, 0, SUBD_CUTS_MAX);
+		lcd->cuts = clamp_i(cuts, 0, SUBD_CUTS_MAX);
 		RNA_int_set(op->ptr, "number_cuts", (int)lcd->cuts);
 		ringsel_find_edge(lcd, (int)lcd->cuts);
 		show_cuts = true;
@@ -779,7 +779,7 @@ static int loopcut_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	}
 
 	if (smoothness != lcd->smoothness) {
-		lcd->smoothness = CLAMPIS(smoothness, -SUBD_SMOOTH_MAX, SUBD_SMOOTH_MAX);
+		lcd->smoothness = clamp_f(smoothness, -SUBD_SMOOTH_MAX, SUBD_SMOOTH_MAX);
 		RNA_float_set(op->ptr, "smoothness", lcd->smoothness);
 		show_cuts = true;
 		ED_region_tag_redraw(lcd->ar);

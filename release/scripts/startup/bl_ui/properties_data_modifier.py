@@ -734,23 +734,25 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         row.prop(md, "particle_amount", text="Amount")
         row.prop(md, "particle_offset", text="Offset")
 
+        row = layout.row(align=True)
+        row.prop(md, "axis", expand=True)
+
         layout.separator()
 
         layout.prop(md, "use_path", text="Create Along Paths")
 
-        split = layout.split()
-        split.active = md.use_path
-        col = split.column()
-        col.row().prop(md, "axis", expand=True)
+        col = layout.column()
+        col.active = md.use_path
         col.prop(md, "use_preserve_shape")
 
-        col = split.column()
-        col2 = col.column(align=True)
-        col2.prop(md, "position", slider=True)
-        col2.prop(md, "random_position", text="Random", slider=True)
-        col2 = col.column(align=True)
-        col2.prop(md, "rotation", slider=True)
-        col2.prop(md, "random_rotation", text="Random", slider=True)
+        row = col.row(align=True)
+        row.prop(md, "position", slider=True)
+        row.prop(md, "random_position", text="Random", slider=True)
+        row = col.row(align=True)
+        row.prop(md, "rotation", slider=True)
+        row.prop(md, "random_rotation", text="Random", slider=True)
+
+        layout.separator()
 
         col = layout.column()
         col.prop_search(md, "index_layer_name", ob.data, "vertex_colors", text="Index Layer")
@@ -990,7 +992,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
 
             render = max(scene.cycles.dicing_rate * ob.cycles.dicing_rate, 0.1)
             preview = max(scene.cycles.preview_dicing_rate * ob.cycles.dicing_rate, 0.1)
-            col.label("Render %.2f px, Preview %.2f px" % (render, preview))
+            col.label(f"Render {render:10.2f} px, Preview {preview:10.2f} px")
 
     def SURFACE(self, layout, ob, md):
         layout.label(text="Settings are inside the Physics tab")

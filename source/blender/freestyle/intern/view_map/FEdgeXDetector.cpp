@@ -193,7 +193,7 @@ void FEdgeXDetector::computeCurvatures(WXVertex *vertex)
 	Vec3r e1, n, v;
 	// one vertex curvature info :
 	CurvatureInfo *C;
-	float radius = _sphereRadius * _meanEdgeSize; 
+	float radius = _sphereRadius * _meanEdgeSize;
 
 	// view independent stuff
 	if (_computeViewIndependent) {
@@ -369,7 +369,7 @@ void FEdgeXDetector::processCreaseShape(WXShape *iWShape)
 	if (!_computeViewIndependent)
 		return;
 
-	// Make a pass on the edges to detect the CREASE 
+	// Make a pass on the edges to detect the CREASE
 	vector<WEdge*>::iterator we, weend;
 	vector<WEdge*> &wedges = iWShape->getEdgeList();
 	for (we = wedges.begin(), weend = wedges.end(); we != weend; ++we) {
@@ -573,7 +573,8 @@ void FEdgeXDetector::ProcessSuggestiveContourFace(WXFace *iFace)
 	real threshold = _meanKr;
 	if (faceLayer->nPosDotP()!=numVertices) {
 		if ((fabs(faceLayer->dotP(0)) < threshold) && (fabs(faceLayer->dotP(1)) < threshold) &&
-		    (fabs(faceLayer->dotP(2)) < threshold)) {
+		    (fabs(faceLayer->dotP(2)) < threshold))
+		{
 			faceLayer->ReplaceDotP(0, 0);
 			faceLayer->ReplaceDotP(1, 0);
 			faceLayer->ReplaceDotP(2, 0);

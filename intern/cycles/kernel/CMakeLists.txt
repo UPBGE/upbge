@@ -76,6 +76,12 @@ set(SRC_BVH_HEADERS
 	bvh/qbvh_traversal.h
 	bvh/qbvh_volume.h
 	bvh/qbvh_volume_all.h
+	bvh/obvh_nodes.h
+	bvh/obvh_shadow_all.h
+	bvh/obvh_local.h
+	bvh/obvh_traversal.h
+	bvh/obvh_volume.h
+	bvh/obvh_volume_all.h
 )
 
 set(SRC_HEADERS
@@ -156,6 +162,7 @@ set(SRC_CLOSURE_HEADERS
 	closure/volume.h
 	closure/bsdf_principled_diffuse.h
 	closure/bsdf_principled_sheen.h
+    closure/bsdf_hair_principled.h
 )
 
 set(SRC_SVM_HEADERS
@@ -269,6 +276,8 @@ set(SRC_UTIL_HEADERS
 	../util/util_types_float3_impl.h
 	../util/util_types_float4.h
 	../util/util_types_float4_impl.h
+	../util/util_types_float8.h
+	../util/util_types_float8_impl.h
 	../util/util_types_int2.h
 	../util/util_types_int2_impl.h
 	../util/util_types_int3.h
@@ -287,6 +296,7 @@ set(SRC_UTIL_HEADERS
 	../util/util_types_uint3_impl.h
 	../util/util_types_uint4.h
 	../util/util_types_uint4_impl.h
+	../util/util_types_ushort4.h
 	../util/util_types_vector3.h
 	../util/util_types_vector3_impl.h
 )
@@ -355,8 +365,14 @@ if(WITH_CYCLES_CUDA_BINARIES)
 	)
 	set(cuda_cubins)
 
-	macro(CYCLES_CUDA_KERNEL_ADD arch name flags sources experimental)
+	macro(CYCLES_CUDA_KERNEL_ADD arch prev_arch name flags sources experimental)
 		set(cuda_cubin ${name}_${arch}.cubin)
+
+		set(kernel_sources ${sources})
+		if(NOT ${prev_arch} STREQUAL "none")
+			set(kernel_sources ${kernel_sources} ${name}_${prev_arch}.cubin)
+		endif()
+
 		set(cuda_kernel_src "/kernels/cuda/${name}.cu")
 
 		set(cuda_flags
@@ -400,7 +416,7 @@ if(WITH_CYCLES_CUDA_BINARIES)
 						${cuda_flags}
 						-v
 						-cuda-toolkit-dir "${CUDA_TOOLKIT_ROOT_DIR}"
-				DEPENDS ${sources} cycles_cubin_cc)
+				DEPENDS ${kernel_sources} cycles_cubin_cc)
 		else()
 			add_custom_command(
 				OUTPUT ${cuda_cubin}
@@ -411,7 +427,7 @@ if(WITH_CYCLES_CUDA_BINARIES)
 						${CMAKE_CURRENT_SOURCE_DIR}${cuda_kernel_src}
 						--ptxas-options="-v"
 						${cuda_flags}
-				DEPENDS ${sources})
+				DEPENDS ${kernel_sources})
 		endif()
 		delayed_install("${CMAKE_CURRENT_BINARY_DIR}" "${cuda_cubin}" ${CYCLES_INSTALL_PATH}/lib)
 		list(APPEND cuda_cubins ${cuda_cubin})
@@ -419,18 +435,23 @@ if(WITH_CYCLES_CUDA_BINARIES)
 		unset(cuda_debug_flags)
 	endmacro()
 
+	set(prev_arch "none")
 	foreach(arch ${CYCLES_CUDA_BINARIES_ARCH})
 		if(${arch} MATCHES "sm_2.")
 			message(STATUS "CUDA binaries for ${arch} are no longer supported, skipped.")
 		else()
 			# Compile regular kernel
-			CYCLES_CUDA_KERNEL_ADD(${arch} filter "" "${cuda_filter_sources}" FALSE)
-			CYCLES_CUDA_KERNEL_ADD(${arch} kernel "" "${cuda_sources}" FALSE)
-		endif()
+			CYCLES_CUDA_KERNEL_ADD(${arch} ${prev_arch} filter "" "${cuda_filter_sources}" FALSE)
+			CYCLES_CUDA_KERNEL_ADD(${arch} ${prev_arch} kernel "" "${cuda_sources}" FALSE)
 
-		if(WITH_CYCLES_CUDA_SPLIT_KERNEL_BINARIES)
-			# Compile split kernel
-			CYCLES_CUDA_KERNEL_ADD(${arch} kernel_split "-D __SPLIT__" ${cuda_sources} FALSE)
+			if(WITH_CYCLES_CUDA_SPLIT_KERNEL_BINARIES)
+				# Compile split kernel
+				CYCLES_CUDA_KERNEL_ADD(${arch} ${prev_arch} kernel_split "-D __SPLIT__" "${cuda_sources}" FALSE)
+			endif()
+
+			if(WITH_CYCLES_CUDA_BUILD_SERIAL)
+				set(prev_arch ${arch})
+			endif()
 		endif()
 	endforeach()
 
@@ -520,4 +541,3 @@ delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_SVM_HEADERS}" ${CYCLES_INSTAL
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_GEOM_HEADERS}" ${CYCLES_INSTALL_PATH}/source/kernel/geom)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_UTIL_HEADERS}" ${CYCLES_INSTALL_PATH}/source/util)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_SPLIT_HEADERS}" ${CYCLES_INSTALL_PATH}/source/kernel/split)
-

@@ -243,7 +243,7 @@ if(WITH_CODEC_FFMPEG)
 		ffmpeg/AUD_FFMPEGWriter.h
 	)
 
-	remove_strict_flags_file(
+	remove_strict_cxx_flags_file(
 		ffmpeg/AUD_FFMPEGFactory.cpp
 		ffmpeg/AUD_FFMPEGReader.cpp
 		ffmpeg/AUD_FFMPEGWriter.cpp
@@ -294,7 +294,7 @@ if(WITH_JACK)
 
 		jack/AUD_JackDevice.h
 		jack/AUD_JackLibrary.h
-	)	
+	)
 
 	if(WITH_JACK_DYNLOAD)
 		add_definitions(-DWITH_JACK_DYNLOAD)

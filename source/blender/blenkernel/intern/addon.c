@@ -53,15 +53,31 @@ bAddon *BKE_addon_new(void)
 	return addon;
 }
 
+bAddon *BKE_addon_find(ListBase *addon_list, const char *module)
+{
+	return BLI_findstring(addon_list, module, offsetof(bAddon, module));
+}
+
 bAddon *BKE_addon_ensure(ListBase *addon_list, const char *module)
 {
-	bAddon *addon = BLI_findstring(addon_list, module, offsetof(bAddon, module));
+	bAddon *addon = BKE_addon_find(addon_list, module);
 	if (addon == NULL) {
 		addon = BKE_addon_new();
 		BLI_strncpy(addon->module, module, sizeof(addon->module));
 		BLI_addtail(addon_list, addon);
 	}
 	return addon;
+}
+
+bool BKE_addon_remove_safe(ListBase *addon_list, const char *module)
+{
+	bAddon *addon = BLI_findstring(addon_list, module, offsetof(bAddon, module));
+	if (addon) {
+		BLI_remlink(addon_list, addon);
+		BKE_addon_free(addon);
+		return true;
+	}
+	return false;
 }
 
 void BKE_addon_free(bAddon *addon)

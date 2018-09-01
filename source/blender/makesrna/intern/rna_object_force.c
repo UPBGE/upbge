@@ -97,6 +97,7 @@ static const EnumPropertyItem empty_vortex_shape_items[] = {
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
 #include "BKE_global.h"
+#include "BKE_library.h"
 #include "BKE_modifier.h"
 #include "BKE_pointcache.h"
 
@@ -240,7 +241,8 @@ static void rna_Cache_active_point_cache_index_range(PointerRNA *ptr, int *min, 
 	PTCacheID *pid;
 	ListBase pidlist;
 
-	BKE_ptcache_ids_from_object(G.main, &pidlist, ob, NULL, 0);
+	BLI_assert(BKE_id_is_in_gobal_main(&ob->id));
+	BKE_ptcache_ids_from_object(G_MAIN, &pidlist, ob, NULL, 0);
 
 	*min = 0;
 	*max = 0;
@@ -263,7 +265,8 @@ static int rna_Cache_active_point_cache_index_get(PointerRNA *ptr)
 	ListBase pidlist;
 	int num = 0;
 
-	BKE_ptcache_ids_from_object(G.main, &pidlist, ob, NULL, 0);
+	BLI_assert(BKE_id_is_in_gobal_main(&ob->id));
+	BKE_ptcache_ids_from_object(G_MAIN, &pidlist, ob, NULL, 0);
 
 	for (pid = pidlist.first; pid; pid = pid->next) {
 		if (pid->cache == cache) {
@@ -284,7 +287,8 @@ static void rna_Cache_active_point_cache_index_set(struct PointerRNA *ptr, int v
 	PTCacheID *pid;
 	ListBase pidlist;
 
-	BKE_ptcache_ids_from_object(G.main, &pidlist, ob, NULL, 0);
+	BLI_assert(BKE_id_is_in_gobal_main(&ob->id));
+	BKE_ptcache_ids_from_object(G_MAIN, &pidlist, ob, NULL, 0);
 
 	for (pid = pidlist.first; pid; pid = pid->next) {
 		if (pid->cache == cache) {
@@ -307,7 +311,8 @@ static void rna_PointCache_frame_step_range(PointerRNA *ptr, int *min, int *max,
 	*min = 1;
 	*max = 20;
 
-	BKE_ptcache_ids_from_object(G.main, &pidlist, ob, NULL, 0);
+	BLI_assert(BKE_id_is_in_gobal_main(&ob->id));
+	BKE_ptcache_ids_from_object(G_MAIN, &pidlist, ob, NULL, 0);
 
 	for (pid = pidlist.first; pid; pid = pid->next) {
 		if (pid->cache == cache) {
@@ -341,52 +346,52 @@ static char *rna_CollisionSettings_path(PointerRNA *UNUSED(ptr))
 #endif
 }
 
-static int rna_SoftBodySettings_use_edges_get(PointerRNA *ptr)
+static bool rna_SoftBodySettings_use_edges_get(PointerRNA *ptr)
 {
 	Object *data = (Object *)(ptr->id.data);
 	return (((data->softflag) & OB_SB_EDGES) != 0);
 }
 
-static void rna_SoftBodySettings_use_edges_set(PointerRNA *ptr, int value)
+static void rna_SoftBodySettings_use_edges_set(PointerRNA *ptr, bool value)
 {
 	Object *data = (Object *)(ptr->id.data);
 	if (value) data->softflag |= OB_SB_EDGES;
 	else data->softflag &= ~OB_SB_EDGES;
 }
 
-static int rna_SoftBodySettings_use_goal_get(PointerRNA *ptr)
+static bool rna_SoftBodySettings_use_goal_get(PointerRNA *ptr)
 {
 	Object *data = (Object *)(ptr->id.data);
 	return (((data->softflag) & OB_SB_GOAL) != 0);
 }
 
-static void rna_SoftBodySettings_use_goal_set(PointerRNA *ptr, int value)
+static void rna_SoftBodySettings_use_goal_set(PointerRNA *ptr, bool value)
 {
 	Object *data = (Object *)(ptr->id.data);
 	if (value) data->softflag |= OB_SB_GOAL;
 	else data->softflag &= ~OB_SB_GOAL;
 }
 
-static int rna_SoftBodySettings_stiff_quads_get(PointerRNA *ptr)
+static bool rna_SoftBodySettings_stiff_quads_get(PointerRNA *ptr)
 {
 	Object *data = (Object *)(ptr->id.data);
 	return (((data->softflag) & OB_SB_QUADS) != 0);
 }
 
-static void rna_SoftBodySettings_stiff_quads_set(PointerRNA *ptr, int value)
+static void rna_SoftBodySettings_stiff_quads_set(PointerRNA *ptr, bool value)
 {
 	Object *data = (Object *)(ptr->id.data);
 	if (value) data->softflag |= OB_SB_QUADS;
 	else data->softflag &= ~OB_SB_QUADS;
 }
 
-static int rna_SoftBodySettings_self_collision_get(PointerRNA *ptr)
+static bool rna_SoftBodySettings_self_collision_get(PointerRNA *ptr)
 {
 	Object *data = (Object *)(ptr->id.data);
 	return (((data->softflag) & OB_SB_SELF) != 0);
 }
 
-static void rna_SoftBodySettings_self_collision_set(PointerRNA *ptr, int value)
+static void rna_SoftBodySettings_self_collision_set(PointerRNA *ptr, bool value)
 {
 	Object *data = (Object *)(ptr->id.data);
 	if (value) data->softflag |= OB_SB_SELF;
@@ -411,26 +416,26 @@ static void rna_SoftBodySettings_new_aero_set(PointerRNA *ptr, int value)
 		data->softflag &= ~OB_SB_AERO_ANGLE;
 }
 
-static int rna_SoftBodySettings_face_collision_get(PointerRNA *ptr)
+static bool rna_SoftBodySettings_face_collision_get(PointerRNA *ptr)
 {
 	Object *data = (Object *)(ptr->id.data);
 	return (((data->softflag) & OB_SB_FACECOLL) != 0);
 }
 
-static void rna_SoftBodySettings_face_collision_set(PointerRNA *ptr, int value)
+static void rna_SoftBodySettings_face_collision_set(PointerRNA *ptr, bool value)
 {
 	Object *data = (Object *)(ptr->id.data);
 	if (value) data->softflag |= OB_SB_FACECOLL;
 	else data->softflag &= ~OB_SB_FACECOLL;
 }
 
-static int rna_SoftBodySettings_edge_collision_get(PointerRNA *ptr)
+static bool rna_SoftBodySettings_edge_collision_get(PointerRNA *ptr)
 {
 	Object *data = (Object *)(ptr->id.data);
 	return (((data->softflag) & OB_SB_EDGECOLL) != 0);
 }
 
-static void rna_SoftBodySettings_edge_collision_set(PointerRNA *ptr, int value)
+static void rna_SoftBodySettings_edge_collision_set(PointerRNA *ptr, bool value)
 {
 	Object *data = (Object *)(ptr->id.data);
 	if (value) data->softflag |= OB_SB_EDGECOLL;

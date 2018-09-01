@@ -5,7 +5,7 @@
  * All Rights Reserved.
  *
  * Modifications Copyright 2011, Blender Foundation.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -69,22 +69,22 @@ public:
 
 	void setup(ShaderData *sd, int path_flag, float3 weight)
 	{
-		if (method == u_cubic) {
+		if(method == u_cubic) {
 			alloc(sd, path_flag, weight, CLOSURE_BSSRDF_CUBIC_ID);
 		}
-		else if (method == u_gaussian) {
+		else if(method == u_gaussian) {
 			alloc(sd, path_flag, weight, CLOSURE_BSSRDF_GAUSSIAN_ID);
 		}
-		else if (method == u_burley) {
+		else if(method == u_burley) {
 			alloc(sd, path_flag, weight, CLOSURE_BSSRDF_BURLEY_ID);
 		}
-		else if (method == u_principled) {
+		else if(method == u_principled) {
 			alloc(sd, path_flag, weight, CLOSURE_BSSRDF_PRINCIPLED_ID);
 		}
-		else if (method == u_random_walk) {
+		else if(method == u_random_walk) {
 			alloc(sd, path_flag, weight, CLOSURE_BSSRDF_RANDOM_WALK_ID);
 		}
-		else if (method == u_principled_random_walk) {
+		else if(method == u_principled_random_walk) {
 			alloc(sd, path_flag, weight, CLOSURE_BSSRDF_PRINCIPLED_RANDOM_WALK_ID);
 		}
 	}
@@ -132,4 +132,3 @@ ClosureParam *closure_bssrdf_params()
 CCLOSURE_PREPARE(closure_bssrdf_prepare, CBSSRDFClosure)
 
 CCL_NAMESPACE_END
-

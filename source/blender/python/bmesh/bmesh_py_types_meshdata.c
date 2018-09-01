@@ -38,6 +38,7 @@
 #include "DNA_meshdata_types.h"
 
 #include "BLI_utildefines.h"
+#include "BLI_math_base.h"
 #include "BLI_math_vector.h"
 
 #include "BKE_deform.h"
@@ -281,7 +282,7 @@ static int bpy_bmvertskin_radius_set(BPy_BMVertSkin *self, PyObject *value, void
 }
 
 PyDoc_STRVAR(bpy_bmvertskin_flag__use_root_doc,
-"Use as root vertex.\n\n:type: boolean"
+"Use as root vertex. Setting this flag does not clear other roots in the same mesh island.\n\n:type: boolean"
 );
 PyDoc_STRVAR(bpy_bmvertskin_flag__use_loose_doc,
 "Use loose vertex.\n\n:type: boolean"
@@ -310,17 +311,16 @@ static int bpy_bmvertskin_flag_set(BPy_BMVertSkin *self, PyObject *value, void *
 	}
 }
 
-/* XXX Todo: Make root settable, currently the code to disable all other verts as roots sits within the modifier */
 static PyGetSetDef bpy_bmvertskin_getseters[] = {
 	/* attributes match rna_mesh_gen  */
 	{(char *)"radius",    (getter)bpy_bmvertskin_radius_get, (setter)bpy_bmvertskin_radius_set, (char *)bpy_bmvertskin_radius_doc, NULL},
-	{(char *)"use_root",  (getter)bpy_bmvertskin_flag_get,   (setter)NULL,					   (char *)bpy_bmvertskin_flag__use_root_doc,  (void *)MVERT_SKIN_ROOT},
+	{(char *)"use_root",  (getter)bpy_bmvertskin_flag_get,   (setter)bpy_bmvertskin_flag_set,   (char *)bpy_bmvertskin_flag__use_root_doc,  (void *)MVERT_SKIN_ROOT},
 	{(char *)"use_loose", (getter)bpy_bmvertskin_flag_get,   (setter)bpy_bmvertskin_flag_set,   (char *)bpy_bmvertskin_flag__use_loose_doc, (void *)MVERT_SKIN_LOOSE},
 
 	{NULL, NULL, NULL, NULL, NULL} /* Sentinel */
 };
 
-static PyTypeObject BPy_BMVertSkin_Type; /* bm.loops.layers.uv.active */
+static PyTypeObject BPy_BMVertSkin_Type; /* bm.loops.layers.skin.active */
 
 static void bm_init_types_bmvertskin(void)
 {
@@ -555,7 +555,7 @@ static int bpy_bmdeformvert_ass_subscript(BPy_BMDeformVert *self, PyObject *key,
 					return -1;
 				}
 
-				dw->weight = CLAMPIS(f, 0.0f, 1.0f);
+				dw->weight = clamp_f(f, 0.0f, 1.0f);
 			}
 		}
 		else {
@@ -803,4 +803,3 @@ void BPy_BM_init_types_meshdata(void)
 	bm_init_types_bmdvert();
 	bm_init_types_bmvertskin();
 }
-

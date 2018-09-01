@@ -119,415 +119,9 @@
 #include "wm_files.h"
 #include "wm_window.h"
 
-static GHash *global_ops_hash = NULL;
-
 #define UNDOCUMENTED_OPERATOR_TIP N_("(undocumented operator)")
 
 /* ************ operator API, exported ********** */
-
-
-wmOperatorType *WM_operatortype_find(const char *idname, bool quiet)
-{
-	if (idname[0]) {
-		wmOperatorType *ot;
-
-		/* needed to support python style names without the _OT_ syntax */
-		char idname_bl[OP_MAX_TYPENAME];
-		WM_operator_bl_idname(idname_bl, idname);
-
-		ot = BLI_ghash_lookup(global_ops_hash, idname_bl);
-		if (ot) {
-			return ot;
-		}
-
-		if (!quiet) {
-			CLOG_INFO(WM_LOG_OPERATORS, 0, "search for unknown operator '%s', '%s'\n", idname_bl, idname);
-		}
-	}
-	else {
-		if (!quiet) {
-			CLOG_INFO(WM_LOG_OPERATORS, 0, "search for empty operator");
-		}
-	}
-
-	return NULL;
-}
-
-/* caller must free */
-void WM_operatortype_iter(GHashIterator *ghi)
-{
-	BLI_ghashIterator_init(ghi, global_ops_hash);
-}
-
-/* all ops in 1 list (for time being... needs evaluation later) */
-void WM_operatortype_append(void (*opfunc)(wmOperatorType *))
-{
-	wmOperatorType *ot;
-
-	ot = MEM_callocN(sizeof(wmOperatorType), "operatortype");
-	ot->srna = RNA_def_struct_ptr(&BLENDER_RNA, "", &RNA_OperatorProperties);
-	/* Set the default i18n context now, so that opfunc can redefine it if needed! */
-	RNA_def_struct_translation_context(ot->srna, BLT_I18NCONTEXT_OPERATOR_DEFAULT);
-	ot->translation_context = BLT_I18NCONTEXT_OPERATOR_DEFAULT;
-	opfunc(ot);
-
-	if (ot->name == NULL) {
-		CLOG_ERROR(WM_LOG_OPERATORS, "Operator '%s' has no name property", ot->idname);
-	}
-
-	/* XXX All ops should have a description but for now allow them not to. */
-	RNA_def_struct_ui_text(ot->srna, ot->name, ot->description ? ot->description : UNDOCUMENTED_OPERATOR_TIP);
-	RNA_def_struct_identifier(&BLENDER_RNA, ot->srna, ot->idname);
-
-	BLI_ghash_insert(global_ops_hash, (void *)ot->idname, ot);
-}
-
-void WM_operatortype_append_ptr(void (*opfunc)(wmOperatorType *, void *), void *userdata)
-{
-	wmOperatorType *ot;
-
-	ot = MEM_callocN(sizeof(wmOperatorType), "operatortype");
-	ot->srna = RNA_def_struct_ptr(&BLENDER_RNA, "", &RNA_OperatorProperties);
-	/* Set the default i18n context now, so that opfunc can redefine it if needed! */
-	RNA_def_struct_translation_context(ot->srna, BLT_I18NCONTEXT_OPERATOR_DEFAULT);
-	ot->translation_context = BLT_I18NCONTEXT_OPERATOR_DEFAULT;
-	opfunc(ot, userdata);
-	RNA_def_struct_ui_text(ot->srna, ot->name, ot->description ? ot->description : UNDOCUMENTED_OPERATOR_TIP);
-	RNA_def_struct_identifier(&BLENDER_RNA, ot->srna, ot->idname);
-
-	BLI_ghash_insert(global_ops_hash, (void *)ot->idname, ot);
-}
-
-/* ********************* macro operator ******************** */
-
-typedef struct {
-	int retval;
-} MacroData;
-
-static void wm_macro_start(wmOperator *op)
-{
-	if (op->customdata == NULL) {
-		op->customdata = MEM_callocN(sizeof(MacroData), "MacroData");
-	}
-}
-
-static int wm_macro_end(wmOperator *op, int retval)
-{
-	if (retval & OPERATOR_CANCELLED) {
-		MacroData *md = op->customdata;
-
-		if (md->retval & OPERATOR_FINISHED) {
-			retval |= OPERATOR_FINISHED;
-			retval &= ~OPERATOR_CANCELLED;
-		}
-	}
-
-	/* if modal is ending, free custom data */
-	if (retval & (OPERATOR_FINISHED | OPERATOR_CANCELLED)) {
-		if (op->customdata) {
-			MEM_freeN(op->customdata);
-			op->customdata = NULL;
-		}
-	}
-
-	return retval;
-}
-
-/* macro exec only runs exec calls */
-static int wm_macro_exec(bContext *C, wmOperator *op)
-{
-	wmOperator *opm;
-	int retval = OPERATOR_FINISHED;
-
-	wm_macro_start(op);
-
-	for (opm = op->macro.first; opm; opm = opm->next) {
-
-		if (opm->type->exec) {
-			retval = opm->type->exec(C, opm);
-			OPERATOR_RETVAL_CHECK(retval);
-
-			if (retval & OPERATOR_FINISHED) {
-				MacroData *md = op->customdata;
-				md->retval = OPERATOR_FINISHED; /* keep in mind that at least one operator finished */
-			}
-			else {
-				break; /* operator didn't finish, end macro */
-			}
-		}
-		else {
-			CLOG_WARN(WM_LOG_OPERATORS, "'%s' cant exec macro", opm->type->idname);
-		}
-	}
-
-	return wm_macro_end(op, retval);
-}
-
-static int wm_macro_invoke_internal(bContext *C, wmOperator *op, const wmEvent *event, wmOperator *opm)
-{
-	int retval = OPERATOR_FINISHED;
-
-	/* start from operator received as argument */
-	for (; opm; opm = opm->next) {
-		if (opm->type->invoke)
-			retval = opm->type->invoke(C, opm, event);
-		else if (opm->type->exec)
-			retval = opm->type->exec(C, opm);
-
-		OPERATOR_RETVAL_CHECK(retval);
-
-		BLI_movelisttolist(&op->reports->list, &opm->reports->list);
-
-		if (retval & OPERATOR_FINISHED) {
-			MacroData *md = op->customdata;
-			md->retval = OPERATOR_FINISHED; /* keep in mind that at least one operator finished */
-		}
-		else {
-			break; /* operator didn't finish, end macro */
-		}
-	}
-
-	return wm_macro_end(op, retval);
-}
-
-static int wm_macro_invoke(bContext *C, wmOperator *op, const wmEvent *event)
-{
-	wm_macro_start(op);
-	return wm_macro_invoke_internal(C, op, event, op->macro.first);
-}
-
-static int wm_macro_modal(bContext *C, wmOperator *op, const wmEvent *event)
-{
-	wmOperator *opm = op->opm;
-	int retval = OPERATOR_FINISHED;
-
-	if (opm == NULL) {
-		CLOG_ERROR(WM_LOG_OPERATORS, "macro error, calling NULL modal()");
-	}
-	else {
-		retval = opm->type->modal(C, opm, event);
-		OPERATOR_RETVAL_CHECK(retval);
-
-		/* if we're halfway through using a tool and cancel it, clear the options [#37149] */
-		if (retval & OPERATOR_CANCELLED) {
-			WM_operator_properties_clear(opm->ptr);
-		}
-
-		/* if this one is done but it's not the last operator in the macro */
-		if ((retval & OPERATOR_FINISHED) && opm->next) {
-			MacroData *md = op->customdata;
-
-			md->retval = OPERATOR_FINISHED; /* keep in mind that at least one operator finished */
-
-			retval = wm_macro_invoke_internal(C, op, event, opm->next);
-
-			/* if new operator is modal and also added its own handler */
-			if (retval & OPERATOR_RUNNING_MODAL && op->opm != opm) {
-				wmWindow *win = CTX_wm_window(C);
-				wmEventHandler *handler;
-
-				handler = BLI_findptr(&win->modalhandlers, op, offsetof(wmEventHandler, op));
-				if (handler) {
-					BLI_remlink(&win->modalhandlers, handler);
-					wm_event_free_handler(handler);
-				}
-
-				/* if operator is blocking, grab cursor
-				 * This may end up grabbing twice, but we don't care.
-				 * */
-				if (op->opm->type->flag & OPTYPE_BLOCKING) {
-					int bounds[4] = {-1, -1, -1, -1};
-					const bool wrap = (
-					        (U.uiflag & USER_CONTINUOUS_MOUSE) &&
-					        ((op->opm->flag & OP_IS_MODAL_GRAB_CURSOR) || (op->opm->type->flag & OPTYPE_GRAB_CURSOR)));
-
-					if (wrap) {
-						ARegion *ar = CTX_wm_region(C);
-						if (ar) {
-							bounds[0] = ar->winrct.xmin;
-							bounds[1] = ar->winrct.ymax;
-							bounds[2] = ar->winrct.xmax;
-							bounds[3] = ar->winrct.ymin;
-						}
-					}
-
-					WM_cursor_grab_enable(win, wrap, false, bounds);
-				}
-			}
-		}
-	}
-
-	return wm_macro_end(op, retval);
-}
-
-static void wm_macro_cancel(bContext *C, wmOperator *op)
-{
-	/* call cancel on the current modal operator, if any */
-	if (op->opm && op->opm->type->cancel) {
-		op->opm->type->cancel(C, op->opm);
-	}
-
-	wm_macro_end(op, OPERATOR_CANCELLED);
-}
-
-/* Names have to be static for now */
-wmOperatorType *WM_operatortype_append_macro(const char *idname, const char *name, const char *description, int flag)
-{
-	wmOperatorType *ot;
-	const char *i18n_context;
-
-	if (WM_operatortype_find(idname, true)) {
-		CLOG_ERROR(WM_LOG_OPERATORS, "operator %s exists, cannot create macro", idname);
-		return NULL;
-	}
-
-	ot = MEM_callocN(sizeof(wmOperatorType), "operatortype");
-	ot->srna = RNA_def_struct_ptr(&BLENDER_RNA, "", &RNA_OperatorProperties);
-
-	ot->idname = idname;
-	ot->name = name;
-	ot->description = description;
-	ot->flag = OPTYPE_MACRO | flag;
-
-	ot->exec = wm_macro_exec;
-	ot->invoke = wm_macro_invoke;
-	ot->modal = wm_macro_modal;
-	ot->cancel = wm_macro_cancel;
-	ot->poll = NULL;
-
-	if (!ot->description) /* XXX All ops should have a description but for now allow them not to. */
-		ot->description = UNDOCUMENTED_OPERATOR_TIP;
-
-	RNA_def_struct_ui_text(ot->srna, ot->name, ot->description);
-	RNA_def_struct_identifier(&BLENDER_RNA, ot->srna, ot->idname);
-	/* Use i18n context from ext.srna if possible (py operators). */
-	i18n_context = ot->ext.srna ? RNA_struct_translation_context(ot->ext.srna) : BLT_I18NCONTEXT_OPERATOR_DEFAULT;
-	RNA_def_struct_translation_context(ot->srna, i18n_context);
-	ot->translation_context = i18n_context;
-
-	BLI_ghash_insert(global_ops_hash, (void *)ot->idname, ot);
-
-	return ot;
-}
-
-void WM_operatortype_append_macro_ptr(void (*opfunc)(wmOperatorType *, void *), void *userdata)
-{
-	wmOperatorType *ot;
-
-	ot = MEM_callocN(sizeof(wmOperatorType), "operatortype");
-	ot->srna = RNA_def_struct_ptr(&BLENDER_RNA, "", &RNA_OperatorProperties);
-
-	ot->flag = OPTYPE_MACRO;
-	ot->exec = wm_macro_exec;
-	ot->invoke = wm_macro_invoke;
-	ot->modal = wm_macro_modal;
-	ot->cancel = wm_macro_cancel;
-	ot->poll = NULL;
-
-	if (!ot->description)
-		ot->description = UNDOCUMENTED_OPERATOR_TIP;
-
-	/* Set the default i18n context now, so that opfunc can redefine it if needed! */
-	RNA_def_struct_translation_context(ot->srna, BLT_I18NCONTEXT_OPERATOR_DEFAULT);
-	ot->translation_context = BLT_I18NCONTEXT_OPERATOR_DEFAULT;
-	opfunc(ot, userdata);
-
-	RNA_def_struct_ui_text(ot->srna, ot->name, ot->description);
-	RNA_def_struct_identifier(&BLENDER_RNA, ot->srna, ot->idname);
-
-	BLI_ghash_insert(global_ops_hash, (void *)ot->idname, ot);
-}
-
-wmOperatorTypeMacro *WM_operatortype_macro_define(wmOperatorType *ot, const char *idname)
-{
-	wmOperatorTypeMacro *otmacro = MEM_callocN(sizeof(wmOperatorTypeMacro), "wmOperatorTypeMacro");
-
-	BLI_strncpy(otmacro->idname, idname, OP_MAX_TYPENAME);
-
-	/* do this on first use, since operatordefinitions might have been not done yet */
-	WM_operator_properties_alloc(&(otmacro->ptr), &(otmacro->properties), idname);
-	WM_operator_properties_sanitize(otmacro->ptr, 1);
-
-	BLI_addtail(&ot->macro, otmacro);
-
-	{
-		/* operator should always be found but in the event its not. don't segfault */
-		wmOperatorType *otsub = WM_operatortype_find(idname, 0);
-		if (otsub) {
-			RNA_def_pointer_runtime(ot->srna, otsub->idname, otsub->srna,
-			                        otsub->name, otsub->description);
-		}
-	}
-
-	return otmacro;
-}
-
-static void wm_operatortype_free_macro(wmOperatorType *ot)
-{
-	wmOperatorTypeMacro *otmacro;
-
-	for (otmacro = ot->macro.first; otmacro; otmacro = otmacro->next) {
-		if (otmacro->ptr) {
-			WM_operator_properties_free(otmacro->ptr);
-			MEM_freeN(otmacro->ptr);
-		}
-	}
-	BLI_freelistN(&ot->macro);
-}
-
-void WM_operatortype_remove_ptr(wmOperatorType *ot)
-{
-	BLI_assert(ot == WM_operatortype_find(ot->idname, false));
-
-	RNA_struct_free(&BLENDER_RNA, ot->srna);
-
-	if (ot->last_properties) {
-		IDP_FreeProperty(ot->last_properties);
-		MEM_freeN(ot->last_properties);
-	}
-
-	if (ot->macro.first)
-		wm_operatortype_free_macro(ot);
-
-	BLI_ghash_remove(global_ops_hash, ot->idname, NULL, NULL);
-
-	WM_keyconfig_update_operatortype();
-
-	MEM_freeN(ot);
-}
-
-bool WM_operatortype_remove(const char *idname)
-{
-	wmOperatorType *ot = WM_operatortype_find(idname, 0);
-
-	if (ot == NULL)
-		return false;
-
-	WM_operatortype_remove_ptr(ot);
-
-	return true;
-}
-
-/**
- * Remove memory of all previously executed tools.
- */
-void WM_operatortype_last_properties_clear_all(void)
-{
-	GHashIterator iter;
-
-	for (WM_operatortype_iter(&iter);
-	     (!BLI_ghashIterator_done(&iter));
-	     (BLI_ghashIterator_step(&iter)))
-	{
-		wmOperatorType *ot = BLI_ghashIterator_getValue(&iter);
-
-		if (ot->last_properties) {
-			IDP_FreeProperty(ot->last_properties);
-			MEM_freeN(ot->last_properties);
-			ot->last_properties = NULL;
-		}
-	}
-}
 
 /* SOME_OT_op -> some.op */
 void WM_operator_py_idname(char *to, const char *from)
@@ -742,9 +336,8 @@ bool WM_operator_pystring_abbreviate(char *str, int str_len_max)
 
 /* return NULL if no match is found */
 #if 0
-static char *wm_prop_pystring_from_context(bContext *C, PointerRNA *ptr, PropertyRNA *prop, int index)
+static const char *wm_context_member_from_ptr(bContext *C, PointerRNA *ptr)
 {
-
 	/* loop over all context items and do 2 checks
 	 *
 	 * - see if the pointer is in the context.
@@ -758,13 +351,9 @@ static char *wm_prop_pystring_from_context(bContext *C, PointerRNA *ptr, Propert
 	const char *member_found = NULL;
 	const char *member_id = NULL;
 
-	char *prop_str = NULL;
-	char *ret = NULL;
-
-
 	for (link = lb.first; link; link = link->next) {
 		const char *identifier = link->data;
-		PointerRNA ctx_item_ptr = {{0}} // CTX_data_pointer_get(C, identifier); // XXX, this isnt working
+		PointerRNA ctx_item_ptr = {{0}}; // CTX_data_pointer_get(C, identifier); // XXX, this isnt working
 
 		if (ctx_item_ptr.type == NULL) {
 			continue;
@@ -785,35 +374,26 @@ static char *wm_prop_pystring_from_context(bContext *C, PointerRNA *ptr, Propert
 			}
 		}
 	}
-
-	if (member_found) {
-		prop_str = RNA_path_property_py(ptr, prop, index);
-		if (prop_str) {
-			ret = BLI_sprintfN("bpy.context.%s.%s", member_found, prop_str);
-			MEM_freeN(prop_str);
-		}
-	}
-	else if (member_id) {
-		prop_str = RNA_path_struct_property_py(ptr, prop, index);
-		if (prop_str) {
-			ret = BLI_sprintfN("bpy.context.%s.%s", member_id, prop_str);
-			MEM_freeN(prop_str);
-		}
-	}
-
 	BLI_freelistN(&lb);
 
-	return ret;
+	if (member_found) {
+		return member_found;
+	}
+	else if (member_id) {
+		return member_id;
+	}
+	else {
+		return NULL;
+	}
 }
+
 #else
 
 /* use hard coded checks for now */
-static char *wm_prop_pystring_from_context(bContext *C, PointerRNA *ptr, PropertyRNA *prop, int index)
+
+static const char *wm_context_member_from_ptr(bContext *C, PointerRNA *ptr)
 {
 	const char *member_id = NULL;
-
-	char *prop_str = NULL;
-	char *ret = NULL;
 
 	if (ptr->id.data) {
 
@@ -911,22 +491,28 @@ static char *wm_prop_pystring_from_context(bContext *C, PointerRNA *ptr, Propert
 			default:
 				break;
 		}
-
-		if (member_id) {
-			prop_str = RNA_path_struct_property_py(ptr, prop, index);
-			if (prop_str) {
-				ret = BLI_sprintfN("bpy.context.%s.%s", member_id, prop_str);
-				MEM_freeN(prop_str);
-			}
-		}
 #undef CTX_TEST_PTR_ID
 #undef CTX_TEST_PTR_ID_CAST
 #undef CTX_TEST_SPACE_TYPE
 	}
 
-	return ret;
+	return member_id;
 }
 #endif
+
+static char *wm_prop_pystring_from_context(bContext *C, PointerRNA *ptr, PropertyRNA *prop, int index)
+{
+	const char *member_id = wm_context_member_from_ptr(C, ptr);
+	char *ret = NULL;
+	if (member_id != NULL) {
+		char *prop_str = RNA_path_struct_property_py(ptr, prop, index);
+		if (prop_str) {
+			ret = BLI_sprintfN("bpy.context.%s.%s", member_id, prop_str);
+			MEM_freeN(prop_str);
+		}
+	}
+	return ret;
+}
 
 char *WM_prop_pystring_assign(bContext *C, PointerRNA *ptr, PropertyRNA *prop, int index)
 {
@@ -1273,7 +859,7 @@ bool WM_operator_filesel_ensure_ext_imtype(wmOperator *op, const struct ImageFor
 }
 
 /* op->poll */
-int WM_operator_winactive(bContext *C)
+bool WM_operator_winactive(bContext *C)
 {
 	if (CTX_wm_window(C) == NULL) return 0;
 	return 1;
@@ -1410,13 +996,13 @@ static uiBlock *wm_block_create_redo(bContext *C, ARegion *ar, void *arg_op)
 
 	if (op->type->flag & OPTYPE_MACRO) {
 		for (op = op->macro.first; op; op = op->next) {
-			uiTemplateOperatorPropertyButs(C, layout, op, NULL, 'H', UI_TEMPLATE_OP_PROPS_SHOW_TITLE);
+			uiTemplateOperatorPropertyButs(C, layout, op, 'H', UI_TEMPLATE_OP_PROPS_SHOW_TITLE);
 			if (op->next)
 				uiItemS(layout);
 		}
 	}
 	else {
-		uiTemplateOperatorPropertyButs(C, layout, op, NULL, 'H', UI_TEMPLATE_OP_PROPS_SHOW_TITLE);
+		uiTemplateOperatorPropertyButs(C, layout, op, 'H', UI_TEMPLATE_OP_PROPS_SHOW_TITLE);
 	}
 
 	UI_block_bounds_set_popup(block, 4, 0, 0);
@@ -1485,7 +1071,7 @@ static uiBlock *wm_block_dialog_create(bContext *C, ARegion *ar, void *userData)
 
 	layout = UI_block_layout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, 0, 0, data->width, data->height, 0, style);
 
-	uiTemplateOperatorPropertyButs(C, layout, op, NULL, 'H', UI_TEMPLATE_OP_PROPS_SHOW_TITLE);
+	uiTemplateOperatorPropertyButs(C, layout, op, 'H', UI_TEMPLATE_OP_PROPS_SHOW_TITLE);
 
 	/* clear so the OK button is left alone */
 	UI_block_func_set(block, NULL, NULL, NULL);
@@ -1524,7 +1110,7 @@ static uiBlock *wm_operator_ui_create(bContext *C, ARegion *ar, void *userData)
 	layout = UI_block_layout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, 0, 0, data->width, data->height, 0, style);
 
 	/* since ui is defined the auto-layout args are not used */
-	uiTemplateOperatorPropertyButs(C, layout, op, NULL, 'V', 0);
+	uiTemplateOperatorPropertyButs(C, layout, op, 'V', 0);
 
 	UI_block_func_set(block, NULL, NULL, NULL);
 
@@ -1899,8 +1485,7 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 	if (mt) {
 		UI_menutype_draw(C, mt, layout);
 
-//		wmWindowManager *wm = CTX_wm_manager(C);
-//		uiItemM(layout, C, "USERPREF_MT_keyconfigs", U.keyconfigstr, ICON_NONE);
+//		uiItemM(layout, "USERPREF_MT_keyconfigs", U.keyconfigstr, ICON_NONE);
 	}
 
 	UI_block_emboss_set(block, UI_EMBOSS_PULLDOWN);
@@ -2037,7 +1622,7 @@ static int wm_search_menu_invoke(bContext *C, wmOperator *UNUSED(op), const wmEv
 }
 
 /* op->poll */
-static int wm_search_menu_poll(bContext *C)
+static bool wm_search_menu_poll(bContext *C)
 {
 	if (CTX_wm_window(C) == NULL) {
 		return 0;
@@ -2124,7 +1709,7 @@ static void WM_OT_call_menu_pie(wmOperatorType *ot)
 
 /* this poll functions is needed in place of WM_operator_winactive
  * while it crashes on full screen */
-static int wm_operator_winactive_normal(bContext *C)
+static bool wm_operator_winactive_normal(bContext *C)
 {
 	wmWindow *win = CTX_wm_window(C);
 
@@ -2221,8 +1806,9 @@ static void WM_OT_console_toggle(wmOperatorType *ot)
  * - draw(bContext): drawing callback for paint cursor
  */
 
-void *WM_paint_cursor_activate(wmWindowManager *wm, int (*poll)(bContext *C),
-                               wmPaintCursorDraw draw, void *customdata)
+void *WM_paint_cursor_activate(
+        wmWindowManager *wm, bool (*poll)(bContext *C),
+        wmPaintCursorDraw draw, void *customdata)
 {
 	wmPaintCursor *pc = MEM_callocN(sizeof(wmPaintCursor), "paint cursor");
 
@@ -3465,22 +3051,6 @@ static void WM_OT_doc_view_manual_ui_context(wmOperatorType *ot)
 
 /* ******************************************************* */
 
-static void operatortype_ghash_free_cb(wmOperatorType *ot)
-{
-	if (ot->last_properties) {
-		IDP_FreeProperty(ot->last_properties);
-		MEM_freeN(ot->last_properties);
-	}
-
-	if (ot->macro.first)
-		wm_operatortype_free_macro(ot);
-
-	if (ot->ext.srna) /* python operator, allocs own string */
-		MEM_freeN((void *)ot->idname);
-
-	MEM_freeN(ot);
-}
-
 /* ******************************************************* */
 /* toggle 3D for current window, turning it fullscreen if needed */
 static void WM_OT_stereo3d_set(wmOperatorType *ot)
@@ -3512,20 +3082,8 @@ static void WM_OT_stereo3d_set(wmOperatorType *ot)
 	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
-/* ******************************************************* */
-/* called on initialize WM_exit() */
-void wm_operatortype_free(void)
+void wm_operatortypes_register(void)
 {
-	BLI_ghash_free(global_ops_hash, NULL, (GHashValFreeFP)operatortype_ghash_free_cb);
-	global_ops_hash = NULL;
-}
-
-/* called on initialize WM_init() */
-void wm_operatortype_init(void)
-{
-	/* reserve size is set based on blender default setup */
-	global_ops_hash = BLI_ghash_str_new_ex("wm_operatortype_init gh", 2048);
-
 	WM_operatortype_append(WM_OT_window_close);
 	WM_operatortype_append(WM_OT_window_duplicate);
 	WM_operatortype_append(WM_OT_read_history);
@@ -3762,7 +3320,7 @@ static void gesture_zoom_border_modal_keymap(wmKeyConfig *keyconf)
 /* default keymap for windows and screens, only call once per WM */
 void wm_window_keymap(wmKeyConfig *keyconf)
 {
-	wmKeyMap *keymap = WM_keymap_find(keyconf, "Window", 0, 0);
+	wmKeyMap *keymap = WM_keymap_ensure(keyconf, "Window", 0, 0);
 	wmKeyMapItem *kmi;
 
 	/* note, this doesn't replace existing keymap items */

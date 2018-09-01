@@ -55,7 +55,7 @@
 #define PAINT_CURVE_SELECT_THRESHOLD 40.0f
 #define PAINT_CURVE_POINT_SELECT(pcp, i) (*(&pcp->bez.f1 + i) = SELECT)
 
-int paint_curve_poll(bContext *C)
+bool paint_curve_poll(bContext *C)
 {
 	Object *ob = CTX_data_active_object(C);
 	Paint *p;
@@ -603,8 +603,9 @@ static int paintcurve_slide_modal(bContext *C, wmOperator *op, const wmEvent *ev
 		{
 			ARegion *ar = CTX_wm_region(C);
 			wmWindow *window = CTX_wm_window(C);
-			float diff[2] = {event->mval[0] - psd->initial_loc[0],
-			                 event->mval[1] - psd->initial_loc[1]};
+			float diff[2] = {
+				event->mval[0] - psd->initial_loc[0],
+				event->mval[1] - psd->initial_loc[1]};
 			if (psd->select == 1) {
 				int i;
 				for (i = 0; i < 3; i++)

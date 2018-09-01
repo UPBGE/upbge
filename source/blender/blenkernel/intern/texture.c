@@ -78,9 +78,9 @@
 TexMapping *BKE_texture_mapping_add(int type)
 {
 	TexMapping *texmap = MEM_callocN(sizeof(TexMapping), "TexMapping");
-	
+
 	BKE_texture_mapping_default(texmap, type);
-	
+
 	return texmap;
 }
 
@@ -134,7 +134,7 @@ void BKE_texture_mapping_init(TexMapping *texmap)
 			if (fabsf(size[2]) < 1e-5f)
 				size[2] = signf(size[2]) * 1e-5f;
 		}
-		
+
 		size_to_mat4(smat, texmap->size);
 
 		/* rotation */
@@ -175,9 +175,9 @@ void BKE_texture_mapping_init(TexMapping *texmap)
 ColorMapping *BKE_texture_colormapping_add(void)
 {
 	ColorMapping *colormap = MEM_callocN(sizeof(ColorMapping), "ColorMapping");
-	
+
 	BKE_texture_colormapping_default(colormap);
-	
+
 	return colormap;
 }
 
@@ -229,7 +229,7 @@ void BKE_texture_free(Tex *tex)
 		BKE_texture_ocean_free(tex->ot);
 		tex->ot = NULL;
 	}
-	
+
 	BKE_icon_id_delete((ID *)tex);
 	BKE_previewimg_free(&tex->preview);
 }
@@ -298,30 +298,30 @@ void BKE_texture_default(Tex *tex)
 		tex->pd->radius = 0.3f;
 		tex->pd->falloff_type = TEX_PD_FALLOFF_STD;
 	}
-	
+
 	if (tex->vd) {
 		tex->vd->resol[0] = tex->vd->resol[1] = tex->vd->resol[2] = 0;
 		tex->vd->interp_type = TEX_VD_LINEAR;
 		tex->vd->file_format = TEX_VD_SMOKE;
 	}
-	
+
 	if (tex->ot) {
 		tex->ot->output = TEX_OCN_DISPLACEMENT;
 		tex->ot->object = NULL;
 	}
-	
+
 	tex->iuser.fie_ima = 2;
 	tex->iuser.ok = 1;
 	tex->iuser.frames = 100;
 	tex->iuser.sfra = 1;
-	
+
 	tex->preview = NULL;
 }
 
 void BKE_texture_type_set(Tex *tex, int type)
 {
 	switch (type) {
-			
+
 		case TEX_VOXELDATA:
 			if (tex->vd == NULL)
 				tex->vd = BKE_texture_voxeldata_add();
@@ -339,7 +339,7 @@ void BKE_texture_type_set(Tex *tex, int type)
 				tex->ot = BKE_texture_ocean_add();
 			break;
 	}
-	
+
 	tex->type = type;
 }
 
@@ -350,9 +350,9 @@ Tex *BKE_texture_add(Main *bmain, const char *name)
 	Tex *tex;
 
 	tex = BKE_libblock_alloc(bmain, ID_TE, name, 0);
-	
+
 	BKE_texture_default(tex);
-	
+
 	return tex;
 }
 
@@ -436,11 +436,11 @@ void BKE_texture_mtex_default(MTex *mtex)
 MTex *BKE_texture_mtex_add(void)
 {
 	MTex *mtex;
-	
+
 	mtex = MEM_callocN(sizeof(MTex), "BKE_texture_mtex_add");
-	
+
 	BKE_texture_mtex_default(mtex);
-	
+
 	return mtex;
 }
 
@@ -455,7 +455,7 @@ MTex *BKE_texture_mtex_add_id(ID *id, int slot)
 	if (mtex_ar == NULL) {
 		return NULL;
 	}
-	
+
 	if (slot == -1) {
 		/* find first free */
 		int i;
@@ -561,11 +561,11 @@ Tex *BKE_texture_localize(Tex *tex)
 	 * ... Once f*** nodes are fully converted to that too :( */
 
 	Tex *texn;
-	
+
 	texn = BKE_libblock_copy_nolib(&tex->id, false);
-	
+
 	/* image texture: BKE_texture_free also doesn't decrease */
-	
+
 	if (texn->coba) texn->coba = MEM_dupallocN(texn->coba);
 	if (texn->env) {
 		texn->env = BKE_texture_envmap_copy(texn->env, LIB_ID_CREATE_NO_USER_REFCOUNT);
@@ -580,13 +580,13 @@ Tex *BKE_texture_localize(Tex *tex)
 	if (texn->ot) {
 		texn->ot = BKE_texture_ocean_copy(tex->ot, LIB_ID_CREATE_NO_USER_REFCOUNT);
 	}
-	
+
 	texn->preview = NULL;
-	
+
 	if (tex->nodetree) {
 		texn->nodetree = ntreeLocalize(tex->nodetree);
 	}
-	
+
 	return texn;
 }
 
@@ -602,10 +602,10 @@ Tex *give_current_object_texture(Object *ob)
 {
 	Material *ma, *node_ma;
 	Tex *tex = NULL;
-	
+
 	if (ob == NULL) return NULL;
 	if (ob->totcol == 0 && !(ob->type == OB_LAMP)) return NULL;
-	
+
 	if (ob->type == OB_LAMP) {
 		tex = give_current_lamp_texture(ob->data);
 	}
@@ -617,7 +617,7 @@ Tex *give_current_object_texture(Object *ob)
 
 		tex = give_current_material_texture(ma);
 	}
-	
+
 	return tex;
 }
 
@@ -646,7 +646,7 @@ void set_current_lamp_texture(Lamp *la, Tex *newtex)
 			la->mtex[act] = BKE_texture_mtex_add();
 			la->mtex[act]->texco = TEXCO_GLOB;
 		}
-		
+
 		la->mtex[act]->tex = newtex;
 		id_us_plus(&newtex->id);
 	}
@@ -695,7 +695,7 @@ bNode *give_current_material_texture_node(Material *ma)
 {
 	if (ma && ma->use_nodes && ma->nodetree)
 		return nodeGetActiveID(ma->nodetree, ID_TE);
-	
+
 	return NULL;
 }
 
@@ -704,7 +704,7 @@ Tex *give_current_material_texture(Material *ma)
 	MTex *mtex = NULL;
 	Tex *tex = NULL;
 	bNode *node;
-	
+
 	if (ma && ma->use_nodes && ma->nodetree) {
 		/* first check texture, then material, this works together
 		 * with a hack that clears the active ID flag for textures on
@@ -721,7 +721,7 @@ Tex *give_current_material_texture(Material *ma)
 		mtex = ma->mtex[(int)(ma->texact)];
 		if (mtex) tex = mtex->tex;
 	}
-	
+
 	return tex;
 }
 
@@ -817,7 +817,7 @@ void set_current_material_texture(Material *ma, Tex *newtex)
 					ma->mtex[act]->texco = TEXCO_ORCO;
 				}
 			}
-			
+
 			ma->mtex[act]->tex = newtex;
 			id_us_plus(&newtex->id);
 		}
@@ -846,12 +846,12 @@ Tex *give_current_world_texture(World *world)
 {
 	MTex *mtex = NULL;
 	Tex *tex = NULL;
-	
+
 	if (!world) return NULL;
-	
+
 	mtex = world->mtex[(int)(world->texact)];
 	if (mtex) tex = mtex->tex;
-	
+
 	return tex;
 }
 
@@ -867,7 +867,7 @@ void set_current_world_texture(World *wo, Tex *newtex)
 			wo->mtex[act] = BKE_texture_mtex_add();
 			wo->mtex[act]->texco = TEXCO_VIEW;
 		}
-		
+
 		wo->mtex[act]->tex = newtex;
 		id_us_plus(&newtex->id);
 	}
@@ -897,12 +897,12 @@ Tex *give_current_particle_texture(ParticleSettings *part)
 {
 	MTex *mtex = NULL;
 	Tex *tex = NULL;
-	
+
 	if (!part) return NULL;
-	
+
 	mtex = part->mtex[(int)(part->texact)];
 	if (mtex) tex = mtex->tex;
-	
+
 	return tex;
 }
 
@@ -919,7 +919,7 @@ void set_current_particle_texture(ParticleSettings *part, Tex *newtex)
 			part->mtex[act]->texco = TEXCO_ORCO;
 			part->mtex[act]->blendtype = MTEX_MUL;
 		}
-		
+
 		part->mtex[act]->tex = newtex;
 		id_us_plus(&newtex->id);
 	}
@@ -934,7 +934,7 @@ void set_current_particle_texture(ParticleSettings *part, Tex *newtex)
 EnvMap *BKE_texture_envmap_add(void)
 {
 	EnvMap *env;
-	
+
 	env = MEM_callocN(sizeof(EnvMap), "envmap");
 	env->type = ENV_CUBE;
 	env->stype = ENV_ANIM;
@@ -946,7 +946,7 @@ EnvMap *BKE_texture_envmap_add(void)
 	env->lodfactor = 1.0f;
 
 	return env;
-} 
+}
 
 /* ------------------------------------------------------------------------- */
 
@@ -954,7 +954,7 @@ EnvMap *BKE_texture_envmap_copy(const EnvMap *env, const int flag)
 {
 	EnvMap *envn;
 	int a;
-	
+
 	envn = MEM_dupallocN(env);
 	envn->ok = 0;
 	for (a = 0; a < 6; a++) {
@@ -972,7 +972,7 @@ EnvMap *BKE_texture_envmap_copy(const EnvMap *env, const int flag)
 void BKE_texture_envmap_free_data(EnvMap *env)
 {
 	unsigned int part;
-	
+
 	for (part = 0; part < 6; part++) {
 		if (env->cube[part])
 			IMB_freeImBuf(env->cube[part]);
@@ -985,10 +985,10 @@ void BKE_texture_envmap_free_data(EnvMap *env)
 
 void BKE_texture_envmap_free(EnvMap *env)
 {
-	
+
 	BKE_texture_envmap_free_data(env);
 	MEM_freeN(env);
-	
+
 }
 
 /* ------------------------------------------------------------------------- */
@@ -1025,7 +1025,7 @@ PointDensity *BKE_texture_pointdensity_add(void)
 	PointDensity *pd = MEM_callocN(sizeof(PointDensity), "pointdensity");
 	BKE_texture_pointdensity_init_data(pd);
 	return pd;
-} 
+}
 
 PointDensity *BKE_texture_pointdensity_copy(const PointDensity *pd, const int UNUSED(flag))
 {
@@ -1075,13 +1075,13 @@ void BKE_texture_voxeldata_free_data(VoxelData *vd)
 	}
 
 }
- 
+
 void BKE_texture_voxeldata_free(VoxelData *vd)
 {
 	BKE_texture_voxeldata_free_data(vd);
 	MEM_freeN(vd);
 }
- 
+
 VoxelData *BKE_texture_voxeldata_add(void)
 {
 	VoxelData *vd;
@@ -1096,10 +1096,10 @@ VoxelData *BKE_texture_voxeldata_add(void)
 	vd->object = NULL;
 	vd->cachedframe = -1;
 	vd->ok = 0;
-	
+
 	return vd;
 }
- 
+
 VoxelData *BKE_texture_voxeldata_copy(VoxelData *vd)
 {
 	VoxelData *vdn;
@@ -1115,18 +1115,18 @@ VoxelData *BKE_texture_voxeldata_copy(VoxelData *vd)
 OceanTex *BKE_texture_ocean_add(void)
 {
 	OceanTex *ot;
-	
+
 	ot = MEM_callocN(sizeof(struct OceanTex), "ocean texture");
 	ot->output = TEX_OCN_DISPLACEMENT;
 	ot->object = NULL;
-	
+
 	return ot;
 }
 
 OceanTex *BKE_texture_ocean_copy(const OceanTex *ot, const int UNUSED(flag))
 {
 	OceanTex *otn = MEM_dupallocN(ot);
-	
+
 	return otn;
 }
 

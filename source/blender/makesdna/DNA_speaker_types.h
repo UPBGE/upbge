@@ -34,7 +34,7 @@ struct bSound;
 
 typedef struct Speaker {
 	ID id;
-	struct AnimData *adt;	/* animation data (must be immediately after id for utilities to use it) */ 
+	struct AnimData *adt;	/* animation data (must be immediately after id for utilities to use it) */
 
 	struct bSound *sound;
 
@@ -65,4 +65,3 @@ typedef struct Speaker {
 #define SPK_RELATIVE    (1<<2)
 
 #endif /* __DNA_SPEAKER_TYPES_H__ */
-

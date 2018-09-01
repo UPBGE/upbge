@@ -500,7 +500,7 @@ static void rna_GPencilInterpolateSettings_type_set(PointerRNA *ptr, int value)
 }
 
 /* Grease pencil Drawing Brushes */
-static bGPDbrush *rna_GPencil_brush_new(ToolSettings *ts, const char *name, int setactive)
+static bGPDbrush *rna_GPencil_brush_new(ToolSettings *ts, const char *name, bool setactive)
 {
 	bGPDbrush *brush = BKE_gpencil_brush_addnew(ts, name, setactive != 0);
 
@@ -729,7 +729,7 @@ static void rna_Scene_set_set(PointerRNA *ptr, PointerRNA value)
 	scene->set = set;
 }
 
-static void rna_Scene_layer_set(PointerRNA *ptr, const int *values)
+static void rna_Scene_layer_set(PointerRNA *ptr, const bool *values)
 {
 	Scene *scene = (Scene *)ptr->data;
 
@@ -840,7 +840,7 @@ static void rna_Scene_end_frame_set(PointerRNA *ptr, int value)
 	}
 }
 
-static void rna_Scene_use_preview_range_set(PointerRNA *ptr, int value)
+static void rna_Scene_use_preview_range_set(PointerRNA *ptr, bool value)
 {
 	Scene *data = (Scene *)ptr->data;
 
@@ -1060,13 +1060,13 @@ static int rna_RenderSettings_threads_mode_get(PointerRNA *ptr)
 		return (rd->mode & R_FIXED_THREADS);
 }
 
-static int rna_RenderSettings_is_movie_format_get(PointerRNA *ptr)
+static bool rna_RenderSettings_is_movie_format_get(PointerRNA *ptr)
 {
 	RenderData *rd = (RenderData *)ptr->data;
 	return BKE_imtype_is_movie(rd->im_format.imtype);
 }
 
-static int rna_RenderSettings_save_buffers_get(PointerRNA *ptr)
+static bool rna_RenderSettings_save_buffers_get(PointerRNA *ptr)
 {
 	RenderData *rd = (RenderData *)ptr->data;
 	Scene *scene = (Scene *)ptr->id.data;
@@ -1313,7 +1313,7 @@ static void rna_SceneRender_file_ext_get(PointerRNA *ptr, char *str)
 }
 
 #ifdef WITH_FFMPEG
-static void rna_FFmpegSettings_lossless_output_set(PointerRNA *ptr, int value)
+static void rna_FFmpegSettings_lossless_output_set(PointerRNA *ptr, bool value)
 {
 	Scene *scene = (Scene *) ptr->id.data;
 	RenderData *rd = &scene->r;
@@ -1611,24 +1611,24 @@ static void rna_RenderSettings_views_format_set(PointerRNA *ptr, int value)
 	rd->views_format = value;
 }
 
-static int rna_RenderSettings_multiple_engines_get(PointerRNA *UNUSED(ptr))
+static bool rna_RenderSettings_multiple_engines_get(PointerRNA *UNUSED(ptr))
 {
 	return (BLI_listbase_count(&R_engines) > 1);
 }
 
-static int rna_RenderSettings_use_shading_nodes_get(PointerRNA *ptr)
+static bool rna_RenderSettings_use_shading_nodes_get(PointerRNA *ptr)
 {
 	Scene *scene = (Scene *)ptr->id.data;
 	return BKE_scene_use_new_shading_nodes(scene);
 }
 
-static int rna_RenderSettings_use_spherical_stereo_get(PointerRNA *ptr)
+static bool rna_RenderSettings_use_spherical_stereo_get(PointerRNA *ptr)
 {
 	Scene *scene = (Scene *)ptr->id.data;
 	return BKE_scene_use_spherical_stereo(scene);
 }
 
-static int rna_RenderSettings_use_game_engine_get(PointerRNA *ptr)
+static bool rna_RenderSettings_use_game_engine_get(PointerRNA *ptr)
 {
 	RenderData *rd = (RenderData *)ptr->data;
 	RenderEngineType *type;
@@ -1640,7 +1640,7 @@ static int rna_RenderSettings_use_game_engine_get(PointerRNA *ptr)
 	return 0;
 }
 
-static void rna_SceneRenderLayer_layer_set(PointerRNA *ptr, const int *values)
+static void rna_SceneRenderLayer_layer_set(PointerRNA *ptr, const bool *values)
 {
 	SceneRenderLayer *rl = (SceneRenderLayer *)ptr->data;
 	rl->lay = ED_view3d_scene_layer_set(rl->lay, values, NULL);
@@ -1680,7 +1680,7 @@ static void rna_Physics_update(Main *UNUSED(bmain), Scene *UNUSED(scene), Pointe
 		BKE_ptcache_object_reset(scene, base->object, PTCACHE_RESET_DEPSGRAPH);
 }
 
-static void rna_Scene_editmesh_select_mode_set(PointerRNA *ptr, const int *value)
+static void rna_Scene_editmesh_select_mode_set(PointerRNA *ptr, const bool *value)
 {
 	Scene *scene = (Scene *)ptr->id.data;
 	ToolSettings *ts = (ToolSettings *)ptr->data;
@@ -1778,13 +1778,13 @@ static void rna_Scene_use_persistent_data_update(Main *UNUSED(bmain), Scene *UNU
 		RE_FreePersistentData();
 }
 
-static int rna_Scene_use_audio_get(PointerRNA *ptr)
+static bool rna_Scene_use_audio_get(PointerRNA *ptr)
 {
 	Scene *scene = (Scene *)ptr->data;
 	return (scene->audio.flag & AUDIO_MUTE) != 0;
 }
 
-static void rna_Scene_use_audio_set(PointerRNA *ptr, int value)
+static void rna_Scene_use_audio_set(PointerRNA *ptr, bool value)
 {
 	Scene *scene = (Scene *)ptr->data;
 
@@ -1821,12 +1821,12 @@ static void rna_Scene_sync_mode_set(PointerRNA *ptr, int value)
 	}
 }
 
-static int rna_GameSettings_auto_start_get(PointerRNA *UNUSED(ptr))
+static bool rna_GameSettings_auto_start_get(PointerRNA *UNUSED(ptr))
 {
 	return (G.fileflags & G_FILE_AUTOPLAY) != 0;
 }
 
-static void rna_GameSettings_auto_start_set(PointerRNA *UNUSED(ptr), int value)
+static void rna_GameSettings_auto_start_set(PointerRNA *UNUSED(ptr), bool value)
 {
 	if (value)
 		G.fileflags |= G_FILE_AUTOPLAY;
@@ -2211,7 +2211,7 @@ static void rna_Stereo3dFormat_update(Main *bmain, Scene *UNUSED(scene), Pointer
 	}
 }
 
-static int rna_gpu_is_hq_supported_get(PointerRNA *UNUSED(ptr))
+static bool rna_gpu_is_hq_supported_get(PointerRNA *UNUSED(ptr))
 {
 	return GPU_instanced_drawing_support() && GPU_geometry_shader_support();
 }
@@ -6193,12 +6193,14 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "use_placeholder", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "mode", R_TOUCH);
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_ui_text(prop, "Placeholders",
 	                         "Create empty placeholder files while rendering frames (similar to Unix 'touch')");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
 	prop = RNA_def_property(srna, "use_overwrite", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "mode", R_NO_OVERWRITE);
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_ui_text(prop, "Overwrite", "Overwrite existing files while rendering");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
@@ -6220,6 +6222,7 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "use_file_extension", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "scemode", R_EXTENSION);
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_ui_text(prop, "File Extensions",
 	                         "Add the file format extensions to the rendered file name (eg: filename + .jpg)");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
@@ -6251,6 +6254,7 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "use_save_buffers", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "scemode", R_EXR_TILE_FILE);
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_boolean_funcs(prop, "rna_RenderSettings_save_buffers_get", NULL);
 	RNA_def_property_ui_text(prop, "Save Buffers",
 	                         "Save tiles for all RenderLayers and SceneNodes to files in the temp directory "
@@ -6266,12 +6270,14 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "display_mode", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_bitflag_sdna(prop, NULL, "displaymode");
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_enum_items(prop, display_mode_items);
 	RNA_def_property_ui_text(prop, "Display", "Select where rendered images will be displayed");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
 	prop = RNA_def_property(srna, "use_lock_interface", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "use_lock_interface", 1);
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_ui_icon(prop, ICON_UNLOCKED, true);
 	RNA_def_property_ui_text(prop, "Lock Interface", "Lock interface during rendering in favor of giving more memory to the renderer");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
@@ -6286,6 +6292,7 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	/* Render result EXR cache. */
 	prop = RNA_def_property(srna, "use_render_cache", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "scemode", R_EXR_CACHE_FILE);
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_ui_text(prop, "Cache Result",
 	                         "Save render cache to EXR files (useful for heavy compositing, "
 	                         "Note: affects indirectly rendered scenes)");

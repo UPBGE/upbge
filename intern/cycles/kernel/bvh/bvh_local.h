@@ -19,6 +19,9 @@
 
 #ifdef __QBVH__
 #  include "kernel/bvh/qbvh_local.h"
+#  ifdef __KERNEL_AVX2__
+#    include "kernel/bvh/obvh_local.h"
+#  endif
 #endif
 
 #if BVH_FEATURE(BVH_HAIR)
@@ -70,10 +73,9 @@ bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 	int object = OBJECT_NONE;
 	float isect_t = ray->t;
 
-	if(local_isect) {
+	if(local_isect != NULL) {
 		local_isect->num_hits = 0;
 	}
-
 	kernel_assert((local_isect == NULL) == (max_hits == 0));
 
 	const int object_flag = kernel_tex_fetch(__object_flag, local_object);
@@ -254,6 +256,15 @@ ccl_device_inline bool BVH_FUNCTION_NAME(KernelGlobals *kg,
                                          int max_hits)
 {
 	switch(kernel_data.bvh.bvh_layout) {
+#ifdef __KERNEL_AVX2__
+		case BVH_LAYOUT_BVH8:
+			return BVH_FUNCTION_FULL_NAME(OBVH)(kg,
+			                                    ray,
+			                                    local_isect,
+			                                    local_object,
+			                                    lcg_state,
+			                                    max_hits);
+#endif
 #ifdef __QBVH__
 		case BVH_LAYOUT_BVH4:
 			return BVH_FUNCTION_FULL_NAME(QBVH)(kg,

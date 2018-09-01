@@ -54,7 +54,7 @@ CCL_NAMESPACE_BEGIN
 #define PRIM_NONE				(~0)
 #define LAMP_NONE				(~0)
 
-#define VOLUME_STACK_SIZE		16
+#define VOLUME_STACK_SIZE		32
 
 /* Split kernel constants */
 #define WORK_POOL_SIZE_GPU 64
@@ -454,6 +454,7 @@ typedef enum DenoisingPassOffsets {
 	DENOISING_PASS_SHADOW_B           = 17,
 	DENOISING_PASS_COLOR              = 20,
 	DENOISING_PASS_COLOR_VAR          = 23,
+	DENOISING_PASS_CLEAN              = 26,
 
 	DENOISING_PASS_SIZE_BASE          = 26,
 	DENOISING_PASS_SIZE_CLEAN         = 3,
@@ -1238,19 +1239,19 @@ typedef struct KernelFilm {
 	int pass_glossy_color;
 	int pass_transmission_color;
 	int pass_subsurface_color;
-	
+
 	int pass_diffuse_indirect;
 	int pass_glossy_indirect;
 	int pass_transmission_indirect;
 	int pass_subsurface_indirect;
 	int pass_volume_indirect;
-	
+
 	int pass_diffuse_direct;
 	int pass_glossy_direct;
 	int pass_transmission_direct;
 	int pass_subsurface_direct;
 	int pass_volume_direct;
-	
+
 	int pass_emission;
 	int pass_background;
 	int pass_ao;
@@ -1383,8 +1384,9 @@ typedef enum KernelBVHLayout {
 
 	BVH_LAYOUT_BVH2 = (1 << 0),
 	BVH_LAYOUT_BVH4 = (1 << 1),
+	BVH_LAYOUT_BVH8 = (1 << 2),
 
-	BVH_LAYOUT_DEFAULT = BVH_LAYOUT_BVH4,
+	BVH_LAYOUT_DEFAULT = BVH_LAYOUT_BVH8,
 	BVH_LAYOUT_ALL = (unsigned int)(-1),
 } KernelBVHLayout;
 
@@ -1671,4 +1673,3 @@ typedef struct WorkTile {
 CCL_NAMESPACE_END
 
 #endif /*  __KERNEL_TYPES_H__ */
-

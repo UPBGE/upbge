@@ -2,6 +2,7 @@ if NOT "%verbose%" == "" (
 	echo Detecting msvc 2017
 )
 set BUILD_VS_VER=15
+set BUILD_VS_YEAR=2017
 set ProgramFilesX86=%ProgramFiles(x86)%
 if not exist "%ProgramFilesX86%" set ProgramFilesX86=%ProgramFiles%
 
@@ -9,8 +10,8 @@ set vs_where=%ProgramFilesX86%\Microsoft Visual Studio\Installer\vswhere.exe
 if not exist "%vs_where%" (
 	if NOT "%verbose%" == "" (
 		echo Visual Studio 2017 ^(15.2 or newer^) is not detected
-		goto FAIL
 	)
+	goto FAIL
 )
 
 if NOT "%verbose%" == "" (

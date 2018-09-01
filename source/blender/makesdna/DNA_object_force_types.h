@@ -67,7 +67,7 @@ typedef struct PartDeflect {
 	short tex_mode;		/* texture effector												*/
 	short kink, kink_axis; /* for curve guide											*/
 	short zdir;
-	
+
 	/* Main effector values */
 	float f_strength;	/* The strength of the force (+ or - )					*/
 	float f_damp;		/* Damping ratio of the harmonic effector.				*/
@@ -93,7 +93,7 @@ typedef struct PartDeflect {
 	float pdef_stickness;/* surface particle stickiness				*/
 
 	float absorption;	/* used for forces */
-	
+
 	/* softbody collisions */
 	float pdef_sbdamp;	/* Damping factor for softbody deflection       */
 	float pdef_sbift;	/* inner face thickness for softbody deflection */
@@ -117,7 +117,7 @@ typedef struct PartDeflect {
 
 typedef struct EffectorWeights {
 	struct Group *group;		/* only use effectors from this group of objects */
-	
+
 	float weight[14];			/* effector type specific weights */
 	float global_gravity;
 	short flag, rt[3];
@@ -170,7 +170,7 @@ typedef struct PTCacheMem {
 typedef struct PointCache {
 	struct PointCache *next, *prev;
 	int flag;		/* generic flag */
-	
+
 	int step;		/* The number of frames between cached frames.
 					 * This should probably be an upper bound for a per point adaptive step in the future,
 					 * buf for now it's the same for all points. Without adaptivity this can effect the perceived
@@ -195,7 +195,7 @@ typedef struct PointCache {
 	int totpoint;   /* number of cached points */
 	int index;	/* modifier stack index */
 	short compression, rt;
-	
+
 	char name[64];
 	char prev_name[64];
 	char info[64];
@@ -274,9 +274,9 @@ typedef struct SoftBody {
 	char   pad;
 	char   msg_lock;
 	short  msg_value;
-	
+
 	/* part of UI: */
-	
+
 	/* general options */
 	float nodemass;		/* softbody mass of *vertex* */
 	char  namedVG_Mass[64]; /* MAX_VGROUP_NAME */
@@ -287,7 +287,7 @@ typedef struct SoftBody {
 	float mediafrict;	/* friction to env */
 	float rklimit;		/* error limit for ODE solver */
 	float physics_speed;/* user control over simulation speed */
-	
+
 	/* goal */
 	float goalspring;	/* softbody goal springs */
 	float goalfrict;	/* softbody goal springs friction */
@@ -300,7 +300,7 @@ typedef struct SoftBody {
 	                             * rather find them by name tag to find it -> jow20090613 */
 
 	short fuzzyness;      /* */
-	
+
 	/* springs */
 	float inspring;		/* softbody inner springs */
 	float infrict;		/* softbody inner springs friction */
@@ -308,12 +308,12 @@ typedef struct SoftBody {
 	                            /* along with it introduce Spring_K painting
 	                             * starting to fix old bug .. nastiness that VG are indexes
 	                             * rather find them by name tag to find it -> jow20090613 */
-	
+
 	/* baking */
 	int sfra, efra;
 	int interval;
 	short local, solverflags;		/* local==1: use local coords for baking */
-	
+
 	/* -- these must be kept for backwards compatibility -- */
 	SBVertex **keys;			/* array of size totpointkey */
 	int totpointkey, totkey;	/* if totpointkey != totpoint or totkey!- (efra-sfra)/interval -> free keys */
@@ -343,7 +343,7 @@ typedef struct SoftBody {
 	struct Group *collision_group;
 
 	struct EffectorWeights *effector_weights;
-	/* reverse esimated obmatrix .. no need to store in blend file .. how ever who cares */ 
+	/* reverse esimated obmatrix .. no need to store in blend file .. how ever who cares */
 	float lcom[3];
 	float lrot[3][3];
 	float lscale[3][3];
@@ -439,9 +439,9 @@ typedef struct SoftBody {
 #define OB_SB_AERO_ANGLE	16384
 
 /* sb->solverflags */
-#define SBSO_MONITOR		1 
-#define SBSO_OLDERR			2 
-#define SBSO_ESTIMATEIPO    4 
+#define SBSO_MONITOR		1
+#define SBSO_OLDERR			2
+#define SBSO_ESTIMATEIPO    4
 
 /* sb->sbc_mode */
 #define SBC_MODE_MANUAL		0
@@ -455,4 +455,3 @@ typedef struct SoftBody {
 #endif
 
 #endif  /* __DNA_OBJECT_FORCE_TYPES_H__ */
-

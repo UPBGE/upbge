@@ -213,7 +213,7 @@ void fresnel (vector I, normal N, float eta,
         F *= sqr (beta / (g+c));
         Kr = F;
         Kt = (1.0 - Kr) * eta*eta;
-        // OPT: the following recomputes some of the above values, but it 
+        // OPT: the following recomputes some of the above values, but it
         // gives us the same result as if the shader-writer called refract()
         T = refract(I, N, eta);
     } else {
@@ -282,6 +282,36 @@ point rotate (point p, float angle, point a, point b)
     return transform (M, p-a) + a;
 }
 
+normal ensure_valid_reflection(normal Ng, vector I, normal N)
+{
+    float sqr(float x) { return x*x; }
+
+    vector R = 2*dot(N, I)*N - I;
+    if (dot(Ng, R) >= 0.05) {
+        return N;
+    }
+
+    /* Form coordinate system with Ng as the Z axis and N inside the X-Z-plane.
+     * The X axis is found by normalizing the component of N that's orthogonal to Ng.
+     * The Y axis isn't actually needed.
+     */
+    vector X = normalize(N - dot(N, Ng)*Ng);
+
+    /* Calculate N.z and N.x in the local coordinate system. */
+    float Ix = dot(I, X), Iz = dot(I, Ng);
+    float Ix2 = sqr(dot(I, X)), Iz2 = sqr(dot(I, Ng));
+    float Ix2Iz2 = Ix2 + Iz2;
+
+    float a = sqrt(Ix2*(Ix2Iz2 - sqr(0.05)));
+    float b = Iz*0.05 + Ix2Iz2;
+    float c = (a + b > 0.0)? (a + b) : (-a + b);
+
+    float Nz = sqrt(0.5 * c * (1.0 / Ix2Iz2));
+    float Nx = sqrt(1.0 - sqr(Nz));
+
+    /* Transform back into global coordinates. */
+    return Nx*X + Nz*Ng;
+}
 
 
 // Color functions
@@ -415,7 +445,7 @@ color transformc (string from, string to, color x)
     return transformc (to, r);
 }
 
- 
+
 
 // Matrix functions
 
@@ -554,6 +584,7 @@ closure color bssrdf(string method, normal N, vector radius, color albedo) BUILT
 // Hair
 closure color hair_reflection(normal N, float roughnessu, float roughnessv, vector T, float offset) BUILTIN;
 closure color hair_transmission(normal N, float roughnessu, float roughnessv, vector T, float offset) BUILTIN;
+closure color principled_hair(normal N, color sigma, float roughnessu, float roughnessv, float coat, float alpha, float eta) BUILTIN;
 
 // Volume
 closure color henyey_greenstein(float g) BUILTIN;

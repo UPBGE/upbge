@@ -19,6 +19,9 @@
 
 #ifdef __QBVH__
 #  include "kernel/bvh/qbvh_volume_all.h"
+#ifdef __KERNEL_AVX2__
+#  include "kernel/bvh/obvh_volume_all.h"
+#endif
 #endif
 
 #if BVH_FEATURE(BVH_HAIR)
@@ -212,14 +215,16 @@ uint BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 									isect_array->t = isect_t;
 									if(num_hits == max_hits) {
 #if BVH_FEATURE(BVH_INSTANCING)
+										if(object != OBJECT_NONE) {
 #  if BVH_FEATURE(BVH_MOTION)
-										float t_fac = 1.0f / len(transform_direction(&ob_itfm, dir));
+											float t_fac = 1.0f / len(transform_direction(&ob_itfm, dir));
 #  else
-										Transform itfm = object_fetch_transform(kg, object, OBJECT_INVERSE_TRANSFORM);
-										float t_fac = 1.0f / len(transform_direction(&itfm, dir));
+											Transform itfm = object_fetch_transform(kg, object, OBJECT_INVERSE_TRANSFORM);
+											float t_fac = 1.0f / len(transform_direction(&itfm, dir));
 #  endif
-										for(int i = 0; i < num_hits_in_instance; i++) {
-											(isect_array-i-1)->t *= t_fac;
+											for(int i = 0; i < num_hits_in_instance; i++) {
+												(isect_array-i-1)->t *= t_fac;
+											}
 										}
 #endif  /* BVH_FEATURE(BVH_INSTANCING) */
 										return num_hits;
@@ -257,14 +262,16 @@ uint BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 									isect_array->t = isect_t;
 									if(num_hits == max_hits) {
 #  if BVH_FEATURE(BVH_INSTANCING)
+										if(object != OBJECT_NONE) {
 #    if BVH_FEATURE(BVH_MOTION)
-										float t_fac = 1.0f / len(transform_direction(&ob_itfm, dir));
+											float t_fac = 1.0f / len(transform_direction(&ob_itfm, dir));
 #    else
-										Transform itfm = object_fetch_transform(kg, object, OBJECT_INVERSE_TRANSFORM);
-										float t_fac = 1.0f / len(transform_direction(&itfm, dir));
+											Transform itfm = object_fetch_transform(kg, object, OBJECT_INVERSE_TRANSFORM);
+											float t_fac = 1.0f / len(transform_direction(&itfm, dir));
 #    endif
-										for(int i = 0; i < num_hits_in_instance; i++) {
-											(isect_array-i-1)->t *= t_fac;
+											for(int i = 0; i < num_hits_in_instance; i++) {
+												(isect_array-i-1)->t *= t_fac;
+											}
 										}
 #  endif  /* BVH_FEATURE(BVH_INSTANCING) */
 										return num_hits;
@@ -382,6 +389,14 @@ ccl_device_inline uint BVH_FUNCTION_NAME(KernelGlobals *kg,
                                          const uint visibility)
 {
 	switch(kernel_data.bvh.bvh_layout) {
+#ifdef __KERNEL_AVX2__
+		case BVH_LAYOUT_BVH8:
+			return BVH_FUNCTION_FULL_NAME(OBVH)(kg,
+			                                    ray,
+			                                    isect_array,
+			                                    max_hits,
+			                                    visibility);
+#endif
 #ifdef __QBVH__
 		case BVH_LAYOUT_BVH4:
 			return BVH_FUNCTION_FULL_NAME(QBVH)(kg,

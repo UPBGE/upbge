@@ -166,6 +166,8 @@ void WM_init(bContext *C, int argc, const char **argv)
 	BKE_addon_pref_type_init();
 
 	wm_operatortype_init();
+	wm_operatortypes_register();
+
 	WM_menutype_init();
 	WM_uilisttype_init();
 
@@ -193,8 +195,7 @@ void WM_init(bContext *C, int argc, const char **argv)
 	wm_init_reports(C);
 
 	/* get the default database, plus a wm */
-	wm_homefile_read(C, NULL, G.factory_startup, false, true, NULL, NULL);
-
+	wm_homefile_read(C, NULL, G.factory_startup, false, true, NULL, WM_init_state_app_template_get());
 
 	BLT_lang_set(NULL);
 
@@ -207,10 +208,10 @@ void WM_init(bContext *C, int argc, const char **argv)
 
 		GPU_init();
 
-		GPU_set_mipmap(!(U.gameflags & USER_DISABLE_MIPMAP));
+		GPU_set_mipmap(G_MAIN, !(U.gameflags & USER_DISABLE_MIPMAP));
 		GPU_set_linear_mipmap(true);
-		GPU_set_anisotropic(U.anisotropic_filter);
-		GPU_set_gpu_mipmapping(U.use_gpu_mipmap);
+		GPU_set_anisotropic(G_MAIN, U.anisotropic_filter);
+		GPU_set_gpu_mipmapping(G_MAIN, U.use_gpu_mipmap);
 
 #ifdef WITH_OPENSUBDIV
 		BKE_subsurf_osd_init();
@@ -590,7 +591,7 @@ void WM_exit_ext(bContext *C, const bool do_python)
 #endif
 
 		GPU_global_buffer_pool_free();
-		GPU_free_unused_buffers();
+		GPU_free_unused_buffers(G_MAIN);
 
 		GPU_exit();
 	}

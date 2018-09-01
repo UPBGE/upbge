@@ -61,7 +61,8 @@ ScrEdge    *screen_find_active_scredge(bScreen *sc,
                                        const int winsize_x, const int winsize_y,
                                        const int mx, const int my);
 
-struct AZone *is_in_area_actionzone(ScrArea *sa, const int xy[2]);
+struct AZone *ED_area_actionzone_find_xy(ScrArea *sa, const int xy[2]);
+struct AZone *ED_area_actionzone_refresh_xy(ScrArea *sa, const int xy[2]);
 
 /* screen_context.c */
 int ed_screen_context(
@@ -71,7 +72,6 @@ extern const char *screen_context_dir[]; /* doc access */
 
 /* screendump.c */
 void	SCREEN_OT_screenshot(struct wmOperatorType *ot);
-void	SCREEN_OT_screencast(struct wmOperatorType *ot);
 
 /* screen_ops.c */
 void	region_blend_start(struct bContext *C, struct ScrArea *sa, struct ARegion *ar);

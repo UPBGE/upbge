@@ -114,9 +114,9 @@ struct NodeType
 
 	void register_input(ustring name, ustring ui_name, SocketType::Type type,
 	                    int struct_offset, const void *default_value,
-						const NodeEnum *enum_values = NULL,
-						const NodeType **node_type = NULL,
-						int flags = 0, int extra_flags = 0);
+	                    const NodeEnum *enum_values = NULL,
+	                    const NodeType **node_type = NULL,
+	                    int flags = 0, int extra_flags = 0);
 	void register_output(ustring name, ustring ui_name, SocketType::Type type);
 
 	const SocketType *find_input(ustring name) const;
@@ -263,4 +263,3 @@ const NodeType *structname::register_type()
 	{ type->register_output(ustring(#name), ustring(ui_name), SocketType::ENUM); }
 
 CCL_NAMESPACE_END
-

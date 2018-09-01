@@ -92,7 +92,7 @@ static void UI_OT_reset_default_theme(wmOperatorType *ot)
 
 /* Copy Data Path Operator ------------------------ */
 
-static int copy_data_path_button_poll(bContext *C)
+static bool copy_data_path_button_poll(bContext *C)
 {
 	PointerRNA ptr;
 	PropertyRNA *prop;
@@ -171,7 +171,7 @@ static void UI_OT_copy_data_path_button(wmOperatorType *ot)
 	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
-static int copy_python_command_button_poll(bContext *C)
+static bool copy_python_command_button_poll(bContext *C)
 {
 	uiBut *but = UI_context_active_but_get(C);
 
@@ -242,7 +242,7 @@ static int operator_button_property_finish(bContext *C, PointerRNA *ptr, Propert
 	}
 }
 
-static int reset_default_button_poll(bContext *C)
+static bool reset_default_button_poll(bContext *C)
 {
 	PointerRNA ptr;
 	PropertyRNA *prop;
@@ -549,7 +549,7 @@ static bool copy_to_selected_button(bContext *C, bool all, bool poll)
 	return success;
 }
 
-static int copy_to_selected_button_poll(bContext *C)
+static bool copy_to_selected_button_poll(bContext *C)
 {
 	return copy_to_selected_button(C, false, true);
 }
@@ -589,7 +589,7 @@ static void UI_OT_copy_to_selected_button(wmOperatorType *ot)
  * when there are too many to display...
  */
 
-static int reports_to_text_poll(bContext *C)
+static bool reports_to_text_poll(bContext *C)
 {
 	return CTX_wm_reports(C) != NULL;
 }
@@ -730,10 +730,13 @@ void UI_editsource_active_but_test(uiBut *but)
 
 static int editsource_text_edit(
         bContext *C, wmOperator *op,
-        char filepath[FILE_MAX], int line)
+        const char filepath[FILE_MAX], const int line)
 {
 	struct Main *bmain = CTX_data_main(C);
 	Text *text;
+
+	/* Developers may wish to copy-paste to an external editor. */
+	printf("%s:%d\n", filepath, line);
 
 	for (text = bmain->text.first; text; text = text->id.next) {
 		if (text->name && BLI_path_cmp(text->name, filepath) == 0) {
@@ -806,9 +809,10 @@ static int editsource_exec(bContext *C, wmOperator *op)
 
 		if (but_store) {
 			if (but_store->py_dbg_ln != -1) {
-				ret = editsource_text_edit(C, op,
-				                           but_store->py_dbg_fn,
-				                           but_store->py_dbg_ln);
+				ret = editsource_text_edit(
+				        C, op,
+				        but_store->py_dbg_fn,
+				        but_store->py_dbg_ln);
 			}
 			else {
 				BKE_report(op->reports, RPT_ERROR, "Active button is not from a script, cannot edit source");
@@ -916,14 +920,18 @@ static int edittranslation_exec(bContext *C, wmOperator *op)
 		uiStringInfo rna_ctxt = {BUT_GET_RNA_LABEL_CONTEXT, NULL};
 
 		if (!BLI_is_dir(root)) {
-			BKE_report(op->reports, RPT_ERROR, "Please set your User Preferences' 'Translation Branches "
-			                                   "Directory' path to a valid directory");
+			BKE_report(
+			        op->reports, RPT_ERROR,
+			        "Please set your User Preferences' 'Translation Branches "
+			        "Directory' path to a valid directory");
 			return OPERATOR_CANCELLED;
 		}
 		ot = WM_operatortype_find(EDTSRC_I18N_OP_NAME, 0);
 		if (ot == NULL) {
-			BKE_reportf(op->reports, RPT_ERROR, "Could not find operator '%s'! Please enable ui_translate add-on "
-			                                    "in the User Preferences", EDTSRC_I18N_OP_NAME);
+			BKE_reportf(
+			        op->reports, RPT_ERROR,
+			        "Could not find operator '%s'! Please enable ui_translate add-on "
+			        "in the User Preferences", EDTSRC_I18N_OP_NAME);
 			return OPERATOR_CANCELLED;
 		}
 		/* Try to find a valid po file for current language... */
@@ -934,8 +942,9 @@ static int edittranslation_exec(bContext *C, wmOperator *op)
 			return OPERATOR_CANCELLED;
 		}
 
-		UI_but_string_info_get(C, but, &but_label, &rna_label, &enum_label, &but_tip, &rna_tip, &enum_tip,
-		                &rna_struct, &rna_prop, &rna_enum, &rna_ctxt, NULL);
+		UI_but_string_info_get(
+		        C, but, &but_label, &rna_label, &enum_label, &but_tip, &rna_tip, &enum_tip,
+		        &rna_struct, &rna_prop, &rna_enum, &rna_ctxt, NULL);
 
 		WM_operator_properties_create_ptr(&ptr, ot);
 		RNA_string_set(&ptr, "lang", uilng);
@@ -1015,7 +1024,7 @@ static void UI_OT_reloadtranslation(wmOperatorType *ot)
 	ot->exec = reloadtranslation_exec;
 }
 
-int UI_drop_color_poll(struct bContext *C, wmDrag *drag, const wmEvent *UNUSED(event))
+bool UI_drop_color_poll(struct bContext *C, wmDrag *drag, const wmEvent *UNUSED(event))
 {
 	/* should only return true for regions that include buttons, for now
 	 * return true always */
@@ -1129,6 +1138,7 @@ void ED_operatortypes_ui(void)
 
 	/* external */
 	WM_operatortype_append(UI_OT_eyedropper_color);
+	WM_operatortype_append(UI_OT_eyedropper_color_crypto);
 	WM_operatortype_append(UI_OT_eyedropper_colorband);
 	WM_operatortype_append(UI_OT_eyedropper_colorband_point);
 	WM_operatortype_append(UI_OT_eyedropper_id);
@@ -1141,7 +1151,7 @@ void ED_operatortypes_ui(void)
  */
 void ED_keymap_ui(wmKeyConfig *keyconf)
 {
-	wmKeyMap *keymap = WM_keymap_find(keyconf, "User Interface", 0, 0);
+	wmKeyMap *keymap = WM_keymap_ensure(keyconf, "User Interface", 0, 0);
 	wmKeyMapItem *kmi;
 
 	/* eyedroppers - notice they all have the same shortcut, but pass the event

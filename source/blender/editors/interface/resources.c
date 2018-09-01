@@ -2325,10 +2325,6 @@ void init_userdef_do_versions(Main *bmain)
 		if (U.dbl_click_time == 0) {
 			U.dbl_click_time = 350;
 		}
-		if (U.scrcastfps == 0) {
-			U.scrcastfps = 10;
-			U.scrcastwait = 50;
-		}
 		if (U.v2d_min_gridsize == 0) {
 			U.v2d_min_gridsize = 35;
 		}
@@ -2758,7 +2754,7 @@ void init_userdef_do_versions(Main *bmain)
 		U.flag &= ~(
 		    USER_FLAG_DEPRECATED_1 | USER_FLAG_DEPRECATED_2 | USER_FLAG_DEPRECATED_3 |
 		    USER_FLAG_DEPRECATED_6 | USER_FLAG_DEPRECATED_7 |
-		    USER_FLAG_DEPRECATED_9 | USER_FLAG_DEPRECATED_10);
+		    USER_FLAG_DEPRECATED_9 | USER_DEVELOPER_UI);
 		U.uiflag &= ~(
 		    USER_UIFLAG_DEPRECATED_7);
 		U.transopts &= ~(
@@ -2792,11 +2788,7 @@ void init_userdef_do_versions(Main *bmain)
 
 	/* Not versioning, just avoid errors. */
 #ifndef WITH_CYCLES
-	bAddon *addon = BLI_findstring(&U.addons, "cycles", offsetof(bAddon, module));
-	if (addon) {
-		BLI_remlink(&U.addons, addon);
-		BKE_addon_free(addon);
-	}
+	BKE_addon_remove_safe(&U.addons, "cycles");
 #endif
 
 	/* funny name, but it is GE stuff, moves userdef stuff to engine */

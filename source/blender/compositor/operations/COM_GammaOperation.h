@@ -20,8 +20,8 @@
  *		Monique Dewanchand
  */
 
-#ifndef _COM_GammaOperation_h
-#define _COM_GammaOperation_h
+#ifndef __COM_GAMMAOPERATION_H__
+#define __COM_GAMMAOPERATION_H__
 #include "COM_NodeOperation.h"
 
 
@@ -35,17 +35,17 @@ private:
 
 public:
 	GammaOperation();
-	
+
 	/**
 	 * the inner loop of this program
 	 */
 	void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
-	
+
 	/**
 	 * Initialize the execution
 	 */
 	void initExecution();
-	
+
 	/**
 	 * Deinitialize the execution
 	 */

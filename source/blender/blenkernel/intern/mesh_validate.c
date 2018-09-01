@@ -212,15 +212,16 @@ static int search_polyloop_cmp(const void *v1, const void *v2)
  *
  * \return false if no changes needed to be made.
  */
-bool BKE_mesh_validate_arrays(Mesh *mesh,
-                              MVert *mverts, unsigned int totvert,
-                              MEdge *medges, unsigned int totedge,
-                              MFace *mfaces, unsigned int totface,
-                              MLoop *mloops, unsigned int totloop,
-                              MPoly *mpolys, unsigned int totpoly,
-                              MDeformVert *dverts, /* assume totvert length */
-                              const bool do_verbose, const bool do_fixes,
-                              bool *r_changed)
+bool BKE_mesh_validate_arrays(
+        Mesh *mesh,
+        MVert *mverts, unsigned int totvert,
+        MEdge *medges, unsigned int totedge,
+        MFace *mfaces, unsigned int totface,
+        MLoop *mloops, unsigned int totloop,
+        MPoly *mpolys, unsigned int totpoly,
+        MDeformVert *dverts, /* assume totvert length */
+        const bool do_verbose, const bool do_fixes,
+        bool *r_changed)
 {
 #   define REMOVE_EDGE_TAG(_me) { _me->v2 = _me->v1; free_flag.edges = do_fixes; } (void)0
 #   define IS_REMOVED_EDGE(_me) (_me->v2 == _me->v1)
@@ -875,9 +876,10 @@ bool BKE_mesh_validate_arrays(Mesh *mesh,
 	return is_valid;
 }
 
-static bool mesh_validate_customdata(CustomData *data, CustomDataMask mask,
-                                     const bool do_verbose, const bool do_fixes,
-                                     bool *r_change)
+static bool mesh_validate_customdata(
+        CustomData *data, CustomDataMask mask,
+        const bool do_verbose, const bool do_fixes,
+        bool *r_change)
 {
 	bool is_valid = true;
 	bool has_fixes = false;
@@ -928,11 +930,12 @@ static bool mesh_validate_customdata(CustomData *data, CustomDataMask mask,
 /**
  * \returns is_valid.
  */
-bool BKE_mesh_validate_all_customdata(CustomData *vdata, CustomData *edata,
-                                      CustomData *ldata, CustomData *pdata,
-                                      const bool check_meshmask,
-                                      const bool do_verbose, const bool do_fixes,
-                                      bool *r_change)
+bool BKE_mesh_validate_all_customdata(
+        CustomData *vdata, CustomData *edata,
+        CustomData *ldata, CustomData *pdata,
+        const bool check_meshmask,
+        const bool do_verbose, const bool do_fixes,
+        bool *r_change)
 {
 	bool is_valid = true;
 	bool is_change_v, is_change_e, is_change_l, is_change_p;
@@ -992,7 +995,7 @@ bool BKE_mesh_validate_all_customdata(CustomData *vdata, CustomData *edata,
  *
  * \returns true if a change is made.
  */
-int BKE_mesh_validate(Mesh *me, const int do_verbose, const int cddata_check_mask)
+bool BKE_mesh_validate(Mesh *me, const bool do_verbose, const bool cddata_check_mask)
 {
 	bool is_valid = true;
 	bool changed;
@@ -1089,7 +1092,7 @@ void BKE_mesh_cd_validate(Mesh *me)
  * Check all material indices of polygons are valid, invalid ones are set to 0.
  * \returns is_valid.
  */
-int BKE_mesh_validate_material_indices(Mesh *me)
+bool BKE_mesh_validate_material_indices(Mesh *me)
 {
 	MPoly *mp;
 	const int max_idx = max_ii(0, me->totcol - 1);
@@ -1268,9 +1271,10 @@ struct EdgeSort {
 };
 
 /* edges have to be added with lowest index first for sorting */
-static void to_edgesort(struct EdgeSort *ed,
-                        unsigned int v1, unsigned int v2,
-                        char is_loose, short is_draw)
+static void to_edgesort(
+        struct EdgeSort *ed,
+        unsigned int v1, unsigned int v2,
+        char is_loose, short is_draw)
 {
 	if (v1 < v2) {
 		ed->v1 = v1; ed->v2 = v2;
@@ -1419,9 +1423,10 @@ void BKE_mesh_calc_edges_legacy(Mesh *me, const bool use_old)
 	MEdge *medge;
 	int totedge = 0;
 
-	mesh_calc_edges_mdata(me->mvert, me->mface, me->mloop, me->mpoly,
-	                      me->totvert, me->totface, me->totloop, me->totpoly,
-	                      use_old, &medge, &totedge);
+	mesh_calc_edges_mdata(
+	        me->mvert, me->mface, me->mloop, me->mpoly,
+	        me->totvert, me->totface, me->totloop, me->totpoly,
+	        use_old, &medge, &totedge);
 
 	if (totedge == 0) {
 		/* flag that mesh has edges */

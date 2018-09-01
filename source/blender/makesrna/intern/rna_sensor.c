@@ -215,7 +215,7 @@ static void rna_Sensor_keyboard_modifier2_set(struct PointerRNA *ptr, int value)
 		ks->qual2 = 0;
 }
 
-static void rna_Sensor_tap_set(struct PointerRNA *ptr, int value)
+static void rna_Sensor_tap_set(struct PointerRNA *ptr, bool value)
 {
 	bSensor *sens = (bSensor *)ptr->data;
 
@@ -224,7 +224,7 @@ static void rna_Sensor_tap_set(struct PointerRNA *ptr, int value)
 		sens->level = 0;
 }
 
-static void rna_Sensor_level_set(struct PointerRNA *ptr, int value)
+static void rna_Sensor_level_set(struct PointerRNA *ptr, bool value)
 {
 	bSensor *sens = (bSensor *)ptr->data;
 

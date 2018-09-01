@@ -83,17 +83,17 @@ static void rna_Image_animated_update(Main *UNUSED(bmain), Scene *UNUSED(scene),
 	}
 }
 
-static int rna_Image_is_stereo_3d_get(PointerRNA *ptr)
+static bool rna_Image_is_stereo_3d_get(PointerRNA *ptr)
 {
 	return BKE_image_is_stereo((Image *)ptr->data);
 }
 
-static int rna_Image_is_multiview_get(PointerRNA *ptr)
+static bool rna_Image_is_multiview_get(PointerRNA *ptr)
 {
 	return BKE_image_is_multiview((Image *)ptr->data);
 }
 
-static int rna_Image_dirty_get(PointerRNA *ptr)
+static bool rna_Image_dirty_get(PointerRNA *ptr)
 {
 	return BKE_image_is_dirty((Image *)ptr->data);
 }
@@ -104,7 +104,8 @@ static void rna_Image_source_set(PointerRNA *ptr, int value)
 
 	if (value != ima->source) {
 		ima->source = value;
-		BKE_image_signal(G.main, ima, NULL, IMA_SIGNAL_SRC_CHANGE);
+		BLI_assert(BKE_id_is_in_gobal_main(&ima->id));
+		BKE_image_signal(G_MAIN, ima, NULL, IMA_SIGNAL_SRC_CHANGE);
 		DAG_id_tag_update(&ima->id, 0);
 	}
 }
@@ -250,7 +251,7 @@ static void rna_Image_file_format_set(PointerRNA *ptr, int value)
 	}
 }
 
-static int rna_Image_has_data_get(PointerRNA *ptr)
+static bool rna_Image_has_data_get(PointerRNA *ptr)
 {
 	Image *image = (Image *)ptr->data;
 
@@ -437,7 +438,7 @@ static int rna_Image_channels_get(PointerRNA *ptr)
 	return channels;
 }
 
-static int rna_Image_is_float_get(PointerRNA *ptr)
+static bool rna_Image_is_float_get(PointerRNA *ptr)
 {
 	Image *im = (Image *)ptr->data;
 	ImBuf *ibuf;

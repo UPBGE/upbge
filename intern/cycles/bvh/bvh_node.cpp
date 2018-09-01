@@ -61,6 +61,55 @@ int BVHNode::getSubtreeSize(BVH_STAT stat) const
 				}
 			}
 			return cnt;
+		case BVH_STAT_ONODE_COUNT:
+			cnt = 1;
+			for(int i = 0; i < num_children(); i++) {
+				BVHNode *node = get_child(i);
+				if(node->is_leaf()) {
+					cnt += 1;
+				}
+				else {
+					for(int j = 0; j < node->num_children(); j++)
+					{
+						BVHNode *node_next = node->get_child(j);
+						if(node_next->is_leaf()) {
+							cnt += 1;
+						}
+						else {
+							for(int k = 0; k < node_next->num_children(); k++) {
+								cnt += node_next->get_child(k)->getSubtreeSize(stat);
+							}
+						}
+					}
+				}
+			}
+			return cnt;
+		case BVH_STAT_UNALIGNED_INNER_ONODE_COUNT:
+			{
+				bool has_unaligned = false;
+				for(int i = 0; i < num_children(); i++) {
+					BVHNode *node = get_child(i);
+					if(node->is_leaf()) {
+						has_unaligned |= node->is_unaligned;
+					}
+					else {
+						for(int j = 0; j < node->num_children(); j++) {
+							BVHNode *node_next = node->get_child(j);
+							if(node_next->is_leaf()) {
+								has_unaligned |= node_next->is_unaligned;
+							}
+							else {
+								for(int k = 0; k < node_next->num_children(); k++) {
+									cnt += node_next->get_child(k)->getSubtreeSize(stat);
+									has_unaligned |= node_next->get_child(k)->is_unaligned;
+								}
+							}
+						}
+					}
+				}
+				cnt += has_unaligned? 1: 0;
+			}
+			return cnt;
 		case BVH_STAT_ALIGNED_COUNT:
 			if(!is_unaligned) {
 				cnt = 1;
@@ -206,7 +255,7 @@ void InnerNode::print(int depth) const
 {
 	for(int i = 0; i < depth; i++)
 		printf("  ");
-	
+
 	printf("inner node %p\n", (void*)this);
 
 	if(children[0])
@@ -219,9 +268,8 @@ void LeafNode::print(int depth) const
 {
 	for(int i = 0; i < depth; i++)
 		printf("  ");
-	
+
 	printf("leaf node %d to %d\n", lo, hi);
 }
 
 CCL_NAMESPACE_END
-

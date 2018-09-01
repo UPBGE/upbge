@@ -28,43 +28,16 @@ message("HARVEST_TARGET = ${HARVEST_TARGET}")
 if(WIN32)
 if(BUILD_MODE STREQUAL Release)
 	add_custom_target(Harvest_Release_Results
-				# Zlib Rename the lib file and copy the include/bin folders
-		COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/zlib/lib/zlibstatic.lib ${HARVEST_TARGET}/zlib/lib/libz_st.lib &&
-				${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/zlib/include/ ${HARVEST_TARGET}/zlib/include/ &&
-				${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/zlib/bin/ ${HARVEST_TARGET}/zlib/bin/ &&
-				# jpeg rename libfile + copy include
+		COMMAND # jpeg rename libfile + copy include
 				${CMAKE_COMMAND} -E copy ${LIBDIR}/jpg/lib/jpeg-static.lib ${HARVEST_TARGET}/jpeg/lib/libjpeg.lib &&
 				${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/jpg/include/ ${HARVEST_TARGET}/jpeg/include/ &&
-				# FreeType, straight up copy
-				${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/freetype ${HARVEST_TARGET}/freetype &&
-				# pthreads, rename include dir
-				${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/pthreads/inc/ ${HARVEST_TARGET}/pthreads/include/ &&
-				${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/pthreads/lib/ ${HARVEST_TARGET}/pthreads/lib &&
-				# ffmpeg copy include+bin
-				${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/ffmpeg/include ${HARVEST_TARGET}/ffmpeg/include &&
-				${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/ffmpeg/bin ${HARVEST_TARGET}/ffmpeg/lib &&
-				# sdl merge bin/lib folder, copy include
-				${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/sdl/include/sdl2 ${HARVEST_TARGET}/sdl/include &&
-				${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/sdl/lib ${HARVEST_TARGET}/sdl/lib &&
-				${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/sdl/bin ${HARVEST_TARGET}/sdl/lib &&
-				# openal
-				${CMAKE_COMMAND} -E copy ${LIBDIR}/openal/lib/openal32.lib ${HARVEST_TARGET}/openal/lib/openal32.lib &&
-				${CMAKE_COMMAND} -E copy ${LIBDIR}/openal/bin/openal32.dll ${HARVEST_TARGET}/openal/lib/openal32.dll &&
-				${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/openal/include/ ${HARVEST_TARGET}/openal/include/ &&
 				# OpenImageIO
 				${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/OpenImageIO/include ${HARVEST_TARGET}/OpenImageIO/include &&
 				${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/OpenImageIO/lib ${HARVEST_TARGET}/OpenImageIO/lib &&
 				${CMAKE_COMMAND} -E copy ${LIBDIR}/OpenImageIO/bin/idiff.exe ${HARVEST_TARGET}/OpenImageIO/bin/idiff.exe &&
-				# openEXR
-				${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/ilmbase ${HARVEST_TARGET}/openexr &&
-				${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/openexr/lib ${HARVEST_TARGET}/openexr/lib &&
-				${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/openexr/include ${HARVEST_TARGET}/openexr/include &&
 				# png
 				${CMAKE_COMMAND} -E copy ${LIBDIR}/png/lib/libpng16_static.lib ${HARVEST_TARGET}/png/lib/libpng.lib &&
 				${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/png/include/ ${HARVEST_TARGET}/png/include/ &&
-				# fftw3
-				${CMAKE_COMMAND} -E copy ${LIBDIR}/fftw3/lib/libfftw3.a ${HARVEST_TARGET}/fftw3/lib/libfftw.lib &&
-				${CMAKE_COMMAND} -E copy ${LIBDIR}/fftw3/include/fftw3.h ${HARVEST_TARGET}/fftw3/include/fftw3.h &&
 				# freeglut-> opengl
 				${CMAKE_COMMAND} -E copy ${LIBDIR}/freeglut/lib/freeglut_static.lib ${HARVEST_TARGET}/opengl/lib/freeglut_static.lib &&
 				${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/freeglut/include/ ${HARVEST_TARGET}/opengl/include/ &&
@@ -78,37 +51,9 @@ if(BUILD_MODE STREQUAL Release)
 				# tiff
 				${CMAKE_COMMAND} -E copy ${LIBDIR}/tiff/lib/tiff.lib ${HARVEST_TARGET}/tiff/lib/libtiff.lib &&
 				${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/tiff/include/ ${HARVEST_TARGET}/tiff/include/ &&
-				# iconv
-				${CMAKE_COMMAND} -E copy ${LIBDIR}/iconv/lib/libiconv.a ${HARVEST_TARGET}/iconv/lib/iconv.lib &&
-				${CMAKE_COMMAND} -E copy ${LIBDIR}/iconv/include/iconv.h ${HARVEST_TARGET}/iconv/include/iconv.h &&
-				# opencolorIO
-				${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/OpenColorIO/ ${HARVEST_TARGET}/opencolorio &&
-				${CMAKE_COMMAND} -E copy ${LIBDIR}/OpenColorIO/lib/OpenColorIO.dll ${HARVEST_TARGET}/opencolorio/bin/OpenColorIO.dll &&
-				# Osl
-				${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/osl/ ${HARVEST_TARGET}/osl &&
-				# OpenVDB
-				${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/openVDB/ ${HARVEST_TARGET}/openVDB &&
-				# blosc
-				${CMAKE_COMMAND} -E copy ${LIBDIR}/blosc/lib/libblosc.lib ${HARVEST_TARGET}/blosc/lib/libblosc.lib &&
-				${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/blosc/include/ ${HARVEST_TARGET}/blosc/include/ &&
-				# tbb
-				${CMAKE_COMMAND} -E copy ${LIBDIR}/tbb/lib/tbb_static.lib ${HARVEST_TARGET}/tbb/lib/tbb.lib &&
-				${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/tbb/include/ ${HARVEST_TARGET}/tbb/include/ &&
-				# opencollada
-				${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/opencollada/ ${HARVEST_TARGET}/opencollada/ &&
-				# opensubdiv
-				${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/opensubdiv ${HARVEST_TARGET}/opensubdiv &&
-				# python
-				${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/python/ ${HARVEST_TARGET}/python/ &&
-				# alembic
-				${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/alembic ${HARVEST_TARGET}/alembic &&
 				# BlendThumb
 				${CMAKE_COMMAND} -E copy ${LIBDIR}/BlendThumb64/bin/blendthumb.dll ${HARVEST_TARGET}/ThumbHandler/lib/BlendThumb64.dll &&
 				${CMAKE_COMMAND} -E copy ${LIBDIR}/BlendThumb32/bin/blendthumb.dll ${HARVEST_TARGET}/ThumbHandler/lib/BlendThumb.dll &&
-				# python
-				${CMAKE_COMMAND} -E copy ${LIBDIR}/python${PYTHON_SHORT_VERSION_NO_DOTS}.tar.gz ${HARVEST_TARGET}/Release/python${PYTHON_SHORT_VERSION_NO_DOTS}.tar.gz &&
-				# numpy
-				${CMAKE_COMMAND} -E copy ${LIBDIR}/python${PYTHON_SHORT_VERSION_NO_DOTS}_numpy_${NUMPY_SHORT_VERSION}.tar.gz ${HARVEST_TARGET}/Release/python${PYTHON_SHORT_VERSION_NO_DOTS}_numpy_${NUMPY_SHORT_VERSION}.tar.gz &&
 				# hidapi
 				${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/hidapi/ ${HARVEST_TARGET}/hidapi/ &&
 				# webp, straight up copy
@@ -122,43 +67,8 @@ if(BUILD_MODE STREQUAL Debug)
 				# OpenImageIO
 		COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/openimageio/lib/OpenImageIO.lib ${HARVEST_TARGET}/openimageio/lib/OpenImageIO_d.lib &&
 				${CMAKE_COMMAND} -E copy ${LIBDIR}/openimageio/lib/OpenImageIO_Util.lib ${HARVEST_TARGET}/openimageio/lib/OpenImageIO_Util_d.lib &&
-				# ilmbase+openexr
-				${CMAKE_COMMAND} -E copy ${LIBDIR}/ilmbase/lib/Half.lib ${HARVEST_TARGET}/openexr/lib/Half_d.lib &&
-				${CMAKE_COMMAND} -E copy ${LIBDIR}/ilmbase/lib/Iex-2_2.lib ${HARVEST_TARGET}/openexr/lib/Iex-2_2_d.lib &&
-				${CMAKE_COMMAND} -E copy ${LIBDIR}/ilmbase/lib/IexMath-2_2.lib ${HARVEST_TARGET}/openexr/lib/IexMath-2_2_d.lib &&
-				${CMAKE_COMMAND} -E copy ${LIBDIR}/ilmbase/lib/IlmThread-2_2.lib ${HARVEST_TARGET}/openexr/lib/IlmThread-2_2_d.lib &&
-				${CMAKE_COMMAND} -E copy ${LIBDIR}/ilmbase/lib/Imath-2_2.lib ${HARVEST_TARGET}/openexr/lib/Imath-2_2_d.lib &&
-				${CMAKE_COMMAND} -E copy ${LIBDIR}/openexr/lib/IlmImf-2_2.lib ${HARVEST_TARGET}/openexr/lib/IlmImf-2_2_d.lib &&
-				${CMAKE_COMMAND} -E copy ${LIBDIR}/openexr/lib/IlmImfUtil-2_2.lib ${HARVEST_TARGET}/openexr/lib/IlmImfUtil-2_2_d.lib &&
-				# opencollada
-				${CMAKE_COMMAND} -E copy ${LIBDIR}/opencollada/lib/opencollada/buffer.lib ${HARVEST_TARGET}/opencollada/lib/opencollada/buffer_d.lib &&
-				${CMAKE_COMMAND} -E copy ${LIBDIR}/opencollada/lib/opencollada/ftoa.lib ${HARVEST_TARGET}/opencollada/lib/opencollada/ftoa_d.lib &&
-				${CMAKE_COMMAND} -E copy ${LIBDIR}/opencollada/lib/opencollada/GeneratedSaxParser.lib ${HARVEST_TARGET}/opencollada/lib/opencollada/GeneratedSaxParser_d.lib &&
-				${CMAKE_COMMAND} -E copy ${LIBDIR}/opencollada/lib/opencollada/MathMLSolver.lib ${HARVEST_TARGET}/opencollada/lib/opencollada/MathMLSolver_d.lib &&
-				${CMAKE_COMMAND} -E copy ${LIBDIR}/opencollada/lib/opencollada/OpenCOLLADABaseUtils.lib ${HARVEST_TARGET}/opencollada/lib/opencollada/OpenCOLLADABaseUtils_d.lib &&
-				${CMAKE_COMMAND} -E copy ${LIBDIR}/opencollada/lib/opencollada/OpenCOLLADAFramework.lib ${HARVEST_TARGET}/opencollada/lib/opencollada/OpenCOLLADAFramework_d.lib &&
-				${CMAKE_COMMAND} -E copy ${LIBDIR}/opencollada/lib/opencollada/OpenCOLLADASaxFrameworkLoader.lib ${HARVEST_TARGET}/opencollada/lib/opencollada/OpenCOLLADASaxFrameworkLoader_d.lib &&
-				${CMAKE_COMMAND} -E copy ${LIBDIR}/opencollada/lib/opencollada/OpenCOLLADAStreamWriter.lib ${HARVEST_TARGET}/opencollada/lib/opencollada/OpenCOLLADAStreamWriter_d.lib &&
-				${CMAKE_COMMAND} -E copy ${LIBDIR}/opencollada/lib/opencollada/pcre.lib ${HARVEST_TARGET}/opencollada/lib/opencollada/pcre_d.lib &&
-				${CMAKE_COMMAND} -E copy ${LIBDIR}/opencollada/lib/opencollada/UTF.lib ${HARVEST_TARGET}/opencollada/lib/opencollada/UTF_d.lib &&
-				${CMAKE_COMMAND} -E copy ${LIBDIR}/opencollada/lib/opencollada/xml.lib ${HARVEST_TARGET}/opencollada/lib/opencollada/xml_d.lib &&
-				# blosc
-				${CMAKE_COMMAND} -E copy ${LIBDIR}/blosc/lib/libblosc_d.lib ${HARVEST_TARGET}/blosc/lib/libblosc_d.lib &&
-				# osl
-				${CMAKE_COMMAND} -E copy ${LIBDIR}/osl/lib/oslcomp.lib ${HARVEST_TARGET}/osl/lib/oslcomp_d.lib &&
-				${CMAKE_COMMAND} -E copy ${LIBDIR}/osl/lib/oslexec.lib ${HARVEST_TARGET}/osl/lib/oslexec_d.lib &&
-				${CMAKE_COMMAND} -E copy ${LIBDIR}/osl/lib/oslquery.lib ${HARVEST_TARGET}/osl/lib/oslquery_d.lib &&
-				# opensubdiv
-				${CMAKE_COMMAND} -E copy ${LIBDIR}/opensubdiv/lib/osdCPU.lib ${HARVEST_TARGET}/opensubdiv/lib/osdCPU_d.lib &&
-				${CMAKE_COMMAND} -E copy ${LIBDIR}/opensubdiv/lib/osdGPU.lib ${HARVEST_TARGET}/opensubdiv/lib/osdGPU_d.lib &&
-				# tbb
-				${CMAKE_COMMAND} -E copy ${LIBDIR}/tbb/lib/tbb_static.lib ${HARVEST_TARGET}/tbb/lib/tbb_debug.lib &&
-				# openvdb
-				${CMAKE_COMMAND} -E copy ${LIBDIR}/openvdb/lib/openvdb.lib ${HARVEST_TARGET}/openvdb/lib/openvdb_d.lib &&
 				# python
 				${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/python/ ${HARVEST_TARGET}/python/ &&
-				# alembic
-				${CMAKE_COMMAND} -E copy ${LIBDIR}/alembic/lib/alembic.lib ${HARVEST_TARGET}/alembic/lib/alembic_d.lib &&
 				# hdf5
 				${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/hdf5/lib ${HARVEST_TARGET}/hdf5/lib &&
 				# numpy
@@ -200,8 +110,6 @@ endfunction()
 
 harvest(alembic/include alembic/include "*.h")
 harvest(alembic/lib/libAlembic.a alembic/lib/libAlembic.a)
-harvest(alembic/bin alembic/bin "*")
-harvest(blosc/lib openvdb/lib "*.a")
 harvest(boost/include boost/include "*")
 harvest(boost/lib boost/lib "*.a")
 harvest(ffmpeg/include ffmpeg/include "*.h")
@@ -226,11 +134,24 @@ harvest(ogg/lib ffmpeg/lib "*.a")
 harvest(openal/include openal/include "*.h")
 if(UNIX AND NOT APPLE)
 	harvest(openal/lib openal/lib "*.a")
+
+	harvest(blosc/include blosc/include "*.h")
+	harvest(blosc/lib blosc/lib "*.a")
+
+	harvest(zlib/include zlib/include "*.h")
+	harvest(zlib/lib zlib/lib "*.a")
+
+	harvest(xml2/include xml2/include "*.h")
+	harvest(xml2/lib xml2/lib "*.a")
+else()
+	harvest(blosc/lib openvdb/lib "*.a")
+	harvest(xml2/lib opencollada/lib "*.a")
 endif()
 harvest(opencollada/include/opencollada opencollada/include "*.h")
 harvest(opencollada/lib/opencollada opencollada/lib "*.a")
 harvest(opencolorio/include opencolorio/include "*.h")
 harvest(opencolorio/lib opencolorio/lib "*.a")
+harvest(opencolorio/lib/static opencolorio/lib "*.a")
 harvest(openexr/include openexr/include "*.h")
 harvest(openexr/lib openexr/lib "*.a")
 harvest(openimageio/bin openimageio/bin "idiff")
@@ -238,13 +159,12 @@ harvest(openimageio/bin openimageio/bin "maketx")
 harvest(openimageio/bin openimageio/bin "oiiotool")
 harvest(openimageio/include openimageio/include "*")
 harvest(openimageio/lib openimageio/lib "*.a")
-harvest(openjpeg/include/openjpeg-1.5 openjpeg/include "*.h")
+harvest(openjpeg/include/openjpeg-2.3 openjpeg/include "*.h")
 harvest(openjpeg/lib openjpeg/lib "*.a")
 harvest(opensubdiv/include opensubdiv/include "*.h")
 harvest(opensubdiv/lib opensubdiv/lib "*.a")
-harvest(openvdb/include/openvdb/openvdb openvdb/include/openvdb "*.h")
+harvest(openvdb/include/openvdb openvdb/include/openvdb "*.h")
 harvest(openvdb/lib openvdb/lib "*.a")
-harvest(orc/lib/liborc-0.4.a ffmpeg/lib/liborc.a)
 harvest(osl/bin osl/bin "oslc")
 harvest(osl/include osl/include "*.h")
 harvest(osl/lib osl/lib "*.a")
@@ -254,7 +174,6 @@ harvest(png/lib png/lib "*.a")
 harvest(python/bin python/bin "python${PYTHON_SHORT_VERSION}m")
 harvest(python/include python/include "*h")
 harvest(python/lib python/lib "*")
-harvest(schroedinger/lib/libschroedinger-1.0.a ffmpeg/lib/libschroedinger.a)
 harvest(sdl/include/SDL2 sdl/include "*.h")
 harvest(sdl/lib sdl/lib "libSDL2.a")
 harvest(sndfile/include sndfile/include "*.h")
@@ -270,7 +189,6 @@ harvest(vorbis/lib ffmpeg/lib "*.a")
 harvest(vpx/lib ffmpeg/lib "*.a")
 harvest(webp/lib ffmpeg/lib "*.a")
 harvest(x264/lib ffmpeg/lib "*.a")
-harvest(xml2/lib opencollada/lib "*.a")
 harvest(xvidcore/lib ffmpeg/lib "*.a")
 
 endif()

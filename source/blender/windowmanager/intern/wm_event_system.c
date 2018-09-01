@@ -451,7 +451,7 @@ static int wm_handler_ui_call(bContext *C, wmEventHandler *handler, const wmEven
 	/* UI code doesn't handle return values - it just always returns break.
 	 * to make the DBL_CLICK conversion work, we just don't send this to UI, except mouse clicks */
 	if (((handler->flag & WM_HANDLER_ACCEPT_DBL_CLICK) == 0) &&
-	    (event->type != LEFTMOUSE) &&
+	    !ISMOUSE_BUTTON(event->type) &&
 	    (event->val == KM_DBL_CLICK))
 	{
 		return WM_HANDLER_CONTINUE;
@@ -520,7 +520,7 @@ static void wm_handler_ui_cancel(bContext *C)
 
 /* ********************* operators ******************* */
 
-int WM_operator_poll(bContext *C, wmOperatorType *ot)
+bool WM_operator_poll(bContext *C, wmOperatorType *ot)
 {
 	wmOperatorTypeMacro *otmacro;
 
@@ -541,7 +541,7 @@ int WM_operator_poll(bContext *C, wmOperatorType *ot)
 }
 
 /* sets up the new context and calls 'wm_operator_invoke()' with poll_only */
-int WM_operator_poll_context(bContext *C, wmOperatorType *ot, short context)
+bool WM_operator_poll_context(bContext *C, wmOperatorType *ot, short context)
 {
 	return wm_operator_call_internal(C, ot, NULL, NULL, context, true);
 }
@@ -2327,6 +2327,7 @@ static int wm_handlers_do(bContext *C, wmEvent *event, ListBase *handlers)
 					}
 				}
 				else if (event->val == KM_DBL_CLICK) {
+					/* The underlying event is a press, so try and handle this. */
 					event->val = KM_PRESS;
 					action |= wm_handlers_do_intern(C, event, handlers);
 
@@ -3569,7 +3570,7 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 			/* if previous event was same type, and previous was release, and now it presses... */
 			if (wm_event_is_double_click(&event, evt)) {
 				CLOG_INFO(WM_LOG_HANDLERS, 1, "Send double click");
-				evt->val = event.val = KM_DBL_CLICK;
+				event.val = KM_DBL_CLICK;
 			}
 
 			/* this case happens on holding a key pressed, it should not generate

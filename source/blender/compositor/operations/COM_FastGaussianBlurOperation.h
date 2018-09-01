@@ -20,8 +20,8 @@
  *		Monique Dewanchand
  */
 
-#ifndef _COM_FastGaussianBlurOperation_h
-#define _COM_FastGaussianBlurOperation_h
+#ifndef __COM_FASTGAUSSIANBLUROPERATION_H__
+#define __COM_FASTGAUSSIANBLUROPERATION_H__
 
 #include "COM_BlurBaseOperation.h"
 #include "DNA_node_types.h"
@@ -35,7 +35,7 @@ public:
 	FastGaussianBlurOperation();
 	bool determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output);
 	void executePixel(float output[4], int x, int y, void *data);
-	
+
 	static void IIR_gauss(MemoryBuffer *src, float sigma, unsigned int channel, unsigned int xy);
 	void *initializeTileData(rcti *rect);
 	void deinitExecution();
@@ -63,7 +63,7 @@ public:
 	FastGaussianBlurValueOperation();
 	bool determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output);
 	void executePixel(float output[4], int x, int y, void *data);
-	
+
 	void *initializeTileData(rcti *rect);
 	void deinitExecution();
 	void initExecution();
@@ -74,4 +74,3 @@ public:
 };
 
 #endif
-

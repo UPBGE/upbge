@@ -44,9 +44,6 @@ void BLF_exit(void);
 void BLF_default_dpi(int dpi);
 void BLF_default_set(int fontid);
 
-void BLF_antialias_set(bool enabled);
-bool BLF_antialias_get(void);
-
 void BLF_cache_clear(void);
 
 int BLF_load(const char *name) ATTR_NONNULL();
@@ -221,8 +218,11 @@ void BLF_state_print(int fontid);
 #define BLF_KERNING_DEFAULT  (1 << 3)
 #define BLF_MATRIX           (1 << 4)
 #define BLF_ASPECT           (1 << 5)
-#define BLF_HINTING          (1 << 6)
-#define BLF_WORD_WRAP        (1 << 7)
+#define BLF_WORD_WRAP        (1 << 6)
+#define BLF_MONOCHROME       (1 << 7)  /* no-AA */
+#define BLF_HINTING_NONE     (1 << 8)
+#define BLF_HINTING_SLIGHT   (1 << 9)
+#define BLF_HINTING_FULL     (1 << 10)
 
 #define BLF_DRAW_STR_DUMMY_MAX 1024
 

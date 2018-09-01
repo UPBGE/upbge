@@ -26,7 +26,7 @@ set(LLVM_EXTRA_ARGS
 )
 
 if(WIN32)
-	set(LLVM_GENERATOR "NMake Makefiles")
+	set(LLVM_GENERATOR "Ninja")
 else()
 	set(LLVM_GENERATOR "Unix Makefiles")
 endif()
@@ -38,7 +38,6 @@ ExternalProject_Add(ll
 	URL_HASH MD5=${LLVM_HASH}
 	CMAKE_GENERATOR ${LLVM_GENERATOR}
 	PREFIX ${BUILD_DIR}/ll
-	PATCH_COMMAND ${PATCH_CMD} -p 0 -d ${BUILD_DIR}/ll/src/ll < ${PATCH_DIR}/llvm-alloca-fix.diff
 	CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${LIBDIR}/llvm ${DEFAULT_CMAKE_FLAGS} ${LLVM_EXTRA_ARGS}
 	INSTALL_DIR ${LIBDIR}/llvm
 )
@@ -48,9 +47,7 @@ if(MSVC)
 		set(LLVM_HARVEST_COMMAND ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/llvm/ ${HARVEST_TARGET}/llvm/ )
 	else()
 		set(LLVM_HARVEST_COMMAND
-			${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/llvm/lib/ ${HARVEST_TARGET}/llvm/debug/lib/ &&
-			${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/llvm/bin/ ${HARVEST_TARGET}/llvm/debug/bin/ &&
-			${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/llvm/include/ ${HARVEST_TARGET}/llvm/debug/include/
+			${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/llvm/lib/ ${HARVEST_TARGET}/llvm/debug/lib/
 		)
 	endif()
 	ExternalProject_Add_Step(ll after_install
@@ -58,4 +55,3 @@ if(MSVC)
 		DEPENDEES mkdir update patch download configure build install
 	)
 endif()
-

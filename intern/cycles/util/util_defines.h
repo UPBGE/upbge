@@ -87,12 +87,8 @@
 #  define UNLIKELY(x)     (x)
 #endif
 
-#if defined(__cplusplus) && ((__cplusplus >= 201103L) || (defined(_MSC_VER) && _MSC_VER >= 1800))
-#  define HAS_CPP11_FEATURES
-#endif
-
 #if defined(__GNUC__) || defined(__clang__)
-#  if defined(HAS_CPP11_FEATURES)
+#  if defined(__cplusplus)
 /* Some magic to be sure we don't have reference in the type. */
 template<typename T> static inline T decltype_helper(T x) { return x; }
 #    define TYPEOF(x) decltype(decltype_helper(x))
@@ -133,4 +129,3 @@ template<typename T> static inline T decltype_helper(T x) { return x; }
 #endif
 
 #endif /* __UTIL_DEFINES_H__ */
-

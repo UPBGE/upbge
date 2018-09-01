@@ -233,7 +233,7 @@ typedef struct wmWindow {
 #endif
 
 /* These two Lines with # tell makesdna this struct can be excluded. */
-/* should be something like DNA_EXCLUDE 
+/* should be something like DNA_EXCLUDE
  * but the preprocessor first removes all comments, spaces etc */
 #
 #
@@ -317,7 +317,7 @@ typedef struct wmKeyMap {
 
 	/* runtime */
 	/** Verify if enabled in the current context, use #WM_keymap_poll instead of direct calls. */
-	int (*poll)(struct bContext *);
+	bool (*poll)(struct bContext *);
 	/** For modal, #EnumPropertyItem for now. */
 	const void *modal_items;
 } wmKeyMap;

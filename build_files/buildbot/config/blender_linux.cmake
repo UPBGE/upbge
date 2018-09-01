@@ -1,11 +1,21 @@
 # ######## Global feature set settings ########
 
-include("${CMAKE_CURRENT_LIST_DIR}/../../cmake/config/blender_full.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/../../cmake/config/blender_release.cmake")
 
 # Detect which libc we'll be linking against.
 # Some of the paths will depend on this
 
-if(EXISTS "/lib/x86_64-linux-gnu/libc-2.19.so")
+if(EXISTS "/lib/x86_64-linux-gnu/libc-2.24.so")
+	message(STATUS "Building in GLibc-2.24 environment")
+	set(GLIBC "2.24")
+	set(MULTILIB "/x86_64-linux-gnu")
+	set(LIBDIR_NAME "linux_x86_64")
+elseif(EXISTS "/lib/i386-linux-gnu//libc-2.24.so")
+	message(STATUS "Building in GLibc-2.24 environment")
+	set(GLIBC "2.24")
+	set(MULTILIB "/i386-linux-gnu")
+	set(LIBDIR_NAME "linux_i686")
+elseif(EXISTS "/lib/x86_64-linux-gnu/libc-2.19.so")
 	message(STATUS "Building in GLibc-2.19 environment")
 	set(GLIBC "2.19")
 	set(MULTILIB "/x86_64-linux-gnu")
@@ -41,7 +51,10 @@ set(WITH_PYTHON_INSTALL_NUMPY    ON CACHE BOOL "" FORCE)
 set(WITH_PYTHON_INSTALL_REQUESTS ON CACHE BOOL "" FORCE)
 
 # ######## Release environment specific settings ########
-# All the hardcoded libraru paths and such
+
+if (NOT ${GLIBC} STREQUAL "2.24")
+
+# All the hardcoded library paths and such
 
 # LLVM libraries
 set(LLVM_VERSION             "3.4"  CACHE STRING "" FORCE)
@@ -74,7 +87,7 @@ set(SNDFILE_LIBRARY          "/usr/lib${MULTILIB}/libsndfile.a;/usr/lib${MULTILI
 
 # OpenAL libraries
 set(OPENAL_ROOT_DIR           "/opt/lib/openal" CACHE STRING "" FORCE)
-set(OPENAL_INCLUDE_DIR        "${OPENAL_ROOT_DIR}/include" CACHE STRING "" FORCE)
+set(OPENAL_INCLUDE_DIR        "${OPENAL_ROOT_DIR}/include/AL" CACHE STRING "" FORCE)
 set(OPENAL_LIBRARY
 	${OPENAL_ROOT_DIR}/lib/libopenal.a
 	${OPENAL_ROOT_DIR}/lib/libcommon.a
@@ -148,5 +161,28 @@ set(BLOSC_LIBRARY
 	CACHE BOOL "" FORCE
 )
 
+else()
+
+set(LIBDIR "/opt/blender-deps/${LIBDIR_NAME}" CACHE BOOL "" FORCE)
+
+# TODO(sergey): Remove once Python is oficially bumped to 3.7.
+set(PYTHON_VERSION    3.7 CACHE BOOL "" FORCE)
+
+# Platform specific configuration, to ensure static linking against everything.
+
+set(Boost_USE_STATIC_LIBS    ON CACHE BOOL "" FORCE)
+
+# TODO(sergey): Move up to the rest of WITH_SYSTEM and DYNLOAD configuration,
+# once old chroot is officially retired.
+set(WITH_SYSTEM_OPENJPEG     ON CACHE BOOL "" FORCE)
+
+# We need to link OpenCOLLADA against PCRE library. Even though it is not installed
+# on /usr, we do not really care -- all we care is PCRE_FOUND be TRUE and its
+# library pointing to a valid one.
+set(PCRE_INCLUDE_DIR          "/usr/include"                        CACHE STRING "" FORCE)
+set(PCRE_LIBRARY              "${LIBDIR}/opencollada/lib/libpcre.a" CACHE STRING "" FORCE)
+
+endif()
+
 # Additional linking libraries
-set(CMAKE_EXE_LINKER_FLAGS   "-lrt -static-libstdc++"  CACHE STRING "" FORCE)
+set(CMAKE_EXE_LINKER_FLAGS   "-lrt -static-libstdc++ -no-pie"  CACHE STRING "" FORCE)

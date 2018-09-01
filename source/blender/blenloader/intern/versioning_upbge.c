@@ -167,17 +167,6 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
 	}
 
 	if (!MAIN_VERSION_UPBGE_ATLEAST(main, 1, 5)) {
-		for (bScreen *sc = main->screen.first; sc; sc = sc->id.next) {
-			for (ScrArea *sa = sc->areabase.first; sa; sa = sa->next) {
-				for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
-					if (sl->spacetype == SPACE_VIEW3D) {
-						View3D *v3d = (View3D *)sl;
-						v3d->flag3 = V3D_SHOW_MIST;
-					}
-				}
-			}
-		}
-
 		if (!DNA_struct_elem_find(fd->filesdna, "Object", "float", "lodfactor")) {
 			for (Object *ob = main->object.first; ob; ob = ob->id.next) {
 				ob->lodfactor = 1.0f;
@@ -277,6 +266,7 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
 			}
 		}
 	}
+
 	if (!MAIN_VERSION_UPBGE_ATLEAST(main, 2, 4)) {
 		FOREACH_NODETREE(main, ntree, id) {
 			if (ntree->type == NTREE_SHADER) {
@@ -301,11 +291,22 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
 				}
 			}
 		} FOREACH_NODETREE_END
-		
+
 		if (!DNA_struct_elem_find(fd->filesdna, "Lamp", "float", "cutoff")) {
 			for (Lamp *lamp = main->lamp.first; lamp; lamp = lamp->id.next) {
 				lamp->radius = 8.0f;
 				lamp->cutoff = 0.001f;
+			}
+		}
+
+		for (bScreen *sc = main->screen.first; sc; sc = sc->id.next) {
+			for (ScrArea *sa = sc->areabase.first; sa; sa = sa->next) {
+				for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
+					if (sl->spacetype == SPACE_VIEW3D) {
+						View3D *v3d = (View3D *)sl;
+						v3d->flag2 |= V3D_SHOW_MIST;
+					}
+				}
 			}
 		}
 	}

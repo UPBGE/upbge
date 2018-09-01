@@ -20,8 +20,8 @@
  *		Monique Dewanchand
  */
 
-#ifndef _COM_ReadBufferOperation_h
-#define _COM_ReadBufferOperation_h
+#ifndef __COM_READBUFFEROPERATION_H__
+#define __COM_READBUFFEROPERATION_H__
 
 #include "COM_NodeOperation.h"
 #include "COM_MemoryProxy.h"
@@ -38,7 +38,7 @@ public:
 	void setMemoryProxy(MemoryProxy *memoryProxy) { this->m_memoryProxy = memoryProxy; }
 	MemoryProxy *getMemoryProxy() { return this->m_memoryProxy; }
 	void determineResolution(unsigned int resolution[2], unsigned int preferredResolution[2]);
-	
+
 	void *initializeTileData(rcti *rect);
 	void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
 	void executePixelExtend(float output[4], float x, float y, PixelSampler sampler,

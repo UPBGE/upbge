@@ -20,8 +20,8 @@
  *		Monique Dewanchand
  */
 
-#ifndef _COM_VectorCurveOperation_h
-#define _COM_VectorCurveOperation_h
+#ifndef __COM_VECTORCURVEOPERATION_H__
+#define __COM_VECTORCURVEOPERATION_H__
 #include "COM_NodeOperation.h"
 #include "COM_CurveBaseOperation.h"
 
@@ -33,17 +33,17 @@ private:
 	SocketReader *m_inputProgram;
 public:
 	VectorCurveOperation();
-	
+
 	/**
 	 * the inner loop of this program
 	 */
 	void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
-	
+
 	/**
 	 * Initialize the execution
 	 */
 	void initExecution();
-	
+
 	/**
 	 * Deinitialize the execution
 	 */

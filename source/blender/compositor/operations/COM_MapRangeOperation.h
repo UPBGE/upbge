@@ -20,8 +20,8 @@
  *		Daniel Salazar
  */
 
-#ifndef _COM_MapRangeOperation_h
-#define _COM_MapRangeOperation_h
+#ifndef __COM_MAPRANGEOPERATION_H__
+#define __COM_MAPRANGEOPERATION_H__
 #include "COM_NodeOperation.h"
 #include "DNA_texture_types.h"
 
@@ -46,26 +46,26 @@ public:
 	 * Default constructor
 	 */
 	MapRangeOperation();
-	
+
 	/**
 	 * the inner loop of this program
 	 */
 	void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
-	
+
 	/**
 	 * Initialize the execution
 	 */
 	void initExecution();
-	
+
 	/**
 	 * Deinitialize the execution
 	 */
 	void deinitExecution();
-	
+
 	/**
 	 * Clamp the output
 	 */
 	void setUseClamp(bool value) { this->m_useClamp = value; }
-	
+
 };
 #endif

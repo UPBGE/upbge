@@ -470,7 +470,7 @@ void CLG_logf(
 static void CLG_ctx_output_set(CLogContext *ctx, void *file_handle)
 {
 	ctx->output_file = file_handle;
-	ctx->output = fileno(file_handle);
+	ctx->output = fileno(ctx->output_file);
 #if defined(__unix__) || defined(__APPLE__)
 	ctx->use_color = isatty(ctx->output);
 #endif
@@ -559,7 +559,7 @@ static void CLG_ctx_free(CLogContext *ctx)
  * \{ */
 
 /* We could support multiple at once, for now this seems not needed. */
-struct CLogContext *g_ctx = NULL;
+static struct CLogContext *g_ctx = NULL;
 
 void CLG_init(void)
 {

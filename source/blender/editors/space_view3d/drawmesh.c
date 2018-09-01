@@ -1253,4 +1253,3 @@ void draw_mesh_paint(View3D *v3d, RegionView3D *rv3d,
 		}
 	}
 }
-

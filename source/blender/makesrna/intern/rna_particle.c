@@ -696,7 +696,7 @@ static void rna_Particle_change_physics_type(Main *bmain, Scene *scene, PointerR
 		BLI_addtail(&state->rules, boid_new_rule(eBoidRuleType_Separate));
 		BLI_addtail(&state->rules, boid_new_rule(eBoidRuleType_Flock));
 
-		((BoidRule*)state->rules.first)->flag |= BOIDRULE_CURRENT;
+		((BoidRule *)state->rules.first)->flag |= BOIDRULE_CURRENT;
 
 		state->flag |= BOIDSTATE_CURRENT;
 		BLI_addtail(&part->boids->states, state);
@@ -935,7 +935,7 @@ static float rna_PartSetting_linelenhead_get(struct PointerRNA *ptr)
 }
 
 
-static int rna_PartSettings_is_fluid_get(PointerRNA *ptr)
+static bool rna_PartSettings_is_fluid_get(PointerRNA *ptr)
 {
 	ParticleSettings *part = (ParticleSettings *)ptr->data;
 
@@ -1095,19 +1095,19 @@ static char *rna_SPHFluidSettings_path(PointerRNA *ptr)
 	return NULL;
 }
 
-static int rna_ParticleSystem_multiple_caches_get(PointerRNA *ptr)
+static bool rna_ParticleSystem_multiple_caches_get(PointerRNA *ptr)
 {
 	ParticleSystem *psys = (ParticleSystem *)ptr->data;
 
 	return (psys->ptcaches.first != psys->ptcaches.last);
 }
-static int rna_ParticleSystem_editable_get(PointerRNA *ptr)
+static bool rna_ParticleSystem_editable_get(PointerRNA *ptr)
 {
 	ParticleSystem *psys = (ParticleSystem *)ptr->data;
 
 	return psys_check_edited(psys);
 }
-static int rna_ParticleSystem_edited_get(PointerRNA *ptr)
+static bool rna_ParticleSystem_edited_get(PointerRNA *ptr)
 {
 	ParticleSystem *psys = (ParticleSystem *)ptr->data;
 

@@ -20,8 +20,8 @@
  *		Monique Dewanchand
  */
 
-#ifndef _COM_Converter_h
-#define _COM_Converter_h
+#ifndef __COM_CONVERTER_H__
+#define __COM_CONVERTER_H__
 
 #ifdef WITH_CXX_GUARDEDALLOC
 #  include "MEM_guardedalloc.h"
@@ -50,14 +50,14 @@ public:
 	 * @see Node
 	 */
 	static Node *convert(bNode *b_node);
-	
+
 	/**
 	 * @brief True if the node is considered 'fast'.
 	 *
 	 * Slow nodes will be skipped if fast execution is required.
 	 */
 	static bool is_fast_node(bNode *b_node);
-	
+
 	/**
 	 * @brief This method will add a datetype conversion rule when the to-socket does not support the from-socket actual data type.
 	 *
@@ -68,7 +68,7 @@ public:
 	 * @see NodeLink - a link between two sockets
 	 */
 	static NodeOperation *convertDataType(NodeOperationOutput *from, NodeOperationInput *to);
-	
+
 	/**
 	 * @brief This method will add a resolution rule based on the settings of the NodeInput.
 	 *

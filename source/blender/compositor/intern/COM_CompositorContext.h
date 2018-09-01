@@ -20,8 +20,8 @@
  *		Monique Dewanchand
  */
 
-#ifndef _COM_CompositorContext_h
-#define _COM_CompositorContext_h
+#ifndef __COM_COMPOSITORCONTEXT_H__
+#define __COM_COMPOSITORCONTEXT_H__
 
 #include <vector>
 #include <string>
@@ -126,7 +126,7 @@ public:
 	 * @brief get the scene of the context
 	 */
 	const RenderData *getRenderData() const { return this->m_rd; }
-	
+
 	void setScene(Scene *scene) { m_scene = scene; }
 	Scene *getScene() const { return m_scene; }
 
@@ -196,7 +196,7 @@ public:
 	void setViewName(const char *viewName) { this->m_viewName = viewName; }
 
 	int getChunksize() const { return this->getbNodeTree()->chunksize; }
-	
+
 	void setFastCalculation(bool fastCalculation) {this->m_fastCalculation = fastCalculation;}
 	bool isFastCalculation() const { return this->m_fastCalculation; }
 	bool isGroupnodeBufferEnabled() const { return (this->getbNodeTree()->flag & NTREE_COM_GROUPNODE_BUFFER) != 0; }

@@ -1350,11 +1350,11 @@ int main(int argc,
 							GPU_init();
 
 							if (SYS_GetCommandLineInt(syshandle, "nomipmap", 0)) {
-								GPU_set_mipmap(0);
+								GPU_set_mipmap(G.main, 0);
 							}
 
-							GPU_set_anisotropic(U.anisotropic_filter);
-							GPU_set_gpu_mipmapping(U.use_gpu_mipmap);
+							GPU_set_anisotropic(G.main, U.anisotropic_filter);
+							GPU_set_gpu_mipmapping(G.main, U.use_gpu_mipmap);
 							GPU_set_linear_mipmap(true);
 						}
 

@@ -123,7 +123,7 @@ static void engine_tag_update(RenderEngine *engine)
 	engine->flag |= RE_ENGINE_DO_UPDATE;
 }
 
-static int engine_support_display_space_shader(RenderEngine *UNUSED(engine), Scene *scene)
+static bool engine_support_display_space_shader(RenderEngine *UNUSED(engine), Scene *scene)
 {
 	return IMB_colormanagement_support_glsl_draw(&scene->view_settings);
 }
@@ -613,6 +613,7 @@ static void rna_def_render_engine(BlenderRNA *brna)
 	RNA_def_boolean(func, "use_spherical_stereo", 0, "Spherical Stereo", "");
 	parm = RNA_def_float_matrix(func, "r_model_matrix", 4, 4, NULL, 0.0f, 0.0f, "Model Matrix", "Normalized camera model matrix", 0.0f, 0.0f);
 	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
+	RNA_def_function_output(func, parm);
 
 	func = RNA_def_function(srna, "use_spherical_stereo", "RE_engine_get_spherical_stereo");
 	parm = RNA_def_pointer(func, "camera", "Object", "", "");

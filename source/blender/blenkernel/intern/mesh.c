@@ -106,7 +106,7 @@ static int customdata_compare(CustomData *c1, CustomData *c2, Mesh *m1, Mesh *m2
 	const float thresh_sq = thresh * thresh;
 	CustomDataLayer *l1, *l2;
 	int i, i1 = 0, i2 = 0, tot, j;
-	
+
 	for (i = 0; i < c1->totlayer; i++) {
 		if (ELEM(c1->layers[i].type, CD_MVERT, CD_MEDGE, CD_MPOLY,
 		         CD_MLOOPUV, CD_MLOOPCOL, CD_MTEXPOLY, CD_MDEFORMVERT))
@@ -125,7 +125,7 @@ static int customdata_compare(CustomData *c1, CustomData *c2, Mesh *m1, Mesh *m2
 
 	if (i1 != i2)
 		return MESHCMP_CDLAYERS_MISMATCH;
-	
+
 	l1 = c1->layers; l2 = c2->layers;
 	tot = i1;
 	i1 = 0; i2 = 0;
@@ -143,52 +143,52 @@ static int customdata_compare(CustomData *c1, CustomData *c2, Mesh *m1, Mesh *m2
 			i2++;
 			l2++;
 		}
-		
+
 		if (l1->type == CD_MVERT) {
 			MVert *v1 = l1->data;
 			MVert *v2 = l2->data;
 			int vtot = m1->totvert;
-			
+
 			for (j = 0; j < vtot; j++, v1++, v2++) {
 				if (len_squared_v3v3(v1->co, v2->co) > thresh_sq)
 					return MESHCMP_VERTCOMISMATCH;
 				/* I don't care about normals, let's just do coodinates */
 			}
 		}
-		
+
 		/*we're order-agnostic for edges here*/
 		if (l1->type == CD_MEDGE) {
 			MEdge *e1 = l1->data;
 			MEdge *e2 = l2->data;
 			int etot = m1->totedge;
 			EdgeHash *eh = BLI_edgehash_new_ex(__func__, etot);
-		
+
 			for (j = 0; j < etot; j++, e1++) {
 				BLI_edgehash_insert(eh, e1->v1, e1->v2, e1);
 			}
-			
+
 			for (j = 0; j < etot; j++, e2++) {
 				if (!BLI_edgehash_lookup(eh, e2->v1, e2->v2))
 					return MESHCMP_EDGEUNKNOWN;
 			}
 			BLI_edgehash_free(eh, NULL);
 		}
-		
+
 		if (l1->type == CD_MPOLY) {
 			MPoly *p1 = l1->data;
 			MPoly *p2 = l2->data;
 			int ptot = m1->totpoly;
-		
+
 			for (j = 0; j < ptot; j++, p1++, p2++) {
 				MLoop *lp1, *lp2;
 				int k;
-				
+
 				if (p1->totloop != p2->totloop)
 					return MESHCMP_POLYMISMATCH;
-				
+
 				lp1 = m1->mloop + p1->loopstart;
 				lp2 = m2->mloop + p2->loopstart;
-				
+
 				for (k = 0; k < p1->totloop; k++, lp1++, lp2++) {
 					if (lp1->v != lp2->v)
 						return MESHCMP_POLYVERTMISMATCH;
@@ -199,7 +199,7 @@ static int customdata_compare(CustomData *c1, CustomData *c2, Mesh *m1, Mesh *m2
 			MLoop *lp1 = l1->data;
 			MLoop *lp2 = l2->data;
 			int ltot = m1->totloop;
-		
+
 			for (j = 0; j < ltot; j++, lp1++, lp2++) {
 				if (lp1->v != lp2->v)
 					return MESHCMP_LOOPMISMATCH;
@@ -209,22 +209,22 @@ static int customdata_compare(CustomData *c1, CustomData *c2, Mesh *m1, Mesh *m2
 			MLoopUV *lp1 = l1->data;
 			MLoopUV *lp2 = l2->data;
 			int ltot = m1->totloop;
-		
+
 			for (j = 0; j < ltot; j++, lp1++, lp2++) {
 				if (len_squared_v2v2(lp1->uv, lp2->uv) > thresh_sq)
 					return MESHCMP_LOOPUVMISMATCH;
 			}
 		}
-		
+
 		if (l1->type == CD_MLOOPCOL) {
 			MLoopCol *lp1 = l1->data;
 			MLoopCol *lp2 = l2->data;
 			int ltot = m1->totloop;
-		
+
 			for (j = 0; j < ltot; j++, lp1++, lp2++) {
-				if (ABS(lp1->r - lp2->r) > thresh || 
-				    ABS(lp1->g - lp2->g) > thresh || 
-				    ABS(lp1->b - lp2->b) > thresh || 
+				if (ABS(lp1->r - lp2->r) > thresh ||
+				    ABS(lp1->g - lp2->g) > thresh ||
+				    ABS(lp1->b - lp2->b) > thresh ||
 				    ABS(lp1->a - lp2->a) > thresh)
 				{
 					return MESHCMP_LOOPCOLMISMATCH;
@@ -236,14 +236,14 @@ static int customdata_compare(CustomData *c1, CustomData *c2, Mesh *m1, Mesh *m2
 			MDeformVert *dv1 = l1->data;
 			MDeformVert *dv2 = l2->data;
 			int dvtot = m1->totvert;
-		
+
 			for (j = 0; j < dvtot; j++, dv1++, dv2++) {
 				int k;
 				MDeformWeight *dw1 = dv1->dw, *dw2 = dv2->dw;
-				
+
 				if (dv1->totweight != dv2->totweight)
 					return MESHCMP_DVERT_TOTGROUPMISMATCH;
-				
+
 				for (k = 0; k < dv1->totweight; k++, dw1++, dw2++) {
 					if (dw1->def_nr != dw2->def_nr)
 						return MESHCMP_DVERT_GROUPMISMATCH;
@@ -253,7 +253,7 @@ static int customdata_compare(CustomData *c1, CustomData *c2, Mesh *m1, Mesh *m2
 			}
 		}
 	}
-	
+
 	return 0;
 }
 
@@ -266,22 +266,22 @@ static int customdata_compare(CustomData *c1, CustomData *c2, Mesh *m1, Mesh *m2
 const char *BKE_mesh_cmp(Mesh *me1, Mesh *me2, float thresh)
 {
 	int c;
-	
+
 	if (!me1 || !me2)
 		return "Requires two input meshes";
-	
-	if (me1->totvert != me2->totvert) 
+
+	if (me1->totvert != me2->totvert)
 		return "Number of verts don't match";
-	
+
 	if (me1->totedge != me2->totedge)
 		return "Number of edges don't match";
-	
+
 	if (me1->totpoly != me2->totpoly)
 		return "Number of faces don't match";
-				
+
 	if (me1->totloop != me2->totloop)
 		return "Number of loops don't match";
-	
+
 	if ((c = customdata_compare(&me1->vdata, &me2->vdata, me1, me2, thresh)))
 		return cmpcode_to_str(c);
 
@@ -293,7 +293,7 @@ const char *BKE_mesh_cmp(Mesh *me1, Mesh *me2, float thresh)
 
 	if ((c = customdata_compare(&me1->pdata, &me2->pdata, me1, me2, thresh)))
 		return cmpcode_to_str(c);
-	
+
 	return NULL;
 }
 
@@ -347,8 +347,9 @@ void BKE_mesh_ensure_skin_customdata(Mesh *me)
 
 			/* Mark an arbitrary vertex as root */
 			BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
-				vs = CustomData_bmesh_get(&bm->vdata, v->head.data,
-				                          CD_MVERT_SKIN);
+				vs = CustomData_bmesh_get(
+				        &bm->vdata, v->head.data,
+				        CD_MVERT_SKIN);
 				vs->flag |= MVERT_SKIN_ROOT;
 				break;
 			}
@@ -356,11 +357,12 @@ void BKE_mesh_ensure_skin_customdata(Mesh *me)
 	}
 	else {
 		if (!CustomData_has_layer(&me->vdata, CD_MVERT_SKIN)) {
-			vs = CustomData_add_layer(&me->vdata,
-			                          CD_MVERT_SKIN,
-			                          CD_DEFAULT,
-			                          NULL,
-			                          me->totvert);
+			vs = CustomData_add_layer(
+			        &me->vdata,
+			        CD_MVERT_SKIN,
+			        CD_DEFAULT,
+			        NULL,
+			        me->totvert);
 
 			/* Mark an arbitrary vertex as root */
 			if (vs) {
@@ -400,7 +402,7 @@ void BKE_mesh_update_customdata_pointers(Mesh *me, const bool do_ensure_tess_cd)
 	me->mface = CustomData_get_layer(&me->fdata, CD_MFACE);
 	me->mcol = CustomData_get_layer(&me->fdata, CD_MCOL);
 	me->mtface = CustomData_get_layer(&me->fdata, CD_MTFACE);
-	
+
 	me->mpoly = CustomData_get_layer(&me->pdata, CD_MPOLY);
 	me->mloop = CustomData_get_layer(&me->ldata, CD_MLOOP);
 
@@ -550,8 +552,9 @@ void BKE_mesh_make_local(Main *bmain, Mesh *me, const bool lib_local)
 	BKE_id_make_local_generic(bmain, &me->id, true, lib_local);
 }
 
-bool BKE_mesh_uv_cdlayer_rename_index(Mesh *me, const int poly_index, const int loop_index, const int face_index,
-                                      const char *new_name, const bool do_tessface)
+bool BKE_mesh_uv_cdlayer_rename_index(
+        Mesh *me, const int poly_index, const int loop_index, const int face_index,
+        const char *new_name, const bool do_tessface)
 {
 	CustomData *pdata, *ldata, *fdata;
 	CustomDataLayer *cdlp, *cdlu, *cdlf;
@@ -673,13 +676,13 @@ void BKE_mesh_boundbox_calc(Mesh *me, float r_loc[3], float r_size[3])
 	BoundBox *bb;
 	float min[3], max[3];
 	float mloc[3], msize[3];
-	
+
 	if (me->bb == NULL) me->bb = MEM_callocN(sizeof(BoundBox), "boundbox");
 	bb = me->bb;
 
 	if (!r_loc) r_loc = mloc;
 	if (!r_size) r_size = msize;
-	
+
 	INIT_MINMAX(min, max);
 	if (!BKE_mesh_minmax(me, min, max)) {
 		min[0] = min[1] = min[2] = -1.0f;
@@ -687,11 +690,11 @@ void BKE_mesh_boundbox_calc(Mesh *me, float r_loc[3], float r_size[3])
 	}
 
 	mid_v3_v3v3(r_loc, min, max);
-		
+
 	r_size[0] = (max[0] - min[0]) / 2.0f;
 	r_size[1] = (max[1] - min[1]) / 2.0f;
 	r_size[2] = (max[2] - min[2]) / 2.0f;
-	
+
 	BKE_boundbox_init_from_minmax(bb, min, max);
 
 	bb->flag &= ~BOUNDBOX_DIRTY;
@@ -874,7 +877,7 @@ int test_index_face(MFace *mface, CustomData *fdata, int mfindex, int nr)
 
 Mesh *BKE_mesh_from_object(Object *ob)
 {
-	
+
 	if (ob == NULL) return NULL;
 	if (ob->type == OB_MESH) return ob->data;
 	else return NULL;
@@ -885,9 +888,9 @@ void BKE_mesh_assign_object(Main *bmain, Object *ob, Mesh *me)
 	Mesh *old = NULL;
 
 	multires_force_update(ob);
-	
+
 	if (ob == NULL) return;
-	
+
 	if (ob->type == OB_MESH) {
 		old = ob->data;
 		if (old)
@@ -895,7 +898,7 @@ void BKE_mesh_assign_object(Main *bmain, Object *ob, Mesh *me)
 		ob->data = me;
 		id_us_plus((ID *)me);
 	}
-	
+
 	test_object_materials(bmain, ob, (ID *)me);
 
 	test_object_modifiers(ob);
@@ -966,7 +969,7 @@ void BKE_mesh_material_remap(Mesh *me, const unsigned int *remap, unsigned int r
 
 }
 
-void BKE_mesh_smooth_flag_set(Object *meshOb, int enableSmooth) 
+void BKE_mesh_smooth_flag_set(Object *meshOb, int enableSmooth)
 {
 	Mesh *me = meshOb->data;
 	int i;
@@ -981,7 +984,7 @@ void BKE_mesh_smooth_flag_set(Object *meshOb, int enableSmooth)
 			mp->flag &= ~ME_SMOOTH;
 		}
 	}
-	
+
 	for (i = 0; i < me->totface; i++) {
 		MFace *mf = &me->mface[i];
 
@@ -1023,7 +1026,7 @@ int poly_find_loop_from_vert(
 		if (loopstart->v == vert)
 			return j;
 	}
-	
+
 	return -1;
 }
 
@@ -1037,10 +1040,11 @@ int poly_get_adj_loops_from_vert(
         const MLoop *mloop, unsigned int vert,
         unsigned int r_adj[2])
 {
-	int corner = poly_find_loop_from_vert(poly,
-	                                      &mloop[poly->loopstart],
-	                                      vert);
-		
+	int corner = poly_find_loop_from_vert(
+	        poly,
+	        &mloop[poly->loopstart],
+	        vert);
+
 	if (corner != -1) {
 #if 0	/* unused - this loop */
 		const MLoop *ml = &mloop[poly->loopstart + corner];
@@ -1076,7 +1080,7 @@ bool BKE_mesh_minmax(const Mesh *me, float r_min[3], float r_max[3])
 	for (mvert = me->mvert; i--; mvert++) {
 		minmax_v3v3_v3(r_min, r_max, mvert->co);
 	}
-	
+
 	return (me->totvert != 0);
 }
 
@@ -1119,7 +1123,7 @@ void BKE_mesh_translate(Mesh *me, const float offset[3], const bool do_keys)
 	for (mvert = me->mvert; i--; mvert++) {
 		add_v3_v3(mvert->co, offset);
 	}
-	
+
 	if (do_keys && me->key) {
 		KeyBlock *kb;
 		for (kb = me->key->block.first; kb; kb = kb->next) {
@@ -1147,11 +1151,12 @@ void BKE_mesh_ensure_navmesh(Mesh *me)
 
 void BKE_mesh_tessface_calc(Mesh *mesh)
 {
-	mesh->totface = BKE_mesh_recalc_tessellation(&mesh->fdata, &mesh->ldata, &mesh->pdata,
-	                                             mesh->mvert,
-	                                             mesh->totface, mesh->totloop, mesh->totpoly,
-	                                             /* calc normals right after, don't copy from polys here */
-	                                             false);
+	mesh->totface = BKE_mesh_recalc_tessellation(
+	        &mesh->fdata, &mesh->ldata, &mesh->pdata,
+	        mesh->mvert,
+	        mesh->totface, mesh->totloop, mesh->totpoly,
+	        /* calc normals right after, don't copy from polys here */
+	        false);
 
 	BKE_mesh_update_customdata_pointers(mesh, true);
 }
@@ -1370,8 +1375,8 @@ void BKE_mesh_calc_normals_split_ex(Mesh *mesh, MLoopNorSpaceArray *r_lnors_spac
 	else {
 		polynors = MEM_malloc_arrayN(mesh->totpoly, sizeof(float[3]), __func__);
 		BKE_mesh_calc_normals_poly(
-		            mesh->mvert, NULL, mesh->totvert,
-		            mesh->mloop, mesh->mpoly, mesh->totloop, mesh->totpoly, polynors, false);
+		        mesh->mvert, NULL, mesh->totvert,
+		        mesh->mloop, mesh->mpoly, mesh->totloop, mesh->totpoly, polynors, false);
 		free_polynors = true;
 	}
 
@@ -1650,8 +1655,9 @@ void BKE_mesh_split_faces(Mesh *mesh, bool free_loop_normals)
 
 /* **** Depsgraph evaluation **** */
 
-void BKE_mesh_eval_geometry(EvaluationContext *UNUSED(eval_ctx),
-                            Mesh *mesh)
+void BKE_mesh_eval_geometry(
+        EvaluationContext *UNUSED(eval_ctx),
+        Mesh *mesh)
 {
 	DEG_debug_print_eval(__func__, mesh->id.name, mesh);
 	if (mesh->bb == NULL || (mesh->bb->flag & BOUNDBOX_DIRTY)) {

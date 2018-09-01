@@ -831,13 +831,15 @@ void OpenCLInfo::get_usable_devices(vector<OpenCLPlatformDevice> *usable_devices
 				FIRST_VLOG(2) << "Adding new device "
 				              << readable_device_name << ".";
 				string hardware_id = get_hardware_id(platform_name, device_id);
+				string device_extensions = get_device_extensions(device_id);
 				usable_devices->push_back(OpenCLPlatformDevice(
 				        platform_id,
 				        platform_name,
 				        device_id,
 				        device_type,
 				        readable_device_name,
-				        hardware_id));
+				        hardware_id,
+				        device_extensions));
 			}
 			else {
 				FIRST_VLOG(2) << "Ignoring device " << device_name
@@ -1047,6 +1049,40 @@ string OpenCLInfo::get_device_name(cl_device_id device_id)
 	return device_name;
 }
 
+bool OpenCLInfo::get_device_extensions(cl_device_id device_id,
+	string *device_extensions,
+	cl_int* error)
+{
+	char buffer[1024];
+	cl_int err;
+	if((err = clGetDeviceInfo(device_id,
+		CL_DEVICE_EXTENSIONS,
+		sizeof(buffer),
+		&buffer,
+		NULL)) != CL_SUCCESS)
+	{
+		if(error != NULL) {
+			*error = err;
+		}
+		*device_extensions = "";
+		return false;
+	}
+	if(error != NULL) {
+		*error = CL_SUCCESS;
+	}
+	*device_extensions = buffer;
+	return true;
+}
+
+string OpenCLInfo::get_device_extensions(cl_device_id device_id)
+{
+	string device_extensions;
+	if(!get_device_extensions(device_id, &device_extensions)) {
+		return "";
+	}
+	return device_extensions;
+}
+
 bool OpenCLInfo::get_device_type(cl_device_id device_id,
                                  cl_device_type *device_type,
                                  cl_int* error)
@@ -1098,6 +1134,21 @@ string OpenCLInfo::get_readable_device_name(cl_device_id device_id)
 	/* Fallback to standard device name API. */
 	if(name.empty()) {
 		name = get_device_name(device_id);
+	}
+
+	/* Special exception for AMD Vega, need to be able to tell
+	 * Vega 56 from 64 apart.
+	 */
+	if(name == "Radeon RX Vega") {
+		cl_int max_compute_units = 0;
+		if(clGetDeviceInfo(device_id,
+		                   CL_DEVICE_MAX_COMPUTE_UNITS,
+		                   sizeof(max_compute_units),
+		                   &max_compute_units,
+		                   NULL) == CL_SUCCESS)
+		{
+			name += " " + to_string(max_compute_units);
+		}
 	}
 
 	/* Distinguish from our native CPU device. */

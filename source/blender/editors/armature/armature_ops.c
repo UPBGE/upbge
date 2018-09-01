@@ -201,7 +201,7 @@ void ED_keymap_armature(wmKeyConfig *keyconf)
 	wmKeyMapItem *kmi;
 
 	/* Armature ------------------------ */
-	keymap = WM_keymap_find(keyconf, "Armature", 0, 0);
+	keymap = WM_keymap_ensure(keyconf, "Armature", 0, 0);
 	keymap->poll = ED_operator_editarmature;
 
 	/* Armature -> Etch-A-Ton ------------------------ */
@@ -309,7 +309,7 @@ void ED_keymap_armature(wmKeyConfig *keyconf)
 
 	/* Pose ------------------------ */
 	/* only set in posemode, by space_view3d listener */
-	keymap = WM_keymap_find(keyconf, "Pose", 0, 0);
+	keymap = WM_keymap_ensure(keyconf, "Pose", 0, 0);
 	keymap->poll = ED_operator_posemode;
 
 	/* set parent and add object are object-based operators, but we make them
@@ -419,4 +419,3 @@ void ED_keymap_armature(wmKeyConfig *keyconf)
 	WM_keymap_add_menu(keymap, "VIEW3D_MT_pose_specials", WKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_menu(keymap, "VIEW3D_MT_pose_propagate", PKEY, KM_PRESS, KM_ALT, 0);
 }
-

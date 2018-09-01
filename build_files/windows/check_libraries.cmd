@@ -1,4 +1,3 @@
-if "%BUILD_VS_YEAR%"=="2013" set BUILD_VS_LIBDIRPOST=vc12
 if "%BUILD_VS_YEAR%"=="2015" set BUILD_VS_LIBDIRPOST=vc14
 if "%BUILD_VS_YEAR%"=="2017" set BUILD_VS_LIBDIRPOST=vc14
 
@@ -37,7 +36,7 @@ if NOT EXIST %BUILD_VS_LIBDIR% (
 				echo.
 				echo Error: Download of external libraries failed. 
 				echo This is needed for building, please manually run 'svn cleanup' and 'svn update' in
-				echo %BUILD_VS_LIBDIR% , until this is resolved you CANNOT make a successfull blender build
+				echo %BUILD_VS_LIBDIR% , until this is resolved you CANNOT make a successful blender build
 				echo.
 				exit /b 1
 			)

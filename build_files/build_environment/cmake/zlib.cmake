@@ -25,9 +25,31 @@ ExternalProject_Add(external_zlib
 	INSTALL_DIR ${LIBDIR}/zlib
 )
 
-if(BUILD_MODE STREQUAL Debug)
-	ExternalProject_Add_Step(external_zlib after_install
-		COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/zlib/lib/zlibstaticd${LIBEXT} ${LIBDIR}/zlib/lib/${ZLIB_LIBRARY}
+if (WIN32)
+	if(BUILD_MODE STREQUAL Release)
+		ExternalProject_Add_Step(external_zlib after_install
+			COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/zlib/lib/zlibstatic${LIBEXT} ${HARVEST_TARGET}/zlib/lib/libz_st${LIBEXT}
+			COMMAND ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/zlib/include/ ${HARVEST_TARGET}/zlib/include/
+			DEPENDEES install
+		)
+	endif()
+	if(BUILD_MODE STREQUAL Debug)
+		ExternalProject_Add_Step(external_zlib after_install
+		COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/zlib/lib/zlibstaticd${LIBEXT} ${HARVEST_TARGET}/zlib/lib/libz_st_d${LIBEXT}
 		DEPENDEES install
-	)
+		)
+	endif()
+else()
+	if(BUILD_MODE STREQUAL Debug)
+		ExternalProject_Add_Step(external_zlib after_install
+			COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/zlib/lib/zlibstaticd${LIBEXT} ${LIBDIR}/zlib/lib/${ZLIB_LIBRARY}
+			DEPENDEES install
+		)
+	endif()
+	if (UNIX AND NOT APPLE)
+		ExternalProject_Add_Step(external_zlib after_install
+			COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/zlib/lib/libz.a ${LIBDIR}/zlib/lib/libz_pic.a
+			DEPENDEES install
+		)
+	endif()
 endif()

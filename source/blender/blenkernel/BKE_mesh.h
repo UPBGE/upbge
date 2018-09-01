@@ -347,9 +347,6 @@ void BKE_mesh_recalc_looptri(
         const struct MVert *mvert,
         int totloop, int totpoly,
         struct MLoopTri *mlooptri);
-int BKE_mesh_mpoly_to_mface(
-        struct CustomData *fdata, struct CustomData *ldata,
-        struct CustomData *pdata, int totface, int totloop, int totpoly);
 void BKE_mesh_convert_mfaces_to_mpolys(struct Mesh *mesh);
 void BKE_mesh_do_versions_convert_mfaces_to_mpolys(struct Mesh *mesh);
 void BKE_mesh_convert_mfaces_to_mpolys_ex(
@@ -409,9 +406,9 @@ void BKE_mesh_calc_relative_deform(
 
 /* *** mesh_validate.c *** */
 
-int BKE_mesh_validate(struct Mesh *me, const int do_verbose, const int cddata_check_mask);
+bool BKE_mesh_validate(struct Mesh *me, const bool do_verbose, const bool cddata_check_mask);
 void BKE_mesh_cd_validate(struct Mesh *me);
-int BKE_mesh_validate_material_indices(struct Mesh *me);
+bool BKE_mesh_validate_material_indices(struct Mesh *me);
 
 bool BKE_mesh_validate_arrays(
         struct Mesh *me,

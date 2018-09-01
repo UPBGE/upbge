@@ -280,7 +280,7 @@ static void rna_MaterialStrand_end_size_range(PointerRNA *ptr, float *min, float
 	}
 }
 
-static int rna_MaterialTextureSlot_use_get(PointerRNA *ptr)
+static bool rna_MaterialTextureSlot_use_get(PointerRNA *ptr)
 {
 	Material *ma = (Material *)ptr->id.data;
 	MTex *mtex = (MTex *)ptr->data;
@@ -293,7 +293,7 @@ static int rna_MaterialTextureSlot_use_get(PointerRNA *ptr)
 	return 0;
 }
 
-static void rna_MaterialTextureSlot_use_set(PointerRNA *ptr, int value)
+static void rna_MaterialTextureSlot_use_set(PointerRNA *ptr, bool value)
 {
 	Material *ma = (Material *)ptr->id.data;
 	MTex *mtex = (MTex *)ptr->data;
@@ -309,7 +309,7 @@ static void rna_MaterialTextureSlot_use_set(PointerRNA *ptr, int value)
 	}
 }
 
-static void rna_Material_use_diffuse_ramp_set(PointerRNA *ptr, int value)
+static void rna_Material_use_diffuse_ramp_set(PointerRNA *ptr, bool value)
 {
 	Material *ma = (Material *)ptr->data;
 
@@ -320,7 +320,7 @@ static void rna_Material_use_diffuse_ramp_set(PointerRNA *ptr, int value)
 		ma->ramp_col = BKE_colorband_add(false);
 }
 
-static void rna_Material_use_specular_ramp_set(PointerRNA *ptr, int value)
+static void rna_Material_use_specular_ramp_set(PointerRNA *ptr, bool value)
 {
 	Material *ma = (Material *)ptr->data;
 

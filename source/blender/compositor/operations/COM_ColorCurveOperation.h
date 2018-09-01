@@ -20,8 +20,8 @@
  *		Monique Dewanchand
  */
 
-#ifndef _COM_ColorCurveOperation_h
-#define _COM_ColorCurveOperation_h
+#ifndef __COM_COLORCURVEOPERATION_H__
+#define __COM_COLORCURVEOPERATION_H__
 #include "COM_NodeOperation.h"
 #include "DNA_color_types.h"
 #include "COM_CurveBaseOperation.h"
@@ -37,17 +37,17 @@ private:
 	SocketReader *m_inputWhiteProgram;
 public:
 	ColorCurveOperation();
-	
+
 	/**
 	 * the inner loop of this program
 	 */
 	void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
-	
+
 	/**
 	 * Initialize the execution
 	 */
 	void initExecution();
-	
+
 	/**
 	 * Deinitialize the execution
 	 */
@@ -63,25 +63,25 @@ private:
 	SocketReader *m_inputImageProgram;
 	float m_black[3];
 	float m_white[3];
-	
+
 public:
 	ConstantLevelColorCurveOperation();
-	
+
 	/**
 	 * the inner loop of this program
 	 */
 	void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
-	
+
 	/**
 	 * Initialize the execution
 	 */
 	void initExecution();
-	
+
 	/**
 	 * Deinitialize the execution
 	 */
 	void deinitExecution();
-	
+
 	void setBlackLevel(float black[3]) { copy_v3_v3(this->m_black, black); }
 	void setWhiteLevel(float white[3]) { copy_v3_v3(this->m_white, white); }
 };

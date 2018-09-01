@@ -537,7 +537,7 @@ PythonComponent *BKE_python_component_create_file(char *import, ReportList *repo
 	}
 
 	strcpy(filename, modulename);
-	BLI_ensure_extension(filename, FILE_MAX, ".py");
+	BLI_path_extension_ensure(filename, FILE_MAX, ".py");
 
 	if (BLI_findstring(&maggie->text, filename, offsetof(ID, name) + 2)) {
 		BKE_reportf(reports, RPT_ERROR_INVALID_INPUT, "File %s already exists.", filename);

@@ -21,8 +21,8 @@
  */
 
 
-#ifndef _COM_TextureOperation_h
-#define _COM_TextureOperation_h
+#ifndef __COM_TEXTUREOPERATION_H__
+#define __COM_TEXTUREOPERATION_H__
 
 #include "COM_NodeOperation.h"
 #include "DNA_texture_types.h"
@@ -54,7 +54,7 @@ protected:
 	 * Determine the output resolution. The resolution is retrieved from the Renderer
 	 */
 	void determineResolution(unsigned int resolution[2], unsigned int preferredResolution[2]);
-	
+
 	/**
 	 * Constructor
 	 */

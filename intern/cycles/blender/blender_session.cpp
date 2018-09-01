@@ -28,6 +28,7 @@
 #include "render/scene.h"
 #include "render/session.h"
 #include "render/shader.h"
+#include "render/stats.h"
 
 #include "util/util_color.h"
 #include "util/util_foreach.h"
@@ -48,6 +49,7 @@ int BlenderSession::num_resumable_chunks = 0;
 int BlenderSession::current_resumable_chunk = 0;
 int BlenderSession::start_resumable_chunk = 0;
 int BlenderSession::end_resumable_chunk = 0;
+bool BlenderSession::print_render_stats = false;
 
 BlenderSession::BlenderSession(BL::RenderEngine& b_engine,
                                BL::UserPreferences& b_userpref,
@@ -408,26 +410,19 @@ void BlenderSession::render()
 
 		PointerRNA crl = RNA_pointer_get(&b_layer_iter->ptr, "cycles");
 		bool use_denoising = get_boolean(crl, "use_denoising");
-		buffer_params.denoising_data_pass = use_denoising;
+
 		session->tile_manager.schedule_denoising = use_denoising;
+		buffer_params.denoising_data_pass = use_denoising;
+		buffer_params.denoising_clean_pass = (scene->film->denoising_flags & DENOISING_CLEAN_ALL_PASSES);
+
 		session->params.use_denoising = use_denoising;
-		scene->film->denoising_data_pass = buffer_params.denoising_data_pass;
-		scene->film->denoising_flags = 0;
-		if(!get_boolean(crl, "denoising_diffuse_direct"))        scene->film->denoising_flags |= DENOISING_CLEAN_DIFFUSE_DIR;
-		if(!get_boolean(crl, "denoising_diffuse_indirect"))      scene->film->denoising_flags |= DENOISING_CLEAN_DIFFUSE_IND;
-		if(!get_boolean(crl, "denoising_glossy_direct"))         scene->film->denoising_flags |= DENOISING_CLEAN_GLOSSY_DIR;
-		if(!get_boolean(crl, "denoising_glossy_indirect"))       scene->film->denoising_flags |= DENOISING_CLEAN_GLOSSY_IND;
-		if(!get_boolean(crl, "denoising_transmission_direct"))   scene->film->denoising_flags |= DENOISING_CLEAN_TRANSMISSION_DIR;
-		if(!get_boolean(crl, "denoising_transmission_indirect")) scene->film->denoising_flags |= DENOISING_CLEAN_TRANSMISSION_IND;
-		if(!get_boolean(crl, "denoising_subsurface_direct"))     scene->film->denoising_flags |= DENOISING_CLEAN_SUBSURFACE_DIR;
-		if(!get_boolean(crl, "denoising_subsurface_indirect"))   scene->film->denoising_flags |= DENOISING_CLEAN_SUBSURFACE_IND;
-		scene->film->denoising_clean_pass = (scene->film->denoising_flags & DENOISING_CLEAN_ALL_PASSES);
-		buffer_params.denoising_clean_pass = scene->film->denoising_clean_pass;
 		session->params.denoising_radius = get_int(crl, "denoising_radius");
 		session->params.denoising_strength = get_float(crl, "denoising_strength");
 		session->params.denoising_feature_strength = get_float(crl, "denoising_feature_strength");
 		session->params.denoising_relative_pca = get_boolean(crl, "denoising_relative_pca");
 
+		scene->film->denoising_data_pass = buffer_params.denoising_data_pass;
+		scene->film->denoising_clean_pass = buffer_params.denoising_clean_pass;
 		scene->film->pass_alpha_threshold = b_layer_iter->pass_alpha_threshold();
 		scene->film->tag_passes_update(scene, passes);
 		scene->film->tag_update(scene);
@@ -491,6 +486,12 @@ void BlenderSession::render()
 
 		/* free result without merging */
 		end_render_result(b_engine, b_rr, true, true, false);
+
+		if(!b_engine.is_preview() && background && print_render_stats) {
+			RenderStats stats;
+			session->scene->collect_statistics(&stats);
+			printf("Render statistics:\n%s\n", stats.full_report().c_str());
+		}
 
 		if(session->progress.get_cancel())
 			break;

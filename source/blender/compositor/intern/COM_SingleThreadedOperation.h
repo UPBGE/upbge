@@ -20,14 +20,14 @@
  *		Monique Dewanchand
  */
 
-#ifndef _COM_SingleThreadedOperation_h
-#define _COM_SingleThreadedOperation_h
+#ifndef __COM_SINGLETHREADEDOPERATION_H__
+#define __COM_SINGLETHREADEDOPERATION_H__
 #include "COM_NodeOperation.h"
 
 class SingleThreadedOperation : public NodeOperation {
 private:
 	MemoryBuffer *m_cachedInstance;
-	
+
 protected:
 	inline bool isCached() {
 		return this->m_cachedInstance != NULL;
@@ -35,17 +35,17 @@ protected:
 
 public:
 	SingleThreadedOperation();
-	
+
 	/**
 	 * the inner loop of this program
 	 */
 	void executePixel(float output[4], int x, int y, void *data);
-	
+
 	/**
 	 * Initialize the execution
 	 */
 	void initExecution();
-	
+
 	/**
 	 * Deinitialize the execution
 	 */
@@ -54,7 +54,7 @@ public:
 	void *initializeTileData(rcti *rect);
 
 	virtual MemoryBuffer *createMemoryBuffer(rcti *rect) = 0;
-	
+
 	int isSingleThreaded() { return true; }
 };
 #endif

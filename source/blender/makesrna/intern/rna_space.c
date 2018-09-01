@@ -258,6 +258,8 @@ const EnumPropertyItem rna_enum_file_sort_items[] = {
 #include "DNA_userdef_types.h"
 
 #include "BLI_math.h"
+#include "BLI_path_util.h"
+#include "BLI_string.h"
 
 #include "BKE_animsys.h"
 #include "BKE_brush.h"
@@ -365,7 +367,7 @@ static void rna_area_region_from_regiondata(PointerRNA *ptr, ScrArea **r_sa, ARe
 	area_region_from_regiondata(sc, regiondata, r_sa, r_ar);
 }
 
-static int rna_Space_view2d_sync_get(PointerRNA *ptr)
+static bool rna_Space_view2d_sync_get(PointerRNA *ptr)
 {
 	ScrArea *sa;
 	ARegion *ar;
@@ -380,7 +382,7 @@ static int rna_Space_view2d_sync_get(PointerRNA *ptr)
 	return false;
 }
 
-static void rna_Space_view2d_sync_set(PointerRNA *ptr, int value)
+static void rna_Space_view2d_sync_set(PointerRNA *ptr, bool value)
 {
 	ScrArea *sa;
 	ARegion *ar;
@@ -475,7 +477,7 @@ static void rna_SpaceView3D_camera_update(Main *bmain, Scene *scene, PointerRNA 
 	}
 }
 
-static void rna_SpaceView3D_lock_camera_and_layers_set(PointerRNA *ptr, int value)
+static void rna_SpaceView3D_lock_camera_and_layers_set(PointerRNA *ptr, bool value)
 {
 	View3D *v3d = (View3D *)(ptr->data);
 	bScreen *sc = (bScreen *)ptr->id.data;
@@ -535,7 +537,7 @@ static float rna_View3D_GridScaleUnit_get(PointerRNA *ptr)
 	return ED_view3d_grid_scale(scene, v3d, NULL);
 }
 
-static void rna_SpaceView3D_layer_set(PointerRNA *ptr, const int *values)
+static void rna_SpaceView3D_layer_set(PointerRNA *ptr, const bool *values)
 {
 	View3D *v3d = (View3D *)(ptr->data);
 
@@ -792,7 +794,7 @@ static void rna_SpaceImageEditor_show_stereo_set(PointerRNA *ptr, int value)
 		sima->iuser.flag &= ~IMA_SHOW_STEREO;
 }
 
-static int rna_SpaceImageEditor_show_stereo_get(PointerRNA *ptr)
+static bool rna_SpaceImageEditor_show_stereo_get(PointerRNA *ptr)
 {
 	SpaceImage *sima = (SpaceImage *)(ptr->data);
 	return (sima->iuser.flag & IMA_SHOW_STEREO) != 0;
@@ -813,26 +815,26 @@ static void rna_SpaceImageEditor_show_stereo_update(Main *UNUSED(bmain), Scene *
 	}
 }
 
-static int rna_SpaceImageEditor_show_render_get(PointerRNA *ptr)
+static bool rna_SpaceImageEditor_show_render_get(PointerRNA *ptr)
 {
 	SpaceImage *sima = (SpaceImage *)(ptr->data);
 	return ED_space_image_show_render(sima);
 }
 
-static int rna_SpaceImageEditor_show_paint_get(PointerRNA *ptr)
+static bool rna_SpaceImageEditor_show_paint_get(PointerRNA *ptr)
 {
 	SpaceImage *sima = (SpaceImage *)(ptr->data);
 	return ED_space_image_show_paint(sima);
 }
 
-static int rna_SpaceImageEditor_show_uvedit_get(PointerRNA *ptr)
+static bool rna_SpaceImageEditor_show_uvedit_get(PointerRNA *ptr)
 {
 	SpaceImage *sima = (SpaceImage *)(ptr->data);
 	bScreen *sc = (bScreen *)ptr->id.data;
 	return ED_space_image_show_uvedit(sima, sc->scene->obedit);
 }
 
-static int rna_SpaceImageEditor_show_maskedit_get(PointerRNA *ptr)
+static bool rna_SpaceImageEditor_show_maskedit_get(PointerRNA *ptr)
 {
 	SpaceImage *sima = (SpaceImage *)(ptr->data);
 	bScreen *sc = (bScreen *)ptr->id.data;
@@ -844,7 +846,8 @@ static void rna_SpaceImageEditor_image_set(PointerRNA *ptr, PointerRNA value)
 	SpaceImage *sima = (SpaceImage *)(ptr->data);
 	bScreen *sc = (bScreen *)ptr->id.data;
 
-	ED_space_image_set(G.main, sima, sc->scene, sc->scene->obedit, (Image *)value.data);
+	BLI_assert(BKE_id_is_in_gobal_main(value.data));
+	ED_space_image_set(G_MAIN, sima, sc->scene, sc->scene->obedit, (Image *)value.data);
 }
 
 static void rna_SpaceImageEditor_mask_set(PointerRNA *ptr, PointerRNA value)
@@ -998,7 +1001,7 @@ static const EnumPropertyItem *rna_SpaceImageEditor_pivot_itemf(bContext *UNUSED
 
 /* Space Text Editor */
 
-static void rna_SpaceTextEditor_word_wrap_set(PointerRNA *ptr, int value)
+static void rna_SpaceTextEditor_word_wrap_set(PointerRNA *ptr, bool value)
 {
 	SpaceText *st = (SpaceText *)(ptr->data);
 
@@ -1405,7 +1408,7 @@ static void rna_SpaceGraphEditor_display_mode_update(Main *UNUSED(bmain), Scene 
 	ED_area_tag_refresh(sa);
 }
 
-static int rna_SpaceGraphEditor_has_ghost_curves_get(PointerRNA *ptr)
+static bool rna_SpaceGraphEditor_has_ghost_curves_get(PointerRNA *ptr)
 {
 	SpaceIpo *sipo = (SpaceIpo *)(ptr->data);
 	return (BLI_listbase_is_empty(&sipo->ghostCurves) == false);
@@ -1484,7 +1487,7 @@ static void rna_SpaceNodeEditor_node_tree_set(PointerRNA *ptr, const PointerRNA 
 	ED_node_tree_start(snode, (bNodeTree *)value.data, NULL, NULL);
 }
 
-static int rna_SpaceNodeEditor_node_tree_poll(PointerRNA *ptr, const PointerRNA value)
+static bool rna_SpaceNodeEditor_node_tree_poll(PointerRNA *ptr, const PointerRNA value)
 {
 	SpaceNode *snode = (SpaceNode *)ptr->data;
 	bNodeTree *ntree = (bNodeTree *)value.data;
@@ -1508,7 +1511,7 @@ static void rna_SpaceNodeEditor_tree_type_set(PointerRNA *ptr, int value)
 	SpaceNode *snode = (SpaceNode *)ptr->data;
 	ED_node_set_tree_type(snode, rna_node_tree_type_from_enum(value));
 }
-static int rna_SpaceNodeEditor_tree_type_poll(void *Cv, bNodeTreeType *type)
+static bool rna_SpaceNodeEditor_tree_type_poll(void *Cv, bNodeTreeType *type)
 {
 	bContext *C = (bContext *)Cv;
 	if (type->poll)
@@ -1611,7 +1614,7 @@ static void rna_SpaceClipEditor_view_type_update(Main *UNUSED(bmain), Scene *UNU
 
 /* File browser. */
 
-static int rna_FileSelectParams_use_lib_get(PointerRNA *ptr)
+static bool rna_FileSelectParams_use_lib_get(PointerRNA *ptr)
 {
 	FileSelectParams *params = ptr->data;
 
@@ -1640,6 +1643,16 @@ static const EnumPropertyItem *rna_FileSelectParams_recursion_level_itemf(
 
 	*r_free = false;
 	return fileselectparams_recursion_level_items;
+}
+
+static void rna_FileSelectPrams_filter_glob_set(PointerRNA *ptr, const char *value)
+{
+	FileSelectParams *params = ptr->data;
+
+	BLI_strncpy(params->filter_glob, value, sizeof(params->filter_glob));
+
+	/* Remove stupi things like last group being a wildcard-only one... */
+	BLI_path_extension_glob_validate(params->filter_glob);
 }
 
 static void rna_FileBrowser_FSMenuEntry_path_get(PointerRNA *ptr, char *value)
@@ -2616,12 +2629,12 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
 	prop = RNA_def_property(srna, "show_world", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag3", V3D_SHOW_WORLD);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag2", V3D_SHOW_WORLD);
 	RNA_def_property_ui_text(prop, "World Background", "Display world colors in the background");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
 	prop = RNA_def_property(srna, "show_mist", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag3", V3D_SHOW_MIST);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag2", V3D_SHOW_MIST);
 	RNA_def_property_ui_text(prop, "World Mist", "Display world mist");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_SpaceView3D_material_update");
 
@@ -4051,7 +4064,10 @@ static void rna_def_fileselect_params(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "filter_glob", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "filter_glob");
-	RNA_def_property_ui_text(prop, "Extension Filter", "");
+	RNA_def_property_ui_text(prop, "Extension Filter",
+	                         "UNIX shell-like filename patterns matching, supports wildcards ('*') "
+	                         "and list of patterns separated by ';'");
+	RNA_def_property_string_funcs(prop, NULL, NULL, "rna_FileSelectPrams_filter_glob_set");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_LIST, NULL);
 
 	prop = RNA_def_property(srna, "filter_search", PROP_STRING, PROP_NONE);

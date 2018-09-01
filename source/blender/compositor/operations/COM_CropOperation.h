@@ -20,8 +20,8 @@
  *		Monique Dewanchand
  */
 
-#ifndef _COM_CropOperation_h_
-#define _COM_CropOperation_h_
+#ifndef __COM_CROPOPERATION_H__
+#define __COM_CROPOPERATION_H__
 
 #include "COM_NodeOperation.h"
 
@@ -34,7 +34,7 @@ protected:
 	int m_xmin;
 	int m_ymax;
 	int m_ymin;
-	
+
 	void updateArea();
 public:
 	CropBaseOperation();

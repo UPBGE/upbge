@@ -19,8 +19,8 @@
  *		Dalai Felinto
  */
 
-#ifndef _COM_MapUVOperation_h
-#define _COM_MapUVOperation_h
+#ifndef __COM_MAPUVOPERATION_H__
+#define __COM_MAPUVOPERATION_H__
 #include "COM_NodeOperation.h"
 
 
@@ -33,7 +33,7 @@ private:
 	SocketReader *m_inputColorProgram;
 
 	float m_alpha;
-	
+
 public:
 	MapUVOperation();
 
@@ -53,7 +53,7 @@ public:
 	 * Initialize the execution
 	 */
 	void initExecution();
-	
+
 	/**
 	 * Deinitialize the execution
 	 */

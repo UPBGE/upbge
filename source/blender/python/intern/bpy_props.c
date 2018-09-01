@@ -133,6 +133,7 @@ static const EnumPropertyItem property_subtype_array_items[] = {
 	{PROP_XYZ, "XYZ", 0, "XYZ", ""},
 	{PROP_COLOR_GAMMA, "COLOR_GAMMA", 0, "Color Gamma", ""},
 	{PROP_LAYER, "LAYER", 0, "Layer", ""},
+	{PROP_LAYER_MEMBER, "LAYER_MEMBER", 0, "Layer Member", ""},
 
 	{PROP_NONE, "NONE", 0, "None", ""},
 	{0, NULL, 0, NULL, NULL}};
@@ -140,7 +141,7 @@ static const EnumPropertyItem property_subtype_array_items[] = {
 #define BPY_PROPDEF_SUBTYPE_ARRAY_DOC \
 "   :arg subtype: Enumerator in ['COLOR', 'TRANSLATION', 'DIRECTION', " \
                                 "'VELOCITY', 'ACCELERATION', 'MATRIX', 'EULER', 'QUATERNION', 'AXISANGLE', " \
-                                "'XYZ', 'COLOR_GAMMA', 'LAYER', 'NONE'].\n" \
+                                "'XYZ', 'COLOR_GAMMA', 'LAYER', 'LAYER_MEMBER', 'NONE'].\n" \
 "   :type subtype: string\n"
 
 /* PyObject's */
@@ -263,7 +264,7 @@ static void bpy_prop_update_cb(struct bContext *C, struct PointerRNA *ptr, struc
 	}
 }
 
-static int bpy_prop_boolean_get_cb(struct PointerRNA *ptr, struct PropertyRNA *prop)
+static bool bpy_prop_boolean_get_cb(struct PointerRNA *ptr, struct PropertyRNA *prop)
 {
 	PyObject **py_data = RNA_property_py_data_get(prop);
 	PyObject *py_func;
@@ -273,7 +274,7 @@ static int bpy_prop_boolean_get_cb(struct PointerRNA *ptr, struct PropertyRNA *p
 	PyGILState_STATE gilstate;
 	bool use_gil;
 	const bool is_write_ok = pyrna_write_check();
-	int value;
+	bool value;
 
 	BLI_assert(py_data != NULL);
 
@@ -301,11 +302,14 @@ static int bpy_prop_boolean_get_cb(struct PointerRNA *ptr, struct PropertyRNA *p
 		value = false;
 	}
 	else {
-		value = PyC_Long_AsI32(ret);
+		int value_i = PyC_Long_AsBool(ret);
 
-		if (value == -1 && PyErr_Occurred()) {
+		if (value_i == -1 && PyErr_Occurred()) {
 			PyC_Err_PrintWithFunc(py_func);
 			value = false;
+		}
+		else {
+			value = (bool)value_i;
 		}
 
 		Py_DECREF(ret);
@@ -321,7 +325,7 @@ static int bpy_prop_boolean_get_cb(struct PointerRNA *ptr, struct PropertyRNA *p
 	return value;
 }
 
-static void bpy_prop_boolean_set_cb(struct PointerRNA *ptr, struct PropertyRNA *prop, int value)
+static void bpy_prop_boolean_set_cb(struct PointerRNA *ptr, struct PropertyRNA *prop, bool value)
 {
 	PyObject **py_data = RNA_property_py_data_get(prop);
 	PyObject *py_func;
@@ -375,7 +379,7 @@ static void bpy_prop_boolean_set_cb(struct PointerRNA *ptr, struct PropertyRNA *
 	}
 }
 
-static int bpy_prop_poll_cb(struct PointerRNA *self, PointerRNA candidate, struct PropertyRNA *prop)
+static bool bpy_prop_poll_cb(struct PointerRNA *self, PointerRNA candidate, struct PropertyRNA *prop)
 {
 	PyObject *py_self;
 	PyObject *py_candidate;
@@ -420,7 +424,7 @@ static int bpy_prop_poll_cb(struct PointerRNA *self, PointerRNA candidate, struc
 	return result;
 }
 
-static void bpy_prop_boolean_array_get_cb(struct PointerRNA *ptr, struct PropertyRNA *prop, int *values)
+static void bpy_prop_boolean_array_get_cb(struct PointerRNA *ptr, struct PropertyRNA *prop, bool *values)
 {
 	PyObject **py_data = RNA_property_py_data_get(prop);
 	PyObject *py_func;
@@ -481,7 +485,7 @@ static void bpy_prop_boolean_array_get_cb(struct PointerRNA *ptr, struct Propert
 	}
 }
 
-static void bpy_prop_boolean_array_set_cb(struct PointerRNA *ptr, struct PropertyRNA *prop, const int *values)
+static void bpy_prop_boolean_array_set_cb(struct PointerRNA *ptr, struct PropertyRNA *prop, const bool *values)
 {
 	PyObject **py_data = RNA_property_py_data_get(prop);
 	PyObject *py_func;
@@ -511,7 +515,7 @@ static void bpy_prop_boolean_array_set_cb(struct PointerRNA *ptr, struct Propert
 	self = pyrna_struct_as_instance(ptr);
 	PyTuple_SET_ITEM(args, 0, self);
 
-	py_values = PyC_Tuple_PackArray_I32FromBool(values, len);
+	py_values = PyC_Tuple_PackArray_Bool(values, len);
 	PyTuple_SET_ITEM(args, 1, py_values);
 
 	ret = PyObject_CallObject(py_func, args);
@@ -1900,7 +1904,7 @@ static void bpy_prop_callback_assign_enum(struct PropertyRNA *prop, PyObject *ge
 "   :type description: string\n" \
 
 #define BPY_PROPDEF_UNIT_DOC \
-"   :arg unit: Enumerator in ['NONE', 'LENGTH', 'AREA', 'VOLUME', 'ROTATION', 'TIME', 'VELOCITY', 'ACCELERATION'].\n" \
+"   :arg unit: Enumerator in ['NONE', 'LENGTH', 'AREA', 'VOLUME', 'ROTATION', 'TIME', 'VELOCITY', 'ACCELERATION', 'MASS', 'CAMERA'].\n" \
 "   :type unit: string\n"	\
 
 #define BPY_PROPDEF_NUM_MIN_DOC \
@@ -2097,7 +2101,7 @@ static PyObject *BPy_BoolVectorProperty(PyObject *self, PyObject *args, PyObject
 	if (srna) {
 		const char *id = NULL, *name = NULL, *description = "";
 		int id_len;
-		int def[PYRNA_STACK_ARRAY] = {0};
+		bool def[PYRNA_STACK_ARRAY] = {0};
 		int size = 3;
 		PropertyRNA *prop;
 		PyObject *pydef = NULL;

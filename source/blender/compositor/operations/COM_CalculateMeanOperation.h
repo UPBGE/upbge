@@ -20,8 +20,8 @@
  *		Monique Dewanchand
  */
 
-#ifndef _COM_CalculateMeanOperation_h
-#define _COM_CalculateMeanOperation_h
+#ifndef __COM_CALCULATEMEANOPERATION_H__
+#define __COM_CALCULATEMEANOPERATION_H__
 #include "COM_NodeOperation.h"
 #include "DNA_node_types.h"
 
@@ -35,34 +35,34 @@ protected:
 	 * @brief Cached reference to the reader
 	 */
 	SocketReader *m_imageReader;
-	
+
 	bool m_iscalculated;
 	float m_result;
 	int m_setting;
 
 public:
 	CalculateMeanOperation();
-	
+
 	/**
 	 * the inner loop of this program
 	 */
 	void executePixel(float output[4], int x, int y, void *data);
-	
+
 	/**
 	 * Initialize the execution
 	 */
 	void initExecution();
-	
+
 	void *initializeTileData(rcti *rect);
-	
+
 	/**
 	 * Deinitialize the execution
 	 */
 	void deinitExecution();
-	
+
 	bool determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output);
 	void setSetting(int setting) { this->m_setting = setting; }
-	
+
 protected:
 	void calculateMean(MemoryBuffer *tile);
 };

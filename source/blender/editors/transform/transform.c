@@ -802,21 +802,18 @@ enum {
 wmKeyMap *transform_modal_keymap(wmKeyConfig *keyconf)
 {
 	static const EnumPropertyItem modal_items[] = {
-		{TFM_MODAL_CANCEL, "CANCEL", 0, "Cancel", ""},
 		{TFM_MODAL_CONFIRM, "CONFIRM", 0, "Confirm", ""},
-		{TFM_MODAL_TRANSLATE, "TRANSLATE", 0, "Translate", ""},
-		{TFM_MODAL_ROTATE, "ROTATE", 0, "Rotate", ""},
-		{TFM_MODAL_RESIZE, "RESIZE", 0, "Resize", ""},
-		{TFM_MODAL_SNAP_INV_ON, "SNAP_INV_ON", 0, "Invert Snap On", ""},
-		{TFM_MODAL_SNAP_INV_OFF, "SNAP_INV_OFF", 0, "Invert Snap Off", ""},
+		{TFM_MODAL_CANCEL, "CANCEL", 0, "Cancel", ""},
+		{TFM_MODAL_AXIS_X, "AXIS_X", 0, "X axis", ""},
+		{TFM_MODAL_AXIS_Y, "AXIS_Y", 0, "Y axis", ""},
+		{TFM_MODAL_AXIS_Z, "AXIS_Z", 0, "Z axis", ""},
+		{TFM_MODAL_PLANE_X, "PLANE_X", 0, "X plane", ""},
+		{TFM_MODAL_PLANE_Y, "PLANE_Y", 0, "Y plane", ""},
+		{TFM_MODAL_PLANE_Z, "PLANE_Z", 0, "Z plane", ""},
+		{TFM_MODAL_CONS_OFF, "CONS_OFF", 0, "Clear Constraints", ""},
+		{TFM_MODAL_SNAP_INV_ON, "SNAP_INV_ON", 0, "Snap Invert", ""},
+		{TFM_MODAL_SNAP_INV_OFF, "SNAP_INV_OFF", 0, "Snap Invert (Off)", ""},
 		{TFM_MODAL_SNAP_TOGGLE, "SNAP_TOGGLE", 0, "Snap Toggle", ""},
-		{TFM_MODAL_AXIS_X, "AXIS_X", 0, "Orientation X axis", ""},
-		{TFM_MODAL_AXIS_Y, "AXIS_Y", 0, "Orientation Y axis", ""},
-		{TFM_MODAL_AXIS_Z, "AXIS_Z", 0, "Orientation Z axis", ""},
-		{TFM_MODAL_PLANE_X, "PLANE_X", 0, "Orientation X plane", ""},
-		{TFM_MODAL_PLANE_Y, "PLANE_Y", 0, "Orientation Y plane", ""},
-		{TFM_MODAL_PLANE_Z, "PLANE_Z", 0, "Orientation Z plane", ""},
-		{TFM_MODAL_CONS_OFF, "CONS_OFF", 0, "Remove Constraints", ""},
 		{TFM_MODAL_ADD_SNAP, "ADD_SNAP", 0, "Add Snap Point", ""},
 		{TFM_MODAL_REMOVE_SNAP, "REMOVE_SNAP", 0, "Remove Last Snap Point", ""},
 		{NUM_MODAL_INCREMENT_UP, "INCREMENT_UP", 0, "Numinput Increment Up", ""},
@@ -829,6 +826,9 @@ wmKeyMap *transform_modal_keymap(wmKeyConfig *keyconf)
 		{TFM_MODAL_EDGESLIDE_DOWN, "EDGESLIDE_PREV_NEXT", 0, "Select previous Edge Slide Edge", ""},
 		{TFM_MODAL_PROPSIZE, "PROPORTIONAL_SIZE", 0, "Adjust Proportional Influence", ""},
 		{TFM_MODAL_INSERTOFS_TOGGLE_DIR, "INSERTOFS_TOGGLE_DIR", 0, "Toggle Direction for Node Auto-offset", ""},
+		{TFM_MODAL_TRANSLATE, "TRANSLATE", 0, "Translate", ""},
+		{TFM_MODAL_ROTATE, "ROTATE", 0, "Rotate", ""},
+		{TFM_MODAL_RESIZE, "RESIZE", 0, "Resize", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
 
@@ -840,10 +840,21 @@ wmKeyMap *transform_modal_keymap(wmKeyConfig *keyconf)
 	keymap = WM_modalkeymap_add(keyconf, "Transform Modal Map", modal_items);
 
 	/* items for modal map */
-	WM_modalkeymap_add_item(keymap, ESCKEY,    KM_PRESS, KM_ANY, 0, TFM_MODAL_CANCEL);
-	WM_modalkeymap_add_item(keymap, LEFTMOUSE, KM_PRESS, KM_ANY, 0, TFM_MODAL_CONFIRM);
-	WM_modalkeymap_add_item(keymap, RETKEY,    KM_PRESS, KM_ANY, 0, TFM_MODAL_CONFIRM);
-	WM_modalkeymap_add_item(keymap, PADENTER,  KM_PRESS, KM_ANY, 0, TFM_MODAL_CONFIRM);
+	WM_modalkeymap_add_item(keymap, LEFTMOUSE,  KM_PRESS, KM_ANY, 0, TFM_MODAL_CONFIRM);
+	WM_modalkeymap_add_item(keymap, RETKEY,     KM_PRESS, KM_ANY, 0, TFM_MODAL_CONFIRM);
+	WM_modalkeymap_add_item(keymap, PADENTER,   KM_PRESS, KM_ANY, 0, TFM_MODAL_CONFIRM);
+	WM_modalkeymap_add_item(keymap, RIGHTMOUSE, KM_PRESS, KM_ANY, 0, TFM_MODAL_CANCEL);
+	WM_modalkeymap_add_item(keymap, ESCKEY,     KM_PRESS, KM_ANY, 0, TFM_MODAL_CANCEL);
+
+	WM_modalkeymap_add_item(keymap, XKEY, KM_PRESS, 0, 0, TFM_MODAL_AXIS_X);
+	WM_modalkeymap_add_item(keymap, YKEY, KM_PRESS, 0, 0, TFM_MODAL_AXIS_Y);
+	WM_modalkeymap_add_item(keymap, ZKEY, KM_PRESS, 0, 0, TFM_MODAL_AXIS_Z);
+
+	WM_modalkeymap_add_item(keymap, XKEY, KM_PRESS, KM_SHIFT, 0, TFM_MODAL_PLANE_X);
+	WM_modalkeymap_add_item(keymap, YKEY, KM_PRESS, KM_SHIFT, 0, TFM_MODAL_PLANE_Y);
+	WM_modalkeymap_add_item(keymap, ZKEY, KM_PRESS, KM_SHIFT, 0, TFM_MODAL_PLANE_Z);
+
+	WM_modalkeymap_add_item(keymap, CKEY, KM_PRESS, 0, 0, TFM_MODAL_CONS_OFF);
 
 	WM_modalkeymap_add_item(keymap, GKEY, KM_PRESS, 0, 0, TFM_MODAL_TRANSLATE);
 	WM_modalkeymap_add_item(keymap, RKEY, KM_PRESS, 0, 0, TFM_MODAL_ROTATE);
@@ -884,7 +895,7 @@ wmKeyMap *transform_modal_keymap(wmKeyConfig *keyconf)
 	return keymap;
 }
 
-static void transform_event_xyz_constraint(TransInfo *t, short key_type, char cmode)
+static void transform_event_xyz_constraint(TransInfo *t, short key_type, char cmode, bool is_plane)
 {
 	if (!(t->flag & T_NO_CONSTRAINT)) {
 		int constraint_axis, constraint_plane;
@@ -937,17 +948,21 @@ static void transform_event_xyz_constraint(TransInfo *t, short key_type, char cm
 				else {
 					short orientation = (t->current_orientation != V3D_MANIP_GLOBAL ?
 					                     t->current_orientation : V3D_MANIP_LOCAL);
-					if (!(t->modifiers & MOD_CONSTRAINT_PLANE))
+					if (is_plane == false) {
 						setUserConstraint(t, orientation, constraint_axis, msg2);
-					else if (t->modifiers & MOD_CONSTRAINT_PLANE)
+					}
+					else {
 						setUserConstraint(t, orientation, constraint_plane, msg3);
+					}
 				}
 			}
 			else {
-				if (!(t->modifiers & MOD_CONSTRAINT_PLANE))
+				if (is_plane == false) {
 					setUserConstraint(t, V3D_MANIP_GLOBAL, constraint_axis, msg2);
-				else if (t->modifiers & MOD_CONSTRAINT_PLANE)
+				}
+				else {
 					setUserConstraint(t, V3D_MANIP_GLOBAL, constraint_plane, msg3);
+				}
 			}
 		}
 		t->redraw |= TREDRAW_HARD;
@@ -1125,57 +1140,42 @@ int transformEvent(TransInfo *t, const wmEvent *event)
 				break;
 			case TFM_MODAL_AXIS_X:
 				if (!(t->flag & T_NO_CONSTRAINT)) {
-					transform_event_xyz_constraint(t, XKEY, cmode);
+					transform_event_xyz_constraint(t, XKEY, cmode, false);
 					t->redraw |= TREDRAW_HARD;
 					handled = true;
 				}
 				break;
 			case TFM_MODAL_AXIS_Y:
 				if ((t->flag & T_NO_CONSTRAINT) == 0) {
-					transform_event_xyz_constraint(t, YKEY, cmode);
+					transform_event_xyz_constraint(t, YKEY, cmode, false);
 					t->redraw |= TREDRAW_HARD;
 					handled = true;
 				}
 				break;
 			case TFM_MODAL_AXIS_Z:
 				if ((t->flag & (T_NO_CONSTRAINT)) == 0) {
-					transform_event_xyz_constraint(t, ZKEY, cmode);
+					transform_event_xyz_constraint(t, ZKEY, cmode, false);
 					t->redraw |= TREDRAW_HARD;
 					handled = true;
 				}
 				break;
 			case TFM_MODAL_PLANE_X:
 				if ((t->flag & (T_NO_CONSTRAINT | T_2D_EDIT)) == 0) {
-					if (cmode == 'X') {
-						stopConstraint(t);
-					}
-					else {
-						setUserConstraint(t, t->current_orientation, (CON_AXIS1 | CON_AXIS2), IFACE_("locking %s X"));
-					}
+					transform_event_xyz_constraint(t, XKEY, cmode, true);
 					t->redraw |= TREDRAW_HARD;
 					handled = true;
 				}
 				break;
 			case TFM_MODAL_PLANE_Y:
 				if ((t->flag & (T_NO_CONSTRAINT | T_2D_EDIT)) == 0) {
-					if (cmode == 'Y') {
-						stopConstraint(t);
-					}
-					else {
-						setUserConstraint(t, t->current_orientation, (CON_AXIS0 | CON_AXIS2), IFACE_("locking %s Y"));
-					}
+					transform_event_xyz_constraint(t, YKEY, cmode, true);
 					t->redraw |= TREDRAW_HARD;
 					handled = true;
 				}
 				break;
 			case TFM_MODAL_PLANE_Z:
 				if ((t->flag & (T_NO_CONSTRAINT | T_2D_EDIT)) == 0) {
-					if (cmode == 'Z') {
-						stopConstraint(t);
-					}
-					else {
-						setUserConstraint(t, t->current_orientation, (CON_AXIS0 | CON_AXIS1), IFACE_("locking %s Z"));
-					}
+					transform_event_xyz_constraint(t, ZKEY, cmode, true);
 					t->redraw |= TREDRAW_HARD;
 					handled = true;
 				}
@@ -1392,21 +1392,6 @@ int transformEvent(TransInfo *t, const wmEvent *event)
 						t->redraw = TREDRAW_HARD;
 						handled = true;
 					}
-				}
-				else {
-					if (!(t->flag & T_NO_CONSTRAINT)) {
-						stopConstraint(t);
-						t->redraw |= TREDRAW_HARD;
-						handled = true;
-					}
-				}
-				break;
-			case XKEY:
-			case YKEY:
-			case ZKEY:
-				if (!(t->flag & T_NO_CONSTRAINT)) {
-					transform_event_xyz_constraint(t, event->type, cmode);
-					handled = true;
 				}
 				break;
 			case OKEY:
@@ -1680,7 +1665,7 @@ static void drawArc(float size, float angle_start, float angle_end, int segments
 	glEnd();
 }
 
-static int helpline_poll(bContext *C)
+static bool helpline_poll(bContext *C)
 {
 	ARegion *ar = CTX_wm_region(C);
 
@@ -1887,7 +1872,7 @@ static void drawTransformPixel(const struct bContext *UNUSED(C), ARegion *ar, vo
 void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
 {
 	ToolSettings *ts = CTX_data_tool_settings(C);
-	int constraint_axis[3] = {0, 0, 0};
+	bool constraint_axis[3] = {false, false, false};
 	int proportional = 0;
 	PropertyRNA *prop;
 
@@ -2004,17 +1989,21 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
 
 		if (t->con.mode & CON_APPLY) {
 			if (t->con.mode & CON_AXIS0) {
-				constraint_axis[0] = 1;
+				constraint_axis[0] = true;
 			}
 			if (t->con.mode & CON_AXIS1) {
-				constraint_axis[1] = 1;
+				constraint_axis[1] = true;
 			}
 			if (t->con.mode & CON_AXIS2) {
-				constraint_axis[2] = 1;
+				constraint_axis[2] = true;
 			}
 		}
 
-		RNA_property_boolean_set_array(op->ptr, prop, constraint_axis);
+		/* Only set if needed, so we can hide in the UI when nothing is set.
+		 * See 'transform_poll_property'. */
+		if (ELEM(true, UNPACK3(constraint_axis))) {
+			RNA_property_boolean_set_array(op->ptr, prop, constraint_axis);
+		}
 	}
 
 	{
@@ -2313,7 +2302,7 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 
 	/* Constraint init from operator */
 	if ((prop = RNA_struct_find_property(op->ptr, "constraint_axis")) && RNA_property_is_set(op->ptr, prop)) {
-		int constraint_axis[3];
+		bool constraint_axis[3];
 
 		RNA_property_boolean_get_array(op->ptr, prop, constraint_axis);
 
@@ -8616,7 +8605,7 @@ static void applyTimeScale(TransInfo *t, const int UNUSED(mval[2]))
 /** \} */
 
 
-/* TODO, move to: transform_queries.c */
+/* TODO, move to: transform_query.c */
 bool checkUseAxisMatrix(TransInfo *t)
 {
 	/* currently only checks for editmode */

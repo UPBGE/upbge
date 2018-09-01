@@ -485,74 +485,74 @@ static void view3d_main_region_init(wmWindowManager *wm, ARegion *ar)
 	/* object ops. */
 
 	/* important to be before Pose keymap since they can both be enabled at once */
-	keymap = WM_keymap_find(wm->defaultconf, "Face Mask", 0, 0);
+	keymap = WM_keymap_ensure(wm->defaultconf, "Face Mask", 0, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 
 
-	keymap = WM_keymap_find(wm->defaultconf, "Weight Paint Vertex Selection", 0, 0);
+	keymap = WM_keymap_ensure(wm->defaultconf, "Weight Paint Vertex Selection", 0, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 
 	/* pose is not modal, operator poll checks for this */
-	keymap = WM_keymap_find(wm->defaultconf, "Pose", 0, 0);
+	keymap = WM_keymap_ensure(wm->defaultconf, "Pose", 0, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 
-	keymap = WM_keymap_find(wm->defaultconf, "Object Mode", 0, 0);
+	keymap = WM_keymap_ensure(wm->defaultconf, "Object Mode", 0, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 
-	keymap = WM_keymap_find(wm->defaultconf, "Paint Curve", 0, 0);
+	keymap = WM_keymap_ensure(wm->defaultconf, "Paint Curve", 0, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 
-	keymap = WM_keymap_find(wm->defaultconf, "Curve", 0, 0);
+	keymap = WM_keymap_ensure(wm->defaultconf, "Curve", 0, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 
-	keymap = WM_keymap_find(wm->defaultconf, "Image Paint", 0, 0);
+	keymap = WM_keymap_ensure(wm->defaultconf, "Image Paint", 0, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 
-	keymap = WM_keymap_find(wm->defaultconf, "Vertex Paint", 0, 0);
+	keymap = WM_keymap_ensure(wm->defaultconf, "Vertex Paint", 0, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 
-	keymap = WM_keymap_find(wm->defaultconf, "Weight Paint", 0, 0);
+	keymap = WM_keymap_ensure(wm->defaultconf, "Weight Paint", 0, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 
-	keymap = WM_keymap_find(wm->defaultconf, "Sculpt", 0, 0);
+	keymap = WM_keymap_ensure(wm->defaultconf, "Sculpt", 0, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 
-	keymap = WM_keymap_find(wm->defaultconf, "Mesh", 0, 0);
+	keymap = WM_keymap_ensure(wm->defaultconf, "Mesh", 0, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 
-	keymap = WM_keymap_find(wm->defaultconf, "Curve", 0, 0);
+	keymap = WM_keymap_ensure(wm->defaultconf, "Curve", 0, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 
-	keymap = WM_keymap_find(wm->defaultconf, "Armature", 0, 0);
+	keymap = WM_keymap_ensure(wm->defaultconf, "Armature", 0, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 
-	keymap = WM_keymap_find(wm->defaultconf, "Pose", 0, 0);
+	keymap = WM_keymap_ensure(wm->defaultconf, "Pose", 0, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 
-	keymap = WM_keymap_find(wm->defaultconf, "Metaball", 0, 0);
+	keymap = WM_keymap_ensure(wm->defaultconf, "Metaball", 0, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 
-	keymap = WM_keymap_find(wm->defaultconf, "Lattice", 0, 0);
+	keymap = WM_keymap_ensure(wm->defaultconf, "Lattice", 0, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 
-	keymap = WM_keymap_find(wm->defaultconf, "Particle", 0, 0);
+	keymap = WM_keymap_ensure(wm->defaultconf, "Particle", 0, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 
 	/* editfont keymap swallows all... */
-	keymap = WM_keymap_find(wm->defaultconf, "Font", 0, 0);
+	keymap = WM_keymap_ensure(wm->defaultconf, "Font", 0, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 
-	keymap = WM_keymap_find(wm->defaultconf, "Object Non-modal", 0, 0);
+	keymap = WM_keymap_ensure(wm->defaultconf, "Object Non-modal", 0, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 
-	keymap = WM_keymap_find(wm->defaultconf, "Frames", 0, 0);
+	keymap = WM_keymap_ensure(wm->defaultconf, "Frames", 0, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 
 	/* own keymap, last so modes can override it */
-	keymap = WM_keymap_find(wm->defaultconf, "3D View Generic", SPACE_VIEW3D, 0);
+	keymap = WM_keymap_ensure(wm->defaultconf, "3D View Generic", SPACE_VIEW3D, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 
-	keymap = WM_keymap_find(wm->defaultconf, "3D View", SPACE_VIEW3D, 0);
+	keymap = WM_keymap_ensure(wm->defaultconf, "3D View", SPACE_VIEW3D, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 
 	/* add drop boxes */
@@ -579,7 +579,7 @@ static void view3d_main_region_exit(wmWindowManager *wm, ARegion *ar)
 	}
 }
 
-static int view3d_ob_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *UNUSED(event))
+static bool view3d_ob_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *UNUSED(event))
 {
 	if (drag->type == WM_DRAG_ID) {
 		ID *id = drag->poin;
@@ -589,7 +589,7 @@ static int view3d_ob_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent 
 	return 0;
 }
 
-static int view3d_group_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *UNUSED(event))
+static bool view3d_group_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *UNUSED(event))
 {
 	if (drag->type == WM_DRAG_ID) {
 		ID *id = drag->poin;
@@ -599,7 +599,7 @@ static int view3d_group_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEve
 	return 0;
 }
 
-static int view3d_mat_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *UNUSED(event))
+static bool view3d_mat_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *UNUSED(event))
 {
 	if (drag->type == WM_DRAG_ID) {
 		ID *id = drag->poin;
@@ -609,7 +609,7 @@ static int view3d_mat_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent
 	return 0;
 }
 
-static int view3d_ima_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *UNUSED(event))
+static bool view3d_ima_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *UNUSED(event))
 {
 	if (drag->type == WM_DRAG_ID) {
 		ID *id = drag->poin;
@@ -623,7 +623,7 @@ static int view3d_ima_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent
 	return 0;
 }
 
-static int view3d_ima_bg_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
+static bool view3d_ima_bg_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 {
 	if (event->ctrl)
 		return false;
@@ -634,7 +634,7 @@ static int view3d_ima_bg_drop_poll(bContext *C, wmDrag *drag, const wmEvent *eve
 	return 0;
 }
 
-static int view3d_ima_empty_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
+static bool view3d_ima_empty_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 {
 	Base *base = ED_view3d_give_base_under_cursor(C, event->mval);
 
@@ -648,7 +648,7 @@ static int view3d_ima_empty_drop_poll(bContext *C, wmDrag *drag, const wmEvent *
 	return 0;
 }
 
-static int view3d_ima_mesh_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
+static bool view3d_ima_mesh_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 {
 	Base *base = ED_view3d_give_base_under_cursor(C, event->mval);
 
@@ -1034,7 +1034,7 @@ static void view3d_main_region_cursor(wmWindow *win, ScrArea *UNUSED(sa), ARegio
 /* add handlers, stuff you only do once or on area/region changes */
 static void view3d_header_region_init(wmWindowManager *wm, ARegion *ar)
 {
-	wmKeyMap *keymap = WM_keymap_find(wm->defaultconf, "3D View Generic", SPACE_VIEW3D, 0);
+	wmKeyMap *keymap = WM_keymap_ensure(wm->defaultconf, "3D View Generic", SPACE_VIEW3D, 0);
 
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 
@@ -1083,7 +1083,7 @@ static void view3d_buttons_region_init(wmWindowManager *wm, ARegion *ar)
 
 	ED_region_panels_init(wm, ar);
 
-	keymap = WM_keymap_find(wm->defaultconf, "3D View Generic", SPACE_VIEW3D, 0);
+	keymap = WM_keymap_ensure(wm->defaultconf, "3D View Generic", SPACE_VIEW3D, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 }
 
@@ -1189,7 +1189,7 @@ static void view3d_tools_region_init(wmWindowManager *wm, ARegion *ar)
 
 	ED_region_panels_init(wm, ar);
 
-	keymap = WM_keymap_find(wm->defaultconf, "3D View Generic", SPACE_VIEW3D, 0);
+	keymap = WM_keymap_ensure(wm->defaultconf, "3D View Generic", SPACE_VIEW3D, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 }
 
@@ -1236,7 +1236,7 @@ static void space_view3d_listener(bScreen *UNUSED(sc), ScrArea *sa, struct wmNot
 			switch (wmn->data) {
 				case ND_WORLD_DRAW:
 				case ND_WORLD:
-					if (v3d->flag3 & V3D_SHOW_WORLD)
+					if (v3d->flag2 & V3D_SHOW_WORLD)
 						ED_area_tag_redraw_regiontype(sa, RGN_TYPE_WINDOW);
 					break;
 			}
@@ -1528,4 +1528,3 @@ void ED_spacetype_view3d(void)
 
 	BKE_spacetype_register(st);
 }
-

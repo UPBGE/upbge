@@ -39,7 +39,7 @@ set(SRC
 
 set(ADDON_FILES
 	addon/__init__.py
-	addon/engine.py 
+	addon/engine.py
 	addon/osl.py
 	addon/presets.py
 	addon/properties.py
@@ -63,4 +63,3 @@ endif()
 add_dependencies(bf_intern_cycles bf_rna)
 
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_FILES}" ${CYCLES_INSTALL_PATH})
-

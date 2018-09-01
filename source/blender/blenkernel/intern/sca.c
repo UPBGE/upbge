@@ -60,13 +60,13 @@ void free_sensor(bSensor *sens)
 	if (sens->links) MEM_freeN(sens->links);
 	if (sens->data) MEM_freeN(sens->data);
 	MEM_freeN(sens);
-	
+
 }
 
 void free_sensors(ListBase *lb)
 {
 	bSensor *sens;
-	
+
 	while ((sens = BLI_pophead(lb))) {
 		free_sensor(sens);
 	}
@@ -75,7 +75,7 @@ void free_sensors(ListBase *lb)
 bSensor *copy_sensor(bSensor *sens, const int UNUSED(flag))
 {
 	bSensor *sensn;
-	
+
 	sensn= MEM_dupallocN(sens);
 	sensn->flag |= SENS_NEW;
 	if (sens->data) {
@@ -83,14 +83,14 @@ bSensor *copy_sensor(bSensor *sens, const int UNUSED(flag))
 	}
 
 	if (sens->links) sensn->links= MEM_dupallocN(sens->links);
-	
+
 	return sensn;
 }
 
 void copy_sensors(ListBase *lbn, const ListBase *lbo, const int flag)
 {
 	bSensor *sens, *sensn;
-	
+
 	lbn->first= lbn->last= NULL;
 	sens= lbo->first;
 	while (sens) {
@@ -108,11 +108,11 @@ void init_sensor(bSensor *sens)
 	bJoystickSensor *js;
 	bRaySensor *rs;
 	bMovementSensor *movs;
-	
+
 	if (sens->data) MEM_freeN(sens->data);
 	sens->data= NULL;
 	sens->pulse = 0;
-	
+
 	switch (sens->type) {
 	case SENS_ALWAYS:
 		sens->pulse = 0;
@@ -186,12 +186,12 @@ bSensor *new_sensor(int type)
 	sens= MEM_callocN(sizeof(bSensor), "Sensor");
 	sens->type= type;
 	sens->flag= SENS_SHOW;
-	
+
 	init_sensor(sens);
-	
+
 	strcpy(sens->name, "sensor");
 // XXX	make_unique_prop_names(sens->name);
-	
+
 	return sens;
 }
 
@@ -201,7 +201,7 @@ void unlink_controller(bController *cont)
 {
 	bSensor *sens;
 	Object *ob;
-	
+
 	/* check for controller pointers in sensors */
 	ob= G.main->object.first;
 	while (ob) {
@@ -217,7 +217,7 @@ void unlink_controller(bController *cont)
 void unlink_controllers(ListBase *lb)
 {
 	bController *cont;
-	
+
 	for (cont= lb->first; cont; cont= cont->next)
 		unlink_controller(cont);
 }
@@ -229,13 +229,13 @@ void free_controller(bController *cont)
 	/* the controller itself */
 	if (cont->data) MEM_freeN(cont->data);
 	MEM_freeN(cont);
-	
+
 }
 
 void free_controllers(ListBase *lb)
 {
 	bController *cont;
-	
+
 	while ((cont = BLI_pophead(lb))) {
 		if (cont->slinks)
 			MEM_freeN(cont->slinks);
@@ -246,7 +246,7 @@ void free_controllers(ListBase *lb)
 bController *copy_controller(bController *cont, const int UNUSED(flag))
 {
 	bController *contn;
-	
+
 	cont->mynew=contn= MEM_dupallocN(cont);
 	contn->flag |= CONT_NEW;
 	if (cont->data) {
@@ -256,14 +256,14 @@ bController *copy_controller(bController *cont, const int UNUSED(flag))
 	if (cont->links) contn->links= MEM_dupallocN(cont->links);
 	contn->slinks= NULL;
 	contn->totslinks= 0;
-	
+
 	return contn;
 }
 
 void copy_controllers(ListBase *lbn, const ListBase *lbo, const int flag)
 {
 	bController *cont, *contn;
-	
+
 	lbn->first= lbn->last= NULL;
 	cont= lbo->first;
 	while (cont) {
@@ -276,10 +276,10 @@ void copy_controllers(ListBase *lbn, const ListBase *lbo, const int flag)
 void init_controller(bController *cont)
 {
 	/* also use when controller changes type, leave actuators... */
-	
+
 	if (cont->data) MEM_freeN(cont->data);
 	cont->data= NULL;
-	
+
 	switch (cont->type) {
 	case CONT_EXPRESSION:
 		cont->data= MEM_callocN(sizeof(bExpressionCont), "expcont");
@@ -299,10 +299,10 @@ bController *new_controller(int type)
 	cont->flag= CONT_SHOW;
 
 	init_controller(cont);
-	
+
 	strcpy(cont->name, "cont");
 // XXX	make_unique_prop_names(cont->name);
-	
+
 	return cont;
 }
 
@@ -312,7 +312,7 @@ void unlink_actuator(bActuator *act)
 {
 	bController *cont;
 	Object *ob;
-	
+
 	/* check for actuator pointers in controllers */
 	ob= G.main->object.first;
 	while (ob) {
@@ -328,7 +328,7 @@ void unlink_actuator(bActuator *act)
 void unlink_actuators(ListBase *lb)
 {
 	bActuator *act;
-	
+
 	for (act= lb->first; act; act= act->next)
 		unlink_actuator(act);
 }
@@ -361,7 +361,7 @@ void free_actuator(bActuator *act)
 void free_actuators(ListBase *lb)
 {
 	bActuator *act;
-	
+
 	while ((act = BLI_pophead(lb))) {
 		free_actuator(act);
 	}
@@ -370,13 +370,13 @@ void free_actuators(ListBase *lb)
 bActuator *copy_actuator(bActuator *act, const int flag)
 {
 	bActuator *actn;
-	
+
 	act->mynew=actn= MEM_dupallocN(act);
 	actn->flag |= ACT_NEW;
 	if (act->data) {
 		actn->data= MEM_dupallocN(act->data);
 	}
-	
+
 	switch (act->type) {
 		case ACT_ACTION:
 		{
@@ -401,7 +401,7 @@ bActuator *copy_actuator(bActuator *act, const int flag)
 void copy_actuators(ListBase *lbn, const ListBase *lbo, const int flag)
 {
 	bActuator *act, *actn;
-	
+
 	lbn->first= lbn->last= NULL;
 	act= lbo->first;
 	while (act) {
@@ -423,10 +423,10 @@ void init_actuator(bActuator *act)
 	bMouseActuator *ma;
 	bEditObjectActuator *eoa;
 	bVibrationActuator *via;
-	
+
 	if (act->data) MEM_freeN(act->data);
 	act->data= NULL;
-	
+
 	switch (act->type) {
 	case ACT_ACTION:
 		act->data= MEM_callocN(sizeof(bActionActuator), "actionact");
@@ -536,12 +536,12 @@ bActuator *new_actuator(int type)
 	act= MEM_callocN(sizeof(bActuator), "Actuator");
 	act->type= type;
 	act->flag= ACT_SHOW;
-	
+
 	init_actuator(act);
-	
+
 	strcpy(act->name, "act");
 // XXX	make_unique_prop_names(act->name);
-	
+
 	return act;
 }
 
@@ -551,7 +551,7 @@ void clear_sca_new_poins_ob(Object *ob)
 	bSensor *sens;
 	bController *cont;
 	bActuator *act;
-	
+
 	sens= ob->sensors.first;
 	while (sens) {
 		sens->flag &= ~SENS_NEW;
@@ -574,7 +574,7 @@ void clear_sca_new_poins_ob(Object *ob)
 void clear_sca_new_poins(void)
 {
 	Object *ob;
-	
+
 	ob= G.main->object.first;
 	while (ob) {
 		clear_sca_new_poins_ob(ob);
@@ -588,7 +588,7 @@ void set_sca_new_poins_ob(Object *ob)
 	bController *cont;
 	bActuator *act;
 	int a;
-	
+
 	sens= ob->sensors.first;
 	while (sens) {
 		if (sens->flag & SENS_NEW) {
@@ -610,8 +610,8 @@ void set_sca_new_poins_ob(Object *ob)
 		}
 		cont= cont->next;
 	}
-	
-	
+
+
 	act= ob->actuators.first;
 	while (act) {
 		if (act->flag & ACT_NEW) {
@@ -662,7 +662,7 @@ void set_sca_new_poins_ob(Object *ob)
 void set_sca_new_poins(void)
 {
 	Object *ob;
-	
+
 	ob= G.main->object.first;
 	while (ob) {
 		set_sca_new_poins_ob(ob);
@@ -885,7 +885,7 @@ void sca_move_controller(bController *cont_to_move, Object *ob, int move_up)
 		/* locate the controller that has the same state mask but is earlier in the list */
 		tmp = cont->prev;
 		while (tmp) {
-			if (tmp->state_mask & cont->state_mask) 
+			if (tmp->state_mask & cont->state_mask)
 				break;
 			tmp = tmp->prev;
 		}
@@ -899,7 +899,7 @@ void sca_move_controller(bController *cont_to_move, Object *ob, int move_up)
 	else if (val == 2 && cont->next) {
 		tmp = cont->next;
 		while (tmp) {
-			if (tmp->state_mask & cont->state_mask) 
+			if (tmp->state_mask & cont->state_mask)
 				break;
 			tmp = tmp->next;
 		}
@@ -952,7 +952,7 @@ void sca_move_actuator(bActuator *act_to_move, Object *ob, int move_up)
 void link_logicbricks(void **poin, void ***ppoin, short *tot, short size)
 {
 	void **old_links= NULL;
-	
+
 	int ibrick;
 
 	/* check if the bricks are already linked */
@@ -966,7 +966,7 @@ void link_logicbricks(void **poin, void ***ppoin, short *tot, short size)
 
 		(*tot) ++;
 		*ppoin = MEM_callocN((*tot)*size, "new link");
-	
+
 		for (ibrick=0; ibrick < *(tot) - 1; ibrick++) {
 			(*ppoin)[ibrick] = old_links[ibrick];
 		}
@@ -1191,4 +1191,3 @@ const char *sca_state_name_get(Object *ob, short bit)
 	}
 	return NULL;
 }
-

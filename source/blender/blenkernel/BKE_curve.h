@@ -98,7 +98,7 @@ void BKE_curve_transform(struct Curve *cu, float mat[4][4], const bool do_keys, 
 void BKE_curve_translate(struct Curve *cu, float offset[3], const bool do_keys);
 void BKE_curve_material_index_remove(struct Curve *cu, int index);
 void BKE_curve_material_index_clear(struct Curve *cu);
-int BKE_curve_material_index_validate(struct Curve *cu);
+bool BKE_curve_material_index_validate(struct Curve *cu);
 void BKE_curve_material_remap(struct Curve *cu, const unsigned int *remap, unsigned int remap_len);
 
 ListBase    *BKE_curve_nurbs_get(struct Curve *cu);
@@ -156,9 +156,14 @@ struct Nurb *BKE_nurb_copy(struct Nurb *src, int pntsu, int pntsv);
 
 void BKE_nurb_test2D(struct Nurb *nu);
 void BKE_nurb_minmax(struct Nurb *nu, bool use_radius, float min[3], float max[3]);
+float BKE_nurb_calc_length(const struct Nurb *nu, int resolution);
 
-void BKE_nurb_makeFaces(struct Nurb *nu, float *coord_array, int rowstride, int resolu, int resolv);
-void BKE_nurb_makeCurve(struct Nurb *nu, float *coord_array, float *tilt_array, float *radius_array, float *weight_array, int resolu, int stride);
+void BKE_nurb_makeFaces(
+        const struct Nurb *nu, float *coord_array,
+        int rowstride, int resolu, int resolv);
+void BKE_nurb_makeCurve(
+        const struct Nurb *nu, float *coord_array, float *tilt_array, float *radius_array, float *weight_array,
+        int resolu, int stride);
 
 unsigned int BKE_curve_calc_coords_axis_len(
         const unsigned int bezt_array_len, const unsigned int resolu,

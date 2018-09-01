@@ -160,7 +160,7 @@ bool RenderBuffers::get_denoising_pass_rect(int offset, float exposure, int samp
 	                (offset == DENOISING_PASS_DEPTH_VAR) ||
 	                (offset == DENOISING_PASS_COLOR_VAR);
 
-	if(offset == DENOISING_PASS_COLOR) {
+	if(offset == DENOISING_PASS_COLOR || offset == DENOISING_PASS_CLEAN) {
 		scale *= exposure;
 	}
 	else if(offset == DENOISING_PASS_COLOR_VAR) {
@@ -448,4 +448,3 @@ bool DisplayBuffer::draw_ready()
 }
 
 CCL_NAMESPACE_END
-

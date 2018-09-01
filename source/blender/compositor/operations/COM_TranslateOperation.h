@@ -20,8 +20,8 @@
  *		Monique Dewanchand
  */
 
-#ifndef _COM_TranslateOperation_h_
-#define _COM_TranslateOperation_h_
+#ifndef __COM_TRANSLATEOPERATION_H__
+#define __COM_TRANSLATEOPERATION_H__
 
 #include "COM_NodeOperation.h"
 
@@ -45,7 +45,7 @@ public:
 
 	float getDeltaX() { return this->m_deltaX * this->m_factorX; }
 	float getDeltaY() { return this->m_deltaY * this->m_factorY; }
-	
+
 	inline void ensureDelta() {
 		if (!this->m_isDeltaSet) {
 			float tempDelta[4];

@@ -91,7 +91,7 @@ int PyC_AsArray_FAST(
 		}
 	}
 	else if (type == &PyBool_Type) {
-		int *array_bool = array;
+		bool *array_bool = array;
 		for (i = 0; i < length; i++) {
 			array_bool[i] = (PyLong_AsLong(value_fast_items[i]) != 0);
 		}
@@ -230,6 +230,12 @@ int PyC_ParseBool(PyObject *o, void *p)
 	return 1;
 }
 
+/* silly function, we dont use arg. just check its compatible with __deepcopy__ */
+int PyC_CheckArgs_DeepCopy(PyObject *args)
+{
+	PyObject *dummy_pydict;
+	return PyArg_ParseTuple(args, "|O!:__deepcopy__", &PyDict_Type, &dummy_pydict) != 0;
+}
 
 #ifndef MATH_STANDALONE
 
@@ -778,7 +784,7 @@ bool PyC_IsInterpreterActive(void)
 }
 
 /* Would be nice if python had this built in
- * See: http://wiki.blender.org/index.php/Dev:Doc/Tools/Debugging/PyFromC
+ * See: https://wiki.blender.org/wiki/Tools/Debugging/PyFromC
  */
 void PyC_RunQuicky(const char *filepath, int n, ...)
 {
@@ -1127,6 +1133,40 @@ bool PyC_RunString_AsNumber(const char *expr, const char *filename, double *r_va
 		else {
 			*r_value = val;
 		}
+	}
+
+	PyC_MainModule_Restore(main_mod);
+
+	return ok;
+}
+
+bool PyC_RunString_AsIntPtr(const char *expr, const char *filename, intptr_t *r_value)
+{
+	PyObject *py_dict, *retval;
+	bool ok = true;
+	PyObject *main_mod = NULL;
+
+	PyC_MainModule_Backup(&main_mod);
+
+	py_dict = PyC_DefaultNameSpace(filename);
+
+	retval = PyRun_String(expr, Py_eval_input, py_dict, py_dict);
+
+	if (retval == NULL) {
+		ok = false;
+	}
+	else {
+		intptr_t val;
+
+		val = (intptr_t)PyLong_AsVoidPtr(retval);
+		if (val == 0 && PyErr_Occurred()) {
+			ok = false;
+		}
+		else {
+			*r_value = val;
+		}
+
+		Py_DECREF(retval);
 	}
 
 	PyC_MainModule_Restore(main_mod);

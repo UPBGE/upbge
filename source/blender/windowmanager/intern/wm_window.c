@@ -719,13 +719,13 @@ void wm_window_ghostwindows_ensure(wmWindowManager *wm)
 			win->eventstate = MEM_callocN(sizeof(wmEvent), "window event state");
 
 		/* add keymap handlers (1 handler for all keys in map!) */
-		keymap = WM_keymap_find(wm->defaultconf, "Window", 0, 0);
+		keymap = WM_keymap_ensure(wm->defaultconf, "Window", 0, 0);
 		WM_event_add_keymap_handler(&win->handlers, keymap);
 
-		keymap = WM_keymap_find(wm->defaultconf, "Screen", 0, 0);
+		keymap = WM_keymap_ensure(wm->defaultconf, "Screen", 0, 0);
 		WM_event_add_keymap_handler(&win->handlers, keymap);
 
-		keymap = WM_keymap_find(wm->defaultconf, "Screen Editing", 0, 0);
+		keymap = WM_keymap_ensure(wm->defaultconf, "Screen Editing", 0, 0);
 		WM_event_add_keymap_handler(&win->modalhandlers, keymap);
 
 		/* add drop boxes */
@@ -1215,11 +1215,6 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr C_void_ptr
 				GHOST_TWindowState state;
 				state = GHOST_GetWindowState(win->ghostwin);
 				win->windowstate = state;
-
-				/* stop screencast if resize */
-				if (type == GHOST_kEventWindowSize) {
-					WM_jobs_stop(wm, win->screen, NULL);
-				}
 
 				WM_window_set_dpi(win);
 

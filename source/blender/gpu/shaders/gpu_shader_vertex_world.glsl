@@ -79,7 +79,6 @@ void main()
 	varposition = gl_Vertex.xyz;
 
 	varnormal = normalize(-varposition);
-
 	// Always set clip distance to 1 to disable clipping.
 	for (int i = 0; i < 6; ++i) {
 		gl_ClipDistance[i] = 1.0;

@@ -1,32 +1,11 @@
---- libavutil/common.h	2016-02-14 19:29:42 -0700
-+++ libavutil/common.h	2016-03-30 09:50:29 -0600
-@@ -99,6 +99,11 @@
- #define FFSWAP(type,a,b) do{type SWAP_tmp= b; b= a; a= SWAP_tmp;}while(0)
- #define FF_ARRAY_ELEMS(a) (sizeof(a) / sizeof((a)[0]))
- 
-+//msvc helper
-+#ifdef _MSC_VER
-+#define inline __inline
-+#endif
-+
- /* misc math functions */
- 
- #ifdef HAVE_AV_CONFIG_H
---- configure	2016-11-26 03:12:05.000000000 +0100
-+++ configure	2017-04-05 03:24:35.000000000 +0200
-@@ -1899,7 +1899,6 @@
-     access
-     aligned_malloc
-     arc4random
--    clock_gettime
-     closesocket
-     CommandLineToArgvW
-     CoTaskMemFree
-@@ -5494,7 +5493,6 @@
- 
- check_func  access
- check_func_headers stdlib.h arc4random
--check_func_headers time.h clock_gettime || { check_func_headers time.h clock_gettime -lrt && add_extralibs -lrt && LIBRT="-lrt"; }
- check_func  fcntl
- check_func  fork
- check_func  gethrtime
+--- a/configure	2018-08-27 13:46:41.071106150 +0200
++++ b/configure	2018-08-27 13:46:28.162765762 +0200
+@@ -6013,7 +6013,7 @@
+                                require_pkg_config libopencv opencv opencv/cxcore.h cvCreateImageHeader; }
+ enabled libopenh264       && require_pkg_config libopenh264 openh264 wels/codec_api.h WelsGetCodecVersion
+ enabled libopenjpeg       && { check_pkg_config libopenjpeg "libopenjp2 >= 2.1.0" openjpeg.h opj_version ||
+-                               { require_pkg_config libopenjpeg "libopenjp2 >= 2.1.0" openjpeg.h opj_version -DOPJ_STATIC && add_cppflags -DOPJ_STATIC; } }
++                               { require_pkg_config libopenjpeg "libopenjp2 >= 2.1.0" openjpeg.h opj_version "-DOPJ_STATIC $pthreads_extralibs $libm_extralibs" && add_cppflags "-DOPJ_STATIC $pthreads_extralibs $libm_extralibs"; } }
+ enabled libopenmpt        && require_pkg_config libopenmpt "libopenmpt >= 0.2.6557" libopenmpt/libopenmpt.h openmpt_module_create -lstdc++ && append libopenmpt_extralibs "-lstdc++"
+ enabled libopus           && {
+     enabled libopus_decoder && {

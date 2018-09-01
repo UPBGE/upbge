@@ -989,4 +989,3 @@ GPUTexture *GPU_offscreen_depth_texture(const GPUOffScreen *ofs)
 {
 	return ofs->depth;
 }
-

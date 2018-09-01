@@ -27,7 +27,7 @@
 void MathNode::convertToOperations(NodeConverter &converter, const CompositorContext &/*context*/) const
 {
 	MathBaseOperation *operation = NULL;
-	
+
 	switch (this->getbNode()->custom1) {
 		case NODE_MATH_ADD:
 			operation = new MathAddOperation();
@@ -89,13 +89,25 @@ void MathNode::convertToOperations(NodeConverter &converter, const CompositorCon
 		case NODE_MATH_ATAN2:
 			operation = new MathArcTan2Operation();
 			break;
+		case NODE_MATH_FLOOR:
+			operation = new MathFloorOperation();
+			break;
+		case NODE_MATH_CEIL:
+			operation = new MathCeilOperation();
+			break;
+		case NODE_MATH_FRACT:
+			operation = new MathFractOperation();
+			break;
+		case NODE_MATH_SQRT:
+			operation = new MathSqrtOperation();
+			break;
 	}
-	
+
 	if (operation) {
 		bool useClamp = getbNode()->custom2;
 		operation->setUseClamp(useClamp);
 		converter.addOperation(operation);
-		
+
 		converter.mapInputSocket(getInputSocket(0), operation->getInputSocket(0));
 		converter.mapInputSocket(getInputSocket(1), operation->getInputSocket(1));
 		converter.mapOutputSocket(getOutputSocket(0), operation->getOutputSocket());

@@ -383,6 +383,9 @@ static void rna_Object_data_set(PointerRNA *ptr, PointerRNA value)
 		return;
 	}
 
+	BLI_assert(BKE_id_is_in_gobal_main(&ob->id));
+	BLI_assert(BKE_id_is_in_gobal_main(id));
+
 	if (ob->type == OB_EMPTY) {
 		if (ob->data) {
 			id_us_min((ID *)ob->data);
@@ -395,7 +398,7 @@ static void rna_Object_data_set(PointerRNA *ptr, PointerRNA value)
 		}
 	}
 	else if (ob->type == OB_MESH) {
-		BKE_mesh_assign_object(G.main, ob, (Mesh *)id);
+		BKE_mesh_assign_object(G_MAIN, ob, (Mesh *)id);
 	}
 	else {
 		if (ob->data) {
@@ -407,7 +410,7 @@ static void rna_Object_data_set(PointerRNA *ptr, PointerRNA value)
 		id_us_plus(id);
 
 		ob->data = id;
-		test_object_materials(G.main, ob, id);
+		test_object_materials(G_MAIN, ob, id);
 
 		if (GS(id->name) == ID_CU)
 			BKE_curve_type_test(ob);
@@ -716,7 +719,9 @@ static void rna_Object_active_material_set(PointerRNA *ptr, PointerRNA value)
 	Object *ob = (Object *)ptr->id.data;
 
 	DAG_id_tag_update(value.data, 0);
-	assign_material(G.main, ob, value.data, ob->actcol, BKE_MAT_ASSIGN_EXISTING);
+	BLI_assert(BKE_id_is_in_gobal_main(&ob->id));
+	BLI_assert(BKE_id_is_in_gobal_main(value.data));
+	assign_material(G_MAIN, ob, value.data, ob->actcol, BKE_MAT_ASSIGN_EXISTING);
 }
 
 static int rna_Object_active_material_editable(PointerRNA *ptr, const char **UNUSED(r_info))
@@ -888,7 +893,9 @@ static void rna_MaterialSlot_material_set(PointerRNA *ptr, PointerRNA value)
 	Object *ob = (Object *)ptr->id.data;
 	int index = (Material **)ptr->data - ob->mat;
 
-	assign_material(G.main, ob, value.data, index + 1, BKE_MAT_ASSIGN_EXISTING);
+	BLI_assert(BKE_id_is_in_gobal_main(&ob->id));
+	BLI_assert(BKE_id_is_in_gobal_main(value.data));
+	assign_material(G_MAIN, ob, value.data, index + 1, BKE_MAT_ASSIGN_EXISTING);
 }
 
 static int rna_MaterialSlot_link_get(PointerRNA *ptr)
@@ -1095,7 +1102,7 @@ static PointerRNA rna_Object_game_settings_get(PointerRNA *ptr)
 }
 
 
-static unsigned int rna_Object_layer_validate__internal(const int *values, unsigned int lay)
+static unsigned int rna_Object_layer_validate__internal(const bool *values, unsigned int lay)
 {
 	int i, tot = 0;
 
@@ -1115,7 +1122,7 @@ static unsigned int rna_Object_layer_validate__internal(const int *values, unsig
 	return lay;
 }
 
-static void rna_Object_layer_set(PointerRNA *ptr, const int *values)
+static void rna_Object_layer_set(PointerRNA *ptr, const bool *values)
 {
 	Object *ob = (Object *)ptr->data;
 	unsigned int lay;
@@ -1125,7 +1132,7 @@ static void rna_Object_layer_set(PointerRNA *ptr, const int *values)
 		ob->lay = lay;
 }
 
-static void rna_Base_layer_set(PointerRNA *ptr, const int *values)
+static void rna_Base_layer_set(PointerRNA *ptr, const bool *values)
 {
 	Base *base = (Base *)ptr->data;
 
@@ -1137,7 +1144,7 @@ static void rna_Base_layer_set(PointerRNA *ptr, const int *values)
 	/* rna_Base_layer_update updates the objects layer */
 }
 
-static void rna_GameObjectSettings_state_get(PointerRNA *ptr, int *values)
+static void rna_GameObjectSettings_state_get(PointerRNA *ptr, bool *values)
 {
 	Object *ob = (Object *)ptr->data;
 	int i;
@@ -1149,7 +1156,7 @@ static void rna_GameObjectSettings_state_get(PointerRNA *ptr, int *values)
 	}
 }
 
-static void rna_GameObjectSettings_state_set(PointerRNA *ptr, const int *values)
+static void rna_GameObjectSettings_state_set(PointerRNA *ptr, const bool *values)
 {
 	Object *ob = (Object *)ptr->data;
 	int i, tot = 0;
@@ -1168,7 +1175,7 @@ static void rna_GameObjectSettings_state_set(PointerRNA *ptr, const int *values)
 	}
 }
 
-static void rna_GameObjectSettings_used_state_get(PointerRNA *ptr, int *values)
+static void rna_GameObjectSettings_used_state_get(PointerRNA *ptr, bool *values)
 {
 	Object *ob = (Object *)ptr->data;
 	bController *cont;
@@ -1184,7 +1191,7 @@ static void rna_GameObjectSettings_used_state_get(PointerRNA *ptr, int *values)
 	}
 }
 
-static void rna_GameObjectSettings_col_group_get(PointerRNA *ptr, int *values)
+static void rna_GameObjectSettings_col_group_get(PointerRNA *ptr, bool *values)
 {
 	Object *ob = (Object *)ptr->data;
 	int i;
@@ -1194,7 +1201,7 @@ static void rna_GameObjectSettings_col_group_get(PointerRNA *ptr, int *values)
 	}
 }
 
-static void rna_GameObjectSettings_col_group_set(PointerRNA *ptr, const int *values)
+static void rna_GameObjectSettings_col_group_set(PointerRNA *ptr, const bool *values)
 {
 	Object *ob = (Object *)ptr->data;
 	int i, tot = 0;
@@ -1213,7 +1220,7 @@ static void rna_GameObjectSettings_col_group_set(PointerRNA *ptr, const int *val
 	}
 }
 
-static void rna_GameObjectSettings_col_mask_get(PointerRNA *ptr, int *values)
+static void rna_GameObjectSettings_col_mask_get(PointerRNA *ptr, bool *values)
 {
 	Object *ob = (Object *)ptr->data;
 	int i;
@@ -1223,7 +1230,7 @@ static void rna_GameObjectSettings_col_mask_get(PointerRNA *ptr, int *values)
 	}
 }
 
-static void rna_GameObjectSettings_col_mask_set(PointerRNA *ptr, const int *values)
+static void rna_GameObjectSettings_col_mask_set(PointerRNA *ptr, const bool *values)
 {
 	Object *ob = (Object *)ptr->data;
 	int i, tot = 0;
@@ -1473,32 +1480,32 @@ static float rna_VertexGroup_weight(ID *id, bDeformGroup *dg, ReportList *report
 }
 
 /* generic poll functions */
-int rna_Lattice_object_poll(PointerRNA *UNUSED(ptr), PointerRNA value)
+bool rna_Lattice_object_poll(PointerRNA *UNUSED(ptr), PointerRNA value)
 {
 	return ((Object *)value.id.data)->type == OB_LATTICE;
 }
 
-int rna_Curve_object_poll(PointerRNA *UNUSED(ptr), PointerRNA value)
+bool rna_Curve_object_poll(PointerRNA *UNUSED(ptr), PointerRNA value)
 {
 	return ((Object *)value.id.data)->type == OB_CURVE;
 }
 
-int rna_Armature_object_poll(PointerRNA *UNUSED(ptr), PointerRNA value)
+bool rna_Armature_object_poll(PointerRNA *UNUSED(ptr), PointerRNA value)
 {
 	return ((Object *)value.id.data)->type == OB_ARMATURE;
 }
 
-int rna_Mesh_object_poll(PointerRNA *UNUSED(ptr), PointerRNA value)
+bool rna_Mesh_object_poll(PointerRNA *UNUSED(ptr), PointerRNA value)
 {
 	return ((Object *)value.id.data)->type == OB_MESH;
 }
 
-int rna_Camera_object_poll(PointerRNA *UNUSED(ptr), PointerRNA value)
+bool rna_Camera_object_poll(PointerRNA *UNUSED(ptr), PointerRNA value)
 {
 	return ((Object *)value.id.data)->type == OB_CAMERA;
 }
 
-int rna_Lamp_object_poll(PointerRNA *UNUSED(ptr), PointerRNA value)
+bool rna_Lamp_object_poll(PointerRNA *UNUSED(ptr), PointerRNA value)
 {
 	return ((Object *)value.id.data)->type == OB_LAMP;
 }
@@ -1509,7 +1516,7 @@ int rna_DupliObject_index_get(PointerRNA *ptr)
 	return dob->persistent_id[0];
 }
 
-int rna_Object_use_dynamic_topology_sculpting_get(PointerRNA *ptr)
+bool rna_Object_use_dynamic_topology_sculpting_get(PointerRNA *ptr)
 {
 	SculptSession *ss = ((Object *)ptr->id.data)->sculpt;
 	return (ss && ss->bm);

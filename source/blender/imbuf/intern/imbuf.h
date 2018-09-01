@@ -34,7 +34,7 @@
 
 #include <stdlib.h>
 #include <sys/types.h>
-#include <stdio.h> 
+#include <stdio.h>
 
 #ifndef WIN32
 #  include <unistd.h>
@@ -70,4 +70,3 @@
 #define IMB_DPI_DEFAULT 72.0f
 
 #endif	/* __IMBUF_H__ */
-

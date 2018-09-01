@@ -238,7 +238,7 @@ static IDProperty *rna_EditBone_idprops(PointerRNA *ptr, bool create)
 	return ebone->prop;
 }
 
-static void rna_bone_layer_set(int *layer, const int *values)
+static void rna_bone_layer_set(int *layer, const bool *values)
 {
 	int i, tot = 0;
 
@@ -256,13 +256,13 @@ static void rna_bone_layer_set(int *layer, const int *values)
 	}
 }
 
-static void rna_Bone_layer_set(PointerRNA *ptr, const int *values)
+static void rna_Bone_layer_set(PointerRNA *ptr, const bool *values)
 {
 	Bone *bone = (Bone *)ptr->data;
 	rna_bone_layer_set(&bone->layer, values);
 }
 
-static void rna_Armature_layer_set(PointerRNA *ptr, const int *values)
+static void rna_Armature_layer_set(PointerRNA *ptr, const bool *values)
 {
 	bArmature *arm = (bArmature *)ptr->data;
 	int i, tot = 0;
@@ -315,7 +315,8 @@ static void rna_EditBone_name_set(PointerRNA *ptr, const char *value)
 	BLI_strncpy_utf8(newname, value, sizeof(ebone->name));
 	BLI_strncpy(oldname, ebone->name, sizeof(ebone->name));
 
-	ED_armature_bone_rename(G.main, arm, oldname, newname);
+	BLI_assert(BKE_id_is_in_gobal_main(&arm->id));
+	ED_armature_bone_rename(G_MAIN, arm, oldname, newname);
 }
 
 static void rna_Bone_name_set(PointerRNA *ptr, const char *value)
@@ -328,10 +329,11 @@ static void rna_Bone_name_set(PointerRNA *ptr, const char *value)
 	BLI_strncpy_utf8(newname, value, sizeof(bone->name));
 	BLI_strncpy(oldname, bone->name, sizeof(bone->name));
 
-	ED_armature_bone_rename(G.main, arm, oldname, newname);
+	BLI_assert(BKE_id_is_in_gobal_main(&arm->id));
+	ED_armature_bone_rename(G_MAIN, arm, oldname, newname);
 }
 
-static void rna_EditBone_layer_set(PointerRNA *ptr, const int values[])
+static void rna_EditBone_layer_set(PointerRNA *ptr, const bool values[])
 {
 	EditBone *data = (EditBone *)(ptr->data);
 	rna_bone_layer_set(&data->layer, values);
@@ -353,7 +355,7 @@ static void rna_EditBone_connected_check(EditBone *ebone)
 	}
 }
 
-static void rna_EditBone_connected_set(PointerRNA *ptr, int value)
+static void rna_EditBone_connected_set(PointerRNA *ptr, bool value)
 {
 	EditBone *ebone = (EditBone *)(ptr->data);
 
@@ -473,7 +475,7 @@ static void rna_Armature_bones_next(CollectionPropertyIterator *iter)
 	iter->valid = (internal->link != NULL);
 }
 
-static int rna_Armature_is_editmode_get(PointerRNA *ptr)
+static bool rna_Armature_is_editmode_get(PointerRNA *ptr)
 {
 	bArmature *arm = (bArmature *)ptr->id.data;
 	return (arm->edbo != NULL);

@@ -2475,30 +2475,38 @@ bool isect_ray_aabb_v3(
 	return true;
 }
 
-/*
- * Test a bounding box (AABB) for ray intersection
- * assumes the ray is already local to the boundbox space
+/**
+ * Test a bounding box (AABB) for ray intersection.
+ * Assumes the ray is already local to the boundbox space.
+ *
+ * \note: \a direction should be normalized if you intend to use the \a tmin or \a tmax distance results!
  */
 bool isect_ray_aabb_v3_simple(
         const float orig[3], const float dir[3],
         const float bb_min[3], const float bb_max[3],
         float *tmin, float *tmax)
 {
-	double t[7];
+	double t[6];
 	float hit_dist[2];
-	t[1] = (double)(bb_min[0] - orig[0]) / dir[0];
-	t[2] = (double)(bb_max[0] - orig[0]) / dir[0];
-	t[3] = (double)(bb_min[1] - orig[1]) / dir[1];
-	t[4] = (double)(bb_max[1] - orig[1]) / dir[1];
-	t[5] = (double)(bb_min[2] - orig[2]) / dir[2];
-	t[6] = (double)(bb_max[2] - orig[2]) / dir[2];
-	hit_dist[0] = (float)fmax(fmax(fmin(t[1], t[2]), fmin(t[3], t[4])), fmin(t[5], t[6]));
-	hit_dist[1] = (float)fmin(fmin(fmax(t[1], t[2]), fmax(t[3], t[4])), fmax(t[5], t[6]));
-	if ((hit_dist[1] < 0 || hit_dist[0] > hit_dist[1]))
+	const double invdirx = (dir[0] > 1e-35f || dir[0] < -1e-35f) ? 1.0 / (double)dir[0] : DBL_MAX;
+	const double invdiry = (dir[1] > 1e-35f || dir[1] < -1e-35f) ? 1.0 / (double)dir[1] : DBL_MAX;
+	const double invdirz = (dir[2] > 1e-35f || dir[2] < -1e-35f) ? 1.0 / (double)dir[2] : DBL_MAX;
+	t[0] = (double)(bb_min[0] - orig[0]) * invdirx;
+	t[1] = (double)(bb_max[0] - orig[0]) * invdirx;
+	t[2] = (double)(bb_min[1] - orig[1]) * invdiry;
+	t[3] = (double)(bb_max[1] - orig[1]) * invdiry;
+	t[4] = (double)(bb_min[2] - orig[2]) * invdirz;
+	t[5] = (double)(bb_max[2] - orig[2]) * invdirz;
+	hit_dist[0] = (float)fmax(fmax(fmin(t[0], t[1]), fmin(t[2], t[3])), fmin(t[4], t[5]));
+	hit_dist[1] = (float)fmin(fmin(fmax(t[0], t[1]), fmax(t[2], t[3])), fmax(t[4], t[5]));
+	if ((hit_dist[1] < 0.0f || hit_dist[0] > hit_dist[1])) {
 		return false;
+	}
 	else {
-		if (tmin) *tmin = hit_dist[0];
-		if (tmax) *tmax = hit_dist[1];
+		if (tmin)
+			*tmin = hit_dist[0];
+		if (tmax)
+			*tmax = hit_dist[1];
 		return true;
 	}
 }
@@ -3665,11 +3673,11 @@ void resolve_quad_uv_v2_deriv(float r_uv[2], float r_deriv[2][2],
 
 	if (r_deriv) {
 		float tmp1[2], tmp2[2], s[2], t[2];
-		
+
 		/* clear outputs */
 		zero_v2(r_deriv[0]);
 		zero_v2(r_deriv[1]);
-		
+
 		sub_v2_v2v2(tmp1, st1, st0);
 		sub_v2_v2v2(tmp2, st2, st3);
 		interp_v2_v2v2(s, tmp1, tmp2, r_uv[1]);
@@ -4958,7 +4966,7 @@ float cubic_tangent_factor_circle_v3(const float tan_l[3], const float tan_r[3])
 
 	/* -7f causes instability/glitches with Bendy Bones + Custom Refs  */
 	const float eps = 1e-5f;
-	
+
 	const float tan_dot = dot_v3v3(tan_l, tan_r);
 	if (tan_dot > 1.0f - eps) {
 		/* no angle difference (use fallback, length wont make any difference) */

@@ -20,8 +20,8 @@
  *		Monique Dewanchand
  */
 
-#ifndef _COM_AntiAliasOperation_h
-#define _COM_AntiAliasOperation_h
+#ifndef __COM_ANTIALIASOPERATION_H__
+#define __COM_ANTIALIASOPERATION_H__
 #include "COM_NodeOperation.h"
 #include "DNA_node_types.h"
 
@@ -38,19 +38,19 @@ protected:
 	SocketReader *m_valueReader;
 public:
 	AntiAliasOperation();
-	
+
 	/**
 	 * the inner loop of this program
 	 */
 	void executePixel(float output[4], int x, int y, void *data);
-	
+
 	/**
 	 * Initialize the execution
 	 */
 	void initExecution();
-	
+
 	void *initializeTileData(rcti *rect);
-	
+
 	/**
 	 * Deinitialize the execution
 	 */

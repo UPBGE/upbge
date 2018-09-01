@@ -1830,4 +1830,3 @@ void GPU_pass_free_nodes(ListBase *nodes)
 {
 	gpu_nodes_free(nodes);
 }
-

@@ -20,8 +20,8 @@
  *		Monique Dewanchand
  */
 
-#ifndef _COM_SetAlphaOperation_h
-#define _COM_SetAlphaOperation_h
+#ifndef __COM_SETALPHAOPERATION_H__
+#define __COM_SETALPHAOPERATION_H__
 #include "COM_NodeOperation.h"
 
 
@@ -39,12 +39,12 @@ public:
 	 * Default constructor
 	 */
 	SetAlphaOperation();
-	
+
 	/**
 	 * the inner loop of this program
 	 */
 	void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
-	
+
 	void initExecution();
 	void deinitExecution();
 };

@@ -55,6 +55,7 @@ extern "C" {
 #include "COM_Converter.h"
 #include "COM_CornerPinNode.h"
 #include "COM_CropNode.h"
+#include "COM_CryptomatteNode.h"
 #include "COM_DefocusNode.h"
 #include "COM_DespeckleNode.h"
 #include "COM_DifferenceMatteNode.h"
@@ -406,6 +407,9 @@ Node *Converter::convert(bNode *b_node)
 		case CMP_NODE_SUNBEAMS:
 			node = new SunBeamsNode(b_node);
 			break;
+		case CMP_NODE_CRYPTOMATTE:
+			node = new CryptomatteNode(b_node);
+			break;
 	}
 	return node;
 }
@@ -414,7 +418,7 @@ NodeOperation *Converter::convertDataType(NodeOperationOutput *from, NodeOperati
 {
 	DataType fromDatatype = from->getDataType();
 	DataType toDatatype = to->getDataType();
-	
+
 	if (fromDatatype == COM_DT_VALUE && toDatatype == COM_DT_COLOR) {
 		return new ConvertValueToColorOperation();
 	}
@@ -433,7 +437,7 @@ NodeOperation *Converter::convertDataType(NodeOperationOutput *from, NodeOperati
 	else if (fromDatatype == COM_DT_VECTOR && toDatatype == COM_DT_COLOR) {
 		return new ConvertVectorToColorOperation();
 	}
-	
+
 	return NULL;
 }
 

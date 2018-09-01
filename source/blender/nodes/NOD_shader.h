@@ -119,6 +119,7 @@ void register_node_type_sh_volume_absorption(void);
 void register_node_type_sh_volume_scatter(void);
 void register_node_type_sh_volume_principled(void);
 void register_node_type_sh_bsdf_hair(void);
+void register_node_type_sh_bsdf_hair_principled(void);
 void register_node_type_sh_subsurface_scattering(void);
 void register_node_type_sh_mix_shader(void);
 void register_node_type_sh_add_shader(void);
@@ -144,5 +145,3 @@ void register_node_type_sh_bump(void);
 void register_node_type_sh_tex_ies(void);
 
 #endif
-
-

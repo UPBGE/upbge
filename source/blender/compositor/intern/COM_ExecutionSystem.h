@@ -22,8 +22,8 @@
 
 class ExecutionGroup;
 
-#ifndef _COM_ExecutionSystem_h
-#define _COM_ExecutionSystem_h
+#ifndef __COM_EXECUTIONSYSTEM_H__
+#define __COM_EXECUTIONSYSTEM_H__
 
 #include "DNA_color_types.h"
 #include "DNA_node_types.h"
@@ -114,7 +114,7 @@ class ExecutionSystem {
 public:
 	typedef std::vector<NodeOperation*> Operations;
 	typedef std::vector<ExecutionGroup*> Groups;
-	
+
 private:
 	/**
 	 * @brief the context used during execution
@@ -136,7 +136,7 @@ private: //methods
 	 * find all execution group with output nodes
 	 */
 	void findOutputExecutionGroup(vector<ExecutionGroup *> *result, CompositorPriority priority) const;
-	
+
 	/**
 	 * find all execution group with output nodes
 	 */
@@ -185,4 +185,4 @@ private:
 #endif
 };
 
-#endif /* _COM_ExecutionSystem_h */
+#endif /* __COM_EXECUTIONSYSTEM_H__ */

@@ -210,14 +210,14 @@ void rna_def_render_layer_common(struct StructRNA *srna, int scene);
 
 void rna_def_actionbone_group_common(struct StructRNA *srna, int update_flag, const char *update_cb);
 void rna_ActionGroup_colorset_set(struct PointerRNA *ptr, int value);
-int rna_ActionGroup_is_custom_colorset_get(struct PointerRNA *ptr);
+bool rna_ActionGroup_is_custom_colorset_get(struct PointerRNA *ptr);
 
 void rna_ID_name_get(struct PointerRNA *ptr, char *value);
 int rna_ID_name_length(struct PointerRNA *ptr);
 void rna_ID_name_set(struct PointerRNA *ptr, const char *value);
 struct StructRNA *rna_ID_refine(struct PointerRNA *ptr);
 struct IDProperty *rna_ID_idprops(struct PointerRNA *ptr, bool create);
-void rna_ID_fake_user_set(struct PointerRNA *ptr, int value);
+void rna_ID_fake_user_set(struct PointerRNA *ptr, bool value);
 void **rna_ID_instance(PointerRNA *ptr);
 struct IDProperty *rna_PropertyGroup_idprops(struct PointerRNA *ptr, bool create);
 void rna_PropertyGroup_unregister(struct Main *bmain, struct StructRNA *type);
@@ -241,16 +241,16 @@ void rna_Mesh_update_draw(struct Main *bmain, struct Scene *scene, struct Pointe
 void rna_TextureSlot_update(struct Main *bmain, struct Scene *scene, struct PointerRNA *ptr);
 
 /* basic poll functions for object types */
-int rna_Armature_object_poll(struct PointerRNA *ptr, struct PointerRNA value);
-int rna_Camera_object_poll(struct PointerRNA *ptr, struct PointerRNA value);
-int rna_Curve_object_poll(struct PointerRNA *ptr, struct PointerRNA value);
-int rna_Lamp_object_poll(struct PointerRNA *ptr, struct PointerRNA value);
-int rna_Lattice_object_poll(struct PointerRNA *ptr, struct PointerRNA value);
-int rna_Mesh_object_poll(struct PointerRNA *ptr, struct PointerRNA value);
+bool rna_Armature_object_poll(struct PointerRNA *ptr, struct PointerRNA value);
+bool rna_Camera_object_poll(struct PointerRNA *ptr, struct PointerRNA value);
+bool rna_Curve_object_poll(struct PointerRNA *ptr, struct PointerRNA value);
+bool rna_Lamp_object_poll(struct PointerRNA *ptr, struct PointerRNA value);
+bool rna_Lattice_object_poll(struct PointerRNA *ptr, struct PointerRNA value);
+bool rna_Mesh_object_poll(struct PointerRNA *ptr, struct PointerRNA value);
 
 /* basic poll functions for actions (to prevent actions getting set in wrong places) */
-int rna_Action_id_poll(struct PointerRNA *ptr, struct PointerRNA value);
-int rna_Action_actedit_assign_poll(struct PointerRNA *ptr, struct PointerRNA value);
+bool rna_Action_id_poll(struct PointerRNA *ptr, struct PointerRNA value);
+bool rna_Action_actedit_assign_poll(struct PointerRNA *ptr, struct PointerRNA value);
 
 char *rna_TextureSlot_path(struct PointerRNA *ptr);
 char *rna_Node_ImageUser_path(struct PointerRNA *ptr);
@@ -262,6 +262,7 @@ void RNA_api_armature_edit_bone(StructRNA *srna);
 void RNA_api_bone(StructRNA *srna);
 void RNA_api_camera(StructRNA *srna);
 void RNA_api_curve(StructRNA *srna);
+void RNA_api_curve_nurb(StructRNA *srna);
 void RNA_api_fcurves(StructRNA *srna);
 void RNA_api_drivers(StructRNA *srna);
 void RNA_api_image_packed_file(struct StructRNA *srna);
@@ -405,7 +406,7 @@ int rna_parameter_size(struct PropertyRNA *parm);
 
 struct Mesh *rna_Main_meshes_new_from_object(
         struct Main *bmain, struct ReportList *reports, struct Scene *sce,
-        struct Object *ob, int apply_modifiers, int settings, int calc_tessface, int calc_undeformed);
+        struct Object *ob, bool apply_modifiers, int settings, bool calc_tessface, bool calc_undeformed);
 
 /* XXX, these should not need to be defined here~! */
 struct MTex *rna_mtex_texture_slots_add(struct ID *self, struct bContext *C, struct ReportList *reports);
@@ -416,7 +417,7 @@ void rna_mtex_texture_slots_clear(struct ID *self, struct bContext *C, struct Re
 int rna_IDMaterials_assign_int(struct PointerRNA *ptr, int key, const struct PointerRNA *assign_ptr);
 
 const char *rna_translate_ui_text(
-        const char *text, const char *text_ctxt, struct StructRNA *type, struct PropertyRNA *prop, int translate);
+        const char *text, const char *text_ctxt, struct StructRNA *type, struct PropertyRNA *prop, bool translate);
 
 /* Internal functions that cycles uses so we need to declare (tsk tsk) */
 void rna_RenderLayer_rect_set(PointerRNA *ptr, const float *values);

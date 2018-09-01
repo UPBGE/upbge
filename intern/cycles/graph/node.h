@@ -92,9 +92,11 @@ struct Node
 	/* compute hash of node and its socket values */
 	void hash(MD5Hash& md5);
 
+	/* Get total size of this node. */
+	size_t get_total_size_in_bytes() const;
+
 	ustring name;
 	const NodeType *type;
 };
 
 CCL_NAMESPACE_END
-

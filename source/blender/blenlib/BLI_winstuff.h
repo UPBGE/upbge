@@ -24,7 +24,7 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
- 
+
 #ifndef __BLI_WINSTUFF_H__
 #define __BLI_WINSTUFF_H__
 
@@ -138,4 +138,3 @@ int BLI_getInstallationDir(char *str);
 #endif
 
 #endif /* __BLI_WINSTUFF_H__ */
-

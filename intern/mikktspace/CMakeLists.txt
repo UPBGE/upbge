@@ -35,7 +35,7 @@ set(INC
 )
 
 set(INC_SYS
-	
+
 )
 
 set(SRC
@@ -45,4 +45,3 @@ set(SRC
 )
 
 blender_add_lib(bf_intern_mikktspace "${SRC}" "${INC}" "${INC_SYS}")
-

@@ -30,7 +30,7 @@ set(SRC
 	intern/marching_cubes_table.cpp
 	intern/octree.cpp
 	intern/Projections.cpp
-	
+
 	intern/cubes.h
 	intern/GeoCommon.h
 	intern/manifold_table.h
@@ -46,4 +46,3 @@ set(SRC
 )
 
 blender_add_lib(bf_intern_dualcon "${SRC}" "${INC}" "${INC_SYS}")
-

@@ -338,7 +338,19 @@ class SEQUENCER_MT_add(Menu):
         layout.operator("sequencer.image_strip_add", text="Image")
         layout.operator("sequencer.sound_strip_add", text="Sound")
 
+        layout.menu("SEQUENCER_MT_add_generate")
         layout.menu("SEQUENCER_MT_add_effect")
+
+
+class SEQUENCER_MT_add_generate(Menu):
+    bl_label = "Generate"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator_context = 'INVOKE_REGION_WIN'
+        layout.operator("sequencer.effect_strip_add", text="Color").type = 'COLOR'
+        layout.operator("sequencer.effect_strip_add", text="Text").type = 'TEXT'
 
 
 class SEQUENCER_MT_add_effect(Menu):
@@ -360,10 +372,8 @@ class SEQUENCER_MT_add_effect(Menu):
         layout.operator("sequencer.effect_strip_add", text="Over Drop").type = 'OVER_DROP'
         layout.operator("sequencer.effect_strip_add", text="Wipe").type = 'WIPE'
         layout.operator("sequencer.effect_strip_add", text="Glow").type = 'GLOW'
-        layout.operator("sequencer.effect_strip_add", text="Text").type = 'TEXT'
         layout.operator("sequencer.effect_strip_add", text="Color Mix").type = 'COLORMIX'
         layout.operator("sequencer.effect_strip_add", text="Transform").type = 'TRANSFORM'
-        layout.operator("sequencer.effect_strip_add", text="Color").type = 'COLOR'
         layout.operator("sequencer.effect_strip_add", text="Speed Control").type = 'SPEED'
         layout.operator("sequencer.effect_strip_add", text="Multicam Selector").type = 'MULTICAM'
         layout.operator("sequencer.effect_strip_add", text="Adjustment Layer").type = 'ADJUSTMENT'
@@ -708,11 +718,11 @@ class SEQUENCER_PT_effect(SequencerButtonsPanel, Panel):
                     if i == strip.multicam_source:
                         sub = row.row(align=True)
                         sub.enabled = False
-                        sub.operator("sequencer.cut_multicam", text="%d" % i).camera = i
+                        sub.operator("sequencer.cut_multicam", text=f"{i:d}").camera = i
                     else:
                         sub_1 = row.row(align=True)
                         sub_1.enabled = True
-                        sub_1.operator("sequencer.cut_multicam", text="%d" % i).camera = i
+                        sub_1.operator("sequencer.cut_multicam", text=f"{i:d}").camera = i
 
                 if strip.channel > BT_ROW and (strip_channel - 1) % BT_ROW:
                     for i in range(strip.channel, strip_channel + ((BT_ROW + 1 - strip_channel) % BT_ROW)):
@@ -1303,6 +1313,7 @@ classes = (
     SEQUENCER_MT_marker,
     SEQUENCER_MT_frame,
     SEQUENCER_MT_add,
+    SEQUENCER_MT_add_generate,
     SEQUENCER_MT_add_effect,
     SEQUENCER_MT_strip,
     SEQUENCER_MT_strip_transform,

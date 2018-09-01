@@ -20,8 +20,8 @@
  *		Monique Dewanchand
  */
 
-#ifndef _COM_Device_h
-#define _COM_Device_h
+#ifndef __COM_DEVICE_H__
+#define __COM_DEVICE_H__
 
 #include "COM_WorkPackage.h"
 
@@ -34,11 +34,11 @@ class Device {
 
 public:
 	/**
-	 * @brief Declaration of the virtual destructor 
+	 * @brief Declaration of the virtual destructor
 	 * @note resolve warning gcc 4.7
 	 */
 	virtual ~Device() {}
-	
+
 	/**
 	 * @brief initialize the device
 	 */

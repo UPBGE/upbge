@@ -912,7 +912,8 @@ bool RE_WriteRenderResult(ReportList *reports, RenderResult *rr, const char *fil
 			/* Skip non-RGBA and Z passes if not using multi layer. */
 			if (!multi_layer && !(STREQ(rp->name, RE_PASSNAME_COMBINED) ||
 			                      STREQ(rp->name, "") ||
-			                      (STREQ(rp->name, RE_PASSNAME_Z) && write_z))) {
+			                      (STREQ(rp->name, RE_PASSNAME_Z) && write_z)))
+			{
 				continue;
 			}
 
@@ -1257,7 +1258,7 @@ static void render_result_exr_file_cache_path(Scene *sce, const char *root, char
 	const char *blendfile_path = BKE_main_blendfile_path_from_global();
 	if (blendfile_path[0] != '\0') {
 		BLI_split_dirfile(blendfile_path, dirname, filename, sizeof(dirname), sizeof(filename));
-		BLI_replace_extension(filename, sizeof(filename), "");  /* strip '.blend' */
+		BLI_path_extension_replace(filename, sizeof(filename), "");  /* strip '.blend' */
 		BLI_hash_md5_buffer(blendfile_path, strlen(blendfile_path), path_digest);
 	}
 	else {

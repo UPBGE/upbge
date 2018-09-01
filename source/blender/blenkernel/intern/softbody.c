@@ -2864,7 +2864,7 @@ static void mesh_to_softbody(Scene *scene, Object *ob)
 	BodySpring *bs;
 	int a, totedge;
 	int defgroup_index, defgroup_index_mass, defgroup_index_spring;
-	
+
 	if (ob->softflag & OB_SB_EDGES) totedge= me->totedge;
 	else totedge= 0;
 
@@ -3766,4 +3766,3 @@ void sbObjectStep(Scene *scene, Object *ob, float cfra, float (*vertexCos)[3], i
 
 	sb->last_frame = framenr;
 }
-

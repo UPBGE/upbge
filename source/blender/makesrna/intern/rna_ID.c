@@ -121,7 +121,8 @@ void rna_ID_name_set(PointerRNA *ptr, const char *value)
 {
 	ID *id = (ID *)ptr->data;
 	BLI_strncpy_utf8(id->name + 2, value, sizeof(id->name) - 2);
-	BLI_libblock_ensure_unique_name(G.main, id->name);
+	BLI_assert(BKE_id_is_in_gobal_main(id));
+	BLI_libblock_ensure_unique_name(G_MAIN, id->name);
 }
 
 static int rna_ID_name_editable(PointerRNA *ptr, const char **UNUSED(r_info))
@@ -238,7 +239,7 @@ IDProperty *rna_ID_idprops(PointerRNA *ptr, bool create)
 	return IDP_GetProperties(ptr->data, create);
 }
 
-void rna_ID_fake_user_set(PointerRNA *ptr, int value)
+void rna_ID_fake_user_set(PointerRNA *ptr, bool value)
 {
 	ID *id = (ID *)ptr->data;
 
@@ -359,7 +360,7 @@ static void rna_ID_user_remap(ID *id, Main *bmain, ID *new_id)
 	}
 }
 
-static struct ID *rna_ID_make_local(struct ID *self, Main *bmain, int clear_proxy)
+static struct ID *rna_ID_make_local(struct ID *self, Main *bmain, bool clear_proxy)
 {
 	/* Special case, as we can't rely on id_make_local(); it clears proxies. */
 	if (!clear_proxy && GS(self->name) == ID_OB) {
@@ -414,7 +415,9 @@ int rna_IDMaterials_assign_int(PointerRNA *ptr, int key, const PointerRNA *assig
 	short *totcol = give_totcolp_id(id);
 	Material *mat_id = assign_ptr->id.data;
 	if (totcol && (key >= 0 && key < *totcol)) {
-		assign_material_id(G.main, id, mat_id, key + 1);
+		BLI_assert(BKE_id_is_in_gobal_main(id));
+		BLI_assert(BKE_id_is_in_gobal_main(&mat_id->id));
+		assign_material_id(G_MAIN, id, mat_id, key + 1);
 		return 1;
 	}
 	else {
@@ -430,7 +433,8 @@ static void rna_IDMaterials_append_id(ID *id, Main *bmain, Material *ma)
 	WM_main_add_notifier(NC_OBJECT | ND_OB_SHADING, id);
 }
 
-static Material *rna_IDMaterials_pop_id(ID *id, Main *bmain, ReportList *reports, int index_i, int remove_material_slot)
+static Material *rna_IDMaterials_pop_id(
+        ID *id, Main *bmain, ReportList *reports, int index_i, bool remove_material_slot)
 {
 	Material *ma;
 	short *totcol = give_totcolp_id(id);
@@ -458,7 +462,7 @@ static Material *rna_IDMaterials_pop_id(ID *id, Main *bmain, ReportList *reports
 	return ma;
 }
 
-static void rna_IDMaterials_clear_id(ID *id, Main *bmain, int remove_material_slot)
+static void rna_IDMaterials_clear_id(ID *id, Main *bmain, bool remove_material_slot)
 {
 	BKE_material_clear_id(bmain, id, remove_material_slot);
 
@@ -470,7 +474,8 @@ static void rna_IDMaterials_clear_id(ID *id, Main *bmain, int remove_material_sl
 static void rna_Library_filepath_set(PointerRNA *ptr, const char *value)
 {
 	Library *lib = (Library *)ptr->data;
-	BKE_library_filepath_set(G.main, lib, value);
+	BLI_assert(BKE_id_is_in_gobal_main(&lib->id));
+	BKE_library_filepath_set(G_MAIN, lib, value);
 }
 
 /* ***** ImagePreview ***** */
@@ -642,7 +647,7 @@ static void rna_ImagePreview_pixels_float_set(PointerRNA *ptr, const float *valu
 }
 
 
-static void rna_ImagePreview_is_image_custom_set(PointerRNA *ptr, int value)
+static void rna_ImagePreview_is_image_custom_set(PointerRNA *ptr, bool value)
 {
 	rna_ImagePreview_is_custom_set(ptr, value, ICON_SIZE_PREVIEW);
 }
@@ -688,7 +693,7 @@ static void rna_ImagePreview_image_pixels_float_set(PointerRNA *ptr, const float
 }
 
 
-static void rna_ImagePreview_is_icon_custom_set(PointerRNA *ptr, int value)
+static void rna_ImagePreview_is_icon_custom_set(PointerRNA *ptr, bool value)
 {
 	rna_ImagePreview_is_custom_set(ptr, value, ICON_SIZE_ICON);
 }
