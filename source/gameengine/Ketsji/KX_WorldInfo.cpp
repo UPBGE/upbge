@@ -46,7 +46,6 @@
 
 #include "BLI_math.h"
 
-#include "BKE_global.h"
 #include "BKE_scene.h"
 /* end of blender include block */
 
@@ -55,7 +54,6 @@ KX_WorldInfo::KX_WorldInfo(Scene *blenderscene, World *blenderworld)
 {
 	if (blenderworld) {
 		m_name = blenderworld->id.name + 2;
-		m_do_color_management = BKE_scene_check_color_management_enabled(blenderscene);
 		m_hasworld = true;
 		m_hasmist = ((blenderworld->mode) & WO_MIST ? true : false);
 		m_hasEnvLight = ((blenderworld->mode) & WO_ENV_LIGHT ? true : false);
@@ -101,6 +99,16 @@ std::string KX_WorldInfo::GetName()
 	return m_name;
 }
 
+void KX_WorldInfo::ReloadMaterial()
+{
+	if (m_hasworld && m_scene->world->skytype & (WO_SKYBLEND | WO_SKYPAPER | WO_SKYREAL)) {
+		m_gpuMat = GPU_material_world(m_scene, m_scene->world, GPU_MATERIAL_NO_COLOR_MANAGEMENT);
+	}
+	else {
+		m_gpuMat = nullptr;
+	}
+}
+
 bool KX_WorldInfo::hasWorld()
 {
 	return m_hasworld;
@@ -144,29 +152,11 @@ void KX_WorldInfo::setRange(float range)
 void KX_WorldInfo::setMistColor(const mt::vec3& mistcolor)
 {
 	m_mistcolor = mistcolor;
-
-	if (m_do_color_management) {
-		float col[3];
-		linearrgb_to_srgb_v3_v3(col, m_mistcolor.Data());
-		m_con_mistcolor = mt::vec3(col);
-	}
-	else {
-		m_con_mistcolor = m_mistcolor;
-	}
 }
 
 void KX_WorldInfo::setAmbientColor(const mt::vec3& ambientcolor)
 {
 	m_ambientcolor = ambientcolor;
-
-	if (m_do_color_management) {
-		float col[3];
-		linearrgb_to_srgb_v3_v3(col, m_ambientcolor.Data());
-		m_con_ambientcolor = mt::vec3(col);
-	}
-	else {
-		m_con_ambientcolor = m_ambientcolor;
-	}
 }
 
 void KX_WorldInfo::UpdateBackGround(RAS_Rasterizer *rasty)
@@ -189,13 +179,13 @@ void KX_WorldInfo::UpdateBackGround(RAS_Rasterizer *rasty)
 void KX_WorldInfo::UpdateWorldSettings(RAS_Rasterizer *rasty)
 {
 	if (m_hasworld) {
-		rasty->SetAmbientColor(m_con_ambientcolor);
+		rasty->SetAmbientColor(m_ambientcolor);
 		GPU_ambient_update_color(m_ambientcolor.Data());
 		GPU_update_exposure_range(m_exposure, m_range);
 		GPU_update_envlight_energy(m_envLightEnergy);
 
 		if (m_hasmist) {
-			rasty->SetFog(m_misttype, m_miststart, m_mistdistance, m_mistintensity, m_con_mistcolor);
+			rasty->SetFog(m_misttype, m_miststart, m_mistdistance, m_mistintensity, m_mistcolor);
 			GPU_mist_update_values(m_misttype, m_miststart, m_mistdistance, m_mistintensity, m_mistcolor.Data());
 			GPU_mist_update_enable(true);
 		}
@@ -208,11 +198,9 @@ void KX_WorldInfo::UpdateWorldSettings(RAS_Rasterizer *rasty)
 void KX_WorldInfo::RenderBackground(RAS_Rasterizer *rasty)
 {
 	if (m_hasworld) {
-		if (m_scene->world->skytype & (WO_SKYBLEND | WO_SKYPAPER | WO_SKYREAL)) {
-			GPUMaterial *gpumat = GPU_material_world(m_scene, m_scene->world);
-
+		if (m_gpuMat) {
 			static float texcofac[4] = { 0.0f, 0.0f, 1.0f, 1.0f };
-			GPU_material_bind(gpumat, m_scene->lay, 1.0f, false, rasty->GetViewMatrix().Data(),
+			GPU_material_bind(m_gpuMat, m_scene->lay, 1.0f, false, rasty->GetViewMatrix().Data(),
 			                  rasty->GetViewInvMatrix().Data(), texcofac, false);
 
 			rasty->SetFrontFace(true);
@@ -223,26 +211,16 @@ void KX_WorldInfo::RenderBackground(RAS_Rasterizer *rasty)
 
 			rasty->SetDepthFunc(RAS_Rasterizer::RAS_LEQUAL);
 
-			GPU_material_unbind(gpumat);
+			GPU_material_unbind(m_gpuMat);
 		}
 		else {
-			if (m_do_color_management) {
-				float srgbcolor[4];
-				linearrgb_to_srgb_v4(srgbcolor, m_horizoncolor.Data());
-				rasty->SetClearColor(srgbcolor[0], srgbcolor[1], srgbcolor[2], srgbcolor[3]);
-			}
-			else {
-				rasty->SetClearColor(m_horizoncolor[0], m_horizoncolor[1], m_horizoncolor[2], m_horizoncolor[3]);
-			}
+			rasty->SetClearColor(m_horizoncolor[0], m_horizoncolor[1], m_horizoncolor[2], m_horizoncolor[3]);
 			rasty->Clear(RAS_Rasterizer::RAS_COLOR_BUFFER_BIT);
 		}
 	}
 	// Else render a dummy gray background.
 	else {
-		/* Grey color computed by linearrgb_to_srgb_v3_v3 with a color of
-		 * 0.050, 0.050, 0.050 (the default world horizon color).
-		 */
-		rasty->SetClearColor(0.247784f, 0.247784f, 0.247784f, 1.0f);
+		rasty->SetClearColor(0.05f, 0.05f, 0.05f, 1.0f);
 		rasty->Clear(RAS_Rasterizer::RAS_COLOR_BUFFER_BIT);
 	}
 }

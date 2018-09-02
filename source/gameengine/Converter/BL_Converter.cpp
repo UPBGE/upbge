@@ -711,6 +711,11 @@ void BL_Converter::FinalizeSceneData(const BL_SceneConverter& converter)
 	for (KX_BlenderMaterial *mat : converter.m_materials) {
 		mat->InitShader();
 	}
+
+	KX_WorldInfo *world = converter.GetScene()->GetWorldInfo();
+	if (world) {
+		world->ReloadMaterial();
+	}
 }
 
 /** This function merges a mesh from the current scene into another main

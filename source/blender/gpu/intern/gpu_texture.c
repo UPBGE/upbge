@@ -153,7 +153,7 @@ static GPUTexture *GPU_texture_create_nD(
 			format = GL_RGBA;
 			switch (hdr_type) {
 				case GPU_HDR_NONE:
-					internalformat = GL_RGBA8;
+					internalformat = GL_RGBA12;
 					break;
 				/* the following formats rely on ARB_texture_float or OpenGL 3.0 */
 				case GPU_HDR_HALF_FLOAT:

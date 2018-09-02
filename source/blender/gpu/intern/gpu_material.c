@@ -133,12 +133,10 @@ struct GPUMaterial {
 	int ininstmatloc;
 	int ininstcolloc;
 
-	bool use_instancing;
-
 	ListBase lamps;
 	bool bound;
 
-	bool is_opensubdiv;
+	GPUMaterialFlag flags;
 
 	float har;
 };
@@ -249,8 +247,8 @@ static int gpu_material_construct_end(GPUMaterial *material, const char *passnam
 		material->pass = GPU_generate_pass(&material->nodes, outlink,
 			&material->attribs, &material->builtins, material->type,
 			passname,
-			material->is_opensubdiv,
-			material->use_instancing,
+			material->flags & GPU_MATERIAL_OPENSUBDIV,
+			material->flags & GPU_MATERIAL_INSTANCING,
 			GPU_material_use_new_shading_nodes(material));
 
 		if (!material->pass)
@@ -288,7 +286,7 @@ static int gpu_material_construct_end(GPUMaterial *material, const char *passnam
 			material->partvel = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_PARTICLE_VELOCITY));
 		if (material->builtins & GPU_PARTICLE_ANG_VELOCITY)
 			material->partangvel = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_PARTICLE_ANG_VELOCITY));
-		if (material->use_instancing) {
+		if (GPU_material_use_instancing(material)) {
 			material->ininstposloc = GPU_shader_get_attribute(shader, GPU_builtin_name(GPU_INSTANCING_POSITION_ATTRIB));
 			material->ininstmatloc = GPU_shader_get_attribute(shader, GPU_builtin_name(GPU_INSTANCING_MATRIX_ATTRIB));
 			material->ininstcolloc = GPU_shader_get_attribute(shader, GPU_builtin_name(GPU_INSTANCING_COLOR_ATTRIB));
@@ -353,7 +351,7 @@ bool GPU_lamp_visible(GPULamp *lamp, SceneRenderLayer *srl, Material *ma)
 
 bool GPU_material_use_instancing(GPUMaterial *material)
 {
-	return material->use_instancing;
+	return material->flags & GPU_MATERIAL_INSTANCING;
 }
 
 void GPU_material_bind_instancing_attrib(GPUMaterial *material, void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride)
@@ -612,10 +610,7 @@ void gpu_material_add_node(GPUMaterial *material, GPUNode *node)
 
 bool GPU_material_do_color_management(GPUMaterial *mat)
 {
-	if (!BKE_scene_check_color_management_enabled(mat->scene))
-		return false;
-
-	return true;
+	return BKE_scene_check_color_management_enabled(mat->scene);
 }
 
 bool GPU_material_use_new_shading_nodes(GPUMaterial *mat)
@@ -1332,13 +1327,14 @@ static void do_material_tex(GPUShadeInput *shi)
 	GPUNodeLink *vNorg, *vNacc, *fPrevMagnitude;
 	int iFirstTimeNMap = 1;
 	bool found_deriv_map = false;
+	const bool instancing = GPU_material_use_instancing(mat);
 
 	GPU_link(mat, "set_value", GPU_uniform(&one), &stencil);
 
 	GPU_link(mat, "texco_norm", GPU_builtin(GPU_VIEW_NORMAL), &texco_norm);
 	GPU_link(mat, "texco_orco", GPU_attribute(CD_ORCO, ""), &texco_orco);
 	GPU_link(mat, "texco_object", GPU_builtin(GPU_INVERSE_VIEW_MATRIX),
-		GPU_builtin((mat->use_instancing) ? GPU_INSTANCING_INVERSE_MATRIX : GPU_INVERSE_OBJECT_MATRIX),
+		GPU_builtin(instancing ? GPU_INSTANCING_INVERSE_MATRIX : GPU_INVERSE_OBJECT_MATRIX),
 		GPU_builtin(GPU_VIEW_POSITION), &texco_object);
 #if 0
 	GPU_link(mat, "texco_tangent", GPU_attribute(CD_TANGENT, ""), &texco_tangent);
@@ -1708,8 +1704,8 @@ static void do_material_tex(GPUShadeInput *shi)
 								         surf_pos, vNorg,
 								         GPU_builtin(GPU_VIEW_MATRIX),
 								         GPU_builtin(GPU_INVERSE_VIEW_MATRIX),
-								         GPU_builtin((mat->use_instancing) ? GPU_INSTANCING_MATRIX : GPU_OBJECT_MATRIX),
-								         GPU_builtin((mat->use_instancing) ? GPU_INSTANCING_INVERSE_MATRIX : GPU_INVERSE_OBJECT_MATRIX),
+								         GPU_builtin(instancing ? GPU_INSTANCING_MATRIX : GPU_OBJECT_MATRIX),
+								         GPU_builtin(instancing ? GPU_INSTANCING_INVERSE_MATRIX : GPU_INVERSE_OBJECT_MATRIX),
 								         fPrevMagnitude, vNacc,
 								         &fPrevMagnitude, &vNacc,
 								         &vR1, &vR2, &fDet);
@@ -1946,6 +1942,7 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 	GPUNodeLink *emit, *mistfac;
 	Material *ma = shi->mat;
 	World *world = mat->scene->world;
+	const bool instancing = GPU_material_use_instancing(mat);
 
 	mat->dynproperty |= DYN_LAMP_CO;
 	memset(shr, 0, sizeof(*shr));
@@ -2074,7 +2071,7 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 
 	if (ma->shade_flag & MA_OBCOLOR) {
 		GPU_link(mat, "shade_obcolor", shr->combined, 
-			GPU_builtin((mat->use_instancing) ? GPU_INSTANCING_COLOR : GPU_OBCOLOR), &shr->combined);
+			GPU_builtin(instancing ? GPU_INSTANCING_COLOR : GPU_OBCOLOR), &shr->combined);
 	}
 
 	if (!(ma->mode & MA_NOMIST)) {
@@ -2100,7 +2097,7 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 	if (ma->shade_flag & MA_OBCOLOR) {
 		mat->obcolalpha = 1;
 		GPU_link(mat, "shade_alpha_obcolor", shr->combined, 
-			GPU_builtin((mat->use_instancing) ? GPU_INSTANCING_COLOR : GPU_OBCOLOR), &shr->combined);
+			GPU_builtin(instancing ? GPU_INSTANCING_COLOR : GPU_OBCOLOR), &shr->combined);
 	}
 }
 
@@ -2141,7 +2138,7 @@ static GPUNodeLink *gpu_material_preview_matcap(GPUMaterial *mat, Material *ma)
 }
 
 /* new solid draw mode with glsl matcaps */
-GPUMaterial *GPU_material_matcap(Scene *scene, Material *ma, bool use_opensubdiv)
+GPUMaterial *GPU_material_matcap(Scene *scene, Material *ma, GPUMaterialFlag flags)
 {
 	GPUMaterial *mat;
 	GPUNodeLink *outlink;
@@ -2150,7 +2147,7 @@ GPUMaterial *GPU_material_matcap(Scene *scene, Material *ma, bool use_opensubdiv
 	for (link = ma->gpumaterial.first; link; link = link->next) {
 		GPUMaterial *current_material = (GPUMaterial *)link->data;
 		if (current_material->scene == scene &&
-		    current_material->is_opensubdiv == use_opensubdiv)
+		    current_material->flags == flags)
 		{
 			return current_material;
 		}
@@ -2160,7 +2157,7 @@ GPUMaterial *GPU_material_matcap(Scene *scene, Material *ma, bool use_opensubdiv
 	mat = GPU_material_construct_begin(ma);
 	mat->scene = scene;
 	mat->type = GPU_MATERIAL_TYPE_MESH;
-	mat->is_opensubdiv = use_opensubdiv;
+	mat->flags = flags;
 
 	if (ma->preview && ma->preview->rect[0]) {
 		outlink = gpu_material_preview_matcap(mat, ma);
@@ -2377,19 +2374,25 @@ static void gpu_material_old_world(struct GPUMaterial *mat, struct World *wo)
 	GPU_material_output_link(mat, shr.combined);
 }
 
-GPUMaterial *GPU_material_world(struct Scene *scene, struct World *wo)
+GPUMaterial *GPU_material_world(struct Scene *scene, struct World *wo, GPUMaterialFlag flags)
 {
 	LinkData *link;
 	GPUMaterial *mat;
 
-	for (link = wo->gpumaterial.first; link; link = link->next)
-		if (((GPUMaterial *)link->data)->scene == scene)
+	for (link = wo->gpumaterial.first; link; link = link->next) {
+		GPUMaterial *current_material = (GPUMaterial *)link->data;
+		if (current_material->scene == scene &&
+			current_material->flags == flags)
+		{
 			return link->data;
+		}
+	}
 
 	/* allocate material */
 	mat = GPU_material_construct_begin(NULL);
 	mat->scene = scene;
 	mat->type = GPU_MATERIAL_TYPE_WORLD;
+	mat->flags = flags;
 
 	/* create nodes */
 	if (BKE_scene_use_new_shading_nodes(scene) && wo->nodetree && wo->use_nodes) {
@@ -2399,7 +2402,7 @@ GPUMaterial *GPU_material_world(struct Scene *scene, struct World *wo)
 		gpu_material_old_world(mat, wo);
 	}
 
-	if (GPU_material_do_color_management(mat))
+	if (GPU_material_do_color_management(mat) && !(mat->flags & GPU_MATERIAL_NO_COLOR_MANAGEMENT))
 		if (mat->outlink)
 			GPU_link(mat, "linearrgb_to_srgb", mat->outlink, &mat->outlink);
 
@@ -2417,14 +2420,14 @@ GPUMaterial *GPU_material_world(struct Scene *scene, struct World *wo)
 }
 
 
-GPUMaterial *GPU_material_from_blender(Scene *scene, Material *ma, bool use_opensubdiv, bool is_instancing)
+GPUMaterial *GPU_material_from_blender(Scene *scene, Material *ma, GPUMaterialFlag flags)
 {
 	GPUMaterial *mat;
 	GPUNodeLink *outlink;
 	LinkData *link;
 	ListBase *gpumaterials;
 
-	if (is_instancing) {
+	if (flags & GPU_MATERIAL_INSTANCING) {
 		gpumaterials = &ma->gpumaterialinstancing;
 	}
 	else {
@@ -2434,7 +2437,7 @@ GPUMaterial *GPU_material_from_blender(Scene *scene, Material *ma, bool use_open
 	for (link = gpumaterials->first; link; link = link->next) {
 		GPUMaterial *current_material = (GPUMaterial *)link->data;
 		if (current_material->scene == scene &&
-		    current_material->is_opensubdiv == use_opensubdiv)
+		    current_material->flags == flags)
 		{
 			return current_material;
 		}
@@ -2444,8 +2447,7 @@ GPUMaterial *GPU_material_from_blender(Scene *scene, Material *ma, bool use_open
 	mat = GPU_material_construct_begin(ma);
 	mat->scene = scene;
 	mat->type = GPU_MATERIAL_TYPE_MESH;
-	mat->use_instancing = is_instancing;
-	mat->is_opensubdiv = use_opensubdiv;
+	mat->flags = flags;
 	mat->har = ma->har;
 
 	/* render pipeline option */
@@ -2475,7 +2477,7 @@ GPUMaterial *GPU_material_from_blender(Scene *scene, Material *ma, bool use_open
 		GPU_material_output_link(mat, outlink);
 	}
 
-	if (GPU_material_do_color_management(mat) && !(ma->sss_flag))
+	if (GPU_material_do_color_management(mat) && !(ma->sss_flag) && !(mat->flags & GPU_MATERIAL_NO_COLOR_MANAGEMENT))
 		if (mat->outlink)
 			GPU_link(mat, "linearrgb_to_srgb", mat->outlink, &mat->outlink);
 
@@ -3034,7 +3036,7 @@ GPUShaderExport *GPU_shader_export(struct Scene *scene, struct Material *ma)
 	int liblen, fraglen;
 
 	/* TODO(sergey): How to determine whether we need OSD or not here? */
-	GPUMaterial *mat = GPU_material_from_blender(scene, ma, false, false);
+	GPUMaterial *mat = GPU_material_from_blender(scene, ma, 0);
 	GPUPass *pass = (mat) ? mat->pass : NULL;
 
 	if (pass && pass->fragmentcode && pass->vertexcode) {

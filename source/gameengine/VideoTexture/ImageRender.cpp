@@ -104,7 +104,7 @@ ImageRender::ImageRender(KX_Scene *scene, KX_Camera *camera, unsigned int width,
 	}
 	else {
 		type = GPU_HDR_NONE;
-		m_internalFormat = GL_RGBA8;
+		m_internalFormat = GL_RGBA12;
 	}
 
 	m_offScreen.reset(new RAS_OffScreen(m_width, m_height, m_samples, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_CUSTOM));
@@ -878,7 +878,7 @@ ImageRender::ImageRender(KX_Scene *scene, KX_GameObject *observer, KX_GameObject
 	}
 	else {
 		type = GPU_HDR_NONE;
-		m_internalFormat = GL_RGBA8;
+		m_internalFormat = GL_RGBA12;
 	}
 
 	m_offScreen.reset(new RAS_OffScreen(m_width, m_height, m_samples, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_CUSTOM));

@@ -2333,6 +2333,12 @@ void BKE_scene_disable_color_management(Scene *scene)
 
 bool BKE_scene_check_color_management_enabled(const Scene *scene)
 {
+#ifdef WITH_GAMEENGINE
+	if (BKE_scene_uses_blender_game(scene)) {
+		return (scene->gm.colorManagement == GAME_COLOR_MANAGEMENT_SRGB);
+	}
+#endif
+
 	return !STREQ(scene->display_settings.display_device, "None");
 }
 

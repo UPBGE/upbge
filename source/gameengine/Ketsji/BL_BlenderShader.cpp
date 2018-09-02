@@ -123,7 +123,9 @@ void BL_BlenderShader::ReloadMaterial()
 		GPU_material_free(&m_mat->gpumaterialinstancing);
 	}
 
-	m_gpuMat = (m_mat) ? GPU_material_from_blender(m_blenderScene, m_mat, false, UseInstancing()) : nullptr;
+	GPUMaterialFlag flags = (GPUMaterialFlag)
+			(GPU_MATERIAL_NO_COLOR_MANAGEMENT | (UseInstancing() ? GPU_MATERIAL_INSTANCING : 0));
+	m_gpuMat = (m_mat) ? GPU_material_from_blender(m_blenderScene, m_mat, flags) : nullptr;
 
 	m_materialUpdateServer->NotifyUpdate(RAS_IMaterial::SHADER_MODIFIED);
 }

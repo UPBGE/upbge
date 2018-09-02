@@ -194,6 +194,14 @@ RAS_Rasterizer::OffScreenType RAS_Rasterizer::NextRenderOffScreen(RAS_Rasterizer
 	}
 }
 
+// Each shader used to draw the offscreen to screen by color management.
+GPUBuiltinShader offScreenToScreenShaderTable[RAS_Rasterizer::RAS_SHADER_TO_SCREEN_MAX][RAS_Rasterizer::RAS_COLOR_MANAGEMENT_MAX] = {
+	// Linear, sRGB
+	{GPU_SHADER_DRAW_FRAME_BUFFER, GPU_SHADER_DRAW_FRAME_BUFFER_SRGB}, // Normal
+	{GPU_SHADER_STEREO_STIPPLE, GPU_SHADER_STEREO_STIPPLE_SRGB}, // Stereo stipple
+	{GPU_SHADER_STEREO_ANAGLYPH, GPU_SHADER_STEREO_ANAGLYPH_SRGB} // Stereo anaglyph
+};
+
 RAS_Rasterizer::RAS_Rasterizer()
 	:m_time(0.0f),
 	m_ambient(mt::zero3),
@@ -208,6 +216,7 @@ RAS_Rasterizer::RAS_Rasterizer()
 	m_focallength(0.0f),
 	m_setfocallength(false),
 	m_noOfScanlines(32),
+	m_colorManagement(RAS_COLOR_MANAGEMENT_LINEAR),
 	m_motionblur(0),
 	m_motionblurvalue(-1.0f),
 	m_clientobject(nullptr),
@@ -221,8 +230,6 @@ RAS_Rasterizer::RAS_Rasterizer()
 	m_debugDrawImpl.reset(new RAS_OpenGLDebugDraw());
 
 	m_numgllights = m_impl->GetNumLights();
-
-	InitOverrideShadersInterface();
 
 	m_state.frontFace = -1;
 	m_state.cullFace = -1;
@@ -283,6 +290,8 @@ void RAS_Rasterizer::Init()
 	SetColorMask(true, true, true, true);
 
 	m_impl->Init();
+
+	InitOverrideShadersInterface();
 }
 
 void RAS_Rasterizer::Exit()
@@ -427,9 +436,6 @@ void RAS_Rasterizer::DrawOffScreen(RAS_OffScreen *srcOffScreen, RAS_OffScreen *d
 		GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_DRAW_FRAME_BUFFER);
 		GPU_shader_bind(shader);
 
-		OverrideShaderDrawFrameBufferInterface *interface = (OverrideShaderDrawFrameBufferInterface *)GPU_shader_get_interface(shader);
-		GPU_shader_uniform_int(shader, interface->colorTexLoc, 0);
-
 		DrawOverlayPlane();
 
 		GPU_shader_unbind();
@@ -438,7 +444,7 @@ void RAS_Rasterizer::DrawOffScreen(RAS_OffScreen *srcOffScreen, RAS_OffScreen *d
 	}
 }
 
-void RAS_Rasterizer::DrawOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *offScreen)
+void RAS_Rasterizer::DrawOffScreenToScreen(RAS_ICanvas *canvas, RAS_OffScreen *offScreen)
 {
 	if (offScreen->GetSamples() > 0) {
 		offScreen = offScreen->Blit(GetOffScreen(RAS_OFFSCREEN_EYE_LEFT1), true, false);
@@ -452,13 +458,24 @@ void RAS_Rasterizer::DrawOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *offScreen
 	SetDepthFunc(RAS_ALWAYS);
 
 	RAS_OffScreen::RestoreScreen();
-	DrawOffScreen(offScreen, nullptr);
+
+	offScreen->BindColorTexture(0);
+
+	GPUShader *shader =
+		GPU_shader_get_builtin_shader(offScreenToScreenShaderTable[RAS_SHADER_TO_SCREEN_NORMAL][m_colorManagement]);
+	GPU_shader_bind(shader);
+
+	DrawOverlayPlane();
+
+	GPU_shader_unbind();
+
+	offScreen->UnbindColorTexture();
 
 	SetDepthFunc(RAS_LEQUAL);
 }
 
-void RAS_Rasterizer::DrawStereoOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *leftOffScreen, RAS_OffScreen *rightOffScreen,
-                                         StereoMode stereoMode)
+void RAS_Rasterizer::DrawStereoOffScreenToScreen(RAS_ICanvas *canvas, RAS_OffScreen *leftOffScreen,
+		RAS_OffScreen *rightOffScreen, StereoMode stereoMode)
 {
 	if (leftOffScreen->GetSamples() > 0) {
 		// Then leftOffScreen == RAS_OFFSCREEN_EYE_LEFT0.
@@ -480,44 +497,28 @@ void RAS_Rasterizer::DrawStereoOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *lef
 	RAS_OffScreen::RestoreScreen();
 
 	if (stereoMode == RAS_STEREO_VINTERLACE || stereoMode == RAS_STEREO_INTERLACED) {
-		GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_STEREO_STIPPLE);
+		GPUShader *shader = 
+			GPU_shader_get_builtin_shader(offScreenToScreenShaderTable[RAS_SHADER_TO_SCREEN_STEREO_STIPPLE][m_colorManagement]);
 		GPU_shader_bind(shader);
 
 		OverrideShaderStereoStippleInterface *interface = (OverrideShaderStereoStippleInterface *)GPU_shader_get_interface(shader);
-
-		leftOffScreen->BindColorTexture(0);
-		rightOffScreen->BindColorTexture(1);
-
-		GPU_shader_uniform_int(shader, interface->leftEyeTexLoc, 0);
-		GPU_shader_uniform_int(shader, interface->rightEyeTexLoc, 1);
 		GPU_shader_uniform_int(shader, interface->stippleIdLoc, (stereoMode == RAS_STEREO_INTERLACED) ? 1 : 0);
-
-		DrawOverlayPlane();
-
-		GPU_shader_unbind();
-
-		leftOffScreen->UnbindColorTexture();
-		rightOffScreen->UnbindColorTexture();
 	}
 	else if (stereoMode == RAS_STEREO_ANAGLYPH) {
-		GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_STEREO_ANAGLYPH);
+		GPUShader *shader = 
+			GPU_shader_get_builtin_shader(offScreenToScreenShaderTable[RAS_SHADER_TO_SCREEN_STEREO_ANAGLYPH][m_colorManagement]);
 		GPU_shader_bind(shader);
-
-		OverrideShaderStereoAnaglyph *interface = (OverrideShaderStereoAnaglyph *)GPU_shader_get_interface(shader);
-
-		leftOffScreen->BindColorTexture(0);
-		rightOffScreen->BindColorTexture(1);
-
-		GPU_shader_uniform_int(shader, interface->leftEyeTexLoc, 0);
-		GPU_shader_uniform_int(shader, interface->rightEyeTexLoc, 1);
-
-		DrawOverlayPlane();
-
-		GPU_shader_unbind();
-
-		leftOffScreen->UnbindColorTexture();
-		rightOffScreen->UnbindColorTexture();
 	}
+
+	leftOffScreen->BindColorTexture(0);
+	rightOffScreen->BindColorTexture(1);
+
+	DrawOverlayPlane();
+
+	leftOffScreen->UnbindColorTexture();
+	rightOffScreen->UnbindColorTexture();
+
+	GPU_shader_unbind();
 
 	SetDepthFunc(RAS_LEQUAL);
 }
@@ -989,6 +990,11 @@ void RAS_Rasterizer::SetInvertFrontFace(bool invert)
 	m_invertFrontFace = invert;
 }
 
+void RAS_Rasterizer::SetColorManagment(ColorManagement colorManagement)
+{
+	m_colorManagement = colorManagement;
+}
+
 void RAS_Rasterizer::SetAnisotropicFiltering(short level)
 {
 	GPU_set_anisotropic(G.main, (float)level);
@@ -1042,41 +1048,60 @@ void RAS_Rasterizer::InitOverrideShadersInterface()
 	// Find uniform location for FBO shaders.
 
 	// Draw frame buffer shader.
-	{
-		GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_DRAW_FRAME_BUFFER);
-		if (!GPU_shader_get_interface(shader)) {
-			OverrideShaderDrawFrameBufferInterface *interface = (OverrideShaderDrawFrameBufferInterface *)MEM_mallocN(sizeof(OverrideShaderDrawFrameBufferInterface), "OverrideShaderDrawFrameBufferInterface");
+	for (unsigned short i = 0; i < RAS_COLOR_MANAGEMENT_MAX; ++i) {
+		{
+			GPUShader *shader = 
+				GPU_shader_get_builtin_shader(offScreenToScreenShaderTable[RAS_SHADER_TO_SCREEN_NORMAL][i]);
+			if (!GPU_shader_get_interface(shader)) {
+				OverrideShaderDrawFrameBufferInterface *interface = (OverrideShaderDrawFrameBufferInterface *)MEM_mallocN(sizeof(OverrideShaderDrawFrameBufferInterface), "OverrideShaderDrawFrameBufferInterface");
 
-			interface->colorTexLoc = GPU_shader_get_uniform(shader, "colortex");
+				interface->colorTexLoc = GPU_shader_get_uniform(shader, "colortex");
 
-			GPU_shader_set_interface(shader, interface);
+				GPU_shader_bind(shader);
+				GPU_shader_uniform_int(shader, interface->colorTexLoc, 0);
+				GPU_shader_unbind();
+
+				GPU_shader_set_interface(shader, interface);
+			}
 		}
-	}
 
-	// Stipple stereo shader.
-	{
-		GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_STEREO_STIPPLE);
-		if (!GPU_shader_get_interface(shader)) {
-			OverrideShaderStereoStippleInterface *interface = (OverrideShaderStereoStippleInterface *)MEM_mallocN(sizeof(OverrideShaderStereoStippleInterface), "OverrideShaderStereoStippleInterface");
+		// Stipple stereo shader.
+		{
+			GPUShader *shader = 
+				GPU_shader_get_builtin_shader(offScreenToScreenShaderTable[RAS_SHADER_TO_SCREEN_STEREO_STIPPLE][i]);
+			if (!GPU_shader_get_interface(shader)) {
+				OverrideShaderStereoStippleInterface *interface = (OverrideShaderStereoStippleInterface *)MEM_mallocN(sizeof(OverrideShaderStereoStippleInterface), "OverrideShaderStereoStippleInterface");
 
-			interface->leftEyeTexLoc = GPU_shader_get_uniform(shader, "lefteyetex");
-			interface->rightEyeTexLoc = GPU_shader_get_uniform(shader, "righteyetex");
-			interface->stippleIdLoc = GPU_shader_get_uniform(shader, "stippleid");
+				interface->leftEyeTexLoc = GPU_shader_get_uniform(shader, "lefteyetex");
+				interface->rightEyeTexLoc = GPU_shader_get_uniform(shader, "righteyetex");
+				interface->stippleIdLoc = GPU_shader_get_uniform(shader, "stippleid");
 
-			GPU_shader_set_interface(shader, interface);
+				GPU_shader_bind(shader);
+				GPU_shader_uniform_int(shader, interface->leftEyeTexLoc, 0);
+				GPU_shader_uniform_int(shader, interface->rightEyeTexLoc, 1);
+				GPU_shader_unbind();
+
+				GPU_shader_set_interface(shader, interface);
+			}
 		}
-	}
 
-	// Anaglyph stereo shader.
-	{
-		GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_STEREO_ANAGLYPH);
-		if (!GPU_shader_get_interface(shader)) {
-			OverrideShaderStereoAnaglyph *interface = (OverrideShaderStereoAnaglyph *)MEM_mallocN(sizeof(OverrideShaderStereoAnaglyph), "OverrideShaderStereoAnaglyph");
+		// Anaglyph stereo shader.
+		{
+			GPUShader *shader = 
+				GPU_shader_get_builtin_shader(offScreenToScreenShaderTable[RAS_SHADER_TO_SCREEN_STEREO_ANAGLYPH][i]);
+			if (!GPU_shader_get_interface(shader)) {
+				OverrideShaderStereoAnaglyph *interface = (OverrideShaderStereoAnaglyph *)MEM_mallocN(sizeof(OverrideShaderStereoAnaglyph), "OverrideShaderStereoAnaglyph");
 
-			interface->leftEyeTexLoc = GPU_shader_get_uniform(shader, "lefteyetex");
-			interface->rightEyeTexLoc = GPU_shader_get_uniform(shader, "righteyetex");
+				interface->leftEyeTexLoc = GPU_shader_get_uniform(shader, "lefteyetex");
+				interface->rightEyeTexLoc = GPU_shader_get_uniform(shader, "righteyetex");
 
-			GPU_shader_set_interface(shader, interface);
+				GPU_shader_bind(shader);
+				GPU_shader_uniform_int(shader, interface->leftEyeTexLoc, 0);
+				GPU_shader_uniform_int(shader, interface->rightEyeTexLoc, 1);
+				GPU_shader_unbind();
+
+				GPU_shader_set_interface(shader, interface);
+			}
 		}
 	}
 }

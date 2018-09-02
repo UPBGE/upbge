@@ -44,8 +44,7 @@ public:
 	              SG_Callbacks callbacks,
 	              RAS_Rasterizer *rasterizer,
 				  RAS_BoundingBoxManager *boundingBoxManager,
-	              Object *ob,
-	              bool do_color_management);
+	              Object *ob);
 
 	virtual ~KX_FontObject();
 
@@ -86,8 +85,6 @@ protected:
 	RAS_BoundingBox *m_boundingBox;
 	/// needed for drawing routine
 	class RAS_Rasterizer *m_rasterizer;
-
-	bool m_do_color_management;
 
 	void GetTextAabb(mt::vec2& min, mt::vec2& max);
 

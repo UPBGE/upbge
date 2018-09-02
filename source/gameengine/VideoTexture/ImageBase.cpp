@@ -62,7 +62,7 @@ ExpDesc InvalidColorChannelDesc(InvalidColorChannel, "Invalid or too many color 
 ExpDesc InvalidImageModeDesc(InvalidImageMode, "Invalid image mode, only RGBA and BGRA are supported");
 
 // constructor
-ImageBase::ImageBase(bool staticSrc) :m_image(nullptr), m_imgSize(0), m_internalFormat(GL_RGBA8),
+ImageBase::ImageBase(bool staticSrc) :m_image(nullptr), m_imgSize(0), m_internalFormat(GL_RGBA12),
 	m_avail(false), m_scale(false), m_scaleChange(false), m_flip(false),
 	m_zbuff(false),
 	m_depth(false),

@@ -4481,6 +4481,12 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem color_management_items[] = {
+		{GAME_COLOR_MANAGEMENT_LINEAR, "COLOR_MANAGEMENT_LINEAR", 0, "Linear", "Linear color space"},
+		{GAME_COLOR_MANAGEMENT_SRGB, "COLOR_MANAGEMENT_SRGB", 0, "sRGB", "sRGB color space"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	static EnumPropertyItem solver_items[] = {
 		{GAME_SOLVER_SEQUENTIAL, "SOLVER_SEQUENTIAL", 0, "Sequential", "Sequential physics solver, default solver"},
 		{GAME_SOLVER_NNCG, "SOLVER_NNGC", 0, "NNGC", "NNGC physics solver"},
@@ -4583,6 +4589,12 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	RNA_def_property_int_default(prop, 32);
 	RNA_def_property_ui_text(prop, "Bits", "Display bit depth of full screen display");
 	RNA_def_property_update(prop, NC_SCENE, NULL);
+
+	prop = RNA_def_property(srna, "color_management", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "colorManagement");
+	RNA_def_property_enum_items(prop, color_management_items);
+	RNA_def_property_ui_text(prop, "Color Management", "The color managment of the display");
+	RNA_def_property_update(prop, NC_SCENE | NA_EDITED, "rna_Scene_glsl_update");
 
 	prop = RNA_def_property(srna, "exit_key", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "exitkey");
@@ -4892,11 +4904,6 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "use_glsl_nodes", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", GAME_GLSL_NO_NODES);
 	RNA_def_property_ui_text(prop, "GLSL Nodes", "Use nodes for GLSL rendering");
-	RNA_def_property_update(prop, NC_SCENE | NA_EDITED, "rna_Scene_glsl_update");
-
-	prop = RNA_def_property(srna, "use_glsl_color_management", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", GAME_GLSL_NO_COLOR_MANAGEMENT);
-	RNA_def_property_ui_text(prop, "GLSL Color Management", "Use color management for GLSL rendering");
 	RNA_def_property_update(prop, NC_SCENE | NA_EDITED, "rna_Scene_glsl_update");
 
 	prop = RNA_def_property(srna, "use_glsl_extra_textures", PROP_BOOLEAN, PROP_NONE);

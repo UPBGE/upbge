@@ -40,6 +40,7 @@ void KX_WorldInfo_Mathutils_Callback_Init(void);
 #endif
 
 class RAS_Rasterizer;
+struct GPUMaterial;
 struct Scene;
 struct World;
 
@@ -49,7 +50,7 @@ class KX_WorldInfo : public EXP_Value, public mt::SimdClassAllocator
 
 	std::string m_name;
 	Scene *m_scene;
-	bool m_do_color_management;
+	GPUMaterial *m_gpuMat;
 	bool m_hasworld;
 	bool m_hasmist;
 	bool m_hasEnvLight;
@@ -65,8 +66,11 @@ class KX_WorldInfo : public EXP_Value, public mt::SimdClassAllocator
 	mt::vec4 m_horizoncolor;
 	mt::vec4 m_zenithcolor;
 	mt::vec3 m_ambientcolor;
-	mt::vec3 m_con_mistcolor;
-	mt::vec3 m_con_ambientcolor;
+
+	struct {
+		mt::vec3 horizonColor;
+		mt::vec3 zenithColor;
+	} m_savedData;
 
 public:
 	/**
@@ -81,12 +85,9 @@ public:
 	KX_WorldInfo(Scene *blenderscene, World *blenderworld);
 	~KX_WorldInfo();
 
-	struct {
-		mt::vec3 horizonColor;
-		mt::vec3 zenithColor;
-	} m_savedData;
-
 	virtual std::string GetName();
+
+	void ReloadMaterial();
 	bool hasWorld();
 	void setMistStart(float d);
 	void setMistDistance(float d);
