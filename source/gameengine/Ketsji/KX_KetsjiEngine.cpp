@@ -1397,7 +1397,6 @@ void KX_KetsjiEngine::ReplaceScheduledScenes()
 					Scene *blScene = m_converter->GetBlenderSceneForName(newscenename);
 					if (blScene) {
 						DestructScene(scene);
-						m_scenes->RemoveValue(scene);
 
 						KX_Scene *tmpscene = CreateScene(blScene);
 						ConvertScene(tmpscene);
