@@ -1,10 +1,13 @@
 #include "KX_CullingHandler.h"
 #include "KX_GameObject.h"
+#include "KX_Globals.h"
 
 #include "SG_Node.h"
 #include "BVH.h"
 
 #include "tbb/tbb.h"
+
+#include "CM_Message.h"
 
 class CullTask
 {
@@ -65,7 +68,41 @@ KX_CullingHandler::KX_CullingHandler(EXP_ListValue<KX_GameObject> *objects, cons
 		}
 	}
 
-	m_tree = bvh::BVH(&nodes);
+	m_tree = bvh::BVH(&nodes, 1);
+
+	KX_Scene *scene = KX_GetActiveScene();
+	RAS_DebugDraw& draw = scene->GetDebugDraw();
+
+	unsigned int todo[64];
+	int32_t stackptr = 0;
+
+	/*CullTask task(m_objects, *this, m_layer);
+	tbb::parallel_reduce(tbb::blocked_range<size_t>(0, m_objects->GetCount()), task);*/
+
+	// Push root node.
+	todo[stackptr] = 0;
+
+	int step = 0;
+
+	while (stackptr >= 0) {
+		++step;
+		// Pop off the next node to work on.
+		unsigned int ni = todo[stackptr];
+		stackptr--;
+		const bvh::BVHFlatNode &node = m_tree.flatTree[ni];
+
+		draw.DrawAabb(mt::zero3, mt::mat3::Identity(), node.bbox.min, node.bbox.max, mt::vec4(1, 0, 0, 1));
+
+		if (node.rightOffset == 0) {
+// 			for(uint32_t o = 0; o < node.nPrims; ++o) {
+// 				const bvh::Object *obj = (*m_tree.build_prims)[node.start + o];
+// 			}
+		}
+		else {
+			todo[++stackptr] = ni + 1;
+			todo[++stackptr] = ni + node.rightOffset;
+		}
+	}
 }
 
 bool KX_CullingHandler::Test(const mt::mat3x4& trans, const mt::vec3& scale, const SG_BBox& aabb) const
@@ -87,37 +124,57 @@ bool KX_CullingHandler::Test(const mt::mat3x4& trans, const mt::vec3& scale, con
 	return culled;
 }
 
-bool KX_CullingHandler::Test(bvh::BVHFlatNode& node)
+SG_Frustum::TestType KX_CullingHandler::Test(const bvh::BVHFlatNode& node)
 {
 	const bvh::BBox& box = node.bbox;
 	const mt::vec3 diag = box.max - box.min;
-	SG_Frustum::TestType test = m_frustum.SphereInsideFrustum((box.min + diag * 0.5f), diag.Length());
+	const SG_Frustum::TestType test = m_frustum.SphereInsideFrustum((box.min + diag * 0.5f), diag.Length());
 
-	// First test if the sphere is in the frustum as it is faster to test than box.
-	if (test == SG_Frustum::INSIDE) {
-		return false;
-	}
-	else if (test == SG_Frustum::OUTSIDE) {
-		return true;
+	if (test != SG_Frustum::INTERSECT) {
+		return test;
 	}
 
-	test = m_frustum.AabbInsideFrustum(box.min, box.max);
-	if (test == SG_Frustum::INSIDE) {
-		return false;
-	}
-	else if (test == SG_Frustum::OUTSIDE) {
-		return true;
-	}
-
-	return true;
+	return m_frustum.AabbInsideFrustum(box.min, box.max);
 }
 
 std::vector<KX_GameObject *> KX_CullingHandler::Process()
 {
+	unsigned int todo[64];
+	int32_t stackptr = 0;
+
 	/*CullTask task(m_objects, *this, m_layer);
 	tbb::parallel_reduce(tbb::blocked_range<size_t>(0, m_objects->GetCount()), task);*/
 
-	Test(*m_tree.flatTree);
+	// Push root node.
+	todo[stackptr] = 0;
+
+	int step = 0;
+
+	while (stackptr >= 0) {
+		++step;
+		// Pop off the next node to work on.
+		unsigned int ni = todo[stackptr];
+		stackptr--;
+		const bvh::BVHFlatNode &node = m_tree.flatTree[ni];
+
+		const SG_Frustum::TestType test = Test(node);
+
+		if (node.rightOffset == 0) {
+			for(uint32_t o = 0; o < node.nPrims; ++o) {
+// 				const bvh::Object *obj = (*m_tree.build_prims)[node.start + o];
+			}
+// 			CM_Debug("leaf : " << test);
+		}
+		else {
+			if (test == SG_Frustum::INTERSECT) {
+				todo[++stackptr] = ni + 1;
+				todo[++stackptr] = ni + node.rightOffset;
+// 				CM_Debug("node : " << test);
+			}
+		}
+	}
+
+	CM_Debug(step);
 
 	return {};
 }

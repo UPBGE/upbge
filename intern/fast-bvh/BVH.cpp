@@ -132,6 +132,14 @@ BVH::BVH(std::vector<Object*>* objects, uint32_t leafSize)
     LOG_STAT("Built BVH (%d nodes, with %d leafs) in %d ms", nNodes, nLeafs, (int)(1000*constructionTime));
   }
 
+BVH& BVH::operator=(BVH&& other)
+{
+	flatTree = other.flatTree;
+	other.flatTree = nullptr;
+
+	return *this;
+}
+
 struct BVHBuildEntry {
   // If non-zero then this is the index of the parent. (used in offsets)
   uint32_t parent;

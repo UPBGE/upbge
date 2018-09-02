@@ -32,7 +32,7 @@ public:
 	~KX_CullingHandler() = default;
 
 	bool Test(const mt::mat3x4& trans, const mt::vec3& scale, const SG_BBox& aabb) const;
-	bool Test(bvh::BVHFlatNode& node);
+	SG_Frustum::TestType Test(const bvh::BVHFlatNode& node);
 
 	/// Process the culling of all object and return a list of non-culled objects.
 	std::vector<KX_GameObject *> Process();

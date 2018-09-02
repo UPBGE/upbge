@@ -30,7 +30,12 @@ class BVH {
   BVHFlatNode *flatTree;
 
   BVH();
+  BVH(const BVH& other) = delete;
   BVH(std::vector<Object*>* objects, uint32_t leafSize=4);
+
+  BVH& operator=(const BVH& other) = delete;
+  BVH& operator=(BVH&& other);
+
   bool getIntersection(const Ray& ray, IntersectionInfo *intersection, bool occlusion) const ;
 
   ~BVH();
