@@ -156,5 +156,26 @@ void BLO_update_defaults_startup_blend(Main *bmain)
 
 			BKE_layer_collection_sync(scene, layer);
 		}
+		if (!scene->gm.exitkey) {
+			scene->gm.exitkey = 218; // Blender key code for ESC
+		}
+		if (!scene->gm.physicsEngine) {
+			scene->gm.physicsEngine = WOPHY_BULLET;
+		}
+		if (!scene->gm.ticrate) {
+			scene->gm.ticrate = 60.0f;
+		}
+		if (!scene->gm.maxlogicstep) {
+			scene->gm.maxlogicstep = 5.0f;
+		}
+		if (!scene->gm.maxphystep) {
+			scene->gm.maxphystep = 5.0f;
+		}
+		if (!scene->gm.gravity) {
+			scene->gm.gravity = 9.8f;
+		}
+		if (!scene->gm.physubstep) {
+			scene->gm.physubstep = 1;
+		}
 	}
 }

@@ -1986,28 +1986,5 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 				}
 			}
 		}
-		for (Scene *scene = bmain->scene.first; scene; scene = scene->id.next) {
-			if (!scene->gm.exitkey) {
-				scene->gm.exitkey = 218; // Blender key code for ESC
-			}
-			if (!scene->gm.physicsEngine) {
-				scene->gm.physicsEngine = WOPHY_BULLET;
-			}
-			if (!scene->gm.ticrate) {
-				scene->gm.ticrate = 60.0f;
-			}
-			if (!scene->gm.maxlogicstep) {
-				scene->gm.maxlogicstep = 5.0f;
-			}
-			if (!scene->gm.maxphystep) {
-				scene->gm.maxphystep = 5.0f;
-			}
-			if (!scene->gm.gravity) {
-				scene->gm.gravity = 9.8f;
-			}
-			if (!scene->gm.physubstep) {
-				scene->gm.physubstep = 1;
-			}
-		}
 	}
 }
