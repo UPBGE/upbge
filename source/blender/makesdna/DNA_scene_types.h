@@ -1671,7 +1671,7 @@ typedef struct Scene {
 
 	unsigned int lay;			/* bitflags for layer visibility */
 	int layact;		/* active layer */
-	unsigned int lay_updated;       /* runtime flag, has layer ever been updated since load? */
+	unsigned int pad1;
 
 	short flag;								/* various settings */
 

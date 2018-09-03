@@ -122,11 +122,15 @@ namespace DEG {
 
 namespace {
 
-void free_copy_on_write_datablock(void *id_v)
+void free_copy_on_write_datablock(void *id_info_v)
 {
-	ID *id = (ID *)id_v;
-	deg_free_copy_on_write_datablock(id);
-	MEM_freeN(id);
+	DepsgraphNodeBuilder::IDInfo *id_info =
+	    (DepsgraphNodeBuilder::IDInfo *)id_info_v;
+	if (id_info->id_cow != NULL) {
+		deg_free_copy_on_write_datablock(id_info->id_cow);
+		MEM_freeN(id_info->id_cow);
+	}
+	MEM_freeN(id_info);
 }
 
 }  /* namespace */
@@ -144,14 +148,14 @@ DepsgraphNodeBuilder::DepsgraphNodeBuilder(Main *bmain, Depsgraph *graph)
       view_layer_index_(-1),
       collection_(NULL),
       is_parent_collection_visible_(true),
-      cow_id_hash_(NULL)
+      id_info_hash_(NULL)
 {
 }
 
 DepsgraphNodeBuilder::~DepsgraphNodeBuilder()
 {
-	if (cow_id_hash_ != NULL) {
-		BLI_ghash_free(cow_id_hash_, NULL, free_copy_on_write_datablock);
+	if (id_info_hash_ != NULL) {
+		BLI_ghash_free(id_info_hash_, NULL, free_copy_on_write_datablock);
 	}
 }
 
@@ -161,14 +165,17 @@ IDDepsNode *DepsgraphNodeBuilder::add_id_node(ID *id)
 		return graph_->add_id_node(id);
 	}
 	IDDepsNode *id_node = NULL;
-	ID *id_cow = (ID *)BLI_ghash_lookup(cow_id_hash_, id);
-	if (id_cow != NULL) {
-		/* TODO(sergey): Is it possible to lookup and pop element from GHash
-		 * at the same time?
-		 */
-		BLI_ghash_remove(cow_id_hash_, id, NULL, NULL);
+	ID *id_cow = NULL;
+	bool is_previous_visible = false;
+	IDInfo *id_info = (IDInfo *)BLI_ghash_lookup(id_info_hash_, id);
+	if (id_info != NULL) {
+		id_cow = id_info->id_cow;
+		is_previous_visible= id_info->is_visible;
+		/* Tag ID info to not free the CoW ID pointer. */
+		id_info->id_cow = NULL;
 	}
 	id_node = graph_->add_id_node(id, id_cow);
+	id_node->is_previous_visible = is_previous_visible;
 	/* Currently all ID nodes are supposed to have copy-on-write logic.
 	 *
 	 * NOTE: Zero number of components indicates that ID node was just created.
@@ -331,23 +338,26 @@ ID *DepsgraphNodeBuilder::ensure_cow_id(ID *id_orig)
 
 /* **** Build functions for entity nodes **** */
 
-void DepsgraphNodeBuilder::begin_build() {
-	if (DEG_depsgraph_use_copy_on_write()) {
-		/* Store existing copy-on-write versions of datablock, so we can re-use
-		 * them for new ID nodes.
-		 */
-		cow_id_hash_ = BLI_ghash_ptr_new("Depsgraph id hash");
-		foreach (IDDepsNode *id_node, graph_->id_nodes) {
-			if (deg_copy_on_write_is_expanded(id_node->id_cow)) {
-				if (id_node->id_orig == id_node->id_cow) {
-					continue;
-				}
-				BLI_ghash_insert(cow_id_hash_,
-				                 id_node->id_orig,
-				                 id_node->id_cow);
-				id_node->id_cow = NULL;
-			}
+void DepsgraphNodeBuilder::begin_build()
+{
+	/* Store existing copy-on-write versions of datablock, so we can re-use
+	 * them for new ID nodes.
+	 */
+	id_info_hash_ = BLI_ghash_ptr_new("Depsgraph id hash");
+	foreach (IDDepsNode *id_node, graph_->id_nodes) {
+		IDInfo *id_info = (IDInfo *)MEM_mallocN(
+		        sizeof(IDInfo), "depsgraph id info");
+		if (deg_copy_on_write_is_expanded(id_node->id_cow) &&
+		    id_node->id_orig != id_node->id_cow)
+		{
+			id_info->id_cow = id_node->id_cow;
 		}
+		else {
+			id_info->id_cow = NULL;
+		}
+		id_info->is_visible = id_node->is_visible;
+		BLI_ghash_insert(id_info_hash_, id_node->id_orig, id_info);
+		id_node->id_cow = NULL;
 	}
 
 	GSET_FOREACH_BEGIN(OperationDepsNode *, op_node, graph_->entry_tags)
@@ -356,7 +366,7 @@ void DepsgraphNodeBuilder::begin_build() {
 		IDDepsNode *id_node = comp_node->owner;
 
 		SavedEntryTag entry_tag;
-		entry_tag.id = id_node->id_orig;
+		entry_tag.id_orig = id_node->id_orig;
 		entry_tag.component_type = comp_node->type;
 		entry_tag.opcode = op_node->opcode;
 		saved_entry_tags_.push_back(entry_tag);
@@ -372,7 +382,7 @@ void DepsgraphNodeBuilder::begin_build() {
 void DepsgraphNodeBuilder::end_build()
 {
 	foreach (const SavedEntryTag& entry_tag, saved_entry_tags_) {
-		IDDepsNode *id_node = find_id_node(entry_tag.id);
+		IDDepsNode *id_node = find_id_node(entry_tag.id_orig);
 		if (id_node == NULL) {
 			continue;
 		}

@@ -734,6 +734,9 @@ def keymap_from_context(context, space_type):
         kmi_hack = keymap.keymap_items.new("wm.tool_set_by_name", 'A', 'PRESS')
         kmi_hack_properties = kmi_hack.properties
 
+        kmi_hack_brush_select = keymap.keymap_items.new("paint.brush_select", 'A', 'PRESS')
+        kmi_hack_brush_select_properties = kmi_hack_brush_select.properties
+
     if use_simple_keymap:
         # Simply assign a key from A-Z.
         for i, (item, _, _) in enumerate(items_all):
@@ -754,6 +757,28 @@ def keymap_from_context(context, space_type):
                     # properties={"name": item.text},
                     properties=kmi_hack_properties,
                 )[1]
+
+                if kmi_found is None:
+                    if item.data_block:
+                        # PAINT_OT_brush_select
+                        brush = bpy.data.brushes.get(item.data_block)
+                        if brush is not None:
+                            mode = context.active_object.mode
+                            attr_op, attr_brush = {
+                                'SCULPT': ("sculpt_tool", "sculpt_tool"),
+                                'WEIGHT_PAINT': ("weight_paint_tool", "vertex_tool"),
+                                'VERTEX_PAINT': ("vertex_paint_tool", "vertex_tool"),
+                                'TEXTURE_PAINT': ("texture_paint_tool", "image_tool"),
+                            }[mode]
+                            kmi_hack_brush_select_properties.paint_mode = mode
+                            setattr(kmi_hack_brush_select_properties, attr_op, getattr(brush, attr_brush))
+                            kmi_found = wm.keyconfigs.find_item_from_operator(
+                                idname="paint.brush_select",
+                                context='INVOKE_REGION_WIN',
+                                properties=kmi_hack_brush_select_properties,
+                            )[1]
+                            del mode, attr_op, attr_brush
+
             else:
                 kmi_found = None
 

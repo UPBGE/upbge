@@ -345,12 +345,6 @@ static void oldnewmap_insert(OldNewMap *onm, const void *oldaddr, void *newaddr,
 
 	if (oldaddr==NULL || newaddr==NULL) return;
 
-	for (int i = 0; i < onm->nentries; i++) {
-		if (onm->entries[i].old == oldaddr && onm->entries[i].newp != newaddr) {
-			abort();
-		}
-	}
-
 	if (UNLIKELY(onm->nentries == onm->entriessize)) {
 		onm->entriessize *= 2;
 		onm->entries = MEM_reallocN(onm->entries, sizeof(*onm->entries) * onm->entriessize);
@@ -5955,6 +5949,9 @@ static void lib_link_view_layer(FileData *fd, Library *lib, ViewLayer *view_laye
 		if (base->object == NULL) {
 			/* Free in case linked object got lost. */
 			BLI_freelinkN(&view_layer->object_bases, base);
+			if (view_layer->basact == base) {
+				view_layer->basact = NULL;
+			}
 		}
 	}
 
@@ -6431,7 +6428,6 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 	sce->depsgraph_hash = NULL;
 	sce->fps_info = NULL;
 	sce->customdata_mask_modal = 0;
-	sce->lay_updated = 0;
 
 	BKE_sound_create_scene(sce);
 
