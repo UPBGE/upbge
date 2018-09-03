@@ -61,6 +61,7 @@
 #include "BKE_main.h"
 #include "BKE_mesh.h"
 #include "BKE_editmesh.h"
+#include "BKE_key.h"
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"
@@ -2247,59 +2248,91 @@ void MESH_OT_vertices_smooth(wmOperatorType *ot)
 
 static int edbm_do_smooth_laplacian_vertex_exec(bContext *C, wmOperator *op)
 {
-	Object *obedit = CTX_data_edit_object(C);
-	BMEditMesh *em = BKE_editmesh_from_object(obedit);
-	Mesh *me = obedit->data;
-	bool use_topology = (me->editflag & ME_EDIT_MIRROR_TOPO) != 0;
-	bool usex = true, usey = true, usez = true, preserve_volume = true;
-	int i, repeat;
-	float lambda_factor;
-	float lambda_border;
 	BMIter fiter;
 	BMFace *f;
+	int tot_invalid = 0;
+	int tot_unselected = 0;
+	ViewLayer *view_layer = CTX_data_view_layer(C);
 
-	/* Check if select faces are triangles */
-	BM_ITER_MESH (f, &fiter, em->bm, BM_FACES_OF_MESH) {
-		if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
-			if (f->len > 4) {
-				BKE_report(op->reports, RPT_WARNING, "Selected faces must be triangles or quads");
-				return OPERATOR_CANCELLED;
+	const float lambda_factor = RNA_float_get(op->ptr, "lambda_factor");
+	const float lambda_border = RNA_float_get(op->ptr, "lambda_border");
+	const bool usex = RNA_boolean_get(op->ptr, "use_x");
+	const bool usey = RNA_boolean_get(op->ptr, "use_y");
+	const bool usez = RNA_boolean_get(op->ptr, "use_z");
+	const bool preserve_volume = RNA_boolean_get(op->ptr, "preserve_volume");
+	int repeat = RNA_int_get(op->ptr, "repeat");
+
+	if (!repeat) {
+		repeat = 1;
+	}
+
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object *obedit = objects[ob_index];
+		BMEditMesh *em = BKE_editmesh_from_object(obedit);
+		Mesh *me = obedit->data;
+		bool use_topology = (me->editflag & ME_EDIT_MIRROR_TOPO) != 0;
+
+		if (em->bm->totvertsel == 0) {
+			tot_unselected++;
+			tot_invalid++;
+			continue;
+		}
+
+		bool is_invalid = false;
+		/* Check if select faces are triangles. */
+		BM_ITER_MESH (f, &fiter, em->bm, BM_FACES_OF_MESH) {
+			if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
+				if (f->len > 4) {
+					tot_invalid++;
+					is_invalid = true;
+					break;
+				}
 			}
 		}
-	}
-
-	/* mirror before smooth */
-	if (((Mesh *)obedit->data)->editflag & ME_EDIT_MIRROR_X) {
-		EDBM_verts_mirror_cache_begin(em, 0, false, true, use_topology);
-	}
-
-	repeat = RNA_int_get(op->ptr, "repeat");
-	lambda_factor = RNA_float_get(op->ptr, "lambda_factor");
-	lambda_border = RNA_float_get(op->ptr, "lambda_border");
-	usex = RNA_boolean_get(op->ptr, "use_x");
-	usey = RNA_boolean_get(op->ptr, "use_y");
-	usez = RNA_boolean_get(op->ptr, "use_z");
-	preserve_volume = RNA_boolean_get(op->ptr, "preserve_volume");
-	if (!repeat)
-		repeat = 1;
-
-	for (i = 0; i < repeat; i++) {
-		if (!EDBM_op_callf(
-		            em, op,
-		            "smooth_laplacian_vert verts=%hv lambda_factor=%f lambda_border=%f use_x=%b use_y=%b use_z=%b preserve_volume=%b",
-		            BM_ELEM_SELECT, lambda_factor, lambda_border, usex, usey, usez, preserve_volume))
-		{
-			return OPERATOR_CANCELLED;
+		if (is_invalid) {
+			continue;
 		}
-	}
 
-	/* apply mirror */
-	if (((Mesh *)obedit->data)->editflag & ME_EDIT_MIRROR_X) {
-		EDBM_verts_mirror_apply(em, BM_ELEM_SELECT, 0);
-		EDBM_verts_mirror_cache_end(em);
-	}
+		/* Mirror before smooth. */
+		if (((Mesh *)obedit->data)->editflag & ME_EDIT_MIRROR_X) {
+			EDBM_verts_mirror_cache_begin(em, 0, false, true, use_topology);
+		}
 
-	EDBM_update_generic(em, true, false);
+		bool failed_repeat_loop = false;
+		for (int i = 0; i < repeat; i++) {
+			if (!EDBM_op_callf(
+			        em, op,
+			        "smooth_laplacian_vert verts=%hv lambda_factor=%f lambda_border=%f use_x=%b use_y=%b use_z=%b preserve_volume=%b",
+			        BM_ELEM_SELECT, lambda_factor, lambda_border, usex, usey, usez, preserve_volume))
+			{
+				failed_repeat_loop = true;
+				break;
+			}
+		}
+		if (failed_repeat_loop) {
+			continue;
+		}
+
+		/* Apply mirror. */
+		if (((Mesh *)obedit->data)->editflag & ME_EDIT_MIRROR_X) {
+			EDBM_verts_mirror_apply(em, BM_ELEM_SELECT, 0);
+			EDBM_verts_mirror_cache_end(em);
+		}
+
+		EDBM_update_generic(em, true, false);
+	}
+	MEM_freeN(objects);
+
+	if (tot_unselected == objects_len) {
+		BKE_report(op->reports, RPT_WARNING, "No selected vertex");
+		return OPERATOR_CANCELLED;
+	}
+	else if (tot_invalid == objects_len) {
+		BKE_report(op->reports, RPT_WARNING, "Selected faces must be triangles or quads");
+		return OPERATOR_CANCELLED;
+	}
 
 	return OPERATOR_FINISHED;
 }
@@ -3001,48 +3034,69 @@ void MESH_OT_remove_doubles(wmOperatorType *ot)
  * \{ */
 
 /* BMESH_TODO this should be properly encapsulated in a bmop.  but later.*/
-static void shape_propagate(BMEditMesh *em, wmOperator *op)
+static bool shape_propagate(BMEditMesh *em)
 {
 	BMIter iter;
 	BMVert *eve = NULL;
 	float *co;
-	int i, totshape = CustomData_number_of_layers(&em->bm->vdata, CD_SHAPEKEY);
+	int totshape = CustomData_number_of_layers(&em->bm->vdata, CD_SHAPEKEY);
 
 	if (!CustomData_has_layer(&em->bm->vdata, CD_SHAPEKEY)) {
-		BKE_report(op->reports, RPT_ERROR, "Mesh does not have shape keys");
-		return;
+		return false;
 	}
 
 	BM_ITER_MESH (eve, &iter, em->bm, BM_VERTS_OF_MESH) {
-		if (!BM_elem_flag_test(eve, BM_ELEM_SELECT) || BM_elem_flag_test(eve, BM_ELEM_HIDDEN))
+		if (!BM_elem_flag_test(eve, BM_ELEM_SELECT) || BM_elem_flag_test(eve, BM_ELEM_HIDDEN)) {
 			continue;
+		}
 
-		for (i = 0; i < totshape; i++) {
+		for (int i = 0; i < totshape; i++) {
 			co = CustomData_bmesh_get_n(&em->bm->vdata, eve->head.data, CD_SHAPEKEY, i);
 			copy_v3_v3(co, eve->co);
 		}
 	}
-
-#if 0
-	//TAG Mesh Objects that share this data
-	for (base = scene->base.first; base; base = base->next) {
-		if (base->object && base->object->data == me) {
-			DEG_id_tag_update(&base->object->id, OB_RECALC_DATA);
-		}
-	}
-#endif
+	return true;
 }
-
 
 static int edbm_shape_propagate_to_all_exec(bContext *C, wmOperator *op)
 {
-	Object *obedit = CTX_data_edit_object(C);
-	Mesh *me = obedit->data;
-	BMEditMesh *em = me->edit_btmesh;
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	int tot_shapekeys = 0;
+	int tot_selected_verts_objects = 0;
 
-	shape_propagate(em, op);
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object *obedit = objects[ob_index];
+		Mesh *me = obedit->data;
+		BMEditMesh *em = me->edit_btmesh;
 
-	EDBM_update_generic(em, false, false);
+		if (em->bm->totvertsel == 0) {
+			continue;
+		}
+		tot_selected_verts_objects++;
+
+		if (shape_propagate(em)) {
+			tot_shapekeys++;
+		}
+
+		EDBM_update_generic(em, false, false);
+	}
+	MEM_freeN(objects);
+
+	if (tot_selected_verts_objects == 0) {
+		BKE_report(op->reports, RPT_ERROR, "No selected vertex");
+		return OPERATOR_CANCELLED;
+	}
+	else if (tot_shapekeys == 0) {
+		BKE_report(
+		        op->reports,
+		        RPT_ERROR,
+		        objects_len > 1 ?
+		        "Meshes do not have shape keys" :
+		        "Mesh does not have shape keys");
+		return OPERATOR_CANCELLED;
+	}
 
 	return OPERATOR_FINISHED;
 }
@@ -3072,55 +3126,95 @@ void MESH_OT_shape_propagate_to_all(wmOperatorType *ot)
 /* BMESH_TODO this should be properly encapsulated in a bmop.  but later.*/
 static int edbm_blend_from_shape_exec(bContext *C, wmOperator *op)
 {
-	Object *obedit = CTX_data_edit_object(C);
-	Mesh *me = obedit->data;
-	Key *key = me->key;
-	KeyBlock *kb = NULL;
-	BMEditMesh *em = me->edit_btmesh;
+	Object *obedit_ref = CTX_data_edit_object(C);
+	Mesh *me_ref = obedit_ref->data;
+	Key *key_ref = me_ref->key;
+	KeyBlock *kb_ref = NULL;
+	BMEditMesh *em_ref = me_ref->edit_btmesh;
 	BMVert *eve;
 	BMIter iter;
+	ViewLayer *view_layer = CTX_data_view_layer(C);
 	float co[3], *sco;
-	int totshape;
+	int totshape_ref = 0;
 
 	const float blend = RNA_float_get(op->ptr, "blend");
-	const int shape = RNA_enum_get(op->ptr, "shape");
+	int shape_ref = RNA_enum_get(op->ptr, "shape");
 	const bool use_add = RNA_boolean_get(op->ptr, "add");
 
-	/* sanity check */
-	totshape = CustomData_number_of_layers(&em->bm->vdata, CD_SHAPEKEY);
-	if (totshape == 0 || shape < 0 || shape >= totshape)
-		return OPERATOR_CANCELLED;
+	/* Sanity check. */
+	totshape_ref = CustomData_number_of_layers(&em_ref->bm->vdata, CD_SHAPEKEY);
 
-	/* get shape key - needed for finding reference shape (for add mode only) */
-	if (key) {
-		kb = BLI_findlink(&key->block, shape);
+	if (totshape_ref == 0 || shape_ref < 0) {
+		BKE_report(op->reports, RPT_ERROR, "Active mesh does not have shape keys");
+		return OPERATOR_CANCELLED;
+	}
+	else if (shape_ref >= totshape_ref) {
+		/* This case occurs if operator was used before on object with more keys than current one. */
+		shape_ref = 0; /* default to basis */
 	}
 
-	/* perform blending on selected vertices*/
-	BM_ITER_MESH (eve, &iter, em->bm, BM_VERTS_OF_MESH) {
-		if (!BM_elem_flag_test(eve, BM_ELEM_SELECT) || BM_elem_flag_test(eve, BM_ELEM_HIDDEN))
+	/* Get shape key - needed for finding reference shape (for add mode only). */
+	if (key_ref) {
+		kb_ref = BLI_findlink(&key_ref->block, shape_ref);
+	}
+
+	int tot_selected_verts_objects = 0;
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object *obedit = objects[ob_index];
+		Mesh *me = obedit->data;
+		Key *key = me->key;
+		KeyBlock *kb = NULL;
+		BMEditMesh *em = me->edit_btmesh;
+		int shape;
+
+		if (em->bm->totvertsel == 0) {
 			continue;
+		}
+		tot_selected_verts_objects++;
 
-		/* get coordinates of shapekey we're blending from */
-		sco = CustomData_bmesh_get_n(&em->bm->vdata, eve->head.data, CD_SHAPEKEY, shape);
-		copy_v3_v3(co, sco);
-
-		if (use_add) {
-			/* in add mode, we add relative shape key offset */
-			if (kb) {
-				const float *rco = CustomData_bmesh_get_n(&em->bm->vdata, eve->head.data, CD_SHAPEKEY, kb->relative);
-				sub_v3_v3v3(co, co, rco);
-			}
-
-			madd_v3_v3fl(eve->co, co, blend);
+		if (!key) {
+			continue;
 		}
 		else {
-			/* in blend mode, we interpolate to the shape key */
-			interp_v3_v3v3(eve->co, eve->co, co, blend);
+			kb = BKE_keyblock_find_name(key, kb_ref->name);
+			shape = BLI_findindex(&key->block, kb);
+		}
+
+		if (kb) {
+			/* Perform blending on selected vertices. */
+			BM_ITER_MESH (eve, &iter, em->bm, BM_VERTS_OF_MESH) {
+				if (!BM_elem_flag_test(eve, BM_ELEM_SELECT) || BM_elem_flag_test(eve, BM_ELEM_HIDDEN))
+					continue;
+
+				/* Get coordinates of shapekey we're blending from. */
+				sco = CustomData_bmesh_get_n(&em->bm->vdata, eve->head.data, CD_SHAPEKEY, shape);
+				copy_v3_v3(co, sco);
+
+				if (use_add) {
+					/* In add mode, we add relative shape key offset. */
+					if (kb) {
+						const float *rco = CustomData_bmesh_get_n(&em->bm->vdata, eve->head.data, CD_SHAPEKEY, kb->relative);
+						sub_v3_v3v3(co, co, rco);
+					}
+
+					madd_v3_v3fl(eve->co, co, blend);
+				}
+				else {
+					/* In blend mode, we interpolate to the shape key. */
+					interp_v3_v3v3(eve->co, eve->co, co, blend);
+				}
+			}
+			EDBM_update_generic(em, true, false);
 		}
 	}
+	MEM_freeN(objects);
 
-	EDBM_update_generic(em, true, false);
+	if (tot_selected_verts_objects == 0) {
+		BKE_report(op->reports, RPT_ERROR, "No selected vertex");
+		return OPERATOR_CANCELLED;
+	}
 
 	return OPERATOR_FINISHED;
 }
@@ -6373,37 +6467,62 @@ void MESH_OT_wireframe(wmOperatorType *ot)
 
 static int edbm_offset_edgeloop_exec(bContext *C, wmOperator *op)
 {
-	Object *obedit = CTX_data_edit_object(C);
-	BMEditMesh *em = BKE_editmesh_from_object(obedit);
-	BMOperator bmop;
+	bool mode_change = false;
 	const bool use_cap_endpoint = RNA_boolean_get(op->ptr, "use_cap_endpoint");
+	int ret = OPERATOR_CANCELLED;
 
-	EDBM_op_init(
-	        em, &bmop, op,
-	        "offset_edgeloops edges=%he use_cap_endpoint=%b",
-	        BM_ELEM_SELECT, use_cap_endpoint);
-
-	BMO_op_exec(em->bm, &bmop);
-
-	BM_mesh_elem_hflag_disable_all(em->bm, BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_SELECT, false);
-
-	/* If in face-only select mode, switch to edge select mode so that
-	 * an edge-only selection is not inconsistent state */
-	if (em->selectmode == SCE_SELECT_FACE) {
-		em->selectmode = SCE_SELECT_EDGE;
-		EDBM_selectmode_set(em);
-		EDBM_selectmode_to_scene(C);
+	{
+		Object *obedit = CTX_data_edit_object(C);
+		BMEditMesh *em = BKE_editmesh_from_object(obedit);
+		if (em->selectmode == SCE_SELECT_FACE) {
+			EDBM_selectmode_to_scene(C);
+			mode_change = true;
+		}
 	}
 
-	BMO_slot_buffer_hflag_enable(em->bm, bmop.slots_out, "edges.out", BM_EDGE, BM_ELEM_SELECT, true);
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object *obedit = objects[ob_index];
+		BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
-	if (!EDBM_op_finish(em, &bmop, op, true)) {
-		return OPERATOR_CANCELLED;
+		/** If in face-only select mode, switch to edge select mode so that
+		 * an edge-only selection is not inconsistent state.
+		 *
+		 * We need to run this for all objects, even when nothing is selected.
+		 * This way we keep them in sync. */
+		if (mode_change) {
+			em->selectmode = SCE_SELECT_EDGE;
+			EDBM_selectmode_set(em);
+		}
+
+		if (em->bm->totedgesel == 0) {
+			continue;
+		}
+
+		BMOperator bmop;
+		EDBM_op_init(
+		            em, &bmop, op,
+		            "offset_edgeloops edges=%he use_cap_endpoint=%b",
+		            BM_ELEM_SELECT, use_cap_endpoint);
+
+		BMO_op_exec(em->bm, &bmop);
+
+		BM_mesh_elem_hflag_disable_all(em->bm, BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_SELECT, false);
+
+		BMO_slot_buffer_hflag_enable(em->bm, bmop.slots_out, "edges.out", BM_EDGE, BM_ELEM_SELECT, true);
+
+		if (!EDBM_op_finish(em, &bmop, op, true)) {
+			continue;
+		}
+		else {
+			EDBM_update_generic(em, true, true);
+			ret = OPERATOR_FINISHED;
+		}
 	}
-	else {
-		EDBM_update_generic(em, true, true);
-		return OPERATOR_FINISHED;
-	}
+	MEM_freeN(objects);
+	return ret;
 }
 
 void MESH_OT_offset_edge_loops(wmOperatorType *ot)
@@ -6562,6 +6681,7 @@ void MESH_OT_convex_hull(wmOperatorType *ot)
 
 static int mesh_symmetrize_exec(bContext *C, wmOperator *op)
 {
+	const float thresh = RNA_float_get(op->ptr, "threshold");
 	ViewLayer *view_layer = CTX_data_view_layer(C);
 	uint objects_len = 0;
 	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
@@ -6573,10 +6693,8 @@ static int mesh_symmetrize_exec(bContext *C, wmOperator *op)
 		if (em->bm->totvertsel == 0 ) {
 			continue;
 		}
+
 		BMOperator bmop;
-
-		const float thresh = RNA_float_get(op->ptr, "threshold");
-
 		EDBM_op_init(
 		        em, &bmop, op,
 		        "symmetrize input=%hvef direction=%i dist=%f",
@@ -6632,102 +6750,113 @@ static int mesh_symmetry_snap_exec(bContext *C, wmOperator *op)
 {
 	const float eps = 0.00001f;
 	const float eps_sq = eps * eps;
-
-	Object *obedit = CTX_data_edit_object(C);
-	BMEditMesh *em = BKE_editmesh_from_object(obedit);
-	BMesh *bm = em->bm;
-	int *index = MEM_mallocN(bm->totvert * sizeof(*index), __func__);
 	const bool use_topology = false;
 
 	const float thresh = RNA_float_get(op->ptr, "threshold");
 	const float fac = RNA_float_get(op->ptr, "factor");
 	const bool use_center = RNA_boolean_get(op->ptr, "use_center");
-
-	/* stats */
-	int totmirr = 0, totfail = 0, totfound = 0;
-
-	/* axix */
 	const int axis_dir = RNA_enum_get(op->ptr, "direction");
+
+	/* Vertices stats (total over all selected objects). */
+	int totvertfound = 0, totvertmirr = 0, totvertfail = 0;
+
+	/* Axis. */
 	int axis = axis_dir % 3;
 	bool axis_sign = axis != axis_dir;
 
-	/* vertex iter */
-	BMIter iter;
-	BMVert *v;
-	int i;
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
 
-	EDBM_verts_mirror_cache_begin_ex(em, axis, true, true, use_topology, thresh, index);
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object *obedit = objects[ob_index];
+		BMEditMesh *em = BKE_editmesh_from_object(obedit);
+		BMesh *bm = em->bm;
 
-	BM_mesh_elem_table_ensure(bm, BM_VERT);
+		if (em->bm->totvertsel == 0) {
+			continue;
+		}
 
-	BM_mesh_elem_hflag_disable_all(bm, BM_VERT, BM_ELEM_TAG, false);
+		/* Only allocate memory after checking whether to skip object. */
+		int *index = MEM_mallocN(bm->totvert * sizeof(*index), __func__);
 
+		/* Vertex iter. */
+		BMIter iter;
+		BMVert *v;
+		int i;
 
-	BM_ITER_MESH_INDEX (v, &iter, bm, BM_VERTS_OF_MESH, i) {
-		if ((BM_elem_flag_test(v, BM_ELEM_SELECT) != false) &&
-		    (BM_elem_flag_test(v, BM_ELEM_TAG) == false))
-		{
-			int i_mirr = index[i];
-			if (i_mirr != -1) {
+		EDBM_verts_mirror_cache_begin_ex(em, axis, true, true, use_topology, thresh, index);
 
-				BMVert *v_mirr = BM_vert_at_index(bm, index[i]);
+		BM_mesh_elem_table_ensure(bm, BM_VERT);
 
-				if (v != v_mirr) {
-					float co[3], co_mirr[3];
+		BM_mesh_elem_hflag_disable_all(bm, BM_VERT, BM_ELEM_TAG, false);
 
-					if ((v->co[axis] > v_mirr->co[axis]) == axis_sign) {
-						SWAP(BMVert *, v, v_mirr);
-					}
+		BM_ITER_MESH_INDEX (v, &iter, bm, BM_VERTS_OF_MESH, i) {
+			if ((BM_elem_flag_test(v, BM_ELEM_SELECT) != false) &&
+			    (BM_elem_flag_test(v, BM_ELEM_TAG) == false))
+			{
+				int i_mirr = index[i];
+				if (i_mirr != -1) {
 
-					copy_v3_v3(co_mirr, v_mirr->co);
-					co_mirr[axis] *= -1.0f;
+					BMVert *v_mirr = BM_vert_at_index(bm, index[i]);
 
-					if (len_squared_v3v3(v->co, co_mirr) > eps_sq) {
-						totmirr++;
-					}
+					if (v != v_mirr) {
+						float co[3], co_mirr[3];
 
-					interp_v3_v3v3(co, v->co, co_mirr, fac);
-
-					copy_v3_v3(v->co, co);
-
-					co[axis] *= -1.0f;
-					copy_v3_v3(v_mirr->co, co);
-
-					BM_elem_flag_enable(v, BM_ELEM_TAG);
-					BM_elem_flag_enable(v_mirr, BM_ELEM_TAG);
-					totfound++;
-				}
-				else {
-					if (use_center) {
-
-						if (fabsf(v->co[axis]) > eps) {
-							totmirr++;
+						if ((v->co[axis] > v_mirr->co[axis]) == axis_sign) {
+							SWAP(BMVert *, v, v_mirr);
 						}
 
-						v->co[axis] = 0.0f;
+						copy_v3_v3(co_mirr, v_mirr->co);
+						co_mirr[axis] *= -1.0f;
+
+						if (len_squared_v3v3(v->co, co_mirr) > eps_sq) {
+							totvertmirr++;
+						}
+
+						interp_v3_v3v3(co, v->co, co_mirr, fac);
+
+						copy_v3_v3(v->co, co);
+
+						co[axis] *= -1.0f;
+						copy_v3_v3(v_mirr->co, co);
+
+						BM_elem_flag_enable(v, BM_ELEM_TAG);
+						BM_elem_flag_enable(v_mirr, BM_ELEM_TAG);
+						totvertfound++;
 					}
-					BM_elem_flag_enable(v, BM_ELEM_TAG);
-					totfound++;
+					else {
+						if (use_center) {
+
+							if (fabsf(v->co[axis]) > eps) {
+								totvertmirr++;
+							}
+
+							v->co[axis] = 0.0f;
+						}
+						BM_elem_flag_enable(v, BM_ELEM_TAG);
+						totvertfound++;
+					}
+				}
+				else {
+					totvertfail++;
 				}
 			}
-			else {
-				totfail++;
-			}
 		}
+
+		/* No need to end cache, just free the array. */
+		MEM_freeN(index);
 	}
+	MEM_freeN(objects);
 
-
-	if (totfail) {
+	if (totvertfail) {
 		BKE_reportf(op->reports, RPT_WARNING, "%d already symmetrical, %d pairs mirrored, %d failed",
-		            totfound - totmirr, totmirr, totfail);
+		            totvertfound - totvertmirr, totvertmirr, totvertfail);
 	}
 	else {
 		BKE_reportf(op->reports, RPT_INFO, "%d already symmetrical, %d pairs mirrored",
-		            totfound - totmirr, totmirr);
+		            totvertfound - totvertmirr, totvertmirr);
 	}
-
-	/* no need to end cache, just free the array */
-	MEM_freeN(index);
 
 	return OPERATOR_FINISHED;
 }

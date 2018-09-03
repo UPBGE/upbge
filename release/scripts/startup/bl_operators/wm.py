@@ -2437,6 +2437,10 @@ class WM_OT_toolbar(Operator):
     bl_idname = "wm.toolbar"
     bl_label = "Toolbar"
 
+    @classmethod
+    def poll(cls, context):
+        return context.space_data is not None
+
     def execute(self, context):
         from bl_ui.space_toolsystem_common import (
             ToolSelectPanelHelper,
@@ -2455,7 +2459,7 @@ class WM_OT_toolbar(Operator):
         def draw_menu(popover, context):
             layout = popover.layout
 
-            layout.operator_context = 'INVOKE_DEFAULT'
+            layout.operator_context = 'INVOKE_REGION_WIN'
             layout.operator("wm.search_menu", text="Search Commands...", icon='VIEWZOOM')
 
             cls.draw_cls(layout, context, detect_layout=False, scale_y=1.0)

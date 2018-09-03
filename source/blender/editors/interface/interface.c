@@ -1351,6 +1351,10 @@ static void ui_menu_block_set_keymaps(const bContext *C, uiBlock *block)
 				if (but->drawstr[0] == '\0') {
 					continue;
 				}
+				else if (((block->flag & UI_BLOCK_POPOVER) == 0) && UI_but_is_tool(but)) {
+					/* For non-popovers, shown in shortcut only (has special shortcut handling code). */
+					continue;
+				}
 			}
 			else if (but->dt != UI_EMBOSS_PULLDOWN) {
 				continue;
@@ -2643,7 +2647,7 @@ static bool ui_set_but_string_eval_num_unit(bContext *C, uiBut *but, const char 
 	        str_unit_convert, sizeof(str_unit_convert), but->drawstr,
 	        ui_get_but_scale_unit(but, 1.0), but->block->unit->system, RNA_SUBTYPE_UNIT_VALUE(unit_type));
 
-	return BPY_execute_string_as_number(C, str_unit_convert, true, r_value);
+	return BPY_execute_string_as_number(C, NULL, str_unit_convert, true, r_value);
 }
 
 #endif /* WITH_PYTHON */
@@ -2658,7 +2662,7 @@ bool ui_but_string_set_eval_num(bContext *C, uiBut *but, const char *str, double
 	if (str[0] != '\0') {
 		bool is_unit_but = (ui_but_is_float(but) && ui_but_is_unit(but));
 		/* only enable verbose if we won't run again with units */
-		if (BPY_execute_string_as_number(C, str, is_unit_but == false, r_value)) {
+		if (BPY_execute_string_as_number(C, NULL, str, is_unit_but == false, r_value)) {
 			/* if the value parsed ok without unit conversion this button may still need a unit multiplier */
 			if (is_unit_but) {
 				char str_new[128];
