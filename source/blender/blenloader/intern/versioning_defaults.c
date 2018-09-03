@@ -32,6 +32,7 @@
 #include "BLI_math.h"
 #include "BLI_string.h"
 
+#include "DNA_mesh_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
@@ -156,6 +157,15 @@ void BLO_update_defaults_startup_blend(Main *bmain)
 
 			BKE_layer_collection_sync(scene, layer);
 		}
+		/* Previous value of GAME_GLSL_NO_ENV_LIGHTING was 1 << 18, it was conflicting
+			* with GAME_SHOW_BOUNDING_BOX. To fix this issue, we replace 1 << 18 by
+			* 1 << 21 (the new value) when the file come from blender not UPBGE.
+			*/
+		if (scene->gm.flag & (1 << 18)) {
+			scene->gm.flag |= GAME_GLSL_NO_ENV_LIGHTING;
+			/* Disable bit 18 */
+			scene->gm.flag &= ~(1 << 18);
+		}
 		if (!scene->gm.exitkey) {
 			scene->gm.exitkey = 218; // Blender key code for ESC
 		}
@@ -176,6 +186,45 @@ void BLO_update_defaults_startup_blend(Main *bmain)
 		}
 		if (!scene->gm.physubstep) {
 			scene->gm.physubstep = 1;
+		}
+	}
+	for (Object *object = bmain->object.first; object; object = object->id.next) {
+		if (object->type == OB_MESH) {
+			/* TEMP */
+			if (!object->mass) {
+				object->mass = 1.0f;
+			}
+			if (!object->inertia) { //radius
+				object->inertia = 1.0f;
+			}
+			if (!object->formfactor) {
+				object->formfactor = 0.4f;
+			}
+			if (!object->damping) {
+				object->damping = 0.025f;
+			}
+			if (!object->rdamping) {
+				object->rdamping = 0.159f;
+			}
+			Mesh *me = (Mesh *)object->data;
+			bool converted = false;
+			for (unsigned short i = 0; i < me->totcol; ++i) {
+				Material *ma = me->mat[i];
+				if (ma) {
+					object->friction = ma->friction;
+					object->rolling_friction = 0.0f;
+					object->fh = ma->fh;
+					object->reflect = ma->reflect;
+					object->fhdist = ma->fhdist;
+					object->xyfrict = ma->xyfrict;
+					converted = true;
+					break;
+				}
+			}
+			/* There's no valid material, we use the settings from BKE_object_init. */
+			if (!converted) {
+				object->friction = 0.5f;
+			}
 		}
 	}
 }

@@ -843,48 +843,6 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 	}
 
 	if (!MAIN_VERSION_ATLEAST(bmain, 280, 2)) {
-
-		/*********************************Game engine**********************************/
-
-		for (Scene *scene = bmain->scene.first; scene; scene = scene->id.next) {
-			/* Previous value of GAME_GLSL_NO_ENV_LIGHTING was 1 << 18, it was conflicting
-			* with GAME_SHOW_BOUNDING_BOX. To fix this issue, we replace 1 << 18 by
-			* 1 << 21 (the new value) when the file come from blender not UPBGE.
-			*/
-			if (scene->gm.flag & (1 << 18)) {
-				scene->gm.flag |= GAME_GLSL_NO_ENV_LIGHTING;
-				/* Disable bit 18 */
-				scene->gm.flag &= ~(1 << 18);
-			}
-		}
-
-		if (!DNA_struct_elem_find(fd->filesdna, "Object", "float", "friction")) {
-			for (Object *ob = bmain->object.first; ob; ob = ob->id.next) {
-				if (ob->type == OB_MESH) {
-					Mesh *me = blo_do_versions_newlibadr(fd, lib, ob->data);
-					bool converted = false;
-					for (unsigned short i = 0; i < me->totcol; ++i) {
-						Material *ma = blo_do_versions_newlibadr(fd, lib, me->mat[i]);
-						if (ma) {
-							ob->friction = ma->friction;
-							ob->rolling_friction = 0.0f;
-							ob->fh = ma->fh;
-							ob->reflect = ma->reflect;
-							ob->fhdist = ma->fhdist;
-							ob->xyfrict = ma->xyfrict;
-							converted = true;
-							break;
-						}
-					}
-					/* There's no valid material, we use the settings from BKE_object_init. */
-					if (!converted) {
-						ob->friction = 0.5f;
-					}
-				}
-			}
-		}
-		/****************************End of Game engine*********************************/
-
 		if (!DNA_struct_elem_find(fd->filesdna, "Lamp", "float", "cascade_max_dist")) {
 			for (Lamp *la = bmain->lamp.first; la; la = la->id.next) {
 				la->cascade_max_dist = 1000.0f;
