@@ -553,7 +553,8 @@ class _defs_edit_mesh:
             icon="ops.mesh.rip_edge",
             widget=None,
             keymap=(
-                ("mesh.rip_edge_edge_move", dict(),
+                ("mesh.rip_edge_move",
+                 dict(TRANSFORM_OT_translate=dict(release_confirm=True)),
                  dict(type='ACTIONMOUSE', value='PRESS')),
             ),
         )
@@ -1131,6 +1132,10 @@ class _defs_weight_paint:
     @ToolDef.from_fn
     def gradient():
         def draw_settings(context, layout, tool):
+            brush = context.tool_settings.weight_paint.brush
+            if brush is not None:
+                from .properties_paint_common import UnifiedPaintPanel
+                UnifiedPaintPanel.prop_unified_weight(layout, context, brush, "weight", slider=True, text="Weight")
             props = tool.operator_properties("paint.weight_gradient")
             layout.prop(props, "type")
 
