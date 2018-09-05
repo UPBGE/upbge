@@ -2263,8 +2263,7 @@ void GPU_draw_update_fvar_offset(DerivedMesh *dm)
 
 		gpu_material = GPU_material_from_blender(GMS.gscene,
 		                                         material,
-		                                         GMS.is_opensubdiv,
-												 false);
+		                                         GMS.is_opensubdiv);
 
 		GPU_material_update_fvar_offset(gpu_material, dm);
 	}
