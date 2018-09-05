@@ -1331,27 +1331,6 @@ static bool mesh_render_data_edge_vcos_manifold_pnors(
 	return true;
 }
 
-
-/* First 2 bytes are bit flags
- * 3rd is for sharp edges
- * 4rd is for creased edges */
-enum {
-	VFLAG_VERTEX_ACTIVE   = 1 << 0,
-	VFLAG_VERTEX_SELECTED = 1 << 1,
-	VFLAG_FACE_ACTIVE     = 1 << 2,
-	VFLAG_FACE_SELECTED   = 1 << 3,
-};
-
-enum {
-	VFLAG_EDGE_EXISTS   = 1 << 0,
-	VFLAG_EDGE_ACTIVE   = 1 << 1,
-	VFLAG_EDGE_SELECTED = 1 << 2,
-	VFLAG_EDGE_SEAM     = 1 << 3,
-	VFLAG_EDGE_SHARP    = 1 << 4,
-	/* Beware to not go over 1 << 7
-	 * (see gpu_shader_edit_mesh_overlay_geom.glsl) */
-};
-
 static uchar mesh_render_data_looptri_flag(MeshRenderData *rdata, const BMFace *efa)
 {
 	uchar fflag = 0;
@@ -1361,6 +1340,16 @@ static uchar mesh_render_data_looptri_flag(MeshRenderData *rdata, const BMFace *
 
 	if (BM_elem_flag_test(efa, BM_ELEM_SELECT))
 		fflag |= VFLAG_FACE_SELECTED;
+
+#ifdef WITH_FREESTYLE
+	BMesh *bm = rdata->edit_bmesh->bm;
+	if (CustomData_has_layer(&bm->edata, CD_FREESTYLE_EDGE)) {
+		FreestyleFace *ffa = CustomData_bmesh_get(&bm->pdata, efa->head.data, CD_FREESTYLE_FACE);
+
+		if (ffa->flag & FREESTYLE_FACE_MARK)
+			fflag |= VFLAG_FACE_FREESTYLE;
+	}
+#endif
 
 	return fflag;
 }
@@ -1383,11 +1372,21 @@ static void mesh_render_data_edge_flag(
 	if (!BM_elem_flag_test(eed, BM_ELEM_SMOOTH))
 		eattr->e_flag |= VFLAG_EDGE_SHARP;
 
+#ifdef WITH_FREESTYLE
+	BMesh *bm = rdata->edit_bmesh->bm;
+	if (CustomData_has_layer(&bm->edata, CD_FREESTYLE_EDGE)) {
+		FreestyleEdge *fed = CustomData_bmesh_get(&bm->edata, eed->head.data, CD_FREESTYLE_EDGE);
+
+		if (fed->flag & FREESTYLE_EDGE_MARK)
+			eattr->e_flag |= VFLAG_EDGE_FREESTYLE;
+	}
+#endif
+
 	/* Use a byte for value range */
 	if (rdata->cd.offset.crease != -1) {
 		float crease = BM_ELEM_CD_GET_FLOAT(eed, rdata->cd.offset.crease);
 		if (crease > 0) {
-			eattr->crease = (char)(crease * 255.0f);
+			eattr->crease = (uchar)(crease * 255.0f);
 		}
 	}
 
@@ -1395,14 +1394,13 @@ static void mesh_render_data_edge_flag(
 	if (rdata->cd.offset.bweight != -1) {
 		float bweight = BM_ELEM_CD_GET_FLOAT(eed, rdata->cd.offset.bweight);
 		if (bweight > 0) {
-			eattr->bweight = (char)(bweight * 255.0f);
+			eattr->bweight = (uchar)(bweight * 255.0f);
 		}
 	}
 }
 
 static uchar mesh_render_data_vertex_flag(MeshRenderData *rdata, const BMVert *eve)
 {
-
 	uchar vflag = 0;
 
 	/* Current vertex */

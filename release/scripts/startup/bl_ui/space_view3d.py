@@ -1603,6 +1603,7 @@ class VIEW3D_MT_object(Menu):
         layout.separator()
 
         layout.operator("object.delete", text="Delete...").use_global = False
+        layout.operator("object.delete", text="Delete Global...").use_global = True
 
 
 class VIEW3D_MT_object_animation(Menu):
@@ -4393,9 +4394,7 @@ class VIEW3D_PT_overlay_edit_mesh(Panel):
         row.prop(data, "show_edge_crease", text="Creases", toggle=True)
         row.prop(data, "show_edge_sharp", text="Sharp", text_ctxt=i18n_contexts.plural, toggle=True)
         row.prop(data, "show_edge_bevel_weight", text="Bevel", toggle=True)
-
-        if not with_freestyle:
-            row.prop(data, "show_edge_seams", text="Seams", toggle=True)
+        row.prop(data, "show_edge_seams", text="Seams", toggle=True)
 
 
 class VIEW3D_PT_overlay_edit_mesh_shading(Panel):
@@ -4547,7 +4546,6 @@ class VIEW3D_PT_overlay_edit_mesh_freestyle(Panel):
         row = col.row()
         row.prop(data, "show_freestyle_edge_marks", text="Edge Marks")
         row.prop(data, "show_freestyle_face_marks", text="Face Marks")
-        row.prop(data, "show_edge_seams", text="Seams")
 
 
 class VIEW3D_PT_overlay_edit_mesh_developer(Panel):
