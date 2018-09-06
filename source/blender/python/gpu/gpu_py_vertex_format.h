@@ -18,18 +18,24 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/python/gpu/gpu_py_types.h
+/** \file blender/python/gpu/gpu_py_vertex_format.h
  *  \ingroup bpygpu
  */
 
-#ifndef __GPU_PY_TYPES_H__
-#define __GPU_PY_TYPES_H__
+#ifndef __GPU_PY_VERTEX_FORMAT_H__
+#define __GPU_PY_VERTEX_FORMAT_H__
 
-#include "gpu_py_vertex_format.h"
-#include "gpu_py_vertex_buffer.h"
-#include "gpu_py_batch.h"
-#include "gpu_py_offscreen.h"
+#include "GPU_vertex_format.h"
 
-PyObject *BPyInit_gpu_types(void);
+extern PyTypeObject BPyGPUVertFormat_Type;
 
-#endif /* __GPU_PY_TYPES_H__ */
+#define BPyGPUVertFormat_Check(v)     (Py_TYPE(v) == &BPyGPUVertFormat_Type)
+
+typedef struct BPyGPUVertFormat {
+	PyObject_VAR_HEAD
+	struct GPUVertFormat fmt;
+} BPyGPUVertFormat;
+
+PyObject *BPyGPUVertFormat_CreatePyObject(struct GPUVertFormat *fmt);
+
+#endif /* __GPU_PY_VERTEX_FORMAT_H__ */

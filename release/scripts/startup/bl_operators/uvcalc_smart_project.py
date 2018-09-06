@@ -179,30 +179,6 @@ def island2Edge(island):
     return length_sorted_edges, [v.to_3d() for v in unique_points.values()]
 
 
-# ========================= NOT WORKING????
-# Find if a points inside an edge loop, unordered.
-# pt is and x/y
-# edges are a non ordered loop of edges.
-# offsets are the edge x and y offset.
-"""
-def pointInEdges(pt, edges):
-    #
-    x1 = pt[0]
-    y1 = pt[1]
-
-    # Point to the left of this line.
-    x2 = -100000
-    y2 = -10000
-    intersectCount = 0
-    for ed in edges:
-        xi, yi = lineIntersection2D(x1,y1, x2,y2, ed[0][0], ed[0][1], ed[1][0], ed[1][1])
-        if xi is not None: # Is there an intersection.
-            intersectCount+=1
-
-    return intersectCount % 2
-"""
-
-
 def pointInIsland(pt, island):
     vec1, vec2, vec3 = Vector(), Vector(), Vector()
     for f in island:
@@ -756,11 +732,10 @@ def main(context,
     USER_FILL_HOLES_QUALITY = 50  # Only for hole filling.
     USER_VIEW_INIT = 0  # Only for hole filling.
 
+    obList = [ob for ob in context.selected_editable_objects if ob and ob.type == 'MESH']
     is_editmode = (context.active_object.mode == 'EDIT')
-    if is_editmode:
-        obList = [ob for ob in [context.active_object] if ob and ob.type == 'MESH']
-    else:
-        obList = [ob for ob in context.selected_editable_objects if ob and ob.type == 'MESH']
+
+    if not is_editmode:
         USER_ONLY_SELECTED_FACES = False
 
     if not obList:
@@ -772,23 +747,11 @@ def main(context,
     else:
         ob = "Unwrap %i Selected Meshes"
 
-    # HACK, loop until mouse is lifted.
-    '''
-    while Window.GetMouseButtons() != 0:
-        time.sleep(10)
-    '''
-
-# ~ XXX	if not Draw.PupBlock(ob % len(obList), pup_block):
-# ~ XXX		return
-# ~ XXX	del ob
-
     # Convert from being button types
-
     USER_PROJECTION_LIMIT_CONVERTED = cos(USER_PROJECTION_LIMIT * DEG_TO_RAD)
     USER_PROJECTION_LIMIT_HALF_CONVERTED = cos((USER_PROJECTION_LIMIT / 2) * DEG_TO_RAD)
 
     # Toggle Edit mode
-    is_editmode = (context.active_object.mode == 'EDIT')
     if is_editmode:
         bpy.ops.object.mode_set(mode='OBJECT')
     # Assume face select mode! an annoying hack to toggle face select mode because Mesh doesn't like faceSelectMode.
@@ -798,12 +761,9 @@ def main(context,
         obList.sort(key=lambda ob: ob.data.name)
         collected_islandList = []
 
-# XXX	Window.WaitCursor(1)
-
     time1 = time.time()
 
     # Tag as False so we don't operate on the same mesh twice.
-# XXX	bpy.data.meshes.tag = False
     for me in bpy.data.meshes:
         me.tag = False
 
@@ -826,8 +786,6 @@ def main(context,
             meshFaces = [thickface(f, uv_layer, me_verts) for i, f in enumerate(me.polygons) if f.select]
         else:
             meshFaces = [thickface(f, uv_layer, me_verts) for i, f in enumerate(me.polygons)]
-
-# XXX		Window.DrawProgressBar(0.1, 'SmartProj UV Unwrapper, mapping "%s", %i faces.' % (me.name, len(meshFaces)))
 
         # =======
         # Generate a projection list from face normals, this is meant to be smart :)
@@ -974,7 +932,6 @@ def main(context,
             for f in faceProjectionGroupList[i]:
                 f_uv = f.uv
                 for j, v in enumerate(f.v):
-                    # XXX - note, between mathutils in 2.4 and 2.5 the order changed.
                     f_uv[j][:] = (MatQuat @ v.co).xy
 
         if USER_SHARE_SPACE:
@@ -991,11 +948,9 @@ def main(context,
 
     # We want to pack all in 1 go, so pack now
     if USER_SHARE_SPACE:
-        # XXX        Window.DrawProgressBar(0.9, "Box Packing for all objects...")
         packIslands(collected_islandList)
 
     print("Smart Projection time: %.2f" % (time.time() - time1))
-    # Window.DrawProgressBar(0.9, "Smart Projections done, time: %.2f sec" % (time.time() - time1))
 
     # aspect correction is only done in edit mode - and only smart unwrap supports currently
     if is_editmode:
@@ -1024,25 +979,6 @@ def main(context,
 
     dict_matrix.clear()
 
-# XXX	Window.DrawProgressBar(1.0, "")
-# XXX	Window.WaitCursor(0)
-# XXX	Window.RedrawAll()
-
-
-"""
-    pup_block = [\
-    'Projection',\
-    ('Selected Faces Only', USER_ONLY_SELECTED_FACES, 'Use only selected faces from all selected meshes.'),\
-    ('Init from view', USER_VIEW_INIT, 'The first projection will be from the view vector.'),\
-    '',\
-    'UV Layout',\
-    ('Share Tex Space', USER_SHARE_SPACE, 'Objects Share texture space, map all objects into 1 uvmap.'),\
-    ('Island Margin:', USER_ISLAND_MARGIN, 0.0, 0.5, ''),\
-    'Fill in empty areas',\
-    ('Fill Holes', USER_FILL_HOLES, 'Fill in empty areas reduced texture waistage (slow).'),\
-    ('Fill Quality:', USER_FILL_HOLES_QUALITY, 1, 100, 'Depends on fill holes, how tightly to fill UV holes, (higher is slower)'),\
-    ]
-"""
 
 from bpy.props import FloatProperty, BoolProperty
 

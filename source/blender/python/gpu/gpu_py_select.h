@@ -15,29 +15,16 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2005 Blender Foundation.
- * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Benoit Bolsee.
- *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/python/intern/gpu.h
- *  \ingroup pythonintern
- *
- * Initializes the gpu Python module.
+/** \file blender/python/gpu/gpu_py_select.h
+ *  \ingroup bpygpu
  */
 
-#ifndef __GPU_H__
-#define __GPU_H__
+#ifndef __GPU_PY_SELECT_H__
+#define __GPU_PY_SELECT_H__
 
-PyObject *GPU_initPython(void);
-
-PyObject *BPyInit_gpu_offscreen(void);
-PyObject *BPyInit_gpu_matrix(void);
 PyObject *BPyInit_gpu_select(void);
 
-#endif /* __GPU_H__ */
+#endif  /* __GPU_PY_SELECT_H__ */
