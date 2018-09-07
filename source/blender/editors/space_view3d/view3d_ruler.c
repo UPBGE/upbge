@@ -433,6 +433,7 @@ static void ruler_info_draw_pixel(const struct bContext *C, ARegion *ar, void *a
 
 	/* anti-aliased lines for more consistent appearance */
 	GPU_line_smooth(true);
+	GPU_line_width(1.0f * U.pixelsize);
 
 	BLF_enable(blf_mono_font, BLF_ROTATION);
 	BLF_size(blf_mono_font, 14 * U.pixelsize, U.dpi);
@@ -491,7 +492,7 @@ static void ruler_info_draw_pixel(const struct bContext *C, ARegion *ar, void *a
 				float quat[4];
 				float axis[3];
 				float angle;
-				const float px_scale = (ED_view3d_pixel_size(rv3d, ruler_item->co[1]) *
+				const float px_scale = (ED_view3d_pixel_size_no_ui_scale(rv3d, ruler_item->co[1]) *
 				                        min_fff(arc_size,
 				                                len_v2v2(co_ss[0], co_ss[1]) / 2.0f,
 				                                len_v2v2(co_ss[2], co_ss[1]) / 2.0f));

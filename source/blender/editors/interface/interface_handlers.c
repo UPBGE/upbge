@@ -2245,7 +2245,7 @@ static void ui_but_drop(bContext *C, const wmEvent *event, uiBut *but, uiHandleB
 		if (wmd->type == WM_DRAG_ID) {
 			/* align these types with UI_but_active_drop_name */
 			if (ELEM(but->type, UI_BTYPE_TEXT, UI_BTYPE_SEARCH_MENU)) {
-				ID *id = (ID *)wmd->poin;
+				ID *id = WM_drag_ID(wmd, 0);
 
 				button_activate_state(C, but, BUTTON_STATE_TEXT_EDITING);
 
@@ -7307,26 +7307,23 @@ void UI_but_tooltip_timer_remove(bContext *C, uiBut *but)
 	}
 }
 
-static ARegion *ui_but_tooltip_init_ex(
-        bContext *C, ARegion *ar, bool *r_exit_on_event,
-        bool is_label)
+static ARegion *ui_but_tooltip_init(
+        bContext *C, ARegion *ar,
+        int *pass, double *r_pass_delay, bool *r_exit_on_event)
 {
+	bool is_label = false;
+	if (*pass == 1) {
+		is_label = true;
+		(*pass)--;
+		(*r_pass_delay) = UI_TOOLTIP_DELAY - UI_TOOLTIP_DELAY_LABEL;
+	}
+
 	uiBut *but = UI_region_active_but_get(ar);
 	*r_exit_on_event = false;
 	if (but) {
 		return UI_tooltip_create_from_button(C, ar, but, is_label);
 	}
 	return NULL;
-}
-
-static ARegion *ui_but_tooltip_init(bContext *C, ARegion *ar, bool *r_exit_on_event)
-{
-	return ui_but_tooltip_init_ex(C, ar, r_exit_on_event, false);
-}
-
-static ARegion *ui_but_tooltip_init_label(bContext *C, ARegion *ar, bool *r_exit_on_event)
-{
-	return ui_but_tooltip_init_ex(C, ar, r_exit_on_event, true);
 }
 
 static void button_tooltip_timer_reset(bContext *C, uiBut *but)
@@ -7339,7 +7336,15 @@ static void button_tooltip_timer_reset(bContext *C, uiBut *but)
 	if ((U.flag & USER_TOOLTIPS) || (data->tooltip_force)) {
 		if (!but->block->tooltipdisabled) {
 			if (!wm->drags.first) {
-				WM_tooltip_timer_init(C, data->window, data->region, ui_but_tooltip_init);
+				bool is_label = UI_but_has_tooltip_label(but);
+				double delay = is_label ? UI_TOOLTIP_DELAY_LABEL : UI_TOOLTIP_DELAY;
+				WM_tooltip_timer_init_ex(C, data->window, data->region, ui_but_tooltip_init, delay);
+				if (is_label) {
+					bScreen *sc = WM_window_get_active_screen(data->window);
+					if (sc->tool_tip) {
+						sc->tool_tip->pass = 1;
+					}
+				}
 			}
 		}
 	}
@@ -7577,9 +7582,15 @@ static void button_activate_init(bContext *C, ARegion *ar, uiBut *but, uiButtonA
 
 	if (UI_but_has_tooltip_label(but)) {
 		/* Show a label for this button. */
-		WM_tooltip_immediate_init(
-		        C, CTX_wm_window(C), ar,
-		        ui_but_tooltip_init_label);
+		bScreen *sc = WM_window_get_active_screen(data->window);
+		if ((PIL_check_seconds_timer() - WM_tooltip_time_closed()) < 0.1) {
+			WM_tooltip_immediate_init(
+			        C, CTX_wm_window(C), ar,
+			        ui_but_tooltip_init);
+			if (sc->tool_tip) {
+				sc->tool_tip->pass = 1;
+			}
+		}
 	}
 }
 

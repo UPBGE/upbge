@@ -95,6 +95,7 @@
 
 #include "RE_pipeline.h"
 #include "RE_engine.h"
+#include "RE_shader_ext.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -196,7 +197,6 @@ typedef struct IconPreview {
 
 /* *************************** Preview for buttons *********************** */
 
-static Main *G_pr_main = NULL;
 static Main *G_pr_main_cycles = NULL;
 static Main *G_pr_main_grease_pencil = NULL;
 
@@ -226,7 +226,6 @@ void ED_preview_ensure_dbase(void)
 	static bool base_initialized = false;
 	BLI_assert(BLI_thread_is_main());
 	if (!base_initialized) {
-		G_pr_main = load_main_from_memory(datatoc_preview_blend, datatoc_preview_blend_size);
 		G_pr_main_cycles = load_main_from_memory(datatoc_preview_cycles_blend, datatoc_preview_cycles_blend_size);
 		G_pr_main_grease_pencil = load_main_from_memory(datatoc_preview_grease_pencil_blend, datatoc_preview_grease_pencil_blend_size);
 		base_initialized = true;
@@ -248,9 +247,6 @@ static bool check_engine_supports_preview(Scene *scene)
 
 void ED_preview_free_dbase(void)
 {
-	if (G_pr_main)
-		BKE_main_free(G_pr_main);
-
 	if (G_pr_main_cycles)
 		BKE_main_free(G_pr_main_cycles);
 
@@ -727,6 +723,61 @@ static void shader_preview_updatejob(void *spv)
 	}
 }
 
+/* Renders texture directly to render buffer. */
+static void shader_preview_texture(ShaderPreview *sp, Tex *tex, Scene* sce, Render *re)
+{
+	/* Setup output buffer. */
+	int width = sp->sizex;
+	int height = sp->sizey;
+
+	/* This is needed otherwise no RenderResult is created. */
+	sce->r.scemode &= ~R_BUTS_PREVIEW;
+	RE_InitState(re, NULL, &sce->r, &sce->view_layers, NULL, width, height, NULL);
+	RE_SetScene(re, sce);
+
+	/* Create buffer in empty RenderView created in the init step. */
+	RenderResult *rr = RE_AcquireResultWrite(re);
+	RenderView *rv = (RenderView *)rr->views.first;
+	rv->rectf = MEM_callocN(sizeof(float) * 4 * width * height, "texture render result");
+	RE_ReleaseResult(re);
+
+	/* Get texture image pool (if any) */
+	struct ImagePool *img_pool = BKE_image_pool_new();
+	BKE_texture_fetch_images_for_pool(tex, img_pool);
+
+	/* Fill in image buffer. */
+	float *rect_float = rv->rectf;
+	float tex_coord[3] = {0.0f, 0.0f, 0.0f};
+	bool color_manage = true;
+
+	for (int y = 0; y < height; y++) {
+		/* Tex coords between -1.0f and 1.0f. */
+		tex_coord[1] = ((float)y / (float)height) * 2.0f - 1.0f;
+
+		for (int x = 0; x < width; x++) {
+			tex_coord[0] = ((float)x / (float)height) * 2.0f - 1.0f;
+
+			/* Evaluate texture at tex_coord .*/
+			TexResult texres = {0};
+			BKE_texture_get_value_ex(sce, tex, tex_coord, &texres, img_pool, color_manage);
+
+			rect_float[0] = texres.tr;
+			rect_float[1] = texres.tg;
+			rect_float[2] = texres.tb;
+			rect_float[3] = 1.0f;
+
+			rect_float += 4;
+		}
+
+		/* Check if we should cancel texture preview. */
+		if (shader_preview_break(sp)) {
+			break;
+		}
+	}
+
+	BKE_image_pool_free(img_pool);
+}
+
 static void shader_preview_render(ShaderPreview *sp, ID *id, int split, int first)
 {
 	Render *re;
@@ -803,7 +854,13 @@ static void shader_preview_render(ShaderPreview *sp, ID *id, int split, int firs
 		((Camera *)sce->camera->data)->lens *= (float)sp->sizey / (float)sizex;
 
 	/* entire cycle for render engine */
-	RE_PreviewRender(re, pr_main, sce);
+	if (idtype == ID_TE) {
+		shader_preview_texture(sp, (Tex *)id, sce, re);
+	}
+	else {
+		/* Render preview scene */
+		RE_PreviewRender(re, pr_main, sce);
+	}
 
 	((Camera *)sce->camera->data)->lens = oldlens;
 
@@ -1122,25 +1179,17 @@ static void icon_preview_startjob_all_sizes(void *customdata, short *stop, short
 
 		if (is_render) {
 			BLI_assert(ip->id);
-			/* texture icon rendering is hardcoded to use the BI scene,
-			 * so don't even think of using cycle's bmain for
-			 * texture icons
-			 */
-			if (GS(ip->id->name) != ID_TE) {
-				/* grease pencil use its own preview file */
-				if (GS(ip->id->name) == ID_MA) {
-					ma = (Material *)ip->id;
-				}
 
-				if ((ma == NULL) || (ma->gp_style == NULL)) {
-					sp->pr_main = G_pr_main_cycles;
-				}
-				else {
-					sp->pr_main = G_pr_main_grease_pencil;
-				}
+			/* grease pencil use its own preview file */
+			if (GS(ip->id->name) == ID_MA) {
+				ma = (Material *)ip->id;
+			}
+
+			if ((ma == NULL) || (ma->gp_style == NULL)) {
+				sp->pr_main = G_pr_main_cycles;
 			}
 			else {
-				sp->pr_main = G_pr_main;
+				sp->pr_main = G_pr_main_grease_pencil;
 			}
 		}
 
@@ -1311,22 +1360,17 @@ void ED_preview_shader_job(const bContext *C, void *owner, ID *id, ID *parent, M
 
 	/* hardcoded preview .blend for Eevee + Cycles, this should be solved
 	 * once with custom preview .blend path for external engines */
-	if ((method != PR_NODE_RENDER) && id_type != ID_TE) {
-		/* grease pencil use its own preview file */
-		if (GS(id->name) == ID_MA) {
-			ma = (Material *)id;
-		}
 
-		if ((ma == NULL) || (ma->gp_style == NULL)) {
-			sp->pr_main = G_pr_main_cycles;
-		}
-		else {
-			sp->pr_main = G_pr_main_grease_pencil;
-		}
+	/* grease pencil use its own preview file */
+	if (GS(id->name) == ID_MA) {
+		ma = (Material *)id;
+	}
 
+	if ((ma == NULL) || (ma->gp_style == NULL)) {
+		sp->pr_main = G_pr_main_cycles;
 	}
 	else {
-		sp->pr_main = G_pr_main;
+		sp->pr_main = G_pr_main_grease_pencil;
 	}
 
 	if (ob && ob->totcol) copy_v4_v4(sp->col, ob->col);

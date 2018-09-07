@@ -625,11 +625,16 @@ bool WM_window_modal_keymap_status_draw(
         struct uiLayout *layout);
 
 /* wm_tooltip.c */
-typedef struct ARegion *(*wmTooltipInitFn)(struct bContext *, struct ARegion *, bool *);
+typedef struct ARegion *(*wmTooltipInitFn)(
+        struct bContext *C, struct ARegion *ar,
+        int *pass, double *r_pass_delay, bool *r_exit_on_event);
 
 void WM_tooltip_immediate_init(
         struct bContext *C, struct wmWindow *win, struct ARegion *ar,
         wmTooltipInitFn init);
+void WM_tooltip_timer_init_ex(
+        struct bContext *C, struct wmWindow *win, struct ARegion *ar,
+        wmTooltipInitFn init, double delay);
 void WM_tooltip_timer_init(
         struct bContext *C, struct wmWindow *win, struct ARegion *ar,
         wmTooltipInitFn init);
@@ -637,6 +642,7 @@ void WM_tooltip_timer_clear(struct bContext *C, struct wmWindow *win);
 void WM_tooltip_clear(struct bContext *C, struct wmWindow *win);
 void WM_tooltip_init(struct bContext *C, struct wmWindow *win);
 void WM_tooltip_refresh(struct bContext *C, struct wmWindow *win);
+double WM_tooltip_time_closed(void);
 
 #ifdef __cplusplus
 }

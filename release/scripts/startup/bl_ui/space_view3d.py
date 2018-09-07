@@ -423,11 +423,11 @@ class VIEW3D_MT_transform_armature(VIEW3D_MT_transform_base):
         # armature specific extensions follow...
         obj = context.object
         if obj.type == 'ARMATURE' and obj.mode in {'EDIT', 'POSE'}:
-            if obj.data.draw_type == 'BBONE':
+            if obj.data.display_type == 'BBONE':
                 layout.separator()
 
                 layout.operator("transform.transform", text="Scale BBone").mode = 'BONE_SIZE'
-            elif obj.data.draw_type == 'ENVELOPE':
+            elif obj.data.display_type == 'ENVELOPE':
                 layout.separator()
 
                 layout.operator("transform.transform", text="Scale Envelope Distance").mode = 'BONE_SIZE'
@@ -521,6 +521,11 @@ class VIEW3D_MT_uv_map(Menu):
         layout.operator_context = 'INVOKE_REGION_WIN'
         layout.operator("uv.project_from_view").scale_to_bounds = False
         layout.operator("uv.project_from_view", text="Project from View (Bounds)").scale_to_bounds = True
+
+        layout.separator()
+
+        layout.operator("mesh.mark_seam").clear = False
+        layout.operator("mesh.mark_seam", text="Clear Seam").clear = True
 
         layout.separator()
 
@@ -1765,7 +1770,7 @@ class VIEW3D_MT_object_specials(Menu):
 
             props = layout.operator("wm.context_modal_mouse", text="Empty Draw Size")
             props.data_path_iter = "selected_editable_objects"
-            props.data_path_item = "empty_draw_size"
+            props.data_path_item = "empty_display_size"
             props.input_scale = 0.01
             props.header_text = "Empty Draw Size: %.3f"
 
@@ -4354,8 +4359,8 @@ class VIEW3D_PT_overlay_motion_tracking(Panel):
             col = layout.column()
             col.label(text="Tracks:")
             row = col.row(align=True)
-            row.prop(view, "tracks_draw_type", text="")
-            row.prop(view, "tracks_draw_size", text="Size")
+            row.prop(view, "tracks_display_type", text="")
+            row.prop(view, "tracks_display_size", text="Size")
 
 
 class VIEW3D_PT_overlay_edit_mesh(Panel):

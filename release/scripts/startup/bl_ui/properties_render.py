@@ -871,7 +871,7 @@ class RENDER_PT_eevee_indirect_lighting(RenderButtonsPanel, Panel):
         row.label(text="Cubemap Display")
 
         sub = row.row(align=True)
-        sub.prop(props, "gi_cubemap_draw_size", text="Size")
+        sub.prop(props, "gi_cubemap_display_size", text="Size")
         if props.gi_show_cubemaps:
             sub.prop(props, "gi_show_cubemaps", text="", toggle=True, icon='HIDE_OFF')
         else:
@@ -882,7 +882,7 @@ class RENDER_PT_eevee_indirect_lighting(RenderButtonsPanel, Panel):
         row.label(text="Irradiance Display")
 
         sub = row.row(align=True)
-        sub.prop(props, "gi_irradiance_draw_size", text="Size")
+        sub.prop(props, "gi_irradiance_display_size", text="Size")
         if props.gi_show_irradiance:
             sub.prop(props, "gi_show_irradiance", text="", toggle=True, icon='HIDE_OFF')
         else:

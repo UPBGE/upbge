@@ -964,10 +964,14 @@ void UV_OT_average_islands_scale(wmOperatorType *ot)
 
 /**************** Live Unwrap *****************/
 
-static ParamHandle *liveHandle = NULL;
+static struct {
+	ParamHandle **handles;
+	uint len, len_alloc;
+} g_live_unwrap = {NULL};
 
 void ED_uvedit_live_unwrap_begin(Scene *scene, Object *obedit)
 {
+	ParamHandle *handle = NULL;
 	BMEditMesh *em = BKE_editmesh_from_object(obedit);
 	const bool abf = (scene->toolsettings->unwrapper == 0);
 	const bool fillholes = (scene->toolsettings->uvcalc_flag & UVCALC_FILLHOLES) != 0;
@@ -980,29 +984,49 @@ void ED_uvedit_live_unwrap_begin(Scene *scene, Object *obedit)
 	}
 
 	if (use_subsurf)
-		liveHandle = construct_param_handle_subsurfed(scene, obedit, em, fillholes, false, true);
+		handle = construct_param_handle_subsurfed(scene, obedit, em, fillholes, false, true);
 	else
-		liveHandle = construct_param_handle(scene, obedit, em->bm, false, fillholes, false, true);
+		handle = construct_param_handle(scene, obedit, em->bm, false, fillholes, false, true);
 
-	param_lscm_begin(liveHandle, PARAM_TRUE, abf);
+	param_lscm_begin(handle, PARAM_TRUE, abf);
+
+	/* Create or increase size of g_live_unwrap.handles array */
+	if (g_live_unwrap.handles == NULL) {
+		g_live_unwrap.len_alloc = 32;
+		g_live_unwrap.handles = MEM_mallocN(sizeof(ParamHandle *) * g_live_unwrap.len_alloc, "uvedit_live_unwrap_liveHandles");
+		g_live_unwrap.len = 0;
+	}
+	if (g_live_unwrap.len >= g_live_unwrap.len_alloc) {
+		g_live_unwrap.len_alloc *= 2;
+		g_live_unwrap.handles = MEM_reallocN(g_live_unwrap.handles, sizeof(ParamHandle *) * g_live_unwrap.len_alloc);
+	}
+	g_live_unwrap.handles[g_live_unwrap.len] = handle;
+	g_live_unwrap.len++;
 }
 
 void ED_uvedit_live_unwrap_re_solve(void)
 {
-	if (liveHandle) {
-		param_lscm_solve(liveHandle);
-		param_flush(liveHandle);
+	if (g_live_unwrap.handles) {
+		for (int i = 0; i < g_live_unwrap.len; i++) {
+			param_lscm_solve(g_live_unwrap.handles[i]);
+			param_flush(g_live_unwrap.handles[i]);
+		}
 	}
 }
 
 void ED_uvedit_live_unwrap_end(short cancel)
 {
-	if (liveHandle) {
-		param_lscm_end(liveHandle);
-		if (cancel)
-			param_flush_restore(liveHandle);
-		param_delete(liveHandle);
-		liveHandle = NULL;
+	if (g_live_unwrap.handles) {
+		for (int i = 0; i < g_live_unwrap.len; i++) {
+			param_lscm_end(g_live_unwrap.handles[i]);
+			if (cancel)
+				param_flush_restore(g_live_unwrap.handles[i]);
+			param_delete(g_live_unwrap.handles[i]);
+		}
+		MEM_freeN(g_live_unwrap.handles);
+		g_live_unwrap.handles = NULL;
+		g_live_unwrap.len = 0;
+		g_live_unwrap.len_alloc = 0;
 	}
 }
 
@@ -1111,12 +1135,12 @@ static void uv_map_transform_center(
 	}
 }
 
-static void uv_map_rotation_matrix(float result[4][4], RegionView3D *rv3d, Object *ob,
-                                   float upangledeg, float sideangledeg, float radius)
+static void uv_map_rotation_matrix_ex(
+        float result[4][4], RegionView3D *rv3d, Object *ob,
+        float upangledeg, float sideangledeg, float radius, float offset[4])
 {
 	float rotup[4][4], rotside[4][4], viewmatrix[4][4], rotobj[4][4];
 	float sideangle = 0.0f, upangle = 0.0f;
-	int k;
 
 	/* get rotation of the current view matrix */
 	if (rv3d)
@@ -1125,15 +1149,14 @@ static void uv_map_rotation_matrix(float result[4][4], RegionView3D *rv3d, Objec
 		unit_m4(viewmatrix);
 
 	/* but shifting */
-	for (k = 0; k < 4; k++)
-		viewmatrix[3][k] = 0.0f;
+	copy_v4_fl(viewmatrix[3], 0.0f);
 
 	/* get rotation of the current object matrix */
 	copy_m4_m4(rotobj, ob->obmat);
 
 	/* but shifting */
-	for (k = 0; k < 4; k++)
-		rotobj[3][k] = 0.0f;
+	add_v4_v4(rotobj[3], offset);
+	rotobj[3][3] = 0.0f;
 
 	zero_m4(rotup);
 	zero_m4(rotside);
@@ -1157,6 +1180,14 @@ static void uv_map_rotation_matrix(float result[4][4], RegionView3D *rv3d, Objec
 
 	/* calculate transforms*/
 	mul_m4_series(result, rotup, rotside, viewmatrix, rotobj);
+}
+
+static void uv_map_rotation_matrix(
+        float result[4][4], RegionView3D *rv3d, Object *ob,
+        float upangledeg, float sideangledeg, float radius)
+{
+	float offset[4] = {0};
+	uv_map_rotation_matrix_ex(result, rv3d, ob, upangledeg, sideangledeg, radius, offset);
 }
 
 static void uv_map_transform(bContext *C, wmOperator *op, float rotmat[4][4])
@@ -1528,11 +1559,27 @@ static int uv_from_view_exec(bContext *C, wmOperator *op)
 	BMIter iter, liter;
 	MLoopUV *luv;
 	float rotmat[4][4];
+	float objects_pos_offset[4];
 	bool changed_multi = false;
+
+	const bool use_orthographic = RNA_boolean_get(op->ptr, "orthographic");
 
 	/* Note: objects that aren't touched are set to NULL (to skip clipping). */
 	uint objects_len = 0;
 	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
+
+	if (use_orthographic) {
+		/* Calculate average object position. */
+		float objects_pos_avg[4] = {0};
+
+		for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+			add_v4_v4(objects_pos_avg, objects[ob_index]->obmat[3]);
+		}
+
+		mul_v4_fl(objects_pos_avg, 1.0f / objects_len);
+		negate_v4_v4(objects_pos_offset, objects_pos_avg);
+	}
+
 	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
 		Object *obedit = objects[ob_index];
 		BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -1545,8 +1592,8 @@ static int uv_from_view_exec(bContext *C, wmOperator *op)
 
 		const int cd_loop_uv_offset = CustomData_get_offset(&em->bm->ldata, CD_MLOOPUV);
 
-		if (RNA_boolean_get(op->ptr, "orthographic")) {
-			uv_map_rotation_matrix(rotmat, rv3d, obedit, 90.0f, 0.0f, 1.0f);
+		if (use_orthographic) {
+			uv_map_rotation_matrix_ex(rotmat, rv3d, obedit, 90.0f, 0.0f, 1.0f, objects_pos_offset);
 
 			BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
 				if (!BM_elem_flag_test(efa, BM_ELEM_SELECT))
