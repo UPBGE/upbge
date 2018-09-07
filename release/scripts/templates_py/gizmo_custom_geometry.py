@@ -96,7 +96,7 @@ class MyCustomShapeWidget(Gizmo):
         return {'RUNNING_MODAL'}
 
     def exit(self, context, cancel):
-        context.area.header_text_set()
+        context.area.header_text_set("")
         if cancel:
             self.target_set_value("offset", self.init_value)
 
@@ -129,7 +129,6 @@ class MyCustomShapeWidgetGroup(GizmoGroup):
         ob = context.object
         mpr = self.gizmos.new(MyCustomShapeWidget.bl_idname)
         mpr.target_set_prop("offset", ob.data, "energy")
-        mpr.matrix_basis = ob.matrix_world.normalized()
 
         mpr.color = 1.0, 0.5, 1.0
         mpr.alpha = 0.5

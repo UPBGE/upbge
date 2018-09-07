@@ -743,10 +743,10 @@ OCIO_SOURCE=( "https://github.com/imageworks/OpenColorIO/archive/v$OCIO_VERSION.
 #~ OCIO_SOURCE_REPO_UID="6de971097c7f552300f669ed69ca0b6cf5a70843"
 
 OPENEXR_USE_REPO=false
-OPENEXR_SOURCE=( "http://download.savannah.nongnu.org/releases/openexr/openexr-$OPENEXR_VERSION.tar.gz" )
+OPENEXR_SOURCE=( "https://github.com/openexr/openexr/releases/download/v$OPENEXR_VERSION/openexr-$OPENEXR_VERSION.tar.gz" )
 #~ OPENEXR_SOURCE_REPO=( "https://github.com/mont29/openexr.git" )
 #~ OPENEXR_SOURCE_REPO_UID="2787aa1cf652d244ed45ae124eb1553f6cff11ee"
-ILMBASE_SOURCE=( "http://download.savannah.nongnu.org/releases/openexr/ilmbase-$ILMBASE_VERSION.tar.gz" )
+ILMBASE_SOURCE=( "https://github.com/openexr/openexr/releases/download/v$ILMBASE_VERSION/ilmbase-$ILMBASE_VERSION.tar.gz" )
 
 OIIO_USE_REPO=false
 OIIO_SOURCE=( "https://github.com/OpenImageIO/oiio/archive/Release-$OIIO_VERSION.tar.gz" )
@@ -2772,6 +2772,7 @@ install_DEB() {
   fi
 
   if $_do_compile_python; then
+    install_packages_DEB libffi-dev
     compile_Python
     PRINT ""
     if [ "$NUMPY_SKIP" = true ]; then
@@ -3310,6 +3311,7 @@ install_RPM() {
   fi
 
   if [ "$_do_compile_python" = true ]; then
+    install_packages_RPM libffi-devel
     compile_Python
     PRINT ""
     if [ "$NUMPY_SKIP" = true ]; then
@@ -3420,16 +3422,15 @@ install_RPM() {
     else
       CLANG_DEV="clang-devel"
     fi
-    # XXX RHEL has 3.4 in repo but OSL complains about not finding MCJIT_LIBRARY, so compile for now...
-    #check_package_version_match_RPM $CLANG_DEV $LLVM_VERSION
-    #if [ $? -eq 0 ]; then
-    #  install_packages_RPM llvm-devel $CLANG_DEV
-    #  have_llvm=true
-    #  LLVM_VERSION_FOUND=$LLVM_VERSION
-    #  clean_LLVM
-    #else
+    check_package_version_match_RPM $CLANG_DEV $LLVM_VERSION
+    if [ $? -eq 0 ]; then
+      install_packages_RPM llvm-devel $CLANG_DEV
+      have_llvm=true
+      LLVM_VERSION_FOUND=$LLVM_VERSION
+      clean_LLVM
+    else
       _do_compile_llvm=true
-    #fi
+    fi
   fi
 
   if [ "$_do_compile_llvm" = true ]; then
@@ -3739,6 +3740,7 @@ install_ARCH() {
   fi
 
   if [ "$_do_compile_python" = true ]; then
+    install_packages_ARCH libffi
     compile_Python
     PRINT ""
     if [ "$NUMPY_SKIP" = true ]; then
@@ -3829,11 +3831,11 @@ install_ARCH() {
     INFO "Forced LLVM building, as requested..."
     _do_compile_llvm=true
   else
-    check_package_version_match_ARCH llvm35 $LLVM_VERSION_MIN
+    check_package_version_match_ARCH llvm $LLVM_VERSION_MIN
     if [ $? -eq 0 ]; then
-      install_packages_ARCH llvm35 clang35
+      install_packages_ARCH llvm clang
       have_llvm=true
-      LLVM_VERSION=`get_package_version_ARCH llvm35`
+      LLVM_VERSION=`get_package_version_ARCH llvm`
       LLVM_VERSION_FOUND=$LLVM_VERSION
       clean_LLVM
     else

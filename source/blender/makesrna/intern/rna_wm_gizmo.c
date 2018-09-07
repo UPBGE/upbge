@@ -623,7 +623,7 @@ static bool rna_gizmogroup_poll_cb(const bContext *C, wmGizmoGroupType *gzgt)
 	ParameterList list;
 	FunctionRNA *func;
 	void *ret;
-	int visible;
+	bool visible;
 
 	RNA_pointer_create(NULL, gzgt->ext.srna, NULL, &ptr); /* dummy */
 	func = &rna_GizmoGroup_poll_func; /* RNA_struct_find_function(&ptr, "poll"); */
@@ -633,7 +633,7 @@ static bool rna_gizmogroup_poll_cb(const bContext *C, wmGizmoGroupType *gzgt)
 	gzgt->ext.call((bContext *)C, &ptr, func, &list);
 
 	RNA_parameter_get_lookup(&list, "visible", &ret);
-	visible = *(int *)ret;
+	visible = *(bool *)ret;
 
 	RNA_parameter_list_free(&list);
 
@@ -885,7 +885,8 @@ static void rna_def_gizmos(BlenderRNA *brna, PropertyRNA *cprop)
 	func = RNA_def_function(srna, "new", "rna_GizmoGroup_gizmo_new");
 	RNA_def_function_ui_description(func, "Add gizmo");
 	RNA_def_function_flag(func, FUNC_USE_REPORTS);
-	RNA_def_string(func, "type", "Type", 0, "", "Gizmo identifier"); /* optional */
+	parm = RNA_def_string(func, "type", "Type", 0, "", "Gizmo identifier"); /* optional */
+	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
 	parm = RNA_def_pointer(func, "gizmo", "Gizmo", "", "New gizmo");
 	RNA_def_function_return(func, parm);
 
