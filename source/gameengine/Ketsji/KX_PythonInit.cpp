@@ -633,12 +633,12 @@ static PyObject *gLibLoad(PyObject *, PyObject *args, PyObject *kwds)
 	KX_LibLoadStatus *status = nullptr;
 
 	short options=0;
-	int load_actions=0, verbose=0, load_scripts=1, async=0;
+    int load_actions=0, verbose=0, load_scripts=1, asynchronous=0;
 
-	static const char *kwlist[] = {"path", "group", "buffer", "load_actions", "verbose", "load_scripts", "async", "scene", nullptr};
+    static const char *kwlist[] = {"path", "group", "buffer", "load_actions", "verbose", "load_scripts", "asynchronous", "scene", nullptr};
 	
 	if (!PyArg_ParseTupleAndKeywords(args, kwds, "ss|y*iiIiO:LibLoad", const_cast<char**>(kwlist),
-									&path, &group, &py_buffer, &load_actions, &verbose, &load_scripts, &async, &pyscene))
+                                    &path, &group, &py_buffer, &load_actions, &verbose, &load_scripts, &asynchronous, &pyscene))
 		return nullptr;
 
 	if (!ConvertPythonToScene(pyscene, &kx_scene, true, "invalid scene")) {
@@ -655,7 +655,7 @@ static PyObject *gLibLoad(PyObject *, PyObject *args, PyObject *kwds)
 		options |= KX_BlenderConverter::LIB_LOAD_VERBOSE;
 	if (load_scripts != 0)
 		options |= KX_BlenderConverter::LIB_LOAD_LOAD_SCRIPTS;
-	if (async != 0)
+    if (asynchronous != 0)
 		options |= KX_BlenderConverter::LIB_LOAD_ASYNC;
 
 	KX_BlenderConverter *converter = KX_GetActiveEngine()->GetConverter();
