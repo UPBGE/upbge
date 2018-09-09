@@ -642,11 +642,11 @@ static PyObject *gLibLoad(PyObject *, PyObject *args, PyObject *kwds)
 	KX_LibLoadStatus *status = nullptr;
 
 	short options = 0;
-	int load_actions = 0, verbose = 0, load_scripts = 1, async = 0;
+	int load_actions = 0, verbose = 0, load_scripts = 1, asyncronous = 0;
 
 	if (!EXP_ParseTupleArgsAndKeywords(args, kwds, "ss|y*iiIiO:LibLoad",
-	                                   {"path", "group", "buffer", "load_actions", "verbose", "load_scripts", "async", "scene", 0},
-	                                   &path, &group, &py_buffer, &load_actions, &verbose, &load_scripts, &async, &pyscene)) {
+	                                   {"path", "group", "buffer", "load_actions", "verbose", "load_scripts", "asyncronous", "scene", 0},
+	                                   &path, &group, &py_buffer, &load_actions, &verbose, &load_scripts, &asyncronous, &pyscene)) {
 		return nullptr;
 	}
 
@@ -667,7 +667,7 @@ static PyObject *gLibLoad(PyObject *, PyObject *args, PyObject *kwds)
 	if (load_scripts != 0) {
 		options |= BL_Converter::LIB_LOAD_LOAD_SCRIPTS;
 	}
-	if (async != 0) {
+	if (asyncronous != 0) {
 		options |= BL_Converter::LIB_LOAD_ASYNC;
 	}
 
