@@ -3019,118 +3019,122 @@ void node_bsdf_principled(vec4 base_color, float subsurface, vec3 subsurface_rad
 	float clearcoat_roughness, float ior, float transmission, float transmission_roughness, vec3 N, vec3 CN, vec3 T, vec3 I, 
 	vec3 col, float energy, vec3 lv, float visifac, out vec4 result)
 {
-
-	/* ambient light */
-	//vec3 L = vec3(0.2); // TODO: set ambient light to an appropriate value
-	vec3 L = mix(0.1, 0.03, metallic) * mix(base_color.rgb, subsurface_color.rgb, subsurface * (1.0 - metallic));
-
-	float eta = (2.0 / (1.0 - sqrt(0.08 * specular))) - 1.0;
-
-	/* set the viewing vector */
-	vec3 V = (gl_ProjectionMatrix[3][3] == 0.0) ? -normalize(I) : vec3(0.0, 0.0, 1.0);
-
-	/* get the tangent */
-	vec3 Tangent = T;
-	if (T == vec3(0.0)) {
-		// if no tangent is set, use a default tangent
-		if(N.x != N.y || N.x != N.z) {
-			Tangent = vec3(N.z-N.y, N.x-N.z, N.y-N.x);  // (1,1,1) x N
-		}
-		else {
-			Tangent = vec3(N.z-N.y, N.x+N.z, -N.y-N.x);  // (-1,1,1) x N
-		}
-	}
-
-	/* rotate tangent */
-	if (anisotropic_rotation != 0.0) {
-		Tangent = rotate_vector(Tangent, N, anisotropic_rotation * 2.0 * M_PI);
-	}
-
-	/* calculate the tangent and bitangent */
-	vec3 Y = normalize(cross(N, Tangent));
-	vec3 X = cross(Y, N);
-
-	/* fresnel normalization parameters */
-	float F0 = fresnel_dielectric_0(eta);
-	float F0_norm = 1.0 / (1.0 - F0);
+	vec3 L = vec3(0.0);
 	
-	/* setup lights */
-	vec3 l_col = col * energy;
+	if (visifac > 0.0) {
+		/* ambient light */
+		//vec3 L = vec3(0.2); // TODO: set ambient light to an appropriate value
+		L = mix(0.1, 0.03, metallic) * mix(base_color.rgb, subsurface_color.rgb, subsurface * (1.0 - metallic));
+	
+		float eta = (2.0 / (1.0 - sqrt(0.08 * specular))) - 1.0;
+	
+		/* set the viewing vector */
+		vec3 V = (gl_ProjectionMatrix[3][3] == 0.0) ? -normalize(I) : vec3(0.0, 0.0, 1.0);
+	
+		/* get the tangent */
+		vec3 Tangent = T;
+		if (T == vec3(0.0)) {
+			// if no tangent is set, use a default tangent
+			if(N.x != N.y || N.x != N.z) {
+				Tangent = vec3(N.z-N.y, N.x-N.z, N.y-N.x);  // (1,1,1) x N
+			}
+			else {
+				Tangent = vec3(N.z-N.y, N.x+N.z, -N.y-N.x);  // (-1,1,1) x N
+			}
+		}
+	
+		/* rotate tangent */
+		if (anisotropic_rotation != 0.0) {
+			Tangent = rotate_vector(Tangent, N, anisotropic_rotation * 2.0 * M_PI);
+		}
+	
+		/* calculate the tangent and bitangent */
+		vec3 Y = normalize(cross(N, Tangent));
+		vec3 X = cross(Y, N);
+	
+		/* fresnel normalization parameters */
+		float F0 = fresnel_dielectric_0(eta);
+		float F0_norm = 1.0 / (1.0 - F0);
+		
+		/* setup lights */
+		vec3 l_col = col * energy;
+	
+		/* directional lights */
+		vec3 light_position_world = -lv;
+		vec3 light_position = normalize(light_position_world);
+		vec3 light_diffuse = l_col;
+		vec3 light_specular = l_col;
+	
+		vec3 H = normalize(light_position + V);
+		float NdotL = dot(N, light_position);
+		float NdotV = dot(N, V);
+		float LdotH = dot(light_position, H);
+	
+		vec3 diffuse_and_specular_bsdf = vec3(0.0);
+		if (NdotL >= 0.0 && NdotV >= 0.0) {
+			float NdotH = dot(N, H);
+	
+			float Cdlum = 0.3 * base_color.r + 0.6 * base_color.g + 0.1 * base_color.b; // luminance approx.
+	
+			vec3 Ctint = Cdlum > 0 ? base_color.rgb / Cdlum : vec3(1.0); // normalize lum. to isolate hue+sat
+			vec3 Cspec0 = mix(specular * 0.08 * mix(vec3(1.0), Ctint, specular_tint), base_color.rgb, metallic);
+			vec3 Csheen = mix(vec3(1.0), Ctint, sheen_tint);
+	
+			// Diffuse fresnel - go from 1 at normal incidence to .5 at grazing
+			// and mix in diffuse retro-reflection based on roughness
+	
+			float FL = schlick_fresnel(NdotL), FV = schlick_fresnel(NdotV);
+			float Fd90 = 0.5 + 2.0 * LdotH*LdotH * roughness;
+			float Fd = mix(1.0, Fd90, FL) * mix(1.0, Fd90, FV);
+	
+			// Based on Hanrahan-Krueger brdf approximation of isotropic bssrdf
+			// 1.25 scale is used to (roughly) preserve albedo
+			// Fss90 used to "flatten" retroreflection based on roughness
+			float Fss90 = LdotH*LdotH * roughness;
+			float Fss = mix(1.0, Fss90, FL) * mix(1.0, Fss90, FV);
+			float ss = 1.25 * (Fss * (1.0 / (NdotL + NdotV) - 0.5) + 0.5);
+	
+			// specular
+			float aspect = sqrt(1.0 - anisotropic * 0.9);
+			float a = sqr(roughness);
+			float ax = max(0.001, a / aspect);
+			float ay = max(0.001, a * aspect);
+			float Ds = GTR2_aniso(NdotH, dot(H, X), dot(H, Y), ax, ay); //GTR2(NdotH, a);
+			float FH = (fresnel_dielectric_cos(LdotH, eta) - F0) * F0_norm;
+			vec3 Fs = mix(Cspec0, vec3(1.0), FH);
+			float roughg = sqr(roughness * 0.5 + 0.5);
+			float Gs = smithG_GGX(NdotL, roughg) * smithG_GGX(NdotV, roughg);
+	
+			// sheen
+			vec3 Fsheen = schlick_fresnel(LdotH) * sheen * Csheen;
+	
+			vec3 diffuse_bsdf = (mix(Fd * base_color.rgb, ss * subsurface_color.rgb, subsurface) + Fsheen) * light_diffuse;
+			vec3 specular_bsdf = Gs * Fs * Ds * light_specular;
+			diffuse_and_specular_bsdf = diffuse_bsdf * (1.0 - metallic) + specular_bsdf;
+		}
+		diffuse_and_specular_bsdf *= max(NdotL, 0.0);
 
-	/* directional lights */
-	vec3 light_position_world = -lv;
-	vec3 light_position = normalize(light_position_world);
-	vec3 light_diffuse = l_col;
-	vec3 light_specular = l_col;
+		vec3 clearcoat_bsdf = vec3(0.0);
+		if (clearcoat > 0.0) {
+			float CNdotL = dot(CN, light_position);
+			float CNdotV = dot(CN, V);
 
-	vec3 H = normalize(light_position + V);
-	float NdotL = dot(N, light_position);
-	float NdotV = dot(N, V);
-	float LdotH = dot(light_position, H);
+			if (CNdotL >= 0.0 && CNdotV >= 0.0) {
+				float CNdotH = dot(CN, H);
+				//float FH = schlick_fresnel(LdotH);
+		
+				// clearcoat (ior = 1.5 -> F0 = 0.04)
+				float Dr = GTR1(CNdotH, sqr(clearcoat_roughness));
+				float Fr = fresnel_dielectric_cos(LdotH, 1.5); //mix(0.04, 1.0, FH);
+				float Gr = smithG_GGX(CNdotL, 0.25) * smithG_GGX(CNdotV, 0.25);
+		
+				clearcoat_bsdf = clearcoat * Gr * Fr * Dr * vec3(0.25) * light_specular;
+			}
+			clearcoat_bsdf *= max(CNdotL, 0.0);
+		}
 
-	vec3 diffuse_and_specular_bsdf = vec3(0.0);
-	if (NdotL >= 0.0 && NdotV >= 0.0) {
-		float NdotH = dot(N, H);
-
-		float Cdlum = 0.3 * base_color.r + 0.6 * base_color.g + 0.1 * base_color.b; // luminance approx.
-
-		vec3 Ctint = Cdlum > 0 ? base_color.rgb / Cdlum : vec3(1.0); // normalize lum. to isolate hue+sat
-		vec3 Cspec0 = mix(specular * 0.08 * mix(vec3(1.0), Ctint, specular_tint), base_color.rgb, metallic);
-		vec3 Csheen = mix(vec3(1.0), Ctint, sheen_tint);
-
-		// Diffuse fresnel - go from 1 at normal incidence to .5 at grazing
-		// and mix in diffuse retro-reflection based on roughness
-
-		float FL = schlick_fresnel(NdotL), FV = schlick_fresnel(NdotV);
-		float Fd90 = 0.5 + 2.0 * LdotH*LdotH * roughness;
-		float Fd = mix(1.0, Fd90, FL) * mix(1.0, Fd90, FV);
-
-		// Based on Hanrahan-Krueger brdf approximation of isotropic bssrdf
-		// 1.25 scale is used to (roughly) preserve albedo
-		// Fss90 used to "flatten" retroreflection based on roughness
-		float Fss90 = LdotH*LdotH * roughness;
-		float Fss = mix(1.0, Fss90, FL) * mix(1.0, Fss90, FV);
-		float ss = 1.25 * (Fss * (1.0 / (NdotL + NdotV) - 0.5) + 0.5);
-
-		// specular
-		float aspect = sqrt(1.0 - anisotropic * 0.9);
-		float a = sqr(roughness);
-		float ax = max(0.001, a / aspect);
-		float ay = max(0.001, a * aspect);
-		float Ds = GTR2_aniso(NdotH, dot(H, X), dot(H, Y), ax, ay); //GTR2(NdotH, a);
-		float FH = (fresnel_dielectric_cos(LdotH, eta) - F0) * F0_norm;
-		vec3 Fs = mix(Cspec0, vec3(1.0), FH);
-		float roughg = sqr(roughness * 0.5 + 0.5);
-		float Gs = smithG_GGX(NdotL, roughg) * smithG_GGX(NdotV, roughg);
-
-		// sheen
-		vec3 Fsheen = schlick_fresnel(LdotH) * sheen * Csheen;
-
-		vec3 diffuse_bsdf = (mix(Fd * base_color.rgb, ss * subsurface_color.rgb, subsurface) + Fsheen) * light_diffuse;
-		vec3 specular_bsdf = Gs * Fs * Ds * light_specular;
-		diffuse_and_specular_bsdf = diffuse_bsdf * (1.0 - metallic) + specular_bsdf;
+		L += diffuse_and_specular_bsdf + clearcoat_bsdf;
 	}
-	diffuse_and_specular_bsdf *= max(NdotL, 0.0);
-
-	float CNdotL = dot(CN, light_position);
-	float CNdotV = dot(CN, V);
-
-	vec3 clearcoat_bsdf = vec3(0.0);
-	if (CNdotL >= 0.0 && CNdotV >= 0.0 && clearcoat > 0.0) {
-		float CNdotH = dot(CN, H);
-		//float FH = schlick_fresnel(LdotH);
-
-		// clearcoat (ior = 1.5 -> F0 = 0.04)
-		float Dr = GTR1(CNdotH, sqr(clearcoat_roughness));
-		float Fr = fresnel_dielectric_cos(LdotH, 1.5); //mix(0.04, 1.0, FH);
-		float Gr = smithG_GGX(CNdotL, 0.25) * smithG_GGX(CNdotV, 0.25);
-
-		clearcoat_bsdf = clearcoat * Gr * Fr * Dr * vec3(0.25) * light_specular;
-	}
-	clearcoat_bsdf *= max(CNdotL, 0.0);
-
-	L += diffuse_and_specular_bsdf + clearcoat_bsdf;
-
 
 	result = vec4(L, 1.0);
 }
