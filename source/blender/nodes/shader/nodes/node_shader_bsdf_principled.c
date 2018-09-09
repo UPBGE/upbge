@@ -94,6 +94,8 @@ static int node_shader_gpu_bsdf_principled(GPUMaterial *mat, bNode *UNUSED(node)
 /*	for (LinkData *nlink = mat->lamps.first; nlink; nlink = nlink->next) { //error: C2037: to the left of 'lamps' is specified 'GPUMaterial' struct/union without define 
 		GPULamp *lamp = nlink->data;*/
 
+	GPU_link(mat, "node_bsdf_principled_summation_init", &summation);
+
 	for (SETLOOPER(sce, sce_iter, base)) {
 		Object *ob = base->object;
 
@@ -106,7 +108,6 @@ static int node_shader_gpu_bsdf_principled(GPUMaterial *mat, bNode *UNUSED(node)
 					GPU_stack_link(mat, "node_bsdf_principled_adquired_in", in, out, &in0, &in1, &in2, &in3, &in4, &in5,
 					               &in6, &in7, &in8, &in9, &in10, &in11, &in12, &in13, &in14, &in15, &in16, &in17, &in18,
 					               &in19); 
-					GPU_link(mat, "node_bsdf_principled_summation_init", &summation);
 
 					first_time = false;
 				}
@@ -119,6 +120,7 @@ static int node_shader_gpu_bsdf_principled(GPUMaterial *mat, bNode *UNUSED(node)
 			}
 		}
 	}
+
 	bool ret = GPU_link(mat, "node_bsdf_principled_result", summation, &out[0].link);
 	return ret;
 }
