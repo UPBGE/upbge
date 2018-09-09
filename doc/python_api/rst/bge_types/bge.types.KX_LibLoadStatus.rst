@@ -15,7 +15,7 @@ base class --- :class:`EXP_PyObjectPlus`
       def finished_cb(status):
           print("Library (%s) loaded in %.2fms." % (status.libraryName, status.timeTaken))
 
-      bge.logic.LibLoad('myblend.blend', 'Scene', asyncronous=True).onFinish = finished_cb
+      bge.logic.LibLoad('myblend.blend', 'Scene', asynchronous=True).onFinish = finished_cb
 
    .. attribute:: onFinish
 
