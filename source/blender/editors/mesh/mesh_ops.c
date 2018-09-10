@@ -157,7 +157,6 @@ void ED_operatortypes_mesh(void)
 	WM_operatortype_append(MESH_OT_polybuild_face_at_cursor);
 	WM_operatortype_append(MESH_OT_polybuild_split_at_cursor);
 	WM_operatortype_append(MESH_OT_polybuild_dissolve_at_cursor);
-	WM_operatortype_append(MESH_OT_polybuild_hover);
 
 	WM_operatortype_append(MESH_OT_uv_texture_add);
 	WM_operatortype_append(MESH_OT_uv_texture_remove);
@@ -315,7 +314,7 @@ void ED_operatormacros_mesh(void)
 
 
 	ot = WM_operatortype_append_macro(
-	        "MESH_OT_polybuild_face_at_cursor_move", "Face At Cursor Move", "",
+	        "MESH_OT_polybuild_face_at_cursor_move", "Face at Cursor Move", "",
 	        OPTYPE_UNDO | OPTYPE_REGISTER);
 	WM_operatortype_macro_define(ot, "MESH_OT_polybuild_face_at_cursor");
 	otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
@@ -323,7 +322,7 @@ void ED_operatormacros_mesh(void)
 	RNA_boolean_set(otmacro->ptr, "mirror", false);
 
 	ot = WM_operatortype_append_macro(
-	        "MESH_OT_polybuild_split_at_cursor_move", "Split At Cursor Move", "",
+	        "MESH_OT_polybuild_split_at_cursor_move", "Split at Cursor Move", "",
 	        OPTYPE_UNDO | OPTYPE_REGISTER);
 	WM_operatortype_macro_define(ot, "MESH_OT_polybuild_split_at_cursor");
 	otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");

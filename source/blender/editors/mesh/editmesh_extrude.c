@@ -368,8 +368,8 @@ void MESH_OT_extrude_repeat(wmOperatorType *ot)
 static const float extrude_button_scale = 0.15f;
 static const float extrude_button_offset_scale = 1.5f;
 static const float extrude_arrow_scale = 1.0f;
-static const float extrude_arrow_xyz_axis_scale = 1.0f;
-static const float extrude_arrow_normal_axis_scale = 1.75f;
+static const float extrude_arrow_xyz_axis_scale = 0.4f;
+static const float extrude_arrow_normal_axis_scale = 1.0f;
 
 static const uchar shape_plus[] = {
 	0x5f, 0xfb, 0x40, 0xee, 0x25, 0xda, 0x11, 0xbf, 0x4, 0xa0, 0x0, 0x80, 0x4, 0x5f, 0x11,
@@ -567,7 +567,9 @@ static void gizmo_mesh_extrude_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 		WM_gizmo_set_matrix_location(man->adjust_xyz_no[i], tbounds.center);
 	}
 
-	wmOperator *op = WM_operator_last_redo(C);
+	/* Adjust current operator. */
+	/* Don't use 'WM_operator_last_redo' because selection actions will be ignored. */
+	wmOperator *op = CTX_wm_manager(C)->operators.last;
 	bool has_redo = (op && op->type == man->ot_extrude);
 
 	/* Un-hide. */
@@ -623,6 +625,15 @@ static void gizmo_mesh_extrude_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 	}
 }
 
+static int gizmo_cmp_temp_f(const void *gz_a_ptr, const void *gz_b_ptr)
+{
+	const wmGizmo *gz_a = gz_a_ptr;
+	const wmGizmo *gz_b = gz_b_ptr;
+	if      (gz_a->temp.f < gz_b->temp.f) return -1;
+	else if (gz_a->temp.f > gz_b->temp.f) return  1;
+	else                                  return  0;
+}
+
 static void gizmo_mesh_extrude_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
 {
 	GizmoExtrudeGroup *man = gzgroup->customdata;
@@ -636,6 +647,15 @@ static void gizmo_mesh_extrude_draw_prepare(const bContext *C, wmGizmoGroup *gzg
 			gizmo_mesh_extrude_orientation_matrix_set(man, mat);
 			break;
 		}
+	}
+
+	/* Basic ordering for drawing only. */
+	{
+		RegionView3D *rv3d = CTX_wm_region_view3d(C);
+		LISTBASE_FOREACH (wmGizmo *, gz, &gzgroup->gizmos) {
+			gz->temp.f = -dot_v3v3(rv3d->viewinv[2], gz->matrix_offset[3]);
+		}
+		BLI_listbase_sort(&gzgroup->gizmos, gizmo_cmp_temp_f);
 	}
 }
 

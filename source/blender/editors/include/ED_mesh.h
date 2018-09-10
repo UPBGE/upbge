@@ -52,6 +52,7 @@ struct Mesh;
 struct UvVertMap;
 struct UvMapVert;
 struct BMEditMesh;
+struct BMElem;
 struct BMesh;
 struct BMVert;
 struct BMLoop;
@@ -172,7 +173,17 @@ struct BMFace *EDBM_face_find_nearest(
 
 bool EDBM_unified_findnearest(
         struct ViewContext *vc,
-        struct Base **r_base,
+        struct Base **bases, uint bases_len,
+        int *r_base_index,
+        struct BMVert **r_eve,
+        struct BMEdge **r_eed,
+        struct BMFace **r_efa);
+
+bool EDBM_unified_findnearest_from_raycast(
+        struct ViewContext *vc,
+        struct Base **bases, uint bases_len,
+        bool use_boundary,
+        int *r_base_index,
         struct BMVert **r_eve,
         struct BMEdge **r_eed,
         struct BMFace **r_efa);
@@ -200,7 +211,7 @@ void em_setup_viewcontext(struct bContext *C, struct ViewContext *vc);  /* renam
 
 extern unsigned int bm_vertoffs, bm_solidoffs, bm_wireoffs;
 
-/* editmesh_preselect.c */
+/* editmesh_preselect_edgering.c */
 struct EditMesh_PreSelEdgeRing;
 struct EditMesh_PreSelEdgeRing *EDBM_preselect_edgering_create(void);
 void EDBM_preselect_edgering_destroy(struct EditMesh_PreSelEdgeRing *psel);
@@ -209,6 +220,16 @@ void EDBM_preselect_edgering_draw(struct EditMesh_PreSelEdgeRing *psel, const fl
 void EDBM_preselect_edgering_update_from_edge(
         struct EditMesh_PreSelEdgeRing *psel,
         struct BMesh *bm, struct BMEdge *eed_start, int previewlines, const float (*coords)[3]);
+
+/* editmesh_preselect_elem.c */
+struct EditMesh_PreSelElem;
+struct EditMesh_PreSelElem *EDBM_preselect_elem_create(void);
+void EDBM_preselect_elem_destroy(struct EditMesh_PreSelElem *psel);
+void EDBM_preselect_elem_clear(struct EditMesh_PreSelElem *psel);
+void EDBM_preselect_elem_draw(struct EditMesh_PreSelElem *psel, const float matrix[4][4]);
+void EDBM_preselect_elem_update_from_single(
+        struct EditMesh_PreSelElem *psel,
+        struct BMesh *bm, struct BMElem *ele, const float (*coords)[3]);
 
 /* mesh_ops.c */
 void        ED_operatortypes_mesh(void);
