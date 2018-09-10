@@ -11,7 +11,7 @@
                           axis_z="#0000dc">
         <wcol_regular>
           <ThemeWidgetColors outline="#3b3b3b"
-                             inner="#30303000"
+                             inner="#202020ff"
                              inner_sel="#607f9eff"
                              item="#ffffffff"
                              text="#b8b8b8"
@@ -775,7 +775,7 @@
                        frame_node="#505050aa"
                        matte_node="#0076b6"
                        distor_node="#292929"
-                       noodle_curving="0"
+                       noodle_curving="5"
                        input_node="#009e9e"
                        output_node="#1f00c7"
                        filter_node="#0076b6"
