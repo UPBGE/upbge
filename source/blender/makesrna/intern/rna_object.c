@@ -1150,7 +1150,7 @@ static void rna_GameObjectSettings_state_get(PointerRNA *ptr, bool *values)
 	int i;
 	int all_states = (ob->scaflag & OB_ALLSTATE) ? 1 : 0;
 
-	memset(values, 0, sizeof(int) * OB_MAX_STATES);
+	memset(values, 0, sizeof(bool) * OB_MAX_STATES);
 	for (i = 0; i < OB_MAX_STATES; i++) {
 		values[i] = (ob->state & (1 << i)) ? 1 : 0 | all_states;
 	}
@@ -1180,7 +1180,7 @@ static void rna_GameObjectSettings_used_state_get(PointerRNA *ptr, bool *values)
 	Object *ob = (Object *)ptr->data;
 	bController *cont;
 
-	memset(values, 0, sizeof(int) * OB_MAX_STATES);
+	memset(values, 0, sizeof(bool) * OB_MAX_STATES);
 	for (cont = ob->controllers.first; cont; cont = cont->next) {
 		int i;
 
