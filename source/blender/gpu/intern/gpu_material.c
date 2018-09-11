@@ -436,20 +436,18 @@ void GPU_material_bind(
 		if (material->type == GPU_MATERIAL_TYPE_MESH) {
 			for (LinkData *nlink = material->lamps.first; nlink; nlink = nlink->next) {
 				GPULamp *lamp = nlink->data;
-				// If the lamp is hidden, disable all layers.
-				if (!GPU_lamp_visible(lamp, srl, material->ma)) {
+				/* If the lamp is hidden, disable all layers or if the lamp is not
+				 * in the same layer than the view, disable the lamp. */
+				if (!(lamp->lay & viewlay) || !GPU_lamp_visible(lamp, srl, material->ma)) {
 					lamp->dynlayer = 0;
 				}
 				// If the lamp isn't selecting a layer, enable all layers.
 				else if (!(lamp->mode & LA_LAYER)) {
 					lamp->dynlayer = (1 << 20) - 1;
 				}
-				// The lamp is in the same layer than the view, let the layer as it.
-				else if ((lamp->lay & viewlay)) {
-					lamp->dynlayer = lamp->lay;
-				}
+				// Let the layer as it to check with object layer.
 				else {
-					lamp->dynlayer = 0;
+					lamp->dynlayer = lamp->lay;
 				}
 			}
 		}
