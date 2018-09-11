@@ -3020,8 +3020,10 @@ void node_bsdf_principled(vec4 base_color, float subsurface, vec3 subsurface_rad
 	vec3 col, float energy, vec3 lv, float visifac, out vec4 result)
 {
 	vec3 L = vec3(0.0);
-	
-	if (visifac > 0.0) {
+	/* setup lights */
+	vec3 l_col = col * energy;
+
+	if (visifac > 0.0 && l_col != vec3(0.0)) {
 		/* ambient light */
 		//vec3 L = vec3(0.2); // TODO: set ambient light to an appropriate value
 		L = mix(0.1, 0.03, metallic) * mix(base_color.rgb, subsurface_color.rgb, subsurface * (1.0 - metallic));
@@ -3055,9 +3057,6 @@ void node_bsdf_principled(vec4 base_color, float subsurface, vec3 subsurface_rad
 		/* fresnel normalization parameters */
 		float F0 = fresnel_dielectric_0(eta);
 		float F0_norm = 1.0 / (1.0 - F0);
-		
-		/* setup lights */
-		vec3 l_col = col * energy;
 	
 		/* directional lights */
 		vec3 light_position_world = -lv;
