@@ -168,6 +168,7 @@ shader_node_categories = [
         NodeItem("NodeGroupOutput", poll=group_input_output_item_poll),
     ]),
     ShaderOldNodeCategory("SH_OLD_SHADER", "Shader", items=[
+        NodeItem("ShaderNodeMixShader"),
         NodeItem("ShaderNodeBsdfPrincipled", poll=object_shader_nodes_poll),
     ]),
     ShaderOldNodeCategory("SH_OP_COLOR", "Color", items=[
