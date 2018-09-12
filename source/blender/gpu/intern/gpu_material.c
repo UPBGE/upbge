@@ -1912,15 +1912,30 @@ void GPU_horizon_update_color(const float color[3])
 	copy_v3_v3(GPUWorld.horicol, color);
 }
 
+float *GPU_horizon_color()
+{
+	return GPUWorld.horicol;
+}
+
 void GPU_ambient_update_color(const float color[3])
 {
 	copy_v3_v3(GPUWorld.ambcol, color);
 	GPUWorld.ambcol[3] = 1.0f;
 }
 
+float *GPU_ambient_color()
+{
+	return GPUWorld.ambcol;
+}
+
 void GPU_zenith_update_color(const float color[3])
 {
 	copy_v3_v3(GPUWorld.zencol, color);
+}
+
+float *GPU_zenith_color()
+{
+	return GPUWorld.zencol;
 }
 
 void GPU_update_exposure_range(float exp, float range)
@@ -1929,9 +1944,24 @@ void GPU_update_exposure_range(float exp, float range)
 	GPUWorld.logfac = log((GPUWorld.linfac - 1.0f) / GPUWorld.linfac) / range;
 }
 
+float GPU_envlight_linfac()
+{
+	return GPUWorld.linfac;
+}
+
+float GPU_envlight_logfac()
+{
+	return GPUWorld.logfac;
+}
+
 void GPU_update_envlight_energy(float energy)
 {
 	GPUWorld.envlightenergy = energy;
+}
+
+float GPU_envlight_energy()
+{
+	return GPUWorld.envlightenergy;
 }
 
 void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
