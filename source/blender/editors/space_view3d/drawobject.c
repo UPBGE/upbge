@@ -3940,7 +3940,7 @@ static void draw_em_fancy(Scene *scene, ARegion *ar, View3D *v3d,
 				draw_em_measure_stats(ar, v3d, ob, em, &scene->unit);
 			}
 
-			if ((G.debug & G_DEBUG) && (me->drawflag & ME_DRAWEXTRA_INDICES) &&
+			if ((me->drawflag & ME_DRAWEXTRA_INDICES) &&
 			    !(v3d->flag2 & V3D_RENDER_OVERRIDE))
 			{
 				draw_em_indices(em);
