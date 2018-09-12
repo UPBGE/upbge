@@ -89,10 +89,7 @@ static int node_shader_gpu_bsdf_principled(GPUMaterial *mat, bNode *UNUSED(node)
 		in[18].link = GPU_builtin(GPU_VIEW_NORMAL);
 	else
 		GPU_link(mat, "direction_transform_m4v3", in[18].link, GPU_builtin(GPU_VIEW_MATRIX), &in[18].link);
-	
 
-/*	for (LinkData *nlink = mat->lamps.first; nlink; nlink = nlink->next) { //error: C2037: to the left of 'lamps' is specified 'GPUMaterial' struct/union without define 
-		GPULamp *lamp = nlink->data;*/
 
 	GPU_link(mat, "node_bsdf_principled_summation_init", &summation);
 
