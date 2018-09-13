@@ -69,13 +69,18 @@ static void node_shader_init_principled(bNodeTree *UNUSED(ntree), bNode *node)
 static int node_shader_gpu_bsdf_principled(GPUMaterial *mat, bNode *UNUSED(node), bNodeExecData *UNUSED(execdata), GPUNodeStack *in, GPUNodeStack *out)
 {
 	Base *base;
-	Scene *sce_iter, *sce;
-	World *world;
-	float world_envlight_energy, world_envlight_linfac, world_envlight_logfac;
+	Scene *sce_iter;
 	GPUNodeLink *summation;
 	GPUNodeLink *col, *lv, *dist, *visifac, *shadow, *energy, *summation_partial;
 	GPUNodeLink *in0, *in1, *in2, *in3, *in4, *in5, *in6, *in7, *in8, *in9, *in10;
 	GPUNodeLink *in11, *in12, *in13, *in14, *in15, *in16, *in17, *in18, *in19; 
+
+	const float world_envlight_energy = GPU_envlight_energy();
+	const float world_envlight_linfac = GPU_envlight_linfac();
+	const float world_envlight_logfac = GPU_envlight_logfac();
+	Scene *sce = GPU_material_scene(mat);
+	Material *material = GPU_material_get(mat);
+	World *world = sce->world;
 
 	// normal
 	if (!in[17].link)
@@ -89,18 +94,11 @@ static int node_shader_gpu_bsdf_principled(GPUMaterial *mat, bNode *UNUSED(node)
 	else
 		GPU_link(mat, "direction_transform_m4v3", in[18].link, GPU_builtin(GPU_VIEW_MATRIX), &in[18].link);
 
-
 	// Init values
 	GPU_link(mat, "node_bsdf_principled_summation_init", &summation);
 	GPU_stack_link(mat, "node_bsdf_principled_adquired_in", in, out, &in0, &in1, &in2, &in3, &in4, &in5,
 	               &in6, &in7, &in8, &in9, &in10, &in11, &in12, &in13, &in14, &in15, &in16, &in17, &in18,
 	               &in19); 
-
-	sce = GPU_material_scene(mat);
-	world = sce->world;
-	world_envlight_energy = GPU_envlight_energy();
-	world_envlight_linfac = GPU_envlight_linfac();
-	world_envlight_logfac = GPU_envlight_logfac();
 
 	// Recursive BSDF shading through all lamps
 	for (SETLOOPER(sce, sce_iter, base)) {
@@ -123,25 +121,23 @@ static int node_shader_gpu_bsdf_principled(GPUMaterial *mat, bNode *UNUSED(node)
 	// Ambient lighting and color
 	if (world) {
 		// exposure correction
-		if (world->exp != 0.0f || world->range != 1.0f) {
+		if (world->exp != 0.0f || world->range != 1.0f || !(material->constflag & MA_CONSTANT_WORLD)) {
 			GPU_link(mat, "shade_exposure_correct", summation,
-				GPU_dynamic_uniform(&world_envlight_linfac, GPU_DYNAMIC_WORLD_LINFAC, NULL),
-				GPU_dynamic_uniform(&world_envlight_logfac, GPU_DYNAMIC_WORLD_LOGFAC, NULL),
+				GPU_select_uniform(&world_envlight_linfac, GPU_DYNAMIC_WORLD_LINFAC, NULL, material),
+				GPU_select_uniform(&world_envlight_logfac, GPU_DYNAMIC_WORLD_LOGFAC, NULL, material),
 				&summation);
 		}
 
 		// environment lighting
-		if (!(sce->gm.flag & GAME_GLSL_NO_ENV_LIGHTING) && (world->mode & WO_ENV_LIGHT))
-		{
-			if (world_envlight_energy != 0.0f)
-			{
+		if (!(sce->gm.flag & GAME_GLSL_NO_ENV_LIGHTING) && (world->mode & WO_ENV_LIGHT) && (sce->r.mode & R_SHADOW)) {
+			if (world_envlight_energy != 0.0f || !(material->constflag & MA_CONSTANT_WORLD)) {
 				if (world->aocolor == WO_AOSKYCOL) {
-					if (!(is_zero_v3(&world->horr) & is_zero_v3(&world->zenr))) {
+					if (!(is_zero_v3(&world->horr) & is_zero_v3(&world->zenr)) || !(material->constflag & MA_CONSTANT_WORLD)) {
 						GPUNodeLink *fcol;
-						GPU_link(mat, "shade_mul_value", GPU_dynamic_uniform(&world_envlight_energy, GPU_DYNAMIC_ENVLIGHT_ENERGY, NULL), in0, &fcol);
+						GPU_link(mat, "shade_mul_value", GPU_select_uniform(&world_envlight_energy, GPU_DYNAMIC_ENVLIGHT_ENERGY, NULL, material), in0, &fcol);
 						GPU_link(mat, "env_apply", summation,
-						         GPU_dynamic_uniform(GPU_horizon_color(), GPU_DYNAMIC_HORIZON_COLOR, NULL),
-						         GPU_dynamic_uniform(GPU_zenith_color(), GPU_DYNAMIC_ZENITH_COLOR, NULL), fcol,
+						         GPU_select_uniform(GPU_horizon_color(), GPU_DYNAMIC_HORIZON_COLOR, NULL, material),
+						         GPU_select_uniform(GPU_zenith_color(), GPU_DYNAMIC_ZENITH_COLOR, NULL, material), fcol,
 								 GPU_builtin(GPU_VIEW_MATRIX), GPU_builtin(GPU_VIEW_NORMAL), &summation);
 					}
 				}
@@ -149,7 +145,7 @@ static int node_shader_gpu_bsdf_principled(GPUMaterial *mat, bNode *UNUSED(node)
 					if (world->mtex[0] && world->mtex[0]->tex && world->mtex[0]->tex->ima) {
 						GPUNodeLink *fcol;
 						Tex* tex = world->mtex[0]->tex;
-						GPU_link(mat, "shade_mul_value", GPU_dynamic_uniform(&world_envlight_energy, GPU_DYNAMIC_ENVLIGHT_ENERGY, NULL), in0, &fcol);
+						GPU_link(mat, "shade_mul_value", GPU_select_uniform(&world_envlight_energy, GPU_DYNAMIC_ENVLIGHT_ENERGY, NULL, material), in0, &fcol);
 						GPU_link(mat, "env_apply_tex", summation, fcol,
 								 GPU_cube_map(tex->ima, &tex->iuser, false),
 								 GPU_builtin(GPU_VIEW_NORMAL),
@@ -158,14 +154,14 @@ static int node_shader_gpu_bsdf_principled(GPUMaterial *mat, bNode *UNUSED(node)
 					}
 				}
 				else {
-					GPU_link(mat, "shade_maddf", summation, GPU_dynamic_uniform(&world_envlight_energy, GPU_DYNAMIC_ENVLIGHT_ENERGY, NULL),
+					GPU_link(mat, "shade_maddf", summation, GPU_select_uniform(&world_envlight_energy, GPU_DYNAMIC_ENVLIGHT_ENERGY, NULL, material),
 							 in0, &summation);
 				}
 			}
 		}
 
 		// ambient color
-		GPU_link(mat, "shade_add", summation, GPU_dynamic_uniform(GPU_ambient_color(), GPU_DYNAMIC_AMBIENT_COLOR, NULL), &summation);
+		GPU_link(mat, "shade_add", summation, GPU_select_uniform(GPU_ambient_color(), GPU_DYNAMIC_AMBIENT_COLOR, NULL, material), &summation);
 	}
 
 	return GPU_link(mat, "node_bsdf_principled_result", summation, &out[0].link);

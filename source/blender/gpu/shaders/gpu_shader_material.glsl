@@ -3024,8 +3024,7 @@ void node_bsdf_principled(vec4 base_color, float subsurface, vec3 subsurface_rad
 	vec3 l_col = col * energy;
 
 	if (visifac > 0.0 && l_col != vec3(0.0)) {
-		/* ambient light */
-		//vec3 L = vec3(0.2); // TODO: set ambient light to an appropriate value
+
 		L = mix(0.1, 0.03, metallic) * mix(base_color.rgb, subsurface_color.rgb, subsurface * (1.0 - metallic));
 	
 		float eta = (2.0 / (1.0 - sqrt(0.08 * specular))) - 1.0;

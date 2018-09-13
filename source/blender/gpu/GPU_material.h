@@ -287,6 +287,7 @@ void GPU_material_bind_uniforms(
 void GPU_material_unbind(GPUMaterial *material);
 bool GPU_material_bound(GPUMaterial *material);
 struct Scene *GPU_material_scene(GPUMaterial *material);
+struct Material *GPU_material_get(GPUMaterial *material);
 GPUMatType GPU_Material_get_type(GPUMaterial *material);
 
 void GPU_material_vertex_attributes(GPUMaterial *material,
@@ -396,12 +397,12 @@ void GPU_ambient_update_color(const float color[3]);
 void GPU_zenith_update_color(const float color[3]);
 void GPU_update_exposure_range(float exp, float range);
 void GPU_update_envlight_energy(float energy);
-float *GPU_horizon_color();
-float *GPU_ambient_color();
-float *GPU_zenith_color();
-float GPU_envlight_energy();
-float GPU_envlight_linfac();
-float GPU_envlight_logfac();
+const float *GPU_horizon_color();
+const float *GPU_ambient_color();
+const float *GPU_zenith_color();
+const float GPU_envlight_energy();
+const float GPU_envlight_linfac();
+const float GPU_envlight_logfac();
 
 struct GPUParticleInfo
 {
