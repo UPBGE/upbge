@@ -82,7 +82,7 @@ static int node_shader_gpu_bsdf_principled(GPUMaterial *mat, bNode *UNUSED(node)
 		in[17].link = GPU_builtin(GPU_VIEW_NORMAL);
 	else
 		GPU_link(mat, "direction_transform_m4v3", in[17].link, GPU_builtin(GPU_VIEW_MATRIX), &in[17].link);
-	
+
 	// clearcoat normal
 	if (!in[18].link)
 		in[18].link = GPU_builtin(GPU_VIEW_NORMAL);

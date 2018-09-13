@@ -3068,31 +3068,31 @@ void node_bsdf_principled(vec4 base_color, float subsurface, vec3 subsurface_rad
 		float NdotL = dot(N, light_position);
 		float NdotV = dot(N, V);
 		float LdotH = dot(light_position, H);
-	
+
 		vec3 diffuse_and_specular_bsdf = vec3(0.0);
 		if (NdotL >= 0.0 && NdotV >= 0.0) {
 			float NdotH = dot(N, H);
-	
+
 			float Cdlum = 0.3 * base_color.r + 0.6 * base_color.g + 0.1 * base_color.b; // luminance approx.
-	
+
 			vec3 Ctint = Cdlum > 0 ? base_color.rgb / Cdlum : vec3(1.0); // normalize lum. to isolate hue+sat
 			vec3 Cspec0 = mix(specular * 0.08 * mix(vec3(1.0), Ctint, specular_tint), base_color.rgb, metallic);
 			vec3 Csheen = mix(vec3(1.0), Ctint, sheen_tint);
-	
+
 			// Diffuse fresnel - go from 1 at normal incidence to .5 at grazing
 			// and mix in diffuse retro-reflection based on roughness
-	
+
 			float FL = schlick_fresnel(NdotL), FV = schlick_fresnel(NdotV);
 			float Fd90 = 0.5 + 2.0 * LdotH*LdotH * roughness;
 			float Fd = mix(1.0, Fd90, FL) * mix(1.0, Fd90, FV);
-	
+
 			// Based on Hanrahan-Krueger brdf approximation of isotropic bssrdf
 			// 1.25 scale is used to (roughly) preserve albedo
 			// Fss90 used to "flatten" retroreflection based on roughness
 			float Fss90 = LdotH*LdotH * roughness;
 			float Fss = mix(1.0, Fss90, FL) * mix(1.0, Fss90, FV);
 			float ss = 1.25 * (Fss * (1.0 / (NdotL + NdotV) - 0.5) + 0.5);
-	
+
 			// specular
 			float aspect = sqrt(1.0 - anisotropic * 0.9);
 			float a = sqr(roughness);
@@ -3103,10 +3103,10 @@ void node_bsdf_principled(vec4 base_color, float subsurface, vec3 subsurface_rad
 			vec3 Fs = mix(Cspec0, vec3(1.0), FH);
 			float roughg = sqr(roughness * 0.5 + 0.5);
 			float Gs = smithG_GGX(NdotL, roughg) * smithG_GGX(NdotV, roughg);
-	
+
 			// sheen
 			vec3 Fsheen = schlick_fresnel(LdotH) * sheen * Csheen;
-	
+
 			vec3 diffuse_bsdf = (mix(Fd * base_color.rgb, ss * subsurface_color.rgb, subsurface) + Fsheen) * light_diffuse;
 			vec3 specular_bsdf = Gs * Fs * Ds * light_specular;
 			diffuse_and_specular_bsdf = diffuse_bsdf * (1.0 - metallic) + specular_bsdf;
