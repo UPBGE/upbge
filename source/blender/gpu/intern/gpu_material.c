@@ -1917,7 +1917,7 @@ void GPU_horizon_update_color(const float color[3])
 	copy_v3_v3(GPUWorld.horicol, color);
 }
 
-const float *GPU_horizon_color()
+const float *GPU_horizon_color(void)
 {
 	return GPUWorld.horicol;
 }
@@ -1928,7 +1928,7 @@ void GPU_ambient_update_color(const float color[3])
 	GPUWorld.ambcol[3] = 1.0f;
 }
 
-const float *GPU_ambient_color()
+const float *GPU_ambient_color(void)
 {
 	return GPUWorld.ambcol;
 }
@@ -1938,7 +1938,7 @@ void GPU_zenith_update_color(const float color[3])
 	copy_v3_v3(GPUWorld.zencol, color);
 }
 
-const float *GPU_zenith_color()
+const float *GPU_zenith_color(void)
 {
 	return GPUWorld.zencol;
 }
@@ -1949,12 +1949,12 @@ void GPU_update_exposure_range(float exp, float range)
 	GPUWorld.logfac = log((GPUWorld.linfac - 1.0f) / GPUWorld.linfac) / range;
 }
 
-const float GPU_envlight_linfac()
+float GPU_envlight_linfac(void)
 {
 	return GPUWorld.linfac;
 }
 
-const float GPU_envlight_logfac()
+float GPU_envlight_logfac(void)
 {
 	return GPUWorld.logfac;
 }
@@ -1964,7 +1964,7 @@ void GPU_update_envlight_energy(float energy)
 	GPUWorld.envlightenergy = energy;
 }
 
-const float GPU_envlight_energy()
+float GPU_envlight_energy(void)
 {
 	return GPUWorld.envlightenergy;
 }

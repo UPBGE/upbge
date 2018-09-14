@@ -397,12 +397,12 @@ void GPU_ambient_update_color(const float color[3]);
 void GPU_zenith_update_color(const float color[3]);
 void GPU_update_exposure_range(float exp, float range);
 void GPU_update_envlight_energy(float energy);
-const float *GPU_horizon_color();
-const float *GPU_ambient_color();
-const float *GPU_zenith_color();
-const float GPU_envlight_energy();
-const float GPU_envlight_linfac();
-const float GPU_envlight_logfac();
+const float *GPU_horizon_color(void);
+const float *GPU_ambient_color(void);
+const float *GPU_zenith_color(void);
+float GPU_envlight_energy(void);
+float GPU_envlight_linfac(void);
+float GPU_envlight_logfac(void);
 
 struct GPUParticleInfo
 {
