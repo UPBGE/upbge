@@ -75,14 +75,10 @@ void KX_BlenderCanvas::SwapBuffers()
 	wm_window_swap_buffers(m_win);
 }
 
-void KX_BlenderCanvas::SetSwapInterval(int interval)
+void KX_BlenderCanvas::SetSwapControl(SwapControl control)
 {
-	wm_window_set_swap_interval(m_win, interval);
-}
-
-bool KX_BlenderCanvas::GetSwapInterval(int &intervalOut)
-{
-	return wm_window_get_swap_interval(m_win, &intervalOut);
+	wm_window_set_swap_interval(m_win, swapInterval[control]);
+	RAS_ICanvas::SetSwapControl(control);
 }
 
 void KX_BlenderCanvas::GetDisplayDimensions(int &width, int &height)

@@ -1298,29 +1298,24 @@ static PyObject *gPyGetMipmapping(PyObject *)
 
 static PyObject *gPySetVsync(PyObject *, PyObject *args)
 {
-	int interval;
+	int control;
 
-	if (!PyArg_ParseTuple(args, "i:setVsync", &interval)) {
+	if (!PyArg_ParseTuple(args, "i:setVsync", &control)) {
 		return nullptr;
 	}
 
-	if (interval < 0 || interval > VSYNC_ADAPTIVE) {
+	if (control < 0 || control >= RAS_ICanvas::SWAP_CONTROL_MAX) {
 		PyErr_SetString(PyExc_ValueError, "Rasterizer.setVsync(value): value must be VSYNC_OFF, VSYNC_ON, or VSYNC_ADAPTIVE");
 		return nullptr;
 	}
 
-	if (interval == VSYNC_ADAPTIVE) {
-		interval = -1;
-	}
-	KX_GetActiveEngine()->GetCanvas()->SetSwapInterval((interval == VSYNC_ON) ? 1 : 0);
+	KX_GetActiveEngine()->GetCanvas()->SetSwapControl((RAS_ICanvas::SwapControl)control);
 	Py_RETURN_NONE;
 }
 
 static PyObject *gPyGetVsync(PyObject *)
 {
-	int interval = 0;
-	KX_GetActiveEngine()->GetCanvas()->GetSwapInterval(interval);
-	return PyLong_FromLong(interval);
+	return PyLong_FromLong(KX_GetActiveEngine()->GetCanvas()->GetSwapControl());
 }
 
 static PyObject *gPyShowFramerate(PyObject *, PyObject *args)
@@ -2200,9 +2195,9 @@ PyMODINIT_FUNC initRasterizerPythonBinding()
 	KX_MACRO_addTypesToDict(d, RAS_MIPMAP_LINEAR, RAS_Rasterizer::RAS_MIPMAP_LINEAR);
 
 	/* for get/setVsync */
-	KX_MACRO_addTypesToDict(d, VSYNC_OFF, VSYNC_OFF);
-	KX_MACRO_addTypesToDict(d, VSYNC_ON, VSYNC_ON);
-	KX_MACRO_addTypesToDict(d, VSYNC_ADAPTIVE, VSYNC_ADAPTIVE);
+	KX_MACRO_addTypesToDict(d, VSYNC_OFF, RAS_ICanvas::VSYNC_OFF);
+	KX_MACRO_addTypesToDict(d, VSYNC_ON, RAS_ICanvas::VSYNC_ON);
+	KX_MACRO_addTypesToDict(d, VSYNC_ADAPTIVE, RAS_ICanvas::VSYNC_ADAPTIVE);
 
 	/* stereoscopy */
 	KX_MACRO_addTypesToDict(d, LEFT_EYE, RAS_Rasterizer::RAS_STEREO_LEFTEYE);

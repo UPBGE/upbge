@@ -63,8 +63,7 @@ public:
 	virtual void Init();
 
 	virtual void SwapBuffers();
-	virtual void SetSwapInterval(int interval);
-	virtual bool GetSwapInterval(int &intervalOut);
+	virtual void SetSwapControl(SwapControl control);
 
 	virtual void GetDisplayDimensions(int &width, int &height);
 	virtual void ResizeWindow(int width, int height);

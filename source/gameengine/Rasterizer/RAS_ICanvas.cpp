@@ -62,10 +62,16 @@ struct ScreenshotTaskData {
  */
 void save_screenshot_thread_func(TaskPool *__restrict pool, void *taskdata, int threadid);
 
+const int RAS_ICanvas::swapInterval[RAS_ICanvas::SWAP_CONTROL_MAX] = {
+	0, // VSYNC_OFF
+	1, // VSYNC_ON
+	-1 // VSYNC_ADAPTIVE
+};
 
 RAS_ICanvas::RAS_ICanvas(RAS_Rasterizer *rasty)
 	:m_samples(0),
 	m_hdrType(RAS_Rasterizer::RAS_HDR_NONE),
+	m_swapControl(VSYNC_OFF),
 	m_frame(1)
 {
 	m_taskscheduler = BLI_task_scheduler_create(TASK_SCHEDULER_AUTO_THREADS);
@@ -85,6 +91,16 @@ RAS_ICanvas::~RAS_ICanvas()
 		BLI_task_scheduler_free(m_taskscheduler);
 		m_taskscheduler = nullptr;
 	}
+}
+
+void RAS_ICanvas::SetSwapControl(SwapControl control)
+{
+	m_swapControl = control;
+}
+
+RAS_ICanvas::SwapControl RAS_ICanvas::GetSwapControl() const
+{
+	return m_swapControl;
 }
 
 void RAS_ICanvas::SetSamples(int samples)
