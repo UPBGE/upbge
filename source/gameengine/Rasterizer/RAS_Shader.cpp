@@ -152,6 +152,12 @@ void *RAS_Shader::RAS_Uniform::GetData()
 	return m_data;
 }
 
+RAS_Shader::UniformInfo::UniformInfo(const std::string& name, GPUShader *shader)
+	:nameHash(std::hash<std::string>()(name)),
+	location(GPU_shader_get_uniform(shader, name.c_str()))
+{
+}
+
 bool RAS_Shader::Ok() const
 {
 	return (m_shader && m_use);
@@ -332,13 +338,30 @@ void RAS_Shader::ExtractUniformInfos()
 
 	for (unsigned short i = 0; i < count; ++i) {
 		const GPUUniformInfo& gpuinfo = infos[i];
-		const UniformInfo info = {gpuinfo.location, (unsigned short)gpuinfo.size, gpuinfo.type};
-		m_uniformInfos.emplace(gpuinfo.name, info);
+		// Simple uniforms.
+		if (gpuinfo.size == 1) {
+			m_uniformInfos.emplace_back(gpuinfo.name, m_shader);
+		}
+		// Array uniforms.
+		else {
+			// Store the uniform base name.
+			const std::string baseName(gpuinfo.name, 0, strlen(gpuinfo.name) - 3);
+			m_uniformInfos.emplace_back(baseName, m_shader);
+
+			// Store location of each uniform items: name[i].
+			for (unsigned short i = 0; i < gpuinfo.size; ++i) {
+				const std::string name = baseName + '[' + std::to_string(i) + ']';
+				m_uniformInfos.emplace_back(name, m_shader);
+			}
+		}
 	}
 
 	if (infos) {
 		MEM_freeN(infos);
 	}
+
+	// Sort uniforms per name hash for fast search.
+	std::sort(m_uniformInfos.begin(), m_uniformInfos.end());
 }
 
 bool RAS_Shader::GetError()
@@ -494,14 +517,19 @@ void RAS_Shader::BindAttribute(const std::string& attr, int loc)
 int RAS_Shader::GetUniformLocation(const std::string& name, bool debug)
 {
 	BLI_assert(m_shader != nullptr);
-	const auto& it = m_uniformInfos.find(name);
+
+	const size_t hash = std::hash<std::string>()(name);
+	// Use binary search based on hashed name.
+	std::vector<UniformInfo>::const_iterator it = std::lower_bound(m_uniformInfos.begin(), m_uniformInfos.end(), hash,
+		[](const UniformInfo& info, size_t hash){ return (info.nameHash < hash); });
+
 	if (it == m_uniformInfos.end()) {
 		if (debug) {
 			CM_Error("invalid uniform value: " << name << ".");
 		}
 		return -1;
 	}
-	return it->second.location;
+	return it->location;
 }
 
 void RAS_Shader::SetUniform(int uniform, const mt::vec2 &vec)

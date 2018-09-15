@@ -75,7 +75,6 @@ int GPU_shader_program(GPUShader *shader);
 
 typedef struct GPUUniformInfo
 {
-	unsigned int location;
 	unsigned int size;
 	unsigned int type;
 	char name[255];
