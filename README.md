@@ -14,7 +14,7 @@ The UPBGE team is composed of volunteers; BGE users who are interested in the ga
 
 ## What's new?
 You can take a look at the release notes to see all the new features:
-[UPBGE **Release Notes**](https://doc.upbge.org/releases.php)
+[UPBGE **Release Notes**](https://github.com/UPBGE/blender/wiki/Release-notes)
 
 ## From The Team
 We hope that new users will join the project, to help us test new features, report bugs, provide feedback and ideas to improve UPBGE (https://github.com/UPBGE/blender/issues), and that new developers will join the team to help us develop shiny new features for the game engine.
