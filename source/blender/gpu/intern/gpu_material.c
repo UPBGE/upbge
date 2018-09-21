@@ -194,6 +194,24 @@ static void texture_rgb_blend(
 
 /* Functions */
 
+static bool tex_do_color_management(GPUMaterial *mat, Tex *tex)
+{
+	if (tex->type == TEX_IMAGE) {
+		return GPU_material_do_color_management(mat);
+	}
+	else if (tex->type == TEX_ENVMAP) {
+		// Realtime textures are rendered from game engine without sRGB conversion.
+		if (tex->env && tex->env->stype == ENV_REALT) {
+			return !(mat->flags & GPU_MATERIAL_NO_COLOR_MANAGEMENT);
+		}
+		else {
+			return GPU_material_do_color_management(mat);
+		}
+	}
+
+	return false;
+}
+
 static GPUMaterial *GPU_material_construct_begin(Material *ma)
 {
 	GPUMaterial *material = MEM_callocN(sizeof(GPUMaterial), "GPUMaterial");
@@ -1526,12 +1544,8 @@ static void do_material_tex(GPUShadeInput *shi)
 						GPU_link(mat, "set_value_one", &tin);
 				}
 
-				if ((tex->type == TEX_IMAGE) ||
-				    ((tex->type == TEX_ENVMAP) && (mtex->texco == TEXCO_REFL)))
-				{
-					if (GPU_material_do_color_management(mat) && !(ma->sss_flag)) {
-						GPU_link(mat, "srgb_to_linearrgb", tcol, &tcol);
-					}
+				if (tex_do_color_management(mat, tex)) {
+					GPU_link(mat, "srgb_to_linearrgb", tcol, &tcol);
 				}
 
 				if (mtex->mapto & MAP_COL) {
@@ -2247,9 +2261,9 @@ static void do_world_tex(GPUShadeInput *shi, struct World *wo, GPUNodeLink **hor
 					GPU_link(mat, "mtex_image", texco, GPU_image(tex->ima, &tex->iuser, false), GPU_uniform(&mtex->lodbias), &tin, &trgb);
 			}
 			rgbnor = TEX_RGB;
-			if (tex->type == TEX_IMAGE || tex->type == TEX_ENVMAP)
-				if (GPU_material_do_color_management(mat))
-					GPU_link(mat, "srgb_to_linearrgb", trgb, &trgb);
+			if (tex_do_color_management(mat, tex)) {
+				GPU_link(mat, "srgb_to_linearrgb", trgb, &trgb);
+			}
 			/* texture output */
 			if ((rgbnor & TEX_RGB) && (mtex->texflag & MTEX_RGBTOINT)) {
 				GPU_link(mat, "mtex_rgbtoint", trgb, &tin);
