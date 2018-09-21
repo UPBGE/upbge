@@ -29,9 +29,7 @@ set(OPENVDB_EXTRA_ARGS
 	-DBoost_NO_SYSTEM_PATHS=ON
 	-DZLIB_LIBRARY=${LIBDIR}/zlib/lib/${ZLIB_LIBRARY}
 	-DZLIB_INCLUDE_DIR=${LIBDIR}/zlib/include/
-	-DWITH_BLOSC=ON
 	-DBLOSC_INCLUDE_DIR=${LIBDIR}/blosc/include/
-	-DBLOSC_LIBRARY=${LIBDIR}/blosc/lib/libblosc${BLOSC_POST}${LIBEXT}
 	-DBLOSC_blosc_LIBRARY=${LIBDIR}/blosc/lib/libblosc${BLOSC_POST}${LIBEXT}
 	-DOPENVDB_ENABLE_3_ABI_COMPATIBLE=OFF
 	-DOPENVDB_BUILD_UNITTESTS=Off
@@ -48,14 +46,13 @@ set(OPENVDB_EXTRA_ARGS
 	-DOpenexr_ILMIMF_LIBRARY=${LIBDIR}/openexr/lib/${LIBPREFIX}IlmImf${OPENEXR_VERSION_POSTFIX}${LIBEXT}
 	-DTBB_LIBRARYDIR=${LIBDIR}/tbb/lib
 	-DTbb_TBB_LIBRARY=${LIBDIR}/tbb/lib/${LIBPREFIX}tbb_static${LIBEXT}
-	-DTBB_LIBRARY_DIR=${LIBDIR}/tbb/lib
 	-DTBB_LIBRARY_PATH=${LIBDIR}/tbb/lib
 )
 
 if(WIN32)
-	#Namespaces seem to be buggy and cause linker erorrs due to things not
-	#being in the correct namespace
-	#needs to link pthreads due to it being a blosc dependency
+	# Namespaces seem to be buggy and cause linker errors due to things not
+	# being in the correct namespace
+	# needs to link pthreads due to it being a blosc dependency
 	set(OPENVDB_EXTRA_ARGS ${OPENVDB_EXTRA_ARGS}
 		-DOPENEXR_NAMESPACE_VERSIONING=OFF
 		-DEXTRA_LIBS:FILEPATH=${LIBDIR}/pthreads/lib/pthreadVC2.lib

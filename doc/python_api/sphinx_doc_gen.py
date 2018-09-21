@@ -642,7 +642,7 @@ def pyfunc2sphinx(ident, fw, module_name, type_name, identifier, py_func, is_cla
     if type(py_func) == MethodType:
         return
 
-    arg_str = inspect.formatargspec(*inspect.getfullargspec(py_func))
+    arg_str = str(inspect.signature(py_func))
 
     if not is_class:
         func_type = "function"
@@ -1828,6 +1828,7 @@ def write_rst_importable_modules(basepath):
         "gpu.types": "GPU Types",
         "gpu.matrix": "GPU Matrix",
         "gpu.select": "GPU Select",
+        "gpu.shader": "GPU Shader",
         "bmesh": "BMesh Module",
         "bmesh.types": "BMesh Types",
         "bmesh.utils": "BMesh Utilities",
@@ -1835,8 +1836,7 @@ def write_rst_importable_modules(basepath):
         "bpy.app": "Application Data",
         "bpy.app.handlers": "Application Handlers",
         "bpy.app.translations": "Application Translations",
-        # TODO(campbell)
-        # "bpy.app.icons": "Application Icons",
+        "bpy.app.icons": "Application Icons",
         "bpy.props": "Property Definitions",
         "idprop.types": "ID Property Access",
         "mathutils": "Math Types & Utilities",

@@ -785,6 +785,7 @@ static uiBlock *wm_enum_search_menu(bContext *C, ARegion *ar, void *arg)
 
 	block = UI_block_begin(C, ar, "_popup", UI_EMBOSS);
 	UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_MOVEMOUSE_QUIT | UI_BLOCK_SEARCH_MENU);
+	UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
 
 	search[0] = '\0';
 	BLI_assert(search_menu->use_previews || (search_menu->prv_cols == 0 && search_menu->prv_rows == 0));
@@ -1027,6 +1028,8 @@ static uiBlock *wm_block_create_redo(bContext *C, ARegion *ar, void *arg_op)
 
 	block = UI_block_begin(C, ar, __func__, UI_EMBOSS);
 	UI_block_flag_disable(block, UI_BLOCK_LOOP);
+	UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_REGULAR);
+
 	/* UI_BLOCK_NUMSELECT for layer buttons */
 	UI_block_flag_enable(block, UI_BLOCK_NUMSELECT | UI_BLOCK_KEEP_OPEN | UI_BLOCK_MOVEMOUSE_QUIT);
 
@@ -1115,6 +1118,7 @@ static uiBlock *wm_block_dialog_create(bContext *C, ARegion *ar, void *userData)
 
 	block = UI_block_begin(C, ar, __func__, UI_EMBOSS);
 	UI_block_flag_disable(block, UI_BLOCK_LOOP);
+	UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_REGULAR);
 
 	/* intentionally don't use 'UI_BLOCK_MOVEMOUSE_QUIT', some dialogues have many items
 	 * where quitting by accident is very annoying */
@@ -1159,6 +1163,7 @@ static uiBlock *wm_operator_ui_create(bContext *C, ARegion *ar, void *userData)
 	block = UI_block_begin(C, ar, __func__, UI_EMBOSS);
 	UI_block_flag_disable(block, UI_BLOCK_LOOP);
 	UI_block_flag_enable(block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_MOVEMOUSE_QUIT);
+	UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_REGULAR);
 
 	layout = UI_block_layout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, 0, 0, data->width, data->height, 0, style);
 
@@ -1375,39 +1380,11 @@ static void wm_block_splash_refreshmenu(bContext *C, void *UNUSED(arg_block), vo
 	ED_region_tag_refresh_ui(ar_menu);
 }
 
-static int wm_resource_check_prev(void)
-{
-
-	const char *res = BKE_appdir_folder_id_version(BLENDER_RESOURCE_PATH_USER, BLENDER_VERSION, true);
-
-	// if (res) printf("USER: %s\n", res);
-
-#if 0 /* ignore the local folder */
-	if (res == NULL) {
-		/* with a local dir, copying old files isn't useful since local dir get priority for config */
-		res = BKE_appdir_folder_id_version(BLENDER_RESOURCE_PATH_LOCAL, BLENDER_VERSION, true);
-	}
-#endif
-
-	// if (res) printf("LOCAL: %s\n", res);
-	if (res) {
-		return false;
-	}
-	else {
-		return (BKE_appdir_folder_id_version(BLENDER_RESOURCE_PATH_USER, BLENDER_VERSION - 1, true) != NULL);
-	}
-}
-
 static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(arg))
 {
 	uiBlock *block;
 	uiBut *but;
-	uiLayout *layout, *split, *col;
 	uiStyle *style = UI_style_get();
-	const struct RecentFile *recent;
-	int i;
-	MenuType *mt = WM_menutype_find("USERPREF_MT_splash", true);
-	char url[96];
 	const char *version_suffix = NULL;
 
 #ifndef WITH_HEADLESS
@@ -1439,7 +1416,7 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 #endif  /* WITH_BUILDINFO */
 
 #ifndef WITH_HEADLESS
-	if (U.pixelsize == 2) {
+	if (U.dpi_fac > 1.0) {
 		ibuf = IMB_ibImageFromMemory((unsigned char *)datatoc_splash_2x_png,
 		                             datatoc_splash_2x_png_size, IB_rect, NULL, "<splash screen>");
 	}
@@ -1464,7 +1441,7 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 			ibuf_template = IMB_loadiffname(splash_filepath, IB_rect, NULL);
 			if (ibuf_template) {
 				const int x_expect = ibuf->x;
-				const int y_expect = 282 * (int)U.pixelsize;
+				const int y_expect = 282 * (int)U.dpi_fac;
 				/* don't cover the header text */
 				if (ibuf_template->x == x_expect && ibuf_template->y == y_expect) {
 					memcpy(ibuf->rect, ibuf_template->rect, ibuf_template->x * ibuf_template->y * sizeof(char[4]));
@@ -1480,15 +1457,15 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 	}
 #endif
 
-	block = UI_block_begin(C, ar, "_popup", UI_EMBOSS);
+	block = UI_block_begin(C, ar, "splash", UI_EMBOSS);
 
 	/* note on UI_BLOCK_NO_WIN_CLIP, the window size is not always synchronized
 	 * with the OS when the splash shows, window clipping in this case gives
 	 * ugly results and clipping the splash isn't useful anyway, just disable it [#32938] */
 	UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_KEEP_OPEN | UI_BLOCK_NO_WIN_CLIP);
+	UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
 
-	/* XXX splash scales with pixelsize, should become widget-units */
-	but = uiDefBut(block, UI_BTYPE_IMAGE, 0, "", 0, 0.5f * U.widget_unit, U.pixelsize * 501, U.pixelsize * 282, ibuf, 0.0, 0.0, 0, 0, ""); /* button owns the imbuf now */
+	but = uiDefBut(block, UI_BTYPE_IMAGE, 0, "", 0, 0.5f * U.widget_unit, U.dpi_fac * 501, U.dpi_fac * 282, ibuf, 0.0, 0.0, 0, 0, ""); /* button owns the imbuf now */
 	UI_but_func_set(but, wm_block_splash_close, block, NULL);
 	UI_block_func_set(block, wm_block_splash_refreshmenu, block, NULL);
 
@@ -1509,9 +1486,9 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 	if (version_suffix != NULL && version_suffix[0]) {
 		/* placed after the version number in the image,
 		 * placing y is tricky to match baseline */
-		int x = 236 * U.pixelsize - (2 * UI_DPI_FAC);
-		int y = 231 * U.pixelsize + (4 * UI_DPI_FAC);
-		int w = 240 * U.pixelsize;
+		int x = 234 * U.dpi_fac;
+		int y = 235 * U.dpi_fac;
+		int w = 240 * U.dpi_fac;
 
 		/* hack to have text draw 'text_sel' */
 		UI_block_emboss_set(block, UI_EMBOSS_NONE);
@@ -1525,7 +1502,7 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 	if (build_commit_timestamp != 0) {
 		but = uiDefBut(
 		          block, UI_BTYPE_LABEL, 0, date_buf,
-		          U.pixelsize * 502 - date_width, U.pixelsize * 267,
+		          U.dpi_fac * 502 - date_width, U.dpi_fac * 267,
 		          date_width, UI_UNIT_Y, NULL, 0, 0, 0, 0, NULL);
 		/* XXX, set internal flag - UI_SELECT */
 		UI_but_flag_enable(but, 1);
@@ -1533,7 +1510,7 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 	}
 	but = uiDefBut(
 	          block, UI_BTYPE_LABEL, 0, hash_buf,
-	          U.pixelsize * 502 - hash_width, U.pixelsize * (267 - label_delta),
+	          U.dpi_fac * 502 - hash_width, U.dpi_fac * (267 - label_delta),
 	          hash_width, UI_UNIT_Y, NULL, 0, 0, 0, 0, NULL);
 	/* XXX, set internal flag - UI_SELECT */
 	UI_but_flag_enable(but, 1);
@@ -1545,66 +1522,20 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 		branch_width = (int)BLF_width(style->widgetlabel.uifont_id, branch_buf, sizeof(branch_buf)) + U.widget_unit;
 		but = uiDefBut(
 		          block, UI_BTYPE_LABEL, 0, branch_buf,
-		          U.pixelsize * 502 - branch_width, U.pixelsize * (255 - label_delta),
+		          U.dpi_fac * 502 - branch_width, U.dpi_fac * (255 - label_delta),
 		          branch_width, UI_UNIT_Y, NULL, 0, 0, 0, 0, NULL);
 		/* XXX, set internal flag - UI_SELECT */
 		UI_but_flag_enable(but, 1);
 	}
 #endif  /* WITH_BUILDINFO */
 
-	layout = UI_block_layout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, 10, 2, U.pixelsize * 480, U.pixelsize * 110, 0, style);
+	uiLayout *layout = UI_block_layout(
+	        block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, 10, 2,
+	        U.dpi_fac * 480, U.dpi_fac * 110, 0, style);
 
-	UI_block_emboss_set(block, UI_EMBOSS);
-	/* show the splash menu (containing interaction presets), using python */
+	MenuType *mt = WM_menutype_find("WM_MT_splash", true);
 	if (mt) {
 		UI_menutype_draw(C, mt, layout);
-
-//		uiItemM(layout, "USERPREF_MT_keyconfigs", U.keyconfigstr, ICON_NONE);
-	}
-
-	UI_block_emboss_set(block, UI_EMBOSS_PULLDOWN);
-	uiLayoutSetOperatorContext(layout, WM_OP_EXEC_REGION_WIN);
-
-	split = uiLayoutSplit(layout, 0.0f, false);
-	col = uiLayoutColumn(split, false);
-	uiItemL(col, IFACE_("Links"), ICON_NONE);
-	uiItemStringO(col, IFACE_("Join the Development Fund"), ICON_URL, "WM_OT_url_open", "url",
-	              "https://www.blender.org/foundation/development-fund/");
-	uiItemStringO(col, IFACE_("Donate"), ICON_URL, "WM_OT_url_open", "url",
-	              "https://www.blender.org/foundation/donation-payment/");
-	uiItemS(col);
-	uiItemStringO(col, IFACE_("Manual"), ICON_URL, "WM_OT_url_open", "url",
-	              "https://docs.blender.org/manual/en/dev/");
-	BLI_snprintf(url, sizeof(url), "https://wiki.blender.org/wiki/Reference/Release_Notes/%d.%d",
-	             BLENDER_VERSION / 100, BLENDER_VERSION % 100);
-	uiItemStringO(col, IFACE_("Release Notes"), ICON_URL, "WM_OT_url_open", "url", url);
-	uiItemStringO(col, IFACE_("Blender Website"), ICON_URL, "WM_OT_url_open", "url", "https://www.blender.org");
-	uiItemStringO(col, IFACE_("Credits"), ICON_URL, "WM_OT_url_open", "url",
-	              "https://www.blender.org/about/credits/");
-	uiItemL(col, "", ICON_NONE);
-
-	col = uiLayoutColumn(split, false);
-
-	if (wm_resource_check_prev()) {
-		uiItemO(col, NULL, ICON_NEW, "WM_OT_copy_prev_settings");
-		uiItemS(col);
-	}
-
-	uiItemL(col, IFACE_("Recent"), ICON_NONE);
-	for (recent = G.recent_files.first, i = 0; (i < 5) && (recent); recent = recent->next, i++) {
-		const char *filename = BLI_path_basename(recent->filepath);
-		uiItemStringO(col, filename,
-		              BLO_has_bfile_extension(filename) ? ICON_FILE_BLEND : ICON_FILE_BACKUP,
-		              "WM_OT_open_mainfile", "filepath", recent->filepath);
-	}
-
-	uiItemS(col);
-	uiItemO(col, NULL, ICON_RECOVER_LAST, "WM_OT_recover_last_session");
-	uiItemL(col, "", ICON_NONE);
-
-	mt = WM_menutype_find("USERPREF_MT_splash_footer", false);
-	if (mt) {
-		UI_menutype_draw(C, mt, uiLayoutColumn(layout, false));
 	}
 
 	UI_block_bounds_set_centered(block, 0);
@@ -1647,6 +1578,7 @@ static uiBlock *wm_block_search_menu(bContext *C, ARegion *ar, void *userdata)
 
 	block = UI_block_begin(C, ar, "_popup", UI_EMBOSS);
 	UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_MOVEMOUSE_QUIT | UI_BLOCK_SEARCH_MENU);
+	UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
 
 	but = uiDefSearchBut(block, search, 0, ICON_VIEWZOOM, sizeof(search), 10, 10, init_data->size[0], UI_UNIT_Y, 0, 0, "");
 	UI_but_func_operator_search(but);

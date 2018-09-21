@@ -421,10 +421,11 @@ static void gp_stroke_convertcoords(tGPsdata *p, const int mval[2], float out[3]
 }
 
 /* apply jitter to stroke */
-static void gp_brush_jitter(bGPdata *gpd, Brush *brush, tGPspoint *pt, const int mval[2], int r_mval[2], RNG *rng)
+static void gp_brush_jitter(
+        bGPdata *gpd, Brush *brush, tGPspoint *pt, const int mval[2],
+        const float pressure, int r_mval[2], RNG *rng)
 {
-	float pressure = pt->pressure;
-	float tmp_pressure = pt->pressure;
+	float tmp_pressure = pressure;
 	if (brush->gpencil_settings->draw_jitter > 0.0f) {
 		float curvef = curvemapping_evaluateF(brush->gpencil_settings->curve_jitter, 0, pressure);
 		tmp_pressure = curvef * brush->gpencil_settings->draw_sensitivity;
@@ -604,9 +605,6 @@ static short gp_stroke_addpoint(
 			gpd->runtime.sbuffer_size = 2;
 		}
 
-		/* tag depsgraph to update object */
-		DEG_id_tag_update(&gpd->id, OB_RECALC_DATA);
-
 		/* can keep carrying on this way :) */
 		return GP_STROKEADD_NORMAL;
 	}
@@ -629,9 +627,12 @@ static short gp_stroke_addpoint(
 		}
 
 		/* Apply jitter to position */
-		if ((brush->gpencil_settings->flag & GP_BRUSH_GROUP_RANDOM) && (brush->gpencil_settings->draw_jitter > 0.0f)) {
+		if ((brush->gpencil_settings->flag & GP_BRUSH_GROUP_RANDOM) &&
+		    (brush->gpencil_settings->draw_jitter > 0.0f))
+		{
 			int r_mval[2];
-			gp_brush_jitter(gpd, brush, pt, mval, r_mval, p->rng);
+			const float jitpress = (brush->gpencil_settings->flag & GP_BRUSH_USE_JITTER_PRESSURE) ? pressure : 1.0f;
+			gp_brush_jitter(gpd, brush, pt, mval, jitpress, r_mval, p->rng);
 			copy_v2_v2_int(&pt->x, r_mval);
 		}
 		else {
@@ -667,9 +668,7 @@ static short gp_stroke_addpoint(
 		}
 
 		/* apply angle of stroke to brush size */
-		if ((brush->gpencil_settings->flag & GP_BRUSH_GROUP_RANDOM) &&
-		    (brush->gpencil_settings->draw_angle_factor > 0.0f))
-		{
+		if (brush->gpencil_settings->draw_angle_factor != 0.0f) {
 			gp_brush_angle(gpd, brush, pt, mval);
 		}
 
@@ -738,9 +737,6 @@ static short gp_stroke_addpoint(
 				gp_smooth_buffer(p, brush->gpencil_settings->active_smooth * ((3.0f - s) / 3.0f), gpd->runtime.sbuffer_size - s);
 			}
 		}
-
-		/* tag depsgraph to update object */
-		DEG_id_tag_update(&gpd->id, OB_RECALC_DATA);
 
 		/* check if another operation can still occur */
 		if (gpd->runtime.sbuffer_size == GP_STROKE_BUFFER_MAX)
@@ -832,9 +828,6 @@ static short gp_stroke_addpoint(
 		/* increment counters */
 		if (gpd->runtime.sbuffer_size == 0)
 			gpd->runtime.sbuffer_size++;
-
-		/* tag depsgraph to update object */
-		DEG_id_tag_update(&gpd->id, OB_RECALC_DATA);
 
 		return GP_STROKEADD_NORMAL;
 	}
@@ -1306,6 +1299,7 @@ static bool gp_stroke_eraser_is_occluded(tGPsdata *p, const bGPDspoint *pt, cons
 /* apply a falloff effect to brush strength, based on distance */
 static float gp_stroke_eraser_calc_influence(tGPsdata *p, const int mval[2], const int radius, const int co[2])
 {
+	Brush *brush = p->brush;
 	/* Linear Falloff... */
 	float distance = (float)len_v2v2_int(mval, co);
 	float fac;
@@ -1313,9 +1307,13 @@ static float gp_stroke_eraser_calc_influence(tGPsdata *p, const int mval[2], con
 	CLAMP(distance, 0.0f, (float)radius);
 	fac = 1.0f - (distance / (float)radius);
 
-	/* Control this further using pen pressure */
-	fac *= p->pressure;
+	/* apply strength factor */
+	fac *= brush->gpencil_settings->draw_strength;
 
+	/* Control this further using pen pressure */
+	if (brush->gpencil_settings->flag & GP_BRUSH_USE_PRESSURE) {
+		fac *= p->pressure;
+	}
 	/* Return influence factor computed here */
 	return fac;
 }
@@ -1338,6 +1336,61 @@ static void gp_free_stroke(bGPdata *gpd, bGPDframe *gpf, bGPDstroke *gps)
 	gp_update_cache(gpd);
 }
 
+/* analyze points to be removed when soft eraser is used
+ * to avoid that segments gets the end points rounded. This
+ * round cpas breaks the artistic effect.
+ */
+static void gp_stroke_soft_refine(bGPDstroke *gps, const float cull_thresh)
+{
+	bGPDspoint *pt = NULL;
+	bGPDspoint *pt_before = NULL;
+	bGPDspoint *pt_after = NULL;
+	int i;
+
+	/* check if enough points*/
+	if (gps->totpoints < 3) {
+		return;
+	}
+
+	/* loop all points from second to last minus one
+	 * to untag any point that is not surrounded by tagged points
+	 */
+	pt = gps->points;
+	for (i = 1; i < gps->totpoints - 1; i++, pt++) {
+		if (pt->flag & GP_SPOINT_TAG) {
+			pt_before = &gps->points[i - 1];
+			pt_after = &gps->points[i + 1];
+
+			/* if any of the side points are not tagged, mark to keep */
+			if (((pt_before->flag & GP_SPOINT_TAG) == 0) ||
+			    ((pt_after->flag & GP_SPOINT_TAG) == 0))
+			{
+				if (pt->pressure > cull_thresh) {
+					pt->flag |= GP_SPOINT_TEMP_TAG;
+				}
+			}
+			else {
+				/* reduce opacity of extreme points */
+				if ((pt_before->flag & GP_SPOINT_TAG) == 0) {
+					pt_before->strength *= 0.5f;
+				}
+				if ((pt_after->flag & GP_SPOINT_TAG) == 0) {
+					pt_after->strength *= 0.5f;
+				}
+			}
+		}
+	}
+
+	/* now untag temp tagged */
+	pt = gps->points;
+	for (i = 1; i < gps->totpoints - 1; i++, pt++) {
+		if (pt->flag & GP_SPOINT_TEMP_TAG) {
+			pt->flag &= ~GP_SPOINT_TAG;
+			pt->flag &= ~GP_SPOINT_TEMP_TAG;
+		}
+	}
+}
+
 /* eraser tool - evaluation per stroke */
 /* TODO: this could really do with some optimization (KD-Tree/BVH?) */
 static void gp_stroke_eraser_dostroke(tGPsdata *p,
@@ -1348,7 +1401,8 @@ static void gp_stroke_eraser_dostroke(tGPsdata *p,
 	Depsgraph *depsgraph = p->depsgraph;
 	Object *obact = (Object *)p->ownerPtr.data;
 	Brush *eraser = p->eraser;
-	bGPDspoint *pt1, *pt2;
+	bGPDspoint *pt0, *pt1, *pt2;
+	int pc0[2] = {0};
 	int pc1[2] = {0};
 	int pc2[2] = {0};
 	int i;
@@ -1432,6 +1486,7 @@ static void gp_stroke_eraser_dostroke(tGPsdata *p,
 		 */
 		for (i = 0; (i + 1) < gps->totpoints; i++) {
 			/* get points to work with */
+			pt0 = i > 0 ? gps->points + i - 1 : NULL;
 			pt1 = gps->points + i;
 			pt2 = gps->points + i + 1;
 
@@ -1440,6 +1495,15 @@ static void gp_stroke_eraser_dostroke(tGPsdata *p,
 				continue;
 
 			bGPDspoint npt;
+			if (pt0) {
+				gp_point_to_parent_space(pt0, diff_mat, &npt);
+				gp_point_to_xy(&p->gsc, gps, &npt, &pc0[0], &pc0[1]);
+			}
+			else {
+				/* avoid null values */
+				copy_v2_v2_int(pc0, pc1);
+			}
+
 			gp_point_to_parent_space(pt1, diff_mat, &npt);
 			gp_point_to_xy(&p->gsc, gps, &npt, &pc1[0], &pc1[1]);
 
@@ -1447,24 +1511,65 @@ static void gp_stroke_eraser_dostroke(tGPsdata *p,
 			gp_point_to_xy(&p->gsc, gps, &npt, &pc2[0], &pc2[1]);
 
 			/* Check that point segment of the boundbox of the eraser stroke */
-			if (((!ELEM(V2D_IS_CLIPPED, pc1[0], pc1[1])) && BLI_rcti_isect_pt(rect, pc1[0], pc1[1])) ||
+			if (((!ELEM(V2D_IS_CLIPPED, pc0[0], pc0[1])) && BLI_rcti_isect_pt(rect, pc0[0], pc0[1])) ||
+			    ((!ELEM(V2D_IS_CLIPPED, pc1[0], pc1[1])) && BLI_rcti_isect_pt(rect, pc1[0], pc1[1])) ||
 			    ((!ELEM(V2D_IS_CLIPPED, pc2[0], pc2[1])) && BLI_rcti_isect_pt(rect, pc2[0], pc2[1])))
 			{
 				/* Check if point segment of stroke had anything to do with
 				 * eraser region  (either within stroke painted, or on its lines)
 				 *  - this assumes that linewidth is irrelevant
 				 */
-				if (gp_stroke_inside_circle(mval, mvalo, radius, pc1[0], pc1[1], pc2[0], pc2[1])) {
-					if ((gp_stroke_eraser_is_occluded(p, pt1, pc1[0], pc1[1]) == false) ||
+				if (gp_stroke_inside_circle(mval, mvalo, radius, pc0[0], pc0[1], pc2[0], pc2[1])) {
+					if ((gp_stroke_eraser_is_occluded(p, pt0, pc0[0], pc0[1]) == false) ||
+					    (gp_stroke_eraser_is_occluded(p, pt1, pc1[0], pc1[1]) == false) ||
 					    (gp_stroke_eraser_is_occluded(p, pt2, pc2[0], pc2[1]) == false))
 					{
 						/* Point is affected: */
-						/* 1) Adjust thickness
+						/* Adjust thickness
 						 *  - Influence of eraser falls off with distance from the middle of the eraser
 						 *  - Second point gets less influence, as it might get hit again in the next segment
 						 */
-						pt1->pressure -= gp_stroke_eraser_calc_influence(p, mval, radius, pc1) * strength;
-						pt2->pressure -= gp_stroke_eraser_calc_influence(p, mval, radius, pc2) * strength / 2.0f;
+
+						/* Adjust strength if the eraser is soft */
+						if (eraser->gpencil_settings->eraser_mode == GP_BRUSH_ERASER_SOFT) {
+							float f_strength = eraser->gpencil_settings->era_strength_f / 100.0f;
+							float f_thickness = eraser->gpencil_settings->era_thickness_f / 100.0f;
+
+							if (pt0) {
+								pt0->strength -= gp_stroke_eraser_calc_influence(p, mval, radius, pc0) * strength * f_strength * 0.5f;
+								CLAMP_MIN(pt0->strength, 0.0f);
+								pt0->pressure -= gp_stroke_eraser_calc_influence(p, mval, radius, pc0) * strength * f_thickness * 0.5f;
+							}
+
+							pt1->strength -= gp_stroke_eraser_calc_influence(p, mval, radius, pc1) * strength * f_strength;
+							CLAMP_MIN(pt1->strength, 0.0f);
+							pt1->pressure -= gp_stroke_eraser_calc_influence(p, mval, radius, pc1) * strength * f_thickness;
+
+							pt2->strength -= gp_stroke_eraser_calc_influence(p, mval, radius, pc2) * strength * f_strength * 0.5f;
+							CLAMP_MIN(pt2->strength, 0.0f);
+							pt2->pressure -= gp_stroke_eraser_calc_influence(p, mval, radius, pc2) * strength * f_thickness * 0.5f;
+
+							/* if invisible, delete point */
+							if ((pt0) &&
+							    ((pt0->strength <= GPENCIL_ALPHA_OPACITY_THRESH) ||
+							     (pt0->pressure < cull_thresh)))
+							{
+								pt0->flag |= GP_SPOINT_TAG;
+								do_cull = true;
+							}
+							if ((pt1->strength <= GPENCIL_ALPHA_OPACITY_THRESH) || (pt1->pressure < cull_thresh)) {
+								pt1->flag |= GP_SPOINT_TAG;
+								do_cull = true;
+							}
+							if ((pt2->strength <= GPENCIL_ALPHA_OPACITY_THRESH) || (pt2->pressure < cull_thresh)) {
+								pt2->flag |= GP_SPOINT_TAG;
+								do_cull = true;
+							}
+						}
+						else {
+							pt1->pressure -= gp_stroke_eraser_calc_influence(p, mval, radius, pc1) * strength;
+							pt2->pressure -= gp_stroke_eraser_calc_influence(p, mval, radius, pc2) * strength * 0.5f;
+						}
 
 						/* 2) Tag any point with overly low influence for removal in the next pass */
 						if ((pt1->pressure < cull_thresh) || (p->flags & GP_PAINTFLAG_HARD_ERASER) ||
@@ -1486,6 +1591,12 @@ static void gp_stroke_eraser_dostroke(tGPsdata *p,
 
 		/* Second Pass: Remove any points that are tagged */
 		if (do_cull) {
+			/* if soft eraser, must analyze points to be sure the stroke ends
+			 * don't get rounded */
+			if (eraser->gpencil_settings->eraser_mode == GP_BRUSH_ERASER_SOFT) {
+				gp_stroke_soft_refine(gps, cull_thresh);
+			}
+
 			gp_stroke_delete_tagged_points(gpf, gps, gps->next, GP_SPOINT_TAG, false);
 		}
 		gp_update_cache(p->gpd);
@@ -1498,12 +1609,28 @@ static void gp_stroke_doeraser(tGPsdata *p)
 	bGPDlayer *gpl;
 	bGPDstroke *gps, *gpn;
 	rcti rect;
+	Brush *brush = p->brush;
+	Brush *eraser = p->eraser;
+	bool use_pressure = false;
+	float press = 1.0f;
 
+	/* detect if use pressure in eraser */
+	if (brush->gpencil_settings->brush_type == GP_BRUSH_TYPE_ERASE) {
+		use_pressure = (bool)(brush->gpencil_settings->flag & GP_BRUSH_USE_PRESSURE);
+	}
+	else if ((eraser != NULL) & (eraser->gpencil_settings->brush_type == GP_BRUSH_TYPE_ERASE)) {
+		use_pressure = (bool)(eraser->gpencil_settings->flag & GP_BRUSH_USE_PRESSURE);
+	}
+	if (use_pressure) {
+		press = p->pressure;
+		CLAMP(press, 0.01f, 1.0f);
+	}
 	/* rect is rectangle of eraser */
-	rect.xmin = p->mval[0] - p->radius;
-	rect.ymin = p->mval[1] - p->radius;
-	rect.xmax = p->mval[0] + p->radius;
-	rect.ymax = p->mval[1] + p->radius;
+	const int calc_radius = (int)p->radius * press;
+	rect.xmin = p->mval[0] - calc_radius;
+	rect.ymin = p->mval[1] - calc_radius;
+	rect.xmax = p->mval[0] + calc_radius;
+	rect.ymax = p->mval[1] + calc_radius;
 
 	if (p->sa->spacetype == SPACE_VIEW3D) {
 		if (p->flags & GP_PAINTFLAG_V3D_ERASER_DEPTH) {
@@ -1539,7 +1666,7 @@ static void gp_stroke_doeraser(tGPsdata *p)
 			 * (e.g. 2D space strokes in the 3D view, if the same datablock is shared)
 			 */
 			if (ED_gpencil_stroke_can_use_direct(p->sa, gps)) {
-				gp_stroke_eraser_dostroke(p, gpl, gpf, gps, p->mval, p->mvalo, p->radius, &rect);
+				gp_stroke_eraser_dostroke(p, gpl, gpf, gps, p->mval, p->mvalo, calc_radius, &rect);
 			}
 		}
 	}
@@ -1851,7 +1978,7 @@ static tGPsdata *gp_session_initpaint(bContext *C, wmOperator *op)
 
 	/* Random generator, only init once. */
 	uint rng_seed = (uint)(PIL_check_seconds_timer_i() & UINT_MAX);
-	rng_seed ^= GET_UINT_FROM_POINTER(p);
+	rng_seed ^= POINTER_AS_UINT(p);
 	p->rng = BLI_rng_new(rng_seed);
 
 	/* return context data for running paint operator */

@@ -30,6 +30,7 @@
 
 #include "UI_resources.h"
 
+#include "BKE_object.h"
 #include "BKE_global.h"
 #include "BKE_colorband.h"
 
@@ -131,6 +132,16 @@ void DRW_globals_update(void)
 	ts.sizeFaceDot = U.pixelsize * UI_GetThemeValuef(TH_FACEDOT_SIZE);
 	ts.sizeEdge = U.pixelsize * (1.0f / 2.0f); /* TODO Theme */
 	ts.sizeEdgeFix = U.pixelsize * (0.5f + 2.0f * (2.0f * (MAX2(ts.sizeVertex, ts.sizeEdge)) * (float)M_SQRT1_2));
+
+	/* Color management. */
+	if (DRW_state_is_image_render()) {
+		float *color = ts.UBO_FIRST_COLOR;
+		do {
+			/* TODO more accurate transform. */
+			srgb_to_linearrgb_v4(color, color);
+			color += 4;
+		} while (color != ts.UBO_LAST_COLOR);
+	}
 
 	if (globals_ubo == NULL) {
 		globals_ubo = DRW_uniformbuffer_create(sizeof(GlobalsUboStorage), &ts);
@@ -871,4 +882,43 @@ float *DRW_color_background_blend_get(int theme_id)
 	UI_GetThemeColorBlendShade4fv(theme_id, TH_BACK, 0.5, 0, ret);
 
 	return ret;
+}
+
+
+bool DRW_object_is_flat(Object *ob, int *axis)
+{
+	float dim[3];
+
+	if (!ELEM(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL)) {
+		/* Non-meshes object cannot be considered as flat. */
+		return false;
+	}
+
+	BKE_object_dimensions_get(ob, dim);
+	if (dim[0] == 0.0f) {
+		*axis = 0;
+		return true;
+	}
+	else if (dim[1] == 0.0f) {
+		*axis = 1;
+		return true;
+	}
+	else if (dim[2] == 0.0f) {
+		*axis = 2;
+		return true;
+	}
+	return false;
+}
+
+bool DRW_object_axis_orthogonal_to_view(Object *ob, int axis)
+{
+	float ob_rot[3][3], invviewmat[4][4];
+	DRW_viewport_matrix_get(invviewmat, DRW_MAT_VIEWINV);
+	BKE_object_rot_to_mat3(ob, ob_rot, true);
+	float dot = dot_v3v3(ob_rot[axis], invviewmat[2]);
+	if (fabsf(dot) < 1e-3) {
+		return true;
+	}
+
+	return false;
 }

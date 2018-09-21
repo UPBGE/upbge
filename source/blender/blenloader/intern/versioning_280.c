@@ -58,6 +58,8 @@
 #include "DNA_genfile.h"
 #include "DNA_gpencil_types.h"
 #include "DNA_workspace_types.h"
+#include "DNA_key_types.h"
+#include "DNA_curve_types.h"
 
 #include "BKE_collection.h"
 #include "BKE_constraint.h"
@@ -82,6 +84,7 @@
 #include "BKE_paint.h"
 #include "BKE_object.h"
 #include "BKE_cloth.h"
+#include "BKE_key.h"
 
 #include "BLT_translation.h"
 
@@ -789,6 +792,73 @@ void do_versions_after_linking_280(Main *bmain)
 	}
 #endif
 
+	/* Update Curve object Shape Key data layout to include the Radius property */
+	if (!MAIN_VERSION_ATLEAST(bmain, 280, 23)) {
+		for (Curve *cu = bmain->curve.first; cu; cu = cu->id.next) {
+			if (!cu->key || cu->key->elemsize != sizeof(float[4]))
+				continue;
+
+			cu->key->elemstr[0] = 3; /*KEYELEM_ELEM_SIZE_CURVE*/
+			cu->key->elemsize = sizeof(float[3]);
+
+			int new_count = BKE_keyblock_curve_element_count(&cu->nurb);
+
+			for (KeyBlock *block = cu->key->block.first; block; block = block->next) {
+				int old_count = block->totelem;
+				void *old_data = block->data;
+
+				if (!old_data || old_count <= 0)
+					continue;
+
+				block->totelem = new_count;
+				block->data = MEM_callocN(sizeof(float[3]) * new_count, __func__);
+
+				float *oldptr = old_data;
+				float (*newptr)[3] = block->data;
+
+				for (Nurb *nu = cu->nurb.first; nu; nu = nu->next) {
+					if (nu->bezt) {
+						BezTriple *bezt = nu->bezt;
+
+						for (int a = 0; a < nu->pntsu; a++, bezt++) {
+							if ((old_count -= 3) < 0) {
+								memcpy(newptr, bezt->vec, sizeof(float[3][3]));
+								newptr[3][0] = bezt->alfa;
+							}
+							else {
+								memcpy(newptr, oldptr, sizeof(float[3][4]));
+							}
+
+							newptr[3][1] = bezt->radius;
+
+							oldptr += 3*4;
+							newptr += 4; /*KEYELEM_ELEM_LEN_BEZTRIPLE*/
+						}
+					}
+					else if (nu->bp) {
+						BPoint *bp = nu->bp;
+
+						for (int a = 0; a < nu->pntsu * nu->pntsv; a++, bp++) {
+							if (--old_count < 0) {
+								copy_v3_v3(newptr[0], bp->vec);
+								newptr[1][0] = bp->alfa;
+							}
+							else {
+								memcpy(newptr, oldptr, sizeof(float[4]));
+							}
+
+							newptr[1][1] = bp->radius;
+
+							oldptr += 4;
+							newptr += 2; /*KEYELEM_ELEM_LEN_BPOINT*/
+						}
+					}
+				}
+
+				MEM_freeN(old_data);
+			}
+		}
+	}
 }
 
 /* NOTE: this version patch is intended for versions < 2.52.2, but was initially introduced in 2.27 already.
@@ -1700,7 +1770,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 
 		for (Scene *scene = bmain->scene.first; scene; scene = scene->id.next) {
 			if (scene->toolsettings->gizmo_flag == 0) {
-				scene->toolsettings->gizmo_flag = SCE_MANIP_TRANSLATE | SCE_MANIP_ROTATE | SCE_MANIP_SCALE;
+				scene->toolsettings->gizmo_flag = SCE_GIZMO_SHOW_TRANSLATE | SCE_GIZMO_SHOW_ROTATE | SCE_GIZMO_SHOW_SCALE;
 			}
 		}
 
@@ -1875,9 +1945,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 				}
 			}
 		}
-	}
 
-	{
 		/* Versioning code for Subsurf modifier. */
 		if (!DNA_struct_elem_find(fd->filesdna, "SubsurfModifier", "short", "uv_smooth")) {
 			for (Object *object = bmain->object.first; object != NULL; object = object->id.next) {
@@ -1940,6 +2008,45 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 						clmd->sim_parms->tension_damp = clmd->sim_parms->Cdis;
 						clmd->sim_parms->compression_damp = clmd->sim_parms->Cdis;
 						clmd->sim_parms->shear_damp = clmd->sim_parms->Cdis;
+					}
+				}
+			}
+		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "BrushGpencilSettings", "float", "era_strength_f")) {
+			for (Brush *brush = bmain->brush.first; brush; brush = brush->id.next) {
+				if (brush->gpencil_settings != NULL) {
+					BrushGpencilSettings *gp = brush->gpencil_settings;
+					if (gp->brush_type == GP_BRUSH_TYPE_ERASE) {
+						gp->era_strength_f = 100.0f;
+						gp->era_thickness_f = 10.0f;
+					}
+				}
+			}
+		}
+
+		for (Object *ob = bmain->object.first; ob; ob = ob->id.next) {
+			for (ModifierData *md = ob->modifiers.first; md; md = md->next) {
+				if (md->type == eModifierType_Cloth) {
+					ClothModifierData *clmd = (ClothModifierData *)md;
+
+					if (!(clmd->sim_parms->flags & CLOTH_SIMSETTINGS_FLAG_GOAL)) {
+						clmd->sim_parms->vgroup_mass = 0;
+					}
+
+					if (!(clmd->sim_parms->flags & CLOTH_SIMSETTINGS_FLAG_SCALING)) {
+						clmd->sim_parms->vgroup_struct = 0;
+						clmd->sim_parms->vgroup_shear = 0;
+						clmd->sim_parms->vgroup_bend = 0;
+					}
+
+					if (!(clmd->sim_parms->flags & CLOTH_SIMSETTINGS_FLAG_SEW)) {
+						clmd->sim_parms->shrink_min = 0.0f;
+						clmd->sim_parms->vgroup_shrink = 0;
+					}
+
+					if (!(clmd->coll_parms->flags & CLOTH_COLLSETTINGS_FLAG_ENABLED)) {
+						clmd->coll_parms->flags &= ~CLOTH_COLLSETTINGS_FLAG_SELF;
 					}
 				}
 			}

@@ -505,7 +505,7 @@ static void set_lowest_face_tri(KnifeTool_OpData *kcd, BMFace *f, int index)
 	if (i == -1)
 		i++;
 
-	BLI_ghash_insert(kcd->facetrimap, f, SET_INT_IN_POINTER(i + 1));
+	BLI_ghash_insert(kcd->facetrimap, f, POINTER_FROM_INT(i + 1));
 }
 
 /* This should only be called for faces that have had a lowest face tri set by previous function */
@@ -513,7 +513,7 @@ static int get_lowest_face_tri(KnifeTool_OpData *kcd, BMFace *f)
 {
 	int ans;
 
-	ans = GET_INT_FROM_POINTER(BLI_ghash_lookup(kcd->facetrimap, f));
+	ans = POINTER_AS_INT(BLI_ghash_lookup(kcd->facetrimap, f));
 	BLI_assert(ans != 0);
 	return ans - 1;
 }
@@ -1572,8 +1572,8 @@ static void knife_find_line_hits(KnifeTool_OpData *kcd)
 	}
 
 	/* unproject screen line */
-	ED_view3d_win_to_segment(kcd->vc.depsgraph, kcd->ar, kcd->vc.v3d, s1, v1, v3, true);
-	ED_view3d_win_to_segment(kcd->vc.depsgraph, kcd->ar, kcd->vc.v3d, s2, v2, v4, true);
+	ED_view3d_win_to_segment_clipped(kcd->vc.depsgraph, kcd->ar, kcd->vc.v3d, s1, v1, v3, true);
+	ED_view3d_win_to_segment_clipped(kcd->vc.depsgraph, kcd->ar, kcd->vc.v3d, s2, v2, v4, true);
 
 	mul_m4_v3(kcd->ob->imat, v1);
 	mul_m4_v3(kcd->ob->imat, v2);
@@ -1581,7 +1581,7 @@ static void knife_find_line_hits(KnifeTool_OpData *kcd)
 	mul_m4_v3(kcd->ob->imat, v4);
 
 	/* numeric error, 'v1' -> 'v2', 'v2' -> 'v4' can end up being ~2000 units apart in otho mode
-	 * (from ED_view3d_win_to_segment_clip() above)
+	 * (from ED_view3d_win_to_segment_clipped() above)
 	 * this gives precision error; rather then solving properly
 	 * (which may involve using doubles everywhere!),
 	 * limit the distance between these points */

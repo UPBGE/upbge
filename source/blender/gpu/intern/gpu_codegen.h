@@ -169,14 +169,14 @@ struct GPUPass {
 	char *geometrycode;
 	char *vertexcode;
 	char *defines;
-	unsigned int refcount;       /* Orphaned GPUPasses gets freed by the garbage collector. */
+	uint refcount;               /* Orphaned GPUPasses gets freed by the garbage collector. */
 	uint32_t hash;               /* Identity hash generated from all GLSL code. */
 	bool compiled;               /* Did we already tried to compile the attached GPUShader. */
 };
 
 typedef struct GPUPass GPUPass;
 
-GPUPass *GPU_generate_pass_new(
+GPUPass *GPU_generate_pass(
         GPUMaterial *material,
         GPUNodeLink *frag_outlink, struct GPUVertexAttribs *attribs,
         ListBase *nodes,

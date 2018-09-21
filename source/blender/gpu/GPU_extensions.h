@@ -38,12 +38,12 @@ extern "C" {
 
 /* GPU extensions support */
 
-bool GPU_full_non_power_of_two_support(void);
-bool GPU_bicubic_bump_support(void);
-
 int GPU_max_texture_size(void);
 int GPU_max_texture_layers(void);
 int GPU_max_textures(void);
+int GPU_max_textures_vert(void);
+int GPU_max_textures_geom(void);
+int GPU_max_textures_frag(void);
 float GPU_max_texture_anisotropy(void);
 int GPU_max_color_texture_samples(void);
 int GPU_max_cube_map_size(void);

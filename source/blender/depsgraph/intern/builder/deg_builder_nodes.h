@@ -35,6 +35,8 @@
 
 #include "DEG_depsgraph.h"  /* used for DEG_depsgraph_use_copy_on_write() */
 
+#include "intern/nodes/deg_node_id.h"
+
 struct Base;
 struct bArmature;
 struct bAction;
@@ -172,22 +174,26 @@ struct DepsgraphNodeBuilder {
 	void build_object(int base_index,
 	                  Object *object,
 	                  eDepsNode_LinkedState_Type linked_state,
-	                  bool is_visible = true);
+	                  bool is_visible);
 	void build_object_flags(int base_index,
 	                        Object *object,
 	                        eDepsNode_LinkedState_Type linked_state);
-	void build_object_data(Object *object);
+	void build_object_data(Object *object, bool is_object_visible);
 	void build_object_data_camera(Object *object);
-	void build_object_data_geometry(Object *object);
-	void build_object_data_geometry_datablock(ID *obdata);
+	void build_object_data_geometry(Object *object, bool is_object_visible);
+	void build_object_data_geometry_datablock(ID *obdata,
+	                                          bool is_object_visible);
 	void build_object_data_lamp(Object *object);
 	void build_object_data_lightprobe(Object *object);
 	void build_object_data_speaker(Object *object);
 	void build_object_transform(Object *object);
 	void build_object_constraints(Object *object);
-	void build_pose_constraints(Object *object, bPoseChannel *pchan, int pchan_index);
+	void build_pose_constraints(Object *object,
+	                            bPoseChannel *pchan,
+	                            int pchan_index,
+	                            bool is_object_visible);
 	void build_rigidbody(Scene *scene);
-	void build_particles(Object *object);
+	void build_particles(Object *object, bool is_object_visible);
 	void build_particle_settings(ParticleSettings *part);
 	void build_cloth(Object *object);
 	void build_animdata(ID *id);
@@ -201,7 +207,7 @@ struct DepsgraphNodeBuilder {
 	void build_splineik_pose(Object *object,
 	                         bPoseChannel *pchan,
 	                         bConstraint *con);
-	void build_rig(Object *object);
+	void build_rig(Object *object, bool is_object_visible);
 	void build_proxy_rig(Object *object);
 	void build_armature(bArmature *armature);
 	void build_shapekeys(Key *key);
@@ -226,10 +232,10 @@ struct DepsgraphNodeBuilder {
 	struct IDInfo {
 		/* Copy-on-written pointer of the corresponding ID. */
 		ID *id_cow;
-		/* State of the is_visible from ID node from previous state of the
+		/* Mask of visible components from previous state of the
 		 * dependency graph.
 		 */
-		bool is_visible;
+		IDComponentsMask previously_visible_components_mask;
 	};
 
 protected:
@@ -246,6 +252,8 @@ protected:
 
 	struct BuilderWalkUserData {
 		DepsgraphNodeBuilder *builder;
+		/* Denotes whether object the walk is invoked from is visible. */
+		bool is_parent_visible;
 	};
 	static void modifier_walk(void *user_data,
 	                          struct Object *object,

@@ -186,7 +186,7 @@ BLI_INLINE unsigned char f_to_char(const float val)
 #define PROJ_VERT_CULL 1
 
 /* to avoid locking in tile initialization */
-#define TILE_PENDING SET_INT_IN_POINTER(-1)
+#define TILE_PENDING POINTER_FROM_INT(-1)
 
 /* This is mainly a convenience struct used so we can keep an array of images we use -
  * their imbufs, etc, in 1 array, When using threads this array is copied for each thread
@@ -598,7 +598,7 @@ static int project_paint_PickFace(
 	 * that the point its testing is only every originated from an existing face */
 
 	for (node = ps->bucketFaces[bucket_index]; node; node = node->next) {
-		const int tri_index = GET_INT_FROM_POINTER(node->link);
+		const int tri_index = POINTER_AS_INT(node->link);
 		const MLoopTri *lt = &ps->mlooptri_eval[tri_index];
 		const float *vtri_ss[3] = {
 		    ps->screenCoords[ps->mloop_eval[lt->tri[0]].v],
@@ -812,7 +812,7 @@ static bool project_bucket_point_occluded(
 	 * that the point its testing is only every originated from an existing face */
 
 	for (; bucketFace; bucketFace = bucketFace->next) {
-		const int tri_index = GET_INT_FROM_POINTER(bucketFace->link);
+		const int tri_index = POINTER_AS_INT(bucketFace->link);
 
 		if (orig_face != tri_index) {
 			const MLoopTri *lt = &ps->mlooptri_eval[tri_index];
@@ -1033,7 +1033,7 @@ static bool check_seam(
 	int i1_fidx = -1, i2_fidx = -1; /* index in face */
 
 	for (node = ps->vertFaces[i1]; node; node = node->next) {
-		const int tri_index = GET_INT_FROM_POINTER(node->link);
+		const int tri_index = POINTER_AS_INT(node->link);
 
 		if (tri_index != orig_face) {
 			const MLoopTri *lt = &ps->mlooptri_eval[tri_index];
@@ -2494,10 +2494,9 @@ static bool IsectPoly2Df_twoside(const float pt[2], float uv[][2], const int tot
  * initialize pixels from this face where it intersects with the bucket_index,
  * optionally initialize pixels for removing seams */
 static void project_paint_face_init(
-        const ProjPaintState *ps,
-        const int thread_index, const int bucket_index, const int tri_index, const int image_index,
-        const rctf *clip_rect, const rctf *bucket_bounds, ImBuf *ibuf, ImBuf **tmpibuf,
-        const bool clamp_u, const bool clamp_v)
+	const ProjPaintState *ps,
+	const int thread_index, const int bucket_index, const int tri_index, const int image_index,
+	const rctf *clip_rect, const rctf *bucket_bounds, ImBuf *ibuf, ImBuf **tmpibuf)
 {
 	/* Projection vars, to get the 3D locations into screen space  */
 	MemArena *arena = ps->arena_mt[thread_index];
@@ -2589,12 +2588,12 @@ static void project_paint_face_init(
 
 		/* This funtion gives is a concave polyline in UV space from the clipped tri*/
 		project_bucket_clip_face(
-		        is_ortho, is_flip_object,
-		        clip_rect, bucket_bounds,
-		        v1coSS, v2coSS, v3coSS,
-		        uv1co, uv2co, uv3co,
-		        uv_clip, &uv_clip_tot,
-		        do_backfacecull || ps->do_occlude);
+			is_ortho, is_flip_object,
+			clip_rect, bucket_bounds,
+			v1coSS, v2coSS, v3coSS,
+			uv1co, uv2co, uv3co,
+			uv_clip, &uv_clip_tot,
+			do_backfacecull || ps->do_occlude);
 
 		/* sometimes this happens, better just allow for 8 intersectiosn even though there should be max 6 */
 #if 0
@@ -2604,21 +2603,10 @@ static void project_paint_face_init(
 #endif
 
 		if (pixel_bounds_array(uv_clip, &bounds_px, ibuf->x, ibuf->y, uv_clip_tot)) {
-
-			if (clamp_u) {
-				CLAMP(bounds_px.xmin, 0, ibuf->x);
-				CLAMP(bounds_px.xmax, 0, ibuf->x);
-			}
-
-			if (clamp_v) {
-				CLAMP(bounds_px.ymin, 0, ibuf->y);
-				CLAMP(bounds_px.ymax, 0, ibuf->y);
-			}
-
 #if 0
 			project_paint_undo_tiles_init(
-			        &bounds_px, ps->projImages + image_index, tmpibuf,
-			        tile_width, threaded, ps->do_masking);
+				&bounds_px, ps->projImages + image_index, tmpibuf,
+				tile_width, threaded, ps->do_masking);
 #endif
 			/* clip face and */
 
@@ -2634,8 +2622,8 @@ static void project_paint_face_init(
 
 					/* Note about IsectPoly2Df_twoside, checking the face or uv flipping doesnt work,
 					 * could check the poly direction but better to do this */
-					if ((do_backfacecull == true  && IsectPoly2Df(uv, uv_clip, uv_clip_tot)) ||
-					    (do_backfacecull == false && IsectPoly2Df_twoside(uv, uv_clip, uv_clip_tot)))
+					if ((do_backfacecull == true && IsectPoly2Df(uv, uv_clip, uv_clip_tot)) ||
+						(do_backfacecull == false && IsectPoly2Df_twoside(uv, uv_clip, uv_clip_tot)))
 					{
 
 						has_x_isect = has_isect = 1;
@@ -2646,11 +2634,11 @@ static void project_paint_face_init(
 						/* a pity we need to get the worldspace pixel location here */
 						if (do_clip || do_3d_mapping) {
 							interp_v3_v3v3v3(
-							        wco,
-							        ps->mvert_eval[lt_vtri[0]].co,
-							        ps->mvert_eval[lt_vtri[1]].co,
-							        ps->mvert_eval[lt_vtri[2]].co,
-							        w);
+								wco,
+								ps->mvert_eval[lt_vtri[0]].co,
+								ps->mvert_eval[lt_vtri[1]].co,
+								ps->mvert_eval[lt_vtri[2]].co,
+								w);
 							if (do_clip && ED_view3d_clipping_test(ps->rv3d, wco, true)) {
 								continue; /* Watch out that no code below this needs to run */
 							}
@@ -2660,28 +2648,28 @@ static void project_paint_face_init(
 						/* project_paint_PickFace is less complex, use for testing */
 						//if (project_paint_PickFace(ps, pixelScreenCo, w, &side) == tri_index) {
 						if ((ps->do_occlude == false) ||
-						    !project_bucket_point_occluded(ps, bucketFaceNodes, tri_index, pixelScreenCo))
+							!project_bucket_point_occluded(ps, bucketFaceNodes, tri_index, pixelScreenCo))
 						{
 							mask = project_paint_uvpixel_mask(ps, tri_index, w);
 
 							if (mask > 0.0f) {
 								BLI_linklist_prepend_arena(
-								        bucketPixelNodes,
-								        project_paint_uvpixel_init(
-								                ps, arena, &tinf, x, y, mask, tri_index,
-								                pixelScreenCo, wco, w),
-								        arena);
+									bucketPixelNodes,
+									project_paint_uvpixel_init(
+										ps, arena, &tinf, x, y, mask, tri_index,
+										pixelScreenCo, wco, w),
+									arena);
 							}
 						}
 
 					}
-//#if 0
+					//#if 0
 					else if (has_x_isect) {
 						/* assuming the face is not a bow-tie - we know we cant intersect again on the X */
 						break;
 					}
-//#endif
-				}
+					//#endif
+			}
 
 
 #if 0           /* TODO - investigate why this dosnt work sometimes! it should! */
@@ -2690,9 +2678,9 @@ static void project_paint_face_init(
 					break;
 				}
 #endif
-			}
 		}
 	}
+}
 
 
 #ifndef PROJ_DEBUG_NOSEAMBLEED
@@ -2706,8 +2694,8 @@ static void project_paint_face_init(
 
 		/* are any of our edges un-initialized? */
 		if ((face_seam_flag & (PROJ_FACE_SEAM1 | PROJ_FACE_NOSEAM1)) == 0 ||
-		    (face_seam_flag & (PROJ_FACE_SEAM2 | PROJ_FACE_NOSEAM2)) == 0 ||
-		    (face_seam_flag & (PROJ_FACE_SEAM3 | PROJ_FACE_NOSEAM3)) == 0)
+			(face_seam_flag & (PROJ_FACE_SEAM2 | PROJ_FACE_NOSEAM2)) == 0 ||
+			(face_seam_flag & (PROJ_FACE_SEAM3 | PROJ_FACE_NOSEAM3)) == 0)
 		{
 			project_face_seams_init(ps, tri_index);
 			face_seam_flag = ps->faceSeamFlags[tri_index];
@@ -2724,7 +2712,7 @@ static void project_paint_face_init(
 			/* we have a seam - deal with it! */
 
 			/* Now create new UV's for the seam face */
-			float (*outset_uv)[2] = ps->faceSeamUVs[tri_index];
+			float(*outset_uv)[2] = ps->faceSeamUVs[tri_index];
 			float insetCos[3][3]; /* inset face coords.  NOTE!!! ScreenSace for ortho, Worldspace in prespective view */
 
 			const float *vCoSS[3]; /* vertex screenspace coords */
@@ -2738,8 +2726,8 @@ static void project_paint_face_init(
 
 			if (outset_uv[0][0] == FLT_MAX) /* first time initialize */
 				uv_image_outset(
-				        lt_uv_pxoffset, outset_uv, ps->seam_bleed_px,
-				        ibuf->x, ibuf->y, (ps->faceWindingFlags[tri_index] & PROJ_FACE_WINDING_CW) == 0);
+					lt_uv_pxoffset, outset_uv, ps->seam_bleed_px,
+					ibuf->x, ibuf->y, (ps->faceWindingFlags[tri_index] & PROJ_FACE_WINDING_CW) == 0);
 
 			/* ps->faceSeamUVs cant be modified when threading, now this is done we can unlock */
 			if (threaded)
@@ -2761,7 +2749,7 @@ static void project_paint_face_init(
 				fidx2 = (fidx1 == 2) ? 0 : fidx1 + 1;  /* next fidx in the face (0,1,2) -> (1,2,0) */
 
 				if ((face_seam_flag & (1 << fidx1)) && /* 1<<fidx1 -> PROJ_FACE_SEAM# */
-				    line_clip_rect2f(clip_rect, bucket_bounds, vCoSS[fidx1], vCoSS[fidx2], bucket_clip_edges[0], bucket_clip_edges[1]))
+					line_clip_rect2f(clip_rect, bucket_bounds, vCoSS[fidx1], vCoSS[fidx2], bucket_clip_edges[0], bucket_clip_edges[1]))
 				{
 					if (len_squared_v2v2(vCoSS[fidx1], vCoSS[fidx2]) > FLT_EPSILON) { /* avoid div by zero */
 
@@ -2826,7 +2814,7 @@ static void project_paint_face_init(
 										}
 
 										if ((ps->do_occlude == false) ||
-										    !project_bucket_point_occluded(ps, bucketFaceNodes, tri_index, pixelScreenCo))
+											!project_bucket_point_occluded(ps, bucketFaceNodes, tri_index, pixelScreenCo))
 										{
 											/* Only bother calculating the weights if we intersect */
 											if (ps->do_mask_normal || ps->poly_to_loop_uv_clone) {
@@ -2858,11 +2846,11 @@ static void project_paint_face_init(
 
 											if (mask > 0.0f) {
 												BLI_linklist_prepend_arena(
-												        bucketPixelNodes,
-												        project_paint_uvpixel_init(ps, arena, &tinf, x, y, mask, tri_index,
-												        pixelScreenCo, wco, w),
-												        arena
-												        );
+													bucketPixelNodes,
+													project_paint_uvpixel_init(ps, arena, &tinf, x, y, mask, tri_index,
+														pixelScreenCo, wco, w),
+													arena
+												);
 											}
 
 										}
@@ -2925,33 +2913,30 @@ static void project_bucket_bounds(const ProjPaintState *ps, const int bucket_x, 
  *
  * have bucket_bounds as an argument so we don't need to give bucket_x/y the rect function needs */
 static void project_bucket_init(
-        const ProjPaintState *ps, const int thread_index, const int bucket_index,
-        const rctf *clip_rect, const rctf *bucket_bounds)
+	const ProjPaintState *ps, const int thread_index, const int bucket_index,
+	const rctf *clip_rect, const rctf *bucket_bounds)
 {
 	LinkNode *node;
 	int tri_index, image_index = 0;
 	ImBuf *ibuf = NULL;
 	Image *tpage_last = NULL, *tpage;
-	Image *ima = NULL;
 	ImBuf *tmpibuf = NULL;
 
 	if (ps->image_tot == 1) {
 		/* Simple loop, no context switching */
 		ibuf = ps->projImages[0].ibuf;
-		ima = ps->projImages[0].ima;
 
 		for (node = ps->bucketFaces[bucket_index]; node; node = node->next) {
 			project_paint_face_init(
-			        ps, thread_index, bucket_index, GET_INT_FROM_POINTER(node->link), 0,
-			        clip_rect, bucket_bounds, ibuf, &tmpibuf,
-			        (ima->tpageflag & IMA_CLAMP_U) != 0, (ima->tpageflag & IMA_CLAMP_V) != 0);
+				ps, thread_index, bucket_index, POINTER_AS_INT(node->link), 0,
+				clip_rect, bucket_bounds, ibuf, &tmpibuf);
 		}
 	}
 	else {
 
 		/* More complicated loop, switch between images */
 		for (node = ps->bucketFaces[bucket_index]; node; node = node->next) {
-			tri_index = GET_INT_FROM_POINTER(node->link);
+			tri_index = POINTER_AS_INT(node->link);
 
 			/* Image context switching */
 			tpage = project_paint_face_paint_image(ps, tri_index);
@@ -2961,7 +2946,6 @@ static void project_bucket_init(
 				for (image_index = 0; image_index < ps->image_tot; image_index++) {
 					if (ps->projImages[image_index].ima == tpage_last) {
 						ibuf = ps->projImages[image_index].ibuf;
-						ima = ps->projImages[image_index].ima;
 						break;
 					}
 				}
@@ -2969,9 +2953,8 @@ static void project_bucket_init(
 			/* context switching done */
 
 			project_paint_face_init(
-			        ps, thread_index, bucket_index, tri_index, image_index,
-			        clip_rect, bucket_bounds, ibuf, &tmpibuf,
-			        (ima->tpageflag & IMA_CLAMP_U) != 0, (ima->tpageflag & IMA_CLAMP_V) != 0);
+				ps, thread_index, bucket_index, tri_index, image_index,
+				clip_rect, bucket_bounds, ibuf, &tmpibuf);
 		}
 	}
 
@@ -3062,7 +3045,7 @@ static void project_paint_delayed_face_init(ProjPaintState *ps, const MLoopTri *
 				int bucket_index = bucket_x + (bucket_y * ps->buckets_x);
 				BLI_linklist_prepend_arena(
 				        &ps->bucketFaces[bucket_index],
-				        SET_INT_IN_POINTER(tri_index), /* cast to a pointer to shut up the compiler */
+				        POINTER_FROM_INT(tri_index), /* cast to a pointer to shut up the compiler */
 				        arena
 				        );
 
@@ -3402,7 +3385,7 @@ static void project_paint_bleed_add_face_user(
 	/* annoying but we need to add all faces even ones we never use elsewhere */
 	if (ps->seam_bleed_px > 0.0f) {
 		const int lt_vtri[3] = { PS_LOOPTRI_AS_VERT_INDEX_3(ps, lt) };
-		void *tri_index_p = SET_INT_IN_POINTER(tri_index);
+		void *tri_index_p = POINTER_FROM_INT(tri_index);
 		BLI_linklist_prepend_arena(&ps->vertFaces[lt_vtri[0]], tri_index_p, arena);
 		BLI_linklist_prepend_arena(&ps->vertFaces[lt_vtri[1]], tri_index_p, arena);
 		BLI_linklist_prepend_arena(&ps->vertFaces[lt_vtri[2]], tri_index_p, arena);
@@ -5629,13 +5612,24 @@ bool BKE_paint_proj_mesh_data_check(Scene *scene, Object *ob, bool *uvs, bool *m
 }
 
 /* Add layer operator */
+enum {
+	LAYER_BASE_COLOR,
+	LAYER_SPECULAR,
+	LAYER_ROUGHNESS,
+	LAYER_METALLIC,
+	LAYER_NORMAL,
+	LAYER_BUMP,
+	LAYER_DISPLACEMENT
+};
 
 static const EnumPropertyItem layer_type_items[] = {
-	{0, "BASE_COLOR", 0, "Base Color", ""},
-	{1, "EMISSION", 0, "Emission", ""},
-	{2, "NORMAL", 0, "Normal", ""},
-	{3, "BUMP", 0, "Bump", ""},
-	{4, "DISPLACEMENT", 0, "Displacement", ""},
+	{LAYER_BASE_COLOR, "BASE_COLOR", 0, "Base Color", ""},
+	{LAYER_SPECULAR, "SPECULAR", 0, "Specular", ""},
+	{LAYER_ROUGHNESS, "ROUGHNESS", 0, "Roughness", ""},
+	{LAYER_METALLIC, "METALLIC", 0, "Metallic", ""},
+	{LAYER_NORMAL, "NORMAL", 0, "Normal", ""},
+	{LAYER_BUMP, "BUMP", 0, "Bump", ""},
+	{LAYER_DISPLACEMENT, "DISPLACEMENT", 0, "Displacement", ""},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -5679,8 +5673,8 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
 	ma = give_current_material(ob, ob->actcol);
 
 	if (ma) {
-		/* TODO: use type to link to proper socket. */
 		Main *bmain = CTX_data_main(C);
+		int type = RNA_enum_get(op->ptr, "type");
 
 		bNode *imanode;
 		bNodeTree *ntree = ma->nodetree;
@@ -5700,7 +5694,72 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
 
 		nodeSetActive(ntree, imanode);
 
+		/* Connect to first available principled bsdf node. */
+		bNode *in_node;
+		bNode *out_node = imanode;
+		in_node = ntreeFindType(ntree, SH_NODE_BSDF_PRINCIPLED);
+
+		if (in_node != NULL) {
+			bNodeSocket *out_sock = nodeFindSocket(out_node, SOCK_OUT, "Color");
+			bNodeSocket *in_sock = NULL;
+
+			if (type >= LAYER_BASE_COLOR && type < LAYER_NORMAL) {
+				in_sock = nodeFindSocket(in_node, SOCK_IN, layer_type_items[type].name);
+			}
+			else if (type == LAYER_NORMAL) {
+				bNode *nor_node;
+				nor_node = nodeAddStaticNode(C, ntree, SH_NODE_NORMAL_MAP);
+
+				in_sock = nodeFindSocket(nor_node, SOCK_IN, "Color");
+				nodeAddLink(ntree, out_node, out_sock, nor_node, in_sock);
+
+				in_sock = nodeFindSocket(in_node, SOCK_IN, "Normal");
+				out_sock = nodeFindSocket(nor_node, SOCK_OUT, "Normal");
+
+				out_node = nor_node;
+			}
+			else if (type == LAYER_BUMP) {
+				bNode *bump_node;
+				bump_node = nodeAddStaticNode(C, ntree, SH_NODE_BUMP);
+
+				in_sock = nodeFindSocket(bump_node, SOCK_IN, "Height");
+				nodeAddLink(ntree, out_node, out_sock, bump_node, in_sock);
+
+				in_sock = nodeFindSocket(in_node, SOCK_IN, "Normal");
+				out_sock = nodeFindSocket(bump_node, SOCK_OUT, "Normal");
+
+				out_node = bump_node;
+			}
+			else if (type == LAYER_DISPLACEMENT) {
+				/* Connect to the displacement output socket */
+				in_node = ntreeFindType(ntree, SH_NODE_OUTPUT_MATERIAL);
+
+				if (in_node != NULL) {
+					in_sock = nodeFindSocket(in_node, SOCK_IN, layer_type_items[type].name);
+				}
+				else {
+					in_sock = NULL;
+				}
+			}
+
+			if (type > LAYER_BASE_COLOR) {
+				/* This is a "non color data" image */
+				NodeTexImage *tex = imanode->storage;
+				tex->color_space = SHD_COLORSPACE_NONE;
+			}
+
+			/* Check if the socket in already connected to something */
+			bNodeLink *link = in_sock ? in_sock->link : NULL;
+			if (in_sock != NULL && link == NULL) {
+				nodeAddLink(ntree, out_node, out_sock, in_node, in_sock);
+
+				nodePositionRelative(out_node, in_node, out_sock, in_sock);
+			}
+		}
+
 		ntreeUpdateTree(CTX_data_main(C), ntree);
+		/* In case we added more than one node, position them too. */
+		nodePositionPropagate(out_node);
 
 		if (ima) {
 			BKE_texpaint_slot_refresh_cache(scene, ma);

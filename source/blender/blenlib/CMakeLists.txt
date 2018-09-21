@@ -68,6 +68,7 @@ set(SRC
 	intern/easing.c
 	intern/edgehash.c
 	intern/endian_switch.c
+	intern/expr_pylike_eval.c
 	intern/fileops.c
 	intern/fnmatch.c
 	intern/freetypefont.c
@@ -151,6 +152,7 @@ set(SRC
 	BLI_edgehash.h
 	BLI_endian_switch.h
 	BLI_endian_switch_inline.h
+	BLI_expr_pylike_eval.h
 	BLI_fileops.h
 	BLI_fileops_types.h
 	BLI_fnmatch.h

@@ -1353,9 +1353,14 @@ void OBJECT_OT_forcefield_toggle(wmOperatorType *ot)
  *
  * To be called from various tools that do incremental updates
  */
-void ED_objects_recalculate_paths(bContext *C, Scene *scene)
+void ED_objects_recalculate_paths(bContext *C, Scene *scene, bool current_frame_only)
 {
-	struct Main *bmain = CTX_data_main(C);
+	/* Transform doesn't always have context avaialble to do update. */
+	if (C == NULL) {
+		return;
+	}
+
+	Main *bmain = CTX_data_main(C);
 	Depsgraph *depsgraph = CTX_data_depsgraph(C);
 	ListBase targets = {NULL, NULL};
 
@@ -1369,17 +1374,20 @@ void ED_objects_recalculate_paths(bContext *C, Scene *scene)
 	CTX_DATA_END;
 
 	/* recalculate paths, then free */
-	animviz_calc_motionpaths(depsgraph, bmain, scene, &targets);
+	animviz_calc_motionpaths(depsgraph, bmain, scene, &targets, true, current_frame_only);
 	BLI_freelistN(&targets);
 
-	/* tag objects for copy on write - so paths will draw/redraw */
-	CTX_DATA_BEGIN(C, Object *, ob, selected_editable_objects)
-	{
-		if (ob->mpath) {
-			DEG_id_tag_update(&ob->id, DEG_TAG_COPY_ON_WRITE);
+	if (!current_frame_only) {
+		/* Tag objects for copy on write - so paths will draw/redraw
+		 * For currently frame only we update evaluated object directly. */
+		CTX_DATA_BEGIN(C, Object *, ob, selected_editable_objects)
+		{
+			if (ob->mpath) {
+				DEG_id_tag_update(&ob->id, DEG_TAG_COPY_ON_WRITE);
+			}
 		}
+		CTX_DATA_END;
 	}
-	CTX_DATA_END;
 }
 
 
@@ -1426,7 +1434,7 @@ static int object_calculate_paths_exec(bContext *C, wmOperator *op)
 	CTX_DATA_END;
 
 	/* calculate the paths for objects that have them (and are tagged to get refreshed) */
-	ED_objects_recalculate_paths(C, scene);
+	ED_objects_recalculate_paths(C, scene, false);
 
 	/* notifiers for updates */
 	WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, NULL);
@@ -1476,7 +1484,7 @@ static int object_update_paths_exec(bContext *C, wmOperator *UNUSED(op))
 		return OPERATOR_CANCELLED;
 
 	/* calculate the paths for objects that have them (and are tagged to get refreshed) */
-	ED_objects_recalculate_paths(C, scene);
+	ED_objects_recalculate_paths(C, scene, false);
 
 	/* notifiers for updates */
 	WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, NULL);

@@ -150,6 +150,11 @@ struct ComponentDepsNode : public DepsNode {
 	 * is tagged for update.
 	 */
 	virtual bool need_tag_cow_before_update() { return true; }
+
+	/* Denotes whether this component affects (possibly indirectly) on a
+	 * directly visible object.
+	 */
+	bool affects_directly_visible;
 };
 
 /* ---------------------------------------- */
@@ -193,6 +198,7 @@ DEG_COMPONENT_NODE_DECLARE_NO_COW_TAG_ON_UPDATE(Shading);
 DEG_COMPONENT_NODE_DECLARE_GENERIC(ShadingParameters);
 DEG_COMPONENT_NODE_DECLARE_GENERIC(Transform);
 DEG_COMPONENT_NODE_DECLARE_NO_COW_TAG_ON_UPDATE(ObjectFromLayer);
+DEG_COMPONENT_NODE_DECLARE_GENERIC(Dupli);
 
 /* Bone Component */
 struct BoneComponentDepsNode : public ComponentDepsNode {

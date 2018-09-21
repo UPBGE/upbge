@@ -167,7 +167,6 @@ option_defaults_init(
 	_init_FFTW3
 	_init_GAMEENGINE
 	_init_OPENSUBDIV
-	_init_SYSTEM_OPENJPG
 )
 
 # customize...
@@ -184,13 +183,11 @@ if(UNIX AND NOT APPLE)
 	set(_init_SDL                            OFF)
 	set(_init_FFTW3                          OFF)
 	set(_init_OPENSUBDIV                     OFF)
-	set(_init_SYSTEM_OPENJPG                 OFF)
 elseif(WIN32)
 	set(_init_JACK                           OFF)
 elseif(APPLE)
 	set(_init_JACK                           OFF)
 	set(_init_OPENSUBDIV                     OFF)
-	set(_init_SYSTEM_OPENJPG                 OFF)
 endif()
 
 
@@ -316,9 +313,6 @@ else()
 endif()
 
 
-# (unix defaults to System OpenJPEG On)
-option(WITH_SYSTEM_OPENJPEG "Use the operating systems OpenJPEG library" ${_init_SYSTEM_OPENJPG})
-
 if(UNIX AND NOT APPLE)
 	option(WITH_SYSTEM_EIGEN3 "Use the systems Eigen3 library" OFF)
 endif()
@@ -402,7 +396,9 @@ if(UNIX AND NOT APPLE)
 endif()
 
 option(WITH_PYTHON_INSTALL       "Copy system python into the blender install folder" ON)
-if(WITH_PYTHON_INSTALL OR (WITH_AUDASPACE AND NOT WITH_SYSTEM_AUDASPACE))
+if(WIN32 OR APPLE)
+	# Windows and macOS have this bundled with Python libraries.
+elseif(WITH_PYTHON_INSTALL OR (WITH_AUDASPACE AND NOT WITH_SYSTEM_AUDASPACE))
 	set(PYTHON_NUMPY_PATH            "" CACHE PATH "Path to python site-packages or dist-packages containing 'numpy' module")
 	mark_as_advanced(PYTHON_NUMPY_PATH)
 	set(PYTHON_NUMPY_INCLUDE_DIRS ${PYTHON_NUMPY_PATH}/numpy/core/include CACHE PATH "Path to the include directory of the numpy module")
@@ -1017,16 +1013,11 @@ else()
 	unset(_SYSTEM_BIG_ENDIAN)
 endif()
 if(WITH_IMAGE_OPENJPEG)
-	if(WITH_SYSTEM_OPENJPEG)
-		# dealt with above
-		set(OPENJPEG_DEFINES "")
-	else()
-		set(OPENJPEG_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/extern/libopenjpeg")
-		set(OPENJPEG_DEFINES "-DOPJ_STATIC")
-	endif()
 	# Special handling of Windows platform where openjpeg is always static.
 	if(WIN32)
 		set(OPENJPEG_DEFINES "-DOPJ_STATIC")
+	else()
+		set(OPENJPEG_DEFINES "")
 	endif()
 endif()
 
@@ -1535,14 +1526,14 @@ if(WITH_PYTHON)
 		)
 	endif()
 
-	if(WIN32)
-		# pass, we have this in an archive to extract
+	if(WIN32 OR APPLE)
+		# Windows and macOS have this bundled with Python libraries.
 	elseif((WITH_PYTHON_INSTALL AND WITH_PYTHON_INSTALL_NUMPY) OR (WITH_AUDASPACE AND NOT WITH_SYSTEM_AUDASPACE))
 		if(("${PYTHON_NUMPY_PATH}" STREQUAL "") OR (${PYTHON_NUMPY_PATH} MATCHES NOTFOUND))
 			find_python_package(numpy)
 			unset(PYTHON_NUMPY_INCLUDE_DIRS CACHE)
 			set(PYTHON_NUMPY_INCLUDE_DIRS ${PYTHON_NUMPY_PATH}/numpy/core/include CACHE PATH "Path to the include directory of the numpy module")
-		        mark_as_advanced(PYTHON_NUMPY_INCLUDE_DIRS)
+			mark_as_advanced(PYTHON_NUMPY_INCLUDE_DIRS)
 		endif()
 	endif()
 
@@ -1739,7 +1730,6 @@ if(FIRST_RUN)
 	info_cfg_option(WITH_MEM_JEMALLOC)
 	info_cfg_option(WITH_MEM_VALGRIND)
 	info_cfg_option(WITH_SYSTEM_GLEW)
-	info_cfg_option(WITH_SYSTEM_OPENJPEG)
 
 	info_cfg_text("Image Formats:")
 	info_cfg_option(WITH_OPENIMAGEIO)

@@ -42,8 +42,12 @@
 
 #include "gpencil_engine.h"
 
+#include "DEG_depsgraph_query.h"
+
 #include "ED_screen.h"
 #include "ED_gpencil.h"
+
+#include "WM_api.h"
 
 extern char datatoc_gpencil_fill_vert_glsl[];
 extern char datatoc_gpencil_fill_frag_glsl[];
@@ -285,6 +289,7 @@ void GPENCIL_cache_init(void *vedata)
 	GPENCIL_PassList *psl = ((GPENCIL_Data *)vedata)->psl;
 	GPENCIL_StorageList *stl = ((GPENCIL_Data *)vedata)->stl;
 	const DRWContextState *draw_ctx = DRW_context_state_get();
+	wmWindowManager *wm = NULL;
 	Scene *scene = draw_ctx->scene;
 	View3D *v3d = draw_ctx->v3d;
 
@@ -335,8 +340,13 @@ void GPENCIL_cache_init(void *vedata)
 		        "GPencil Edit Pass",
 		        DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND);
 
-		/* detect if playing animation */
+		/* detect if playing animation and multiwindow */
 		if (draw_ctx->evil_C) {
+			wm = CTX_wm_manager(draw_ctx->evil_C);
+			if ((wm) && (wm->windows.first != wm->windows.last)) {
+				stl->storage->is_multiwindow = true;
+			}
+
 			bool playing = ED_screen_animation_playing(CTX_wm_manager(draw_ctx->evil_C)) != NULL;
 			if (playing != stl->storage->is_playing) {
 				stl->storage->reset_cache = true;
@@ -346,6 +356,7 @@ void GPENCIL_cache_init(void *vedata)
 		else {
 			stl->storage->is_playing = false;
 			stl->storage->reset_cache = false;
+			stl->storage->is_multiwindow = false;
 		}
 		/* save render state */
 		stl->storage->is_render = DRW_state_is_image_render();
@@ -381,9 +392,11 @@ void GPENCIL_cache_init(void *vedata)
 		    (obact_gpd->flag & GP_DATA_STROKE_PAINTMODE) &&
 		    (stl->storage->is_playing == false))
 		{
-			if (((obact_gpd->runtime.sbuffer_sflag & GP_STROKE_ERASER) == 0) &&
-			    (obact_gpd->runtime.sbuffer_size > 0) &&
-			    ((obact_gpd->flag & GP_DATA_STROKE_POLYGON) == 0))
+			/* need the original to avoid cow overhead while drawing */
+			bGPdata *gpd_orig = (bGPdata *)DEG_get_original_id(&obact_gpd->id);
+			if (((gpd_orig->runtime.sbuffer_sflag & GP_STROKE_ERASER) == 0) &&
+			    (gpd_orig->runtime.sbuffer_size > 0) &&
+			    ((gpd_orig->flag & GP_DATA_STROKE_POLYGON) == 0))
 			{
 				stl->g_data->session_flag |= GP_DRW_PAINT_PAINTING;
 			}
@@ -411,7 +424,7 @@ void GPENCIL_cache_init(void *vedata)
 			stl->storage->color_type = GPENCIL_COLOR_SOLID;
 		}
 
-		/* drawing buffer pass for drawing the stroke that is beeing drawing by the user. The data
+		/* drawing buffer pass for drawing the stroke that is being drawing by the user. The data
 		 * is stored in sbuffer
 		 */
 		psl->drawing_pass = DRW_pass_create(
@@ -555,6 +568,13 @@ void GPENCIL_cache_populate(void *vedata, Object *ob)
 	if (ob->type == OB_GPENCIL && ob->data) {
 		bGPdata *gpd = (bGPdata *)ob->data;
 
+		/* if multiwindow and onion, set as dirty */
+		if ((stl->storage->is_multiwindow) &&
+		    (gpd->flag & GP_DATA_SHOW_ONIONSKINS))
+		{
+			gpd->flag |= GP_DATA_CACHE_IS_DIRTY;
+		}
+
 		/* when start/stop animation the cache must be set as dirty to reset all data */
 		if (stl->storage->reset_cache) {
 			gpd->flag |= GP_DATA_CACHE_IS_DIRTY;
@@ -664,7 +684,7 @@ void GPENCIL_draw_scene(void *ved)
 	const bool playing = stl->storage->is_playing;
 	const bool is_render = stl->storage->is_render;
 
-	/* paper pass to display a confortable area to draw over complex scenes with geometry */
+	/* paper pass to display a comfortable area to draw over complex scenes with geometry */
 	if ((!is_render) && (obact) && (obact->type == OB_GPENCIL)) {
 		if (((v3d->flag2 & V3D_RENDER_OVERRIDE) == 0) &&
 		    (v3d->gp_flag & V3D_GP_SHOW_PAPER))

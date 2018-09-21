@@ -341,13 +341,13 @@ BLI_INLINE void cloth_calc_spring_force(ClothModifierData *clmd, ClothSpring *s)
 	Cloth *cloth = clmd->clothObject;
 	ClothSimSettings *parms = clmd->sim_parms;
 	Implicit_Data *data = cloth->implicit;
-	bool new_compress = parms->bending_model == CLOTH_BENDING_ANGULAR;
-	bool resist_compress = (parms->flags & CLOTH_SIMSETTINGS_FLAG_RESIST_SPRING_COMPRESS) && !new_compress;
+	bool using_angular = parms->bending_model == CLOTH_BENDING_ANGULAR;
+	bool resist_compress = (parms->flags & CLOTH_SIMSETTINGS_FLAG_RESIST_SPRING_COMPRESS) && !using_angular;
 
 	s->flags &= ~CLOTH_SPRING_FLAG_NEEDED;
 
 	/* Calculate force of bending springs. */
-	if (s->type & CLOTH_SPRING_TYPE_BENDING) {
+	if ((s->type & CLOTH_SPRING_TYPE_BENDING) && using_angular) {
 #ifdef CLOTH_FORCE_SPRING_BEND
 		float k, scaling;
 
@@ -386,7 +386,7 @@ BLI_INLINE void cloth_calc_spring_force(ClothModifierData *clmd, ClothSpring *s)
 			BPH_mass_spring_force_spring_linear(data, s->ij, s->kl, s->restlen,
 			                                    k_tension, parms->tension_damp,
 			                                    k_compression, parms->compression_damp,
-			                                    resist_compress, new_compress, 0.0f);
+			                                    resist_compress, using_angular, 0.0f);
 		}
 #endif
 	}
@@ -900,8 +900,9 @@ static void cloth_collision_solve_extra(
 	bool do_extra_solve;
 	int i;
 
-	if (!(clmd->coll_parms->flags & CLOTH_COLLSETTINGS_FLAG_ENABLED))
+	if (!(clmd->coll_parms->flags & (CLOTH_COLLSETTINGS_FLAG_ENABLED | CLOTH_COLLSETTINGS_FLAG_SELF)))
 		return;
+
 	if (!clmd->clothObject->bvhtree)
 		return;
 
@@ -939,7 +940,7 @@ static void cloth_collision_solve_extra(
 
 			float newv[3];
 
-			if ((clmd->sim_parms->flags & CLOTH_SIMSETTINGS_FLAG_GOAL) && (verts [i].flags & CLOTH_VERT_FLAG_PINNED))
+			if ((clmd->sim_parms->vgroup_mass > 0) && (verts [i].flags & CLOTH_VERT_FLAG_PINNED))
 				continue;
 
 			BPH_mass_spring_set_new_position(id, i, verts[i].tx);
@@ -1035,7 +1036,7 @@ int BPH_cloth_solve(Depsgraph *depsgraph, Object *ob, float frame, ClothModifier
 		clmd->solver_result = (ClothSolverResult *)MEM_callocN(sizeof(ClothSolverResult), "cloth solver result");
 	cloth_clear_result(clmd);
 
-	if (clmd->sim_parms->flags & CLOTH_SIMSETTINGS_FLAG_GOAL) { /* do goal stuff */
+	if (clmd->sim_parms->vgroup_mass > 0) { /* Do goal stuff. */
 		for (i = 0; i < mvert_num; i++) {
 			// update velocities with constrained velocities from pinned verts
 			if (verts[i].flags & CLOTH_VERT_FLAG_PINNED) {
@@ -1075,17 +1076,6 @@ int BPH_cloth_solve(Depsgraph *depsgraph, Object *ob, float frame, ClothModifier
 		/* initialize forces to zero */
 		BPH_mass_spring_clear_forces(id);
 
-		// damping velocity for artistic reasons
-		// this is a bad way to do it, should be removed imo - lukas_t
-		if (clmd->sim_parms->vel_damping != 1.0f) {
-			for (i = 0; i < mvert_num; i++) {
-				float v[3];
-				BPH_mass_spring_get_motion_state(id, i, NULL, v);
-				mul_v3_fl(v, clmd->sim_parms->vel_damping);
-				BPH_mass_spring_set_velocity(id, i, v);
-			}
-		}
-
 		// calculate forces
 		cloth_calc_force(scene, clmd, frame, effectors, step);
 
@@ -1107,7 +1097,7 @@ int BPH_cloth_solve(Depsgraph *depsgraph, Object *ob, float frame, ClothModifier
 
 		/* move pinned verts to correct position */
 		for (i = 0; i < mvert_num; i++) {
-			if (clmd->sim_parms->flags & CLOTH_SIMSETTINGS_FLAG_GOAL) {
+			if (clmd->sim_parms->vgroup_mass > 0) {
 				if (verts[i].flags & CLOTH_VERT_FLAG_PINNED) {
 					float x[3];
 					/* divide by time_scale to prevent pinned vertices' delta locations from being multiplied */

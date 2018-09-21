@@ -49,13 +49,7 @@ class VIEW3D_HT_header(Header):
         layout.template_header_3D_mode()
 
         # Contains buttons like Mode, Pivot, Layer, Mesh Select Mode...
-        shading_type = view.shading.type
-        shading_item = bpy.types.View3DShading.bl_rna.properties["type"].enum_items[shading_type]
-
         if obj:
-            # Set above:
-            # object_mode = obj.mode
-
             # Particle edit
             if object_mode == 'PARTICLE_EDIT':
                 row = layout.row()
@@ -88,6 +82,10 @@ class VIEW3D_HT_header(Header):
                     text="Shapes"
                 )
 
+            if gpd.use_stroke_edit_mode:
+                row = layout.row(align=True)
+                row.prop(tool_settings, "gpencil_selectmode", text="", expand=True)
+
             if gpd.use_stroke_edit_mode or gpd.is_stroke_sculpt_mode or gpd.is_stroke_weight_mode:
                 row = layout.row(align=True)
                 row.prop(gpd, "use_multiedit", text="", icon='FORCE_HARMONIC')
@@ -100,10 +98,6 @@ class VIEW3D_HT_header(Header):
                 )
 
             if gpd.use_stroke_edit_mode:
-                row = layout.row(align=True)
-                row.operator("gpencil.copy", text="", icon='COPYDOWN')
-                row.operator("gpencil.paste", text="", icon='PASTEDOWN')
-
                 row = layout.row(align=True)
                 row.prop(tool_settings.gpencil_sculpt, "use_select_mask", text="")
 
@@ -220,6 +214,32 @@ class VIEW3D_HT_header(Header):
                 panel="VIEW3D_PT_pivot_point",
                 icon=act_pivot_point.icon,
                 text="",
+            )
+        # grease pencil
+        if object_mode == 'GPENCIL_PAINT':
+            origin = tool_settings.gpencil_stroke_placement_view3d
+            gp_origin = \
+                tool_settings.bl_rna.properties['gpencil_stroke_placement_view3d'].enum_items[origin]
+
+            or_icon = getattr(gp_origin, "icon", "BLANK1")
+            or_name = getattr(gp_origin, "name", "Stroke Placement")
+            layout.popover(
+                panel="VIEW3D_PT_gpencil_origin",
+                text=or_name,
+                icon=or_icon,
+            )
+
+        if object_mode in ('GPENCIL_PAINT', 'GPENCIL_SCULPT'):
+            lock = tool_settings.gpencil_sculpt.lockaxis
+            gp_lock = \
+                tool_settings.gpencil_sculpt.bl_rna.properties['lockaxis'].enum_items[lock]
+
+            lk_icon = getattr(gp_lock, "icon", "BLANK1")
+            lk_name = getattr(gp_lock, "name", "None")
+            layout.popover(
+                panel="VIEW3D_PT_gpencil_lock",
+                text=lk_name,
+                icon=lk_icon,
             )
 
         layout.separator_spacer()
@@ -1091,7 +1111,7 @@ class VIEW3D_MT_select_edit_surface(Menu):
 
 
 class VIEW3D_MT_select_edit_text(Menu):
-    # intentional name mis-match
+    # intentional name mismatch
     # select menu for 3d-text doesn't make sense
     bl_label = "Edit"
 
@@ -1680,7 +1700,6 @@ class VIEW3D_MT_object_specials(Menu):
     def draw(self, context):
         layout = self.layout
 
-        scene = context.scene
         obj = context.object
 
         layout.operator("view3d.copybuffer", text="Copy Objects", icon='COPYDOWN')
@@ -2682,7 +2701,6 @@ class VIEW3D_MT_edit_mesh(Menu):
 
     def draw(self, context):
         layout = self.layout
-        tool_settings = context.tool_settings
 
         with_bullet = bpy.app.build_options.bullet
 
@@ -3016,8 +3034,6 @@ class VIEW3D_MT_edit_mesh_faces(Menu):
     def draw(self, context):
         layout = self.layout
 
-        with_freestyle = bpy.app.build_options.freestyle
-
         layout.operator_context = 'INVOKE_REGION_WIN'
 
         layout.operator("view3d.edit_mesh_extrude_move_normal", text="Extrude Faces"),
@@ -3194,13 +3210,6 @@ class VIEW3D_MT_edit_gpencil_delete(Menu):
         layout.separator()
 
         layout.operator("gpencil.active_frames_delete_all")
-
-        layout.separator()
-
-        layout.operator("gpencil.frame_clean_fill", text="Clean Boundary Strokes").mode = 'ACTIVE'
-        layout.operator("gpencil.frame_clean_fill", text="Clean Boundary Strokes all Frames").mode = 'ALL'
-
-
 # Edit Curve
 # draw_curve is used by VIEW3D_MT_edit_curve and VIEW3D_MT_edit_surface
 
@@ -3633,8 +3642,6 @@ class VIEW3D_MT_edit_gpencil(Menu):
     bl_label = "Strokes"
 
     def draw(self, context):
-        tool_settings = context.tool_settings
-
         layout = self.layout
 
         layout.menu("VIEW3D_MT_edit_gpencil_transform")
@@ -4090,14 +4097,12 @@ class VIEW3D_PT_shading_options(Panel):
         is_xray = shading.show_xray
         is_shadows = shading.show_shadows
 
-        icon_x = 'CHECKBOX_HLT' if is_xray else 'CHECKBOX_DEHLT'
         row = col.row()
         row.prop(shading, "show_xray", text="")
         sub = row.row()
         sub.active = is_xray
         sub.prop(shading, "xray_alpha", text="X-Ray")
 
-        icon_s = 'CHECKBOX_HLT' if is_shadows else 'CHECKBOX_DEHLT'
         row = col.row()
         row.prop(shading, "show_shadows", text="")
         row.active = not is_xray
@@ -4273,7 +4278,6 @@ class VIEW3D_PT_overlay_object(Panel):
         layout = self.layout
         view = context.space_data
         overlay = view.overlay
-        shading = view.shading
         display_all = overlay.show_overlays
 
         col = layout.column(align=True)
@@ -4381,7 +4385,6 @@ class VIEW3D_PT_overlay_edit_mesh(Panel):
         overlay = view.overlay
         display_all = overlay.show_overlays
         data = context.active_object.data
-        with_freestyle = bpy.app.build_options.freestyle
 
         col = layout.column()
         col.active = display_all
@@ -4746,7 +4749,6 @@ class VIEW3D_PT_snapping(Panel):
         toolsettings = context.tool_settings
         snap_elements = toolsettings.snap_elements
         obj = context.active_object
-        mode = context.mode
         object_mode = 'OBJECT' if obj is None else obj.mode
 
         layout = self.layout
@@ -4798,6 +4800,34 @@ class VIEW3D_PT_transform_orientations(Panel):
             row = layout.row(align=False)
             row.prop(orientation, "name", text="")
             row.operator("transform.delete_orientation", text="", icon='X', emboss=False)
+
+
+class VIEW3D_PT_gpencil_origin(Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'HEADER'
+    bl_label = "Stroke Placement"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.label(text="Stroke Placement")
+
+        row = layout.row()
+        col = row.column()
+        col.prop(context.tool_settings, "gpencil_stroke_placement_view3d", expand=True)
+
+
+class VIEW3D_PT_gpencil_lock(Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'HEADER'
+    bl_label = "Lock Axis"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.label(text="Drawing Plane Lock")
+
+        row = layout.row()
+        col = row.column()
+        col.prop(context.tool_settings.gpencil_sculpt, "lockaxis", expand=True)
 
 
 class VIEW3D_PT_overlay_gpencil_options(Panel):
@@ -5230,6 +5260,8 @@ classes = (
     VIEW3D_PT_overlay_sculpt,
     VIEW3D_PT_pivot_point,
     VIEW3D_PT_snapping,
+    VIEW3D_PT_gpencil_origin,
+    VIEW3D_PT_gpencil_lock,
     VIEW3D_PT_transform_orientations,
     VIEW3D_PT_overlay_gpencil_options,
     VIEW3D_PT_context_properties,

@@ -199,7 +199,7 @@ endfunction()
 # Support per-target CMake flags
 # Read from: CMAKE_C_FLAGS_**** (made upper case) when set.
 #
-# 'name' should alway match the target name,
+# 'name' should always match the target name,
 # use this macro before add_library or add_executable.
 #
 # Optionally takes an arg passed to set(), eg PARENT_SCOPE.
@@ -448,7 +448,7 @@ function(setup_liblinks
 	if(WITH_IMAGE_OPENEXR)
 		target_link_libraries(${target} ${OPENEXR_LIBRARIES})
 	endif()
-	if(WITH_IMAGE_OPENJPEG AND WITH_SYSTEM_OPENJPEG)
+	if(WITH_IMAGE_OPENJPEG)
 		target_link_libraries(${target} ${OPENJPEG_LIBRARIES})
 	endif()
 	if(WITH_CODEC_FFMPEG)
@@ -509,7 +509,7 @@ function(setup_liblinks
 		target_link_libraries(${target} ${GFLAGS_LIBRARIES})
 	endif()
 
-	# We put CLEW and CUEW here because OPENSUBDIV_LIBRARIES dpeends on them..
+	# We put CLEW and CUEW here because OPENSUBDIV_LIBRARIES depends on them..
 	if(WITH_CYCLES OR WITH_COMPOSITOR OR WITH_OPENSUBDIV)
 		target_link_libraries(${target} "extern_clew")
 		if(WITH_CUDA_DYNLOAD)
@@ -686,10 +686,6 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		bf_intern_guardedalloc
 		bf_intern_ctr
 		bf_intern_utfconv
-		ge_blen_routines
-		ge_converter
-		ge_phys_dummy
-		ge_phys_bullet
 		bf_intern_smoke
 		bf_intern_moto
 		bf_intern_opencolorio
@@ -700,16 +696,7 @@ function(SETUP_BLENDER_SORTED_LIBS)
 
 		extern_lzma
 		extern_curve_fit_nd
-		ge_logic_ketsji
 		extern_recastnavigation
-		ge_logic
-		ge_rasterizer
-		ge_oglrasterizer
-		ge_logic_expressions
-		ge_scenegraph
-		ge_logic_network
-		ge_logic_ngnetwork
-		ge_logic_loopbacknetwork
 		bf_intern_moto
 		extern_openjpeg
 		extern_rangetree
@@ -803,7 +790,8 @@ function(SETUP_BLENDER_SORTED_LIBS)
 	endif()
 
 	if(WITH_BULLET AND NOT WITH_SYSTEM_BULLET)
-		list_insert_after(BLENDER_SORTED_LIBS "ge_logic_ngnetwork" "extern_bullet")
+		list_insert_after(BLENDER_SORTED_LIBS "ge_logic_network" "extern_bullet")
+		list_insert_after(BLENDER_SORTED_LIBS "extern_openjpeg" "extern_bullet")
 	endif()
 
 	if(WITH_GAMEENGINE_DECKLINK)

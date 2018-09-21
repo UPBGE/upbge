@@ -491,8 +491,8 @@ static void PE_free_shape_tree(PEData *data)
 static void PE_create_random_generator(PEData *data)
 {
 	uint rng_seed = (uint)(PIL_check_seconds_timer_i() & UINT_MAX);
-	rng_seed ^= GET_UINT_FROM_POINTER(data->ob);
-	rng_seed ^= GET_UINT_FROM_POINTER(data->edit);
+	rng_seed ^= POINTER_AS_UINT(data->ob);
+	rng_seed ^= POINTER_AS_UINT(data->edit);
 	data->rng = BLI_rng_new(rng_seed);
 }
 
@@ -3751,7 +3751,7 @@ static void brush_add_count_iter(
 	mco[1] = data->mval[1] + dmy;
 
 	float co1[3], co2[3];
-	ED_view3d_win_to_segment(depsgraph, data->vc.ar, data->vc.v3d, mco, co1, co2, true);
+	ED_view3d_win_to_segment_clipped(depsgraph, data->vc.ar, data->vc.v3d, mco, co1, co2, true);
 
 	mul_m4_v3(iter_data->imat, co1);
 	mul_m4_v3(iter_data->imat, co2);

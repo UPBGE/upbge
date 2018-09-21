@@ -1524,7 +1524,7 @@ void BKE_object_copy_data(Main *bmain, Object *ob_dst, const Object *ob_src, con
 	BKE_object_facemap_copy_list(&ob_dst->fmaps, &ob_src->fmaps);
 	BKE_constraints_copy_ex(&ob_dst->constraints, &ob_src->constraints, flag_subdata, true);
 
-	ob_dst->mode = OB_MODE_OBJECT;
+	ob_dst->mode = ob_dst->type != OB_GPENCIL ? OB_MODE_OBJECT : ob_dst->mode;
 	ob_dst->sculpt = NULL;
 
 	if (ob_src->pd) {
@@ -2239,7 +2239,7 @@ static void give_parvert(Object *par, int nr, float vec[3])
 				if (use_special_ss_case) {
 					/* Special case if the last modifier is SS and no constructive modifier are in front of it. */
 					CCGDerivedMesh *ccgdm = (CCGDerivedMesh *)dm;
-					CCGVert *ccg_vert = ccgSubSurf_getVert(ccgdm->ss, SET_INT_IN_POINTER(nr));
+					CCGVert *ccg_vert = ccgSubSurf_getVert(ccgdm->ss, POINTER_FROM_INT(nr));
 					/* In case we deleted some verts, nr may refer to inexistent one now, see T42557. */
 					if (ccg_vert) {
 						float *co = ccgSubSurf_getVertData(ccgdm->ss, ccg_vert);
@@ -3222,7 +3222,7 @@ Mesh *BKE_object_get_original_mesh(Object *object)
 static int pc_cmp(const void *a, const void *b)
 {
 	const LinkData *ad = a, *bd = b;
-	if (GET_INT_FROM_POINTER(ad->data) > GET_INT_FROM_POINTER(bd->data))
+	if (POINTER_AS_INT(ad->data) > POINTER_AS_INT(bd->data))
 		return 1;
 	else return 0;
 }
@@ -3235,14 +3235,14 @@ int BKE_object_insert_ptcache(Object *ob)
 	BLI_listbase_sort(&ob->pc_ids, pc_cmp);
 
 	for (link = ob->pc_ids.first, i = 0; link; link = link->next, i++) {
-		int index = GET_INT_FROM_POINTER(link->data);
+		int index = POINTER_AS_INT(link->data);
 
 		if (i < index)
 			break;
 	}
 
 	link = MEM_callocN(sizeof(LinkData), "PCLink");
-	link->data = SET_INT_IN_POINTER(i);
+	link->data = POINTER_FROM_INT(i);
 	BLI_addtail(&ob->pc_ids, link);
 
 	return i;
@@ -3257,7 +3257,7 @@ static int pc_findindex(ListBase *listbase, int index)
 
 	link = listbase->first;
 	while (link) {
-		if (GET_INT_FROM_POINTER(link->data) == index)
+		if (POINTER_AS_INT(link->data) == index)
 			return number;
 
 		number++;

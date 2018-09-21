@@ -433,13 +433,22 @@ void EEVEE_lights_cache_shcaster_add(
 }
 
 void EEVEE_lights_cache_shcaster_material_add(
-	EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_PassList *psl, struct GPUMaterial *gpumat,
+	EEVEE_ViewLayerData *sldata, EEVEE_PassList *psl, struct GPUMaterial *gpumat,
 	struct GPUBatch *geom, struct Object *ob, float *alpha_threshold)
 {
 	/* TODO / PERF : reuse the same shading group for objects with the same material */
 	DRWShadingGroup *grp = DRW_shgroup_material_create(gpumat, psl->shadow_pass);
 
 	if (grp == NULL) return;
+
+	/* Grrr needed for correctness but not 99% of the time not needed.
+	 * TODO detect when needed? */
+	DRW_shgroup_uniform_block(grp, "probe_block", sldata->probe_ubo);
+	DRW_shgroup_uniform_block(grp, "grid_block", sldata->grid_ubo);
+	DRW_shgroup_uniform_block(grp, "planar_block", sldata->planar_ubo);
+	DRW_shgroup_uniform_block(grp, "light_block", sldata->light_ubo);
+	DRW_shgroup_uniform_block(grp, "shadow_block", sldata->shadow_ubo);
+	DRW_shgroup_uniform_block(grp, "common_block", sldata->common_ubo);
 
 	if (alpha_threshold != NULL)
 		DRW_shgroup_uniform_float(grp, "alphaThreshold", alpha_threshold, 1);
@@ -640,7 +649,7 @@ static void eevee_light_setup(Object *ob, EEVEE_Light *evli)
 		        80.0f; /* XXX : Empirical, Fit cycles power */
 		if (ELEM(la->area_shape, LA_AREA_DISK, LA_AREA_ELLIPSE)) {
 			evli->lamptype = LAMPTYPE_AREA_ELLIPSE;
-			/* Scale power to account for the lower area of the ellipse compared to the surrouding rectangle. */
+			/* Scale power to account for the lower area of the ellipse compared to the surrounding rectangle. */
 			power *= 4.0f / M_PI;
 		}
 	}
@@ -1103,7 +1112,7 @@ void EEVEE_draw_shadows(EEVEE_ViewLayerData *sldata, EEVEE_PassList *psl)
 		/* Render shadow cube */
 		/* Render 6 faces separately: seems to be faster for the general case.
 		 * The only time it's more beneficial is when the CPU culling overhead
-		 * outweight the instancing overhead. which is rarelly the case. */
+		 * outweigh the instancing overhead. which is rarely the case. */
 		for (int j = 0; j < 6; j++) {
 			/* TODO optimize */
 			float tmp[4][4];
@@ -1210,7 +1219,7 @@ void EEVEE_draw_shadows(EEVEE_ViewLayerData *sldata, EEVEE_PassList *psl)
 		/* Render shadow cascades */
 		/* Render cascade separately: seems to be faster for the general case.
 		 * The only time it's more beneficial is when the CPU culling overhead
-		 * outweight the instancing overhead. which is rarelly the case. */
+		 * outweigh the instancing overhead. which is rarely the case. */
 		for (int j = 0; j < la->cascade_count; j++) {
 			copy_m4_m4(winmat, evscd->projmat[j]);
 			copy_m4_m4(persmat, evscd->viewprojmat[j]);

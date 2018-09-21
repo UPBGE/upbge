@@ -57,6 +57,7 @@
 #include "BKE_multires.h"
 #include "BKE_paint.h"
 #include "BKE_scene.h"
+#include "BKE_subdiv_ccg.h"
 #include "BKE_subsurf.h"
 #include "BKE_editmesh.h"
 
@@ -308,7 +309,10 @@ Mesh *get_multires_mesh(
 	        .depsgraph = depsgraph,
 	        .object = ob_eval,
 	        .flag = MOD_APPLY_USECACHE | MOD_APPLY_IGNORE_SIMPLIFY};
-	Mesh *result = modifier_applyModifier(&mmd->modifier, &modifier_ctx, deformed_mesh);
+
+	const ModifierTypeInfo *mti = modifierType_getInfo(mmd->modifier.type);
+	Mesh *result = mti->applyModifier(&mmd->modifier, &modifier_ctx, deformed_mesh);
+
 	if (result == deformed_mesh) {
 		result = BKE_mesh_copy_for_eval(deformed_mesh);
 	}
@@ -389,21 +393,46 @@ static void multires_dm_mark_as_modified(DerivedMesh *dm, MultiresModifiedFlags 
 	ccgdm->multires.modified_flags |= flags;
 }
 
+static void multires_ccg_mark_as_modified(SubdivCCG *subdiv_ccg,
+                                          MultiresModifiedFlags flags)
+{
+	if (flags & MULTIRES_COORDS_MODIFIED) {
+		subdiv_ccg->dirty.coords = true;
+	}
+	if (flags & MULTIRES_HIDDEN_MODIFIED) {
+		subdiv_ccg->dirty.hidden = true;
+	}
+}
+
 void multires_mark_as_modified(Object *ob, MultiresModifiedFlags flags)
 {
-	if (ob && ob->derivedFinal)
-		multires_dm_mark_as_modified(ob->derivedFinal, flags);
+	if (ob == NULL) {
+		return;
+	}
+	Mesh *mesh = ob->data;
+	SubdivCCG *subdiv_ccg = mesh->runtime.subsurf_ccg;
+	if (subdiv_ccg == NULL) {
+		return;
+	}
+	multires_ccg_mark_as_modified(subdiv_ccg, flags);
 }
 
 void multires_force_update(Object *ob)
 {
-	if (ob) {
-		BKE_object_free_derived_caches(ob);
-
-		if (ob->sculpt && ob->sculpt->pbvh) {
-			BKE_pbvh_free(ob->sculpt->pbvh);
-			ob->sculpt->pbvh = NULL;
+	if (ob == NULL) {
+		return;
+	}
+	if (ob->sculpt && ob->sculpt->pbvh) {
+		PBVH *pbvh = ob->sculpt->pbvh;
+		if (BKE_pbvh_type(pbvh) == PBVH_GRIDS) {
+			multiresModifier_reshapeFromCCG(ob, ob->sculpt->subdiv_ccg);
 		}
+		else {
+			/* NOTE: Disabled for until OpenSubdiv is enabled by default. */
+			// BLI_assert(!"multires_force_update is used on non-grids PBVH");
+		}
+		BKE_pbvh_free(pbvh);
+		ob->sculpt->pbvh = NULL;
 	}
 }
 
@@ -1312,20 +1341,28 @@ void multires_modifier_update_hidden(DerivedMesh *dm)
 
 void multires_stitch_grids(Object *ob)
 {
-	/* utility for smooth brush */
-	if (ob && ob->derivedFinal) {
-		CCGDerivedMesh *ccgdm = (CCGDerivedMesh *)ob->derivedFinal;
-		CCGFace **faces;
-		int totface;
-
-		if (ccgdm->pbvh) {
-			BKE_pbvh_get_grid_updates(ccgdm->pbvh, false, (void ***)&faces, &totface);
-
-			if (totface) {
-				ccgSubSurf_stitchFaces(ccgdm->ss, 0, faces, totface);
-				MEM_freeN(faces);
-			}
-		}
+	if (ob == NULL) {
+		return;
+	}
+	SculptSession *sculpt_session = ob->sculpt;
+	if (sculpt_session == NULL) {
+		return;
+	}
+	PBVH *pbvh = sculpt_session->pbvh;
+	SubdivCCG *subdiv_ccg = sculpt_session->subdiv_ccg;
+	if (pbvh == NULL || subdiv_ccg == NULL) {
+		return;
+	}
+	BLI_assert(BKE_pbvh_type(pbvh) == PBVH_GRIDS);
+	/* NOTE: Currently CCG does not keep track of faces, making it impossible
+	 * to use BKE_pbvh_get_grid_updates().
+	 */
+	CCGFace **faces;
+	int num_faces;
+	BKE_pbvh_get_grid_updates(pbvh, false, (void ***)&faces, &num_faces);
+	if (num_faces) {
+		BKE_subdiv_ccg_average_stitch_faces(subdiv_ccg, faces, num_faces);
+		MEM_freeN(faces);
 	}
 }
 

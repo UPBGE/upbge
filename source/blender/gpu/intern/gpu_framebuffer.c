@@ -198,7 +198,7 @@ GPUFrameBuffer *GPU_framebuffer_create(void)
 {
 	/* We generate the FB object later at first use in order to
 	 * create the framebuffer in the right opengl context. */
-	return MEM_callocN(sizeof(GPUFrameBuffer), "GPUFrameBuffer");;
+	return MEM_callocN(sizeof(GPUFrameBuffer), "GPUFrameBuffer");
 }
 
 static void gpu_framebuffer_init(GPUFrameBuffer *fb)
@@ -487,7 +487,7 @@ void GPU_framebuffer_viewport_set(GPUFrameBuffer *fb, int x, int y, int w, int h
 
 void GPU_framebuffer_clear(
         GPUFrameBuffer *fb, GPUFrameBufferBits buffers,
-        const float clear_col[4], float clear_depth, unsigned int clear_stencil)
+        const float clear_col[4], float clear_depth, uint clear_stencil)
 {
 	CHECK_FRAMEBUFFER_IS_BOUND(fb);
 
@@ -627,6 +627,9 @@ void GPU_framebuffer_recursive_downsample(
 	 * not trigger any error in GPU_texture_bind().  */
 	GPUFrameBuffer *prev_fb = GPU_framebuffer_active_get();
 	gpu_framebuffer_current_set(NULL);
+
+	int levels = floor(log2(max_ii(fb->width, fb->height)));
+	max_lvl = min_ii(max_lvl, levels);
 
 	int i;
 	int current_dim[2] = {fb->width, fb->height};

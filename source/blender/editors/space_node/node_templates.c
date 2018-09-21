@@ -218,20 +218,15 @@ static void node_socket_add_replace(const bContext *C, bNodeTree *ntree, bNode *
 	else if (!node_from) {
 		node_from = nodeAddStaticNode(C, ntree, type);
 		if (node_prev != NULL) {
-			/* If we're replacing existing node, use it's location. */
+			/* If we're replacing existing node, use its location. */
 			node_from->locx = node_prev->locx;
 			node_from->locy = node_prev->locy;
 			node_from->offsetx = node_prev->offsetx;
 			node_from->offsety = node_prev->offsety;
 		}
 		else {
-			/* Avoid exact intersection of nodes.
-			 * TODO(sergey): Still not ideal, but better than nothing.
-			 */
-			int index = BLI_findindex(&node_to->inputs, sock_to);
-			BLI_assert(index != -1);
-			node_from->locx = node_to->locx - (node_from->typeinfo->width + 50);
-			node_from->locy = node_to->locy - (node_from->typeinfo->height * index);
+			sock_from_tmp = BLI_findlink(&node_from->outputs, item->socket_index);
+			nodePositionRelative(node_from, node_to, sock_from_tmp, sock_to);
 		}
 
 		node_link_item_apply(bmain, node_from, item);
@@ -375,7 +370,7 @@ static void ui_node_link(bContext *C, void *arg_p, void *event_p)
 	bNode *node_to = arg->node;
 	bNodeSocket *sock_to = arg->sock;
 	bNodeTree *ntree = arg->ntree;
-	int event = GET_INT_FROM_POINTER(event_p);
+	int event = POINTER_AS_INT(event_p);
 
 	if (event == UI_NODE_LINK_DISCONNECT)
 		node_socket_disconnect(bmain, ntree, node_to, sock_to);
@@ -573,11 +568,11 @@ static void ui_template_node_link_menu(bContext *C, uiLayout *layout, void *but_
 
 		but = uiDefBut(block, UI_BTYPE_BUT, 0, IFACE_("Remove"), 0, 0, UI_UNIT_X * 4, UI_UNIT_Y,
 		               NULL, 0.0, 0.0, 0.0, 0.0, TIP_("Remove nodes connected to the input"));
-		UI_but_funcN_set(but, ui_node_link, MEM_dupallocN(arg), SET_INT_IN_POINTER(UI_NODE_LINK_REMOVE));
+		UI_but_funcN_set(but, ui_node_link, MEM_dupallocN(arg), POINTER_FROM_INT(UI_NODE_LINK_REMOVE));
 
 		but = uiDefBut(block, UI_BTYPE_BUT, 0, IFACE_("Disconnect"), 0, 0, UI_UNIT_X * 4, UI_UNIT_Y,
 		               NULL, 0.0, 0.0, 0.0, 0.0, TIP_("Disconnect nodes connected to the input"));
-		UI_but_funcN_set(but, ui_node_link, MEM_dupallocN(arg), SET_INT_IN_POINTER(UI_NODE_LINK_DISCONNECT));
+		UI_but_funcN_set(but, ui_node_link, MEM_dupallocN(arg), POINTER_FROM_INT(UI_NODE_LINK_DISCONNECT));
 	}
 
 	ui_node_menu_column(arg, NODE_CLASS_GROUP, N_("Group"));

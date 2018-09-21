@@ -469,7 +469,7 @@ static void eevee_lightbake_create_resources(EEVEE_LightBake *lbake)
 	 * by the DRW mutex. */
 	lbake->lcache = eevee->light_cache;
 
-	/* TODO validate irradiance and reflection cache independantly... */
+	/* TODO validate irradiance and reflection cache independently... */
 	if (lbake->lcache != NULL &&
 	    !EEVEE_lightcache_validate(lbake->lcache, lbake->cube_len, lbake->ref_cube_res, lbake->grid_len, lbake->irr_size))
 	{
@@ -636,6 +636,7 @@ static void eevee_lightbake_delete_resources(EEVEE_LightBake *lbake)
 /* Cache as in draw cache not light cache. */
 static void eevee_lightbake_cache_create(EEVEE_Data *vedata, EEVEE_LightBake *lbake)
 {
+	EEVEE_TextureList *txl = vedata->txl;
 	EEVEE_StorageList *stl = vedata->stl;
 	EEVEE_FramebufferList *fbl = vedata->fbl;
 	EEVEE_ViewLayerData *sldata = EEVEE_view_layer_data_ensure();
@@ -659,6 +660,14 @@ static void eevee_lightbake_cache_create(EEVEE_Data *vedata, EEVEE_LightBake *lb
 	if (sldata->clip_ubo == NULL) {
 		sldata->clip_ubo = DRW_uniformbuffer_create(sizeof(sldata->clip_data), &sldata->clip_data);
 	}
+
+	/* HACK: set txl->color but unset it before Draw Manager frees it. */
+	txl->color = lbake->rt_color;
+	int viewport_size[2] = {
+		GPU_texture_width(txl->color),
+		GPU_texture_height(txl->color)
+	};
+	DRW_render_viewport_size_set(viewport_size);
 
 	EEVEE_effects_init(sldata, vedata, NULL);
 	EEVEE_materials_init(sldata, stl, fbl);
@@ -685,6 +694,8 @@ static void eevee_lightbake_cache_create(EEVEE_Data *vedata, EEVEE_LightBake *lb
 	EEVEE_lights_cache_finish(sldata);
 	EEVEE_lightprobes_cache_finish(sldata, vedata);
 
+	txl->color = NULL;
+
 	DRW_render_instance_buffer_finish();
 	DRW_hair_update();
 }
@@ -709,7 +720,7 @@ static void eevee_lightbake_render_world_sample(void *ved, void *user_data)
 	Scene *scene_eval = DEG_get_evaluated_scene(lbake->depsgraph);
 	LightCache *lcache = scene_eval->eevee.light_cache;
 
-	/* TODO do this once for the whole bake when we have independant DRWManagers. */
+	/* TODO do this once for the whole bake when we have independent DRWManagers. */
 	eevee_lightbake_cache_create(vedata, lbake);
 
 	EEVEE_lightbake_render_world(sldata, vedata, lbake->rt_fb);
@@ -815,7 +826,7 @@ static void eevee_lightbake_render_grid_sample(void *ved, void *user_data)
 	/* Use the previous bounce for rendering this bounce. */
 	SWAP(GPUTexture *, lbake->grid_prev, lcache->grid_tx.tex);
 
-	/* TODO do this once for the whole bake when we have independant DRWManagers.
+	/* TODO do this once for the whole bake when we have independent DRWManagers.
 	 * Warning: Some of the things above require this. */
 	eevee_lightbake_cache_create(vedata, lbake);
 
@@ -881,7 +892,7 @@ static void eevee_lightbake_render_probe_sample(void *ved, void *user_data)
 	EEVEE_LightProbe *eprobe = lbake->cube;
 	LightProbe *prb = *lbake->probe;
 
-	/* TODO do this once for the whole bake when we have independant DRWManagers. */
+	/* TODO do this once for the whole bake when we have independent DRWManagers. */
 	eevee_lightbake_cache_create(vedata, lbake);
 
 	/* Disable specular lighting when rendering probes to avoid feedback loops (looks bad). */

@@ -71,6 +71,8 @@ typedef enum eGPDspoint_Flag {
 
 	/* stroke point is tagged (for some editing operation) */
 	GP_SPOINT_TAG       = (1 << 1),
+	/* stroke point is temp tagged (for some editing operation) */
+	GP_SPOINT_TEMP_TAG  = (1 << 2),
 } eGPSPoint_Flag;
 
 /* ***************************************** */
@@ -473,6 +475,8 @@ typedef enum eGP_DepthOrdering {
 	((gpd) && (gpd->flag & \
 	           (GP_DATA_STROKE_PAINTMODE | GP_DATA_STROKE_EDITMODE | \
 	            GP_DATA_STROKE_SCULPTMODE | GP_DATA_STROKE_WEIGHTMODE)))
+#define GPENCIL_EDIT_MODE(gpd) \
+	((gpd) && (gpd->flag & GP_DATA_STROKE_EDITMODE))
 #define GPENCIL_ANY_EDIT_MODE(gpd) \
 	((gpd) && (gpd->flag & (GP_DATA_STROKE_EDITMODE | GP_DATA_STROKE_SCULPTMODE | GP_DATA_STROKE_WEIGHTMODE)))
 #define GPENCIL_PAINT_MODE(gpd) \

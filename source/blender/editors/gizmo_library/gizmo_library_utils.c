@@ -24,7 +24,7 @@
  */
 
 /** \file gizmo_library_utils.c
- *  \ingroup wm
+ *  \ingroup edgizmolib
  *
  * \name Gizmo Library Utilities
  *
@@ -126,7 +126,7 @@ void gizmo_property_data_update(
 	if (constrained) {
 		if ((data->flag & GIZMO_CUSTOM_RANGE_SET) == 0) {
 			float range[2];
-			if (WM_gizmo_target_property_range_get(gz, gz_prop, range)) {
+			if (WM_gizmo_target_property_float_range_get(gz, gz_prop, range)) {
 				data->range = range[1] - range[0];
 				data->min = range[0];
 			}
@@ -186,27 +186,17 @@ bool gizmo_window_project_2d(
 	/* rotate mouse in relation to the center and relocate it */
 	if (gz->parent_gzgroup->type->flag & WM_GIZMOGROUPTYPE_3D) {
 		/* For 3d views, transform 2D mouse pos onto plane. */
-		View3D *v3d = CTX_wm_view3d(C);
 		ARegion *ar = CTX_wm_region(C);
 
-		float plane[4];
-
+		float plane[4], co[3];
 		plane_from_point_normal_v3(plane, mat[3], mat[2]);
-
-		float ray_origin[3], ray_direction[3];
-
-		if (ED_view3d_win_to_ray(CTX_data_depsgraph(C), ar, v3d, mval, ray_origin, ray_direction, false)) {
-			float lambda;
-			if (isect_ray_plane_v3(ray_origin, ray_direction, plane, &lambda, true)) {
-				float co[3];
-				madd_v3_v3v3fl(co, ray_origin, ray_direction, lambda);
-				float imat[4][4];
-				invert_m4_m4(imat, mat);
-				mul_m4_v3(imat, co);
-				r_co[0] = co[(axis + 1) % 3];
-				r_co[1] = co[(axis + 2) % 3];
-				return true;
-			}
+		if (ED_view3d_win_to_3d_on_plane(ar, plane, mval, true, co)) {
+			float imat[4][4];
+			invert_m4_m4(imat, mat);
+			mul_m4_v3(imat, co);
+			r_co[0] = co[(axis + 1) % 3];
+			r_co[1] = co[(axis + 2) % 3];
+			return true;
 		}
 		return false;
 	}

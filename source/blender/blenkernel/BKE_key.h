@@ -80,23 +80,13 @@ struct KeyBlock *BKE_keyblock_find_name(struct Key *key, const char name[]);
 void             BKE_keyblock_copy_settings(struct KeyBlock *kb_dst, const struct KeyBlock *kb_src);
 char            *BKE_keyblock_curval_rnapath_get(struct Key *key, struct KeyBlock *kb);
 
-// needed for the GE
-typedef struct WeightsArrayCache {
-	int num_defgroup_weights;
-	float **defgroup_weights;
-} WeightsArrayCache;
-
-float **BKE_keyblock_get_per_block_weights(struct Object *ob, struct Key *key, struct WeightsArrayCache *cache);
-void BKE_keyblock_free_per_block_weights(struct Key *key, float **per_keyblock_weights, struct WeightsArrayCache *cache);
-void BKE_key_evaluate_relative(const int start, int end, const int tot, char *basispoin, struct Key *key, struct KeyBlock *actkb,
-                               float **per_keyblock_weights, const int mode);
-
 /* conversion functions */
 /* Note: 'update_from' versions do not (re)allocate mem in kb, while 'convert_from' do. */
 void    BKE_keyblock_update_from_lattice(struct Lattice *lt, struct KeyBlock *kb);
 void    BKE_keyblock_convert_from_lattice(struct Lattice *lt, struct KeyBlock *kb);
 void    BKE_keyblock_convert_to_lattice(struct KeyBlock *kb, struct Lattice *lt);
 
+int     BKE_keyblock_curve_element_count(struct ListBase *nurb);
 void    BKE_keyblock_update_from_curve(struct Curve *cu, struct KeyBlock *kb, struct ListBase *nurb);
 void    BKE_keyblock_convert_from_curve(struct Curve *cu, struct KeyBlock *kb, struct ListBase *nurb);
 void    BKE_keyblock_convert_to_curve(struct KeyBlock *kb, struct Curve  *cu, struct ListBase *nurb);

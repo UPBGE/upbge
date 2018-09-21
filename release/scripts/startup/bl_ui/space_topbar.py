@@ -19,6 +19,9 @@
 # <pep8 compliant>
 import bpy
 from bpy.types import Header, Menu, Panel
+from .properties_grease_pencil_common import (
+    GPENCIL_UL_layer,
+)
 
 
 class TOPBAR_HT_upper_bar(Header):
@@ -47,7 +50,7 @@ class TOPBAR_HT_upper_bar(Header):
         if not screen.show_fullscreen:
             layout.template_ID_tabs(
                 window, "workspace",
-                new="workspace.add_menu",
+                new="workspace.add",
                 menu="TOPBAR_MT_workspace_menu",
             )
         else:
@@ -147,6 +150,15 @@ class TOPBAR_HT_lower_bar(Header):
         # we just want them not to be confused with tool options.
         mode = context.mode
 
+        # grease pencil layer
+        gpl = context.active_gpencil_layer
+        if gpl and gpl.info is not None:
+            txt = gpl.info
+            if len(txt) > 10:
+                txt = txt[:7] + '..' + txt[-2:]
+        else:
+            txt = ""
+
         if mode == 'SCULPT':
             layout.popover_group(space_type='PROPERTIES', region_type='WINDOW', context=".sculpt_mode", category="")
         elif mode == 'PAINT_VERTEX':
@@ -174,15 +186,21 @@ class TOPBAR_HT_lower_bar(Header):
         elif mode == 'OBJECT':
             layout.popover_group(space_type='PROPERTIES', region_type='WINDOW', context=".objectmode", category="")
         elif mode == 'GPENCIL_PAINT':
-            layout.prop(context.tool_settings, "gpencil_stroke_placement_view3d", text='')
-            if context.tool_settings.gpencil_stroke_placement_view3d in ('ORIGIN', 'CURSOR'):
-                layout.prop(context.tool_settings.gpencil_sculpt, "lockaxis", text='')
+            layout.label(text="Layer:")
+            layout.popover(
+                panel="TOPBAR_PT_gpencil_layers",
+                text=txt,
+            )
+
             layout.prop(context.tool_settings, "use_gpencil_draw_onback", text="", icon='ORTHO')
             layout.prop(context.tool_settings, "add_gpencil_weight_data", text="", icon='WPAINT_HLT')
             layout.prop(context.tool_settings, "use_gpencil_additive_drawing", text="", icon='FREEZE')
-
-        elif mode == 'GPENCIL_SCULPT':
-            layout.prop(context.tool_settings.gpencil_sculpt, "lockaxis", text='')
+        elif mode in {'GPENCIL_EDIT', 'GPENCIL_SCULPT', 'GPENCIL_WEIGHT'}:
+            layout.label(text="Layer:")
+            layout.popover(
+                panel="TOPBAR_PT_gpencil_layers",
+                text=txt,
+            )
 
 
 class _draw_left_context_mode:
@@ -262,6 +280,71 @@ class _draw_left_context_mode:
                     layout.prop(brush, "use_puff_volume")
 
 
+class TOPBAR_PT_gpencil_layers(Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'HEADER'
+    bl_label = "Layers"
+
+    @classmethod
+    def poll(cls, context):
+        if context.gpencil_data is None:
+            return False
+
+        ob = context.object
+        if ob is not None and ob.type == 'GPENCIL':
+            return True
+
+        return False
+
+    @staticmethod
+    def draw(self, context):
+        layout = self.layout
+        gpd = context.gpencil_data
+
+        # Grease Pencil data...
+        if (gpd is None) or (not gpd.layers):
+            layout.operator("gpencil.layer_add", text="New Layer")
+        else:
+            self.draw_layers(context, layout, gpd)
+
+    def draw_layers(self, context, layout, gpd):
+        row = layout.row()
+
+        col = row.column()
+        if len(gpd.layers) >= 2:
+            layer_rows = 5
+        else:
+            layer_rows = 2
+        col.template_list("GPENCIL_UL_layer", "", gpd, "layers", gpd.layers, "active_index", rows=layer_rows)
+
+        col = row.column()
+
+        sub = col.column(align=True)
+        sub.operator("gpencil.layer_add", icon='ZOOMIN', text="")
+        sub.operator("gpencil.layer_remove", icon='ZOOMOUT', text="")
+
+        gpl = context.active_gpencil_layer
+        if gpl:
+            sub.menu("GPENCIL_MT_layer_specials", icon='DOWNARROW_HLT', text="")
+
+            if len(gpd.layers) > 1:
+                col.separator()
+
+                sub = col.column(align=True)
+                sub.operator("gpencil.layer_move", icon='TRIA_UP', text="").type = 'UP'
+                sub.operator("gpencil.layer_move", icon='TRIA_DOWN', text="").type = 'DOWN'
+
+                col.separator()
+
+                sub = col.column(align=True)
+                sub.operator("gpencil.layer_isolate", icon='LOCKED', text="").affect_visibility = False
+                sub.operator("gpencil.layer_isolate", icon='HIDE_OFF', text="").affect_visibility = True
+
+        row = layout.row(align=True)
+        if gpl:
+            row.prop(gpl, "opacity", text="Opacity", slider=True)
+
+
 class TOPBAR_MT_editor_menus(Menu):
     bl_idname = "TOPBAR_MT_editor_menus"
     bl_label = ""
@@ -287,7 +370,7 @@ class TOPBAR_MT_file(Menu):
         layout = self.layout
 
         layout.operator_context = 'INVOKE_AREA'
-        layout.operator("wm.read_homefile", text="New", icon='NEW')
+        layout.menu("TOPBAR_MT_file_new", text="New", icon='FILE')
         layout.operator("wm.open_mainfile", text="Open...", icon='FILE_FOLDER')
         layout.menu("TOPBAR_MT_file_open_recent")
         layout.operator("wm.revert_mainfile")
@@ -305,10 +388,27 @@ class TOPBAR_MT_file(Menu):
         layout.operator("wm.save_as_mainfile", text="Save Copy...").copy = True
 
         layout.separator()
-
         layout.operator_context = 'INVOKE_AREA'
-        layout.operator("wm.save_homefile")
-        layout.operator("wm.read_factory_settings")
+
+        if any(bpy.utils.app_template_paths()):
+            app_template = context.user_preferences.app_template
+        else:
+            app_template = None
+
+        if app_template:
+            layout.label(text=bpy.path.display_name(app_template))
+            layout.operator("wm.save_homefile")
+            layout.operator(
+                "wm.read_factory_settings",
+                text="Load Factory Settings",
+            ).app_template = app_template
+        else:
+            layout.operator("wm.save_homefile")
+            layout.operator("wm.read_factory_settings")
+
+        layout.separator()
+
+        layout.operator("wm.app_template_install", text="Install Application Template...")
 
         layout.separator()
 
@@ -332,6 +432,75 @@ class TOPBAR_MT_file(Menu):
         if bpy.data.is_dirty and context.user_preferences.view.use_quit_dialog:
             layout.operator_context = 'INVOKE_SCREEN'  # quit dialog
         layout.operator("wm.quit_blender", text="Quit", icon='QUIT')
+
+
+class TOPBAR_MT_file_new(Menu):
+    bl_label = "New File"
+
+    @staticmethod
+    def app_template_paths():
+        import os
+
+        template_paths = bpy.utils.app_template_paths()
+
+        # expand template paths
+        app_templates = []
+        for path in template_paths:
+            for d in os.listdir(path):
+                if d.startswith(("__", ".")):
+                    continue
+                template = os.path.join(path, d)
+                if os.path.isdir(template):
+                    # template_paths_expand.append(template)
+                    app_templates.append(d)
+
+        return sorted(app_templates)
+
+    def draw_ex(layout, context, *, use_splash=False, use_more=False):
+        layout.operator_context = 'EXEC_DEFAULT'
+
+        # Limit number of templates in splash screen, spill over into more menu.
+        paths = TOPBAR_MT_file_new.app_template_paths()
+        splash_limit = 5
+
+        if use_splash:
+            icon = 'FILE'
+            show_more = len(paths) > (splash_limit - 1)
+            if show_more:
+                paths = paths[:splash_limit - 2]
+        elif use_more:
+            icon = 'FILE'
+            paths = paths[splash_limit - 2:]
+            show_more = False
+        else:
+            icon = 'NONE'
+            show_more = False
+
+        # Draw application templates.
+        if not use_more:
+            props = layout.operator("wm.read_homefile", text="General", icon=icon)
+            props.app_template = ""
+
+        for d in paths:
+            props = layout.operator(
+                "wm.read_homefile",
+                text=bpy.path.display_name(d),
+                icon=icon,
+            )
+            props.app_template = d
+
+        if show_more:
+            layout.menu("TOPBAR_MT_templates_more", text="...")
+
+    def draw(self, context):
+        TOPBAR_MT_file_new.draw_ex(self.layout, context)
+
+
+class TOPBAR_MT_templates_more(Menu):
+    bl_label = "Templates"
+
+    def draw(self, context):
+        bpy.types.TOPBAR_MT_file_new.draw_ex(self.layout, context, use_more=True)
 
 
 class TOPBAR_MT_file_import(Menu):
@@ -532,12 +701,23 @@ class TOPBAR_MT_help(Menu):
             "wm.url_open", text="Blender Website", icon='URL',
         ).url = "https://www.blender.org"
         layout.operator(
-            "wm.url_open", text="Blender Store", icon='URL',
-        ).url = "https://store.blender.org"
-
-        layout.operator(
             "wm.url_open", text="Release Notes", icon='URL',
         ).url = "https://www.blender.org/download/releases/%d-%d/" % bpy.app.version[:2]
+        layout.operator(
+            "wm.url_open", text="Credits", icon='URL',
+        ).url = "https://www.blender.org/about/credits/"
+
+        layout.separator()
+
+        layout.operator(
+            "wm.url_open", text="Blender Store", icon='URL',
+        ).url = "https://store.blender.org"
+        layout.operator(
+            "wm.url_open", text="Development Fund", icon='URL'
+        ).url = "https://www.blender.org/foundation/development-fund/"
+        layout.operator(
+            "wm.url_open", text="Donate", icon='URL',
+        ).url = "https://www.blender.org/foundation/donation-payment/"
 
         layout.separator()
 
@@ -562,7 +742,7 @@ class TOPBAR_MT_file_specials(Menu):
         layout = self.layout
 
         layout.operator_context = 'INVOKE_AREA'
-        layout.operator("wm.read_homefile", text="New", icon='NEW')
+        layout.operator("wm.read_homefile", text="New", icon='FILE')
         layout.operator("wm.open_mainfile", text="Open...", icon='FILE_FOLDER')
 
         layout.separator()
@@ -613,6 +793,11 @@ class TOPBAR_MT_workspace_menu(Menu):
         if len(bpy.data.workspaces) > 1:
             layout.operator("workspace.delete", text="Delete")
 
+        layout.separator()
+
+        layout.operator("workspace.reorder_to_front", text="Reorder to Front")
+        layout.operator("workspace.reorder_to_back", text="Reorder to Back")
+
 
 class TOPBAR_PT_active_tool(Panel):
     bl_space_type = 'PROPERTIES'
@@ -620,6 +805,7 @@ class TOPBAR_PT_active_tool(Panel):
     bl_category = ""
     bl_context = ".active_tool"  # dot on purpose (access from tool settings)
     bl_label = "Active Tool"
+    bl_options = {'HIDE_HEADER'}
 
     def draw(self, context):
         layout = self.layout
@@ -642,6 +828,8 @@ classes = (
     TOPBAR_MT_workspace_menu,
     TOPBAR_MT_editor_menus,
     TOPBAR_MT_file,
+    TOPBAR_MT_file_new,
+    TOPBAR_MT_templates_more,
     TOPBAR_MT_file_import,
     TOPBAR_MT_file_export,
     TOPBAR_MT_file_external_data,
@@ -651,6 +839,7 @@ classes = (
     TOPBAR_MT_window,
     TOPBAR_MT_help,
     TOPBAR_PT_active_tool,
+    TOPBAR_PT_gpencil_layers,
 )
 
 if __name__ == "__main__":  # only for live edit.

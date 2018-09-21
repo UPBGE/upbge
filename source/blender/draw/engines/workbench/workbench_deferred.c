@@ -234,7 +234,7 @@ static float *create_disk_samples(int num_samples, int num_iterations)
 		float phi = (float)dphi * 2.0f * M_PI + it_add;
 		texels[i][0] = cosf(phi);
 		texels[i][1] = sinf(phi);
-		/* This deliberatly distribute more samples
+		/* This deliberately distribute more samples
 		 * at the center of the disk (and thus the shadow). */
 		texels[i][2] = r;
 	}
@@ -616,7 +616,7 @@ static WORKBENCH_MaterialData *get_or_create_material_data(
 	material_template.ima = ima;
 	uint hash = workbench_material_get_hash(&material_template, is_ghost);
 
-	material = BLI_ghash_lookup(wpd->material_hash, SET_UINT_IN_POINTER(hash));
+	material = BLI_ghash_lookup(wpd->material_hash, POINTER_FROM_UINT(hash));
 	if (material == NULL) {
 		material = MEM_mallocN(sizeof(WORKBENCH_MaterialData), __func__);
 		material->shgrp = DRW_shgroup_create(
@@ -627,7 +627,7 @@ static WORKBENCH_MaterialData *get_or_create_material_data(
 		DRW_shgroup_uniform_int(material->shgrp, "object_id", &material->object_id, 1);
 		workbench_material_shgroup_uniform(wpd, material->shgrp, material, ob);
 
-		BLI_ghash_insert(wpd->material_hash, SET_UINT_IN_POINTER(hash), material);
+		BLI_ghash_insert(wpd->material_hash, POINTER_FROM_UINT(hash), material);
 	}
 	return material;
 }
@@ -783,8 +783,8 @@ void workbench_deferred_solid_cache_populate(WORKBENCH_Data *vedata, Object *ob)
 			if (geom_shadow) {
 				if (is_sculpt_mode) {
 					/* Currently unsupported in sculpt mode. We could revert to the slow
-					 * method in this case but i'm not sure if it's a good idea given that
-					 * sculped meshes are heavy to begin with. */
+					 * method in this case but I'm not sure if it's a good idea given that
+					 * sculpted meshes are heavy to begin with. */
 					// DRW_shgroup_call_sculpt_add(wpd->shadow_shgrp, ob, ob->obmat);
 				}
 				else {

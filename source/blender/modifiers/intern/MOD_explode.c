@@ -36,6 +36,7 @@
 #include "DNA_meshdata_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_object_types.h"
+#include "DNA_mesh_types.h"
 
 #include "BLI_utildefines.h"
 #include "BLI_kdtree.h"
@@ -191,7 +192,7 @@ static void createFacepa(
 
 static int edgecut_get(EdgeHash *edgehash, unsigned int v1, unsigned int v2)
 {
-	return GET_INT_FROM_POINTER(BLI_edgehash_lookup(edgehash, v1, v2));
+	return POINTER_AS_INT(BLI_edgehash_lookup(edgehash, v1, v2));
 }
 
 
@@ -628,7 +629,7 @@ static DerivedMesh *cutEdges(ExplodeModifierData *emd, DerivedMesh *dm)
 	ehi = BLI_edgehashIterator_new(edgehash);
 	totesplit = totvert;
 	for (; !BLI_edgehashIterator_isDone(ehi); BLI_edgehashIterator_step(ehi)) {
-		BLI_edgehashIterator_setValue(ehi, SET_INT_IN_POINTER(totesplit));
+		BLI_edgehashIterator_setValue(ehi, POINTER_FROM_INT(totesplit));
 		totesplit++;
 	}
 	BLI_edgehashIterator_free(ehi);
@@ -667,7 +668,7 @@ static DerivedMesh *cutEdges(ExplodeModifierData *emd, DerivedMesh *dm)
 	ehi = BLI_edgehashIterator_new(edgehash);
 	for (; !BLI_edgehashIterator_isDone(ehi); BLI_edgehashIterator_step(ehi)) {
 		BLI_edgehashIterator_getKey(ehi, &ed_v1, &ed_v2);
-		esplit = GET_INT_FROM_POINTER(BLI_edgehashIterator_getValue(ehi));
+		esplit = POINTER_AS_INT(BLI_edgehashIterator_getValue(ehi));
 		mv = CDDM_get_vert(splitdm, ed_v2);
 		dupve = CDDM_get_vert(splitdm, esplit);
 
@@ -862,7 +863,7 @@ static DerivedMesh *explodeMesh(
 	/* make new vertice indexes & count total vertices after duplication */
 	ehi = BLI_edgehashIterator_new(vertpahash);
 	for (; !BLI_edgehashIterator_isDone(ehi); BLI_edgehashIterator_step(ehi)) {
-		BLI_edgehashIterator_setValue(ehi, SET_INT_IN_POINTER(totdup));
+		BLI_edgehashIterator_setValue(ehi, POINTER_FROM_INT(totdup));
 		totdup++;
 	}
 	BLI_edgehashIterator_free(ehi);
@@ -886,7 +887,7 @@ static DerivedMesh *explodeMesh(
 		/* get particle + vertex from hash */
 		BLI_edgehashIterator_getKey(ehi, &ed_v1, &ed_v2);
 		ed_v2 -= totvert;
-		v = GET_INT_FROM_POINTER(BLI_edgehashIterator_getValue(ehi));
+		v = POINTER_AS_INT(BLI_edgehashIterator_getValue(ehi));
 
 		dm->getVert(dm, ed_v1, &source);
 		dest = CDDM_get_vert(explode, v);
@@ -998,7 +999,7 @@ static ParticleSystemModifierData *findPrecedingParticlesystem(Object *ob, Modif
 	}
 	return psmd;
 }
-static DerivedMesh *applyModifier(
+static DerivedMesh *applyModifier_DM(
         ModifierData *md, const ModifierEvalContext *ctx,
         DerivedMesh *derivedData)
 {
@@ -1048,6 +1049,8 @@ static DerivedMesh *applyModifier(
 	return derivedData;
 }
 
+applyModifier_DM_wrapper(applyModifier, applyModifier_DM)
+
 
 ModifierTypeInfo modifierType_Explode = {
 	/* name */              "Explode",
@@ -1061,14 +1064,14 @@ ModifierTypeInfo modifierType_Explode = {
 	/* deformMatrices_DM */ NULL,
 	/* deformVertsEM_DM */  NULL,
 	/* deformMatricesEM_DM*/NULL,
-	/* applyModifier_DM */  applyModifier,
+	/* applyModifier_DM */  NULL,
 	/* applyModifierEM_DM */NULL,
 
 	/* deformVerts */       NULL,
 	/* deformMatrices */    NULL,
 	/* deformVertsEM */     NULL,
 	/* deformMatricesEM */  NULL,
-	/* applyModifier */     NULL,
+	/* applyModifier */     applyModifier,
 	/* applyModifierEM */   NULL,
 
 	/* initData */          initData,

@@ -374,7 +374,7 @@ struct PieMenuData {
 enum eBlockContentHints {
 	/* In a menu block, if there is a single sub-menu button, we add some
 	 * padding to the right to put nicely aligned triangle icons there. */
-	BLOCK_CONTAINS_SUBMENU_BUT = (1 << 0),
+	UI_BLOCK_CONTAINS_SUBMENU_BUT = (1 << 0),
 };
 
 struct uiBlock {
@@ -429,6 +429,7 @@ struct uiBlock {
 	short content_hints; /* eBlockContentHints */
 
 	char direction;
+	char theme_style; /* UI_BLOCK_THEME_STYLE_* */
 	char dt; /* drawtype: UI_EMBOSS, UI_EMBOSS_NONE ... etc, copied to buttons */
 	bool auto_open;
 	char _pad[5];
@@ -695,7 +696,9 @@ void ui_popup_block_scrolltest(struct uiBlock *block);
 extern int ui_handler_panel_region(
         struct bContext *C, const struct wmEvent *event,
         struct ARegion *ar, const uiBut *active_but);
-extern void ui_draw_aligned_panel(struct uiStyle *style, uiBlock *block, const rcti *rect, const bool show_pin);
+extern void ui_draw_aligned_panel(
+        struct uiStyle *style, uiBlock *block, const rcti *rect,
+        const bool show_pin, const bool show_background);
 
 /* interface_draw.c */
 extern void ui_draw_dropshadow(const rctf *rct, float radius, float aspect, float alpha, int select);

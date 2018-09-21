@@ -508,6 +508,11 @@ void UI_blocklist_update_window_matrix(const struct bContext *C, const struct Li
 void UI_blocklist_draw(const struct bContext *C, const struct ListBase *lb);
 void UI_block_update_from_old(const struct bContext *C, struct uiBlock *block);
 
+enum {
+	UI_BLOCK_THEME_STYLE_REGULAR = 0,
+	UI_BLOCK_THEME_STYLE_POPUP = 1,
+};
+void UI_block_theme_style_set(uiBlock *block, char theme_style);
 void UI_block_emboss_set(uiBlock *block, char dt);
 
 void UI_block_free(const struct bContext *C, uiBlock *block);
@@ -1046,7 +1051,7 @@ void uiTemplateIDPreview(
 void uiTemplateIDTabs(
         uiLayout *layout, struct bContext *C,
         PointerRNA *ptr, const char *propname,
-        const char *newop, const char *openop, const char *menu,
+        const char *newop, const char *menu,
         int filter);
 void uiTemplateAnyID(
         uiLayout *layout, struct PointerRNA *ptr, const char *propname,
@@ -1138,6 +1143,8 @@ void uiTemplateMovieclipInformation(struct uiLayout *layout, struct PointerRNA *
 
 void uiTemplateColorspaceSettings(struct uiLayout *layout, struct PointerRNA *ptr, const char *propname);
 void uiTemplateColormanagedViewSettings(struct uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, const char *propname);
+
+int uiTemplateRecentFiles(struct uiLayout *layout, int rows);
 
 /* items */
 void uiItemO(uiLayout *layout, const char *name, int icon, const char *opname);

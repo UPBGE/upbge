@@ -104,8 +104,10 @@ void IDDepsNode::init(const ID *id, const char *UNUSED(subdata))
 	id_orig = (ID *)id;
 	eval_flags = 0;
 	linked_state = DEG_ID_LINKED_INDIRECTLY;
-	is_visible = true;
-	is_previous_visible = false;
+	is_directly_visible = true;
+
+	visible_components_mask = 0;
+	previously_visible_components_mask = 0;
 
 	components = BLI_ghash_new(id_deps_node_hash_key,
 	                           id_deps_node_hash_key_cmp,
@@ -182,7 +184,8 @@ string IDDepsNode::identifier() const
 	BLI_snprintf(cow_ptr, sizeof(cow_ptr), "%p", id_cow);
 	return string(nodeTypeAsString(type)) + " : " + name +
 	        " (orig: " + orig_ptr + ", eval: " + cow_ptr +
-	        ", is_visible " + (is_visible ? "true" : "false") + ")";
+	        ", is_directly_visible " + (is_directly_visible ? "true"
+	                                                        : "false") + ")";
 }
 
 ComponentDepsNode *IDDepsNode::find_component(eDepsNode_Type type,
@@ -225,6 +228,21 @@ void IDDepsNode::finalize_build(Depsgraph *graph)
 		comp_node->finalize_build(graph);
 	}
 	GHASH_FOREACH_END();
+	visible_components_mask = get_visible_components_mask();
+}
+
+IDComponentsMask IDDepsNode::get_visible_components_mask() const {
+	IDComponentsMask result = 0;
+	GHASH_FOREACH_BEGIN(ComponentDepsNode *, comp_node, components)
+	{
+		if (comp_node->affects_directly_visible) {
+			const int component_type = comp_node->type;
+			BLI_assert(component_type < 64);
+			result |= (1 << component_type);
+		}
+	}
+	GHASH_FOREACH_END();
+	return result;
 }
 
 }  // namespace DEG

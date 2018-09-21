@@ -76,6 +76,12 @@
 #define IPO_BEZTRIPLE   100
 #define IPO_BPOINT      101
 
+/* Internal use only. */
+typedef struct WeightsArrayCache {
+	int num_defgroup_weights;
+	float **defgroup_weights;
+} WeightsArrayCache;
+
 
 /** Free (or release) any data used by this shapekey (does not free the key itself). */
 void BKE_key_free(Key *key)
@@ -119,31 +125,31 @@ Key *BKE_key_add(Main *bmain, ID *id)    /* common function */
 		case ID_ME:
 			el = key->elemstr;
 
-			el[0] = 3;
+			el[0] = KEYELEM_FLOAT_LEN_COORD;
 			el[1] = IPO_FLOAT;
 			el[2] = 0;
 
-			key->elemsize = 12;
+			key->elemsize = sizeof(float[KEYELEM_FLOAT_LEN_COORD]);
 
 			break;
 		case ID_LT:
 			el = key->elemstr;
 
-			el[0] = 3;
+			el[0] = KEYELEM_FLOAT_LEN_COORD;
 			el[1] = IPO_FLOAT;
 			el[2] = 0;
 
-			key->elemsize = 12;
+			key->elemsize = sizeof(float[KEYELEM_FLOAT_LEN_COORD]);
 
 			break;
 		case ID_CU:
 			el = key->elemstr;
 
-			el[0] = 4;
+			el[0] = KEYELEM_ELEM_SIZE_CURVE;
 			el[1] = IPO_BPOINT;
 			el[2] = 0;
 
-			key->elemsize = 16;
+			key->elemsize = sizeof(float[KEYELEM_ELEM_SIZE_CURVE]);
 
 			break;
 
@@ -540,31 +546,33 @@ static char *key_block_get_data(Key *key, KeyBlock *actkb, KeyBlock *kb, char **
 
 
 /* currently only the first value of 'ofs' may be set. */
-static bool key_pointer_size(const Key *key, const int mode, int *poinsize, int *ofs)
+static bool key_pointer_size(const Key *key, const int mode, int *poinsize, int *ofs, int *step)
 {
 	if (key->from == NULL) {
 		return false;
 	}
 
+	*step = 1;
+
 	switch (GS(key->from->name)) {
 		case ID_ME:
-			*ofs = sizeof(float) * 3;
+			*ofs = sizeof(float[KEYELEM_FLOAT_LEN_COORD]);
 			*poinsize = *ofs;
 			break;
 		case ID_LT:
-			*ofs = sizeof(float) * 3;
+			*ofs = sizeof(float[KEYELEM_FLOAT_LEN_COORD]);
 			*poinsize = *ofs;
 			break;
 		case ID_CU:
 			if (mode == KEY_MODE_BPOINT) {
-				*ofs = sizeof(float) * 4;
-				*poinsize = *ofs;
+				*ofs = sizeof(float[KEYELEM_FLOAT_LEN_BPOINT]);
+				*step = KEYELEM_ELEM_LEN_BPOINT;
 			}
 			else {
-				ofs[0] = sizeof(float) * 12;
-				*poinsize = (*ofs) / 3;
+				*ofs = sizeof(float[KEYELEM_FLOAT_LEN_BEZTRIPLE]);
+				*step = KEYELEM_ELEM_LEN_BEZTRIPLE;
 			}
-
+			*poinsize = sizeof(float[KEYELEM_ELEM_SIZE_CURVE]);
 			break;
 		default:
 			BLI_assert(!"invalid 'key->from' ID type");
@@ -577,14 +585,14 @@ static bool key_pointer_size(const Key *key, const int mode, int *poinsize, int 
 static void cp_key(const int start, int end, const int tot, char *poin, Key *key, KeyBlock *actkb, KeyBlock *kb, float *weights, const int mode)
 {
 	float ktot = 0.0, kd = 0.0;
-	int elemsize, poinsize = 0, a, *ofsp, ofs[32], flagflo = 0;
+	int elemsize, poinsize = 0, a, step, *ofsp, ofs[32], flagflo = 0;
 	char *k1, *kref, *freek1, *freekref;
 	char *cp, elemstr[8];
 
 	/* currently always 0, in future key_pointer_size may assign */
 	ofs[1] = 0;
 
-	if (!key_pointer_size(key, mode, &poinsize, &ofs[0]))
+	if (!key_pointer_size(key, mode, &poinsize, &ofs[0], &step))
 		return;
 
 	if (end > tot) end = tot;
@@ -628,10 +636,9 @@ static void cp_key(const int start, int end, const int tot, char *poin, Key *key
 	}
 
 	/* just do it here, not above! */
-	elemsize = key->elemsize;
-	if (mode == KEY_MODE_BEZTRIPLE) elemsize *= 3;
+	elemsize = key->elemsize * step;
 
-	for (a = start; a < end; a++) {
+	for (a = start; a < end; a += step) {
 		cp = key->elemstr;
 		if (mode == KEY_MODE_BEZTRIPLE) cp = elemstr;
 
@@ -642,20 +649,20 @@ static void cp_key(const int start, int end, const int tot, char *poin, Key *key
 			switch (cp[1]) {
 				case IPO_FLOAT:
 					if (weights) {
-						memcpy(poin, kref, sizeof(float) * 3);
+						memcpy(poin, kref, sizeof(float[KEYELEM_FLOAT_LEN_COORD]));
 						if (*weights != 0.0f)
-							rel_flerp(cp[0], (float *)poin, (float *)kref, (float *)k1, *weights);
+							rel_flerp(KEYELEM_FLOAT_LEN_COORD, (float *)poin, (float *)kref, (float *)k1, *weights);
 						weights++;
 					}
 					else {
-						memcpy(poin, k1, sizeof(float) * 3);
+						memcpy(poin, k1, sizeof(float[KEYELEM_FLOAT_LEN_COORD]));
 					}
 					break;
 				case IPO_BPOINT:
-					memcpy(poin, k1, sizeof(float) * 4);
+					memcpy(poin, k1, sizeof(float[KEYELEM_FLOAT_LEN_BPOINT]));
 					break;
 				case IPO_BEZTRIPLE:
-					memcpy(poin, k1, sizeof(float) * 12);
+					memcpy(poin, k1, sizeof(float[KEYELEM_FLOAT_LEN_BEZTRIPLE]));
 					break;
 				default:
 					/* should never happen */
@@ -682,10 +689,6 @@ static void cp_key(const int start, int end, const int tot, char *poin, Key *key
 			k1 += elemsize;
 			kref += elemsize;
 		}
-
-		if (mode == KEY_MODE_BEZTRIPLE) {
-			a += 2;
-		}
 	}
 
 	if (freek1) MEM_freeN(freek1);
@@ -699,7 +702,7 @@ static void cp_cu_key(Curve *cu, Key *key, KeyBlock *actkb, KeyBlock *kb, const 
 
 	for (a = 0, nu = cu->nurb.first; nu; nu = nu->next, a += step) {
 		if (nu->bp) {
-			step = nu->pntsu * nu->pntsv;
+			step = KEYELEM_ELEM_LEN_BPOINT * nu->pntsu * nu->pntsv;
 
 			a1 = max_ii(a, start);
 			a2 = min_ii(a + step, end);
@@ -707,7 +710,7 @@ static void cp_cu_key(Curve *cu, Key *key, KeyBlock *actkb, KeyBlock *kb, const 
 			if (a1 < a2) cp_key(a1, a2, tot, out, key, actkb, kb, NULL, KEY_MODE_BPOINT);
 		}
 		else if (nu->bezt) {
-			step = 3 * nu->pntsu;
+			step = KEYELEM_ELEM_LEN_BEZTRIPLE * nu->pntsu;
 
 			/* exception because keys prefer to work with complete blocks */
 			a1 = max_ii(a, start);
@@ -721,18 +724,19 @@ static void cp_cu_key(Curve *cu, Key *key, KeyBlock *actkb, KeyBlock *kb, const 
 	}
 }
 
-void BKE_key_evaluate_relative(const int start, int end, const int tot, char *basispoin, Key *key, KeyBlock *actkb,
-                               float **per_keyblock_weights, const int mode)
+static void key_evaluate_relative(
+        const int start, int end, const int tot, char *basispoin, Key *key, KeyBlock *actkb,
+        float **per_keyblock_weights, const int mode)
 {
 	KeyBlock *kb;
-	int *ofsp, ofs[3], elemsize, b;
+	int *ofsp, ofs[3], elemsize, b, step;
 	char *cp, *poin, *reffrom, *from, elemstr[8];
 	int poinsize, keyblock_index;
 
 	/* currently always 0, in future key_pointer_size may assign */
 	ofs[1] = 0;
 
-	if (!key_pointer_size(key, mode, &poinsize, &ofs[0]))
+	if (!key_pointer_size(key, mode, &poinsize, &ofs[0], &step))
 		return;
 
 	if (end > tot) end = tot;
@@ -743,8 +747,7 @@ void BKE_key_evaluate_relative(const int start, int end, const int tot, char *ba
 	elemstr[2] = 0;
 
 	/* just here, not above! */
-	elemsize = key->elemsize;
-	if (mode == KEY_MODE_BEZTRIPLE) elemsize *= 3;
+	elemsize = key->elemsize * step;
 
 	/* step 1 init */
 	cp_key(start, end, tot, basispoin, key, actkb, key->refkey, NULL, mode);
@@ -773,7 +776,7 @@ void BKE_key_evaluate_relative(const int start, int end, const int tot, char *ba
 				reffrom += key->elemsize * start;  // key elemsize yes!
 				from += key->elemsize * start;
 
-				for (b = start; b < end; b++) {
+				for (b = start; b < end; b += step) {
 
 					weight = weights ? (*weights * icuval) : icuval;
 
@@ -786,13 +789,13 @@ void BKE_key_evaluate_relative(const int start, int end, const int tot, char *ba
 
 						switch (cp[1]) {
 							case IPO_FLOAT:
-								rel_flerp(3, (float *)poin, (float *)reffrom, (float *)from, weight);
+								rel_flerp(KEYELEM_FLOAT_LEN_COORD, (float *)poin, (float *)reffrom, (float *)from, weight);
 								break;
 							case IPO_BPOINT:
-								rel_flerp(4, (float *)poin, (float *)reffrom, (float *)from, weight);
+								rel_flerp(KEYELEM_FLOAT_LEN_BPOINT, (float *)poin, (float *)reffrom, (float *)from, weight);
 								break;
 							case IPO_BEZTRIPLE:
-								rel_flerp(12, (float *)poin, (float *)reffrom, (float *)from, weight);
+								rel_flerp(KEYELEM_FLOAT_LEN_BEZTRIPLE, (float *)poin, (float *)reffrom, (float *)from, weight);
 								break;
 							default:
 								/* should never happen */
@@ -811,7 +814,6 @@ void BKE_key_evaluate_relative(const int start, int end, const int tot, char *ba
 					reffrom += elemsize;
 					from += elemsize;
 
-					if (mode == KEY_MODE_BEZTRIPLE) b += 2;
 					if (weights) weights++;
 				}
 
@@ -827,7 +829,7 @@ static void do_key(const int start, int end, const int tot, char *poin, Key *key
 {
 	float k1tot = 0.0, k2tot = 0.0, k3tot = 0.0, k4tot = 0.0;
 	float k1d = 0.0, k2d = 0.0, k3d = 0.0, k4d = 0.0;
-	int a, ofs[32], *ofsp;
+	int a, step, ofs[32], *ofsp;
 	int flagdo = 15, flagflo = 0, elemsize, poinsize = 0;
 	char *k1, *k2, *k3, *k4, *freek1, *freek2, *freek3, *freek4;
 	char *cp, elemstr[8];
@@ -835,7 +837,7 @@ static void do_key(const int start, int end, const int tot, char *poin, Key *key
 	/* currently always 0, in future key_pointer_size may assign */
 	ofs[1] = 0;
 
-	if (!key_pointer_size(key, mode, &poinsize, &ofs[0]))
+	if (!key_pointer_size(key, mode, &poinsize, &ofs[0], &step))
 		return;
 
 	if (end > tot) end = tot;
@@ -953,11 +955,9 @@ static void do_key(const int start, int end, const int tot, char *poin, Key *key
 	elemstr[2] = 0;
 
 	/* only here, not above! */
-	elemsize = key->elemsize;
-	if (mode == KEY_MODE_BEZTRIPLE) elemsize *= 3;
+	elemsize = key->elemsize * step;
 
-	for (a = start; a < end; a++) {
-
+	for (a = start; a < end; a += step) {
 		cp = key->elemstr;
 		if (mode == KEY_MODE_BEZTRIPLE) cp = elemstr;
 
@@ -967,13 +967,13 @@ static void do_key(const int start, int end, const int tot, char *poin, Key *key
 
 			switch (cp[1]) {
 				case IPO_FLOAT:
-					flerp(3, (float *)poin, (float *)k1, (float *)k2, (float *)k3, (float *)k4, t);
+					flerp(KEYELEM_FLOAT_LEN_COORD, (float *)poin, (float *)k1, (float *)k2, (float *)k3, (float *)k4, t);
 					break;
 				case IPO_BPOINT:
-					flerp(4, (float *)poin, (float *)k1, (float *)k2, (float *)k3, (float *)k4, t);
+					flerp(KEYELEM_FLOAT_LEN_BPOINT, (float *)poin, (float *)k1, (float *)k2, (float *)k3, (float *)k4, t);
 					break;
 				case IPO_BEZTRIPLE:
-					flerp(12, (void *)poin, (void *)k1, (void *)k2, (void *)k3, (void *)k4, t);
+					flerp(KEYELEM_FLOAT_LEN_BEZTRIPLE, (void *)poin, (void *)k1, (void *)k2, (void *)k3, (void *)k4, t);
 					break;
 				default:
 					/* should never happen */
@@ -1038,8 +1038,6 @@ static void do_key(const int start, int end, const int tot, char *poin, Key *key
 				k4 += elemsize;
 			}
 		}
-
-		if (mode == KEY_MODE_BEZTRIPLE) a += 2;
 	}
 
 	if (freek1) MEM_freeN(freek1);
@@ -1120,7 +1118,7 @@ static float *get_weights_array(Object *ob, char *vgroup, WeightsArrayCache *cac
 	return NULL;
 }
 
-float **BKE_keyblock_get_per_block_weights(Object *ob, Key *key, WeightsArrayCache *cache)
+static float **keyblock_get_per_block_weights(Object *ob, Key *key, WeightsArrayCache *cache)
 {
 	KeyBlock *keyblock;
 	float **per_keyblock_weights;
@@ -1140,7 +1138,7 @@ float **BKE_keyblock_get_per_block_weights(Object *ob, Key *key, WeightsArrayCac
 	return per_keyblock_weights;
 }
 
-void BKE_keyblock_free_per_block_weights(Key *key, float **per_keyblock_weights, WeightsArrayCache *cache)
+static void keyblock_free_per_block_weights(Key *key, float **per_keyblock_weights, WeightsArrayCache *cache)
 {
 	int a;
 
@@ -1175,9 +1173,9 @@ static void do_mesh_key(Object *ob, Key *key, char *out, const int tot)
 	if (key->type == KEY_RELATIVE) {
 		WeightsArrayCache cache = {0, NULL};
 		float **per_keyblock_weights;
-		per_keyblock_weights = BKE_keyblock_get_per_block_weights(ob, key, &cache);
-		BKE_key_evaluate_relative(0, tot, tot, (char *)out, key, actkb, per_keyblock_weights, KEY_MODE_DUMMY);
-		BKE_keyblock_free_per_block_weights(key, per_keyblock_weights, &cache);
+		per_keyblock_weights = keyblock_get_per_block_weights(ob, key, &cache);
+		key_evaluate_relative(0, tot, tot, (char *)out, key, actkb, per_keyblock_weights, KEY_MODE_DUMMY);
+		keyblock_free_per_block_weights(key, per_keyblock_weights, &cache);
 	}
 	else {
 		const float ctime_scaled = key->ctime / 100.0f;
@@ -1200,11 +1198,11 @@ static void do_cu_key(Curve *cu, Key *key, KeyBlock *actkb, KeyBlock **k, float 
 
 	for (a = 0, nu = cu->nurb.first; nu; nu = nu->next, a += step) {
 		if (nu->bp) {
-			step = nu->pntsu * nu->pntsv;
+			step = KEYELEM_ELEM_LEN_BPOINT * nu->pntsu * nu->pntsv;
 			do_key(a, a + step, tot, out, key, actkb, k, t, KEY_MODE_BPOINT);
 		}
 		else if (nu->bezt) {
-			step = 3 * nu->pntsu;
+			step = KEYELEM_ELEM_LEN_BEZTRIPLE * nu->pntsu;
 			do_key(a, a + step, tot, out, key, actkb, k, t, KEY_MODE_BEZTRIPLE);
 		}
 		else {
@@ -1220,12 +1218,12 @@ static void do_rel_cu_key(Curve *cu, Key *key, KeyBlock *actkb, char *out, const
 
 	for (a = 0, nu = cu->nurb.first; nu; nu = nu->next, a += step) {
 		if (nu->bp) {
-			step = nu->pntsu * nu->pntsv;
-			BKE_key_evaluate_relative(a, a + step, tot, out, key, actkb, NULL, KEY_MODE_BPOINT);
+			step = KEYELEM_ELEM_LEN_BPOINT * nu->pntsu * nu->pntsv;
+			key_evaluate_relative(a, a + step, tot, out, key, actkb, NULL, KEY_MODE_BPOINT);
 		}
 		else if (nu->bezt) {
-			step = 3 * nu->pntsu;
-			BKE_key_evaluate_relative(a, a + step, tot, out, key, actkb, NULL, KEY_MODE_BEZTRIPLE);
+			step = KEYELEM_ELEM_LEN_BEZTRIPLE * nu->pntsu;
+			key_evaluate_relative(a, a + step, tot, out, key, actkb, NULL, KEY_MODE_BEZTRIPLE);
 		}
 		else {
 			step = 0;
@@ -1266,9 +1264,9 @@ static void do_latt_key(Object *ob, Key *key, char *out, const int tot)
 
 	if (key->type == KEY_RELATIVE) {
 		float **per_keyblock_weights;
-		per_keyblock_weights = BKE_keyblock_get_per_block_weights(ob, key, NULL);
-		BKE_key_evaluate_relative(0, tot, tot, (char *)out, key, actkb, per_keyblock_weights, KEY_MODE_DUMMY);
-		BKE_keyblock_free_per_block_weights(key, per_keyblock_weights, NULL);
+		per_keyblock_weights = keyblock_get_per_block_weights(ob, key, NULL);
+		key_evaluate_relative(0, tot, tot, (char *)out, key, actkb, per_keyblock_weights, KEY_MODE_DUMMY);
+		keyblock_free_per_block_weights(key, per_keyblock_weights, NULL);
 	}
 	else {
 		const float ctime_scaled = key->ctime / 100.0f;
@@ -1304,28 +1302,19 @@ float *BKE_key_evaluate_object_ex(
 		Mesh *me = ob->data;
 
 		tot = me->totvert;
-		size = tot * 3 * sizeof(float);
+		size = tot * sizeof(float[KEYELEM_FLOAT_LEN_COORD]);
 	}
 	else if (ob->type == OB_LATTICE) {
 		Lattice *lt = ob->data;
 
 		tot = lt->pntsu * lt->pntsv * lt->pntsw;
-		size = tot * 3 * sizeof(float);
+		size = tot * sizeof(float[KEYELEM_FLOAT_LEN_COORD]);
 	}
 	else if (ELEM(ob->type, OB_CURVE, OB_SURF)) {
 		Curve *cu = ob->data;
-		Nurb *nu;
 
-		for (nu = cu->nurb.first; nu; nu = nu->next) {
-			if (nu->bezt) {
-				tot += 3 * nu->pntsu;
-				size += nu->pntsu * 12 * sizeof(float);
-			}
-			else if (nu->bp) {
-				tot += nu->pntsu * nu->pntsv;
-				size += nu->pntsu * nu->pntsv * 12 * sizeof(float);
-			}
-		}
+		tot = BKE_keyblock_curve_element_count(&cu->nurb);
+		size = tot * sizeof(float[KEYELEM_ELEM_SIZE_CURVE]);
 	}
 
 	/* if nothing to interpolate, cancel */
@@ -1661,6 +1650,24 @@ void BKE_keyblock_convert_to_lattice(KeyBlock *kb, Lattice *lt)
 }
 
 /************************* Curve ************************/
+
+int BKE_keyblock_curve_element_count(ListBase *nurb)
+{
+	Nurb *nu;
+	int tot = 0;
+
+	nu = nurb->first;
+	while (nu) {
+		if (nu->bezt)
+			tot += KEYELEM_ELEM_LEN_BEZTRIPLE * nu->pntsu;
+		else if (nu->bp)
+			tot += KEYELEM_ELEM_LEN_BPOINT * nu->pntsu * nu->pntsv;
+
+		nu = nu->next;
+	}
+	return tot;
+}
+
 void BKE_keyblock_update_from_curve(Curve *UNUSED(cu), KeyBlock *kb, ListBase *nurb)
 {
 	Nurb *nu;
@@ -1670,7 +1677,7 @@ void BKE_keyblock_update_from_curve(Curve *UNUSED(cu), KeyBlock *kb, ListBase *n
 	int a, tot;
 
 	/* count */
-	BLI_assert(BKE_nurbList_verts_count(nurb) == kb->totelem);
+	BLI_assert(BKE_keyblock_curve_element_count(nurb) == kb->totelem);
 
 	tot = kb->totelem;
 	if (tot == 0) return;
@@ -1679,21 +1686,20 @@ void BKE_keyblock_update_from_curve(Curve *UNUSED(cu), KeyBlock *kb, ListBase *n
 	for (nu = nurb->first; nu; nu = nu->next) {
 		if (nu->bezt) {
 			for (a = nu->pntsu, bezt = nu->bezt; a; a--, bezt++) {
-				int i;
-
-				for (i = 0; i < 3; i++, fp += 3) {
-					copy_v3_v3(fp, bezt->vec[i]);
+				for (int i = 0; i < 3; i++) {
+					copy_v3_v3(&fp[i * 3], bezt->vec[i]);
 				}
-				fp[0] = bezt->alfa;
-				fp += 3; /* alphas */
+				fp[9] = bezt->alfa;
+				fp[10] = bezt->radius;
+				fp += KEYELEM_FLOAT_LEN_BEZTRIPLE;
 			}
 		}
 		else {
-
-			;
-			for (a = nu->pntsu * nu->pntsv, bp = nu->bp; a; a--, fp += 4, bp++) {
+			for (a = nu->pntsu * nu->pntsv, bp = nu->bp; a; a--, bp++) {
 				copy_v3_v3(fp, bp->vec);
 				fp[3] = bp->alfa;
+				fp[4] = bp->radius;
+				fp += KEYELEM_FLOAT_LEN_BPOINT;
 			}
 		}
 	}
@@ -1704,7 +1710,7 @@ void BKE_keyblock_convert_from_curve(Curve *cu, KeyBlock *kb, ListBase *nurb)
 	int tot;
 
 	/* count */
-	tot = BKE_nurbList_verts_count(nurb);
+	tot = BKE_keyblock_curve_element_count(nurb);
 	if (tot == 0) return;
 
 	MEM_SAFE_FREE(kb->data);
@@ -1723,26 +1729,27 @@ void BKE_keyblock_convert_to_curve(KeyBlock *kb, Curve *UNUSED(cu), ListBase *nu
 	const float *fp;
 	int a, tot;
 
-	tot = BKE_nurbList_verts_count(nurb);
+	tot = BKE_keyblock_curve_element_count(nurb);
 	tot = min_ii(kb->totelem, tot);
 
 	fp = kb->data;
 	for (nu = nurb->first; nu && tot > 0; nu = nu->next) {
 		if (nu->bezt) {
-			for (a = nu->pntsu, bezt = nu->bezt; a && tot > 0; a--, tot -= 3, bezt++) {
-				int i;
-
-				for (i = 0; i < 3; i++, fp += 3) {
-					copy_v3_v3(bezt->vec[i], fp);
+			for (a = nu->pntsu, bezt = nu->bezt; a && (tot -= KEYELEM_ELEM_LEN_BEZTRIPLE) >= 0; a--, bezt++) {
+				for (int i = 0; i < 3; i++) {
+					copy_v3_v3(bezt->vec[i], &fp[i * 3]);
 				}
-				bezt->alfa = fp[0];
-				fp += 3; /* alphas */
+				bezt->alfa = fp[9];
+				bezt->radius = fp[10];
+				fp += KEYELEM_FLOAT_LEN_BEZTRIPLE;
 			}
 		}
 		else {
-			for (a = nu->pntsu * nu->pntsv, bp = nu->bp; a && tot; a--, tot--, fp += 4, bp++) {
+			for (a = nu->pntsu * nu->pntsv, bp = nu->bp; a && (tot -= KEYELEM_ELEM_LEN_BPOINT) >= 0; a--, bp++) {
 				copy_v3_v3(bp->vec, fp);
 				bp->alfa = fp[3];
+				bp->radius = fp[4];
+				fp += KEYELEM_FLOAT_LEN_BPOINT;
 			}
 		}
 	}
@@ -1871,7 +1878,7 @@ void BKE_keyblock_update_from_vertcos(Object *ob, KeyBlock *kb, float (*vertCos)
 	}
 	else if (ELEM(ob->type, OB_CURVE, OB_SURF)) {
 		Curve *cu = ob->data;
-		BLI_assert(BKE_nurbList_verts_count(&cu->nurb) == kb->totelem);
+		BLI_assert(BKE_keyblock_curve_element_count(&cu->nurb) == kb->totelem);
 	}
 	else if (ob->type == OB_MESH) {
 		Mesh *me = ob->data;
@@ -1900,17 +1907,16 @@ void BKE_keyblock_update_from_vertcos(Object *ob, KeyBlock *kb, float (*vertCos)
 		for (nu = cu->nurb.first; nu; nu = nu->next) {
 			if (nu->bezt) {
 				for (a = nu->pntsu, bezt = nu->bezt; a; a--, bezt++) {
-					int i;
-
-					for (i = 0; i < 3; i++, fp += 3, co++) {
-						copy_v3_v3(fp, *co);
+					for (int i = 0; i < 3; i++, co++) {
+						copy_v3_v3(&fp[i * 3], *co);
 					}
-					fp += 3; /* skip alphas */
+					fp += KEYELEM_FLOAT_LEN_BEZTRIPLE;
 				}
 			}
 			else {
-				for (a = nu->pntsu * nu->pntsv, bp = nu->bp; a; a--, bp++, fp += 4, co++) {
+				for (a = nu->pntsu * nu->pntsv, bp = nu->bp; a; a--, bp++, co++) {
 					copy_v3_v3(fp, *co);
+					fp += KEYELEM_FLOAT_LEN_BPOINT;
 				}
 			}
 		}
@@ -1937,7 +1943,7 @@ void BKE_keyblock_convert_from_vertcos(Object *ob, KeyBlock *kb, float (*vertCos
 	else if (ELEM(ob->type, OB_CURVE, OB_SURF)) {
 		Curve *cu = (Curve *)ob->data;
 		elemsize = cu->key->elemsize;
-		tot = BKE_nurbList_verts_count(&cu->nurb);
+		tot = BKE_keyblock_curve_element_count(&cu->nurb);
 	}
 
 	if (tot == 0) return;
@@ -1987,17 +1993,16 @@ float (*BKE_keyblock_convert_to_vertcos(Object *ob, KeyBlock *kb))[3]
 		for (nu = cu->nurb.first; nu; nu = nu->next) {
 			if (nu->bezt) {
 				for (a = nu->pntsu, bezt = nu->bezt; a; a--, bezt++) {
-					int i;
-
-					for (i = 0; i < 3; i++, fp += 3, co++) {
-						copy_v3_v3(*co, fp);
+					for (int i = 0; i < 3; i++, co++) {
+						copy_v3_v3(*co, &fp[i * 3]);
 					}
-					fp += 3; /* skip alphas */
+					fp += KEYELEM_FLOAT_LEN_BEZTRIPLE;
 				}
 			}
 			else {
-				for (a = nu->pntsu * nu->pntsv, bp = nu->bp; a; a--, bp++, fp += 4, co++) {
+				for (a = nu->pntsu * nu->pntsv, bp = nu->bp; a; a--, bp++, co++) {
 					copy_v3_v3(*co, fp);
+					fp += KEYELEM_FLOAT_LEN_BPOINT;
 				}
 			}
 		}
@@ -2026,17 +2031,16 @@ void BKE_keyblock_update_from_offset(Object *ob, KeyBlock *kb, float (*ofs)[3])
 		for (nu = cu->nurb.first; nu; nu = nu->next) {
 			if (nu->bezt) {
 				for (a = nu->pntsu, bezt = nu->bezt; a; a--, bezt++) {
-					int i;
-
-					for (i = 0; i < 3; i++, fp += 3, ofs++) {
-						add_v3_v3(fp, *ofs);
+					for (int i = 0; i < 3; i++, ofs++) {
+						add_v3_v3(&fp[i * 3], *ofs);
 					}
-					fp += 3; /* skip alphas */
+					fp += KEYELEM_FLOAT_LEN_BEZTRIPLE;
 				}
 			}
 			else {
-				for (a = nu->pntsu * nu->pntsv, bp = nu->bp; a; a--, bp++, fp += 4, ofs++) {
+				for (a = nu->pntsu * nu->pntsv, bp = nu->bp; a; a--, bp++, ofs++) {
 					add_v3_v3(fp, *ofs);
+					fp += KEYELEM_FLOAT_LEN_BPOINT;
 				}
 			}
 		}

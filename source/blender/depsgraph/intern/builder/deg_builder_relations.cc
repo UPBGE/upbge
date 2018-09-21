@@ -450,6 +450,9 @@ void DepsgraphRelationBuilder::build_id(ID *id)
 		case ID_SPK:
 			build_speaker((Speaker *)id);
 			break;
+		case ID_TXT:
+			/* Not a part of dependency graph. */
+			break;
 		default:
 			fprintf(stderr, "Unhandled ID %s\n", id->name);
 			BLI_assert(!"Should never happen");
@@ -465,6 +468,8 @@ void DepsgraphRelationBuilder::build_collection(
 	OperationKey object_transform_final_key(object != NULL ? &object->id : NULL,
 	                                        DEG_NODE_TYPE_TRANSFORM,
 	                                        DEG_OPCODE_TRANSFORM_FINAL);
+	ComponentKey duplicator_key(object != NULL ? &object->id : NULL,
+	                            DEG_NODE_TYPE_DUPLI);
 	if (!group_done) {
 		LISTBASE_FOREACH (CollectionObject *, cob, &collection->gobject) {
 			build_object(NULL, cob->ob);
@@ -477,7 +482,22 @@ void DepsgraphRelationBuilder::build_collection(
 		FOREACH_COLLECTION_VISIBLE_OBJECT_RECURSIVE_BEGIN(collection, ob, graph_->mode)
 		{
 			ComponentKey dupli_transform_key(&ob->id, DEG_NODE_TYPE_TRANSFORM);
-			add_relation(dupli_transform_key, object_transform_final_key, "Dupligroup");
+			add_relation(dupli_transform_key,
+			             object_transform_final_key,
+			             "Dupligroup");
+			/* Hook to special component, to ensure proper visibility/evaluation
+			 * optimizations.
+			 */
+			add_relation(dupli_transform_key, duplicator_key, "Dupligroup");
+			const eDepsNode_Type dupli_geometry_component_type =
+			        deg_geometry_tag_to_component(&ob->id);
+			if (dupli_geometry_component_type != DEG_NODE_TYPE_UNDEFINED) {
+				ComponentKey dupli_geometry_component_key(
+				        &ob->id, dupli_geometry_component_type);
+				add_relation(dupli_geometry_component_key,
+				             duplicator_key,
+				             "Dupligroup");
+			}
 		}
 		FOREACH_COLLECTION_VISIBLE_OBJECT_RECURSIVE_END;
 	}
@@ -1881,6 +1901,13 @@ void DepsgraphRelationBuilder::build_object_data_geometry(Object *object)
 		add_relation(geom_init_key,
 		             obdata_ubereval_key,
 		             "Object Geometry UberEval");
+		if (object->totcol != 0 && object->type == OB_MESH) {
+			ComponentKey object_shading_key(&object->id, DEG_NODE_TYPE_SHADING);
+			DepsRelation *rel = add_relation(obdata_ubereval_key,
+			                                 object_shading_key,
+			                                 "Object Geometry batch Update");
+			rel->flag |= DEPSREL_FLAG_NO_FLUSH;
+		}
 	}
 	if (object->type == OB_MBALL) {
 		Object *mom = BKE_mball_basis_find(scene_, object);

@@ -317,7 +317,7 @@ bool RAS_Shader::LinkProgram(bool isCustomShader)
 	frag = GetParsedProgram(FRAGMENT_PROGRAM);
 	geom = GetParsedProgram(GEOMETRY_PROGRAM);
 	m_shader = GPU_shader_create_ex(vert.c_str(), frag.c_str(), geom.empty() ? nullptr : geom.c_str(),
-									nullptr, nullptr, GPU_SHADER_FLAGS_NONE, GPU_SHADER_TFB_NONE, NULL, 0, "custom");
+									nullptr, nullptr, GPU_SHADER_TFB_NONE, NULL, 0, "custom");
 	if (!m_shader) {
 		goto program_error;
 	}

@@ -262,6 +262,7 @@ typedef struct EEVEE_PassList {
 	struct DRWPass *maxz_downdepth_layer_ps;
 	struct DRWPass *minz_copydepth_ps;
 	struct DRWPass *maxz_copydepth_ps;
+	struct DRWPass *maxz_copydepth_layer_ps;
 
 	struct DRWPass *depth_pass;
 	struct DRWPass *depth_pass_cull;
@@ -449,7 +450,7 @@ typedef struct EEVEE_LampsInfo {
 	struct EEVEE_ShadowCascade shadow_cascade_data[MAX_SHADOW_CASCADE];
 	/* Lights tracking */
 	int new_shadow_id[MAX_LIGHT]; /* To be able to convert old bitfield to new bitfield */
-	struct EEVEE_BoundSphere shadow_bounds[MAX_LIGHT]; /* Tighly packed light bounds  */
+	struct EEVEE_BoundSphere shadow_bounds[MAX_LIGHT]; /* Tightly packed light bounds  */
 	/* Pointers only. */
 	struct EEVEE_ShadowCasterBuffer *shcaster_frontbuffer;
 	struct EEVEE_ShadowCasterBuffer *shcaster_backbuffer;
@@ -670,6 +671,8 @@ typedef struct EEVEE_CommonUniformBuffer {
 	int prb_irradiance_vis_size; /* int */
 	float prb_lod_cube_max; /* float */
 	float prb_lod_planar_max; /* float */
+	/* Misc */
+	int hiz_mip_offset; /* int */
 } EEVEE_CommonUniformBuffer;
 
 /* ***************** CLIP PLANES DATA **************** */
@@ -949,7 +952,7 @@ void EEVEE_motion_blur_free(void);
 
 /* eevee_mist.c */
 void EEVEE_mist_output_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
-void EEVEE_mist_output_accumulate(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);;
+void EEVEE_mist_output_accumulate(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_mist_free(void);
 
 /* eevee_temporal_sampling.c */

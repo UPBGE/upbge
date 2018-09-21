@@ -74,6 +74,7 @@
 #include "BKE_colortools.h"
 
 #include "DEG_depsgraph.h"
+#include "DEG_depsgraph_query.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -4696,7 +4697,7 @@ static float sculpt_raycast_init(
 	RegionView3D *rv3d = vc->ar->regiondata;
 
 	/* TODO: what if the segment is totally clipped? (return == 0) */
-	ED_view3d_win_to_segment(vc->depsgraph, vc->ar, vc->v3d, mouse, ray_start, ray_end, true);
+	ED_view3d_win_to_segment_clipped(vc->depsgraph, vc->ar, vc->v3d, mouse, ray_start, ray_end, true);
 
 	invert_m4_m4(obimat, ob->obmat);
 	mul_m4_v3(obimat, ray_start);
@@ -4868,8 +4869,12 @@ static void sculpt_flush_update(bContext *C)
 	ARegion *ar = CTX_wm_region(C);
 	MultiresModifierData *mmd = ss->multires;
 
-	if (mmd)
-		multires_mark_as_modified(ob, MULTIRES_COORDS_MODIFIED);
+	if (mmd != NULL) {
+		/* NOTE: SubdivCCG is living in the evaluated object. */
+		Depsgraph *depsgraph = CTX_data_depsgraph(C);
+		Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+		multires_mark_as_modified(ob_eval, MULTIRES_COORDS_MODIFIED);
+	}
 
 	DEG_id_tag_update(&ob->id, DEG_TAG_SHADING_UPDATE);
 

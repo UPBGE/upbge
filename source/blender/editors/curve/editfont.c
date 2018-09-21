@@ -1431,7 +1431,7 @@ void FONT_OT_text_insert(wmOperatorType *ot)
 	ot->poll = ED_operator_editfont;
 
 	/* flags */
-	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+	ot->flag = OPTYPE_UNDO;
 
 	/* properties */
 	RNA_def_string(ot->srna, "text", NULL, 0, "Text", "Text to insert at the cursor position");
@@ -1453,6 +1453,7 @@ static int textbox_add_exec(bContext *C, wmOperator *UNUSED(op))
 		cu->totbox++;
 	}
 
+	DEG_id_tag_update(obedit->data, 0);
 	WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
 	return OPERATOR_FINISHED;
 }
@@ -1495,6 +1496,7 @@ static int textbox_remove_exec(bContext *C, wmOperator *op)
 			cu->actbox--;
 	}
 
+	DEG_id_tag_update(obedit->data, 0);
 	WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
 
 	return OPERATOR_FINISHED;

@@ -379,7 +379,7 @@ static void mesh_render_calc_normals_loop_and_poly(const Mesh *me, const float s
 /**
  * TODO(campbell): 'gpumat_array' may include materials linked to the object.
  * While not default, object materials should be supported.
- * Although this only impacts the data thats generated, not the materials that display.
+ * Although this only impacts the data that's generated, not the materials that display.
  */
 static MeshRenderData *mesh_render_data_create_ex(
         Mesh *me, const int types,
@@ -1732,6 +1732,27 @@ static MeshBatchCache *mesh_batch_cache_get(Mesh *me)
 	return me->runtime.batch_cache;
 }
 
+static void mesh_batch_cache_discard_shaded_tri(MeshBatchCache *cache)
+{
+	GPU_VERTBUF_DISCARD_SAFE(cache->shaded_triangles_data);
+	if (cache->shaded_triangles_in_order) {
+		for (int i = 0; i < cache->mat_len; ++i) {
+			GPU_INDEXBUF_DISCARD_SAFE(cache->shaded_triangles_in_order[i]);
+		}
+	}
+	if (cache->shaded_triangles) {
+		for (int i = 0; i < cache->mat_len; ++i) {
+			GPU_BATCH_DISCARD_SAFE(cache->shaded_triangles[i]);
+		}
+	}
+
+	MEM_SAFE_FREE(cache->shaded_triangles_in_order);
+	MEM_SAFE_FREE(cache->shaded_triangles);
+
+	MEM_SAFE_FREE(cache->auto_layer_names);
+	MEM_SAFE_FREE(cache->auto_layer_is_srgb);
+}
+
 void DRW_mesh_batch_cache_dirty_tag(Mesh *me, int mode)
 {
 	MeshBatchCache *cache = me->runtime.batch_cache;
@@ -1763,9 +1784,7 @@ void DRW_mesh_batch_cache_dirty_tag(Mesh *me, int mode)
 			cache->is_dirty = true;
 			break;
 		case BKE_MESH_BATCH_DIRTY_SHADING:
-			/* TODO: This should only update UV and tangent data,
-			 * and not free the entire cache. */
-			cache->is_dirty = true;
+			mesh_batch_cache_discard_shaded_tri(cache);
 			break;
 		case BKE_MESH_BATCH_DIRTY_SCULPT_COORDS:
 			cache->is_sculpt_points_tag = true;
@@ -1877,23 +1896,7 @@ static void mesh_batch_cache_clear(Mesh *me)
 	GPU_VERTBUF_DISCARD_SAFE(cache->edges_face_overlay);
 	DRW_TEXTURE_FREE_SAFE(cache->edges_face_overlay_tx);
 
-	GPU_VERTBUF_DISCARD_SAFE(cache->shaded_triangles_data);
-	if (cache->shaded_triangles_in_order) {
-		for (int i = 0; i < cache->mat_len; ++i) {
-			GPU_INDEXBUF_DISCARD_SAFE(cache->shaded_triangles_in_order[i]);
-		}
-	}
-	if (cache->shaded_triangles) {
-		for (int i = 0; i < cache->mat_len; ++i) {
-			GPU_BATCH_DISCARD_SAFE(cache->shaded_triangles[i]);
-		}
-	}
-
-	MEM_SAFE_FREE(cache->shaded_triangles_in_order);
-	MEM_SAFE_FREE(cache->shaded_triangles);
-
-	MEM_SAFE_FREE(cache->auto_layer_names);
-	MEM_SAFE_FREE(cache->auto_layer_is_srgb);
+	mesh_batch_cache_discard_shaded_tri(cache);
 
 	if (cache->texpaint_triangles) {
 		for (int i = 0; i < cache->mat_len; ++i) {
@@ -1924,6 +1927,7 @@ static GPUVertBuf *mesh_batch_cache_get_tri_shading_data(MeshRenderData *rdata, 
 		const uint tangent_len = rdata->cd.layers.tangent_len;
 		const uint vcol_len = rdata->cd.layers.vcol_len;
 		const uint layers_combined_len = uv_len + vcol_len + tangent_len;
+		cache->auto_layer_len = 0;
 
 		if (layers_combined_len == 0) {
 			return NULL;
@@ -1948,7 +1952,6 @@ static GPUVertBuf *mesh_batch_cache_get_tri_shading_data(MeshRenderData *rdata, 
 		uint auto_names_len = 0;
 		uint auto_ofs = 0;
 		uint auto_id = 0;
-		cache->auto_layer_len = 0;
 		for (uint i = 0; i < uv_len; i++) {
 			const char *attrib_name = mesh_render_data_uv_auto_layer_uuid_get(rdata, i);
 			auto_names_len += strlen(attrib_name) + 2; /* include null terminator and b prefix. */
@@ -3296,16 +3299,16 @@ static GPUIndexBuf *mesh_batch_cache_get_edges_adjacency(MeshRenderData *rdata, 
 				bool inv_indices = (v1 > v2);
 				void **pval;
 				bool value_is_init = BLI_edgehash_ensure_p(eh, v1, v2, &pval);
-				int v_data = GET_INT_FROM_POINTER(*pval);
+				int v_data = POINTER_AS_INT(*pval);
 				if (!value_is_init || v_data == NO_EDGE) {
 					/* Save the winding order inside the sign bit. Because the
 					 * edgehash sort the keys and we need to compare winding later. */
 					int value = (int)v0 + 1; /* Int 0 cannot be signed */
-					*pval = SET_INT_IN_POINTER((inv_indices) ? -value : value);
+					*pval = POINTER_FROM_INT((inv_indices) ? -value : value);
 				}
 				else {
 					/* HACK Tag as not used. Prevent overhead of BLI_edgehash_remove. */
-					*pval = SET_INT_IN_POINTER(NO_EDGE);
+					*pval = POINTER_FROM_INT(NO_EDGE);
 					bool inv_opposite = (v_data < 0);
 					uint v_opposite = (uint)abs(v_data) - 1;
 
@@ -3328,7 +3331,7 @@ static GPUIndexBuf *mesh_batch_cache_get_edges_adjacency(MeshRenderData *rdata, 
 		     BLI_edgehashIterator_step(ehi))
 		{
 			uint v1, v2;
-			int v_data = GET_INT_FROM_POINTER(BLI_edgehashIterator_getValue(ehi));
+			int v_data = POINTER_AS_INT(BLI_edgehashIterator_getValue(ehi));
 			if (v_data == NO_EDGE) {
 				continue;
 			}

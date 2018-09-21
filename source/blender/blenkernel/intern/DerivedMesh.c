@@ -2619,7 +2619,7 @@ static void editbmesh_calc_modifiers(
 				}
 			}
 
-			if (mti->deformVertsEM || mti->deformVertsEM_DM)
+			if (mti->deformVertsEM)
 				modwrap_deformVertsEM(md, &mectx, em, dm, deformedVerts, numVerts);
 			else
 				modwrap_deformVerts(md, &mectx, dm, deformedVerts, numVerts);
@@ -2666,7 +2666,7 @@ static void editbmesh_calc_modifiers(
 				mask &= ~CD_MASK_ORCO;
 				DM_set_only_copy(orcodm, mask | CD_MASK_ORIGINDEX);
 
-				if (mti->applyModifierEM || mti->applyModifierEM_DM) {
+				if (mti->applyModifierEM) {
 					ndm = modwrap_applyModifierEM(md, &mectx_orco, em, orcodm);
 				}
 				else {
@@ -2694,7 +2694,7 @@ static void editbmesh_calc_modifiers(
 				}
 			}
 
-			if (mti->applyModifierEM || mti->applyModifierEM_DM)
+			if (mti->applyModifierEM)
 				ndm = modwrap_applyModifierEM(md, &mectx_cache, em, dm);
 			else
 				ndm = modwrap_applyModifier(md, &mectx_cache, dm);

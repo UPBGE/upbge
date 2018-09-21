@@ -692,6 +692,17 @@ static void rna_3DViewShading_type_update(Main *bmain, Scene *UNUSED(scene), Poi
 		return;
 	}
 
+	for (Material *ma = bmain->mat.first; ma; ma = ma->id.next) {
+		/* XXX Dependency graph does not support CD mask tracking,
+		 * so we trigger  materials shading for until it's properly supported.
+		 * This is to ensure material batches are all recreated when switching
+		 * shading type. In the future DEG should replace this and just tag
+		 * the meshes itself.
+		 * This hack just tag BKE_MESH_BATCH_DIRTY_SHADING for every mesh that
+		 * have a material. (see T55059) */
+		DEG_id_tag_update(&ma->id, DEG_TAG_SHADING_UPDATE);
+	}
+
 	bScreen *screen = ptr->id.data;
 	for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
 		for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
@@ -2193,13 +2204,6 @@ static void rna_def_space_image_uv(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
-	static const EnumPropertyItem other_uv_filter_items[] = {
-		{SI_FILTER_ALL, "ALL", 0, "All", "No filter, show all islands from other objects"},
-		{SI_FILTER_SAME_IMAGE, "SAME_IMAGE", ICON_IMAGE_DATA, "Same Image",
-		 "Only show others' UV islands whose active image matches image of the active face"},
-		{0, NULL, 0, NULL, NULL}
-	};
-
 	srna = RNA_def_struct(brna, "SpaceUVEditor", NULL);
 	RNA_def_struct_sdna(srna, "SpaceImage");
 	RNA_def_struct_nested(brna, srna, "SpaceImageEditor");
@@ -2243,11 +2247,6 @@ static void rna_def_space_image_uv(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Display Modified Edges", "Display edges after modifiers are applied");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, NULL);
 
-	prop = RNA_def_property(srna, "show_other_objects", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", SI_DRAW_OTHER);
-	RNA_def_property_ui_text(prop, "Display Other Objects", "Display other selected objects that share the same image");
-	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, NULL);
-
 	prop = RNA_def_property(srna, "show_metadata", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", SI_DRAW_METADATA);
 	RNA_def_property_ui_text(prop, "Show Metadata", "Display metadata properties of the image");
@@ -2286,13 +2285,6 @@ static void rna_def_space_image_uv(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", SI_LIVE_UNWRAP);
 	RNA_def_property_ui_text(prop, "Live Unwrap",
 	                         "Continuously unwrap the selected UV island while transforming pinned vertices");
-	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, NULL);
-
-	/* Other UV filtering */
-	prop = RNA_def_property(srna, "other_uv_filter", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_items(prop, other_uv_filter_items);
-	RNA_def_property_ui_text(prop, "Other UV filter",
-	                         "Filter applied on the other object's UV to limit displayed");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, NULL);
 }
 

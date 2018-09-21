@@ -29,6 +29,7 @@
 #include "gpu_py_vertex_buffer.h"
 #include "gpu_py_batch.h"
 #include "gpu_py_offscreen.h"
+#include "gpu_py_shader.h"
 
 PyObject *BPyInit_gpu_types(void);
 

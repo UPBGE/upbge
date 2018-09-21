@@ -1457,7 +1457,7 @@ typedef struct ToolSettings {
 	char annotate_v3d_align;  /* stroke placement settings - 3D View */
 
 	short annotate_thickness; /* default stroke thickness for annotation strokes */
-	char _pad3[2];
+	short gpencil_selectmode; /* stroke selection mode */
 
 	/* Grease Pencil Sculpt */
 	struct GP_BrushEdit_Settings gp_sculpt;
@@ -2239,11 +2239,11 @@ typedef enum eImagePaintMode {
 
 /* ToolSettings.gizmo_flag */
 enum {
-	SCE_MANIP_TRANSLATE      = (1 << 0),
-	SCE_MANIP_ROTATE         = (1 << 1),
-	SCE_MANIP_SCALE          = (1 << 2),
+	SCE_GIZMO_SHOW_TRANSLATE = (1 << 0),
+	SCE_GIZMO_SHOW_ROTATE    = (1 << 1),
+	SCE_GIZMO_SHOW_SCALE     = (1 << 2),
 
-	SCE_MANIP_DISABLE_APRON  = (1 << 3),
+	SCE_GIZMO_DISABLE_APRON  = (1 << 3),
 };
 
 /* ToolSettings.gpencil_flags */
@@ -2290,6 +2290,12 @@ typedef enum eGPencil_Placement_Flags {
 	GP_PROJECT_DEPTH_STROKE_ENDPOINTS = (1 << 4),
 	GP_PROJECT_CURSOR = (1 << 5),
 } eGPencil_Placement_Flags;
+
+/* ToolSettings.gpencil_selectmode */
+typedef enum eGPencil_Selectmode_types {
+	GP_SELECTMODE_POINT  = 0,
+	GP_SELECTMODE_STROKE = 1
+} eGPencil_Selectmode_types;
 
 /* ToolSettings.particle flag */
 #define PE_KEEP_LENGTHS			1

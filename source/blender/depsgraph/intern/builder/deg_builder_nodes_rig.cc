@@ -67,13 +67,16 @@ extern "C" {
 
 namespace DEG {
 
-void DepsgraphNodeBuilder::build_pose_constraints(Object *object,
-                                                  bPoseChannel *pchan,
-                                                  int pchan_index)
+void DepsgraphNodeBuilder::build_pose_constraints(
+        Object *object,
+        bPoseChannel *pchan,
+        int pchan_index,
+        bool is_object_visible)
 {
 	/* Pull indirect dependencies via constraints. */
 	BuilderWalkUserData data;
 	data.builder = this;
+	data.is_parent_visible = is_object_visible;
 	BKE_constraints_id_loop(&pchan->constraints, constraint_walk, &data);
 	/* Create node for constraint stack. */
 	add_operation_node(&object->id, DEG_NODE_TYPE_BONE, pchan->name,
@@ -156,7 +159,7 @@ static void update_pose_orig_pointers(const bPose *pose_orig, bPose *pose_cow)
 }
 
 /* Pose/Armature Bones Graph */
-void DepsgraphNodeBuilder::build_rig(Object *object)
+void DepsgraphNodeBuilder::build_rig(Object *object, bool is_object_visible)
 {
 	bArmature *armature = (bArmature *)object->data;
 	Scene *scene_cow;
@@ -285,7 +288,8 @@ void DepsgraphNodeBuilder::build_rig(Object *object)
 		}
 		/* Build constraints. */
 		if (pchan->constraints.first != NULL) {
-			build_pose_constraints(object, pchan, pchan_index);
+			build_pose_constraints(
+			        object, pchan, pchan_index, is_object_visible);
 		}
 		/**
 		 * IK Solvers.
@@ -315,7 +319,12 @@ void DepsgraphNodeBuilder::build_rig(Object *object)
 		}
 		/* Custom shape. */
 		if (pchan->custom != NULL) {
-			build_object(-1, pchan->custom, DEG_ID_LINKED_INDIRECTLY);
+			/* TODO(sergey): Use own visibility. */
+			build_object(
+			        -1,
+			        pchan->custom,
+			        DEG_ID_LINKED_INDIRECTLY,
+			        is_object_visible);
 		}
 		pchan_index++;
 	}
@@ -366,13 +375,13 @@ void DepsgraphNodeBuilder::build_proxy_rig(Object *object)
 		/* Bone is fully evaluated. */
 		op_node = add_operation_node(
 		        &object->id,
-		                             DEG_NODE_TYPE_BONE,
-		                             pchan->name,
+		        DEG_NODE_TYPE_BONE,
+		        pchan->name,
 		        function_bind(BKE_pose_eval_proxy_copy_bone,
 		                      _1,
 		                      object_cow,
 		                      pchan_index),
-		                             DEG_OPCODE_BONE_DONE);
+		        DEG_OPCODE_BONE_DONE);
 		op_node->set_as_exit();
 
 		/* Custom properties. */

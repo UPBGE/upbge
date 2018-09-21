@@ -1172,13 +1172,15 @@ static void draw_widgetbase_batch(GPUBatch *batch, uiWidgetBase *wtb)
 		float checker_params[3] = {UI_ALPHA_CHECKER_DARK / 255.0f, UI_ALPHA_CHECKER_LIGHT / 255.0f, 8.0f};
 		/* draw single */
 		GPU_batch_program_set_builtin(batch, GPU_SHADER_2D_WIDGET_BASE);
-		GPU_batch_uniform_4fv_array(batch, "parameters", 11, (float *)&wtb->uniform_params);
+		GPU_batch_uniform_4fv_array(batch, "parameters", MAX_WIDGET_PARAMETERS, (float *)&wtb->uniform_params);
 		GPU_batch_uniform_3fv(batch, "checkerColorAndSize", checker_params);
 		GPU_batch_draw(batch);
 	}
 }
 
-static void widgetbase_draw(uiWidgetBase *wtb, const uiWidgetColors *wcol)
+static void widgetbase_draw_ex(
+        uiWidgetBase *wtb, const uiWidgetColors *wcol,
+        bool show_alpha_checkers)
 {
 	unsigned char inner_col1[4] = {0};
 	unsigned char inner_col2[4] = {0};
@@ -1186,7 +1188,9 @@ static void widgetbase_draw(uiWidgetBase *wtb, const uiWidgetColors *wcol)
 	unsigned char outline_col[4] = {0};
 	unsigned char tria_col[4] = {0};
 	/* For color widget. */
-	bool alpha_check = (wcol->alpha_check && (wcol->shaded == 0));
+	if (wcol->shaded != 0) {
+		show_alpha_checkers = false;
+	}
 
 	GPU_blend(true);
 
@@ -1225,14 +1229,19 @@ static void widgetbase_draw(uiWidgetBase *wtb, const uiWidgetColors *wcol)
 	}
 
 	/* Draw everything in one drawcall */
-	if (inner_col1[3] || inner_col2[3] || outline_col[3] || emboss_col[3] || tria_col[3] || alpha_check) {
-		widgetbase_set_uniform_colors_ubv(wtb, inner_col1, inner_col2, outline_col, emboss_col, tria_col, alpha_check);
+	if (inner_col1[3] || inner_col2[3] || outline_col[3] || emboss_col[3] || tria_col[3] || show_alpha_checkers) {
+		widgetbase_set_uniform_colors_ubv(wtb, inner_col1, inner_col2, outline_col, emboss_col, tria_col, show_alpha_checkers);
 
 		GPUBatch *roundbox_batch = ui_batch_roundbox_widget_get(wtb->tria1.type);
 		draw_widgetbase_batch(roundbox_batch, wtb);
 	}
 
 	GPU_blend(false);
+}
+
+static void widgetbase_draw(uiWidgetBase *wtb, const uiWidgetColors *wcol)
+{
+	widgetbase_draw_ex(wtb, wcol, false);
 }
 
 /* *********************** text/icon ************************************** */
@@ -2090,7 +2099,7 @@ static void widget_draw_text_icon(uiFontStyle *fstyle, uiWidgetColors *wcol, uiB
 
 		widget_draw_icon(but, icon, alpha, rect);
 		if (show_menu_icon) {
-			BLI_assert(but->block->content_hints & BLOCK_CONTAINS_SUBMENU_BUT);
+			BLI_assert(but->block->content_hints & UI_BLOCK_CONTAINS_SUBMENU_BUT);
 			widget_draw_submenu_tria(but, rect, wcol);
 		}
 
@@ -2110,7 +2119,7 @@ static void widget_draw_text_icon(uiFontStyle *fstyle, uiWidgetColors *wcol, uiB
 
 	/* Menu contains sub-menu items with triangle icon on their right. Shortcut
 	 * strings should be drawn with some padding to the right then. */
-	if (ui_block_is_menu(but->block) && (but->block->content_hints & BLOCK_CONTAINS_SUBMENU_BUT)) {
+	if (ui_block_is_menu(but->block) && (but->block->content_hints & UI_BLOCK_CONTAINS_SUBMENU_BUT)) {
 		rect->xmax -= UI_MENU_SUBMENU_PADDING;
 	}
 
@@ -2464,6 +2473,7 @@ static void widget_menu_back(uiWidgetColors *wcol, rcti *rect, int flag, int dir
 		rect->ymax += 0.1f * U.widget_unit;
 	}
 
+	GPU_blend_set_func_separate(GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
 	GPU_blend(true);
 	widget_softshadow(rect, roundboxalign, wcol->roundness * U.widget_unit);
 
@@ -3448,9 +3458,9 @@ static void widget_swatch(uiBut *but, uiWidgetColors *wcol, rcti *rect, int stat
 		ui_block_cm_to_display_space_v3(but->block, col);
 
 	rgba_float_to_uchar((unsigned char *)wcol->inner, col);
+	const bool show_alpha_checkers = (wcol->inner[3] < 255);
 
 	wcol->shaded = 0;
-	wcol->alpha_check = (wcol->inner[3] < 255);
 
 	if (state & (UI_BUT_DISABLED | UI_BUT_INACTIVE)) {
 		/* Now we reduce alpha of the inner color (i.e. the color shown)
@@ -3461,7 +3471,7 @@ static void widget_swatch(uiBut *but, uiWidgetColors *wcol, rcti *rect, int stat
 		wcol->inner[3] /= 2;
 	}
 
-	widgetbase_draw(&wtb, wcol);
+	widgetbase_draw_ex(&wtb, wcol, show_alpha_checkers);
 	if (but->a1 == UI_PALETTE_COLOR && ((Palette *)but->rnapoin.id.data)->active_color == (int)but->a2) {
 		float width = rect->xmax - rect->xmin;
 		float height = rect->ymax - rect->ymin;
@@ -4161,7 +4171,7 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 					wt->wcol_theme = &tui->wcol_box;
 					wt->state = widget_state;
 				}
-				else if (but->block->flag & UI_BLOCK_LOOP) {
+				else if (but->block->theme_style == UI_BLOCK_THEME_STYLE_POPUP) {
 					wt->wcol_theme = &tui->wcol_menu_back;
 					wt->state = widget_state;
 				}
@@ -4207,8 +4217,9 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 
 			case UI_BTYPE_SEARCH_MENU:
 				wt = widget_type(UI_WTYPE_NAME);
-				if (but->block->flag & UI_BLOCK_LOOP)
+				if (but->block->theme_style == UI_BLOCK_THEME_STYLE_POPUP) {
 					wt->wcol_theme = &btheme->tui.wcol_menu_back;
+				}
 				break;
 
 			case UI_BTYPE_TAB:
@@ -4231,9 +4242,9 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 					wt = widget_type(UI_WTYPE_TOGGLE);
 
 				/* option buttons have strings outside, on menus use different colors */
-				if (but->block->flag & UI_BLOCK_LOOP)
+				if (but->block->theme_style == UI_BLOCK_THEME_STYLE_POPUP) {
 					wt->state = widget_state_option_menu;
-
+				}
 				break;
 
 			case UI_BTYPE_MENU:

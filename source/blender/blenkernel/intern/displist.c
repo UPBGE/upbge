@@ -813,7 +813,7 @@ static void curve_calc_modifiers_pre(
 	ModifierData *md = modifiers_getVirtualModifierList(ob, &virtualModifierData);
 	ModifierData *pretessellatePoint;
 	Curve *cu = ob->data;
-	int numVerts = 0;
+	int numElems = 0, numVerts = 0;
 	const bool editmode = (!for_render && (cu->editnurb || cu->editfont));
 	ModifierApplyFlag app_flag = 0;
 	float (*deformedVerts)[3] = NULL;
@@ -839,15 +839,17 @@ static void curve_calc_modifiers_pre(
 		required_mode |= eModifierMode_Editmode;
 
 	if (!editmode) {
-		keyVerts = BKE_key_evaluate_object(ob, &numVerts);
+		keyVerts = BKE_key_evaluate_object(ob, &numElems);
 
 		if (keyVerts) {
+			BLI_assert(BKE_keyblock_curve_element_count(nurb) == numElems);
+
 			/* split coords from key data, the latter also includes
 			 * tilts, which is passed through in the modifier stack.
 			 * this is also the reason curves do not use a virtual
 			 * shape key modifier yet. */
 			deformedVerts = BKE_curve_nurbs_keyVertexCos_get(nurb, keyVerts);
-			BLI_assert(BKE_nurbList_verts_count(nurb) == numVerts);
+			numVerts = BKE_nurbList_verts_count(nurb);
 		}
 	}
 
@@ -864,7 +866,7 @@ static void curve_calc_modifiers_pre(
 				deformedVerts = BKE_curve_nurbs_vertexCos_get(nurb, &numVerts);
 			}
 
-			modifier_deformVerts(md, &mectx, NULL, deformedVerts, numVerts);
+			mti->deformVerts(md, &mectx, NULL, deformedVerts, numVerts);
 
 			if (md == pretessellatePoint)
 				break;
@@ -970,15 +972,13 @@ static void curve_calc_modifiers_post(
 				if (!vertCos) {
 					vertCos = BKE_mesh_vertexCos_get(modified, &totvert);
 				}
-
-				modifier_deformVerts(md, &mectx_deform, modified, vertCos, totvert);
+				mti->deformVerts(md, &mectx_deform, modified, vertCos, totvert);
 			}
 			else {
 				if (!vertCos) {
 					vertCos = displist_get_allverts(dispbase, &totvert);
 				}
-
-				modifier_deformVerts(md, &mectx_deform, NULL, vertCos, totvert);
+				mti->deformVerts(md, &mectx_deform, NULL, vertCos, totvert);
 			}
 		}
 		else {
@@ -1021,7 +1021,7 @@ static void curve_calc_modifiers_post(
 				vertCos = NULL;
 			}
 
-			mesh_applied = modifier_applyModifier(md, &mectx_apply, modified);
+			mesh_applied = mti->applyModifier(md, &mectx_apply, modified);
 
 			if (mesh_applied) {
 				/* Modifier returned a new derived mesh */

@@ -353,7 +353,6 @@ class RENDER_PT_output(RenderButtonsPanel, Panel):
 
         rd = context.scene.render
         image_settings = rd.image_settings
-        file_format = image_settings.file_format
 
         layout.prop(rd, "filepath", text="")
 
@@ -434,9 +433,6 @@ class RENDER_PT_encoding_video(RenderButtonsPanel, Panel):
         layout = self.layout
         layout.use_property_split = True
         layout.use_property_decorate = False
-
-        rd = context.scene.render
-        ffmpeg = rd.ffmpeg
 
         self.draw_vcodec(context)
 

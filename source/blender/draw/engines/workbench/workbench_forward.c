@@ -155,7 +155,7 @@ static WORKBENCH_MaterialData *get_or_create_material_data(
 	material_template.ima = ima;
 	uint hash = workbench_material_get_hash(&material_template, false);
 
-	material = BLI_ghash_lookup(wpd->material_hash, SET_UINT_IN_POINTER(hash));
+	material = BLI_ghash_lookup(wpd->material_hash, POINTER_FROM_UINT(hash));
 	if (material == NULL) {
 		material = MEM_mallocN(sizeof(WORKBENCH_MaterialData), __func__);
 
@@ -192,7 +192,7 @@ static WORKBENCH_MaterialData *get_or_create_material_data(
 		}
 		material->object_id = engine_object_data->object_id;
 		DRW_shgroup_uniform_int(material->shgrp_object_outline, "object_id", &material->object_id, 1);
-		BLI_ghash_insert(wpd->material_hash, SET_UINT_IN_POINTER(hash), material);
+		BLI_ghash_insert(wpd->material_hash, POINTER_FROM_UINT(hash), material);
 	}
 	return material;
 }
@@ -608,7 +608,7 @@ void workbench_forward_draw_scene(WORKBENCH_Data *vedata)
 		DRW_draw_pass(psl->transparent_accum_pass);
 	}
 	else {
-		/* TODO(fclem): this is unecessary and takes up perf.
+		/* TODO(fclem): this is unnecessary and takes up perf.
 		 * Better change the composite frag shader to not use the tx. */
 		const float clear_color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 		GPU_framebuffer_bind(fbl->transparent_accum_fb);

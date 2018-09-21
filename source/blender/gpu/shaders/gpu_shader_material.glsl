@@ -1,10 +1,10 @@
 
-uniform mat4 ModelMatrix;
 uniform mat4 ModelViewMatrix;
 uniform mat4 ModelViewMatrixInverse;
 uniform mat3 NormalMatrix;
 
 #ifndef ATTRIB
+uniform mat4 ModelMatrix;
 uniform mat4 ModelMatrixInverse;
 #endif
 
@@ -820,7 +820,8 @@ void valtorgb(float fac, sampler1DArray colormap, float layer, out vec4 outcol, 
 
 void valtorgb_nearest(float fac, sampler1DArray colormap, float layer, out vec4 outcol, out float outalpha)
 {
-	outcol = texelFetch(colormap, ivec2(fac * textureSize(colormap, 0).x, layer), 0);
+	fac = clamp(fac, 0.0, 1.0);
+	outcol = texelFetch(colormap, ivec2(fac * (textureSize(colormap, 0).x - 1), layer), 0);
 	outalpha = outcol.a;
 }
 
@@ -1420,6 +1421,29 @@ void node_emission(vec4 color, float strength, vec3 vN, out Closure result)
 #else
 	result = Closure(vec3(0.0), vec3(0.0), color.rgb * strength, 0.0);
 #endif
+}
+
+void node_wireframe(float size, vec2 barycentric, vec3 barycentric_dist, out float fac)
+{
+	vec3 barys = barycentric.xyy;
+	barys.z = 1.0 - barycentric.x - barycentric.y;
+
+	size *= 0.5;
+	vec3 s = step(-size, -barys * barycentric_dist);
+
+	fac = max(s.x, max(s.y, s.z));
+}
+
+void node_wireframe_screenspace(float size, vec2 barycentric, out float fac)
+{
+	vec3 barys = barycentric.xyy;
+	barys.z = 1.0 - barycentric.x - barycentric.y;
+
+	size *= (1.0 / 3.0);
+	vec3 deltas = fwidth(barys);
+	vec3 s = step(-deltas * size, -barys);
+
+	fac = max(s.x, max(s.y, s.z));
 }
 
 /* background */
@@ -2577,7 +2601,7 @@ void node_tex_sky(vec3 co, out vec4 color)
 	color = vec4(1.0);
 }
 
-void node_tex_voronoi(vec3 co, float scale, float exponent, float coloring, out vec4 color, out float fac)
+void node_tex_voronoi(vec3 co, float scale, float exponent, float coloring, float metric, float feature, out vec4 color, out float fac)
 {
 	vec3 p = co * scale;
 	int xx, yy, zz, xi, yi, zi;
@@ -2599,7 +2623,21 @@ void node_tex_voronoi(vec3 co, float scale, float exponent, float coloring, out 
 				vec3 ip = vec3(xx, yy, zz);
 				vec3 vp = cellnoise_color(ip);
 				vec3 pd = p - (vp + ip);
-				float d = dot(pd, pd);
+
+				float d = 0.0;
+				if (metric == 0) { /* SHD_VORONOI_DISTANCE 0 */
+					d = dot(pd, pd);
+				}
+				else if (metric == 1) { /* SHD_VORONOI_MANHATTAN 1 */
+					d = abs(pd[0]) + abs(pd[1]) + abs(pd[2]);
+				}
+				else if (metric == 2) { /* SHD_VORONOI_CHEBYCHEV 2 */
+					d = max(abs(pd[0]), max(abs(pd[1]), abs(pd[2])));
+				}
+				else if (metric == 3) { /* SHD_VORONOI_MINKOWSKI 3 */
+					d = pow(pow(abs(pd[0]), exponent) + pow(abs(pd[1]), exponent) + pow(abs(pd[2]), exponent), 1.0/exponent);
+				}
+
 				vp += vec3(xx, yy, zz);
 				if (d < da[0]) {
 					da[3] = da[2];
@@ -2636,11 +2674,44 @@ void node_tex_voronoi(vec3 co, float scale, float exponent, float coloring, out 
 	}
 
 	if (coloring == 0.0) {
-		fac = abs(da[0]);
+		/* Intensity output */
+		if (feature == 0) { /* F1 */
+			fac = abs(da[0]);
+		}
+		else if (feature == 1) { /* F2 */
+			fac = abs(da[1]);
+		}
+		else if (feature == 2) { /* F3 */
+			fac = abs(da[2]);
+		}
+		else if (feature == 3) { /* F4 */
+			fac = abs(da[3]);
+		}
+		else if (feature == 4) { /* F2F1 */
+			fac = abs(da[1] - da[0]);
+		}
 		color = vec4(fac, fac, fac, 1);
 	}
 	else {
-		color = vec4(cellnoise_color(pa[0]), 1);
+		/* Color output */
+		vec3 col = vec3(fac, fac, fac);
+		if (feature == 0) { /* F1 */
+			col = pa[0];
+		}
+		else if (feature == 1) { /* F2 */
+			col = pa[1];
+		}
+		else if (feature == 2) { /* F3 */
+			col = pa[2];
+		}
+		else if (feature == 3) { /* F4 */
+			col = pa[3];
+		}
+		else if (feature == 4) { /* F2F1 */
+			col = abs(pa[1] - pa[0]);
+		}
+
+		color = vec4(cellnoise_color(col), 1);
 		fac = (color.x + color.y + color.z) * (1.0 / 3.0);
 	}
 }

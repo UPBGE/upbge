@@ -101,8 +101,8 @@ PyDoc_STRVAR(bpy_app_icons_new_triangles_from_file_doc,
 "\n"
 "   Create a new icon from triangle geometry.\n"
 "\n"
-"   :arg range: File path.\n"
-"   :type range: string.\n"
+"   :arg filename: File path.\n"
+"   :type filename: string.\n"
 "   :return: Unique icon value (pass to interface ``icon_value`` argument).\n"
 "   :rtype: int\n"
 );
@@ -177,7 +177,11 @@ static struct PyModuleDef M_AppIcons_module_def = {
 
 PyObject *BPY_app_icons_module(void)
 {
+	PyObject *sys_modules = PyImport_GetModuleDict();
+
 	PyObject *mod = PyModule_Create(&M_AppIcons_module_def);
+
+	PyDict_SetItem(sys_modules, PyModule_GetNameObject(mod), mod);
 
 	return mod;
 }

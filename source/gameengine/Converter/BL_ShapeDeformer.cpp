@@ -191,20 +191,20 @@ bool BL_ShapeDeformer::Update()
 
 		/* we will blend the key directly in m_transverts array: it is used by armature as the start position */
 		/* m_key can be nullptr in case of Modifier deformer */
-		if (m_key) {
-			WeightsArrayCache cache = {0, nullptr};
-			float **per_keyblock_weights;
+		//if (m_key) {
+		//	WeightsArrayCache cache = {0, nullptr};
+		//	float **per_keyblock_weights;
 
-			/* store verts locally */
-			VerifyStorage();
+		//	/* store verts locally */
+		//	VerifyStorage();
 
-			per_keyblock_weights = BKE_keyblock_get_per_block_weights(blendobj, m_key, &cache);
-			BKE_key_evaluate_relative(0, m_bmesh->totvert, m_bmesh->totvert, (char *)(float *)m_transverts,
-			                          m_key, nullptr, per_keyblock_weights, 0); /* last arg is ignored */
-			BKE_keyblock_free_per_block_weights(m_key, per_keyblock_weights, &cache);
+		//	per_keyblock_weights = BKE_keyblock_get_per_block_weights(blendobj, m_key, &cache);
+		//	BKE_key_evaluate_relative(0, m_bmesh->totvert, m_bmesh->totvert, (char *)(float *)m_transverts,
+		//	                          m_key, nullptr, per_keyblock_weights, 0); /* last arg is ignored */
+		//	BKE_keyblock_free_per_block_weights(m_key, per_keyblock_weights, &cache);
 
-			m_bDynamic = true;
-		}
+		//	m_bDynamic = true;
+		//}
 
 		// Don't release the weight array as in Blender, it will most likely be reusable on next frame
 		// The weight array are ultimately deleted when the skin mesh is destroyed

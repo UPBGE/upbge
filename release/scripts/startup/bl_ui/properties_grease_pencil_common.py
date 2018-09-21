@@ -295,8 +295,6 @@ class GreasePencilAppearancePanel:
             brush = context.active_gpencil_brush
             gp_settings = brush.gpencil_settings
 
-            layout.prop(gp_settings, "gpencil_brush_type", text="Brush Type")
-
             sub = layout.column(align=True)
             sub.enabled = not brush.use_custom_icon
             sub.prop(gp_settings, "gp_icon", text="Icon")
@@ -311,7 +309,7 @@ class GreasePencilAppearancePanel:
             if gp_settings.gpencil_brush_type == 'FILL':
                 layout.prop(brush, "cursor_color_add", text="Color")
 
-        elif ob.mode in ('GPENCIL_SCULPT', 'GPENCIL_WEIGHT'):
+        elif ob.mode in {'GPENCIL_SCULPT', 'GPENCIL_WEIGHT'}:
             settings = context.tool_settings.gpencil_sculpt
             brush = settings.brush
 
@@ -405,7 +403,7 @@ class GPENCIL_MT_pie_settings_palette(Menu):
         gpd = context.gpencil_data
         gpl = context.active_gpencil_layer
         palcolor = None  # context.active_gpencil_palettecolor
-        brush = context.active_gpencil_brush
+        # brush = context.active_gpencil_brush
 
         is_editmode = bool(gpd and gpd.use_stroke_edit_mode and context.editable_gpencil_strokes)
 
@@ -587,7 +585,6 @@ class GPENCIL_MT_gpencil_draw_specials(Menu):
 
     def draw(self, context):
         layout = self.layout
-        is_3d_view = context.space_data.type == 'VIEW_3D'
 
         layout.operator_context = 'INVOKE_REGION_WIN'
 
@@ -605,7 +602,6 @@ class GPENCIL_MT_gpencil_draw_delete(Menu):
 
     def draw(self, context):
         layout = self.layout
-        is_3d_view = context.space_data.type == 'VIEW_3D'
 
         layout.operator_context = 'INVOKE_REGION_WIN'
 
@@ -631,7 +627,6 @@ class GPENCIL_UL_annotation_layer(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         # assert(isinstance(item, bpy.types.GPencilLayer)
         gpl = item
-        gpd = context.gpencil_data
 
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
             if gpl.lock:
@@ -742,10 +737,14 @@ class GreasePencilOnionPanel:
         col.prop(gp, "onion_mode")
         col.prop(gp, "onion_factor", text="Opacity", slider=True)
 
-        if gp.onion_mode in ('ABSOLUTE', 'RELATIVE'):
+        if gp.onion_mode == 'ABSOLUTE':
             col = layout.column(align=True)
             col.prop(gp, "ghost_before_range", text="Frames Before")
-            col.prop(gp, "ghost_after_range", text="After")
+            col.prop(gp, "ghost_after_range", text="Frames After")
+        if gp.onion_mode == 'RELATIVE':
+            col = layout.column(align=True)
+            col.prop(gp, "ghost_before_range", text="Keyframes Before")
+            col.prop(gp, "ghost_after_range", text="Keyframes After")
 
         layout.prop(gp, "use_ghost_custom_colors", text="Use Custom Colors")
 
@@ -785,7 +784,6 @@ class GreasePencilToolsPanel:
     def draw(self, context):
         layout = self.layout
 
-        # gpd_owner = context.gpencil_data_owner
         gpd = context.gpencil_data
 
         layout.prop(gpd, "use_stroke_edit_mode", text="Enable Editing", icon='EDIT', toggle=True)
@@ -807,6 +805,44 @@ class GreasePencilToolsPanel:
         gpencil_stroke_placement_settings(context, layout)
 
 
+class GPENCIL_UL_layer(UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        # assert(isinstance(item, bpy.types.GPencilLayer)
+        gpl = item
+        gpd = context.gpencil_data
+
+        if self.layout_type in {'DEFAULT', 'COMPACT'}:
+            if gpl.lock:
+                layout.active = False
+
+            row = layout.row(align=True)
+            row.label(
+                text="",
+                icon='BONE_DATA' if gpl.is_parented else 'BLANK1',
+            )
+            row.prop(gpl, "info", text="", emboss=False)
+
+            row = layout.row(align=True)
+            row.prop(gpl, "lock", text="", emboss=False)
+            row.prop(gpl, "hide", text="", emboss=False)
+            row.prop(gpl, "unlock_color", text="", emboss=False)
+            subrow = row.row(align=True)
+            subrow.prop(
+                gpl,
+                "use_onion_skinning",
+                text="",
+                icon='GHOST_ENABLED' if gpl.use_onion_skinning else 'GHOST_DISABLED',
+                emboss=False,
+            )
+            subrow.active = gpd.use_onion_skinning
+        elif self.layout_type == 'GRID':
+            layout.alignment = 'CENTER'
+            layout.label(
+                text="",
+                icon_value=icon,
+            )
+
+
 classes = (
     GPENCIL_MT_pie_tool_palette,
     GPENCIL_MT_pie_settings_palette,
@@ -821,6 +857,7 @@ classes = (
     GPENCIL_MT_gpencil_draw_delete,
 
     GPENCIL_UL_annotation_layer,
+    GPENCIL_UL_layer,
 )
 
 if __name__ == "__main__":  # only for live edit.

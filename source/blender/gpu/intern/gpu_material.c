@@ -58,10 +58,6 @@
 
 #include "gpu_codegen.h"
 
-#ifdef WITH_OPENSUBDIV
-#  include "BKE_DerivedMesh.h"
-#endif
-
 /* Structs */
 #define MAX_COLOR_BAND 128
 
@@ -107,8 +103,6 @@ struct GPUMaterial {
 	int partangvel;
 
 	int objectinfoloc;
-
-	bool is_opensubdiv;
 
 	/* XXX: Should be in Material. But it depends on the output node
 	 * used and since the output selection is difference for GPUMaterial...
@@ -660,7 +654,7 @@ GPUMaterial *GPU_material_from_nodetree(
 	BLI_assert(GPU_material_from_nodetree_find(gpumaterials, engine_type, options) == NULL);
 
 	/* allocate material */
-	GPUMaterial *mat = MEM_callocN(sizeof(GPUMaterial), "GPUMaterial");;
+	GPUMaterial *mat = MEM_callocN(sizeof(GPUMaterial), "GPUMaterial");
 	mat->scene = scene;
 	mat->engine_type = engine_type;
 	mat->options = options;
@@ -689,7 +683,7 @@ GPUMaterial *GPU_material_from_nodetree(
 		GPU_nodes_prune(&mat->nodes, mat->outlink);
 		GPU_nodes_get_vertex_attributes(&mat->nodes, &mat->attribs);
 		/* Create source code and search pass cache for an already compiled version. */
-		mat->pass = GPU_generate_pass_new(
+		mat->pass = GPU_generate_pass(
 		        mat,
 		        mat->outlink,
 		        &mat->attribs,

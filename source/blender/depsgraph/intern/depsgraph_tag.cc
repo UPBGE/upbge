@@ -89,44 +89,9 @@ void deg_graph_id_tag_update(Main *bmain, Depsgraph *graph, ID *id, int flag);
 void depsgraph_geometry_tag_to_component(const ID *id,
                                          eDepsNode_Type *component_type)
 {
-	const ID_Type id_type = GS(id->name);
-	switch (id_type) {
-		case ID_OB:
-		{
-			const Object *object = (Object *)id;
-			switch (object->type) {
-				case OB_MESH:
-				case OB_CURVE:
-				case OB_SURF:
-				case OB_FONT:
-				case OB_LATTICE:
-				case OB_MBALL:
-				case OB_GPENCIL:
-					*component_type = DEG_NODE_TYPE_GEOMETRY;
-					break;
-				case OB_ARMATURE:
-					*component_type = DEG_NODE_TYPE_EVAL_POSE;
-					break;
-					/* TODO(sergey): More cases here? */
-			}
-			break;
-		}
-		case ID_ME:
-			*component_type = DEG_NODE_TYPE_GEOMETRY;
-			break;
-		case ID_PA: /* Particles */
-			return;
-		case ID_LP:
-			*component_type = DEG_NODE_TYPE_PARAMETERS;
-			break;
-		case ID_GD:
-			*component_type = DEG_NODE_TYPE_GEOMETRY;
-			break;
-		case ID_PAL: /* Palettes */
-			*component_type = DEG_NODE_TYPE_PARAMETERS;
-			break;
-		default:
-			break;
+	const eDepsNode_Type result = deg_geometry_tag_to_component(id);
+	if (result != DEG_NODE_TYPE_UNDEFINED) {
+		*component_type = result;
 	}
 }
 
@@ -521,13 +486,15 @@ void deg_id_tag_update(Main *bmain, ID *id, int flag)
 void deg_graph_on_visible_update(Main *bmain, Depsgraph *graph)
 {
 	foreach (DEG::IDDepsNode *id_node, graph->id_nodes) {
-		if (!id_node->is_visible) {
-			/* ID is not visible within the current dependency graph, no need
-			 * botherwith it to tag or anything.
+		if (!id_node->visible_components_mask) {
+			/* ID cas no components which affects anything visible. no meed
+			 * bother with it to tag or anything.
 			 */
 			continue;
 		}
-		if (id_node->is_previous_visible) {
+		if (id_node->visible_components_mask ==
+		    id_node->previously_visible_components_mask)
+		{
 			/* The ID was already visible and evaluated, all the subsequent
 			 * updates and tags are to be done explicitly.
 			 */
@@ -562,11 +529,50 @@ void deg_graph_on_visible_update(Main *bmain, Depsgraph *graph)
 		 * tags we request from here will be applied in the updated state of
 		 * dependency graph.
 		 */
-		id_node->is_previous_visible = true;
+		id_node->previously_visible_components_mask =
+		        id_node->visible_components_mask;
 	}
 }
 
 }  /* namespace */
+
+eDepsNode_Type deg_geometry_tag_to_component(const ID *id)
+{
+	const ID_Type id_type = GS(id->name);
+	switch (id_type) {
+		case ID_OB:
+		{
+			const Object *object = (Object *)id;
+			switch (object->type) {
+				case OB_MESH:
+				case OB_CURVE:
+				case OB_SURF:
+				case OB_FONT:
+				case OB_LATTICE:
+				case OB_MBALL:
+				case OB_GPENCIL:
+					return DEG_NODE_TYPE_GEOMETRY;
+				case OB_ARMATURE:
+					return DEG_NODE_TYPE_EVAL_POSE;
+					/* TODO(sergey): More cases here? */
+			}
+			break;
+		}
+		case ID_ME:
+			return DEG_NODE_TYPE_GEOMETRY;
+		case ID_PA: /* Particles */
+			return DEG_NODE_TYPE_UNDEFINED;
+		case ID_LP:
+			return DEG_NODE_TYPE_PARAMETERS;
+		case ID_GD:
+			return DEG_NODE_TYPE_GEOMETRY;
+		case ID_PAL: /* Palettes */
+			return DEG_NODE_TYPE_PARAMETERS;
+		default:
+			break;
+	}
+	return DEG_NODE_TYPE_UNDEFINED;
+}
 
 }  // namespace DEG
 

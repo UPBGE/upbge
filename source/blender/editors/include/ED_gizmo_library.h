@@ -42,6 +42,10 @@ void ED_gizmotypes_facemap_3d(void);
 void ED_gizmotypes_preselect_3d(void);
 void ED_gizmotypes_primitive_3d(void);
 void ED_gizmotypes_blank_3d(void);
+void ED_gizmotypes_value_2d(void);
+
+/* gizmo group types */
+void ED_gizmogrouptypes_value_2d(void);
 
 struct bContext;
 struct Object;
@@ -186,6 +190,8 @@ enum {
 	ED_GIZMO_DIAL_DRAW_FLAG_FILL              = (1 << 1),
 	ED_GIZMO_DIAL_DRAW_FLAG_ANGLE_MIRROR      = (1 << 2),
 	ED_GIZMO_DIAL_DRAW_FLAG_ANGLE_START_Y     = (1 << 3),
+	/* Always show the angle value as an arc in the dial. */
+	ED_GIZMO_DIAL_DRAW_FLAG_ANGLE_VALUE       = (1 << 4),
 };
 
 /* -------------------------------------------------------------------- */

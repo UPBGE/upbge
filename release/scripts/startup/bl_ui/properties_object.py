@@ -58,7 +58,7 @@ class OBJECT_PT_transform(ObjectButtonsPanel, Panel):
         row = col.row(align=True)
         row.prop(ob, "location")
         row.use_property_decorate = False
-        row.prop(ob, "lock_location", text="", emboss=False)
+        row.prop(ob, "lock_location", text="", emboss=False, icon='DECORATE_UNLOCKED')
 
         if ob.rotation_mode == 'QUATERNION':
             col = flow.column()
@@ -66,8 +66,8 @@ class OBJECT_PT_transform(ObjectButtonsPanel, Panel):
             row.prop(ob, "rotation_quaternion", text="Rotation")
             sub = row.column(align=True)
             sub.use_property_decorate = False
-            sub.prop(ob, "lock_rotation_w", text="", emboss=False)
-            sub.prop(ob, "lock_rotation", text="", emboss=False)
+            sub.prop(ob, "lock_rotation_w", text="", emboss=False, icon='DECORATE_UNLOCKED')
+            sub.prop(ob, "lock_rotation", text="", emboss=False, icon='DECORATE_UNLOCKED')
         elif ob.rotation_mode == 'AXIS_ANGLE':
             # row.column().label(text="Rotation")
             #row.column().prop(pchan, "rotation_angle", text="Angle")
@@ -78,20 +78,20 @@ class OBJECT_PT_transform(ObjectButtonsPanel, Panel):
 
             sub = row.column(align=True)
             sub.use_property_decorate = False
-            sub.prop(ob, "lock_rotation_w", text="", emboss=False)
-            sub.prop(ob, "lock_rotation", text="", emboss=False)
+            sub.prop(ob, "lock_rotation_w", text="", emboss=False, icon='DECORATE_UNLOCKED')
+            sub.prop(ob, "lock_rotation", text="", emboss=False, icon='DECORATE_UNLOCKED')
         else:
             col = flow.column()
             row = col.row(align=True)
             row.prop(ob, "rotation_euler", text="Rotation")
             row.use_property_decorate = False
-            row.prop(ob, "lock_rotation", text="", emboss=False)
+            row.prop(ob, "lock_rotation", text="", emboss=False, icon='DECORATE_UNLOCKED')
 
         col = flow.column()
         row = col.row(align=True)
         row.prop(ob, "scale")
         row.use_property_decorate = False
-        row.prop(ob, "lock_scale", text="", emboss=False)
+        row.prop(ob, "lock_scale", text="", emboss=False, icon='DECORATE_UNLOCKED')
 
         row = layout.row(align=True)
         row.prop(ob, "rotation_mode")
@@ -209,7 +209,7 @@ class OBJECT_PT_collections(ObjectButtonsPanel, Panel):
 
         obj_name = obj.name
         for collection in bpy.data.collections:
-            # XXX this is slow and stupid!, we need 2 checks, one thats fast
+            # XXX this is slow and stupid!, we need 2 checks, one that's fast
             # and another that we can be sure its not a name collision
             # from linked library data
             collection_objects = collection.objects
@@ -340,6 +340,7 @@ class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
 
 from .properties_animviz import (
     MotionPathButtonsPanel,
+    MotionPathButtonsPanel_display,
     OnionSkinButtonsPanel,
 )
 
@@ -347,6 +348,26 @@ from .properties_animviz import (
 class OBJECT_PT_motion_paths(MotionPathButtonsPanel, Panel):
     #bl_label = "Object Motion Paths"
     bl_context = "object"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        return (context.object)
+
+    def draw(self, context):
+        # layout = self.layout
+
+        ob = context.object
+        avs = ob.animation_visualization
+        mpath = ob.motion_path
+
+        self.draw_settings(context, avs, mpath)
+
+
+class OBJECT_PT_motion_paths_display(MotionPathButtonsPanel_display, Panel):
+    #bl_label = "Object Motion Paths"
+    bl_context = "object"
+    bl_parent_id = "OBJECT_PT_motion_paths"
     bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
@@ -393,6 +414,7 @@ classes = (
     OBJECT_PT_duplication,
     OBJECT_PT_display,
     OBJECT_PT_motion_paths,
+    OBJECT_PT_motion_paths_display,
     OBJECT_PT_custom_props,
 )
 

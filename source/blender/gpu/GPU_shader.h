@@ -44,12 +44,6 @@ struct GPUUniformBuffer;
  * - only for fragment shaders now
  * - must call texture bind before setting a texture as uniform! */
 
-enum {
-	GPU_SHADER_FLAGS_NONE = 0,
-	GPU_SHADER_FLAGS_SPECIAL_OPENSUBDIV = (1 << 0),
-	GPU_SHADER_FLAGS_NEW_SHADING        = (1 << 1),
-};
-
 typedef enum GPUShaderTFBType {
 	GPU_SHADER_TFB_NONE         = 0, /* Transform feedback unsupported. */
 	GPU_SHADER_TFB_POINTS       = 1,
@@ -70,7 +64,6 @@ GPUShader *GPU_shader_create_ex(
         const char *geocode,
         const char *libcode,
         const char *defines,
-        const int flags,
         const GPUShaderTFBType tf_type,
         const char **tf_names,
         const int tf_count,
@@ -100,6 +93,7 @@ void GPU_shader_uniform_vector_int(
 
 void GPU_shader_uniform_buffer(GPUShader *shader, int location, struct GPUUniformBuffer *ubo);
 void GPU_shader_uniform_texture(GPUShader *shader, int location, struct GPUTexture *tex);
+void GPU_shader_uniform_float(GPUShader *shader, int location, float value);
 void GPU_shader_uniform_int(GPUShader *shader, int location, int value);
 void GPU_shader_geometry_stage_primitive_io(GPUShader *shader, int input, int output, int number);
 
@@ -388,6 +382,11 @@ typedef enum GPUInterlaceShader {
 } GPUInterlaceShader;
 
 GPUShader *GPU_shader_get_builtin_shader(GPUBuiltinShader shader);
+
+void GPU_shader_get_builtin_shader_code(
+        GPUBuiltinShader shader,
+        const char **r_vert, const char **r_frag,
+        const char **r_geom, const char **r_defines);
 
 void GPU_shader_free_builtin_shaders(void);
 

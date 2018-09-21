@@ -404,7 +404,7 @@ static void add_standard_uniforms(
 		DRW_shgroup_uniform_texture_ref(shgrp, "probePlanars", &vedata->txl->planar_pool);
 		DRW_shgroup_uniform_int(shgrp, "outputSsrId", ssr_id, 1);
 	}
-	if (use_refract || use_ssrefraction) {
+	if (use_refract && use_ssrefraction) {
 		BLI_assert(refract_depth != NULL);
 		DRW_shgroup_uniform_float(shgrp, "refractionDepth", refract_depth, 1);
 		DRW_shgroup_uniform_texture_ref(shgrp, "colorBuffer", &vedata->txl->refract_color);
@@ -974,7 +974,7 @@ void EEVEE_materials_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
 					case GPU_MAT_SUCCESS:
 						grp = DRW_shgroup_material_create(gpumat, psl->background_pass);
 						DRW_shgroup_uniform_float(grp, "backgroundAlpha", &stl->g_data->background_alpha, 1);
-						/* TODO (fclem): remove thoses (need to clean the GLSL files). */
+						/* TODO (fclem): remove those (need to clean the GLSL files). */
 						DRW_shgroup_uniform_block(grp, "common_block", sldata->common_ubo);
 						DRW_shgroup_uniform_block(grp, "grid_block", sldata->grid_ubo);
 						DRW_shgroup_uniform_block(grp, "probe_block", sldata->probe_ubo);
