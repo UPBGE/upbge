@@ -215,7 +215,10 @@ void KX_WorldInfo::RenderBackground(RAS_Rasterizer *rasty)
 			GPU_material_bind(gpumat, m_scene->lay, 1.0f, false, rasty->GetViewMatrix().Data(),
 			                  rasty->GetViewInvMatrix().Data(), texcofac, false);
 
-			rasty->SetFrontFace(true);
+			/* Disable cull face instead of setting front face as it could be
+			 * inversed in planar rendering.
+			 */
+			rasty->SetCullFace(false);
 			rasty->Enable(RAS_Rasterizer::RAS_DEPTH_TEST);
 			rasty->SetDepthFunc(RAS_Rasterizer::RAS_ALWAYS);
 
