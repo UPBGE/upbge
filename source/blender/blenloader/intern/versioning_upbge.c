@@ -334,4 +334,17 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
 			}
 		}
 	}
+
+	if (!MAIN_VERSION_UPBGE_ATLEAST(main, 2, 5)) {
+		if (!DNA_struct_elem_find(fd->filesdna, "MTex", "short", "parallaxcomp")) {
+			for (Material *ma = main->mat.first; ma; ma = ma->id.next) {
+				for (unsigned short a = 0; a < MAX_MTEX; ++a) {
+					if (ma->mtex[a]) {
+						// Default alpha.
+						ma->mtex[a]->parallaxcomp = 3;
+					}
+				}
+			}
+		}
+	}
 }
