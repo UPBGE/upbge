@@ -421,7 +421,7 @@ void KX_ObstacleSimulationTOI::AdjustObstacleVelocity(KX_Obstacle *activeObst, K
 	mt::vec2 dv = activeObst->nvel - activeObst->vel;
 	const float ds = dv.Length();
 	if (ds > maxDeltaSpeed || ds < -maxDeltaSpeed) {
-		dv *= fabs(maxDeltaSpeed / ds);
+		dv *= fabsf(maxDeltaSpeed / ds);
 	}
 	const mt::vec2 vel = activeObst->vel + dv;
 
