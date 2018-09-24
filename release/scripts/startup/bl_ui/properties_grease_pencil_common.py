@@ -259,6 +259,39 @@ class GreasePencilStrokeSculptPanel:
 
         layout.prop(brush, "use_falloff")
 
+        layout.use_property_split = False
+        if tool in {'THICKNESS', 'STRENGTH'}:
+            layout.row().prop(brush, "direction", expand=True)
+        elif tool == 'PINCH':
+            row = layout.row(align=True)
+            row.prop_enum(brush, "direction",  value='ADD', text="Pinch")
+            row.prop_enum(brush, "direction",  value='SUBTRACT', text="Inflate")
+        elif settings.tool == 'TWIST':
+            row = layout.row(align=True)
+            row.prop_enum(brush, "direction",  value='ADD', text="CCW")
+            row.prop_enum(brush, "direction",  value='SUBTRACT', text="CW")
+
+
+class GreasePencilSculptOptionsPanel:
+    bl_label = "Sculpt Strokes"
+
+    @classmethod
+    def poll(cls, context):
+        settings = context.tool_settings.gpencil_sculpt
+        tool = settings.tool
+
+        return bool(tool in {'SMOOTH', 'RANDOMIZE', 'SMOOTH'})
+
+    @staticmethod
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        settings = context.tool_settings.gpencil_sculpt
+        tool = settings.tool
+        brush = settings.brush
+
         if tool in {'SMOOTH', 'RANDOMIZE'}:
             layout.prop(settings, "affect_position", text="Affect Position")
             layout.prop(settings, "affect_strength", text="Affect Strength")
@@ -268,9 +301,6 @@ class GreasePencilStrokeSculptPanel:
                 layout.prop(brush, "affect_pressure")
 
             layout.prop(settings, "affect_uv", text="Affect UV")
-
-        if tool in {'THICKNESS', 'PINCH', 'TWIST'}:
-            layout.prop(brush, "direction", expand=True)
 
 
 # GP Object Tool Settings
@@ -312,11 +342,13 @@ class GreasePencilAppearancePanel:
         elif ob.mode in {'GPENCIL_SCULPT', 'GPENCIL_WEIGHT'}:
             settings = context.tool_settings.gpencil_sculpt
             brush = settings.brush
+            tool = settings.tool
 
             col = layout.column(align=True)
             col.prop(brush, "use_cursor", text="Show Brush")
             col.row().prop(brush, "cursor_color_add", text="Add")
-            col.row().prop(brush, "cursor_color_sub", text="Subtract")
+            if tool in {'THICKNESS', 'STRENGTH', 'PINCH', 'TWIST'}:
+                col.row().prop(brush, "cursor_color_sub", text="Subtract")
 
 
 class GPENCIL_MT_pie_tool_palette(Menu):

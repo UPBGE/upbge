@@ -1052,8 +1052,8 @@ class _defs_vertex_paint:
 
     @staticmethod
     def poll_select_mask(context):
-        mesh = context.object.data
-        return mesh.use_paint_mask
+        ob = context.active_object
+        return ob.type == 'MESH' and ob.data.use_paint_mask
 
     @staticmethod
     def generate_from_brushes(context):
@@ -1100,8 +1100,10 @@ class _defs_weight_paint:
 
     @staticmethod
     def poll_select_mask(context):
-        mesh = context.object.data
-        return (mesh.use_paint_mask or mesh.use_paint_mask_vertex)
+        ob = context.active_object
+        return (ob.type == 'MESH' and
+                (ob.data.use_paint_mask or
+                 ob.data.use_paint_mask_vertex))
 
     @staticmethod
     def generate_from_brushes(context):
@@ -1390,6 +1392,7 @@ class _defs_gpencil_sculpt:
         if ob and ob.mode == 'GPENCIL_SCULPT':
             ts = context.tool_settings
             settings = ts.gpencil_sculpt
+            tool = settings.tool
             brush = settings.brush
 
             layout.prop(brush, "size", slider=True)
@@ -1397,8 +1400,10 @@ class _defs_gpencil_sculpt:
             row = layout.row(align=True)
             row.prop(brush, "strength", slider=True)
             row.prop(brush, "use_pressure_strength", text="")
-            row.separator()
-            row.prop(ts.gpencil_sculpt, "use_select_mask", text="")
+
+            if tool in {'THICKNESS', 'STRENGTH', 'PINCH', 'TWIST'}:
+                row.separator()
+                row.prop(brush, "direction", expand=True, text="")
 
     @ToolDef.from_fn
     def smooth():

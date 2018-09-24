@@ -198,6 +198,7 @@ set(SRC
 	intern/studiolight.c
 	intern/subdiv.c
 	intern/subdiv_ccg.c
+	intern/subdiv_ccg_mask.c
 	intern/subdiv_converter.c
 	intern/subdiv_converter_mesh.c
 	intern/subdiv_displacement.c
