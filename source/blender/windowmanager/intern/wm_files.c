@@ -1013,7 +1013,7 @@ static RecentFile *wm_file_history_find(const char *filepath)
 
 /**
  * Write #BLENDER_HISTORY_FILE as-is, without checking the environment
- * (thats handled by #wm_history_file_update).
+ * (that's handled by #wm_history_file_update).
  */
 static void wm_history_file_write(void)
 {
@@ -1691,6 +1691,11 @@ static int wm_homefile_read_exec(bContext *C, wmOperator *op)
 	if (prop_app_template && RNA_property_is_set(op->ptr, prop_app_template)) {
 		RNA_property_string_get(op->ptr, prop_app_template, app_template_buf);
 		app_template = app_template_buf;
+
+		if (!STREQ(app_template, U.app_template)) {
+			/* Always load UI when switching to another template. */
+			G.fileflags &= ~G_FILE_NO_UI;
+		}
 
 		/* Always load preferences when switching templates with own preferences. */
 		use_userdef = wm_app_template_has_userpref(app_template) ||
