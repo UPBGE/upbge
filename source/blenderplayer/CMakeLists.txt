@@ -138,7 +138,6 @@ endif()
 		bf_intern_iksolver
 		bf_intern_smoke
 		bf_modifiers
-		bf_intern_moto 
 		bf_nodes
 		bf_gpu
 		bf_imbuf
