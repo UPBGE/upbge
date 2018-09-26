@@ -326,7 +326,7 @@ static void mesh_ensure_tessellation_customdata(Mesh *me)
 				/* note: this warning may be un-called for if we are initializing the mesh for the
 				 * first time from bmesh, rather then giving a warning about this we could be smarter
 				 * and check if there was any data to begin with, for now just print the warning with
-				 * some info to help troubleshoot whats going on - campbell */
+				 * some info to help troubleshoot what's going on - campbell */
 				printf("%s: warning! Tessellation uvs or vcol data got out of sync, "
 				       "had to reset!\n    CD_MTFACE: %d != CD_MLOOPUV: %d || CD_MCOL: %d != CD_MLOOPCOL: %d\n",
 				       __func__, tottex_tessface, tottex_original, totcol_tessface, totcol_original);
@@ -508,7 +508,7 @@ void BKE_mesh_init(Mesh *me)
 #if 0
 	me->flag = ME_TWOSIDED;
 #endif
-	me->drawflag = ME_DRAWEDGES | ME_DRAWFACES | ME_DRAWCREASES;
+	me->drawflag = 0;
 
 	CustomData_reset(&me->vdata);
 	CustomData_reset(&me->edata);
@@ -650,7 +650,9 @@ static Mesh *mesh_new_nomain_from_template_ex(
         int loops_len, int polys_len,
         CustomDataMask mask)
 {
-	const bool do_tessface = ((me_src->totface != 0) && (me_src->totpoly == 0)); /* only do tessface if we have no polys */
+	/* Only do tessface if we are creating tessfaces or copying from mesh with only tessfaces. */
+	const bool do_tessface = (tessface_len ||
+	                          ((me_src->totface != 0) && (me_src->totpoly == 0)));
 
 	Mesh *me_dst = BKE_id_new_nomain(ID_ME, NULL);
 

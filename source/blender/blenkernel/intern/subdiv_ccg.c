@@ -164,7 +164,7 @@ static void subdiv_ccg_alloc_elements(SubdivCCG *subdiv_ccg, Subdiv *subdiv)
 		subdiv_ccg->grid_hidden[grid_index] =
 		        BLI_BITMAP_NEW(grid_area, "ccg grid hidden");
 	}
-	/* TOOD(sergey): Allocate memory for loose elements. */
+	/* TODO(sergey): Allocate memory for loose elements. */
 	/* Allocate memory for faces. */
 	subdiv_ccg->num_faces = num_faces;
 	if (num_faces) {
@@ -687,7 +687,7 @@ Mesh *BKE_subdiv_to_ccg_mesh(
 	}
 	Mesh *result = BKE_mesh_new_nomain_from_template(
 	        coarse_mesh, 0, 0, 0, 0, 0);
-	result->runtime.subsurf_ccg = subdiv_ccg;
+	result->runtime.subdiv_ccg = subdiv_ccg;
 	return result;
 }
 

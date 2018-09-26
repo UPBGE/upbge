@@ -133,7 +133,7 @@ typedef struct View3DCursor {
 	char _pad[4];
 } View3DCursor;
 
-/* 3D Viewport Shading setings */
+/* 3D Viewport Shading settings */
 typedef struct View3DShading {
 	short type;        /* Shading type (VIEW3D_SHADE_SOLID, ..) */
 	short prev_type;   /* Runtime, for toggle between rendered viewport. */
@@ -165,7 +165,7 @@ typedef struct View3DShading {
 
 } View3DShading;
 
-/* 3D Viewport Overlay setings */
+/* 3D Viewport Overlay settings */
 typedef struct View3DOverlay {
 	int flag;
 
@@ -190,7 +190,7 @@ typedef struct View3DOverlay {
 	float wireframe_threshold;
 	char _pad0[4];
 
-	/* grease pencil setttings */
+	/* grease pencil settings */
 	float gpencil_grid_scale;
 	float gpencil_paper_opacity;
 	int   gpencil_grid_lines;
@@ -429,6 +429,28 @@ enum {
 	V3D_OVERLAY_EDIT_OCCLUDE_WIRE = (1 << 3),
 
 	V3D_OVERLAY_EDIT_WEIGHT       = (1 << 4),
+
+	V3D_OVERLAY_EDIT_EDGES        = (1 << 5),
+	V3D_OVERLAY_EDIT_FACES        = (1 << 6),
+	V3D_OVERLAY_EDIT_FACE_DOT     = (1 << 7),
+
+	V3D_OVERLAY_EDIT_SEAMS        = (1 << 8),
+	V3D_OVERLAY_EDIT_SHARP        = (1 << 9),
+	V3D_OVERLAY_EDIT_CREASES      = (1 << 10),
+	V3D_OVERLAY_EDIT_BWEIGHTS     = (1 << 11),
+
+	V3D_OVERLAY_EDIT_FREESTYLE_EDGE = (1 << 12),
+	V3D_OVERLAY_EDIT_FREESTYLE_FACE = (1 << 13),
+
+	V3D_OVERLAY_EDIT_STATVIS      = (1 << 14),
+	V3D_OVERLAY_EDIT_EDGE_LEN     = (1 << 15),
+	V3D_OVERLAY_EDIT_EDGE_ANG     = (1 << 16),
+	V3D_OVERLAY_EDIT_FACE_ANG     = (1 << 17),
+	V3D_OVERLAY_EDIT_FACE_AREA    = (1 << 18),
+	V3D_OVERLAY_EDIT_INDICES      = (1 << 19),
+
+	V3D_OVERLAY_EDIT_CU_HANDLES   = (1 << 20),
+	V3D_OVERLAY_EDIT_CU_NORMALS   = (1 << 21),
 };
 
 /* View3DOverlay->arm_flag */

@@ -410,7 +410,7 @@ void multires_mark_as_modified(Object *ob, MultiresModifiedFlags flags)
 		return;
 	}
 	Mesh *mesh = ob->data;
-	SubdivCCG *subdiv_ccg = mesh->runtime.subsurf_ccg;
+	SubdivCCG *subdiv_ccg = mesh->runtime.subdiv_ccg;
 	if (subdiv_ccg == NULL) {
 		return;
 	}
@@ -426,8 +426,9 @@ void multires_force_update(Object *ob)
 	if (sculpt_session != NULL && sculpt_session->pbvh != NULL) {
 		PBVH *pbvh = sculpt_session->pbvh;
 		if (BKE_pbvh_type(pbvh) == PBVH_GRIDS) {
+			Mesh *mesh = ob->data;
 			multiresModifier_reshapeFromCCG(
-			        sculpt_session->multires, ob, sculpt_session->subdiv_ccg);
+			        sculpt_session->multires->totlvl, mesh, sculpt_session->subdiv_ccg);
 		}
 		else {
 			/* NOTE: Disabled for until OpenSubdiv is enabled by default. */

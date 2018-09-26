@@ -88,6 +88,7 @@ typedef struct DialInteraction {
 
 	/* Number of full rotations. */
 	int rotations;
+	bool has_drag;
 
 	/* Final output values, used for drawing. */
 	struct {
@@ -445,6 +446,10 @@ static int gizmo_dial_modal(
 	if (tweak_flag & WM_GIZMO_TWEAK_PRECISE) {
 		angle_delta *= 0.1f;
 	}
+	if (angle_delta != 0.0f) {
+		inter->has_drag = true;
+	}
+
 	inter->output.angle_delta = angle_delta;
 	inter->output.angle_ofs = angle_ofs;
 
@@ -457,6 +462,38 @@ static int gizmo_dial_modal(
 	inter->prev.tweak_flag = tweak_flag;
 
 	return OPERATOR_RUNNING_MODAL;
+}
+
+static void gizmo_dial_exit(bContext *C, wmGizmo *gz, const bool cancel)
+{
+	DialInteraction *inter = gz->interaction_data;
+	bool use_reset_value = false;
+	float reset_value = 0.0f;
+	if (cancel) {
+		/* Set the property for the operator and call its modal function. */
+		wmGizmoProperty *gz_prop = WM_gizmo_target_property_find(gz, "offset");
+		if (WM_gizmo_target_property_is_valid(gz_prop)) {
+			use_reset_value = true;
+			reset_value = inter->init.prop_angle;
+		}
+	}
+	else {
+		if (inter->has_drag == false) {
+			PropertyRNA *prop = RNA_struct_find_property(gz->ptr, "click_value");
+			if (RNA_property_is_set(gz->ptr, prop)) {
+				use_reset_value = true;
+				reset_value = RNA_property_float_get(gz->ptr, prop);
+			}
+		}
+	}
+
+	if (use_reset_value) {
+		wmGizmoProperty *gz_prop = WM_gizmo_target_property_find(gz, "offset");
+		if (WM_gizmo_target_property_is_valid(gz_prop)) {
+			WM_gizmo_target_property_float_set(C, gz, gz_prop, reset_value);
+		}
+	}
+
 }
 
 
@@ -502,6 +539,7 @@ static void GIZMO_GT_dial_3d(wmGizmoType *gzt)
 	gzt->setup = gizmo_dial_setup;
 	gzt->invoke = gizmo_dial_invoke;
 	gzt->modal = gizmo_dial_modal;
+	gzt->exit = gizmo_dial_exit;
 
 	gzt->struct_size = sizeof(wmGizmo);
 
@@ -518,6 +556,10 @@ static void GIZMO_GT_dial_3d(wmGizmoType *gzt)
 	RNA_def_boolean(gzt->srna, "wrap_angle", true, "Wrap Angle", "");
 	RNA_def_float_factor(gzt->srna, "arc_inner_factor", 0.0f, 0.0f, 1.0f, "Arc Inner Factor", "", 0.0f, 1.0f);
 	RNA_def_float_factor(gzt->srna, "arc_partial_angle", 0.0f, 0.0f, M_PI * 2, "Show Partial Dial", "", 0.0f, M_PI * 2);
+	RNA_def_float(
+	        gzt->srna, "click_value", 0.0f, -FLT_MAX, FLT_MAX,
+	        "Click Value", "Value to use for a single click action",
+	        -FLT_MAX, FLT_MAX);
 
 	WM_gizmotype_target_property_def(gzt, "offset", PROP_FLOAT, 1);
 }

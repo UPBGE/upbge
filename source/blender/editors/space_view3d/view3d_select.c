@@ -664,8 +664,6 @@ static void do_lasso_select_curve__doSelect(
         void *userData, Nurb *UNUSED(nu), BPoint *bp, BezTriple *bezt, int beztindex, const float screen_co[2])
 {
 	LassoSelectUserData *data = userData;
-	Object *obedit = data->vc->obedit;
-	Curve *cu = (Curve *)obedit->data;
 
 	const bool is_inside = BLI_lasso_is_point_inside(data->mcords, data->moves, screen_co[0], screen_co[1], IS_CLIPPED);
 	if (bp) {
@@ -676,7 +674,7 @@ static void do_lasso_select_curve__doSelect(
 		}
 	}
 	else {
-		if (cu->drawflag & CU_HIDE_HANDLES) {
+		if ((data->vc->v3d->overlay.edit_flag & V3D_OVERLAY_EDIT_CU_HANDLES) == 0) {
 			/* can only be (beztindex == 0) here since handles are hidden */
 			const bool is_select = bezt->f2 & SELECT;
 			const int sel_op_result = ED_select_op_action_deselected(data->sel_op, is_select, is_inside);
@@ -1984,8 +1982,6 @@ static void do_nurbs_box_select__doSelect(
         void *userData, Nurb *UNUSED(nu), BPoint *bp, BezTriple *bezt, int beztindex, const float screen_co[2])
 {
 	BoxSelectUserData *data = userData;
-	Object *obedit = data->vc->obedit;
-	Curve *cu = (Curve *)obedit->data;
 
 	const bool is_inside = BLI_rctf_isect_pt_v(data->rect_fl, screen_co);
 	if (bp) {
@@ -1996,7 +1992,7 @@ static void do_nurbs_box_select__doSelect(
 		}
 	}
 	else {
-		if (cu->drawflag & CU_HIDE_HANDLES) {
+		if ((data->vc->v3d->overlay.edit_flag & V3D_OVERLAY_EDIT_CU_HANDLES) == 0) {
 			/* can only be (beztindex == 0) here since handles are hidden */
 			const bool is_select = bezt->f2 & SELECT;
 			const int sel_op_result = ED_select_op_action_deselected(data->sel_op, is_select, is_inside);
@@ -2912,15 +2908,13 @@ static void nurbscurve_circle_doSelect(
         void *userData, Nurb *UNUSED(nu), BPoint *bp, BezTriple *bezt, int beztindex, const float screen_co[2])
 {
 	CircleSelectUserData *data = userData;
-	Object *obedit = data->vc->obedit;
-	Curve *cu = (Curve *)obedit->data;
 
 	if (len_squared_v2v2(data->mval_fl, screen_co) <= data->radius_squared) {
 		if (bp) {
 			bp->f1 = data->select ? (bp->f1 | SELECT) : (bp->f1 & ~SELECT);
 		}
 		else {
-			if (cu->drawflag & CU_HIDE_HANDLES) {
+			if ((data->vc->v3d->overlay.edit_flag & V3D_OVERLAY_EDIT_CU_HANDLES) == 0) {
 				/* can only be (beztindex == 0) here since handles are hidden */
 				bezt->f1 = bezt->f2 = bezt->f3 = data->select ? (bezt->f2 | SELECT) : (bezt->f2 & ~SELECT);
 			}

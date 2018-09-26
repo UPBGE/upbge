@@ -709,7 +709,7 @@ static int gp_frame_clean_loose_exec(bContext *C, wmOperator *op)
 	bool changed = false;
 	bGPdata *gpd = ED_gpencil_data_get_active(C);
 	int limit = RNA_int_get(op->ptr, "limit");
-	bool is_multiedit = (bool)GPENCIL_MULTIEDIT_SESSIONS_ON(gpd);
+	const bool is_multiedit = (bool)GPENCIL_MULTIEDIT_SESSIONS_ON(gpd);
 
 	CTX_DATA_BEGIN(C, bGPDlayer *, gpl, editable_gpencil_layers)
 	{
@@ -1371,7 +1371,7 @@ static int gp_stroke_change_color_exec(bContext *C, wmOperator *op)
 	}
 	/* try to find slot */
 	int idx = BKE_gpencil_get_material_index(ob, ma) - 1;
-	if (idx <= 0) {
+	if (idx < 0) {
 		return OPERATOR_CANCELLED;
 	}
 
@@ -1380,7 +1380,7 @@ static int gp_stroke_change_color_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 
-	bool is_multiedit = (bool)GPENCIL_MULTIEDIT_SESSIONS_ON(gpd);
+	const bool is_multiedit = (bool)GPENCIL_MULTIEDIT_SESSIONS_ON(gpd);
 	if (ELEM(NULL, ma)) {
 		return OPERATOR_CANCELLED;
 	}
@@ -1413,6 +1413,11 @@ static int gp_stroke_change_color_exec(bContext *C, wmOperator *op)
 					}
 				}
 			}
+			/* if not multiedit, exit loop*/
+			if (!is_multiedit) {
+				break;
+			}
+
 		}
 	}
 	CTX_DATA_END;
@@ -2576,42 +2581,71 @@ void GPENCIL_OT_color_unlock_all(wmOperatorType *ot)
 
 /* ***************** Select all strokes using color ************************ */
 
-static int gpencil_color_select_exec(bContext *C, wmOperator *UNUSED(op))
+static int gpencil_color_select_exec(bContext *C, wmOperator *op)
 {
 	bGPdata *gpd = ED_gpencil_data_get_active(C);
 	Object *ob = CTX_data_active_object(C);
 	MaterialGPencilStyle *gp_style = BKE_material_gpencil_settings_get(ob, ob->actcol);
+	const bool is_multiedit = (bool)GPENCIL_MULTIEDIT_SESSIONS_ON(gpd);
+	const bool deselected = RNA_boolean_get(op->ptr, "deselect");
 
 	/* sanity checks */
 	if (ELEM(NULL, gpd, gp_style))
 		return OPERATOR_CANCELLED;
 
 	/* read all strokes and select*/
-	for (bGPDlayer *gpl = gpd->layers.first; gpl; gpl = gpl->next) {
-		/* only editable and visible layers are considered */
-		if (gpencil_layer_is_editable(gpl) && (gpl->actframe != NULL)) {
-			/* verify something to do */
-			for (bGPDstroke *gps = gpl->actframe->strokes.first; gps; gps = gps->next) {
-				/* skip strokes that are invalid for current view */
-				if (ED_gpencil_stroke_can_use(C, gps) == false)
-					continue;
-				/* check if the color is editable */
-				if (ED_gpencil_stroke_color_use(ob, gpl, gps) == false)
-					continue;
+	CTX_DATA_BEGIN(C, bGPDlayer *, gpl, editable_gpencil_layers)
+	{
+		bGPDframe *init_gpf = gpl->actframe;
+		if (is_multiedit) {
+			init_gpf = gpl->frames.first;
+		}
+		for (bGPDframe *gpf = init_gpf; gpf; gpf = gpf->next) {
+			if ((gpf == gpl->actframe) || ((gpf->flag & GP_FRAME_SELECT) && (is_multiedit))) {
 
-				/* select */
-				if (ob->actcol == gps->mat_nr) {
-					bGPDspoint *pt;
-					int i;
+				/* verify something to do */
+				for (bGPDstroke *gps = gpf->strokes.first; gps; gps = gps->next) {
+					/* skip strokes that are invalid for current view */
+					if (ED_gpencil_stroke_can_use(C, gps) == false)
+						continue;
+					/* check if the color is editable */
+					if (ED_gpencil_stroke_color_use(ob, gpl, gps) == false)
+						continue;
 
-					gps->flag |= GP_STROKE_SELECT;
-					for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
-						pt->flag |= GP_SPOINT_SELECT;
+					/* select */
+					if (ob->actcol == gps->mat_nr + 1) {
+						bGPDspoint *pt;
+						int i;
+
+						if (!deselected) {
+							gps->flag |= GP_STROKE_SELECT;
+						}
+						else {
+							gps->flag &= ~GP_STROKE_SELECT;
+						}
+						for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
+							if (!deselected) {
+								pt->flag |= GP_SPOINT_SELECT;
+							}
+							else {
+								pt->flag &= ~GP_SPOINT_SELECT;
+							}
+						}
 					}
 				}
 			}
+			/* if not multiedit, exit loop*/
+			if (!is_multiedit) {
+				break;
+			}
+
 		}
 	}
+	CTX_DATA_END;
+
+	/* copy on write tag is needed, or else no refresh happens */
+	DEG_id_tag_update(&gpd->id, DEG_TAG_COPY_ON_WRITE);
+
 	/* notifiers */
 	WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, NULL);
 
@@ -2631,4 +2665,8 @@ void GPENCIL_OT_color_select(wmOperatorType *ot)
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	/* props */
+	ot->prop = RNA_def_boolean(ot->srna, "deselect", 0, "Deselect", "Unselect strokes");
+	RNA_def_property_flag(ot->prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }

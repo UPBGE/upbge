@@ -67,7 +67,7 @@ struct GPUBatch *DRW_curve_batch_cache_get_wire_edge(struct Curve *cu, struct Cu
 struct GPUBatch *DRW_curve_batch_cache_get_normal_edge(
         struct Curve *cu, struct CurveCache *ob_curve_cache, float normal_size);
 struct GPUBatch *DRW_curve_batch_cache_get_overlay_edges(struct Curve *cu);
-struct GPUBatch *DRW_curve_batch_cache_get_overlay_verts(struct Curve *cu);
+struct GPUBatch *DRW_curve_batch_cache_get_overlay_verts(struct Curve *cu, bool handles);
 
 struct GPUBatch *DRW_curve_batch_cache_get_triangles_with_normals(
         struct Curve *cu, struct CurveCache *ob_curve_cache);
@@ -96,8 +96,30 @@ struct GPUBatch *DRW_lattice_batch_cache_get_all_edges(struct Lattice *lt, bool 
 struct GPUBatch *DRW_lattice_batch_cache_get_all_verts(struct Lattice *lt);
 struct GPUBatch *DRW_lattice_batch_cache_get_overlay_verts(struct Lattice *lt);
 
-/* Mesh */
+/* Vertex Group Selection and display options */
+struct DRW_MeshWeightState {
+	int defgroup_active;
+	int defgroup_len;
 
+	short flags;
+	char alert_mode;
+
+	/* Set of all selected bones for Multipaint. */
+	bool *defgroup_sel; /* [defgroup_len] */
+	int   defgroup_sel_count;
+};
+
+/* DRW_MeshWeightState.flags */
+enum {
+	DRW_MESH_WEIGHT_STATE_MULTIPAINT          = (1 << 0),
+	DRW_MESH_WEIGHT_STATE_AUTO_NORMALIZE      = (1 << 1),
+};
+
+void DRW_mesh_weight_state_clear(struct DRW_MeshWeightState *wstate);
+void DRW_mesh_weight_state_copy(struct DRW_MeshWeightState *wstate_dst, const struct DRW_MeshWeightState *wstate_src);
+bool DRW_mesh_weight_state_compare(const struct DRW_MeshWeightState *a, const struct DRW_MeshWeightState *b);
+
+/* Mesh */
 struct GPUBatch **DRW_mesh_batch_cache_get_surface_shaded(
         struct Mesh *me, struct GPUMaterial **gpumat_array, uint gpumat_array_len,
         char **auto_layer_names, int **auto_layer_is_srgb, int *auto_layer_count);
@@ -109,7 +131,7 @@ struct GPUBatch *DRW_mesh_batch_cache_get_weight_overlay_verts(struct Mesh *me);
 struct GPUBatch *DRW_mesh_batch_cache_get_all_edges(struct Mesh *me);
 struct GPUBatch *DRW_mesh_batch_cache_get_all_triangles(struct Mesh *me);
 struct GPUBatch *DRW_mesh_batch_cache_get_triangles_with_normals(struct Mesh *me);
-struct GPUBatch *DRW_mesh_batch_cache_get_triangles_with_normals_and_weights(struct Mesh *me, int defgroup);
+struct GPUBatch *DRW_mesh_batch_cache_get_triangles_with_normals_and_weights(struct Mesh *me, const struct DRW_MeshWeightState *wstate);
 struct GPUBatch *DRW_mesh_batch_cache_get_triangles_with_normals_and_vert_colors(struct Mesh *me);
 struct GPUBatch *DRW_mesh_batch_cache_get_triangles_with_select_id(struct Mesh *me, bool use_hide, uint select_id_offset);
 struct GPUBatch *DRW_mesh_batch_cache_get_triangles_with_select_mask(struct Mesh *me, bool use_hide);

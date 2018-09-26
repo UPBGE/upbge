@@ -252,7 +252,10 @@ class GreasePencilStrokeSculptPanel:
 
         layout.template_icon_view(settings, "tool", show_labels=True)
 
-        layout.prop(brush, "size", slider=True)
+        row = layout.row(align=True)
+        row.prop(brush, "size", slider=True)
+        row.prop(brush, "use_pressure_radius", text="")
+
         row = layout.row(align=True)
         row.prop(brush, "strength", slider=True)
         row.prop(brush, "use_pressure_strength", text="")
@@ -866,7 +869,6 @@ class GPENCIL_UL_layer(UIList):
             row = layout.row(align=True)
             row.prop(gpl, "lock", text="", emboss=False)
             row.prop(gpl, "hide", text="", emboss=False)
-            row.prop(gpl, "unlock_color", text="", emboss=False)
             subrow = row.row(align=True)
             subrow.prop(
                 gpl,

@@ -1968,7 +1968,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 				for (ModifierData *md = object->modifiers.first; md; md = md->next) {
 					if (md->type == eModifierType_Subsurf) {
 						SubsurfModifierData *smd = (SubsurfModifierData *)md;
-						smd->quality = 3;
+						smd->quality = min_ii(smd->renderLevels, 3);
 					}
 				}
 			}
@@ -2047,6 +2047,62 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 
 					if (!(clmd->coll_parms->flags & CLOTH_COLLSETTINGS_FLAG_ENABLED)) {
 						clmd->coll_parms->flags &= ~CLOTH_COLLSETTINGS_FLAG_SELF;
+					}
+				}
+			}
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(bmain, 280, 24)) {
+		for (bScreen *screen = bmain->screen.first; screen; screen = screen->id.next) {
+			for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
+				for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
+					if (sl->spacetype == SPACE_VIEW3D) {
+						View3D *v3d = (View3D *)sl;
+						v3d->overlay.edit_flag |= V3D_OVERLAY_EDIT_FACES |
+						                          V3D_OVERLAY_EDIT_SEAMS |
+						                          V3D_OVERLAY_EDIT_SHARP |
+						                          V3D_OVERLAY_EDIT_FREESTYLE_EDGE |
+						                          V3D_OVERLAY_EDIT_FREESTYLE_FACE |
+						                          V3D_OVERLAY_EDIT_EDGES |
+						                          V3D_OVERLAY_EDIT_CREASES |
+						                          V3D_OVERLAY_EDIT_BWEIGHTS |
+						                          V3D_OVERLAY_EDIT_CU_HANDLES |
+						                          V3D_OVERLAY_EDIT_CU_NORMALS;
+					}
+				}
+			}
+		}
+	}
+
+	{
+		if (!DNA_struct_elem_find(fd->filesdna, "ShrinkwrapModifierData", "char", "shrinkMode")) {
+			for (Object *ob = bmain->object.first; ob; ob = ob->id.next) {
+				for (ModifierData *md = ob->modifiers.first; md; md = md->next) {
+					if (md->type == eModifierType_Shrinkwrap) {
+						ShrinkwrapModifierData *smd = (ShrinkwrapModifierData*)md;
+						if (smd->shrinkOpts & MOD_SHRINKWRAP_KEEP_ABOVE_SURFACE) {
+							smd->shrinkMode = MOD_SHRINKWRAP_ABOVE_SURFACE;
+							smd->shrinkOpts &= ~MOD_SHRINKWRAP_KEEP_ABOVE_SURFACE;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(bmain, 280, 24)) {
+		if (!DNA_struct_elem_find(fd->filesdna, "PartDeflect", "float", "pdef_cfrict")) {
+			for (Object *ob = bmain->object.first; ob; ob = ob->id.next) {
+				if (ob->pd) {
+					ob->pd->pdef_cfrict = 5.0f;
+				}
+
+				for (ModifierData *md = ob->modifiers.first; md; md = md->next) {
+					if (md->type == eModifierType_Cloth) {
+						ClothModifierData *clmd = (ClothModifierData *)md;
+
+						clmd->coll_parms->selfepsilon = 0.015f;
 					}
 				}
 			}

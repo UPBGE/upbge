@@ -2547,10 +2547,13 @@ static void editbmesh_calc_modifiers(
 #if 0 /* XXX Will re-enable this when we have global mod stack options. */
 	const bool do_final_wmcol = (scene->toolsettings->weights_preview == WP_WPREVIEW_FINAL) && do_wmcol;
 #endif
+#if 0 /* Obsolete by 2.8. */
 	const bool do_final_wmcol = false;
 	const bool do_init_wmcol = ((((Mesh *)ob->data)->drawflag & ME_DRAWEIGHT) && !do_final_wmcol);
-
 	const bool do_init_statvis = ((((Mesh *)ob->data)->drawflag & ME_DRAW_STATVIS) && !do_init_wmcol);
+#endif
+	const bool do_init_wmcol = false;
+	const bool do_init_statvis = false;
 	const bool do_mod_wmcol = do_init_wmcol;
 	VirtualModifierData virtualModifierData;
 
@@ -3188,7 +3191,7 @@ DerivedMesh *mesh_create_derived_no_virtual(
 	DerivedMesh *final;
 	
 	mesh_calc_modifiers_dm(
-	        depsgraph, scene, ob, vertCos, -1, false, dataMask, -1, false, false, false,
+	        depsgraph, scene, ob, vertCos, -1, false, dataMask, -1, false, false,
 	        NULL, &final);
 
 	return final;
@@ -3201,7 +3204,7 @@ DerivedMesh *mesh_create_derived_physics(
 	DerivedMesh *final;
 	
 	mesh_calc_modifiers_dm(
-	        depsgraph, scene, ob, vertCos, -1, true, dataMask, -1, false, false, false,
+	        depsgraph, scene, ob, vertCos, -1, true, dataMask, -1, false, false,
 	        NULL, &final);
 
 	return final;
@@ -3215,7 +3218,7 @@ DerivedMesh *mesh_create_derived_no_deform_render(
 	DerivedMesh *final;
 
 	mesh_calc_modifiers_dm(
-	        depsgraph, scene, ob, vertCos, 0, false, dataMask, -1, false, false, false,
+	        depsgraph, scene, ob, vertCos, 0, false, dataMask, -1, false, false,
 	        NULL, &final);
 
 	return final;
@@ -3500,7 +3503,7 @@ void DM_init_origspace(DerivedMesh *dm)
 				scale[1] = 1e-9f;
 			invert_v2(scale);
 
-			/* Finally, transform all vcos_2d into ((0, 0), (1, 1)) square and assing them as origspace. */
+			/* Finally, transform all vcos_2d into ((0, 0), (1, 1)) square and assign them as origspace. */
 			for (j = 0; j < mp->totloop; j++, lof++) {
 				add_v2_v2v2(lof->uv, vcos_2d[j], translate);
 				mul_v2_v2(lof->uv, scale);

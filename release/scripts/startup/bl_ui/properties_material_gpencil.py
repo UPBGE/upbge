@@ -29,8 +29,8 @@ class GPENCIL_MT_color_specials(Menu):
     def draw(self, context):
         layout = self.layout
 
-        layout.operator("gpencil.color_reveal", icon='RESTRICT_VIEW_OFF', text="Show All")
-        layout.operator("gpencil.color_hide", icon='RESTRICT_VIEW_ON', text="Hide Others").unselected = True
+        layout.operator("gpencil.color_reveal", icon='HIDE_OFF', text="Show All")
+        layout.operator("gpencil.color_hide", icon='HIDE_ON', text="Hide Others").unselected = True
 
         layout.separator()
 
@@ -147,7 +147,8 @@ class MATERIAL_PT_gpencil_slots(Panel):
             if gpd.use_stroke_edit_mode:
                 row = layout.row(align=True)
                 row.operator("gpencil.stroke_change_color", text="Assign")
-                row.operator("gpencil.color_select", text="Select")
+                row.operator("gpencil.color_select", text="Select").deselect=False
+                row.operator("gpencil.color_select", text="Deselect").deselect=True
 
         elif mat:
             row.template_ID(space, "pin_id")

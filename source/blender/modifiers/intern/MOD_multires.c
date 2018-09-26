@@ -67,6 +67,8 @@ static void initData(ModifierData *md)
 	mmd->quality = 3;
 }
 
+#ifndef WITH_OPENSUBDIV_MODIFIER
+
 static DerivedMesh *applyModifier_DM(
         ModifierData *md, const ModifierEvalContext *ctx,
         DerivedMesh *dm)
@@ -146,6 +148,8 @@ static DerivedMesh *applyModifier_DM(
 
 applyModifier_DM_wrapper(applyModifier, applyModifier_DM)
 
+#endif
+
 #ifdef WITH_OPENSUBDIV_MODIFIER
 
 /* Subdivide into fully qualified mesh. */
@@ -224,18 +228,15 @@ static Mesh *applyModifier_subdiv(ModifierData *md,
 		/* Happens on bad topology, ut also on empty input mesh. */
 		return result;
 	}
-	/* TODO(sergey): Some of production machines are using OpenSubdiv already.
-	 * so better not enable semi-finished multires sculpting for now. Will give
-	 * a wrong impression that things do work, even though crucial areas are
-	 * still missing in implementation.
+	/* NOTE: Orco needs final coordinates on CPU side, which are expected to be
+	 * accessible via MVert. For this reason we do not evaluate multires to
+	 * grids when orco is requested.
 	 */
 	const bool for_orco = (ctx->flag & MOD_APPLY_ORCO) != 0;
-	if ((ctx->object->mode & OB_MODE_SCULPT) &&
-	    G.debug_value == 128 &&
-	    !for_orco)
-	{
+	if ((ctx->object->mode & OB_MODE_SCULPT) && !for_orco) {
 		/* NOTE: CCG takes ownership over Subdiv. */
 		result = multires_as_ccg(mmd, ctx, mesh, subdiv);
+		result->runtime.subdiv_ccg_tot_level = mmd->totlvl;
 		// BKE_subdiv_stats_print(&subdiv->stats);
 	}
 	else {

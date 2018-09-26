@@ -1017,27 +1017,6 @@ static void TRANSFORM_OT_edge_crease(struct wmOperatorType *ot)
 	Transform_Properties(ot, P_SNAP);
 }
 
-static int edge_bevelweight_exec(bContext *C, wmOperator *op)
-{
-	Mesh *me = (Mesh *)CTX_data_edit_object(C)->data;
-
-	/* auto-enable bevel edge weight drawing, then chain to common transform code */
-	me->drawflag |= ME_DRAWBWEIGHTS;
-
-	return transform_exec(C, op);
-}
-
-static int edge_bevelweight_invoke(bContext *C, wmOperator *op, const wmEvent *event)
-{
-	Mesh *me = (Mesh *)CTX_data_edit_object(C)->data;
-
-	/* auto-enable bevel edge weight drawing, then chain to common transform code */
-	me->drawflag |= ME_DRAWBWEIGHTS;
-
-	return transform_invoke(C, op, event);
-}
-
-
 static void TRANSFORM_OT_edge_bevelweight(struct wmOperatorType *ot)
 {
 	/* identifiers */
@@ -1047,8 +1026,8 @@ static void TRANSFORM_OT_edge_bevelweight(struct wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING;
 
 	/* api callbacks */
-	ot->invoke = edge_bevelweight_invoke;
-	ot->exec   = edge_bevelweight_exec;
+	ot->invoke = transform_invoke;
+	ot->exec   = transform_exec;
 	ot->modal  = transform_modal;
 	ot->cancel = transform_cancel;
 	ot->poll   = ED_operator_editmesh;
@@ -1180,8 +1159,6 @@ void transform_keymap_for_space(wmKeyConfig *keyconf, wmKeyMap *keymap, int spac
 			WM_keymap_add_item(keymap, OP_TOSPHERE, SKEY, KM_PRESS, KM_ALT | KM_SHIFT, 0);
 
 			WM_keymap_add_item(keymap, OP_SHEAR, SKEY, KM_PRESS, KM_ALT | KM_CTRL | KM_SHIFT, 0);
-
-			WM_keymap_add_item(keymap, "TRANSFORM_OT_select_orientation", SPACEKEY, KM_PRESS, KM_ALT, 0);
 
 #ifdef USE_WM_KEYMAP_27X
 			kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_create_orientation", SPACEKEY, KM_PRESS, KM_CTRL | KM_ALT, 0);

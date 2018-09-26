@@ -47,13 +47,11 @@ extern struct GlobalsUboStorage ts; /* draw_common.c */
 
 extern char datatoc_common_globals_lib_glsl[];
 extern char datatoc_edit_curve_overlay_loosevert_vert_glsl[];
-extern char datatoc_edit_curve_overlay_frag_glsl[];
+extern char datatoc_edit_curve_overlay_handle_vert_glsl[];
 extern char datatoc_edit_curve_overlay_handle_geom_glsl[];
 
-extern char datatoc_gpu_shader_3D_vert_glsl[];
-extern char datatoc_gpu_shader_uniform_color_frag_glsl[];
-extern char datatoc_gpu_shader_point_uniform_color_frag_glsl[];
-extern char datatoc_gpu_shader_flat_color_frag_glsl[];
+extern char datatoc_gpu_shader_point_varying_color_frag_glsl[];
+extern char datatoc_gpu_shader_3D_smooth_color_frag_glsl[];
 
 /* *********** LISTS *********** */
 /* All lists are per viewport specific datas.
@@ -63,43 +61,20 @@ extern char datatoc_gpu_shader_flat_color_frag_glsl[];
  * for EDIT_CURVE_PassList */
 
 typedef struct EDIT_CURVE_PassList {
-	/* Declare all passes here and init them in
-	 * EDIT_CURVE_cache_init().
-	 * Only contains (DRWPass *) */
 	struct DRWPass *wire_pass;
 	struct DRWPass *overlay_edge_pass;
 	struct DRWPass *overlay_vert_pass;
 } EDIT_CURVE_PassList;
 
-typedef struct EDIT_CURVE_FramebufferList {
-	/* Contains all framebuffer objects needed by this engine.
-	 * Only contains (GPUFrameBuffer *) */
-	struct GPUFrameBuffer *fb;
-} EDIT_CURVE_FramebufferList;
-
-typedef struct EDIT_CURVE_TextureList {
-	/* Contains all framebuffer textures / utility textures
-	 * needed by this engine. Only viewport specific textures
-	 * (not per object). Only contains (GPUTexture *) */
-	struct GPUTexture *texture;
-} EDIT_CURVE_TextureList;
-
 typedef struct EDIT_CURVE_StorageList {
-	/* Contains any other memory block that the engine needs.
-	 * Only directly MEM_(m/c)allocN'ed blocks because they are
-	 * free with MEM_freeN() when viewport is freed.
-	 * (not per object) */
 	struct CustomStruct *block;
 	struct EDIT_CURVE_PrivateData *g_data;
 } EDIT_CURVE_StorageList;
 
 typedef struct EDIT_CURVE_Data {
-	/* Struct returned by DRW_viewport_engine_data_ensure.
-	 * If you don't use one of these, just make it a (void *) */
-	// void *fbl;
 	void *engine_type; /* Required */
-	EDIT_CURVE_FramebufferList *fbl;
-	EDIT_CURVE_TextureList *txl;
+	DRWViewportEmptyList *fbl;
+	DRWViewportEmptyList *txl;
 	EDIT_CURVE_PassList *psl;
 	EDIT_CURVE_StorageList *stl;
 } EDIT_CURVE_Data;
@@ -107,27 +82,19 @@ typedef struct EDIT_CURVE_Data {
 /* *********** STATIC *********** */
 
 static struct {
-	/* Custom shaders :
-	 * Add sources to source/blender/draw/modes/shaders
-	 * init in EDIT_CURVE_engine_init();
-	 * free in EDIT_CURVE_engine_free(); */
-
 	GPUShader *wire_sh;
-
 	GPUShader *overlay_edge_sh;  /* handles and nurbs control cage */
 	GPUShader *overlay_vert_sh;
-
 } e_data = {NULL}; /* Engine data */
 
 typedef struct EDIT_CURVE_PrivateData {
-	/* This keeps the references of the shading groups for
-	 * easy access in EDIT_CURVE_cache_populate() */
-
 	/* resulting curve as 'wire' for curves (and optionally normals) */
 	DRWShadingGroup *wire_shgrp;
 
 	DRWShadingGroup *overlay_edge_shgrp;
 	DRWShadingGroup *overlay_vert_shgrp;
+
+	int show_handles;
 } EDIT_CURVE_PrivateData; /* Transient data */
 
 /* *********** FUNCTIONS *********** */
@@ -135,45 +102,24 @@ typedef struct EDIT_CURVE_PrivateData {
 /* Init Textures, Framebuffers, Storage and Shaders.
  * It is called for every frames.
  * (Optional) */
-static void EDIT_CURVE_engine_init(void *vedata)
+static void EDIT_CURVE_engine_init(void *UNUSED(vedata))
 {
-	EDIT_CURVE_TextureList *txl = ((EDIT_CURVE_Data *)vedata)->txl;
-	EDIT_CURVE_FramebufferList *fbl = ((EDIT_CURVE_Data *)vedata)->fbl;
-	EDIT_CURVE_StorageList *stl = ((EDIT_CURVE_Data *)vedata)->stl;
-
-	UNUSED_VARS(txl, fbl, stl);
-
-	/* Init Framebuffers like this: order is attachment order (for color texs) */
-	/*
-	 * DRWFboTexture tex[2] = {{&txl->depth, GPU_DEPTH_COMPONENT24, 0},
-	 *                         {&txl->color, GPU_RGBA8, DRW_TEX_FILTER}};
-	 */
-
-	/* DRW_framebuffer_init takes care of checking if
-	 * the framebuffer is valid and has the right size*/
-	/*
-	 * float *viewport_size = DRW_viewport_size_get();
-	 * DRW_framebuffer_init(&fbl->occlude_wire_fb,
-	 *                     (int)viewport_size[0], (int)viewport_size[1],
-	 *                     tex, 2);
-	 */
-
 	if (!e_data.wire_sh) {
 		e_data.wire_sh = GPU_shader_get_builtin_shader(GPU_SHADER_3D_UNIFORM_COLOR);
 	}
 
 	if (!e_data.overlay_edge_sh) {
 		e_data.overlay_edge_sh = DRW_shader_create_with_lib(
-		        datatoc_edit_curve_overlay_loosevert_vert_glsl,
+		        datatoc_edit_curve_overlay_handle_vert_glsl,
 		        datatoc_edit_curve_overlay_handle_geom_glsl,
-		        datatoc_gpu_shader_flat_color_frag_glsl,
+		        datatoc_gpu_shader_3D_smooth_color_frag_glsl,
 		        datatoc_common_globals_lib_glsl, NULL);
 	}
 
 	if (!e_data.overlay_vert_sh) {
 		e_data.overlay_vert_sh = DRW_shader_create_with_lib(
 		        datatoc_edit_curve_overlay_loosevert_vert_glsl, NULL,
-		        datatoc_edit_curve_overlay_frag_glsl,
+		        datatoc_gpu_shader_point_varying_color_frag_glsl,
 		        datatoc_common_globals_lib_glsl, NULL);
 	}
 }
@@ -184,11 +130,15 @@ static void EDIT_CURVE_cache_init(void *vedata)
 {
 	EDIT_CURVE_PassList *psl = ((EDIT_CURVE_Data *)vedata)->psl;
 	EDIT_CURVE_StorageList *stl = ((EDIT_CURVE_Data *)vedata)->stl;
+	const DRWContextState *draw_ctx = DRW_context_state_get();
+	View3D *v3d = draw_ctx->v3d;
 
 	if (!stl->g_data) {
 		/* Alloc transient pointers */
-		stl->g_data = MEM_mallocN(sizeof(*stl->g_data), __func__);
+		stl->g_data = MEM_callocN(sizeof(*stl->g_data), __func__);
 	}
+
+	stl->g_data->show_handles = (v3d->overlay.edit_flag & V3D_OVERLAY_EDIT_CU_HANDLES) != 0;
 
 	{
 		DRWShadingGroup *grp;
@@ -202,46 +152,37 @@ static void EDIT_CURVE_cache_init(void *vedata)
 		DRW_shgroup_uniform_vec4(grp, "color", ts.colorWireEdit, 1);
 		stl->g_data->wire_shgrp = grp;
 
-
 		psl->overlay_edge_pass = DRW_pass_create(
 		        "Curve Handle Overlay",
-		        DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_WIRE);
+		        DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND);
 
 		grp = DRW_shgroup_create(e_data.overlay_edge_sh, psl->overlay_edge_pass);
 		DRW_shgroup_uniform_block(grp, "globalsBlock", globals_ubo);
 		DRW_shgroup_uniform_vec2(grp, "viewportSize", DRW_viewport_size_get(), 1);
+		DRW_shgroup_uniform_bool(grp, "showCurveHandles", &stl->g_data->show_handles, 1);
 		stl->g_data->overlay_edge_shgrp = grp;
 
 
 		psl->overlay_vert_pass = DRW_pass_create(
 		        "Curve Vert Overlay",
-		        DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_POINT);
+		        DRW_STATE_WRITE_COLOR | DRW_STATE_POINT);
 
 		grp = DRW_shgroup_create(e_data.overlay_vert_sh, psl->overlay_vert_pass);
 		DRW_shgroup_uniform_block(grp, "globalsBlock", globals_ubo);
 		DRW_shgroup_uniform_vec2(grp, "viewportSize", DRW_viewport_size_get(), 1);
 		stl->g_data->overlay_vert_shgrp = grp;
 	}
-
 }
 
 /* Add geometry to shadingGroups. Execute for each objects */
 static void EDIT_CURVE_cache_populate(void *vedata, Object *ob)
 {
-	EDIT_CURVE_PassList *psl = ((EDIT_CURVE_Data *)vedata)->psl;
 	EDIT_CURVE_StorageList *stl = ((EDIT_CURVE_Data *)vedata)->stl;
 	const DRWContextState *draw_ctx = DRW_context_state_get();
 	View3D *v3d = draw_ctx->v3d;
 
-	UNUSED_VARS(psl, stl);
-
 	if (ob->type == OB_CURVE) {
-#if 0
-		if (ob == draw_ctx->object_edit)
-#else
-		if ((ob == draw_ctx->object_edit) || BKE_object_is_in_editmode(ob))
-#endif
-		{
+		if (BKE_object_is_in_editmode(ob)) {
 			Curve *cu = ob->data;
 			/* Get geometry cache */
 			struct GPUBatch *geom;
@@ -249,65 +190,52 @@ static void EDIT_CURVE_cache_populate(void *vedata, Object *ob)
 			geom = DRW_cache_curve_edge_wire_get(ob);
 			DRW_shgroup_call_add(stl->g_data->wire_shgrp, geom, ob->obmat);
 
-			if ((cu->flag & CU_3D) && (cu->drawflag & CU_HIDE_NORMALS) == 0) {
+			if ((cu->flag & CU_3D) && (v3d->overlay.edit_flag & V3D_OVERLAY_EDIT_CU_NORMALS) != 0) {
 				geom = DRW_cache_curve_edge_normal_get(ob, v3d->overlay.normals_length);
 				DRW_shgroup_call_add(stl->g_data->wire_shgrp, geom, ob->obmat);
 			}
 
-			/* Add geom to a shading group */
 			geom = DRW_cache_curve_edge_overlay_get(ob);
 			if (geom) {
 				DRW_shgroup_call_add(stl->g_data->overlay_edge_shgrp, geom, ob->obmat);
 			}
 
-			geom = DRW_cache_curve_vert_overlay_get(ob);
+			geom = DRW_cache_curve_vert_overlay_get(ob, stl->g_data->show_handles);
 			DRW_shgroup_call_add(stl->g_data->overlay_vert_shgrp, geom, ob->obmat);
 		}
 	}
-}
 
-/* Optional: Post-cache_populate callback */
-static void EDIT_CURVE_cache_finish(void *vedata)
-{
-	EDIT_CURVE_PassList *psl = ((EDIT_CURVE_Data *)vedata)->psl;
-	EDIT_CURVE_StorageList *stl = ((EDIT_CURVE_Data *)vedata)->stl;
+	if (ob->type == OB_SURF) {
+		if (BKE_object_is_in_editmode(ob)) {
+			struct GPUBatch *geom = DRW_cache_curve_edge_overlay_get(ob);
+			DRW_shgroup_call_add(stl->g_data->overlay_edge_shgrp, geom, ob->obmat);
 
-	/* Do something here! dependent on the objects gathered */
-	UNUSED_VARS(psl, stl);
+			geom = DRW_cache_curve_vert_overlay_get(ob, false);
+			DRW_shgroup_call_add(stl->g_data->overlay_vert_shgrp, geom, ob->obmat);
+		}
+	}
 }
 
 /* Draw time ! Control rendering pipeline from here */
 static void EDIT_CURVE_draw_scene(void *vedata)
 {
 	EDIT_CURVE_PassList *psl = ((EDIT_CURVE_Data *)vedata)->psl;
-	EDIT_CURVE_FramebufferList *fbl = ((EDIT_CURVE_Data *)vedata)->fbl;
 
 	/* Default framebuffer and texture */
 	DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
 	DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
 
-	UNUSED_VARS(fbl);
+	if (!DRW_pass_is_empty(psl->wire_pass)) {
+		MULTISAMPLE_SYNC_ENABLE(dfbl, dtxl);
 
-	MULTISAMPLE_SYNC_ENABLE(dfbl, dtxl);
+		DRW_draw_pass(psl->wire_pass);
 
-	/* Show / hide entire passes, swap framebuffers ... whatever you fancy */
-	/*
-	 * DRW_framebuffer_texture_detach(dtxl->depth);
-	 * DRW_framebuffer_bind(fbl->custom_fb);
-	 * DRW_draw_pass(psl->pass);
-	 * DRW_framebuffer_texture_attach(dfbl->default_fb, dtxl->depth, 0, 0);
-	 * DRW_framebuffer_bind(dfbl->default_fb);
-	 */
+		MULTISAMPLE_SYNC_DISABLE(dfbl, dtxl)
+	}
 
-	/* ... or just render passes on default framebuffer. */
-	DRW_draw_pass(psl->wire_pass);
+	/* Thoses passes don't write to depth and are AA'ed using other tricks. */
 	DRW_draw_pass(psl->overlay_edge_pass);
 	DRW_draw_pass(psl->overlay_vert_pass);
-
-	MULTISAMPLE_SYNC_DISABLE(dfbl, dtxl)
-
-	/* If you changed framebuffer, double check you rebind
-	 * the default one with its textures attached before finishing */
 }
 
 /* Cleanup when destroying the engine.
@@ -329,7 +257,7 @@ DrawEngineType draw_engine_edit_curve_type = {
 	&EDIT_CURVE_engine_free,
 	&EDIT_CURVE_cache_init,
 	&EDIT_CURVE_cache_populate,
-	&EDIT_CURVE_cache_finish,
+	NULL,
 	NULL, /* draw_background but not needed by mode engines */
 	&EDIT_CURVE_draw_scene,
 	NULL,

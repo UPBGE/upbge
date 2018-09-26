@@ -34,6 +34,7 @@
 #include "BLI_utildefines.h"
 #include "BLI_math_vector.h"
 #include "BLI_math_bits.h"
+#include "BLI_math_color.h"
 #include "BLI_string.h"
 #include "BLI_alloca.h"
 #include "BLI_edgehash.h"
@@ -1101,13 +1102,68 @@ static void rgb_from_weight(float r_rgb[3], const float weight)
 	}
 }
 
+static void vertex_weight_color(float vweight[3], float weight, bool show_alert_color)
+{
+	CLAMP(weight, 0.0f, 1.0f);
+
+	if (show_alert_color) {
+		bTheme *theme = U.themes.first;
+
+		rgb_uchar_to_float(vweight, (uchar *)theme->tv3d.vertex_unreferenced);
+	}
+	else if (U.flag & USER_CUSTOM_RANGE) {
+		BKE_colorband_evaluate(&U.coba_weight, weight, vweight);
+	}
+	else {
+		rgb_from_weight(vweight, weight);
+	}
+}
+
+static void evaluate_vertex_weight(float vweight[3], const MDeformVert *dvert, const struct DRW_MeshWeightState *wstate)
+{
+	float input = 0.0f;
+	bool show_alert_color = false;
+
+	if (wstate->flags & DRW_MESH_WEIGHT_STATE_MULTIPAINT) {
+		/* Multi-Paint feature */
+		input = BKE_defvert_multipaint_collective_weight(
+		        dvert, wstate->defgroup_len, wstate->defgroup_sel, wstate->defgroup_sel_count,
+		        (wstate->flags & DRW_MESH_WEIGHT_STATE_AUTO_NORMALIZE) != 0);
+
+		/* make it black if the selected groups have no weight on a vertex */
+		if (input == 0.0f) {
+			show_alert_color = true;
+		}
+	}
+	else {
+		/* default, non tricky behavior */
+		input = defvert_find_weight(dvert, wstate->defgroup_active);
+
+		if (input == 0.0f) {
+			switch (wstate->alert_mode) {
+				case OB_DRAW_GROUPUSER_ACTIVE:
+					show_alert_color = true;
+					break;
+
+				case OB_DRAW_GROUPUSER_ALL:
+					show_alert_color = defvert_is_weight_zero(dvert, wstate->defgroup_len);
+					break;
+			}
+		}
+	}
+
+	vertex_weight_color(vweight, input, show_alert_color);
+}
+
+/* color-code for missing data (full brightness isn't easy on the eye). */
+static const unsigned char missing_weight_color[3] = { 0xa0, 0x00, 0xa0 };
 
 /** Ensure #MeshRenderData.vert_weight_color */
-static void mesh_render_data_ensure_vert_weight_color(MeshRenderData *rdata, const int defgroup)
+static void mesh_render_data_ensure_vert_weight_color(MeshRenderData *rdata, const struct DRW_MeshWeightState *wstate)
 {
 	float (*vweight)[3] = rdata->vert_weight_color;
 	if (vweight == NULL) {
-		if (defgroup == -1) {
+		if (wstate->defgroup_active == -1) {
 			goto fallback;
 		}
 
@@ -1125,13 +1181,7 @@ static void mesh_render_data_ensure_vert_weight_color(MeshRenderData *rdata, con
 			vweight = rdata->vert_weight_color = MEM_mallocN(sizeof(*vweight) * rdata->vert_len, __func__);
 			BM_ITER_MESH_INDEX(eve, &viter, bm, BM_VERT, i) {
 				const MDeformVert *dvert = BM_ELEM_CD_GET_VOID_P(eve, cd_dvert_offset);
-				float weight = defvert_find_weight(dvert, defgroup);
-				if (U.flag & USER_CUSTOM_RANGE) {
-					BKE_colorband_evaluate(&U.coba_weight, weight, vweight[i]);
-				}
-				else {
-					rgb_from_weight(vweight[i], weight);
-				}
+				evaluate_vertex_weight(vweight[i], dvert, wstate);
 			}
 		}
 		else {
@@ -1141,23 +1191,26 @@ static void mesh_render_data_ensure_vert_weight_color(MeshRenderData *rdata, con
 
 			vweight = rdata->vert_weight_color = MEM_mallocN(sizeof(*vweight) * rdata->vert_len, __func__);
 			for (int i = 0; i < rdata->vert_len; i++) {
-				float weight = defvert_find_weight(&rdata->dvert[i], defgroup);
-				if (U.flag & USER_CUSTOM_RANGE) {
-					BKE_colorband_evaluate(&U.coba_weight, weight, vweight[i]);
-				}
-				else {
-					rgb_from_weight(vweight[i], weight);
-				}
+				evaluate_vertex_weight(vweight[i], &rdata->dvert[i], wstate);
 			}
 		}
 	}
 	return;
 
 fallback:
-	vweight = rdata->vert_weight_color = MEM_callocN(sizeof(*vweight) * rdata->vert_len, __func__);
+	vweight = rdata->vert_weight_color = MEM_mallocN(sizeof(*vweight) * rdata->vert_len, __func__);
+
+	float error_color[3];
+
+	if ((wstate->defgroup_active < 0) && (wstate->defgroup_len > 0)) {
+		rgb_uchar_to_float(error_color, missing_weight_color);
+	}
+	else {
+		vertex_weight_color(error_color, 0.0f, wstate->alert_mode != OB_DRAW_GROUPUSER_NONE);
+	}
 
 	for (int i = 0; i < rdata->vert_len; i++) {
-		vweight[i][2] = 0.5f;
+		copy_v3_v3(vweight[i], error_color);
 	}
 }
 
@@ -1537,6 +1590,47 @@ static void add_overlay_loose_vert(
 
 /** \} */
 
+/* ---------------------------------------------------------------------- */
+
+/** \name Vertex Group Selection
+ * \{ */
+
+/** Reset the selection structure, deallocating heap memory as appropriate. */
+void DRW_mesh_weight_state_clear(struct DRW_MeshWeightState *wstate)
+{
+	MEM_SAFE_FREE(wstate->defgroup_sel);
+
+	memset(wstate, 0, sizeof(*wstate));
+
+	wstate->defgroup_active = -1;
+}
+
+/** Copy selection data from one structure to another, including heap memory. */
+void DRW_mesh_weight_state_copy(struct DRW_MeshWeightState *wstate_dst, const struct DRW_MeshWeightState *wstate_src)
+{
+	MEM_SAFE_FREE(wstate_dst->defgroup_sel);
+
+	memcpy(wstate_dst, wstate_src, sizeof(*wstate_dst));
+
+	if (wstate_src->defgroup_sel) {
+		wstate_dst->defgroup_sel = MEM_dupallocN(wstate_src->defgroup_sel);
+	}
+}
+
+/** Compare two selection structures. */
+bool DRW_mesh_weight_state_compare(const struct DRW_MeshWeightState *a, const struct DRW_MeshWeightState *b)
+{
+	return a->defgroup_active == b->defgroup_active &&
+	       a->defgroup_len == b->defgroup_len &&
+	       a->flags == b->flags &&
+	       a->alert_mode == b->alert_mode &&
+	       a->defgroup_sel_count == b->defgroup_sel_count &&
+	       ((!a->defgroup_sel && !b->defgroup_sel) ||
+	        (a->defgroup_sel && b->defgroup_sel &&
+	         memcmp(a->defgroup_sel, b->defgroup_sel, a->defgroup_len * sizeof(bool)) == 0));
+}
+
+/** \} */
 
 /* ---------------------------------------------------------------------- */
 
@@ -1646,7 +1740,8 @@ typedef struct MeshBatchCache {
 	int vert_len;
 	int mat_len;
 	bool is_editmode;
-	int vertex_group_index;
+
+	struct DRW_MeshWeightState weight_state;
 
 	/* XXX, only keep for as long as sculpt mode uses shaded drawing. */
 	bool is_sculpt_points_tag;
@@ -1722,7 +1817,8 @@ static void mesh_batch_cache_init(Mesh *me)
 
 	cache->is_maybe_dirty = false;
 	cache->is_dirty = false;
-	cache->vertex_group_index = -1;
+
+	DRW_mesh_weight_state_clear(&cache->weight_state);
 }
 
 static MeshBatchCache *mesh_batch_cache_get(Mesh *me)
@@ -1734,13 +1830,13 @@ static MeshBatchCache *mesh_batch_cache_get(Mesh *me)
 	return me->runtime.batch_cache;
 }
 
-static MeshBatchCache *mesh_batch_cache_get__check_vertex_group(Mesh *me, int defgroup)
+static void mesh_batch_cache_check_vertex_group(MeshBatchCache *cache, const struct DRW_MeshWeightState *wstate)
 {
-	MeshBatchCache *cache = mesh_batch_cache_get(me);
-	if (cache->vertex_group_index != defgroup) {
-		cache->is_dirty = true;
+	if (!DRW_mesh_weight_state_compare(&cache->weight_state, wstate)) {
+		GPU_BATCH_DISCARD_SAFE(cache->triangles_with_weights);
+
+		DRW_mesh_weight_state_clear(&cache->weight_state);
 	}
-	return mesh_batch_cache_get(me);
 }
 
 static void mesh_batch_cache_discard_shaded_tri(MeshBatchCache *cache)
@@ -1918,6 +2014,7 @@ static void mesh_batch_cache_clear(Mesh *me)
 
 	GPU_BATCH_DISCARD_SAFE(cache->texpaint_triangles_single);
 
+	DRW_mesh_weight_state_clear(&cache->weight_state);
 }
 
 void DRW_mesh_batch_cache_free(Mesh *me)
@@ -2674,7 +2771,7 @@ static GPUVertBuf *mesh_create_verts_select_id(
 }
 
 static GPUVertBuf *mesh_create_tri_weights(
-        MeshRenderData *rdata, bool use_hide, int defgroup)
+        MeshRenderData *rdata, bool use_hide, const struct DRW_MeshWeightState *wstate)
 {
 	BLI_assert(
 	        rdata->types &
@@ -2697,7 +2794,7 @@ static GPUVertBuf *mesh_create_tri_weights(
 		int vbo_len_used = 0;
 		GPU_vertbuf_data_alloc(vbo, vbo_len_capacity);
 
-		mesh_render_data_ensure_vert_weight_color(rdata, defgroup);
+		mesh_render_data_ensure_vert_weight_color(rdata, wstate);
 		const float (*vert_weight_color)[3] = rdata->vert_weight_color;
 
 		if (rdata->edit_bmesh) {
@@ -3866,9 +3963,12 @@ GPUBatch *DRW_mesh_batch_cache_get_loose_edges_with_normals(Mesh *me)
 	return cache->ledges_with_normals;
 }
 
-GPUBatch *DRW_mesh_batch_cache_get_triangles_with_normals_and_weights(Mesh *me, int defgroup)
+GPUBatch *DRW_mesh_batch_cache_get_triangles_with_normals_and_weights(
+        Mesh *me, const struct DRW_MeshWeightState *wstate)
 {
-	MeshBatchCache *cache = mesh_batch_cache_get__check_vertex_group(me, defgroup);
+	MeshBatchCache *cache = mesh_batch_cache_get(me);
+
+	mesh_batch_cache_check_vertex_group(cache, wstate);
 
 	if (cache->triangles_with_weights == NULL) {
 		const bool use_hide = (me->editflag & (ME_EDIT_PAINT_VERT_SEL | ME_EDIT_PAINT_FACE_SEL)) != 0;
@@ -3877,8 +3977,9 @@ GPUBatch *DRW_mesh_batch_cache_get_triangles_with_normals_and_weights(Mesh *me, 
 		MeshRenderData *rdata = mesh_render_data_create(me, datatype);
 
 		cache->triangles_with_weights = GPU_batch_create_ex(
-		        GPU_PRIM_TRIS, mesh_create_tri_weights(rdata, use_hide, defgroup), NULL, GPU_BATCH_OWNS_VBO);
-		cache->vertex_group_index = defgroup;
+		        GPU_PRIM_TRIS, mesh_create_tri_weights(rdata, use_hide, wstate), NULL, GPU_BATCH_OWNS_VBO);
+
+		DRW_mesh_weight_state_copy(&cache->weight_state, wstate);
 
 		GPUVertBuf *vbo_tris = use_hide ?
 		        mesh_create_tri_pos_and_normals_visible_only(rdata) :

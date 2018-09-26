@@ -43,7 +43,12 @@ class VIEW3D_HT_header(Header):
         object_mode = 'OBJECT' if obj is None else obj.mode
 
         act_mode_item = bpy.types.Object.bl_rna.properties["mode"].enum_items[object_mode]
-        layout.operator_menu_enum("object.mode_set", "mode", text=act_mode_item.name, icon=act_mode_item.icon)
+
+        row.separator()
+
+        sub = row.row()
+        sub.ui_units_x = 5.5
+        sub.operator_menu_enum("object.mode_set", "mode", text=act_mode_item.name, icon=act_mode_item.icon)
         del act_mode_item
 
         layout.template_header_3D_mode()
@@ -124,7 +129,10 @@ class VIEW3D_HT_header(Header):
                 trans_name = getattr(current_orientation, "name", "Orientation")
 
             row = layout.row(align=True)
-            row.popover(
+
+            sub = row.row()
+            sub.ui_units_x = 4
+            sub.popover(
                 panel="VIEW3D_PT_transform_orientations",
                 text=trans_name,
                 icon=trans_icon,
@@ -309,8 +317,6 @@ class VIEW3D_MT_editor_menus(Menu):
                 layout.menu("VIEW3D_MT_paint_gpencil")
             elif obj and obj.mode == 'GPENCIL_EDIT':
                 layout.menu("VIEW3D_MT_edit_gpencil")
-            elif obj and obj.mode == 'GPENCIL_SCULPT':
-                layout.menu("VIEW3D_MT_sculpt_gpencil")
             elif obj and obj.mode == 'GPENCIL_WEIGHT':
                 layout.menu("VIEW3D_MT_weight_gpencil")
 
@@ -3692,47 +3698,6 @@ class VIEW3D_MT_edit_gpencil(Menu):
         layout.menu("GPENCIL_MT_cleanup")
 
 
-class VIEW3D_MT_sculpt_gpencil(Menu):
-    bl_label = "Strokes"
-
-    def draw(self, context):
-        layout = self.layout
-
-        layout.menu("VIEW3D_MT_edit_gpencil_transform")
-
-        layout.separator()
-        layout.menu("GPENCIL_MT_snap")
-
-        layout.separator()
-
-        layout.operator("gpencil.duplicate_move", text="Duplicate")
-        layout.operator("gpencil.stroke_subdivide", text="Subdivide")
-        layout.menu("VIEW3D_MT_gpencil_simplify")
-
-        layout.separator()
-
-        layout.operator_menu_enum("gpencil.stroke_separate", "mode", text="Separate...")
-        layout.operator("gpencil.stroke_split", text="Split")
-        layout.operator_menu_enum("gpencil.stroke_join", "type", text="Join...")
-        layout.operator("gpencil.stroke_flip", text="Flip Direction")
-
-        layout.separator()
-
-        layout.operator("gpencil.copy", text="Copy")
-        layout.operator("gpencil.paste", text="Paste").type = 'COPY'
-        layout.operator("gpencil.paste", text="Paste & Merge").type = 'MERGE'
-
-        layout.separator()
-
-        layout.operator_menu_enum("gpencil.move_to_layer", "layer", text="Move to Layer")
-        layout.menu("VIEW3D_MT_assign_material")
-        layout.operator_menu_enum("gpencil.stroke_arrange", "direction", text="Arrange Strokes...")
-
-        layout.separator()
-
-        layout.operator_menu_enum("gpencil.convert", "type", text="Convert to Geometry...")
-
-
 class VIEW3D_MT_weight_gpencil(Menu):
     bl_label = "Weights"
 
@@ -3850,6 +3815,64 @@ class VIEW3D_MT_shading_pie(Menu):
         pie.prop(view.overlay, "show_overlays", text="Toggle Overlays", icon='OVERLAY')
         pie.prop_enum(view.shading, "type", value='MATERIAL')
         pie.prop_enum(view.shading, "type", value='RENDERED')
+
+
+class VIEW3D_MT_pivot_pie(Menu):
+    bl_label = "Pivot Point"
+
+    def draw(self, context):
+        layout = self.layout
+        pie = layout.menu_pie()
+        obj = context.active_object
+        mode = context.mode
+
+        pie.prop_enum(context.scene.tool_settings, "transform_pivot_point", value='BOUNDING_BOX_CENTER')
+        pie.prop_enum(context.scene.tool_settings, "transform_pivot_point", value='CURSOR')
+        pie.prop_enum(context.scene.tool_settings, "transform_pivot_point", value='INDIVIDUAL_ORIGINS')
+        pie.prop_enum(context.scene.tool_settings, "transform_pivot_point", value='MEDIAN_POINT')
+        pie.prop_enum(context.scene.tool_settings, "transform_pivot_point", value='ACTIVE_ELEMENT')
+        if (obj is None) or (mode in {'OBJECT', 'POSE', 'WEIGHT_PAINT'}):
+            pie.prop(context.scene.tool_settings, "use_transform_pivot_point_align", text="Center Points Only")
+
+
+
+class VIEW3D_MT_orientations_pie(Menu):
+    bl_label = "Orientation"
+
+    def draw(self, context):
+        layout = self.layout
+        pie = layout.menu_pie()
+        scene = context.scene
+        orientation = scene.current_orientation
+
+        pie.prop(scene, "transform_orientation", expand=True)
+
+
+class VIEW3D_MT_snap_pie(Menu):
+    bl_label = "Snap"
+
+    def draw(self, context):
+        layout = self.layout
+        pie = layout.menu_pie()
+
+        pie.operator("view3d.snap_cursor_to_grid", text="Cursor to Grid", icon='CURSOR')
+        pie.operator("view3d.snap_selected_to_grid", text="Selection to Grid", icon='RESTRICT_SELECT_OFF')
+        pie.operator("view3d.snap_cursor_to_selected", text="Cursor to Selected", icon='CURSOR')
+        pie.operator("view3d.snap_selected_to_cursor", text="Selection to Cursor", icon='RESTRICT_SELECT_OFF').use_offset = False
+        pie.operator("view3d.snap_selected_to_cursor", text="Selection to Cursor (Keep Offset)", icon='RESTRICT_SELECT_OFF').use_offset = True
+        pie.operator("view3d.snap_selected_to_active", text="Selection to Active", icon='RESTRICT_SELECT_OFF')
+        pie.operator("view3d.snap_cursor_to_center", text="Cursor to Center", icon='CURSOR')
+        pie.operator("view3d.snap_cursor_to_active", text="Cursor to Active", icon='CURSOR')
+
+class VIEW3D_MT_proportional_editing_falloff_pie(Menu):
+    bl_label = "Proportional Editing Falloff"
+
+    def draw(self, context):
+        layout = self.layout
+        pie = layout.menu_pie()
+        tool_settings = context.scene.tool_settings
+
+        pie.prop(tool_settings, "proportional_edit_falloff", expand=True)
 
 
 # ********** Panel **********
@@ -4416,7 +4439,6 @@ class VIEW3D_PT_overlay_edit_mesh(Panel):
         overlay = view.overlay
         shading = view.shading
         display_all = overlay.show_overlays
-        data = context.active_object.data
 
         col = layout.column()
         col.active = display_all
@@ -4424,18 +4446,18 @@ class VIEW3D_PT_overlay_edit_mesh(Panel):
         split = col.split()
 
         sub = split.column()
-        sub.prop(data, "show_edges", text="Edges")
+        sub.prop(overlay, "show_edges", text="Edges")
         sub = split.column()
-        sub.prop(data, "show_faces", text="Faces")
+        sub.prop(overlay, "show_faces", text="Faces")
         sub = split.column()
         sub.active = shading.show_xray
-        sub.prop(data, "show_face_center", text="Center")
+        sub.prop(overlay, "show_face_center", text="Center")
 
         row = col.row(align=True)
-        row.prop(data, "show_edge_crease", text="Creases", toggle=True)
-        row.prop(data, "show_edge_sharp", text="Sharp", text_ctxt=i18n_contexts.plural, toggle=True)
-        row.prop(data, "show_edge_bevel_weight", text="Bevel", toggle=True)
-        row.prop(data, "show_edge_seams", text="Seams", toggle=True)
+        row.prop(overlay, "show_edge_crease", text="Creases", toggle=True)
+        row.prop(overlay, "show_edge_sharp", text="Sharp", text_ctxt=i18n_contexts.plural, toggle=True)
+        row.prop(overlay, "show_edge_bevel_weight", text="Bevel", toggle=True)
+        row.prop(overlay, "show_edge_seams", text="Seams", toggle=True)
 
 
 class VIEW3D_PT_overlay_edit_mesh_shading(Panel):
@@ -4455,7 +4477,6 @@ class VIEW3D_PT_overlay_edit_mesh_shading(Panel):
         overlay = view.overlay
         tool_settings = context.tool_settings
         display_all = overlay.show_overlays
-        data = context.active_object.data
         statvis = tool_settings.statvis
 
         col = layout.column()
@@ -4469,12 +4490,12 @@ class VIEW3D_PT_overlay_edit_mesh_shading(Panel):
             row.label(text="Zero Weights")
             row.prop(tool_settings, "vertex_group_user", text="")
 
-        col.prop(data, "show_statvis", text="Mesh Analysis")
-        if data.show_statvis:
+        col.prop(overlay, "show_statvis", text="Mesh Analysis")
+        if overlay.show_statvis:
             col = col.column()
 
             sub = col.split()
-            sub.active = data.show_statvis
+            sub.active = overlay.show_statvis
             sub.label(text="Type")
             sub.prop(statvis, "type", text="")
 
@@ -4517,7 +4538,6 @@ class VIEW3D_PT_overlay_edit_mesh_measurement(Panel):
         view = context.space_data
         overlay = view.overlay
         display_all = overlay.show_overlays
-        data = context.active_object.data
 
         col = layout.column()
         col.active = display_all
@@ -4525,12 +4545,12 @@ class VIEW3D_PT_overlay_edit_mesh_measurement(Panel):
         split = col.split()
 
         sub = split.column()
-        sub.prop(data, "show_extra_edge_length", text="Edge Length")
-        sub.prop(data, "show_extra_edge_angle", text="Edge Angle")
+        sub.prop(overlay, "show_extra_edge_length", text="Edge Length")
+        sub.prop(overlay, "show_extra_edge_angle", text="Edge Angle")
 
         sub = split.column()
-        sub.prop(data, "show_extra_face_area", text="Face Area")
-        sub.prop(data, "show_extra_face_angle", text="Face Angle")
+        sub.prop(overlay, "show_extra_face_area", text="Face Area")
+        sub.prop(overlay, "show_extra_face_angle", text="Face Angle")
 
 
 class VIEW3D_PT_overlay_edit_mesh_normals(Panel):
@@ -4579,14 +4599,13 @@ class VIEW3D_PT_overlay_edit_mesh_freestyle(Panel):
         view = context.space_data
         overlay = view.overlay
         display_all = overlay.show_overlays
-        data = context.active_object.data
 
         col = layout.column()
         col.active = display_all
 
         row = col.row()
-        row.prop(data, "show_freestyle_edge_marks", text="Edge Marks")
-        row.prop(data, "show_freestyle_face_marks", text="Face Marks")
+        row.prop(overlay, "show_freestyle_edge_marks", text="Edge Marks")
+        row.prop(overlay, "show_freestyle_face_marks", text="Face Marks")
 
 
 class VIEW3D_PT_overlay_edit_mesh_developer(Panel):
@@ -4605,12 +4624,11 @@ class VIEW3D_PT_overlay_edit_mesh_developer(Panel):
         view = context.space_data
         overlay = view.overlay
         display_all = overlay.show_overlays
-        data = context.active_object.data
 
         col = layout.column()
         col.active = display_all
 
-        col.prop(data, "show_extra_indices", text="Indices")
+        col.prop(overlay, "show_extra_indices", text="Indices")
 
 
 class VIEW3D_PT_overlay_edit_curve(Panel):
@@ -4626,7 +4644,6 @@ class VIEW3D_PT_overlay_edit_curve(Panel):
     def draw(self, context):
         layout = self.layout
         view = context.space_data
-        data = context.active_object.data
         overlay = view.overlay
         display_all = overlay.show_overlays
 
@@ -4634,8 +4651,8 @@ class VIEW3D_PT_overlay_edit_curve(Panel):
         col.active = display_all
 
         row = col.row()
-        row.prop(data, "show_handles", text="Handles")
-        row.prop(data, "show_normal_face", text="Normals")
+        row.prop(overlay, "show_curve_handles", text="Handles")
+        row.prop(overlay, "show_curve_normals", text="Normals")
 
 
 class VIEW3D_PT_overlay_sculpt(Panel):
@@ -5229,7 +5246,6 @@ classes = (
     VIEW3D_MT_assign_material,
     VIEW3D_MT_edit_gpencil,
     VIEW3D_MT_edit_gpencil_delete,
-    VIEW3D_MT_sculpt_gpencil,
     VIEW3D_MT_weight_gpencil,
     VIEW3D_MT_gpencil_animation,
     VIEW3D_MT_gpencil_simplify,
@@ -5257,6 +5273,10 @@ classes = (
     VIEW3D_MT_object_mode_pie,
     VIEW3D_MT_view_pie,
     VIEW3D_MT_shading_pie,
+    VIEW3D_MT_pivot_pie,
+    VIEW3D_MT_snap_pie,
+    VIEW3D_MT_orientations_pie,
+    VIEW3D_MT_proportional_editing_falloff_pie,
     VIEW3D_PT_view3d_properties,
     VIEW3D_PT_view3d_camera_lock,
     VIEW3D_PT_view3d_cursor,
