@@ -261,6 +261,14 @@ class VIEW3D_HT_header(Header):
         sub.active = overlay.show_overlays
         sub.popover(panel="VIEW3D_PT_overlay")
 
+        row = layout.row()
+        row.active = (shading.type in {'WIREFRAME', 'SOLID'}) or object_mode in {'EDIT'}
+
+        if shading.type == 'WIREFRAME':
+            row.prop(shading, "show_xray_wireframe", text="", icon='ORTHO')
+        else:
+            row.prop(shading, "show_xray", text="", icon='ORTHO')
+
         row = layout.row(align=True)
         row.prop(shading, "type", text="", expand=True)
         sub = row.row(align=True)
@@ -362,6 +370,7 @@ class ShowHideMenu:
 # NOTE: this doesn't seem to be able to be used directly
 class VIEW3D_MT_transform_base(Menu):
     bl_label = "Transform"
+    bl_category = "View"
 
     # TODO: get rid of the custom text strings?
     def draw(self, context):
@@ -3810,7 +3819,10 @@ class VIEW3D_MT_shading_pie(Menu):
                 sub = pie.row()
                 sub.active = False
 
-            sub.prop(view.shading, "show_xray", text="Toggle X-Ray", icon='ORTHO')
+            if view.shading.type == 'WIREFRAME':
+                sub.prop(view.shading, "show_xray_wireframe", text="Toggle X-Ray", icon='ORTHO')
+            else:
+                sub.prop(view.shading, "show_xray", text="Toggle X-Ray", icon='ORTHO')
 
         pie.prop(view.overlay, "show_overlays", text="Toggle Overlays", icon='OVERLAY')
         pie.prop_enum(view.shading, "type", value='MATERIAL')
@@ -3833,7 +3845,6 @@ class VIEW3D_MT_pivot_pie(Menu):
         pie.prop_enum(context.scene.tool_settings, "transform_pivot_point", value='ACTIVE_ELEMENT')
         if (obj is None) or (mode in {'OBJECT', 'POSE', 'WEIGHT_PAINT'}):
             pie.prop(context.scene.tool_settings, "use_transform_pivot_point_align", text="Center Points Only")
-
 
 
 class VIEW3D_MT_orientations_pie(Menu):
@@ -3864,6 +3875,7 @@ class VIEW3D_MT_snap_pie(Menu):
         pie.operator("view3d.snap_cursor_to_center", text="Cursor to Center", icon='CURSOR')
         pie.operator("view3d.snap_cursor_to_active", text="Cursor to Active", icon='CURSOR')
 
+
 class VIEW3D_MT_proportional_editing_falloff_pie(Menu):
     bl_label = "Proportional Editing Falloff"
 
@@ -3881,6 +3893,7 @@ class VIEW3D_MT_proportional_editing_falloff_pie(Menu):
 class VIEW3D_PT_view3d_properties(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
+    bl_category = "View"
     bl_label = "View"
 
     def draw(self, context):
@@ -3918,6 +3931,7 @@ class VIEW3D_PT_view3d_properties(Panel):
 class VIEW3D_PT_view3d_camera_lock(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
+    bl_category = "View"
     bl_label = "Camera Lock"
     bl_parent_id = "VIEW3D_PT_view3d_properties"
 
@@ -3952,6 +3966,7 @@ class VIEW3D_PT_view3d_camera_lock(Panel):
 class VIEW3D_PT_view3d_cursor(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
+    bl_category = "View"
     bl_label = "3D Cursor"
 
     def draw(self, context):
@@ -4150,10 +4165,11 @@ class VIEW3D_PT_shading_options(Panel):
         is_shadows = shading.show_shadows
 
         row = col.row()
-        row.prop(shading, "show_xray", text="")
-        sub = row.row()
-        sub.active = is_xray
-        sub.prop(shading, "xray_alpha", text="X-Ray")
+        row.active = is_xray
+        if shading.type == 'WIREFRAME':
+            row.prop(shading, "xray_alpha_wireframe", text="X-Ray")
+        else:
+            row.prop(shading, "xray_alpha", text="X-Ray")
 
         if shading.type == 'SOLID':
             row = col.row()
@@ -4450,7 +4466,10 @@ class VIEW3D_PT_overlay_edit_mesh(Panel):
         sub = split.column()
         sub.prop(overlay, "show_faces", text="Faces")
         sub = split.column()
-        sub.active = shading.show_xray
+        if shading.type == 'WIREFRAME':
+            sub.active = shading.show_xray_wireframe
+        else:
+            sub.active = shading.show_xray
         sub.prop(overlay, "show_face_center", text="Center")
 
         row = col.row(align=True)
@@ -4964,6 +4983,7 @@ class VIEW3D_PT_quad_view(Panel):
 class VIEW3D_PT_grease_pencil(AnnotationDataPanel, Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
+    bl_category = "View"
 
     # NOTE: this is just a wrapper around the generic GP Panel
 

@@ -46,6 +46,7 @@
 #include "BKE_main.h"
 #include "BKE_node.h"
 #include "BKE_screen.h"
+#include "BKE_workspace.h"
 
 #include "BLO_readfile.h"
 
@@ -91,6 +92,15 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
 				if (ELEM(ar->regiontype, RGN_TYPE_UI, RGN_TYPE_TOOLS, RGN_TYPE_TOOL_PROPS)) {
 					ar->v2d.flag &= ~V2D_IS_INITIALISED;
 				}
+			}
+		}
+	}
+
+	if (app_template == NULL) {
+		/* Clear all tools to use default options instead, ignore the tool saved in the file. */
+		for (WorkSpace *workspace = bmain->workspaces.first; workspace; workspace = workspace->id.next) {
+			while (!BLI_listbase_is_empty(&workspace->tools)) {
+				BKE_workspace_tool_remove(workspace, workspace->tools.first);
 			}
 		}
 	}
