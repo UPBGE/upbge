@@ -328,7 +328,7 @@ void EDBM_mesh_make(Object *ob, const int select_mode, const bool add_key_index)
 }
 
 /**
- * \warning This can invalidate the #DerivedMesh cache of other objects (for linked duplicates).
+ * \warning This can invalidate the #Mesh runtime cache of other objects (for linked duplicates).
  * Most callers should run #DEG_id_tag_update on \a ob->data, see: T46738, T46913
  */
 void EDBM_mesh_load(Main *bmain, Object *ob)
@@ -438,14 +438,14 @@ void EDBM_selectmode_flush(BMEditMesh *em)
 
 void EDBM_deselect_flush(BMEditMesh *em)
 {
-	/* function below doesnt use. just do this to keep the values in sync */
+	/* function below doesn't use. just do this to keep the values in sync */
 	em->bm->selectmode = em->selectmode;
 	BM_mesh_deselect_flush(em->bm);
 }
 
 void EDBM_select_flush(BMEditMesh *em)
 {
-	/* function below doesnt use. just do this to keep the values in sync */
+	/* function below doesn't use. just do this to keep the values in sync */
 	em->bm->selectmode = em->selectmode;
 	BM_mesh_select_flush(em->bm);
 }
@@ -1363,19 +1363,6 @@ void EDBM_update_generic(BMEditMesh *em, const bool do_tessface, const bool is_d
 		}
 	}
 #endif
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Data Access
- * \{ */
-
-DerivedMesh *EDBM_mesh_deform_dm_get(BMEditMesh *em)
-{
-	return ((em->derivedFinal != NULL) &&
-	        (em->derivedFinal->type == DM_TYPE_EDITBMESH) &&
-	        (em->derivedFinal->deformedOnly != false)) ? em->derivedFinal : NULL;
 }
 
 /** \} */

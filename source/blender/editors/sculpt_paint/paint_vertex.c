@@ -1401,7 +1401,7 @@ static void vwpaint_update_cache_variants(bContext *C, VPaint *vp, Object *ob, P
 	Brush *brush = BKE_paint_brush(&vp->paint);
 
 	/* This effects the actual brush radius, so things farther away
-	 * are compared with a larger radius and vise versa. */
+	 * are compared with a larger radius and vice versa. */
 	if (cache->first_time) {
 		RNA_float_get_array(ptr, "location", cache->true_location);
 	}
@@ -1724,7 +1724,7 @@ static void do_wpaint_brush_blur_task_cb_ex(
 						}
 
 						weight_final /= total_hit_loops;
-						/* Only paint visable verts */
+						/* Only paint visible verts */
 						do_weight_paint_vertex(
 						        data->vp, data->ob, data->wpi,
 						        v_index, final_alpha, weight_final);
@@ -2456,7 +2456,7 @@ void PAINT_OT_vertex_paint_toggle(wmOperatorType *ot)
  *   (return OPERATOR_FINISHED also removes handler and operator)
  *
  * For future:
- * - implement a stroke event (or mousemove with past positons)
+ * - implement a stroke event (or mousemove with past positions)
  * - revise whether op->customdata should be added in object, in set_vpaint
  */
 
@@ -2472,7 +2472,7 @@ struct VPaintData {
 	uint paintcol;
 
 	struct VertProjHandle *vp_handle;
-	struct DMCoNo *vertexcosnos;
+	struct CoNo *vertexcosnos;
 
 	/* modify 'me->mcol' directly, since the derived mesh is drawing from this
 	 * array, otherwise we need to refresh the modifier stack */
