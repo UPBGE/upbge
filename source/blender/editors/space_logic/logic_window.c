@@ -1744,6 +1744,7 @@ static void draw_actuator_motion(uiLayout *layout, PointerRNA *ptr)
 	ob = (Object *)ptr->id.data;
 	RNA_pointer_create((ID *)ob, &RNA_GameObjectSettings, ob, &settings_ptr);
 	physics_type = RNA_enum_get(&settings_ptr, "physics_type");
+	angular = (RNA_enum_get(ptr, "servo_mode") == ACT_SERVO_ANGULAR);
 	
 	uiItemR(layout, ptr, "mode", 0, NULL, ICON_NONE);
 
