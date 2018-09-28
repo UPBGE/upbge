@@ -261,7 +261,7 @@ void depsgraph_tag_component(Depsgraph *graph,
 		}
 	}
 	/* If component depends on copy-on-write, tag it as well. */
-	if (component_node->need_tag_cow_before_update() && DEG_depsgraph_use_copy_on_write()) {
+	if (component_node->need_tag_cow_before_update()) {
 		ComponentDepsNode *cow_comp =
 		        id_node->find_component(DEG_NODE_TYPE_COPY_ON_WRITE);
 		cow_comp->tag_update(graph);

@@ -1356,7 +1356,7 @@ static const char arg_handle_use_copy_on_write_doc[] =
 static int arg_handle_use_copy_on_write(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
 {
 	printf("Disabling copy on write. Only use for testing whether something else is at fault\n");
-	DEG_depsgraph_disable_copy_on_write();
+	//DEG_depsgraph_disable_copy_on_write();
 	return 0;
 }
 

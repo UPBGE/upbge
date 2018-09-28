@@ -70,18 +70,6 @@ extern "C" {
 #include "intern/depsgraph_intern.h"
 #include "util/deg_util_foreach.h"
 
-static bool use_copy_on_write = true;
-
-bool DEG_depsgraph_use_copy_on_write(void)
-{
-	return use_copy_on_write;
-}
-
-void DEG_depsgraph_disable_copy_on_write(void)
-{
-	use_copy_on_write = false;
-}
-
 namespace DEG {
 
 static DEG_EditorUpdateIDCb deg_editor_update_id_cb = NULL;
@@ -340,9 +328,9 @@ IDDepsNode *Depsgraph::add_id_node(ID *id, ID *id_cow_hint)
 	return id_node;
 }
 
-void Depsgraph::clear_id_nodes_conditional(const std::function <bool(ID_Type id_type)>& filter)
+void Depsgraph::clear_id_nodes_conditional(const std::function <bool (ID_Type id_type)>& filter)
 {
-	foreach(IDDepsNode *id_node, id_nodes) {
+	foreach (IDDepsNode *id_node, id_nodes) {
 		if (id_node->id_cow == NULL) {
 			/* This means builder "stole" ownership of the copy-on-written
 			 * datablock for her own dirty needs.
