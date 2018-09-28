@@ -1963,17 +1963,7 @@ static void mesh_calc_modifiers(
 	const ModifierEvalContext mectx_apply = {depsgraph, ob, app_flags};
 	const ModifierEvalContext mectx_orco = {depsgraph, ob, (app_flags & ~MOD_APPLY_USECACHE) | MOD_APPLY_ORCO};
 
-	if (!skipVirtualArmature) {
-		firstmd = modifiers_getVirtualModifierList(ob, &virtualModifierData);
-	}
-	else {
-		/* game engine exception */
-		firstmd = ob->modifiers.first;
-		if (firstmd && firstmd->type == eModifierType_Armature)
-			firstmd = firstmd->next;
-	}
-
-	md = firstmd;
+	md = firstmd = modifiers_getVirtualModifierList(ob, &virtualModifierData);
 
 	modifiers_clearErrors(ob);
 
