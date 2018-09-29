@@ -1811,9 +1811,6 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 			KX_NavMeshObject *navmesh = static_cast<KX_NavMeshObject *>(gameobj);
 			navmesh->SetVisible(false, true);
 			navmesh->BuildNavMesh();
-			if (obssimulation) {
-				obssimulation->AddObstaclesForNavMesh(navmesh);
-			}
 		}
 	}
 	for (KX_GameObject *gameobj : inactivelist) {

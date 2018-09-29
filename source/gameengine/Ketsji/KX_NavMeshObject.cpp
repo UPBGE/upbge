@@ -124,11 +124,6 @@ void KX_NavMeshObject::ProcessReplica()
 		CM_FunctionError("unable to build navigation mesh");
 		return;
 	}
-
-	KX_ObstacleSimulation *obssimulation = GetScene()->GetObstacleSimulation();
-	if (obssimulation) {
-		obssimulation->AddObstaclesForNavMesh(this);
-	}
 }
 
 int KX_NavMeshObject::GetGameObjectType() const
@@ -136,174 +131,213 @@ int KX_NavMeshObject::GetGameObjectType() const
 	return OBJ_NAVMESH;
 }
 
+bool KX_NavMeshObject::BuildFromDerivedMesh(float *&vertices, int& nverts,
+                                          unsigned short * &polys, int& npolys, unsigned short *&dmeshes,
+                                          float *&dvertices, int &ndvertsuniq, unsigned short *&dtris,
+                                          int& ndtris, int &vertsPerPoly)
+{
+	KX_Mesh *meshobj = m_meshes.front();
+	if (!meshobj->GetMesh()) {
+		return false;
+	}
+
+	DerivedMesh *dm = CDDM_from_mesh(meshobj->GetMesh());
+	CustomData *pdata = dm->getPolyDataLayout(dm);
+	int *recastData = (int *)CustomData_get_layer(pdata, CD_RECAST);
+	if (!recastData) {
+		dm->release(dm);
+		return false;
+	}
+
+	int *dtrisToPolysMap = nullptr, *dtrisToTrisMap = nullptr, *trisToFacesMap = nullptr;
+	int nAllVerts = 0;
+	float *allVerts = nullptr;
+	buildNavMeshDataByDerivedMesh(dm, &vertsPerPoly, &nAllVerts, &allVerts, &ndtris, &dtris,
+	                              &npolys, &dmeshes, &polys, &dtrisToPolysMap, &dtrisToTrisMap, &trisToFacesMap);
+
+	MEM_SAFE_FREE(dtrisToPolysMap);
+	MEM_SAFE_FREE(dtrisToTrisMap);
+	MEM_SAFE_FREE(trisToFacesMap);
+
+	unsigned short *verticesMap = (unsigned short *)MEM_mallocN(sizeof(*verticesMap) * nAllVerts, __func__);
+	memset(verticesMap, 0xff, sizeof(*verticesMap) * nAllVerts);
+	int curIdx = 0;
+	//vertices - mesh verts
+	//iterate over all polys and create map for their vertices first...
+	for (int polyidx = 0; polyidx < npolys; polyidx++) {
+		unsigned short *poly = &polys[polyidx * vertsPerPoly * 2];
+		for (int i = 0; i < vertsPerPoly; i++) {
+			unsigned short idx = poly[i];
+			if (idx == 0xffff) {
+				break;
+			}
+			if (verticesMap[idx] == 0xffff) {
+				verticesMap[idx] = curIdx++;
+			}
+			poly[i] = verticesMap[idx];
+		}
+	}
+	nverts = curIdx;
+	//...then iterate over detailed meshes
+	//transform indices to local ones (for each navigation polygon)
+	for (int polyidx = 0; polyidx < npolys; polyidx++) {
+		unsigned short *poly = &polys[polyidx * vertsPerPoly * 2];
+		int nv = polyNumVerts(poly, vertsPerPoly);
+		unsigned short *dmesh = &dmeshes[4 * polyidx];
+		unsigned short tribase = dmesh[2];
+		unsigned short trinum = dmesh[3];
+		unsigned short vbase = curIdx;
+		for (int j = 0; j < trinum; j++) {
+			unsigned short *dtri = &dtris[(tribase + j) * 3 * 2];
+			for (int k = 0; k < 3; k++) {
+				int newVertexIdx = verticesMap[dtri[k]];
+				if (newVertexIdx == 0xffff) {
+					newVertexIdx = curIdx++;
+					verticesMap[dtri[k]] = newVertexIdx;
+				}
+
+				if (newVertexIdx < nverts) {
+					//it's polygon vertex ("shared")
+					int idxInPoly = polyFindVertex(poly, vertsPerPoly, newVertexIdx);
+					if (idxInPoly == -1) {
+						CM_Error("building NavMeshObject, can't find vertex in polygon\n");
+						return false;
+					}
+					dtri[k] = idxInPoly;
+				}
+				else {
+					dtri[k] = newVertexIdx - vbase + nv;
+				}
+			}
+		}
+		dmesh[0] = vbase - nverts; //verts base
+		dmesh[1] = curIdx - vbase; //verts num
+	}
+
+	vertices = new float[nverts * 3];
+	ndvertsuniq = curIdx - nverts;
+	if (ndvertsuniq > 0) {
+		dvertices = new float[ndvertsuniq * 3];
+	}
+	for (int vi = 0; vi < nAllVerts; vi++) {
+		int newIdx = verticesMap[vi];
+		if (newIdx != 0xffff) {
+			if (newIdx < nverts) {
+				//navigation mesh vertex
+				memcpy(vertices + 3 * newIdx, allVerts + 3 * vi, 3 * sizeof(float));
+			}
+			else {
+				//detailed mesh vertex
+				memcpy(dvertices + 3 * (newIdx - nverts), allVerts + 3 * vi, 3 * sizeof(float));
+			}
+		}
+	}
+
+	MEM_SAFE_FREE(allVerts);
+	MEM_freeN(verticesMap);
+	dm->release(dm);
+
+	return true;
+}
+
+bool KX_NavMeshObject::BuildFromMesh(float *&vertices, int& nverts,
+                                          unsigned short * &polys, int& npolys, unsigned short *&dmeshes,
+                                          float *&dvertices, int &ndvertsuniq, unsigned short *&dtris,
+                                          int& ndtris, int &vertsPerPoly)
+{
+	KX_Mesh *meshobj = m_meshes.front();
+	vertsPerPoly = 3;
+
+	// Indices count.
+	unsigned int numindices = 0;
+	// Original (without split of normal or UV) vertex count.
+	unsigned int numvertices = 0;
+
+	for (RAS_MeshMaterial *meshmat : meshobj->GetMeshMaterialList()) {
+		RAS_DisplayArray *array = meshmat->GetDisplayArray();
+
+		numindices += array->GetTriangleIndexCount();
+		numvertices = std::max(numvertices, array->GetMaxOrigIndex() + 1);
+	}
+
+	// Detour can't manage more than 65536 vertices.
+	if (numvertices > 0xffff) {
+		return false;
+	}
+
+	vertices = new float[numvertices * 3];
+	// Detour supports 6 indices per polygons natively, 0xffff is the discard value.
+	polys = (unsigned short *)MEM_callocN(sizeof(unsigned short) * numindices * 2, "BuildVertIndArrays polys");
+	memset(polys, 0xff, sizeof(unsigned short) * numindices * 2);
+
+	/// Map from original vertex index to m_vertexArray vertex index.
+	std::vector<int> vertRemap(numvertices, -1);
+
+	// Current vertex written.
+	unsigned int curvert = 0;
+	// Current index written.
+	unsigned int curind = 0;
+	for (RAS_MeshMaterial *meshmat : meshobj->GetMeshMaterialList()) {
+		RAS_DisplayArray *array = meshmat->GetDisplayArray();
+		// Convert location of all vertices and remap if vertices weren't already converted.
+		for (unsigned int j = 0, numvert = array->GetVertexCount(); j < numvert; ++j) {
+			const RAS_VertexInfo& info = array->GetVertexInfo(j);
+			const unsigned int origIndex = info.GetOrigIndex();
+			/* Avoid double conversion of two unique vertices using the same base:
+			 * using the same original vertex and so the same position.
+			 */
+			if (vertRemap[origIndex] != -1) {
+				continue;
+			}
+
+			copy_v3_v3(&vertices[curvert * 3], array->GetPosition(j).data);
+
+			// Register the vertex index where the position was converted in m_vertexArray.
+			vertRemap[origIndex] = curvert++;
+		}
+
+		for (unsigned int j = 0, numtris = array->GetTriangleIndexCount() / 3; j < numtris; ++j) {
+			for (unsigned short k = 0; k < 3; ++k) {
+				const unsigned int index = array->GetTriangleIndex(j * 3 + k);
+				const RAS_VertexInfo& info = array->GetVertexInfo(index);
+				const unsigned int origIndex = info.GetOrigIndex();
+				polys[curind + k] = vertRemap[origIndex];
+			}
+			curind += 6;
+		}
+	}
+
+	nverts = numvertices;
+	npolys = numindices / vertsPerPoly;
+	dmeshes = nullptr;
+	dvertices = nullptr;
+	ndvertsuniq = 0;
+	dtris = nullptr;
+	ndtris = npolys;
+
+	return true;
+}
 
 bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices, int& nverts,
                                           unsigned short * &polys, int& npolys, unsigned short *&dmeshes,
                                           float *&dvertices, int &ndvertsuniq, unsigned short *&dtris,
                                           int& ndtris, int &vertsPerPoly)
 {
-	DerivedMesh *dm = mesh_create_derived_no_virtual(GetScene()->GetBlenderScene(), GetBlenderObject(),
-	                                                 nullptr, CD_MASK_MESH);
-	CustomData *pdata = dm->getPolyDataLayout(dm);
-	int *recastData = (int *)CustomData_get_layer(pdata, CD_RECAST);
-	if (recastData) {
-		int *dtrisToPolysMap = nullptr, *dtrisToTrisMap = nullptr, *trisToFacesMap = nullptr;
-		int nAllVerts = 0;
-		float *allVerts = nullptr;
-		buildNavMeshDataByDerivedMesh(dm, &vertsPerPoly, &nAllVerts, &allVerts, &ndtris, &dtris,
-		                              &npolys, &dmeshes, &polys, &dtrisToPolysMap, &dtrisToTrisMap, &trisToFacesMap);
-
-		MEM_SAFE_FREE(dtrisToPolysMap);
-		MEM_SAFE_FREE(dtrisToTrisMap);
-		MEM_SAFE_FREE(trisToFacesMap);
-
-		unsigned short *verticesMap = (unsigned short *)MEM_mallocN(sizeof(*verticesMap) * nAllVerts, __func__);
-		memset(verticesMap, 0xff, sizeof(*verticesMap) * nAllVerts);
-		int curIdx = 0;
-		//vertices - mesh verts
-		//iterate over all polys and create map for their vertices first...
-		for (int polyidx = 0; polyidx < npolys; polyidx++) {
-			unsigned short *poly = &polys[polyidx * vertsPerPoly * 2];
-			for (int i = 0; i < vertsPerPoly; i++) {
-				unsigned short idx = poly[i];
-				if (idx == 0xffff) {
-					break;
-				}
-				if (verticesMap[idx] == 0xffff) {
-					verticesMap[idx] = curIdx++;
-				}
-				poly[i] = verticesMap[idx];
-			}
-		}
-		nverts = curIdx;
-		//...then iterate over detailed meshes
-		//transform indices to local ones (for each navigation polygon)
-		for (int polyidx = 0; polyidx < npolys; polyidx++) {
-			unsigned short *poly = &polys[polyidx * vertsPerPoly * 2];
-			int nv = polyNumVerts(poly, vertsPerPoly);
-			unsigned short *dmesh = &dmeshes[4 * polyidx];
-			unsigned short tribase = dmesh[2];
-			unsigned short trinum = dmesh[3];
-			unsigned short vbase = curIdx;
-			for (int j = 0; j < trinum; j++) {
-				unsigned short *dtri = &dtris[(tribase + j) * 3 * 2];
-				for (int k = 0; k < 3; k++) {
-					int newVertexIdx = verticesMap[dtri[k]];
-					if (newVertexIdx == 0xffff) {
-						newVertexIdx = curIdx++;
-						verticesMap[dtri[k]] = newVertexIdx;
-					}
-
-					if (newVertexIdx < nverts) {
-						//it's polygon vertex ("shared")
-						int idxInPoly = polyFindVertex(poly, vertsPerPoly, newVertexIdx);
-						if (idxInPoly == -1) {
-							CM_Error("building NavMeshObject, can't find vertex in polygon\n");
-							return false;
-						}
-						dtri[k] = idxInPoly;
-					}
-					else {
-						dtri[k] = newVertexIdx - vbase + nv;
-					}
-				}
-			}
-			dmesh[0] = vbase - nverts; //verts base
-			dmesh[1] = curIdx - vbase; //verts num
-		}
-
-		vertices = new float[nverts * 3];
-		ndvertsuniq = curIdx - nverts;
-		if (ndvertsuniq > 0) {
-			dvertices = new float[ndvertsuniq * 3];
-		}
-		for (int vi = 0; vi < nAllVerts; vi++) {
-			int newIdx = verticesMap[vi];
-			if (newIdx != 0xffff) {
-				if (newIdx < nverts) {
-					//navigation mesh vertex
-					memcpy(vertices + 3 * newIdx, allVerts + 3 * vi, 3 * sizeof(float));
-				}
-				else {
-					//detailed mesh vertex
-					memcpy(dvertices + 3 * (newIdx - nverts), allVerts + 3 * vi, 3 * sizeof(float));
-				}
-			}
-		}
-
-		MEM_SAFE_FREE(allVerts);
-
-		MEM_freeN(verticesMap);
+	if (BuildFromDerivedMesh(vertices, nverts, polys, npolys, dmeshes, dvertices, ndvertsuniq, dtris, ndtris, vertsPerPoly)) {
+		return true;
 	}
-	else {
-		//create from RAS_Mesh (detailed mesh is fake)
-		KX_Mesh *meshobj = m_meshes.front();
-		vertsPerPoly = 3;
 
-		// Indices count.
-		unsigned int numindices = 0;
-		// Original (without split of normal or UV) vertex count.
-		unsigned int numvertices = 0;
-
-		for (RAS_MeshMaterial *meshmat : meshobj->GetMeshMaterialList()) {
-			RAS_DisplayArray *array = meshmat->GetDisplayArray();
-
-			numindices += array->GetTriangleIndexCount();
-			numvertices = std::max(numvertices, array->GetMaxOrigIndex() + 1);
-		}
-
-		vertices = new float[numvertices * 3];
-		polys = (unsigned short *)MEM_callocN(sizeof(unsigned short) * numindices, "BuildVertIndArrays polys");
-
-		/// Map from original vertex index to m_vertexArray vertex index.
-		std::vector<int> vertRemap(numvertices, -1);
-
-		// Current vertex written.
-		unsigned int curvert = 0;
-		// Current index written.
-		unsigned int curind = 0;
-		for (RAS_MeshMaterial *meshmat : meshobj->GetMeshMaterialList()) {
-			RAS_DisplayArray *array = meshmat->GetDisplayArray();
-			// Convert location of all vertices and remap if vertices weren't already converted.
-			for (unsigned int j = 0, numvert = array->GetVertexCount(); j < numvert; ++j) {
-				const RAS_VertexInfo& info = array->GetVertexInfo(j);
-				const unsigned int origIndex = info.GetOrigIndex();
-				/* Avoid double conversion of two unique vertices using the same base:
-				 * using the same original vertex and so the same position.
-				 */
-				if (vertRemap[origIndex] != -1) {
-					continue;
-				}
-
-				copy_v3_v3(&vertices[curvert * 3], array->GetPosition(j).data);
-
-				// Register the vertex index where the position was converted in m_vertexArray.
-				vertRemap[origIndex] = curvert++;
-			}
-
-			for (unsigned int j = 0, numtris = array->GetTriangleIndexCount(); j < numtris; ++j) {
-				const unsigned int index = array->GetTriangleIndex(j);
-				const RAS_VertexInfo& info = array->GetVertexInfo(index);
-				const unsigned int origIndex = info.GetOrigIndex();
-				polys[curind++] = vertRemap[origIndex];
-			}
-		}
-
-		npolys = numindices;
-		dmeshes = nullptr;
-		dvertices = nullptr;
-		ndvertsuniq = 0;
-		dtris = nullptr;
-		ndtris = npolys;
-	}
-	dm->release(dm);
-
-	return true;
+	return BuildFromMesh(vertices, nverts, polys, npolys, dmeshes, dvertices, ndvertsuniq, dtris, ndtris, vertsPerPoly);
 }
-
 
 bool KX_NavMeshObject::BuildNavMesh()
 {
+	KX_ObstacleSimulation *obssimulation = GetScene()->GetObstacleSimulation();
+
+	if (obssimulation) {
+		obssimulation->DestroyObstacleForObj(this);
+	}
+
 	if (m_navMesh) {
 		delete m_navMesh;
 		m_navMesh = nullptr;
@@ -490,6 +524,10 @@ bool KX_NavMeshObject::BuildNavMesh()
 
 	if (vertsi) {
 		delete[] vertsi;
+	}
+
+	if (obssimulation) {
+		obssimulation->AddObstaclesForNavMesh(this);
 	}
 
 	return true;
