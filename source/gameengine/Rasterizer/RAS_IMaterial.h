@@ -35,6 +35,7 @@
 #include "RAS_Texture.h"
 #include "RAS_Mesh.h"
 #include "RAS_AttributeArray.h"
+#include "RAS_InstancingBuffer.h"
 
 #include "CM_Update.h"
 
@@ -106,7 +107,7 @@ public:
 	virtual void Prepare(RAS_Rasterizer *rasty) = 0;
 	virtual void Activate(RAS_Rasterizer *rasty) = 0;
 	virtual void Desactivate(RAS_Rasterizer *rasty) = 0;
-	virtual void ActivateInstancing(RAS_Rasterizer *rasty, void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride) = 0;
+	virtual void ActivateInstancing(RAS_Rasterizer *rasty, RAS_InstancingBuffer *buffer) = 0;
 	virtual void ActivateMeshSlot(RAS_MeshSlot *ms, RAS_Rasterizer *rasty, const mt::mat3x4& camtrans) = 0;
 
 	bool IsAlpha() const;
@@ -141,6 +142,8 @@ public:
 						   float emit, float ambient, float alpha, float specalpha) = 0;
 
 	virtual const RAS_AttributeArray::AttribList GetAttribs(const RAS_Mesh::LayersInfo& layersInfo) const = 0;
+	/// Return attributes category used for instancing, this value tell what attributes must be updated.
+	virtual RAS_InstancingBuffer::Attrib GetInstancingAttribs() const = 0;
 
 	/**
 	 * \return the equivalent drawing mode for the material settings (equivalent to old TexFace tface->mode).

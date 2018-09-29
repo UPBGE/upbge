@@ -67,8 +67,8 @@ private:
 	/// Attribute array used for each different render categories.
 	RAS_AttributeArray m_attribArray;
 
-	/// The vertex buffer object containing all the data used for the instancing rendering.
-	std::unique_ptr<RAS_InstancingBuffer> m_instancingBuffer;
+	/// The vertex buffer object containing all the data used for the instancing rendering for each drawing category.
+	std::unique_ptr<RAS_InstancingBuffer> m_instancingBuffer[RAS_Rasterizer::RAS_DRAW_MAX];
 
 	CM_UpdateClient<RAS_IMaterial> m_materialUpdateClient;
 	CM_UpdateClient<RAS_DisplayArray> m_arrayUpdateClient;
@@ -100,7 +100,7 @@ public:
 	bool UseBatching() const;
 
 	/// Update render infos.
-	void UpdateActiveMeshSlots(RAS_Rasterizer::DrawType drawingMode);
+	void UpdateActiveMeshSlots(RAS_Rasterizer::DrawType drawingMode, bool instancing);
 
 	void GenerateTree(RAS_MaterialDownwardNode& downwardRoot, RAS_MaterialUpwardNode& upwardRoot,
 			RAS_UpwardTreeLeafs& upwardLeafs, RAS_Rasterizer::DrawType drawingMode, bool sort, bool instancing);

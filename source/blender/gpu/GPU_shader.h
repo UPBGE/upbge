@@ -98,7 +98,7 @@ void GPU_shader_geometry_stage_primitive_io(GPUShader *shader, int input, int ou
 int GPU_shader_get_attribute(GPUShader *shader, const char *name);
 void GPU_shader_bind_attribute(GPUShader *shader, int location, const char *name);
 
-void GPU_shader_bind_instancing_attrib(GPUShader *shader, void *matrixoffset, void *positionoffset, unsigned int stride);
+void GPU_shader_bind_instancing_attrib(GPUShader *shader, void *matrixoffset, void *positionoffset);
 
 /* Builtin/Non-generated shaders */
 typedef enum GPUBuiltinShader {

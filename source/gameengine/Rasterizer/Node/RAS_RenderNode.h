@@ -74,6 +74,7 @@ struct RAS_DisplayArrayNodeData
 	RAS_AttributeArrayStorage *m_attribStorage;
 	RAS_DisplayArrayStorage *m_arrayStorage;
 	bool m_applyMatrix;
+	RAS_InstancingBuffer *m_instancingBuffer;
 };
 
 struct RAS_MeshSlotNodeData

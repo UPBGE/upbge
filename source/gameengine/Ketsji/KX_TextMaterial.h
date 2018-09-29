@@ -39,7 +39,7 @@ public:
 	virtual void Prepare(RAS_Rasterizer *rasty);
 	virtual void Activate(RAS_Rasterizer *rasty);
 	virtual void Desactivate(RAS_Rasterizer *rasty);
-	virtual void ActivateInstancing(RAS_Rasterizer *rasty, void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride);
+	virtual void ActivateInstancing(RAS_Rasterizer *rasty, RAS_InstancingBuffer *buffer);
 	virtual void DesactivateInstancing();
 	virtual void ActivateMeshSlot(RAS_MeshSlot *ms, RAS_Rasterizer *rasty, const mt::mat3x4& camtrans);
 
@@ -54,6 +54,7 @@ public:
 						   float emit, float ambient, float alpha, float specalpha);
 
 	virtual const RAS_AttributeArray::AttribList GetAttribs(const RAS_Mesh::LayersInfo& layersInfo) const;
+	virtual RAS_InstancingBuffer::Attrib GetInstancingAttribs() const;
 
 	static KX_TextMaterial *GetSingleton();
 };

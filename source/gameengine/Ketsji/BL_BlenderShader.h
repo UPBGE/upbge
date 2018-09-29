@@ -35,6 +35,7 @@
 #include "RAS_AttributeArray.h"
 #include "RAS_Mesh.h"
 #include "RAS_Texture.h" // for MaxUnits
+#include "RAS_InstancingBuffer.h"
 
 #include "CM_Update.h"
 
@@ -74,13 +75,14 @@ public:
 	 * \return The map of attributes layers.
 	 */
 	const RAS_AttributeArray::AttribList GetAttribs(const RAS_Mesh::LayersInfo& layersInfo) const;
+	RAS_InstancingBuffer::Attrib GetInstancingAttribs() const;
 
 	void UpdateLights(RAS_Rasterizer *rasty);
 	void Update(RAS_MeshSlot *ms, RAS_Rasterizer *rasty);
 
 	/// Return true if the shader uses a special vertex shader for geometry instancing.
 	bool UseInstancing() const;
-	void ActivateInstancing(void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride);
+	void ActivateInstancing(RAS_InstancingBuffer *buffer);
 
 	void ReloadMaterial();
 	int GetAlphaBlend();

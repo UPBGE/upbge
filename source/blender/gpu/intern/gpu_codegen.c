@@ -416,12 +416,16 @@ const char *GPU_builtin_name(GPUBuiltin builtin)
 		return "varinstinvmat";
 	else if (builtin == GPU_INSTANCING_COLOR)
 		return "varinstcolor";
+	else if (builtin == GPU_INSTANCING_LAYER)
+		return "varinstlayer";
 	else if (builtin == GPU_INSTANCING_COLOR_ATTRIB)
 		return "ininstcolor";
 	else if (builtin == GPU_INSTANCING_MATRIX_ATTRIB)
 		return "ininstmatrix";
 	else if (builtin == GPU_INSTANCING_POSITION_ATTRIB)
 		return "ininstposition";
+	else if (builtin == GPU_INSTANCING_LAYER_ATTRIB)
+		return "ininstlayer";
 	else if (builtin == GPU_TIME)
 		return "unftime";
 	else if (builtin == GPU_OBJECT_INFO)
@@ -550,9 +554,17 @@ static int codegen_print_uniforms_functions(DynStr *ds, ListBase *nodes)
 							GPU_DATATYPE_STR[input->type], name);
 					}
 					else {
-						BLI_dynstr_appendf(ds, "%s %s %s;\n",
-							GLEW_VERSION_3_0 ? "in" : "varying",
-							GPU_DATATYPE_STR[input->type], name);
+						// GPU_INSTANCING_LAYER is an integer, it must be flat in GLSL.
+						if (input->builtin == GPU_INSTANCING_LAYER) {
+							BLI_dynstr_appendf(ds, "%s %s %s;\n",
+								GLEW_VERSION_3_0 ? "flat in" : "flat varying",
+								GPU_DATATYPE_STR[input->type], name);
+						}
+						else {
+							BLI_dynstr_appendf(ds, "%s %s %s;\n",
+								GLEW_VERSION_3_0 ? "in" : "varying",
+								GPU_DATATYPE_STR[input->type], name);
+						}
 					}
 				}
 			}
