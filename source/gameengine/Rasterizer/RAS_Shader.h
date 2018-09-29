@@ -110,13 +110,25 @@ public:
 protected:
 	struct UniformInfo
 	{
-		unsigned int location;
-		unsigned short size;
-		unsigned int type;
+		/// Hashed uniform name.
+		size_t nameHash;
+		/// Uniform location.
+		int location;
+
+		/** Construct uniform info
+		 * \param name The uniform name.
+		 * \param shader The shader used to retrieve uniform location.
+		 */
+		UniformInfo(const std::string& name, GPUShader *shader);
+
+		inline bool operator< (const UniformInfo& other)
+		{
+			return (nameHash < other.nameHash);
+		}
 	};
 
-	/// Information (location, type, size) on existing uniforms.
-	std::unordered_map<std::string, UniformInfo> m_uniformInfos;
+	// Uniform information sorted by hashed name value.
+	std::vector<UniformInfo> m_uniformInfos;
 
 	typedef std::vector<RAS_Uniform *> RAS_UniformVec;
 	typedef std::vector<RAS_DefUniform *> RAS_UniformVecDef;
