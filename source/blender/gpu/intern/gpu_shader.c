@@ -636,7 +636,6 @@ int GPU_shader_get_uniform_infos(GPUShader *shader, GPUUniformInfo **infos)
 	for (unsigned int i = 0; i < count; ++i) {
 		GPUUniformInfo *info = &((*infos)[i]);
 		glGetActiveUniform(shader->program, i, 255, NULL, (int *)&info->size, &info->type, info->name);
-		info->location = GPU_shader_get_uniform(shader, info->name);
 	}
 
 	return count;
