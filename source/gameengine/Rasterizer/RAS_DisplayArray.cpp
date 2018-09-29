@@ -221,7 +221,7 @@ RAS_DisplayArrayLayout RAS_DisplayArray::GetLayout() const
 	RAS_DisplayArrayLayout layout;
 	intptr_t offset = 0;
 
-	const unsigned int size = m_vertexInfos.size();
+	const unsigned int size = GetVertexCount();
 
 	layout.position = offset;
 	offset += sizeof(mt::vec3_packed) * size;
