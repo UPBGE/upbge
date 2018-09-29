@@ -92,7 +92,6 @@ protected:
 
 	/// Saved data to restore at the game end.
 	struct SavedData {
-		int vsync;
 		RAS_Rasterizer::MipmapOption mipmap;
 		int anisotropic;
 	} m_savedData;

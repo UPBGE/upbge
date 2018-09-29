@@ -87,8 +87,7 @@ public:
 	virtual void SetMousePosition(int x, int y);
 	virtual void SetMouseState(RAS_MouseState mousestate);
 	virtual void SwapBuffers();
-	virtual void SetSwapInterval(int interval);
-	virtual bool GetSwapInterval(int& intervalOut);
+	virtual void SetSwapControl(SwapControl control);
 
 	virtual void ConvertMousePosition(int x, int y, int &r_x, int &r_y, bool screen);
 	virtual float GetMouseNormalizedX(int x);

@@ -211,20 +211,12 @@ void GPG_Canvas::SwapBuffers()
 	}
 }
 
-void GPG_Canvas::SetSwapInterval(int interval)
+void GPG_Canvas::SetSwapControl(SwapControl control)
 {
 	if (m_window) {
-		m_window->setSwapInterval(interval);
+		m_window->setSwapInterval(swapInterval[control]);
 	}
-}
-
-bool GPG_Canvas::GetSwapInterval(int& intervalOut)
-{
-	if (m_window) {
-		return (bool)m_window->getSwapInterval(intervalOut);
-	}
-
-	return false;
+	RAS_ICanvas::SetSwapControl(control);
 }
 
 void GPG_Canvas::GetDisplayDimensions(int &width, int &height)
