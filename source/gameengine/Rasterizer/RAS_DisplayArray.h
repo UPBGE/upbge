@@ -268,7 +268,7 @@ public:
 
 	inline unsigned int GetVertexCount() const
 	{
-		return m_vertexInfos.size();
+		return m_vertexData.positions.size();
 	}
 
 	inline unsigned int GetPrimitiveIndexCount() const
