@@ -58,6 +58,12 @@
 /** \name Select Similar (Vert/Edge/Face) Operator - common
  * \{ */
 
+enum {
+	SIM_CMP_EQ = 0,
+	SIM_CMP_GT,
+	SIM_CMP_LT
+};
+
 static const EnumPropertyItem prop_similar_compare_types[] = {
 	{SIM_CMP_EQ, "EQUAL", 0, "Equal", ""},
 	{SIM_CMP_GT, "GREATER", 0, "Greater", ""},
@@ -99,7 +105,7 @@ static const EnumPropertyItem prop_similar_types[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
-static int select_similar_compare_float(const float delta, const float thresh, const int compare)
+static int mesh_select_similar_compare_float(const float delta, const float thresh, const int compare)
 {
 	switch (compare) {
 		case SIM_CMP_EQ:
@@ -114,7 +120,7 @@ static int select_similar_compare_float(const float delta, const float thresh, c
 	}
 }
 
-static int select_similar_compare_int(const int delta, const int compare)
+static int mesh_select_similar_compare_int(const int delta, const int compare)
 {
 	switch (compare) {
 		case SIM_CMP_EQ:
@@ -129,7 +135,7 @@ static int select_similar_compare_int(const int delta, const int compare)
 	}
 }
 
-static bool select_similar_compare_float_tree(const KDTree *tree, const float length, const float thresh, const int compare)
+static bool mesh_select_similar_compare_float_tree(const KDTree *tree, const float length, const float thresh, const int compare)
 {
 	/* Length of the edge we want to compare against. */
 	float nearest_edge_length;
@@ -159,7 +165,7 @@ static bool select_similar_compare_float_tree(const KDTree *tree, const float le
 	float dummy[3] = {nearest_edge_length, 0.0f, 0.0f};
 	if (BLI_kdtree_find_nearest(tree, dummy, &nearest) != -1) {
 		float delta = length - nearest.co[0];
-		return select_similar_compare_float(delta, thresh, compare);
+		return mesh_select_similar_compare_float(delta, thresh, compare);
 	}
 
 	return false;
@@ -464,7 +470,7 @@ static int similar_face_select_exec(bContext *C, wmOperator *op)
 						GSET_ITER(gs_iter, gset) {
 							const int num_sides_iter = POINTER_AS_INT(BLI_gsetIterator_getKey(&gs_iter));
 							const int delta_i = num_sides - num_sides_iter;
-							if (select_similar_compare_int(delta_i, compare)) {
+							if (mesh_select_similar_compare_int(delta_i, compare)) {
 								select = true;
 								break;
 							}
@@ -491,7 +497,7 @@ static int similar_face_select_exec(bContext *C, wmOperator *op)
 					case SIMFACE_AREA:
 					{
 						float area = BM_face_calc_area(face);
-						if (select_similar_compare_float_tree(tree, area, thresh, compare)) {
+						if (mesh_select_similar_compare_float_tree(tree, area, thresh, compare)) {
 							select = true;
 						}
 						break;
@@ -499,7 +505,7 @@ static int similar_face_select_exec(bContext *C, wmOperator *op)
 					case SIMFACE_PERIMETER:
 					{
 						float perimeter = BM_face_calc_perimeter(face);
-						if (select_similar_compare_float_tree(tree, perimeter, thresh, compare)) {
+						if (mesh_select_similar_compare_float_tree(tree, perimeter, thresh, compare)) {
 							select = true;
 						}
 						break;
@@ -898,7 +904,7 @@ static int similar_edge_select_exec(bContext *C, wmOperator *op)
 					/* Proceed only if we have to select all the edges that have custom data value of 0.0f.
 					 * In this case we will just select all the edges.
 					 * Otherwise continue the for loop. */
-					if (!select_similar_compare_float_tree(tree, 0.0f, thresh, compare)) {
+					if (!mesh_select_similar_compare_float_tree(tree, 0.0f, thresh, compare)) {
 						continue;
 					}
 				}
@@ -921,7 +927,7 @@ static int similar_edge_select_exec(bContext *C, wmOperator *op)
 						GSET_ITER(gs_iter, gset) {
 							const int num_faces_iter = POINTER_AS_INT(BLI_gsetIterator_getKey(&gs_iter));
 							const int delta_i = num_faces - num_faces_iter;
-							if (select_similar_compare_int(delta_i, compare)) {
+							if (mesh_select_similar_compare_int(delta_i, compare)) {
 								select = true;
 								break;
 							}
@@ -946,7 +952,7 @@ static int similar_edge_select_exec(bContext *C, wmOperator *op)
 					case SIMEDGE_LENGTH:
 					{
 						float length = edge_length_squared_worldspace_get(ob, edge);
-						if (select_similar_compare_float_tree(tree, length, thresh, compare)) {
+						if (mesh_select_similar_compare_float_tree(tree, length, thresh, compare)) {
 							select = true;
 						}
 						break;
@@ -955,7 +961,7 @@ static int similar_edge_select_exec(bContext *C, wmOperator *op)
 					{
 						if (BM_edge_face_count_at_most(edge, 2) == 2) {
 							float angle = BM_edge_calc_face_angle(edge);
-							if (select_similar_compare_float_tree(tree, angle, thresh, SIM_CMP_EQ)) {
+							if (mesh_select_similar_compare_float_tree(tree, angle, thresh, SIM_CMP_EQ)) {
 								select = true;
 							}
 						}
@@ -1002,7 +1008,7 @@ static int similar_edge_select_exec(bContext *C, wmOperator *op)
 						}
 
 						const float *value = CustomData_bmesh_get(&bm->edata, edge->head.data, custom_data_type);
-						if (select_similar_compare_float_tree(tree, *value, thresh, compare)) {
+						if (mesh_select_similar_compare_float_tree(tree, *value, thresh, compare)) {
 							select = true;
 						}
 						break;
@@ -1072,11 +1078,6 @@ static int similar_vert_select_exec(bContext *C, wmOperator *op)
 	const float thresh_radians = thresh * (float)M_PI + FLT_EPSILON;
 	const int compare = RNA_enum_get(op->ptr, "compare");
 
-	if (type == SIMVERT_VGROUP) {
-		BKE_report(op->reports, RPT_ERROR, "Select similar vertex groups not supported at the moment.");
-		return OPERATOR_CANCELLED;
-	}
-
 	int tot_verts_selected_all = 0;
 	uint objects_len = 0;
 	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
@@ -1104,6 +1105,9 @@ static int similar_vert_select_exec(bContext *C, wmOperator *op)
 		case SIMVERT_FACE:
 			gset = BLI_gset_ptr_new("Select similar vertex: edge/face");
 			break;
+		case SIMVERT_VGROUP:
+			gset = BLI_gset_str_new("Select similar vertex: vertex groups");
+			break;
 	}
 
 	int normal_tree_index = 0;
@@ -1111,10 +1115,19 @@ static int similar_vert_select_exec(bContext *C, wmOperator *op)
 		Object *ob = objects[ob_index];
 		BMEditMesh *em = BKE_editmesh_from_object(ob);
 		BMesh *bm = em->bm;
+		int cd_dvert_offset = -1;
+		int dvert_selected = 0;
 		invert_m4_m4(ob->imat, ob->obmat);
 
 		if (bm->totvertsel == 0) {
 			continue;
+		}
+
+		if (type == SIMVERT_VGROUP) {
+			cd_dvert_offset = CustomData_get_offset(&bm->vdata, CD_MDEFORMVERT);
+			if (cd_dvert_offset == -1) {
+				continue;
+			}
 		}
 
 		BMVert *vert; /* Mesh vertex. */
@@ -1139,8 +1152,40 @@ static int similar_vert_select_exec(bContext *C, wmOperator *op)
 						BLI_kdtree_insert(tree, normal_tree_index++, normal);
 						break;
 					}
+					case SIMVERT_VGROUP:
+					{
+						MDeformVert *dvert = BM_ELEM_CD_GET_VOID_P(vert, cd_dvert_offset);
+						MDeformWeight *dw = dvert->dw;
+
+						for (int i = 0; i < dvert->totweight; i++, dw++) {
+							if (dw->weight > 0.0f) {
+								dvert_selected |= (1 << dw->def_nr);
+							}
+						}
+						break;
+					}
 				}
 			}
+		}
+
+		if (type == SIMVERT_VGROUP) {
+			/* We store the names of the vertex groups, so we can select
+			 * vertex groups with the same name in  different objects. */
+			const int dvert_tot = BLI_listbase_count(&ob->defbase);
+			for (int i = 0; i < dvert_tot; i++) {
+				if (dvert_selected & (1 << i)) {
+					bDeformGroup *dg = BLI_findlink(&ob->defbase, i);
+					BLI_gset_add(gset, dg->name);
+				}
+			}
+		}
+	}
+
+	if (type == SIMVERT_VGROUP) {
+		if (BLI_gset_len(gset) == 0) {
+			BKE_report(op->reports,
+			           RPT_INFO,
+			           "No vertex group among the selected vertices");
 		}
 	}
 
@@ -1155,6 +1200,31 @@ static int similar_vert_select_exec(bContext *C, wmOperator *op)
 		BMEditMesh *em = BKE_editmesh_from_object(ob);
 		BMesh *bm = em->bm;
 		bool changed = false;
+		int cd_dvert_offset = -1;
+		int dvert_selected = 0;
+
+		if (type == SIMVERT_VGROUP) {
+			cd_dvert_offset = CustomData_get_offset(&bm->vdata, CD_MDEFORMVERT);
+			if (cd_dvert_offset == -1) {
+				continue;
+			}
+
+			/* We map back the names of the vertex groups to their corresponsing indices
+			 * for this object. This is fast, and keep the logic for each vertex very simple. */
+			GSetIterator gs_iter;
+			GSET_ITER(gs_iter, gset) {
+				const char *name = BLI_gsetIterator_getKey(&gs_iter);
+				int vgroup_id = BLI_findstringindex(&ob->defbase,
+				                                    name,
+				                                    offsetof(bDeformGroup, name));
+				if (vgroup_id != -1) {
+					dvert_selected |= (1 << vgroup_id);
+				}
+			}
+			if (dvert_selected == 0) {
+				continue;
+			}
+		}
 
 		BMVert *vert; /* Mesh vertex. */
 		BMIter iter; /* Selected verts iterator. */
@@ -1172,7 +1242,7 @@ static int similar_vert_select_exec(bContext *C, wmOperator *op)
 						GSET_ITER(gs_iter, gset) {
 							const int num_edges_iter = POINTER_AS_INT(BLI_gsetIterator_getKey(&gs_iter));
 							const int delta_i = num_edges - num_edges_iter;
-							if (select_similar_compare_int(delta_i, compare)) {
+							if (mesh_select_similar_compare_int(delta_i, compare)) {
 								select = true;
 								break;
 							}
@@ -1186,7 +1256,7 @@ static int similar_vert_select_exec(bContext *C, wmOperator *op)
 						GSET_ITER(gs_iter, gset) {
 							const int num_faces_iter = POINTER_AS_INT(BLI_gsetIterator_getKey(&gs_iter));
 							const int delta_i = num_faces - num_faces_iter;
-							if (select_similar_compare_int(delta_i, compare)) {
+							if (mesh_select_similar_compare_int(delta_i, compare)) {
 								select = true;
 								break;
 							}
@@ -1206,6 +1276,21 @@ static int similar_vert_select_exec(bContext *C, wmOperator *op)
 						if (BLI_kdtree_find_nearest(tree, normal, &nearest) != -1) {
 							if (angle_normalized_v3v3(normal, nearest.co) <= thresh_radians) {
 								select = true;
+							}
+						}
+						break;
+					}
+					case SIMVERT_VGROUP:
+					{
+						MDeformVert *dvert = BM_ELEM_CD_GET_VOID_P(vert, cd_dvert_offset);
+						MDeformWeight *dw = dvert->dw;
+
+						for (int i = 0; i < dvert->totweight; i++, dw++) {
+							if (dw->weight > 0.0f) {
+								if (dvert_selected & (1 << dw->def_nr)) {
+									select = true;
+									break;
+								}
 							}
 						}
 						break;
