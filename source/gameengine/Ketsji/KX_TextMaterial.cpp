@@ -51,7 +51,7 @@ void KX_TextMaterial::Desactivate(RAS_Rasterizer *rasty)
 {
 }
 
-void KX_TextMaterial::ActivateInstancing(RAS_Rasterizer *rasty, void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride)
+void KX_TextMaterial::ActivateInstancing(RAS_Rasterizer *rasty, RAS_InstancingBuffer *buffer)
 {
 }
 
@@ -100,6 +100,11 @@ void KX_TextMaterial::UpdateIPO(const mt::vec4 &rgba, const mt::vec3 &specrgb, f
 const RAS_AttributeArray::AttribList KX_TextMaterial::GetAttribs(const RAS_Mesh::LayersInfo& layersInfo) const
 {
 	return {};
+}
+
+RAS_InstancingBuffer::Attrib KX_TextMaterial::GetInstancingAttribs() const
+{
+	return RAS_InstancingBuffer::DEFAULT_ATTRIBS;
 }
 
 KX_TextMaterial *KX_TextMaterial::GetSingleton()

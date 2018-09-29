@@ -53,6 +53,7 @@ class RAS_ICanvas;
 class RAS_OffScreen;
 class RAS_MeshSlot;
 class RAS_DebugDraw;
+class RAS_InstancingBuffer;
 class RAS_ILightObject;
 class RAS_ISync;
 struct KX_ClientObjectInfo;
@@ -672,7 +673,7 @@ public:
 
 	void SetOverrideShader(OverrideShaderType type);
 	OverrideShaderType GetOverrideShader();
-	void ActivateOverrideShaderInstancing(void *matrixoffset, void *positionoffset, unsigned int stride);
+	void ActivateOverrideShaderInstancing(RAS_InstancingBuffer *buffer);
 
 	/// \see KX_RayCast
 	bool RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, RayCastTranform *raytransform);
