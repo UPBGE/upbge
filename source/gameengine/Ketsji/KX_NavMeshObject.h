@@ -38,6 +38,16 @@ class KX_NavMeshObject : public KX_GameObject
 protected:
 	dtStatNavMesh *m_navMesh;
 
+	bool BuildFromDerivedMesh(float *&vertices, int& nverts,
+	                        unsigned short * &polys, int& npolys, unsigned short *&dmeshes,
+	                        float *&dvertices, int &ndvertsuniq, unsigned short * &dtris,
+	                        int& ndtris, int &vertsPerPoly);
+
+	bool BuildFromMesh(float *&vertices, int& nverts,
+	                        unsigned short * &polys, int& npolys, unsigned short *&dmeshes,
+	                        float *&dvertices, int &ndvertsuniq, unsigned short * &dtris,
+	                        int& ndtris, int &vertsPerPoly);
+
 	bool BuildVertIndArrays(float *&vertices, int& nverts,
 	                        unsigned short * &polys, int& npolys, unsigned short *&dmeshes,
 	                        float *&dvertices, int &ndvertsuniq, unsigned short * &dtris,
