@@ -355,13 +355,14 @@ bool KX_KetsjiEngine::NextFrame()
 	double timestep;
 
 	if (m_flags & USE_EXTERNAL_CLOCK) {
+		timestep = m_clockTime - m_frameTime;
 		// Always proceed a frame when the user control time.
 		frames = 1;
 	}
 	else {
-		double current_time = m_clock.GetTimeSecond();
-		double dt = current_time - m_previousRealTime;
-		m_previousRealTime = current_time;
+		const double now = m_clock.GetTimeSecond();
+		const double dt = now - m_previousRealTime;
+		m_previousRealTime = now;
 		m_clockTime += dt * m_timescale;
 
 		const double deltatime = m_clockTime - m_frameTime;
