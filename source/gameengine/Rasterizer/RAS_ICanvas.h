@@ -52,6 +52,14 @@ public:
 		MOUSE_NORMAL
 	};
 
+	enum SwapControl
+	{
+		VSYNC_OFF = 0,
+		VSYNC_ON,
+		VSYNC_ADAPTIVE,
+		SWAP_CONTROL_MAX
+	};
+
 	RAS_ICanvas(RAS_Rasterizer *rasty);
 	virtual ~RAS_ICanvas();
 
@@ -77,8 +85,8 @@ public:
 
 	/// probably needs some arguments for PS2 in future
 	virtual void SwapBuffers() = 0;
-	virtual void SetSwapInterval(int interval) = 0;
-	virtual bool GetSwapInterval(int& intervalOut) = 0;
+	virtual void SetSwapControl(SwapControl control);
+	SwapControl GetSwapControl() const;
 
 	void SetSamples(int samples);
 	int GetSamples() const;
@@ -152,6 +160,9 @@ public:
 	}
 
 protected:
+	/// Swap interval value of each swap control mode.
+	static const int swapInterval[SWAP_CONTROL_MAX];
+
 	struct Screenshot
 	{
 		std::string path;
@@ -167,6 +178,7 @@ protected:
 	int m_samples;
 	RAS_Rasterizer::HdrType m_hdrType;
 
+	SwapControl m_swapControl;
 	RAS_MouseState m_mousestate;
 	/// frame number for screenshots.
 	int m_frame;

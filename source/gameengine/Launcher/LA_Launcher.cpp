@@ -190,15 +190,13 @@ void LA_Launcher::InitEngine()
 	// Create the canvas, rasterizer and rendertools.
 	m_canvas = CreateCanvas(m_rasterizer);
 
-	// Copy current vsync mode to restore at the game end.
-	m_canvas->GetSwapInterval(m_savedData.vsync);
+	static const RAS_ICanvas::SwapControl swapControlTable[] = {
+		RAS_ICanvas::VSYNC_ON, // VSYNC_ON
+		RAS_ICanvas::VSYNC_OFF, // VSYNC_OFF
+		RAS_ICanvas::VSYNC_ADAPTIVE // VSYNC_ADAPTIVE
+	};
 
-	if (gm.vsync == VSYNC_ADAPTIVE) {
-		m_canvas->SetSwapInterval(-1);
-	}
-	else {
-		m_canvas->SetSwapInterval((gm.vsync == VSYNC_ON) ? 1 : 0);
-	}
+	m_canvas->SetSwapControl(swapControlTable[gm.vsync]);
 
 	// Set canvas multisamples.
 	m_canvas->SetSamples(m_samples);
@@ -326,12 +324,8 @@ void LA_Launcher::ExitEngine()
 
 	// Set anisotropic settign back to its original value.
 	m_rasterizer->SetAnisotropicFiltering(m_savedData.anisotropic);
-
 	// Set mipmap setting back to its original value.
 	m_rasterizer->SetMipmapping(m_savedData.mipmap);
-
-	// Set vsync mode back to original value.
-	m_canvas->SetSwapInterval(m_savedData.vsync);
 
 	if (m_converter) {
 		delete m_converter;
