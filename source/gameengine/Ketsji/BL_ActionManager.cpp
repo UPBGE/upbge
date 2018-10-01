@@ -25,10 +25,8 @@
  */
 
 #include "BL_Action.h"
+#include "BL_ActionData.h"
 #include "BL_ActionManager.h"
-#include "DNA_ID.h"
-
-#define IS_TAGGED(_id) ((_id) && (((ID *)_id)->tag & LIB_TAG_DOIT))
 
 BL_ActionManager::BL_ActionManager(class KX_GameObject *obj) :
 	m_obj(obj),
@@ -47,11 +45,11 @@ BL_ActionManager::~BL_ActionManager()
 	m_layers.clear();
 }
 
-BL_Action *BL_ActionManager::GetAction(short layer)
+BL_Action *BL_ActionManager::GetAction(short layer) const
 {
-	BL_ActionMap::iterator it = m_layers.find(layer);
+	BL_ActionMap::const_iterator it = m_layers.find(layer);
 
-	return (it != m_layers.end()) ? it->second : 0;
+	return (it != m_layers.end()) ? it->second : nullptr;
 }
 
 float BL_ActionManager::GetActionFrame(short layer)
@@ -76,11 +74,11 @@ void BL_ActionManager::SetActionFrame(short layer, float frame)
 	}
 }
 
-struct bAction *BL_ActionManager::GetCurrentAction(short layer)
+std::string BL_ActionManager::GetCurrentActionName(short layer) const
 {
 	BL_Action *action = GetAction(layer);
 
-	return action ? action->GetAction() : 0;
+	return action ? action->GetName() : "";
 }
 
 void BL_ActionManager::SetPlayMode(short layer, short mode)
@@ -129,10 +127,10 @@ void BL_ActionManager::StopAction(short layer)
 	}
 }
 
-void BL_ActionManager::RemoveTaggedActions()
+void BL_ActionManager::RemoveActions(const BL_Resource::Library& libraryId)
 {
 	for (BL_ActionMap::iterator it = m_layers.begin(); it != m_layers.end(); ) {
-		if (IS_TAGGED(it->second->GetAction())) {
+		if (it->second->GetActionData()->Belong(libraryId)) {
 			delete it->second;
 			it = m_layers.erase(it);
 		}

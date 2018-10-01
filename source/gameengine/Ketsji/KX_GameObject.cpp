@@ -48,6 +48,7 @@
 #include "KX_NavMeshObject.h"
 #include "KX_Mesh.h"
 #include "KX_PolyProxy.h"
+#include "KX_BlenderMaterial.h"
 #include "SG_Controller.h"
 #include "PHY_IGraphicController.h"
 #include "SG_Node.h"
@@ -487,11 +488,6 @@ void KX_GameObject::StopAction(short layer)
 	GetActionManager()->StopAction(layer);
 }
 
-void KX_GameObject::RemoveTaggedActions()
-{
-	GetActionManager()->RemoveTaggedActions();
-}
-
 bool KX_GameObject::IsActionDone(short layer)
 {
 	return GetActionManager()->IsActionDone(layer);
@@ -522,9 +518,9 @@ void KX_GameObject::SetActionFrame(short layer, float frame)
 	GetActionManager()->SetActionFrame(layer, frame);
 }
 
-bAction *KX_GameObject::GetCurrentAction(short layer)
+std::string KX_GameObject::GetCurrentActionName(short layer)
 {
-	return GetActionManager()->GetCurrentAction(layer);
+	return GetActionManager()->GetCurrentActionName(layer);
 }
 
 void KX_GameObject::SetPlayMode(short layer, short mode)
@@ -591,6 +587,31 @@ EXP_Value *KX_GameObject::GetReplica()
 	replica->ProcessReplica();
 
 	return replica;
+}
+
+void KX_GameObject::RemoveRessources(const BL_Resource::Library& libraryId)
+{
+	// If the object is using actions, try remove actions from this library.
+	if (m_actionManager) {
+		m_actionManager->RemoveActions(libraryId);
+	}
+
+	for (KX_Mesh *mesh : m_meshes) {
+		// If the mesh comes from this lirbary, remove all meshes.
+		if (mesh->Belong(libraryId)) {
+			RemoveMeshes();
+			break;
+		}
+		else {
+			// If one of the material used by the mesh comes from this library, remove all meshes too.
+			for (RAS_MeshMaterial *meshmat : mesh->GetMeshMaterialList()) {
+				if (static_cast<KX_BlenderMaterial *>(meshmat->GetBucket()->GetMaterial())->Belong(libraryId)) {
+					RemoveMeshes();
+					break;
+				}
+			}
+		}
+	}
 }
 
 bool KX_GameObject::IsDynamic() const

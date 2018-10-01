@@ -23,6 +23,7 @@
  */
 
 #include "RAS_Texture.h"
+#include "RAS_TextureRenderer.h"
 
 #include "GPU_glew.h"
 
@@ -35,6 +36,10 @@ RAS_Texture::RAS_Texture()
 
 RAS_Texture::~RAS_Texture()
 {
+	// If the texture is free before the renderer (e.g lib free) then unregsiter ourself.
+	if (m_renderer) {
+		m_renderer->RemoveTextureUser(this);
+	}
 }
 
 std::string& RAS_Texture::GetName()

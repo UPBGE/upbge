@@ -259,6 +259,11 @@ private:
 	bool m_isActivedHysteresis;
 	int m_lodHysteresisValue;
 
+	void RemoveNodeDestructObject(KX_GameObject *gameobj);
+	void RemoveObject(KX_GameObject *gameobj);
+	void RemoveDupliGroup(KX_GameObject *gameobj);
+	bool NewRemoveObject(KX_GameObject *gameobj);
+
 public:
 	KX_Scene(SCA_IInputDevice *inputDevice,
 	         const std::string& scenename,
@@ -287,11 +292,10 @@ public:
 	KX_GameObject *AddReplicaObject(KX_GameObject *gameobj, KX_GameObject *locationobj, float lifespan = 0.0f);
 	KX_GameObject *AddNodeReplicaObject(SG_Node *node, KX_GameObject *gameobj);
 
-	void RemoveNodeDestructObject(KX_GameObject *gameobj);
-	void RemoveObject(KX_GameObject *gameobj);
-	void RemoveDupliGroup(KX_GameObject *gameobj);
+	/// Add an object to remove.
 	void DelayedRemoveObject(KX_GameObject *gameobj);
-	bool NewRemoveObject(KX_GameObject *gameobj);
+	/// Effectivly remove object added with DelayedRemoveObject
+	void RemoveEuthanasyObjects();
 
 	void AddAnimatedObject(KX_GameObject *gameobj);
 

@@ -32,6 +32,8 @@
 #include "GPU_framebuffer.h"
 #include "GPU_draw.h"
 
+#include "CM_List.h"
+
 #include "BKE_image.h"
 
 #include "BLI_utildefines.h"
@@ -175,6 +177,12 @@ void RAS_TextureRenderer::AddTextureUser(RAS_Texture *texture)
 {
 	m_textureUsers.push_back(texture);
 	texture->SetRenderer(this);
+}
+
+void RAS_TextureRenderer::RemoveTextureUser(RAS_Texture *texture)
+{
+	CM_ListRemoveIfFound(m_textureUsers, texture);
+	texture->SetRenderer(nullptr);
 }
 
 void RAS_TextureRenderer::BeginRender(RAS_Rasterizer *rasty)

@@ -34,6 +34,8 @@
 
 #include "RAS_Mesh.h"
 
+#include "BL_Resource.h"
+
 #include "EXP_Value.h"
 
 class KX_Mesh;
@@ -46,7 +48,7 @@ bool ConvertPythonToMesh(SCA_LogicManager *logicmgr, PyObject *value, KX_Mesh **
 
 #endif  // WITH_PYTHON
 
-class KX_Mesh : public EXP_Value, public RAS_Mesh
+class KX_Mesh : public EXP_Value, public BL_Resource, public RAS_Mesh
 {
 	Py_Header
 

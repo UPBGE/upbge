@@ -716,7 +716,7 @@ static PyObject *gLibNew(PyObject *, PyObject *args)
 
 	BL_Converter *converter = KX_GetActiveEngine()->GetConverter();
 
-	if (converter->GetMainDynamicPath(path)) {
+	if (converter->ExistLibrary(path)) {
 		PyErr_SetString(PyExc_KeyError, "the name of the path given exists");
 		return nullptr;
 	}
@@ -727,7 +727,7 @@ static PyObject *gLibNew(PyObject *, PyObject *args)
 		return nullptr;
 	}
 
-	Main *maggie = converter->CreateMainDynamic(path);
+	Main *maggie = converter->CreateLibrary(path);
 
 	/* Copy the object into main */
 	if (idcode == ID_ME) {
@@ -773,11 +773,11 @@ static PyObject *gLibFree(PyObject *, PyObject *args)
 
 static PyObject *gLibList(PyObject *, PyObject *args)
 {
-	const std::vector<Main *> &dynMaggie = KX_GetActiveEngine()->GetConverter()->GetMainDynamic();
-	PyObject *list = PyList_New(dynMaggie.size());
+	const std::vector<std::string> names = KX_GetActiveEngine()->GetConverter()->GetLibraryNames();
+	PyObject *list = PyList_New(names.size());
 
-	for (unsigned short i = 0, size = dynMaggie.size(); i < size; ++i) {
-		PyList_SET_ITEM(list, i, PyUnicode_FromString(dynMaggie[i]->name));
+	for (unsigned short i = 0, size = names.size(); i < size; ++i) {
+		PyList_SET_ITEM(list, i, PyUnicode_FromStdString(names[i]));
 	}
 
 	return list;

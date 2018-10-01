@@ -40,7 +40,10 @@
 #  include "KX_Mesh.h"
 #  include "BL_ConvertObjectInfo.h"
 #  include "BL_ScalarInterpolator.h"
+#  include "BL_ActionData.h"
 #endif
+
+#include "BL_SceneConverter.h"
 
 #include "CM_Thread.h"
 
@@ -50,7 +53,6 @@ class BL_ConvertObjectInfo;
 class KX_KetsjiEngine;
 class KX_LibLoadStatus;
 class KX_BlenderMaterial;
-class BL_InterpolatorList;
 class SCA_IActuator;
 class SCA_IController;
 class KX_Mesh;
@@ -75,10 +77,8 @@ private:
 	public:
 		UniquePtrList<KX_BlenderMaterial> m_materials;
 		UniquePtrList<KX_Mesh> m_meshobjects;
-		UniquePtrList<BL_InterpolatorList> m_interpolators;
+		UniquePtrList<BL_ActionData> m_actions;
 		UniquePtrList<BL_ConvertObjectInfo> m_objectInfos;
-
-		std::map<bAction *, BL_InterpolatorList *> m_actionToInterp;
 
 		SceneSlot();
 		SceneSlot(const BL_SceneConverter& converter);
@@ -95,16 +95,31 @@ private:
 		CM_ThreadMutex m_mutex;
 	} m_threadinfo;
 
-	// Saved KX_LibLoadStatus objects
-	std::map<std::string, KX_LibLoadStatus *> m_status_map;
+	/// List of loaded libraries to merge.
 	std::vector<KX_LibLoadStatus *> m_mergequeue;
+	/// List of libraries to free.
+	std::vector<Main *> m_freeQueue;
 
+	/// Blender current maggie at game start.
 	Main *m_maggie;
-	std::vector<Main *> m_DynamicMaggie;
+	/// Libloaded maggies.
+	std::vector<Main *> m_dynamicMaggies;
+	/// All maggies, original and loaded.
+	std::vector<Main *> m_maggies;
+	/// Loaded library status associated to library.
+	std::unordered_map<Main *, std::unique_ptr<KX_LibLoadStatus> > m_libloadStatus;
 
 	KX_KetsjiEngine *m_ketsjiEngine;
 	bool m_alwaysUseExpandFraming;
 	float m_camZoom;
+
+	/// Partially convert a potential libloaded scene.
+	void ConvertScene(BL_SceneConverter& converter, bool libloading, bool actions);
+
+	/** Convert all scene data that can't in a separate thread such as python components.
+	 * \param converter The scene convert to finalize.
+	 */
+	void PostConvertScene(const BL_SceneConverter& converter);
 
 	/** Merge all data contained in the scene converter to the scene slot of
 	 * the destination scene and update the data to use the destination scene.
@@ -121,21 +136,36 @@ private:
 	 */
 	void MergeScene(KX_Scene *to, const BL_SceneConverter& converter);
 
+	/** Regenerate material shader after a converting or merging a scene
+	 * depending on all the lights into the destination scene.
+	 */
+	void ReloadShaders(KX_Scene *scene);
+	/// Regenerate shaders of material in given scene converter, used when creating mesh. 
+	void ReloadShaders(const BL_SceneConverter& converter);
+
+	/// Delay library merging to ProcessScheduledLibraries.
+	void AddScenesToMergeQueue(KX_LibLoadStatus *status);
+
+	/** Asynchronously convert scenes from a library.
+	 * \param ptr Pointer to the library status.
+	 */
+	static void AsyncConvertTask(TaskPool *pool, void *ptr, int UNUSED(threadid));
+
+	Main *GetLibraryPath(const std::string& path);
+
+	KX_LibLoadStatus *LinkBlendFile(BlendHandle *blendlib, const char *path, char *group, KX_Scene *scene_merge, char **err_str, short options);
+
+	/// Free blend file and remove data from merged scene.
+	bool FreeBlendFileData(Main *maggie);
+	/// Free blend file and remove library from internal lists.
+	void FreeBlendFile(Main *maggie);
+
 public:
 	BL_Converter(Main *maggie, KX_KetsjiEngine *engine, bool alwaysUseExpandFraming, float camZoom);
 	virtual ~BL_Converter();
 
-	void ConvertScene(BL_SceneConverter& converter, bool libloading);
-
-	/** Convert all scene data that can't in a separate thread such as python components.
-	 * \param converter The scene convert to finalize.
-	 */
-	void PostConvertScene(const BL_SceneConverter& converter);
-
-	/** Finalize all data depending on scene context after a potential scene merging,
-	 * such as shader creation depending on lights into scene.
-	 */
-	void FinalizeSceneData(const BL_SceneConverter& converter);
+	/// Fully convert a non-libloaded scene.
+	void ConvertScene(KX_Scene *scene);
 
 	/** This function removes all entities stored in the converter for that scene
 	 * It should be used instead of direct delete scene
@@ -146,30 +176,29 @@ public:
 	 */
 	void RemoveScene(KX_Scene *scene);
 
-	void RegisterInterpolatorList(KX_Scene *scene, BL_InterpolatorList *interpolator, bAction *for_act);
-	BL_InterpolatorList *FindInterpolatorList(KX_Scene *scene, bAction *for_act);
 	/// Register a mesh object copy.
 	void RegisterMesh(KX_Scene *scene, KX_Mesh *mesh);
 
 	Scene *GetBlenderSceneForName(const std::string& name);
 	EXP_ListValue<EXP_StringValue> *GetInactiveSceneNames();
 
-	Main *CreateMainDynamic(const std::string& path);
-	Main *GetMainDynamicPath(const std::string& path) const;
-	const std::vector<Main *> &GetMainDynamic() const;
+	/// Return a new empty library of name path.
+	Main *CreateLibrary(const std::string& path);
+	bool ExistLibrary(const std::string& path) const;
+	std::vector<std::string> GetLibraryNames() const;
 
 	KX_LibLoadStatus *LinkBlendFileMemory(void *data, int length, const char *path, char *group, KX_Scene *scene_merge, char **err_str, short options);
 	KX_LibLoadStatus *LinkBlendFilePath(const char *path, char *group, KX_Scene *scene_merge, char **err_str, short options);
-	KX_LibLoadStatus *LinkBlendFile(BlendHandle *blendlib, const char *path, char *group, KX_Scene *scene_merge, char **err_str, short options);
 
-	bool FreeBlendFile(Main *maggie);
+	/// Register library to free by name.
 	bool FreeBlendFile(const std::string& path);
 
 	KX_Mesh *ConvertMeshSpecial(KX_Scene *kx_scene, Main *maggie, const std::string& name);
 
-	void MergeAsyncLoads();
+	/// Merge scheduled loaded libraries and remove scheduled libraries.
+	void ProcessScheduledLibraries();
+	/// Wait until all libraries are loaded.
 	void FinalizeAsyncLoads();
-	void AddScenesToMergeQueue(KX_LibLoadStatus *status);
 
 	void PrintStats();
 

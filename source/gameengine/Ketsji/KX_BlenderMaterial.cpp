@@ -117,8 +117,6 @@ KX_BlenderMaterial::KX_BlenderMaterial(Material *mat, const std::string& name, K
 
 	m_blendFunc[0] = RAS_Rasterizer::RAS_ZERO;
 	m_blendFunc[1] = RAS_Rasterizer::RAS_ZERO;
-
-	InitTextures();
 }
 
 KX_BlenderMaterial::~KX_BlenderMaterial()
@@ -193,8 +191,22 @@ SCA_IScene *KX_BlenderMaterial::GetScene() const
 
 void KX_BlenderMaterial::ReloadMaterial()
 {
+	BLI_assert(m_scene);
+
 	if (m_blenderShader) {
+		// If shader exists reload it.
 		m_blenderShader->ReloadMaterial();
+	}
+	else {
+		// Init textures.
+		InitTextures();
+		// Create shader.
+		m_blenderShader = new BL_BlenderShader(m_scene, m_material, this);
+
+		if (!m_blenderShader->Ok()) {
+			delete m_blenderShader;
+			m_blenderShader = nullptr;
+		}
 	}
 }
 
@@ -213,19 +225,6 @@ void KX_BlenderMaterial::InitTextures()
 			BL_Texture *texture = new BL_Texture(mtex);
 			m_textures[i] = texture;
 		}
-	}
-}
-
-void KX_BlenderMaterial::InitShader()
-{
-	BLI_assert(!m_blenderShader);
-	BLI_assert(m_scene);
-
-	m_blenderShader = new BL_BlenderShader(m_scene, m_material, this);
-
-	if (!m_blenderShader->Ok()) {
-		delete m_blenderShader;
-		m_blenderShader = nullptr;
 	}
 }
 

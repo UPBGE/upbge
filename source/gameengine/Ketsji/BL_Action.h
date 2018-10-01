@@ -32,14 +32,14 @@
 
 class KX_GameObject;
 class SG_Controller;
-
+class BL_ActionData;
 struct bAction;
 struct bPose;
 
 class BL_Action
 {
 private:
-	bAction* m_action;
+	BL_ActionData *m_actionData;
 	bAction* m_tmpaction;
 	bPose* m_blendpose;
 	bPose* m_blendinpose;
@@ -126,7 +126,7 @@ public:
 	float GetFrame();
 	const std::string GetName();
 
-	struct bAction *GetAction();
+	BL_ActionData *GetActionData();
 
 	// Mutators
 	void SetFrame(float frame);

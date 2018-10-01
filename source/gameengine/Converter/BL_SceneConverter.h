@@ -32,7 +32,7 @@
 #ifndef __KX_BLENDERSCENECONVERTER_H__
 #define __KX_BLENDERSCENECONVERTER_H__
 
-#include "CM_Message.h"
+#include "BL_Resource.h"
 
 #include <map>
 #include <vector>
@@ -43,6 +43,7 @@ class KX_Mesh;
 class KX_BlenderMaterial;
 class BL_Converter;
 class BL_ConvertObjectInfo;
+class BL_ActionData;
 class KX_GameObject;
 class KX_Scene;
 class KX_LibLoadStatus;
@@ -52,6 +53,7 @@ struct Object;
 struct Scene;
 struct Mesh;
 struct Material;
+struct bAction;
 struct bActuator;
 struct bController;
 
@@ -61,11 +63,16 @@ class BL_SceneConverter
 
 private:
 	KX_Scene *m_scene;
+	const BL_Resource::Library m_libraryId;
+
+	/// Ressources from the scene.
 
 	std::vector<KX_BlenderMaterial *> m_materials;
 	std::vector<KX_Mesh *> m_meshobjects;
 	std::vector<BL_ConvertObjectInfo *> m_objectInfos;
-	// List of all object converted, active and inactive.
+	std::vector<BL_ActionData *> m_actions;
+
+	/// List of all object converted, active and inactive, not considered as a ressource.
 	std::vector<KX_GameObject *> m_objects;
 
 	std::map<Object *, BL_ConvertObjectInfo *> m_blenderToObjectInfos;
@@ -76,12 +83,11 @@ private:
 	std::map<bController *, SCA_IController *> m_map_blender_to_gamecontroller;
 
 public:
-	BL_SceneConverter(KX_Scene *scene);
+	BL_SceneConverter(KX_Scene *scene, const BL_Resource::Library& libraryId);
 	~BL_SceneConverter() = default;
 
 	// Disable dangerous copy.
 	BL_SceneConverter(const BL_SceneConverter& other) = delete;
-
 	BL_SceneConverter(BL_SceneConverter&& other);
 
 	KX_Scene *GetScene() const;
@@ -95,6 +101,8 @@ public:
 
 	void RegisterMaterial(KX_BlenderMaterial *blmat, Material *mat);
 	KX_BlenderMaterial *FindMaterial(Material *mat);
+
+	void RegisterActionData(BL_ActionData *data);
 
 	void RegisterGameActuator(SCA_IActuator *act, bActuator *for_actuator);
 	SCA_IActuator *FindGameActuator(bActuator *for_actuator);

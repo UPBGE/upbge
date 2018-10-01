@@ -88,24 +88,14 @@ KX_Scene *KX_LibLoadStatus::GetMergeScene() const
 	return m_mergescene;
 }
 
-const std::vector<KX_Scene *>& KX_LibLoadStatus::GetScenes() const
-{
-	return m_scenes;
-}
-
-void KX_LibLoadStatus::SetScenes(const std::vector<KX_Scene *>& scenes)
-{
-	m_scenes = scenes;
-}
-
-const std::vector<BL_SceneConverter>& KX_LibLoadStatus::GetSceneConverters() const
+std::vector<BL_SceneConverter>& KX_LibLoadStatus::GetSceneConverters()
 {
 	return m_sceneConvertes;
 }
 
-void KX_LibLoadStatus::AddSceneConverter(BL_SceneConverter&& converter)
+void KX_LibLoadStatus::AddSceneConverter(KX_Scene *scene, const BL_Resource::Library& libraryId)
 {
-	m_sceneConvertes.push_back(std::move(converter));
+	m_sceneConvertes.emplace_back(scene, libraryId);
 }
 
 bool KX_LibLoadStatus::IsFinished() const

@@ -222,13 +222,15 @@ void BL_ConvertActuators(const char *maggiename,
 					ipo_flags |= BL_Action::ACT_IPOFLAG_ADD;
 				}
 
+				const std::string actionName = (actact->act) ? actact->act->id.name + 2 : "";
+
 				BL_ActionActuator *tmpbaseact = new BL_ActionActuator(
 					gameobj,
 					propname,
 					propframe,
 					actact->sta,
 					actact->end,
-					actact->act,
+					actionName,
 					actact->type,         // + 1, because Blender starts to count at zero,
 					actact->blend_mode,
 					actact->blendin,

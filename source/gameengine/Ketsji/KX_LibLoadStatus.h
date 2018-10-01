@@ -41,7 +41,6 @@ private:
 	BL_Converter *m_converter;
 	KX_KetsjiEngine *m_engine;
 	KX_Scene *m_mergescene;
-	std::vector<KX_Scene *> m_scenes;
 	std::vector<BL_SceneConverter> m_sceneConvertes;
 	std::string m_libname;
 
@@ -69,10 +68,8 @@ public:
 	KX_KetsjiEngine *GetEngine() const;
 	KX_Scene *GetMergeScene() const;
 
-	const std::vector<KX_Scene *>& GetScenes() const;
-	void SetScenes(const std::vector<KX_Scene *>& scenes);
-	const std::vector<BL_SceneConverter>& GetSceneConverters() const;
-	void AddSceneConverter(BL_SceneConverter&& converter);
+	std::vector<BL_SceneConverter>& GetSceneConverters();
+	void AddSceneConverter(KX_Scene *scene, const BL_Resource::Library& libraryId);
 
 	bool IsFinished() const;
 

@@ -45,7 +45,7 @@ public:
 						const std::string& framepropname,
 						float starttime,
 						float endtime,
-						struct bAction *action,
+						const std::string& actionName,
 						short	playtype,
 						short	blend_mode,
 						short	blendin,
@@ -63,9 +63,6 @@ public:
 	void SetLocalTime(float curtime);
 	void ResetStartTime(float curtime);
 	
-	bAction*	GetAction() { return m_action; }
-	void		SetAction(bAction* act) { m_action= act; }
-
 	virtual void DecLink();
 
 	bool Play(KX_GameObject *obj, float start, float end, short mode);
@@ -114,7 +111,7 @@ protected:
 	short	m_priority;
 	short	m_layer;
 	short	m_ipo_flags;
-	struct bAction *m_action;
+	std::string m_actionName;
 	std::string	m_propname;
 	std::string	m_framepropname;
 };

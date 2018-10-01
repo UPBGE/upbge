@@ -41,10 +41,12 @@ class RAS_ICanvas;
 class KX_KetsjiEngine;
 class KX_Scene;
 class BL_SceneConverter;
+class BL_ActionData;
 struct Mesh;
 struct DerivedMesh;
 struct Object;
 struct Main;
+struct bAction;
 
 struct BL_MeshMaterial {
 	RAS_DisplayArray *array;
@@ -60,6 +62,10 @@ void BL_ConvertDerivedMeshToArray(DerivedMesh *dm, Mesh *me, const std::vector<B
                                   const RAS_Mesh::LayersInfo& layersInfo);
 
 RAS_Deformer *BL_ConvertDeformer(KX_GameObject *object, KX_Mesh *meshobj);
+
+BL_ActionData *BL_ConvertAction(bAction *action, KX_Scene *scene, BL_SceneConverter& converter);
+/// Convert all actions of a library and register them in a converter.
+void BL_ConvertActions(KX_Scene *scene, Main *maggie, BL_SceneConverter& converter);
 
 void BL_ConvertBlenderObjects(Main *maggie, KX_Scene *kxscene, KX_KetsjiEngine *ketsjiEngine,
 							  RAS_Rasterizer *rendertools, RAS_ICanvas *canvas, BL_SceneConverter& sceneconverter,
