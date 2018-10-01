@@ -254,7 +254,9 @@ class GreasePencilStrokeSculptPanel:
 
         row = layout.row(align=True)
         row.prop(brush, "size", slider=True)
-        row.prop(brush, "use_pressure_radius", text="")
+        sub = row.row(align=True)
+        sub.enabled = tool not in {'GRAB', 'CLONE'}
+        sub.prop(brush, "use_pressure_radius", text="")
 
         row = layout.row(align=True)
         row.prop(brush, "strength", slider=True)
@@ -296,14 +298,14 @@ class GreasePencilSculptOptionsPanel:
         brush = settings.brush
 
         if tool in {'SMOOTH', 'RANDOMIZE'}:
-            layout.prop(settings, "affect_position", text="Affect Position")
-            layout.prop(settings, "affect_strength", text="Affect Strength")
-            layout.prop(settings, "affect_thickness", text="Affect Thickness")
+            layout.prop(settings, "use_edit_position", text="Affect Position")
+            layout.prop(settings, "use_edit_strength", text="Affect Strength")
+            layout.prop(settings, "use_edit_thickness", text="Affect Thickness")
 
             if tool == 'SMOOTH':
-                layout.prop(brush, "affect_pressure")
+                layout.prop(brush, "use_edit_pressure")
 
-            layout.prop(settings, "affect_uv", text="Affect UV")
+            layout.prop(settings, "use_edit_uv", text="Affect UV")
 
 
 # GP Object Tool Settings
@@ -338,6 +340,9 @@ class GreasePencilAppearancePanel:
             sub.prop(brush, "icon_filepath", text="")
 
             layout.prop(gp_settings, "use_cursor", text="Show Brush")
+
+            if gp_settings.gpencil_brush_type == 'DRAW':
+                layout.prop(gp_settings, "disable_lasso", text="Hide fill color while drawing")
 
             if gp_settings.gpencil_brush_type == 'FILL':
                 layout.prop(brush, "cursor_color_add", text="Color")
@@ -579,9 +584,9 @@ class GPENCIL_MT_pie_sculpt(Menu):
         col.prop(brush, "use_falloff")
         if settings.tool in {'SMOOTH', 'RANDOMIZE'}:
             row = col.row(align=True)
-            row.prop(settings, "affect_position", text="Position", icon='MESH_DATA', toggle=True)
-            row.prop(settings, "affect_strength", text="Strength", icon='COLOR', toggle=True)
-            row.prop(settings, "affect_thickness", text="Thickness", icon='LINE_DATA', toggle=True)
+            row.prop(settings, "use_edit_position", text="Position", icon='MESH_DATA', toggle=True)
+            row.prop(settings, "use_edit_strength", text="Strength", icon='COLOR', toggle=True)
+            row.prop(settings, "use_edit_thickness", text="Thickness", icon='LINE_DATA', toggle=True)
 
         # S - Change Brush Type Shortcuts
         row = pie.row()
