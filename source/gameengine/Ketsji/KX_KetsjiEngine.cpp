@@ -247,7 +247,8 @@ void KX_KetsjiEngine::SetConverter(BL_BlenderConverter *converter)
 
 void KX_KetsjiEngine::StartEngine()
 {
-  m_previousRealTime = m_kxsystem->GetTimeInSeconds();
+	// Reset the clock to start at 0.0.
+	m_clock.Reset();
 
   m_bInitialized = true;
 }
@@ -310,6 +311,179 @@ void KX_KetsjiEngine::EndFrame()
   m_logger.StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds());
 
   m_canvas->EndDraw();
+}
+
+KX_KetsjiEngine::FrameTimes KX_KetsjiEngine::GetFrameTimes()
+{
+	/*
+	 * Clock advancement. There is basically two case:
+	 *   - USE_EXTERNAL_CLOCK is true, the user is responsible to advance the time
+	 *   manually using setClockTime, so here, we do not do anything.
+	 *   - USE_EXTERNAL_CLOCK is false, we consider how much
+	 *   time has elapsed since last call and we scale this time by the time
+	 *   scaling parameter. If m_timescale is 1.0 (default value), the clock
+	 *   corresponds to the computer clock.
+	 *
+	 * Once clockTime has been computed, we will compute how many logic frames
+	 * will be executed before the next rendering phase (which will occur at "clockTime").
+	 * The game time elapsing between two logic frames (called framestep)
+	 * depends on several variables:
+	 *   - ticrate
+	 *   - max_physic_frame
+	 *   - max_logic_frame
+	 *   - fixed_framerate
+	 */
+
+	// Update time if the user is not controlling it.
+	if (!(m_flags & USE_EXTERNAL_CLOCK)) {
+		m_clockTime = m_clock.GetTimeSecond();
+	}
+
+	// Get elapsed time.
+	const double dt = m_clockTime - m_previousRealTime;
+
+	// Time of a frame (without scale).
+	double timestep;
+	if (m_flags & FIXED_FRAMERATE) {
+		// Normal time step for fixed frame.
+		timestep = 1.0 / m_ticrate;
+	}
+	else {
+		// The frame is the smallest as possible.
+		timestep = dt;
+	}
+
+	// Number of frames to proceed.
+	int frames;
+	if (m_flags & FIXED_FRAMERATE) {
+		// As many as possible for the elapsed time.
+		frames = int(dt * m_ticrate);
+	}
+	else {
+		// Proceed always one frame in non-fixed framerate.
+		frames = 1;
+	}
+
+	// Fix timestep to not exceed max physics and logic frames.
+	if (frames > m_maxPhysicsFrame) {
+		timestep = dt / m_maxPhysicsFrame;
+		frames = m_maxPhysicsFrame;
+	}
+	if (frames > m_maxLogicFrame) {
+		timestep = dt / m_maxLogicFrame;
+		frames = m_maxLogicFrame;
+	}
+
+	// If the number of frame is non-zero, update previous time.
+	if (frames > 0) {
+		m_previousRealTime = m_clockTime;
+	}
+	// Else in case of fixed framerate, try to sleep until the next frame.
+	else if (m_flags & FIXED_FRAMERATE) {
+		const double sleeptime = timestep - dt - 1.0e-3;
+		/* If the remaining time is greather than 1ms (sleep resolution) sleep this thread.
+		 * The other 1ms will be busy wait.
+		 */
+		if (sleeptime > 0.0) {
+			std::this_thread::sleep_for(std::chrono::nanoseconds((long)(sleeptime * 1.0e9)));
+		}
+	}
+
+	// Frame time with time scale.
+	const double framestep = timestep * m_timescale;
+
+	FrameTimes times;
+	times.frames = frames;
+	times.timestep = timestep;
+	times.framestep = framestep;
+
+	return times;
+}
+
+bool KX_KetsjiEngine::NextFrame()
+{
+	m_logger.StartLog(tc_services);
+
+	const FrameTimes times = GetFrameTimes();
+
+	for (unsigned short i = 0; i < times.frames; ++i) {
+		m_frameTime += times.framestep;
+
+		m_converter->MergeAsyncLoads();
+
+		if (m_inputDevice) {
+			m_inputDevice->ReleaseMoveEvent();
+		}
+#ifdef WITH_SDL
+		// Handle all SDL Joystick events here to share them for all scenes properly.
+		short addrem[JOYINDEX_MAX] = {0};
+		if (DEV_Joystick::HandleEvents(addrem)) {
+#  ifdef WITH_PYTHON
+			updatePythonJoysticks(addrem);
+#  endif  // WITH_PYTHON
+		}
+#endif  // WITH_SDL
+
+		// for each scene, call the proceed functions
+		for (KX_Scene *scene : m_scenes) {
+			/* Suspension holds the physics and logic processing for an
+			 * entire scene. Objects can be suspended individually, and
+			 * the settings for that precede the logic and physics
+			 * update. */
+			m_logger.StartLog(tc_logic);
+
+			scene->UpdateObjectActivity();
+
+			if (!scene->IsSuspended()) {
+				m_logger.StartLog(tc_physics);
+				// set Python hooks for each scene
+				KX_SetActiveScene(scene);
+
+				// Process sensors, and controllers
+				m_logger.StartLog(tc_logic);
+				scene->LogicBeginFrame(m_frameTime, times.framestep);
+
+				// Scenegraph needs to be updated again, because Logic Controllers
+				// can affect the local matrices.
+				m_logger.StartLog(tc_scenegraph);
+				scene->UpdateParents();
+
+				// Process actuators
+
+				// Do some cleanup work for this logic frame
+				m_logger.StartLog(tc_logic);
+				scene->LogicUpdateFrame(m_frameTime);
+
+				scene->LogicEndFrame();
+
+				// Actuators can affect the scenegraph
+				m_logger.StartLog(tc_scenegraph);
+				scene->UpdateParents();
+
+				m_logger.StartLog(tc_physics);
+
+				// Perform physics calculations on the scene. This can involve
+				// many iterations of the physics solver.
+				scene->GetPhysicsEnvironment()->ProceedDeltaTime(m_frameTime, times.timestep, times.framestep);//m_deltatimerealDeltaTime);
+
+				m_logger.StartLog(tc_scenegraph);
+				scene->UpdateParents();
+			}
+
+  m_average_framerate = 1.0 / tottime;
+
+  // Go to next profiling measurement, time spent after this call is shown in the next frame.
+  m_logger.NextMeasurement(m_kxsystem->GetTimeInSeconds());
+
+  m_logger.StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds());
+  // m_rasterizer->EndFrame();
+
+
+	// Start logging time spent outside main loop
+	m_logger.StartLog(tc_outside);
+
+	const bool doRender = times.frames > 0;
+	return doRender && m_doRender;
 }
 
 void KX_KetsjiEngine::EndFrameViewportRender()
