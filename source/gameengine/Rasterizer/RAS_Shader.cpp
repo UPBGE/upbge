@@ -523,7 +523,7 @@ int RAS_Shader::GetUniformLocation(const std::string& name, bool debug)
 	std::vector<UniformInfo>::const_iterator it = std::lower_bound(m_uniformInfos.begin(), m_uniformInfos.end(), hash,
 		[](const UniformInfo& info, size_t hash){ return (info.nameHash < hash); });
 
-	if (it == m_uniformInfos.end()) {
+	if (it == m_uniformInfos.end() || it->nameHash != hash) {
 		if (debug) {
 			CM_Error("invalid uniform value: " << name << ".");
 		}
