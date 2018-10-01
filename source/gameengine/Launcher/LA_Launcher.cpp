@@ -296,7 +296,7 @@ void LA_Launcher::InitEngine()
 #endif  // WITH_AUDASPACE
 
 	// Convert scene data.
-	m_ketsjiEngine->ConvertScene(m_kxStartScene);
+	m_converter->ConvertScene(m_kxStartScene);
 
 	m_ketsjiEngine->AddScene(m_kxStartScene);
 	m_kxStartScene->Release();

@@ -48,6 +48,7 @@ set(SRC
 	CM_Clock.h
 	CM_Format.h
 	CM_List.h
+	CM_Map.h
 	CM_Message.h
 	CM_RefCount.h
 	CM_Template.h

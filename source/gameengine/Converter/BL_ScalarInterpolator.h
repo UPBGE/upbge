@@ -53,19 +53,4 @@ public:
 	FCurve *GetFCurve() const;
 };
 
-class BL_InterpolatorList
-{
-private:
-	bAction *m_action;
-	std::vector<BL_ScalarInterpolator> m_interpolators;
-
-public:
-	BL_InterpolatorList(bAction *action);
-	~BL_InterpolatorList();
-
-	bAction *GetAction() const;
-
-	BL_ScalarInterpolator *GetScalarInterpolator(const std::string& rna_path, int array_index);
-};
-
 #endif  /* __KX_BLENDERSCALARINTERPOLATOR_H__ */

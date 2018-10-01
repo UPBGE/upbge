@@ -378,22 +378,23 @@ void RAS_BucketManager::ReloadMaterials(RAS_IMaterial *mat)
 	}
 }
 
-/* frees the bucket, only used when freeing scenes */
 void RAS_BucketManager::RemoveMaterial(RAS_IMaterial *mat)
 {
-	for (unsigned short i = 0; i < NUM_BUCKET_TYPE; ++i) {
-		BucketList& buckets = m_buckets[i];
-		for (BucketList::iterator it = buckets.begin(); it != buckets.end(); ) {
-			RAS_MaterialBucket *bucket = *it;
-			if (mat == bucket->GetMaterial()) {
-				it = buckets.erase(it);
-				if (i == ALL_BUCKET) {
-					delete bucket;
-				}
+	BucketList& allBuckets = m_buckets[ALL_BUCKET];
+	for (BucketList::iterator it = allBuckets.begin(); it != allBuckets.end();) {
+		RAS_MaterialBucket *bucket = *it;
+		// Find the bucket in ALL_BUCKET list.
+		if (mat == bucket->GetMaterial()) {
+			// Iterate over all bucket list excepted ALL_BUCKET and remove the bucket.
+			for (unsigned short i = 0; i < ALL_BUCKET; ++i) {
+				CM_ListRemoveIfFound(m_buckets[i], bucket);
 			}
-			else {
-				++it;
-			}
+			// Remove the bucket from ALL_BUCKET and destruct it.
+			it = allBuckets.erase(it);
+			delete bucket;
+		}
+		else {
+			++it;
 		}
 	}
 }

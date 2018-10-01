@@ -51,6 +51,7 @@
 #include "DNA_constraint_types.h" /* for constraint replication */
 #include "DNA_object_types.h"
 #include "SCA_LogicManager.h" /* for ConvertPythonToGameObject to search object names */
+#include "BL_Resource.h" // For BL_Resource::Library.
 
 class KX_RayCast;
 class KX_LodManager;
@@ -291,7 +292,7 @@ public:
 	/**
 	 * Gets the currently running action on the given layer
 	 */
-	bAction *GetCurrentAction(short layer);
+	std::string GetCurrentActionName(short layer);
 
 	/**
 	 * Sets play mode of the action on the given layer
@@ -302,11 +303,6 @@ public:
 	 * Stop playing the action on the given layer
 	 */
 	void StopAction(short layer);
-
-	/**
-	 * Remove playing tagged actions.
-	 */
-	void RemoveTaggedActions();
 
 	/**
 	 * Check if an action has finished playing
@@ -368,6 +364,12 @@ public:
 	 * object belongs with the caller.
 	 */
 	virtual EXP_Value *GetReplica();
+
+	/** Remove object resource coming from the given library.
+	 * These resource could be actions and meshes.
+	 * \param libraryId The identifier of the library used to recognize the resource.
+	 */
+	void RemoveRessources(const BL_Resource::Library& libraryId);
 	
 	/** 
 	 * Return the linear velocity of the game object.

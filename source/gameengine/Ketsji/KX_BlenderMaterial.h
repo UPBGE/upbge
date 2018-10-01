@@ -8,6 +8,7 @@
 
 #include "RAS_IMaterial.h"
 #include "BL_Texture.h"
+#include "BL_Resource.h"
 
 #include "EXP_Value.h"
 
@@ -21,7 +22,7 @@ struct Material;
 void KX_BlenderMaterial_Mathutils_Callback_Init(void);
 #endif
 
-class KX_BlenderMaterial : public EXP_Value, public RAS_IMaterial
+class KX_BlenderMaterial : public EXP_Value, public BL_Resource, public RAS_IMaterial
 {
 	Py_Header
 
@@ -53,7 +54,6 @@ public:
 	virtual void ReloadMaterial();
 
 	void ReplaceScene(KX_Scene *scene);
-	void InitShader();
 
 	static void EndFrame(RAS_Rasterizer *rasty);
 

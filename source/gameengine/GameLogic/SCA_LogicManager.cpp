@@ -37,8 +37,8 @@
 #include "SCA_IActuator.h"
 #include "SCA_EventManager.h"
 #include "SCA_PythonController.h"
-#include <set>
 
+#include "CM_Map.h"
 
 SCA_LogicManager::SCA_LogicManager()
 {
@@ -220,32 +220,38 @@ void SCA_LogicManager::UpdateFrame(double curtime)
 
 void *SCA_LogicManager::GetActionByName(const std::string& actname)
 {
-	std::string an = actname;
-	return m_mapStringToActions[an];
+	const auto it = m_mapStringToActions.find(actname);
+	if (it != m_mapStringToActions.end()) {
+		return it->second;
+	}
+
+	return nullptr;
 }
-
-
 
 void *SCA_LogicManager::GetMeshByName(const std::string& meshname)
 {
-	std::string mn = meshname;
-	return m_mapStringToMeshes[mn];
+	const auto it = m_mapStringToMeshes.find(meshname);
+	if (it != m_mapStringToMeshes.end()) {
+		return it->second;
+	}
+
+	return nullptr;
 }
-
-
 
 void SCA_LogicManager::RegisterMeshName(const std::string& meshname, void *mesh)
 {
-	std::string mn = meshname;
-	m_mapStringToMeshes[mn] = mesh;
+	m_mapStringToMeshes[meshname] = mesh;
 }
 
 void SCA_LogicManager::UnregisterMeshName(const std::string& meshname, void *mesh)
 {
-	std::string mn = meshname;
-	m_mapStringToMeshes.erase(mn);
+	m_mapStringToMeshes.erase(meshname);
 }
 
+void SCA_LogicManager::UnregisterMesh(void *mesh)
+{
+	CM_MapRemoveIfItemFound(m_mapStringToMeshes, mesh);
+}
 
 void SCA_LogicManager::RegisterActionName(const std::string& actname, void *action)
 {
@@ -253,7 +259,10 @@ void SCA_LogicManager::RegisterActionName(const std::string& actname, void *acti
 	m_mapStringToActions[an] = action;
 }
 
-
+void SCA_LogicManager::UnregisterAction(void *action)
+{
+	CM_MapRemoveIfItemFound(m_mapStringToActions, action);
+}
 
 void SCA_LogicManager::EndFrame()
 {

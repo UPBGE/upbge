@@ -119,10 +119,10 @@ public:
 	// for the scripting... needs a FactoryManager later (if we would have time... ;)
 	void	RegisterMeshName(const std::string& meshname,void* mesh);
 	void	UnregisterMeshName(const std::string& meshname,void* mesh);
-	std::map<std::string, void *>&	GetMeshMap() { return m_mapStringToMeshes; }
-	std::map<std::string, void *>&	GetActionMap() { return m_mapStringToActions; }
-	
+	void UnregisterMesh(void *mesh);
+
 	void	RegisterActionName(const std::string& actname,void* action);
+	void UnregisterAction(void *action);
 
 	void*	GetActionByName (const std::string& actname);
 	void*	GetMeshByName(const std::string& meshname);

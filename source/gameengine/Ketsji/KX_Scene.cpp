@@ -923,7 +923,7 @@ void KX_Scene::RemoveObject(KX_GameObject *gameobj)
 
 void KX_Scene::RemoveDupliGroup(KX_GameObject *gameobj)
 {
-	if (gameobj->IsDupliGroup()) {
+	if (gameobj->GetInstanceObjects()) {
 		for (KX_GameObject *instance : gameobj->GetInstanceObjects()) {
 			DelayedRemoveObject(instance);
 		}
@@ -935,6 +935,19 @@ void KX_Scene::DelayedRemoveObject(KX_GameObject *gameobj)
 	RemoveDupliGroup(gameobj);
 
 	CM_ListAddIfNotFound(m_euthanasyobjects, gameobj);
+}
+
+void KX_Scene::RemoveEuthanasyObjects()
+{
+	/* Don't remove the objects from the euthanasy list here as the child objects of a deleted
+	 * parent object are destructed directly from the sgnode in the same time the parent
+	 * object is destructed. These child objects must be removed automatically from the
+	 * euthanasy list to avoid double deletion in case the user ask to delete the child object
+	 * explicitly. NewRemoveObject is the place to do it.
+	 */
+	while (!m_euthanasyobjects.empty()) {
+		RemoveObject(m_euthanasyobjects.front());
+	}
 }
 
 bool KX_Scene::NewRemoveObject(KX_GameObject *gameobj)
@@ -1360,15 +1373,7 @@ void KX_Scene::LogicEndFrame()
 {
 	m_logicmgr->EndFrame();
 
-	/* Don't remove the objects from the euthanasy list here as the child objects of a deleted
-	 * parent object are destructed directly from the sgnode in the same time the parent
-	 * object is destructed. These child objects must be removed automatically from the
-	 * euthanasy list to avoid double deletion in case the user ask to delete the child object
-	 * explicitly. NewRemoveObject is the place to do it.
-	 */
-	while (!m_euthanasyobjects.empty()) {
-		RemoveObject(m_euthanasyobjects.front());
-	}
+	RemoveEuthanasyObjects();
 
 	//prepare obstacle simulation for new frame
 	if (m_obstacleSimulation) {

@@ -87,6 +87,7 @@ public:
 	/// Return true if the material texture use the same data than one of the texture user.
 	bool EqualTextureUser(RAS_Texture *texture) const;
 	void AddTextureUser(RAS_Texture *texture);
+	void RemoveTextureUser(RAS_Texture *texture);
 
 	virtual void BeginRender(RAS_Rasterizer *rasty);
 	virtual void EndRender(RAS_Rasterizer *rasty);

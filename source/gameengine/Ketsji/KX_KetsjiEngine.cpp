@@ -417,8 +417,6 @@ bool KX_KetsjiEngine::NextFrame()
 	for (unsigned short i = 0; i < times.frames; ++i) {
 		m_frameTime += times.framestep;
 
-		m_converter->MergeAsyncLoads();
-
 		if (m_inputDevice) {
 			m_inputDevice->ReleaseMoveEvent();
 		}
@@ -489,6 +487,8 @@ bool KX_KetsjiEngine::NextFrame()
 		if (m_inputDevice) {
 			m_inputDevice->ClearInputs();
 		}
+
+		m_converter->ProcessScheduledLibraries();
 
 		UpdateSuspendedScenes(times.framestep);
 		// scene management
@@ -1336,14 +1336,6 @@ KX_Scene *KX_KetsjiEngine::CreateScene(const std::string& scenename)
 	return CreateScene(scene);
 }
 
-void KX_KetsjiEngine::ConvertScene(KX_Scene *scene)
-{
-	BL_SceneConverter sceneConverter(scene);
-	m_converter->ConvertScene(sceneConverter, false);
-	m_converter->PostConvertScene(sceneConverter);
-	m_converter->FinalizeSceneData(sceneConverter);
-}
-
 void KX_KetsjiEngine::AddScheduledScenes()
 {
 	if (!m_addingOverlayScenes.empty()) {
@@ -1351,7 +1343,7 @@ void KX_KetsjiEngine::AddScheduledScenes()
 			KX_Scene *tmpscene = CreateScene(scenename);
 
 			if (tmpscene) {
-				ConvertScene(tmpscene);
+				m_converter->ConvertScene(tmpscene);
 				m_scenes->Add(CM_AddRef(tmpscene));
 				PostProcessScene(tmpscene);
 				tmpscene->Release();
@@ -1368,7 +1360,7 @@ void KX_KetsjiEngine::AddScheduledScenes()
 			KX_Scene *tmpscene = CreateScene(scenename);
 
 			if (tmpscene) {
-				ConvertScene(tmpscene);
+				m_converter->ConvertScene(tmpscene);
 				m_scenes->Insert(0, CM_AddRef(tmpscene));
 				PostProcessScene(tmpscene);
 				tmpscene->Release();
@@ -1422,7 +1414,7 @@ void KX_KetsjiEngine::ReplaceScheduledScenes()
 						DestructScene(scene);
 
 						KX_Scene *tmpscene = CreateScene(blScene);
-						ConvertScene(tmpscene);
+						m_converter->ConvertScene(tmpscene);
 
 						m_scenes->SetValue(sce_idx, CM_AddRef(tmpscene));
 						PostProcessScene(tmpscene);
