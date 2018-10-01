@@ -245,7 +245,8 @@ void KX_KetsjiEngine::SetConverter(BL_Converter *converter)
 
 void KX_KetsjiEngine::StartEngine()
 {
-	m_previousRealTime = m_clock.GetTimeSecond();
+	// Reset the clock to start at 0.0.
+	m_clock.Reset();
 
 	m_bInitialized = true;
 }
@@ -320,10 +321,8 @@ void KX_KetsjiEngine::EndFrame()
 	m_canvas->EndDraw();
 }
 
-bool KX_KetsjiEngine::NextFrame()
+KX_KetsjiEngine::FrameTimes KX_KetsjiEngine::GetFrameTimes()
 {
-	m_logger.StartLog(tc_services);
-
 	/*
 	 * Clock advancement. There is basically two case:
 	 *   - USE_EXTERNAL_CLOCK is true, the user is responsible to advance the time
@@ -341,73 +340,82 @@ bool KX_KetsjiEngine::NextFrame()
 	 *   - max_physic_frame
 	 *   - max_logic_frame
 	 *   - fixed_framerate
-	 * XXX The logic over computation framestep is definitively not clear (and
-	 * I'm not even sure it is correct). If needed frame is strictly greater
-	 * than max_physics_frame, we are doing a jump in game time, but keeping
-	 * framestep = 1 / ticrate, while if frames is greater than
-	 * max_logic_frame, we increase framestep.
-	 *
-	 * XXX render.fps is not considred anywhere.
 	 */
 
-	// Number of logic/physics frames to proceed.
-	int frames;
-	double timestep;
+	// Update time if the user is not controlling it.
+	if (!(m_flags & USE_EXTERNAL_CLOCK)) {
+		m_clockTime = m_clock.GetTimeSecond();
+	}
 
-	if (m_flags & USE_EXTERNAL_CLOCK) {
-		timestep = m_clockTime - m_frameTime;
-		// Always proceed a frame when the user control time.
-		frames = 1;
+	// Get elapsed time.
+	const double dt = m_clockTime - m_previousRealTime;
+
+	// Time of a frame (without scale).
+	double timestep;
+	if (m_flags & FIXED_FRAMERATE) {
+		// Normal time step for fixed frame.
+		timestep = 1.0 / m_ticrate;
 	}
 	else {
-		const double now = m_clock.GetTimeSecond();
-		const double dt = now - m_previousRealTime;
-		m_previousRealTime = now;
-		m_clockTime += dt * m_timescale;
-
-		const double deltatime = m_clockTime - m_frameTime;
-		if (deltatime < 0.0) {
-			// We got here too quickly, which means there is nothing to do, just return and don't render.
-			// Not sure if this is the best fix, but it seems to stop the jumping framerate issue (#33088)
-			return false;
-		}
-
-		// Compute the number of logic frames to do each update in case of fixed framerate.
-		if (m_flags & FIXED_FRAMERATE) {
-			timestep = m_timescale / m_ticrate;
-			const double scale = m_ticrate / m_timescale + 1e-6;
-			frames = int(deltatime * scale);
-
-			// If the elapsed time induce a higher framerate, sleep until the next frame time point.
-			if (frames == 0) {
-				const double sleeptime = 1.0 / scale - deltatime;
-				std::this_thread::sleep_for(std::chrono::nanoseconds((long)(sleeptime * 1.0e9)));
-				frames = 1;
-			}
-		}
-		else {
-			timestep = dt * m_timescale;
-			// In case of non-fixed framerate, we always proceed one frame.
-			frames = 1;
-		}
+		// The frame is the smallest as possible.
+		timestep = dt;
 	}
 
-	double framestep = timestep;
+	// Number of frames to proceed.
+	int frames;
+	if (m_flags & FIXED_FRAMERATE) {
+		// As many as possible for the elapsed time.
+		frames = int(dt * m_ticrate);
+	}
+	else {
+		// Proceed always one frame in non-fixed framerate.
+		frames = 1;
+	}
 
+	// Fix timestep to not exceed max physics and logic frames.
 	if (frames > m_maxPhysicsFrame) {
-		m_frameTime += (frames - m_maxPhysicsFrame) * timestep;
+		timestep = dt / m_maxPhysicsFrame;
 		frames = m_maxPhysicsFrame;
 	}
-
-	const bool doRender = frames > 0;
-
 	if (frames > m_maxLogicFrame) {
-		framestep = (frames * timestep) / m_maxLogicFrame;
+		timestep = dt / m_maxLogicFrame;
 		frames = m_maxLogicFrame;
 	}
 
-	for (unsigned short i = 0; i < frames; ++i) {
-		m_frameTime += framestep;
+	// If the number of frame is non-zero, update previous time.
+	if (frames > 0) {
+		m_previousRealTime = m_clockTime;
+	}
+	// Else in case of fixed framerate, try to sleep until the next frame.
+	else if (m_flags & FIXED_FRAMERATE) {
+		const double sleeptime = timestep - dt - 1.0e-3;
+		/* If the remaining time is greather than 1ms (sleep resolution) sleep this thread.
+		 * The other 1ms will be busy wait.
+		 */
+		if (sleeptime > 0.0) {
+			std::this_thread::sleep_for(std::chrono::nanoseconds((long)(sleeptime * 1.0e9)));
+		}
+	}
+
+	// Frame time with time scale.
+	const double framestep = timestep * m_timescale;
+
+	FrameTimes times;
+	times.frames = frames;
+	times.timestep = timestep;
+	times.framestep = framestep;
+
+	return times;
+}
+
+bool KX_KetsjiEngine::NextFrame()
+{
+	m_logger.StartLog(tc_services);
+
+	const FrameTimes times = GetFrameTimes();
+
+	for (unsigned short i = 0; i < times.frames; ++i) {
+		m_frameTime += times.framestep;
 
 		m_converter->MergeAsyncLoads();
 
@@ -441,7 +449,7 @@ bool KX_KetsjiEngine::NextFrame()
 
 				// Process sensors, and controllers
 				m_logger.StartLog(tc_logic);
-				scene->LogicBeginFrame(m_frameTime, framestep);
+				scene->LogicBeginFrame(m_frameTime, times.framestep);
 
 				// Scenegraph needs to be updated again, because Logic Controllers
 				// can affect the local matrices.
@@ -464,7 +472,7 @@ bool KX_KetsjiEngine::NextFrame()
 
 				// Perform physics calculations on the scene. This can involve
 				// many iterations of the physics solver.
-				scene->GetPhysicsEnvironment()->ProceedDeltaTime(m_frameTime, timestep, framestep);//m_deltatimerealDeltaTime);
+				scene->GetPhysicsEnvironment()->ProceedDeltaTime(m_frameTime, times.timestep, times.framestep);//m_deltatimerealDeltaTime);
 
 				m_logger.StartLog(tc_scenegraph);
 				scene->UpdateParents();
@@ -482,7 +490,7 @@ bool KX_KetsjiEngine::NextFrame()
 			m_inputDevice->ClearInputs();
 		}
 
-		UpdateSuspendedScenes(framestep);
+		UpdateSuspendedScenes(times.framestep);
 		// scene management
 		ProcessScheduledScenes();
 	}
@@ -490,6 +498,7 @@ bool KX_KetsjiEngine::NextFrame()
 	// Start logging time spent outside main loop
 	m_logger.StartLog(tc_outside);
 
+	const bool doRender = times.frames > 0;
 	return doRender && m_doRender;
 }
 

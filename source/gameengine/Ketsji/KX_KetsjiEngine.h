@@ -160,6 +160,16 @@ private:
 		std::vector<FrameRenderData> m_frameDataList;
 	};
 
+	struct FrameTimes
+	{
+		// Number of frames to proceed.
+		int frames;
+		// Real duration of a frame.
+		double timestep;
+		// Scaled duration of a frame.
+		double framestep;
+	};
+
 	CM_Clock m_clock;
 	/// 2D Canvas (2D Rendering Device Context)
 	RAS_ICanvas *m_canvas;
@@ -313,6 +323,8 @@ private:
 
 	void BeginFrame();
 	void EndFrame();
+
+	FrameTimes GetFrameTimes();
 
 public:
 	KX_KetsjiEngine();
