@@ -37,6 +37,7 @@
 #include "KX_BlenderMaterial.h"
 
 #include "CM_List.h"
+#include "CM_Map.h"
 
 BL_SceneConverter::BL_SceneConverter(KX_Scene *scene, const BL_Resource::Library& libraryId)
 	:m_scene(scene),
@@ -90,9 +91,9 @@ void BL_SceneConverter::UnregisterGameObject(KX_GameObject *gameobject)
 	CM_ListRemoveIfFound(m_objects, gameobject);
 }
 
-KX_GameObject *BL_SceneConverter::FindGameObject(Object *for_blenderobject)
+KX_GameObject *BL_SceneConverter::FindGameObject(Object *for_blenderobject) const
 {
-	return m_map_blender_to_gameobject[for_blenderobject];
+	return CM_MapGetItemNoInsert(m_map_blender_to_gameobject, for_blenderobject);
 }
 
 void BL_SceneConverter::RegisterGameMesh(KX_Mesh *gamemesh, Mesh *for_blendermesh)
@@ -105,9 +106,9 @@ void BL_SceneConverter::RegisterGameMesh(KX_Mesh *gamemesh, Mesh *for_blendermes
 	m_meshobjects.push_back(gamemesh);
 }
 
-KX_Mesh *BL_SceneConverter::FindGameMesh(Mesh *for_blendermesh)
+KX_Mesh *BL_SceneConverter::FindGameMesh(Mesh *for_blendermesh) const
 {
-	return m_map_mesh_to_gamemesh[for_blendermesh];
+	return CM_MapGetItemNoInsert(m_map_mesh_to_gamemesh, for_blendermesh);
 }
 
 void BL_SceneConverter::RegisterMaterial(KX_BlenderMaterial *blmat, Material *mat)
@@ -120,9 +121,9 @@ void BL_SceneConverter::RegisterMaterial(KX_BlenderMaterial *blmat, Material *ma
 	m_materials.push_back(blmat);
 }
 
-KX_BlenderMaterial *BL_SceneConverter::FindMaterial(Material *mat)
+KX_BlenderMaterial *BL_SceneConverter::FindMaterial(Material *mat) const
 {
-	return m_map_mesh_to_polyaterial[mat];
+	return CM_MapGetItemNoInsert(m_map_mesh_to_polyaterial, mat);
 }
 
 void BL_SceneConverter::RegisterActionData(BL_ActionData *data)
@@ -136,9 +137,9 @@ void BL_SceneConverter::RegisterGameActuator(SCA_IActuator *act, bActuator *for_
 	m_map_blender_to_gameactuator[for_actuator] = act;
 }
 
-SCA_IActuator *BL_SceneConverter::FindGameActuator(bActuator *for_actuator)
+SCA_IActuator *BL_SceneConverter::FindGameActuator(bActuator *for_actuator) const
 {
-	return m_map_blender_to_gameactuator[for_actuator];
+	return CM_MapGetItemNoInsert(m_map_blender_to_gameactuator, for_actuator);
 }
 
 void BL_SceneConverter::RegisterGameController(SCA_IController *cont, bController *for_controller)
@@ -146,9 +147,9 @@ void BL_SceneConverter::RegisterGameController(SCA_IController *cont, bControlle
 	m_map_blender_to_gamecontroller[for_controller] = cont;
 }
 
-SCA_IController *BL_SceneConverter::FindGameController(bController *for_controller)
+SCA_IController *BL_SceneConverter::FindGameController(bController *for_controller) const
 {
-	return m_map_blender_to_gamecontroller[for_controller];
+	return CM_MapGetItemNoInsert(m_map_blender_to_gamecontroller, for_controller);
 }
 
 BL_ConvertObjectInfo *BL_SceneConverter::GetObjectInfo(Object *blenderobj)
@@ -168,4 +169,9 @@ BL_ConvertObjectInfo *BL_SceneConverter::GetObjectInfo(Object *blenderobj)
 const std::vector<KX_GameObject *> &BL_SceneConverter::GetObjects() const
 {
 	return m_objects;
+}
+
+const std::vector<KX_BlenderMaterial *> &BL_SceneConverter::GetMaterials() const
+{
+	return m_materials;
 }

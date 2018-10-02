@@ -53,6 +53,8 @@ public:
 	virtual SCA_IScene *GetScene() const;
 	virtual void ReloadMaterial();
 
+	void InitTextures();
+
 	void ReplaceScene(KX_Scene *scene);
 
 	static void EndFrame(RAS_Rasterizer *rasty);
@@ -122,8 +124,6 @@ private:
 		float ambient;
 		float specularalpha;
 	} m_savedData;
-
-	void InitTextures();
 
 	void ActivateGLMaterials(RAS_Rasterizer *rasty) const;
 
