@@ -2897,7 +2897,7 @@ void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter& converter, KX_GameO
 		case OB_BOUND_CAPSULE:
 		{
 			shapeInfo->m_radius = std::max(bounds_extends[0], bounds_extends[1]);
-			shapeInfo->m_height = 2.0f * bounds_extends[2];
+			shapeInfo->m_height = 2.0f * (bounds_extends[2] - shapeInfo->m_radius);
 			if (shapeInfo->m_height < 0.0f) {
 				shapeInfo->m_height = 0.0f;
 			}
