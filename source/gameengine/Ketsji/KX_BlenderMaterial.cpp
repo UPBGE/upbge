@@ -365,16 +365,16 @@ bool KX_BlenderMaterial::UsesLighting() const
 	}
 }
 
-void KX_BlenderMaterial::ActivateMeshSlot(RAS_MeshSlot *ms, RAS_Rasterizer *rasty, const mt::mat3x4& camtrans)
+void KX_BlenderMaterial::ActivateMeshUser(RAS_MeshUser *meshUser, RAS_Rasterizer *rasty, const mt::mat3x4& camtrans)
 {
 	if (m_shader && m_shader->Ok()) {
-		m_shader->Update(rasty, ms);
+		m_shader->Update(rasty, meshUser);
 		m_shader->ApplyShader();
 		// Update OpenGL lighting builtins.
 		rasty->ProcessLighting(UsesLighting(), camtrans);
 	}
 	else if (m_blenderShader) {
-		m_blenderShader->Update(ms, rasty);
+		m_blenderShader->Update(meshUser, rasty);
 
 		/* we do blend modes here, because they can change per object
 		 * with the same material due to obcolor/obalpha */

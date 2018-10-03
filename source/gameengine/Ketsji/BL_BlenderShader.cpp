@@ -162,13 +162,12 @@ void BL_BlenderShader::UpdateLights(RAS_Rasterizer *rasty)
 	GPU_material_update_lamps(m_gpuMat, rasty->GetViewMatrix().Data(), rasty->GetViewInvMatrix().Data());
 }
 
-void BL_BlenderShader::Update(RAS_MeshSlot *ms, RAS_Rasterizer *rasty)
+void BL_BlenderShader::Update(RAS_MeshUser *meshUser, RAS_Rasterizer *rasty)
 {
 	if (!GPU_material_bound(m_gpuMat)) {
 		return;
 	}
 
-	RAS_MeshUser *meshUser = ms->m_meshUser;
 	const float (&obcol)[4] = meshUser->GetColor().Data();
 
 	GPU_material_bind_uniforms(m_gpuMat, meshUser->GetMatrix().Data(), rasty->GetViewMatrix().Data(),

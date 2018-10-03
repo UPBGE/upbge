@@ -32,6 +32,7 @@
 #include "CM_Message.h"
 
 KX_BatchGroup::KX_BatchGroup()
+	:m_referenceObject(nullptr)
 {
 	m_objects = new EXP_ListValue<KX_GameObject>();
 	// The objects are not owned by the batching group, so not released on list releasing.
@@ -51,6 +52,31 @@ std::string KX_BatchGroup::GetName()
 EXP_ListValue<KX_GameObject> *KX_BatchGroup::GetObjects() const
 {
 	return m_objects;
+}
+
+KX_GameObject *KX_BatchGroup::GetReferenceObject() const
+{
+	return m_referenceObject;
+}
+
+bool KX_BatchGroup::SetReferenceObject(KX_GameObject *object)
+{
+	if (object) {
+		RAS_MeshUser *meshUser = object->GetMeshUser();
+		if (!meshUser) {
+			CM_Error("object \"" << object->GetName() << "\" doesn't contain a mesh");
+			return false;
+		}
+		if (meshUser->GetBatchGroup() != this) {
+			CM_Error("object \"" << object->GetName() << "\" is not a part of this batch group");
+			return false;
+		}
+	}
+
+	m_referenceObject = object;
+	SetReferenceMeshUser(object ? object->GetMeshUser() : nullptr);
+
+	return true;
 }
 
 void KX_BatchGroup::MergeObjects(const std::vector<KX_GameObject *>& objects)
@@ -94,10 +120,20 @@ void KX_BatchGroup::SplitObjects(const std::vector<KX_GameObject *>& objects)
 
 		if (SplitMeshUser(meshUser)) {
 			m_objects->RemoveValue(gameobj);
+			if (gameobj == m_referenceObject) {
+				SetReferenceObject(nullptr);
+			}
 		}
 		else {
 			CM_Error("failed split object \"" << gameobj->GetName() << "\"");
 		}
+	}
+
+	// Update the reference mesh user if it was splitted.
+	if (!m_objects->Empty() && !m_referenceObject) {
+		// Use the first object as reference for layer and color.
+		KX_GameObject *firstObject = m_objects->GetFront();
+		SetReferenceObject(firstObject);
 	}
 
 	RemoveMeshUser();
@@ -133,11 +169,17 @@ static PyObject *py_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 
 	KX_BatchGroup *batchGroup = new KX_BatchGroup();
 	batchGroup->MergeObjects(objects);
-	if (batchGroup->GetObjects()->Empty()) {
+
+	EXP_ListValue<KX_GameObject> *mergedObjects = batchGroup->GetObjects();
+	if (mergedObjects->Empty()) {
 		PyErr_SetString(PyExc_SystemError, "KX_BatchGroup(objects): none objects were merged.");
 		delete batchGroup;
 		return nullptr;
 	}
+
+	// Use the first object as reference for layer and color.
+	KX_GameObject *firstObject = mergedObjects->GetFront();
+	batchGroup->SetReferenceObject(firstObject);
 
 	return batchGroup->GetProxy();
 }
@@ -173,6 +215,7 @@ PyMethodDef KX_BatchGroup::Methods[] = {
 
 PyAttributeDef KX_BatchGroup::Attributes[] = {
 	EXP_PYATTRIBUTE_RO_FUNCTION("objects", KX_BatchGroup, pyattr_get_objects),
+	EXP_PYATTRIBUTE_RW_FUNCTION("referenceObject", KX_BatchGroup, pyattr_get_referenceObject, pyattr_set_referenceObject),
 	EXP_PYATTRIBUTE_NULL // Sentinel
 };
 
@@ -180,6 +223,30 @@ PyObject *KX_BatchGroup::pyattr_get_objects(EXP_PyObjectPlus *self_v, const EXP_
 {
 	KX_BatchGroup *self = static_cast<KX_BatchGroup *>(self_v);
 	return self->GetObjects()->GetProxy();
+}
+
+PyObject *KX_BatchGroup::pyattr_get_referenceObject(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_BatchGroup *self = static_cast<KX_BatchGroup *>(self_v);
+	return self->GetReferenceObject()->GetProxy();
+}
+
+int KX_BatchGroup::pyattr_set_referenceObject(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	KX_BatchGroup *self = static_cast<KX_BatchGroup *>(self_v);
+
+	KX_GameObject *object;
+	if (!ConvertPythonToGameObject(KX_GetActiveScene()->GetLogicManager(),
+			value, &object, false, "KX_BatchGroup.referenceObject"))
+	{
+		return PY_SET_ATTR_FAIL;
+	}
+
+	if (self->SetReferenceObject(object)) {
+		return PY_SET_ATTR_SUCCESS;
+	}
+
+	return PY_SET_ATTR_FAIL;
 }
 
 EXP_PYMETHODDEF_DOC(KX_BatchGroup, merge, "merge(objects)")
@@ -209,7 +276,7 @@ EXP_PYMETHODDEF_DOC(KX_BatchGroup, merge, "merge(objects)")
 
 	MergeObjects(objects);
 
-	Py_RETURN_NONE;;
+	Py_RETURN_NONE;
 }
 
 EXP_PYMETHODDEF_DOC(KX_BatchGroup, split, "split(objects)")
@@ -239,14 +306,14 @@ EXP_PYMETHODDEF_DOC(KX_BatchGroup, split, "split(objects)")
 
 	SplitObjects(objects);
 
-	Py_RETURN_NONE;;
+	Py_RETURN_NONE;
 }
 
 EXP_PYMETHODDEF_DOC(KX_BatchGroup, destruct, "destruct()")
 {
 	Destruct();
 
-	Py_RETURN_NONE;;
+	Py_RETURN_NONE;
 }
 
 #endif  // WITH_PYTHON
