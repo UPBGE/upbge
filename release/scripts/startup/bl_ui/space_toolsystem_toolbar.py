@@ -606,7 +606,8 @@ class _defs_edit_mesh:
         def draw_settings(context, layout, tool):
             props = tool.operator_properties("mesh.spin")
             layout.prop(props, "steps")
-            layout.prop(props, "gizmo_axis")
+            props = tool.gizmo_group_properties("MESH_GGT_spin")
+            layout.prop(props, "axis")
 
         return dict(
             text="Spin",
@@ -624,7 +625,8 @@ class _defs_edit_mesh:
         def draw_settings(context, layout, tool):
             props = tool.operator_properties("mesh.spin")
             layout.prop(props, "steps")
-            layout.prop(props, "gizmo_axis")
+            props = tool.gizmo_group_properties("MESH_GGT_spin")
+            layout.prop(props, "axis")
 
         return dict(
             text="Spin (Duplicate)",
@@ -679,16 +681,25 @@ class _defs_edit_mesh:
 
     @ToolDef.from_fn
     def extrude():
+        def draw_settings(context, layout, tool):
+            props = tool.gizmo_group_properties("MESH_GGT_extrude")
+            layout.prop(props, "axis_type", expand=True)
         return dict(
             text="Extrude Region",
+            # The operator description isn't useful in this case, give our own.
+            description=(
+                "Extrude freely or along an axis"
+            ),
             icon="ops.mesh.extrude_region_move",
             widget="MESH_GGT_extrude",
+            # Important to use same operator as 'E' key.
             operator="view3d.edit_mesh_extrude_move_normal",
             keymap=(
                 ("mesh.extrude_context_move",
                  dict(TRANSFORM_OT_translate=dict(release_confirm=True)),
                  dict(type='EVT_TWEAK_A', value='ANY')),
             ),
+            draw_settings=draw_settings,
         )
 
     @ToolDef.from_fn
@@ -701,6 +712,7 @@ class _defs_edit_mesh:
             text="Extrude Along Normals",
             icon="ops.mesh.extrude_region_shrink_fatten",
             widget=None,
+            operator="mesh.extrude_region_shrink_fatten",
             keymap=(
                 ("mesh.extrude_region_shrink_fatten",
                  dict(TRANSFORM_OT_shrink_fatten=dict(release_confirm=True)),

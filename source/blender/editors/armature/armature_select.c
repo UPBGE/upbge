@@ -898,10 +898,15 @@ static void armature_select_more_less(Object *ob, bool more)
 
 static int armature_de_select_more_exec(bContext *C, wmOperator *UNUSED(op))
 {
-	Object *obedit = CTX_data_edit_object(C);
-	armature_select_more_less(obedit, true);
-	WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, obedit);
-
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object * ob = objects[ob_index];
+		armature_select_more_less(ob, true);
+		WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
+	}
+	MEM_freeN(objects);
 	return OPERATOR_FINISHED;
 }
 
@@ -922,10 +927,15 @@ void ARMATURE_OT_select_more(wmOperatorType *ot)
 
 static int armature_de_select_less_exec(bContext *C, wmOperator *UNUSED(op))
 {
-	Object *obedit = CTX_data_edit_object(C);
-	armature_select_more_less(obedit, false);
-	WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, obedit);
-
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object * ob = objects[ob_index];
+		armature_select_more_less(ob, false);
+		WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
+	}
+	MEM_freeN(objects);
 	return OPERATOR_FINISHED;
 }
 
@@ -971,84 +981,171 @@ static const EnumPropertyItem prop_similar_types[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
-
-static void select_similar_length(bArmature *arm, EditBone *ebone_act, const float thresh)
+static float bone_length_squared_worldspace_get(Object *ob, EditBone *ebone)
 {
-	EditBone *ebone;
-
-	/* thresh is always relative to current length */
-	const float len_min = ebone_act->length / (1.0f + thresh);
-	const float len_max = ebone_act->length * (1.0f + thresh);
-
-	for (ebone = arm->edbo->first; ebone; ebone = ebone->next) {
-		if (EBONE_SELECTABLE(arm, ebone)) {
-			if ((ebone->length >= len_min) &&
-			    (ebone->length <= len_max))
-			{
-				ED_armature_ebone_select_set(ebone, true);
-			}
-		}
-	}
+	float v1[3], v2[3];
+	mul_v3_mat3_m4v3(v1, ob->obmat, ebone->head);
+	mul_v3_mat3_m4v3(v2, ob->obmat, ebone->tail);
+	return len_squared_v3v3(v1, v2);
 }
 
-static void select_similar_direction(bArmature *arm, EditBone *ebone_act, const float thresh)
+static void select_similar_length(bContext *C, const float thresh)
 {
-	EditBone *ebone;
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	Object *ob_act = CTX_data_edit_object(C);
+	EditBone *ebone_act = CTX_data_active_bone(C);
+
+	/* Thresh is always relative to current length. */
+	const float len = bone_length_squared_worldspace_get(ob_act, ebone_act);
+	const float len_min = len / (1.0f + (thresh - FLT_EPSILON));
+	const float len_max = len * (1.0f + (thresh + FLT_EPSILON));
+
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object * ob = objects[ob_index];
+		bArmature * arm = ob->data;
+		bool changed = false;
+
+		for (EditBone *ebone = arm->edbo->first; ebone; ebone = ebone->next) {
+			if (EBONE_SELECTABLE(arm, ebone)) {
+				const float len_iter = bone_length_squared_worldspace_get(ob, ebone);
+				if ((len_iter > len_min) &&
+				    (len_iter < len_max))
+				{
+					ED_armature_ebone_select_set(ebone, true);
+					changed = true;
+				}
+			}
+		}
+
+		if (changed) {
+			WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
+		}
+	}
+	MEM_freeN(objects);
+}
+
+static void bone_direction_worldspace_get(Object *ob, EditBone *ebone, float *r_dir)
+{
+	float v1[3], v2[3];
+	copy_v3_v3(v1, ebone->head);
+	copy_v3_v3(v2, ebone->tail);
+
+	mul_m4_v3(ob->obmat, v1);
+	mul_m4_v3(ob->obmat, v2);
+
+	sub_v3_v3v3(r_dir, v1, v2);
+	normalize_v3(r_dir);
+}
+
+static void select_similar_direction(bContext *C, const float thresh)
+{
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	Object *ob_act = CTX_data_edit_object(C);
+	EditBone *ebone_act = CTX_data_active_bone(C);
+
 	float dir_act[3];
-	sub_v3_v3v3(dir_act, ebone_act->head, ebone_act->tail);
+	bone_direction_worldspace_get(ob_act, ebone_act, dir_act);
 
-	for (ebone = arm->edbo->first; ebone; ebone = ebone->next) {
-		if (EBONE_SELECTABLE(arm, ebone)) {
-			float dir[3];
-			sub_v3_v3v3(dir, ebone->head, ebone->tail);
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object * ob = objects[ob_index];
+		bArmature * arm = ob->data;
+		bool changed = false;
 
-			if (angle_v3v3(dir_act, dir) / (float)M_PI < thresh) {
-				ED_armature_ebone_select_set(ebone, true);
+		for (EditBone *ebone = arm->edbo->first; ebone; ebone = ebone->next) {
+			if (EBONE_SELECTABLE(arm, ebone)) {
+				float dir[3];
+				bone_direction_worldspace_get(ob, ebone, dir);
+
+				if (angle_v3v3(dir_act, dir) / (float)M_PI < (thresh + FLT_EPSILON)) {
+					ED_armature_ebone_select_set(ebone, true);
+					changed = true;
+				}
 			}
 		}
-	}
-}
 
-static void select_similar_layer(bArmature *arm, EditBone *ebone_act)
-{
-	EditBone *ebone;
-
-	for (ebone = arm->edbo->first; ebone; ebone = ebone->next) {
-		if (EBONE_SELECTABLE(arm, ebone)) {
-			if (ebone->layer & ebone_act->layer) {
-				ED_armature_ebone_select_set(ebone, true);
-			}
+		if (changed) {
+			WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
 		}
 	}
+	MEM_freeN(objects);
 }
 
-static void select_similar_prefix(bArmature *arm, EditBone *ebone_act)
+static void select_similar_layer(bContext *C)
 {
-	EditBone *ebone;
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	EditBone *ebone_act = CTX_data_active_bone(C);
+
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object * ob = objects[ob_index];
+		bArmature * arm = ob->data;
+		bool changed = false;
+
+		for (EditBone *ebone = arm->edbo->first; ebone; ebone = ebone->next) {
+			if (EBONE_SELECTABLE(arm, ebone)) {
+				if (ebone->layer & ebone_act->layer) {
+					ED_armature_ebone_select_set(ebone, true);
+					changed = true;
+				}
+			}
+		}
+
+		if (changed) {
+			WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
+		}
+	}
+	MEM_freeN(objects);
+}
+
+static void select_similar_prefix(bContext *C)
+{
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	EditBone *ebone_act = CTX_data_active_bone(C);
 
 	char body_tmp[MAXBONENAME];
 	char prefix_act[MAXBONENAME];
 
 	BLI_string_split_prefix(ebone_act->name, prefix_act, body_tmp, sizeof(ebone_act->name));
 
-	if (prefix_act[0] == '\0')
+	if (prefix_act[0] == '\0') {
 		return;
+	}
 
-	/* Find matches */
-	for (ebone = arm->edbo->first; ebone; ebone = ebone->next) {
-		if (EBONE_SELECTABLE(arm, ebone)) {
-			char prefix_other[MAXBONENAME];
-			BLI_string_split_prefix(ebone->name, prefix_other, body_tmp, sizeof(ebone->name));
-			if (STREQ(prefix_act, prefix_other)) {
-				ED_armature_ebone_select_set(ebone, true);
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object * ob = objects[ob_index];
+		bArmature * arm = ob->data;
+		bool changed = false;
+
+		/* Find matches */
+		for (EditBone *ebone = arm->edbo->first; ebone; ebone = ebone->next) {
+			if (EBONE_SELECTABLE(arm, ebone)) {
+				char prefix_other[MAXBONENAME];
+				BLI_string_split_prefix(ebone->name, prefix_other, body_tmp, sizeof(ebone->name));
+				if (STREQ(prefix_act, prefix_other)) {
+					ED_armature_ebone_select_set(ebone, true);
+					changed = true;
+				}
 			}
 		}
+
+		if (changed) {
+			WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
+		}
 	}
+	MEM_freeN(objects);
 }
 
-static void select_similar_suffix(bArmature *arm, EditBone *ebone_act)
+static void select_similar_suffix(bContext *C)
 {
-	EditBone *ebone;
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	EditBone *ebone_act = CTX_data_active_bone(C);
 
 	char body_tmp[MAXBONENAME];
 	char suffix_act[MAXBONENAME];
@@ -1058,28 +1155,46 @@ static void select_similar_suffix(bArmature *arm, EditBone *ebone_act)
 	if (suffix_act[0] == '\0')
 		return;
 
-	/* Find matches */
-	for (ebone = arm->edbo->first; ebone; ebone = ebone->next) {
-		if (EBONE_SELECTABLE(arm, ebone)) {
-			char suffix_other[MAXBONENAME];
-			BLI_string_split_suffix(ebone->name, body_tmp, suffix_other, sizeof(ebone->name));
-			if (STREQ(suffix_act, suffix_other)) {
-				ED_armature_ebone_select_set(ebone, true);
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object * ob = objects[ob_index];
+		bArmature * arm = ob->data;
+		bool changed = false;
+
+		/* Find matches */
+		for (EditBone *ebone = arm->edbo->first; ebone; ebone = ebone->next) {
+			if (EBONE_SELECTABLE(arm, ebone)) {
+				char suffix_other[MAXBONENAME];
+				BLI_string_split_suffix(ebone->name, body_tmp, suffix_other, sizeof(ebone->name));
+				if (STREQ(suffix_act, suffix_other)) {
+					ED_armature_ebone_select_set(ebone, true);
+					changed = true;
+				}
 			}
 		}
+
+		if (changed) {
+			WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
+		}
 	}
+	MEM_freeN(objects);
 }
 
 /** Use for matching any pose channel data. */
 static void select_similar_data_pchan(
-        bArmature *arm, Object *obj, EditBone *ebone_active,
+        bContext *C,
         const size_t bytes_size, const int offset)
 {
-	const bPoseChannel *pchan_active = BKE_pose_channel_find_name(obj->pose, ebone_active->name);
+	Object *obedit = CTX_data_edit_object(C);
+	bArmature *arm = obedit->data;
+	EditBone *ebone_act = CTX_data_active_bone(C);
+
+	const bPoseChannel *pchan_active = BKE_pose_channel_find_name(obedit->pose, ebone_act->name);
 	const char *data_active = (const char *)POINTER_OFFSET(pchan_active, offset);
 	for (EditBone *ebone = arm->edbo->first; ebone; ebone = ebone->next) {
 		if (EBONE_SELECTABLE(arm, ebone)) {
-			const bPoseChannel *pchan = BKE_pose_channel_find_name(obj->pose, ebone->name);
+			const bPoseChannel *pchan = BKE_pose_channel_find_name(obedit->pose, ebone->name);
 			if (pchan) {
 				const char *data_test = (const char *)POINTER_OFFSET(pchan, offset);
 				if (memcmp(data_active, data_test, bytes_size) == 0) {
@@ -1088,6 +1203,8 @@ static void select_similar_data_pchan(
 			}
 		}
 	}
+
+	WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, obedit);
 }
 
 static void is_ancestor(EditBone *bone, EditBone *ancestor)
@@ -1101,58 +1218,68 @@ static void is_ancestor(EditBone *bone, EditBone *ancestor)
 	bone->temp.ebone = bone->temp.ebone->temp.ebone;
 }
 
-static void select_similar_children(bArmature *arm, EditBone *ebone_act)
-{
-	EditBone *ebone_iter;
-
-	for (ebone_iter = arm->edbo->first; ebone_iter; ebone_iter = ebone_iter->next) {
-		ebone_iter->temp.ebone = ebone_iter->parent;
-	}
-
-	for (ebone_iter = arm->edbo->first; ebone_iter; ebone_iter = ebone_iter->next) {
-		is_ancestor(ebone_iter, ebone_act);
-
-		if (ebone_iter->temp.ebone == ebone_act && EBONE_SELECTABLE(arm, ebone_iter))
-			ED_armature_ebone_select_set(ebone_iter, true);
-	}
-}
-
-static void select_similar_children_immediate(bArmature *arm, EditBone *ebone_act)
-{
-	EditBone *ebone_iter;
-	for (ebone_iter = arm->edbo->first; ebone_iter; ebone_iter = ebone_iter->next) {
-		if (ebone_iter->parent == ebone_act && EBONE_SELECTABLE(arm, ebone_iter)) {
-			ED_armature_ebone_select_set(ebone_iter, true);
-		}
-	}
-}
-
-static void select_similar_siblings(bArmature *arm, EditBone *ebone_act)
-{
-	EditBone *ebone_iter;
-
-	if (ebone_act->parent == NULL)
-		return;
-
-	for (ebone_iter = arm->edbo->first; ebone_iter; ebone_iter = ebone_iter->next) {
-		if (ebone_iter->parent == ebone_act->parent && EBONE_SELECTABLE(arm, ebone_iter)) {
-			ED_armature_ebone_select_set(ebone_iter, true);
-		}
-	}
-}
-
-static int armature_select_similar_exec(bContext *C, wmOperator *op)
+static void select_similar_children(bContext *C)
 {
 	Object *obedit = CTX_data_edit_object(C);
 	bArmature *arm = obedit->data;
 	EditBone *ebone_act = CTX_data_active_bone(C);
 
+	for (EditBone *ebone_iter = arm->edbo->first; ebone_iter; ebone_iter = ebone_iter->next) {
+		ebone_iter->temp.ebone = ebone_iter->parent;
+	}
+
+	for (EditBone *ebone_iter = arm->edbo->first; ebone_iter; ebone_iter = ebone_iter->next) {
+		is_ancestor(ebone_iter, ebone_act);
+
+		if (ebone_iter->temp.ebone == ebone_act && EBONE_SELECTABLE(arm, ebone_iter))
+			ED_armature_ebone_select_set(ebone_iter, true);
+	}
+
+	WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, obedit);
+}
+
+static void select_similar_children_immediate(bContext *C)
+{
+	Object *obedit = CTX_data_edit_object(C);
+	bArmature *arm = obedit->data;
+	EditBone *ebone_act = CTX_data_active_bone(C);
+
+	for (EditBone *ebone_iter = arm->edbo->first; ebone_iter; ebone_iter = ebone_iter->next) {
+		if (ebone_iter->parent == ebone_act && EBONE_SELECTABLE(arm, ebone_iter)) {
+			ED_armature_ebone_select_set(ebone_iter, true);
+		}
+	}
+
+	WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, obedit);
+}
+
+static void select_similar_siblings(bContext *C)
+{
+	Object *obedit = CTX_data_edit_object(C);
+	bArmature *arm = obedit->data;
+	EditBone *ebone_act = CTX_data_active_bone(C);
+
+	if (ebone_act->parent == NULL) {
+		return;
+	}
+
+	for (EditBone *ebone_iter = arm->edbo->first; ebone_iter; ebone_iter = ebone_iter->next) {
+		if (ebone_iter->parent == ebone_act->parent && EBONE_SELECTABLE(arm, ebone_iter)) {
+			ED_armature_ebone_select_set(ebone_iter, true);
+		}
+	}
+
+	WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, obedit);
+}
+
+static int armature_select_similar_exec(bContext *C, wmOperator *op)
+{
 	/* Get props */
 	int type = RNA_enum_get(op->ptr, "type");
 	float thresh = RNA_float_get(op->ptr, "threshold");
 
 	/* Check for active bone */
-	if (ebone_act == NULL) {
+	if (CTX_data_active_bone(C) == NULL) {
 		BKE_report(op->reports, RPT_ERROR, "Operation requires an active bone");
 		return OPERATOR_CANCELLED;
 	}
@@ -1162,44 +1289,42 @@ static int armature_select_similar_exec(bContext *C, wmOperator *op)
 
 	switch (type) {
 		case SIMEDBONE_CHILDREN:
-			select_similar_children(arm, ebone_act);
+			select_similar_children(C);
 			break;
 		case SIMEDBONE_CHILDREN_IMMEDIATE:
-			select_similar_children_immediate(arm, ebone_act);
+			select_similar_children_immediate(C);
 			break;
 		case SIMEDBONE_SIBLINGS:
-			select_similar_siblings(arm, ebone_act);
+			select_similar_siblings(C);
 			break;
 		case SIMEDBONE_LENGTH:
-			select_similar_length(arm, ebone_act, thresh);
+			select_similar_length(C, thresh);
 			break;
 		case SIMEDBONE_DIRECTION:
-			select_similar_direction(arm, ebone_act, thresh);
+			select_similar_direction(C, thresh);
 			break;
 		case SIMEDBONE_PREFIX:
-			select_similar_prefix(arm, ebone_act);
+			select_similar_prefix(C);
 			break;
 		case SIMEDBONE_SUFFIX:
-			select_similar_suffix(arm, ebone_act);
+			select_similar_suffix(C);
 			break;
 		case SIMEDBONE_LAYER:
-			select_similar_layer(arm, ebone_act);
+			select_similar_layer(C);
 			break;
 		case SIMEDBONE_GROUP:
 			select_similar_data_pchan(
-			        arm, obedit, ebone_act,
+			        C,
 			        STRUCT_SIZE_AND_OFFSET(bPoseChannel, agrp_index));
 			break;
 		case SIMEDBONE_SHAPE:
 			select_similar_data_pchan(
-			        arm, obedit, ebone_act,
+			       C,
 			        STRUCT_SIZE_AND_OFFSET(bPoseChannel, custom));
 			break;
 	}
 
 #undef STRUCT_SIZE_AND_OFFSET
-
-	WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, obedit);
 
 	return OPERATOR_FINISHED;
 }
@@ -1228,81 +1353,89 @@ void ARMATURE_OT_select_similar(wmOperatorType *ot)
 
 static int armature_select_hierarchy_exec(bContext *C, wmOperator *op)
 {
-	Object *obedit = CTX_data_edit_object(C);
-	Object *ob;
-	bArmature *arm;
-	EditBone *ebone_active;
-	int direction = RNA_enum_get(op->ptr, "direction");
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+
+	const int direction = RNA_enum_get(op->ptr, "direction");
 	const bool add_to_sel = RNA_boolean_get(op->ptr, "extend");
-	bool changed = false;
 
-	ob = obedit;
-	arm = (bArmature *)ob->data;
+	bool multi_changed = false;
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object * ob = objects[ob_index];
+		bArmature * arm = ob->data;
 
-	ebone_active = arm->act_edbone;
-	if (ebone_active == NULL) {
-		return OPERATOR_CANCELLED;
-	}
+		EditBone *ebone_active;
+		bool changed = false;
 
-	if (direction == BONE_SELECT_PARENT) {
-		if (ebone_active->parent) {
-			EditBone *ebone_parent;
+		arm = (bArmature *)ob->data;
 
-			ebone_parent = ebone_active->parent;
+		ebone_active = arm->act_edbone;
+		if (ebone_active == NULL) {
+			continue;
+		}
 
-			if (EBONE_SELECTABLE(arm, ebone_parent)) {
-				arm->act_edbone = ebone_parent;
+		if (direction == BONE_SELECT_PARENT) {
+			if (ebone_active->parent) {
+				EditBone *ebone_parent;
+
+				ebone_parent = ebone_active->parent;
+
+				if (EBONE_SELECTABLE(arm, ebone_parent)) {
+					arm->act_edbone = ebone_parent;
+
+					if (!add_to_sel) {
+						ED_armature_ebone_select_set(ebone_active, false);
+					}
+					ED_armature_ebone_select_set(ebone_parent, true);
+
+					changed = true;
+				}
+			}
+
+		}
+		else {  /* BONE_SELECT_CHILD */
+			EditBone *ebone_iter, *ebone_child = NULL;
+			int pass;
+
+			/* First pass, only connected bones (the logical direct child)/ */
+			for (pass = 0; pass < 2 && (ebone_child == NULL); pass++) {
+				for (ebone_iter = arm->edbo->first; ebone_iter; ebone_iter = ebone_iter->next) {
+					/* Possible we have multiple children, some invisible. */
+					if (EBONE_SELECTABLE(arm, ebone_iter)) {
+						if (ebone_iter->parent == ebone_active) {
+							if ((pass == 1) || (ebone_iter->flag & BONE_CONNECTED)) {
+								ebone_child = ebone_iter;
+								break;
+							}
+						}
+					}
+				}
+			}
+
+			if (ebone_child) {
+				arm->act_edbone = ebone_child;
 
 				if (!add_to_sel) {
 					ED_armature_ebone_select_set(ebone_active, false);
 				}
-				ED_armature_ebone_select_set(ebone_parent, true);
+				ED_armature_ebone_select_set(ebone_child, true);
 
 				changed = true;
 			}
 		}
 
-	}
-	else {  /* BONE_SELECT_CHILD */
-		EditBone *ebone_iter, *ebone_child = NULL;
-		int pass;
-
-		/* first pass, only connected bones (the logical direct child) */
-		for (pass = 0; pass < 2 && (ebone_child == NULL); pass++) {
-			for (ebone_iter = arm->edbo->first; ebone_iter; ebone_iter = ebone_iter->next) {
-				/* possible we have multiple children, some invisible */
-				if (EBONE_SELECTABLE(arm, ebone_iter)) {
-					if (ebone_iter->parent == ebone_active) {
-						if ((pass == 1) || (ebone_iter->flag & BONE_CONNECTED)) {
-							ebone_child = ebone_iter;
-							break;
-						}
-					}
-				}
-			}
+		if (changed == false) {
+			continue;
 		}
 
-		if (ebone_child) {
-			arm->act_edbone = ebone_child;
-
-			if (!add_to_sel) {
-				ED_armature_ebone_select_set(ebone_active, false);
-			}
-			ED_armature_ebone_select_set(ebone_child, true);
-
-			changed = true;
-		}
+		multi_changed = true;
+		ED_armature_edit_sync_selection(arm->edbo);
+		WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
 	}
+	MEM_freeN(objects);
 
-	if (changed == false) {
-		return OPERATOR_CANCELLED;
-	}
-
-	ED_armature_edit_sync_selection(arm->edbo);
-
-	WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
-
-	return OPERATOR_FINISHED;
+	return multi_changed ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
 void ARMATURE_OT_select_hierarchy(wmOperatorType *ot)
@@ -1338,49 +1471,57 @@ void ARMATURE_OT_select_hierarchy(wmOperatorType *ot)
  */
 static int armature_select_mirror_exec(bContext *C, wmOperator *op)
 {
-	Object *obedit = CTX_data_edit_object(C);
-	bArmature *arm = obedit->data;
-	EditBone *ebone, *ebone_mirror_act = NULL;
+	ViewLayer * view_layer = CTX_data_view_layer(C);
 	const bool active_only = RNA_boolean_get(op->ptr, "only_active");
 	const bool extend = RNA_boolean_get(op->ptr, "extend");
 
-	for (ebone = arm->edbo->first; ebone; ebone = ebone->next) {
-		const int flag = ED_armature_ebone_selectflag_get(ebone);
-		EBONE_PREV_FLAG_SET(ebone, flag);
-	}
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object * ob = objects[ob_index];
+		bArmature * arm = ob->data;
 
-	for (ebone = arm->edbo->first; ebone; ebone = ebone->next) {
-		if (EBONE_SELECTABLE(arm, ebone)) {
-			EditBone *ebone_mirror;
-			int flag_new = extend ? EBONE_PREV_FLAG_GET(ebone) : 0;
+		EditBone *ebone, *ebone_mirror_act = NULL;
 
-			if ((ebone_mirror = ED_armature_ebone_get_mirrored(arm->edbo, ebone)) &&
-			    (EBONE_VISIBLE(arm, ebone_mirror)))
-			{
-				const int flag_mirror = EBONE_PREV_FLAG_GET(ebone_mirror);
-				flag_new |= flag_mirror;
-
-				if (ebone == arm->act_edbone) {
-					ebone_mirror_act = ebone_mirror;
-				}
-
-				/* skip all but the active or its mirror */
-				if (active_only && !ELEM(arm->act_edbone, ebone, ebone_mirror)) {
-					continue;
-				}
-			}
-
-			ED_armature_ebone_selectflag_set(ebone, flag_new);
+		for (ebone = arm->edbo->first; ebone; ebone = ebone->next) {
+			const int flag = ED_armature_ebone_selectflag_get(ebone);
+			EBONE_PREV_FLAG_SET(ebone, flag);
 		}
+
+		for (ebone = arm->edbo->first; ebone; ebone = ebone->next) {
+			if (EBONE_SELECTABLE(arm, ebone)) {
+				EditBone *ebone_mirror;
+				int flag_new = extend ? EBONE_PREV_FLAG_GET(ebone) : 0;
+
+				if ((ebone_mirror = ED_armature_ebone_get_mirrored(arm->edbo, ebone)) &&
+				    (EBONE_VISIBLE(arm, ebone_mirror)))
+				{
+					const int flag_mirror = EBONE_PREV_FLAG_GET(ebone_mirror);
+					flag_new |= flag_mirror;
+
+					if (ebone == arm->act_edbone) {
+						ebone_mirror_act = ebone_mirror;
+					}
+
+					/* skip all but the active or its mirror */
+					if (active_only && !ELEM(arm->act_edbone, ebone, ebone_mirror)) {
+						continue;
+					}
+				}
+
+				ED_armature_ebone_selectflag_set(ebone, flag_new);
+			}
+		}
+
+		if (ebone_mirror_act) {
+			arm->act_edbone = ebone_mirror_act;
+		}
+
+		ED_armature_edit_sync_selection(arm->edbo);
+
+		WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
 	}
-
-	if (ebone_mirror_act) {
-		arm->act_edbone = ebone_mirror_act;
-	}
-
-	ED_armature_edit_sync_selection(arm->edbo);
-
-	WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, obedit);
+	MEM_freeN(objects);
 
 	return OPERATOR_FINISHED;
 }
