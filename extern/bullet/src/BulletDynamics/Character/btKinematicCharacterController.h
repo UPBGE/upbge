@@ -29,7 +29,7 @@ class btConvexShape;
 class btRigidBody;
 class btCollisionWorld;
 class btCollisionDispatcher;
-class btPairCachingGhostObject;
+class btGhostObject;
 
 ///btKinematicCharacterController is an object that supports a sliding motion in a world.
 ///It uses a ghost object and convex sweep test to test for upcoming collisions. This is combined with discrete collision detection to recover from penetrations.
@@ -40,7 +40,7 @@ protected:
 
 	btScalar m_halfHeight;
 	
-	btPairCachingGhostObject* m_ghostObject;
+	btGhostObject* m_ghostObject;
 	btConvexShape*	m_convexShape;//is also in m_ghostObject, but it needs to be convex, so we store it here to avoid upcast
 	
 	btScalar m_maxPenetrationDepth;
@@ -117,7 +117,7 @@ public:
 
 	BT_DECLARE_ALIGNED_ALLOCATOR();
 
-	btKinematicCharacterController (btPairCachingGhostObject* ghostObject,btConvexShape* convexShape,btScalar stepHeight, const btVector3& up = btVector3(1.0,0.0,0.0));
+	btKinematicCharacterController (btGhostObject* ghostObject,btConvexShape* convexShape,btScalar stepHeight, const btVector3& up = btVector3(1.0,0.0,0.0));
 	~btKinematicCharacterController ();
 	
 
@@ -191,7 +191,7 @@ public:
 	void setMaxPenetrationDepth(btScalar d);
 	btScalar getMaxPenetrationDepth() const;
 
-	btPairCachingGhostObject* getGhostObject();
+	btGhostObject* getGhostObject();
 	void	setUseGhostSweepTest(bool useGhostObjectSweepTest)
 	{
 		m_useGhostObjectSweepTest = useGhostObjectSweepTest;
