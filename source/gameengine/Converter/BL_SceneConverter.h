@@ -94,25 +94,26 @@ public:
 
 	void RegisterGameObject(KX_GameObject *gameobject, Object *for_blenderobject);
 	void UnregisterGameObject(KX_GameObject *gameobject);
-	KX_GameObject *FindGameObject(Object *for_blenderobject);
+	KX_GameObject *FindGameObject(Object *for_blenderobject) const;
 
 	void RegisterGameMesh(KX_Mesh *gamemesh, Mesh *for_blendermesh);
-	KX_Mesh *FindGameMesh(Mesh *for_blendermesh);
+	KX_Mesh *FindGameMesh(Mesh *for_blendermesh) const;
 
 	void RegisterMaterial(KX_BlenderMaterial *blmat, Material *mat);
-	KX_BlenderMaterial *FindMaterial(Material *mat);
+	KX_BlenderMaterial *FindMaterial(Material *mat) const;
 
 	void RegisterActionData(BL_ActionData *data);
 
 	void RegisterGameActuator(SCA_IActuator *act, bActuator *for_actuator);
-	SCA_IActuator *FindGameActuator(bActuator *for_actuator);
+	SCA_IActuator *FindGameActuator(bActuator *for_actuator) const;
 
 	void RegisterGameController(SCA_IController *cont, bController *for_controller);
-	SCA_IController *FindGameController(bController *for_controller);
+	SCA_IController *FindGameController(bController *for_controller) const;
 
 	BL_ConvertObjectInfo *GetObjectInfo(Object *blenderobj);
 
 	const std::vector<KX_GameObject *>& GetObjects() const;
+	const std::vector<KX_BlenderMaterial *>& GetMaterials() const;
 };
 
 #endif  // __KX_BLENDERSCENECONVERTER_H__

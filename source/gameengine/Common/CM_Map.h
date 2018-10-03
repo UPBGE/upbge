@@ -24,16 +24,16 @@
  *  \ingroup common
  */
 
-#ifndef __CM_LIST_H__
-#define __CM_LIST_H__
+#ifndef __CM_MAP_H__
+#define __CM_MAP_H__
 
 #include <map>
 #include <unordered_map>
 
 template <class Item, class Key, class ... Args>
-inline const Item& CM_MapGetItemNoInsert(const std::map<Key, Item, Args ...>& map, const Key& key, const Item defaultItem = nullptr)
+inline const Item CM_MapGetItemNoInsert(const std::map<Key, Item, Args ...>& map, const Key& key, const Item defaultItem = nullptr)
 {
-	const typename std::map<Key, Item, Args ...>::iterator it = map.find(key);
+	const typename std::map<Key, Item, Args ...>::const_iterator it = map.find(key);
 	if (it != map.end()) {
 		return it->second;
 	}
@@ -41,9 +41,9 @@ inline const Item& CM_MapGetItemNoInsert(const std::map<Key, Item, Args ...>& ma
 }
 
 template <class Item, class Key, class ... Args>
-inline const Item& CM_MapGetItemNoInsert(const std::unordered_map<Key, Item, Args ...>& map, const Key& key, const Item defaultItem = nullptr)
+inline const Item CM_MapGetItemNoInsert(const std::unordered_map<Key, Item, Args ...>& map, const Key& key, const Item defaultItem = nullptr)
 {
-	const typename std::map<Key, Item, Args ...>::iterator it = map.find(key);
+	const typename std::map<Key, Item, Args ...>::const_iterator it = map.find(key);
 	if (it != map.end()) {
 		return it->second;
 	}

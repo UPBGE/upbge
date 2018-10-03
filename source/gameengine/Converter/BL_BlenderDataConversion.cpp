@@ -1688,38 +1688,6 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 		}
 	}
 
-	// Look at every material texture and ask to create realtime cube map.
-	for (KX_GameObject *gameobj : sumolist) {
-		for (KX_Mesh *mesh : gameobj->GetMeshList()) {
-			for (RAS_MeshMaterial *meshmat : mesh->GetMeshMaterialList()) {
-				RAS_IMaterial *mat = meshmat->GetBucket()->GetMaterial();
-
-				for (unsigned short k = 0; k < RAS_Texture::MaxUnits; ++k) {
-					RAS_Texture *tex = mat->GetTexture(k);
-					if (!tex || !tex->Ok()) {
-						continue;
-					}
-
-					EnvMap *env = tex->GetTex()->env;
-					if (!env || env->stype != ENV_REALT) {
-						continue;
-					}
-
-					KX_GameObject *viewpoint = gameobj;
-					if (env->object) {
-						KX_GameObject *obj = converter.FindGameObject(env->object);
-						if (obj) {
-							viewpoint = obj;
-						}
-					}
-
-					KX_TextureRendererManager::RendererType type = tex->IsCubeMap() ? KX_TextureRendererManager::CUBE : KX_TextureRendererManager::PLANAR;
-					kxscene->GetTextureRendererManager()->AddRenderer(type, tex, viewpoint);
-				}
-			}
-		}
-	}
-
 	// Create and set bounding volume.
 	for (KX_GameObject *gameobj : sumolist) {
 		Object *blenderobject = gameobj->GetBlenderObject();
@@ -1905,5 +1873,42 @@ void BL_PostConvertBlenderObjects(KX_Scene *kxscene, const BL_SceneConverter& sc
 	}
 
 #endif  // WITH_PYTHON
+
+	// Init textures for all materials.
+	for (KX_BlenderMaterial *mat : sceneconverter.GetMaterials()) {
+		mat->InitTextures();
+	}
+
+	// Look at every material texture and ask to create realtime map.
+	for (KX_GameObject *gameobj : sumolist) {
+		for (KX_Mesh *mesh : gameobj->GetMeshList()) {
+			for (RAS_MeshMaterial *meshmat : mesh->GetMeshMaterialList()) {
+				RAS_IMaterial *mat = meshmat->GetBucket()->GetMaterial();
+
+				for (unsigned short k = 0; k < RAS_Texture::MaxUnits; ++k) {
+					RAS_Texture *tex = mat->GetTexture(k);
+					if (!tex || !tex->Ok()) {
+						continue;
+					}
+
+					EnvMap *env = tex->GetTex()->env;
+					if (!env || env->stype != ENV_REALT) {
+						continue;
+					}
+
+					KX_GameObject *viewpoint = gameobj;
+					if (env->object) {
+						KX_GameObject *obj = sceneconverter.FindGameObject(env->object);
+						if (obj) {
+							viewpoint = obj;
+						}
+					}
+
+					KX_TextureRendererManager::RendererType type = tex->IsCubeMap() ? KX_TextureRendererManager::CUBE : KX_TextureRendererManager::PLANAR;
+					kxscene->GetTextureRendererManager()->AddRenderer(type, tex, viewpoint);
+				}
+			}
+		}
+	}
 }
 

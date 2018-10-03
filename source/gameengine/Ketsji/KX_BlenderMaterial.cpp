@@ -198,8 +198,6 @@ void KX_BlenderMaterial::ReloadMaterial()
 		m_blenderShader->ReloadMaterial();
 	}
 	else {
-		// Init textures.
-		InitTextures();
 		// Create shader.
 		m_blenderShader = new BL_BlenderShader(m_scene, m_material, this);
 
