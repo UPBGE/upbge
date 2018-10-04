@@ -43,6 +43,7 @@ else()
 		--enable-static
 		--disable-shared
 		--enable-libopenjpeg
+		--disable-sndio
 	)
 endif()
 
@@ -112,6 +113,7 @@ ExternalProject_Add(external_ffmpeg
 		--disable-indev=alsa
 		--disable-outdev=alsa
 		--disable-crystalhd
+		--disable-sndio
 	BUILD_COMMAND ${CONFIGURE_ENV_NO_PERL} && cd ${BUILD_DIR}/ffmpeg/src/external_ffmpeg/ && make -j${MAKE_THREADS}
 	INSTALL_COMMAND ${CONFIGURE_ENV_NO_PERL} && cd ${BUILD_DIR}/ffmpeg/src/external_ffmpeg/ && make install
 	CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${LIBDIR}/ffmpeg ${DEFAULT_CMAKE_FLAGS}
