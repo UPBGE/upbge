@@ -2802,6 +2802,10 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam, int
 	/* Reset before using it. */
 	drw_state_prepare_clean_for_draw(&DST);
 
+	int taa_samples_backup = scene->eevee.taa_samples;
+	scene->eevee.taa_samples = 0;
+	DEG_id_tag_update(&scene->id, DEG_TAG_COPY_ON_WRITE);
+
 	ViewLayer *view_layer = BKE_view_layer_default_view(scene);
 	Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer, called_from_constructor);
 	BKE_scene_graph_update_tagged(depsgraph, bmain);
@@ -2884,9 +2888,6 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam, int
 
 	DST.options.is_game_engine = true;
 
-	int taa_samples_backup = scene->eevee.taa_samples;
-	scene->eevee.taa_samples = 0;
-
 	drw_context_state_init();
 	drw_viewport_var_init();
 
@@ -2927,6 +2928,7 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam, int
 
 
 	scene->eevee.taa_samples = taa_samples_backup;
+	DEG_id_tag_update(&scene->id, DEG_TAG_COPY_ON_WRITE);
 
 	return finaltex;
 }
