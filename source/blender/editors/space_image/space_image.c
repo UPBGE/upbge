@@ -576,7 +576,8 @@ static void IMAGE_GGT_gizmo2d(wmGizmoGroupType *gzgt)
 	gzgt->name = "UV Transform Gizmo";
 	gzgt->idname = "IMAGE_GGT_gizmo2d";
 
-	gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT;
+	gzgt->gzmap_params.spaceid = SPACE_IMAGE;
+	gzgt->gzmap_params.regionid = RGN_TYPE_WINDOW;
 
 	gzgt->poll = ED_widgetgroup_gizmo2d_poll;
 	gzgt->setup = ED_widgetgroup_gizmo2d_setup;
@@ -586,10 +587,7 @@ static void IMAGE_GGT_gizmo2d(wmGizmoGroupType *gzgt)
 
 static void image_widgets(void)
 {
-	wmGizmoMapType *gzmap_type = WM_gizmomaptype_ensure(
-	        &(const struct wmGizmoMapType_Params){SPACE_IMAGE, RGN_TYPE_WINDOW});
-
-	WM_gizmogrouptype_append_and_link(gzmap_type, IMAGE_GGT_gizmo2d);
+	WM_gizmogrouptype_append(IMAGE_GGT_gizmo2d);
 }
 
 /************************** main region ***************************/
@@ -977,21 +975,6 @@ static void image_tools_region_listener(
 	}
 }
 
-static void image_tools_region_message_subscribe(
-        const struct bContext *UNUSED(C),
-        struct WorkSpace *UNUSED(workspace), struct Scene *UNUSED(scene),
-        struct bScreen *UNUSED(screen), struct ScrArea *UNUSED(sa), struct ARegion *ar,
-        struct wmMsgBus *mbus)
-{
-	wmMsgSubscribeValue msg_sub_value_region_tag_redraw = {
-		.owner = ar,
-		.user_data = ar,
-		.notify = ED_region_do_msg_notify_tag_redraw,
-	};
-	WM_msg_subscribe_rna_anon_prop(mbus, WorkSpace, tools, &msg_sub_value_region_tag_redraw);
-}
-
-
 /************************* header region **************************/
 
 /* add handlers, stuff you only do once or on area/region changes */
@@ -1109,10 +1092,12 @@ void ED_spacetype_image(void)
 	/* regions: statistics/scope buttons */
 	art = MEM_callocN(sizeof(ARegionType), "spacetype image region");
 	art->regionid = RGN_TYPE_TOOLS;
-	art->prefsizex = 220; // XXX
+	art->prefsizex = 58; /* XXX */
+	art->prefsizey = 50; /* XXX */
 	art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES;
 	art->listener = image_tools_region_listener;
-	art->message_subscribe = image_tools_region_message_subscribe;
+	art->message_subscribe = ED_region_generic_tools_region_message_subscribe;
+	art->snap_size = ED_region_generic_tools_region_snap_size;
 	art->init = image_tools_region_init;
 	art->draw = image_tools_region_draw;
 	BLI_addhead(&st->regiontypes, art);

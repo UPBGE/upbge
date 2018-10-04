@@ -62,6 +62,7 @@
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_material.h"
+#include "BKE_mesh.h"
 #include "BKE_mesh_mapping.h"
 #include "BKE_node.h"
 #include "BKE_report.h"
@@ -70,6 +71,7 @@
 #include "BKE_layer.h"
 
 #include "DEG_depsgraph.h"
+#include "DEG_depsgraph_query.h"
 
 #include "ED_image.h"
 #include "ED_mesh.h"
@@ -100,6 +102,7 @@ static void uv_select_all_perform(Scene *scene, Image *ima, Object *obedit, int 
 static void uv_select_all_perform_multi(Scene *scene, Image *ima, Object **objects, const uint objects_len, int action);
 static void uv_select_flush_from_tag_face(SpaceImage *sima, Scene *scene, Object *obedit, const bool select);
 static void uv_select_flush_from_tag_loop(SpaceImage *sima, Scene *scene, Object *obedit, const bool select);
+static void uv_select_tag_update_for_object(Depsgraph *depsgraph, const ToolSettings *ts, Object *obedit);
 
 /* -------------------------------------------------------------------- */
 /** \name State Testing
@@ -2244,7 +2247,9 @@ static void uv_select_all_perform_multi(
 
 static int uv_select_all_exec(bContext *C, wmOperator *op)
 {
+	Depsgraph *depsgraph = CTX_data_depsgraph(C);
 	Scene *scene = CTX_data_scene(C);
+	ToolSettings *ts = scene->toolsettings;
 	Image *ima = CTX_data_edit_image(C);
 	ViewLayer *view_layer = CTX_data_view_layer(C);
 
@@ -2257,8 +2262,7 @@ static int uv_select_all_exec(bContext *C, wmOperator *op)
 
 	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
 		Object *obedit = objects[ob_index];
-		DEG_id_tag_update(obedit->data, DEG_TAG_SELECT_UPDATE);
-		WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+		uv_select_tag_update_for_object(depsgraph, ts, obedit);
 	}
 
 	MEM_freeN(objects);
@@ -2314,6 +2318,7 @@ static int uv_mouse_select_multi(
         bContext *C, Object **objects, uint objects_len,
         const float co[2], bool extend, bool loop)
 {
+	Depsgraph *depsgraph = CTX_data_depsgraph(C);
 	SpaceImage *sima = CTX_wm_space_image(C);
 	Scene *scene = CTX_data_scene(C);
 	ToolSettings *ts = scene->toolsettings;
@@ -2571,8 +2576,7 @@ static int uv_mouse_select_multi(
 #endif
 	}
 
-	DEG_id_tag_update(obedit->data, DEG_TAG_COPY_ON_WRITE | DEG_TAG_SELECT_UPDATE);
-	WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+	uv_select_tag_update_for_object(depsgraph, ts, obedit);
 
 	return OPERATOR_PASS_THROUGH | OPERATOR_FINISHED;
 }
@@ -2922,6 +2926,20 @@ static void uv_select_sync_flush(ToolSettings *ts, BMEditMesh *em, const short s
 	}
 }
 
+static void uv_select_tag_update_for_object(Depsgraph *depsgraph, const ToolSettings *ts, Object *obedit)
+{
+	if (ts->uv_flag & UV_SYNC_SELECTION) {
+		DEG_id_tag_update(obedit->data, DEG_TAG_SELECT_UPDATE);
+		WM_main_add_notifier(NC_GEOM | ND_SELECT, obedit->data);
+	}
+	else {
+		Object *obedit_eval = DEG_get_evaluated_object(depsgraph, obedit);
+		BKE_mesh_batch_cache_dirty_tag(obedit_eval->data, BKE_MESH_BATCH_DIRTY_UVEDIT_SELECT);
+		/* Only for region redraw. */
+		WM_main_add_notifier(NC_GEOM | ND_SELECT, obedit->data);
+	}
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -3154,6 +3172,7 @@ static void uv_select_flush_from_tag_loop(SpaceImage *sima, Scene *scene, Object
 
 static int uv_border_select_exec(bContext *C, wmOperator *op)
 {
+	Depsgraph *depsgraph = CTX_data_depsgraph(C);
 	SpaceImage *sima = CTX_wm_space_image(C);
 	Scene *scene = CTX_data_scene(C);
 	ToolSettings *ts = scene->toolsettings;
@@ -3259,11 +3278,7 @@ static int uv_border_select_exec(bContext *C, wmOperator *op)
 			changed_multi = true;
 
 			uv_select_sync_flush(ts, em, select);
-
-			if (ts->uv_flag & UV_SYNC_SELECTION) {
-				DEG_id_tag_update(obedit->data, DEG_TAG_SELECT_UPDATE);
-				WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
-			}
+			uv_select_tag_update_for_object(depsgraph, ts, obedit);
 		}
 	}
 
@@ -3287,7 +3302,7 @@ static void UV_OT_select_border(wmOperatorType *ot)
 	ot->cancel = WM_gesture_border_cancel;
 
 	/* flags */
-	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+	ot->flag = OPTYPE_UNDO;
 
 	/* properties */
 	RNA_def_boolean(ot->srna, "pinned", 0, "Pinned", "Border select pinned UVs only");
@@ -3312,6 +3327,7 @@ static int uv_inside_circle(const float uv[2], const float offset[2], const floa
 
 static int uv_circle_select_exec(bContext *C, wmOperator *op)
 {
+	Depsgraph *depsgraph = CTX_data_depsgraph(C);
 	SpaceImage *sima = CTX_wm_space_image(C);
 	Scene *scene = CTX_data_scene(C);
 	ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -3402,9 +3418,7 @@ static int uv_circle_select_exec(bContext *C, wmOperator *op)
 			changed_multi = true;
 
 			uv_select_sync_flush(ts, em, select);
-
-			DEG_id_tag_update(obedit->data, DEG_TAG_SELECT_UPDATE);
-			WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+			uv_select_tag_update_for_object(depsgraph, ts, obedit);
 		}
 	}
 	MEM_freeN(objects);
@@ -3412,12 +3426,12 @@ static int uv_circle_select_exec(bContext *C, wmOperator *op)
 	return changed_multi ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
-static void UV_OT_circle_select(wmOperatorType *ot)
+static void UV_OT_select_circle(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name = "Circle Select";
 	ot->description = "Select UV vertices using circle selection";
-	ot->idname = "UV_OT_circle_select";
+	ot->idname = "UV_OT_select_circle";
 
 	/* api callbacks */
 	ot->invoke = WM_gesture_circle_invoke;
@@ -3427,7 +3441,7 @@ static void UV_OT_circle_select(wmOperatorType *ot)
 	ot->cancel = WM_gesture_circle_cancel;
 
 	/* flags */
-	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+	ot->flag = OPTYPE_UNDO;
 
 	/* properties */
 	WM_operator_properties_gesture_circle_select(ot);
@@ -3442,6 +3456,7 @@ static void UV_OT_circle_select(wmOperatorType *ot)
 static bool do_lasso_select_mesh_uv(bContext *C, const int mcords[][2], short moves,
                                     const bool select, const bool extend)
 {
+	Depsgraph *depsgraph = CTX_data_depsgraph(C);
 	SpaceImage *sima = CTX_wm_space_image(C);
 	Image *ima = CTX_data_edit_image(C);
 	ARegion *ar = CTX_wm_region(C);
@@ -3536,14 +3551,11 @@ static bool do_lasso_select_mesh_uv(bContext *C, const int mcords[][2], short mo
 		if (changed) {
 			changed_multi = true;
 
-			uv_select_sync_flush(scene->toolsettings, em, select);
-
-			if (ts->uv_flag & UV_SYNC_SELECTION) {
-				DEG_id_tag_update(obedit->data, DEG_TAG_SELECT_UPDATE);
-				WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
-			}
+			uv_select_sync_flush(ts, em, select);
+			uv_select_tag_update_for_object(depsgraph, ts, obedit);
 		}
 	}
+	MEM_freeN(objects);
 
 	return changed_multi;
 }
@@ -3988,7 +4000,9 @@ static void UV_OT_pin(wmOperatorType *ot)
 
 static int uv_select_pinned_exec(bContext *C, wmOperator *UNUSED(op))
 {
+	Depsgraph *depsgraph = CTX_data_depsgraph(C);
 	Scene *scene = CTX_data_scene(C);
+	ToolSettings *ts = scene->toolsettings;
 	ViewLayer *view_layer = CTX_data_view_layer(C);
 	Image *ima = CTX_data_edit_image(C);
 	BMFace *efa;
@@ -4022,8 +4036,7 @@ static int uv_select_pinned_exec(bContext *C, wmOperator *UNUSED(op))
 		}
 
 		if (changed) {
-			DEG_id_tag_update(obedit->data, DEG_TAG_SELECT_UPDATE);
-			WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+			uv_select_tag_update_for_object(depsgraph, ts, obedit);
 		}
 	}
 	MEM_freeN(objects);
@@ -4387,9 +4400,6 @@ static void UV_OT_cursor_set(wmOperatorType *ot)
 	ot->invoke = uv_set_2d_cursor_invoke;
 	ot->poll = uv_set_2d_cursor_poll;
 
-	/* flags */
-	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-
 	/* properties */
 	RNA_def_float_vector(ot->srna, "location", 2, NULL, -FLT_MAX, FLT_MAX, "Location",
 	                     "Cursor location in normalized (0.0-1.0) coordinates", -10.0f, 10.0f);
@@ -4649,7 +4659,7 @@ void ED_operatortypes_uvedit(void)
 	WM_operatortype_append(UV_OT_select_pinned);
 	WM_operatortype_append(UV_OT_select_border);
 	WM_operatortype_append(UV_OT_select_lasso);
-	WM_operatortype_append(UV_OT_circle_select);
+	WM_operatortype_append(UV_OT_select_circle);
 	WM_operatortype_append(UV_OT_select_more);
 	WM_operatortype_append(UV_OT_select_less);
 
@@ -4690,6 +4700,9 @@ void ED_keymap_uvedit(wmKeyConfig *keyconf)
 	keymap = WM_keymap_ensure(keyconf, "UV Editor", 0, 0);
 	keymap->poll = ED_operator_uvedit_can_uv_sculpt;
 
+	/* cursor */
+	WM_keymap_add_item(keymap, "UV_OT_cursor_set", ACTIONMOUSE, KM_CLICK, 0, 0);
+
 #ifdef USE_WM_KEYMAP_27X
 	/* Uv sculpt toggle */
 	kmi = WM_keymap_add_item(keymap, "WM_OT_context_toggle", QKEY, KM_PRESS, 0, 0);
@@ -4721,7 +4734,7 @@ void ED_keymap_uvedit(wmKeyConfig *keyconf)
 	kmi = WM_keymap_add_item(keymap, "UV_OT_select_border", BKEY, KM_PRESS, KM_CTRL, 0);
 	RNA_boolean_set(kmi->ptr, "pinned", true);
 
-	WM_keymap_add_item(keymap, "UV_OT_circle_select", CKEY, KM_PRESS, 0, 0);
+	WM_keymap_add_item(keymap, "UV_OT_select_circle", CKEY, KM_PRESS, 0, 0);
 
 	kmi = WM_keymap_add_item(keymap, "UV_OT_select_lasso", EVT_TWEAK_A, KM_ANY, KM_CTRL, 0);
 	RNA_boolean_set(kmi->ptr, "deselect", false);
@@ -4774,9 +4787,6 @@ void ED_keymap_uvedit(wmKeyConfig *keyconf)
 	RNA_boolean_set(kmi->ptr, "unselected", true);
 
 	WM_keymap_add_item(keymap, "UV_OT_reveal", HKEY, KM_PRESS, KM_ALT, 0);
-
-	/* cursor */
-	WM_keymap_add_item(keymap, "UV_OT_cursor_set", ACTIONMOUSE, KM_PRESS, 0, 0);
 
 	/* menus */
 	WM_keymap_add_menu_pie(keymap, "IMAGE_MT_uvs_snap_pie", SKEY, KM_PRESS, KM_SHIFT, 0);

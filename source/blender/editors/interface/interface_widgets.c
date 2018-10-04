@@ -1457,7 +1457,7 @@ float UI_text_clip_middle_ex(
 	strwidth = BLF_width(fstyle->uifont_id, str, max_len);
 
 	if ((okwidth > 0.0f) && (strwidth > okwidth)) {
-		/* utf8 ellipsis '..', some compilers complain */
+		/* utf8 two-dots leader '..' (shorter than ellipsis '...'), some compilers complain with real litteral string. */
 		const char sep[] = {0xe2, 0x80, 0xA5, 0x0};
 		const int sep_len = sizeof(sep) - 1;
 		const float sep_strwidth = BLF_width(fstyle->uifont_id, sep, sep_len + 1);
@@ -1522,6 +1522,16 @@ float UI_text_clip_middle_ex(
 				memmove(str + l_end + sep_len, str + r_offset, r_len);
 				memcpy(str + l_end, sep, sep_len);
 				final_lpart_len = (size_t)(l_end + sep_len + r_len - 1);  /* -1 to remove trailing '\0'! */
+
+				while (BLF_width(fstyle->uifont_id, str, max_len) > okwidth) {
+					/* This will happen because a lot of string width processing is done in integer pixels,
+					 * which can introduce a rather high error in the end (about 2 pixels or so).
+					 * Only one char removal shall ever be needed in real-life situation... */
+					r_len--;
+					final_lpart_len--;
+					char *c = str + l_end + sep_len;
+					memmove(c, c + 1, r_len);
+				}
 			}
 		}
 

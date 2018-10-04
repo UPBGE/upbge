@@ -1999,6 +1999,9 @@ static void drawTransformView(const struct bContext *C, ARegion *UNUSED(ar), voi
 	/* edge slide, vert slide */
 	drawEdgeSlide(t);
 	drawVertSlide(t);
+
+	/* Rotation */
+	drawDial3d(t);
 }
 
 /* just draw a little warning message in the top-right corner of the viewport to warn that autokeying is enabled */
@@ -3101,8 +3104,8 @@ static void initBend(TransInfo *t)
 	t->idx_max = 1;
 	t->num.idx_max = 1;
 	t->snap[0] = 0.0f;
-	t->snap[1] = DEG2RAD(5.0);
-	t->snap[2] = DEG2RAD(1.0);
+	t->snap[1] = SNAP_INCREMENTAL_ANGLE;
+	t->snap[2] = t->snap[1] * 0.2;
 
 	copy_v3_fl(t->num.val_inc, t->snap[1]);
 	t->num.unit_sys = t->scene->unit.system;
@@ -4671,12 +4674,12 @@ static void headerTranslation(TransInfo *t, const float vec[3], char str[UI_MAX_
 
 		dist = len_v3(vec);
 		if (!(t->flag & T_2D_EDIT) && t->scene->unit.system) {
-			const bool do_split = (t->scene->unit.flag & USER_UNIT_OPT_SPLIT) != 0;
 			int i;
 
 			for (i = 0; i < 3; i++) {
-				bUnit_AsString(&tvec[NUM_STR_REP_LEN * i], NUM_STR_REP_LEN, dvec[i] * t->scene->unit.scale_length,
-				               4, t->scene->unit.system, B_UNIT_LENGTH, do_split, true);
+				bUnit_AsString2(
+				        &tvec[NUM_STR_REP_LEN * i], NUM_STR_REP_LEN, dvec[i] * t->scene->unit.scale_length,
+				        4, B_UNIT_LENGTH, &t->scene->unit, true);
 			}
 		}
 		else {
@@ -4687,9 +4690,9 @@ static void headerTranslation(TransInfo *t, const float vec[3], char str[UI_MAX_
 	}
 
 	if (!(t->flag & T_2D_EDIT) && t->scene->unit.system) {
-		const bool do_split = (t->scene->unit.flag & USER_UNIT_OPT_SPLIT) != 0;
-		bUnit_AsString(distvec, sizeof(distvec), dist * t->scene->unit.scale_length, 4, t->scene->unit.system,
-		               B_UNIT_LENGTH, do_split, false);
+		bUnit_AsString2(
+		        distvec, sizeof(distvec), dist * t->scene->unit.scale_length,
+		        4, B_UNIT_LENGTH, &t->scene->unit, false);
 	}
 	else if (dist > 1e10f || dist < -1e10f) {
 		/* prevent string buffer overflow */

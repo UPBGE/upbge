@@ -1568,6 +1568,12 @@ typedef struct UnitSettings {
 	char system; /* imperial, metric etc */
 	char system_rotation; /* not implemented as a proper unit system yet */
 	short flag;
+
+	char length_unit;
+	char mass_unit;
+	char time_unit;
+
+	char pad[5];
 } UnitSettings;
 
 /* ------------------------------------------- */
@@ -2341,6 +2347,7 @@ typedef enum eGPencil_Selectmode_types {
 
 /* UnitSettings */
 
+#define USER_UNIT_ADAPTIVE 0xFF
 /* UnitSettings.system */
 #define	USER_UNIT_NONE			0
 #define	USER_UNIT_METRIC		1

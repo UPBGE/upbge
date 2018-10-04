@@ -85,6 +85,7 @@
 #include "BKE_object.h"
 #include "BKE_cloth.h"
 #include "BKE_key.h"
+#include "BKE_unit.h"
 
 #include "BLT_translation.h"
 
@@ -1101,7 +1102,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 					for (SpaceLink *sl = area->spacedata.first; sl; sl = sl->next) {
 						if (sl->spacetype == SPACE_VIEW3D) {
 							View3D *v3d = (View3D *)sl;
-							v3d->overlay.gpencil_grid_scale = 1.0f; // Scale
+							ARRAY_SET_ITEMS(v3d->overlay.gpencil_grid_scale, 1.0f, 1.0f); // Scale
 							v3d->overlay.gpencil_grid_lines = GP_DEFAULT_GRID_LINES; // NUmber of lines
 							v3d->overlay.gpencil_paper_opacity = 0.5f;
 							v3d->overlay.gpencil_grid_axis = V3D_GP_GRID_AXIS_Y;
@@ -1881,7 +1882,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 					for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
 						if (sl->spacetype == SPACE_VIEW3D) {
 							View3D *v3d = (View3D *)sl;
-							v3d->overlay.gpencil_grid_scale = 1.0f;
+							ARRAY_SET_ITEMS(v3d->overlay.gpencil_grid_scale, 1.0f, 1.0f);
 						}
 					}
 				}
@@ -2130,6 +2131,17 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 					}
 				}
 			}
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(bmain, 280, 25)) {
+		for (Scene *scene = bmain->scene.first; scene; scene = scene->id.next) {
+			UnitSettings *unit = &scene->unit;
+			if (unit->system != USER_UNIT_NONE) {
+				unit->length_unit = bUnit_GetBaseUnitOfType(scene->unit.system, B_UNIT_LENGTH);
+				unit->mass_unit = bUnit_GetBaseUnitOfType(scene->unit.system, B_UNIT_MASS);
+			}
+			unit->time_unit = bUnit_GetBaseUnitOfType(USER_UNIT_NONE, B_UNIT_TIME);
 		}
 	}
 }
