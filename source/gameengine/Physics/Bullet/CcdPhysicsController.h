@@ -438,7 +438,7 @@ struct CcdConstructionInfo {
 class btRigidBody;
 class btCollisionObject;
 class btSoftBody;
-class btPairCachingGhostObject;
+class btGhostObject;
 
 class CcdCharacter : public btKinematicCharacterController, public PHY_ICharacter
 {
@@ -449,7 +449,7 @@ private:
 	unsigned char m_maxJumps;
 
 public:
-	CcdCharacter(CcdPhysicsController *ctrl, btMotionState *motionState, btPairCachingGhostObject *ghost, btConvexShape *shape, float stepHeight);
+	CcdCharacter(CcdPhysicsController *ctrl, btMotionState *motionState, btGhostObject *ghost, btConvexShape *shape, float stepHeight);
 
 	virtual void updateAction(btCollisionWorld *collisionWorld, btScalar dt);
 

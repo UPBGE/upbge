@@ -58,7 +58,7 @@ float gLinearSleepingTreshold;
 float gAngularSleepingTreshold;
 
 CcdCharacter::CcdCharacter(CcdPhysicsController *ctrl, btMotionState *motionState,
-                           btPairCachingGhostObject *ghost, btConvexShape *shape, float stepHeight)
+                           btGhostObject *ghost, btConvexShape *shape, float stepHeight)
 	:btKinematicCharacterController(ghost, shape, stepHeight, btVector3(0.0f, 0.0f, 1.0f)),
 	m_ctrl(ctrl),
 	m_motionState(motionState),
@@ -510,7 +510,7 @@ bool CcdPhysicsController::CreateCharacterController()
 		return false;
 	}
 
-	m_object = new btPairCachingGhostObject();
+	m_object = new btGhostObject();
 	m_object->setCollisionShape(m_collisionShape);
 	m_object->setCollisionFlags(btCollisionObject::CF_CHARACTER_OBJECT);
 
@@ -518,7 +518,7 @@ bool CcdPhysicsController::CreateCharacterController()
 	m_bulletMotionState->getWorldTransform(trans);
 	m_object->setWorldTransform(trans);
 
-	m_characterController = new CcdCharacter(this, m_bulletMotionState, (btPairCachingGhostObject *)m_object,
+	m_characterController = new CcdCharacter(this, m_bulletMotionState, (btGhostObject *)m_object,
 	                                         (btConvexShape *)m_collisionShape, m_cci.m_stepHeight);
 
 	m_characterController->setJumpSpeed(m_cci.m_jumpSpeed);
