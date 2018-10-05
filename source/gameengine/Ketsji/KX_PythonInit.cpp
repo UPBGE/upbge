@@ -2050,6 +2050,13 @@ void initPlayerPython(int argc, char **argv)
 	// Find local python installation.
 	PyC_SetHomePath(py_path_bundle);
 
+	/* without this the sys.stdout may be set to 'ascii'
+	 * (it is on my system at least), where printing unicode values will raise
+	 * an error, this is highly annoying, another stumbling block for devs,
+	 * so use a more relaxed error handler and enforce utf-8 since the rest of
+	 * blender is utf-8 too - campbell */
+	Py_SetStandardStreamEncoding("utf-8", "surrogateescape");
+
 	Py_Initialize();
 
 	// Until python support ascii again, we use our own.
