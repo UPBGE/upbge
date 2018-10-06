@@ -148,6 +148,8 @@ protected:
 
 	std::vector<KX_GameObject *>m_staticObjects;
 	std::vector<KX_GameObject *>m_lightProbes;
+
+	int m_taaSamplesBackup;
 	/*************************************************/
 
 	RAS_BucketManager*	m_bucketmanager;

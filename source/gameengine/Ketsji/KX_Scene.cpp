@@ -238,6 +238,10 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	/*************************************************EEVEE INTEGRATION***********************************************************/
 	m_staticObjects = {};
 
+	m_taaSamplesBackup = scene->eevee.taa_samples;
+	scene->eevee.taa_samples = 0;
+	DEG_id_tag_update(&scene->id, DEG_TAG_COPY_ON_WRITE);
+
 	RenderAfterCameraSetup(true);
 	/******************************************************************************************************************************/
 
@@ -256,6 +260,10 @@ KX_Scene::~KX_Scene()
 {
 
 	m_isRuntime = false; //eevee
+
+	Scene *scene = GetBlenderScene();
+	scene->eevee.taa_samples = m_taaSamplesBackup;
+	DEG_id_tag_update(&scene->id, DEG_TAG_COPY_ON_WRITE);
 
 	// The release of debug properties used to be in SCA_IScene::~SCA_IScene
 	// It's still there but we remove all properties here otherwise some
