@@ -141,7 +141,8 @@ PyObject *SCA_InputEvent::get_status_item(unsigned int index)
 
 PyObject *SCA_InputEvent::pyattr_get_status(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
-	return (new EXP_ListWrapper<SCA_InputEvent, &SCA_InputEvent::get_status_size, &SCA_InputEvent::get_status_item>(self_v))->NewProxy(true);
+	return (new EXP_ListWrapper<SCA_InputEvent, &SCA_InputEvent::get_status_size, &SCA_InputEvent::get_status_item>
+		(self_v, EXP_BaseListWrapper::FLAG_FIND_VALUE))->NewProxy(true);
 }
 
 unsigned int SCA_InputEvent::get_queue_size()
@@ -156,7 +157,8 @@ PyObject *SCA_InputEvent::get_queue_item(unsigned int index)
 
 PyObject *SCA_InputEvent::pyattr_get_queue(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
-	return (new EXP_ListWrapper<SCA_InputEvent, &SCA_InputEvent::get_queue_size, &SCA_InputEvent::get_queue_item>(self_v))->NewProxy(true);
+	return (new EXP_ListWrapper<SCA_InputEvent, &SCA_InputEvent::get_queue_size, &SCA_InputEvent::get_queue_item>
+		(self_v, EXP_BaseListWrapper::FLAG_FIND_VALUE))->NewProxy(true);
 }
 
 unsigned int SCA_InputEvent::get_values_size()
@@ -171,7 +173,8 @@ PyObject *SCA_InputEvent::get_values_item(unsigned int index)
 
 PyObject *SCA_InputEvent::pyattr_get_values(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
-	return (new EXP_ListWrapper<SCA_InputEvent, &SCA_InputEvent::get_values_size, &SCA_InputEvent::get_values_item>(self_v))->NewProxy(true);
+	return (new EXP_ListWrapper<SCA_InputEvent, &SCA_InputEvent::get_values_size, &SCA_InputEvent::get_values_item>
+		(self_v, EXP_BaseListWrapper::FLAG_FIND_VALUE))->NewProxy(true);
 }
 
 PyObject *SCA_InputEvent::pyattr_get_inactive(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
