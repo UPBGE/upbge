@@ -45,21 +45,18 @@
 
 static void bpygpu_shader_add_enum_objects(PyObject *submodule)
 {
-	PyObject *dict = PyModule_GetDict(submodule);
-	PyObject *item;
-
-#define PY_DICT_ADD_INT(x) PyDict_SetItemString(dict, #x, item = PyLong_FromLong(x)); Py_DECREF(item)
+#define ADDCONST(x) PyModule_AddIntConstant(submodule, #x, x)
 
 	/* Shaders */
-	PY_DICT_ADD_INT(GPU_SHADER_2D_UNIFORM_COLOR);
-	PY_DICT_ADD_INT(GPU_SHADER_2D_FLAT_COLOR);
-	PY_DICT_ADD_INT(GPU_SHADER_2D_SMOOTH_COLOR);
-	PY_DICT_ADD_INT(GPU_SHADER_2D_IMAGE);
-	PY_DICT_ADD_INT(GPU_SHADER_3D_UNIFORM_COLOR);
-	PY_DICT_ADD_INT(GPU_SHADER_3D_FLAT_COLOR);
-	PY_DICT_ADD_INT(GPU_SHADER_3D_SMOOTH_COLOR);
+	ADDCONST(GPU_SHADER_2D_UNIFORM_COLOR);
+	ADDCONST(GPU_SHADER_2D_FLAT_COLOR);
+	ADDCONST(GPU_SHADER_2D_SMOOTH_COLOR);
+	ADDCONST(GPU_SHADER_2D_IMAGE);
+	ADDCONST(GPU_SHADER_3D_UNIFORM_COLOR);
+	ADDCONST(GPU_SHADER_3D_FLAT_COLOR);
+	ADDCONST(GPU_SHADER_3D_SMOOTH_COLOR);
 
-#undef PY_DICT_ADD_INT
+#undef ADDCONST
 }
 
 static int bpygpu_pyLong_as_shader_enum(PyObject *o)
@@ -369,10 +366,13 @@ static PyObject *bpygpu_shader_uniform_bool(
 	{
 		PyObject *seq_fast = PySequence_Fast(params.seq, error_prefix);
 		if (seq_fast == NULL) {
+			PyErr_Format(PyExc_TypeError,
+			             "%s: expected a sequence, got %s",
+			             error_prefix, Py_TYPE(params.seq)->tp_name);
 			ret = -1;
 		}
 		else {
-			length = PySequence_Fast_GET_SIZE(params.seq);
+			length = PySequence_Fast_GET_SIZE(seq_fast);
 			if (length == 0 || length > 4) {
 				PyErr_Format(PyExc_TypeError,
 				             "%s: invalid sequence length. expected 1..4, got %d",
@@ -434,10 +434,13 @@ static PyObject *bpygpu_shader_uniform_float(
 	{
 		PyObject *seq_fast = PySequence_Fast(params.seq, error_prefix);
 		if (seq_fast == NULL) {
+			PyErr_Format(PyExc_TypeError,
+			             "%s: expected a sequence, got %s",
+			             error_prefix, Py_TYPE(params.seq)->tp_name);
 			ret = -1;
 		}
 		else {
-			length = PySequence_Fast_GET_SIZE(params.seq);
+			length = PySequence_Fast_GET_SIZE(seq_fast);
 			if ((length == 0) || (length > 16) ||
 			    (4 < length && length < 9) ||
 			    (9 < length && length < 16))
@@ -502,10 +505,13 @@ static PyObject *bpygpu_shader_uniform_int(
 	{
 		PyObject *seq_fast = PySequence_Fast(params.seq, error_prefix);
 		if (seq_fast == NULL) {
+			PyErr_Format(PyExc_TypeError,
+			             "%s: expected a sequence, got %s",
+			             error_prefix, Py_TYPE(params.seq)->tp_name);
 			ret = -1;
 		}
 		else {
-			length = PySequence_Fast_GET_SIZE(params.seq);
+			length = PySequence_Fast_GET_SIZE(seq_fast);
 			if (length == 0 || length > 4) {
 				PyErr_Format(PyExc_TypeError,
 				             "%s: invalid sequence length. expected 1..4, got %d",
@@ -756,10 +762,10 @@ static struct PyMethodDef bpygpu_shader_module_methods[] = {
 	{"unbind",
 	 (PyCFunction)bpygpu_shader_unbind,
 	 METH_NOARGS, bpygpu_shader_unbind_doc},
-	{"shader_from_builtin",
+	{"from_builtin",
 	 (PyCFunction)bpygpu_shader_from_builtin,
 	 METH_O, bpygpu_shader_from_builtin_doc},
-	{"shader_code_from_builtin",
+	{"code_from_builtin",
 	 (PyCFunction)bpygpu_shader_code_from_builtin,
 	 METH_O, bpygpu_shader_code_from_builtin_doc},
 	{NULL, NULL, 0, NULL}

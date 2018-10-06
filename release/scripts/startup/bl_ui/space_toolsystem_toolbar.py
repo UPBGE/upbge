@@ -377,17 +377,17 @@ class _defs_view3d_select:
     @ToolDef.from_fn
     def border():
         def draw_settings(context, layout, tool):
-            props = tool.operator_properties("view3d.select_border")
+            props = tool.operator_properties("view3d.select_box")
             layout.prop(props, "mode", expand=True)
         return dict(
-            text="Select Border",
-            icon="ops.generic.select_border",
+            text="Select Box",
+            icon="ops.generic.select_box",
             widget=None,
             keymap=(
-                ("view3d.select_border",
+                ("view3d.select_box",
                  dict(mode='ADD'),
                  dict(type='EVT_TWEAK_A', value='ANY')),
-                ("view3d.select_border",
+                ("view3d.select_box",
                  dict(mode='SUB'),
                  dict(type='EVT_TWEAK_A', value='ANY', ctrl=True)),
             ),
@@ -1045,7 +1045,7 @@ class _defs_sculpt:
     @ToolDef.from_fn
     def hide_border():
         return dict(
-            text="Border Hide",
+            text="Box Hide",
             icon="ops.sculpt.border_hide",
             widget=None,
             keymap=(
@@ -1058,12 +1058,12 @@ class _defs_sculpt:
     @ToolDef.from_fn
     def mask_border():
         return dict(
-            text="Border Mask",
+            text="Box Mask",
             icon="ops.sculpt.border_mask",
             widget=None,
             keymap=(
-                ("view3d.select_border", dict(mode='ADD'), dict(type='EVT_TWEAK_A', value='ANY')),
-                ("view3d.select_border", dict(mode='SUB'), dict(type='EVT_TWEAK_A', value='ANY', ctrl=True)),
+                ("view3d.select_box", dict(mode='ADD'), dict(type='EVT_TWEAK_A', value='ANY')),
+                ("view3d.select_box", dict(mode='SUB'), dict(type='EVT_TWEAK_A', value='ANY', ctrl=True)),
             ),
         )
 
@@ -1190,6 +1190,15 @@ class _defs_weight_paint:
 
 class _defs_image_generic:
 
+    @staticmethod
+    def poll_uvedit(context):
+        ob = context.edit_object
+        if ob is not None:
+            data = ob.data
+            if data is not None:
+                return bool(getattr(data, "uv_layers", False))
+        return False
+
     @ToolDef.from_fn
     def cursor():
         return dict(
@@ -1228,17 +1237,17 @@ class _defs_image_uv_select:
     @ToolDef.from_fn
     def border():
         def draw_settings(context, layout, tool):
-            props = tool.operator_properties("uv.select_border")
+            props = tool.operator_properties("uv.select_box")
             layout.prop(props, "deselect")
         return dict(
-            text="Select Border",
-            icon="ops.generic.select_border",
+            text="Select Box",
+            icon="ops.generic.select_box",
             widget=None,
             keymap=(
-                ("uv.select_border",
+                ("uv.select_box",
                  dict(),
                  dict(type='EVT_TWEAK_A', value='ANY')),
-                ("uv.select_border",
+                ("uv.select_box",
                  dict(deselect=True),
                  dict(type='EVT_TWEAK_A', value='ANY', ctrl=True)),
             ),
@@ -1279,6 +1288,18 @@ class _defs_image_uv_select:
                 #  dict(deselect=True),
                 #  dict(type='EVT_TWEAK_A', value='ANY', ctrl=True)),
             ),
+        )
+
+
+class _defs_image_uv_sculpt:
+
+    @staticmethod
+    def generate_from_brushes(context):
+        return generate_from_enum_ex(
+            context,
+            icon_prefix="brush.uv_sculpt.",
+            data=context.tool_settings,
+            attr="uv_sculpt_tool",
         )
 
 
@@ -1385,13 +1406,13 @@ class _defs_gpencil_edit:
         )
 
     @ToolDef.from_fn
-    def border_select():
+    def box_select():
         return dict(
-            text="Select Border",
-            icon="ops.generic.select_border",
+            text="Select Box",
+            icon="ops.generic.select_box",
             widget=None,
             keymap=(
-                ("gpencil.select_border",
+                ("gpencil.select_box",
                  dict(),
                  dict(type='EVT_TWEAK_A', value='ANY')),
             ),
@@ -1772,6 +1793,12 @@ class IMAGE_PT_tools_active(ToolSelectPanelHelper, Panel):
             *_tools_transform,
             None,
             *_tools_annotate,
+            None,
+            lambda context: (
+                _defs_image_uv_sculpt.generate_from_brushes(context)
+                if _defs_image_generic.poll_uvedit(context)
+                else ()
+            ),
         ],
         'MASK': [
             None,
@@ -1838,7 +1865,7 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
 
     _tools_gpencil_select = (
         (
-            _defs_gpencil_edit.border_select,
+            _defs_gpencil_edit.box_select,
             _defs_gpencil_edit.circle_select,
             _defs_gpencil_edit.lasso_select,
         ),
@@ -1999,7 +2026,7 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
         ],
         'GPENCIL_EDIT': [
             _defs_view3d_generic.cursor,
-            _defs_gpencil_edit.border_select,
+            _defs_gpencil_edit.box_select,
             _defs_gpencil_edit.circle_select,
             _defs_gpencil_edit.lasso_select,
             None,

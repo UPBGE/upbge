@@ -60,7 +60,9 @@
 #include "DNA_workspace_types.h"
 #include "DNA_key_types.h"
 #include "DNA_curve_types.h"
+#include "DNA_armature_types.h"
 
+#include "BKE_action.h"
 #include "BKE_collection.h"
 #include "BKE_constraint.h"
 #include "BKE_customdata.h"
@@ -86,6 +88,8 @@
 #include "BKE_cloth.h"
 #include "BKE_key.h"
 #include "BKE_unit.h"
+
+#include "DEG_depsgraph.h"
 
 #include "BLT_translation.h"
 
@@ -860,6 +864,51 @@ void do_versions_after_linking_280(Main *bmain)
 			}
 		}
 	}
+
+	/* Move B-Bone custom handle settings from bPoseChannel to Bone. */
+	if (!MAIN_VERSION_ATLEAST(bmain, 280, 25)) {
+		for (Object *ob = bmain->object.first; ob; ob = ob->id.next) {
+			bArmature *arm = ob->data;
+
+			/* If it is an armature from the same file. */
+			if (ob->pose && arm && arm->id.lib == ob->id.lib) {
+				bool rebuild = false;
+
+				for (bPoseChannel *pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
+					/* If the 2.7 flag is enabled, processing is needed. */
+					if (pchan->bone && (pchan->bboneflag & PCHAN_BBONE_CUSTOM_HANDLES)) {
+						/* If the settings in the Bone are not set, copy. */
+						if (pchan->bone->bbone_prev_type == BBONE_HANDLE_AUTO &&
+						    pchan->bone->bbone_next_type == BBONE_HANDLE_AUTO &&
+						    pchan->bone->bbone_prev == NULL && pchan->bone->bbone_next == NULL)
+						{
+							pchan->bone->bbone_prev_type = (pchan->bboneflag & PCHAN_BBONE_CUSTOM_START_REL) ? BBONE_HANDLE_RELATIVE : BBONE_HANDLE_ABSOLUTE;
+							pchan->bone->bbone_next_type = (pchan->bboneflag & PCHAN_BBONE_CUSTOM_END_REL) ? BBONE_HANDLE_RELATIVE : BBONE_HANDLE_ABSOLUTE;
+
+							if (pchan->bbone_prev) {
+								pchan->bone->bbone_prev = pchan->bbone_prev->bone;
+							}
+							if (pchan->bbone_next) {
+								pchan->bone->bbone_next = pchan->bbone_next->bone;
+							}
+						}
+
+						rebuild = true;
+						pchan->bboneflag = 0;
+					}
+				}
+
+				/* Tag pose rebuild for all objects that use this armature. */
+				if (rebuild) {
+					for (Object *ob2 = bmain->object.first; ob2; ob2 = ob2->id.next) {
+						if (ob2->pose && ob2->data == arm) {
+							ob2->pose->flag |= POSE_RECALC;
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
 /* NOTE: this version patch is intended for versions < 2.52.2, but was initially introduced in 2.27 already.
@@ -1102,10 +1151,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 					for (SpaceLink *sl = area->spacedata.first; sl; sl = sl->next) {
 						if (sl->spacetype == SPACE_VIEW3D) {
 							View3D *v3d = (View3D *)sl;
-							ARRAY_SET_ITEMS(v3d->overlay.gpencil_grid_scale, 1.0f, 1.0f); // Scale
-							v3d->overlay.gpencil_grid_lines = GP_DEFAULT_GRID_LINES; // NUmber of lines
 							v3d->overlay.gpencil_paper_opacity = 0.5f;
-							v3d->overlay.gpencil_grid_axis = V3D_GP_GRID_AXIS_Y;
 							v3d->overlay.gpencil_grid_opacity = 0.9f;
 						}
 					}
@@ -1876,18 +1922,6 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 				}
 			}
 		}
-		if (!DNA_struct_elem_find(fd->filesdna, "View3DOverlay", "float", "gpencil_grid_scale")) {
-			for (bScreen *screen = bmain->screen.first; screen; screen = screen->id.next) {
-				for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
-					for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
-						if (sl->spacetype == SPACE_VIEW3D) {
-							View3D *v3d = (View3D *)sl;
-							ARRAY_SET_ITEMS(v3d->overlay.gpencil_grid_scale, 1.0f, 1.0f);
-						}
-					}
-				}
-			}
-		}
 		if (!DNA_struct_elem_find(fd->filesdna, "View3DOverlay", "float", "gpencil_paper_opacity")) {
 			for (bScreen *screen = bmain->screen.first; screen; screen = screen->id.next) {
 				for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
@@ -1912,30 +1946,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 				}
 			}
 		}
-		if (!DNA_struct_elem_find(fd->filesdna, "View3DOverlay", "int", "gpencil_grid_axis")) {
-			for (bScreen *screen = bmain->screen.first; screen; screen = screen->id.next) {
-				for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
-					for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
-						if (sl->spacetype == SPACE_VIEW3D) {
-							View3D *v3d = (View3D *)sl;
-							v3d->overlay.gpencil_grid_axis = V3D_GP_GRID_AXIS_Y;
-						}
-					}
-				}
-			}
-		}
-		if (!DNA_struct_elem_find(fd->filesdna, "View3DOverlay", "int", "gpencil_grid_lines")) {
-			for (bScreen *screen = bmain->screen.first; screen; screen = screen->id.next) {
-				for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
-					for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
-						if (sl->spacetype == SPACE_VIEW3D) {
-							View3D *v3d = (View3D *)sl;
-							v3d->overlay.gpencil_grid_lines = GP_DEFAULT_GRID_LINES;
-						}
-					}
-				}
-			}
-		}
+
 		/* default loc axis */
 		if (!DNA_struct_elem_find(fd->filesdna, "GP_BrushEdit_Settings", "int", "lock_axis")) {
 			for (Scene *scene = bmain->scene.first; scene; scene = scene->id.next) {
@@ -2143,5 +2154,15 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 			}
 			unit->time_unit = bUnit_GetBaseUnitOfType(USER_UNIT_NONE, B_UNIT_TIME);
 		}
+
+		/* gpencil grid settings */
+		for (bGPdata *gpd = bmain->gpencil.first; gpd; gpd = gpd->id.next) {
+			ARRAY_SET_ITEMS(gpd->grid.color, 0.5f, 0.5f, 0.5f); // Color
+			ARRAY_SET_ITEMS(gpd->grid.scale, 1.0f, 1.0f); // Scale
+			gpd->grid.lines = GP_DEFAULT_GRID_LINES; // Number of lines
+			gpd->grid.axis = GP_GRID_AXIS_Y;
+		}
+
+
 	}
 }

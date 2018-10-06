@@ -90,11 +90,18 @@ typedef struct EditBone {
 
 	short segments;
 
+	char bbone_prev_type;	/* Type of next/prev bone handles */
+	char bbone_next_type;
+	struct EditBone *bbone_prev;	/* Next/prev bones to use as handle references when calculating bbones (optional) */
+	struct EditBone *bbone_next;
+
 	/* Used for display */
 	float disp_mat[4][4];  /*  in Armature space, rest pos matrix */
 	float disp_tail_mat[4][4];  /*  in Armature space, rest pos matrix */
 	/* 32 == MAX_BBONE_SUBDIV */
 	float disp_bbone_mat[32][4][4]; /*  in Armature space, rest pos matrix */
+
+	struct EditBone *bbone_child;	/* connected child temporary during drawing */
 
 	/* Used to store temporary data */
 	union {

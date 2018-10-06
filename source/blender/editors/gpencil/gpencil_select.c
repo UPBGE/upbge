@@ -833,7 +833,7 @@ static bool gp_stroke_do_circle_sel(
 	int x0 = 0, y0 = 0, x1 = 0, y1 = 0;
 	int i;
 	bool changed = false;
-	
+
 	if (gps->totpoints == 1) {
 		bGPDspoint pt_temp;
 		gp_point_to_parent_space(gps->points, diff_mat, &pt_temp);
@@ -1017,7 +1017,7 @@ void GPENCIL_OT_select_circle(wmOperatorType *ot)
 /* ********************************************** */
 /* Box Selection */
 
-static int gpencil_border_select_exec(bContext *C, wmOperator *op)
+static int gpencil_box_select_exec(bContext *C, wmOperator *op)
 {
 	bGPdata *gpd = ED_gpencil_data_get_active(C);
 	ToolSettings *ts = CTX_data_tool_settings(C);
@@ -1044,7 +1044,7 @@ static int gpencil_border_select_exec(bContext *C, wmOperator *op)
 
 	/* init space conversion stuff */
 	gp_point_conversion_init(C, &gsc);
-	
+
 	/* deselect all strokes first? */
 	if (select && !extend) {
 		CTX_DATA_BEGIN(C, bGPDstroke *, gps, editable_gpencil_strokes)
@@ -1134,18 +1134,18 @@ static int gpencil_border_select_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-void GPENCIL_OT_select_border(wmOperatorType *ot)
+void GPENCIL_OT_select_box(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name = "Border Select";
+	ot->name = "Box Select";
 	ot->description = "Select Grease Pencil strokes within a rectangular region";
-	ot->idname = "GPENCIL_OT_select_border";
+	ot->idname = "GPENCIL_OT_select_box";
 
 	/* callbacks */
-	ot->invoke = WM_gesture_border_invoke;
-	ot->exec = gpencil_border_select_exec;
-	ot->modal = WM_gesture_border_modal;
-	ot->cancel = WM_gesture_border_cancel;
+	ot->invoke = WM_gesture_box_invoke;
+	ot->exec = gpencil_box_select_exec;
+	ot->modal = WM_gesture_box_modal;
+	ot->cancel = WM_gesture_box_cancel;
 
 	ot->poll = gpencil_select_poll;
 
@@ -1153,7 +1153,7 @@ void GPENCIL_OT_select_border(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_USE_EVAL_DATA;
 
 	/* rna */
-	WM_operator_properties_gesture_border_select(ot);
+	WM_operator_properties_gesture_box_select(ot);
 }
 
 /* ********************************************** */
