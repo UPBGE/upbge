@@ -2910,6 +2910,9 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam, int
 	if (reset_taa_samples) {
 		effects->taa_current_sample = 1;
 	}
+
+	DRW_hair_update();
+
 	drw_engines_draw_background();
 	GPUTexture *finaltex = effects->final_tx;
 
