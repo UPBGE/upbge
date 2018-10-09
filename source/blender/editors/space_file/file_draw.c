@@ -221,13 +221,13 @@ void file_draw_buttons(const bContext *C, ARegion *ar)
 	/* Filename number increment / decrement buttons. */
 	if (fnumbuttons && (params->flag & FILE_DIRSEL_ONLY) == 0) {
 		UI_block_align_begin(block);
-		but = uiDefIconButO(block, UI_BTYPE_BUT, "FILE_OT_filenum", 0, ICON_ZOOMOUT,
+		but = uiDefIconButO(block, UI_BTYPE_BUT, "FILE_OT_filenum", 0, ICON_REMOVE,
 		                    min_x + line2_w + separator - chan_offs, line2_y,
 		                    btn_fn_w, btn_h,
 		                    TIP_("Decrement the filename number"));
 		RNA_int_set(UI_but_operator_ptr_get(but), "increment", -1);
 
-		but = uiDefIconButO(block, UI_BTYPE_BUT, "FILE_OT_filenum", 0, ICON_ZOOMIN,
+		but = uiDefIconButO(block, UI_BTYPE_BUT, "FILE_OT_filenum", 0, ICON_ADD,
 		                    min_x + line2_w + separator + btn_fn_w - chan_offs, line2_y,
 		                    btn_fn_w, btn_h,
 		                    TIP_("Increment the filename number"));
@@ -515,15 +515,15 @@ static void draw_dividers(FileLayout *layout, View2D *v2d)
 			sx += step;
 
 			v1[0] = v2[0] = sx;
-			immSkipAttrib(color);
+			immAttrSkip(color);
 			immVertex2iv(pos, v1);
-			immAttrib3ubv(color, col_lo);
+			immAttr3ubv(color, col_lo);
 			immVertex2iv(pos, v2);
 
 			v1[0] = v2[0] = sx + 1;
-			immSkipAttrib(color);
+			immAttrSkip(color);
 			immVertex2iv(pos, v1);
-			immAttrib3ubv(color, col_hi);
+			immAttr3ubv(color, col_hi);
 			immVertex2iv(pos, v2);
 		}
 

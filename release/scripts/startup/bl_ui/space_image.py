@@ -560,13 +560,10 @@ class IMAGE_HT_header(Header):
             row = layout.row()
             row.template_ID(sima, "mask", new="mask.new")
 
-        layout.separator_spacer()
-
-        if show_uvedit or show_maskedit or mode == 'PAINT':
-            layout.prop(sima, "use_realtime_update", icon_only=True, icon='FILE_REFRESH')
-
         if not show_render:
             layout.prop(sima, "use_image_pin", text="")
+
+        layout.separator_spacer()
 
         if show_uvedit:
             uvedit = sima.uv_editor
@@ -896,8 +893,8 @@ class IMAGE_PT_render_slots(Panel):
         )
 
         col = row.column(align=True)
-        col.operator("image.add_render_slot", icon='ZOOMIN', text="")
-        col.operator("image.remove_render_slot", icon='ZOOMOUT', text="")
+        col.operator("image.add_render_slot", icon='ADD', text="")
+        col.operator("image.remove_render_slot", icon='REMOVE', text="")
 
         col.separator()
 

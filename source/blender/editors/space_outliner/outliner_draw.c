@@ -1143,7 +1143,7 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
 				else if (te->idcode == SEQ_TYPE_SOUND_RAM)
 					data.icon = ICON_SOUND;
 				else if (te->idcode == SEQ_TYPE_IMAGE)
-					data.icon = ICON_IMAGE_COL;
+					data.icon = ICON_IMAGE;
 				else
 					data.icon = ICON_PARTICLES;
 				break;
@@ -1225,6 +1225,9 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
 				case OB_EMPTY:
 					if (ob->dup_group) {
 						data.icon = ICON_OUTLINER_OB_GROUP_INSTANCE;
+					}
+					else if (ob->empty_drawtype == OB_EMPTY_IMAGE) {
+						data.icon = ICON_OUTLINER_OB_IMAGE;
 					}
 					else {
 						data.icon = ICON_OUTLINER_OB_EMPTY;
@@ -1328,7 +1331,7 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
 					data.icon = ICON_BRUSH_DATA; break;
 				case ID_SCR:
 				case ID_WS:
-					data.icon = ICON_SPLITSCREEN; break;
+					data.icon = ICON_WORKSPACE; break;
 				default:
 					break;
 			}
@@ -1423,7 +1426,7 @@ static void outliner_draw_iconrow_doit(
 
 	if (active != OL_DRAWSEL_NONE) {
 		float ufac = UI_UNIT_X / 20.0f;
-		float color[4] = {1.0f, 1.0f, 1.0f, 0.4f};
+		float color[4] = {1.0f, 1.0f, 1.0f, 0.2f};
 
 		UI_draw_roundbox_corner_set(UI_CNR_ALL);
 		color[3] *= alpha_fac;

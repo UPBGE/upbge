@@ -1327,6 +1327,84 @@ uint32_t PyC_Long_AsU32(PyObject *value)
  * PyC_Long_AsU64
  */
 
+/* -------------------------------------------------------------------- */
+
+/** \name Py_buffer Utils
+ *
+ * \{ */
+
+char PyC_StructFmt_type_from_str(const char *typestr)
+{
+	switch (typestr[0]) {
+		case '!':
+		case '<':
+		case '=':
+		case '>':
+		case '@':
+			return typestr[1];
+		default:
+			return typestr[0];
+	}
+}
+
+bool PyC_StructFmt_type_is_float_any(char format)
+{
+	switch (format) {
+		case 'f':
+		case 'd':
+		case 'e':
+			return true;
+		default:
+			return false;
+	}
+}
+
+bool PyC_StructFmt_type_is_int_any(char format)
+{
+	switch (format) {
+		case 'i':
+		case 'I':
+		case 'l':
+		case 'L':
+		case 'h':
+		case 'H':
+		case 'b':
+		case 'B':
+		case 'q':
+		case 'Q':
+		case 'n':
+		case 'N':
+		case 'P':
+			return true;
+		default:
+			return false;
+	}
+}
+
+bool PyC_StructFmt_type_is_byte(char format)
+{
+	switch (format) {
+		case 'c':
+		case 's':
+		case 'p':
+			return true;
+		default:
+			return false;
+	}
+}
+
+bool PyC_StructFmt_type_is_bool(char format)
+{
+	switch (format) {
+		case '?':
+			return true;
+		default:
+			return false;
+	}
+}
+
+/** \} */
+
 #ifdef __GNUC__
 #  pragma warning(pop)
 #endif

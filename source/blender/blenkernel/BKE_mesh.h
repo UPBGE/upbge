@@ -67,6 +67,7 @@ struct CustomData;
 struct Scene;
 struct MLoopUV;
 struct ReportList;
+struct BMEditMesh;
 
 #ifdef __cplusplus
 extern "C" {
@@ -89,7 +90,10 @@ struct BMesh *BKE_mesh_to_bmesh(
         struct Mesh *me, struct Object *ob,
         const bool add_key_index, const struct BMeshCreateParams *params);
 
-struct Mesh *BKE_bmesh_to_mesh_nomain(struct BMesh *bm, const struct BMeshToMeshParams *params);
+struct Mesh *BKE_mesh_from_bmesh_nomain(struct BMesh *bm, const struct BMeshToMeshParams *params);
+
+struct Mesh *BKE_mesh_from_editmesh_with_coords_thin_wrap(
+        struct BMEditMesh *em, CustomDataMask data_mask, float (*vertexCos)[3]);
 
 int poly_find_loop_from_vert(
         const struct MPoly *poly,

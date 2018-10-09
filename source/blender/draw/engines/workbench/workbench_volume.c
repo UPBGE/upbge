@@ -36,6 +36,8 @@
 static struct {
 	struct GPUShader *volume_sh;
 	struct GPUShader *volume_slice_sh;
+	struct GPUTexture *dummy_tex;
+	struct GPUTexture *dummy_coba_tex;
 } e_data = {NULL};
 
 extern char datatoc_workbench_volume_vert_glsl[];
@@ -50,6 +52,10 @@ void workbench_volume_engine_init(void)
 		e_data.volume_slice_sh = DRW_shader_create(
 		        datatoc_workbench_volume_vert_glsl, NULL,
 		        datatoc_workbench_volume_frag_glsl, "#define VOLUME_SLICE");
+
+		float pixel[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+		e_data.dummy_tex = GPU_texture_create_3D(1, 1, 1, GPU_RGBA8, pixel, NULL);
+		e_data.dummy_coba_tex = GPU_texture_create_1D(1, GPU_RGBA8, pixel, NULL);
 	}
 }
 
@@ -57,11 +63,13 @@ void workbench_volume_engine_free(void)
 {
 	DRW_SHADER_FREE_SAFE(e_data.volume_sh);
 	DRW_SHADER_FREE_SAFE(e_data.volume_slice_sh);
+	DRW_TEXTURE_FREE_SAFE(e_data.dummy_tex);
+	DRW_TEXTURE_FREE_SAFE(e_data.dummy_coba_tex);
 }
 
 void workbench_volume_cache_init(WORKBENCH_Data *vedata)
 {
-	vedata->psl->volume_pass = DRW_pass_create("Volumes", DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_PREMUL | DRW_STATE_CULL_FRONT);
+	vedata->psl->volume_pass = DRW_pass_create("Volumes", DRW_STATE_WRITE_COLOR | DRW_STATE_TRANSMISSION | DRW_STATE_CULL_FRONT);
 }
 
 void workbench_volume_cache_populate(WORKBENCH_Data *vedata, Scene *scene, Object *ob, ModifierData *md)
@@ -101,6 +109,9 @@ void workbench_volume_cache_populate(WORKBENCH_Data *vedata, Scene *scene, Objec
 
 		DRWShadingGroup *grp = DRW_shgroup_create(e_data.volume_slice_sh, vedata->psl->volume_pass);
 		DRW_shgroup_uniform_texture(grp, "densityTexture", sds->tex);
+		DRW_shgroup_uniform_texture(grp, "shadowTexture", sds->tex_shadow);
+		DRW_shgroup_uniform_texture(grp, "flameTexture", (sds->tex_flame) ? sds->tex_flame : e_data.dummy_tex);
+		DRW_shgroup_uniform_texture(grp, "flameColorTexture", (sds->tex_flame) ? sds->tex_flame_coba : e_data.dummy_coba_tex);
 		DRW_shgroup_uniform_texture_ref(grp, "depthBuffer", &dtxl->depth);
 		DRW_shgroup_uniform_float_copy(grp, "densityScale", 10.0f * sds->display_thickness);
 		DRW_shgroup_uniform_float_copy(grp, "slicePosition", sds->slice_depth);
@@ -108,7 +119,6 @@ void workbench_volume_cache_populate(WORKBENCH_Data *vedata, Scene *scene, Objec
 		DRW_shgroup_state_disable(grp, DRW_STATE_CULL_FRONT);
 		BLI_addtail(&wpd->smoke_domains, BLI_genericNodeN(smd));
 
-		/* TODO Flame rendering */
 		/* TODO COBA Rendering */
 
 		DRW_shgroup_call_object_add(grp, DRW_cache_quad_get(), ob);
@@ -120,6 +130,9 @@ void workbench_volume_cache_populate(WORKBENCH_Data *vedata, Scene *scene, Objec
 		DRW_shgroup_uniform_vec4(grp, "viewvecs[0]", (float *)wpd->viewvecs, 3);
 		DRW_shgroup_uniform_texture_ref(grp, "depthBuffer", &dtxl->depth);
 		DRW_shgroup_uniform_texture(grp, "densityTexture", sds->tex);
+		DRW_shgroup_uniform_texture(grp, "shadowTexture", sds->tex_shadow);
+		DRW_shgroup_uniform_texture(grp, "flameTexture", (sds->tex_flame) ? sds->tex_flame : e_data.dummy_tex);
+		DRW_shgroup_uniform_texture(grp, "flameColorTexture", (sds->tex_flame) ? sds->tex_flame_coba : e_data.dummy_coba_tex);
 		DRW_shgroup_uniform_float_copy(grp, "densityScale", 10.0f * sds->display_thickness);
 		DRW_shgroup_uniform_int_copy(grp, "samplesLen", max_slices);
 		/* TODO FIXME : This step size is in object space but the ray itself
@@ -129,7 +142,6 @@ void workbench_volume_cache_populate(WORKBENCH_Data *vedata, Scene *scene, Objec
 		DRW_shgroup_state_enable(grp, DRW_STATE_CULL_FRONT);
 		BLI_addtail(&wpd->smoke_domains, BLI_genericNodeN(smd));
 
-		/* TODO Flame rendering */
 		/* TODO COBA Rendering */
 
 		DRW_shgroup_call_object_add(grp, DRW_cache_cube_get(), ob);

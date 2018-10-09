@@ -526,10 +526,6 @@ DerivedMesh *mesh_create_derived_render(
         struct Depsgraph *depsgraph, struct Scene *scene,
         struct Object *ob, CustomDataMask dataMask);
 
-DerivedMesh *getEditDerivedBMesh(
-        struct BMEditMesh *em, struct Object *ob, CustomDataMask data_mask,
-        float (*vertexCos)[3]);
-
 /* same as above but wont use render settings */
 DerivedMesh *mesh_create_derived(struct Mesh *me, float (*vertCos)[3]);
 DerivedMesh *mesh_create_derived_no_deform(
@@ -548,8 +544,6 @@ DerivedMesh *mesh_create_derived_physics(
         struct Depsgraph *depsgraph, struct Scene *scene, struct Object *ob,
         float (*vertCos)[3], CustomDataMask dataMask);
 
-DerivedMesh *editbmesh_get_derived_base(
-        struct Object *ob, struct BMEditMesh *em, CustomDataMask data_mask);
 DerivedMesh *editbmesh_get_derived_cage(
         struct Depsgraph *depsgraph, struct Scene *scene, struct Object *,
         struct BMEditMesh *em, CustomDataMask dataMask);
@@ -561,7 +555,7 @@ DerivedMesh *editbmesh_get_derived_cage_and_final(
 DerivedMesh *object_get_derived_final(struct Object *ob, const bool for_render);
 
 float (*editbmesh_get_vertex_cos(struct BMEditMesh *em, int *r_numVerts))[3];
-bool editbmesh_modifier_is_enabled(struct Scene *scene, struct ModifierData *md, DerivedMesh *dm);
+bool editbmesh_modifier_is_enabled(struct Scene *scene, struct ModifierData *md, bool has_prev_mesh);
 void makeDerivedMesh(
         struct Depsgraph *depsgraph, struct Scene *scene, struct Object *ob, struct BMEditMesh *em,
         CustomDataMask dataMask, const bool build_shapekey_layers);

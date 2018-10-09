@@ -163,7 +163,7 @@ void EEVEE_render_cache(
 		EEVEE_hair_cache_populate(vedata, sldata, ob, &cast_shadow);
 	}
 
-	if (DRW_check_object_visible_within_active_context(ob)) {
+	if (DRW_object_is_visible_in_active_context(ob)) {
 		if (ELEM(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL)) {
 			EEVEE_materials_cache_populate(vedata, sldata, ob, &cast_shadow);
 		}
@@ -191,6 +191,12 @@ static void eevee_render_result_combined(
 	                           rect->xmin, rect->ymin,
 	                           BLI_rcti_size_x(rect), BLI_rcti_size_y(rect),
 	                           4, 0, rp->rect);
+
+	/* Premult alpha */
+	int pixels_len = BLI_rcti_size_x(rect) * BLI_rcti_size_y(rect);
+	for (int i = 0; i < pixels_len * 4; i += 4) {
+		mul_v3_fl(rp->rect + i, rp->rect[i + 3]);
+	}
 }
 
 static void eevee_render_result_subsurface(

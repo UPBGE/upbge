@@ -60,13 +60,6 @@ class VIEW3D_HT_header(Header):
                 row = layout.row()
                 row.prop(tool_settings.particle_edit, "select_mode", text="", expand=True)
 
-        # Pose
-        if obj and object_mode == 'POSE':
-            row = layout.row(align=True)
-            row.operator("pose.copy", text="", icon='COPYDOWN')
-            row.operator("pose.paste", text="", icon='PASTEDOWN').flipped = False
-            row.operator("pose.paste", text="", icon='PASTEFLIPDOWN').flipped = True
-
         # Grease Pencil
         if obj and obj.type == 'GPENCIL' and context.gpencil_data:
             gpd = context.gpencil_data
@@ -125,7 +118,7 @@ class VIEW3D_HT_header(Header):
                 trans_icon = getattr(trans_orientation, "icon", "BLANK1")
                 trans_name = getattr(trans_orientation, "name", "Orientation")
             else:
-                trans_icon = 'VISIBLE_IPO_OFF'
+                trans_icon = 'OBJECT_ORIGIN'
                 trans_name = getattr(current_orientation, "name", "Orientation")
 
             row = layout.row(align=True)
@@ -265,9 +258,9 @@ class VIEW3D_HT_header(Header):
         row.active = (shading.type in {'WIREFRAME', 'SOLID'}) or object_mode in {'EDIT'}
 
         if shading.type == 'WIREFRAME':
-            row.prop(shading, "show_xray_wireframe", text="", icon='ORTHO')
+            row.prop(shading, "show_xray_wireframe", text="", icon='XRAY')
         else:
-            row.prop(shading, "show_xray", text="", icon='ORTHO')
+            row.prop(shading, "show_xray", text="", icon='XRAY')
 
         row = layout.row(align=True)
         row.prop(shading, "type", text="", expand=True)
@@ -2462,7 +2455,7 @@ class VIEW3D_MT_pose(Menu):
 
         layout.operator("pose.copy")
         layout.operator("pose.paste").flipped = False
-        layout.operator("pose.paste", text="Paste X-Flipped Pose").flipped = True
+        layout.operator("pose.paste", text="Paste Pose Flipped").flipped = True
 
         layout.separator()
 
@@ -3134,7 +3127,7 @@ class VIEW3D_MT_edit_mesh_normals(Menu):
 
         layout.label(text="Face Strength")
         layout.operator("mesh.mod_weighted_strength", text="Face Select", icon='FACESEL').set = False
-        layout.operator("mesh.mod_weighted_strength", text="Set Strength", icon='ZOOMIN').set = True
+        layout.operator("mesh.mod_weighted_strength", text="Set Strength", icon='ADD').set = True
 
 
 class VIEW3D_MT_edit_mesh_shading(Menu):
@@ -3820,7 +3813,7 @@ class VIEW3D_MT_shading_pie(Menu):
         pie.prop_enum(view.shading, "type", value='SOLID')
 
         if context.mode == 'POSE':
-            pie.prop(view.overlay, "show_bone_select", icon='ORTHO')
+            pie.prop(view.overlay, "show_bone_select", icon='XRAY')
         else:
             xray_active = (context.mode in 'EDIT_MESH') or \
                           (view.shading.type in {'SOLID', 'WIREFRAME'})
@@ -3832,9 +3825,9 @@ class VIEW3D_MT_shading_pie(Menu):
                 sub.active = False
 
             if view.shading.type == 'WIREFRAME':
-                sub.prop(view.shading, "show_xray_wireframe", text="Toggle X-Ray", icon='ORTHO')
+                sub.prop(view.shading, "show_xray_wireframe", text="Toggle X-Ray", icon='XRAY')
             else:
-                sub.prop(view.shading, "show_xray", text="Toggle X-Ray", icon='ORTHO')
+                sub.prop(view.shading, "show_xray", text="Toggle X-Ray", icon='XRAY')
 
         pie.prop(view.overlay, "show_overlays", text="Toggle Overlays", icon='OVERLAY')
         pie.prop_enum(view.shading, "type", value='MATERIAL')
@@ -3878,14 +3871,14 @@ class VIEW3D_MT_snap_pie(Menu):
         layout = self.layout
         pie = layout.menu_pie()
 
-        pie.operator("view3d.snap_cursor_to_grid", text="Cursor to Grid", icon='CURSOR')
+        pie.operator("view3d.snap_cursor_to_grid", text="Cursor to Grid", icon='PIVOT_CURSOR')
         pie.operator("view3d.snap_selected_to_grid", text="Selection to Grid", icon='RESTRICT_SELECT_OFF')
-        pie.operator("view3d.snap_cursor_to_selected", text="Cursor to Selected", icon='CURSOR')
+        pie.operator("view3d.snap_cursor_to_selected", text="Cursor to Selected", icon='PIVOT_CURSOR')
         pie.operator("view3d.snap_selected_to_cursor", text="Selection to Cursor", icon='RESTRICT_SELECT_OFF').use_offset = False
         pie.operator("view3d.snap_selected_to_cursor", text="Selection to Cursor (Keep Offset)", icon='RESTRICT_SELECT_OFF').use_offset = True
         pie.operator("view3d.snap_selected_to_active", text="Selection to Active", icon='RESTRICT_SELECT_OFF')
-        pie.operator("view3d.snap_cursor_to_center", text="Cursor to Center", icon='CURSOR')
-        pie.operator("view3d.snap_cursor_to_active", text="Cursor to Active", icon='CURSOR')
+        pie.operator("view3d.snap_cursor_to_center", text="Cursor to Center", icon='PIVOT_CURSOR')
+        pie.operator("view3d.snap_cursor_to_active", text="Cursor to Active", icon='PIVOT_CURSOR')
 
 
 class VIEW3D_MT_proportional_editing_falloff_pie(Menu):
@@ -4198,7 +4191,7 @@ class VIEW3D_PT_shading_options(Panel):
             sub.prop(shading, "shadow_intensity", text="Shadow")
             sub.popover(
                 panel="VIEW3D_PT_shading_options_shadow",
-                icon='SCRIPTWIN',
+                icon='PREFERENCES',
                 text=""
             )
 
@@ -4214,7 +4207,7 @@ class VIEW3D_PT_shading_options(Panel):
                 sub.prop(shading, "cavity_valley_factor")
                 sub.popover(
                     panel="VIEW3D_PT_shading_options_ssao",
-                    icon='SCRIPTWIN',
+                    icon='PREFERENCES',
                     text=""
                 )
 
@@ -4525,9 +4518,10 @@ class VIEW3D_PT_overlay_edit_mesh_shading(Panel):
 
         col.prop(overlay, "show_weight", text="Vertex Group Weights")
         if overlay.show_weight:
-            row = col.split()
+            row = col.split(factor=0.33)
             row.label(text="Zero Weights")
-            row.prop(tool_settings, "vertex_group_user", text="")
+            sub = row.row()
+            sub.prop(tool_settings, "vertex_group_user", expand=True)
 
         col.prop(overlay, "show_statvis", text="Mesh Analysis")
         if overlay.show_statvis:
@@ -4613,9 +4607,9 @@ class VIEW3D_PT_overlay_edit_mesh_normals(Panel):
         col.active = display_all
 
         row = col.row(align=True)
-        row.prop(overlay, "show_vertex_normals", text="", icon='VERTEXSEL')
-        row.prop(overlay, "show_split_normals", text="", icon='LOOPSEL')
-        row.prop(overlay, "show_face_normals", text="", icon='FACESEL')
+        row.prop(overlay, "show_vertex_normals", text="", icon='NORMALS_VERTEX')
+        row.prop(overlay, "show_split_normals", text="", icon='NORMALS_VERTEX_FACE')
+        row.prop(overlay, "show_face_normals", text="", icon='NORMALS_FACE')
 
         sub = row.row(align=True)
         sub.active = overlay.show_vertex_normals or overlay.show_face_normals or overlay.show_split_normals
@@ -4798,6 +4792,14 @@ class VIEW3D_PT_overlay_paint(Panel):
             'PAINT_WEIGHT': "weight_paint_mode_opacity",
         }[context.mode], text="Opacity")
 
+        if context.mode == 'PAINT_WEIGHT':
+            row = col.split(factor=0.33)
+            row.label(text="Zero Weights")
+            sub = row.row()
+            sub.prop(context.tool_settings, "vertex_group_user", expand=True)
+
+            col.prop(overlay, "show_wpaint_contours")
+
         if context.mode in {'PAINT_WEIGHT', 'PAINT_VERTEX'}:
             col.prop(overlay, "show_paint_wire")
 
@@ -4882,11 +4884,11 @@ class VIEW3D_PT_transform_orientations(Panel):
         row = layout.row()
         col = row.column()
         col.prop(scene, "transform_orientation", expand=True)
-        row.operator("transform.create_orientation", text="", icon='ZOOMIN', emboss=False).use = True
+        row.operator("transform.create_orientation", text="", icon='ADD', emboss=False).use = True
 
         if orientation:
             row = layout.row(align=False)
-            row.prop(orientation, "name", text="")
+            row.prop(orientation, "name", text="", icon="OBJECT_ORIGIN")
             row.operator("transform.delete_orientation", text="", icon='X', emboss=False)
 
 

@@ -1235,6 +1235,37 @@ static void rna_def_userdef_theme_ui(BlenderRNA *brna)
 	RNA_def_property_array(prop, 3);
 	RNA_def_property_ui_text(prop, "Gizmo B", "");
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+	/* Icon colors. */
+	prop = RNA_def_property(srna, "icon_collection", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_float_sdna(prop, NULL, "icon_collection");
+	RNA_def_property_array(prop, 4);
+	RNA_def_property_ui_text(prop, "Collection", "");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+	prop = RNA_def_property(srna, "icon_object", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_float_sdna(prop, NULL, "icon_object");
+	RNA_def_property_array(prop, 4);
+	RNA_def_property_ui_text(prop, "Object", "");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+	prop = RNA_def_property(srna, "icon_object_data", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_float_sdna(prop, NULL, "icon_object_data");
+	RNA_def_property_array(prop, 4);
+	RNA_def_property_ui_text(prop, "Object Data", "");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+	prop = RNA_def_property(srna, "icon_modifier", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_float_sdna(prop, NULL, "icon_modifier");
+	RNA_def_property_array(prop, 4);
+	RNA_def_property_ui_text(prop, "Modifier", "");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+	prop = RNA_def_property(srna, "icon_shading", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_float_sdna(prop, NULL, "icon_shading");
+	RNA_def_property_array(prop, 4);
+	RNA_def_property_ui_text(prop, "Shading", "");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
 }
 
 static void rna_def_userdef_theme_space_common(StructRNA *srna)
@@ -3110,23 +3141,23 @@ static void rna_def_userdef_themes(BlenderRNA *brna)
 	PropertyRNA *prop;
 
 	static const EnumPropertyItem active_theme_area[] = {
-		{0, "USER_INTERFACE", ICON_UI, "User Interface", ""},
+		{0, "USER_INTERFACE", ICON_WORKSPACE, "User Interface", ""},
 		{19, "STYLE", ICON_FONTPREVIEW, "Text Style", ""},
 		{18, "BONE_COLOR_SETS", ICON_COLOR, "Bone Color Sets", ""},
 		{1, "VIEW_3D", ICON_VIEW3D, "3D View", ""},
-		{3, "GRAPH_EDITOR", ICON_IPO, "Graph Editor", ""},
+		{3, "GRAPH_EDITOR", ICON_GRAPH, "Graph Editor", ""},
 		{4, "DOPESHEET_EDITOR", ICON_ACTION, "Dope Sheet", ""},
 		{5, "NLA_EDITOR", ICON_NLA, "Nonlinear Animation", ""},
-		{6, "IMAGE_EDITOR", ICON_IMAGE_COL, "UV/Image Editor", ""},
+		{6, "IMAGE_EDITOR", ICON_IMAGE, "UV/Image Editor", ""},
 		{7, "SEQUENCE_EDITOR", ICON_SEQUENCE, "Video Sequence Editor", ""},
 		{8, "TEXT_EDITOR", ICON_TEXT, "Text Editor", ""},
 		{9, "NODE_EDITOR", ICON_NODETREE, "Node Editor", ""},
 		{10, "LOGIC_EDITOR", ICON_LOGIC, "Logic Editor", ""},
-		{11, "PROPERTIES", ICON_BUTS, "Properties", ""},
-		{12, "OUTLINER", ICON_OOPS, "Outliner", ""},
+		{11, "PROPERTIES", ICON_PROPERTIES, "Properties", ""},
+		{12, "OUTLINER", ICON_OUTLINER, "Outliner", ""},
 		{14, "USER_PREFERENCES", ICON_PREFERENCES, "User Preferences", ""},
 		{15, "INFO", ICON_INFO, "Info", ""},
-		{16, "FILE_BROWSER", ICON_FILESEL, "File Browser", ""},
+		{16, "FILE_BROWSER", ICON_FILEBROWSER, "File Browser", ""},
 		{17, "CONSOLE", ICON_CONSOLE, "Python Console", ""},
 		{20, "CLIP_EDITOR", ICON_CLIP, "Movie Clip Editor", ""},
 		{21, "TOPBAR", ICON_NONE, "Top Bar", ""},

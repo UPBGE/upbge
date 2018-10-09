@@ -48,7 +48,7 @@ class USERPREF_HT_header(Header):
             layout.operator("wm.keyconfig_import")
             layout.operator("wm.keyconfig_export")
         elif userpref.active_section == 'ADDONS':
-            layout.operator("wm.addon_install", icon='FILESEL')
+            layout.operator("wm.addon_install", icon='FILEBROWSER')
             layout.operator("wm.addon_refresh", icon='FILE_REFRESH')
             layout.menu("USERPREF_MT_addons_online_resources")
         elif userpref.active_section == 'LIGHTS':
@@ -506,6 +506,9 @@ class USERPREF_MT_interface_theme_presets(Menu):
     )
     draw = Menu.draw_preset
 
+    def pre_cb(context):
+        bpy.ops.ui.reset_default_theme()
+
 
 class USERPREF_PT_theme(Panel):
     bl_space_type = 'USER_PREFERENCES'
@@ -664,8 +667,8 @@ class USERPREF_PT_theme(Panel):
         subrow = sub.row(align=True)
 
         subrow.menu("USERPREF_MT_interface_theme_presets", text=USERPREF_MT_interface_theme_presets.bl_label)
-        subrow.operator("wm.interface_theme_preset_add", text="", icon='ZOOMIN')
-        subrow.operator("wm.interface_theme_preset_add", text="", icon='ZOOMOUT').remove_active = True
+        subrow.operator("wm.interface_theme_preset_add", text="", icon='ADD')
+        subrow.operator("wm.interface_theme_preset_add", text="", icon='REMOVE').remove_active = True
         sub.separator()
 
         sub.prop(theme, "theme_area", expand=True)
@@ -820,6 +823,30 @@ class USERPREF_PT_theme(Panel):
 
             col.separator()
             col.separator()
+
+            col.label(text="Icon Colors:")
+
+            row = col.row()
+
+            subsplit = row.split(factor=0.95)
+
+            padding = subsplit.split(factor=0.15)
+            colsub = padding.column()
+            colsub = padding.column()
+            colsub.row().prop(ui, "icon_collection")
+            colsub.row().prop(ui, "icon_object")
+            colsub.row().prop(ui, "icon_object_data")
+
+            subsplit = row.split(factor=0.85)
+
+            padding = subsplit.split(factor=0.15)
+            colsub = padding.column()
+            colsub = padding.column()
+            colsub.row().prop(ui, "icon_modifier")
+            colsub.row().prop(ui, "icon_shading")
+
+            col.separator()
+            col.separator()
         elif theme.theme_area == 'BONE_COLOR_SETS':
             col = split.column()
 
@@ -930,7 +957,7 @@ class USERPREF_PT_file(Panel):
             box = sub.box()
             row = box.row()
             row.label(text="Excluded Paths:")
-            row.operator("wm.userpref_autoexec_path_add", text="", icon='ZOOMIN', emboss=False)
+            row.operator("wm.userpref_autoexec_path_add", text="", icon='ADD', emboss=False)
             for i, path_cmp in enumerate(userpref.autoexec_paths):
                 row = box.row()
                 row.prop(path_cmp, "path", text="")
@@ -1062,8 +1089,8 @@ class USERPREF_PT_input(Panel):
         subrow = sub.row(align=True)
 
         subrow.menu("USERPREF_MT_interaction_presets", text=bpy.types.USERPREF_MT_interaction_presets.bl_label)
-        subrow.operator("wm.interaction_preset_add", text="", icon='ZOOMIN')
-        subrow.operator("wm.interaction_preset_add", text="", icon='ZOOMOUT').remove_active = True
+        subrow.operator("wm.interaction_preset_add", text="", icon='ADD')
+        subrow.operator("wm.interaction_preset_add", text="", icon='REMOVE').remove_active = True
         sub.separator()
 
         sub.label(text="Mouse:")
