@@ -264,6 +264,10 @@ public:
 		m_triangleIndices.push_back(origIndex);
 	}
 
+	void RemoveVertex(unsigned int start, unsigned int end);
+	void RemovePrimitiveIndex(unsigned int start, unsigned int end);
+	void RemoveTriangleIndex(unsigned int start, unsigned int end);
+
 	void Clear();
 
 	inline unsigned int GetVertexCount() const

@@ -162,6 +162,13 @@ public:
 	 */
 	RAS_MeshMaterial *AddMaterial(RAS_MaterialBucket *bucket, unsigned int index, const RAS_DisplayArray::Format& format);
 
+	/** Add a material with an already constructed display array.
+	 * \param bucket Material bucket used to draw this mesh part.
+	 * \param index The blender material index in mesh.
+	 * \param array The display array.
+	 */
+	RAS_MeshMaterial *AddMaterial(RAS_MaterialBucket *bucket, unsigned int index, RAS_DisplayArray *array);
+
 	RAS_DisplayArray *GetDisplayArray(unsigned int matid) const;
 
 	unsigned int GetNumPolygons() const;

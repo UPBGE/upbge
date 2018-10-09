@@ -195,7 +195,7 @@ RAS_MeshMaterial *RAS_Mesh::AddMaterial(RAS_MaterialBucket *bucket, unsigned int
 	return meshmat;
 }
 
-RAS_MeshMaterial *RAS_Mesh::AddMaterial(RAS_MaterialBucket *bucket, unsigned int index, RAS_IDisplayArray *array)
+RAS_MeshMaterial *RAS_Mesh::AddMaterial(RAS_MaterialBucket *bucket, unsigned int index, RAS_DisplayArray *array)
 {
 	RAS_MeshMaterial *meshmat = GetMeshMaterialBlenderIndex(index);
 

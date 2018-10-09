@@ -42,7 +42,6 @@
 #include "RAS_Mesh.h"
 #include "RAS_MeshUser.h"
 #include "RAS_BoundingBox.h"
-#include "RAS_VertexFactory.h"
 
 #include "DNA_armature_types.h"
 #include "DNA_action_types.h"
@@ -178,10 +177,7 @@ void BL_ModifierDeformer::UpdateTransverts()
 		array->Clear();
 
 		RAS_IMaterial *mat = meshmat->GetBucket()->GetMaterial();
-		RAS_IVertexFactory *factory = RAS_IVertexFactory::Construct(array->GetFormat());
-
-		mats[i] = BL_MeshMaterial(array, factory, meshmat->GetBucket(),
-				mat->IsVisible(), mat->IsTwoSided(), mat->IsCollider(), mat->IsWire());
+		mats[i] = {array, meshmat->GetBucket(), mat->IsVisible(), mat->IsTwoSided(), mat->IsCollider(), mat->IsWire()};
 	}
 
 	BL_ConvertDerivedMeshToArray(m_dm, m_bmesh, mats, m_mesh->GetLayersInfo());

@@ -23,27 +23,19 @@ KX_MeshBuilderSlot::KX_MeshBuilderSlot(KX_BlenderMaterial *material, RAS_Display
 {
 }
 
-KX_MeshBuilderSlot::KX_MeshBuilderSlot(RAS_MeshMaterial *meshmat, const RAS_VertexFormat& format, unsigned int& origIndexCounter)
-	:m_format(format),
-	m_factory(RAS_IVertexFactory::Construct(m_format)),
-	m_origIndexCounter(origIndexCounter)
+KX_MeshBuilderSlot::KX_MeshBuilderSlot(RAS_MeshMaterial *meshmat, const RAS_DisplayArray::Format& format,
+		unsigned int& origIndexCounter)
+	:m_origIndexCounter(origIndexCounter)
 {
 	RAS_MaterialBucket *bucket = meshmat->GetBucket();
-	m_material = static_cast<KX_BlenderMaterial *>(bucket->GetPolyMaterial());
+	m_material = static_cast<KX_BlenderMaterial *>(bucket->GetMaterial());
 
-	RAS_IDisplayArray *array = meshmat->GetDisplayArray();
-	m_primitive = array->GetPrimitiveType();
-
-	m_vertexInfos = array->GetVertexInfoList();
-	m_primitiveIndices = array->GetPrimitiveIndexList();
-	m_triangleIndices = array->GetTriangleIndexList();
-
-	for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
-		m_vertices.push_back(m_factory->CopyVertex(array->GetVertexData(i)));
-	}
+	RAS_DisplayArray *array = meshmat->GetDisplayArray();
+	BLI_assert(array->GetType() == RAS_DisplayArray::NORMAL);
+	m_array = new RAS_DisplayArray(*array);
 
 	// Compute the maximum original index from the arrays.
-	m_origIndexCounter = std::max(m_origIndexCounter, array->GetMaxOrigIndex());
+	m_origIndexCounter = std::max(m_origIndexCounter, m_array->GetMaxOrigIndex());
 }
 
 KX_MeshBuilderSlot::~KX_MeshBuilderSlot()
@@ -226,19 +218,19 @@ PyObject *KX_MeshBuilderSlot::PyAddVertex(PyObject *args, PyObject *kwds)
 		return nullptr;
 	}
 
-	mt::vec3_packed normal = mt::axisZ3;
+	mt::vec3_packed normal = mt::vec3_packed(mt::axisZ3);
 	if (pynormal && !PyVecTo(pynormal, normal)) {
 		return nullptr;
 	}
 
-	mt::vec4_packed tangent = mt::one4;
+	mt::vec4_packed tangent = mt::vec4_packed(mt::one4);
 	if (pytangent && !PyVecTo(pytangent, tangent)) {
 		return nullptr;
 	}
 
 	const RAS_DisplayArray::Format& format = m_array->GetFormat();
 
-	mt::vec2_packed uvs[RAS_Texture::MaxUnits] = {mt::zero2};
+	mt::vec2_packed uvs[RAS_Texture::MaxUnits] = {mt::vec2_packed(mt::zero2)};
 	if (pyuvs) {
 		if (!PySequence_Check(pyuvs)) {
 			return nullptr;
@@ -268,8 +260,7 @@ PyObject *KX_MeshBuilderSlot::PyAddVertex(PyObject *args, PyObject *kwds)
 		}
 	}
 
-	const unsigned index = m_array->AddVertex(pos, normal, tangent, uvs, colors);
-	m_vertexInfos.emplace_back(m_origIndexCounter++, false);
+	const unsigned index = m_array->AddVertex(pos, normal, tangent, uvs, colors, m_origIndexCounter++, 0);
 
 	return PyLong_FromLong(index);
 }
@@ -281,7 +272,7 @@ PyObject *KX_MeshBuilderSlot::PyAddIndex(PyObject *value)
 		return nullptr;
 	}
 
-	const bool isTriangle = (m_primitive == RAS_DisplayArray::TRIANGLES);
+	const bool isTriangle = (m_array->GetPrimitiveType() == RAS_DisplayArray::TRIANGLES);
 
 	for (unsigned int i = 0, size = PySequence_Size(value); i < size; ++i) {
 		const int val = PyLong_AsLong(PySequence_GetItem(value, i));
@@ -291,9 +282,9 @@ PyObject *KX_MeshBuilderSlot::PyAddIndex(PyObject *value)
 			return nullptr;
 		}
 
-		m_primitiveIndices.push_back(val);
+		m_array->AddPrimitiveIndex(val);
 		if (isTriangle) {
-			m_triangleIndices.push_back(val);
+			m_array->AddTriangleIndex(val);
 		}
 	}
 
@@ -315,7 +306,7 @@ PyObject *KX_MeshBuilderSlot::PyAddPrimitiveIndex(PyObject *value)
 			return nullptr;
 		}
 
-		m_primitiveIndices.push_back(val);
+		m_array->AddPrimitiveIndex(val);
 	}
 
 	Py_RETURN_NONE;
@@ -336,29 +327,20 @@ PyObject *KX_MeshBuilderSlot::PyAddTriangleIndex(PyObject *value)
 			return nullptr;
 		}
 
-		m_triangleIndices.push_back(val);
+		m_array->AddTriangleIndex(val);
 	}
 
 	Py_RETURN_NONE;
 }
 
-template <class ListType>
-static PyObject *removeDataCheck(ListType& list, int start, int end, const std::string& errmsg)
+static bool removeDataCheck(int start, int end, unsigned int size, const std::string& errmsg)
 {
-	const int size = list.size();
-	if (start >= size || (end != -1 && (end > size || end < start))) {
-		PyErr_Format(PyExc_TypeError, "%s: range invalid, must be included in [0, %i[", errmsg.c_str(), size);
-		return nullptr;
+	if (start < 0 || start >= size || (end != -1 && (end > size || end <= start))) {
+		PyErr_Format(PyExc_TypeError, "%s: range invalid or empty, must be included in [0, %i[", errmsg.c_str(), size);
+		return false;
 	}
 
-	if (end == -1) {
-		list.erase(list.begin() + start);
-	}
-	else {
-		list.erase(list.begin() + start, list.begin() + end);
-	}
-
-	Py_RETURN_NONE;
+	return true;
 }
 
 PyObject *KX_MeshBuilderSlot::PyRemoveVertex(PyObject *args)
@@ -370,7 +352,13 @@ PyObject *KX_MeshBuilderSlot::PyRemoveVertex(PyObject *args)
 		return nullptr;
 	}
 
-	return removeDataCheck(m_vertices, start, end, "slot.removeVertex(start, end)");
+	if (!removeDataCheck(start, end, m_array->GetVertexCount(), "slot.removeVertex(start, end)")) {
+		return nullptr;
+	}
+
+	m_array->RemoveVertex(start, end);
+
+	Py_RETURN_NONE;
 }
 
 PyObject *KX_MeshBuilderSlot::PyRemovePrimitiveIndex(PyObject *args)
@@ -382,7 +370,13 @@ PyObject *KX_MeshBuilderSlot::PyRemovePrimitiveIndex(PyObject *args)
 		return nullptr;
 	}
 
-	return removeDataCheck(m_vertices, start, end, "slot.removePrimitiveIndex(start, end)");
+	if (!removeDataCheck(start, end, m_array->GetPrimitiveIndexCount(), "slot.removePrimitiveIndex(start, end)")) {
+		return nullptr;
+	}
+
+	m_array->RemovePrimitiveIndex(start, end);
+
+	Py_RETURN_NONE;
 }
 
 PyObject *KX_MeshBuilderSlot::PyRemoveTriangleIndex(PyObject *args)
@@ -394,7 +388,13 @@ PyObject *KX_MeshBuilderSlot::PyRemoveTriangleIndex(PyObject *args)
 		return nullptr;
 	}
 
-	return removeDataCheck(m_vertices, start, end, "slot.removeTriangleIndex(start, end)");
+	if (!removeDataCheck(start, end, m_array->GetTriangleIndexCount(), "slot.removeTriangleIndex(start, end)")) {
+		return nullptr;
+	}
+
+	m_array->RemoveTriangleIndex(start, end);
+
+	Py_RETURN_NONE;
 }
 
 PyObject *KX_MeshBuilderSlot::PyRecalculateNormals()
@@ -404,31 +404,30 @@ PyObject *KX_MeshBuilderSlot::PyRecalculateNormals()
 		return nullptr;
 	}
 
-	for (RAS_IVertexData *data : m_vertices) {
-		zero_v3(data->normal);
-	}
+	std::vector<mt::vec3, mt::simd_allocator<mt::vec3> > normals(m_array->GetVertexCount(), mt::zero3);
 
-	for (unsigned int i = 0, size = m_primitiveIndices.size(); i < size; i += 3) {
+	for (unsigned int i = 0, size = m_array->GetPrimitiveIndexCount(); i < size; i += 3) {
 		float normal[3];
 		normal_tri_v3(normal,
-				m_vertices[m_primitiveIndices[i]]->position,
-				m_vertices[m_primitiveIndices[i + 1]]->position,
-				m_vertices[m_primitiveIndices[i + 2]]->position);
+				m_array->GetPosition(m_array->GetPrimitiveIndex(i)).data,
+				m_array->GetPosition(m_array->GetPrimitiveIndex(i + 1)).data,
+				m_array->GetPosition(m_array->GetPrimitiveIndex(i + 2)).data);
 
+		const mt::vec3 vnormal(normal);
 		for (unsigned short j = 0; j < 3; ++j) {
-			add_v3_v3(m_vertices[m_primitiveIndices[i + j]]->normal, normal);
+			normals[m_array->GetPrimitiveIndex(i + j)] += vnormal;
 		}
 	}
 
-	for (RAS_IVertexData *data : m_vertices) {
-		normalize_v3(data->normal);
+	for (unsigned int i = 0, size = normals.size(); i < size; ++i) {
+		m_array->SetNormal(i, normals[i].SafeNormalized(mt::zero3));
 	}
 
 	Py_RETURN_NONE;
 }
 
 KX_MeshBuilder::KX_MeshBuilder(const std::string& name, KX_Scene *scene, const RAS_Mesh::LayersInfo& layersInfo,
-		const RAS_VertexFormat& format)
+		const RAS_DisplayArray::Format& format)
 	:m_name(name),
 	m_layersInfo(layersInfo),
 	m_format(format),
@@ -520,7 +519,7 @@ static PyObject *py_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 		return nullptr;
 	}
 
-	RAS_VertexFormat format{(uint8_t)max_ii(layersInfo.uvLayers.size(), 1), (uint8_t)max_ii(layersInfo.colorLayers.size(), 1)};
+	RAS_DisplayArray::Format format{(uint8_t)max_ii(layersInfo.uvLayers.size(), 1), (uint8_t)max_ii(layersInfo.colorLayers.size(), 1)};
 
 	KX_MeshBuilder *builder = new KX_MeshBuilder(name, scene, layersInfo, format);
 

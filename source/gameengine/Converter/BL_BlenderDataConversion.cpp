@@ -515,10 +515,8 @@ KX_Mesh *BL_ConvertMesh(Mesh *me, Object *blenderobj, KX_Scene *scene, BL_SceneC
 		RAS_MaterialBucket *bucket = BL_ConvertMaterial(ma, scene, converter);
 		RAS_MeshMaterial *meshmat = meshobj->AddMaterial(bucket, i, vertformat);
 		RAS_IMaterial *mat = meshmat->GetBucket()->GetMaterial();
-		RAS_IVertexFactory *factory = RAS_IVertexFactory::Construct(vertformat);
 
-		mats[i] = BL_MeshMaterial(meshmat->GetDisplayArray(), factory, bucket,
-				mat->IsVisible(), mat->IsTwoSided(), mat->IsCollider(), mat->IsWire());
+		mats[i] = {meshmat->GetDisplayArray(), bucket, mat->IsVisible(), mat->IsTwoSided(), mat->IsCollider(), mat->IsWire()};
 	}
 
 	BL_ConvertDerivedMeshToArray(dm, me, mats, layersInfo);
@@ -582,7 +580,6 @@ void BL_ConvertDerivedMeshToArray(DerivedMesh *dm, Mesh *me, const std::vector<B
 
 		const BL_MeshMaterial& mat = mats[mpoly.mat_nr];
 		RAS_DisplayArray *array = mat.array;
-		RAS_IVertexFactory *factory = mat.vertexFactory.get();
 
 		// Mark face as flat, so vertices are split.
 		const bool flat = (mpoly.flag & ME_SMOOTH) == 0;

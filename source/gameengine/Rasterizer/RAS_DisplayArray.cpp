@@ -77,22 +77,6 @@ RAS_DisplayArray::~RAS_DisplayArray()
 {
 }
 
-RAS_IDisplayArray::RAS_IDisplayArray(PrimitiveType type, const RAS_VertexFormat& format,
-		const RAS_VertexDataMemoryFormat& memoryFormat, const VertexInfoList& vertexInfos,
-		const IndexList& primitiveIndices, const IndexList& triangleIndices)
-	:m_type(type),
-	m_format(format),
-	m_memoryFormat(memoryFormat),
-	m_vertexInfos(vertexInfos),
-	m_primitiveIndices(primitiveIndices),
-	m_triangleIndices(triangleIndices),
-	m_maxOrigIndex(0)
-{
-	for (const RAS_VertexInfo& info : m_vertexInfos) {
-		m_maxOrigIndex = std::max(m_maxOrigIndex, info.GetOrigIndex());
-	}
-}
-
 unsigned int RAS_DisplayArray::AddVertex(const mt::vec3_packed& pos, const mt::vec3_packed& nor, const mt::vec4_packed& tan,
 			mt::vec2_packed uvs[RAS_Texture::MaxUnits], unsigned int colors[RAS_Texture::MaxUnits], unsigned int origIndex, uint8_t flag)
 {
@@ -114,6 +98,44 @@ unsigned int RAS_DisplayArray::AddVertex(const mt::vec3_packed& pos, const mt::v
 	return m_vertexInfos.size() - 1;
 }
 
+template <class List>
+void removeRange(List& list, unsigned int start, unsigned int end)
+{
+	if (end == -1) {
+		list.erase(list.begin() + start);
+	}
+	else {
+		list.erase(list.begin() + start, list.begin() + end);
+	}
+}
+
+void RAS_DisplayArray::RemoveVertex(unsigned int start, unsigned int end)
+{
+	removeRange(m_vertexData.positions, start, end);
+	removeRange(m_vertexData.normals, start, end);
+	removeRange(m_vertexData.tangents, start, end);
+
+	for (unsigned short i = 0; i < m_format.uvSize; ++i) {
+		removeRange(m_vertexData.uvs[i], start, end);
+	}
+
+	for (unsigned short i = 0; i < m_format.colorSize; ++i) {
+		removeRange(m_vertexData.colors[i], start, end);
+	}
+
+	removeRange(m_vertexInfos, start, end);
+}
+
+void RAS_DisplayArray::RemovePrimitiveIndex(unsigned int start, unsigned int end)
+{
+	removeRange(m_primitiveIndices, start, end);
+}
+
+void RAS_DisplayArray::RemoveTriangleIndex(unsigned int start, unsigned int end)
+{
+	removeRange(m_triangleIndices, start, end);
+}
+
 void RAS_DisplayArray::Clear()
 {
 	m_vertexData.positions.clear();
@@ -132,14 +154,6 @@ void RAS_DisplayArray::Clear()
 	m_primitiveIndices.clear();
 	m_triangleIndices.clear();
 	m_maxOrigIndex = 0;
-}
-
-RAS_IDisplayArray *RAS_IDisplayArray::Construct(RAS_IDisplayArray::PrimitiveType type, const RAS_VertexFormat &format,
-		const IVertexDataList& vertices, const VertexInfoList& vertexInfos,
-		const IndexList& primitiveIndices, const IndexList& triangleIndices)
-{
-	return CM_InstantiateTemplateSwitch<RAS_IDisplayArray, RAS_DisplayArray, RAS_VertexFormatTuple>(format,
-			type, format, vertices, vertexInfos, primitiveIndices, triangleIndices);
 }
 
 void RAS_DisplayArray::SortPolygons(const mt::mat3x4& transform, unsigned int *indexmap)
