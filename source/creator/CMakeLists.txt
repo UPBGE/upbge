@@ -842,6 +842,15 @@ elseif(WIN32)
 		DESTINATION "."
 	)
 
+	if(WITH_OPENCOLORIO)
+		set(OCIOBIN ${LIBDIR}/opencolorio/bin)
+			install(
+				FILES
+					${OCIOBIN}/OpenColorIO.dll
+				DESTINATION "."
+			)
+	endif()
+
 elseif(APPLE)
 
 	# handy install macro to exclude files, we use \$ escape for the "to"
