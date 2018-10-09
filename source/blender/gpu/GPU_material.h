@@ -68,6 +68,7 @@ typedef struct GPUParticleInfo GPUParticleInfo;
 /* Functions to create GPU Materials nodes */
 
 typedef enum GPUType {
+	/* Types taken into account by GPU_DATATYPE_STR and GPU_DATATYPE_SIZE arrays */
 	/* The value indicates the number of elements in each type */
 	GPU_NONE = 0,
 	GPU_FLOAT = 1,
@@ -77,7 +78,8 @@ typedef enum GPUType {
 	GPU_MAT3 = 9,
 	GPU_MAT4 = 16,
 
-	GPU_INT = 17,
+	GPU_INT = 17, /* this value doesn't point the number of elements */
+	/* end of types taken into account by GPU_DATATYPE_STR and GPU_DATATYPE_SIZE arrays */
 
 	GPU_TEX2D = 1002,
 	GPU_SHADOW2D = 1003,

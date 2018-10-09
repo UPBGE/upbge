@@ -55,6 +55,7 @@
 #include <string.h>
 #include <stdarg.h>
 
+
 extern char datatoc_gpu_shader_material_glsl[];
 extern char datatoc_gpu_shader_vertex_glsl[];
 extern char datatoc_gpu_shader_vertex_world_glsl[];
@@ -89,6 +90,10 @@ typedef struct GPUFunction {
 static const char *GPU_DATATYPE_STR[18] = {
 	"", "float", "vec2", "vec3", "vec4",
 	NULL, NULL, NULL, NULL, "mat3", NULL, NULL, NULL, NULL, NULL, NULL, "mat4", "int"
+};
+/* Indices match the GPUType size */
+static const unsigned int GPU_DATATYPE_SIZE[18] = {
+	0, 1, 2, 3, 4, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 16, 1
 };
 
 /* GLSL code parsing for finding function definitions.
@@ -172,7 +177,7 @@ static void gpu_parse_functions_string(GHash *hash, char *code)
 
 			/* test for type */
 			type = GPU_NONE;
-			for (i = 1; i <= 17; i++) {
+			for (i = 1; i < ARRAY_SIZE(GPU_DATATYPE_STR); i++) {
 				if (GPU_DATATYPE_STR[i] && gpu_str_prefix(code, GPU_DATATYPE_STR[i])) {
 					type = i;
 					break;
@@ -1297,7 +1302,7 @@ static void gpu_node_input_link(GPUNode *node, GPUNodeLink *link, const GPUType 
 		input->type = type;
 		input->source = GPU_SOURCE_VEC_UNIFORM;
 
-		memcpy(input->vec, link->ptr1, type * sizeof(float));
+		memcpy(input->vec, link->ptr1, GPU_DATATYPE_SIZE[type] * sizeof(float));
 		if (link->dynamic) {
 			input->dynamicvec = link->ptr1;
 			input->dynamictype = link->dynamictype;
