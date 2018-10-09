@@ -454,14 +454,7 @@ if(WITH_OPENCOLORIO)
 	set(OPENCOLORIO ${LIBDIR}/opencolorio)
 	set(OPENCOLORIO_INCLUDE_DIRS ${OPENCOLORIO}/include)
 	set(OPENCOLORIO_LIBPATH ${LIBDIR}/opencolorio/lib)
-	set(OPENCOLORIO_LIBRARIES
-		optimized ${OPENCOLORIO_LIBPATH}/OpenColorIO.lib
-		optimized ${OPENCOLORIO_LIBPATH}/tinyxml.lib
-		optimized ${OPENCOLORIO_LIBPATH}/libyaml-cpp.lib
-		debug ${OPENCOLORIO_LIBPATH}/OpenColorIO_d.lib
-		debug ${OPENCOLORIO_LIBPATH}/tinyxml_d.lib
-		debug ${OPENCOLORIO_LIBPATH}/libyaml-cpp_d.lib
-	)
+	set(OPENCOLORIO_LIBRARIES ${OPENCOLORIO_LIBPATH}/OpenColorIO.lib)
 	set(OPENCOLORIO_DEFINITIONS)
 endif()
 
