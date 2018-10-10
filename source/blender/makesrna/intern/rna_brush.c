@@ -710,6 +710,11 @@ static const EnumPropertyItem *rna_Brush_stroke_itemf(bContext *C, PointerRNA *U
 }
 
 /* Grease Pencil Drawing Brushes Settings */
+static char *rna_BrushGpencilSettings_path(PointerRNA *UNUSED(ptr))
+{
+	return BLI_strdup("tool_settings.gpencil_paint.brush.gpencil_settings");
+}
+
 static void rna_BrushGpencilSettings_default_eraser_update(Main *bmain, Scene *scene, PointerRNA *UNUSED(ptr))
 {
 	ToolSettings *ts = scene->toolsettings;
@@ -967,6 +972,7 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
 
 	srna = RNA_def_struct(brna, "BrushGpencilSettings", NULL);
 	RNA_def_struct_sdna(srna, "BrushGpencilSettings");
+	RNA_def_struct_path_func(srna, "rna_BrushGpencilSettings_path");
 	RNA_def_struct_ui_text(srna, "Grease Pencil Brush Settings", "Settings for grease pencil brush");
 
 	/* grease pencil drawing brushes */
@@ -988,9 +994,10 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, NULL);
 
 	/* Strength factor for new strokes */
-	prop = RNA_def_property(srna, "pen_strength", PROP_FLOAT, PROP_NONE);
+	prop = RNA_def_property(srna, "pen_strength", PROP_FLOAT, PROP_FACTOR);
 	RNA_def_property_float_sdna(prop, NULL, "draw_strength");
 	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.001, 3);
 	RNA_def_property_ui_text(prop, "Strength", "Color strength for new strokes (affect alpha factor of color)");
 	RNA_def_parameter_clear_flags(prop, PROP_ANIMATABLE, 0);
 	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, NULL);

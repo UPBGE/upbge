@@ -113,8 +113,7 @@ class VIEW3D_HT_header(Header):
             current_orientation = scene.current_orientation
 
             if not current_orientation:
-                trans_orientation = \
-                    bpy.types.Scene.bl_rna.properties["transform_orientation"].enum_items[orientation]
+                trans_orientation = bpy.types.Scene.bl_rna.properties["transform_orientation"].enum_items[orientation]
                 trans_icon = getattr(trans_orientation, "icon", "BLANK1")
                 trans_name = getattr(trans_orientation, "name", "Orientation")
             else:
@@ -151,13 +150,16 @@ class VIEW3D_HT_header(Header):
 
         if show_snap:
             snap_items = bpy.types.ToolSettings.bl_rna.properties['snap_elements'].enum_items
-            for elem in tool_settings.snap_elements:
-                # TODO: Display multiple icons.
-                # (Currently only one of the enabled modes icons is displayed)
-                icon = snap_items[elem].icon
-                break
+            snap_elements = tool_settings.snap_elements
+            if len(snap_elements) == 1:
+                text = ""
+                for elem in snap_elements:
+                    icon = snap_items[elem].icon
+                    break
             else:
+                text = "Mix"
                 icon = 'NONE'
+            del snap_items, snap_elements
 
             row = layout.row(align=True)
             row.prop(tool_settings, "use_snap", text="")
@@ -166,7 +168,7 @@ class VIEW3D_HT_header(Header):
             sub.popover(
                 panel="VIEW3D_PT_snapping",
                 icon=icon,
-                text="",
+                text=text,
             )
 
         # Proportional editing
@@ -215,8 +217,7 @@ class VIEW3D_HT_header(Header):
         # grease pencil
         if object_mode == 'GPENCIL_PAINT':
             origin = tool_settings.gpencil_stroke_placement_view3d
-            gp_origin = \
-                tool_settings.bl_rna.properties['gpencil_stroke_placement_view3d'].enum_items[origin]
+            gp_origin = tool_settings.bl_rna.properties['gpencil_stroke_placement_view3d'].enum_items[origin]
 
             or_icon = getattr(gp_origin, "icon", "BLANK1")
             or_name = getattr(gp_origin, "name", "Stroke Placement")
@@ -227,9 +228,8 @@ class VIEW3D_HT_header(Header):
             )
 
         if object_mode in {'GPENCIL_PAINT', 'GPENCIL_SCULPT'}:
-            lock = tool_settings.gpencil_sculpt.lockaxis
-            gp_lock = \
-                tool_settings.gpencil_sculpt.bl_rna.properties['lockaxis'].enum_items[lock]
+            lock = tool_settings.gpencil_sculpt.lock_axis
+            gp_lock = tool_settings.gpencil_sculpt.bl_rna.properties["lock_axis"].enum_items[lock]
 
             lk_icon = getattr(gp_lock, "icon", "BLANK1")
             lk_name = getattr(gp_lock, "name", "None")
@@ -1825,9 +1825,11 @@ class VIEW3D_MT_object_specials(Menu):
             if emission_node is not None:
                 props = layout.operator("wm.context_modal_mouse", text="Strength")
                 props.data_path_iter = "selected_editable_objects"
-                props.data_path_item = "data.node_tree" \
-                                       ".nodes[\"" + emission_node.name + "\"]" \
-                                       ".inputs[\"Strength\"].default_value"
+                props.data_path_item = (
+                    "data.node_tree"
+                    ".nodes[\"" + emission_node.name + "\"]"
+                    ".inputs[\"Strength\"].default_value"
+                )
                 props.header_text = "Light Strength: %.3f"
                 props.input_scale = 0.1
 
@@ -3431,7 +3433,9 @@ class VIEW3D_MT_edit_meta(Menu):
         layout.separator()
 
         layout.menu("VIEW3D_MT_edit_meta_showhide")
-        layout.operator("mball.delete_metaelems", text="Delete...")
+
+        layout.operator_context = 'EXEC_DEFAULT'
+        layout.operator("mball.delete_metaelems", text="Delete")
 
 
 class VIEW3D_MT_edit_meta_showhide(Menu):
@@ -3577,6 +3581,7 @@ class VIEW3D_MT_edit_armature_delete(Menu):
 
     def draw(self, context):
         layout = self.layout
+        layout.operator_context = 'EXEC_AREA'
 
         layout.operator("armature.delete", text="Bones")
 
@@ -3815,8 +3820,10 @@ class VIEW3D_MT_shading_pie(Menu):
         if context.mode == 'POSE':
             pie.prop(view.overlay, "show_bone_select", icon='XRAY')
         else:
-            xray_active = (context.mode in 'EDIT_MESH') or \
-                          (view.shading.type in {'SOLID', 'WIREFRAME'})
+            xray_active = (
+                (context.mode in 'EDIT_MESH') or
+                (view.shading.type in {'SOLID', 'WIREFRAME'})
+            )
 
             if xray_active:
                 sub = pie
@@ -4917,7 +4924,7 @@ class VIEW3D_PT_gpencil_lock(Panel):
 
         row = layout.row()
         col = row.column()
-        col.prop(context.tool_settings.gpencil_sculpt, "lockaxis", expand=True)
+        col.prop(context.tool_settings.gpencil_sculpt, "lock_axis", expand=True)
 
 
 class VIEW3D_PT_overlay_gpencil_options(Panel):
