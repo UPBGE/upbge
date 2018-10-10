@@ -380,6 +380,7 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
 
 	GPUTexture *finaltex = DRW_game_render_loop(bmain, scene, maincam, viewportsize, state, v, calledFromConstructor, reset_taa_samples);
 
+	glEnable(GL_SCISSOR_TEST);
 	glViewport(v[0], v[1], v[2], v[3]);
 	glScissor(v[0], v[1], v[2], v[3]);
 
