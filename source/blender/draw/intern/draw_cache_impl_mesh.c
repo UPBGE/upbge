@@ -182,6 +182,10 @@ typedef struct MeshRenderData {
 			int bweight;
 			int *uv;
 			int *vcol;
+#ifdef WITH_FREESTYLE
+			int freestyle_edge;
+			int freestyle_face;
+#endif
 		} offset;
 
 		struct {
@@ -421,17 +425,7 @@ static MeshRenderData *mesh_render_data_create_ex(
 			bm_ensure_types |= BM_EDGE;
 		}
 		if (types & MR_DATATYPE_LOOPTRI) {
-			BKE_editmesh_tessface_calc(embm);
-			int tottri = embm->tottri;
-			rdata->mlooptri = MEM_mallocN(sizeof(*rdata->mlooptri) * embm->tottri, __func__);
-			for (int index = 0; index < tottri ; index ++ ) {
-				BMLoop **bmtri = embm->looptris[index];
-				MLoopTri *mtri = &rdata->mlooptri[index];
-				mtri->tri[0] = BM_elem_index_get(bmtri[0]);
-				mtri->tri[1] = BM_elem_index_get(bmtri[1]);
-				mtri->tri[2] = BM_elem_index_get(bmtri[2]);
-			}
-			rdata->tri_len = tottri;
+			bm_ensure_types |= BM_LOOP;
 		}
 		if (types & MR_DATATYPE_LOOP) {
 			int totloop = bm->totloop;
@@ -455,6 +449,11 @@ static MeshRenderData *mesh_render_data_create_ex(
 			rdata->eve_act = BM_mesh_active_vert_get(bm);
 			rdata->cd.offset.crease = CustomData_get_offset(&bm->edata, CD_CREASE);
 			rdata->cd.offset.bweight = CustomData_get_offset(&bm->edata, CD_BWEIGHT);
+
+#ifdef WITH_FREESTYLE
+			rdata->cd.offset.freestyle_edge = CustomData_get_offset(&bm->edata, CD_FREESTYLE_EDGE);
+			rdata->cd.offset.freestyle_face = CustomData_get_offset(&bm->pdata, CD_FREESTYLE_FACE);
+#endif
 		}
 		if (types & (MR_DATATYPE_DVERT)) {
 			bm_ensure_types |= BM_VERT;
@@ -465,6 +464,22 @@ static MeshRenderData *mesh_render_data_create_ex(
 
 		BM_mesh_elem_index_ensure(bm, bm_ensure_types);
 		BM_mesh_elem_table_ensure(bm, bm_ensure_types & ~BM_LOOP);
+
+		if (types & MR_DATATYPE_LOOPTRI) {
+			/* Edit mode ensures this is valid, no need to calculate. */
+			BLI_assert((bm->totloop == 0) || (embm->looptris != NULL));
+			int tottri = embm->tottri;
+			rdata->mlooptri = MEM_mallocN(sizeof(*rdata->mlooptri) * embm->tottri, __func__);
+			for (int index = 0; index < tottri ; index ++ ) {
+				BMLoop **bmtri = embm->looptris[index];
+				MLoopTri *mtri = &rdata->mlooptri[index];
+				mtri->tri[0] = BM_elem_index_get(bmtri[0]);
+				mtri->tri[1] = BM_elem_index_get(bmtri[1]);
+				mtri->tri[2] = BM_elem_index_get(bmtri[2]);
+			}
+			rdata->tri_len = tottri;
+		}
+
 		if (types & MR_DATATYPE_OVERLAY) {
 			rdata->loose_vert_len = rdata->loose_edge_len = 0;
 
@@ -1366,12 +1381,11 @@ static uchar mesh_render_data_looptri_flag(MeshRenderData *rdata, const BMFace *
 		fflag |= VFLAG_FACE_SELECTED;
 
 #ifdef WITH_FREESTYLE
-	BMesh *bm = rdata->edit_bmesh->bm;
-	if (CustomData_has_layer(&bm->pdata, CD_FREESTYLE_FACE)) {
-		FreestyleFace *ffa = CustomData_bmesh_get(&bm->pdata, efa->head.data, CD_FREESTYLE_FACE);
-
-		if (ffa->flag & FREESTYLE_FACE_MARK)
+	if (rdata->cd.offset.freestyle_face != -1) {
+		const FreestyleFace *ffa = BM_ELEM_CD_GET_VOID_P(efa, rdata->cd.offset.freestyle_face);
+		if (ffa->flag & FREESTYLE_FACE_MARK) {
 			fflag |= VFLAG_FACE_FREESTYLE;
+		}
 	}
 #endif
 
@@ -1396,16 +1410,6 @@ static void mesh_render_data_edge_flag(
 	if (!BM_elem_flag_test(eed, BM_ELEM_SMOOTH))
 		eattr->e_flag |= VFLAG_EDGE_SHARP;
 
-#ifdef WITH_FREESTYLE
-	BMesh *bm = rdata->edit_bmesh->bm;
-	if (CustomData_has_layer(&bm->edata, CD_FREESTYLE_EDGE)) {
-		FreestyleEdge *fed = CustomData_bmesh_get(&bm->edata, eed->head.data, CD_FREESTYLE_EDGE);
-
-		if (fed->flag & FREESTYLE_EDGE_MARK)
-			eattr->e_flag |= VFLAG_EDGE_FREESTYLE;
-	}
-#endif
-
 	/* Use a byte for value range */
 	if (rdata->cd.offset.crease != -1) {
 		float crease = BM_ELEM_CD_GET_FLOAT(eed, rdata->cd.offset.crease);
@@ -1421,6 +1425,15 @@ static void mesh_render_data_edge_flag(
 			eattr->bweight = (uchar)(bweight * 255.0f);
 		}
 	}
+
+#ifdef WITH_FREESTYLE
+	if (rdata->cd.offset.freestyle_edge != -1) {
+		const FreestyleEdge *fed = BM_ELEM_CD_GET_VOID_P(eed, rdata->cd.offset.freestyle_edge);
+		if (fed->flag & FREESTYLE_EDGE_MARK) {
+			eattr->e_flag |= VFLAG_EDGE_FREESTYLE;
+		}
+	}
+#endif
 }
 
 static uchar mesh_render_data_vertex_flag(MeshRenderData *rdata, const BMVert *eve)
@@ -1477,8 +1490,10 @@ static void add_overlay_tri(
 		uint i_prev = 1, i = 2;
 		for (uint i_next = 0; i_next < 3; i_next++) {
 			vflag = mesh_render_data_vertex_flag(rdata, bm_looptri[i]->v);
+			/* Opposite edge to the vertex at 'i'. */
 			EdgeDrawAttr eattr = {0};
-			if (bm_looptri[i_next] == bm_looptri[i_prev]->prev) {
+			const bool is_edge_real = (bm_looptri[i_next] == bm_looptri[i_prev]->prev);
+			if (is_edge_real) {
 				mesh_render_data_edge_flag(rdata, bm_looptri[i_next]->e, &eattr);
 			}
 			eattr.v_flag = fflag | vflag;
@@ -3571,7 +3586,7 @@ static GPUVertBuf *mesh_batch_cache_create_edges_overlay_texture_buf(MeshRenderD
 	eh = create_looptri_edge_adjacency_hash(rdata);
 
 	for (int i = 0; i < tri_len; i++) {
-		bool edge_is_real[3] = {false, false, false};
+		bool edge_is_real[3];
 
 		MEdge *medge = rdata->medge;
 		MLoop *mloop = rdata->mloop;
@@ -3579,14 +3594,12 @@ static GPUVertBuf *mesh_batch_cache_create_edges_overlay_texture_buf(MeshRenderD
 
 		int j, j_next;
 		for (j = 2, j_next = 0; j_next < 3; j = j_next++) {
-			MEdge *ed = &medge[mloop[mlt->tri[j]].e];
-			uint tri_edge[2]  = {mloop[mlt->tri[j]].v, mloop[mlt->tri[j_next]].v};
-
-			if (((ed->v1 == tri_edge[0]) && (ed->v2 == tri_edge[1])) ||
-			    ((ed->v1 == tri_edge[1]) && (ed->v2 == tri_edge[0])))
-			{
-				edge_is_real[j] = true;
-			}
+			const MEdge *ed = &medge[mloop[mlt->tri[j]].e];
+			const uint tri_edge[2]  = {mloop[mlt->tri[j]].v, mloop[mlt->tri[j_next]].v};
+			const bool is_edge_real = (
+			        ((ed->v1 == tri_edge[0]) && (ed->v2 == tri_edge[1])) ||
+			        ((ed->v1 == tri_edge[1]) && (ed->v2 == tri_edge[0])));
+			edge_is_real[j] = is_edge_real;
 		}
 
 		for (int e = 0; e < 3; ++e) {
@@ -3600,7 +3613,7 @@ static GPUVertBuf *mesh_batch_cache_create_edges_overlay_texture_buf(MeshRenderD
 			}
 			/* Non-manifold edge */
 			if (eav->vert_index[1] == -1) {
-				value |= (1 << 31);
+				value |= (1u << 31);
 			}
 			GPU_vertbuf_attr_set(vbo, index_id, vidx++, &value);
 		}
@@ -4471,7 +4484,7 @@ GPUBatch **DRW_mesh_batch_cache_get_surface_shaded(
 		const bool use_em_final = (
 		        me->edit_btmesh &&
 		        me->edit_btmesh->mesh_eval_final &&
-		        (me->edit_btmesh->mesh_eval_final->runtime.deformed_only == false));
+		        (me->edit_btmesh->mesh_eval_final->runtime.is_original == false));
 		Mesh me_fake;
 		if (use_em_final) {
 			me_fake = *me->edit_btmesh->mesh_eval_final;

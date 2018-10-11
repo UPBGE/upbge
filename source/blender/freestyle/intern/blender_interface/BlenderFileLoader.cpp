@@ -107,13 +107,11 @@ NodeGroup *BlenderFileLoader::Load()
 
 		bool apply_modifiers = false;
 		bool calc_undeformed = false;
-		bool calc_tessface = false;
 		Mesh *mesh = BKE_mesh_new_from_object(depsgraph,
 		                                      _re->main,
 		                                      _re->scene,
 		                                      ob,
 		                                      apply_modifiers,
-		                                      calc_tessface,
 		                                      calc_undeformed);
 
 		if (mesh) {

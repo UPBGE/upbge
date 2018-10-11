@@ -64,7 +64,7 @@ static inline BL::Mesh object_to_mesh(BL::BlendData& data,
 		subsurf_mod.show_viewport(false);
 	}
 
-	BL::Mesh me = data.meshes.new_from_object(depsgraph, object, apply_modifiers, false, calc_undeformed);
+	BL::Mesh me = data.meshes.new_from_object(depsgraph, object, apply_modifiers, calc_undeformed);
 
 	if(subdivision_type != Mesh::SUBDIVISION_NONE) {
 		BL::Modifier subsurf_mod = object.modifiers[object.modifiers.length()-1];
@@ -83,7 +83,7 @@ static inline BL::Mesh object_to_mesh(BL::BlendData& data,
 			}
 		}
 		if(subdivision_type == Mesh::SUBDIVISION_NONE) {
-			me.calc_tessface(true);
+			me.calc_loop_triangles();
 		}
 	}
 	return me;

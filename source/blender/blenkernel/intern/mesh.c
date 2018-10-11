@@ -576,6 +576,7 @@ void BKE_mesh_copy_data(Main *bmain, Mesh *me_dst, const Mesh *me_src, const int
 		/* This is a direct copy of a main mesh, so for now it has the same topology. */
 		me_dst->runtime.deformed_only = 1;
 	}
+	me_dst->runtime.is_original = false;
 
 	me_dst->mselect = MEM_dupallocN(me_dst->mselect);
 	me_dst->bb = MEM_dupallocN(me_dst->bb);
@@ -685,7 +686,7 @@ static Mesh *mesh_new_nomain_from_template_ex(
 	return me_dst;
 }
 
-Mesh * BKE_mesh_new_nomain_from_template(
+Mesh *BKE_mesh_new_nomain_from_template(
         const Mesh *me_src,
         int verts_len, int edges_len, int tessface_len,
         int loops_len, int polys_len)
@@ -709,7 +710,7 @@ Mesh *BKE_mesh_copy_for_eval(struct Mesh *source, bool reference)
 	}
 
 	Mesh *result;
-	BKE_id_copy_ex( NULL, &source->id, (ID **)&result, flags, false);
+	BKE_id_copy_ex(NULL, &source->id, (ID **)&result, flags, false);
 	return result;
 }
 
@@ -770,10 +771,13 @@ Mesh *BKE_mesh_from_editmesh_with_coords_thin_wrap(
         BMEditMesh *em, CustomDataMask data_mask, float (*vertexCos)[3])
 {
 	Mesh *me = BKE_mesh_from_bmesh_for_eval_nomain(em->bm, data_mask);
+	/* Use editmesh directly where possible. */
+	me->runtime.is_original = true;
 	if (vertexCos) {
 		/* We will own this array in the future. */
 		BKE_mesh_apply_vert_coords(me, vertexCos);
 		MEM_freeN(vertexCos);
+		me->runtime.is_original = false;
 	}
 	return me;
 }
