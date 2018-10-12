@@ -46,8 +46,7 @@ struct btDispatcherInfo
 		m_useEpa(true),
 		m_allowedCcdPenetration(btScalar(0.04)),
 		m_useConvexConservativeDistanceUtil(false),
-		m_convexConservativeDistanceThreshold(0.0f),
-		m_deterministicOverlappingPairs(false)
+		m_convexConservativeDistanceThreshold(0.0f)
 	{
 
 	}
@@ -63,7 +62,6 @@ struct btDispatcherInfo
 	btScalar	m_allowedCcdPenetration;
 	bool		m_useConvexConservativeDistanceUtil;
 	btScalar	m_convexConservativeDistanceThreshold;
-	bool		m_deterministicOverlappingPairs;
 };
 
 enum ebtDispatcherQueryType

@@ -14,6 +14,9 @@ subject to the following restrictions:
 
 #ifndef BT_SCALAR_H
 #define BT_SCALAR_H
+#if defined(_MSC_VER) && defined(__clang__) /* clang supplies it's own overloads already */
+#define BT_NO_SIMD_OPERATOR_OVERLOADS
+#endif
 
 #ifdef BT_MANAGED_CODE
 //Aligned data types not supported in managed code
@@ -25,7 +28,7 @@ subject to the following restrictions:
 #include <float.h>
 
 /* SVN $Revision$ on $Date$ from http://bullet.googlecode.com*/
-#define BT_BULLET_VERSION 288
+#define BT_BULLET_VERSION 287
 
 inline int btGetVersion()
 {
@@ -101,7 +104,7 @@ inline int btGetVersion()
 			#ifdef BT_USE_SSE
 
 #if (_MSC_FULL_VER >= 170050727)//Visual Studio 2012 can compile SSE4/FMA3 (but SSE4/FMA3 is not enabled by default)
-			#define BT_ALLOW_SSE4
+			//#define BT_ALLOW_SSE4 //disable this cause blender targets sse2 
 #endif //(_MSC_FULL_VER >= 160040219)
 
 			//BT_USE_SSE_IN_API is disabled under Windows by default, because 

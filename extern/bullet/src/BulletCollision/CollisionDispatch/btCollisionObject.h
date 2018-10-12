@@ -621,6 +621,7 @@ struct	btCollisionObjectDoubleData
 	double					m_hitFraction; 
 	double					m_ccdSweptSphereRadius;
 	double					m_ccdMotionThreshold;
+
 	int						m_hasAnisotropicFriction;
 	int						m_collisionFlags;
 	int						m_islandTag1;
@@ -628,9 +629,8 @@ struct	btCollisionObjectDoubleData
 	int						m_activationState1;
 	int						m_internalType;
 	int						m_checkCollideWith;
-	int						m_collisionFilterGroup;
-	int						m_collisionFilterMask;
-	int						m_uniqueId;//m_uniqueId is introduced for paircache. could get rid of this, by calculating the address offset etc.
+
+	char	m_padding[4];
 };
 
 ///do not change those serialization structures, it requires an updated sBulletDNAstr/sBulletDNAstr64
@@ -650,12 +650,13 @@ struct	btCollisionObjectFloatData
 	float					m_deactivationTime;
 	float					m_friction;
 	float					m_rollingFriction;
-	float                   m_contactDamping;
+    float                   m_contactDamping;
     float                   m_contactStiffness;
 	float					m_restitution;
 	float					m_hitFraction; 
 	float					m_ccdSweptSphereRadius;
 	float					m_ccdMotionThreshold;
+
 	int						m_hasAnisotropicFriction;
 	int						m_collisionFlags;
 	int						m_islandTag1;
@@ -663,9 +664,7 @@ struct	btCollisionObjectFloatData
 	int						m_activationState1;
 	int						m_internalType;
 	int						m_checkCollideWith;
-	int						m_collisionFilterGroup;
-	int						m_collisionFilterMask;
-	int						m_uniqueId;
+	char					m_padding[4];
 };
 
 

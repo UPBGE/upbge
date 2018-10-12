@@ -9,9 +9,6 @@ function createProject(vendor)
 			
 		kind "StaticLib"
 		
-        if os.is("Linux") then
-            buildoptions{"-fPIC"}
-        end
 		
 		includedirs {
 			".",".."

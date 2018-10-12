@@ -1,0 +1,131 @@
+From 3f6c099a3a9f78c7862448f42df61df9b1cd41cb Mon Sep 17 00:00:00 2001
+From: tristan <tristan@upbge.org>
+Date: Fri, 12 Oct 2018 19:26:23 +0200
+Subject: [PATCH] temp
+
+---
+ .../btKinematicCharacterController.cpp        | 32 +++++++++++--------
+ .../btKinematicCharacterController.h          |  8 ++---
+ 2 files changed, 23 insertions(+), 17 deletions(-)
+
+diff --git a/extern/bullet/src/BulletDynamics/Character/btKinematicCharacterController.cpp b/extern/bullet/src/BulletDynamics/Character/btKinematicCharacterController.cpp
+index cb1aa71a14e..4a6ce16a4e2 100644
+--- a/extern/bullet/src/BulletDynamics/Character/btKinematicCharacterController.cpp
++++ b/extern/bullet/src/BulletDynamics/Character/btKinematicCharacterController.cpp
+@@ -132,7 +132,7 @@ btVector3 btKinematicCharacterController::perpindicularComponent (const btVector
+ 	return direction - parallelComponent(direction, normal);
+ }
+ 
+-btKinematicCharacterController::btKinematicCharacterController (btPairCachingGhostObject* ghostObject,btConvexShape* convexShape,btScalar stepHeight, const btVector3& up)
++btKinematicCharacterController::btKinematicCharacterController (btGhostObject* ghostObject,btConvexShape* convexShape,btScalar stepHeight, const btVector3& up)
+ {
+ 	m_ghostObject = ghostObject;
+ 	m_up.setValue(0.0f, 0.0f, 1.0f);
+@@ -170,7 +170,7 @@ btKinematicCharacterController::~btKinematicCharacterController ()
+ {
+ }
+ 
+-btPairCachingGhostObject* btKinematicCharacterController::getGhostObject()
++btGhostObject* btKinematicCharacterController::getGhostObject()
+ {
+ 	return m_ghostObject;
+ }
+@@ -194,26 +194,32 @@ bool btKinematicCharacterController::recoverFromPenetration ( btCollisionWorld*
+ 						 
+ 	bool penetration = false;
+ 
+-	collisionWorld->getDispatcher()->dispatchAllCollisionPairs(m_ghostObject->getOverlappingPairCache(), collisionWorld->getDispatchInfo(), collisionWorld->getDispatcher());
+-
+ 	m_currentPosition = m_ghostObject->getWorldTransform().getOrigin();
+-	
++
++	btOverlappingPairCache *pairCache = collisionWorld->getPairCache();
++	const unsigned int numPairs = m_ghostObject->getNumOverlappingObjects();
++
+ //	btScalar maxPen = btScalar(0.0);
+-	for (int i = 0; i < m_ghostObject->getOverlappingPairCache()->getNumOverlappingPairs(); i++)
++	for (int i = 0; i < numPairs; i++)
+ 	{
+-		m_manifoldArray.resize(0);
++		btCollisionObject *obj0 = m_ghostObject;
++		btCollisionObject *obj1 = m_ghostObject->getOverlappingObject(i);
+ 
+-		btBroadphasePair* collisionPair = &m_ghostObject->getOverlappingPairCache()->getOverlappingPairArray()[i];
++		btBroadphaseProxy *proxy0 = obj0->getBroadphaseHandle();
++		btBroadphaseProxy *proxy1 = obj1->getBroadphaseHandle();
+ 
+-		btCollisionObject* obj0 = static_cast<btCollisionObject*>(collisionPair->m_pProxy0->m_clientObject);
+-        btCollisionObject* obj1 = static_cast<btCollisionObject*>(collisionPair->m_pProxy1->m_clientObject);
++		btBroadphasePair* collisionPair = pairCache->findPair(proxy0, proxy1);
++
++		btAssert(collisionPair);
+ 
+ 		if ((obj0 && !obj0->hasContactResponse()) || (obj1 && !obj1->hasContactResponse()))
+ 			continue;
+ 
+ 		if (!needsCollision(obj0, obj1))
+ 			continue;
+-		
++
++		m_manifoldArray.resize(0);
++
+ 		if (collisionPair->m_algorithm)
+ 			collisionPair->m_algorithm->getAllContactManifolds(m_manifoldArray);
+ 
+@@ -688,11 +694,11 @@ void btKinematicCharacterController::reset ( btCollisionWorld* collisionWorld )
+     m_velocityTimeInterval = 0.0;
+ 
+     //clear pair cache
+-    btHashedOverlappingPairCache *cache = m_ghostObject->getOverlappingPairCache();
++    /*btHashedOverlappingPairCache *cache = m_ghostObject->getOverlappingPairCache();
+     while (cache->getOverlappingPairArray().size() > 0)
+     {
+             cache->removeOverlappingPair(cache->getOverlappingPairArray()[0].m_pProxy0, cache->getOverlappingPairArray()[0].m_pProxy1, collisionWorld->getDispatcher());
+-    }
++    }*/
+ }
+ 
+ void btKinematicCharacterController::warp (const btVector3& origin)
+diff --git a/extern/bullet/src/BulletDynamics/Character/btKinematicCharacterController.h b/extern/bullet/src/BulletDynamics/Character/btKinematicCharacterController.h
+index 3d677e647e2..2dd12eaa5f1 100644
+--- a/extern/bullet/src/BulletDynamics/Character/btKinematicCharacterController.h
++++ b/extern/bullet/src/BulletDynamics/Character/btKinematicCharacterController.h
+@@ -29,7 +29,7 @@ class btConvexShape;
+ class btRigidBody;
+ class btCollisionWorld;
+ class btCollisionDispatcher;
+-class btPairCachingGhostObject;
++class btGhostObject;
+ 
+ ///btKinematicCharacterController is an object that supports a sliding motion in a world.
+ ///It uses a ghost object and convex sweep test to test for upcoming collisions. This is combined with discrete collision detection to recover from penetrations.
+@@ -40,7 +40,7 @@ protected:
+ 
+ 	btScalar m_halfHeight;
+ 	
+-	btPairCachingGhostObject* m_ghostObject;
++	btGhostObject* m_ghostObject;
+ 	btConvexShape*	m_convexShape;//is also in m_ghostObject, but it needs to be convex, so we store it here to avoid upcast
+ 	
+ 	btScalar m_maxPenetrationDepth;
+@@ -117,7 +117,7 @@ public:
+ 
+ 	BT_DECLARE_ALIGNED_ALLOCATOR();
+ 
+-	btKinematicCharacterController (btPairCachingGhostObject* ghostObject,btConvexShape* convexShape,btScalar stepHeight, const btVector3& up = btVector3(1.0,0.0,0.0));
++	btKinematicCharacterController (btGhostObject* ghostObject,btConvexShape* convexShape,btScalar stepHeight, const btVector3& up = btVector3(1.0,0.0,0.0));
+ 	~btKinematicCharacterController ();
+ 	
+ 
+@@ -191,7 +191,7 @@ public:
+ 	void setMaxPenetrationDepth(btScalar d);
+ 	btScalar getMaxPenetrationDepth() const;
+ 
+-	btPairCachingGhostObject* getGhostObject();
++	btGhostObject* getGhostObject();
+ 	void	setUseGhostSweepTest(bool useGhostObjectSweepTest)
+ 	{
+ 		m_useGhostObjectSweepTest = useGhostObjectSweepTest;
+-- 
+2.18.0
+

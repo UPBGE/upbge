@@ -49,7 +49,6 @@ public:
 	virtual void setMargin(btScalar collisionMargin)
 	{
 		//don't override the margin for capsules, their entire radius == margin
-		(void)collisionMargin;
 	}
 
 	virtual void getAabb (const btTransform& t, btVector3& aabbMin, btVector3& aabbMax) const

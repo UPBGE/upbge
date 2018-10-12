@@ -13,8 +13,8 @@ subject to the following restrictions:
 3. This notice may not be removed or altered from any source distribution.
 */
 
-#ifndef BT_SOFT_RIGID_DYNAMICS_WORLD_MT_H
-#define BT_SOFT_RIGID_DYNAMICS_WORLD_MT_H
+#ifndef BT_SOFT_RIGID_DYNAMICS_WORLD_H
+#define BT_SOFT_RIGID_DYNAMICS_WORLD_H
 
 #include "BulletDynamics/Dynamics/btDiscreteDynamicsWorldMt.h"
 #include "btSoftBody.h"
@@ -48,7 +48,7 @@ protected:
 
 public:
 
-	btSoftRigidDynamicsWorldMt(btDispatcher* dispatcher,btBroadphaseInterface* pairCache,btConstraintSolverPoolMt* constraintSolver, btConstraintSolver* constraintSolverMt, btCollisionConfiguration* collisionConfiguration, btSoftBodySolver *softBodySolver = 0 );
+	btSoftRigidDynamicsWorldMt(btDispatcher* dispatcher,btBroadphaseInterface* pairCache,btConstraintSolverPoolMt* constraintSolver, btCollisionConfiguration* collisionConfiguration, btSoftBodySolver *softBodySolver = 0 );
 
 	virtual ~btSoftRigidDynamicsWorldMt();
 
@@ -58,7 +58,7 @@ public:
 
 	void	removeSoftBody(btSoftBody* body);
 
-	///removeCollisionObject will first check if it is a rigid body, if so call removeRigidBody otherwise call btDiscreteDynamicsWorldMt::removeCollisionObject
+	///removeCollisionObject will first check if it is a rigid body, if so call removeRigidBody otherwise call btDiscreteDynamicsWorld::removeCollisionObject
 	virtual void	removeCollisionObject(btCollisionObject* collisionObject);
 
 	int		getDrawFlags() const { return(m_drawFlags); }
@@ -104,4 +104,4 @@ public:
 
 };
 
-#endif //BT_SOFT_RIGID_DYNAMICS_WORLD_MT_H
+#endif //BT_SOFT_RIGID_DYNAMICS_WORLD_H

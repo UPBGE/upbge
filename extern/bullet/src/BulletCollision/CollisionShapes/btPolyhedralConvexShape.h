@@ -43,9 +43,6 @@ public:
 	///experimental/work-in-progress
 	virtual bool	initializePolyhedralFeatures(int shiftVerticesByMargin=0);
 
-	virtual void setPolyhedralFeatures(btConvexPolyhedron& polyhedron);
-	
-
 	const btConvexPolyhedron*	getConvexPolyhedron() const
 	{
 		return m_polyhedron;
