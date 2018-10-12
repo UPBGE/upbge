@@ -3559,10 +3559,11 @@ static uiBut *ui_def_but(
 
 	if (block->flag & UI_BLOCK_RADIAL) {
 		but->drawflag |= UI_BUT_TEXT_LEFT;
-		if (but->str && but->str[0])
+		if (but->str && but->str[0]) {
 			but->drawflag |= UI_BUT_ICON_LEFT;
+		}
 	}
-	else if ((block->flag & UI_BLOCK_LOOP) ||
+	else if (((block->flag & UI_BLOCK_LOOP) && !ui_block_is_popover(block)) ||
 	         ELEM(but->type,
 	              UI_BTYPE_MENU, UI_BTYPE_TEXT, UI_BTYPE_LABEL,
 	              UI_BTYPE_BLOCK, UI_BTYPE_BUT_MENU, UI_BTYPE_SEARCH_MENU,
