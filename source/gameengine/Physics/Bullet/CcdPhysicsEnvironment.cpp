@@ -32,7 +32,6 @@
 #include "BulletSoftBody/btSoftBodyRigidBodyCollisionConfiguration.h"
 #include "BulletCollision/Gimpact/btGImpactCollisionAlgorithm.h"
 #include "BulletCollision/NarrowPhaseCollision/btRaycastCallback.h"
-#include "BulletDynamics/ConstraintSolver/btSequentialImpulseConstraintSolverMt.h"
 #include "BulletDynamics/ConstraintSolver/btNNCGConstraintSolver.h"
 #include "BulletDynamics/MLCPSolvers/btMLCPSolver.h"
 #include "BulletDynamics/MLCPSolvers/btDantzigSolver.h"
@@ -423,7 +422,6 @@ CcdPhysicsEnvironment::CcdPhysicsEnvironment(PHY_SolverType solverType, bool use
 	m_broadphase(new btDbvtBroadphase()),
 	m_cullingCache(nullptr),
 	m_cullingTree(nullptr),
-	m_solverMt(new btSequentialImpulseConstraintSolverMt()),
 	m_filterCallback(new CcdOverlapFilterCallBack(this)),
 	m_ghostPairCallback(new btGhostPairCallback()),
 	m_dispatcher(new btCollisionDispatcherMt(m_collisionConfiguration.get())),
@@ -463,7 +461,7 @@ CcdPhysicsEnvironment::CcdPhysicsEnvironment(PHY_SolverType solverType, bool use
 	SetSolverType(solverType);
 	
     m_solverPool.reset(new btConstraintSolverPoolMt(m_solvers.data(), numThread));
-	m_dynamicsWorld.reset(new btSoftRigidDynamicsWorldMt(m_dispatcher.get(), m_broadphase.get(), m_solverPool.get(), m_solverMt.get(), m_collisionConfiguration.get()));
+	m_dynamicsWorld.reset(new btSoftRigidDynamicsWorldMt(m_dispatcher.get(), m_broadphase.get(), m_solverPool.get(), m_collisionConfiguration.get()));
 	m_dynamicsWorld->setInternalTickCallback(&CcdPhysicsEnvironment::StaticSimulationSubtickCallback, this);
 
 	m_dynamicsWorld->setDebugDrawer(&m_debugDrawer);

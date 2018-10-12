@@ -37,8 +37,13 @@ struct	btSimdScalar
 	{
 
 	}
-
+/* workaround for clang 3.4 ( == apple clang 5.1 ) issue, friction would fail with forced inlining */
+#if (defined(__clang__) && defined(__apple_build_version__) &&  (__clang_major__ == 5) && (__clang_minor__ == 1)) \
+|| (defined(__clang__) && !defined(__apple_build_version__) && (__clang_major__ == 3) && (__clang_minor__ == 4))
+	inline __attribute__ ((noinline)) btSimdScalar(float	fl)
+#else
 	SIMD_FORCE_INLINE	btSimdScalar(float	fl)
+#endif
 	:m_vec128 (_mm_set1_ps(fl))
 	{
 	}

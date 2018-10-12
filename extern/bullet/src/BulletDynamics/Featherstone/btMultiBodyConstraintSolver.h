@@ -36,7 +36,6 @@ protected:
 
 	btMultiBodyConstraintArray			m_multiBodyNormalContactConstraints;
 	btMultiBodyConstraintArray			m_multiBodyFrictionContactConstraints;
-	btMultiBodyConstraintArray			m_multiBodyTorsionalFrictionContactConstraints;
 
 	btMultiBodyJacobianData				m_data;
 	
@@ -45,9 +44,6 @@ protected:
 	int										m_tmpNumMultiBodyConstraints;
 
 	btScalar resolveSingleConstraintRowGeneric(const btMultiBodySolverConstraint& c);
-	
-	//solve 2 friction directions and clamp against the implicit friction cone
-	btScalar resolveConeFrictionConstraintRows(const btMultiBodySolverConstraint& cA1, const btMultiBodySolverConstraint& cB);
 	
 
 	void convertContacts(btPersistentManifold** manifoldPtr,int numManifolds, const btContactSolverInfo& infoGlobal);

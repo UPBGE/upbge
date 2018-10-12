@@ -62,8 +62,7 @@ enum	btSerializationFlags
 {
 	BT_SERIALIZE_NO_BVH = 1,
 	BT_SERIALIZE_NO_TRIANGLEINFOMAP = 2,
-	BT_SERIALIZE_NO_DUPLICATE_ASSERT = 4,
-	BT_SERIALIZE_CONTACT_MANIFOLDS = 8,
+	BT_SERIALIZE_NO_DUPLICATE_ASSERT = 4
 };
 
 class	btSerializer
@@ -116,7 +115,6 @@ public:
 
 
 #define BT_MULTIBODY_CODE       BT_MAKE_ID('M','B','D','Y')
-#define BT_MB_LINKCOLLIDER_CODE BT_MAKE_ID('M','B','L','C')
 #define BT_SOFTBODY_CODE		BT_MAKE_ID('S','B','D','Y')
 #define BT_COLLISIONOBJECT_CODE BT_MAKE_ID('C','O','B','J')
 #define BT_RIGIDBODY_CODE		BT_MAKE_ID('R','B','D','Y')
@@ -129,8 +127,8 @@ public:
 #define BT_SBMATERIAL_CODE		BT_MAKE_ID('S','B','M','T')
 #define BT_SBNODE_CODE			BT_MAKE_ID('S','B','N','D')
 #define BT_DYNAMICSWORLD_CODE	BT_MAKE_ID('D','W','L','D')
-#define BT_CONTACTMANIFOLD_CODE BT_MAKE_ID('C','O','N','T')
 #define BT_DNA_CODE				BT_MAKE_ID('D','N','A','1')
+
 
 struct	btPointerUid
 {
@@ -507,7 +505,7 @@ public:
 
 			buffer[9] = '2';
 			buffer[10] = '8';
-			buffer[11] = '8';
+			buffer[11] = '7';
 
 		}
 

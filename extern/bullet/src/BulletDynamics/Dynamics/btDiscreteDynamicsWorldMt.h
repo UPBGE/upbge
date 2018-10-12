@@ -21,6 +21,7 @@ subject to the following restrictions:
 #include "btSimulationIslandManagerMt.h"
 #include "BulletDynamics/ConstraintSolver/btConstraintSolver.h"
 
+struct InplaceSolverIslandCallbackMt;
 
 ///
 /// btConstraintSolverPoolMt - masquerades as a constraint solver, but really it is a threadsafe pool of them.
@@ -87,7 +88,7 @@ private:
 ATTRIBUTE_ALIGNED16(class) btDiscreteDynamicsWorldMt : public btDiscreteDynamicsWorld
 {
 protected:
-    btConstraintSolver* m_constraintSolverMt;
+    InplaceSolverIslandCallbackMt* m_solverIslandCallbackMt;
 
     virtual void solveConstraints(btContactSolverInfo& solverInfo) BT_OVERRIDE;
 
@@ -125,12 +126,9 @@ public:
 	btDiscreteDynamicsWorldMt(btDispatcher* dispatcher,
         btBroadphaseInterface* pairCache,
         btConstraintSolverPoolMt* constraintSolver,   // Note this should be a solver-pool for multi-threading
-        btConstraintSolver* constraintSolverMt,    // single multi-threaded solver for large islands (or NULL)
         btCollisionConfiguration* collisionConfiguration
     );
 	virtual ~btDiscreteDynamicsWorldMt();
-
-    virtual int	stepSimulation( btScalar timeStep, int maxSubSteps, btScalar fixedTimeStep ) BT_OVERRIDE;
 };
 
 #endif //BT_DISCRETE_DYNAMICS_WORLD_H

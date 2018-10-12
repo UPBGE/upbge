@@ -116,7 +116,6 @@ protected:
 
 	std::unique_ptr<btConstraintSolverPoolMt> m_solverPool;
 	std::vector<btConstraintSolver *> m_solvers;
-	std::unique_ptr<btConstraintSolver> m_solverMt;
 
 	std::unique_ptr<CcdOverlapFilterCallBack> m_filterCallback;
 

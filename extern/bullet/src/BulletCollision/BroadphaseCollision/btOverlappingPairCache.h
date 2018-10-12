@@ -49,6 +49,10 @@ struct btOverlapFilterCallback
 
 
 
+extern int gRemovePairs;
+extern int gAddedPairs;
+extern int gFindPairs;
+
 const int BT_NULL_PAIR=0xffffffff;
 
 ///The btOverlappingPairCache provides an interface for overlapping pair management (add, remove, storage), used by the btBroadphaseInterface broadphases.
@@ -74,10 +78,6 @@ public:
 
 	virtual void	processAllOverlappingPairs(btOverlapCallback*,btDispatcher* dispatcher) = 0;
 
-	virtual void    processAllOverlappingPairs(btOverlapCallback* callback,btDispatcher* dispatcher, const struct btDispatcherInfo& dispatchInfo)
-	{
-		processAllOverlappingPairs(callback, dispatcher);
-	}
 	virtual btBroadphasePair* findPair(btBroadphaseProxy* proxy0, btBroadphaseProxy* proxy1) = 0;
 
 	virtual bool	hasDeferredRemoval() = 0;
@@ -129,6 +129,8 @@ public:
 	// no new pair is created and the old one is returned.
 	virtual btBroadphasePair* 	addOverlappingPair(btBroadphaseProxy* proxy0,btBroadphaseProxy* proxy1)
 	{
+		gAddedPairs++;
+
 		if (!needsBroadphaseCollision(proxy0,proxy1))
 			return 0;
 
@@ -141,8 +143,6 @@ public:
 
 	
 	virtual void	processAllOverlappingPairs(btOverlapCallback*,btDispatcher* dispatcher);
-
-    virtual void    processAllOverlappingPairs(btOverlapCallback* callback,btDispatcher* dispatcher, const struct btDispatcherInfo& dispatchInfo);
 
 	virtual btBroadphasePair*	getOverlappingPairArrayPtr()
 	{

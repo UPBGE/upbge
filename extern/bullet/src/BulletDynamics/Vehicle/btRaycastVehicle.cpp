@@ -121,19 +121,12 @@ void	btRaycastVehicle::updateWheelTransform( int wheelIndex , bool interpolatedT
 	btQuaternion rotatingOrn(right,-wheel.m_rotation);
 	btMatrix3x3 rotatingMat(rotatingOrn);
 
-    btMatrix3x3 basis2;
-    basis2[0][m_indexRightAxis] = -right[0];
-    basis2[1][m_indexRightAxis] = -right[1];
-    basis2[2][m_indexRightAxis] = -right[2];
-
-    basis2[0][m_indexUpAxis] = up[0];
-    basis2[1][m_indexUpAxis] = up[1];
-    basis2[2][m_indexUpAxis] = up[2];
-
-    basis2[0][m_indexForwardAxis] = fwd[0];
-    basis2[1][m_indexForwardAxis] = fwd[1];
-    basis2[2][m_indexForwardAxis] = fwd[2];
-
+	btMatrix3x3 basis2(
+		right[0],fwd[0],up[0],
+		right[1],fwd[1],up[1],
+		right[2],fwd[2],up[2]
+	);
+	
 	wheel.m_worldTransform.setBasis(steeringMat * rotatingMat * basis2);
 	wheel.m_worldTransform.setOrigin(
 		wheel.m_raycastInfo.m_hardPointWS + wheel.m_raycastInfo.m_wheelDirectionWS * wheel.m_raycastInfo.m_suspensionLength
@@ -500,8 +493,8 @@ struct btWheelContactPoint
 
 };
 
-btScalar calcRollingFriction(btWheelContactPoint& contactPoint, int numWheelsOnGround);
-btScalar calcRollingFriction(btWheelContactPoint& contactPoint, int numWheelsOnGround)
+btScalar calcRollingFriction(btWheelContactPoint& contactPoint);
+btScalar calcRollingFriction(btWheelContactPoint& contactPoint)
 {
 
 	btScalar j1=0.f;
@@ -520,7 +513,7 @@ btScalar calcRollingFriction(btWheelContactPoint& contactPoint, int numWheelsOnG
 	btScalar vrel = contactPoint.m_frictionDirectionWorld.dot(vel);
 
 	// calculate j that moves us to zero relative velocity
-	j1 = -vrel * contactPoint.m_jacDiagABInv/btScalar(numWheelsOnGround);
+	j1 = -vrel * contactPoint.m_jacDiagABInv;
 	btSetMin(j1, maxImpulse);
 	btSetMax(j1, -maxImpulse);
 
@@ -574,7 +567,7 @@ void	btRaycastVehicle::updateFriction(btScalar	timeStep)
 					const btTransform& wheelTrans = getWheelTransformWS( i );
 
 					btMatrix3x3 wheelBasis0 = wheelTrans.getBasis();
-					m_axle[i] = -btVector3(	
+					m_axle[i] = btVector3(	
 						wheelBasis0[0][m_indexRightAxis],
 						wheelBasis0[1][m_indexRightAxis],
 						wheelBasis0[2][m_indexRightAxis]);
@@ -622,8 +615,7 @@ void	btRaycastVehicle::updateFriction(btScalar	timeStep)
 					btScalar defaultRollingFrictionImpulse = 0.f;
 					btScalar maxImpulse = wheelInfo.m_brake ? wheelInfo.m_brake : defaultRollingFrictionImpulse;
 					btWheelContactPoint contactPt(m_chassisBody,groundObject,wheelInfo.m_raycastInfo.m_contactPointWS,m_forwardWS[wheel],maxImpulse);
-					btAssert(numWheelsOnGround > 0);
-					rollingFriction = calcRollingFriction(contactPt, numWheelsOnGround);
+					rollingFriction = calcRollingFriction(contactPt);
 				}
 			}
 
