@@ -1,5 +1,5 @@
 BL_Texture(EXP_Value)
-==================
+=====================
 
 base class --- :class:`EXP_Value`
 

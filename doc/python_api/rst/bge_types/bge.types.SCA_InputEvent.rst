@@ -1,5 +1,5 @@
 SCA_InputEvent(EXP_PyObjectPlus)
-============================
+================================
 
 base class --- :class:`EXP_PyObjectPlus`
 
