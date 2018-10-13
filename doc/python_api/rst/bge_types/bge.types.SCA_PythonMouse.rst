@@ -9,7 +9,7 @@ base class --- :class:`EXP_PyObjectPlus`
 
    .. warning::
 
-      Mouse normalization is using the maximum coordinate in width and height, whether `bge.render.getWindowWidth() - 1` and `bge.render.getWindowHeight() -1`.
+      Mouse normalization is using the maximum coordinate in width and height, whether `bge.render.getWindowWidth() - 1` or `bge.render.getWindowHeight() - 1`.
 
       A script setting the mouse at center is similar to the following example:
 
