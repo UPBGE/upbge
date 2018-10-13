@@ -874,6 +874,7 @@ static KX_LightObject *BL_GameLightFromBlenderLamp(Lamp *la, unsigned int layerf
 	lightobj->m_shadowclipend = la->clipend;
 	lightobj->m_shadowbias = la->bias;
 	lightobj->m_shadowbleedbias = la->bleedbias;
+	lightobj->m_shadowblurpass = la->blurpass;
 	lightobj->m_shadowmaptype = la->shadowmap_type;
 	lightobj->m_shadowfrustumsize = la->shadow_frustum_size;
 	lightobj->m_shadowcolor = mt::vec3(la->shdwr, la->shdwg, la->shdwb);

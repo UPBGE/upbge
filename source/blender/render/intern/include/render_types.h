@@ -602,6 +602,8 @@ typedef struct LampRen {
 	float bias;
 	/* Compression threshold for deep shadow maps */
 	float compressthresh;
+	/* Number of blur passes for shadow maps */
+	short blurpass;
 
 	short ray_samp, ray_sampy, ray_sampz, ray_samp_method, ray_samp_type, area_shape, ray_totsamp;
 	short xold[BLENDER_MAX_THREADS], yold[BLENDER_MAX_THREADS];	/* last jitter table for area lights */

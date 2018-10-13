@@ -69,8 +69,9 @@ typedef struct Lamp {
 
 	float clipsta, clipend;
 	float bias, slopebias, soft, compressthresh;
-	float bleedbias, pad;
+	float bleedbias;
 	float bufsharp;
+	short blurpass, pad;
 	short bufsize, samp, buffers, filtertype;
 	char bufflag, buftype;
 

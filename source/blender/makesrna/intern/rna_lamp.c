@@ -653,6 +653,12 @@ static void rna_def_lamp_shadow(StructRNA *srna, int spot, int area)
 	RNA_def_property_ui_text(prop, "Samples", "Number of shadow buffer samples");
 	RNA_def_property_update(prop, 0, "rna_Lamp_update");
 
+	prop = RNA_def_property(srna, "shadow_blur_passes", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "blurpass");
+	RNA_def_property_range(prop, 0, 4);
+	RNA_def_property_ui_text(prop, "Shadow Buffer Size", "Number of shadow buffer blur pass (is expensive)");
+	RNA_def_property_update(prop, 0, "rna_Lamp_update");
+
 	prop = RNA_def_property(srna, "shadow_buffer_type", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "buftype");
 	RNA_def_property_enum_items(prop, prop_shadbuftype_items);
