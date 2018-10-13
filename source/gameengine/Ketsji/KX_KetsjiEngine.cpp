@@ -193,16 +193,6 @@ KX_KetsjiEngine::~KX_KetsjiEngine()
 	Py_CLEAR(m_pyprofiledict);
 #endif
 
-	/* EEVEE INTEGRATION */
-
-	// Flush depsgraph updates a last time at ge exit
-	Scene *scene = m_scenes->GetFront()->GetBlenderScene();
-	ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-	Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer, false);
-	Main *bmain = GetConverter()->GetMain();
-	BKE_scene_graph_update_tagged(depsgraph, bmain);
-	/* End of EEVEE INTEGRATION */
-
 	if (m_taskscheduler)
 		BLI_task_scheduler_free(m_taskscheduler);
 

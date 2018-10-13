@@ -258,12 +258,23 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
 KX_Scene::~KX_Scene()
 {
+	/* EEVEE INTEGRATION */
 
 	m_isRuntime = false; //eevee
+
+	DRW_game_render_loop_end();
 
 	Scene *scene = GetBlenderScene();
 	scene->eevee.taa_samples = m_taaSamplesBackup;
 	DEG_id_tag_update(&scene->id, DEG_TAG_COPY_ON_WRITE);
+
+	// Flush depsgraph updates a last time at ge exit
+	ViewLayer *view_layer = BKE_view_layer_default_view(scene);
+	Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer, false);
+	Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
+	BKE_scene_graph_update_tagged(depsgraph, bmain);
+
+	/* End of EEVEE INTEGRATION */
 
 	// The release of debug properties used to be in SCA_IScene::~SCA_IScene
 	// It's still there but we remove all properties here otherwise some
@@ -385,8 +396,6 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
 	glScissor(v[0], v[1], v[2], v[3]);
 
 	DRW_transform_to_display(finaltex, true);
-
-	GPU_framebuffer_restore();
 
 	if (!calledFromConstructor) {
 		engine->EndFrame();

@@ -2920,6 +2920,8 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam, int
 
 	DRW_state_reset();
 
+	GPU_framebuffer_restore();
+
 	DRW_opengl_context_disable();
 
 	return finaltex;
