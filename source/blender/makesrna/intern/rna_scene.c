@@ -4593,7 +4593,7 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "color_management", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "colorManagement");
 	RNA_def_property_enum_items(prop, color_management_items);
-	RNA_def_property_ui_text(prop, "Color Management", "The color managment of the display");
+	RNA_def_property_ui_text(prop, "Color Space", "The color space of the display");
 	RNA_def_property_update(prop, NC_SCENE | NA_EDITED, "rna_Scene_glsl_update");
 
 	prop = RNA_def_property(srna, "exit_key", PROP_ENUM, PROP_NONE);

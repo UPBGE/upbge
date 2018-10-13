@@ -622,7 +622,7 @@ void uiTemplateRunningJobs(struct uiLayout *layout, struct bContext *C) RET_NONE
 void uiTemplateOperatorSearch(struct uiLayout *layout) RET_NONE
 void uiTemplateHeader3D(struct uiLayout *layout, struct bContext *C) RET_NONE
 void uiTemplateEditModeSelection(struct uiLayout *layout, struct bContext *C) RET_NONE
-void uiTemplateImage(uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, const char *propname, struct PointerRNA *userptr, bool compact, bool multiview, bool cubemap) RET_NONE
+void uiTemplateImage(uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, const char *propname, struct PointerRNA *userptr, bool compact, bool multiview, bool cubemap, bool color_space) RET_NONE
 void uiTemplateColorPicker(uiLayout *layout, struct PointerRNA *ptr, const char *propname, bool value_slider, bool lock, bool lock_luminosity, bool cubic) RET_NONE
 void uiTemplateHistogram(uiLayout *layout, struct PointerRNA *ptr, const char *propname) RET_NONE
 void uiTemplateReportsBanner(uiLayout *layout, struct bContext *C) RET_NONE

@@ -43,7 +43,7 @@ class DATA_PT_empty(DataButtonsPanel, Panel):
 
         if ob.empty_draw_type == 'IMAGE':
             layout.template_ID(ob, "data", open="image.open", unlink="object.unlink_data")
-            layout.template_image(ob, "data", ob.image_user, compact=True)
+            layout.template_image(ob, "data", ob.image_user, compact=True, color_space=True)
 
             row = layout.row(align=True)
             row = layout.row(align=True)

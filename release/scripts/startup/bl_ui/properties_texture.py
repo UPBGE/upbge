@@ -1102,6 +1102,34 @@ class TEXTURE_PT_mapping(TextureSlotPanel, Panel):
             row.column().prop(tex, "offset")
             row.column().prop(tex, "scale")
 
+class TEXTURE_PT_color_management(TextureSlotPanel, Panel):
+    bl_label = "Color Management"
+    COMPAT_ENGINES = {'BLENDER_GAME'}
+
+    @classmethod
+    def poll(cls, context):
+        idblock = context_tex_datablock(context)
+        if isinstance(idblock, Brush):
+            return False
+
+        if not getattr(context, "texture_slot", None):
+            return False
+
+        engine = context.scene.render.engine
+
+        tex = context.texture
+        if hasattr(tex, "environment_map"):
+            if tex.environment_map.source == 'REALTIME':
+                return False
+
+        return (engine in cls.COMPAT_ENGINES)
+
+    def draw(self, context):
+        layout = self.layout
+        tex = context.texture_slot
+
+        layout.prop(tex, "color_management")
+
 class TEXTURE_PT_game_parallax(TextureSlotPanel, Panel):
     bl_label = "Parallax"
     COMPAT_ENGINES = {'BLENDER_GAME'}
@@ -1537,6 +1565,7 @@ classes = (
     TEXTURE_PT_ocean,
     TEXTURE_PT_game_mapping,
     TEXTURE_PT_mapping,
+    TEXTURE_PT_color_management,
     TEXTURE_PT_game_parallax,
     TEXTURE_PT_game_influence,
     TEXTURE_PT_influence,

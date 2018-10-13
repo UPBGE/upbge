@@ -826,7 +826,7 @@ static void rna_update_cb(bContext *C, void *arg_cb, void *UNUSED(arg))
 	RNA_property_update(C, &cb->ptr, cb->prop);
 }
 
-void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, const char *propname, PointerRNA *userptr, bool compact, bool multiview, bool cubemap)
+void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, const char *propname, PointerRNA *userptr, bool compact, bool multiview, bool cubemap, bool color_space)
 {
 	PropertyRNA *prop;
 	PointerRNA imaptr;
@@ -960,7 +960,12 @@ void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, const char 
 			}
 
 			col = uiLayoutColumn(layout, false);
-			uiTemplateColorspaceSettings(col, &imaptr, "colorspace_settings");
+#ifdef WITH_GAMEENGINE
+			if (color_space || !STREQ(scene->r.engine, RE_engine_id_BLENDER_GAME))
+#endif
+			{
+				uiTemplateColorspaceSettings(col, &imaptr, "colorspace_settings");
+			}
 			uiItemR(col, &imaptr, "use_view_as_render", 0, NULL, ICON_NONE);
 
 			if (ima->source != IMA_SRC_GENERATED) {
