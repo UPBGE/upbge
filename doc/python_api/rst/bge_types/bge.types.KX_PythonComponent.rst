@@ -1,5 +1,5 @@
 KX_PythonComponent(EXP_Value)
-==========================
+=============================
 
 base class --- :class:`EXP_Value`
 

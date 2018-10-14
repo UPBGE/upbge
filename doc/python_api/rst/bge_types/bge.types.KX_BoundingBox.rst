@@ -1,5 +1,5 @@
 KX_BoundingBox(EXP_PyObjectPlus)
-=============================
+================================
 
 base class --- :class:`EXP_PyObjectPlus`
 
