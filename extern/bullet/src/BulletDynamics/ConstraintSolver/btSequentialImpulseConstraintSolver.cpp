@@ -737,62 +737,67 @@ btSolverConstraint&	btSequentialImpulseConstraintSolver::addTorsionalFrictionCon
 int	btSequentialImpulseConstraintSolver::getOrInitSolverBody(btCollisionObject& body,btScalar timeStep)
 {
 #if BT_THREADSAFE
-    int solverBodyId = -1;
-    if ( !body.isStaticOrKinematicObject() )
-    {
-        // dynamic body
-        // Dynamic bodies can only be in one island, so it's safe to write to the companionId
-        solverBodyId = body.getCompanionId();
-        if ( solverBodyId < 0 )
-        {
-            if ( btRigidBody* rb = btRigidBody::upcast( &body ) )
-            {
-                solverBodyId = m_tmpSolverBodyPool.size();
-                btSolverBody& solverBody = m_tmpSolverBodyPool.expand();
-                initSolverBody( &solverBody, &body, timeStep );
-                body.setCompanionId( solverBodyId );
-            }
-        }
-    }
-    else if (body.isKinematicObject())
-    {
-        //
-        // NOTE: must test for kinematic before static because some kinematic objects also
-        //   identify as "static"
-        //
-        // Kinematic bodies can be in multiple islands at once, so it is a
-        // race condition to write to them, so we use an alternate method
-        // to record the solverBodyId
-        int uniqueId = body.getWorldArrayIndex();
-        const int INVALID_SOLVER_BODY_ID = -1;
-        if (uniqueId >= m_kinematicBodyUniqueIdToSolverBodyTable.size())
-        {
-            m_kinematicBodyUniqueIdToSolverBodyTable.resize(uniqueId + 1, INVALID_SOLVER_BODY_ID);
-        }
-        solverBodyId = m_kinematicBodyUniqueIdToSolverBodyTable[ uniqueId ];
-        // if no table entry yet,
-        if ( solverBodyId == INVALID_SOLVER_BODY_ID )
-        {
-            // create a table entry for this body
-            btRigidBody* rb = btRigidBody::upcast( &body );
-            solverBodyId = m_tmpSolverBodyPool.size();
-            btSolverBody& solverBody = m_tmpSolverBodyPool.expand();
-            initSolverBody( &solverBody, &body, timeStep );
-            m_kinematicBodyUniqueIdToSolverBodyTable[ uniqueId ] = solverBodyId;
-        }
-    }
-    else
-    {
-        // all fixed bodies (inf mass) get mapped to a single solver id
-        if ( m_fixedBodyId < 0 )
-        {
-            m_fixedBodyId = m_tmpSolverBodyPool.size();
-            btSolverBody& fixedBody = m_tmpSolverBodyPool.expand();
-            initSolverBody( &fixedBody, 0, timeStep );
-        }
-        solverBodyId = m_fixedBodyId;
-    }
-    btAssert( solverBodyId < m_tmpSolverBodyPool.size() );
+	int solverBodyId = -1;
+	bool isRigidBodyType = btRigidBody::upcast(&body) != NULL;
+	if (isRigidBodyType && !body.isStaticOrKinematicObject())
+	{
+		// dynamic body
+		// Dynamic bodies can only be in one island, so it's safe to write to the companionId
+		solverBodyId = body.getCompanionId();
+		if (solverBodyId < 0)
+		{
+			solverBodyId = m_tmpSolverBodyPool.size();
+			btSolverBody& solverBody = m_tmpSolverBodyPool.expand();
+			initSolverBody(&solverBody, &body, timeStep);
+			body.setCompanionId(solverBodyId);
+		}
+	}
+	else if (isRigidBodyType && body.isKinematicObject())
+	{
+		//
+		// NOTE: must test for kinematic before static because some kinematic objects also
+		//   identify as "static"
+		//
+		// Kinematic bodies can be in multiple islands at once, so it is a
+		// race condition to write to them, so we use an alternate method
+		// to record the solverBodyId
+		int uniqueId = body.getWorldArrayIndex();
+		const int INVALID_SOLVER_BODY_ID = -1;
+		if (uniqueId >= m_kinematicBodyUniqueIdToSolverBodyTable.size())
+		{
+			m_kinematicBodyUniqueIdToSolverBodyTable.resize(uniqueId + 1, INVALID_SOLVER_BODY_ID);
+		}
+		solverBodyId = m_kinematicBodyUniqueIdToSolverBodyTable[uniqueId];
+		// if no table entry yet,
+		if (solverBodyId == INVALID_SOLVER_BODY_ID)
+		{
+			// create a table entry for this body
+			solverBodyId = m_tmpSolverBodyPool.size();
+			btSolverBody& solverBody = m_tmpSolverBodyPool.expand();
+			initSolverBody(&solverBody, &body, timeStep);
+			m_kinematicBodyUniqueIdToSolverBodyTable[uniqueId] = solverBodyId;
+		}
+	}
+	else
+	{
+		bool isMultiBodyType = (body.getInternalType() & btCollisionObject::CO_FEATHERSTONE_LINK);
+		bool isGhostType = (body.getInternalType() & btCollisionObject::CO_GHOST_OBJECT);
+		// Incorrectly set collision object flags can degrade performance in various ways.
+		if (!isMultiBodyType && !isGhostType)
+		{
+			btAssert(body.isStaticOrKinematicObject());
+		}
+		//it could be a multibody link collider
+		// all fixed bodies (inf mass) get mapped to a single solver id
+		if (m_fixedBodyId < 0)
+		{
+			m_fixedBodyId = m_tmpSolverBodyPool.size();
+			btSolverBody& fixedBody = m_tmpSolverBodyPool.expand();
+			initSolverBody(&fixedBody, 0, timeStep);
+		}
+		solverBodyId = m_fixedBodyId;
+	}
+	btAssert(solverBodyId >= 0 && solverBodyId < m_tmpSolverBodyPool.size());
 	return solverBodyId;
 #else // BT_THREADSAFE
 
