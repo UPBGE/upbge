@@ -364,7 +364,7 @@ static void codegen_print_datatype(DynStr *ds, const GPUType type, float *data)
 
 	BLI_dynstr_appendf(ds, "%s(", GPU_DATATYPE_STR[type]);
 
-	for (i = 0; i < type; i++) {
+	for (i = 0; i < GPU_DATATYPE_SIZE[type]; i++) {
 		BLI_dynstr_appendf(ds, "%.12f", data[i]);
 		if (i == type - 1)
 			BLI_dynstr_append(ds, ")");
