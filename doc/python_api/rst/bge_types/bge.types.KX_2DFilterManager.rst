@@ -1,5 +1,5 @@
 KX_2DFilterManager(EXP_PyObjectPlus)
-================================
+====================================
 
 base class --- :class:`EXP_PyObjectPlus`
 

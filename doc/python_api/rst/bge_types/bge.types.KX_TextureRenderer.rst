@@ -1,5 +1,5 @@
 KX_TextureRenderer(EXP_Value)
-==========================
+=============================
 
 base class --- :class:`EXP_Value`
 

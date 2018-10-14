@@ -1,5 +1,5 @@
 KX_2DFilterOffScreen(EXP_Value)
-============================
+===============================
 
 base class --- :class:`EXP_Value`
 
