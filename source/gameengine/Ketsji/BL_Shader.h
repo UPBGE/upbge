@@ -60,11 +60,11 @@ public:
 
 	void BindProg();
 
-	/** Update the uniform shader for the current rendered mesh slot.
+	/** Update the uniform shader for the current rendered mesh user (= object).
 	 * The python callbacks are executed in this function and at the end
 	 * RAS_Shader::Update(rasty, mat) is called.
 	 */
-	void Update(RAS_Rasterizer *rasty, RAS_MeshSlot *ms);
+	void Update(RAS_Rasterizer *rasty, RAS_MeshUser *meshUser);
 
 	// Python interface
 #ifdef WITH_PYTHON

@@ -162,17 +162,17 @@ void BL_Shader::BindProg()
 	RAS_Shader::BindProg();
 }
 
-void BL_Shader::Update(RAS_Rasterizer *rasty, RAS_MeshSlot *ms)
+void BL_Shader::Update(RAS_Rasterizer *rasty, RAS_MeshUser *meshUser)
 {
 #ifdef WITH_PYTHON
 	if (PyList_GET_SIZE(m_callbacks[CALLBACKS_OBJECT]) > 0) {
-		KX_GameObject *gameobj = KX_GameObject::GetClientObject((KX_ClientObjectInfo *)ms->m_meshUser->GetClientObject());
+		KX_GameObject *gameobj = KX_GameObject::GetClientObject((KX_ClientObjectInfo *)meshUser->GetClientObject());
 		PyObject *args[] = {gameobj->GetProxy()};
 		EXP_RunPythonCallBackList(m_callbacks[CALLBACKS_OBJECT], args, 0, ARRAY_SIZE(args));
 	}
 #endif  // WITH_PYTHON
 
-	RAS_Shader::Update(rasty, mt::mat4(ms->m_meshUser->GetMatrix()));
+	RAS_Shader::Update(rasty, meshUser->GetMatrix());
 }
 
 #ifdef WITH_PYTHON

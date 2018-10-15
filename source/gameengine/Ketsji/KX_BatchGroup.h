@@ -40,6 +40,8 @@ class KX_BatchGroup : public EXP_Value, public RAS_BatchGroup
 private:
 	/// The objects currently merged in the batch group.
 	EXP_ListValue<KX_GameObject> *m_objects;
+	/// Reference object used to retrieve layer and color.
+	KX_GameObject *m_referenceObject;
 
 public:
 	KX_BatchGroup();
@@ -48,6 +50,10 @@ public:
 	virtual std::string GetName();
 
 	EXP_ListValue<KX_GameObject> *GetObjects() const;
+
+	KX_GameObject *GetReferenceObject() const;
+	/// Set reference object with error checking. Return false on error.
+	bool SetReferenceObject(KX_GameObject *object);
 
 	/** Merge a list of objects using their mesh user and transformation.
 	 * \param objects The list of objects to merge.
@@ -62,6 +68,8 @@ public:
 #ifdef WITH_PYTHON
 
 	static PyObject *pyattr_get_objects(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_referenceObject(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_referenceObject(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
 	EXP_PYMETHOD_DOC(KX_BatchGroup, merge);
 	EXP_PYMETHOD_DOC(KX_BatchGroup, split);

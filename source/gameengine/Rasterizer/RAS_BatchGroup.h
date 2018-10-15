@@ -37,6 +37,8 @@ class RAS_BatchGroup
 private:
 	/// The reference counter.
 	short m_users;
+	/// Reference object used to retrieve layer and color.
+	RAS_MeshUser *m_referenceMeshUser;
 
 	/// A batch contained the merged display array for all the display array used for a given material.
 	class Batch
@@ -79,6 +81,10 @@ public:
 	RAS_BatchGroup *AddMeshUser();
 	/// Notice the batch group that it is unused by one less mesh user.
 	RAS_BatchGroup *RemoveMeshUser();
+
+	RAS_MeshUser *GetReferenceMeshUser() const;
+	/// Change reference mesh user without error check.
+	void SetReferenceMeshUser(RAS_MeshUser *meshUser);
 
 	/** Merge the display array of the mesh slots contained in the mesh user.
 	 * \param meshUser The mesh user to merge mesh slots from.

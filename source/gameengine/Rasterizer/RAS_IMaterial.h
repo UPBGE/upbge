@@ -108,7 +108,7 @@ public:
 	virtual void Activate(RAS_Rasterizer *rasty) = 0;
 	virtual void Desactivate(RAS_Rasterizer *rasty) = 0;
 	virtual void ActivateInstancing(RAS_Rasterizer *rasty, RAS_InstancingBuffer *buffer) = 0;
-	virtual void ActivateMeshSlot(RAS_MeshSlot *ms, RAS_Rasterizer *rasty, const mt::mat3x4& camtrans) = 0;
+	virtual void ActivateMeshUser(RAS_MeshUser *meshUser, RAS_Rasterizer *rasty, const mt::mat3x4& camtrans) = 0;
 
 	bool IsAlpha() const;
 	bool IsAlphaDepth() const;
