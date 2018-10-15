@@ -35,7 +35,7 @@ public:
 	virtual void Activate(RAS_Rasterizer *rasty);
 	virtual void Desactivate(RAS_Rasterizer *rasty);
 	virtual void ActivateInstancing(RAS_Rasterizer *rasty, RAS_InstancingBuffer *buffer);
-	virtual void ActivateMeshSlot(RAS_MeshSlot *ms, RAS_Rasterizer *rasty, const mt::mat3x4& camtrans);
+	virtual void ActivateMeshUser(RAS_MeshUser *meshUser, RAS_Rasterizer *rasty, const mt::mat3x4& camtrans);
 
 	void UpdateTextures();
 	void ApplyTextures();

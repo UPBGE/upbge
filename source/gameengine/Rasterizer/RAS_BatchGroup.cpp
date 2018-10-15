@@ -42,7 +42,8 @@ RAS_BatchGroup::Batch::Batch()
 }
 
 RAS_BatchGroup::RAS_BatchGroup()
-	:m_users(0)
+	:m_users(0),
+	m_referenceMeshUser(nullptr)
 {
 }
 
@@ -68,6 +69,16 @@ RAS_BatchGroup *RAS_BatchGroup::RemoveMeshUser()
 		return nullptr;
 	}
 	return this;
+}
+
+RAS_MeshUser *RAS_BatchGroup::GetReferenceMeshUser() const
+{
+	return m_referenceMeshUser;
+}
+
+void RAS_BatchGroup::SetReferenceMeshUser(RAS_MeshUser *meshUser)
+{
+	m_referenceMeshUser = meshUser;
 }
 
 bool RAS_BatchGroup::MergeMeshSlot(RAS_BatchGroup::Batch& batch, RAS_MeshSlot& slot, const mt::mat4& mat)

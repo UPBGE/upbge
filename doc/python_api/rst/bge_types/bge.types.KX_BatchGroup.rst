@@ -19,11 +19,20 @@ base class --- :class:`EXP_Value`
 
       batchGroup = types.KX_BatchGroup([scene.objects["Cube"], scene.objects["Plane"]])
 
+   .. warning::
+
+      Rendering settings unique to objects such as :data:`KX_GameObject.layer` and :data:`KX_GameObject.color` are shared when using batch groups.
+      These settings are taken from object :attr:`referenceObject`.
+
    .. attribute:: objects
 
       The list of the objects merged. (read only)
 
       :type: :class:`EXP_ListValue` of :class:`KX_GameObject`
+
+   .. attribute:: referenceObject
+
+      The object used for object rendering settings (layer, color...).
 
    .. method:: merge(objects)
 

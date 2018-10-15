@@ -90,7 +90,7 @@ void RAS_MeshSlot::RunNode(const RAS_MeshSlotNodeTuple& tuple)
 	RAS_DisplayArrayStorage *storage = displayArrayData->m_arrayStorage;
 
 	if (!managerData->m_shaderOverride) {
-		materialData->m_material->ActivateMeshSlot(this, rasty, managerData->m_trans);
+		materialData->m_material->ActivateMeshUser(m_meshUser, rasty, managerData->m_trans);
 
 		if (materialData->m_zsort && storage) {
 			displayArrayData->m_array->SortPolygons(
