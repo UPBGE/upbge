@@ -14,7 +14,6 @@ layout(triangle_strip, max_vertices=12) out;
 uniform mat4 ProjectionMatrix;
 uniform vec2 viewportSize;
 
-in vec4 vPos[];
 in vec4 pPos[];
 in ivec4 vData[];
 #ifdef VERTEX_FACING
@@ -42,6 +41,15 @@ out float facing;
 #define Z_OFFSET 0.0
 #endif
 
+/* Some bugged AMD drivers need these global variables. See T55961 */
+#ifdef VERTEX_SELECTION
+vec3 vertex_color[3];
+#endif
+
+#ifdef VERTEX_FACING
+float v_facing[3];
+#endif
+
 /* project to screen space */
 vec2 proj(vec4 pos)
 {
@@ -51,11 +59,11 @@ vec2 proj(vec4 pos)
 void doVertex(int v)
 {
 #ifdef VERTEX_SELECTION
-	vertexColor = EDIT_MESH_vertex_color(vData[v].x).rgb;
+	vertexColor = vertex_color[v];
 #endif
 
 #ifdef VERTEX_FACING
-	facing = vFacing[v];
+	facing = v_facing[v];
 #endif
 	gl_Position = pPos[v];
 
@@ -65,15 +73,13 @@ void doVertex(int v)
 void doVertexOfs(int v, vec2 fixvec)
 {
 #ifdef VERTEX_SELECTION
-	vertexColor = EDIT_MESH_vertex_color(vData[v].x).rgb;
+	vertexColor = vertex_color[v];
 #endif
 
 #ifdef VERTEX_FACING
-	facing = vFacing[v];
+	facing = v_facing[v];
 #endif
-	gl_Position = pPos[v];
-
-	gl_Position.xyz += vec3(fixvec, Z_OFFSET);
+	gl_Position = pPos[v] + vec4(fixvec, Z_OFFSET, 0.0);
 
 	EmitVertex();
 }
@@ -88,6 +94,35 @@ void mask_edge_flag(int v, ivec3 eflag)
 	flag[vbe] |= (EDGE_EXISTS & eflag[vbe]);
 	flag[vaf] &= ~EDGE_EXISTS;
 	flag[v]   &= ~EDGE_EXISTS;
+}
+
+vec2 compute_fixvec(int i)
+{
+	int i1 = (i + 1) % 3;
+	int i2 = (i + 2) % 3;
+	/* This fix the case when 2 vertices are perfectly aligned
+	 * and corner vectors have nowhere to go.
+	 * ie: length(cornervec[i]) == 0 */
+	const float epsilon = 1e-2; /* in pixel so not that much */
+	const vec2 bias[3] = vec2[3](
+		vec2( epsilon,  epsilon),
+		vec2(-epsilon,  epsilon),
+		vec2(     0.0, -epsilon)
+	);
+	vec2 v1 = ssPos[i] + bias[i];
+	vec2 v2 = ssPos[i1] + bias[i1];
+	vec2 v3 = ssPos[i2] + bias[i2];
+	/* Edge normalized vector */
+	vec2 dir = normalize(v2 - v1);
+	vec2 dir2 = normalize(v3 - v1);
+	/* perpendicular to dir */
+	vec2 perp = vec2(-dir.y, dir.x);
+	/* Backface case */
+	if (dot(perp, dir2) > 0.0) {
+		perp = -perp;
+	}
+	/* Make it view independent */
+	return perp * sizeEdgeFix / viewportSize;;
 }
 
 void main()
@@ -119,48 +154,27 @@ void main()
 	vec2 fixvec[3];
 	vec2 fixvecaf[3];
 
-	/* This fix the case when 2 vertices are perfectly aligned
-	 * and corner vectors have nowhere to go.
-	 * ie: length(cornervec[i]) == 0 */
-	const float epsilon = 1e-2; /* in pixel so not that much */
-	const vec2 bias[3] = vec2[3](
-		vec2( epsilon,  epsilon),
-		vec2(-epsilon,  epsilon),
-		vec2(     0.0, -epsilon)
-	);
-
 	for (int i = 0; i < 3; ++i) {
-		int i1 = (i + 1) % 3;
-		int i2 = (i + 2) % 3;
-
-		vec2 v1 = ssPos[i] + bias[i];
-		vec2 v2 = ssPos[i1] + bias[i1];
-		vec2 v3 = ssPos[i2] + bias[i2];
-
-		/* Edge normalized vector */
-		vec2 dir = normalize(v2 - v1);
-		vec2 dir2 = normalize(v3 - v1);
-
-		/* perpendicular to dir */
-		vec2 perp = vec2(-dir.y, dir.x);
-
-		/* Backface case */
-		if (dot(perp, dir2) > 0) {
-			perp = -perp;
-		}
-
-		/* Make it view independent */
-		perp *= sizeEdgeFix / viewportSize;
-		fixvec[i] = fixvecaf[i] = perp;
-
+		fixvec[i] = fixvecaf[i] = compute_fixvec(i);
 		/* Perspective */
 		if (ProjectionMatrix[3][3] == 0.0) {
-			/* vPos[i].z is negative and we don't want
-			 * our fixvec to be flipped */
-			fixvec[i] *= -vPos[i].z;
-			fixvecaf[i] *= -vPos[i1].z;
+			fixvec[i] *= pPos[i].w;
+			fixvecaf[i] *= pPos[(i + 1) % 3].w;
 		}
 	}
+
+#ifdef VERTEX_SELECTION
+	vertex_color[0] = EDIT_MESH_vertex_color(vData[0].x).rgb;
+	vertex_color[1] = EDIT_MESH_vertex_color(vData[1].x).rgb;
+	vertex_color[2] = EDIT_MESH_vertex_color(vData[2].x).rgb;
+#endif
+
+#ifdef VERTEX_FACING
+	/* Weird but some buggy AMD drivers need this. */
+	v_facing[0] = vFacing[0];
+	v_facing[1] = vFacing[1];
+	v_facing[2] = vFacing[2];
+#endif
 
 	/* Remember that we are assuming the last vertex
 	 * of a triangle is the provoking vertex (decide what flat attribs are). */

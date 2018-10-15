@@ -2279,22 +2279,23 @@ static void give_parvert(Object *par, int nr, float vec[3])
 	if (par->type == OB_MESH) {
 		Mesh *me = par->data;
 		BMEditMesh *em = me->edit_btmesh;
-		DerivedMesh *dm;
+		DerivedMesh *dm = NULL;
+		Mesh *me_eval = (em) ? em->mesh_eval_final : par->runtime.mesh_eval;
 
-#if 0	/* FIXME(campbell): use mesh for both. */
-		dm = (em) ? em->derivedFinal : par->derivedFinal;
-#else
+		/* Keep this until subsurf code ported away from derived mesh - campbell. */
 		dm = par->derivedFinal;
-#endif
+		if (dm && dm->type != DM_TYPE_CCGDM) {
+			dm = NULL;
+		}
 
-		if (dm) {
+		if (me_eval) {
 			int count = 0;
-			int numVerts = dm->getNumVerts(dm);
+			const int numVerts = me_eval->totvert;
 
 			if (nr < numVerts) {
 				bool use_special_ss_case = false;
 
-				if (dm->type == DM_TYPE_CCGDM) {
+				if (dm && dm->type == DM_TYPE_CCGDM) {
 					ModifierData *md;
 					VirtualModifierData virtualModifierData;
 					use_special_ss_case = true;
@@ -2313,7 +2314,7 @@ static void give_parvert(Object *par, int nr, float vec[3])
 
 				if (!use_special_ss_case) {
 					/* avoid dm->getVertDataArray() since it allocates arrays in the dm (not thread safe) */
-					if (em && dm->type == DM_TYPE_EDITBMESH) {
+					if (em && me_eval->runtime.is_original) {
 						if (em->bm->elem_table_dirty & BM_VERT) {
 #ifdef VPARENT_THREADING_HACK
 							BLI_mutex_lock(&vparent_lock);
@@ -2340,27 +2341,21 @@ static void give_parvert(Object *par, int nr, float vec[3])
 						count++;
 					}
 				}
-				else if (CustomData_has_layer(&dm->vertData, CD_ORIGINDEX) &&
-				         !(em && dm->type == DM_TYPE_EDITBMESH))
+				else if (CustomData_has_layer(&me_eval->vdata, CD_ORIGINDEX) &&
+				         !(em && me_eval->runtime.is_original))
 				{
-					int i;
-
+					const int *index = CustomData_get_layer(&me_eval->vdata, CD_ORIGINDEX);
 					/* Get the average of all verts with (original index == nr). */
-					for (i = 0; i < numVerts; i++) {
-						const int *index = dm->getVertData(dm, i, CD_ORIGINDEX);
-						if (*index == nr) {
-							float co[3];
-							dm->getVertCo(dm, i, co);
-							add_v3_v3(vec, co);
+					for (int i = 0; i < numVerts; i++) {
+						if (index[i] == nr) {
+							add_v3_v3(vec, me_eval->mvert[i].co);
 							count++;
 						}
 					}
 				}
 				else {
 					if (nr < numVerts) {
-						float co[3];
-						dm->getVertCo(dm, nr, co);
-						add_v3_v3(vec, co);
+						add_v3_v3(vec, me_eval->mvert[nr].co);
 						count++;
 					}
 				}
@@ -2374,7 +2369,9 @@ static void give_parvert(Object *par, int nr, float vec[3])
 			}
 			else {
 				/* use first index if its out of range */
-				dm->getVertCo(dm, 0, vec);
+				if (me_eval->totvert) {
+					copy_v3_v3(vec, me_eval->mvert[0].co);
+				}
 			}
 		}
 		else {
@@ -2788,6 +2785,23 @@ void BKE_object_boundbox_flag(Object *ob, int flag, const bool set)
 		if (set) bb->flag |= flag;
 		else bb->flag &= ~flag;
 	}
+}
+
+void BKE_object_boundbox_calc_from_mesh(struct Object *ob, struct Mesh *me_eval)
+{
+	float min[3], max[3];
+
+	INIT_MINMAX(min, max);
+
+	BKE_mesh_minmax(me_eval, min, max);
+
+	if (ob->bb == NULL) {
+		ob->bb = MEM_callocN(sizeof(BoundBox), "DM-BoundBox");
+	}
+
+	BKE_boundbox_init_from_minmax(ob->bb, min, max);
+
+	ob->bb->flag &= ~BOUNDBOX_DIRTY;
 }
 
 void BKE_object_dimensions_get(Object *ob, float vec[3])

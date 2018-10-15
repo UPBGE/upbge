@@ -85,18 +85,13 @@ struct CCGKey;
 struct MVert;
 struct MEdge;
 struct MFace;
-struct MTFace;
 struct Object;
 struct Scene;
 struct Mesh;
 struct MLoopNorSpaceArray;
 struct BMEditMesh;
-struct KeyBlock;
 struct ModifierData;
-struct MCol;
-struct ColorBand;
 struct Depsgraph;
-struct GPUVertexAttribs;
 struct PBVH;
 
 /* number of sub-elements each mesh element has (for interpolation) */
@@ -122,7 +117,6 @@ typedef struct DMFlagMat {
 
 typedef enum DerivedMeshType {
 	DM_TYPE_CDDM,
-	DM_TYPE_EDITBMESH,
 	DM_TYPE_CCGDM
 } DerivedMeshType;
 
@@ -465,16 +459,8 @@ void DM_free_poly_data(struct DerivedMesh *dm, int index, int count);
 void DM_DupPolys(DerivedMesh *source, DerivedMesh *target);
 
 void DM_ensure_normals(DerivedMesh *dm);
-void DM_ensure_tessface(DerivedMesh *dm);
 
 void DM_ensure_looptri_data(DerivedMesh *dm);
-void DM_verttri_from_looptri(MVertTri *verttri, const MLoop *mloop, const MLoopTri *looptri, int looptri_num);
-
-void DM_update_tessface_data(DerivedMesh *dm);
-void DM_generate_tangent_tessface_data(DerivedMesh *dm, bool generate);
-
-void DM_update_materials(DerivedMesh *dm, struct Object *ob);
-struct MLoopUV *DM_paint_uvlayer_active_get(DerivedMesh *dm, int mat_nr);
 
 void DM_interp_vert_data(
         struct DerivedMesh *source, struct DerivedMesh *dest,
@@ -494,8 +480,6 @@ void DM_interp_tessface_data(
         int *src_indices,
         float *weights, FaceVertWeight *vert_weights,
         int count, int dest_index);
-
-void DM_swap_tessface_data(struct DerivedMesh *dm, int index, const int *corner_indices);
 
 void DM_interp_loop_data(
         struct DerivedMesh *source, struct DerivedMesh *dest,
@@ -558,40 +542,6 @@ void makeDerivedMesh(
         struct Depsgraph *depsgraph, struct Scene *scene, struct Object *ob, struct BMEditMesh *em,
         CustomDataMask dataMask, const bool build_shapekey_layers);
 
-/** convert layers requested by a GLSL material to actually available layers in
- * the DerivedMesh, with both a pointer for arrays and an offset for editmesh */
-typedef struct DMVertexAttribs {
-	struct {
-		struct MLoopUV *array;
-		int em_offset, gl_index, gl_texco, gl_info_index;
-	} tface[MAX_MTFACE];
-
-	struct {
-		struct MLoopCol *array;
-		int em_offset, gl_index, gl_info_index;
-	} mcol[MAX_MCOL];
-
-	struct {
-		float (*array)[4];
-		int em_offset, gl_index, gl_info_index;
-	} tang[MAX_MTFACE];
-
-	struct {
-		float (*array)[3];
-		int em_offset, gl_index, gl_texco, gl_info_index;
-	} orco;
-
-	int tottface, totmcol, tottang, totorco;
-} DMVertexAttribs;
-
-void DM_vertex_attributes_from_gpu(
-        DerivedMesh *dm,
-        struct GPUVertexAttribs *gattribs, DMVertexAttribs *attribs);
-
-void DM_calc_tangents_names_from_gpu(
-        const struct GPUVertexAttribs *gattribs,
-        char (*tangent_names)[MAX_NAME], int *tangent_names_count);
-
 void DM_add_named_tangent_layer_for_uv(
         CustomData *uv_data, CustomData *tan_data, int numLoopData,
         const char *layer_name);
@@ -601,9 +551,6 @@ void DM_calc_loop_tangents(
         int tangent_names_count);
 
 void DM_calc_auto_bump_scale(DerivedMesh *dm);
-
-/** Set object's bounding box based on DerivedMesh min/max data */
-void DM_set_object_boundbox(struct Object *ob, DerivedMesh *dm);
 
 void DM_init_origspace(DerivedMesh *dm);
 
@@ -615,21 +562,5 @@ void DM_debug_print_cdlayers(CustomData *cdata);
 
 bool DM_is_valid(DerivedMesh *dm);
 #endif
-
-BLI_INLINE int DM_origindex_mface_mpoly(
-        const int *index_mf_to_mpoly, const int *index_mp_to_orig, const int i) ATTR_NONNULL(1);
-
-BLI_INLINE int DM_origindex_mface_mpoly(
-        const int *index_mf_to_mpoly, const int *index_mp_to_orig, const int i)
-{
-	const int j = index_mf_to_mpoly[i];
-	return (j != ORIGINDEX_NONE) ? (index_mp_to_orig ? index_mp_to_orig[j] : j) : ORIGINDEX_NONE;
-}
-
-struct MVert *DM_get_vert_array(struct DerivedMesh *dm, bool *r_allocated);
-struct MEdge *DM_get_edge_array(struct DerivedMesh *dm, bool *r_allocated);
-struct MLoop *DM_get_loop_array(struct DerivedMesh *dm, bool *r_allocated);
-struct MPoly *DM_get_poly_array(struct DerivedMesh *dm, bool *r_allocated);
-struct MFace *DM_get_tessface_array(struct DerivedMesh *dm, bool *r_allocated);
 
 #endif  /* __BKE_DERIVEDMESH_H__ */
