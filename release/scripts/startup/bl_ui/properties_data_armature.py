@@ -178,7 +178,7 @@ class DATA_PT_pose_library(ArmatureButtonsPanel, Panel):
 
         if poselib:
             # warning about poselib being in an invalid state
-            if len(poselib.fcurves) > 0 and len(poselib.pose_markers) == 0:
+            if poselib.fcurves and not poselib.pose_markers:
                 layout.label(icon='ERROR', text="Error: Potentially corrupt library, run 'Sanitize' operator to fix")
 
             # list of poses in pose library
@@ -349,7 +349,7 @@ class DATA_PT_onion_skinning(OnionSkinButtonsPanel):  # , Panel): # inherit from
     @classmethod
     def poll(cls, context):
         # XXX: include pose-mode check?
-        return (context.object) and (context.armature)
+        return context.object and context.armature
 
     def draw(self, context):
         ob = context.object

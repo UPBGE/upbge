@@ -144,6 +144,7 @@ int BIF_countTransformOrientation(const struct bContext *C);
 #define P_MIRROR_DUMMY  (P_MIRROR | (1 << 9))
 #define P_PROPORTIONAL  (1 << 1)
 #define P_AXIS          (1 << 2)
+#define P_AXIS_ORTHO    (1 << 16)
 #define P_SNAP          (1 << 3)
 #define P_GEO_SNAP      (P_SNAP | (1 << 4))
 #define P_ALIGN_SNAP    (P_GEO_SNAP | (1 << 5))
@@ -163,6 +164,7 @@ void Transform_Properties(struct wmOperatorType *ot, int flags);
 
 void TRANSFORM_GGT_gizmo(struct wmGizmoGroupType *gzgt);
 void VIEW3D_GGT_xform_cage(struct wmGizmoGroupType *gzgt);
+void VIEW3D_GGT_xform_shear(struct wmGizmoGroupType *gzgt);
 
 bool ED_widgetgroup_gizmo2d_poll(const struct bContext *C, struct wmGizmoGroupType *gzgt);
 void ED_widgetgroup_gizmo2d_setup(const struct bContext *C, struct wmGizmoGroup *gzgroup);

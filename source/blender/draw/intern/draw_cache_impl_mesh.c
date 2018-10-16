@@ -2017,6 +2017,7 @@ typedef struct MeshBatchCache {
 
 	GPUBatch *overlay_triangles;
 	GPUBatch *overlay_triangles_nor; /* GPU_PRIM_POINTS */
+	GPUBatch *overlay_triangles_lnor; /* GPU_PRIM_POINTS */
 	GPUBatch *overlay_loose_edges;
 	GPUBatch *overlay_loose_edges_nor; /* GPU_PRIM_POINTS */
 	GPUBatch *overlay_loose_verts;
@@ -2243,6 +2244,7 @@ void DRW_mesh_batch_cache_dirty_tag(Mesh *me, int mode)
 			GPU_BATCH_DISCARD_SAFE(cache->overlay_loose_edges);
 			GPU_BATCH_DISCARD_SAFE(cache->overlay_facedots);
 			GPU_BATCH_DISCARD_SAFE(cache->overlay_triangles_nor);
+			GPU_BATCH_DISCARD_SAFE(cache->overlay_triangles_lnor);
 			GPU_BATCH_DISCARD_SAFE(cache->overlay_loose_edges_nor);
 			/* Edit mode selection. */
 			GPU_BATCH_DISCARD_SAFE(cache->facedot_with_select_id);
@@ -2343,6 +2345,7 @@ static void mesh_batch_cache_clear(Mesh *me)
 	GPU_INDEXBUF_DISCARD_SAFE(cache->ed_tri_verts);
 	GPU_BATCH_DISCARD_SAFE(cache->overlay_triangles);
 	GPU_BATCH_DISCARD_SAFE(cache->overlay_triangles_nor);
+	GPU_BATCH_DISCARD_SAFE(cache->overlay_triangles_lnor);
 	GPU_BATCH_DISCARD_SAFE(cache->overlay_loose_verts);
 	GPU_BATCH_DISCARD_SAFE(cache->overlay_loose_edges);
 	GPU_BATCH_DISCARD_SAFE(cache->overlay_loose_edges_nor);
@@ -3764,13 +3767,11 @@ static void mesh_batch_cache_create_overlay_ledge_buffers(
 			BMesh *bm = rdata->edit_bmesh->bm;
 			for (uint i = 0; i < ledge_len; i++) {
 				const BMEdge *eed = BM_edge_at_index(bm, rdata->loose_edges[i]);
-				if (!BM_elem_flag_test(eed, BM_ELEM_HIDDEN)) {
-					add_overlay_loose_edge(
-					        rdata, vbo_pos, vbo_nor, vbo_data,
-					        attr_id.pos, attr_id.vnor, attr_id.data,
-					        eed, vbo_len_used);
-					vbo_len_used += 2;
-				}
+				add_overlay_loose_edge(
+				        rdata, vbo_pos, vbo_nor, vbo_data,
+				        attr_id.pos, attr_id.vnor, attr_id.data,
+				        eed, vbo_len_used);
+				vbo_len_used += 2;
 			}
 		}
 	}
@@ -4353,7 +4354,9 @@ static GPUIndexBuf *mesh_batch_cache_get_loose_edges(MeshRenderData *rdata, Mesh
 				BMIter eiter;
 				BMEdge *eed;
 				BM_ITER_MESH(eed, &eiter, bm, BM_EDGES_OF_MESH) {
-					if (!BM_elem_flag_test(eed, BM_ELEM_HIDDEN) && !bm_edge_has_visible_face(eed)) {
+					if (!BM_elem_flag_test(eed, BM_ELEM_HIDDEN) &&
+					    (eed->l == NULL || !bm_edge_has_visible_face(eed)))
+					{
 						GPU_indexbuf_add_line_verts(&elb, BM_elem_index_get(eed->v1),  BM_elem_index_get(eed->v2));
 					}
 				}
@@ -4976,6 +4979,13 @@ static void mesh_batch_cache_create_overlay_batches(Mesh *me)
 		GPU_batch_vertbuf_add(cache->overlay_triangles_nor, mesh_batch_cache_get_edit_tri_data(rdata, cache));
 	}
 
+	if (cache->overlay_triangles_lnor == NULL) {
+		cache->overlay_triangles_lnor = GPU_batch_create(
+		        GPU_PRIM_POINTS, mesh_batch_cache_get_edit_tri_pos(rdata, cache), NULL);
+		GPU_batch_vertbuf_add(cache->overlay_triangles_lnor, mesh_batch_cache_get_edit_tri_nor(rdata, cache));
+		GPU_batch_vertbuf_add(cache->overlay_triangles_lnor, mesh_batch_cache_get_edit_tri_data(rdata, cache));
+	}
+
 	if (cache->overlay_loose_edges_nor == NULL) {
 		cache->overlay_loose_edges_nor = GPU_batch_create(
 		        GPU_PRIM_POINTS, mesh_batch_cache_get_edit_ledge_pos(rdata, cache), NULL);
@@ -5039,6 +5049,17 @@ GPUBatch *DRW_mesh_batch_cache_get_overlay_triangles_nor(Mesh *me)
 	}
 
 	return cache->overlay_triangles_nor;
+}
+
+GPUBatch *DRW_mesh_batch_cache_get_overlay_triangles_lnor(Mesh *me)
+{
+	MeshBatchCache *cache = mesh_batch_cache_get(me);
+
+	if (cache->overlay_triangles_lnor == NULL) {
+		mesh_batch_cache_create_overlay_batches(me);
+	}
+
+	return cache->overlay_triangles_lnor;
 }
 
 GPUBatch *DRW_mesh_batch_cache_get_overlay_loose_edges_nor(Mesh *me)
