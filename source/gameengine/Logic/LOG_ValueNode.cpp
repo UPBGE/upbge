@@ -1,4 +1,4 @@
-#include "LOG_Node.h"
+#include "LOG_ValueNode.h"
 #include "LOG_NodeSocket.h"
 
 #include "CM_Message.h"
