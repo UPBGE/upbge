@@ -137,6 +137,18 @@ void setCustomPoints(TransInfo *UNUSED(t), MouseInput *mi, const int mval_start[
 	data[3] = mval_end[1];
 }
 
+void setCustomPointsFromDirection(TransInfo *t, MouseInput *mi, const float dir[2])
+{
+	BLI_ASSERT_UNIT_V2(dir);
+	const int win_axis = t->ar ? ((abs(t->ar->winx * dir[0]) + abs(t->ar->winy * dir[1])) / 2) : 1;
+	const int mval_start[2] = {
+		mi->imval[0] + dir[0] * win_axis,
+		mi->imval[1] + dir[1] * win_axis,
+	};
+	const int mval_end[2] = {mi->imval[0], mi->imval[1]};
+	setCustomPoints(t, mi, mval_start, mval_end);
+}
+
 static void InputCustomRatioFlip(TransInfo *UNUSED(t), MouseInput *mi, const double mval[2], float output[3])
 {
 	double length;
@@ -332,11 +344,11 @@ void initMouseInputMode(TransInfo *t, MouseInput *mi, MouseInputMode mode)
 			break;
 		case INPUT_CUSTOM_RATIO:
 			mi->apply = InputCustomRatio;
-			t->helpline = HLP_NONE;
+			t->helpline = HLP_CARROW;
 			break;
 		case INPUT_CUSTOM_RATIO_FLIP:
 			mi->apply = InputCustomRatioFlip;
-			t->helpline = HLP_NONE;
+			t->helpline = HLP_CARROW;
 			break;
 		case INPUT_NONE:
 		default:
@@ -360,6 +372,7 @@ void initMouseInputMode(TransInfo *t, MouseInput *mi, MouseInputMode mode)
 		case HLP_TRACKBALL:
 		case HLP_HARROW:
 		case HLP_VARROW:
+		case HLP_CARROW:
 			if (t->flag & T_MODAL) {
 				t->flag |= T_MODAL_CURSOR_SET;
 				WM_cursor_modal_set(win, CURSOR_NONE);
