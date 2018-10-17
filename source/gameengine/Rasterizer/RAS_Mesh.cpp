@@ -277,7 +277,7 @@ void RAS_Mesh::EndConversion(RAS_BoundingBoxManager *boundingBoxManager)
 		startIndex += indexCount;
 	}
 
-	m_numPolygons = startIndex;
+	m_numPolygons = startIndex / 3;
 }
 
 const RAS_Mesh::LayersInfo& RAS_Mesh::GetLayersInfo() const
