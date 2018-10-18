@@ -53,11 +53,11 @@ class LOGIC_PT_properties(Panel):
                 #~ row.prop(ob.data, "body", text="")
                 row.label("See Text Object")
             else:
-                props = layout.operator("object.game_property_new", text="Add Text Game Property", icon='ZOOMIN')
+                props = layout.operator("object.game_property_new", text="Add Text Game Property", icon='PLUS')
                 props.name = "Text"
                 props.type = 'STRING'
 
-        props = layout.operator("object.game_property_new", text="Add Game Property", icon='ZOOMIN')
+        props = layout.operator("object.game_property_new", text="Add Game Property", icon='PLUS')
         props.name = ""
 
         for i, prop in enumerate(game.properties):
