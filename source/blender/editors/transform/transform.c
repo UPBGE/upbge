@@ -2255,6 +2255,12 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
 	if ((prop = RNA_struct_find_property(op->ptr, "correct_uv"))) {
 		RNA_property_boolean_set(op->ptr, prop, (t->settings->uvcalc_flag & UVCALC_TRANSFORM_CORRECT) != 0);
 	}
+
+	if (t->mode == TFM_SHEAR) {
+		prop = RNA_struct_find_property(op->ptr, "shear_axis");
+		t->custom.mode.data = POINTER_FROM_INT(RNA_property_enum_get(op->ptr, prop));
+		RNA_property_enum_set(op->ptr, prop, POINTER_AS_INT(t->custom.mode.data));
+	}
 }
 
 /**
@@ -2477,6 +2483,8 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 			initToSphere(t);
 			break;
 		case TFM_SHEAR:
+			prop = RNA_struct_find_property(op->ptr, "shear_axis");
+			t->custom.mode.data = POINTER_FROM_INT(RNA_property_enum_get(op->ptr, prop));
 			initShear(t);
 			break;
 		case TFM_BEND:
@@ -3467,8 +3475,7 @@ static void applyShear(TransInfo *t, const int UNUSED(mval[2]))
 	cross_v3_v3v3(axismat_inv[1], axismat_inv[0], axismat_inv[2]);
 	invert_m3_m3(axismat, axismat_inv);
 
-	mul_m3_m3m3(tmat, smat, axismat);
-	mul_m3_m3m3(totmat, axismat_inv, tmat);
+	mul_m3_series(totmat, axismat_inv, smat, axismat);
 
 	FOREACH_TRANS_DATA_CONTAINER (t, tc) {
 		TransData *td = tc->data;
@@ -3482,9 +3489,7 @@ static void applyShear(TransInfo *t, const int UNUSED(mval[2]))
 				continue;
 
 			if (t->flag & T_EDIT) {
-				float mat3[3][3];
-				mul_m3_m3m3(mat3, totmat, td->mtx);
-				mul_m3_m3m3(tmat, td->smtx, mat3);
+				mul_m3_series(tmat, td->smtx, totmat, td->mtx);
 			}
 			else {
 				copy_m3_m3(tmat, totmat);

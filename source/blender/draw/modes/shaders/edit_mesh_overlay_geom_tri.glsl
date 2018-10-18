@@ -86,12 +86,11 @@ void doVertexOfs(int v, vec2 fixvec)
 
 void mask_edge_flag(int v, ivec3 eflag)
 {
-	int vbe = (v + 2) % 3;
 	int vaf = (v + 1) % 3;
 
 	/* Only shade the edge that we are currently drawing.
 	 * (fix corner bleeding) */
-	flag[vbe] |= (EDGE_EXISTS & eflag[vbe]);
+	flag = eflag;
 	flag[vaf] &= ~EDGE_EXISTS;
 	flag[v]   &= ~EDGE_EXISTS;
 }
