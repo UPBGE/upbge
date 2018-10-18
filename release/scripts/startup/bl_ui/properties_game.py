@@ -494,7 +494,7 @@ class OBJECT_PT_levels_of_detail(ObjectButtonsPanel, Panel):
             row.prop(level, "object_hysteresis_percentage", text="")
 
         row = col.row(align=True)
-        row.operator("object.lod_add", text="Add", icon='ZOOMIN')
+        row.operator("object.lod_add", text="Add", icon='PLUS')
         row.menu("OBJECT_MT_lod_tools", text="", icon='TRIA_DOWN')
 
 
