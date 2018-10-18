@@ -86,7 +86,7 @@ endif()
 
 if(WITH_PYTHON)
 	# we use precompiled libraries for py 3.5 and up by default
-	set(PYTHON_VERSION 3.6)
+	set(PYTHON_VERSION 3.7)
 	if(NOT WITH_PYTHON_MODULE AND NOT WITH_PYTHON_FRAMEWORK)
 		# normally cached but not since we include them with blender
 		set(PYTHON_INCLUDE_DIR "${LIBDIR}/python/include/python${PYTHON_VERSION}m")
