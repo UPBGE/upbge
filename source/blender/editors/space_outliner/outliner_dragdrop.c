@@ -794,6 +794,10 @@ static int collection_drop_invoke(bContext *C, wmOperator *UNUSED(op), const wmE
 		return OPERATOR_CANCELLED;
 	}
 
+	if (BKE_collection_is_empty(data.to)) {
+		TREESTORE(data.te)->flag &= ~TSE_CLOSED;
+	}
+
 	for (wmDragID *drag_id = drag->ids.first; drag_id; drag_id = drag_id->next) {
 		/* Ctrl enables linking, so we don't need a from collection then. */
 		Collection *from = (event->ctrl) ? NULL : collection_parent_from_ID(drag_id->from_parent);
@@ -875,7 +879,12 @@ static int outliner_item_drag_drop_invoke(bContext *C, wmOperator *UNUSED(op), c
 
 	if (ELEM(GS(data.drag_id->name), ID_OB, ID_GR)) {
 		/* For collections and objects we cheat and drag all selected. */
-		TREESTORE(te)->flag |= TSE_SELECTED;
+
+		/* Only drag element under mouse if it was not selected before. */
+		if ((TREESTORE(te)->flag & TSE_SELECTED) == 0) {
+			outliner_flag_set(&soops->tree, TSE_SELECTED, 0);
+			TREESTORE(te)->flag |= TSE_SELECTED;
+		}
 
 		/* Gather all selected elements. */
 		struct IDsSelectedData selected = {

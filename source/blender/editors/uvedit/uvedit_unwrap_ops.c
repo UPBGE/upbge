@@ -262,7 +262,7 @@ static void construct_param_handle_face_add(ParamHandle *handle, Scene *scene,
 		select[i] = uvedit_uv_select_test(scene, l, cd_loop_uv_offset);
 	}
 
-	param_face_add(handle, key, i, vkeys, co, uv, pin, select, efa->no);
+	param_face_add(handle, key, i, vkeys, co, uv, pin, select);
 }
 
 /* See: construct_param_handle_multi to handle multiple objects at once. */
@@ -571,7 +571,7 @@ static ParamHandle *construct_param_handle_subsurfed(Scene *scene, Object *ob, B
 		texface_from_original_index(origFace, origVertIndices[mloop[2].v], &uv[2], &pin[2], &select[2], scene, cd_loop_uv_offset);
 		texface_from_original_index(origFace, origVertIndices[mloop[3].v], &uv[3], &pin[3], &select[3], scene, cd_loop_uv_offset);
 
-		param_face_add(handle, key, 4, vkeys, co, uv, pin, select, NULL);
+		param_face_add(handle, key, 4, vkeys, co, uv, pin, select);
 	}
 
 	/* these are calculated from original mesh too */
@@ -1417,6 +1417,11 @@ void ED_unwrap_lscm(Scene *scene, Object *obedit, const short sel, const bool pa
 	param_delete(handle);
 }
 
+enum {
+	UNWRAP_ERROR_NONUNIFORM = (1 << 0),
+	UNWRAP_ERROR_NEGATIVE = (1 << 1),
+};
+
 static int unwrap_exec(bContext *C, wmOperator *op)
 {
 	ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -1425,8 +1430,10 @@ static int unwrap_exec(bContext *C, wmOperator *op)
 	const bool fill_holes = RNA_boolean_get(op->ptr, "fill_holes");
 	const bool correct_aspect = RNA_boolean_get(op->ptr, "correct_aspect");
 	const bool use_subsurf = RNA_boolean_get(op->ptr, "use_subsurf_data");
-	float obsize[3];
 	bool implicit = false;
+	int reported_errors = 0;
+	/* We will report an error unless at least one object has the subsurf modifier in the right place. */
+	bool subsurf_error = use_subsurf;
 
 	uint objects_len = 0;
 	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
@@ -1439,27 +1446,45 @@ static int unwrap_exec(bContext *C, wmOperator *op)
 	/* add uvs if they don't exist yet */
 	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
 		Object *obedit = objects[ob_index];
+		float obsize[3];
 		bool use_subsurf_final;
 
 		if (!ED_uvedit_ensure_uvs(C, scene, obedit)) {
 			continue;
 		}
 
-		mat4_to_size(obsize, obedit->obmat);
-		if (!(fabsf(obsize[0] - obsize[1]) < 1e-4f && fabsf(obsize[1] - obsize[2]) < 1e-4f))
-			BKE_report(op->reports, RPT_INFO,
-			           "Object has non-uniform scale, unwrap will operate on a non-scaled version of the mesh");
-		else if (is_negative_m4(obedit->obmat))
-			BKE_report(op->reports, RPT_INFO,
-			           "Object has negative scale, unwrap will operate on a non-flipped version of the mesh");
-
-
-		/* double up the check here but better keep ED_unwrap_lscm interface simple and not
-		 * pass operator for warning append */
-		modifier_unwrap_state(obedit, scene, &use_subsurf_final);
-		if (use_subsurf != use_subsurf_final) {
-			BKE_report(op->reports, RPT_INFO, "Subdivision Surface modifier needs to be first to work with unwrap");
+		if (subsurf_error) {
+			/* Double up the check here but better keep ED_unwrap_lscm interface simple and not
+			 * pass operator for warning append. */
+			modifier_unwrap_state(obedit, scene, &use_subsurf_final);
+			if (use_subsurf_final) {
+				subsurf_error = false;
+			}
 		}
+
+		if (reported_errors & (UNWRAP_ERROR_NONUNIFORM | UNWRAP_ERROR_NEGATIVE)) {
+			continue;
+		}
+
+		mat4_to_size(obsize, obedit->obmat);
+		if (!(fabsf(obsize[0] - obsize[1]) < 1e-4f && fabsf(obsize[1] - obsize[2]) < 1e-4f)) {
+			if ((reported_errors & UNWRAP_ERROR_NONUNIFORM) == 0) {
+				BKE_report(op->reports, RPT_INFO,
+				          "Object has non-uniform scale, unwrap will operate on a non-scaled version of the mesh");
+				reported_errors |= UNWRAP_ERROR_NONUNIFORM;
+			}
+		}
+		else if (is_negative_m4(obedit->obmat)) {
+			if ((reported_errors & UNWRAP_ERROR_NEGATIVE) == 0) {
+				BKE_report(op->reports, RPT_INFO,
+				           "Object has negative scale, unwrap will operate on a non-flipped version of the mesh");
+				reported_errors |= UNWRAP_ERROR_NEGATIVE;
+			}
+		}
+	}
+
+	if (subsurf_error) {
+		BKE_report(op->reports, RPT_INFO, "Subdivision Surface modifier needs to be first to work with unwrap");
 	}
 
 	/* remember last method for live unwrap */

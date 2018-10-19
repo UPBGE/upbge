@@ -504,9 +504,8 @@ static int pose_select_constraint_target_exec(bContext *C, wmOperator *UNUSED(op
 {
 	bConstraint *con;
 	int found = 0;
-	Object *ob_prev = NULL;
 
-	CTX_DATA_BEGIN_WITH_ID (C, bPoseChannel *, pchan, visible_pose_bones, Object *, ob)
+	CTX_DATA_BEGIN (C, bPoseChannel *, pchan, visible_pose_bones)
 	{
 		if (pchan->bone->flag & BONE_SELECTED) {
 			for (con = pchan->constraints.first; con; con = con->next) {
@@ -518,16 +517,19 @@ static int pose_select_constraint_target_exec(bContext *C, wmOperator *UNUSED(op
 					cti->get_constraint_targets(con, &targets);
 
 					for (ct = targets.first; ct; ct = ct->next) {
-						if ((ct->tar == ob) && (ct->subtarget[0])) {
+						Object *ob = ct->tar;
+
+						/* Any armature that is also in pose mode should be selected. */
+						if ((ct->subtarget[0] != '\0') &&
+						    (ob != NULL) &&
+						    (ob->type == OB_ARMATURE) &&
+						    (ob->mode == OB_MODE_POSE))
+						{
 							bPoseChannel *pchanc = BKE_pose_channel_find_name(ob->pose, ct->subtarget);
 							if ((pchanc) && !(pchanc->bone->flag & BONE_UNSELECTABLE)) {
 								pchanc->bone->flag |= BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL;
+								ED_pose_bone_select_tag_update(ob);
 								found = 1;
-
-								if (ob != ob_prev) {
-									ED_pose_bone_select_tag_update(ob);
-									ob_prev = ob;
-								}
 							}
 						}
 					}
@@ -670,112 +672,196 @@ typedef enum ePose_SelectSame_Mode {
 	POSE_SEL_SAME_KEYINGSET  = 2,
 } ePose_SelectSame_Mode;
 
-static bool pose_select_same_group(bContext *C, Object *ob, bool extend)
+static bool pose_select_same_group(bContext *C, bool extend)
 {
-	bArmature *arm = (ob) ? ob->data : NULL;
-	bPose *pose = (ob) ? ob->pose : NULL;
-	char *group_flags;
-	int numGroups = 0;
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	bool *group_flags_array;
+	bool *group_flags;
+	int groups_len = 0;
 	bool changed = false, tagged = false;
+	Object *ob_prev = NULL;
+	uint ob_index;
 
-	/* sanity checks */
-	if (ELEM(NULL, ob, pose, arm))
-		return 0;
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_mode_unique_data(view_layer, &objects_len, OB_MODE_POSE);
+	for (ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object *ob = BKE_object_pose_armature_get(objects[ob_index]);
+		bArmature *arm = (ob) ? ob->data : NULL;
+		bPose *pose = (ob) ? ob->pose : NULL;
 
-	/* count the number of groups */
-	numGroups = BLI_listbase_count(&pose->agroups);
-	if (numGroups == 0)
-		return 0;
+		/* Sanity checks. */
+		if (ELEM(NULL, ob, pose, arm)) {
+			continue;
+		}
+
+		ob->id.tag &= ~LIB_TAG_DOIT;
+		groups_len = MAX2(groups_len, BLI_listbase_count(&pose->agroups));
+	}
+
+	/* Nothing to do here. */
+	if (groups_len == 0) {
+		MEM_freeN(objects);
+		return false;
+	}
 
 	/* alloc a small array to keep track of the groups to use
 	 *  - each cell stores on/off state for whether group should be used
-	 *	- size is (numGroups + 1), since (index = 0) is used for no-group
+	 *	- size is (groups_len + 1), since (index = 0) is used for no-group
 	 */
-	group_flags = MEM_callocN(numGroups + 1, "pose_select_same_group");
+	groups_len++;
+	group_flags_array = MEM_callocN(objects_len * groups_len * sizeof(bool), "pose_select_same_group");
 
-	CTX_DATA_BEGIN (C, bPoseChannel *, pchan, visible_pose_bones)
+	ob_index = -1;
+	ob_prev = NULL;
+	CTX_DATA_BEGIN_WITH_ID (C, bPoseChannel *, pchan, visible_pose_bones, Object, *ob)
 	{
+		if (ob != ob_prev) {
+			ob_index++;
+			group_flags = group_flags_array + (ob_index * groups_len);
+			ob_prev = ob;
+		}
+
 		/* keep track of group as group to use later? */
 		if (pchan->bone->flag & BONE_SELECTED) {
-			group_flags[pchan->agrp_index] = 1;
+			group_flags[pchan->agrp_index] = true;
 			tagged = true;
 		}
 
 		/* deselect all bones before selecting new ones? */
-		if ((extend == false) && (pchan->bone->flag & BONE_UNSELECTABLE) == 0)
+		if ((extend == false) && (pchan->bone->flag & BONE_UNSELECTABLE) == 0) {
 			pchan->bone->flag &= ~BONE_SELECTED;
+		}
 	}
 	CTX_DATA_END;
 
 	/* small optimization: only loop through bones a second time if there are any groups tagged */
 	if (tagged) {
+		ob_index = -1;
+		ob_prev = NULL;
 		/* only if group matches (and is not selected or current bone) */
-		CTX_DATA_BEGIN (C, bPoseChannel *, pchan, visible_pose_bones)
+		CTX_DATA_BEGIN_WITH_ID (C, bPoseChannel *, pchan, visible_pose_bones, Object *, ob)
 		{
+			if (ob != ob_prev) {
+				ob_index++;
+				group_flags = group_flags_array + (ob_index * groups_len);
+				ob_prev = ob;
+			}
+
 			if ((pchan->bone->flag & BONE_UNSELECTABLE) == 0) {
 				/* check if the group used by this bone is counted */
 				if (group_flags[pchan->agrp_index]) {
 					pchan->bone->flag |= BONE_SELECTED;
-					changed = true;
+					ob->id.tag |= LIB_TAG_DOIT;
 				}
 			}
 		}
 		CTX_DATA_END;
 	}
 
-	/* free temp info */
-	MEM_freeN(group_flags);
+	for (ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object *ob = objects[ob_index];
+		if (ob->id.tag & LIB_TAG_DOIT) {
+			ED_pose_bone_select_tag_update(ob);
+			changed = true;
+		}
+	}
+
+	/* Cleanup. */
+	MEM_freeN(group_flags_array);
+	MEM_freeN(objects);
 
 	return changed;
 }
 
-static bool pose_select_same_layer(bContext *C, Object *ob, bool extend)
+static bool pose_select_same_layer(bContext *C, bool extend)
 {
-	bPose *pose = (ob) ? ob->pose : NULL;
-	bArmature *arm = (ob) ? ob->data : NULL;
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	int *layers_array, *layers;
+	Object *ob_prev = NULL;
+	uint ob_index;
 	bool changed = false;
-	int layers = 0;
 
-	if (ELEM(NULL, ob, pose, arm))
-		return 0;
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_mode_unique_data(view_layer, &objects_len, OB_MODE_POSE);
+	for (ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object *ob = objects[ob_index];
+		ob->id.tag &= ~LIB_TAG_DOIT;
+	}
 
-	/* figure out what bones are selected */
-	CTX_DATA_BEGIN (C, bPoseChannel *, pchan, visible_pose_bones)
+	layers_array = MEM_callocN(objects_len * sizeof(*layers_array), "pose_select_same_layer");
+
+	/* Figure out what bones are selected. */
+	ob_prev = NULL;
+	ob_index = -1;
+	CTX_DATA_BEGIN_WITH_ID (C, bPoseChannel *, pchan, visible_pose_bones, Object *, ob)
 	{
-		/* keep track of layers to use later? */
-		if (pchan->bone->flag & BONE_SELECTED)
-			layers |= pchan->bone->layer;
+		if (ob != ob_prev) {
+			layers = &layers_array[++ob_index];
+			ob_prev = ob;
+		}
 
-		/* deselect all bones before selecting new ones? */
+		/* Keep track of layers to use later? */
+		if (pchan->bone->flag & BONE_SELECTED)
+			*layers |= pchan->bone->layer;
+
+		/* Deselect all bones before selecting new ones? */
 		if ((extend == false) && (pchan->bone->flag & BONE_UNSELECTABLE) == 0)
 			pchan->bone->flag &= ~BONE_SELECTED;
 	}
 	CTX_DATA_END;
-	if (layers == 0)
-		return 0;
 
-	/* select bones that are on same layers as layers flag */
-	CTX_DATA_BEGIN (C, bPoseChannel *, pchan, visible_pose_bones)
+	bool any_layer = false;
+	for (ob_index = 0; ob_index < objects_len; ob_index++) {
+		if (layers_array[ob_index]) {
+			any_layer = true;
+			break;
+		}
+	}
+
+	if (!any_layer) {
+		goto cleanup;
+	}
+
+	/* Select bones that are on same layers as layers flag. */
+	ob_prev = NULL;
+	ob_index = -1;
+	CTX_DATA_BEGIN_WITH_ID (C, bPoseChannel *, pchan, visible_pose_bones, Object *, ob)
 	{
+		if (ob != ob_prev) {
+			layers = &layers_array[++ob_index];
+			ob_prev = ob;
+		}
+
 		/* if bone is on a suitable layer, and the bone can have its selection changed, select it */
-		if ((layers & pchan->bone->layer) && (pchan->bone->flag & BONE_UNSELECTABLE) == 0) {
+		if ((*layers & pchan->bone->layer) && (pchan->bone->flag & BONE_UNSELECTABLE) == 0) {
 			pchan->bone->flag |= BONE_SELECTED;
-			changed = true;
+			ob->id.tag |= LIB_TAG_DOIT;
 		}
 	}
 	CTX_DATA_END;
 
+	for (ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object *ob = objects[ob_index];
+		if (ob->id.tag & LIB_TAG_DOIT) {
+			ED_pose_bone_select_tag_update(ob);
+			changed = true;
+		}
+	}
+
+cleanup:
+	/* Cleanup. */
+	MEM_freeN(layers_array);
+	MEM_freeN(objects);
+
 	return changed;
 }
 
-static bool pose_select_same_keyingset(bContext *C, ReportList *reports, Object *ob, bool extend)
+static bool pose_select_same_keyingset(bContext *C, ReportList *reports, bool extend)
 {
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	bool changed_multi = false;
 	KeyingSet *ks = ANIM_scene_get_active_keyingset(CTX_data_scene(C));
 	KS_Path *ksp;
-
-	bArmature *arm = (ob) ? ob->data : NULL;
-	bPose *pose = (ob) ? ob->pose : NULL;
-	bool changed = false;
 
 	/* sanity checks: validate Keying Set and object */
 	if (ks == NULL) {
@@ -796,9 +882,6 @@ static bool pose_select_same_keyingset(bContext *C, ReportList *reports, Object 
 		return false;
 	}
 
-	if (ELEM(NULL, ob, pose, arm))
-		return false;
-
 	/* if not extending selection, deselect all selected first */
 	if (extend == false) {
 		CTX_DATA_BEGIN (C, bPoseChannel *, pchan, visible_pose_bones)
@@ -809,34 +892,54 @@ static bool pose_select_same_keyingset(bContext *C, ReportList *reports, Object 
 		CTX_DATA_END;
 	}
 
-	/* iterate over elements in the Keying Set, setting selection depending on whether
-	 * that bone is visible or not...
-	 */
-	for (ksp = ks->paths.first; ksp; ksp = ksp->next) {
-		/* only items related to this object will be relevant */
-		if ((ksp->id == &ob->id) && (ksp->rna_path != NULL)) {
-			if (strstr(ksp->rna_path, "bones")) {
-				char *boneName = BLI_str_quoted_substrN(ksp->rna_path, "bones[");
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_mode_unique_data(view_layer, &objects_len, OB_MODE_POSE);
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object *ob = BKE_object_pose_armature_get(objects[ob_index]);
+		bArmature *arm = (ob) ? ob->data : NULL;
+		bPose *pose = (ob) ? ob->pose : NULL;
+		bool changed = false;
 
-				if (boneName) {
-					bPoseChannel *pchan = BKE_pose_channel_find_name(pose, boneName);
+		/* Sanity checks. */
+		if (ELEM(NULL, ob, pose, arm)) {
+			continue;
+		}
 
-					if (pchan) {
-						/* select if bone is visible and can be affected */
-						if (PBONE_SELECTABLE(arm, pchan->bone)) {
-							pchan->bone->flag |= BONE_SELECTED;
-							changed = true;
+		/* iterate over elements in the Keying Set, setting selection depending on whether
+		 * that bone is visible or not...
+		 */
+		for (ksp = ks->paths.first; ksp; ksp = ksp->next) {
+			/* only items related to this object will be relevant */
+			if ((ksp->id == &ob->id) && (ksp->rna_path != NULL)) {
+				if (strstr(ksp->rna_path, "bones")) {
+					char *boneName = BLI_str_quoted_substrN(ksp->rna_path, "bones[");
+
+					if (boneName) {
+						bPoseChannel *pchan = BKE_pose_channel_find_name(pose, boneName);
+
+						if (pchan) {
+							/* select if bone is visible and can be affected */
+							if (PBONE_SELECTABLE(arm, pchan->bone)) {
+								pchan->bone->flag |= BONE_SELECTED;
+								changed = true;
+							}
 						}
-					}
 
-					/* free temp memory */
-					MEM_freeN(boneName);
+						/* free temp memory */
+						MEM_freeN(boneName);
+					}
 				}
 			}
 		}
-	}
 
-	return changed;
+		if (changed || !extend) {
+			ED_pose_bone_select_tag_update(ob);
+			changed_multi = true;
+		}
+	}
+	MEM_freeN(objects);
+
+	return changed_multi;
 }
 
 static int pose_select_grouped_exec(bContext *C, wmOperator *op)
@@ -853,25 +956,20 @@ static int pose_select_grouped_exec(bContext *C, wmOperator *op)
 	/* selection types */
 	switch (type) {
 		case POSE_SEL_SAME_LAYER: /* layer */
-			changed = pose_select_same_layer(C, ob, extend);
+			changed = pose_select_same_layer(C, extend);
 			break;
 
 		case POSE_SEL_SAME_GROUP: /* group */
-			changed = pose_select_same_group(C, ob, extend);
+			changed = pose_select_same_group(C, extend);
 			break;
 
 		case POSE_SEL_SAME_KEYINGSET: /* Keying Set */
-			changed = pose_select_same_keyingset(C, op->reports, ob, extend);
+			changed = pose_select_same_keyingset(C, op->reports, extend);
 			break;
 
 		default:
 			printf("pose_select_grouped() - Unknown selection type %u\n", type);
 			break;
-	}
-
-	/* notifiers for updates */
-	if (changed) {
-		ED_pose_bone_select_tag_update(ob);
 	}
 
 	/* report done status */

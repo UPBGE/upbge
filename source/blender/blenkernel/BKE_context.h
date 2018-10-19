@@ -245,12 +245,6 @@ bool CTX_data_dir(const char *member);
 	CTX_DATA_BEGIN(C, Type, instance, member) \
 	Type_id instance_id = ctx_link->ptr.id.data; \
 
-#define CTX_DATA_BEGIN_FOR_ID(C, Type, instance, member, instance_id) \
-	CTX_DATA_BEGIN(C, Type, instance, member) \
-	if (ctx_link->ptr.id.data != (instance_id)) { \
-		continue; \
-	}
-
 int ctx_data_list_count(const bContext *C, int (*func)(const bContext *, ListBase *));
 
 #define CTX_DATA_COUNT(C, member) \
@@ -312,6 +306,7 @@ int CTX_data_editable_bones(const bContext *C, ListBase *list);
 
 struct bPoseChannel *CTX_data_active_pose_bone(const bContext *C);
 int CTX_data_selected_pose_bones(const bContext *C, ListBase *list);
+int CTX_data_selected_pose_bones_from_active_object(const bContext *C, ListBase *list);
 int CTX_data_visible_pose_bones(const bContext *C, ListBase *list);
 
 struct bGPdata *CTX_data_gpencil_data(const bContext *C);

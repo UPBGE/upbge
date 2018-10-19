@@ -78,7 +78,8 @@ const char *screen_context_dir[] = {
 	"editable_objects", "editable_bases",
 	"selected_editable_objects", "selected_editable_bases",
 	"visible_bones", "editable_bones", "selected_bones", "selected_editable_bones",
-	"visible_pose_bones", "selected_pose_bones", "active_bone", "active_pose_bone",
+	"visible_pose_bones", "selected_pose_bones", "selected_pose_bones_from_active_object",
+	"active_bone", "active_pose_bone",
 	"active_base", "active_object", "object", "edit_object",
 	"sculpt_object", "vertex_paint_object", "weight_paint_object",
 	"image_paint_object", "particle_edit_object", "uv_sculpt_object",
@@ -347,6 +348,23 @@ int ed_screen_context(const bContext *C, const char *member, bContextDataResult 
 			return 1;
 		}
 	}
+	else if (CTX_data_equals(member, "selected_pose_bones_from_active_object")) {
+		Object *obpose = BKE_object_pose_armature_get(obact);
+		if (obpose && obpose->pose && obpose->data) {
+			if (obpose != obact) {
+				FOREACH_PCHAN_SELECTED_IN_OBJECT_BEGIN (obpose, pchan) {
+					CTX_data_list_add(result, &obpose->id, &RNA_PoseBone, pchan);
+				} FOREACH_PCHAN_SELECTED_IN_OBJECT_END;
+			}
+			else if (obact->mode & OB_MODE_POSE) {
+				FOREACH_PCHAN_SELECTED_IN_OBJECT_BEGIN (obact, pchan) {
+					CTX_data_list_add(result, &obact->id, &RNA_PoseBone, pchan);
+				} FOREACH_PCHAN_SELECTED_IN_OBJECT_END;
+			}
+			CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+			return 1;
+		}
+	}
 	else if (CTX_data_equals(member, "active_bone")) {
 		if (obact && obact->type == OB_ARMATURE) {
 			bArmature *arm = obact->data;
@@ -437,7 +455,7 @@ int ed_screen_context(const bContext *C, const char *member, bContextDataResult 
 				if (ED_uvedit_test(obedit)) {
 					WorkSpace *workspace = CTX_wm_workspace(C);
 					if ((workspace->tools_space_type == SPACE_IMAGE) &&
-					    (workspace->tools_mode == SI_MODE_VIEW))
+					    (workspace->tools_mode == SI_MODE_UV))
 					{
 						CTX_data_id_pointer_set(result, &obact->id);
 					}
