@@ -121,7 +121,7 @@ protected:
 		 */
 		UniformInfo(const std::string& name, GPUShader *shader);
 
-		inline bool operator< (const UniformInfo& other)
+		inline bool operator< (const UniformInfo& other) const
 		{
 			return (nameHash < other.nameHash);
 		}
