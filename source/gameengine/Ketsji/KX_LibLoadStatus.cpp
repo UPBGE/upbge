@@ -30,11 +30,11 @@
 
 #include "PIL_time.h"
 
-KX_LibLoadStatus::KX_LibLoadStatus(BL_Converter *converter, KX_KetsjiEngine *engine, KX_Scene *merge_scene, const std::string& path)
-	:m_converter(converter),
-	m_engine(engine),
-	m_mergescene(merge_scene),
+KX_LibLoadStatus::KX_LibLoadStatus(const std::vector<KX_Scene *>& scenes, KX_Scene *mergeScene, const ConvertFunction& function,
+		const BL_Resource::Library& libraryId, const std::string& path)
+	:m_mergeScene(mergeScene),
 	m_libname(path),
+	m_convertFunction(function),
 	m_progress(0.0f),
 	m_finished(false)
 #ifdef WITH_PYTHON
@@ -44,6 +44,11 @@ KX_LibLoadStatus::KX_LibLoadStatus(BL_Converter *converter, KX_KetsjiEngine *eng
 #endif
 {
 	m_endtime = m_starttime = PIL_check_seconds_timer();
+
+	// Create scene converters.
+	for (KX_Scene *scene : scenes) {
+		m_sceneConverters.emplace_back(scene, libraryId);
+	}
 }
 
 void KX_LibLoadStatus::Finish()
@@ -73,29 +78,19 @@ void KX_LibLoadStatus::RunProgressCallback()
 {
 }
 
-BL_Converter *KX_LibLoadStatus::GetConverter() const
-{
-	return m_converter;
-}
-
-KX_KetsjiEngine *KX_LibLoadStatus::GetEngine() const
-{
-	return m_engine;
-}
-
 KX_Scene *KX_LibLoadStatus::GetMergeScene() const
 {
-	return m_mergescene;
+	return m_mergeScene;
 }
 
 std::vector<BL_SceneConverter>& KX_LibLoadStatus::GetSceneConverters()
 {
-	return m_sceneConvertes;
+	return m_sceneConverters;
 }
 
-void KX_LibLoadStatus::AddSceneConverter(KX_Scene *scene, const BL_Resource::Library& libraryId)
+const KX_LibLoadStatus::ConvertFunction& KX_LibLoadStatus::GetConvertFunction() const
 {
-	m_sceneConvertes.emplace_back(scene, libraryId);
+	return m_convertFunction;
 }
 
 bool KX_LibLoadStatus::IsFinished() const

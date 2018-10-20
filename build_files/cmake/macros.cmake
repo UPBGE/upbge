@@ -621,11 +621,11 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		ge_device
 		ge_rasterizer
 		ge_oglrasterizer
-		ge_common
 		ge_logic_expressions
 		ge_scenegraph
 		ge_logic_network
 		ge_videotex
+		ge_common
 
 		bf_render
 		bf_python

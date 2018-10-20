@@ -30,6 +30,8 @@
 #include "EXP_PyObjectPlus.h"
 #include "BL_SceneConverter.h"
 
+#include <functional>
+
 class BL_Converter;
 class KX_KetsjiEngine;
 class KX_Scene;
@@ -37,12 +39,14 @@ class KX_Scene;
 class KX_LibLoadStatus : public EXP_PyObjectPlus
 {
 	Py_Header
+public:
+	using ConvertFunction = std::function<void (BL_Converter&, BL_SceneConverter&)>;
+
 private:
-	BL_Converter *m_converter;
-	KX_KetsjiEngine *m_engine;
-	KX_Scene *m_mergescene;
-	std::vector<BL_SceneConverter> m_sceneConvertes;
+	KX_Scene *m_mergeScene;
+	std::vector<BL_SceneConverter> m_sceneConverters;
 	std::string m_libname;
+	ConvertFunction m_convertFunction;
 
 	float m_progress;
 	double m_starttime;
@@ -57,19 +61,17 @@ private:
 #endif
 
 public:
-	KX_LibLoadStatus(BL_Converter *converter, KX_KetsjiEngine *engine, KX_Scene *merge_scene, const std::string& path);
+	KX_LibLoadStatus(const std::vector<KX_Scene *>& scenes, KX_Scene *mergeScene, const ConvertFunction& function,
+			const BL_Resource::Library& libraryId, const std::string& path);
 
 	/// Called when the libload is done.
 	void Finish();
 	void RunFinishCallback();
 	void RunProgressCallback();
 
-	BL_Converter *GetConverter() const;
-	KX_KetsjiEngine *GetEngine() const;
 	KX_Scene *GetMergeScene() const;
-
 	std::vector<BL_SceneConverter>& GetSceneConverters();
-	void AddSceneConverter(KX_Scene *scene, const BL_Resource::Library& libraryId);
+	const ConvertFunction& GetConvertFunction() const;
 
 	bool IsFinished() const;
 
