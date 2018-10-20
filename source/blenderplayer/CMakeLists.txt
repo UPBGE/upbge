@@ -106,10 +106,10 @@ endif()
 		ge_rasterizer
 		ge_oglrasterizer
 		ge_logic_expressions
-		ge_common
 		ge_scenegraph
 		ge_logic_network
 		ge_videotex
+		ge_common
 
 		bf_editor_datafiles
 

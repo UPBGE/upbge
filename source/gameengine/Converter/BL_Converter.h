@@ -45,7 +45,9 @@
 
 #include "BL_SceneConverter.h"
 
-#include "CM_Thread.h"
+#include "tbb/task_group.h"
+
+#include <mutex>
 
 class EXP_StringValue;
 class BL_SceneConverter;
@@ -64,7 +66,6 @@ struct Material;
 struct bAction;
 struct bActuator;
 struct bController;
-struct TaskPool;
 
 template<class Value>
 using UniquePtrList = std::vector<std::unique_ptr<Value> >;
@@ -90,10 +91,8 @@ private:
 
 	std::map<KX_Scene *, SceneSlot> m_sceneSlots;
 
-	struct ThreadInfo {
-		TaskPool *m_pool;
-		CM_ThreadMutex m_mutex;
-	} m_threadinfo;
+	tbb::task_group m_convertThread;
+	std::mutex m_mergeMutex;
 
 	/// List of loaded libraries to merge.
 	std::vector<KX_LibLoadStatus *> m_mergequeue;
@@ -128,14 +127,6 @@ private:
 	 */
 	void MergeSceneData(KX_Scene *to, const BL_SceneConverter& converter);
 
-	/** Complete process of scene merging:
-	 * - post convert
-	 * - merge data
-	 * - merge scene (KX_Scene::MergeScene)
-	 * - finalize data
-	 */
-	void MergeScene(KX_Scene *to, const BL_SceneConverter& converter);
-
 	/** Regenerate material shader after a converting or merging a scene
 	 * depending on all the lights into the destination scene.
 	 */
@@ -143,13 +134,8 @@ private:
 	/// Regenerate shaders of material in given scene converter, used when creating mesh. 
 	void ReloadShaders(const BL_SceneConverter& converter);
 
-	/// Delay library merging to ProcessScheduledLibraries.
-	void AddScenesToMergeQueue(KX_LibLoadStatus *status);
-
-	/** Asynchronously convert scenes from a library.
-	 * \param ptr Pointer to the library status.
-	 */
-	static void AsyncConvertTask(TaskPool *pool, void *ptr, int UNUSED(threadid));
+	/// Asynchronously convert scenes from a library.
+	void ConvertLibraryTask(KX_LibLoadStatus *status);
 
 	Main *GetLibraryPath(const std::string& path);
 
@@ -159,6 +145,9 @@ private:
 	bool FreeBlendFileData(Main *maggie);
 	/// Free blend file and remove library from internal lists.
 	void FreeBlendFile(Main *maggie);
+
+	void ProcessScheduledMerge();
+	void ProcessScheduledFree();
 
 public:
 	BL_Converter(Main *maggie, KX_KetsjiEngine *engine, bool alwaysUseExpandFraming, float camZoom);

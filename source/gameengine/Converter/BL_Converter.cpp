@@ -73,7 +73,6 @@ extern "C" {
 #  include "BKE_report.h"
 }
 
-#include "BLI_task.h"
 #include "CM_Message.h"
 
 #include <cstring>
@@ -126,9 +125,6 @@ BL_Converter::BL_Converter(Main *maggie, KX_KetsjiEngine *engine, bool alwaysUse
 	m_alwaysUseExpandFraming(alwaysUseExpandFraming),
 	m_camZoom(camZoom)
 {
-	BKE_main_id_tag_all(maggie, LIB_TAG_DOIT, false);  // avoid re-tagging later on
-	m_threadinfo.m_pool = BLI_task_pool_create(engine->GetTaskScheduler(), nullptr);
-
 	m_maggies.push_back(m_maggie);
 }
 
@@ -138,11 +134,6 @@ BL_Converter::~BL_Converter()
 	while (!m_dynamicMaggies.empty()) {
 		FreeBlendFile(m_dynamicMaggies.front());
 	}
-
-	/* Thread infos like mutex must be freed after FreeBlendFile function.
-	   Because it needs to lock the mutex, even if there's no active task when it's
-	   in the scene converter destructor. */
-	BLI_task_pool_free(m_threadinfo.m_pool);
 }
 
 Scene *BL_Converter::GetBlenderSceneForName(const std::string &name)
@@ -262,56 +253,82 @@ std::vector<std::string> BL_Converter::GetLibraryNames() const
 	return names;
 }
 
-void BL_Converter::ProcessScheduledLibraries()
+void BL_Converter::ProcessScheduledMerge()
 {
-	m_threadinfo.m_mutex.Lock();
+	m_mergeMutex.lock();
 	const std::vector<KX_LibLoadStatus *> mergeQueue = m_mergequeue;
 	m_mergequeue.clear();
-	m_threadinfo.m_mutex.Unlock();
+	m_mergeMutex.unlock();
 
 	for (KX_LibLoadStatus *libload : mergeQueue) {
 		KX_Scene *mergeScene = libload->GetMergeScene();
-		std::vector<BL_SceneConverter>& converters = libload->GetSceneConverters();
-		for (const BL_SceneConverter& converter : converters) {
-			MergeScene(mergeScene, converter);
+		for (const BL_SceneConverter& converter : libload->GetSceneConverters()) {
+			KX_Scene *scene = converter.GetScene();
+
+			// Finalize synchronous conversion.
+			PostConvertScene(converter);
+			// Merge the scene data.
+			MergeSceneData(mergeScene, converter);
+
+			// The scene must be merged ?
+			if (scene != mergeScene) {
+				// Merge the scene objects and managers.
+				mergeScene->MergeScene(scene);
+			}
+
+			// Reload shader with all lights in the merged scene.
+			ReloadShaders(mergeScene);
+
+			if (scene != mergeScene) {
+				// Free the merged scene.
+				delete scene;
+			}
 		}
 
 		libload->Finish();
 	}
+}
 
+void BL_Converter::ProcessScheduledFree()
+{
 	for (Main *maggie : m_freeQueue) {
 		FreeBlendFileData(maggie);
 	}
 	m_freeQueue.clear();
 }
 
+
+void BL_Converter::ProcessScheduledLibraries()
+{
+	ProcessScheduledMerge();
+	ProcessScheduledFree();
+}
+
 void BL_Converter::FinalizeAsyncLoads()
 {
 	// Finish all loading libraries.
-	BLI_task_pool_work_and_wait(m_threadinfo.m_pool);
+	m_convertThread.wait();
 	// Merge all libraries data in the current scene, to avoid memory leak of unmerged scenes.
 	ProcessScheduledLibraries();
 }
 
-void BL_Converter::AddScenesToMergeQueue(KX_LibLoadStatus *status)
+void BL_Converter::ConvertLibraryTask(KX_LibLoadStatus *status)
 {
-	m_threadinfo.m_mutex.Lock();
-	m_mergequeue.push_back(status);
-	m_threadinfo.m_mutex.Unlock();
-}
-
-void BL_Converter::AsyncConvertTask(TaskPool *pool, void *ptr, int UNUSED(threadid))
-{
-	KX_LibLoadStatus *status = static_cast<KX_LibLoadStatus *>(ptr);
-	BL_Converter *converter = status->GetConverter();
+	// Get the function used to convert data.
+	const KX_LibLoadStatus::ConvertFunction& func = status->GetConvertFunction();
 
 	std::vector<BL_SceneConverter>& converters = status->GetSceneConverters();
 	for (BL_SceneConverter& sceneConverter : converters) {
-		converter->ConvertScene(sceneConverter, true, false);
-		status->AddProgress((1.0f / converters.size()) * 0.9f); // We'll call conversion 90% and merging 10% for now
+		// Call conversion.
+		func(*this, sceneConverter);
+		// We'll call conversion 90% and merging 10% for now.
+		status->AddProgress((1.0f / converters.size()) * 0.9f);
 	}
 
-	status->GetConverter()->AddScenesToMergeQueue(status);
+	m_mergeMutex.lock();
+	// Register library for merging.
+	m_mergequeue.push_back(status);
+	m_mergeMutex.unlock();
 }
 
 Main *BL_Converter::GetLibraryPath(const std::string& path)
@@ -433,32 +450,40 @@ KX_LibLoadStatus *BL_Converter::LinkBlendFile(BlendHandle *blendlib, const char 
 
 	// Linking done.
 
-	KX_LibLoadStatus *status = new KX_LibLoadStatus(this, m_ketsjiEngine, scene_merge, path);
-
 	const BL_Resource::Library libraryId(main_newlib);
+	// The function used to convert data.
+	KX_LibLoadStatus::ConvertFunction convertFunction;
+	// Scenes used during the conversion.
+	std::vector<KX_Scene *> scenes;
 
+	// Select the conversion function and register scenes holding data to convert.
 	switch (idcode) {
 		case ID_ME:
 		{
-			BL_SceneConverter sceneConverter(scene_merge, libraryId);
-			// Convert all new meshes into BGE meshes
-			for (Mesh *mesh = (Mesh *)main_newlib->mesh.first; mesh; mesh = (Mesh *)mesh->id.next) {
-				BL_ConvertMesh((Mesh *)mesh, nullptr, scene_merge, sceneConverter);
-			}
+			convertFunction = 
+				[main_newlib](BL_Converter& converter, BL_SceneConverter& sceneConverter)
+				{
+					// Convert all new meshes into BGE meshes
+					for (Mesh *mesh = (Mesh *)main_newlib->mesh.first; mesh; mesh = (Mesh *)mesh->id.next) {
+						BL_ConvertMesh((Mesh *)mesh, nullptr, sceneConverter.GetScene(), sceneConverter);
+					}
+				};
 
-			// Merge the meshes and materials in the targeted scene.
-			MergeSceneData(scene_merge, sceneConverter);
-			// Load shaders for new created materials.
-			ReloadShaders(scene_merge);
+			scenes.push_back(scene_merge);
+
 			break;
 		}
 		case ID_AC:
 		{
-			BL_SceneConverter sceneConverter(scene_merge, libraryId);
-			// Convert all actions and register.
-			BL_ConvertActions(scene_merge, main_newlib, sceneConverter);
-			// Merge the actions in the targeted scene.
-			MergeSceneData(scene_merge, sceneConverter);
+			convertFunction = 
+				[main_newlib](BL_Converter& converter, BL_SceneConverter& sceneConverter)
+				{
+					// Convert all actions and register.
+					BL_ConvertActions(sceneConverter.GetScene(), main_newlib, sceneConverter);
+				};
+	
+			scenes.push_back(scene_merge);
+
 			break;
 		}
 		case ID_SCE:
@@ -484,29 +509,30 @@ KX_LibLoadStatus *BL_Converter::LinkBlendFile(BlendHandle *blendlib, const char 
 				MergeSceneData(scene_merge, sceneConverter);
 			}
 
+			convertFunction = 
+				[](BL_Converter& converter, BL_SceneConverter& sceneConverter)
+				{
+					// Convert all scene data.
+					converter.ConvertScene(sceneConverter, true, false);
+				};
+
 			for (Scene *bscene = (Scene *)main_newlib->scene.first; bscene; bscene = (Scene *)bscene->id.next) {
 				KX_Scene *scene = m_ketsjiEngine->CreateScene(bscene);
 
-				// Schedule conversion and merge.
-				if (options & LIB_LOAD_ASYNC) {
-					status->AddSceneConverter(scene, libraryId);
-				}
-				// Or proceed direct conversion and merge.
-				else {
-					BL_SceneConverter sceneConverter(scene, libraryId);
-					ConvertScene(sceneConverter, true, false);
-					MergeScene(scene_merge, sceneConverter);
-				}
+				scenes.push_back(scene);
 			}
 			break;
 		}
 	}
 
+	KX_LibLoadStatus *status = new KX_LibLoadStatus(scenes, scene_merge, convertFunction, libraryId, path);
+
 	if (options & LIB_LOAD_ASYNC) {
-		BLI_task_pool_push(m_threadinfo.m_pool, AsyncConvertTask, (void *)status, false, TASK_PRIORITY_LOW);
+		m_convertThread.run([status, this](){ this->ConvertLibraryTask(status); });
 	}
 	else {
-		status->Finish();
+		ConvertLibraryTask(status);
+		ProcessScheduledMerge();
 	}
 
 	// Register new library.
@@ -526,9 +552,9 @@ bool BL_Converter::FreeBlendFileData(Main *maggie)
 
 	KX_LibLoadStatus *status = m_libloadStatus[maggie].get();
 	// If the given library is currently in loading, we do nothing.
-	m_threadinfo.m_mutex.Lock();
+	m_mergeMutex.lock();
 	const bool finished = status->IsFinished();
-	m_threadinfo.m_mutex.Unlock();
+	m_mergeMutex.unlock();
 
 	if (!finished) {
 		CM_Error("Library (" << maggie->name << ") is currently being loaded asynchronously, and cannot be freed until this process is done");
@@ -667,20 +693,6 @@ void BL_Converter::MergeSceneData(KX_Scene *to, const BL_SceneConverter& convert
 	}
 
 	m_sceneSlots[to].Merge(converter);
-}
-
-void BL_Converter::MergeScene(KX_Scene *to, const BL_SceneConverter& converter)
-{
-	PostConvertScene(converter);
-
-	MergeSceneData(to, converter);
-
-	KX_Scene *from = converter.GetScene();
-	to->MergeScene(from);
-
-	ReloadShaders(to);
-
-	delete from;
 }
 
 void BL_Converter::ReloadShaders(KX_Scene *scene)
