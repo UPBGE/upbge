@@ -891,7 +891,7 @@ static void graph_draw_driver_settings_panel(uiLayout *layout, ID *id, FCurve *f
 		but = uiDefIconTextBut(block, UI_BTYPE_BUT, B_IPO_DEPCHANGE, ICON_ADD, IFACE_("Add Input Variable"),
 		                       0, 0, 10 * UI_UNIT_X, UI_UNIT_Y,
 		                       NULL, 0.0, 0.0, 0, 0,
-		                       TIP_("Driver variables ensure that all dependencies will be accounted for, eusuring that drivers will update correctly"));
+		                       TIP_("Driver variables ensure that all dependencies will be accounted for, ensuring that drivers will update correctly"));
 		UI_but_func_set(but, driver_add_var_cb, driver, NULL);
 
 		/* copy/paste (as sub-row) */
@@ -1197,7 +1197,7 @@ void graph_buttons_register(ARegionType *art)
 	strcpy(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
 	pt->draw = graph_panel_drivers_popover;
 	pt->poll = graph_panel_drivers_popover_poll;
-	BLI_addtail(&art->paneltypes, pt);
+	WM_paneltype_add(pt); /* This panel isn't used in this region. Add explicitly to global list (so popovers work). */
 
 	pt = MEM_callocN(sizeof(PanelType), "spacetype graph panel modifiers");
 	strcpy(pt->idname, "GRAPH_PT_modifiers");
