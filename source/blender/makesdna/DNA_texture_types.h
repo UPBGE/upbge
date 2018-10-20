@@ -99,7 +99,9 @@ typedef struct MTex {
 	float lodbias;
 
 	/* parallax */
-	short parflag, pad3;
+	short parflag;
+
+	short colorManagement;
 } MTex;
 
 #ifndef DNA_USHORT_FIX

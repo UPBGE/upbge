@@ -195,10 +195,12 @@ static void texture_rgb_blend(
 
 /* Functions */
 
-static bool tex_do_color_management(GPUMaterial *mat, Tex *tex)
+static bool tex_do_color_management(GPUMaterial *mat, MTex *mtex, Tex *tex)
 {
+	const bool mtexDoColorManagement = (mtex->colorManagement == GAME_COLOR_MANAGEMENT_SRGB) && GPU_material_do_color_management(mat);
+
 	if (tex->type == TEX_IMAGE) {
-		return GPU_material_do_color_management(mat);
+		return mtexDoColorManagement;
 	}
 	else if (tex->type == TEX_ENVMAP) {
 		// Realtime textures are rendered from game engine without sRGB conversion.
@@ -206,7 +208,7 @@ static bool tex_do_color_management(GPUMaterial *mat, Tex *tex)
 			return !(mat->flags & GPU_MATERIAL_NO_COLOR_MANAGEMENT);
 		}
 		else {
-			return GPU_material_do_color_management(mat);
+			return mtexDoColorManagement;
 		}
 	}
 
@@ -1590,7 +1592,7 @@ static void do_material_tex(GPUShadeInput *shi)
 						GPU_link(mat, "set_value_one", &tin);
 				}
 
-				if (tex_do_color_management(mat, tex)) {
+				if (tex_do_color_management(mat, mtex, tex)) {
 					GPU_link(mat, "srgb_to_linearrgb", tcol, &tcol);
 				}
 
@@ -2304,7 +2306,7 @@ static void do_world_tex(GPUShadeInput *shi, struct World *wo, GPUNodeLink **hor
 					GPU_link(mat, "mtex_image", texco, GPU_image(tex->ima, &tex->iuser, false), GPU_uniform(&mtex->lodbias), &tin, &trgb);
 			}
 			rgbnor = TEX_RGB;
-			if (tex_do_color_management(mat, tex)) {
+			if (tex_do_color_management(mat, mtex, tex)) {
 				GPU_link(mat, "srgb_to_linearrgb", trgb, &trgb);
 			}
 			/* texture output */

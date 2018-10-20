@@ -428,6 +428,7 @@ void BKE_texture_mtex_default(MTex *mtex)
 	mtex->brush_angle_mode = 0;
 	mtex->ior = 1.0f;
 	mtex->refrratio = 0.0f;
+	mtex->colorManagement = GAME_COLOR_MANAGEMENT_SRGB;
 }
 
 

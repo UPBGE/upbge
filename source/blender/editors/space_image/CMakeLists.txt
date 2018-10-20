@@ -49,6 +49,10 @@ set(SRC
 	image_intern.h
 )
 
+if(WITH_GAMEENGINE)
+	add_definitions(-DWITH_GAMEENGINE)
+endif()
+
 if(WITH_INTERNATIONAL)
 	add_definitions(-DWITH_INTERNATIONAL)
 endif()

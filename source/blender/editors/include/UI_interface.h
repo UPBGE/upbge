@@ -980,7 +980,7 @@ void uiTemplateLayers(
 void uiTemplateGameStates(
         uiLayout *layout, struct PointerRNA *ptr, const char *propname,
         PointerRNA *used_ptr, const char *used_propname, int active_state);
-void uiTemplateImage(uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, const char *propname, struct PointerRNA *userptr, bool compact, bool multiview, bool cubemap);
+void uiTemplateImage(uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, const char *propname, struct PointerRNA *userptr, bool compact, bool multiview, bool cubemap, bool color_space);
 void uiTemplateImageSettings(uiLayout *layout, struct PointerRNA *imfptr, bool color_management);
 void uiTemplateImageStereo3d(uiLayout *layout, struct PointerRNA *stereo3d_format_ptr);
 void uiTemplateImageViews(uiLayout *layout, struct PointerRNA *imaptr);
