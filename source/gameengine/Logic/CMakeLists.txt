@@ -45,13 +45,21 @@ set(INC_SYS
 )
 
 set(SRC
+	LOG_BaseNode.cpp
+	LOG_FunctionNode.cpp
+	LOG_FunctionSocket.cpp
+	LOG_INodeSocket.cpp
 	LOG_Node.cpp
 	LOG_Tree.cpp
-	LOG_NodeSocket.cpp
+	LOG_ValueSocket.cpp
 
+	LOG_BaseNode.h
+	LOG_FunctionNode.h
+	LOG_FunctionSocket.h
+	LOG_INodeSocket.h
 	LOG_Node.h
 	LOG_Tree.h
-	LOG_NodeSocket.h
+	LOG_ValueSocket.h
 )
 
 blender_add_lib(ge_logic "${SRC}" "${INC}" "${INC_SYS}")

@@ -8,9 +8,7 @@ class LOG_Node : public LOG_BaseNode
 	Py_Header
 
 protected:
-	std::vector<LOG_NodeSocket *> m_outputs;
-
-	std::unique_ptr<EXP_BaseListWrapper> m_outputsWrapper;
+	std::vector<LOG_INodeSocket *> m_outputs;
 
 public:
 	LOG_Node();
@@ -20,9 +18,7 @@ public:
 	virtual std::string GetName() const;
 	virtual EXP_Value *GetReplica();
 
-	bool ProcessReplica();
-
-	void AddOutput(LOG_NodeSocket *socket);
+	void AddOutput(LOG_INodeSocket *socket);
 
 	/// Update the outputs socket and return the next node to execute.
 	LOG_Node *Update();
@@ -36,6 +32,10 @@ public:
 
 	// Attributes
 	static PyObject *pyattr_get_outputs(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+
+protected:
+	EXP_ListWrapper<LOG_Node, &LOG_Node::py_get_outputs_size, &LOG_Node::py_get_outputs_item,
+		&LOG_Node::py_set_outputs_item, &LOG_Node::py_get_outputs_name> m_outputsWrapper;
 };
 
 #endif  // __LOG_NODE_H__

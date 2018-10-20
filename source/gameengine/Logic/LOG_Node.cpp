@@ -1,21 +1,17 @@
 #include "LOG_Node.h"
-#include "LOG_NodeSocket.h"
+#include "LOG_INodeSocket.h"
 
 #include "CM_Message.h"
 
 LOG_Node::LOG_Node()
-	:m_outputsWrapper(new EXP_ListWrapper<LOG_Node, &LOG_Node::py_get_outputs_size, &LOG_Node::py_get_outputs_item,
-			&LOG_Node::py_set_outputs_item, &LOG_Node::py_get_outputs_name>
-				(this, EXP_BaseListWrapper::FLAG_NO_WEAK_REF))
+	:m_outputsWrapper(this, EXP_BaseListWrapper::FLAG_NO_WEAK_REF)
 {
 }
 
 LOG_Node::LOG_Node(const LOG_Node& other)
 	:LOG_BaseNode(other),
 	m_outputs(other.m_outputs),
-	m_outputsWrapper(new EXP_ListWrapper<LOG_Node, &LOG_Node::py_get_outputs_size, &LOG_Node::py_get_outputs_item,
-			&LOG_Node::py_set_outputs_item, &LOG_Node::py_get_outputs_name>
-				(this, EXP_BaseListWrapper::FLAG_NO_WEAK_REF))
+	m_outputsWrapper(this, EXP_BaseListWrapper::FLAG_NO_WEAK_REF)
 {
 }
 
@@ -31,15 +27,12 @@ std::string LOG_Node::GetName() const
 EXP_Value *LOG_Node::GetReplica()
 {
 	LOG_Node *replica = new LOG_Node(*this);
-	if (!replica->ProcessReplica()) {
-		delete replica;
-		return nullptr;
-	}
+	replica->ProcessReplica();
 
 	return replica;
 }
 
-void LOG_Node::AddOutput(LOG_NodeSocket *socket)
+void LOG_Node::AddOutput(LOG_INodeSocket *socket)
 {
 	m_outputs.push_back(socket);
 }
@@ -98,7 +91,7 @@ PyTypeObject LOG_Node::Type = {
 	Methods,
 	0,
 	0,
-	&EXP_PyObjectPlus::Type,
+	&LOG_BaseNode::Type,
 	0, 0, 0, 0, 0, 0,
 	py_node_new
 };
@@ -136,5 +129,5 @@ std::string LOG_Node::py_get_outputs_name(unsigned int index)
 PyObject *LOG_Node::pyattr_get_outputs(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	LOG_Node *self = static_cast<LOG_Node *>(self_v);
-	return self->m_outputsWrapper->GetProxy();
+	return self->m_outputsWrapper.GetProxy();
 }

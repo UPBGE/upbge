@@ -41,6 +41,7 @@ DefNode( Node,           NODE_GROUP_OUTPUT,       def_group_output,       "GROUP
 DefNode( Node,           NODE_REROUTE,            0,                      "REROUTE",        Reroute,          "Reroute",           ""              )
 
 DefNode( LogicNode,      LOGIC_NODE_ROOT,         0,                      "ROOT",           Root,             "Root",              ""       )
+DefNode( LogicNode,      LOGIC_NODE_FUNCTION,     0,                      "FUNCTION",       Function,         "Function",          ""       )
 
 DefNode( ShaderNode,     SH_NODE_OUTPUT,          def_sh_output,          "OUTPUT",         Output,           "Output",            ""              )
 DefNode( ShaderNode,     SH_NODE_MATERIAL,        def_sh_material,        "MATERIAL",       Material,         "Material",          ""              )

@@ -1,31 +1,25 @@
 #include "LOG_BaseNode.h"
-#include "LOG_NodeSocket.h"
+#include "LOG_INodeSocket.h"
 
 #include "KX_GameObject.h"
 
 #include "CM_Message.h"
 
 LOG_BaseNode::LOG_BaseNode()
-	:m_object(nullptr),
-	m_inputsWrapper(new EXP_ListWrapper<LOG_BaseNode, &LOG_BaseNode::py_get_inputs_size,
-			&LOG_BaseNode::py_get_inputs_item, nullptr, &LOG_BaseNode::py_get_inputs_name>
-				(this, EXP_BaseListWrapper::FLAG_NO_WEAK_REF)),
-	m_propertiesWrapper(new EXP_ListWrapper<LOG_BaseNode, &LOG_BaseNode::py_get_properties_size,
-			&LOG_BaseNode::py_get_properties_item, nullptr, &LOG_BaseNode::py_get_properties_name>
-				(this, EXP_BaseListWrapper::FLAG_NO_WEAK_REF))
+	:m_status(NO_STATUS),
+	m_object(nullptr),
+	m_inputsWrapper(this, EXP_BaseListWrapper::FLAG_NO_WEAK_REF),
+	m_propertiesWrapper(this, EXP_BaseListWrapper::FLAG_NO_WEAK_REF)
 {
 }
 
 LOG_BaseNode::LOG_BaseNode(const LOG_BaseNode& other)
-	:m_object(nullptr),
+	:m_status(NO_STATUS),
+	m_object(nullptr),
 	m_inputs(other.m_inputs),
-	m_inputsWrapper(new EXP_ListWrapper<LOG_BaseNode, &LOG_BaseNode::py_get_inputs_size,
-			&LOG_BaseNode::py_get_inputs_item, nullptr, &LOG_BaseNode::py_get_inputs_name>
-				(this, EXP_BaseListWrapper::FLAG_NO_WEAK_REF)),
 	m_properties(other.m_properties),
-	m_propertiesWrapper(new EXP_ListWrapper<LOG_BaseNode, &LOG_BaseNode::py_get_properties_size,
-			&LOG_BaseNode::py_get_properties_item, nullptr, &LOG_BaseNode::py_get_properties_name>
-				(this, EXP_BaseListWrapper::FLAG_NO_WEAK_REF))
+	m_inputsWrapper(this, EXP_BaseListWrapper::FLAG_NO_WEAK_REF),
+	m_propertiesWrapper(this, EXP_BaseListWrapper::FLAG_NO_WEAK_REF)
 {
 }
 
@@ -33,7 +27,7 @@ LOG_BaseNode::~LOG_BaseNode()
 {
 }
 
-bool LOG_BaseNode::ProcessReplica()
+void LOG_BaseNode::ProcessReplica()
 {
 	EXP_Value::ProcessReplica();
 
@@ -42,10 +36,8 @@ bool LOG_BaseNode::ProcessReplica()
 	PyTypeObject *type = Py_TYPE(proxy);
 	if (!py_base_new(type, PyTuple_Pack(1, proxy), nullptr)) {
 		CM_Error("failed replicate node"); // TODO
-		return false;
+		m_status = INIT_ERROR;
 	}
-
-	return true;
 }
 
 KX_GameObject *LOG_BaseNode::GetGameObject() const
@@ -58,7 +50,7 @@ void LOG_BaseNode::SetGameObject(KX_GameObject *gameobj)
 	m_object = gameobj;
 }
 
-void LOG_BaseNode::AddInput(LOG_NodeSocket *socket)
+void LOG_BaseNode::AddInput(LOG_INodeSocket *socket)
 {
 	m_inputs.push_back(socket);
 }
@@ -151,12 +143,12 @@ PyObject *LOG_BaseNode::pyattr_get_object(EXP_PyObjectPlus *self_v, const EXP_PY
 PyObject *LOG_BaseNode::pyattr_get_inputs(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	LOG_BaseNode *self = static_cast<LOG_BaseNode *>(self_v);
-	return self->m_inputsWrapper->GetProxy();
+	return self->m_inputsWrapper.GetProxy();
 }
 
 PyObject *LOG_BaseNode::pyattr_get_properties(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	LOG_BaseNode *self = static_cast<LOG_BaseNode *>(self_v);
-	return self->m_propertiesWrapper->GetProxy();
+	return self->m_propertiesWrapper.GetProxy();
 }
 

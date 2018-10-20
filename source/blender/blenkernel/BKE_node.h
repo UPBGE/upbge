@@ -1049,7 +1049,9 @@ struct TexResult;
 #define TEX_NODE_PROC_MAX  600
 
 
-#define LOGIC_NODE_ROOT    1500
+#define LOGIC_NODE_ROOT     1500
+#define LOGIC_NODE_FUNCTION 1501
+
 
 /* API */
 int  ntreeTexTagAnimated(struct bNodeTree *ntree);

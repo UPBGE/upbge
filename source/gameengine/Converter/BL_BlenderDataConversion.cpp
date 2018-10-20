@@ -98,7 +98,9 @@
 #include "KX_ObstacleSimulation.h"
 
 #include "LOG_Node.h"
-#include "LOG_NodeSocket.h"
+#include "LOG_FunctionNode.h"
+#include "LOG_FunctionSocket.h"
+#include "LOG_ValueSocket.h"
 #include "LOG_Tree.h"
 
 #include "BL_BlenderDataConversion.h"
@@ -1226,8 +1228,8 @@ static LOG_Node *BL_ConvertLogicNode(bNode *bnode, PyObject *mod, LOG_Tree *tree
 	return node;
 }
 
-static LOG_NodeSocket *BL_ConvertLogicNodeSocket(bNodeSocket *bsock, const std::unordered_map<bNode *, LOG_Node *>& convertedNodes, 
-		std::unordered_map<bNodeSocket *, LOG_NodeSocket *>& convertedSockets)
+static LOG_INodeSocket *BL_ConvertLogicNodeSocket(bNodeSocket *bsock, const std::unordered_map<bNode *, LOG_Node *>& convertedNodes, 
+		std::unordered_map<bNodeSocket *, LOG_INodeSocket *>& convertedSockets)
 {
 	const auto& it = convertedSockets.find(bsock);
 	if (it != convertedSockets.end()) {
@@ -1236,6 +1238,8 @@ static LOG_NodeSocket *BL_ConvertLogicNodeSocket(bNodeSocket *bsock, const std::
 	}
 
 	PyObject *value = nullptr;
+	LOG_FunctionNode *function = nullptr;
+
 	bNodeSocketType *typeinfo = bsock->typeinfo;
 	switch (typeinfo->type) {
 		case SOCK_FLOAT:
@@ -1319,11 +1323,15 @@ static LOG_NodeSocket *BL_ConvertLogicNodeSocket(bNodeSocket *bsock, const std::
 		}
 	}
 
-	if (!value) {
-		return nullptr;
+	LOG_INodeSocket *socket = nullptr;
+
+	if (value) {
+		socket = new LOG_ValueSocket(bsock->name, value);
+	}
+	else if (function) {
+		socket = new LOG_FunctionSocket(bsock->name, function);
 	}
 
-	LOG_NodeSocket *socket = new LOG_NodeSocket(bsock->name, value);
 	convertedSockets[bsock] = socket;
 	return socket;
 }
