@@ -116,7 +116,7 @@ void BL_SkinDeformer::Apply(RAS_DisplayArray *array)
 	}
 }
 
-void BL_SkinDeformer::BlenderDeformVerts()
+void BL_SkinDeformer::BlenderDeformVerts(bool recalcNormal)
 {
 	float obmat[4][4];  // the original object matrix
 	Object *par_arma = m_armobj->GetArmatureObject();
@@ -131,10 +131,12 @@ void BL_SkinDeformer::BlenderDeformVerts()
 	// restore matrix
 	copy_m4_m4(m_objMesh->obmat, obmat);
 
-	RecalcNormals();
+	if (recalcNormal) {
+		RecalcNormals();
+	}
 }
 
-void BL_SkinDeformer::BGEDeformVerts()
+void BL_SkinDeformer::BGEDeformVerts(bool recalcNormal)
 {
 	Object *par_arma = m_armobj->GetArmatureObject();
 	MDeformVert *dverts = m_bmesh->dvert;
@@ -166,19 +168,17 @@ void BL_SkinDeformer::BGEDeformVerts()
 	MDeformWeight *dw;
 
 	for (int i = 0; i < m_bmesh->totvert; ++i, dv++) {
+		if (!dv->totweight) {
+			continue;
+		}
+
 		float contrib = 0.0f, weight, max_weight = -1.0f;
 		bPoseChannel *pchan = nullptr;
-		Eigen::Vector3f normorg(m_bmesh->mvert[i].no[0], m_bmesh->mvert[i].no[1], m_bmesh->mvert[i].no[2]);
-		Eigen::Map<Eigen::Vector3f> norm = Eigen::Vector3f::Map(m_transnors[i].data);
 		Eigen::Vector4f vec(0.0f, 0.0f, 0.0f, 1.0f);
 		Eigen::Vector4f co(m_transverts[i].x,
 		                   m_transverts[i].y,
 		                   m_transverts[i].z,
 		                   1.0f);
-
-		if (!dv->totweight) {
-			continue;
-		}
 
 		co = pre_mat * co;
 
@@ -207,8 +207,12 @@ void BL_SkinDeformer::BGEDeformVerts()
 			}
 		}
 
-		// Update Vertex Normal
-		norm = norm_chan_mat.topLeftCorner<3, 3>() * normorg;
+		if (recalcNormal) {
+			const Eigen::Vector3f normorg(m_bmesh->mvert[i].no[0], m_bmesh->mvert[i].no[1], m_bmesh->mvert[i].no[2]);
+			Eigen::Map<Eigen::Vector3f> norm = Eigen::Vector3f::Map(m_transnors[i].data);
+			// Update Vertex Normal
+			norm = norm_chan_mat.topLeftCorner<3, 3>() * normorg;
+		}
 
 		co.noalias() += vec / contrib;
 		co[3] = 1.0f; // Make sure we have a 1 for the w component!
@@ -266,7 +270,7 @@ void BL_SkinDeformer::UpdateTransverts()
 	}
 }
 
-bool BL_SkinDeformer::UpdateInternal(bool shape_applied)
+bool BL_SkinDeformer::UpdateInternal(bool shape_applied, bool recalcNormal)
 {
 	/* See if the armature has been updated for this frame */
 	if (PoseUpdated()) {
@@ -278,10 +282,10 @@ bool BL_SkinDeformer::UpdateInternal(bool shape_applied)
 		m_armobj->ApplyPose();
 
 		if (m_armobj->GetVertDeformType() == ARM_VDEF_BGE_CPU) {
-			BGEDeformVerts();
+			BGEDeformVerts(recalcNormal);
 		}
 		else {
-			BlenderDeformVerts();
+			BlenderDeformVerts(recalcNormal);
 		}
 
 		/* Update the current frame */
@@ -301,5 +305,5 @@ bool BL_SkinDeformer::UpdateInternal(bool shape_applied)
 
 bool BL_SkinDeformer::Update(void)
 {
-	return UpdateInternal(false);
+	return UpdateInternal(false, true);
 }

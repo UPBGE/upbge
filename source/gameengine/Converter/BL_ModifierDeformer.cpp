@@ -117,7 +117,7 @@ bool BL_ModifierDeformer::HasArmatureDeformer(Object *ob)
 
 bool BL_ModifierDeformer::Update(void)
 {
-	bool bShapeUpdate = BL_ShapeDeformer::Update();
+	bool bShapeUpdate = BL_ShapeDeformer::UpdateInternal(false);
 
 	if (bShapeUpdate || m_lastModifierUpdate != m_lastFrame) {
 		// static derived mesh are not updated

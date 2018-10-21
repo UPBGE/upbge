@@ -132,7 +132,7 @@ bool BL_ShapeDeformer::ExecuteShapeDrivers()
 	return false;
 }
 
-bool BL_ShapeDeformer::Update()
+bool BL_ShapeDeformer::UpdateInternal(bool recalcNormal)
 {
 	bool bShapeUpdate = false;
 	bool bSkinUpdate = false;
@@ -173,7 +173,7 @@ bool BL_ShapeDeformer::Update()
 		bShapeUpdate = true;
 	}
 	// check for armature deform
-	bSkinUpdate = BL_SkinDeformer::UpdateInternal(bShapeUpdate && m_bDynamic);
+	bSkinUpdate = BL_SkinDeformer::UpdateInternal(bShapeUpdate && m_bDynamic, recalcNormal);
 
 	// non dynamic deformer = Modifer without armature and shape keys, no need to create storage
 	if (!bSkinUpdate && bShapeUpdate && m_bDynamic) {
@@ -183,6 +183,11 @@ bool BL_ShapeDeformer::Update()
 	}
 
 	return bSkinUpdate;
+}
+
+bool BL_ShapeDeformer::Update()
+{
+	return UpdateInternal(true);
 }
 
 Key *BL_ShapeDeformer::GetKey()
