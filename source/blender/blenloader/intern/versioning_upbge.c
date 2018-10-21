@@ -324,6 +324,14 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
 					}
 				}
 			}
+
+			for (World *wo = main->world.first; wo; wo = wo->id.next) {
+				for (unsigned short a = 0; a < MAX_MTEX; ++a) {
+					if (wo->mtex[a]) {
+						wo->mtex[a]->colorManagement = GAME_COLOR_MANAGEMENT_SRGB;
+					}
+				}
+			}
 		}
 	}
 }

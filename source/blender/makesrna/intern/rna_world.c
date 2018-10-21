@@ -35,6 +35,7 @@
 #include "DNA_material_types.h"
 #include "DNA_texture_types.h"
 #include "DNA_world_types.h"
+#include "DNA_scene_types.h"
 
 #include "WM_types.h"
 
@@ -139,6 +140,12 @@ static void rna_def_world_mtex(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem color_management_items[] = {
+		{GAME_COLOR_MANAGEMENT_LINEAR, "COLOR_MANAGEMENT_LINEAR", 0, "Linear", "Linear color space"},
+		{GAME_COLOR_MANAGEMENT_SRGB, "COLOR_MANAGEMENT_SRGB", 0, "sRGB", "sRGB color space"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	srna = RNA_def_struct(brna, "WorldTextureSlot", "TextureSlot");
 	RNA_def_struct_sdna(srna, "MTex");
 	RNA_def_struct_ui_text(srna, "World Texture Slot", "Texture slot for textures in a World data-block");
@@ -162,6 +169,12 @@ static void rna_def_world_mtex(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "use_map_zenith_down", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "mapto", WOMAP_ZENDOWN);
 	RNA_def_property_ui_text(prop, "Zenith Down", "Affect the color of the zenith below");
+	RNA_def_property_update(prop, 0, "rna_World_update");
+
+	prop = RNA_def_property(srna, "color_management", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "colorManagement");
+	RNA_def_property_enum_items(prop, color_management_items);
+	RNA_def_property_ui_text(prop, "Color Space", "The color space of the image");
 	RNA_def_property_update(prop, 0, "rna_World_update");
 
 	prop = RNA_def_property(srna, "lod_bias", PROP_FLOAT, PROP_NONE);
