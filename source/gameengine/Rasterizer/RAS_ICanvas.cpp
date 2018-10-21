@@ -69,19 +69,20 @@ const int RAS_ICanvas::swapInterval[RAS_ICanvas::SWAP_CONTROL_MAX] = {
 };
 
 RAS_ICanvas::RAS_ICanvas(RAS_Rasterizer *rasty)
-	:m_samples(0),
+	:m_currentBuffer(0),
+	m_samples(0),
 	m_hdrType(RAS_Rasterizer::RAS_HDR_NONE),
 	m_swapControl(VSYNC_OFF),
 	m_frame(1)
 {
-	m_taskscheduler = BLI_task_scheduler_create(TASK_SCHEDULER_AUTO_THREADS);
-	m_taskpool = BLI_task_pool_create(m_taskscheduler, nullptr);
+// 	m_taskscheduler = BLI_task_scheduler_create(TASK_SCHEDULER_AUTO_THREADS);
+// 	m_taskpool = BLI_task_pool_create(m_taskscheduler, nullptr);
 	m_rasterizer = rasty;
 }
 
 RAS_ICanvas::~RAS_ICanvas()
 {
-	if (m_taskpool) {
+	/*if (m_taskpool) {
 		BLI_task_pool_work_and_wait(m_taskpool);
 		BLI_task_pool_free(m_taskpool);
 		m_taskpool = nullptr;
@@ -90,7 +91,7 @@ RAS_ICanvas::~RAS_ICanvas()
 	if (m_taskscheduler) {
 		BLI_task_scheduler_free(m_taskscheduler);
 		m_taskscheduler = nullptr;
-	}
+	}*/
 }
 
 void RAS_ICanvas::SetSwapControl(SwapControl control)
@@ -125,11 +126,22 @@ RAS_Rasterizer::HdrType RAS_ICanvas::GetHdrType() const
 
 void RAS_ICanvas::FlushScreenshots()
 {
+	const unsigned int nextBuffer = (m_currentBuffer + 1) % 2;
+
+	const RAS_Rect& area = GetWindowArea(); // TODO get member (render attachement branch)
+	m_buffers[m_currentBuffer].Copy(area.GetLeft(), area.GetBottom(), area.GetWidth(), area.GetHeight());
+	const unsigned int *pixel = m_buffers[nextBuffer].Get();
+
 	for (const Screenshot& screenshot : m_screenshots) {
 		SaveScreeshot(screenshot);
 	}
 
+	if (pixel) {
+		delete pixel;
+	}
+
 	m_screenshots.clear();
+	m_currentBuffer = nextBuffer;
 }
 
 void RAS_ICanvas::AddScreenshot(const std::string& path, int x, int y, int width, int height, ImageFormatData *format)
@@ -165,15 +177,15 @@ void save_screenshot_thread_func(TaskPool *__restrict UNUSED(pool), void *taskda
 
 void RAS_ICanvas::SaveScreeshot(const Screenshot& screenshot)
 {
-	unsigned int *pixels = m_rasterizer->MakeScreenshot(screenshot.x, screenshot.y, screenshot.width, screenshot.height);
+	/*unsigned int *pixels = m_rasterizer->MakeScreenshot(screenshot.x, screenshot.y, screenshot.width, screenshot.height);
 	if (!pixels) {
 		CM_Error("cannot allocate pixels array");
 		return;
-	}
+	}*/
 
 	/* Save the actual file in a different thread, so that the
 	 * game engine can keep running at full speed. */
-	ScreenshotTaskData *task = (ScreenshotTaskData *)MEM_mallocN(sizeof(ScreenshotTaskData), "screenshot-data");
+	/*ScreenshotTaskData *task = (ScreenshotTaskData *)MEM_mallocN(sizeof(ScreenshotTaskData), "screenshot-data");
 	task->dumprect = pixels;
 	task->dumpsx = screenshot.width;
 	task->dumpsy = screenshot.height;
@@ -188,5 +200,5 @@ void RAS_ICanvas::SaveScreeshot(const Screenshot& screenshot)
 	                   save_screenshot_thread_func,
 	                   task,
 	                   true, // free task data
-	                   TASK_PRIORITY_LOW);
+	                   TASK_PRIORITY_LOW);*/
 }

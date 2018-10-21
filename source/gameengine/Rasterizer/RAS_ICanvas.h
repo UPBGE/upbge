@@ -33,6 +33,7 @@
 #define __RAS_ICANVAS_H__
 
 #include "RAS_Rasterizer.h" // for RAS_Rasterizer::HdrType
+#include "RAS_PixelBuffer.h"
 
 class RAS_Rect;
 struct TaskScheduler;
@@ -163,6 +164,8 @@ protected:
 	/// Swap interval value of each swap control mode.
 	static const int swapInterval[SWAP_CONTROL_MAX];
 
+	
+
 	struct Screenshot
 	{
 		std::string path;
@@ -174,6 +177,8 @@ protected:
 	};
 
 	std::vector<Screenshot> m_screenshots;
+	RAS_PixelBuffer m_buffers[2];
+	unsigned int m_currentBuffer;
 
 	int m_samples;
 	RAS_Rasterizer::HdrType m_hdrType;

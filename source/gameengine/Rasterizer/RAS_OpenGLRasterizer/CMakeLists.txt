@@ -55,6 +55,7 @@ set(INC_SYS
 set(SRC
 	RAS_OpenGLDebugDraw.cpp
 	RAS_OpenGLLight.cpp
+	RAS_OpenGLPixelBuffer.cpp
 	RAS_OpenGLQuery.cpp
 	RAS_OpenGLSync.cpp
 	RAS_OpenGLRasterizer.cpp
@@ -63,6 +64,7 @@ set(SRC
 
 	RAS_OpenGLDebugDraw.h
 	RAS_OpenGLLight.h
+	RAS_OpenGLPixelBuffer.h
 	RAS_OpenGLQuery.h
 	RAS_OpenGLSync.h
 	RAS_OpenGLRasterizer.h
