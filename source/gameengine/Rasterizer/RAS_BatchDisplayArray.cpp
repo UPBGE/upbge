@@ -86,11 +86,11 @@ unsigned int RAS_BatchDisplayArray::Merge(RAS_DisplayArray *array, const mt::mat
 	}
 
 	for (unsigned short i = 0; i < m_format.uvSize; ++i) {
-		m_vertexData.uvs[i].insert(m_vertexData.uvs[i].begin(), array->m_vertexData.uvs[i].begin(), array->m_vertexData.uvs[i].end());
+		m_vertexData.uvs[i].insert(m_vertexData.uvs[i].end(), array->m_vertexData.uvs[i].begin(), array->m_vertexData.uvs[i].end());
 	}
 
 	for (unsigned short i = 0; i < m_format.colorSize; ++i) {
-		m_vertexData.colors[i].insert(m_vertexData.colors[i].begin(), array->m_vertexData.colors[i].begin(), array->m_vertexData.colors[i].end());
+		m_vertexData.colors[i].insert(m_vertexData.colors[i].end(), array->m_vertexData.colors[i].begin(), array->m_vertexData.colors[i].end());
 	}
 
 	// Copy the indices of the merged array with as gap the first vertex index.
