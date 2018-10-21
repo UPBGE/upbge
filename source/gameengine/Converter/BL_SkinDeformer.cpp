@@ -131,7 +131,7 @@ void BL_SkinDeformer::BlenderDeformVerts()
 	// restore matrix
 	copy_m4_m4(m_objMesh->obmat, obmat);
 
-	RecalcNormals();
+// 	RecalcNormals();
 }
 
 void BL_SkinDeformer::BGEDeformVerts()
