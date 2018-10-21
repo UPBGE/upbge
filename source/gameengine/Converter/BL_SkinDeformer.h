@@ -59,8 +59,8 @@ public:
 					BL_ArmatureObject *arma);
 
 	virtual ~BL_SkinDeformer();
-	bool Update();
-	bool UpdateInternal(bool shape_applied);
+	virtual bool Update();
+	bool UpdateInternal(bool shape_applied, bool recalcNormal);
 	virtual void Apply(RAS_DisplayArray *array);
 	virtual void UpdateBuckets()
 	{
@@ -88,8 +88,8 @@ protected:
 	std::vector<bPoseChannel *> m_dfnrToPC;
 	short m_deformflags;
 
-	void BlenderDeformVerts();
-	void BGEDeformVerts();
+	void BlenderDeformVerts(bool recalcNormal);
+	void BGEDeformVerts(bool recalcNormal);
 
 	virtual void UpdateTransverts();
 };

@@ -54,7 +54,8 @@ public:
 
 	virtual ~BL_ShapeDeformer();
 
-	bool Update();
+	bool UpdateInternal(bool recalcNormal);
+	virtual bool Update();
 	bool LoadShapeDrivers(KX_GameObject *parent);
 	bool ExecuteShapeDrivers();
 
