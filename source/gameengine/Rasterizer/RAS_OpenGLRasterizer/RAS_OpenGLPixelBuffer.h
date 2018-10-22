@@ -17,7 +17,8 @@ public:
 	~RAS_OpenGLPixelBuffer();
 
 	void Copy(int x, int y, int width, int height);
-	const unsigned int *Get();
+	const unsigned int *Map();
+	void Unmap();
 };
 
 #endif  // __RAS_OPENGL_PIXEL_BUFFER_H__

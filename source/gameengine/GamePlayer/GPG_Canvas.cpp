@@ -139,10 +139,6 @@ const int *GPG_Canvas::GetViewPort()
 
 void GPG_Canvas::MakeScreenShot(const std::string& filename)
 {
-	// copy image data
-	unsigned int dumpsx = GetWidth();
-	unsigned int dumpsy = GetHeight();
-
 	// initialize image file format data
 	ImageFormatData *im_format = (ImageFormatData *)MEM_mallocN(sizeof(ImageFormatData), "im_format");
 	BKE_imformat_defaults(im_format);
@@ -152,7 +148,7 @@ void GPG_Canvas::MakeScreenShot(const std::string& filename)
 	BLI_strncpy(path, filename.c_str(), FILE_MAX);
 	BLI_path_abs(path, KX_GetMainPath().c_str());
 
-	AddScreenshot(path, 0, 0, dumpsx, dumpsy, im_format);
+	AddScreenshot(path, im_format);
 }
 
 void GPG_Canvas::Init()

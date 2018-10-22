@@ -15,7 +15,12 @@ void RAS_PixelBuffer::Copy(int x, int y, int width, int height)
 	return m_impl->Copy(x, y, width, height);
 }
 
-const unsigned int *RAS_PixelBuffer::Get()
+const unsigned int *RAS_PixelBuffer::Map()
 {
-	return m_impl->Get();
+	return m_impl->Map();
+}
+
+void RAS_PixelBuffer::Unmap()
+{
+	m_impl->Unmap();
 }

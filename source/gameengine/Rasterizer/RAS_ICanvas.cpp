@@ -23,13 +23,13 @@
  */
 
 #include "RAS_ICanvas.h"
-#include "DNA_scene_types.h"
+
+#include "DNA_scene_types.h" // For ImageFormatData.
 
 #include "BKE_image.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
 
-#include "BLI_task.h"
 #include "BLI_path_util.h"
 #include "BLI_string.h"
 
@@ -42,26 +42,6 @@ extern "C" {
 
 #include "CM_Message.h"
 
-#include <stdlib.h> // for free()
-
-// Task data for saving screenshots in a different thread.
-struct ScreenshotTaskData {
-	unsigned int *dumprect;
-	int dumpsx;
-	int dumpsy;
-	char path[FILE_MAX];
-	ImageFormatData *im_format;
-};
-
-/**
- * Function that actually performs the image compression and saving to disk of a screenshot.
- * Run in a separate thread by RAS_ICanvas::save_screenshot().
- *
- * @param taskdata Must point to a ScreenshotTaskData object. This function takes ownership
- *                 of all pointers in the ScreenshotTaskData, and frees them.
- */
-void save_screenshot_thread_func(TaskPool *__restrict pool, void *taskdata, int threadid);
-
 const int RAS_ICanvas::swapInterval[RAS_ICanvas::SWAP_CONTROL_MAX] = {
 	0, // VSYNC_OFF
 	1, // VSYNC_ON
@@ -69,29 +49,17 @@ const int RAS_ICanvas::swapInterval[RAS_ICanvas::SWAP_CONTROL_MAX] = {
 };
 
 RAS_ICanvas::RAS_ICanvas(RAS_Rasterizer *rasty)
-	:m_currentBuffer(0),
+	:m_currentScreenshotQueue(0),
 	m_samples(0),
 	m_hdrType(RAS_Rasterizer::RAS_HDR_NONE),
 	m_swapControl(VSYNC_OFF),
 	m_frame(1)
 {
-// 	m_taskscheduler = BLI_task_scheduler_create(TASK_SCHEDULER_AUTO_THREADS);
-// 	m_taskpool = BLI_task_pool_create(m_taskscheduler, nullptr);
 	m_rasterizer = rasty;
 }
 
 RAS_ICanvas::~RAS_ICanvas()
 {
-	/*if (m_taskpool) {
-		BLI_task_pool_work_and_wait(m_taskpool);
-		BLI_task_pool_free(m_taskpool);
-		m_taskpool = nullptr;
-	}
-
-	if (m_taskscheduler) {
-		BLI_task_scheduler_free(m_taskscheduler);
-		m_taskscheduler = nullptr;
-	}*/
 }
 
 void RAS_ICanvas::SetSwapControl(SwapControl control)
@@ -124,39 +92,103 @@ RAS_Rasterizer::HdrType RAS_ICanvas::GetHdrType() const
 	return m_hdrType;
 }
 
+class CompressImageTask
+{
+private:
+	const unsigned short m_width;
+	const unsigned short m_height;
+	const unsigned int *m_pixels;
+	const std::string& m_path;
+	ImageFormatData *m_format;
+
+public:
+	CompressImageTask(const RAS_Rect& area, const unsigned int *pixels, std::string& path, ImageFormatData *format)
+		:m_width(area.GetWidth()),
+		m_height(area.GetHeight()),
+		m_pixels(pixels),
+		m_path(path),
+		m_format(format)
+	{
+	}
+
+	void operator()()
+	{
+		// Create and save imbuf.
+		ImBuf *ibuf = IMB_allocImBuf(m_width, m_height, 24, 0);
+		ibuf->rect = (unsigned int *)m_pixels; // greee TODO
+
+		BKE_imbuf_write_as(ibuf, m_path.c_str(), m_format, false);
+
+		ibuf->rect = nullptr;
+		IMB_freeImBuf(ibuf);
+
+		MEM_freeN(m_format);
+	}
+};
+
 void RAS_ICanvas::FlushScreenshots()
 {
-	const unsigned int nextBuffer = (m_currentBuffer + 1) % 2;
+#if 0
+	const RAS_Rect& area = GetWindowArea();
+	unsigned int *pixels = m_rasterizer->MakeScreenshot(area.GetLeft(), area.GetBottom(), area.GetWidth(), area.GetHeight());
+
+#else
+	const unsigned short imageQueueIndex = (m_currentScreenshotQueue + (NUM_SCREENSHOT_QUEUE) / 2) % NUM_SCREENSHOT_QUEUE;
+
+	// Queue copying screen to buffer buffer.
+	ScreenshotQueue& copyQueue = m_screenshotsQueues[m_currentScreenshotQueue];
+	// Queue compressing images.
+	ScreenshotQueue& imageQueue = m_screenshotsQueues[imageQueueIndex];
+
+	// Wait until all compression using the queue buffer are proceeded before copying a new buffer.
+	copyQueue.tasks.wait();
+	// Release the buffer pointer.
+	copyQueue.buffer.Unmap();
 
 	const RAS_Rect& area = GetWindowArea(); // TODO get member (render attachement branch)
-	m_buffers[m_currentBuffer].Copy(area.GetLeft(), area.GetBottom(), area.GetWidth(), area.GetHeight());
-	const unsigned int *pixel = m_buffers[nextBuffer].Get();
+	// Copy the data from current frame in an other buffer and process the image conversion on futur frame.
+	copyQueue.buffer.Copy(area.GetLeft(), area.GetBottom(), area.GetWidth(), area.GetHeight());
+	copyQueue.area = area;
 
-	for (const Screenshot& screenshot : m_screenshots) {
-		SaveScreeshot(screenshot);
+	// Create image compression tasks.
+	std::vector<Screenshot>& screenshots = imageQueue.screenshots;
+	if (!screenshots.empty()) {
+		// Obtain buffer pointer of image data.
+		copyQueue.pixels = imageQueue.buffer.Map();
+
+		for (const Screenshot& screenshot : screenshots) {
+			// Get path.
+			char path[FILE_MAX];
+			BLI_strncpy(path, screenshot.path.c_str(), FILE_MAX);
+			BLI_path_frame(path, m_frame, 0);
+			m_frame++;
+			
+			// this
+			BKE_image_path_ensure_ext_from_imtype(path, screenshot.format->imtype);
+
+			copyQueue. // TODO create a task class to push into task_group
+
+			SaveScreeshot(screenshot);
+		}
+
+		screenshots.clear();
 	}
 
-	if (pixel) {
-		delete pixel;
-	}
-
-	m_screenshots.clear();
-	m_currentBuffer = nextBuffer;
+	// Pass to the next buffer.
+	m_currentScreenshotQueue = (m_currentScreenshotQueue + 1) % NUM_SCREENSHOT_QUEUE;
+#endif
 }
 
-void RAS_ICanvas::AddScreenshot(const std::string& path, int x, int y, int width, int height, ImageFormatData *format)
+void RAS_ICanvas::AddScreenshot(const std::string& path, ImageFormatData *format)
 {
 	Screenshot screenshot;
 	screenshot.path = path;
-	screenshot.x = x;
-	screenshot.y = y;
-	screenshot.width = width;
-	screenshot.height = height;
 	screenshot.format = format;
 
-	m_screenshots.push_back(screenshot);
+	m_screenshotsQueues[m_currentScreenshotQueue].screenshots.push_back(screenshot);
 }
 
+#if 0
 void save_screenshot_thread_func(TaskPool *__restrict UNUSED(pool), void *taskdata, int UNUSED(threadid))
 {
 	ScreenshotTaskData *task = static_cast<ScreenshotTaskData *>(taskdata);
@@ -173,12 +205,12 @@ void save_screenshot_thread_func(TaskPool *__restrict UNUSED(pool), void *taskda
 	free(task->dumprect);
 	MEM_freeN(task->im_format);
 }
+#endif
 
 
 void RAS_ICanvas::SaveScreeshot(const Screenshot& screenshot)
 {
-	/*unsigned int *pixels = m_rasterizer->MakeScreenshot(screenshot.x, screenshot.y, screenshot.width, screenshot.height);
-	if (!pixels) {
+	/*if (!pixels) {
 		CM_Error("cannot allocate pixels array");
 		return;
 	}*/

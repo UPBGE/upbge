@@ -240,11 +240,6 @@ void KX_BlenderCanvas::MakeScreenShot(const std::string& filename)
 {
 	bScreen *screen = m_win->screen;
 
-	int x = m_area_rect.GetLeft();
-	int y = m_area_rect.GetBottom();
-	int width = m_area_rect.GetWidth();
-	int height = m_area_rect.GetHeight();
-
 	/* initialize image file format data */
 	Scene *scene = (screen) ? screen->scene : nullptr;
 	ImageFormatData *im_format = (ImageFormatData *)MEM_mallocN(sizeof(ImageFormatData), "im_format");
@@ -261,5 +256,5 @@ void KX_BlenderCanvas::MakeScreenShot(const std::string& filename)
 	BLI_strncpy(path, filename.c_str(), FILE_MAX);
 	BLI_path_abs(path, KX_GetMainPath().c_str());
 
-	AddScreenshot(path, x, y, width, height, im_format);
+	AddScreenshot(path, im_format);
 }

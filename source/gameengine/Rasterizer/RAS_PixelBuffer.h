@@ -17,7 +17,9 @@ public:
 	// Copy screen image in described area to this pixel buffer.
 	void Copy(int x, int y, int width, int height);
 	// Get pixel buffer pointer.
-	const unsigned int *Get();
+	const unsigned int *Map();
+	// Release pixel buffer pointer.
+	void Unmap();
 };
 
 #endif  // __RAS_PIXEL_BUFFER_H__

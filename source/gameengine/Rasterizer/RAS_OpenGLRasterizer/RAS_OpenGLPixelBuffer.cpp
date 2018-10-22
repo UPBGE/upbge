@@ -3,7 +3,6 @@
 #include <cstring>
 
 RAS_OpenGLPixelBuffer::RAS_OpenGLPixelBuffer()
-	:m_size(0) // TODO cas impossible a supprimer
 {
 	glGenBuffers(1, &m_pbo);
 }
@@ -23,20 +22,18 @@ void RAS_OpenGLPixelBuffer::Copy(int x, int y, int width, int height)
 	glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
 }
 
-const unsigned int *RAS_OpenGLPixelBuffer::Get()
+const unsigned int *RAS_OpenGLPixelBuffer::Map()
 {
-	if (m_size == 0) {
-		return nullptr;
-	}
-
-	unsigned int *pixels = new unsigned int[m_size];
-
 	glBindBuffer(GL_PIXEL_PACK_BUFFER, m_pbo);
 	unsigned int *buffer = (unsigned int *)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
-
-	memcpy(pixels, buffer, m_size);
-	glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
 	glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
 
-	return pixels;
+	return buffer;
+}
+
+void RAS_OpenGLPixelBuffer::Unmap()
+{
+	glBindBuffer(GL_PIXEL_PACK_BUFFER, m_pbo);
+	glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
+	glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
 }
