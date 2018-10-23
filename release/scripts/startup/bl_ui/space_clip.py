@@ -143,34 +143,34 @@ class CLIP_HT_header(Header):
             row.template_ID(sc, "clip", open="clip.open")
         else:
             row = layout.row(align=True)
-            props = row.operator("clip.refine_markers", text="", icon='LOOP_BACK')
+            props = row.operator("clip.refine_markers", text="", icon='TRACKING_REFINE_BACKWARDS')
             props.backwards = True
             row.separator()
 
-            props = row.operator("clip.clear_track_path", text="", icon='BACK')
+            props = row.operator("clip.clear_track_path", text="", icon='TRACKING_CLEAR_BACKWARDS')
             props.action = 'UPTO'
             row.separator()
 
-            props = row.operator("clip.track_markers", text="", icon='FRAME_PREV')
+            props = row.operator("clip.track_markers", text="", icon='TRACKING_BACKWARDS_SINGLE')
             props.backwards = True
             props.sequence = False
             props = row.operator("clip.track_markers", text="",
-                                 icon='PLAY_REVERSE')
+                                 icon='TRACKING_BACKWARDS')
             props.backwards = True
             props.sequence = True
-            props = row.operator("clip.track_markers", text="", icon='PLAY')
+            props = row.operator("clip.track_markers", text="", icon='TRACKING_FORWARDS')
             props.backwards = False
             props.sequence = True
-            props = row.operator("clip.track_markers", text="", icon='FRAME_NEXT')
+            props = row.operator("clip.track_markers", text="", icon='TRACKING_FORWARDS_SINGLE')
             props.backwards = False
             props.sequence = False
             row.separator()
 
-            props = row.operator("clip.clear_track_path", text="", icon='FORWARD')
+            props = row.operator("clip.clear_track_path", text="", icon='TRACKING_CLEAR_FORWARDS')
             props.action = 'REMAINED'
             row.separator()
 
-            props = row.operator("clip.refine_markers", text="", icon='LOOP_FORWARDS')
+            props = row.operator("clip.refine_markers", text="", icon='TRACKING_REFINE_FORWARDS')
             props.backwards = False
 
         layout.separator_spacer()
@@ -320,6 +320,7 @@ class CLIP_MT_masking_editor_menus(Menu):
         if clip:
             layout.menu("MASK_MT_select")
             layout.menu("CLIP_MT_clip")  # XXX - remove?
+            layout.menu("MASK_MT_add")
             layout.menu("MASK_MT_mask")
         else:
             layout.menu("CLIP_MT_clip")  # XXX - remove?
@@ -1121,9 +1122,7 @@ from .properties_mask_common import (
     MASK_PT_spline,
     MASK_PT_point,
     MASK_PT_display,
-    MASK_PT_tools,
     MASK_PT_transforms,
-    MASK_PT_add,
 )
 
 
@@ -1152,19 +1151,10 @@ class CLIP_PT_mask(MASK_PT_mask, Panel):
     bl_region_type = 'UI'
 
 
-class CLIP_PT_tools_mask_add(MASK_PT_add, Panel):
-    bl_space_type = 'CLIP_EDITOR'
-    bl_region_type = 'TOOLS'
-
-
 class CLIP_PT_tools_mask_transforms(MASK_PT_transforms, Panel):
     bl_space_type = 'CLIP_EDITOR'
     bl_region_type = 'TOOLS'
 
-
-class CLIP_PT_tools_mask(MASK_PT_tools, Panel):
-    bl_space_type = 'CLIP_EDITOR'
-    bl_region_type = 'TOOLS'
 
 # --- end mask ---
 
@@ -1553,8 +1543,6 @@ classes = (
     CLIP_PT_mask_display,
     CLIP_PT_active_mask_spline,
     CLIP_PT_active_mask_point,
-    CLIP_PT_tools_mask,
-    CLIP_PT_tools_mask_add,
     CLIP_PT_tools_mask_transforms,
     CLIP_PT_footage,
     CLIP_PT_tools_scenesetup,

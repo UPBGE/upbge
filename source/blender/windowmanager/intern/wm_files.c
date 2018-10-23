@@ -1189,12 +1189,12 @@ bool write_crash_blend(void)
 /**
  * \see #wm_homefile_write_exec wraps #BLO_write_file in a similar way.
  */
-static int wm_file_write(bContext *C, const char *filepath, int fileflags, ReportList *reports)
+static bool wm_file_write(bContext *C, const char *filepath, int fileflags, ReportList *reports)
 {
 	Main *bmain = CTX_data_main(C);
 	Library *li;
 	int len;
-	int ret = -1;
+	int ok = false;
 	BlendThumbnail *thumb, *main_thumb;
 	ImBuf *ibuf_thumb = NULL;
 
@@ -1202,18 +1202,18 @@ static int wm_file_write(bContext *C, const char *filepath, int fileflags, Repor
 
 	if (len == 0) {
 		BKE_report(reports, RPT_ERROR, "Path is empty, cannot save");
-		return ret;
+		return ok;
 	}
 
 	if (len >= FILE_MAX) {
 		BKE_report(reports, RPT_ERROR, "Path too long, cannot save");
-		return ret;
+		return ok;
 	}
 
 	/* Check if file write permission is ok */
 	if (BLI_exists(filepath) && !BLI_file_is_writable(filepath)) {
 		BKE_reportf(reports, RPT_ERROR, "Cannot save blend file, path '%s' is not writable", filepath);
-		return ret;
+		return ok;
 	}
 
 	/* note: used to replace the file extension (to ensure '.blend'),
@@ -1224,7 +1224,7 @@ static int wm_file_write(bContext *C, const char *filepath, int fileflags, Repor
 	for (li = bmain->library.first; li; li = li->id.next) {
 		if (BLI_path_cmp(li->filepath, filepath) == 0) {
 			BKE_reportf(reports, RPT_ERROR, "Cannot overwrite used library '%.240s'", filepath);
-			return ret;
+			return ok;
 		}
 	}
 
@@ -1287,7 +1287,8 @@ static int wm_file_write(bContext *C, const char *filepath, int fileflags, Repor
 			ibuf_thumb = IMB_thumb_create(filepath, THB_LARGE, THB_SOURCE_BLEND, ibuf_thumb);
 		}
 
-		ret = 0;  /* Success. */
+		/* Success. */
+		ok = true;
 	}
 
 	if (ibuf_thumb) {
@@ -1299,7 +1300,7 @@ static int wm_file_write(bContext *C, const char *filepath, int fileflags, Repor
 
 	WM_cursor_wait(0);
 
-	return ret;
+	return ok;
 }
 
 /************************ autosave ****************************/
@@ -1476,6 +1477,7 @@ void WM_file_tag_modified(void)
 
 /**
  * \see #wm_file_write wraps #BLO_write_file in a similar way.
+ * \return success.
  */
 static int wm_homefile_write_exec(bContext *C, wmOperator *op)
 {
@@ -2169,7 +2171,7 @@ static int wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
 {
 	Main *bmain = CTX_data_main(C);
 	char path[FILE_MAX];
-	int fileflags, orig_fileflags;
+	const bool is_save_as = (op->type->invoke == wm_save_as_mainfile_invoke);
 
 	save_set_compress(op);
 
@@ -2181,8 +2183,8 @@ static int wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
 		wm_filepath_default(path);
 	}
 
-	orig_fileflags = G.fileflags;
-	fileflags = G.fileflags & ~G_FILE_USERPREFS;
+	const int fileflags_orig = G.fileflags;
+	int fileflags = G.fileflags & ~G_FILE_USERPREFS;
 
 	/* set compression flag */
 	SET_FLAG_FROM_TEST(
@@ -2197,26 +2199,24 @@ static int wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
 	         RNA_boolean_get(op->ptr, "copy")),
 	        G_FILE_SAVE_COPY);
 
-	int write_result = wm_file_write(C, path, fileflags, op->reports);
+	const bool ok = wm_file_write(C, path, fileflags, op->reports);
 
 	if ((op->flag & OP_IS_INVOKE) == 0) {
 		/* OP_IS_INVOKE is set when the operator is called from the GUI.
 		 * If it is not set, the operator is called from a script and
 		 * shouldn't influence G.fileflags. */
-		G.fileflags = orig_fileflags;
+		G.fileflags = fileflags_orig;
 	}
 
-	if (write_result != 0) {
+	if (ok == false) {
 		return OPERATOR_CANCELLED;
 	}
 
 	WM_event_add_notifier(C, NC_WM | ND_FILESAVE, NULL);
 
-#if 0 /* XXX: Remove? This is not currently defined as a valid property */
-	if (RNA_boolean_get(op->ptr, "exit")) {
+	if (!is_save_as && RNA_boolean_get(op->ptr, "exit")) {
 		wm_exit_schedule_delayed(C);
 	}
-#endif
 
 	return OPERATOR_FINISHED;
 }

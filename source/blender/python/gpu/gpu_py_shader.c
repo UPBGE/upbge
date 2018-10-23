@@ -34,6 +34,7 @@
 
 #include "../generic/py_capi_utils.h"
 #include "../generic/python_utildefines.h"
+#include "../mathutils/mathutils.h"
 
 #include "gpu_py_shader.h" /* own include */
 #include "gpu_py_vertex_format.h"
@@ -412,14 +413,14 @@ static PyObject *bpygpu_shader_uniform_bool(
 }
 
 PyDoc_STRVAR(bpygpu_shader_uniform_float_doc,
-".. method:: uniform_float(name, seq)\n"
+".. method:: uniform_float(name, value)\n"
 "\n"
 "   Specify the value of a uniform variable for the current program object.\n"
 "\n"
 "   :param name: name of the uniform variable whose location is to be queried.\n"
 "   :type name: str\n"
-"   :param seq: values that will be used to update the specified uniform variable.\n"
-"   :type seq: sequence of numbers\n"
+"   :param value: values that will be used to update the specified uniform variable.\n"
+"   :type value: single number or sequence of numbers\n"
 );
 static PyObject *bpygpu_shader_uniform_float(
         BPyGPUShader *self, PyObject *args)
@@ -440,35 +441,22 @@ static PyObject *bpygpu_shader_uniform_float(
 
 	float values[16];
 	int length;
-	int ret;
-	{
-		PyObject *seq_fast = PySequence_Fast(params.seq, error_prefix);
-		if (seq_fast == NULL) {
-			PyErr_Format(PyExc_TypeError,
-			             "%s: expected a sequence, got %s",
-			             error_prefix, Py_TYPE(params.seq)->tp_name);
-			ret = -1;
-		}
-		else {
-			length = PySequence_Fast_GET_SIZE(seq_fast);
-			if ((length == 0) || (length > 16) ||
-			    (4 < length && length < 9) ||
-			    (9 < length && length < 16))
-			{
-				PyErr_Format(PyExc_TypeError,
-				             "%s: invalid sequence length. expected 1..4, 9 or 16, got %d",
-				             error_prefix, length);
-				ret = -1;
-			}
-			else {
-				ret = PyC_AsArray_FAST(
-				        values, seq_fast, length, &PyFloat_Type,
-				        false, error_prefix);
-			}
-			Py_DECREF(seq_fast);
-		}
+
+	if (PyFloat_Check(params.seq)) {
+		values[0] = (float)PyFloat_AsDouble(params.seq);
+		length = 1;
 	}
-	if (ret == -1) {
+	else if (PyLong_Check(params.seq)) {
+		values[0] = (float)PyLong_AsDouble(params.seq);
+		length = 1;
+	}
+	else {
+		length = mathutils_array_parse(values, 2, 16, params.seq, "");
+	}
+
+	if (!ELEM(length, 1, 2, 3, 4, 9, 16)) {
+		PyErr_SetString(PyExc_TypeError,
+		                "Expected a single float or a sequence of floats of length 1..4, 9 or 16.");
 		return NULL;
 	}
 
@@ -572,15 +560,15 @@ static PyObject *bpygpu_shader_attr_from_name(
 		return NULL;
 	}
 
-	int attrib = GPU_shader_get_attribute(self->shader, name);
+	int attr = GPU_shader_get_attribute(self->shader, name);
 
-	if (attrib == -1) {
+	if (attr == -1) {
 		PyErr_Format(PyExc_ValueError,
 		             "GPUShader.attr_from_name: attribute %.32s not found", name);
 		return NULL;
 	}
 
-	return PyLong_FromLong(attrib);
+	return PyLong_FromLong(attr);
 }
 
 PyDoc_STRVAR(bpygpu_shader_calc_format_doc,
@@ -729,7 +717,7 @@ static PyObject *bpygpu_shader_unbind(BPyGPUShader *UNUSED(self))
 }
 
 PyDoc_STRVAR(bpygpu_shader_from_builtin_doc,
-".. function:: shader_from_builtin(shader_name)\n"
+".. function:: from_builtin(shader_name)\n"
 "\n"
 "   :param shader_name: One of these builtin shader names: {\n"
 "       '2D_UNIFORM_COLOR',\n"
@@ -740,6 +728,8 @@ PyDoc_STRVAR(bpygpu_shader_from_builtin_doc,
 "       '3D_FLAT_COLOR',\n"
 "       '3D_SMOOTH_COLOR'}\n"
 "   :type shader_name: str\n"
+"   :return: the shader object\n"
+"   :rtype: bpy.types.GPUShader\n"
 );
 static PyObject *bpygpu_shader_from_builtin(PyObject *UNUSED(self), PyObject *arg)
 {
@@ -755,7 +745,7 @@ static PyObject *bpygpu_shader_from_builtin(PyObject *UNUSED(self), PyObject *ar
 }
 
 PyDoc_STRVAR(bpygpu_shader_code_from_builtin_doc,
-".. function:: shader_code_from_builtin(shader_name)\n"
+".. function:: code_from_builtin(shader_name)\n"
 "\n"
 "   :param shader_name: One of these builtin shader names: {\n"
 "       '2D_UNIFORM_COLOR',\n"
