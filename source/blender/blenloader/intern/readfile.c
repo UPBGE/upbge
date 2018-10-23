@@ -1039,6 +1039,20 @@ static int *read_file_thumbnail(FileData *fd)
 	return blend_thumb;
 }
 
+static int fd_read_from_file(FileData *filedata, void *buffer, unsigned int size)
+{
+	int readsize = read(filedata->filedes, buffer, size);
+
+	if (readsize < 0) {
+		readsize = EOF;
+	}
+	else {
+		filedata->seek += readsize;
+	}
+
+	return readsize;
+}
+
 static int fd_read_gzip_from_file(FileData *filedata, void *buffer, unsigned int size)
 {
 	int readsize = gzread(filedata->gzfiledes, buffer, size);
@@ -11275,4 +11289,28 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 		mainptr->curlib->filedata = NULL;
 	}
 	BKE_main_free(main_newid);
+}
+
+/* reading runtime */
+
+BlendFileData *blo_read_blendafterruntime(int file, const char *name, int actualsize, ReportList *reports)
+{
+	BlendFileData *bfd = NULL;
+	FileData *fd = filedata_new();
+	fd->filedes = file;
+	fd->buffersize = actualsize;
+	fd->read = fd_read_from_file;
+
+	/* needed for library_append and read_libraries */
+	BLI_strncpy(fd->relabase, name, sizeof(fd->relabase));
+
+	fd = blo_decode_and_check(fd, reports);
+	if (!fd)
+		return NULL;
+
+	fd->reports = reports;
+	bfd = blo_read_file_internal(fd, "");
+	blo_freefiledata(fd);
+
+	return bfd;
 }
