@@ -146,6 +146,8 @@ typedef struct EEVEE_LightBake {
 	int delay;                       /* ms. delay the start of the baking to not slowdown interactions (TODO remove) */
 
 	void *gl_context, *gpu_context;  /* If running in parallel (in a separate thread), use this context. */
+
+	ThreadMutex *mutex;
 } EEVEE_LightBake;
 
 /* -------------------------------------------------------------------- */
@@ -224,7 +226,7 @@ static bool EEVEE_lightcache_validate(
 		if ((irr_size[0] == light_cache->grid_tx.tex_size[0]) &&
 		    (irr_size[1] == light_cache->grid_tx.tex_size[1]) &&
 		    (irr_size[2] == light_cache->grid_tx.tex_size[2]) &&
-		    (grid_len != light_cache->grid_len))
+		    (grid_len == light_cache->grid_len))
 		{
 			int mip_len = (int)(floorf(log2f(cube_res)) - MIN_CUBE_LOD_LEVEL);
 			if ((cube_res == light_cache->cube_tx.tex_size[0]) &&
@@ -470,8 +472,7 @@ static void eevee_lightbake_create_resources(EEVEE_LightBake *lbake)
 	lbake->lcache = eevee->light_cache;
 
 	/* TODO validate irradiance and reflection cache independently... */
-	if (lbake->lcache != NULL &&
-	    !EEVEE_lightcache_validate(lbake->lcache, lbake->cube_len, lbake->ref_cube_res, lbake->grid_len, lbake->irr_size))
+	if (!EEVEE_lightcache_validate(lbake->lcache, lbake->cube_len, lbake->ref_cube_res, lbake->grid_len, lbake->irr_size))
 	{
 		eevee->light_cache = lbake->lcache = NULL;
 	}
@@ -518,6 +519,11 @@ wmJob *EEVEE_lightbake_job_create(
 		/* lbake->depsgraph = old_lbake->depsgraph; */
 		lbake->depsgraph = DEG_graph_new(scene, view_layer, DAG_EVAL_RENDER);
 
+		lbake->mutex = BLI_mutex_alloc();
+
+		BLI_mutex_lock(old_lbake->mutex);
+		old_lbake->own_resources = false;
+
 		lbake->scene = scene;
 		lbake->bmain = bmain;
 		lbake->view_layer_input = view_layer;
@@ -525,11 +531,15 @@ wmJob *EEVEE_lightbake_job_create(
 		lbake->own_resources = true;
 		lbake->delay = delay;
 
-		old_lbake->own_resources = false;
+		if (lbake->gl_context == NULL) {
+			lbake->gl_context = WM_opengl_context_create();
+			wm_window_reset_drawable();
+		}
 
 		if (old_lbake->stop != NULL) {
 			*old_lbake->stop = 1;
 		}
+		BLI_mutex_unlock(old_lbake->mutex);
 	}
 	else {
 		lbake = EEVEE_lightbake_job_data_alloc(bmain, view_layer, scene, true);
@@ -559,6 +569,7 @@ void *EEVEE_lightbake_job_data_alloc(
 	lbake->view_layer_input = view_layer;
 	lbake->own_resources = true;
 	lbake->own_light_cache = false;
+	lbake->mutex = BLI_mutex_alloc();
 
 	if (run_as_job) {
 		lbake->gl_context = WM_opengl_context_create();
@@ -572,6 +583,8 @@ void EEVEE_lightbake_job_data_free(void *custom_data)
 {
 	EEVEE_LightBake *lbake = (EEVEE_LightBake *)custom_data;
 
+
+
 	/* TODO reuse depsgraph. */
 	/* if (lbake->own_resources) { */
 		DEG_graph_free(lbake->depsgraph);
@@ -580,22 +593,23 @@ void EEVEE_lightbake_job_data_free(void *custom_data)
 	MEM_SAFE_FREE(lbake->cube_prb);
 	MEM_SAFE_FREE(lbake->grid_prb);
 
+	BLI_mutex_free(lbake->mutex);
+
 	MEM_freeN(lbake);
 }
 
 static void eevee_lightbake_delete_resources(EEVEE_LightBake *lbake)
 {
+	if (!lbake->resource_only) {
+		BLI_mutex_lock(lbake->mutex);
+	}
+
 	if (lbake->gl_context) {
 		DRW_opengl_render_context_enable(lbake->gl_context);
 		DRW_gawain_render_context_enable(lbake->gpu_context);
 	}
 	else if (!lbake->resource_only) {
 		DRW_opengl_context_enable();
-	}
-
-	if (lbake->own_light_cache) {
-		EEVEE_lightcache_free(lbake->lcache);
-		lbake->lcache = NULL;
 	}
 
 	/* XXX Free the resources contained in the viewlayer data
@@ -630,6 +644,10 @@ static void eevee_lightbake_delete_resources(EEVEE_LightBake *lbake)
 	}
 	else if (!lbake->resource_only) {
 		DRW_opengl_context_disable();
+	}
+
+	if (!lbake->resource_only) {
+		BLI_mutex_unlock(lbake->mutex);
 	}
 }
 
@@ -669,7 +687,7 @@ static void eevee_lightbake_cache_create(EEVEE_Data *vedata, EEVEE_LightBake *lb
 	};
 	DRW_render_viewport_size_set(viewport_size);
 
-	EEVEE_effects_init(sldata, vedata, NULL);
+	EEVEE_effects_init(sldata, vedata, NULL, true);
 	EEVEE_materials_init(sldata, stl, fbl);
 	EEVEE_lights_init(sldata);
 	EEVEE_lightprobes_init(sldata, vedata);
