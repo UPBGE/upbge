@@ -60,6 +60,9 @@ RAS_ICanvas::RAS_ICanvas(RAS_Rasterizer *rasty)
 
 RAS_ICanvas::~RAS_ICanvas()
 {
+	for (ScreenshotQueue& queue : m_screenshotsQueues) {
+		queue.tasks.wait();
+	}
 }
 
 void RAS_ICanvas::SetSwapControl(SwapControl control)
@@ -97,13 +100,13 @@ class CompressImageTask
 private:
 	const unsigned short m_width;
 	const unsigned short m_height;
-	const unsigned int *m_pixels;
-	const std::string& m_path;
+	unsigned int *m_pixels;
+	const std::string m_path;
 	ImageFormatData *m_format;
 	unsigned int m_frame;
 
 public:
-	CompressImageTask(const RAS_Rect& area, const unsigned int *pixels, const std::string& path,
+	CompressImageTask(const RAS_Rect& area, unsigned int *pixels, const std::string& path,
 			ImageFormatData *format, unsigned  int frame)
 		:m_width(area.GetWidth()),
 		m_height(area.GetHeight()),
@@ -112,24 +115,6 @@ public:
 		m_format(format),
 		m_frame(frame)
 	{
-	}
-
-	CompressImageTask(CompressImageTask&& other)
-		:m_width(other.m_width),
-		m_height(other.m_height),
-		m_pixels(other.m_pixels),
-		m_path(other.m_path),
-		m_format(other.m_format),
-		m_frame(other.m_frame)
-	{
-		other.m_format = nullptr;
-	}
-
-	~CompressImageTask()
-	{
-		if (m_format) {
-			MEM_freeN(m_format);
-		}
 	}
 
 	void operator()() const
@@ -142,12 +127,14 @@ public:
 
 		// Create and save imbuf.
 		ImBuf *ibuf = IMB_allocImBuf(m_width, m_height, 24, 0);
-		ibuf->rect = (unsigned int *)m_pixels; // greee TODO
+		ibuf->rect = m_pixels;
 
-		BKE_imbuf_write_as(ibuf, m_path.c_str(), m_format, false);
+		BKE_imbuf_write_as(ibuf, path, m_format, false);
 
 		ibuf->rect = nullptr;
 		IMB_freeImBuf(ibuf);
+
+		MEM_freeN(m_format);
 	}
 };
 
@@ -206,51 +193,4 @@ void RAS_ICanvas::AddScreenshot(const std::string& path, ImageFormatData *format
 	screenshot.format = format;
 
 	m_screenshotsQueues[m_currentScreenshotQueue].screenshots.push_back(screenshot);
-}
-
-#if 0
-void save_screenshot_thread_func(TaskPool *__restrict UNUSED(pool), void *taskdata, int UNUSED(threadid))
-{
-	ScreenshotTaskData *task = static_cast<ScreenshotTaskData *>(taskdata);
-
-	/* create and save imbuf */
-	ImBuf *ibuf = IMB_allocImBuf(task->dumpsx, task->dumpsy, 24, 0);
-	ibuf->rect = task->dumprect;
-
-	BKE_imbuf_write_as(ibuf, task->path, task->im_format, false);
-
-	ibuf->rect = nullptr;
-	IMB_freeImBuf(ibuf);
-	// Dumprect is allocated in RAS_OpenGLRasterizer::MakeScreenShot with malloc(), we must use free() then.
-	free(task->dumprect);
-	MEM_freeN(task->im_format);
-}
-#endif
-
-
-void RAS_ICanvas::SaveScreeshot(const Screenshot& screenshot)
-{
-	/*if (!pixels) {
-		CM_Error("cannot allocate pixels array");
-		return;
-	}*/
-
-	/* Save the actual file in a different thread, so that the
-	 * game engine can keep running at full speed. */
-	/*ScreenshotTaskData *task = (ScreenshotTaskData *)MEM_mallocN(sizeof(ScreenshotTaskData), "screenshot-data");
-	task->dumprect = pixels;
-	task->dumpsx = screenshot.width;
-	task->dumpsy = screenshot.height;
-	task->im_format = screenshot.format;
-
-	BLI_strncpy(task->path, screenshot.path.c_str(), FILE_MAX);
-	BLI_path_frame(task->path, m_frame, 0);
-	m_frame++;
-	BKE_image_path_ensure_ext_from_imtype(task->path, task->im_format->imtype);
-
-	BLI_task_pool_push(m_taskpool,
-	                   save_screenshot_thread_func,
-	                   task,
-	                   true, // free task data
-	                   TASK_PRIORITY_LOW);*/
 }

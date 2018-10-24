@@ -178,7 +178,7 @@ protected:
 	{
 		RAS_Rect area;
 		RAS_PixelBuffer buffer;
-		const unsigned int *pixels;
+		unsigned int *pixels;
 		std::vector<Screenshot> screenshots;
 		tbb::task_group tasks;
 	};
@@ -199,12 +199,6 @@ protected:
 	 * at the frame begin after the buffer swap. The screenshot are proceeded in \see FlushScreenshots.
 	 */
 	void AddScreenshot(const std::string& path, ImageFormatData *format);
-
-	/**
-	 * Saves screenshot data to a file. The actual compression and disk I/O is performed in
-	 * a separate thread.
-	 */
-	void SaveScreeshot(const Screenshot& screenshot);
 };
 
 #endif  // __RAS_ICANVAS_H__

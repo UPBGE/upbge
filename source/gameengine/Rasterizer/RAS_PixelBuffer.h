@@ -17,7 +17,7 @@ public:
 	// Copy screen image in described area to this pixel buffer.
 	void Copy(int x, int y, int width, int height);
 	// Get pixel buffer pointer.
-	const unsigned int *Map();
+	unsigned int *Map();
 	// Release pixel buffer pointer.
 	void Unmap();
 };

@@ -22,7 +22,7 @@ void RAS_OpenGLPixelBuffer::Copy(int x, int y, int width, int height)
 	glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
 }
 
-const unsigned int *RAS_OpenGLPixelBuffer::Map()
+unsigned int *RAS_OpenGLPixelBuffer::Map()
 {
 	glBindBuffer(GL_PIXEL_PACK_BUFFER, m_pbo);
 	unsigned int *buffer = (unsigned int *)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
