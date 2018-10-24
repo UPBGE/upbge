@@ -100,19 +100,46 @@ private:
 	const unsigned int *m_pixels;
 	const std::string& m_path;
 	ImageFormatData *m_format;
+	unsigned int m_frame;
 
 public:
-	CompressImageTask(const RAS_Rect& area, const unsigned int *pixels, std::string& path, ImageFormatData *format)
+	CompressImageTask(const RAS_Rect& area, const unsigned int *pixels, const std::string& path,
+			ImageFormatData *format, unsigned  int frame)
 		:m_width(area.GetWidth()),
 		m_height(area.GetHeight()),
 		m_pixels(pixels),
 		m_path(path),
-		m_format(format)
+		m_format(format),
+		m_frame(frame)
 	{
 	}
 
-	void operator()()
+	CompressImageTask(CompressImageTask&& other)
+		:m_width(other.m_width),
+		m_height(other.m_height),
+		m_pixels(other.m_pixels),
+		m_path(other.m_path),
+		m_format(other.m_format),
+		m_frame(other.m_frame)
 	{
+		other.m_format = nullptr;
+	}
+
+	~CompressImageTask()
+	{
+		if (m_format) {
+			MEM_freeN(m_format);
+		}
+	}
+
+	void operator()() const
+	{
+		// Get path.
+		char path[FILE_MAX];
+		BLI_strncpy(path, m_path.c_str(), FILE_MAX);
+		BLI_path_frame(path, m_frame, 0);
+		BKE_image_path_ensure_ext_from_imtype(path, m_format->imtype);
+
 		// Create and save imbuf.
 		ImBuf *ibuf = IMB_allocImBuf(m_width, m_height, 24, 0);
 		ibuf->rect = (unsigned int *)m_pixels; // greee TODO
@@ -121,8 +148,6 @@ public:
 
 		ibuf->rect = nullptr;
 		IMB_freeImBuf(ibuf);
-
-		MEM_freeN(m_format);
 	}
 };
 
@@ -133,6 +158,7 @@ void RAS_ICanvas::FlushScreenshots()
 	unsigned int *pixels = m_rasterizer->MakeScreenshot(area.GetLeft(), area.GetBottom(), area.GetWidth(), area.GetHeight());
 
 #else
+	// Index of queue compressing images.
 	const unsigned short imageQueueIndex = (m_currentScreenshotQueue + (NUM_SCREENSHOT_QUEUE) / 2) % NUM_SCREENSHOT_QUEUE;
 
 	// Queue copying screen to buffer buffer.
@@ -140,35 +166,29 @@ void RAS_ICanvas::FlushScreenshots()
 	// Queue compressing images.
 	ScreenshotQueue& imageQueue = m_screenshotsQueues[imageQueueIndex];
 
-	// Wait until all compression using the queue buffer are proceeded before copying a new buffer.
+	// Wait until all compressions using the queue buffer are proceeded before copying a new buffer.
 	copyQueue.tasks.wait();
 	// Release the buffer pointer.
 	copyQueue.buffer.Unmap();
 
 	const RAS_Rect& area = GetWindowArea(); // TODO get member (render attachement branch)
+	copyQueue.area = area;
 	// Copy the data from current frame in an other buffer and process the image conversion on futur frame.
 	copyQueue.buffer.Copy(area.GetLeft(), area.GetBottom(), area.GetWidth(), area.GetHeight());
-	copyQueue.area = area;
 
 	// Create image compression tasks.
 	std::vector<Screenshot>& screenshots = imageQueue.screenshots;
 	if (!screenshots.empty()) {
 		// Obtain buffer pointer of image data.
-		copyQueue.pixels = imageQueue.buffer.Map();
+		imageQueue.pixels = imageQueue.buffer.Map();
 
 		for (const Screenshot& screenshot : screenshots) {
-			// Get path.
-			char path[FILE_MAX];
-			BLI_strncpy(path, screenshot.path.c_str(), FILE_MAX);
-			BLI_path_frame(path, m_frame, 0);
+			// Create image compression task.
+			const CompressImageTask task(imageQueue.area, imageQueue.pixels, screenshot.path, screenshot.format, m_frame);
+			// Pass to next frame for paths using it.
 			m_frame++;
-			
-			// this
-			BKE_image_path_ensure_ext_from_imtype(path, screenshot.format->imtype);
-
-			copyQueue. // TODO create a task class to push into task_group
-
-			SaveScreeshot(screenshot);
+			// Register the task.
+			imageQueue.tasks.run(task);
 		}
 
 		screenshots.clear();
