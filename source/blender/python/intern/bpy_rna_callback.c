@@ -33,6 +33,7 @@
 #include "RNA_types.h"
 
 #include "BLI_utildefines.h"
+#include "BLI_listbase.h"
 
 #include "bpy_rna.h"
 #include "bpy_rna_callback.h"
@@ -296,7 +297,6 @@ PyObject *pyrna_callback_classmethod_add(PyObject *UNUSED(self), PyObject *args)
 		        wm,
 		        params.space_type, params.region_type,
 		        NULL, cb_wm_cursor_draw, (void *)args);
-		Py_INCREF(args);
 	}
 	else if (RNA_struct_is_a(srna, &RNA_Space)) {
 		const char *error_prefix = "Space.draw_handler_add";
@@ -343,7 +343,6 @@ PyObject *pyrna_callback_classmethod_add(PyObject *UNUSED(self), PyObject *args)
 					return NULL;
 				}
 				handle = ED_region_draw_cb_activate(art, cb_region_draw, (void *)args, params.event);
-				Py_INCREF(args);
 			}
 		}
 	}
@@ -352,7 +351,14 @@ PyObject *pyrna_callback_classmethod_add(PyObject *UNUSED(self), PyObject *args)
 		return NULL;
 	}
 
-	return PyCapsule_New((void *)handle, RNA_CAPSULE_ID, NULL);
+	PyObject *ret = PyCapsule_New((void *)handle, RNA_CAPSULE_ID, NULL);
+
+	/* Store 'args' in context as well as the handler custom-data,
+	 * because the handle may be freed by Blender (new file, new window... etc) */
+	PyCapsule_SetContext(ret, args);
+	Py_INCREF(args);
+
+	return ret;
 }
 
 PyObject *pyrna_callback_classmethod_remove(PyObject *UNUSED(self), PyObject *args)
@@ -360,8 +366,8 @@ PyObject *pyrna_callback_classmethod_remove(PyObject *UNUSED(self), PyObject *ar
 	PyObject *cls;
 	PyObject *py_handle;
 	void *handle;
-	void *customdata;
 	StructRNA *srna;
+	bool capsule_clear = false;
 
 	if (PyTuple_GET_SIZE(args) < 2) {
 		PyErr_SetString(PyExc_ValueError, "callback_remove(handler): expected at least 2 args");
@@ -378,6 +384,7 @@ PyObject *pyrna_callback_classmethod_remove(PyObject *UNUSED(self), PyObject *ar
 		PyErr_SetString(PyExc_ValueError, "callback_remove(handler): NULL handler given, invalid or already removed");
 		return NULL;
 	}
+	PyObject *handle_args = PyCapsule_GetContext(py_handle);
 
 	if (srna == &RNA_WindowManager) {
 		if (!PyArg_ParseTuple(
@@ -388,12 +395,8 @@ PyObject *pyrna_callback_classmethod_remove(PyObject *UNUSED(self), PyObject *ar
 		}
 		bContext *C = BPy_GetContext();
 		struct wmWindowManager *wm = CTX_wm_manager(C);
-		customdata = WM_paint_cursor_customdata_get(handle);
-		if (!WM_paint_cursor_end(wm, handle)) {
-			PyErr_SetString(PyExc_ValueError, "draw_cursor_remove(handler): cursor wasn't found");
-			return NULL;
-		}
-		Py_DECREF((PyObject *)customdata);
+		WM_paint_cursor_end(wm, handle);
+		capsule_clear = true;
 	}
 	else if (RNA_struct_is_a(srna, &RNA_Space)) {
 		const char *error_prefix = "Space.draw_handler_remove";
@@ -410,9 +413,6 @@ PyObject *pyrna_callback_classmethod_remove(PyObject *UNUSED(self), PyObject *ar
 		{
 			return NULL;
 		}
-
-		customdata = ED_region_draw_cb_customdata(handle);
-		Py_DECREF((PyObject *)customdata);
 
 		if (pyrna_enum_value_from_id(
 		            rna_enum_region_type_items, params.region_type_str,
@@ -434,6 +434,7 @@ PyObject *pyrna_callback_classmethod_remove(PyObject *UNUSED(self), PyObject *ar
 					return NULL;
 				}
 				ED_region_draw_cb_exit(art, handle);
+				capsule_clear = true;
 			}
 		}
 	}
@@ -443,7 +444,10 @@ PyObject *pyrna_callback_classmethod_remove(PyObject *UNUSED(self), PyObject *ar
 	}
 
 	/* don't allow reuse */
-	PyCapsule_SetName(py_handle, RNA_CAPSULE_ID_INVALID);
+	if (capsule_clear) {
+		Py_DECREF(handle_args);
+		PyCapsule_SetName(py_handle, RNA_CAPSULE_ID_INVALID);
+	}
 
 	Py_RETURN_NONE;
 }

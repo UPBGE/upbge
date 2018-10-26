@@ -268,11 +268,6 @@ void ED_region_draw_cb_exit(ARegionType *art, void *handle)
 	}
 }
 
-void *ED_region_draw_cb_customdata(void *handle)
-{
-	return ((RegionDrawCB *)handle)->customdata;
-}
-
 void ED_region_draw_cb_draw(const bContext *C, ARegion *ar, int type)
 {
 	RegionDrawCB *rdc;
