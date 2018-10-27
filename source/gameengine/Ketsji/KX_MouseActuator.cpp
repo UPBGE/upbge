@@ -51,7 +51,8 @@ KX_MouseActuator::KX_MouseActuator(SCA_IObject* gameobj, KX_KetsjiEngine* ketsji
 	m_visible(visible),
 	m_threshold(threshold),
 	m_sensitivity(sensitivity),
-	m_oldPosition(-1.0f, -1.0f),
+	m_initialSkipping(true),
+	m_oldPosition(mt::zero2),
 	m_angle(mt::zero2)
 {
 	for (unsigned short i = 0; i < 2; ++i) {
@@ -71,14 +72,12 @@ KX_MouseActuator::~KX_MouseActuator()
 
 bool KX_MouseActuator::Update()
 {
-	bool result = false;
-
 	bool bNegativeEvent = IsNegativeEvent();
 	RemoveAllEvents();
 
 	if (bNegativeEvent) {
-		// Reset previous position on negative events.
-		m_oldPosition = mt::vec2(-1.0f, -1.0f);
+		// Reset initial skipping check on negative events.
+		m_initialSkipping = true;
 		return false;
 	}
 
@@ -121,7 +120,7 @@ bool KX_MouseActuator::Update()
 				}
 
 				//preventing initial skipping.
-				if ((m_oldPosition.x <= -0.9f) && (m_oldPosition.y <= -0.9f)) {
+				if (m_initialSkipping) {
 					for (unsigned short i = 0; i < 2; ++i) {
 						if (m_reset[i]) {
 							m_oldPosition[i] = center[i];
@@ -132,6 +131,7 @@ bool KX_MouseActuator::Update()
 					}
 
 					SetMousePosition(m_oldPosition);
+					m_initialSkipping = false;
 					break;
 				}
 
@@ -205,7 +205,7 @@ bool KX_MouseActuator::Update()
 			break;
 		}
 	}
-	return result;
+	return true;
 }
 
 EXP_Value *KX_MouseActuator::GetReplica()
