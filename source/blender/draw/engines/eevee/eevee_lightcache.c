@@ -472,17 +472,19 @@ static void eevee_lightbake_create_resources(EEVEE_LightBake *lbake)
 	lbake->lcache = eevee->light_cache;
 
 	/* TODO validate irradiance and reflection cache independently... */
-	if (!EEVEE_lightcache_validate(lbake->lcache, lbake->cube_len, lbake->ref_cube_res, lbake->grid_len, lbake->irr_size))
+	if (!EEVEE_lightcache_validate(
+	            lbake->lcache, lbake->cube_len, lbake->ref_cube_res, lbake->grid_len, lbake->irr_size))
 	{
 		eevee->light_cache = lbake->lcache = NULL;
 	}
 
 	if (lbake->lcache == NULL) {
-		lbake->lcache = EEVEE_lightcache_create(lbake->grid_len,
-		                                        lbake->cube_len,
-		                                        lbake->ref_cube_res,
-		                                        lbake->vis_res,
-		                                        lbake->irr_size);
+		lbake->lcache = EEVEE_lightcache_create(
+		        lbake->grid_len,
+		        lbake->cube_len,
+		        lbake->ref_cube_res,
+		        lbake->vis_res,
+		        lbake->irr_size);
 		lbake->lcache->flag = LIGHTCACHE_UPDATE_WORLD | LIGHTCACHE_UPDATE_CUBE | LIGHTCACHE_UPDATE_GRID;
 		lbake->lcache->vis_res = lbake->vis_res;
 		lbake->own_light_cache = true;
@@ -709,7 +711,7 @@ static void eevee_lightbake_cache_create(EEVEE_Data *vedata, EEVEE_LightBake *lb
 	DRW_render_object_iter(vedata, NULL, lbake->depsgraph, EEVEE_render_cache);
 
 	EEVEE_materials_cache_finish(vedata);
-	EEVEE_lights_cache_finish(sldata);
+	EEVEE_lights_cache_finish(sldata, vedata);
 	EEVEE_lightprobes_cache_finish(sldata, vedata);
 
 	txl->color = NULL;

@@ -403,7 +403,7 @@ static void object_defgroup_remove_edit_mode(Object *ob, bDeformGroup *dg)
  */
 void BKE_object_defgroup_remove(Object *ob, bDeformGroup *defgroup)
 {
-	if ((ob) && (ob->type == OB_GPENCIL)) {
+	if (ob->type == OB_GPENCIL) {
 		BKE_gpencil_vgroup_remove(ob, defgroup);
 	}
 	else {
@@ -412,7 +412,7 @@ void BKE_object_defgroup_remove(Object *ob, bDeformGroup *defgroup)
 		else
 			object_defgroup_remove_object_mode(ob, defgroup);
 
-		BKE_mesh_batch_cache_dirty_tag(ob->data, BKE_MESH_BATCH_DIRTY_ALL);
+		BKE_object_batch_cache_dirty_tag(ob);
 	}
 }
 

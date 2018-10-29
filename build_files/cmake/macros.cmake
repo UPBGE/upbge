@@ -671,6 +671,7 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		bf_imbuf_dds
 		bf_collada
 		bf_blenfont
+		bf_gpu  # duplicate for blenfont
 		bf_blentranslation
 
 		bf_intern_ghost
