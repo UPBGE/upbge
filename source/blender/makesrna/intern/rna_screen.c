@@ -46,6 +46,7 @@ const EnumPropertyItem rna_enum_region_type_items[] = {
 	{RGN_TYPE_TOOLS, "TOOLS", 0, "Tools", ""},
 	{RGN_TYPE_TOOL_PROPS, "TOOL_PROPS", 0, "Tool Properties", ""},
 	{RGN_TYPE_PREVIEW, "PREVIEW", 0, "Preview", ""},
+	{RGN_TYPE_NAV_BAR, "NAVIGATION_BAR", 0, "Navigation Bar", ""},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -331,7 +332,7 @@ static void rna_def_area_api(StructRNA *srna)
 
 	func = RNA_def_function(srna, "header_text_set", "ED_area_status_text");
 	RNA_def_function_ui_description(func, "Set the header status text");
-	parm = RNA_def_string(func, "text", NULL, 0, "Text", "New string for the header, no argument clears the text");
+	parm = RNA_def_string(func, "text", NULL, 0, "Text", "New string for the header, empty string clears the text");
 	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
 }
 

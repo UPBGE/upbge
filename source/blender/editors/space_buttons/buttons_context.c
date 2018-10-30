@@ -646,13 +646,7 @@ void buttons_context_compute(const bContext *C, SpaceButs *sbuts)
 					sbuts->dataicon = RNA_struct_ui_icon(ptr->type);
 				}
 				else {
-					Object *ob = CTX_data_active_object(C);
-					if (ob->type == OB_GPENCIL) {
-						sbuts->dataicon = ICON_GREASEPENCIL;
-					}
-					else {
-						sbuts->dataicon = ICON_EMPTY_DATA;
-					}
+					sbuts->dataicon = ICON_EMPTY_DATA;
 				}
 			}
 		}
@@ -1055,19 +1049,38 @@ void buttons_context_draw(const bContext *C, uiLayout *layout)
 	}
 }
 
+#ifdef USE_HEADER_CONTEXT_PATH
+static bool buttons_header_context_poll(const bContext *C, HeaderType *UNUSED(ht))
+#else
 static bool buttons_panel_context_poll(const bContext *C, PanelType *UNUSED(pt))
+#endif
 {
 	SpaceButs *sbuts = CTX_wm_space_buts(C);
 	return (sbuts->mainb != BCONTEXT_TOOL);
 }
 
-static void buttons_panel_context_draw(const bContext *C, Panel *pa)
+#ifdef USE_HEADER_CONTEXT_PATH
+static void buttons_header_context_draw(const bContext *C, Header *ptr)
+#else
+static void buttons_panel_context_draw(const bContext *C, Panel *ptr)
+#endif
 {
-	buttons_context_draw(C, pa->layout);
+	buttons_context_draw(C, ptr->layout);
 }
 
 void buttons_context_register(ARegionType *art)
 {
+#ifdef USE_HEADER_CONTEXT_PATH
+	HeaderType *ht;
+
+	ht = MEM_callocN(sizeof(HeaderType), "spacetype buttons context header");
+	strcpy(ht->idname, "BUTTONS_HT_context");
+	ht->space_type = SPACE_BUTS;
+	ht->region_type = art->regionid;
+	ht->poll = buttons_header_context_poll;
+	ht->draw = buttons_header_context_draw;
+	BLI_addtail(&art->headertypes, ht);
+#else
 	PanelType *pt;
 
 	pt = MEM_callocN(sizeof(PanelType), "spacetype buttons panel context");
@@ -1078,6 +1091,7 @@ void buttons_context_register(ARegionType *art)
 	pt->draw = buttons_panel_context_draw;
 	pt->flag = PNL_NO_HEADER;
 	BLI_addtail(&art->paneltypes, pt);
+#endif
 }
 
 ID *buttons_context_id_path(const bContext *C)

@@ -87,7 +87,7 @@ const EnumPropertyItem rna_enum_space_type_items[] = {
 	/* Scripting */
 	{0, "", ICON_NONE, "Scripting", ""},
 	{SPACE_TEXT, "TEXT_EDITOR", ICON_TEXT, "Text Editor", "Edit scripts and in-file documentation"},
-	{SPACE_LOGIC, "LOGIC_EDITOR", ICON_LOGIC, "Logic Editor", "Game logic editing"},
+	{SPACE_LOGIC, "LOGIC_EDITOR", ICON_ACTION, "Logic Editor", "Game logic editing"}, // CHOOSE BETTER ICON
 	{SPACE_CONSOLE, "CONSOLE", ICON_CONSOLE, "Python Console", "Interactive programmatic console for "
 	                "advanced editing and script development"},
 	{SPACE_INFO, "INFO", ICON_INFO, "Info", "Main menu bar and list of error messages "
@@ -2629,11 +2629,6 @@ static void rna_def_space_view3d_overlay(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Show Overlays", "Display overlays like gizmos and outlines");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_GPencil_update");
 
-	prop = RNA_def_property(srna, "show_occlude_wire", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag2", V3D_OCCLUDE_WIRE);
-	RNA_def_property_ui_text(prop, "Hidden Wire", "Use hidden wireframe display");
-	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
-
 	prop = RNA_def_property(srna, "show_floor", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "gridflag", V3D_SHOW_FLOOR);
 	RNA_def_property_ui_text(prop, "Display Grid Floor", "Show the ground plane grid in perspective view");
@@ -2797,6 +2792,11 @@ static void rna_def_space_view3d_overlay(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Show Weights", "Display weights in editmode");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
+	prop = RNA_def_property(srna, "show_occlude_wire", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "overlay.edit_flag", V3D_OVERLAY_EDIT_OCCLUDE_WIRE);
+	RNA_def_property_ui_text(prop, "Hidden Wire", "Use hidden wireframe display");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
+
 	prop = RNA_def_property(srna, "show_face_normals", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "overlay.edit_flag", V3D_OVERLAY_EDIT_FACE_NORMALS);
 	RNA_def_property_ui_text(prop, "Display Normals", "Display face normals as lines");
@@ -2938,7 +2938,7 @@ static void rna_def_space_view3d_overlay(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "weight_paint_mode_opacity", PROP_FLOAT, PROP_FACTOR);
 	RNA_def_property_float_sdna(prop, NULL, "overlay.weight_paint_mode_opacity");
-	RNA_def_property_float_default(prop, 0.8f);
+	RNA_def_property_float_default(prop, 1.0f);
 	RNA_def_property_ui_text(prop, "Weight Paint Opacity", "Opacity of the weight paint mode overlay");
 	RNA_def_property_range(prop, 0.0f, 1.0f);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
@@ -3805,19 +3805,19 @@ static void rna_def_space_text(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "wordwrap", 0);
 	RNA_def_property_boolean_funcs(prop, NULL, "rna_SpaceTextEditor_word_wrap_set");
 	RNA_def_property_ui_text(prop, "Word Wrap", "Wrap words if there is not enough horizontal space");
-	RNA_def_property_ui_icon(prop, ICON_WORDWRAP_OFF, 1);
+	RNA_def_property_ui_icon(prop, ICON_WORDWRAP_ON, 0);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_TEXT, NULL);
 
 	prop = RNA_def_property(srna, "show_line_numbers", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "showlinenrs", 0);
 	RNA_def_property_ui_text(prop, "Line Numbers", "Show line numbers next to the text");
-	RNA_def_property_ui_icon(prop, ICON_LINENUMBERS_OFF, 1);
+	RNA_def_property_ui_icon(prop, ICON_LINENUMBERS_ON, 0);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_TEXT, NULL);
 
 	prop = RNA_def_property(srna, "show_syntax_highlight", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "showsyntax", 0);
 	RNA_def_property_ui_text(prop, "Syntax Highlight", "Syntax highlight for scripting");
-	RNA_def_property_ui_icon(prop, ICON_SYNTAX_OFF, 1);
+	RNA_def_property_ui_icon(prop, ICON_SYNTAX_ON, 0);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_TEXT, NULL);
 
 	prop = RNA_def_property(srna, "show_line_highlight", PROP_BOOLEAN, PROP_NONE);
@@ -3961,6 +3961,18 @@ static void rna_def_space_dopesheet(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Show Group Colors",
 	                         "Display groups and channels with colors matching their corresponding groups "
 	                         "(pose bones only currently)");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_DOPESHEET, NULL);
+
+	prop = RNA_def_property(srna, "show_interpolation", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", SACTION_SHOW_INTERPOLATION);
+	RNA_def_property_ui_text(prop, "Show Handles And Interpolation",
+	                         "Display keyframe handle types and non-bezier interpolation modes");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_DOPESHEET, NULL);
+
+	prop = RNA_def_property(srna, "show_extremes", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", SACTION_SHOW_EXTREMES);
+	RNA_def_property_ui_text(prop, "Show Curve Extremes",
+	                         "Mark keyframes where the key value flow changes direction, based on comparison with adjacent keys");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_DOPESHEET, NULL);
 
 	/* editing */

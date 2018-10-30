@@ -922,6 +922,7 @@ static void ui_apply_but_TAB(bContext *C, uiBut *but, uiHandleButtonData *data)
 		ui_but_update_edited(but);
 	}
 	else {
+		ui_but_value_set(but, but->hardmax);
 		ui_apply_but_func(C, but);
 	}
 
@@ -4110,7 +4111,12 @@ static bool ui_but_is_mouse_over_icon_extra(const ARegion *region, uiBut *but, c
 static int ui_do_but_TAB(bContext *C, uiBlock *block, uiBut *but, uiHandleButtonData *data, const wmEvent *event)
 {
 	if (data->state == BUTTON_STATE_HIGHLIGHT) {
-		if ((event->type == LEFTMOUSE) &&
+		const int rna_type = but->rnaprop ? RNA_property_type(but->rnaprop) : 0;
+
+		if (but->rnaprop &&
+		    ELEM(rna_type, PROP_POINTER, PROP_STRING) &&
+		    (but->custom_data != NULL) &&
+		    (event->type == LEFTMOUSE) &&
 		    ((event->val == KM_DBL_CLICK) || event->ctrl))
 		{
 			button_activate_state(C, but, BUTTON_STATE_TEXT_EDITING);

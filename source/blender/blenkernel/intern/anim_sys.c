@@ -246,7 +246,7 @@ void BKE_animdata_free(ID *id, const bool do_id_user)
 			}
 
 			/* free nla data */
-			BKE_nla_tracks_free(&adt->nla_tracks);
+			BKE_nla_tracks_free(&adt->nla_tracks, do_id_user);
 
 			/* free drivers - stored as a list of F-Curves */
 			free_fcurves(&adt->drivers);
@@ -1686,7 +1686,14 @@ static void animsys_write_orig_anim_rna(
         FCurve *fcu,
         float value)
 {
-	/* Pointer is expected to be an ID pointer, if it's not -- we are doomed. */
+	/* Pointer is expected to be an ID pointer, if it's not -- we are doomed.
+	 *
+	 * NOTE: It is possible to have animation data on NLA strip, see T57360.
+	 * TODO(sergey): Find solution for those cases.
+	 */
+	if (ptr->id.data == NULL) {
+		return;
+	}
 	PointerRNA orig_ptr = *ptr;
 	orig_ptr.id.data = ((ID *)orig_ptr.id.data)->orig_id;
 	orig_ptr.data = orig_ptr.id.data;

@@ -236,6 +236,8 @@ enum {
 	UI_BUT_ACTIVE_RIGHT      = (1 << 22), /* Active right part of number button */
 
 	UI_BUT_HAS_SHORTCUT      = (1 << 23), /* Button has shortcut text */
+
+	UI_BUT_ICON_REVERSE      = (1 << 24), /* Reverse order of consecutive off/on icons */
 };
 
 /* scale fixed button widths by this to account for DPI */
@@ -925,6 +927,7 @@ void UI_exit(void);
 #define UI_LAYOUT_MENU          2
 #define UI_LAYOUT_TOOLBAR       3
 #define UI_LAYOUT_PIEMENU       4
+#define UI_LAYOUT_VERT_BAR      5
 
 #define UI_UNIT_X               ((void)0, U.widget_unit)
 #define UI_UNIT_Y               ((void)0, U.widget_unit)
@@ -1214,10 +1217,12 @@ void uiItemPopoverPanelFromGroup(
         const char *context, const char *category);
 
 void uiItemMenuF(uiLayout *layout, const char *name, int icon, uiMenuCreateFunc func, void *arg);
+void uiItemMenuFN(uiLayout *layout, const char *name, int icon, uiMenuCreateFunc func, void *argN);
 void uiItemMenuEnumO_ptr(uiLayout *layout, struct bContext *C, struct wmOperatorType *ot, const char *propname, const char *name, int icon);
 void uiItemMenuEnumO(uiLayout *layout, struct bContext *C, const char *opname, const char *propname, const char *name, int icon);
 void uiItemMenuEnumR_prop(uiLayout *layout, struct PointerRNA *ptr, PropertyRNA *prop, const char *name, int icon);
 void uiItemMenuEnumR(uiLayout *layout, struct PointerRNA *ptr, const char *propname, const char *name, int icon);
+void uiItemTabsEnumR_prop(uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, PropertyRNA *prop, bool icon_only);
 
 /* UI Operators */
 typedef struct uiDragColorHandle {

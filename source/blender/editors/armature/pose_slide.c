@@ -618,10 +618,10 @@ static void pose_slide_apply(bContext *C, tPoseSlideOp *pso)
 
 			/* apply NLA mapping corrections so the frame lookups work */
 			ob_data->prevFrameF = BKE_nla_tweakedit_remap(ob_data->ob->adt,
-			                                              ob_data->prevFrameF,
+			                                              pso->prevFrame,
 			                                              NLATIME_CONVERT_UNMAP);
 			ob_data->nextFrameF = BKE_nla_tweakedit_remap(ob_data->ob->adt,
-			                                              ob_data->nextFrameF,
+			                                              pso->nextFrame,
 			                                              NLATIME_CONVERT_UNMAP);
 		}
 	}
@@ -789,7 +789,7 @@ static int pose_slide_invoke_common(bContext *C, wmOperator *op, tPoseSlideOp *p
 		/* do this for each F-Curve */
 		for (ld = pfl->fcurves.first; ld; ld = ld->next) {
 			FCurve *fcu = (FCurve *)ld->data;
-			fcurve_to_keylist(pfl->ob->adt, fcu, &pso->keys);
+			fcurve_to_keylist(pfl->ob->adt, fcu, &pso->keys, 0);
 		}
 	}
 
@@ -829,10 +829,10 @@ static int pose_slide_invoke_common(bContext *C, wmOperator *op, tPoseSlideOp *p
 			tPoseSlideObject *ob_data = &pso->ob_data_array[ob_index];
 			if (ob_data->valid) {
 				ob_data->prevFrameF = BKE_nla_tweakedit_remap(ob_data->ob->adt,
-				                                              ob_data->prevFrameF,
+				                                              pso->prevFrame,
 				                                              NLATIME_CONVERT_UNMAP);
 				ob_data->nextFrameF = BKE_nla_tweakedit_remap(ob_data->ob->adt,
-				                                              ob_data->nextFrameF,
+				                                              pso->nextFrame,
 				                                              NLATIME_CONVERT_UNMAP);
 			}
 		}
@@ -1350,7 +1350,7 @@ static float pose_propagate_get_boneHoldEndFrame(tPChanFCurveLink *pfl, float st
 
 	for (ld = pfl->fcurves.first; ld; ld = ld->next) {
 		FCurve *fcu = (FCurve *)ld->data;
-		fcurve_to_keylist(adt, fcu, &keys);
+		fcurve_to_keylist(adt, fcu, &keys, 0);
 	}
 
 	/* find the long keyframe (i.e. hold), and hence obtain the endFrame value

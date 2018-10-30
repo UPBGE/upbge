@@ -853,6 +853,8 @@ const char *uiLayoutIntrospect(uiLayout *layout) RET_NULL
 void uiItemEnumR_string_prop(uiLayout *layout, struct PointerRNA *ptr, struct PropertyRNA *prop, const char *value, const char *name, int icon) RET_NONE
 void uiItemPointerR_prop(uiLayout *layout, struct PointerRNA *ptr, PropertyRNA *prop, struct PointerRNA *searchptr, struct PropertyRNA *searchprop, const char *name, int icon) RET_NONE
 
+void uiItemTabsEnumR_prop(uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, PropertyRNA *prop, bool icon_only) RET_NONE
+
 void uiLayoutSetPropSep(uiLayout *layout, bool is_sep) RET_NONE
 bool uiLayoutGetPropSep(uiLayout *layout) RET_NULL
 

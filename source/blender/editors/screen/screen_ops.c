@@ -2632,10 +2632,10 @@ static int keyframe_jump_exec(bContext *C, wmOperator *op)
 	}
 
 	/* populate tree with keyframe nodes */
-	scene_to_keylist(&ads, scene, &keys);
+	scene_to_keylist(&ads, scene, &keys, 0);
 
 	if (ob) {
-		ob_to_keylist(&ads, ob, &keys);
+		ob_to_keylist(&ads, ob, &keys, 0);
 
 		if (ob->type == OB_GPENCIL) {
 			const bool active = !(scene->flag & SCE_KEYS_NO_SELONLY);
@@ -3590,6 +3590,7 @@ static int region_flip_exec(bContext *C, wmOperator *UNUSED(op))
 		ar->alignment = RGN_ALIGN_LEFT;
 
 	ED_area_tag_redraw(CTX_wm_area(C));
+	WM_event_add_mousemove(C);
 	WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, NULL);
 
 	return OPERATOR_FINISHED;
@@ -4617,12 +4618,6 @@ static void SCREEN_OT_region_blend(wmOperatorType *ot)
 /* -------------------------------------------------------------------- */
 /** \name Space Context Cycle Operator
  * \{ */
-
-/* SCREEN_OT_space_context_cycle direction */
-enum {
-	SPACE_CONTEXT_CYCLE_PREV,
-	SPACE_CONTEXT_CYCLE_NEXT,
-};
 
 static const EnumPropertyItem space_context_cycle_direction[] = {
 	{SPACE_CONTEXT_CYCLE_PREV, "PREV", 0, "Previous", ""},

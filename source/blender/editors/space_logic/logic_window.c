@@ -890,8 +890,8 @@ static void draw_sensor_internal_header(uiLayout *layout, PointerRNA *ptr)
 	split = uiLayoutSplit(box, 0.45f, false);
 	
 	row = uiLayoutRow(split, true);
-	uiItemR(row, ptr, "use_pulse_true_level", 0, "", ICON_DOTSUP);
-	uiItemR(row, ptr, "use_pulse_false_level", 0, "", ICON_DOTSDOWN);
+	uiItemR(row, ptr, "use_pulse_true_level", 0, "", ICON_TRIA_UP); // CHOOSE BETTER ICON
+	uiItemR(row, ptr, "use_pulse_false_level", 0, "", ICON_TRIA_DOWN); // CHOOSE BETTER ICON
 
 	sub = uiLayoutRow(row, false);
 	uiLayoutSetActive(sub, (RNA_boolean_get(ptr, "use_pulse_true_level") ||
@@ -912,7 +912,7 @@ static void draw_sensor_actuator(uiLayout *layout, PointerRNA *ptr)
 	PointerRNA settings_ptr;
 
 	RNA_pointer_create((ID *)ob, &RNA_GameObjectSettings, ob, &settings_ptr);
-	uiItemPointerR(layout, ptr, "actuator", &settings_ptr, "actuators", NULL, ICON_LOGIC);
+	uiItemPointerR(layout, ptr, "actuator", &settings_ptr, "actuators", NULL, ICON_ACTION); // CHOOSE BETTER ICON
 }
 
 static void draw_sensor_armature(uiLayout *layout, PointerRNA *ptr)
@@ -2391,7 +2391,7 @@ void logic_buttons(bContext *C, ARegion *ar)
 			col = uiLayoutColumn(split, false);
 			uiLayoutSetActive(col, RNA_boolean_get(&ptr, "active"));
 			uiLayoutSetAlignment(col, UI_LAYOUT_ALIGN_LEFT);
-			but = uiDefIconBut(block, UI_BTYPE_INLINK, 0, ICON_INLINK, 0, 0, UI_UNIT_X, UI_UNIT_Y, cont, LINK_CONTROLLER, 0, 0, 0, "");
+			but = uiDefIconBut(block, UI_BTYPE_INLINK, 0, ICON_LINKED, 0, 0, UI_UNIT_X, UI_UNIT_Y, cont, LINK_CONTROLLER, 0, 0, 0, ""); // CHOOSE BETTER ICON
 			if (!RNA_boolean_get(&ptr, "active")) {
 				UI_but_flag_enable(but, UI_BUT_SCA_LINK_GREY);
 			}
@@ -2414,7 +2414,7 @@ void logic_buttons(bContext *C, ARegion *ar)
 			col = uiLayoutColumn(subsplit, false);
 			uiLayoutSetActive(col, RNA_boolean_get(&ptr, "active"));
 			uiLayoutSetAlignment(col, UI_LAYOUT_ALIGN_LEFT);
-			but = uiDefIconBut(block, UI_BTYPE_LINK, 0, ICON_LINK, 0, 0, UI_UNIT_X, UI_UNIT_Y, NULL, 0, 0, 0, 0, "");
+			but = uiDefIconBut(block, UI_BTYPE_LINK, 0, ICON_LINKED, 0, 0, UI_UNIT_X, UI_UNIT_Y, NULL, 0, 0, 0, 0, ""); // CHOOSE BETTER ICON
 			if (!RNA_boolean_get(&ptr, "active")) {
 				UI_but_flag_enable(but, UI_BUT_SCA_LINK_GREY);
 			}
@@ -2487,7 +2487,7 @@ void logic_buttons(bContext *C, ARegion *ar)
 				/* put link button to the right */
 				col = uiLayoutColumn(split, false);
 				uiLayoutSetActive(col, RNA_boolean_get(&ptr, "active"));
-				but = uiDefIconBut(block, UI_BTYPE_LINK, 0, ICON_LINK, 0, 0, UI_UNIT_X, UI_UNIT_Y, NULL, 0, 0, 0, 0, "");
+				but = uiDefIconBut(block, UI_BTYPE_LINK, 0, ICON_LINKED, 0, 0, UI_UNIT_X, UI_UNIT_Y, NULL, 0, 0, 0, 0, ""); // CHOOSE BETTER ICON
 				if (!RNA_boolean_get(&ptr, "active")) {
 					UI_but_flag_enable(but, UI_BUT_SCA_LINK_GREY);
 				}
@@ -2556,7 +2556,7 @@ void logic_buttons(bContext *C, ARegion *ar)
 				/* put inlink button to the left */
 				col = uiLayoutColumn(split, false);
 				uiLayoutSetActive(col, RNA_boolean_get(&ptr, "active"));
-				but = uiDefIconBut(block, UI_BTYPE_INLINK, 0, ICON_INLINK, 0, 0, UI_UNIT_X, UI_UNIT_Y, act, LINK_ACTUATOR, 0, 0, 0, "");
+				but = uiDefIconBut(block, UI_BTYPE_INLINK, 0, ICON_LINKED, 0, 0, UI_UNIT_X, UI_UNIT_Y, act, LINK_ACTUATOR, 0, 0, 0, ""); // CHOOSE BETTER ICON
 				if (!RNA_boolean_get(&ptr, "active")) {
 					UI_but_flag_enable(but, UI_BUT_SCA_LINK_GREY);
 				}

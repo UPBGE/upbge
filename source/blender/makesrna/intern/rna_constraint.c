@@ -100,7 +100,7 @@ const EnumPropertyItem rna_enum_constraint_type_items[] = {
 	                             "Use to animate an object/bone following a path"},
 	{CONSTRAINT_TYPE_PIVOT,      "PIVOT", ICON_CONSTRAINT, "Pivot",
 	                             "Change pivot point for transforms (buggy)"},
-	{CONSTRAINT_TYPE_RIGIDBODYJOINT, "RIGID_BODY_JOINT", ICON_CONSTRAINT_DATA, "Rigid Body Joint", 
+	{CONSTRAINT_TYPE_RIGIDBODYJOINT, "RIGID_BODY_JOINT", ICON_CONSTRAINT, "Rigid Body Joint", // CHOOSE BETTER ICON
 	                                 "Use to define a Rigid Body Constraint (for Game Engine use only)"},
 	/* {CONSTRAINT_TYPE_PYTHON,     "SCRIPT", ICON_CONSTRAINT_DATA, "Script",
 	                             "Custom constraint(s) written in Python (Not yet implemented)"}, */

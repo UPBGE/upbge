@@ -184,6 +184,7 @@ typedef enum PropertyFlag {
 
 	/* icon */
 	PROP_ICONS_CONSECUTIVE       = (1 << 12),
+	PROP_ICONS_REVERSE           = (1 << 8),
 
 	/* hidden in  the user interface */
 	PROP_HIDDEN                  = (1 << 19),
@@ -237,7 +238,6 @@ typedef enum PropertyFlag {
 	 * most common case is functions that return arrays where the array */
 	PROP_THICK_WRAP              = (1 << 23),
 
-	PROP_EXPORT                  = (1 << 8),  /* XXX Is this still used? makesrna.c seems to ignore it currently... */
 	PROP_IDPROPERTY              = (1 << 10), /* This is an IDProperty, not a DNA one. */
 	PROP_DYNAMIC                 = (1 << 17), /* for dynamic arrays, and retvals of type string */
 	PROP_ENUM_NO_CONTEXT         = (1 << 24), /* for enum that shouldn't be contextual */
