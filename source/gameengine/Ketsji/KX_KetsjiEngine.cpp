@@ -414,12 +414,20 @@ bool KX_KetsjiEngine::NextFrame()
 
 	const FrameTimes times = GetFrameTimes();
 
+	// Exit if zero frame is sheduled.
+	if (times.frames == 0) {
+		// Start logging time spent outside main loop
+		m_logger.StartLog(tc_outside);
+
+		return false;
+	}
+
+	// Fake release events for mouse movements only once.
+	m_inputDevice->ReleaseMoveEvent();
+
 	for (unsigned short i = 0; i < times.frames; ++i) {
 		m_frameTime += times.framestep;
 
-		if (m_inputDevice) {
-			m_inputDevice->ReleaseMoveEvent();
-		}
 #ifdef WITH_SDL
 		// Handle all SDL Joystick events here to share them for all scenes properly.
 		short addrem[JOYINDEX_MAX] = {0};
@@ -484,9 +492,7 @@ bool KX_KetsjiEngine::NextFrame()
 
 		// update system devices
 		m_logger.StartLog(tc_logic);
-		if (m_inputDevice) {
-			m_inputDevice->ClearInputs();
-		}
+		m_inputDevice->ClearInputs();
 
 		m_converter->ProcessScheduledLibraries();
 
@@ -498,8 +504,7 @@ bool KX_KetsjiEngine::NextFrame()
 	// Start logging time spent outside main loop
 	m_logger.StartLog(tc_outside);
 
-	const bool doRender = times.frames > 0;
-	return doRender && m_doRender;
+	return m_doRender;
 }
 
 void KX_KetsjiEngine::UpdateSuspendedScenes(double framestep)
