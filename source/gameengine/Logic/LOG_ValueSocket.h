@@ -16,6 +16,7 @@ public:
 	LOG_ValueSocket(const LOG_ValueSocket& other);
 
 	virtual PyObject *GetValue() const;
+	void SetValue(PyObject *value);
 };
 
 #endif  // __LOG_VALUE_SOCKET_H__

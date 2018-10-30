@@ -1,11 +1,11 @@
-#include "LOG_BaseNode.h"
+#include "LOG_INode.h"
 #include "LOG_INodeSocket.h"
 
 #include "KX_GameObject.h"
 
 #include "CM_Message.h"
 
-LOG_BaseNode::LOG_BaseNode()
+LOG_INode::LOG_INode()
 	:m_status(NO_STATUS),
 	m_object(nullptr),
 	m_inputsWrapper(this, EXP_BaseListWrapper::FLAG_NO_WEAK_REF),
@@ -13,7 +13,7 @@ LOG_BaseNode::LOG_BaseNode()
 {
 }
 
-LOG_BaseNode::LOG_BaseNode(const LOG_BaseNode& other)
+LOG_INode::LOG_INode(const LOG_INode& other)
 	:m_status(NO_STATUS),
 	m_object(nullptr),
 	m_inputs(other.m_inputs),
@@ -23,11 +23,11 @@ LOG_BaseNode::LOG_BaseNode(const LOG_BaseNode& other)
 {
 }
 
-LOG_BaseNode::~LOG_BaseNode()
+LOG_INode::~LOG_INode()
 {
 }
 
-void LOG_BaseNode::ProcessReplica()
+void LOG_INode::ProcessReplica()
 {
 	EXP_Value::ProcessReplica();
 
@@ -40,22 +40,22 @@ void LOG_BaseNode::ProcessReplica()
 	}
 }
 
-KX_GameObject *LOG_BaseNode::GetGameObject() const
+KX_GameObject *LOG_INode::GetGameObject() const
 {
 	return m_object;
 }
 
-void LOG_BaseNode::SetGameObject(KX_GameObject *gameobj)
+void LOG_INode::SetGameObject(KX_GameObject *gameobj)
 {
 	m_object = gameobj;
 }
 
-void LOG_BaseNode::AddInput(LOG_INodeSocket *socket)
+void LOG_INode::AddInput(LOG_INodeSocket *socket)
 {
 	m_inputs.push_back(socket);
 }
 
-void LOG_BaseNode::Start()
+void LOG_INode::Start()
 {
 	PyObject *ret = PyObject_CallMethod(GetProxy(), "start", "");
 	if (PyErr_Occurred()) {
@@ -64,9 +64,9 @@ void LOG_BaseNode::Start()
 	Py_XDECREF(ret);
 }
 
-PyTypeObject LOG_BaseNode::Type = {
+PyTypeObject LOG_INode::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
-	"LOG_BaseNode",
+	"LOG_INode",
 	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
@@ -86,50 +86,50 @@ PyTypeObject LOG_BaseNode::Type = {
 	py_base_new
 };
 
-PyMethodDef LOG_BaseNode::Methods[] = {
+PyMethodDef LOG_INode::Methods[] = {
 	{nullptr, nullptr} // Sentinel
 };
 
-PyAttributeDef LOG_BaseNode::Attributes[] = {
-	EXP_PYATTRIBUTE_RO_FUNCTION("object", LOG_BaseNode, pyattr_get_object),
-	EXP_PYATTRIBUTE_RO_FUNCTION("inputs", LOG_BaseNode, pyattr_get_inputs),
-	EXP_PYATTRIBUTE_RO_FUNCTION("properties", LOG_BaseNode, pyattr_get_properties),
+PyAttributeDef LOG_INode::Attributes[] = {
+	EXP_PYATTRIBUTE_RO_FUNCTION("object", LOG_INode, pyattr_get_object),
+	EXP_PYATTRIBUTE_RO_FUNCTION("inputs", LOG_INode, pyattr_get_inputs),
+	EXP_PYATTRIBUTE_RO_FUNCTION("properties", LOG_INode, pyattr_get_properties),
 	EXP_PYATTRIBUTE_NULL // Sentinel
 };
 
-unsigned int LOG_BaseNode::py_get_inputs_size()
+unsigned int LOG_INode::py_get_inputs_size()
 {
 	return m_inputs.size();
 }
 
-PyObject *LOG_BaseNode::py_get_inputs_item(unsigned int index)
+PyObject *LOG_INode::py_get_inputs_item(unsigned int index)
 {
 	return m_inputs[index]->GetValue();
 }
 
-std::string LOG_BaseNode::py_get_inputs_name(unsigned int index)
+std::string LOG_INode::py_get_inputs_name(unsigned int index)
 {
 	return m_inputs[index]->GetName();
 }
 
-unsigned int LOG_BaseNode::py_get_properties_size()
+unsigned int LOG_INode::py_get_properties_size()
 {
 	return m_properties.size();
 }
 
-PyObject *LOG_BaseNode::py_get_properties_item(unsigned int index)
+PyObject *LOG_INode::py_get_properties_item(unsigned int index)
 {
 	return m_properties[index]->GetValue();
 }
 
-std::string LOG_BaseNode::py_get_properties_name(unsigned int index)
+std::string LOG_INode::py_get_properties_name(unsigned int index)
 {
 	return m_properties[index]->GetName();
 }
 
-PyObject *LOG_BaseNode::pyattr_get_object(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+PyObject *LOG_INode::pyattr_get_object(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
-	LOG_BaseNode *self = static_cast<LOG_BaseNode *>(self_v);
+	LOG_INode *self = static_cast<LOG_INode *>(self_v);
 	KX_GameObject *gameobj = self->GetGameObject();
 
 	if (gameobj) {
@@ -140,15 +140,15 @@ PyObject *LOG_BaseNode::pyattr_get_object(EXP_PyObjectPlus *self_v, const EXP_PY
 	}
 }
 
-PyObject *LOG_BaseNode::pyattr_get_inputs(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+PyObject *LOG_INode::pyattr_get_inputs(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
-	LOG_BaseNode *self = static_cast<LOG_BaseNode *>(self_v);
+	LOG_INode *self = static_cast<LOG_INode *>(self_v);
 	return self->m_inputsWrapper.GetProxy();
 }
 
-PyObject *LOG_BaseNode::pyattr_get_properties(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+PyObject *LOG_INode::pyattr_get_properties(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
-	LOG_BaseNode *self = static_cast<LOG_BaseNode *>(self_v);
+	LOG_INode *self = static_cast<LOG_INode *>(self_v);
 	return self->m_propertiesWrapper.GetProxy();
 }
 

@@ -21,14 +21,14 @@ LOG_ValueSocket::LOG_ValueSocket(const LOG_ValueSocket& other)
 	Py_XINCREF(m_value);
 }
 
+PyObject *LOG_ValueSocket::GetValue() const
+{
+	return m_value;
+}
+
 void LOG_ValueSocket::SetValue(PyObject *value)
 {
 	Py_XDECREF(m_value);
 	m_value = value;
 	Py_XINCREF(m_value);
-}
-
-PyObject *LOG_ValueSocket::GetValue() const
-{
-	return m_value;
 }

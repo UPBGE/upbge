@@ -3,7 +3,7 @@
 
 #include <string>
 
-struct PyObject;
+#include "EXP_Python.h"
 
 class LOG_INodeSocket
 {

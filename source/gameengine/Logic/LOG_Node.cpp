@@ -1,5 +1,5 @@
 #include "LOG_Node.h"
-#include "LOG_INodeSocket.h"
+#include "LOG_ValueSocket.h"
 
 #include "CM_Message.h"
 
@@ -9,7 +9,7 @@ LOG_Node::LOG_Node()
 }
 
 LOG_Node::LOG_Node(const LOG_Node& other)
-	:LOG_BaseNode(other),
+	:LOG_INode(other),
 	m_outputs(other.m_outputs),
 	m_outputsWrapper(this, EXP_BaseListWrapper::FLAG_NO_WEAK_REF)
 {
@@ -32,7 +32,7 @@ EXP_Value *LOG_Node::GetReplica()
 	return replica;
 }
 
-void LOG_Node::AddOutput(LOG_INodeSocket *socket)
+void LOG_Node::AddOutput(LOG_ValueSocket *socket)
 {
 	m_outputs.push_back(socket);
 }
@@ -91,7 +91,7 @@ PyTypeObject LOG_Node::Type = {
 	Methods,
 	0,
 	0,
-	&LOG_BaseNode::Type,
+	&LOG_INode::Type,
 	0, 0, 0, 0, 0, 0,
 	py_node_new
 };

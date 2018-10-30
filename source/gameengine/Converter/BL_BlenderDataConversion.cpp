@@ -1228,7 +1228,8 @@ static LOG_Node *BL_ConvertLogicNode(bNode *bnode, PyObject *mod, LOG_Tree *tree
 	return node;
 }
 
-static LOG_INodeSocket *BL_ConvertLogicNodeSocket(bNodeSocket *bsock, const std::unordered_map<bNode *, LOG_Node *>& convertedNodes, 
+static LOG_INodeSocket *BL_ConvertLogicNodeSocket(bNodeSocket *bsock, bool input,
+		const std::unordered_map<bNode *, LOG_INode *>& convertedNodes, 
 		std::unordered_map<bNodeSocket *, LOG_INodeSocket *>& convertedSockets)
 {
 	const auto& it = convertedSockets.find(bsock);
@@ -1308,8 +1309,21 @@ static LOG_INodeSocket *BL_ConvertLogicNodeSocket(bNodeSocket *bsock, const std:
 		case SOCK_LOGIC:
 		{
 			if (bsock->link) {
-				LOG_Node *outNode = convertedNodes.find(bsock->link->tonode)->second;
-				value = outNode->GetProxy();
+				bNode *bnode = input ? bsock->link->fromnode : bsock->link->tonode;
+
+				LOG_INode *node = convertedNodes.find(bnode)->second;
+				switch (bnode->type) {
+					case LOGIC_NODE_FUNCTION:
+					{
+						value = node->GetProxy();
+						break;
+					}
+					default:
+					{
+						function = static_cast<LOG_FunctionNode *>(node);
+						break;
+					}
+				}
 			}
 			else {
 				value = Py_None;
@@ -1336,13 +1350,13 @@ static LOG_INodeSocket *BL_ConvertLogicNodeSocket(bNodeSocket *bsock, const std:
 	return socket;
 }
 
-static void BL_ConvertLogicNodeSockets(LOG_Node *node, bNode *bnode, const std::unordered_map<bNode *, LOG_Node *>& convertedNodes, 
-		std::unordered_map<bNodeSocket *, LOG_NodeSocket *>& convertedSockets)
+static void BL_ConvertLogicNodeSockets(LOG_INode *node, bNode *bnode, const std::unordered_map<bNode *, LOG_INode *>& convertedNodes, 
+		std::unordered_map<bNodeSocket *, LOG_INodeSocket *>& convertedSockets)
 {
 	CM_Debug("converting sockets of node " << bnode->idname);
 	CM_Debug("\tinputs:")
 	for (bNodeSocket *in = (bNodeSocket *)bnode->inputs.first; in; in = in->next) {
-		LOG_NodeSocket *socket = BL_ConvertLogicNodeSocket(in, convertedNodes, convertedSockets);
+		LOG_INodeSocket *socket = BL_ConvertLogicNodeSocket(in, true, convertedNodes, convertedSockets);
 		CM_Debug("\t\tin : " << in->name << ", socket : " << socket->GetValue());
 		if (socket->GetValue()) {
 			node->AddInput(socket);
@@ -1350,13 +1364,13 @@ static void BL_ConvertLogicNodeSockets(LOG_Node *node, bNode *bnode, const std::
 	}
 
 	CM_Debug("\toutputs:")
-	for (bNodeSocket *out = (bNodeSocket *)bnode->outputs.first; out; out = out->next) {
-		LOG_NodeSocket *socket = BL_ConvertLogicNodeSocket(out, convertedNodes, convertedSockets);
+	/*for (bNodeSocket *out = (bNodeSocket *)bnode->outputs.first; out; out = out->next) {
+		LOG_ValueSocket *socket = static_cast<LOG_ValueSocket *>(BL_ConvertLogicNodeSocket(out, false, convertedNodes, convertedSockets));
 		CM_Debug("\t\tout : " << out->name << ", socket : " << socket->GetValue());
 		if (socket->GetValue()) {
 			node->AddOutput(socket);
 		}
-	}
+	}*/ // TODO check function node type
 }
 
 static void BL_ConvertLogicNodesObject(KX_GameObject *gameobj, Object *blenderobj)
@@ -1383,14 +1397,14 @@ static void BL_ConvertLogicNodesObject(KX_GameObject *gameobj, Object *blenderob
 
 	LOG_Tree *tree = new LOG_Tree();
 
-	std::unordered_map<bNode *, LOG_Node *> convertedNodes;
+	std::unordered_map<bNode *, LOG_INode *> convertedNodes;
 	for (unsigned short i = 0; i < numNodes; ++i) {
 		bNode *bnode = bnodes[i];
-		LOG_Node *node = BL_ConvertLogicNode(bnode, mod, tree);
+		LOG_INode *node = BL_ConvertLogicNode(bnode, mod, tree);
 		convertedNodes[bnode] = node;
 	}
 
-	std::unordered_map<bNodeSocket *, LOG_NodeSocket *> convertedSockets;
+	std::unordered_map<bNodeSocket *, LOG_INodeSocket *> convertedSockets;
 	for (unsigned short i = 0; i < numNodes; ++i) {
 		bNode *bnode = bnodes[i];
 		BL_ConvertLogicNodeSockets(convertedNodes[bnode], bnode, convertedNodes, convertedSockets);

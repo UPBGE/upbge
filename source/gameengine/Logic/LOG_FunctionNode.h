@@ -1,10 +1,12 @@
 #ifndef __LOG_FUNCTION_NODE_H__
 #define __LOG_FUNCTION_NODE_H__
 
-#include "LOG_BaseNode.h"
+#include "LOG_INode.h"
 
-class LOG_FunctionNode : public LOG_BaseNode
+class LOG_FunctionNode : public LOG_INode
 {
+	Py_Header
+
 public:
 	LOG_FunctionNode() = default;
 	LOG_FunctionNode(const LOG_FunctionNode& other) = default;

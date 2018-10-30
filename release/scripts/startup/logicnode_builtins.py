@@ -3,43 +3,79 @@ import nodeitems_utils
 from nodeitems_utils import NodeItem
 from nodeitems_builtins import SortedNodeCategory
 
-class LogicNode(bpy.types.Node):
+class BaseLogicNode(bpy.types.LogicNode):
+    bl_inputs = {}
+    bl_props = {}
+
+    @classmethod
+    def poll(cls, context):
+        return True
+
+    def init(self, context):
+        for name, (socket, default) in self.bl_inputs.items():
+            self.inputs.new(socket, name)
+
+    def draw_buttons(self, context, layout):
+        for prop_name in self.bl_props:
+            layout.prop(self, prop_name)
+
+class LogicNode(BaseLogicNode):
     bl_trigger_in = "Trigger In"
     bl_triggers_out = ["Trigger Out"]
     bl_outputs = {}
-    bl_inputs = {}
-    bl_props = {}
 
     def add_trigger_in(self, name):
         self.inputs.new("NodeSocketLogic", name)
 
     def init(self, context):
+        super(LogicNode, self).init(context)
+
         if self.bl_trigger_in is not None:
             self.add_trigger_in(self.bl_trigger_in)
 
         for o in self.bl_triggers_out:
             self.outputs.new("NodeSocketLogic", o)
 
-        for name, (socket, default) in self.bl_inputs.items():
-            self.inputs.new(socket, name)
-
         for name, socket in self.bl_outputs.items():
             self.outputs.new(socket, name)
 
-    def draw_buttons(self, context, layout):
-        for prop_name in self.bl_props:
-            layout.prop(self, prop_name)
+class LogicNodeFunction(BaseLogicNode, bpy.types.LogicNodeFunction):
+    bl_output = "";
+
+    def init(self, context):
+        super(LogicNodeFunction, self).init(context)
+
+        self.outputs.new(self.bl_output, "Output")
+
+class LogicNodeMath(LogicNodeFunction):
+    bl_idname = "LogicNodeMath"
+    bl_label = "Logic Math"
+    bl_output = "NodeSocketVector"
+
+    bl_inputs = {
+        "a" : ("NodeSocketVector", None),
+        "b" : ("NodeSocketVector", None)
+        }
+
+    mode = bpy.props.EnumProperty(name="Operation", items=[
+            ("ADD", "Add", "", 0),
+            ("SUB", "Substract", "", 1),
+            ("MUL", "Multiply", "", 2),
+            ("DOT", "Dot", "", 3),
+            ("PROD", "Product", "", 4),
+        ])
+    bl_props = ["mode"]
 
 class LogicNodeBoolean(LogicNode):
     bl_idname = "LogicNodeBoolean"
     bl_label = "Logic Boolean"
     mode = bpy.props.EnumProperty(name="Operation", items=[
-            ("AND", "and", "", 0),
-            ("NAND", "non and", "", 1),
-            ("OR", "or", "", 2),
-            ("NOR", "non or", "", 3),
-            ("XOR", "xor", "", 4),
-            ("NXOR", "non xor", "", 5)
+            ("AND", "And", "", 0),
+            ("NAND", "Nand", "", 1),
+            ("OR", "Or", "", 2),
+            ("NOR", "Nor", "", 3),
+            ("XOR", "Xor", "", 4),
+            ("NXOR", "Nxor", "", 5)
         ])
     bl_props = ["mode"]
 
@@ -78,6 +114,9 @@ logic_node_categories = [
     LogicNodeCategory("LOG_MOTION", "Motion", items=[
         NodeItem("LogicNodeBasicMotion"),
         ]),
+    LogicNodeCategory("LOG_MATH", "Math", items=[
+        NodeItem("LogicNodeMath"),
+		]),
     LogicNodeCategory("LOG_INPUT", "Input", items=[
         NodeItem("LogicNodeRoot"),
         ])
@@ -86,6 +125,7 @@ logic_node_categories = [
 def register():
     bpy.utils.register_class(LogicNodeBoolean)
     bpy.utils.register_class(LogicNodeBasicMotion)
+    bpy.utils.register_class(LogicNodeMath)
 
     nodeitems_utils.register_node_categories('LOGIC NODES', logic_node_categories)
 

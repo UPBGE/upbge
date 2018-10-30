@@ -15,6 +15,20 @@ EXP_Value *LOG_FunctionNode::GetReplica()
 	return replica;
 }
 
+PyObject *LOG_FunctionNode::GetValue()
+{
+	PyObject *ret = PyObject_CallMethod(GetProxy(), "get", "");
+
+	if (PyErr_Occurred()) {
+		PyErr_Print();
+
+		Py_INCREF(Py_None);
+		return Py_None;
+	}
+
+	return ret;
+}
+
 PyObject *LOG_FunctionNode::py_node_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
 	LOG_FunctionNode *node = new LOG_FunctionNode();
@@ -45,7 +59,7 @@ PyTypeObject LOG_FunctionNode::Type = {
 	Methods,
 	0,
 	0,
-	&LOG_BaseNode::Type,
+	&LOG_INode::Type,
 	0, 0, 0, 0, 0, 0,
 	py_node_new
 };

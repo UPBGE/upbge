@@ -22,3 +22,11 @@ class LogicNodeBasicMotion(bge.types.LOG_Node):
 	def update(self):
 		self.object.localPosition += self.inputs["translation"]
 		return self.outputs["Trigger Out"]
+
+class LogicNodeMath(bge.types.LOG_FunctionNode):
+	def start(self):
+		print(type(self), self.inputs, self.outputs, self.properties)
+
+	def get(self):
+		if self.properties == "Add":
+			return self.inputs["a"] + self.inputs["b"];

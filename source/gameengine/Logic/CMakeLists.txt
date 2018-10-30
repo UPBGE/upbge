@@ -45,7 +45,7 @@ set(INC_SYS
 )
 
 set(SRC
-	LOG_BaseNode.cpp
+	LOG_INode.cpp
 	LOG_FunctionNode.cpp
 	LOG_FunctionSocket.cpp
 	LOG_INodeSocket.cpp
@@ -53,7 +53,7 @@ set(SRC
 	LOG_Tree.cpp
 	LOG_ValueSocket.cpp
 
-	LOG_BaseNode.h
+	LOG_INode.h
 	LOG_FunctionNode.h
 	LOG_FunctionSocket.h
 	LOG_INodeSocket.h

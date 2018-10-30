@@ -1,17 +1,18 @@
-#ifndef __LOG_BASE_NODE_H__
-#define __LOG_BASE_NODE_H__
+#ifndef __LOG_INODE_H__
+#define __LOG_INODE_H__
 
 #include "EXP_ListWrapper.h"
 
 class LOG_INodeSocket;
 class KX_GameObject;
 
-class LOG_BaseNode : public EXP_Value
+class LOG_INode : public EXP_Value
 {
 	Py_Header;
 
 protected:
-	enum Status {
+	enum Status
+	{
 		NO_STATUS,
 		INIT_ERROR,
 		INIT_SUCESS
@@ -23,9 +24,17 @@ protected:
 	std::vector<LOG_INodeSocket *> m_properties;
 
 public:
-	LOG_BaseNode();
-	LOG_BaseNode(const LOG_BaseNode& other);
-	virtual ~LOG_BaseNode();
+	enum Type
+	{
+		NODE,
+		FUNCTION_NODE
+	};
+
+	LOG_INode();
+	LOG_INode(const LOG_INode& other);
+	virtual ~LOG_INode();
+
+	virtual Type GetType() const = 0;
 
 	virtual void ProcessReplica();
 
@@ -50,10 +59,10 @@ public:
 	static PyObject *pyattr_get_properties(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 
 protected:
-	EXP_ListWrapper<LOG_BaseNode, &LOG_BaseNode::py_get_inputs_size,
-		&LOG_BaseNode::py_get_inputs_item, nullptr, &LOG_BaseNode::py_get_inputs_name> m_inputsWrapper;
-	EXP_ListWrapper<LOG_BaseNode, &LOG_BaseNode::py_get_properties_size,
-		&LOG_BaseNode::py_get_properties_item, nullptr, &LOG_BaseNode::py_get_properties_name> m_propertiesWrapper;
+	EXP_ListWrapper<LOG_INode, &LOG_INode::py_get_inputs_size,
+		&LOG_INode::py_get_inputs_item, nullptr, &LOG_INode::py_get_inputs_name> m_inputsWrapper;
+	EXP_ListWrapper<LOG_INode, &LOG_INode::py_get_properties_size,
+		&LOG_INode::py_get_properties_item, nullptr, &LOG_INode::py_get_properties_name> m_propertiesWrapper;
 };
 
-#endif  // __LOG_BASE_NODE_H__
+#endif  // __LOG_INODE_H__
