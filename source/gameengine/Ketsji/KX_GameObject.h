@@ -40,21 +40,19 @@
 
 #include <stddef.h>
 
-#include "EXP_ListValue.h"
 #include "EXP_Dictionary.h"
 #include "SG_Node.h"
 #include "SG_CullingNode.h"
-#include "mathfu.h"
 #include "KX_Scene.h"
 #include "KX_KetsjiEngine.h" /* for m_anim_framerate */
 #include "KX_ClientObjectInfo.h"
 #include "BL_Resource.h" // For BL_Resource::Library.
+#include "LOG_Object.h"
+#include "mathfu.h"
 
 class KX_RayCast;
 class KX_LodManager;
-class KX_PythonComponent;
 class KX_Mesh;
-class LOG_Tree;
 class RAS_MeshUser;
 class RAS_Deformer;
 class PHY_IGraphicController;
@@ -74,7 +72,7 @@ void KX_GameObject_Mathutils_Callback_Init(void);
 /**
  * KX_GameObject is the main class for dynamic objects.
  */
-class KX_GameObject : public EXP_Dictionary, public mt::SimdClassAllocator
+class KX_GameObject : public EXP_Dictionary, public LOG_Object, public mt::SimdClassAllocator
 {
 	Py_Header
 public:
@@ -134,9 +132,6 @@ protected:
 
 	SG_CullingNode m_cullingNode;
 	std::unique_ptr<SG_Node> m_sgNode;
-
-	std::unique_ptr<EXP_ListValue<KX_PythonComponent> > m_components;
-	LOG_Tree *m_logicTree;
 
 	std::unique_ptr<EXP_ListValue<KX_GameObject> > m_instanceObjects;
 	KX_GameObject*						m_dupliGroupObject;
@@ -788,18 +783,6 @@ public:
 	std::vector<KX_GameObject *> GetChildren() const;
 	std::vector<KX_GameObject *> GetChildrenRecursive() const;
 
-	/// Returns the component list.
-	EXP_ListValue<KX_PythonComponent> *GetComponents() const;
-	/// Add a components.
-	void SetComponents(EXP_ListValue<KX_PythonComponent> *components);
-
-	LOG_Tree *GetLogicTree() const;
-	void SetLogicTree(LOG_Tree *tree);
-
-	bool UseLogic() const;
-	/// Updates components and logic tree.
-	void UpdateLogic();
-
 	KX_Scene*	GetScene();
 
 #ifdef WITH_PYTHON
@@ -931,7 +914,6 @@ public:
 	static PyObject*	pyattr_get_children_recursive(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_obcolor(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_obcolor(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_components(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_collisionCallbacks(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_collisionCallbacks(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_collisionGroup(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);

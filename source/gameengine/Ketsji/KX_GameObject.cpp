@@ -129,7 +129,8 @@ KX_GameObject::KX_GameObject(void *sgReplicationInfo,
 }
 
 KX_GameObject::KX_GameObject(const KX_GameObject& other)
-	:m_clientInfo(this, other.m_clientInfo.m_type),
+	:LOG_Object(other),
+	m_clientInfo(this, other.m_clientInfo.m_type),
 	m_name(other.m_name),
 	m_layer(other.m_layer),
 	m_meshes(other.m_meshes),

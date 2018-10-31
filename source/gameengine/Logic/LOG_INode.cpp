@@ -1,7 +1,7 @@
 #include "LOG_INode.h"
 #include "LOG_INodeSocket.h"
 
-#include "KX_GameObject.h"
+#include "LOG_Object.h"
 
 #include "CM_Message.h"
 
@@ -40,14 +40,14 @@ void LOG_INode::ProcessReplica()
 	}
 }
 
-KX_GameObject *LOG_INode::GetGameObject() const
+LOG_Object *LOG_INode::GetObject() const
 {
 	return m_object;
 }
 
-void LOG_INode::SetGameObject(KX_GameObject *gameobj)
+void LOG_INode::SetObject(LOG_Object *obj)
 {
-	m_object = gameobj;
+	m_object = obj;
 }
 
 void LOG_INode::AddInput(LOG_INodeSocket *socket)
@@ -135,10 +135,10 @@ std::string LOG_INode::py_get_properties_name(unsigned int index)
 PyObject *LOG_INode::pyattr_get_object(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	LOG_INode *self = static_cast<LOG_INode *>(self_v);
-	KX_GameObject *gameobj = self->GetGameObject();
+	LOG_Object *obj = self->GetObject();
 
-	if (gameobj) {
-		return gameobj->GetProxy();
+	if (obj) {
+		return obj->GetProxy();
 	}
 	else {
 		Py_RETURN_NONE;

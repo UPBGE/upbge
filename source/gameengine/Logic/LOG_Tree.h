@@ -4,7 +4,7 @@
 #include <vector>
 #include <memory>
 
-class KX_GameObject;
+class LOG_Object;
 class LOG_INode;
 class LOG_Node;
 
@@ -19,7 +19,7 @@ public:
 	~LOG_Tree();
 
 	void AddNode(LOG_INode *node, bool root);
-	void SetGameObject(KX_GameObject *gameobj);
+	void SetObject(LOG_Object *obj);
 
 	void Start();
 	void Update();

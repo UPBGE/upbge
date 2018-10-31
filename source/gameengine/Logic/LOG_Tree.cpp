@@ -16,10 +16,10 @@ void LOG_Tree::AddNode(LOG_INode *node, bool root)
 	}
 }
 
-void LOG_Tree::SetGameObject(KX_GameObject *gameobj)
+void LOG_Tree::SetObject(LOG_Object *obj)
 {
 	for (std::unique_ptr<LOG_INode>& node : m_nodes) {
-		node->SetGameObject(gameobj);
+		node->SetObject(obj);
 	}
 }
 

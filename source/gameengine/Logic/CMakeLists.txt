@@ -50,6 +50,7 @@ set(SRC
 	LOG_FunctionSocket.cpp
 	LOG_INodeSocket.cpp
 	LOG_Node.cpp
+	LOG_Object.cpp
 	LOG_Tree.cpp
 	LOG_ValueSocket.cpp
 
@@ -58,6 +59,7 @@ set(SRC
 	LOG_FunctionSocket.h
 	LOG_INodeSocket.h
 	LOG_Node.h
+	LOG_Object.h
 	LOG_Tree.h
 	LOG_ValueSocket.h
 )

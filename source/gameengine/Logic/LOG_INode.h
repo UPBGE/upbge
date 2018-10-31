@@ -4,7 +4,7 @@
 #include "EXP_ListWrapper.h"
 
 class LOG_INodeSocket;
-class KX_GameObject;
+class LOG_Object;
 
 class LOG_INode : public EXP_Value
 {
@@ -18,7 +18,7 @@ protected:
 		INIT_SUCESS
 	} m_status;
 
-	KX_GameObject *m_object;
+	LOG_Object *m_object;
 
 	std::vector<LOG_INodeSocket *> m_inputs;
 	std::vector<LOG_INodeSocket *> m_properties;
@@ -38,8 +38,8 @@ public:
 
 	virtual void ProcessReplica();
 
-	KX_GameObject *GetGameObject() const;
-	void SetGameObject(KX_GameObject *gameobj);
+	LOG_Object *GetObject() const;
+	void SetObject(LOG_Object *obj);
 
 	void AddInput(LOG_INodeSocket *socket);
 	void AddProperty(LOG_INodeSocket *prop);
