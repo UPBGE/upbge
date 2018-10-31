@@ -41,6 +41,7 @@ private:
 	SCA_IInputDevice* m_mouse;
 	RAS_ICanvas* m_canvas;
 	int m_type;
+	bool m_initialSkipping;
 
 	bool m_visible;
 
