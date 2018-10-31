@@ -1373,7 +1373,9 @@ int main(
 								}
 							}
 
+							G.background = true;
 							DRW_opengl_context_create();
+							G.background = false;
 							GPU_init();
 
 							if (SYS_GetCommandLineInt(syshandle, "nomipmap", 0)) {
