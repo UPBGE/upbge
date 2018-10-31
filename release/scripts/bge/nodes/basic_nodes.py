@@ -28,5 +28,17 @@ class LogicNodeMath(bge.types.LOG_FunctionNode):
 		print(type(self), self.inputs, self.properties)
 
 	def get(self):
-		if self.properties["mode"] == 0:
-			return self.inputs["a"] + self.inputs["b"];
+		mode = self.properties["mode"]
+		a = self.inputs["a"]
+		b = self.inputs["b"]
+
+		if mode == 0:
+			return a + b
+		if mode == 1:
+			return a - b
+		if mode == 2:
+			return a * b
+		if mode == 3:
+			return a.dot(b)
+		if mode == 4:
+			return a.cross(b)

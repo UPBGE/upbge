@@ -287,9 +287,9 @@ EXP_ListValue<KX_FontObject>& KX_Scene::GetFontList()
 	return m_fontlist;
 }
 
-KX_PythonComponentManager& KX_Scene::GetPythonComponentManager()
+KX_LogicManager& KX_Scene::GetLogicManager()
 {
-	return m_componentManager;
+	return m_logicManager;
 }
 
 void KX_Scene::SetFramingType(const RAS_FrameSettings& frameSettings)
@@ -432,8 +432,8 @@ KX_GameObject *KX_Scene::AddNodeReplicaObject(SG_Node *node, KX_GameObject *game
 	} TODO BL_ConverterObjectInfo */ 
 
 	// Register object for component update.
-	if (gameobj->GetComponents()) {
-		m_componentManager.RegisterObject(newobj);
+	if (gameobj->UseLogic()) {
+		m_logicManager.RegisterObject(newobj);
 	}
 
 	replicanode->SetClientObject(newobj);
@@ -802,7 +802,7 @@ void KX_Scene::NewRemoveObject(KX_GameObject *gameobj)
 		m_obstacleSimulation->DestroyObstacleForObj(gameobj);
 	}
 
-	m_componentManager.UnregisterObject(gameobj);
+	m_logicManager.UnregisterObject(gameobj);
 	m_rendererManager->InvalidateViewpoint(gameobj);
 
 	switch (gameobj->GetObjectType()) {
@@ -1189,7 +1189,7 @@ void KX_Scene::UpdateAnimations(double curtime, bool restrict)
 
 void KX_Scene::LogicUpdateFrame(double curtime)
 {
-	m_componentManager.UpdateComponents();
+	m_logicManager.UpdateComponents();
 }
 
 void KX_Scene::LogicEndFrame()
@@ -1424,7 +1424,7 @@ bool KX_Scene::Merge(KX_Scene *other)
 	m_bucketmanager->Merge(other->GetBucketManager());
 	m_boundingBoxManager->Merge(other->GetBoundingBoxManager());
 	m_rendererManager->Merge(other->GetTextureRendererManager());
-	m_componentManager.Merge(other->GetPythonComponentManager());
+	m_logicManager.Merge(other->GetLogicManager());
 
 	for (KX_GameObject *gameobj : other->GetObjectList()) {
 		MergeScene_GameObject(gameobj, this, other);

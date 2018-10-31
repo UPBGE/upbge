@@ -35,7 +35,7 @@
 
 #include "KX_PhysicsEngineEnums.h"
 #include "KX_TextureRendererManager.h" // For KX_TextureRendererManager::RendererCategory.
-#include "KX_PythonComponentManager.h"
+#include "KX_LogicManager.h"
 #include "KX_KetsjiEngine.h" // For KX_DebugOption.
 
 #include "BL_ResourceCollection.h"
@@ -161,7 +161,7 @@ private:
 	 */
 	SG_QList m_sghead;
 
-	KX_PythonComponentManager m_componentManager;
+	KX_LogicManager m_logicManager;
 
 	/// Physics engine abstraction.
 	PHY_IPhysicsEnvironment *m_physicsEnvironment;
@@ -312,7 +312,7 @@ public:
 	EXP_ListValue<KX_Camera>& GetCameraList();
 	EXP_ListValue<KX_FontObject>& GetFontList();
 
-	KX_PythonComponentManager& GetPythonComponentManager();
+	KX_LogicManager& GetLogicManager();
 
 	/// Return the currently active camera.
 	KX_Camera *GetActiveCamera();

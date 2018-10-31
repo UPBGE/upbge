@@ -1489,8 +1489,7 @@ static void BL_ConvertLogicNodesObject(KX_GameObject *gameobj, Object *blenderob
 	Py_DECREF(mod);
 
 	tree->SetGameObject(gameobj);
-	tree->Start();
-	tree->Update();
+	gameobj->SetLogicTree(tree);
 }
 
 #endif  // WITH_PYTHON
@@ -2088,10 +2087,10 @@ void BL_PostConvertBlenderObjects(KX_Scene *kxscene, const BL_SceneConverter& sc
 		}
 
 		for (KX_GameObject *gameobj : objectlist) {
-			if (gameobj->GetComponents()) {
+			if (gameobj->GetComponents() || gameobj->GetLogicTree()) {
 				// Register object for component update.
 				// TODO register in logic manager for component and nodes.
-				kxscene->GetPythonComponentManager().RegisterObject(gameobj);
+				kxscene->GetLogicManager().RegisterObject(gameobj);
 			}
 		}
 	}
