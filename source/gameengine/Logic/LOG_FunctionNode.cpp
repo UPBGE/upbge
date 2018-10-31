@@ -2,6 +2,11 @@
 
 #include "CM_Message.h"
 
+LOG_INode::NodeType LOG_FunctionNode::GetNodeType() const
+{
+	return TYPE_FUNCTION;
+}
+
 std::string LOG_FunctionNode::GetName() const
 {
 	return "LOG_FunctionNode";

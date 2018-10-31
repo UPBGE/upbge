@@ -198,6 +198,7 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
 		PyType_Ready_Attr(dict, KX_VertexProxy, init_getset);
 		PyType_Ready_Attr(dict, KX_CollisionContactPoint, init_getset);
 		PyType_Ready_Attr(dict, LOG_FunctionNode, init_getset);
+		PyType_Ready_Attr(dict, LOG_INode, init_getset);
 		PyType_Ready_Attr(dict, LOG_Node, init_getset);
 		PyType_Ready_Attr(dict, EXP_PyObjectPlus, init_getset);
 		PyType_Ready_Attr(dict, SCA_InputEvent, init_getset);

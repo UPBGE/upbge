@@ -12,6 +12,7 @@ public:
 	LOG_FunctionNode(const LOG_FunctionNode& other) = default;
 	virtual ~LOG_FunctionNode() = default;
 
+	virtual NodeType GetNodeType() const;
 	virtual std::string GetName() const;
 	virtual EXP_Value *GetReplica();
 

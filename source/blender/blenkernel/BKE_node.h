@@ -1048,11 +1048,6 @@ struct TexResult;
 #define TEX_NODE_PROC      500
 #define TEX_NODE_PROC_MAX  600
 
-
-#define LOGIC_NODE_ROOT     1500
-#define LOGIC_NODE_FUNCTION 1501
-
-
 /* API */
 int  ntreeTexTagAnimated(struct bNodeTree *ntree);
 void ntreeTexCheckCyclics(struct bNodeTree *ntree);
@@ -1063,6 +1058,9 @@ int ntreeTexExecTree(struct bNodeTree *ntree, struct TexResult *target,
                      float coord[3], float dxt[3], float dyt[3], int osatex, const short thread,
                      struct Tex *tex, short which_output, int cfra, int preview, struct ShadeInput *shi, struct MTex *mtex);
 /** \} */
+
+#define LOGIC_NODE_ROOT     1500
+#define LOGIC_NODE_FUNCTION 1501
 
 void init_nodesystem(void);
 void free_nodesystem(void);

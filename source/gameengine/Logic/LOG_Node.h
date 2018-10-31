@@ -17,7 +17,7 @@ public:
 	LOG_Node(const LOG_Node& other);
 	virtual ~LOG_Node();
 
-	virtual NodeType GetType() const;
+	virtual NodeType GetNodeType() const;
 	virtual std::string GetName() const;
 	virtual EXP_Value *GetReplica();
 

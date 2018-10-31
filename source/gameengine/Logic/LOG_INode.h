@@ -24,17 +24,17 @@ protected:
 	std::vector<LOG_INodeSocket *> m_properties;
 
 public:
-	enum Type
+	enum NodeType
 	{
-		NODE,
-		FUNCTION_NODE
+		TYPE_NODE,
+		TYPE_FUNCTION
 	};
 
 	LOG_INode();
 	LOG_INode(const LOG_INode& other);
 	virtual ~LOG_INode();
 
-	virtual Type GetType() const = 0;
+	virtual NodeType GetNodeType() const = 0;
 
 	virtual void ProcessReplica();
 
@@ -42,6 +42,7 @@ public:
 	void SetGameObject(KX_GameObject *gameobj);
 
 	void AddInput(LOG_INodeSocket *socket);
+	void AddProperty(LOG_INodeSocket *prop);
 
 	void Start();
 

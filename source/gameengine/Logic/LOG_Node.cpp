@@ -19,6 +19,11 @@ LOG_Node::~LOG_Node()
 {
 }
 
+LOG_INode::NodeType LOG_Node::GetNodeType() const
+{
+	return TYPE_NODE;
+}
+
 std::string LOG_Node::GetName() const
 {
 	return "LOG_Node";

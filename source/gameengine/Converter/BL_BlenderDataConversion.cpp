@@ -158,6 +158,7 @@
 #include "BKE_python_component.h"
 #include "BKE_key.h"
 #include "BKE_mesh.h"
+#include "BKE_idprop.h"
 
 extern "C" {
 #  include "BKE_scene.h"
@@ -1204,7 +1205,9 @@ static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderob
 
 #ifdef WITH_PYTHON
 
-static LOG_Node *BL_ConvertLogicNode(bNode *bnode, PyObject *mod, LOG_Tree *tree)
+#include "RNA_access.h"
+
+static LOG_INode *BL_ConvertLogicNode(bNode *bnode, PyObject *mod, LOG_Tree *tree)
 {
 	CM_Debug("convert node " << bnode->idname);
 
@@ -1221,7 +1224,7 @@ static LOG_Node *BL_ConvertLogicNode(bNode *bnode, PyObject *mod, LOG_Tree *tree
 		return nullptr;
 	}
 
-	LOG_Node *node = static_cast<LOG_Node *>(EXP_PROXY_REF(pynode));
+	LOG_INode *node = static_cast<LOG_INode *>(EXP_PROXY_REF(pynode));
 
 	tree->AddNode(node, (bnode->type == LOGIC_NODE_ROOT));
 
@@ -1234,7 +1237,6 @@ static LOG_INodeSocket *BL_ConvertLogicNodeSocket(bNodeSocket *bsock, bool input
 {
 	const auto& it = convertedSockets.find(bsock);
 	if (it != convertedSockets.end()) {
-		CM_Debug("\t\tcache");
 		return it->second;
 	}
 
@@ -1242,98 +1244,99 @@ static LOG_INodeSocket *BL_ConvertLogicNodeSocket(bNodeSocket *bsock, bool input
 	LOG_FunctionNode *function = nullptr;
 
 	bNodeSocketType *typeinfo = bsock->typeinfo;
-	switch (typeinfo->type) {
-		case SOCK_FLOAT:
-		{
-			bNodeSocketValueFloat *val = (bNodeSocketValueFloat *)bsock->default_value;
-			switch (val->subtype) {
-				case PROP_ANGLE:
-				{
-					value = PyFloat_FromDouble(DEG2RAD(val->value));
-					break;
-				}
-				default:
-				{
-					value = PyFloat_FromDouble(val->value);
-					break;
-				}
-			}
-			break;
-		}
-		case SOCK_VECTOR:
-		{
-			bNodeSocketValueVector *val = (bNodeSocketValueVector *)bsock->default_value;
-			switch (typeinfo->subtype) {
-				case PROP_QUATERNION:
-				{
-					value = PyObjectFrom(mt::quat(val->value));
-					break;
-				}
-				case PROP_COORDS:
-				{
-					value = PyObjectFrom(mt::vec4(val->value));
-					break;
-				}
-				default:
-				{
-					value = PyObjectFrom(mt::vec3(val->value));
-					break;
-				}
-			}
-			break;
-		}
-		case SOCK_RGBA:
-		{
-			bNodeSocketValueRGBA *val = (bNodeSocketValueRGBA *)bsock->default_value; // TODO mathutils.Color
-			value = PyObjectFrom(val->value);
-			break;
-		}
-		case SOCK_BOOLEAN:
-		{
-			bNodeSocketValueBoolean *val = (bNodeSocketValueBoolean *)bsock->default_value;
-			value = PyBool_FromLong(val->value);
-			break;
-		}
-		case SOCK_INT:
-		{
-			bNodeSocketValueInt *val = (bNodeSocketValueInt *)bsock->default_value;
-			value = PyLong_FromLong(val->value);
-			break;
-		}
-		case SOCK_STRING:
-		{
-			bNodeSocketValueString *val = (bNodeSocketValueString *)bsock->default_value;
-			value = PyUnicode_FromStdString(val->value);
-			break;
-		}
-		case SOCK_LOGIC:
-		{
-			if (bsock->link) {
-				bNode *bnode = input ? bsock->link->fromnode : bsock->link->tonode;
 
-				LOG_INode *node = convertedNodes.find(bnode)->second;
-				switch (bnode->type) {
-					case LOGIC_NODE_FUNCTION:
+	if (bsock->link) {
+		bNode *bnode = input ? bsock->link->fromnode : bsock->link->tonode;
+		LOG_INode *node = convertedNodes.find(bnode)->second;
+
+		switch (node->GetNodeType()) {
+			case LOG_INode::TYPE_FUNCTION:
+			{
+				function = static_cast<LOG_FunctionNode *>(node);
+				break;
+			}
+			case LOG_INode::TYPE_NODE:
+			{
+				value = static_cast<LOG_Node *>(node)->GetProxy();
+				break;
+			}
+		}
+	}
+	else {
+		switch (typeinfo->type) {
+			case SOCK_FLOAT:
+			{
+				bNodeSocketValueFloat *val = (bNodeSocketValueFloat *)bsock->default_value;
+				switch (val->subtype) {
+					case PROP_ANGLE:
 					{
-						value = node->GetProxy();
+						value = PyFloat_FromDouble(DEG2RAD(val->value));
 						break;
 					}
 					default:
 					{
-						function = static_cast<LOG_FunctionNode *>(node);
+						value = PyFloat_FromDouble(val->value);
 						break;
 					}
 				}
+				break;
 			}
-			else {
+			case SOCK_VECTOR:
+			{
+				bNodeSocketValueVector *val = (bNodeSocketValueVector *)bsock->default_value;
+				switch (typeinfo->subtype) {
+					case PROP_QUATERNION:
+					{
+						value = PyObjectFrom(mt::quat(val->value));
+						break;
+					}
+					case PROP_COORDS:
+					{
+						value = PyObjectFrom(mt::vec4(val->value));
+						break;
+					}
+					default:
+					{
+						value = PyObjectFrom(mt::vec3(val->value));
+						break;
+					}
+				}
+				break;
+			}
+			case SOCK_RGBA:
+			{
+				bNodeSocketValueRGBA *val = (bNodeSocketValueRGBA *)bsock->default_value; // TODO mathutils.Color
+				value = PyObjectFrom(val->value);
+				break;
+			}
+			case SOCK_BOOLEAN:
+			{
+				bNodeSocketValueBoolean *val = (bNodeSocketValueBoolean *)bsock->default_value;
+				value = PyBool_FromLong(val->value);
+				break;
+			}
+			case SOCK_INT:
+			{
+				bNodeSocketValueInt *val = (bNodeSocketValueInt *)bsock->default_value;
+				value = PyLong_FromLong(val->value);
+				break;
+			}
+			case SOCK_STRING:
+			{
+				bNodeSocketValueString *val = (bNodeSocketValueString *)bsock->default_value;
+				value = PyUnicode_FromStdString(val->value);
+				break;
+			}
+			case SOCK_LOGIC:
+			{
 				value = Py_None;
 				Py_INCREF(Py_None);
+				break;
 			}
-			break;
-		}
-		default:
-		{
-			BLI_assert(false);
+			default:
+			{
+				BLI_assert(false);
+			}
 		}
 	}
 
@@ -1346,31 +1349,92 @@ static LOG_INodeSocket *BL_ConvertLogicNodeSocket(bNodeSocket *bsock, bool input
 		socket = new LOG_FunctionSocket(bsock->name, function);
 	}
 
-	convertedSockets[bsock] = socket;
+	if (socket) {
+		convertedSockets[bsock] = socket;
+	}
+
 	return socket;
 }
 
 static void BL_ConvertLogicNodeSockets(LOG_INode *node, bNode *bnode, const std::unordered_map<bNode *, LOG_INode *>& convertedNodes, 
 		std::unordered_map<bNodeSocket *, LOG_INodeSocket *>& convertedSockets)
 {
-	CM_Debug("converting sockets of node " << bnode->idname);
-	CM_Debug("\tinputs:")
+	// Register input sockets for any node types.
 	for (bNodeSocket *in = (bNodeSocket *)bnode->inputs.first; in; in = in->next) {
 		LOG_INodeSocket *socket = BL_ConvertLogicNodeSocket(in, true, convertedNodes, convertedSockets);
-		CM_Debug("\t\tin : " << in->name << ", socket : " << socket->GetValue());
-		if (socket->GetValue()) {
+		if (socket) {
 			node->AddInput(socket);
 		}
 	}
 
-	CM_Debug("\toutputs:")
-	/*for (bNodeSocket *out = (bNodeSocket *)bnode->outputs.first; out; out = out->next) {
-		LOG_ValueSocket *socket = static_cast<LOG_ValueSocket *>(BL_ConvertLogicNodeSocket(out, false, convertedNodes, convertedSockets));
-		CM_Debug("\t\tout : " << out->name << ", socket : " << socket->GetValue());
-		if (socket->GetValue()) {
-			node->AddOutput(socket);
+	// Register output sockets for non-function nodes.
+	if (node->GetNodeType() == LOG_INode::TYPE_NODE) {
+		LOG_Node *logicNode = static_cast<LOG_Node *>(node);
+
+		for (bNodeSocket *out = (bNodeSocket *)bnode->outputs.first; out; out = out->next) {
+			LOG_ValueSocket *socket = 
+					static_cast<LOG_ValueSocket *>(BL_ConvertLogicNodeSocket(out, false, convertedNodes, convertedSockets));
+
+			if (socket) {
+				logicNode->AddOutput(socket);
+			}
 		}
-	}*/ // TODO check function node type
+	}
+}
+
+static LOG_ValueSocket *BL_ConvertLogicNodeProperty(IDProperty *prop)
+{
+	PyObject *value = nullptr;
+
+	switch (prop->type) {
+		case IDP_STRING:
+		{
+			value = PyUnicode_FromStdString(IDP_String(prop));
+			break;
+		}
+		case IDP_INT:
+		{
+			value = PyLong_FromLong(IDP_Int(prop));
+			break;
+		}
+		case IDP_FLOAT:
+		{
+			value = PyFloat_FromDouble(IDP_Float(prop));
+			break;
+		}
+		case IDP_ID:
+		{
+			// TODO
+			break;
+		}
+		case IDP_DOUBLE:
+		{
+			value = PyFloat_FromDouble(IDP_Double(prop));
+			break;
+		}
+	}
+
+	if (value) {
+		return new LOG_ValueSocket(prop->name, value);
+	}
+
+	return nullptr;
+}
+
+static void BL_ConvertLogicNodeProperties(LOG_INode *node, bNode *bnode)
+{
+	IDProperty *group = bnode->prop;
+
+	if (!group) {
+		return;
+	}
+
+	for (IDProperty *prop = (IDProperty *)group->data.group.first; prop; prop = prop->next) {
+		LOG_ValueSocket *pprop = BL_ConvertLogicNodeProperty(prop);
+		if (pprop) {
+			node->AddProperty(pprop);
+		}
+	}
 }
 
 static void BL_ConvertLogicNodesObject(KX_GameObject *gameobj, Object *blenderobj)
@@ -1400,14 +1464,21 @@ static void BL_ConvertLogicNodesObject(KX_GameObject *gameobj, Object *blenderob
 	std::unordered_map<bNode *, LOG_INode *> convertedNodes;
 	for (unsigned short i = 0; i < numNodes; ++i) {
 		bNode *bnode = bnodes[i];
+		// Instantiate node in python side.
 		LOG_INode *node = BL_ConvertLogicNode(bnode, mod, tree);
+
 		convertedNodes[bnode] = node;
 	}
 
 	std::unordered_map<bNodeSocket *, LOG_INodeSocket *> convertedSockets;
 	for (unsigned short i = 0; i < numNodes; ++i) {
 		bNode *bnode = bnodes[i];
-		BL_ConvertLogicNodeSockets(convertedNodes[bnode], bnode, convertedNodes, convertedSockets);
+		LOG_INode *node = convertedNodes[bnode];
+
+		// Convert input and output sockets.
+		BL_ConvertLogicNodeSockets(node, bnode, convertedNodes, convertedSockets);
+		// Convert properties.
+		BL_ConvertLogicNodeProperties(node, bnode);
 	}
 
 	/*if (!broot) {

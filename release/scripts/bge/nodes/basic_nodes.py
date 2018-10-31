@@ -25,8 +25,8 @@ class LogicNodeBasicMotion(bge.types.LOG_Node):
 
 class LogicNodeMath(bge.types.LOG_FunctionNode):
 	def start(self):
-		print(type(self), self.inputs, self.outputs, self.properties)
+		print(type(self), self.inputs, self.properties)
 
 	def get(self):
-		if self.properties == "Add":
+		if self.properties["mode"] == 0:
 			return self.inputs["a"] + self.inputs["b"];

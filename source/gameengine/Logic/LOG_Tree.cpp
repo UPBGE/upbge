@@ -8,24 +8,24 @@ LOG_Tree::LOG_Tree()
 
 LOG_Tree::~LOG_Tree() = default;
 
-void LOG_Tree::AddNode(LOG_Node *node, bool root)
+void LOG_Tree::AddNode(LOG_INode *node, bool root)
 {
 	m_nodes.emplace_back(node);
 	if (root) {
-		m_rootNode = node;
+		m_rootNode = static_cast<LOG_Node *>(node);
 	}
 }
 
 void LOG_Tree::SetGameObject(KX_GameObject *gameobj)
 {
-	for (std::unique_ptr<LOG_Node>& node : m_nodes) {
+	for (std::unique_ptr<LOG_INode>& node : m_nodes) {
 		node->SetGameObject(gameobj);
 	}
 }
 
 void LOG_Tree::Start()
 {
-	for (std::unique_ptr<LOG_Node>& node : m_nodes) {
+	for (std::unique_ptr<LOG_INode>& node : m_nodes) {
 		node->Start();
 	}
 }

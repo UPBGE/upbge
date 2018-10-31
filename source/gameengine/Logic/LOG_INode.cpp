@@ -55,6 +55,11 @@ void LOG_INode::AddInput(LOG_INodeSocket *socket)
 	m_inputs.push_back(socket);
 }
 
+void LOG_INode::AddProperty(LOG_INodeSocket *prop)
+{
+	m_properties.push_back(prop);
+}
+
 void LOG_INode::Start()
 {
 	PyObject *ret = PyObject_CallMethod(GetProxy(), "start", "");
