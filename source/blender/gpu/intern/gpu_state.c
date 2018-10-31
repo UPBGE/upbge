@@ -25,6 +25,8 @@
  *
  */
 
+#include "DNA_userdef_types.h"
+
 #include "GPU_glew.h"
 #include "GPU_state.h"
 
@@ -73,6 +75,12 @@ void GPU_blend_set_func_separate(
 	        gpu_get_gl_blendfunction(dst_alpha));
 }
 
+void GPU_depth_range(float near, float far)
+{
+	/* glDepthRangef is only for OpenGL 4.1 or higher */
+	glDepthRange(near, far);
+}
+
 void GPU_depth_test(bool enable)
 {
 	if (enable) {
@@ -110,12 +118,12 @@ void GPU_line_stipple(bool enable)
 
 void GPU_line_width(float width)
 {
-	glLineWidth(width);
+	glLineWidth(width * U.pixelsize);
 }
 
 void GPU_point_size(float size)
 {
-	glPointSize(size);
+	glPointSize(size * U.pixelsize);
 }
 
 void GPU_polygon_smooth(bool enable)

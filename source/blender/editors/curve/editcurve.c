@@ -1372,32 +1372,50 @@ void CURVE_OT_separate(wmOperatorType *ot)
 
 static int curve_split_exec(bContext *C, wmOperator *op)
 {
-	Object *obedit = CTX_data_edit_object(C);
+	ViewLayer *view_layer = CTX_data_view_layer(C);
 	View3D *v3d = CTX_wm_view3d(C);
-	ListBase *editnurb = object_editcurve_get(obedit);
-	ListBase newnurb = {NULL, NULL};
+	int ok = -1;
 
-	adduplicateflagNurb(obedit, v3d, &newnurb, SELECT, true);
-
-	if (BLI_listbase_is_empty(&newnurb) == false) {
+	uint objects_len;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object *obedit = objects[ob_index];
 		Curve *cu = obedit->data;
+
+		if (!ED_curve_select_check(v3d, cu->editnurb)) {
+			continue;
+		}
+
+		ListBase newnurb = {NULL, NULL};
+
+		adduplicateflagNurb(obedit, v3d, &newnurb, SELECT, true);
+
+		if (BLI_listbase_is_empty(&newnurb)) {
+			ok = MAX2(ok, 0);
+			continue;
+		}
+
+		ListBase *editnurb = object_editcurve_get(obedit);
 		const int len_orig = BLI_listbase_count(editnurb);
 
 		curve_delete_segments(obedit, v3d, true);
 		cu->actnu -= len_orig - BLI_listbase_count(editnurb);
 		BLI_movelisttolist(editnurb, &newnurb);
 
-		if (ED_curve_updateAnimPaths(obedit->data))
+		if (ED_curve_updateAnimPaths(obedit->data)) {
 			WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
+		}
 
+		ok = 1;
 		WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
 		DEG_id_tag_update(obedit->data, 0);
 	}
-	else {
+	MEM_freeN(objects);
+
+	if (ok == 0) {
 		BKE_report(op->reports, RPT_ERROR, "Cannot split current selection");
 		return OPERATOR_CANCELLED;
 	}
-
 	return OPERATOR_FINISHED;
 }
 
@@ -4553,33 +4571,51 @@ bool ed_editnurb_spin(float viewmat[4][4], View3D *v3d, Object *obedit, const fl
 
 static int spin_exec(bContext *C, wmOperator *op)
 {
-	Object *obedit = CTX_data_edit_object(C);
+	ViewLayer *view_layer = CTX_data_view_layer(C);
 	View3D *v3d = CTX_wm_view3d(C);
 	RegionView3D *rv3d = ED_view3d_context_rv3d(C);
 	float cent[3], axis[3], viewmat[4][4];
+	int ok = -1;
 
 	RNA_float_get_array(op->ptr, "center", cent);
 	RNA_float_get_array(op->ptr, "axis", axis);
-
-	invert_m4_m4(obedit->imat, obedit->obmat);
-	mul_m4_v3(obedit->imat, cent);
 
 	if (rv3d)
 		copy_m4_m4(viewmat, rv3d->viewmat);
 	else
 		unit_m4(viewmat);
 
-	if (!ed_editnurb_spin(viewmat, v3d, obedit, axis, cent)) {
-		BKE_report(op->reports, RPT_ERROR, "Cannot spin");
-		return OPERATOR_CANCELLED;
+	uint objects_len;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object *obedit = objects[ob_index];
+		Curve *cu = (Curve *)obedit->data;
+
+		if (!ED_curve_select_check(v3d, cu->editnurb)) {
+			continue;
+		}
+
+		invert_m4_m4(obedit->imat, obedit->obmat);
+		mul_m4_v3(obedit->imat, cent);
+
+		if (!ed_editnurb_spin(viewmat, v3d, obedit, axis, cent)) {
+			ok = MAX2(ok, 0);
+			continue;
+		}
+
+		ok = 1;
+		if (ED_curve_updateAnimPaths(cu)) {
+			WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
+		}
+
+		WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+		DEG_id_tag_update(obedit->data, 0);
 	}
+	MEM_freeN(objects);
 
-	if (ED_curve_updateAnimPaths(obedit->data))
-		WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
-
-	WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
-	DEG_id_tag_update(obedit->data, 0);
-
+	if (ok == 0) {
+		BKE_report(op->reports, RPT_ERROR, "Cannot spin");
+	}
 	return OPERATOR_FINISHED;
 }
 
@@ -5156,42 +5192,52 @@ void CURVE_OT_vertex_add(wmOperatorType *ot)
 
 static int curve_extrude_exec(bContext *C, wmOperator *UNUSED(op))
 {
-	Object *obedit = CTX_data_edit_object(C);
+	ViewLayer *view_layer = CTX_data_view_layer(C);
 	View3D *v3d = CTX_wm_view3d(C);
-	Curve *cu = obedit->data;
-	EditNurb *editnurb = cu->editnurb;
-	bool changed = false;
-	bool as_curve = false;
 
-	/* first test: curve? */
-	if (obedit->type != OB_CURVE) {
-		Nurb *nu;
-		for (nu = editnurb->nurbs.first; nu; nu = nu->next) {
-			if ((nu->pntsv == 1) &&
-			    (ED_curve_nurb_select_count(v3d, nu) == 1))
-			{
-				as_curve = true;
-				break;
+	uint objects_len;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object *obedit = objects[ob_index];
+		Curve *cu = obedit->data;
+		EditNurb *editnurb = cu->editnurb;
+		bool changed = false;
+		bool as_curve = false;
+
+		if (!ED_curve_select_check(v3d, cu->editnurb)) {
+			continue;
+		}
+
+		/* First test: curve? */
+		if (obedit->type != OB_CURVE) {
+			Nurb *nu;
+			for (nu = editnurb->nurbs.first; nu; nu = nu->next) {
+				if ((nu->pntsv == 1) &&
+				    (ED_curve_nurb_select_count(v3d, nu) == 1))
+				{
+					as_curve = true;
+					break;
+				}
 			}
 		}
-	}
 
-	if (obedit->type == OB_CURVE || as_curve) {
-		changed = ed_editcurve_extrude(cu, editnurb, v3d);
-	}
-	else {
-		changed = ed_editnurb_extrude_flag(editnurb, SELECT);
-	}
-
-	if (changed) {
-		if (ED_curve_updateAnimPaths(obedit->data)) {
-			WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
+		if (obedit->type == OB_CURVE || as_curve) {
+			changed = ed_editcurve_extrude(cu, editnurb, v3d);
+		}
+		else {
+			changed = ed_editnurb_extrude_flag(editnurb, SELECT);
 		}
 
-		WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
-		DEG_id_tag_update(obedit->data, 0);
-	}
+		if (changed) {
+			if (ED_curve_updateAnimPaths(obedit->data)) {
+				WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
+			}
 
+			WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+			DEG_id_tag_update(obedit->data, 0);
+		}
+	}
+	MEM_freeN(objects);
 	return OPERATOR_FINISHED;
 }
 
@@ -5347,22 +5393,39 @@ void CURVE_OT_cyclic_toggle(wmOperatorType *ot)
 
 static int duplicate_exec(bContext *C, wmOperator *op)
 {
-	Object *obedit = CTX_data_edit_object(C);
+	ViewLayer *view_layer = CTX_data_view_layer(C);
 	View3D *v3d = CTX_wm_view3d(C);
-	ListBase newnurb = {NULL, NULL};
+	int ok = -1;
 
-	adduplicateflagNurb(obedit, v3d, &newnurb, SELECT, false);
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object *obedit = objects[ob_index];
+		Curve *cu = obedit->data;
 
-	if (BLI_listbase_is_empty(&newnurb) == false) {
+		if (!ED_curve_select_check(v3d, cu->editnurb)) {
+			continue;
+		}
+
+		ListBase newnurb = {NULL, NULL};
+		adduplicateflagNurb(obedit, v3d, &newnurb, SELECT, false);
+
+		if (BLI_listbase_is_empty(&newnurb)) {
+			ok = MAX2(ok, 0);
+			continue;
+		}
+
+		ok = 1;
 		BLI_movelisttolist(object_editcurve_get(obedit), &newnurb);
-		DEG_id_tag_update(obedit->data, DEG_TAG_SELECT_UPDATE);
-		WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+		DEG_id_tag_update(&cu->id, DEG_TAG_SELECT_UPDATE);
+		WM_event_add_notifier(C, NC_GEOM | ND_SELECT, &cu->id);
 	}
-	else {
+	MEM_freeN(objects);
+
+	if (ok == 0) {
 		BKE_report(op->reports, RPT_ERROR, "Cannot duplicate current selection");
 		return OPERATOR_CANCELLED;
 	}
-
 	return OPERATOR_FINISHED;
 }
 
@@ -5897,11 +5960,19 @@ static bool test_bezt_is_sel_any(const void *bezt_v, void *user_data)
 
 static int curve_dissolve_exec(bContext *C, wmOperator *UNUSED(op))
 {
-	Object *obedit = CTX_data_edit_object(C);
+	ViewLayer *view_layer = CTX_data_view_layer(C);
 	View3D *v3d = CTX_wm_view3d(C);
-	Curve *cu = (Curve *)obedit->data;
 
-	{
+	uint objects_len;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object *obedit = objects[ob_index];
+		Curve *cu = (Curve *)obedit->data;
+
+		if (!ED_curve_select_check(v3d, cu->editnurb)) {
+			continue;
+		}
+
 		ListBase *editnurb = object_editcurve_get(obedit);
 		Nurb *nu;
 
@@ -5968,11 +6039,9 @@ static int curve_dissolve_exec(bContext *C, wmOperator *UNUSED(op))
 				}
 			}
 		}
-	}
 
-	ed_curve_delete_selected(obedit, v3d);
+		ed_curve_delete_selected(obedit, v3d);
 
-	{
 		cu->actnu = cu->actvert = CU_ACT_NONE;
 
 		if (ED_curve_updateAnimPaths(obedit->data)) WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
@@ -5980,7 +6049,7 @@ static int curve_dissolve_exec(bContext *C, wmOperator *UNUSED(op))
 		WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
 		DEG_id_tag_update(obedit->data, 0);
 	}
-
+	MEM_freeN(objects);
 	return OPERATOR_FINISHED;
 }
 
@@ -6015,47 +6084,59 @@ static bool nurb_bezt_flag_any(const Nurb *nu, const char flag_test)
 
 static int curve_decimate_exec(bContext *C, wmOperator *op)
 {
-	Object *obedit = CTX_data_edit_object(C);
-	Curve *cu = (Curve *)obedit->data;
-	bool all_supported = true;
-	bool changed = false;
+	const float error_sq_max = FLT_MAX;
+	float ratio = RNA_float_get(op->ptr, "ratio");
+	bool all_supported_multi = true;
 
-	{
-		const float error_sq_max = FLT_MAX;
-		float ratio = RNA_float_get(op->ptr, "ratio");
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object *obedit = objects[ob_index];
+		Curve *cu = (Curve *)obedit->data;
+		bool all_supported = true;
+		bool changed = false;
 
-		ListBase *editnurb = object_editcurve_get(obedit);
-		Nurb *nu;
+		{
+			ListBase *editnurb = object_editcurve_get(obedit);
+			Nurb *nu;
 
-		for (nu = editnurb->first; nu; nu = nu->next) {
-			if (nu->type == CU_BEZIER) {
-				if ((nu->pntsu > 2) && nurb_bezt_flag_any(nu, SELECT)) {
-					const int error_target_len = max_ii(2, nu->pntsu * ratio);
-					if (error_target_len != nu->pntsu) {
-						BKE_curve_decimate_nurb(nu, cu->resolu, error_sq_max, error_target_len);
-						changed = true;
+			for (nu = editnurb->first; nu; nu = nu->next) {
+				if (nu->type == CU_BEZIER) {
+					if ((nu->pntsu > 2) && nurb_bezt_flag_any(nu, SELECT)) {
+						const int error_target_len = max_ii(2, nu->pntsu * ratio);
+						if (error_target_len != nu->pntsu) {
+							BKE_curve_decimate_nurb(nu, cu->resolu, error_sq_max, error_target_len);
+							changed = true;
+						}
 					}
 				}
+				else {
+					all_supported = false;
+				}
 			}
-			else {
-				all_supported = false;
+		}
+
+		if (all_supported == false) {
+			all_supported_multi = false;
+		}
+
+		if (changed) {
+			cu->actnu = cu->actvert = CU_ACT_NONE;
+			if (ED_curve_updateAnimPaths(obedit->data)) {
+				WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
 			}
+
+			WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+			DEG_id_tag_update(obedit->data, 0);
 		}
 	}
 
-	if (all_supported == false) {
+	if (all_supported_multi == false) {
 		BKE_report(op->reports, RPT_WARNING, "Only bezier curves are supported");
 	}
 
-	if (changed) {
-		cu->actnu = cu->actvert = CU_ACT_NONE;
-		if (ED_curve_updateAnimPaths(obedit->data)) {
-			WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
-		}
-
-		WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
-		DEG_id_tag_update(obedit->data, 0);
-	}
+	MEM_freeN(objects);
 
 	return OPERATOR_FINISHED;
 }

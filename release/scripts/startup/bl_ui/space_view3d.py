@@ -233,7 +233,9 @@ class VIEW3D_HT_header(Header):
 
             lk_icon = getattr(gp_lock, "icon", "BLANK1")
             lk_name = getattr(gp_lock, "name", "None")
-            layout.popover(
+            row = layout.row()
+            row.enabled = tool_settings.gpencil_stroke_placement_view3d in {'ORIGIN', 'CURSOR'}
+            row.popover(
                 panel="VIEW3D_PT_gpencil_lock",
                 text=lk_name,
                 icon=lk_icon,
@@ -620,7 +622,7 @@ class VIEW3D_MT_view(Menu):
         layout.separator()
 
         layout.operator("render.opengl", icon='RENDER_STILL')
-        layout.operator("render.opengl", text="OpenGL Render Animation", icon='RENDER_ANIMATION').animation = True
+        layout.operator("render.opengl", text="Viewport Render Animation", icon='RENDER_ANIMATION').animation = True
 
         layout.separator()
 
@@ -4035,7 +4037,7 @@ class VIEW3D_PT_object_type_visibility(Panel):
             attr_v = "show_object_viewport_" f"{attr:s}"
             attr_s = "show_object_select_" f"{attr:s}"
 
-            icon_s = 'RESTRICT_SELECT_OFF' if getattr(view, attr_s) else 'RESTRICT_SELECT_ON'
+            icon_s = 'RESTRICT_SELECT_ON' if getattr(view, attr_s) else 'RESTRICT_SELECT_OFF'
 
             row = col.row(align=True)
             row.prop(view, attr_v)
@@ -4960,17 +4962,23 @@ class VIEW3D_PT_overlay_gpencil_options(Panel):
 
         col = layout.column()
         row = col.row()
+        row.prop(overlay, "use_gpencil_grid", text="")
+        sub = row.row()
+        sub.active = overlay.use_gpencil_grid
+        sub.prop(overlay, "gpencil_grid_opacity", text="Canvas", slider=True)
+
+        row = col.row()
         row.prop(overlay, "use_gpencil_paper", text="")
         sub = row.row()
         sub.active = overlay.use_gpencil_paper
         sub.prop(overlay, "gpencil_paper_opacity", text="Fade 3D Objects", slider=True)
 
-        col = layout.column()
-        row = col.row()
-        row.prop(overlay, "use_gpencil_grid", text="")
-        sub = row.row()
-        sub.active = overlay.use_gpencil_grid
-        sub.prop(overlay, "gpencil_grid_opacity", text="Canvas", slider=True)
+        if context.object.mode == 'GPENCIL_PAINT':
+            row = col.row()
+            row.prop(overlay, "use_gpencil_fade_layers", text="")
+            sub = row.row()
+            sub.active = overlay.use_gpencil_fade_layers
+            sub.prop(overlay, "gpencil_fade_layer", text="Fade Layers", slider=True)
 
         if context.object.mode in {'GPENCIL_EDIT', 'GPENCIL_SCULPT', 'GPENCIL_WEIGHT'}:
             layout.prop(overlay, "use_gpencil_edit_lines", text="Edit Lines")
