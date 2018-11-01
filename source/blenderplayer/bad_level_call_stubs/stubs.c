@@ -303,6 +303,8 @@ const float (*RE_render_current_get_matrix(int matrix_id))[4] RET_NULL
 float RE_object_instance_get_object_pass_index(struct ObjectInstanceRen *obi) RET_ZERO
 float RE_object_instance_get_random_id(struct ObjectInstanceRen *obi) RET_ZERO
 
+void RE_GetCameraWindowWithOverscan(struct Render *re, float mat[4][4], float overscan) RET_NONE
+
 /* blenkernel */
 bool BKE_paint_proj_mesh_data_check(struct Scene *scene, struct Object *ob, bool *uvs, bool *mat, bool *tex, bool *stencil) RET_ZERO
 

@@ -1666,6 +1666,9 @@ typedef struct SceneEEVEE {
 
 	struct LightCache *light_cache;
 	char light_cache_info[64];
+
+	float overscan;
+	float pad;
 } SceneEEVEE;
 
 /* *************************************************************** */
@@ -2377,6 +2380,7 @@ enum {
 	SCE_EEVEE_SHOW_CUBEMAPS			= (1 << 18),
 	SCE_EEVEE_GI_AUTOBAKE			= (1 << 19),
 	SCE_EEVEE_SHADOW_SOFT			= (1 << 20),
+	SCE_EEVEE_OVERSCAN				= (1 << 21),
 };
 
 /* SceneEEVEE->shadow_method */

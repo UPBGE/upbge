@@ -34,6 +34,7 @@
 #include "eevee_private.h"
 #include "GPU_texture.h"
 #include "GPU_extensions.h"
+#include "GPU_state.h"
 
 static struct {
 	/* Downsample Depth */
@@ -126,7 +127,8 @@ static void eevee_create_shader_downsample(void)
 }
 
 #define SETUP_BUFFER(tex, fb, fb_color) { \
-	DRW_texture_ensure_fullscreen_2D(&tex, GPU_RGBA16F, DRW_TEX_FILTER | DRW_TEX_MIPMAP); \
+	GPUTextureFormat format = (DRW_state_is_scene_render()) ? GPU_RGBA32F : GPU_RGBA16F; \
+	DRW_texture_ensure_fullscreen_2D(&tex, format, DRW_TEX_FILTER | DRW_TEX_MIPMAP); \
 	GPU_framebuffer_ensure_config(&fb, { \
 		GPU_ATTACHMENT_TEXTURE(dtxl->depth), \
 		GPU_ATTACHMENT_TEXTURE(tex), \
@@ -470,6 +472,13 @@ void EEVEE_create_minmax_buffer(EEVEE_Data *vedata, GPUTexture *depth_src, int l
 
 	/* Restore */
 	GPU_framebuffer_bind(fbl->main_fb);
+
+	if (GPU_mip_render_workaround()) {
+		/* Fix dot corruption on intel HD5XX/HD6XX series.
+		 * It seems affected drivers are the same that needs
+		 * GPU_mip_render_workaround. */
+		GPU_flush();
+	}
 }
 
 /**
