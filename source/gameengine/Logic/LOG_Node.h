@@ -26,7 +26,7 @@ public:
 	/// Update the outputs socket and return the next node to execute.
 	LOG_Node *Update();
 
-	static PyObject *py_node_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
+	static PyObject *py_node_new(PyTypeObject *type, PyObject *_args, PyObject *kwds);
 
 	unsigned int py_get_outputs_size();
 	PyObject *py_get_outputs_item(unsigned int index);

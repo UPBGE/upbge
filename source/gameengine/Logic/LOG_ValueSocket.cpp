@@ -23,6 +23,7 @@ LOG_ValueSocket::LOG_ValueSocket(const LOG_ValueSocket& other)
 
 PyObject *LOG_ValueSocket::GetValue() const
 {
+	Py_INCREF(m_value);
 	return m_value;
 }
 

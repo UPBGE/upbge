@@ -27,7 +27,7 @@
 
 #include "EXP_Value.h"
 
-class KX_GameObject;
+class LOG_Object;
 struct PythonComponent;
 
 class KX_PythonComponent : public EXP_Value
@@ -36,7 +36,7 @@ class KX_PythonComponent : public EXP_Value
 
 private:
 	PyObject *m_startArgs;
-	KX_GameObject *m_gameobj;
+	LOG_Object *m_object;
 	std::string m_name;
 	bool m_init;
 
@@ -50,8 +50,8 @@ public:
 
 	void ProcessReplica();
 
-	KX_GameObject *GetGameObject() const;
-	void SetGameObject(KX_GameObject *gameobj);
+	LOG_Object *GetObject() const;
+	void SetObject(LOG_Object *object);
 
 	void SetStartArgs(PyObject *args);
 

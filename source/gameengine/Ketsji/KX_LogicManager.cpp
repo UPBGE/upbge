@@ -23,15 +23,15 @@ void KX_LogicManager::UnregisterObject(KX_GameObject *gameobj)
 	CM_ListRemoveIfFound(m_objects, gameobj);
 }
 
-void KX_LogicManager::UpdateComponents()
+void KX_LogicManager::Update()
 {
-	/* Update object components, we copy the object pointer in a second list to make
-	 * sure that we iterate on a list which will not be modified, indeed components
+	/* Update object components and nodes, we copy the object pointer in a second list to make
+	 * sure that we iterate on a list which will not be modified, indeed components and nodes
 	 * can add objects in theirs update.
 	 */
 	const std::vector<KX_GameObject *> objects = m_objects;
 	for (KX_GameObject *gameobj : objects) {
-		gameobj->UpdateComponents();
+		gameobj->UpdateLogic();
 	}
 }
 

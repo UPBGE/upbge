@@ -14,14 +14,16 @@ private:
 	std::vector<std::unique_ptr<LOG_INode> > m_nodes;
 	LOG_Node *m_rootNode;
 
+	bool m_init;
+
 public:
 	LOG_Tree();
+	LOG_Tree(const LOG_Tree& other);
 	~LOG_Tree();
 
 	void AddNode(LOG_INode *node, bool root);
 	void SetObject(LOG_Object *obj);
 
-	void Start();
 	void Update();
 };
 

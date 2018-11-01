@@ -1187,7 +1187,7 @@ static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderob
 			KX_PythonComponent *comp = static_cast<KX_PythonComponent *>(EXP_PROXY_REF(pycomp));
 			PyObject *arg_dict = (PyObject *)BKE_python_component_argument_dict_new(pc);
 			comp->SetStartArgs(arg_dict);
-			comp->SetGameObject(gameobj);
+			comp->SetObject(gameobj);
 			components->Add(comp);
 		}
 
@@ -1218,6 +1218,7 @@ static LOG_INode *BL_ConvertLogicNode(bNode *bnode, PyObject *mod, LOG_Tree *tre
 
 	PyObject *args = PyTuple_New(0);
 	PyObject *pynode = PyObject_Call(cls, args, nullptr);
+	Py_DECREF(args);
 
 	if (PyErr_Occurred()) {
 		PyErr_Print();
@@ -1225,6 +1226,8 @@ static LOG_INode *BL_ConvertLogicNode(bNode *bnode, PyObject *mod, LOG_Tree *tre
 	}
 
 	LOG_INode *node = static_cast<LOG_INode *>(EXP_PROXY_REF(pynode));
+
+	Py_DECREF(pynode);
 
 	tree->AddNode(node, (bnode->type == LOGIC_NODE_ROOT));
 
@@ -1488,7 +1491,7 @@ static void BL_ConvertLogicNodesObject(KX_GameObject *gameobj, Object *blenderob
 
 	Py_DECREF(mod);
 
-	tree->SetGameObject(gameobj);
+	tree->SetObject(gameobj);
 	gameobj->SetLogicTree(tree);
 }
 
@@ -2087,7 +2090,7 @@ void BL_PostConvertBlenderObjects(KX_Scene *kxscene, const BL_SceneConverter& sc
 		}
 
 		for (KX_GameObject *gameobj : objectlist) {
-			if (gameobj->GetComponents() || gameobj->GetLogicTree()) {
+			if (gameobj->UseLogic()) {
 				// Register object for component update.
 				// TODO register in logic manager for component and nodes.
 				kxscene->GetLogicManager().RegisterObject(gameobj);

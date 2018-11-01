@@ -17,7 +17,7 @@ public:
 	void RegisterObject(KX_GameObject *gameobj);
 	void UnregisterObject(KX_GameObject *gameobj);
 
-	void UpdateComponents();
+	void Update();
 
 	void Merge(KX_LogicManager& other);
 };

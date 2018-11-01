@@ -18,7 +18,9 @@ public:
 	LOG_INodeSocket(const LOG_INodeSocket& other) = default;
 
 	const std::string& GetName() const;
-
+	/** Return a python value of this socket.
+	 * \note New reference.
+	 */
 	virtual PyObject *GetValue() const = 0;
 };
 

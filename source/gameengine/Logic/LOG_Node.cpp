@@ -47,6 +47,7 @@ LOG_Node *LOG_Node::Update()
 	LOG_Node *nextNode = nullptr;
 
 	PyObject *ret = PyObject_CallMethod(GetProxy(), "update", "");
+
 	if (PyErr_Occurred()) {
 		PyErr_Print();
 	}
@@ -66,11 +67,14 @@ LOG_Node *LOG_Node::Update()
 	return nextNode;
 }
 
-PyObject *LOG_Node::py_node_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+PyObject *LOG_Node::py_node_new(PyTypeObject *type, PyObject *_args, PyObject *kwds)
 {
 	LOG_Node *node = new LOG_Node();
 
-	PyObject *proxy = py_base_new(type, PyTuple_Pack(1, node->GetProxy()), kwds);
+	PyObject *args = PyTuple_Pack(1, node->GetProxy());
+	PyObject *proxy = py_base_new(type, args, kwds);
+	Py_DECREF(args);
+
 	if (!proxy) {
 		delete node;
 		return nullptr;

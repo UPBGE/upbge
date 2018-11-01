@@ -1189,7 +1189,7 @@ void KX_Scene::UpdateAnimations(double curtime, bool restrict)
 
 void KX_Scene::LogicUpdateFrame(double curtime)
 {
-	m_logicManager.UpdateComponents();
+	m_logicManager.Update();
 }
 
 void KX_Scene::LogicEndFrame()

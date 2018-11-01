@@ -63,9 +63,11 @@ void LOG_INode::AddProperty(LOG_INodeSocket *prop)
 void LOG_INode::Start()
 {
 	PyObject *ret = PyObject_CallMethod(GetProxy(), "start", "");
+
 	if (PyErr_Occurred()) {
 		PyErr_Print();
 	}
+
 	Py_XDECREF(ret);
 }
 

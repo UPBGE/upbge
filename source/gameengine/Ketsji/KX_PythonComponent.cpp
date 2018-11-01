@@ -23,13 +23,13 @@
 #ifdef WITH_PYTHON
 
 #include "KX_PythonComponent.h"
-#include "KX_GameObject.h"
+#include "LOG_Object.h"
 
 #include "CM_Message.h"
 
 KX_PythonComponent::KX_PythonComponent(const std::string& name)
 	:m_startArgs(nullptr),
-	m_gameobj(nullptr),
+	m_object(nullptr),
 	m_name(name),
 	m_init(false)
 {
@@ -64,18 +64,18 @@ EXP_Value *KX_PythonComponent::GetReplica()
 void KX_PythonComponent::ProcessReplica()
 {
 	EXP_Value::ProcessReplica();
-	m_gameobj = nullptr;
+	m_object = nullptr;
 	m_init = false;
 }
 
-KX_GameObject *KX_PythonComponent::GetGameObject() const
+LOG_Object *KX_PythonComponent::GetObject() const
 {
-	return m_gameobj;
+	return m_object;
 }
 
-void KX_PythonComponent::SetGameObject(KX_GameObject *gameobj)
+void KX_PythonComponent::SetObject(LOG_Object *object)
 {
-	m_gameobj = gameobj;
+	m_object = object;
 }
 
 void KX_PythonComponent::SetStartArgs(PyObject *args)
@@ -153,10 +153,10 @@ PyAttributeDef KX_PythonComponent::Attributes[] = {
 PyObject *KX_PythonComponent::pyattr_get_object(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_PythonComponent *self = static_cast<KX_PythonComponent *>(self_v);
-	KX_GameObject *gameobj = self->GetGameObject();
+	LOG_Object *obj = self->GetObject();
 
-	if (gameobj) {
-		return gameobj->GetProxy();
+	if (obj) {
+		return obj->GetProxy();
 	}
 	else {
 		Py_RETURN_NONE;

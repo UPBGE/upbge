@@ -20,7 +20,16 @@ class LogicNodeBasicMotion(bge.types.LOG_Node):
 		print(type(self), self.inputs, self.outputs, self.properties)
 
 	def update(self):
-		self.object.localPosition += self.inputs["translation"]
+		trans = self.inputs["translation"]
+		rot = self.inputs["rotation"]
+		scale  = self.inputs["scale"]
+
+		self.object.worldPosition += trans
+
+		self.object.worldScale.x *= scale.x
+		self.object.worldScale.y *= scale.y
+		self.object.worldScale.z *= scale.z
+
 		return self.outputs["Trigger Out"]
 
 class LogicNodeMath(bge.types.LOG_FunctionNode):
