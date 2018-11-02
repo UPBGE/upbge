@@ -1,6 +1,6 @@
 import bge
 import operator
-from functools import reduce
+cimport libcpp
 
 class LogicNodeRoot(bge.types.LOG_Node):
 	def start(self):
@@ -16,25 +16,52 @@ class LogicNodeBooleanValue(bge.types.LOG_FunctionNode):
 	def get(self):
 		return bool(self.properties[0])
 
+cdef libcpp.bool reduce_and(values):
+	cdef libcpp.bool res = 0
+
+	cdef int val
+	for val in values:
+		res &= val;
+
+	return res > 0
+
+cdef libcpp.bool reduce_or(values):
+	cdef libcpp.bool res = 0
+
+	cdef int val
+	for val in values:
+		res |= val;
+
+	return res > 0
+
+cdef libcpp.bool reduce_xor(values):
+	cdef libcpp.bool res = 0
+
+	cdef int val
+	for val in values:
+		res ^= val;
+
+	return res
+
 class LogicNodeBooleanOperator(bge.types.LOG_FunctionNode):
 	def start(self):
 		self.mode = self.properties["mode"]
 
 	def get(self):
-		mode = self.mode
+		cdef int mode = self.mode
 
 		if mode == 0:
-			return reduce(operator.__and__, self.inputs)
+			return reduce_and(self.inputs)
 		if mode == 1:
-			return not reduce(operator.__and__, self.inputs)
+			return not reduce_and(self.inputs)
 		if mode == 2:
-			return reduce(operator.__or__, self.inputs)
+			return reduce_or(self.inputs)
 		if mode == 3:
-			return not reduce(operator.__or__, self.inputs)
+			return not reduce_or(self.inputs)
 		if mode == 3:
-			return reduce(operator.__xor__, self.inputs)
+			return reduce_xor(self.inputs)
 		if mode == 3:
-			return not reduce(operator.__xor__, self.inputs)
+			return not reduce_xor(self.inputs)
 
 class LogicNodeBranch(bge.types.LOG_Node):
 	def start(self):
@@ -67,7 +94,7 @@ class LogicNodeMathOperator(bge.types.LOG_FunctionNode):
 		self.mode = self.properties["mode"]
 
 	def get(self):
-		mode = self.mode
+		cdef int mode = self.mode
 		a = self.inputs["a"]
 		b = self.inputs["b"]
 
