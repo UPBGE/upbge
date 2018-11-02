@@ -143,7 +143,6 @@ def draw_samples_info(layout, context):
 
 class CYCLES_RENDER_PT_sampling(CyclesButtonsPanel, Panel):
     bl_label = "Sampling"
-    bl_options = {'DEFAULT_CLOSED'}
 
     def draw_header_preset(self, context):
         CYCLES_PT_sampling_presets.draw_panel_header(self.layout)
@@ -990,6 +989,7 @@ class CYCLES_RENDER_PT_denoising(CyclesButtonsPanel, Panel):
 class CYCLES_PT_post_processing(CyclesButtonsPanel, Panel):
     bl_label = "Post Processing"
     bl_options = {'DEFAULT_CLOSED'}
+    bl_context = "output"
 
     def draw(self, context):
         layout = self.layout

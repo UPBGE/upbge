@@ -38,6 +38,7 @@
 #include "BLI_math_vector.h"
 
 #include "BKE_customdata.h"
+#include "BKE_multires.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -69,49 +70,6 @@ typedef enum eAverageWith {
 	AVERAGE_WITH_NEXT,
 } eAverageWith;
 
-/* Coordinates within grid has different convention from PTex coordinates.
- * This function converts the latter ones to former.
- */
-BLI_INLINE void ptex_uv_to_grid_uv(const float ptex_u, const float ptex_v,
-                                   float *r_grid_u, float *r_grid_v)
-{
-	*r_grid_u = 1.0f - ptex_v;
-	*r_grid_v = 1.0f - ptex_u;
-}
-
-/* Simplified version of mdisp_rot_face_to_crn, only handles quad and
- * works in normalized coordinates.
- *
- * NOTE: Output coordinates are in ptex coordinates.
- */
-BLI_INLINE int rotate_quad_to_corner(const float u, const float v,
-                                     float *r_u, float *r_v)
-{
-	int corner;
-	if (u <= 0.5f && v <= 0.5f) {
-		corner = 0;
-		*r_u = 2.0f * u;
-		*r_v = 2.0f * v;
-	}
-	else if (u > 0.5f  && v <= 0.5f) {
-		corner = 1;
-		*r_u = 2.0f * v;
-		*r_v = 2.0f * (1.0f - u);
-	}
-	else if (u > 0.5f  && v > 0.5f) {
-		corner = 2;
-		*r_u = 2.0f * (1.0f - u);
-		*r_v = 2.0f * (1.0f - v);
-	}
-	else {
-		BLI_assert(u <= 0.5f && v >= 0.5f);
-		corner = 3;
-		*r_u = 2.0f * (1.0f - v);
-		*r_v = 2.0f * u;
-	}
-	return corner;
-}
-
 static int displacement_get_grid_and_coord(
         SubdivDisplacement *displacement,
         const int ptex_face_index, const float u, const float v,
@@ -126,13 +84,13 @@ static int displacement_get_grid_and_coord(
 	int corner = 0;
 	if (poly->totloop == 4) {
 		float corner_u, corner_v;
-		corner = rotate_quad_to_corner(u, v, &corner_u, &corner_v);
+		corner = BKE_subdiv_rotate_quad_to_corner(u, v, &corner_u, &corner_v);
 		*r_displacement_grid = &data->mdisps[start_grid_index + corner];
-		ptex_uv_to_grid_uv(corner_u, corner_v, grid_u, grid_v);
+		BKE_subdiv_ptex_face_uv_to_grid_uv(corner_u, corner_v, grid_u, grid_v);
 	}
 	else {
 		*r_displacement_grid = &data->mdisps[start_grid_index];
-		ptex_uv_to_grid_uv(u, v, grid_u, grid_v);
+		BKE_subdiv_ptex_face_uv_to_grid_uv(u, v, grid_u, grid_v);
 	}
 	return corner;
 }
@@ -164,38 +122,6 @@ static const MDisps *displacement_get_prev_grid(
 	const int prev_corner =
 	        (effective_corner - 1 + poly->totloop) % poly->totloop;
 	return &data->mdisps[poly->loopstart + prev_corner];
-}
-
-/* NOTE: Derivatives are in ptex face space. */
-BLI_INLINE void construct_tangent_matrix(float tangent_matrix[3][3],
-                                         const float dPdu[3],
-                                         const float dPdv[3],
-                                         const int corner)
-{
-	if (corner == 0) {
-		copy_v3_v3(tangent_matrix[0], dPdv);
-		copy_v3_v3(tangent_matrix[1], dPdu);
-		mul_v3_fl(tangent_matrix[0], -1.0f);
-		mul_v3_fl(tangent_matrix[1], -1.0f);
-	}
-	else if (corner == 1) {
-		copy_v3_v3(tangent_matrix[0], dPdu);
-		copy_v3_v3(tangent_matrix[1], dPdv);
-		mul_v3_fl(tangent_matrix[1], -1.0f);
-	}
-	else if (corner == 2) {
-		copy_v3_v3(tangent_matrix[0], dPdv);
-		copy_v3_v3(tangent_matrix[1], dPdu);
-	}
-	else if (corner == 3) {
-		copy_v3_v3(tangent_matrix[0], dPdu);
-		copy_v3_v3(tangent_matrix[1], dPdv);
-		mul_v3_fl(tangent_matrix[0], -1.0f);
-	}
-	cross_v3_v3v3(tangent_matrix[2], dPdu, dPdv);
-	normalize_v3(tangent_matrix[0]);
-	normalize_v3(tangent_matrix[1]);
-	normalize_v3(tangent_matrix[2]);
 }
 
 BLI_INLINE eAverageWith read_displacement_grid(
@@ -341,7 +267,7 @@ static void eval_displacement(SubdivDisplacement *displacement,
 	                     tangent_D);
 	/* Convert it to the object space. */
 	float tangent_matrix[3][3];
-	construct_tangent_matrix(tangent_matrix, dPdu, dPdv, corner);
+	BKE_multires_construct_tangent_matrix(tangent_matrix, dPdu, dPdv, corner);
 	mul_v3_m3v3(r_D, tangent_matrix, tangent_D);
 }
 
@@ -401,7 +327,7 @@ static void displacement_init_data(SubdivDisplacement *displacement,
                                    const MultiresModifierData *mmd)
 {
 	MultiresDisplacementData *data = displacement->user_data;
-	data->grid_size = (1 << (mmd->totlvl - 1)) + 1;
+	data->grid_size = BKE_subdiv_grid_size_from_level(mmd->totlvl);
 	data->mpoly = mesh->mpoly;
 	data->mdisps = CustomData_get_layer(&mesh->ldata, CD_MDISPS);
 	displacement_data_init_mapping(displacement, mesh);

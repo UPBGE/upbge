@@ -32,6 +32,7 @@
 #ifndef __BKE_SUBDIV_H__
 #define __BKE_SUBDIV_H__
 
+#include "BLI_compiler_compat.h"
 #include "BLI_sys_types.h"
 
 struct Mesh;
@@ -208,4 +209,29 @@ void BKE_subdiv_displacement_detach(Subdiv *subdiv);
 
 int *BKE_subdiv_face_ptex_offset_get(Subdiv *subdiv);
 
+/* ============================= VARIOUS HELPERS ============================ */
+
+/* For a given (ptex_u, ptex_v) within a ptex face get corresponding
+ * (grid_u, grid_v) within a grid.
+ */
+BLI_INLINE void BKE_subdiv_ptex_face_uv_to_grid_uv(
+        const float ptex_u, const float ptex_v,
+        float *r_grid_u, float *r_grid_v);
+
+/* For a given subdivision level (which is NOT refinement level) get size of
+ * CCG grid (number of grid points on a side).
+ */
+BLI_INLINE int BKE_subdiv_grid_size_from_level(const int level);
+
+/* Simplified version of mdisp_rot_face_to_crn, only handles quad and
+ * works in normalized coordinates.
+ *
+ * NOTE: Output coordinates are in ptex coordinates.
+ */
+BLI_INLINE int BKE_subdiv_rotate_quad_to_corner(
+        const float u, const float v,
+        float *r_u, float *r_v);
+
 #endif  /* __BKE_SUBDIV_H__ */
+
+#include "intern/subdiv_inline.h"

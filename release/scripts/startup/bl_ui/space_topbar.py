@@ -64,7 +64,13 @@ class TOPBAR_HT_upper_bar(Header):
         layout = self.layout
 
         window = context.window
+        screen = context.screen
         scene = window.scene
+
+        # If statusbar is hidden, still show messages at the top
+        if not screen.show_statusbar:
+            layout.template_reports_banner()
+            layout.template_running_jobs()
 
         # Active workspace view-layer is retrieved through window, not through workspace.
         layout.template_ID(window, "scene", new="scene.new", unlink="scene.delete")
@@ -210,13 +216,6 @@ class TOPBAR_HT_lower_bar(Header):
                     panel="TOPBAR_PT_gpencil_layers",
                     text=text,
                 )
-                if tool_mode == 'GPENCIL_PAINT':
-                    tool_settings = context.tool_settings
-                    layout.prop(tool_settings, "use_gpencil_draw_onback", text="", icon='MOD_OPACITY')
-                    layout.prop(tool_settings, "use_gpencil_weight_data_add", text="", icon='WPAINT_HLT')
-                    layout.prop(tool_settings, "use_gpencil_additive_drawing", text="", icon='FREEZE')
-                    if tool_settings.gpencil_stroke_placement_view3d == 'STROKE':
-                        layout.prop(tool_settings, "use_gpencil_stroke_endpoints", text="", icon='CURVE_DATA')
         elif tool_space_type == 'IMAGE_EDITOR':
             if tool_mode == 'PAINT':
                 layout.popover_group(space_type='PROPERTIES', region_type='WINDOW', context=".imagepaint_2d", category="")
