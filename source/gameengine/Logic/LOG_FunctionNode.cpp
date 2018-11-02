@@ -22,7 +22,7 @@ EXP_Value *LOG_FunctionNode::GetReplica()
 
 PyObject *LOG_FunctionNode::GetValue()
 {
-	PyObject *ret = PyObject_CallMethod(GetProxy(), "get", "");
+	PyObject *ret = PyObject_CallMethod(GetProxy(), "get", nullptr);
 
 	if (PyErr_Occurred()) {
 		PyErr_Print();

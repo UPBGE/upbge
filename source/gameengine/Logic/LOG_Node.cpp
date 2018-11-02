@@ -46,7 +46,7 @@ LOG_Node *LOG_Node::Update()
 {
 	LOG_Node *nextNode = nullptr;
 
-	PyObject *ret = PyObject_CallMethod(GetProxy(), "update", "");
+	PyObject *ret = PyObject_CallMethod(GetProxy(), "update", nullptr);
 
 	if (PyErr_Occurred()) {
 		PyErr_Print();

@@ -1314,6 +1314,7 @@ static LOG_INodeSocket *BL_ConvertLogicNodeSocket(bNodeSocket *bsock, bool input
 			}
 			case SOCK_BOOLEAN:
 			{
+				CM_Debug("boolean");
 				bNodeSocketValueBoolean *val = (bNodeSocketValueBoolean *)bsock->default_value;
 				value = PyBool_FromLong(val->value);
 				break;

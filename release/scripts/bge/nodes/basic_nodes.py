@@ -1,4 +1,6 @@
 import bge
+import operator
+from functools import reduce
 
 class LogicNodeRoot(bge.types.LOG_Node):
 	def start(self):
@@ -7,13 +9,41 @@ class LogicNodeRoot(bge.types.LOG_Node):
 	def update(self):
 		return self.outputs["Trigger Out"]
 
-class LogicNodeBoolean(bge.types.LOG_Node):
+class LogicNodeBooleanValue(bge.types.LOG_FunctionNode):
+	def start(self):
+		print(type(self), self.inputs, self.properties)
+
+	def get(self):
+		return bool(self.properties[0])
+
+class LogicNodeBooleanOperator(bge.types.LOG_FunctionNode):
+	def start(self):
+		print(type(self), self.inputs, self.properties)
+
+	def get(self):
+		mode = self.properties["mode"]
+
+		if mode == 0:
+			return reduce(operator.and_, self.inputs)
+		if mode == 1:
+			return not reduce(operator.and_, self.inputs)
+		if mode == 2:
+			return reduce(operator.or_, self.inputs)
+		if mode == 3:
+			return not reduce(operator.or_, self.inputs)
+		if mode == 3:
+			return reduce(operator.xor_, self.inputs)
+		if mode == 3:
+			return not reduce(operator.xor_, self.inputs)
+
+class LogicNodeBranch(bge.types.LOG_Node):
 	def start(self):
 		print(type(self), self.inputs, self.outputs, self.properties)
 
 	def update(self):
-		print(self.outputs)
-		return self.outputs["Trigger Out"]
+		val = self.inputs["value"]
+
+		return self.outputs["Trigger Positive" if val else "Trigger Negative"]
 
 class LogicNodeBasicMotion(bge.types.LOG_Node):
 	def start(self):
@@ -32,7 +62,7 @@ class LogicNodeBasicMotion(bge.types.LOG_Node):
 
 		return self.outputs["Trigger Out"]
 
-class LogicNodeMath(bge.types.LOG_FunctionNode):
+class LogicNodeMathOperator(bge.types.LOG_FunctionNode):
 	def start(self):
 		print(type(self), self.inputs, self.properties)
 
