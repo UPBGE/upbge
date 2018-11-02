@@ -12,6 +12,8 @@ class LOG_Node : public LOG_INode
 protected:
 	std::vector<LOG_ValueSocket *> m_outputs;
 
+	PyObject *m_updateMeth;
+
 public:
 	LOG_Node();
 	LOG_Node(const LOG_Node& other);
@@ -22,6 +24,8 @@ public:
 	virtual EXP_Value *GetReplica();
 
 	void AddOutput(LOG_ValueSocket *socket);
+
+	virtual void Start();
 
 	/// Update the outputs socket and return the next node to execute.
 	LOG_Node *Update();

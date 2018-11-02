@@ -44,7 +44,7 @@ public:
 	void AddInput(LOG_INodeSocket *socket);
 	void AddProperty(LOG_INodeSocket *prop);
 
-	void Start();
+	virtual void Start();
 
 	unsigned int py_get_inputs_size();
 	PyObject *py_get_inputs_item(unsigned int index);

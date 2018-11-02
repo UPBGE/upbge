@@ -7,14 +7,19 @@ class LOG_FunctionNode : public LOG_INode
 {
 	Py_Header
 
+private:
+	PyObject *m_getMeth;
+
 public:
-	LOG_FunctionNode() = default;
-	LOG_FunctionNode(const LOG_FunctionNode& other) = default;
-	virtual ~LOG_FunctionNode() = default;
+	LOG_FunctionNode();
+	LOG_FunctionNode(const LOG_FunctionNode& other);
+	virtual ~LOG_FunctionNode();
 
 	virtual NodeType GetNodeType() const;
 	virtual std::string GetName() const;
 	virtual EXP_Value *GetReplica();
+
+	virtual void Start();
 
 	PyObject *GetValue();
 

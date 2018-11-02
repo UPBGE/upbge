@@ -2,6 +2,21 @@
 
 #include "CM_Message.h"
 
+LOG_FunctionNode::LOG_FunctionNode()
+	:m_getMeth(nullptr)
+{
+}
+
+LOG_FunctionNode::LOG_FunctionNode(const LOG_FunctionNode& other)
+	:m_getMeth(nullptr)
+{
+}
+
+LOG_FunctionNode::~LOG_FunctionNode()
+{
+	Py_XDECREF(m_getMeth);
+}
+
 LOG_INode::NodeType LOG_FunctionNode::GetNodeType() const
 {
 	return TYPE_FUNCTION;
@@ -20,9 +35,16 @@ EXP_Value *LOG_FunctionNode::GetReplica()
 	return replica;
 }
 
+void LOG_FunctionNode::Start()
+{
+	LOG_INode::Start();
+
+	m_getMeth = PyObject_GetAttrString(GetProxy(), "get");
+}
+
 PyObject *LOG_FunctionNode::GetValue()
 {
-	PyObject *ret = PyObject_CallMethod(GetProxy(), "get", nullptr);
+	PyObject *ret = PyObject_CallObject(m_getMeth, nullptr);
 
 	if (PyErr_Occurred()) {
 		PyErr_Print();

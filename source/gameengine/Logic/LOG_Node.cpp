@@ -4,19 +4,22 @@
 #include "CM_Message.h"
 
 LOG_Node::LOG_Node()
-	:m_outputsWrapper(this, EXP_BaseListWrapper::FLAG_NO_WEAK_REF)
+	:m_updateMeth(nullptr),
+	m_outputsWrapper(this, EXP_BaseListWrapper::FLAG_NO_WEAK_REF)
 {
 }
 
 LOG_Node::LOG_Node(const LOG_Node& other)
 	:LOG_INode(other),
 	m_outputs(other.m_outputs),
+	m_updateMeth(nullptr),
 	m_outputsWrapper(this, EXP_BaseListWrapper::FLAG_NO_WEAK_REF)
 {
 }
 
 LOG_Node::~LOG_Node()
 {
+	Py_XDECREF(m_updateMeth);
 }
 
 LOG_INode::NodeType LOG_Node::GetNodeType() const
@@ -42,11 +45,18 @@ void LOG_Node::AddOutput(LOG_ValueSocket *socket)
 	m_outputs.push_back(socket);
 }
 
+void LOG_Node::Start()
+{
+	LOG_INode::Start();
+
+	m_updateMeth = PyObject_GetAttrString(GetProxy(), "update");
+}
+
 LOG_Node *LOG_Node::Update()
 {
 	LOG_Node *nextNode = nullptr;
 
-	PyObject *ret = PyObject_CallMethod(GetProxy(), "update", nullptr);
+	PyObject *ret = PyObject_CallObject(m_updateMeth, nullptr);
 
 	if (PyErr_Occurred()) {
 		PyErr_Print();
