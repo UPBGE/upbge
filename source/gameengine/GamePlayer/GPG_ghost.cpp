@@ -1377,6 +1377,7 @@ int main(
 							DRW_opengl_context_create();
 							G.background = false;
 							GPU_init();
+							GPU_immActivate();
 
 							if (SYS_GetCommandLineInt(syshandle, "nomipmap", 0)) {
 								GPU_set_mipmap(maggie, 0);
@@ -1430,6 +1431,7 @@ int main(
 				} while (!quitGame(exitcode));
 			}
 
+			GPU_immDeactivate();
 			GPU_exit();
 			DRW_opengl_context_destroy();
 

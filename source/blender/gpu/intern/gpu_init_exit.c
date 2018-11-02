@@ -92,3 +92,18 @@ void GPU_exit(void)
 
 	initialized = false;
 }
+
+void GPU_immInit(void)
+{
+	immInit();
+}
+
+void GPU_immActivate(void)
+{
+	immActivate();
+}
+
+void GPU_immDeactivate(void)
+{
+	immDeactivate();
+}
