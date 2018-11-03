@@ -39,7 +39,9 @@ public:
 		const int m_dataLen; // Length of our data
 	public:
 		RAS_Uniform(int data_size);
+		RAS_Uniform(RAS_Uniform&& other);
 		~RAS_Uniform();
+
 
 		enum UniformTypes {
 			UNI_NONE = 0,
@@ -130,8 +132,8 @@ protected:
 	// Uniform information sorted by hashed name value.
 	std::vector<UniformInfo> m_uniformInfos;
 
-	typedef std::vector<RAS_Uniform *> RAS_UniformVec;
-	typedef std::vector<RAS_DefUniform *> RAS_UniformVecDef;
+	typedef std::vector<RAS_Uniform> RAS_UniformVec;
+	typedef std::vector<RAS_DefUniform> RAS_UniformVecDef;
 
 	GPUShader *m_shader;
 	bool m_use;

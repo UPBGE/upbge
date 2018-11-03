@@ -531,8 +531,8 @@ EXP_PYMETHODDEF_DOC(BL_Shader, setUniformEyef, "setUniformEyef(name)")
 		int loc = GetUniformLocation(uniform);
 		if (loc != -1) {
 			bool defined = false;
-			for (RAS_DefUniform *defuni : m_preDef) {
-				if (defuni->m_loc == loc) {
+			for (RAS_DefUniform& defuni : m_preDef) {
+				if (defuni.m_loc == loc) {
 					defined = true;
 					break;
 				}
@@ -542,10 +542,10 @@ EXP_PYMETHODDEF_DOC(BL_Shader, setUniformEyef, "setUniformEyef(name)")
 				Py_RETURN_NONE;
 			}
 
-			RAS_DefUniform *uni = new RAS_DefUniform();
-			uni->m_loc = loc;
-			uni->m_type = EYE;
-			uni->m_flag = 0;
+			RAS_DefUniform uni;
+			uni.m_loc = loc;
+			uni.m_type = EYE;
+			uni.m_flag = 0;
 			m_preDef.push_back(uni);
 		}
 		Py_RETURN_NONE;
@@ -939,8 +939,8 @@ EXP_PYMETHODDEF_DOC(BL_Shader, setUniformDef, "setUniformDef(name, enum)")
 
 		if (loc != -1) {
 			bool defined = false;
-			for (RAS_DefUniform *defuni : m_preDef) {
-				if (defuni->m_loc == loc) {
+			for (RAS_DefUniform& defuni : m_preDef) {
+				if (defuni.m_loc == loc) {
 					defined = true;
 					break;
 				}
@@ -950,10 +950,10 @@ EXP_PYMETHODDEF_DOC(BL_Shader, setUniformDef, "setUniformDef(name, enum)")
 				Py_RETURN_NONE;
 			}
 
-			RAS_DefUniform *uni = new RAS_DefUniform();
-			uni->m_loc = loc;
-			uni->m_type = nloc;
-			uni->m_flag = 0;
+			RAS_DefUniform uni;
+			uni.m_loc = loc;
+			uni.m_type = nloc;
+			uni.m_flag = 0;
 			m_preDef.push_back(uni);
 			Py_RETURN_NONE;
 		}

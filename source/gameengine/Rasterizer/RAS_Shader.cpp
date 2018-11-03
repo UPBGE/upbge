@@ -56,6 +56,18 @@ RAS_Shader::RAS_Uniform::~RAS_Uniform()
 #endif
 }
 
+RAS_Shader::RAS_Uniform::RAS_Uniform(RAS_Uniform&& other)
+	:m_loc(other.m_loc),
+	m_count(other.m_count),
+	m_data(other.m_data),
+	m_dirty(other.m_dirty),
+	m_type(other.m_type),
+	m_dataLen(other.m_dataLen)
+{
+	other.m_data = nullptr;
+}
+
+
 void RAS_Shader::RAS_Uniform::Apply(RAS_Shader *shader)
 {
 #ifdef SORT_UNIFORMS
@@ -183,23 +195,16 @@ RAS_Shader::~RAS_Shader()
 
 void RAS_Shader::ClearUniforms()
 {
-	for (RAS_Uniform *uni : m_uniforms) {
-		delete uni;
-	}
 	m_uniforms.clear();
-
-	for (RAS_DefUniform *uni : m_preDef) {
-		delete uni;
-	}
 	m_preDef.clear();
 }
 
 RAS_Shader::RAS_Uniform *RAS_Shader::FindUniform(const int location)
 {
 #ifdef SORT_UNIFORMS
-	for (RAS_Uniform *uni : m_uniforms) {
-		if (uni->GetLocation() == location) {
-			return uni;
+	for (RAS_Uniform& uni : m_uniforms) {
+		if (uni.GetLocation() == location) {
+			return &uni;
 		}
 	}
 #endif
@@ -216,10 +221,10 @@ void RAS_Shader::SetUniformfv(int location, int type, float *param, int size, un
 		uni->SetData(location, type, count, transpose);
 	}
 	else {
-		uni = new RAS_Uniform(size);
-		memcpy(uni->GetData(), param, size);
-		uni->SetData(location, type, count, transpose);
-		m_uniforms.push_back(uni);
+		RAS_Uniform newuni(size);
+		memcpy(newuni.GetData(), param, size);
+		newuni.SetData(location, type, count, transpose);
+		m_uniforms.push_back(std::move(newuni));
 	}
 
 	m_dirty = true;
@@ -236,10 +241,10 @@ void RAS_Shader::SetUniformiv(int location, int type, int *param, int size, unsi
 		uni->SetData(location, type, count, transpose);
 	}
 	else {
-		uni = new RAS_Uniform(size);
-		memcpy(uni->GetData(), param, size);
-		uni->SetData(location, type, count, transpose);
-		m_uniforms.push_back(uni);
+		RAS_Uniform newuni(size);
+		memcpy(newuni.GetData(), param, size);
+		newuni.SetData(location, type, count, transpose);
+		m_uniforms.push_back(std::move(newuni));
 	}
 
 	m_dirty = true;
@@ -253,8 +258,8 @@ void RAS_Shader::ApplyShader()
 		return;
 	}
 
-	for (unsigned int i = 0; i < m_uniforms.size(); i++) {
-		m_uniforms[i]->Apply(this);
+	for (RAS_Uniform& uni : m_uniforms) {
+		uni.Apply(this);
 	}
 
 	m_dirty = false;
@@ -412,89 +417,89 @@ void RAS_Shader::Update(RAS_Rasterizer *rasty, const mt::mat4 &model)
 
 	const mt::mat4 &view = rasty->GetViewMatrix();
 
-	for (RAS_DefUniform *uni : m_preDef) {
-		if (uni->m_loc == -1) {
+	for (RAS_DefUniform& uni : m_preDef) {
+		if (uni.m_loc == -1) {
 			continue;
 		}
 
-		switch (uni->m_type) {
+		switch (uni.m_type) {
 			case MODELMATRIX:
 			{
-				SetUniform(uni->m_loc, model);
+				SetUniform(uni.m_loc, model);
 				break;
 			}
 			case MODELMATRIX_TRANSPOSE:
 			{
-				SetUniform(uni->m_loc, model, true);
+				SetUniform(uni.m_loc, model, true);
 				break;
 			}
 			case MODELMATRIX_INVERSE:
 			{
-				SetUniform(uni->m_loc, model.Inverse());
+				SetUniform(uni.m_loc, model.Inverse());
 				break;
 			}
 			case MODELMATRIX_INVERSETRANSPOSE:
 			{
-				SetUniform(uni->m_loc, model.Inverse(), true);
+				SetUniform(uni.m_loc, model.Inverse(), true);
 				break;
 			}
 			case MODELVIEWMATRIX:
 			{
-				SetUniform(uni->m_loc, view * model);
+				SetUniform(uni.m_loc, view * model);
 				break;
 			}
 			case MODELVIEWMATRIX_TRANSPOSE:
 			{
 				mt::mat4 mat(view *model);
-				SetUniform(uni->m_loc, mat, true);
+				SetUniform(uni.m_loc, mat, true);
 				break;
 			}
 			case MODELVIEWMATRIX_INVERSE:
 			{
 				mt::mat4 mat(view *model);
-				SetUniform(uni->m_loc, mat.Inverse());
+				SetUniform(uni.m_loc, mat.Inverse());
 				break;
 			}
 			case MODELVIEWMATRIX_INVERSETRANSPOSE:
 			{
 				mt::mat4 mat(view *model);
-				SetUniform(uni->m_loc, mat.Inverse(), true);
+				SetUniform(uni.m_loc, mat.Inverse(), true);
 				break;
 			}
 			case CAM_POS:
 			{
 				mt::vec3 pos(rasty->GetCameraPosition());
-				SetUniform(uni->m_loc, pos);
+				SetUniform(uni.m_loc, pos);
 				break;
 			}
 			case VIEWMATRIX:
 			{
-				SetUniform(uni->m_loc, view);
+				SetUniform(uni.m_loc, view);
 				break;
 			}
 			case VIEWMATRIX_TRANSPOSE:
 			{
-				SetUniform(uni->m_loc, view, true);
+				SetUniform(uni.m_loc, view, true);
 				break;
 			}
 			case VIEWMATRIX_INVERSE:
 			{
-				SetUniform(uni->m_loc, view.Inverse());
+				SetUniform(uni.m_loc, view.Inverse());
 				break;
 			}
 			case VIEWMATRIX_INVERSETRANSPOSE:
 			{
-				SetUniform(uni->m_loc, view.Inverse(), true);
+				SetUniform(uni.m_loc, view.Inverse(), true);
 				break;
 			}
 			case CONSTANT_TIMER:
 			{
-				SetUniform(uni->m_loc, (float)rasty->GetTime());
+				SetUniform(uni.m_loc, (float)rasty->GetTime());
 				break;
 			}
 			case EYE:
 			{
-				SetUniform(uni->m_loc, (rasty->GetEye() == RAS_Rasterizer::RAS_STEREO_LEFTEYE) ? 0.0f : 0.5f);
+				SetUniform(uni.m_loc, (rasty->GetEye() == RAS_Rasterizer::RAS_STEREO_LEFTEYE) ? 0.0f : 0.5f);
 			}
 			default:
 			{
