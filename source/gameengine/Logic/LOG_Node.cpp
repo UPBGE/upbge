@@ -4,16 +4,14 @@
 #include "CM_Message.h"
 
 LOG_Node::LOG_Node()
-	:m_updateMeth(nullptr),
-	m_outputsWrapper(this, EXP_BaseListWrapper::FLAG_NO_WEAK_REF)
+	:m_updateMeth(nullptr)
 {
 }
 
 LOG_Node::LOG_Node(const LOG_Node& other)
 	:LOG_INode(other),
 	m_outputs(other.m_outputs),
-	m_updateMeth(nullptr),
-	m_outputsWrapper(this, EXP_BaseListWrapper::FLAG_NO_WEAK_REF)
+	m_updateMeth(nullptr)
 {
 }
 
@@ -42,7 +40,7 @@ EXP_Value *LOG_Node::GetReplica()
 
 void LOG_Node::AddOutput(LOG_ValueSocket *socket)
 {
-	m_outputs.push_back(socket);
+	m_outputs.Add(socket);
 }
 
 void LOG_Node::Start()
@@ -124,29 +122,8 @@ PyAttributeDef LOG_Node::Attributes[] = {
 	EXP_PYATTRIBUTE_NULL // Sentinel
 };
 
-unsigned int LOG_Node::py_get_outputs_size()
-{
-	return m_outputs.size();
-}
-
-PyObject *LOG_Node::py_get_outputs_item(unsigned int index)
-{
-	return m_outputs[index]->GetValue();
-}
-
-bool LOG_Node::py_set_outputs_item(unsigned int index, PyObject *value)
-{
-	m_outputs[index]->SetValue(value);
-	return true;
-}
-
-std::string LOG_Node::py_get_outputs_name(unsigned int index)
-{
-	return m_outputs[index]->GetName();
-}
-
 PyObject *LOG_Node::pyattr_get_outputs(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	LOG_Node *self = static_cast<LOG_Node *>(self_v);
-	return self->m_outputsWrapper.GetProxy();
+	return self->m_outputs.GetProxy();
 }

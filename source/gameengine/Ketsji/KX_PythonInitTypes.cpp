@@ -67,6 +67,8 @@
 #include "KX_CollisionContactPoints.h"
 #include "LOG_FunctionNode.h"
 #include "LOG_Node.h"
+#include "LOG_ValueSocket.h"
+#include "LOG_FunctionSocket.h"
 #include "EXP_ListWrapper.h"
 #include "Texture.h"
 
@@ -200,6 +202,8 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
 		PyType_Ready_Attr(dict, LOG_FunctionNode, init_getset);
 		PyType_Ready_Attr(dict, LOG_INode, init_getset);
 		PyType_Ready_Attr(dict, LOG_Node, init_getset);
+		PyType_Ready_Attr(dict, LOG_ValueSocket, init_getset);
+		PyType_Ready_Attr(dict, LOG_FunctionSocket, init_getset);
 		PyType_Ready_Attr(dict, EXP_PyObjectPlus, init_getset);
 		PyType_Ready_Attr(dict, SCA_InputEvent, init_getset);
 		PyType_Ready_Attr(dict, SCA_PythonJoystick, init_getset);

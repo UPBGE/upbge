@@ -17,7 +17,40 @@ LOG_FunctionSocket::LOG_FunctionSocket(const LOG_FunctionSocket& other)
 {
 }
 
-PyObject *LOG_FunctionSocket::GetValue() const
+PyTypeObject LOG_FunctionSocket::Type = {
+	PyVarObject_HEAD_INIT(nullptr, 0)
+	"LOG_FunctionSocket",
+	sizeof(EXP_PyObjectPlus_Proxy),
+	0,
+	py_base_dealloc,
+	0,
+	0,
+	0,
+	0,
+	py_base_repr,
+	0, 0, 0, 0, 0, 0, 0, 0, 0,
+	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+	0, 0, 0, 0, 0, 0, 0,
+	Methods,
+	0,
+	0,
+	&LOG_INodeSocket::Type,
+	0, 0, 0, 0, 0, 0,
+	py_base_new
+};
+
+PyMethodDef LOG_FunctionSocket::Methods[] = {
+	{nullptr, nullptr} // Sentinel
+};
+
+PyAttributeDef LOG_FunctionSocket::Attributes[] = {
+	EXP_PYATTRIBUTE_RO_FUNCTION("value", LOG_FunctionSocket, pyattr_get_value),
+	EXP_PYATTRIBUTE_NULL // Sentinel
+};
+
+PyObject *LOG_FunctionSocket::pyattr_get_value(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
-	return m_node->GetValue();
+	LOG_FunctionSocket *self = static_cast<LOG_FunctionSocket *>(self_v);
+
+	return self->m_node->GetValue();
 }

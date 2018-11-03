@@ -1386,7 +1386,7 @@ static void BL_ConvertLogicNodeSockets(LOG_INode *node, bNode *bnode, const std:
 	}
 }
 
-static LOG_ValueSocket *BL_ConvertLogicNodeProperty(IDProperty *prop)
+static PyObject *BL_ConvertLogicNodeProperty(IDProperty *prop)
 {
 	PyObject *value = nullptr;
 
@@ -1418,11 +1418,7 @@ static LOG_ValueSocket *BL_ConvertLogicNodeProperty(IDProperty *prop)
 		}
 	}
 
-	if (value) {
-		return new LOG_ValueSocket(prop->name, value);
-	}
-
-	return nullptr;
+	return value;
 }
 
 static void BL_ConvertLogicNodeProperties(LOG_INode *node, bNode *bnode)
@@ -1434,9 +1430,9 @@ static void BL_ConvertLogicNodeProperties(LOG_INode *node, bNode *bnode)
 	}
 
 	for (IDProperty *prop = (IDProperty *)group->data.group.first; prop; prop = prop->next) {
-		LOG_ValueSocket *pprop = BL_ConvertLogicNodeProperty(prop);
-		if (pprop) {
-			node->AddProperty(pprop);
+		PyObject *value = BL_ConvertLogicNodeProperty(prop);
+		if (value) {
+			node->AddProperty(prop->name, value);
 		}
 	}
 }

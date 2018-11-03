@@ -7,24 +7,22 @@
 
 LOG_INode::LOG_INode()
 	:m_status(NO_STATUS),
-	m_object(nullptr),
-	m_inputsWrapper(this, EXP_BaseListWrapper::FLAG_NO_WEAK_REF),
-	m_propertiesWrapper(this, EXP_BaseListWrapper::FLAG_NO_WEAK_REF)
+	m_object(nullptr)
 {
+	m_properties = PyDict_New();
 }
 
 LOG_INode::LOG_INode(const LOG_INode& other)
 	:m_status(NO_STATUS),
 	m_object(nullptr),
-	m_inputs(other.m_inputs),
-	m_properties(other.m_properties),
-	m_inputsWrapper(this, EXP_BaseListWrapper::FLAG_NO_WEAK_REF),
-	m_propertiesWrapper(this, EXP_BaseListWrapper::FLAG_NO_WEAK_REF)
+	m_inputs(other.m_inputs)
 {
+	m_properties = PyDict_Copy(other.m_properties);
 }
 
 LOG_INode::~LOG_INode()
 {
+	Py_DECREF(m_properties);
 }
 
 void LOG_INode::ProcessReplica()
@@ -52,12 +50,13 @@ void LOG_INode::SetObject(LOG_Object *obj)
 
 void LOG_INode::AddInput(LOG_INodeSocket *socket)
 {
-	m_inputs.push_back(socket);
+	m_inputs.Add(socket);
 }
 
-void LOG_INode::AddProperty(LOG_INodeSocket *prop)
+void LOG_INode::AddProperty(const std::string& name, PyObject *value)
 {
-	m_properties.push_back(prop);
+	Py_INCREF(value);
+	PyDict_SetItemString(m_properties, name.c_str(), value);
 }
 
 void LOG_INode::Start()
@@ -104,36 +103,6 @@ PyAttributeDef LOG_INode::Attributes[] = {
 	EXP_PYATTRIBUTE_NULL // Sentinel
 };
 
-unsigned int LOG_INode::py_get_inputs_size()
-{
-	return m_inputs.size();
-}
-
-PyObject *LOG_INode::py_get_inputs_item(unsigned int index)
-{
-	return m_inputs[index]->GetValue();
-}
-
-std::string LOG_INode::py_get_inputs_name(unsigned int index)
-{
-	return m_inputs[index]->GetName();
-}
-
-unsigned int LOG_INode::py_get_properties_size()
-{
-	return m_properties.size();
-}
-
-PyObject *LOG_INode::py_get_properties_item(unsigned int index)
-{
-	return m_properties[index]->GetValue();
-}
-
-std::string LOG_INode::py_get_properties_name(unsigned int index)
-{
-	return m_properties[index]->GetName();
-}
-
 PyObject *LOG_INode::pyattr_get_object(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	LOG_INode *self = static_cast<LOG_INode *>(self_v);
@@ -150,12 +119,14 @@ PyObject *LOG_INode::pyattr_get_object(EXP_PyObjectPlus *self_v, const EXP_PYATT
 PyObject *LOG_INode::pyattr_get_inputs(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	LOG_INode *self = static_cast<LOG_INode *>(self_v);
-	return self->m_inputsWrapper.GetProxy();
+	return self->m_inputs.GetProxy();
 }
 
 PyObject *LOG_INode::pyattr_get_properties(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	LOG_INode *self = static_cast<LOG_INode *>(self_v);
-	return self->m_propertiesWrapper.GetProxy();
+
+	Py_INCREF(self->m_properties);
+	return self->m_properties;
 }
 

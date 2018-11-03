@@ -1,7 +1,7 @@
 #ifndef __LOG_INODE_H__
 #define __LOG_INODE_H__
 
-#include "EXP_ListWrapper.h"
+#include "EXP_ListValue.h"
 
 class LOG_INodeSocket;
 class LOG_Object;
@@ -20,8 +20,9 @@ protected:
 
 	LOG_Object *m_object;
 
-	std::vector<LOG_INodeSocket *> m_inputs;
-	std::vector<LOG_INodeSocket *> m_properties;
+	EXP_ListValue<LOG_INodeSocket> m_inputs;
+
+	PyObject *m_properties;
 
 public:
 	enum NodeType
@@ -42,28 +43,14 @@ public:
 	void SetObject(LOG_Object *obj);
 
 	void AddInput(LOG_INodeSocket *socket);
-	void AddProperty(LOG_INodeSocket *prop);
+	void AddProperty(const std::string& name, PyObject *value);
 
 	virtual void Start();
-
-	unsigned int py_get_inputs_size();
-	PyObject *py_get_inputs_item(unsigned int index);
-	std::string py_get_inputs_name(unsigned int index);
-
-	unsigned int py_get_properties_size();
-	PyObject *py_get_properties_item(unsigned int index);
-	std::string py_get_properties_name(unsigned int index);
 
 	// Attributes
 	static PyObject *pyattr_get_object(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static PyObject *pyattr_get_inputs(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static PyObject *pyattr_get_properties(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-
-protected:
-	EXP_ListWrapper<LOG_INode, &LOG_INode::py_get_inputs_size,
-		&LOG_INode::py_get_inputs_item, nullptr, &LOG_INode::py_get_inputs_name> m_inputsWrapper;
-	EXP_ListWrapper<LOG_INode, &LOG_INode::py_get_properties_size,
-		&LOG_INode::py_get_properties_item, nullptr, &LOG_INode::py_get_properties_name> m_propertiesWrapper;
 };
 
 #endif  // __LOG_INODE_H__

@@ -10,8 +10,9 @@ class LOG_Node : public LOG_INode
 	Py_Header
 
 protected:
-	std::vector<LOG_ValueSocket *> m_outputs;
-
+	/// Output sockets.
+	EXP_ListValue<LOG_ValueSocket> m_outputs;
+	/// Python object for the update() function.
 	PyObject *m_updateMeth;
 
 public:
@@ -32,17 +33,8 @@ public:
 
 	static PyObject *py_node_new(PyTypeObject *type, PyObject *_args, PyObject *kwds);
 
-	unsigned int py_get_outputs_size();
-	PyObject *py_get_outputs_item(unsigned int index);
-	bool py_set_outputs_item(unsigned int index, PyObject *value);
-	std::string py_get_outputs_name(unsigned int index);
-
 	// Attributes
 	static PyObject *pyattr_get_outputs(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-
-protected:
-	EXP_ListWrapper<LOG_Node, &LOG_Node::py_get_outputs_size, &LOG_Node::py_get_outputs_item,
-		&LOG_Node::py_set_outputs_item, &LOG_Node::py_get_outputs_name> m_outputsWrapper;
 };
 
 #endif  // __LOG_NODE_H__
