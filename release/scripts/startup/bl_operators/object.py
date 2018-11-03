@@ -945,16 +945,16 @@ class LodGenerate(Operator):
     bl_label = "Generate Levels of Detail"
     bl_options = {'REGISTER', 'UNDO'}
 
-    count = IntProperty(
+    count: IntProperty(
         name="Count",
         default=3,
     )
-    target = FloatProperty(
+    target: FloatProperty(
         name="Target Size",
         min=0.0, max=1.0,
         default=0.1,
     )
-    package = BoolProperty(
+    package: BoolProperty(
         name="Package into Group",
         default=False,
     )
