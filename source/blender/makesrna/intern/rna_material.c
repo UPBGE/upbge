@@ -114,27 +114,8 @@ static void rna_Material_update_previews(Main *UNUSED(bmain), Scene *UNUSED(scen
 static void rna_MaterialGpencil_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	Material *ma = ptr->id.data;
-	PreviewImage *preview = ma->preview;
 
 	rna_Material_update(bmain, scene, ptr);
-
-	/* update previews (icon and thumbnail) */
-	if (preview != NULL) {
-		bool changed = false;
-		if ((preview->flag[ICON_SIZE_ICON] & PRV_CHANGED) == 0) {
-			preview->flag[ICON_SIZE_ICON] |= PRV_CHANGED;
-			changed = true;
-		}
-
-		if ((preview->flag[ICON_SIZE_PREVIEW] & PRV_CHANGED) == 0) {
-			preview->flag[ICON_SIZE_PREVIEW] |= PRV_CHANGED;
-			changed = true;
-		}
-
-		if (changed) {
-			WM_main_add_notifier(NC_MATERIAL | ND_SHADING_PREVIEW, ma);
-		}
-	}
 	WM_main_add_notifier(NC_GPENCIL | ND_DATA, ma);
 }
 
@@ -143,7 +124,6 @@ static void rna_MaterialGpencil_nopreview_update(Main *bmain, Scene *scene, Poin
 	Material *ma = ptr->id.data;
 
 	rna_Material_update(bmain, scene, ptr);
-
 	WM_main_add_notifier(NC_GPENCIL | ND_DATA, ma);
 }
 
@@ -665,7 +645,7 @@ static void rna_def_material_greasepencil(BlenderRNA *brna)
 	/* Flags */
 	prop = RNA_def_property(srna, "hide", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", GP_STYLE_COLOR_HIDE);
-	RNA_def_property_ui_icon(prop, ICON_RESTRICT_VIEW_ON, -1);
+	RNA_def_property_ui_icon(prop, ICON_HIDE_OFF, -1);
 	RNA_def_property_ui_text(prop, "Hide", "Set color Visibility");
 	RNA_def_property_update(prop, NC_GPENCIL | ND_SHADING, "rna_MaterialGpencil_nopreview_update");
 

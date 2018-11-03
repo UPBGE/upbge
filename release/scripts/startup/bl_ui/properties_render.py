@@ -125,6 +125,7 @@ class RENDER_PT_color_management(RenderButtonsPanel, Panel):
     def draw(self, context):
         layout = self.layout
         layout.use_property_split = True
+        layout.use_property_decorate = False  # No animation.
 
         scene = context.scene
         view = scene.view_settings
@@ -168,6 +169,8 @@ class RENDER_PT_color_management_curves(RenderButtonsPanel, Panel):
         view = scene.view_settings
 
         layout.use_property_split = False
+        layout.use_property_decorate = False  # No animation.
+
         layout.enabled = view.use_curve_mapping
 
         layout.template_curve_mapping(view, "curve_mapping", levels=True)

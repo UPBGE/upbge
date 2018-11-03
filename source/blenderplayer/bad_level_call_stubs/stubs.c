@@ -738,6 +738,8 @@ void ED_area_status_text(ScrArea *sa, const char *str) RET_NONE
 struct uiLayout *uiLayoutGridFlow(struct uiLayout *layout, int row_major, int num_columns, int even_columns, int even_rows, int align) RET_NULL
 void uiItemSpacer(struct uiLayout *layout) RET_NONE
 
+void uiItemS_ex(uiLayout *layout, float factor) RET_NONE
+
 
 void uiTemplateIconView(struct uiLayout *layout, struct PointerRNA *ptr, const char *propname, int show_labels, float icon_scale) RET_NONE
 void uiTemplateIcon(uiLayout *layout, int icon_value, float icon_scale) RET_NONE
