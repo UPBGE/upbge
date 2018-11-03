@@ -43,7 +43,7 @@ inline const Item CM_MapGetItemNoInsert(const std::map<Key, Item, Args ...>& map
 template <class Item, class Key, class ... Args>
 inline const Item CM_MapGetItemNoInsert(const std::unordered_map<Key, Item, Args ...>& map, const Key& key, const Item defaultItem = nullptr)
 {
-	const typename std::map<Key, Item, Args ...>::const_iterator it = map.find(key);
+	const typename std::unordered_map<Key, Item, Args ...>::const_iterator it = map.find(key);
 	if (it != map.end()) {
 		return it->second;
 	}

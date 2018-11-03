@@ -1756,10 +1756,14 @@ PyObject *KX_Scene::pyattr_get_texts(EXP_PyObjectPlus *self_v, const EXP_PYATTRI
 	return self->GetFontList().GetProxy();
 }
 
+#include "EXP_MapValue.h"
+
 PyObject *KX_Scene::pyattr_get_cameras(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_Scene *self = static_cast<KX_Scene *>(self_v);
-	return self->GetCameraList().GetProxy();
+// 	KX_Scene *self = static_cast<KX_Scene *>(self_v);
+// 	return self->GetCameraList().GetProxy();
+	
+	EXP_MapValue<
 }
 
 PyObject *KX_Scene::pyattr_get_active_camera(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)

@@ -41,6 +41,7 @@ set(INC_SYS
 set(SRC
 	intern/BaseListValue.cpp
 	intern/BaseListWrapper.cpp
+	intern/BaseMapValue.cpp
 	intern/PropBool.cpp
 	intern/PropFloat.cpp
 	intern/PropInt.cpp
@@ -50,6 +51,10 @@ set(SRC
 
 	EXP_BaseListValue.h
 	EXP_BaseListWrapper.h
+	EXP_BaseMapValue.h
+	EXP_ListValue.h
+	EXP_ListWrapper.h
+	EXP_MapValue.h
 	EXP_PropBool.h
 	EXP_PropFloat.h
 	EXP_PropInt.h
@@ -57,7 +62,6 @@ set(SRC
 	EXP_Python.h
 	EXP_PropString.h
 	EXP_Value.h
-	EXP_ListWrapper.h
 )
 
 if(WITH_PYTHON)
