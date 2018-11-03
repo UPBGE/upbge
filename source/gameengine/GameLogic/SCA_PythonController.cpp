@@ -281,21 +281,27 @@ bool SCA_PythonController::Import()
 		return false;
 	}
 
-	// Import the module and print an error if it's not found
-	PyObject *mod = PyImport_ImportModule(mod_path.c_str());
+	// Try to get the module by name
+	PyObject *mod = PyImport_GetModule(mod_path.c_str());
 
 	if (mod == nullptr) {
-		ErrorPrint("Python module can't be imported");
-		return false;
-	}
 
-	if (m_debug) {
+		// Module not already imported, trying to import it now
+		mod = PyImport_ImportModule(mod_path.c_str());
+		if (mod == nullptr) {
+			ErrorPrint("Python module can't be imported");
+			return false;
+		}
+
+	} else {
+
+		// Module was already imported, let's reload it
 		mod = PyImport_ReloadModule(mod);
-	}
+		if (mod == nullptr) {
+			ErrorPrint("Python module can't be reloaded");
+			return false;
+		}
 
-	if (mod == nullptr) {
-		ErrorPrint("Python module can't be reloaded");
-		return false;
 	}
 
 	// Get the function object
