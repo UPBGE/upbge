@@ -325,20 +325,20 @@ Main *BL_Converter::GetLibraryPath(const std::string& path)
 	return nullptr;
 }
 
-KX_LibLoadStatus *BL_Converter::LinkBlendFileMemory(void *data, int length, const char *path, char *group, KX_Scene *scene_merge, char **err_str, short options)
+KX_LibLoadStatus *BL_Converter::LinkBlendFileMemory(void *data, int length, const char *path, char *group, KX_Scene *scene_merge, short options, std::string& error)
 {
 	BlendHandle *blendlib = BLO_blendhandle_from_memory(data, length);
 
 	// Error checking is done in LinkBlendFile
-	return LinkBlendFile(blendlib, path, group, scene_merge, err_str, options);
+	return LinkBlendFile(blendlib, path, group, scene_merge, options, error);
 }
 
-KX_LibLoadStatus *BL_Converter::LinkBlendFilePath(const char *filepath, char *group, KX_Scene *scene_merge, char **err_str, short options)
+KX_LibLoadStatus *BL_Converter::LinkBlendFilePath(const char *filepath, char *group, KX_Scene *scene_merge, short options, std::string& error)
 {
 	BlendHandle *blendlib = BLO_blendhandle_from_file(filepath, nullptr);
 
 	// Error checking is done in LinkBlendFile
-	return LinkBlendFile(blendlib, filepath, group, scene_merge, err_str, options);
+	return LinkBlendFile(blendlib, filepath, group, scene_merge, options, error);
 }
 
 static void load_datablocks(Main *main_tmp, BlendHandle *blendlib, const char *path, int idcode)
@@ -358,29 +358,25 @@ static void load_datablocks(Main *main_tmp, BlendHandle *blendlib, const char *p
 	BLI_linklist_free(names, free); // free linklist *and* each node's data
 }
 
-KX_LibLoadStatus *BL_Converter::LinkBlendFile(BlendHandle *blendlib, const char *path, char *group, KX_Scene *scene_merge, char **err_str, short options)
+KX_LibLoadStatus *BL_Converter::LinkBlendFile(BlendHandle *blendlib, const char *path, char *group, KX_Scene *scene_merge, short options, std::string& error)
 {
 	const int idcode = BKE_idcode_from_name(group);
-	static char err_local[255];
 
 	// only scene and mesh supported right now
 	if (!ELEM(idcode, ID_SCE, ID_ME, ID_AC)) {
-		snprintf(err_local, sizeof(err_local), "invalid ID type given \"%s\"\n", group);
-		*err_str = err_local;
+		error = std::string("invalid ID type given \"") + group + "\"";
 		BLO_blendhandle_close(blendlib);
 		return nullptr;
 	}
 
 	if (ExistLibrary(path)) {
-		snprintf(err_local, sizeof(err_local), "blend file already open \"%s\"\n", path);
-		*err_str = err_local;
+		error = std::string("blend file already open \"") + path + "\"";
 		BLO_blendhandle_close(blendlib);
 		return nullptr;
 	}
 
 	if (blendlib == nullptr) {
-		snprintf(err_local, sizeof(err_local), "could not open blendfile \"%s\"\n", path);
-		*err_str = err_local;
+		error = std::string("could not open blendfile \"") + path + "\"\n";
 		return nullptr;
 	}
 

@@ -153,7 +153,7 @@ private:
 
 	Main *GetLibraryPath(const std::string& path);
 
-	KX_LibLoadStatus *LinkBlendFile(BlendHandle *blendlib, const char *path, char *group, KX_Scene *scene_merge, char **err_str, short options);
+	KX_LibLoadStatus *LinkBlendFile(BlendHandle *blendlib, const char *path, char *group, KX_Scene *scene_merge, short options, std::string& error);
 
 	/// Free blend file and remove data from merged scene.
 	bool FreeBlendFileData(Main *maggie);
@@ -187,8 +187,8 @@ public:
 	bool ExistLibrary(const std::string& path) const;
 	std::vector<std::string> GetLibraryNames() const;
 
-	KX_LibLoadStatus *LinkBlendFileMemory(void *data, int length, const char *path, char *group, KX_Scene *scene_merge, char **err_str, short options);
-	KX_LibLoadStatus *LinkBlendFilePath(const char *path, char *group, KX_Scene *scene_merge, char **err_str, short options);
+	KX_LibLoadStatus *LinkBlendFileMemory(void *data, int length, const char *path, char *group, KX_Scene *scene_merge, short options, std::string& error);
+	KX_LibLoadStatus *LinkBlendFilePath(const char *path, char *group, KX_Scene *scene_merge, short options, std::string& error);
 
 	/// Register library to free by name.
 	bool FreeBlendFile(const std::string& path);

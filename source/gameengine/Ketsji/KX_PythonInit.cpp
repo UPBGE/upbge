@@ -638,7 +638,7 @@ static PyObject *gLibLoad(PyObject *, PyObject *args, PyObject *kwds)
 	char *group;
 	Py_buffer py_buffer;
 	py_buffer.buf = nullptr;
-	char *err_str = nullptr;
+	std::string err_str;
 	KX_LibLoadStatus *status = nullptr;
 
 	short options = 0;
@@ -679,13 +679,13 @@ static PyObject *gLibLoad(PyObject *, PyObject *args, PyObject *kwds)
 		BLI_strncpy(abs_path, path, sizeof(abs_path));
 		BLI_path_abs(abs_path, KX_GetMainPath().c_str());
 
-		if ((status = converter->LinkBlendFilePath(abs_path, group, kx_scene, &err_str, options))) {
+		if ((status = converter->LinkBlendFilePath(abs_path, group, kx_scene, options, err_str))) {
 			return status->GetProxy();
 		}
 	}
 	else {
 
-		if ((status = converter->LinkBlendFileMemory(py_buffer.buf, py_buffer.len, path, group, kx_scene, &err_str, options))) {
+		if ((status = converter->LinkBlendFileMemory(py_buffer.buf, py_buffer.len, path, group, kx_scene, options, err_str))) {
 			PyBuffer_Release(&py_buffer);
 			return status->GetProxy();
 		}
@@ -693,8 +693,8 @@ static PyObject *gLibLoad(PyObject *, PyObject *args, PyObject *kwds)
 		PyBuffer_Release(&py_buffer);
 	}
 
-	if (err_str) {
-		PyErr_SetString(PyExc_ValueError, err_str);
+	if (!err_str.empty()) {
+		PyErr_SetString(PyExc_ValueError, err_str.c_str());
 		return nullptr;
 	}
 
