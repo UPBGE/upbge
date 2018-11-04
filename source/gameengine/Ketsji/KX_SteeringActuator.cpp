@@ -594,7 +594,7 @@ int KX_SteeringActuator::pyattr_set_navmesh(EXP_PyObjectPlus *self, const struct
 		return PY_SET_ATTR_FAIL;
 
 	}
-	if (gameobj->GetGameObjectType() == SCA_IObject::OBJ_NAVMESH) {
+	if (gameobj->GetGameObjectType() != SCA_IObject::OBJ_NAVMESH) {
 		PyErr_Format(PyExc_TypeError, "KX_NavMeshObject is expected");
 		return PY_SET_ATTR_FAIL;
 	}
