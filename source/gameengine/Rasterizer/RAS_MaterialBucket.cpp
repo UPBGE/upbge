@@ -106,10 +106,15 @@ void RAS_MaterialBucket::DesactivateMaterial(RAS_Rasterizer *rasty)
 }
 
 void RAS_MaterialBucket::GenerateTree(RAS_ManagerDownwardNode& downwardRoot, RAS_ManagerUpwardNode& upwardRoot,
-                                      RAS_UpwardTreeLeafs& upwardLeafs, RAS_Rasterizer::DrawType drawingMode, bool sort)
+		RAS_UpwardTreeLeafs& upwardLeafs, RAS_Rasterizer *rasty, RAS_Rasterizer::DrawType drawingMode,
+		bool sort, bool override)
 {
 	if (m_displayArrayBucketList.empty()) {
 		return;
+	}
+
+	if (!override) {
+		m_material->Prepare(rasty);
 	}
 
 	const bool instancing = UseInstancing();

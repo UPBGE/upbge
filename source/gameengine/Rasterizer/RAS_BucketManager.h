@@ -119,7 +119,6 @@ public:
 	void Merge(RAS_BucketManager *other, SCA_IScene *scene);
 
 private:
-	void PrepareBuckets(RAS_Rasterizer *rasty, BucketType bucketType);
 	void RenderBasicBuckets(RAS_Rasterizer *rasty, BucketType bucketType);
 	void RenderSortedBuckets(RAS_Rasterizer *rasty, BucketType bucketType);
 };
