@@ -57,6 +57,8 @@ static void initData(GpencilModifierData *md)
 	gpmd->offset = 1;
 	gpmd->frame_scale = 1.0f;
 	gpmd->flag |= GP_TIME_KEEP_LOOP;
+	gpmd->sfra = 1;
+	gpmd->efra = 250;
 }
 
 static void copyData(const GpencilModifierData *md, GpencilModifierData *target)
@@ -69,10 +71,13 @@ static int remapTime(
         struct Scene *scene, struct Object *UNUSED(ob), struct bGPDlayer *gpl, int cfra)
 {
 	TimeGpencilModifierData *mmd = (TimeGpencilModifierData *)md;
-	const int sfra = scene->r.sfra;
-	const int efra = scene->r.efra;
+	const bool custom = mmd->flag &	GP_TIME_CUSTOM_RANGE;
 	const bool invgpl = mmd->flag & GP_TIME_INVERT_LAYER;
 	const bool invpass = mmd->flag & GP_TIME_INVERT_LAYERPASS;
+	int sfra = custom ? mmd->sfra : scene->r.sfra;
+	int efra = custom ? mmd->efra : scene->r.efra;
+	CLAMP_MIN(sfra, 1);
+	CLAMP_MIN(efra, 1);
 
 	/* omit if filter by layer */
 	if (mmd->layername[0] != '\0') {

@@ -136,6 +136,9 @@ struct Paint *BKE_paint_get_active(struct Scene *sce, struct ViewLayer *view_lay
 struct Paint *BKE_paint_get_active_from_context(const struct bContext *C);
 ePaintMode BKE_paintmode_get_active_from_context(const struct bContext *C);
 struct Brush *BKE_paint_brush(struct Paint *paint);
+bool BKE_paint_brush_tool_info(
+        const struct Scene *scene, const struct Paint *paint,
+        uint *r_tool_offset, eObjectMode *r_ob_mode);
 void BKE_paint_brush_set(struct Paint *paint, struct Brush *br);
 struct Palette *BKE_paint_palette(struct Paint *paint);
 void BKE_paint_palette_set(struct Paint *p, struct Palette *palette);
@@ -174,6 +177,7 @@ void BKE_paint_toolslots_init_from_main(struct Main *bmain);
 void BKE_paint_toolslots_len_ensure(struct Paint *paint, int len);
 void BKE_paint_toolslots_brush_update_ex(struct Scene *scene, struct Paint *paint, struct Brush *brush);
 void BKE_paint_toolslots_brush_update(struct Scene *scene, struct Paint *paint);
+void BKE_paint_toolslots_brush_validate(struct Main *bmain, struct Scene *scene, struct Paint *paint);
 
 /* Used for both vertex color and weight paint */
 struct SculptVertexPaintGeomMap {

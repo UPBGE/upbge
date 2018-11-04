@@ -45,7 +45,6 @@ def generate_from_brushes_tool_slots_ex(
         brush_category_attr,
         brush_category_layout,
         # Optional
-        icon_fn=None,
         tooldef_keywords={},
 ):
     # Categories
@@ -55,18 +54,12 @@ def generate_from_brushes_tool_slots_ex(
         if brush is None:
             continue
         category = getattr(brush, brush_category_attr)
-
-        if icon_fn is not None:
-            icon_id = icon_fn(brush)
-        else:
-            icon_id = category.lower()
-
         name = brush.name
         brush_categories.setdefault(category, []).append(
             ToolDef.from_dict(
                 dict(
                     text=name,
-                    icon=icon_prefix + icon_id,
+                    icon=icon_prefix + category.lower(),
                     data_block=name,
                     **tooldef_keywords,
                 )
@@ -1036,7 +1029,9 @@ class _defs_sculpt:
                 ('GRAB', 'THUMB'),
                 ('SNAKE_HOOK',),
                 ('BLOB', 'INFLATE'),
-                ('SMOOTH', 'SCRAPE', 'FLATTEN'),
+                ('SMOOTH',),
+                ('SCRAPE',),
+                ('FLATTEN',),
                 ('CREASE', 'PINCH'),
                 ('CLAY', 'CLAY_STRIPS'),
                 ('LAYER',),
@@ -1306,101 +1301,13 @@ class _defs_image_uv_sculpt:
 
 
 class _defs_gpencil_paint:
-    @staticmethod
-    def draw_color_selector(context, layout):
-        brush = context.active_gpencil_brush
-        gp_settings = brush.gpencil_settings
-        ma = gp_settings.material
-        row = layout.row(align=True)
-
-        icon_id = 0
-        if ma:
-            icon_id = ma.id_data.preview.icon_id
-            txt_ma = ma.name
-            maxw = 25
-            if len(txt_ma) > maxw:
-                txt_ma = txt_ma[:maxw - 5] + '..' + txt_ma[-3:]
-        else:
-            txt_ma = ""
-
-        row.label(text="Material:")
-        sub = row.row()
-        sub.ui_units_x = 8
-        sub.popover(
-            panel="TOPBAR_PT_gpencil_materials",
-            text=txt_ma,
-            icon_value=icon_id,
-        )
-
-        row.prop(gp_settings, "use_material_pin", text="")
-
-    @staticmethod
-    def draw_settings_common(context, layout, tool):
-        ob = context.active_object
-        if ob and ob.mode == 'GPENCIL_PAINT':
-            brush = context.active_gpencil_brush
-            if brush is None:
-                return
-            gp_settings = brush.gpencil_settings
-
-            row = layout.row(align=True)
-            ts = context.scene.tool_settings
-            settings = ts.gpencil_paint
-            row.template_ID_preview(settings, "brush", rows=3, cols=8, hide_buttons=True)
-
-            if brush.gpencil_tool == 'ERASE':
-                row = layout.row(align=True)
-                row.prop(brush, "size", text="Radius")
-                row.prop(gp_settings, "use_pressure", text="", icon='STYLUS_PRESSURE')
-                if gp_settings.eraser_mode == 'SOFT':
-                    row = layout.row(align=True)
-                    row.prop(gp_settings, "pen_strength", slider=True)
-                    row.prop(gp_settings, "use_strength_pressure", text="", icon='STYLUS_PRESSURE')
-            elif brush.gpencil_tool == 'FILL':
-                row = layout.row()
-                row.prop(gp_settings, "fill_leak", text="Leak Size")
-                row.prop(brush, "size", text="Thickness")
-                row.prop(gp_settings, "fill_simplify_level", text="Simplify")
-
-                _defs_gpencil_paint.draw_color_selector(context, layout)
-
-                row = layout.row(align=True)
-                row.prop(gp_settings, "fill_draw_mode", text="")
-                row.prop(gp_settings, "show_fill_boundary", text="", icon='GRID')
-
-            else:  # bgpsettings.tool == 'DRAW':
-                row = layout.row(align=True)
-                row.prop(brush, "size", text="Radius")
-                row.prop(gp_settings, "use_pressure", text="", icon='STYLUS_PRESSURE')
-                row = layout.row(align=True)
-                row.prop(gp_settings, "pen_strength", slider=True)
-                row.prop(gp_settings, "use_strength_pressure", text="", icon='STYLUS_PRESSURE')
-
-                _defs_gpencil_paint.draw_color_selector(context, layout)
 
     @staticmethod
     def generate_from_brushes(context):
 
-        def draw_settings(context, layout, tool):
-            _defs_gpencil_paint.draw_settings_common(context, layout, tool)
-
-        def icon_fn(brush):
-            return {
-                'PENCIL': 'draw_pencil',
-                'PEN': 'draw_pen',
-                'INK': 'draw_ink',
-                'INKNOISE': 'draw_noise',
-                'BLOCK': 'draw_block',
-                'MARKER': 'draw_marker',
-                'FILL': 'draw_fill',
-                'SOFT': 'draw.eraser_soft',
-                'HARD': 'draw.eraser_hard',
-                'STROKE': 'draw.eraser_stroke',
-            }[brush.gpencil_settings.gp_icon]
-
         return generate_from_brushes_tool_slots_ex(
             context, context.tool_settings.gpencil_paint,
-            icon_prefix="brush.gpencil.",
+            icon_prefix="brush.gpencil_draw.",
             brush_category_attr="gpencil_tool",
             brush_category_layout=(
                 ('DRAW',),
@@ -1409,11 +1316,8 @@ class _defs_gpencil_paint:
             ),
             tooldef_keywords=dict(
                 operator="gpencil.draw",
-                draw_settings=draw_settings,
             ),
-            icon_fn=icon_fn,
         )
-
 
 
 class _defs_gpencil_edit:
@@ -2065,6 +1969,7 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
             _defs_gpencil_weight.paint,
         ],
     }
+
 
 class TOPBAR_PT_annotation_layers(Panel, AnnotationDataPanel):
     bl_space_type = 'VIEW_3D'

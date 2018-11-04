@@ -227,7 +227,11 @@ class _draw_left_context_mode:
         def SCULPT(context, layout, tool):
             if (tool is None) or (not tool.has_datablock):
                 return
-            brush = context.tool_settings.sculpt.brush
+
+            paint = context.tool_settings.sculpt
+            layout.template_ID_preview(paint, "brush", rows=3, cols=8, hide_buttons=True)
+
+            brush = paint.brush
             if brush is None:
                 return
 
@@ -237,10 +241,15 @@ class _draw_left_context_mode:
             UnifiedPaintPanel.prop_unified_strength(layout, context, brush, "strength", slider=True, text="Strength")
             layout.prop(brush, "direction", text="", expand=True)
 
+        @staticmethod
         def PAINT_TEXTURE(context, layout, tool):
             if (tool is None) or (not tool.has_datablock):
                 return
-            brush = context.tool_settings.image_paint.brush
+
+            paint = context.tool_settings.image_paint
+            layout.template_ID_preview(paint, "brush", rows=3, cols=8, hide_buttons=True)
+
+            brush = paint.brush
             if brush is None:
                 return
 
@@ -250,10 +259,15 @@ class _draw_left_context_mode:
             UnifiedPaintPanel.prop_unified_size(layout, context, brush, "size", slider=True, text="Radius")
             UnifiedPaintPanel.prop_unified_strength(layout, context, brush, "strength", slider=True, text="Strength")
 
+        @staticmethod
         def PAINT_VERTEX(context, layout, tool):
             if (tool is None) or (not tool.has_datablock):
                 return
-            brush = context.tool_settings.vertex_paint.brush
+
+            paint = context.tool_settings.vertex_paint
+            layout.template_ID_preview(paint, "brush", rows=3, cols=8, hide_buttons=True)
+
+            brush = paint.brush
             if brush is None:
                 return
 
@@ -263,10 +277,14 @@ class _draw_left_context_mode:
             UnifiedPaintPanel.prop_unified_size(layout, context, brush, "size", slider=True, text="Radius")
             UnifiedPaintPanel.prop_unified_strength(layout, context, brush, "strength", slider=True, text="Strength")
 
+        @staticmethod
         def PAINT_WEIGHT(context, layout, tool):
             if (tool is None) or (not tool.has_datablock):
                 return
-            brush = context.tool_settings.weight_paint.brush
+
+            paint = context.tool_settings.weight_paint
+            layout.template_ID_preview(paint, "brush", rows=3, cols=8, hide_buttons=True)
+            brush = paint.brush
             if brush is None:
                 return
 
@@ -276,6 +294,80 @@ class _draw_left_context_mode:
             UnifiedPaintPanel.prop_unified_size(layout, context, brush, "size", slider=True, text="Radius")
             UnifiedPaintPanel.prop_unified_strength(layout, context, brush, "strength", slider=True, text="Strength")
 
+        @staticmethod
+        def GPENCIL_PAINT(context, layout, tool):
+
+            if (tool is None) or (not tool.has_datablock):
+                return
+
+            paint = context.tool_settings.gpencil_paint
+            brush = paint.brush
+            if brush is None:
+                return
+
+            gp_settings = brush.gpencil_settings
+
+            def draw_color_selector():
+                ma = gp_settings.material
+                row = layout.row(align=True)
+
+                icon_id = 0
+                if ma:
+                    icon_id = ma.id_data.preview.icon_id
+                    txt_ma = ma.name
+                    maxw = 25
+                    if len(txt_ma) > maxw:
+                        txt_ma = txt_ma[:maxw - 5] + '..' + txt_ma[-3:]
+                else:
+                    txt_ma = ""
+
+                row.label(text="Material:")
+                sub = row.row()
+                sub.ui_units_x = 8
+                sub.popover(
+                    panel="TOPBAR_PT_gpencil_materials",
+                    text=txt_ma,
+                    icon_value=icon_id,
+                )
+
+                row.prop(gp_settings, "use_material_pin", text="")
+
+            row = layout.row(align=True)
+            ts = context.scene.tool_settings
+            settings = ts.gpencil_paint
+            row.template_ID_preview(settings, "brush", rows=3, cols=8, hide_buttons=True)
+
+            if brush.gpencil_tool == 'ERASE':
+                row = layout.row(align=True)
+                row.prop(brush, "size", text="Radius")
+                row.prop(gp_settings, "use_pressure", text="", icon='STYLUS_PRESSURE')
+                if gp_settings.eraser_mode == 'SOFT':
+                    row = layout.row(align=True)
+                    row.prop(gp_settings, "pen_strength", slider=True)
+                    row.prop(gp_settings, "use_strength_pressure", text="", icon='STYLUS_PRESSURE')
+            elif brush.gpencil_tool == 'FILL':
+                row = layout.row()
+                row.prop(gp_settings, "fill_leak", text="Leak Size")
+                row.prop(brush, "size", text="Thickness")
+                row.prop(gp_settings, "fill_simplify_level", text="Simplify")
+
+                draw_color_selector()
+
+                row = layout.row(align=True)
+                row.prop(gp_settings, "fill_draw_mode", text="")
+                row.prop(gp_settings, "show_fill_boundary", text="", icon='GRID')
+
+            else:  # bgpsettings.tool == 'DRAW':
+                row = layout.row(align=True)
+                row.prop(brush, "size", text="Radius")
+                row.prop(gp_settings, "use_pressure", text="", icon='STYLUS_PRESSURE')
+                row = layout.row(align=True)
+                row.prop(gp_settings, "pen_strength", slider=True)
+                row.prop(gp_settings, "use_strength_pressure", text="", icon='STYLUS_PRESSURE')
+
+                draw_color_selector()
+
+        @staticmethod
         def PARTICLE(context, layout, tool):
             # See: 'VIEW3D_PT_tools_brush', basically a duplicate
             settings = context.tool_settings.particle_edit
@@ -308,6 +400,7 @@ class _draw_left_context_mode:
                         sub.prop(settings, "emitter_distance", text="Distance")
 
     class IMAGE_EDITOR:
+        @staticmethod
         def VIEW(context, layout, tool):
             tool_settings = context.tool_settings
             if tool_settings.use_uv_sculpt:
@@ -325,10 +418,15 @@ class _draw_left_context_mode:
                         UnifiedPaintPanel.prop_unified_strength(row, context, brush, "strength", slider=True, text="Strength")
                         UnifiedPaintPanel.prop_unified_strength(row, context, brush, "use_pressure_strength")
 
+        @staticmethod
         def PAINT(context, layout, tool):
             if (tool is None) or (not tool.has_datablock):
                 return
-            brush = context.tool_settings.image_paint.brush
+
+            paint = context.tool_settings.image_paint
+            layout.template_ID_preview(paint, "brush", rows=3, cols=8, hide_buttons=True)
+
+            brush = paint.brush
             if brush is None:
                 return
 

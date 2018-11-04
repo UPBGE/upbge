@@ -274,36 +274,17 @@ static bool rna_Brush_mode_poll(PointerRNA *ptr, PointerRNA value)
 {
 	Scene *scene = (Scene *)ptr->id.data;
 	const Paint *paint = ptr->data;
-	ToolSettings *ts = scene->toolsettings;
 	Brush *brush = value.id.data;
-	int mode = 0;
+	eObjectMode ob_mode = 0;
 	uint brush_tool_offset = 0;
 
 	/* check the origin of the Paint struct to see which paint
 	 * mode to select from */
 
-	if (paint == &ts->imapaint.paint) {
-		mode = OB_MODE_TEXTURE_PAINT;
-		brush_tool_offset = offsetof(Brush, imagepaint_tool);
-	}
-	else if (paint == &ts->sculpt->paint) {
-		mode = OB_MODE_SCULPT;
-		brush_tool_offset = offsetof(Brush, sculpt_tool);
-	}
-	else if (paint == &ts->vpaint->paint) {
-		mode = OB_MODE_VERTEX_PAINT;
-		brush_tool_offset = offsetof(Brush, vertexpaint_tool);
-	}
-	else if (paint == &ts->wpaint->paint) {
-		mode = OB_MODE_WEIGHT_PAINT;
-		brush_tool_offset = offsetof(Brush, vertexpaint_tool);
-	}
-	else if (paint == &ts->gp_paint->paint) {
-		mode = OB_MODE_GPENCIL_PAINT;
-		brush_tool_offset = offsetof(Brush, gpencil_tool);
-	}
+	bool ok = BKE_paint_brush_tool_info(scene, paint, &brush_tool_offset, &ob_mode);
+	BLI_assert(ok);
 
-	if (brush->ob_mode & mode) {
+	if (brush->ob_mode & ob_mode) {
 		if (paint->brush) {
 			const char *tool_a = (const char *)POINTER_OFFSET(paint->brush, brush_tool_offset);
 			const char *tool_b = (const char *)POINTER_OFFSET(brush,        brush_tool_offset);
@@ -1290,7 +1271,7 @@ static void rna_def_gpencil_sculpt(BlenderRNA *brna)
 	RNA_def_property_enum_items(prop, rna_enum_gpencil_lock_axis_items);
 	RNA_def_property_ui_text(prop, "Lock Axis", "");
 	RNA_def_parameter_clear_flags(prop, PROP_ANIMATABLE, 0);
-	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
+	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
 
 	/* brush */
 	srna = RNA_def_struct(brna, "GPencilSculptBrush", NULL);
