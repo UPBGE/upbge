@@ -89,13 +89,9 @@ class SEQUENCER_HT_header(Header):
 
         layout.template_running_jobs()
 
-        if st.view_type == 'SEQUENCER':
+        if st.view_type in {'SEQUENCER', 'SEQUENCER_PREVIEW'}:
             layout.separator()
-            layout.operator("sequencer.refresh_all")
-
-        if st.view_type == 'SEQUENCER_PREVIEW':
-            layout.separator()
-            layout.operator("sequencer.refresh_all")
+            layout.operator("sequencer.refresh_all", icon="FILE_REFRESH", text="")
 
         if st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'}:
             layout.prop(st, "display_mode", text="", icon_only=True)
@@ -225,14 +221,12 @@ class SEQUENCER_MT_view(Menu):
 
         layout.separator()
 
-        if is_sequencer_view:
-            layout.prop(st, "use_marker_sync")
-            layout.separator()
-
-        layout.operator("render.opengl", text="OpenGL Render", icon='RENDER_STILL').sequencer = True
-        props = layout.operator("render.opengl", text="OpenGL Render Animation", icon='RENDER_ANIMATION')
+        layout.operator("render.opengl", text="Sequence Render", icon='RENDER_STILL').sequencer = True
+        props = layout.operator("render.opengl", text="Sequence Render Animation", icon='RENDER_ANIMATION')
         props.animation = True
         props.sequencer = True
+
+        layout.separator()
 
         layout.menu("INFO_MT_area")
 
@@ -275,9 +269,14 @@ class SEQUENCER_MT_marker(Menu):
     def draw(self, context):
         layout = self.layout
 
+        st = context.space_data
+        is_sequencer_view = st.view_type in {'SEQUENCER', 'SEQUENCER_PREVIEW'}
+
         from .space_time import marker_menu_generic
         marker_menu_generic(layout)
 
+        if is_sequencer_view:
+            layout.prop(st, "use_marker_sync")
 
 class SEQUENCER_MT_frame(Menu):
     bl_label = "Frame"

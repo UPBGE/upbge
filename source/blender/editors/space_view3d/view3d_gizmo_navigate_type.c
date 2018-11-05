@@ -60,10 +60,21 @@
 
 #include "view3d_intern.h"
 
+#define USE_AXIS_FONT
+#ifdef USE_AXIS_FONT
+#  include "BLF_api.h"
+#endif
+
 #define DIAL_RESOLUTION 32
 
-#define HANDLE_SIZE 0.33
+/* Sizes of axis spheres containing XYZ characters. */
+#define AXIS_HANDLE_SIZE_FG 0.19f
+/* When pointing away from the view. */
+#define AXIS_HANDLE_SIZE_BG 0.15f
+/* How far axis handles are away from the center. */
+#define AXIS_HANDLE_OFFSET (1.0f - AXIS_HANDLE_SIZE_FG)
 
+#ifndef USE_AXIS_FONT
 /**
  * \param viewmat_local_unit is typically the 'rv3d->viewmatob'
  * copied into a 3x3 matrix and normalized.
@@ -167,8 +178,12 @@ static void draw_xyz_wire(
 	}
 	immEnd();
 }
+#endif  /* !USE_AXIS_FONT */
 
-static void axis_geom_draw(const wmGizmo *gz, const float color[4], const bool UNUSED(select))
+static void axis_geom_draw(
+        const wmGizmo *gz, const float color[4], const bool UNUSED(select),
+        /* Needed for screen-aligned font drawing. */
+        const float matrix_final[4][4])
 {
 	GPU_line_width(gz->line_width);
 
@@ -191,10 +206,38 @@ static void axis_geom_draw(const wmGizmo *gz, const float color[4], const bool U
 	};
 	qsort(&axis_order, ARRAY_SIZE(axis_order), sizeof(axis_order[0]), BLI_sortutil_cmp_float);
 
-	const float scale_axis = 0.25f;
 	static const float axis_highlight[4] = {1, 1, 1, 1};
 	static const float axis_black[4] = {0, 0, 0, 1};
 	static float axis_color[3][4];
+
+
+#ifdef USE_AXIS_FONT
+	struct {
+		float matrix[4][4];
+		int id;
+	} font;
+
+	{
+		font.id = blf_mono_font;
+		BLF_disable(font.id, BLF_ROTATION | BLF_SHADOW | BLF_MATRIX | BLF_ASPECT | BLF_WORD_WRAP);
+		BLF_color4fv(font.id, axis_black);
+		BLF_size(font.id, 11 * U.dpi_fac, 72);
+
+		/* Calculate the inverse of the (matrix_final * matrix_offset).
+		 * This allows us to use the final location, while reversing the rotation so fonts
+		 * show without any rotation. */
+		float m3[3][3];
+		float m3_offset[3][3];
+		copy_m3_m4(m3, matrix_final);
+		copy_m3_m4(m3_offset, gz->matrix_offset);
+		mul_m3_m3m3(m3, m3, m3_offset);
+		invert_m3(m3);
+		copy_m4_m3(font.matrix, m3);
+	}
+#else
+	UNUSED_VARS(matrix_final);
+#endif
+
 	GPU_matrix_push();
 	GPU_matrix_mul(gz->matrix_offset);
 
@@ -244,12 +287,8 @@ static void axis_geom_draw(const wmGizmo *gz, const float color[4], const bool U
 			/* Check aligned, since the front axis won't display in this case,
 			 * and we want to make sure all 3 axes have a character at all times. */
 			const bool show_axis_char = (is_pos || (axis == axis_align));
-			const float v[3] = {0, 0, 3 * (is_pos ? 1 : -1)};
-			const float v_final[3] = {
-				v[index_x] * scale_axis,
-				v[index_y] * scale_axis,
-				v[index_z] * scale_axis,
-			};
+			const float v[3] = {0, 0, AXIS_HANDLE_OFFSET * (is_pos ? 1 : -1)};
+			const float v_final[3] = {v[index_x], v[index_y], v[index_z]};
 			const float *color_current = is_highlight ? axis_highlight : axis_color[axis];
 			float color_current_fade[4];
 			copy_v4_v4(color_current_fade, color_current);
@@ -281,7 +320,7 @@ static void axis_geom_draw(const wmGizmo *gz, const float color[4], const bool U
 			{
 				GPU_matrix_push();
 				GPU_matrix_translate_3fv(v_final);
-				GPU_matrix_scale_1f(show_axis_char ? 0.22f : 0.18f);
+				GPU_matrix_scale_1f(show_axis_char ? AXIS_HANDLE_SIZE_FG : AXIS_HANDLE_SIZE_BG);
 
 				GPUBatch *sphere = GPU_batch_preset_sphere(0);
 				GPU_batch_program_set_builtin(sphere, GPU_SHADER_3D_UNIFORM_COLOR);
@@ -292,11 +331,29 @@ static void axis_geom_draw(const wmGizmo *gz, const float color[4], const bool U
 
 			/* Axis XYZ Character. */
 			if (show_axis_char) {
+#ifdef USE_AXIS_FONT
+				immUnbindProgram();
+
+				GPU_matrix_push();
+				GPU_matrix_translate_3fv(v_final);
+				GPU_matrix_mul(font.matrix);
+
+				const char axis_str[2] = {'X' + axis, 0};
+				float offset[2] = {0};
+				BLF_width_and_height(font.id, axis_str, 2, &offset[0], &offset[1]);
+				BLF_position(font.id, roundf(offset[0] * -0.5f), roundf(offset[1] * -0.5f), 0);
+				BLF_draw_ascii(font.id, axis_str, 2);
+				GPU_blend(true);  /* XXX, blf disables */
+				GPU_matrix_pop();
+
+				immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+#else
 				GPU_line_width(1.0f);
 				float m3[3][3];
 				copy_m3_m4(m3, gz->matrix_offset);
 				immUniformColor4fv(axis_black);
 				draw_xyz_wire(pos_id, m3, v_final, 1.0, axis);
+#endif
 			}
 		}
 	}
@@ -325,7 +382,7 @@ static void axis3d_draw_intern(
 	GPU_matrix_mul(matrix_final);
 
 	GPU_blend(true);
-	axis_geom_draw(gz, color, select);
+	axis_geom_draw(gz, color, select, matrix_final);
 	GPU_blend(false);
 	GPU_matrix_pop();
 }

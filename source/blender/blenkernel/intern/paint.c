@@ -299,58 +299,41 @@ void BKE_paint_brush_set(Paint *p, Brush *br)
 		id_us_min((ID *)p->brush);
 		id_us_plus((ID *)br);
 		p->brush = br;
+
+		BKE_paint_toolslots_brush_update(p);
 	}
 }
 
-bool BKE_paint_brush_tool_info(
-        const Scene *scene, const struct Paint *paint,
-        uint *r_tool_offset, eObjectMode *r_ob_mode)
+void BKE_paint_runtime_init(const ToolSettings *ts, Paint *paint)
 {
-	ToolSettings *ts = scene->toolsettings;
 	if (paint == &ts->imapaint.paint) {
-		if (r_tool_offset != NULL) {
-			*r_tool_offset = offsetof(Brush, imagepaint_tool);
-		}
-		if (r_ob_mode != NULL) {
-			*r_ob_mode = OB_MODE_TEXTURE_PAINT;
-		}
+		paint->runtime.tool_offset = offsetof(Brush, imagepaint_tool);
+		paint->runtime.ob_mode = OB_MODE_TEXTURE_PAINT;
 	}
 	else if (paint == &ts->sculpt->paint) {
-		if (r_tool_offset != NULL) {
-			*r_tool_offset = offsetof(Brush, sculpt_tool);
-		}
-		if (r_ob_mode != NULL) {
-			*r_ob_mode = OB_MODE_SCULPT;
-		}
+		paint->runtime.tool_offset = offsetof(Brush, sculpt_tool);
+		paint->runtime.ob_mode = OB_MODE_SCULPT;
 	}
 	else if (paint == &ts->vpaint->paint) {
-		if (r_tool_offset != NULL) {
-			*r_tool_offset = offsetof(Brush, vertexpaint_tool);
-		}
-		if (r_ob_mode != NULL) {
-			*r_ob_mode = OB_MODE_VERTEX_PAINT;
-		}
+		paint->runtime.tool_offset = offsetof(Brush, vertexpaint_tool);
+		paint->runtime.ob_mode = OB_MODE_VERTEX_PAINT;
 	}
 	else if (paint == &ts->wpaint->paint) {
-		if (r_tool_offset != NULL) {
-			*r_tool_offset = offsetof(Brush, vertexpaint_tool);
-		}
-		if (r_ob_mode != NULL) {
-			*r_ob_mode = OB_MODE_WEIGHT_PAINT;
-		}
+		paint->runtime.tool_offset = offsetof(Brush, vertexpaint_tool);
+		paint->runtime.ob_mode = OB_MODE_WEIGHT_PAINT;
 	}
 	else if (paint == &ts->gp_paint->paint) {
-		if (r_tool_offset != NULL) {
-			*r_tool_offset = offsetof(Brush, gpencil_tool);
-		}
-		if (r_ob_mode != NULL) {
-			*r_ob_mode = OB_MODE_GPENCIL_PAINT;
-		}
+		paint->runtime.tool_offset = offsetof(Brush, gpencil_tool);
+		paint->runtime.ob_mode = OB_MODE_GPENCIL_PAINT;
+	}
+	else if (paint == &ts->uvsculpt->paint) {
+		/* We don't use these yet. */
+		paint->runtime.tool_offset = 0;
+		paint->runtime.ob_mode = 0;
 	}
 	else {
-		return false;
+		BLI_assert(0);
 	}
-	return true;
 }
 
 
@@ -568,6 +551,64 @@ eObjectMode BKE_paint_object_mode_from_paint_mode(ePaintMode mode)
 		default:
 			return 0;
 	}
+}
+
+/**
+ * Call when entering each respective paint mode.
+ */
+bool BKE_paint_ensure(const ToolSettings *ts, struct Paint **r_paint)
+{
+	Paint *paint = NULL;
+	if (*r_paint) {
+		/* Note: 'ts->imapaint' is ignored, it's not allocated. */
+		BLI_assert(
+		        ELEM(*r_paint,
+		             &ts->gp_paint->paint,
+		             &ts->sculpt->paint,
+		             &ts->vpaint->paint,
+		             &ts->wpaint->paint,
+		             &ts->uvsculpt->paint));
+
+#ifdef DEBUG
+		struct Paint paint_test = **r_paint;
+		BKE_paint_runtime_init(ts, *r_paint);
+		/* Swap so debug doesn't hide errors when release fails. */
+		SWAP(Paint, **r_paint, paint_test);
+		BLI_assert(paint_test.runtime.ob_mode == (*r_paint)->runtime.ob_mode);
+		BLI_assert(paint_test.runtime.tool_offset == (*r_paint)->runtime.tool_offset);
+#endif
+		return true;
+	}
+
+	if (ELEM(*r_paint, &ts->vpaint->paint, &ts->wpaint->paint)) {
+		VPaint *data = MEM_callocN(sizeof(*data), __func__);
+		paint = &data->paint;
+	}
+	else if (*r_paint == &ts->sculpt->paint) {
+		Sculpt *data = MEM_callocN(sizeof(*data), __func__);
+		paint = &data->paint;
+
+		/* Turn on X plane mirror symmetry by default */
+		paint->symmetry_flags |= PAINT_SYMM_X;
+
+		/* Make sure at least dyntopo subdivision is enabled */
+		data->flags |= SCULPT_DYNTOPO_SUBDIVIDE | SCULPT_DYNTOPO_COLLAPSE;
+	}
+	else if (*r_paint == &ts->gp_paint->paint) {
+		GpPaint *data = MEM_callocN(sizeof(*data), __func__);
+		paint = &data->paint;
+	}
+	else if (*r_paint == &ts->uvsculpt->paint) {
+		UvSculpt *data = MEM_callocN(sizeof(*data), __func__);
+		paint = &data->paint;
+	}
+
+	paint->flags |= PAINT_SHOW_BRUSH;
+
+	BKE_paint_runtime_init(ts, paint);
+
+	*r_paint = paint;
+	return false;
 }
 
 void BKE_paint_init(Main *bmain, Scene *sce, ePaintMode mode, const char col[3])
@@ -1144,18 +1185,9 @@ int BKE_sculpt_mask_layers_ensure(Object *ob, MultiresModifierData *mmd)
 
 void BKE_sculpt_toolsettings_data_ensure(struct Scene *scene)
 {
+	BKE_paint_ensure(scene->toolsettings, (Paint **)&scene->toolsettings->sculpt);
+
 	Sculpt *sd = scene->toolsettings->sculpt;
-	if (sd == NULL) {
-		sd = scene->toolsettings->sculpt = MEM_callocN(sizeof(Sculpt), __func__);
-
-		/* Turn on X plane mirror symmetry by default */
-		sd->paint.symmetry_flags |= PAINT_SYMM_X;
-		sd->paint.flags |= PAINT_SHOW_BRUSH;
-
-		/* Make sure at least dyntopo subdivision is enabled */
-		sd->flags |= SCULPT_DYNTOPO_SUBDIVIDE | SCULPT_DYNTOPO_COLLAPSE;
-	}
-
 	if (!sd->detail_size) {
 		sd->detail_size = 12;
 	}

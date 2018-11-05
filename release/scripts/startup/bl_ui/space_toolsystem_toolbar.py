@@ -95,11 +95,11 @@ def generate_from_brushes_tool_slots_ex(
 def generate_from_enum_ex(
         context, *,
         icon_prefix,
-        data,
+        type,
         attr,
 ):
     tool_defs = []
-    for enum in data.rna_type.properties[attr].enum_items_static:
+    for enum in type.bl_rna.properties[attr].enum_items_static:
         name = enum.name
         identifier = enum.identifier
         tool_defs.append(
@@ -171,7 +171,7 @@ class _defs_view3d_generic:
 def _defs_annotate_factory():
 
     class _defs_annotate:
-        @staticmethod
+
         def draw_settings_common(context, layout, tool):
             if type(context.gpencil_data_owner) is bpy.types.Object:
                 gpd = context.scene.grease_pencil
@@ -211,10 +211,8 @@ def _defs_annotate_factory():
                 elif tool_settings.gpencil_stroke_placement_view3d in {'SURFACE', 'STROKE'}:
                     row.prop(tool_settings, "use_gpencil_stroke_endpoints")
 
-        @ToolDef.from_fn
-        def scribble():
-            def draw_settings(context, layout, tool):
-                _defs_annotate.draw_settings_common(context, layout, tool)
+        @ToolDef.from_fn.with_args(draw_settings=draw_settings_common)
+        def scribble(*, draw_settings):
             return dict(
                 text="Annotate",
                 icon="ops.gpencil.draw",
@@ -227,10 +225,8 @@ def _defs_annotate_factory():
                 draw_settings=draw_settings,
             )
 
-        @ToolDef.from_fn
-        def line():
-            def draw_settings(context, layout, tool):
-                _defs_annotate.draw_settings_common(context, layout, tool)
+        @ToolDef.from_fn.with_args(draw_settings=draw_settings_common)
+        def line(*, draw_settings):
             return dict(
                 text="Annotate Line",
                 icon="ops.gpencil.draw.line",
@@ -243,10 +239,8 @@ def _defs_annotate_factory():
                 draw_settings=draw_settings,
             )
 
-        @ToolDef.from_fn
-        def poly():
-            def draw_settings(context, layout, tool):
-                _defs_annotate.draw_settings_common(context, layout, tool)
+        @ToolDef.from_fn.with_args(draw_settings=draw_settings_common)
+        def poly(*, draw_settings):
             return dict(
                 text="Annotate Polygon",
                 icon="ops.gpencil.draw.poly",
@@ -276,6 +270,7 @@ def _defs_annotate_factory():
                 ),
                 draw_settings=draw_settings,
             )
+
     return _defs_annotate
 
 
@@ -1011,7 +1006,7 @@ class _defs_particle:
         return generate_from_enum_ex(
             context,
             icon_prefix="brush.particle.",
-            data=context.tool_settings.particle_edit,
+            type=bpy.types.ParticleEdit,
             attr="tool",
         )
 
@@ -1401,7 +1396,7 @@ class _defs_gpencil_edit:
 
 
 class _defs_gpencil_sculpt:
-    @staticmethod
+
     def draw_settings_common(context, layout, tool):
         ob = context.active_object
         if ob and ob.mode == 'GPENCIL_SCULPT':
@@ -1420,11 +1415,8 @@ class _defs_gpencil_sculpt:
                 row.separator()
                 row.prop(brush, "direction", expand=True, text="")
 
-    @ToolDef.from_fn
-    def smooth():
-        def draw_settings(context, layout, tool):
-            _defs_gpencil_sculpt.draw_settings_common(context, layout, tool)
-
+    @ToolDef.from_fn.with_args(draw_settings=draw_settings_common)
+    def smooth(*, draw_settings):
         return dict(
             text="Smooth",
             icon="ops.gpencil.sculpt_smooth",
@@ -1437,11 +1429,8 @@ class _defs_gpencil_sculpt:
             draw_settings=draw_settings,
         )
 
-    @ToolDef.from_fn
-    def thickness():
-        def draw_settings(context, layout, tool):
-            _defs_gpencil_sculpt.draw_settings_common(context, layout, tool)
-
+    @ToolDef.from_fn.with_args(draw_settings=draw_settings_common)
+    def thickness(*, draw_settings):
         return dict(
             text="Thickness",
             icon="ops.gpencil.sculpt_thickness",
@@ -1454,11 +1443,8 @@ class _defs_gpencil_sculpt:
             draw_settings=draw_settings,
         )
 
-    @ToolDef.from_fn
-    def strength():
-        def draw_settings(context, layout, tool):
-            _defs_gpencil_sculpt.draw_settings_common(context, layout, tool)
-
+    @ToolDef.from_fn.with_args(draw_settings=draw_settings_common)
+    def strength(*, draw_settings):
         return dict(
             text="Strength",
             icon="ops.gpencil.sculpt_strength",
@@ -1471,11 +1457,8 @@ class _defs_gpencil_sculpt:
             draw_settings=draw_settings,
         )
 
-    @ToolDef.from_fn
-    def grab():
-        def draw_settings(context, layout, tool):
-            _defs_gpencil_sculpt.draw_settings_common(context, layout, tool)
-
+    @ToolDef.from_fn.with_args(draw_settings=draw_settings_common)
+    def grab(*, draw_settings):
         return dict(
             text="Grab",
             icon="ops.gpencil.sculpt_grab",
@@ -1488,11 +1471,8 @@ class _defs_gpencil_sculpt:
             draw_settings=draw_settings,
         )
 
-    @ToolDef.from_fn
-    def push():
-        def draw_settings(context, layout, tool):
-            _defs_gpencil_sculpt.draw_settings_common(context, layout, tool)
-
+    @ToolDef.from_fn.with_args(draw_settings=draw_settings_common)
+    def push(*, draw_settings):
         return dict(
             text="Push",
             icon="ops.gpencil.sculpt_push",
@@ -1505,11 +1485,8 @@ class _defs_gpencil_sculpt:
             draw_settings=draw_settings,
         )
 
-    @ToolDef.from_fn
-    def twist():
-        def draw_settings(context, layout, tool):
-            _defs_gpencil_sculpt.draw_settings_common(context, layout, tool)
-
+    @ToolDef.from_fn.with_args(draw_settings=draw_settings_common)
+    def twist(*, draw_settings):
         return dict(
             text="Twist",
             icon="ops.gpencil.sculpt_twist",
@@ -1522,11 +1499,8 @@ class _defs_gpencil_sculpt:
             draw_settings=draw_settings,
         )
 
-    @ToolDef.from_fn
-    def pinch():
-        def draw_settings(context, layout, tool):
-            _defs_gpencil_sculpt.draw_settings_common(context, layout, tool)
-
+    @ToolDef.from_fn.with_args(draw_settings=draw_settings_common)
+    def pinch(*, draw_settings):
         return dict(
             text="Pinch",
             icon="ops.gpencil.sculpt_pinch",
@@ -1539,11 +1513,8 @@ class _defs_gpencil_sculpt:
             draw_settings=draw_settings,
         )
 
-    @ToolDef.from_fn
-    def randomize():
-        def draw_settings(context, layout, tool):
-            _defs_gpencil_sculpt.draw_settings_common(context, layout, tool)
-
+    @ToolDef.from_fn.with_args(draw_settings=draw_settings_common)
+    def randomize(*, draw_settings):
         return dict(
             text="Randomize",
             icon="ops.gpencil.sculpt_randomize",
@@ -1556,11 +1527,8 @@ class _defs_gpencil_sculpt:
             draw_settings=draw_settings,
         )
 
-    @ToolDef.from_fn
-    def clone():
-        def draw_settings(context, layout, tool):
-            _defs_gpencil_sculpt.draw_settings_common(context, layout, tool)
-
+    @ToolDef.from_fn.with_args(draw_settings=draw_settings_common)
+    def clone(*, draw_settings):
         return dict(
             text="Clone",
             icon="ops.gpencil.sculpt_clone",
@@ -1575,7 +1543,7 @@ class _defs_gpencil_sculpt:
 
 
 class _defs_gpencil_weight:
-    @staticmethod
+
     def draw_settings_common(context, layout, tool):
         ob = context.active_object
         if ob and ob.mode == 'GPENCIL_WEIGHT':
@@ -1588,11 +1556,8 @@ class _defs_gpencil_weight:
             row.prop(brush, "strength", slider=True)
             row.prop(brush, "use_pressure_strength", text="")
 
-    @ToolDef.from_fn
-    def paint():
-        def draw_settings(context, layout, tool):
-            _defs_gpencil_weight.draw_settings_common(context, layout, tool)
-
+    @ToolDef.from_fn.with_args(draw_settings=draw_settings_common)
+    def paint(*, draw_settings):
         return dict(
             text="Draw",
             icon="ops.gpencil.sculpt_weight",

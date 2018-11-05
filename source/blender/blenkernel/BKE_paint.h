@@ -61,6 +61,7 @@ struct Tex;
 struct ImagePool;
 struct UnifiedPaintSettings;
 struct Depsgraph;
+struct ToolSettings;
 
 enum eOverlayFlags;
 
@@ -124,9 +125,12 @@ void BKE_paint_curve_copy_data(
 struct PaintCurve *BKE_paint_curve_copy(struct Main *bmain, const struct PaintCurve *pc);
 void               BKE_paint_curve_make_local(struct Main *bmain, struct PaintCurve *pc, const bool lib_local);
 
+bool BKE_paint_ensure(const struct ToolSettings *ts, struct Paint **r_paint);
 void BKE_paint_init(struct Main *bmain, struct Scene *sce, ePaintMode mode, const char col[3]);
 void BKE_paint_free(struct Paint *p);
 void BKE_paint_copy(struct Paint *src, struct Paint *tar, const int flag);
+
+void BKE_paint_runtime_init(const struct ToolSettings *ts, struct Paint *paint);
 
 void BKE_paint_cavity_curve_preset(struct Paint *p, int preset);
 
@@ -136,9 +140,6 @@ struct Paint *BKE_paint_get_active(struct Scene *sce, struct ViewLayer *view_lay
 struct Paint *BKE_paint_get_active_from_context(const struct bContext *C);
 ePaintMode BKE_paintmode_get_active_from_context(const struct bContext *C);
 struct Brush *BKE_paint_brush(struct Paint *paint);
-bool BKE_paint_brush_tool_info(
-        const struct Scene *scene, const struct Paint *paint,
-        uint *r_tool_offset, eObjectMode *r_ob_mode);
 void BKE_paint_brush_set(struct Paint *paint, struct Brush *br);
 struct Palette *BKE_paint_palette(struct Paint *paint);
 void BKE_paint_palette_set(struct Paint *p, struct Palette *palette);
@@ -175,9 +176,9 @@ void BKE_paint_stroke_get_average(struct Scene *scene, struct Object *ob, float 
 /* Tool slot API. */
 void BKE_paint_toolslots_init_from_main(struct Main *bmain);
 void BKE_paint_toolslots_len_ensure(struct Paint *paint, int len);
-void BKE_paint_toolslots_brush_update_ex(struct Scene *scene, struct Paint *paint, struct Brush *brush);
-void BKE_paint_toolslots_brush_update(struct Scene *scene, struct Paint *paint);
-void BKE_paint_toolslots_brush_validate(struct Main *bmain, struct Scene *scene, struct Paint *paint);
+void BKE_paint_toolslots_brush_update_ex(struct Paint *paint, struct Brush *brush);
+void BKE_paint_toolslots_brush_update(struct Paint *paint);
+void BKE_paint_toolslots_brush_validate(struct Main *bmain, struct Paint *paint);
 
 /* Used for both vertex color and weight paint */
 struct SculptVertexPaintGeomMap {

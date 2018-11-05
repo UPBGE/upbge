@@ -274,15 +274,6 @@ bool weight_paint_poll_ignore_tool(bContext *C)
 	return weight_paint_poll_ex(C, false);
 }
 
-static VPaint *new_vpaint(void)
-{
-	VPaint *vp = MEM_callocN(sizeof(VPaint), "VPaint");
-
-	vp->paint.flags |= PAINT_SHOW_BRUSH;
-
-	return vp;
-}
-
 uint vpaint_get_current_col(Scene *scene, VPaint *vp, bool secondary)
 {
 	Brush *brush = BKE_paint_brush(&vp->paint);
@@ -1082,10 +1073,7 @@ static void ed_vwpaintmode_enter_generic(
 		const ePaintMode paint_mode = ePaintVertex;
 		ED_mesh_color_ensure(me, NULL);
 
-		if (scene->toolsettings->vpaint == NULL) {
-			scene->toolsettings->vpaint = new_vpaint();
-		}
-
+		BKE_paint_ensure(scene->toolsettings, (Paint **)&scene->toolsettings->vpaint);
 		Paint *paint = BKE_paint_get_active_from_paintmode(scene, paint_mode);
 		paint_cursor_start_explicit(paint, wm, vertex_paint_poll);
 		BKE_paint_init(bmain, scene, paint_mode, PAINT_CURSOR_VERTEX_PAINT);
@@ -1093,10 +1081,7 @@ static void ed_vwpaintmode_enter_generic(
 	else if (mode_flag == OB_MODE_WEIGHT_PAINT) {
 		const  ePaintMode paint_mode = ePaintWeight;
 
-		if (scene->toolsettings->wpaint == NULL) {
-			scene->toolsettings->wpaint = new_vpaint();
-		}
-
+		BKE_paint_ensure(scene->toolsettings, (Paint **)&scene->toolsettings->wpaint);
 		Paint *paint = BKE_paint_get_active_from_paintmode(scene, paint_mode);
 		paint_cursor_start_explicit(paint, wm, weight_paint_poll);
 		BKE_paint_init(bmain, scene, paint_mode, PAINT_CURSOR_WEIGHT_PAINT);
@@ -1264,7 +1249,7 @@ static int wpaint_mode_toggle_exec(bContext *C, wmOperator *op)
 		Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
 		wmWindowManager *wm = CTX_wm_manager(C);
 		ED_object_wpaintmode_enter_ex(bmain, depsgraph, wm, scene, ob);
-		BKE_paint_toolslots_brush_validate(bmain, scene, &ts->wpaint->paint);
+		BKE_paint_toolslots_brush_validate(bmain, &ts->wpaint->paint);
 	}
 
 	/* Weightpaint works by overriding colors in mesh,
@@ -2410,7 +2395,7 @@ static int vpaint_mode_toggle_exec(bContext *C, wmOperator *op)
 		Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
 		wmWindowManager *wm = CTX_wm_manager(C);
 		ED_object_vpaintmode_enter_ex(bmain, depsgraph, wm, scene, ob);
-		BKE_paint_toolslots_brush_validate(bmain, scene, &ts->vpaint->paint);
+		BKE_paint_toolslots_brush_validate(bmain, &ts->vpaint->paint);
 	}
 
 	BKE_mesh_batch_cache_dirty_tag(ob->data, BKE_MESH_BATCH_DIRTY_ALL);
