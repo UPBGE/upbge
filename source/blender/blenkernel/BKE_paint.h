@@ -33,10 +33,12 @@
  */
 
 struct bContext;
+struct bToolRef;
 struct BMesh;
 struct BMFace;
 struct Brush;
 struct CurveMapping;
+struct EnumPropertyItem;
 struct MeshElemMap;
 struct GridPaintMask;
 struct Main;
@@ -79,8 +81,9 @@ typedef enum ePaintMode {
 	ePaintTextureProjective = 3,
 	ePaintTexture2D = 4,
 	ePaintSculptUV = 5,
-	ePaintInvalid = 6,
-	ePaintGpencil = 7
+	ePaintGpencil = 6,
+
+	ePaintInvalid = 7,
 } ePaintMode;
 
 /* overlay invalidation */
@@ -136,9 +139,12 @@ void BKE_paint_cavity_curve_preset(struct Paint *p, int preset);
 
 eObjectMode BKE_paint_object_mode_from_paint_mode(ePaintMode mode);
 struct Paint *BKE_paint_get_active_from_paintmode(struct Scene *sce, ePaintMode mode);
+const struct EnumPropertyItem *BKE_paint_get_tool_enum_from_paintmode(ePaintMode mode);
+uint BKE_paint_get_brush_tool_offset_from_paint_mode(const ePaintMode mode);
 struct Paint *BKE_paint_get_active(struct Scene *sce, struct ViewLayer *view_layer);
 struct Paint *BKE_paint_get_active_from_context(const struct bContext *C);
 ePaintMode BKE_paintmode_get_active_from_context(const struct bContext *C);
+ePaintMode BKE_paintmode_get_from_tool(const struct bToolRef *tref);
 struct Brush *BKE_paint_brush(struct Paint *paint);
 void BKE_paint_brush_set(struct Paint *paint, struct Brush *br);
 struct Palette *BKE_paint_palette(struct Paint *paint);
@@ -179,6 +185,7 @@ void BKE_paint_toolslots_len_ensure(struct Paint *paint, int len);
 void BKE_paint_toolslots_brush_update_ex(struct Paint *paint, struct Brush *brush);
 void BKE_paint_toolslots_brush_update(struct Paint *paint);
 void BKE_paint_toolslots_brush_validate(struct Main *bmain, struct Paint *paint);
+struct Brush *BKE_paint_toolslots_brush_get(struct Paint *paint, int slot_index);
 
 /* Used for both vertex color and weight paint */
 struct SculptVertexPaintGeomMap {
