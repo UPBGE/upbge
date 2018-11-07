@@ -607,6 +607,10 @@ if(WITH_CYCLES_OSL)
 	endif()
 endif()
 
+if(WITH_CYCLES_EMBREE)
+	find_package(Embree 3.2.4 REQUIRED)
+endif()
+
 if (WINDOWS_PYTHON_DEBUG)
 	# Include the system scripts in the blender_python_system_scripts project.
 	FILE(GLOB_RECURSE inFiles "${CMAKE_SOURCE_DIR}/release/scripts/*.*" )

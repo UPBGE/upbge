@@ -299,36 +299,36 @@ static void wm_notifier_clear(wmNotifier *note)
 void wm_event_do_depsgraph(bContext *C)
 {
 	wmWindowManager *wm = CTX_wm_manager(C);
+	/* The whole idea of locked interface is to prevent viewport and whatever
+	 * thread to modify the same data. Because of this, we can not perform
+	 * dependency graph update.
+	 */
+	if (wm->is_interface_locked) {
+		return;
+	}
+	/* Combine datamasks so 1 win doesn't disable UV's in another [#26448]. */
 	uint64_t win_combine_v3d_datamask = 0;
-
-	/* combine datamasks so 1 win doesn't disable UV's in another [#26448] */
 	for (wmWindow *win = wm->windows.first; win; win = win->next) {
 		const Scene *scene = WM_window_get_active_scene(win);
 		const bScreen *screen = WM_window_get_active_screen(win);
 
 		win_combine_v3d_datamask |= ED_view3d_screen_datamask(scene, screen);
 	}
-
-	/* cached: editor refresh callbacks now, they get context */
+	/* Update all the dependency graphs of visible vew layers. */
 	for (wmWindow *win = wm->windows.first; win; win = win->next) {
 		Scene *scene = WM_window_get_active_scene(win);
 		ViewLayer *view_layer = WM_window_get_active_view_layer(win);
-
-		/* depsgraph & animation: update tagged datablocks */
 		Main *bmain = CTX_data_main(C);
-
-		/* copied to set's in scene_update_tagged_recursive() */
+		/* Copied to set's in scene_update_tagged_recursive() */
 		scene->customdata_mask = win_combine_v3d_datamask;
-
 		/* XXX, hack so operators can enforce datamasks [#26482], gl render */
 		scene->customdata_mask |= scene->customdata_mask_modal;
-
 		/* TODO(sergey): For now all dependency graphs which are evaluated from
-			* workspace are considered active. This will work all fine with "locked"
-			* view layer and time across windows. This is to be granted separately,
-			* and for until then we have to accept ambiguities when object is shared
-			* across visible view layers and has overrides on it.
-			*/
+		 * workspace are considered active. This will work all fine with "locked"
+		 * view layer and time across windows. This is to be granted separately,
+		 * and for until then we have to accept ambiguities when object is shared
+		 * across visible view layers and has overrides on it.
+		 */
 		Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer, true);
 		DEG_make_active(depsgraph);
 		BKE_scene_graph_update_tagged(depsgraph, bmain);
