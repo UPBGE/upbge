@@ -617,15 +617,13 @@ set_property(GLOBAL PROPERTY ICON_GEOM_NAMES
 	brush.paint_texture.smear
 	brush.paint_texture.soften
 	brush.paint_vertex.alpha
+	brush.paint_vertex.average
 	brush.paint_vertex.blur
-	brush.paint_vertex.mix
+	brush.paint_vertex.draw
 	brush.paint_vertex.smear
 	brush.paint_weight.blur
-	brush.paint_weight.darken
 	brush.paint_weight.draw
-	brush.paint_weight.lighten
 	brush.paint_weight.mix
-	brush.paint_weight.multiply
 	brush.particle.add
 	brush.particle.comb
 	brush.particle.cut
@@ -651,9 +649,6 @@ set_property(GLOBAL PROPERTY ICON_GEOM_NAMES
 	brush.sculpt.smooth
 	brush.sculpt.snake_hook
 	brush.sculpt.thumb
-	brush.vertex.average
-	brush.weight.add
-	brush.weight.subtract
 	none
 	ops.armature.bone.roll
 	ops.armature.extrude_cursor
@@ -708,6 +703,7 @@ set_property(GLOBAL PROPERTY ICON_GEOM_NAMES
 	ops.paint.vertex_color_fill
 	ops.paint.weight_fill
 	ops.paint.weight_gradient
+	ops.paint.weight_sample
 	ops.pose.breakdowner
 	ops.pose.push
 	ops.pose.relax

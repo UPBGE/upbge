@@ -56,6 +56,7 @@
 #include "BKE_context.h"
 #include "BKE_screen.h"
 #include "BKE_library.h"
+#include "BKE_paint.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -419,22 +420,32 @@ static uiTooltipData *ui_tooltip_data_from_tool(bContext *C, uiBut *but, bool is
 		        tool_name);
 
 		char *expr_result = NULL;
+		bool is_error = false;
 		if (BPY_execute_string_as_string(C, expr_imports, expr, true, &expr_result)) {
-			if (!STREQ(expr_result, ".")) {
-				uiTooltipField *field = text_field_add(
-				        data, &(uiTooltipFormat){
-				            .style = UI_TIP_STYLE_NORMAL,
-				            .color_id = UI_TIP_LC_MAIN,
-				            .is_pad = true,
-				        });
-				field->text = expr_result;
-			}
-			else {
+			if (STREQ(expr_result, ".")) {
 				MEM_freeN(expr_result);
+				expr_result = NULL;
 			}
 		}
 		else {
-			BLI_assert(0);
+			/* Note, this is an exceptional case, we could even remove it
+			 * however there have been reports of tooltips failing, so keep it for now. */
+			expr_result = BLI_strdup("Internal error!");
+			is_error = true;
+		}
+
+		if (expr_result != NULL) {
+			uiTooltipField *field = text_field_add(
+			        data, &(uiTooltipFormat){
+			            .style = UI_TIP_STYLE_NORMAL,
+			            .color_id = UI_TIP_LC_MAIN,
+			            .is_pad = true,
+			        });
+			field->text = expr_result;
+
+			if (UNLIKELY(is_error)) {
+				field->format.color_id = UI_TIP_LC_ALERT;
+			}
 		}
 	}
 
@@ -457,42 +468,17 @@ static uiTooltipData *ui_tooltip_data_from_tool(bContext *C, uiBut *but, bool is
 		}
 
 		if (shortcut == NULL) {
-			int mode = CTX_data_mode_enum(C);
-			const char *tool_attr = NULL;
-			uint tool_offset = 0;
-
-			switch (mode) {
-				case CTX_MODE_SCULPT:
-					tool_attr = "sculpt_tool";
-					tool_offset = offsetof(Brush, sculpt_tool);
-					break;
-				case CTX_MODE_PAINT_VERTEX:
-					tool_attr = "vertex_paint_tool";
-					tool_offset = offsetof(Brush, vertexpaint_tool);
-					break;
-				case CTX_MODE_PAINT_WEIGHT:
-					tool_attr = "weight_paint_tool";
-					tool_offset = offsetof(Brush, weightpaint_tool);
-					break;
-				case CTX_MODE_PAINT_TEXTURE:
-					tool_attr = "texture_paint_tool";
-					tool_offset = offsetof(Brush, imagepaint_tool);
-					break;
-				default:
-					break;
-			}
-
+			ePaintMode paint_mode = BKE_paintmode_get_active_from_context(C);
+			const char *tool_attr = BKE_paint_get_tool_prop_id_from_paintmode(paint_mode);
 			if (tool_attr != NULL) {
-				struct Main *bmain = CTX_data_main(C);
-				Brush *brush = (Brush *)BKE_libblock_find_name(bmain, ID_BR, tool_name);
-				if (brush) {
-					Object *ob = CTX_data_active_object(C);
+				const EnumPropertyItem *items = BKE_paint_get_tool_enum_from_paintmode(paint_mode);
+				const int i = RNA_enum_from_name(items, tool_name);
+				if (i != -1) {
 					wmOperatorType *ot = WM_operatortype_find("paint.brush_select", true);
-
 					PointerRNA op_props;
 					WM_operator_properties_create_ptr(&op_props, ot);
-					RNA_enum_set(&op_props, "paint_mode", ob->mode);
-					RNA_enum_set(&op_props, tool_attr, *(((char *)brush) + tool_offset));
+					RNA_enum_set(&op_props, "paint_mode", paint_mode);
+					RNA_enum_set(&op_props, tool_attr, items[i].value);
 
 					/* Check for direct access to the tool. */
 					char shortcut_brush[128] = "";

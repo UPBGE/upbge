@@ -247,7 +247,8 @@ static short compare_ak_gpframe(void *node, void *data)
 {
 	bGPDframe *gpf = (bGPDframe *)data;
 
-	return compare_ak_cfraPtr(node, &gpf->framenum);
+	float frame = gpf->framenum;
+	return compare_ak_cfraPtr(node, &frame);
 }
 
 /* New node callback used for building ActKeyColumns from GPencil frames */
@@ -291,7 +292,8 @@ static short compare_ak_masklayshape(void *node, void *data)
 {
 	MaskLayerShape *masklay_shape = (MaskLayerShape *)data;
 
-	return compare_ak_cfraPtr(node, &masklay_shape->frame);
+	float frame = masklay_shape->frame;
+	return compare_ak_cfraPtr(node, &frame);
 }
 
 /* New node callback used for building ActKeyColumns from GPencil frames */

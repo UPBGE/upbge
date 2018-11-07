@@ -563,6 +563,7 @@ void BKE_mesh_copy_data(Main *bmain, Mesh *me_dst, const Mesh *me_src, const int
 	me_dst->runtime.batch_cache = NULL;
 	me_dst->runtime.looptris.array = NULL;
 	me_dst->runtime.bvh_cache = NULL;
+	me_dst->runtime.shrinkwrap_data = NULL;
 
 	if (me_src->id.tag & LIB_TAG_NO_MAIN) {
 		me_dst->runtime.deformed_only = me_src->runtime.deformed_only;
@@ -1268,6 +1269,21 @@ int BKE_mesh_edge_other_vert(const MEdge *e, int v)
 		return e->v1;
 	else
 		return -1;
+}
+
+/**
+ * Sets each output array element to the edge index if it is a real edge, or -1.
+ */
+void BKE_mesh_looptri_get_real_edges(const Mesh *mesh, const MLoopTri *looptri, int r_edges[3])
+{
+	for (int i = 2, i_next = 0; i_next < 3; i = i_next++) {
+		const MLoop *l1 = &mesh->mloop[looptri->tri[i]], *l2 = &mesh->mloop[looptri->tri[i_next]];
+		const MEdge *e = &mesh->medge[l1->e];
+
+		bool is_real = (l1->v == e->v1 && l2->v == e->v2) || (l1->v == e->v2 && l2->v == e->v1);
+
+		r_edges[i] = is_real ? l1->e : -1;
+	}
 }
 
 /* basic vertex data functions */

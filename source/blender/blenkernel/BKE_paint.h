@@ -76,9 +76,12 @@ extern const char PAINT_CURSOR_TEXTURE_PAINT[3];
 
 typedef enum ePaintMode {
 	ePaintSculpt = 0,
+	/** Vertex color. */
 	ePaintVertex = 1,
 	ePaintWeight = 2,
-	ePaintTextureProjective = 3,
+	/** 3D view (projection painting). */
+	ePaintTexture3D = 3,
+	/** Image space (2D painting). */
 	ePaintTexture2D = 4,
 	ePaintSculptUV = 5,
 	ePaintGpencil = 6,
@@ -137,10 +140,11 @@ void BKE_paint_runtime_init(const struct ToolSettings *ts, struct Paint *paint);
 
 void BKE_paint_cavity_curve_preset(struct Paint *p, int preset);
 
-eObjectMode BKE_paint_object_mode_from_paint_mode(ePaintMode mode);
+eObjectMode BKE_paint_object_mode_from_paintmode(ePaintMode mode);
 struct Paint *BKE_paint_get_active_from_paintmode(struct Scene *sce, ePaintMode mode);
 const struct EnumPropertyItem *BKE_paint_get_tool_enum_from_paintmode(ePaintMode mode);
-uint BKE_paint_get_brush_tool_offset_from_paint_mode(const ePaintMode mode);
+const char *BKE_paint_get_tool_prop_id_from_paintmode(ePaintMode mode);
+uint BKE_paint_get_brush_tool_offset_from_paintmode(const ePaintMode mode);
 struct Paint *BKE_paint_get_active(struct Scene *sce, struct ViewLayer *view_layer);
 struct Paint *BKE_paint_get_active_from_context(const struct bContext *C);
 ePaintMode BKE_paintmode_get_active_from_context(const struct bContext *C);

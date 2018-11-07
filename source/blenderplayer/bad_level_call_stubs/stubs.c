@@ -378,6 +378,8 @@ void RE_GetCameraModelMatrix(struct Render *re, struct Object *camera, float r_m
 const char *RE_GetActiveRenderView(struct Render *re) RET_NULL
 //void DRW_deferred_shader_remove(struct GPUMaterial *mat) RET_NONE
 
+void WM_toolsystem_ref_sync_from_context(struct Main *bmain, struct WorkSpace *workspace, struct bToolRef *tref) RET_NONE
+
 
 char *WM_clipboard_text_get(bool selection, int *r_len) RET_NULL
 char *WM_clipboard_text_get_firstline(bool selection, int *r_len) RET_NULL
