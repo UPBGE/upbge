@@ -351,12 +351,12 @@ static Object *createRepresentation(bContext *C, struct recast_polyMesh *pmesh, 
 
 	if (createob) {
 		/* create new object */
-		obedit = ED_object_add_type(C, OB_MESH, "Navmesh", co, rot, false, lay);
+		obedit = ED_object_add_type(C, OB_MESH, "Navmesh", co, rot, false);
 	}
 	else {
 		obedit = base->object;
 		BKE_view_layer_base_deselect_all(view_layer);
-		BKE_view_layer_base_select(view_layer, base);
+		BKE_view_layer_base_select(base);
 		copy_v3_v3(obedit->loc, co);
 		copy_v3_v3(obedit->rot, rot);
 	}

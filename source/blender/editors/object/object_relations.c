@@ -69,6 +69,7 @@
 #include "BKE_curve.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_displist.h"
+#include "BKE_editmesh.h"
 #include "BKE_global.h"
 #include "BKE_gpencil.h"
 #include "BKE_fcurve.h"
@@ -93,7 +94,6 @@
 #include "BKE_scene.h"
 #include "BKE_speaker.h"
 #include "BKE_texture.h"
-#include "BKE_editmesh.h"
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"
@@ -1474,13 +1474,13 @@ static int make_links_data_exec(bContext *C, wmOperator *op)
 						DEG_id_tag_update(&ob_dst->id, OB_RECALC_DATA);
 						break;
 					case MAKE_LINKS_ANIMDATA:
-						BKE_animdata_copy_id(bmain, (ID *)ob_dst, (ID *)ob_src, false, true);
+						BKE_animdata_copy_id(bmain, (ID *)ob_dst, (ID *)ob_src, 0);
 						if (ob_dst->data && ob_src->data) {
 							if (ID_IS_LINKED(obdata_id)) {
 								is_lib = true;
 								break;
 							}
-							BKE_animdata_copy_id(bmain, (ID *)ob_dst->data, (ID *)ob_src->data, false, true);
+							BKE_animdata_copy_id(bmain, (ID *)ob_dst->data, (ID *)ob_src->data, 0);
 						}
 						DEG_id_tag_update(&ob_dst->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
 						break;
@@ -2352,7 +2352,8 @@ static int make_override_static_exec(bContext *C, wmOperator *op)
 					new_ob->parent = obcollection;
 				}
 				if (new_ob == (Object *)obact->id.newid) {
-					BKE_view_layer_base_select(view_layer, base);
+					/* TODO: is setting active needed? */
+					BKE_view_layer_base_select_and_set_active(view_layer, base);
 				}
 				else {
 					/* Disable auto-override tags for non-active objects, will help with performaces... */

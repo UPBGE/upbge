@@ -95,6 +95,7 @@
 
 /* eevee integration */
 extern "C" {
+#  include "BKE_library.h"
 #  include "BKE_main.h"
 #  include "BKE_mesh.h"
 #  include "BLI_alloca.h"

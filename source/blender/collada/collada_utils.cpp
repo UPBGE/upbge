@@ -47,13 +47,13 @@ extern "C" {
 
 #include "BKE_context.h"
 #include "BKE_customdata.h"
-#include "BKE_object.h"
 #include "BKE_global.h"
 #include "BKE_layer.h"
+#include "BKE_library.h"
 #include "BKE_mesh.h"
 #include "BKE_mesh_runtime.h"
+#include "BKE_object.h"
 #include "BKE_scene.h"
-#include "BKE_main.h"
 
 #include "ED_armature.h"
 
@@ -154,7 +154,8 @@ Object *bc_add_object(Main *bmain, Scene *scene, ViewLayer *view_layer, int type
 	BKE_collection_object_add(bmain, layer_collection->collection, ob);
 
 	Base *base = BKE_view_layer_base_find(view_layer, ob);
-	BKE_view_layer_base_select(view_layer, base);
+	/* TODO: is setting active needed? */
+	BKE_view_layer_base_select_and_set_active(view_layer, base);
 
 	return ob;
 }

@@ -22,7 +22,6 @@ from bpy.types import (
     Header,
     Menu,
     Panel,
-    Operator,
 )
 from bpy.app.translations import pgettext_iface as iface_
 from bpy.app.translations import contexts as i18n_contexts
@@ -1285,8 +1284,18 @@ class USERPREF_PT_addons(Panel):
         userpref = context.user_preferences
         used_ext = {ext.module for ext in userpref.addons}
 
-        userpref_addons_folder = os.path.join(userpref.filepaths.script_directory, "addons")
-        scripts_addons_folder = bpy.utils.user_resource('SCRIPTS', "addons")
+        addon_user_dirs = tuple(
+            p for p in (
+                os.path.join(userpref.filepaths.script_directory, "addons"),
+                bpy.utils.user_resource('SCRIPTS', "addons"),
+            )
+            if p
+        )
+
+        # Development option for 2.8x, don't show users bundled addons
+        # unless they have been updated for 2.8x.
+        # Developers can turn them on with '--debug'
+        show_official_27x_addons = bpy.app.debug
 
         # collect the categories that can be filtered on
         addons = [
@@ -1348,7 +1357,7 @@ class USERPREF_PT_addons(Panel):
                     (filter == info["category"]) or
                     (filter == "Enabled" and is_enabled) or
                     (filter == "Disabled" and not is_enabled) or
-                    (filter == "User" and (mod.__file__.startswith((scripts_addons_folder, userpref_addons_folder))))
+                    (filter == "User" and (mod.__file__.startswith(addon_user_dirs)))
             ):
                 if search and search not in info["name"].lower():
                     if info["author"]:
@@ -1356,6 +1365,15 @@ class USERPREF_PT_addons(Panel):
                             continue
                     else:
                         continue
+
+                # Skip 2.7x add-ons included with Blender, unless in debug mode.
+                is_addon_27x = info.get("blender", (0,)) < (2, 80)
+                if (
+                        is_addon_27x and
+                        (not show_official_27x_addons) and
+                        (not mod.__file__.startswith(addon_user_dirs))
+                ):
+                    continue
 
                 # Addon UI Code
                 col_box = col.column()
@@ -1381,7 +1399,7 @@ class USERPREF_PT_addons(Panel):
 
                 # WARNING: 2.8x exception, may be removed
                 # use disabled state for old add-ons, chances are they are broken.
-                if info.get("blender", (0,)) < (2, 80):
+                if is_addon_27x:
                     sub.label(text="upgrade to 2.8x required")
                     sub.label(icon='ERROR')
                 # Remove code above after 2.8x migration is complete.
