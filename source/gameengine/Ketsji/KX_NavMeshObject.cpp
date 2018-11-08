@@ -119,11 +119,6 @@ void KX_NavMeshObject::ProcessReplica()
 {
 	KX_GameObject::ProcessReplica();
 	m_navMesh = nullptr;
-
-	if (!BuildNavMesh()) {
-		CM_FunctionError("unable to build navigation mesh");
-		return;
-	}
 }
 
 int KX_NavMeshObject::GetGameObjectType() const
@@ -383,6 +378,7 @@ bool KX_NavMeshObject::BuildNavMesh()
 	float cs = 0.2f;
 
 	if (!nverts || !npolys) {
+		CM_FunctionError("unable to build navigation mesh");
 		if (vertices) {
 			delete[] vertices;
 		}

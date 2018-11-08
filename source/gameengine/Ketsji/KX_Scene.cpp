@@ -54,6 +54,7 @@
 #include "SCA_ActuatorEventManager.h"
 #include "SCA_BasicEventManager.h"
 #include "KX_Camera.h"
+#include "KX_NavMeshObject.h"
 #include "SCA_JoystickManager.h"
 #include "KX_PyMath.h"
 #include "KX_Mesh.h"
@@ -496,6 +497,10 @@ KX_GameObject *KX_Scene::AddNodeReplicaObject(SG_Node *node, KX_GameObject *game
 	// Add the object in the obstacle simulation if needed.
 	if (m_obstacleSimulation && gameobj->GetBlenderObject()->gameflag & OB_HASOBSTACLE) {
 		m_obstacleSimulation->AddObstacleForObj(newobj);
+	}
+	// Reconstruct nav mesh.
+	if (gameobj->GetGameObjectType() == SCA_IObject::OBJ_NAVMESH) {
+		static_cast<KX_NavMeshObject *>(gameobj)->BuildNavMesh();
 	}
 
 	// Register object for component update.
