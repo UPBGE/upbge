@@ -1759,23 +1759,37 @@ void node_geometry(
         out vec3 true_normal, out vec3 incoming, out vec3 parametric,
         out float backfacing, out float pointiness)
 {
-	position = worldPosition;
-#ifndef VOLUMETRICS
-	normal = normalize(worldNormal);
-#else
-	normal = (toworld * vec4(N, 0.0)).xyz;
-#endif
-	tangent_orco_z(orco, orco);
-	node_tangent(N, orco, objmat, toworld, tangent);
-	true_normal = normal;
-
 	/* handle perspective/orthographic */
 	vec3 I_view = (ProjectionMatrix[3][3] == 0.0) ? normalize(I) : vec3(0.0, 0.0, -1.0);
 	incoming = -(toworld * vec4(I_view, 0.0)).xyz;
 
+#if defined(WORLD_BACKGROUND) || defined(PROBE_CAPTURE)
+	position = -incoming;
+	true_normal = normal = incoming;
+	tangent = parametric = vec3(0.0);
+	vec3(0.0);
+	backfacing = 0.0;
+	pointiness = 0.0;
+#else
+
+	position = worldPosition;
+#  ifndef VOLUMETRICS
+	normal = normalize(worldNormal);
+
+	vec3 B = dFdx(worldPosition);
+	vec3 T = dFdy(worldPosition);
+	true_normal = normalize(cross(B, T));
+#  else
+	normal = (toworld * vec4(N, 0.0)).xyz;
+	true_normal = normal;
+#  endif
+	tangent_orco_z(orco, orco);
+	node_tangent(N, orco, objmat, toworld, tangent);
+
 	parametric = vec3(barycentric, 0.0);
 	backfacing = (gl_FrontFacing) ? 0.0 : 1.0;
 	pointiness = 0.5;
+#endif
 }
 
 void generated_texco(vec3 I, vec3 attr_orco, out vec3 generated)
@@ -2882,27 +2896,22 @@ void node_light_path(
 	out float transparent_depth,
 	out float transmission_depth)
 {
-#ifndef PROBE_CAPTURE
-	is_camera_ray = 1.0;
-	is_glossy_ray = 0.0;
-	is_diffuse_ray = 0.0;
-	is_reflection_ray = 0.0;
-	is_transmission_ray = 0.0;
-#else
-	is_camera_ray = 0.0;
-	is_glossy_ray = 1.0;
-	is_diffuse_ray = 1.0;
-	is_reflection_ray = 1.0;
-	is_transmission_ray = 1.0;
-#endif
-	is_shadow_ray = 0.0;
-	is_singular_ray = 0.0;
+	/* Supported. */
+	is_camera_ray = (rayType == EEVEE_RAY_CAMERA) ? 1.0 : 0.0;
+	is_shadow_ray = (rayType == EEVEE_RAY_SHADOW) ? 1.0 : 0.0;
+	is_diffuse_ray = (rayType == EEVEE_RAY_DIFFUSE) ? 1.0 : 0.0;
+	is_glossy_ray = (rayType == EEVEE_RAY_GLOSSY) ? 1.0 : 0.0;
+	/* Kind of supported. */
+	is_singular_ray = is_glossy_ray;
+	is_reflection_ray = is_glossy_ray;
+	is_transmission_ray = is_glossy_ray;
+	ray_depth = rayDepth;
+	diffuse_depth = (is_diffuse_ray == 1.0) ? rayDepth : 0.0;
+	glossy_depth = (is_glossy_ray == 1.0) ? rayDepth : 0.0;
+	transmission_depth = (is_transmission_ray == 1.0) ? glossy_depth : 0.0;
+	/* Not supported. */
 	ray_length = 1.0;
-	ray_depth = 1.0;
-	diffuse_depth = 1.0;
-	glossy_depth = 1.0;
-	transparent_depth = 1.0;
-	transmission_depth = 1.0;
+	transparent_depth = 0.0;
 }
 
 void node_light_falloff(float strength, float tsmooth, out float quadratic, out float linear, out float constant)
@@ -2930,9 +2939,9 @@ void node_normal_map(vec4 tangent, vec3 normal, vec3 texnormal, out vec3 outnorm
 
 void node_bump(float strength, float dist, float height, vec3 N, vec3 surf_pos, float invert, out vec3 result)
 {
-	if (invert != 0.0) {
-		dist *= -1.0;
-	}
+	N = mat3(ViewMatrix) * normalize(N);
+	dist *= invert;
+
 	vec3 dPdx = dFdx(surf_pos);
 	vec3 dPdy = dFdy(surf_pos);
 
@@ -2942,7 +2951,6 @@ void node_bump(float strength, float dist, float height, vec3 N, vec3 surf_pos, 
 
 	/* Compute surface gradient and determinant. */
 	float det = dot(dPdx, Rx);
-	float absdet = abs(det);
 
 	float dHdx = dFdx(height);
 	float dHdy = dFdy(height);
@@ -2950,8 +2958,10 @@ void node_bump(float strength, float dist, float height, vec3 N, vec3 surf_pos, 
 
 	strength = max(strength, 0.0);
 
-	result = normalize(absdet * N - dist * sign(det) * surfgrad);
-	result = normalize(strength * result + (1.0 - strength) * N);
+	result = normalize(abs(det) * N - dist * sign(det) * surfgrad);
+	result = normalize(mix(N, result, strength));
+
+	result = mat3(ViewMatrixInverse) * result;
 }
 
 void node_bevel(float radius, vec3 N, out vec3 result)

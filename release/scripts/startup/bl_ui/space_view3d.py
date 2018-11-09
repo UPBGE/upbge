@@ -4017,28 +4017,29 @@ class VIEW3D_PT_object_type_visibility(Panel):
 
         view = context.space_data
 
+        layout.label(text="Object Types Visibility")
         col = layout.column()
 
         attr_object_types = (
             # Geometry
-            "mesh",
-            "curve",
-            "surf",
-            "meta",
-            "font",
-            None,
+            ("mesh", "Mesh"),
+            ("curve", "Curve"),
+            ("surf", "Surface"),
+            ("meta", "Meta"),
+            ("font", "Font"),
+            (None, None),
             # Other
-            "armature",
-            "lattice",
-            "empty",
-            "grease_pencil",
-            "camera",
-            "light",
-            "light_probe",
-            "speaker",
+            ("armature", "Armature"),
+            ("lattice", "Lattice"),
+            ("empty", "Empty"),
+            ("grease_pencil", "Grease Pencil"),
+            ("camera", "Camera"),
+            ("light", "Light"),
+            ("light_probe", "Light Probe"),
+            ("speaker", "Speaker"),
         )
 
-        for attr in attr_object_types:
+        for attr, attr_name in attr_object_types:
             if attr is None:
                 col.separator()
                 continue
@@ -4046,12 +4047,17 @@ class VIEW3D_PT_object_type_visibility(Panel):
             attr_v = "show_object_viewport_" f"{attr:s}"
             attr_s = "show_object_select_" f"{attr:s}"
 
-            icon_s = 'RESTRICT_SELECT_ON' if getattr(view, attr_s) else 'RESTRICT_SELECT_OFF'
+            icon_v = 'VISIBLE_IPO_ON' if getattr(view, attr_v) else 'VISIBLE_IPO_OFF'
+            icon_s = 'RESTRICT_SELECT_OFF' if getattr(view, attr_s) else 'RESTRICT_SELECT_ON'
 
             row = col.row(align=True)
-            row.prop(view, attr_v)
-            row.active = getattr(view, attr_v)
-            row.prop(view, attr_s, text="", icon=icon_s, emboss=False)
+            row.alignment = 'RIGHT'
+
+            row.label(text=attr_name)
+            row.prop(view, attr_v, text="", icon=icon_v, emboss=False)
+            rowsub = row.row(align=True)
+            rowsub.active = getattr(view, attr_v)
+            rowsub.prop(view, attr_s, text="", icon=icon_s, emboss=False)
 
 
 class VIEW3D_PT_shading(Panel):
@@ -4182,14 +4188,17 @@ class VIEW3D_PT_shading_options(Panel):
     bl_label = "Options"
     bl_parent_id = 'VIEW3D_PT_shading'
 
+    @classmethod
+    def poll(cls, context):
+        shading = VIEW3D_PT_shading.get_shading(context)
+        return shading.type in {'WIREFRAME', 'SOLID'}
+
     def draw(self, context):
         layout = self.layout
 
         shading = VIEW3D_PT_shading.get_shading(context)
 
         col = layout.column()
-
-        is_shadows = shading.show_shadows
 
         row = col.row()
 
@@ -4198,18 +4207,17 @@ class VIEW3D_PT_shading_options(Panel):
             sub = row.row()
             sub.active = shading.show_xray_wireframe
             sub.prop(shading, "xray_alpha_wireframe", text="X-Ray")
-        else:
+        elif shading.type == 'SOLID':
             row.prop(shading, "show_xray", text="")
             sub = row.row()
             sub.active = shading.show_xray
             sub.prop(shading, "xray_alpha", text="X-Ray")
 
-        if shading.type == 'SOLID':
             row = col.row()
             row.prop(shading, "show_shadows", text="")
             row.active = not shading.show_xray
             sub = row.row(align=True)
-            sub.active = is_shadows
+            sub.active = shading.show_shadows
             sub.prop(shading, "shadow_intensity", text="Shadow")
             sub.popover(
                 panel="VIEW3D_PT_shading_options_shadow",
@@ -4233,16 +4241,15 @@ class VIEW3D_PT_shading_options(Panel):
                     text=""
                 )
 
-        if shading.type in {'SOLID', 'WIREFRAME'}:
-            row = layout.split()
-            row.prop(shading, "show_object_outline")
-            sub = row.row()
-            sub.active = shading.show_object_outline
-            sub.prop(shading, "object_outline_color", text="")
+        row = layout.split()
+        row.prop(shading, "show_object_outline")
+        sub = row.row()
+        sub.active = shading.show_object_outline
+        sub.prop(shading, "object_outline_color", text="")
 
-            col = layout.column()
-            if (shading.light is not 'MATCAP') and (shading.type is not 'WIREFRAME'):
-                col.prop(shading, "show_specular_highlight")
+        col = layout.column()
+        if (shading.light is not 'MATCAP') and (shading.type is not 'WIREFRAME'):
+            col.prop(shading, "show_specular_highlight")
 
 
 class VIEW3D_PT_shading_options_shadow(Panel):
