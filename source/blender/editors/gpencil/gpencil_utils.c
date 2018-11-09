@@ -399,12 +399,12 @@ const EnumPropertyItem *ED_gpencil_layers_with_new_enum_itemf(
 		/* separator */
 		RNA_enum_item_add_separator(&item, &totitem);
 	}
-
+	const int tot = BLI_listbase_count(&gpd->layers);
 	/* Existing layers */
-	for (gpl = gpd->layers.first, i = 0; gpl; gpl = gpl->next, i++) {
+	for (gpl = gpd->layers.last, i = 0; gpl; gpl = gpl->prev, i++) {
 		item_tmp.identifier = gpl->info;
 		item_tmp.name = gpl->info;
-		item_tmp.value = i;
+		item_tmp.value = tot - i - 1;
 
 		if (gpl->flag & GP_LAYER_ACTIVE)
 			item_tmp.icon = ICON_GREASEPENCIL;
@@ -1813,14 +1813,14 @@ void ED_gpencil_calc_stroke_uv(Object *ob, bGPDstroke *gps)
 	}
 	else {
 		/* use this value by default */
-		pixsize = 0.000100f;
+		pixsize = 0.0001f;
 	}
 	pixsize = MAX2(pixsize, 0.0000001f);
 
 	bGPDspoint *pt = NULL;
 	bGPDspoint *ptb = NULL;
 	int i;
-	float totlen = 0;
+	float totlen = 0.0f;
 
 	/* first read all points and calc distance */
 	for (i = 0; i < gps->totpoints; i++) {
@@ -1835,15 +1835,21 @@ void ED_gpencil_calc_stroke_uv(Object *ob, bGPDstroke *gps)
 		totlen += len_v3v3(&pt->x, &ptb->x) / pixsize;
 		pt->uv_fac = totlen;
 	}
+
 	/* normalize the distance using a factor */
 	float factor;
+
 	/* if image, use texture width */
 	if ((gp_style) && (gp_style->sima)) {
 		factor = gp_style->sima->gen_x;
 	}
+	else if (totlen == 0) {
+		return;
+	}
 	else {
 		factor = totlen;
 	}
+
 	for (i = 0; i < gps->totpoints; i++) {
 		pt = &gps->points[i];
 		pt->uv_fac /= factor;

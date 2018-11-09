@@ -73,11 +73,6 @@ class VIEW3D_HT_header(Header):
                 sub.separator(factor=0.4)
                 sub.prop(tool_settings, "use_gpencil_additive_drawing", text="", icon='FREEZE')
 
-                row.popover(
-                    panel="VIEW3D_PT_tools_grease_pencil_shapes",
-                    text="Shapes"
-                )
-
             if gpd.use_stroke_edit_mode:
                 row = layout.row(align=True)
                 row.prop(tool_settings, "gpencil_selectmode", text="", expand=True)
@@ -3009,6 +3004,8 @@ class VIEW3D_MT_edit_mesh_edges(Menu):
     def draw(self, context):
         layout = self.layout
 
+        with_freestyle = bpy.app.build_options.freestyle
+
         layout.operator_context = 'INVOKE_REGION_WIN'
 
         layout.operator("mesh.extrude_edges_move", text="Extrude Edges"),
@@ -3033,7 +3030,29 @@ class VIEW3D_MT_edit_mesh_edges(Menu):
 
         layout.separator()
 
-        layout.menu("VIEW3D_MT_edit_mesh_edges_data")
+        layout.operator("transform.edge_crease")
+        layout.operator("transform.edge_bevelweight")
+
+        layout.separator()
+
+        layout.operator("mesh.mark_seam").clear = False
+        layout.operator("mesh.mark_seam", text="Clear Seam").clear = True
+
+        layout.separator()
+
+        layout.operator("mesh.mark_sharp")
+        layout.operator("mesh.mark_sharp", text="Clear Sharp").clear = True
+
+        layout.operator("mesh.mark_sharp", text="Mark Sharp from Vertices").use_verts = True
+        props = layout.operator("mesh.mark_sharp", text="Clear Sharp from Vertices")
+        props.use_verts = True
+        props.clear = True
+
+        if with_freestyle:
+            layout.separator()
+
+            layout.operator("mesh.mark_freestyle_edge").clear = False
+            layout.operator("mesh.mark_freestyle_edge", text="Clear Freestyle Edge").clear = True
 
 
 class VIEW3D_MT_edit_mesh_faces_data(Menu):
@@ -4047,7 +4066,7 @@ class VIEW3D_PT_object_type_visibility(Panel):
             attr_v = "show_object_viewport_" f"{attr:s}"
             attr_s = "show_object_select_" f"{attr:s}"
 
-            icon_v = 'VISIBLE_IPO_ON' if getattr(view, attr_v) else 'VISIBLE_IPO_OFF'
+            icon_v = 'HIDE_OFF' if getattr(view, attr_v) else 'HIDE_ON'
             icon_s = 'RESTRICT_SELECT_OFF' if getattr(view, attr_s) else 'RESTRICT_SELECT_ON'
 
             row = col.row(align=True)

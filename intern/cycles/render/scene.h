@@ -196,6 +196,9 @@ public:
 
 class Scene {
 public:
+	/* Optional name. Is used for logging and reporting. */
+	string name;
+
 	/* data */
 	Camera *camera;
 	Camera *dicing_camera;
@@ -268,4 +271,4 @@ protected:
 
 CCL_NAMESPACE_END
 
-#endif /*  __SCENE_H__ */
+#endif  /*  __SCENE_H__ */

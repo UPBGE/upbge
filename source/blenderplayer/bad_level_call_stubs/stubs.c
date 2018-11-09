@@ -1022,6 +1022,8 @@ void RE_engine_register_pass(struct RenderEngine *engine, struct Scene *scene, s
 struct ViewLayer *RE_engine_get_view_layer(struct Render *re) RET_NULL
 void RE_SetDepsgraph(struct Render *re, struct Depsgraph *graph) RET_NONE
 
+void RE_engine_free_blender_memory(struct RenderEngine *engine) RET_NONE
+
 /* python */
 struct wmOperatorType *WM_operatortype_find(const char *idname, bool quiet) RET_NULL
 void WM_operatortype_iter(struct GHashIterator *ghi) RET_NONE
