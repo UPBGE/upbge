@@ -61,6 +61,7 @@ set(SRC
 	intern/gpu_select_sample_query.c
 	intern/gpu_shader.c
 	intern/gpu_texture.c
+	intern/gpu_vertex_array.c
 
 	shaders/gpu_shader_2d_box_vert.glsl
 	shaders/gpu_shader_flat_color_frag.glsl
@@ -105,6 +106,7 @@ set(SRC
 	GPU_select.h
 	GPU_shader.h
 	GPU_texture.h
+	GPU_vertex_array.h
 	intern/gpu_codegen.h
 	intern/gpu_private.h
 	intern/gpu_select_private.h

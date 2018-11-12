@@ -189,8 +189,10 @@ elseif(WIN32)
 	set(_init_JACK                           OFF)
 elseif(APPLE)
 	set(_init_JACK                           OFF)
+	set(_init_OPENCOLORIO                    OFF)
 	set(_init_OPENSUBDIV                     OFF)
-	set(_init_SYSTEM_OPENJPG                 OFF)
+	set(_init_CYCLES_OSL                     OFF)
+	set(_init_CYCLES_OPENSUBDIV              OFF)
 endif()
 
 

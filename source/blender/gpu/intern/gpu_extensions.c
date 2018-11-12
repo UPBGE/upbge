@@ -65,6 +65,7 @@
  * ARB_texture_multisample: 3.2
  * EXT_geometry_shader4: 3.2
  * ARB_texture_query_lod: 4.0
+ * APPLE_vertex_array_object: 3.0
  */
 
 static struct GPUGlobal {

@@ -1,3 +1,4 @@
+
 #ifdef USE_OPENSUBDIV
 in vec3 normal;
 in vec4 position;
@@ -8,23 +9,26 @@ out block {
 #endif
 
 #ifdef USE_INSTANCING
-in mat3 ininstmatrix;
-in vec3 ininstposition;
-in vec4 ininstcolor;
-in int ininstlayer;
-in vec3 ininstinfo;
+/* compatibility / in */
+varying mat3 ininstmatrix;
+varying vec3 ininstposition;
+varying vec4 ininstcolor;
+varying int ininstlayer;
+varying vec3 ininstinfo;
 
-out vec4 varinstcolor;
-out mat4 varinstmat;
-out mat4 varinstinvmat;
-flat out int varinstlayer;
-out vec3 varinstinfo;
+/* compatibility / out */
+varying vec4 varinstcolor;
+varying mat4 varinstmat;
+varying mat4 varinstinvmat;
+flat varying int varinstlayer;
+varying vec3 varinstinfo;
 
 uniform mat4 unfviewmat;
 #endif
 
-out vec3 varposition;
-out vec3 varnormal;
+/* compatibility / out */
+varying vec3 varposition;
+varying vec3 varnormal;
 
 #ifdef CLIP_WORKAROUND
 varying float gl_ClipDistance[6];

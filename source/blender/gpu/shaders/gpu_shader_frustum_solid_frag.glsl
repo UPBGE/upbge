@@ -1,3 +1,8 @@
+#if __VERSION__ < 130
+  #define in varying
+  #define out varying
+#endif
+
 flat in vec4 insideFinalColor;
 flat in vec4 outsideFinalColor;
 out vec4 fragColor;
