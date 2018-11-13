@@ -471,7 +471,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
 			ViewLayer *view_layer = BKE_view_layer_default_view(scene);
 			Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer, false);
 
-			animsys_evaluate_action(depsgraph, &ptrrna, m_tmpaction, nullptr, m_localframe);
+			animsys_evaluate_action(depsgraph, &ptrrna, m_tmpaction, m_localframe);
 
 			// Handle blending between shape actions
 			if (m_blendin && m_blendframe < m_blendin)

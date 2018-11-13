@@ -474,7 +474,7 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, float localtime)
 	ViewLayer *view_layer = BKE_view_layer_default_view(scene);
 	Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer, false);
 
-	animsys_evaluate_action(depsgraph, &ptrrna, action, nullptr, localtime);
+	animsys_evaluate_action(depsgraph, &ptrrna, action, localtime);
 }
 
 void BL_ArmatureObject::BlendInPose(bPose *blend_pose, float weight, short mode)

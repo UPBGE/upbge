@@ -20,20 +20,33 @@
 # ------------------------------------------------------------------------------
 # Configurable Parameters
 
-class KeymapParams:
-    __slots__ = (
-        "apple",
-        "legacy",
-        "select_mouse",
-        "action_mouse",
-    )
+from collections import namedtuple
 
-    def __init__(self, legacy=False):
-        import platform
-        self.apple = platform.system() == 'Darwin'
-        self.legacy = legacy
-        self.select_mouse = 'SELECTMOUSE'
-        self.action_mouse = 'ACTIONMOUSE'
+# TODO: remove when we drop Python 3.6
+import sys
+if sys.version_info >= (3, 7):
+    KeymapParams = namedtuple(
+        "KeymapParams",
+        ("apple", "legacy", "select_mouse", "action_mouse"),
+        defaults=(
+            sys.platform == "darwin",
+            False,
+            'SELECTMOUSE',
+            'ACTIONMOUSE',
+        ),
+    )
+else:
+    KeymapParams = namedtuple(
+        "KeymapParams",
+        ("apple", "legacy", "select_mouse", "action_mouse"),
+    )
+    KeymapParams.__new__.__defaults__ = (
+        sys.platform == "darwin",
+        False,
+        'SELECTMOUSE',
+        'ACTIONMOUSE',
+    )
+del namedtuple, sys
 
 
 # ------------------------------------------------------------------------------
@@ -2714,18 +2727,18 @@ def _grease_pencil_selection(params):
         ("gpencil.select_box", {"type": 'B', "value": 'PRESS'}, None),
         # Lasso select
         ("gpencil.select_lasso", {"type": 'EVT_TWEAK_A', "value": 'ANY', "ctrl": True},
-         {"properties": [("deselect", False)]}),
+         {"properties": [("mode", 'ADD')]}),
         ("gpencil.select_lasso", {"type": 'EVT_TWEAK_A', "value": 'ANY', "shift": True, "ctrl": True},
-         {"properties": [("deselect", True)]}),
+         {"properties": [("mode", 'SUB')]}),
         # In the Node Editor, lasso select needs ALT modifier too
         # (as somehow CTRL+LMB drag gets taken for "cut" quite early).
         # There probably isn't too much harm adding this for other editors too
         # as part of standard GP editing keymap. This hotkey combo doesn't seem
         # to see much use under standard scenarios?
         ("gpencil.select_lasso", {"type": 'EVT_TWEAK_A', "value": 'ANY', "ctrl": True, "alt": True},
-         {"properties": [("deselect", False)]}),
+         {"properties": [("mode", 'ADD')]}),
         ("gpencil.select_lasso", {"type": 'EVT_TWEAK_A', "value": 'ANY', "shift": True, "ctrl": True, "alt": True},
-         {"properties": [("deselect", True)]}),
+         {"properties": [("mode", 'SUB')]}),
         ("gpencil.select", {"type": params.select_mouse, "value": 'PRESS', "shift": True},
          {"properties": [("extend", True), ("toggle", True)]}),
         # Whole stroke select
@@ -2905,8 +2918,7 @@ def km_grease_pencil_stroke_paint_draw_brush(_params):
         # Box select
         ("gpencil.select_box", {"type": 'B', "value": 'PRESS'}, None),
         # Lasso select
-        ("gpencil.select_lasso", {"type": 'EVT_TWEAK_A', "value": 'ANY', "ctrl": True, "alt": True},
-         {"properties": [("deselect", False)]}),
+        ("gpencil.select_lasso", {"type": 'EVT_TWEAK_A', "value": 'ANY', "ctrl": True, "alt": True}, None),
     ])
 
     return keymap
@@ -2929,8 +2941,7 @@ def km_grease_pencil_stroke_paint_erase(_params):
         # Box select (used by eraser)
         ("gpencil.select_box", {"type": 'B', "value": 'PRESS'}, None),
         # Lasso select
-        ("gpencil.select_lasso", {"type": 'EVT_TWEAK_A', "value": 'ANY', "ctrl": True, "alt": True},
-         {"properties": [("deselect", False)]}),
+        ("gpencil.select_lasso", {"type": 'EVT_TWEAK_A', "value": 'ANY', "ctrl": True, "alt": True}, None),
     ])
 
     return keymap
@@ -2973,10 +2984,12 @@ def km_grease_pencil_stroke_sculpt_mode(params):
         # Selection
         *_grease_pencil_selection(params),
         # Painting
+        ("gpencil.brush_paint", {"type": 'LEFTMOUSE', "value": 'PRESS'},
+         {"properties": [("wait_for_input", False)]}),
         ("gpencil.brush_paint", {"type": 'LEFTMOUSE', "value": 'PRESS', "ctrl": True},
-         {"properties": [("wait_for_input", False), ("keep_brush", True)]}),
+         {"properties": [("wait_for_input", False)]}),
         ("gpencil.brush_paint", {"type": 'LEFTMOUSE', "value": 'PRESS', "shift": True},
-         {"properties": [("wait_for_input", False), ("keep_brush", True)]}),
+         {"properties": [("wait_for_input", False)]}),
         # Brush strength
         ("wm.radial_control", {"type": 'F', "value": 'PRESS', "shift": True},
          {"properties": [("data_path_primary", 'tool_settings.gpencil_sculpt.brush.strength')]}),
@@ -3005,9 +3018,9 @@ def km_grease_pencil_stroke_weight_mode(params):
         *_grease_pencil_selection(params),
         # Painting
         ("gpencil.brush_paint", {"type": 'LEFTMOUSE', "value": 'PRESS', "ctrl": True},
-         {"properties": [("wait_for_input", False), ("keep_brush", True)]}),
+         {"properties": [("wait_for_input", False)]}),
         ("gpencil.brush_paint", {"type": 'LEFTMOUSE', "value": 'PRESS', "shift": True},
-         {"properties": [("wait_for_input", False), ("keep_brush", True)]}),
+         {"properties": [("wait_for_input", False)]}),
         # Brush strength
         ("wm.radial_control", {"type": 'F', "value": 'PRESS', "shift": True},
          {"properties": [("data_path_primary", 'tool_settings.gpencil_sculpt.weight_brush.strength')]}),
@@ -4921,5 +4934,5 @@ def generate_keymaps(params=None):
 
 if __name__ == "__main__":
     from bpy_extras.keyconfig_utils import keyconfig_import_from_data
-    keyconfig_import_from_data("Blender", generate_keymaps(KeymapParams()))
+    keyconfig_import_from_data("Blender", generate_keymaps())
     keyconfig_import_from_data("Blender 27X", generate_keymaps(KeymapParams(legacy=True)))

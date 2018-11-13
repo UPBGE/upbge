@@ -182,6 +182,9 @@ static void toolsystem_ref_link__refresh_image_uv_sculpt(bContext *C, Scene *sce
 	RNA_property_update(C, &ptr, prop);
 }
 
+/**
+ * \see #toolsystem_ref_link
+ */
 static void toolsystem_ref_link(bContext *C, WorkSpace *workspace, bToolRef *tref)
 {
 	bToolRef_Runtime *tref_rt = tref->runtime;
@@ -200,9 +203,43 @@ static void toolsystem_ref_link(bContext *C, WorkSpace *workspace, bToolRef *tre
 
 	if (tref_rt->data_block[0]) {
 		Main *bmain = CTX_data_main(C);
-		if ((tref->space_type == SPACE_VIEW3D) &&
-		    (tref->mode == CTX_MODE_PARTICLE))
 
+		if ((tref->space_type == SPACE_VIEW3D) &&
+		    (tref->mode == CTX_MODE_GPENCIL_SCULPT))
+		{
+			const EnumPropertyItem *items = rna_enum_gpencil_sculpt_brush_items;
+			const int i = RNA_enum_from_identifier(items, tref_rt->data_block);
+			if (i != -1) {
+				const int value = items[i].value;
+				wmWindowManager *wm = bmain->wm.first;
+				for (wmWindow *win = wm->windows.first; win; win = win->next) {
+					if (workspace == WM_window_get_active_workspace(win)) {
+						Scene *scene = WM_window_get_active_scene(win);
+						ToolSettings *ts = scene->toolsettings;
+						ts->gp_sculpt.brushtype = value;
+					}
+				}
+			}
+		}
+		else if ((tref->space_type == SPACE_VIEW3D) &&
+		         (tref->mode == CTX_MODE_GPENCIL_WEIGHT))
+		{
+			const EnumPropertyItem *items = rna_enum_gpencil_weight_brush_items;
+			const int i = RNA_enum_from_identifier(items, tref_rt->data_block);
+			if (i != -1) {
+				const int value = items[i].value;
+				wmWindowManager *wm = bmain->wm.first;
+				for (wmWindow *win = wm->windows.first; win; win = win->next) {
+					if (workspace == WM_window_get_active_workspace(win)) {
+						Scene *scene = WM_window_get_active_scene(win);
+						ToolSettings *ts = scene->toolsettings;
+						ts->gp_sculpt.weighttype = value;
+					}
+				}
+			}
+		}
+		else if ((tref->space_type == SPACE_VIEW3D) &&
+		         (tref->mode == CTX_MODE_PARTICLE))
 		{
 			const EnumPropertyItem *items = rna_enum_particle_edit_hair_brush_items;
 			const int i = RNA_enum_from_identifier(items, tref_rt->data_block);
@@ -218,8 +255,8 @@ static void toolsystem_ref_link(bContext *C, WorkSpace *workspace, bToolRef *tre
 				}
 			}
 		}
-		if ((tref->space_type == SPACE_IMAGE) &&
-		    (tref->mode == SI_MODE_UV))
+		else if ((tref->space_type == SPACE_IMAGE) &&
+		         (tref->mode == SI_MODE_UV))
 		{
 			/* Note that switching uv-sculpt boolean is a hack at the moment.
 			 * It would be best to make this either an operator or a higher level mode (like mesh-object sculpt mode). */
@@ -410,6 +447,8 @@ void WM_toolsystem_ref_set_from_runtime(
 /**
  * Sync the internal active state of a tool back into the tool system,
  * this is needed for active brushes where the real active state is not stored in the tool system.
+ *
+ * \see #toolsystem_ref_link
  */
 void WM_toolsystem_ref_sync_from_context(
         Main *bmain, WorkSpace *workspace, bToolRef *tref)
@@ -426,34 +465,61 @@ void WM_toolsystem_ref_sync_from_context(
 
 		Scene *scene = WM_window_get_active_scene(win);
 		ToolSettings *ts = scene->toolsettings;
-		ViewLayer *view_layer = WM_window_get_active_view_layer(win);
-		Object *ob = OBACT(view_layer);
+		const ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+		const Object *ob = OBACT(view_layer);
 		if (ob == NULL) {
 			/* pass */
 		}
 		else if ((tref->space_type == SPACE_VIEW3D) &&
-		         (tref->mode == CTX_MODE_PARTICLE) &&
-		         (ob->mode & OB_MODE_PARTICLE_EDIT))
+		         (tref->mode == CTX_MODE_GPENCIL_SCULPT))
 		{
-			const EnumPropertyItem *items = rna_enum_particle_edit_hair_brush_items;
-			const int i = RNA_enum_from_value(items, ts->particle.brushtype);
-			const EnumPropertyItem *item = &items[i];
-			if (!STREQ(tref_rt->data_block, item->identifier)) {
-				STRNCPY(tref_rt->data_block, item->identifier);
-				STRNCPY(tref->idname, item->name);
+			if (ob->mode & OB_MODE_GPENCIL_SCULPT) {
+				const EnumPropertyItem *items = rna_enum_gpencil_sculpt_brush_items;
+				const int i = RNA_enum_from_value(items, ts->gp_sculpt.brushtype);
+				const EnumPropertyItem *item = &items[i];
+				if (!STREQ(tref_rt->data_block, item->identifier)) {
+					STRNCPY(tref_rt->data_block, item->identifier);
+					STRNCPY(tref->idname, item->name);
+				}
+			}
+		}
+		else if ((tref->space_type == SPACE_VIEW3D) &&
+		         (tref->mode == CTX_MODE_GPENCIL_WEIGHT))
+		{
+			if (ob->mode & OB_MODE_GPENCIL_WEIGHT) {
+				const EnumPropertyItem *items = rna_enum_gpencil_weight_brush_items;
+				const int i = RNA_enum_from_value(items, ts->gp_sculpt.weighttype);
+				const EnumPropertyItem *item = &items[i];
+				if (!STREQ(tref_rt->data_block, item->identifier)) {
+					STRNCPY(tref_rt->data_block, item->identifier);
+					STRNCPY(tref->idname, item->name);
+				}
+			}
+		}
+		else if ((tref->space_type == SPACE_VIEW3D) &&
+		         (tref->mode == CTX_MODE_PARTICLE))
+		{
+			if (ob->mode & OB_MODE_PARTICLE_EDIT) {
+				const EnumPropertyItem *items = rna_enum_particle_edit_hair_brush_items;
+				const int i = RNA_enum_from_value(items, ts->particle.brushtype);
+				const EnumPropertyItem *item = &items[i];
+				if (!STREQ(tref_rt->data_block, item->identifier)) {
+					STRNCPY(tref_rt->data_block, item->identifier);
+					STRNCPY(tref->idname, item->name);
+				}
 			}
 		}
 		else if ((tref->space_type == SPACE_IMAGE) &&
-		         (tref->mode == SI_MODE_UV) &&
-		         (ob->mode &
-		          OB_MODE_EDIT))
+		         (tref->mode == SI_MODE_UV))
 		{
-			const EnumPropertyItem *items = rna_enum_uv_sculpt_tool_items;
-			const int i = RNA_enum_from_value(items, ts->uv_sculpt_tool);
-			const EnumPropertyItem *item = &items[i];
-			if (!STREQ(tref_rt->data_block, item->identifier)) {
-				STRNCPY(tref_rt->data_block, item->identifier);
-				STRNCPY(tref->idname, item->name);
+			if (ob->mode & OB_MODE_EDIT) {
+				const EnumPropertyItem *items = rna_enum_uv_sculpt_tool_items;
+				const int i = RNA_enum_from_value(items, ts->uv_sculpt_tool);
+				const EnumPropertyItem *item = &items[i];
+				if (!STREQ(tref_rt->data_block, item->identifier)) {
+					STRNCPY(tref_rt->data_block, item->identifier);
+					STRNCPY(tref->idname, item->name);
+				}
 			}
 		}
 		else {

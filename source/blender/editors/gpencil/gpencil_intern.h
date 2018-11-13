@@ -199,14 +199,14 @@ bool gp_stroke_inside_circle(
 void gp_point_conversion_init(struct bContext *C, GP_SpaceConversion *r_gsc);
 
 void gp_point_to_xy(
-        GP_SpaceConversion *settings, struct bGPDstroke *gps, struct bGPDspoint *pt,
+        const GP_SpaceConversion *gsc, const struct bGPDstroke *gps, const struct bGPDspoint *pt,
         int *r_x, int *r_y);
 
 void gp_point_to_xy_fl(
-        GP_SpaceConversion *gsc, bGPDstroke *gps, bGPDspoint *pt,
+        const GP_SpaceConversion *gsc, const bGPDstroke *gps, const bGPDspoint *pt,
         float *r_x, float *r_y);
 
-void gp_point_to_parent_space(bGPDspoint *pt, float diff_mat[4][4], bGPDspoint *r_pt);
+void gp_point_to_parent_space(const bGPDspoint *pt, const float diff_mat[4][4], bGPDspoint *r_pt);
 /**
  * Change points position relative to parent object
  */
@@ -474,6 +474,10 @@ typedef enum ACTCONT_TYPES {
 /* ****************************************************** */
 /* Stroke Iteration Utilities */
 
+struct GP_EditableStrokes_Iter {
+	float diff_mat[4][4];
+};
+
 /**
  * Iterate over all editable strokes in the current context,
  * stopping on each usable layer + stroke pair (i.e. gpl and gps)
@@ -484,37 +488,36 @@ typedef enum ACTCONT_TYPES {
  * \param gps The identifier to use for current stroke being processed.
  *                    Choose a suitable value to avoid name clashes.
  */
-#define GP_EDITABLE_STROKES_BEGIN(C, gpl, gps)                                          \
+#define GP_EDITABLE_STROKES_BEGIN(gpstroke_iter, C, gpl, gps)                           \
 {                                                                                       \
+	struct GP_EditableStrokes_Iter gpstroke_iter = {0};                                 \
 	Depsgraph *depsgraph_ = CTX_data_depsgraph(C);                                      \
-	Object *obact_ = CTX_data_active_object(C);                                          \
-	bGPdata *gpd_ = CTX_data_gpencil_data(C);                                            \
-	const bool is_multiedit = (bool)GPENCIL_MULTIEDIT_SESSIONS_ON(gpd_);                       \
-	CTX_DATA_BEGIN(C, bGPDlayer*, gpl, editable_gpencil_layers)                         \
+	Object *obact_ = CTX_data_active_object(C);                                         \
+	bGPdata *gpd_ = CTX_data_gpencil_data(C);                                           \
+	const bool is_multiedit_ = (bool)GPENCIL_MULTIEDIT_SESSIONS_ON(gpd_);               \
+	CTX_DATA_BEGIN(C, bGPDlayer *, gpl, editable_gpencil_layers)                        \
 	{                                                                                   \
-		bGPDframe *init_gpf = gpl->actframe;                                                \
-		if (is_multiedit) {                                                                 \
-			init_gpf = gpl->frames.first;                                                   \
-		}                                                                                   \
-		for (bGPDframe *gpf = init_gpf; gpf; gpf = gpf->next) {                        \
-			if ((gpf == gpl->actframe) || ((gpf->flag & GP_FRAME_SELECT) && (is_multiedit))) {  \
-				/* calculate difference matrix */                                               \
-				float diff_mat[4][4];                                                           \
-				ED_gpencil_parent_location(depsgraph_, obact_, gpd_, gpl, diff_mat);            \
+		bGPDframe *init_gpf_ = gpl->actframe;                                           \
+		if (is_multiedit_) {                                                            \
+			init_gpf_ = gpl->frames.first;                                              \
+		}                                                                               \
+		for (bGPDframe *gpf_ = init_gpf_; gpf_; gpf_ = gpf_->next) {                    \
+			if ((gpf_ == gpl->actframe) || ((gpf_->flag & GP_FRAME_SELECT) && is_multiedit_)) { \
+				ED_gpencil_parent_location(depsgraph_, obact_, gpd_, gpl, gpstroke_iter.diff_mat); \
 				/* loop over strokes */                                                         \
-				for (bGPDstroke *gps = gpf->strokes.first; gps; gps = gps->next) {    \
+				for (bGPDstroke *gps = gpf_->strokes.first; gps; gps = gps->next) {             \
 					/* skip strokes that are invalid for current view */                        \
 					if (ED_gpencil_stroke_can_use(C, gps) == false)                             \
 						continue;                                                               \
 					/* check if the color is editable */                                        \
-					if (ED_gpencil_stroke_color_use(obact_, gpl, gps) == false)                         \
+					if (ED_gpencil_stroke_color_use(obact_, gpl, gps) == false)                 \
 						continue;                                                               \
 					/* ... Do Stuff With Strokes ...  */
 
-#define GP_EDITABLE_STROKES_END    \
+#define GP_EDITABLE_STROKES_END(gpstroke_iter)  \
 				}                  \
 			}                      \
-			if (!is_multiedit) {   \
+			if (!is_multiedit_) {  \
 				break;             \
 			}                      \
 		}                          \

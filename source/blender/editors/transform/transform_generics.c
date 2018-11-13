@@ -491,7 +491,7 @@ static void recalcData_nla(TransInfo *t)
 		 * BUT only if realtime updates are enabled
 		 */
 		if ((snla->flag & SNLA_NOREALTIMEUPDATES) == 0)
-			ANIM_id_update(t->scene, tdn->id);
+			ANIM_id_update(CTX_data_main(t->context), tdn->id);
 
 		/* if canceling transform, just write the values without validating, then move on */
 		if (t->state == TRANS_CANCEL) {
@@ -784,7 +784,7 @@ static void recalcData_objects(TransInfo *t)
 				else {
 					/* Normal updating */
 					while (nu) {
-						BKE_nurb_test2D(nu);
+						BKE_nurb_test_2d(nu);
 						BKE_nurb_handles_calc(nu);
 						nu = nu->next;
 					}

@@ -1194,7 +1194,7 @@ void EEVEE_draw_shadows(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
 		Lamp *la = (Lamp *)ob->data;
 		BoundSphere bsphere = {
 			.center = {ob->obmat[3][0], ob->obmat[3][1], ob->obmat[3][2]},
-			.radius = la->dist
+			.radius = la->clipend
 		};
 		cube_visible[i] = DRW_culling_sphere_test(&bsphere);
 	}
@@ -1241,6 +1241,7 @@ void EEVEE_draw_shadows(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
 		copy_v3_v3(srd->position, cube_data->position);
 
 		srd->stored_texel_size = 1.0 / (float)linfo->shadow_cube_store_size;
+		srd->exponent = la->bleedexp;
 
 		DRW_uniformbuffer_update(sldata->shadow_render_ubo, srd);
 
