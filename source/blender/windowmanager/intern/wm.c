@@ -225,26 +225,37 @@ void WM_operator_handlers_clear(wmWindowManager *wm, wmOperatorType *ot)
 
 /* ****************************************** */
 
-void WM_keymap_init(bContext *C)
+void WM_keyconfig_reload(bContext *C)
+{
+	if (CTX_py_init_get(C) && !G.background) {
+		BPY_execute_string(
+		        C, (const char *[]){"bpy", NULL},
+		        "bpy.utils.keyconfig_init()");
+	}
+}
+
+void WM_keyconfig_init(bContext *C)
 {
 	wmWindowManager *wm = CTX_wm_manager(C);
 
 	/* create standard key configs */
 	if (!wm->defaultconf)
-		wm->defaultconf = WM_keyconfig_new(wm, "Blender");
+		wm->defaultconf = WM_keyconfig_new(wm, "Blender", false);
 	if (!wm->addonconf)
-		wm->addonconf = WM_keyconfig_new(wm, "Blender Addon");
+		wm->addonconf = WM_keyconfig_new(wm, "Blender Addon", false);
 	if (!wm->userconf)
-		wm->userconf = WM_keyconfig_new(wm, "Blender User");
+		wm->userconf = WM_keyconfig_new(wm, "Blender User", false);
 
 	/* initialize only after python init is done, for keymaps that
 	 * use python operators */
-	if (CTX_py_init_get(C) && (wm->initialized & WM_KEYMAP_IS_INITIALIZED) == 0) {
+	if (CTX_py_init_get(C) && (wm->initialized & WM_KEYCONFIG_IS_INITIALIZED) == 0) {
 		/* create default key config, only initialize once,
 		 * it's persistent across sessions */
 		if (!(wm->defaultconf->flag & KEYCONF_INIT_DEFAULT)) {
 			wm_window_keymap(wm->defaultconf);
 			ED_spacetypes_keymap(wm->defaultconf);
+
+			WM_keyconfig_reload(C);
 
 			wm->defaultconf->flag |= KEYCONF_INIT_DEFAULT;
 		}
@@ -252,7 +263,7 @@ void WM_keymap_init(bContext *C)
 		WM_keyconfig_update_tag(NULL, NULL);
 		WM_keyconfig_update(wm);
 
-		wm->initialized |= WM_KEYMAP_IS_INITIALIZED;
+		wm->initialized |= WM_KEYCONFIG_IS_INITIALIZED;
 	}
 }
 
@@ -274,7 +285,7 @@ void WM_check(bContext *C)
 	if (!G.background) {
 		/* case: fileread */
 		if ((wm->initialized & WM_WINDOW_IS_INITIALIZED) == 0) {
-			WM_keymap_init(C);
+			WM_keyconfig_init(C);
 			WM_autosave_init(wm);
 		}
 

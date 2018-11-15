@@ -47,20 +47,10 @@ _icon_cache = {}
 
 def _keymap_fn_from_seq(keymap_data):
 
-    # standalone
-    def _props_assign_recursive(rna_props, py_props):
-        for prop_id, value in py_props.items():
-            if isinstance(value, dict):
-                _props_assign_recursive(getattr(rna_props, prop_id), value)
-            else:
-                setattr(rna_props, prop_id, value)
-
     def keymap_fn(km):
-        for op_idname, op_props_dict, kmi_kwargs in keymap_fn.keymap_data:
-            kmi = km.keymap_items.new(op_idname, **kmi_kwargs)
-            kmi_props = kmi.properties
-            if op_props_dict:
-                _props_assign_recursive(kmi_props, op_props_dict)
+        if keymap_fn.keymap_data:
+            from bpy_extras.keyconfig_utils import keymap_items_from_data
+            keymap_items_from_data(km, keymap_fn.keymap_data)
     keymap_fn.keymap_data = keymap_data
     return keymap_fn
 
@@ -315,7 +305,7 @@ class ToolSelectPanelHelper:
         km_idname = f"{cls.keymap_prefix:s} {context_descr:s}, {text:s}"
         km = kc.keymaps.get(km_idname)
         if km is None:
-            km = kc.keymaps.new(km_idname, space_type=cls.bl_space_type, region_type='WINDOW')
+            km = kc.keymaps.new(km_idname, space_type=cls.bl_space_type, region_type='WINDOW', tool=True)
             keymap_fn[0](km)
         keymap_fn[0] = km
 
@@ -756,6 +746,8 @@ def keymap_from_context(context, space_type):
     if ToolSelectPanelHelper._tool_get_by_name(context, space_type, tap_reset_tool)[1] is None:
         use_tap_reset = False
 
+    from bl_operators.wm import use_toolbar_release_hack
+
     # Pie-menu style release to activate.
     use_release_confirm = True
 
@@ -770,7 +762,7 @@ def keymap_from_context(context, space_type):
     keyconf = wm.keyconfigs.active
     keymap = keyconf.keymaps.get(km_name)
     if keymap is None:
-        keymap = keyconf.keymaps.new(km_name, space_type='EMPTY', region_type='TEMPORARY')
+        keymap = keyconf.keymaps.new(km_name, space_type='EMPTY', region_type='TEMPORARY', tool=True)
     for kmi in keymap.keymap_items:
         keymap.keymap_items.remove(kmi)
 
@@ -826,7 +818,7 @@ def keymap_from_context(context, space_type):
         if kmi_toolbar_tuple not in kmi_unique_args:
             kmi = keymap.keymap_items.new(
                 "wm.tool_set_by_name",
-                value='DOUBLE_CLICK',
+                value='PRESS' if use_toolbar_release_hack else 'DOUBLE_CLICK',
                 **kmi_toolbar_args,
             )
             kmi.properties.name = tap_reset_tool
@@ -865,9 +857,8 @@ def keymap_from_context(context, space_type):
                             'WEIGHT_PAINT': "weight_tool",
                             'TEXTURE_PAINT': "image_tool",
                             'GPENCIL_PAINT': "gpencil_tool",
-                        }.get(mode, (None, None))
+                        }.get(mode, None)
                         if attr is not None:
-                            kmi_hack_brush_select_properties.paint_mode = mode
                             setattr(kmi_hack_brush_select_properties, attr, item.data_block)
                             kmi_found = wm.keyconfigs.find_item_from_operator(
                                 idname="paint.brush_select",
@@ -1023,6 +1014,15 @@ def keymap_from_context(context, space_type):
             value='RELEASE',
         )
         kmi.properties.skip_depressed = True
+
+        if use_toolbar_release_hack:
+            # ... or pass through to let the toolbar know we're released.
+            # Let the operator know we're released.
+            kmi = keymap.keymap_items.new(
+                "wm.tool_set_by_name",
+                type=kmi_toolbar_type,
+                value='RELEASE',
+            )
 
     wm.keyconfigs.update()
     return keymap

@@ -586,6 +586,9 @@ void WM_keyconfig_update_tag(struct wmKeyMap *keymap, struct wmKeyMapItem *kmi) 
 bool WM_keymap_item_compare(struct wmKeyMapItem *k1, struct wmKeyMapItem *k2) RET_ZERO
 int	WM_keymap_map_type_get(struct wmKeyMapItem *kmi) RET_ZERO
 void WM_keyconfig_update(struct wmWindowManager *wm) RET_NONE
+
+void WM_keyconfig_reload(struct bContext *C) RET_NONE
+
 struct wmKeyMapItem *WM_key_event_operator(const struct bContext *C, const char *opname, int opcontext, struct IDProperty *properties, const bool is_hotkey, struct wmKeyMap **r_keymap) RET_NULL
 void WM_toolsystem_ref_properties_ensure(struct bToolRef *tref, struct wmOperatorType *ot, struct PointerRNA *ptr) RET_NONE
 struct IDProperty *WM_toolsystem_ref_properties_ensure_idprops(struct bToolRef *tref) RET_NULL

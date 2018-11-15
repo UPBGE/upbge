@@ -168,7 +168,7 @@ typedef struct wmWindowManager {
 /* wmWindowManager.initialized */
 enum {
 	WM_WINDOW_IS_INITIALIZED = (1<<0),
-	WM_KEYMAP_IS_INITIALIZED = (1<<1),
+	WM_KEYCONFIG_IS_INITIALIZED = (1<<1),
 };
 
 /* IME is win32 only! */
@@ -345,6 +345,7 @@ enum {
 	KEYMAP_DIFF               = (1 << 4),  /* diff keymap for user preferences */
 	KEYMAP_USER_MODIFIED      = (1 << 5),  /* keymap has user modifications */
 	KEYMAP_UPDATE             = (1 << 6),
+	KEYMAP_TOOL               = (1 << 7),  /* keymap for active tool system */
 };
 
 typedef struct wmKeyConfig {

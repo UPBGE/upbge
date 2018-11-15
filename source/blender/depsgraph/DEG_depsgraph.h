@@ -71,7 +71,6 @@ struct ViewLayer;
 typedef enum eEvaluationMode {
 	DAG_EVAL_VIEWPORT       = 0,    /* evaluate for OpenGL viewport */
 	DAG_EVAL_RENDER         = 1,    /* evaluate for render purposes */
-	DAG_EVAL_BACKGROUND     = 2,    /* evaluate in background for baking/caching */
 } eEvaluationMode;
 
 /* DagNode->eval_flags */
@@ -147,11 +146,12 @@ typedef enum eDepsgraph_Tag {
 	/* Tag shading components for update.
 	 * Only parameters of material changed).
 	 */
-	DEG_TAG_SHADING_UPDATE  = (1 << 9),
-	DEG_TAG_SELECT_UPDATE   = (1 << 10),
-	DEG_TAG_BASE_FLAGS_UPDATE = (1 << 11),
+	DEG_TAG_SHADING_UPDATE       = (1 << 9),
+	DEG_TAG_SELECT_UPDATE        = (1 << 10),
+	DEG_TAG_BASE_FLAGS_UPDATE    = (1 << 11),
+	DEG_TAG_POINT_CACHE_UPDATE   = (1 << 12),
 	/* Only inform editors about the change. Don't modify datablock itself. */
-	DEG_TAG_EDITORS_UPDATE = (1 << 12),
+	DEG_TAG_EDITORS_UPDATE = (1 << 13),
 } eDepsgraph_Tag;
 
 const char *DEG_update_tag_as_string(eDepsgraph_Tag flag);

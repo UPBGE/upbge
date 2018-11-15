@@ -113,7 +113,7 @@ static int brush_add_gpencil_exec(bContext *C, wmOperator *UNUSED(op))
 	Paint *paint = &ts->gp_paint->paint;
 	Brush *br = BKE_paint_brush(paint);
 	Main *bmain = CTX_data_main(C);
-	// ePaintMode mode = ePaintGpencil;
+	// ePaintMode mode = PAINT_MODE_GPENCIL;
 
 	if (br) {
 		br = BKE_brush_copy(bmain, br);
@@ -253,11 +253,11 @@ static int palette_color_add_exec(bContext *C, wmOperator *UNUSED(op))
 	color = BKE_palette_color_add(palette);
 	palette->active_color = BLI_listbase_count(&palette->colors) - 1;
 
-	if (ELEM(mode, ePaintTexture3D, ePaintTexture2D, ePaintVertex)) {
+	if (ELEM(mode, PAINT_MODE_TEXTURE_3D, PAINT_MODE_TEXTURE_2D, PAINT_MODE_VERTEX)) {
 		copy_v3_v3(color->rgb, BKE_brush_color_get(scene, brush));
 		color->value = 0.0;
 	}
-	else if (mode == ePaintWeight) {
+	else if (mode == PAINT_MODE_WEIGHT) {
 		zero_v3(color->rgb);
 		color->value = brush->weight;
 	}
@@ -449,31 +449,40 @@ static int brush_generic_tool_set(
 	}
 }
 
+static const ePaintMode brush_select_paint_modes[] = {
+	PAINT_MODE_SCULPT,
+	PAINT_MODE_VERTEX,
+	PAINT_MODE_WEIGHT,
+	PAINT_MODE_TEXTURE_3D,
+	PAINT_MODE_GPENCIL,
+};
+
 static int brush_select_exec(bContext *C, wmOperator *op)
 {
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
-	ePaintMode paint_mode = RNA_enum_get(op->ptr, "paint_mode");
 	const bool create_missing = RNA_boolean_get(op->ptr, "create_missing");
 	const bool toggle = RNA_boolean_get(op->ptr, "toggle");
 	const char *tool_name = "Brush";
+	int tool = 0;
 
-	if (paint_mode == ePaintInvalid) {
-		paint_mode = BKE_paintmode_get_active_from_context(C);
-		if (paint_mode == ePaintInvalid) {
-			return OPERATOR_CANCELLED;
+	ePaintMode paint_mode = PAINT_MODE_INVALID;
+	for (int i = 0; i < ARRAY_SIZE(brush_select_paint_modes); i++) {
+		paint_mode = brush_select_paint_modes[i];
+		const char *op_prop_id = BKE_paint_get_tool_prop_id_from_paintmode(paint_mode);
+		PropertyRNA *prop = RNA_struct_find_property(op->ptr, op_prop_id);
+		if (RNA_property_is_set(op->ptr, prop)) {
+			tool = RNA_property_enum_get(op->ptr, prop);
+			break;
 		}
+	}
+
+	if (paint_mode == PAINT_MODE_INVALID) {
+		return OPERATOR_CANCELLED;
 	}
 
 	Paint *paint = BKE_paint_get_active_from_paintmode(scene, paint_mode);
 	const EnumPropertyItem *items = BKE_paint_get_tool_enum_from_paintmode(paint_mode);
-	const char *op_prop_id = BKE_paint_get_tool_prop_id_from_paintmode(paint_mode);
-
-	if (op_prop_id == NULL) {
-		return OPERATOR_CANCELLED;
-	}
-
-	const int tool = RNA_enum_get(op->ptr, op_prop_id);
 	RNA_enum_name_from_value(items, tool, &tool_name);
 	return brush_generic_tool_set(
 	        bmain, paint, tool,
@@ -483,16 +492,6 @@ static int brush_select_exec(bContext *C, wmOperator *op)
 
 static void PAINT_OT_brush_select(wmOperatorType *ot)
 {
-	/* Keep names matching 'rna_enum_object_mode_items' (besides active). */
-	static const EnumPropertyItem paint_mode_items[] = {
-		{ePaintInvalid, "ACTIVE", 0, "Current", "Set brush for active paint mode"},
-		{ePaintSculpt, "SCULPT", ICON_SCULPTMODE_HLT, "Sculpt", ""},
-		{ePaintVertex, "VERTEX_PAINT", ICON_VPAINT_HLT, "Vertex Paint", ""},
-		{ePaintWeight, "WEIGHT_PAINT", ICON_WPAINT_HLT, "Weight Paint", ""},
-		{ePaintTexture3D, "TEXTURE_PAINT", ICON_TPAINT_HLT, "Texture Paint", ""},
-		{ePaintGpencil, "GPENCIL_PAINT", ICON_GREASEPENCIL, "Grease Pencil Paint", ""},
-		{0, NULL, 0, NULL, NULL}
-	};
 	PropertyRNA *prop;
 
 	/* identifiers */
@@ -508,11 +507,8 @@ static void PAINT_OT_brush_select(wmOperatorType *ot)
 
 	/* props */
 	/* All properties are hidden, so as not to show the redo panel. */
-	prop = RNA_def_enum(ot->srna, "paint_mode", paint_mode_items, ePaintInvalid, "Paint Mode", "");
-	RNA_def_property_flag(prop, PROP_HIDDEN);
-
-	for (const EnumPropertyItem *item = paint_mode_items + 1; item->identifier; item++) {
-		const ePaintMode paint_mode = item->value;
+	for (int i = 0; i < ARRAY_SIZE(brush_select_paint_modes); i++) {
+		const ePaintMode paint_mode = brush_select_paint_modes[i];
 		const char *prop_id = BKE_paint_get_tool_prop_id_from_paintmode(paint_mode);
 		prop = RNA_def_enum(ot->srna, prop_id, BKE_paint_get_tool_enum_from_paintmode(paint_mode), 0, prop_id, "");
 		RNA_def_property_flag(prop, PROP_HIDDEN);

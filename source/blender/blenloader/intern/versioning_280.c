@@ -1809,7 +1809,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 			}
 		}
 
-		if (!DNA_struct_elem_find(fd->filesdna, "View3DShadeing", "short", "background_type")) {
+		if (!DNA_struct_elem_find(fd->filesdna, "View3DShadeing", "char", "background_type")) {
 			for (bScreen *screen = bmain->screen.first; screen; screen = screen->id.next) {
 				for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
 					for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
@@ -2255,6 +2255,13 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 		if (!DNA_struct_elem_find(fd->filesdna, "SceneEEVEE", "float", "overscan")) {
 			for (Scene *scene = bmain->scene.first; scene; scene = scene->id.next) {
 				scene->eevee.overscan = 3.0f;
+			}
+		}
+
+		for (Lamp *la = bmain->lamp.first; la; la = la->id.next) {
+			/* Removed Hemi lights. */
+			if (!ELEM(la->type, LA_LOCAL, LA_SUN, LA_SPOT, LA_AREA)) {
+				la->type = LA_SUN;
 			}
 		}
 

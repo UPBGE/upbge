@@ -165,7 +165,8 @@ struct DepsgraphNodeBuilder {
 	void build_view_layer(Scene *scene,
 	                      ViewLayer *view_layer,
 	                      eDepsNode_LinkedState_Type linked_state);
-	void build_collection(Collection *collection);
+	void build_collection(LayerCollection *from_layer_collection,
+	                      Collection *collection);
 	void build_object(int base_index,
 	                  Object *object,
 	                  eDepsNode_LinkedState_Type linked_state,
@@ -183,6 +184,7 @@ struct DepsgraphNodeBuilder {
 	void build_object_data_speaker(Object *object);
 	void build_object_transform(Object *object);
 	void build_object_constraints(Object *object);
+	void build_object_pointcache(Object *object);
 	void build_pose_constraints(Object *object,
 	                            bPoseChannel *pchan,
 	                            int pchan_index,
@@ -190,7 +192,6 @@ struct DepsgraphNodeBuilder {
 	void build_rigidbody(Scene *scene);
 	void build_particles(Object *object, bool is_object_visible);
 	void build_particle_settings(ParticleSettings *part);
-	void build_cloth(Object *object);
 	void build_animdata(ID *id);
 	void build_animdata_nlastrip_targets(ListBase *strips);
 	void build_action(bAction *action);

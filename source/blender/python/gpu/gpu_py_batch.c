@@ -132,14 +132,14 @@ static PyObject *bpygpu_Batch_new(PyTypeObject *UNUSED(type), PyObject *args, Py
 PyDoc_STRVAR(bpygpu_Batch_vertbuf_add_doc,
 ".. method:: vertbuf_add(buf)\n"
 "\n"
-"   Add another vertex buffer to the Batch. \n"
-"   It is not possible to add more vertices to the batch using this method. \n"
-"   Instead it can be used to add more attributes to the existing vertices. \n"
-"   A good use case would be when you have a separate vertex buffer for vertex positions and vertex normals. \n"
-"   Current a batch can have at most " STRINGIFY(GPU_BATCH_VBO_MAX_LEN) " vertex buffers. \n"
+"   Add another vertex buffer to the Batch.\n"
+"   It is not possible to add more vertices to the batch using this method.\n"
+"   Instead it can be used to add more attributes to the existing vertices.\n"
+"   A good use case would be when you have a separate vertex buffer for vertex positions and vertex normals.\n"
+"   Current a batch can have at most " STRINGIFY(GPU_BATCH_VBO_MAX_LEN) " vertex buffers.\n"
 "\n"
-"   :param buf: The vertex buffer that will be added to the batch. \n"
-"   :type buf: :class:`gpu.types.GPUVertBuf` \n"
+"   :param buf: The vertex buffer that will be added to the batch.\n"
+"   :type buf: :class:`gpu.types.GPUVertBuf`\n"
 );
 static PyObject *bpygpu_Batch_vertbuf_add(BPyGPUBatch *self, BPyGPUVertBuf *py_buf)
 {
@@ -176,12 +176,12 @@ static PyObject *bpygpu_Batch_vertbuf_add(BPyGPUBatch *self, BPyGPUVertBuf *py_b
 PyDoc_STRVAR(bpygpu_Batch_program_set_doc,
 ".. method:: program_set(program)\n"
 "\n"
-"   Assign a shader to this batch that will be used for drawing when not overwritten later. \n"
-"   Note: This method has to be called in the draw context that the batch will be drawn in. \n"
-"   This function does not need to be called when you always set the shader when calling `batch.draw`. \n"
+"   Assign a shader to this batch that will be used for drawing when not overwritten later.\n"
+"   Note: This method has to be called in the draw context that the batch will be drawn in.\n"
+"   This function does not need to be called when you always set the shader when calling `batch.draw`.\n"
 "\n"
-"   :param program: The program/shader the batch will use in future draw calls. \n"
-"   :type program: :class:`gpu.types.GPUShader` \n"
+"   :param program: The program/shader the batch will use in future draw calls.\n"
+"   :type program: :class:`gpu.types.GPUShader`\n"
 );
 static PyObject *bpygpu_Batch_program_set(BPyGPUBatch *self, BPyGPUShader *py_shader)
 {
@@ -224,7 +224,7 @@ PyDoc_STRVAR(bpygpu_Batch_draw_doc,
 "\n"
 "   Run the drawing program with the parameters assigned to the batch.\n"
 "\n"
-"   :param program: program that performs the drawing operations. \n"
+"   :param program: Program that performs the drawing operations.\n"
 "      If ``None`` is passed, the last program setted to this batch will run.\n"
 "   :type program: :class:`gpu.types.GPUShader`\n"
 );
@@ -318,11 +318,11 @@ static void bpygpu_Batch_dealloc(BPyGPUBatch *self)
 }
 
 PyDoc_STRVAR(py_gpu_batch_doc,
-"GPUBatch(type, buf, elem=None)\n"
+".. class:: GPUBatch(type, buf, elem=None)\n"
 "\n"
-"Contains VAOs + VBOs + Shader representing a drawable entity."
+"   Reusable container for drawable geometry.\n"
 "\n"
-"   :param type: One of these primitive types: {\n"
+"   :arg type: One of these primitive types: {\n"
 "       `POINTS`,\n"
 "       `LINES`,\n"
 "       `TRIS`,\n"
@@ -333,10 +333,10 @@ PyDoc_STRVAR(py_gpu_batch_doc,
 "       `LINES_ADJ`,\n"
 "       `TRIS_ADJ`,\n"
 "       `LINE_STRIP_ADJ` }\n"
-"   :type type: :class:`str`\n"
-"   :param buf: Vertex buffer containing all or some of the attributes required for drawing.\n"
+"   :type type: `str`\n"
+"   :arg buf: Vertex buffer containing all or some of the attributes required for drawing.\n"
 "   :type buf: :class:`gpu.types.GPUVertBuf`\n"
-"   :param elem: Optional index buffer.\n"
+"   :arg elem: An optional index buffer.\n"
 "   :type elem: :class:`gpu.types.GPUIndexBuf`\n"
 );
 PyTypeObject BPyGPUBatch_Type = {

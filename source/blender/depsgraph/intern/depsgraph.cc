@@ -51,6 +51,7 @@ extern "C" {
 #include "RNA_access.h"
 
 #include "BKE_scene.h"
+#include "BKE_constraint.h"
 }
 
 #include <algorithm>
@@ -183,6 +184,25 @@ static bool pointer_to_component_node_criteria(
 			}
 		}
 	}
+	else if (ELEM(ptr->type, &RNA_ConstraintTarget, &RNA_ConstraintTargetBone)) {
+		Object *object = (Object *)ptr->id.data;
+		bConstraintTarget *tgt = (bConstraintTarget *)ptr->data;
+		/* Check whether is object or bone constraint. */
+		bPoseChannel *pchan = NULL;
+		bConstraint *con = BKE_constraint_find_from_target(object, tgt, &pchan);
+		if (con != NULL) {
+			if (pchan != NULL) {
+				*type = DEG_NODE_TYPE_BONE;
+				*operation_code = DEG_OPCODE_BONE_LOCAL;
+				*subdata = pchan->name;
+			}
+			else {
+				*type = DEG_NODE_TYPE_TRANSFORM;
+				*operation_code = DEG_OPCODE_TRANSFORM_LOCAL;
+			}
+			return true;
+		}
+	}
 	else if (RNA_struct_is_a(ptr->type, &RNA_Modifier)) {
 		*type = DEG_NODE_TYPE_GEOMETRY;
 		return true;
@@ -227,6 +247,10 @@ static bool pointer_to_component_node_criteria(
 		return true;
 	}
 	else if (RNA_struct_is_a(ptr->type, &RNA_NodeSocket)) {
+		*type = DEG_NODE_TYPE_SHADING;
+		return true;
+	}
+	else if (RNA_struct_is_a(ptr->type, &RNA_ShaderNode)) {
 		*type = DEG_NODE_TYPE_SHADING;
 		return true;
 	}

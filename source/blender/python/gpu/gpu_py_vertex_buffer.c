@@ -246,14 +246,14 @@ static PyObject *bpygpu_VertBuf_new(PyTypeObject *UNUSED(type), PyObject *args, 
 }
 
 PyDoc_STRVAR(bpygpu_VertBuf_attr_fill_doc,
-"attr_fill(id, data)\n"
+".. method:: attr_fill(id, data)\n"
 "\n"
 "   Insert data into the buffer for a single attribute.\n"
 "\n"
 "   :param id: Either the name or the id of the attribute.\n"
 "   :type id: int or str\n"
 "   :param data: Sequence of data that should be stored in the buffer\n"
-"   :type data: sequence of individual values or tuples\n"
+"   :type data: sequence of values or tuples\n"
 );
 static PyObject *bpygpu_VertBuf_attr_fill(BPyGPUVertBuf *self, PyObject *args, PyObject *kwds)
 {
@@ -311,14 +311,14 @@ static void bpygpu_VertBuf_dealloc(BPyGPUVertBuf *self)
 }
 
 PyDoc_STRVAR(py_gpu_vertex_buffer_doc,
-"GPUVertBuf(len, format)\n"
+".. class:: GPUVertBuf(len, format)\n"
 "\n"
-"Contains a VBO."
+"   Contains a VBO.\n"
 "\n"
-"   :param len: number of elements to allocate\n"
+"   :param len: Amount of vertices that will fit into this buffer.\n"
 "   :type type: `int`\n"
 "   :param format: Vertex format.\n"
-"   :type buf: `gpu.types.GPUVertFormat`\n"
+"   :type buf: :class:`gpu.types.GPUVertFormat`\n"
 );
 PyTypeObject BPyGPUVertBuf_Type = {
 	PyVarObject_HEAD_INIT(NULL, 0)

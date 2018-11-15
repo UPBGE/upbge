@@ -288,7 +288,6 @@ void MESH_OT_subdivide_edgering(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name = "Subdivide Edge-Ring";
-	ot->description = "";
 	ot->idname = "MESH_OT_subdivide_edgering";
 
 	/* api callbacks */
@@ -3364,9 +3363,9 @@ void MESH_OT_solidify(wmOperatorType *ot)
  * Contributed by Robert Wenzlaff (Det. Thorn).
  *
  * 2.5 Revamp:
- *  - non modal (no menu before cutting)
- *  - exit on mouse release
- *  - polygon/segment drawing can become handled by WM cb later
+ * - non modal (no menu before cutting)
+ * - exit on mouse release
+ * - polygon/segment drawing can become handled by WM cb later
  *
  * bmesh port version
  */

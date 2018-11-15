@@ -109,6 +109,8 @@
 
 static void damptrack_do_transform(float matrix[4][4], const float tarvec[3], int track_axis);
 
+static bConstraint *constraint_find_original(struct Depsgraph *depsgraph, Object *ob, bPoseChannel *pchan, bConstraint *con, Object **r_orig_ob);
+
 /* -------------- Naming -------------- */
 
 /* Find the first available, non-duplicate name for a given constraint */
@@ -465,8 +467,8 @@ static void contarget_get_mesh_mat(Object *ob, const char *substring, float mat[
 	}
 
 	/* derive the rotation from the average normal:
-	 *		- code taken from transform_gizmo.c,
-	 *			calc_gizmo_stats, V3D_MANIP_NORMAL case
+	 * - code taken from transform_gizmo.c,
+	 *   calc_gizmo_stats, V3D_MANIP_NORMAL case
 	 */
 	/*	we need the transpose of the inverse for a normal... */
 	copy_m3_m4(imat, ob->obmat);
@@ -549,7 +551,7 @@ static void contarget_get_lattice_mat(Object *ob, const char *substring, float m
 /* The cases where the target can be object data have not been implemented */
 static void constraint_target_to_mat4(Object *ob, const char *substring, float mat[4][4], short from, short to, short flag, float headtail)
 {
-	/*	Case OBJECT */
+	/* Case OBJECT */
 	if (substring[0] == '\0') {
 		copy_m4_m4(mat, ob->obmat);
 		BKE_constraint_mat_convertspace(ob, NULL, mat, from, to, false);
@@ -561,7 +563,7 @@ static void constraint_target_to_mat4(Object *ob, const char *substring, float m
 	 * 'average' vertex normal, and deriving the rotation from that.
 	 *
 	 * NOTE: EditMode is not currently supported, and will most likely remain that
-	 *		way as constraints can only really affect things on object/bone level.
+	 *       way as constraints can only really affect things on object/bone level.
 	 */
 	else if (ob->type == OB_MESH) {
 		contarget_get_mesh_mat(ob, substring, mat);
@@ -571,7 +573,7 @@ static void constraint_target_to_mat4(Object *ob, const char *substring, float m
 		contarget_get_lattice_mat(ob, substring, mat);
 		BKE_constraint_mat_convertspace(ob, NULL, mat, from, to, false);
 	}
-	/*	Case BONE */
+	/* Case BONE */
 	else {
 		bPoseChannel *pchan;
 
@@ -678,15 +680,15 @@ static void constraint_target_to_mat4(Object *ob, const char *substring, float m
  */
 
 /* Template for type-info data:
- *  - make a copy of this when creating new constraints, and just change the functions
- *    pointed to as necessary
- *  - although the naming of functions doesn't matter, it would help for code
- *    readability, to follow the same naming convention as is presented here
- *  - any functions that a constraint doesn't need to define, don't define
- *    for such cases, just use NULL
- *  - these should be defined after all the functions have been defined, so that
- *    forward-definitions/prototypes don't need to be used!
- *	- keep this copy #if-def'd so that future constraints can get based off this
+ * - make a copy of this when creating new constraints, and just change the functions
+ *   pointed to as necessary
+ * - although the naming of functions doesn't matter, it would help for code
+ *   readability, to follow the same naming convention as is presented here
+ * - any functions that a constraint doesn't need to define, don't define
+ *   for such cases, just use NULL
+ * - these should be defined after all the functions have been defined, so that
+ *   forward-definitions/prototypes don't need to be used!
+ * - keep this copy #if-def'd so that future constraints can get based off this
  */
 #if 0
 static bConstraintTypeInfo CTI_CONSTRNAME = {
@@ -1288,7 +1290,7 @@ static void followpath_get_tarmat(struct Depsgraph *UNUSED(depsgraph),
 		unit_m4(ct->matrix);
 
 		/* note: when creating constraints that follow path, the curve gets the CU_PATH set now,
-		 *		currently for paths to work it needs to go through the bevlist/displist system (ton)
+		 * currently for paths to work it needs to go through the bevlist/displist system (ton)
 		 */
 
 		if (ct->tar->runtime.curve_cache && ct->tar->runtime.curve_cache->path && ct->tar->runtime.curve_cache->path->data) {
@@ -2362,9 +2364,9 @@ static void actcon_get_tarmat(struct Depsgraph *UNUSED(depsgraph), bConstraint *
 
 		/* determine where in transform range target is */
 		/* data->type is mapped as follows for backwards compatibility:
-		 *	00,01,02	- rotation (it used to be like this)
-		 *  10,11,12	- scaling
-		 *	20,21,22	- location
+		 * 00,01,02 - rotation (it used to be like this)
+		 * 10,11,12 - scaling
+		 * 20,21,22 - location
 		 */
 		if (data->type < 10) {
 			/* extract rotation (is in whatever space target should be in) */
@@ -2408,7 +2410,7 @@ static void actcon_get_tarmat(struct Depsgraph *UNUSED(depsgraph), bConstraint *
 			bPoseChannel *pchan, *tchan;
 
 			/* make a copy of the bone of interest in the temp pose before evaluating action, so that it can get set
-			 *	- we need to manually copy over a few settings, including rotation order, otherwise this fails
+			 * - we need to manually copy over a few settings, including rotation order, otherwise this fails
 			 */
 			pchan = cob->pchan;
 
@@ -2963,20 +2965,37 @@ static void stretchto_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *t
 		normalize_v3_v3(zz, cob->matrix[2]);
 
 		/* XXX That makes the constraint buggy with asymmetrically scaled objects, see #29940. */
-/*		sub_v3_v3v3(vec, cob->matrix[3], ct->matrix[3]);*/
-/*		vec[0] /= size[0];*/
-/*		vec[1] /= size[1];*/
-/*		vec[2] /= size[2];*/
+#if 0
+		sub_v3_v3v3(vec, cob->matrix[3], ct->matrix[3]);
+		vec[0] /= size[0];
+		vec[1] /= size[1];
+		vec[2] /= size[2];
 
-/*		dist = normalize_v3(vec);*/
+		dist = normalize_v3(vec);
+#endif
 
 		dist = len_v3v3(cob->matrix[3], ct->matrix[3]);
 		/* Only Y constrained object axis scale should be used, to keep same length when scaling it. */
 		dist /= size[1];
 
 		/* data->orglength==0 occurs on first run, and after 'R' button is clicked */
-		if (data->orglength == 0)
+		if (data->orglength == 0) {
 			data->orglength = dist;
+
+			/* Write the computed length back to the master copy if in COW evaluation. */
+			if (DEG_is_active(cob->depsgraph)) {
+				Object *orig_ob = NULL;
+				bConstraint *orig_con = constraint_find_original(cob->depsgraph, cob->ob, cob->pchan, con, &orig_ob);
+
+				if (orig_con != NULL) {
+					bStretchToConstraint *orig_data = orig_con->data;
+
+					orig_data->orglength = data->orglength;
+
+					DEG_id_tag_update(&orig_ob->id, DEG_TAG_COPY_ON_WRITE | DEG_TAG_TRANSFORM);
+				}
+			}
+		}
 
 		scale[1] = dist / data->orglength;
 
@@ -3915,9 +3934,9 @@ static void damptrack_do_transform(float matrix[4][4], const float tarvec_in[3],
 		float rmat[3][3], tmat[4][4];
 
 		/* find the (unit) direction that the axis we're interested in currently points
-		 *	- mul_mat3_m4_v3() only takes the 3x3 (rotation+scaling) components of the 4x4 matrix
-		 *	- the normalization step at the end should take care of any unwanted scaling
-		 *	  left over in the 3x3 matrix we used
+		 * - mul_mat3_m4_v3() only takes the 3x3 (rotation+scaling) components of the 4x4 matrix
+		 * - the normalization step at the end should take care of any unwanted scaling
+		 *   left over in the 3x3 matrix we used
 		 */
 		copy_v3_v3(obvec, track_dir_vecs[track_axis]);
 		mul_mat3_m4_v3(matrix, obvec);
@@ -3931,11 +3950,11 @@ static void damptrack_do_transform(float matrix[4][4], const float tarvec_in[3],
 
 		/* determine the axis-angle rotation, which represents the smallest possible rotation
 		 * between the two rotation vectors (i.e. the 'damping' referred to in the name)
-		 *	- we take this to be the rotation around the normal axis/vector to the plane defined
-		 *	  by the current and destination vectors, which will 'map' the current axis to the
-		 *	  destination vector
-		 *	- the min/max wrappers around (obvec . tarvec) result (stored temporarily in rangle)
-		 *	  are used to ensure that the smallest angle is chosen
+		 * - we take this to be the rotation around the normal axis/vector to the plane defined
+		 *   by the current and destination vectors, which will 'map' the current axis to the
+		 *   destination vector
+		 * - the min/max wrappers around (obvec . tarvec) result (stored temporarily in rangle)
+		 *   are used to ensure that the smallest angle is chosen
 		 */
 		cross_v3_v3v3_hi_prec(raxis, obvec, tarvec);
 
@@ -3943,15 +3962,15 @@ static void damptrack_do_transform(float matrix[4][4], const float tarvec_in[3],
 		rangle = acosf(max_ff(-1.0f, min_ff(1.0f, rangle)));
 
 		/* construct rotation matrix from the axis-angle rotation found above
-		 *	- this call takes care to make sure that the axis provided is a unit vector first
+		 * - this call takes care to make sure that the axis provided is a unit vector first
 		 */
 		float norm = normalize_v3(raxis);
 
 		if (norm < FLT_EPSILON) {
 			/* if dot product is nonzero, while cross is zero, we have two opposite vectors!
-			 *  - this is an ambiguity in the math that needs to be resolved arbitrarily,
-			 *    or there will be a case where damped track strangely does nothing
-			 *  - to do that, rotate around a different local axis
+			 * - this is an ambiguity in the math that needs to be resolved arbitrarily,
+			 *   or there will be a case where damped track strangely does nothing
+			 * - to do that, rotate around a different local axis
 			 */
 			float tmpvec[3];
 
@@ -5116,8 +5135,12 @@ static bConstraint *constraint_list_find_from_target(ListBase *constraints, bCon
 }
 
 /* Finds the constraint that owns the given target within the object. */
-bConstraint *BKE_constraint_find_from_target(Object *ob, bConstraintTarget *tgt)
+bConstraint *BKE_constraint_find_from_target(Object *ob, bConstraintTarget *tgt, bPoseChannel **r_pchan)
 {
+	if (r_pchan != NULL) {
+		*r_pchan = NULL;
+	}
+
 	bConstraint *result = constraint_list_find_from_target(&ob->constraints, tgt);
 
 	if (result != NULL) {
@@ -5129,8 +5152,62 @@ bConstraint *BKE_constraint_find_from_target(Object *ob, bConstraintTarget *tgt)
 			result = constraint_list_find_from_target(&pchan->constraints, tgt);
 
 			if (result != NULL) {
+				if (r_pchan != NULL) {
+					*r_pchan = pchan;
+				}
+
 				return result;
 			}
+		}
+	}
+
+	return NULL;
+}
+
+/* Finds the original copy of the constraint based on a COW copy. */
+static bConstraint *constraint_find_original(struct Depsgraph *depsgraph, Object *ob, bPoseChannel *pchan, bConstraint *con, Object **r_orig_ob)
+{
+	Object *orig_ob = (Object*)DEG_get_original_id((ID*)ob);
+
+	if (ELEM(orig_ob, NULL, ob)) {
+		return NULL;
+	}
+
+	/* Find which constraint list to use. */
+	ListBase *constraints, *orig_constraints;
+
+	if (pchan != NULL) {
+		if (orig_ob->type != OB_ARMATURE || orig_ob->pose == NULL) {
+			return NULL;
+		}
+
+		bPoseChannel *orig_pchan = BKE_pose_channel_find_name(orig_ob->pose, pchan->name);
+
+		if (orig_pchan == NULL) {
+			return NULL;
+		}
+
+		constraints = &pchan->constraints;
+		orig_constraints = &orig_pchan->constraints;
+	}
+	else {
+		constraints = &ob->constraints;
+		orig_constraints = &orig_ob->constraints;
+	}
+
+	/* Lookup the original constraint by index. */
+	int index = BLI_findindex(constraints, con);
+
+	if (index >= 0) {
+		bConstraint *orig_con = (bConstraint*)BLI_findlink(orig_constraints, index);
+
+		/* Verify it has correct type and name. */
+		if (orig_con && orig_con->type == con->type && STREQ(orig_con->name, con->name)) {
+			if (r_orig_ob != NULL) {
+				*r_orig_ob = orig_ob;
+			}
+
+			return orig_con;
 		}
 	}
 
@@ -5262,13 +5339,13 @@ void BKE_constraint_targets_for_solving_get(struct Depsgraph *depsgraph, bConstr
 		bConstraintTarget *ct;
 
 		/* get targets
-		 *  - constraints should use ct->matrix, not directly accessing values
-		 *	- ct->matrix members have not yet been calculated here!
+		 * - constraints should use ct->matrix, not directly accessing values
+		 * - ct->matrix members have not yet been calculated here!
 		 */
 		cti->get_constraint_targets(con, targets);
 
 		/* set matrices
-		 *  - calculate if possible, otherwise just initialize as identity matrix
+		 * - calculate if possible, otherwise just initialize as identity matrix
 		 */
 		if (cti->get_target_matrix) {
 			for (ct = targets->first; ct; ct = ct->next)
@@ -5313,7 +5390,7 @@ void BKE_constraints_solve(struct Depsgraph *depsgraph, ListBase *conlist, bCons
 		if (con->enforce == 0.0f) continue;
 
 		/* influence of constraint
-		 *  - value should have been set from animation data already
+		 * - value should have been set from animation data already
 		 */
 		enf = con->enforce;
 
@@ -5330,8 +5407,8 @@ void BKE_constraints_solve(struct Depsgraph *depsgraph, ListBase *conlist, bCons
 		cti->evaluate_constraint(con, cob, &targets);
 
 		/* clear targets after use
-		 *	- this should free temp targets but no data should be copied back
-		 *	  as constraints may have done some nasty things to it...
+		 * - this should free temp targets but no data should be copied back
+		 *   as constraints may have done some nasty things to it...
 		 */
 		if (cti->flush_constraint_targets) {
 			cti->flush_constraint_targets(con, &targets, 1);
@@ -5342,9 +5419,9 @@ void BKE_constraints_solve(struct Depsgraph *depsgraph, ListBase *conlist, bCons
 			BKE_constraint_mat_convertspace(cob->ob, cob->pchan, cob->matrix, con->ownspace, CONSTRAINT_SPACE_WORLD, false);
 
 		/* Interpolate the enforcement, to blend result of constraint into final owner transform
-		 *  - all this happens in worldspace to prevent any weirdness creeping in ([#26014] and [#25725]),
-		 *    since some constraints may not convert the solution back to the input space before blending
-		 *    but all are guaranteed to end up in good "worldspace" result
+		 * - all this happens in worldspace to prevent any weirdness creeping in ([#26014] and [#25725]),
+		 *   since some constraints may not convert the solution back to the input space before blending
+		 *   but all are guaranteed to end up in good "worldspace" result
 		 */
 		/* Note: all kind of stuff here before (caused trouble), much easier to just interpolate,
 		 * or did I miss something? -jahka (r.32105) */

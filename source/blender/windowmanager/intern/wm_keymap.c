@@ -259,24 +259,43 @@ static void wm_keymap_diff_item_free(wmKeyMapDiffItem *kmdi)
  * List of keymaps for all editors, modes, ... . There is a builtin default key
  * configuration, a user key configuration, and other preset configurations. */
 
-wmKeyConfig *WM_keyconfig_new(wmWindowManager *wm, const char *idname)
+wmKeyConfig *WM_keyconfig_new(wmWindowManager *wm, const char *idname, bool user_defined)
 {
-	wmKeyConfig *keyconf;
+	wmKeyConfig *keyconf = BLI_findstring(&wm->keyconfigs, idname, offsetof(wmKeyConfig, idname));
+	if (keyconf) {
+		if (keyconf == wm->defaultconf) {
+			/* For default configuration, we need to keep keymap
+			 * modal items and poll functions intact. */
+			for (wmKeyMap *km = keyconf->keymaps.first; km; km = km->next) {
+				/* Tool system keymaps are not part of preset, so don't clear. */
+				if (!(km->flag & KEYMAP_TOOL)) {
+					WM_keymap_clear(km);
+				}
+			}
+		}
+		else {
+			/* For user defined key configuration, clear all keymaps. */
+			WM_keyconfig_clear(keyconf);
+		}
 
+		return keyconf;
+	}
+
+	/* Create new configuration. */
 	keyconf = MEM_callocN(sizeof(wmKeyConfig), "wmKeyConfig");
 	BLI_strncpy(keyconf->idname, idname, sizeof(keyconf->idname));
 	BLI_addtail(&wm->keyconfigs, keyconf);
+
+	if (user_defined) {
+		keyconf->flag |= KEYCONF_USER;
+	}
 
 	return keyconf;
 }
 
 wmKeyConfig *WM_keyconfig_new_user(wmWindowManager *wm, const char *idname)
 {
-	wmKeyConfig *keyconf = WM_keyconfig_new(wm, idname);
-
-	keyconf->flag |= KEYCONF_USER;
-
-	return keyconf;
+	return WM_keyconfig_new(wm, idname, true);
 }
 
 bool WM_keyconfig_remove(wmWindowManager *wm, wmKeyConfig *keyconf)
@@ -297,15 +316,18 @@ bool WM_keyconfig_remove(wmWindowManager *wm, wmKeyConfig *keyconf)
 	}
 }
 
-void WM_keyconfig_free(wmKeyConfig *keyconf)
+void WM_keyconfig_clear(wmKeyConfig *keyconf)
 {
-	wmKeyMap *km;
-
-	while ((km = keyconf->keymaps.first)) {
-		WM_keymap_free(km);
-		BLI_freelinkN(&keyconf->keymaps, km);
+	for (wmKeyMap *km = keyconf->keymaps.first; km; km = km->next) {
+		WM_keymap_clear(km);
 	}
 
+	BLI_freelistN(&keyconf->keymaps);
+}
+
+void WM_keyconfig_free(wmKeyConfig *keyconf)
+{
+	WM_keyconfig_clear(keyconf);
 	MEM_freeN(keyconf);
 }
 
@@ -379,7 +401,7 @@ static wmKeyMap *wm_keymap_copy(wmKeyMap *keymap)
 	return keymapn;
 }
 
-void WM_keymap_free(wmKeyMap *keymap)
+void WM_keymap_clear(wmKeyMap *keymap)
 {
 	wmKeyMapItem *kmi;
 	wmKeyMapDiffItem *kmdi;
@@ -398,7 +420,7 @@ bool WM_keymap_remove(wmKeyConfig *keyconf, wmKeyMap *keymap)
 {
 	if (BLI_findindex(&keyconf->keymaps, keymap) != -1) {
 
-		WM_keymap_free(keymap);
+		WM_keymap_clear(keymap);
 		BLI_remlink(&keyconf->keymaps, keymap);
 		MEM_freeN(keymap);
 
@@ -665,7 +687,7 @@ static wmKeyMap *wm_keymap_patch_update(ListBase *lb, wmKeyMap *defaultmap, wmKe
 	km = WM_keymap_list_find(lb, defaultmap->idname, defaultmap->spaceid, defaultmap->regionid);
 	if (km) {
 		expanded = (km->flag & (KEYMAP_EXPANDED | KEYMAP_CHILDREN_EXPANDED));
-		WM_keymap_free(km);
+		WM_keymap_clear(km);
 		BLI_freelinkN(lb, km);
 	}
 
@@ -728,7 +750,7 @@ static void wm_keymap_diff_update(ListBase *lb, wmKeyMap *defaultmap, wmKeyMap *
 	/* remove previous diff keymap in list, we will replace it */
 	prevmap = WM_keymap_list_find(lb, km->idname, km->spaceid, km->regionid);
 	if (prevmap) {
-		WM_keymap_free(prevmap);
+		WM_keymap_clear(prevmap);
 		BLI_freelinkN(lb, prevmap);
 	}
 
@@ -744,13 +766,13 @@ static void wm_keymap_diff_update(ListBase *lb, wmKeyMap *defaultmap, wmKeyMap *
 		BLI_addtail(lb, diffmap);
 	}
 	else {
-		WM_keymap_free(diffmap);
+		WM_keymap_clear(diffmap);
 		MEM_freeN(diffmap);
 	}
 
 	/* free temporary default map */
 	if (addonmap) {
-		WM_keymap_free(defaultmap);
+		WM_keymap_clear(defaultmap);
 		MEM_freeN(defaultmap);
 	}
 }
@@ -802,19 +824,20 @@ wmKeyMap *WM_modalkeymap_add(wmKeyConfig *keyconf, const char *idname, const Enu
 {
 	wmKeyMap *km = WM_keymap_ensure(keyconf, idname, 0, 0);
 	km->flag |= KEYMAP_MODAL;
-	km->modal_items = items;
 
-	if (!items) {
-		/* init modal items from default config */
-		wmWindowManager *wm = G_MAIN->wm.first;
-		if (wm->defaultconf) {
-			wmKeyMap *defaultkm = WM_keymap_list_find(&wm->defaultconf->keymaps, km->idname, 0, 0);
+	/* init modal items from default config */
+	wmWindowManager *wm = G_MAIN->wm.first;
+	if (wm->defaultconf && wm->defaultconf != keyconf) {
+		wmKeyMap *defaultkm = WM_keymap_list_find(&wm->defaultconf->keymaps, km->idname, 0, 0);
 
-			if (defaultkm) {
-				km->modal_items = defaultkm->modal_items;
-				km->poll = defaultkm->poll;
-			}
+		if (defaultkm) {
+			km->modal_items = defaultkm->modal_items;
+			km->poll = defaultkm->poll;
 		}
+	}
+
+	if (items) {
+		km->modal_items = items;
 	}
 
 	return km;
@@ -920,11 +943,13 @@ static void wm_user_modal_keymap_set_items(wmWindowManager *wm, wmKeyMap *km)
 		km->modal_items = defaultkm->modal_items;
 		km->poll = defaultkm->poll;
 
-		for (kmi = km->items.first; kmi; kmi = kmi->next) {
-			if (kmi->propvalue_str[0]) {
-				if (RNA_enum_value_from_id(km->modal_items, kmi->propvalue_str, &propvalue))
-					kmi->propvalue = propvalue;
-				kmi->propvalue_str[0] = '\0';
+		if (km->modal_items) {
+			for (kmi = km->items.first; kmi; kmi = kmi->next) {
+				if (kmi->propvalue_str[0]) {
+					if (RNA_enum_value_from_id(km->modal_items, kmi->propvalue_str, &propvalue))
+						kmi->propvalue = propvalue;
+					kmi->propvalue_str[0] = '\0';
+				}
 			}
 		}
 	}
@@ -1627,7 +1652,7 @@ void WM_keymap_restore_item_to_default(bContext *C, wmKeyMap *keymap, wmKeyMapIt
 
 	/* free temporary keymap */
 	if (addonmap) {
-		WM_keymap_free(defaultmap);
+		WM_keymap_clear(defaultmap);
 		MEM_freeN(defaultmap);
 	}
 }
@@ -1641,7 +1666,7 @@ void WM_keymap_restore_to_default(wmKeyMap *keymap, bContext *C)
 	usermap = WM_keymap_list_find(&U.user_keymaps, keymap->idname, keymap->spaceid, keymap->regionid);
 
 	if (usermap) {
-		WM_keymap_free(usermap);
+		WM_keymap_clear(usermap);
 		BLI_freelinkN(&U.user_keymaps, usermap);
 
 		WM_keyconfig_update_tag(NULL, NULL);

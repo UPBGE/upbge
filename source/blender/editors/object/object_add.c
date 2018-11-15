@@ -30,6 +30,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #include "MEM_guardedalloc.h"
 
@@ -127,7 +128,6 @@ const EnumPropertyItem rna_enum_light_type_items[] = {
 	{LA_LOCAL, "POINT", ICON_LIGHT_POINT, "Point", "Omnidirectional point light source"},
 	{LA_SUN, "SUN", ICON_LIGHT_SUN, "Sun", "Constant direction parallel ray light source"},
 	{LA_SPOT, "SPOT", ICON_LIGHT_SPOT, "Spot", "Directional cone light source"},
-	{LA_HEMI, "HEMI", ICON_LIGHT_HEMI, "Hemi", "180 degree constant light source"},
 	{LA_AREA, "AREA", ICON_LIGHT_AREA, "Area", "Directional area light source"},
 	{0, NULL, 0, NULL, NULL}
 };
@@ -276,7 +276,12 @@ static void view_align_update(struct Main *UNUSED(main), struct Scene *UNUSED(sc
 	RNA_struct_idprops_unset(ptr, "rotation");
 }
 
-void ED_object_add_unit_props(wmOperatorType *ot)
+void ED_object_add_unit_props_size(wmOperatorType *ot)
+{
+	RNA_def_float_distance(ot->srna, "size", 2.0f, 0.0, OBJECT_ADD_SIZE_MAXF, "Size", "", 0.001, 100.00);
+}
+
+void ED_object_add_unit_props_radius(wmOperatorType *ot)
 {
 	RNA_def_float_distance(ot->srna, "radius", 1.0f, 0.0, OBJECT_ADD_SIZE_MAXF, "Radius", "", 0.001, 100.00);
 }
@@ -466,7 +471,7 @@ void OBJECT_OT_add(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
 	/* properties */
-	ED_object_add_unit_props(ot);
+	ED_object_add_unit_props_radius(ot);
 	RNA_def_enum(ot->srna, "type", rna_enum_object_type_items, 0, "Type", "");
 
 	ED_object_add_generic_props(ot, true);
@@ -550,7 +555,7 @@ void OBJECT_OT_lightprobe_add(wmOperatorType *ot)
 	/* properties */
 	ot->prop = RNA_def_enum(ot->srna, "type", lightprobe_type_items, 0, "Type", "");
 
-	ED_object_add_unit_props(ot);
+	ED_object_add_unit_props_radius(ot);
 	ED_object_add_generic_props(ot, true);
 }
 
@@ -618,7 +623,7 @@ void OBJECT_OT_effector_add(wmOperatorType *ot)
 	/* properties */
 	ot->prop = RNA_def_enum(ot->srna, "type", field_type_items, 0, "Type", "");
 
-	ED_object_add_unit_props(ot);
+	ED_object_add_unit_props_radius(ot);
 	ED_object_add_generic_props(ot, true);
 }
 
@@ -734,7 +739,7 @@ void OBJECT_OT_metaball_add(wmOperatorType *ot)
 
 	ot->prop = RNA_def_enum(ot->srna, "type", rna_enum_metaelem_type_items, 0, "Primitive", "");
 
-	ED_object_add_unit_props(ot);
+	ED_object_add_unit_props_radius(ot);
 	ED_object_add_generic_props(ot, true);
 }
 
@@ -776,7 +781,7 @@ void OBJECT_OT_text_add(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
 	/* properties */
-	ED_object_add_unit_props(ot);
+	ED_object_add_unit_props_radius(ot);
 	ED_object_add_generic_props(ot, true);
 }
 
@@ -836,7 +841,7 @@ void OBJECT_OT_armature_add(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
 	/* properties */
-	ED_object_add_unit_props(ot);
+	ED_object_add_unit_props_radius(ot);
 	ED_object_add_generic_props(ot, true);
 }
 
@@ -878,7 +883,7 @@ void OBJECT_OT_empty_add(wmOperatorType *ot)
 	/* properties */
 	ot->prop = RNA_def_enum(ot->srna, "type", rna_enum_object_empty_drawtype_items, 0, "Type", "");
 
-	ED_object_add_unit_props(ot);
+	ED_object_add_unit_props_radius(ot);
 	ED_object_add_generic_props(ot, false);
 }
 
@@ -1060,7 +1065,7 @@ void OBJECT_OT_gpencil_add(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
 	/* properties */
-	ED_object_add_unit_props(ot);
+	ED_object_add_unit_props_radius(ot);
 	ED_object_add_generic_props(ot, false);
 
 	ot->prop = RNA_def_enum(ot->srna, "type", rna_enum_object_gpencil_type_items, 0, "Type", "");
@@ -1074,7 +1079,6 @@ static const char *get_light_defname(int type)
 		case LA_LOCAL: return CTX_DATA_(BLT_I18NCONTEXT_ID_LAMP, "Point");
 		case LA_SUN: return CTX_DATA_(BLT_I18NCONTEXT_ID_LAMP, "Sun");
 		case LA_SPOT: return CTX_DATA_(BLT_I18NCONTEXT_ID_LAMP, "Spot");
-		case LA_HEMI: return CTX_DATA_(BLT_I18NCONTEXT_ID_LAMP, "Hemi");
 		case LA_AREA: return CTX_DATA_(BLT_I18NCONTEXT_ID_LAMP, "Area");
 		default:
 			return CTX_DATA_(BLT_I18NCONTEXT_ID_LAMP, "Light");
@@ -1140,7 +1144,7 @@ void OBJECT_OT_light_add(wmOperatorType *ot)
 	ot->prop = RNA_def_enum(ot->srna, "type", rna_enum_light_type_items, 0, "Type", "");
 	RNA_def_property_translation_context(ot->prop, BLT_I18NCONTEXT_ID_LAMP);
 
-	ED_object_add_unit_props(ot);
+	ED_object_add_unit_props_radius(ot);
 	ED_object_add_generic_props(ot, false);
 }
 

@@ -42,9 +42,13 @@ struct EnumPropertyItem;
 
 /* Key Configuration */
 
-wmKeyConfig *WM_keyconfig_new	(struct wmWindowManager *wm, const char *idname);
+void		WM_keyconfig_init	(struct bContext *C);
+void		WM_keyconfig_reload	(struct bContext *C);
+
+wmKeyConfig *WM_keyconfig_new	(struct wmWindowManager *wm, const char *idname, bool user_defined);
 wmKeyConfig *WM_keyconfig_new_user(struct wmWindowManager *wm, const char *idname);
 bool        WM_keyconfig_remove	(struct wmWindowManager *wm, struct wmKeyConfig *keyconf);
+void 		WM_keyconfig_clear	(struct wmKeyConfig *keyconf);
 void 		WM_keyconfig_free	(struct wmKeyConfig *keyconf);
 
 void		WM_keyconfig_set_active(struct wmWindowManager *wm, const char *idname);
@@ -55,8 +59,7 @@ void        WM_keyconfig_update_operatortype(void);
 
 /* Keymap */
 
-void		WM_keymap_init		(struct bContext *C);
-void		WM_keymap_free		(struct wmKeyMap *keymap);
+void		WM_keymap_clear		(struct wmKeyMap *keymap);
 
 wmKeyMapItem *WM_keymap_verify_item(
         struct wmKeyMap *keymap, const char *idname, int type,
@@ -98,6 +101,7 @@ void WM_keymap_add_context_enum_set_items(
         wmKeyMap *keymap, const struct EnumPropertyItem *items, const char *data_path,
         int type_start, int val, int modifier, int keymodifier);
 
+wmKeyMap *WM_keymap_guess_from_context(const struct bContext *C);
 wmKeyMap *WM_keymap_guess_opname(const struct bContext *C, const char *opname);
 
 void WM_keymap_fix_linking(void);

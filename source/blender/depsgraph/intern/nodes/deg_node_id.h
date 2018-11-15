@@ -49,19 +49,19 @@ struct IDDepsNode : public DepsNode {
 		const char *name;
 	};
 
-	void init(const ID *id, const char *subdata);
+	virtual void init(const ID *id, const char *subdata) override;
 	void init_copy_on_write(ID *id_cow_hint = NULL);
 	~IDDepsNode();
 	void destroy();
 
-	virtual string identifier() const;
+	virtual string identifier() const override;
 
 	ComponentDepsNode *find_component(eDepsNode_Type type,
 	                                  const char *name = "") const;
 	ComponentDepsNode *add_component(eDepsNode_Type type,
 	                                 const char *name = "");
 
-	void tag_update(Depsgraph *graph);
+	virtual void tag_update(Depsgraph *graph, eDepsTag_Source source) override;
 
 	void finalize_build(Depsgraph *graph);
 
@@ -85,6 +85,10 @@ struct IDDepsNode : public DepsNode {
 
 	/* Indicates the datablock is visible in the evaluated scene. */
 	bool is_directly_visible;
+
+	/* For the collection type of ID, denotes whether collection was fully
+	 * recursed into. 	 */
+	bool is_collection_fully_expanded;
 
 	IDComponentsMask visible_components_mask;
 	IDComponentsMask previously_visible_components_mask;
