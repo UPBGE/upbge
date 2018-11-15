@@ -24,17 +24,19 @@ class LogicNodeBooleanOperator(bge.types.LOG_FunctionNode):
 		return (socket.value for socket in self.inputs)
 
 	def get(self):
-		if self.mode == 0:
-			return reduce(operator.__and__, self.booleans)
-		if self.mode == 1:
-			return not reduce(operator.__and__, self.booleans)
-		if self.mode == 2:
-			return reduce(operator.__or__, self.booleans)
-		if self.mode == 3:
-			return not reduce(operator.__or__, self.booleans)
-		if self.mode == 4:
+		mode = self.mode
+
+		if mode == 0:
+			return all(self.booleans)
+		if mode == 1:
+			return not all(self.booleans)
+		if mode == 2:
+			return any(self.booleans)
+		if mode == 3:
+			return not any(self.booleans)
+		if mode == 4:
 			return reduce(operator.__xor__, self.booleans)
-		if self.mode == 5:
+		if mode == 5:
 			return not reduce(operator.__xor__, self.booleans)
 
 class LogicNodeBranch(bge.types.LOG_Node):
@@ -44,7 +46,7 @@ class LogicNodeBranch(bge.types.LOG_Node):
 		self.negative = self.outputs["Trigger Negative"].value
 
 	def update(self):
-		return self.positive if self.cond.value else self.negative
+		return self.positive# if self.cond.value else self.negative
 
 class LogicNodeBasicMotion(bge.types.LOG_Node):
 	def start(self):
@@ -54,12 +56,14 @@ class LogicNodeBasicMotion(bge.types.LOG_Node):
 		self.trigger = self.outputs["Trigger Out"].value
 
 	def update(self):
-		self.object.worldPosition += self.trans.value
+		object = self.object
 
-		scale = self.scale.value
-		self.object.worldScale.x *= scale.x
-		self.object.worldScale.y *= scale.y
-		self.object.worldScale.z *= scale.z
+		object.worldPosition += self.trans.value
+
+		#scale = self.scale.value
+		#object.worldScale.x *= scale.x
+		#object.worldScale.y *= scale.y
+		#object.worldScale.z *= scale.z
 
 		return self.trigger
 
