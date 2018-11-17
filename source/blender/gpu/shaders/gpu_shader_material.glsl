@@ -141,26 +141,16 @@ void linearrgb_to_srgb(vec4 col_from, out vec4 col_to)
 	col_to.a = col_from.a;
 }
 
-void color_to_normal(vec3 color, out vec3 normal)
-{
-	normal.x =  2.0 * ((color.r) - 0.5);
-	normal.y = -2.0 * ((color.g) - 0.5);
-	normal.z =  2.0 * ((color.b) - 0.5);
-}
-
 void color_to_normal_new_shading(vec3 color, out vec3 normal)
 {
-	normal.x =  2.0 * ((color.r) - 0.5);
-	normal.y =  2.0 * ((color.g) - 0.5);
-	normal.z =  2.0 * ((color.b) - 0.5);
+	normal = vec3(2.0) * color - vec3(1.0);
 }
 
 void color_to_blender_normal_new_shading(vec3 color, out vec3 normal)
 {
-	normal.x =  2.0 * ((color.r) - 0.5);
-	normal.y = -2.0 * ((color.g) - 0.5);
-	normal.z = -2.0 * ((color.b) - 0.5);
+	normal = vec3(2.0, -2.0, -2.0) * color - vec3(1.0);
 }
+
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
@@ -810,6 +800,19 @@ void mix_linear(float fac, vec4 col1, vec4 col2, out vec4 outcol)
 	fac = clamp(fac, 0.0, 1.0);
 
 	outcol = col1 + fac * (2.0 * (col2 - vec4(0.5)));
+}
+
+void valtorgb_opti_constant(float fac, float edge, vec4 color1, vec4 color2, out vec4 outcol, out float outalpha)
+{
+	outcol = (fac > edge) ? color2 : color1;
+	outalpha = outcol.a;
+}
+
+void valtorgb_opti_linear(float fac, vec2 mulbias, vec4 color1, vec4 color2, out vec4 outcol, out float outalpha)
+{
+	fac = clamp(fac * mulbias.x + mulbias.y, 0.0, 1.0);
+	outcol = mix(color1, color2, fac);
+	outalpha = outcol.a;
 }
 
 void valtorgb(float fac, sampler1DArray colormap, float layer, out vec4 outcol, out float outalpha)
@@ -3060,7 +3063,7 @@ void world_normals_get(out vec3 N)
 		/* Shade as a cylinder. */
 		cos_theta = hairThickTime / hairThickness;
 	}
-	float sin_theta = sqrt(max(0.0, 1.0f - cos_theta*cos_theta));;
+	float sin_theta = sqrt(max(0.0, 1.0f - cos_theta*cos_theta));
 	N = normalize(worldNormal * sin_theta + B * cos_theta);
 #else
 	N = gl_FrontFacing ? worldNormal : -worldNormal;

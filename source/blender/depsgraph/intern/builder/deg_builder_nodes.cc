@@ -412,6 +412,9 @@ void DepsgraphNodeBuilder::build_id(ID *id)
 		return;
 	}
 	switch (GS(id->name)) {
+		case ID_AC:
+			build_action((bAction *)id);
+			break;
 		case ID_AR:
 			build_armature((bArmature *)id);
 			break;
@@ -504,7 +507,7 @@ void DepsgraphNodeBuilder::build_collection(
 		id_node = find_id_node(&collection->id);
 		if (is_collection_visible &&
 		    id_node->is_directly_visible == false &&
-			id_node->is_collection_fully_expanded == true)
+		    id_node->is_collection_fully_expanded == true)
 		{
 			/* Collection became visible, make sure nested collections and
 			 * objects are poked with the new visibility flag, since they
@@ -1663,17 +1666,15 @@ void DepsgraphNodeBuilder::modifier_walk(void *user_data,
 	}
 	switch (GS(id->name)) {
 		case ID_OB:
-			/* TODO(sergey): Use visibility of owner of modifier stack. */
+			/* Special case for object, so we take owner visibility into
+			 * account. */
 			data->builder->build_object(-1,
 			                            (Object *)id,
 			                            DEG_ID_LINKED_INDIRECTLY,
 			                            data->is_parent_visible);
 			break;
-		case ID_TE:
-			data->builder->build_texture((Tex *)id);
-			break;
 		default:
-			/* pass */
+			data->builder->build_id(id);
 			break;
 	}
 }
@@ -1690,14 +1691,15 @@ void DepsgraphNodeBuilder::constraint_walk(bConstraint * /*con*/,
 	}
 	switch (GS(id->name)) {
 		case ID_OB:
-			/* TODO(sergey): Use visibility of owner of modifier stack. */
+			/* Special case for object, so we take owner visibility into
+			 * account. */
 			data->builder->build_object(-1,
 			                            (Object *)id,
 			                            DEG_ID_LINKED_INDIRECTLY,
 			                            data->is_parent_visible);
 			break;
 		default:
-			/* pass */
+			data->builder->build_id(id);
 			break;
 	}
 }

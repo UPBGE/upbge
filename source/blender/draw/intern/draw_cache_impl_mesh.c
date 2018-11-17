@@ -1646,12 +1646,13 @@ static void add_overlay_tri(
 	}
 
 	if (vbo_nor) {
-		/* TODO real loop normal */
-		GPUPackedNormal lnor = GPU_normal_convert_i10_v3(bm_looptri[0]->f->no);
+		float (*lnors)[3] = rdata->loop_normals;
 		for (uint i = 0; i < 3; i++) {
+			const float *nor = (lnors) ? lnors[BM_elem_index_get(bm_looptri[i])] : bm_looptri[0]->f->no;
+			GPUPackedNormal lnor = GPU_normal_convert_i10_v3(nor);
+			GPU_vertbuf_attr_set(vbo_nor, lnor_id, base_vert_idx + i, &lnor);
 			GPUPackedNormal vnor = GPU_normal_convert_i10_v3(bm_looptri[i]->v->no);
 			GPU_vertbuf_attr_set(vbo_nor, vnor_id, base_vert_idx + i, &vnor);
-			GPU_vertbuf_attr_set(vbo_nor, lnor_id, base_vert_idx + i, &lnor);
 		}
 	}
 
@@ -1720,12 +1721,13 @@ static void add_overlay_tri_mapped(
 	}
 
 	if (vbo_nor) {
-		/* TODO real loop normal */
-		GPUPackedNormal lnor = GPU_normal_convert_i10_v3(poly_normal);
+		float (*lnors)[3] = rdata->loop_normals;
 		for (uint i = 0; i < 3; i++) {
+			const float *nor = (lnors) ? lnors[mlt->tri[i]] : poly_normal;
+			GPUPackedNormal lnor = GPU_normal_convert_i10_v3(nor);
+			GPU_vertbuf_attr_set(vbo_nor, lnor_id, base_vert_idx + i, &lnor);
 			GPUPackedNormal vnor = GPU_normal_convert_i10_s3(mvert[mloop[mlt->tri[i]].v].no);
 			GPU_vertbuf_attr_set(vbo_nor, vnor_id, base_vert_idx + i, &vnor);
-			GPU_vertbuf_attr_set(vbo_nor, lnor_id, base_vert_idx + i, &lnor);
 		}
 	}
 
@@ -2416,7 +2418,6 @@ void DRW_mesh_batch_cache_free(Mesh *me)
 static GPUVertBuf *mesh_batch_cache_get_tri_shading_data(MeshRenderData *rdata, MeshBatchCache *cache)
 {
 	BLI_assert(rdata->types & (MR_DATATYPE_VERT | MR_DATATYPE_LOOPTRI | MR_DATATYPE_LOOP | MR_DATATYPE_POLY));
-#define USE_COMP_MESH_DATA
 
 	if (cache->shaded_triangles_data == NULL) {
 		const uint uv_len = rdata->cd.layers.uv_len;
@@ -2464,6 +2465,8 @@ static GPUVertBuf *mesh_batch_cache_get_tri_shading_data(MeshRenderData *rdata, 
 		cache->auto_layer_names = MEM_callocN(auto_names_len * sizeof(char), "Auto layer name buf");
 		cache->auto_layer_is_srgb = MEM_mallocN(cache->auto_layer_len * sizeof(int), "Auto layer value buf");
 
+#define USE_COMP_MESH_DATA
+
 		for (uint i = 0; i < uv_len; i++) {
 			/* UV */
 			const char *attrib_name = mesh_render_data_uv_layer_uuid_get(rdata, i);
@@ -2489,13 +2492,11 @@ static GPUVertBuf *mesh_batch_cache_get_tri_shading_data(MeshRenderData *rdata, 
 
 		for (uint i = 0; i < tangent_len; i++) {
 			const char *attrib_name = mesh_render_data_tangent_layer_uuid_get(rdata, i);
-			/* WATCH IT : only specifying 3 component instead of 4 (4th is sign).
-			 * That may cause some problem but I could not make it to fail (fclem) */
 #ifdef USE_COMP_MESH_DATA
 			/* Tangents need more precision than 10_10_10 */
-			tangent_id[i] = GPU_vertformat_attr_add(format, attrib_name, GPU_COMP_I16, 3, GPU_FETCH_INT_TO_FLOAT_UNIT);
+			tangent_id[i] = GPU_vertformat_attr_add(format, attrib_name, GPU_COMP_I16, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
 #else
-			tangent_id[i] = GPU_vertformat_attr_add(format, attrib_name, GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+			tangent_id[i] = GPU_vertformat_attr_add(format, attrib_name, GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
 #endif
 
 			if (i == rdata->cd.layers.tangent_active) {
@@ -2574,7 +2575,11 @@ static GPUVertBuf *mesh_batch_cache_get_tri_shading_data(MeshRenderData *rdata, 
 					float (*layer_data)[4] = rdata->cd.layers.tangent[j];
 					for (uint t = 0; t < 3; t++) {
 						const float *elem = layer_data[BM_elem_index_get(bm_looptri[t])];
-						normal_float_to_short_v3(GPU_vertbuf_raw_step(&tangent_step[j]), elem);
+#ifdef USE_COMP_MESH_DATA
+						normal_float_to_short_v4(GPU_vertbuf_raw_step(&tangent_step[j]), elem);
+#else
+						copy_v4_v4(GPU_vertbuf_raw_step(&tangent_step[j]), elem);
+#endif
 					}
 				}
 				/* VCOLs */
@@ -2605,9 +2610,9 @@ static GPUVertBuf *mesh_batch_cache_get_tri_shading_data(MeshRenderData *rdata, 
 					for (uint t = 0; t < 3; t++) {
 						const float *elem = layer_data[mlt->tri[t]];
 #ifdef USE_COMP_MESH_DATA
-						normal_float_to_short_v3(GPU_vertbuf_raw_step(&tangent_step[j]), elem);
+						normal_float_to_short_v4(GPU_vertbuf_raw_step(&tangent_step[j]), elem);
 #else
-						copy_v3_v3(GPU_vertbuf_raw_step(&tangent_step[j]), elem);
+						copy_v4_v4(GPU_vertbuf_raw_step(&tangent_step[j]), elem);
 #endif
 					}
 				}

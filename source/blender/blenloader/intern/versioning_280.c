@@ -2265,6 +2265,30 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 			}
 		}
 
+		if (!DNA_struct_elem_find(fd->filesdna, "SceneEEVEE", "float", "light_threshold")) {
+			for (Scene *scene = bmain->scene.first; scene; scene = scene->id.next) {
+				scene->eevee.light_threshold = 0.01f;
+			}
+		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "SceneEEVEE", "float", "gi_irradiance_smoothing")) {
+			for (Scene *scene = bmain->scene.first; scene; scene = scene->id.next) {
+				scene->eevee.gi_irradiance_smoothing = 0.1f;
+			}
+		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "SceneEEVEE", "float", "gi_filter_quality")) {
+			for (Scene *scene = bmain->scene.first; scene; scene = scene->id.next) {
+				scene->eevee.gi_filter_quality = 1.0f;
+			}
+		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "Lamp", "float", "att_dist")) {
+			for (Lamp *la = bmain->lamp.first; la; la = la->id.next) {
+				la->att_dist = la->clipend;
+			}
+		}
+
 		if (!DNA_struct_elem_find(fd->filesdna, "Brush", "char", "weightpaint_tool")) {
 			/* Magic defines from old files (2.7x) */
 

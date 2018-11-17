@@ -2441,9 +2441,9 @@ class WM_OT_tool_set_by_name(Operator):
             if not self.properties.is_property_set("name"):
                 WM_OT_toolbar._key_held = False
                 return {'PASS_THROUGH'}
-            elif WM_OT_toolbar._key_held and event.value != 'RELEASE':
+            elif (WM_OT_toolbar._key_held == event.type) and (event.value != 'RELEASE'):
                 return {'PASS_THROUGH'}
-            WM_OT_toolbar._key_held = False
+            WM_OT_toolbar._key_held = None
 
             return self.execute(context)
 
@@ -2470,12 +2470,15 @@ class WM_OT_toolbar(Operator):
     bl_idname = "wm.toolbar"
     bl_label = "Toolbar"
 
-    if use_toolbar_release_hack:
-        _key_held = False
-
     @classmethod
     def poll(cls, context):
         return context.space_data is not None
+
+    if use_toolbar_release_hack:
+        _key_held = None
+        def invoke(self, context, event):
+            WM_OT_toolbar._key_held = event.type
+            return self.execute(context)
 
     def execute(self, context):
         from bl_ui.space_toolsystem_common import (
@@ -2492,10 +2495,6 @@ class WM_OT_toolbar(Operator):
         keymap = keymap_from_context(context, space_type)
 
         def draw_menu(popover, context):
-            if use_toolbar_release_hack:
-                # Release event sets false.
-                WM_OT_toolbar._key_held = True
-
             layout = popover.layout
             layout.operator_context = 'INVOKE_REGION_WIN'
             cls.draw_cls(layout, context, detect_layout=False, scale_y=1.0)
@@ -2614,7 +2613,11 @@ class WM_MT_splash(Menu):
     bl_label = "Splash"
 
     def draw_setup(self, context):
+        wm = context.window_manager
+        userpref = context.user_preferences
+
         layout = self.layout
+
         layout.operator_context = 'EXEC_DEFAULT'
 
         layout.label(text="Quick Setup")
@@ -2625,29 +2628,46 @@ class WM_MT_splash(Menu):
 
         col = split.column()
 
-        sub = col.column(align=True)
-        sub.label(text="Input and Shortcuts:")
-        text = bpy.path.display_name(context.window_manager.keyconfigs.active.name)
+        col.label()
+
+        sub = col.split(factor=0.35)
+        row = sub.row()
+        row.alignment = 'RIGHT'
+        row.label(text="Shortcuts")
+        text = bpy.path.display_name(wm.keyconfigs.active.name)
         if not text:
-            text = "Blender (default)"
-        sub.menu("USERPREF_MT_appconfigs", text=text)
+            text = "Blender"
+        sub.menu("USERPREF_MT_keyconfigs", text=text)
+
+        if wm.keyconfigs.active.has_select_mouse:
+            sub = col.split(factor=0.35)
+            row = sub.row()
+            row.alignment = 'RIGHT'
+            row.label(text="Select With")
+            sub.row().prop(userpref.inputs, 'select_mouse', expand=True)
 
         col.separator()
 
-        sub = col.column(align=True)
-        sub.label(text="Theme:")
+        sub = col.split(factor=0.35)
+        row = sub.row()
+        row.alignment = 'RIGHT'
+        row.label(text="Theme")
         label = bpy.types.USERPREF_MT_interface_theme_presets.bl_label
         if label == "Presets":
             label = "Blender Dark"
         sub.menu("USERPREF_MT_interface_theme_presets", text=label)
 
         # We need to make switching to a language easier first
-        #sub = col.column(align=False)
-        # sub.label(text="Language:")
+        #sub = col.split(factor=0.35)
+        #row = sub.row()
+        #row.alignment = 'RIGHT'
+        #row.label(text="Language:")
         #userpref = context.user_preferences
         #sub.prop(userpref.system, "language", text="")
 
-        col.label()
+        # Keep height constant
+        if not wm.keyconfigs.active.has_select_mouse:
+            col.label()
 
         layout.label()
 

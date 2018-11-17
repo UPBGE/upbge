@@ -34,13 +34,14 @@
 
 #include "DNA_mesh_types.h"
 #include "DNA_gpencil_types.h"
+#include "DNA_mesh_types.h"
+#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
-#include "DNA_object_types.h"
-#include "DNA_workspace_types.h"
 #include "DNA_windowmanager_types.h"
+#include "DNA_workspace_types.h"
 
 #include "BKE_colortools.h"
 #include "BKE_layer.h"
@@ -111,13 +112,6 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
 	}
 
 	if (app_template == NULL) {
-		/* Clear all tools to use default options instead, ignore the tool saved in the file. */
-		for (WorkSpace *workspace = bmain->workspaces.first; workspace; workspace = workspace->id.next) {
-			while (!BLI_listbase_is_empty(&workspace->tools)) {
-				BKE_workspace_tool_remove(workspace, workspace->tools.first);
-			}
-		}
-
 		/* Name all screens by their workspaces (avoids 'Default.###' names). */
 		{
 			/* Default only has one window. */
@@ -187,6 +181,13 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
 	                        STREQ(app_template, "Video_Editing");
 
 	if (builtin_template) {
+		/* Clear all tools to use default options instead, ignore the tool saved in the file. */
+		for (WorkSpace *workspace = bmain->workspaces.first; workspace; workspace = workspace->id.next) {
+			while (!BLI_listbase_is_empty(&workspace->tools)) {
+				BKE_workspace_tool_remove(workspace, workspace->tools.first);
+			}
+		}
+
 		for (bScreen *screen = bmain->screen.first; screen; screen = screen->id.next) {
 			/* Hide channels in timelines. */
 			for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
@@ -224,6 +225,11 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
 
 			/* Rename render layers. */
 			BKE_view_layer_rename(bmain, scene, scene->view_layers.first, "View Layer");
+		}
+
+		for (Mesh *mesh = bmain->mesh.first; mesh; mesh = mesh->id.next) {
+			/* Match default for new meshes. */
+			mesh->smoothresh = DEG2RADF(30);
 		}
 	}
 }

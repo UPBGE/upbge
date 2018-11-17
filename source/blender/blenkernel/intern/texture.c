@@ -464,12 +464,15 @@ Tex *BKE_texture_copy(Main *bmain, const Tex *tex)
 /* texture copy without adding to main dbase */
 Tex *BKE_texture_localize(Tex *tex)
 {
-	/* TODO replace with something like
-	 * Tex *tex_copy;
-	 * BKE_id_copy_ex(bmain, &tex->id, (ID **)&tex_copy, LIB_ID_COPY_NO_MAIN | LIB_ID_COPY_NO_PREVIEW | LIB_ID_COPY_NO_USER_REFCOUNT, false);
-	 * return tex_copy;
+	/* TODO(bastien): Replace with something like:
 	 *
-	 * ... Once f*** nodes are fully converted to that too :( */
+	 *   Tex *tex_copy;
+	 *   BKE_id_copy_ex(bmain, &tex->id, (ID **)&tex_copy,
+	 *                  LIB_ID_COPY_NO_MAIN | LIB_ID_COPY_NO_PREVIEW | LIB_ID_COPY_NO_USER_REFCOUNT,
+	 *                  false);
+	 *   return tex_copy;
+	 *
+	 * NOTE: Only possible once nested node trees are fully converted to that too. */
 
 	Tex *texn;
 
@@ -484,6 +487,8 @@ Tex *BKE_texture_localize(Tex *tex)
 	if (tex->nodetree) {
 		texn->nodetree = ntreeLocalize(tex->nodetree);
 	}
+
+	texn->id.tag |= LIB_TAG_LOCALIZED;
 
 	return texn;
 }

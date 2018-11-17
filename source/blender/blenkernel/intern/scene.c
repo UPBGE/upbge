@@ -872,6 +872,8 @@ void BKE_scene_init(Scene *sce)
 	sce->eevee.gi_visibility_resolution = 32;
 	sce->eevee.gi_cubemap_draw_size = 0.3f;
 	sce->eevee.gi_irradiance_draw_size = 0.1f;
+	sce->eevee.gi_irradiance_smoothing = 0.1f;
+	sce->eevee.gi_filter_quality = 1.0f;
 
 	sce->eevee.taa_samples = 16;
 	sce->eevee.taa_render_samples = 64;
@@ -915,6 +917,7 @@ void BKE_scene_init(Scene *sce)
 	sce->eevee.shadow_cascade_size = 1024;
 
 	sce->eevee.light_cache = NULL;
+	sce->eevee.light_threshold = 0.01f;
 
 	sce->eevee.overscan = 3.0f;
 

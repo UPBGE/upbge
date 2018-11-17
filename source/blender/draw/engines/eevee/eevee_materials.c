@@ -967,10 +967,10 @@ void EEVEE_materials_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
 		World *wo = scene->world;
 
 		float *col = ts.colorBackground;
-
+		
 		if (!DRW_state_is_game_engine()) {
 			/* LookDev */
-			EEVEE_lookdev_cache_init(vedata, &grp, e_data.default_studiolight_background, psl->background_pass, wo, NULL);
+			EEVEE_lookdev_cache_init(vedata, &grp, psl->background_pass, wo, NULL);
 			/* END */
 		}
 
@@ -1816,4 +1816,3 @@ void EEVEE_draw_default_passes(EEVEE_PassList *psl)
 		}
 	}
 }
-

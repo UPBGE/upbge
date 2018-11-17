@@ -237,12 +237,11 @@ vec3 get_hit_vector(
 	}
 	else {
 		/* Find hit position in previous frame. */
-		mask = screen_border_mask(gl_FragCoord.xy / vec2(textureSize(depthBuffer, 0)));
 		hit_co = get_reprojected_reflection(hit_pos, worldPosition, N);
 		hit_vec = hit_pos - worldPosition;
 	}
 
-	mask = min(mask, screen_border_mask(hit_co));
+	mask = screen_border_mask(hit_co);
 	return hit_vec;
 }
 
@@ -410,34 +409,6 @@ void main()
 	if (dot(speccol_roughness.rgb, vec3(1.0)) == 0.0)
 		discard;
 
-	/* TODO optimize with textureGather */
-	/* Doing these fetches early to hide latency. */
-	vec4 hit_pdf;
-	hit_pdf.x = texelFetch(pdfBuffer, halfres_texel + neighbors[0 + neighborOffset], 0).r;
-	hit_pdf.y = texelFetch(pdfBuffer, halfres_texel + neighbors[1 + neighborOffset], 0).r;
-	hit_pdf.z = texelFetch(pdfBuffer, halfres_texel + neighbors[2 + neighborOffset], 0).r;
-	hit_pdf.w = texelFetch(pdfBuffer, halfres_texel + neighbors[3 + neighborOffset], 0).r;
-
-	ivec4 hit_data[2];
-	hit_data[0].xy = texelFetch(hitBuffer, halfres_texel + neighbors[0 + neighborOffset], 0).rg;
-	hit_data[0].zw = texelFetch(hitBuffer, halfres_texel + neighbors[1 + neighborOffset], 0).rg;
-	hit_data[1].xy = texelFetch(hitBuffer, halfres_texel + neighbors[2 + neighborOffset], 0).rg;
-	hit_data[1].zw = texelFetch(hitBuffer, halfres_texel + neighbors[3 + neighborOffset], 0).rg;
-
-	/* Find Planar Reflections affecting this pixel */
-	PlanarData pd;
-	float planar_index;
-	for (int i = 0; i < MAX_PLANAR && i < prbNumPlanar; ++i) {
-		pd = planars_data[i];
-
-		float fade = probe_attenuation_planar(pd, worldPosition, N, 0.0);
-
-		if (fade > 0.5) {
-			planar_index = float(i);
-			break;
-		}
-	}
-
 	float roughness = speccol_roughness.a;
 	float roughnessSquared = max(1e-3, roughness * roughness);
 
@@ -454,6 +425,34 @@ void main()
 	float weight_acc = 0.0;
 
 	if (roughness < ssrMaxRoughness + 0.2) {
+		/* TODO optimize with textureGather */
+		/* Doing these fetches early to hide latency. */
+		vec4 hit_pdf;
+		hit_pdf.x = texelFetch(pdfBuffer, halfres_texel + neighbors[0 + neighborOffset], 0).r;
+		hit_pdf.y = texelFetch(pdfBuffer, halfres_texel + neighbors[1 + neighborOffset], 0).r;
+		hit_pdf.z = texelFetch(pdfBuffer, halfres_texel + neighbors[2 + neighborOffset], 0).r;
+		hit_pdf.w = texelFetch(pdfBuffer, halfres_texel + neighbors[3 + neighborOffset], 0).r;
+
+		ivec4 hit_data[2];
+		hit_data[0].xy = texelFetch(hitBuffer, halfres_texel + neighbors[0 + neighborOffset], 0).rg;
+		hit_data[0].zw = texelFetch(hitBuffer, halfres_texel + neighbors[1 + neighborOffset], 0).rg;
+		hit_data[1].xy = texelFetch(hitBuffer, halfres_texel + neighbors[2 + neighborOffset], 0).rg;
+		hit_data[1].zw = texelFetch(hitBuffer, halfres_texel + neighbors[3 + neighborOffset], 0).rg;
+
+		/* Find Planar Reflections affecting this pixel */
+		PlanarData pd;
+		float planar_index;
+		for (int i = 0; i < MAX_PLANAR && i < prbNumPlanar; ++i) {
+			pd = planars_data[i];
+
+			float fade = probe_attenuation_planar(pd, worldPosition, N, 0.0);
+
+			if (fade > 0.5) {
+				planar_index = float(i);
+				break;
+			}
+		}
+
 		ssr_accum += get_ssr_samples(hit_pdf, hit_data, pd, planar_index, worldPosition, N, V,
 		                             roughnessSquared, cone_tan, source_uvs, weight_acc);
 	}

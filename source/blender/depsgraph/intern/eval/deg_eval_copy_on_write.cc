@@ -375,6 +375,9 @@ void view_layer_remove_invisible_bases(const Depsgraph *depsgraph,
 			BLI_addtail(&visible_bases, base);
 		}
 		else {
+			if (base == view_layer->basact) {
+				view_layer->basact = NULL;
+			}
 			MEM_freeN(base);
 		}
 	}
@@ -1112,6 +1115,8 @@ void deg_tag_copy_on_write_id(ID *id_cow, const ID *id_orig)
 	BLI_assert(id_cow != id_orig);
 	BLI_assert((id_orig->tag & LIB_TAG_COPIED_ON_WRITE) == 0);
 	id_cow->tag |= LIB_TAG_COPIED_ON_WRITE;
+	/* This ID is no longer localized, is a self-sustaining copy now. */
+	id_cow->tag &= ~LIB_TAG_LOCALIZED;
 	id_cow->orig_id = (ID *)id_orig;
 }
 

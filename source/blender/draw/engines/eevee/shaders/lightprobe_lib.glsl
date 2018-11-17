@@ -134,9 +134,9 @@ float probe_attenuation_planar(PlanarData pd, vec3 W, vec3 N, float roughness)
 float probe_attenuation_grid(GridData gd, mat4 localmat, vec3 W, out vec3 localpos)
 {
 	localpos = transform_point(localmat, W);
-
-	float fade = min(1.0, min_v3(1.0 - abs(localpos)));
-	return saturate(fade * gd.g_atten_scale + gd.g_atten_bias);
+	vec3 pos_to_edge = max(vec3(0.0), abs(localpos) - 1.0);
+	float fade = length(pos_to_edge);
+	return saturate(-fade * gd.g_atten_scale + gd.g_atten_bias);
 }
 
 vec3 probe_evaluate_cube(int pd_id, vec3 W, vec3 R, float roughness)
@@ -273,14 +273,18 @@ vec3 probe_evaluate_grid(GridData gd, vec3 W, vec3 N, vec3 localpos)
 		float ws_dist_point_to_cell = length(ws_point_to_cell);
 		vec3 ws_light = ws_point_to_cell / ws_dist_point_to_cell;
 
-		vec3 trilinear = mix(1 - trilinear_weight, trilinear_weight, offset);
-		float weight = trilinear.x * trilinear.y * trilinear.z;
+		/* Smooth backface test */
+		float weight = saturate(dot(ws_light, N));
 
 		/* Precomputed visibility */
 		weight *= load_visibility_cell(cell, ws_light, ws_dist_point_to_cell, gd.g_vis_bias, gd.g_vis_bleed, gd.g_vis_range);
 
-		/* Smooth backface test */
-		weight *= dot(ws_light, N);
+		/* Smoother transition */
+		weight += prbIrradianceSmooth;
+
+		/* Trilinear weights */
+		vec3 trilinear = mix(1.0 - trilinear_weight, trilinear_weight, offset);
+		weight *= trilinear.x * trilinear.y * trilinear.z;
 
 		/* Avoid zero weight */
 		weight = max(0.00001, weight);

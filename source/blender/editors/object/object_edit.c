@@ -278,10 +278,13 @@ void OBJECT_OT_hide_view_set(wmOperatorType *ot)
 
 static int object_hide_collection_exec(bContext *C, wmOperator *op)
 {
-	int index = RNA_int_get(op->ptr, "collection_index");
-	bool extend = (CTX_wm_window(C)->eventstate->shift != 0);
+	wmWindow *win = CTX_wm_window(C);
 
-	if (CTX_wm_window(C)->eventstate->alt != 0) {
+	int index = RNA_int_get(op->ptr, "collection_index");
+	const bool extend = (win->eventstate->shift != 0) ||
+	                    RNA_boolean_get(op->ptr, "toggle");
+
+	if (win->eventstate->alt != 0) {
 		index += 10;
 	}
 
@@ -313,6 +316,10 @@ void ED_hide_collections_menu_draw(const bContext *C, uiLayout *layout)
 	for (LayerCollection *lc = lc_scene->layer_collections.first; lc; lc = lc->next) {
 		int index = BKE_layer_collection_findindex(view_layer, lc);
 		uiLayout *row = uiLayoutRow(layout, false);
+
+		if (lc->flag & LAYER_COLLECTION_EXCLUDE) {
+			continue;
+		}
 
 		if (lc->collection->flag & COLLECTION_RESTRICT_VIEW) {
 			continue;
@@ -380,6 +387,8 @@ void OBJECT_OT_hide_collection(wmOperatorType *ot)
 	PropertyRNA *prop;
 	prop = RNA_def_int(ot->srna, "collection_index", COLLECTION_INVALID_INDEX, COLLECTION_INVALID_INDEX, INT_MAX,
 	                   "Collection Index", "Index of the collection to change visibility", 0, INT_MAX);
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
+	prop = RNA_def_boolean(ot->srna, "toggle", 0, "Toggle", "Toggle visibility");
 	RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
 }
 

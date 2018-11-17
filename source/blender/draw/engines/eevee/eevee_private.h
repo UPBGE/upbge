@@ -71,6 +71,7 @@ extern struct DrawEngineType draw_engine_eevee_type;
 // #define IRRADIANCE_SH_L2
 // #define IRRADIANCE_CUBEMAP
 #define IRRADIANCE_HL2
+#define HAMMERSLEY_SIZE 1024
 
 #if defined(IRRADIANCE_SH_L2)
 #  define SHADER_IRRADIANCE "#define IRRADIANCE_SH_L2\n"
@@ -368,7 +369,7 @@ typedef struct EEVEE_StorageList {
 
 /* ************ LIGHT UBO ************* */
 typedef struct EEVEE_Light {
-	float position[3], dist;
+	float position[3], invsqrdist;
 	float color[3], spec;
 	float spotsize, spotblend, radius, shadowid;
 	float rightvec[3], sizex;
@@ -499,6 +500,7 @@ typedef struct EEVEE_LightProbesInfo {
 	float near_clip;
 	float far_clip;
 	float roughness;
+	float firefly_fac;
 	float lodfactor;
 	float lod_rt_max, lod_cube_max, lod_planar_max;
 	float visibility_range;
@@ -672,6 +674,7 @@ typedef struct EEVEE_CommonUniformBuffer {
 	int prb_num_render_cube; /* int */
 	int prb_num_render_grid; /* int */
 	int prb_irradiance_vis_size; /* int */
+	float prb_irradiance_smooth; /* float */
 	float prb_lod_cube_max; /* float */
 	float prb_lod_planar_max; /* float */
 	/* Misc */
@@ -888,6 +891,22 @@ void EEVEE_draw_shadows(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_lights_free(void);
 
 
+/* eevee_shaders.c */
+void EEVEE_shaders_lightprobe_shaders_init(void);
+struct GPUShader *EEVEE_shaders_probe_filter_glossy_sh_get(void);
+struct GPUShader *EEVEE_shaders_probe_default_sh_get(void);
+struct GPUShader *EEVEE_shaders_probe_filter_diffuse_sh_get(void);
+struct GPUShader *EEVEE_shaders_probe_filter_visibility_sh_get(void);
+struct GPUShader *EEVEE_shaders_probe_grid_fill_sh_get(void);
+struct GPUShader *EEVEE_shaders_probe_planar_downsample_sh_get(void);
+struct GPUShader *EEVEE_shaders_default_studiolight_sh_get(void);
+struct GPUShader *EEVEE_shaders_probe_cube_display_sh_get(void);
+struct GPUShader *EEVEE_shaders_probe_grid_display_sh_get(void);
+struct GPUShader *EEVEE_shaders_probe_planar_display_sh_get(void);
+struct GPUShader *EEVEE_shaders_velocity_resolve_sh_get(void);
+struct GPUShader *EEVEE_shaders_taa_resolve_sh_get(EEVEE_EffectsFlag enabled_effects);
+void EEVEE_shaders_free(void);
+
 /* eevee_lightprobes.c */
 bool EEVEE_lightprobes_obj_visibility_cb(bool vis_in, void *user_data);
 void EEVEE_lightprobes_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
@@ -906,7 +925,7 @@ void EEVEE_lightbake_render_scene(
         const float pos[3], float near_clip, float far_clip);
 void EEVEE_lightbake_filter_glossy(
         EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata, struct GPUTexture *rt_color, struct GPUFrameBuffer *fb,
-        int probe_idx, float intensity, int maxlevel);
+        int probe_idx, float intensity, int maxlevel, float filter_quality, float firefly_fac);
 void EEVEE_lightbake_filter_diffuse(
         EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata, struct GPUTexture *rt_color, struct GPUFrameBuffer *fb,
         int grid_offset, float intensity);
@@ -975,7 +994,6 @@ void EEVEE_temporal_sampling_matrices_calc(
         EEVEE_EffectsInfo *effects, float viewmat[4][4], float persmat[4][4], const double ht_point[2]);
 void EEVEE_temporal_sampling_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_temporal_sampling_draw(EEVEE_Data *vedata);
-void EEVEE_temporal_sampling_free(void);
 
 /* eevee_volumes.c */
 int EEVEE_volumes_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
@@ -1004,7 +1022,7 @@ void EEVEE_render_draw(EEVEE_Data *vedata, struct RenderEngine *engine, struct R
 void EEVEE_render_update_passes(struct RenderEngine *engine, struct Scene *scene, struct ViewLayer *view_layer);
 
 /** eevee_lookdev.c */
-void EEVEE_lookdev_cache_init(EEVEE_Data *vedata, struct DRWShadingGroup **grp, struct GPUShader *shader, struct DRWPass *pass, struct World *world, EEVEE_LightProbesInfo *pinfo);
+void EEVEE_lookdev_cache_init(EEVEE_Data *vedata, struct DRWShadingGroup **grp, struct DRWPass *pass, struct World *world, EEVEE_LightProbesInfo *pinfo);
 void EEVEE_lookdev_draw_background(EEVEE_Data *vedata);
 
 /** eevee_engine.c */

@@ -427,6 +427,9 @@ void DepsgraphRelationBuilder::build_id(ID *id)
 		return;
 	}
 	switch (GS(id->name)) {
+		case ID_AC:
+			build_action((bAction *)id);
+			break;
 		case ID_AR:
 			build_armature((bArmature *)id);
 			break;
@@ -2386,8 +2389,7 @@ void DepsgraphRelationBuilder::build_copy_on_write_relations(IDDepsNode *id_node
 	/* XXX: This is a quick hack to make Alt-A to work. */
 	// add_relation(time_source_key, copy_on_write_key, "Fluxgate capacitor hack");
 	/* Resat of code is using rather low level trickery, so need to get some
-	 * explicit pointers.
-	 */
+	 * explicit pointers. */
 	DepsNode *node_cow = find_node(copy_on_write_key);
 	OperationDepsNode *op_cow = node_cow->get_exit_operation();
 	/* Plug any other components to this one. */
@@ -2401,7 +2403,7 @@ void DepsgraphRelationBuilder::build_copy_on_write_relations(IDDepsNode *id_node
 			/* Component explicitly requests to not add relation. */
 			continue;
 		}
-		int rel_flag = DEPSREL_FLAG_NO_FLUSH;
+		int rel_flag = (DEPSREL_FLAG_NO_FLUSH | DEPSREL_FLAG_GODMODE);
 		if (id_type == ID_ME && comp_node->type == DEG_NODE_TYPE_GEOMETRY) {
 			rel_flag &= ~DEPSREL_FLAG_NO_FLUSH;
 		}
@@ -2409,7 +2411,6 @@ void DepsgraphRelationBuilder::build_copy_on_write_relations(IDDepsNode *id_node
 		if (id_type == ID_MA) {
 			rel_flag &= ~DEPSREL_FLAG_NO_FLUSH;
 		}
-
 		/* Notes on exceptions:
 		 * - Parameters component is where drivers are living. Changing any
 		 *   of the (custom) properties in the original datablock (even the
@@ -2490,7 +2491,9 @@ void DepsgraphRelationBuilder::build_copy_on_write_relations(IDDepsNode *id_node
 			OperationKey data_copy_on_write_key(object_data_id,
 			                                    DEG_NODE_TYPE_COPY_ON_WRITE,
 			                                    DEG_OPCODE_COPY_ON_WRITE);
-			add_relation(data_copy_on_write_key, copy_on_write_key, "Eval Order");
+			DepsRelation *rel = add_relation(
+			        data_copy_on_write_key, copy_on_write_key, "Eval Order");
+			rel->flag |= DEPSREL_FLAG_GODMODE;
 		}
 		else {
 			BLI_assert(object->type == OB_EMPTY);
@@ -2510,17 +2513,7 @@ void DepsgraphRelationBuilder::modifier_walk(void *user_data,
 	if (id == NULL) {
 		return;
 	}
-	switch (GS(id->name)) {
-		case ID_OB:
-			data->builder->build_object(NULL, (Object *)id);
-			break;
-		case ID_TE:
-			data->builder->build_texture((Tex *)id);
-			break;
-		default:
-			/* pass */
-			break;
-	}
+	data->builder->build_id(id);
 }
 
 void DepsgraphRelationBuilder::constraint_walk(bConstraint * /*con*/,
@@ -2529,12 +2522,11 @@ void DepsgraphRelationBuilder::constraint_walk(bConstraint * /*con*/,
                                                void *user_data)
 {
 	BuilderWalkUserData *data = (BuilderWalkUserData *)user_data;
-	if (*idpoin) {
-		ID *id = *idpoin;
-		if (GS(id->name) == ID_OB) {
-			data->builder->build_object(NULL, (Object *)id);
-		}
+	ID *id = *idpoin;
+	if (id == NULL) {
+		return;
 	}
+	data->builder->build_id(id);
 }
 
 }  // namespace DEG

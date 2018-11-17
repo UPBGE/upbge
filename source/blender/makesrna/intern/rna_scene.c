@@ -2062,7 +2062,7 @@ static const EnumPropertyItem *get_unit_enum_items(int system, int type, bool *r
 	for (int i = 0; i < len; i++) {
 		if (!bUnit_IsSuppressed(usys, i)) {
 			EnumPropertyItem tmp = { 0 };
-			tmp.identifier = bUnit_GetName(usys, i);
+			tmp.identifier = bUnit_GetIdentifier(usys, i);
 			tmp.name = bUnit_GetNameDisplay(usys, i);
 			tmp.value = i;
 			RNA_enum_item_add(&items, &totitem, &tmp);
@@ -6293,6 +6293,26 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
 	                               "Size of the shadow map applied to each irradiance sample");
 	RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_STATIC);
 
+	prop = RNA_def_property(srna, "gi_irradiance_smoothing", PROP_FLOAT, PROP_FACTOR);
+	RNA_def_property_range(prop, 0.0f, FLT_MAX);
+	RNA_def_property_ui_range(prop, 0.0f, 1.0f, 5, 2);
+	RNA_def_property_float_default(prop, 0.1f);
+	RNA_def_property_ui_text(prop, "Irradiance Smoothing", "Smoother irradiance interpolation but introduce light bleeding");
+	RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_STATIC);
+
+	prop = RNA_def_property(srna, "gi_glossy_clamp", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_default(prop, 0.0f);
+	RNA_def_property_ui_text(prop, "Clamp Glossy", "Clamp pixel intensity to reduce noise inside glossy reflections "
+	                                               "from reflection cubemaps (0 to disabled)");
+	RNA_def_property_range(prop, 0.0f, FLT_MAX);
+	RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_STATIC);
+
+	prop = RNA_def_property(srna, "gi_filter_quality", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_default(prop, 1.0f);
+	RNA_def_property_ui_text(prop, "Filter Quality", "Take more samples during cubemap filtering to remove artifacts");
+	RNA_def_property_range(prop, 1.0f, 8.0f);
+	RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_STATIC);
+
 	prop = RNA_def_property(srna, "gi_show_irradiance", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", SCE_EEVEE_SHOW_IRRADIANCE);
 	RNA_def_property_boolean_default(prop, 0);
@@ -6644,6 +6664,13 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", SCE_EEVEE_SHADOW_SOFT);
 	RNA_def_property_boolean_default(prop, 0);
 	RNA_def_property_ui_text(prop, "Soft Shadows", "Randomize shadowmaps origin to create soft shadows");
+	RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_STATIC);
+
+	prop = RNA_def_property(srna, "light_threshold", PROP_FLOAT, PROP_UNSIGNED);
+	RNA_def_property_float_default(prop, 0.01f);
+	RNA_def_property_ui_text(prop, "Light Threshold", "Minimum light intensity for a light to contribute to the lighting");
+	RNA_def_property_range(prop, 0.0f, FLT_MAX);
+	RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.1, 3);
 	RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_STATIC);
 
 	/* Overscan */

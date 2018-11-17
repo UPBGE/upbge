@@ -225,25 +225,24 @@ Material *BKE_material_copy(Main *bmain, const Material *ma)
 /* XXX (see above) material copy without adding to main dbase */
 Material *BKE_material_localize(Material *ma)
 {
-	/* TODO replace with something like
-	 * Material *ma_copy;
-	 * BKE_id_copy_ex(bmain, &ma->id, (ID **)&ma_copy, LIB_ID_COPY_NO_MAIN | LIB_ID_COPY_NO_PREVIEW | LIB_ID_COPY_NO_USER_REFCOUNT, false);
-	 * return ma_copy;
+	/* TODO(bastien): Replace with something like:
 	 *
-	 * ... Once f*** nodes are fully converted to that too :( */
+	 *   Material *ma_copy;
+	 *   BKE_id_copy_ex(bmain, &ma->id, (ID **)&ma_copy,
+	 *                  LIB_ID_COPY_NO_MAIN | LIB_ID_COPY_NO_PREVIEW | LIB_ID_COPY_NO_USER_REFCOUNT,
+	 *                  false);
+	 *   return ma_copy;
+	 *
+	 * NOTE: Only possible once nested node trees are fully converted to that too. */
 
-	Material *man;
-
-	BKE_id_copy_ex(
-	        NULL, &ma->id, (ID **)&man,
-	        (LIB_ID_CREATE_NO_MAIN |
-	         LIB_ID_CREATE_NO_USER_REFCOUNT |
-	         LIB_ID_COPY_NO_PREVIEW |
-	         LIB_ID_COPY_NO_ANIMDATA),
-	        false);
+	Material *man = BKE_libblock_copy_nolib(&ma->id, false);
 
 	man->texpaintslot = NULL;
 	man->preview = NULL;
+
+	if (ma->nodetree != NULL) {
+		man->nodetree = ntreeLocalize(ma->nodetree);
+	}
 
 	/* man->gp_style = NULL; */ /* XXX: We probably don't want to clear here, or else we may get problems with COW later? */
 	BLI_listbase_clear(&man->gpumaterial);
