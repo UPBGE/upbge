@@ -8,7 +8,8 @@ LOG_FunctionNode::LOG_FunctionNode()
 }
 
 LOG_FunctionNode::LOG_FunctionNode(const LOG_FunctionNode& other)
-	:m_getMeth(nullptr)
+	:LOG_INode(other),
+	m_getMeth(nullptr)
 {
 }
 
@@ -31,6 +32,13 @@ EXP_Value *LOG_FunctionNode::GetReplica()
 {
 	LOG_FunctionNode *replica = new LOG_FunctionNode(*this);
 	replica->ProcessReplica();
+
+	// Subclass the python node.
+	PyTypeObject *type = Py_TYPE(GetProxy());
+	if (!py_base_new(type, PyTuple_Pack(1, replica->GetProxy()), nullptr)) {
+		CM_Error("failed replicate node"); // TODO
+		m_status = INIT_ERROR;
+	}
 
 	return replica;
 }

@@ -35,7 +35,19 @@ EXP_Value *LOG_Node::GetReplica()
 	LOG_Node *replica = new LOG_Node(*this);
 	replica->ProcessReplica();
 
+	// Subclass the python node.
+	PyTypeObject *type = Py_TYPE(GetProxy());
+	if (!py_base_new(type, PyTuple_Pack(1, replica->GetProxy()), nullptr)) {
+		CM_Error("failed replicate node"); // TODO
+		m_status = INIT_ERROR;
+	}
+
 	return replica;
+}
+
+void LOG_Node::Relink(std::map<LOG_INode *, LOG_INode *>& nodeMap, std::map<LOG_INodeSocket *, LOG_INodeSocket *>& socketMap)
+{
+	RelinkSockets(nodeMap, socketMap, m_outputs);
 }
 
 void LOG_Node::AddOutput(LOG_ValueSocket *socket)

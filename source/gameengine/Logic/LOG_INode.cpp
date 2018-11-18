@@ -25,17 +25,9 @@ LOG_INode::~LOG_INode()
 	Py_DECREF(m_properties);
 }
 
-void LOG_INode::ProcessReplica()
+void LOG_INode::Relink(std::map<LOG_INode *, LOG_INode *>& nodeMap, std::map<LOG_INodeSocket *, LOG_INodeSocket *>& socketMap)
 {
-	EXP_Value::ProcessReplica();
-
-	// Subclass the python node.
-	PyObject *proxy = GetProxy();
-	PyTypeObject *type = Py_TYPE(proxy);
-	if (!py_base_new(type, PyTuple_Pack(1, proxy), nullptr)) {
-		CM_Error("failed replicate node"); // TODO
-		m_status = INIT_ERROR;
-	}
+	RelinkSockets(nodeMap, socketMap, m_inputs);
 }
 
 LOG_Object *LOG_INode::GetObject() const

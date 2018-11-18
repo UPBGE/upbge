@@ -101,6 +101,7 @@
 #include "LOG_FunctionNode.h"
 #include "LOG_FunctionSocket.h"
 #include "LOG_ValueSocket.h"
+#include "LOG_LogicSocket.h"
 #include "LOG_Tree.h"
 
 #include "BL_BlenderDataConversion.h"
@@ -1243,8 +1244,7 @@ static LOG_INodeSocket *BL_ConvertLogicNodeSocket(bNodeSocket *bsock, bool input
 		return it->second;
 	}
 
-	PyObject *value = nullptr;
-	LOG_FunctionNode *function = nullptr;
+	LOG_INodeSocket *socket = nullptr;
 
 	bNodeSocketType *typeinfo = bsock->typeinfo;
 
@@ -1255,17 +1255,21 @@ static LOG_INodeSocket *BL_ConvertLogicNodeSocket(bNodeSocket *bsock, bool input
 		switch (node->GetNodeType()) {
 			case LOG_INode::TYPE_FUNCTION:
 			{
-				function = static_cast<LOG_FunctionNode *>(node);
+				LOG_FunctionNode *functionNode = static_cast<LOG_FunctionNode *>(node);
+				socket = new LOG_FunctionSocket(bsock->name, functionNode);
 				break;
 			}
 			case LOG_INode::TYPE_NODE:
 			{
-				value = static_cast<LOG_Node *>(node)->GetProxy();
+				LOG_Node *logicNode = static_cast<LOG_Node *>(node);
+				socket = new LOG_LogicSocket(bsock->name, logicNode);
 				break;
 			}
 		}
 	}
 	else {
+		PyObject *value = nullptr;
+
 		switch (typeinfo->type) {
 			case SOCK_FLOAT:
 			{
@@ -1342,15 +1346,8 @@ static LOG_INodeSocket *BL_ConvertLogicNodeSocket(bNodeSocket *bsock, bool input
 				BLI_assert(false);
 			}
 		}
-	}
 
-	LOG_INodeSocket *socket = nullptr;
-
-	if (value) {
 		socket = new LOG_ValueSocket(bsock->name, value);
-	}
-	else if (function) {
-		socket = new LOG_FunctionSocket(bsock->name, function);
 	}
 
 	if (socket) {
@@ -2088,8 +2085,7 @@ void BL_PostConvertBlenderObjects(KX_Scene *kxscene, const BL_SceneConverter& sc
 
 		for (KX_GameObject *gameobj : objectlist) {
 			if (gameobj->UseLogic()) {
-				// Register object for component update.
-				// TODO register in logic manager for component and nodes.
+				// Register object for component and logic tree update.
 				kxscene->GetLogicManager().RegisterObject(gameobj);
 			}
 		}

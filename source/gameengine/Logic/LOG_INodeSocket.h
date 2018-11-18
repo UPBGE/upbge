@@ -4,6 +4,7 @@
 #include <string>
 
 #include "EXP_Value.h"
+#include "LOG_INode.h" // For LOG_Node::NodeToNodeMap.
 
 class LOG_INodeSocket : public EXP_Value
 {
@@ -19,6 +20,9 @@ public:
 	virtual ~LOG_INodeSocket() = default;
 
 	virtual std::string GetName() const;
+
+	virtual void Relink(const std::map<LOG_INode *, LOG_INode *>& nodeMap);
 };
+
 
 #endif  // __LOG_NODE_SOCKET_H__

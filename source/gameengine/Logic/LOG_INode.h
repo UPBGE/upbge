@@ -24,6 +24,33 @@ protected:
 
 	PyObject *m_properties;
 
+	template <class Socket>
+	static void RelinkSockets(std::map<LOG_INode *, LOG_INode *>& nodeMap,
+			std::map<LOG_INodeSocket *, LOG_INodeSocket *>& socketMap, EXP_ListValue<Socket>& sockets)
+	{
+		// For each socket try to duplicate.
+		for (unsigned short i = 0, size = sockets.GetCount(); i < size; ++i) {
+			Socket *oldsocket = sockets.GetValue(i);
+			Socket *newsocket;
+
+			const auto& it = socketMap.find(oldsocket);
+			// Test if the socket is already duplicated.
+			if (it != socketMap.end()) {
+				newsocket = static_cast<Socket *>(it->second);
+			}
+			else {
+				// Duplicate and register.
+				newsocket = static_cast<Socket *>(oldsocket->GetReplica());
+				socketMap[oldsocket] = newsocket;
+
+				// Relink nodes used by this socket.
+				newsocket->Relink(nodeMap);
+			}
+
+			sockets.SetValue(i, newsocket);
+		}
+	}
+
 public:
 	enum NodeType
 	{
@@ -37,7 +64,8 @@ public:
 
 	virtual NodeType GetNodeType() const = 0;
 
-	virtual void ProcessReplica();
+	virtual void Relink(std::map<LOG_INode *, LOG_INode *>& nodeMap,
+			std::map<LOG_INodeSocket *, LOG_INodeSocket *>& socketMap);
 
 	LOG_Object *GetObject() const;
 	void SetObject(LOG_Object *obj);

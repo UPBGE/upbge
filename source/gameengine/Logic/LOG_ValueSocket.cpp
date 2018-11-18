@@ -9,16 +9,23 @@ LOG_ValueSocket::LOG_ValueSocket(const std::string& name, PyObject *value)
 	Py_XINCREF(m_value);
 }
 
-LOG_ValueSocket::~LOG_ValueSocket()
-{
-	Py_XDECREF(m_value);
-}
-
 LOG_ValueSocket::LOG_ValueSocket(const LOG_ValueSocket& other)
 	:LOG_INodeSocket(other),
 	m_value(other.m_value)
 {
 	Py_XINCREF(m_value);
+}
+
+LOG_ValueSocket::~LOG_ValueSocket()
+{
+	Py_XDECREF(m_value);
+}
+
+EXP_Value *LOG_ValueSocket::GetReplica()
+{
+	EXP_Value *replica = new LOG_ValueSocket(*this);
+	replica->ProcessReplica(); // TODO
+	return replica;
 }
 
 PyTypeObject LOG_ValueSocket::Type = {

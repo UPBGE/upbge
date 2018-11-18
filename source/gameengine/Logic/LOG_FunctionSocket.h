@@ -18,6 +18,9 @@ public:
 	LOG_FunctionSocket(const LOG_FunctionSocket& other);
 	virtual ~LOG_FunctionSocket();
 
+	virtual EXP_Value *GetReplica();
+
+	virtual void Relink(const std::map<LOG_INode *, LOG_INode *>& nodeMap);
 	// Attributes
 	static PyObject *pyattr_get_value(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 };

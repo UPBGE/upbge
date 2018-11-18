@@ -24,6 +24,9 @@ public:
 	virtual std::string GetName() const;
 	virtual EXP_Value *GetReplica();
 
+	virtual void Relink(std::map<LOG_INode *, LOG_INode *>& nodeMap,
+			std::map<LOG_INodeSocket *, LOG_INodeSocket *>& socketMap);
+
 	void AddOutput(LOG_ValueSocket *socket);
 
 	virtual void Start();

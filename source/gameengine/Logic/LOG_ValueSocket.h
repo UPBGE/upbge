@@ -13,9 +13,10 @@ private:
 public:
 	LOG_ValueSocket() = default;
 	LOG_ValueSocket(const std::string& name, PyObject *value);
+	LOG_ValueSocket(const LOG_ValueSocket& other);
 	virtual ~LOG_ValueSocket();
 
-	LOG_ValueSocket(const LOG_ValueSocket& other);
+	virtual EXP_Value *GetReplica();
 
 	// Attributes
 	static PyObject *pyattr_get_value(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);

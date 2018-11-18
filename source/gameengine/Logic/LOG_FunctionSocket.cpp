@@ -7,14 +7,26 @@ LOG_FunctionSocket::LOG_FunctionSocket(const std::string& name, LOG_FunctionNode
 {
 }
 
-LOG_FunctionSocket::~LOG_FunctionSocket()
-{
-}
-
 LOG_FunctionSocket::LOG_FunctionSocket(const LOG_FunctionSocket& other)
 	:LOG_INodeSocket(other),
 	m_node(other.m_node)
 {
+}
+
+LOG_FunctionSocket::~LOG_FunctionSocket()
+{
+}
+
+EXP_Value *LOG_FunctionSocket::GetReplica()
+{
+	EXP_Value *replica = new LOG_FunctionSocket(*this);
+	replica->ProcessReplica();
+	return replica;
+}
+
+void LOG_FunctionSocket::Relink(const std::map<LOG_INode *, LOG_INode *>& nodeMap)
+{
+	m_node = static_cast<LOG_FunctionNode *>(nodeMap.at(m_node));
 }
 
 PyTypeObject LOG_FunctionSocket::Type = {

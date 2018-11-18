@@ -10,6 +10,10 @@ std::string LOG_INodeSocket::GetName() const
 	return m_name;
 }
 
+void LOG_INodeSocket::Relink(const std::map<LOG_INode *, LOG_INode *>& nodeMap)
+{
+}
+
 PyTypeObject LOG_INodeSocket::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"LOG_INodeSocket",

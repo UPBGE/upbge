@@ -11,13 +11,23 @@ LOG_Tree::LOG_Tree(const LOG_Tree& other)
 	:m_rootNode(nullptr),
 	m_init(false)
 {
+	std::map<LOG_INode *, LOG_INode *> nodeMap;
+
 	for (const std::unique_ptr<LOG_INode>& node : other.m_nodes) {
 		LOG_INode *replica = static_cast<LOG_INode *>(node->GetReplica());
+		nodeMap[node.get()] = replica;
+
 		if (node.get() == other.m_rootNode) {
 			m_rootNode = static_cast<LOG_Node *>(replica);
 		}
 
 		m_nodes.emplace_back(replica);
+	}
+
+	// Relink socket and nodes used in sockets.
+	std::map<LOG_INodeSocket *, LOG_INodeSocket *> socketMap;
+	for (std::unique_ptr<LOG_INode>& node : m_nodes) {
+		node->Relink(nodeMap, socketMap);
 	}
 }
 
