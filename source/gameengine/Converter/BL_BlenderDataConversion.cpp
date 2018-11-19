@@ -1252,18 +1252,20 @@ static LOG_INodeSocket *BL_ConvertLogicNodeSocket(bNodeSocket *bsock, bool input
 		bNode *bnode = input ? bsock->link->fromnode : bsock->link->tonode;
 		LOG_INode *node = convertedNodes.find(bnode)->second;
 
-		switch (node->GetNodeType()) {
-			case LOG_INode::TYPE_FUNCTION:
-			{
-				LOG_FunctionNode *functionNode = static_cast<LOG_FunctionNode *>(node);
-				socket = new LOG_FunctionSocket(bsock->name, functionNode);
-				break;
-			}
-			case LOG_INode::TYPE_NODE:
-			{
-				LOG_Node *logicNode = static_cast<LOG_Node *>(node);
-				socket = new LOG_LogicSocket(bsock->name, logicNode);
-				break;
+		if (node) {
+			switch (node->GetNodeType()) {
+				case LOG_INode::TYPE_FUNCTION:
+				{
+					LOG_FunctionNode *functionNode = static_cast<LOG_FunctionNode *>(node);
+					socket = new LOG_FunctionSocket(bsock->name, functionNode);
+					break;
+				}
+				case LOG_INode::TYPE_NODE:
+				{
+					LOG_Node *logicNode = static_cast<LOG_Node *>(node);
+					socket = new LOG_LogicSocket(bsock->name, logicNode);
+					break;
+				}
 			}
 		}
 	}

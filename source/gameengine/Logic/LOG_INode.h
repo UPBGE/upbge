@@ -11,13 +11,6 @@ class LOG_INode : public EXP_Value
 	Py_Header;
 
 protected:
-	enum Status
-	{
-		NO_STATUS,
-		INIT_ERROR,
-		INIT_SUCESS
-	} m_status;
-
 	LOG_Object *m_object;
 
 	EXP_ListValue<LOG_INodeSocket> m_inputs;

@@ -17,6 +17,10 @@ LOG_Tree::LOG_Tree(const LOG_Tree& other)
 		LOG_INode *replica = static_cast<LOG_INode *>(node->GetReplica());
 		nodeMap[node.get()] = replica;
 
+		if (!replica) {
+			continue;
+		}
+
 		if (node.get() == other.m_rootNode) {
 			m_rootNode = static_cast<LOG_Node *>(replica);
 		}

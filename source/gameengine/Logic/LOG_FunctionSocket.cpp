@@ -64,5 +64,9 @@ PyObject *LOG_FunctionSocket::pyattr_get_value(EXP_PyObjectPlus *self_v, const E
 {
 	LOG_FunctionSocket *self = static_cast<LOG_FunctionSocket *>(self_v);
 
-	return self->m_node->GetValue();
+	if (self->m_node) {
+		return self->m_node->GetValue();
+	}
+
+	Py_RETURN_NONE;
 }

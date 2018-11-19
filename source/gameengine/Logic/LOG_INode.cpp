@@ -6,15 +6,13 @@
 #include "CM_Message.h"
 
 LOG_INode::LOG_INode()
-	:m_status(NO_STATUS),
-	m_object(nullptr)
+	:m_object(nullptr)
 {
 	m_properties = PyDict_New();
 }
 
 LOG_INode::LOG_INode(const LOG_INode& other)
-	:m_status(NO_STATUS),
-	m_object(nullptr),
+	:m_object(nullptr),
 	m_inputs(other.m_inputs)
 {
 	m_properties = PyDict_Copy(other.m_properties);

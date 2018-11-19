@@ -36,8 +36,8 @@ EXP_Value *LOG_FunctionNode::GetReplica()
 	// Subclass the python node.
 	PyTypeObject *type = Py_TYPE(GetProxy());
 	if (!py_base_new(type, PyTuple_Pack(1, replica->GetProxy()), nullptr)) {
-		CM_Error("failed replicate node"); // TODO
-		m_status = INIT_ERROR;
+		delete replica;
+		return nullptr;
 	}
 
 	return replica;
