@@ -732,7 +732,7 @@ static void rna_UserDef_studiolight_spherical_harmonics_coefficients_get(Pointer
 {
 	StudioLight *sl = (StudioLight *)ptr->data;
 	float *value = values;
-	for (int i = 0; i < STUDIOLIGHT_SPHERICAL_HARMONICS_COMPONENTS; i++) {
+	for (int i = 0; i < STUDIOLIGHT_SH_EFFECTIVE_COEFS_LEN; i++) {
 		copy_v3_v3(value, sl->spherical_harmonics_coefs[i]);
 		value += 3;
 	}
@@ -3409,7 +3409,7 @@ static void rna_def_userdef_studiolight(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "SH Cache Path", "Path where the spherical harmonics cache is stored");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
-	const int spherical_harmonics_dim[] = {STUDIOLIGHT_SPHERICAL_HARMONICS_COMPONENTS, 3};
+	const int spherical_harmonics_dim[] = {STUDIOLIGHT_SH_EFFECTIVE_COEFS_LEN, 3};
 	prop = RNA_def_property(srna, "spherical_harmonics_coefficients", PROP_FLOAT, PROP_COLOR);
 	RNA_def_property_multi_array(prop, 2, spherical_harmonics_dim);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
@@ -4560,6 +4560,10 @@ static void rna_def_userdef_input(BlenderRNA *brna)
 	RNA_def_struct_nested(brna, srna, "UserPreferences");
 	RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
 	RNA_def_struct_ui_text(srna, "Input", "Settings for input devices");
+
+	prop = RNA_def_property(srna, "show_ui_keyconfig", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "userpref_flag", USER_SECTION_INPUT_HIDE_UI_KEYCONFIG);
+	RNA_def_property_ui_text(prop, "Show UI Key-Config", "");
 
 	prop = RNA_def_property(srna, "view_zoom_method", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "viewzoom");

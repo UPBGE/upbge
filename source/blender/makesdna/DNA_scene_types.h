@@ -1176,6 +1176,8 @@ typedef struct GP_Sculpt_Data {
 	float strength;         /* strength of effect */
 	float curcolor_add[3];  /* cursor color for add */
 	float curcolor_sub[3];  /* cursor color for sub */
+	float target_weight;    /* target weight */
+	char pad_[4];
 } GP_Sculpt_Data;
 
 /* GP_Sculpt_Data.flag */
@@ -1196,6 +1198,8 @@ typedef enum eGP_Sculpt_Flag {
 	GP_SCULPT_FLAG_TMP_INVERT = (1 << 5),
 	/* adjust radius using pen pressure */
 	GP_SCULPT_FLAG_PRESSURE_RADIUS = (1 << 6),
+	/* paint weight, define a target */
+	GP_SCULPT_FLAG_TARGET_WEIGHT = (1 << 7),
 } eGP_Sculpt_Flag;
 
 /* GPencil Stroke Sculpting Settings */

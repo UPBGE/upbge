@@ -910,6 +910,11 @@ static bool gp_brush_weight_apply(
 		curweight += inf;
 	}
 
+	/* verify target weight */
+	if (gso->gp_brush->flag & GP_SCULPT_FLAG_TARGET_WEIGHT) {
+		CLAMP_MAX(curweight, gso->gp_brush->target_weight);
+	}
+
 	CLAMP(curweight, 0.0f, 1.0f);
 	if (dw) {
 		dw->weight = curweight;

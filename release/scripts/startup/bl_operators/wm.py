@@ -1419,49 +1419,6 @@ class WM_OT_keyconfig_activate(Operator):
             return {'CANCELLED'}
 
 
-class WM_OT_appconfig_default(Operator):
-    bl_idname = "wm.appconfig_default"
-    bl_label = "Default Application Configuration"
-
-    def execute(self, context):
-        import os
-
-        context.window_manager.keyconfigs.active = context.window_manager.keyconfigs.default
-
-        filepath = os.path.join(bpy.utils.preset_paths("interaction")[0], "blender.py")
-
-        if os.path.exists(filepath):
-            bpy.ops.script.execute_preset(
-                filepath=filepath,
-                menu_idname="USERPREF_MT_interaction_presets",
-            )
-
-        return {'FINISHED'}
-
-
-class WM_OT_appconfig_activate(Operator):
-    bl_idname = "wm.appconfig_activate"
-    bl_label = "Activate Application Configuration"
-
-    filepath: StringProperty(
-        subtype='FILE_PATH',
-    )
-
-    def execute(self, context):
-        import os
-        filepath = self.filepath
-        bpy.utils.keyconfig_set(filepath)
-        dirname, filename = os.path.split(filepath)
-        filepath = os.path.normpath(os.path.join(dirname, os.pardir, "interaction", filename))
-        if os.path.exists(filepath):
-            bpy.ops.script.execute_preset(
-                filepath=filepath,
-                menu_idname="USERPREF_MT_interaction_presets",
-            )
-
-        return {'FINISHED'}
-
-
 class WM_OT_sysinfo(Operator):
     """Generate system information, saved into a text file"""
 
@@ -1704,7 +1661,7 @@ class WM_OT_keyconfig_export(Operator):
     )
 
     def execute(self, context):
-        from bpy_extras import keyconfig_utils
+        from bl_keymap_utils.io import keyconfig_export_as_data
 
         if not self.filepath:
             raise Exception("Filepath not set")
@@ -1714,7 +1671,7 @@ class WM_OT_keyconfig_export(Operator):
 
         wm = context.window_manager
 
-        keyconfig_utils.keyconfig_export_as_data(
+        keyconfig_export_as_data(
             wm,
             wm.keyconfigs.active,
             self.filepath,
@@ -2481,18 +2438,16 @@ class WM_OT_toolbar(Operator):
             return self.execute(context)
 
     def execute(self, context):
-        from bl_ui.space_toolsystem_common import (
-            ToolSelectPanelHelper,
-            keymap_from_context,
-        )
-        space_type = context.space_data.type
+        from bl_ui.space_toolsystem_common import ToolSelectPanelHelper
+        from bl_keymap_utils import keymap_from_toolbar
 
+        space_type = context.space_data.type
         cls = ToolSelectPanelHelper._tool_class_from_space_type(space_type)
         if cls is None:
             return {'CANCELLED'}
 
         wm = context.window_manager
-        keymap = keymap_from_context(context, space_type)
+        keymap = keymap_from_toolbar.generate(context, space_type)
 
         def draw_menu(popover, context):
             layout = popover.layout
@@ -2802,8 +2757,6 @@ classes = (
     WM_OT_addon_remove,
     WM_OT_addon_userpref_show,
     WM_OT_app_template_install,
-    WM_OT_appconfig_activate,
-    WM_OT_appconfig_default,
     WM_OT_blenderplayer_start,
     WM_OT_context_collection_boolean_set,
     WM_OT_context_cycle_array,

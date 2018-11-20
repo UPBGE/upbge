@@ -45,6 +45,7 @@
 #include "DNA_gpencil_types.h"
 
 #include "BLI_math.h"
+#include "BLI_math_bits.h"
 #include "BLI_listbase.h"
 #include "BLI_rand.h"
 #include "BLI_string_utils.h"
@@ -52,6 +53,8 @@
 
 #include "BLT_translation.h"
 
+#include "BKE_action.h"
+#include "BKE_armature.h"
 #include "BKE_collection.h"
 #include "BKE_context.h"
 #include "BKE_deform.h"
@@ -72,6 +75,7 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
+#include "ED_armature.h"
 #include "ED_object.h"
 #include "ED_screen.h"
 #include "ED_select_utils.h"
@@ -136,6 +140,230 @@ void ED_object_base_activate(bContext *C, Base *base)
 	DEG_id_tag_update(&CTX_data_scene(C)->id, DEG_TAG_SELECT_UPDATE);
 }
 
+bool ED_object_base_deselect_all_ex(ViewLayer *view_layer, int action, bool *r_any_visible)
+{
+	if (action == SEL_TOGGLE) {
+		action = SEL_SELECT;
+		FOREACH_VISIBLE_BASE_BEGIN(view_layer, base) {
+			if ((base->flag & BASE_SELECTED) != 0) {
+				action = SEL_DESELECT;
+				break;
+			}
+		}
+		FOREACH_VISIBLE_BASE_END;
+	}
+
+	bool any_visible = false;
+	bool changed = false;
+	FOREACH_VISIBLE_BASE_BEGIN(view_layer, base) {
+		switch (action) {
+			case SEL_SELECT:
+				if ((base->flag & BASE_SELECTED) == 0) {
+					ED_object_base_select(base, BA_SELECT);
+					changed = true;
+				}
+				break;
+			case SEL_DESELECT:
+				if ((base->flag & BASE_SELECTED) != 0) {
+					ED_object_base_select(base, BA_DESELECT);
+					changed = true;
+				}
+				break;
+			case SEL_INVERT:
+				if ((base->flag & BASE_SELECTED) != 0) {
+					ED_object_base_select(base, BA_DESELECT);
+					changed = true;
+				}
+				else {
+					ED_object_base_select(base, BA_SELECT);
+					changed = true;
+				}
+				break;
+		}
+		any_visible = true;
+	}
+	FOREACH_VISIBLE_BASE_END;
+	if (r_any_visible) {
+		*r_any_visible = any_visible;
+	}
+	return changed;
+}
+
+
+bool ED_object_base_deselect_all(ViewLayer *view_layer, int action)
+{
+	return ED_object_base_deselect_all_ex(view_layer, action, NULL);
+}
+
+/********************** Jump To Object Utilities **********************/
+
+static int get_base_select_priority(Base *base)
+{
+	if (base->flag & BASE_VISIBLE) {
+		if (base->flag & BASE_SELECTABLE) {
+			return 3;
+		}
+		else {
+			return 2;
+		}
+	}
+	else {
+		return 1;
+	}
+}
+
+/**
+ * If id is not already an Object, try to find an object that uses it as data.
+ * Prefers active, then selected, then visible/selectable.
+ */
+Base *ED_object_find_first_by_data_id(ViewLayer *view_layer, ID *id)
+{
+	BLI_assert(OB_DATA_SUPPORT_ID(GS(id->name)));
+
+	/* Try active object. */
+	Base *basact = view_layer->basact;
+
+	if (basact && basact->object && basact->object->data == id) {
+		return basact;
+	}
+
+	/* Try all objects. */
+	Base *base_best = NULL;
+	int priority_best = 0;
+
+	for (Base *base = view_layer->object_bases.first; base; base = base->next) {
+		if (base->object && base->object->data == id) {
+			if (base->flag & BASE_SELECTED) {
+				return base;
+			}
+			else {
+				int priority_test = get_base_select_priority(base);
+
+				if (priority_test > priority_best) {
+					priority_best = priority_test;
+					base_best = base;
+				}
+			}
+		}
+	}
+
+	return base_best;
+}
+
+/**
+ * Select and make the target object active in the view layer.
+ * If already selected, selection isn't changed.
+ *
+ * \returns false if not found in current view layer
+ */
+bool ED_object_jump_to_object(bContext *C, Object *ob)
+{
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	Base *base = BKE_view_layer_base_find(view_layer, ob);
+
+	if (base == NULL) {
+		return false;
+	}
+
+	if (view_layer->basact != base) {
+		/* Select if not selected. */
+		if (!(base->flag & BASE_SELECTED)) {
+			ED_object_base_deselect_all(view_layer, SEL_DESELECT);
+
+			if (base->flag & BASE_VISIBLE) {
+				ED_object_base_select(base, BA_SELECT);
+			}
+
+			WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, CTX_data_scene(C));
+		}
+
+		/* Make active if not active. */
+		ED_object_base_activate(C, base);
+	}
+
+	return true;
+}
+
+/**
+ * Select and make the target object and bone active.
+ * Switches to Pose mode if in Object mode so the selection is visible.
+ * Unhides the target bone and bone layer if necessary.
+ *
+ * \returns false if object not in layer, bone not found, or other error
+ */
+bool ED_object_jump_to_bone(bContext *C, Object *ob, const char *bone_name)
+{
+	/* Verify it's a valid armature object. */
+	if (ob == NULL || ob->type != OB_ARMATURE) {
+		return false;
+	}
+
+	bArmature *arm = ob->data;
+
+	if (arm == NULL || GS(arm->id.name) != ID_AR) {
+		return false;
+	}
+
+	/* Activate the armature object. */
+	if (!ED_object_jump_to_object(C, ob)) {
+		return false;
+	}
+
+	/* Switch to pose mode from object mode. */
+	if (!ELEM(ob->mode, OB_MODE_EDIT, OB_MODE_POSE)) {
+		ED_object_mode_set(C, OB_MODE_POSE);
+	}
+
+	if (ob->mode == OB_MODE_EDIT && arm->edbo != NULL) {
+		/* In Edit mode select and activate the target Edit-Bone. */
+		EditBone *ebone = ED_armature_ebone_find_name(arm->edbo, bone_name);
+		if (ebone != NULL) {
+			/* Unhide the bone. */
+			ebone->flag &= ~BONE_HIDDEN_A;
+
+			if ((arm->layer & ebone->layer) == 0) {
+				arm->layer |= 1U << bitscan_forward_uint(ebone->layer);
+			}
+
+			/* Select it. */
+			ED_armature_edit_deselect_all(ob);
+
+			if (EBONE_SELECTABLE(arm, ebone)) {
+				ED_armature_ebone_select_set(ebone, true);
+				ED_armature_edit_sync_selection(arm->edbo);
+			}
+
+			arm->act_edbone = ebone;
+
+			ED_pose_bone_select_tag_update(ob);
+			return true;
+		}
+	}
+	else if (ob->mode == OB_MODE_POSE && ob->pose != NULL) {
+		/* In Pose mode select and activate the target Bone/Pose-Channel. */
+		bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose, bone_name);
+		if (pchan != NULL) {
+			/* Unhide the bone. */
+			pchan->bone->flag &= ~BONE_HIDDEN_P;
+
+			if ((arm->layer & pchan->bone->layer) == 0) {
+				arm->layer |= 1U << bitscan_forward_uint(pchan->bone->layer);
+			}
+
+			/* Select it. */
+			ED_pose_deselect_all(ob, SEL_DESELECT, true);
+			ED_pose_bone_select(ob, pchan, true);
+
+			arm->act_bone = pchan->bone;
+
+			ED_pose_bone_select_tag_update(ob);
+			return true;
+		}
+	}
+
+	return false;
+}
+
 /********************** Selection Operators **********************/
 
 static bool objects_selectable_poll(bContext *C)
@@ -156,17 +384,14 @@ static bool objects_selectable_poll(bContext *C)
 
 static int object_select_by_type_exec(bContext *C, wmOperator *op)
 {
+	ViewLayer *view_layer = CTX_data_view_layer(C);
 	short obtype, extend;
 
 	obtype = RNA_enum_get(op->ptr, "type");
 	extend = RNA_boolean_get(op->ptr, "extend");
 
 	if (extend == 0) {
-		CTX_DATA_BEGIN (C, Base *, base, visible_bases)
-		{
-			ED_object_base_select(base, BA_DESELECT);
-		}
-		CTX_DATA_END;
+		ED_object_base_deselect_all(view_layer, SEL_DESELECT);
 	}
 
 	CTX_DATA_BEGIN (C, Base *, base, visible_bases)
@@ -389,11 +614,7 @@ static int object_select_linked_exec(bContext *C, wmOperator *op)
 	extend = RNA_boolean_get(op->ptr, "extend");
 
 	if (extend == 0) {
-		CTX_DATA_BEGIN (C, Base *, base, visible_bases)
-		{
-			ED_object_base_select(base, BA_DESELECT);
-		}
-		CTX_DATA_END;
+		ED_object_base_deselect_all(view_layer, SEL_DESELECT);
 	}
 
 	ob = OBACT(view_layer);
@@ -791,12 +1012,7 @@ static int object_select_grouped_exec(bContext *C, wmOperator *op)
 	extend = RNA_boolean_get(op->ptr, "extend");
 
 	if (extend == 0) {
-		CTX_DATA_BEGIN (C, Base *, base, visible_bases)
-		{
-			ED_object_base_select(base, BA_DESELECT);
-			changed = true;
-		}
-		CTX_DATA_END;
+		changed = ED_object_base_deselect_all(view_layer, SEL_DESELECT);
 	}
 
 	ob = OBACT(view_layer);
@@ -883,49 +1099,27 @@ void OBJECT_OT_select_grouped(wmOperatorType *ot)
 
 static int object_select_all_exec(bContext *C, wmOperator *op)
 {
+	ViewLayer *view_layer = CTX_data_view_layer(C);
 	int action = RNA_enum_get(op->ptr, "action");
+	bool any_visible = false;
 
-	/* passthrough if no objects are visible */
-	if (CTX_DATA_COUNT(C, visible_bases) == 0) return OPERATOR_PASS_THROUGH;
+	bool changed = ED_object_base_deselect_all_ex(view_layer, action, &any_visible);
 
-	if (action == SEL_TOGGLE) {
-		action = SEL_SELECT;
-		CTX_DATA_BEGIN (C, Base *, base, visible_bases)
-		{
-			if ((base->flag & BASE_SELECTED) != 0) {
-				action = SEL_DESELECT;
-				break;
-			}
-		}
-		CTX_DATA_END;
+	if (changed) {
+		Scene *scene = CTX_data_scene(C);
+		DEG_id_tag_update(&scene->id, DEG_TAG_SELECT_UPDATE);
+		WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
+
+		return OPERATOR_FINISHED;
 	}
-
-	CTX_DATA_BEGIN (C, Base *, base, visible_bases)
-	{
-		switch (action) {
-			case SEL_SELECT:
-				ED_object_base_select(base, BA_SELECT);
-				break;
-			case SEL_DESELECT:
-				ED_object_base_select(base, BA_DESELECT);
-				break;
-			case SEL_INVERT:
-				if ((base->flag & BASE_SELECTED) != 0) {
-					ED_object_base_select(base, BA_DESELECT);
-				}
-				else {
-					ED_object_base_select(base, BA_SELECT);
-				}
-				break;
-		}
+	else if (any_visible == false) {
+		/* TODO(campbell): Looks like we could remove this,
+		 * if not comment should say why its needed. */
+		return OPERATOR_PASS_THROUGH;
 	}
-	CTX_DATA_END;
-
-	Scene *scene = CTX_data_scene(C);
-	DEG_id_tag_update(&scene->id, DEG_TAG_SELECT_UPDATE);
-	WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
-
-	return OPERATOR_FINISHED;
+	else {
+		return OPERATOR_CANCELLED;
+	}
 }
 
 void OBJECT_OT_select_all(wmOperatorType *ot)

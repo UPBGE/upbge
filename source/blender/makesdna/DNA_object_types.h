@@ -127,6 +127,11 @@ typedef struct ObjectDisplay {
 	int flag;
 } ObjectDisplay;
 
+/* Forward declaration for cache bbone deformation information.
+ *
+ * TODO(sergey): Consider moving it to more appropriate place. */
+struct ObjectBBoneDeform;
+
 /* Not saved in file! */
 typedef struct Object_Runtime {
 	/* Original mesh pointer, before object->data was changed to point
@@ -149,6 +154,8 @@ typedef struct Object_Runtime {
 
 	/* Runtime grease pencil drawing data */
 	struct GpencilBatchCache *gpencil_cache;
+
+	struct ObjectBBoneDeform *cached_bbone_deformation;
 } Object_Runtime;
 
 typedef struct Object {
@@ -742,6 +749,7 @@ enum {
 enum {
 	OB_EMPTY_IMAGE_VISIBLE_PERSPECTIVE  = 1 << 0,
 	OB_EMPTY_IMAGE_VISIBLE_ORTHOGRAPHIC = 1 << 1,
+	OB_EMPTY_IMAGE_VISIBLE_BACKSIDE     = 1 << 2,
 };
 
 #define MAX_DUPLI_RECUR 8

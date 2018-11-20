@@ -46,7 +46,6 @@ class Params:
             self,
             *,
             legacy=False,
-            select_mode='AUTO',
             select_mouse='RIGHT',
 
             # User preferences.
@@ -227,7 +226,8 @@ def km_window(params):
             ("wm.read_homefile", {"type": 'N', "value": 'PRESS', "oskey": True}, None),
             op_menu("TOPBAR_MT_file_open_recent", {"type": 'O', "value": 'PRESS', "shift": True, "oskey": True}),
             ("wm.open_mainfile", {"type": 'O', "value": 'PRESS', "oskey": True}, None),
-            ("wm.save_mainfile", {"type": 'S', "value": 'PRESS', "oskey": True}, None),
+            ("wm.save_mainfile", {"type": 'S', "value": 'PRESS', "oskey": True},
+             {"properties": [("check_existing", False)]}),
             ("wm.save_as_mainfile", {"type": 'S', "value": 'PRESS', "shift": True, "oskey": True}, None),
             ("wm.quit_blender", {"type": 'Q', "value": 'PRESS', "oskey": True}, None),
             ("wm.search_menu", {"type": 'F', "value": 'PRESS', "oskey": True}, None),
@@ -238,7 +238,8 @@ def km_window(params):
         ("wm.read_homefile", {"type": 'N', "value": 'PRESS', "ctrl": True}, None),
         op_menu("TOPBAR_MT_file_open_recent", {"type": 'O', "value": 'PRESS', "shift": True, "ctrl": True}),
         ("wm.open_mainfile", {"type": 'O', "value": 'PRESS', "ctrl": True}, None),
-        ("wm.save_mainfile", {"type": 'S', "value": 'PRESS', "ctrl": True}, None),
+        ("wm.save_mainfile", {"type": 'S', "value": 'PRESS', "ctrl": True},
+         {"properties": [("check_existing", False)]}),
         ("wm.save_as_mainfile", {"type": 'S', "value": 'PRESS', "shift": True, "ctrl": True}, None),
         ("wm.quit_blender", {"type": 'Q', "value": 'PRESS', "ctrl": True}, None),
 
@@ -294,7 +295,7 @@ def km_window(params):
                 ("wm.toolbar", {"type": 'SPACE', "value": 'PRESS', "shift": True}, None),
             )
         else:
-            assert(0)
+            assert False
 
     else:
         # Old shorctus
@@ -728,8 +729,8 @@ def km_uv_editor(params):
         # Quick switch to select tool, since left select can't easily
         # select with any tool active.
         items.extend([
-           ("wm.tool_set_by_name", {"type": 'W', "value": 'PRESS'},
-            {"properties": [("name", "Select Box")]})
+            ("wm.tool_set_by_name", {"type": 'W', "value": 'PRESS'},
+             {"properties": [("name", "Select Box")]})
         ])
 
     return keymap
@@ -1060,8 +1061,8 @@ def km_view3d(params):
         # Quick switch to select tool, since left select can't easily
         # select with any tool active.
         items.extend([
-           ("wm.tool_set_by_name", {"type": 'W', "value": 'PRESS'},
-            {"properties": [("name", "Select Box")]})
+            ("wm.tool_set_by_name", {"type": 'W', "value": 'PRESS'},
+             {"properties": [("name", "Select Box")]})
         ])
 
     return keymap
@@ -2607,7 +2608,7 @@ def km_frames(params):
                 ("screen.animation_play", {"type": 'SPACE', "value": 'PRESS'}, None),
             )
         else:
-            assert(0)
+            assert False
 
         items.extend([
             ("screen.animation_play", {"type": 'SPACE', "value": 'PRESS', "shift": True, "ctrl": True},
@@ -3246,9 +3247,9 @@ def km_object_mode(params):
         ("object.delete", {"type": 'X', "value": 'PRESS', "shift": True},
          {"properties": [("use_global", True)]}),
         ("object.delete", {"type": 'DEL', "value": 'PRESS'},
-         {"properties": [("use_global", False)]}),
+         {"properties": [("use_global", False), ("confirm", False)]}),
         ("object.delete", {"type": 'DEL', "value": 'PRESS', "shift": True},
-         {"properties": [("use_global", True)]}),
+         {"properties": [("use_global", True), ("confirm", False)]}),
         op_menu("VIEW3D_MT_add", {"type": 'A', "value": 'PRESS', "shift": True}),
         op_menu("VIEW3D_MT_object_apply", {"type": 'A', "value": 'PRESS', "ctrl": True}),
         op_menu("VIEW3D_MT_make_links", {"type": 'L', "value": 'PRESS', "ctrl": True}),
@@ -5901,9 +5902,3 @@ def generate_keymaps(params=None):
 # Command to lint:
 #
 #    pylint release/scripts/presets/keyconfig/keymap_data/blender_default.py --disable=C0111,C0301,C0302,R0902,R0903,R0913
-
-
-if __name__ == "__main__":
-    from bpy_extras.keyconfig_utils import keyconfig_import_from_data
-    keyconfig_import_from_data("blender", generate_keymaps())
-    keyconfig_import_from_data("blender_27", generate_keymaps(Params(legacy=True)))

@@ -111,6 +111,8 @@ void ED_object_parent_clear(struct Object *ob, const int type);
 void ED_object_base_select(struct Base *base, eObjectSelect_Mode mode);
 void ED_object_base_activate(struct bContext *C, struct Base *base);
 void ED_object_base_free_and_unlink(struct Main *bmain, struct Scene *scene, struct Object *ob);
+bool ED_object_base_deselect_all_ex(struct ViewLayer *view_layer, int action, bool *r_any_visible);
+bool ED_object_base_deselect_all(struct ViewLayer *view_layer, int action);
 
 /* single object duplicate, if (dupflag == 0), fully linked, else it uses the flags given */
 struct Base *ED_object_add_duplicate(struct Main *bmain, struct Scene *scene, struct ViewLayer *view_layer, struct Base *base, int dupflag);
@@ -299,6 +301,11 @@ const struct EnumPropertyItem *ED_object_vgroup_selection_itemf_helper(
 
 void ED_object_check_force_modifiers(
         struct Main *bmain, struct Scene *scene, struct Object *object);
+
+struct Base *ED_object_find_first_by_data_id(struct ViewLayer *view_layer, struct ID *id);
+
+bool ED_object_jump_to_object(struct bContext *C, struct Object *ob);
+bool ED_object_jump_to_bone(struct bContext *C, struct Object *ob, const char *bone_name);
 
 /* object_facemap_ops.c */
 void ED_object_facemap_face_add(struct Object *ob, struct bFaceMap *fmap, int facenum);

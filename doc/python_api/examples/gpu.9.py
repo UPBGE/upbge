@@ -6,7 +6,8 @@ This will create a new image with the given name.
 If it already exists, it will override the existing one.
 
 Currently almost all of the execution time is spent in the last line.
-In the future this will hopefully be solved by implementing the Python buffer protocol for `bgl.Buffer` and `Image.pixels` (aka `bpy_prop_array`).
+In the future this will hopefully be solved by implementing the Python buffer protocol
+for :class:`bgl.Buffer` and :class:`bpy.types.Image.pixels` (aka ``bpy_prop_array``).
 """
 import bpy
 import gpu
@@ -23,8 +24,7 @@ RING_AMOUNT = 10
 
 offscreen = gpu.types.GPUOffScreen(WIDTH, HEIGHT)
 
-offscreen.bind()
-try:
+with offscreen.bind():
     bgl.glClear(bgl.GL_COLOR_BUFFER_BIT)
     with gpu.matrix.push_pop():
         # reset matrices -> use normalized device coordinates [-1, 1]
@@ -36,13 +36,11 @@ try:
                 (random.uniform(-1, 1), random.uniform(-1, 1)),
                 (1, 1, 1, 1), random.uniform(0.1, 1), 20)
 
-
     buffer = bgl.Buffer(bgl.GL_BYTE, WIDTH * HEIGHT * 4)
     bgl.glReadBuffer(bgl.GL_BACK)
     bgl.glReadPixels(0, 0, WIDTH, HEIGHT, bgl.GL_RGBA, bgl.GL_UNSIGNED_BYTE, buffer)
-finally:
-    offscreen.unbind()
-    offscreen.free()
+
+offscreen.free()
 
 
 if not IMAGE_NAME in bpy.data.images:

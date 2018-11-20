@@ -408,6 +408,12 @@ class _draw_left_context_mode:
             row.prop(brush, "strength", slider=True)
             row.prop(brush, "use_pressure_strength", text="")
 
+            row = layout.row(align=True)
+            row.prop(brush, "use_target_weight", text="", icon='WPAINT_HLT')
+            sub = row.row(align=True)
+            sub.enabled = brush.use_target_weight
+            sub.prop(brush, "target_weight", slider=True)
+
         @staticmethod
         def PARTICLE(context, layout, tool):
             # See: 'VIEW3D_PT_tools_brush', basically a duplicate

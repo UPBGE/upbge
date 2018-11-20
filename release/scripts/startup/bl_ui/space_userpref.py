@@ -73,25 +73,6 @@ class USERPREF_PT_tabs(Panel):
         layout.row().prop(userpref, "active_section", expand=True)
 
 
-class USERPREF_MT_interaction_presets(Menu):
-    bl_label = "Presets"
-    preset_subdir = "interaction"
-    preset_operator = "script.execute_preset"
-    draw = Menu.draw_preset
-
-
-class USERPREF_MT_appconfigs(Menu):
-    bl_label = "AppPresets"
-    preset_subdir = "keyconfig"
-    preset_operator = "wm.appconfig_activate"
-
-    def draw(self, context):
-        self.layout.operator("wm.appconfig_default", text="Blender (default)")
-
-        # now draw the presets
-        Menu.draw_preset(self, context)
-
-
 class USERPREF_PT_interface(Panel):
     bl_space_type = 'USER_PREFERENCES'
     bl_label = "Interface"
@@ -1071,32 +1052,11 @@ class USERPREF_PT_input(Panel):
         return (userpref.active_section == 'INPUT')
 
     @staticmethod
-    def draw_input_prefs_keyconfig(context, layout):
-        kc = context.window_manager.keyconfigs.active
-        kc_prefs = kc.preferences
-        if kc_prefs is not None:
-            box = layout.box()
-            box.label(text=kc.name.replace("_", " ").title() + " Keymap")
-            # Defined by user preset, may contain mistakes out of our control.
-            try:
-                kc_prefs.draw(box)
-            except Exception:
-                import traceback
-                traceback.print_exc()
-
-    @staticmethod
     def draw_input_prefs(inputs, layout):
         import sys
 
         # General settings
         sub = layout.column()
-        sub.label(text="Presets:")
-        subrow = sub.row(align=True)
-
-        subrow.menu("USERPREF_MT_interaction_presets", text=bpy.types.USERPREF_MT_interaction_presets.bl_label)
-        subrow.operator("wm.interaction_preset_add", text="", icon='ADD')
-        subrow.operator("wm.interaction_preset_add", text="", icon='REMOVE').remove_active = True
-        sub.separator()
 
         sub.label(text="Mouse:")
         sub.prop(inputs, "use_mouse_emulate_3_button")
@@ -1200,13 +1160,11 @@ class USERPREF_PT_input(Panel):
         # Input settings
         self.draw_input_prefs(inputs, col)
 
-        # When the keyconfig defines it's own preferences.
-        self.draw_input_prefs_keyconfig(context, col)
-
         row.separator()
 
         # Keymap Settings
-        draw_keymaps(context, split)
+        col = split.column()
+        draw_keymaps(context, col)
 
         #print("runtime", time.time() - start)
 
@@ -1609,8 +1567,6 @@ class USERPREF_PT_studiolight_specular(Panel, StudioLightPanelMixin):
 classes = (
     USERPREF_HT_header,
     USERPREF_PT_tabs,
-    USERPREF_MT_interaction_presets,
-    USERPREF_MT_appconfigs,
     USERPREF_PT_interface,
     USERPREF_PT_edit,
     USERPREF_PT_system,

@@ -2,10 +2,10 @@
 Generate a texture using Offscreen Rendering
 --------------------------------------------
 
-1. Create an :class:`gpu.types.GPUOffScreen` object.
-2. Draw some circles into it.
-3. Make a new shader for drawing a planar texture in 3D.
-4. Draw the generated texture using the new shader.
+#. Create an :class:`gpu.types.GPUOffScreen` object.
+#. Draw some circles into it.
+#. Make a new shader for drawing a planar texture in 3D.
+#. Draw the generated texture using the new shader.
 """
 import bpy
 import gpu
@@ -19,8 +19,7 @@ from gpu_extras.presets import draw_circle_2d
 
 offscreen = gpu.types.GPUOffScreen(512, 512)
 
-offscreen.bind()
-try:
+with offscreen.bind():
     bgl.glClear(bgl.GL_COLOR_BUFFER_BIT)
     with gpu.matrix.push_pop():
         # reset matrices -> use normalized device coordinates [-1, 1]
@@ -31,8 +30,6 @@ try:
         for i in range(-amount, amount + 1):
             x_pos = i / amount
             draw_circle_2d((x_pos, 0.0), (1, 1, 1, 1), 0.5, 200)
-finally:
-    offscreen.unbind()
 
 
 # Drawing the generated texture in 3D space
@@ -66,9 +63,13 @@ fragment_shader = '''
 '''
 
 shader = gpu.types.GPUShader(vertex_shader, fragment_shader)
-batch = batch_for_shader(shader, 'TRI_FAN',
-    {"position" : ((-1, -1), (1, -1), (1, 1), (-1, 1)),
-     "uv" : ((0, 0), (1, 0), (1, 1), (0, 1))})
+batch = batch_for_shader(
+    shader, 'TRI_FAN',
+    {
+        "position": ((-1, -1), (1, -1), (1, 1), (-1, 1)),
+        "uv": ((0, 0), (1, 0), (1, 1), (0, 1)),
+    },
+)
 
 
 def draw():
@@ -80,5 +81,6 @@ def draw():
     shader.uniform_float("viewProjectionMatrix", bpy.context.region_data.perspective_matrix)
     shader.uniform_float("image", 0)
     batch.draw(shader)
+
 
 bpy.types.SpaceView3D.draw_handler_add(draw, (), 'WINDOW', 'POST_VIEW')
