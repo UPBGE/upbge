@@ -15,20 +15,15 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2004 by Blender Foundation.
- * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Joseph Eagar
- *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/editors/mesh/editmesh_extrude_gizmo.c
+/** \file blender/editors/transform/transform_gizmo_extrude_3d.c
  *  \ingroup edmesh
  */
 
+#include "BLI_utildefines.h"
+#include "BLI_array_utils.h"
 #include "BLI_math.h"
 #include "BLI_listbase.h"
 
@@ -53,8 +48,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "mesh_intern.h"  /* own include */
-
 /* -------------------------------------------------------------------- */
 /** \name Extrude Gizmo
  * \{ */
@@ -69,6 +62,7 @@ static const float extrude_button_offset_scale = 1.5f;
 static const float extrude_arrow_scale = 1.0f;
 static const float extrude_arrow_xyz_axis_scale = 1.0f;
 static const float extrude_arrow_normal_axis_scale = 1.0f;
+static const float extrude_dial_scale = 0.2;
 
 static const uchar shape_plus[] = {
 	0x5f, 0xfb, 0x40, 0xee, 0x25, 0xda, 0x11, 0xbf, 0x4, 0xa0, 0x0, 0x80, 0x4, 0x5f, 0x11,
@@ -82,9 +76,21 @@ static const uchar shape_plus[] = {
 typedef struct GizmoExtrudeGroup {
 
 	/* XYZ & normal. */
-	struct wmGizmo *invoke_xyz_no[4];
-	struct wmGizmo *adjust;
+	wmGizmo *invoke_xyz_no[4];
+	/* Constrained & unconstrained (arrow & circle). */
+	wmGizmo *adjust[2];
 	int             adjust_axis;
+
+	/* Copied from the transform operator,
+	 * use to redo with the same settings. */
+	struct {
+		float constraint_matrix[3][3];
+		bool  constraint_axis[3];
+		float value[4];
+	} redo_xform;
+
+	/* Depends on object type. */
+	int normal_axis;
 
 	struct {
 		float normal_mat3[3][3];  /* use Z axis for normal. */
@@ -111,21 +117,23 @@ static void gizmo_mesh_extrude_orientation_matrix_set_for_adjust(
 {
 	/* Set orientation without location. */
 	for (int j = 0; j < 3; j++) {
-		copy_v3_v3(ggd->adjust->matrix_basis[j], mat[j]);
+		copy_v3_v3(ggd->adjust[0]->matrix_basis[j], mat[j]);
 	}
 	/* nop when (i == 2). */
-	swap_v3_v3(ggd->adjust->matrix_basis[ggd->adjust_axis], ggd->adjust->matrix_basis[2]);
+	swap_v3_v3(ggd->adjust[0]->matrix_basis[ggd->adjust_axis], ggd->adjust[0]->matrix_basis[2]);
 }
 
-static void gizmo_mesh_extrude_setup(const bContext *UNUSED(C), wmGizmoGroup *gzgroup)
+static void gizmo_mesh_extrude_setup(const bContext *C, wmGizmoGroup *gzgroup)
 {
 	struct GizmoExtrudeGroup *ggd = MEM_callocN(sizeof(GizmoExtrudeGroup), __func__);
 	gzgroup->customdata = ggd;
 
 	const wmGizmoType *gzt_arrow = WM_gizmotype_find("GIZMO_GT_arrow_3d", true);
 	const wmGizmoType *gzt_move = WM_gizmotype_find("GIZMO_GT_button_2d", true);
+	const wmGizmoType *gzt_dial = WM_gizmotype_find("GIZMO_GT_dial_3d", true);
 
-	ggd->adjust = WM_gizmo_new_ptr(gzt_arrow, gzgroup, NULL);
+	ggd->adjust[0] = WM_gizmo_new_ptr(gzt_arrow, gzgroup, NULL);
+	ggd->adjust[1] = WM_gizmo_new_ptr(gzt_dial, gzgroup, NULL);
 	for (int i = 0; i < 4; i++) {
 		ggd->invoke_xyz_no[i] = WM_gizmo_new_ptr(gzt_move, gzgroup, NULL);
 		ggd->invoke_xyz_no[i]->flag |= WM_GIZMO_DRAW_OFFSET_SCALE;
@@ -141,7 +149,24 @@ static void gizmo_mesh_extrude_setup(const bContext *UNUSED(C), wmGizmoGroup *gz
 	}
 
 	{
-		ggd->ot_extrude = WM_operatortype_find("MESH_OT_extrude_context_move", true);
+		const Object *obedit = CTX_data_edit_object(C);
+		const char *op_idname = NULL;
+		if (obedit->type == OB_MESH) {
+			op_idname = "MESH_OT_extrude_context_move";
+			ggd->normal_axis = 2;
+		}
+		else if (obedit->type == OB_ARMATURE) {
+			op_idname = "ARMATURE_OT_extrude_move";
+			ggd->normal_axis = 1;
+		}
+		else if (obedit->type == OB_CURVE) {
+			op_idname = "CURVE_OT_extrude_move";
+			ggd->normal_axis = 2;
+		}
+		else {
+			BLI_assert(0);
+		}
+		ggd->ot_extrude = WM_operatortype_find(op_idname, true);
 		ggd->gzgt_axis_type_prop = RNA_struct_type_find_property(gzgroup->type->srna, "axis_type");
 	}
 
@@ -149,21 +174,23 @@ static void gizmo_mesh_extrude_setup(const bContext *UNUSED(C), wmGizmoGroup *gz
 		UI_GetThemeColor3fv(TH_AXIS_X + i, ggd->invoke_xyz_no[i]->color);
 	}
 	UI_GetThemeColor3fv(TH_GIZMO_PRIMARY, ggd->invoke_xyz_no[3]->color);
-	UI_GetThemeColor3fv(TH_GIZMO_PRIMARY, ggd->adjust->color);
+	for (int i = 0; i < 2; i++) {
+		UI_GetThemeColor3fv(TH_GIZMO_PRIMARY, ggd->adjust[i]->color);
+	}
 
 	for (int i = 0; i < 4; i++) {
 		WM_gizmo_set_scale(ggd->invoke_xyz_no[i], extrude_button_scale);
 	}
-	WM_gizmo_set_scale(ggd->adjust, extrude_arrow_scale);
-
-	WM_gizmo_set_flag(ggd->adjust, WM_GIZMO_DRAW_VALUE, true);
+	WM_gizmo_set_scale(ggd->adjust[0], extrude_arrow_scale);
+	WM_gizmo_set_scale(ggd->adjust[1], extrude_dial_scale);
+	ggd->adjust[1]->line_width = 2.0f;
 
 	/* XYZ & normal axis extrude. */
 	for (int i = 0; i < 4; i++) {
 		PointerRNA *ptr = WM_gizmo_operator_set(ggd->invoke_xyz_no[i], 0, ggd->ot_extrude, NULL);
 		{
 			bool constraint[3] = {0, 0, 0};
-			constraint[MIN2(i, 2)] = 1;
+			constraint[(i < 3) ? i : ggd->normal_axis] = true;
 			PointerRNA macroptr = RNA_pointer_get(ptr, "TRANSFORM_OT_translate");
 			RNA_boolean_set(&macroptr, "release_confirm", true);
 			RNA_boolean_set_array(&macroptr, "constraint_axis", constraint);
@@ -171,11 +198,12 @@ static void gizmo_mesh_extrude_setup(const bContext *UNUSED(C), wmGizmoGroup *gz
 	}
 
 	/* Adjust extrude. */
-	{
-		PointerRNA *ptr = WM_gizmo_operator_set(ggd->adjust, 0, ggd->ot_extrude, NULL);
+	for (int i = 0; i < 2; i++) {
+		wmGizmo *gz = ggd->adjust[i];
+		PointerRNA *ptr = WM_gizmo_operator_set(gz, 0, ggd->ot_extrude, NULL);
 		PointerRNA macroptr = RNA_pointer_get(ptr, "TRANSFORM_OT_translate");
 		RNA_boolean_set(&macroptr, "release_confirm", true);
-		wmGizmoOpElem *gzop = WM_gizmo_operator_get(ggd->adjust, 0);
+		wmGizmoOpElem *gzop = WM_gizmo_operator_get(gz, 0);
 		gzop->is_redo = true;
 	}
 }
@@ -187,7 +215,9 @@ static void gizmo_mesh_extrude_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 	for (int i = 0; i < 4; i++) {
 		WM_gizmo_set_flag(ggd->invoke_xyz_no[i], WM_GIZMO_HIDDEN, true);
 	}
-	WM_gizmo_set_flag(ggd->adjust, WM_GIZMO_HIDDEN, true);
+	for (int i = 0; i < 2; i++) {
+		WM_gizmo_set_flag(ggd->adjust[i], WM_GIZMO_HIDDEN, true);
+	}
 
 	if (G.moving) {
 		return;
@@ -240,32 +270,32 @@ static void gizmo_mesh_extrude_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 	/* Offset the add icon. */
 	mul_v3_v3fl(
 	        ggd->invoke_xyz_no[3]->matrix_offset[3],
-	        ggd->data.normal_mat3[2],
+	        ggd->data.normal_mat3[ggd->normal_axis],
 	        (extrude_arrow_normal_axis_scale * extrude_button_offset_scale) / extrude_button_scale);
 
 	/* Adjust current operator. */
 	/* Don't use 'WM_operator_last_redo' because selection actions will be ignored. */
 	wmOperator *op = CTX_wm_manager(C)->operators.last;
 	bool has_redo = (op && op->type == ggd->ot_extrude);
-	wmOperator *op_transform = has_redo ? op->macro.last : NULL;
+	wmOperator *op_xform = has_redo ? op->macro.last : NULL;
 
-	struct {
-		float constraint_matrix[3][3];
-		bool  constraint_axis[3];
-		float value[4];
-		bool  is_flip;
-	} redo;
+	bool adjust_is_flip = false;
+	wmGizmo *gz_adjust = NULL;
 
 	if (has_redo) {
+		gz_adjust = ggd->adjust[1];
 		/* We can't access this from 'ot->last_properties'
 		 * because some properties use skip-save. */
-		RNA_float_get_array(op_transform->ptr, "constraint_matrix", &redo.constraint_matrix[0][0]);
-		RNA_boolean_get_array(op_transform->ptr, "constraint_axis", redo.constraint_axis);
-		RNA_float_get_array(op_transform->ptr, "value", redo.value);
+		RNA_float_get_array(op_xform->ptr, "constraint_matrix", &ggd->redo_xform.constraint_matrix[0][0]);
+		RNA_boolean_get_array(op_xform->ptr, "constraint_axis", ggd->redo_xform.constraint_axis);
+		RNA_float_get_array(op_xform->ptr, "value", ggd->redo_xform.value);
+
+		/* Set properties for redo. */
 		for (int i = 0; i < 3; i++) {
-			if (redo.constraint_axis[i]) {
-				redo.is_flip = redo.value[i] < 0.0f;
+			if (ggd->redo_xform.constraint_axis[i]) {
+				adjust_is_flip = ggd->redo_xform.value[i] < 0.0f;
 				ggd->adjust_axis = i;
+				gz_adjust = ggd->adjust[0];
 				break;
 			}
 		}
@@ -273,30 +303,25 @@ static void gizmo_mesh_extrude_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 
 	/* Needed for normal orientation. */
 	gizmo_mesh_extrude_orientation_matrix_set(ggd, tbounds.axis);
-	if (has_redo) {
-		gizmo_mesh_extrude_orientation_matrix_set_for_adjust(ggd, redo.constraint_matrix);
-		if (redo.is_flip) {
-			negate_v3(ggd->adjust->matrix_basis[2]);
-		}
-	}
 
 	/* Location. */
 	for (int i = 0; i < axis_len_used; i++) {
 		WM_gizmo_set_matrix_location(ggd->invoke_xyz_no[i], tbounds.center);
 	}
-	WM_gizmo_set_matrix_location(ggd->adjust, tbounds.center);
-
 	/* Un-hide. */
 	for (int i = 0; i < axis_len_used; i++) {
 		WM_gizmo_set_flag(ggd->invoke_xyz_no[i], WM_GIZMO_HIDDEN, false);
 	}
-	WM_gizmo_set_flag(ggd->adjust, WM_GIZMO_HIDDEN, !has_redo);
 
-	/* Operator properties. */
-	if (use_normal) {
-		wmGizmoOpElem *gzop = WM_gizmo_operator_get(ggd->invoke_xyz_no[3], 0);
-		PointerRNA macroptr = RNA_pointer_get(&gzop->ptr, "TRANSFORM_OT_translate");
-		RNA_float_set_array(&macroptr, "constraint_matrix", &ggd->data.normal_mat3[0][0]);
+	if (has_redo) {
+		if (gz_adjust == ggd->adjust[0]) {
+			gizmo_mesh_extrude_orientation_matrix_set_for_adjust(ggd, ggd->redo_xform.constraint_matrix);
+			if (adjust_is_flip) {
+				negate_v3(ggd->adjust[0]->matrix_basis[2]);
+			}
+		}
+		WM_gizmo_set_matrix_location(gz_adjust, tbounds.center);
+		WM_gizmo_set_flag(gz_adjust, WM_GIZMO_HIDDEN, false);
 	}
 
 	/* Redo with current settings. */
@@ -305,7 +330,8 @@ static void gizmo_mesh_extrude_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 			RNA_enum_set(
 			        ggd->invoke_xyz_no[i]->ptr,
 			        "draw_options",
-			        (dot_v3v3(ggd->adjust->matrix_basis[2],
+			        ((gz_adjust == ggd->adjust[0]) &&
+			         dot_v3v3(ggd->adjust[0]->matrix_basis[2],
 			                  ggd->invoke_xyz_no[i]->matrix_offset[3]) > 0.98f) ? 0 : ED_GIZMO_BUTTON_SHOW_HELPLINE);
 		}
 	}
@@ -350,6 +376,44 @@ static void gizmo_mesh_extrude_draw_prepare(const bContext *C, wmGizmoGroup *gzg
 			gz->temp.f = dot_v3v3(rv3d->viewinv[2], gz->matrix_offset[3]);
 		}
 		BLI_listbase_sort(&gzgroup->gizmos, WM_gizmo_cmp_temp_fl_reverse);
+
+		if ((ggd->adjust[1]->flag & WM_GIZMO_HIDDEN) == 0) {
+			copy_v3_v3(ggd->adjust[1]->matrix_basis[0], rv3d->viewinv[0]);
+			copy_v3_v3(ggd->adjust[1]->matrix_basis[1], rv3d->viewinv[1]);
+			copy_v3_v3(ggd->adjust[1]->matrix_basis[2], rv3d->viewinv[2]);
+		}
+	}
+}
+
+static void gizmo_mesh_extrude_invoke_prepare(const bContext *UNUSED(C), wmGizmoGroup *gzgroup, wmGizmo *gz)
+{
+	GizmoExtrudeGroup *ggd = gzgroup->customdata;
+	if (ELEM(gz, ggd->adjust[0], ggd->adjust[1])) {
+		/* Set properties for redo. */
+		wmGizmoOpElem *gzop = WM_gizmo_operator_get(gz, 0);
+		PointerRNA macroptr = RNA_pointer_get(&gzop->ptr, "TRANSFORM_OT_translate");
+		if (gz == ggd->adjust[0]) {
+			RNA_float_set_array(&macroptr, "constraint_matrix", &ggd->redo_xform.constraint_matrix[0][0]);
+			RNA_boolean_set_array(&macroptr, "constraint_axis", ggd->redo_xform.constraint_axis);
+		}
+		RNA_float_set_array(&macroptr, "value", ggd->redo_xform.value);
+	}
+	else {
+		/* Workaround for extrude action modifying normals. */
+		const int i = BLI_array_findindex(ggd->invoke_xyz_no, ARRAY_SIZE(ggd->invoke_xyz_no), &gz);
+		BLI_assert(i != -1);
+		bool use_normal_matrix = false;
+		if (i == 3) {
+			use_normal_matrix = true;
+		}
+		else if (ggd->data.orientation_type == V3D_MANIP_NORMAL) {
+			use_normal_matrix = true;
+		}
+		if (use_normal_matrix) {
+			wmGizmoOpElem *gzop = WM_gizmo_operator_get(gz, 0);
+			PointerRNA macroptr = RNA_pointer_get(&gzop->ptr, "TRANSFORM_OT_translate");
+			RNA_float_set_array(&macroptr, "constraint_matrix", &ggd->data.normal_mat3[0][0]);
+		}
 	}
 }
 
@@ -380,10 +444,10 @@ static void gizmo_mesh_extrude_message_subscribe(
 	        &msg_sub_value_gz_tag_refresh, __func__);
 }
 
-void MESH_GGT_extrude(struct wmGizmoGroupType *gzgt)
+void VIEW3D_GGT_xform_extrude(struct wmGizmoGroupType *gzgt)
 {
-	gzgt->name = "Mesh Extrude";
-	gzgt->idname = "MESH_GGT_extrude";
+	gzgt->name = "3D View Extrude";
+	gzgt->idname = "VIEW3D_GGT_xform_extrude";
 
 	gzgt->flag = WM_GIZMOGROUPTYPE_3D;
 
@@ -394,6 +458,7 @@ void MESH_GGT_extrude(struct wmGizmoGroupType *gzgt)
 	gzgt->setup = gizmo_mesh_extrude_setup;
 	gzgt->refresh = gizmo_mesh_extrude_refresh;
 	gzgt->draw_prepare = gizmo_mesh_extrude_draw_prepare;
+	gzgt->invoke_prepare = gizmo_mesh_extrude_invoke_prepare;
 	gzgt->message_subscribe = gizmo_mesh_extrude_message_subscribe;
 
 	static const EnumPropertyItem axis_type_items[] = {

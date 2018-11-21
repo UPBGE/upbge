@@ -569,24 +569,59 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
             layout.operator("object.meshdeform_bind", text="Bind")
 
     def MIRROR(self, layout, ob, md):
-        split = layout.split(factor=0.25)
+        axis_text = "XYZ"
+        split = layout.split(factor=0.33)
 
         col = split.column()
         col.label(text="Axis:")
-        col.prop(md, "use_x")
-        col.prop(md, "use_y")
-        col.prop(md, "use_z")
+        for i, text in enumerate(axis_text):
+            col.prop(md, "use_axis", text=text, index=i)
 
         col = split.column()
+        col.label(text="Bisect:")
+        for i, text in enumerate(axis_text):
+            colsub = col.column()
+            colsub.prop(md, "use_bisect_axis", text=text, index=i)
+            colsub.active = md.use_axis[i]
+
+        col = split.column()
+        col.label(text="Flip:")
+        for i, text in enumerate(axis_text):
+            colsub = col.column()
+            colsub.prop(md, "use_bisect_flip_axis", text=text, index=i)
+            colsub.active = md.use_axis[i] and md.use_bisect_axis[i]
+
+        layout.separator()
+
+        col = layout.column()
+        col.label(text="Mirror Object:")
+        col.prop(md, "mirror_object", text="")
+
+        layout.separator()
+
+        col = layout.column()
         col.label(text="Options:")
-        col.prop(md, "use_mirror_merge", text="Merge")
-        col.prop(md, "use_clip", text="Clipping")
-        col.prop(md, "use_mirror_vertex_groups", text="Vertex Groups")
 
-        col = split.column()
+        row = layout.row()
+        row.prop(md, "use_mirror_vertex_groups", text="Vertex Groups")
+        row.prop(md, "use_clip", text="Clipping")
+        row = layout.row()
+        row.prop(md, "use_mirror_merge", text="Merge")
+
+        col = layout.column()
+        if md.use_mirror_merge is True:
+            col.prop(md, "merge_threshold")
+
+        layout.separator()
+        col = layout.column()
+
+
+        flow = layout.grid_flow(row_major=True, columns=0, even_columns=True, even_rows=False, align=False)
+
         col.label(text="Textures:")
-        col.prop(md, "use_mirror_u", text="Flip U")
-        col.prop(md, "use_mirror_v", text="Flip V")
+        row = layout.row()
+        row.prop(md, "use_mirror_u", text="Flip U")
+        row.prop(md, "use_mirror_v", text="Flip V")
 
         col = layout.column(align=True)
 
@@ -600,12 +635,6 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col.prop(md, "offset_u")
         col.prop(md, "offset_v")
 
-        col = layout.column()
-
-        if md.use_mirror_merge is True:
-            col.prop(md, "merge_threshold")
-        col.label(text="Mirror Object:")
-        col.prop(md, "mirror_object", text="")
 
     def MULTIRES(self, layout, ob, md):
         layout.row().prop(md, "subdivision_type", expand=True)

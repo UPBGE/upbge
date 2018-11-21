@@ -63,6 +63,15 @@ def generate_from_enum_ex(
     return tuple(tool_defs)
 
 
+# Use for shared widget data.
+class _template_widget:
+    class VIEW3D_GGT_xform_extrude:
+        @staticmethod
+        def draw_settings(context, layout, tool):
+            props = tool.gizmo_group_properties("VIEW3D_GGT_xform_extrude")
+            layout.prop(props, "axis_type", expand=True)
+
+
 class _defs_view3d_generic:
     @ToolDef.from_fn
     def cursor():
@@ -355,8 +364,9 @@ class _defs_edit_armature:
         return dict(
             text="Extrude",
             icon="ops.armature.extrude_move",
-            widget=None,
+            widget="VIEW3D_GGT_xform_extrude",
             keymap=(),
+            draw_settings=_template_widget.VIEW3D_GGT_xform_extrude.draw_settings,
         )
 
     @ToolDef.from_fn
@@ -509,9 +519,6 @@ class _defs_edit_mesh:
 
     @ToolDef.from_fn
     def extrude():
-        def draw_settings(context, layout, tool):
-            props = tool.gizmo_group_properties("MESH_GGT_extrude")
-            layout.prop(props, "axis_type", expand=True)
         return dict(
             text="Extrude Region",
             # The operator description isn't useful in this case, give our own.
@@ -519,11 +526,11 @@ class _defs_edit_mesh:
                 "Extrude freely or along an axis"
             ),
             icon="ops.mesh.extrude_region_move",
-            widget="MESH_GGT_extrude",
+            widget="VIEW3D_GGT_xform_extrude",
             # Important to use same operator as 'E' key.
             operator="view3d.edit_mesh_extrude_move_normal",
             keymap=(),
-            draw_settings=draw_settings,
+            draw_settings=_template_widget.VIEW3D_GGT_xform_extrude.draw_settings,
         )
 
     @ToolDef.from_fn
@@ -733,8 +740,9 @@ class _defs_edit_curve:
         return dict(
             text="Extrude",
             icon="ops.curve.extrude_move",
-            widget=None,
+            widget="VIEW3D_GGT_xform_extrude",
             keymap=(),
+            draw_settings=_template_widget.VIEW3D_GGT_xform_extrude.draw_settings,
         )
 
     @ToolDef.from_fn
@@ -994,7 +1002,7 @@ class _defs_image_uv_sculpt:
         return generate_from_enum_ex(
             context,
             icon_prefix="brush.uv_sculpt.",
-            data=context.tool_settings,
+            type=bpy.types.ToolSettings,
             attr="uv_sculpt_tool",
         )
 
@@ -1018,6 +1026,7 @@ class _defs_gpencil_paint:
         return dict(
             text="Line",
             icon="ops.gpencil.primitive_line",
+            cursor='CROSSHAIR',
             widget=None,
             keymap=(),
         )
@@ -1027,6 +1036,7 @@ class _defs_gpencil_paint:
         return dict(
             text="Box",
             icon="ops.gpencil.primitive_box",
+            cursor='CROSSHAIR',
             widget=None,
             keymap=(),
         )
@@ -1036,6 +1046,7 @@ class _defs_gpencil_paint:
         return dict(
             text="Circle",
             icon="ops.gpencil.primitive_circle",
+            cursor='CROSSHAIR',
             widget=None,
             keymap=(),
         )
