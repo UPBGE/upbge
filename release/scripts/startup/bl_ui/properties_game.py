@@ -422,6 +422,7 @@ class RENDER_PT_game_shading(RenderButtonsPanel, Panel):
         layout = self.layout
 
         gs = context.scene.game_settings
+        rd = context.scene.render
 
         split = layout.split()
 
@@ -434,6 +435,7 @@ class RENDER_PT_game_shading(RenderButtonsPanel, Panel):
         col.prop(gs, "use_glsl_ramps", text="Ramps")
         col.prop(gs, "use_glsl_nodes", text="Nodes")
         col.prop(gs, "use_glsl_extra_textures", text="Extra Textures")
+        col.prop(rd, "use_world_space_shading", text="World Space Shading")
 
 
 class RENDER_PT_game_system(RenderButtonsPanel, Panel):
