@@ -3371,9 +3371,7 @@ static void rna_def_userdef_view(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "show_developer_ui", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", USER_DEVELOPER_UI);
-	RNA_def_property_ui_text(
-	        prop, "Developer Extras",
-	        "Show options for developers (edit source in context menu, geometry indices)");
+	RNA_def_property_ui_text(prop, "Developer Extras", "Show options for developers (edit source in context menu)");
 
 	prop = RNA_def_property(srna, "show_object_info", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "uiflag", USER_DRAWVIEWINFO);

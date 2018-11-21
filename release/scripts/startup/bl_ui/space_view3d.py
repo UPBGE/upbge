@@ -3706,8 +3706,10 @@ class VIEW3D_PT_view3d_meshdisplay(Panel):
         col.label(text="Face Info:")
         col.prop(mesh, "show_extra_face_area", text="Area")
         col.prop(mesh, "show_extra_face_angle", text="Angle")
-        if context.user_preferences.view.show_developer_ui:
-            layout.prop(mesh, "show_extra_indices")
+        split = layout.split()
+        col = split.column()
+        col.label(text="Vertex Info:")
+        col.prop(mesh, "show_extra_indices", text="Index")
 
 
 class VIEW3D_PT_view3d_meshstatvis(Panel):
