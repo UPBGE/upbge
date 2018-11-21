@@ -20,7 +20,7 @@
 #define __EXP_INTVALUE_H__
 
 
-#include "EXP_Value.h"
+#include "EXP_PropValue.h"
 
 class EXP_PropInt : public EXP_PropValue
 {
@@ -28,7 +28,7 @@ public:
 	EXP_PropInt(long long innie);
 
 	virtual std::string GetText() const;
-	virtual DATA_TYPE GetValueType() const;
+	virtual DataType GetValueType() const;
 
 	long long GetValue() const;
 	void SetValue(long long value);

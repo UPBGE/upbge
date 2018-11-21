@@ -17,6 +17,8 @@
 
 #include "EXP_PropString.h"
 
+#include "EXP_PyObjectPlus.h"
+
 EXP_PropString::EXP_PropString(const std::string& txt)
 	:m_value(txt)
 {
@@ -27,7 +29,7 @@ std::string EXP_PropString::GetText() const
 	return m_value;
 }
 
-EXP_PropValue::DATA_TYPE EXP_PropString::GetValueType() const
+EXP_PropValue::DataType EXP_PropString::GetValueType() const
 {
 	return TYPE_STRING;
 }
@@ -48,7 +50,7 @@ EXP_PropValue *EXP_PropString::GetReplica()
 	return replica;
 }
 
-PyObject * EXP_PropString::ConvertValueToPython()
+PyObject *EXP_PropString::ConvertValueToPython()
 {
 	return PyUnicode_FromStdString(m_value);
 }

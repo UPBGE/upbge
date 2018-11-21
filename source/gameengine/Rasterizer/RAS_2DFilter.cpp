@@ -28,10 +28,13 @@
 #include "RAS_OffScreen.h"
 #include "RAS_Rect.h"
 
+#include "EXP_Value.h"
 #include "EXP_PropInt.h"
 #include "EXP_PropFloat.h"
 
 #include "GPU_glew.h"
+
+#include "BLI_utildefines.h"
 
 extern "C" {
 extern char datatoc_RAS_VertexShader2DFilter_glsl[];

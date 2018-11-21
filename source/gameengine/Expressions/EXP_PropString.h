@@ -19,7 +19,7 @@
 #ifndef __EXP_STRINGVALUE_H__
 #define __EXP_STRINGVALUE_H__
 
-#include "EXP_Value.h"
+#include "EXP_PropValue.h"
 
 class EXP_PropString : public EXP_PropValue
 {
@@ -27,7 +27,7 @@ public:
 	EXP_PropString(const std::string& txt);
 
 	virtual std::string GetText() const;
-	virtual DATA_TYPE GetValueType() const;
+	virtual DataType GetValueType() const;
 
 	const std::string& GetValue() const;
 	void SetValue(const std::string& value);

@@ -27,7 +27,7 @@ std::string EXP_PropInt::GetText() const
 	return std::to_string(m_value);
 }
 
-EXP_PropValue::DATA_TYPE EXP_PropInt::GetValueType() const
+EXP_PropValue::DataType EXP_PropInt::GetValueType() const
 {
 	return TYPE_INT;
 }

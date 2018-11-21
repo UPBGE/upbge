@@ -33,7 +33,7 @@
 #define __EXP_PYTHONVALUE_H__
 
 
-#include "EXP_Value.h"
+#include "EXP_PropValue.h"
 
 /** \brief Property holding a python object, used for properties when no defined
  * Expression class fit the type.
@@ -46,7 +46,7 @@ public:
 	virtual ~EXP_PropPython();
 
 	virtual std::string GetText() const;
-	virtual DATA_TYPE GetValueType() const;
+	virtual DataType GetValueType() const;
 
 	PyObject *GetValue() const;
 

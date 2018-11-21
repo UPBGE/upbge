@@ -44,8 +44,9 @@ set(SRC
 	intern/PropBool.cpp
 	intern/PropFloat.cpp
 	intern/PropInt.cpp
-	intern/PyObjectPlus.cpp
 	intern/PropString.cpp
+	intern/PropValue.cpp
+	intern/PyObjectPlus.cpp
 	intern/Value.cpp
 
 	EXP_BaseListValue.h
@@ -53,9 +54,10 @@ set(SRC
 	EXP_PropBool.h
 	EXP_PropFloat.h
 	EXP_PropInt.h
+	EXP_PropString.h
+	EXP_PropValue.h
 	EXP_PyObjectPlus.h
 	EXP_Python.h
-	EXP_PropString.h
 	EXP_Value.h
 	EXP_ListWrapper.h
 )

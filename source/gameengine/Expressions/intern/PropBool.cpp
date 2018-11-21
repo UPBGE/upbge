@@ -28,7 +28,7 @@ std::string EXP_PropBool::GetText() const
 	return m_value ? "TRUE" : "FALSE";
 }
 
-EXP_PropValue::DATA_TYPE EXP_PropBool::GetValueType() const
+EXP_PropValue::DataType EXP_PropBool::GetValueType() const
 {
 	return TYPE_BOOL;
 }

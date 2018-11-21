@@ -27,7 +27,7 @@ std::string EXP_PropFloat::GetText() const
 	return std::to_string(m_value);
 }
 
-EXP_PropValue::DATA_TYPE EXP_PropFloat::GetValueType() const
+EXP_PropValue::DataType EXP_PropFloat::GetValueType() const
 {
 	return TYPE_FLOAT;
 }

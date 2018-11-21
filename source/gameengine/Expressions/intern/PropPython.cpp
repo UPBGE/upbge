@@ -47,7 +47,7 @@ std::string EXP_PropPython::GetText() const
 	return _PyUnicode_AsString(PyObject_Repr(m_value));
 }
 
-EXP_PropValue::DATA_TYPE EXP_PropPython::GetValueType() const
+EXP_PropValue::DataType EXP_PropPython::GetValueType() const
 {
 	return TYPE_PYTHON;
 }

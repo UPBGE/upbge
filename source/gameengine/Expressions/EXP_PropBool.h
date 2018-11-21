@@ -19,7 +19,7 @@
 #ifndef __EXP_BOOLVALUE_H__
 #define __EXP_BOOLVALUE_H__
 
-#include "EXP_Value.h"
+#include "EXP_PropValue.h"
 
 /** Smart Boolean Value class.
  * Is used by parser when an expression tree is build containing booleans.
@@ -30,7 +30,7 @@ public:
 	EXP_PropBool(bool inBool);
 
 	virtual std::string GetText() const;
-	virtual DATA_TYPE GetValueType() const;
+	virtual DataType GetValueType() const;
 
 	bool GetValue() const;
 	void SetValue(bool value);

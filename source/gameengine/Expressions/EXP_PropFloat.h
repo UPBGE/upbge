@@ -19,7 +19,7 @@
 #ifndef __EXP_FLOATVALUE_H__
 #define __EXP_FLOATVALUE_H__
 
-#include "EXP_Value.h"
+#include "EXP_PropValue.h"
 
 class EXP_PropFloat : public EXP_PropValue
 {
@@ -27,7 +27,7 @@ public:
 	EXP_PropFloat(double fl);
 
 	virtual std::string GetText() const;
-	virtual DATA_TYPE GetValueType() const;
+	virtual DataType GetValueType() const;
 
 	double GetValue() const;
 	void SetValue(double value);
