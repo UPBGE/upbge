@@ -90,11 +90,13 @@ def generate(context, space_type):
     cls = ToolSelectPanelHelper._tool_class_from_space_type(space_type)
 
     if use_hack_properties:
-        kmi_hack = keymap.keymap_items.new("wm.tool_set_by_name", 'A', 'PRESS')
+        kmi_hack = keymap.keymap_items.new("wm.tool_set_by_name", 'NONE', 'PRESS')
         kmi_hack_properties = kmi_hack.properties
+        kmi_hack.active = False
 
-        kmi_hack_brush_select = keymap.keymap_items.new("paint.brush_select", 'A', 'PRESS')
+        kmi_hack_brush_select = keymap.keymap_items.new("paint.brush_select", 'NONE', 'PRESS')
         kmi_hack_brush_select_properties = kmi_hack_brush_select.properties
+        kmi_hack_brush_select.active = False
 
     if use_release_confirm or use_tap_reset:
         kmi_toolbar = wm.keyconfigs.find_item_from_operator(idname="wm.toolbar")[1]
@@ -197,17 +199,23 @@ def generate(context, space_type):
                     context='INVOKE_REGION_WIN',
                 )[1]
             elif item.keymap is not None:
-                kmi_first = item.keymap[0].keymap_items
-                kmi_first = kmi_first[0] if kmi_first else None
-                if kmi_first is not None:
-                    kmi_found = wm.keyconfigs.find_item_from_operator(
-                        idname=kmi_first.idname,
-                        # properties=kmi_first.properties,  # prevents matches, don't use.
-                        context='INVOKE_REGION_WIN',
-                    )[1]
-                else:
+                km = keyconf.keymaps.get(item.keymap[0])
+                if km is None:
+                    print("Keymap", repr(item.keymap[0]), "not found for tool", item.text)
                     kmi_found = None
-                del kmi_first
+                else:
+                    kmi_first = km.keymap_items
+                    kmi_first = kmi_first[0] if kmi_first else None
+                    if kmi_first is not None:
+                        kmi_found = wm.keyconfigs.find_item_from_operator(
+                            idname=kmi_first.idname,
+                            # properties=kmi_first.properties,  # prevents matches, don't use.
+                            context='INVOKE_REGION_WIN',
+                        )[1]
+                    else:
+                        kmi_found = None
+                    del kmi_first
+                del km
             else:
                 kmi_found = None
             item_container[1] = kmi_found
@@ -266,6 +274,29 @@ def generate(context, space_type):
         if use_auto_keymap:
             # Map all unmapped keys to numbers,
             # while this is a bit strange it means users will not confuse regular key bindings to ordered bindings.
+
+            # First map A-Z.
+            kmi_type_alpha_char = [chr(i) for i in range(65, 91)]
+            kmi_type_alpha_args = {c: {"type": c} for c in kmi_type_alpha_char}
+            kmi_type_alpha_args_tuple = {c: dict_as_tuple(kmi_type_alpha_args[c]) for c in kmi_type_alpha_char}
+            for item_container in items_all:
+                item, kmi_found, kmi_exist = item_container
+                if kmi_exist:
+                    continue
+                kmi_type = item.text[0].upper()
+                kmi_tuple = kmi_type_alpha_args_tuple[kmi_type]
+                if kmi_tuple not in kmi_unique_args:
+                    # print(kmi_tuple, item.text)
+                    kmi_unique_args.add(kmi_tuple)
+                    kmi = keymap.keymap_items.new(
+                        idname="wm.tool_set_by_name",
+                        value='PRESS',
+                        **kmi_type_alpha_args[kmi_type],
+                    )
+                    kmi.properties.name = item.text
+                    item_container[2] = kmi
+                    kmi_unique_args.add(kmi_tuple)
+            del kmi_type_alpha_char, kmi_type_alpha_args, kmi_type_alpha_args_tuple
 
             # Free events (last used first).
             kmi_type_auto = ('ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'ZERO')

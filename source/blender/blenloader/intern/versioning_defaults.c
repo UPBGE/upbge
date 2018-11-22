@@ -43,8 +43,10 @@
 #include "DNA_windowmanager_types.h"
 #include "DNA_workspace_types.h"
 
+#include "BKE_brush.h"
 #include "BKE_colortools.h"
 #include "BKE_layer.h"
+#include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_node.h"
 #include "BKE_screen.h"
@@ -108,6 +110,9 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
 					{
 						View3D *v3d = (View3D *)sl;
 						v3d->overlay.weight_paint_mode_opacity = 1.0f;
+						/* grease pencil settings */
+						v3d->vertex_opacity = 1.0f;
+						v3d->gp_flag |= V3D_GP_SHOW_EDIT_LINES;
 					}
 				}
 			}
@@ -233,6 +238,32 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
 		for (Mesh *mesh = bmain->mesh.first; mesh; mesh = mesh->id.next) {
 			/* Match default for new meshes. */
 			mesh->smoothresh = DEG2RADF(30);
+		}
+	}
+
+	/* Grease Pencil New Eraser Brush */
+	if (builtin_template) {
+		Brush *br;
+		/* Rename old Hard Eraser */
+		br = (Brush *)BKE_libblock_find_name(bmain, ID_BR, "Eraser Hard");
+		if (br) {
+			strcpy(br->id.name, "BREraser Point");
+		}
+		for (Scene *scene = bmain->scene.first; scene; scene = scene->id.next) {
+			ToolSettings *ts = scene->toolsettings;
+			/* create new hard brush (only create one, but need ToolSettings) */
+			br = (Brush *)BKE_libblock_find_name(bmain, ID_BR, "Eraser Hard");
+			if (!br) {
+				br = BKE_brush_add_gpencil(bmain, ts, "Eraser Hard");
+				br->size = 30.0f;
+				br->gpencil_settings->draw_strength = 1.0f;
+				br->gpencil_settings->flag = (GP_BRUSH_ENABLE_CURSOR | GP_BRUSH_DEFAULT_ERASER);
+				br->gpencil_settings->icon_id = GP_BRUSH_ICON_ERASE_HARD;
+				br->gpencil_tool = GPAINT_TOOL_ERASE;
+				br->gpencil_settings->eraser_mode = GP_BRUSH_ERASER_SOFT;
+				br->gpencil_settings->era_strength_f = 100.0f;
+				br->gpencil_settings->era_thickness_f = 50.0f;
+			}
 		}
 	}
 }
