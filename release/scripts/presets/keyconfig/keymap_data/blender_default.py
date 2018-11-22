@@ -125,6 +125,10 @@ def op_panel(menu, kmi_args, kmi_data=()):
     return ("wm.call_panel", kmi_args, {"properties": [("name", menu), *kmi_data]})
 
 
+def op_tool(tool, kmi_args):
+    return ("wm.tool_set_by_name", kmi_args, {"properties": [("name", tool)]})
+
+
 # ------------------------------------------------------------------------------
 # Keymap Templates
 
@@ -748,8 +752,7 @@ def km_uv_editor(params):
         # Quick switch to select tool, since left select can't easily
         # select with any tool active.
         items.extend([
-            ("wm.tool_set_by_name", {"type": 'W', "value": 'PRESS'},
-             {"properties": [("name", "Select Box")]})
+            op_tool("Select Box", {"type": 'W', "value": 'PRESS'}),
         ])
 
     return keymap
@@ -1092,8 +1095,7 @@ def km_view3d(params):
         # Quick switch to select tool, since left select can't easily
         # select with any tool active.
         items.extend([
-            ("wm.tool_set_by_name", {"type": 'W', "value": 'PRESS'},
-             {"properties": [("name", "Select Box")]})
+            op_tool("Select Box", {"type": 'W', "value": 'PRESS'}),
         ])
 
     return keymap
@@ -4876,6 +4878,21 @@ def km_backdrop_transform_widget(_params):
 
 
 # ------------------------------------------------------------------------------
+# Popup Keymaps
+
+def km_popup_toolbar(params):
+    return (
+        "Toolbar Popup",
+        {"space_type": 'EMPTY', "region_type": 'TEMPORARY'},
+        {"items": [
+            op_tool("Transform", {"type": 'T', "value": 'PRESS'}),
+            op_tool("Annotate", {"type": 'D', "value": 'PRESS'}),
+            op_tool("Measure", {"type": 'M', "value": 'PRESS'}),
+        ]},
+    )
+
+
+# ------------------------------------------------------------------------------
 # Tool System Keymaps
 #
 # Named are auto-generated based on the tool name and it's toolbar.
@@ -5857,6 +5874,9 @@ def generate_keymaps(params=None):
         km_armature_spline_widgets(params),
         km_armature_spline_widgets_tweak_modal_map(params),
         km_backdrop_transform_widget(params),
+
+        # Pop-Up Keymaps.
+        km_popup_toolbar(params),
 
         # Tool System.
         km_image_editor_tool_uv_cursor(params),

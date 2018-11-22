@@ -476,14 +476,14 @@ class SEQUENCER_MT_strip_lock_mute(Menu):
     def draw(self, context):
         layout = self.layout
 
-        layout.operator("sequencer.lock", icon='LOCK')
+        layout.operator("sequencer.lock", icon='LOCKED')
         layout.operator("sequencer.unlock")
 
         layout.separator()
 
         layout.operator("sequencer.mute").unselected = False
         layout.operator("sequencer.unmute").unselected = False
-        layout.operator("sequencer.mute", text="Mute Deselected Strips").unselected = True
+        layout.operator("sequencer.mute", text="Mute Unselected Strips").unselected = True
 
 
 class SEQUENCER_MT_strip(Menu):
