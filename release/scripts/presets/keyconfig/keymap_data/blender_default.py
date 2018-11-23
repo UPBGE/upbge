@@ -1022,13 +1022,14 @@ def km_view3d(params):
              {"properties": [("data_path", 'space_data.show_gizmo_tool')]}),
             op_menu_pie("VIEW3D_MT_pivot_pie", {"type": 'PERIOD', "value": 'PRESS'}),
             op_menu_pie("VIEW3D_MT_orientations_pie", {"type": 'COMMA', "value": 'PRESS'}),
-            op_menu_pie("VIEW3D_MT_shading_pie", {"type": 'D', "value": 'PRESS'}),
-            ("wm.context_toggle_enum", {"type": 'Z', "value": 'PRESS'},
-             {"properties": [("data_path", 'space_data.shading.type'), ("value_1", 'WIREFRAME'), ("value_2", 'SOLID')]}),
-            ("view3d.toggle_shading", {"type": 'Z', "value": 'PRESS', "alt": True},
-             {"properties": [("type", 'MATERIAL')]}),
+            ("wm.context_toggle", {"type": 'ACCENT_GRAVE', "value": 'PRESS', "ctrl": True},
+             {"properties": [("data_path", 'space_data.show_gizmo_tool')]}),
+            op_menu_pie("VIEW3D_MT_shading_pie", {"type": 'Z', "value": 'PRESS'}),
             ("view3d.toggle_shading", {"type": 'Z', "value": 'PRESS', "shift": True},
-             {"properties": [("type", 'RENDERED')]}),
+             {"properties": [("type", 'WIREFRAME')]}),
+            ("view3d.toggle_xray", {"type": 'Z', "value": 'PRESS', "alt": True}, None),
+            ("wm.context_toggle", {"type": 'Z', "value": 'PRESS', "alt": True, "shift": True},
+             {"properties": [("data_path", "space_data.overlay.show_overlays")]}),
         ])
     else:
         items.extend([
@@ -2786,28 +2787,27 @@ def km_grease_pencil(params):
         {"items": items},
     )
 
-    if params.legacy:
-        items.extend([
-            # Draw
-            ("gpencil.annotate", {"type": 'LEFTMOUSE', "value": 'PRESS', "key_modifier": 'D'},
-             {"properties": [("mode", 'DRAW'), ("wait_for_input", False)]}),
-            # Draw - straight lines
-            ("gpencil.annotate", {"type": 'LEFTMOUSE', "value": 'PRESS', "alt": True, "key_modifier": 'D'},
-             {"properties": [("mode", 'DRAW_STRAIGHT'), ("wait_for_input", False)]}),
-            # Draw - poly lines
-            ("gpencil.annotate", {"type": 'LEFTMOUSE', "value": 'PRESS', "shift": True, "alt": True, "key_modifier": 'D'},
-             {"properties": [("mode", 'DRAW_POLY'), ("wait_for_input", False)]}),
-            # Erase
-            ("gpencil.annotate", {"type": 'RIGHTMOUSE', "value": 'PRESS', "key_modifier": 'D'},
-             {"properties": [("mode", 'ERASER'), ("wait_for_input", False)]}),
+    items.extend([
+        # Draw
+        ("gpencil.annotate", {"type": 'LEFTMOUSE', "value": 'PRESS', "key_modifier": 'D'},
+         {"properties": [("mode", 'DRAW'), ("wait_for_input", False)]}),
+        # Draw - straight lines
+        ("gpencil.annotate", {"type": 'LEFTMOUSE', "value": 'PRESS', "alt": True, "key_modifier": 'D'},
+         {"properties": [("mode", 'DRAW_STRAIGHT'), ("wait_for_input", False)]}),
+        # Draw - poly lines
+        ("gpencil.annotate", {"type": 'LEFTMOUSE', "value": 'PRESS', "shift": True, "alt": True, "key_modifier": 'D'},
+         {"properties": [("mode", 'DRAW_POLY'), ("wait_for_input", False)]}),
+        # Erase
+        ("gpencil.annotate", {"type": 'RIGHTMOUSE', "value": 'PRESS', "key_modifier": 'D'},
+         {"properties": [("mode", 'ERASER'), ("wait_for_input", False)]}),
 
-            # Add blank frame (B because it's easy to reach from D).
-            ("gpencil.blank_frame_add", {"type": 'B', "value": 'PRESS', "key_modifier": 'D'}, None),
-            # Delete active frame - for easier video tutorials/review sessions.
-            # This works even when not in edit mode.
-            ("gpencil.active_frames_delete_all", {"type": 'X', "value": 'PRESS', "key_modifier": 'D'}, None),
-            ("gpencil.active_frames_delete_all", {"type": 'DEL', "value": 'PRESS', "key_modifier": 'D'}, None),
-        ])
+        # Add blank frame (B because it's easy to reach from D).
+        ("gpencil.blank_frame_add", {"type": 'B', "value": 'PRESS', "key_modifier": 'D'}, None),
+        # Delete active frame - for easier video tutorials/review sessions.
+        # This works even when not in edit mode.
+        ("gpencil.active_frames_delete_all", {"type": 'X', "value": 'PRESS', "key_modifier": 'D'}, None),
+        ("gpencil.active_frames_delete_all", {"type": 'DEL', "value": 'PRESS', "key_modifier": 'D'}, None),
+    ])
 
     return keymap
 
@@ -3226,8 +3226,6 @@ def km_pose(params):
         ("armature.layers_show_all", {"type": 'ACCENT_GRAVE', "value": 'PRESS', "ctrl": True}, None),
         ("armature.armature_layers", {"type": 'M', "value": 'PRESS', "shift": True}, None),
         ("pose.bone_layers", {"type": 'M', "value": 'PRESS'}, None),
-        ("wm.context_toggle", {"type": 'Z', "value": 'PRESS'},
-         {"properties": [("data_path", 'space_data.overlay.show_bone_select')]}),
         ("transform.transform", {"type": 'S', "value": 'PRESS', "ctrl": True, "alt": True},
          {"properties": [("mode", 'BONE_SIZE')]}),
         ("anim.keyframe_insert_menu", {"type": 'I', "value": 'PRESS'}, None),

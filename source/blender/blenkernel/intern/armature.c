@@ -1095,7 +1095,7 @@ void armature_deform_verts(
 	}
 
 	if ((armOb->pose->flag & POSE_RECALC) != 0) {
-		printf("ERROR! Trying to evaluate influence of armature '%s' which needs Pose recalc!", armOb->id.name);
+		printf("ERROR! Trying to evaluate influence of armature '%s' which needs Pose recalc!\n", armOb->id.name);
 		BLI_assert(0);
 	}
 
@@ -1109,11 +1109,11 @@ void armature_deform_verts(
 	 * TODO(sergey): Make this code robust somehow when there are dependency
 	 * cycles involved. */
 	ObjectBBoneDeform * bbone_deform =
-	        armature_cached_bbone_deformation_get(armOb);
+	        BKE_armature_cached_bbone_deformation_get(armOb);
 	if (bbone_deform == NULL || bbone_deform->pdef_info_array == NULL) {
 		fprintf(stderr,
 		        "Armature does not have bbone cache %s, "
-		        "usually happens due to a dependency cycle.",
+		        "usually happens due to a dependency cycle.\n",
 		        armOb->id.name + 2);
 		return;
 	}
@@ -2486,15 +2486,15 @@ bPoseChannel *BKE_armature_splineik_solver_find_root(
 
 /* ****************************** BBone cache  ****************************** */
 
-ObjectBBoneDeform * armature_cached_bbone_deformation_get(Object *object)
+ObjectBBoneDeform * BKE_armature_cached_bbone_deformation_get(Object *object)
 {
 	return object->runtime.cached_bbone_deformation;
 }
 
-void armature_cached_bbone_deformation_free_data(Object *object)
+void BKE_armature_cached_bbone_deformation_free_data(Object *object)
 {
 	ObjectBBoneDeform *bbone_deform =
-	        armature_cached_bbone_deformation_get(object);
+	        BKE_armature_cached_bbone_deformation_get(object);
 	if (bbone_deform == NULL) {
 		return;
 	}
@@ -2516,19 +2516,19 @@ void armature_cached_bbone_deformation_free_data(Object *object)
 	bbone_deform->num_pchan = 0;
 }
 
-void armature_cached_bbone_deformation_free(Object *object)
+void BKE_armature_cached_bbone_deformation_free(Object *object)
 {
 	ObjectBBoneDeform *bbone_deform =
-	        armature_cached_bbone_deformation_get(object);
+	        BKE_armature_cached_bbone_deformation_get(object);
 	if (bbone_deform == NULL) {
 		return;
 	}
-	armature_cached_bbone_deformation_free_data(object);
+	BKE_armature_cached_bbone_deformation_free_data(object);
 	MEM_freeN(bbone_deform);
 	object->runtime.cached_bbone_deformation = NULL;
 }
 
-void armature_cached_bbone_deformation_update(Object *object)
+void BKE_armature_cached_bbone_deformation_update(Object *object)
 {
 	BLI_assert(object->type == OB_ARMATURE);
 	BLI_assert(object->pose != NULL);
@@ -2537,13 +2537,13 @@ void armature_cached_bbone_deformation_update(Object *object)
 	const bool use_quaternion = true;
 	/* Make sure cache exists. */
 	ObjectBBoneDeform *bbone_deform =
-	        armature_cached_bbone_deformation_get(object);
+	        BKE_armature_cached_bbone_deformation_get(object);
 	if (bbone_deform == NULL) {
 		bbone_deform = MEM_callocN(sizeof(*bbone_deform), "bbone deform cache");
 		object->runtime.cached_bbone_deformation = bbone_deform;
 	}
 	/* Make sure arrays are allocateds at the proper size. */
-	armature_cached_bbone_deformation_free_data(object);
+	BKE_armature_cached_bbone_deformation_free_data(object);
 	DualQuat *dualquats = NULL;
 	if (use_quaternion) {
 		dualquats = MEM_calloc_arrayN(
