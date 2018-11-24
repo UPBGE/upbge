@@ -198,11 +198,6 @@ base class --- :class:`EXP_PyObjectPlus`
 
       Resume this scene.
 
-   .. method:: get(key, default=None)
-
-      Return the value matching key, or the default value if its not found.
-      :return: The key value or a default.
-
    .. method:: drawObstacleSimulation()
 
       Draw debug visualization of obstacle simulation.

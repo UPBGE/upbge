@@ -872,13 +872,6 @@ base class --- :class:`SCA_IObject`
 
       Returns the user data object associated with this game object's physics controller.
 
-   .. method:: getPropertyNames()
-
-      Gets a list of all property names.
-
-      :return: All property names for this object.
-      :rtype: list
-
    .. method:: getDistanceTo(other)
 
       :arg other: a point or another :class:`KX_GameObject` to measure the distance to.
@@ -1064,14 +1057,6 @@ base class --- :class:`SCA_IObject`
 
       :arg gameObject: set the physics shape from this gameObjets.
       :type gameObject: string, :class:`KX_GameObject`
-
-   .. method:: get(key[, default])
-
-      Return the value matching key, or the default value if its not found.
-      :arg key: the matching key
-      :type key: string
-      :arg default: optional default value is the key isn't matching, defaults to None if no value passed.
-      :return: The key value or a default.
 
    .. method:: playAction(name, start_frame, end_frame, layer=0, priority=0, blendin=0, play_mode=KX_ACTION_MODE_PLAY, layer_weight=0.0, ipo_flags=0, speed=1.0, blend_mode=KX_ACTION_BLEND_BLEND)
 

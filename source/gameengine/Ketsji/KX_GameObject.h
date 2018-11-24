@@ -41,6 +41,7 @@
 #include <stddef.h>
 
 #include "EXP_ListValue.h"
+#include "EXP_Dictionary.h"
 #include "SG_Node.h"
 #include "SG_CullingNode.h"
 #include "mathfu.h"
@@ -77,7 +78,7 @@ void KX_GameObject_Mathutils_Callback_Init(void);
 /**
  * KX_GameObject is the main class for dynamic objects.
  */
-class KX_GameObject : public EXP_Value, public mt::SimdClassAllocator
+class KX_GameObject : public EXP_Dictionary, public mt::SimdClassAllocator
 {
 	Py_Header
 public:
@@ -171,22 +172,6 @@ public:
 	static KX_GameObject* GetClientObject(KX_ClientObjectInfo* info);
 
 #ifdef WITH_PYTHON
-	// Python attributes that wont convert into EXP_Value
-	//
-	// there are 2 places attributes can be stored, in the EXP_Value,
-	// where attributes are converted into BGE's EXP_Value types
-	// these can be used with property actuators
-	//
-	// For the python API, For types that cannot be converted into EXP_Values (lists, dicts, GameObjects)
-	// these will be put into "m_attr_dict", logic bricks cannot access them.
-	//
-	// rules for setting attributes.
-	//
-	// * there should NEVER be a EXP_Value and a m_attr_dict attribute with matching names. get/sets make sure of this.
-	// * if EXP_Value conversion fails, use a PyObject in "m_attr_dict"
-	// * when assigning a value, first see if it can be a EXP_Value, if it can remove the "m_attr_dict" and set the EXP_Value
-	//
-	PyObject*							m_attr_dict;
 	PyObject*							m_collisionCallbacks;
 #endif
 
@@ -857,7 +842,6 @@ public:
 	EXP_PYMETHOD_NOARGS(KX_GameObject,GetChildrenRecursive);
 	EXP_PYMETHOD_VARARGS(KX_GameObject,GetMesh);
 	EXP_PYMETHOD_NOARGS(KX_GameObject,GetPhysicsId);
-	EXP_PYMETHOD_NOARGS(KX_GameObject,GetPropertyNames);
 	EXP_PYMETHOD(KX_GameObject,ReplaceMesh);
 	EXP_PYMETHOD_NOARGS(KX_GameObject,EndObject);
 	EXP_PYMETHOD_DOC(KX_GameObject,rayCastTo);
@@ -875,9 +859,6 @@ public:
 	EXP_PYMETHOD_DOC(KX_GameObject, getActionName);
 	EXP_PYMETHOD_DOC(KX_GameObject, setActionFrame);
 	EXP_PYMETHOD_DOC(KX_GameObject, isPlayingAction);
-	
-	/* Dict access */
-	EXP_PYMETHOD_VARARGS(KX_GameObject,get);
 	
 	/* attributes */
 	static PyObject*	pyattr_get_name(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
@@ -967,10 +948,6 @@ public:
 	static int			pyattr_set_angularDamping(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_lodManager(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_lodManager(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-
-	/* getitem/setitem */
-	static PyMappingMethods	Mapping;
-	static PySequenceMethods	Sequence;
 #endif
 };
 

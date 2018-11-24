@@ -122,8 +122,7 @@ KX_GameObject::KX_GameObject(void *sgReplicationInfo,
 	m_dupliGroupObject(nullptr),
 	m_actionManager(nullptr)
 #ifdef WITH_PYTHON
-	, m_attr_dict(nullptr),
-	m_collisionCallbacks(nullptr)
+	, m_collisionCallbacks(nullptr)
 #endif
 {
 	// define the relationship between this node and it's parent.
@@ -153,8 +152,7 @@ KX_GameObject::KX_GameObject(const KX_GameObject& other)
 	m_dupliGroupObject(nullptr),
 	m_actionManager(nullptr)
 #ifdef WITH_PYTHON
-	, m_attr_dict(other.m_attr_dict),
-	m_collisionCallbacks(other.m_collisionCallbacks)
+	, m_collisionCallbacks(other.m_collisionCallbacks)
 #endif  // WITH_PYTHON
 {
 	if (m_lodManager) {
@@ -162,10 +160,6 @@ KX_GameObject::KX_GameObject(const KX_GameObject& other)
 	}
 
 #ifdef WITH_PYTHON
-	if (m_attr_dict) {
-		m_attr_dict = PyDict_Copy(m_attr_dict);
-	}
-
 	Py_XINCREF(m_collisionCallbacks);
 
 	if (other.m_components) {
@@ -181,11 +175,6 @@ KX_GameObject::KX_GameObject(const KX_GameObject& other)
 KX_GameObject::~KX_GameObject()
 {
 #ifdef WITH_PYTHON
-	if (m_attr_dict) {
-		PyDict_Clear(m_attr_dict); /* in case of circular refs or other weird cases */
-		/* Py_CLEAR: Py_DECREF's and nullptr's */
-		Py_CLEAR(m_attr_dict);
-	}
 	// Unregister collision callbacks
 	// Do this before we start freeing physics information like m_clientInfo
 	if (m_collisionCallbacks) {
@@ -1905,7 +1894,6 @@ PyMethodDef KX_GameObject::Methods[] = {
 
 
 	{"getPhysicsId", (PyCFunction)KX_GameObject::sPyGetPhysicsId, METH_NOARGS},
-	{"getPropertyNames", (PyCFunction)KX_GameObject::sPyGetPropertyNames, METH_NOARGS},
 	{"replaceMesh", (PyCFunction)KX_GameObject::sPyReplaceMesh, METH_VARARGS | METH_KEYWORDS},
 	{"endObject", (PyCFunction)KX_GameObject::sPyEndObject, METH_NOARGS},
 	{"reinstancePhysicsMesh", (PyCFunction)KX_GameObject::sPyReinstancePhysicsMesh, METH_VARARGS | METH_KEYWORDS},
@@ -1924,9 +1912,6 @@ PyMethodDef KX_GameObject::Methods[] = {
 	EXP_PYMETHODTABLE(KX_GameObject, getActionName),
 	EXP_PYMETHODTABLE(KX_GameObject, setActionFrame),
 	EXP_PYMETHODTABLE(KX_GameObject, isPlayingAction),
-
-	// dict style access for props
-	{"get", (PyCFunction)KX_GameObject::sPyget, METH_VARARGS},
 
 	{nullptr, nullptr} //Sentinel
 };
@@ -2061,105 +2046,6 @@ PyObject *KX_GameObject::PyReplacePhysicsShape(PyObject *value)
 	Py_RETURN_NONE;
 }
 
-static PyObject *Map_GetItem(PyObject *self_v, PyObject *item)
-{
-	KX_GameObject *self = static_cast<KX_GameObject *>EXP_PROXY_REF(self_v);
-
-	if (!self) {
-		PyErr_SetString(PyExc_SystemError, "value = gameOb[key]: KX_GameObject, " EXP_PROXY_ERROR_MSG);
-		return nullptr;
-	}
-
-	const char *attr_str = _PyUnicode_AsString(item);
-	if (!attr_str) {
-		PyErr_SetString(PyExc_KeyError, "value = gameOb[key]: KX_GameObject, key must be a string");
-		return nullptr;
-	}
-
-	EXP_PropValue *prop = self->GetProperty(attr_str);
-
-	if (!prop) {
-		PyErr_Format(PyExc_KeyError, "value = gameOb[key]: KX_GameObject, key \"%s\" does not exist", attr_str);
-		return nullptr;
-	}
-
-	return prop->ConvertValueToPython();
-}
-
-
-static int Map_SetItem(PyObject *self_v, PyObject *key, PyObject *val)
-{
-	KX_GameObject *self = static_cast<KX_GameObject *>EXP_PROXY_REF(self_v);
-
-	if (!self) {
-		PyErr_SetString(PyExc_SystemError, "gameOb[key] = value: KX_GameObject, " EXP_PROXY_ERROR_MSG);
-		return -1;
-	}
-
-	const char *attr_str = _PyUnicode_AsString(key);
-	if (!attr_str) {
-		PyErr_SetString(PyExc_KeyError, "gameOb[key] = value: KX_GameObject, key must be a string");
-		return -1;
-	}
-
-	// del ob["key"]
-	if (!val) {
-		if (!self->RemoveProperty(attr_str)) {
-			PyErr_Format(PyExc_KeyError, "gameOb[key] = value: KX_GameObject, key \"%s\" does not exist", attr_str);
-			return -1;
-		}
-	}
-	// ob["key"] = value
-	else {
-		EXP_PropValue *vallie = EXP_PropValue::ConvertPythonToValue(val);
-		self->SetProperty(attr_str, vallie);
-	}
-
-	return 0;
-}
-
-static int Seq_Contains(PyObject *self_v, PyObject *value)
-{
-	KX_GameObject *self = static_cast<KX_GameObject *>EXP_PROXY_REF(self_v);
-
-	if (self == nullptr) {
-		PyErr_SetString(PyExc_SystemError, "val in gameOb: KX_GameObject, " EXP_PROXY_ERROR_MSG);
-		return -1;
-	}
-
-	const char *attr_str = _PyUnicode_AsString(value);
-	if (!attr_str) {
-		PyErr_SetString(PyExc_KeyError, "val in gameOb: KX_GameObject, key must be a string");
-		return -1;
-	}
-
-	if (self->GetProperty(attr_str)) {
-		return 1;
-	}
-
-	return 0;
-}
-
-
-PyMappingMethods KX_GameObject::Mapping = {
-	(lenfunc)nullptr,                               /*inquiry mp_length */
-	(binaryfunc)Map_GetItem,        /*binaryfunc mp_subscript */
-	(objobjargproc)Map_SetItem, /*objobjargproc mp_ass_subscript */
-};
-
-PySequenceMethods KX_GameObject::Sequence = {
-	nullptr,        /* Cant set the len otherwise it can evaluate as false */
-	nullptr,        /* sq_concat */
-	nullptr,        /* sq_repeat */
-	nullptr,        /* sq_item */
-	nullptr,        /* sq_slice */
-	nullptr,        /* sq_ass_item */
-	nullptr,        /* sq_ass_slice */
-	(objobjproc)Seq_Contains,   /* sq_contains */
-	(binaryfunc)nullptr,  /* sq_inplace_concat */
-	(ssizeargfunc)nullptr,  /* sq_inplace_repeat */
-};
-
 PyTypeObject KX_GameObject::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_GameObject",
@@ -2171,10 +2057,7 @@ PyTypeObject KX_GameObject::Type = {
 	0,
 	0,
 	py_base_repr,
-	0,
-	&Sequence,
-	&Mapping,
-	0, 0, 0,
+	0, 0, 0, 0, 0, 0,
 	nullptr,
 	nullptr,
 	0,
@@ -2183,7 +2066,7 @@ PyTypeObject KX_GameObject::Type = {
 	Methods,
 	0,
 	0,
-	&EXP_Value::Type,
+	&EXP_Dictionary::Type,
 	0, 0, 0, 0, 0, 0,
 	py_base_new
 };
@@ -3572,11 +3455,6 @@ PyObject *KX_GameObject::PyGetPhysicsId()
 	return PyLong_FromUnsignedLongLong(physid);
 }
 
-PyObject *KX_GameObject::PyGetPropertyNames()
-{
-	return ConvertKeysToPython();
-}
-
 EXP_PYMETHODDEF_DOC_O(KX_GameObject, getDistanceTo,
                       "getDistanceTo(other): get distance to another point/KX_GameObject")
 {
@@ -4094,38 +3972,6 @@ EXP_PYMETHODDEF_DOC(KX_GameObject, addDebugProperty,
 	}
 
 	Py_RETURN_NONE;
-}
-
-
-/* dict style access */
-
-
-/* Matches python dict.get(key, [default]) */
-PyObject *KX_GameObject::Pyget(PyObject *args)
-{
-	PyObject *key;
-	PyObject *def = Py_None;
-	PyObject *ret;
-
-	if (!PyArg_ParseTuple(args, "O|O:get", &key, &def)) {
-		return nullptr;
-	}
-
-
-	if (PyUnicode_Check(key)) {
-		EXP_PropValue *item = GetProperty(_PyUnicode_AsString(key));
-		if (item) {
-			return item->ConvertValueToPython();
-		}
-	}
-
-	if (m_attr_dict && (ret = PyDict_GetItem(m_attr_dict, key))) {
-		Py_INCREF(ret);
-		return ret;
-	}
-
-	Py_INCREF(def);
-	return def;
 }
 
 bool ConvertPythonToGameObject(KX_Scene *scene, PyObject *value, KX_GameObject **object, bool py_none_ok, const char *error_prefix)

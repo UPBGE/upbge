@@ -28,7 +28,7 @@
 #include "RAS_OffScreen.h"
 #include "RAS_Rect.h"
 
-#include "EXP_Value.h"
+#include "EXP_Dictionary.h"
 #include "EXP_PropInt.h"
 #include "EXP_PropFloat.h"
 

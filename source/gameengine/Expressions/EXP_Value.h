@@ -20,10 +20,6 @@
 #define __EXP_VALUE_H__
 
 #include "EXP_PyObjectPlus.h"
-#include "EXP_PropValue.h"
-
-#include <map>
-#include <vector>
 
 /**
  * Baseclass EXP_Value
@@ -31,18 +27,14 @@
  * Base class for all editor functionality, flexible object type that allows
  * calculations.
  *
- * Features:
- * - Property system (SetProperty() / GetProperty() / FindIdentifier())
- * - Replication (GetReplica())
- *
  */
 class EXP_Value : public EXP_PyObjectPlus
 {
 	Py_Header
 public:
-	EXP_Value();
-	EXP_Value(const EXP_Value& other);
-	virtual ~EXP_Value();
+	EXP_Value() = default;
+	EXP_Value(const EXP_Value& other) = default;
+	virtual ~EXP_Value() = default;
 
 	EXP_Value& operator=(const EXP_Value& other) = delete;
 	EXP_Value& operator=(EXP_Value&& other) = default;
@@ -55,27 +47,7 @@ public:
 
 	static PyObject *pyattr_get_name(EXP_PyObjectPlus *self, const EXP_PYATTRIBUTE_DEF *attrdef);
 
-	virtual PyObject *ConvertKeysToPython();
 #endif  // WITH_PYTHON
-
-	/// Property Management
-	/** Set property <ioProperty>, overwrites and releases a previous property with the same name if needed.
-	 * Stall the owning of the property.
-	 */
-	void SetProperty(const std::string& name, EXP_PropValue *ioProperty);
-	/// Get pointer to a property with name <inName>, returns nullptr if there is no property named <inName>.
-	EXP_PropValue *GetProperty(const std::string & inName) const;
-	/// Remove the property named <inName>, returns true if the property was succesfully removed, false if property was not found or could not be removed.
-	bool RemoveProperty(const std::string& inName);
-	std::vector<std::string> GetPropertyNames() const;
-	/// Clear all properties.
-	void ClearProperties();
-
-	// TODO to remove in the same time timer management is refactored.
-	/// Get property number <inIndex>.
-	EXP_PropValue *GetProperty(int inIndex) const;
-	/// Get the amount of properties assiocated with this value.
-	int GetPropertyCount();
 
 	virtual std::string GetText() const;
 
@@ -87,12 +59,11 @@ public:
 	virtual EXP_Value *GetReplica();
 	virtual void ProcessReplica();
 
+	/// Return true when the type is based on EXP_Dictionary and have property support.
+	virtual bool IsDictionary() const;
+
 protected:
 	virtual void DestructFromPython();
-
-private:
-	/// Properties for user/game etc.
-	std::map<std::string, std::unique_ptr<EXP_PropValue> > m_properties;
 };
 
 #endif  // __EXP_VALUE_H__

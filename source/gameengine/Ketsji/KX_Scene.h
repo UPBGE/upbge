@@ -48,11 +48,11 @@
 #include "RAS_FramingManager.h"
 #include "RAS_Rect.h"
 
+#include "EXP_Dictionary.h"
 #include "EXP_ListValue.h"
 
 #include <set>
 
-class EXP_Value;
 class SCA_IInputDevice;
 class KX_NetworkMessageScene;
 class KX_NetworkMessageManager;
@@ -79,7 +79,7 @@ class RAS_2DFilterManager;
 struct Scene;
 struct TaskPool;
 
-class KX_Scene : public EXP_Value
+class KX_Scene : public EXP_Dictionary
 {
 public:
 	enum DrawingCallbackType {
@@ -118,7 +118,6 @@ private:
 	};
 
 #ifdef WITH_PYTHON
-	PyObject *m_attrDict;
 	PyObject *m_removeCallbacks;
 	PyObject *m_drawCallbacks[MAX_DRAW_CALLBACK];
 #endif
@@ -433,7 +432,6 @@ public:
 	EXP_PYMETHOD_DOC(KX_Scene, replace);
 	EXP_PYMETHOD_DOC(KX_Scene, suspend);
 	EXP_PYMETHOD_DOC(KX_Scene, resume);
-	EXP_PYMETHOD_DOC(KX_Scene, get);
 	EXP_PYMETHOD_DOC(KX_Scene, drawObstacleSimulation);
 
 	// Attributes.
@@ -455,10 +453,6 @@ public:
 	static int pyattr_set_remove_callback(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject *pyattr_get_gravity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_gravity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-
-	// getitem/setitem
-	static PyMappingMethods Mapping;
-	static PySequenceMethods Sequence;
 
 	/// Run the registered python drawing functions.
 	void RunDrawingCallbacks(DrawingCallbackType callbackType, KX_Camera *camera);

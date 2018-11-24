@@ -152,7 +152,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_animationPool = BLI_task_pool_create(KX_GetActiveEngine()->GetTaskScheduler(), &m_animationPoolData);
 
 #ifdef WITH_PYTHON
-	m_attrDict = nullptr;
 	m_removeCallbacks = nullptr;
 
 	for (unsigned short i = 0; i < MAX_DRAW_CALLBACK; ++i) {
@@ -214,11 +213,6 @@ KX_Scene::~KX_Scene()
 	}
 
 #ifdef WITH_PYTHON
-	if (m_attrDict) {
-		PyDict_Clear(m_attrDict);
-		Py_CLEAR(m_attrDict);
-	}
-
 	// These may be nullptr but the macro checks.
 	Py_CLEAR(m_removeCallbacks);
 	for (unsigned short i = 0; i < MAX_DRAW_CALLBACK; ++i) {
@@ -1542,16 +1536,13 @@ PyTypeObject KX_Scene::Type = {
 	0,
 	0,
 	py_base_repr,
-	0,
-	&Sequence,
-	&Mapping,
-	0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0,
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
 	0, 0, 0, 0, 0, 0, 0,
 	Methods,
 	0,
 	0,
-	&EXP_Value::Type,
+	&EXP_Dictionary::Type,
 	0, 0, 0, 0, 0, 0,
 	py_base_new
 };
@@ -1565,149 +1556,7 @@ PyMethodDef KX_Scene::Methods[] = {
 	EXP_PYMETHODTABLE(KX_Scene, resume),
 	EXP_PYMETHODTABLE(KX_Scene, drawObstacleSimulation),
 
-	// Sict style access.
-	EXP_PYMETHODTABLE(KX_Scene, get),
-
 	{nullptr, nullptr} // Sentinel
-};
-static PyObject *Map_GetItem(PyObject *self_v, PyObject *item)
-{
-	KX_Scene *self = static_cast<KX_Scene *>EXP_PROXY_REF(self_v);
-	const char *attr_str = _PyUnicode_AsString(item);
-	PyObject *pyconvert;
-
-	if (!self) {
-		PyErr_SetString(PyExc_SystemError, "val = scene[key]: KX_Scene, " EXP_PROXY_ERROR_MSG);
-		return nullptr;
-	}
-
-	if (!self->m_attrDict) {
-		self->m_attrDict = PyDict_New();
-	}
-
-	if (self->m_attrDict && (pyconvert = PyDict_GetItem(self->m_attrDict, item))) {
-
-		if (attr_str) {
-			PyErr_Clear();
-		}
-		Py_INCREF(pyconvert);
-		return pyconvert;
-	}
-	else {
-		if (attr_str) {
-			PyErr_Format(PyExc_KeyError, "value = scene[key]: KX_Scene, key \"%s\" does not exist", attr_str);
-		}
-		else {
-			PyErr_SetString(PyExc_KeyError, "value = scene[key]: KX_Scene, key does not exist");
-		}
-		return nullptr;
-	}
-
-}
-
-static int Map_SetItem(PyObject *self_v, PyObject *key, PyObject *val)
-{
-	KX_Scene *self = static_cast<KX_Scene *>EXP_PROXY_REF(self_v);
-	const char *attr_str = _PyUnicode_AsString(key);
-	if (!attr_str) {
-		PyErr_Clear();
-	}
-
-	if (!self) {
-		PyErr_SetString(PyExc_SystemError, "scene[key] = value: KX_Scene, " EXP_PROXY_ERROR_MSG);
-		return -1;
-	}
-
-	if (!self->m_attrDict) {
-		self->m_attrDict = PyDict_New();
-	}
-
-	if (!val) {
-		// del ob["key"]
-		int del = 0;
-
-		if (self->m_attrDict) {
-			del |= (PyDict_DelItem(self->m_attrDict, key) == 0) ? 1 : 0;
-		}
-
-		if (del == 0) {
-			if (attr_str) {
-				PyErr_Format(PyExc_KeyError, "scene[key] = value: KX_Scene, key \"%s\" could not be set", attr_str);
-			}
-			else {
-				PyErr_SetString(PyExc_KeyError, "del scene[key]: KX_Scene, key could not be deleted");
-			}
-			return -1;
-		}
-		else if (self->m_attrDict) {
-			// PyDict_DelItem sets an error when it fails.
-			PyErr_Clear();
-		}
-	}
-	else {
-		// ob["key"] = value
-		int set = 0;
-
-		// Lazy init.
-		if (!self->m_attrDict) {
-			self->m_attrDict = PyDict_New();
-		}
-
-		if (PyDict_SetItem(self->m_attrDict, key, val) == 0) {
-			set = 1;
-		}
-		else {
-			PyErr_SetString(PyExc_KeyError, "scene[key] = value: KX_Scene, key not be added to internal dictionary");
-		}
-
-		if (set == 0) {
-			// Pythons error value.
-			return -1;
-
-		}
-	}
-
-	// Success.
-	return 0;
-}
-
-static int Seq_Contains(PyObject *self_v, PyObject *value)
-{
-	KX_Scene *self = static_cast<KX_Scene *>EXP_PROXY_REF(self_v);
-
-	if (!self) {
-		PyErr_SetString(PyExc_SystemError, "val in scene: KX_Scene, " EXP_PROXY_ERROR_MSG);
-		return -1;
-	}
-
-	if (!self->m_attrDict) {
-		self->m_attrDict = PyDict_New();
-	}
-
-	if (self->m_attrDict && PyDict_GetItem(self->m_attrDict, value)) {
-		return 1;
-	}
-
-	return 0;
-}
-
-PyMappingMethods KX_Scene::Mapping = {
-	(lenfunc)nullptr, // inquiry mp_length
-	(binaryfunc)Map_GetItem, // binaryfunc mp_subscript
-	(objobjargproc)Map_SetItem, // objobjargproc mp_ass_subscript
-};
-
-PySequenceMethods KX_Scene::Sequence = {
-	nullptr, // Cant set the len otherwise it can evaluate as false.
-	nullptr, // sq_concat
-	nullptr, // sq_repeat
-	nullptr, // sq_item
-	nullptr, // sq_slice
-	nullptr, // sq_ass_item
-	nullptr, // sq_ass_slice
-	(objobjproc)Seq_Contains, // sq_contains
-	(binaryfunc)nullptr, // sq_inplace_concat
-	(ssizeargfunc)nullptr, // sq_inplace_repeat
 };
 
 PyObject *KX_Scene::pyattr_get_name(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
@@ -2019,25 +1868,6 @@ EXP_PYMETHODDEF_DOC(KX_Scene, drawObstacleSimulation,
 	}
 
 	Py_RETURN_NONE;
-}
-
-EXP_PYMETHODDEF_DOC(KX_Scene, get, "")
-{
-	PyObject *key;
-	PyObject *def = Py_None;
-	PyObject *ret;
-
-	if (!PyArg_ParseTuple(args, "O|O:get", &key, &def)) {
-		return nullptr;
-	}
-
-	if (m_attrDict && (ret = PyDict_GetItem(m_attrDict, key))) {
-		Py_INCREF(ret);
-		return ret;
-	}
-
-	Py_INCREF(def);
-	return def;
 }
 
 bool ConvertPythonToScene(PyObject *value, KX_Scene **scene, bool py_none_ok, const char *error_prefix)

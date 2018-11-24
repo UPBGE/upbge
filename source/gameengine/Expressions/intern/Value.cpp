@@ -19,89 +19,6 @@
  */
 #include "EXP_Value.h"
 
-EXP_Value::EXP_Value()
-{
-}
-
-EXP_Value::EXP_Value(const EXP_Value& other)
-	:EXP_PyObjectPlus(other)
-{
-	for (const auto& pair : other.m_properties) {
-		m_properties.emplace(pair.first, pair.second->GetReplica());
-	}
-}
-
-EXP_Value::~EXP_Value()
-{
-	ClearProperties();
-}
-
-void EXP_Value::SetProperty(const std::string& name, EXP_PropValue *ioProperty)
-{
-	// Try to replace property.
-	auto it = m_properties.find(name);
-	if (it != m_properties.end()) {
-		it->second.reset(ioProperty);
-	}
-	// Add property into the array.
-	else {
-		m_properties.emplace(name, ioProperty);
-	}
-}
-
-EXP_PropValue *EXP_Value::GetProperty(const std::string& inName) const
-{
-	const auto it = m_properties.find(inName);
-	if (it != m_properties.end()) {
-		return it->second.get();
-	}
-	return nullptr;
-}
-
-bool EXP_Value::RemoveProperty(const std::string& inName)
-{
-	auto it = m_properties.find(inName);
-	if (it != m_properties.end()) {
-		m_properties.erase(it);
-		return true;
-	}
-
-	return false;
-}
-
-std::vector<std::string> EXP_Value::GetPropertyNames() const
-{
-	const unsigned short size = m_properties.size();
-	std::vector<std::string> result(size);
-
-	unsigned short i = 0;
-	for (const auto& pair : m_properties) {
-		result[i++] = pair.first;
-	}
-	return result;
-}
-
-void EXP_Value::ClearProperties()
-{
-	m_properties.clear();
-}
-
-EXP_PropValue *EXP_Value::GetProperty(int inIndex) const
-{
-	int count = 0;
-	for (const auto& pair : m_properties) {
-		if (count++ == inIndex) {
-			return pair.second.get();
-		}
-	}
-	return nullptr;
-}
-
-int EXP_Value::GetPropertyCount()
-{
-	return m_properties.size();
-}
-
 void EXP_Value::DestructFromPython()
 {
 #ifdef WITH_PYTHON
@@ -159,18 +76,6 @@ PyObject *EXP_Value::pyattr_get_name(EXP_PyObjectPlus *self_v, const EXP_PYATTRI
 	return PyUnicode_FromStdString(self->GetName());
 }
 
-PyObject *EXP_Value::ConvertKeysToPython()
-{
-	PyObject *pylist = PyList_New(m_properties.size());
-
-	Py_ssize_t i = 0;
-	for (const auto& pair : m_properties) {
-		PyList_SET_ITEM(pylist, i++, PyUnicode_FromStdString(pair.first));
-	}
-
-	return pylist;
-}
-
 #endif  // WITH_PYTHON
 
 std::string EXP_Value::GetText() const
@@ -185,4 +90,9 @@ void EXP_Value::SetName(const std::string& name)
 EXP_Value *EXP_Value::GetReplica()
 {
 	return nullptr;
+}
+
+bool EXP_Value::IsDictionary() const
+{
+	return false;
 }

@@ -21,6 +21,8 @@
 
 #include "EXP_Value.h"
 
+#include <vector>
+
 class EXP_BaseListValue : public EXP_Value
 {
 	Py_Header

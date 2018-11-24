@@ -18,9 +18,9 @@
  */
 
 #include <stdio.h>
-#include <regex>
 
 #include "EXP_ListValue.h"
+#include "EXP_Dictionary.h"
 #include "EXP_PropString.h"
 #include <algorithm>
 #include "EXP_PropBool.h"
@@ -416,11 +416,10 @@ PyObject *EXP_BaseListValue::Pyfilter(PyObject *args)
 				result->Add(item);
 			}
 			else {
-				const std::vector<std::string> propnames = item->GetPropertyNames();
-				for (const std::string& propname : propnames) {
-					if (std::regex_match(propname, propreg)) {
+				if (item->IsDictionary()) {
+					EXP_Dictionary *dict = static_cast<EXP_Dictionary *>(item);
+					if (dict->FindPropertyRegex(propreg)) {
 						result->Add(item);
-						break;
 					}
 				}
 			}

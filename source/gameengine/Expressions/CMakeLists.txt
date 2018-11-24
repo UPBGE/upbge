@@ -41,6 +41,7 @@ set(INC_SYS
 set(SRC
 	intern/BaseListValue.cpp
 	intern/BaseListWrapper.cpp
+	intern/Dictionary.cpp
 	intern/PropBool.cpp
 	intern/PropFloat.cpp
 	intern/PropInt.cpp
@@ -51,6 +52,7 @@ set(SRC
 
 	EXP_BaseListValue.h
 	EXP_BaseListWrapper.h
+	EXP_Dictionary.h
 	EXP_PropBool.h
 	EXP_PropFloat.h
 	EXP_PropInt.h
