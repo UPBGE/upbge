@@ -232,9 +232,7 @@ int KX_BatchGroup::pyattr_set_referenceObject(EXP_PyObjectPlus *self_v, const EX
 	KX_BatchGroup *self = static_cast<KX_BatchGroup *>(self_v);
 
 	KX_GameObject *object;
-	if (!ConvertPythonToGameObject(0,
-			value, &object, false, "KX_BatchGroup.referenceObject"))// TODO
-	{
+	if (!ConvertPythonToGameObject(KX_GetActiveScene(), value, &object, false, "KX_BatchGroup.referenceObject")) {
 		return PY_SET_ATTR_FAIL;
 	}
 
