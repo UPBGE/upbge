@@ -1141,8 +1141,8 @@ class VIEW3D_MT_select_edit_text(Menu):
         layout = self.layout
 
         layout.operator("font.text_cut", text="Cut")
-        layout.operator("font.text_copy", text="Copy", icon="COPYDOWN")
-        layout.operator("font.text_paste", text="Paste", icon="PASTEDOWN")
+        layout.operator("font.text_copy", text="Copy", icon='COPYDOWN')
+        layout.operator("font.text_paste", text="Paste", icon='PASTEDOWN')
 
         layout.separator()
 
@@ -1626,8 +1626,8 @@ class VIEW3D_MT_object(Menu):
 
         layout.separator()
 
-        layout.operator("view3d.copybuffer", text="Copy Objects", icon="COPYDOWN")
-        layout.operator("view3d.pastebuffer", text="Paste Objects", icon="PASTEDOWN")
+        layout.operator("view3d.copybuffer", text="Copy Objects", icon='COPYDOWN')
+        layout.operator("view3d.pastebuffer", text="Paste Objects", icon='PASTEDOWN')
 
         layout.separator()
 
@@ -1879,7 +1879,7 @@ class VIEW3D_MT_object_specials(Menu):
 
         layout.separator()
 
-        layout.operator("object.duplicate_move", icon="DUPLICATE")
+        layout.operator("object.duplicate_move", icon='DUPLICATE')
         layout.operator("object.duplicate_move_linked")
 
         layout.separator()
@@ -2490,8 +2490,8 @@ class VIEW3D_MT_pose(Menu):
 
         layout.separator()
 
-        layout.operator("pose.copy", icon="COPYDOWN")
-        layout.operator("pose.paste", icon="PASTEDOWN").flipped = False
+        layout.operator("pose.copy", icon='COPYDOWN')
+        layout.operator("pose.paste", icon='PASTEDOWN').flipped = False
         layout.operator("pose.paste", text="Paste Pose Flipped").flipped = True
 
         layout.separator()
@@ -2673,8 +2673,8 @@ class VIEW3D_MT_pose_specials(Menu):
 
         layout.separator()
 
-        layout.operator("pose.copy", icon="COPYDOWN")
-        layout.operator("pose.paste", icon="PASTEDOWN").flipped = False
+        layout.operator("pose.copy", icon='COPYDOWN')
+        layout.operator("pose.paste", icon='PASTEDOWN').flipped = False
         layout.operator("pose.paste", text="Paste X-Flipped Pose").flipped = True
 
         layout.separator()
@@ -3752,8 +3752,8 @@ class VIEW3D_MT_edit_gpencil(Menu):
 
         layout.separator()
 
-        layout.operator("gpencil.copy", text="Copy", icon="COPYDOWN")
-        layout.operator("gpencil.paste", text="Paste", icon="PASTEDOWN").type = 'COPY'
+        layout.operator("gpencil.copy", text="Copy", icon='COPYDOWN')
+        layout.operator("gpencil.paste", text="Paste", icon='PASTEDOWN').type = 'COPY'
         layout.operator("gpencil.paste", text="Paste & Merge").type = 'MERGE'
 
         layout.separator()
@@ -3873,8 +3873,37 @@ class VIEW3D_MT_shading_pie(Menu):
 
         view = context.space_data
 
-        pie.prop_enum(view.shading, "type", value='SOLID')
         pie.prop_enum(view.shading, "type", value='WIREFRAME')
+        pie.prop_enum(view.shading, "type", value='SOLID')
+        pie.prop_enum(view.shading, "type", value='MATERIAL')
+        pie.prop_enum(view.shading, "type", value='RENDERED')
+
+
+class VIEW3D_MT_shading_ex_pie(Menu):
+    bl_label = "Shading"
+
+    def draw(self, context):
+        layout = self.layout
+        pie = layout.menu_pie()
+
+        view = context.space_data
+
+        pie.prop_enum(view.shading, "type", value='WIREFRAME')
+
+        xray_active = (
+            (context.mode in {'POSE', 'EDIT_MESH'}) or
+            (view.shading.type in {'SOLID', 'WIREFRAME'})
+        )
+        if xray_active:
+            sub = pie
+        else:
+            sub = pie.row()
+            sub.active = False
+        sub.operator("view3d.toggle_xray", text="Toggle X-Ray", icon='XRAY')
+
+        pie.prop(view.overlay, "show_overlays", text="Toggle Overlays", icon='OVERLAY')
+
+        pie.prop_enum(view.shading, "type", value='SOLID')
         pie.prop_enum(view.shading, "type", value='MATERIAL')
         pie.prop_enum(view.shading, "type", value='RENDERED')
 
@@ -5460,6 +5489,7 @@ classes = (
     VIEW3D_MT_object_mode_pie,
     VIEW3D_MT_view_pie,
     VIEW3D_MT_shading_pie,
+    VIEW3D_MT_shading_ex_pie,
     VIEW3D_MT_pivot_pie,
     VIEW3D_MT_snap_pie,
     VIEW3D_MT_orientations_pie,

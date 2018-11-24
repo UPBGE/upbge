@@ -3185,7 +3185,7 @@ static int uv_box_select_exec(bContext *C, wmOperator *op)
 	BMIter iter, liter;
 	MLoopUV *luv;
 	rctf rectf;
-	bool pinned, select, extend;
+	bool pinned;
 	const bool use_face_center = (
 	        (ts->uv_flag & UV_SYNC_SELECTION) ?
 	        (ts->selectmode == SCE_SELECT_FACE) :
@@ -3195,15 +3195,19 @@ static int uv_box_select_exec(bContext *C, wmOperator *op)
 	WM_operator_properties_border_to_rctf(op, &rectf);
 	UI_view2d_region_to_view_rctf(&ar->v2d, &rectf, &rectf);
 
-	/* figure out what to select/deselect */
-	select = !RNA_boolean_get(op->ptr, "deselect");
-	extend = RNA_boolean_get(op->ptr, "extend");
+	const eSelectOp sel_op = RNA_enum_get(op->ptr, "mode");
+	const bool select = (sel_op != SEL_OP_SUB);
+
 	pinned = RNA_boolean_get(op->ptr, "pinned");
 
 	bool changed_multi = false;
 
 	uint objects_len = 0;
 	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(view_layer, &objects_len);
+
+	if (SEL_OP_USE_PRE_DESELECT(sel_op)) {
+		uv_select_all_perform_multi(scene, ima, objects, objects_len, SEL_DESELECT);
+	}
 
 	/* don't indent to avoid diff noise! */
 	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
@@ -3213,9 +3217,6 @@ static int uv_box_select_exec(bContext *C, wmOperator *op)
 		bool changed = false;
 
 		const int cd_loop_uv_offset  = CustomData_get_offset(&em->bm->ldata, CD_MLOOPUV);
-
-		if (!extend)
-			uv_select_all_perform_multi(scene, ima, objects, objects_len, SEL_DESELECT);
 
 		/* do actual selection */
 		if (use_face_center && !pinned) {
@@ -3308,7 +3309,8 @@ static void UV_OT_select_box(wmOperatorType *ot)
 	/* properties */
 	RNA_def_boolean(ot->srna, "pinned", 0, "Pinned", "Border select pinned UVs only");
 
-	WM_operator_properties_gesture_box_select(ot);
+	WM_operator_properties_gesture_box(ot);
+	WM_operator_properties_select_operation_simple(ot);
 }
 
 /** \} */
@@ -3454,8 +3456,9 @@ static void UV_OT_select_circle(wmOperatorType *ot)
 /** \name Lasso Select Operator
  * \{ */
 
-static bool do_lasso_select_mesh_uv(bContext *C, const int mcords[][2], short moves,
-                                    const bool select, const bool extend)
+static bool do_lasso_select_mesh_uv(
+        bContext *C, const int mcords[][2], short moves,
+        const eSelectOp sel_op)
 {
 	Depsgraph *depsgraph = CTX_data_depsgraph(C);
 	SpaceImage *sima = CTX_wm_space_image(C);
@@ -3468,7 +3471,7 @@ static bool do_lasso_select_mesh_uv(bContext *C, const int mcords[][2], short mo
 	        (ts->uv_flag & UV_SYNC_SELECTION) ?
 	        (ts->selectmode == SCE_SELECT_FACE) :
 	        (ts->uv_selectmode == UV_SELECT_FACE));
-
+	const bool select = (sel_op != SEL_OP_SUB);
 
 	BMIter iter, liter;
 
@@ -3483,6 +3486,10 @@ static bool do_lasso_select_mesh_uv(bContext *C, const int mcords[][2], short mo
 	uint objects_len = 0;
 	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(view_layer, &objects_len);
 
+	if (SEL_OP_USE_PRE_DESELECT(sel_op)) {
+		uv_select_all_perform_multi(scene, ima, objects, objects_len, SEL_DESELECT);
+	}
+
 	/* don't indent to avoid diff noise! */
 	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
 		Object *obedit = objects[ob_index];
@@ -3492,10 +3499,6 @@ static bool do_lasso_select_mesh_uv(bContext *C, const int mcords[][2], short mo
 		BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
 		const int cd_loop_uv_offset  = CustomData_get_offset(&em->bm->ldata, CD_MLOOPUV);
-
-		if (!extend && select) {
-			uv_select_all_perform_multi(scene, ima, objects, objects_len, SEL_DESELECT);
-		}
 
 		if (use_face_center) { /* Face Center Sel */
 			BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
@@ -3567,13 +3570,8 @@ static int uv_lasso_select_exec(bContext *C, wmOperator *op)
 	const int (*mcords)[2] = WM_gesture_lasso_path_to_array(C, op, &mcords_tot);
 
 	if (mcords) {
-		bool select, extend;
-		bool changed;
-
-		select = !RNA_boolean_get(op->ptr, "deselect");
-		extend = RNA_boolean_get(op->ptr, "extend");
-		changed = do_lasso_select_mesh_uv(C, mcords, mcords_tot, select, extend);
-
+		const eSelectOp sel_op = RNA_enum_get(op->ptr, "mode");
+		bool changed = do_lasso_select_mesh_uv(C, mcords, mcords_tot, sel_op);
 		MEM_freeN((void *)mcords);
 
 		return changed ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
@@ -3598,7 +3596,8 @@ static void UV_OT_select_lasso(wmOperatorType *ot)
 	ot->flag = OPTYPE_UNDO;
 
 	/* properties */
-	WM_operator_properties_gesture_lasso_select(ot);
+	WM_operator_properties_gesture_lasso(ot);
+	WM_operator_properties_select_operation_simple(ot);
 }
 
 /** \} */

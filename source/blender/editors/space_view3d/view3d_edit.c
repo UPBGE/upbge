@@ -254,6 +254,7 @@ static bool view3d_orbit_calc_center(bContext *C, float r_dyn_ofs[3])
 	const Depsgraph *depsgraph = CTX_data_depsgraph(C);
 	Scene *scene = CTX_data_scene(C);
 	ViewLayer *view_layer_eval = DEG_get_evaluated_view_layer(depsgraph);
+	View3D *v3d = CTX_wm_view3d(C);
 	Object *ob_act_eval = OBACT(view_layer_eval);
 	Object *ob_act = DEG_get_original_object(ob_act_eval);
 
@@ -298,7 +299,7 @@ static bool view3d_orbit_calc_center(bContext *C, float r_dyn_ofs[3])
 
 		zero_v3(select_center);
 		for (base_eval = FIRSTBASE(view_layer_eval); base_eval; base_eval = base_eval->next) {
-			if (TESTBASE(base_eval)) {
+			if (TESTBASE(v3d, base_eval)) {
 				/* use the boundbox if we can */
 				Object *ob_eval = base_eval->object;
 
@@ -2722,7 +2723,7 @@ static int view3d_all_exec(bContext *C, wmOperator *op)
 	}
 
 	for (base_eval = view_layer_eval->object_bases.first; base_eval; base_eval = base_eval->next) {
-		if (BASE_VISIBLE(base_eval)) {
+		if (BASE_VISIBLE(v3d, base_eval)) {
 			changed = true;
 
 			Object *ob = DEG_get_original_object(base_eval->object);
@@ -2819,7 +2820,7 @@ static int viewselected_exec(bContext *C, wmOperator *op)
 		/* this is weak code this way, we should make a generic active/selection callback interface once... */
 		Base *base_eval;
 		for (base_eval = view_layer_eval->object_bases.first; base_eval; base_eval = base_eval->next) {
-			if (TESTBASELIB(base_eval)) {
+			if (TESTBASELIB(v3d, base_eval)) {
 				if (base_eval->object->type == OB_ARMATURE)
 					if (base_eval->object->mode & OB_MODE_POSE)
 						break;
@@ -2880,7 +2881,7 @@ static int viewselected_exec(bContext *C, wmOperator *op)
 	else {
 		Base *base_eval;
 		for (base_eval = FIRSTBASE(view_layer_eval); base_eval; base_eval = base_eval->next) {
-			if (TESTBASE(base_eval)) {
+			if (TESTBASE(v3d, base_eval)) {
 
 				if (skip_camera && base_eval->object == v3d->camera) {
 					continue;
@@ -4872,7 +4873,7 @@ static int toggle_shading_exec(bContext *C, wmOperator *op)
 	ScrArea *sa = CTX_wm_area(C);
 	int type = RNA_enum_get(op->ptr, "type");
 
-	if (ELEM(type, OB_WIRE, OB_SOLID)) {
+	if (type == OB_SOLID) {
 		if (v3d->shading.type != type) {
 			v3d->shading.type = type;
 		}
@@ -4884,12 +4885,18 @@ static int toggle_shading_exec(bContext *C, wmOperator *op)
 		}
 	}
 	else {
-
+		char *prev_type = (
+		        (type == OB_WIRE) ?
+		        &v3d->shading.prev_type_wire :
+		        &v3d->shading.prev_type);
 		if (v3d->shading.type == type) {
-			v3d->shading.type = v3d->shading.prev_type;
+			if (*prev_type == type || !ELEM(*prev_type, OB_WIRE, OB_SOLID, OB_MATERIAL, OB_RENDER)) {
+				*prev_type = OB_SOLID;
+			}
+			v3d->shading.type = *prev_type;
 		}
 		else {
-			v3d->shading.prev_type = v3d->shading.type;
+			*prev_type = v3d->shading.type;
 			v3d->shading.type = type;
 		}
 	}

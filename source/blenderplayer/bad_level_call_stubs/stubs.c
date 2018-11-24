@@ -595,6 +595,7 @@ struct IDProperty *WM_toolsystem_ref_properties_ensure_idprops(struct bToolRef *
 
 struct wmKeyMap *WM_keymap_ensure(struct wmKeyConfig *keyconf, const char *idname, int spaceid, int regionid) RET_NULL
 void WM_toolsystem_ref_properties_ensure_ex(struct bToolRef *tref, const char *idname, struct StructRNA *type, struct PointerRNA *r_ptr) RET_NONE
+struct wmKeyMapItem *WM_keymap_add_item_copy(struct wmKeyMap *keymap, struct wmKeyMapItem *kmi_src) RET_NULL
 
 
 /* rna editors */

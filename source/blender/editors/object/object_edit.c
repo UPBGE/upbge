@@ -846,7 +846,7 @@ void OBJECT_OT_posemode_toggle(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static void copymenu_properties(ViewLayer *view_layer, Object *ob)
+static void copymenu_properties(ViewLayer *view_layer, Object *ob, View3D *v3d)
 {	
 //XXX no longer used - to be removed - replaced by game_properties_copy_exec
 	bProperty *prop;
@@ -880,7 +880,7 @@ static void copymenu_properties(ViewLayer *view_layer, Object *ob)
 	
 	if (nr == 1 || nr == 2) {
 		for (base = FIRSTBASE(view_layer); base; base = base->next) {
-			if ((base != BASACT(view_layer)) && (TESTBASELIB(base))) {
+			if ((base != BASACT(view_layer)) && (TESTBASELIB(v3d, base))) {
 				if (nr == 1) { /* replace */
 					BKE_bproperty_copy_list(&base->object->prop, &ob->prop);
 				}
@@ -897,7 +897,7 @@ static void copymenu_properties(ViewLayer *view_layer, Object *ob)
 		
 		if (prop) {
 			for (base = FIRSTBASE(view_layer); base; base = base->next) {
-				if ((base != BASACT(view_layer)) && (TESTBASELIB(base))) {
+				if ((base != BASACT(view_layer)) && (TESTBASELIB(v3d, base))) {
 					BKE_bproperty_object_set(base->object, prop);
 				}
 			}
@@ -907,14 +907,14 @@ static void copymenu_properties(ViewLayer *view_layer, Object *ob)
 	
 }
 
-static void copymenu_logicbricks(ViewLayer *view_layer, Object *ob)
+static void copymenu_logicbricks(ViewLayer *view_layer, Object *ob, View3D *v3d)
 {
 //XXX no longer used - to be removed - replaced by logicbricks_copy_exec
 	Base *base;
 	
 	for (base = FIRSTBASE(view_layer); base; base = base->next) {
 		if (base->object != ob) {
-			if (TESTBASELIB(base)) {
+			if (TESTBASELIB(v3d, base)) {
 				
 				/* first: free all logic */
 				free_sensors(&base->object->sensors);
@@ -993,7 +993,7 @@ static void copy_texture_space(Object *to, Object *ob)
 }
 
 /* UNUSED, keep in case we want to copy functionality for use elsewhere */
-static void copy_attr(Main *bmain, Scene *scene, ViewLayer *view_layer, short event)
+static void copy_attr(Main *bmain, Scene *scene, ViewLayer *view_layer, View3D *v3d, short event)
 {
 	Object *ob;
 	Base *base;
@@ -1009,11 +1009,11 @@ static void copy_attr(Main *bmain, Scene *scene, ViewLayer *view_layer, short ev
 		return;
 	}
 	if (event == 9) {
-		copymenu_properties(view_layer, ob);
+		copymenu_properties(view_layer, ob, v3d);
 		return;
 	}
 	else if (event == 10) {
-		copymenu_logicbricks(view_layer, ob);
+		copymenu_logicbricks(view_layer, ob, v3d);
 		return;
 	}
 	else if (event == 24) {
@@ -1024,7 +1024,7 @@ static void copy_attr(Main *bmain, Scene *scene, ViewLayer *view_layer, short ev
 
 	for (base = FIRSTBASE(view_layer); base; base = base->next) {
 		if (base != BASACT(view_layer)) {
-			if (TESTBASELIB(base)) {
+			if (TESTBASELIB(v3d, base)) {
 				DEG_id_tag_update(&base->object->id, OB_RECALC_DATA);
 
 				if (event == 1) {  /* loc */
@@ -1241,7 +1241,7 @@ static void copy_attr(Main *bmain, Scene *scene, ViewLayer *view_layer, short ev
 	}
 }
 
-static void UNUSED_FUNCTION(copy_attr_menu) (Main *bmain, Scene *scene, ViewLayer *view_layer, Object *obedit)
+static void UNUSED_FUNCTION(copy_attr_menu) (Main *bmain, Scene *scene, ViewLayer *view_layer, View3D *v3d, Object *obedit)
 {
 	Object *ob;
 	short event;
@@ -1295,7 +1295,7 @@ static void UNUSED_FUNCTION(copy_attr_menu) (Main *bmain, Scene *scene, ViewLaye
 	event = pupmenu(str);
 	if (event <= 0) return;
 
-	copy_attr(bmain, scene, view_layer, event);
+	copy_attr(bmain, scene, view_layer, v3d, event);
 }
 
 /* ******************* force field toggle operator ***************** */
