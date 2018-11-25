@@ -32,9 +32,6 @@
 
 #include "KX_GameObject.h"
 #include "KX_PythonComponent.h"
-#include "KX_Camera.h" // only for their ::Type
-#include "KX_LightObject.h"  // only for their ::Type
-#include "KX_FontObject.h"  // only for their ::Type
 #include "RAS_Mesh.h"
 #include "RAS_MeshUser.h"
 #include "RAS_BoundingBoxManager.h"
@@ -51,6 +48,7 @@
 #include "RAS_BucketManager.h"
 #include "KX_RayCast.h"
 #include "KX_Globals.h"
+#include "KX_PythonConvert.h"
 #include "KX_PyMath.h"
 #include "KX_NetworkMessageScene.h" //Needed for sendMessage()
 #include "KX_ObstacleSimulation.h"
@@ -1988,7 +1986,7 @@ PyObject *KX_GameObject::PyReplaceMesh(PyObject *args, PyObject *kwds)
 		return nullptr;
 	}
 
-	if (!ConvertPythonToMesh(GetScene(), value, &new_mesh, false, "gameOb.replaceMesh(value): KX_GameObject")) {
+	if (!ConvertFromPython(GetScene(), value, new_mesh, false, "gameOb.replaceMesh(value): KX_GameObject")) {
 		return nullptr;
 	}
 
@@ -2016,8 +2014,8 @@ PyObject *KX_GameObject::PyReinstancePhysicsMesh(PyObject *args, PyObject *kwds)
 
 	if (!EXP_ParseTupleArgsAndKeywords(args, kwds, "|OOi:reinstancePhysicsMesh",
 	                                   {"gameObject", "meshObject", "dupli", 0}, &gameobj_py, &mesh_py, &dupli) ||
-	    (gameobj_py && !ConvertPythonToGameObject(scene, gameobj_py, &gameobj, true, "gameOb.reinstancePhysicsMesh(obj, mesh, dupli): KX_GameObject")) ||
-	    (mesh_py && !ConvertPythonToMesh(scene, mesh_py, &mesh, true, "gameOb.reinstancePhysicsMesh(obj, mesh, dupli): KX_GameObject"))) {
+	    (gameobj_py && !ConvertFromPython(scene, gameobj_py, gameobj, true, "gameOb.reinstancePhysicsMesh(obj, mesh, dupli): KX_GameObject")) ||
+	    (mesh_py && !ConvertFromPython(scene, mesh_py, mesh, true, "gameOb.reinstancePhysicsMesh(obj, mesh, dupli): KX_GameObject"))) {
 		return nullptr;
 	}
 
@@ -2033,7 +2031,7 @@ PyObject *KX_GameObject::PyReplacePhysicsShape(PyObject *value)
 {
 	KX_GameObject *gameobj;
 
-	if (!ConvertPythonToGameObject(GetScene(), value, &gameobj, false, "gameOb.replacePhysicsShape(obj): KX_GameObject")) {
+	if (!ConvertFromPython(GetScene(), value, gameobj, false, "gameOb.replacePhysicsShape(obj): KX_GameObject")) {
 		return nullptr;
 	}
 
@@ -3051,7 +3049,7 @@ int KX_GameObject::pyattr_set_lodManager(EXP_PyObjectPlus *self_v, const EXP_PYA
 	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
 
 	KX_LodManager *lodManager = nullptr;
-	if (!ConvertPythonToLodManager(value, &lodManager, true, "gameobj.lodManager: KX_GameObject")) {
+	if (!ConvertFromPython(value, lodManager, true, "gameobj.lodManager: KX_GameObject")) {
 		return PY_SET_ATTR_FAIL;
 	}
 
@@ -3274,7 +3272,7 @@ PyObject *KX_GameObject::PySetParent(PyObject *args, PyObject *kwds)
 	                                   &pyobj, &addToCompound, &ghost)) {
 		return nullptr; // Python sets a simple error
 	}
-	if (!ConvertPythonToGameObject(GetScene(), pyobj, &obj, true, "gameOb.setParent(obj): KX_GameObject")) {
+	if (!ConvertFromPython(GetScene(), pyobj, obj, true, "gameOb.setParent(obj): KX_GameObject")) {
 		return nullptr;
 	}
 
@@ -3312,7 +3310,7 @@ PyObject *KX_GameObject::PyCollide(PyObject *value)
 	KX_Scene *scene = GetScene();
 	KX_GameObject *other;
 
-	if (!ConvertPythonToGameObject(scene, value, &other, false, "gameOb.collide(obj): KX_GameObject")) {
+	if (!ConvertFromPython(scene, value, other, false, "gameOb.collide(obj): KX_GameObject")) {
 		return nullptr;
 	}
 
@@ -3465,7 +3463,7 @@ EXP_PYMETHODDEF_DOC_O(KX_GameObject, getDistanceTo,
 	PyErr_Clear();
 
 	KX_GameObject *other;
-	if (ConvertPythonToGameObject(GetScene(), value, &other, false, "gameOb.getDistanceTo(value): KX_GameObject")) {
+	if (ConvertFromPython(GetScene(), value, other, false, "gameOb.getDistanceTo(value): KX_GameObject")) {
 		return PyFloat_FromDouble((NodeGetWorldPosition() - other->NodeGetWorldPosition()).Length());
 	}
 
@@ -3486,7 +3484,7 @@ EXP_PYMETHODDEF_DOC_O(KX_GameObject, getVectTo,
 		PyErr_Clear();
 
 		KX_GameObject *other;
-		if (ConvertPythonToGameObject(GetScene(), value, &other, false, "")) { /* error will be overwritten */
+		if (ConvertFromPython(GetScene(), value, other, false, "")) { /* error will be overwritten */
 			toPoint = other->NodeGetWorldPosition();
 		}
 		else {
@@ -3579,7 +3577,7 @@ EXP_PYMETHODDEF_DOC(KX_GameObject, rayCastTo,
 		KX_GameObject *other;
 		PyErr_Clear();
 
-		if (ConvertPythonToGameObject(GetScene(), pyarg, &other, false, "")) { /* error will be overwritten */
+		if (ConvertFromPython(GetScene(), pyarg, other, false, "")) { /* error will be overwritten */
 			toPoint = other->NodeGetWorldPosition();
 		}
 		else {
@@ -3698,7 +3696,7 @@ EXP_PYMETHODDEF_DOC(KX_GameObject, rayCast,
 	if (!PyVecTo(pyto, toPoint)) {
 		PyErr_Clear();
 
-		if (ConvertPythonToGameObject(scene, pyto, &other, false, "")) { /* error will be overwritten */
+		if (ConvertFromPython(scene, pyto, other, false, "")) { /* error will be overwritten */
 			toPoint = other->NodeGetWorldPosition();
 		}
 		else {
@@ -3712,7 +3710,7 @@ EXP_PYMETHODDEF_DOC(KX_GameObject, rayCast,
 	else if (!PyVecTo(pyfrom, fromPoint)) {
 		PyErr_Clear();
 
-		if (ConvertPythonToGameObject(scene, pyfrom, &other, false, "")) { /* error will be overwritten */
+		if (ConvertFromPython(scene, pyfrom, other, false, "")) { /* error will be overwritten */
 			fromPoint = other->NodeGetWorldPosition();
 		}
 		else {
@@ -3974,63 +3972,4 @@ EXP_PYMETHODDEF_DOC(KX_GameObject, addDebugProperty,
 	Py_RETURN_NONE;
 }
 
-bool ConvertPythonToGameObject(KX_Scene *scene, PyObject *value, KX_GameObject **object, bool py_none_ok, const char *error_prefix)
-{
-	if (value == nullptr) {
-		PyErr_Format(PyExc_TypeError, "%s, python pointer nullptr, should never happen", error_prefix);
-		*object = nullptr;
-		return false;
-	}
-
-	if (value == Py_None) {
-		*object = nullptr;
-
-		if (py_none_ok) {
-			return true;
-		}
-		else {
-			PyErr_Format(PyExc_TypeError, "%s, expected KX_GameObject or a KX_GameObject name, None is invalid", error_prefix);
-			return false;
-		}
-	}
-
-	if (PyUnicode_Check(value)) {
-		*object = scene->GetResources().FindObject(std::string(_PyUnicode_AsString(value)));
-
-		if (*object) {
-			return true;
-		}
-		else {
-			PyErr_Format(PyExc_ValueError, "%s, requested name \"%s\" did not match any KX_GameObject in this scene", error_prefix, _PyUnicode_AsString(value));
-			return false;
-		}
-	}
-
-	if (PyObject_TypeCheck(value, &KX_GameObject::Type) ||
-	    PyObject_TypeCheck(value, &KX_LightObject::Type)    ||
-	    PyObject_TypeCheck(value, &KX_Camera::Type)         ||
-	    PyObject_TypeCheck(value, &KX_FontObject::Type) ||
-	    PyObject_TypeCheck(value, &KX_NavMeshObject::Type)) {
-		*object = static_cast<KX_GameObject *>EXP_PROXY_REF(value);
-
-		/* sets the error */
-		if (*object == nullptr) {
-			PyErr_Format(PyExc_SystemError, "%s, " EXP_PROXY_ERROR_MSG, error_prefix);
-			return false;
-		}
-
-		return true;
-	}
-
-	*object = nullptr;
-
-	if (py_none_ok) {
-		PyErr_Format(PyExc_TypeError, "%s, expect a KX_GameObject, a string or None", error_prefix);
-	}
-	else {
-		PyErr_Format(PyExc_TypeError, "%s, expect a KX_GameObject or a string", error_prefix);
-	}
-
-	return false;
-}
 #endif // WITH_PYTHON

@@ -38,8 +38,9 @@
 #include "PHY_IVehicle.h"
 #include "PHY_DynamicTypes.h"
 
-#include "KX_GameObject.h" // ConvertPythonToGameObject()
+#include "KX_GameObject.h" // ConvertFromPython()
 #include "KX_Globals.h"
+#include "KX_PythonConvert.h"
 
 #include "EXP_PyObjectPlus.h"
 
@@ -443,7 +444,7 @@ static PyObject *gPyGetCharacter(PyObject *self,
 		return nullptr;
 	}
 
-	if (!ConvertPythonToGameObject(KX_GetActiveScene(), pyob, &ob, false, "bge.constraints.getCharacter(value)")) {
+	if (!ConvertFromPython(KX_GetActiveScene(), pyob, ob, false, "bge.constraints.getCharacter(value)")) {
 		return nullptr;
 	}
 

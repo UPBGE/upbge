@@ -462,8 +462,4 @@ public:
 #endif
 };
 
-#ifdef WITH_PYTHON
-bool ConvertPythonToScene(PyObject *value, KX_Scene **scene, bool py_none_ok, const char *error_prefix);
-#endif
-
 #endif  // __KX_SCENE_H__

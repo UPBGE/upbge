@@ -28,6 +28,7 @@
 #include "KX_GameObject.h"
 #include "KX_MotionState.h"
 #include "KX_Globals.h"
+#include "KX_PythonConvert.h"
 
 #include "DNA_object_types.h" // for OB_MAX_COL_MASKS
 
@@ -75,7 +76,7 @@ PyObject *KX_VehicleWrapper::PyAddWheel(PyObject *args)
 
 	if (PyArg_ParseTuple(args, "OOOOffi:addWheel", &wheelGameObject, &pylistPos, &pylistDir, &pylistAxleDir, &suspensionRestLength, &wheelRadius, &hasSteering)) {
 		KX_GameObject *gameOb;
-		if (!ConvertPythonToGameObject(KX_GetActiveScene(), wheelGameObject, &gameOb, false, "vehicle.addWheel(...): KX_VehicleWrapper (first argument)")) {
+		if (!ConvertFromPython(KX_GetActiveScene(), wheelGameObject, gameOb, false, "vehicle.addWheel(...): KX_VehicleWrapper (first argument)")) {
 			return nullptr;
 		}
 

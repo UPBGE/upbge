@@ -17,6 +17,7 @@ BL_ResourceCollection::BL_ResourceCollection(const BL_SceneConverter& converter)
 {
 	for (KX_BlenderMaterial *mat : converter.m_materials) {
 		m_materials.emplace_back(mat);
+		m_nameToMaterials[mat->GetName()] = mat;
 	}
 	for (KX_Mesh *mesh : converter.m_meshes) {
 		m_meshes.emplace_back(mesh);
@@ -27,6 +28,7 @@ BL_ResourceCollection::BL_ResourceCollection(const BL_SceneConverter& converter)
 	}
 
 	for (BL_ActionData *action : converter.m_actions) {
+		m_actions.emplace_back(action);
 		m_nameToActions[action->GetName()] = action;
 	}
 
@@ -158,7 +160,12 @@ KX_GameObject *BL_ResourceCollection::FindObject(const std::string& name) const
 	return CM_MapGetItemNoInsert(m_nameToObjects, name);
 }
 
-BL_ActionData  *BL_ResourceCollection::FindAction(const std::string& name) const
+BL_ActionData *BL_ResourceCollection::FindAction(const std::string& name) const
 {
 	return CM_MapGetItemNoInsert(m_nameToActions, name);
+}
+
+KX_BlenderMaterial *BL_ResourceCollection::FindMaterial(const std::string& name) const
+{
+	return CM_MapGetItemNoInsert(m_nameToMaterials, name);
 }

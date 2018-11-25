@@ -27,6 +27,7 @@
 #include "KX_TextureRenderer.h"
 #include "KX_GameObject.h"
 #include "KX_Globals.h"
+#include "KX_PythonConvert.h"
 
 #include "DNA_texture_types.h"
 
@@ -171,7 +172,7 @@ int KX_TextureRenderer::pyattr_set_viewpoint_object(EXP_PyObjectPlus *self_v, co
 	KX_TextureRenderer *self = static_cast<KX_TextureRenderer *>(self_v);
 	KX_GameObject *gameobj = nullptr;
 
-	if (!ConvertPythonToGameObject(KX_GetActiveScene(), value, &gameobj, true, "renderer.object = value: KX_TextureRenderer")) {
+	if (!ConvertFromPython(KX_GetActiveScene(), value, gameobj, true, "renderer.object = value: KX_TextureRenderer")) {
 		return PY_SET_ATTR_FAIL;
 	}
 

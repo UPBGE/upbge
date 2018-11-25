@@ -41,6 +41,7 @@
 #include "GPU_glew.h"
 
 #include "KX_Globals.h"
+#include "KX_PythonConvert.h"
 #include "KX_Mesh.h"
 #include "DNA_scene_types.h"
 #include "RAS_OffScreen.h"
@@ -490,7 +491,7 @@ static int ImageRender_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 
 		// get camera pointer
 		KX_Camera *cameraPtr(nullptr);
-		if (!ConvertPythonToCamera(scenePtr, camera, &cameraPtr, false, "")) {
+		if (!ConvertFromPython(scenePtr, camera, cameraPtr, false, "")) {
 			THRWEXCP(CameraInvalid, S_OK);
 		}
 
@@ -763,7 +764,7 @@ static int ImageMirror_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 
 		// get observer pointer
 		KX_GameObject *observerPtr(nullptr);
-		if (!ConvertPythonToGameObject(scenePtr, observer, &observerPtr, false, "")) {
+		if (!ConvertFromPython(scenePtr, observer, observerPtr, false, "")) {
 			THRWEXCP(ObserverInvalid, S_OK);
 		}
 
@@ -773,7 +774,7 @@ static int ImageMirror_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 
 		// get mirror pointer
 		KX_GameObject *mirrorPtr(nullptr);
-		if (!ConvertPythonToGameObject(scenePtr, mirror, &mirrorPtr, false, "")) {
+		if (!ConvertFromPython(scenePtr, mirror, mirrorPtr, false, "")) {
 			THRWEXCP(MirrorInvalid, S_OK);
 		}
 

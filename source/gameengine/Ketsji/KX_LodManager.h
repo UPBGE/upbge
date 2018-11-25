@@ -113,11 +113,4 @@ public:
 #endif //WITH_PYTHON
 };
 
-#ifdef WITH_PYTHON
-
-/// Utility python conversion function.
-bool ConvertPythonToLodManager(PyObject *value, KX_LodManager **object, bool py_none_ok, const char *error_prefix);
-
-#endif  // WITH_PYTHON
-
 #endif  // __KX_LOD_MANAGER_H__

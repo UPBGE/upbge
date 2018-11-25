@@ -41,12 +41,6 @@
 class KX_Mesh;
 class KX_Scene;
 
-#ifdef WITH_PYTHON
-// utility conversion function
-bool ConvertPythonToMesh(KX_Scene *scene, PyObject *value, KX_Mesh **object, bool py_none_ok, const char *error_prefix);
-
-#endif  // WITH_PYTHON
-
 class KX_Mesh : public EXP_Value, public BL_Resource, public RAS_Mesh
 {
 	Py_Header

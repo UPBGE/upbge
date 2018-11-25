@@ -37,6 +37,7 @@
 
 #include "KX_Scene.h"
 #include "KX_Globals.h"
+#include "KX_PythonConvert.h"
 #include "BLI_utildefines.h"
 #include "KX_KetsjiEngine.h"
 #include "KX_BlenderMaterial.h"
@@ -1633,7 +1634,7 @@ int KX_Scene::pyattr_set_active_camera(EXP_PyObjectPlus *self_v, const EXP_PYATT
 	KX_Scene *self = static_cast<KX_Scene *>(self_v);
 	KX_Camera *camOb;
 
-	if (!ConvertPythonToCamera(self, value, &camOb, false, "scene.active_camera = value: KX_Scene")) {
+	if (!ConvertFromPython(self, value, camOb, false, "scene.active_camera = value: KX_Scene")) {
 		return PY_SET_ATTR_FAIL;
 	}
 
@@ -1658,7 +1659,7 @@ int KX_Scene::pyattr_set_overrideCullingCamera(EXP_PyObjectPlus *self_v, const E
 	KX_Scene *self = static_cast<KX_Scene *>(self_v);
 	KX_Camera *cam;
 
-	if (!ConvertPythonToCamera(self, value, &cam, true, "scene.active_camera = value: KX_Scene")) {
+	if (!ConvertFromPython(self, value, cam, true, "scene.active_camera = value: KX_Scene")) {
 		return PY_SET_ATTR_FAIL;
 	}
 
@@ -1790,8 +1791,8 @@ EXP_PYMETHODDEF_DOC(KX_Scene, addObject,
 		return nullptr;
 	}
 
-	if (!ConvertPythonToGameObject(this, pyob, &ob, false, "scene.addObject(object, reference, time): KX_Scene (first argument)") ||
-	    !ConvertPythonToGameObject(this, pyreference, &reference, true, "scene.addObject(object, reference, time): KX_Scene (second argument)")) {
+	if (!ConvertFromPython(this, pyob, ob, false, "scene.addObject(object, reference, time): KX_Scene (first argument)") ||
+	    !ConvertFromPython(this, pyreference, reference, true, "scene.addObject(object, reference, time): KX_Scene (second argument)")) {
 		return nullptr;
 	}
 
@@ -1868,62 +1869,6 @@ EXP_PYMETHODDEF_DOC(KX_Scene, drawObstacleSimulation,
 	}
 
 	Py_RETURN_NONE;
-}
-
-bool ConvertPythonToScene(PyObject *value, KX_Scene **scene, bool py_none_ok, const char *error_prefix)
-{
-	if (value == nullptr) {
-		PyErr_Format(PyExc_TypeError, "%s, python pointer nullptr, should never happen", error_prefix);
-		*scene = nullptr;
-		return false;
-	}
-
-	if (value == Py_None) {
-		*scene = nullptr;
-
-		if (py_none_ok) {
-			return true;
-		}
-		else {
-			PyErr_Format(PyExc_TypeError, "%s, expected KX_Scene or a KX_Scene name, None is invalid", error_prefix);
-			return false;
-		}
-	}
-
-	if (PyUnicode_Check(value)) {
-		*scene = KX_GetActiveEngine()->FindScene(std::string(_PyUnicode_AsString(value)));
-
-		if (*scene) {
-			return true;
-		}
-		else {
-			PyErr_Format(PyExc_ValueError, "%s, requested name \"%s\" did not match any in game", error_prefix, _PyUnicode_AsString(value));
-			return false;
-		}
-	}
-
-	if (PyObject_TypeCheck(value, &KX_Scene::Type)) {
-		*scene = static_cast<KX_Scene *>EXP_PROXY_REF(value);
-
-		// Sets the error.
-		if (*scene == nullptr) {
-			PyErr_Format(PyExc_SystemError, "%s, " EXP_PROXY_ERROR_MSG, error_prefix);
-			return false;
-		}
-
-		return true;
-	}
-
-	*scene = nullptr;
-
-	if (py_none_ok) {
-		PyErr_Format(PyExc_TypeError, "%s, expect a KX_Scene, a string or None", error_prefix);
-	}
-	else {
-		PyErr_Format(PyExc_TypeError, "%s, expect a KX_Scene or a string", error_prefix);
-	}
-
-	return false;
 }
 
 #endif  // WITH_PYTHON

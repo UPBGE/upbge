@@ -34,13 +34,16 @@ public:
 
 private:
 	UniquePtrList<KX_BlenderMaterial> m_materials;
-	UniquePtrList<KX_Mesh> m_meshes;
-	UniquePtrList<BL_ActionData> m_actions;
-	UniquePtrList<BL_ConvertObjectInfo> m_objectInfos;
+	NameToResource<KX_BlenderMaterial> m_nameToMaterials;
 
+	UniquePtrList<KX_Mesh> m_meshes;
 	NameToResource<KX_Mesh> m_nameToMeshes;
-	NameToResource<KX_GameObject> m_nameToObjects;
+
+	UniquePtrList<BL_ActionData> m_actions;
 	NameToResource<BL_ActionData> m_nameToActions;
+
+	UniquePtrList<BL_ConvertObjectInfo> m_objectInfos;
+	NameToResource<KX_GameObject> m_nameToObjects;
 
 public:
 	BL_ResourceCollection();
@@ -67,6 +70,35 @@ public:
 	KX_Mesh *FindMesh(const std::string& name) const;
 	KX_GameObject *FindObject(const std::string& name) const;
 	BL_ActionData *FindAction(const std::string& name) const;
+	KX_BlenderMaterial *FindMaterial(const std::string& name) const;
+
+	// Template version of Find[Object] functions.
+	template <class Object>
+	Object *Find(const std::string& name) const;
 };
+
+template <>
+inline KX_Mesh *BL_ResourceCollection::Find<KX_Mesh>(const std::string& name) const
+{
+	return FindMesh(name);
+}
+
+template <>
+inline KX_GameObject *BL_ResourceCollection::Find<KX_GameObject>(const std::string& name) const
+{
+	return FindObject(name);
+}
+
+template <>
+inline BL_ActionData *BL_ResourceCollection::Find<BL_ActionData>(const std::string& name) const
+{
+	return FindAction(name);
+}
+
+template <>
+inline KX_BlenderMaterial *BL_ResourceCollection::Find<KX_BlenderMaterial>(const std::string& name) const
+{
+	return FindMaterial(name);
+}
 
 #endif  // __BL_RESSOURCE_COLLECTION__

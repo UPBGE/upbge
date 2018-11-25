@@ -219,48 +219,4 @@ PyObject *KX_LodManager::pyattr_get_levels(EXP_PyObjectPlus *self_v, const EXP_P
 	return (new EXP_ListWrapper<KX_LodManager, &KX_LodManager::py_get_levels_size, &KX_LodManager::py_get_levels_item>(self_v))->NewProxy(true);
 }
 
-bool ConvertPythonToLodManager(PyObject *value, KX_LodManager **object, bool py_none_ok, const char *error_prefix)
-{
-	if (value == nullptr) {
-		PyErr_Format(PyExc_TypeError, "%s, python pointer nullptr, should never happen", error_prefix);
-		*object = nullptr;
-		return false;
-	}
-
-	if (value == Py_None) {
-		*object = nullptr;
-
-		if (py_none_ok) {
-			return true;
-		}
-		else {
-			PyErr_Format(PyExc_TypeError, "%s, expected KX_LodManager, None is invalid", error_prefix);
-			return false;
-		}
-	}
-
-	if (PyObject_TypeCheck(value, &KX_LodManager::Type)) {
-		*object = static_cast<KX_LodManager *>EXP_PROXY_REF(value);
-
-		/* sets the error */
-		if (*object == nullptr) {
-			PyErr_Format(PyExc_SystemError, "%s, " EXP_PROXY_ERROR_MSG, error_prefix);
-			return false;
-		}
-
-		return true;
-	}
-
-	*object = nullptr;
-
-	if (py_none_ok) {
-		PyErr_Format(PyExc_TypeError, "%s, expect a KX_LodManager or None", error_prefix);
-	}
-	else {
-		PyErr_Format(PyExc_TypeError, "%s, expect a KX_LodManager", error_prefix);
-	}
-
-	return false;
-}
-
 #endif //WITH_PYTHON

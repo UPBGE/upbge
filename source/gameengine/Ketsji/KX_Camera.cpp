@@ -34,6 +34,7 @@
 #include "KX_Camera.h"
 #include "KX_Scene.h"
 #include "KX_Globals.h"
+#include "KX_PythonConvert.h"
 #include "KX_PyMath.h"
 #include "KX_RayCast.h"
 
@@ -769,66 +770,6 @@ PyObject *KX_Camera::pyattr_get_INTERSECT(EXP_PyObjectPlus *self_v, const EXP_PY
 	return PyLong_FromLong(INTERSECT);
 }
 
-
-bool ConvertPythonToCamera(KX_Scene *scene, PyObject *value, KX_Camera **object, bool py_none_ok, const char *error_prefix)
-{
-	if (value == nullptr) {
-		PyErr_Format(PyExc_TypeError, "%s, python pointer nullptr, should never happen", error_prefix);
-		*object = nullptr;
-		return false;
-	}
-
-	if (value == Py_None) {
-		*object = nullptr;
-
-		if (py_none_ok) {
-			return true;
-		}
-		else {
-			PyErr_Format(PyExc_TypeError, "%s, expected KX_Camera or a KX_Camera name, None is invalid", error_prefix);
-			return false;
-		}
-	}
-
-	if (PyUnicode_Check(value)) {
-		std::string value_str = _PyUnicode_AsString(value);
-		*object = scene->GetCameraList().FindValue(value_str);
-
-		if (*object) {
-			return true;
-		}
-		else {
-			PyErr_Format(PyExc_ValueError,
-			             "%s, requested name \"%s\" did not match any KX_Camera in this scene",
-			             error_prefix, _PyUnicode_AsString(value));
-			return false;
-		}
-	}
-
-	if (PyObject_TypeCheck(value, &KX_Camera::Type)) {
-		*object = static_cast<KX_Camera *>EXP_PROXY_REF(value);
-
-		/* sets the error */
-		if (*object == nullptr) {
-			PyErr_Format(PyExc_SystemError, "%s, " EXP_PROXY_ERROR_MSG, error_prefix);
-			return false;
-		}
-
-		return true;
-	}
-
-	*object = nullptr;
-
-	if (py_none_ok) {
-		PyErr_Format(PyExc_TypeError, "%s, expect a KX_Camera, a string or None", error_prefix);
-	}
-	else {
-		PyErr_Format(PyExc_TypeError, "%s, expect a KX_Camera or a string", error_prefix);
-	}
-
-	return false;
-}
-
 EXP_PYMETHODDEF_DOC_O(KX_Camera, getScreenPosition,
                       "getScreenPosition()\n"
                       )
@@ -840,7 +781,7 @@ EXP_PYMETHODDEF_DOC_O(KX_Camera, getScreenPosition,
 	if (!PyVecTo(value, vect)) {
 		PyErr_Clear();
 
-		if (ConvertPythonToGameObject(GetScene(), value, &obj, false, "")) {
+		if (ConvertFromPython(GetScene(), value, obj, false, "")) {
 			PyErr_Clear();
 			vect = mt::vec3(obj->NodeGetWorldPosition());
 		}

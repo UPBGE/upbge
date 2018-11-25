@@ -86,6 +86,7 @@ extern "C" {
 #include "EXP_ListValue.h"
 #include "KX_Scene.h"
 #include "KX_Globals.h"
+#include "KX_PythonConvert.h"
 
 #include "KX_NetworkMessageScene.h" //Needed for sendMessage()
 
@@ -296,7 +297,7 @@ static PyObject *gPySendMessage(PyObject *, PyObject *args)
 		return nullptr;
 	}
 
-	if (!ConvertPythonToGameObject(scene, pyfrom, &from, true, "sendMessage(subject, [body, to, from]): \"from\" argument")) {
+	if (!ConvertFromPython(scene, pyfrom, from, true, "sendMessage(subject, [body, to, from]): \"from\" argument")) {
 		return nullptr;
 	}
 
@@ -629,7 +630,7 @@ static PyObject *gLibLoad(PyObject *, PyObject *args, PyObject *kwds)
 		return nullptr;
 	}
 
-	if (!ConvertPythonToScene(pyscene, &kx_scene, true, "invalid scene")) {
+	if (!ConvertFromPython(pyscene, kx_scene, true, "invalid scene")) {
 		return nullptr;
 	}
 	if (!kx_scene) {

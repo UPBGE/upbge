@@ -32,7 +32,7 @@
 #include "KX_Mesh.h"
 #include "KX_Scene.h"
 #include "KX_Globals.h"
-#include "KX_KetsjiEngine.h"
+#include "KX_PythonConvert.h"
 
 #include "BL_Converter.h"
 
@@ -358,7 +358,7 @@ PyObject *KX_Mesh::PyReplaceMaterial(PyObject *args, PyObject *kwds)
 	KX_BlenderMaterial *mat;
 
 	if (!PyArg_ParseTuple(args, "hO:replaceMaterial", &matindex, &pymat) ||
-	    !ConvertPythonToMaterial(pymat, &mat, false, "mesh.replaceMaterial(...): invalid material")) {
+	    !ConvertFromPython(m_scene, pymat, mat, false, "mesh.replaceMaterial(...): invalid material")) {
 		return nullptr;
 	}
 
@@ -515,64 +515,6 @@ PyObject *KX_Mesh::py_get_polygons_item(unsigned int index)
 PyObject *KX_Mesh::pyattr_get_polygons(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	return (new EXP_ListWrapper<KX_Mesh, &KX_Mesh::py_get_polygons_size, &KX_Mesh::py_get_polygons_item>(self_v))->NewProxy(true);
-}
-
-/* a close copy of ConvertPythonToGameObject but for meshes */
-bool ConvertPythonToMesh(KX_Scene *scene, PyObject *value, KX_Mesh **object, bool py_none_ok, const char *error_prefix)
-{
-	if (value == nullptr) {
-		PyErr_Format(PyExc_TypeError, "%s, python pointer nullptr, should never happen", error_prefix);
-		*object = nullptr;
-		return false;
-	}
-
-	if (value == Py_None) {
-		*object = nullptr;
-
-		if (py_none_ok) {
-			return true;
-		}
-		else {
-			PyErr_Format(PyExc_TypeError, "%s, expected KX_Mesh or a KX_Mesh name, None is invalid", error_prefix);
-			return false;
-		}
-	}
-
-	if (PyUnicode_Check(value)) {
-		*object = scene->GetResources().FindMesh(std::string(_PyUnicode_AsString(value)));
-
-		if (*object) {
-			return true;
-		}
-		else {
-			PyErr_Format(PyExc_ValueError, "%s, requested name \"%s\" did not match any KX_Mesh in this scene", error_prefix, _PyUnicode_AsString(value));
-			return false;
-		}
-	}
-
-	if (PyObject_TypeCheck(value, &KX_Mesh::Type)) {
-		KX_Mesh *kx_mesh = static_cast<KX_Mesh *>EXP_PROXY_REF(value);
-
-		/* sets the error */
-		if (kx_mesh == nullptr) {
-			PyErr_Format(PyExc_SystemError, "%s, " EXP_PROXY_ERROR_MSG, error_prefix);
-			return false;
-		}
-
-		*object = kx_mesh;
-		return true;
-	}
-
-	*object = nullptr;
-
-	if (py_none_ok) {
-		PyErr_Format(PyExc_TypeError, "%s, expect a KX_Mesh, a string or None", error_prefix);
-	}
-	else {
-		PyErr_Format(PyExc_TypeError, "%s, expect a KX_Mesh or a string", error_prefix);
-	}
-
-	return false;
 }
 
 #endif // WITH_PYTHON

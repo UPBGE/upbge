@@ -50,6 +50,7 @@
 
 #include "KX_KetsjiEngine.h"
 #include "KX_Globals.h"
+#include "KX_PythonConvert.h"
 #include "KX_Mesh.h"
 #include "Texture.h"
 #include "ImageBase.h"
@@ -223,7 +224,7 @@ short getMaterialID(PyObject *obj, const char *name)
 	{
 		// get material
 		KX_GameObject *gameObj;
-		if (!ConvertPythonToGameObject(KX_GetActiveScene(), obj, &gameObj, false, "")) {
+		if (!ConvertFromPython(KX_GetActiveScene(), obj, gameObj, false, "")) {
 			break;
 		}
 
@@ -295,7 +296,7 @@ static int Texture_init(PyObject *self, PyObject *args, PyObject *kwds)
 	}
 
 	KX_GameObject *gameObj = nullptr;
-	if (ConvertPythonToGameObject(KX_GetActiveScene(), obj, &gameObj, false, "")) {
+	if (ConvertFromPython(KX_GetActiveScene(), obj, gameObj, false, "")) {
 		// process polygon material or blender material
 		try
 		{

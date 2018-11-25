@@ -66,11 +66,6 @@ class KX_CollisionContactPointList;
 struct Object;
 struct bRigidBodyJointConstraint;
 
-#ifdef WITH_PYTHON
-/* utility conversion function */
-bool ConvertPythonToGameObject(KX_Scene *scene, PyObject *value, KX_GameObject **object, bool py_none_ok, const char *error_prefix);
-#endif
-
 #ifdef USE_MATHUTILS
 void KX_GameObject_Mathutils_Callback_Init(void);
 #endif

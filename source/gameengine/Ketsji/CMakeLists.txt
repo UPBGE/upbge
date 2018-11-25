@@ -172,6 +172,7 @@ set(SRC
 	KX_PythonInit.h
 	KX_PythonInitTypes.h
 	KX_PythonMain.h
+	KX_PythonConvert.h
 	KX_RayCast.h
 	KX_BoneParentNodeRelationship.h
 	KX_NodeRelationships.h
