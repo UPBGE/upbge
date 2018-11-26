@@ -232,7 +232,8 @@ typedef struct View3D {
 
 	char ob_centre_bone[64];		/* optional string for armature bone to define center, MAXBONENAME */
 
-	unsigned int lay DNA_DEPRECATED;
+	unsigned short local_view_uuid;
+	short _pad6;
 	int layact DNA_DEPRECATED;
 
 	short ob_centre_cursor;		/* optional bool for 3d cursor to define center */
@@ -244,8 +245,6 @@ typedef struct View3D {
 	float lens, grid;
 	float near, far;
 	float ofs[3]  DNA_DEPRECATED;			/* XXX deprecated */
-
-	View3DCursor cursor;
 
 	char _pad[4];
 

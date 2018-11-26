@@ -456,7 +456,7 @@ static Base **do_pose_tag_select_op_prepare(ViewContext *vc, uint *r_bases_len)
 {
 	Base **bases = NULL;
 	BLI_array_declare(bases);
-	FOREACH_BASE_IN_MODE_BEGIN (vc->view_layer, OB_MODE_POSE, base_iter) {
+	FOREACH_BASE_IN_MODE_BEGIN (vc->view_layer, vc->v3d, OB_MODE_POSE, base_iter) {
 		Object *ob_iter = base_iter->object;
 		bArmature *arm = ob_iter->data;
 		for (bPoseChannel *pchan = ob_iter->pose->chanbase.first; pchan; pchan = pchan->next) {
@@ -1001,7 +1001,7 @@ static void view3d_lasso_select(
 	}
 	else { /* Edit Mode */
 
-		FOREACH_OBJECT_IN_MODE_BEGIN (vc->view_layer, ob->mode, ob_iter) {
+		FOREACH_OBJECT_IN_MODE_BEGIN (vc->view_layer, vc->v3d, ob->mode, ob_iter) {
 			ED_view3d_viewcontext_init_object(vc, ob_iter);
 
 			switch (vc->obedit->type) {
@@ -1647,7 +1647,8 @@ static bool ed_object_select_pick(
 		// TIMEIT_START(select_time);
 
 		/* if objects have posemode set, the bones are in the same selection buffer */
-		const eV3DSelectObjectFilter select_filter = ED_view3d_select_filter_from_mode(scene, vc.obact);
+		const eV3DSelectObjectFilter select_filter = (
+		        (object == false) ? ED_view3d_select_filter_from_mode(scene, vc.obact) : VIEW3D_SELECT_FILTER_NOP);
 		hits = mixed_bones_object_selectbuffer(
 		        &vc, buffer, mval,
 		        true, enumerate, select_filter,
@@ -1729,7 +1730,7 @@ static bool ed_object_select_pick(
 					}
 				}
 				else if (ED_armature_pose_select_pick_with_buffer(
-				                 view_layer, basact, buffer, hits, extend, deselect, toggle, do_nearest))
+				                 view_layer, v3d, basact, buffer, hits, extend, deselect, toggle, do_nearest))
 				{
 					/* then bone is found */
 
@@ -2086,8 +2087,8 @@ static void do_mesh_box_select__doSelectEdge_pass0(
 	const int sel_op_result = ED_select_op_action_deselected(data->sel_op, is_select, is_inside);
 	if (sel_op_result != -1) {
 		BM_edge_select_set(data->vc->em->bm, eed, sel_op_result);
+		data->is_done = true;
 	}
-	data->is_done = true;
 }
 static void do_mesh_box_select__doSelectEdge_pass1(
         void *userData, BMEdge *eed, const float screen_co_a[2], const float screen_co_b[2], int index)
@@ -2252,7 +2253,7 @@ static int do_armature_box_select(
 	        VIEW3D_SELECT_ALL, VIEW3D_SELECT_FILTER_NOP);
 
 	uint objects_len = 0;
-	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(vc->view_layer, &objects_len);
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(vc->view_layer, vc->v3d, &objects_len);
 
 	/* clear flag we use to detect point was affected */
 	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
@@ -2531,7 +2532,7 @@ static int view3d_box_select_exec(bContext *C, wmOperator *op)
 
 	if (vc.obedit) {
 
-		FOREACH_OBJECT_IN_MODE_BEGIN (vc.view_layer, vc.obedit->mode, ob_iter) {
+		FOREACH_OBJECT_IN_MODE_BEGIN (vc.view_layer, vc.v3d, vc.obedit->mode, ob_iter) {
 			ED_view3d_viewcontext_init_object(&vc, ob_iter);
 
 			switch (vc.obedit->type) {
@@ -3264,7 +3265,7 @@ static int view3d_circle_select_exec(bContext *C, wmOperator *op)
 	{
 		view3d_operator_needs_opengl(C);
 
-		FOREACH_OBJECT_IN_MODE_BEGIN (vc.view_layer, obact->mode, ob_iter) {
+		FOREACH_OBJECT_IN_MODE_BEGIN (vc.view_layer, vc.v3d, obact->mode, ob_iter) {
 			ED_view3d_viewcontext_init_object(&vc, ob_iter);
 
 			obact = vc.obact;

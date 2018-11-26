@@ -609,6 +609,7 @@ class VIEW3D_MT_view(Menu):
 
         layout.operator("view3d.view_all", text="Frame All").center = False
         layout.operator("view3d.view_persportho", text="Perspective/Orthographic")
+        layout.operator("view3d.localview")
 
         layout.separator()
 
@@ -3889,6 +3890,7 @@ class VIEW3D_MT_shading_ex_pie(Menu):
         view = context.space_data
 
         pie.prop_enum(view.shading, "type", value='WIREFRAME')
+        pie.prop_enum(view.shading, "type", value='SOLID')
 
         xray_active = (
             (context.mode in {'POSE', 'EDIT_MESH'}) or
@@ -3903,7 +3905,6 @@ class VIEW3D_MT_shading_ex_pie(Menu):
 
         pie.prop(view.overlay, "show_overlays", text="Toggle Overlays", icon='OVERLAY')
 
-        pie.prop_enum(view.shading, "type", value='SOLID')
         pie.prop_enum(view.shading, "type", value='MATERIAL')
         pie.prop_enum(view.shading, "type", value='RENDERED')
 
@@ -4051,9 +4052,9 @@ class VIEW3D_PT_view3d_cursor(Panel):
         layout = self.layout
         layout.use_property_split = True
 
-        view = context.space_data
+        scene = context.scene
 
-        layout.column().prop(view, "cursor_location", text="Location")
+        layout.column().prop(scene, "cursor_location", text="Location")
 
 
 class VIEW3D_PT_collections(Panel):

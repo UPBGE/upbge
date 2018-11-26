@@ -157,7 +157,7 @@ void LA_BlenderLauncher::InitEngine()
 	m_savedBlenderData.camera = m_startScene->camera;
 
 	if (m_view3d->scenelock == 0) {
-		m_startScene->lay = m_view3d->lay;
+		m_startScene->lay = m_view3d->local_view_uuid;
 		m_startScene->camera = m_view3d->camera;
 	}
 

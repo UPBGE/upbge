@@ -93,6 +93,10 @@ static void do_versions_theme(UserDef *userdef, bTheme *btheme)
 		copy_v4_v4_char(btheme->tclip.list_text, U_theme_default.tclip.list_text);
 	}
 
+	if (!USER_VERSION_ATLEAST(280, 33)) {
+		copy_v4_v4_char(btheme->tuserpref.navigation_bar, U_theme_default.tuserpref.navigation_bar);
+	}
+
 #undef USER_VERSION_ATLEAST
 }
 
@@ -404,6 +408,11 @@ void BLO_version_defaults_userpref_blend(Main *bmain, UserDef *userdef)
 			wmKeyConfigPref *kpt = BKE_keyconfig_pref_ensure(userdef, WM_KEYCONFIG_STR_DEFAULT);
 			IDP_AddToGroup(kpt->prop, IDP_New(IDP_INT, &(IDPropertyTemplate){ .i = 0, }, "select_mouse"));
 		}
+	}
+
+	if (!USER_VERSION_ATLEAST(280, 33)) {
+		/* Enable GLTF addon by default. */
+		BKE_addon_ensure(&userdef->addons, "io_scene_gltf2");
 	}
 
 	/**

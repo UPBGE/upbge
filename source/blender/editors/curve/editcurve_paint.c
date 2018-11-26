@@ -796,7 +796,7 @@ static int curve_draw_exec(bContext *C, wmOperator *op)
 	{
 		ViewLayer *view_layer = CTX_data_view_layer(C);
 		uint objects_len;
-		Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
+		Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, CTX_wm_view3d(C), &objects_len);
 		ED_curve_deselect_all_multi(objects, objects_len);
 		MEM_freeN(objects);
 	}
@@ -1121,7 +1121,7 @@ static int curve_draw_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
 			/* use view plane (when set or as fallback when surface can't be found) */
 			if (cdd->project.use_depth == false) {
-				plane_co = ED_view3d_cursor3d_get(cdd->vc.scene, v3d)->location;
+				plane_co = cdd->vc.scene->cursor.location;
 				plane_no = rv3d->viewinv[2];
 				cdd->project.use_plane = true;
 			}

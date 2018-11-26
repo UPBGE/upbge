@@ -34,12 +34,6 @@ extern "C" {
 #include "SceneExporter.h"
 #include "collada_utils.h"
 
-SceneExporter::SceneExporter(BlenderContext &blender_context, COLLADASW::StreamWriter *sw, ArmatureExporter *arm, const ExportSettings *export_settings):
-	blender_context(blender_context),
-	COLLADASW::LibraryVisualScenes(sw), arm_exporter(arm), export_settings(export_settings)
-{
-}
-
 void SceneExporter::exportScene()
 {
 	ViewLayer *view_layer = blender_context.get_view_layer();
@@ -94,7 +88,7 @@ void SceneExporter::writeNodeList(std::vector<Object *> &child_objects, Object *
 {
 	/* TODO: Handle the case where a parent is not exported
 	   Actually i am not even sure if this can be done at all
-	   in a good way. 
+	   in a good way.
 	   I really prefer to enforce the export of hidden
 	   elements in an object hierarchy. When the children of
 	   the hidden elements are exported as well.
@@ -208,7 +202,7 @@ void SceneExporter::writeNodes(Object *ob)
 					colladaNode.addExtraTechniqueChildParameter("blender", con_tag, "tar_space", con->tarspace);
 					colladaNode.addExtraTechniqueChildParameter("blender", con_tag, "lin_error", con->lin_error);
 
-					//not ideal: add the target object name as another parameter. 
+					//not ideal: add the target object name as another parameter.
 					//No real mapping in the .dae
 					//Need support for multiple target objects also.
 					const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);

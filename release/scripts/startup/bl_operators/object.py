@@ -1048,7 +1048,7 @@ class LoadImageAsEmpty:
     def execute(self, context):
         scene = context.scene
         space = context.space_data
-        cursor = (space if space and space.type == 'VIEW_3D' else scene).cursor_location
+        cursor = scene.cursor_location
 
         try:
             image = bpy.data.images.load(self.filepath, check_existing=True)
@@ -1162,93 +1162,6 @@ class LodClearAll(Operator):
         if ob.lod_levels:
             while 'CANCELLED' not in bpy.ops.object.lod_remove():
                 pass
-
-        return {'FINISHED'}
-
-
-class LodGenerate(Operator):
-    """Generate levels of detail using the decimate modifier"""
-    bl_idname = "object.lod_generate"
-    bl_label = "Generate Levels of Detail"
-    bl_options = {'REGISTER', 'UNDO'}
-
-    count = IntProperty(
-            name="Count",
-            default=3,
-            )
-    target = FloatProperty(
-            name="Target Size",
-            min=0.0, max=1.0,
-            default=0.1,
-            )
-    package = BoolProperty(
-            name="Package into Group",
-            default=False,
-            )
-
-    @classmethod
-    def poll(cls, context):
-        return (context.active_object is not None)
-
-    def execute(self, context):
-        scene = context.scene
-        ob = context.active_object
-
-        lod_name = ob.name
-        lod_suffix = "lod"
-        lod_prefix = ""
-        if lod_name.lower().endswith("lod0"):
-            lod_suffix = lod_name[-3:-1]
-            lod_name = lod_name[:-3]
-        elif lod_name.lower().startswith("lod0"):
-            lod_suffix = ""
-            lod_prefix = lod_name[:3]
-            lod_name = lod_name[4:]
-
-        group_name = lod_name.strip(' ._')
-        if self.package:
-            try:
-                bpy.ops.object.group_link(group=group_name)
-            except TypeError:
-                bpy.ops.group.create(name=group_name)
-
-        step = (1.0 - self.target) / (self.count - 1)
-        for i in range(1, self.count):
-            context.view_layer.objects.active = ob
-            bpy.ops.object.duplicate()
-            lod = context.selected_objects[0]
-
-            context.view_layer.objects.active = ob
-            bpy.ops.object.lod_add()
-            context.view_layer.objects.active = lod
-
-            if lod_prefix:
-                lod.name = lod_prefix + str(i) + lod_name
-            else:
-                lod.name = lod_name + lod_suffix + str(i)
-
-            lod.location.y = ob.location.y + 3.0 * i
-
-            if i == 1:
-                modifier = lod.modifiers.new("lod_decimate", 'DECIMATE')
-            else:
-                modifier = lod.modifiers[-1]
-
-            modifier.ratio = 1.0 - step * i
-
-            ob.lod_levels[i].object = lod
-
-            if self.package:
-                bpy.ops.object.group_link(group=group_name)
-                lod.parent = ob
-
-        if self.package:
-            for level in ob.lod_levels[1:]:
-                level.object.hide = level.object.hide_render = True
-
-        lod.select_set(action='DESELECT')
-        ob.select_set(action='SELECT')
-        context.view_layer.objects.active = ob
 
         return {'FINISHED'}
 

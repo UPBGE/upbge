@@ -278,6 +278,7 @@ typedef struct Object {
 
 	/* Depsgraph */
 	short base_flag; /* used by depsgraph, flushed from base */
+	unsigned short base_local_view_bits; /* used by viewport, synced from base */
 
 	/** Collision mask settings */
 	unsigned short col_group, col_mask;
@@ -290,6 +291,7 @@ typedef struct Object {
 	short dtx;			/* viewport draw extra settings */
 	char dt;			/* viewport draw type */
 	char empty_drawtype;
+	char pad52[6];
 	float empty_drawsize;
 	float dupfacesca;	/* dupliface scale */
 	

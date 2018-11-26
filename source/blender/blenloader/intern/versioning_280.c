@@ -1374,16 +1374,6 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 			for (Scene *scene = bmain->scene.first; scene; scene = scene->id.next) {
 				unit_qt(scene->cursor.rotation);
 			}
-			for (bScreen *screen = bmain->screen.first; screen; screen = screen->id.next) {
-				for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
-					for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
-						if (sl->spacetype == SPACE_VIEW3D) {
-							View3D *v3d = (View3D *)sl;
-							unit_qt(v3d->cursor.rotation);
-						}
-					}
-				}
-			}
 		}
 	}
 
@@ -2253,7 +2243,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 		}
 	}
 
-	{
+	if (!MAIN_VERSION_ATLEAST(bmain, 280, 33)) {
 		/* Grease pencil reset sculpt brushes after struct rename  */
 		if (!DNA_struct_elem_find(fd->filesdna, "GP_Sculpt_Settings", "int", "weighttype")) {
 			float curcolor_add[3], curcolor_sub[3];
@@ -2428,4 +2418,30 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 		}
 	}
 
+	if (!MAIN_VERSION_ATLEAST(bmain, 280, 34)) {
+		for (bScreen *screen = bmain->screen.first; screen; screen = screen->id.next) {
+			for (ScrArea *area = screen->areabase.first; area; area = area->next) {
+				for (SpaceLink *slink = area->spacedata.first; slink; slink = slink->next) {
+					if (slink->spacetype == SPACE_USERPREF) {
+						ARegion *navigation_region = BKE_spacedata_find_region_type(slink, area, RGN_TYPE_NAV_BAR);
+
+						if (!navigation_region) {
+							ListBase *regionbase = (slink == area->spacedata.first) ?
+							                           &area->regionbase : &slink->regionbase;
+
+							navigation_region = MEM_callocN(sizeof(ARegion), "userpref navigation-region do_versions");
+
+							BLI_addhead(regionbase, navigation_region); /* order matters, addhead not addtail! */
+							navigation_region->regiontype = RGN_TYPE_NAV_BAR;
+							navigation_region->alignment = RGN_ALIGN_LEFT;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	{
+		/* Versioning code until next subversion bump goes here. */
+	}
 }
