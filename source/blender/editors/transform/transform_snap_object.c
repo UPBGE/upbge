@@ -230,36 +230,6 @@ static void iter_snap_objects(
 	}
 }
 
-
-static bool walk_parent_bvhroot_cb(const BVHTreeAxisRange *bounds, void *userdata)
-{
-	BVHTreeRay *ray = userdata;
-	const float bbmin[3] = {bounds[0].min, bounds[1].min, bounds[2].min};
-	const float bbmax[3] = {bounds[0].max, bounds[1].max, bounds[2].max};
-	if (!isect_ray_aabb_v3_simple(ray->origin, ray->direction, bbmin, bbmax, &ray->radius, NULL)) {
-		ray->radius = -1;
-	}
-	return false;
-}
-
-
-static bool isect_ray_bvhroot_v3(struct BVHTree *tree, const float ray_start[3], const float ray_dir[3], float *depth)
-{
-	BVHTreeRay ray;
-	copy_v3_v3(ray.origin, ray_start);
-	copy_v3_v3(ray.direction, ray_dir);
-
-	BLI_bvhtree_walk_dfs(tree, walk_parent_bvhroot_cb, NULL, NULL, &ray);
-
-	if (ray.radius > 0) {
-		*depth = ray.radius;
-		return true;
-	}
-	else {
-		return false;
-	}
-}
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -395,6 +365,17 @@ static bool raycastMesh(
 			return retval;
 		}
 	}
+	/* We pass a temp ray_start, set from object's boundbox, to avoid precision issues with
+	 * very far away ray_start values (as returned in case of ortho view3d), see T50486, T38358.
+	 */
+	if (len_diff > 400.0f) {
+		len_diff -= local_scale; /* make temp start point a bit away from bbox hit point. */
+		madd_v3_v3fl(ray_start_local, ray_normal_local, len_diff);
+		local_depth -= len_diff;
+	}
+	else {
+		len_diff = 0.0f;
+	}
 
 	SnapObjectData_Mesh *sod = snap_object_data_mesh_get(sctx, ob);
 
@@ -433,32 +414,6 @@ static bool raycastMesh(
 		if (treedata->tree == NULL) {
 			return retval;
 		}
-	}
-
-	/* Only use closer ray_start in case of ortho view! In perspective one, ray_start may already
-	 * been *inside* boundbox, leading to snap failures (see T38409).
-	 * Note also ar might be null (see T38435), in this case we assume ray_start is ok!
-	 */
-	if (len_diff == 0.0f) {  /* do_ray_start_correction */
-		/* We *need* a reasonably valid len_diff in this case.
-		 * Get the distance to bvhtree root */
-		if (!isect_ray_bvhroot_v3(treedata->tree, ray_start_local, ray_normal_local, &len_diff)) {
-			return retval;
-		}
-	}
-	/* You need to make sure that ray_start is really far away,
-	 * because even in the Orthografic view, in some cases,
-	 * the ray can start inside the object (see T50486) */
-	if (len_diff > 400.0f) {
-		/* We pass a temp ray_start, set from object's boundbox, to avoid precision issues with
-		 * very far away ray_start values (as returned in case of ortho view3d), see T38358.
-		 */
-		len_diff -= local_scale; /* make temp start point a bit away from bbox hit point. */
-		madd_v3_v3fl(ray_start_local, ray_normal_local, len_diff);
-		local_depth -= len_diff;
-	}
-	else {
-		len_diff = 0.0f;
 	}
 
 	float timat[3][3]; /* transpose inverse matrix for normals */
@@ -533,7 +488,7 @@ static bool raycastEditMesh(
 		return retval;
 	}
 
-	BLI_assert(em->ob->data == BKE_object_get_pre_modified_mesh(ob));
+	BLI_assert(BKE_object_get_pre_modified_mesh(em->ob) == BKE_object_get_pre_modified_mesh(ob));
 
 	float imat[4][4];
 	float ray_start_local[3], ray_normal_local[3];
@@ -563,6 +518,17 @@ static bool raycastEditMesh(
 		{
 			return retval;
 		}
+	}
+	/* We pass a temp ray_start, set from object's boundbox, to avoid precision issues with
+	 * very far away ray_start values (as returned in case of ortho view3d), see T50486, T38358.
+	 */
+	if (len_diff > 400.0f) {
+		len_diff -= local_scale; /* make temp start point a bit away from bbox hit point. */
+		madd_v3_v3fl(ray_start_local, ray_normal_local, len_diff);
+		local_depth -= len_diff;
+	}
+	else {
+		len_diff = 0.0f;
 	}
 
 	SnapObjectData_EditMesh *sod = snap_object_data_editmesh_get(sctx, em);
@@ -599,8 +565,11 @@ static bool raycastEditMesh(
 			bvh_cache = &em_bvh_cache;
 		}
 
+		/* Get original version of the edit_btmesh. */
+		BMEditMesh *em_orig = BKE_editmesh_from_object(DEG_get_original_object(ob));
+
 		bvhtree_from_editmesh_looptri_ex(
-		        treedata, em, elem_mask, looptri_num_active,
+		        treedata, em_orig, elem_mask, looptri_num_active,
 		        0.0f, 4, 6, bvh_cache);
 
 		if (elem_mask) {
@@ -609,34 +578,6 @@ static bool raycastEditMesh(
 		if (treedata->tree == NULL) {
 			return retval;
 		}
-	}
-	else {
-		/* COW hack: Update pointers */
-		treedata->em = em;
-	}
-
-	/* Only use closer ray_start in case of ortho view! In perspective one, ray_start
-	 * may already been *inside* boundbox, leading to snap failures (see T38409).
-	 * Note also ar might be null (see T38435), in this case we assume ray_start is ok!
-	 */
-	if (sctx->use_v3d && !((RegionView3D *)sctx->v3d_data.ar->regiondata)->is_persp) {  /* do_ray_start_correction */
-		/* We *need* a reasonably valid len_diff in this case.
-		 * Get the distance to bvhtree root */
-		if (!isect_ray_bvhroot_v3(treedata->tree, ray_start_local, ray_normal_local, &len_diff)) {
-			return retval;
-		}
-		/* You need to make sure that ray_start is really far away,
-		 * because even in the Orthografic view, in some cases,
-		 * the ray can start inside the object (see T50486) */
-		if (len_diff > 400.0f) {
-			/* We pass a temp ray_start, set from object's boundbox, to avoid precision issues with
-			 * very far away ray_start values (as returned in case of ortho view3d), see T38358.
-			 */
-			len_diff -= local_scale; /* make temp start point a bit away from bbox hit point. */
-			madd_v3_v3fl(ray_start_local, ray_normal_local, len_diff);
-			local_depth -= len_diff;
-		}
-		else len_diff = 0.0f;
 	}
 
 	float timat[3][3]; /* transpose inverse matrix for normals */
@@ -687,7 +628,10 @@ static bool raycastEditMesh(
 				retval = true;
 
 				if (r_index) {
-					*r_index = BM_elem_index_get(em->looptris[hit.index][0]->f);
+					/* Get original version of the edit_btmesh. */
+					BMEditMesh *em_orig = BKE_editmesh_from_object(DEG_get_original_object(ob));
+
+					*r_index = BM_elem_index_get(em_orig->looptris[hit.index][0]->f);
 				}
 			}
 		}
@@ -2036,7 +1980,7 @@ static short snapEditMesh(
 
 	BVHTreeFromEditMesh *treedata_vert = NULL, *treedata_edge = NULL;
 
-	BLI_assert(em->ob->data == BKE_object_get_pre_modified_mesh(ob));
+	BLI_assert(BKE_object_get_pre_modified_mesh(ob) == BKE_object_get_pre_modified_mesh(ob));
 	UNUSED_VARS_NDEBUG(ob);
 
 	float lpmat[4][4];

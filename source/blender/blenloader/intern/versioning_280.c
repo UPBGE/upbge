@@ -2414,7 +2414,6 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 #undef PAINT_BLEND_HUE
 #undef PAINT_BLEND_ALPHA_SUB
 #undef PAINT_BLEND_ALPHA_ADD
-
 		}
 	}
 
@@ -2443,5 +2442,26 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 
 	{
 		/* Versioning code until next subversion bump goes here. */
+
+		if (!DNA_struct_elem_find(fd->filesdna, "View3DShading", "float", "curvature_ridge_factor")) {
+			for (bScreen *screen = bmain->screen.first; screen; screen = screen->id.next) {
+				for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
+					for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
+						if (sl->spacetype == SPACE_VIEW3D) {
+							View3D *v3d = (View3D *)sl;
+							v3d->shading.curvature_ridge_factor = 1.0f;
+							v3d->shading.curvature_valley_factor = 1.0f;
+						}
+					}
+				}
+			}
+		}
+
+		/* Rename OpenGL to Workbench. */
+		for (Scene *scene = bmain->scene.first; scene; scene = scene->id.next) {
+			if (STREQ(scene->r.engine, "BLENDER_OPENGL")) {
+				STRNCPY(scene->r.engine, RE_engine_id_BLENDER_WORKBENCH);
+			}
+		}
 	}
 }

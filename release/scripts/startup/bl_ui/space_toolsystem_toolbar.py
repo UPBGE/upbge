@@ -31,13 +31,6 @@ from .space_toolsystem_common import (
     ToolSelectPanelHelper,
     ToolDef,
 )
-from .properties_material_gpencil import (
-    GPENCIL_UL_matslots,
-)
-from .properties_grease_pencil_common import (
-    AnnotationDataPanel,
-)
-
 
 def generate_from_enum_ex(
         context, *,
@@ -115,99 +108,90 @@ class _defs_view3d_generic:
         )
 
 
-def _defs_annotate_factory():
+class _defs_annotate:
 
-    class _defs_annotate:
+    def draw_settings_common(context, layout, tool):
+        if type(context.gpencil_data_owner) is bpy.types.Object:
+            gpd = context.scene.grease_pencil
+        else:
+            gpd = context.gpencil_data
 
-        def draw_settings_common(context, layout, tool):
-            if type(context.gpencil_data_owner) is bpy.types.Object:
-                gpd = context.scene.grease_pencil
+        if gpd is not None:
+            if gpd.layers.active_note is not None:
+                text = gpd.layers.active_note
+                maxw = 25
+                if len(text) > maxw:
+                    text = text[:maxw - 5] + '..' + text[-3:]
             else:
-                gpd = context.gpencil_data
+                text = ""
 
-            if gpd is not None:
-                if gpd.layers.active_note is not None:
-                    text = gpd.layers.active_note
-                    maxw = 25
-                    if len(text) > maxw:
-                        text = text[:maxw - 5] + '..' + text[-3:]
-                else:
-                    text = ""
+            layout.label(text="Annotation:")
+            gpl = context.active_gpencil_layer
+            if gpl is not None:
+                sub = layout.row(align=True)
+                sub.ui_units_x = 8
 
-                layout.label(text="Annotation:")
-                gpl = context.active_gpencil_layer
-                if gpl is not None:
-                    sub = layout.row(align=True)
-                    sub.ui_units_x = 8
+                sub.prop(gpl, "color", text="")
+                sub.popover(
+                    panel="TOPBAR_PT_annotation_layers",
+                    text=text,
+                )
 
-                    sub.prop(gpl, "color", text="")
-                    sub.popover(
-                        panel="TOPBAR_PT_annotation_layers",
-                        text=text,
-                    )
+        tool_settings = context.tool_settings
+        space_type = tool.space_type
+        if space_type == 'VIEW_3D':
+            layout.separator()
 
-            tool_settings = context.tool_settings
-            space_type = tool.space_type
-            if space_type == 'VIEW_3D':
-                layout.separator()
+            row = layout.row(align=True)
+            row.prop(tool_settings, "annotation_stroke_placement_view3d", text="Placement")
+            if tool_settings.gpencil_stroke_placement_view3d == 'CURSOR':
+                row.prop(tool_settings.gpencil_sculpt, "lockaxis")
+            elif tool_settings.gpencil_stroke_placement_view3d in {'SURFACE', 'STROKE'}:
+                row.prop(tool_settings, "use_gpencil_stroke_endpoints")
 
-                row = layout.row(align=True)
-                row.prop(tool_settings, "annotation_stroke_placement_view3d", text="Placement")
-                if tool_settings.gpencil_stroke_placement_view3d == 'CURSOR':
-                    row.prop(tool_settings.gpencil_sculpt, "lockaxis")
-                elif tool_settings.gpencil_stroke_placement_view3d in {'SURFACE', 'STROKE'}:
-                    row.prop(tool_settings, "use_gpencil_stroke_endpoints")
+    @ToolDef.from_fn.with_args(draw_settings=draw_settings_common)
+    def scribble(*, draw_settings):
+        return dict(
+            text="Annotate",
+            icon="ops.gpencil.draw",
+            cursor='PAINT_BRUSH',
+            keymap="Generic Tool: Annotate",
+            draw_settings=draw_settings,
+        )
 
-        @ToolDef.from_fn.with_args(draw_settings=draw_settings_common)
-        def scribble(*, draw_settings):
-            return dict(
-                text="Annotate",
-                icon="ops.gpencil.draw",
-                cursor='PAINT_BRUSH',
-                keymap=(),
-                draw_settings=draw_settings,
-            )
+    @ToolDef.from_fn.with_args(draw_settings=draw_settings_common)
+    def line(*, draw_settings):
+        return dict(
+            text="Annotate Line",
+            icon="ops.gpencil.draw.line",
+            cursor='CROSSHAIR',
+            keymap="Generic Tool: Annotate Line",
+            draw_settings=draw_settings,
+        )
 
-        @ToolDef.from_fn.with_args(draw_settings=draw_settings_common)
-        def line(*, draw_settings):
-            return dict(
-                text="Annotate Line",
-                icon="ops.gpencil.draw.line",
-                cursor='CROSSHAIR',
-                keymap=(),
-                draw_settings=draw_settings,
-            )
+    @ToolDef.from_fn.with_args(draw_settings=draw_settings_common)
+    def poly(*, draw_settings):
+        return dict(
+            text="Annotate Polygon",
+            icon="ops.gpencil.draw.poly",
+            cursor='CROSSHAIR',
+            keymap="Generic Tool: Annotate Polygon",
+            draw_settings=draw_settings,
+        )
 
-        @ToolDef.from_fn.with_args(draw_settings=draw_settings_common)
-        def poly(*, draw_settings):
-            return dict(
-                text="Annotate Polygon",
-                icon="ops.gpencil.draw.poly",
-                cursor='CROSSHAIR',
-                keymap=(),
-                draw_settings=draw_settings,
-            )
-
-        @ToolDef.from_fn
-        def eraser():
-            def draw_settings(context, layout, tool):
-                # TODO: Move this setting to tool_settings
-                user_prefs = context.user_preferences
-                layout.prop(user_prefs.edit, "grease_pencil_eraser_radius", text="Radius")
-            return dict(
-                text="Annotate Eraser",
-                icon="ops.gpencil.draw.eraser",
-                cursor='CROSSHAIR',  # XXX: Always show brush circle when enabled
-                keymap=(),
-                draw_settings=draw_settings,
-            )
-
-    return _defs_annotate
-
-
-# Needed so annotation gets a keymap per space type.
-_defs_annotate_image = _defs_annotate_factory()
-_defs_annotate_view3d = _defs_annotate_factory()
+    @ToolDef.from_fn
+    def eraser():
+        def draw_settings(context, layout, tool):
+            # TODO: Move this setting to tool_settings
+            user_prefs = context.user_preferences
+            layout.prop(user_prefs.edit, "grease_pencil_eraser_radius", text="Radius")
+        return dict(
+            text="Annotate Eraser",
+            icon="ops.gpencil.draw.eraser",
+            cursor='CROSSHAIR',  # XXX: Always show brush circle when enabled
+            keymap="Generic Tool: Annotate Eraser",
+            draw_settings=draw_settings,
+        )
 
 
 class _defs_transform:
@@ -1180,48 +1164,6 @@ class _defs_gpencil_weight:
         )
 
 
-class TOPBAR_PT_gpencil_materials(Panel):
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'HEADER'
-    bl_label = "Materials"
-    bl_ui_units_x = 14
-
-    @classmethod
-    def poll(cls, context):
-        ob = context.object
-        return ob and ob.type == 'GPENCIL'
-
-    @staticmethod
-    def draw(self, context):
-        layout = self.layout
-        ob = context.object
-
-        if ob:
-            is_sortable = len(ob.material_slots) > 1
-            rows = 1
-            if (is_sortable):
-                rows = 10
-
-            row = layout.row()
-
-            row.template_list("GPENCIL_UL_matslots", "", ob, "material_slots", ob, "active_material_index", rows=rows)
-
-            col = row.column(align=True)
-            col.menu("GPENCIL_MT_color_specials", icon='DOWNARROW_HLT', text="")
-
-            if is_sortable:
-                col.separator()
-
-                col.operator("object.material_slot_move", icon='TRIA_UP', text="").direction = 'UP'
-                col.operator("object.material_slot_move", icon='TRIA_DOWN', text="").direction = 'DOWN'
-
-                col.separator()
-
-                sub = col.column(align=True)
-                sub.operator("gpencil.color_isolate", icon='LOCKED', text="").affect_visibility = False
-                sub.operator("gpencil.color_isolate", icon='HIDE_OFF', text="").affect_visibility = True
-
-
 class IMAGE_PT_tools_active(ToolSelectPanelHelper, Panel):
     bl_space_type = 'IMAGE_EDITOR'
     bl_region_type = 'TOOLS'
@@ -1265,10 +1207,10 @@ class IMAGE_PT_tools_active(ToolSelectPanelHelper, Panel):
 
     _tools_annotate = (
         (
-            _defs_annotate_image.scribble,
-            _defs_annotate_image.line,
-            _defs_annotate_image.poly,
-            _defs_annotate_image.eraser,
+            _defs_annotate.scribble,
+            _defs_annotate.line,
+            _defs_annotate.poly,
+            _defs_annotate.eraser,
         ),
     )
 
@@ -1347,10 +1289,10 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
 
     _tools_annotate = (
         (
-            _defs_annotate_view3d.scribble,
-            _defs_annotate_view3d.line,
-            _defs_annotate_view3d.poly,
-            _defs_annotate_view3d.eraser,
+            _defs_annotate.scribble,
+            _defs_annotate.line,
+            _defs_annotate.poly,
+            _defs_annotate.eraser,
         ),
         _defs_view3d_generic.ruler,
     )
@@ -1563,18 +1505,9 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
     }
 
 
-class TOPBAR_PT_annotation_layers(Panel, AnnotationDataPanel):
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'HEADER'
-    bl_label = "Layers"
-    bl_ui_units_x = 14
-
-
 classes = (
     IMAGE_PT_tools_active,
     VIEW3D_PT_tools_active,
-    TOPBAR_PT_gpencil_materials,
-    TOPBAR_PT_annotation_layers,
 )
 
 if __name__ == "__main__":  # only for live edit.

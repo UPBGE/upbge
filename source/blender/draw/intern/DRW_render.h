@@ -498,8 +498,12 @@ DrawData *DRW_drawdata_ensure(
 bool DRW_object_is_renderable(const struct Object *ob);
 bool DRW_object_is_visible_in_active_context(const struct Object *ob);
 bool DRW_object_is_flat_normal(const struct Object *ob);
+bool DRW_object_use_hide_faces(const struct Object *ob);
 
 bool DRW_object_is_visible_psys_in_active_context(const struct Object *object, const struct ParticleSystem *psys);
+
+struct Object *DRW_object_get_dupli_parent(const struct Object *ob);
+struct DupliObject *DRW_object_get_dupli(const struct Object *ob);
 
 /* Draw commands */
 void DRW_draw_pass(struct DRWPass *pass);

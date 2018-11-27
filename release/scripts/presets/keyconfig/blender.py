@@ -18,8 +18,12 @@ class Prefs(bpy.types.KeyConfigPreferences):
     select_mouse: EnumProperty(
         name="Select Mouse",
         items=(
-            ('LEFT', "Left", "Use left Mouse Button for selection"),
-            ('RIGHT', "Right", "Use Right Mouse Button for selection"),
+            ('LEFT', "Left",
+             "Use left mouse button for selection. "
+             "The standard behavior that works well for all input devices"),
+            ('RIGHT', "Right",
+             "Use right mouse button for selection."
+             "For efficiently working with keyboard and mouse"),
         ),
         description=(
             "Mouse button used for selection"
@@ -38,6 +42,9 @@ class Prefs(bpy.types.KeyConfigPreferences):
             ),
             ('PLAY', "Playback",
              "Toggle animation playback"
+            ),
+            ('SEARCH', "Operator Search",
+             "Open the operator search popup"
             ),
         ),
         description=(

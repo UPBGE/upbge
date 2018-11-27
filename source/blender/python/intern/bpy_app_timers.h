@@ -1,5 +1,5 @@
 /*
- * Copyright 2016, Blender Foundation.
+ * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -15,19 +15,16 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributor(s): Blender Institute
- *
+ * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file workbench_engine.h
- *  \ingroup draw_engine
+/** \file blender/python/intern/bpy_app_timers.h
+ *  \ingroup pythonintern
  */
 
-#ifndef __WORKBENCH_ENGINE_H__
-#define __WORKBENCH_ENGINE_H__
+#ifndef __BPY_APP_TIMERS_H__
+#define __BPY_APP_TIMERS_H__
 
-extern DrawEngineType draw_engine_workbench_solid;
-extern DrawEngineType draw_engine_workbench_transparent;
-extern RenderEngineType DRW_engine_viewport_workbench_type;
+PyObject *BPY_app_timers_module(void);
 
-#endif /* __WORKBENCH_ENGINE_H__ */
+#endif /* __BPY_APP_TIMERS_H__ */

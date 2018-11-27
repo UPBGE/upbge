@@ -104,6 +104,7 @@ extern char datatoc_workbench_cavity_lib_glsl[];
 extern char datatoc_workbench_common_lib_glsl[];
 extern char datatoc_workbench_data_lib_glsl[];
 extern char datatoc_workbench_object_outline_lib_glsl[];
+extern char datatoc_workbench_curvature_lib_glsl[];
 extern char datatoc_workbench_world_light_lib_glsl[];
 
 extern char datatoc_gpu_shader_depth_only_frag_glsl[];
@@ -123,6 +124,9 @@ static char *workbench_build_composite_frag(WORKBENCH_PrivateData *wpd)
 	}
 	if (wpd->shading.flag & V3D_SHADING_OBJECT_OUTLINE) {
 		BLI_dynstr_append(ds, datatoc_workbench_object_outline_lib_glsl);
+	}
+	if (CURVATURE_ENABLED(wpd)) {
+		BLI_dynstr_append(ds, datatoc_workbench_curvature_lib_glsl);
 	}
 
 	BLI_dynstr_append(ds, datatoc_workbench_deferred_composite_frag_glsl);
@@ -499,7 +503,7 @@ static void workbench_composite_uniforms(WORKBENCH_PrivateData *wpd, DRWShadingG
 	if (NORMAL_VIEWPORT_COMP_PASS_ENABLED(wpd)) {
 		DRW_shgroup_uniform_texture_ref(grp, "normalBuffer", &e_data.normal_buffer_tx);
 	}
-	if (CAVITY_ENABLED(wpd)) {
+	if (SSAO_ENABLED(wpd)) {
 		DRW_shgroup_uniform_texture_ref(grp, "cavityBuffer", &e_data.cavity_buffer_tx);
 	}
 	if (SPECULAR_HIGHLIGHT_ENABLED(wpd) || MATCAP_ENABLED(wpd)) {
@@ -639,10 +643,7 @@ static void workbench_cache_populate_particles(WORKBENCH_Data *vedata, Object *o
 	WORKBENCH_StorageList *stl = vedata->stl;
 	WORKBENCH_PassList *psl = vedata->psl;
 	WORKBENCH_PrivateData *wpd = stl->g_data;
-	const DRWContextState *draw_ctx = DRW_context_state_get();
-	if (ob == draw_ctx->object_edit) {
-		return;
-	}
+
 	for (ModifierData *md = ob->modifiers.first; md; md = md->next) {
 		if (md->type != eModifierType_ParticleSystem) {
 			continue;
@@ -711,13 +712,14 @@ void workbench_deferred_solid_cache_populate(WORKBENCH_Data *vedata, Object *ob)
 	if (ELEM(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL)) {
 		const bool is_active = (ob == draw_ctx->obact);
 		const bool is_sculpt_mode = is_active && (draw_ctx->object_mode & OB_MODE_SCULPT) != 0;
+		const bool use_hide = is_active && DRW_object_use_hide_faces(ob);
 		bool is_drawn = false;
 		if (!is_sculpt_mode && TEXTURE_DRAWING_ENABLED(wpd) && ELEM(ob->type, OB_MESH)) {
 			const Mesh *me = ob->data;
 			if (me->mloopuv) {
 				const int materials_len = MAX2(1, (is_sculpt_mode ? 1 : ob->totcol));
 				struct GPUMaterial **gpumat_array = BLI_array_alloca(gpumat_array, materials_len);
-				struct GPUBatch **geom_array = me->totcol ? DRW_cache_mesh_surface_texpaint_get(ob) : NULL;
+				struct GPUBatch **geom_array = me->totcol ? DRW_cache_mesh_surface_texpaint_get(ob, use_hide) : NULL;
 				if (materials_len > 0 && geom_array) {
 					for (int i = 0; i < materials_len; i++) {
 						if (geom_array[i] == NULL) {
@@ -740,7 +742,7 @@ void workbench_deferred_solid_cache_populate(WORKBENCH_Data *vedata, Object *ob)
 		if (!is_drawn) {
 			if (ELEM(wpd->shading.color_type, V3D_SHADING_SINGLE_COLOR, V3D_SHADING_RANDOM_COLOR)) {
 				/* No material split needed */
-				struct GPUBatch *geom = DRW_cache_object_surface_get(ob);
+				struct GPUBatch *geom = DRW_cache_object_surface_get_ex(ob, use_hide);
 				if (geom) {
 					material = get_or_create_material_data(vedata, ob, NULL, NULL, wpd->shading.color_type);
 					if (is_sculpt_mode) {
@@ -759,7 +761,7 @@ void workbench_deferred_solid_cache_populate(WORKBENCH_Data *vedata, Object *ob)
 				}
 
 				struct GPUBatch **mat_geom = DRW_cache_object_surface_material_get(
-				        ob, gpumat_array, materials_len, NULL, NULL, NULL);
+				        ob, gpumat_array, materials_len, use_hide, NULL, NULL, NULL);
 				if (mat_geom) {
 					for (int i = 0; i < materials_len; ++i) {
 						if (mat_geom[i] == NULL) {
@@ -783,7 +785,7 @@ void workbench_deferred_solid_cache_populate(WORKBENCH_Data *vedata, Object *ob)
 			bool is_manifold;
 			struct GPUBatch *geom_shadow = DRW_cache_object_edge_detection_get(ob, &is_manifold);
 			if (geom_shadow) {
-				if (is_sculpt_mode) {
+				if (is_sculpt_mode || use_hide) {
 					/* Currently unsupported in sculpt mode. We could revert to the slow
 					 * method in this case but I'm not sure if it's a good idea given that
 					 * sculpted meshes are heavy to begin with. */
@@ -903,7 +905,7 @@ void workbench_deferred_draw_scene(WORKBENCH_Data *vedata)
 		DRW_draw_pass(psl->ghost_resolve_pass);
 	}
 
-	if (CAVITY_ENABLED(wpd)) {
+	if (SSAO_ENABLED(wpd)) {
 		GPU_framebuffer_bind(fbl->cavity_fb);
 		DRW_draw_pass(psl->cavity_pass);
 	}

@@ -421,7 +421,13 @@ void ControllerExporter::add_joints_element(ListBase *defbase,
 void ControllerExporter::add_bind_shape_mat(Object *ob)
 {
 	double bind_mat[4][4];
-	UnitConverter::mat4_to_dae_double(bind_mat, ob->obmat);
+	float  f_obmat[4][4];
+	BKE_object_matrix_local_get(ob, f_obmat);
+
+	//UnitConverter::mat4_to_dae_double(bind_mat, ob->obmat);
+	UnitConverter::mat4_to_dae_double(bind_mat, f_obmat);
+	if (this->export_settings->limit_precision)
+		bc_sanitize_mat(bind_mat, LIMITTED_PRECISION);
 
 	addBindShapeTransform(bind_mat);
 }
@@ -533,7 +539,7 @@ std::string ControllerExporter::add_inv_bind_mats_source(Object *ob_arm, ListBas
 			invert_m4_m4(mat, world);
 			UnitConverter::mat4_to_dae(inv_bind_mat, mat);
 			if (this->export_settings->limit_precision)
-				bc_sanitize_mat(inv_bind_mat, 6);
+				bc_sanitize_mat(inv_bind_mat, LIMITTED_PRECISION);
 			source.appendValues(inv_bind_mat);
 		}
 	}

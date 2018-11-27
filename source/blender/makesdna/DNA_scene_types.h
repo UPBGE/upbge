@@ -1970,7 +1970,7 @@ enum {
 
 /* RenderData.engine (scene.c) */
 extern const char *RE_engine_id_BLENDER_EEVEE;
-extern const char *RE_engine_id_BLENDER_OPENGL;
+extern const char *RE_engine_id_BLENDER_WORKBENCH;
 extern const char *RE_engine_id_CYCLES;
 
 /* **************** SCENE ********************* */
@@ -2329,7 +2329,9 @@ typedef enum eGPencil_SimplifyFlags {
 	/* Remove fill external line */
 	SIMPLIFY_GPENCIL_REMOVE_FILL_LINE = (1 << 4),
 	/* Simplify Shader FX */
-	SIMPLIFY_GPENCIL_FX               = (1 << 5)
+	SIMPLIFY_GPENCIL_FX               = (1 << 5),
+	/* Simplify layer blending */
+	SIMPLIFY_GPENCIL_BLEND            = (1 << 6),
 } eGPencil_SimplifyFlags;
 
 /* ToolSettings.gpencil_*_align - Stroke Placement mode flags */

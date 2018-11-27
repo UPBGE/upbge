@@ -157,7 +157,6 @@ option_defaults_init(
 	_init_BUILDINFO
 	_init_CODEC_FFMPEG
 	_init_CYCLES_OSL
-	_init_CYCLES_OPENSUBDIV
 	_init_IMAGE_OPENEXR
 	_init_INPUT_NDOF
 	_init_JACK
@@ -175,7 +174,6 @@ if(UNIX AND NOT APPLE)
 	# disable less important dependencies by default
 	set(_init_CODEC_FFMPEG                   OFF)
 	set(_init_CYCLES_OSL                     OFF)
-	set(_init_CYCLES_OPENSUBDIV              OFF)
 	set(_init_IMAGE_OPENEXR                  OFF)
 	set(_init_JACK                           OFF)
 	set(_init_OPENCOLLADA                    OFF)
@@ -256,9 +254,6 @@ option(WITH_OPENCOLORIO   "Enable OpenColorIO color management" ${_init_OPENCOLO
 option(WITH_COMPOSITOR         "Enable the tile based nodal compositor" ON)
 
 option(WITH_OPENSUBDIV    "Enable OpenSubdiv for surface subdivision" _init_OPENSUBDIV)
-
-option(WITH_OPENSUBDIV_MODIFIER    "Use OpenSubdiv for CPU side of Subsurf/Multires modifiers" OFF)
-mark_as_advanced(WITH_OPENSUBDIV_MODIFIER)
 
 option(WITH_OPENVDB       "Enable features relying on OpenVDB" OFF)
 option(WITH_OPENVDB_BLOSC "Enable blosc compression for OpenVDB, only enable if OpenVDB was built with blosc support" OFF)
@@ -423,7 +418,6 @@ option(WITH_CYCLES_STANDALONE		"Build Cycles standalone application" OFF)
 option(WITH_CYCLES_STANDALONE_GUI	"Build Cycles standalone with GUI" OFF)
 option(WITH_CYCLES_OSL				"Build Cycles with OSL support" ${_init_CYCLES_OSL})
 option(WITH_CYCLES_EMBREE			"Build Cycles with Embree support" OFF)
-option(WITH_CYCLES_OPENSUBDIV		"Build Cycles with OpenSubdiv support" ${_init_CYCLES_OPENSUBDIV})
 option(WITH_CYCLES_CUDA_BINARIES	"Build Cycles CUDA binaries" OFF)
 option(WITH_CYCLES_CUBIN_COMPILER	"Build cubins with nvrtc based compiler instead of nvcc" OFF)
 option(WITH_CYCLES_CUDA_BUILD_SERIAL "Build cubins one after another (useful on machines with limited RAM)" OFF)

@@ -24,7 +24,7 @@ void workbench_private_data_init(WORKBENCH_PrivateData *wpd)
 		wpd->use_color_view_settings = true;
 	}
 	else if (v3d->shading.type == OB_RENDER &&
-	         BKE_scene_uses_blender_opengl(scene))
+	         BKE_scene_uses_blender_workbench(scene))
 	{
 		wpd->shading = scene->display.shading;
 		wpd->use_color_view_settings = true;
@@ -84,6 +84,9 @@ void workbench_private_data_init(WORKBENCH_PrivateData *wpd)
 	copy_v3_v3(wd->object_outline_color, wpd->shading.object_outline_color);
 	wd->object_outline_color[3] = 1.0f;
 
+	wd->curvature_ridge = 0.5f / max_ff(SQUARE(wpd->shading.curvature_ridge_factor), 1e-4f);
+	wd->curvature_valley = 0.7f / max_ff(SQUARE(wpd->shading.curvature_valley_factor), 1e-4f);
+
 	wpd->world_ubo = DRW_uniformbuffer_create(sizeof(WORKBENCH_UBO_World), &wpd->world_data);
 
 	/* Cavity settings */
@@ -108,7 +111,12 @@ void workbench_private_data_init(WORKBENCH_PrivateData *wpd)
 		wpd->ssao_params[3] = 0;
 
 		/* distance, factor, factor, attenuation */
-		copy_v4_fl4(wpd->ssao_settings, scene->display.matcap_ssao_distance, wpd->shading.cavity_valley_factor, wpd->shading.cavity_ridge_factor, scene->display.matcap_ssao_attenuation);
+		copy_v4_fl4(
+		        wpd->ssao_settings,
+		        scene->display.matcap_ssao_distance,
+		        wpd->shading.cavity_valley_factor,
+		        wpd->shading.cavity_ridge_factor,
+		        scene->display.matcap_ssao_attenuation);
 
 		/* invert the view matrix */
 		DRW_viewport_matrix_get(wpd->winmat, DRW_MAT_WIN);
