@@ -376,6 +376,7 @@ static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphConte
 	SimpleDeformModifierData *smd  = (SimpleDeformModifierData *)md;
 	if (smd->origin != NULL) {
 		DEG_add_object_relation(ctx->node, smd->origin, DEG_OB_COMP_TRANSFORM, "SimpleDeform Modifier");
+		DEG_add_object_relation(ctx->node, ctx->object, DEG_OB_COMP_TRANSFORM, "SimpleDeform Modifier");
 	}
 }
 
@@ -385,11 +386,17 @@ static void deformVerts(
         float (*vertexCos)[3],
         int numVerts)
 {
-	Mesh *mesh_src = MOD_get_mesh_eval(ctx->object, NULL, mesh, NULL, false, false);
+	SimpleDeformModifierData *sdmd = (SimpleDeformModifierData *)md;
+	Mesh *mesh_src = NULL;
 
-	SimpleDeformModifier_do((SimpleDeformModifierData *)md, ctx->object, mesh_src, vertexCos, numVerts);
+	if (ctx->object->type == OB_MESH && sdmd->vgroup_name[0] != '\0') {
+		/* mesh_src is only needed for vgroups. */
+		mesh_src = MOD_deform_mesh_eval_get(ctx->object, NULL, mesh, NULL, numVerts, false, false);
+	}
 
-	if (mesh_src != mesh) {
+	SimpleDeformModifier_do(sdmd, ctx->object, mesh_src, vertexCos, numVerts);
+
+	if (!ELEM(mesh_src, NULL, mesh)) {
 		BKE_id_free(NULL, mesh_src);
 	}
 }
@@ -401,11 +408,17 @@ static void deformVertsEM(
         float (*vertexCos)[3],
         int numVerts)
 {
-	Mesh *mesh_src = MOD_get_mesh_eval(ctx->object, editData, mesh, NULL, false, false);
+	SimpleDeformModifierData *sdmd = (SimpleDeformModifierData *)md;
+	Mesh *mesh_src = NULL;
 
-	SimpleDeformModifier_do((SimpleDeformModifierData *)md, ctx->object, mesh_src, vertexCos, numVerts);
+	if (ctx->object->type == OB_MESH && sdmd->vgroup_name[0] != '\0') {
+		/* mesh_src is only needed for vgroups. */
+		mesh_src = MOD_deform_mesh_eval_get(ctx->object, editData, mesh, NULL, numVerts, false, false);
+	}
 
-	if (mesh_src != mesh) {
+	SimpleDeformModifier_do(sdmd, ctx->object, mesh_src, vertexCos, numVerts);
+
+	if (!ELEM(mesh_src, NULL, mesh)) {
 		BKE_id_free(NULL, mesh_src);
 	}
 }

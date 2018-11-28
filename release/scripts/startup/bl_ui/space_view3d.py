@@ -20,7 +20,7 @@
 import bpy
 from bpy.types import Header, Menu, Panel
 from .properties_paint_common import UnifiedPaintPanel
-from .properties_grease_pencil_common import AnnotationDataPanel
+from .properties_grease_pencil_common import AnnotationDataPanel, AnnotationOnionSkin
 from bpy.app.translations import contexts as i18n_contexts
 
 
@@ -3927,7 +3927,7 @@ class VIEW3D_MT_pivot_pie(Menu):
         pie.prop_enum(context.scene.tool_settings, "transform_pivot_point", value='MEDIAN_POINT')
         pie.prop_enum(context.scene.tool_settings, "transform_pivot_point", value='ACTIVE_ELEMENT')
         if (obj is None) or (mode in {'OBJECT', 'POSE', 'WEIGHT_PAINT'}):
-            pie.prop(context.scene.tool_settings, "use_transform_pivot_point_align", text="Center Points Only")
+            pie.prop(context.scene.tool_settings, "use_transform_pivot_point_align", text="Only Origins")
 
 
 class VIEW3D_MT_orientations_pie(Menu):
@@ -4229,13 +4229,14 @@ class VIEW3D_PT_shading_lighting(Panel):
             sub.scale_y = 0.6  # smaller matcap/hdri preview
 
             if shading.light == 'STUDIO':
-                sub.template_icon_view(shading, "studio_light", scale=3)
+                # Not implemented right now
+                # sub.template_icon_view(shading, "studio_light", scale=3)
 
-                if shading.selected_studio_light.orientation == 'WORLD':
-                    col.prop(shading, "studiolight_rotate_z", text="Rotation")
+                # if shading.selected_studio_light.orientation == 'WORLD':
+                #     col.prop(shading, "studiolight_rotate_z", text="Rotation")
 
                 col = split.column()
-                col.operator('wm.studiolight_userpref_show', emboss=False, text="", icon='PREFERENCES')
+                # col.operator('wm.studiolight_userpref_show', emboss=False, text="", icon='PREFERENCES')
 
             elif shading.light == 'MATCAP':
                 sub.template_icon_view(shading, "studio_light", scale=3)
@@ -4379,8 +4380,8 @@ class VIEW3D_PT_shading_options(Panel):
         sub.prop(shading, "object_outline_color", text="")
 
         col = layout.column()
-        if (shading.light is not 'MATCAP') and (shading.type is not 'WIREFRAME'):
-            col.prop(shading, "show_specular_highlight")
+        if (shading.light == 'STUDIO') and (shading.type is not 'WIREFRAME'):
+            col.prop(shading, "show_specular_highlight", text="Specular Lighting")
 
 
 class VIEW3D_PT_shading_options_shadow(Panel):
@@ -4995,7 +4996,7 @@ class VIEW3D_PT_pivot_point(Panel):
             col.prop(
                 toolsettings,
                 "use_transform_pivot_point_align",
-                text="Center Points Only",
+                text="Only Origins",
             )
 
 
@@ -5190,6 +5191,15 @@ class VIEW3D_PT_grease_pencil(AnnotationDataPanel, Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "View"
+
+    # NOTE: this is just a wrapper around the generic GP Panel
+
+
+class VIEW3D_PT_annotation_onion(AnnotationOnionSkin, Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "View"
+    bl_parent_id = 'VIEW3D_PT_grease_pencil'
 
     # NOTE: this is just a wrapper around the generic GP Panel
 
@@ -5563,6 +5573,7 @@ classes = (
     VIEW3D_PT_collections,
     VIEW3D_PT_object_type_visibility,
     VIEW3D_PT_grease_pencil,
+    VIEW3D_PT_annotation_onion,
     VIEW3D_PT_gpencil_multi_frame,
     VIEW3D_MT_gpencil_autoweights,
     VIEW3D_MT_gpencil_edit_specials,

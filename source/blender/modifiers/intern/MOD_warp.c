@@ -143,6 +143,7 @@ static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphConte
 {
 	WarpModifierData *wmd = (WarpModifierData *) md;
 	if (wmd->object_from != NULL && wmd->object_to != NULL) {
+		DEG_add_object_relation(ctx->node, ctx->object, DEG_OB_COMP_TRANSFORM, "Warplace Modifier");
 		DEG_add_object_relation(ctx->node, wmd->object_from, DEG_OB_COMP_TRANSFORM, "Warp Modifier from");
 		DEG_add_object_relation(ctx->node, wmd->object_to, DEG_OB_COMP_TRANSFORM, "Warp Modifier to");
 	}
@@ -214,7 +215,7 @@ static void warpModifier_do(
 	}
 	weight = strength;
 
-	if (wmd->texture) {
+	if (mesh != NULL && wmd->texture) {
 		tex_co = MEM_malloc_arrayN(numVerts, sizeof(*tex_co), "warpModifier_do tex_co");
 		MOD_get_texture_coords((MappingInfoModifierData *)wmd, ob, mesh, vertexCos, tex_co);
 
@@ -314,32 +315,36 @@ static void deformVerts(
         ModifierData *md, const ModifierEvalContext *ctx, Mesh *mesh,
         float (*vertexCos)[3], int numVerts)
 {
-	Mesh *mesh_src = mesh;
+	WarpModifierData *wmd = (WarpModifierData *)md;
+	Mesh *mesh_src = NULL;
 
-	if (mesh_src == NULL) {
-		mesh_src = ctx->object->data;
+	if (wmd->defgrp_name[0] != '\0' || wmd->texture != NULL) {
+		/* mesh_src is only needed for vgroups and textures. */
+		mesh_src = MOD_deform_mesh_eval_get(ctx->object, NULL, mesh, NULL, numVerts, false, false);
 	}
 
-	BLI_assert(mesh_src->totvert == numVerts);
+	warpModifier_do(wmd, ctx, mesh_src, vertexCos, numVerts);
 
-	warpModifier_do((WarpModifierData *)md, ctx, mesh_src, vertexCos, numVerts);
+	if (!ELEM(mesh_src, NULL, mesh)) {
+		BKE_id_free(NULL, mesh_src);
+	}
 }
 
 static void deformVertsEM(
         ModifierData *md, const ModifierEvalContext *ctx, struct BMEditMesh *em,
         Mesh *mesh, float (*vertexCos)[3], int numVerts)
 {
-	Mesh *mesh_src = mesh;
+	WarpModifierData *wmd = (WarpModifierData *)md;
+	Mesh *mesh_src = NULL;
 
-	if (mesh_src == NULL) {
-		mesh_src = BKE_mesh_from_bmesh_for_eval_nomain(em->bm, 0);
+	if (wmd->defgrp_name[0] != '\0' || wmd->texture != NULL) {
+		/* mesh_src is only needed for vgroups and textures. */
+		mesh_src = MOD_deform_mesh_eval_get(ctx->object, em, mesh, NULL, numVerts, false, false);
 	}
 
-	BLI_assert(mesh_src->totvert == numVerts);
+	warpModifier_do(wmd, ctx, mesh_src, vertexCos, numVerts);
 
-	warpModifier_do((WarpModifierData *)md, ctx, mesh_src, vertexCos, numVerts);
-
-	if (!mesh) {
+	if (!ELEM(mesh_src, NULL, mesh)) {
 		BKE_id_free(NULL, mesh_src);
 	}
 }

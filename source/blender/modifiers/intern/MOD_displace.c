@@ -148,6 +148,7 @@ static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphConte
 {
 	DisplaceModifierData *dmd = (DisplaceModifierData *)md;
 	if (dmd->map_object != NULL && dmd->texmapping == MOD_DISP_MAP_OBJECT) {
+		DEG_add_object_relation(ctx->node, ctx->object, DEG_OB_COMP_TRANSFORM, "Displace Modifier");
 		DEG_add_object_relation(ctx->node, dmd->map_object, DEG_OB_COMP_TRANSFORM, "Displace Modifier");
 	}
 	if (dmd->texmapping == MOD_DISP_MAP_GLOBAL ||
@@ -376,13 +377,11 @@ static void deformVerts(
         float (*vertexCos)[3],
         int numVerts)
 {
-	Mesh *mesh_src = MOD_get_mesh_eval(ctx->object, NULL, mesh, NULL, false, false);
-
-	BLI_assert(mesh_src->totvert == numVerts);
+	Mesh *mesh_src = MOD_deform_mesh_eval_get(ctx->object, NULL, mesh, NULL, numVerts, false, false);
 
 	displaceModifier_do((DisplaceModifierData *)md, ctx, mesh_src, vertexCos, numVerts);
 
-	if (mesh_src != mesh) {
+	if (!ELEM(mesh_src, NULL, mesh)) {
 		BKE_id_free(NULL, mesh_src);
 	}
 }
@@ -391,13 +390,11 @@ static void deformVertsEM(
         ModifierData *md, const ModifierEvalContext *ctx, struct BMEditMesh *editData,
         Mesh *mesh, float (*vertexCos)[3], int numVerts)
 {
-	Mesh *mesh_src = MOD_get_mesh_eval(ctx->object, editData, mesh, NULL, false, false);
-
-	BLI_assert(mesh_src->totvert == numVerts);
+	Mesh *mesh_src = MOD_deform_mesh_eval_get(ctx->object, editData, mesh, NULL, numVerts, false, false);
 
 	displaceModifier_do((DisplaceModifierData *)md, ctx, mesh_src, vertexCos, numVerts);
 
-	if (mesh_src != mesh) {
+	if (!ELEM(mesh_src, NULL, mesh)) {
 		BKE_id_free(NULL, mesh_src);
 	}
 }

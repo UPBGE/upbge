@@ -415,29 +415,29 @@ static void deformVerts(
         float (*vertexCos)[3],
         int numVerts)
 {
-	Mesh *mesh_src = MOD_get_mesh_eval(ctx->object, NULL, mesh, NULL, false, false);
+	Mesh *mesh_src = MOD_deform_mesh_eval_get(ctx->object, NULL, mesh, NULL, numVerts, false, false);
 
 	MOD_previous_vcos_store(md, vertexCos); /* if next modifier needs original vertices */
 
 	meshdeformModifier_do(md, ctx, mesh_src, vertexCos, numVerts);
 
-	if (mesh_src && mesh_src != mesh) {
+	if (!ELEM(mesh_src, NULL, mesh)) {
 		BKE_id_free(NULL, mesh_src);
 	}
 }
 
 static void deformVertsEM(
         ModifierData *md, const ModifierEvalContext *ctx,
-        struct BMEditMesh *UNUSED(editData),
+        struct BMEditMesh *editData,
         Mesh *mesh,
         float (*vertexCos)[3],
         int numVerts)
 {
-	Mesh *mesh_src = MOD_get_mesh_eval(ctx->object, NULL, mesh, NULL, false, false);
+	Mesh *mesh_src = MOD_deform_mesh_eval_get(ctx->object, editData, mesh, NULL, numVerts, false, false);
 
 	meshdeformModifier_do(md, ctx, mesh_src, vertexCos, numVerts);
 
-	if (mesh_src && mesh_src != mesh) {
+	if (!ELEM(mesh_src, NULL, mesh)) {
 		BKE_id_free(NULL, mesh_src);
 	}
 }

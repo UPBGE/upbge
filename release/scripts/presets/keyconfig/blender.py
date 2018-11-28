@@ -20,37 +20,39 @@ class Prefs(bpy.types.KeyConfigPreferences):
         items=(
             ('LEFT', "Left",
              "Use left mouse button for selection. "
-             "The standard behavior that works well for all input devices"),
+             "The standard behavior that works well for mouse, trackpad and tablet devices"),
             ('RIGHT', "Right",
-             "Use right mouse button for selection."
-             "For efficiently working with keyboard and mouse"),
+             "Use right mouse button for selection, and left mouse button for actions. "
+             "This works well primarily for keyboard and mouse devices"),
         ),
         description=(
             "Mouse button used for selection"
         ),
-        default='RIGHT',
+        default='LEFT',
         update=update_fn,
     )
     spacebar_action: EnumProperty(
         name="Spacebar",
         items=(
-            ('TOOL', "Tool-Bar",
+            ('PLAY', "Play",
+             "Toggle animation playback "
+             "('Shift-Space' for Tools)",
+             1),
+            ('TOOL', "Tools",
              "Open the popup tool-bar\n"
              "When 'Space' is held and used as a modifier:\n"
              "\u2022 Pressing the tools binding key switches to it immediately.\n"
              "\u2022 Dragging the cursor over a tool and releasing activates it (like a pie menu).\n"
-            ),
-            ('PLAY', "Playback",
-             "Toggle animation playback"
-            ),
-            ('SEARCH', "Operator Search",
-             "Open the operator search popup"
-            ),
+             "For Play use 'Shift-Space'",
+             0),
+            ('SEARCH', "Search",
+             "Open the operator search popup",
+             2),
         ),
         description=(
-            "Action when 'Space' is pressed ('Shift-Space' is used for the other action)"
+            "Action when 'Space' is pressed"
         ),
-        default='TOOL',
+        default='PLAY',
         update=update_fn,
     )
     use_select_all_toggle: BoolProperty(

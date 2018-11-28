@@ -92,16 +92,20 @@ class _defs_view3d_generic:
 
     @ToolDef.from_fn
     def ruler():
-        return dict(
-            text="Measure",
-            description=(
+        def description(context, item, km):
+            return (
                 "Measure distance and angles.\n"
-                "\u2022 Drag anywhere for new measurement.\n"
+                "\u2022 {} anywhere for new measurement.\n"
                 "\u2022 Drag ruler segment to measure an angle.\n"
                 "\u2022 Drag ruler outside the view to remove.\n"
                 "\u2022 Ctrl to snap.\n"
                 "\u2022 Shift to measure surface thickness"
-            ),
+            ).format(
+                km.keymap_items[0].to_string()
+            )
+        return dict(
+            text="Measure",
+            description=description,
             icon="ops.view3d.ruler",
             widget="VIEW3D_GGT_ruler",
             keymap=(),
@@ -1207,6 +1211,18 @@ class _defs_node_select:
         )
 
 
+class _defs_node_edit:
+
+    @ToolDef.from_fn
+    def links_cut():
+        return dict(
+            text="Links Cut",
+            icon="ops.mesh.knife_tool",
+            widget=None,
+            keymap="Node Tool: Links Cut",
+        )
+
+
 class IMAGE_PT_tools_active(ToolSelectPanelHelper, Panel):
     bl_space_type = 'IMAGE_EDITOR'
     bl_region_type = 'TOOLS'
@@ -1335,6 +1351,8 @@ class NODE_PT_tools_active(ToolSelectPanelHelper, Panel):
             *_tools_select,
             None,
             *_tools_annotate,
+            None,
+            _defs_node_edit.links_cut,
         ],
     }
 

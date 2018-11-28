@@ -734,10 +734,11 @@ static void deformVerts(
         ModifierData *md, const ModifierEvalContext *ctx, Mesh *mesh,
         float (*vertexCos)[3], int numVerts)
 {
-	Mesh *mesh_src = MOD_get_mesh_eval(ctx->object, NULL, mesh, NULL, false, false);
+	Mesh *mesh_src = MOD_deform_mesh_eval_get(ctx->object, NULL, mesh, NULL, numVerts, false, false);
 
 	LaplacianDeformModifier_do((LaplacianDeformModifierData *)md, ctx->object, mesh_src, vertexCos, numVerts);
-	if (mesh_src != mesh) {
+
+	if (!ELEM(mesh_src, NULL, mesh)) {
 		BKE_id_free(NULL, mesh_src);
 	}
 }
@@ -746,10 +747,12 @@ static void deformVertsEM(
         ModifierData *md, const ModifierEvalContext *ctx, struct BMEditMesh *editData,
         Mesh *mesh, float (*vertexCos)[3], int numVerts)
 {
-	Mesh *mesh_src = MOD_get_mesh_eval(ctx->object, editData, mesh, NULL, false, false);
+	Mesh *mesh_src = MOD_deform_mesh_eval_get(ctx->object, editData, mesh, NULL, numVerts, false, false);
+
 	LaplacianDeformModifier_do((LaplacianDeformModifierData *)md, ctx->object, mesh_src,
 	                           vertexCos, numVerts);
-	if (mesh_src != mesh) {
+
+	if (!ELEM(mesh_src, NULL, mesh)) {
 		BKE_id_free(NULL, mesh_src);
 	}
 }

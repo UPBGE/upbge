@@ -6930,6 +6930,8 @@ static void direct_link_area(FileData *fd, ScrArea *area)
 	area->butspacetype = SPACE_EMPTY; /* Should always be unset so that rna_Area_type_get works correctly */
 	area->region_active_win = -1;
 
+	area->flag &= ~AREA_FLAG_ACTIVE_TOOL_UPDATE;
+
 	area->global = newdataadr(fd, area->global);
 
 	/* if we do not have the spacetype registered (game player), we cannot
@@ -7609,7 +7611,7 @@ static void lib_link_clipboard_restore(struct IDNameLib_Map *id_map)
 	BKE_sequencer_base_recursive_apply(&seqbase_clipboard, lib_link_seq_clipboard_cb, id_map);
 }
 
-static void lib_link_window_scene_data_restore(wmWindow *win, Scene *scene)
+static void lib_link_window_scene_data_restore(wmWindow *win, Scene *scene, ViewLayer *view_layer)
 {
 	bScreen *screen = BKE_workspace_active_screen_get(win->workspace_hook);
 
@@ -7623,12 +7625,12 @@ static void lib_link_window_scene_data_restore(wmWindow *win, Scene *scene)
 				}
 
 				if (v3d->localvd) {
-					Base *base;
+					Base *base = NULL;
 
 					v3d->localvd->camera = scene->camera;
 
 					/* Localview can become invalid during undo/redo steps, so we exit it when no could be found. */
-					for (base = screen->scene->base.first; base; base = base->next) {
+					for (base = view_layer->object_bases.first; base; base = base->next) {
 						if (base->local_view_bits & v3d->local_view_uuid) {
 							break;
 						}
@@ -7637,6 +7639,16 @@ static void lib_link_window_scene_data_restore(wmWindow *win, Scene *scene)
 						MEM_freeN(v3d->localvd);
 						v3d->localvd = NULL;
 						v3d->local_view_uuid = 0;
+
+						for (ARegion *ar = area->regionbase.first; ar; ar = ar->next) {
+							if (ar->regiontype == RGN_TYPE_WINDOW) {
+								RegionView3D *rv3d = ar->regiondata;
+								if (rv3d->localvd) {
+									MEM_freeN(rv3d->localvd);
+									rv3d->localvd = NULL;
+								}
+							}
+						}
 					}
 				}
 			}
@@ -7895,7 +7907,7 @@ void blo_lib_link_restore(Main *newmain, wmWindowManager *curwm, Scene *curscene
 		/* keep cursor location through undo */
 		copy_v3_v3(win->scene->cursor.location, oldscene->cursor.location);
 		copy_qt_qt(win->scene->cursor.rotation, oldscene->cursor.rotation);
-		lib_link_window_scene_data_restore(win, win->scene);
+		lib_link_window_scene_data_restore(win, win->scene, cur_view_layer);
 
 		BLI_assert(win->screen == NULL);
 	}

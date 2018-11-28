@@ -883,7 +883,7 @@ class PARTICLE_PT_physics_boids_movement(ParticleButtonsPanel, Panel):
 
         layout.separator()
 
-        layout.prop(part, "collision_group")
+        layout.prop(part, "collision_collection")
 
 
 class PARTICLE_PT_physics_boids_battle(ParticleButtonsPanel, Panel):
@@ -1022,7 +1022,7 @@ class PARTICLE_PT_physics_deflection(ParticleButtonsPanel, Panel):
         col.prop(part, "use_size_deflect")
         col.prop(part, "use_die_on_collision")
 
-        col.prop(part, "collision_group")
+        col.prop(part, "collision_collection")
 
 
 class PARTICLE_PT_physics_forces(ParticleButtonsPanel, Panel):
@@ -1233,7 +1233,7 @@ class PARTICLE_PT_render(ParticleButtonsPanel, Panel):
 
         if context.object:
             layout.separator()
-            layout.prop(context.object, "show_duplicator_for_render", text="Show Emitter")
+            layout.prop(context.object, "show_instancer_for_render", text="Show Emitter")
 
 
 class PARTICLE_PT_render_extra(ParticleButtonsPanel, Panel):
@@ -1370,11 +1370,11 @@ class PARTICLE_PT_render_object(ParticleButtonsPanel, Panel):
 
         col = layout.column()
 
-        col.prop(part, "dupli_object", text="Instance Object")
+        col.prop(part, "instance_object", text="Instance Object")
         sub = col.column()
-        sub.prop(part, "use_global_dupli", text="Global Coordinates")
-        sub.prop(part, "use_rotation_dupli", text="Object Rotation")
-        sub.prop(part, "use_scale_dupli", text="Object Scale")
+        sub.prop(part, "use_global_instance", text="Global Coordinates")
+        sub.prop(part, "use_rotation_instance", text="Object Rotation")
+        sub.prop(part, "use_scale_instance", text="Object Scale")
 
 
 class PARTICLE_PT_render_collection(ParticleButtonsPanel, Panel):
@@ -1396,15 +1396,15 @@ class PARTICLE_PT_render_collection(ParticleButtonsPanel, Panel):
 
         col = layout.column()
 
-        col.prop(part, "dupli_group")
+        col.prop(part, "instance_collection")
 
-        col.prop(part, "use_whole_group")
+        col.prop(part, "use_whole_collection")
         sub = col.column()
-        sub.active = (part.use_whole_group is False)
-        sub.prop(part, "use_group_pick_random")
-        sub.prop(part, "use_global_dupli", text="Global Coordinates")
-        sub.prop(part, "use_rotation_dupli", text="Object Rotation")
-        sub.prop(part, "use_scale_dupli", text="Object Scale")
+        sub.active = (part.use_whole_collection is False)
+        sub.prop(part, "use_collection_pick_random")
+        sub.prop(part, "use_global_instance", text="Global Coordinates")
+        sub.prop(part, "use_rotation_instance", text="Object Rotation")
+        sub.prop(part, "use_scale_instance", text="Object Scale")
 
 
 class PARTICLE_PT_render_collection_use_count(ParticleButtonsPanel, Panel):
@@ -1422,9 +1422,9 @@ class PARTICLE_PT_render_collection_use_count(ParticleButtonsPanel, Panel):
         layout = self.layout
         part = particle_get_settings(context)
 
-        layout.active = not part.use_whole_group
+        layout.active = not part.use_whole_collection
 
-        layout.prop(part, "use_group_count", text="")
+        layout.prop(part, "use_collection_count", text="")
 
     def draw(self, context):
         layout = self.layout
@@ -1434,11 +1434,11 @@ class PARTICLE_PT_render_collection_use_count(ParticleButtonsPanel, Panel):
 
         col = layout.column()
 
-        layout.active = part.use_group_count and not part.use_whole_group
+        layout.active = part.use_collection_count and not part.use_whole_collection
 
         row = layout.row()
-        row.template_list("UI_UL_list", "particle_dupli_weights", part, "dupli_weights",
-                          part, "active_dupliweight_index")
+        row.template_list("UI_UL_list", "particle_instance_weights", part, "instance_weights",
+                          part, "active_instanceweight_index")
 
         col = row.column()
         sub = col.row()
@@ -1450,7 +1450,7 @@ class PARTICLE_PT_render_collection_use_count(ParticleButtonsPanel, Panel):
         subsub.separator()
         subsub.operator("particle.dupliob_refresh", icon='FILE_REFRESH', text="")
 
-        weight = part.active_dupliweight
+        weight = part.active_instanceweight
         if weight:
             row = layout.row()
             row.prop(weight, "count")
@@ -1639,7 +1639,7 @@ class PARTICLE_PT_draw(ParticleButtonsPanel, Panel):
 
         if context.object:
             layout.separator()
-            layout.prop(context.object, "show_duplicator_for_viewport", text="Show Emitter")
+            layout.prop(context.object, "show_instancer_for_viewport", text="Show Emitter")
 
 
 class PARTICLE_PT_children(ParticleButtonsPanel, Panel):

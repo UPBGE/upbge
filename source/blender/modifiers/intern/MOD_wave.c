@@ -123,6 +123,9 @@ static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphConte
 	if (wmd->map_object != NULL) {
 		DEG_add_object_relation(ctx->node, wmd->map_object, DEG_OB_COMP_TRANSFORM, "Wave Modifier");
 	}
+	if (wmd->objectcenter != NULL || wmd->map_object != NULL) {
+		DEG_add_object_relation(ctx->node, ctx->object, DEG_OB_COMP_TRANSFORM, "Wave Modifier");
+	}
 }
 
 static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
@@ -140,6 +143,13 @@ static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
 		dataMask |= CD_MASK_MDEFORMVERT;
 
 	return dataMask;
+}
+
+static bool dependsOnNormals(ModifierData *md)
+{
+	WaveModifierData *wmd = (WaveModifierData *)md;
+
+	return (wmd->flag & MOD_WAVE_NORM) != 0;
 }
 
 static void waveModifier_do(
@@ -160,8 +170,9 @@ static void waveModifier_do(
 	const float falloff = wmd->falloff;
 	float falloff_fac = 1.0f; /* when falloff == 0.0f this stays at 1.0f */
 
-	if ((wmd->flag & MOD_WAVE_NORM) && (ob->type == OB_MESH))
+	if ((wmd->flag & MOD_WAVE_NORM) && (mesh != NULL)) {
 		mvert = mesh->mvert;
+	}
 
 	if (wmd->objectcenter) {
 		float mat[4][4];
@@ -176,7 +187,9 @@ static void waveModifier_do(
 	/* get the index of the deform group */
 	MOD_get_vgroup(ob, mesh, wmd->defgrp_name, &dvert, &defgrp_index);
 
-	if (wmd->damp == 0) wmd->damp = 10.0f;
+	if (wmd->damp == 0.0f) {
+		wmd->damp = 10.0f;
+	}
 
 	if (wmd->lifetime != 0.0f) {
 		float x = ctime - wmd->timeoffs;
@@ -189,9 +202,8 @@ static void waveModifier_do(
 		}
 	}
 
-	if (wmd->texture) {
-		tex_co = MEM_malloc_arrayN(numVerts, sizeof(*tex_co),
-		                     "waveModifier_do tex_co");
+	if (mesh != NULL && wmd->texture) {
+		tex_co = MEM_malloc_arrayN(numVerts, sizeof(*tex_co), "waveModifier_do tex_co");
 		MOD_get_texture_coords((MappingInfoModifierData *)wmd, ob, mesh, vertexCos, tex_co);
 
 		MOD_init_texture(depsgraph, wmd->texture);
@@ -199,7 +211,7 @@ static void waveModifier_do(
 
 	if (lifefac != 0.0f) {
 		/* avoid divide by zero checks within the loop */
-		float falloff_inv = falloff ? 1.0f / falloff : 1.0f;
+		float falloff_inv = falloff != 0.0f ? 1.0f / falloff : 1.0f;
 		int i;
 
 		for (i = 0; i < numVerts; i++) {
@@ -295,7 +307,7 @@ static void waveModifier_do(
 		}
 	}
 
-	if (wmd->texture) MEM_freeN(tex_co);
+	MEM_SAFE_FREE(tex_co);
 }
 
 static void deformVerts(
@@ -304,18 +316,21 @@ static void deformVerts(
         float (*vertexCos)[3],
         int numVerts)
 {
-	Mesh *mesh_src = mesh;
 	WaveModifierData *wmd = (WaveModifierData *)md;
+	Mesh *mesh_src = NULL;
 
-	if (wmd->flag & MOD_WAVE_NORM)
-		mesh_src = MOD_get_mesh_eval(ctx->object, NULL, mesh, vertexCos, true, false);
-	else if (wmd->texture || wmd->defgrp_name[0])
-		mesh_src = MOD_get_mesh_eval(ctx->object, NULL, mesh, NULL, false, false);
+	if (wmd->flag & MOD_WAVE_NORM) {
+		mesh_src = MOD_deform_mesh_eval_get(ctx->object, NULL, mesh, vertexCos, numVerts, true, false);
+	}
+	else if (wmd->texture != NULL || wmd->defgrp_name[0] != '\0') {
+		mesh_src = MOD_deform_mesh_eval_get(ctx->object, NULL, mesh, NULL, numVerts, false, false);
+	}
 
 	waveModifier_do(wmd, ctx->depsgraph, ctx->object, mesh_src, vertexCos, numVerts);
 
-	if (mesh_src != mesh)
+	if (!ELEM(mesh_src, NULL, mesh)) {
 		BKE_id_free(NULL, mesh_src);
+	}
 }
 
 static void deformVertsEM(
@@ -323,18 +338,21 @@ static void deformVertsEM(
         struct BMEditMesh *editData,
         Mesh *mesh, float (*vertexCos)[3], int numVerts)
 {
-	Mesh *mesh_src = mesh;
 	WaveModifierData *wmd = (WaveModifierData *)md;
+	Mesh *mesh_src = NULL;
 
-	if (wmd->flag & MOD_WAVE_NORM)
-		mesh_src = MOD_get_mesh_eval(ctx->object, editData, mesh, vertexCos, true, false);
-	else if (wmd->texture || wmd->defgrp_name[0])
-		mesh_src = MOD_get_mesh_eval(ctx->object, editData, mesh, NULL, false, false);
+	if (wmd->flag & MOD_WAVE_NORM) {
+		mesh_src = MOD_deform_mesh_eval_get(ctx->object, editData, mesh, vertexCos, numVerts, true, false);
+	}
+	else if (wmd->texture != NULL || wmd->defgrp_name[0] != '\0') {
+		mesh_src = MOD_deform_mesh_eval_get(ctx->object, editData, mesh, NULL, numVerts, false, false);
+	}
 
 	waveModifier_do(wmd, ctx->depsgraph, ctx->object, mesh_src, vertexCos, numVerts);
 
-	if (mesh_src != mesh)
+	if (!ELEM(mesh_src, NULL, mesh)) {
 		BKE_id_free(NULL, mesh_src);
+	}
 }
 
 
@@ -367,7 +385,7 @@ ModifierTypeInfo modifierType_Wave = {
 	/* isDisabled */        NULL,
 	/* updateDepsgraph */   updateDepsgraph,
 	/* dependsOnTime */     dependsOnTime,
-	/* dependsOnNormals */	NULL,
+	/* dependsOnNormals */	dependsOnNormals,
 	/* foreachObjectLink */ foreachObjectLink,
 	/* foreachIDLink */     foreachIDLink,
 	/* foreachTexLink */    foreachTexLink,

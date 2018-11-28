@@ -1104,24 +1104,28 @@ static void region_overlap_fix(ScrArea *sa, ARegion *ar)
 bool ED_region_is_overlap(int spacetype, int regiontype)
 {
 	if (regiontype == RGN_TYPE_HUD) {
-		return 1;
+		return true;
 	}
 	if (U.uiflag2 & USER_REGION_OVERLAP) {
-		if (spacetype == SPACE_NODE && regiontype == RGN_TYPE_TOOLS) {
-			return 1;
+		if (spacetype == SPACE_NODE) {
+			if (regiontype == RGN_TYPE_TOOLS) {
+				return true;
+			}
 		}
-		if (ELEM(spacetype, SPACE_VIEW3D, SPACE_SEQ, SPACE_IMAGE)) {
-			if (ELEM(regiontype, RGN_TYPE_TOOLS, RGN_TYPE_UI, RGN_TYPE_TOOL_PROPS))
-				return 1;
+		else if (ELEM(spacetype, SPACE_VIEW3D, SPACE_SEQ, SPACE_IMAGE)) {
+			if (ELEM(regiontype, RGN_TYPE_TOOLS, RGN_TYPE_UI, RGN_TYPE_TOOL_PROPS)) {
+				return true;
+			}
 
 			if (ELEM(spacetype, SPACE_VIEW3D, SPACE_IMAGE)) {
-				if (regiontype == RGN_TYPE_HEADER)
-					return 1;
+				if (regiontype == RGN_TYPE_HEADER) {
+					return true;
+				}
 			}
 		}
 	}
 
-	return 0;
+	return false;
 }
 
 static void region_rect_recursive(ScrArea *sa, ARegion *ar, rcti *remainder, rcti *overlap_remainder, int quad)
@@ -1635,7 +1639,18 @@ void ED_area_initialize(wmWindowManager *wm, wmWindow *win, ScrArea *sa)
 		region_azones_add(screen, sa, ar, ar->alignment & ~RGN_SPLIT_PREV);
 	}
 
-	WM_toolsystem_refresh_screen_area(workspace, view_layer, sa);
+
+	/* Avoid re-initializing tools while resizing the window. */
+	if ((G.moving & G_TRANSFORM_WM) == 0) {
+		if ((1 << sa->spacetype) & WM_TOOLSYSTEM_SPACE_MASK) {
+			WM_toolsystem_refresh_screen_area(workspace, view_layer, sa);
+			sa->flag |= AREA_FLAG_ACTIVE_TOOL_UPDATE;
+		}
+		else {
+			sa->runtime.tool = NULL;
+			sa->runtime.is_tool_set = true;
+		}
+	}
 }
 
 static void region_update_rect(ARegion *ar)

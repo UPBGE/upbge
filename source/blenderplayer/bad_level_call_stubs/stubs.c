@@ -150,6 +150,7 @@ struct wmManipulatorMap;
 
 #include "../../intern/dualcon/dualcon.h"
 #include "../../intern/elbeem/extern/elbeem.h"
+#include "../../intern/numaapi/include/numaapi.h"
 #include "../blender/blenkernel/BKE_modifier.h"
 #include "../blender/blenkernel/BKE_paint.h"
 #include "../blender/collada/collada.h"
@@ -597,6 +598,11 @@ struct wmKeyMap *WM_keymap_ensure(struct wmKeyConfig *keyconf, const char *idnam
 void WM_toolsystem_ref_properties_ensure_ex(struct bToolRef *tref, const char *idname, struct StructRNA *type, struct PointerRNA *r_ptr) RET_NONE
 struct wmKeyMapItem *WM_keymap_add_item_copy(struct wmKeyMap *keymap, struct wmKeyMapItem *kmi_src) RET_NULL
 
+int WM_keymap_item_to_string(struct wmKeyMapItem *kmi, const bool compact, char *result, const int result_len) RET_ZERO
+
+NUMAAPI_Result numaAPI_Initialize(void) RET_ZERO
+bool numaAPI_RunProcessOnNode(int node) RET_ZERO
+bool numaAPI_RunThreadOnNode(int node) RET_ZERO
 
 /* rna editors */
 

@@ -507,13 +507,14 @@ static void deformVerts(
 	if (numVerts == 0)
 		return;
 
-	mesh_src = MOD_get_mesh_eval(ctx->object, NULL, mesh, NULL, false, false);
+	mesh_src = MOD_deform_mesh_eval_get(ctx->object, NULL, mesh, NULL, numVerts, false, false);
 
 	laplaciansmoothModifier_do((LaplacianSmoothModifierData *)md, ctx->object, mesh_src,
 	                           vertexCos, numVerts);
 
-	if (mesh_src != mesh)
+	if (!ELEM(mesh_src, NULL, mesh)) {
 		BKE_id_free(NULL, mesh_src);
+	}
 }
 
 static void deformVertsEM(
@@ -525,13 +526,14 @@ static void deformVertsEM(
 	if (numVerts == 0)
 		return;
 
-	mesh_src = MOD_get_mesh_eval(ctx->object, editData, mesh, NULL, false, false);
+	mesh_src = MOD_deform_mesh_eval_get(ctx->object, editData, mesh, NULL, numVerts, false, false);
 
 	laplaciansmoothModifier_do((LaplacianSmoothModifierData *)md, ctx->object, mesh_src,
 	                           vertexCos, numVerts);
 
-	if (mesh_src != mesh)
+	if (!ELEM(mesh_src, NULL, mesh)) {
 		BKE_id_free(NULL, mesh_src);
+	}
 }
 
 

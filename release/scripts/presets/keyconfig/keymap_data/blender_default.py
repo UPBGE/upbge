@@ -425,7 +425,7 @@ def km_screen(params):
             ("screen.region_flip", {"type": 'F5', "value": 'PRESS'}, None),
             ("screen.redo_last", {"type": 'F6', "value": 'PRESS'}, None),
             ("script.reload", {"type": 'F8', "value": 'PRESS'}, None),
-            ("screen.settings_show", {"type": 'U', "value": 'PRESS', "ctrl": True, "alt": True}, None),
+            ("screen.userpref_show", {"type": 'U', "value": 'PRESS', "ctrl": True, "alt": True}, None),
         ])
 
     if params.apple:
@@ -434,7 +434,7 @@ def km_screen(params):
             ("ed.undo", {"type": 'Z', "value": 'PRESS', "oskey": True}, None),
             ("ed.redo", {"type": 'Z', "value": 'PRESS', "shift": True, "oskey": True}, None),
             ("ed.undo_history", {"type": 'Z', "value": 'PRESS', "alt": True, "oskey": True}, None),
-            ("screen.settings_show", {"type": 'COMMA', "value": 'PRESS', "oskey": True}, None),
+            ("screen.userpref_show", {"type": 'COMMA', "value": 'PRESS', "oskey": True}, None),
         ])
 
     return keymap
@@ -5090,6 +5090,18 @@ def km_node_editor_tool_select_lasso(params):
     )
 
 
+def km_node_editor_tool_links_cut(params):
+    return (
+        "Node Tool: Links Cut",
+        {"space_type": 'NODE_EDITOR', "region_type": 'WINDOW'},
+        {"items": (
+            ("node.links_cut", {"type": params.tool_mouse, "value": 'PRESS'}, None),
+        ),
+        },
+    )
+
+
+
 def km_3d_view_tool_object_cursor(params):
     return (
         "3D View Tool: Object, Cursor",
@@ -5945,6 +5957,7 @@ def generate_keymaps(params=None):
         km_node_editor_tool_select(params),
         km_node_editor_tool_select_box(params),
         km_node_editor_tool_select_lasso(params),
+        km_node_editor_tool_links_cut(params),
         km_3d_view_tool_object_cursor(params),
         km_3d_view_tool_object_select(params),
         km_3d_view_tool_object_select_box(params),

@@ -202,7 +202,6 @@ class USERPREF_PT_interface(Panel):
         col.label(text="App Template:")
         col.label(text="Options intended for use with app-templates only.")
         col.prop(view, "show_layout_ui")
-        col.prop(view, "show_view3d_cursor")
 
 
 class USERPREF_PT_edit(Panel):
@@ -1533,8 +1532,8 @@ class USERPREF_PT_studiolight_camera(Panel, StudioLightPanelMixin):
     sl_orientation = 'CAMERA'
 
 
-class USERPREF_PT_studiolight_specular(Panel, StudioLightPanelMixin):
-    bl_label = "Specular Lights"
+class USERPREF_PT_studiolight_lights(Panel, StudioLightPanelMixin):
+    bl_label = "Studio Lights"
     sl_orientation = 'CAMERA'
 
     @classmethod
@@ -1542,22 +1541,22 @@ class USERPREF_PT_studiolight_specular(Panel, StudioLightPanelMixin):
         userpref = context.user_preferences
         return (userpref.active_section == 'LIGHTS')
 
-    def opengl_light_buttons(self, column, light):
-        split = column.split()
+    def opengl_light_buttons(self, layout, light):
 
-        col = split.column()
-        col.prop(light, "use", text="Use", icon='OUTLINER_OB_LIGHT' if light.use else 'LIGHT_DATA')
-
-        sub = col.column()
-        sub.active = light.use
-        sub.prop(light, "specular_color")
-
-        col = split.column()
+        col = layout.column()
         col.active = light.use
-        col.prop(light, "direction", text="")
+
+        col.prop(light, "use", text="Use Light")
+        col.prop(light, "diffuse_color", text="Diffuse")
+        col.prop(light, "specular_color", text="Specular")
+        col.prop(light, "smooth")
+        col.prop(light, "direction")
+
 
     def draw(self, context):
         layout = self.layout
+
+        layout.use_property_split = True
         column = layout.split()
 
         userpref = context.user_preferences
@@ -1574,6 +1573,9 @@ class USERPREF_PT_studiolight_specular(Panel, StudioLightPanelMixin):
         light = system.solid_lights[2]
         self.opengl_light_buttons(column, light)
 
+        layout.separator()
+
+        layout.prop(system, "light_ambient")
 
 classes = (
     USERPREF_HT_header,
@@ -1589,10 +1591,10 @@ classes = (
     USERPREF_PT_input,
     USERPREF_MT_addons_online_resources,
     USERPREF_PT_addons,
+    USERPREF_PT_studiolight_lights,
     USERPREF_PT_studiolight_matcaps,
     USERPREF_PT_studiolight_world,
     USERPREF_PT_studiolight_camera,
-    USERPREF_PT_studiolight_specular,
 )
 
 if __name__ == "__main__":  # only for live edit.

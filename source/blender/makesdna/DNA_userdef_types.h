@@ -493,7 +493,8 @@ enum {
 };
 
 typedef struct SolidLight {
-	int flag, pad;
+	int flag;
+	float smooth;
 	float col[4], spec[4], vec[4];
 } SolidLight;
 
@@ -587,6 +588,7 @@ typedef struct UserDef {
 	short gp_settings;  /* eGP_UserdefSettings */
 	short tb_leftmouse, tb_rightmouse;
 	struct SolidLight light[3];
+	float light_ambient[3], pad7;
 	short gizmo_flag, gizmo_size;
 	short pad6[3];
 	short textimeout, texcollectrate;
@@ -817,7 +819,6 @@ typedef enum eUserpref_UI_Flag2 {
 /* UserDef.app_flag */
 typedef enum eUserpref_APP_Flag {
 	USER_APP_LOCK_UI_LAYOUT = (1 << 0),
-	USER_APP_VIEW3D_HIDE_CURSOR = (1 << 1),
 } eUserpref_APP_Flag;
 
 /* Auto-Keying mode.

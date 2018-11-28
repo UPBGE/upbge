@@ -114,10 +114,9 @@ static void deformVerts(
 	CurveModifierData *cmd = (CurveModifierData *) md;
 	Mesh *mesh_src = NULL;
 
-	if (ctx->object->type == OB_MESH) {
+	if (ctx->object->type == OB_MESH && cmd->name[0] != '\0') {
 		/* mesh_src is only needed for vgroups. */
-		mesh_src = MOD_get_mesh_eval(ctx->object, NULL, mesh, NULL, false, false);
-		BLI_assert(mesh_src->totvert == numVerts);
+		mesh_src = MOD_deform_mesh_eval_get(ctx->object, NULL, mesh, NULL, numVerts, false, false);
 	}
 
 	struct MDeformVert *dvert = NULL;
@@ -141,13 +140,11 @@ static void deformVertsEM(
         float (*vertexCos)[3],
         int numVerts)
 {
-	Mesh *mesh_src = MOD_get_mesh_eval(ctx->object, em, mesh, NULL, false, false);
-
-	BLI_assert(mesh_src->totvert == numVerts);
+	Mesh *mesh_src = MOD_deform_mesh_eval_get(ctx->object, em, mesh, NULL, numVerts, false, false);
 
 	deformVerts(md, ctx, mesh_src, vertexCos, numVerts);
 
-	if (mesh_src != mesh) {
+	if (!ELEM(mesh_src, NULL, mesh)) {
 		BKE_id_free(NULL, mesh_src);
 	}
 }

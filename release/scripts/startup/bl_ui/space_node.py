@@ -220,7 +220,7 @@ class NODE_MT_view(Menu):
 
             layout.operator("node.backimage_move", text="Backdrop Move")
             layout.operator("node.backimage_zoom", text="Backdrop Zoom In").factor = 1.2
-            layout.operator("node.backimage_zoom", text="Backdrop Zoom Out").factor = 0.83333
+            layout.operator("node.backimage_zoom", text="Backdrop Zoom Out").factor = 1.0 / 1.2
             layout.operator("node.backimage_fit", text="Fit Backdrop to Available Space")
 
         layout.separator()
@@ -302,7 +302,6 @@ class NODE_MT_node(Menu):
         layout.separator()
 
         layout.operator("node.read_viewlayers")
-        layout.operator("node.read_fullsamplelayers")
 
 
 class NODE_PT_node_color_presets(PresetMenu):
