@@ -51,7 +51,7 @@ class LOGIC_PT_properties(Panel):
                 # get the property from the body, not the game property
                 # note, don't do this - it's too slow and body can potentially be a really long string.
                 #~ row.prop(ob.data, "body", text="")
-                row.label("See Text Object")
+                row.label(text="See Text Object")
             else:
                 props = layout.operator("object.game_property_new", text="Add Text Game Property", icon='PLUS')
                 props.name = "Text"
