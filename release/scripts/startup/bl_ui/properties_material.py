@@ -822,6 +822,7 @@ class MATERIAL_PT_game_options(MaterialButtonsPanel, Panel):
         col.prop(mat, "use_vertex_color_light")
         col.prop(mat, "use_object_color")
         col.prop(mat, "use_instancing")
+        col.prop(mat, "pass_index")
 
 class MATERIAL_PT_shadow(MaterialButtonsPanel, Panel):
     bl_label = "Shadow"

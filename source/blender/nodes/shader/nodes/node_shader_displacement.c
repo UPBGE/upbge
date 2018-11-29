@@ -57,14 +57,14 @@ static void node_shader_init_displacement(bNodeTree *UNUSED(ntree), bNode *node)
 static int gpu_shader_displacement(GPUMaterial *mat, bNode *node, bNodeExecData *UNUSED(execdata), GPUNodeStack *in, GPUNodeStack *out)
 {
 	if (!in[3].link) {
-		GPU_link(mat, "direction_transform_m4v3", GPU_builtin(GPU_VIEW_NORMAL), GPU_builtin(GPU_INVERSE_VIEW_MATRIX), &in[3].link);
+		GPU_link(mat, "direction_transform_m4v3", GPU_material_builtin(mat, GPU_VIEW_NORMAL), GPU_material_builtin(mat, GPU_INVERSE_VIEW_MATRIX), &in[3].link);
 	}
 
 	if (node->custom1 == SHD_SPACE_OBJECT) {
-		return GPU_stack_link(mat, "node_displacement_object", in, out, GPU_builtin(GPU_OBJECT_MATRIX));
+		return GPU_stack_link(mat, "node_displacement_object", in, out, GPU_material_builtin(mat, GPU_OBJECT_MATRIX));
 	}
 	else {
-		return GPU_stack_link(mat, "node_displacement_world", in, out, GPU_builtin(GPU_OBJECT_MATRIX));
+		return GPU_stack_link(mat, "node_displacement_world", in, out, GPU_material_builtin(mat, GPU_OBJECT_MATRIX));
 	}
 }
 

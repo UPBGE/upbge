@@ -68,9 +68,9 @@ static int node_shader_gpu_tex_environment(GPUMaterial *mat, bNode *node, bNodeE
 		GPUMatType type = GPU_Material_get_type(mat);
 
 		if (type == GPU_MATERIAL_TYPE_MESH)
-			in[0].link = GPU_builtin(GPU_VIEW_POSITION);
+			in[0].link = GPU_material_builtin(mat, GPU_VIEW_POSITION);
 		else
-			GPU_link(mat, "background_transform_to_world", GPU_builtin(GPU_VIEW_POSITION), &in[0].link);
+			GPU_link(mat, "background_transform_to_world", GPU_material_builtin(mat, GPU_VIEW_POSITION), &in[0].link);
 	}
 
 	node_shader_gpu_tex_mapping(mat, node, in, out);

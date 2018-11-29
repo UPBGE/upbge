@@ -1058,6 +1058,7 @@ static KX_GameObject *BL_GameObjectFromBlenderObject(Object *ob, KX_Scene *kxsce
 	}
 	if (gameobj) {
 		gameobj->SetLayer(ob->lay);
+		gameobj->SetPassIndex(ob->index);
 		BL_ConvertObjectInfo *info = converter.GetObjectInfo(ob);
 		gameobj->SetConvertObjectInfo(info);
 		gameobj->SetObjectColor(mt::vec4(ob->col));

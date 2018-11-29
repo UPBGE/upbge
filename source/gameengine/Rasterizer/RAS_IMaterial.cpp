@@ -38,7 +38,8 @@ RAS_IMaterial::RAS_IMaterial(const std::string& name)
 	m_alphablend(0),
 	m_zoffset(0.0f),
 	m_rasMode(0),
-	m_flag(0)
+	m_flag(0),
+	m_passIndex(0)
 {
 	for (unsigned short i = 0; i < RAS_Texture::MaxUnits; ++i) {
 		m_textures[i] = nullptr;
@@ -151,6 +152,11 @@ bool RAS_IMaterial::CastsShadows() const
 bool RAS_IMaterial::OnlyShadow() const
 {
 	return (m_flag & RAS_ONLYSHADOW) != 0;
+}
+
+short RAS_IMaterial::GetPassIndex() const
+{
+	return m_passIndex;
 }
 
 RAS_Texture *RAS_IMaterial::GetTexture(unsigned int index)

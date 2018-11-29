@@ -78,7 +78,7 @@ public:
 	RAS_InstancingBuffer::Attrib GetInstancingAttribs() const;
 
 	void UpdateLights(RAS_Rasterizer *rasty);
-	void Update(RAS_MeshUser *meshUser, RAS_Rasterizer *rasty);
+	void Update(RAS_MeshUser *meshUser, short matPassIndex, RAS_Rasterizer *rasty);
 
 	/// Return true if the shader uses a special vertex shader for geometry instancing.
 	bool UseInstancing() const;

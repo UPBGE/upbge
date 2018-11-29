@@ -56,7 +56,7 @@ static int gpu_shader_camera(GPUMaterial *mat, bNode *UNUSED(node), bNodeExecDat
 {
 	GPUNodeLink *viewvec;
 
-	viewvec = GPU_builtin(GPU_VIEW_POSITION);
+	viewvec = GPU_material_builtin(mat, GPU_VIEW_POSITION);
 
 	/* Blender has negative Z, Cycles positive Z convention */
 	if (GPU_material_use_new_shading_nodes(mat))

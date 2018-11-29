@@ -122,6 +122,9 @@ RAS_InstancingBuffer::Attrib BL_BlenderShader::GetInstancingAttribs() const
 	if (builtins & GPU_INSTANCING_LAYER) {
 		attrib = (RAS_InstancingBuffer::Attrib)(attrib | RAS_InstancingBuffer::LAYER_ATTRIB);
 	}
+	if (builtins & GPU_INSTANCING_INFO) {
+		attrib = (RAS_InstancingBuffer::Attrib)(attrib | RAS_InstancingBuffer::INFO_ATTRIB);
+	}
 
 	return attrib;
 }
@@ -162,7 +165,7 @@ void BL_BlenderShader::UpdateLights(RAS_Rasterizer *rasty)
 	GPU_material_update_lamps(m_gpuMat, rasty->GetViewMatrix().Data(), rasty->GetViewInvMatrix().Data());
 }
 
-void BL_BlenderShader::Update(RAS_MeshUser *meshUser, RAS_Rasterizer *rasty)
+void BL_BlenderShader::Update(RAS_MeshUser *meshUser, short matPassIndex, RAS_Rasterizer *rasty)
 {
 	if (!GPU_material_bound(m_gpuMat)) {
 		return;
@@ -170,8 +173,15 @@ void BL_BlenderShader::Update(RAS_MeshUser *meshUser, RAS_Rasterizer *rasty)
 
 	const float (&obcol)[4] = meshUser->GetColor().Data();
 
+	float objectInfo[3];
+	if (GPU_get_material_builtins(m_gpuMat) & GPU_OBJECT_INFO) {
+		objectInfo[0] = float(meshUser->GetPassIndex());
+		objectInfo[1] = float(matPassIndex);
+		objectInfo[2] = meshUser->GetRandom();
+	}
+
 	GPU_material_bind_uniforms(m_gpuMat, meshUser->GetMatrix().Data(), rasty->GetViewMatrix().Data(),
-			obcol, meshUser->GetLayer(), 1.0f, nullptr, nullptr);
+			obcol, meshUser->GetLayer(), 1.0f, nullptr, objectInfo);
 
 	m_alphaBlend = GPU_material_alpha_blend(m_gpuMat, obcol);
 }
@@ -184,7 +194,7 @@ bool BL_BlenderShader::UseInstancing() const
 void BL_BlenderShader::ActivateInstancing(RAS_InstancingBuffer *buffer)
 {
 	GPU_material_bind_instancing_attrib(m_gpuMat, (void *)buffer->GetMatrixOffset(), (void *)buffer->GetPositionOffset(),
-			(void *)buffer->GetColorOffset(), (void *)buffer->GetLayerOffset());
+			(void *)buffer->GetColorOffset(), (void *)buffer->GetLayerOffset(), (void *)buffer->GetInfoOffset());
 }
 
 int BL_BlenderShader::GetAlphaBlend()

@@ -137,11 +137,11 @@ static int gpu_shader_geom(GPUMaterial *mat, bNode *node, bNodeExecData *UNUSED(
 	GPUNodeLink *mcol = GPU_attribute(CD_MCOL, ngeo->colname);
 
 	bool ret = GPU_stack_link(mat, "geom", in, out,
-	                      GPU_builtin(GPU_VIEW_POSITION), GPU_builtin(GPU_VIEW_NORMAL),
-	                      GPU_builtin(GPU_INVERSE_VIEW_MATRIX), orco, mtface, mcol);
+	                      GPU_material_builtin(mat, GPU_VIEW_POSITION), GPU_material_builtin(mat, GPU_VIEW_NORMAL),
+	                      GPU_material_builtin(mat, GPU_INVERSE_VIEW_MATRIX), orco, mtface, mcol);
 	if (GPU_material_use_world_space_shading(mat)) {
 		GPU_link(mat, "vec_math_negate", out[5].link, &out[5].link);
-		ret &= GPU_link(mat, "direction_transform_m4v3", out[5].link, GPU_builtin(GPU_INVERSE_VIEW_MATRIX), &out[5].link);
+		ret &= GPU_link(mat, "direction_transform_m4v3", out[5].link, GPU_material_builtin(mat, GPU_INVERSE_VIEW_MATRIX), &out[5].link);
 	}
 	return ret;
 }
