@@ -179,6 +179,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_blenderScene(scene),
 	m_isActivedHysteresis(false),
 	m_isRuntime(true), //eevee
+	m_resetTaaSamples(false),
 	m_lodHysteresisValue(0)
 {
 
@@ -357,6 +358,11 @@ bool KX_Scene::ObjectsAreStatic()
 	return GetObjectList()->GetCount() == m_staticObjects.size();
 }
 
+void KX_Scene::ResetTaaSamples()
+{
+	m_resetTaaSamples = true;
+}
+
 void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
 {
 
@@ -364,7 +370,8 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
 		gameobj->TagForUpdate();
 	}
 
-	bool reset_taa_samples = !ObjectsAreStatic();
+	bool reset_taa_samples = !ObjectsAreStatic() || m_resetTaaSamples;
+	m_resetTaaSamples = false;
 	m_staticObjects.clear();
 
 	KX_KetsjiEngine *engine = KX_GetActiveEngine();

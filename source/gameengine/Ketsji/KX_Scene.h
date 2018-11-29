@@ -150,6 +150,7 @@ protected:
 	std::vector<KX_GameObject *>m_lightProbes;
 
 	int m_taaSamplesBackup;
+	bool m_resetTaaSamples;
 	/*************************************************/
 
 	RAS_BucketManager*	m_bucketmanager;
@@ -340,6 +341,7 @@ public:
 	/******************EEVEE INTEGRATION************************/
 	void AppendToStaticObjects(KX_GameObject *gameobj);
 	bool ObjectsAreStatic();
+	void ResetTaaSamples();
 
 
 	bool m_isRuntime; // Too lazy to put that in protected

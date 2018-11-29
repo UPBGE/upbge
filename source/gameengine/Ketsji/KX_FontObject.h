@@ -64,6 +64,8 @@ public:
 		return OBJ_TEXT;
 	}
 
+	void UpdateCurveText(std::string text); //eevee
+
 	// Update text and bounding box.
 	void SetText(const std::string& text);
 	/// Update text from property.
@@ -81,6 +83,8 @@ protected:
 	float m_resolution;
 	float m_line_spacing;
 	MT_Vector3 m_offset;
+
+	std::string m_backupText; //eevee
 
 	/// Text bounding box for mesh/text user.
 	RAS_BoundingBox *m_boundingBox;
