@@ -994,8 +994,9 @@ static void transform_event_xyz_constraint(TransInfo *t, short key_type, char cm
 		else if (!edit_2d) {
 			if (cmode != axis) {
 				/* First press, constraint to an axis. */
-				t->orientation.index = 1;
-				const short orientation = t->orientation.types[t->orientation.index];
+				t->orientation.index = 0;
+				const short *orientation_ptr = t->orientation.types[t->orientation.index];
+				const short  orientation = orientation_ptr ? *orientation_ptr : V3D_MANIP_GLOBAL;
 				if (is_plane == false) {
 					setUserConstraint(t, orientation, constraint_axis, msg2);
 				}
@@ -1011,7 +1012,8 @@ static void transform_event_xyz_constraint(TransInfo *t, short key_type, char cm
 					stopConstraint(t);
 				}
 				else {
-					const short orientation = t->orientation.types[t->orientation.index];
+					const short *orientation_ptr = t->orientation.types[t->orientation.index];
+					const short  orientation = orientation_ptr ? *orientation_ptr : V3D_MANIP_GLOBAL;
 					if (is_plane == false) {
 						setUserConstraint(t, orientation, constraint_axis, msg2);
 					}
@@ -1371,7 +1373,16 @@ int transformEvent(TransInfo *t, const wmEvent *event)
 							stopConstraint(t);
 						}
 						else {
-							initSelectConstraint(t, t->spacemtx);
+							if (event->shift) {
+								initSelectConstraint(t, t->spacemtx);
+							}
+							else {
+								/* bit hackish... but it prevents mmb select to print the orientation from menu */
+								float mati[3][3];
+								strcpy(t->spacename, "global");
+								unit_m3(mati);
+								initSelectConstraint(t, mati);
+							}
 							postSelectConstraint(t);
 						}
 					}

@@ -160,7 +160,7 @@ def _template_items_object_subdivision_set():
     return [
         ("object.subdivision_set",
          {"type": NUMBERS_0[i], "value": 'PRESS', "ctrl": True},
-         {"properties": [("level", i)]})
+         {"properties": [("level", i), ("relative", False)]})
         for i in range(6)
     ]
 
@@ -292,9 +292,9 @@ def km_window(params):
 
         # Fast editor switching
         *(
-            ("wm.context_set_enum",
+            ("screen.space_type_set_or_cycle",
              {"type": k, "value": 'PRESS', "shift": True},
-             {"properties": [("data_path", 'area.type'), ("value", t)]})
+             {"properties": [("space_type", t)]})
             for k, t in (
                 ('F4', 'CONSOLE'),
                 ('F5', 'VIEW_3D'),
@@ -2471,10 +2471,6 @@ def km_clip(_params):
         ("wm.context_toggle_enum", {"type": 'TAB', "value": 'PRESS'},
          {"properties": [("data_path", 'space_data.mode'), ("value_1", 'TRACKING'), ("value_2", 'MASK')]}),
         ("clip.solve_camera", {"type": 'S', "value": 'PRESS', "shift": True}, None),
-        ("clip.set_solver_keyframe", {"type": 'Q', "value": 'PRESS'},
-         {"properties": [("keyframe", 'KEYFRAME_A')]}),
-        ("clip.set_solver_keyframe", {"type": 'E', "value": 'PRESS'},
-         {"properties": [("keyframe", 'KEYFRAME_B')]}),
         ("clip.prefetch", {"type": 'P', "value": 'PRESS'}, None),
     ])
 

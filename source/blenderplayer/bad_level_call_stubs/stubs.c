@@ -703,8 +703,8 @@ float ED_scene_grid_scale(struct Scene *scene, const char **grid_unit) RET_ZERO
 void gpencil_modifier_type_init(struct GpencilModifierTypeInfo *types[]) RET_NONE
 void shaderfx_type_init(struct ShaderFxTypeInfo *types[]) RET_NONE
 void openSubdiv_deleteEvaluator(struct OpenSubdiv_Evaluator* evaluator) RET_NONE
-struct OpenSubdiv_TopologyRefiner* openSubdiv_createTopologyRefinerFromConverter(struct OpenSubdiv_Converter* converter, const struct OpenSubdiv_TopologyRefinerSettings* settings) RET_NULL
-void openSubdiv_deleteTopologyRefiner(struct OpenSubdiv_TopologyRefiner* topology_refiner) RET_NONE
+//struct OpenSubdiv_TopologyRefiner* openSubdiv_createTopologyRefinerFromConverter(struct OpenSubdiv_Converter* converter, const struct OpenSubdiv_TopologyRefinerSettings* settings) RET_NULL
+//void openSubdiv_deleteTopologyRefiner(struct OpenSubdiv_TopologyRefiner* topology_refiner) RET_NONE
 struct OpenSubdiv_Evaluator* openSubdiv_createEvaluatorFromTopologyRefiner(struct OpenSubdiv_TopologyRefiner* topology_refiner) RET_NULL
 
 struct GpencilModifierData *ED_object_gpencil_modifier_add(

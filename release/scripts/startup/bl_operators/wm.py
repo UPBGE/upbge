@@ -2654,6 +2654,7 @@ class WM_MT_splash(Menu):
             sub.operator("wm.save_userpref", text="Next")
 
         layout.separator()
+        layout.separator()
 
     def draw(self, context):
         # Draw setup screen if no user preferences have been saved yet.
@@ -2730,6 +2731,7 @@ class WM_MT_splash(Menu):
                 "wm.url_open", text="Donate", icon='URL'
             ).url = "https://www.blender.org/foundation/donation-payment/"
 
+        layout.separator()
         layout.separator()
 
 
