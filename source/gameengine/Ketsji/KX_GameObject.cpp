@@ -2069,12 +2069,6 @@ PyTypeObject KX_GameObject::Type = {
 	py_base_new
 };
 
-PyObject *KX_GameObject::pyattr_get_name(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
-{
-	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
-	return PyUnicode_FromStdString(self->GetName());
-}
-
 int KX_GameObject::pyattr_set_name(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);

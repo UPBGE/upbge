@@ -1560,12 +1560,6 @@ PyMethodDef KX_Scene::Methods[] = {
 	{nullptr, nullptr} // Sentinel
 };
 
-PyObject *KX_Scene::pyattr_get_name(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
-{
-	KX_Scene *self = static_cast<KX_Scene *>(self_v);
-	return PyUnicode_FromStdString(self->GetName());
-}
-
 PyObject *KX_Scene::pyattr_get_objects(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_Scene *self = static_cast<KX_Scene *>(self_v);
@@ -1757,7 +1751,6 @@ int KX_Scene::pyattr_set_gravity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE
 }
 
 PyAttributeDef KX_Scene::Attributes[] = {
-	EXP_PYATTRIBUTE_RO_FUNCTION("name", KX_Scene, pyattr_get_name),
 	EXP_PYATTRIBUTE_RO_FUNCTION("objects", KX_Scene, pyattr_get_objects),
 	EXP_PYATTRIBUTE_RO_FUNCTION("objectsInactive", KX_Scene, pyattr_get_objects_inactive),
 	EXP_PYATTRIBUTE_RO_FUNCTION("lights", KX_Scene, pyattr_get_lights),
