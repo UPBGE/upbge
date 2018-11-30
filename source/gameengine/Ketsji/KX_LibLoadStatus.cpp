@@ -25,6 +25,9 @@
  */
 
 #include "KX_LibLoadStatus.h"
+
+#include "EXP_PythonCallBack.h"
+
 #include "PIL_time.h"
 
 KX_LibLoadStatus::KX_LibLoadStatus(BL_Converter *converter, KX_KetsjiEngine *engine, KX_Scene *merge_scene, const std::string& path)
@@ -57,14 +60,11 @@ void KX_LibLoadStatus::RunFinishCallback()
 {
 #ifdef WITH_PYTHON
 	if (m_finish_cb) {
-		PyObject *args = Py_BuildValue("(O)", GetProxy());
+		PyObject *args[] = {GetProxy()};
 
-		if (!PyObject_Call(m_finish_cb, args, nullptr)) {
-			PyErr_Print();
-			PyErr_Clear();
-		}
+		EXP_RunPythonCallback(m_finish_cb, args, 0, 1);
 
-		Py_DECREF(args);
+		Py_DECREF(args[0]);
 	}
 #endif
 }
