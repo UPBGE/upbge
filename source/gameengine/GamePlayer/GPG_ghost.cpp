@@ -33,6 +33,7 @@
 
 #include <math.h>
 #include <fstream>
+#include <iostream>
 
 #ifdef __linux__
 #  ifdef __alpha__

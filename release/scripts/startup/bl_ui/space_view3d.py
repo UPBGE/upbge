@@ -340,6 +340,9 @@ class VIEW3D_MT_editor_menus(Menu):
                 layout.menu("VIEW3D_MT_edit_mesh_edges")
                 layout.menu("VIEW3D_MT_edit_mesh_faces")
                 layout.menu("VIEW3D_MT_uv_map", text="UV")
+            elif mode_string == 'EDIT_CURVE':
+                layout.menu("VIEW3D_MT_edit_curve_ctrlpoints")
+                layout.menu("VIEW3D_MT_edit_curve_segments")
 
         elif obj:
             if mode_string != 'PAINT_TEXTURE':
@@ -593,7 +596,7 @@ class VIEW3D_MT_view(Menu):
 
         layout.operator("view3d.view_all", text="Frame All").center = False
         layout.operator("view3d.view_persportho", text="Perspective/Orthographic")
-        layout.operator("view3d.localview")
+        layout.menu("VIEW3D_MT_view_local")
 
         layout.separator()
 
@@ -621,6 +624,17 @@ class VIEW3D_MT_view(Menu):
         layout.separator()
 
         layout.menu("INFO_MT_area")
+
+
+class VIEW3D_MT_view_local(Menu):
+    bl_label = "Local View"
+
+    def draw(self, context):
+        layout = self.layout
+        view = context.space_data
+
+        layout.operator("view3d.localview", text="Toggle Local View")
+        layout.operator("view3d.localview_remove_from")
 
 
 class VIEW3D_MT_view_cameras(Menu):
@@ -1724,6 +1738,7 @@ class VIEW3D_MT_object_specials(Menu):
     def draw(self, context):
 
         layout = self.layout
+        view = context.space_data
 
         obj = context.object
         is_eevee = context.scene.render.engine == 'BLENDER_EEVEE'
@@ -1763,7 +1778,6 @@ class VIEW3D_MT_object_specials(Menu):
                 props.header_text = "Camera Lens Scale: %.3f"
 
             if not obj.data.dof_object:
-                view = context.space_data
                 if view and view.camera == obj and view.region_3d.view_perspective == 'CAMERA':
                     props = layout.operator("ui.eyedropper_depth", text="DOF Distance (Pick)")
                 else:
@@ -1772,7 +1786,6 @@ class VIEW3D_MT_object_specials(Menu):
                     props.data_path_item = "data.dof_distance"
                     props.input_scale = 0.02
                     props.header_text = "DOF Distance: %.3f"
-                del view
 
         if obj.type in {'CURVE', 'FONT'}:
             layout.operator_context = 'INVOKE_REGION_WIN'
@@ -1875,7 +1888,11 @@ class VIEW3D_MT_object_specials(Menu):
         layout.menu("VIEW3D_MT_snap")
         layout.menu("VIEW3D_MT_object_parent")
         layout.operator_context = 'INVOKE_REGION_WIN'
-        layout.operator("object.move_to_collection")
+
+        if view and view.local_view:
+            layout.operator("view3d.localview_remove_from")
+        else:
+            layout.operator("object.move_to_collection")
 
         layout.separator()
 
@@ -3288,7 +3305,6 @@ def draw_curve(self, context):
 
     layout.separator()
 
-    layout.operator("curve.extrude_move")
     layout.operator("curve.spin")
     layout.operator("curve.duplicate_move")
 
@@ -3296,13 +3312,8 @@ def draw_curve(self, context):
 
     layout.operator("curve.split")
     layout.operator("curve.separate")
-    layout.operator("curve.make_segment")
     layout.operator("curve.cyclic_toggle")
-
-    layout.separator()
-
-    layout.menu("VIEW3D_MT_edit_curve_ctrlpoints")
-    layout.menu("VIEW3D_MT_edit_curve_segments")
+    layout.operator_menu_enum("curve.spline_type_set", "type")
 
     layout.separator()
 
@@ -3326,6 +3337,14 @@ class VIEW3D_MT_edit_curve_ctrlpoints(Menu):
         edit_object = context.edit_object
 
         if edit_object.type == 'CURVE':
+            layout.operator("curve.extrude_move")
+
+            layout.separator()
+
+            layout.operator("curve.make_segment")
+
+            layout.separator()
+
             layout.operator("transform.tilt")
             layout.operator("curve.tilt_clear")
 
@@ -3333,6 +3352,13 @@ class VIEW3D_MT_edit_curve_ctrlpoints(Menu):
 
             layout.operator_menu_enum("curve.handle_type_set", "type")
             layout.operator("curve.normals_make_consistent")
+
+            layout.separator()
+
+            layout.operator("curve.smooth")
+            layout.operator("curve.smooth_weight")
+            layout.operator("curve.smooth_radius")
+            layout.operator("curve.smooth_tilt")
 
             layout.separator()
 
@@ -3366,6 +3392,7 @@ class VIEW3D_MT_edit_curve_specials(Menu):
     bl_label = "Curve Context Menu"
 
     def draw(self, context):
+        # TODO(campbell): match mesh vertex menu.
         layout = self.layout
 
         layout.operator("curve.subdivide")
@@ -4210,19 +4237,33 @@ class VIEW3D_PT_shading_lighting(Panel):
             split = layout.split(factor=0.9)
             col = split.column()
             sub = col.row()
-            sub.scale_y = 0.6  # smaller matcap/hdri preview
 
             if shading.light == 'STUDIO':
-                # Not implemented right now
-                # sub.template_icon_view(shading, "studio_light", scale=3)
+                userpref = context.user_preferences
+                system = userpref.system
 
-                # if shading.selected_studio_light.orientation == 'WORLD':
-                #     col.prop(shading, "studiolight_rotate_z", text="Rotation")
+                if not system.edit_solid_light:
+                    sub.scale_y = 0.6  # smaller studiolight preview
+                    sub.template_icon_view(shading, "studio_light", scale=3)
+                else:
+                    sub.prop(system, "edit_solid_light", text="Disable Studio Light Edit", icon="NONE", toggle=True)
 
                 col = split.column()
-                # col.operator('wm.studiolight_userpref_show', emboss=False, text="", icon='PREFERENCES')
+                col.operator('wm.studiolight_userpref_show', emboss=False, text="", icon='PREFERENCES')
+
+                split = layout.split(factor=0.9)
+                col = split.column()
+
+                row = col.row()
+                row.prop(shading, "use_world_space_lighting", text="", icon="WORLD", toggle=True)
+                row = row.row()
+                row.active = shading.use_world_space_lighting
+                row.prop(shading, "studiolight_rotate_z", text="Rotation")
+                col = split.column()  # to align properly with above
 
             elif shading.light == 'MATCAP':
+                sub.scale_y = 0.6  # smaller matcap preview
+
                 sub.template_icon_view(shading, "studio_light", scale=3)
 
                 col = split.column()
@@ -4245,7 +4286,7 @@ class VIEW3D_PT_shading_lighting(Panel):
                 col = split.column()
                 col.operator('wm.studiolight_userpref_show', emboss=False, text="", icon='PREFERENCES')
 
-                if shading.selected_studio_light.orientation == 'WORLD':
+                if shading.selected_studio_light.type == 'WORLD':
                     split = layout.split(factor=0.9)
                     col = split.column()
                     col.prop(shading, "studiolight_rotate_z", text="Rotation")
@@ -5417,6 +5458,7 @@ classes = (
     VIEW3D_MT_uv_map,
     VIEW3D_MT_edit_proportional,
     VIEW3D_MT_view,
+    VIEW3D_MT_view_local,
     VIEW3D_MT_view_cameras,
     VIEW3D_MT_view_navigation,
     VIEW3D_MT_view_align,

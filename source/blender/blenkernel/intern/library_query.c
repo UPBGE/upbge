@@ -280,11 +280,11 @@ static void library_foreach_animationData(LibraryForeachIDData *data, AnimData *
 
 		for (dvar = driver->variables.first; dvar; dvar = dvar->next) {
 			/* only used targets */
-			DRIVER_TARGETS_USED_LOOPER(dvar)
+			DRIVER_TARGETS_USED_LOOPER_BEGIN(dvar)
 			{
 				FOREACH_CALLBACK_INVOKE_ID(data, dtar->id, IDWALK_CB_NOP);
 			}
-			DRIVER_TARGETS_LOOPER_END
+			DRIVER_TARGETS_LOOPER_END;
 		}
 	}
 
@@ -457,8 +457,7 @@ void BKE_library_foreach_ID_link(Main *bmain, ID *id, LibraryIDLinkCallback call
 						for (SequenceModifierData *smd = seq->modifiers.first; smd; smd = smd->next) {
 							CALLBACK_INVOKE(smd->mask_id, IDWALK_CB_USER);
 						}
-					}
-					SEQ_END
+					} SEQ_END;
 				}
 
 

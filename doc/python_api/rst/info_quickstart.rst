@@ -120,12 +120,12 @@ however, the index of a member may change while running Blender.
 Accessing Attributes
 ^^^^^^^^^^^^^^^^^^^^
 
-Once you have a data block, such as a material, object, groups etc.,
+Once you have a data block, such as a material, object, collections etc.,
 its attributes can be accessed much like you would change a setting using the graphical interface.
 In fact, the tooltip for each button also displays the Python attribute
 which can help in finding what settings to change in a script.
 
-   >>> bpy.data.objects[0].name 
+   >>> bpy.data.objects[0].name
    'Camera'
 
    >>> bpy.data.scenes["Scene"]
@@ -195,10 +195,10 @@ Example:
    value = bpy.data.scenes["Scene"].get("test_prop", "fallback value")
 
    # dictionaries can be assigned as long as they only use basic types.
-   group = bpy.data.groups.new("MyTestGroup")
-   group["GameSettings"] = {"foo": 10, "bar": "spam", "baz": {}}
+   collection = bpy.data.collections.new("MyTestCollection")
+   collection["MySettings"] = {"foo": 10, "bar": "spam", "baz": {}}
 
-   del group["GameSettings"]
+   del collection["MySettings"]
 
 
 Note that these properties can only be assigned  basic Python types.
@@ -267,7 +267,7 @@ Operator Poll()
 ^^^^^^^^^^^^^^^
 
 Many operators have a "poll" function which may check that the cursor
-is in a valid area or that the object is in the correct mode (Edit Mode, Weight Paint etc). 
+is in a valid area or that the object is in the correct mode (Edit Mode, Weight Paint etc).
 When an operator's poll function fails within Python, an exception is raised.
 
 For example, calling ``bpy.ops.view3d.render_border()`` from the console raises the following error:
@@ -339,11 +339,11 @@ Notice the extra ``bl_`` variables used to set the context they display in.
 
 To run the script:
 
-#. Highlight the above code then press :kbd:`Ctrl-C` to copy it
-#. Start Blender
-#. Press :kbd:`Ctrl-Right` twice to change to the Scripting layout
-#. Click the button labeled ``New`` and the confirmation pop up in order to create a new text block.
-#. Press :kbd:`Ctrl-V` to paste the code into the text panel (the upper left frame)
+#. Highlight the above code then press :kbd:`Ctrl-C` to copy it.
+#. Start Blender.
+#. Click on the tab for the *Scripting* workspace.
+#. Click the button labeled ``New`` to create a new text block.
+#. Press :kbd:`Ctrl-V` to paste the code into the text panel (the upper left frame).
 #. Click on the button **Run Script**.
 
 
@@ -394,7 +394,7 @@ Internal Types
 
 Used for Blender data-blocks and collections: :class:`bpy.types.bpy_struct`
 
-For data that contains its own attributes groups/meshes/bones/scenes... etc.
+For data that contains its own attributes collections/meshes/bones/scenes... etc.
 
 There are 2 main types that wrap Blenders data, one for data-blocks
 (known internally as ``bpy_struct``), another for properties.
@@ -477,4 +477,3 @@ Using Low-Level Functions:
    fcu_z.keyframe_points.add(2)
    fcu_z.keyframe_points[0].co = 10.0, 0.0
    fcu_z.keyframe_points[1].co = 20.0, 1.0
-

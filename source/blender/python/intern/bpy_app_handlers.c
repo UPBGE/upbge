@@ -68,6 +68,7 @@ static PyStructSequence_Field app_cb_info_fields[] = {
 	{(char *)"game_pre",          (char *)"on starting the game engine"},
 	{(char *)"game_post",         (char *)"on ending the game engine"},
 	{(char *)"version_update",        (char *)"on ending the versioning code"},
+	{(char *)"load_factory_startup_post", (char *)"on loading factory startup (after)"},
 
 	/* sets the permanent tag */
 #   define APP_CB_OTHER_FIELDS 1

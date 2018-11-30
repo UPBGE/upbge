@@ -590,7 +590,8 @@ typedef struct UserDef {
 	struct SolidLight light[3];
 	float light_ambient[3], pad7;
 	short gizmo_flag, gizmo_size;
-	short pad6[3];
+	short edit_solid_light;
+	short pad6[2];
 	short textimeout, texcollectrate;
 	short dragthreshold;
 	int memcachelimit;

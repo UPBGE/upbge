@@ -133,7 +133,7 @@ string NamedNestedSampleStats::full_report(int indent_level, uint64_t total_samp
 	                            sum_seconds,
 	                            self_percent,
 	                            self_seconds);
-	string result = indent + info; 
+	string result = indent + info;
 
 	sort(entries.begin(), entries.end(), namedTimeSampleEntryComparator);
 	foreach(NamedNestedSampleStats& entry, entries) {
@@ -227,11 +227,9 @@ RenderStats::RenderStats() {
 	has_profiling = false;
 }
 
-void RenderStats::collect_profiling(Scene *scene, Stats *stats)
+void RenderStats::collect_profiling(Scene *scene, Profiler& prof)
 {
 	has_profiling = true;
-
-	Profiler &prof = stats->profiler;
 
 	kernel = NamedNestedSampleStats("Total render time", prof.get_event(PROFILING_UNKNOWN));
 

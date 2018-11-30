@@ -1008,7 +1008,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 		 * Also, metallic node is now unified into the principled node. */
 		eNTreeDoVersionErrors error = NTREE_DOVERSION_NO_ERROR;
 
-		FOREACH_NODETREE(bmain, ntree, id) {
+		FOREACH_NODETREE_BEGIN(bmain, ntree, id) {
 			if (ntree->type == NTREE_SHADER) {
 				for (bNode *node = ntree->nodes.first; node; node = node->next) {
 					if (node->type == 194 /* SH_NODE_EEVEE_METALLIC */ &&
@@ -1040,12 +1040,12 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 					}
 				}
 			}
-		} FOREACH_NODETREE_END
+		} FOREACH_NODETREE_END;
 
-			if (error & NTREE_DOVERSION_NEED_OUTPUT) {
-				BKE_report(fd->reports, RPT_ERROR, "Eevee material conversion problem. Error in console");
-				printf("You need to connect Principled and Eevee Specular shader nodes to new material output nodes.\n");
-			}
+		if (error & NTREE_DOVERSION_NEED_OUTPUT) {
+			BKE_report(fd->reports, RPT_ERROR, "Eevee material conversion problem. Error in console");
+			printf("You need to connect Principled and Eevee Specular shader nodes to new material output nodes.\n");
+		}
 
 		if (error & NTREE_DOVERSION_TRANSPARENCY_EMISSION) {
 			BKE_report(fd->reports, RPT_ERROR, "Eevee material conversion problem. Error in console");
@@ -1124,9 +1124,9 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 						gset->cur_falloff = curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
 						curvemapping_initialize(gset->cur_falloff);
 						curvemap_reset(gset->cur_falloff->cm,
-							&gset->cur_falloff->clipr,
-							CURVE_PRESET_GAUSS,
-							CURVEMAP_SLOPE_POSITIVE);
+						               &gset->cur_falloff->clipr,
+						               CURVE_PRESET_GAUSS,
+						               CURVEMAP_SLOPE_POSITIVE);
 					}
 				}
 			}
@@ -1670,7 +1670,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 			}
 		}
 		if (!DNA_struct_elem_find(fd->filesdna, "View3DShading", "char", "matcap[256]")) {
-			StudioLight *default_matcap = BKE_studiolight_find_first(STUDIOLIGHT_ORIENTATION_VIEWNORMAL);
+			StudioLight *default_matcap = BKE_studiolight_find_first(STUDIOLIGHT_TYPE_MATCAP);
 			/* when loading the internal file is loaded before the matcaps */
 			if (default_matcap) {
 				for (bScreen *screen = bmain->screen.first; screen; screen = screen->id.next) {
@@ -2419,7 +2419,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 
 						if (!navigation_region) {
 							ListBase *regionbase = (slink == area->spacedata.first) ?
-							                           &area->regionbase : &slink->regionbase;
+							                       &area->regionbase : &slink->regionbase;
 
 							navigation_region = MEM_callocN(sizeof(ARegion), "userpref navigation-region do_versions");
 
@@ -2467,5 +2467,18 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 			}
 		}
 
+		/* Move studio_light selection to lookdev_light. */
+		if (!DNA_struct_elem_find(fd->filesdna, "View3DShading", "char", "lookdev_light[256]")) {
+			for (bScreen *screen = bmain->screen.first; screen; screen = screen->id.next) {
+				for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
+					for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
+						if (sl->spacetype == SPACE_VIEW3D) {
+							View3D *v3d = (View3D *)sl;
+							memcpy(v3d->shading.lookdev_light, v3d->shading.studio_light, sizeof(char) * 256);
+						}
+					}
+				}
+			}
+		}
 	}
 }

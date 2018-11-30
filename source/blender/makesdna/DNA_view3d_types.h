@@ -148,6 +148,7 @@ typedef struct View3DShading {
 	char pad[7];
 
 	char studio_light[256]; /* FILE_MAXFILE */
+	char lookdev_light[256]; /* FILE_MAXFILE */
 	char matcap[256]; /* FILE_MAXFILE */
 
 	float shadow_intensity;
@@ -394,6 +395,7 @@ enum {
 	V3D_SHADING_MATCAP_FLIP_X       = (1 << 6),
 	V3D_SHADING_SCENE_WORLD         = (1 << 7),
 	V3D_SHADING_XRAY_BONE           = (1 << 8),
+	V3D_SHADING_WORLD_ORIENTATION   = (1 << 9),
 };
 
 /* View3DShading->color_type */

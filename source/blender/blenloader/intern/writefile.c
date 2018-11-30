@@ -759,10 +759,10 @@ static void write_previews(WriteData *wd, const PreviewImage *prv_orig)
 		}
 		writestruct_at_address(wd, DATA, PreviewImage, 1, prv_orig, &prv);
 		if (prv.rect[0]) {
-			writedata(wd, DATA, prv.w[0] * prv.h[0] * sizeof(unsigned int), prv.rect[0]);
+			writedata(wd, DATA, prv.w[0] * prv.h[0] * sizeof(uint), prv.rect[0]);
 		}
 		if (prv.rect[1]) {
-			writedata(wd, DATA, prv.w[1] * prv.h[1] * sizeof(unsigned int), prv.rect[1]);
+			writedata(wd, DATA, prv.w[1] * prv.h[1] * sizeof(uint), prv.rect[1]);
 		}
 	}
 }
@@ -850,13 +850,13 @@ static void write_fcurves(WriteData *wd, ListBase *fcurves)
 			/* variables */
 			writelist(wd, DATA, DriverVar, &driver->variables);
 			for (dvar = driver->variables.first; dvar; dvar = dvar->next) {
-				DRIVER_TARGETS_USED_LOOPER(dvar)
+				DRIVER_TARGETS_USED_LOOPER_BEGIN(dvar)
 				{
 					if (dtar->rna_path) {
 						writedata(wd, DATA, strlen(dtar->rna_path) + 1, dtar->rna_path);
 					}
 				}
-				DRIVER_TARGETS_LOOPER_END
+				DRIVER_TARGETS_LOOPER_END;
 			}
 		}
 
@@ -2674,7 +2674,7 @@ static void write_lightcache_texture(WriteData *wd, LightCacheTexture *tex)
 			data_size *= sizeof(float);
 		}
 		else if (tex->data_type == LIGHTCACHETEX_UINT) {
-			data_size *= sizeof(unsigned int);
+			data_size *= sizeof(uint);
 		}
 		writedata(wd, DATA, data_size, tex->data);
 	}
@@ -2755,8 +2755,7 @@ static void write_scene(WriteData *wd, Scene *sce)
 				seq->strip->done = false;
 			}
 			writestruct(wd, DATA, Sequence, 1, seq);
-		}
-		SEQ_END
+		} SEQ_END;
 
 		SEQ_BEGIN(ed, seq)
 		{
@@ -2822,8 +2821,7 @@ static void write_scene(WriteData *wd, Scene *sce)
 			}
 
 			write_sequence_modifiers(wd, &seq->modifiers);
-		}
-		SEQ_END
+		} SEQ_END;
 
 		/* new; meta stack too, even when its nasty restore code */
 		for (MetaStack *ms = ed->metastack.first; ms; ms = ms->next) {
@@ -3343,7 +3341,7 @@ static void write_nodetree(WriteData *wd, bNodeTree *ntree)
 #ifdef USE_NODE_COMPAT_CUSTOMNODES
 static void customnodes_add_deprecated_data(Main *mainvar)
 {
-	FOREACH_NODETREE(mainvar, ntree, id) {
+	FOREACH_NODETREE_BEGIN(mainvar, ntree, id) {
 		bNodeLink *link, *last_link = ntree->links.last;
 
 		/* only do this for node groups */
@@ -3390,13 +3388,12 @@ static void customnodes_add_deprecated_data(Main *mainvar)
 				break;
 			}
 		}
-	}
-	FOREACH_NODETREE_END
+	} FOREACH_NODETREE_END;
 }
 
 static void customnodes_free_deprecated_data(Main *mainvar)
 {
-	FOREACH_NODETREE(mainvar, ntree, id) {
+	FOREACH_NODETREE_BEGIN(mainvar, ntree, id) {
 		bNodeLink *link, *next_link;
 
 		for (link = ntree->links.first; link; link = next_link) {
@@ -3405,8 +3402,7 @@ static void customnodes_free_deprecated_data(Main *mainvar)
 				nodeRemLink(ntree, link);
 			}
 		}
-	}
-	FOREACH_NODETREE_END
+	} FOREACH_NODETREE_END;
 }
 #endif
 
@@ -4003,7 +3999,7 @@ static void write_global(WriteData *wd, int fileflags, Main *mainvar)
 }
 
 /* preview image, first 2 values are width and height
- * second are an RGBA image (unsigned char)
+ * second are an RGBA image (uchar)
  * note, this uses 'TEST' since new types will segfault on file load for older blender versions.
  */
 static void write_thumb(WriteData *wd, const BlendThumbnail *thumb)

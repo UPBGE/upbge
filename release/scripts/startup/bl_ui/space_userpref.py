@@ -45,9 +45,11 @@ class USERPREF_HT_header(Header):
             layout.operator("wm.addon_refresh", icon='FILE_REFRESH')
             layout.menu("USERPREF_MT_addons_online_resources")
         elif userpref.active_section == 'LIGHTS':
-            layout.operator('wm.studiolight_install', text="Add MatCap").orientation = 'MATCAP'
-            layout.operator('wm.studiolight_install', text="Add World HDRI").orientation = 'WORLD'
-            layout.operator('wm.studiolight_install', text="Add Camera HDRI").orientation = 'CAMERA'
+            layout.operator('wm.studiolight_install', text="Add MatCap").type = 'MATCAP'
+            layout.operator('wm.studiolight_install', text="Add LookDev HDRI").type = 'WORLD'
+            op = layout.operator('wm.studiolight_install', text="Add Studio Light")
+            op.type = 'STUDIO'
+            op.filter_glob = ".sl"
         elif userpref.active_section == 'THEMES':
             layout.operator("wm.theme_install", icon='FILEBROWSER')
             layout.operator("ui.reset_default_theme", icon='LOOP_BACK')
@@ -1493,12 +1495,16 @@ class StudioLightPanelMixin():
         return (userpref.active_section == 'LIGHTS')
 
     def _get_lights(self, userpref):
-        return [light for light in userpref.studio_lights if light.is_user_defined and light.orientation == self.sl_orientation]
+        return [light for light in userpref.studio_lights if light.is_user_defined and light.type == self.sl_type]
 
     def draw(self, context):
         layout = self.layout
         userpref = context.user_preferences
         lights = self._get_lights(userpref)
+
+        self.draw_light_list(layout, lights)
+
+    def draw_light_list(self, layout, lights):
         if lights:
             flow = layout.column_flow(columns=4)
             for studio_light in lights:
@@ -1519,22 +1525,17 @@ class StudioLightPanelMixin():
 
 class USERPREF_PT_studiolight_matcaps(Panel, StudioLightPanelMixin):
     bl_label = "MatCaps"
-    sl_orientation = 'MATCAP'
+    sl_type = 'MATCAP'
 
 
 class USERPREF_PT_studiolight_world(Panel, StudioLightPanelMixin):
-    bl_label = "World HDRI"
-    sl_orientation = 'WORLD'
-
-
-class USERPREF_PT_studiolight_camera(Panel, StudioLightPanelMixin):
-    bl_label = "Camera HDRI"
-    sl_orientation = 'CAMERA'
+    bl_label = "LookDev HDRIs"
+    sl_type = 'WORLD'
 
 
 class USERPREF_PT_studiolight_lights(Panel, StudioLightPanelMixin):
     bl_label = "Studio Lights"
-    sl_orientation = 'CAMERA'
+    sl_type = 'STUDIO'
 
     @classmethod
     def poll(cls, context):
@@ -1552,15 +1553,46 @@ class USERPREF_PT_studiolight_lights(Panel, StudioLightPanelMixin):
         col.prop(light, "smooth")
         col.prop(light, "direction")
 
+    def draw(self, context):
+        userpref = context.user_preferences
+        lights = self._get_lights(userpref)
+        layout = self.layout
+
+        self.draw_light_list(layout, lights)
+
+
+class USERPREF_PT_studiolight_lights_editor(Panel):
+    bl_label = "Studio Lights Editor"
+    bl_parent_id = "USERPREF_PT_studiolight_lights"
+    bl_space_type = 'USER_PREFERENCES'
+    bl_region_type = 'WINDOW'
+
+    def opengl_light_buttons(self, layout, light):
+
+        col = layout.column()
+        col.active = light.use
+
+        col.prop(light, "use", text="Use Light")
+        col.prop(light, "diffuse_color", text="Diffuse")
+        col.prop(light, "specular_color", text="Specular")
+        col.prop(light, "smooth")
+        col.prop(light, "direction")
 
     def draw(self, context):
         layout = self.layout
 
-        layout.use_property_split = True
-        column = layout.split()
-
         userpref = context.user_preferences
         system = userpref.system
+
+        row = layout.row()
+        row.prop(system, "edit_solid_light", toggle=True)
+        row.operator('wm.studiolight_new', text="Save as Studio light", icon="FILE_TICK")
+
+        layout.separator()
+
+        layout.use_property_split = True
+        column = layout.split()
+        column.active = system.edit_solid_light
 
         light = system.solid_lights[0]
         colsplit = column.split(factor=0.85)
@@ -1577,6 +1609,7 @@ class USERPREF_PT_studiolight_lights(Panel, StudioLightPanelMixin):
 
         layout.prop(system, "light_ambient")
 
+
 classes = (
     USERPREF_HT_header,
     USERPREF_PT_navigation,
@@ -1592,9 +1625,9 @@ classes = (
     USERPREF_MT_addons_online_resources,
     USERPREF_PT_addons,
     USERPREF_PT_studiolight_lights,
+    USERPREF_PT_studiolight_lights_editor,
     USERPREF_PT_studiolight_matcaps,
     USERPREF_PT_studiolight_world,
-    USERPREF_PT_studiolight_camera,
 )
 
 if __name__ == "__main__":  # only for live edit.

@@ -2480,11 +2480,11 @@ class WM_OT_studiolight_install(Operator):
         default="*.png;*.jpg;*.hdr;*.exr",
         options={'HIDDEN'},
     )
-    orientation: EnumProperty(
+    type: EnumProperty(
         items=(
             ('MATCAP', "MatCap", ""),
             ('WORLD', "World", ""),
-            ('CAMERA', "Camera", ""),
+            ('STUDIO', "Studio", ""),
         )
     )
 
@@ -2501,7 +2501,7 @@ class WM_OT_studiolight_install(Operator):
             self.report({'ERROR'}, "Failed to get Studio Light path")
             return {'CANCELLED'}
 
-        path_studiolights = pathlib.Path(path_studiolights, "studiolights", self.orientation.lower())
+        path_studiolights = pathlib.Path(path_studiolights, "studiolights", self.type.lower())
         if not path_studiolights.exists():
             try:
                 path_studiolights.mkdir(parents=True, exist_ok=True)
@@ -2510,7 +2510,7 @@ class WM_OT_studiolight_install(Operator):
 
         for filepath in filepaths:
             shutil.copy(str(filepath), str(path_studiolights))
-            userpref.studio_lights.new(str(path_studiolights.joinpath(filepath.name)), self.orientation)
+            userpref.studio_lights.load(str(path_studiolights.joinpath(filepath.name)), self.type)
 
         # print message
         msg = (
@@ -2525,6 +2525,58 @@ class WM_OT_studiolight_install(Operator):
         wm = context.window_manager
         wm.fileselect_add(self)
         return {'RUNNING_MODAL'}
+
+
+class WM_OT_studiolight_new(Operator):
+    """Create custom studio light from the studio light editor settings"""
+    bl_idname = 'wm.studiolight_new'
+    bl_label = "Create custom Studio light"
+
+    filename: StringProperty(
+        name="Name",
+        default="StudioLight",
+    )
+
+    def execute(self, context):
+        import pathlib
+        userpref = context.user_preferences
+
+        path_studiolights = bpy.utils.user_resource('DATAFILES')
+
+        if not path_studiolights:
+            self.report({'ERROR'}, "Failed to get Studio Light path")
+            return {'CANCELLED'}
+
+        path_studiolights = pathlib.Path(path_studiolights, "studiolights", "studio")
+        if not path_studiolights.exists():
+            try:
+                path_studiolights.mkdir(parents=True, exist_ok=True)
+            except:
+                traceback.print_exc()
+
+        finalpath = str(path_studiolights.joinpath(self.filename));
+        if pathlib.Path(finalpath + ".sl").is_file():
+            self.report({'ERROR'}, "File already exists")
+            return {'CANCELLED'}
+
+        userpref.studio_lights.new(path=finalpath)
+
+        # print message
+        msg = (
+            tip_("StudioLight Installed %r into %r") %
+            (self.filename, str(path_studiolights))
+        )
+        print(msg)
+        self.report({'INFO'}, msg)
+        return {'FINISHED'}
+
+    def draw(self, context):
+        layout = self.layout
+        layout.prop(self, "filename")
+
+    def invoke(self, context, event):
+        wm = context.window_manager
+        return wm.invoke_props_dialog(self, width=600)
 
 
 class WM_OT_studiolight_uninstall(Operator):
@@ -2814,6 +2866,7 @@ classes = (
     WM_OT_owner_enable,
     WM_OT_url_open,
     WM_OT_studiolight_install,
+    WM_OT_studiolight_new,
     WM_OT_studiolight_uninstall,
     WM_OT_studiolight_userpref_show,
     WM_OT_tool_set_by_name,
