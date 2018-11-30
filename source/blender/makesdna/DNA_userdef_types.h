@@ -495,6 +495,7 @@ enum {
 typedef struct SolidLight {
 	int flag;
 	float smooth;
+	float pad[2];
 	float col[4], spec[4], vec[4];
 } SolidLight;
 
@@ -587,10 +588,11 @@ typedef struct UserDef {
 	short gp_manhattendist, gp_euclideandist, gp_eraser;
 	short gp_settings;  /* eGP_UserdefSettings */
 	short tb_leftmouse, tb_rightmouse;
-	struct SolidLight light[3];
+	/* struct SolidLight light[3] DNA_DEPRECATED; */ /* Was using non-aligned struct! */
+	struct SolidLight light_param[4];
 	float light_ambient[3], pad7;
 	short gizmo_flag, gizmo_size;
-	short edit_solid_light;
+	short edit_studio_light;
 	short pad6[2];
 	short textimeout, texcollectrate;
 	short dragthreshold;
