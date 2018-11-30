@@ -82,6 +82,8 @@ int GHOST_HACK_getFirstFile(char buf[]);
 #  include "BLT_translation.h"
 #  include "BLT_lang.h"
 
+#  include "BLI_system.h"
+
 extern int datatoc_bfont_ttf_size;
 extern char datatoc_bfont_ttf[];
 extern int datatoc_bmonofont_ttf_size;
@@ -124,6 +126,13 @@ extern char datatoc_bmonofont_ttf[];
 #endif  // WITH_GAMEENGINE_BPPLAYER
 
 #include <boost/algorithm/string.hpp>
+
+#include "BKE_blender_version.h"
+
+#define BLEND_VERSION_FMT "Blender %d.%02d (sub %d)"
+#define BLEND_VERSION_ARG BLENDER_VERSION / 100, BLENDER_VERSION % 100, BLENDER_SUBVERSION
+/* pass directly to printf */
+#define BLEND_VERSION_STRING_FMT BLEND_VERSION_FMT "\n", BLEND_VERSION_ARG
 
 #include "CM_Message.h"
 
@@ -613,6 +622,157 @@ static BlendFileData *load_encrypted_game_data(const char *filename, std::string
 
 #endif  // WITH_GAMEENGINE_BPPLAYER
 
+static void sigHandleCrashBacktrace(FILE *fp)
+{
+	fputs("\n# backtrace\n", fp);
+	BLI_system_backtrace(fp);
+}
+
+static void sigHandleCrash(int signum)
+{
+	FILE *fp;
+	char header[512];
+
+	char fname[FILE_MAX];
+
+	if (!G.main || !G.main->name[0]) {
+		BLI_join_dirfile(fname, sizeof(fname), BKE_tempdir_base(), "blender.crash.txt");
+	}
+	else {
+		BLI_join_dirfile(fname, sizeof(fname), BKE_tempdir_base(), BLI_path_basename(G_MAIN->name));
+		BLI_path_extension_replace(fname, sizeof(fname), ".crash.txt");
+	}
+
+	printf("Writing: %s\n", fname);
+	fflush(stdout);
+
+#ifndef BUILD_DATE
+	BLI_snprintf(header, sizeof(header), "# " BLEND_VERSION_FMT ", Unknown revision\n", BLEND_VERSION_ARG);
+#else
+	BLI_snprintf(header, sizeof(header), "# " BLEND_VERSION_FMT ", Commit date: %s %s, Hash %s\n",
+	             BLEND_VERSION_ARG, build_commit_date, build_commit_time, build_hash);
+#endif
+
+	/* open the crash log */
+	errno = 0;
+	fp = BLI_fopen(fname, "wb");
+	if (fp == NULL) {
+		fprintf(stderr, "Unable to save '%s': %s\n",
+		        fname, errno ? strerror(errno) : "Unknown error opening file");
+	}
+	else {
+		sigHandleCrashBacktrace(fp);
+
+		fclose(fp);
+	}
+
+	/* really crash */
+	signal(signum, SIG_DFL);
+#ifndef WIN32
+	kill(getpid(), signum);
+#else
+	TerminateProcess(GetCurrentProcess(), signum);
+#endif
+}
+
+#ifdef WIN32
+LONG WINAPI windowsExceptionHandler(EXCEPTION_POINTERS *ExceptionInfo)
+{
+	switch (ExceptionInfo->ExceptionRecord->ExceptionCode) {
+		case EXCEPTION_ACCESS_VIOLATION:
+			fputs("Error   : EXCEPTION_ACCESS_VIOLATION\n", stderr);
+			break;
+		case EXCEPTION_ARRAY_BOUNDS_EXCEEDED:
+			fputs("Error   : EXCEPTION_ARRAY_BOUNDS_EXCEEDED\n", stderr);
+			break;
+		case EXCEPTION_BREAKPOINT:
+			fputs("Error   : EXCEPTION_BREAKPOINT\n", stderr);
+			break;
+		case EXCEPTION_DATATYPE_MISALIGNMENT:
+			fputs("Error   : EXCEPTION_DATATYPE_MISALIGNMENT\n", stderr);
+			break;
+		case EXCEPTION_FLT_DENORMAL_OPERAND:
+			fputs("Error   : EXCEPTION_FLT_DENORMAL_OPERAND\n", stderr);
+			break;
+		case EXCEPTION_FLT_DIVIDE_BY_ZERO:
+			fputs("Error   : EXCEPTION_FLT_DIVIDE_BY_ZERO\n", stderr);
+			break;
+		case EXCEPTION_FLT_INEXACT_RESULT:
+			fputs("Error   : EXCEPTION_FLT_INEXACT_RESULT\n", stderr);
+			break;
+		case EXCEPTION_FLT_INVALID_OPERATION:
+			fputs("Error   : EXCEPTION_FLT_INVALID_OPERATION\n", stderr);
+			break;
+		case EXCEPTION_FLT_OVERFLOW:
+			fputs("Error   : EXCEPTION_FLT_OVERFLOW\n", stderr);
+			break;
+		case EXCEPTION_FLT_STACK_CHECK:
+			fputs("Error   : EXCEPTION_FLT_STACK_CHECK\n", stderr);
+			break;
+		case EXCEPTION_FLT_UNDERFLOW:
+			fputs("Error   : EXCEPTION_FLT_UNDERFLOW\n", stderr);
+			break;
+		case EXCEPTION_ILLEGAL_INSTRUCTION:
+			fputs("Error   : EXCEPTION_ILLEGAL_INSTRUCTION\n", stderr);
+			break;
+		case EXCEPTION_IN_PAGE_ERROR:
+			fputs("Error   : EXCEPTION_IN_PAGE_ERROR\n", stderr);
+			break;
+		case EXCEPTION_INT_DIVIDE_BY_ZERO:
+			fputs("Error   : EXCEPTION_INT_DIVIDE_BY_ZERO\n", stderr);
+			break;
+		case EXCEPTION_INT_OVERFLOW:
+			fputs("Error   : EXCEPTION_INT_OVERFLOW\n", stderr);
+			break;
+		case EXCEPTION_INVALID_DISPOSITION:
+			fputs("Error   : EXCEPTION_INVALID_DISPOSITION\n", stderr);
+			break;
+		case EXCEPTION_NONCONTINUABLE_EXCEPTION:
+			fputs("Error   : EXCEPTION_NONCONTINUABLE_EXCEPTION\n", stderr);
+			break;
+		case EXCEPTION_PRIV_INSTRUCTION:
+			fputs("Error   : EXCEPTION_PRIV_INSTRUCTION\n", stderr);
+			break;
+		case EXCEPTION_SINGLE_STEP:
+			fputs("Error   : EXCEPTION_SINGLE_STEP\n", stderr);
+			break;
+		case EXCEPTION_STACK_OVERFLOW:
+			fputs("Error   : EXCEPTION_STACK_OVERFLOW\n", stderr);
+			break;
+		default:
+			fputs("Error   : Unrecognized Exception\n", stderr);
+			break;
+	}
+
+	fflush(stderr);
+
+	/* If this is a stack overflow then we can't walk the stack, so just show
+	 * where the error happened */
+	if (EXCEPTION_STACK_OVERFLOW != ExceptionInfo->ExceptionRecord->ExceptionCode) {
+		HMODULE mod;
+		CHAR modulename[MAX_PATH];
+		LPVOID address = ExceptionInfo->ExceptionRecord->ExceptionAddress;
+
+		fprintf(stderr, "Address : 0x%p\n", address);
+		if (GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, address, &mod)) {
+			if (GetModuleFileName(mod, modulename, MAX_PATH)) {
+				fprintf(stderr, "Module  : %s\n", modulename);
+			}
+		}
+
+		fflush(stderr);
+
+#ifdef NDEBUG
+		TerminateProcess(GetCurrentProcess(), SIGSEGV);
+#else
+		sigHandleCrash(SIGSEGV);
+#endif
+	}
+
+	return EXCEPTION_EXECUTE_HANDLER;
+}
+#endif
+
 int main(int argc,
 #ifdef WIN32
          char **UNUSED(argv_c)
@@ -689,6 +849,13 @@ int main(int argc,
 	signal(SIGFPE, SIG_IGN);
 #endif /* __alpha__ */
 #endif /* __linux__ */
+
+#ifdef WIN32
+	SetUnhandledExceptionFilter(windowsExceptionHandler);
+#else
+	/* after parsing args */
+	signal(SIGSEGV, sigHandleCrash);
+#endif  // WIN32
 
 #ifdef WITH_SDL_DYNLOAD
 	sdlewInit();
