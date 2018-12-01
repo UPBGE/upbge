@@ -2221,6 +2221,11 @@ static void mesh_build_data(
 	BKE_object_free_derived_caches(ob);
 	BKE_object_sculpt_modifiers_changed(ob);
 
+	if (need_mapping) {
+		/* Also add the flag so that it is recorded in lastDataMask. */
+		dataMask |= CD_MASK_ORIGINDEX;
+	}
+
 	mesh_calc_modifiers(
 	        depsgraph, scene, ob, NULL, 1, need_mapping, dataMask, -1, true, build_shapekey_layers,
 	        &ob->runtime.mesh_deform_eval, &ob->runtime.mesh_eval);
@@ -2292,7 +2297,7 @@ static CustomDataMask object_get_datamask(const Depsgraph *depsgraph, Object *ob
 	}
 
 	if (DEG_get_original_object(ob) == actob) {
-		bool editing = BKE_paint_select_face_test(ob);
+		bool editing = BKE_paint_select_face_test(actob);
 
 		/* weight paint and face select need original indices because of selection buffer drawing */
 		if (r_need_mapping) {
@@ -2301,7 +2306,7 @@ static CustomDataMask object_get_datamask(const Depsgraph *depsgraph, Object *ob
 
 		/* check if we need tfaces & mcols due to face select or texture paint */
 		if ((ob->mode & OB_MODE_TEXTURE_PAINT) || editing) {
-			mask |= CD_MASK_MLOOPUV | CD_MASK_MLOOPCOL;
+			mask |= CD_MASK_MLOOPUV | CD_MASK_MLOOPCOL | CD_MASK_MTFACE;
 		}
 
 		/* check if we need mcols due to vertex paint or weightpaint */
@@ -2362,6 +2367,9 @@ DerivedMesh *mesh_get_derived_final(
 Mesh *mesh_get_eval_final(
         struct Depsgraph *depsgraph, Scene *scene, Object *ob, CustomDataMask dataMask)
 {
+	/* Evaluation meshes on original instances aren't cleaned up properly, causing crashes. */
+	BLI_assert(ob->id.tag & LIB_TAG_COPIED_ON_WRITE);
+
 	/* if there's no evaluated mesh or the last data mask used doesn't include
 	 * the data we need, rebuild the derived mesh
 	 */
@@ -2370,9 +2378,9 @@ Mesh *mesh_get_eval_final(
 
 	if (!ob->runtime.mesh_eval ||
 	    ((dataMask & ob->lastDataMask) != dataMask) ||
-	    (need_mapping != ob->lastNeedMapping))
+	    (need_mapping && !ob->lastNeedMapping))
 	{
-		mesh_build_data(depsgraph, scene, ob, dataMask, false, need_mapping);
+		mesh_build_data(depsgraph, scene, ob, dataMask | ob->lastDataMask, false, need_mapping || ob->lastNeedMapping);
 	}
 
 	if (ob->runtime.mesh_eval) { BLI_assert(!(ob->runtime.mesh_eval->runtime.cd_dirty_vert & CD_MASK_NORMAL)); }
