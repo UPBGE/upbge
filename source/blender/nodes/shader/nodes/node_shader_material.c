@@ -35,8 +35,9 @@
 
 static bNodeSocketTemplate sh_node_material_in[] = {
 	{	SOCK_RGBA, 1, N_("Color"),		0.0f, 0.0f, 0.0f, 1.0f},
+	{	SOCK_FLOAT, 1, N_("Color Intensity"),		0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, PROP_UNSIGNED},
 	{	SOCK_RGBA, 1, N_("Spec"),		0.0f, 0.0f, 0.0f, 1.0f},
-	{	SOCK_FLOAT, 1, N_("DiffuseIntensity"),		0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, PROP_NONE},
+	{	SOCK_FLOAT, 1, N_("Spec Intensity"),		0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, PROP_UNSIGNED},
 	{	SOCK_VECTOR, 1, N_("Normal"),	0.0f, 0.0f, 0.0f, 1.0f, -1.0f, 1.0f, PROP_DIRECTION},
 	{	-1, 0, ""	}
 };
@@ -52,13 +53,16 @@ static bNodeSocketTemplate sh_node_material_out[] = {
 
 static bNodeSocketTemplate sh_node_material_ext_in[] = {
 	{	SOCK_RGBA, 1, N_("Color"),		0.0f, 0.0f, 0.0f, 1.0f},
+	{	SOCK_FLOAT, 1, N_("Color Intensity"),	0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, PROP_FACTOR},
 	{	SOCK_RGBA, 1, N_("Spec"),		0.0f, 0.0f, 0.0f, 1.0f},
-	{	SOCK_FLOAT, 1, N_("DiffuseIntensity"),		0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, PROP_NONE},
+	{	SOCK_FLOAT, 1, N_("Spec Intensity"),	0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, PROP_FACTOR},
 	{	SOCK_VECTOR, 1, N_("Normal"),	0.0f, 0.0f, 0.0f, 1.0f, -1.0f, 1.0f, PROP_DIRECTION},
+	{	SOCK_FLOAT, 1, N_("Roughness"),	0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, PROP_FACTOR},
+	{	SOCK_FLOAT, 1, N_("Metallic"),	0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, PROP_FACTOR},
 	{	SOCK_RGBA, 1, N_("Mirror"),		0.0f, 0.0f, 0.0f, 1.0f},
 	{	SOCK_FLOAT, 1, N_("Ambient"),	0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, PROP_NONE},
 	{	SOCK_FLOAT, 1, N_("Emit"),		0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, PROP_UNSIGNED},
-	{	SOCK_FLOAT, 1, N_("SpecTra"),	0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, PROP_NONE},
+	{	SOCK_FLOAT, 1, N_("Spec Translucency"),	0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, PROP_NONE},
 	{	SOCK_FLOAT, 1, N_("Reflectivity"),	0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_NONE},
 	{	SOCK_FLOAT, 1, N_("Alpha"),		0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, PROP_UNSIGNED},
 	{	SOCK_FLOAT, 1, N_("Translucency"),	0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, PROP_NONE},
@@ -100,6 +104,8 @@ static void node_shader_exec_material(void *data, int UNUSED(thread), bNode *nod
 		/* copy all relevant material vars, note, keep this synced with render_types.h */
 		memcpy(&shi->r, &shi->mat->r, 23 * sizeof(float));
 		shi->har = shi->mat->har;
+		shi->roughness_bsdf = shi->mat->roughness_bsdf;
+		shi->metallic_bsdf = shi->mat->metallic_bsdf;
 
 		/* write values */
 		if (hasinput[MAT_IN_COLOR])
@@ -110,6 +116,9 @@ static void node_shader_exec_material(void *data, int UNUSED(thread), bNode *nod
 
 		if (hasinput[MAT_IN_REFL])
 			nodestack_get_vec(&shi->refl, SOCK_FLOAT, in[MAT_IN_REFL]);
+
+		if (hasinput[MAT_IN_SPECI])
+			nodestack_get_vec(&shi->spec, SOCK_FLOAT, in[MAT_IN_SPECI]);
 
 		/* retrieve normal */
 		if (hasinput[MAT_IN_NORMAL]) {
@@ -129,6 +138,10 @@ static void node_shader_exec_material(void *data, int UNUSED(thread), bNode *nod
 		}
 
 		if (node->type == SH_NODE_MATERIAL_EXT) {
+			if (hasinput[MAT_IN_ROUGHNESS])
+				nodestack_get_vec(&shi->roughness_bsdf, SOCK_FLOAT, in[MAT_IN_ROUGHNESS]);
+			if (hasinput[MAT_IN_METALLIC])
+				nodestack_get_vec(&shi->metallic_bsdf, SOCK_FLOAT, in[MAT_IN_METALLIC]);
 			if (hasinput[MAT_IN_MIR])
 				nodestack_get_vec(&shi->mirr, SOCK_VECTOR, in[MAT_IN_MIR]);
 			if (hasinput[MAT_IN_AMB])
@@ -145,6 +158,13 @@ static void node_shader_exec_material(void *data, int UNUSED(thread), bNode *nod
 				nodestack_get_vec(&shi->translucency, SOCK_FLOAT, in[MAT_IN_TRANSLUCENCY]);
 		}
 
+		if (node->custom1 & SH_NODE_MAT_ENERG_CONSERV)  {
+			shi->mat->shade_flag |= MA_ENERGY_CONSERV;
+		}
+		else {
+			shi->mat->shade_flag &= ~MA_ENERGY_CONSERV;
+		}
+
 		/* make alpha output give results even if transparency is only enabled on
 		 * the material linked in this not and not on the parent material */
 		mode = shi->mode;
@@ -158,17 +178,7 @@ static void node_shader_exec_material(void *data, int UNUSED(thread), bNode *nod
 		shi->mode = mode;
 
 		/* write to outputs */
-		if (node->custom1 & SH_NODE_MAT_DIFF) {
-			copy_v3_v3(col, shrnode.combined);
-			if (!(node->custom1 & SH_NODE_MAT_SPEC)) {
-				sub_v3_v3(col, shrnode.spec);
-			}
-		}
-		else if (node->custom1 & SH_NODE_MAT_SPEC) {
-			copy_v3_v3(col, shrnode.spec);
-		}
-		else
-			col[0] = col[1] = col[2] = 0.0f;
+		copy_v3_v3(col, shrnode.combined);
 
 		col[3] = shrnode.alpha;
 
@@ -214,11 +224,6 @@ static void node_shader_exec_material(void *data, int UNUSED(thread), bNode *nod
 	}
 }
 
-
-static void node_shader_init_material(bNodeTree *UNUSED(ntree), bNode *node)
-{
-	node->custom1 = SH_NODE_MAT_DIFF | SH_NODE_MAT_SPEC;
-}
 
 /* XXX this is also done as a local static function in gpu_codegen.c,
  * but we need this to hack around the crappy material node.
@@ -274,6 +279,9 @@ static int gpu_shader_material(GPUMaterial *mat, bNode *node, bNodeExecData *UNU
 		if (hasinput[MAT_IN_REFL])
 			shi.refl = gpu_get_input_link(mat, &in[MAT_IN_REFL]);
 
+		if (hasinput[MAT_IN_SPECI])
+			shi.spec = gpu_get_input_link(mat, &in[MAT_IN_SPECI]);
+
 		/* retrieve normal */
 		if (hasinput[MAT_IN_NORMAL]) {
 			GPUNodeLink *tmp;
@@ -290,6 +298,10 @@ static int gpu_shader_material(GPUMaterial *mat, bNode *node, bNodeExecData *UNU
 			GPU_link(mat, "vec_math_negate", shi.vn, &shi.vn);
 
 		if (node->type == SH_NODE_MATERIAL_EXT) {
+			if (hasinput[MAT_IN_ROUGHNESS])
+				shi.roughness_bsdf = gpu_get_input_link(mat, &in[MAT_IN_ROUGHNESS]);
+			if (hasinput[MAT_IN_METALLIC])
+				shi.metallic_bsdf = gpu_get_input_link(mat, &in[MAT_IN_METALLIC]);
 			if (hasinput[MAT_IN_MIR])
 				shi.mir = gpu_get_input_link(mat, &in[MAT_IN_MIR]);
 			if (hasinput[MAT_IN_AMB])
@@ -305,26 +317,15 @@ static int gpu_shader_material(GPUMaterial *mat, bNode *node, bNodeExecData *UNU
 		GPU_shaderesult_set(&shi, &shr); /* clears shr */
 
 		/* write to outputs */
-		if (node->custom1 & SH_NODE_MAT_DIFF) {
-			out[MAT_OUT_COLOR].link = shr.combined;
-
-			if (!(node->custom1 & SH_NODE_MAT_SPEC)) {
-				GPUNodeLink *link;
-				GPU_link(mat, "vec_math_sub", shr.combined, shr.spec, &out[MAT_OUT_COLOR].link, &link);
-			}
-		}
-		else if (node->custom1 & SH_NODE_MAT_SPEC) {
-			out[MAT_OUT_COLOR].link = shr.spec;
-		}
-		else
-			GPU_link(mat, "set_rgb_zero", &out[MAT_OUT_COLOR].link);
+		out[MAT_OUT_COLOR].link = shr.combined;
 
 		GPU_link(mat, "mtex_alpha_to_col", out[MAT_OUT_COLOR].link, shr.alpha, &out[MAT_OUT_COLOR].link);
 
-		out[MAT_OUT_ALPHA].link = shr.alpha; //
+		out[MAT_OUT_ALPHA].link = shr.alpha;
 
-		if (node->custom1 & SH_NODE_MAT_NEG)
+		if (node->custom1 & SH_NODE_MAT_NEG) {
 			GPU_link(mat, "vec_math_negate", shi.vn, &shi.vn);
+		}
 		out[MAT_OUT_NORMAL].link = shi.vn;
 		if (GPU_material_use_world_space_shading(mat)) {
 			GPU_link(mat, "vec_math_negate", out[MAT_OUT_NORMAL].link, &out[MAT_OUT_NORMAL].link);
@@ -350,7 +351,7 @@ void register_node_type_sh_material(void)
 	sh_node_type_base(&ntype, SH_NODE_MATERIAL, "Material", NODE_CLASS_INPUT, NODE_PREVIEW);
 	node_type_compatibility(&ntype, NODE_OLD_SHADING);
 	node_type_socket_templates(&ntype, sh_node_material_in, sh_node_material_out);
-	node_type_init(&ntype, node_shader_init_material);
+	node_type_init(&ntype, NULL);
 	node_type_exec(&ntype, NULL, NULL, node_shader_exec_material);
 	node_type_gpu(&ntype, gpu_shader_material);
 
@@ -365,8 +366,8 @@ void register_node_type_sh_material_ext(void)
 	sh_node_type_base(&ntype, SH_NODE_MATERIAL_EXT, "Extended Material", NODE_CLASS_INPUT, NODE_PREVIEW);
 	node_type_compatibility(&ntype, NODE_OLD_SHADING);
 	node_type_socket_templates(&ntype, sh_node_material_ext_in, sh_node_material_ext_out);
-	node_type_init(&ntype, node_shader_init_material);
-	node_type_size_preset(&ntype, NODE_SIZE_MIDDLE);
+	node_type_init(&ntype, NULL);
+	node_type_size_preset(&ntype, NODE_SIZE_LARGE);
 	node_type_exec(&ntype, NULL, NULL, node_shader_exec_material);
 	node_type_gpu(&ntype, gpu_shader_material);
 

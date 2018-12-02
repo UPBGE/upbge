@@ -802,9 +802,10 @@ struct ShadeResult;
 #define SH_NODE_PARALLAX		1002
 
 /* custom defines options for Material node */
-#define SH_NODE_MAT_DIFF   1
-#define SH_NODE_MAT_SPEC   2
-#define SH_NODE_MAT_NEG    4
+#define SH_NODE_MAT_DIFF			1 /* Unused */
+#define SH_NODE_MAT_SPEC			2 /* Unused */
+#define SH_NODE_MAT_NEG				4
+#define SH_NODE_MAT_ENERG_CONSERV	8
 
 /* API */
 

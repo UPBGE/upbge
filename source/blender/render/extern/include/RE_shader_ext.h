@@ -133,6 +133,7 @@ typedef struct ShadeInput {
 
 	/* individual copies: */
 	int har; /* hardness */
+	float roughness_bsdf, metallic_bsdf;
 
 	/* texture coordinates */
 	float lo[3], gl[3], ref[3], orn[3], winco[3], vcol[4];

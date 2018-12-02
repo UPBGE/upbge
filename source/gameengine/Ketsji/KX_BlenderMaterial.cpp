@@ -63,6 +63,8 @@ KX_BlenderMaterial::KX_BlenderMaterial(Material *mat, const std::string& name, K
 	m_savedData.emit = m_material->emit;
 	m_savedData.ambient = m_material->amb;
 	m_savedData.specularalpha = m_material->spectra;
+	m_savedData.roughness_bsdf = m_material->roughness_bsdf;
+	m_savedData.metallic_bsdf = m_material->metallic_bsdf;
 
 	m_alphablend = mat->game.alpha_blend;
 
@@ -407,7 +409,9 @@ void KX_BlenderMaterial::UpdateIPO(const mt::vec4 &rgba,
                                    float emit,
                                    float ambient,
                                    float alpha,
-                                   float specalpha)
+                                   float specalpha,
+                                   float roughness_bsdf,
+                                   float metallic_bsdf)
 {
 	// only works one deep now
 
@@ -424,7 +428,9 @@ void KX_BlenderMaterial::UpdateIPO(const mt::vec4 &rgba,
 	m_material->emit = (float)(emit);
 	m_material->spec = (float)(spec);
 	m_material->ref = (float)(ref);
-	m_material->spectra = (float)specalpha;
+	m_material->spectra = (float)(specalpha);
+	m_material->roughness_bsdf = (float)(roughness_bsdf);
+	m_material->metallic_bsdf = (float)(metallic_bsdf);
 }
 
 const RAS_AttributeArray::AttribList KX_BlenderMaterial::GetAttribs(const RAS_Mesh::LayersInfo& layersInfo) const

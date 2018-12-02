@@ -139,7 +139,7 @@ public:
 	virtual bool UsesLighting() const;
 
 	virtual void UpdateIPO(const mt::vec4 &rgba, const mt::vec3 &specrgb, float hard, float spec, float ref,
-						   float emit, float ambient, float alpha, float specalpha) = 0;
+						   float emit, float ambient, float alpha, float specalpha, float roughness_bsdf, float metallic_bsdf) = 0;
 
 	virtual const RAS_AttributeArray::AttribList GetAttribs(const RAS_Mesh::LayersInfo& layersInfo) const = 0;
 	/// Return attributes category used for instancing, this value tell what attributes must be updated.

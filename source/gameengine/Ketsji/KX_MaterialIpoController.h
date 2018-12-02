@@ -27,6 +27,8 @@ public:
 	float			m_ambient;
 	float			m_alpha;
 	float			m_specAlpha;
+	float			m_roughness_bsdf;
+	float			m_metallic_bsdf;
 
 private:
 	RAS_IMaterial *m_material;

@@ -61,7 +61,7 @@ public:
 
 	// for ipos
 	virtual void UpdateIPO(const mt::vec4 &rgba, const mt::vec3 &specrgb, float hard, float spec, float ref,
-						   float emit, float ambient, float alpha, float specalpha);
+						   float emit, float ambient, float alpha, float specalpha, float roughness_bsdf, float metallic_bsdf);
 
 	virtual const RAS_AttributeArray::AttribList GetAttribs(const RAS_Mesh::LayersInfo& layersInfo) const;
 	virtual RAS_InstancingBuffer::Attrib GetInstancingAttribs() const;
@@ -123,6 +123,8 @@ private:
 		float emit;
 		float ambient;
 		float specularalpha;
+		float roughness_bsdf;
+		float metallic_bsdf;
 	} m_savedData;
 
 	void ActivateGLMaterials(RAS_Rasterizer *rasty) const;

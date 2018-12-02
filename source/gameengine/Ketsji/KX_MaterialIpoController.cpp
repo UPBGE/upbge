@@ -33,7 +33,7 @@ bool KX_MaterialIpoController::Update(SG_Node *node)
 		return false;
 	}
 
-	m_material->UpdateIPO(m_rgba, m_specrgb, m_hard, m_spec, m_ref, m_emit, m_ambient, m_alpha, m_specAlpha);
+	m_material->UpdateIPO(m_rgba, m_specrgb, m_hard, m_spec, m_ref, m_emit, m_ambient, m_alpha, m_specAlpha, m_roughness_bsdf,  m_metallic_bsdf);
 
 	return true;
 }

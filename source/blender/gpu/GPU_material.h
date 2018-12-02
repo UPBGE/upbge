@@ -312,7 +312,7 @@ typedef struct GPUShadeInput {
 
 	GPUNodeLink *rgb, *specrgb, *vn, *view, *vcol, *ref;
 	GPUNodeLink *alpha, *refl, *spec, *emit, *har, *amb;
-	GPUNodeLink *spectra, *mir, *refcol, *roughness, *metallic;
+	GPUNodeLink *spectra, *mir, *refcol, *roughness_bsdf, *metallic_bsdf;
 } GPUShadeInput;
 
 typedef struct GPUShadeResult {

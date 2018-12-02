@@ -337,8 +337,7 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
 		if (!DNA_struct_elem_find(fd->filesdna, "Material", "float", "roughness_bsdf")) {
 			for (Material *mat = main->mat.first; mat; mat = mat->id.next) {
 				mat->roughness_bsdf = 0.5f;
-				mat->metallic_bsdf = 0.5f;
-				mat->shade_flag |= MA_ENERGY_CONSERV;
+				mat->metallic_bsdf = 0.0f;
 			}
 		}
 

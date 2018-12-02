@@ -1137,18 +1137,21 @@ enum {
 #define GEOM_OUT_FRONTBACK	8
 
 /* material input socket defines */
-#define MAT_IN_COLOR	0
-#define MAT_IN_SPEC		1
-#define MAT_IN_REFL		2
-#define MAT_IN_NORMAL	3
-#define MAT_IN_MIR		4
-#define MAT_IN_AMB		5
-#define MAT_IN_EMIT	6
-#define MAT_IN_SPECTRA	7
-#define MAT_IN_RAY_MIRROR	8
-#define MAT_IN_ALPHA	9
-#define MAT_IN_TRANSLUCENCY	10
-#define NUM_MAT_IN		11	/* for array size */
+#define MAT_IN_COLOR		0
+#define MAT_IN_REFL			1
+#define MAT_IN_SPEC			2
+#define MAT_IN_SPECI		3
+#define MAT_IN_NORMAL		4
+#define MAT_IN_ROUGHNESS	5
+#define MAT_IN_METALLIC		6
+#define MAT_IN_MIR			7
+#define MAT_IN_AMB			8
+#define MAT_IN_EMIT			9
+#define MAT_IN_SPECTRA		10
+#define MAT_IN_RAY_MIRROR	11
+#define MAT_IN_ALPHA		12
+#define MAT_IN_TRANSLUCENCY	13
+#define NUM_MAT_IN			14	/* for array size */
 
 /* material output socket defines */
 #define MAT_OUT_COLOR		0

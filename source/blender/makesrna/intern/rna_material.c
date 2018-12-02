@@ -1137,9 +1137,9 @@ static void rna_def_material_diffuse(StructRNA *srna)
 	RNA_def_property_ui_text(prop, "Darkness", "Minnaert darkness");
 	RNA_def_property_update(prop, 0, "rna_Material_update");
 
-	prop = RNA_def_property(srna, "diffuse_roughness_bsdf", PROP_FLOAT, PROP_NONE);
+	prop = RNA_def_property(srna, "diffuse_roughness_bsdf", PROP_FLOAT, PROP_FACTOR);
 	RNA_def_property_float_sdna(prop, NULL, "roughness_bsdf");
-	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_range(prop, 0, 1);
 	RNA_def_property_ui_text(prop, "Roughness", "BSDF Roughness");
 	RNA_def_property_update(prop, 0, "rna_Material_update");
 
@@ -1721,15 +1721,15 @@ static void rna_def_material_specularity(StructRNA *srna)
 	RNA_def_property_ui_text(prop, "Specular IOR", "Specular index of refraction");
 	RNA_def_property_update(prop, 0, "rna_Material_update");
 
-	prop = RNA_def_property(srna, "specular_roughness_bsdf", PROP_FLOAT, PROP_NONE);
+	prop = RNA_def_property(srna, "specular_roughness_bsdf", PROP_FLOAT, PROP_FACTOR);
 	RNA_def_property_float_sdna(prop, NULL, "roughness_bsdf");
-	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_range(prop, 0, 1);
 	RNA_def_property_ui_text(prop, "Roughness", "Roughness");
 	RNA_def_property_update(prop, 0, "rna_Material_update");
 
-	prop = RNA_def_property(srna, "specular_metallic_bsdf", PROP_FLOAT, PROP_NONE);
+	prop = RNA_def_property(srna, "specular_metallic_bsdf", PROP_FLOAT, PROP_FACTOR);
 	RNA_def_property_float_sdna(prop, NULL, "metallic_bsdf");
-	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_range(prop, 0, 1);
 	RNA_def_property_ui_text(prop, "Metallic", "Metallic");
 	RNA_def_property_update(prop, 0, "rna_Material_update");
 

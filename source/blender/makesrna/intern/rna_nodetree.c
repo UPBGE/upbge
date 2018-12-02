@@ -3654,19 +3654,14 @@ static void def_sh_material(StructRNA *srna)
 	RNA_def_property_ui_text(prop, "Material", "");
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_material_update");
 
-	prop = RNA_def_property(srna, "use_diffuse", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "custom1", SH_NODE_MAT_DIFF);
-	RNA_def_property_ui_text(prop, "Diffuse", "Material Node outputs Diffuse");
-	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
-
-	prop = RNA_def_property(srna, "use_specular", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "custom1", SH_NODE_MAT_SPEC);
-	RNA_def_property_ui_text(prop, "Specular", "Material Node outputs Specular");
-	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
-
 	prop = RNA_def_property(srna, "invert_normal", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "custom1", SH_NODE_MAT_NEG);
 	RNA_def_property_ui_text(prop, "Invert Normal", "Material Node uses inverted normal");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+	prop = RNA_def_property(srna, "use_energy_conserv", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "custom1", SH_NODE_MAT_ENERG_CONSERV);
+	RNA_def_property_ui_text(prop, "Energy Conservation", "Material Node outputs material with energy conservation");
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 

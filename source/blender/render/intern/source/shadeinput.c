@@ -89,6 +89,8 @@ void shade_input_init_material(ShadeInput *shi)
 	/* note, keep this synced with render_types.h */
 	memcpy(&shi->r, &shi->mat->r, 23 * sizeof(float));
 	shi->har = shi->mat->har;
+	shi->roughness_bsdf = shi->mat->roughness_bsdf;
+	shi->metallic_bsdf = shi->mat->metallic_bsdf;
 }
 
 /* also used as callback for nodes */

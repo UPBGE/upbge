@@ -745,8 +745,7 @@ static void node_shader_buts_material(uiLayout *layout, bContext *C, PointerRNA 
 	if (!node->id) return;
 
 	col = uiLayoutColumn(layout, false);
-	uiItemR(col, ptr, "use_diffuse", 0, NULL, ICON_NONE);
-	uiItemR(col, ptr, "use_specular", 0, NULL, ICON_NONE);
+	uiItemR(col, ptr, "use_energy_conserv", 0, NULL, ICON_NONE);
 	uiItemR(col, ptr, "invert_normal", 0, NULL, ICON_NONE);
 }
 
