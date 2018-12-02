@@ -681,12 +681,13 @@ static short layer_collection_sync(
 				continue;
 			}
 
-			Base *base = BLI_ghash_lookup(view_layer->object_bases_hash, cob->ob);
-
-			if (base) {
+			void **base_p;
+			Base  *base;
+			if (BLI_ghash_ensure_p(view_layer->object_bases_hash, cob->ob, &base_p)) {
 				/* Move from old base list to new base list. Base might have already
 				 * been moved to the new base list and the first/last test ensure that
 				 * case also works. */
+				base = *base_p;
 				if (!ELEM(base, new_object_bases->first, new_object_bases->last)) {
 					BLI_remlink(&view_layer->object_bases, base);
 					BLI_addtail(new_object_bases, base);
@@ -695,8 +696,8 @@ static short layer_collection_sync(
 			else {
 				/* Create new base. */
 				base = object_base_new(cob->ob);
+				*base_p = base;
 				BLI_addtail(new_object_bases, base);
-				BLI_ghash_insert(view_layer->object_bases_hash, base->object, base);
 			}
 
 			int object_restrict = base->object->restrictflag;
@@ -1414,6 +1415,11 @@ void BKE_view_layer_renderable_objects_iterator_end(BLI_Iterator *UNUSED(iter))
 /** \name BKE_view_layer_bases_in_mode_iterator
  * \{ */
 
+static bool base_is_in_mode(struct ObjectsInModeIteratorData *data, Base *base)
+{
+	return (base->object->type == data->object_type) && (base->object->mode & data->object_mode) != 0;
+}
+
 void BKE_view_layer_bases_in_mode_iterator_begin(BLI_Iterator *iter, void *data_in)
 {
 	struct ObjectsInModeIteratorData *data = data_in;
@@ -1427,7 +1433,12 @@ void BKE_view_layer_bases_in_mode_iterator_begin(BLI_Iterator *iter, void *data_
 	iter->data = data_in;
 	iter->current = base;
 
-	if (object_bases_iterator_is_valid(data->v3d, base) == false) {
+	/* default type is active object type */
+	if (data->object_type < 0) {
+		data->object_type = base->object->type;
+	}
+
+	if (object_bases_iterator_is_valid(data->v3d, base) == false || !base_is_in_mode(data, base)) {
 		BKE_view_layer_bases_in_mode_iterator_next(iter);
 	}
 }
@@ -1449,9 +1460,8 @@ void BKE_view_layer_bases_in_mode_iterator_next(BLI_Iterator *iter)
 	}
 
 	while (base) {
-		if ((base->object->type == data->base_active->object->type) &&
-		    (base != data->base_active) &&
-		    (base->object->mode & data->object_mode) &&
+		if ((base != data->base_active) &&
+		    base_is_in_mode(data, base) &&
 		    object_bases_iterator_is_valid(data->v3d, base))
 		{
 			iter->current = base;
