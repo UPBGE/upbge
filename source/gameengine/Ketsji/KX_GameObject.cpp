@@ -3921,7 +3921,7 @@ KX_GameObject::RayCastData::RayCastData(const std::string& prop, bool xray, unsi
 static bool CheckRayCastObject(KX_GameObject *obj, KX_GameObject::RayCastData *rayData)
 {
 	const std::string& prop = rayData->m_prop;
-	const unsigned short mask = rayData->m_mask;
+	const unsigned int mask = rayData->m_mask;
 	// Check if the object had a given property (if this one is non empty) and have the correct group mask (if this one is different from 0xFFFF).
 	return ((prop.empty() || obj->GetProperty(prop)) && (mask == ((1u << OB_MAX_COL_MASKS) - 1) || obj->GetCollisionGroup() & mask));
 }
