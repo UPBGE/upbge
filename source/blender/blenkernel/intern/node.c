@@ -3146,6 +3146,8 @@ void nodeSynchronizeID(bNode *node, bool copy_to_id)
 							copy_v3_v3(&ma->specr, ((bNodeSocketValueRGBA *)sock->default_value)->value); break;
 						case MAT_IN_REFL:
 							ma->ref = ((bNodeSocketValueFloat *)sock->default_value)->value; break;
+						case MAT_IN_SPECI:
+							ma->spec = ((bNodeSocketValueFloat *)sock->default_value)->value; break;
 						case MAT_IN_MIR:
 							copy_v3_v3(&ma->mirr, ((bNodeSocketValueRGBA *)sock->default_value)->value); break;
 						case MAT_IN_AMB:
@@ -3160,6 +3162,10 @@ void nodeSynchronizeID(bNode *node, bool copy_to_id)
 							ma->alpha = ((bNodeSocketValueFloat *)sock->default_value)->value; break;
 						case MAT_IN_TRANSLUCENCY:
 							ma->translucency = ((bNodeSocketValueFloat *)sock->default_value)->value; break;
+						case MAT_IN_ROUGHNESS:
+							ma->roughness_bsdf = ((bNodeSocketValueFloat *)sock->default_value)->value; break;
+						case MAT_IN_METALLIC:
+							ma->metallic_bsdf = ((bNodeSocketValueFloat *)sock->default_value)->value; break;
 					}
 				}
 				else {
@@ -3170,6 +3176,8 @@ void nodeSynchronizeID(bNode *node, bool copy_to_id)
 							copy_v3_v3(((bNodeSocketValueRGBA *)sock->default_value)->value, &ma->specr); break;
 						case MAT_IN_REFL:
 							((bNodeSocketValueFloat *)sock->default_value)->value = ma->ref; break;
+						case MAT_IN_SPECI:
+							((bNodeSocketValueFloat *)sock->default_value)->value = ma->spec; break;
 						case MAT_IN_MIR:
 							copy_v3_v3(((bNodeSocketValueRGBA *)sock->default_value)->value, &ma->mirr); break;
 						case MAT_IN_AMB:
@@ -3184,6 +3192,10 @@ void nodeSynchronizeID(bNode *node, bool copy_to_id)
 							((bNodeSocketValueFloat *)sock->default_value)->value = ma->alpha; break;
 						case MAT_IN_TRANSLUCENCY:
 							((bNodeSocketValueFloat *)sock->default_value)->value = ma->translucency; break;
+						case MAT_IN_ROUGHNESS:
+							((bNodeSocketValueFloat *)sock->default_value)->value = ma->roughness_bsdf; break;
+						case MAT_IN_METALLIC:
+							((bNodeSocketValueFloat *)sock->default_value)->value = ma->metallic_bsdf; break;
 					}
 				}
 			}

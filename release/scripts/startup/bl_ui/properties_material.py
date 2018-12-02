@@ -270,8 +270,6 @@ class MATERIAL_PT_diffuse(MaterialButtonsPanel, Panel):
         col.active = (not mat.use_shadeless)
         col.prop(mat, "diffuse_shader", text="")
         col.prop(mat, "use_diffuse_ramp", text="Ramp")
-        col = layout.column()
-        col.prop(mat, "use_energy_conservation", text="Energy Conservation")
 
         col = layout.column()
         col.active = (not mat.use_shadeless)
@@ -377,6 +375,7 @@ class MATERIAL_PT_shading(MaterialButtonsPanel, Panel):
         layout = self.layout
 
         mat = active_node_mat(context.material)
+        engine = context.scene.render.engine
 
         if mat.type in {'SURFACE', 'WIRE'}:
             split = layout.split()
@@ -393,7 +392,9 @@ class MATERIAL_PT_shading(MaterialButtonsPanel, Panel):
             col.prop(mat, "use_shadeless")
             sub = col.column()
             sub.active = not mat.use_shadeless
-            sub.prop(mat, "use_tangent_shading")
+            sub.prop(mat, "use_energy_conservation", text="Energy Conservation")
+            if engine == 'BLENDER_RENDER':
+                sub.prop(mat, "use_tangent_shading")
             sub.prop(mat, "use_cubic")
 
 
