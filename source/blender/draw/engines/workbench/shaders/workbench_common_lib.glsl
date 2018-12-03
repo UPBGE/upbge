@@ -19,9 +19,11 @@ float bayer_dither_noise() {
 	return dither_mat4x4[tx1.x][tx1.y];
 }
 
+#ifdef WORKBENCH_ENCODE_NORMALS
+
 /* From http://aras-p.info/texts/CompactNormalStorage.html
  * Using Method #4: Spheremap Transform */
-vec3 normal_decode(vec2 enc)
+vec3 workbench_normal_decode(vec2 enc)
 {
 	vec2 fenc = enc.xy * 4.0 - 2.0;
 	float f = dot(fenc, fenc);
@@ -34,37 +36,44 @@ vec3 normal_decode(vec2 enc)
 
 /* From http://aras-p.info/texts/CompactNormalStorage.html
  * Using Method #4: Spheremap Transform */
-vec2 normal_encode(vec3 n)
+vec2 workbench_normal_encode(vec3 n)
 {
 	float p = sqrt(n.z * 8.0 + 8.0);
-	return vec2(n.xy / p + 0.5);
+	n.xy = clamp(n.xy / p + 0.5, 0.0, 1.0);
+	return n.xy;
 }
 
-void fresnel(vec3 I, vec3 N, float ior, out float kr)
-{
-	float cosi = clamp(dot(I, N), -1.0, 1.0);
-	float etai = 1.0;
-	float etat = ior;
-	if (cosi > 0) {
-		etat = 1.0;
-		etai = ior;
-	}
+#else
+/* Well just do nothing... */
+#  define workbench_normal_encode(a) (a)
+#  define workbench_normal_decode(a) (a)
+#endif /* WORKBENCH_ENCODE_NORMALS */
 
-	// Compute sini using Snell's law
-	float sint = etai / etat * sqrt(max(0.0, 1.0 - cosi * cosi));
-	// Total internal reflection
-	if (sint >= 1) {
-		kr = 1;
-	}
-	else {
-		float cost = sqrt(max(0.0, 1.0 - sint * sint));
-		cosi = abs(cosi);
-		float Rs = ((etat * cosi) - (etai * cost)) / ((etat * cosi) + (etai * cost));
-		float Rp = ((etai * cosi) - (etat * cost)) / ((etai * cosi) + (etat * cost));
-		kr = (Rs * Rs + Rp * Rp) / 2;
-	}
-	// As a consequence of the conservation of energy, transmittance is given by:
-	// kt = 1 - kr;
+/* Encoding into the alpha of a RGBA8 UNORM texture. */
+#define TARGET_BITCOUNT 8
+#define METALLIC_BITS 3 /* Metallic channel is less important. */
+#define ROUGHNESS_BITS (TARGET_BITCOUNT - METALLIC_BITS)
+#define TOTAL_BITS (METALLIC_BITS + ROUGHNESS_BITS)
+
+/* Encode 2 float into 1 with the desired precision. */
+float workbench_float_pair_encode(float v1, float v2)
+{
+	const int total_mask = ~(0xFFFFFFFF << TOTAL_BITS);
+	const int v1_mask = ~(0xFFFFFFFF << ROUGHNESS_BITS);
+	const int v2_mask = ~(0xFFFFFFFF << METALLIC_BITS);
+	int iv1 = int(v1 * float(v1_mask));
+	int iv2 = int(v2 * float(v2_mask)) << ROUGHNESS_BITS;
+	return float(iv1 | iv2) * (1.0 / float(total_mask));
+}
+
+void workbench_float_pair_decode(float data, out float v1, out float v2)
+{
+	const int total_mask = ~(0xFFFFFFFF << TOTAL_BITS);
+	const int v1_mask = ~(0xFFFFFFFF << ROUGHNESS_BITS);
+	const int v2_mask = ~(0xFFFFFFFF << METALLIC_BITS);
+	int idata = int(data * float(total_mask));
+	v1 = float(idata & v1_mask) * (1.0 / float(v1_mask));
+	v2 = float(idata >> ROUGHNESS_BITS) * (1.0 / float(v2_mask));
 }
 
 float calculate_transparent_weight(float z, float alpha)
