@@ -156,6 +156,13 @@ typedef struct Object_Runtime {
 	struct GpencilBatchCache *gpencil_cache;
 
 	struct ObjectBBoneDeform *cached_bbone_deformation;
+
+	/* The custom data layer mask that was last used to calculate mesh_eval and mesh_deform_eval. */
+	uint64_t last_data_mask;
+
+	/* Did last modifier stack generation need mapping support? */
+	char last_need_mapping;
+	char pad[7];
 } Object_Runtime;
 
 typedef struct Object {
@@ -238,8 +245,7 @@ typedef struct Object {
 	char scavisflag;			/* more display settings for game logic */
 	char pad;
 
-	/* did last modifier stack generation need mapping support? */
-	char lastNeedMapping;  /* bool */
+	char pad12;
 	char duplicator_visibility_flag;
 
 	/* dupli-frame settings */

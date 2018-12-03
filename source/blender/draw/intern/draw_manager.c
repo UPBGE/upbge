@@ -192,7 +192,7 @@ bool DRW_object_is_flat_normal(const Object *ob)
 bool DRW_object_use_hide_faces(const struct Object *ob)
 {
 	if (ob->type == OB_MESH) {
-		const Mesh *me = DEG_get_original_object((Object*)ob)->data;
+		const Mesh *me = DEG_get_original_object((Object *)ob)->data;
 
 		switch (ob->mode) {
 			case OB_MODE_TEXTURE_PAINT:
@@ -1515,6 +1515,11 @@ void DRW_draw_render_loop_ex(
 	}
 
 	drw_engines_draw_scene();
+
+#ifdef __APPLE__
+	/* Fix 3D view being "laggy" on macos. (See T56996) */
+	glFlush();
+#endif
 
 	/* annotations - temporary drawing buffer (3d space) */
 	/* XXX: Or should we use a proper draw/overlay engine for this case? */

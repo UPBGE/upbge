@@ -2249,8 +2249,8 @@ static void mesh_build_data(
 	ob->derivedFinal->needsFree = 0;
 	ob->derivedDeform->needsFree = 0;
 #endif
-	ob->lastDataMask = dataMask;
-	ob->lastNeedMapping = need_mapping;
+	ob->runtime.last_data_mask = dataMask;
+	ob->runtime.last_need_mapping = need_mapping;
 
 	if ((ob->mode & OB_MODE_ALL_SCULPT) && ob->sculpt) {
 		/* create PBVH immediately (would be created on the fly too,
@@ -2294,7 +2294,7 @@ static CustomDataMask object_get_datamask(const Depsgraph *depsgraph, Object *ob
 {
 	ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
 	Object *actob = view_layer->basact ? DEG_get_original_object(view_layer->basact->object) : NULL;
-	CustomDataMask mask = ob->customdata_mask;
+	CustomDataMask mask = DEG_get_customdata_mask_for_object(depsgraph, ob);
 
 	if (r_need_mapping) {
 		*r_need_mapping = false;
@@ -2371,6 +2371,13 @@ DerivedMesh *mesh_get_derived_final(
 Mesh *mesh_get_eval_final(
         struct Depsgraph *depsgraph, Scene *scene, Object *ob, CustomDataMask dataMask)
 {
+	/* This function isn't thread-safe and can't be used during evaluation. */
+	BLI_assert(DEG_debug_is_evaluating(depsgraph) == false);
+
+	/* Evaluated meshes aren't supposed to be created on original instances. If you do,
+	 * they aren't cleaned up properly on mode switch, causing crashes, e.g T58150. */
+	BLI_assert(ob->id.tag & LIB_TAG_COPIED_ON_WRITE);
+
 	/* if there's no evaluated mesh or the last data mask used doesn't include
 	 * the data we need, rebuild the derived mesh
 	 */
@@ -2378,10 +2385,11 @@ Mesh *mesh_get_eval_final(
 	dataMask |= object_get_datamask(depsgraph, ob, &need_mapping);
 
 	if (!ob->runtime.mesh_eval ||
-	    ((dataMask & ob->lastDataMask) != dataMask) ||
-	    (need_mapping && !ob->lastNeedMapping))
+	    ((dataMask & ob->runtime.last_data_mask) != dataMask) ||
+	    (need_mapping && !ob->runtime.last_need_mapping))
 	{
-		mesh_build_data(depsgraph, scene, ob, dataMask | ob->lastDataMask, false, need_mapping || ob->lastNeedMapping);
+		mesh_build_data(depsgraph, scene, ob, dataMask | ob->runtime.last_data_mask,
+		                false, need_mapping || ob->runtime.last_need_mapping);
 	}
 
 	if (ob->runtime.mesh_eval) { BLI_assert(!(ob->runtime.mesh_eval->runtime.cd_dirty_vert & CD_MASK_NORMAL)); }
@@ -2411,6 +2419,13 @@ DerivedMesh *mesh_get_derived_deform(struct Depsgraph *depsgraph, Scene *scene, 
 #endif
 Mesh *mesh_get_eval_deform(struct Depsgraph *depsgraph, Scene *scene, Object *ob, CustomDataMask dataMask)
 {
+	/* This function isn't thread-safe and can't be used during evaluation. */
+	BLI_assert(DEG_debug_is_evaluating(depsgraph) == false);
+
+	/* Evaluated meshes aren't supposed to be created on original instances. If you do,
+	 * they aren't cleaned up properly on mode switch, causing crashes, e.g T58150. */
+	BLI_assert(ob->id.tag & LIB_TAG_COPIED_ON_WRITE);
+
 	/* if there's no derived mesh or the last data mask used doesn't include
 	 * the data we need, rebuild the derived mesh
 	 */
@@ -2419,10 +2434,11 @@ Mesh *mesh_get_eval_deform(struct Depsgraph *depsgraph, Scene *scene, Object *ob
 	dataMask |= object_get_datamask(depsgraph, ob, &need_mapping);
 
 	if (!ob->runtime.mesh_deform_eval ||
-	    ((dataMask & ob->lastDataMask) != dataMask) ||
-	    (need_mapping && !ob->lastNeedMapping))
+	    ((dataMask & ob->runtime.last_data_mask) != dataMask) ||
+	    (need_mapping && !ob->runtime.last_need_mapping))
 	{
-		mesh_build_data(depsgraph, scene, ob, dataMask | ob->lastDataMask, false, need_mapping || ob->lastNeedMapping);
+		mesh_build_data(depsgraph, scene, ob, dataMask | ob->runtime.last_data_mask,
+		                false, need_mapping || ob->runtime.last_need_mapping);
 	}
 
 	return ob->runtime.mesh_deform_eval;
@@ -3010,10 +3026,10 @@ bool DM_is_valid(DerivedMesh *dm)
 	bool changed = true;
 
 	is_valid &= BKE_mesh_validate_all_customdata(
-	        dm->getVertDataLayout(dm),
-	        dm->getEdgeDataLayout(dm),
-	        dm->getLoopDataLayout(dm),
-	        dm->getPolyDataLayout(dm),
+	        dm->getVertDataLayout(dm), dm->getNumVerts(dm),
+	        dm->getEdgeDataLayout(dm), dm->getNumEdges(dm),
+	        dm->getLoopDataLayout(dm), dm->getNumLoops(dm),
+	        dm->getPolyDataLayout(dm), dm->getNumPolys(dm),
 	        false,  /* setting mask here isn't useful, gives false positives */
 	        do_verbose, do_fixes, &changed);
 

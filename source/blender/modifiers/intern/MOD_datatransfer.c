@@ -131,7 +131,8 @@ static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphConte
 	if (dtmd->ob_source != NULL) {
 		CustomDataMask mask = BKE_object_data_transfer_dttypes_to_cdmask(dtmd->data_types);
 
-		DEG_add_object_relation_with_customdata(ctx->node, dtmd->ob_source, DEG_OB_COMP_GEOMETRY, mask, "DataTransfer Modifier");
+		DEG_add_object_relation(ctx->node, dtmd->ob_source, DEG_OB_COMP_GEOMETRY, "DataTransfer Modifier");
+		DEG_add_customdata_mask(ctx->node, dtmd->ob_source, mask);
 
 		if (dtmd->flags & MOD_DATATRANSFER_OBSRC_TRANSFORM) {
 			DEG_add_object_relation(ctx->node, dtmd->ob_source, DEG_OB_COMP_TRANSFORM, "DataTransfer Modifier");
@@ -176,7 +177,7 @@ static Mesh *applyModifier(ModifierData *md, const ModifierEvalContext *ctx, Mes
 		BLI_SPACE_TRANSFORM_SETUP(space_transform, ctx->object, dtmd->ob_source);
 	}
 
-	if ((result == me_mod || (me->mvert == result->mvert) || (me->medge == result->medge)) &&
+	if (((result == me) || (me->mvert == result->mvert) || (me->medge == result->medge)) &&
 	    (dtmd->data_types & DT_TYPES_AFFECT_MESH))
 	{
 		/* We need to duplicate data here, otherwise setting custom normals, edges' shaprness, etc., could
