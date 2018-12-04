@@ -463,6 +463,8 @@ const struct ListBase *WM_gizmomap_group_list(struct wmGizmoMap *gzmap) RET_NULL
 struct wmGizmoMapType *WM_gizmomaptype_ensure(const struct wmGizmoMapType_Params *gzmap_params) RET_NULL
 void WM_gizmo_group_type_add_ptr_ex(struct wmGizmoGroupType *gzgt, struct wmGizmoMapType *gzmap_type) RET_NONE
 void WM_gizmomap_draw(struct wmGizmoMap *gzmap, const struct bContext *C, const eWM_GizmoFlagMapDrawStep drawstep) RET_NONE
+bool WM_gizmo_group_type_ensure_ptr(struct wmGizmoGroupType *gzgt) RET_ZERO
+void WM_gizmo_group_type_unlink_delayed_ptr(struct wmGizmoGroupType *gzgt) RET_NONE
 
 void BPY_RNA_gizmo_wrapper(struct wmGizmoType *gzt, void *userdata) RET_NONE
 void BPY_RNA_gizmogroup_wrapper(struct wmGizmoGroupType *gzgt, void *userdata) RET_NONE

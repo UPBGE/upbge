@@ -811,14 +811,13 @@ void draw_image_main(const bContext *C, ARegion *ar)
 		ED_region_grid_draw(ar, zoomx, zoomy);
 	}
 	else {
-
 		if (sima->flag & SI_DRAW_TILE)
 			draw_image_buffer_repeated(C, sima, ar, scene, ima, ibuf, zoomx, zoomy);
 		else if (ima && (ima->tpageflag & IMA_TILES))
-			draw_image_buffer_tiled(sima, ar, scene, ima, ibuf, 0.0f, 0.0, zoomx, zoomy);
+			draw_image_buffer_tiled(sima, ar, scene, ima, ibuf, 0.0f, 0.0f, zoomx, zoomy);
 		else
 			draw_image_buffer(C, sima, ar, scene, ibuf, 0.0f, 0.0f, zoomx, zoomy);
-		
+
 		if (sima->flag & SI_DRAW_METADATA) {
 			int x, y;
 			rctf frame;

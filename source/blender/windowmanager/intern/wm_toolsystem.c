@@ -559,6 +559,22 @@ void WM_toolsystem_init(bContext *C)
 	/* Rely on screen initialization for gizmos. */
 }
 
+static bool toolsystem_key_ensure_check(const bToolKey *tkey)
+{
+	switch (tkey->space_type) {
+		case SPACE_VIEW3D:
+			return true;
+		case SPACE_IMAGE:
+			if (ELEM(tkey->mode, SI_MODE_PAINT, SI_MODE_UV)) {
+				return true;
+			}
+			break;
+		case SPACE_NODE:
+			return true;
+	}
+	return false;
+}
+
 int WM_toolsystem_mode_from_spacetype(
         ViewLayer *view_layer, ScrArea *sa, int spacetype)
 {
@@ -787,6 +803,12 @@ static const char *toolsystem_default_tool(const bToolKey *tkey)
 					return "Comb";
 			}
 			break;
+		case SPACE_IMAGE:
+			switch (tkey->mode) {
+				case SI_MODE_PAINT:
+					return "Draw";
+			}
+			break;
 	}
 
 	return "Select Box";
@@ -829,7 +851,9 @@ void WM_toolsystem_update_from_context(
 		.space_type = sa->spacetype,
 		.mode = WM_toolsystem_mode_from_spacetype(view_layer, sa, sa->spacetype),
 	};
-	toolsystem_reinit_ensure_toolref(C, workspace, &tkey, NULL);
+	if (toolsystem_key_ensure_check(&tkey)) {
+		toolsystem_reinit_ensure_toolref(C, workspace, &tkey, NULL);
+	}
 }
 
 
