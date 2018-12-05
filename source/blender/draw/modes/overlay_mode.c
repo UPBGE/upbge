@@ -288,9 +288,11 @@ static void overlay_cache_populate(void *vedata, Object *ob)
 				}
 			}
 			else {
+				/* Manually tweaked so the shader hidding matches. */
+				const bool reduced_tri_len = (stl->g_data->wire_step_param[1] < 0.9988) && !all_wires;
 				int tri_count;
 				GPUTexture *verts = NULL, *faceids;
-				DRW_cache_object_face_wireframe_get(ob, &verts, &faceids, &tri_count);
+				DRW_cache_object_face_wireframe_get(ob, &verts, &faceids, &tri_count, reduced_tri_len);
 				if (verts) {
 					float *rim_col = ts.colorWire;
 					if ((ob->base_flag & BASE_SELECTED) != 0) {

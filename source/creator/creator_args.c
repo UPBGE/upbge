@@ -2037,6 +2037,8 @@ void main_args_setup(bContext *C, bArgs *ba, SYS_SystemHandle *syshandle)
 	            CB_EX(arg_handle_debug_mode_generic_set, gpumem), (void *)G_DEBUG_GPU_MEM);
 	BLI_argsAdd(ba, 1, NULL, "--debug-gpu-shaders",
 	            CB_EX(arg_handle_debug_mode_generic_set, gpumem), (void *)G_DEBUG_GPU_SHADERS);
+	BLI_argsAdd(ba, 1, NULL, "--debug-gpu-force-workarounds",
+	            CB_EX(arg_handle_debug_mode_generic_set, gpumem), (void *)G_DEBUG_GPU_FORCE_WORKAROUNDS);
 
 	BLI_argsAdd(ba, 1, NULL, "--disable-copy-on-write", CB(arg_handle_use_copy_on_write), NULL);
 

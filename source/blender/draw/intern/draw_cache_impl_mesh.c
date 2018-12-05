@@ -72,7 +72,6 @@
 
 #include "draw_cache_impl.h"  /* own include */
 
-// #define USE_BM_MAPPED_LOOPNORMAL
 
 static void mesh_batch_cache_clear(Mesh *me);
 
@@ -492,7 +491,6 @@ static MeshRenderData *mesh_render_data_create_ex(
 		}
 		if (types & MR_DATATYPE_LOOP) {
 			int totloop = bm->totloop;
-#ifdef USE_BM_MAPPED_LOOPNORMAL
 			if (is_auto_smooth) {
 				rdata->loop_normals = MEM_mallocN(sizeof(*rdata->loop_normals) * totloop, __func__);
 				int cd_loop_clnors_offset = CustomData_get_offset(&bm->ldata, CD_CUSTOMLOOPNORMAL);
@@ -500,7 +498,6 @@ static MeshRenderData *mesh_render_data_create_ex(
 				        bm, NULL, NULL, NULL, true, split_angle, rdata->loop_normals, NULL, NULL,
 				        cd_loop_clnors_offset, false);
 			}
-#endif
 			rdata->loop_len = totloop;
 			bm_ensure_types |= BM_LOOP;
 		}
@@ -1746,7 +1743,7 @@ static void add_overlay_tri(
 static void add_overlay_tri_mapped(
         MeshRenderData *rdata, GPUVertBuf *vbo_pos, GPUVertBuf *vbo_nor, GPUVertBuf *vbo_data, GPUIndexBufBuilder *elb,
         const uint pos_id, const uint vnor_id, const uint lnor_id, const uint data_id,
-        BMFace *efa, const MLoopTri *mlt, const float poly_normal[3], const int base_vert_idx)
+        BMFace *efa, const MLoopTri *mlt, const float poly_normal[3], const float (*loop_normals)[3], const int base_vert_idx)
 {
 	BMEditMesh *embm = rdata->edit_bmesh;
 	BMesh *bm = embm->bm;
@@ -1791,17 +1788,8 @@ static void add_overlay_tri_mapped(
 	}
 
 	if (vbo_nor) {
-#ifdef USE_BM_MAPPED_LOOPNORMAL
-		float (*lnors)[3] = rdata->loop_normals;
-#endif
 		for (uint i = 0; i < 3; i++) {
-			/* We don't have 'l_origindex', so use the polygons normal. */
-#ifdef USE_BM_MAPPED_LOOPNORMAL
-			const int l_orig = l_origindex[mlt->tri[i]];
-			const float *nor = (lnors && (l_orig != ORIGINDEX_NONE)) ? lnors[l_orig] : poly_normal;
-#else
-			const float *nor = poly_normal;
-#endif
+			const float *nor = loop_normals ? loop_normals[mlt->tri[i]] : poly_normal;
 			GPUPackedNormal lnor = GPU_normal_convert_i10_v3(nor);
 			GPU_vertbuf_attr_set(vbo_nor, lnor_id, base_vert_idx + i, &lnor);
 			GPUPackedNormal vnor = GPU_normal_convert_i10_s3(mvert[mloop[mlt->tri[i]].v].no);
@@ -2065,6 +2053,8 @@ typedef struct MeshBatchCache {
 	GPUVertBuf *edges_face_overlay;
 	GPUTexture *edges_face_overlay_tx;
 	int edges_face_overlay_tri_count; /* Number of tri in edges_face_overlay(_adj)_tx */
+	int edges_face_overlay_tri_count_low; /* Number of tri that are sure to produce edges. */
+	bool edges_face_reduce_len; /* Has the edges_face_overlay vertbuf has been sorted. */
 
 	/* Maybe have shaded_triangles_data split into pos_nor and uv_tangent
 	 * to minimize data transfer for skinned mesh. */
@@ -3787,6 +3777,7 @@ static void mesh_batch_cache_create_overlay_tri_buffers(
 			BKE_mesh_ensure_normals_for_display(me_cage);
 		}
 		const float (*polynors)[3] = CustomData_get_layer(&me_cage->pdata, CD_NORMAL);
+		const float (*loopnors)[3] = CustomData_get_layer(&me_cage->ldata, CD_NORMAL);
 		for (int i = 0; i < tri_len; i++) {
 			const MLoopTri *mlt = &mlooptri[i];
 			const int p_orig = rdata->mapped.p_origindex[mlt->poly];
@@ -3796,7 +3787,7 @@ static void mesh_batch_cache_create_overlay_tri_buffers(
 					add_overlay_tri_mapped(
 					        rdata, vbo_pos, vbo_nor, vbo_data, elbp,
 					        attr_id.pos, attr_id.vnor, attr_id.lnor, attr_id.data,
-					        efa, mlt, polynors[mlt->poly], vbo_len_used);
+					        efa, mlt, polynors[mlt->poly], loopnors, vbo_len_used);
 					vbo_len_used += 3;
 				}
 			}
@@ -4303,24 +4294,32 @@ static EdgeHash *create_looptri_edge_adjacency_hash(MeshRenderData *rdata)
 	return eh;
 }
 
-static GPUVertBuf *mesh_batch_cache_create_edges_overlay_texture_buf(MeshRenderData *rdata)
+static GPUVertBuf *mesh_batch_cache_create_edges_overlay_texture_buf(
+        MeshRenderData *rdata, MeshBatchCache *cache, bool reduce_len)
 {
+	if (cache->edges_face_overlay != NULL) {
+		return cache->edges_face_overlay;
+	}
+
 	const int tri_len = mesh_render_data_looptri_len_get(rdata);
 
 	GPUVertFormat format = {0};
 	uint index_id = GPU_vertformat_attr_add(&format, "index", GPU_COMP_U32, 1, GPU_FETCH_INT);
-	GPUVertBuf *vbo = GPU_vertbuf_create_with_format(&format);
+	GPUVertBuf *vbo = cache->edges_face_overlay = GPU_vertbuf_create_with_format(&format);
 
 	int vbo_len_capacity = tri_len * 3;
 	GPU_vertbuf_data_alloc(vbo, vbo_len_capacity);
 
 	int vidx = 0;
+	int vidx_end = vbo_len_capacity;
 	EdgeHash *eh = NULL;
 	eh = create_looptri_edge_adjacency_hash(rdata);
 
 	for (int i = 0; i < tri_len; i++) {
-		bool edge_is_real[3];
+		uint vdata[3] = {0, 0, 0};
+		bool face_has_edges = false;
 
+		const MVert *mvert = rdata->mvert;
 		const MEdge *medge = rdata->medge;
 		const MLoop *mloop = rdata->mloop;
 		const MLoopTri *mlt = rdata->mlooptri + i;
@@ -4329,41 +4328,88 @@ static GPUVertBuf *mesh_batch_cache_create_edges_overlay_texture_buf(MeshRenderD
 		for (j = 2, j_next = 0; j_next < 3; j = j_next++) {
 			const MEdge *ed = &medge[mloop[mlt->tri[j]].e];
 			const uint tri_edge[2]  = {mloop[mlt->tri[j]].v, mloop[mlt->tri[j_next]].v};
-			const bool is_edge_real = (
-			        ((ed->v1 == tri_edge[0]) && (ed->v2 == tri_edge[1])) ||
-			        ((ed->v1 == tri_edge[1]) && (ed->v2 == tri_edge[0])));
-			edge_is_real[j] = is_edge_real;
+
+			if ((((ed->v1 == tri_edge[0]) && (ed->v2 == tri_edge[1])) ||
+			     ((ed->v1 == tri_edge[1]) && (ed->v2 == tri_edge[0]))) &&
+			     (ed->flag & ME_EDGERENDER) != 0)
+			{
+				/* Real edge. */
+				vdata[j] |= (1 << 30);
+			}
+		}
+
+		/* If at least one edge is real. */
+		if (vdata[0] || vdata[1] || vdata[2]) {
+			/* Decide if face has at least a "dominant" edge. */
+
+			float fnor[3];
+			if (reduce_len) {
+				normal_tri_v3(fnor,
+				              mvert[mloop[mlt->tri[0]].v].co,
+				              mvert[mloop[mlt->tri[1]].v].co,
+				              mvert[mloop[mlt->tri[2]].v].co);
+			}
+
+			for (int e = 0; e < 3; e++) {
+				int v0 = mloop[mlt->tri[e]].v;
+				int v1 = mloop[mlt->tri[(e + 1) % 3]].v;
+				/* The only breakage it would cause is drawing issues. */
+				/* BLI_assert(3FFFFFFF > v0); */
+				vdata[e] |= (uint)v0;
+				/* Non-real edge. */
+				if (vdata[e] == 0) {
+					continue;
+				}
+				EdgeAdjacentVerts *eav = BLI_edgehash_lookup(eh, v0, v1);
+				/* If Non Manifold. */
+				if (eav->vert_index[1] == -1) {
+					face_has_edges = true;
+					vdata[e] |= (1u << 31);
+				}
+				/* Search for dominant edge. */
+				if (reduce_len && !face_has_edges) {
+					int v2 = mloop[mlt->tri[(e + 2) % 3]].v;
+					/* Select the right opposite vertex */
+					v2 = (eav->vert_index[1] == v2) ? eav->vert_index[0] : eav->vert_index[1];
+					float fnor_adj[3];
+					normal_tri_v3(fnor_adj,
+					              mvert[v1].co,
+					              mvert[v0].co,
+					              mvert[v2].co);
+					float fac = dot_v3v3(fnor_adj, fnor);
+					if (fac < 0.999f) {
+						face_has_edges = true;
+					}
+				}
+			}
+		}
+
+		if (!face_has_edges) {
+			vidx_end -= 3;
 		}
 
 		for (int e = 0; e < 3; e++) {
-			int v0 = mloop[mlt->tri[e]].v;
-			int v1 = mloop[mlt->tri[(e + 1) % 3]].v;
-			EdgeAdjacentVerts *eav = BLI_edgehash_lookup(eh, v0, v1);
-			uint value = (uint)v0;
-			/* Real edge */
-			if (edge_is_real[e]) {
-				value |= (1 << 30);
+			/* Add faces most likely to draw anything at the begining of the VBO
+			 * to enable fast drawing the visible edges. */
+			if (face_has_edges) {
+				GPU_vertbuf_attr_set(vbo, index_id, vidx++, &vdata[e]);
 			}
-			/* Non-manifold edge */
-			if (eav->vert_index[1] == -1) {
-				value |= (1u << 31);
+			else {
+				GPU_vertbuf_attr_set(vbo, index_id, vidx_end+e, &vdata[e]);
 			}
-			GPU_vertbuf_attr_set(vbo, index_id, vidx++, &value);
 		}
 	}
 
+	cache->edges_face_overlay_tri_count = vbo->vertex_alloc / 3;
+	cache->edges_face_overlay_tri_count_low = vidx / 3;
+	cache->edges_face_reduce_len = reduce_len;
+
 	BLI_edgehash_free(eh, MEM_freeN);
-
-	int vbo_len_used = vidx;
-
-	if (vbo_len_capacity != vbo_len_used) {
-		GPU_vertbuf_data_resize(vbo, vbo_len_used);
-	}
-
 	return vbo;
 }
 
-static GPUTexture *mesh_batch_cache_get_edges_overlay_texture_buf(MeshRenderData *rdata, MeshBatchCache *cache)
+static GPUTexture *mesh_batch_cache_get_edges_overlay_texture_buf(
+        MeshRenderData *rdata, MeshBatchCache *cache, bool reduce_len)
 {
 	BLI_assert(rdata->types & (MR_DATATYPE_VERT | MR_DATATYPE_EDGE | MR_DATATYPE_LOOP | MR_DATATYPE_LOOPTRI));
 
@@ -4373,12 +4419,11 @@ static GPUTexture *mesh_batch_cache_get_edges_overlay_texture_buf(MeshRenderData
 		return cache->edges_face_overlay_tx;
 	}
 
-	GPUVertBuf *vbo = cache->edges_face_overlay = mesh_batch_cache_create_edges_overlay_texture_buf(rdata);
+	GPUVertBuf *vbo = mesh_batch_cache_create_edges_overlay_texture_buf(rdata, cache, reduce_len);
 
 	/* Upload data early because we need to create the texture for it. */
 	GPU_vertbuf_use(vbo);
 	cache->edges_face_overlay_tx = GPU_texture_create_from_vertbuf(vbo);
-	cache->edges_face_overlay_tri_count = vbo->vertex_alloc / 3;
 
 	return cache->edges_face_overlay_tx;
 }
@@ -5052,22 +5097,27 @@ GPUBatch *DRW_mesh_batch_cache_get_edge_detection(Mesh *me, bool *r_is_manifold)
 }
 
 void DRW_mesh_batch_cache_get_wireframes_face_texbuf(
-        Mesh *me, GPUTexture **verts_data, GPUTexture **face_indices, int *tri_count)
+        Mesh *me, GPUTexture **verts_data, GPUTexture **face_indices, int *tri_count, bool reduce_len)
 {
 	MeshBatchCache *cache = mesh_batch_cache_get(me);
+
+	if (!cache->edges_face_reduce_len && reduce_len) {
+		GPU_VERTBUF_DISCARD_SAFE(cache->edges_face_overlay);
+		DRW_TEXTURE_FREE_SAFE(cache->edges_face_overlay_tx);
+	}
 
 	if (cache->edges_face_overlay_tx == NULL || cache->pos_in_order_tx == NULL) {
 		const int options = MR_DATATYPE_VERT | MR_DATATYPE_EDGE | MR_DATATYPE_LOOP | MR_DATATYPE_LOOPTRI;
 
 		MeshRenderData *rdata = mesh_render_data_create(me, options);
 
-		mesh_batch_cache_get_edges_overlay_texture_buf(rdata, cache);
+		mesh_batch_cache_get_edges_overlay_texture_buf(rdata, cache, reduce_len);
 		mesh_batch_cache_get_vert_pos_and_nor_in_order_buf(rdata, cache);
 
 		mesh_render_data_free(rdata);
 	}
 
-	*tri_count = cache->edges_face_overlay_tri_count;
+	*tri_count = reduce_len ? cache->edges_face_overlay_tri_count_low : cache->edges_face_overlay_tri_count;
 	*face_indices = cache->edges_face_overlay_tx;
 	*verts_data = cache->pos_in_order_tx;
 }

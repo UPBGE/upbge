@@ -895,7 +895,7 @@ static void DRW_shgroup_empty_image(
 		DRW_shgroup_uniform_int_copy(grp, "depthMode", ob->empty_image_depth);
 		DRW_shgroup_uniform_float(grp, "size", &ob->empty_drawsize, 1);
 		DRW_shgroup_uniform_vec2(grp, "offset", ob->ima_ofs, 1);
-		DRW_shgroup_uniform_vec4(grp, "color", color, 1);
+		DRW_shgroup_uniform_vec3(grp, "color", color, 1);
 		DRW_shgroup_call_add(grp, DRW_cache_image_plane_wire_get(), ob->obmat);
 	}
 }
@@ -2742,7 +2742,9 @@ static void OBJECT_cache_populate(void *vedata, Object *ob)
 			break;
 		case OB_ARMATURE:
 		{
-			if (v3d->overlay.flag & V3D_OVERLAY_HIDE_BONES) {
+			if ((v3d->flag2 & V3D_RENDER_OVERRIDE) ||
+			    (v3d->overlay.flag & V3D_OVERLAY_HIDE_BONES))
+			{
 				break;
 			}
 			bArmature *arm = ob->data;

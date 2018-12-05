@@ -95,6 +95,9 @@ static struct GPUGlobal {
 	 * GPU_DEPTH32F_STENCIL8. Then Blitting depth will work but blitting stencil will
 	 * still be broken. */
 	bool depth_blitting_workaround;
+	/* Crappy driver don't know how to map framebuffer slot to output vars...
+	 * We need to have no "holes" in the output buffer slots. */
+	bool unused_fb_slot_workaround;
 } GG = {1, 0};
 
 
@@ -211,6 +214,11 @@ bool GPU_depth_blitting_workaround(void)
 	return GG.depth_blitting_workaround;
 }
 
+bool GPU_unused_fb_slot_workaround(void)
+{
+	return GG.unused_fb_slot_workaround;
+}
+
 void gpu_extensions_init(void)
 {
 	/* during 2.8 development each platform has its own OpenGL minimum requirements
@@ -262,6 +270,14 @@ void gpu_extensions_init(void)
 		GG.device = GPU_DEVICE_ATI;
 		GG.driver = GPU_DRIVER_OFFICIAL;
 
+#ifdef _WIN32
+		if (strstr(vendor, "Radeon HD 7500M") ||
+		    strstr(vendor, "Radeon HD 7570M"))
+		{
+			GG.unused_fb_slot_workaround = true;
+		}
+#endif
+
 #if defined(__APPLE__)
 		if (strstr(renderer, "AMD Radeon Pro") ||
 		    strstr(renderer, "AMD Radeon R9") ||
@@ -283,7 +299,9 @@ void gpu_extensions_init(void)
 		GG.device = GPU_DEVICE_INTEL;
 		GG.driver = GPU_DRIVER_OFFICIAL;
 
-		if (strstr(renderer, "UHD Graphics")) {
+		if (strstr(renderer, "UHD Graphics") ||
+		    strstr(renderer, "Kaby Lake GT2"))
+		{
 			GG.device |= GPU_DEVICE_INTEL_UHD;
 		}
 	}
@@ -326,6 +344,18 @@ void gpu_extensions_init(void)
 #endif
 
 	gpu_detect_mip_render_workaround();
+
+	if (G.debug & G_DEBUG_GPU_FORCE_WORKAROUNDS) {
+		printf("\n");
+		printf("GPU: Bypassing workaround detection.\n");
+		printf("GPU: OpenGL indentification strings\n");
+		printf("GPU: vendor: %s\n", vendor);
+		printf("GPU: renderer: %s\n", renderer);
+		printf("GPU: version: %s\n\n", version);
+		GG.mip_render_workaround = true;
+		GG.depth_blitting_workaround = true;
+		GG.unused_fb_slot_workaround = true;
+	}
 
 	/* df/dy calculation factors, those are dependent on driver */
 	if ((strstr(vendor, "ATI") && strstr(version, "3.3.10750"))) {
