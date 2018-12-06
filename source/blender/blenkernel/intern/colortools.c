@@ -1569,7 +1569,7 @@ void BKE_color_managed_display_settings_copy(ColorManagedDisplaySettings *new_se
 	BLI_strncpy(new_settings->display_device, settings->display_device, sizeof(new_settings->display_device));
 }
 
-void BKE_color_managed_view_settings_init(
+void BKE_color_managed_view_settings_init_render(
         ColorManagedViewSettings *view_settings,
         const ColorManagedDisplaySettings *display_settings)
 {
@@ -1584,8 +1584,18 @@ void BKE_color_managed_view_settings_init(
 	 * default configuration. */
 	BLI_strncpy(view_settings->look, "None", sizeof(view_settings->look));
 
+	view_settings->flag = 0;
 	view_settings->gamma = 1.0f;
 	view_settings->exposure = 0.0f;
+	view_settings->curve_mapping = NULL;
+}
+
+void BKE_color_managed_view_settings_init_default(
+        struct ColorManagedViewSettings *view_settings,
+        const struct ColorManagedDisplaySettings *display_settings)
+{
+	IMB_colormanagement_init_default_view_settings(
+	        view_settings, display_settings);
 }
 
 void BKE_color_managed_view_settings_copy(ColorManagedViewSettings *new_settings,

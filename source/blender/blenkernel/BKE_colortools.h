@@ -101,9 +101,18 @@ void BKE_color_managed_display_settings_copy(
         struct ColorManagedDisplaySettings *new_settings,
         const struct ColorManagedDisplaySettings *settings);
 
-void BKE_color_managed_view_settings_init(
+/* Initialize view settings to be best suitable for render type of viewing.
+ * This will use default view transform from the OCIO configuration. */
+void BKE_color_managed_view_settings_init_render(
         struct ColorManagedViewSettings *settings,
         const struct ColorManagedDisplaySettings *display_settings);
+
+/* Initialize view settings which are best suitable for viewing non-render
+ * images. For example,s movie clips while tracking. */
+void BKE_color_managed_view_settings_init_default(
+        struct ColorManagedViewSettings *settings,
+        const struct ColorManagedDisplaySettings *display_settings);
+
 void BKE_color_managed_view_settings_copy(
         struct ColorManagedViewSettings *new_settings,
         const struct ColorManagedViewSettings *settings);

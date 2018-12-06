@@ -2730,7 +2730,18 @@ static GPUVertBuf *mesh_batch_cache_get_tri_uv_active(
 
 	if (cache->tri_aligned_uv == NULL) {
 		const MLoopUV *mloopuv = rdata->mloopuv;
-		if (mloopuv == NULL) {
+		int layer_offset;
+		BMEditMesh *embm = rdata->edit_bmesh;
+
+		/* edit mode */
+		if (rdata->edit_bmesh) {
+			BMesh *bm = embm->bm;
+			layer_offset = CustomData_get_offset(&bm->ldata, CD_MLOOPUV);
+			if (layer_offset == -1) {
+				return NULL;
+			}
+		}
+		else if (mloopuv == NULL) {
 			return NULL;
 		}
 
@@ -2750,14 +2761,8 @@ static GPUVertBuf *mesh_batch_cache_get_tri_uv_active(
 		int vbo_len_used = 0;
 		GPU_vertbuf_data_alloc(vbo, vbo_len_capacity);
 
-
-		BMEditMesh *embm = rdata->edit_bmesh;
 		/* get uv's from active UVMap */
 		if (rdata->edit_bmesh) {
-			/* edit mode */
-			BMesh *bm = embm->bm;
-
-			const int layer_offset = CustomData_get_offset(&bm->ldata, CD_MLOOPUV);
 			for (uint i = 0; i < tri_len; i++) {
 				const BMLoop **bm_looptri = (const BMLoop **)embm->looptris[i];
 				if (BM_elem_flag_test(bm_looptri[0]->f, BM_ELEM_HIDDEN)) {
@@ -2785,7 +2790,10 @@ static GPUVertBuf *mesh_batch_cache_get_tri_uv_active(
 
 		vbo_len_used = vidx;
 
-		BLI_assert(vbo_len_capacity == vbo_len_used);
+		if (vbo_len_capacity != vbo_len_used) {
+			GPU_vertbuf_data_resize(vbo, vbo_len_used);
+		}
+
 		UNUSED_VARS_NDEBUG(vbo_len_used);
 	}
 
@@ -5114,22 +5122,12 @@ void DRW_mesh_batch_cache_get_wireframes_face_texbuf(
 		const int options = MR_DATATYPE_VERT | MR_DATATYPE_EDGE | MR_DATATYPE_LOOP | MR_DATATYPE_LOOPTRI;
 
 		/* Hack to show the final result. */
-		BMesh *bm_mapped = NULL;
-		const int *p_origindex = NULL;
 		const bool use_em_final = (
 		        me->edit_btmesh &&
 		        me->edit_btmesh->mesh_eval_final &&
 		        (me->edit_btmesh->mesh_eval_final->runtime.is_original == false));
 		Mesh me_fake;
 		if (use_em_final) {
-			/* Pass in mapped args. */
-			bm_mapped = me->edit_btmesh->bm;
-			p_origindex = CustomData_get_layer(&me->edit_btmesh->mesh_eval_final->pdata, CD_ORIGINDEX);
-			if (p_origindex == NULL) {
-				bm_mapped = NULL;
-			}
-			UNUSED_VARS(bm_mapped);
-
 			me_fake = *me->edit_btmesh->mesh_eval_final;
 			me_fake.mat = me->mat;
 			me_fake.totcol = me->totcol;
@@ -5463,6 +5461,20 @@ GPUBatch **DRW_mesh_batch_cache_get_surface_texpaint(Mesh *me, bool use_hide)
 		/* create batch from DM */
 		const int datatype =
 		        MR_DATATYPE_VERT | MR_DATATYPE_LOOP | MR_DATATYPE_POLY | MR_DATATYPE_LOOPTRI | MR_DATATYPE_LOOPUV;
+
+		/* Hack to show the final result. */
+		const bool use_em_final = (
+		        me->edit_btmesh &&
+		        me->edit_btmesh->mesh_eval_final &&
+		        (me->edit_btmesh->mesh_eval_final->runtime.is_original == false));
+		Mesh me_fake;
+		if (use_em_final) {
+			me_fake = *me->edit_btmesh->mesh_eval_final;
+			me_fake.mat = me->mat;
+			me_fake.totcol = me->totcol;
+			me = &me_fake;
+		}
+
 		MeshRenderData *rdata = mesh_render_data_create(me, datatype);
 
 		const int mat_len = mesh_render_data_mat_len_get(rdata);
