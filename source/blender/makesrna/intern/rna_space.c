@@ -172,7 +172,7 @@ const EnumPropertyItem rna_enum_space_action_mode_items[] = {
 #define SI_ITEM_VIEW(name, icon) \
 	{SI_MODE_VIEW, "VIEW", icon, name, "View the image"}
 #define SI_ITEM_UV \
-	{SI_MODE_UV, "UV", ICON_GROUP_UVS, "UV Edit", "UV edit in mesh editmode"}
+	{SI_MODE_UV, "UV", ICON_GROUP_UVS, "UV Editor", "UV edit in mesh editmode"}
 #define SI_ITEM_PAINT \
 	{SI_MODE_PAINT, "PAINT", ICON_TPAINT_HLT, "Paint", "2D image painting mode"}
 #define SI_ITEM_MASK \
@@ -716,10 +716,10 @@ static int rna_3DViewShading_type_get(PointerRNA *ptr)
 {
 	/* Available shading types depend on render engine. */
 	Scene *scene = rna_3DViewShading_scene(ptr);
-	RenderEngineType *type = RE_engines_find(scene->r.engine);
+	RenderEngineType *type = (scene) ? RE_engines_find(scene->r.engine) : NULL;
 	View3DShading *shading = (View3DShading *)ptr->data;
 
-	if (BKE_scene_uses_blender_eevee(scene)) {
+	if (scene == NULL || BKE_scene_uses_blender_eevee(scene)) {
 		return shading->type;
 	}
 	else if (BKE_scene_uses_blender_workbench(scene)) {
@@ -749,7 +749,7 @@ static const EnumPropertyItem *rna_3DViewShading_type_itemf(
         PropertyRNA *UNUSED(prop), bool *r_free)
 {
 	Scene *scene = rna_3DViewShading_scene(ptr);
-	RenderEngineType *type = RE_engines_find(scene->r.engine);
+	RenderEngineType *type = (scene) ? RE_engines_find(scene->r.engine) : NULL;
 
 	EnumPropertyItem *item = NULL;
 	int totitem = 0;
@@ -757,7 +757,7 @@ static const EnumPropertyItem *rna_3DViewShading_type_itemf(
 	RNA_enum_items_add_value(&item, &totitem, rna_enum_shading_type_items, OB_WIRE);
 	RNA_enum_items_add_value(&item, &totitem, rna_enum_shading_type_items, OB_SOLID);
 
-	if (BKE_scene_uses_blender_eevee(scene)) {
+	if (scene == NULL || BKE_scene_uses_blender_eevee(scene)) {
 		RNA_enum_items_add_value(&item, &totitem, rna_enum_shading_type_items, OB_MATERIAL);
 		RNA_enum_items_add_value(&item, &totitem, rna_enum_shading_type_items, OB_RENDER);
 	}
