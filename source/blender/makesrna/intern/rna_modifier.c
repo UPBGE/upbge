@@ -781,7 +781,7 @@ static void rna_OceanModifier_ocean_chop_set(PointerRNA *ptr, float value)
 static bool rna_LaplacianDeformModifier_is_bind_get(PointerRNA *ptr)
 {
 	LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData *)ptr->data;
-	return ((lmd->flag & MOD_LAPLACIANDEFORM_BIND) && (lmd->cache_system != NULL));
+	return ((lmd->flag & MOD_LAPLACIANDEFORM_BIND) && (lmd->vertexco != NULL));
 }
 
 /* NOTE: Curve and array modifiers requires curve path to be evaluated,
@@ -1298,7 +1298,7 @@ static void rna_def_modifier_generic_map_info(StructRNA *srna)
 	prop = RNA_def_property(srna, "texture", PROP_POINTER, PROP_NONE);
 	RNA_def_property_ui_text(prop, "Texture", "");
 	RNA_def_property_flag(prop, PROP_EDITABLE);
-	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+	RNA_def_property_update(prop, 0, "rna_Modifier_dependency_update");
 
 	prop = RNA_def_property(srna, "texture_coords", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "texmapping");

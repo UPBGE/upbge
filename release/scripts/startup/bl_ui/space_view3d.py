@@ -2778,6 +2778,7 @@ class VIEW3D_MT_edit_mesh(Menu):
         layout.menu("VIEW3D_MT_edit_mesh_extrude")
         layout.operator("mesh.split")
         layout.operator("mesh.bisect")
+        layout.operator("mesh.knife_project")
 
         if with_bullet:
             layout.operator("mesh.convex_hull")

@@ -34,6 +34,7 @@ class Params:
         "context_menu_event",
         "cursor_set_event",
         "cursor_tweak_event",
+        "use_mouse_emulate_3_button",
 
         # User preferences.
         #
@@ -52,6 +53,7 @@ class Params:
             *,
             legacy=False,
             select_mouse='RIGHT',
+            use_mouse_emulate_3_button=False,
 
             # User preferences.
             spacebar_action='TOOL',
@@ -96,6 +98,8 @@ class Params:
 
             self.cursor_set_event = {"type": 'RIGHTMOUSE', "value": 'PRESS', "shift": True}
             self.cursor_tweak_event = {"type": 'EVT_TWEAK_R', "value": 'ANY', "shift": True}
+
+        self.use_mouse_emulate_3_button = use_mouse_emulate_3_button
 
         # User preferences
         self.spacebar_action = spacebar_action
@@ -2973,8 +2977,6 @@ def km_grease_pencil_stroke_edit_mode(params):
         ("object.gpencil_add", {"type": 'A', "value": 'PRESS', "shift": True}, None),
         # Vertex group menu
         op_menu("GPENCIL_MT_gpencil_vertex_group", {"type": 'G', "value": 'PRESS', "ctrl": True}),
-        # Toggle edit mode
-        ("gpencil.editmode_toggle", {"type": 'TAB', "value": 'PRESS'}, None),
         # Select mode
         ("gpencil.selectmode_toggle", {"type": 'ONE', "value": 'PRESS'},
          {"properties": [("mode", 0)]}),
@@ -3766,13 +3768,7 @@ def km_mesh(params):
          {"properties": [("vertex_only", True)]}),
         # Selection modes.
         *_template_items_editmode_mesh_select_mode(),
-        # Loop Select with alt, and double click in case MMB emulation is on.
-        ("mesh.loop_select", {"type": params.select_mouse, "value": 'DOUBLE_CLICK'},
-         {"properties": [("extend", False), ("deselect", False), ("toggle", False)]}),
-        ("mesh.loop_select", {"type": params.select_mouse, "value": 'DOUBLE_CLICK', "shift": True},
-         {"properties": [("extend", True), ("deselect", False), ("toggle", False)]}),
-        ("mesh.loop_select", {"type": params.select_mouse, "value": 'DOUBLE_CLICK', "alt": True},
-         {"properties": [("extend", False), ("deselect", True), ("toggle", False)]}),
+        # Loop Select with alt. Double click in case MMB emulation is on (below).
         ("mesh.loop_select", {"type": params.select_mouse, "value": params.select_mouse_value, "alt": True},
          {"properties": [("extend", False), ("deselect", False), ("toggle", False)]}),
         ("mesh.loop_select", {"type": params.select_mouse, "value": params.select_mouse_value, "shift": True, "alt": True},
@@ -3856,6 +3852,16 @@ def km_mesh(params):
         *_template_items_proportional_editing(connected=True),
     ])
 
+    if params.use_mouse_emulate_3_button:
+        items.extend([
+            ("mesh.loop_select", {"type": params.select_mouse, "value": 'DOUBLE_CLICK'},
+             {"properties": [("extend", False), ("deselect", False), ("toggle", False)]}),
+            ("mesh.loop_select", {"type": params.select_mouse, "value": 'DOUBLE_CLICK', "shift": True},
+             {"properties": [("extend", True), ("deselect", False), ("toggle", False)]}),
+            ("mesh.loop_select", {"type": params.select_mouse, "value": 'DOUBLE_CLICK', "alt": True},
+             {"properties": [("extend", False), ("deselect", True), ("toggle", False)]}),
+        ])
+
     if params.legacy:
         items.extend([
             ("mesh.poke", {"type": 'P', "value": 'PRESS', "alt": True}, None),
@@ -3912,7 +3918,10 @@ def km_armature(params):
         ("armature.select_more", {"type": 'NUMPAD_PLUS', "value": 'PRESS', "ctrl": True}, None),
         ("armature.select_less", {"type": 'NUMPAD_MINUS', "value": 'PRESS', "ctrl": True}, None),
         ("armature.select_similar", {"type": 'G', "value": 'PRESS', "shift": True}, None),
-        ("armature.select_linked", {"type": 'L', "value": 'PRESS'}, None),
+        ("armature.select_linked", {"type": 'L', "value": 'PRESS'},
+         {"properties": [("deselect", False)]}),
+        ("armature.select_linked", {"type": 'L', "value": 'PRESS', "shift": True},
+         {"properties": [("deselect", True)]}),
         ("armature.shortest_path_pick", {"type": params.select_mouse, "value": params.select_mouse_value, "ctrl": True}, None),
         # Editing.
         op_menu("VIEW3D_MT_edit_armature_delete", {"type": 'X', "value": 'PRESS'}),
