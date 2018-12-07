@@ -521,7 +521,7 @@ typedef struct BakeData {
 	char save_mode;
 	char pad[3];
 
-	char cage[64];  /* MAX_NAME */
+	struct Object *cage_object;
 } BakeData;
 
 /* BakeData.normal_swizzle (char) */
@@ -1770,6 +1770,7 @@ typedef struct Scene {
 	/* Physics simulation settings */
 	struct PhysicsSettings physics_settings;
 
+	void *pad8;
 	uint64_t customdata_mask;	/* XXX. runtime flag for drawing, actually belongs in the window, only used by BKE_object_handle_update() */
 	uint64_t customdata_mask_modal; /* XXX. same as above but for temp operator use (gl renders) */
 
@@ -1908,10 +1909,11 @@ enum {
 #define R_STAMP_MEMORY		0x2000
 #define R_STAMP_HIDE_LABELS	0x4000
 #define R_STAMP_FRAME_RANGE	0x8000
+#define R_STAMP_HOSTNAME	0x10000
 #define R_STAMP_ALL (R_STAMP_TIME|R_STAMP_FRAME|R_STAMP_DATE|R_STAMP_CAMERA|R_STAMP_SCENE| \
                      R_STAMP_NOTE|R_STAMP_MARKER|R_STAMP_FILENAME|R_STAMP_SEQSTRIP|        \
                      R_STAMP_RENDERTIME|R_STAMP_CAMERALENS|R_STAMP_MEMORY|                 \
-                     R_STAMP_HIDE_LABELS|R_STAMP_FRAME_RANGE)
+                     R_STAMP_HIDE_LABELS|R_STAMP_FRAME_RANGE|R_STAMP_HOSTNAME)
 
 /* RenderData.alphamode */
 #define R_ADDSKY		0

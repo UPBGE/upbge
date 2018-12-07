@@ -237,7 +237,7 @@ static int vertex_parent_set_exec(bContext *C, wmOperator *op)
 	CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects)
 	{
 		if (ob != obedit) {
-			DEG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
+			DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
 			par = obedit->parent;
 
 			if (BKE_object_parent_loop_check(par, ob)) {
@@ -374,7 +374,7 @@ static int make_proxy_exec(bContext *C, wmOperator *op)
 
 		/* depsgraph flushes are needed for the new data */
 		DEG_relations_tag_update(bmain);
-		DEG_id_tag_update(&newob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
+		DEG_id_tag_update(&newob->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
 		WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, newob);
 	}
 	else {
@@ -530,7 +530,7 @@ void ED_object_parent_clear(Object *ob, const int type)
 	/* Always clear parentinv matrix for sake of consistency, see T41950. */
 	unit_m4(ob->parentinv);
 
-	DEG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
+	DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
 }
 
 /* note, poll should check for editable scene */
@@ -621,7 +621,7 @@ bool ED_object_parent_set(ReportList *reports, const bContext *C, Scene *scene, 
 	bPoseChannel *pchan = NULL;
 	const bool pararm = ELEM(partype, PAR_ARMATURE, PAR_ARMATURE_NAME, PAR_ARMATURE_ENVELOPE, PAR_ARMATURE_AUTO);
 
-	DEG_id_tag_update(&par->id, OB_RECALC_OB);
+	DEG_id_tag_update(&par->id, ID_RECALC_TRANSFORM);
 
 	/* preconditions */
 	if (partype == PAR_FOLLOW || partype == PAR_PATH_CONST) {
@@ -718,7 +718,7 @@ bool ED_object_parent_set(ReportList *reports, const bContext *C, Scene *scene, 
 									((CurveModifierData *)md)->object = par;
 								}
 								if (par->runtime.curve_cache && par->runtime.curve_cache->path == NULL) {
-									DEG_id_tag_update(&par->id, OB_RECALC_DATA);
+									DEG_id_tag_update(&par->id, ID_RECALC_GEOMETRY);
 								}
 							}
 							break;
@@ -820,7 +820,7 @@ bool ED_object_parent_set(ReportList *reports, const bContext *C, Scene *scene, 
 				invert_m4_m4(ob->parentinv, workob.obmat);
 			}
 
-			DEG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA);
+			DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
 		}
 	}
 
@@ -1011,7 +1011,7 @@ static int parent_noinv_set_exec(bContext *C, wmOperator *op)
 	Main *bmain = CTX_data_main(C);
 	Object *par = ED_object_active_context(C);
 
-	DEG_id_tag_update(&par->id, OB_RECALC_OB);
+	DEG_id_tag_update(&par->id, ID_RECALC_TRANSFORM);
 
 	/* context iterator */
 	CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects)
@@ -1026,7 +1026,7 @@ static int parent_noinv_set_exec(bContext *C, wmOperator *op)
 				memset(ob->loc, 0, 3 * sizeof(float));
 
 				/* set recalc flags */
-				DEG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA);
+				DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
 
 				/* set parenting type for object - object only... */
 				ob->parent = par;
@@ -1072,7 +1072,7 @@ static int object_slow_parent_clear_exec(bContext *C, wmOperator *UNUSED(op))
 				ob->partype -= PARSLOW;
 				BKE_object_where_is_calc(depsgraph, scene, ob);
 				ob->partype |= PARSLOW;
-				DEG_id_tag_update(&ob->id, OB_RECALC_OB);
+				DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
 			}
 		}
 	}
@@ -1110,7 +1110,7 @@ static int object_slow_parent_set_exec(bContext *C, wmOperator *UNUSED(op))
 		if (ob->parent)
 			ob->partype |= PARSLOW;
 
-		DEG_id_tag_update(&ob->id, OB_RECALC_OB);
+		DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
 	}
 	CTX_DATA_END;
 
@@ -1164,7 +1164,7 @@ static int object_track_clear_exec(bContext *C, wmOperator *op)
 
 		/* remove track-object for old track */
 		ob->track = NULL;
-		DEG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
+		DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
 
 		/* also remove all tracking constraints */
 		for (con = ob->constraints.last; con; con = pcon) {
@@ -1238,7 +1238,7 @@ static int track_set_exec(bContext *C, wmOperator *op)
 
 					data = con->data;
 					data->tar = obact;
-					DEG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
+					DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
 
 					/* Lamp, Camera and Speaker track differently by default */
 					if (ELEM(ob->type, OB_LAMP, OB_CAMERA, OB_SPEAKER)) {
@@ -1261,7 +1261,7 @@ static int track_set_exec(bContext *C, wmOperator *op)
 
 					data = con->data;
 					data->tar = obact;
-					DEG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
+					DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
 
 					/* Lamp, Camera and Speaker track differently by default */
 					if (ELEM(ob->type, OB_LAMP, OB_CAMERA, OB_SPEAKER)) {
@@ -1285,7 +1285,7 @@ static int track_set_exec(bContext *C, wmOperator *op)
 
 					data = con->data;
 					data->tar = obact;
-					DEG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
+					DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
 
 					/* Lamp, Camera and Speaker track differently by default */
 					if (ELEM(ob->type, OB_LAMP, OB_CAMERA, OB_SPEAKER)) {
@@ -1463,7 +1463,7 @@ static int make_links_data_exec(bContext *C, wmOperator *op)
 						/* if amount of material indices changed: */
 						test_object_materials(bmain, ob_dst, ob_dst->data);
 
-						DEG_id_tag_update(&ob_dst->id, OB_RECALC_DATA);
+						DEG_id_tag_update(&ob_dst->id, ID_RECALC_GEOMETRY);
 						break;
 					case MAKE_LINKS_MATERIALS:
 						/* new approach, using functions from kernel */
@@ -1471,7 +1471,7 @@ static int make_links_data_exec(bContext *C, wmOperator *op)
 							Material *ma = give_current_material(ob_src, a + 1);
 							assign_material(bmain, ob_dst, ma, a + 1, BKE_MAT_ASSIGN_USERPREF); /* also works with ma==NULL */
 						}
-						DEG_id_tag_update(&ob_dst->id, OB_RECALC_DATA);
+						DEG_id_tag_update(&ob_dst->id, ID_RECALC_GEOMETRY);
 						break;
 					case MAKE_LINKS_ANIMDATA:
 						BKE_animdata_copy_id(bmain, (ID *)ob_dst, (ID *)ob_src, 0);
@@ -1482,7 +1482,7 @@ static int make_links_data_exec(bContext *C, wmOperator *op)
 							}
 							BKE_animdata_copy_id(bmain, (ID *)ob_dst->data, (ID *)ob_src->data, 0);
 						}
-						DEG_id_tag_update(&ob_dst->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
+						DEG_id_tag_update(&ob_dst->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
 						break;
 					case MAKE_LINKS_GROUP:
 					{
@@ -1511,7 +1511,7 @@ static int make_links_data_exec(bContext *C, wmOperator *op)
 						break;
 					case MAKE_LINKS_MODIFIERS:
 						BKE_object_link_modifiers(scene, ob_dst, ob_src);
-						DEG_id_tag_update(&ob_dst->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
+						DEG_id_tag_update(&ob_dst->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
 						break;
 					case MAKE_LINKS_FONTS:
 					{
@@ -1540,7 +1540,7 @@ static int make_links_data_exec(bContext *C, wmOperator *op)
 						cu_dst->vfontbi = cu_src->vfontbi;
 						id_us_plus((ID *)cu_dst->vfontbi);
 
-						DEG_id_tag_update(&ob_dst->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
+						DEG_id_tag_update(&ob_dst->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
 						break;
 					}
 				}
@@ -1774,7 +1774,7 @@ static void single_obdata_users(Main *bmain, Scene *scene, ViewLayer *view_layer
 			id = ob->data;
 
 			if (id && id->us > 1 && !ID_IS_LINKED(id)) {
-				DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
+				DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
 
 				switch (ob->type) {
 					case OB_LAMP:
@@ -1807,7 +1807,7 @@ static void single_obdata_users(Main *bmain, Scene *scene, ViewLayer *view_layer
 							BKE_animdata_copy_id_action(bmain, (ID *)lat->key, false);
 						break;
 					case OB_ARMATURE:
-						DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
+						DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
 						ob->data = ID_NEW_SET(ob->data, BKE_armature_copy(bmain, ob->data));
 						BKE_pose_rebuild(bmain, ob, ob->data, true);
 						break;
@@ -1854,7 +1854,7 @@ static void single_object_action_users(Main *bmain, Scene *scene, ViewLayer *vie
 	FOREACH_OBJECT_FLAG_BEGIN(scene, view_layer, flag, ob)
 	{
 		if (!ID_IS_LINKED(ob)) {
-			DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
+			DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
 			BKE_animdata_copy_id_action(bmain, &ob->id, false);
 		}
 	}
@@ -2051,7 +2051,7 @@ static bool make_local_all__instance_indirect_unused(Main *bmain, ViewLayer *vie
 			base = BKE_view_layer_base_find(view_layer, ob);
 			base->flag |= BASE_SELECTED;
 			BKE_scene_object_base_flag_sync_from_base(base);
-			DEG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
+			DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
 
 			changed = true;
 		}
@@ -2338,7 +2338,7 @@ static int make_override_static_exec(bContext *C, wmOperator *op)
 				if ((base = BKE_view_layer_base_find(view_layer, new_ob)) == NULL) {
 					BKE_collection_object_add_from(bmain, scene, obcollection, new_ob);
 					base = BKE_view_layer_base_find(view_layer, new_ob);
-					DEG_id_tag_update_ex(bmain, &new_ob->id, DEG_TAG_TRANSFORM | DEG_TAG_BASE_FLAGS_UPDATE);
+					DEG_id_tag_update_ex(bmain, &new_ob->id, ID_RECALC_TRANSFORM | ID_RECALC_BASE_FLAGS);
 				}
 				/* parent to 'collection' empty */
 				if (new_ob->parent == NULL) {
@@ -2526,7 +2526,7 @@ static int drop_named_material_invoke(bContext *C, wmOperator *op, const wmEvent
 
 	assign_material(CTX_data_main(C), base->object, ma, 1, BKE_MAT_ASSIGN_USERPREF);
 
-	DEG_id_tag_update(&base->object->id, OB_RECALC_OB);
+	DEG_id_tag_update(&base->object->id, ID_RECALC_TRANSFORM);
 
 	WM_event_add_notifier(C, NC_OBJECT | ND_OB_SHADING, base->object);
 	WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, CTX_wm_view3d(C));

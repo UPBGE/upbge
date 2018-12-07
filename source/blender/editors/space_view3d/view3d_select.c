@@ -443,7 +443,7 @@ static void do_lasso_select_objects(
 	}
 
 	if (changed) {
-		DEG_id_tag_update(&vc->scene->id, DEG_TAG_SELECT_UPDATE);
+		DEG_id_tag_update(&vc->scene->id, ID_RECALC_SELECT);
 		WM_main_add_notifier(NC_SCENE | ND_OB_SELECT, vc->scene);
 	}
 }
@@ -541,7 +541,7 @@ static void do_lasso_select_pose(
 
 	const bool changed_multi = do_pose_tag_select_op_exec(bases, bases_len, sel_op);
 	if (changed_multi) {
-		DEG_id_tag_update(&vc->scene->id, DEG_TAG_SELECT_UPDATE);
+		DEG_id_tag_update(&vc->scene->id, ID_RECALC_SELECT);
 		WM_main_add_notifier(NC_SCENE | ND_OB_SELECT, vc->scene);
 	}
 
@@ -1025,7 +1025,7 @@ static void view3d_lasso_select(
 					break;
 			}
 
-			DEG_id_tag_update(vc->obedit->data, DEG_TAG_SELECT_UPDATE);
+			DEG_id_tag_update(vc->obedit->data, ID_RECALC_SELECT);
 			WM_event_add_notifier(C, NC_GEOM | ND_SELECT, vc->obedit->data);
 		}
 		FOREACH_OBJECT_IN_MODE_END;
@@ -1150,7 +1150,7 @@ static int object_select_menu_exec(bContext *C, wmOperator *op)
 	/* undo? */
 	if (changed) {
 		Scene *scene = CTX_data_scene(C);
-		DEG_id_tag_update(&scene->id, DEG_TAG_SELECT_UPDATE);
+		DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
 		WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
 		return OPERATOR_FINISHED;
 	}
@@ -1308,41 +1308,17 @@ static int selectbuffer_ret_hits_5(unsigned int *buffer, const int hits15, const
 	return hits5;
 }
 
-/* we want a select buffer with bones, if there are... */
-/* so check three selection levels and compare */
+/**
+ * Populate a select buffer with objects and bones, if there are any.
+ * Checks three selection levels and compare.
+ */
 static int mixed_bones_object_selectbuffer(
-        ViewContext *vc, unsigned int *buffer, const int mval[2],
-        bool use_cycle, bool enumerate, eV3DSelectObjectFilter select_filter,
-        bool *r_do_nearest)
+        ViewContext *vc, unsigned int *buffer, const int mval[2], eV3DSelectObjectFilter select_filter,
+        bool do_nearest)
 {
 	rcti rect;
 	int hits15, hits9 = 0, hits5 = 0;
 	bool has_bones15 = false, has_bones9 = false, has_bones5 = false;
-	static int last_mval[2] = {-100, -100};
-	bool do_nearest = false;
-	View3D *v3d = vc->v3d;
-
-	/* define if we use solid nearest select or not */
-	if (use_cycle) {
-		if (v3d->shading.type > OB_WIRE) {
-			do_nearest = true;
-			if (len_manhattan_v2v2_int(mval, last_mval) < 3) {
-				do_nearest = false;
-			}
-		}
-		copy_v2_v2_int(last_mval, mval);
-	}
-	else {
-		if (v3d->shading.type > OB_WIRE) {
-			do_nearest = true;
-		}
-	}
-
-	if (r_do_nearest) {
-		*r_do_nearest = do_nearest;
-	}
-
-	do_nearest = do_nearest && !enumerate;
 
 	const int select_mode = (do_nearest ? VIEW3D_SELECT_PICK_NEAREST : VIEW3D_SELECT_PICK_ALL);
 	int hits = 0;
@@ -1393,6 +1369,40 @@ static int mixed_bones_object_selectbuffer(
 
 finally:
 	view3d_opengl_select_cache_end();
+	return hits;
+}
+
+static int mixed_bones_object_selectbuffer_extended(
+        ViewContext *vc, unsigned int *buffer, const int mval[2], eV3DSelectObjectFilter select_filter,
+        bool use_cycle, bool enumerate, bool *r_do_nearest)
+{
+	static int last_mval[2] = {-100, -100};
+	bool do_nearest = false;
+	View3D *v3d = vc->v3d;
+
+	/* define if we use solid nearest select or not */
+	if (use_cycle) {
+		if (v3d->shading.type > OB_WIRE) {
+			do_nearest = true;
+			if (len_manhattan_v2v2_int(mval, last_mval) < 3) {
+				do_nearest = false;
+			}
+		}
+		copy_v2_v2_int(last_mval, mval);
+	}
+	else {
+		if (v3d->shading.type > OB_WIRE) {
+			do_nearest = true;
+		}
+	}
+
+	if (r_do_nearest) {
+		*r_do_nearest = do_nearest;
+	}
+
+	do_nearest = do_nearest && !enumerate;
+
+	int hits = mixed_bones_object_selectbuffer(vc, buffer, mval, select_filter, do_nearest);
 
 	if (vc->scene->toolsettings->object_flag & SCE_OBJECT_MODE_LOCK) {
 		const bool is_pose_mode = (
@@ -1508,18 +1518,15 @@ Base *ED_view3d_give_base_under_cursor(bContext *C, const int mval[2])
 	ViewContext vc;
 	Base *basact = NULL;
 	unsigned int buffer[MAXPICKBUF];
-	int hits;
-	bool do_nearest;
 
 	/* setup view context for argument to callbacks */
 	view3d_operator_needs_opengl(C);
 
 	ED_view3d_viewcontext_init(C, &vc);
 
-	hits = mixed_bones_object_selectbuffer(
-	        &vc, buffer, mval,
-	        false, false, VIEW3D_SELECT_FILTER_NOP,
-	        &do_nearest);
+	const bool do_nearest = (vc.v3d->shading.type > OB_WIRE);
+	const int hits = mixed_bones_object_selectbuffer(
+	        &vc, buffer, mval, VIEW3D_SELECT_FILTER_NOP, do_nearest);
 
 	if (hits > 0) {
 		const bool has_bones = selectbuffer_has_bones(buffer, hits);
@@ -1648,9 +1655,9 @@ static bool ed_object_select_pick(
 		/* if objects have posemode set, the bones are in the same selection buffer */
 		const eV3DSelectObjectFilter select_filter = (
 		        (object == false) ? ED_view3d_select_filter_from_mode(scene, vc.obact) : VIEW3D_SELECT_FILTER_NOP);
-		hits = mixed_bones_object_selectbuffer(
-		        &vc, buffer, mval,
-		        true, enumerate, select_filter,
+		hits = mixed_bones_object_selectbuffer_extended(
+		        &vc, buffer, mval, select_filter,
+		        true, enumerate,
 		        &do_nearest);
 
 		// TIMEIT_END(select_time);
@@ -1712,8 +1719,8 @@ static bool ed_object_select_pick(
 
 								retval = true;
 
-								DEG_id_tag_update(&scene->id, DEG_TAG_SELECT_UPDATE);
-								DEG_id_tag_update(&clip->id, DEG_TAG_SELECT_UPDATE);
+								DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
+								DEG_id_tag_update(&clip->id, ID_RECALC_SELECT);
 								WM_event_add_notifier(C, NC_MOVIECLIP | ND_SELECT, track);
 								WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
 
@@ -1846,7 +1853,7 @@ static bool ed_object_select_pick(
 			}
 		}
 
-		DEG_id_tag_update(&scene->id, DEG_TAG_SELECT_UPDATE);
+		DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
 		WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
 	}
 
@@ -2430,7 +2437,7 @@ finally:
 	MEM_freeN(vbuffer);
 
 	if (changed) {
-		DEG_id_tag_update(&vc->scene->id, DEG_TAG_SELECT_UPDATE);
+		DEG_id_tag_update(&vc->scene->id, ID_RECALC_SELECT);
 		WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, vc->scene);
 		return OPERATOR_FINISHED;
 	}
@@ -2503,7 +2510,7 @@ static int do_pose_box_select(bContext *C, ViewContext *vc, rcti *rect, const eS
 
 	const bool changed_multi = do_pose_tag_select_op_exec(bases, bases_len, sel_op);
 	if (changed_multi) {
-		DEG_id_tag_update(&vc->scene->id, DEG_TAG_SELECT_UPDATE);
+		DEG_id_tag_update(&vc->scene->id, ID_RECALC_SELECT);
 		WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, vc->scene);
 	}
 
@@ -2539,7 +2546,7 @@ static int view3d_box_select_exec(bContext *C, wmOperator *op)
 					vc.em = BKE_editmesh_from_object(vc.obedit);
 					ret |= do_mesh_box_select(&vc, &rect, sel_op);
 					if (ret & OPERATOR_FINISHED) {
-						DEG_id_tag_update(vc.obedit->data, DEG_TAG_SELECT_UPDATE);
+						DEG_id_tag_update(vc.obedit->data, ID_RECALC_SELECT);
 						WM_event_add_notifier(C, NC_GEOM | ND_SELECT, vc.obedit->data);
 					}
 					break;
@@ -2547,28 +2554,28 @@ static int view3d_box_select_exec(bContext *C, wmOperator *op)
 				case OB_SURF:
 					ret |= do_nurbs_box_select(&vc, &rect, sel_op);
 					if (ret & OPERATOR_FINISHED) {
-						DEG_id_tag_update(vc.obedit->data, DEG_TAG_SELECT_UPDATE);
+						DEG_id_tag_update(vc.obedit->data, ID_RECALC_SELECT);
 						WM_event_add_notifier(C, NC_GEOM | ND_SELECT, vc.obedit->data);
 					}
 					break;
 				case OB_MBALL:
 					ret |= do_meta_box_select(&vc, &rect, sel_op);
 					if (ret & OPERATOR_FINISHED) {
-						DEG_id_tag_update(vc.obedit->data, DEG_TAG_SELECT_UPDATE);
+						DEG_id_tag_update(vc.obedit->data, ID_RECALC_SELECT);
 						WM_event_add_notifier(C, NC_GEOM | ND_SELECT, vc.obedit->data);
 					}
 					break;
 				case OB_ARMATURE:
 					ret |= do_armature_box_select(&vc, &rect, sel_op);
 					if (ret & OPERATOR_FINISHED) {
-						DEG_id_tag_update(&vc.obedit->id, DEG_TAG_SELECT_UPDATE);
+						DEG_id_tag_update(&vc.obedit->id, ID_RECALC_SELECT);
 						WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, vc.obedit);
 					}
 					break;
 				case OB_LATTICE:
 					ret |= do_lattice_box_select(&vc, &rect, sel_op);
 					if (ret & OPERATOR_FINISHED) {
-						DEG_id_tag_update(vc.obedit->data, DEG_TAG_SELECT_UPDATE);
+						DEG_id_tag_update(vc.obedit->data, ID_RECALC_SELECT);
 						WM_event_add_notifier(C, NC_GEOM | ND_SELECT, vc.obedit->data);
 					}
 					break;
@@ -3271,7 +3278,7 @@ static int view3d_circle_select_exec(bContext *C, wmOperator *op)
 
 			if (CTX_data_edit_object(C)) {
 				obedit_circle_select(&vc, select, mval, (float)radius);
-				DEG_id_tag_update(obact->data, DEG_TAG_SELECT_UPDATE);
+				DEG_id_tag_update(obact->data, ID_RECALC_SELECT);
 				WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obact->data);
 			}
 			else if (BKE_paint_select_face_test(obact)) {
@@ -3294,7 +3301,7 @@ static int view3d_circle_select_exec(bContext *C, wmOperator *op)
 	}
 	else {
 		if (object_circle_select(&vc, select, mval, (float)radius)) {
-			DEG_id_tag_update(&vc.scene->id, DEG_TAG_SELECT_UPDATE);
+			DEG_id_tag_update(&vc.scene->id, ID_RECALC_SELECT);
 			WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, vc.scene);
 		}
 	}

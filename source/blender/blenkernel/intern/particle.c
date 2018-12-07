@@ -469,6 +469,7 @@ void free_hair(Object *object, ParticleSystem *psys, int dynamics)
 	if (psys->clmd) {
 		if (dynamics) {
 			modifier_free((ModifierData *)psys->clmd);
+			psys->clmd = NULL;
 			PTCacheID pid;
 			BKE_ptcache_id_from_particles(&pid, object, psys);
 			BKE_ptcache_id_clear(&pid, PTCACHE_CLEAR_ALL, 0);
@@ -3087,7 +3088,7 @@ ModifierData *object_add_particle_system(Main *bmain, Scene *scene, Object *ob, 
 	psys->cfra = BKE_scene_frame_get_from_ctime(scene, CFRA + 1);
 
 	DEG_relations_tag_update(bmain);
-	DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
+	DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
 
 	return md;
 }
@@ -3133,10 +3134,10 @@ void object_remove_particle_system(Main *bmain, Scene *UNUSED(scene), Object *ob
 		ob->mode &= ~OB_MODE_PARTICLE_EDIT;
 
 	DEG_relations_tag_update(bmain);
-	DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
+	DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
 
 	/* Flush object mode. */
-	DEG_id_tag_update(&ob->id, DEG_TAG_COPY_ON_WRITE);
+	DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);
 }
 
 static void default_particle_settings(ParticleSettings *part)

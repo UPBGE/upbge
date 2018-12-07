@@ -184,7 +184,7 @@ KX_GameObject::~KX_GameObject()
 
 	if (ob) {
 		copy_m4_m4(ob->obmat, m_savedObmat);
-		DEG_id_tag_update(&ob->id, DEG_TAG_COPY_ON_WRITE);
+		DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);
 	}
 
 	KX_Scene *scene = GetScene();
@@ -269,7 +269,7 @@ void KX_GameObject::TagForUpdate()
 		copy_m4_m4(ob->obmat, obmat);
 		if (!staticObject) {
 			DEG_id_tag_update(&ob->id, NC_OBJECT | ND_TRANSFORM);
-			DEG_id_tag_update(&ob->id, DEG_TAG_COPY_ON_WRITE);
+			DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);
 		}
 
 		if (!staticObject && ELEM(ob->type, OB_MESH, OB_CURVE, OB_FONT)) {
@@ -319,7 +319,7 @@ void KX_GameObject::RestoreOriginalMesh()
 		Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
 		Mesh *origMesh = (Mesh *)ob->data;
 		BKE_mesh_copy_data(bmain, origMesh, m_backupMesh, 0);
-		DEG_id_tag_update(&origMesh->id, OB_RECALC_DATA);
+		DEG_id_tag_update(&origMesh->id, ID_RECALC_GEOMETRY);
 	}
 }
 

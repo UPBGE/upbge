@@ -178,7 +178,7 @@ const EnumPropertyItem rna_enum_space_action_mode_items[] = {
 #define SI_ITEM_MASK \
 	{SI_MODE_MASK, "MASK", ICON_MOD_MASK, "Mask", "Mask editing"}
 
-static const EnumPropertyItem rna_enum_space_image_mode_all_items[] = {
+const EnumPropertyItem rna_enum_space_image_mode_all_items[] = {
 	SI_ITEM_VIEW("View", ICON_FILE_IMAGE),
 	SI_ITEM_UV,
 	SI_ITEM_PAINT,
@@ -515,7 +515,7 @@ static void rna_GPencil_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *UN
 	/* need set all caches as dirty to recalculate onion skinning */
 	for (Object *ob = bmain->object.first; ob; ob = ob->id.next) {
 		if (ob->type == OB_GPENCIL) {
-			DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
+			DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
 		}
 	}
 	WM_main_add_notifier(NC_GPENCIL | NA_EDITED, NULL);
@@ -682,7 +682,7 @@ static void rna_3DViewShading_type_update(Main *bmain, Scene *UNUSED(scene), Poi
 		 * the meshes itself.
 		 * This hack just tag BKE_MESH_BATCH_DIRTY_SHADING for every mesh that
 		 * have a material. (see T55059) */
-		DEG_id_tag_update(&ma->id, DEG_TAG_SHADING_UPDATE);
+		DEG_id_tag_update(&ma->id, ID_RECALC_SHADING);
 	}
 
 	bScreen *screen = ptr->id.data;
@@ -1537,7 +1537,7 @@ static void rna_SpaceDopeSheetEditor_action_update(bContext *C, PointerRNA *ptr)
 		}
 
 		/* force depsgraph flush too */
-		DEG_id_tag_update(&obact->id, OB_RECALC_OB | OB_RECALC_DATA);
+		DEG_id_tag_update(&obact->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
 		/* Update relations as well, so new time source dependency is added. */
 		DEG_relations_tag_update(bmain);
 	}

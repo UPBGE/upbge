@@ -241,7 +241,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
 	m_taaSamplesBackup = scene->eevee.taa_samples;
 	scene->eevee.taa_samples = 0;
-	DEG_id_tag_update(&scene->id, DEG_TAG_COPY_ON_WRITE);
+	DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
 
 	RenderAfterCameraSetup(true);
 	/******************************************************************************************************************************/
@@ -267,7 +267,7 @@ KX_Scene::~KX_Scene()
 
 	Scene *scene = GetBlenderScene();
 	scene->eevee.taa_samples = m_taaSamplesBackup;
-	DEG_id_tag_update(&scene->id, DEG_TAG_COPY_ON_WRITE);
+	DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
 
 	// Flush depsgraph updates a last time at ge exit
 	ViewLayer *view_layer = BKE_view_layer_default_view(scene);

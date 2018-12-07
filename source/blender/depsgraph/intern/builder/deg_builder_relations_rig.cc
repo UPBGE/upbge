@@ -491,7 +491,9 @@ void DepsgraphRelationBuilder::build_rig(Object *object)
 			                               pchan->name,
 			                               DEG_OPCODE_BONE_SEGMENTS);
 			/* B-Bone shape depends on the final position of the bone. */
-			add_relation(bone_done_key, bone_segments_key, "Done -> B-Bone Segments");
+			add_relation(bone_done_key,
+			             bone_segments_key,
+			             "Done -> B-Bone Segments");
 			/* B-Bone shape depends on final position of handle bones. */
 			bPoseChannel *prev, *next;
 			BKE_pchan_bbone_handles_get(pchan, &prev, &next);
@@ -500,24 +502,37 @@ void DepsgraphRelationBuilder::build_rig(Object *object)
 				                      DEG_NODE_TYPE_BONE,
 				                      prev->name,
 				                      DEG_OPCODE_BONE_DONE);
-				add_relation(prev_key, bone_segments_key, "Prev Handle -> B-Bone Segments");
+				add_relation(prev_key,
+				             bone_segments_key,
+				             "Prev Handle -> B-Bone Segments");
 			}
 			if (next) {
 				OperationKey next_key(&object->id,
 				                      DEG_NODE_TYPE_BONE,
 				                      next->name,
 				                      DEG_OPCODE_BONE_DONE);
-				add_relation(next_key, bone_segments_key, "Next Handle -> B-Bone Segments");
+				add_relation(next_key,
+				             bone_segments_key,
+				             "Next Handle -> B-Bone Segments");
 			}
 			/* Pose requires the B-Bone shape. */
-			add_relation(bone_segments_key, pose_done_key, "PoseEval Result-Bone Link");
-			add_relation(bone_segments_key, pose_cleanup_key, "Cleanup dependency");
+			add_relation(bone_segments_key,
+			             pose_done_key,
+			             "PoseEval Result-Bone Link",
+						 DEPSREL_FLAG_GODMODE);
+			add_relation(bone_segments_key,
+			             pose_cleanup_key,
+			             "Cleanup dependency");
 		}
 		else {
 			/* Assume that all bones must be done for the pose to be ready
 			 * (for deformers). */
-			add_relation(bone_done_key, pose_done_key, "PoseEval Result-Bone Link");
-			add_relation(bone_done_key, pose_cleanup_key, "Cleanup dependency");
+			add_relation(bone_done_key,
+			             pose_done_key,
+			             "PoseEval Result-Bone Link");
+			add_relation(bone_done_key,
+			             pose_cleanup_key,
+			             "Cleanup dependency");
 		}
 		/* Custom shape. */
 		if (pchan->custom != NULL) {
@@ -561,7 +576,10 @@ void DepsgraphRelationBuilder::build_proxy_rig(Object *object)
 		add_relation(bone_ready_key, bone_done_key, "Ready -> Done");
 		add_relation(
 		        bone_done_key, pose_cleanup_key, "Bone Done -> Pose Cleanup");
-		add_relation(bone_done_key, pose_done_key, "Bone Done -> Pose Done");
+		add_relation(bone_done_key,
+		            pose_done_key,
+		            "Bone Done -> Pose Done",
+		            DEPSREL_FLAG_GODMODE);
 
 		/* Make sure bone in the proxy is not done before it's FROM is done. */
 		if (pchan->bone && pchan->bone->segments > 1) {
@@ -571,12 +589,13 @@ void DepsgraphRelationBuilder::build_proxy_rig(Object *object)
 			                                    DEG_OPCODE_BONE_SEGMENTS);
 			add_relation(from_bone_segments_key,
 			             bone_done_key,
-			             "From Bone Segments -> Bone Done");
+			             "Bone Segments -> Bone Done",
+			             DEPSREL_FLAG_GODMODE);
 		}
 		else {
 			add_relation(from_bone_done_key,
 			             bone_done_key,
-			             "From Bone Done -> Bone Done");
+			             "Bone Done -> Bone Done");
 		}
 
 		if (pchan->prop != NULL) {

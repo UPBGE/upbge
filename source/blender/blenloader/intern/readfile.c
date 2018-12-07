@@ -3612,7 +3612,7 @@ static void lib_link_pose(FileData *fd, Main *bmain, Object *ob, bPose *pose)
 
 
 	if (rebuild) {
-		DEG_id_tag_update_ex(bmain, &ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
+		DEG_id_tag_update_ex(bmain, &ob->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
 		BKE_pose_tag_recalc(bmain, pose);
 	}
 }
@@ -6359,6 +6359,10 @@ static void lib_link_scene(FileData *fd, Main *main)
 
 			for (ViewLayer *view_layer = sce->view_layers.first; view_layer; view_layer = view_layer->next) {
 				lib_link_view_layer(fd, sce->id.lib, view_layer);
+			}
+
+			if (sce->r.bake.cage_object) {
+				sce->r.bake.cage_object = newlibadr(fd, sce->id.lib, sce->r.bake.cage_object);
 			}
 
 #ifdef USE_SETSCENE_CHECK
@@ -10313,6 +10317,10 @@ static void expand_scene(FileData *fd, Main *mainvar, Scene *sce)
 	if (sce->master_collection) {
 		expand_collection(fd, mainvar, sce->master_collection);
 	}
+
+	if (sce->r.bake.cage_object) {
+		expand_doit(fd, mainvar, sce->r.bake.cage_object);
+	}
 }
 
 static void expand_camera(FileData *fd, Main *mainvar, Camera *ca)
@@ -10676,7 +10684,7 @@ static void add_collections_to_scene(
 				}
 
 				BKE_scene_object_base_flag_sync_from_base(base);
-				DEG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
+				DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
 				view_layer->basact = base;
 
 				/* Assign the collection. */
