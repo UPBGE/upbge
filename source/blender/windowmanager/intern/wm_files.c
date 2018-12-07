@@ -607,7 +607,7 @@ bool WM_file_read(bContext *C, const char *filepath, ReportList *reports)
 		Main *bmain = CTX_data_main(C);
 
 		/* when loading startup.blend's, we can be left with a blank path */
-		if (BKE_main_blendfile_path(bmain)) {
+		if (BKE_main_blendfile_path(bmain)[0] != '\0') {
 			G.save_over = 1;
 		}
 		else {
@@ -2065,7 +2065,6 @@ void WM_OT_revert_mainfile(wmOperatorType *ot)
 
 void WM_recover_last_session(bContext *C, ReportList *reports)
 {
-	Main *bmain = CTX_data_main(C);
 	char filepath[FILE_MAX];
 
 	BLI_make_file_string("/", filepath, BKE_tempdir_base(), BLENDER_QUIT_FILE);
@@ -2078,6 +2077,7 @@ void WM_recover_last_session(bContext *C, ReportList *reports)
 		G.fileflags &= ~G_FILE_RECOVER;
 
 		/* XXX bad global... fixme */
+		Main *bmain = CTX_data_main(C);
 		if (BKE_main_blendfile_path(bmain)[0] != '\0') {
 			G.file_loaded = 1;	/* prevents splash to show */
 		}

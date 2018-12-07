@@ -59,7 +59,6 @@ extern char datatoc_edit_mesh_overlay_geom_edge_glsl[];
 extern char datatoc_edit_mesh_overlay_points_vert_glsl[];
 extern char datatoc_edit_mesh_overlay_facedot_frag_glsl[];
 extern char datatoc_edit_mesh_overlay_facedot_vert_glsl[];
-extern char datatoc_edit_mesh_overlay_ghost_clear_vert_glsl[];
 extern char datatoc_edit_mesh_overlay_mix_frag_glsl[];
 extern char datatoc_edit_mesh_overlay_facefill_vert_glsl[];
 extern char datatoc_edit_mesh_overlay_facefill_frag_glsl[];
@@ -70,6 +69,7 @@ extern char datatoc_common_globals_lib_glsl[];
 extern char datatoc_gpu_shader_uniform_color_frag_glsl[];
 extern char datatoc_gpu_shader_flat_color_frag_glsl[];
 extern char datatoc_gpu_shader_point_varying_color_frag_glsl[];
+extern char datatoc_gpu_shader_depth_only_frag_glsl[];
 
 /* *********** LISTS *********** */
 typedef struct EDIT_MESH_PassList {
@@ -329,8 +329,7 @@ static void EDIT_MESH_engine_init(void *vedata)
 		e_data.depth_sh = DRW_shader_create_3D_depth_only();
 	}
 	if (!e_data.ghost_clear_depth_sh) {
-		e_data.ghost_clear_depth_sh = DRW_shader_create(datatoc_edit_mesh_overlay_ghost_clear_vert_glsl,
-		                                                NULL, NULL, NULL);
+		e_data.ghost_clear_depth_sh = DRW_shader_create_fullscreen(datatoc_gpu_shader_depth_only_frag_glsl, NULL);
 	}
 
 }
@@ -385,6 +384,10 @@ static DRWPass *edit_mesh_create_overlay_pass(
 	DRW_shgroup_uniform_bool_copy(*r_face_shgrp, "doEdges", do_edges);
 	if (!fast_mode) {
 		DRW_shgroup_uniform_bool_copy(*r_face_shgrp, "isXray", xray);
+	}
+	else {
+		/* To be able to use triple load. */
+		DRW_shgroup_state_enable(*r_face_shgrp, DRW_STATE_FIRST_VERTEX_CONVENTION);
 	}
 
 	*r_ledges_shgrp = DRW_shgroup_create(ledge_sh, pass);
@@ -572,13 +575,10 @@ static void edit_mesh_add_ob_to_pass(
         DRWShadingGroup *facefill_shgrp)
 {
 	struct GPUBatch *geo_ovl_tris, *geo_ovl_verts, *geo_ovl_lnor, *geo_ovl_ledges, *geo_ovl_lverts, *geo_ovl_fcenter;
-	struct GPUTexture *data_texture;
 	ToolSettings *tsettings = scene->toolsettings;
 
-	DRW_cache_mesh_wire_overlay_get(ob, &geo_ovl_tris, &geo_ovl_ledges, &geo_ovl_lverts, &data_texture);
+	DRW_cache_mesh_wire_overlay_get(ob, &geo_ovl_tris, &geo_ovl_ledges, &geo_ovl_lverts);
 
-	face_shgrp = DRW_shgroup_create_sub(face_shgrp);
-	DRW_shgroup_uniform_texture(face_shgrp, "dataBuffer", data_texture);
 	DRW_shgroup_call_add(face_shgrp, geo_ovl_tris, ob->obmat);
 
 	DRW_shgroup_call_add(ledges_shgrp, geo_ovl_ledges, ob->obmat);

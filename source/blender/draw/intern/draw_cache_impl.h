@@ -75,15 +75,12 @@ struct GPUBatch *DRW_curve_batch_cache_get_triangles_with_normals(
 struct GPUBatch **DRW_curve_batch_cache_get_surface_shaded(
         struct Curve *cu, struct CurveCache *ob_curve_cache,
         struct GPUMaterial **gpumat_array, uint gpumat_array_len);
-void DRW_curve_batch_cache_get_wireframes_face_texbuf(
-        struct Curve *cu, struct CurveCache *ob_curve_cache,
-        struct GPUTexture **verts_data, struct GPUTexture **face_indices, int *tri_count, bool reduce_len);
+struct GPUBatch *DRW_curve_batch_cache_get_wireframes_face(struct Curve *cu, struct CurveCache *ob_curve_cache);
 
 /* Metaball */
 struct GPUBatch *DRW_metaball_batch_cache_get_triangles_with_normals(struct Object *ob);
 struct GPUBatch **DRW_metaball_batch_cache_get_surface_shaded(struct Object *ob, struct MetaBall *mb, struct GPUMaterial **gpumat_array, uint gpumat_array_len);
-void DRW_metaball_batch_cache_get_wireframes_face_texbuf(
-        struct Object *ob, struct GPUTexture **verts_data, struct GPUTexture **face_indices, int *tri_count, bool reduce_len);
+struct GPUBatch *DRW_metaball_batch_cache_get_wireframes_face(struct Object *ob);
 
 /* Curve (Font) */
 struct GPUBatch *DRW_curve_batch_cache_get_overlay_cursor(struct Curve *cu);
@@ -96,7 +93,7 @@ struct GPUIndexBuf **DRW_displist_indexbuf_calc_triangles_in_order_split_by_mate
         struct ListBase *lb, uint gpumat_array_len);
 struct GPUBatch **DRW_displist_batch_calc_tri_pos_normals_and_uv_split_by_material(
         struct ListBase *lb, uint gpumat_array_len);
-struct GPUVertBuf *DRW_displist_create_edges_overlay_texture_buf(ListBase *lb);
+struct GPUBatch *DRW_displist_create_edges_overlay_batch(ListBase *lb);
 
 /* Lattice */
 struct GPUBatch *DRW_lattice_batch_cache_get_all_edges(struct Lattice *lt, bool use_weight, const int actdef);
@@ -155,14 +152,12 @@ struct GPUBatch *DRW_mesh_batch_cache_get_overlay_loose_edges(struct Mesh *me);
 struct GPUBatch *DRW_mesh_batch_cache_get_overlay_loose_edges_nor(struct Mesh *me);
 struct GPUBatch *DRW_mesh_batch_cache_get_overlay_loose_verts(struct Mesh *me);
 struct GPUBatch *DRW_mesh_batch_cache_get_overlay_facedots(struct Mesh *me);
-struct GPUTexture *DRW_mesh_batch_cache_get_overlay_data_tex(struct Mesh *me);
 /* edit-mesh selection (use generic function for faces) */
 struct GPUBatch *DRW_mesh_batch_cache_get_facedots_with_select_id(struct Mesh *me, uint select_id_offset);
 struct GPUBatch *DRW_mesh_batch_cache_get_edges_with_select_id(struct Mesh *me, uint select_id_offset);
 struct GPUBatch *DRW_mesh_batch_cache_get_verts_with_select_id(struct Mesh *me, uint select_id_offset);
 /* Object mode Wireframe overlays */
-void DRW_mesh_batch_cache_get_wireframes_face_texbuf(
-        struct Mesh *me, struct GPUTexture **verts_data, struct GPUTexture **face_indices, int *tri_count, bool reduce_len);
+struct GPUBatch *DRW_mesh_batch_cache_get_wireframes_face(struct Mesh *me);
 
 void DRW_mesh_cache_sculpt_coords_ensure(struct Mesh *me);
 

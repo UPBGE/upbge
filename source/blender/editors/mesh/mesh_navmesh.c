@@ -351,7 +351,7 @@ static Object *createRepresentation(bContext *C, struct recast_polyMesh *pmesh, 
 
 	if (createob) {
 		/* create new object */
-		obedit = ED_object_add_type(C, OB_MESH, "Navmesh", co, rot, false);
+		obedit = ED_object_add_type(C, OB_MESH, "Navmesh", co, rot, false, 0);
 	}
 	else {
 		obedit = base->object;
