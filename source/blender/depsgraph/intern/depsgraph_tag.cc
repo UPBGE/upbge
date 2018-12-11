@@ -142,6 +142,14 @@ void depsgraph_base_flags_tag_to_component_opcode(
 	}
 }
 
+eDepsOperation_Code psysTagToOperationCode(IDRecalcFlag tag)
+{
+	if (tag == ID_RECALC_PSYS_RESET) {
+		return DEG_OPCODE_PARTICLE_SETTINGS_RESET;
+	}
+	return DEG_OPCODE_OPERATION;
+}
+
 void depsgraph_tag_to_component_opcode(const ID *id,
                                        IDRecalcFlag tag,
                                        eDepsNode_Type *component_type,
@@ -177,10 +185,11 @@ void depsgraph_tag_to_component_opcode(const ID *id,
 				 *   but we can survive for now with single exception here.
 				 *   Particles needs reconsideration anyway,
 				 */
-				*component_type = DEG_NODE_TYPE_PARAMETERS;
+				*component_type = DEG_NODE_TYPE_PARTICLE_SETTINGS;
+				*operation_code = psysTagToOperationCode(tag);
 			}
 			else {
-				*component_type = DEG_NODE_TYPE_EVAL_PARTICLES;
+				*component_type = DEG_NODE_TYPE_PARTICLE_SYSTEM;
 			}
 			break;
 		case ID_RECALC_COPY_ON_WRITE:

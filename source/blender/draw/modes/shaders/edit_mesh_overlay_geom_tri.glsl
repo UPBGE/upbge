@@ -9,7 +9,7 @@ layout(triangles) in;
  * triangle. Order is important.
  * TODO diagram
  */
-layout(triangle_strip, max_vertices=12) out;
+layout(triangle_strip, max_vertices=11) out;
 
 uniform mat4 ProjectionMatrix;
 uniform vec2 viewportSize;
@@ -92,7 +92,7 @@ void mask_edge_flag(int v, ivec3 eflag)
 
 	/* Only shade the edge that we are currently drawing.
 	 * (fix corner bleeding) */
-	flag = eflag & ~EDGE_VERTEX_EXISTS;
+	flag = eflag;
 	flag[vaf] &= ~EDGE_EXISTS;
 	flag[v]   &= ~EDGE_EXISTS;
 }

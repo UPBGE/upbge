@@ -2901,6 +2901,24 @@ void BKE_object_empty_draw_type_set(Object *ob, const int value)
 	}
 }
 
+bool BKE_object_empty_image_is_visible_in_view3d(const Object *ob, const RegionView3D *rv3d)
+{
+	int visibility_flag = ob->empty_image_visibility_flag;
+
+	if ((visibility_flag & OB_EMPTY_IMAGE_VISIBLE_BACKSIDE) == 0) {
+		if (dot_v3v3((float *)&ob->obmat[2], (float *)&rv3d->viewinv[2]) < 0.0f) {
+			return false;
+		}
+	}
+
+	if (rv3d->is_persp) {
+		return visibility_flag & OB_EMPTY_IMAGE_VISIBLE_PERSPECTIVE;
+	}
+	else {
+		return visibility_flag & OB_EMPTY_IMAGE_VISIBLE_ORTHOGRAPHIC;
+	}
+}
+
 bool BKE_object_minmax_dupli(Depsgraph *depsgraph, Scene *scene, Object *ob, float r_min[3], float r_max[3], const bool use_hidden)
 {
 	bool ok = false;
@@ -4277,20 +4295,13 @@ bool BKE_object_modifier_update_subframe(
 	return false;
 }
 
-bool BKE_image_empty_visible_in_view3d(const Object *ob, const RegionView3D *rv3d)
+void BKE_object_type_set_empty_for_versioning(Object *ob)
 {
-	int visibility_flag = ob->empty_image_visibility_flag;
-
-	if ((visibility_flag & OB_EMPTY_IMAGE_VISIBLE_BACKSIDE) == 0) {
-		if (dot_v3v3((float *)&ob->obmat[2], (float *)&rv3d->viewinv[2]) < 0.0f) {
-			return false;
-		}
+	ob->type = OB_EMPTY;
+	ob->data = NULL;
+	if (ob->pose) {
+		BKE_pose_free_ex(ob->pose, false);
+		ob->pose = NULL;
 	}
-
-	if (rv3d->is_persp) {
-		return visibility_flag & OB_EMPTY_IMAGE_VISIBLE_PERSPECTIVE;
-	}
-	else {
-		return visibility_flag & OB_EMPTY_IMAGE_VISIBLE_ORTHOGRAPHIC;
-	}
+	ob->mode = OB_MODE_OBJECT;
 }

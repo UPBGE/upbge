@@ -48,10 +48,9 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DRW_render.h"
-
 #include "draw_cache.h"
 #include "draw_cache_impl.h"
+#include "draw_manager.h"
 
 /* Batch's only (free'd as an array) */
 static struct DRWShapeCache {
@@ -2999,40 +2998,13 @@ GPUBatch *DRW_cache_mesh_surface_overlay_get(Object *ob)
 	return DRW_mesh_batch_cache_get_all_triangles(me);
 }
 
-void DRW_cache_mesh_wire_overlay_get(
-        Object *ob,
-        GPUBatch **r_tris, GPUBatch **r_ledges, GPUBatch **r_lverts)
-{
-	BLI_assert(ob->type == OB_MESH);
-
-	Mesh *me = ob->data;
-
-	*r_tris = DRW_mesh_batch_cache_get_overlay_triangles(me);
-	*r_ledges = DRW_mesh_batch_cache_get_overlay_loose_edges(me);
-	*r_lverts = DRW_mesh_batch_cache_get_overlay_loose_verts(me);
-}
-
-void DRW_cache_mesh_normals_overlay_get(
-        Object *ob,
-        GPUBatch **r_tris, GPUBatch **r_tris_lnor, GPUBatch **r_ledges, GPUBatch **r_lverts)
-{
-	BLI_assert(ob->type == OB_MESH);
-
-	Mesh *me = ob->data;
-
-	*r_tris = DRW_mesh_batch_cache_get_overlay_triangles_nor(me);
-	*r_tris_lnor = DRW_mesh_batch_cache_get_overlay_triangles_lnor(me);
-	*r_ledges = DRW_mesh_batch_cache_get_overlay_loose_edges_nor(me);
-	*r_lverts = DRW_mesh_batch_cache_get_overlay_loose_verts(me);
-}
-
 GPUBatch *DRW_cache_face_centers_get(Object *ob)
 {
 	BLI_assert(ob->type == OB_MESH);
 
 	Mesh *me = ob->data;
 
-	return DRW_mesh_batch_cache_get_overlay_facedots(me);
+	return DRW_mesh_batch_cache_get_edit_facedots(me);
 }
 
 GPUBatch *DRW_cache_mesh_wire_outline_get(Object *ob)
@@ -3239,7 +3211,7 @@ GPUBatch *DRW_cache_curve_edge_overlay_get(Object *ob)
 	BLI_assert(ELEM(ob->type, OB_CURVE, OB_SURF));
 
 	struct Curve *cu = ob->data;
-	return DRW_curve_batch_cache_get_overlay_edges(cu);
+	return DRW_curve_batch_cache_get_edit_edges(cu);
 }
 
 GPUBatch *DRW_cache_curve_vert_overlay_get(Object *ob, bool handles)
@@ -3247,7 +3219,7 @@ GPUBatch *DRW_cache_curve_vert_overlay_get(Object *ob, bool handles)
 	BLI_assert(ELEM(ob->type, OB_CURVE, OB_SURF));
 
 	struct Curve *cu = ob->data;
-	return DRW_curve_batch_cache_get_overlay_verts(cu, handles);
+	return DRW_curve_batch_cache_get_edit_verts(cu, handles);
 }
 
 GPUBatch *DRW_cache_curve_surface_get(Object *ob)
@@ -3353,14 +3325,14 @@ GPUBatch *DRW_cache_text_cursor_overlay_get(Object *ob)
 {
 	BLI_assert(ob->type == OB_FONT);
 	struct Curve *cu = ob->data;
-	return DRW_curve_batch_cache_get_overlay_cursor(cu);
+	return DRW_curve_batch_cache_get_edit_cursor(cu);
 }
 
 GPUBatch *DRW_cache_text_select_overlay_get(Object *ob)
 {
 	BLI_assert(ob->type == OB_FONT);
 	struct Curve *cu = ob->data;
-	return DRW_curve_batch_cache_get_overlay_select(cu);
+	return DRW_curve_batch_cache_get_edit_select(cu);
 }
 
 /** \} */
@@ -3430,7 +3402,7 @@ GPUBatch *DRW_cache_lattice_vert_overlay_get(Object *ob)
 	BLI_assert(ob->type == OB_LATTICE);
 
 	struct Lattice *lt = ob->data;
-	return DRW_lattice_batch_cache_get_overlay_verts(lt);
+	return DRW_lattice_batch_cache_get_edit_verts(lt);
 }
 
 /** \} */
@@ -3703,3 +3675,83 @@ GPUBatch *DRW_cache_cursor_get(bool crosshair_lines)
 	}
 	return *drw_cursor;
 }
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+
+/** \name Batch Cache Impl. common
+ * \{ */
+
+GPUBatch *DRW_batch_request(GPUBatch **batch)
+{
+	if (*batch == NULL) {
+		*batch = MEM_callocN(sizeof(GPUBatch), "GPUBatch");
+	}
+	return *batch;
+}
+
+bool DRW_batch_requested(GPUBatch *batch, int prim_type)
+{
+	/* Batch has been requested if it has been created but not initialized. */
+	if (batch != NULL && batch->verts[0] == NULL) {
+		/* HACK. We init without a valid VBO and let the first vbo binding
+		 * fill verts[0]. */
+		GPU_batch_init_ex(batch, prim_type, (GPUVertBuf *)1, NULL, 0);
+		batch->verts[0] = NULL;
+		return true;
+	}
+	return false;
+}
+
+void DRW_ibo_request(GPUBatch *batch, GPUIndexBuf **ibo)
+{
+	if (*ibo == NULL) {
+		*ibo = MEM_callocN(sizeof(GPUIndexBuf), "GPUIndexBuf");
+	}
+	GPU_batch_vao_cache_clear(batch);
+	batch->elem = *ibo;
+}
+
+bool DRW_ibo_requested(GPUIndexBuf *ibo)
+{
+	/* TODO do not rely on data uploaded. This prevents multithreading.
+	 * (need access to a gl context) */
+	return (ibo != NULL && ibo->ibo_id == 0);
+}
+
+void DRW_vbo_request(GPUBatch *batch, GPUVertBuf **vbo)
+{
+	if (*vbo == NULL) {
+		*vbo = MEM_callocN(sizeof(GPUVertBuf), "GPUVertBuf");
+	}
+	/* HACK set first vbo if not init. */
+	if (batch->verts[0] == NULL) {
+		GPU_batch_vao_cache_clear(batch);
+		batch->verts[0] = *vbo;
+	}
+	else {
+		/* HACK: bypass assert */
+		(*vbo)->vertex_len = batch->verts[0]->vertex_len;
+		GPU_batch_vertbuf_add(batch, *vbo);
+	}
+}
+
+bool DRW_vbo_requested(GPUVertBuf *vbo)
+{
+	return (vbo != NULL && vbo->format.attr_len == 0);
+}
+
+void drw_batch_cache_generate_requested(Object *ob)
+{
+	switch (ob->type) {
+		case OB_MESH:
+			DRW_mesh_batch_cache_create_requested(ob);
+			break;
+		/* TODO all cases */
+		default:
+			break;
+	}
+}
+
+/** \} */

@@ -87,6 +87,10 @@ void DRW_globals_update(void)
 	UI_GetThemeColor4fv(TH_FACE_DOT, ts.colorFaceDot);
 	UI_GetThemeColor4fv(TH_BACK, ts.colorBackground);
 
+	/* Custom median color to slightly affect the edit mesh colors. */
+	interp_v4_v4v4(ts.colorEditMeshMiddle, ts.colorVertexSelect, ts.colorWireEdit, 0.35f);
+	copy_v3_fl(ts.colorEditMeshMiddle, dot_v3v3(ts.colorEditMeshMiddle, (float[3]){0.3333f, 0.3333f, 0.3333f})); /* Desaturate */
+
 #ifdef WITH_FREESTYLE
 	UI_GetThemeColor4fv(TH_FREESTYLE_EDGE_MARK, ts.colorEdgeFreestyle);
 	UI_GetThemeColor4fv(TH_FREESTYLE_FACE_MARK, ts.colorFaceFreestyle);
@@ -366,7 +370,6 @@ DRWShadingGroup *shgroup_instance_screenspace(DRWPass *pass, struct GPUBatch *ge
 	DRW_shgroup_uniform_float(grp, "size", size, 1);
 	DRW_shgroup_uniform_float(grp, "pixel_size", DRW_viewport_pixelsize_get(), 1);
 	DRW_shgroup_uniform_vec3(grp, "screen_vecs[0]", DRW_viewport_screenvecs_get(), 2);
-	DRW_shgroup_state_enable(grp, DRW_STATE_STIPPLE_3);
 
 	return grp;
 }
