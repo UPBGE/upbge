@@ -70,6 +70,7 @@
 #include "GPU_draw.h"
 #include "GPU_matrix.h"
 #include "GPU_framebuffer.h"
+#include "GPU_state.h"
 
 #include "UI_interface.h"
 
@@ -151,7 +152,7 @@ static void gp_draw_basic_stroke(
 	immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR);
 
 	/* draw stroke curve */
-	glLineWidth(1.0f);
+	GPU_line_width(1.0f);
 	immBeginAtMost(GPU_PRIM_LINE_STRIP, totpoints + cyclic_add);
 	const bGPDspoint *pt = points;
 
@@ -393,11 +394,11 @@ static void set_pixel(ImBuf *ibuf, int idx, const float col[4])
  * this is used for strokes with small gaps between them to get a full fill
  * and do not get a full screen fill.
  *
- * \param ibuf      Image pixel data
- * \param maxpixel  Maximum index
- * \param limit     Limit of pixels to analyze
- * \param index     Index of current pixel
- * \param type      0-Horizontal 1-Vertical
+ * \param ibuf: Image pixel data
+ * \param maxpixel: Maximum index
+ * \param limit: Limit of pixels to analyze
+ * \param index: Index of current pixel
+ * \param type: 0-Horizontal 1-Vertical
  */
 static bool is_leak_narrow(ImBuf *ibuf, const int maxpixel, int limit, int index, int type)
 {
@@ -495,7 +496,7 @@ static bool is_leak_narrow(ImBuf *ibuf, const int maxpixel, int limit, int index
  * Fills the space created by a set of strokes using the stroke color as the boundary
  * of the shape to fill.
  *
- * \param tgpf       Temporary fill data
+ * \param tgpf: Temporary fill data
  */
 static void gpencil_boundaryfill_area(tGPDfill *tgpf)
 {

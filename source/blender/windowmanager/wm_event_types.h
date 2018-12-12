@@ -311,9 +311,11 @@ enum {
 	TIMERF                = 0x011F,  /* last timer */
 
 	/* Actionzones, tweak, gestures: 0x500x, 0x501x */
+#define EVT_ACTIONZONE_FIRST EVT_ACTIONZONE_AREA
 	EVT_ACTIONZONE_AREA   = 0x5000,
 	EVT_ACTIONZONE_REGION = 0x5001,
 	EVT_ACTIONZONE_FULLSCREEN = 0x5011,
+#define EVT_ACTIONZONE_LAST (EVT_ACTIONZONE_FULLSCREEN + 1)
 
 	/* NOTE: these values are saved in keymap files, do not change them but just add new ones */
 
@@ -377,12 +379,12 @@ enum {
 /* test whether the event is a NDOF event */
 #define ISNDOF(event_type)  ((event_type) >= NDOF_MOTION && (event_type) < NDOF_LAST)
 
+#define IS_EVENT_ACTIONZONE(event_type)  ((event_type) >= EVT_ACTIONZONE_FIRST && (event_type) < EVT_ACTIONZONE_LAST)
+
 /* test whether event type is acceptable as hotkey, excluding modifiers */
 #define ISHOTKEY(event_type)                                                  \
 	((ISKEYBOARD(event_type) || ISMOUSE(event_type) || ISNDOF(event_type)) && \
-	 ((event_type) != ESCKEY) &&                                                \
-	 ((event_type) >= LEFTCTRLKEY && (event_type) <= LEFTSHIFTKEY) == false &&    \
-	 ((event_type) >= UNKNOWNKEY  && (event_type) <= GRLESSKEY) == false)
+	 (ISKEYMODIFIER(event_type) == false))
 
 /* internal helpers*/
 #define _VA_IS_EVENT_MOD2(v, a) (CHECK_TYPE_INLINE(v, wmEvent *), \
@@ -396,6 +398,41 @@ enum {
 
 /* reusable IS_EVENT_MOD(event, shift, ctrl, alt, oskey), macro */
 #define IS_EVENT_MOD(...) VA_NARGS_CALL_OVERLOAD(_VA_IS_EVENT_MOD, __VA_ARGS__)
+
+enum eEventType_Mask {
+	/* ISKEYMODIFIER */
+	EVT_TYPE_MASK_KEYBOARD_MODIFIER = (1 << 0),
+	/* ISKEYBOARD */
+	EVT_TYPE_MASK_KEYBOARD = (1 << 1) | EVT_TYPE_MASK_KEYBOARD_MODIFIER,
+	/* ISMOUSE_WHEEL */
+	EVT_TYPE_MASK_MOUSE_WHEEL = (1 << 2),
+	/* ISMOUSE_BUTTON */
+	EVT_TYPE_MASK_MOUSE_GESTURE = (1 << 3),
+	/* ISMOUSE_GESTURE */
+	EVT_TYPE_MASK_MOUSE_BUTTON = (1 << 4),
+	/* ISMOUSE */
+	EVT_TYPE_MASK_MOUSE = (1 << 5) | EVT_TYPE_MASK_MOUSE_WHEEL | EVT_TYPE_MASK_MOUSE_GESTURE | EVT_TYPE_MASK_MOUSE_BUTTON,
+	/* ISNDOF */
+	EVT_TYPE_MASK_NDOF = (1 << 6),
+	/* ISTWEAK */
+	EVT_TYPE_MASK_TWEAK = (1 << 7),
+	/* IS_EVENT_ACTIONZONE */
+	EVT_TYPE_MASK_ACTIONZONE = (1 << 8),
+};
+#define EVT_TYPE_MASK_ALL \
+	(EVT_TYPE_MASK_KEYBOARD | \
+	 EVT_TYPE_MASK_MOUSE | \
+	 EVT_TYPE_MASK_NDOF | \
+	 EVT_TYPE_MASK_TWEAK | \
+	 EVT_TYPE_MASK_ACTIONZONE)
+
+#define EVT_TYPE_MASK_HOTKEY_INCLUDE \
+	(EVT_TYPE_MASK_KEYBOARD | EVT_TYPE_MASK_MOUSE | EVT_TYPE_MASK_NDOF)
+#define EVT_TYPE_MASK_HOTKEY_EXCLUDE \
+	EVT_TYPE_MASK_KEYBOARD_MODIFIER
+
+bool WM_event_type_mask_test(const int event_type, const enum eEventType_Mask mask);
+
 
 /* ********** wmEvent.val ********** */
 

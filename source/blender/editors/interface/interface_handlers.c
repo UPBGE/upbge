@@ -2810,7 +2810,7 @@ static bool ui_textedit_delete_selection(uiBut *but, uiHandleButtonData *data)
 }
 
 /**
- * \param x  Screen space cursor location - #wmEvent.x
+ * \param x: Screen space cursor location - #wmEvent.x
  *
  * \note ``but->block->aspect`` is used here, so drawing button style is getting scaled too.
  */
@@ -4058,8 +4058,7 @@ static int ui_do_but_HOTKEYEVT(
 		ED_region_tag_redraw(data->region);
 
 		if (event->val == KM_PRESS) {
-			if (ISHOTKEY(event->type)) {
-
+			if (ISHOTKEY(event->type) && (event->type != ESCKEY)) {
 				if (WM_key_event_string(event->type, false)[0])
 					ui_but_value_set(but, event->type);
 				else
@@ -7166,7 +7165,7 @@ static bool ui_but_find_select_in_enum__cmp(const uiBut *but_a, const uiBut *but
 /**
  * Finds the pressed button in an aligned row (typically an expanded enum).
  *
- * \param direction  Use when there may be multiple buttons pressed.
+ * \param direction: Use when there may be multiple buttons pressed.
  */
 uiBut *ui_but_find_select_in_enum(uiBut *but, int direction)
 {
