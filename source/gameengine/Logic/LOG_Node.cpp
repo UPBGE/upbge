@@ -47,6 +47,8 @@ EXP_Value *LOG_Node::GetReplica()
 
 void LOG_Node::Relink(std::map<LOG_INode *, LOG_INode *>& nodeMap, std::map<LOG_INodeSocket *, LOG_INodeSocket *>& socketMap)
 {
+	LOG_INode::Relink(nodeMap, socketMap);
+
 	RelinkSockets(nodeMap, socketMap, m_outputs);
 }
 

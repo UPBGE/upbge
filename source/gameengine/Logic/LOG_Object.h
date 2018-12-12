@@ -1,7 +1,7 @@
 #ifndef __LOG_OBJECT_H__
 #define __LOG_OBJECT_H__
 
-#include "EXP_Value.h"
+#include "EXP_Dictionary.h"
 #include "EXP_ListValue.h"
 
 #include <memory>
@@ -9,7 +9,7 @@
 class LOG_Tree;
 class KX_PythonComponent;
 
-class LOG_Object : public EXP_Value
+class LOG_Object : public EXP_Dictionary
 {
 	Py_Header
 

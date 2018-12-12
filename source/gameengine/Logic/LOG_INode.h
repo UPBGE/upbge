@@ -3,6 +3,8 @@
 
 #include "EXP_ListValue.h"
 
+#include <map>
+
 class LOG_INodeSocket;
 class LOG_Object;
 

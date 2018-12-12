@@ -72,7 +72,7 @@ void KX_GameObject_Mathutils_Callback_Init(void);
 /**
  * KX_GameObject is the main class for dynamic objects.
  */
-class KX_GameObject : public EXP_Dictionary, public LOG_Object, public mt::SimdClassAllocator
+class KX_GameObject : public LOG_Object, public mt::SimdClassAllocator
 {
 	Py_Header
 public:
