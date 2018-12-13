@@ -862,21 +862,6 @@ int ED_transform_calc_gizmo_stats(
 					}
 				}
 			} FOREACH_EDIT_OBJECT_END();
-
-			/* Around active, only if there is a selection. The active
-			 * element itself does not have to be selected. */
-			if ((pivot_point == V3D_AROUND_ACTIVE) && totsel) {
-				BMEditMesh *em = BKE_editmesh_from_object(obedit);
-				BMEditSelection ese;
-
-				if (BM_select_history_active_get(em->bm, &ese)) {
-					float vec[3] = {0, 0, 0};
-					BM_editselection_center(&ese, vec);
-					reset_tw_center(tbounds);
-					calc_tw_center(tbounds, vec);
-					totsel = 1;
-				}
-			}
 		} /* end editmesh */
 		else if (obedit->type == OB_ARMATURE) {
 			FOREACH_EDIT_OBJECT_BEGIN(ob_iter, use_mat_local) {
@@ -893,11 +878,11 @@ int ED_transform_calc_gizmo_stats(
 							totsel++;
 						}
 						if ((ebo->flag & BONE_ROOTSEL) &&
-							/* don't include same point multiple times */
-							((ebo->flag & BONE_CONNECTED) &&
-							 (ebo->parent != NULL) &&
-							 (ebo->parent->flag & BONE_TIPSEL) &&
-							 EBONE_VISIBLE(arm, ebo->parent)) == 0)
+						    /* don't include same point multiple times */
+						    ((ebo->flag & BONE_CONNECTED) &&
+						     (ebo->parent != NULL) &&
+						     (ebo->parent->flag & BONE_TIPSEL) &&
+						     EBONE_VISIBLE(arm, ebo->parent)) == 0)
 						{
 							calc_tw_center_with_matrix(tbounds, ebo->head, use_mat_local, mat_local);
 							totsel++;
@@ -908,31 +893,6 @@ int ED_transform_calc_gizmo_stats(
 					}
 				}
 			} FOREACH_EDIT_OBJECT_END();
-
-			/* Around active, only if there is a selection. The active
-			 * element itself does not have to be selected. */
-			if ((pivot_point == V3D_AROUND_ACTIVE) && totsel) {
-				bArmature *arm = obedit->data;
-				EditBone *ebo = arm->act_edbone;
-
-				if (ebo) {
-					reset_tw_center(tbounds);
-					rv3d->twdrawflag = 0xFFFF;
-					totsel = 0;
-
-					if (ebo->flag & BONE_TIPSEL) {
-						calc_tw_center(tbounds, ebo->tail);
-						totsel++;
-					}
-					if ((ebo->flag & BONE_ROOTSEL) ||
-						((ebo->flag & BONE_TIPSEL) == false))  /* ensure we get at least one point */
-					{
-						calc_tw_center(tbounds, ebo->head);
-						totsel++;
-					}
-					protectflag_to_drawflags_ebone(rv3d, ebo);
-				}
-			}
 		}
 		else if (ELEM(obedit->type, OB_CURVE, OB_SURF)) {
 			FOREACH_EDIT_OBJECT_BEGIN(ob_iter, use_mat_local) {
@@ -996,19 +956,6 @@ int ED_transform_calc_gizmo_stats(
 					nu = nu->next;
 				}
 			} FOREACH_EDIT_OBJECT_END();
-
-			/* Around active, only if there is a selection. The active
-			 * element itself does not have to be selected. */
-			if ((pivot_point == V3D_AROUND_ACTIVE) && totsel) {
-				Curve *cu = obedit->data;
-				float center[3];
-
-				if (ED_curve_active_center(cu, center)) {
-					reset_tw_center(tbounds);
-					calc_tw_center(tbounds, center);
-					totsel = 1;
-				}
-			}
 		}
 		else if (obedit->type == OB_MBALL) {
 			FOREACH_EDIT_OBJECT_BEGIN(ob_iter, use_mat_local) {
@@ -1026,19 +973,6 @@ int ED_transform_calc_gizmo_stats(
 					}
 				}
 			} FOREACH_EDIT_OBJECT_END();
-
-			/* Around active, only if there is a selection. The active
-			 * element itself does not have to be selected. */
-			if ((pivot_point == V3D_AROUND_ACTIVE) && totsel) {
-				MetaBall *mb = (MetaBall *)obedit->data;
-				MetaElem *ml = mb->lastelem;
-
-				if (ml) {
-					reset_tw_center(tbounds);
-					calc_tw_center(tbounds, &ml->x);
-					totsel = 1;
-				}
-			}
 		}
 		else if (obedit->type == OB_LATTICE) {
 			FOREACH_EDIT_OBJECT_BEGIN(ob_iter, use_mat_local) {
@@ -1059,19 +993,6 @@ int ED_transform_calc_gizmo_stats(
 					bp++;
 				}
 			} FOREACH_EDIT_OBJECT_END();
-
-			/* Around active, only if there is a selection. The active
-			 * element itself does not have to be selected. */
-			if ((pivot_point == V3D_AROUND_ACTIVE) && totsel) {
-				Lattice *lt = ((Lattice *)obedit->data)->editlatt->latt;
-				BPoint *bp = BKE_lattice_active_point_get(lt);
-
-				if (bp) {
-					reset_tw_center(tbounds);
-					calc_tw_center(tbounds, bp->vec);
-					totsel = 1;
-				}
-			}
 		}
 
 #undef FOREACH_EDIT_OBJECT_BEGIN
@@ -1086,31 +1007,41 @@ int ED_transform_calc_gizmo_stats(
 		}
 	}
 	else if (ob && (ob->mode & OB_MODE_POSE)) {
-		bPoseChannel *pchan;
-		int mode = TFM_ROTATION; // mislead counting bones... bah. We don't know the gizmo mode, could be mixed
+		invert_m4_m4(ob->imat, ob->obmat);
+		uint objects_len = 0;
+		Object **objects = BKE_view_layer_array_from_objects_in_mode(
+		        view_layer, v3d, &objects_len, {.object_mode = OB_MODE_POSE});
+		for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+			Object *ob_iter = objects[ob_index];
+			const bool use_mat_local = (ob_iter != ob);
+			bPoseChannel *pchan;
 
-		totsel = count_set_pose_transflags(ob, mode, V3D_AROUND_CENTER_BOUNDS, NULL);
+			/* mislead counting bones... bah. We don't know the gizmo mode, could be mixed */
+			const int mode = TFM_ROTATION;
 
-		if (totsel) {
-			if ((pivot_point == V3D_AROUND_ACTIVE) &&
-			    (pchan = BKE_pose_channel_active(ob)))
-			{
-				/* Doesn't check selection or visibility of the active bone intentionally. */
-				calc_tw_center(tbounds, pchan->pose_head);
-				protectflag_to_drawflags_pchan(rv3d, pchan);
-				totsel = 1;
-			}
-			else {
+			const int totsel_iter = count_set_pose_transflags(ob_iter, mode, V3D_AROUND_CENTER_BOUNDS, NULL);
+
+			if (totsel_iter) {
+				float mat_local[4][4];
+				if (use_mat_local) {
+					mul_m4_m4m4(mat_local, ob_iter->imat, ob_iter->obmat);
+				}
+
 				/* use channels to get stats */
-				for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
+				for (pchan = ob_iter->pose->chanbase.first; pchan; pchan = pchan->next) {
 					Bone *bone = pchan->bone;
 					if (bone && (bone->flag & BONE_TRANSFORM)) {
 						calc_tw_center(tbounds, pchan->pose_head);
+						calc_tw_center_with_matrix(tbounds, pchan->pose_head, use_mat_local, mat_local);
 						protectflag_to_drawflags_pchan(rv3d, pchan);
 					}
 				}
+				totsel += totsel_iter;
 			}
+		}
+		MEM_freeN(objects);
 
+		if (totsel) {
 			mul_v3_fl(tbounds->center, 1.0f / (float)totsel);   // centroid!
 			mul_m4_v3(ob->obmat, tbounds->center);
 			mul_m4_v3(ob->obmat, tbounds->min);
@@ -1217,18 +1148,17 @@ static void gizmo_prepare_mat(
 		case V3D_AROUND_CENTER_BOUNDS:
 		case V3D_AROUND_ACTIVE:
 		{
-			bGPdata *gpd = CTX_data_gpencil_data(C);
-			Object *ob = OBACT(view_layer);
+			mid_v3_v3v3(rv3d->twmat[3], tbounds->min, tbounds->max);
 
-			if (((scene->toolsettings->transform_pivot_point == V3D_AROUND_ACTIVE) &&
-			     (OBEDIT_FROM_OBACT(ob) == NULL)) &&
-			    ((gpd == NULL) || !(gpd->flag & GP_DATA_STROKE_EDITMODE)) &&
-			    (!(ob->mode & OB_MODE_POSE)))
-			{
-				copy_v3_v3(rv3d->twmat[3], ob->obmat[3]);
-			}
-			else {
-				mid_v3_v3v3(rv3d->twmat[3], tbounds->min, tbounds->max);
+			if (scene->toolsettings->transform_pivot_point == V3D_AROUND_ACTIVE) {
+				bGPdata *gpd = CTX_data_gpencil_data(C);
+				Object *ob = OBACT(view_layer);
+				if (gpd && (gpd->flag & GP_DATA_STROKE_EDITMODE)) {
+					/* pass */
+				}
+				else if (ob != NULL) {
+					ED_object_calc_active_center(ob, false, rv3d->twmat[3]);
+				}
 			}
 			break;
 		}
@@ -1373,8 +1303,8 @@ void drawDial3d(const TransInfo *t)
 		mat_basis[2][3] = -dot_v3v3(mat_basis[2], mat_basis[3]);
 
 		if (ED_view3d_win_to_3d_on_plane(
-		        t->ar, mat_basis[2], (float[2]){UNPACK2(t->mouse.imval)},
-		        false, mat_basis[1]))
+		            t->ar, mat_basis[2], (float[2]){UNPACK2(t->mouse.imval)},
+		            false, mat_basis[1]))
 		{
 			sub_v3_v3(mat_basis[1], mat_basis[3]);
 			normalize_v3(mat_basis[1]);
