@@ -143,6 +143,44 @@ class LogicNodeScale(LogicNode):
 		"scale" : ("NodeSocketVector", Vector((1, 1, 1)))
 		}
 
+class LogicNodeMouseEvent(LogicNode):
+	bl_idname = "LogicNodeMouseEvent"
+	bl_label = "Mouse Event"
+
+	mode = bpy.props.EnumProperty(name="Mode", items=[
+			("LEFT_BUTTON", "Left Button", "", 0),
+			("MIDDLE_BUTTON", "Middle Button", "", 1),
+			("RIGHT_BUTTON", "Right Button", "", 2),
+			("WHEEL_UP", "Wheel Up", "", 3),
+			("WHEEL_DOWN", "Wheel Down", "", 4),
+			("MOVEMENT", "Movement", "", 5)
+		])
+	event = bpy.props.EnumProperty(name="Event", items=[
+			("ACTIVE", "Active", "", 0),
+			("INACTIVE", "Inactive", "", 1),
+			("ACTIVATED", "Activated", "", 2),
+			("RELEASED", "Released", "", 3)
+		])
+	bl_props = ["mode", "event"]
+
+class LogicNodeMousePosition(LogicNodeFunction):
+	bl_idname = "LogicNodeMousePosition"
+	bl_label = "Mouse Position"
+	bl_output = "NodeSocketVector"
+
+class LogicNodeKeyboardEvent(LogicNode):
+	bl_idname = "LogicNodeKeyboardEvent"
+	bl_label = "Keyboard Event"
+
+	mode = bpy.props.StringProperty(name="Mode", maxlen=1)
+	event = bpy.props.EnumProperty(name="Event", items=[
+			("ACTIVE", "Active", "", 0),
+			("INACTIVE", "Inactive", "", 1),
+			("ACTIVATED", "Activated", "", 2),
+			("RELEASED", "Released", "", 3)
+		])
+	bl_props = ["mode", "event"]
+
 class LogicNodeCategory(SortedNodeCategory):
 	@classmethod
 	def poll(cls, context):
@@ -164,8 +202,13 @@ logic_node_categories = [
 	LogicNodeCategory("LOG_MATH", "Math", items=[
 		NodeItem("LogicNodeMathOperator"),
 		]),
-	LogicNodeCategory("LOG_INPUT", "Input", items=[
+	LogicNodeCategory("LOG_ROOT", "Root", items=[
 		NodeItem("LogicNodeRoot"),
+		]),
+	LogicNodeCategory("LOG_INPUT", "Input", items=[
+		NodeItem("LogicNodeMouseEvent"),
+		NodeItem("LogicNodeMousePosition"),
+		NodeItem("LogicNodeKeyboardEvent"),
 		])
 	]
 
@@ -173,10 +216,17 @@ def register():
 	bpy.utils.register_class(LogicNodeBooleanValue)
 	bpy.utils.register_class(LogicNodeBooleanOperator)
 	bpy.utils.register_class(LogicNodeBranch)
+
 	bpy.utils.register_class(LogicNodeRotate)
 	bpy.utils.register_class(LogicNodeTranslate)
 	bpy.utils.register_class(LogicNodeScale)
+
 	bpy.utils.register_class(LogicNodeMathOperator)
+
+	bpy.utils.register_class(LogicNodeMouseEvent)
+	bpy.utils.register_class(LogicNodeMousePosition)
+
+	bpy.utils.register_class(LogicNodeKeyboardEvent)
 
 	nodeitems_utils.register_node_categories('LOGIC NODES', logic_node_categories)
 
