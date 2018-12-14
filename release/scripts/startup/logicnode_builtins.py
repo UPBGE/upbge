@@ -119,13 +119,27 @@ class LogicNodeBranch(LogicNode):
 		"Trigger Negative"
 		]
 
-class LogicNodeBasicMotion(LogicNode):
-	bl_idname = "LogicNodeBasicMotion"
-	bl_label = "Basic Motion"
+class LogicNodeRotate(LogicNode):
+	bl_idname = "LogicNodeRotate"
+	bl_label = "Rotate"
 
 	bl_inputs = {
-		"translation" : ("NodeSocketVectorTranslation", None),
-		"rotation" : ("NodeSocketVectorEuler", None),
+		"rotation" : ("NodeSocketVectorEuler", Vector((0, 0, 0))),
+		}
+
+class LogicNodeTranslate(LogicNode):
+	bl_idname = "LogicNodeTranslate"
+	bl_label = "Translate"
+
+	bl_inputs = {
+		"translation" : ("NodeSocketVectorTranslation", Vector((0, 0, 0))),
+		}
+
+class LogicNodeScale(LogicNode):
+	bl_idname = "LogicNodeScale"
+	bl_label = "Scale"
+
+	bl_inputs = {
 		"scale" : ("NodeSocketVector", Vector((1, 1, 1)))
 		}
 
@@ -143,7 +157,9 @@ logic_node_categories = [
 		NodeItem("LogicNodeBranch"),
 		]),
 	LogicNodeCategory("LOG_MOTION", "Motion", items=[
-		NodeItem("LogicNodeBasicMotion"),
+		NodeItem("LogicNodeRotate"),
+		NodeItem("LogicNodeTranslate"),
+		NodeItem("LogicNodeScale"),
 		]),
 	LogicNodeCategory("LOG_MATH", "Math", items=[
 		NodeItem("LogicNodeMathOperator"),
@@ -157,7 +173,9 @@ def register():
 	bpy.utils.register_class(LogicNodeBooleanValue)
 	bpy.utils.register_class(LogicNodeBooleanOperator)
 	bpy.utils.register_class(LogicNodeBranch)
-	bpy.utils.register_class(LogicNodeBasicMotion)
+	bpy.utils.register_class(LogicNodeRotate)
+	bpy.utils.register_class(LogicNodeTranslate)
+	bpy.utils.register_class(LogicNodeScale)
 	bpy.utils.register_class(LogicNodeMathOperator)
 
 	nodeitems_utils.register_node_categories('LOGIC NODES', logic_node_categories)
