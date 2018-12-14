@@ -828,7 +828,7 @@ void BM_editselection_center(BMEditSelection *ese, float r_center[3])
 	}
 	else if (ese->htype == BM_FACE) {
 		BMFace *efa = (BMFace *)ese->ele;
-		BM_face_calc_center_mean(efa, r_center);
+		BM_face_calc_center_median(efa, r_center);
 	}
 }
 
@@ -1148,10 +1148,6 @@ void BM_mesh_elem_hflag_enable_test(
 	int i;
 
 	BLI_assert((htype & ~BM_ALL_NOLOOP) == 0);
-
-	if (hflag & BM_ELEM_SELECT) {
-		BM_select_history_clear(bm);
-	}
 
 	/* note, better not attempt a fast path for selection as done with de-select
 	 * because hidden geometry and different selection modes can give different results,

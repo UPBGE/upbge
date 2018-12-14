@@ -3764,6 +3764,7 @@ class VIEW3D_MT_edit_gpencil(Menu):
         layout.separator()
 
         layout.operator("gpencil.duplicate_move", text="Duplicate")
+        layout.operator("gpencil.stroke_smooth", text="Smooth")
         layout.operator("gpencil.stroke_subdivide", text="Subdivide")
         layout.menu("VIEW3D_MT_gpencil_simplify")
 
@@ -5371,6 +5372,7 @@ class VIEW3D_MT_gpencil_edit_specials(Menu):
         layout.menu("VIEW3D_MT_assign_material")
         layout.separator()
 
+        layout.operator("gpencil.stroke_smooth", text="Smooth")
         layout.operator("gpencil.stroke_subdivide", text="Subdivide")
         layout.operator("gpencil.stroke_simplify_fixed", text="Simplify")
         layout.operator("gpencil.stroke_simplify", text="Simplify Adaptative")

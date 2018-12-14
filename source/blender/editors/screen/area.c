@@ -1813,7 +1813,20 @@ void ED_area_newspace(bContext *C, ScrArea *sa, int type, const bool skip_ar_exi
 		SpaceLink *sl;
 		/* store sa->type->exit callback */
 		void *sa_exit = sa->type ? sa->type->exit : NULL;
-		int header_alignment = ED_area_header_alignment(sa);
+		/* When the user switches between space-types from the type-selector,
+		 * changing the header-type is jarring (especially when using Ctrl-MouseWheel).
+		 *
+		 * However, add-on install for example, forces the header to the top which shouldn't
+		 * be applied back to the previous space type when closing - see: T57724
+		 *
+		 * Newly created windows wont have any space data, use the alignment
+		 * the space type defaults to in this case instead
+		 * (needed for preferences to have space-type on bottom).
+		 */
+		int header_alignment = ED_area_header_alignment_or_fallback(sa, -1);
+		const bool sync_header_alignment = (
+		        (header_alignment != -1) &&
+		        (sa->flag & AREA_FLAG_TEMP_TYPE) == 0);
 
 		/* in some cases (opening temp space) we don't want to
 		 * call area exit callback, so we temporarily unset it */
@@ -1862,15 +1875,6 @@ void ED_area_newspace(bContext *C, ScrArea *sa, int type, const bool skip_ar_exi
 			/* put in front of list */
 			BLI_remlink(&sa->spacedata, sl);
 			BLI_addhead(&sa->spacedata, sl);
-
-
-			/* Sync header alignment. */
-			for (ARegion *ar = sa->regionbase.first; ar; ar = ar->next) {
-				if (ar->regiontype == RGN_TYPE_HEADER) {
-					ar->alignment = header_alignment;
-					break;
-				}
-			}
 		}
 		else {
 			/* new space */
@@ -1885,6 +1889,16 @@ void ED_area_newspace(bContext *C, ScrArea *sa, int type, const bool skip_ar_exi
 					slold->regionbase = sa->regionbase;
 				sa->regionbase = sl->regionbase;
 				BLI_listbase_clear(&sl->regionbase);
+			}
+		}
+
+		/* Sync header alignment. */
+		if (sync_header_alignment) {
+			for (ARegion *ar = sa->regionbase.first; ar; ar = ar->next) {
+				if (ar->regiontype == RGN_TYPE_HEADER) {
+					ar->alignment = header_alignment;
+					break;
+				}
 			}
 		}
 
@@ -2489,16 +2503,20 @@ int ED_area_headersize(void)
 	return (int)(HEADERY * UI_DPI_FAC);
 }
 
-
-int ED_area_header_alignment(const ScrArea *area)
+int ED_area_header_alignment_or_fallback(const ScrArea *area, int fallback)
 {
 	for (ARegion *ar = area->regionbase.first; ar; ar = ar->next) {
 		if (ar->regiontype == RGN_TYPE_HEADER) {
 			return ar->alignment;
 		}
 	}
+	return fallback;
+}
 
-	return RGN_ALIGN_TOP;
+int ED_area_header_alignment(const ScrArea *area)
+{
+	return ED_area_header_alignment_or_fallback(
+	        area, (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_BOTTOM : RGN_ALIGN_TOP);
 }
 
 /**

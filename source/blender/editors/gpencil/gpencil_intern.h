@@ -251,9 +251,6 @@ void gp_stroke_delete_tagged_points(
         int tag_flags, bool select);
 int gp_delete_selected_point_wrap(bContext *C);
 
-bool gp_smooth_stroke(bGPDstroke *gps, int i, float inf, bool affect_pressure);
-bool gp_smooth_stroke_strength(bGPDstroke *gps, int i, float inf);
-bool gp_smooth_stroke_thickness(bGPDstroke *gps, int i, float inf);
 void gp_subdivide_stroke(bGPDstroke *gps, const int subdivide);
 void gp_randomize_stroke(bGPDstroke *gps, Brush *brush, struct RNG *rng);
 
@@ -388,6 +385,7 @@ void GPENCIL_OT_stroke_simplify(struct wmOperatorType *ot);
 void GPENCIL_OT_stroke_simplify_fixed(struct wmOperatorType *ot);
 void GPENCIL_OT_stroke_separate(struct wmOperatorType *ot);
 void GPENCIL_OT_stroke_split(struct wmOperatorType *ot);
+void GPENCIL_OT_stroke_smooth(struct wmOperatorType *ot);
 
 void GPENCIL_OT_brush_presets_create(struct wmOperatorType *ot);
 
