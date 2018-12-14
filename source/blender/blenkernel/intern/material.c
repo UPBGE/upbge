@@ -141,7 +141,7 @@ void BKE_material_init(Material *ma)
 	ma->rms = 0.1;
 	ma->darkness = 1.0;
 	ma->roughness_bsdf = 0.5f;
-	ma->metallic_bsdf = 0.5f;
+	ma->metallic_bsdf = 0.0f;
 	ma->shade_flag |= MA_ENERGY_CONSERV;
 
 	ma->strand_sta = ma->strand_end = 1.0f;

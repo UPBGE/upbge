@@ -38,6 +38,8 @@ static bNodeSocketTemplate sh_node_material_in[] = {
 	{	SOCK_FLOAT, 1, N_("Color Intensity"),		0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, PROP_UNSIGNED},
 	{	SOCK_RGBA, 1, N_("Spec"),		0.0f, 0.0f, 0.0f, 1.0f},
 	{	SOCK_FLOAT, 1, N_("Spec Intensity"),		0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, PROP_UNSIGNED},
+	{	SOCK_FLOAT, 1, N_("Metallic"),	0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, PROP_FACTOR},
+	{	SOCK_FLOAT, 1, N_("Roughness"),	0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, PROP_FACTOR},
 	{	SOCK_VECTOR, 1, N_("Normal"),	0.0f, 0.0f, 0.0f, 1.0f, -1.0f, 1.0f, PROP_DIRECTION},
 	{	-1, 0, ""	}
 };
@@ -56,9 +58,9 @@ static bNodeSocketTemplate sh_node_material_ext_in[] = {
 	{	SOCK_FLOAT, 1, N_("Color Intensity"),	0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, PROP_FACTOR},
 	{	SOCK_RGBA, 1, N_("Spec"),		0.0f, 0.0f, 0.0f, 1.0f},
 	{	SOCK_FLOAT, 1, N_("Spec Intensity"),	0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, PROP_FACTOR},
-	{	SOCK_VECTOR, 1, N_("Normal"),	0.0f, 0.0f, 0.0f, 1.0f, -1.0f, 1.0f, PROP_DIRECTION},
-	{	SOCK_FLOAT, 1, N_("Roughness"),	0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, PROP_FACTOR},
 	{	SOCK_FLOAT, 1, N_("Metallic"),	0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, PROP_FACTOR},
+	{	SOCK_FLOAT, 1, N_("Roughness"),	0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, PROP_FACTOR},
+	{	SOCK_VECTOR, 1, N_("Normal"),	0.0f, 0.0f, 0.0f, 1.0f, -1.0f, 1.0f, PROP_DIRECTION},
 	{	SOCK_RGBA, 1, N_("Mirror"),		0.0f, 0.0f, 0.0f, 1.0f},
 	{	SOCK_FLOAT, 1, N_("Ambient"),	0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, PROP_NONE},
 	{	SOCK_FLOAT, 1, N_("Emit"),		0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, PROP_UNSIGNED},
@@ -101,6 +103,11 @@ static void node_shader_exec_material(void *data, int UNUSED(thread), bNode *nod
 		shi = shcd->shi;
 		shi->mat = (Material *)node->id;
 
+		if (hasinput[MAT_IN_ROUGHNESS] || hasinput[MAT_IN_METALLIC]) {
+			shi->mat->diff_shader = MA_DIFF_BURLEY_BSDF;
+			shi->mat->spec_shader = MA_SPEC_GGX_BSDF;
+		}
+		
 		/* copy all relevant material vars, note, keep this synced with render_types.h */
 		memcpy(&shi->r, &shi->mat->r, 23 * sizeof(float));
 		shi->har = shi->mat->har;
@@ -120,6 +127,12 @@ static void node_shader_exec_material(void *data, int UNUSED(thread), bNode *nod
 		if (hasinput[MAT_IN_SPECI])
 			nodestack_get_vec(&shi->spec, SOCK_FLOAT, in[MAT_IN_SPECI]);
 
+		if (hasinput[MAT_IN_ROUGHNESS])
+			nodestack_get_vec(&shi->roughness_bsdf, SOCK_FLOAT, in[MAT_IN_ROUGHNESS]);
+
+		if (hasinput[MAT_IN_METALLIC])
+			nodestack_get_vec(&shi->metallic_bsdf, SOCK_FLOAT, in[MAT_IN_METALLIC]);
+
 		/* retrieve normal */
 		if (hasinput[MAT_IN_NORMAL]) {
 			nodestack_get_vec(shi->vn, SOCK_VECTOR, in[MAT_IN_NORMAL]);
@@ -138,10 +151,6 @@ static void node_shader_exec_material(void *data, int UNUSED(thread), bNode *nod
 		}
 
 		if (node->type == SH_NODE_MATERIAL_EXT) {
-			if (hasinput[MAT_IN_ROUGHNESS])
-				nodestack_get_vec(&shi->roughness_bsdf, SOCK_FLOAT, in[MAT_IN_ROUGHNESS]);
-			if (hasinput[MAT_IN_METALLIC])
-				nodestack_get_vec(&shi->metallic_bsdf, SOCK_FLOAT, in[MAT_IN_METALLIC]);
 			if (hasinput[MAT_IN_MIR])
 				nodestack_get_vec(&shi->mirr, SOCK_VECTOR, in[MAT_IN_MIR]);
 			if (hasinput[MAT_IN_AMB])
@@ -224,7 +233,6 @@ static void node_shader_exec_material(void *data, int UNUSED(thread), bNode *nod
 	}
 }
 
-
 /* XXX this is also done as a local static function in gpu_codegen.c,
  * but we need this to hack around the crappy material node.
  */
@@ -282,6 +290,12 @@ static int gpu_shader_material(GPUMaterial *mat, bNode *node, bNodeExecData *UNU
 		if (hasinput[MAT_IN_SPECI])
 			shi.spec = gpu_get_input_link(mat, &in[MAT_IN_SPECI]);
 
+		if (hasinput[MAT_IN_ROUGHNESS])
+			shi.roughness_bsdf = gpu_get_input_link(mat, &in[MAT_IN_ROUGHNESS]);
+
+		if (hasinput[MAT_IN_METALLIC])
+			shi.metallic_bsdf = gpu_get_input_link(mat, &in[MAT_IN_METALLIC]);
+
 		/* retrieve normal */
 		if (hasinput[MAT_IN_NORMAL]) {
 			GPUNodeLink *tmp;
@@ -298,10 +312,6 @@ static int gpu_shader_material(GPUMaterial *mat, bNode *node, bNodeExecData *UNU
 			GPU_link(mat, "vec_math_negate", shi.vn, &shi.vn);
 
 		if (node->type == SH_NODE_MATERIAL_EXT) {
-			if (hasinput[MAT_IN_ROUGHNESS])
-				shi.roughness_bsdf = gpu_get_input_link(mat, &in[MAT_IN_ROUGHNESS]);
-			if (hasinput[MAT_IN_METALLIC])
-				shi.metallic_bsdf = gpu_get_input_link(mat, &in[MAT_IN_METALLIC]);
 			if (hasinput[MAT_IN_MIR])
 				shi.mir = gpu_get_input_link(mat, &in[MAT_IN_MIR]);
 			if (hasinput[MAT_IN_AMB])

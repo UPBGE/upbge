@@ -355,10 +355,6 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
 						varfac = mtex->varfac;
 			
 						mtex->roughnessfac = (neg & MAP_ROUGHNESS)? -varfac: varfac;
-						if (mtex->roughnessfac > 0.99f)
-							mtex->roughnessfac = 0.99f;
-						if (mtex->roughnessfac < -0.99f)
-							mtex->roughnessfac = -0.99f;
 						mtex->metallicfac = (neg & MAP_METALLIC)? -varfac: varfac;
 					}
 				}

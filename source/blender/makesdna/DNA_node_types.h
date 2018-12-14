@@ -1141,9 +1141,9 @@ enum {
 #define MAT_IN_REFL			1
 #define MAT_IN_SPEC			2
 #define MAT_IN_SPECI		3
-#define MAT_IN_NORMAL		4
+#define MAT_IN_METALLIC		4
 #define MAT_IN_ROUGHNESS	5
-#define MAT_IN_METALLIC		6
+#define MAT_IN_NORMAL		6
 #define MAT_IN_MIR			7
 #define MAT_IN_AMB			8
 #define MAT_IN_EMIT			9

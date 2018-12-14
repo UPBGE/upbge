@@ -1062,7 +1062,7 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 				GPU_link(mat, "shade_diffuse_BSDF_Custom_Lambert",
 				         shi->metallic_bsdf, &is);
 			else if (ma->diff_shader == MA_DIFF_BURLEY_BSDF)
-				GPU_link(mat, "shade_diffuse_BSDF_Burley", inp, vn, lv, view,
+				GPU_link(mat, "shade_diffuse_BSDF_Burley", vn, lv, view,
 				         shi->roughness_bsdf, &is);
 		}
 	}
@@ -1218,7 +1218,7 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 				         GPU_uniform(&ma->rms), &specfac);
 			}
 			else if (ma->spec_shader == MA_SPEC_GGX_BSDF) {
-				GPU_link(mat, "shade_BSDF_ggx_spec", inp, vn, lv, view,
+				GPU_link(mat, "shade_BSDF_ggx_spec", vn, lv, view,
 				         shi->roughness_bsdf, shi->metallic_bsdf, &specfac);
 			}
 			else {
@@ -1934,24 +1934,22 @@ static void do_material_tex(GPUShadeInput *shi)
 				if (!(mat->scene->gm.flag & GAME_GLSL_NO_EXTRA_TEX) && mtex->mapto & MAP_ROUGHNESS) {
 					GPUNodeLink *roughnessfac;
 
-					if (mtex->roughnessfac == 1.0f && (ma->constflag & MA_CONSTANT_TEXTURE)) roughnessfac = stencil;
-					else GPU_link(mat, "math_roughness_multiply_comp", GPU_select_uniform(&mtex->roughnessfac, GPU_DYNAMIC_TEX_ROUGHNESS, NULL, ma), stencil, &roughnessfac);
+					GPU_link(mat, "math_multiply", GPU_select_uniform(&mtex->roughnessfac, GPU_DYNAMIC_TEX_ROUGHNESS, NULL, ma), stencil, &roughnessfac);
 
 					texture_value_blend(
 					        mat, GPU_uniform(&mtex->def_var), shi->roughness_bsdf, tin, roughnessfac,
 					        mtex->blendtype, &shi->roughness_bsdf);
-					GPU_link(mat, "mtex_value_clamp_positive", shi->roughness_bsdf, &shi->roughness_bsdf);
+					GPU_link(mat, "mtex_value_clamp", shi->roughness_bsdf, &shi->roughness_bsdf);
 				}
 				if (!(mat->scene->gm.flag & GAME_GLSL_NO_EXTRA_TEX) && mtex->mapto & MAP_METALLIC) {
 					GPUNodeLink *metallicfac;
 
-					if (mtex->metallicfac == 1.0f && (ma->constflag & MA_CONSTANT_TEXTURE)) metallicfac = stencil;
-					else GPU_link(mat, "math_multiply", GPU_select_uniform(&mtex->metallicfac, GPU_DYNAMIC_TEX_METALLIC, NULL, ma), stencil, &metallicfac);
+					GPU_link(mat, "math_multiply", GPU_select_uniform(&mtex->metallicfac, GPU_DYNAMIC_TEX_METALLIC, NULL, ma), stencil, &metallicfac);
 
 					texture_value_blend(
 					        mat, GPU_uniform(&mtex->def_var), shi->metallic_bsdf, tin, metallicfac,
 					        mtex->blendtype, &shi->metallic_bsdf);
-					GPU_link(mat, "mtex_value_clamp_positive", shi->metallic_bsdf, &shi->metallic_bsdf);
+					GPU_link(mat, "mtex_value_clamp", shi->metallic_bsdf, &shi->metallic_bsdf);
 				}
 			}
 		}

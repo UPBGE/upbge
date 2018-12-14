@@ -2152,20 +2152,20 @@ void shade_diffuse_BSDF_Custom_Lambert(float reflectance, out float is)
 	is = (reflectance / M_PI);
 }
 
-void shade_diffuse_BSDF_Burley(float nl, vec3 n, vec3 l, vec3 v, float roughness, out float is)
+void shade_diffuse_BSDF_Burley(vec3 n, vec3 l, vec3 v, float roughness, out float is)
 {
-	vec3 h = normalize(v + l);
-	float nv = max(dot(n, v), 0.0);
-	float vh = max(dot(v, h), 0.0);
+	vec3 h = normalize(l + v);
+	float nl = clamp(dot(n, l), 0.001, 1.0);
+	float nv = clamp(abs(dot(n, v)), 0.001, 1.0);
+	float vh = clamp(dot(v, h), 0.0, 1.0);
+	float lh = clamp(dot(l, h), 0.0, 1.0);
 
-	float energy_bias = mix(roughness, 0.0, 0.5);
-	float energy_factor = mix(roughness, 1.0, 1.0 / 1.51);
-	float fd90 = energy_bias + 2.0 * vh * vh * roughness;
+	float fd90 = 0.5 + 2.0 * lh * lh * roughness;
 	float f0 = 1.0;
 	float light_scatter = f0 + (fd90 - f0) * pow(1.0 - nl, 5.0);
 	float view_scatter = f0 + (fd90 - f0) * pow(1.0 - nv, 5.0);
 
-	is = light_scatter * view_scatter * energy_factor;
+	is = light_scatter * view_scatter * (1 / M_PI);
 }
 
 
@@ -2364,20 +2364,19 @@ float G1V_F(float LdotH, float k)
 	return 1.0 /(LdotH * (1.0 - k) + k);
 }
 
-void shade_BSDF_ggx_spec(float nl, vec3 n, vec3 l, vec3 v, float roughness, float reflectance, out float specfac)
+void shade_BSDF_ggx_spec(vec3 n, vec3 l, vec3 v, float roughness, float reflectance, out float specfac)
 {
 	float alpha = roughness * roughness;
 
 	vec3 h = normalize(l + v);
-
-	nl = max(0.0, nl);
-	float lh = max(0.0, dot(l,h));
-	float nh = max(0.0, dot(n,h));
+	float nl = clamp(dot(n, l), 0.001, 1.0);
+	float lh = clamp(dot(l, h), 0.0, 1.0);
+	float nh = clamp(dot(n, h), 0.0, 1.0);
 
 	// D
 	float alphaSqr = alpha * alpha;
 	float denom = nh * nh * (alphaSqr - 1.0) + 1.0;
-	float D = alphaSqr /(M_PI * denom * denom);
+	float D = alphaSqr / (M_PI * denom * denom);
 
 	// F
 	float F = reflectance + (1.0 - reflectance) * (pow(1.0 - lh, 5.0));
