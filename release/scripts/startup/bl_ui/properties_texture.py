@@ -1137,6 +1137,7 @@ class TEXTURE_PT_game_parallax(TextureSlotPanel, Panel):
 
         col = split.column()
         col.active = tex.use_map_parallax
+        col.prop(tex, "parallax_component", text="")
         col.prop(tex, "parallax_steps", text="Steps")
         col.prop(tex, "parallax_bump_scale", text="Bump Scale")
 
