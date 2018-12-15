@@ -1443,7 +1443,7 @@ static void do_material_tex(GPUShadeInput *shi)
 			}
 
 			discard = (mtex->parflag & MTEX_DISCARD_AT_EDGES) != 0 ? 1.0f : 0.0f;
-			float comp = 3.0f; // alpha
+			float comp = mtex->parallaxcomp;
 			GPU_link(mat, "mtex_parallax", texco,
 					 material_builtin(mat, GPU_VIEW_POSITION), tangent, orn,
 					 GPU_image(tex->ima, &tex->iuser, false),
