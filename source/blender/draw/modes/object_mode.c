@@ -2271,7 +2271,7 @@ static void DRW_shgroup_relationship_lines(
         Object *ob)
 {
 	if (ob->parent && DRW_object_is_visible_in_active_context(ob->parent)) {
-		DRW_shgroup_call_dynamic_add(sgl->relationship_lines, ob->parent->obmat[3]);
+		DRW_shgroup_call_dynamic_add(sgl->relationship_lines, ob->orig);
 		DRW_shgroup_call_dynamic_add(sgl->relationship_lines, ob->obmat[3]);
 	}
 
@@ -2682,7 +2682,21 @@ static void OBJECT_cache_populate(void *vedata, Object *ob)
 			break;
 		}
 		case OB_SURF:
+		{
+			if (hide_object_extra) {
+				break;
+			}
+			struct GPUBatch *geom = DRW_cache_surf_edge_wire_get(ob);
+			if (geom == NULL) {
+				break;
+			}
+			if (theme_id == TH_UNDEFINED) {
+				theme_id = DRW_object_wire_theme_get(ob, view_layer, NULL);
+			}
+			DRWShadingGroup *shgroup = shgroup_theme_id_to_wire_or(sgl, theme_id, sgl->wire);
+			DRW_shgroup_call_object_add(shgroup, geom, ob);
 			break;
+		}
 		case OB_LATTICE:
 		{
 			if (ob != draw_ctx->object_edit && !BKE_object_is_in_editmode(ob)) {

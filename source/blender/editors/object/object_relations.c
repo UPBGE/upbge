@@ -1759,7 +1759,7 @@ static void new_id_matar(Main *bmain, Material **matar, const int totcol)
 	}
 }
 
-static void single_obdata_users(Main *bmain, Scene *scene, ViewLayer *view_layer, const int flag)
+static void single_obdata_users(Main *bmain, Scene *scene, ViewLayer *view_layer, View3D *v3d, const int flag)
 {
 	Lamp *la;
 	Curve *cu;
@@ -1768,7 +1768,7 @@ static void single_obdata_users(Main *bmain, Scene *scene, ViewLayer *view_layer
 	Lattice *lat;
 	ID *id;
 
-	FOREACH_OBJECT_FLAG_BEGIN(scene, view_layer, flag, ob)
+	FOREACH_OBJECT_FLAG_BEGIN(scene, view_layer, v3d, flag, ob)
 	{
 		if (!ID_IS_LINKED(ob)) {
 			id = ob->data;
@@ -1849,9 +1849,9 @@ static void single_obdata_users(Main *bmain, Scene *scene, ViewLayer *view_layer
 	}
 }
 
-static void single_object_action_users(Main *bmain, Scene *scene, ViewLayer *view_layer, const int flag)
+static void single_object_action_users(Main *bmain, Scene *scene, ViewLayer *view_layer, View3D *v3d, const int flag)
 {
-	FOREACH_OBJECT_FLAG_BEGIN(scene, view_layer, flag, ob)
+	FOREACH_OBJECT_FLAG_BEGIN(scene, view_layer, v3d, flag, ob)
 	{
 		if (!ID_IS_LINKED(ob)) {
 			DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
@@ -1861,12 +1861,12 @@ static void single_object_action_users(Main *bmain, Scene *scene, ViewLayer *vie
 	FOREACH_OBJECT_FLAG_END;
 }
 
-static void single_mat_users(Main *bmain, Scene *scene, ViewLayer *view_layer, const int flag)
+static void single_mat_users(Main *bmain, Scene *scene, ViewLayer *view_layer, View3D *v3d, const int flag)
 {
 	Material *ma, *man;
 	int a;
 
-	FOREACH_OBJECT_FLAG_BEGIN(scene, view_layer, flag, ob)
+	FOREACH_OBJECT_FLAG_BEGIN(scene, view_layer, v3d, flag, ob)
 	{
 		if (!ID_IS_LINKED(ob)) {
 			for (a = 1; a <= ob->totcol; a++) {
@@ -1924,8 +1924,8 @@ void ED_object_single_users(Main *bmain, Scene *scene, const bool full, const bo
 	single_object_users(bmain, scene, NULL, 0, copy_collections);
 
 	if (full) {
-		single_obdata_users(bmain, scene, NULL, 0);
-		single_object_action_users(bmain, scene, NULL, 0);
+		single_obdata_users(bmain, scene, NULL, NULL, 0);
+		single_object_action_users(bmain, scene, NULL, NULL, 0);
 		single_mat_users_expand(bmain);
 	}
 
@@ -2461,15 +2461,15 @@ static int make_single_user_exec(bContext *C, wmOperator *op)
 	}
 
 	if (RNA_boolean_get(op->ptr, "obdata")) {
-		single_obdata_users(bmain, scene, view_layer, flag);
+		single_obdata_users(bmain, scene, view_layer, v3d, flag);
 	}
 
 	if (RNA_boolean_get(op->ptr, "material")) {
-		single_mat_users(bmain, scene, view_layer, flag);
+		single_mat_users(bmain, scene, view_layer, v3d, flag);
 	}
 
 	if (RNA_boolean_get(op->ptr, "animation")) {
-		single_object_action_users(bmain, scene, view_layer, flag);
+		single_object_action_users(bmain, scene, view_layer, v3d, flag);
 	}
 
 	BKE_main_id_clear_newpoins(bmain);
