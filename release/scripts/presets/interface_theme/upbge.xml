@@ -688,7 +688,7 @@
     </properties>
     <text_editor>
       <ThemeTextEditor line_numbers_background="#2e2e2e"
-                       selected_text="#607f9e"
+                       selected_text="#39495d"
                        cursor="#ff2a00"
                        syntax_builtin="#009eed"
                        syntax_symbols="#607f9e"
