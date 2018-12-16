@@ -95,6 +95,7 @@ protected:
 	float m_zoffset;
 	int m_rasMode;
 	unsigned int m_flag;
+	short m_passIndex;
 
 	RAS_Texture *m_textures[RAS_Texture::MaxUnits];
 
@@ -127,6 +128,7 @@ public:
 	bool IsAlphaShadow() const;
 	bool CastsShadows() const;
 	bool OnlyShadow() const;
+	short GetPassIndex() const;
 	RAS_Texture *GetTexture(unsigned int index);
 
 	virtual const std::string GetTextureName() const = 0;

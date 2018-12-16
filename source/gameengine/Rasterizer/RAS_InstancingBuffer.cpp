@@ -70,6 +70,10 @@ void RAS_InstancingBuffer::Realloc(unsigned int size)
 		m_layerOffset = offset;
 		offset += LAYER_MEMORY_SIZE * size;
 	}
+	if (m_attribs & INFO_ATTRIB) {
+		m_infoOffset = offset;
+		offset += INFO_MEMORY_SIZE * size;
+	}
 
 	if (m_vbo) {
 		GPU_buffer_free(m_vbo);
@@ -88,7 +92,7 @@ void RAS_InstancingBuffer::Unbind()
 	GPU_buffer_unbind(m_vbo, GPU_BINDING_ARRAY);
 }
 
-void RAS_InstancingBuffer::Update(RAS_Rasterizer *rasty, int drawingmode, const RAS_MeshSlotList &meshSlots)
+void RAS_InstancingBuffer::Update(RAS_Rasterizer *rasty, int drawingmode, short matPassIndex, const RAS_MeshSlotList &meshSlots)
 {
 	const intptr_t buffer = (intptr_t)GPU_buffer_lock_stream(m_vbo, GPU_BINDING_ARRAY);
 	const unsigned int count = meshSlots.size();
@@ -134,6 +138,19 @@ void RAS_InstancingBuffer::Update(RAS_Rasterizer *rasty, int drawingmode, const 
 
 			unsigned int &layerData = *(unsigned int *)(buffer + m_layerOffset + LAYER_MEMORY_SIZE * i);
 			layerData = ms->m_meshUser->GetLayer();
+		}
+	}
+
+	// Pack info.
+	if (m_attribs & INFO_ATTRIB) {
+		for (unsigned int i = 0; i < count; ++i) {
+			RAS_MeshSlot *ms = meshSlots[i];
+			RAS_MeshUser *meshUser = ms->m_meshUser;
+
+			float (&infoData)[3] = *(float (*)[3])(buffer + m_infoOffset + INFO_MEMORY_SIZE * i);
+			infoData[0] = float(meshUser->GetPassIndex());
+			infoData[1] = float(matPassIndex);
+			infoData[2] = meshUser->GetRandom();
 		}
 	}
 

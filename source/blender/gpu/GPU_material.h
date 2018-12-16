@@ -107,13 +107,15 @@ typedef enum GPUBuiltin {
 	GPU_INSTANCING_INVERSE_MATRIX  = (1 << 16),
 	GPU_INSTANCING_COLOR           = (1 << 17),
 	GPU_INSTANCING_LAYER           = (1 << 18),
-	GPU_INSTANCING_COLOR_ATTRIB    = (1 << 19),
-	GPU_INSTANCING_MATRIX_ATTRIB   = (1 << 20),
-	GPU_INSTANCING_POSITION_ATTRIB = (1 << 21),
-	GPU_INSTANCING_LAYER_ATTRIB    = (1 << 22),
-	GPU_TIME                       = (1 << 23),
-	GPU_OBJECT_INFO                = (1 << 24),
-	GPU_OBJECT_LAY                 = (1 << 25)
+	GPU_INSTANCING_INFO            = (1 << 19),
+	GPU_INSTANCING_COLOR_ATTRIB    = (1 << 20),
+	GPU_INSTANCING_MATRIX_ATTRIB   = (1 << 21),
+	GPU_INSTANCING_POSITION_ATTRIB = (1 << 22),
+	GPU_INSTANCING_LAYER_ATTRIB    = (1 << 23),
+	GPU_INSTANCING_INFO_ATTRIB     = (1 << 24),
+	GPU_TIME                       = (1 << 25),
+	GPU_OBJECT_INFO                = (1 << 26),
+	GPU_OBJECT_LAY                 = (1 << 27)
 } GPUBuiltin;
 
 typedef enum GPUOpenGLBuiltin {
@@ -271,6 +273,9 @@ void GPU_material_enable_alpha(GPUMaterial *material);
 GPUBuiltin GPU_get_material_builtins(GPUMaterial *material);
 GPUBlendMode GPU_material_alpha_blend(GPUMaterial *material, const float obcol[4]);
 
+/// Possibly translate builtin to instancing builtin if instancing enabled and return node.
+GPUNodeLink *GPU_material_builtin(GPUMaterial *mat, GPUBuiltin builtin);
+
 /* High level functions to create and use GPU materials */
 GPUMaterial *GPU_material_world(struct Scene *scene, struct World *wo, GPUMaterialFlag flags);
 
@@ -417,7 +422,7 @@ void GPU_material_update_fvar_offset(GPUMaterial *gpu_material,
 
 /* Instancing material */
 bool GPU_material_use_instancing(GPUMaterial *material);
-void GPU_material_bind_instancing_attrib(GPUMaterial *material, void *matrixoffset, void *positionoffset, void *coloroffset, void *layeroffset);
+void GPU_material_bind_instancing_attrib(GPUMaterial *material, void *matrixoffset, void *positionoffset, void *coloroffset, void *layeroffset, void *infooffset);
 
 #ifdef __cplusplus
 }

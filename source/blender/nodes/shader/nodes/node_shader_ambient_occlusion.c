@@ -44,7 +44,7 @@ static bNodeSocketTemplate sh_node_ambient_occlusion_out[] = {
 
 static int node_shader_gpu_ambient_occlusion(GPUMaterial *mat, bNode *UNUSED(node), bNodeExecData *UNUSED(execdata), GPUNodeStack *in, GPUNodeStack *out)
 {
-	return GPU_stack_link(mat, "node_ambient_occlusion", in, out, GPU_builtin(GPU_VIEW_NORMAL));
+	return GPU_stack_link(mat, "node_ambient_occlusion", in, out, GPU_material_builtin(mat, GPU_VIEW_NORMAL));
 }
 
 static void node_shader_init_ambient_occlusion(bNodeTree *UNUSED(ntree), bNode *node)

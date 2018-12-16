@@ -115,6 +115,8 @@ KX_BlenderMaterial::KX_BlenderMaterial(Material *mat, const std::string& name, K
 	m_flag |= ((mat->mode2 & MA_CASTSHADOW) != 0) ? RAS_CASTSHADOW : 0;
 	m_flag |= ((mat->mode & MA_ONLYCAST) != 0) ? RAS_ONLYSHADOW : 0;
 
+	m_passIndex = mat->index;
+
 	m_blendFunc[0] = RAS_Rasterizer::RAS_ZERO;
 	m_blendFunc[1] = RAS_Rasterizer::RAS_ZERO;
 }
@@ -372,7 +374,7 @@ void KX_BlenderMaterial::ActivateMeshUser(RAS_MeshUser *meshUser, RAS_Rasterizer
 		rasty->ProcessLighting(UsesLighting(), camtrans);
 	}
 	else if (m_blenderShader) {
-		m_blenderShader->Update(meshUser, rasty);
+		m_blenderShader->Update(meshUser, m_passIndex, rasty);
 
 		/* we do blend modes here, because they can change per object
 		 * with the same material due to obcolor/obalpha */
@@ -590,6 +592,7 @@ PyAttributeDef KX_BlenderMaterial::Attributes[] = {
 	EXP_PYATTRIBUTE_RW_FUNCTION("emit", KX_BlenderMaterial, pyattr_get_emit, pyattr_set_emit),
 	EXP_PYATTRIBUTE_RW_FUNCTION("ambient", KX_BlenderMaterial, pyattr_get_ambient, pyattr_set_ambient),
 	EXP_PYATTRIBUTE_RW_FUNCTION("specularAlpha", KX_BlenderMaterial, pyattr_get_specular_alpha, pyattr_set_specular_alpha),
+	EXP_PYATTRIBUTE_SHORT_RW("passIndex", 0, SHRT_MAX, false, KX_BlenderMaterial, m_passIndex),
 
 	EXP_PYATTRIBUTE_NULL //Sentinel
 };
