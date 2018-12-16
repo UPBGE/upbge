@@ -1890,6 +1890,36 @@ static void rna_GameSettings_python_key4_set(PointerRNA *ptr, int value)
 	}
 }
 
+static void rna_GameSettings_attachments_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+	GameData *gm = (GameData *)ptr->data;
+	rna_iterator_array_begin(iter, (void *)gm->attachments, sizeof(RenderAttachment *), GAME_ATTACHMENT_COUNT, 0, NULL);
+}
+
+static PointerRNA rna_GameSettings_active_attachment_get(PointerRNA *ptr)
+{
+	GameData *gm = (GameData *)ptr->data;
+	return rna_pointer_inherit_refine(ptr, &RNA_RenderAttachment, gm->attachments[gm->activeAttachment]);
+}
+
+static void rna_GameSettings_active_attachment_set(PointerRNA *ptr, PointerRNA value)
+{
+	GameData *gm = (GameData *)ptr->data;
+	gm->attachments[gm->activeAttachment] = (RenderAttachment *)value.data;
+}
+
+static PointerRNA rna_RenderAttachment_attachment_get(PointerRNA *ptr)
+{
+	GameData *gm = (GameData *)ptr->id.data;
+	return rna_pointer_inherit_refine(ptr, &RNA_RenderAttachment, gm->attachments[gm->activeAttachment]);
+}
+
+static void rna_RenderAttachment_attachment_set(PointerRNA *ptr, PointerRNA value)
+{
+	GameData *gm = (GameData *)ptr->id.data;
+	gm->attachments[gm->activeAttachment] = (RenderAttachment *)value.data;
+}
+
 static TimeMarker *rna_TimeLine_add(Scene *scene, const char name[], int frame)
 {
 	TimeMarker *marker = MEM_callocN(sizeof(TimeMarker), "TimeMarker");
@@ -4460,6 +4490,58 @@ static void rna_def_bake_data(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 }
 
+static void rna_def_game_render_attachment(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	static const EnumPropertyItem type_items[] = {
+		{GAME_ATTACHMENT_CUSTOM, "CUSTOM", 0, "Custom", "Output custom data to a separate render atachement"},
+		{GAME_ATTACHMENT_NORMAL, "NORMAL", 0, "Normal", "Output normal to a separate render atachement"},
+		{GAME_ATTACHMENT_ALBEDO, "ALBEDO", 0, "Albedo", "Output albedo to a separate render atachement"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
+	static EnumPropertyItem hdr_items[] = {
+		{GAME_HDR_NONE, "HDR_NONE", 0, "None", "8 bits per channel"},
+		{GAME_HDR_HALF_FLOAT, "HDR_HALF_FLOAT", 0, "Half", "16 bits per channel"},
+		{GAME_HDR_FULL_FLOAT, "HDR_FULL_FLOAT", 0, "Full", "32 bits per channel"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
+	srna = RNA_def_struct(brna, "RenderAttachment", NULL);
+	RNA_def_struct_sdna(srna, "RenderAttachment");
+	RNA_def_struct_ui_text(srna, "Render Attachment", "Game rendering output");
+
+	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_sdna(prop, NULL, "name");
+	RNA_def_property_ui_text(prop, "Name", "Attachment name");
+	RNA_def_struct_name_property(srna, prop);
+
+	prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "type");
+	RNA_def_property_enum_items(prop, type_items);
+	RNA_def_property_ui_text(prop, "Type", "The type of attachment used for basic materials");
+	RNA_def_property_update(prop, NC_SCENE | NA_EDITED, "rna_Scene_glsl_update");
+
+	prop = RNA_def_property(srna, "hdr", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "hdr");
+	RNA_def_property_enum_items(prop, hdr_items);
+	RNA_def_property_ui_text(prop, "HDR", "The precision of the attachment");
+
+	prop = RNA_def_property(srna, "size", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "size");
+	RNA_def_property_range(prop, 1, 4);
+	RNA_def_property_int_default(prop, 3);
+	RNA_def_property_ui_text(prop, "Size", "The data size of the attachment");
+
+	prop = RNA_def_property(srna, "attachment", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(prop, "RenderAttachment");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_pointer_funcs(prop, "rna_RenderAttachment_attachment_get", "rna_RenderAttachment_attachment_set", NULL, NULL);
+	RNA_def_property_ui_text(prop, "Attachment", "Render attachment used by this slot");
+}
+
 static void rna_def_scene_game_data(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -4595,6 +4677,24 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	RNA_def_property_enum_items(prop, color_management_items);
 	RNA_def_property_ui_text(prop, "Color Space", "The color space of the display");
 	RNA_def_property_update(prop, NC_SCENE | NA_EDITED, "rna_Scene_glsl_update");
+
+	prop = RNA_def_property(srna, "attachment_slots", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_struct_type(prop, "RenderAttachment");
+	RNA_def_property_collection_funcs(prop, "rna_GameSettings_attachments_begin", "rna_iterator_array_next", "rna_iterator_array_end",
+	                                  "rna_iterator_array_dereference_get", NULL, NULL, NULL, NULL);
+	RNA_def_property_ui_text(prop, "Render Attachments", "Render attachment slots defining the render outputs");
+
+	prop = RNA_def_property(srna, "active_attachment", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(prop, "RenderAttachment");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_pointer_funcs(prop, "rna_GameSettings_active_attachment_get",
+	                               "rna_GameSettings_active_attachment_set", NULL, NULL);
+	RNA_def_property_ui_text(prop, "Active Attachment", "Active attachment slot being displayed");
+
+	prop = RNA_def_property(srna, "active_attachment_index", PROP_INT, PROP_UNSIGNED);
+	RNA_def_property_int_sdna(prop, NULL, "activeAttachment");
+	RNA_def_property_range(prop, 0, 7);
+	RNA_def_property_ui_text(prop, "Active Attachment Index", "Index of active attachment slot");
 
 	prop = RNA_def_property(srna, "exit_key", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "exitkey");
@@ -4943,9 +5043,6 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "SceneGameRecastData");
 	RNA_def_property_ui_text(prop, "Recast Data", "");
 
-	/* Nestled Data  */
-	rna_def_scene_game_recast_data(brna);
-
 	/* LoD */
 	prop = RNA_def_property(srna, "use_scene_hysteresis", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "lodflag", SCE_LOD_USE_HYST);
@@ -4960,6 +5057,10 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Hysteresis %",
 	                         "Minimum distance change required to transition to the previous level of detail");
 	RNA_def_property_update(prop, NC_SCENE, NULL);
+
+	/* Nestled Data  */
+	rna_def_scene_game_recast_data(brna);
+	rna_def_game_render_attachment(brna);
 }
 
 static void rna_def_gpu_dof_fx(BlenderRNA *brna)

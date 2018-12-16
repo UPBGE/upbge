@@ -634,7 +634,7 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
 	sizey = (scene->r.size * scene->r.ysch) / 100;
 
 	/* corrects render size with actual size, not every card supports non-power-of-two dimensions */
-	ofs = GPU_offscreen_create(sizex, sizey, full_samples ? 0 : samples, GPU_HDR_NONE, GPU_OFFSCREEN_DEPTH_COMPARE, err_out);
+	ofs = GPU_offscreen_create(sizex, sizey, full_samples ? 0 : samples, err_out);
 
 	if (!ofs) {
 		BKE_reportf(op->reports, RPT_ERROR, "Failed to create OpenGL off-screen buffer, %s", err_out);

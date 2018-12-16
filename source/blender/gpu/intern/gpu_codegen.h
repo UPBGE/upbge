@@ -161,7 +161,6 @@ struct GPUPass {
 	struct GPUPass *next, *prev;
 
 	ListBase inputs;
-	struct GPUOutput *output;
 	struct GPUShader *shader;
 	char *fragmentcode;
 	char *geometrycode;
@@ -172,7 +171,7 @@ struct GPUPass {
 
 typedef struct GPUPass GPUPass;
 
-GPUPass *GPU_generate_pass(ListBase *nodes, struct GPUNodeLink *outlink,
+GPUPass *GPU_generate_pass(ListBase *nodes, struct GPUNodeLink *outlinks[8],
                            struct GPUVertexAttribs *attribs, int *builtin,
                            const GPUMatType type, const char *name,
                            const bool use_opensubdiv,

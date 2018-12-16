@@ -40,7 +40,7 @@ static int node_shader_gpu_output_world(GPUMaterial *mat, bNode *UNUSED(node), b
 	GPUNodeLink *outlink;
 
 	GPU_stack_link(mat, "node_output_world", in, out, &outlink);
-	GPU_material_output_link(mat, outlink);
+	GPU_material_output_link(mat, outlink, 0);
 
 	return true;
 }

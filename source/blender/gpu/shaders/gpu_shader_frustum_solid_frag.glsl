@@ -4,5 +4,5 @@ out vec4 fragColor;
 
 void main()
 {
-	gl_FragColor = gl_FrontFacing ? insideFinalColor : outsideFinalColor;
+	gl_FragData[0] = gl_FrontFacing ? insideFinalColor : outsideFinalColor;
 }

@@ -29,52 +29,110 @@
 
 #include "RAS_Rasterizer.h"
 
-#include "GPU_framebuffer.h"
-
-struct GPUOffScreen;
+struct GPUFrameBuffer;
+struct GPURenderBuffer;
 struct GPUTexture;
 
 class RAS_OffScreen
 {
+public:
+	enum Type {
+		RAS_OFFSCREEN_FILTER0,
+		RAS_OFFSCREEN_FILTER1,
+		RAS_OFFSCREEN_EYE_LEFT0,
+		RAS_OFFSCREEN_EYE_RIGHT0,
+		RAS_OFFSCREEN_EYE_LEFT1,
+		RAS_OFFSCREEN_EYE_RIGHT1,
+		RAS_OFFSCREEN_BLIT_DEPTH,
+
+		RAS_OFFSCREEN_CUSTOM,
+
+		RAS_OFFSCREEN_MAX,
+	};
+
+	struct Attachment
+	{
+		unsigned short size;
+		RAS_Rasterizer::HdrType hdr;
+	};
+
+	using AttachmentList = std::vector<Attachment>;
+
 private:
+	enum {
+		NUM_COLOR_SLOTS = 8
+	};
+
+	unsigned int m_width;
+	unsigned int m_height;
+	unsigned short m_samples;
+	unsigned short m_numColorSlots;
+
 	/// All the off screens used.
-	GPUOffScreen *m_offScreen;
+	GPUFrameBuffer *m_frameBuffer;
+
+	union Slot
+	{
+		Slot();
+
+		GPURenderBuffer *m_rb;
+		GPUTexture *m_tex;
+	};
+
+	Slot m_colorSlots[NUM_COLOR_SLOTS];
+	Slot m_depthSlot;
+
 	/// The off screen type, render, final, filter ect...
-	RAS_Rasterizer::OffScreenType m_type;
+	Type m_type;
 
 	/// The last bound off screen, set to nullptr in RestoreScreen().
 	static RAS_OffScreen *lastOffScreen;
 
 public:
-	RAS_OffScreen(unsigned int width, unsigned int height, int samples, GPUHDRType hdrType, GPUOffScreenMode mode, char errOut[256],
-				  RAS_Rasterizer::OffScreenType type);
+	RAS_OffScreen(unsigned int width, unsigned int height, unsigned short samples,
+			const AttachmentList& attachments, Type type);
 	~RAS_OffScreen();
 
 	bool GetValid() const;
 
 	void Bind();
 	/// NOTE: This function has the side effect to leave the destination off screen bound.
-	RAS_OffScreen *Blit(RAS_OffScreen *dstOffScreen, bool color, bool depth);
+	RAS_OffScreen *Blit(RAS_OffScreen *dstOffScreen, bool depth);
 
-	void BindColorTexture(unsigned short slot);
-	void BindDepthTexture(unsigned short slot);
-	void UnbindColorTexture();
+	void BindColorTexture(unsigned short slot, unsigned short unit);
+	void BindDepthTexture(unsigned short unit);
+	void UnbindColorTexture(unsigned short slot);
 	void UnbindDepthTexture();
 
-	void MipmapTexture();
-	void UnmipmapTexture();
+	void MipmapTextures();
+	void UnmipmapTextures();
 
 	int GetColorBindCode() const;
 
-	int GetSamples() const;
+	unsigned short GetSamples() const;
 	unsigned GetWidth() const;
 	unsigned GetHeight() const;
-	RAS_Rasterizer::OffScreenType GetType() const;
+	Type GetType() const;
+	unsigned short GetNumColorSlot() const;
 
 	GPUTexture *GetDepthTexture();
 
 	static RAS_OffScreen *GetLastOffScreen();
 	static void RestoreScreen();
+
+	/** Return the output frame buffer normally used for the input frame buffer
+	 * index in case of filters render.
+	 * \param index The input frame buffer, can be a non-filter frame buffer.
+	 * \return The output filter frame buffer.
+	 */
+	static Type NextFilterOffScreen(Type index);
+
+	/** Return the output frame buffer normally used for the input frame buffer
+	 * index in case of simple render.
+	 * \param index The input render frame buffer, can be a eye frame buffer.
+	 * \return The output render frame buffer.
+	 */
+	static Type NextRenderOffScreen(Type index); // TODO RAS_NamedOffScreen
 };
 
 #endif  // __RAS_OFFSCREEN_H__

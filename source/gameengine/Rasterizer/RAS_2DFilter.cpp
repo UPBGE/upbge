@@ -38,6 +38,7 @@ extern char datatoc_RAS_VertexShader2DFilter_glsl[];
 
 static std::string predefinedUniformsName[RAS_2DFilter::MAX_PREDEFINED_UNIFORM_TYPE] = {
 	"bgl_RenderedTexture", // RENDERED_TEXTURE_UNIFORM
+	"bgl_DataTextures[0]", // DATA_TEXTURES_UNIFORM
 	"bgl_DepthTexture", // DEPTH_TEXTURE_UNIFORM
 	"bgl_RenderedTextureWidth", // RENDERED_TEXTURE_WIDTH_UNIFORM
 	"bgl_RenderedTextureHeight", // RENDERED_TEXTURE_HEIGHT_UNIFORM
@@ -202,13 +203,23 @@ void RAS_2DFilter::ComputeTextureOffsets(RAS_ICanvas *canvas)
 void RAS_2DFilter::BindTextures(RAS_OffScreen *depthofs, RAS_OffScreen *colorofs)
 {
 	if (m_predefinedUniforms[RENDERED_TEXTURE_UNIFORM] != -1) {
-		colorofs->BindColorTexture(8);
+		colorofs->BindColorTexture(0, 9);
 		if (m_mipmap) {
-			colorofs->MipmapTexture();
+			colorofs->MipmapTextures();
 		}
 	}
+
+	if (m_predefinedUniforms[DATA_TEXTURES_UNIFORM] != -1) {
+		for (unsigned short i = 1, slots = colorofs->GetNumColorSlot(); i < slots; ++i) {
+			colorofs->BindColorTexture(i, 9 + i);
+		}
+		if (m_mipmap) {
+			colorofs->MipmapTextures();
+		}
+	}
+
 	if (m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM] != -1) {
-		depthofs->BindDepthTexture(9);
+		depthofs->BindDepthTexture(8);
 	}
 
 	// Bind custom textures.
@@ -221,11 +232,21 @@ void RAS_2DFilter::BindTextures(RAS_OffScreen *depthofs, RAS_OffScreen *colorofs
 void RAS_2DFilter::UnbindTextures(RAS_OffScreen *depthofs, RAS_OffScreen *colorofs)
 {
 	if (m_predefinedUniforms[RENDERED_TEXTURE_UNIFORM] != -1) {
-		colorofs->UnbindColorTexture();
+		colorofs->UnbindColorTexture(0);
 		if (m_mipmap) {
-			colorofs->UnmipmapTexture();
+			colorofs->UnmipmapTextures();
 		}
 	}
+
+	if (m_predefinedUniforms[DATA_TEXTURES_UNIFORM] != -1) {
+		for (unsigned short i = 1, slots = colorofs->GetNumColorSlot(); i < slots; ++i) {
+			colorofs->UnbindColorTexture(i);
+		}
+		if (m_mipmap) {
+			colorofs->UnmipmapTextures();
+		}
+	}
+
 	if (m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM] != -1) {
 		depthofs->UnbindDepthTexture();
 	}
@@ -242,10 +263,14 @@ void RAS_2DFilter::UnbindTextures(RAS_OffScreen *depthofs, RAS_OffScreen *coloro
 void RAS_2DFilter::BindUniforms(RAS_ICanvas *canvas)
 {
 	if (m_predefinedUniforms[RENDERED_TEXTURE_UNIFORM] != -1) {
-		SetUniform(m_predefinedUniforms[RENDERED_TEXTURE_UNIFORM], 8);
+		SetUniform(m_predefinedUniforms[RENDERED_TEXTURE_UNIFORM], 9);
+	}
+	if (m_predefinedUniforms[DATA_TEXTURES_UNIFORM] != -1) {
+		static const int units[] = {10, 11, 12, 13, 14, 15, 16};
+		SetUniformiv(m_predefinedUniforms[DATA_TEXTURES_UNIFORM], RAS_Uniform::UNI_INT, units, sizeof(int) * 7, 7);
 	}
 	if (m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM] != -1) {
-		SetUniform(m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM], 9);
+		SetUniform(m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM], 8);
 	}
 	if (m_predefinedUniforms[RENDERED_TEXTURE_WIDTH_UNIFORM] != -1) {
 		// Bind rendered texture width.

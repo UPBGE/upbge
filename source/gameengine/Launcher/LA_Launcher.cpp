@@ -187,8 +187,23 @@ void LA_Launcher::InitEngine()
 	// Copy current mipmap mode to restore at the game end.
 	m_savedData.mipmap = m_rasterizer->GetMipmapping();
 
+	static RAS_Rasterizer::HdrType hdrTable[] = {
+		RAS_Rasterizer::RAS_HDR_NONE, // GAME_HDR_NONE
+		RAS_Rasterizer::RAS_HDR_HALF_FLOAT, // GAME_HDR_HALF_FLOAT
+		RAS_Rasterizer::RAS_HDR_FULL_FLOAT // GAME_HDR_FULL_FLOAT
+	};
+
+	RAS_OffScreen::AttachmentList attachments;
+	attachments.push_back({4, hdrTable[gm.hdr]});
+	for (unsigned short i = 0; i < 7; ++i) {
+		RenderAttachment *attach = gm.attachments[i];
+		if (attach) {
+			attachments.push_back({(unsigned short)attach->size, hdrTable[attach->hdr]});
+		}
+	}
+
 	// Create the canvas, rasterizer and rendertools.
-	m_canvas = CreateCanvas(m_rasterizer);
+	m_canvas = CreateCanvas(m_rasterizer, attachments);
 
 	static const RAS_ICanvas::SwapControl swapControlTable[] = {
 		RAS_ICanvas::VSYNC_ON, // VSYNC_ON
@@ -198,28 +213,7 @@ void LA_Launcher::InitEngine()
 
 	m_canvas->SetSwapControl(swapControlTable[gm.vsync]);
 
-	// Set canvas multisamples.
 	m_canvas->SetSamples(m_samples);
-
-	RAS_Rasterizer::HdrType hdrtype = RAS_Rasterizer::RAS_HDR_NONE;
-	switch (gm.hdr) {
-		case GAME_HDR_NONE:
-		{
-			hdrtype = RAS_Rasterizer::RAS_HDR_NONE;
-			break;
-		}
-		case GAME_HDR_HALF_FLOAT:
-		{
-			hdrtype = RAS_Rasterizer::RAS_HDR_HALF_FLOAT;
-			break;
-		}
-		case GAME_HDR_FULL_FLOAT:
-		{
-			hdrtype = RAS_Rasterizer::RAS_HDR_FULL_FLOAT;
-			break;
-		}
-	}
-	m_canvas->SetHdrType(hdrtype);
 
 	m_canvas->Init();
 	if (gm.flag & GAME_SHOW_MOUSE) {

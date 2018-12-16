@@ -41,6 +41,7 @@ DefNode( Node,           NODE_GROUP_OUTPUT,       def_group_output,       "GROUP
 DefNode( Node,           NODE_REROUTE,            0,                      "REROUTE",        Reroute,          "Reroute",           ""              )
 
 DefNode( ShaderNode,     SH_NODE_OUTPUT,          def_sh_output,          "OUTPUT",         Output,           "Output",            ""              )
+DefNode( ShaderNode,     SH_NODE_OUTPUT_ATTACHMENT, def_sh_output_attachment, "OUTPUT_ATTACHMENT", OutputAttachment, "OutputAttachment",            ""              )
 DefNode( ShaderNode,     SH_NODE_MATERIAL,        def_sh_material,        "MATERIAL",       Material,         "Material",          ""              )
 DefNode( ShaderNode,     SH_NODE_RGB,             0,                      "RGB",            RGB,              "RGB",               ""              )
 DefNode( ShaderNode,     SH_NODE_VALUE,           0,                      "VALUE",          Value,            "Value",             ""              )

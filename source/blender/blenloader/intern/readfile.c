@@ -6305,6 +6305,10 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 	sce->preview = direct_link_preview_image(fd, sce->preview);
 
 	direct_link_curvemapping(fd, &sce->r.mblur_shutter_curve);
+
+	for (unsigned short a = 0; a < GAME_ATTACHMENT_COUNT; a++) {
+		sce->gm.attachments[a] = newdataadr(fd, sce->gm.attachments[a]);
+	}
 }
 
 /* ************ READ WM ***************** */

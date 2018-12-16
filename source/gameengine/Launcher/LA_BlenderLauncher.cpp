@@ -73,9 +73,9 @@ LA_BlenderLauncher::~LA_BlenderLauncher()
 {
 }
 
-RAS_ICanvas *LA_BlenderLauncher::CreateCanvas(RAS_Rasterizer *rasty)
+RAS_ICanvas *LA_BlenderLauncher::CreateCanvas(RAS_Rasterizer *rasty, const RAS_OffScreen::AttachmentList& attachments)
 {
-	return (new KX_BlenderCanvas(rasty, m_windowManager, m_window, m_areaRect));
+	return (new KX_BlenderCanvas(rasty, attachments, m_windowManager, m_window, m_areaRect));
 }
 
 RAS_Rasterizer::DrawType LA_BlenderLauncher::GetRasterizerDrawMode()
