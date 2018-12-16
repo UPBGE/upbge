@@ -142,7 +142,7 @@ static int gpu_shader_normal_map(GPUMaterial *mat, bNode *node, bNodeExecData *U
 	else
 		realnorm = GPU_uniform(in[1].vec);
 
-	negnorm = GPU_builtin(GPU_VIEW_NORMAL);
+	negnorm = GPU_material_builtin(mat, GPU_VIEW_NORMAL);
 	GPU_link(mat, "math_max", strength, GPU_uniform(d), &strength);
 
 	if (GPU_material_use_world_space_shading(mat)) {
@@ -156,20 +156,20 @@ static int gpu_shader_normal_map(GPUMaterial *mat, bNode *node, bNodeExecData *U
 			case SHD_SPACE_TANGENT:
 				GPU_link(mat, "color_to_normal_new_shading", realnorm, &realnorm);
 				GPU_link(mat, "node_normal_map", GPU_attribute(CD_TANGENT, nm->uv_map), negnorm, realnorm, &realnorm);
-				GPU_link(mat, "vec_math_mix", strength, realnorm, GPU_builtin(GPU_VIEW_NORMAL), &out[0].link);
+				GPU_link(mat, "vec_math_mix", strength, realnorm, GPU_material_builtin(mat, GPU_VIEW_NORMAL), &out[0].link);
 				/* for uniform scale this is sufficient to match Cycles */
-				GPU_link(mat, "direction_transform_m4v3", out[0].link, GPU_builtin(GPU_INVERSE_VIEW_MATRIX), &out[0].link);
+				GPU_link(mat, "direction_transform_m4v3", out[0].link, GPU_material_builtin(mat, GPU_INVERSE_VIEW_MATRIX), &out[0].link);
 				GPU_link(mat, "vect_normalize", out[0].link, &out[0].link);
 				return true;
 			case SHD_SPACE_OBJECT:
 			case SHD_SPACE_BLENDER_OBJECT:
-				GPU_link(mat, "direction_transform_m4v3", negnorm, GPU_builtin(GPU_INVERSE_VIEW_MATRIX), &negnorm);
+				GPU_link(mat, "direction_transform_m4v3", negnorm, GPU_material_builtin(mat, GPU_INVERSE_VIEW_MATRIX), &negnorm);
 				GPU_link(mat, color_to_normal_fnc_name, realnorm, &realnorm);
-				GPU_link(mat, "direction_transform_m4v3", realnorm, GPU_builtin(GPU_OBJECT_MATRIX), &realnorm);
+				GPU_link(mat, "direction_transform_m4v3", realnorm, GPU_material_builtin(mat, GPU_OBJECT_MATRIX), &realnorm);
 				break;
 			case SHD_SPACE_WORLD:
 			case SHD_SPACE_BLENDER_WORLD:
-				GPU_link(mat, "direction_transform_m4v3", negnorm, GPU_builtin(GPU_INVERSE_VIEW_MATRIX), &negnorm);
+				GPU_link(mat, "direction_transform_m4v3", negnorm, GPU_material_builtin(mat, GPU_INVERSE_VIEW_MATRIX), &negnorm);
 				GPU_link(mat, color_to_normal_fnc_name, realnorm, &realnorm);
 				break;
 		}
@@ -189,11 +189,11 @@ static int gpu_shader_normal_map(GPUMaterial *mat, bNode *node, bNodeExecData *U
 				break;
 			case SHD_SPACE_OBJECT:
 			case SHD_SPACE_BLENDER_OBJECT:
-				GPU_link(mat, "direction_transform_m4v3", realnorm, GPU_builtin(GPU_LOC_TO_VIEW_MATRIX),  &realnorm);
+				GPU_link(mat, "direction_transform_m4v3", realnorm, GPU_material_builtin(mat, GPU_LOC_TO_VIEW_MATRIX),  &realnorm);
 				break;
 			case SHD_SPACE_WORLD:
 			case SHD_SPACE_BLENDER_WORLD:
-				GPU_link(mat, "direction_transform_m4v3", realnorm, GPU_builtin(GPU_VIEW_MATRIX),  &realnorm);
+				GPU_link(mat, "direction_transform_m4v3", realnorm, GPU_material_builtin(mat, GPU_VIEW_MATRIX),  &realnorm);
 				break;
 		}
 	}

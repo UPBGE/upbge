@@ -32,8 +32,12 @@
 #include "RAS_BatchGroup.h"
 #include "RAS_Deformer.h"
 
+#include "BLI_hash.h"
+
 RAS_MeshUser::RAS_MeshUser(void *clientobj, RAS_BoundingBox *boundingBox, RAS_Deformer *deformer)
 	:m_layer((1 << 20) - 1),
+	m_passIndex(0),
+	m_random(BLI_hash_int_2d((uintptr_t)clientobj, 0) / ((float)0xFFFFFFFF)),
 	m_frontFace(true),
 	m_color(mt::zero4),
 	m_boundingBox(boundingBox),
@@ -65,6 +69,16 @@ void RAS_MeshUser::NewMeshSlot(RAS_DisplayArrayBucket *arrayBucket)
 unsigned int RAS_MeshUser::GetLayer() const
 {
 	return m_layer;
+}
+
+short RAS_MeshUser::GetPassIndex() const
+{
+	return m_passIndex;
+}
+
+float RAS_MeshUser::GetRandom() const
+{
+	return m_random;
 }
 
 bool RAS_MeshUser::GetFrontFace() const
@@ -110,6 +124,11 @@ RAS_Deformer *RAS_MeshUser::GetDeformer()
 void RAS_MeshUser::SetLayer(unsigned int layer)
 {
 	m_layer = layer;
+}
+
+void RAS_MeshUser::SetPassIndex(short index)
+{
+	m_passIndex = index;
 }
 
 void RAS_MeshUser::SetFrontFace(bool frontFace)

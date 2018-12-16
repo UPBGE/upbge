@@ -70,7 +70,7 @@ static int gpu_shader_lamp(GPUMaterial *mat, bNode *node, bNodeExecData *UNUSED(
 
 		bool ret = GPU_stack_link(mat, "lamp", in, out, col, energy, lv, dist, shadow, visifac);
 		if (GPU_material_use_world_space_shading(mat))
-			ret &= GPU_link(mat, "direction_transform_m4v3", out[1].link, GPU_builtin(GPU_INVERSE_VIEW_MATRIX), &out[1].link);
+			ret &= GPU_link(mat, "direction_transform_m4v3", out[1].link, GPU_material_builtin(mat, GPU_INVERSE_VIEW_MATRIX), &out[1].link);
 		return ret;
 	}
 

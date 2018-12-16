@@ -57,12 +57,12 @@ static int gpu_shader_parallax(GPUMaterial *mat, bNode *node, bNodeExecData *UNU
 			}
 		}
 
-		GPU_link(mat, "texco_norm", GPU_builtin(GPU_VIEW_NORMAL), &norm);
+		GPU_link(mat, "texco_norm", GPU_material_builtin(mat, GPU_VIEW_NORMAL), &norm);
 		GPU_link(mat, "mtex_2d_mapping", in[0].link, &texco);
 
 		float comp = (float) node->custom1;
 		float discard = (float) node->custom2;
-		GPU_link(mat, "mtex_parallax", texco, GPU_builtin(GPU_VIEW_POSITION), GPU_attribute(CD_TANGENT, ""), norm, texlink,
+		GPU_link(mat, "mtex_parallax", texco, GPU_material_builtin(mat, GPU_VIEW_POSITION), GPU_attribute(CD_TANGENT, ""), norm, texlink,
 			in[1].link, in[2].link, GPU_uniform(one), GPU_uniform(&discard), GPU_uniform(&comp), &outuv);
 
 		GPU_link(mat, "parallax_uv_attribute", outuv, &out[0].link);

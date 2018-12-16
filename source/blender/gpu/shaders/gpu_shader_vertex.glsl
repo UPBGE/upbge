@@ -12,11 +12,13 @@ in mat3 ininstmatrix;
 in vec3 ininstposition;
 in vec4 ininstcolor;
 in int ininstlayer;
+in vec3 ininstinfo;
 
 out vec4 varinstcolor;
 out mat4 varinstmat;
 out mat4 varinstinvmat;
 flat out int varinstlayer;
+out vec3 varinstinfo;
 
 uniform mat4 unfviewmat;
 #endif
@@ -117,6 +119,7 @@ void main()
 #endif
 	varinstcolor = ininstcolor;
 	varinstlayer = ininstlayer;
+	varinstinfo = ininstinfo;
 
 	position *= instmat;
 	normal *= ininstmatrix;

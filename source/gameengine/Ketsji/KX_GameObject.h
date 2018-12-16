@@ -106,6 +106,7 @@ protected:
 	KX_ClientObjectInfo m_clientInfo;
 	std::string							m_name;
 	int									m_layer;
+	short m_passIndex;
 	std::vector<KX_Mesh *>		m_meshes;
 	KX_LodManager						*m_lodManager;
 	short								m_currentLodLevel;
@@ -749,6 +750,9 @@ public:
 	GetLayer(
 		void
 	);
+
+	void SetPassIndex(short index);
+	short GetPassIndex() const;
 
 	/// Allow auto updating bounding volume box.
 	inline void SetAutoUpdateBounds(bool autoUpdate)

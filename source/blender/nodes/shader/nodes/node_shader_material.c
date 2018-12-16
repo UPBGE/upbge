@@ -280,7 +280,7 @@ static int gpu_shader_material(GPUMaterial *mat, bNode *node, bNodeExecData *UNU
 			shi.vn = gpu_get_input_link(mat, &in[MAT_IN_NORMAL]);
 			if (GPU_material_use_world_space_shading(mat)) {
 				GPU_link(mat, "vec_math_negate", shi.vn, &shi.vn);
-				GPU_link(mat, "direction_transform_m4v3", shi.vn, GPU_builtin(GPU_VIEW_MATRIX), &shi.vn);
+				GPU_link(mat, "direction_transform_m4v3", shi.vn, GPU_material_builtin(mat, GPU_VIEW_MATRIX), &shi.vn);
 			}
 			GPU_link(mat, "vec_math_normalize", shi.vn, &shi.vn, &tmp);
 		}
@@ -328,7 +328,7 @@ static int gpu_shader_material(GPUMaterial *mat, bNode *node, bNodeExecData *UNU
 		out[MAT_OUT_NORMAL].link = shi.vn;
 		if (GPU_material_use_world_space_shading(mat)) {
 			GPU_link(mat, "vec_math_negate", out[MAT_OUT_NORMAL].link, &out[MAT_OUT_NORMAL].link);
-			GPU_link(mat, "direction_transform_m4v3", out[MAT_OUT_NORMAL].link, GPU_builtin(GPU_INVERSE_VIEW_MATRIX), &out[MAT_OUT_NORMAL].link);
+			GPU_link(mat, "direction_transform_m4v3", out[MAT_OUT_NORMAL].link, GPU_material_builtin(mat, GPU_INVERSE_VIEW_MATRIX), &out[MAT_OUT_NORMAL].link);
 		}
 
 		if (node->type == SH_NODE_MATERIAL_EXT) {

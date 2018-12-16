@@ -256,6 +256,8 @@ void RAS_DisplayArrayBucket::RunInstancingNode(const RAS_DisplayArrayNodeTuple& 
 	RAS_IMaterial *material = materialData->m_material;
 	RAS_InstancingBuffer *buffer = m_nodeData.m_instancingBuffer;
 
+	const short matPasIndex = material->GetPassIndex();
+
 	// Bind the instancing buffer to work on it.
 	buffer->Realloc(nummeshslots);
 
@@ -279,11 +281,11 @@ void RAS_DisplayArrayBucket::RunInstancingNode(const RAS_DisplayArrayNodeTuple& 
 		}
 
 		// Fill the buffer with the sorted mesh slots.
-		buffer->Update(rasty, materialData->m_drawingMode, meshSlots);
+		buffer->Update(rasty, materialData->m_drawingMode, matPasIndex, meshSlots);
 	}
 	else {
 		// Fill the buffer with the original mesh slots.
-		buffer->Update(rasty, materialData->m_drawingMode, m_activeMeshSlots);
+		buffer->Update(rasty, materialData->m_drawingMode, matPasIndex, m_activeMeshSlots);
 	}
 
 	RAS_AttributeArrayStorage *attribStorage = m_nodeData.m_attribStorage;

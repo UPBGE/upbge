@@ -42,6 +42,10 @@ class RAS_MeshUser : public mt::SimdClassAllocator
 private:
 	/// Lamp layer.
 	unsigned int m_layer;
+	/// Object pass index.
+	short m_passIndex;
+	/// Random value of this user.
+	float m_random;
 	/// OpenGL face wise.
 	bool m_frontFace;
 	/// Object color.
@@ -65,6 +69,8 @@ public:
 
 	void NewMeshSlot(RAS_DisplayArrayBucket *arrayBucket);
 	unsigned int GetLayer() const;
+	short GetPassIndex() const;
+	float GetRandom() const;
 	bool GetFrontFace() const;
 	const mt::vec4& GetColor() const;
 	const mt::mat4& GetMatrix() const;
@@ -75,6 +81,7 @@ public:
 	RAS_Deformer *GetDeformer();
 
 	void SetLayer(unsigned int layer);
+	void SetPassIndex(short index);
 	void SetFrontFace(bool frontFace);
 	void SetColor(const mt::vec4& color);
 	void SetMatrix(const mt::mat4& matrix);

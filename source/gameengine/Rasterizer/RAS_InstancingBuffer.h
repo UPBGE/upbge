@@ -46,7 +46,9 @@ public:
 		/// Pack object color.
 		COLOR_ATTRIB = (1 << 0),
 		/// Pack object layer.
-		LAYER_ATTRIB = (1 << 1)
+		LAYER_ATTRIB = (1 << 1),
+		/// Pack object info.
+		INFO_ATTRIB = (1 << 2)
 	};
 
 private:
@@ -56,7 +58,8 @@ private:
 		MATRIX_MEMORY_SIZE = sizeof(float[9]),
 		POSITION_MEMORY_SIZE = sizeof(float[3]),
 		COLOR_MEMORY_SIZE = sizeof(float[4]),
-		LAYER_MEMORY_SIZE = sizeof(int)
+		LAYER_MEMORY_SIZE = sizeof(int),
+		INFO_MEMORY_SIZE = sizeof(float[3])
 	};
 
 	/// The OpenGL VBO.
@@ -69,6 +72,8 @@ private:
 	intptr_t m_colorOffset;
 	/// The layer offset in the VBO.
 	intptr_t m_layerOffset;
+	/// The info offset in the VBO.
+	intptr_t m_infoOffset;
 
 	/// Attributes to update.
 	Attrib m_attribs;
@@ -89,7 +94,7 @@ public:
 	 * \param drawingmode The material drawing mode used to detect a billboard/halo/shadow material.
 	 * \param meshSlots The list of all non-culled and visible mesh slots (= game object).
 	 */
-	void Update(RAS_Rasterizer *rasty, int drawingmode, const RAS_MeshSlotList &meshSlots);
+	void Update(RAS_Rasterizer *rasty, int drawingmode, short matPassIndex, const RAS_MeshSlotList &meshSlots);
 
 	inline intptr_t GetMatrixOffset() const
 	{
@@ -107,6 +112,11 @@ public:
 	inline intptr_t GetLayerOffset() const
 	{
 		return m_layerOffset;
+	}
+
+	inline intptr_t GetInfoOffset() const
+	{
+		return m_infoOffset;
 	}
 };
 

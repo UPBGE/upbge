@@ -78,11 +78,11 @@ static int node_shader_gpu_tex_image(GPUMaterial *mat, bNode *node, bNodeExecDat
 			GPU_stack_link(mat, "node_tex_image", in, out, GPU_image(ima, iuser, isdata));
 			break;
 		case SHD_PROJ_BOX:
-			GPU_link(mat, "direction_transform_m4v3", GPU_builtin(GPU_VIEW_NORMAL),
-			                                          GPU_builtin(GPU_INVERSE_VIEW_MATRIX),
+			GPU_link(mat, "direction_transform_m4v3", GPU_material_builtin(mat, GPU_VIEW_NORMAL),
+			                                          GPU_material_builtin(mat, GPU_INVERSE_VIEW_MATRIX),
 			                                          &norm);
 			GPU_link(mat, "direction_transform_m4v3", norm,
-			                                          GPU_builtin(GPU_INVERSE_OBJECT_MATRIX),
+			                                          GPU_material_builtin(mat, GPU_INVERSE_OBJECT_MATRIX),
 			                                          &norm);
 			GPU_link(mat, "node_tex_image_box", in[0].link,
 			                                    norm,

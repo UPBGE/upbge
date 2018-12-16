@@ -110,6 +110,7 @@ KX_GameObject::KX_GameObject(void *sgReplicationInfo,
                              SG_Callbacks callbacks)
 	:m_clientInfo(this, KX_ClientObjectInfo::ACTOR),
 	m_layer(0),
+	m_passIndex(0),
 	m_lodManager(nullptr),
 	m_currentLodLevel(0),
 	m_meshUser(nullptr),
@@ -140,6 +141,7 @@ KX_GameObject::KX_GameObject(const KX_GameObject& other)
 	m_clientInfo(this, other.m_clientInfo.m_type),
 	m_name(other.m_name),
 	m_layer(other.m_layer),
+	m_passIndex(other.m_passIndex),
 	m_meshes(other.m_meshes),
 	m_lodManager(other.m_lodManager),
 	m_currentLodLevel(0),
@@ -734,6 +736,7 @@ void KX_GameObject::UpdateBuckets()
 		m_sgNode->ClearDirty(SG_Node::DIRTY_RENDER);
 	}
 
+	m_meshUser->SetPassIndex(m_passIndex);
 	m_meshUser->SetLayer(m_layer);
 	m_meshUser->SetColor(m_objectColor);
 	m_meshUser->ActivateMeshSlots();
@@ -1004,6 +1007,16 @@ void KX_GameObject::SetLayer(int l)
 int KX_GameObject::GetLayer(void)
 {
 	return m_layer;
+}
+
+void KX_GameObject::SetPassIndex(short index)
+{
+	m_passIndex = index;
+}
+
+short KX_GameObject::GetPassIndex() const
+{
+	return m_passIndex;
 }
 
 void KX_GameObject::AddLinearVelocity(const mt::vec3& lin_vel, bool local)
@@ -1997,6 +2010,7 @@ PyAttributeDef KX_GameObject::Attributes[] = {
 	EXP_PYATTRIBUTE_RW_FUNCTION("angularVelocityMin", KX_GameObject, pyattr_get_ang_vel_min, pyattr_set_ang_vel_min),
 	EXP_PYATTRIBUTE_RW_FUNCTION("angularVelocityMax", KX_GameObject, pyattr_get_ang_vel_max, pyattr_set_ang_vel_max),
 	EXP_PYATTRIBUTE_RW_FUNCTION("layer", KX_GameObject, pyattr_get_layer, pyattr_set_layer),
+	EXP_PYATTRIBUTE_SHORT_RW("passIndex", 0, SHRT_MAX, false, KX_GameObject, m_passIndex),
 	EXP_PYATTRIBUTE_RW_FUNCTION("visible",  KX_GameObject, pyattr_get_visible,  pyattr_set_visible),
 	EXP_PYATTRIBUTE_RO_FUNCTION("culled", KX_GameObject, pyattr_get_culled),
 	EXP_PYATTRIBUTE_RO_FUNCTION("cullingBox",   KX_GameObject, pyattr_get_cullingBox),

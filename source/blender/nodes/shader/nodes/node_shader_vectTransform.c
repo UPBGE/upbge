@@ -116,7 +116,7 @@ static void node_shader_exec_vect_transform(void *data, int UNUSED(thread), bNod
 	}
 }
 
-static GPUNodeLink *get_gpulink_matrix_from_to(short from, short to)
+static GPUNodeLink *get_gpulink_matrix_from_to(GPUMaterial *mat, short from, short to)
 {
 	switch (from) {
 		case SHD_VECT_TRANSFORM_SPACE_OBJECT:
@@ -124,9 +124,9 @@ static GPUNodeLink *get_gpulink_matrix_from_to(short from, short to)
 				case SHD_VECT_TRANSFORM_SPACE_OBJECT:
 					return NULL;
 				case SHD_VECT_TRANSFORM_SPACE_WORLD:
-					return GPU_builtin(GPU_OBJECT_MATRIX);
+					return GPU_material_builtin(mat, GPU_OBJECT_MATRIX);
 				case SHD_VECT_TRANSFORM_SPACE_CAMERA:
-					return GPU_builtin(GPU_LOC_TO_VIEW_MATRIX);
+					return GPU_material_builtin(mat, GPU_LOC_TO_VIEW_MATRIX);
 			}
 			break;
 		case SHD_VECT_TRANSFORM_SPACE_WORLD:
@@ -134,9 +134,9 @@ static GPUNodeLink *get_gpulink_matrix_from_to(short from, short to)
 				case SHD_VECT_TRANSFORM_SPACE_WORLD:
 					return NULL;
 				case SHD_VECT_TRANSFORM_SPACE_CAMERA:
-					return GPU_builtin(GPU_VIEW_MATRIX);
+					return GPU_material_builtin(mat, GPU_VIEW_MATRIX);
 				case SHD_VECT_TRANSFORM_SPACE_OBJECT:
-					return GPU_builtin(GPU_INVERSE_OBJECT_MATRIX);
+					return GPU_material_builtin(mat, GPU_INVERSE_OBJECT_MATRIX);
 			}
 			break;
 		case SHD_VECT_TRANSFORM_SPACE_CAMERA:
@@ -144,9 +144,9 @@ static GPUNodeLink *get_gpulink_matrix_from_to(short from, short to)
 				case SHD_VECT_TRANSFORM_SPACE_CAMERA:
 					return NULL;
 				case SHD_VECT_TRANSFORM_SPACE_WORLD:
-					return GPU_builtin(GPU_INVERSE_VIEW_MATRIX);
+					return GPU_material_builtin(mat, GPU_INVERSE_VIEW_MATRIX);
 				case SHD_VECT_TRANSFORM_SPACE_OBJECT:
-					return GPU_builtin(GPU_INVERSE_LOC_TO_VIEW_MATRIX);
+					return GPU_material_builtin(mat, GPU_INVERSE_LOC_TO_VIEW_MATRIX);
 			}
 			break;
 	}
@@ -170,7 +170,7 @@ static int gpu_shader_vect_transform(GPUMaterial *mat, bNode *node, bNodeExecDat
 	else
 		inputlink = GPU_uniform(in[0].vec);
 
-	fromto = get_gpulink_matrix_from_to(nodeprop->convert_from, nodeprop->convert_to);
+	fromto = get_gpulink_matrix_from_to(mat, nodeprop->convert_from, nodeprop->convert_to);
 
 	func_name = (nodeprop->type == SHD_VECT_TRANSFORM_TYPE_POINT) ? ptransform : vtransform;
 	if (fromto) {

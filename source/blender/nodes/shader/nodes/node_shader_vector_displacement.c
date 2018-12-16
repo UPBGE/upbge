@@ -54,12 +54,12 @@ static int gpu_shader_vector_displacement(GPUMaterial *mat, bNode *node, bNodeEx
 		                      in,
 		                      out,
 		                      GPU_attribute(CD_TANGENT, ""),
-		                      GPU_builtin(GPU_VIEW_NORMAL),
-		                      GPU_builtin(GPU_OBJECT_MATRIX),
-		                      GPU_builtin(GPU_VIEW_MATRIX));
+		                      GPU_material_builtin(mat, GPU_VIEW_NORMAL),
+		                      GPU_material_builtin(mat, GPU_OBJECT_MATRIX),
+		                      GPU_material_builtin(mat, GPU_VIEW_MATRIX));
 	}
 	else if (node->custom1 == SHD_SPACE_OBJECT) {
-		return GPU_stack_link(mat, "node_vector_displacement_object", in, out, GPU_builtin(GPU_OBJECT_MATRIX));
+		return GPU_stack_link(mat, "node_vector_displacement_object", in, out, GPU_material_builtin(mat, GPU_OBJECT_MATRIX));
 	}
 	else {
 		return GPU_stack_link(mat, "node_vector_displacement_world", in, out);

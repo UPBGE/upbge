@@ -423,6 +423,8 @@ const char *GPU_builtin_name(GPUBuiltin builtin)
 		return "varinstcolor";
 	else if (builtin == GPU_INSTANCING_LAYER)
 		return "varinstlayer";
+	else if (builtin == GPU_INSTANCING_INFO)
+		return "varinstinfo";
 	else if (builtin == GPU_INSTANCING_COLOR_ATTRIB)
 		return "ininstcolor";
 	else if (builtin == GPU_INSTANCING_MATRIX_ATTRIB)
@@ -431,6 +433,8 @@ const char *GPU_builtin_name(GPUBuiltin builtin)
 		return "ininstposition";
 	else if (builtin == GPU_INSTANCING_LAYER_ATTRIB)
 		return "ininstlayer";
+	else if (builtin == GPU_INSTANCING_INFO_ATTRIB)
+		return "ininstinfo";
 	else if (builtin == GPU_TIME)
 		return "unftime";
 	else if (builtin == GPU_OBJECT_INFO)
