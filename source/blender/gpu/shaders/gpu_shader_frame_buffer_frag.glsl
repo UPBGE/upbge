@@ -22,19 +22,19 @@ void main()
 	if (stippleid == STIPPLE_ROW) {
 		int result = int(mod(gl_FragCoord.y, 2));
 		if (result != 0) {
-			gl_FragColor = texture2D(lefteyetex, co);
+			gl_FragData[0] = texture2D(lefteyetex, co);
 		}
 		else {
-			gl_FragColor = texture2D(righteyetex, co);
+			gl_FragData[0] = texture2D(righteyetex, co);
 		}
 	}
 	else if (stippleid == STIPPLE_COLUMN) {
 		int result = int(mod(gl_FragCoord.x, 2));
 		if (result == 0) {
-			gl_FragColor = texture2D(lefteyetex, co);
+			gl_FragData[0] = texture2D(lefteyetex, co);
 		}
 		else {
-			gl_FragColor = texture2D(righteyetex, co);
+			gl_FragData[0] = texture2D(righteyetex, co);
 		}
 	}
 #elif defined(ANAGLYPH)
