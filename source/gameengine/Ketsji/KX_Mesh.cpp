@@ -275,6 +275,11 @@ PyObject *KX_Mesh::PyTransform(PyObject *args, PyObject *kwds)
 	Py_RETURN_NONE;
 }
 
+static bool uvExist(short index, const RAS_DisplayArray::Format& format)
+{
+	return (0 <= index && index < format.uvSize);
+}
+
 PyObject *KX_Mesh::PyTransformUV(PyObject *args, PyObject *kwds)
 {
 	int matindex;
@@ -321,19 +326,22 @@ PyObject *KX_Mesh::PyTransformUV(PyObject *args, PyObject *kwds)
 		ok = true;
 
 		for (unsigned int j = 0, size = array->GetVertexCount(); j < size; ++j) {
-			if (uvindex_from != -1) {
+			// Copy one layer (optional).
+			if (uvindex_from != -1 && uvExist(uvindex_from, format)) {
 				array->SetUv(j, uvindex, array->GetUv(j, uvindex_from));
 			}
 
-			if (0 <= uvindex && uvindex < format.uvSize) {
-				const mt::vec2_packed& uv = array->GetUv(j, uvindex);
-				array->SetUv(j, uvindex, (transform * mt::vec3(uv.x, uv.y, 0.0f)).xy());
-			}
-			else if (uvindex == -1) {
+			// Transform all layers.
+			if (uvindex == -1) {
 				for (unsigned short k = 0; k < format.uvSize; ++k) {
 					const mt::vec2_packed& uv = array->GetUv(j, k);
 					array->SetUv(j, k, (transform * mt::vec3(uv.x, uv.y, 0.0f)).xy());
 				}
+			}
+			// Transform one layer.
+			else if (uvExist(uvindex, format)) {
+				const mt::vec2_packed& uv = array->GetUv(j, uvindex);
+				array->SetUv(j, uvindex, (transform * mt::vec3(uv.x, uv.y, 0.0f)).xy());
 			}
 		}
 
