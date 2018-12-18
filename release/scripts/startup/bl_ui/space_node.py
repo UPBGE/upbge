@@ -43,7 +43,7 @@ class NODE_HT_header(Header):
         snode = context.space_data
         snode_id = snode.id
         id_from = snode.id_from
-        toolsettings = context.tool_settings
+        tool_settings = context.tool_settings
 
         row = layout.row(align=True)
         row.template_header()
@@ -155,10 +155,10 @@ class NODE_HT_header(Header):
 
         # Snap
         row = layout.row(align=True)
-        row.prop(toolsettings, "use_snap", text="")
-        row.prop(toolsettings, "snap_node_element", icon_only=True)
-        if toolsettings.snap_node_element != 'GRID':
-            row.prop(toolsettings, "snap_target", text="")
+        row.prop(tool_settings, "use_snap", text="")
+        row.prop(tool_settings, "snap_node_element", icon_only=True)
+        if tool_settings.snap_node_element != 'GRID':
+            row.prop(tool_settings, "snap_target", text="")
 
 
 class NODE_MT_editor_menus(Menu):
@@ -331,22 +331,35 @@ class NODE_MT_specials(Menu):
     def draw(self, context):
         layout = self.layout
 
+        # If nothing is selected
+        selected_nodes_len = len(context.selected_nodes)
+        if selected_nodes_len == 0:
+            layout.operator_context = 'INVOKE_DEFAULT'
+            layout.menu("NODE_MT_add")
+            layout.operator("node.clipboard_paste", text="Paste")
+            return
+
+        # If something is selected
         layout.operator_context = 'INVOKE_DEFAULT'
         layout.operator("node.duplicate_move")
         layout.operator("node.delete")
+        layout.operator("node.clipboard_copy", text="Copy")
+        layout.operator("node.clipboard_paste", text="Paste")
         layout.operator_context = 'EXEC_DEFAULT'
 
         layout.operator("node.delete_reconnect")
 
-        layout.separator()
+        if selected_nodes_len > 1:
+            layout.separator()
 
-        layout.operator("node.link_make").replace = False
-        layout.operator("node.link_make", text="Make and Replace Links").replace = True
-        layout.operator("node.links_detach")
+            layout.operator("node.link_make").replace = False
+            layout.operator("node.link_make", text="Make and Replace Links").replace = True
+            layout.operator("node.links_detach")
 
-        layout.separator()
+            layout.separator()
 
-        layout.operator("node.group_make", text="Group")
+            layout.operator("node.group_make", text="Group")
+
         layout.operator("node.group_ungroup", text="Ungroup")
         layout.operator("node.group_edit").exit = False
 

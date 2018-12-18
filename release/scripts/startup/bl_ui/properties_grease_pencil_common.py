@@ -33,7 +33,7 @@ def gpencil_stroke_placement_settings(context, layout):
     else:
         propname = "annotation_stroke_placement_view2d"
 
-    ts = context.tool_settings
+    tool_settings = context.tool_settings
 
     col = layout.column(align=True)
 
@@ -45,7 +45,8 @@ def gpencil_stroke_placement_settings(context, layout):
 
 
 def gpencil_active_brush_settings_simple(context, layout):
-    brush = context.active_gpencil_brush
+    tool_settings = context.tool_settings
+    brush = tool_settings.gpencil_paint.brush
     if brush is None:
         layout.label(text="No Active Brush")
         return
@@ -324,10 +325,11 @@ class GreasePencilAppearancePanel:
         layout.use_property_split = True
         layout.use_property_decorate = False
 
+        tool_settings = context.tool_settings
         ob = context.active_object
 
         if ob.mode == 'PAINT_GPENCIL':
-            brush = context.active_gpencil_brush
+            brush = tool_settings.gpencil_paint.brush
             gp_settings = brush.gpencil_settings
 
             sub = layout.column(align=True)
@@ -348,7 +350,7 @@ class GreasePencilAppearancePanel:
                 layout.prop(brush, "cursor_color_add", text="Color")
 
         elif ob.mode in {'SCULPT_GPENCIL', 'WEIGHT_GPENCIL'}:
-            settings = context.tool_settings.gpencil_sculpt
+            settings = tool_settings.gpencil_sculpt
             brush = settings.brush
             tool = settings.sculpt_tool
 
@@ -452,7 +454,6 @@ class GPENCIL_MT_pie_settings_palette(Menu):
         gpd = context.gpencil_data
         gpl = context.active_gpencil_layer
         palcolor = None  # context.active_gpencil_palettecolor
-        # brush = context.active_gpencil_brush
 
         is_editmode = bool(gpd and gpd.use_stroke_edit_mode and context.editable_gpencil_strokes)
 
@@ -645,6 +646,7 @@ class GPENCIL_MT_gpencil_draw_specials(Menu):
         layout.operator("gpencil.primitive", text="Rectangle", icon='UV_FACESEL').type = 'BOX'
         layout.operator("gpencil.primitive", text="Circle", icon='ANTIALIASED').type = 'CIRCLE'
         layout.operator("gpencil.primitive", text="Arc", icon='SPHERECURVE').type = 'ARC'
+        layout.operator("gpencil.primitive", text="Curve", icon='CURVE_BEZCURVE').type = 'CURVE'
 
 
 class GPENCIL_MT_gpencil_draw_delete(Menu):

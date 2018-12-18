@@ -822,23 +822,16 @@ void workbench_deferred_solid_cache_populate(WORKBENCH_Data *vedata, Object *ob)
 			const Mesh *me = ob->data;
 			if (me->mloopuv) {
 				const int materials_len = MAX2(1, (is_sculpt_mode ? 1 : ob->totcol));
-				struct GPUMaterial **gpumat_array = BLI_array_alloca(gpumat_array, materials_len);
-				struct GPUBatch **geom_array = me->totcol ? DRW_cache_mesh_surface_texpaint_get(ob, use_hide) : NULL;
-				if (materials_len > 0 && geom_array) {
-					for (int i = 0; i < materials_len; i++) {
-						if (geom_array[i] == NULL) {
-							continue;
-						}
-
-						Material *mat = give_current_material(ob, i + 1);
-						Image *image;
-						ED_object_get_active_image(ob, i + 1, &image, NULL, NULL, NULL);
-						int color_type = workbench_material_determine_color_type(wpd, image, ob);
-						material = get_or_create_material_data(vedata, ob, mat, image, color_type);
-						DRW_shgroup_call_object_add(material->shgrp, geom_array[i], ob);
-					}
-					is_drawn = true;
+				struct GPUBatch **geom_array = DRW_cache_mesh_surface_texpaint_get(ob);
+				for (int i = 0; i < materials_len; i++) {
+					Material *mat = give_current_material(ob, i + 1);
+					Image *image;
+					ED_object_get_active_image(ob, i + 1, &image, NULL, NULL, NULL);
+					int color_type = workbench_material_determine_color_type(wpd, image, ob);
+					material = get_or_create_material_data(vedata, ob, mat, image, color_type);
+					DRW_shgroup_call_object_add(material->shgrp, geom_array[i], ob);
 				}
+				is_drawn = true;
 			}
 		}
 
@@ -846,7 +839,7 @@ void workbench_deferred_solid_cache_populate(WORKBENCH_Data *vedata, Object *ob)
 		if (!is_drawn) {
 			if (ELEM(wpd->shading.color_type, V3D_SHADING_SINGLE_COLOR, V3D_SHADING_RANDOM_COLOR)) {
 				/* No material split needed */
-				struct GPUBatch *geom = DRW_cache_object_surface_get_ex(ob, use_hide);
+				struct GPUBatch *geom = DRW_cache_object_surface_get(ob);
 				if (geom) {
 					material = get_or_create_material_data(vedata, ob, NULL, NULL, wpd->shading.color_type);
 					if (is_sculpt_mode) {
@@ -865,7 +858,7 @@ void workbench_deferred_solid_cache_populate(WORKBENCH_Data *vedata, Object *ob)
 				}
 
 				struct GPUBatch **mat_geom = DRW_cache_object_surface_material_get(
-				        ob, gpumat_array, materials_len, use_hide, NULL, NULL, NULL);
+				        ob, gpumat_array, materials_len, NULL, NULL, NULL);
 				if (mat_geom) {
 					for (int i = 0; i < materials_len; ++i) {
 						if (mat_geom[i] == NULL) {

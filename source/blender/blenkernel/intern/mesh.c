@@ -503,7 +503,6 @@ void BKE_mesh_init(Mesh *me)
 	me->size[0] = me->size[1] = me->size[2] = 1.0;
 	me->smoothresh = DEG2RADF(30);
 	me->texflag = ME_AUTOSPACE;
-	me->drawflag = 0;
 
 	CustomData_reset(&me->vdata);
 	CustomData_reset(&me->edata);
@@ -701,8 +700,7 @@ Mesh *BKE_mesh_copy_for_eval(struct Mesh *source, bool reference)
 	int flags = (LIB_ID_CREATE_NO_MAIN |
 	             LIB_ID_CREATE_NO_USER_REFCOUNT |
 	             LIB_ID_CREATE_NO_DEG_TAG |
-	             LIB_ID_COPY_NO_PREVIEW |
-	             LIB_ID_COPY_RUNTIME);
+	             LIB_ID_COPY_NO_PREVIEW);
 
 	if (reference) {
 		flags |= LIB_ID_COPY_CD_REFERENCE;
@@ -1565,6 +1563,18 @@ void BKE_mesh_mselect_active_set(Mesh *me, int index, int type)
 	           (me->mselect[me->totselect - 1].type  == type));
 }
 
+void BKE_mesh_count_selected_items(const Mesh *mesh, int r_count[3])
+{
+	r_count[0] = r_count[1] = r_count[2] = 0;
+	if (mesh->edit_btmesh) {
+		BMesh *bm = mesh->edit_btmesh->bm;
+		r_count[0] = bm->totvertsel;
+		r_count[1] = bm->totedgesel;
+		r_count[2] = bm->totfacesel;
+	}
+	/* We could support faces in paint modes. */
+
+}
 
 void BKE_mesh_apply_vert_coords(Mesh *mesh, float (*vertCoords)[3])
 {

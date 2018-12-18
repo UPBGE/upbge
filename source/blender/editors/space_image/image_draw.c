@@ -649,10 +649,7 @@ static void draw_image_buffer_repeated(const bContext *C, SpaceImage *sima, AReg
 	for (x = xmin; x < xmax; x++) {
 		int y;
 		for (y = ymin; y < ymax; y++) {
-			if (ima && (ima->tpageflag & IMA_TILES))
-				draw_image_buffer_tiled(sima, ar, scene, ima, ibuf, x, y, zoomx, zoomy);
-			else
-				draw_image_buffer(C, sima, ar, scene, ibuf, x, y, zoomx, zoomy);
+			draw_image_buffer(C, sima, ar, scene, ibuf, x, y, zoomx, zoomy);
 
 			/* only draw until running out of time */
 			if ((PIL_check_seconds_timer() - time_current) > 0.25)
@@ -813,8 +810,6 @@ void draw_image_main(const bContext *C, ARegion *ar)
 	else {
 		if (sima->flag & SI_DRAW_TILE)
 			draw_image_buffer_repeated(C, sima, ar, scene, ima, ibuf, zoomx, zoomy);
-		else if (ima && (ima->tpageflag & IMA_TILES))
-			draw_image_buffer_tiled(sima, ar, scene, ima, ibuf, 0.0f, 0.0f, zoomx, zoomy);
 		else
 			draw_image_buffer(C, sima, ar, scene, ibuf, 0.0f, 0.0f, zoomx, zoomy);
 

@@ -1077,6 +1077,16 @@ class _defs_gpencil_paint:
             keymap=(),
         )
 
+    @ToolDef.from_fn
+    def curve():
+        return dict(
+            text="Curve",
+            icon="ops.gpencil.primitive_curve",
+            cursor='CROSSHAIR',
+            widget=None,
+            keymap=(),
+        )
+
 class _defs_gpencil_edit:
     @ToolDef.from_fn
     def bend():
@@ -1580,9 +1590,10 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
             _defs_gpencil_paint.generate_from_brushes,
             None,
             _defs_gpencil_paint.line,
+            _defs_gpencil_paint.arc,
+            _defs_gpencil_paint.curve,
             _defs_gpencil_paint.box,
             _defs_gpencil_paint.circle,
-            _defs_gpencil_paint.arc,
         ],
         'EDIT_GPENCIL': [
             *_tools_gpencil_select,

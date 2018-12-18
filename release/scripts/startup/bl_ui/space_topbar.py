@@ -110,7 +110,7 @@ class TOPBAR_HT_lower_bar(Header):
         # Object Mode Options
         # -------------------
 
-        # Example of how toolsettings can be accessed as pop-overs.
+        # Example of how tool_settings can be accessed as pop-overs.
 
         # TODO(campbell): editing options should be after active tool options
         # (obviously separated for from the users POV)
@@ -301,7 +301,7 @@ class _draw_left_context_mode:
                 return
 
             is_paint = True
-            if (tool.name in {"Line", "Box", "Circle", "Arc"}):
+            if (tool.name in {"Line", "Box", "Circle", "Arc", "Curve"}):
                 is_paint = False
             elif (not tool.has_datablock):
                 return
@@ -339,14 +339,15 @@ class _draw_left_context_mode:
                 row.prop(gp_settings, "use_material_pin", text="")
 
             row = layout.row(align=True)
-            ts = context.scene.tool_settings
-            settings = ts.gpencil_paint
+            tool_settings = context.scene.tool_settings
+            settings = tool_settings.gpencil_paint
             row.template_ID_preview(settings, "brush", rows=3, cols=8, hide_buttons=True)
 
             if brush.gpencil_tool == 'ERASE':
                 row = layout.row(align=True)
                 row.prop(brush, "size", text="Radius")
                 row.prop(gp_settings, "use_pressure", text="", icon='STYLUS_PRESSURE')
+                row.prop(gp_settings, "use_occlude_eraser", text="", icon='XRAY')
                 if gp_settings.eraser_mode == 'SOFT':
                     row = layout.row(align=True)
                     row.prop(gp_settings, "pen_strength", slider=True)
@@ -374,6 +375,17 @@ class _draw_left_context_mode:
                     row.prop(gp_settings, "use_strength_pressure", text="", icon='STYLUS_PRESSURE')
 
                 draw_color_selector()
+
+                if tool.name in {"Arc", "Curve", "Line", "Box", "Circle"}:
+                    settings = context.tool_settings.gpencil_sculpt
+                    row = layout.row(align=True)
+                    row.prop(settings, "use_thickness_curve", text="", icon='CURVE_DATA')
+                    sub = row.row(align=True)
+                    sub.active = settings.use_thickness_curve
+                    sub.popover(
+                        panel="TOPBAR_PT_gpencil_primitive",
+                        text="Thickness Profile"
+                    )
 
         @staticmethod
         def SCULPT_GPENCIL(context, layout, tool):
@@ -1039,6 +1051,21 @@ class TOPBAR_PT_active_tool(Panel):
         ToolSelectPanelHelper.draw_active_tool_header(context, layout, show_tool_name=True)
 
 
+# Grease Pencil Object - Primitive curve
+class TOPBAR_PT_gpencil_primitive(Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'HEADER'
+    bl_label = "Primitives"
+
+    @staticmethod
+    def draw(self, context):
+        settings = context.tool_settings.gpencil_sculpt
+
+        layout = self.layout
+        # Curve
+        layout.template_curve_mapping(settings, "thickness_primitive_curve", brush=True)
+
+
 classes = (
     TOPBAR_HT_upper_bar,
     TOPBAR_HT_lower_bar,
@@ -1059,6 +1086,7 @@ classes = (
     TOPBAR_MT_help,
     TOPBAR_PT_active_tool,
     TOPBAR_PT_gpencil_layers,
+    TOPBAR_PT_gpencil_primitive,
 )
 
 if __name__ == "__main__":  # only for live edit.

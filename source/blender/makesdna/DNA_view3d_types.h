@@ -301,21 +301,21 @@ typedef struct View3D {
 
 
 /* View3D->stereo_flag (short) */
-#define V3D_S3D_DISPCAMERAS		(1 << 0)
-#define V3D_S3D_DISPPLANE		(1 << 1)
-#define V3D_S3D_DISPVOLUME		(1 << 2)
+#define V3D_S3D_DISPCAMERAS     (1 << 0)
+#define V3D_S3D_DISPPLANE       (1 << 1)
+#define V3D_S3D_DISPVOLUME      (1 << 2)
 
 /* View3D->flag (short) */
-/*#define V3D_FLAG_DEPRECATED_1 (1 << 0) */ /*UNUSED */
-/*#define V3D_FLAG_DEPRECATED_2 (1 << 1) */ /* UNUSED */
-#define V3D_HIDE_HELPLINES	4
-#define V3D_INVALID_BACKBUF	8
+#define V3D_FLAG_DEPRECATED_0   (1 << 0)  /* cleared */
+#define V3D_FLAG_DEPRECATED_1   (1 << 1)  /* cleared */
+#define V3D_HIDE_HELPLINES      (1 << 2)
+#define V3D_INVALID_BACKBUF     (1 << 3)
 
-/* #define V3D_FLAG_DEPRECATED_10 (1 << 10) */ /* UNUSED */
-#define V3D_SELECT_OUTLINE	2048
-#define V3D_ZBUF_SELECT		4096   /* XXX: DNA deprecated */
-#define V3D_GLOBAL_STATS	8192
-#define V3D_DRAW_CENTERS	32768
+#define V3D_FLAG_DEPRECATED_10  (1 << 10)  /* cleared */
+#define V3D_SELECT_OUTLINE      (1 << 11)
+#define V3D_FLAG_DEPRECATED_12  (1 << 12)  /* cleared */
+#define V3D_GLOBAL_STATS        (1 << 13)
+#define V3D_DRAW_CENTERS        (1 << 15)
 
 /* RegionView3d->persp */
 #define RV3D_ORTHO				0
@@ -323,10 +323,10 @@ typedef struct View3D {
 #define RV3D_CAMOB				2
 
 /* RegionView3d->rflag */
-#define RV3D_CLIPPING				4
-#define RV3D_NAVIGATING				8
-#define RV3D_GPULIGHT_UPDATE		16
-#define RV3D_IS_GAME_ENGINE			32  /* runtime flag, used to check if LoD's should be used */
+#define RV3D_CLIPPING               (1 << 2)
+#define RV3D_NAVIGATING             (1 << 3)
+#define RV3D_GPULIGHT_UPDATE        (1 << 4)
+/*#define RV3D_IS_GAME_ENGINE       (1 << 5) *//* UNUSED */
 /**
  * Disable zbuffer offset, skip calls to #ED_view3d_polygon_offset.
  * Use when precise surface depth is needed and picking bias isn't, see T45434).
@@ -354,20 +354,20 @@ typedef struct View3D {
 	(((view) >= RV3D_VIEW_FRONT) && ((view) <= RV3D_VIEW_BOTTOM))
 
 /* View3d->flag2 (int) */
-#define V3D_RENDER_OVERRIDE		(1 << 2)
-#define V3D_SOLID_TEX			(1 << 3)
+#define V3D_RENDER_OVERRIDE     (1 << 2)
+#define V3D_FLAG2_DEPRECATED_3  (1 << 3)   /* cleared */
 #define V3D_SHOW_ANNOTATION     (1 << 4)
-#define V3D_LOCK_CAMERA			(1 << 5)
-#define V3D_RENDER_SHADOW		(1 << 6)		/* This is a runtime only flag that's used to tell draw_mesh_object() that we're doing a shadow pass instead of a regular draw */
-#define V3D_SHOW_RECONSTRUCTION	(1 << 7)
-#define V3D_SHOW_CAMERAPATH		(1 << 8)
-#define V3D_SHOW_BUNDLENAME		(1 << 9)
-#define V3D_BACKFACE_CULLING	(1 << 10)
-#define V3D_RENDER_BORDER		(1 << 11)
-#define V3D_SOLID_MATCAP		(1 << 12)	/* user flag */
-#define V3D_SHOW_SOLID_MATCAP	(1 << 13)	/* runtime flag */
-#define V3D_OCCLUDE_WIRE		(1 << 14)   /* XXX: DNA deprecated */
-#define V3D_SHOW_MODE_SHADE_OVERRIDE (1 << 15) /* XXX: DNA deprecated */
+#define V3D_LOCK_CAMERA         (1 << 5)
+#define V3D_FLAG2_DEPRECATED_6  (1 << 6)   /* cleared */
+#define V3D_SHOW_RECONSTRUCTION (1 << 7)
+#define V3D_SHOW_CAMERAPATH     (1 << 8)
+#define V3D_SHOW_BUNDLENAME     (1 << 9)
+#define V3D_BACKFACE_CULLING    (1 << 10)
+#define V3D_RENDER_BORDER       (1 << 11)
+#define V3D_FLAG2_DEPRECATED_12 (1 << 12)  /* cleared */
+#define V3D_FLAG2_DEPRECATED_13 (1 << 13)  /* cleared */
+#define V3D_FLAG2_DEPRECATED_14 (1 << 14)  /* cleared */
+#define V3D_FLAG2_DEPRECATED_15 (1 << 15)  /* cleared */
 
 /* View3d->gp_flag (short) */
 #define V3D_GP_SHOW_PAPER            (1 << 0) /* Activate paper to cover all viewport */
@@ -508,10 +508,10 @@ enum {
 #define V3D_VIEW_PANUP			 8
 
 /* View3d->gridflag */
-#define V3D_SHOW_FLOOR			1
-#define V3D_SHOW_X				2
-#define V3D_SHOW_Y				4
-#define V3D_SHOW_Z				8
+#define V3D_SHOW_FLOOR          (1 << 0)
+#define V3D_SHOW_X              (1 << 1)
+#define V3D_SHOW_Y              (1 << 2)
+#define V3D_SHOW_Z              (1 << 3)
 
 /* Scene.orientation_type */
 #define V3D_MANIP_GLOBAL		0

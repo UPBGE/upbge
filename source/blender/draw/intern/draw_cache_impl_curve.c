@@ -750,8 +750,8 @@ static void curve_create_edit_data_and_handles(
 					GPU_indexbuf_add_point_vert(elbp_verts, vbo_len_used + 1);
 				}
 				if (elbp_lines) {
-					GPU_indexbuf_add_line_verts(elbp_lines, vbo_len_used + 0, vbo_len_used + 1);
-					GPU_indexbuf_add_line_verts(elbp_lines, vbo_len_used + 0, vbo_len_used + 2);
+					GPU_indexbuf_add_line_verts(elbp_lines, vbo_len_used + 1, vbo_len_used + 0);
+					GPU_indexbuf_add_line_verts(elbp_lines, vbo_len_used + 1, vbo_len_used + 2);
 				}
 				if (vbo_data) {
 					char vflag[3] = {
@@ -909,7 +909,10 @@ void DRW_curve_batch_cache_create_requested(Object *ob)
 			memset(cache->surf_per_mat[i], 0, sizeof(*cache->surf_per_mat[i]));
 		}
 	}
-	cache->cd_used = cache->cd_needed;
+	if ((cache->cd_used & cache->cd_needed) != cache->cd_needed) {
+		cache->cd_used |= cache->cd_needed;
+		cache->cd_needed = 0;
+	}
 
 	/* Init batches and request VBOs & IBOs */
 	if (DRW_batch_requested(cache->batch.surfaces, GPU_PRIM_TRIS)) {
@@ -990,7 +993,7 @@ void DRW_curve_batch_cache_create_requested(Object *ob)
 	}
 
 	if (DRW_vbo_requested(cache->tess.pos_nor) ||
-		DRW_vbo_requested(cache->tess.uv))
+	    DRW_vbo_requested(cache->tess.uv))
 	{
 		DRW_displist_vertbuf_create_pos_and_nor_and_uv_tess(lb, cache->tess.pos_nor, cache->tess.uv);
 	}
@@ -1021,14 +1024,14 @@ void DRW_curve_batch_cache_create_requested(Object *ob)
 		curve_create_edit_curves_nor(rdata, cache->edit.curves_nor);
 	}
 
+	curve_render_data_free(rdata);
+
 #ifdef DEBUG
 	/* Make sure all requested batches have been setup. */
 	for (int i = 0; i < sizeof(cache->batch) / sizeof(void *); ++i) {
 		BLI_assert(!DRW_batch_requested(((GPUBatch **)&cache->batch)[i], 0));
 	}
 #endif
-
-	curve_render_data_free(rdata);
 }
 
 /** \} */

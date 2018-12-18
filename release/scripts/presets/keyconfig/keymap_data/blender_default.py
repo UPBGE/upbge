@@ -1040,8 +1040,6 @@ def km_view3d(params):
         ("view3d.pastebuffer", {"type": 'V', "value": 'PRESS', "ctrl": True}, None),
         # Menus.
         op_menu_pie("VIEW3D_MT_snap_pie", {"type": 'S', "value": 'PRESS', "shift": True}),
-        op_menu_pie("VIEW3D_MT_pivot_pie", {"type": 'PERIOD', "value": 'PRESS'}),
-        op_menu_pie("VIEW3D_MT_orientations_pie", {"type": 'COMMA', "value": 'PRESS'}),
         # Transform.
         ("transform.translate", {"type": 'G', "value": 'PRESS'}, None),
         ("transform.translate", {"type": params.select_tweak, "value": 'ANY'}, None),
@@ -1119,19 +1117,19 @@ def km_view3d(params):
              {"properties": [("texture_space", True)]}),
             # Old pivot.
             ("wm.context_set_enum", {"type": 'COMMA', "value": 'PRESS'},
-             {"properties": [("data_path", 'space_data.pivot_point'), ("value", 'BOUNDING_BOX_CENTER')]}),
+             {"properties": [("data_path", 'tool_settings.transform_pivot_point'), ("value", 'BOUNDING_BOX_CENTER')]}),
             ("wm.context_set_enum", {"type": 'COMMA', "value": 'PRESS', "ctrl": True},
-             {"properties": [("data_path", 'space_data.pivot_point'), ("value", 'MEDIAN_POINT')]}),
+             {"properties": [("data_path", 'tool_settings.transform_pivot_point'), ("value", 'MEDIAN_POINT')]}),
             ("wm.context_toggle", {"type": 'COMMA', "value": 'PRESS', "alt": True},
              {"properties": [("data_path", 'tool_settings.use_transform_pivot_point_align')]}),
             ("wm.context_toggle", {"type": 'SPACE', "value": 'PRESS', "ctrl": True},
              {"properties": [("data_path", 'space_data.show_gizmo_tool')]}),
             ("wm.context_set_enum", {"type": 'PERIOD', "value": 'PRESS'},
-             {"properties": [("data_path", 'space_data.pivot_point'), ("value", 'CURSOR')]}),
+             {"properties": [("data_path", 'tool_settings.transform_pivot_point'), ("value", 'CURSOR')]}),
             ("wm.context_set_enum", {"type": 'PERIOD', "value": 'PRESS', "ctrl": True},
-             {"properties": [("data_path", 'space_data.pivot_point'), ("value", 'INDIVIDUAL_ORIGINS')]}),
+             {"properties": [("data_path", 'tool_settings.transform_pivot_point'), ("value", 'INDIVIDUAL_ORIGINS')]}),
             ("wm.context_set_enum", {"type": 'PERIOD', "value": 'PRESS', "alt": True},
-             {"properties": [("data_path", 'space_data.pivot_point'), ("value", 'ACTIVE_ELEMENT')]}),
+             {"properties": [("data_path", 'tool_settings.transform_pivot_point'), ("value", 'ACTIVE_ELEMENT')]}),
             # Old shading.
             ("wm.context_toggle_enum", {"type": 'Z', "value": 'PRESS'},
              {"properties": [("data_path", 'space_data.shading.type'), ("value_1", 'WIREFRAME'), ("value_2", 'SOLID')]}),
@@ -5709,6 +5707,15 @@ def km_3d_view_tool_paint_gpencil_arc(params):
         ]},
     )
 
+def km_3d_view_tool_paint_gpencil_curve(params):
+    return (
+        "3D View Tool: Paint Gpencil, Curve",
+        {"space_type": 'VIEW_3D', "region_type": 'WINDOW'},
+        {"items": [
+            ("gpencil.primitive", {"type": params.tool_tweak, "value": 'ANY'},
+             {"properties": [("type", 'CURVE'), ("wait_for_input", False)]}),
+        ]},
+    )	
 
 def km_3d_view_tool_edit_gpencil_select(params):
     return (
@@ -6019,6 +6026,7 @@ def generate_keymaps(params=None):
         km_3d_view_tool_paint_gpencil_box(params),
         km_3d_view_tool_paint_gpencil_circle(params),
         km_3d_view_tool_paint_gpencil_arc(params),
+        km_3d_view_tool_paint_gpencil_curve(params),
         km_3d_view_tool_edit_gpencil_select(params),
         km_3d_view_tool_edit_gpencil_select_box(params),
         km_3d_view_tool_edit_gpencil_select_circle(params),

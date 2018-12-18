@@ -854,10 +854,6 @@ void BKE_object_init(Object *ob)
 	ob->empty_drawtype = OB_PLAINAXES;
 	ob->empty_drawsize = 1.0;
 	ob->empty_image_depth = OB_EMPTY_IMAGE_DEPTH_DEFAULT;
-	ob->empty_image_visibility_flag = (
-	        OB_EMPTY_IMAGE_VISIBLE_PERSPECTIVE |
-	        OB_EMPTY_IMAGE_VISIBLE_ORTHOGRAPHIC |
-	        OB_EMPTY_IMAGE_VISIBLE_BACKSIDE);
 	if (ob->type == OB_EMPTY) {
 		copy_v2_fl(ob->ima_ofs, -0.5f);
 	}
@@ -2903,19 +2899,28 @@ void BKE_object_empty_draw_type_set(Object *ob, const int value)
 
 bool BKE_object_empty_image_is_visible_in_view3d(const Object *ob, const RegionView3D *rv3d)
 {
-	int visibility_flag = ob->empty_image_visibility_flag;
+	char visibility_flag = ob->empty_image_visibility_flag;
 
-	if ((visibility_flag & OB_EMPTY_IMAGE_VISIBLE_BACKSIDE) == 0) {
-		if (dot_v3v3((float *)&ob->obmat[2], (float *)&rv3d->viewinv[2]) < 0.0f) {
-			return false;
+	if ((visibility_flag & (OB_EMPTY_IMAGE_HIDE_BACK | OB_EMPTY_IMAGE_HIDE_FRONT)) != 0) {
+		/* TODO: this isn't correct with perspective projection. */
+		const float dot = dot_v3v3((float *)&ob->obmat[2], (float *)&rv3d->viewinv[2]);
+		if (visibility_flag & OB_EMPTY_IMAGE_HIDE_BACK) {
+			if (dot < 0.0f) {
+				return false;
+			}
+		}
+		if (visibility_flag & OB_EMPTY_IMAGE_HIDE_FRONT) {
+			if (dot > 0.0f) {
+				return false;
+			}
 		}
 	}
 
 	if (rv3d->is_persp) {
-		return visibility_flag & OB_EMPTY_IMAGE_VISIBLE_PERSPECTIVE;
+		return (visibility_flag & OB_EMPTY_IMAGE_HIDE_PERSPECTIVE) == 0;
 	}
 	else {
-		return visibility_flag & OB_EMPTY_IMAGE_VISIBLE_ORTHOGRAPHIC;
+		return (visibility_flag & OB_EMPTY_IMAGE_HIDE_ORTHOGRAPHIC) == 0;
 	}
 }
 
@@ -3804,6 +3809,17 @@ MovieClip *BKE_object_movieclip_get(Scene *scene, Object *ob, bool use_default)
 void BKE_object_runtime_reset(Object *object)
 {
 	memset(&object->runtime, 0, sizeof(object->runtime));
+}
+
+/* Reset all pointers which we don't want to be shared when copying the object. */
+void BKE_object_runtime_reset_on_copy(Object *object)
+{
+	Object_Runtime *runtime = &object->runtime;
+	runtime->mesh_eval = NULL;
+	runtime->mesh_deform_eval = NULL;
+	runtime->curve_cache = NULL;
+	runtime->gpencil_cache = NULL;
+	runtime->cached_bbone_deformation = NULL;
 }
 
 /*
