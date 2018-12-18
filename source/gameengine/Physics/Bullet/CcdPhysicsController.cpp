@@ -1686,7 +1686,7 @@ bool CcdPhysicsController::IsPhysicsSuspended()
  */
 bool CcdPhysicsController::ReinstancePhysicsShape(KX_GameObject *from_gameobj, RAS_Mesh *from_meshobj, bool dupli)
 {
-	if (m_shapeInfo->m_shapeType != PHY_SHAPE_MESH) {
+	if (!ELEM(m_shapeInfo->m_shapeType, PHY_SHAPE_MESH, PHY_SHAPE_POLYTOPE)) {
 		return false;
 	}
 

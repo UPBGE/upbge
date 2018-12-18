@@ -1044,7 +1044,7 @@ base class --- :class:`SCA_IObject`
 
       .. warning::
 
-         Only triangle mesh type objects are supported currently (not convex hull)
+         Only triangle mesh and convex hull type objects are supported currently.
 
       .. warning::
 
