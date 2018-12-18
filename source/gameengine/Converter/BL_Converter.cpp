@@ -524,15 +524,19 @@ bool BL_Converter::FreeBlendFileData(Main *maggie)
 	// Indentifier used to recognize ressources of this library.
 	const BL_Resource::Library libraryId(maggie);
 
-	KX_LibLoadStatus *status = m_libloadStatus[maggie].get();
-	// If the given library is currently in loading, we do nothing.
-	m_threadinfo.m_mutex.Lock();
-	const bool finished = status->IsFinished();
-	m_threadinfo.m_mutex.Unlock();
+	// If the file was lib loaded (not created by LibNew).
+	const auto it = m_libloadStatus.find(maggie);
+	if (it != m_libloadStatus.end()) {
+		KX_LibLoadStatus *status = it->second.get();
+		// If the given library is currently in loading, we do nothing.
+		m_threadinfo.m_mutex.Lock();
+		const bool finished = status->IsFinished();
+		m_threadinfo.m_mutex.Unlock();
 
-	if (!finished) {
-		CM_Error("Library (" << maggie->name << ") is currently being loaded asynchronously, and cannot be freed until this process is done");
-		return false;
+		if (!finished) {
+			CM_Error("Library (" << maggie->name << ") is currently being loaded asynchronously, and cannot be freed until this process is done");
+			return false;
+		}
 	}
 
 	// For each scene try to remove any usage of ressources from the library.
