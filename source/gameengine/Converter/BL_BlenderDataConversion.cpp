@@ -1833,19 +1833,6 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 	// Cleanup converted set of group objects.
 	convertedlist->Release();
 	logicbrick_conversionlist->Release();
-
-	/* Instantiate dupli group, we will loop trough the object
-	 * that are in active layers. Note that duplicating group
-	 * has the effect of adding objects at the end of objectlist.
-	 * Only loop through the first part of the list.
-	 */
-	int objcount = objectlist->GetCount();
-	for (unsigned int i = 0; i < objcount; ++i) {
-		KX_GameObject *gameobj = objectlist->GetValue(i);
-		if (gameobj->IsDupliGroup()) {
-			kxscene->DupliGroupRecurse(gameobj, 0);
-		}
-	}
 }
 
 void BL_PostConvertBlenderObjects(KX_Scene *kxscene, const BL_SceneConverter& sceneconverter)
@@ -1909,6 +1896,19 @@ void BL_PostConvertBlenderObjects(KX_Scene *kxscene, const BL_SceneConverter& sc
 					kxscene->GetTextureRendererManager()->AddRenderer(type, tex, viewpoint);
 				}
 			}
+		}
+	}
+
+	/* Instantiate dupli group, we will loop trough the object
+	 * that are in active layers. Note that duplicating group
+	 * has the effect of adding objects at the end of objectlist.
+	 * Only loop through the first part of the list.
+	 */
+	const unsigned int objcount = objectlist->GetCount();
+	for (unsigned int i = 0; i < objcount; ++i) {
+		KX_GameObject *gameobj = objectlist->GetValue(i);
+		if (gameobj->IsDupliGroup()) {
+			kxscene->DupliGroupRecurse(gameobj, 0);
 		}
 	}
 }
