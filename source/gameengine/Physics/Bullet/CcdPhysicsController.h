@@ -467,6 +467,9 @@ public:
 
 	void SetVelocity(const btVector3& vel, float time, bool local);
 
+	/// Replace current convex shape.
+	void ReplaceShape(btConvexShape *shape);
+
 	// PHY_ICharacter interface
 	virtual void Jump()
 	{
@@ -857,7 +860,7 @@ public:
 	}
 
 	virtual bool ReinstancePhysicsShape(KX_GameObject *from_gameobj, RAS_Mesh *from_meshobj, bool dupli = false);
-	virtual void ReplacePhysicsShape(PHY_IPhysicsController *phyctrl);
+	virtual bool ReplacePhysicsShape(PHY_IPhysicsController *phyctrl);
 };
 
 /// DefaultMotionState implements standard motionstate, using btTransform

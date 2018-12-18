@@ -151,7 +151,7 @@ public:
 	virtual bool IsPhysicsSuspended() = 0;
 
 	virtual bool ReinstancePhysicsShape(KX_GameObject *from_gameobj, RAS_Mesh *from_meshobj, bool dupli = false) = 0;
-	virtual void ReplacePhysicsShape(PHY_IPhysicsController *phyctrl) = 0;
+	virtual bool ReplacePhysicsShape(PHY_IPhysicsController *phyctrl) = 0;
 };
 
 #endif  /* __PHY_IPHYSICSCONTROLLER_H__ */

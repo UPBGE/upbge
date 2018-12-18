@@ -157,6 +157,12 @@ void CcdCharacter::SetVelocity(const btVector3& vel, float time, bool local)
 	setVelocityForTimeInterval(v, time);
 }
 
+void CcdCharacter::ReplaceShape(btConvexShape* shape)
+{
+	m_convexShape = shape;
+	m_ghostObject->setCollisionShape(m_convexShape);
+}
+
 void CcdCharacter::SetVelocity(const mt::vec3& vel, float time, bool local)
 {
 	SetVelocity(ToBullet(vel), time, local);
@@ -673,6 +679,10 @@ bool CcdPhysicsController::ReplaceControllerShape(btCollisionShape *newShape)
 		newSoftBody->setUserPointer(this);
 		// add the new softbody
 		world->addSoftBody(newSoftBody);
+	}
+
+	if (m_characterController) {
+		m_characterController->ReplaceShape(static_cast<btConvexShape *>(newShape));
 	}
 
 	return true;
@@ -1699,9 +1709,15 @@ bool CcdPhysicsController::ReinstancePhysicsShape(KX_GameObject *from_gameobj, R
 	return true;
 }
 
-void CcdPhysicsController::ReplacePhysicsShape(PHY_IPhysicsController *phyctrl)
+bool CcdPhysicsController::ReplacePhysicsShape(PHY_IPhysicsController *phyctrl)
 {
 	CcdShapeConstructionInfo *shapeInfo = ((CcdPhysicsController *)phyctrl)->GetShapeInfo();
+
+	if (m_characterController && ELEM(shapeInfo->m_shapeType,
+			PHY_SHAPE_COMPOUND, PHY_SHAPE_PROXY, PHY_SHAPE_EMPTY, PHY_SHAPE_COMPOUND, PHY_SHAPE_MESH))
+	{
+		return false;
+	}
 
 	// switch shape info
 	m_shapeInfo->Release();
