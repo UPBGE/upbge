@@ -55,6 +55,8 @@ GPG_Canvas::GPG_Canvas(RAS_Rasterizer *rasty, const RAS_OffScreen::AttachmentLis
 		m_window->getClientBounds(bnds);
 		this->Resize(bnds.getWidth(), bnds.getHeight());
 	}
+
+	UpdateOffScreens();
 }
 
 GPG_Canvas::~GPG_Canvas()
@@ -84,8 +86,6 @@ void GPG_Canvas::Resize(int width, int height)
 	m_area.SetBottom(0);
 	m_area.SetRight(width - 1);
 	m_area.SetTop(height - 1);
-
-	UpdateOffScreens();
 }
 
 void GPG_Canvas::SetViewPort(int x, int y, int width, int height)
