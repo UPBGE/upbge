@@ -192,7 +192,7 @@ bool SCA_KeyboardSensor::Evaluate()
 			result = true;
 		}
 
-		if (!status[0] || (m_qual > 0 && !status[0]) || (m_qual2 > 0 && !status[1])) { /* one of the used qualifiers are not pressed */
+		if (!status[0] || (m_qual > 0 && !status[1]) || (m_qual2 > 0 && !status[2])) { /* one of the used qualifiers are not pressed */
 			m_val = false; /* since one of the qualifiers is not on, set the state to false */
 		}
 		else {
