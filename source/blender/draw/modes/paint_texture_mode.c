@@ -237,7 +237,7 @@ static void PAINT_TEXTURE_cache_init(void *vedata)
 	{
 		psl->wire_overlay = DRW_pass_create(
 		        "Wire Pass",
-		        DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL);
+		        DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_OFFSET_NEGATIVE);
 
 		stl->g_data->lwire_shgrp = DRW_shgroup_create(e_data.wire_overlay_shader, psl->wire_overlay);
 		DRW_shgroup_uniform_block(stl->g_data->lwire_shgrp, "globalsBlock", globals_ubo);
@@ -305,7 +305,7 @@ static void PAINT_TEXTURE_cache_populate(void *vedata, Object *ob)
 		/* Face Mask */
 		if (use_face_sel) {
 			struct GPUBatch *geom;
-			geom = DRW_cache_mesh_wire_get(ob);
+			geom = DRW_cache_mesh_surface_edges_get(ob);
 			DRW_shgroup_call_add(stl->g_data->lwire_shgrp, geom, ob->obmat);
 
 			geom = DRW_cache_mesh_surface_get(ob);
@@ -351,6 +351,7 @@ static void PAINT_TEXTURE_engine_free(void)
 {
 	DRW_SHADER_FREE_SAFE(e_data.image_sh);
 	DRW_SHADER_FREE_SAFE(e_data.wire_overlay_shader);
+	DRW_SHADER_FREE_SAFE(e_data.face_overlay_shader);
 }
 
 static const DrawEngineDataSize PAINT_TEXTURE_data_size = DRW_VIEWPORT_DATA_SIZE(PAINT_TEXTURE_Data);

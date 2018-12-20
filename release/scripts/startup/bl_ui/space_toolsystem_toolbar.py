@@ -32,6 +32,7 @@ from .space_toolsystem_common import (
     ToolDef,
 )
 
+
 def generate_from_enum_ex(
         context, *,
         icon_prefix,
@@ -63,6 +64,13 @@ class _template_widget:
         def draw_settings(context, layout, tool):
             props = tool.gizmo_group_properties("VIEW3D_GGT_xform_extrude")
             layout.prop(props, "axis_type", expand=True)
+
+    class TRANSFORM_GGT_gizmo:
+        @staticmethod
+        def draw_settings_with_index(context, layout, index):
+            scene = context.scene
+            orient_slot = scene.transform_orientation_slots[index]
+            layout.prop(orient_slot, "type")
 
 
 class _defs_view3d_generic:
@@ -202,6 +210,8 @@ class _defs_transform:
 
     @ToolDef.from_fn
     def translate():
+        def draw_settings(context, layout, tool):
+            _template_widget.TRANSFORM_GGT_gizmo.draw_settings_with_index(context, layout, 1)
         return dict(
             text="Move",
             # cursor='SCROLL_XY',
@@ -209,10 +219,13 @@ class _defs_transform:
             widget="TRANSFORM_GGT_gizmo",
             operator="transform.translate",
             keymap="3D View Tool: Move",
+            draw_settings=draw_settings,
         )
 
     @ToolDef.from_fn
     def rotate():
+        def draw_settings(context, layout, tool):
+            _template_widget.TRANSFORM_GGT_gizmo.draw_settings_with_index(context, layout, 2)
         return dict(
             text="Rotate",
             # cursor='SCROLL_XY',
@@ -220,10 +233,13 @@ class _defs_transform:
             widget="TRANSFORM_GGT_gizmo",
             operator="transform.rotate",
             keymap="3D View Tool: Rotate",
+            draw_settings=draw_settings,
         )
 
     @ToolDef.from_fn
     def scale():
+        def draw_settings(context, layout, tool):
+            _template_widget.TRANSFORM_GGT_gizmo.draw_settings_with_index(context, layout, 3)
         return dict(
             text="Scale",
             # cursor='SCROLL_XY',
@@ -231,15 +247,19 @@ class _defs_transform:
             widget="TRANSFORM_GGT_gizmo",
             operator="transform.resize",
             keymap="3D View Tool: Scale",
+            draw_settings=draw_settings,
         )
 
     @ToolDef.from_fn
     def scale_cage():
+        def draw_settings(context, layout, tool):
+            _template_widget.TRANSFORM_GGT_gizmo.draw_settings_with_index(context, layout, 3)
         return dict(
             text="Scale Cage",
             icon="ops.transform.resize.cage",
             widget="VIEW3D_GGT_xform_cage",
             operator="transform.resize",
+            draw_settings=draw_settings,
         )
 
     @ToolDef.from_fn
@@ -251,6 +271,8 @@ class _defs_transform:
 
             props = tool.gizmo_group_properties("TRANSFORM_GGT_gizmo")
             layout.prop(props, "drag_action")
+
+            _template_widget.TRANSFORM_GGT_gizmo.draw_settings_with_index(context, layout, 1)
 
         return dict(
             text="Transform",
@@ -852,6 +874,7 @@ class _defs_vertex_paint:
             attr="vertex_tool",
         )
 
+
 class _defs_texture_paint:
 
     @staticmethod
@@ -1086,6 +1109,7 @@ class _defs_gpencil_paint:
             widget=None,
             keymap=(),
         )
+
 
 class _defs_gpencil_edit:
     @ToolDef.from_fn

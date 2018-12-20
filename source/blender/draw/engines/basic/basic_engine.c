@@ -141,6 +141,7 @@ static void basic_cache_populate(void *vedata, Object *ob)
 
 	/* Make flat object selectable in ortho view if wireframe is enabled. */
 	if ((draw_ctx->v3d->overlay.flag & V3D_OVERLAY_WIREFRAMES) ||
+	    (draw_ctx->v3d->shading.type == OB_WIRE) ||
 	    (ob->dtx & OB_DRAWWIRE) ||
 	    (ob->dt == OB_WIRE))
 	{
@@ -151,7 +152,7 @@ static void basic_cache_populate(void *vedata, Object *ob)
 
 		if (is_flat_object_viewed_from_side) {
 			/* Avoid losing flat objects when in ortho views (see T56549) */
-			struct GPUBatch *geom = DRW_cache_object_wire_outline_get(ob);
+			struct GPUBatch *geom = DRW_cache_object_all_edges_get(ob);
 			DRW_shgroup_call_object_add(stl->g_data->depth_shgrp, geom, ob);
 			return;
 		}
@@ -159,7 +160,7 @@ static void basic_cache_populate(void *vedata, Object *ob)
 
 	struct GPUBatch *geom = DRW_cache_object_surface_get(ob);
 	if (geom) {
-		const bool do_cull = (draw_ctx->v3d && (draw_ctx->v3d->flag2 & V3D_BACKFACE_CULLING));
+		const bool do_cull = (draw_ctx->v3d && (draw_ctx->v3d->shading.flag & V3D_SHADING_BACKFACE_CULLING));
 		/* Depth Prepass */
 		DRW_shgroup_call_add((do_cull) ? stl->g_data->depth_shgrp_cull : stl->g_data->depth_shgrp, geom, ob->obmat);
 	}

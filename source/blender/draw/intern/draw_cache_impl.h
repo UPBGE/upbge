@@ -95,52 +95,23 @@ struct GPUBatch *DRW_lattice_batch_cache_get_all_edges(struct Lattice *lt, bool 
 struct GPUBatch *DRW_lattice_batch_cache_get_all_verts(struct Lattice *lt);
 struct GPUBatch *DRW_lattice_batch_cache_get_edit_verts(struct Lattice *lt);
 
-/* Vertex Group Selection and display options */
-struct DRW_MeshWeightState {
-	int defgroup_active;
-	int defgroup_len;
-
-	short flags;
-	char alert_mode;
-
-	/* Set of all selected bones for Multipaint. */
-	bool *defgroup_sel; /* [defgroup_len] */
-	int   defgroup_sel_count;
-};
-
-/* DRW_MeshWeightState.flags */
-enum {
-	DRW_MESH_WEIGHT_STATE_MULTIPAINT          = (1 << 0),
-	DRW_MESH_WEIGHT_STATE_AUTO_NORMALIZE      = (1 << 1),
-};
-
-void DRW_mesh_weight_state_clear(struct DRW_MeshWeightState *wstate);
-void DRW_mesh_weight_state_copy(struct DRW_MeshWeightState *wstate_dst, const struct DRW_MeshWeightState *wstate_src);
-bool DRW_mesh_weight_state_compare(const struct DRW_MeshWeightState *a, const struct DRW_MeshWeightState *b);
-
 /* Mesh */
 void DRW_mesh_batch_cache_create_requested(struct Object *ob, struct Mesh *me);
 
+struct GPUBatch *DRW_mesh_batch_cache_get_all_verts(struct Mesh *me);
+struct GPUBatch *DRW_mesh_batch_cache_get_all_edges(struct Mesh *me);
+struct GPUBatch *DRW_mesh_batch_cache_get_loose_edges(struct Mesh *me);
+struct GPUBatch *DRW_mesh_batch_cache_get_edge_detection(struct Mesh *me, bool *r_is_manifold);
+struct GPUBatch *DRW_mesh_batch_cache_get_surface(struct Mesh *me);
+struct GPUBatch *DRW_mesh_batch_cache_get_surface_edges(struct Mesh *me);
 struct GPUBatch **DRW_mesh_batch_cache_get_surface_shaded(
         struct Mesh *me, struct GPUMaterial **gpumat_array, uint gpumat_array_len,
         char **auto_layer_names, int **auto_layer_is_srgb, int *auto_layer_count);
 struct GPUBatch **DRW_mesh_batch_cache_get_surface_texpaint(struct Mesh *me);
 struct GPUBatch *DRW_mesh_batch_cache_get_surface_texpaint_single(struct Mesh *me);
-struct GPUBatch *DRW_mesh_batch_cache_get_wire_loops(struct Mesh *me);
-struct GPUBatch *DRW_mesh_batch_cache_get_weight_overlay_faces(struct Mesh *me);
-struct GPUBatch *DRW_mesh_batch_cache_get_weight_overlay_verts(struct Mesh *me);
-struct GPUBatch *DRW_mesh_batch_cache_get_all_edges(struct Mesh *me);
-struct GPUBatch *DRW_mesh_batch_cache_get_all_triangles(struct Mesh *me);
-struct GPUBatch *DRW_mesh_batch_cache_get_triangles_with_normals(struct Mesh *me);
-struct GPUBatch *DRW_mesh_batch_cache_get_triangles_with_normals_and_weights(struct Mesh *me, const struct DRW_MeshWeightState *wstate);
-struct GPUBatch *DRW_mesh_batch_cache_get_triangles_with_normals_and_vert_colors(struct Mesh *me);
-struct GPUBatch *DRW_mesh_batch_cache_get_triangles_with_select_id(struct Mesh *me, bool use_hide, uint select_id_offset);
-struct GPUBatch *DRW_mesh_batch_cache_get_triangles_with_select_mask(struct Mesh *me, bool use_hide);
-struct GPUBatch *DRW_mesh_batch_cache_get_loose_edges_with_normals(struct Mesh *me);
-struct GPUBatch *DRW_mesh_batch_cache_get_points_with_normals(struct Mesh *me);
-struct GPUBatch *DRW_mesh_batch_cache_get_all_verts(struct Mesh *me);
-struct GPUBatch *DRW_mesh_batch_cache_get_fancy_edges(struct Mesh *me);
-struct GPUBatch *DRW_mesh_batch_cache_get_edge_detection(struct Mesh *me, bool *r_is_manifold);
+struct GPUBatch *DRW_mesh_batch_cache_get_surface_vertpaint(struct Mesh *me);
+struct GPUBatch *DRW_mesh_batch_cache_get_surface_weights(struct Mesh *me);
+/* edit-mesh drawing */
 struct GPUBatch *DRW_mesh_batch_cache_get_edit_triangles(struct Mesh *me);
 struct GPUBatch *DRW_mesh_batch_cache_get_edit_triangles_nor(struct Mesh *me);
 struct GPUBatch *DRW_mesh_batch_cache_get_edit_triangles_lnor(struct Mesh *me);
@@ -149,7 +120,9 @@ struct GPUBatch *DRW_mesh_batch_cache_get_edit_loose_edges(struct Mesh *me);
 struct GPUBatch *DRW_mesh_batch_cache_get_edit_loose_edges_nor(struct Mesh *me);
 struct GPUBatch *DRW_mesh_batch_cache_get_edit_loose_verts(struct Mesh *me);
 struct GPUBatch *DRW_mesh_batch_cache_get_edit_facedots(struct Mesh *me);
-/* edit-mesh selection (use generic function for faces) */
+/* edit-mesh selection */
+struct GPUBatch *DRW_mesh_batch_cache_get_triangles_with_select_id(struct Mesh *me, bool use_hide, uint select_id_offset);
+struct GPUBatch *DRW_mesh_batch_cache_get_triangles_with_select_mask(struct Mesh *me, bool use_hide);
 struct GPUBatch *DRW_mesh_batch_cache_get_facedots_with_select_id(struct Mesh *me, uint select_id_offset);
 struct GPUBatch *DRW_mesh_batch_cache_get_edges_with_select_id(struct Mesh *me, uint select_id_offset);
 struct GPUBatch *DRW_mesh_batch_cache_get_verts_with_select_id(struct Mesh *me, uint select_id_offset);

@@ -362,7 +362,7 @@ typedef struct View3D {
 #define V3D_SHOW_RECONSTRUCTION (1 << 7)
 #define V3D_SHOW_CAMERAPATH     (1 << 8)
 #define V3D_SHOW_BUNDLENAME     (1 << 9)
-#define V3D_BACKFACE_CULLING    (1 << 10)
+#define V3D_FLAG2_DEPRECATED_10 (1 << 10)  /* cleared */
 #define V3D_RENDER_BORDER       (1 << 11)
 #define V3D_FLAG2_DEPRECATED_12 (1 << 12)  /* cleared */
 #define V3D_FLAG2_DEPRECATED_13 (1 << 13)  /* cleared */
@@ -396,6 +396,7 @@ enum {
 	V3D_SHADING_SCENE_WORLD         = (1 << 7),
 	V3D_SHADING_XRAY_BONE           = (1 << 8),
 	V3D_SHADING_WORLD_ORIENTATION   = (1 << 9),
+	V3D_SHADING_BACKFACE_CULLING    = (1 << 10),
 };
 
 /* View3DShading->color_type */
@@ -513,7 +514,7 @@ enum {
 #define V3D_SHOW_Y              (1 << 2)
 #define V3D_SHOW_Z              (1 << 3)
 
-/* Scene.orientation_type */
+/** #TransformOrientationSlot.type */
 #define V3D_MANIP_GLOBAL		0
 #define V3D_MANIP_LOCAL			1
 #define V3D_MANIP_NORMAL		2

@@ -1261,31 +1261,36 @@ static bool make_unit_square_map(
 
 	sub_v3_v3v3(va_vmid, vmid, va);
 	sub_v3_v3v3(vb_vmid, vmid, vb);
-	if (fabsf(angle_v3v3(va_vmid, vb_vmid) - (float)M_PI) > BEVEL_EPSILON_ANG) {
-		sub_v3_v3v3(vo, va, vb_vmid);
-		cross_v3_v3v3(vddir, vb_vmid, va_vmid);
-		normalize_v3(vddir);
-		add_v3_v3v3(vd, vo, vddir);
 
-		/* The cols of m are: {vmid - va, vmid - vb, vmid + vd - va -vb, va + vb - vmid;
-		 * blender transform matrices are stored such that m[i][*] is ith column;
-		 * the last elements of each col remain as they are in unity matrix */
-		sub_v3_v3v3(&r_mat[0][0], vmid, va);
-		r_mat[0][3] = 0.0f;
-		sub_v3_v3v3(&r_mat[1][0], vmid, vb);
-		r_mat[1][3] = 0.0f;
-		add_v3_v3v3(&r_mat[2][0], vmid, vd);
-		sub_v3_v3(&r_mat[2][0], va);
-		sub_v3_v3(&r_mat[2][0], vb);
-		r_mat[2][3] = 0.0f;
-		add_v3_v3v3(&r_mat[3][0], va, vb);
-		sub_v3_v3(&r_mat[3][0], vmid);
-		r_mat[3][3] = 1.0f;
-
-		return true;
-	}
-	else
+	if (is_zero_v3(va_vmid) || is_zero_v3(vb_vmid)) {
 		return false;
+	}
+
+	if (fabsf(angle_v3v3(va_vmid, vb_vmid) - (float)M_PI) <= BEVEL_EPSILON_ANG) {
+		return false;
+	}
+
+	sub_v3_v3v3(vo, va, vb_vmid);
+	cross_v3_v3v3(vddir, vb_vmid, va_vmid);
+	normalize_v3(vddir);
+	add_v3_v3v3(vd, vo, vddir);
+
+	/* The cols of m are: {vmid - va, vmid - vb, vmid + vd - va -vb, va + vb - vmid;
+		* blender transform matrices are stored such that m[i][*] is ith column;
+		* the last elements of each col remain as they are in unity matrix */
+	sub_v3_v3v3(&r_mat[0][0], vmid, va);
+	r_mat[0][3] = 0.0f;
+	sub_v3_v3v3(&r_mat[1][0], vmid, vb);
+	r_mat[1][3] = 0.0f;
+	add_v3_v3v3(&r_mat[2][0], vmid, vd);
+	sub_v3_v3(&r_mat[2][0], va);
+	sub_v3_v3(&r_mat[2][0], vb);
+	r_mat[2][3] = 0.0f;
+	add_v3_v3v3(&r_mat[3][0], va, vb);
+	sub_v3_v3(&r_mat[3][0], vmid);
+	r_mat[3][3] = 1.0f;
+
+	return true;
 }
 
 /* Like make_unit_square_map, but this one makes a matrix that transforms the
@@ -2194,7 +2199,7 @@ static void print_adjust_stats(BoundVert *vstart)
  * residual in terms of that one degree of freedom.
  * Unfortunately, the results are in some cases worse than the general least squares solution
  * for the combined (with weights) problem, so this code is not used.
- * But keep it here for a while in case peformance issues demand that it be used sometimes. */
+ * But keep it here for a while in case performance issues demand that it be used sometimes. */
 static bool adjust_the_cycle_or_chain_fast(BoundVert *vstart, int np, bool iscycle)
 {
 	BoundVert *v;
@@ -2423,7 +2428,7 @@ static void adjust_the_cycle_or_chain(BoundVert *vstart, bool iscycle)
 
 /* Adjust the offsets to try to make them, as much as possible,
  * have even-width bevels with offsets that match their specs.
- * The problem that we can try to amelieroate is that when loop slide
+ * The problem that we can try to ameliorate is that when loop slide
  * is active, the meet point will probably not be the one that makes
  * both sides have their specified width. And because both ends may be
  * on loop slide edges, the widths at each end could be different.

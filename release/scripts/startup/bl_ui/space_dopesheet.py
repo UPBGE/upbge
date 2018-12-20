@@ -295,10 +295,7 @@ class DOPESHEET_MT_editor_menus(Menu):
     bl_label = ""
 
     def draw(self, context):
-        self.draw_menus(self.layout, context)
-
-    @staticmethod
-    def draw_menus(layout, context):
+        layout = self.layout
         st = context.space_data
 
         layout.menu("DOPESHEET_MT_view")
@@ -425,6 +422,7 @@ class DOPESHEET_MT_marker(Menu):
 
 #######################################
 # Keyframe Editing
+
 
 class DOPESHEET_MT_channel(Menu):
     bl_label = "Channel"

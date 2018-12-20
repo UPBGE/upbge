@@ -62,6 +62,7 @@
 #include "BKE_tracking.h"
 
 #include "WM_api.h"
+#include "WM_toolsystem.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -521,6 +522,9 @@ void gp_point_conversion_init(bContext *C, GP_SpaceConversion *r_gsc)
 	unit_m4(r_gsc->mat);
 
 	/* store settings */
+	r_gsc->scene = CTX_data_scene(C);
+	r_gsc->ob = CTX_data_active_object(C);
+
 	r_gsc->sa = sa;
 	r_gsc->ar = ar;
 	r_gsc->v2d = &ar->v2d;
@@ -737,8 +741,11 @@ void gp_point_to_xy_fl(
 bool gp_point_xy_to_3d(GP_SpaceConversion *gsc, Scene *scene, const float screen_co[2], float r_out[3])
 {
 	const RegionView3D *rv3d = gsc->ar->regiondata;
-	float *rvec = scene->cursor.location;
-	float ref[3] = {rvec[0], rvec[1], rvec[2]};
+	float rvec[3];
+
+	ED_gp_get_drawing_reference(scene, gsc->ob, gsc->gpl,
+		scene->toolsettings->gpencil_v3d_align, rvec);
+
 	float zfac = ED_view3d_calc_zfac(rv3d, rvec, NULL);
 
 	float mval_f[2], mval_prj[2];
@@ -746,7 +753,7 @@ bool gp_point_xy_to_3d(GP_SpaceConversion *gsc, Scene *scene, const float screen
 
 	copy_v2_v2(mval_f, screen_co);
 
-	if (ED_view3d_project_float_global(gsc->ar, ref, mval_prj, V3D_PROJ_TEST_NOP) == V3D_PROJ_RET_OK) {
+	if (ED_view3d_project_float_global(gsc->ar, rvec, mval_prj, V3D_PROJ_TEST_NOP) == V3D_PROJ_RET_OK) {
 		sub_v2_v2v2(mval_f, mval_prj, mval_f);
 		ED_view3d_win_to_delta(gsc->ar, mval_f, dvec, zfac);
 		sub_v3_v3v3(r_out, rvec, dvec);
@@ -837,6 +844,40 @@ void ED_gp_get_drawing_reference(
 	}
 }
 
+void ED_gpencil_project_stroke_to_view(bContext *C, bGPDlayer *gpl, bGPDstroke *gps)
+{
+	Scene *scene = CTX_data_scene(C);
+	Depsgraph *depsgraph = CTX_data_depsgraph(C);
+	Object *ob = CTX_data_active_object(C);
+	bGPdata *gpd = (bGPdata *)ob->data;
+	GP_SpaceConversion gsc = { NULL };
+
+	bGPDspoint *pt;
+	int i;
+	float diff_mat[4][4];
+	float inverse_diff_mat[4][4];
+
+	/* init space conversion stuff */
+	gp_point_conversion_init(C, &gsc);
+
+	ED_gpencil_parent_location(depsgraph, ob, gpd, gpl, diff_mat);
+	invert_m4_m4(inverse_diff_mat, diff_mat);
+
+	/* Adjust each point */
+	for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
+		float xy[2];
+
+		bGPDspoint pt2;
+		gp_point_to_parent_space(pt, diff_mat, &pt2);
+		gp_point_to_xy_fl(&gsc, gps, &pt2, &xy[0], &xy[1]);
+
+		/* Planar - All on same plane parallel to the viewplane */
+		gp_point_xy_to_3d(&gsc, scene, xy, &pt->x);
+
+		/* Unapply parent corrections */
+		mul_m4_v3(inverse_diff_mat, &pt->x);
+	}
+}
 
 /**
  * Reproject all points of the stroke to a plane locked to axis to avoid stroke offset
@@ -1216,10 +1257,11 @@ void ED_gpencil_add_defaults(bContext *C)
 		ts->gp_sculpt.cur_falloff = curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
 		CurveMapping *gp_falloff_curve = ts->gp_sculpt.cur_falloff;
 		curvemapping_initialize(gp_falloff_curve);
-		curvemap_reset(gp_falloff_curve->cm,
-			&gp_falloff_curve->clipr,
-			CURVE_PRESET_GAUSS,
-			CURVEMAP_SLOPE_POSITIVE);
+		curvemap_reset(
+		        gp_falloff_curve->cm,
+		        &gp_falloff_curve->clipr,
+		        CURVE_PRESET_GAUSS,
+		        CURVEMAP_SLOPE_POSITIVE);
 	}
 }
 
@@ -1510,8 +1552,16 @@ void ED_gpencil_brush_draw_eraser(Brush *brush, int x, int y)
 	glDisable(GL_LINE_SMOOTH);
 }
 
+static bool gp_brush_cursor_poll(bContext *C)
+{
+   if (WM_toolsystem_active_tool_is_brush(C)) {
+       return true;
+   }
+   return false;
+}
+
 /* Helper callback for drawing the cursor itself */
-static void gp_brush_drawcursor(bContext *C, int x, int y, void *customdata)
+static void gp_brush_cursor_draw(bContext *C, int x, int y, void *customdata)
 {
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
@@ -1692,8 +1742,8 @@ void ED_gpencil_toggle_brush_cursor(bContext *C, bool enable, void *customdata)
 		gset->paintcursor = WM_paint_cursor_activate(
 		        CTX_wm_manager(C),
 		        SPACE_TYPE_ANY, RGN_TYPE_ANY,
-		        NULL,
-		        gp_brush_drawcursor,
+		        gp_brush_cursor_poll,
+		        gp_brush_cursor_draw,
 		        (lastpost) ? customdata : NULL);
 	}
 }

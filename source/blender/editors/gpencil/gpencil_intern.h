@@ -162,6 +162,7 @@ typedef struct tGPDprimitive {
 	int point_count;                  /* number of edges allocated */
 	int tot_stored_edges;             /* stored number of polygon edges */
 	int tot_edges;                    /* number of polygon edges */
+	float move[2];                    /* move distance */
 	float origin[2];                  /* initial box corner */
 	float start[2];                   /* first box corner */
 	float end[2];                     /* last box corner */
@@ -192,6 +193,8 @@ void ED_gp_draw_fill(struct tGPDdraw *tgpw);
 /* gpencil_utils.c */
 
 typedef struct GP_SpaceConversion {
+	struct Scene *scene;
+	struct Object *ob;
 	struct bGPdata *gpd;
 	struct bGPDlayer *gpl;
 

@@ -747,6 +747,9 @@ void uiLayoutSetUnitsY(uiLayout *layout, float unit) RET_NONE
 float uiLayoutGetUnitsX(uiLayout *layout) RET_ZERO
 float uiLayoutGetUnitsY(uiLayout *layout) RET_ZERO
 
+int uiLayoutGetLocalDir(const uiLayout *layout) RET_ZERO
+void uiItemMContents(uiLayout *layout, const char *menuname) RET_NONE
+
 void ED_area_status_text(ScrArea *sa, const char *str) RET_NONE
 
 struct uiLayout *uiLayoutGridFlow(struct uiLayout *layout, int row_major, int num_columns, int even_columns, int even_rows, int align) RET_NULL

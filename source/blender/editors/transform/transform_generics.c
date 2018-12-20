@@ -1401,20 +1401,21 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 			t->around = V3D_AROUND_CURSOR;
 		}
 
-		t->orientation.user = t->scene->orientation_type;
-		t->orientation.custom = BKE_scene_transform_orientation_find(
-		        t->scene, t->scene->orientation_index_custom);
+		TransformOrientationSlot *orient_slot = &t->scene->orientation_slots[SCE_ORIENT_DEFAULT];
+		t->orientation.user = orient_slot->type;
+		t->orientation.custom = BKE_scene_transform_orientation_find(t->scene, orient_slot->index_custom);
 
 		t->orientation.index = 0;
 		ARRAY_SET_ITEMS(
 		        t->orientation.types,
-		        NULL,
-		        &t->orientation.user);
+		        &t->orientation.user,
+		        NULL);
 
 		/* Make second orientation local if both are global. */
 		if (t->orientation.user == V3D_MANIP_GLOBAL) {
 			t->orientation.user_alt = V3D_MANIP_LOCAL;
-			t->orientation.types[1] = &t->orientation.user_alt;
+			t->orientation.types[0] = &t->orientation.user_alt;
+			SWAP(short *, t->orientation.types[0], t->orientation.types[1]);
 		}
 
 		/* exceptional case */

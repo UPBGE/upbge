@@ -707,6 +707,7 @@ extern StructRNA RNA_TintGpencilModifier;
 extern StructRNA RNA_ToolSettings;
 extern StructRNA RNA_TrackToConstraint;
 extern StructRNA RNA_TransformConstraint;
+extern StructRNA RNA_TransformOrientationSlot;
 extern StructRNA RNA_TransformSequence;
 extern StructRNA RNA_UILayout;
 extern StructRNA RNA_UIList;
@@ -961,6 +962,7 @@ int RNA_property_int_get_index(PointerRNA *ptr, PropertyRNA *prop, int index);
 void RNA_property_int_set_array(PointerRNA *ptr, PropertyRNA *prop, const int *values);
 void RNA_property_int_set_index(PointerRNA *ptr, PropertyRNA *prop, int index, int value);
 int RNA_property_int_get_default(PointerRNA *ptr, PropertyRNA *prop);
+bool RNA_property_int_set_default(PointerRNA *ptr, PropertyRNA *prop, int value);
 void RNA_property_int_get_default_array(PointerRNA *ptr, PropertyRNA *prop, int *values);
 int RNA_property_int_get_default_index(PointerRNA *ptr, PropertyRNA *prop, int index);
 
@@ -972,6 +974,7 @@ float RNA_property_float_get_index(PointerRNA *ptr, PropertyRNA *prop, int index
 void RNA_property_float_set_array(PointerRNA *ptr, PropertyRNA *prop, const float *values);
 void RNA_property_float_set_index(PointerRNA *ptr, PropertyRNA *prop, int index, float value);
 float RNA_property_float_get_default(PointerRNA *ptr, PropertyRNA *prop);
+bool RNA_property_float_set_default(PointerRNA *ptr, PropertyRNA *prop, float value);
 void RNA_property_float_get_default_array(PointerRNA *ptr, PropertyRNA *prop, float *values);
 float RNA_property_float_get_default_index(PointerRNA *ptr, PropertyRNA *prop, int index);
 
@@ -1024,6 +1027,7 @@ bool RNA_property_collection_move(PointerRNA *ptr, PropertyRNA *prop, int key, i
 /* copy/reset */
 bool RNA_property_copy(struct Main *bmain, PointerRNA *ptr, PointerRNA *fromptr, PropertyRNA *prop, int index);
 bool RNA_property_reset(PointerRNA *ptr, PropertyRNA *prop, int index);
+bool RNA_property_assign_default(PointerRNA *ptr, PropertyRNA *prop);
 
 /* Path
  *

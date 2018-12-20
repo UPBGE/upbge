@@ -356,7 +356,8 @@ static void gp_primitive_set_initdata(bContext *C, tGPDprimitive *tgpi)
 	gpencil_primitive_allocate_memory(tgpi);
 
 	/* Random generator, only init once. */
-	tgpi->rng = BLI_rng_new((uint)0);
+	uint rng_seed = (uint)(PIL_check_seconds_timer_i() & UINT_MAX);
+	tgpi->rng = BLI_rng_new(rng_seed);
 }
 
 /* add new segment to curve */
@@ -638,8 +639,10 @@ static void gp_primitive_update_strokes(bContext *C, tGPDprimitive *tgpi)
 	bGPDstroke *gps = tgpi->gpf->strokes.first;
 	GP_Sculpt_Settings *gset = &ts->gp_sculpt;
 	int depth_margin = (ts->gpencil_v3d_align & GP_PROJECT_DEPTH_STROKE) ? 4 : 0;
-	char *align_flag = &ts->gpencil_v3d_align;
+	const char *align_flag = &ts->gpencil_v3d_align;
 	bool is_depth = (bool)(*align_flag & (GP_PROJECT_DEPTH_VIEW | GP_PROJECT_DEPTH_STROKE));
+	const bool is_camera = (bool)(ts->gp_sculpt.lock_axis == 0) &&
+		(tgpi->rv3d->persp == RV3D_CAMOB) && (!is_depth);
 
 	if (tgpi->type == GP_STROKE_BOX)
 		gps->totpoints = (tgpi->tot_edges * 4 + tgpi->tot_stored_edges);
@@ -782,6 +785,13 @@ static void gp_primitive_update_strokes(bContext *C, tGPDprimitive *tgpi)
 		bGPDspoint *pt = &gps->points[i];
 		tGPspoint *p2d = &points2D[i];
 
+		/* set rnd value for reuse */
+		if (p2d->rnd_dirty != true) {
+			p2d->rnd[0] = BLI_rng_get_float(tgpi->rng);
+			p2d->rnd[1] = BLI_rng_get_float(tgpi->rng);
+			p2d->rnd_dirty = true;
+		}
+
 		/* Copy points to buffer */
 		tGPspoint *tpt = ((tGPspoint *)(gpd->runtime.sbuffer) + gpd->runtime.sbuffer_size);
 
@@ -817,26 +827,39 @@ static void gp_primitive_update_strokes(bContext *C, tGPDprimitive *tgpi)
 
 			/* exponential value */
 			const float exfactor = SQUARE(brush->gpencil_settings->draw_jitter + 2.0f);
-			const float rnd = BLI_rng_get_float(tgpi->rng);
-			const float fac = rnd * exfactor * jitter;
-			if (rnd > 0.5f) {
-				add_v2_fl(&p2d->x, -fac);
+			const float fac = p2d->rnd[0] * exfactor * jitter;
+
+			/* vector */
+			float mvec[2], svec[2];;
+			if (i > 0) {
+				mvec[0] = (p2d->x - (p2d - 1)->x);
+				mvec[1] = (p2d->y - (p2d - 1)->y);
+				normalize_v2(mvec);
 			}
 			else {
-				add_v2_fl(&p2d->x, fac);
+				zero_v2(mvec);
 			}
+			svec[0] = -mvec[1];
+			svec[1] = mvec[0];
+
+			if (p2d->rnd[0] > 0.5f) {
+				mul_v2_fl(svec, -fac);
+			}
+			else {
+				mul_v2_fl(svec, fac);
+			}
+			add_v2_v2(&p2d->x, svec);
 		}
 
 		/* apply randomness to pressure */
 		if ((brush->gpencil_settings->flag & GP_BRUSH_GROUP_RANDOM) &&
 		    (brush->gpencil_settings->draw_random_press > 0.0f))
 		{
-			float rnd = BLI_rng_get_float(tgpi->rng);
-			if (rnd > 0.5f) {
-				pressure -= brush->gpencil_settings->draw_random_press * rnd;
+			if (p2d->rnd[0] > 0.5f) {
+				pressure -= brush->gpencil_settings->draw_random_press * p2d->rnd[0];
 			}
 			else {
-				pressure += brush->gpencil_settings->draw_random_press * rnd;
+				pressure += brush->gpencil_settings->draw_random_press * p2d->rnd[0];
 			}
 		}
 
@@ -853,12 +876,11 @@ static void gp_primitive_update_strokes(bContext *C, tGPDprimitive *tgpi)
 		if ((brush->gpencil_settings->flag & GP_BRUSH_GROUP_RANDOM) &&
 		    (brush->gpencil_settings->draw_random_strength > 0.0f))
 		{
-			const float rnd = BLI_rng_get_float(tgpi->rng);
-			if (rnd > 0.5f) {
-				strength -= strength * brush->gpencil_settings->draw_random_strength * rnd;
+			if (p2d->rnd[1] > 0.5f) {
+				strength -= strength * brush->gpencil_settings->draw_random_strength * p2d->rnd[1];
 			}
 			else {
-				strength += strength * brush->gpencil_settings->draw_random_strength * rnd;
+				strength += strength * brush->gpencil_settings->draw_random_strength * p2d->rnd[1];
 			}
 			CLAMP(strength, GPENCIL_STRENGTH_MIN, 1.0f);
 		}
@@ -882,9 +904,9 @@ static void gp_primitive_update_strokes(bContext *C, tGPDprimitive *tgpi)
 
 		/* convert screen-coordinates to 3D coordinates */
 		gp_stroke_convertcoords_tpoint(
-			tgpi->scene, tgpi->ar, tgpi->ob, tgpi->gpl,
-			p2d, depth_arr ? depth_arr + i : NULL,
-			&pt->x);
+		        tgpi->scene, tgpi->ar, tgpi->ob, tgpi->gpl,
+		        p2d, depth_arr ? depth_arr + i : NULL,
+		        &pt->x);
 
 		pt->pressure = pressure;
 		pt->strength = strength;
@@ -924,6 +946,11 @@ static void gp_primitive_update_strokes(bContext *C, tGPDprimitive *tgpi)
 	for (int i = 0; i < gps->totpoints; i++) {
 		bGPDspoint *pt = &gps->points[i];
 		gp_apply_parent_point(tgpi->depsgraph, tgpi->ob, tgpi->gpd, tgpi->gpl, pt);
+	}
+
+	/* if camera view, reproject flat to view to avoid perspective effect */
+	if (is_camera) {
+		ED_gpencil_project_stroke_to_view(C, tgpi->gpl, gps);
 	}
 
 	/* force fill recalc */
@@ -1160,7 +1187,12 @@ static void gpencil_primitive_interaction_end(bContext *C, wmOperator *op, wmWin
 	}
 
 	/* transfer stroke from temporary buffer to the actual frame */
-	BLI_movelisttolist(&gpf->strokes, &tgpi->gpf->strokes);
+	if (ts->gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK) {
+		BLI_movelisttolist_reverse(&gpf->strokes, &tgpi->gpf->strokes);
+	}
+	else {
+		BLI_movelisttolist(&gpf->strokes, &tgpi->gpf->strokes);
+	}
 	BLI_assert(BLI_listbase_is_empty(&tgpi->gpf->strokes));
 
 	/* add weights if required */
@@ -1292,10 +1324,19 @@ static void gpencil_primitive_edit_event_handling(bContext *C, wmOperator *op, w
 }
 
 /* move */
-static void gpencil_primitive_move(tGPDprimitive *tgpi)
+static void gpencil_primitive_move(tGPDprimitive *tgpi, bool reset)
 {
 	float move[2];
-	sub_v2_v2v2(move, tgpi->mval, tgpi->mvalo);
+	zero_v2(move);
+
+	if (reset) {
+		sub_v2_v2(move, tgpi->move);
+		zero_v2(tgpi->move);
+	}
+	else {
+		sub_v2_v2v2(move, tgpi->mval, tgpi->mvalo);
+		add_v2_v2(tgpi->move, move);
+	}
 
 	bGPDstroke *gps = tgpi->gpf->strokes.first;
 	tGPspoint *points2D = tgpi->points;
@@ -1325,13 +1366,20 @@ static int gpencil_primitive_modal(bContext *C, wmOperator *op, const wmEvent *e
 
 		switch (event->type) {
 			case MOUSEMOVE:
-				gpencil_primitive_move(tgpi);
+				gpencil_primitive_move(tgpi, false);
 				gpencil_primitive_update(C, op, tgpi);
 				break;
 			case ESCKEY:
-			case RIGHTMOUSE:
 			case LEFTMOUSE:
+				zero_v2(tgpi->move);
 				tgpi->flag = IN_CURVE_EDIT;
+				break;
+			case RIGHTMOUSE:
+				if (event->val == KM_RELEASE) {
+					tgpi->flag = IN_CURVE_EDIT;
+					gpencil_primitive_move(tgpi, true);
+					gpencil_primitive_update(C, op, tgpi);
+				}
 				break;
 		}
 		copy_v2_v2(tgpi->mvalo, tgpi->mval);
@@ -1374,6 +1422,7 @@ static int gpencil_primitive_modal(bContext *C, wmOperator *op, const wmEvent *e
 			break;
 		}
 		case SPACEKEY:  /* confirm */
+		case MIDDLEMOUSE:
 		case RETKEY:
 		{
 			tgpi->flag = IDLE;
@@ -1381,16 +1430,7 @@ static int gpencil_primitive_modal(bContext *C, wmOperator *op, const wmEvent *e
 			/* done! */
 			return OPERATOR_FINISHED;
 		}
-		case RIGHTMOUSE:
-		{
-			if (tgpi->flag == IN_CURVE_EDIT || (tgpi->flag == IN_PROGRESS && tgpi->tot_stored_edges > 0)) {
-				tgpi->flag = IDLE;
-				gpencil_primitive_interaction_end(C, op, win, tgpi);
-				/* done! */
-				return OPERATOR_FINISHED;
-			}
-			ATTR_FALLTHROUGH;
-		}
+		case RIGHTMOUSE: /* cancel */
 		case ESCKEY:
 		{
 			/* return to normal cursor and header status */

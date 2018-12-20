@@ -540,7 +540,7 @@ class TOPBAR_PT_gpencil_layers(Panel):
             srow = col.row(align=True)
             srow.prop(gpl, "opacity", text="Opacity", slider=True)
             srow.prop(gpl, "clamp_layer", text="",
-                     icon='MOD_MASK' if gpl.clamp_layer else 'LAYER_ACTIVE')
+                      icon='MOD_MASK' if gpl.clamp_layer else 'LAYER_ACTIVE')
 
         col = row.column()
 
@@ -571,10 +571,7 @@ class TOPBAR_MT_editor_menus(Menu):
     bl_label = ""
 
     def draw(self, context):
-        self.draw_menus(self.layout, context)
-
-    @staticmethod
-    def draw_menus(layout, context):
+        layout = self.layout
         layout.menu("TOPBAR_MT_file")
         layout.menu("TOPBAR_MT_edit")
 

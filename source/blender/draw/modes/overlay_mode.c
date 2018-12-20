@@ -28,6 +28,7 @@
 
 #include "BKE_editmesh.h"
 #include "BKE_object.h"
+#include "BKE_global.h"
 
 #include "GPU_shader.h"
 #include "GPU_extensions.h"
@@ -174,7 +175,6 @@ static void overlay_cache_init(void *vedata)
 		psl->face_wireframe_pass = DRW_pass_create("Face Wires", state);
 
 		g_data->flat_wires = DRW_shgroup_create(flat_wires_sh, psl->face_wireframe_pass);
-		DRW_shgroup_uniform_vec4(g_data->flat_wires, "color", ts.colorWire, 1);
 
 		g_data->sculpt_wires = DRW_shgroup_create(sculpt_wire_sh, psl->face_wireframe_pass);
 
@@ -246,6 +246,14 @@ static void overlay_cache_populate(void *vedata, Object *ob)
 			const int stencil_mask = (ob->dtx & OB_DRAWXRAY) ? 0x00 : 0xFF;
 			DRWShadingGroup *shgrp = NULL;
 
+			float *rim_col = ts.colorWire;
+			if (!is_edit_mode && !is_sculpt_mode && !has_edit_mesh_cage &&
+			    ((ob->base_flag & BASE_SELECTED) != 0))
+			{
+				rim_col = (ob == draw_ctx->obact) ? ts.colorActive : ts.colorSelect;
+				rim_col = (G.moving & G_TRANSFORM_OBJ) ? ts.colorTransform : rim_col;
+			}
+
 			/* This fixes only the biggest case which is a plane in ortho view. */
 			int flat_axis = 0;
 			bool is_flat_object_viewed_from_side = (rv3d->persp == RV3D_ORTHO) &&
@@ -254,23 +262,18 @@ static void overlay_cache_populate(void *vedata, Object *ob)
 
 			if (is_flat_object_viewed_from_side && !is_sculpt_mode) {
 				/* Avoid losing flat objects when in ortho views (see T56549) */
-				struct GPUBatch *geom = DRW_cache_object_wire_outline_get(ob);
+				struct GPUBatch *geom = DRW_cache_object_all_edges_get(ob);
 				if (geom) {
 					shgrp = pd->flat_wires;
 					shgrp = DRW_shgroup_create_sub(shgrp);
 					DRW_shgroup_stencil_mask(shgrp, stencil_mask);
 					DRW_shgroup_call_object_add(shgrp, geom, ob);
+					DRW_shgroup_uniform_vec4(shgrp, "color", rim_col, 1);
 				}
 			}
 			else {
 				struct GPUBatch *geom = DRW_cache_object_face_wireframe_get(ob);
 				if (geom || is_sculpt_mode) {
-					float *rim_col = ts.colorWire;
-					if (!is_edit_mode && !is_sculpt_mode && !has_edit_mesh_cage &&
-					    ((ob->base_flag & BASE_SELECTED) != 0))
-					{
-						rim_col = (ob == draw_ctx->obact) ? ts.colorActive : ts.colorSelect;
-					}
 					shgrp = (is_sculpt_mode) ? pd->sculpt_wires : pd->face_wires;
 					shgrp = DRW_shgroup_create_sub(shgrp);
 

@@ -58,6 +58,7 @@
 #include "BKE_object.h"
 #include "BKE_gpencil.h"
 #include "BKE_scene.h"
+#include "BKE_subdiv_ccg.h"
 
 #include "DEG_depsgraph_query.h"
 
@@ -97,26 +98,33 @@ typedef struct SceneStatsFmt {
 
 static bool stats_mesheval(Mesh *me_eval, int sel, int totob, SceneStats *stats)
 {
-	int totvert, totedge, totface, totloop;
+	if (me_eval == NULL) {
+		return false;
+	}
 
-	if (me_eval) {
+	int totvert, totedge, totface, totloop;
+	if (me_eval->runtime.subdiv_ccg != NULL) {
+		const SubdivCCG *subdiv_ccg = me_eval->runtime.subdiv_ccg;
+		BKE_subdiv_ccg_topology_counters(
+		        subdiv_ccg, &totvert, &totedge, &totface, &totloop);
+	}
+	else {
 		totvert = me_eval->totvert;
 		totedge = me_eval->totedge;
 		totface = me_eval->totpoly;
 		totloop = me_eval->totloop;
-
-		stats->totvert += totvert * totob;
-		stats->totedge += totedge * totob;
-		stats->totface += totface * totob;
-		stats->tottri  += poly_to_tri_count(totface, totloop) * totob;
-
-		if (sel) {
-			stats->totvertsel += totvert;
-			stats->totfacesel += totface;
-		}
-		return true;
 	}
-	return false;
+
+	stats->totvert += totvert * totob;
+	stats->totedge += totedge * totob;
+	stats->totface += totface * totob;
+	stats->tottri  += poly_to_tri_count(totface, totloop) * totob;
+
+	if (sel) {
+		stats->totvertsel += totvert;
+		stats->totfacesel += totface;
+	}
+	return true;
 }
 
 static void stats_object(Object *ob, int sel, int totob, SceneStats *stats)

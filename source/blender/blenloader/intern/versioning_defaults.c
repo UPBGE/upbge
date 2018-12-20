@@ -132,6 +132,7 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
 							const char *dir_default = BKE_appdir_folder_default();
 							if (dir_default) {
 								STRNCPY(sfile->params->dir, dir_default);
+								sfile->params->file[0] = '\0';
 							}
 						}
 						break;
@@ -195,29 +196,32 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
 				ts->gp_sculpt.cur_falloff = curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
 				CurveMapping *gp_falloff_curve = ts->gp_sculpt.cur_falloff;
 				curvemapping_initialize(gp_falloff_curve);
-				curvemap_reset(gp_falloff_curve->cm,
-				               &gp_falloff_curve->clipr,
-				               CURVE_PRESET_GAUSS,
-				               CURVEMAP_SLOPE_POSITIVE);
+				curvemap_reset(
+				        gp_falloff_curve->cm,
+				        &gp_falloff_curve->clipr,
+				        CURVE_PRESET_GAUSS,
+				        CURVEMAP_SLOPE_POSITIVE);
 			}
 			if (ts->gp_sculpt.cur_primitive == NULL) {
 				ts->gp_sculpt.cur_primitive = curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
 				CurveMapping *gp_primitive_curve = ts->gp_sculpt.cur_primitive;
 				curvemapping_initialize(gp_primitive_curve);
-				curvemap_reset(gp_primitive_curve->cm,
-					&gp_primitive_curve->clipr,
-					CURVE_PRESET_BELL,
-					CURVEMAP_SLOPE_POSITIVE);
+				curvemap_reset(
+				        gp_primitive_curve->cm,
+				        &gp_primitive_curve->clipr,
+				        CURVE_PRESET_BELL,
+				        CURVEMAP_SLOPE_POSITIVE);
 			}
 		}
 	}
 
 	/* For all builtin templates shipped with Blender. */
-	bool builtin_template = !app_template ||
-	                        STREQ(app_template, "2D_Animation") ||
-	                        STREQ(app_template, "Sculpting") ||
-	                        STREQ(app_template, "VFX") ||
-	                        STREQ(app_template, "Video_Editing");
+	bool builtin_template = (
+	        !app_template ||
+	        STREQ(app_template, "2D_Animation") ||
+	        STREQ(app_template, "Sculpting") ||
+	        STREQ(app_template, "VFX") ||
+	        STREQ(app_template, "Video_Editing"));
 
 	if (builtin_template) {
 		/* Clear all tools to use default options instead, ignore the tool saved in the file. */
@@ -327,5 +331,7 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
 
 	for (Scene *scene = bmain->scene.first; scene; scene = scene->id.next) {
 		copy_v3_v3(scene->display.light_direction, (float[3]){M_SQRT1_3, M_SQRT1_3, M_SQRT1_3});
+		copy_v2_fl2(scene->safe_areas.title, 0.1f, 0.05f);
+		copy_v2_fl2(scene->safe_areas.action, 0.035f, 0.035f);
 	}
 }

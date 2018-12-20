@@ -145,7 +145,6 @@ class NODE_HT_header(Header):
 
             layout.template_ID(snode, "node_tree", new="node.new_node_tree")
 
-
         layout.prop(snode, "pin", text="")
         layout.separator_spacer()
 
@@ -166,10 +165,7 @@ class NODE_MT_editor_menus(Menu):
     bl_label = ""
 
     def draw(self, context):
-        self.draw_menus(self.layout, context)
-
-    @staticmethod
-    def draw_menus(layout, context):
+        layout = self.layout
         layout.menu("NODE_MT_view")
         layout.menu("NODE_MT_select")
         layout.menu("NODE_MT_add")
@@ -331,13 +327,17 @@ class NODE_MT_specials(Menu):
     def draw(self, context):
         layout = self.layout
 
-        # If nothing is selected
         selected_nodes_len = len(context.selected_nodes)
+
+        # If nothing is selected
+        # (disabled for now until it can be made more useful).
+        '''
         if selected_nodes_len == 0:
             layout.operator_context = 'INVOKE_DEFAULT'
             layout.menu("NODE_MT_add")
             layout.operator("node.clipboard_paste", text="Paste")
             return
+        '''
 
         # If something is selected
         layout.operator_context = 'INVOKE_DEFAULT'
@@ -579,9 +579,11 @@ class EEVEE_NODE_PT_material_settings(Panel):
     @classmethod
     def poll(cls, context):
         snode = context.space_data
-        return (context.engine in cls.COMPAT_ENGINES) and \
-               snode.tree_type == 'ShaderNodeTree' and snode.id and \
-               snode.id.bl_rna.identifier == 'Material'
+        return (
+            (context.engine in cls.COMPAT_ENGINES) and
+            (snode.tree_type == 'ShaderNodeTree' and snode.id) and
+            (snode.id.bl_rna.identifier == 'Material')
+        )
 
     def draw(self, context):
         material = context.space_data.id
@@ -598,8 +600,10 @@ class NODE_PT_material_viewport(Panel):
     @classmethod
     def poll(cls, context):
         snode = context.space_data
-        return snode.tree_type == 'ShaderNodeTree' and snode.id and \
-               snode.id.bl_rna.identifier == 'Material'
+        return (
+            (snode.tree_type == 'ShaderNodeTree' and snode.id) and
+            (snode.id.bl_rna.identifier == "Material")
+        )
 
     def draw(self, context):
         material = context.space_data.id

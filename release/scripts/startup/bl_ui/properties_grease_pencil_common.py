@@ -40,8 +40,8 @@ def gpencil_stroke_placement_settings(context, layout):
     if context.space_data.type != 'VIEW_3D':
         col.label(text="Stroke Placement:")
         row = col.row(align=True)
-        row.prop_enum(ts, propname, 'VIEW')
-        row.prop_enum(ts, propname, 'CURSOR', text="Cursor")
+        row.prop_enum(tool_settings, propname, 'VIEW')
+        row.prop_enum(tool_settings, propname, 'CURSOR', text="Cursor")
 
 
 def gpencil_active_brush_settings_simple(context, layout):
@@ -983,8 +983,8 @@ class GPENCIL_UL_layer(UIList):
 
             row = layout.row(align=True)
             row.prop(gpl, "clamp_layer", text="",
-                        icon='MOD_MASK' if gpl.clamp_layer else 'LAYER_ACTIVE',
-                        emboss=False)
+                     icon='MOD_MASK' if gpl.clamp_layer else 'LAYER_ACTIVE',
+                     emboss=False)
 
             row.prop(gpl, "lock", text="", emboss=False)
             row.prop(gpl, "hide", text="", emboss=False)

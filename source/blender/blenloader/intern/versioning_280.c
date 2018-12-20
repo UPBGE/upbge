@@ -1230,12 +1230,6 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 			}
 		}
 
-		if (!DNA_struct_elem_find(fd->filesdna, "Scene", "int", "orientation_index_custom")) {
-			for (Scene *scene = bmain->scene.first; scene; scene = scene->id.next) {
-				scene->orientation_index_custom = -1;
-			}
-		}
-
 		for (bScreen *sc = bmain->screen.first; sc; sc = sc->id.next) {
 			for (ScrArea *sa = sc->areabase.first; sa; sa = sa->next) {
 				for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
@@ -2517,10 +2511,11 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 				if ((gset) && (gset->cur_primitive == NULL)) {
 					gset->cur_primitive = curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
 					curvemapping_initialize(gset->cur_primitive);
-					curvemap_reset(gset->cur_primitive->cm,
-						&gset->cur_primitive->clipr,
-						CURVE_PRESET_BELL,
-						CURVEMAP_SLOPE_POSITIVE);
+					curvemap_reset(
+					        gset->cur_primitive->cm,
+					        &gset->cur_primitive->clipr,
+					        CURVE_PRESET_BELL,
+					        CURVEMAP_SLOPE_POSITIVE);
 				}
 			}
 		}
@@ -2737,10 +2732,37 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 	{
 		/* Versioning code until next subversion bump goes here. */
 
-		if (!DNA_struct_elem_find(fd->filesdna, "ToolSettings", "char", "snap_force_increment_flag")) {
+		if (!DNA_struct_elem_find(fd->filesdna, "ToolSettings", "char", "snap_transform_mode_flag")) {
 			for (Scene *scene = bmain->scene.first; scene; scene = scene->id.next) {
-				scene->toolsettings->snap_force_increment_flag =
-					SCE_SNAP_FORCE_INCREMENT_ROTATE | SCE_SNAP_FORCE_INCREMENT_SCALE;
+				scene->toolsettings->snap_transform_mode_flag =
+					SCE_SNAP_TRANSFORM_MODE_TRANSLATE;
+			}
+		}
+
+		for (bScreen *screen = bmain->screen.first; screen; screen = screen->id.next) {
+			for (ScrArea *area = screen->areabase.first; area; area = area->next) {
+				for (SpaceLink *sl = area->spacedata.first; sl; sl = sl->next) {
+					switch (sl->spacetype) {
+						case SPACE_VIEW3D:
+						{
+							enum { V3D_BACKFACE_CULLING = (1 << 10) };
+							View3D *v3d = (View3D *)sl;
+							if (v3d->flag2 & V3D_BACKFACE_CULLING) {
+								v3d->flag2 &= ~V3D_BACKFACE_CULLING;
+								v3d->shading.flag |= V3D_SHADING_BACKFACE_CULLING;
+							}
+							break;
+						}
+					}
+				}
+			}
+		}
+
+		if (!DNA_struct_find(fd->filesdna, "TransformOrientationSlot")) {
+			for (Scene *scene = bmain->scene.first; scene; scene = scene->id.next) {
+				for (int i = 0; i < ARRAY_SIZE(scene->orientation_slots); i++) {
+					scene->orientation_slots[i].index_custom = -1;
+				}
 			}
 		}
 	}

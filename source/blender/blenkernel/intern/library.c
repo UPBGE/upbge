@@ -2209,12 +2209,16 @@ void BKE_id_full_name_ui_prefix_get(char name[MAX_ID_FULL_NAME_UI], const ID *id
  */
 char *BKE_id_to_unique_string_key(const struct ID *id)
 {
-	char name[MAX_ID_FULL_NAME + 2];
-	name[0] = id->name[0];
-	name[1] = id->name[1];
-	BKE_id_full_name_get(name + 2, id);
-
-	return BLI_strdup(name);
+	if (id->lib == NULL) {
+		return BLI_strdup(id->name);
+	}
+	else {
+		/* Prefix with an ascii character in the range of 32..96 (visible)
+		 * this ensures we can't have a library ID pair that collide.
+		 * Where 'LIfooOBbarOBbaz' could be ('LIfoo, OBbarOBbaz') or ('LIfooOBbar', 'OBbaz'). */
+		const char ascii_len = strlen(id->lib->id.name + 2) + 32;
+		return BLI_sprintfN("%c%s%s", ascii_len, id->lib->id.name, id->name);
+	}
 }
 
 void BKE_library_filepath_set(Main *bmain, Library *lib, const char *filepath)

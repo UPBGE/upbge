@@ -318,6 +318,8 @@ static void drw_shgroup_bone_envelope(
 
 /* Custom (geometry) */
 
+extern void drw_batch_cache_generate_requested(Object *custom);
+
 static void drw_shgroup_bone_custom_solid(
         const float (*bone_mat)[4],
         const float bone_color[4], const float hint_color[4], const float outline_color[4],
@@ -328,6 +330,9 @@ static void drw_shgroup_bone_custom_solid(
 	struct GPUBatch *edges = DRW_cache_object_edge_detection_get(custom, NULL);
 	struct GPUBatch *ledges = DRW_cache_object_loose_edges_get(custom);
 	float final_bonemat[4][4];
+
+	/* XXXXXXX needs to be moved elsewhere. */
+	drw_batch_cache_generate_requested(custom);
 
 	if (surf || edges || ledges) {
 		mul_m4_m4m4(final_bonemat, g_data.ob->obmat, bone_mat);
@@ -358,7 +363,11 @@ static void drw_shgroup_bone_custom_wire(
         const float color[4], Object *custom)
 {
 	/* grr, not re-using instances! */
-	struct GPUBatch *geom = DRW_cache_object_wire_outline_get(custom);
+	struct GPUBatch *geom = DRW_cache_object_all_edges_get(custom);
+
+	/* XXXXXXX needs to be moved elsewhere. */
+	drw_batch_cache_generate_requested(custom);
+
 	if (geom) {
 		DRWShadingGroup *shgrp_geom_wire = shgroup_instance_wire(g_data.passes.bone_wire, geom);
 		float final_bonemat[4][4], final_color[4];

@@ -678,12 +678,12 @@ static void add_pose_transdata(TransInfo *t, bPoseChannel *pchan, Object *ob, Tr
 	/* proper way to get parent transform + own transform + constraints transform */
 	copy_m3_m4(omat, ob->obmat);
 
-	/* New code, using "generic" BKE_pchan_to_parent_transform(). */
+	/* New code, using "generic" BKE_bone_parent_transform_calc_from_pchan(). */
 	{
 		BoneParentTransform bpt;
 		float rpmat[3][3];
 
-		BKE_pchan_to_parent_transform(pchan, &bpt);
+		BKE_bone_parent_transform_calc_from_pchan(pchan, &bpt);
 		if (t->mode == TFM_TRANSLATION)
 			copy_m3_m4(pmat, bpt.loc_mat);
 		else
@@ -2565,7 +2565,7 @@ static struct TransIslandData *editmesh_islands_info_calc(
 /* way to overwrite what data is edited with transform */
 static void VertsToTransData(TransInfo *t, TransData *td, TransDataExtension *tx,
                              BMEditMesh *em, BMVert *eve, float *bweight,
-                             struct TransIslandData *v_island)
+                             struct TransIslandData *v_island, const bool no_island_center)
 {
 	float *no, _no[3];
 	BLI_assert(BM_elem_flag_test(eve, BM_ELEM_HIDDEN) == 0);
@@ -2589,7 +2589,12 @@ static void VertsToTransData(TransInfo *t, TransData *td, TransDataExtension *tx
 	}
 
 	if (v_island) {
-		copy_v3_v3(td->center, v_island->co);
+		if (no_island_center) {
+			copy_v3_v3(td->center, td->loc);
+		}
+		else {
+			copy_v3_v3(td->center, v_island->co);
+		}
 		copy_m3_m3(td->axismtx, v_island->axismtx);
 	}
 	else if (t->around == V3D_AROUND_LOCAL_ORIGINS) {
@@ -2636,7 +2641,6 @@ static void VertsToTransData(TransInfo *t, TransData *td, TransDataExtension *tx
 static void createTransEditVerts(TransInfo *t)
 {
 	FOREACH_TRANS_DATA_CONTAINER (t, tc) {
-
 		TransData *tob = NULL;
 		TransDataExtension *tx = NULL;
 		BMEditMesh *em = BKE_editmesh_from_object(tc->obedit);
@@ -2657,8 +2661,14 @@ static void createTransEditVerts(TransInfo *t)
 		int island_info_tot;
 		int *island_vert_map = NULL;
 
+		/* Snap rotation along normal needs a common axis for whole islands, otherwise one get random crazy results,
+		 * see T59104. However, we do not want to use the island center for the pivot/translation reference... */
+		const bool is_snap_rotate = ((t->mode == TFM_TRANSLATION) &&
+		                             /* There is not guarantee that snapping is initialized yet at this point... */
+		                             (usingSnappingNormal(t) || (t->settings->snap_flag & SCE_SNAP_ROTATE) != 0) &&
+		                             (t->around != V3D_AROUND_LOCAL_ORIGINS));
 		/* Even for translation this is needed because of island-orientation, see: T51651. */
-		const bool is_island_center = (t->around == V3D_AROUND_LOCAL_ORIGINS);
+		const bool is_island_center = (t->around == V3D_AROUND_LOCAL_ORIGINS) || is_snap_rotate;
 		/* Original index of our connected vertex when connected distances are calculated.
 		 * Optional, allocate if needed. */
 		int *dists_index = NULL;
@@ -2718,7 +2728,7 @@ static void createTransEditVerts(TransInfo *t)
 		}
 
 		copy_m3_m4(mtx, tc->obedit->obmat);
-		/* we use a pseudoinverse so that when one of the axes is scaled to 0,
+		/* we use a pseudo-inverse so that when one of the axes is scaled to 0,
 		 * matrix inversion still works and we can still moving along the other */
 		pseudoinverse_m3_m3(smtx, mtx, PSEUDOINVERSE_EPSILON);
 
@@ -2799,7 +2809,9 @@ static void createTransEditVerts(TransInfo *t)
 					}
 
 
-					VertsToTransData(t, tob, tx, em, eve, bweight, v_island);
+					/* Do not use the island center in case we are using islands
+					 * only to get axis for snap/rotate to normal... */
+					VertsToTransData(t, tob, tx, em, eve, bweight, v_island, is_snap_rotate);
 					if (tx)
 						tx++;
 
@@ -8192,6 +8204,25 @@ void flushTransPaintCurve(TransInfo *t)
 	}
 }
 
+static void createTransGPencil_center_get(
+	bGPDstroke *gps, const bool is_prop_edit, float r_center[3])
+{
+	bGPDspoint *pt;
+	int i;
+
+	zero_v3(r_center);
+	int tot_sel = 0;
+	for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
+		if (pt->flag & GP_SPOINT_SELECT) {
+			add_v3_v3(r_center, &pt->x);
+			tot_sel++;
+		}
+	}
+
+	if (tot_sel > 0) {
+		mul_v3_fl(r_center, 1.0f / tot_sel);
+	}
+}
 
 static void createTransGPencil(bContext *C, TransInfo *t)
 {
@@ -8395,6 +8426,10 @@ static void createTransGPencil(bContext *C, TransInfo *t)
 							/* save falloff factor */
 							gps->runtime.multi_frame_falloff = falloff;
 
+							/* calculate stroke center */
+							float center[3];
+							createTransGPencil_center_get(gps, is_prop_edit, &center[0]);
+
 							/* add all necessary points... */
 							for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
 								bool point_ok;
@@ -8412,7 +8447,14 @@ static void createTransGPencil(bContext *C, TransInfo *t)
 								/* do point... */
 								if (point_ok) {
 									copy_v3_v3(td->iloc, &pt->x);
-									copy_v3_v3(td->center, &pt->x); // XXX: what about  t->around == local?
+									/* only copy center in local origins.
+									 * This allows get interesting effects also when move using proportional editing */
+									if (ts->transform_pivot_point == V3D_AROUND_LOCAL_ORIGINS) {
+										copy_v3_v3(td->center, center);
+									}
+									else {
+										copy_v3_v3(td->center, &pt->x);
+									}
 
 									td->loc = &pt->x;
 
