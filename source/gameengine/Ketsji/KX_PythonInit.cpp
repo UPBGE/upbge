@@ -1212,7 +1212,7 @@ static PyObject *gPySetAntiAliasing(PyObject *, PyObject *args)
 		return nullptr;
 	}
 
-	if (!ELEM(level, 1, 2, 4, 8, 16)) {
+	if (!ELEM(level, 0, 2, 4, 8, 16)) {
 		PyErr_SetString(PyExc_ValueError, "Rasterizer.setAntiAliasing(level): Expected value of 1, 2, 4, 8, or 16 for value");
 		return nullptr;
 	}
@@ -1462,11 +1462,11 @@ static struct PyMethodDef rasterizer_methods[] = {
 	{"setAnisotropicFiltering", (PyCFunction)gPySetAnisotropicFiltering,
 	 METH_VARARGS, "set the anisotropic filtering level (must be one of 1, 2, 4, 8, 16)"},
 	{"getAnisotropicFiltering", (PyCFunction)gPyGetAnisotropicFiltering,
-	 METH_VARARGS, "get the anti aliasing level"},
+	 METH_VARARGS, "get the anisotropic filtering level"},
 	{"setAntiAliasing", (PyCFunction)gPySetAntiAliasing,
 	 METH_VARARGS, "set the anti aliasing level (must be one of 1, 2, 4, 8, 16)"},
 	{"getAntiAliasing", (PyCFunction)gPyGetAntiAliasing,
-	 METH_VARARGS, "get the anisotropic filtering level"},
+	 METH_VARARGS, "get the anti aliasing level"},
 	{"drawLine", (PyCFunction)gPyDrawLine,
 	 METH_VARARGS, "draw a line on the screen"},
 	{"setWindowSize", (PyCFunction)gPySetWindowSize, METH_VARARGS, ""},

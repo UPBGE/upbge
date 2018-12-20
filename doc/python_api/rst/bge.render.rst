@@ -311,8 +311,8 @@ Functions
 
    Set the anti aliasing level.
 
-   :arg level: The new anisotropic filtering level to use
-   :type level: integer (must be one of 1, 2, 4, 8, 16)
+   :arg level: The new anti aliasing level to use
+   :type level: integer (must be one of 0, 2, 4, 8, 16)
 
    .. note:: Changing this value cause all off screens to be recreated, which can be slow.
 
@@ -320,7 +320,7 @@ Functions
 
    Get the anti aliasing level setting.
 
-   :rtype: integer (one of 1, 2, 4, 8, 16)
+   :rtype: integer (one of 0, 2, 4, 8, 16)
 
 .. function:: setMipmapping(value)
 
