@@ -551,6 +551,10 @@ RAS_Rect RAS_Rasterizer::GetRenderArea(RAS_ICanvas *canvas, StereoMode stereoMod
 					area.SetTop((canvas->GetMaxY() - m_noOfScanlines) / 2);
 					break;
 				}
+				default:
+				{
+					break;
+				}
 			}
 			break;
 		}
@@ -576,6 +580,10 @@ RAS_Rect RAS_Rasterizer::GetRenderArea(RAS_ICanvas *canvas, StereoMode stereoMod
 					area.SetTop((canvas->GetHeight() - 1) / 2);
 					break;
 				}
+				default:
+				{
+					break;
+				}
 			}
 			break;
 		}
@@ -598,6 +606,10 @@ RAS_Rect RAS_Rasterizer::GetRenderArea(RAS_ICanvas *canvas, StereoMode stereoMod
 					area.SetBottom(0);
 					area.SetRight(canvas->GetWidth() - 1);
 					area.SetTop(canvas->GetHeight() - 1);
+					break;
+				}
+				default:
+				{
 					break;
 				}
 			}
@@ -739,6 +751,10 @@ mt::mat4 RAS_Rasterizer::GetFrustumMatrix(StereoMode stereoMode, StereoEye eye, 
 				right -= offset;
 				break;
 			}
+			default:
+			{
+				break;
+			}
 		}
 		// leave bottom and top untouched
 		if (stereoMode == RAS_STEREO_3DTVTOPBOTTOM) {
@@ -798,6 +814,10 @@ mt::mat4 RAS_Rasterizer::GetViewMatrix(StereoMode stereoMode, StereoEye eye, con
 				// translate to right by half the eye distance
 				const mt::mat3x4 transform(mt::mat3::Identity(), eyeline *m_eyeseparation / 2.0f);
 				trans *= transform;
+				break;
+			}
+			default:
+			{
 				break;
 			}
 		}

@@ -43,6 +43,12 @@
 
 #include <BLI_math_rotation.h>
 
+KX_Camera::View::View()
+	:projectionDirty(true),
+	frustumDirty(true)
+{
+}
+
 KX_Camera::KX_Camera(void *sgReplicationInfo,
                      SG_Callbacks callbacks,
                      const RAS_CameraData& camdata,
@@ -50,12 +56,7 @@ KX_Camera::KX_Camera(void *sgReplicationInfo,
 	:
 	KX_GameObject(sgReplicationInfo, callbacks),
 	m_camdata(camdata),
-	m_projection_matrix(mt::mat4::Identity()),
-	m_modelview_matrix(mt::mat4::Identity()),
-	m_dirty(true),
-	m_normalized(false),
 	m_frustum_culling(frustum_culling),
-	m_set_projection_matrix(false),
 	m_lodDistanceFactor(1.0f),
 	m_activityCulling(false),
 	m_showDebugCameraFrustum(false)
@@ -98,11 +99,11 @@ mt::mat3x4 KX_Camera::GetCameraToWorld() const
 /**
  * Sets the projection matrix that is used by the rasterizer.
  */
-void KX_Camera::SetProjectionMatrix(const mt::mat4 & mat)
+void KX_Camera::SetProjectionMatrix(const mt::mat4 & mat, RAS_Rasterizer::StereoEye eye)
 {
-	m_projection_matrix = mat;
-	m_dirty = true;
-	m_set_projection_matrix = true;
+	m_views[eye].projection = mat;
+	m_views[eye].projectionDirty = false;
+	m_views[eye].frustumDirty = true;
 }
 
 
@@ -110,10 +111,10 @@ void KX_Camera::SetProjectionMatrix(const mt::mat4 & mat)
 /**
  * Sets the modelview matrix that is used by the rasterizer.
  */
-void KX_Camera::SetModelviewMatrix(const mt::mat4 & mat)
+void KX_Camera::SetModelviewMatrix(const mt::mat4 & mat, RAS_Rasterizer::StereoEye eye)
 {
-	m_modelview_matrix = mat;
-	m_dirty = true;
+	m_views[eye].modelview = mat;
+	m_views[eye].frustumDirty = true;
 }
 
 
@@ -121,9 +122,9 @@ void KX_Camera::SetModelviewMatrix(const mt::mat4 & mat)
 /**
  * Gets the projection matrix that is used by the rasterizer.
  */
-const mt::mat4& KX_Camera::GetProjectionMatrix() const
+const mt::mat4& KX_Camera::GetProjectionMatrix(RAS_Rasterizer::StereoEye eye) const
 {
-	return m_projection_matrix;
+	return m_views[eye].projection;
 }
 
 
@@ -131,20 +132,22 @@ const mt::mat4& KX_Camera::GetProjectionMatrix() const
 /**
  * Gets the modelview matrix that is used by the rasterizer.
  */
-const mt::mat4& KX_Camera::GetModelviewMatrix() const
+const mt::mat4& KX_Camera::GetModelviewMatrix(RAS_Rasterizer::StereoEye eye) const
 {
-	return m_modelview_matrix;
+	return m_views[eye].modelview;
 }
 
 
-bool KX_Camera::hasValidProjectionMatrix() const
+bool KX_Camera::HasValidProjectionMatrix(RAS_Rasterizer::StereoEye eye) const
 {
-	return m_set_projection_matrix;
+	return !m_views[eye].projectionDirty;
 }
 
-void KX_Camera::InvalidateProjectionMatrix(bool valid)
+void KX_Camera::InvalidateProjectionMatrix()
 {
-	m_set_projection_matrix = valid;
+	for (unsigned short i = 0; i < RAS_Rasterizer::RAS_STEREO_MAXEYE; ++i) {
+		m_views[i].projectionDirty = true;
+	}
 }
 
 
@@ -255,18 +258,19 @@ void KX_Camera::SetActivityCulling(bool enable)
 	m_activityCulling = enable;
 }
 
-void KX_Camera::ExtractFrustum()
+void KX_Camera::ExtractFrustum(RAS_Rasterizer::StereoEye eye)
 {
-	if (m_dirty) {
-		m_frustum = SG_Frustum(m_projection_matrix * m_modelview_matrix);
-		m_dirty = false;
+	View& view = m_views[eye];
+	if (view.frustumDirty) {
+		view.frustum = SG_Frustum(view.projection * view.modelview);
+		view.frustumDirty = false;
 	}
 }
 
-const SG_Frustum& KX_Camera::GetFrustum()
+const SG_Frustum& KX_Camera::GetFrustum(RAS_Rasterizer::StereoEye eye)
 {
-	ExtractFrustum();
-	return m_frustum;
+	ExtractFrustum(eye);
+	return m_views[eye].frustum;
 }
 
 bool KX_Camera::GetFrustumCulling() const
@@ -276,7 +280,7 @@ bool KX_Camera::GetFrustumCulling() const
 
 void KX_Camera::EnableViewport(bool viewport)
 {
-	InvalidateProjectionMatrix(false); // We need to reset projection matrix
+	InvalidateProjectionMatrix(); // We need to reset projection matrix
 	m_camdata.m_viewport = viewport;
 }
 
@@ -413,7 +417,7 @@ EXP_PYMETHODDEF_DOC_VARARGS(KX_Camera, sphereInsideFrustum,
 	if (PyArg_ParseTuple(args, "Of:sphereInsideFrustum", &pycenter, &radius)) {
 		mt::vec3 center;
 		if (PyVecTo(pycenter, center)) {
-			return PyLong_FromLong(GetFrustum().SphereInsideFrustum(center, radius)); /* new ref */
+			return PyLong_FromLong(GetFrustum(RAS_Rasterizer::RAS_STEREO_LEFTEYE).SphereInsideFrustum(center, radius)); /* new ref */
 		}
 	}
 
@@ -464,7 +468,7 @@ EXP_PYMETHODDEF_DOC_O(KX_Camera, boxInsideFrustum,
 		}
 	}
 
-	return PyLong_FromLong(GetFrustum().BoxInsideFrustum(box)); /* new ref */
+	return PyLong_FromLong(GetFrustum(RAS_Rasterizer::RAS_STEREO_LEFTEYE).BoxInsideFrustum(box)); /* new ref */
 }
 
 EXP_PYMETHODDEF_DOC_O(KX_Camera, pointInsideFrustum,
@@ -485,7 +489,7 @@ EXP_PYMETHODDEF_DOC_O(KX_Camera, pointInsideFrustum,
 {
 	mt::vec3 point;
 	if (PyVecTo(value, point)) {
-		return PyLong_FromLong(GetFrustum().PointInsideFrustum(point)); /* new ref */
+		return PyLong_FromLong(GetFrustum(RAS_Rasterizer::RAS_STEREO_LEFTEYE).PointInsideFrustum(point)); /* new ref */
 	}
 
 	PyErr_SetString(PyExc_TypeError, "camera.pointInsideFrustum(point): KX_Camera, expected point argument.");
@@ -567,7 +571,7 @@ int KX_Camera::pyattr_set_lens(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_D
 	}
 
 	self->m_camdata.m_lens = param;
-	self->m_set_projection_matrix = false;
+	self->InvalidateProjectionMatrix();
 	return PY_SET_ATTR_SUCCESS;
 }
 
@@ -595,7 +599,7 @@ int KX_Camera::pyattr_set_fov(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DE
 	float lens = width / (2.0f * tanf(0.5f * DEG2RADF(fov)));
 
 	self->m_camdata.m_lens = lens;
-	self->m_set_projection_matrix = false;
+	self->InvalidateProjectionMatrix();
 	return PY_SET_ATTR_SUCCESS;
 }
 
@@ -615,7 +619,7 @@ int KX_Camera::pyattr_set_ortho_scale(EXP_PyObjectPlus *self_v, const EXP_PYATTR
 	}
 
 	self->m_camdata.m_scale = param;
-	self->m_set_projection_matrix = false;
+	self->InvalidateProjectionMatrix();
 	return PY_SET_ATTR_SUCCESS;
 }
 
@@ -635,7 +639,7 @@ int KX_Camera::pyattr_set_near(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_D
 	}
 
 	self->m_camdata.m_clipstart = param;
-	self->m_set_projection_matrix = false;
+	self->InvalidateProjectionMatrix();
 	return PY_SET_ATTR_SUCCESS;
 }
 
@@ -655,7 +659,7 @@ int KX_Camera::pyattr_set_far(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DE
 	}
 
 	self->m_camdata.m_clipend = param;
-	self->m_set_projection_matrix = false;
+	self->InvalidateProjectionMatrix();
 	return PY_SET_ATTR_SUCCESS;
 }
 
@@ -675,7 +679,7 @@ int KX_Camera::pyattr_set_shift_x(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUT
 	}
 
 	self->m_camdata.m_shift_x = param;
-	self->m_set_projection_matrix = false;
+	self->InvalidateProjectionMatrix();
 	return PY_SET_ATTR_SUCCESS;
 }
 
@@ -695,7 +699,7 @@ int KX_Camera::pyattr_set_shift_y(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUT
 	}
 
 	self->m_camdata.m_shift_y = param;
-	self->m_set_projection_matrix = false;
+	self->InvalidateProjectionMatrix();
 	return PY_SET_ATTR_SUCCESS;
 }
 
@@ -720,7 +724,7 @@ int KX_Camera::pyattr_set_use_viewport(EXP_PyObjectPlus *self_v, const EXP_PYATT
 PyObject *KX_Camera::pyattr_get_projection_matrix(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_Camera *self = static_cast<KX_Camera *>(self_v);
-	return PyObjectFrom(self->GetProjectionMatrix());
+	return PyObjectFrom(self->GetProjectionMatrix(RAS_Rasterizer::RAS_STEREO_LEFTEYE));
 }
 
 int KX_Camera::pyattr_set_projection_matrix(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
@@ -731,7 +735,7 @@ int KX_Camera::pyattr_set_projection_matrix(EXP_PyObjectPlus *self_v, const EXP_
 		return PY_SET_ATTR_FAIL;
 	}
 
-	self->SetProjectionMatrix(mat);
+	self->SetProjectionMatrix(mat, RAS_Rasterizer::RAS_STEREO_LEFTEYE);
 	return PY_SET_ATTR_SUCCESS;
 }
 
@@ -854,7 +858,7 @@ EXP_PYMETHODDEF_DOC_O(KX_Camera, getScreenPosition,
 	GLdouble dprojmatrix[16];
 
 	const mt::mat4 modelmatrix = mt::mat4::FromAffineTransform(GetWorldToCamera());
-	const mt::mat4& projmatrix = this->GetProjectionMatrix();
+	const mt::mat4& projmatrix = GetProjectionMatrix(RAS_Rasterizer::RAS_STEREO_LEFTEYE);
 
 	for (unsigned short i = 0; i < 16; ++i) {
 		dmodelmatrix[i] = modelmatrix[i];
@@ -898,7 +902,7 @@ EXP_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenVect,
 	const int height = canvas->GetHeight();
 
 	const mt::vec3 vect(x * width, y * height, 0.0f);
-	const mt::vec3 screenpos = mt::mat4::UnProject(vect, modelmatrix, m_projection_matrix, width, height);
+	const mt::vec3 screenpos = mt::mat4::UnProject(vect, modelmatrix, GetProjectionMatrix(RAS_Rasterizer::RAS_STEREO_LEFTEYE), width, height);
 	const mt::vec3 ret = (NodeGetLocalPosition() - screenpos).Normalized();
 
 	return PyObjectFrom(ret);
@@ -928,7 +932,7 @@ EXP_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenRay,
 
 	// Unproject a point in near plane.
 	const mt::vec3 point(x * width, y * height, 0.0f);
-	const mt::vec3 screenpos = mt::mat4::UnProject(point, modelmatrix, m_projection_matrix, width, height);
+	const mt::vec3 screenpos = mt::mat4::UnProject(point, modelmatrix, GetProjectionMatrix(RAS_Rasterizer::RAS_STEREO_LEFTEYE), width, height);
 
 	// For perpspective the vector is from camera center to unprojected point.
 	if (m_camdata.m_perspective) {

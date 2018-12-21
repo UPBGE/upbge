@@ -115,6 +115,7 @@ public:
 	enum StereoEye {
 		RAS_STEREO_LEFTEYE = 0,
 		RAS_STEREO_RIGHTEYE,
+		RAS_STEREO_MAXEYE,
 	};
 
 	/**

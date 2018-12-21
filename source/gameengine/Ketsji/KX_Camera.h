@@ -38,6 +38,7 @@
 #include "SG_Frustum.h"
 
 #include "RAS_CameraData.h"
+#include "RAS_Rasterizer.h"
 
 #ifdef WITH_PYTHON
 /* utility conversion function */
@@ -56,42 +57,24 @@ protected:
 	 * here? It doesn't really have a function here. */
 	RAS_CameraData	m_camdata;
 
-	/**
-	 * Storage for the projection matrix that is passed to the
-	 * rasterizer. */
-	mt::mat4 m_projection_matrix;
+	struct View
+	{
+		View();
 
-	/**
-	 * Storage for the modelview matrix that is passed to the
-	 * rasterizer. */
-	mt::mat4 m_modelview_matrix;
+		mt::mat4 projection;
+		mt::mat4 modelview;
+		SG_Frustum frustum;
+		bool projectionDirty;
+		bool frustumDirty;
+	};
 
-	/**
-	 * true if the view frustum (modelview/projection matrix)
-	 * has changed - the clip planes (m_planes) will have to be
-	 * regenerated.
-	 */
-	bool         m_dirty;
-	/**
-	 * true if the frustum planes have been normalized.
-	 */
-	bool         m_normalized;
-	
-	/**
-	 * View Frustum clip planes.
-	 */
-	mt::vec4   m_planes[6];
-	
+	View m_views[RAS_Rasterizer::RAS_STEREO_MAXEYE];
+
 	/**
 	 * This camera is frustum culling.
 	 * Some cameras (ie if the game was started from a non camera view should not cull.)
 	 */
 	bool         m_frustum_culling;
-	
-	/**
-	 * true if this camera has a valid projection matrix.
-	 */
-	bool         m_set_projection_matrix;
 
 	/** Distance factor for level of detail*/
 	float m_lodDistanceFactor;
@@ -104,9 +87,7 @@ protected:
 	 */
 	bool m_showDebugCameraFrustum;
 
-	SG_Frustum m_frustum;
-
-	void ExtractFrustum();
+	void ExtractFrustum(RAS_Rasterizer::StereoEye eye);
 
 public:
 
@@ -129,27 +110,27 @@ public:
 	mt::mat3x4		GetCameraToWorld() const;
 
 	/** Sets the projection matrix that is used by the rasterizer. */
-	void				SetProjectionMatrix(const mt::mat4 & mat);
+	void				SetProjectionMatrix(const mt::mat4 & mat, RAS_Rasterizer::StereoEye eye);
 
 	/** Sets the modelview matrix that is used by the rasterizer. */
-	void				SetModelviewMatrix(const mt::mat4 & mat);
+	void				SetModelviewMatrix(const mt::mat4 & mat, RAS_Rasterizer::StereoEye eye);
 		
 	/** Gets the projection matrix that is used by the rasterizer. */
-	const mt::mat4&		GetProjectionMatrix() const;
+	const mt::mat4&		GetProjectionMatrix(RAS_Rasterizer::StereoEye eye) const;
 	
 	/** returns true if this camera has been set a projection matrix. */
-	bool				hasValidProjectionMatrix() const;
+	bool				HasValidProjectionMatrix(RAS_Rasterizer::StereoEye eye) const;
 	
 	/** Sets the validity of the projection matrix.  Call this if you change camera
 	 *  data (eg lens, near plane, far plane) and require the projection matrix to be
 	 *  recalculated.
 	 */
-	void				InvalidateProjectionMatrix(bool valid = false);
+	void				InvalidateProjectionMatrix();
 	
 	/** Gets the modelview matrix that is used by the rasterizer. 
 	 *  \warning If the Camera is a dynamic object then this method may return garbage.  Use GetWorldToCamera() instead.
 	 */
-	const mt::mat4&		GetModelviewMatrix() const;
+	const mt::mat4&		GetModelviewMatrix(RAS_Rasterizer::StereoEye eye) const;
 
 	/** Gets the aperture. */
 	float				GetLens() const;
@@ -187,10 +168,10 @@ public:
 	bool GetActivityCulling() const;
 	void SetActivityCulling(bool enable);
 
-	const SG_Frustum& GetFrustum();
+	const SG_Frustum& GetFrustum(RAS_Rasterizer::StereoEye eye);
 
 	/**
-	 * Gets this camera's culling status.
+	 * Gets this camera's culling status.bool
 	 */
 	bool GetFrustumCulling() const;
 	
@@ -205,7 +186,7 @@ public:
 	void SetViewport(int left, int bottom, int right, int top);
 	
 	/**
-	 * Gets this camera's viewport status.
+	 * Gets this camera's viewport status.bool
 	 */
 	bool GetViewport() const;
 	

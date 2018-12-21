@@ -552,8 +552,8 @@ KX_KetsjiEngine::CameraRenderData KX_KetsjiEngine::GetCameraRenderData(KX_Scene 
 	// Compute the camera matrices: modelview and projection.
 	const mt::mat4 viewmat = m_rasterizer->GetViewMatrix(stereoMode, eye, rendercam->GetWorldToCamera(), rendercam->GetCameraData()->m_perspective);
 	const mt::mat4 projmat = GetCameraProjectionMatrix(scene, rendercam, stereoMode, eye, viewport, area);
-	rendercam->SetModelviewMatrix(viewmat);
-	rendercam->SetProjectionMatrix(projmat);
+	rendercam->SetModelviewMatrix(viewmat, eye);
+	rendercam->SetProjectionMatrix(projmat, eye);
 
 	CameraRenderData cameraData(rendercam, cullingcam, area, viewport, stereoMode, eye);
 
@@ -606,8 +606,8 @@ KX_KetsjiEngine::RenderData KX_KetsjiEngine::GetRenderData()
 			                                                     overrideCullingCam->GetWorldToCamera(), overrideCullingCam->GetCameraData()->m_perspective);
 			const mt::mat4 projmat = GetCameraProjectionMatrix(scene, overrideCullingCam, stereomode,
 			                                                   RAS_Rasterizer::RAS_STEREO_LEFTEYE, viewport, area);
-			overrideCullingCam->SetModelviewMatrix(viewmat);
-			overrideCullingCam->SetProjectionMatrix(projmat);
+			overrideCullingCam->SetModelviewMatrix(viewmat, RAS_Rasterizer::RAS_STEREO_LEFTEYE);
+			overrideCullingCam->SetProjectionMatrix(projmat, RAS_Rasterizer::RAS_STEREO_LEFTEYE);
 		}
 	}
 
@@ -861,7 +861,7 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 				/* binds framebuffer object, sets up camera .. */
 				raslight->BindShadowBuffer(m_canvas, cam, camtrans);
 
-				const std::vector<KX_GameObject *> objects = scene->CalculateVisibleMeshes(cam, raslight->GetShadowLayer());
+				const std::vector<KX_GameObject *> objects = scene->CalculateVisibleMeshes(cam->GetFrustum(RAS_Rasterizer::RAS_STEREO_LEFTEYE), raslight->GetShadowLayer());
 
 				m_logger.StartLog(tc_animations);
 				UpdateAnimations(scene);
@@ -883,8 +883,8 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 mt::mat4 KX_KetsjiEngine::GetCameraProjectionMatrix(KX_Scene *scene, KX_Camera *cam, RAS_Rasterizer::StereoMode stereoMode,
                                                     RAS_Rasterizer::StereoEye eye, const RAS_Rect& viewport, const RAS_Rect& area) const
 {
-	if (cam->hasValidProjectionMatrix()) {
-		return cam->GetProjectionMatrix();
+	if (cam->HasValidProjectionMatrix(eye)) {
+		return cam->GetProjectionMatrix(eye);
 	}
 
 	const bool override_camera = ((m_flags & CAMERA_OVERRIDE) != 0) && (scene->GetName() == m_overrideSceneName) &&
@@ -986,10 +986,11 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene, const CameraRenderData& came
 		m_rasterizer->Clear(RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT);
 	}
 
-	m_rasterizer->SetEye(cameraFrameData.m_eye);
+	RAS_Rasterizer::StereoEye eye = cameraFrameData.m_eye;
+	m_rasterizer->SetEye(eye);
 
-	m_rasterizer->SetProjectionMatrix(rendercam->GetProjectionMatrix());
-	m_rasterizer->SetViewMatrix(rendercam->GetModelviewMatrix(), rendercam->NodeGetWorldScaling());
+	m_rasterizer->SetProjectionMatrix(rendercam->GetProjectionMatrix(eye));
+	m_rasterizer->SetViewMatrix(rendercam->GetModelviewMatrix(eye), rendercam->NodeGetWorldScaling());
 
 	if (isFirstScene) {
 		KX_WorldInfo *worldInfo = scene->GetWorldInfo();
@@ -1005,7 +1006,7 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene, const CameraRenderData& came
 
 	m_logger.StartLog(tc_scenegraph);
 
-	const std::vector<KX_GameObject *> objects = scene->CalculateVisibleMeshes(cullingcam, 0);
+	const std::vector<KX_GameObject *> objects = scene->CalculateVisibleMeshes(cullingcam, eye, 0);
 
 	// update levels of detail
 	scene->UpdateObjectLods(cullingcam, objects);

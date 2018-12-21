@@ -137,7 +137,7 @@ bool KX_TextureRendererManager::RenderRenderer(RAS_Rasterizer *rasty, KX_Texture
 	 * we have to compute projection matrix.
 	 */
 	const mt::mat4& projmat = renderer->GetProjectionMatrix(rasty, m_scene, sceneCamera, viewport, area);
-	m_camera->SetProjectionMatrix(projmat);
+	m_camera->SetProjectionMatrix(projmat, RAS_Rasterizer::RAS_STEREO_LEFTEYE);
 	rasty->SetProjectionMatrix(projmat);
 
 	// Begin rendering stuff
@@ -157,9 +157,9 @@ bool KX_TextureRendererManager::RenderRenderer(RAS_Rasterizer *rasty, KX_Texture
 		const mt::mat4 viewmat = mt::mat4::FromAffineTransform(camtrans);
 
 		rasty->SetViewMatrix(viewmat);
-		m_camera->SetModelviewMatrix(viewmat);
+		m_camera->SetModelviewMatrix(viewmat, RAS_Rasterizer::RAS_STEREO_LEFTEYE);
 
-		const std::vector<KX_GameObject *> objects = m_scene->CalculateVisibleMeshes(m_camera, ~renderer->GetIgnoreLayers());
+		const std::vector<KX_GameObject *> objects = m_scene->CalculateVisibleMeshes(m_camera, RAS_Rasterizer::RAS_STEREO_LEFTEYE, ~renderer->GetIgnoreLayers());
 
 		/* Updating the lod per face is normally not expensive because a cube map normally show every objects
 		 * but here we update only visible object of a face including the clip end and start.
