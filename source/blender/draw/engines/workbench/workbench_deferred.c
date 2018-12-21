@@ -35,6 +35,7 @@
 
 #include "BKE_node.h"
 #include "BKE_modifier.h"
+#include "BKE_object.h"
 #include "BKE_particle.h"
 
 #include "DNA_image_types.h"
@@ -808,7 +809,10 @@ void workbench_deferred_solid_cache_populate(WORKBENCH_Data *vedata, Object *ob)
 		return; /* Do not draw solid in this case. */
 	}
 
-	if (!DRW_object_is_visible_in_active_context(ob) || (ob->dt < OB_SOLID)) {
+	if (!(DRW_object_visibility_in_active_context(ob) & OB_VISIBLE_SELF)) {
+		return;
+	}
+	if (ob->dt < OB_SOLID) {
 		return;
 	}
 
@@ -824,15 +828,18 @@ void workbench_deferred_solid_cache_populate(WORKBENCH_Data *vedata, Object *ob)
 			/* Draw textured */
 			struct GPUBatch **geom_array = DRW_cache_mesh_surface_texpaint_get(ob);
 			for (int i = 0; i < materials_len; i++) {
-				Material *mat = give_current_material(ob, i + 1);
-				Image *image;
-				ED_object_get_active_image(ob, i + 1, &image, NULL, NULL, NULL);
-				int color_type = workbench_material_determine_color_type(wpd, image, ob);
-				material = get_or_create_material_data(vedata, ob, mat, image, color_type);
-				DRW_shgroup_call_object_add(material->shgrp, geom_array[i], ob);
+				if (geom_array != NULL && geom_array[i] != NULL) {
+					Material *mat = give_current_material(ob, i + 1);
+					Image *image;
+					ED_object_get_active_image(ob, i + 1, &image, NULL, NULL, NULL);
+					int color_type = workbench_material_determine_color_type(wpd, image, ob);
+					material = get_or_create_material_data(vedata, ob, mat, image, color_type);
+					DRW_shgroup_call_object_add(material->shgrp, geom_array[i], ob);
+				}
 			}
 		}
-		else if (ELEM(wpd->shading.color_type, V3D_SHADING_SINGLE_COLOR, V3D_SHADING_RANDOM_COLOR)) {
+		else if (ELEM(wpd->shading.color_type,
+		              V3D_SHADING_SINGLE_COLOR, V3D_SHADING_OBJECT_COLOR, V3D_SHADING_RANDOM_COLOR)) {
 			/* Draw solid color */
 			material = get_or_create_material_data(vedata, ob, NULL, NULL, wpd->shading.color_type);
 			if (is_sculpt_mode) {
@@ -840,7 +847,9 @@ void workbench_deferred_solid_cache_populate(WORKBENCH_Data *vedata, Object *ob)
 			}
 			else {
 				struct GPUBatch *geom = DRW_cache_object_surface_get(ob);
-				DRW_shgroup_call_object_add(material->shgrp, geom, ob);
+				if (geom) {
+					DRW_shgroup_call_object_add(material->shgrp, geom, ob);
+				}
 			}
 		}
 		else {
@@ -858,9 +867,11 @@ void workbench_deferred_solid_cache_populate(WORKBENCH_Data *vedata, Object *ob)
 
 				geoms = DRW_cache_object_surface_material_get(ob, gpumat_array, materials_len, NULL, NULL, NULL);
 				for (int i = 0; i < materials_len; ++i) {
-					Material *mat = give_current_material(ob, i + 1);
-					material = get_or_create_material_data(vedata, ob, mat, NULL, V3D_SHADING_MATERIAL_COLOR);
-					DRW_shgroup_call_object_add(material->shgrp, geoms[i], ob);
+					if (geoms != NULL && geoms[i] != NULL) {
+						Material *mat = give_current_material(ob, i + 1);
+						material = get_or_create_material_data(vedata, ob, mat, NULL, V3D_SHADING_MATERIAL_COLOR);
+						DRW_shgroup_call_object_add(material->shgrp, geoms[i], ob);
+					}
 				}
 			}
 		}

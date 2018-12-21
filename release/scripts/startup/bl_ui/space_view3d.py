@@ -4154,7 +4154,7 @@ class VIEW3D_MT_orientations_pie(Menu):
         pie = layout.menu_pie()
         scene = context.scene
 
-        pie.prop(scene, "transform_orientation", expand=True)
+        pie.prop(scene.transform_orientation_slots[0], "type", expand=True)
 
 
 class VIEW3D_MT_snap_pie(Menu):
@@ -4402,7 +4402,7 @@ class VIEW3D_PT_shading(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'HEADER'
     bl_label = "Shading"
-    bl_ui_units_x = 11
+    bl_ui_units_x = 12
 
     @classmethod
     def get_shading(cls, context):
@@ -4444,8 +4444,8 @@ class VIEW3D_PT_shading_lighting(Panel):
             sub = col.row()
 
             if shading.light == 'STUDIO':
-                userpref = context.user_preferences
-                system = userpref.system
+                prefs = context.preferences
+                system = prefs.system
 
                 if not system.edit_studio_light:
                     sub.scale_y = 0.6  # smaller studiolight preview
@@ -5037,7 +5037,7 @@ class VIEW3D_PT_overlay_edit_mesh_developer(Panel):
 
     @classmethod
     def poll(cls, context):
-        return context.mode == 'EDIT_MESH' and context.user_preferences.view.show_developer_ui
+        return context.mode == 'EDIT_MESH' and context.preferences.view.show_developer_ui
 
     def draw(self, context):
         layout = self.layout

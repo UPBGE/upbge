@@ -8204,8 +8204,7 @@ void flushTransPaintCurve(TransInfo *t)
 	}
 }
 
-static void createTransGPencil_center_get(
-	bGPDstroke *gps, const bool is_prop_edit, float r_center[3])
+static void createTransGPencil_center_get(bGPDstroke *gps, float r_center[3])
 {
 	bGPDspoint *pt;
 	int i;
@@ -8428,7 +8427,7 @@ static void createTransGPencil(bContext *C, TransInfo *t)
 
 							/* calculate stroke center */
 							float center[3];
-							createTransGPencil_center_get(gps, is_prop_edit, &center[0]);
+							createTransGPencil_center_get(gps, center);
 
 							/* add all necessary points... */
 							for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
@@ -8449,7 +8448,9 @@ static void createTransGPencil(bContext *C, TransInfo *t)
 									copy_v3_v3(td->iloc, &pt->x);
 									/* only copy center in local origins.
 									 * This allows get interesting effects also when move using proportional editing */
-									if (ts->transform_pivot_point == V3D_AROUND_LOCAL_ORIGINS) {
+									if ((gps->flag & GP_STROKE_SELECT) &&
+										(ts->transform_pivot_point == V3D_AROUND_LOCAL_ORIGINS))
+									{
 										copy_v3_v3(td->center, center);
 									}
 									else {
