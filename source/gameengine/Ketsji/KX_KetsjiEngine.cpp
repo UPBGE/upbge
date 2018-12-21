@@ -550,10 +550,7 @@ KX_KetsjiEngine::CameraRenderData KX_KetsjiEngine::GetCameraRenderData(KX_Scene 
 	// Compute the area and the viewport based on the current display area and the optional camera viewport.
 	GetSceneViewport(scene, rendercam, displayArea, area, viewport);
 	// Compute the camera matrices: modelview and projection.
-	const mt::mat4 viewmat = m_rasterizer->GetViewMatrix(stereoMode, eye, rendercam->GetWorldToCamera(), rendercam->GetCameraData()->m_perspective);
-	const mt::mat4 projmat = GetCameraProjectionMatrix(scene, rendercam, stereoMode, eye, viewport, area);
-	rendercam->SetModelviewMatrix(viewmat);
-	rendercam->SetProjectionMatrix(projmat);
+	rendercam->UpdateView(m_rasterizer, scene, stereoMode, eye, viewport, area);
 
 	CameraRenderData cameraData(rendercam, cullingcam, area, viewport, stereoMode, eye);
 
@@ -602,12 +599,7 @@ KX_KetsjiEngine::RenderData KX_KetsjiEngine::GetRenderData()
 			// Compute the area and the viewport based on the current display area and the optional camera viewport.
 			GetSceneViewport(scene, overrideCullingCam, displayAreas[RAS_Rasterizer::RAS_STEREO_LEFTEYE], area, viewport);
 			// Compute the camera matrices: modelview and projection.
-			const mt::mat4 viewmat = m_rasterizer->GetViewMatrix(stereomode, RAS_Rasterizer::RAS_STEREO_LEFTEYE,
-			                                                     overrideCullingCam->GetWorldToCamera(), overrideCullingCam->GetCameraData()->m_perspective);
-			const mt::mat4 projmat = GetCameraProjectionMatrix(scene, overrideCullingCam, stereomode,
-			                                                   RAS_Rasterizer::RAS_STEREO_LEFTEYE, viewport, area);
-			overrideCullingCam->SetModelviewMatrix(viewmat);
-			overrideCullingCam->SetProjectionMatrix(projmat);
+			overrideCullingCam->UpdateView(m_rasterizer, scene, stereomode, RAS_Rasterizer::RAS_STEREO_LEFTEYE, viewport, area);
 		}
 	}
 
@@ -833,7 +825,7 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 				/* binds framebuffer object, sets up camera .. */
 				raslight->BindShadowBuffer(m_canvas, cam, camtrans);
 
-				const std::vector<KX_GameObject *> objects = scene->CalculateVisibleMeshes(cam, raslight->GetShadowLayer());
+				const std::vector<KX_GameObject *> objects = scene->CalculateVisibleMeshes(cam->GetFrustum(RAS_Rasterizer::RAS_STEREO_LEFTEYE), raslight->GetShadowLayer());
 
 				m_logger.StartLog(tc_animations);
 				UpdateAnimations(scene);
@@ -849,69 +841,6 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 				cam->Release();
 			}
 		}
-	}
-}
-
-mt::mat4 KX_KetsjiEngine::GetCameraProjectionMatrix(KX_Scene *scene, KX_Camera *cam, RAS_Rasterizer::StereoMode stereoMode,
-                                                    RAS_Rasterizer::StereoEye eye, const RAS_Rect& viewport, const RAS_Rect& area) const
-{
-	if (cam->hasValidProjectionMatrix()) {
-		return cam->GetProjectionMatrix();
-	}
-
-	RAS_FrameFrustum frustum{};
-	const bool orthographic = !cam->GetCameraData()->m_perspective;
-	const float nearfrust = cam->GetCameraNear();
-	const float farfrust = cam->GetCameraFar();
-	const float focallength = cam->GetFocalLength();
-	const float camzoom = cam->GetZoom();
-
-	if (orthographic) {
-		RAS_FramingManager::ComputeOrtho(
-			scene->GetFramingType(),
-			area,
-			viewport,
-			cam->GetScale(),
-			nearfrust,
-			farfrust,
-			cam->GetSensorFit(),
-			cam->GetShiftHorizontal(),
-			cam->GetShiftVertical(),
-			frustum);
-
-		if (!cam->UseViewport()) {
-			frustum.x1 *= camzoom;
-			frustum.x2 *= camzoom;
-			frustum.y1 *= camzoom;
-			frustum.y2 *= camzoom;
-		}
-		return m_rasterizer->GetOrthoMatrix(
-			frustum.x1, frustum.x2, frustum.y1, frustum.y2, frustum.camnear, frustum.camfar);
-
-	}
-	else {
-		RAS_FramingManager::ComputeFrustum(
-			scene->GetFramingType(),
-			area,
-			viewport,
-			cam->GetLens(),
-			cam->GetSensorWidth(),
-			cam->GetSensorHeight(),
-			cam->GetSensorFit(),
-			cam->GetShiftHorizontal(),
-			cam->GetShiftVertical(),
-			nearfrust,
-			farfrust,
-			frustum);
-
-		if (!cam->UseViewport()) {
-			frustum.x1 *= camzoom;
-			frustum.x2 *= camzoom;
-			frustum.y1 *= camzoom;
-			frustum.y2 *= camzoom;
-		}
-		return m_rasterizer->GetFrustumMatrix(stereoMode, eye, focallength,
-			frustum.x1, frustum.x2, frustum.y1, frustum.y2, frustum.camnear, frustum.camfar);
 	}
 }
 
@@ -945,10 +874,11 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene, const CameraRenderData& came
 		m_rasterizer->Clear(RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT);
 	}
 
-	m_rasterizer->SetEye(cameraFrameData.m_eye);
+	RAS_Rasterizer::StereoEye eye = cameraFrameData.m_eye;
+	m_rasterizer->SetEye(eye);
 
-	m_rasterizer->SetProjectionMatrix(rendercam->GetProjectionMatrix());
-	m_rasterizer->SetViewMatrix(rendercam->GetModelviewMatrix(), rendercam->NodeGetWorldScaling());
+	m_rasterizer->SetProjectionMatrix(rendercam->GetProjectionMatrix(eye));
+	m_rasterizer->SetViewMatrix(rendercam->GetModelviewMatrix(eye), rendercam->NodeGetWorldScaling());
 
 	if (isFirstScene) {
 		KX_WorldInfo *worldInfo = scene->GetWorldInfo();
@@ -964,7 +894,7 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene, const CameraRenderData& came
 
 	m_logger.StartLog(tc_scenegraph);
 
-	const std::vector<KX_GameObject *> objects = scene->CalculateVisibleMeshes(cullingcam, 0);
+	const std::vector<KX_GameObject *> objects = scene->CalculateVisibleMeshes(cullingcam, eye, 0);
 
 	// update levels of detail
 	scene->UpdateObjectLods(cullingcam, objects);
@@ -1196,11 +1126,12 @@ void KX_KetsjiEngine::DrawDebugCameraFrustum(KX_Scene *scene, const CameraRender
 	RAS_DebugDraw& debugDraw = scene->GetDebugDraw();
 	for (KX_Camera *cam : scene->GetCameraList()) {
 		if (cam != cameraFrameData.m_renderCamera && (m_showCameraFrustum == KX_DebugOption::FORCE || cam->GetShowCameraFrustum())) {
-			const mt::mat4 viewmat = m_rasterizer->GetViewMatrix(cameraFrameData.m_stereoMode, cameraFrameData.m_eye,
-			                                                     cam->GetWorldToCamera(), cam->GetCameraData()->m_perspective);
-			const mt::mat4 projmat = GetCameraProjectionMatrix(scene, cam, cameraFrameData.m_stereoMode, cameraFrameData.m_eye,
-			                                                   cameraFrameData.m_viewport, cameraFrameData.m_area);
-			debugDraw.DrawCameraFrustum(projmat * viewmat);
+
+			cam->UpdateView(m_rasterizer, scene, cameraFrameData.m_stereoMode, cameraFrameData.m_eye,
+					cameraFrameData.m_viewport, cameraFrameData.m_area);
+
+			debugDraw.DrawCameraFrustum(
+				cam->GetProjectionMatrix(cameraFrameData.m_eye) * cam->GetModelviewMatrix(cameraFrameData.m_eye));
 		}
 	}
 }

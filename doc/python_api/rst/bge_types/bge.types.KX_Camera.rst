@@ -97,6 +97,26 @@ base class --- :class:`KX_GameObject`
 
       :type: 4x4 Matrix [[float]]
 
+   .. attribute:: projectionMatrixLeft
+
+      This camera's 4x4 left eye projection matrix.
+
+      .. note::
+      
+         This is the identity matrix prior to rendering the first frame (any Python done on frame 1). 
+
+      :type: 4x4 Matrix [[float]]
+
+   .. attribute:: projectionMatrixRight
+
+      This camera's 4x4 right eye projection matrix.
+
+      .. note::
+      
+         This is the identity matrix prior to rendering the first frame (any Python done on frame 1). 
+
+      :type: 4x4 Matrix [[float]]
+
    .. attribute:: modelview_matrix
 
       This camera's 4x4 model view matrix. (read-only).

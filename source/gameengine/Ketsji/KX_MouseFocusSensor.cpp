@@ -318,7 +318,7 @@ bool KX_MouseFocusSensor::ParentObjectHasFocusCamera(KX_Camera *cam)
 
 	/* badly defined, the first time round.... I wonder why... I might
 	 * want to guard against floating point errors here.*/
-	mt::mat4 clip_camcs_matrix = cam->GetProjectionMatrix().Inverse();
+	mt::mat4 clip_camcs_matrix = cam->GetProjectionMatrix(RAS_Rasterizer::RAS_STEREO_LEFTEYE).Inverse();
 
 	/* shoot-points: clip to cam to wcs . win to clip was already done.*/
 	frompoint = clip_camcs_matrix * frompoint;

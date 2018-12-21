@@ -315,9 +315,9 @@ bool ImageRender::Render()
 		// get frustum matrix and set projection matrix
 		const mt::mat4 projmat = m_rasterizer->GetFrustumMatrix(frustum.x1, frustum.x2, frustum.y1, frustum.y2, frustum.camnear, frustum.camfar);
 
-		m_camera->SetProjectionMatrix(projmat);
+		m_camera->SetProjectionMatrix(projmat, RAS_Rasterizer::RAS_STEREO_LEFTEYE);
 	}
-	else if (!m_camera->hasValidProjectionMatrix()) {
+	else if (!m_camera->HasValidProjectionMatrix(RAS_Rasterizer::RAS_STEREO_LEFTEYE)) {
 		float lens = m_camera->GetLens();
 		float sensor_x = m_camera->GetSensorWidth();
 		float sensor_y = m_camera->GetSensorHeight();
@@ -367,16 +367,16 @@ bool ImageRender::Render()
 
 			projmat = m_rasterizer->GetFrustumMatrix(frustum.x1, frustum.x2, frustum.y1, frustum.y2, frustum.camnear, frustum.camfar);
 		}
-		m_camera->SetProjectionMatrix(projmat);
+		m_camera->SetProjectionMatrix(projmat, RAS_Rasterizer::RAS_STEREO_LEFTEYE);
 	}
 
-	m_rasterizer->SetProjectionMatrix(m_camera->GetProjectionMatrix());
+	m_rasterizer->SetProjectionMatrix(m_camera->GetProjectionMatrix(RAS_Rasterizer::RAS_STEREO_LEFTEYE));
 
 	mt::mat3x4 camtrans(m_camera->GetWorldToCamera());
 	mt::mat4 viewmat = mt::mat4::FromAffineTransform(camtrans);
 
 	m_rasterizer->SetViewMatrix(viewmat, m_camera->NodeGetWorldScaling());
-	m_camera->SetModelviewMatrix(viewmat);
+	m_camera->SetModelviewMatrix(viewmat, RAS_Rasterizer::RAS_STEREO_LEFTEYE);
 
 	// Render Background
 	if (m_scene->GetWorldInfo()) {
@@ -390,7 +390,7 @@ bool ImageRender::Render()
 		m_scene->GetWorldInfo()->setZenithColor(zen);
 	}
 
-	const std::vector<KX_GameObject *> objects = m_scene->CalculateVisibleMeshes(m_camera, 0);
+	const std::vector<KX_GameObject *> objects = m_scene->CalculateVisibleMeshes(m_camera, RAS_Rasterizer::RAS_STEREO_LEFTEYE, 0);
 
 	m_engine->UpdateAnimations(m_scene);
 
