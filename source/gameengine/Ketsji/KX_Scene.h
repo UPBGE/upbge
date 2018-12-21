@@ -358,7 +358,7 @@ public:
 	void SetWorldInfo(KX_WorldInfo *wi);
 	KX_WorldInfo *GetWorldInfo() const;
 
-	std::vector<KX_GameObject *> CalculateVisibleMeshes(KX_Camera *cam, int layer);
+	std::vector<KX_GameObject *> CalculateVisibleMeshes(KX_Camera *cam, RAS_Rasterizer::StereoEye eye, int layer);
 	std::vector<KX_GameObject *> CalculateVisibleMeshes(const SG_Frustum& frustum, int layer);
 
 	RAS_DebugDraw& GetDebugDraw();

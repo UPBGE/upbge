@@ -1107,7 +1107,7 @@ void KX_Scene::PhysicsCullingCallback(KX_ClientObjectInfo *objectInfo, void *cul
 	info->m_objects.push_back(gameobj);
 }
 
-std::vector<KX_GameObject *> KX_Scene::CalculateVisibleMeshes(KX_Camera *cam, int layer)
+std::vector<KX_GameObject *> KX_Scene::CalculateVisibleMeshes(KX_Camera *cam, RAS_Rasterizer::StereoEye eye, int layer)
 {
 	std::vector<KX_GameObject *> objects;
 	if (!cam->GetFrustumCulling()) {
@@ -1118,7 +1118,7 @@ std::vector<KX_GameObject *> KX_Scene::CalculateVisibleMeshes(KX_Camera *cam, in
 		return objects;
 	}
 
-	return CalculateVisibleMeshes(cam->GetFrustum(), layer);
+	return CalculateVisibleMeshes(cam->GetFrustum(eye), layer);
 }
 
 std::vector<KX_GameObject *> KX_Scene::CalculateVisibleMeshes(const SG_Frustum& frustum, int layer)

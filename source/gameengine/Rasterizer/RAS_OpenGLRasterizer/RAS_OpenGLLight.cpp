@@ -261,8 +261,8 @@ void RAS_OpenGLLight::BindShadowBuffer(RAS_ICanvas *canvas, KX_Camera *cam, mt::
 	const mt::mat3x4 trans = mt::mat3x4((float *)viewmat);
 	camtrans = trans.Inverse();
 
-	cam->SetModelviewMatrix(modelviewmat);
-	cam->SetProjectionMatrix(projectionmat);
+	cam->SetModelviewMatrix(modelviewmat, RAS_Rasterizer::RAS_STEREO_LEFTEYE);
+	cam->SetProjectionMatrix(projectionmat, RAS_Rasterizer::RAS_STEREO_LEFTEYE);
 
 	cam->NodeSetLocalPosition(camtrans.TranslationVector3D());
 	cam->NodeSetLocalOrientation(camtrans.RotationMatrix());
