@@ -146,7 +146,7 @@ RAS_OpenGLRasterizer::ScreenPlane::ScreenPlane()
 	// Unbind VBO
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-	GPU_bind_vertex_array(0);
+	GPU_unbind_vertex_array();
 }
 
 RAS_OpenGLRasterizer::ScreenPlane::~ScreenPlane()
@@ -163,7 +163,7 @@ inline void RAS_OpenGLRasterizer::ScreenPlane::Render()
 	// Draw in triangle fan mode to reduce IBO size.
 	glDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_BYTE, 0);
 
-	GPU_bind_vertex_array(0);
+	GPU_unbind_vertex_array();
 }
 
 RAS_OpenGLRasterizer::RAS_OpenGLRasterizer(RAS_Rasterizer *rasterizer)

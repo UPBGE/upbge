@@ -36,6 +36,7 @@ extern "C" {
 
 void GPU_create_vertex_arrays(int n, unsigned int *arrays);
 void GPU_bind_vertex_array(unsigned int array);
+void GPU_unbind_vertex_array(void);
 void GPU_delete_vertex_arrays(int n, const unsigned int *arrays);
 
 

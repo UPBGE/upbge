@@ -114,7 +114,7 @@ RAS_StorageVao::RAS_StorageVao(const RAS_DisplayArrayLayout &layout, RAS_Display
 	// VBO are not tracked by the VAO excepted for IBO.
 	vbo->UnbindVertexBuffer();
 
-	GPU_bind_vertex_array(0);
+	GPU_unbind_vertex_array();
 }
 
 RAS_StorageVao::~RAS_StorageVao()
@@ -129,5 +129,5 @@ void RAS_StorageVao::BindPrimitives()
 
 void RAS_StorageVao::UnbindPrimitives()
 {
-	GPU_bind_vertex_array(0);
+	GPU_unbind_vertex_array();
 }

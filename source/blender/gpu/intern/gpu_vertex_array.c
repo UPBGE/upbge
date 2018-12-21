@@ -41,6 +41,15 @@ void GPU_bind_vertex_array(unsigned int array)
 #endif
 }
 
+void GPU_unbind_vertex_array(void)
+{
+#ifndef __APPLE__
+	glBindVertexArray(0);
+#else
+	glBindVertexArrayAPPLE(0);
+#endif
+}
+
 void GPU_delete_vertex_arrays(int n, const unsigned int *arrays)
 {
 #ifndef __APPLE__

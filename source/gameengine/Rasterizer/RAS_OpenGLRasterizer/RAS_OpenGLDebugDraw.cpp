@@ -186,7 +186,7 @@ RAS_OpenGLDebugDraw::RAS_OpenGLDebugDraw()
 		attribVector(trans, stride, offsetof(RAS_DebugDraw::Box2d, m_trans), 4, 1);
 	}
 
-	GPU_bind_vertex_array(0);
+	GPU_unbind_vertex_array();
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
@@ -263,7 +263,7 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_
 		glDrawArraysInstancedARB(GL_TRIANGLE_FAN, 0, 4, numboxes);
 	}
 
-	GPU_bind_vertex_array(0);
+	GPU_unbind_vertex_array();
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	GPU_shader_unbind();
 
