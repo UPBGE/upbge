@@ -1727,6 +1727,8 @@ bool CcdPhysicsController::ReplacePhysicsShape(PHY_IPhysicsController *phyctrl)
 	ReplaceControllerShape(nullptr);
 	// refresh to remove collision pair
 	m_cci.m_physicsEnv->RefreshCcdPhysicsController(this);
+
+	return true;
 }
 
 ///////////////////////////////////////////////////////////
