@@ -73,7 +73,7 @@ bool GPU_framebuffer_bound(GPUFrameBuffer *fb);
 void GPU_framebuffer_restore(void);
 void GPU_framebuffer_blur(
         GPUFrameBuffer *fb, struct GPUTexture *tex,
-        GPUFrameBuffer *blurfb, struct GPUTexture *blurtex, float sharpness);
+        GPUFrameBuffer *blurfb, struct GPUTexture *blurtex, float sharpness, int passes);
 void GPU_framebuffer_blit(GPUFrameBuffer *srcfb, GPUFrameBuffer *dstfb, int width, int height,
 		int numAttachment, bool depth);
 

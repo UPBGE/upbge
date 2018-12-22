@@ -494,9 +494,8 @@ void GPU_framebuffer_restore(void)
 	}
 }
 
-void GPU_framebuffer_blur(
-        GPUFrameBuffer *fb, GPUTexture *tex,
-        GPUFrameBuffer *blurfb, GPUTexture *blurtex, float sharpness)
+void GPU_framebuffer_blur(GPUFrameBuffer *fb, GPUTexture *tex,
+        GPUFrameBuffer *blurfb, GPUTexture *blurtex, float sharpness, int passes)
 {
 	const float scaleh[2] = {(1.0f - sharpness) / GPU_texture_width(blurtex), 0.0f};
 	const float scalev[2] = {0.0f, (1.0f - sharpness) / GPU_texture_height(tex)};
@@ -510,52 +509,57 @@ void GPU_framebuffer_blur(
 	scale_uniform = GPU_shader_get_uniform(blur_shader, "ScaleU");
 	texture_source_uniform = GPU_shader_get_uniform(blur_shader, "textureSource");
 
-	/* Blurring horizontally */
-
-	/* We do the bind ourselves rather than using GPU_framebuffer_texture_bind() to avoid
-	 * pushing unnecessary matrices onto the OpenGL stack. */
-	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, blurfb->object);
-	glDrawBuffer(GL_COLOR_ATTACHMENT0_EXT);
-
-	/* avoid warnings from texture binding */
-	GG.currentfb = blurfb->object;
-
 	GPU_shader_bind(blur_shader);
-	GPU_shader_uniform_vector(blur_shader, scale_uniform, 2, 1, scaleh);
-	GPU_texture_bind(tex, 0);
-	GPU_shader_uniform_texture(blur_shader, texture_source_uniform, tex);
-	glViewport(0, 0, GPU_texture_width(blurtex), GPU_texture_height(blurtex));
 
 	glDisable(GL_DEPTH_TEST);
 
-	/* Drawing quad */
-	glBegin(GL_QUADS);
-	glTexCoord2d(0, 0); glVertex2f(1, 1);
-	glTexCoord2d(1, 0); glVertex2f(-1, 1);
-	glTexCoord2d(1, 1); glVertex2f(-1, -1);
-	glTexCoord2d(0, 1); glVertex2f(1, -1);
-	glEnd();
+	for (unsigned short i = 0; i < passes; ++i) {
+		/* Blurring horizontally */
 
-	/* Blurring vertically */
+		/* We do the bind ourselves rather than using GPU_framebuffer_texture_bind() to avoid
+		 * pushing unnecessary matrices onto the OpenGL stack. */
+		glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, blurfb->object);
+		glDrawBuffer(GL_COLOR_ATTACHMENT0_EXT);
 
-	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fb->object);
-	glDrawBuffer(GL_COLOR_ATTACHMENT0_EXT);
+		/* avoid warnings from texture binding */
+		GG.currentfb = blurfb->object;
 
-	GG.currentfb = fb->object;
+		GPU_shader_uniform_vector(blur_shader, scale_uniform, 2, 1, scaleh);
+		GPU_texture_bind(tex, 0);
+		GPU_shader_uniform_texture(blur_shader, texture_source_uniform, tex);
+		glViewport(0, 0, GPU_texture_width(blurtex), GPU_texture_height(blurtex));
 
-	GPU_shader_uniform_vector(blur_shader, scale_uniform, 2, 1, scalev);
-	GPU_texture_bind(blurtex, 0);
-	GPU_shader_uniform_texture(blur_shader, texture_source_uniform, blurtex);
-	glViewport(0, 0, GPU_texture_width(tex), GPU_texture_height(tex));
+		/* Drawing quad */
+		glBegin(GL_QUADS);
+		glTexCoord2d(0, 0); glVertex2f(1, 1);
+		glTexCoord2d(1, 0); glVertex2f(-1, 1);
+		glTexCoord2d(1, 1); glVertex2f(-1, -1);
+		glTexCoord2d(0, 1); glVertex2f(1, -1);
+		glEnd();
 
-	glBegin(GL_QUADS);
-	glTexCoord2d(0, 0); glVertex2f(1, 1);
-	glTexCoord2d(1, 0); glVertex2f(-1, 1);
-	glTexCoord2d(1, 1); glVertex2f(-1, -1);
-	glTexCoord2d(0, 1); glVertex2f(1, -1);
-	glEnd();
+		/* Blurring vertically */
 
-	GPU_texture_unbind(blurtex);
+		glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fb->object);
+		glDrawBuffer(GL_COLOR_ATTACHMENT0_EXT);
+
+		GG.currentfb = fb->object;
+
+		GPU_shader_uniform_vector(blur_shader, scale_uniform, 2, 1, scalev);
+		GPU_texture_bind(blurtex, 0);
+		GPU_shader_uniform_texture(blur_shader, texture_source_uniform, blurtex);
+		glViewport(0, 0, GPU_texture_width(tex), GPU_texture_height(tex));
+
+		glBegin(GL_QUADS);
+		glTexCoord2d(0, 0); glVertex2f(1, 1);
+		glTexCoord2d(1, 0); glVertex2f(-1, 1);
+		glTexCoord2d(1, 1); glVertex2f(-1, -1);
+		glTexCoord2d(0, 1); glVertex2f(1, -1);
+		glEnd();
+
+		GPU_texture_unbind(blurtex);
+
+	}
+
 	GPU_shader_unbind();
 
 	glEnable(GL_DEPTH_TEST);

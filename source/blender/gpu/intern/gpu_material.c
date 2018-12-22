@@ -2986,9 +2986,7 @@ void GPU_lamp_shadow_buffer_unbind(GPULamp *lamp)
 {
 	if (lamp->la->shadowmap_type == LA_SHADMAP_VARIANCE) {
 		GPU_shader_unbind();
-		for (int i = 0; i < lamp->la->blurpass; i++) {
-			GPU_framebuffer_blur(lamp->fb, lamp->tex, lamp->blurfb, lamp->blurtex, lamp->la->bufsharp);
-		}
+		GPU_framebuffer_blur(lamp->fb, lamp->tex, lamp->blurfb, lamp->blurtex, lamp->la->bufsharp, lamp->la->blurpass);
 	}
 
 	GPU_framebuffer_texture_unbind(lamp->fb, lamp->tex);
