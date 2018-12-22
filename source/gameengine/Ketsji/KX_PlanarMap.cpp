@@ -119,7 +119,7 @@ const mt::mat4& KX_PlanarMap::GetProjectionMatrix(RAS_Rasterizer *rasty, KX_Scen
 			frustum);
 	}
 
-	if (!sceneCamera->GetViewport()) {
+	if (!sceneCamera->UseViewport()) {
 		const float camzoom = sceneCamera->GetZoom();
 		frustum.x1 *= camzoom;
 		frustum.x2 *= camzoom;

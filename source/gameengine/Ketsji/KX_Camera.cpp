@@ -277,40 +277,22 @@ bool KX_Camera::GetFrustumCulling() const
 void KX_Camera::EnableViewport(bool viewport)
 {
 	InvalidateProjectionMatrix(false); // We need to reset projection matrix
-	m_camdata.m_viewport = viewport;
+	m_camdata.m_useViewport = viewport;
 }
 
 void KX_Camera::SetViewport(int left, int bottom, int right, int top)
 {
-	m_camdata.m_viewportleft = left;
-	m_camdata.m_viewportbottom = bottom;
-	m_camdata.m_viewportright = right;
-	m_camdata.m_viewporttop = top;
+	m_camdata.m_viewport = RAS_Rect(left, bottom, right, top);
 }
 
-bool KX_Camera::GetViewport() const
+bool KX_Camera::UseViewport() const
+{
+	return m_camdata.m_useViewport;
+}
+
+const RAS_Rect& KX_Camera::GetViewport() const
 {
 	return m_camdata.m_viewport;
-}
-
-int KX_Camera::GetViewportLeft() const
-{
-	return m_camdata.m_viewportleft;
-}
-
-int KX_Camera::GetViewportBottom() const
-{
-	return m_camdata.m_viewportbottom;
-}
-
-int KX_Camera::GetViewportRight() const
-{
-	return m_camdata.m_viewportright;
-}
-
-int KX_Camera::GetViewportTop() const
-{
-	return m_camdata.m_viewporttop;
 }
 
 #ifdef WITH_PYTHON
@@ -702,7 +684,7 @@ int KX_Camera::pyattr_set_shift_y(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUT
 PyObject *KX_Camera::pyattr_get_use_viewport(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_Camera *self = static_cast<KX_Camera *>(self_v);
-	return PyBool_FromLong(self->GetViewport());
+	return PyBool_FromLong(self->UseViewport());
 }
 
 int KX_Camera::pyattr_set_use_viewport(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
