@@ -364,7 +364,7 @@ bool KX_MouseFocusSensor::ParentObjectHasFocus()
 
 	EXP_ListValue<KX_Camera> *cameras = m_kxscene->GetCameraList();
 	for (KX_Camera *cam : cameras) {
-		if ((cam != activecam) && cam->GetViewport()) {
+		if ((cam != activecam) && cam->UseViewport()) {
 			if (ParentObjectHasFocusCamera(cam)) {
 				return true;
 			}

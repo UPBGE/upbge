@@ -637,7 +637,7 @@ KX_KetsjiEngine::RenderData KX_KetsjiEngine::GetRenderData()
 			KX_Camera *activecam = scene->GetActiveCamera();
 			KX_Camera *overrideCullingCam = scene->GetOverrideCullingCamera();
 			for (KX_Camera *cam : scene->GetCameraList()) {
-				if (cam != activecam && !cam->GetViewport()) {
+				if (cam != activecam && !cam->UseViewport()) {
 					continue;
 				}
 
@@ -786,44 +786,18 @@ void KX_KetsjiEngine::GetSceneViewport(KX_Scene *scene, KX_Camera *cam, const RA
 
 	// Note we postpone computation of the projection matrix
 	// so that we are using the latest camera position.
-	if (cam->GetViewport()) {
-		RAS_Rect userviewport;
 
-		userviewport.SetLeft(cam->GetViewportLeft());
-		userviewport.SetBottom(cam->GetViewportBottom());
-		userviewport.SetRight(cam->GetViewportRight());
-		userviewport.SetTop(cam->GetViewportTop());
-
-		// Don't do bars on user specified viewport
-		RAS_FrameSettings settings = scene->GetFramingType();
-		if (settings.FrameType() == RAS_FrameSettings::e_frame_bars) {
-			settings.SetFrameType(RAS_FrameSettings::e_frame_extend);
-		}
-
-		RAS_FramingManager::ComputeViewport(
-			scene->GetFramingType(),
-			userviewport,
-			viewport
-			);
-
-		area = userviewport;
-	}
-	else if (((m_flags & CAMERA_OVERRIDE) == 0) || (scene->GetName() != m_overrideSceneName) || !m_overrideCamData.m_perspective) {
-		RAS_FramingManager::ComputeViewport(
-			scene->GetFramingType(),
-			displayArea,
-			viewport);
-
-		area = displayArea;
+	if (cam->UseViewport()) {
+		area = cam->GetViewport();
 	}
 	else {
-		viewport.SetLeft(0);
-		viewport.SetBottom(0);
-		viewport.SetRight(m_canvas->GetMaxX());
-		viewport.SetTop(m_canvas->GetMaxY());
-
 		area = displayArea;
 	}
+
+	RAS_FramingManager::ComputeViewport(
+		scene->GetFramingType(),
+		displayArea,
+		viewport);
 }
 
 void KX_KetsjiEngine::UpdateAnimations(KX_Scene *scene)
@@ -905,7 +879,7 @@ mt::mat4 KX_KetsjiEngine::GetCameraProjectionMatrix(KX_Scene *scene, KX_Camera *
 			cam->GetShiftVertical(),
 			frustum);
 
-		if (!cam->GetViewport()) {
+		if (!cam->UseViewport()) {
 			frustum.x1 *= camzoom;
 			frustum.x2 *= camzoom;
 			frustum.y1 *= camzoom;
@@ -930,7 +904,7 @@ mt::mat4 KX_KetsjiEngine::GetCameraProjectionMatrix(KX_Scene *scene, KX_Camera *
 			farfrust,
 			frustum);
 
-		if (!cam->GetViewport()) {
+		if (!cam->UseViewport()) {
 			frustum.x1 *= camzoom;
 			frustum.x2 *= camzoom;
 			frustum.y1 *= camzoom;

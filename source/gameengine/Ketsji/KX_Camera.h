@@ -207,28 +207,13 @@ public:
 	/**
 	 * Gets this camera's viewport status.
 	 */
-	bool GetViewport() const;
+	bool UseViewport() const;
 	
 	/**
-	 * Gets this camera's viewport left.
+	 * Gets this camera's viewport.
 	 */
-	int GetViewportLeft() const;
+	const RAS_Rect& GetViewport() const;
 	
-	/**
-	 * Gets this camera's viewport bottom.
-	 */
-	int GetViewportBottom() const;
-	
-	/**
-	 * Gets this camera's viewport right.
-	 */
-	int GetViewportRight() const;
-	
-	/**
-	 * Gets this camera's viewport top.
-	 */
-	int GetViewportTop() const;
-
 	virtual int GetGameObjectType() const { return OBJ_CAMERA; }
 
 #ifdef WITH_PYTHON

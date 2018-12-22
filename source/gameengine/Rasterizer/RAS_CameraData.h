@@ -32,6 +32,8 @@
 #ifndef __RAS_CAMERADATA_H__
 #define __RAS_CAMERADATA_H__
 
+#include "RAS_Rect.h"
+
 struct RAS_CameraData
 {
 	float m_lens;
@@ -44,19 +46,15 @@ struct RAS_CameraData
 	float m_clipstart;
 	float m_clipend;
 	bool m_perspective;
-	bool m_viewport;
-	int m_viewportleft;
-	int m_viewportbottom;
-	int m_viewportright;
-	int m_viewporttop;
+	bool m_useViewport;
+	RAS_Rect m_viewport;
 	float m_focallength;
 	float m_zoom;
 
 	RAS_CameraData(float lens = 35.0f, float scale = 6.0f, float sensor_x = 32.0f, float sensor_y = 18.0f, short sensor_fit = 0,
 	               float shift_x = 0.0f, float shift_y = 0.0f,
 	               float clipstart = 0.1f, float clipend = 5000.0f, bool perspective = true,
-	               float focallength = 3.0f, float zoom = 1.0f, bool viewport = false, int viewportleft = 0, int viewportbottom = 0,
-	               int viewportright = 0, int viewporttop = 0) :
+	               float focallength = 3.0f, float zoom = 1.0f, bool useViewport = false, const RAS_Rect& viewport = RAS_Rect()) :
 	    m_lens(lens),
 	    m_scale(scale),
 	    m_sensor_x(sensor_x),
@@ -67,11 +65,8 @@ struct RAS_CameraData
 	    m_clipstart(clipstart),
 	    m_clipend(clipend),
 	    m_perspective(perspective),
+	    m_useViewport(useViewport),
 	    m_viewport(viewport),
-	    m_viewportleft(viewportleft),
-	    m_viewportbottom(viewportbottom),
-	    m_viewportright(viewportright),
-	    m_viewporttop(viewporttop),
 	    m_focallength(focallength),
 	    m_zoom(zoom)
 	{

@@ -221,7 +221,7 @@ bool ImageRender::Render()
 
 	if (!m_render ||
 	    m_rasterizer->GetDrawingMode() != RAS_Rasterizer::RAS_TEXTURED ||   // no need for texture
-	    m_camera->GetViewport() ||        // camera must be inactive
+	    m_camera->UseViewport() ||        // camera must be inactive
 	    m_camera == m_scene->GetActiveCamera()) {
 		// no need to compute texture in non texture rendering
 		return false;
