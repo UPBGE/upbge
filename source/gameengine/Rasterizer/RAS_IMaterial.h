@@ -105,7 +105,7 @@ public:
 	virtual ~RAS_IMaterial();
 
 	/// Prepare the material data for rendering.
-	virtual void Prepare(RAS_Rasterizer *rasty) = 0;
+	virtual void Prepare(RAS_Rasterizer *rasty, unsigned short viewportIndex) = 0;
 	virtual void Activate(RAS_Rasterizer *rasty) = 0;
 	virtual void Desactivate(RAS_Rasterizer *rasty) = 0;
 	virtual void ActivateInstancing(RAS_Rasterizer *rasty, RAS_InstancingBuffer *buffer) = 0;

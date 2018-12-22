@@ -104,8 +104,8 @@ public:
 	RAS_BucketManager(RAS_IMaterial *textMaterial);
 	virtual ~RAS_BucketManager();
 
-	void Renderbuckets(RAS_Rasterizer::DrawType drawingMode, const mt::mat3x4& cameratrans, RAS_Rasterizer *rasty,
-			RAS_OffScreen *offScreen);
+	void Renderbuckets(RAS_Rasterizer::DrawType drawingMode, const mt::mat3x4& cameratrans, 
+			unsigned short viewportIndex, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen);
 
 	RAS_MaterialBucket *FindBucket(RAS_IMaterial *material, bool &bucketCreated);
 	RAS_DisplayArrayBucket *GetTextDisplayArrayBucket() const;
@@ -119,7 +119,7 @@ public:
 	void Merge(RAS_BucketManager *other, SCA_IScene *scene);
 
 private:
-	void PrepareBuckets(RAS_Rasterizer *rasty, BucketType bucketType);
+	void PrepareBuckets(RAS_Rasterizer *rasty, unsigned short viewportIndex, BucketType bucketType);
 	void RenderBasicBuckets(RAS_Rasterizer *rasty, BucketType bucketType);
 	void RenderSortedBuckets(RAS_Rasterizer *rasty, BucketType bucketType);
 };

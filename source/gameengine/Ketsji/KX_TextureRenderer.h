@@ -35,19 +35,20 @@ class KX_Camera;
 class KX_Scene;
 class RAS_Rect;
 
-struct EnvMap;
+struct MTex;
 
 class KX_TextureRenderer : public EXP_Value, public RAS_TextureRenderer
 {
 	Py_Header
 
 protected:
+	MTex *m_mtex;
+
 	/// View clip start.
 	float m_clipStart;
 	/// View clip end.
 	float m_clipEnd;
 
-private:
 	/// The object used to render from its position.
 	KX_GameObject *m_viewpointObject;
 
@@ -55,7 +56,6 @@ private:
 	bool m_enabled;
 	/// Layers to ignore during render.
 	int m_ignoreLayers;
-
 
 	/// Distance factor for level of detail.
 	float m_lodDistanceFactor;
@@ -68,10 +68,12 @@ private:
 	bool m_forceUpdate;
 
 public:
-	KX_TextureRenderer(EnvMap *env, KX_GameObject *viewpoint);
+	KX_TextureRenderer(MTex *mtex, KX_GameObject *viewpoint, LayerUsage layerUsage);
 	virtual ~KX_TextureRenderer();
 
 	virtual std::string GetName();
+
+	MTex *GetMTex() const;
 
 	KX_GameObject *GetViewpointObject() const;
 	void SetViewpointObject(KX_GameObject *gameobj);
@@ -81,8 +83,8 @@ public:
 	float GetLodDistanceFactor() const;
 	void SetLodDistanceFactor(float lodfactor);
 
-	virtual const mt::mat4& GetProjectionMatrix(RAS_Rasterizer *rasty, KX_Scene *scene, KX_Camera *sceneCamera,
-													const RAS_Rect& viewport, const RAS_Rect& area) = 0;
+	virtual mt::mat4 GetProjectionMatrix(RAS_Rasterizer *rasty, KX_Scene *scene, KX_Camera *sceneCamera,
+			const RAS_Rect& viewport, const RAS_Rect& area, RAS_Rasterizer::StereoMode stereoMode, RAS_Rasterizer::StereoEye eye) = 0;
 
 	bool GetEnabled() const;
 	int GetIgnoreLayers() const;
@@ -96,9 +98,9 @@ public:
 	bool NeedUpdate();
 
 	/// Setup camera position and orientation shared by all the faces, returns true when the render will be made.
-	virtual bool SetupCamera(KX_Camera *sceneCamera, KX_Camera *camera) = 0;
+	virtual bool Prepare(KX_Camera *sceneCamera, RAS_Rasterizer::StereoEye eye, KX_Camera *camera) = 0;
 	/// Setup camera position and orientation unique per faces, returns true when the render will be made.
-	virtual bool SetupCameraFace(KX_Camera *camera, unsigned short index) = 0;
+	virtual bool PrepareFace(KX_Camera *camera, unsigned short index) = 0;
 
 #ifdef WITH_PYTHON
 	EXP_PYMETHOD_DOC_NOARGS(KX_TextureRenderer, update);

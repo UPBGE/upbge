@@ -434,6 +434,40 @@ GPUTexture *GPU_texture_from_blender(Image *ima, ImageUser *iuser, int textarget
 	return tex;
 }
 
+GPUTexture *GPU_texture_from_bindcode(int textarget, int bindcode)
+{
+	GPUTexture *tex = MEM_callocN(sizeof(GPUTexture), "GPUTexture");
+	tex->bindcode = bindcode;
+	tex->number = -1;
+	tex->refcount = 1;
+	tex->target = textarget;
+	tex->target_base = textarget;
+
+	if (!glIsTexture(tex->bindcode)) {
+		GPU_ASSERT_NO_GL_ERRORS("Texture Not Loaded");
+	}
+	else {
+		GLint w, h, border;
+
+		GLenum gettarget;
+
+		if (textarget == GL_TEXTURE_2D)
+			gettarget = GL_TEXTURE_2D;
+		else
+			gettarget = GL_TEXTURE_CUBE_MAP_POSITIVE_X;
+
+		glBindTexture(textarget, tex->bindcode);
+		glGetTexLevelParameteriv(gettarget, 0, GL_TEXTURE_WIDTH, &w);
+		glGetTexLevelParameteriv(gettarget, 0, GL_TEXTURE_HEIGHT, &h);
+		glGetTexLevelParameteriv(gettarget, 0, GL_TEXTURE_BORDER, &border);
+
+		tex->w = w - border;
+		tex->h = h - border;
+	}
+
+	return tex;
+}
+
 GPUTexture *GPU_texture_from_preview(PreviewImage *prv, int mipmap)
 {
 	GPUTexture *tex = prv->gputexture[0];

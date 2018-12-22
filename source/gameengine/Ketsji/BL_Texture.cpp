@@ -38,7 +38,8 @@ BL_Texture::BL_Texture(MTex *mtex)
 	:EXP_Value(),
 	m_isCubeMap(false),
 	m_mtex(mtex),
-	m_gpuTex(nullptr)
+	m_gpuTex(nullptr),
+	m_imaTarget(0)
 {
 	Tex *tex = m_mtex->tex;
 	EnvMap *env = tex->env;
@@ -46,11 +47,13 @@ BL_Texture::BL_Texture(MTex *mtex)
 	               (env->stype == ENV_LOAD ||
 	                (env->stype == ENV_REALT && env->type == ENV_CUBE)));
 
+	m_imaTarget = m_isCubeMap ? TEXTARGET_TEXTURE_CUBE_MAP : TEXTARGET_TEXTURE_2D;
+	m_target = m_isCubeMap ? GetCubeMapTextureType() : GetTexture2DType();
+
 	Image *ima = tex->ima;
 	ImageUser& iuser = tex->iuser;
-	const int gltextarget = m_isCubeMap ? GetCubeMapTextureType() : GetTexture2DType();
 
-	m_gpuTex = (ima ? GPU_texture_from_blender(ima, &iuser, gltextarget, false, 0.0, true) : nullptr);
+	m_gpuTex = (ima ? GPU_texture_from_blender(ima, &iuser, m_target, false, 0.0, true) : nullptr);
 
 	// Initialize saved data.
 	m_name = std::string(m_mtex->tex->id.name + 2);
@@ -101,9 +104,15 @@ BL_Texture::~BL_Texture()
 	copy_v3_v3(m_mtex->size, m_savedData.uvsize);
 
 	if (m_gpuTex) {
-		GPU_texture_set_opengl_bindcode(m_gpuTex, m_savedData.bindcode);
+		SetGPUBindCode(m_savedData.bindcode);
 		GPU_texture_free(m_gpuTex);
 	}
+}
+
+void BL_Texture::SetGPUBindCode(int bindCode)
+{
+	GPU_texture_set_opengl_bindcode(m_gpuTex, bindCode);
+	m_mtex->tex->ima->bindcode[m_imaTarget] = bindCode;
 }
 
 void BL_Texture::CheckValidTexture()
@@ -118,19 +127,16 @@ void BL_Texture::CheckValidTexture()
 	 * The gpu texture in the image can be nullptr or an already different loaded
 	 * gpu texture. In both cases we call GPU_texture_from_blender.
 	 */
-	int target = m_isCubeMap ? TEXTARGET_TEXTURE_CUBE_MAP : TEXTARGET_TEXTURE_2D;
-	if (m_gpuTex != m_mtex->tex->ima->gputexture[target]) {
+	if (m_gpuTex != m_mtex->tex->ima->gputexture[m_imaTarget]) {
 		Tex *tex = m_mtex->tex;
 		Image *ima = tex->ima;
 		ImageUser& iuser = tex->iuser;
 
-		const int gltextarget = m_isCubeMap ? GetCubeMapTextureType() : GetTexture2DType();
-
-		// Restore gpu texture original bind cdoe to make sure we will delete the right opengl texture.
+		// Restore gpu texture original bind code to make sure we will delete the right opengl texture.
 		GPU_texture_set_opengl_bindcode(m_gpuTex, m_savedData.bindcode);
 		GPU_texture_free(m_gpuTex);
 
-		m_gpuTex = (ima ? GPU_texture_from_blender(ima, &iuser, gltextarget, false, 0.0, true) : nullptr);
+		m_gpuTex = (ima ? GPU_texture_from_blender(ima, &iuser, m_target, false, 0.0, true) : nullptr);
 
 		if (m_gpuTex) {
 			int bindCode = GPU_texture_opengl_bindcode(m_gpuTex);
@@ -179,13 +185,17 @@ unsigned int BL_Texture::GetTextureType()
 	return GPU_texture_target(m_gpuTex);
 }
 
+void BL_Texture::UpdateBindCode()
+{
+	/* Since GPUTexture can be shared (as Image is shared along materials)
+	 * between material textures (MTex), we should reapply the bindcode in
+	 * case of VideoTexture owned texture. Without that every material that
+	 * use this GPUTexture will then use the VideoTexture texture, it's not wanted. */
+	SetGPUBindCode(m_bindCode);
+}
+
 void BL_Texture::ActivateTexture(int unit)
 {
-	/* Since GPUTexture can be shared between material textures (MTex),
-	 * we should reapply the bindcode in case of VideoTexture owned texture.
-	 * Without that every material that use this GPUTexture will then use
-	 * the VideoTexture texture, it's not wanted. */
-	GPU_texture_set_opengl_bindcode(m_gpuTex, m_bindCode);
 	GPU_texture_bind(m_gpuTex, unit);
 }
 

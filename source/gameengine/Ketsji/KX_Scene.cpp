@@ -1407,8 +1407,8 @@ void KX_Scene::UpdateParents()
 	}
 }
 
-void KX_Scene::RenderBuckets(const std::vector<KX_GameObject *>& objects, RAS_Rasterizer::DrawType drawingMode, const mt::mat3x4& cameratransform,
-                             RAS_Rasterizer *rasty, RAS_OffScreen *offScreen)
+void KX_Scene::RenderBuckets(const std::vector<KX_GameObject *>& objects, RAS_Rasterizer::DrawType drawingMode,
+		const mt::mat3x4& cameratransform, unsigned short viewportIndex, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen)
 {
 	for (KX_GameObject *gameobj : objects) {
 		/* This function update all mesh slot info (e.g culling, color, matrix) from the game object.
@@ -1416,14 +1416,13 @@ void KX_Scene::RenderBuckets(const std::vector<KX_GameObject *>& objects, RAS_Ra
 		gameobj->UpdateBuckets();
 	}
 
-	m_bucketmanager->Renderbuckets(drawingMode, cameratransform, rasty, offScreen);
+	m_bucketmanager->Renderbuckets(drawingMode, cameratransform, viewportIndex, rasty, offScreen);
 	KX_BlenderMaterial::EndFrame(rasty);
 }
 
-void KX_Scene::RenderTextureRenderers(KX_TextureRendererManager::RendererCategory category, RAS_Rasterizer *rasty,
-                                      RAS_OffScreen *offScreen, KX_Camera *camera, const RAS_Rect& viewport, const RAS_Rect& area)
+void KX_Scene::RenderTextureRenderers(RAS_Rasterizer *rasty, const KX_SceneRenderData& sceneData)
 {
-	m_rendererManager->Render(category, rasty, offScreen, camera, viewport, area);
+	m_rendererManager->Render(rasty, sceneData);
 }
 
 void KX_Scene::UpdateObjectLods(KX_Camera *cam, const std::vector<KX_GameObject *>& objects)

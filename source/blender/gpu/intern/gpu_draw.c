@@ -824,6 +824,11 @@ void GPU_create_gl_tex(
 			if (cube_map)
 				for (int i = 0; i < 6; i++)
 					glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, informat, w, h, 0, GL_RGBA, type, cube_map[i]);
+			else {
+				for (int i = 0; i < 6; i++) {
+					glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, informat, w, h, 0, GL_RGBA, type, NULL);
+				}
+			}
 
 			glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, gpu_get_mipmap_filter(1));
 

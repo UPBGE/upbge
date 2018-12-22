@@ -70,6 +70,11 @@ public:
 
 	enum {MaxUnits = 8};
 
+	/** Copy renderer (if available) texture bind code to current texture for next binding.
+	 * \param viewportIndex The index of the renderer layer to use for bind code.
+	 */
+	void ApplyRenderer(unsigned short viewportIndex);
+	virtual void UpdateBindCode() = 0;
 	virtual void CheckValidTexture() = 0;
 	virtual void ActivateTexture(int unit) = 0;
 	virtual void DisableTexture() = 0;

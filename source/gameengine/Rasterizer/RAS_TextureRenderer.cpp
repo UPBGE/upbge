@@ -80,19 +80,35 @@ void RAS_TextureRenderer::Face::DetachTexture(GPUTexture *tex)
 	}
 }
 
-void RAS_TextureRenderer::Face::Bind()
+void RAS_TextureRenderer::Face::Bind() const
 {
 	// Set the viewport in the same time.
 	GPU_framebuffer_bind_no_save(m_fbo, 0);
 }
 
-RAS_TextureRenderer::RAS_TextureRenderer()
-	:m_gpuTex(nullptr),
-	m_useMipmap(false)
+RAS_TextureRenderer::Layer::Layer(const std::vector<int>& attachmentTargets, int textureTarget, Image *ima,
+		bool mipmap, bool linear)
 {
+	for (int target : attachmentTargets) {
+		m_faces.emplace_back(target);
+	}
+
+	GPU_create_gl_tex(&m_bindCode, nullptr, nullptr, ima->gen_x, ima->gen_y, textureTarget, mipmap, false, ima);
+	m_gpuTex = GPU_texture_from_bindcode(textureTarget, m_bindCode);
+
+	if (!linear && !mipmap) {
+		// Disable filtering.
+		GPU_texture_bind(m_gpuTex, 0);
+		GPU_texture_filter_mode(m_gpuTex, false, false, false);
+		GPU_texture_unbind(m_gpuTex);
+	}
+
+	for (Face& face : m_faces) {
+		face.AttachTexture(m_gpuTex);
+	}
 }
 
-RAS_TextureRenderer::~RAS_TextureRenderer()
+RAS_TextureRenderer::Layer::~Layer()
 {
 	for (Face& face : m_faces) {
 		face.DetachTexture(m_gpuTex);
@@ -101,115 +117,96 @@ RAS_TextureRenderer::~RAS_TextureRenderer()
 	if (m_gpuTex) {
 		GPU_texture_free(m_gpuTex);
 	}
-
-	/* This call has for side effect to ask regeneration of all textures
-	 * depending of this image.
-	 */
-	for (RAS_Texture *texture : m_textureUsers) {
-		// Invalidate the renderer in each material texture users.
-		texture->SetRenderer(nullptr);
-		BKE_image_free_buffers(texture->GetImage());
-	}
 }
 
-void RAS_TextureRenderer::GetValidTexture()
+RAS_TextureRenderer::Layer::Layer(RAS_TextureRenderer::Layer&& other)
+	:m_faces(std::move(other.m_faces)),
+	m_gpuTex(other.m_gpuTex),
+	m_bindCode(other.m_bindCode)
 {
-	BLI_assert(!m_textureUsers.empty());
-
-	/* The gpu texture returned by all material textures are the same.
-	 * We can so use the first material texture user.
-	 */
-	RAS_Texture *texture = m_textureUsers[0];
-	texture->CheckValidTexture();
-	GPUTexture *gputex = texture->GetGPUTexture();
-
-	if (m_gpuTex == gputex) {
-		// The gpu texture is the same.
-		return;
-	}
-
-	if (m_gpuTex) {
-		for (Face& face : m_faces) {
-			face.DetachTexture(m_gpuTex);
-		}
-
-		GPU_texture_free(m_gpuTex);
-	}
-
-	m_gpuTex = gputex;
-
-	// Increment reference to make sure the gpu texture will not be freed by someone else.
-	GPU_texture_ref(m_gpuTex);
-
-	for (Face& face : m_faces) {
-		face.AttachTexture(m_gpuTex);
-	}
-
-	Tex *tex = texture->GetTex();
-	EnvMap *env = tex->env;
-	m_useMipmap = (env->filtering == ENVMAP_MIPMAP_MIPMAP) && GPU_get_mipmap();
-
-	if (!m_useMipmap) {
-		// Disable mipmaping.
-		GPU_texture_bind(m_gpuTex, 0);
-		GPU_texture_filter_mode(m_gpuTex, false, (env->filtering == ENVMAP_MIPMAP_LINEAR), false);
-		GPU_texture_unbind(m_gpuTex);
-	}
+	other.m_gpuTex = nullptr;
 }
 
-unsigned short RAS_TextureRenderer::GetNumFaces() const
+RAS_TextureRenderer::Layer& RAS_TextureRenderer::Layer::operator=(RAS_TextureRenderer::Layer&& other)
+{
+	m_faces = std::move(other.m_faces);
+	m_gpuTex = other.m_gpuTex;
+	other.m_gpuTex = nullptr;
+	m_bindCode = other.m_bindCode;
+
+	return *this;
+}
+
+unsigned short RAS_TextureRenderer::Layer::GetNumFaces() const
 {
 	return m_faces.size();
 }
 
-bool RAS_TextureRenderer::EqualTextureUser(RAS_Texture *texture) const
+unsigned int RAS_TextureRenderer::Layer::GetBindCode() const
 {
-	for (RAS_Texture *user : m_textureUsers) {
-		if (user->GetMTex() == texture->GetMTex()) {
-			return true;
-		}
-	}
-
-	return false;
+	return m_bindCode;
 }
 
-void RAS_TextureRenderer::AddTextureUser(RAS_Texture *texture)
+void RAS_TextureRenderer::Layer::BindFace(unsigned short index) const
 {
-	m_textureUsers.push_back(texture);
-	texture->SetRenderer(this);
+	m_faces[index].Bind();
 }
 
-void RAS_TextureRenderer::RemoveTextureUser(RAS_Texture *texture)
+void RAS_TextureRenderer::Layer::Bind() const
 {
-	CM_ListRemoveIfFound(m_textureUsers, texture);
-	texture->SetRenderer(nullptr);
 }
 
-void RAS_TextureRenderer::BeginRender(RAS_Rasterizer *rasty)
+void RAS_TextureRenderer::Layer::Unbind(bool mipmap) const
 {
-	GetValidTexture();
-}
-
-void RAS_TextureRenderer::EndRender(RAS_Rasterizer *rasty)
-{
-	if (m_useMipmap) {
+	if (mipmap) {
 		GPU_texture_bind(m_gpuTex, 0);
 		GPU_texture_generate_mipmap(m_gpuTex);
 		GPU_texture_unbind(m_gpuTex);
 	}
 }
 
-void RAS_TextureRenderer::BeginRenderFace(RAS_Rasterizer *rasty)
+RAS_TextureRenderer::RAS_TextureRenderer(bool mipmap, bool linear, LayerUsage layerUsage)
+	:m_useMipmap(mipmap),
+	m_useLinear(linear),
+	m_layerUsage(layerUsage)
 {
+}
+
+RAS_TextureRenderer::~RAS_TextureRenderer()
+{
+}
+
+unsigned short RAS_TextureRenderer::GetNumFaces(unsigned short layer) const
+{
+	return m_layers[layer].GetNumFaces();
+}
+
+unsigned int RAS_TextureRenderer::GetBindCode(unsigned short index)
+{
+	/// If the layer is shared, use the unique first layer.
+	return m_layers[m_layerUsage * index].GetBindCode();
+}
+
+void RAS_TextureRenderer::BeginRender(RAS_Rasterizer *rasty, unsigned short layer)
+{
+	m_layers[layer].Bind();
+}
+
+void RAS_TextureRenderer::EndRender(RAS_Rasterizer *rasty, unsigned short layer)
+{
+	m_layers[layer].Unbind(m_useMipmap);
+}
+
+void RAS_TextureRenderer::BeginRenderFace(RAS_Rasterizer *rasty, unsigned short layer, unsigned short face)
+{
+	m_layers[layer].BindFace(face);
 	// Clear only the depth texture because the background render will override the color texture.
 	rasty->Clear(RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT);
 }
 
-void RAS_TextureRenderer::EndRenderFace(RAS_Rasterizer *rasty)
+void RAS_TextureRenderer::ReloadTexture()
 {
+	// Destruct all layers to force the recreation of the textures.
+	m_layers.clear();
 }
 
-void RAS_TextureRenderer::BindFace(unsigned short index)
-{
-	m_faces[index].Bind();
-}

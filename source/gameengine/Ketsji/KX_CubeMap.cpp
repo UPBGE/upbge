@@ -69,13 +69,10 @@ const mt::mat3 KX_CubeMap::faceViewMatrices3x3[KX_CubeMap::NUM_FACES] = {
 	leftFaceViewMat
 };
 
-KX_CubeMap::KX_CubeMap(EnvMap *env, KX_GameObject *viewpoint)
-	:KX_TextureRenderer(env, viewpoint),
+KX_CubeMap::KX_CubeMap(MTex *mtex, KX_GameObject *viewpoint)
+	:KX_TextureRenderer(mtex, viewpoint, LAYER_SHARED),
 	m_invalidProjection(true)
 {
-	for (int target : RAS_Texture::GetCubeMapTargets()) {
-		m_faces.emplace_back(target);
-	}
 }
 
 KX_CubeMap::~KX_CubeMap()
@@ -92,8 +89,9 @@ void KX_CubeMap::InvalidateProjectionMatrix()
 	m_invalidProjection = true;
 }
 
-const mt::mat4& KX_CubeMap::GetProjectionMatrix(RAS_Rasterizer *rasty, KX_Scene *UNUSED(scene), KX_Camera *UNUSED(sceneCamera),
-                                                const RAS_Rect& UNUSED(viewport), const RAS_Rect& UNUSED(area))
+mt::mat4 KX_CubeMap::GetProjectionMatrix(RAS_Rasterizer *rasty, KX_Scene *UNUSED(scene), KX_Camera *UNUSED(sceneCamera),
+		const RAS_Rect& UNUSED(viewport), const RAS_Rect& UNUSED(area),
+		RAS_Rasterizer::StereoMode UNUSED(stereoMode), RAS_Rasterizer::StereoEye UNUSED(eye))
 {
 	if (m_invalidProjection) {
 		m_projection = rasty->GetFrustumMatrix(-m_clipStart, m_clipStart, -m_clipStart, m_clipStart, m_clipStart, m_clipEnd);
@@ -103,17 +101,26 @@ const mt::mat4& KX_CubeMap::GetProjectionMatrix(RAS_Rasterizer *rasty, KX_Scene 
 	return m_projection;
 }
 
-bool KX_CubeMap::SetupCamera(KX_Camera *sceneCamera, KX_Camera *camera)
+RAS_TextureRenderer::LayerUsage KX_CubeMap::EnsureLayers(int viewportCount)
 {
-	KX_GameObject *viewpoint = GetViewpointObject();
-	const mt::vec3& position = viewpoint->NodeGetWorldPosition();
+	if (m_layers.empty()) {
+		static const std::vector<int> targets(RAS_Texture::GetCubeMapTargets().begin(), RAS_Texture::GetCubeMapTargets().end());
+		m_layers.emplace_back(targets, RAS_Texture::GetCubeMapTextureType(), m_mtex->tex->ima, m_useMipmap, m_useLinear);
+	}
+
+	return m_layerUsage;
+}
+
+bool KX_CubeMap::Prepare(KX_Camera *UNUSED(sceneCamera), RAS_Rasterizer::StereoEye UNUSED(eye), KX_Camera *camera)
+{
+	const mt::vec3& position = m_viewpointObject->NodeGetWorldPosition();
 
 	camera->NodeSetWorldPosition(position);
 
 	return true;
 }
 
-bool KX_CubeMap::SetupCameraFace(KX_Camera *camera, unsigned short index)
+bool KX_CubeMap::PrepareFace(KX_Camera *camera, unsigned short index)
 {
 	camera->NodeSetGlobalOrientation(faceViewMatrices3x3[index]);
 

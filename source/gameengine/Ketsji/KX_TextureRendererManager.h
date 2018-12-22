@@ -27,38 +27,26 @@
 #ifndef __KX_TEXTURE_RENDERER_MANAGER_H__
 #define __KX_TEXTURE_RENDERER_MANAGER_H__
 
-#include <vector>
+#include "KX_RenderData.h"
 
 class KX_GameObject;
-class KX_Camera;
-class KX_Scene;
 class KX_TextureRenderer;
 
-class RAS_Rasterizer;
-class RAS_OffScreen;
 class RAS_Texture;
-class RAS_Rect;
 
 class KX_TextureRendererManager
 {
-public:
-	enum RendererCategory {
-		VIEWPORT_DEPENDENT = 0,
-		VIEWPORT_INDEPENDENT,
-		CATEGORY_MAX
-	};
-
 private:
-	/// All existing renderers of this scene by categories.
-	std::vector<KX_TextureRenderer *> m_renderers[CATEGORY_MAX];
+	/// All existing renderers of this scene.
+	std::vector<KX_TextureRenderer *> m_renderers;
 	/// The camera used for renderers render, it's own by the renderer manager.
 	KX_Camera *m_camera;
 	/// The scene we are rendering for.
 	KX_Scene *m_scene;
 
 	/// Render a texture renderer, return true if the render was proceeded.
-	bool RenderRenderer(RAS_Rasterizer *rasty, KX_TextureRenderer *renderer,
-						KX_Camera *sceneCamera, const RAS_Rect& viewport, const RAS_Rect& area);
+	void RenderRenderer(RAS_Rasterizer *rasty, KX_TextureRenderer *renderer,
+			const std::vector<const KX_CameraRenderData *>& cameraDatas);
 
 public:
 	enum RendererType {
@@ -72,21 +60,16 @@ public:
 	/// Invalidate renderers using the given game object as viewpoint object.
 	void InvalidateViewpoint(KX_GameObject *gameobj);
 
+	/// Reload all the texture when a global texture setting changed.
+	void ReloadTextures();
+
 	/** Add and create a renderer if none existing renderer was using the same
 	* texture containing in the material texture passed.
 	*/
 	void AddRenderer(RendererType type, RAS_Texture *texture, KX_GameObject *viewpoint);
 
-	/** Execute all the texture renderer.
-	 * \param category The category of renderers to render.
-	 * \param offScreen The off screen bound before rendering the texture renderers.
-	 * \param sceneCamera The scene camera currently rendering the scene, used only in case of
-	 * VIEWPORT_DEPENDENT category.
-	 * \param viewport The viewport render area.
-	 * \param area The windows render area.
-	 */
-	void Render(RendererCategory category, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen,
-				KX_Camera *sceneCamera, const RAS_Rect& viewport, const RAS_Rect& area);
+	/// Execute all texture renderers.
+	void Render(RAS_Rasterizer *rasty, const KX_SceneRenderData& sceneData);
 
 	/// Merge the content of an other renderer manager, used during lib loading.
 	void Merge(KX_TextureRendererManager *other);

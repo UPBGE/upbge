@@ -35,7 +35,7 @@ KX_SceneRenderData::KX_SceneRenderData(KX_Scene *scene)
 {
 }
 
-KX_FrameRenderData::KX_FrameRenderData(RAS_Rasterizer::OffScreenType ofsType, const std::vector<RAS_Rasterizer::StereoEye>& eyes)
+KX_FrameRenderData::KX_FrameRenderData(RAS_OffScreen::Type ofsType, const std::vector<RAS_Rasterizer::StereoEye>& eyes)
 	:m_ofsType(ofsType),
 	m_eyes(eyes)
 {

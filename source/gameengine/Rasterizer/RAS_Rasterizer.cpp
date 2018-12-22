@@ -417,7 +417,7 @@ RAS_Rect RAS_Rasterizer::GetRenderArea(RAS_ICanvas *canvas, StereoMode stereoMod
 				}
 				default:
 				{
-					break;
+					BLI_assert(false);
 				}
 			}
 			break;
@@ -446,7 +446,7 @@ RAS_Rect RAS_Rasterizer::GetRenderArea(RAS_ICanvas *canvas, StereoMode stereoMod
 				}
 				default:
 				{
-					break;
+					BLI_assert(false);
 				}
 			}
 			break;
@@ -474,7 +474,7 @@ RAS_Rect RAS_Rasterizer::GetRenderArea(RAS_ICanvas *canvas, StereoMode stereoMod
 				}
 				default:
 				{
-					break;
+					BLI_assert(false);
 				}
 			}
 			break;
@@ -617,7 +617,7 @@ mt::mat4 RAS_Rasterizer::GetFrustumMatrix(StereoMode stereoMode, StereoEye eye, 
 			}
 			default:
 			{
-				break;
+				BLI_assert(false);
 			}
 		}
 		// leave bottom and top untouched
@@ -682,7 +682,7 @@ mt::mat4 RAS_Rasterizer::GetViewMatrix(StereoMode stereoMode, StereoEye eye, con
 			}
 			default:
 			{
-				break;
+				BLI_assert(false);
 			}
 		}
 

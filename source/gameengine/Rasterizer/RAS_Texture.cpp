@@ -36,10 +36,6 @@ RAS_Texture::RAS_Texture()
 
 RAS_Texture::~RAS_Texture()
 {
-	// If the texture is free before the renderer (e.g lib free) then unregsiter ourself.
-	if (m_renderer) {
-		m_renderer->RemoveTextureUser(this);
-	}
 }
 
 std::string& RAS_Texture::GetName()
@@ -79,6 +75,13 @@ const std::array<int, 6>& RAS_Texture::GetCubeMapTargets()
 									  }};
 
 	return targets;
+}
+
+void RAS_Texture::ApplyRenderer(unsigned short viewportIndex)
+{
+	if (m_renderer) {
+		m_bindCode = m_renderer->GetBindCode(viewportIndex);
+	}
 }
 
 void RAS_Texture::DesactiveTextures()
