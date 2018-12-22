@@ -32,6 +32,7 @@
 
 extern "C" {
 #  include "BKE_context.h"
+#  include "BKE_camera.h"
 
 // avoid c++ conflict with 'new'
 #  define new _new
@@ -112,14 +113,17 @@ void LA_BlenderLauncher::InitCamera()
 	}
 
 	if (rv3d->persp != RV3D_CAMOB) {
-		RAS_CameraData camdata = RAS_CameraData();
-		camdata.m_lens = m_view3d->lens;
-		camdata.m_clipstart = m_view3d->near;
-		camdata.m_clipend = m_view3d->far;
-		camdata.m_perspective = (rv3d->persp != RV3D_ORTHO);
-		camdata.m_zoom = 2.0f;
+		CameraParams params;
+		BKE_camera_params_init(&params);
+		BKE_camera_params_from_view3d(&params, m_view3d, rv3d);
 
-		m_ketsjiEngine->EnableCameraOverride(m_startSceneName, mt::mat4(rv3d->winmat), mt::mat4(rv3d->viewmat), camdata);
+		RAS_CameraData camdata = RAS_CameraData(params.lens, params.ortho_scale, params.sensor_x, params.sensor_y,
+				params.sensor_fit, params.shiftx, params.shifty, params.clipsta, params.clipend, !params.is_ortho,
+				3.0f, params.zoom);
+
+		const mt::mat4 viewinv(rv3d->viewinv);
+
+		m_ketsjiEngine->EnableCameraOverride(m_startSceneName, viewinv.RotationMatrix(), viewinv.TranslationVector3D(), camdata);
 	}
 }
 

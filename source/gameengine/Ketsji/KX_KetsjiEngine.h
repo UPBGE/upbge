@@ -225,8 +225,8 @@ private:
 
 	std::string m_overrideSceneName;
 	RAS_CameraData m_overrideCamData;
-	mt::mat4 m_overrideCamProjMat;
-	mt::mat4 m_overrideCamViewMat;
+	mt::mat3 m_overrideCamOrientation;
+	mt::vec3 m_overrideCamPosition;
 
 	/// Categories for profiling display.
 	typedef enum {
@@ -393,7 +393,8 @@ public:
 
 	void GetSceneViewport(KX_Scene *scene, KX_Camera *cam, const RAS_Rect& displayArea, RAS_Rect& area, RAS_Rect& viewport);
 
-	void EnableCameraOverride(const std::string& forscene, const mt::mat4& projmat, const mt::mat4& viewmat, const RAS_CameraData& camdata);
+	void EnableCameraOverride(const std::string& forscene, const mt::mat3& orientation,
+			const mt::vec3& position, const RAS_CameraData& camdata);
 
 	// Update animations for object in this scene
 	void UpdateAnimations(KX_Scene *scene);

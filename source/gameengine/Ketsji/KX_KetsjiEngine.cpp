@@ -767,13 +767,14 @@ const KX_ExitInfo& KX_KetsjiEngine::GetExitInfo() const
 	return m_exitInfo;
 }
 
-void KX_KetsjiEngine::EnableCameraOverride(const std::string& forscene, const mt::mat4& projmat,
-                                           const mt::mat4& viewmat, const RAS_CameraData& camdata)
+void KX_KetsjiEngine::EnableCameraOverride(const std::string& forscene, const mt::mat3& orientation,
+		const mt::vec3& position, const RAS_CameraData& camdata)
 {
 	SetFlag(CAMERA_OVERRIDE, true);
+
 	m_overrideSceneName = forscene;
-	m_overrideCamProjMat = projmat;
-	m_overrideCamViewMat = viewmat;
+	m_overrideCamOrientation = orientation;
+	m_overrideCamPosition = position;
 	m_overrideCamData = camdata;
 }
 
@@ -884,73 +885,60 @@ mt::mat4 KX_KetsjiEngine::GetCameraProjectionMatrix(KX_Scene *scene, KX_Camera *
 		return cam->GetProjectionMatrix();
 	}
 
-	const bool override_camera = ((m_flags & CAMERA_OVERRIDE) != 0) && (scene->GetName() == m_overrideSceneName) &&
-	                             (cam->GetName() == "__default__cam__");
+	RAS_FrameFrustum frustum{};
+	const bool orthographic = !cam->GetCameraData()->m_perspective;
+	const float nearfrust = cam->GetCameraNear();
+	const float farfrust = cam->GetCameraFar();
+	const float focallength = cam->GetFocalLength();
+	const float camzoom = cam->GetZoom();
 
-	mt::mat4 projmat;
-	if (override_camera && !m_overrideCamData.m_perspective) {
-		// needed to get frustum planes for culling
-		projmat = m_overrideCamProjMat;
+	if (orthographic) {
+		RAS_FramingManager::ComputeOrtho(
+			scene->GetFramingType(),
+			area,
+			viewport,
+			cam->GetScale(),
+			nearfrust,
+			farfrust,
+			cam->GetSensorFit(),
+			cam->GetShiftHorizontal(),
+			cam->GetShiftVertical(),
+			frustum);
+
+		if (!cam->GetViewport()) {
+			frustum.x1 *= camzoom;
+			frustum.x2 *= camzoom;
+			frustum.y1 *= camzoom;
+			frustum.y2 *= camzoom;
+		}
+		return m_rasterizer->GetOrthoMatrix(
+			frustum.x1, frustum.x2, frustum.y1, frustum.y2, frustum.camnear, frustum.camfar);
+
 	}
 	else {
-		RAS_FrameFrustum frustum{};
-		const bool orthographic = !cam->GetCameraData()->m_perspective;
-		const float nearfrust = cam->GetCameraNear();
-		const float farfrust = cam->GetCameraFar();
-		const float focallength = cam->GetFocalLength();
+		RAS_FramingManager::ComputeFrustum(
+			scene->GetFramingType(),
+			area,
+			viewport,
+			cam->GetLens(),
+			cam->GetSensorWidth(),
+			cam->GetSensorHeight(),
+			cam->GetSensorFit(),
+			cam->GetShiftHorizontal(),
+			cam->GetShiftVertical(),
+			nearfrust,
+			farfrust,
+			frustum);
 
-		const float camzoom = cam->GetZoom();
-		if (orthographic) {
-
-			RAS_FramingManager::ComputeOrtho(
-				scene->GetFramingType(),
-				area,
-				viewport,
-				cam->GetScale(),
-				nearfrust,
-				farfrust,
-				cam->GetSensorFit(),
-				cam->GetShiftHorizontal(),
-				cam->GetShiftVertical(),
-				frustum);
-
-			if (!cam->GetViewport()) {
-				frustum.x1 *= camzoom;
-				frustum.x2 *= camzoom;
-				frustum.y1 *= camzoom;
-				frustum.y2 *= camzoom;
-			}
-			projmat = m_rasterizer->GetOrthoMatrix(
-				frustum.x1, frustum.x2, frustum.y1, frustum.y2, frustum.camnear, frustum.camfar);
-
+		if (!cam->GetViewport()) {
+			frustum.x1 *= camzoom;
+			frustum.x2 *= camzoom;
+			frustum.y1 *= camzoom;
+			frustum.y2 *= camzoom;
 		}
-		else {
-			RAS_FramingManager::ComputeFrustum(
-				scene->GetFramingType(),
-				area,
-				viewport,
-				cam->GetLens(),
-				cam->GetSensorWidth(),
-				cam->GetSensorHeight(),
-				cam->GetSensorFit(),
-				cam->GetShiftHorizontal(),
-				cam->GetShiftVertical(),
-				nearfrust,
-				farfrust,
-				frustum);
-
-			if (!cam->GetViewport()) {
-				frustum.x1 *= camzoom;
-				frustum.x2 *= camzoom;
-				frustum.y1 *= camzoom;
-				frustum.y2 *= camzoom;
-			}
-			projmat = m_rasterizer->GetFrustumMatrix(stereoMode, eye, focallength,
-			                                         frustum.x1, frustum.x2, frustum.y1, frustum.y2, frustum.camnear, frustum.camfar);
-		}
+		return m_rasterizer->GetFrustumMatrix(stereoMode, eye, focallength,
+			frustum.x1, frustum.x2, frustum.y1, frustum.y2, frustum.camnear, frustum.camfar);
 	}
-
-	return projmat;
 }
 
 // update graphics
@@ -1099,11 +1087,8 @@ void KX_KetsjiEngine::PostProcessScene(KX_Scene *scene)
 
 		// set transformation
 		if (override_camera) {
-			const mt::mat3x4 trans = mt::mat3x4::ToAffineTransform(m_overrideCamViewMat);
-			const mt::mat3x4 camtrans = trans.Inverse();
-
-			activecam->NodeSetLocalPosition(camtrans.TranslationVector3D());
-			activecam->NodeSetLocalOrientation(camtrans.RotationMatrix());
+			activecam->NodeSetLocalPosition(m_overrideCamPosition);
+			activecam->NodeSetLocalOrientation(m_overrideCamOrientation);
 		}
 		else {
 			activecam->NodeSetLocalPosition(mt::zero3);
