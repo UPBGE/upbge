@@ -211,9 +211,9 @@ void KX_Camera::UpdateView(RAS_Rasterizer* rasty, KX_Scene* scene, RAS_Rasterize
 		}
 
 		view.projectionDirty = false;
-		// Ask to rebuild the frustum as the projection changed.
-		view.frustumDirty = true;
 	}
+	// Ask to rebuild the frustum as the projection and/or modelview changed.
+	view.frustumDirty = true;
 }
 
 /**
