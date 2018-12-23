@@ -738,10 +738,7 @@ void KX_KetsjiEngine::GetSceneViewport(KX_Scene *scene, KX_Camera *cam, const RA
 		area = displayArea;
 	}
 
-	RAS_FramingManager::ComputeViewport(
-		scene->GetFramingType(),
-		displayArea,
-		viewport);
+	RAS_FramingManager::ComputeViewport(scene->GetFramingType(), area, viewport);
 }
 
 void KX_KetsjiEngine::UpdateAnimations(KX_Scene *scene)

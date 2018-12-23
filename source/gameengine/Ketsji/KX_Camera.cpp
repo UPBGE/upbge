@@ -356,7 +356,7 @@ void KX_Camera::EnableViewport(bool viewport)
 void KX_Camera::SetViewport(int left, int bottom, int right, int top)
 {
 	InvalidateProjectionMatrix();
-	m_camdata.m_viewport = RAS_Rect(left, bottom, right, top);
+	m_camdata.m_viewport = RAS_Rect(left, right, bottom, top);
 }
 
 bool KX_Camera::UseViewport() const
