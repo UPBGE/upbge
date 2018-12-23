@@ -1,5 +1,6 @@
 #if __VERSION__ < 130
   #define in varying
+  #define flat
   #define out varying
 #endif
 
