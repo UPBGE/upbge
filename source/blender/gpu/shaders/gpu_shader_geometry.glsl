@@ -1,3 +1,4 @@
+
 uniform int PrimitiveIdBase;
 uniform int osd_active_uv_offset;
 
@@ -10,9 +11,17 @@ in block {
 	VertexData v;
 } inpt[];
 
-/* compatibility */
+#if __VERSION__ < 130
+  #define out varying
+  #define texelFetch texelFetch2D
+#endif
+
 out vec3 varnormal;
 out vec3 varposition;
+
+#if __VERSION__ < 130
+  #undef out
+#endif
 
 uniform bool osd_flat_shading;
 uniform int osd_fvar_count;

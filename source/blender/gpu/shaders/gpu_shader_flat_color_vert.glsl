@@ -1,3 +1,9 @@
+#if __VERSION__ < 130
+  #define in attribute
+  #define flat
+  #define out varying
+#endif
+
 in vec3 pos;
 in vec4 color;
 
