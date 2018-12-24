@@ -40,6 +40,7 @@
 #include "GPU_extensions.h"
 #include "GPU_material.h"
 #include "GPU_shader.h"
+#include "GPU_vertex_array.h"
 
 extern "C" {
 #  include "BLF_api.h"
@@ -111,7 +112,7 @@ RAS_OpenGLRasterizer::ScreenPlane::ScreenPlane()
 	// Generate the VBO and IBO for screen overlay plane.
 	glGenBuffers(1, &m_vbo);
 	glGenBuffers(1, &m_ibo);
-	glGenVertexArrays(1, &m_vao);
+	GPU_create_vertex_arrays(1, &m_vao);
 
 	// Vertexes for screen plane, it contains the vertex position (3 floats) and the vertex uv after (2 floats, total size = 5 floats).
 	static const float vertices[] = {
@@ -124,7 +125,7 @@ RAS_OpenGLRasterizer::ScreenPlane::ScreenPlane()
 	// Indices for screen plane.
 	static const GLubyte indices[] = {3, 2, 1, 0};
 
-	glBindVertexArray(m_vao);
+	GPU_bind_vertex_array(m_vao);
 
 	// Send indices in the sreen plane IBO.
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ibo);
@@ -145,24 +146,24 @@ RAS_OpenGLRasterizer::ScreenPlane::ScreenPlane()
 	// Unbind VBO
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-	glBindVertexArray(0);
+	GPU_unbind_vertex_array();
 }
 
 RAS_OpenGLRasterizer::ScreenPlane::~ScreenPlane()
 {
 	// Delete screen overlay plane VBO/IBO/VAO
-	glDeleteVertexArrays(1, &m_vao);
+	GPU_delete_vertex_arrays(1, &m_vao);
 	glDeleteBuffers(1, &m_vbo);
 	glDeleteBuffers(1, &m_ibo);
 }
 
 inline void RAS_OpenGLRasterizer::ScreenPlane::Render()
 {
-	glBindVertexArray(m_vao);
+	GPU_bind_vertex_array(m_vao);
 	// Draw in triangle fan mode to reduce IBO size.
 	glDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_BYTE, 0);
 
-	glBindVertexArray(0);
+	GPU_unbind_vertex_array();
 }
 
 RAS_OpenGLRasterizer::RAS_OpenGLRasterizer(RAS_Rasterizer *rasterizer)

@@ -7,6 +7,12 @@ out block {
 } outpt;
 #endif
 
+#if __VERSION__ < 130
+  #define in attribute
+  #define flat
+  #define out varying
+#endif
+
 #ifdef USE_INSTANCING
 in mat3 ininstmatrix;
 in vec3 ininstposition;
@@ -25,6 +31,12 @@ uniform mat4 unfviewmat;
 
 out vec3 varposition;
 out vec3 varnormal;
+
+#if __VERSION__ < 130
+  #undef in
+  #undef flat
+  #undef out
+#endif
 
 #ifdef CLIP_WORKAROUND
 varying float gl_ClipDistance[6];

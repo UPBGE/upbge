@@ -2,7 +2,9 @@
 varying vec3 varposition;
 varying vec3 varnormal;
 
+#ifdef CLIP_WORKAROUND
 varying float gl_ClipDistance[6];
+#endif
 
 /* Color, keep in sync with: gpu_shader_vertex.glsl */
 
@@ -79,7 +81,10 @@ void main()
 	varposition = gl_Vertex.xyz;
 
 	varnormal = normalize(-varposition);
+
+#ifdef CLIP_WORKAROUND
 	// Always set clip distance to 1 to disable clipping.
 	for (int i = 0; i < 6; ++i) {
 		gl_ClipDistance[i] = 1.0;
 	}
+#endif

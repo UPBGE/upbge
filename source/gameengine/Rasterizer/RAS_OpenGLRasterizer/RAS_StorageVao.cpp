@@ -24,6 +24,7 @@
 #include "RAS_DisplayArrayStorage.h"
 #include "RAS_StorageVao.h"
 #include "RAS_StorageVbo.h"
+#include "GPU_vertex_array.h"
 
 struct AttribData {
 	int size;
@@ -42,8 +43,8 @@ static const AttribData attribData[RAS_AttributeArray::RAS_ATTRIB_MAX] = {
 RAS_StorageVao::RAS_StorageVao(const RAS_DisplayArrayLayout &layout, RAS_DisplayArrayStorage *arrayStorage,
                                const RAS_AttributeArray::AttribList& attribList)
 {
-	glGenVertexArrays(1, &m_id);
-	glBindVertexArray(m_id);
+	GPU_create_vertex_arrays(1, &m_id);
+	GPU_bind_vertex_array(m_id);
 
 	RAS_StorageVbo *vbo = arrayStorage->GetVbo();
 	vbo->BindVertexBuffer();
@@ -113,20 +114,20 @@ RAS_StorageVao::RAS_StorageVao(const RAS_DisplayArrayLayout &layout, RAS_Display
 	// VBO are not tracked by the VAO excepted for IBO.
 	vbo->UnbindVertexBuffer();
 
-	glBindVertexArray(0);
+	GPU_unbind_vertex_array();
 }
 
 RAS_StorageVao::~RAS_StorageVao()
 {
-	glDeleteVertexArrays(1, &m_id);
+	GPU_delete_vertex_arrays(1, &m_id);
 }
 
 void RAS_StorageVao::BindPrimitives()
 {
-	glBindVertexArray(m_id);
+	GPU_bind_vertex_array(m_id);
 }
 
 void RAS_StorageVao::UnbindPrimitives()
 {
-	glBindVertexArray(0);
+	GPU_unbind_vertex_array();
 }
