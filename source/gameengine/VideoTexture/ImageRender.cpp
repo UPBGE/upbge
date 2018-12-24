@@ -75,7 +75,6 @@ ImageRender::ImageRender(KX_Scene *scene, KX_Camera *camera, unsigned int width,
 	m_done(false),
 	m_scene(scene),
 	m_camera(camera),
-	m_owncamera(false),
 	m_samples(samples),
 	m_finalOffScreen(nullptr),
 	m_sync(nullptr),
@@ -120,10 +119,6 @@ ImageRender::ImageRender(KX_Scene *scene, KX_Camera *camera, unsigned int width,
 // destructor
 ImageRender::~ImageRender(void)
 {
-	if (m_owncamera) {
-		m_camera->Release();
-	}
-
 #ifdef WITH_GAMEENGINE_GPU_SYNC
 	if (m_sync) {
 		delete m_sync;
@@ -226,8 +221,9 @@ bool ImageRender::Render()
 
 	if (!m_render ||
 	    m_rasterizer->GetDrawingMode() != RAS_Rasterizer::RAS_TEXTURED ||   // no need for texture
-	    m_camera->UseViewport() ||        // camera must be inactive
-	    m_camera == m_scene->GetActiveCamera()) {
+	    (m_camera && (m_camera->UseViewport() ||        // camera must be inactive
+		 m_camera == m_scene->GetActiveCamera())))
+	{
 		// no need to compute texture in non texture rendering
 		return false;
 	}
@@ -236,6 +232,7 @@ bool ImageRender::Render()
 		m_engine->RenderShadowBuffers(m_scene);
 	}
 
+	mt::mat3x4 camtrans;
 	if (m_mirror) {
 		// mirror mode, compute camera frustum, position and orientation
 		// convert mirror position and normal in world space
@@ -257,7 +254,6 @@ bool ImageRender::Render()
 		}
 		// set camera world position = observerPos + normal * 2 * distance
 		mt::vec3 cameraWorldPos = observerWorldPos + (2.0f * observerDistance) * mirrorWorldZ;
-		m_camera->GetNode()->SetLocalPosition(cameraWorldPos);
 		// set camera orientation: z=normal, y=mirror_up in world space, x= y x z
 		mt::vec3 mirrorWorldY = mirrorObjWorldOri * m_mirrorY;
 		mt::vec3 mirrorWorldX = mirrorObjWorldOri * m_mirrorX;
@@ -265,8 +261,8 @@ bool ImageRender::Render()
 			mirrorWorldX[0], mirrorWorldY[0], mirrorWorldZ[0],
 			mirrorWorldX[1], mirrorWorldY[1], mirrorWorldZ[1],
 			mirrorWorldX[2], mirrorWorldY[2], mirrorWorldZ[2]);
-		m_camera->GetNode()->SetLocalOrientation(cameraWorldOri);
-		m_camera->GetNode()->UpdateWorldData();
+
+		camtrans = mt::mat3x4(cameraWorldOri, cameraWorldPos);
 		// compute camera frustum:
 		//   get position of mirror relative to camera: offset = mirrorPos-cameraPos
 		mt::vec3 mirrorOffset = mirrorWorldPos - cameraWorldPos;
@@ -300,6 +296,9 @@ bool ImageRender::Render()
 		frustum.camnear = -mirrorOffset[2];
 		frustum.camfar = -mirrorOffset[2] + m_clip;
 	}
+	else {
+		camtrans = m_camera->GetWorldToCamera();
+	}
 
 	// The screen area that ImageViewport will copy is also the rendering zone
 	// bind the fbo and set the viewport to full size
@@ -315,12 +314,11 @@ bool ImageRender::Render()
 	m_scene->GetWorldInfo()->UpdateWorldSettings(m_rasterizer);
 	m_rasterizer->SetAuxilaryClientInfo(m_scene);
 
+	mt::mat4 projmat;
 	if (m_mirror) {
 		// frustum was computed above
 		// get frustum matrix and set projection matrix
-		const mt::mat4 projmat = m_rasterizer->GetFrustumMatrix(frustum.x1, frustum.x2, frustum.y1, frustum.y2, frustum.camnear, frustum.camfar);
-
-		m_camera->SetProjectionMatrix(projmat, RAS_Rasterizer::RAS_STEREO_LEFTEYE);
+		projmat = m_rasterizer->GetFrustumMatrix(frustum.x1, frustum.x2, frustum.y1, frustum.y2, frustum.camnear, frustum.camfar);
 	}
 	else if (!m_camera->HasValidProjectionMatrix(RAS_Rasterizer::RAS_STEREO_LEFTEYE)) {
 		float lens = m_camera->GetLens();
@@ -333,7 +331,6 @@ bool ImageRender::Render()
 		float farfrust = m_camera->GetCameraFar();
 		float aspect_ratio = 1.0f;
 		Scene *blenderScene = m_scene->GetBlenderScene();
-		mt::mat4 projmat;
 
 		// compute the aspect ratio from frame blender scene settings so that render to texture
 		// works the same in Blender and in Blender player
@@ -374,14 +371,15 @@ bool ImageRender::Render()
 		}
 		m_camera->SetProjectionMatrix(projmat, RAS_Rasterizer::RAS_STEREO_LEFTEYE);
 	}
+	else {
+		projmat = m_camera->GetProjectionMatrix(RAS_Rasterizer::RAS_STEREO_LEFTEYE);
+	}
 
-	m_rasterizer->SetProjectionMatrix(m_camera->GetProjectionMatrix(RAS_Rasterizer::RAS_STEREO_LEFTEYE));
+	m_rasterizer->SetProjectionMatrix(projmat);
 
-	mt::mat3x4 camtrans(m_camera->GetWorldToCamera());
-	mt::mat4 viewmat = mt::mat4::FromAffineTransform(camtrans);
+	const mt::mat4 viewmat = mt::mat4::FromAffineTransform(camtrans).Inverse();
 
-	m_rasterizer->SetViewMatrix(viewmat, m_camera->NodeGetWorldScaling());
-	m_camera->SetModelviewMatrix(viewmat, RAS_Rasterizer::RAS_STEREO_LEFTEYE);
+	m_rasterizer->SetViewMatrix(viewmat);
 
 	// Render Background
 	if (m_scene->GetWorldInfo()) {
@@ -395,7 +393,8 @@ bool ImageRender::Render()
 		m_scene->GetWorldInfo()->setZenithColor(zen);
 	}
 
-	const std::vector<KX_GameObject *> objects = m_scene->CalculateVisibleMeshes(m_camera, RAS_Rasterizer::RAS_STEREO_LEFTEYE, 0);
+	const SG_Frustum camFrustum(projmat * viewmat);
+	const std::vector<KX_GameObject *> objects = m_scene->CalculateVisibleMeshes(camFrustum, 0);
 
 	m_engine->UpdateAnimations(m_scene);
 
@@ -903,11 +902,7 @@ ImageRender::ImageRender(KX_Scene *scene, KX_GameObject *observer, KX_GameObject
 	float yaxis[3] = {0.f, 1.f, 0.f};
 	float mirrorMat[3][3];
 	float left, right, top, bottom, back;
-	// make sure this camera will delete its node
-	m_camera = new KX_Camera(scene, KX_Scene::m_callbacks, camdata, true);
-	m_camera->SetName("__mirror__cam__");
-	// don't add the camera to the scene object list, it doesn't need to be accessible
-	m_owncamera = true;
+
 	// retrieve rendering objects
 	m_engine = KX_GetActiveEngine();
 	m_rasterizer = m_engine->GetRasterizer();
