@@ -175,7 +175,7 @@ static void game_blend_poses(bPose *dst, bPose *src, float srcweight, short mode
 				interp_qt_qtqt(dchan->quat, dquat, squat, srcweight);
 			}
 			else {
-				mul_fac_qt_fl(squat, srcweight);
+				pow_qt_fl_normalized(squat, srcweight);
 				mul_qt_qtqt(dchan->quat, dquat, squat);
 			}
 

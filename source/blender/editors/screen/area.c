@@ -957,12 +957,26 @@ static void region_azone_tab_plus(ScrArea *sa, AZone *az, ARegion *ar)
 	BLI_rcti_init(&az->rect, az->x1, az->x2, az->y1, az->y2);
 }
 
+static bool region_azone_edge_poll(const ARegion *ar, const bool is_fullscreen)
+{
+	const bool is_hidden = (ar->flag & (RGN_FLAG_HIDDEN | RGN_FLAG_TOO_SMALL));
+
+	if (is_hidden && is_fullscreen) {
+		return false;
+	}
+	if (!is_hidden && ar->regiontype == RGN_TYPE_HEADER) {
+		return false;
+	}
+
+	return true;
+}
+
 static void region_azone_edge_initialize(ScrArea *sa, ARegion *ar, AZEdge edge, const bool is_fullscreen)
 {
 	AZone *az = NULL;
 	const bool is_hidden = (ar->flag & (RGN_FLAG_HIDDEN | RGN_FLAG_TOO_SMALL));
 
-	if (is_hidden && is_fullscreen) {
+	if (!region_azone_edge_poll(ar, is_fullscreen)) {
 		return;
 	}
 
@@ -975,7 +989,7 @@ static void region_azone_edge_initialize(ScrArea *sa, ARegion *ar, AZEdge edge, 
 	if (is_hidden) {
 		region_azone_tab_plus(sa, az, ar);
 	}
-	else if (!is_hidden && (ar->regiontype != RGN_TYPE_HEADER)) {
+	else {
 		region_azone_edge(az, ar);
 	}
 }
@@ -1236,8 +1250,8 @@ static void region_rect_recursive(ScrArea *sa, ARegion *ar, rcti *remainder, rct
 		        max_ii(0, BLI_rcti_size_y(overlap_remainder) - UI_UNIT_Y / 2));
 		ar->winrct.xmin = overlap_remainder_margin.xmin;
 		ar->winrct.ymin = overlap_remainder_margin.ymin;
-		ar->winrct.xmax = ar->winrct.xmin + ar->sizex - 1;
-		ar->winrct.ymax = ar->winrct.ymin + ar->sizey - 1;
+		ar->winrct.xmax = ar->winrct.xmin + prefsizex - 1;
+		ar->winrct.ymax = ar->winrct.ymin + prefsizey - 1;
 
 		BLI_rcti_isect(&ar->winrct, &overlap_remainder_margin, &ar->winrct);
 
@@ -2294,8 +2308,8 @@ void ED_region_panels_layout_ex(
 		Panel *panel = ar->panels.last;
 		if (panel != NULL) {
 			int size_dyn[2] = {
-				UI_UNIT_X * ((panel->flag & PNL_CLOSED) ? 8 : 14),
-				UI_panel_size_y(panel),
+				UI_UNIT_X * ((panel->flag & PNL_CLOSED) ? 8 : 14) / UI_DPI_FAC,
+				UI_panel_size_y(panel) / UI_DPI_FAC,
 			};
 			/* region size is layout based and needs to be updated */
 			if ((ar->sizex != size_dyn[0]) ||
@@ -2305,7 +2319,7 @@ void ED_region_panels_layout_ex(
 				ar->sizey = size_dyn[1];
 				sa->flag |= AREA_FLAG_REGION_SIZE_UPDATE;
 			}
-			y = ABS(ar->sizey - 1);
+			y = ABS(ar->sizey * UI_DPI_FAC - 1);
 		}
 	}
 	else if (vertical) {
