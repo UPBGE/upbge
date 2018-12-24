@@ -1155,7 +1155,7 @@ static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderob
 			if (PyErr_Occurred()) {
 				PyErr_Print();
 			}
-			CM_Error("coulding import the module '" << pc->module << "'");
+			CM_Error("Failed to import the module '" << pc->module << "'");
 			pc = pc->next;
 			continue;
 		}
