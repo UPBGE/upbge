@@ -3877,7 +3877,7 @@ class VIEW3D_MT_gpencil_simplify(Menu):
     def draw(self, context):
         layout = self.layout
         layout.operator("gpencil.stroke_simplify_fixed", text="Fixed")
-        layout.operator("gpencil.stroke_simplify", text="Adaptative")
+        layout.operator("gpencil.stroke_simplify", text="Adaptive")
 
 
 class VIEW3D_MT_paint_gpencil(Menu):
@@ -5567,7 +5567,7 @@ class VIEW3D_MT_gpencil_edit_specials(Menu):
         layout.operator("gpencil.stroke_smooth", text="Smooth")
         layout.operator("gpencil.stroke_subdivide", text="Subdivide")
         layout.operator("gpencil.stroke_simplify_fixed", text="Simplify")
-        layout.operator("gpencil.stroke_simplify", text="Simplify Adaptative")
+        layout.operator("gpencil.stroke_simplify", text="Simplify Adaptive")
 
         layout.separator()
         layout.menu("GPENCIL_MT_separate", text="Separate")
@@ -5613,7 +5613,7 @@ class VIEW3D_MT_gpencil_sculpt_specials(Menu):
 
         layout.operator("gpencil.stroke_subdivide", text="Subdivide")
         layout.operator("gpencil.stroke_simplify_fixed", text="Simplify")
-        layout.operator("gpencil.stroke_simplify", text="Simplify Adaptative")
+        layout.operator("gpencil.stroke_simplify", text="Simplify Adaptive")
 
         if context.mode == 'WEIGHT_GPENCIL':
             layout.separator()

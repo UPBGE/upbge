@@ -4403,7 +4403,7 @@ bool BLO_write_file(
 	}
 
 	if (G.debug & G_DEBUG_IO && mainvar->lock != NULL) {
-		BKE_report(reports, RPT_INFO, "Checking sanity of current .blend file *AFTER* save to disk.");
+		BKE_report(reports, RPT_INFO, "Checking sanity of current .blend file *AFTER* save to disk");
 		BLO_main_validate_libraries(mainvar, reports);
 	}
 

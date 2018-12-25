@@ -212,7 +212,7 @@ class GreasePencilStrokeEditPanel:
         col.operator("gpencil.stroke_subdivide", text="Subdivide")
         row = col.row(align=True)
         row.operator("gpencil.stroke_simplify_fixed", text="Simplify")
-        row.operator("gpencil.stroke_simplify", text="Adaptative")
+        row.operator("gpencil.stroke_simplify", text="Adaptive")
 
         col.separator()
 
@@ -359,7 +359,7 @@ class GreasePencilAppearancePanel:
 
             if tool in {'THICKNESS', 'STRENGTH'}:
                 col.prop(brush, "cursor_color_add", text="Add")
-                col.prop(brush, "cursor_color_sub", text="Substract")
+                col.prop(brush, "cursor_color_sub", text="Subtract")
             elif tool == 'PINCH':
                 col.prop(brush, "cursor_color_add", text="Pinch")
                 col.prop(brush, "cursor_color_sub", text="Inflate")
