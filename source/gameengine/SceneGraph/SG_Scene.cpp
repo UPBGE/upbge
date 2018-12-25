@@ -27,7 +27,7 @@ void SG_Scene::RemoveRootNode(SG_Node *node)
 void SG_Scene::DestructRootNodes()
 {
 	while (!m_rootNodes.empty()) {
-		m_rootNodes.front()->Destruct();
+		delete m_rootNodes.front();
 	}
 }
 

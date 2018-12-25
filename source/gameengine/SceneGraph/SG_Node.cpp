@@ -84,6 +84,20 @@ SG_Node::SG_Node(const SG_Node& other)
 
 SG_Node::~SG_Node()
 {
+	// Delete all children.
+	for (SG_Node *childnode : m_children) {
+		delete childnode;
+	}
+
+	// Destruct node object.
+	if (m_object) {
+		m_scene->DestructNodeObject(this, m_object);
+	}
+
+	// Remove the node from scene roots.
+	if (!m_parent) {
+		m_scene->RemoveRootNode(this);
+	}
 }
 
 SG_Node *SG_Node::GetReplica()
@@ -123,26 +137,6 @@ SG_Node *SG_Node::GetReplica()
 	}
 
 	return replica;
-}
-
-void SG_Node::Destruct()
-{
-	// call the SG_Node destruct method on each of our children
-	for (SG_Node *childnode : m_children) {
-		childnode->Destruct();
-	}
-
-	// Destruct node object.
-	if (m_object) {
-		m_scene->DestructNodeObject(this, m_object);
-	}
-
-	// Remove the node from scene roots.
-	if (!m_parent) {
-		m_scene->RemoveRootNode(this);
-	}
-
-	delete this;
 }
 
 SG_Node *SG_Node::GetRootSGParent()
