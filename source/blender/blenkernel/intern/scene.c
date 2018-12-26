@@ -772,6 +772,56 @@ void BKE_scene_init(Scene *sce)
 	srv = sce->r.views.last;
 	BLI_strncpy(srv->suffix, STEREO_RIGHT_SUFFIX, sizeof(srv->suffix));
 
+	/* game data */
+	sce->gm.stereoflag = STEREO_NOSTEREO;
+	sce->gm.stereomode = STEREO_ANAGLYPH;
+	sce->gm.eyeseparation = 0.10;
+
+	sce->gm.xplay = 640;
+	sce->gm.yplay = 480;
+	sce->gm.freqplay = 60;
+	sce->gm.depth = 32;
+
+	sce->gm.gravity = 9.8f;
+	sce->gm.physicsEngine = WOPHY_BULLET;
+	//sce->gm.mode = WO_ACTIVITY_CULLING | WO_DBVT_CULLING;
+	sce->gm.occlusionRes = 128;
+	sce->gm.ticrate = 60;
+	sce->gm.maxlogicstep = 5;
+	sce->gm.physubstep = 1;
+	sce->gm.maxphystep = 5;
+	//sce->gm.timeScale = 1.0f;
+	sce->gm.lineardeactthreshold = 0.8f;
+	sce->gm.angulardeactthreshold = 1.0f;
+	sce->gm.deactivationtime = 0.0f;
+
+	sce->gm.obstacleSimulation = OBSTSIMULATION_NONE;
+	sce->gm.levelHeight = 2.f;
+
+	sce->gm.recastData.cellsize = 0.3f;
+	sce->gm.recastData.cellheight = 0.2f;
+	sce->gm.recastData.agentmaxslope = M_PI_4;
+	sce->gm.recastData.agentmaxclimb = 0.9f;
+	sce->gm.recastData.agentheight = 2.0f;
+	sce->gm.recastData.agentradius = 0.6f;
+	sce->gm.recastData.edgemaxlen = 12.0f;
+	sce->gm.recastData.edgemaxerror = 1.3f;
+	sce->gm.recastData.regionminsize = 8.f;
+	sce->gm.recastData.regionmergesize = 20.f;
+	sce->gm.recastData.vertsperpoly = 6;
+	sce->gm.recastData.detailsampledist = 6.0f;
+	sce->gm.recastData.detailsamplemaxerror = 1.0f;
+
+	sce->gm.lodflag = SCE_LOD_USE_HYST;
+	sce->gm.scehysteresis = 10;
+
+	sce->gm.exitkey = 218; // Blender key code for ESC
+
+	//sce->gm.pythonkeys[0] = LEFTCTRLKEY;
+	//sce->gm.pythonkeys[1] = LEFTSHIFTKEY;
+	//sce->gm.pythonkeys[2] = LEFTALTKEY;
+	//sce->gm.pythonkeys[3] = TKEY;
+
 	BKE_sound_create_scene(sce);
 
 	/* color management */
