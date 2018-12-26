@@ -334,4 +334,87 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
 		copy_v2_fl2(scene->safe_areas.title, 0.1f, 0.05f);
 		copy_v2_fl2(scene->safe_areas.action, 0.035f, 0.035f);
 	}
+
+	/*********************Game engine transition*********************/
+	// WARNING: ALWAYS KEEP THIS IN BLO_update_defaults_startup_blend
+	for (Scene *sce = bmain->scene.first; sce; sce = sce->id.next) {
+		/* game data */
+		sce->gm.stereoflag = STEREO_NOSTEREO;
+		sce->gm.stereomode = STEREO_ANAGLYPH;
+		sce->gm.eyeseparation = 0.10;
+
+		sce->gm.xplay = 640;
+		sce->gm.yplay = 480;
+		sce->gm.freqplay = 60;
+		sce->gm.depth = 32;
+
+		sce->gm.gravity = 9.8f;
+		sce->gm.physicsEngine = WOPHY_BULLET;
+		//sce->gm.mode = WO_ACTIVITY_CULLING | WO_DBVT_CULLING;
+		sce->gm.occlusionRes = 128;
+		sce->gm.ticrate = 60;
+		sce->gm.maxlogicstep = 5;
+		sce->gm.physubstep = 1;
+		sce->gm.maxphystep = 5;
+		//sce->gm.timeScale = 1.0f;
+		sce->gm.lineardeactthreshold = 0.8f;
+		sce->gm.angulardeactthreshold = 1.0f;
+		sce->gm.deactivationtime = 0.0f;
+
+		sce->gm.obstacleSimulation = OBSTSIMULATION_NONE;
+		sce->gm.levelHeight = 2.f;
+
+		sce->gm.recastData.cellsize = 0.3f;
+		sce->gm.recastData.cellheight = 0.2f;
+		sce->gm.recastData.agentmaxslope = M_PI_4;
+		sce->gm.recastData.agentmaxclimb = 0.9f;
+		sce->gm.recastData.agentheight = 2.0f;
+		sce->gm.recastData.agentradius = 0.6f;
+		sce->gm.recastData.edgemaxlen = 12.0f;
+		sce->gm.recastData.edgemaxerror = 1.3f;
+		sce->gm.recastData.regionminsize = 8.f;
+		sce->gm.recastData.regionmergesize = 20.f;
+		sce->gm.recastData.vertsperpoly = 6;
+		sce->gm.recastData.detailsampledist = 6.0f;
+		sce->gm.recastData.detailsamplemaxerror = 1.0f;
+
+		sce->gm.lodflag = SCE_LOD_USE_HYST;
+		sce->gm.scehysteresis = 10;
+
+		sce->gm.exitkey = 218; // Blender key code for ESC
+
+		//sce->gm.pythonkeys[0] = LEFTCTRLKEY;
+		//sce->gm.pythonkeys[1] = LEFTSHIFTKEY;
+		//sce->gm.pythonkeys[2] = LEFTALTKEY;
+		//sce->gm.pythonkeys[3] = TKEY;
+	}
+
+	for (Object *ob = bmain->object.first; ob; ob = ob->id.next) {
+		/* Game engine defaults*/
+		ob->mass = ob->inertia = 1.0f;
+		ob->formfactor = 0.4f;
+		ob->damping = 0.04f;
+		ob->rdamping = 0.1f;
+		ob->anisotropicFriction[0] = 1.0f;
+		ob->anisotropicFriction[1] = 1.0f;
+		ob->anisotropicFriction[2] = 1.0f;
+		ob->gameflag = OB_PROP | OB_COLLISION;
+		ob->gameflag2 = 0;
+		ob->margin = 0.04f;
+		ob->friction = 0.5;
+		ob->init_state = 1;
+		ob->state = 1;
+		ob->obstacleRad = 1.0f;
+		ob->step_height = 0.15f;
+		ob->jump_speed = 10.0f;
+		ob->fall_speed = 55.0f;
+		ob->max_jumps = 1;
+		//ob->max_slope = M_PI_2;
+		ob->col_group = 0x01;
+		ob->col_mask = 0xffff;
+		//ob->lodfactor = 1.0f;
+		ob->preview = NULL;
+		ob->duplicator_visibility_flag = OB_DUPLI_FLAG_VIEWPORT | OB_DUPLI_FLAG_RENDER;
+	}
+	/***********************End of Game engine transition**********************/
 }
