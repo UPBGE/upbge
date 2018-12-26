@@ -887,7 +887,9 @@ void BKE_object_init(Object *ob)
 	ob->anisotropicFriction[1] = 1.0f;
 	ob->anisotropicFriction[2] = 1.0f;
 	ob->gameflag = OB_PROP | OB_COLLISION;
+	ob->gameflag2 = 0;
 	ob->margin = 0.04f;
+	ob->friction = 0.5;
 	ob->init_state = 1;
 	ob->state = 1;
 	ob->obstacleRad = 1.0f;
@@ -895,8 +897,10 @@ void BKE_object_init(Object *ob)
 	ob->jump_speed = 10.0f;
 	ob->fall_speed = 55.0f;
 	ob->max_jumps = 1;
+	//ob->max_slope = M_PI_2;
 	ob->col_group = 0x01;
 	ob->col_mask = 0xffff;
+	//ob->lodfactor = 1.0f;
 	ob->preview = NULL;
 	ob->duplicator_visibility_flag = OB_DUPLI_FLAG_VIEWPORT | OB_DUPLI_FLAG_RENDER;
 
