@@ -496,6 +496,7 @@ KX_CameraRenderSchedule KX_KetsjiEngine::ScheduleCameraRender(KX_Scene *scene, K
 
 	cameraSchedule.m_viewMatrix = camera->GetModelviewMatrix(eye);
 	cameraSchedule.m_progMatrix = camera->GetProjectionMatrix(eye);
+	cameraSchedule.m_camTrans = camera->GetWorldToCamera();
 	cameraSchedule.m_negScale = camera->IsNegativeScaling();
 	cameraSchedule.m_perspective = camera->GetCameraData()->m_perspective;
 	cameraSchedule.m_frameFrustum = camera->GetFrameFrustum();
