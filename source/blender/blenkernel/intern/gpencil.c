@@ -476,14 +476,14 @@ bGPDstroke *BKE_gpencil_add_stroke(bGPDframe *gpf, int mat_idx, int totpoints, s
 	gps->inittime = 0;
 
 	/* enable recalculation flag by default */
-	gps->flag = GP_STROKE_RECALC_CACHES | GP_STROKE_3DSPACE;
+	gps->flag = GP_STROKE_RECALC_GEOMETRY | GP_STROKE_3DSPACE;
 
 	gps->totpoints = totpoints;
 	gps->points = MEM_callocN(sizeof(bGPDspoint) * gps->totpoints, "gp_stroke_points");
 
 	/* initialize triangle memory to dummy data */
 	gps->triangles = MEM_callocN(sizeof(bGPDtriangle), "GP Stroke triangulation");
-	gps->flag |= GP_STROKE_RECALC_CACHES;
+	gps->flag |= GP_STROKE_RECALC_GEOMETRY;
 	gps->tot_triangles = 0;
 
 	gps->mat_nr = mat_idx;
@@ -532,7 +532,7 @@ bGPDstroke *BKE_gpencil_stroke_duplicate(bGPDstroke *gps_src)
 	 * this data to get recalculated will destroy the data anyway though.
 	 */
 	gps_dst->triangles = MEM_dupallocN(gps_dst->triangles);
-	/* gps_dst->flag |= GP_STROKE_RECALC_CACHES; */
+	/* gps_dst->flag |= GP_STROKE_RECALC_GEOMETRY; */
 
 	/* return new stroke */
 	return gps_dst;
@@ -1179,7 +1179,7 @@ void BKE_gpencil_transform(bGPdata *gpd, float mat[4][4])
 				}
 
 				/* TODO: Do we need to do this? distortion may mean we need to re-triangulate */
-				gps->flag |= GP_STROKE_RECALC_CACHES;
+				gps->flag |= GP_STROKE_RECALC_GEOMETRY;
 				gps->tot_triangles = 0;
 			}
 		}
@@ -1559,3 +1559,48 @@ int BKE_gpencil_get_material_index(Object *ob, Material *ma)
 
 	return 0;
 }
+
+/* Get points of stroke always flat to view not affected by camera view or view position */
+void BKE_gpencil_stroke_2d_flat(const bGPDspoint *points, int totpoints, float(*points2d)[2], int *r_direction)
+{
+	const bGPDspoint *pt0 = &points[0];
+	const bGPDspoint *pt1 = &points[1];
+	const bGPDspoint *pt3 = &points[(int)(totpoints * 0.75)];
+
+	float locx[3];
+	float locy[3];
+	float loc3[3];
+	float normal[3];
+
+	/* local X axis (p0 -> p1) */
+	sub_v3_v3v3(locx, &pt1->x, &pt0->x);
+
+	/* point vector at 3/4 */
+	sub_v3_v3v3(loc3, &pt3->x, &pt0->x);
+
+	/* vector orthogonal to polygon plane */
+	cross_v3_v3v3(normal, locx, loc3);
+
+	/* local Y axis (cross to normal/x axis) */
+	cross_v3_v3v3(locy, normal, locx);
+
+	/* Normalize vectors */
+	normalize_v3(locx);
+	normalize_v3(locy);
+
+	/* Get all points in local space */
+	for (int i = 0; i < totpoints; i++) {
+		const bGPDspoint *pt = &points[i];
+		float loc[3];
+
+		/* Get local space using first point as origin */
+		sub_v3_v3v3(loc, &pt->x, &pt0->x);
+
+		points2d[i][0] = dot_v3v3(loc, locx);
+		points2d[i][1] = dot_v3v3(loc, locy);
+	}
+
+	/* Concave (-1), Convex (1), or Autodetect (0)? */
+	*r_direction = (int)locy[2];
+}
+

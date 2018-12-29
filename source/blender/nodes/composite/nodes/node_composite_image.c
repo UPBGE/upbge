@@ -52,14 +52,14 @@ static bNodeSocketTemplate cmp_node_rlayers_out[] = {
 	{	SOCK_VECTOR, 0, N_(RE_PASSNAME_NORMAL),					0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
 	{	SOCK_VECTOR, 0, N_(RE_PASSNAME_UV),						1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
 	{	SOCK_VECTOR, 0, N_(RE_PASSNAME_VECTOR),					1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
-	{	SOCK_RGBA,   0, N_(RE_PASSNAME_RGBA),					0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
-	{	SOCK_RGBA,   0, N_(RE_PASSNAME_DIFFUSE),				0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
-	{	SOCK_RGBA,   0, N_(RE_PASSNAME_SPEC),					0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+	{	SOCK_RGBA,   0, N_(RE_PASSNAME_DEPRECATED),				0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+	{	SOCK_RGBA,   0, N_(RE_PASSNAME_DEPRECATED),				0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+	{	SOCK_RGBA,   0, N_(RE_PASSNAME_DEPRECATED),				0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
 	{	SOCK_RGBA,   0, N_(RE_PASSNAME_SHADOW),					0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
 	{	SOCK_RGBA,   0, N_(RE_PASSNAME_AO),						0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
-	{	SOCK_RGBA,   0, N_(RE_PASSNAME_REFLECT),				0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
-	{	SOCK_RGBA,   0, N_(RE_PASSNAME_REFRACT),				0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
-	{	SOCK_RGBA,   0, N_(RE_PASSNAME_INDIRECT),				0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+	{	SOCK_RGBA,   0, N_(RE_PASSNAME_DEPRECATED),				0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+	{	SOCK_RGBA,   0, N_(RE_PASSNAME_DEPRECATED),				0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+	{	SOCK_RGBA,   0, N_(RE_PASSNAME_DEPRECATED),				0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
 	{	SOCK_FLOAT,  0, N_(RE_PASSNAME_INDEXOB),				0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
 	{	SOCK_FLOAT,  0, N_(RE_PASSNAME_INDEXMA),				0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
 	{	SOCK_FLOAT,  0, N_(RE_PASSNAME_MIST),					0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
@@ -360,9 +360,9 @@ const char *node_cmp_rlayers_sock_to_pass(int sock_index)
 {
 	const char *sock_to_passname[] = {
 		RE_PASSNAME_COMBINED, RE_PASSNAME_COMBINED,
-		RE_PASSNAME_Z, RE_PASSNAME_NORMAL, RE_PASSNAME_UV, RE_PASSNAME_VECTOR, RE_PASSNAME_RGBA,
-		RE_PASSNAME_DIFFUSE, RE_PASSNAME_SPEC, RE_PASSNAME_SHADOW, RE_PASSNAME_AO,
-		RE_PASSNAME_REFLECT, RE_PASSNAME_REFRACT, RE_PASSNAME_INDIRECT,
+		RE_PASSNAME_Z, RE_PASSNAME_NORMAL, RE_PASSNAME_UV, RE_PASSNAME_VECTOR, RE_PASSNAME_DEPRECATED,
+		RE_PASSNAME_DEPRECATED, RE_PASSNAME_DEPRECATED, RE_PASSNAME_SHADOW, RE_PASSNAME_AO,
+		RE_PASSNAME_DEPRECATED, RE_PASSNAME_DEPRECATED, RE_PASSNAME_DEPRECATED,
 		RE_PASSNAME_INDEXOB, RE_PASSNAME_INDEXMA, RE_PASSNAME_MIST, RE_PASSNAME_EMIT, RE_PASSNAME_ENVIRONMENT,
 		RE_PASSNAME_DIFFUSE_DIRECT, RE_PASSNAME_DIFFUSE_INDIRECT, RE_PASSNAME_DIFFUSE_COLOR,
 		RE_PASSNAME_GLOSSY_DIRECT, RE_PASSNAME_GLOSSY_INDIRECT, RE_PASSNAME_GLOSSY_COLOR,
@@ -414,8 +414,11 @@ static void node_composit_free_rlayers(bNode *node)
 	bNodeSocket *sock;
 
 	/* free extra socket info */
-	for (sock = node->outputs.first; sock; sock = sock->next)
-		MEM_freeN(sock->storage);
+	for (sock = node->outputs.first; sock; sock = sock->next) {
+		if (sock->storage) {
+			MEM_freeN(sock->storage);
+		}
+	}
 }
 
 static void node_composit_copy_rlayers(bNodeTree *UNUSED(dest_ntree), bNode *UNUSED(dest_node), bNode *src_node)
@@ -423,8 +426,11 @@ static void node_composit_copy_rlayers(bNodeTree *UNUSED(dest_ntree), bNode *UNU
 	bNodeSocket *sock;
 
 	/* copy extra socket info */
-	for (sock = src_node->outputs.first; sock; sock = sock->next)
-		sock->new_sock->storage = MEM_dupallocN(sock->storage);
+	for (sock = src_node->outputs.first; sock; sock = sock->next) {
+		if (sock->storage) {
+			sock->new_sock->storage = MEM_dupallocN(sock->storage);
+		}
+	}
 }
 
 static void cmp_node_rlayers_update(bNodeTree *ntree, bNode *node)

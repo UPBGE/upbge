@@ -96,12 +96,12 @@
 #define KNIFE_FLT_EPS_PX_FACE  0.05f
 
 typedef struct KnifeColors {
-	unsigned char line[3];
-	unsigned char edge[3];
-	unsigned char curpoint[3];
-	unsigned char curpoint_a[4];
-	unsigned char point[3];
-	unsigned char point_a[4];
+	uchar line[3];
+	uchar edge[3];
+	uchar curpoint[3];
+	uchar curpoint_a[4];
+	uchar point[3];
+	uchar point_a[4];
 } KnifeColors;
 
 /* knifetool operator */
@@ -212,6 +212,8 @@ typedef struct KnifeTool_OpData {
 	float projmat_inv[4][4];
 	/* vector along view z axis (object space, normalized) */
 	float proj_zaxis[3];
+
+	KnifeColors colors;
 
 	/* run by the UI or not */
 	bool is_interactive;
@@ -1025,13 +1027,13 @@ static void knife_init_colors(KnifeColors *colors)
 	/* possible BMESH_TODO: add explicit themes or calculate these by
 	 * figuring out contrasting colors with grid / edges / verts
 	 * a la UI_make_axis_color */
-	UI_GetThemeColor3ubv(TH_NURB_VLINE, colors->line);
-	UI_GetThemeColor3ubv(TH_NURB_ULINE, colors->edge);
-	UI_GetThemeColor3ubv(TH_HANDLE_SEL_VECT, colors->curpoint);
-	UI_GetThemeColor3ubv(TH_HANDLE_SEL_VECT, colors->curpoint_a);
+	UI_GetThemeColorType3ubv(TH_NURB_VLINE, SPACE_VIEW3D, colors->line);
+	UI_GetThemeColorType3ubv(TH_NURB_ULINE, SPACE_VIEW3D, colors->edge);
+	UI_GetThemeColorType3ubv(TH_HANDLE_SEL_VECT, SPACE_VIEW3D, colors->curpoint);
+	UI_GetThemeColorType3ubv(TH_HANDLE_SEL_VECT, SPACE_VIEW3D, colors->curpoint_a);
 	colors->curpoint_a[3] = 102;
-	UI_GetThemeColor3ubv(TH_ACTIVE_SPLINE, colors->point);
-	UI_GetThemeColor3ubv(TH_ACTIVE_SPLINE, colors->point_a);
+	UI_GetThemeColorType3ubv(TH_ACTIVE_SPLINE, SPACE_VIEW3D, colors->point);
+	UI_GetThemeColorType3ubv(TH_ACTIVE_SPLINE, SPACE_VIEW3D, colors->point_a);
 	colors->point_a[3] = 102;
 }
 
@@ -1039,10 +1041,8 @@ static void knife_init_colors(KnifeColors *colors)
 static void knifetool_draw(const bContext *UNUSED(C), ARegion *UNUSED(ar), void *arg)
 {
 	const KnifeTool_OpData *kcd = arg;
-	KnifeColors colors;
-	knife_init_colors(&colors);
-
 	GPU_depth_test(false);
+
 	glPolygonOffset(1.0f, 1.0f);
 
 	GPU_matrix_push();
@@ -1058,7 +1058,7 @@ static void knifetool_draw(const bContext *UNUSED(C), ARegion *UNUSED(ar), void 
 	immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
 	if (kcd->mode == MODE_DRAGGING) {
-		immUniformColor3ubv(colors.line);
+		immUniformColor3ubv(kcd->colors.line);
 		GPU_line_width(2.0);
 
 		immBegin(GPU_PRIM_LINES, 2);
@@ -1068,7 +1068,7 @@ static void knifetool_draw(const bContext *UNUSED(C), ARegion *UNUSED(ar), void 
 	}
 
 	if (kcd->prev.vert) {
-		immUniformColor3ubv(colors.point);
+		immUniformColor3ubv(kcd->colors.point);
 		GPU_point_size(11);
 
 		immBegin(GPU_PRIM_POINTS, 1);
@@ -1077,7 +1077,7 @@ static void knifetool_draw(const bContext *UNUSED(C), ARegion *UNUSED(ar), void 
 	}
 
 	if (kcd->prev.bmface) {
-		immUniformColor3ubv(colors.curpoint);
+		immUniformColor3ubv(kcd->colors.curpoint);
 		GPU_point_size(9);
 
 		immBegin(GPU_PRIM_POINTS, 1);
@@ -1086,7 +1086,7 @@ static void knifetool_draw(const bContext *UNUSED(C), ARegion *UNUSED(ar), void 
 	}
 
 	if (kcd->curr.edge) {
-		immUniformColor3ubv(colors.edge);
+		immUniformColor3ubv(kcd->colors.edge);
 		GPU_line_width(2.0);
 
 		immBegin(GPU_PRIM_LINES, 2);
@@ -1095,7 +1095,7 @@ static void knifetool_draw(const bContext *UNUSED(C), ARegion *UNUSED(ar), void 
 		immEnd();
 	}
 	else if (kcd->curr.vert) {
-		immUniformColor3ubv(colors.point);
+		immUniformColor3ubv(kcd->colors.point);
 		GPU_point_size(11);
 
 		immBegin(GPU_PRIM_POINTS, 1);
@@ -1104,7 +1104,7 @@ static void knifetool_draw(const bContext *UNUSED(C), ARegion *UNUSED(ar), void 
 	}
 
 	if (kcd->curr.bmface) {
-		immUniformColor3ubv(colors.curpoint);
+		immUniformColor3ubv(kcd->colors.curpoint);
 		GPU_point_size(9);
 
 		immBegin(GPU_PRIM_POINTS, 1);
@@ -1137,14 +1137,14 @@ static void knifetool_draw(const bContext *UNUSED(C), ARegion *UNUSED(ar), void 
 		GPU_batch_program_set_builtin(batch, GPU_SHADER_3D_UNIFORM_COLOR);
 
 		/* draw any snapped verts first */
-		rgba_uchar_to_float(fcol, colors.point_a);
+		rgba_uchar_to_float(fcol, kcd->colors.point_a);
 		GPU_batch_uniform_4fv(batch, "color", fcol);
 		GPU_matrix_bind(batch->interface);
 		GPU_point_size(11);
 		GPU_batch_draw_range_ex(batch, 0, v - 1, false);
 
 		/* now draw the rest */
-		rgba_uchar_to_float(fcol, colors.curpoint_a);
+		rgba_uchar_to_float(fcol, kcd->colors.curpoint_a);
 		GPU_batch_uniform_4fv(batch, "color", fcol);
 		GPU_point_size(7);
 		GPU_batch_draw_range_ex(batch, vs + 1, kcd->totlinehit - (vs + 1), false);
@@ -1159,7 +1159,7 @@ static void knifetool_draw(const bContext *UNUSED(C), ARegion *UNUSED(ar), void 
 		BLI_mempool_iter iter;
 		KnifeEdge *kfe;
 
-		immUniformColor3ubv(colors.line);
+		immUniformColor3ubv(kcd->colors.line);
 		GPU_line_width(1.0);
 
 		GPUBatch *batch = immBeginBatchAtMost(GPU_PRIM_LINES, BLI_mempool_len(kcd->kedges) * 2);
@@ -1183,7 +1183,7 @@ static void knifetool_draw(const bContext *UNUSED(C), ARegion *UNUSED(ar), void 
 		BLI_mempool_iter iter;
 		KnifeVert *kfv;
 
-		immUniformColor3ubv(colors.point);
+		immUniformColor3ubv(kcd->colors.point);
 		GPU_point_size(5.0);
 
 		GPUBatch *batch = immBeginBatchAtMost(GPU_PRIM_POINTS, BLI_mempool_len(kcd->kverts));
@@ -2682,6 +2682,8 @@ static void knifetool_init(bContext *C, KnifeTool_OpData *kcd,
 
 	if (is_interactive) {
 		kcd->draw_handle = ED_region_draw_cb_activate(kcd->ar->type, knifetool_draw, kcd, REGION_DRAW_POST_VIEW);
+
+		knife_init_colors(&kcd->colors);
 	}
 }
 

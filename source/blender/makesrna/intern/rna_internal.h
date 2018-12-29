@@ -225,7 +225,7 @@ void rna_def_mtex_common(struct BlenderRNA *brna, struct StructRNA *srna, const 
                          const char *activeset, const char *activeeditable, const char *structname,
                          const char *structname_slots, const char *update, const char *update_index);
 void rna_def_texpaint_slots(struct BlenderRNA *brna, struct StructRNA *srna);
-void rna_def_view_layer_common(struct StructRNA *srna, int scene);
+void rna_def_view_layer_common(struct StructRNA *srna, bool scene);
 
 void rna_def_actionbone_group_common(struct StructRNA *srna, int update_flag, const char *update_cb);
 void rna_ActionGroup_colorset_set(struct PointerRNA *ptr, int value);
@@ -275,6 +275,7 @@ void rna_Scene_use_view_map_cache_update(struct Main *bmain, struct Scene *scene
 void rna_Scene_glsl_update(struct Main *bmain, struct Scene *scene, struct PointerRNA *ptr);
 void rna_Scene_freestyle_update(struct Main *bmain, struct Scene *scene, struct PointerRNA *ptr);
 void rna_ViewLayer_name_set(struct PointerRNA *ptr, const char *value);
+void rna_ViewLayer_material_override_update(struct Main *bmain, struct Scene *activescene, struct PointerRNA *ptr);
 void rna_ViewLayer_pass_update(struct Main *bmain, struct Scene *activescene, struct PointerRNA *ptr);
 
 /* named internal so as not to conflict with obj.update() rna func */
