@@ -722,7 +722,7 @@ void GPU_shader_uniform_texture(GPUShader *UNUSED(shader), int location, GPUText
 	int target = GPU_texture_target(tex);
 
 	if (number >= GPU_max_textures()) {
-		fprintf(stderr, "Not enough texture slots.\n");
+		fprintf(stderr, "GPU_shader_uniform_texture: Not enough texture slots.\n");
 		return;
 	}
 
