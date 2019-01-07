@@ -151,7 +151,7 @@ KX_ExitInfo LA_PlayerLauncher::EngineNextFrame()
 	return LA_Launcher::EngineNextFrame();
 }
 
-RAS_ICanvas *LA_PlayerLauncher::CreateCanvas(RAS_Rasterizer *rasty, const RAS_OffScreen::AttachmentList& attachments)
+RAS_ICanvas *LA_PlayerLauncher::CreateCanvas(RAS_Rasterizer *rasty, const RAS_OffScreen::AttachmentList& attachments, int numSamples)
 {
-	return (new GPG_Canvas(rasty, attachments, m_mainWindow));
+	return (new GPG_Canvas(rasty, attachments, m_mainWindow, numSamples));
 }
