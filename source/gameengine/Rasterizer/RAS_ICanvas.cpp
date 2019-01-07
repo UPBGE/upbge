@@ -71,8 +71,8 @@ const int RAS_ICanvas::swapInterval[RAS_ICanvas::SWAP_CONTROL_MAX] = {
 	-1 // VSYNC_ADAPTIVE
 };
 
-RAS_ICanvas::RAS_ICanvas(const RAS_OffScreen::AttachmentList& attachments)
-	:m_samples(0),
+RAS_ICanvas::RAS_ICanvas(const RAS_OffScreen::AttachmentList& attachments, int numSamples)
+	:m_samples(numSamples),
 	m_attachments(attachments),
 	m_swapControl(VSYNC_OFF),
 	m_frame(1)

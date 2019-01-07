@@ -44,8 +44,8 @@
 #include "MEM_guardedalloc.h"
 #include "DNA_space_types.h"
 
-GPG_Canvas::GPG_Canvas(RAS_Rasterizer *rasty, const RAS_OffScreen::AttachmentList& attachments, GHOST_IWindow *window)
-	:RAS_ICanvas(attachments),
+GPG_Canvas::GPG_Canvas(RAS_Rasterizer *rasty, const RAS_OffScreen::AttachmentList& attachments, GHOST_IWindow *window, int numSamples)
+	:RAS_ICanvas(attachments, numSamples),
 	m_window(window)
 {
 	rasty->GetViewport(m_viewport);

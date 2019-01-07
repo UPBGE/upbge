@@ -55,7 +55,7 @@ private:
 
 public:
 	KX_BlenderCanvas(RAS_Rasterizer *rasty, const RAS_OffScreen::AttachmentList& attachments,
-			wmWindowManager *wm, wmWindow *win, RAS_Rect &rect);
+			wmWindowManager *wm, wmWindow *win, RAS_Rect &rect, int numSamples);
 	virtual ~KX_BlenderCanvas();
 
 	virtual void Init();
