@@ -50,7 +50,7 @@ protected:
 	GHOST_IWindow *m_window;
 
 public:
-	GPG_Canvas(RAS_Rasterizer *rasty, const RAS_OffScreen::AttachmentList& attachments, GHOST_IWindow *window);
+	GPG_Canvas(RAS_Rasterizer *rasty, const RAS_OffScreen::AttachmentList& attachments, GHOST_IWindow *window, int numSamples);
 	virtual ~GPG_Canvas();
 
 	/**

@@ -203,7 +203,7 @@ void LA_Launcher::InitEngine()
 	}
 
 	// Create the canvas, rasterizer and rendertools.
-	m_canvas = CreateCanvas(m_rasterizer, attachments);
+	m_canvas = CreateCanvas(m_rasterizer, attachments, m_startScene->gm.aasamples);
 
 	static const RAS_ICanvas::SwapControl swapControlTable[] = {
 		RAS_ICanvas::VSYNC_ON, // VSYNC_ON
