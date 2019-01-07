@@ -54,8 +54,8 @@ extern "C" {
 }
 
 KX_BlenderCanvas::KX_BlenderCanvas(RAS_Rasterizer *rasty, const RAS_OffScreen::AttachmentList& attachments,
-		wmWindowManager *wm, wmWindow *win, RAS_Rect &rect)
-	:RAS_ICanvas(attachments),
+		wmWindowManager *wm, wmWindow *win, RAS_Rect &rect, int numSamples)
+	:RAS_ICanvas(attachments, numSamples),
 	m_wm(wm),
 	m_win(win)
 {

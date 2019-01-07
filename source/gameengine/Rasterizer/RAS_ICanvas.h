@@ -60,7 +60,7 @@ public:
 		SWAP_CONTROL_MAX
 	};
 
-	RAS_ICanvas(const RAS_OffScreen::AttachmentList& attachments);
+	RAS_ICanvas(const RAS_OffScreen::AttachmentList& attachments, int numSamples);
 	virtual ~RAS_ICanvas();
 
 	virtual void Init() = 0;
