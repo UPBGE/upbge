@@ -369,7 +369,7 @@ void UI_draw_widget_scroll(struct uiWidgetColors *wcol, const struct rcti *rect,
 
 /* Shortening string helper. */
 float UI_text_clip_middle_ex(
-        struct uiFontStyle *fstyle, char *str, float okwidth, const float minwidth,
+        const struct uiFontStyle *fstyle, char *str, float okwidth, const float minwidth,
         const size_t max_len, const char rpart_sep);
 
 /* Callbacks
@@ -494,6 +494,8 @@ void UI_popup_block_ex(struct bContext *C, uiBlockCreateFunc func, uiBlockHandle
 /* void uiPupBlockOperator(struct bContext *C, uiBlockCreateFunc func, struct wmOperator *op, int opcontext); */ /* UNUSED */
 
 void UI_popup_block_close(struct bContext *C, struct wmWindow *win, uiBlock *block);
+
+bool UI_popup_block_name_exists(struct bContext *C, const char *name);
 
 /* Blocks
  *
@@ -1099,7 +1101,9 @@ void uiTemplatePreview(
         struct MTex *slot, const char *preview_id);
 void uiTemplateColorRamp(uiLayout *layout, struct PointerRNA *ptr, const char *propname, bool expand);
 void uiTemplateIcon(uiLayout *layout, int icon_value, float icon_scale);
-void uiTemplateIconView(uiLayout *layout, struct PointerRNA *ptr, const char *propname, bool show_labels, float icon_scale);
+void uiTemplateIconView(
+        uiLayout *layout, struct PointerRNA *ptr, const char *propname, bool show_labels,
+        float icon_scale, float icon_scale_popup);
 void uiTemplateHistogram(uiLayout *layout, struct PointerRNA *ptr, const char *propname);
 void uiTemplateWaveform(uiLayout *layout, struct PointerRNA *ptr, const char *propname);
 void uiTemplateVectorscope(uiLayout *layout, struct PointerRNA *ptr, const char *propname);
@@ -1266,20 +1270,33 @@ struct ID *UI_context_active_but_get_tab_ID(struct bContext *C);
 
 uiBut *UI_region_active_but_get(struct ARegion *ar);
 
+/* uiFontStyle.align */
+typedef enum eFontStyle_Align {
+	UI_STYLE_TEXT_LEFT		= 0,
+	UI_STYLE_TEXT_CENTER	= 1,
+	UI_STYLE_TEXT_RIGHT		= 2
+} eFontStyle_Align;
+
+struct uiFontStyleDraw_Params {
+	eFontStyle_Align align;
+	uint word_wrap : 1;
+};
+
 /* Styled text draw */
 void UI_fontstyle_set(const struct uiFontStyle *fs);
 void UI_fontstyle_draw_ex(
         const struct uiFontStyle *fs, const struct rcti *rect, const char *str,
-        const unsigned char col[4], size_t len, float *r_xofs, float *r_yofs);
+        const uchar col[4], const struct uiFontStyleDraw_Params *fs_params,
+        size_t len, float *r_xofs, float *r_yofs);
 void UI_fontstyle_draw(
         const struct uiFontStyle *fs, const struct rcti *rect, const char *str,
-        const unsigned char col[4]);
+        const uchar col[4], const struct uiFontStyleDraw_Params *fs_params);
 void UI_fontstyle_draw_rotated(
         const struct uiFontStyle *fs, const struct rcti *rect, const char *str,
-        const unsigned char col[4]);
+        const uchar col[4]);
 void UI_fontstyle_draw_simple(
         const struct uiFontStyle *fs, float x, float y, const char *str,
-        const unsigned char col[4]);
+        const uchar col[4]);
 void UI_fontstyle_draw_simple_backdrop(
         const struct uiFontStyle *fs, float x, float y, const char *str,
         const float col_fg[4], const float col_bg[4]);

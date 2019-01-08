@@ -523,29 +523,40 @@ static int new_material_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Material *ma = CTX_data_pointer_get_type(C, "material", &RNA_Material).data;
 	Main *bmain = CTX_data_main(C);
-	Object *ob = CTX_data_active_object(C);
 	PointerRNA ptr, idptr;
 	PropertyRNA *prop;
+
+	/* hook into UI */
+	UI_context_active_but_prop_get_templateID(C, &ptr, &prop);
+
+	Object *ob = (prop && RNA_struct_is_a(ptr.type, &RNA_Object)) ? ptr.data : NULL;
 
 	/* add or copy material */
 	if (ma) {
 		ma = BKE_material_copy(bmain, ma);
 	}
 	else {
-		if ((!ob) || (ob->type != OB_GPENCIL)) {
-			ma = BKE_material_add(bmain, DATA_("Material"));
+		const char *name = DATA_("Material");
+		if (!(ob != NULL && ob->type == OB_GPENCIL)) {
+			ma = BKE_material_add(bmain, name);
 		}
 		else {
-			ma = BKE_material_add_gpencil(bmain, DATA_("Material"));
+			ma = BKE_material_add_gpencil(bmain, name);
 		}
 		ED_node_shader_default(C, &ma->id);
 		ma->use_nodes = true;
 	}
 
-	/* hook into UI */
-	UI_context_active_but_prop_get_templateID(C, &ptr, &prop);
 
 	if (prop) {
+		if (ob != NULL) {
+			/* Add slot follows user-preferences for creating new slots,
+			 * RNA pointer assignment doesn't, see: T60014. */
+			if (give_current_material_p(ob, ob->actcol) == NULL) {
+				BKE_object_material_slot_add(bmain, ob);
+			}
+		}
+
 		/* when creating new ID blocks, use is already 1, but RNA
 		 * pointer use also increases user, so this compensates it */
 		id_us_min(&ma->id);

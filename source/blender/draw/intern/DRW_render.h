@@ -358,7 +358,6 @@ typedef bool (DRWCallVisibilityFn)(
 
 void DRW_shgroup_instance_batch(DRWShadingGroup *shgroup, struct GPUBatch *batch);
 
-void DRW_shgroup_free(struct DRWShadingGroup *shgroup);
 void DRW_shgroup_call_add(DRWShadingGroup *shgroup, struct GPUBatch *geom, float (*obmat)[4]);
 void DRW_shgroup_call_range_add(
         DRWShadingGroup *shgroup, struct GPUBatch *geom, float (*obmat)[4], uint v_sta, uint v_count);
@@ -442,7 +441,6 @@ typedef enum {
 	DRW_MAT_COUNT, // Don't use this.
 } DRWViewportMatrixType;
 
-void DRW_viewport_init(const bContext *C);
 void DRW_viewport_matrix_get(float mat[4][4], DRWViewportMatrixType type);
 void DRW_viewport_matrix_get_all(DRWMatrixState *state);
 void DRW_viewport_matrix_override_set(const float mat[4][4], DRWViewportMatrixType type);
@@ -510,8 +508,6 @@ struct DupliObject *DRW_object_get_dupli(const struct Object *ob);
 void DRW_draw_pass(struct DRWPass *pass);
 void DRW_draw_pass_subset(struct DRWPass *pass, DRWShadingGroup *start_group, DRWShadingGroup *end_group);
 
-void DRW_draw_text_cache_queue(struct DRWTextStore *dt);
-
 void DRW_draw_callbacks_pre_scene(void);
 void DRW_draw_callbacks_post_scene(void);
 
@@ -547,8 +543,6 @@ bool DRW_state_is_playback(void);
 bool DRW_state_show_text(void);
 bool DRW_state_draw_support(void);
 bool DRW_state_draw_background(void);
-
-struct DRWTextStore *DRW_state_text_cache_get(void);
 
 /* Avoid too many lookups while drawing */
 typedef struct DRWContextState {

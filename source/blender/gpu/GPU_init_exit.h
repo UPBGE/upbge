@@ -38,6 +38,7 @@ extern "C" {
 
 void GPU_init(void);
 void GPU_exit(void);
+bool GPU_is_initialized(void);
 
 /* Game engine transition (for blenderplayer) */
 void GPU_immInit(void);

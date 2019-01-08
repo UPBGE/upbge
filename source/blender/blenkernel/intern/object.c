@@ -1371,7 +1371,8 @@ static void copy_object_pose(Object *obn, const Object *ob, const int flag)
 {
 	bPoseChannel *chan;
 
-	/* note: need to clear obn->pose pointer first, so that BKE_pose_copy_data works (otherwise there's a crash) */
+	/* note: need to clear obn->pose pointer first,
+	 * so that BKE_pose_copy_data works (otherwise there's a crash) */
 	obn->pose = NULL;
 	BKE_pose_copy_data_ex(&obn->pose, ob->pose, flag, true);  /* true = copy constraints */
 
@@ -1466,7 +1467,8 @@ Object **BKE_object_pose_array_get_ex(ViewLayer *view_layer, View3D *v3d, uint *
 		objects = BKE_view_layer_array_from_objects_in_mode(
 		        view_layer, v3d, r_objects_len, {
 		            .object_mode = OB_MODE_POSE,
-		            .no_dup_data = unique});
+		            .no_dup_data = unique,
+		        });
 	}
 	else if (ob_pose != NULL) {
 		*r_objects_len = 1;
@@ -1508,7 +1510,8 @@ Base **BKE_object_pose_base_array_get_ex(ViewLayer *view_layer, View3D *v3d, uin
 		bases = BKE_view_layer_array_from_bases_in_mode(
 		        view_layer, v3d, r_bases_len, {
 		            .object_mode = OB_MODE_POSE,
-		            .no_dup_data = unique});
+		            .no_dup_data = unique,
+		        });
 	}
 	else if (base_pose != NULL) {
 		*r_bases_len = 1;
@@ -1857,7 +1860,8 @@ void BKE_object_make_proxy(Main *bmain, Object *ob, Object *target, Object *cob)
 		ob->mat = MEM_dupallocN(target->mat);
 		ob->matbits = MEM_dupallocN(target->matbits);
 		for (i = 0; i < target->totcol; i++) {
-			/* don't need to run test_object_materials since we know this object is new and not used elsewhere */
+			/* don't need to run test_object_materials
+			 * since we know this object is new and not used elsewhere */
 			id_us_plus((ID *)ob->mat[i]);
 		}
 	}
@@ -2781,23 +2785,25 @@ void BKE_object_dimensions_get(Object *ob, float vec[3])
 	}
 }
 
-void BKE_object_dimensions_set(Object *ob, const float value[3])
+void BKE_object_dimensions_set(Object *ob, const float value[3], int axis_mask)
 {
 	BoundBox *bb = NULL;
 
 	bb = BKE_object_boundbox_get(ob);
 	if (bb) {
-		float scale[3], len[3];
-
-		mat4_to_size(scale, ob->obmat);
+		float len[3];
 
 		len[0] = bb->vec[4][0] - bb->vec[0][0];
 		len[1] = bb->vec[2][1] - bb->vec[0][1];
 		len[2] = bb->vec[1][2] - bb->vec[0][2];
 
-		if (len[0] > 0.f) ob->size[0] = value[0] / len[0];
-		if (len[1] > 0.f) ob->size[1] = value[1] / len[1];
-		if (len[2] > 0.f) ob->size[2] = value[2] / len[2];
+		for (int i = 0; i < 3; i++) {
+			if (((1 << i) & axis_mask) == 0) {
+				if (len[i] > 0.0f) {
+					ob->size[i] = copysignf(value[i] / len[i], ob->size[i]);
+				}
+			}
+		}
 	}
 }
 
@@ -3017,15 +3023,24 @@ void BKE_scene_foreach_display_point(
 /* copied from DNA_object_types.h */
 typedef struct ObTfmBack {
 	float loc[3], dloc[3], orig[3];
-	float size[3], dscale[3];   /* scale and delta scale */
-	float rot[3], drot[3];      /* euler rotation */
-	float quat[4], dquat[4];    /* quaternion rotation */
-	float rotAxis[3], drotAxis[3];  /* axis angle rotation - axis part */
-	float rotAngle, drotAngle;  /* axis angle rotation - angle part */
-	float obmat[4][4];      /* final worldspace matrix with constraints & animsys applied */
-	float parentinv[4][4]; /* inverse result of parent, so that object doesn't 'stick' to parent */
-	float constinv[4][4]; /* inverse result of constraints. doesn't include effect of parent or object local transform */
-	float imat[4][4];   /* inverse matrix of 'obmat' for during render, temporally: ipokeys of transform  */
+	/** scale and delta scale. */
+	float size[3], dscale[3];
+	/** euler rotation. */
+	float rot[3], drot[3];
+	/** quaternion rotation. */
+	float quat[4], dquat[4];
+	/** axis angle rotation - axis part. */
+	float rotAxis[3], drotAxis[3];
+	/** axis angle rotation - angle part. */
+	float rotAngle, drotAngle;
+	/** final worldspace matrix with constraints & animsys applied. */
+	float obmat[4][4];
+	/** inverse result of parent, so that object doesn't 'stick' to parent. */
+	float parentinv[4][4];
+	/** inverse result of constraints. doesn't include effect of parent or object local transform. */
+	float constinv[4][4];
+	/** inverse matrix of 'obmat' for during render, temporally: ipokeys of transform. */
+	float imat[4][4];
 } ObTfmBack;
 
 void *BKE_object_tfm_backup(Object *ob)

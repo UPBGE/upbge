@@ -1038,7 +1038,7 @@ static int object_gpencil_add_exec(bContext *C, wmOperator *op)
 			mul_v3_fl(mat[1], radius);
 			mul_v3_fl(mat[2], radius);
 
-			ED_gpencil_create_stroke(C, mat);
+			ED_gpencil_create_stroke(C, ob, mat);
 			break;
 		}
 		case GP_MONKEY:
@@ -1051,7 +1051,7 @@ static int object_gpencil_add_exec(bContext *C, wmOperator *op)
 			mul_v3_fl(mat[1], radius);
 			mul_v3_fl(mat[2], radius);
 
-			ED_gpencil_create_monkey(C, mat);
+			ED_gpencil_create_monkey(C, ob, mat);
 			break;
 		}
 		case GP_EMPTY:
@@ -1065,7 +1065,7 @@ static int object_gpencil_add_exec(bContext *C, wmOperator *op)
 
 	/* if this is a new object, initialise default stuff (colors, etc.) */
 	if (newob) {
-		ED_gpencil_add_defaults(C);
+		ED_gpencil_add_defaults(C, ob);
 	}
 
 	return OPERATOR_FINISHED;
@@ -1619,7 +1619,7 @@ static void make_object_duplilist_real(bContext *C, Scene *scene, Base *base,
 	}
 
 	for (dob = lb_duplis->first; dob; dob = dob->next) {
-		Object *ob_src = DEG_get_original_object(dob->ob);
+		Object *ob_src = dob->ob;
 		Object *ob_dst = BLI_ghash_lookup(dupli_gh, dob);
 
 		/* Remap new object to itself, and clear again newid pointer of orig object. */

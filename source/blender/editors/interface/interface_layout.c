@@ -291,6 +291,9 @@ static int ui_text_icon_width(uiLayout *layout, const char *name, int icon, bool
 	variable = ui_layout_variable_size(layout);
 
 	if (variable) {
+		if (!icon && !name[0]) {
+			return unit_x; /* No icon or name. */
+		}
 		if (layout->alignment != UI_LAYOUT_ALIGN_EXPAND) {
 			layout->item.flag |= UI_ITEM_MIN;
 		}
@@ -446,7 +449,7 @@ static void ui_item_array(
 	PropertyType type;
 	PropertySubType subtype;
 	uiLayout *sub;
-	unsigned int a, b;
+	uint a, b;
 
 	/* retrieve type and subtype */
 	type = RNA_property_type(prop);
@@ -465,9 +468,9 @@ static void ui_item_array(
 		/* special check for layer layout */
 		int butw, buth, unit;
 		int cols = (len >= 20) ? 2 : 1;
-		const unsigned int colbuts = len / (2 * cols);
-		unsigned int layer_used = 0;
-		unsigned int layer_active = 0;
+		const uint colbuts = len / (2 * cols);
+		uint layer_used = 0;
+		uint layer_active = 0;
 
 		UI_block_layout_set_current(block, uiLayoutAbsolute(layout, false));
 
@@ -497,7 +500,7 @@ static void ui_item_array(
 
 			for (a = 0; a < colbuts; a++) {
 				const int layer_num  = a + b * colbuts;
-				const unsigned int layer_flag = (1u << layer_num);
+				const uint layer_flag = (1u << layer_num);
 
 				if (layer_used & layer_flag) {
 					if (layer_active & layer_flag)
@@ -515,7 +518,7 @@ static void ui_item_array(
 			}
 			for (a = 0; a < colbuts; a++) {
 				const int layer_num  = a + len / 2 + b * colbuts;
-				const unsigned int layer_flag = (1u << layer_num);
+				const uint layer_flag = (1u << layer_num);
 
 				if (layer_used & layer_flag) {
 					if (layer_active & layer_flag)
@@ -655,7 +658,6 @@ static void ui_item_enum_expand_exec(
 	uiLayout *layout_radial = NULL;
 	const EnumPropertyItem *item, *item_array;
 	const char *name;
-	char group_name[UI_MAX_NAME_STR];
 	int itemw, icon, value;
 	bool free;
 	bool radial = (layout->root->type == UI_LAYOUT_PIEMENU);
@@ -700,8 +702,7 @@ static void ui_item_enum_expand_exec(
 					if (!is_first) {
 						uiItemS(block->curlayout);
 					}
-					BLI_snprintf(group_name, sizeof(group_name), "%s:", item->name);
-					uiItemL(block->curlayout, group_name, item->icon);
+					uiItemL(block->curlayout, item->name, item->icon);
 				}
 				else if (radial && layout_radial) {
 					uiItemS(layout_radial);
@@ -876,7 +877,7 @@ void UI_context_active_but_prop_get_filebrowser(
 {
 	ARegion *ar = CTX_wm_region(C);
 	uiBlock *block;
-	uiBut *but, *prevbut;
+	uiBut *but, *prevbut = NULL;
 
 	memset(r_ptr, 0, sizeof(*r_ptr));
 	*r_prop = NULL;
@@ -887,16 +888,18 @@ void UI_context_active_but_prop_get_filebrowser(
 
 	for (block = ar->uiblocks.first; block; block = block->next) {
 		for (but = block->buttons.first; but; but = but->next) {
-			prevbut = but->prev;
+			if (but && but->rnapoin.data) {
+				if (RNA_property_type(but->rnaprop) == PROP_STRING) {
+					prevbut = but;
+				}
+			}
 
 			/* find the button before the active one */
-			if ((but->flag & UI_BUT_LAST_ACTIVE) && prevbut && prevbut->rnapoin.data) {
-				if (RNA_property_type(prevbut->rnaprop) == PROP_STRING) {
-					*r_ptr = prevbut->rnapoin;
-					*r_prop = prevbut->rnaprop;
-					*r_is_undo = (prevbut->flag & UI_BUT_UNDO) != 0;
-					return;
-				}
+			if ((but->flag & UI_BUT_LAST_ACTIVE) && prevbut) {
+				*r_ptr = prevbut->rnapoin;
+				*r_prop = prevbut->rnaprop;
+				*r_is_undo = (prevbut->flag & UI_BUT_UNDO) != 0;
+				return;
 			}
 		}
 	}
@@ -2242,7 +2245,9 @@ static uiBut *ui_item_menu(
 	}
 	else if (icon) {
 		but = uiDefIconMenuBut(block, func, arg, icon, 0, 0, w, h, tip);
-		UI_but_drawflag_enable(but, UI_BUT_ICON_LEFT);
+		if (force_menu) {
+			UI_but_drawflag_enable(but, UI_BUT_ICON_LEFT);
+		}
 	}
 	else {
 		but = uiDefMenuBut(block, func, arg, name, 0, 0, w, h, tip);

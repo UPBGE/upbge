@@ -137,7 +137,8 @@ static int gp_data_add_exec(bContext *C, wmOperator *op)
 			*gpd_ptr = BKE_gpencil_data_addnew(bmain, DATA_("GPencil"));
 
 			/* add default sets of colors and brushes */
-			ED_gpencil_add_defaults(C);
+			Object *ob = CTX_data_active_object(C);
+			ED_gpencil_add_defaults(C, ob);
 
 			/* add new layer */
 			BKE_gpencil_layer_addnew(*gpd_ptr, DATA_("GP_Layer"), true);
@@ -245,7 +246,8 @@ static int gp_layer_add_exec(bContext *C, wmOperator *op)
 			*gpd_ptr = BKE_gpencil_data_addnew(bmain, DATA_("GPencil"));
 
 			/* add default sets of colors and brushes */
-			ED_gpencil_add_defaults(C);
+			Object *ob = CTX_data_active_object(C);
+			ED_gpencil_add_defaults(C, ob);
 		}
 	}
 
@@ -2140,6 +2142,7 @@ int ED_gpencil_join_objects_exec(bContext *C, wmOperator *op)
 						BKE_animdata_merge_copy(bmain, &gpd_dst->id, &gpd_src->id, ADT_MERGECOPY_KEEP_DST, false);
 					}
 				}
+				DEG_id_tag_update(&gpd_src->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_COPY_ON_WRITE);
 			}
 
 			/* Free the old object */
@@ -2148,6 +2151,7 @@ int ED_gpencil_join_objects_exec(bContext *C, wmOperator *op)
 	}
 	CTX_DATA_END;
 
+	DEG_id_tag_update(&gpd_dst->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_COPY_ON_WRITE);
 	DEG_relations_tag_update(bmain);  /* because we removed object(s) */
 
 	WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, scene);

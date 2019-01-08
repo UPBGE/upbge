@@ -341,6 +341,7 @@ static void namebutton_cb(bContext *C, void *tsep, char *oldname)
 					if (ob->type == OB_MBALL) {
 						DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
 					}
+					DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);
 					WM_event_add_notifier(C, NC_ID | NA_RENAME, NULL); break;
 				}
 				default:
@@ -891,7 +892,7 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
 				data.icon = ICON_CONSTRAINT;
 				break;
 			case TSE_MODIFIER_BASE:
-				data.icon = ICON_MODIFIER;
+				data.icon = ICON_MODIFIER_DATA;
 				break;
 			case TSE_LINKED_OB:
 				data.icon = ICON_OBJECT_DATA;
@@ -1339,6 +1340,10 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
 				case ID_SCR:
 				case ID_WS:
 					data.icon = ICON_WORKSPACE; break;
+				case ID_MSK:
+					data.icon = ICON_MOD_MASK; break;
+				case ID_MC:
+					data.icon = ICON_SEQUENCE; break;
 				default:
 					break;
 			}

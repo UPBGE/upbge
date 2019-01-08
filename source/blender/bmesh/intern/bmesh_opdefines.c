@@ -1061,6 +1061,7 @@ static BMOpDefine bmo_extrude_face_region_def = {
 	 {"edges_exclude", BMO_OP_SLOT_MAPPING, {(int)BMO_OP_SLOT_SUBTYPE_MAP_EMPTY}},
 	 {"use_keep_orig", BMO_OP_SLOT_BOOL},   /* keep original geometry (requires ``geom`` to include edges). */
 	 {"use_normal_flip", BMO_OP_SLOT_BOOL},  /* Create faces with reversed direction. */
+	 {"use_normal_from_adjacent", BMO_OP_SLOT_BOOL},  /* Use winding from surrounding faces instead of this region. */
 	 {"use_select_history", BMO_OP_SLOT_BOOL},  /* pass to duplicate */
 	 {{'\0'}},
 	},
@@ -1734,11 +1735,11 @@ static BMO_FlagSet bmo_enum_bevel_offset_type[] = {
 	{0, NULL},
 };
 
-static BMO_FlagSet bmo_enum_bevel_harden_normal_type[] = {
-	{BEVEL_HN_NONE, "NONE"},
-	{BEVEL_HN_FACE, "FACE"},
-	{BEVEL_HN_ADJ, "ADJACENT"},
-	{BEVEL_HN_FIX_SHA, "FIXED_NORMAL_SHADING"},
+static BMO_FlagSet bmo_enum_bevel_face_strength_type[] = {
+	{BEVEL_FACE_STRENGTH_NONE, "NONE"},
+	{BEVEL_FACE_STRENGTH_NEW, "NEW"},
+	{BEVEL_FACE_STRENGTH_AFFECTED, "AFFECTED"},
+	{BEVEL_FACE_STRENGTH_ALL, "ALL"},
 	{0, NULL},
 };
 
@@ -1761,15 +1762,16 @@ static BMOpDefine bmo_bevel_def = {
 	 {"loop_slide", BMO_OP_SLOT_BOOL},      /* prefer to slide along edges to having even widths */
 	 {"mark_seam", BMO_OP_SLOT_BOOL},		/* extend edge data to allow seams to run across bevels */
 	 {"mark_sharp", BMO_OP_SLOT_BOOL},		/* extend edge data to allow sharp edges to run across bevels */
-	 {"strength", BMO_OP_SLOT_FLT},			/* strength of calculated normal in range (0, 1) for custom clnors */
-	 {"hnmode", BMO_OP_SLOT_INT, {(int)BMO_OP_SLOT_SUBTYPE_INT_ENUM}, bmo_enum_bevel_harden_normal_type}, /* harden normals mode used in bevel, if enabled */
+	 {"harden_normals", BMO_OP_SLOT_BOOL},  /* harden normals */
+	 {"face_strength_mode", BMO_OP_SLOT_INT, {(int)BMO_OP_SLOT_SUBTYPE_INT_ENUM},
+	 	bmo_enum_bevel_face_strength_type}, /* whether to set face strength, and which faces to set if so */
+	 {"smoothresh", BMO_OP_SLOT_FLT},       /* for passing mesh's smoothresh, used in hardening */
 	 {{'\0'}},
 	},
 	/* slots_out */
 	{{"faces.out", BMO_OP_SLOT_ELEMENT_BUF, {BM_FACE}}, /* output faces */
 	 {"edges.out", BMO_OP_SLOT_ELEMENT_BUF, {BM_EDGE}}, /* output edges */
 	 {"verts.out", BMO_OP_SLOT_ELEMENT_BUF, {BM_VERT}}, /* output verts */
-	 {"normals.out", BMO_OP_SLOT_MAPPING,  {(int)BMO_OP_SLOT_SUBTYPE_MAP_INTERNAL}}, /* output normals per vertex for beveled edges */
 	 {{'\0'}},
 	},
 

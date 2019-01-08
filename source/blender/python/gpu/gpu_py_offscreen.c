@@ -53,6 +53,7 @@
 
 #include "../generic/py_capi_utils.h"
 
+#include "gpu_py_api.h"
 #include "gpu_py_offscreen.h" /* own include */
 
 
@@ -87,6 +88,8 @@ static int bpygpu_offscreen_valid_check(BPyGPUOffScreen *bpygpu_ofs)
 
 static PyObject *bpygpu_offscreen_new(PyTypeObject *UNUSED(self), PyObject *args, PyObject *kwds)
 {
+	BPYGPU_IS_INIT_OR_ERROR_OBJ;
+
 	GPUOffScreen *ofs;
 	int width, height, samples = 0;
 	char err_out[256];

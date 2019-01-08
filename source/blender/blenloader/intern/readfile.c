@@ -3949,7 +3949,7 @@ static void direct_link_image(FileData *fd, Image *ima)
 		ima->rr = NULL;
 	}
 
-	ima->repbind = NULL;
+	//ima->repbind = NULL;
 	
 	/* undo system, try to restore render buffers */
 	link_list(fd, &(ima->renderslots));
@@ -5829,15 +5829,7 @@ static void direct_link_object(FileData *fd, Object *ob)
 	/* in case this value changes in future, clamp else we get undefined behavior */
 	CLAMP(ob->rotmode, ROT_MODE_MIN, ROT_MODE_MAX);
 
-	if (ob->sculpt) {
-		if (ob->mode & OB_MODE_ALL_SCULPT) {
-			ob->sculpt = MEM_callocN(sizeof(SculptSession), "reload sculpt session");
-			ob->sculpt->mode_type = ob->mode;
-		}
-		else {
-			ob->sculpt = NULL;
-		}
-	}
+	ob->sculpt = NULL;
 
 	link_list(fd, &ob->lodlevels);
 	ob->currentlod = ob->lodlevels.first;
@@ -5939,6 +5931,8 @@ static void lib_link_view_layer(FileData *fd, Library *lib, ViewLayer *view_laye
 	{
 		lib_link_layer_collection(fd, lib, layer_collection, true);
 	}
+
+	view_layer->mat_override = newlibadr_us(fd, lib, view_layer->mat_override);
 
 	IDP_LibLinkProperty(view_layer->id_properties, fd);
 }
@@ -9270,15 +9264,17 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
 
 	BKE_main_id_tag_all(bfd->main, LIB_TAG_NEW, false);
 
+	/* Before static overrides, which needs typeinfo. */
+	lib_verify_nodetree(bfd->main, true);
+
 	/* Now that all our data-blocks are loaded, we can re-generate overrides from their references. */
 	if (fd->memfile == NULL) {
 		/* Do not apply in undo case! */
-		lib_verify_nodetree(bfd->main, true);  /* Needed to ensure we have typeinfo in nodes... */
 		BKE_main_override_static_update(bfd->main);
-		BKE_collections_after_lib_link(bfd->main);
 	}
 
-	lib_verify_nodetree(bfd->main, true);
+	BKE_collections_after_lib_link(bfd->main);
+
 	fix_relpaths_library(fd->relabase, bfd->main); /* make all relative paths, relative to the open blend file */
 
 	link_global(fd, bfd);   /* as last */

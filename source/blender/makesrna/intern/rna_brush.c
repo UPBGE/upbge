@@ -529,8 +529,9 @@ static void rna_Brush_set_unprojected_radius(PointerRNA *ptr, float value)
 	brush->unprojected_radius = value;
 }
 
-static const EnumPropertyItem *rna_Brush_direction_itemf(bContext *C, PointerRNA *ptr,
-                                                   PropertyRNA *UNUSED(prop), bool *UNUSED(r_free))
+static const EnumPropertyItem *rna_Brush_direction_itemf(
+        bContext *C, PointerRNA *ptr,
+        PropertyRNA *UNUSED(prop), bool *UNUSED(r_free))
 {
 	ePaintMode mode = BKE_paintmode_get_active_from_context(C);
 
@@ -635,8 +636,9 @@ static const EnumPropertyItem *rna_Brush_direction_itemf(bContext *C, PointerRNA
 	}
 }
 
-static const EnumPropertyItem *rna_Brush_stroke_itemf(bContext *C, PointerRNA *UNUSED(ptr),
-                                                PropertyRNA *UNUSED(prop), bool *UNUSED(r_free))
+static const EnumPropertyItem *rna_Brush_stroke_itemf(
+        bContext *C, PointerRNA *UNUSED(ptr),
+        PropertyRNA *UNUSED(prop), bool *UNUSED(r_free))
 {
 	ePaintMode mode = BKE_paintmode_get_active_from_context(C);
 
@@ -1732,6 +1734,7 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Use Blender Units",
 	                         "When locked brush stays same size relative to object; when unlocked brush size is "
 	                         "given in pixels");
+	RNA_def_property_ui_icon(prop, ICON_UNLOCKED, true);
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
 	prop = RNA_def_property(srna, "use_edge_to_edge", PROP_BOOLEAN, PROP_NONE);

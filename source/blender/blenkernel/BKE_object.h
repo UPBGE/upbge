@@ -196,7 +196,7 @@ void BKE_boundbox_minmax(const struct BoundBox *bb, float obmat[4][4], float r_m
 
 struct BoundBox *BKE_object_boundbox_get(struct Object *ob);
 void BKE_object_dimensions_get(struct Object *ob, float vec[3]);
-void BKE_object_dimensions_set(struct Object *ob, const float value[3]);
+void BKE_object_dimensions_set(struct Object *ob, const float value[3], int axis_mask);
 void BKE_object_empty_draw_type_set(struct Object *ob, const int value);
 void BKE_object_boundbox_flag(struct Object *ob, int flag, const bool set);
 void BKE_object_boundbox_calc_from_mesh(struct Object *ob, struct Mesh *me_eval);
@@ -326,9 +326,6 @@ bool BKE_object_is_animated(struct Scene *scene, struct Object *ob);
 /* return ModifierMode flag */
 int BKE_object_is_modified(struct Scene *scene, struct Object *ob);
 int BKE_object_is_deform_modified(struct Scene *scene, struct Object *ob);
-
-void BKE_object_relink(struct Object *ob);
-void BKE_object_data_relink(struct Object *ob);
 
 struct MovieClip *BKE_object_movieclip_get(struct Scene *scene, struct Object *ob, bool use_default);
 

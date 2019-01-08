@@ -36,6 +36,7 @@
 #include "../generic/python_utildefines.h"
 #include "../mathutils/mathutils.h"
 
+#include "gpu_py_api.h"
 #include "gpu_py_shader.h" /* own include */
 #include "gpu_py_vertex_format.h"
 
@@ -104,6 +105,8 @@ static int bpygpu_uniform_location_get(GPUShader *shader, const char *name, cons
 
 static PyObject *bpygpu_shader_new(PyTypeObject *UNUSED(type), PyObject *args, PyObject *kwds)
 {
+	BPYGPU_IS_INIT_OR_ERROR_OBJ;
+
 	struct {
 		const char *vertexcode;
 		const char *fragcode;
@@ -715,6 +718,8 @@ PyDoc_STRVAR(bpygpu_shader_from_builtin_doc,
 );
 static PyObject *bpygpu_shader_from_builtin(PyObject *UNUSED(self), PyObject *arg)
 {
+	BPYGPU_IS_INIT_OR_ERROR_OBJ;
+
 	GPUBuiltinShader shader_id;
 
 	if (!bpygpu_ParseBultinShaderEnum(arg, &shader_id)) {

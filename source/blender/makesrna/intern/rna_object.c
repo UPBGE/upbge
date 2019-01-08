@@ -112,7 +112,7 @@ const EnumPropertyItem rna_enum_object_empty_drawtype_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
-const EnumPropertyItem rna_enum_object_empty_image_depth_items[] = {
+static const EnumPropertyItem rna_enum_object_empty_image_depth_items[] = {
 	{OB_EMPTY_IMAGE_DEPTH_DEFAULT, "DEFAULT", 0, "Default", ""},
 	{OB_EMPTY_IMAGE_DEPTH_FRONT, "FRONT", 0, "Front", ""},
 	{OB_EMPTY_IMAGE_DEPTH_BACK, "BACK", 0, "Back", ""},
@@ -486,8 +486,9 @@ static void rna_Object_parent_type_set(PointerRNA *ptr, int value)
 	ED_object_parent(ob, ob->parent, value, ob->parsubstr);
 }
 
-static const EnumPropertyItem *rna_Object_parent_type_itemf(bContext *UNUSED(C), PointerRNA *ptr,
-                                                      PropertyRNA *UNUSED(prop), bool *r_free)
+static const EnumPropertyItem *rna_Object_parent_type_itemf(
+        bContext *UNUSED(C), PointerRNA *ptr,
+        PropertyRNA *UNUSED(prop), bool *r_free)
 {
 	Object *ob = (Object *)ptr->data;
 	EnumPropertyItem *item = NULL;
@@ -946,7 +947,7 @@ static void rna_Object_dimensions_get(PointerRNA *ptr, float *value)
 static void rna_Object_dimensions_set(PointerRNA *ptr, const float *value)
 {
 	Object *ob = ptr->data;
-	BKE_object_dimensions_set(ob, value);
+	BKE_object_dimensions_set(ob, value, 0);
 }
 
 static int rna_Object_location_editable(PointerRNA *ptr, int index)
@@ -2940,11 +2941,14 @@ static void rna_def_object(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "dimensions", PROP_FLOAT, PROP_XYZ_LENGTH);
 	RNA_def_property_array(prop, 3);
-	/* only for the transform-panel and conflicts with animating scale */
+	/* Only as convinient helper for py API, and conflicts with animating scale. */
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_float_funcs(prop, "rna_Object_dimensions_get", "rna_Object_dimensions_set", NULL);
 	RNA_def_property_ui_range(prop, 0.0f, FLT_MAX, 1, RNA_TRANSLATION_PREC_DEFAULT);
-	RNA_def_property_ui_text(prop, "Dimensions", "Absolute bounding box dimensions of the object");
+	RNA_def_property_ui_text(prop, "Dimensions",
+	                         "Absolute bounding box dimensions of the object (WARNING: assigning to it or "
+	                         "its members mutiple consecutive times will not work correctly, "
+	                         "as this needs up-to-date evaluated data)");
 	RNA_def_property_update(prop, NC_OBJECT | ND_TRANSFORM, "rna_Object_internal_update");
 
 

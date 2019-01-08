@@ -339,8 +339,15 @@ void gpu_extensions_init(void)
 		GG.device = GPU_DEVICE_SOFTWARE;
 		GG.driver = GPU_DRIVER_SOFTWARE;
 	}
+	else if (strstr(renderer, "llvmpipe")) {
+		GG.device = GPU_DEVICE_SOFTWARE;
+		GG.driver = GPU_DRIVER_SOFTWARE;
+	}
 	else {
 		printf("Warning: Could not find a matching GPU name. Things may not behave as expected.\n");
+		printf("Detected OpenGL configuration:\n");
+		printf("Vendor: %s\n", vendor);
+		printf("Renderer: %s\n", renderer);
 		GG.device = GPU_DEVICE_ANY;
 		GG.driver = GPU_DRIVER_ANY;
 	}
@@ -358,7 +365,7 @@ void gpu_extensions_init(void)
 	if (G.debug & G_DEBUG_GPU_FORCE_WORKAROUNDS) {
 		printf("\n");
 		printf("GPU: Bypassing workaround detection.\n");
-		printf("GPU: OpenGL indentification strings\n");
+		printf("GPU: OpenGL identification strings\n");
 		printf("GPU: vendor: %s\n", vendor);
 		printf("GPU: renderer: %s\n", renderer);
 		printf("GPU: version: %s\n\n", version);

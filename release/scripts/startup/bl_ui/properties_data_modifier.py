@@ -136,7 +136,10 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         split = layout.split()
 
         col = split.column()
-        col.prop(md, "width")
+        if md.offset_type == 'PERCENT':
+            col.prop(md, "width_pct")
+        else:
+            col.prop(md, "width")
         col.prop(md, "segments")
         col.prop(md, "profile")
         col.prop(md, "material")
@@ -147,6 +150,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col.prop(md, "loop_slide")
         col.prop(md, "mark_seam")
         col.prop(md, "mark_sharp")
+        col.prop(md, "harden_normals")
 
         layout.label(text="Limit Method:")
         layout.row().prop(md, "limit_method", expand=True)
@@ -159,10 +163,8 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         layout.label(text="Width Method:")
         layout.row().prop(md, "offset_type", expand=True)
 
-        layout.label(text="Normal Mode")
-        layout.row().prop(md, "hnmode", expand=True)
-        layout.prop(md, "hn_strength")
-        layout.prop(md, "set_wn_strength")
+        layout.label(text="Set Face Strength Mode")
+        layout.row().prop(md, "face_strength_mode", expand=True)
 
     def BOOLEAN(self, layout, ob, md):
         split = layout.split()

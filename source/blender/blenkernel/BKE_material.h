@@ -46,7 +46,6 @@ struct Scene;
 
 void init_def_material(void);
 void BKE_material_free(struct Material *ma);
-void BKE_material_free_ex(struct Material *ma, bool do_id_user);
 void test_object_materials(struct Main *bmain, struct Object *ob, struct ID *id);
 void test_all_objects_materials(struct Main *bmain, struct ID *id);
 void BKE_material_resize_object(struct Main *bmain, struct Object *ob, const short totcol, bool do_id_user);
@@ -80,7 +79,8 @@ enum {
 	BKE_MAT_ASSIGN_OBJECT
 };
 
-struct Material *give_current_material(struct Object *ob, short act);
+struct Material **give_current_material_p(struct Object *ob, short act);
+struct Material  *give_current_material(struct Object *ob, short act);
 void assign_material_id(struct Main *bmain, struct ID *id, struct Material *ma, short act);
 void assign_material(struct Main *bmain, struct Object *ob, struct Material *ma, short act, int assign_type);
 void assign_matarar(struct Main *bmain, struct Object *ob, struct Material ***matar, short totcol);

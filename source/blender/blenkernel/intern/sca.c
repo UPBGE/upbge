@@ -330,12 +330,12 @@ void free_actuator(bActuator *act)
 		switch (act->type) {
 			case ACT_ACTION:
 			case ACT_SHAPEACTION:
-			{
+			/*{
 				bActionActuator *aa = (bActionActuator *)act->data;
 				if (aa->act)
 					id_us_min((ID *)aa->act);
 				break;
-			}
+			}*/
 			case ACT_SOUND:
 			{
 				bSoundActuator *sa = (bSoundActuator *) act->data;
@@ -372,13 +372,13 @@ bActuator *copy_actuator(bActuator *act, const int flag)
 	switch (act->type) {
 		case ACT_ACTION:
 		case ACT_SHAPEACTION:
-		{
+		/*{
 			bActionActuator *aa = (bActionActuator *)act->data;
 			if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
 				id_us_plus((ID *)aa->act);
 			}
 			break;
-		}
+		}*/
 		case ACT_SOUND:
 		{
 			bSoundActuator *sa = (bSoundActuator *)act->data;

@@ -1483,9 +1483,19 @@ class WM_OT_copy_prev_settings(Operator):
 
         old = cls._old_path()
         new = cls._new_path()
+
+        # Disable operator in case config path is overriden with environment
+        # variable. That case has no automatic per-version configuration.
+        userconfig_path = os.path.normpath(bpy.utils.user_resource('CONFIG'))
+        new_userconfig_path = os.path.normpath(os.path.join(new, "config"))
+        if userconfig_path != new_userconfig_path:
+            return False
+
+        # Enable operator if new config path does not exist yet.
         if os.path.isdir(old) and not os.path.isdir(new):
             return True
 
+        # Enable operator also if there are no new user preference yet.
         old_userpref = os.path.join(old, "config", "userpref.blend")
         new_userpref = os.path.join(new, "config", "userpref.blend")
         return os.path.isfile(old_userpref) and not os.path.isfile(new_userpref)
@@ -2499,33 +2509,24 @@ class WM_OT_studiolight_install(Operator):
     )
 
     def execute(self, context):
-        import traceback
+        import os
         import shutil
-        import pathlib
         prefs = context.preferences
 
-        filepaths = [pathlib.Path(self.directory, e.name) for e in self.files]
-        path_studiolights = bpy.utils.user_resource('DATAFILES')
-
+        filepaths = [os.path.join(self.directory, e.name) for e in self.files]
+        path_studiolights = bpy.utils.user_resource('DATAFILES', "studiolights", create=True)
         if not path_studiolights:
-            self.report({'ERROR'}, "Failed to get Studio Light path")
+            self.report({'ERROR'}, "Failed to create Studio Light path")
             return {'CANCELLED'}
 
-        path_studiolights = pathlib.Path(path_studiolights, "studiolights", self.type.lower())
-        if not path_studiolights.exists():
-            try:
-                path_studiolights.mkdir(parents=True, exist_ok=True)
-            except:
-                traceback.print_exc()
-
         for filepath in filepaths:
-            shutil.copy(str(filepath), str(path_studiolights))
-            prefs.studio_lights.load(str(path_studiolights.joinpath(filepath.name)), self.type)
+            shutil.copy(filepath, path_studiolights)
+            prefs.studio_lights.load(os.path.join(path_studiolights, filepath), self.type)
 
         # print message
         msg = (
             tip_("StudioLight Installed %r into %r") %
-            (", ".join(str(x.name) for x in self.files), str(path_studiolights))
+            (", ".join(e.name for e in self.files), path_studiolights)
         )
         print(msg)
         self.report({'INFO'}, msg)
@@ -2533,6 +2534,10 @@ class WM_OT_studiolight_install(Operator):
 
     def invoke(self, context, event):
         wm = context.window_manager
+
+        if self.type == 'STUDIO':
+            self.filter_glob = "*.sl"
+
         wm.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
@@ -2550,34 +2555,27 @@ class WM_OT_studiolight_new(Operator):
     ask_overide = False
 
     def execute(self, context):
-        import pathlib
+        import os
         prefs = context.preferences
         wm = context.window_manager
+        filename = bpy.path.ensure_ext(self.filename, ".sl")
 
-        path_studiolights = bpy.utils.user_resource('DATAFILES')
-
+        path_studiolights = bpy.utils.user_resource('DATAFILES', os.path.join("studiolights", "studio"), create=True)
         if not path_studiolights:
             self.report({'ERROR'}, "Failed to get Studio Light path")
             return {'CANCELLED'}
 
-        path_studiolights = pathlib.Path(path_studiolights, "studiolights", "studio")
-        if not path_studiolights.exists():
-            try:
-                path_studiolights.mkdir(parents=True, exist_ok=True)
-            except:
-                traceback.print_exc()
-
-        finalpath = str(path_studiolights.joinpath(self.filename))
-        if pathlib.Path(finalpath + ".sl").is_file():
+        filepath_final = os.path.join(path_studiolights, filename)
+        if os.path.isfile(filepath_final):
             if not self.ask_overide:
                 self.ask_overide = True
                 return wm.invoke_props_dialog(self, width=600)
             else:
                 for studio_light in prefs.studio_lights:
-                    if studio_light.name == self.filename + ".sl":
+                    if studio_light.name == filename:
                         bpy.ops.wm.studiolight_uninstall(index=studio_light.index)
 
-        prefs.studio_lights.new(path=finalpath)
+        prefs.studio_lights.new(path=filepath_final)
 
         # print message
         msg = (
@@ -2606,21 +2604,18 @@ class WM_OT_studiolight_uninstall(Operator):
     bl_label = "Uninstall Studio Light"
     index: bpy.props.IntProperty()
 
-    def _remove_path(self, path):
-        if path.exists():
-            path.unlink()
-
     def execute(self, context):
-        import pathlib
+        import os
         prefs = context.preferences
         for studio_light in prefs.studio_lights:
             if studio_light.index == self.index:
-                if studio_light.path:
-                    self._remove_path(pathlib.Path(studio_light.path))
-                if studio_light.path_irr_cache:
-                    self._remove_path(pathlib.Path(studio_light.path_irr_cache))
-                if studio_light.path_sh_cache:
-                    self._remove_path(pathlib.Path(studio_light.path_sh_cache))
+                for filepath in (
+                        studio_light.path,
+                        studio_light.path_irr_cache,
+                        studio_light.path_sh_cache,
+                ):
+                    if filepath and os.path.exists(filepath):
+                        os.unlink(filepath)
                 prefs.studio_lights.remove(studio_light)
                 return {'FINISHED'}
         return {'CANCELLED'}
@@ -2756,8 +2751,8 @@ class WM_MT_splash(Menu):
         # Draw setup screen if no preferences have been saved yet.
         import os
 
-        user_path = bpy.utils.resource_path('USER')
-        userdef_path = os.path.join(user_path, "config", "userpref.blend")
+        userconfig_path = bpy.utils.user_resource('CONFIG');
+        userdef_path = os.path.join(userconfig_path, "userpref.blend")
 
         if not os.path.isfile(userdef_path):
             self.draw_setup(context)

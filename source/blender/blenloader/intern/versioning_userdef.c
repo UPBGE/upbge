@@ -93,10 +93,6 @@ static void do_versions_theme(UserDef *userdef, bTheme *btheme)
 		copy_v4_v4_char(btheme->tclip.list_text, U_theme_default.tclip.list_text);
 	}
 
-	if (!USER_VERSION_ATLEAST(280, 33)) {
-		copy_v4_v4_char(btheme->tuserpref.navigation_bar, U_theme_default.tuserpref.navigation_bar);
-	}
-
 	if (!USER_VERSION_ATLEAST(280, 36)) {
 		copy_v4_v4_char(btheme->tui.wcol_state.inner_changed, U_theme_default.tui.wcol_state.inner_changed);
 		copy_v4_v4_char(btheme->tui.wcol_state.inner_changed_sel, U_theme_default.tui.wcol_state.inner_changed_sel);
@@ -106,6 +102,12 @@ static void do_versions_theme(UserDef *userdef, bTheme *btheme)
 		copy_v4_v4_char(btheme->tclip.metadatabg, U_theme_default.tima.metadatabg);
 		copy_v4_v4_char(btheme->tclip.metadatatext, U_theme_default.tima.metadatatext);
 	}
+
+	if (!USER_VERSION_ATLEAST(280, 40)) {
+		copy_v4_v4_char(btheme->tuserpref.navigation_bar, U_theme_default.tuserpref.navigation_bar);
+		copy_v4_v4_char(btheme->tuserpref.execution_buts, btheme->tuserpref.navigation_bar);
+	}
+
 #undef USER_VERSION_ATLEAST
 }
 

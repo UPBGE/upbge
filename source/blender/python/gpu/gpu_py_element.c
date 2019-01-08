@@ -36,7 +36,7 @@
 #include "../generic/py_capi_utils.h"
 #include "../generic/python_utildefines.h"
 
-#include "gpu_py_primitive.h"
+#include "gpu_py_api.h"
 #include "gpu_py_element.h" /* own include */
 
 
@@ -47,6 +47,8 @@
 
 static PyObject *bpygpu_IndexBuf_new(PyTypeObject *UNUSED(type), PyObject *args, PyObject *kwds)
 {
+	BPYGPU_IS_INIT_OR_ERROR_OBJ;
+
 	const char *error_prefix = "IndexBuf.__new__";
 	bool ok = true;
 

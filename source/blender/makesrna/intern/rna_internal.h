@@ -332,7 +332,6 @@ void RNA_api_material(StructRNA *srna);
 void RNA_api_mesh(struct StructRNA *srna);
 void RNA_api_meta(struct StructRNA *srna);
 void RNA_api_object(struct StructRNA *srna);
-void RNA_api_object_base_legacy(struct StructRNA *srna);
 void RNA_api_pose(struct StructRNA *srna);
 void RNA_api_pose_channel(struct StructRNA *srna);
 void RNA_api_scene(struct StructRNA *srna);
@@ -349,7 +348,6 @@ void RNA_api_sensor(struct StructRNA *srna);
 void RNA_api_controller(struct StructRNA *srna);
 void RNA_api_actuator(struct StructRNA *srna);
 void RNA_api_texture(struct StructRNA *srna);
-void RNA_api_environment_map(struct StructRNA *srna);
 void RNA_api_sequences(BlenderRNA *brna, PropertyRNA *cprop);
 void RNA_api_sequence_elements(BlenderRNA *brna, PropertyRNA *cprop);
 void RNA_api_sound(struct StructRNA *srna);
@@ -506,7 +504,6 @@ const char *rna_translate_ui_text(
         const char *text, const char *text_ctxt, struct StructRNA *type, struct PropertyRNA *prop, bool translate);
 
 /* Internal functions that cycles uses so we need to declare (tsk tsk) */
-void rna_RenderLayer_rect_set(PointerRNA *ptr, const float *values);
 void rna_RenderPass_rect_set(PointerRNA *ptr, const float *values);
 
 #ifdef RNA_RUNTIME

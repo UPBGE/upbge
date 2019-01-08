@@ -250,7 +250,7 @@ struct uiBut {
 	 */
 	float a2;
 
-	unsigned char col[4];
+	uchar col[4];
 
 	uiButHandleFunc func;
 	void *func_arg1;
@@ -291,7 +291,7 @@ struct uiBut {
 	char dt; /* drawtype: UI_EMBOSS, UI_EMBOSS_NONE ... etc, copied from the block */
 	signed char pie_dir; /* direction in a pie menu, used for collision detection (RadialDirection) */
 	bool changed; /* could be made into a single flag */
-	unsigned char unit_type; /* so buttons can support unit systems which are not RNA */
+	uchar unit_type; /* so buttons can support unit systems which are not RNA */
 	short modifier_key;
 	short iconadd;
 
@@ -315,7 +315,7 @@ struct uiBut {
 	struct wmOperatorType *optype;
 	struct PointerRNA *opptr;
 	short opcontext;
-	unsigned char menu_key; /* 'a'-'z', always lower case */
+	uchar menu_key; /* 'a'-'z', always lower case */
 
 	/* Draggable data, type is WM_DRAG_... */
 	char dragtype;
@@ -398,7 +398,7 @@ struct uiBlock {
 	rctf rect;
 	float aspect;
 
-	unsigned int puphash;  /* popup menu hash for memory */
+	uint puphash;  /* popup menu hash for memory */
 
 	uiButHandleFunc func;
 	void *func_arg1;
@@ -670,13 +670,6 @@ uiPopupBlockHandle *ui_popup_menu_create(
         uiMenuCreateFunc create_func, void *arg);
 
 /* interface_region_popover.c */
-uiBlock *ui_popover_block_refresh(
-        struct bContext *C, uiPopupBlockHandle *handle,
-        ARegion *butregion, uiBut *but);
-uiPopupBlockHandle *ui_popover_block_create(
-        struct bContext *C, struct ARegion *butregion, uiBut *but,
-        uiBlockCreateFunc create_func, uiBlockHandleCreateFunc handle_create_func,
-        void *arg);
 uiPopupBlockHandle *ui_popover_panel_create(
         struct bContext *C, struct ARegion *butregion, uiBut *but,
         uiMenuCreateFunc create_func, void *arg);
@@ -708,16 +701,16 @@ extern void ui_draw_dropshadow(const rctf *rct, float radius, float aspect, floa
 void ui_draw_gradient(const rcti *rect, const float hsv[3], const int type, const float alpha);
 
 
-void ui_draw_but_TAB_outline(const rcti *rect, float rad, unsigned char highlight[3], unsigned char highlight_fade[3]);
-void ui_draw_but_HISTOGRAM(ARegion *ar, uiBut *but, struct uiWidgetColors *wcol, const rcti *rect);
-void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, struct uiWidgetColors *wcol, const rcti *rect);
-void ui_draw_but_VECTORSCOPE(ARegion *ar, uiBut *but, struct uiWidgetColors *wcol, const rcti *rect);
-void ui_draw_but_COLORBAND(uiBut *but, struct uiWidgetColors *wcol, const rcti *rect);
-void ui_draw_but_UNITVEC(uiBut *but, struct uiWidgetColors *wcol, const rcti *rect);
-void ui_draw_but_CURVE(ARegion *ar, uiBut *but, struct uiWidgetColors *wcol, const rcti *rect);
-void ui_draw_but_IMAGE(ARegion *ar, uiBut *but, struct uiWidgetColors *wcol, const rcti *rect);
-void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, struct uiWidgetColors *wcol, const rcti *rect);
-void ui_draw_but_NODESOCKET(ARegion *ar, uiBut *but, struct uiWidgetColors *wcol, const rcti *rect);
+void ui_draw_but_TAB_outline(const rcti *rect, float rad, uchar highlight[3], uchar highlight_fade[3]);
+void ui_draw_but_HISTOGRAM(ARegion *ar, uiBut *but, const struct uiWidgetColors *wcol, const rcti *rect);
+void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, const struct uiWidgetColors *wcol, const rcti *rect);
+void ui_draw_but_VECTORSCOPE(ARegion *ar, uiBut *but, const struct uiWidgetColors *wcol, const rcti *rect);
+void ui_draw_but_COLORBAND(uiBut *but, const struct uiWidgetColors *wcol, const rcti *rect);
+void ui_draw_but_UNITVEC(uiBut *but, const struct uiWidgetColors *wcol, const rcti *rect);
+void ui_draw_but_CURVE(ARegion *ar, uiBut *but, const struct uiWidgetColors *wcol, const rcti *rect);
+void ui_draw_but_IMAGE(ARegion *ar, uiBut *but, const struct uiWidgetColors *wcol, const rcti *rect);
+void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, const struct uiWidgetColors *wcol, const rcti *rect);
+void ui_draw_but_NODESOCKET(ARegion *ar, uiBut *but, const struct uiWidgetColors *wcol, const rcti *rect);
 
 /* interface_handlers.c */
 PointerRNA *ui_handle_afterfunc_add_operator(struct wmOperatorType *ot, int opcontext, bool create_props);
@@ -733,7 +726,6 @@ extern void ui_but_text_password_hide(char password_str[UI_MAX_DRAW_STR], uiBut 
 extern uiBut *ui_but_find_select_in_enum(uiBut *but, int direction);
 extern uiBut *ui_but_find_active_in_region(struct ARegion *ar);
 extern uiBut *ui_but_find_mouse_over(struct ARegion *ar, const struct wmEvent *event);
-void ui_but_pie_dir_visual(RadialDirection dir, float vec[2]);
 void ui_but_pie_dir(RadialDirection dir, float vec[2]);
 float ui_block_calc_pie_segment(struct uiBlock *block, const float event_xy[2]);
 
@@ -787,7 +779,7 @@ void ui_draw_anti_tria_rect(const rctf *rect, char dir, const float color[4]);
 void ui_draw_menu_back(struct uiStyle *style, uiBlock *block, rcti *rect);
 void ui_draw_popover_back(ARegion *ar, struct uiStyle *style, uiBlock *block, rcti *rect);
 void ui_draw_pie_center(uiBlock *block);
-struct uiWidgetColors *ui_tooltip_get_theme(void);
+const struct uiWidgetColors *ui_tooltip_get_theme(void);
 
 void ui_draw_widget_back_color(
         uiWidgetTypeEnum type, bool use_shadow, const rcti *rect,
@@ -801,8 +793,8 @@ void ui_draw_link_bezier(const rcti *rect, const float color[4]);
 
 extern void ui_draw_but(const struct bContext *C, ARegion *ar, struct uiStyle *style, uiBut *but, rcti *rect);
 
-void ui_draw_menu_item(struct uiFontStyle *fstyle, rcti *rect, const char *name, int iconid, int state, bool use_sep);
-void ui_draw_preview_item(struct uiFontStyle *fstyle, rcti *rect, const char *name, int iconid, int state);
+void ui_draw_menu_item(const struct uiFontStyle *fstyle, rcti *rect, const char *name, int iconid, int state, bool use_sep);
+void ui_draw_preview_item(const struct uiFontStyle *fstyle, rcti *rect, const char *name, int iconid, int state);
 
 #define UI_TEXT_MARGIN_X 0.4f
 #define UI_POPUP_MARGIN (UI_DPI_FAC * 12)

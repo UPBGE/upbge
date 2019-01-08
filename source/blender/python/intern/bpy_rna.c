@@ -1401,53 +1401,39 @@ static PyObject *pyrna_enum_to_py(PointerRNA *ptr, PropertyRNA *prop, int val)
 			ret = PyUnicode_FromString(identifier);
 		}
 		else {
+			/* Static, no need to free. */
 			const EnumPropertyItem *enum_item;
-			bool free;
+			bool free_dummy;
+			RNA_property_enum_items_ex(NULL, ptr, prop, true, &enum_item, NULL, &free_dummy);
+			BLI_assert(!free_dummy);
 
-			/* don't throw error here, can't trust blender 100% to give the
-			 * right values, python code should not generate error for that */
-			RNA_property_enum_items(BPy_GetContext(), ptr, prop, &enum_item, NULL, &free);
-			if (enum_item && enum_item->identifier) {
-				ret = PyUnicode_FromString(enum_item->identifier);
-			}
-			else {
-				if (free) {
-					MEM_freeN((void *)enum_item);
-				}
-				RNA_property_enum_items(NULL, ptr, prop, &enum_item, NULL, &free);
+			/* Do not print warning in case of DummyRNA_NULL_items, this one will never match any value... */
+			if (enum_item != DummyRNA_NULL_items) {
+				const char *ptr_name = RNA_struct_name_get_alloc(ptr, NULL, 0, NULL);
 
-				/* Do not print warning in case of DummyRNA_NULL_items, this one will never match any value... */
-				if (enum_item != DummyRNA_NULL_items) {
-					const char *ptr_name = RNA_struct_name_get_alloc(ptr, NULL, 0, NULL);
-
-					/* prefer not fail silently in case of api errors, maybe disable it later */
-					CLOG_WARN(BPY_LOG_RNA,
-					          "current value '%d' "
-					          "matches no enum in '%s', '%s', '%s'",
-					          val, RNA_struct_identifier(ptr->type),
-					          ptr_name, RNA_property_identifier(prop));
+				/* prefer not fail silently in case of api errors, maybe disable it later */
+				CLOG_WARN(BPY_LOG_RNA,
+				          "current value '%d' "
+				          "matches no enum in '%s', '%s', '%s'",
+				          val, RNA_struct_identifier(ptr->type),
+				          ptr_name, RNA_property_identifier(prop));
 
 #if 0				/* gives python decoding errors while generating docs :( */
-					char error_str[256];
-					BLI_snprintf(error_str, sizeof(error_str),
-					             "RNA Warning: Current value \"%d\" "
-					             "matches no enum in '%s', '%s', '%s'",
-					             val, RNA_struct_identifier(ptr->type),
-					             ptr_name, RNA_property_identifier(prop));
+				char error_str[256];
+				BLI_snprintf(error_str, sizeof(error_str),
+				             "RNA Warning: Current value \"%d\" "
+				             "matches no enum in '%s', '%s', '%s'",
+				             val, RNA_struct_identifier(ptr->type),
+				             ptr_name, RNA_property_identifier(prop));
 
-					PyErr_Warn(PyExc_RuntimeWarning, error_str);
+				PyErr_Warn(PyExc_RuntimeWarning, error_str);
 #endif
 
-					if (ptr_name)
-						MEM_freeN((void *)ptr_name);
-				}
-
-				ret = PyUnicode_FromString("");
+				if (ptr_name)
+					MEM_freeN((void *)ptr_name);
 			}
 
-			if (free) {
-				MEM_freeN((void *)enum_item);
-			}
+			ret = PyUnicode_FromString("");
 #if 0
 			PyErr_Format(PyExc_AttributeError,
 			             "RNA Error: Current value \"%d\" matches no enum", val);

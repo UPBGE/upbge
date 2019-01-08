@@ -153,7 +153,8 @@ static uiFont *uifont_to_blfont(int id)
 
 
 void UI_fontstyle_draw_ex(
-        const uiFontStyle *fs, const rcti *rect, const char *str, const unsigned char col[4],
+        const uiFontStyle *fs, const rcti *rect, const char *str, const uchar col[4],
+        const struct uiFontStyleDraw_Params *fs_params,
         size_t len, float *r_xofs, float *r_yofs)
 {
 	int xofs = 0, yofs;
@@ -171,13 +172,13 @@ void UI_fontstyle_draw_ex(
 	if (fs->kerning == 1) {
 		font_flag |= BLF_KERNING_DEFAULT;
 	}
-	if (fs->word_wrap == 1) {
+	if (fs_params->word_wrap == 1) {
 		font_flag |= BLF_WORD_WRAP;
 	}
 
 	BLF_enable(fs->uifont_id, font_flag);
 
-	if (fs->word_wrap == 1) {
+	if (fs_params->word_wrap == 1) {
 		/* draw from boundbox top */
 		yofs = BLI_rcti_size_y(rect) - BLF_height_max(fs->uifont_id);
 	}
@@ -187,14 +188,14 @@ void UI_fontstyle_draw_ex(
 		yofs = ceil(0.5f * (BLI_rcti_size_y(rect) - height));
 	}
 
-	if (fs->align == UI_STYLE_TEXT_CENTER) {
+	if (fs_params->align == UI_STYLE_TEXT_CENTER) {
 		xofs = floor(0.5f * (BLI_rcti_size_x(rect) - BLF_width(fs->uifont_id, str, len)));
 		/* don't center text if it chops off the start of the text, 2 gives some margin */
 		if (xofs < 2) {
 			xofs = 2;
 		}
 	}
-	else if (fs->align == UI_STYLE_TEXT_RIGHT) {
+	else if (fs_params->align == UI_STYLE_TEXT_RIGHT) {
 		xofs = BLI_rcti_size_x(rect) - BLF_width(fs->uifont_id, str, len) - 0.1f * U.widget_unit;
 	}
 
@@ -211,17 +212,19 @@ void UI_fontstyle_draw_ex(
 	*r_yofs = yofs;
 }
 
-void UI_fontstyle_draw(const uiFontStyle *fs, const rcti *rect, const char *str, const unsigned char col[4])
+void UI_fontstyle_draw(
+        const uiFontStyle *fs, const rcti *rect, const char *str, const uchar col[4],
+        const struct uiFontStyleDraw_Params *fs_params)
 {
 	float xofs, yofs;
 
 	UI_fontstyle_draw_ex(
-	        fs, rect, str, col,
+	        fs, rect, str, col, fs_params,
 	        BLF_DRAW_STR_DUMMY_MAX, &xofs, &yofs);
 }
 
 /* drawn same as above, but at 90 degree angle */
-void UI_fontstyle_draw_rotated(const uiFontStyle *fs, const rcti *rect, const char *str, const unsigned char col[4])
+void UI_fontstyle_draw_rotated(const uiFontStyle *fs, const rcti *rect, const char *str, const uchar col[4])
 {
 	float height;
 	int xofs, yofs;
@@ -282,7 +285,7 @@ void UI_fontstyle_draw_rotated(const uiFontStyle *fs, const rcti *rect, const ch
  *
  * For drawing on-screen labels.
  */
-void UI_fontstyle_draw_simple(const uiFontStyle *fs, float x, float y, const char *str, const unsigned char col[4])
+void UI_fontstyle_draw_simple(const uiFontStyle *fs, float x, float y, const char *str, const uchar col[4])
 {
 	if (fs->kerning == 1)
 		BLF_enable(fs->uifont_id, BLF_KERNING_DEFAULT);
@@ -408,7 +411,7 @@ void uiStyleInit(void)
 	uiFont *font;
 	uiStyle *style = U.uistyles.first;
 	int monofont_size = datatoc_bmonofont_ttf_size;
-	unsigned char *monofont_ttf = (unsigned char *)datatoc_bmonofont_ttf;
+	uchar *monofont_ttf = (uchar *)datatoc_bmonofont_ttf;
 
 	/* recover from uninitialized dpi */
 	if (U.dpi == 0)
@@ -451,7 +454,7 @@ void uiStyleInit(void)
 		if (font->uifont_id == UIFONT_DEFAULT) {
 #ifdef WITH_INTERNATIONAL
 			int font_size = datatoc_bfont_ttf_size;
-			unsigned char *font_ttf = (unsigned char *)datatoc_bfont_ttf;
+			uchar *font_ttf = (uchar *)datatoc_bfont_ttf;
 			static int last_font_size = 0;
 
 			/* use unicode font for translation */
@@ -461,7 +464,7 @@ void uiStyleInit(void)
 				if (!font_ttf) {
 					/* fall back if not found */
 					font_size = datatoc_bfont_ttf_size;
-					font_ttf = (unsigned char *)datatoc_bfont_ttf;
+					font_ttf = (uchar *)datatoc_bfont_ttf;
 				}
 			}
 
@@ -473,13 +476,13 @@ void uiStyleInit(void)
 
 			font->blf_id = BLF_load_mem("default", font_ttf, font_size);
 #else
-			font->blf_id = BLF_load_mem("default", (unsigned char *)datatoc_bfont_ttf, datatoc_bfont_ttf_size);
+			font->blf_id = BLF_load_mem("default", (uchar *)datatoc_bfont_ttf, datatoc_bfont_ttf_size);
 #endif
 		}
 		else {
 			font->blf_id = BLF_load(font->filename);
 			if (font->blf_id == -1) {
-				font->blf_id = BLF_load_mem("default", (unsigned char *)datatoc_bfont_ttf, datatoc_bfont_ttf_size);
+				font->blf_id = BLF_load_mem("default", (uchar *)datatoc_bfont_ttf, datatoc_bfont_ttf_size);
 			}
 		}
 
@@ -512,7 +515,7 @@ void uiStyleInit(void)
 		if (!monofont_ttf) {
 			/* fall back if not found */
 			monofont_size = datatoc_bmonofont_ttf_size;
-			monofont_ttf = (unsigned char *)datatoc_bmonofont_ttf;
+			monofont_ttf = (uchar *)datatoc_bmonofont_ttf;
 		}
 	}
 #endif

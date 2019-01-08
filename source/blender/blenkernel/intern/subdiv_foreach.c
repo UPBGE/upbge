@@ -131,6 +131,34 @@ typedef struct SubdivForeachTaskContext {
 	BLI_bitmap *coarse_edges_used_map;
 } SubdivForeachTaskContext;
 
+/* =============================================================================
+ * Threading helpers.
+ */
+
+static void *subdiv_foreach_tls_alloc(SubdivForeachTaskContext *ctx)
+{
+	const SubdivForeachContext *foreach_context = ctx->foreach_context;
+	void *tls = NULL;
+	if (foreach_context->user_data_tls_size != 0) {
+		tls = MEM_mallocN(foreach_context->user_data_tls_size, "tls");
+		memcpy(tls,
+		       foreach_context->user_data_tls,
+		       foreach_context->user_data_tls_size);
+	}
+	return tls;
+}
+
+static void subdiv_foreach_tls_free(void *tls)
+{
+	if (tls != NULL) {
+		MEM_freeN(tls);
+	}
+}
+
+/* =============================================================================
+ * Initialization.
+ */
+
 /* NOTE: Expects edge map to be zeroed. */
 static void subdiv_foreach_ctx_count(SubdivForeachTaskContext *ctx)
 {
@@ -438,21 +466,15 @@ static void subdiv_foreach_every_corner_vertices_special(
 	        false);
 }
 
-static void subdiv_foreach_every_corner_vertices(SubdivForeachTaskContext *ctx)
+static void subdiv_foreach_every_corner_vertices(
+        SubdivForeachTaskContext *ctx,
+        void *tls)
 {
 	if (ctx->foreach_context->vertex_every_corner == NULL) {
 		return;
 	}
-	const SubdivForeachContext *foreach_context = ctx->foreach_context;
 	const Mesh *coarse_mesh = ctx->coarse_mesh;
 	const MPoly *coarse_mpoly = coarse_mesh->mpoly;
-	void *tls = NULL;
-	if (foreach_context->user_data_tls_size != 0) {
-		tls = MEM_mallocN(foreach_context->user_data_tls_size, "tls");
-		memcpy(tls,
-		       foreach_context->user_data_tls,
-		       foreach_context->user_data_tls_size);
-	}
 	for (int poly_index = 0; poly_index < coarse_mesh->totpoly; poly_index++) {
 		const MPoly *coarse_poly = &coarse_mpoly[poly_index];
 		if (coarse_poly->totloop == 4) {
@@ -461,9 +483,6 @@ static void subdiv_foreach_every_corner_vertices(SubdivForeachTaskContext *ctx)
 		else {
 			subdiv_foreach_every_corner_vertices_special(ctx, tls, coarse_poly);
 		}
-	}
-	if (tls != NULL) {
-		MEM_freeN(tls);
 	}
 }
 
@@ -670,21 +689,15 @@ static void subdiv_foreach_every_edge_vertices_special(
 	        false);
 }
 
-static void subdiv_foreach_every_edge_vertices(SubdivForeachTaskContext *ctx)
+static void subdiv_foreach_every_edge_vertices(
+        SubdivForeachTaskContext *ctx,
+        void *tls)
 {
 	if (ctx->foreach_context->vertex_every_edge == NULL) {
 		return;
 	}
-	const SubdivForeachContext *foreach_context = ctx->foreach_context;
 	const Mesh *coarse_mesh = ctx->coarse_mesh;
 	const MPoly *coarse_mpoly = coarse_mesh->mpoly;
-	void *tls = NULL;
-	if (foreach_context->user_data_tls_size != 0) {
-		tls = MEM_mallocN(foreach_context->user_data_tls_size, "tls");
-		memcpy(tls,
-		       foreach_context->user_data_tls,
-		       foreach_context->user_data_tls_size);
-	}
 	for (int poly_index = 0; poly_index < coarse_mesh->totpoly; poly_index++) {
 		const MPoly *coarse_poly = &coarse_mpoly[poly_index];
 		if (coarse_poly->totloop == 4) {
@@ -693,9 +706,6 @@ static void subdiv_foreach_every_edge_vertices(SubdivForeachTaskContext *ctx)
 		else {
 			subdiv_foreach_every_edge_vertices_special(ctx, tls, coarse_poly);
 		}
-	}
-	if (tls != NULL) {
-		MEM_freeN(tls);
 	}
 }
 
@@ -796,12 +806,6 @@ static void subdiv_foreach_vertices(SubdivForeachTaskContext *ctx,
 	const Mesh *coarse_mesh = ctx->coarse_mesh;
 	const MPoly *coarse_mpoly = coarse_mesh->mpoly;
 	const MPoly *coarse_poly = &coarse_mpoly[poly_index];
-	if (ctx->foreach_context->vertex_corner != NULL) {
-		subdiv_foreach_corner_vertices(ctx, tls, coarse_poly);
-	}
-	if (ctx->foreach_context->vertex_edge != NULL) {
-		subdiv_foreach_edge_vertices(ctx, tls, coarse_poly);
-	}
 	if (ctx->foreach_context->vertex_inner != NULL) {
 		subdiv_foreach_inner_vertices(ctx, tls, coarse_poly);
 	}
@@ -1940,6 +1944,37 @@ static void subdiv_foreach_vertices_of_loose_edges_task(
  * Subdivision process entry points.
  */
 
+static void subdiv_foreach_single_geometry_vertices(
+        SubdivForeachTaskContext *ctx,
+        void *tls)
+{
+	if (ctx->foreach_context->vertex_corner == NULL) {
+		return;
+	}
+	const Mesh *coarse_mesh = ctx->coarse_mesh;
+	const MPoly *coarse_mpoly = coarse_mesh->mpoly;
+	for (int poly_index = 0; poly_index < coarse_mesh->totpoly; poly_index++) {
+		const MPoly *coarse_poly = &coarse_mpoly[poly_index];
+		subdiv_foreach_corner_vertices(ctx, tls, coarse_poly);
+		subdiv_foreach_edge_vertices(ctx, tls, coarse_poly);
+	}
+}
+
+static void subdiv_foreach_single_thread_tasks(SubdivForeachTaskContext *ctx)
+{
+	/* NOTE: In theory, we can try to skip allocation of TLS here, but in
+	 * practice if the callbacks used here are not specified then TLS will not
+	 * be requested anyway. */
+	void *tls = subdiv_foreach_tls_alloc(ctx);
+	/* Passes to average displacement on the corner vertices
+	 * and boundary edges. */
+	subdiv_foreach_every_corner_vertices(ctx, tls);
+	subdiv_foreach_every_edge_vertices(ctx, tls);
+	/* Run callbacks which are supposed to be run once per shared geometry. */
+	subdiv_foreach_single_geometry_vertices(ctx, tls);
+	subdiv_foreach_tls_free(tls);
+}
+
 static void subdiv_foreach_task(
         void *__restrict userdata,
         const int poly_index,
@@ -1998,11 +2033,8 @@ bool BKE_subdiv_foreach_subdiv_geometry(
 			return false;
 		}
 	}
-	/* Single threaded passes to average displacement on the corner vertices
-	 * and boundary edges.
-	 */
-	subdiv_foreach_every_corner_vertices(&ctx);
-	subdiv_foreach_every_edge_vertices(&ctx);
+	/* Run all the code which is not supposed to be run from threads. */
+	subdiv_foreach_single_thread_tasks(&ctx);
 	/* Threaded traversal of the rest of topology. */
 	ParallelRangeSettings parallel_range_settings;
 	BLI_parallel_range_settings_defaults(&parallel_range_settings);

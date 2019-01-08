@@ -147,7 +147,7 @@ static int panel_aligned(ScrArea *sa, ARegion *ar)
 		return BUT_VERTICAL;
 	else if (sa->spacetype == SPACE_IMAGE && ar->regiontype == RGN_TYPE_PREVIEW)
 		return BUT_VERTICAL;
-	else if (ELEM(ar->regiontype, RGN_TYPE_UI, RGN_TYPE_TOOLS, RGN_TYPE_TOOL_PROPS, RGN_TYPE_HUD, RGN_TYPE_NAV_BAR))
+	else if (ELEM(ar->regiontype, RGN_TYPE_UI, RGN_TYPE_TOOLS, RGN_TYPE_TOOL_PROPS, RGN_TYPE_HUD, RGN_TYPE_NAV_BAR, RGN_TYPE_EXECUTE))
 		return BUT_VERTICAL;
 
 	return 0;
@@ -485,7 +485,7 @@ void UI_draw_icon_tri(float x, float y, char dir, const float color[4])
 	}
 }
 
-static void ui_draw_anti_x(unsigned int pos, float x1, float y1, float x2, float y2)
+static void ui_draw_anti_x(uint pos, float x1, float y1, float x2, float y2)
 {
 
 	/* set antialias line */
@@ -510,7 +510,7 @@ static void ui_draw_anti_x(unsigned int pos, float x1, float y1, float x2, float
 }
 
 /* x 'icon' for panel header */
-static void ui_draw_x_icon(unsigned int pos, float x, float y)
+static void ui_draw_x_icon(uint pos, float x, float y)
 {
 
 	ui_draw_anti_x(pos, x, y, x + 9.375f, y + 9.375f);
@@ -519,7 +519,7 @@ static void ui_draw_x_icon(unsigned int pos, float x, float y)
 
 #define PNL_ICON    UI_UNIT_X  /* could be UI_UNIT_Y too */
 
-static void ui_draw_panel_scalewidget(unsigned int pos, const rcti *rect)
+static void ui_draw_panel_scalewidget(uint pos, const rcti *rect)
 {
 	float xmin, xmax, dx;
 	float ymin, ymax, dy;
@@ -561,8 +561,8 @@ static void ui_draw_panel_scalewidget(unsigned int pos, const rcti *rect)
 }
 
 static void immRectf_tris_color_ex(
-        unsigned int pos, float x1, float y1, float x2, float y2,
-        unsigned int col, const float color[3])
+        uint pos, float x1, float y1, float x2, float y2,
+        uint col, const float color[3])
 {
 	immAttr4fv(col, color);
 	immVertex2f(pos, x1, y1);
@@ -579,7 +579,7 @@ static void immRectf_tris_color_ex(
 	immVertex2f(pos, x1, y2);
 }
 
-static void ui_draw_panel_dragwidget(unsigned int pos, unsigned int col, const rctf *rect)
+static void ui_draw_panel_dragwidget(uint pos, uint col, const rctf *rect)
 {
 	float col_high[4], col_dark[4];
 	const int col_tint = 84;
@@ -658,7 +658,9 @@ static void ui_draw_aligned_panel_header(
 	if (dir == 'h') {
 		hrect.xmin = rect->xmin + pnl_icons;
 		hrect.ymin += 2.0f / block->aspect;
-		UI_fontstyle_draw(fontstyle, &hrect, activename, col_title);
+		UI_fontstyle_draw(
+		        fontstyle, &hrect, activename, col_title,
+		        &(struct uiFontStyleDraw_Params) { .align = UI_STYLE_TEXT_LEFT, });
 	}
 	else {
 		/* ignore 'pnl_icons', otherwise the text gets offset horizontally
@@ -1740,8 +1742,8 @@ static void ui_panel_category_draw_tab(
         bool filled, float minx, float miny, float maxx, float maxy, float rad,
         const int roundboxtype,
         const bool use_highlight, const bool use_shadow, const bool use_flip_x,
-        const unsigned char highlight_fade[3],
-        const unsigned char col[3])
+        const uchar highlight_fade[3],
+        const uchar col[3])
 {
 	float vec[4][2] = {
 	    {0.195, 0.02},
@@ -1891,20 +1893,20 @@ void UI_panel_category_draw_all(ARegion *ar, const char *category_id_active)
 	int y_ofs = tab_v_pad;
 
 	/* Primary theme colors */
-	unsigned char theme_col_back[4];
-	unsigned char theme_col_text[3];
-	unsigned char theme_col_text_hi[3];
+	uchar theme_col_back[4];
+	uchar theme_col_text[3];
+	uchar theme_col_text_hi[3];
 
 	/* Tab colors */
-	unsigned char theme_col_tab_bg[4];
-	unsigned char theme_col_tab_active[3];
-	unsigned char theme_col_tab_inactive[3];
+	uchar theme_col_tab_bg[4];
+	uchar theme_col_tab_active[3];
+	uchar theme_col_tab_inactive[3];
 
 	/* Secondary theme colors */
-	unsigned char theme_col_tab_outline[3];
-	unsigned char theme_col_tab_divider[3];  /* line that divides tabs from the main region */
-	unsigned char theme_col_tab_highlight[3];
-	unsigned char theme_col_tab_highlight_inactive[3];
+	uchar theme_col_tab_outline[3];
+	uchar theme_col_tab_divider[3];  /* line that divides tabs from the main region */
+	uchar theme_col_tab_highlight[3];
+	uchar theme_col_tab_highlight_inactive[3];
 
 
 

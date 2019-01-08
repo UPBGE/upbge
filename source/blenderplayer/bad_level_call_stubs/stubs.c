@@ -627,6 +627,8 @@ void ED_space_image_get_zoom(struct SpaceImage *sima, struct ARegion *ar, float 
 
 void ED_space_image_get_uv_aspect(struct SpaceImage *sima, float *aspx, float *aspy) RET_NONE
 
+struct FCurve *verify_driver_fcurve(struct ID *id, const char rna_path[], const int array_index, short add) RET_NULL
+
 
 const char *ED_info_stats_string(struct Scene *scene, struct ViewLayer *view_layer) RET_NULL
 void ED_area_tag_redraw(struct ScrArea *sa) RET_NONE

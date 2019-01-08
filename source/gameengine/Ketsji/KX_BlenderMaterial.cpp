@@ -622,8 +622,8 @@ KX_PYMETHODDEF_DOC(KX_BlenderMaterial, getTextureBindcode, "getTextureBindcode(t
 	}
 	Image *ima = GetTexture(texslot)->GetImage();
 	if (ima) {
-		unsigned int *bindcode = ima->bindcode;
-		return PyLong_FromLong(*bindcode);
+		//unsigned int *bindcode = ima->bindcode;
+		return PyLong_FromLong(-1/**bindcode*/);
 	}
 	PyErr_SetString(PyExc_ValueError, "material.getTextureBindcode(texslot): KX_BlenderMaterial, invalid texture slot.");
 	return nullptr;
