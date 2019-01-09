@@ -56,13 +56,17 @@ extern "C" {
 
 // Needed for material IPOs
 #include "BKE_material.h"
+#include "BKE_object.h"
 #include "DNA_material_types.h"
 #include "DNA_scene_types.h"
+#include "depsgraph/DEG_depsgraph.h"
 }
 
 #include "MEM_guardedalloc.h"
 #include "BKE_library.h"
 #include "BKE_global.h"
+
+static ThreadMutex object_update_lock = BLI_MUTEX_INITIALIZER;
 
 BL_Action::BL_Action(class KX_GameObject* gameobj)
 :
@@ -86,8 +90,10 @@ BL_Action::BL_Action(class KX_GameObject* gameobj)
 	m_appliedToObject(true),
 	m_requestIpo(false),
 	m_calc_localtime(true),
-	m_prevUpdate(-1.0f)
+	m_prevUpdate(-1.0f),
+	m_backupFrame(1.0f) //eevee
 {
+	m_backupFrame = gameobj->GetScene()->GetBlenderScene()->r.cfra;
 }
 
 BL_Action::~BL_Action()
@@ -101,6 +107,20 @@ BL_Action::~BL_Action()
 	if (m_tmpaction) {
 		BKE_libblock_free(G.main, m_tmpaction);
 		m_tmpaction = nullptr;
+	}
+	m_obj->GetScene()->GetBlenderScene()->r.cfra = int(m_backupFrame); //eevee
+	Object *ob = m_obj->GetBlenderObject();
+	if (ob->type == OB_ARMATURE) {
+		Object *ob = m_obj->GetBlenderObject(); //eevee
+		DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
+
+		Scene *sc = m_obj->GetScene()->GetBlenderScene();
+		ViewLayer *view_layer = BKE_view_layer_default_view(sc);
+		Depsgraph *depsgraph = BKE_scene_get_depsgraph(sc, view_layer, false);
+
+		BLI_mutex_lock(&object_update_lock);
+		BKE_object_modifier_update_subframe(depsgraph, sc, ob, true, 5, m_backupFrame, 8);
+		BLI_mutex_unlock(&object_update_lock);
 	}
 }
 
@@ -427,78 +447,97 @@ void BL_Action::Update(float curtime, bool applyToObject)
 
 	if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE)
 	{
-		BL_ArmatureObject *obj = (BL_ArmatureObject*)m_obj;
+		Object *ob = m_obj->GetBlenderObject(); //eevee
+		DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
 
-		if (m_layer_weight >= 0)
-			obj->GetPose(&m_blendpose);
+		Scene *sc = scene->GetBlenderScene();
+		ViewLayer *view_layer = BKE_view_layer_default_view(sc);
+		Depsgraph *depsgraph = BKE_scene_get_depsgraph(sc, view_layer, false);
 
-		// Extract the pose from the action
-		obj->SetPoseByAction(m_tmpaction, m_localframe);
+		BLI_mutex_lock(&object_update_lock);
+		BKE_object_modifier_update_subframe(depsgraph, sc, ob, true, 5, m_localframe, 8);
+		BLI_mutex_unlock(&object_update_lock);
 
-		// Handle blending between armature actions
-		if (m_blendin && m_blendframe<m_blendin)
-		{
-			IncrementBlending(curtime);
+		scene->ResetTaaSamples();
 
-			// Calculate weight
-			float weight = 1.f - (m_blendframe/m_blendin);
+		//// Handle blending between armature actions
+		//if (m_blendin && m_blendframe < m_blendin) {
+		//	IncrementBlending(curtime);
+		//}
+		//// Calculate weight
+		//float weight = 1.f - (m_blendframe / m_blendin);
+		//BL_ArmatureObject *obj = (BL_ArmatureObject*)m_obj;
 
-			// Blend the poses
-			obj->BlendInPose(m_blendinpose, weight, ACT_BLEND_BLEND);
-		}
+		//if (m_layer_weight >= 0)
+		//	obj->GetPose(&m_blendpose);
+
+		//// Extract the pose from the action
+		//obj->SetPoseByAction(m_tmpaction, m_localframe);
+
+		//// Handle blending between armature actions
+		//if (m_blendin && m_blendframe<m_blendin)
+		//{
+		//	IncrementBlending(curtime);
+
+		//	// Calculate weight
+		//	float weight = 1.f - (m_blendframe/m_blendin);
+
+		//	// Blend the poses
+		//	obj->BlendInPose(m_blendinpose, weight, ACT_BLEND_BLEND);
+		//}
 
 
-		// Handle layer blending
-		if (m_layer_weight >= 0)
-			obj->BlendInPose(m_blendpose, m_layer_weight, m_blendmode);
+		//// Handle layer blending
+		//if (m_layer_weight >= 0)
+		//	obj->BlendInPose(m_blendpose, m_layer_weight, m_blendmode);
 
-		obj->UpdateTimestep(curtime);
+		//obj->UpdateTimestep(curtime);
 	}
 	else
 	{
-		BL_DeformableGameObject *obj = (BL_DeformableGameObject*)m_obj;
-		BL_ShapeDeformer *shape_deformer = dynamic_cast<BL_ShapeDeformer*>(obj->GetDeformer());
+		//BL_DeformableGameObject *obj = (BL_DeformableGameObject*)m_obj;
+		//BL_ShapeDeformer *shape_deformer = dynamic_cast<BL_ShapeDeformer*>(obj->GetDeformer());
 
-		// Handle shape actions if we have any
-		if (shape_deformer && shape_deformer->GetKey())
-		{
-			Key *key = shape_deformer->GetKey();
+		//// Handle shape actions if we have any
+		//if (shape_deformer && shape_deformer->GetKey())
+		//{
+		//	Key *key = shape_deformer->GetKey();
 
-			PointerRNA ptrrna;
-			RNA_id_pointer_create(&key->id, &ptrrna);
+		//	PointerRNA ptrrna;
+		//	RNA_id_pointer_create(&key->id, &ptrrna);
 
-			Scene *scene = KX_GetActiveScene()->GetBlenderScene();
-			ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-			Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer, false);
+		//	Scene *scene = KX_GetActiveScene()->GetBlenderScene();
+		//	ViewLayer *view_layer = BKE_view_layer_default_view(scene);
+		//	Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer, false);
 
-			animsys_evaluate_action(depsgraph, &ptrrna, m_tmpaction, m_localframe);
+		//	animsys_evaluate_action(depsgraph, &ptrrna, m_tmpaction, m_localframe);
 
-			// Handle blending between shape actions
-			if (m_blendin && m_blendframe < m_blendin)
-			{
-				IncrementBlending(curtime);
+		//	// Handle blending between shape actions
+		//	if (m_blendin && m_blendframe < m_blendin)
+		//	{
+		//		IncrementBlending(curtime);
 
-				float weight = 1.f - (m_blendframe/m_blendin);
+		//		float weight = 1.f - (m_blendframe/m_blendin);
 
-				// We go through and clear out the keyblocks so there isn't any interference
-				// from other shape actions
-				KeyBlock *kb;
-				for (kb=(KeyBlock *)key->block.first; kb; kb=(KeyBlock *)kb->next)
-					kb->curval = 0.f;
+		//		// We go through and clear out the keyblocks so there isn't any interference
+		//		// from other shape actions
+		//		KeyBlock *kb;
+		//		for (kb=(KeyBlock *)key->block.first; kb; kb=(KeyBlock *)kb->next)
+		//			kb->curval = 0.f;
 
-				// Now blend the shape
-				BlendShape(key, weight, m_blendinshape);
-			}
+		//		// Now blend the shape
+		//		BlendShape(key, weight, m_blendinshape);
+		//	}
 
-			// Handle layer blending
-			if (m_layer_weight >= 0)
-			{
-				obj->GetShape(m_blendshape);
-				BlendShape(key, m_layer_weight, m_blendshape);
-			}
+		//	// Handle layer blending
+		//	if (m_layer_weight >= 0)
+		//	{
+		//		obj->GetShape(m_blendshape);
+		//		BlendShape(key, m_layer_weight, m_blendshape);
+		//	}
 
-			obj->SetActiveAction(0, curtime);
-		}
+		//	obj->SetActiveAction(0, curtime);
+		//}
 	}
 }
 

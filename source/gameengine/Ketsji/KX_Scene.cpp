@@ -120,7 +120,6 @@ extern "C" {
 #  include "BKE_layer.h"
 #  include "BKE_main.h"
 #  include "BKE_object.h"
-#  include "BLI_rand.h"
 #  include "DRW_engine.h"
 #  include "DRW_render.h"
 #  include "GPU_glew.h"
@@ -402,7 +401,7 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
 	glViewport(v[0], v[1], v[2], v[3]);
 	glScissor(v[0], v[1], v[2], v[3]);
 
-	DRW_transform_to_display(finaltex, true);
+	DRW_transform_to_display(finaltex, false);
 
 	if (!calledFromConstructor) {
 		engine->EndFrame();
@@ -1665,13 +1664,14 @@ static void update_anim_thread_func(TaskPool *pool, void *taskdata, int UNUSED(t
 
 void KX_Scene::UpdateAnimations(double curtime)
 {
-	m_animationPoolData.curtime = curtime;
+	//m_animationPoolData.curtime = curtime;
 
 	for (KX_GameObject *gameobj : m_animatedlist) {
-		BLI_task_pool_push(m_animationPool, update_anim_thread_func, gameobj, false, TASK_PRIORITY_LOW);
+		//BLI_task_pool_push(m_animationPool, update_anim_thread_func, gameobj, false, TASK_PRIORITY_LOW);
+		gameobj->UpdateActionManager(curtime, true);
 	}
 
-	BLI_task_pool_work_and_wait(m_animationPool);
+	//BLI_task_pool_work_and_wait(m_animationPool);
 }
 
 void KX_Scene::LogicUpdateFrame(double curtime)

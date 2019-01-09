@@ -189,7 +189,7 @@ KX_GameObject::~KX_GameObject()
 
 	KX_Scene *scene = GetScene();
 
-	RemoveReplicaObject(); // in the case the Object is a relica, we delete it
+	//RemoveReplicaObject(); // in the case the Object is a relica, we delete it
 
 	if (scene->m_isRuntime) {
 		//HideOriginalObject(); // if the Object is not a replica we hide it
@@ -267,6 +267,7 @@ void KX_GameObject::TagForUpdate()
 	Object *ob = GetBlenderObject();
 	if (ob) {
 		copy_m4_m4(ob->obmat, obmat);
+		invert_m4_m4(ob->imat, obmat);
 		if (!staticObject) {
 			DEG_id_tag_update(&ob->id, NC_OBJECT | ND_TRANSFORM);
 			DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);

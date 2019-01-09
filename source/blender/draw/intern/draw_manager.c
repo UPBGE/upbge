@@ -267,7 +267,7 @@ void DRW_transform_to_display(GPUTexture *tex, bool use_view_settings)
 	bool use_ocio = false;
 
 	/* View transform is already applied for offscreen, don't apply again, see: T52046 */
-	if (!(DST.options.is_image_render && !DST.options.is_scene_render)) {
+	if (!(DST.options.is_image_render && !DST.options.is_scene_render) && !DST.options.is_game_engine) {
 		Scene *scene = DST.draw_ctx.scene;
 		ColorManagedDisplaySettings *display_settings = &scene->display_settings;
 		ColorManagedViewSettings *active_view_settings;

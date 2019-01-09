@@ -315,16 +315,21 @@ static void eevee_draw_background(void *vedata)
 		}
 	}
 
-	/* LookDev */
-	EEVEE_lookdev_draw_background(vedata);
-	/* END */
+	if (!DRW_state_is_game_engine()) {
+		/* LookDev */
+		EEVEE_lookdev_draw_background(vedata);
+		/* END */
+	}
 
 
 	/* Tonemapping and transfer result to default framebuffer. */
 	bool use_view_settings = stl->g_data->use_color_view_settings;
 
 	GPU_framebuffer_bind(dfbl->default_fb);
-	DRW_transform_to_display(stl->effects->final_tx, use_view_settings);
+
+	if (!DRW_state_is_game_engine()) {
+		DRW_transform_to_display(stl->effects->final_tx, use_view_settings);
+	}
 
 	/* Debug : Output buffer to view. */
 	switch (G.debug_value) {
