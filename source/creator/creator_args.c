@@ -1719,6 +1719,7 @@ static int arg_handle_python_file_run(int argc, const char **argv, void *data)
 		BPY_CTX_SETUP(ok = BPY_execute_filepath(C, filename, NULL));
 		if (!ok && app_state.exit_code_on_error.python) {
 			printf("\nError: script failed, file: '%s', exiting.\n", argv[1]);
+			BPY_python_end();
 			exit(app_state.exit_code_on_error.python);
 		}
 		return 1;
@@ -1760,6 +1761,7 @@ static int arg_handle_python_text_run(int argc, const char **argv, void *data)
 
 		if (!ok && app_state.exit_code_on_error.python) {
 			printf("\nError: script failed, text: '%s', exiting.\n", argv[1]);
+			BPY_python_end();
 			exit(app_state.exit_code_on_error.python);
 		}
 
@@ -1791,6 +1793,7 @@ static int arg_handle_python_expr_run(int argc, const char **argv, void *data)
 		BPY_CTX_SETUP(ok = BPY_execute_string_ex(C, NULL, argv[1], false));
 		if (!ok && app_state.exit_code_on_error.python) {
 			printf("\nError: script failed, expr: '%s', exiting.\n", argv[1]);
+			BPY_python_end();
 			exit(app_state.exit_code_on_error.python);
 		}
 		return 1;

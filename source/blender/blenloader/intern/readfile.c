@@ -5829,7 +5829,13 @@ static void direct_link_object(FileData *fd, Object *ob)
 	/* in case this value changes in future, clamp else we get undefined behavior */
 	CLAMP(ob->rotmode, ROT_MODE_MIN, ROT_MODE_MAX);
 
-	ob->sculpt = NULL;
+	if (ob->sculpt) {
+		ob->sculpt = NULL;
+		/* Only create data on undo, otherwise rely on editor mode switching. */
+		if (fd->memfile && (ob->mode & OB_MODE_ALL_SCULPT)) {
+			BKE_object_sculpt_data_create(ob);
+		}
+	}
 
 	link_list(fd, &ob->lodlevels);
 	ob->currentlod = ob->lodlevels.first;

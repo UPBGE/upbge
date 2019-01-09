@@ -3192,6 +3192,13 @@ void BKE_object_handle_update(Depsgraph *depsgraph, Scene *scene, Object *ob)
 	BKE_object_handle_update_ex(depsgraph, scene, ob, NULL, true);
 }
 
+void BKE_object_sculpt_data_create(Object *ob)
+{
+	BLI_assert((ob->sculpt == NULL) && (ob->mode & OB_MODE_ALL_SCULPT));
+	ob->sculpt = MEM_callocN(sizeof(SculptSession), __func__);
+	ob->sculpt->mode_type = ob->mode;
+}
+
 void BKE_object_sculpt_modifiers_changed(Object *ob)
 {
 	SculptSession *ss = ob->sculpt;
@@ -3903,8 +3910,8 @@ LinkNode *BKE_object_relational_superset(struct ViewLayer *view_layer, eObjectSe
 			obrel_list_add(&links, ob);
 		}
 		else {
-			if ((objectSet == OB_SET_SELECTED && TESTBASELIB_BGMODE(((View3D *)NULL), base)) ||
-			    (objectSet == OB_SET_VISIBLE  && BASE_EDITABLE_BGMODE(((View3D *)NULL), base)))
+			if ((objectSet == OB_SET_SELECTED && BASE_SELECTED_EDITABLE(((View3D *)NULL), base)) ||
+			    (objectSet == OB_SET_VISIBLE  && BASE_EDITABLE(((View3D *)NULL), base)))
 			{
 				Object *ob = base->object;
 
@@ -3934,7 +3941,7 @@ LinkNode *BKE_object_relational_superset(struct ViewLayer *view_layer, eObjectSe
 				if (includeFilter & (OB_REL_CHILDREN | OB_REL_CHILDREN_RECURSIVE)) {
 					Base *local_base;
 					for (local_base = view_layer->object_bases.first; local_base; local_base = local_base->next) {
-						if (BASE_EDITABLE_BGMODE(((View3D *)NULL), local_base)) {
+						if (BASE_EDITABLE(((View3D *)NULL), local_base)) {
 
 							Object *child = local_base->object;
 							if (obrel_list_test(child)) {

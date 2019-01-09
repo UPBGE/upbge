@@ -601,6 +601,7 @@ void WM_toolsystem_ref_properties_ensure_ex(struct bToolRef *tref, const char *i
 struct wmKeyMapItem *WM_keymap_add_item_copy(struct wmKeyMap *keymap, struct wmKeyMapItem *kmi_src) RET_NULL
 
 int WM_keymap_item_to_string(struct wmKeyMapItem *kmi, const bool compact, char *result, const int result_len) RET_ZERO
+wmKeyMapItem *WM_key_event_operator_from_keymap(struct wmKeyMap *keymap, const char *opname, struct IDProperty *properties,	const short include_mask, const short exclude_mask) RET_NULL
 
 NUMAAPI_Result numaAPI_Initialize(void) RET_ZERO
 bool numaAPI_RunProcessOnNode(int node) RET_ZERO

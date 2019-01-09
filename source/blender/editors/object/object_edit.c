@@ -882,7 +882,7 @@ static void copymenu_properties(ViewLayer *view_layer, Object *ob, View3D *v3d)
 	
 	if (nr == 1 || nr == 2) {
 		for (base = FIRSTBASE(view_layer); base; base = base->next) {
-			if ((base != BASACT(view_layer)) && (TESTBASELIB(v3d, base))) {
+			if ((base != BASACT(view_layer)) && (BASE_SELECTED_EDITABLE(v3d, base))) {
 				if (nr == 1) { /* replace */
 					BKE_bproperty_copy_list(&base->object->prop, &ob->prop);
 				}
@@ -899,7 +899,7 @@ static void copymenu_properties(ViewLayer *view_layer, Object *ob, View3D *v3d)
 		
 		if (prop) {
 			for (base = FIRSTBASE(view_layer); base; base = base->next) {
-				if ((base != BASACT(view_layer)) && (TESTBASELIB(v3d, base))) {
+				if ((base != BASACT(view_layer)) && (BASE_SELECTED_EDITABLE(v3d, base))) {
 					BKE_bproperty_object_set(base->object, prop);
 				}
 			}
@@ -916,7 +916,7 @@ static void copymenu_logicbricks(ViewLayer *view_layer, Object *ob, View3D *v3d)
 	
 	for (base = FIRSTBASE(view_layer); base; base = base->next) {
 		if (base->object != ob) {
-			if (TESTBASELIB(v3d, base)) {
+			if (BASE_SELECTED_EDITABLE(v3d, base)) {
 				
 				/* first: free all logic */
 				free_sensors(&base->object->sensors);
@@ -1026,7 +1026,7 @@ static void copy_attr(Main *bmain, Scene *scene, ViewLayer *view_layer, View3D *
 
 	for (base = FIRSTBASE(view_layer); base; base = base->next) {
 		if (base != BASACT(view_layer)) {
-			if (TESTBASELIB(v3d, base)) {
+			if (BASE_SELECTED_EDITABLE(v3d, base)) {
 				DEG_id_tag_update(&base->object->id, ID_RECALC_GEOMETRY);
 
 				if (event == 1) {  /* loc */
