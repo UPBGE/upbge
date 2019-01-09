@@ -61,6 +61,7 @@ public:
 	float	m_shadowfrustumsize;
 	float	m_shadowclipend;
 	float	m_shadowbias;
+	short	m_shadowblurpass;
 	float	m_shadowbleedbias;
 	short	m_shadowmaptype;
 	mt::vec3 m_shadowcolor;

@@ -70,6 +70,7 @@ void BKE_lamp_init(Lamp *la)
 	la->clipend = 40.0f;
 	la->samp = 3;
 	la->bias = 1.0f;
+	la->blurpass = 1;
 	la->soft = 3.0f;
 	la->compressthresh = 0.05f;
 	la->ray_samp = la->ray_sampy = la->ray_sampz = 1;

@@ -3696,6 +3696,7 @@ static GroupObject *add_render_lamp(Render *re, Object *ob)
 	lar->buftype= la->buftype;
 	lar->filtertype= la->filtertype;
 	lar->soft = la->soft;
+	lar->blurpass = la->blurpass;
 	lar->shadhalostep = la->shadhalostep;
 	lar->clipsta = la->clipsta;
 	lar->clipend = la->clipend;

@@ -347,4 +347,12 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
 			}
 		}
 	}
+	
+	if (!MAIN_VERSION_UPBGE_ATLEAST(main, 2, 5)) {
+		if (!DNA_struct_elem_find(fd->filesdna, "Lamp", "short", "blurpass")) {
+			for (Lamp *lamp = main->lamp.first; lamp; lamp = lamp->id.next) {
+				lamp->blurpass = 1;
+			}
+		}
+	}
 }
