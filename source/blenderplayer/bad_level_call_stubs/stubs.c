@@ -905,6 +905,7 @@ void UI_GetThemeColor3ubv(int colorid, unsigned char col[3]) RET_NONE
 void UI_GetThemeColor4ubv(int colorid, unsigned char col[4]) RET_NONE
 void UI_GetColorPtrShade3ubv(const unsigned char cp1[3], unsigned char col[3], int offset) RET_NONE
 void UI_ThemeClearColorAlpha(int colorid, float alpha) RET_NONE
+void    UI_GetThemeColorBlend4f(int colorid1, int colorid2, float fac, float r_col[4]) RET_NONE
 
 void UI_widget_batch_preset_reset(void) RET_NONE
 void UI_widget_batch_preset_exit(void) RET_NONE
