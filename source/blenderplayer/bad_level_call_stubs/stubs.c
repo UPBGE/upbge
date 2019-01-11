@@ -544,6 +544,7 @@ bool uvedit_face_visible_test(struct Scene *scene, struct Object *obedit, struct
 bool uvedit_face_select_test(struct Scene *scene, struct BMFace *efa, const int cd_loop_uv_offset) RET_ZERO
 bool uvedit_edge_select_test(struct Scene *scene, struct BMLoop *l,	const int cd_loop_uv_offset) RET_ZERO
 bool uvedit_uv_select_test(struct Scene *scene, struct BMLoop *l, const int cd_loop_uv_offset) RET_ZERO
+bool uvedit_face_visible_nolocal(struct Scene *scene, struct BMFace *efa) RET_ZERO
 
 void ED_screen_set_scene(struct bContext *C, struct bScreen *screen, struct Scene *scene) RET_NONE
 struct MovieClip *ED_space_clip_get_clip(struct SpaceClip *sc) RET_NULL

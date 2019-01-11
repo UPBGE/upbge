@@ -37,6 +37,7 @@ struct ModifierData;
 struct ParticleSystem;
 struct PTCacheEdit;
 struct SpaceImage;
+struct ToolSettings;
 
 struct Curve;
 struct Lattice;
@@ -97,7 +98,9 @@ struct GPUBatch *DRW_lattice_batch_cache_get_all_verts(struct Lattice *lt);
 struct GPUBatch *DRW_lattice_batch_cache_get_edit_verts(struct Lattice *lt);
 
 /* Mesh */
-void DRW_mesh_batch_cache_create_requested(struct Object *ob, struct Mesh *me);
+void DRW_mesh_batch_cache_create_requested(
+        struct Object *ob, struct Mesh *me,
+        const struct ToolSettings *ts, const bool is_paint_mode, const bool use_hide);
 
 struct GPUBatch *DRW_mesh_batch_cache_get_all_verts(struct Mesh *me);
 struct GPUBatch *DRW_mesh_batch_cache_get_all_edges(struct Mesh *me);
@@ -122,31 +125,24 @@ struct GPUBatch *DRW_mesh_batch_cache_get_edit_loose_edges_nor(struct Mesh *me);
 struct GPUBatch *DRW_mesh_batch_cache_get_edit_loose_verts(struct Mesh *me);
 struct GPUBatch *DRW_mesh_batch_cache_get_edit_facedots(struct Mesh *me);
 /* edit-mesh selection */
-struct GPUBatch *DRW_mesh_batch_cache_get_triangles_with_select_id(struct Mesh *me, bool use_hide, uint select_id_offset);
-struct GPUBatch *DRW_mesh_batch_cache_get_triangles_with_select_mask(struct Mesh *me, bool use_hide);
-struct GPUBatch *DRW_mesh_batch_cache_get_facedots_with_select_id(struct Mesh *me, uint select_id_offset);
-struct GPUBatch *DRW_mesh_batch_cache_get_edges_with_select_id(struct Mesh *me, uint select_id_offset);
-struct GPUBatch *DRW_mesh_batch_cache_get_verts_with_select_id(struct Mesh *me, uint select_id_offset);
+struct GPUBatch *DRW_mesh_batch_cache_get_triangles_with_select_id(struct Mesh *me);
+struct GPUBatch *DRW_mesh_batch_cache_get_triangles_with_select_mask(struct Mesh *me);
+struct GPUBatch *DRW_mesh_batch_cache_get_facedots_with_select_id(struct Mesh *me);
+struct GPUBatch *DRW_mesh_batch_cache_get_edges_with_select_id(struct Mesh *me);
+struct GPUBatch *DRW_mesh_batch_cache_get_verts_with_select_id(struct Mesh *me);
 /* Object mode Wireframe overlays */
 struct GPUBatch *DRW_mesh_batch_cache_get_wireframes_face(struct Mesh *me);
+/* edit-mesh UV editor */
+struct GPUBatch *DRW_mesh_batch_cache_get_edituv_faces_strech_area(struct Mesh *me);
+struct GPUBatch *DRW_mesh_batch_cache_get_edituv_faces_strech_angle(struct Mesh *me);
+struct GPUBatch *DRW_mesh_batch_cache_get_edituv_faces(struct Mesh *me);
+struct GPUBatch *DRW_mesh_batch_cache_get_edituv_edges(struct Mesh *me);
+struct GPUBatch *DRW_mesh_batch_cache_get_edituv_verts(struct Mesh *me);
+struct GPUBatch *DRW_mesh_batch_cache_get_edituv_facedots(struct Mesh *me);
+/* For Image UV editor. */
+struct GPUBatch *DRW_mesh_batch_cache_get_uv_edges(struct Mesh *me);
 
 void DRW_mesh_cache_sculpt_coords_ensure(struct Mesh *me);
-
-enum {
-	UVEDIT_EDGES          = (1 << 0),
-	UVEDIT_DATA           = (1 << 1),
-	UVEDIT_FACEDOTS       = (1 << 2),
-	UVEDIT_FACES          = (1 << 3),
-	UVEDIT_STRETCH_ANGLE  = (1 << 4),
-	UVEDIT_STRETCH_AREA   = (1 << 5),
-	UVEDIT_SYNC_SEL       = (1 << 6),
-};
-
-/* For Image UV editor. */
-struct GPUBatch *DRW_mesh_batch_cache_get_texpaint_loop_wire(struct Mesh *me);
-void DRW_mesh_cache_uvedit(
-        struct Object *me, struct SpaceImage *sima, struct Scene *scene, uchar state,
-        struct GPUBatch **faces, struct GPUBatch **edges, struct GPUBatch **verts, struct GPUBatch **facedots);
 
 /* Edit mesh bitflags (is this the right place?) */
 

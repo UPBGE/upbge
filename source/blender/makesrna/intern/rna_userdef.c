@@ -424,6 +424,11 @@ static PointerRNA rna_Theme_space_generic_get(PointerRNA *ptr)
 	return rna_pointer_inherit_refine(ptr, &RNA_ThemeSpaceGeneric, ptr->data);
 }
 
+static PointerRNA rna_Theme_gradient_colors_get(PointerRNA *ptr)
+{
+	return rna_pointer_inherit_refine(ptr, &RNA_ThemeGradientColors, ptr->data);
+}
+
 static PointerRNA rna_Theme_space_gradient_get(PointerRNA *ptr)
 {
 	return rna_pointer_inherit_refine(ptr, &RNA_ThemeSpaceGradient, ptr->data);
@@ -1051,27 +1056,31 @@ static void rna_def_userdef_theme_ui_panel(BlenderRNA *brna)
 
 static void rna_def_userdef_theme_ui_gradient(BlenderRNA *brna)
 {
+	/* Fake struct, keep this for compatible theme presets. */
 	StructRNA *srna;
 	PropertyRNA *prop;
 
 	srna = RNA_def_struct(brna, "ThemeGradientColors", NULL);
-	RNA_def_struct_sdna(srna, "uiGradientColors");
+	RNA_def_struct_sdna(srna, "ThemeSpace");
 	RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
 	RNA_def_struct_ui_text(srna, "Theme Background Color", "Theme settings for background colors and gradient");
 
 	prop = RNA_def_property(srna, "show_grad", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "show_back_grad", 1);
 	RNA_def_property_ui_text(prop, "Use Gradient",
 	                         "Do a gradient for the background of the viewport working area");
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
 
-	prop = RNA_def_property(srna, "gradient", PROP_FLOAT, PROP_COLOR_GAMMA);
-	RNA_def_property_array(prop, 3);
-	RNA_def_property_ui_text(prop, "Gradient Low", "");
-	RNA_def_property_update(prop, 0, "rna_userdef_update");
-
 	prop = RNA_def_property(srna, "high_gradient", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_float_sdna(prop, NULL, "back");
 	RNA_def_property_array(prop, 3);
 	RNA_def_property_ui_text(prop, "Gradient High/Off", "");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+	prop = RNA_def_property(srna, "gradient", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_float_sdna(prop, NULL, "back_grad");
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_ui_text(prop, "Gradient Low", "");
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
 }
 
@@ -1421,6 +1430,8 @@ static void rna_def_userdef_theme_space_gradient(BlenderRNA *brna)
 	/* gradient/background settings */
 	prop = RNA_def_property(srna, "gradients", PROP_POINTER, PROP_NONE);
 	RNA_def_property_flag(prop, PROP_NEVER_NULL);
+	RNA_def_property_struct_type(prop, "ThemeGradientColors");
+	RNA_def_property_pointer_funcs(prop, "rna_Theme_gradient_colors_get", NULL, NULL, NULL);
 	RNA_def_property_ui_text(prop, "Gradient Colors", "");
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
 
@@ -4961,12 +4972,6 @@ static void rna_def_userdef_filepaths(BlenderRNA *brna)
 	                         "Allow any .blend file to run scripts automatically "
 	                         "(unsafe with blend files from an untrusted source)");
 	RNA_def_property_update(prop, 0, "rna_userdef_script_autoexec_update");
-
-	prop = RNA_def_property(srna, "author", PROP_STRING, PROP_NONE);
-	RNA_def_property_string_sdna(prop, NULL, "author");
-	RNA_def_property_string_maxlength(prop, 80);
-	RNA_def_property_ui_text(prop, "Author",
-	                         "Name that will be used in exported files when format supports such feature");
 
 	prop = RNA_def_property(srna, "use_tabs_as_spaces", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", USER_TXT_TABSTOSPACES_DISABLE);

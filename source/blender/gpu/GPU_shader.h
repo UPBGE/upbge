@@ -169,7 +169,6 @@ typedef enum GPUBuiltinShader {
 	 * \param pos: in vec3
 	 */
 	GPU_SHADER_3D_UNIFORM_COLOR,
-	GPU_SHADER_3D_UNIFORM_COLOR_U32,
 	GPU_SHADER_3D_UNIFORM_COLOR_INSTANCE,
 	/**
 	 * Take a 3D position and color for each vertex without color interpolation.
@@ -178,7 +177,6 @@ typedef enum GPUBuiltinShader {
 	 * \param pos: in vec3
 	 */
 	GPU_SHADER_3D_FLAT_COLOR,
-	GPU_SHADER_3D_FLAT_COLOR_U32,  /* use for select-id's */
 	/**
 	 * Take a 3D position and color for each vertex with perspective correct interpolation.
 	 *
@@ -354,12 +352,17 @@ typedef enum GPUBuiltinShader {
 	GPU_SHADER_2D_NODELINK,
 	GPU_SHADER_2D_NODELINK_INST,
 	/* specialized for edituv drawing */
+	GPU_SHADER_2D_UV_UNIFORM_COLOR,
 	GPU_SHADER_2D_UV_VERTS,
 	GPU_SHADER_2D_UV_FACEDOTS,
 	GPU_SHADER_2D_UV_EDGES,
 	GPU_SHADER_2D_UV_EDGES_SMOOTH,
 	GPU_SHADER_2D_UV_FACES,
-	GPU_SHADER_2D_UV_FACES_STRETCH,
+	GPU_SHADER_2D_UV_FACES_STRETCH_AREA,
+	GPU_SHADER_2D_UV_FACES_STRETCH_ANGLE,
+	/* Selection */
+	GPU_SHADER_3D_FLAT_SELECT_ID,
+	GPU_SHADER_3D_UNIFORM_SELECT_ID,
 
 	/**********Game engine***********/
 	GPU_SHADER_DRAW_FRAME_BUFFER,

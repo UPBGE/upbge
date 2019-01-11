@@ -79,6 +79,7 @@ static void gpencil_calc_vertex(
 		main_onion && DRW_gpencil_onion_active(gpd) && !playing;
 
 	const bool time_remap = BKE_gpencil_has_time_modifiers(ob);
+	const bool is_multiedit = (bool)GPENCIL_MULTIEDIT_SESSIONS_ON(gpd);
 
 	cache_ob->tot_vertex = 0;
 	cache_ob->tot_triangles = 0;
@@ -90,9 +91,9 @@ static void gpencil_calc_vertex(
 			continue;
 		}
 
-		/* if onion skin need to count all frames of the layer */
-		if (is_onion) {
-			init_gpf = gpl->actframe;
+		/* if multiedit or onion skin need to count all frames of the layer */
+		if ((is_multiedit) || (is_onion)) {
+			init_gpf = gpl->frames.first;
 		}
 		else {
 			/* verify time modifiers */
@@ -116,7 +117,7 @@ static void gpencil_calc_vertex(
 				cache_ob->tot_vertex += gps->totpoints + 3;
 				cache_ob->tot_triangles += gps->totpoints - 1;
 			}
-			if (!is_onion) {
+			if ((!is_multiedit) && (!is_onion)) {
 				break;
 			}
 		}
@@ -125,6 +126,8 @@ static void gpencil_calc_vertex(
 	cache->b_fill.tot_vertex = cache_ob->tot_triangles * 3;
 	cache->b_stroke.tot_vertex = cache_ob->tot_vertex;
 	cache->b_point.tot_vertex = cache_ob->tot_vertex;
+	cache->b_edit.tot_vertex = cache_ob->tot_vertex;
+	cache->b_edlin.tot_vertex = cache_ob->tot_vertex;
 
 	/* some modifiers can change the number of points */
 	int factor = 0;
@@ -138,6 +141,8 @@ static void gpencil_calc_vertex(
 			cache->b_fill.tot_vertex *= factor;
 			cache->b_stroke.tot_vertex *= factor;
 			cache->b_point.tot_vertex *= factor;
+			cache->b_edit.tot_vertex *= factor;
+			cache->b_edlin.tot_vertex *= factor;
 		}
 	}
 }
@@ -352,7 +357,7 @@ bool DRW_gpencil_onion_active(bGPdata *gpd)
 /* create shading group for strokes */
 DRWShadingGroup *DRW_gpencil_shgroup_stroke_create(
         GPENCIL_e_data *e_data, GPENCIL_Data *vedata, DRWPass *pass, GPUShader *shader, Object *ob,
-        bGPdata *gpd, MaterialGPencilStyle *gp_style, int id, bool onion)
+        bGPdata *gpd, bGPDstroke *gps, MaterialGPencilStyle *gp_style, int id, bool onion)
 {
 	GPENCIL_StorageList *stl = ((GPENCIL_Data *)vedata)->stl;
 	const float *viewport_size = DRW_viewport_size_get();
@@ -386,6 +391,10 @@ DRWShadingGroup *DRW_gpencil_shgroup_stroke_create(
 		}
 		DRW_shgroup_uniform_int(grp, "color_type", &stl->shgroups[id].color_type, 1);
 		DRW_shgroup_uniform_float(grp, "pixfactor", &gpd->pixfactor, 1);
+
+		stl->shgroups[id].caps_mode[0] = gps->caps[0];
+		stl->shgroups[id].caps_mode[1] = gps->caps[1];
+		DRW_shgroup_uniform_int(grp, "caps_mode", &stl->shgroups[id].caps_mode[0], 2);
 	}
 	else {
 		stl->storage->obj_scale = 1.0f;
@@ -400,6 +409,8 @@ DRWShadingGroup *DRW_gpencil_shgroup_stroke_create(
 		else {
 			DRW_shgroup_uniform_float(grp, "pixfactor", &stl->storage->pixfactor, 1);
 		}
+		const int zero[2] = { 0, 0 };
+		DRW_shgroup_uniform_int(grp, "caps_mode", &zero[0], 2);
 	}
 
 	if ((gpd) && (id > -1)) {
@@ -1172,7 +1183,8 @@ void DRW_gpencil_populate_buffer_strokes(GPENCIL_e_data *e_data, void *vedata, T
 			if (gpd->runtime.sbuffer_size > 1) {
 				if ((gp_style) && (gp_style->mode == GP_STYLE_MODE_LINE)) {
 					stl->g_data->shgrps_drawing_stroke = DRW_gpencil_shgroup_stroke_create(
-						e_data, vedata, psl->drawing_pass, e_data->gpencil_stroke_sh, NULL, gpd, gp_style, -1, false);
+						e_data, vedata, psl->drawing_pass, e_data->gpencil_stroke_sh, NULL,
+						gpd, NULL, gp_style, -1, false);
 				}
 				else {
 					stl->g_data->shgrps_drawing_stroke = DRW_gpencil_shgroup_point_create(
@@ -1235,13 +1247,14 @@ void DRW_gpencil_populate_buffer_strokes(GPENCIL_e_data *e_data, void *vedata, T
 		}
 	}
 
-	/* control points */
-	if ((overlay) && (gpd->runtime.tot_cp_points > 0) &&
-	    ((gpd->runtime.sbuffer_sflag & GP_STROKE_ERASER) == 0) &&
-	    ((v3d->gizmo_flag & V3D_GIZMO_HIDE) == 0) &&
-	    ((v3d->gizmo_flag & V3D_GIZMO_HIDE_TOOL) == 0))
-	{
+	/* control points for primitives and speed guide */
+	const bool is_cppoint = (gpd->runtime.tot_cp_points > 0);
+	const bool is_speed_guide = (ts->gp_sculpt.guide.use_guide && (draw_ctx->object_mode == OB_MODE_PAINT_GPENCIL));
+	const bool is_show_gizmo = (((v3d->gizmo_flag & V3D_GIZMO_HIDE) == 0) && ((v3d->gizmo_flag & V3D_GIZMO_HIDE_TOOL) == 0));
 
+	if ((overlay) && (is_cppoint || is_speed_guide) && (is_show_gizmo) &&
+		((gpd->runtime.sbuffer_sflag & GP_STROKE_ERASER) == 0))
+	{
 		DRWShadingGroup *shgrp = DRW_shgroup_create(
 			e_data->gpencil_edit_point_sh, psl->drawing_pass);
 		const float *viewport_size = DRW_viewport_size_get();
@@ -1352,7 +1365,7 @@ static void DRW_gpencil_shgroups_create(
 
 				shgrp = DRW_gpencil_shgroup_stroke_create(
 				        e_data, vedata, psl->stroke_pass, e_data->gpencil_stroke_sh,
-				        ob, gpd, gp_style, stl->storage->shgroup_id, elm->onion);
+				        ob, gpd, gps, gp_style, stl->storage->shgroup_id, elm->onion);
 
 				DRW_shgroup_call_range_add(
 				        shgrp, cache->b_stroke.batch,
@@ -1467,7 +1480,7 @@ void DRW_gpencil_populate_multiedit(
 	ToolSettings *ts = scene->toolsettings;
 
 	/* check if playing animation */
-	bool playing = stl->storage->is_playing;
+	const bool playing = stl->storage->is_playing;
 
 	/* calc max size of VBOs */
 	gpencil_calc_vertex(stl, cache_ob, cache, gpd, cfra_eval);
@@ -1536,7 +1549,7 @@ void DRW_gpencil_populate_datablock(
 	bGPDlayer *gpl_active = BKE_gpencil_layer_getactive(gpd);
 
 	/* check if playing animation */
-	bool playing = stl->storage->is_playing;
+	const bool playing = stl->storage->is_playing;
 
 	GpencilBatchCache *cache = gpencil_batch_cache_get(ob, cfra_eval);
 
@@ -1562,6 +1575,10 @@ void DRW_gpencil_populate_datablock(
 			continue;
 		}
 
+		const bool is_solomode = GPENCIL_PAINT_MODE(gpd) &&
+			(!playing) && (!stl->storage->is_render) &&
+			(gpl->flag & GP_LAYER_SOLO_MODE);
+
 		/* filter view layer to gp layers in the same view layer (for compo) */
 		if ((stl->storage->is_render) && (gpl->viewlayername[0] != '\0')) {
 			if (!STREQ(view_layer->name, gpl->viewlayername)) {
@@ -1580,6 +1597,11 @@ void DRW_gpencil_populate_datablock(
 		gpf = BKE_gpencil_layer_getframe(gpl, remap_cfra, GP_GETFRAME_USE_PREV);
 		if (gpf == NULL)
 			continue;
+
+		/* if solo mode, display only frames with keyframe in the current frame */
+		if ((is_solomode) && (gpf->framenum != remap_cfra)) {
+			continue;
+		}
 
 		opacity = gpl->opacity;
 		/* if pose mode, maybe the overlay to fade geometry is enabled */

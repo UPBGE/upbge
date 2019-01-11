@@ -62,7 +62,8 @@ typedef struct TexPaintSlot {
 	char *uvname;
 	/** Do we have a valid image and UV map. */
 	int valid;
-	int pad;
+	/** Copy of node inteporlation setting. */
+	int interp;        
 } TexPaintSlot;
 
 typedef struct MaterialGPencilStyle {
