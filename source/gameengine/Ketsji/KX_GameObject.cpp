@@ -139,7 +139,7 @@ KX_GameObject::KX_GameObject(
       m_pDupliGroupObject(nullptr),
 	  m_castShadows(true), //eevee
 	  m_isReplica(false), //eevee
-	  m_backupMesh(nullptr),
+	  m_backupMesh(nullptr), //eevee
       m_actionManager(nullptr)
 #ifdef WITH_PYTHON
     , m_attr_dict(nullptr),
@@ -190,11 +190,11 @@ KX_GameObject::~KX_GameObject()
 	KX_Scene *scene = GetScene();
 
 	if (scene->m_isRuntime) {
-		HideOriginalObject(); // if the Object is not a replica we hide it
+		//HideOriginalObject();
 		RemoveReplicaObject();
 	}
 	else { // at scene exit
-		UnHideOriginalObject();
+		//UnHideOriginalObject();
 		RestoreOriginalMesh(); // we restore original mesh in the case we modified it during runtime
 		RemoveReplicaObject();
 	}
@@ -331,7 +331,7 @@ void KX_GameObject::RestoreOriginalMesh()
 void KX_GameObject::HideOriginalObject()
 {
 	Object *ob = GetBlenderObject();
-	if (ob && !m_isReplica) {
+	if (ob && !m_isReplica && (ob->base_flag & BASE_VISIBLE) != 0) {
 		Scene *scene = GetScene()->GetBlenderScene();
 		ViewLayer *view_layer = BKE_view_layer_default_view(scene);
 		Base *base = BKE_view_layer_base_find(view_layer, ob);
