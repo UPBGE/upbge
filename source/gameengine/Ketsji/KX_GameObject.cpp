@@ -189,14 +189,12 @@ KX_GameObject::~KX_GameObject()
 
 	KX_Scene *scene = GetScene();
 
-	//RemoveReplicaObject(); // in the case the Object is a relica, we delete it
-
 	if (scene->m_isRuntime) {
-		//HideOriginalObject(); // if the Object is not a replica we hide it
+		HideOriginalObject(); // if the Object is not a replica we hide it
 		RemoveReplicaObject();
 	}
 	else { // at scene exit
-		//UnHideOriginalObject();
+		UnHideOriginalObject();
 		RestoreOriginalMesh(); // we restore original mesh in the case we modified it during runtime
 		RemoveReplicaObject();
 	}
@@ -334,7 +332,14 @@ void KX_GameObject::HideOriginalObject()
 {
 	Object *ob = GetBlenderObject();
 	if (ob && !m_isReplica) {
-		ob->base_flag &= ~BASE_VISIBLE; // TOFIX
+		Scene *scene = GetScene()->GetBlenderScene();
+		ViewLayer *view_layer = BKE_view_layer_default_view(scene);
+		Base *base = BKE_view_layer_base_find(view_layer, ob);
+		base->flag &= ~BASE_VISIBLE;
+		BKE_scene_object_base_flag_sync_from_base(base);
+		BKE_base_set_visible(scene, view_layer, base, false);
+		DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
+		GetScene()->ResetTaaSamples();
 	}
 }
 
@@ -342,7 +347,14 @@ void KX_GameObject::UnHideOriginalObject()
 {
 	Object *ob = GetBlenderObject();
 	if (ob && !m_isReplica) {
-		ob->base_flag |= BASE_VISIBLE;
+		Scene *scene = GetScene()->GetBlenderScene();
+		ViewLayer *view_layer = BKE_view_layer_default_view(scene);
+		Base *base = BKE_view_layer_base_find(view_layer, ob);
+		base->flag |= BASE_VISIBLE;
+		BKE_scene_object_base_flag_sync_from_base(base);
+		BKE_base_set_visible(scene, view_layer, base, true);
+		DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
+		GetScene()->ResetTaaSamples();
 	}
 }
 
