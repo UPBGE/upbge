@@ -193,10 +193,12 @@ KX_GameObject::~KX_GameObject()
 
 	if (scene->m_isRuntime) {
 		//HideOriginalObject(); // if the Object is not a replica we hide it
+		RemoveReplicaObject();
 	}
 	else { // at scene exit
 		//UnHideOriginalObject();
 		RestoreOriginalMesh(); // we restore original mesh in the case we modified it during runtime
+		RemoveReplicaObject();
 	}
 
 	/* END OF EEVEE INTEGRATION */
@@ -289,7 +291,8 @@ void KX_GameObject::ReplicateBlenderObject()
 	Object *ob = GetBlenderObject();
 	if (ob) {
 		Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
-		Object *newob = BKE_object_copy(bmain, ob);
+		Object *newob;
+		BKE_id_copy_ex(bmain, &ob->id, (ID **)&newob, 0, false);
 		Scene *scene = GetScene()->GetBlenderScene();
 		ViewLayer *view_layer = BKE_view_layer_default_view(scene);
 		BKE_collection_object_add_from(bmain, scene, BKE_view_layer_camera_find(view_layer), newob); //add replica where is the active camera
@@ -304,7 +307,10 @@ void KX_GameObject::RemoveReplicaObject()
 	Object *ob = GetBlenderObject();
 	if (ob && m_isReplica) {
 		Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
+		Scene *scene = GetScene()->GetBlenderScene();
+		BKE_scene_collections_object_remove(bmain, scene, ob, true);
 		BKE_id_free(bmain, &ob->id);
+		SetBlenderObject(nullptr);
 		DEG_relations_tag_update(bmain);
 	}
 }

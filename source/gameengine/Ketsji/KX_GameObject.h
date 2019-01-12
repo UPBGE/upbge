@@ -561,7 +561,9 @@ public:
 	void SetBlenderObject(struct Object* obj)
 	{
 		m_pBlenderObject = obj;
-		copy_m4_m4(m_savedObmat, obj->obmat);
+		if (obj) {
+			copy_m4_m4(m_savedObmat, obj->obmat);
+		}
 	}
 
 	struct Object* GetBlenderGroupObject( )
