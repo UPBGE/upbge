@@ -572,7 +572,7 @@ static BlendFileData *load_game_data(const char *progname, char *filename = null
 		}
 	}
 	else {
-		bfd = BLO_read_from_file(progname, &reports, BLO_READ_SKIP_NONE);
+		bfd = BLO_read_from_file(progname, BLO_READ_SKIP_NONE, &reports);
 	}
 
 	if (!bfd && filename) {
@@ -609,7 +609,7 @@ static BlendFileData *load_encrypted_game_data(const char *filename, std::string
 	}
 
 	if (fileData) {
-		bfd = BLO_read_from_memory(fileData, fileSize, &reports, BLO_READ_SKIP_USERDEF);
+		bfd = BLO_read_from_memory(fileData, fileSize, BLO_READ_SKIP_USERDEF, &reports);
 		delete[] fileData;
 	}
 

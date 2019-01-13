@@ -268,7 +268,7 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
 	}
 
 	if (!MAIN_VERSION_UPBGE_ATLEAST(main, 2, 4)) {
-		FOREACH_NODETREE(main, ntree, id) {
+		FOREACH_NODETREE_BEGIN(main, ntree, id) {
 			if (ntree->type == NTREE_SHADER) {
 				for (bNode *node = ntree->nodes.first; node; node = node->next) {
 					switch (node->type) {
@@ -290,7 +290,7 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
 					}
 				}
 			}
-		} FOREACH_NODETREE_END
+		} FOREACH_NODETREE_END;
 
 		if (!DNA_struct_elem_find(fd->filesdna, "Lamp", "float", "cutoff")) {
 			for (Lamp *lamp = main->lamp.first; lamp; lamp = lamp->id.next) {
