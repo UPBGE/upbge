@@ -174,7 +174,6 @@ endif()
 		bf_intern_numaapi
 
 		extern_bullet
-		extern_openjpeg
 		extern_binreloc
 		extern_minilzo
 		extern_recastnavigation

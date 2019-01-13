@@ -683,7 +683,6 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		extern_lzma
 		extern_curve_fit_nd
 		extern_recastnavigation
-		extern_openjpeg
 		extern_rangetree
 		extern_wcwidth
 		extern_sdlew
