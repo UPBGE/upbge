@@ -156,6 +156,9 @@ public:
 	 */
 	RAS_OffScreen *GetOffScreen(RAS_OffScreen::Type type);
 
+	/// Update dimensions of all off screens.
+	void UpdateOffScreens();
+
 protected:
 	/// Swap interval value of each swap control mode.
 	static const int swapInterval[SWAP_CONTROL_MAX];
@@ -198,9 +201,6 @@ protected:
 	 * a separate thread.
 	 */
 	void SaveScreeshot(const Screenshot& screenshot, RAS_Rasterizer *rasty);
-
-	/// Update dimensions of all off screens.
-	void UpdateOffScreens();
 };
 
 #endif  // __RAS_ICANVAS_H__
