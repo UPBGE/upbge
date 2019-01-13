@@ -46,7 +46,6 @@
 #endif
 
 #ifdef _WIN32
-#include "BLI_path_util.h"  /* BLI_setenv() */
 #include "BLI_math_base.h"  /* isfinite() */
 #endif
 
@@ -618,7 +617,7 @@ const char *PyC_UnicodeAsByteAndSize(PyObject *py_str, Py_ssize_t *size, PyObjec
 
 	if (result) {
 		/* 99% of the time this is enough but we better support non unicode
-		 * chars since blender doesnt limit this */
+		 * chars since blender doesn't limit this */
 		return result;
 	}
 	else {
@@ -671,7 +670,7 @@ PyObject *PyC_UnicodeFromByteAndSize(const char *str, Py_ssize_t size)
 	PyObject *result = PyUnicode_FromStringAndSize(str, size);
 	if (result) {
 		/* 99% of the time this is enough but we better support non unicode
-		 * chars since blender doesnt limit this */
+		 * chars since blender doesn't limit this */
 		return result;
 	}
 	else {
@@ -691,7 +690,7 @@ PyObject *PyC_UnicodeFromByte(const char *str)
  * Description: This function creates a new Python dictionary object.
  * note: dict is owned by sys.modules["__main__"] module, reference is borrowed
  * note: important we use the dict from __main__, this is what python expects
- *  for 'pickle' to work as well as strings like this...
+ * for 'pickle' to work as well as strings like this...
  * >> foo = 10
  * >> print(__import__("__main__").foo)
  *
@@ -714,6 +713,26 @@ PyObject *PyC_DefaultNameSpace(const char *filename)
 	PyModule_AddObject(mod_main, "__builtins__", interp->builtins);
 	Py_INCREF(interp->builtins); /* AddObject steals a reference */
 	return PyModule_GetDict(mod_main);
+}
+
+bool PyC_NameSpace_ImportArray(PyObject *py_dict, const char *imports[])
+{
+	for (int i = 0; imports[i]; i++) {
+		PyObject *name = PyUnicode_FromString(imports[i]);
+		PyObject *mod = PyImport_ImportModuleLevelObject(name, NULL, NULL, 0, 0);
+		bool ok = false;
+		if (mod) {
+			PyDict_SetItem(py_dict, name, mod);
+			ok = true;
+			Py_DECREF(mod);
+		}
+		Py_DECREF(name);
+
+		if (!ok) {
+			return false;
+		}
+	}
+	return true;
 }
 
 /* restore MUST be called after this */
@@ -1076,7 +1095,7 @@ PyObject *PyC_FlagSet_FromBitfield(PyC_FlagSet *items, int flag)
  *
  * \note it is caller's responsibility to acquire & release GIL!
  */
-bool PyC_RunString_AsNumber(const char *expr, const char *filename, double *r_value)
+bool PyC_RunString_AsNumber(const char *imports[], const char *expr, const char *filename, double *r_value)
 {
 	PyObject *py_dict, *mod, *retval;
 	bool ok = true;
@@ -1096,9 +1115,10 @@ bool PyC_RunString_AsNumber(const char *expr, const char *filename, double *r_va
 		PyErr_Clear();
 	}
 
-	retval = PyRun_String(expr, Py_eval_input, py_dict, py_dict);
-
-	if (retval == NULL) {
+	if (imports && (!PyC_NameSpace_ImportArray(py_dict, imports))) {
+		ok = false;
+	}
+	else if ((retval = PyRun_String(expr, Py_eval_input, py_dict, py_dict)) == NULL) {
 		ok = false;
 	}
 	else {
@@ -1140,7 +1160,7 @@ bool PyC_RunString_AsNumber(const char *expr, const char *filename, double *r_va
 	return ok;
 }
 
-bool PyC_RunString_AsIntPtr(const char *expr, const char *filename, intptr_t *r_value)
+bool PyC_RunString_AsIntPtr(const char *imports[], const char *expr, const char *filename, intptr_t *r_value)
 {
 	PyObject *py_dict, *retval;
 	bool ok = true;
@@ -1150,9 +1170,10 @@ bool PyC_RunString_AsIntPtr(const char *expr, const char *filename, intptr_t *r_
 
 	py_dict = PyC_DefaultNameSpace(filename);
 
-	retval = PyRun_String(expr, Py_eval_input, py_dict, py_dict);
-
-	if (retval == NULL) {
+	if (imports && (!PyC_NameSpace_ImportArray(py_dict, imports))) {
+		ok = false;
+	}
+	else if ((retval = PyRun_String(expr, Py_eval_input, py_dict, py_dict)) == NULL) {
 		ok = false;
 	}
 	else {
@@ -1174,7 +1195,7 @@ bool PyC_RunString_AsIntPtr(const char *expr, const char *filename, intptr_t *r_
 	return ok;
 }
 
-bool PyC_RunString_AsString(const char *expr, const char *filename, char **r_value)
+bool PyC_RunString_AsString(const char *imports[], const char *expr, const char *filename, char **r_value)
 {
 	PyObject *py_dict, *retval;
 	bool ok = true;
@@ -1184,9 +1205,10 @@ bool PyC_RunString_AsString(const char *expr, const char *filename, char **r_val
 
 	py_dict = PyC_DefaultNameSpace(filename);
 
-	retval = PyRun_String(expr, Py_eval_input, py_dict, py_dict);
-
-	if (retval == NULL) {
+	if (imports && (!PyC_NameSpace_ImportArray(py_dict, imports))) {
+		ok = false;
+	}
+	else if ((retval = PyRun_String(expr, Py_eval_input, py_dict, py_dict)) == NULL) {
 		ok = false;
 	}
 	else {

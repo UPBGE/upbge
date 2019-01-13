@@ -54,19 +54,19 @@ typedef struct bConstraintChannel {
 typedef struct bConstraint {
 	struct bConstraint *next, *prev;
 
-	void		*data;		/*	Constraint data	(a valid constraint type) */
-	short		type;		/*	Constraint type	*/
-	short		flag;		/*	Flag - General Settings	*/
+	void		*data;		/* Constraint data	(a valid constraint type) */
+	short		type;		/* Constraint type	*/
+	short		flag;		/* Flag - General Settings	*/
 
-	char 		ownspace;	/* 	Space that owner should be evaluated in 	*/
-	char		tarspace;	/* 	Space that target should be evaluated in (only used if 1 target) */
+	char 		ownspace;	/* Space that owner should be evaluated in 	*/
+	char		tarspace;	/* Space that target should be evaluated in (only used if 1 target) */
 
-	char		name[64];	/*	Constraint name, MAX_NAME */
+	char		name[64];	/* Constraint name, MAX_NAME */
 
 	short		pad;
 
 	float		enforce;	/* 	Amount of influence exherted by constraint (0.0-1.0) */
-	float		headtail;	/*	Point along subtarget bone where the actual target is. 0=head (default for all), 1=tail*/
+	float		headtail;	/* Point along subtarget bone where the actual target is. 0=head (default for all), 1=tail*/
 
 	struct Ipo *ipo    DNA_DEPRECATED;		/* local influence ipo or driver */  /* old animation system, deprecated for 2.5 */
 
@@ -103,10 +103,10 @@ typedef enum eConstraintTargetFlag {
 
 /* bConstraintTarget/bConstraintOb -> type */
 typedef enum eConstraintObType {
-	CONSTRAINT_OBTYPE_OBJECT = 1,	/*	string is ""				*/
-	CONSTRAINT_OBTYPE_BONE   = 2,	/*	string is bone-name		*/
-	CONSTRAINT_OBTYPE_VERT   = 3,	/*	string is vertex-group name 	*/
-	CONSTRAINT_OBTYPE_CV     = 4	/*	string is vertex-group name - is not available until curves get vgroups */
+	CONSTRAINT_OBTYPE_OBJECT = 1,	/* string is "" */
+	CONSTRAINT_OBTYPE_BONE   = 2,	/* string is bone-name */
+	CONSTRAINT_OBTYPE_VERT   = 3,	/* string is vertex-group name */
+	CONSTRAINT_OBTYPE_CV     = 4	/* string is vertex-group name - is not available until curves get vgroups */
 } eConstraintObType;
 
 
@@ -121,7 +121,7 @@ typedef struct bPythonConstraint {
 	ListBase targets;		/* a list of targets that this constraint has (bConstraintTarget-s) */
 
 	struct Object *tar;		/* target from previous implementation (version-patch sets this to NULL on file-load) */
-	char subtarget[64];		/* subtarger from previous implentation (version-patch sets this to "" on file-load), MAX_ID_NAME-2 */
+	char subtarget[64];		/* subtarger from previous implementation (version-patch sets this to "" on file-load), MAX_ID_NAME-2 */
 } bPythonConstraint;
 
 
@@ -363,14 +363,14 @@ typedef struct bTransformConstraint {
 /* Pivot Constraint */
 typedef struct bPivotConstraint {
 	/* Pivot Point:
-	 *	Either target object + offset, or just offset is used
+	 * Either target object + offset, or just offset is used
 	 */
 	struct Object 		*tar;			/* target object (optional) */
 	char		subtarget[64];		/* subtarget name (optional), MAX_ID_NAME-2 */
 	float 		offset[3];		/* offset from the target to use, regardless of whether it exists */
 
 	/* Rotation-driven activation:
-	 *	This option provides easier one-stop setups for footrolls
+	 * This option provides easier one-stop setups for footrolls
 	 */
 	short 		rotAxis;		/* rotation axes to consider for this (ePivotConstraint_Axis) */
 
@@ -466,8 +466,8 @@ typedef struct bTransformCacheConstraint {
 /* ------------------------------------------ */
 
 /* bConstraint->type
- * 	- Do not ever change the order of these, or else files could get
- * 	  broken as their correct value cannot be resolved
+ * - Do not ever change the order of these, or else files could get
+ *   broken as their correct value cannot be resolved
  */
 typedef enum eBConstraint_Types {
 	CONSTRAINT_TYPE_NULL = 0,			/* Invalid/legacy constraint */
@@ -640,7 +640,7 @@ typedef enum eTrackTo_Flags {
 	TARGET_Z_UP 	= (1<<0)
 } eTrackTo_Flags;
 
-/* Strech To Constraint -> volmode */
+/* Stretch To Constraint -> volmode */
 typedef enum eStretchTo_VolMode {
 	VOLUME_XZ	= 0,
 	VOLUME_X	= 1,
@@ -841,9 +841,9 @@ typedef enum eObjectSolver_Flags {
 } eObjectSolver_Flags;
 
 /* Rigid-Body Constraint */
-#define CONSTRAINT_DRAW_PIVOT 0x40
-#define 	CONSTRAINT_DISABLE_LINKED_COLLISION 0x80
-#define CONSTRAINT_USE_BREAKING 0x100
+#define CONSTRAINT_DRAW_PIVOT (1 << 6)
+#define CONSTRAINT_DISABLE_LINKED_COLLISION (1 << 7)
+#define CONSTRAINT_USE_BREAKING (1 << 8)
 
 /* ObjectSolver Constraint -> flag */
 typedef enum eStretchTo_Flags {
@@ -852,10 +852,10 @@ typedef enum eStretchTo_Flags {
 } eStretchTo_Flags;
 
 /* important: these defines need to match up with PHY_DynamicTypes headerfile */
-#define 	CONSTRAINT_RB_BALL		1
-#define 	CONSTRAINT_RB_HINGE		2
-#define 	CONSTRAINT_RB_CONETWIST 4
-#define 	CONSTRAINT_RB_VEHICLE	11
-#define 	CONSTRAINT_RB_GENERIC6DOF 12
+#define CONSTRAINT_RB_BALL      1
+#define CONSTRAINT_RB_HINGE     2
+#define CONSTRAINT_RB_CONETWIST 4
+#define CONSTRAINT_RB_VEHICLE   11
+#define CONSTRAINT_RB_GENERIC6DOF 12
 
 #endif

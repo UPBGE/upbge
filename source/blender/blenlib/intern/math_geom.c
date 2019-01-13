@@ -361,9 +361,9 @@ void closest_to_line_segment_v3(float r_close[3], const float p[3], const float 
 /**
  * Find the closest point on a plane.
  *
- * \param r_close  Return coordinate
- * \param plane  The plane to test against.
- * \param pt  The point to find the nearest of
+ * \param r_close: Return coordinate
+ * \param plane: The plane to test against.
+ * \param pt: The point to find the nearest of
  *
  * \note non-unit-length planes are supported.
  */
@@ -486,7 +486,7 @@ float dist_to_line_v3(const float p[3], const float l1[3], const float l2[3])
  * Check if \a p is inside the 2x planes defined by ``(v1, v2, v3)``
  * where the 3x points define 2x planes.
  *
- * \param axis_ref used when v1,v2,v3 form a line and to check if the corner is concave/convex.
+ * \param axis_ref: used when v1,v2,v3 form a line and to check if the corner is concave/convex.
  *
  * \note the distance from \a v1 & \a v3 to \a v2 doesnt matter
  * (it just defines the planes).
@@ -909,6 +909,70 @@ int isect_seg_seg_v2(const float v1[2], const float v2[2], const float v3[2], co
 		return ISECT_LINE_LINE_CROSS;
 	}
 	return ISECT_LINE_LINE_NONE;
+}
+
+/* Returns a point on each segment that is closest to the other. */
+void isect_seg_seg_v3(
+        const float a0[3], const float a1[3],
+        const float b0[3], const float b1[3],
+        float r_a[3], float r_b[3])
+{
+	float fac_a, fac_b;
+	float a_dir[3], b_dir[3], a0b0[3], crs_ab[3];
+	sub_v3_v3v3(a_dir, a1, a0);
+	sub_v3_v3v3(b_dir, b1, b0);
+	sub_v3_v3v3(a0b0, b0, a0);
+	cross_v3_v3v3(crs_ab, b_dir, a_dir);
+	const float nlen = len_squared_v3(crs_ab);
+
+	if (nlen == 0.0f) {
+		/* Parallel Lines */
+		/* In this case return any point that
+		 * is between the closest segments. */
+		float a0b1[3], a1b0[3], len_a, len_b, fac1, fac2;
+		sub_v3_v3v3(a0b1, b1, a0);
+		sub_v3_v3v3(a1b0, b0, a1);
+		len_a = len_squared_v3(a_dir);
+		len_b = len_squared_v3(b_dir);
+
+		if (len_a) {
+			fac1 = dot_v3v3(a0b0, a_dir);
+			fac2 = dot_v3v3(a0b1, a_dir);
+			CLAMP(fac1, 0.0f, len_a);
+			CLAMP(fac2, 0.0f, len_a);
+			fac_a = (fac1 + fac2) / (2 * len_a);
+		}
+		else {
+			fac_a = 0.0f;
+		}
+
+		if (len_b) {
+			fac1 = -dot_v3v3(a0b0, b_dir);
+			fac2 = -dot_v3v3(a1b0, b_dir);
+			CLAMP(fac1, 0.0f, len_b);
+			CLAMP(fac2, 0.0f, len_b);
+			fac_b = (fac1 + fac2) / (2 * len_b);
+		}
+		else {
+			fac_b = 0.0f;
+		}
+	}
+	else {
+		float c[3], cray[3];
+		sub_v3_v3v3(c, crs_ab, a0b0);
+
+		cross_v3_v3v3(cray, c, b_dir);
+		fac_a = dot_v3v3(cray, crs_ab) / nlen;
+
+		cross_v3_v3v3(cray, c, a_dir);
+		fac_b = dot_v3v3(cray, crs_ab) / nlen;
+
+		CLAMP(fac_a, 0.0f, 1.0f);
+		CLAMP(fac_b, 0.0f, 1.0f);
+	}
+
+	madd_v3_v3v3fl(r_a, a0, a_dir, fac_a);
+	madd_v3_v3v3fl(r_b, b0, b_dir, fac_b);
 }
 
 /**
@@ -1788,11 +1852,11 @@ bool isect_point_planes_v3(float (*planes)[4], int totplane, const float p[3])
 /**
  * Intersect line/plane.
  *
- * \param r_isect_co The intersection point.
- * \param l1 The first point of the line.
- * \param l2 The second point of the line.
- * \param plane_co A point on the plane to intersect with.
- * \param plane_no The direction of the plane (does not need to be normalized).
+ * \param r_isect_co: The intersection point.
+ * \param l1: The first point of the line.
+ * \param l2: The second point of the line.
+ * \param plane_co: A point on the plane to intersect with.
+ * \param plane_no: The direction of the plane (does not need to be normalized).
  *
  * \note #line_plane_factor_v3() shares logic.
  */
@@ -2618,8 +2682,9 @@ float line_plane_factor_v3(const float plane_co[3], const float plane_no[3],
 	return (dot != 0.0f) ? -dot_v3v3(plane_no, h) / dot : 0.0f;
 }
 
-/** Ensure the distance between these points is no greater than 'dist'.
- *  If it is, scale then both into the center.
+/**
+ * Ensure the distance between these points is no greater than 'dist'.
+ * If it is, scale then both into the center.
  */
 void limit_dist_v3(float v1[3], float v2[3], const float dist)
 {
@@ -2864,8 +2929,8 @@ bool clip_segment_v3_plane_n(
  * This matrix can be applied to vectors so their 'z' axis runs along \a normal.
  * In practice it means you can use x,y as 2d coords. \see
  *
- * \param r_mat The matrix to return.
- * \param normal A unit length vector.
+ * \param r_mat: The matrix to return.
+ * \param normal: A unit length vector.
  */
 void axis_dominant_v3_to_m3(float r_mat[3][3], const float normal[3])
 {
@@ -3180,8 +3245,8 @@ void transform_point_by_tri_v3(
 {
 	/* this works by moving the source triangle so its normal is pointing on the Z
 	 * axis where its barycentric weights can be calculated in 2D and its Z offset can
-	 *  be re-applied. The weights are applied directly to the targets 3D points and the
-	 *  z-depth is used to scale the targets normal as an offset.
+	 * be re-applied. The weights are applied directly to the targets 3D points and the
+	 * z-depth is used to scale the targets normal as an offset.
 	 * This saves transforming the target into its Z-Up orientation and back (which could also work) */
 	float no_tar[3], no_src[3];
 	float mat_src[3][3];

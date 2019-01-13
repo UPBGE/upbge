@@ -24,6 +24,20 @@
 # ***** END GPL LICENSE BLOCK *****
 
 remove_strict_flags()
+FIND_FILE(OPENCOLLADA_ANIMATION_CLIP
+      NAMES
+        COLLADAFWAnimationClip.h
+      PATHS
+        ${OPENCOLLADA_INCLUDE_DIRS}
+      NO_DEFAULT_PATH
+    )
+
+IF(OPENCOLLADA_ANIMATION_CLIP)
+   message(STATUS "Found opencollada: ${OPENCOLLADA_ANIMATION_CLIP} ")
+   add_definitions(-DWITH_OPENCOLLADA_ANIMATION_CLIP)
+ELSE()
+   message(STATUS "opencollada: Build without animation clip support")
+ENDIF()
 
 set(INC
 	.

@@ -29,12 +29,12 @@
 /** \file blender/windowmanager/WM_api.h
  *  \ingroup wm
  *
- *  \page wmpage windowmanager
- *  \section wmabout About windowmanager
- *  \ref wm handles events received from \ref GHOST and manages
- *  the screens, areas and input for Blender
- *  \section wmnote NOTE
- *  \todo document
+ * \page wmpage windowmanager
+ * \section wmabout About windowmanager
+ * \ref wm handles events received from \ref GHOST and manages
+ * the screens, areas and input for Blender
+ * \section wmnote NOTE
+ * \todo document
  */
 
 /* dna-savable wmStructs here */
@@ -55,6 +55,7 @@ struct wmGesture;
 struct wmJob;
 struct wmOperatorType;
 struct wmOperator;
+struct wmPaintCursor;
 struct rcti;
 struct PointerRNA;
 struct PropertyRNA;
@@ -78,6 +79,7 @@ const char *WM_init_state_app_template_get(void);
 void		WM_init_state_size_set		(int stax, int stay, int sizx, int sizy);
 void		WM_init_state_fullscreen_set(void);
 void		WM_init_state_normal_set(void);
+void		WM_init_window_focus_set(bool do_it);
 void		WM_init_native_pixels(bool do_it);
 
 void		WM_init				(struct bContext *C, int argc, const char **argv);
@@ -132,14 +134,16 @@ void		WM_cursor_grab_enable(struct wmWindow *win, bool wrap, bool hide, int boun
 void		WM_cursor_grab_disable(struct wmWindow *win, const int mouse_ungrab_xy[2]);
 void		WM_cursor_time		(struct wmWindow *win, int nr);
 
-void *WM_paint_cursor_activate(
+struct wmPaintCursor *WM_paint_cursor_activate(
         struct wmWindowManager *wm,
         bool (*poll)(struct bContext *C),
         void (*draw)(struct bContext *C, int, int, void *customdata),
         void *customdata);
 
-void		WM_paint_cursor_end(struct wmWindowManager *wm, void *handle);
+bool		WM_paint_cursor_end(struct wmWindowManager *wm, struct wmPaintCursor *handle);
+void       *WM_paint_cursor_customdata_get(struct wmPaintCursor *pc);
 void		WM_paint_cursor_tag_redraw(struct wmWindow *win, struct ARegion *ar);
+
 
 void		WM_cursor_warp		(struct wmWindow *win, int x, int y);
 void		WM_cursor_compatible_xy(wmWindow *win, int *x, int *y);

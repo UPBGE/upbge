@@ -379,7 +379,7 @@ ccl_device_forceinline bool cardinal_curve_intersect(
 					float inv_mw_extension = 1.0f/mw_extension;
 					if(d0 >= 0)
 						coverage = (min(d1 * inv_mw_extension, 1.0f) - min(d0 * inv_mw_extension, 1.0f)) * 0.5f;
-					else // inside
+					else  // inside
 						coverage = (min(d1 * inv_mw_extension, 1.0f) + min(-d0 * inv_mw_extension, 1.0f)) * 0.5f;
 				}
 
@@ -817,16 +817,24 @@ ccl_device_inline float3 curve_refine(KernelGlobals *kg,
 			sd->Ng = normalize(-(D - tg * (dot(tg, D))));
 		}
 		else {
-			/* direction from inside to surface of curve */
-			float3 p_curr = curvepoint(isect->u, p[0], p[1], p[2], p[3]);
-			sd->Ng = normalize(P - p_curr);
+#ifdef __EMBREE__
+ 			if(kernel_data.bvh.scene) {
+ 				sd->Ng = normalize(isect->Ng);
+ 			}
+ 			else
+#endif
+			{
+				/* direction from inside to surface of curve */
+				float3 p_curr = curvepoint(isect->u, p[0], p[1], p[2], p[3]);
+				sd->Ng = normalize(P - p_curr);
 
-			/* adjustment for changing radius */
-			float gd = isect->v;
+				/* adjustment for changing radius */
+				float gd = isect->v;
 
-			if(gd != 0.0f) {
-				sd->Ng = sd->Ng - gd * tg;
-				sd->Ng = normalize(sd->Ng);
+				if(gd != 0.0f) {
+					sd->Ng = sd->Ng - gd * tg;
+					sd->Ng = normalize(sd->Ng);
+				}
 			}
 		}
 
@@ -866,13 +874,15 @@ ccl_device_inline float3 curve_refine(KernelGlobals *kg,
 			float gd = isect->v;
 
 			/* direction from inside to surface of curve */
-			sd->Ng = (dif - tg * sd->u * l) / (P_curve[0].w + sd->u * l * gd);
+			float denom = fmaxf(P_curve[0].w + sd->u * l * gd, 1e-8f);
+			sd->Ng = (dif - tg * sd->u * l) / denom;
 
 			/* adjustment for changing radius */
 			if(gd != 0.0f) {
 				sd->Ng = sd->Ng - gd * tg;
-				sd->Ng = normalize(sd->Ng);
 			}
+
+			sd->Ng = normalize(sd->Ng);
 		}
 
 		sd->N = sd->Ng;

@@ -92,8 +92,8 @@ base class --- :class:`KX_GameObject`
       This camera's 4x4 projection matrix.
 
       .. note::
-      
-         This is the identity matrix prior to rendering the first frame (any Python done on frame 1). 
+
+         This is the identity matrix prior to rendering the first frame (any Python done on frame 1).
 
       :type: 4x4 Matrix [[float]]
 
@@ -124,7 +124,7 @@ base class --- :class:`KX_GameObject`
       :type: 4x4 Matrix [[float]]
 
       .. note::
-      
+
          This matrix is regenerated every frame from the camera's position and orientation. Also, this is the identity matrix prior to rendering the first frame (any Python done on frame 1).
 
    .. attribute:: camera_to_world
@@ -134,7 +134,7 @@ base class --- :class:`KX_GameObject`
       :type: 4x4 Matrix [[float]]
 
       .. note::
-      
+
          This matrix is regenerated every frame from the camera's position and orientation.
 
    .. attribute:: world_to_camera
@@ -144,11 +144,11 @@ base class --- :class:`KX_GameObject`
       :type: 4x4 Matrix [[float]]
 
       .. note::
-         
+
          Regenerated every frame from the camera's position and orientation.
 
       .. note::
-      
+
          This is camera_to_world inverted.
 
    .. attribute:: useViewport
@@ -177,7 +177,7 @@ base class --- :class:`KX_GameObject`
          from bge import logic
          cont = logic.getCurrentController()
          cam = cont.owner
-         
+
          # A sphere of radius 4.0 located at [x, y, z] = [1.0, 1.0, 1.0]
          if (cam.sphereInsideFrustum([1.0, 1.0, 1.0], 4) != cam.OUTSIDE):
              # Sphere is inside frustum !
@@ -194,7 +194,7 @@ base class --- :class:`KX_GameObject`
       :return: :data:`~bge.types.KX_Camera.INSIDE`, :data:`~bge.types.KX_Camera.OUTSIDE` or :data:`~bge.types.KX_Camera.INTERSECT`
 
       .. note::
-      
+
          When the camera is first initialized the result will be invalid because the projection matrix has not been set.
 
       .. code-block:: python
@@ -213,13 +213,13 @@ base class --- :class:`KX_GameObject`
          box.append([ 1.0, -1.0,  1.0])
          box.append([ 1.0,  1.0, -1.0])
          box.append([ 1.0,  1.0,  1.0])
-         
+
          if (cam.boxInsideFrustum(box) != cam.OUTSIDE):
            # Box is inside/intersects frustum !
            # Do something useful !
          else:
            # Box is outside the frustum !
-           
+
    .. method:: pointInsideFrustum(point)
 
       Tests the given point against the view frustum.
@@ -230,7 +230,7 @@ base class --- :class:`KX_GameObject`
       :rtype: boolean
 
       .. note::
-      
+
          When the camera is first initialized the result will be invalid because the projection matrix has not been set.
 
       .. code-block:: python
@@ -331,4 +331,3 @@ base class --- :class:`KX_GameObject`
 
          # Gets an object with a property "wall" in front of the camera within a distance of 100:
          target = camera.getScreenRay(0.5, 0.5, 100, "wall")
-         

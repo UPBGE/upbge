@@ -216,7 +216,9 @@ void BKE_lattice_resize(Lattice *lt, int uNew, int vNew, int wNew, Object *ltOb)
 		lt->typeu = lt->typev = lt->typew = KEY_LINEAR;
 
 		/* prevent using deformed locations */
-		BKE_displist_free(&ltOb->curve_cache->disp);
+		if (ltOb->curve_cache != NULL) {
+			BKE_displist_free(&ltOb->curve_cache->disp);
+		}
 
 		copy_m4_m4(mat, ltOb->obmat);
 		unit_m4(ltOb->obmat);
@@ -282,7 +284,7 @@ Lattice *BKE_lattice_add(Main *bmain, const char *name)
  *
  * WARNING! This function will not handle ID user count!
  *
- * \param flag  Copying options (see BKE_library.h's LIB_ID_COPY_... flags for more).
+ * \param flag: Copying options (see BKE_library.h's LIB_ID_COPY_... flags for more).
  */
 void BKE_lattice_copy_data(Main *bmain, Lattice *lt_dst, const Lattice *lt_src, const int flag)
 {

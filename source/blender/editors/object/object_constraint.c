@@ -274,8 +274,8 @@ static void test_constraint(Main *bmain, Object *owner, bPoseChannel *pchan, bCo
 		bKinematicConstraint *data = con->data;
 
 		/* bad: we need a separate set of checks here as poletarget is
-		 *		optional... otherwise poletarget must exist too or else
-		 *		the constraint is deemed invalid
+		 * optional... otherwise poletarget must exist too or else
+		 * the constraint is deemed invalid
 		 */
 		/* default IK check ... */
 		if (BKE_object_exists_check(bmain, data->tar) == 0) {
@@ -499,7 +499,7 @@ static int constraint_type_get(Object *owner, bPoseChannel *pchan)
 }
 
 /* checks validity of object pointers, and NULLs,
- * if Bone doesnt exist it sets the CONSTRAINT_DISABLE flag.
+ * if Bone doesn't exist it sets the CONSTRAINT_DISABLE flag.
  */
 static void test_constraints(Main *bmain, Object *owner, bPoseChannel *pchan)
 {
@@ -787,10 +787,10 @@ static void child_get_inverse_matrix(Scene *scene, Object *ob, bConstraint *con,
 		if (ob && ob->pose && (pchan = BKE_pose_channel_active(ob))) {
 			bConstraint *con_last;
 			/* calculate/set inverse matrix:
-			 *  We just calculate all transform-stack eval up to but not including this constraint.
-			 *  This is because inverse should just inverse correct for just the constraint's influence
-			 *  when it gets applied; that is, at the time of application, we don't know anything about
-			 *  what follows.
+			 * We just calculate all transform-stack eval up to but not including this constraint.
+			 * This is because inverse should just inverse correct for just the constraint's influence
+			 * when it gets applied; that is, at the time of application, we don't know anything about
+			 * what follows.
 			 */
 			float imat[4][4], tmat[4][4];
 			float pmat[4][4];
@@ -1579,13 +1579,13 @@ static bool get_new_constraint_target(bContext *C, int con_type, Object **tar_ob
 	bool found = false;
 
 	/* clear tar_ob and tar_pchan fields before use
-	 *	- assume for now that both always exist...
+	 * - assume for now that both always exist...
 	 */
 	*tar_ob = NULL;
 	*tar_pchan = NULL;
 
 	/* check if constraint type doesn't requires a target
-	 *	- if so, no need to get any targets
+	 * - if so, no need to get any targets
 	 */
 	switch (con_type) {
 		/* no-target constraints --------------------------- */
@@ -1760,14 +1760,14 @@ static int constraint_add_exec(bContext *C, wmOperator *op, Object *ob, ListBase
 		return OPERATOR_CANCELLED;
 	}
 
-	/* create a new constraint of the type requried, and add it to the active/given constraints list */
+	/* create a new constraint of the type required, and add it to the active/given constraints list */
 	if (pchan)
 		con = BKE_constraint_add_for_pose(ob, pchan, NULL, type);
 	else
 		con = BKE_constraint_add_for_object(ob, NULL, type);
 
 	/* get the first selected object/bone, and make that the target
-	 *	- apart from the buttons-window add buttons, we shouldn't add in this way
+	 * - apart from the buttons-window add buttons, we shouldn't add in this way
 	 */
 	if (setTarget) {
 		Object *tar_ob = NULL;
@@ -1776,7 +1776,7 @@ static int constraint_add_exec(bContext *C, wmOperator *op, Object *ob, ListBase
 		/* get the target objects, adding them as need be */
 		if (get_new_constraint_target(C, type, &tar_ob, &tar_pchan, 1)) {
 			/* method of setting target depends on the type of target we've got
-			 *	- by default, just set the first target (distinction here is only for multiple-targeted constraints)
+			 * - by default, just set the first target (distinction here is only for multiple-targeted constraints)
 			 */
 			if (tar_pchan)
 				set_constraint_nth_target(con, tar_ob, tar_pchan->name, 0);
@@ -1857,7 +1857,7 @@ static int object_constraint_add_exec(bContext *C, wmOperator *op)
 	}
 
 	/* hack: set constraint targets from selected objects in context is allowed when
-	 *		operator name included 'with_targets', since the menu doesn't allow multiple properties
+	 * operator name included 'with_targets', since the menu doesn't allow multiple properties
 	 */
 	if (strstr(op->idname, "with_targets"))
 		with_targets = 1;
@@ -1878,7 +1878,7 @@ static int pose_constraint_add_exec(bContext *C, wmOperator *op)
 	}
 
 	/* hack: set constraint targets from selected objects in context is allowed when
-	 *		operator name included 'with_targets', since the menu doesn't allow multiple properties
+	 * operator name included 'with_targets', since the menu doesn't allow multiple properties
 	 */
 	if (strstr(op->idname, "with_targets"))
 		with_targets = 1;
@@ -1995,14 +1995,14 @@ static int pose_ik_add_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED
 		return OPERATOR_CANCELLED;
 	}
 
-	/* prepare popup menu to choose targetting options */
+	/* prepare popup menu to choose targeting options */
 	pup = UI_popup_menu_begin(C, IFACE_("Add IK"), ICON_NONE);
 	layout = UI_popup_menu_layout(pup);
 
 	/* the type of targets we'll set determines the menu entries to show... */
 	if (get_new_constraint_target(C, CONSTRAINT_TYPE_KINEMATIC, &tar_ob, &tar_pchan, 0)) {
 		/* bone target, or object target?
-		 *	- the only thing that matters is that we want a target...
+		 * - the only thing that matters is that we want a target...
 		 */
 		if (tar_pchan)
 			uiItemBooleanO(layout, IFACE_("To Active Bone"), ICON_NONE, "POSE_OT_ik_add", "with_targets", 1);
@@ -2062,7 +2062,7 @@ static int pose_ik_clear_exec(bContext *C, wmOperator *UNUSED(op))
 	{
 		bConstraint *con, *next;
 
-		/* TODO: should we be checking if these contraints were local before we try and remove them? */
+		/* TODO: should we be checking if these constraints were local before we try and remove them? */
 		for (con = pchan->constraints.first; con; con = next) {
 			next = con->next;
 			if (con->type == CONSTRAINT_TYPE_KINEMATIC) {

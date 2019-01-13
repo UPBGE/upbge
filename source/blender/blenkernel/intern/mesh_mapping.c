@@ -507,9 +507,9 @@ void BKE_mesh_edge_poly_map_create(
  *
  * This has the advantage that it can operate on any data-types.
  *
- * \param totsource  The total number of elements the that \a final_origindex points to.
- * \param totfinal  The size of \a final_origindex
- * \param final_origindex  The size of the final array.
+ * \param totsource: The total number of elements the that \a final_origindex points to.
+ * \param totfinal: The size of \a final_origindex
+ * \param final_origindex: The size of the final array.
  *
  * \note ``totsource`` could be ``totpoly``,
  *       ``totfinal`` could be ``tottessface`` and ``final_origindex`` its ORIGINDEX customdata.
@@ -789,7 +789,7 @@ static bool poly_is_island_boundary_smooth_cb(
 /**
  * Calculate smooth groups from sharp edges.
  *
- * \param r_totgroup The total number of groups, 1 or more.
+ * \param r_totgroup: The total number of groups, 1 or more.
  * \return Polygon aligned array of group index values (bitflags if use_bitflags is true), starting at 1
  *         (0 being used as 'invalid' flag).
  *         Note it's callers's responsibility to MEM_freeN returned array.
@@ -1109,7 +1109,7 @@ bool BKE_mesh_calc_islands_loop_poly_edgeseam(
  *
  * \note If no MLoopUV layer is passed, we only consider edges tagged as seams as UV boundaries.
  *     This has the advantages of simplicity, and being valid/common to all UV maps.
- *     However, it means actual UV islands whithout matching UV seams will not be handled correctly...
+ *     However, it means actual UV islands without matching UV seams will not be handled correctly...
  *     If a valid UV layer is passed as \a luvs parameter, UV coordinates are also used to detect islands boundaries.
  *
  * \note All this could be optimized...

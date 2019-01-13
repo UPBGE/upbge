@@ -173,4 +173,4 @@ protected:
 
 CCL_NAMESPACE_END
 
-#endif /* __BLENDER_SESSION_H__ */
+#endif  /* __BLENDER_SESSION_H__ */

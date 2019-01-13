@@ -35,6 +35,7 @@
 #include "util/util_function.h"
 #include "util/util_hash.h"
 #include "util/util_logging.h"
+#include "util/util_murmurhash.h"
 #include "util/util_progress.h"
 #include "util/util_time.h"
 
@@ -109,9 +110,6 @@ BlenderSession::~BlenderSession()
 void BlenderSession::create()
 {
 	create_session();
-
-	if(b_v3d)
-		session->start();
 }
 
 void BlenderSession::create_session()
@@ -370,6 +368,17 @@ void BlenderSession::update_render_tile(RenderTile& rtile, bool highlight)
 		do_write_update_render_tile(rtile, false, false);
 }
 
+static void add_cryptomatte_layer(BL::RenderResult& b_rr, string name, string manifest)
+{
+	string identifier = string_printf("%08x", util_murmur_hash3(name.c_str(), name.length(), 0));
+	string prefix = "cryptomatte/" + identifier.substr(0, 7) + "/";
+
+	render_add_metadata(b_rr, prefix+"name", name);
+	render_add_metadata(b_rr, prefix+"hash", "MurmurHash3_32");
+	render_add_metadata(b_rr, prefix+"conversion", "uint32_to_float32");
+	render_add_metadata(b_rr, prefix+"manifest", manifest);
+}
+
 void BlenderSession::render()
 {
 	/* set callback to write out render results */
@@ -405,17 +414,19 @@ void BlenderSession::render()
 		BL::RenderLayer b_rlay = *b_single_rlay;
 
 		/* add passes */
-		array<Pass> passes = sync->sync_render_passes(b_rlay, *b_layer_iter, session_params);
+		vector<Pass> passes = sync->sync_render_passes(b_rlay, *b_layer_iter, session_params);
 		buffer_params.passes = passes;
 
 		PointerRNA crl = RNA_pointer_get(&b_layer_iter->ptr, "cycles");
 		bool use_denoising = get_boolean(crl, "use_denoising");
+		bool denoising_passes = use_denoising || get_boolean(crl, "denoising_store_passes");
 
 		session->tile_manager.schedule_denoising = use_denoising;
-		buffer_params.denoising_data_pass = use_denoising;
+		buffer_params.denoising_data_pass = denoising_passes;
 		buffer_params.denoising_clean_pass = (scene->film->denoising_flags & DENOISING_CLEAN_ALL_PASSES);
 
 		session->params.use_denoising = use_denoising;
+		session->params.denoising_passes = denoising_passes;
 		session->params.denoising_radius = get_int(crl, "denoising_radius");
 		session->params.denoising_strength = get_float(crl, "denoising_strength");
 		session->params.denoising_feature_strength = get_float(crl, "denoising_feature_strength");
@@ -475,13 +486,26 @@ void BlenderSession::render()
 				break;
 		}
 
+		BL::RenderResult b_full_rr = b_engine.get_result();
 		if(is_single_layer) {
-			BL::RenderResult b_rr = b_engine.get_result();
 			string num_aa_samples = string_printf("%d", session->params.samples);
-			b_rr.stamp_data_add_field("Cycles Samples", num_aa_samples.c_str());
+			render_add_metadata(b_full_rr, "Cycles Samples", num_aa_samples);
 			/* TODO(sergey): Report whether we're doing resumable render
 			 * and also start/end sample if so.
 			 */
+		}
+
+		if(scene->film->cryptomatte_passes & CRYPT_OBJECT) {
+			add_cryptomatte_layer(b_full_rr, b_rlay_name+".CryptoObject",
+			                      scene->object_manager->get_cryptomatte_objects(scene));
+		}
+		if(scene->film->cryptomatte_passes & CRYPT_MATERIAL) {
+			add_cryptomatte_layer(b_full_rr, b_rlay_name+".CryptoMaterial",
+			                      scene->shader_manager->get_cryptomatte_materials(scene));
+		}
+		if(scene->film->cryptomatte_passes & CRYPT_ASSET) {
+			add_cryptomatte_layer(b_full_rr, b_rlay_name+".CryptoAsset",
+			                      scene->object_manager->get_cryptomatte_assets(scene));
 		}
 
 		/* free result without merging */
@@ -489,7 +513,7 @@ void BlenderSession::render()
 
 		if(!b_engine.is_preview() && background && print_render_stats) {
 			RenderStats stats;
-			session->scene->collect_statistics(&stats);
+			session->collect_statistics(&stats);
 			printf("Render statistics:\n%s\n", stats.full_report().c_str());
 		}
 
@@ -700,7 +724,7 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult& b_rr,
 			bool read = false;
 			if(pass_type != PASS_NONE) {
 				/* copy pixels */
-				read = buffers->get_pass_rect(pass_type, exposure, sample, components, &pixels[0]);
+				read = buffers->get_pass_rect(pass_type, exposure, sample, components, &pixels[0], b_pass.name());
 			}
 			else {
 				int denoising_offset = BlenderSync::get_denoising_pass(b_pass);
@@ -719,7 +743,7 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult& b_rr,
 	else {
 		/* copy combined pass */
 		BL::RenderPass b_combined_pass(b_rlay.passes.find_by_name("Combined", b_rview_name.c_str()));
-		if(buffers->get_pass_rect(PASS_COMBINED, exposure, sample, 4, &pixels[0]))
+		if(buffers->get_pass_rect(PASS_COMBINED, exposure, sample, 4, &pixels[0], "Combined"))
 			b_combined_pass.rect(&pixels[0]);
 	}
 
@@ -757,7 +781,6 @@ void BlenderSession::synchronize()
 	{
 		free_session();
 		create_session();
-		session->start();
 		return;
 	}
 
@@ -806,6 +829,10 @@ void BlenderSession::synchronize()
 		/* reset time */
 		start_resize_time = 0.0;
 	}
+
+	/* Start rendering thread, if it's not running already. Do this
+	 * after all scene data has been synced at least once. */
+	session->start();
 }
 
 bool BlenderSession::draw(int w, int h)

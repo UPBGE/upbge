@@ -16,17 +16,17 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * Contributor:
- *		Jeroen Bakker
- *		Monique Dewanchand
- *		Sergey Sharybin
+ *      Jeroen Bakker
+ *      Monique Dewanchand
+ *      Sergey Sharybin
  */
 
 #include "COM_Node.h"
 #include "DNA_node_types.h"
 
 /**
- * @brief TrackPositionNode
- * @ingroup Node
+ * \brief TrackPositionNode
+ * \ingroup Node
  */
 class TrackPositionNode : public Node {
 public:

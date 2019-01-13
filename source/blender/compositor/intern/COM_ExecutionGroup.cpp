@@ -16,8 +16,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * Contributor:
- *		Jeroen Bakker
- *		Monique Dewanchand
+ *      Jeroen Bakker
+ *      Monique Dewanchand
  */
 
 #include <algorithm>
@@ -185,9 +185,9 @@ void ExecutionGroup::execute(ExecutionSystem *graph)
 {
 	const CompositorContext &context = graph->getContext();
 	const bNodeTree *bTree = context.getbNodeTree();
-	if (this->m_width == 0 || this->m_height == 0) {return; } /// @note: break out... no pixels to calculate.
-	if (bTree->test_break && bTree->test_break(bTree->tbh)) {return; } /// @note: early break out for blur and preview nodes
-	if (this->m_numberOfChunks == 0) {return; } /// @note: early break out
+	if (this->m_width == 0 || this->m_height == 0) {return; } /// \note: break out... no pixels to calculate.
+	if (bTree->test_break && bTree->test_break(bTree->tbh)) {return; } /// \note: early break out for blur and preview nodes
+	if (this->m_numberOfChunks == 0) {return; } /// \note: early break out
 	unsigned int chunkNumber;
 
 	this->m_executionStartTime = PIL_check_seconds_timer();
@@ -437,7 +437,7 @@ void ExecutionGroup::determineChunkRect(rcti *rect, const unsigned int chunkNumb
 MemoryBuffer *ExecutionGroup::allocateOutputBuffer(int /*chunkNumber*/,
                                                    rcti *rect)
 {
-	// we asume that this method is only called from complex execution groups.
+	// we assume that this method is only called from complex execution groups.
 	NodeOperation *operation = this->getOutputOperation();
 	if (operation->isWriteBufferOperation()) {
 		WriteBufferOperation *writeOperation = (WriteBufferOperation *)operation;

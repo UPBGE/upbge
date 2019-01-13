@@ -20,11 +20,13 @@
 #include "graph/node.h"
 #include "render/scene.h"
 
+#include "util/util_array.h"
 #include "util/util_boundbox.h"
 #include "util/util_param.h"
 #include "util/util_transform.h"
 #include "util/util_thread.h"
 #include "util/util_types.h"
+#include "util/util_vector.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -36,6 +38,7 @@ class Progress;
 class Scene;
 struct Transform;
 struct UpdateObjectTransformState;
+class ObjectManager;
 
 /* Object */
 
@@ -48,6 +51,7 @@ public:
 	BoundBox bounds;
 	uint random_id;
 	int pass_id;
+	ustring asset_name;
 	vector<ParamValue> attributes;
 	uint visibility;
 	array<Transform> motion;
@@ -85,6 +89,16 @@ public:
 	 * determined flags which denotes trace-time visibility.
 	 */
 	uint visibility_for_tracing() const;
+
+	/* Returns the index that is used in the kernel for this object. */
+	int get_device_index() const;
+
+protected:
+	/* Specifies the position of the object in scene->objects and
+	 * in the device vectors. Gets set in device_update. */
+	int index;
+
+	friend class ObjectManager;
 };
 
 /* Object Manager */
@@ -115,10 +129,12 @@ public:
 
 	void apply_static_transforms(DeviceScene *dscene, Scene *scene, Progress& progress);
 
+	string get_cryptomatte_objects(Scene *scene);
+	string get_cryptomatte_assets(Scene *scene);
+
 protected:
 	void device_update_object_transform(UpdateObjectTransformState *state,
-	                                    Object *ob,
-	                                    const int object_index);
+	                                    Object *ob);
 	void device_update_object_transform_task(UpdateObjectTransformState *state);
 	bool device_update_object_transform_pop_work(
 	        UpdateObjectTransformState *state,
@@ -128,4 +144,4 @@ protected:
 
 CCL_NAMESPACE_END
 
-#endif /* __OBJECT_H__ */
+#endif  /* __OBJECT_H__ */

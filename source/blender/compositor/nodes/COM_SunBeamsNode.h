@@ -16,7 +16,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * Contributor:
- *		Lukas Toenne
+ *      Lukas Toenne
  */
 
 #ifndef __COM_SUNBEAMSNODE_H__
@@ -25,8 +25,8 @@
 #include "COM_Node.h"
 
 /**
- * @brief SunBeamsNode
- * @ingroup Node
+ * \brief SunBeamsNode
+ * \ingroup Node
  */
 class SunBeamsNode : public Node {
 public:

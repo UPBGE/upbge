@@ -53,7 +53,7 @@ public:
 
 	T *allocate(size_t n, const void *hint = 0)
 	{
-		(void)hint;
+		(void) hint;
 		if(n == 0) {
 			return NULL;
 		}
@@ -164,4 +164,4 @@ private:
 
 CCL_NAMESPACE_END
 
-#endif  /* __UTIL_GUARDED_ALLOCATOR_H__ */
+#endif  /* __UTIL_STACK_ALLOCATOR_H__ */

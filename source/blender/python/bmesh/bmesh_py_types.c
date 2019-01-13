@@ -112,7 +112,7 @@ PyDoc_STRVAR(bpy_bm_elem_seam_doc,    "Seam for UV unwrapping.\n\n:type: boolean
 
 static PyObject *bpy_bm_elem_hflag_get(BPy_BMElem *self, void *flag)
 {
-	const char hflag = (char)GET_INT_FROM_POINTER(flag);
+	const char hflag = (char)POINTER_AS_INT(flag);
 
 	BPY_BM_CHECK_OBJ(self);
 
@@ -121,7 +121,7 @@ static PyObject *bpy_bm_elem_hflag_get(BPy_BMElem *self, void *flag)
 
 static int bpy_bm_elem_hflag_set(BPy_BMElem *self, PyObject *value, void *flag)
 {
-	const char hflag = (char)GET_INT_FROM_POINTER(flag);
+	const char hflag = (char)POINTER_AS_INT(flag);
 	int param;
 
 	BPY_BM_CHECK_INT(self);
@@ -265,7 +265,7 @@ PyDoc_STRVAR(bpy_bmloops_link_loops_doc,
 static PyObject *bpy_bmelemseq_elem_get(BPy_BMElem *self, void *itype)
 {
 	BPY_BM_CHECK_OBJ(self);
-	return BPy_BMElemSeq_CreatePyObject(self->bm, self, GET_INT_FROM_POINTER(itype));
+	return BPy_BMElemSeq_CreatePyObject(self->bm, self, POINTER_AS_INT(itype));
 }
 
 
@@ -613,7 +613,7 @@ static PyObject *bpy_bmelemseq_layers_get(BPy_BMElemSeq *self, void *htype)
 {
 	BPY_BM_CHECK_OBJ(self);
 
-	return BPy_BMLayerAccess_CreatePyObject(self->bm, GET_INT_FROM_POINTER(htype));
+	return BPy_BMLayerAccess_CreatePyObject(self->bm, POINTER_AS_INT(htype));
 }
 
 /* FaceSeq
@@ -1877,7 +1877,7 @@ static PyObject *bpy_bmface_calc_tangent_vert_diagonal(BPy_BMFace *self)
 }
 
 
-PyDoc_STRVAR(bpy_bmface_calc_center_mean_doc,
+PyDoc_STRVAR(bpy_bmface_calc_center_median_doc,
 ".. method:: calc_center_median()\n"
 "\n"
 "   Return median center of the face.\n"
@@ -1890,11 +1890,11 @@ static PyObject *bpy_bmface_calc_center_mean(BPy_BMFace *self)
 	float cent[3];
 
 	BPY_BM_CHECK_OBJ(self);
-	BM_face_calc_center_mean(self->f, cent);
+	BM_face_calc_center_median(self->f, cent);
 	return Vector_CreatePyObject(cent, 3, NULL);
 }
 
-PyDoc_STRVAR(bpy_bmface_calc_center_mean_weighted_doc,
+PyDoc_STRVAR(bpy_bmface_calc_center_median_weighted_doc,
 ".. method:: calc_center_median_weighted()\n"
 "\n"
 "   Return median center of the face weighted by edge lengths.\n"
@@ -1902,12 +1902,12 @@ PyDoc_STRVAR(bpy_bmface_calc_center_mean_weighted_doc,
 "   :return: a 3D vector.\n"
 "   :rtype: :class:`mathutils.Vector`\n"
 );
-static PyObject *bpy_bmface_calc_center_mean_weighted(BPy_BMFace *self)
+static PyObject *bpy_bmface_calc_center_median_weighted(BPy_BMFace *self)
 {
 	float cent[3];
 
 	BPY_BM_CHECK_OBJ(self);
-	BM_face_calc_center_mean_weighted(self->f, cent);
+	BM_face_calc_center_median_weighted(self->f, cent);
 	return Vector_CreatePyObject(cent, 3, NULL);
 }
 
@@ -2453,7 +2453,7 @@ PyDoc_STRVAR(bpy_bmelemseq_index_update_doc,
 "   .. note::\n"
 "\n"
 "      Running this on sequences besides :class:`BMesh.verts`, :class:`BMesh.edges`, :class:`BMesh.faces`\n"
-"      works but wont result in each element having a valid index, insted its order in the sequence will be set.\n"
+"      works but wont result in each element having a valid index, instead its order in the sequence will be set.\n"
 );
 static PyObject *bpy_bmelemseq_index_update(BPy_BMElemSeq *self)
 {
@@ -2781,8 +2781,8 @@ static struct PyMethodDef bpy_bmface_methods[] = {
 	{"calc_tangent_edge_pair", (PyCFunction)bpy_bmface_calc_tangent_edge_pair,   METH_NOARGS, bpy_bmface_calc_tangent_edge_pair_doc},
 	{"calc_tangent_edge_diagonal", (PyCFunction)bpy_bmface_calc_tangent_edge_diagonal,   METH_NOARGS, bpy_bmface_calc_tangent_edge_diagonal_doc},
 	{"calc_tangent_vert_diagonal", (PyCFunction)bpy_bmface_calc_tangent_vert_diagonal,   METH_NOARGS, bpy_bmface_calc_tangent_vert_diagonal_doc},
-	{"calc_center_median", (PyCFunction)bpy_bmface_calc_center_mean,   METH_NOARGS, bpy_bmface_calc_center_mean_doc},
-	{"calc_center_median_weighted", (PyCFunction)bpy_bmface_calc_center_mean_weighted, METH_NOARGS, bpy_bmface_calc_center_mean_weighted_doc},
+	{"calc_center_median", (PyCFunction)bpy_bmface_calc_center_mean,   METH_NOARGS, bpy_bmface_calc_center_median_doc},
+	{"calc_center_median_weighted", (PyCFunction)bpy_bmface_calc_center_median_weighted, METH_NOARGS, bpy_bmface_calc_center_median_weighted_doc},
 	{"calc_center_bounds", (PyCFunction)bpy_bmface_calc_center_bounds, METH_NOARGS, bpy_bmface_calc_center_bounds_doc},
 
 	{"normal_update",  (PyCFunction)bpy_bmface_normal_update,  METH_NOARGS,  bpy_bmface_normal_update_doc},
@@ -3272,10 +3272,10 @@ PyDoc_STRVAR(bpy_bmloop_doc,
 "This is normally accessed from :class:`BMFace.loops` where each face loop represents a corner of the face.\n"
 );
 PyDoc_STRVAR(bpy_bmelemseq_doc,
-"General sequence type used for accessing any sequence of \n"
+"General sequence type used for accessing any sequence of\n"
 ":class:`BMVert`, :class:`BMEdge`, :class:`BMFace`, :class:`BMLoop`.\n"
 "\n"
-"When accessed via :class:`BMesh.verts`, :class:`BMesh.edges`, :class:`BMesh.faces` \n"
+"When accessed via :class:`BMesh.verts`, :class:`BMesh.edges`, :class:`BMesh.faces`\n"
 "there are also functions to create/remomove items.\n"
 );
 PyDoc_STRVAR(bpy_bmiter_doc,
@@ -4050,7 +4050,7 @@ int BPy_BMElem_CheckHType(PyTypeObject *type, const char htype)
 /**
  * Use for error strings only, not thread safe,
  *
- * \return a sting like '(BMVert/BMEdge/BMFace/BMLoop)'
+ * \return a string like '(BMVert/BMEdge/BMFace/BMLoop)'
  */
 char *BPy_BMElem_StringFromHType_ex(const char htype, char ret[32])
 {

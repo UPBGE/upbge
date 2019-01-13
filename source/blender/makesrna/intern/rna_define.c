@@ -425,7 +425,7 @@ static int rna_validate_identifier(const char *identifier, char *error, bool pro
 	 */
 	static const char *kwlist[] = {
 		/* "False", "None", "True", */
-		"and", "as", "assert", "break",
+		"and", "as", "assert", "async", "await", "break",
 		"class", "continue", "def", "del", "elif", "else", "except",
 		"finally", "for", "from", "global", "if", "import", "in",
 		"is", "lambda", "nonlocal", "not", "or", "pass", "raise",
@@ -1423,7 +1423,7 @@ void RNA_def_property_ui_icon(PropertyRNA *prop, int icon, bool consecutive)
  * For floats this is (step * UI_PRECISION_FLOAT_SCALE), why? - nobody knows.
  * For ints, whole values are used.
  *
- * \param precision The number of zeros to show
+ * \param precision: The number of zeros to show
  * (as a whole number - common range is 1 - 6), see UI_PRECISION_FLOAT_MAX
  */
 void RNA_def_property_ui_range(PropertyRNA *prop, double min, double max, double step, int precision)

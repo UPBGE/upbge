@@ -16,9 +16,9 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * Contributor:
- *		Jeroen Bakker
- *		Monique Dewanchand
- *		Lukas Tönne
+ *      Jeroen Bakker
+ *      Monique Dewanchand
+ *      Lukas Tönne
  */
 
 #ifndef __COM_OUTPUTFILEOPERATION_H__
@@ -57,7 +57,7 @@ public:
 	bool isOutputOperation(bool /*rendering*/) const { return true; }
 	void initExecution();
 	void deinitExecution();
-	const CompositorPriority getRenderPriority() const { return COM_PRIORITY_LOW; }
+	CompositorPriority getRenderPriority() const { return COM_PRIORITY_LOW; }
 
 	bool isFileOutputOperation() const { return true; }
 };
@@ -99,7 +99,7 @@ public:
 	bool isOutputOperation(bool /*rendering*/) const { return true; }
 	void initExecution();
 	void deinitExecution();
-	const CompositorPriority getRenderPriority() const { return COM_PRIORITY_LOW; }
+	CompositorPriority getRenderPriority() const { return COM_PRIORITY_LOW; }
 
 	bool isFileOutputOperation() const { return true; }
 };

@@ -129,9 +129,9 @@ void animviz_free_motionpath(bMotionPath *mpath)
  * Setup motion paths for the given data.
  * \note Only used when explicitly calculating paths on bones which may/may not be consider already
  *
- * \param scene Current scene (for frame ranges, etc.)
- * \param ob Object to add paths for (must be provided)
- * \param pchan Posechannel to add paths for (optional; if not provided, object-paths are assumed)
+ * \param scene: Current scene (for frame ranges, etc.)
+ * \param ob: Object to add paths for (must be provided)
+ * \param pchan: Posechannel to add paths for (optional; if not provided, object-paths are assumed)
  */
 bMotionPath *animviz_verify_motionpaths(ReportList *reports, Scene *scene, Object *ob, bPoseChannel *pchan)
 {
@@ -235,7 +235,7 @@ typedef struct MPathTarget {
 /* ........ */
 
 /* get list of motion paths to be baked for the given object
- *  - assumes the given list is ready to be used
+ * - assumes the given list is ready to be used
  */
 /* TODO: it would be nice in future to be able to update objects dependent on these bones too? */
 void animviz_get_object_motionpaths(Object *ob, ListBase *targets)
@@ -349,9 +349,9 @@ static void motionpaths_calc_update_scene(Main *bmain, Scene *scene)
 	}
 #else // original, 'always correct' version
 	/* do all updates
-	 *  - if this is too slow, resort to using a more efficient way
-	 *    that doesn't force complete update, but for now, this is the
-	 *    most accurate way!
+	 * - if this is too slow, resort to using a more efficient way
+	 *   that doesn't force complete update, but for now, this is the
+	 *   most accurate way!
 	 */
 	BKE_scene_update_for_newframe(bmain->eval_ctx, bmain, scene, scene->lay); /* XXX this is the best way we can get anything moving */
 #endif
@@ -370,7 +370,7 @@ static void motionpaths_calc_bake_targets(Scene *scene, ListBase *targets)
 		bMotionPathVert *mpv;
 
 		/* current frame must be within the range the cache works for
-		 *	- is inclusive of the first frame, but not the last otherwise we get buffer overruns
+		 * - is inclusive of the first frame, but not the last otherwise we get buffer overruns
 		 */
 		if ((CFRA < mpath->start_frame) || (CFRA >= mpath->end_frame))
 			continue;
@@ -399,9 +399,9 @@ static void motionpaths_calc_bake_targets(Scene *scene, ListBase *targets)
 }
 
 /* Perform baking of the given object's and/or its bones' transforms to motion paths
- *	- scene: current scene
- *	- ob: object whose flagged motionpaths should get calculated
- *	- recalc: whether we need to
+ * - scene: current scene
+ * - ob: object whose flagged motionpaths should get calculated
+ * - recalc: whether we need to
  */
 /* TODO: include reports pointer? */
 void animviz_calc_motionpaths(Main *bmain, Scene *scene, ListBase *targets)
@@ -474,7 +474,7 @@ void free_path(Path *path)
 }
 
 /* calculate a curve-deform path for a curve
- *  - only called from displist.c -> do_makeDispListCurveTypes
+ * - only called from displist.c -> do_makeDispListCurveTypes
  */
 void calc_curvepath(Object *ob, ListBase *nurbs)
 {
@@ -643,7 +643,7 @@ int where_on_path(Object *ob, float ctime, float vec[4], float dir[3], float qua
 	s1 = (int)floor(ctime);
 	fac = (float)(s1 + 1) - ctime;
 
-	/* path->len is corected for cyclic */
+	/* path->len is corrected for cyclic */
 	s0 = interval_test(0, path->len - 1 - cycl, s1 - 1, cycl);
 	s1 = interval_test(0, path->len - 1 - cycl, s1, cycl);
 	s2 = interval_test(0, path->len - 1 - cycl, s1 + 1, cycl);

@@ -225,7 +225,7 @@ if(NOT JPEG_FOUND)
 endif()
 
 set(PTHREADS_INCLUDE_DIRS ${LIBDIR}/pthreads/include)
-set(PTHREADS_LIBRARIES ${LIBDIR}/pthreads/lib/pthreadVC2.lib)
+set(PTHREADS_LIBRARIES ${LIBDIR}/pthreads/lib/pthreadVC3.lib)
 
 set(FREETYPE ${LIBDIR}/freetype)
 set(FREETYPE_INCLUDE_DIRS
@@ -502,7 +502,7 @@ if(WITH_IMAGE_OPENJPEG)
 	set(OPENJPEG_LIBRARIES ${OPENJPEG}/lib/openjp2.lib)
 endif()
 
-if(WITH_OPENSUBDIV OR WITH_CYCLES_OPENSUBDIV)
+if(WITH_OPENSUBDIV)
 	set(OPENSUBDIV_INCLUDE_DIR ${LIBDIR}/opensubdiv/include)
 	set(OPENSUBDIV_LIBPATH ${LIBDIR}/opensubdiv/lib)
 	set(OPENSUBDIV_LIBRARIES
@@ -610,5 +610,69 @@ if(WITH_CYCLES_OSL)
 	else()
 		message(STATUS "OSL not found")
 		set(WITH_CYCLES_OSL OFF)
+	endif()
+endif()
+
+if(WITH_CYCLES_EMBREE)
+	windows_find_package(Embree)
+	if(NOT EMBREE_FOUND)
+		set(EMBREE_INCLUDE_DIRS ${LIBDIR}/embree/include)
+		set(EMBREE_LIBRARIES
+			optimized ${LIBDIR}/embree/lib/embree3.lib
+			optimized ${LIBDIR}/embree/lib/embree_avx2.lib
+			optimized ${LIBDIR}/embree/lib/embree_avx.lib
+			optimized ${LIBDIR}/embree/lib/embree_sse42.lib
+			optimized ${LIBDIR}/embree/lib/lexers.lib
+			optimized ${LIBDIR}/embree/lib/math.lib
+			optimized ${LIBDIR}/embree/lib/simd.lib
+			optimized ${LIBDIR}/embree/lib/sys.lib
+			optimized ${LIBDIR}/embree/lib/tasking.lib
+
+			debug ${LIBDIR}/embree/lib/embree3_d.lib
+			debug ${LIBDIR}/embree/lib/embree_avx2_d.lib
+			debug ${LIBDIR}/embree/lib/embree_avx_d.lib
+			debug ${LIBDIR}/embree/lib/embree_sse42_d.lib
+			debug ${LIBDIR}/embree/lib/lexers_d.lib
+			debug ${LIBDIR}/embree/lib/math_d.lib
+			debug ${LIBDIR}/embree/lib/simd_d.lib
+			debug ${LIBDIR}/embree/lib/sys_d.lib
+			debug ${LIBDIR}/embree/lib/tasking_d.lib)
+	endif()
+endif()
+
+if (WINDOWS_PYTHON_DEBUG)
+	# Include the system scripts in the blender_python_system_scripts project.
+	FILE(GLOB_RECURSE inFiles "${CMAKE_SOURCE_DIR}/release/scripts/*.*" )
+	ADD_CUSTOM_TARGET(blender_python_system_scripts SOURCES ${inFiles})
+	foreach(_source IN ITEMS ${inFiles})
+		get_filename_component(_source_path "${_source}" PATH)
+		string(REPLACE "${CMAKE_SOURCE_DIR}/release/scripts/" "" _source_path "${_source_path}")
+		string(REPLACE "/" "\\" _group_path "${_source_path}")
+		source_group("${_group_path}" FILES "${_source}")
+	endforeach()
+	# Include the user scripts from the profile folder in the blender_python_user_scripts project.
+	set(USER_SCRIPTS_ROOT "$ENV{appdata}/blender foundation/blender/${BLENDER_VERSION}")
+	file(TO_CMAKE_PATH ${USER_SCRIPTS_ROOT} USER_SCRIPTS_ROOT)
+	FILE(GLOB_RECURSE inFiles "${USER_SCRIPTS_ROOT}/scripts/*.*" )
+	ADD_CUSTOM_TARGET(blender_python_user_scripts SOURCES ${inFiles})
+	foreach(_source IN ITEMS ${inFiles})
+		get_filename_component(_source_path "${_source}" PATH)
+		string(REPLACE "${USER_SCRIPTS_ROOT}/scripts" "" _source_path "${_source_path}")
+		string(REPLACE "/" "\\" _group_path "${_source_path}")
+		source_group("${_group_path}" FILES "${_source}")
+	endforeach()
+	set_target_properties(blender_python_system_scripts PROPERTIES FOLDER "scripts")
+	set_target_properties(blender_python_user_scripts PROPERTIES FOLDER "scripts")
+	# Set the default debugging options for the project, only write this file once so the user
+	# is free to override them at their own perril.
+	set(USER_PROPS_FILE "${CMAKE_CURRENT_BINARY_DIR}/source/creator/blender.Cpp.user.props")
+	if(NOT EXISTS ${USER_PROPS_FILE})
+		# Layout below is messy, because otherwise the generated file will look messy.
+		file(WRITE ${USER_PROPS_FILE} "<?xml version=\"1.0\" encoding=\"utf-8\"?>
+<Project DefaultTargets=\"Build\" xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\">
+	<PropertyGroup>
+		<LocalDebuggerCommandArguments>-con --env-system-scripts \"${CMAKE_SOURCE_DIR}/release/scripts\" </LocalDebuggerCommandArguments>
+	</PropertyGroup>
+</Project>")
 	endif()
 endif()

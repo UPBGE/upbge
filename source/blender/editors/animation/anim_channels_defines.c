@@ -192,8 +192,8 @@ static void acf_generic_channel_color(bAnimContext *ac, bAnimListElem *ale, floa
 	}
 
 	/* set color for normal channels
-	 *	- use 3 shades of color group/standard color for 3 indention level
-	 *	- only use group colors if allowed to, and if actually feasible
+	 * - use 3 shades of color group/standard color for 3 indention level
+	 * - only use group colors if allowed to, and if actually feasible
 	 */
 	if (showGroupColors && (grp) && (grp->customCol)) {
 		unsigned char cp[3];
@@ -425,8 +425,8 @@ static void acf_summary_backdrop(bAnimContext *ac, bAnimListElem *ale, float ymi
 	glColor3fv(color);
 
 	/* rounded corners on LHS only
-	 *	- top and bottom
-	 *	- special hack: make the top a bit higher, since we are first...
+	 * - top and bottom
+	 * - special hack: make the top a bit higher, since we are first...
 	 */
 	UI_draw_roundbox_corner_set(UI_CNR_TOP_LEFT | UI_CNR_BOTTOM_LEFT);
 	UI_draw_roundbox_gl_mode(GL_POLYGON, 0,  yminc - 2, v2d->cur.xmax + EXTRA_SCROLL_PAD, ymaxc, 8);
@@ -473,7 +473,7 @@ static void *acf_summary_setting_ptr(bAnimListElem *ale, eAnimChannel_Settings s
 	bAnimContext *ac = (bAnimContext *)ale->data;
 
 	/* if data is valid, return pointer to active dopesheet's relevant flag
-	 *	- this is restricted to DopeSheet/Action Editor only
+	 * - this is restricted to DopeSheet/Action Editor only
 	 */
 	if ((ac->sl) && (ac->spacetype == SPACE_ACTION) && (setting == ACHANNEL_SETTING_EXPAND)) {
 		SpaceAction *saction = (SpaceAction *)ac->sl;
@@ -1094,7 +1094,7 @@ static bool acf_nla_controls_setting_valid(bAnimContext *UNUSED(ac), bAnimListEl
 		case ACHANNEL_SETTING_EXPAND:
 			return true;
 
-		// TOOD: selected?
+		// TODO: selected?
 
 		default: /* unsupported */
 			return false;
@@ -3022,7 +3022,7 @@ static int acf_gpl_setting_flag(bAnimContext *UNUSED(ac), eAnimChannel_Settings 
 		case ACHANNEL_SETTING_MUTE: /* animation muting - similar to frame lock... */
 			return GP_LAYER_FRAMELOCK;
 
-		case ACHANNEL_SETTING_VISIBLE: /* visiblity of the layers (NOT muting) */
+		case ACHANNEL_SETTING_VISIBLE: /* visibility of the layers (NOT muting) */
 			*neg = true;
 			return GP_LAYER_HIDE;
 
@@ -3727,8 +3727,8 @@ short ANIM_channel_setting_get(bAnimContext *ac, bAnimListElem *ale, eAnimChanne
 	} (void)0
 
 /* Change value of some setting for a channel
- *	- setting: eAnimChannel_Settings
- *	- mode: eAnimChannels_SetFlag
+ * - setting: eAnimChannel_Settings
+ * - mode: eAnimChannels_SetFlag
  */
 void ANIM_channel_setting_set(bAnimContext *ac, bAnimListElem *ale, eAnimChannel_Settings setting, eAnimChannels_SetFlag mode)
 {
@@ -3850,9 +3850,9 @@ void ANIM_channel_draw(bAnimContext *ac, bAnimListElem *ale, float yminc, float 
 	glDisable(GL_BLEND);
 
 	/* step 4) draw special toggles  .................................
-	 *	- in Graph Editor, checkboxes for visibility in curves area
-	 *	- in NLA Editor, glowing dots for solo/not solo...
-	 *	- in Grease Pencil mode, color swatches for layer color
+	 * - in Graph Editor, checkboxes for visibility in curves area
+	 * - in NLA Editor, glowing dots for solo/not solo...
+	 * - in Grease Pencil mode, color swatches for layer color
 	 */
 	if (ac->sl) {
 		if ((ac->spacetype == SPACE_IPO) &&
@@ -3976,9 +3976,9 @@ void ANIM_channel_draw(bAnimContext *ac, bAnimListElem *ale, float yminc, float 
 		}
 
 		/* draw slider
-		 *	- even if we can draw sliders for this view, we must also check that the channel-type supports them
-		 *	  (only only F-Curves really can support them for now)
-		 *	- slider should start before the toggles (if they're visible) to keep a clean line down the side
+		 * - even if we can draw sliders for this view, we must also check that the channel-type supports them
+		 *   (only only F-Curves really can support them for now)
+		 * - slider should start before the toggles (if they're visible) to keep a clean line down the side
 		 */
 		if ((draw_sliders) && ELEM(ale->type, ANIMTYPE_FCURVE, ANIMTYPE_NLACURVE, ANIMTYPE_SHAPEKEY)) {
 			/* adjust offset */
@@ -3987,8 +3987,8 @@ void ANIM_channel_draw(bAnimContext *ac, bAnimListElem *ale, float yminc, float 
 
 
 		/* finally draw a backdrop rect behind these
-		 *	- starts from the point where the first toggle/slider starts,
-		 *	- ends past the space that might be reserved for a scroller
+		 * - starts from the point where the first toggle/slider starts,
+		 * - ends past the space that might be reserved for a scroller
 		 */
 		glRectf(v2d->cur.xmax - (float)offset, yminc + ymin_ofs, v2d->cur.xmax + EXTRA_SCROLL_PAD, ymaxc);
 	}
@@ -4009,7 +4009,7 @@ static void achannel_setting_flush_widget_cb(bContext *C, void *ale_npoin, void 
 	bAnimContext ac;
 	ListBase anim_data = {NULL, NULL};
 	int filter;
-	int setting = GET_INT_FROM_POINTER(setting_wrap);
+	int setting = POINTER_AS_INT(setting_wrap);
 	short on = 0;
 
 	/* send notifiers before doing anything else... */
@@ -4339,7 +4339,7 @@ static void draw_setting_widget(bAnimContext *ac, bAnimListElem *ale, const bAni
 				case ACHANNEL_SETTING_PINNED: /* NLA Actions - 'map/nomap' */
 				case ACHANNEL_SETTING_MOD_OFF:
 				case ACHANNEL_SETTING_ALWAYS_VISIBLE:
-					UI_but_funcN_set(but, achannel_setting_flush_widget_cb, MEM_dupallocN(ale), SET_INT_IN_POINTER(setting));
+					UI_but_funcN_set(but, achannel_setting_flush_widget_cb, MEM_dupallocN(ale), POINTER_FROM_INT(setting));
 					break;
 
 				/* settings needing special attention */
@@ -4397,9 +4397,9 @@ void ANIM_channel_draw_widgets(const bContext *C, bAnimContext *ac, bAnimListEle
 	}
 
 	/* step 3) draw special toggles  .................................
-	 *	- in Graph Editor, checkboxes for visibility in curves area
-	 *	- in NLA Editor, glowing dots for solo/not solo...
-	 *	- in Grease Pencil mode, color swatches for layer color
+	 * - in Graph Editor, checkboxes for visibility in curves area
+	 * - in NLA Editor, glowing dots for solo/not solo...
+	 * - in Grease Pencil mode, color swatches for layer color
 	 */
 	if (ac->sl) {
 		if ((ac->spacetype == SPACE_IPO) &&
@@ -4567,12 +4567,12 @@ void ANIM_channel_draw_widgets(const bContext *C, bAnimContext *ac, bAnimListEle
 		}
 
 		/* draw slider
-		 *	- even if we can draw sliders for this view, we must also check that the channel-type supports them
-		 *	  (only only F-Curves really can support them for now)
-		 *	- to make things easier, we use RNA-autobuts for this so that changes are reflected immediately,
-		 *	  wherever they occurred. BUT, we don't use the layout engine, otherwise we'd get wrong alignment,
-		 *	  and wouldn't be able to auto-keyframe...
-		 *	- slider should start before the toggles (if they're visible) to keep a clean line down the side
+		 * - even if we can draw sliders for this view, we must also check that the channel-type supports them
+		 *   (only only F-Curves really can support them for now)
+		 * - to make things easier, we use RNA-autobuts for this so that changes are reflected immediately,
+		 *   wherever they occurred. BUT, we don't use the layout engine, otherwise we'd get wrong alignment,
+		 *   and wouldn't be able to auto-keyframe...
+		 * - slider should start before the toggles (if they're visible) to keep a clean line down the side
 		 */
 		if ((draw_sliders) && ELEM(ale->type, ANIMTYPE_FCURVE, ANIMTYPE_NLACURVE, ANIMTYPE_SHAPEKEY)) {
 			/* adjust offset */

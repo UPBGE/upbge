@@ -547,6 +547,11 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
             description="Use special type BVH optimized for hair (uses more ram but renders faster)",
             default=True,
         )
+        cls.use_bvh_embree = BoolProperty(
+            name="Use Embree",
+            description="Use Embree as ray accelerator",
+            default=False,
+        )
         cls.debug_bvh_time_steps = IntProperty(
             name="BVH Time Steps",
             description="Split BVH primitives by this number of time steps to speed up render time in cost of memory",
@@ -1339,7 +1344,36 @@ class CyclesRenderLayerSettings(bpy.types.PropertyGroup):
             default=False,
             update=update_render_passes,
         )
-
+        cls.use_pass_crypto_object = BoolProperty(
+                name="Cryptomatte Object",
+                description="Render cryptomatte object pass, for isolating objects in compositing",
+                default=False,
+                update=update_render_passes,
+                )
+        cls.use_pass_crypto_material = BoolProperty(
+                name="Cryptomatte Material",
+                description="Render cryptomatte material pass, for isolating materials in compositing",
+                default=False,
+                update=update_render_passes,
+                )
+        cls.use_pass_crypto_asset = BoolProperty(
+                name="Cryptomatte Asset",
+                description="Render cryptomatte asset pass, for isolating groups of objects with the same parent",
+                default=False,
+                update=update_render_passes,
+                )
+        cls.pass_crypto_depth = IntProperty(
+                name="Cryptomatte Levels",
+                description="Sets how many unique objects can be distinguished per pixel",
+                default=6, min=2, max=16, step=2,
+                update=update_render_passes,
+                )
+        cls.pass_crypto_accurate = BoolProperty(
+                name="Cryptomatte Accurate",
+                description="Gerenate a more accurate Cryptomatte pass. CPU only, may render slower and use more memory",
+                default=True,
+                update=update_render_passes,
+                )
     @classmethod
     def unregister(cls):
         del bpy.types.SceneRenderLayer.cycles
@@ -1482,7 +1516,11 @@ class CyclesPreferences(bpy.types.AddonPreferences):
         return self.get_num_gpu_devices() > 0
 
     def draw_impl(self, layout, context):
+        available_device_types = self.get_device_types(context)
         layout.label(text="Cycles Compute Device:")
+        if len(available_device_types) == 1:
+            layout.label(text="No compatible GPUs found", icon='INFO')
+            return
         layout.row().prop(self, "compute_device_type", expand=True)
 
         cuda_devices, opencl_devices = self.get_devices()

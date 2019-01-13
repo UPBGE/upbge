@@ -181,7 +181,7 @@ static void copy_bonechildren(
  *
  * WARNING! This function will not handle ID user count!
  *
- * \param flag  Copying options (see BKE_library.h's LIB_ID_COPY_... flags for more).
+ * \param flag: Copying options (see BKE_library.h's LIB_ID_COPY_... flags for more).
  */
 void BKE_armature_copy_data(Main *UNUSED(bmain), bArmature *arm_dst, const bArmature *arm_src, const int flag)
 {
@@ -295,12 +295,12 @@ int bone_autoside_name(char name[MAXBONENAME], int UNUSED(strip_number), short a
 	BLI_strncpy(basename, name, sizeof(basename));
 
 	/* Figure out extension to append:
-	 *	- The extension to append is based upon the axis that we are working on.
-	 *	- If head happens to be on 0, then we must consider the tail position as well to decide
-	 *	  which side the bone is on
-	 *		-> If tail is 0, then it's bone is considered to be on axis, so no extension should be added
-	 *		-> Otherwise, extension is added from perspective of object based on which side tail goes to
-	 *	- If head is non-zero, extension is added from perspective of object based on side head is on
+	 * - The extension to append is based upon the axis that we are working on.
+	 * - If head happens to be on 0, then we must consider the tail position as well to decide
+	 *   which side the bone is on
+	 *   -> If tail is 0, then it's bone is considered to be on axis, so no extension should be added
+	 *   -> Otherwise, extension is added from perspective of object based on which side tail goes to
+	 * - If head is non-zero, extension is added from perspective of object based on side head is on
 	 */
 	if (axis == 2) {
 		/* z-axis - vertical (top/bottom) */
@@ -350,8 +350,8 @@ int bone_autoside_name(char name[MAXBONENAME], int UNUSED(strip_number), short a
 	}
 
 	/* Simple name truncation
-	 *	- truncate if there is an extension and it wouldn't be able to fit
-	 *	- otherwise, just append to end
+	 * - truncate if there is an extension and it wouldn't be able to fit
+	 * - otherwise, just append to end
 	 */
 	if (extension[0]) {
 		bool changed = true;
@@ -443,7 +443,7 @@ void equalize_bbone_bezier(float *data, int desired)
 
 /* returns pointer to static array, filled with desired amount of bone->segments elements */
 /* this calculation is done  within unit bone space */
-void b_bone_spline_setup(bPoseChannel *pchan, int rest, Mat4 result_array[MAX_BBONE_SUBDIV])
+void BKE_pchan_bbone_spline_setup(bPoseChannel *pchan, int rest, Mat4 result_array[MAX_BBONE_SUBDIV])
 {
 	bPoseChannel *next, *prev;
 	Bone *bone = pchan->bone;
@@ -734,8 +734,8 @@ static void pchan_b_bone_defmats(bPoseChannel *pchan, bPoseChanDeform *pdef_info
 	DualQuat *b_bone_dual_quats = NULL;
 	int a;
 
-	b_bone_spline_setup(pchan, 0, b_bone);
-	b_bone_spline_setup(pchan, 1, b_bone_rest);
+	BKE_pchan_bbone_spline_setup(pchan, 0, b_bone);
+	BKE_pchan_bbone_spline_setup(pchan, 1, b_bone_rest);
 
 	/* allocate b_bone matrices and dual quats */
 	b_bone_mats = MEM_mallocN((1 + bone->segments) * sizeof(Mat4), "BBone defmats");
@@ -1068,7 +1068,7 @@ void armature_deform_verts(Object *armOb, Object *target, DerivedMesh *dm, float
 				GHash *idx_hash = BLI_ghash_ptr_new("pose channel index by name");
 				int pchan_index = 0;
 				for (pchan = armOb->pose->chanbase.first; pchan != NULL; pchan = pchan->next, ++pchan_index) {
-					BLI_ghash_insert(idx_hash, pchan, SET_INT_IN_POINTER(pchan_index));
+					BLI_ghash_insert(idx_hash, pchan, POINTER_FROM_INT(pchan_index));
 				}
 				for (i = 0, dg = target->defbase.first; dg; i++, dg = dg->next) {
 					defnrToPC[i] = BKE_pose_channel_find_name(armOb->pose, dg->name);
@@ -1078,7 +1078,7 @@ void armature_deform_verts(Object *armOb, Object *target, DerivedMesh *dm, float
 							defnrToPC[i] = NULL;
 						}
 						else {
-							defnrToPCIndex[i] = GET_INT_FROM_POINTER(BLI_ghash_lookup(idx_hash, defnrToPC[i]));
+							defnrToPCIndex[i] = POINTER_AS_INT(BLI_ghash_lookup(idx_hash, defnrToPC[i]));
 						}
 					}
 				}
@@ -2314,8 +2314,8 @@ void BKE_pose_where_is(Scene *scene, Object *ob)
 		BIK_initialize_tree(scene, ob, ctime);
 
 		/* 2b. construct the Spline IK trees
-		 *  - this is not integrated as an IK plugin, since it should be able
-		 *	  to function in conjunction with standard IK
+		 * - this is not integrated as an IK plugin, since it should be able
+		 *   to function in conjunction with standard IK
 		 */
 		BKE_pose_splineik_init_tree(scene, ob, ctime);
 

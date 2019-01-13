@@ -40,7 +40,7 @@
 #include "BLI_math_rotation.h"
 
 /**
- *  RadarSensor constructor. Creates a near-sensor derived class, with a cone collision shape.
+ * RadarSensor constructor. Creates a near-sensor derived class, with a cone collision shape.
  */
 KX_RadarSensor::KX_RadarSensor(SCA_EventManager *eventmgr,
                                KX_GameObject *gameobj,
@@ -86,8 +86,8 @@ EXP_Value *KX_RadarSensor::GetReplica()
 }
 
 /**
- *	Transforms the collision object. A cone is not correctly centered
- *	for usage.  */
+ * Transforms the collision object. A cone is not correctly centered
+ * for usage.  */
 void KX_RadarSensor::SynchronizeTransform()
 {
 	KX_GameObject *obj = static_cast<KX_GameObject *>(GetParent());

@@ -47,6 +47,11 @@ ccl_device_noinline bool kernel_split_branched_path_subsurface_indirect_light_it
 		if(!CLOSURE_IS_BSSRDF(sc->type))
 			continue;
 
+		/* Closure memory will be overwritten, so read required variables now. */
+		Bssrdf *bssrdf = (Bssrdf *)sc;
+		ClosureType bssrdf_type = sc->type;
+		float bssrdf_roughness = bssrdf->roughness;
+
 		/* set up random number generator */
 		if(branched_state->ss_next_sample == 0 && branched_state->next_hit == 0 &&
 		   branched_state->next_closure == 0 && branched_state->next_sample == 0)
@@ -116,7 +121,8 @@ ccl_device_noinline bool kernel_split_branched_path_subsurface_indirect_light_it
 				                               hit,
 				                               bssrdf_sd,
 				                               hit_state,
-				                               sc);
+				                               bssrdf_type,
+				                               bssrdf_roughness);
 				*ss_isect = ss_isect_private;
 
 #ifdef __VOLUME__

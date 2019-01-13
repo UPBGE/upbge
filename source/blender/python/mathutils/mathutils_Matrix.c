@@ -354,7 +354,7 @@ static PyObject *Matrix_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 
 			/* Input is now as a sequence of rows so length of sequence
 			 * is the number of rows */
-			/* -1 is an error, size checks will accunt for this */
+			/* -1 is an error, size checks will account for this */
 			const unsigned short num_row = PySequence_Size(arg);
 
 			if (num_row >= 2 && num_row <= 4) {
@@ -969,7 +969,7 @@ static void matrix_invert_with_det_n_internal(float *mat_dst, const float *mat_s
 }
 
 /**
- * \param r_mat can be from ``self->matrix`` or not.
+ * \param r_mat: can be from ``self->matrix`` or not.
  */
 static bool matrix_invert_internal(const MatrixObject *self, float *r_mat)
 {
@@ -988,7 +988,7 @@ static bool matrix_invert_internal(const MatrixObject *self, float *r_mat)
 
 /**
  * Similar to ``matrix_invert_internal`` but should never error.
- * \param r_mat can be from ``self->matrix`` or not.
+ * \param r_mat: can be from ``self->matrix`` or not.
  */
 static void matrix_invert_safe_internal(const MatrixObject *self, float *r_mat)
 {
@@ -2592,7 +2592,7 @@ static int Matrix_translation_set(MatrixObject *self, PyObject *value, void *UNU
 }
 
 PyDoc_STRVAR(Matrix_row_doc,
-"Access the matix by rows (default), (read-only).\n\n:type: Matrix Access"
+"Access the matrix by rows (default), (read-only).\n\n:type: Matrix Access"
 );
 static PyObject *Matrix_row_get(MatrixObject *self, void *UNUSED(closure))
 {
@@ -2600,7 +2600,7 @@ static PyObject *Matrix_row_get(MatrixObject *self, void *UNUSED(closure))
 }
 
 PyDoc_STRVAR(Matrix_col_doc,
-"Access the matix by colums, 3x3 and 4x4 only, (read-only).\n\n:type: Matrix Access"
+"Access the matrix by columns, 3x3 and 4x4 only, (read-only).\n\n:type: Matrix Access"
 );
 static PyObject *Matrix_col_get(MatrixObject *self, void *UNUSED(closure))
 {
@@ -2770,7 +2770,7 @@ PyDoc_STRVAR(matrix_doc,
 "   matrices from 2x2 up to 4x4.\n"
 "\n"
 "   :param rows: Sequence of rows.\n"
-"      When ommitted, a 4x4 identity matrix is constructed.\n"
+"      When omitted, a 4x4 identity matrix is constructed.\n"
 "   :type rows: 2d number sequence\n"
 );
 PyTypeObject matrix_Type = {

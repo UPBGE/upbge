@@ -245,7 +245,7 @@ public:
 				(device)->set_error(message); \
 			fprintf(stderr, "%s\n", message.c_str()); \
 		} \
-	} (void)0
+	} (void) 0
 
 #define opencl_assert(stmt) \
 	{ \
@@ -257,7 +257,7 @@ public:
 				error_msg = message; \
 			fprintf(stderr, "%s\n", message.c_str()); \
 		} \
-	} (void)0
+	} (void) 0
 
 class OpenCLDeviceBase : public Device
 {
@@ -333,7 +333,7 @@ public:
 	void opencl_error(const string& message);
 	void opencl_assert_err(cl_int err, const char* where);
 
-	OpenCLDeviceBase(DeviceInfo& info, Stats &stats, bool background_);
+	OpenCLDeviceBase(DeviceInfo& info, Stats &stats, Profiler &profiler, bool background_);
 	~OpenCLDeviceBase();
 
 	static void CL_CALLBACK context_notify_callback(const char *err_info,
@@ -568,8 +568,8 @@ protected:
 	void flush_texture_buffers();
 };
 
-Device *opencl_create_mega_device(DeviceInfo& info, Stats& stats, bool background);
-Device *opencl_create_split_device(DeviceInfo& info, Stats& stats, bool background);
+Device *opencl_create_mega_device(DeviceInfo& info, Stats& stats, Profiler &profiler, bool background);
+Device *opencl_create_split_device(DeviceInfo& info, Stats& stats, Profiler &profiler, bool background);
 
 CCL_NAMESPACE_END
 

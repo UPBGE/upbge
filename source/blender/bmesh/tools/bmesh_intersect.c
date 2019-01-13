@@ -232,7 +232,7 @@ static void face_edges_add(
         BMEdge *e,
         const bool use_test)
 {
-	void *f_index_key = SET_INT_IN_POINTER(f_index);
+	void *f_index_key = POINTER_FROM_INT(f_index);
 	BLI_assert(e->head.htype == BM_EDGE);
 	BLI_assert(BM_edge_in_face(e, s->bm->ftable[f_index]) == false);
 	BLI_assert(BM_elem_index_get(s->bm->ftable[f_index]) == f_index);
@@ -977,7 +977,7 @@ static int isect_bvhtree_point_v3(
  * Intersect tessellated faces
  * leaving the resulting edges tagged.
  *
- * \param test_fn Return value: -1: skip, 0: tree_a, 1: tree_b (use_self == false)
+ * \param test_fn: Return value: -1: skip, 0: tree_a, 1: tree_b (use_self == false)
  * \param boolean_mode -1: no-boolean, 0: intersection... see #BMESH_ISECT_BOOLEAN_ISECT.
  * \return true if the mesh is changed (intersections cut or faces removed from boolean).
  */
@@ -1488,7 +1488,7 @@ bool BM_mesh_intersect(
 		faces = bm->ftable;
 
 		GHASH_ITER (gh_iter, s.face_edges) {
-			const int f_index = GET_INT_FROM_POINTER(BLI_ghashIterator_getKey(&gh_iter));
+			const int f_index = POINTER_AS_INT(BLI_ghashIterator_getKey(&gh_iter));
 			BMFace *f;
 			struct LinkBase *e_ls_base = BLI_ghashIterator_getValue(&gh_iter);
 
@@ -1588,7 +1588,7 @@ bool BM_mesh_intersect(
 				BLI_assert(ELEM(side, 0, 1));
 				side = !side;
 
-				// BM_face_calc_center_mean(f, co);
+				// BM_face_calc_center_median(f, co);
 				BM_face_calc_point_in_face(f, co);
 
 				hits = isect_bvhtree_point_v3(tree_pair[side], looptri_coords, co);

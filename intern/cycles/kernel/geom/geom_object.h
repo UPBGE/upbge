@@ -78,6 +78,12 @@ ccl_device_inline Transform object_fetch_transform_motion(KernelGlobals *kg, int
 	const uint num_steps = kernel_tex_fetch(__objects, object).numsteps * 2 + 1;
 
 	Transform tfm;
+#ifdef __EMBREE__
+	if(kernel_data.bvh.scene) {
+		transform_motion_array_interpolate_straight(&tfm, motion, num_steps, time);
+	}
+	else
+#endif
 	transform_motion_array_interpolate(&tfm, motion, num_steps, time);
 
 	return tfm;
@@ -302,6 +308,24 @@ ccl_device_inline uint object_patch_map_offset(KernelGlobals *kg, int object)
 ccl_device int shader_pass_id(KernelGlobals *kg, const ShaderData *sd)
 {
 	return kernel_tex_fetch(__shaders, (sd->shader & SHADER_MASK)).pass_id;
+}
+
+/* Cryptomatte ID */
+
+ccl_device_inline float object_cryptomatte_id(KernelGlobals *kg, int object)
+{
+	if(object == OBJECT_NONE)
+		return 0.0f;
+
+	return kernel_tex_fetch(__objects, object).cryptomatte_object;
+}
+
+ccl_device_inline float object_cryptomatte_asset_id(KernelGlobals *kg, int object)
+{
+	if(object == OBJECT_NONE)
+		return 0;
+
+	return kernel_tex_fetch(__objects, object).cryptomatte_asset;
 }
 
 /* Particle data from which object was instanced */

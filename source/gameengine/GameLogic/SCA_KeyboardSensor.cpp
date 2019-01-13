@@ -181,10 +181,10 @@ bool SCA_KeyboardSensor::Evaluate()
 		 * note, this will only change the results if key modifiers are set.
 		 *
 		 * When all modifiers and keys are positive
-		 *  - pulse true
+		 * - pulse true
 		 *
 		 * When ANY of the modifiers or main key become inactive,
-		 *  - pulse false
+		 * - pulse false
 		 */
 
 		// One of the third keys value from last logic frame changed.

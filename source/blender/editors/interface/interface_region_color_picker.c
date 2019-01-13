@@ -169,7 +169,7 @@ static void ui_update_color_picker_buts_rgb(
 		}
 		else if (STREQ(bt->str, "Hex: ")) {
 			float rgb_gamma[3];
-			unsigned char rgb_gamma_uchar[3];
+			uchar rgb_gamma_uchar[3];
 			double intpart;
 			char col[16];
 
@@ -386,7 +386,7 @@ static void ui_block_colorpicker(
 	static char tip[50];
 	static char hexcol[128];
 	float rgb_gamma[3];
-	unsigned char rgb_gamma_uchar[3];
+	uchar rgb_gamma_uchar[3];
 	float softmin, softmax, hardmin, hardmax, step, precision;
 	int yco;
 	ColorPicker *cpicker = ui_block_colorpicker_create(block);
@@ -629,6 +629,7 @@ uiBlock *ui_block_func_COLOR(bContext *C, uiPopupBlockHandle *handle, void *arg_
 	ui_block_colorpicker(block, handle->retvec, &but->rnapoin, but->rnaprop, show_picker);
 
 	block->flag = UI_BLOCK_LOOP | UI_BLOCK_KEEP_OPEN | UI_BLOCK_OUT_1 | UI_BLOCK_MOVEMOUSE_QUIT;
+	UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
 	UI_block_bounds_set_normal(block, 0.5 * UI_UNIT_X);
 
 	block->block_event_func = ui_colorpicker_small_wheel_cb;

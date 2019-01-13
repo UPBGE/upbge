@@ -16,7 +16,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * Contributor:
- *		Dalai Felinto
+ *      Dalai Felinto
  */
 
 #ifndef __COM_NORMALIZEOPERATION_H__
@@ -25,18 +25,18 @@
 #include "DNA_node_types.h"
 
 /**
- * @brief base class of normalize, implementing the simple normalize
- * @ingroup operation
+ * \brief base class of normalize, implementing the simple normalize
+ * \ingroup operation
  */
 class NormalizeOperation : public NodeOperation {
 protected:
 	/**
-	 * @brief Cached reference to the reader
+	 * \brief Cached reference to the reader
 	 */
 	SocketReader *m_imageReader;
 
 	/**
-	 * @brief temporarily cache of the execution storage
+	 * \brief temporarily cache of the execution storage
 	 * it stores x->min and y->mult
 	 */
 	NodeTwoFloats *m_cachedInstance;

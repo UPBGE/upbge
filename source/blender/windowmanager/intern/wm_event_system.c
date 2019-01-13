@@ -847,7 +847,7 @@ static int wm_operator_exec_notest(bContext *C, wmOperator *op)
 /**
  * for running operators with frozen context (modal handlers, menus)
  *
- * \param store Store settings for re-use.
+ * \param store: Store settings for re-use.
  *
  * warning: do not use this within an operator to call its self! [#29537] */
 int WM_operator_call_ex(bContext *C, wmOperator *op,
@@ -2101,7 +2101,7 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 	/* modal handlers can get removed in this loop, we keep the loop this way
 	 *
 	 * note: check 'handlers->first' because in rare cases the handlers can be cleared
-	 * by the event thats called, for eg:
+	 * by the event that's called, for eg:
 	 *
 	 * Calling a python script which changes the area.type, see [#32232] */
 	for (handler = handlers->first; handler && handlers->first; handler = nexthandler) {

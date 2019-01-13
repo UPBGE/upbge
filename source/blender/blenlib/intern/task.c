@@ -116,7 +116,7 @@ typedef struct Task {
  *   At this moment task queue owns the memory.
  *
  * - When task is done and task_free() is called the memory will be put to the
- *  pool which corresponds to a thread which handled the task.
+ *   pool which corresponds to a thread which handled the task.
  */
 typedef struct TaskMemPool {
 	/* Number of pre-allocated tasks in the pool. */
@@ -1029,7 +1029,7 @@ static void parallel_range_func(
 	}
 }
 
-static void palallel_range_single_thread(const int start, int const stop,
+static void parallel_range_single_thread(const int start, int const stop,
                                          void *userdata,
                                          TaskParallelRangeFunc func,
                                          const ParallelRangeSettings *settings)
@@ -1089,7 +1089,7 @@ void BLI_task_parallel_range(const int start, const int stop,
 	 * do everything from the main thread.
 	 */
 	if (!settings->use_threading) {
-		palallel_range_single_thread(start, stop,
+		parallel_range_single_thread(start, stop,
 		                             userdata,
 		                             func,
 		                             settings);
@@ -1126,7 +1126,7 @@ void BLI_task_parallel_range(const int start, const int stop,
 	                   max_ii(1, (stop - start) / state.chunk_size));
 
 	if (num_tasks == 1) {
-		palallel_range_single_thread(start, stop,
+		parallel_range_single_thread(start, stop,
 		                             userdata,
 		                             func,
 		                             settings);
@@ -1221,13 +1221,38 @@ static void parallel_listbase_func(
 	}
 }
 
+static void task_parallel_listbase_no_threads(
+        struct ListBase *listbase,
+        void *userdata,
+        TaskParallelListbaseFunc func)
+{
+	int i = 0;
+	for (Link *link = listbase->first; link != NULL; link = link->next, ++i) {
+		func(userdata, link, i);
+	}
+}
+
+/* NOTE: The idea here is to compensate for rather measurable threading
+ * overhead caused by fetching tasks. With too many CPU threads we are starting
+ * to spend too much time in those overheads. */
+BLI_INLINE int task_parallel_listbasecalc_chunk_size(const int num_threads)
+{
+	if (num_threads > 32) {
+		return 128;
+	}
+	else if (num_threads > 16) {
+		return 64;
+	}
+	return 32;
+}
+
 /**
  * This function allows to parallelize for loops over ListBase items.
  *
- * \param listbase The double linked list to loop over.
- * \param userdata Common userdata passed to all instances of \a func.
- * \param func Callback function.
- * \param use_threading If \a true, actually split-execute loop in threads, else just do a sequential forloop
+ * \param listbase: The double linked list to loop over.
+ * \param userdata: Common userdata passed to all instances of \a func.
+ * \param func: Callback function.
+ * \param use_threading: If \a true, actually split-execute loop in threads, else just do a sequential forloop
  *                      (allows caller to use any kind of test to switch on parallelization or not).
  *
  * \note There is no static scheduling here, since it would need another full loop over items to count them...
@@ -1238,41 +1263,37 @@ void BLI_task_parallel_listbase(
         TaskParallelListbaseFunc func,
         const bool use_threading)
 {
-	TaskScheduler *task_scheduler;
-	TaskPool *task_pool;
-	ParallelListState state;
-	int i, num_threads, num_tasks;
-
 	if (BLI_listbase_is_empty(listbase)) {
 		return;
 	}
-
 	if (!use_threading) {
-		i = 0;
-		for (Link *link = listbase->first; link != NULL; link = link->next, ++i) {
-			func(userdata, link, i);
-		}
+		task_parallel_listbase_no_threads(listbase, userdata, func);
+		return;
+	}
+	TaskScheduler *task_scheduler = BLI_task_scheduler_get();
+	const int num_threads = BLI_task_scheduler_num_threads(task_scheduler);
+	/* TODO(sergey): Consider making chunk size configurable. */
+	const int chunk_size = task_parallel_listbasecalc_chunk_size(num_threads);
+	const int num_tasks = min_ii(
+	        num_threads,
+	        BLI_listbase_count(listbase) / chunk_size);
+	if (num_tasks <= 1) {
+		task_parallel_listbase_no_threads(listbase, userdata, func);
 		return;
 	}
 
-	task_scheduler = BLI_task_scheduler_get();
-	task_pool = BLI_task_pool_create_suspended(task_scheduler, &state);
-	num_threads = BLI_task_scheduler_num_threads(task_scheduler);
-
-	/* The idea here is to prevent creating task for each of the loop iterations
-	 * and instead have tasks which are evenly distributed across CPU cores and
-	 * pull next iter to be crunched using the queue.
-	 */
-	num_tasks = num_threads + 2;
+	ParallelListState state;
+	TaskPool *task_pool = BLI_task_pool_create_suspended(task_scheduler, &state);
 
 	state.index = 0;
 	state.link = listbase->first;
 	state.userdata = userdata;
 	state.func = func;
-	state.chunk_size = 32;
+	state.chunk_size = chunk_size;
 	BLI_spin_init(&state.lock);
 
-	for (i = 0; i < num_tasks; i++) {
+	BLI_assert(num_tasks > 0);
+	for (int i = 0; i < num_tasks; i++) {
 		/* Use this pool's pre-allocated tasks. */
 		BLI_task_pool_push_from_thread(task_pool,
 		                               parallel_listbase_func,

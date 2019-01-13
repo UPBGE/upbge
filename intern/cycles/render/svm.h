@@ -21,6 +21,7 @@
 #include "render/graph.h"
 #include "render/shader.h"
 
+#include "util/util_array.h"
 #include "util/util_set.h"
 #include "util/util_string.h"
 #include "util/util_thread.h"
@@ -187,8 +188,6 @@ protected:
 	int stack_size(SocketType::Type type);
 	void stack_clear_users(ShaderNode *node, ShaderNodeSet& done);
 
-	bool node_skip_input(ShaderNode *node, ShaderInput *input);
-
 	/* single closure */
 	void find_dependencies(ShaderNodeSet& dependencies,
 	                       const ShaderNodeSet& done,
@@ -223,4 +222,4 @@ protected:
 
 CCL_NAMESPACE_END
 
-#endif /* __SVM_H__ */
+#endif  /* __SVM_H__ */

@@ -157,7 +157,7 @@ void BIF_makeListTemplates(const bContext *C)
 
 		if (ob != obedit && ob->type == OB_ARMATURE) {
 			index++;
-			BLI_ghash_insert(TEMPLATES_HASH, SET_INT_IN_POINTER(index), ob);
+			BLI_ghash_insert(TEMPLATES_HASH, POINTER_FROM_INT(index), ob);
 
 			if (ob == ts->skgen_template) {
 				TEMPLATES_CURRENT = index;
@@ -187,7 +187,7 @@ const char *BIF_listTemplates(const bContext *UNUSED(C))
 
 	while (!BLI_ghashIterator_done(&ghi)) {
 		Object *ob = BLI_ghashIterator_getValue(&ghi);
-		int key = GET_INT_FROM_POINTER(BLI_ghashIterator_getKey(&ghi));
+		int key = POINTER_AS_INT(BLI_ghashIterator_getKey(&ghi));
 
 		p += sprintf(p, "|%s %%x%i", ob->id.name + 2, key);
 
@@ -208,7 +208,7 @@ int   BIF_currentTemplate(const bContext *C)
 
 		while (!BLI_ghashIterator_done(&ghi)) {
 			Object *ob = BLI_ghashIterator_getValue(&ghi);
-			int key = GET_INT_FROM_POINTER(BLI_ghashIterator_getKey(&ghi));
+			int key = POINTER_AS_INT(BLI_ghashIterator_getKey(&ghi));
 
 			if (ob == ts->skgen_template) {
 				TEMPLATES_CURRENT = key;
@@ -302,7 +302,7 @@ void  BIF_setTemplate(bContext *C, int index)
 {
 	ToolSettings *ts = CTX_data_tool_settings(C);
 	if (index > 0) {
-		ts->skgen_template = BLI_ghash_lookup(TEMPLATES_HASH, SET_INT_IN_POINTER(index));
+		ts->skgen_template = BLI_ghash_lookup(TEMPLATES_HASH, POINTER_FROM_INT(index));
 	}
 	else {
 		ts->skgen_template = NULL;
@@ -905,7 +905,7 @@ static void sk_interpolateDepth(bContext *C, SK_Stroke *stk, int start, int end,
 		float pval[2] = {0, 0};
 
 		ED_view3d_project_float_global(ar, stk->points[i].p, pval, V3D_PROJ_TEST_NOP);
-		ED_view3d_win_to_ray(ar, v3d, pval, ray_start, ray_normal, false);
+		ED_view3d_win_to_ray_clipped(ar, v3d, pval, ray_start, ray_normal, false);
 
 		mul_v3_fl(ray_normal, distance * progress / length);
 		add_v3_v3(stk->points[i].p, ray_normal);
@@ -1502,7 +1502,7 @@ static int sk_getIntersections(bContext *C, ListBase *list, SK_Sketch *sketch, S
 
 					mval[0] = vi[0];
 					mval[1] = vi[1];
-					ED_view3d_win_to_segment(ar, v3d, mval, ray_start, ray_end, true);
+					ED_view3d_win_to_segment_clipped(ar, v3d, mval, ray_start, ray_end, true);
 
 					isect_line_line_v3(stk->points[s_i].p,
 					                   stk->points[s_i + 1].p,
@@ -2051,7 +2051,7 @@ static void sk_drawSketch(Scene *scene, View3D *UNUSED(v3d), SK_Sketch *sketch, 
 
 		for (p = sketch->depth_peels.first; p; p = p->next)
 		{
-			int index = GET_INT_FROM_POINTER(p->ob);
+			int index = POINTER_AS_INT(p->ob);
 			index = (index >> 5) & 7;
 
 			glColor3fv(colors[index]);

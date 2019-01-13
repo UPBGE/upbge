@@ -39,8 +39,10 @@
 #include <limits.h>
 #include <float.h>
 
-#include "DNA_vec_types.h"
 #include "BLI_rect.h"
+#include "BLI_utildefines.h"
+
+#include "DNA_vec_types.h"
 
 /* avoid including BLI_math */
 static void unit_m4(float m[4][4]);
@@ -161,14 +163,14 @@ float BLI_rctf_length_y(const rctf *rect, const float y)
 /**
  * is \a rct_b inside \a rct_a
  */
-bool BLI_rctf_inside_rctf(rctf *rct_a, const rctf *rct_b)
+bool BLI_rctf_inside_rctf(const rctf *rct_a, const rctf *rct_b)
 {
 	return ((rct_a->xmin <= rct_b->xmin) &&
 	        (rct_a->xmax >= rct_b->xmax) &&
 	        (rct_a->ymin <= rct_b->ymin) &&
 	        (rct_a->ymax >= rct_b->ymax));
 }
-bool BLI_rcti_inside_rcti(rcti *rct_a, const rcti *rct_b)
+bool BLI_rcti_inside_rcti(const rcti *rct_a, const rcti *rct_b)
 {
 	return ((rct_a->xmin <= rct_b->xmin) &&
 	        (rct_a->xmax >= rct_b->xmax) &&

@@ -56,8 +56,8 @@ public:
 		return false;
 	}
 
-	NetworkDevice(DeviceInfo& info, Stats &stats, const char *address)
-	: Device(info, stats, true), socket(io_service)
+	NetworkDevice(DeviceInfo& info, Stats &stats, Profiler &profiler, const char *address)
+	: Device(info, stats, profiler, true), socket(io_service)
 	{
 		error_func = NetworkError();
 		stringstream portstr;
@@ -85,6 +85,10 @@ public:
 	{
 		RPCSend snd(socket, &error_func, "stop");
 		snd.write();
+	}
+
+	virtual BVHLayoutMask get_bvh_layout_mask() const {
+		return BVH_LAYOUT_BVH2;
 	}
 
 	void mem_alloc(device_memory& mem)
@@ -289,9 +293,9 @@ private:
 	NetworkError error_func;
 };
 
-Device *device_network_create(DeviceInfo& info, Stats &stats, const char *address)
+Device *device_network_create(DeviceInfo& info, Stats &stats, Profiler &profiler, const char *address)
 {
-	return new NetworkDevice(info, stats, address);
+	return new NetworkDevice(info, stats, profiler, address);
 }
 
 void device_network_info(vector<DeviceInfo>& devices)
@@ -306,7 +310,6 @@ void device_network_info(vector<DeviceInfo>& devices)
 	/* todo: get this info from device */
 	info.advanced_shading = true;
 	info.has_volume_decoupled = false;
-	info.bvh_layout_mask = BVH_LAYOUT_BVH2;
 	info.has_osl = false;
 
 	devices.push_back(info);

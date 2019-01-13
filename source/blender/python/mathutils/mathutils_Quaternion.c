@@ -972,12 +972,12 @@ PyDoc_STRVAR(Quaternion_axis_doc,
 );
 static PyObject *Quaternion_axis_get(QuaternionObject *self, void *type)
 {
-	return Quaternion_item(self, GET_INT_FROM_POINTER(type));
+	return Quaternion_item(self, POINTER_AS_INT(type));
 }
 
 static int Quaternion_axis_set(QuaternionObject *self, PyObject *value, void *type)
 {
-	return Quaternion_ass_item(self, GET_INT_FROM_POINTER(type), value);
+	return Quaternion_ass_item(self, POINTER_AS_INT(type), value);
 }
 
 PyDoc_STRVAR(Quaternion_magnitude_doc,
@@ -1260,17 +1260,17 @@ PyDoc_STRVAR(quaternion_doc,
 "   The constructor takes arguments in various forms:\n"
 "\n"
 "   (), *no args*\n"
-"       Create an identity quaternion\n"
+"      Create an identity quaternion\n"
 "   (*wxyz*)\n"
-"       Create a quaternion from a ``(w, x, y, z)`` vector.\n"
+"      Create a quaternion from a ``(w, x, y, z)`` vector.\n"
 "   (*exponential_map*)\n"
-"       Create a quaternion from a 3d exponential map vector.\n"
+"      Create a quaternion from a 3d exponential map vector.\n"
 "\n"
-"       .. seealso:: :meth:`to_exponential_map`\n"
+"      .. seealso:: :meth:`to_exponential_map`\n"
 "   (*axis, angle*)\n"
-"       Create a quaternion representing a rotation of *angle* radians over *axis*.\n"
+"      Create a quaternion representing a rotation of *angle* radians over *axis*.\n"
 "\n"
-"       .. seealso:: :meth:`to_axis_angle`\n"
+"      .. seealso:: :meth:`to_axis_angle`\n"
 );
 PyTypeObject quaternion_Type = {
 	PyVarObject_HEAD_INIT(NULL, 0)

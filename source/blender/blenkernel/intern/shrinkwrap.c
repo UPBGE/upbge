@@ -187,8 +187,8 @@ static void shrinkwrap_calc_nearest_vertex(ShrinkwrapCalcData *calc)
  * Returns true if "hit" was updated.
  * Opts control whether an hit is valid or not
  * Supported options are:
- *	MOD_SHRINKWRAP_CULL_TARGET_FRONTFACE (front faces hits are ignored)
- *	MOD_SHRINKWRAP_CULL_TARGET_BACKFACE (back faces hits are ignored)
+ * - MOD_SHRINKWRAP_CULL_TARGET_FRONTFACE (front faces hits are ignored)
+ * - MOD_SHRINKWRAP_CULL_TARGET_BACKFACE (back faces hits are ignored)
  */
 bool BKE_shrinkwrap_project_normal(
         char options, const float vert[3], const float dir[3],
@@ -384,7 +384,7 @@ static void shrinkwrap_calc_normal_projection(ShrinkwrapCalcData *calc, bool for
 	SpaceTransform local2aux;
 
 	/* If the user doesn't allows to project in any direction of projection axis
-	 * then theres nothing todo. */
+	 * then there's nothing todo. */
 	if ((calc->smd->shrinkOpts & (MOD_SHRINKWRAP_PROJECT_ALLOW_POS_DIR | MOD_SHRINKWRAP_PROJECT_ALLOW_NEG_DIR)) == 0)
 		return;
 

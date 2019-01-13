@@ -68,12 +68,12 @@ public:
 	/*! Matrix is copied */
 	void setProjectionMatrix(double projection_matrix[16]);
 
-	double * modelViewMatrix()
+	double *modelViewMatrix()
 	{
 		return modelview_matrix_;
 	}
 
-	double * projectionMatrix()
+	double *projectionMatrix()
 	{
 		return projection_matrix_;
 	}
@@ -181,7 +181,7 @@ public:
 	 *    |                             zNear-zFar       zNear-zFar     |
 	 *    |                                                             |
 	 *    (   0               0             -1               0          )
-	 *  \param fovy
+	 *  \param fovy:
 	 *    Field of View specified in radians.
 	 */
 	NodePerspectiveCamera(double fovy, double aspect, double zNear, double zFar);

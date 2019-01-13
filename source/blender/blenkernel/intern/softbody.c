@@ -30,24 +30,22 @@
  */
 
 
-/*
-******
-variables on the UI for now
-
-	float mediafrict;  friction to env
-	float nodemass;	  softbody mass of *vertex*
-	float grav;        softbody amount of gravitaion to apply
-
-	float goalspring;  softbody goal springs
-	float goalfrict;   softbody goal springs friction
-	float mingoal;     quick limits for goal
-	float maxgoal;
-
-	float inspring;	  softbody inner springs
-	float infrict;     softbody inner springs friction
-
-*****
-*/
+/**
+ * variables on the UI for now
+ * <pre>
+ * float mediafrict;  friction to env
+ * float nodemass;	  softbody mass of *vertex*
+ * float grav;        softbody amount of gravitaion to apply
+ *
+ * float goalspring;  softbody goal springs
+ * float goalfrict;   softbody goal springs friction
+ * float mingoal;     quick limits for goal
+ * float maxgoal;
+ *
+ * float inspring;	  softbody inner springs
+ * float infrict;     softbody inner springs friction
+ * </pre>
+ */
 
 
 #include <math.h>
@@ -112,7 +110,7 @@ typedef struct ReferenceVert {
 
 typedef struct ReferenceState {
 	float com[3]; /* center of mass*/
-	ReferenceVert *ivert; /* list of intial values */
+	ReferenceVert *ivert; /* list of initial values */
 } ReferenceState;
 
 
@@ -213,7 +211,7 @@ static float sb_time_scale(Object *ob)
  * will cause unwanted responses of the softbody system (which does inter frame calculations )
  * so first 'cure' would be: interpolate linear in time ..
  * Q: why do i write this?
- * A: because it happend once, that some eger coder 'streamlined' code to fail.
+ * A: because it happened once, that some eger coder 'streamlined' code to fail.
  * We DO linear interpolation for goals .. and i think we should do on animated properties as well
  */
 
@@ -250,16 +248,16 @@ static float _final_mass(Object *ob, BodyPoint *bp)
 
 /*+++ collider caching and dicing +++*/
 
-/********************
-for each target object/face the axis aligned bounding box (AABB) is stored
-faces parallel to global axes
-so only simple "value" in [min, max] ckecks are used
-float operations still
-*/
+/*
+ * for each target object/face the axis aligned bounding box (AABB) is stored
+ * faces parallel to global axes
+ * so only simple "value" in [min, max] ckecks are used
+ * float operations still
+ */
 
 /* just an ID here to reduce the prob for killing objects
-** ob->sumohandle points to we should not kill :)
-*/
+ * ob->sumohandle points to we should not kill :)
+ */
 static const int CCD_SAVETY = 190561;
 
 typedef struct ccdf_minmax {
@@ -757,8 +755,8 @@ static void add_bp_springlist(BodyPoint *bp, int springID)
 }
 
 /* do this once when sb is build
-it is O(N^2) so scanning for springs every iteration is too expensive
-*/
+ * it is O(N^2) so scanning for springs every iteration is too expensive
+ */
 static void build_bps_springlist(Object *ob)
 {
 	SoftBody *sb= ob->soft;	/* is supposed to be there */
@@ -950,29 +948,29 @@ static void free_softbody_intern(SoftBody *sb)
 /* ************ dynamics ********** */
 
 /* the most general (micro physics correct) way to do collision
-** (only needs the current particle position)
-**
-** it actually checks if the particle intrudes a short range force field generated
-** by the faces of the target object and returns a force to drive the particel out
-** the strenght of the field grows exponetially if the particle is on the 'wrong' side of the face
-** 'wrong' side : projection to the face normal is negative (all referred to a vertex in the face)
-**
-** flaw of this: 'fast' particles as well as 'fast' colliding faces
-** give a 'tunnel' effect such that the particle passes through the force field
-** without ever 'seeing' it
-** this is fully compliant to heisenberg: h >= fuzzy(location) * fuzzy(time)
-** besides our h is way larger than in QM because forces propagate way slower here
-** we have to deal with fuzzy(time) in the range of 1/25 seconds (typical frame rate)
-** yup collision targets are not known here any better
-** and 1/25 second is looong compared to real collision events
-** Q: why not use 'simple' collision here like bouncing back a particle
-**   --> reverting is velocity on the face normal
-** A: because our particles are not alone here
-**    and need to tell their neighbors exactly what happens via spring forces
-** unless sbObjectStep( .. ) is called on sub frame timing level
-** BTW that also questions the use of a 'implicit' solvers on softbodies
-** since that would only valid for 'slow' moving collision targets and dito particles
-*/
+ * (only needs the current particle position)
+ *
+ * it actually checks if the particle intrudes a short range force field generated
+ * by the faces of the target object and returns a force to drive the particel out
+ * the strength of the field grows exponetially if the particle is on the 'wrong' side of the face
+ * 'wrong' side : projection to the face normal is negative (all referred to a vertex in the face)
+ *
+ * flaw of this: 'fast' particles as well as 'fast' colliding faces
+ * give a 'tunnel' effect such that the particle passes through the force field
+ * without ever 'seeing' it
+ * this is fully compliant to heisenberg: h >= fuzzy(location) * fuzzy(time)
+ * besides our h is way larger than in QM because forces propagate way slower here
+ * we have to deal with fuzzy(time) in the range of 1/25 seconds (typical frame rate)
+ * yup collision targets are not known here any better
+ * and 1/25 second is looong compared to real collision events
+ * Q: why not use 'simple' collision here like bouncing back a particle
+ *   --> reverting is velocity on the face normal
+ * A: because our particles are not alone here
+ *    and need to tell their neighbors exactly what happens via spring forces
+ * unless sbObjectStep( .. ) is called on sub frame timing level
+ * BTW that also questions the use of a 'implicit' solvers on softbodies
+ * since that would only valid for 'slow' moving collision targets and dito particles
+ */
 
 /* +++ dependency information functions*/
 
@@ -1747,11 +1745,11 @@ static int sb_detect_vertex_collisionCached(
 
 						if (mprevvert) {
 							/* grab the average speed of the collider vertices
-							before we spoil nvX
-							humm could be done once a SB steps but then we' need to store that too
-							since the AABB reduced propabitlty to get here drasticallly
-							it might be a nice tradeof CPU <--> memory
-							*/
+							 * before we spoil nvX
+							 * humm could be done once a SB steps but then we' need to store that too
+							 * since the AABB reduced propabitlty to get here drasticallly
+							 * it might be a nice tradeof CPU <--> memory
+							 */
 							sub_v3_v3v3(vv1, nv1, mprevvert[vt->tri[0]].co);
 							sub_v3_v3v3(vv2, nv2, mprevvert[vt->tri[1]].co);
 							sub_v3_v3v3(vv3, nv3, mprevvert[vt->tri[2]].co);
@@ -1852,7 +1850,8 @@ static int sb_deflect_face(Object *ob, float *actpos, float *facenormal, float *
 	return(deflected);
 }
 
-/* hiding this for now .. but the jacobian may pop up on other tasks .. so i'd like to keep it
+/* hiding this for now .. but the jacobian may pop up on other tasks .. so i'd like to keep it */
+#if 0
 static void dfdx_spring(int ia, int ic, int op, float dir[3], float L, float len, float factor)
 {
 	float m, delta_ij;
@@ -1888,7 +1887,8 @@ static void dfdv_goal(int ia, int ic, float factor)
 	int i;
 	for (i=0;i<3;i++) EIG_linear_solver_matrix_add(ia+i, ic+i, factor);
 }
-*/
+#endif  /* if 0 */
+
 static void sb_spring_force(Object *ob, int bpi, BodySpring *bs, float iks, float UNUSED(forcetime))
 {
 	SoftBody *sb= ob->soft;	/* is supposed to be there */
@@ -1977,7 +1977,7 @@ static int _softbody_calc_forces_slice_in_a_thread(Scene *scene, Object *ob, flo
 	SoftBody *sb= ob->soft;	/* is supposed to be there */
 	BodyPoint  *bp;
 
-	/* intitialize */
+	/* initialize */
 	if (sb) {
 		/* check conditions for various options */
 		/* +++ could be done on object level to squeeze out the last bits of it */
@@ -2019,7 +2019,7 @@ static int _softbody_calc_forces_slice_in_a_thread(Scene *scene, Object *ob, flo
 			for (c=sb->totpoint, obp= sb->bpoint; c>0; c--, obp++) {
 				compare = (obp->colball + bp->colball);
 				sub_v3_v3v3(def, bp->pos, obp->pos);
-				/* rather check the AABBoxes before ever calulating the real distance */
+				/* rather check the AABBoxes before ever calculating the real distance */
 				/* mathematically it is completely nuts, but performance is pretty much (3) times faster */
 				if ((ABS(def[0]) > compare) || (ABS(def[1]) > compare) || (ABS(def[2]) > compare)) continue;
 				distance = normalize_v3(def);
@@ -2061,7 +2061,7 @@ static int _softbody_calc_forces_slice_in_a_thread(Scene *scene, Object *ob, flo
 				bp->force[1]+= -ks*(auxvect[1]);
 				bp->force[2]+= -ks*(auxvect[2]);
 
-				/* calulate damping forces generated by goals*/
+				/* calculate damping forces generated by goals*/
 				sub_v3_v3v3(velgoal, bp->origS, bp->origE);
 				kd =  sb->goalfrict * sb_fric_force_scale(ob);
 				add_v3_v3v3(auxvect, velgoal, bp->vec);
@@ -2162,7 +2162,7 @@ static int _softbody_calc_forces_slice_in_a_thread(Scene *scene, Object *ob, flo
 				}/* existing spring list */
 			}/*any edges*/
 			/* ---springs */
-		}/*omit on snap	*/
+		}/*omit on snap */
 	}/*loop all bp's*/
 	return 0; /*done fine*/
 }
@@ -2292,7 +2292,7 @@ static void softbody_calc_forces(Scene *scene, Object *ob, float forcetime, floa
 
 		/* rule we never alter free variables :bp->vec bp->pos in here !
 		 * this will ruin adaptive stepsize AKA heun! (BM)
-		*/
+		 */
 		SoftBody *sb= ob->soft;	/* is supposed to be there */
 		BodyPoint  *bp;
 		/* BodyPoint *bproot; */ /* UNUSED */
@@ -2348,7 +2348,7 @@ static void softbody_calc_forces(Scene *scene, Object *ob, float forcetime, floa
 					compare = (obp->colball + bp->colball);
 					sub_v3_v3v3(def, bp->pos, obp->pos);
 
-					/* rather check the AABBoxes before ever calulating the real distance */
+					/* rather check the AABBoxes before ever calculating the real distance */
 					/* mathematically it is completely nuts, but performance is pretty much (3) times faster */
 					if ((ABS(def[0]) > compare) || (ABS(def[1]) > compare) || (ABS(def[2]) > compare)) continue;
 
@@ -2397,7 +2397,7 @@ static void softbody_calc_forces(Scene *scene, Object *ob, float forcetime, floa
 					bp->force[1]+= -ks*(auxvect[1]);
 					bp->force[2]+= -ks*(auxvect[2]);
 
-					/* calulate damping forces generated by goals*/
+					/* calculate damping forces generated by goals*/
 					sub_v3_v3v3(velgoal, bp->origS, bp->origE);
 					kd = sb->goalfrict * sb_fric_force_scale(ob);
 					add_v3_v3v3(auxvect, velgoal, bp->vec);
@@ -2462,16 +2462,16 @@ static void softbody_calc_forces(Scene *scene, Object *ob, float forcetime, floa
 					if (sb_deflect_face(ob, bp->pos, facenormal, defforce, &cf, timenow, vel, &intrusion)) {
 						if (intrusion < 0.0f) {
 							if (G.debug_value & 0x01) { // 17 we did check for bit 0x10 before
-								/*fixing bug [17428] this forces adaptive step size to tiny steps
-								in some situations .. keeping G.debug_value==17 option for old files 'needing' the bug
-								*/
-								/*bjornmose:  uugh.. what an evil hack
-								violation of the 'don't touch bp->pos in here' rule
-								but works nice, like this-->
-								we predict the solution being out of the collider
-								in heun step No1 and leave the heun step No2 adapt to it
-								so we kind of introduced a implicit solver for this case
-								*/
+								/* fixing bug [17428] this forces adaptive step size to tiny steps
+								 * in some situations .. keeping G.debug_value==17 option for old files 'needing' the bug
+								 */
+								/* bjornmose:  uugh.. what an evil hack
+								 * violation of the 'don't touch bp->pos in here' rule
+								 * but works nice, like this-->
+								 * we predict the solution being out of the collider
+								 * in heun step No1 and leave the heun step No2 adapt to it
+								 * so we kind of introduced a implicit solver for this case
+								 */
 								madd_v3_v3fl(bp->pos, facenormal, -intrusion);
 							}
 							else {
@@ -2514,7 +2514,7 @@ static void softbody_calc_forces(Scene *scene, Object *ob, float forcetime, floa
 					}/* existing spring list */
 				}/*any edges*/
 				/* ---springs */
-			}/*omit on snap	*/
+			}/*omit on snap */
 		}/*loop all bp's*/
 
 
@@ -2543,10 +2543,10 @@ static void softbody_apply_forces(Object *ob, float forcetime, int mode, float *
 
 	/* old one with homogeneous masses  */
 	/* claim a minimum mass for vertex */
-	/*
-	if (sb->nodemass > 0.009999f) timeovermass = forcetime/sb->nodemass;
-	else timeovermass = forcetime/0.009999f;
-	*/
+#if 0
+	if (sb->nodemass > 0.009999f) timeovermass = forcetime / sb->nodemass;
+	else timeovermass = forcetime / 0.009999f;
+#endif
 
 	for (a=sb->totpoint, bp= sb->bpoint; a>0; a--, bp++) {
 /* now we have individual masses   */
@@ -2742,11 +2742,11 @@ static void softbody_swap_state(Object *ob, float *ppos, float *pvel)
 
 
 /* care for bodypoints taken out of the 'ordinary' solver step
-** because they are screwed to goal by bolts
-** they just need to move along with the goal in time
-** we need to adjust them on sub frame timing in solver
-** so now when frame is done .. put 'em to the position at the end of frame
-*/
+ * because they are screwed to goal by bolts
+ * they just need to move along with the goal in time
+ * we need to adjust them on sub frame timing in solver
+ * so now when frame is done .. put 'em to the position at the end of frame
+ */
 static void softbody_apply_goalsnap(Object *ob)
 {
 	SoftBody *sb= ob->soft;	/* is supposed to be there */
@@ -2811,9 +2811,9 @@ static void interpolate_exciter(Object *ob, int timescale, int time)
 
 /* ************ convertors ********** */
 
-/*  for each object type we need;
-	- xxxx_to_softbody(Object *ob)      : a full (new) copy, creates SB geometry
-*/
+/* for each object type we need;
+ * - xxxx_to_softbody(Object *ob)      : a full (new) copy, creates SB geometry
+ */
 
 /* Resetting a Mesh SB object's springs */
 /* Spring length are caculted from'raw' mesh vertices that are NOT altered by modifier stack. */
@@ -2827,7 +2827,7 @@ static void springs_from_mesh(Object *ob)
 
 	sb= ob->soft;
 	if (me && sb) {
-		/* using bp->origS as a container for spring calcualtions here
+		/* using bp->origS as a container for spring calculations here
 		 * will be overwritten sbObjectStep() to receive
 		 * actual modifier stack positions
 		 */
@@ -3324,7 +3324,7 @@ SoftBody *sbNew(Scene *scene)
 	sb->pointcache = BKE_ptcache_add(&sb->ptcaches);
 
 	if (!sb->effector_weights)
-		sb->effector_weights = BKE_add_effector_weights(NULL);
+		sb->effector_weights = BKE_effector_add_weights(NULL);
 
 	sb->last_frame= MINFRAME-1;
 
@@ -3402,7 +3402,7 @@ static void softbody_update_positions(Object *ob, SoftBody *sb, float (*vertexCo
  * that is:
  * a precise position vector denoting the motion of the center of mass
  * give a rotation/scale matrix using averaging method, that's why estimate and not calculate
- * see: this is kind of reverse engineering: having to states of a point cloud and recover what happend
+ * see: this is kind of reverse engineering: having to states of a point cloud and recover what happened
  * our advantage here we know the identity of the vertex
  * there are others methods giving other results.
  * lloc, lrot, lscale are allowed to be NULL, just in case you don't need it.

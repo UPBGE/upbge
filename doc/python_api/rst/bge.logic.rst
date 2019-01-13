@@ -14,7 +14,7 @@ Module to access logic functions, imported automatically into the python control
 
    # To get the controller thats running this python script:
    cont = bge.logic.getCurrentController() # bge.logic is automatically imported
-   
+
    # To get the game object this controller is on:
    obj = cont.owner
 
@@ -59,7 +59,7 @@ You can also access actuators linked to the controller
    #                          + Python +--+ Actuator "actuatorname" |
    #                          +--------+  +-------------------------+
    actuator = co.actuators["actuatorname"]
-   
+
    # Activate an actuator
    controller.activate(actuator)
 
@@ -67,7 +67,7 @@ See the actuator's reference for available methods
 
 .. hlist::
    :columns: 3
-   
+
    * :class:`~bge.types.BL_ActionActuator`
    * :class:`~bge.types.KX_CameraActuator`
    * :class:`~bge.types.KX_ConstraintActuator`
@@ -139,21 +139,21 @@ General functions
 .. function:: getCurrentController()
 
    Gets the Python controller associated with this Python script.
-   
+
    :rtype: :class:`bge.types.SCA_PythonController`
 
 .. function:: getCurrentScene()
 
    Gets the current Scene.
-   
+
    :rtype: :class:`bge.types.KX_Scene`
 
 .. function:: getSceneList()
 
    Gets a list of the current scenes loaded in the game engine.
-   
+
    :rtype: list of :class:`bge.types.KX_Scene`
-   
+
    .. note:: Scenes in your blend file that have not been converted wont be in this list. This list will only contain scenes such as overlays scenes.
 
 .. function:: getInactiveSceneNames()
@@ -173,7 +173,7 @@ General functions
 .. function:: startGame(blend)
 
    Loads the blend file.
-   
+
    :arg blend: The name of the blend file
    :type blend: string
 
@@ -184,11 +184,11 @@ General functions
 .. function:: restartGame()
 
    Restarts the current game by reloading the .blend file (the last saved version, not what is currently running).
-   
+
 .. function:: LibLoad(blend, type, data, load_actions=False, verbose=False, load_scripts=True, asynchronous=False, scene=None)
-   
+
    Converts the all of the datablocks of the given type from the given blend.
-   
+
    :arg blend: The path to the blend file (or the name to use for the library if data is supplied)
    :type blend: string
    :arg type: The datablock type (currently only "Action", "Mesh" and "Scene" are supported)
@@ -200,38 +200,38 @@ General functions
    :arg verbose: Whether or not to print debugging information (e.g., "SceneName: Scene")
    :type verbose: bool
    :arg load_scripts: Whether or not to load text datablocks as well (can be disabled for some extra security)
-   :type load_scripts: bool   
+   :type load_scripts: bool
    :arg asynchronous: Whether or not to do the loading asynchronously (in another thread). Only the "Scene" type is currently supported for this feature.
    :type asynchronous: bool
    :arg scene: Scene to merge loaded data to, if `None` use the current scene.
    :type scene: :class:`bge.types.KX_Scene` or string
-   
+
    :rtype: :class:`bge.types.KX_LibLoadStatus`
 
    .. note:: Asynchronously loaded libraries will not be available immediately after LibLoad() returns. Use the returned KX_LibLoadStatus to figure out when the libraries are ready.
-   
+
 .. function:: LibNew(name, type, data)
 
    Uses existing datablock data and loads in as a new library.
-   
+
    :arg name: A unique library name used for removal later
    :type name: string
    :arg type: The datablock type (currently only "Mesh" is supported)
    :type type: string
    :arg data: A list of names of the datablocks to load
    :type data: list of strings
-   
+
 .. function:: LibFree(name)
 
    Frees a library, removing all objects and meshes from the currently active scenes.
 
    :arg name: The name of the library to free (the name used in LibNew)
    :type name: string
-   
+
 .. function:: LibList()
 
    Returns a list of currently loaded libraries.
-   
+
    :rtype: list [str]
 
 .. function:: addScene(name, overlay=1)
@@ -252,7 +252,7 @@ General functions
 .. function:: sendMessage(subject, body="", to="", message_from="")
 
    Sends a message to sensors in any active scene.
-   
+
    :arg subject: The subject of the message
    :type subject: string
    :arg body: The body of the message (optional)
@@ -265,7 +265,7 @@ General functions
 .. function:: setGravity(gravity)
 
    Sets the world gravity.
-   
+
    :arg gravity: gravity vector
    :type gravity: Vector((fx, fy, fz))
 
@@ -273,28 +273,28 @@ General functions
 
    Returns a 512 point list from the sound card.
    This only works if the fmod sound driver is being used.
-   
+
    :rtype: list [float], len(getSpectrum()) == 512
 
 .. function:: getMaxLogicFrame()
 
    Gets the maximum number of logic frames per render frame.
-   
+
    :return: The maximum number of logic frames per render frame
    :rtype: integer
 
 .. function:: setMaxLogicFrame(maxlogic)
 
    Sets the maximum number of logic frames that are executed per render frame.
-   This does not affect the physic system that still runs at full frame rate.   
-    
+   This does not affect the physic system that still runs at full frame rate.
+
    :arg maxlogic: The new maximum number of logic frames per render frame. Valid values: 1..5
    :type maxlogic: integer
 
 .. function:: getMaxPhysicsFrame()
 
    Gets the maximum number of physics frames per render frame.
-   
+
    :return: The maximum number of physics frames per render frame
    :rtype: integer
 
@@ -304,43 +304,43 @@ General functions
    Higher value allows physics to keep up with realtime even if graphics slows down the game.
    Physics timestep is fixed and equal to 1/tickrate (see setLogicTicRate)
    maxphysics/ticrate is the maximum delay of the renderer that physics can compensate.
-    
+
    :arg maxphysics: The new maximum number of physics timestep per render frame. Valid values: 1..5.
    :type maxphysics: integer
 
 .. function:: getLogicTicRate()
 
    Gets the logic update frequency.
-   
+
    :return: The logic frequency in Hz
    :rtype: float
 
 .. function:: setLogicTicRate(ticrate)
 
    Sets the logic update frequency.
-   
+
    The logic update frequency is the number of times logic bricks are executed every second.
    The default is 60 Hz.
-   
+
    :arg ticrate: The new logic update frequency (in Hz).
    :type ticrate: float
 
 .. function:: getPhysicsTicRate()
 
    Gets the physics update frequency
-   
+
    :return: The physics update frequency in Hz
    :rtype: float
-   
+
    .. warning: Not implimented yet
 
 .. function:: setPhysicsTicRate(ticrate)
 
    Sets the physics update frequency
-   
+
    The physics update frequency is the number of times the physics system is executed every second.
    The default is 60 Hz.
-   
+
    :arg ticrate: The new update frequency (in Hz).
    :type ticrate: float
 
@@ -366,13 +366,13 @@ General functions
 
 .. function:: setRender(render)
 
-   Sets the global flag that controls the render of the scene. 
+   Sets the global flag that controls the render of the scene.
    If True, the render is done after the logic frame.
    If False, the render is skipped and another logic frame starts immediately.
 
    .. note::
 
-      GPU VSync no longer limits the number of frame per second when render is off, 
+      GPU VSync no longer limits the number of frame per second when render is off,
       but the *Use Frame Rate* option still regulates the fps. To run as many frames
       as possible, untick this option (Render Properties, System panel).
 
@@ -454,7 +454,7 @@ Time related functions
     enough to run at least the next logic step).
 
     :arg new_time: the next value of the BGE clock (in second).
-    
+
 
 *****************
 Utility functions
@@ -506,7 +506,7 @@ Utility functions
 .. function:: getProfileInfo()
 
    Returns a Python dictionary that contains the same information as the on screen profiler. The keys are the profiler categories and the values are tuples with the first element being time taken (in ms) and the second element being the percentage of total time.
-   
+
 *********
 Constants
 *********
@@ -521,7 +521,7 @@ Constants
 
 =======
 Sensors
-======= 
+=======
 
 .. _sensor-status:
 
@@ -547,31 +547,31 @@ See :class:`bge.types.KX_ArmatureSensor.type`
   Detect that the constraint is changing state (active/inactive)
 
   :value: 0
-  
+
 .. data:: KX_ARMSENSOR_LIN_ERROR_BELOW
 
   Detect that the constraint linear error is above a threshold
-  
+
   :value: 1
-  
+
 .. data:: KX_ARMSENSOR_LIN_ERROR_ABOVE
 
   Detect that the constraint linear error is below a threshold
 
   :value: 2
-  
+
 .. data:: KX_ARMSENSOR_ROT_ERROR_BELOW
 
   Detect that the constraint rotation error is above a threshold
-  
+
   :value: 3
-  
+
 .. data:: KX_ARMSENSOR_ROT_ERROR_ABOVE
 
   Detect that the constraint rotation error is below a threshold
-  
+
   :value: 4
-  
+
 
 .. _logic-property-sensor:
 
@@ -588,25 +588,25 @@ Property Sensor
 .. data:: KX_PROPSENSOR_NOTEQUAL
 
    Activate when the property is not equal to the sensor value.
-   
+
    :value: 2
 
 .. data:: KX_PROPSENSOR_INTERVAL
 
    Activate when the property is between the specified limits.
-   
+
    :value: 3
-   
+
 .. data:: KX_PROPSENSOR_CHANGED
 
-   Activate when the property changes   
+   Activate when the property changes
 
    :value: 4
 
 .. data:: KX_PROPSENSOR_EXPRESSION
 
    Activate when the expression matches
-   
+
    :value: 5
 
 .. data:: KX_PROPSENSOR_LESSTHAN
@@ -672,7 +672,7 @@ Armature Actuator
 -----------------
 
  .. _armatureactuator-constants-type:
-   
+
 See :class:`bge.types.BL_ArmatureActuator.type`
 
 .. data:: KX_ACT_ARMATURE_RUN
@@ -680,7 +680,7 @@ See :class:`bge.types.BL_ArmatureActuator.type`
   Just make sure the armature will be updated on the next graphic frame.
   This is the only persistent mode of the actuator:
   it executes automatically once per frame until stopped by a controller
-  
+
   :value: 0
 
 .. data:: KX_ACT_ARMATURE_ENABLE
@@ -698,7 +698,7 @@ See :class:`bge.types.BL_ArmatureActuator.type`
 .. data:: KX_ACT_ARMATURE_SETTARGET
 
   Change target and subtarget of constraint.
-  
+
   :value: 3
 
 .. data:: KX_ACT_ARMATURE_SETWEIGHT
@@ -726,7 +726,7 @@ See :class:`bge.types.KX_ConstraintActuator.option`
 .. data:: KX_CONSTRAINTACT_NORMAL
 
      Activate alignment to surface
-   
+
 .. data:: KX_CONSTRAINTACT_DISTANCE
 
      Activate distance control
@@ -746,7 +746,7 @@ See :class:`bge.types.KX_ConstraintActuator.option`
 .. data:: KX_CONSTRAINTACT_MATERIAL
 
      Detect material rather than property
-   
+
 .. data:: KX_CONSTRAINTACT_PERMANENT
 
      No deactivation if ray does not hit target
@@ -758,7 +758,7 @@ See :class:`bge.types.KX_ConstraintActuator.limit`
 .. data:: KX_CONSTRAINTACT_LOCX
 
    Limit X coord.
-   
+
 .. data:: KX_CONSTRAINTACT_LOCY
 
    Limit Y coord
@@ -766,7 +766,7 @@ See :class:`bge.types.KX_ConstraintActuator.limit`
 .. data:: KX_CONSTRAINTACT_LOCZ
 
    Limit Z coord
-   
+
 .. data:: KX_CONSTRAINTACT_ROTX
 
    Limit X rotation
@@ -774,11 +774,11 @@ See :class:`bge.types.KX_ConstraintActuator.limit`
 .. data:: KX_CONSTRAINTACT_ROTY
 
    Limit Y rotation
-   
+
 .. data:: KX_CONSTRAINTACT_ROTZ
 
    Limit Z rotation
-   
+
 .. data:: KX_CONSTRAINTACT_DIRNX
 
    Set distance along negative X axis
@@ -786,11 +786,11 @@ See :class:`bge.types.KX_ConstraintActuator.limit`
 .. data:: KX_CONSTRAINTACT_DIRNY
 
    Set distance along negative Y axis
-   
+
 .. data:: KX_CONSTRAINTACT_DIRNZ
 
    Set distance along negative Z axis
-   
+
 .. data:: KX_CONSTRAINTACT_DIRPX
 
    Set distance along positive X axis
@@ -798,35 +798,35 @@ See :class:`bge.types.KX_ConstraintActuator.limit`
 .. data:: KX_CONSTRAINTACT_DIRPY
 
    Set distance along positive Y axis
-   
+
 .. data:: KX_CONSTRAINTACT_DIRPZ
 
    Set distance along positive Z axis
-   
+
 .. data:: KX_CONSTRAINTACT_ORIX
 
    Set orientation of X axis
-   
+
 .. data:: KX_CONSTRAINTACT_ORIY
 
    Set orientation of Y axis
-   
+
 .. data:: KX_CONSTRAINTACT_ORIZ
 
    Set orientation of Z axis
-   
+
 .. data:: KX_CONSTRAINTACT_FHNX
 
    Set force field along negative X axis
-   
+
 .. data:: KX_CONSTRAINTACT_FHNY
 
    Set force field along negative Y axis
-   
+
 .. data:: KX_CONSTRAINTACT_FHNZ
 
    Set force field along negative Z axis
-   
+
 .. data:: KX_CONSTRAINTACT_FHPX
 
    Set force field along positive X axis
@@ -834,7 +834,7 @@ See :class:`bge.types.KX_ConstraintActuator.limit`
 .. data:: KX_CONSTRAINTACT_FHPY
 
    Set force field along positive Y axis
-   
+
 .. data:: KX_CONSTRAINTACT_FHPZ
 
    Set force field along positive Z axis
@@ -922,29 +922,29 @@ See :class:`bge.types.KX_SceneActuator`
 --------------
 Sound Actuator
 --------------
-      
+
 See :class:`bge.types.KX_SoundActuator`
 
 .. data:: KX_SOUNDACT_PLAYSTOP
 
    :value: 1
-   
+
 .. data:: KX_SOUNDACT_PLAYEND
 
    :value: 2
-   
+
 .. data:: KX_SOUNDACT_LOOPSTOP
 
    :value: 3
-   
+
 .. data:: KX_SOUNDACT_LOOPEND
 
    :value: 4
-   
+
 .. data:: KX_SOUNDACT_LOOPBIDIRECTIONAL
 
    :value: 5
-   
+
 .. data:: KX_SOUNDACT_LOOPBIDIRECTIONAL_STOP
 
    :value: 6
@@ -1000,69 +1000,69 @@ Various
 .. data:: RAS_2DFILTER_BLUR
 
    :value: 2
-   
+
 .. data:: RAS_2DFILTER_CUSTOMFILTER
 
    Customer filter, the code code is set via shaderText property.
-   
+
    :value: 12
-   
+
 .. data:: RAS_2DFILTER_DILATION
 
    :value: 4
-   
+
 .. data:: RAS_2DFILTER_DISABLED
 
    Disable the filter that is currently active
 
    :value: -1
-   
+
 .. data:: RAS_2DFILTER_ENABLED
 
    Enable the filter that was previously disabled
 
    :value: -2
-   
+
 .. data:: RAS_2DFILTER_EROSION
 
    :value: 5
-   
+
 .. data:: RAS_2DFILTER_GRAYSCALE
 
    :value: 9
-   
+
 .. data:: RAS_2DFILTER_INVERT
 
    :value: 11
-   
+
 .. data:: RAS_2DFILTER_LAPLACIAN
 
    :value: 6
-   
+
 .. data:: RAS_2DFILTER_MOTIONBLUR
 
    Create and enable preset filters
 
    :value: 1
-   
+
 .. data:: RAS_2DFILTER_NOFILTER
 
    Disable and destroy the filter that is currently active
 
    :value: 0
-   
+
 .. data:: RAS_2DFILTER_PREWITT
 
    :value: 8
-   
+
 .. data:: RAS_2DFILTER_SEPIA
 
    :value: 10
-   
+
 .. data:: RAS_2DFILTER_SHARPEN
 
    :value: 3
-   
+
 .. data:: RAS_2DFILTER_SOBEL
 
    :value: 7
@@ -1142,7 +1142,7 @@ See :class:`bge.types.BL_ArmatureConstraint.type`
 .. _armatureconstraint-constants-ik-type:
 
 See :class:`bge.types.BL_ArmatureConstraint.ik_type`
-  
+
 .. data:: CONSTRAINT_IK_COPYPOSE
 
    constraint is trying to match the position and eventually the rotation of the target.
@@ -1176,7 +1176,7 @@ See :class:`bge.types.BL_ArmatureConstraint.ik_flag`
    Set when the armature is allowed to stretch (only the bones with stretch factor > 0.0)
 
    :value: 16
-   
+
 .. data:: CONSTRAINT_IK_FLAG_POS
 
    Set when the constraint tries to match the position of the target.
@@ -1198,7 +1198,7 @@ See :class:`bge.types.BL_ArmatureConstraint.ik_mode`
    The constraint tries to keep the bone outside ik_dist of the target
 
    :value: 1
-   
+
 .. data:: CONSTRAINT_IK_MODE_ONSURFACE
 
    The constraint tries to keep the bone exactly at ik_dist of the target.
@@ -1244,19 +1244,19 @@ See :class:`bge.types.KX_GameObject.playAction`
 .. data:: KX_ACTION_MODE_PLAY
 
    Play the action once.
-   
+
    :value: 0
 
 .. data:: KX_ACTION_MODE_LOOP
 
    Loop the action (repeat it).
-   
+
    :value: 1
 
 .. data:: KX_ACTION_MODE_PING_PONG
 
    Play the action one direct then back the other way when it has completed.
-   
+
    :value: 2
 
 .. _gameobject-playaction-blend:
@@ -1296,11 +1296,11 @@ Navigation Mesh Draw Modes
 .. data:: RM_POLYS
 
    Draw only polygons.
- 
+
 .. data:: RM_TRIS
 
    Draw triangle mesh.
-   
+
 ------
 Shader
 ------
@@ -1383,7 +1383,7 @@ See :class:`bge.types.KX_StateActuator.operation`
    Copy state mask
 
    :value: 1
-   
+
 .. data:: KX_STATE_OP_NEG
 
    Invert bits to state mask

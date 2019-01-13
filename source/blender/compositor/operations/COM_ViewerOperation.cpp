@@ -16,8 +16,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * Contributor:
- *		Jeroen Bakker
- *		Monique Dewanchand
+ *      Jeroen Bakker
+ *      Monique Dewanchand
  */
 
 #include "COM_ViewerOperation.h"
@@ -188,7 +188,7 @@ void ViewerOperation::updateImage(rcti *rect)
 	this->updateDraw();
 }
 
-const CompositorPriority ViewerOperation::getRenderPriority() const
+CompositorPriority ViewerOperation::getRenderPriority() const
 {
 	if (this->isActiveViewerOutput()) {
 		return COM_PRIORITY_HIGH;

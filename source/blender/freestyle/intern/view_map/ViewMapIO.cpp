@@ -979,7 +979,7 @@ int load(istream& in, ViewMap *vm, ProgressBar *pb)
 	READ(flags);
 	Options::setFlags(flags);
 
-	// Read the size of the five ViewMap's lists (with some extra informations for the ViewVertices)
+	// Read the size of the five ViewMap's lists (with some extra information for the ViewVertices)
 	// and instantiate them (with default costructors)
 	unsigned vs_s, fe_s, fe_rle1, fe_rle2, sv_s, ve_s, vv_s, vv_rle1, vv_rle2;
 	READ(vs_s);
@@ -1102,23 +1102,23 @@ int save(ostream& out, ViewMap *vm, ProgressBar *pb)
 
 	// For every object, initialize its userdata member to its index in the ViewMap list
 	for (unsigned int i0 = 0; i0 < vm->ViewShapes().size(); i0++) {
-		vm->ViewShapes()[i0]->userdata = SET_UINT_IN_POINTER(i0);
-		vm->ViewShapes()[i0]->sshape()->userdata = SET_UINT_IN_POINTER(i0);
+		vm->ViewShapes()[i0]->userdata = POINTER_FROM_UINT(i0);
+		vm->ViewShapes()[i0]->sshape()->userdata = POINTER_FROM_UINT(i0);
 	}
 	for (unsigned int i1 = 0; i1 < vm->FEdges().size(); i1++)
-		vm->FEdges()[i1]->userdata = SET_UINT_IN_POINTER(i1);
+		vm->FEdges()[i1]->userdata = POINTER_FROM_UINT(i1);
 	for (unsigned int i2 = 0; i2 < vm->SVertices().size(); i2++)
-		vm->SVertices()[i2]->userdata = SET_UINT_IN_POINTER(i2);
+		vm->SVertices()[i2]->userdata = POINTER_FROM_UINT(i2);
 	for (unsigned int i3 = 0; i3 < vm->ViewEdges().size(); i3++)
-		vm->ViewEdges()[i3]->userdata = SET_UINT_IN_POINTER(i3);
+		vm->ViewEdges()[i3]->userdata = POINTER_FROM_UINT(i3);
 	for (unsigned int i4 = 0; i4 < vm->ViewVertices().size(); i4++)
-		vm->ViewVertices()[i4]->userdata = SET_UINT_IN_POINTER(i4);
+		vm->ViewVertices()[i4]->userdata = POINTER_FROM_UINT(i4);
 
 	// Write the current options
 	unsigned char flags = Options::getFlags();
 	WRITE(flags);
 
-	// Write the size of the five lists (with some extra informations for the ViewVertices)
+	// Write the size of the five lists (with some extra information for the ViewVertices)
 	unsigned size;
 	size = vm->ViewShapes().size();
 	WRITE(size);

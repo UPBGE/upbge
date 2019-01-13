@@ -16,9 +16,9 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * Contributor:
- *		Jeroen Bakker
- *		Monique Dewanchand
- *		Sergey Sharybin
+ *      Jeroen Bakker
+ *      Monique Dewanchand
+ *      Sergey Sharybin
  */
 
 #ifndef __COM_MASKNODE_H__
@@ -28,8 +28,8 @@
 #include "DNA_node_types.h"
 
 /**
- * @brief MaskNode
- * @ingroup Node
+ * \brief MaskNode
+ * \ingroup Node
  */
 class MaskNode : public Node {
 public:

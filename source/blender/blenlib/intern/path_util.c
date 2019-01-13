@@ -80,10 +80,10 @@ static bool BLI_path_is_abs(const char *name);
  * Looks for a sequence of decimal digits in string, preceding any filename extension,
  * returning the integer value if found, or 0 if not.
  *
- * \param string  String to scan.
- * \param head  Optional area to return copy of part of string prior to digits, or before dot if no digits.
- * \param tail  Optional area to return copy of part of string following digits, or from dot if no digits.
- * \param numlen  Optional to return number of digits found.
+ * \param string: String to scan.
+ * \param head: Optional area to return copy of part of string prior to digits, or before dot if no digits.
+ * \param tail: Optional area to return copy of part of string following digits, or from dot if no digits.
+ * \param numlen: Optional to return number of digits found.
  */
 int BLI_stringdec(const char *string, char *head, char *tail, ushort *r_num_len)
 {
@@ -652,10 +652,10 @@ void BLI_path_rel(char *file, const char *relfile)
  * string = Foo.png, suffix = 123, separator = _
  * Foo.png -> Foo_123.png
  *
- * \param string  original (and final) string
- * \param maxlen  Maximum length of string
- * \param suffix  String to append to the original string
- * \param sep Optional separator character
+ * \param string: original (and final) string
+ * \param maxlen: Maximum length of string
+ * \param suffix: String to append to the original string
+ * \param sep: Optional separator character
  * \return  true if succeeded
  */
 bool BLI_path_suffix(char *string, size_t maxlen, const char *suffix, const char *sep)
@@ -1095,7 +1095,7 @@ bool BLI_path_program_extensions_add_win32(char *name, const size_t maxlen)
 	if ((type == 0) || S_ISDIR(type)) {
 		/* typically 3-5, ".EXE", ".BAT"... etc */
 		const int ext_max = 12;
-		const char *ext = getenv("PATHEXT");
+		const char *ext = BLI_getenv("PATHEXT");
 		if (ext) {
 			const int name_len = strlen(name);
 			char *filename = alloca(name_len + ext_max);
@@ -1152,7 +1152,7 @@ bool BLI_path_program_search(
 	const char separator = ':';
 #endif
 
-	path = getenv("PATH");
+	path = BLI_getenv("PATH");
 	if (path) {
 		char filename[FILE_MAX];
 		const char *temp;
@@ -1160,12 +1160,12 @@ bool BLI_path_program_search(
 		do {
 			temp = strchr(path, separator);
 			if (temp) {
-				strncpy(filename, path, temp - path);
+				memcpy(filename, path, temp - path);
 				filename[temp - path] = 0;
 				path = temp + 1;
 			}
 			else {
-				strncpy(filename, path, sizeof(filename));
+				BLI_strncpy(filename, path, sizeof(filename));
 			}
 
 			BLI_path_append(filename, maxlen, name);
@@ -1220,9 +1220,26 @@ void BLI_setenv(const char *env, const char *val)
  */
 void BLI_setenv_if_new(const char *env, const char *val)
 {
-	if (getenv(env) == NULL)
+	if (BLI_getenv(env) == NULL)
 		BLI_setenv(env, val);
 }
+
+/**
+* get an env var, result has to be used immediately
+*/
+const char *BLI_getenv(const char *env)
+{
+#ifdef _MSC_VER
+	static char buffer[32767]; /* 32767 is the total size of the environment block on windows*/
+	if (GetEnvironmentVariableA(env, buffer, sizeof(buffer)))
+		return buffer;
+	else
+		return NULL;
+#else
+	return getenv(env);
+#endif
+}
+
 
 /**
  * Strips off nonexistent (or non-accessible) subdirectories from the end of *dir, leaving the path of
@@ -1265,8 +1282,8 @@ bool BLI_make_existing_file(const char *name)
  * separators, including ensuring there is exactly one between the copies of *dir and *file,
  * and between the copies of *relabase and *dir.
  *
- * \param relabase  Optional prefix to substitute for "//" on front of *dir
- * \param string  Area to return result
+ * \param relabase: Optional prefix to substitute for "//" on front of *dir
+ * \param string: Area to return result
  */
 void BLI_make_file_string(const char *relabase, char *string, const char *dir, const char *file)
 {

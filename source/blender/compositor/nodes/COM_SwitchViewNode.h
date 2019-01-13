@@ -16,7 +16,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * Contributor:
- *		Dalai Felinto
+ *      Dalai Felinto
  */
 
 #ifndef __COM_SWITCHVIEWNODE_H__
@@ -26,8 +26,8 @@
 #include "COM_NodeOperation.h"
 #include "DNA_node_types.h"
 /**
- * @brief SwitchViewNode
- * @ingroup Node
+ * \brief SwitchViewNode
+ * \ingroup Node
  */
 class SwitchViewNode : public Node {
 public:

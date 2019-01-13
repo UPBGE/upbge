@@ -55,9 +55,9 @@
 
 /* ***************************************** */
 /* NOTE ABOUT THIS FILE:
- *  This file contains code for editing Grease Pencil data in the Action Editor
- *  as a 'keyframes', so that a user can adjust the timing of Grease Pencil drawings.
- *  Therefore, this file mostly contains functions for selecting Grease-Pencil frames.
+ * This file contains code for editing Grease Pencil data in the Action Editor
+ * as a 'keyframes', so that a user can adjust the timing of Grease Pencil drawings.
+ * Therefore, this file mostly contains functions for selecting Grease-Pencil frames.
  */
 /* ***************************************** */
 /* Generics - Loopers */
@@ -288,7 +288,7 @@ void ED_gplayer_frames_duplicate(bGPDlayer *gpl)
 }
 
 /* Set keyframe type for selected frames from given gp-layer
- * \param type The type of keyframe (eBezTriple_KeyframeType) to set selected frames to
+ * \param type: The type of keyframe (eBezTriple_KeyframeType) to set selected frames to
  */
 void ED_gplayer_frames_keytype_set(bGPDlayer *gpl, short type)
 {
@@ -308,10 +308,10 @@ void ED_gplayer_frames_keytype_set(bGPDlayer *gpl, short type)
 /* -------------------------------------- */
 /* Copy and Paste Tools */
 /* - The copy/paste buffer currently stores a set of GP_Layers, with temporary
- *	GP_Frames with the necessary strokes
+ *   GP_Frames with the necessary strokes
  * - Unless there is only one element in the buffer, names are also tested to check for compatibility.
  * - All pasted frames are offset by the same amount. This is calculated as the difference in the times of
- *	the current frame and the 'first keyframe' (i.e. the earliest one in all channels).
+ *   the current frame and the 'first keyframe' (i.e. the earliest one in all channels).
  * - The earliest frame is calculated per copy operation.
  */
 
@@ -483,10 +483,10 @@ bool ED_gpencil_anim_copybuf_paste(bAnimContext *ac, const short offset_mode)
 
 				/* This should be the right frame... as it may be a pre-existing frame,
 				 * must make sure that only compatible stroke types get copied over
-				 *	- We cannot just add a duplicate frame, as that would cause errors
-				 *  - For now, we don't check if the types will be compatible since we
-				 *    don't have enough info to do so. Instead, we simply just paste,
-				 *    af it works, it will show up.
+				 * - We cannot just add a duplicate frame, as that would cause errors
+				 * - For now, we don't check if the types will be compatible since we
+				 *   don't have enough info to do so. Instead, we simply just paste,
+				 *   if it works, it will show up.
 				 */
 				for (gps = gpfs->strokes.first; gps; gps = gps->next) {
 					/* make a copy of stroke, then of its points array */

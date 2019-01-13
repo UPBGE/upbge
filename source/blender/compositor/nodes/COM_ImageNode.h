@@ -16,9 +16,9 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * Contributor:
- *		Jeroen Bakker
- *		Monique Dewanchand
- *		Lukas Tönne
+ *      Jeroen Bakker
+ *      Monique Dewanchand
+ *      Lukas Tönne
  */
 
 #include "COM_defines.h"
@@ -30,8 +30,8 @@ extern "C" {
 }
 
 /**
- * @brief ImageNode
- * @ingroup Node
+ * \brief ImageNode
+ * \ingroup Node
  */
 class ImageNode : public Node {
 private:

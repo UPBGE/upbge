@@ -97,7 +97,7 @@ void BLO_memfile_merge(MemFile *first, MemFile *second)
 }
 
 void memfile_chunk_add(
-        MemFile *memfile, const char *buf, unsigned int size,
+        MemFile *memfile, const char *buf, uint size,
         MemFileChunk **compchunk_step)
 {
 	MemFileChunk *curchunk = MEM_mallocN(sizeof(MemFileChunk), "MemFileChunk");
@@ -130,7 +130,7 @@ void memfile_chunk_add(
 struct Main *BLO_memfile_main_get(struct MemFile *memfile, struct Main *oldmain, struct Scene **r_scene)
 {
 	struct Main *bmain_undo = NULL;
-	BlendFileData *bfd = BLO_read_from_memfile(oldmain, BKE_main_blendfile_path(oldmain), memfile, NULL, BLO_READ_SKIP_NONE);
+	BlendFileData *bfd = BLO_read_from_memfile(oldmain, BKE_main_blendfile_path(oldmain), memfile, BLO_READ_SKIP_NONE, NULL);
 
 	if (bfd) {
 		bmain_undo = bfd->main;

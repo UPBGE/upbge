@@ -62,7 +62,7 @@ static struct PyModuleDef gpumodule = {
 	"gpu",     /* name of module */
 	M_gpu_doc, /* module documentation */
 	-1,        /* size of per-interpreter state of the module,
-	            *  or -1 if the module keeps state in global variables. */
+	            * or -1 if the module keeps state in global variables. */
 	NULL, NULL, NULL, NULL, NULL
 };
 
@@ -345,7 +345,7 @@ PyObject *GPU_initPython(void)
 {
 	PyObject *module;
 	PyObject *submodule;
-	PyObject *sys_modules = PyThreadState_GET()->interp->modules;
+	PyObject *sys_modules = PyImport_GetModuleDict();
 
 	module = PyInit_gpu();
 
@@ -356,6 +356,6 @@ PyObject *GPU_initPython(void)
 	PyDict_SetItem(sys_modules, PyModule_GetNameObject(submodule), submodule);
 	Py_INCREF(submodule);
 
-	PyDict_SetItem(PyImport_GetModuleDict(), PyModule_GetNameObject(module), module);
+	PyDict_SetItem(sys_modules, PyModule_GetNameObject(module), module);
 	return module;
 }

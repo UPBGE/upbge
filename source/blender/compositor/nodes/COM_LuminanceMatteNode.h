@@ -16,7 +16,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * Contributor:
- *		Dalai Felinto
+ *      Dalai Felinto
  */
 
 #ifndef __COM_LUMINANCEMATTENODE_H__
@@ -25,8 +25,8 @@
 #include "COM_Node.h"
 
 /**
- * @brief LuminanceMatteNode
- * @ingroup Node
+ * \brief LuminanceMatteNode
+ * \ingroup Node
  */
 class LuminanceMatteNode : public Node {
 public:

@@ -83,9 +83,9 @@ void BKE_paint_invalidate_overlay_tex(Scene *scene, const Tex *tex)
 		return;
 
 	if (br->mtex.tex == tex)
-		overlay_flags |= PAINT_INVALID_OVERLAY_TEXTURE_PRIMARY;
+		overlay_flags |= PAINT_OVERLAY_INVALID_TEXTURE_PRIMARY;
 	if (br->mask_mtex.tex == tex)
-		overlay_flags |= PAINT_INVALID_OVERLAY_TEXTURE_SECONDARY;
+		overlay_flags |= PAINT_OVERLAY_INVALID_TEXTURE_SECONDARY;
 }
 
 void BKE_paint_invalidate_cursor_overlay(Scene *scene, CurveMapping *curve)
@@ -94,14 +94,14 @@ void BKE_paint_invalidate_cursor_overlay(Scene *scene, CurveMapping *curve)
 	Brush *br = p->brush;
 
 	if (br && br->curve == curve)
-		overlay_flags |= PAINT_INVALID_OVERLAY_CURVE;
+		overlay_flags |= PAINT_OVERLAY_INVALID_CURVE;
 }
 
 void BKE_paint_invalidate_overlay_all(void)
 {
-	overlay_flags |= (PAINT_INVALID_OVERLAY_TEXTURE_SECONDARY |
-	                  PAINT_INVALID_OVERLAY_TEXTURE_PRIMARY |
-	                  PAINT_INVALID_OVERLAY_CURVE);
+	overlay_flags |= (PAINT_OVERLAY_INVALID_TEXTURE_SECONDARY |
+	                  PAINT_OVERLAY_INVALID_TEXTURE_PRIMARY |
+	                  PAINT_OVERLAY_INVALID_CURVE);
 }
 
 eOverlayControlFlags BKE_paint_get_overlay_flags(void)
@@ -135,18 +135,18 @@ Paint *BKE_paint_get_active_from_paintmode(Scene *sce, ePaintMode mode)
 		ToolSettings *ts = sce->toolsettings;
 
 		switch (mode) {
-			case ePaintSculpt:
+			case PAINT_MODE_SCULPT:
 				return &ts->sculpt->paint;
-			case ePaintVertex:
+			case PAINT_MODE_VERTEX:
 				return &ts->vpaint->paint;
-			case ePaintWeight:
+			case PAINT_MODE_WEIGHT:
 				return &ts->wpaint->paint;
-			case ePaintTexture2D:
-			case ePaintTextureProjective:
+			case PAINT_MODE_TEXTURE_2D:
+			case PAINT_MODE_TEXTURE_3D:
 				return &ts->imapaint.paint;
-			case ePaintSculptUV:
+			case PAINT_MODE_SCULPT_UV:
 				return &ts->uvsculpt->paint;
-			case ePaintInvalid:
+			case PAINT_MODE_INVALID:
 				return NULL;
 			default:
 				return &ts->imapaint.paint;
@@ -231,39 +231,39 @@ ePaintMode BKE_paintmode_get_active_from_context(const bContext *C)
 		if ((sima = CTX_wm_space_image(C)) != NULL) {
 			if (obact && obact->mode == OB_MODE_EDIT) {
 				if (sima->mode == SI_MODE_PAINT)
-					return ePaintTexture2D;
+					return PAINT_MODE_TEXTURE_2D;
 				else if (ts->use_uv_sculpt)
-					return ePaintSculptUV;
+					return PAINT_MODE_SCULPT_UV;
 			}
 			else {
-				return ePaintTexture2D;
+				return PAINT_MODE_TEXTURE_2D;
 			}
 		}
 		else if (obact) {
 			switch (obact->mode) {
 				case OB_MODE_SCULPT:
-					return ePaintSculpt;
+					return PAINT_MODE_SCULPT;
 				case OB_MODE_VERTEX_PAINT:
-					return ePaintVertex;
+					return PAINT_MODE_VERTEX;
 				case OB_MODE_WEIGHT_PAINT:
-					return ePaintWeight;
+					return PAINT_MODE_WEIGHT;
 				case OB_MODE_TEXTURE_PAINT:
-					return ePaintTextureProjective;
+					return PAINT_MODE_TEXTURE_3D;
 				case OB_MODE_EDIT:
 					if (ts->use_uv_sculpt)
-						return ePaintSculptUV;
-					return ePaintTexture2D;
+						return PAINT_MODE_SCULPT_UV;
+					return PAINT_MODE_TEXTURE_2D;
 				default:
-					return ePaintTexture2D;
+					return PAINT_MODE_TEXTURE_2D;
 			}
 		}
 		else {
 			/* default to image paint */
-			return ePaintTexture2D;
+			return PAINT_MODE_TEXTURE_2D;
 		}
 	}
 
-	return ePaintInvalid;
+	return PAINT_MODE_INVALID;
 }
 
 Brush *BKE_paint_brush(Paint *p)
@@ -302,7 +302,7 @@ PaintCurve *BKE_paint_curve_add(Main *bmain, const char *name)
  *
  * WARNING! This function will not handle ID user count!
  *
- * \param flag  Copying options (see BKE_library.h's LIB_ID_COPY_... flags for more).
+ * \param flag: Copying options (see BKE_library.h's LIB_ID_COPY_... flags for more).
  */
 void BKE_paint_curve_copy_data(Main *UNUSED(bmain), PaintCurve *pc_dst, const PaintCurve *pc_src, const int UNUSED(flag))
 {
@@ -391,7 +391,7 @@ Palette *BKE_palette_add(Main *bmain, const char *name)
  *
  * WARNING! This function will not handle ID user count!
  *
- * \param flag  Copying options (see BKE_library.h's LIB_ID_COPY_... flags for more).
+ * \param flag: Copying options (see BKE_library.h's LIB_ID_COPY_... flags for more).
  */
 void BKE_palette_copy_data(Main *UNUSED(bmain), Palette *palette_dst, const Palette *palette_src, const int UNUSED(flag))
 {
@@ -480,19 +480,19 @@ void BKE_paint_cavity_curve_preset(Paint *p, int preset)
 eObjectMode BKE_paint_object_mode_from_paint_mode(ePaintMode mode)
 {
 	switch (mode) {
-		case ePaintSculpt:
+		case PAINT_MODE_SCULPT:
 			return OB_MODE_SCULPT;
-		case ePaintVertex:
+		case PAINT_MODE_VERTEX:
 			return OB_MODE_VERTEX_PAINT;
-		case ePaintWeight:
+		case PAINT_MODE_WEIGHT:
 			return OB_MODE_WEIGHT_PAINT;
-		case ePaintTextureProjective:
+		case PAINT_MODE_TEXTURE_3D:
 			return OB_MODE_TEXTURE_PAINT;
-		case ePaintTexture2D:
+		case PAINT_MODE_TEXTURE_2D:
 			return OB_MODE_TEXTURE_PAINT;
-		case ePaintSculptUV:
+		case PAINT_MODE_SCULPT_UV:
 			return OB_MODE_EDIT;
-		case ePaintInvalid:
+		case PAINT_MODE_INVALID:
 		default:
 			return 0;
 	}
@@ -853,7 +853,7 @@ static bool sculpt_modifiers_active(Scene *scene, Sculpt *sd, Object *ob)
 }
 
 /**
- * \param need_mask So the DerivedMesh thats returned has mask data
+ * \param need_mask: So the DerivedMesh thats returned has mask data
  */
 void BKE_sculpt_update_mesh_elements(Scene *scene, Sculpt *sd, Object *ob,
                                      bool need_pmap, bool need_mask)

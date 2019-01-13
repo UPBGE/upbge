@@ -9,13 +9,13 @@ namespace Eigen {
 namespace internal {
 
 /** \internal Low-level conjugate gradient algorithm
-  * \param mat The matrix A
-  * \param rhs The right hand side vector b
-  * \param x On input and initial solution, on output the computed solution.
-  * \param precond A preconditioner being able to efficiently solve for an
+  * \param mat: The matrix A
+  * \param rhs: The right hand side vector b
+  * \param x: On input and initial solution, on output the computed solution.
+  * \param precond: A preconditioner being able to efficiently solve for an
   *                approximation of Ax=b (regardless of b)
-  * \param iters On input the max number of iteration, on output the number of performed iterations.
-  * \param tol_error On input the tolerance error, on output an estimation of the relative error.
+  * \param iters: On input the max number of iteration, on output the number of performed iterations.
+  * \param tol_error: On input the tolerance error, on output an estimation of the relative error.
   */
 template<typename MatrixType, typename Rhs, typename Dest, typename FilterMatrixType, typename Preconditioner>
 EIGEN_DONT_INLINE
@@ -175,7 +175,7 @@ struct traits<ConstrainedConjugateGradient<_MatrixType,_UpLo,_FilterMatrixType,_
   *   ++i;
   * } while (cg.info()!=Success && i<100);
   * \endcode
-  * Note that such a step by step excution is slightly slower.
+  * Note that such a step by step execution is slightly slower.
   *
   * \sa class SimplicialCholesky, DiagonalPreconditioner, IdentityPreconditioner
   */

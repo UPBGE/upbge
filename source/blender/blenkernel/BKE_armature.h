@@ -47,7 +47,7 @@ struct ListBase;
 typedef struct PoseTarget {
 	struct PoseTarget *next, *prev;
 
-	struct bConstraint *con;        /* the constrait of this target */
+	struct bConstraint *con;        /* the constraint of this target */
 	int tip;                        /* index of tip pchan in PoseTree */
 } PoseTarget;
 
@@ -139,7 +139,7 @@ typedef struct Mat4 {
 } Mat4;
 
 void equalize_bbone_bezier(float *data, int desired);
-void b_bone_spline_setup(struct bPoseChannel *pchan, int rest, Mat4 result_array[MAX_BBONE_SUBDIV]);
+void BKE_pchan_bbone_spline_setup(struct bPoseChannel *pchan, int rest, Mat4 result_array[MAX_BBONE_SUBDIV]);
 
 /* like EBONE_VISIBLE */
 #define PBONE_VISIBLE(arm, bone) ( \

@@ -150,7 +150,7 @@ typedef struct TransDataExtension {
 	float  r_mtx[3][3];  /* The rotscale matrix of pose bone, to allow using snap-align in translation mode,
 	                      * when td->mtx is the loc pose bone matrix (and hence can't be used to apply rotation in some cases,
 	                      * namely when a bone is in "NoLocal" or "Hinge" mode)... */
-	float  r_smtx[3][3]; /* Invers of previous one. */
+	float  r_smtx[3][3]; /* Inverse of previous one. */
 	int    rotOrder;	/* rotation mode,  as defined in eRotationModes (DNA_action_types.h) */
 	float oloc[3], orot[3], oquat[4], orotAxis[3], orotAngle; /* Original object transformation used for rigid bodies */
 } TransDataExtension;
@@ -163,7 +163,7 @@ typedef struct TransData2D {
 	float ih1[2], ih2[2];
 } TransData2D;
 
-/* we need to store 2 handles for each transdata in case the other handle wasnt selected */
+/* we need to store 2 handles for each transdata in case the other handle wasn't selected */
 typedef struct TransDataCurveHandleFlags {
 	char ih1, ih2;
 	char *h1, *h2;
@@ -507,7 +507,7 @@ typedef struct TransInfo {
 
 #define T_PROP_EDIT			(1 << 11)
 #define T_PROP_CONNECTED	(1 << 12)
-#define T_PROP_PROJECTED	(1 << 25)
+#define T_PROP_PROJECTED	(1 << 13)
 #define T_PROP_EDIT_ALL		(T_PROP_EDIT | T_PROP_CONNECTED | T_PROP_PROJECTED)
 
 #define T_V3D_ALIGN			(1 << 14)
@@ -522,7 +522,7 @@ typedef struct TransInfo {
 
 #define T_AUTOVALUES		(1 << 20)
 
-	/* to specificy if we save back settings at the end */
+	/* to specify if we save back settings at the end */
 #define	T_MODAL				(1 << 21)
 
 	/* no retopo */
@@ -796,6 +796,8 @@ bool applyTransformOrientation(const struct bContext *C, float mat[3][3], char r
 #define ORIENTATION_VERT	2
 #define ORIENTATION_EDGE	3
 #define ORIENTATION_FACE	4
+#define ORIENTATION_USE_PLANE(ty) \
+	ELEM(ty, ORIENTATION_NORMAL, ORIENTATION_EDGE, ORIENTATION_FACE)
 
 int getTransformOrientation_ex(const struct bContext *C, float normal[3], float plane[3], const short around);
 int getTransformOrientation(const struct bContext *C, float normal[3], float plane[3]);

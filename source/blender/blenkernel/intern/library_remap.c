@@ -406,10 +406,10 @@ static void libblock_remap_data_postprocess_nodetree_update(Main *bmain, ID *new
 	ntreeVerifyNodes(bmain, new_id);
 
 	/* Update node trees as necessary. */
-	FOREACH_NODETREE(bmain, ntree, id) {
+	FOREACH_NODETREE_BEGIN(bmain, ntree, id) {
 		/* make an update call for the tree */
 		ntreeUpdateTree(bmain, ntree);
-	} FOREACH_NODETREE_END
+	} FOREACH_NODETREE_END;
 }
 
 /**
@@ -499,7 +499,7 @@ ATTR_NONNULL(1) static void libblock_remap_data(
 	}
 
 #ifdef DEBUG_PRINT
-	printf("%s: %d occurences skipped (%d direct and %d indirect ones)\n", __func__,
+	printf("%s: %d occurrences skipped (%d direct and %d indirect ones)\n", __func__,
 	       r_id_remap_data->skipped_direct + r_id_remap_data->skipped_indirect,
 	       r_id_remap_data->skipped_direct, r_id_remap_data->skipped_indirect);
 #endif

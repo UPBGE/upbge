@@ -16,8 +16,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * Contributor:
- *		Jeroen Bakker
- *		Monique Dewanchand
+ *      Jeroen Bakker
+ *      Monique Dewanchand
  */
 
 #include "COM_PreviewOperation.h"
@@ -142,7 +142,7 @@ void PreviewOperation::determineResolution(unsigned int resolution[2], unsigned 
 	resolution[1] = height;
 }
 
-const CompositorPriority PreviewOperation::getRenderPriority() const
+CompositorPriority PreviewOperation::getRenderPriority() const
 {
 	return COM_PRIORITY_LOW;
 }

@@ -129,7 +129,7 @@
 static void transform_around_single_fallback(TransInfo *t)
 {
 	if ((t->total == 1) &&
-	    (ELEM(t->around, V3D_AROUND_CENTER_BOUNDS, V3D_AROUND_CENTER_MEAN, V3D_AROUND_ACTIVE)) &&
+	    (ELEM(t->around, V3D_AROUND_CENTER_BOUNDS, V3D_AROUND_CENTER_MEDIAN, V3D_AROUND_ACTIVE)) &&
 	    (ELEM(t->mode, TFM_RESIZE, TFM_ROTATION, TFM_TRACKBALL)))
 	{
 		t->around = V3D_AROUND_LOCAL_ORIGINS;
@@ -1682,7 +1682,6 @@ static void createTransCurveVerts(TransInfo *t)
 						}
 
 						td++;
-						count++;
 						tail++;
 					}
 
@@ -1720,7 +1719,6 @@ static void createTransCurveVerts(TransInfo *t)
 							}
 
 						td++;
-						count++;
 						tail++;
 					}
 					if (is_prop_edit || bezt_tx & SEL_F3) {
@@ -1751,7 +1749,6 @@ static void createTransCurveVerts(TransInfo *t)
 						}
 
 						td++;
-						count++;
 						tail++;
 					}
 
@@ -1823,7 +1820,6 @@ static void createTransCurveVerts(TransInfo *t)
 						}
 
 						td++;
-						count++;
 						tail++;
 					}
 				}
@@ -1896,7 +1892,6 @@ static void createTransLatticeVerts(TransInfo *t)
 				td->val = NULL;
 
 				td++;
-				count++;
 			}
 		}
 		bp++;
@@ -2291,7 +2286,7 @@ static struct TransIslandData *editmesh_islands_info_calc(
 
 	vert_map = MEM_mallocN(sizeof(*vert_map) * bm->totvert, __func__);
 	/* we shouldn't need this, but with incorrect selection flushing
-	 * its possible we have a selected vertex thats not in a face, for now best not crash in that case. */
+	 * its possible we have a selected vertex that's not in a face, for now best not crash in that case. */
 	copy_vn_i(vert_map, bm->totvert, -1);
 
 	BM_mesh_elem_table_ensure(bm, htype);
@@ -2407,7 +2402,7 @@ static struct TransIslandData *editmesh_islands_info_calc(
 /* way to overwrite what data is edited with transform */
 static void VertsToTransData(TransInfo *t, TransData *td, TransDataExtension *tx,
                              BMEditMesh *em, BMVert *eve, float *bweight,
-                             struct TransIslandData *v_island)
+                             struct TransIslandData *v_island, const bool no_island_center)
 {
 	float *no, _no[3];
 	BLI_assert(BM_elem_flag_test(eve, BM_ELEM_HIDDEN) == 0);
@@ -2431,7 +2426,12 @@ static void VertsToTransData(TransInfo *t, TransData *td, TransDataExtension *tx
 	}
 
 	if (v_island) {
-		copy_v3_v3(td->center, v_island->co);
+		if (no_island_center) {
+			copy_v3_v3(td->center, td->loc);
+		}
+		else {
+			copy_v3_v3(td->center, v_island->co);
+		}
 		copy_m3_m3(td->axismtx, v_island->axismtx);
 	}
 	else if (t->around == V3D_AROUND_LOCAL_ORIGINS) {
@@ -2497,8 +2497,14 @@ static void createTransEditVerts(TransInfo *t)
 	int island_info_tot;
 	int *island_vert_map = NULL;
 
+	/* Snap rotation along normal needs a common axis for whole islands, otherwise one get random crazy results,
+	 * see T59104. However, we do not want to use the island center for the pivot/translation reference... */
+	const bool is_snap_rotate = ((t->mode == TFM_TRANSLATION) &&
+	                             /* There is not guarantee that snapping is initialized yet at this point... */
+	                             (usingSnappingNormal(t) || (t->settings->snap_flag & SCE_SNAP_ROTATE) != 0) &&
+	                             (t->around != V3D_AROUND_LOCAL_ORIGINS));
 	/* Even for translation this is needed because of island-orientation, see: T51651. */
-	const bool is_island_center = (t->around == V3D_AROUND_LOCAL_ORIGINS);
+	const bool is_island_center = (t->around == V3D_AROUND_LOCAL_ORIGINS) || is_snap_rotate;
 	/* Original index of our connected vertex when connected distances are calculated.
 	 * Optional, allocate if needed. */
 	int *dists_index = NULL;
@@ -2556,7 +2562,7 @@ static void createTransEditVerts(TransInfo *t)
 	}
 
 	copy_m3_m4(mtx, t->obedit->obmat);
-	/* we use a pseudoinverse so that when one of the axes is scaled to 0,
+	/* we use a pseudo-inverse so that when one of the axes is scaled to 0,
 	 * matrix inversion still works and we can still moving along the other */
 	pseudoinverse_m3_m3(smtx, mtx, PSEUDOINVERSE_EPSILON);
 
@@ -2631,7 +2637,9 @@ static void createTransEditVerts(TransInfo *t)
 				}
 
 
-				VertsToTransData(t, tob, tx, em, eve, bweight, v_island);
+				/* Do not use the island center in case we are using islands
+				 * only to get axis for snap/rotate to normal... */
+				VertsToTransData(t, tob, tx, em, eve, bweight, v_island, is_snap_rotate);
 				if (tx)
 					tx++;
 
@@ -2895,7 +2903,7 @@ void flushTransSeq(TransInfo *t)
 
 		if (seq != seq_prev) {
 			if (seq->depth == 0) {
-				/* test overlap, displayes red outline */
+				/* test overlap, displays red outline */
 				seq->flag &= ~SEQ_OVERLAP;
 				if (BKE_sequence_test_overlap(seqbasep, seq)) {
 					seq->flag |= SEQ_OVERLAP;
@@ -3314,13 +3322,13 @@ static void createTransNlaData(bContext *C, TransInfo *t)
 				if (strip->type != NLASTRIP_TYPE_TRANSITION) {
 					if (strip->flag & NLASTRIP_FLAG_SELECT) {
 						/* our transform data is constructed as follows:
-						 *	- only the handles on the right side of the current-frame get included
-						 *	- td structs are transform-elements operated on by the transform system
-						 *	  and represent a single handle. The storage/pointer used (val or loc) depends on
-						 *	  whether we're scaling or transforming. Ultimately though, the handles
-						 *    the td writes to will simply be a dummy in tdn
-						 *	- for each strip being transformed, a single tdn struct is used, so in some
-						 *	  cases, there will need to be 1 of these tdn elements in the array skipped...
+						 * - only the handles on the right side of the current-frame get included
+						 * - td structs are transform-elements operated on by the transform system
+						 *   and represent a single handle. The storage/pointer used (val or loc) depends on
+						 *   whether we're scaling or transforming. Ultimately though, the handles
+						 *   the td writes to will simply be a dummy in tdn
+						 * - for each strip being transformed, a single tdn struct is used, so in some
+						 *   cases, there will need to be 1 of these tdn elements in the array skipped...
 						 */
 						float center[3], yval;
 
@@ -4501,9 +4509,9 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 
 					}
 					/* special hack (must be done after initTransDataCurveHandles(), as that stores handle settings to restore...):
-					 *	- Check if we've got entire BezTriple selected and we're scaling/rotating that point,
-					 *	  then check if we're using auto-handles.
-					 *	- If so, change them auto-handles to aligned handles so that handles get affected too
+					 * - Check if we've got entire BezTriple selected and we're scaling/rotating that point,
+					 *   then check if we're using auto-handles.
+					 * - If so, change them auto-handles to aligned handles so that handles get affected too
 					 */
 					if (ELEM(bezt->h1, HD_AUTO, HD_AUTO_ANIM) &&
 					    ELEM(bezt->h2, HD_AUTO, HD_AUTO_ANIM) &&
@@ -4807,9 +4815,9 @@ void flushTransGraphData(TransInfo *t)
 		float inv_unit_scale = 1.0f / tdg->unit_scale;
 
 		/* handle snapping for time values
-		 *	- we should still be in NLA-mapping timespace
-		 *	- only apply to keyframes (but never to handles)
-		 *  - don't do this when canceling, or else these changes won't go away
+		 * - we should still be in NLA-mapping timespace
+		 * - only apply to keyframes (but never to handles)
+		 * - don't do this when canceling, or else these changes won't go away
 		 */
 		if ((t->state != TRANS_CANCEL) && (td->flag & TD_NOTIMESNAP) == 0) {
 			switch (sipo->autosnap) {
@@ -5525,9 +5533,9 @@ static void ObjectToTransData(TransInfo *t, TransData *td, Object *ob)
 	td->con = ob->constraints.first;
 
 	/* hack: temporarily disable tracking and/or constraints when getting
-	 *		object matrix, if tracking is on, or if constraints don't need
-	 *      inverse correction to stop it from screwing up space conversion
-	 *		matrix later
+	 * object matrix, if tracking is on, or if constraints don't need
+	 * inverse correction to stop it from screwing up space conversion
+	 * matrix later
 	 */
 	constinv = constraints_list_needinv(t, &ob->constraints);
 
@@ -5593,7 +5601,7 @@ static void ObjectToTransData(TransInfo *t, TransData *td, Object *ob)
 
 		/* Get the effect of parenting, and/or certain constraints.
 		 * NOTE: some Constraints, and also Tracking should never get this
-		 *		done, as it doesn't work well.
+		 *       done, as it doesn't work well.
 		 */
 		BKE_object_to_mat3(ob, obmtx);
 		copy_m3_m4(totmat, ob->obmat);
@@ -5784,7 +5792,7 @@ static void clear_trans_object_base_flags(TransInfo *t)
 }
 
 /* auto-keyframing feature - for objects
- *  tmode: should be a transform mode
+ * tmode: should be a transform mode
  */
 // NOTE: context may not always be available, so must check before using it as it's a luxury for a few cases
 void autokeyframe_ob_cb_func(bContext *C, Scene *scene, View3D *v3d, Object *ob, int tmode)
@@ -5900,8 +5908,8 @@ void autokeyframe_ob_cb_func(bContext *C, Scene *scene, View3D *v3d, Object *ob,
 }
 
 /* auto-keyframing feature - for poses/pose-channels
- *  tmode: should be a transform mode
- *	targetless_ik: has targetless ik been done on any channels?
+ * tmode: should be a transform mode
+ * targetless_ik: has targetless ik been done on any channels?
  */
 // NOTE: context may not always be available, so must check before using it as it's a luxury for a few cases
 void autokeyframe_pose_cb_func(bContext *C, Scene *scene, View3D *v3d, Object *ob, int tmode, short targetless_ik)
@@ -5923,9 +5931,9 @@ void autokeyframe_pose_cb_func(bContext *C, Scene *scene, View3D *v3d, Object *o
 		short flag = 0;
 
 		/* flag is initialized from UserPref keyframing settings
-		 *	- special exception for targetless IK - INSERTKEY_MATRIX keyframes should get
-		 *    visual keyframes even if flag not set, as it's not that useful otherwise
-		 *	  (for quick animation recording)
+		 * - special exception for targetless IK - INSERTKEY_MATRIX keyframes should get
+		 *   visual keyframes even if flag not set, as it's not that useful otherwise
+		 *   (for quick animation recording)
 		 */
 		flag = ANIM_get_keyframing_flags(scene, 1);
 
@@ -6021,9 +6029,9 @@ void autokeyframe_pose_cb_func(bContext *C, Scene *scene, View3D *v3d, Object *o
 		}
 
 		/* do the bone paths
-		 *  - only do this when there is context info, since we need that to resolve
-		 *	  how to do the updates and so on...
-		 *	- do not calculate unless there are paths already to update...
+		 * - only do this when there is context info, since we need that to resolve
+		 *   how to do the updates and so on...
+		 * - do not calculate unless there are paths already to update...
 		 */
 		if (C && (ob->pose->avs.path_bakeflag & MOTIONPATH_BAKE_HAS_PATHS)) {
 			//ED_pose_clear_paths(C, ob); // XXX for now, don't need to clear

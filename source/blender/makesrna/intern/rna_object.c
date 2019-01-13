@@ -474,7 +474,7 @@ static const EnumPropertyItem *rna_Object_parent_type_itemf(bContext *UNUSED(C),
 			RNA_enum_items_add_value(&item, &totitem, &parent_type_items[2], PARSKEL);
 		}
 		else if (par->type == OB_ARMATURE) {
-			/* special hack: prevents this being overrided */
+			/* special hack: prevents this being overridden */
 			RNA_enum_items_add_value(&item, &totitem, &parent_type_items[1], PARSKEL);
 			RNA_enum_items_add_value(&item, &totitem, parent_type_items, PARBONE);
 		}
@@ -1301,7 +1301,7 @@ static PointerRNA rna_Object_field_get(PointerRNA *ptr)
 
 	/* weak */
 	if (!ob->pd)
-		ob->pd = object_add_collision_fields(0);
+		ob->pd = BKE_partdeflect_new(0);
 
 	return rna_pointer_inherit_refine(ptr, &RNA_FieldSettings, ob->pd);
 }
@@ -1315,7 +1315,7 @@ static PointerRNA rna_Object_collision_get(PointerRNA *ptr)
 
 	/* weak */
 	if (!ob->pd)
-		ob->pd = object_add_collision_fields(0);
+		ob->pd = BKE_partdeflect_new(0);
 
 	return rna_pointer_inherit_refine(ptr, &RNA_CollisionSettings, ob->pd);
 }

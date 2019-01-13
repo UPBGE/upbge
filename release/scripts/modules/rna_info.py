@@ -83,7 +83,7 @@ def float_as_string(f):
 
 
 def get_py_class_from_rna(rna_type):
-    """ Get's the Python type for a class which isn't necessarily added to ``bpy.types``.
+    """ Gets the Python type for a class which isn't necessarily added to ``bpy.types``.
     """
     identifier = rna_type.identifier
     py_class = getattr(bpy.types, identifier, None)
@@ -731,14 +731,14 @@ def BuildRNAInfo():
         operators = dir(op_mod)
         for op in sorted(operators):
             try:
-                rna_prop = getattr(op_mod, op).get_rna()
+                rna_prop = getattr(op_mod, op).get_rna_type()
             except AttributeError:
                 rna_prop = None
             except TypeError:
                 rna_prop = None
 
             if rna_prop:
-                GetInfoOperatorRNA(rna_prop.bl_rna)
+                GetInfoOperatorRNA(rna_prop)
 
     for rna_info in InfoOperatorRNA.global_lookup.values():
         rna_info.build()

@@ -299,26 +299,26 @@ const EnumPropertyItem *rna_node_tree_type_itemf(void *data, bool (*poll)(void *
 int rna_node_type_to_enum(bNodeType *typeinfo)
 {
 	int i = 0, result = -1;
-	NODE_TYPES_BEGIN(ntype)
+	NODE_TYPES_BEGIN(ntype) {
 		if (ntype == typeinfo) {
 			result = i;
 			break;
 		}
 		++i;
-	NODE_TYPES_END
+	} NODE_TYPES_END;
 	return result;
 }
 
 int rna_node_idname_to_enum(const char *idname)
 {
 	int i = 0, result = -1;
-	NODE_TYPES_BEGIN(ntype)
+	NODE_TYPES_BEGIN(ntype) {
 		if (STREQ(ntype->idname, idname)) {
 			result = i;
 			break;
 		}
 		++i;
-	NODE_TYPES_END
+	} NODE_TYPES_END;
 	return result;
 }
 
@@ -326,13 +326,13 @@ bNodeType *rna_node_type_from_enum(int value)
 {
 	int i = 0;
 	bNodeType *result = NULL;
-	NODE_TYPES_BEGIN(ntype)
+	NODE_TYPES_BEGIN(ntype) {
 		if (i == value) {
 			result = ntype;
 			break;
 		}
 		++i;
-	NODE_TYPES_END
+	} NODE_TYPES_END;
 	return result;
 }
 
@@ -342,7 +342,7 @@ const EnumPropertyItem *rna_node_type_itemf(void *data, bool (*poll)(void *data,
 	EnumPropertyItem tmp = {0};
 	int totitem = 0, i = 0;
 
-	NODE_TYPES_BEGIN(ntype)
+	NODE_TYPES_BEGIN(ntype) {
 		if (poll && !poll(data, ntype)) {
 			++i;
 			continue;
@@ -357,7 +357,7 @@ const EnumPropertyItem *rna_node_type_itemf(void *data, bool (*poll)(void *data,
 		RNA_enum_item_add(&item, &totitem, &tmp);
 
 		++i;
-	NODE_TYPES_END
+	} NODE_TYPES_END;
 
 	if (totitem == 0) {
 		*r_free = false;
@@ -373,26 +373,26 @@ const EnumPropertyItem *rna_node_type_itemf(void *data, bool (*poll)(void *data,
 int rna_node_socket_type_to_enum(bNodeSocketType *typeinfo)
 {
 	int i = 0, result = -1;
-	NODE_SOCKET_TYPES_BEGIN(stype)
+	NODE_SOCKET_TYPES_BEGIN(stype) {
 		if (stype == typeinfo) {
 			result = i;
 			break;
 		}
 		++i;
-	NODE_SOCKET_TYPES_END
+	} NODE_SOCKET_TYPES_END;
 	return result;
 }
 
 int rna_node_socket_idname_to_enum(const char *idname)
 {
 	int i = 0, result = -1;
-	NODE_SOCKET_TYPES_BEGIN(stype)
+	NODE_SOCKET_TYPES_BEGIN(stype) {
 		if (STREQ(stype->idname, idname)) {
 			result = i;
 			break;
 		}
 		++i;
-	NODE_SOCKET_TYPES_END
+	} NODE_SOCKET_TYPES_END;
 	return result;
 }
 
@@ -400,13 +400,13 @@ bNodeSocketType *rna_node_socket_type_from_enum(int value)
 {
 	int i = 0;
 	bNodeSocketType *result = NULL;
-	NODE_SOCKET_TYPES_BEGIN(stype)
+	NODE_SOCKET_TYPES_BEGIN(stype) {
 		if (i == value) {
 			result = stype;
 			break;
 		}
 		++i;
-	NODE_SOCKET_TYPES_END
+	} NODE_SOCKET_TYPES_END;
 	return result;
 }
 
@@ -418,7 +418,7 @@ const EnumPropertyItem *rna_node_socket_type_itemf(
 	int totitem = 0, i = 0;
 	StructRNA *srna;
 
-	NODE_SOCKET_TYPES_BEGIN(stype)
+	NODE_SOCKET_TYPES_BEGIN(stype) {
 		if (poll && !poll(data, stype)) {
 			++i;
 			continue;
@@ -434,7 +434,8 @@ const EnumPropertyItem *rna_node_socket_type_itemf(
 		RNA_enum_item_add(&item, &totitem, &tmp);
 
 		++i;
-	NODE_SOCKET_TYPES_END
+	}
+	NODE_SOCKET_TYPES_END;
 
 	if (totitem == 0) {
 		*r_free = false;
@@ -6373,11 +6374,6 @@ static void def_cmp_mask(StructRNA *srna)
 	RNA_def_property_struct_type(prop, "Mask");
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Mask", "");
-
-	prop = RNA_def_property(srna, "use_antialiasing", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "custom1", CMP_NODEFLAG_MASK_AA);
-	RNA_def_property_ui_text(prop, "Anti-Alias", "Apply an anti-aliasing filter to the mask");
-	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
 	prop = RNA_def_property(srna, "use_feather", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "custom1", CMP_NODEFLAG_MASK_NO_FEATHER);

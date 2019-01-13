@@ -229,7 +229,7 @@ Material *BKE_material_add(Main *bmain, const char *name)
  *
  * WARNING! This function will not handle ID user count!
  *
- * \param flag  Copying options (see BKE_library.h's LIB_ID_COPY_... flags for more).
+ * \param flag: Copying options (see BKE_library.h's LIB_ID_COPY_... flags for more).
  */
 void BKE_material_copy_data(Main *bmain, Material *ma_dst, const Material *ma_src, const int flag)
 {
@@ -278,12 +278,15 @@ Material *BKE_material_copy(Main *bmain, const Material *ma)
 /* XXX (see above) material copy without adding to main dbase */
 Material *BKE_material_localize(Material *ma)
 {
-	/* TODO replace with something like
-	 * 	Material *ma_copy;
-	 * 	BKE_id_copy_ex(bmain, &ma->id, (ID **)&ma_copy, LIB_ID_COPY_NO_MAIN | LIB_ID_COPY_NO_PREVIEW | LIB_ID_COPY_NO_USER_REFCOUNT, false);
-	 * 	return ma_copy;
+	/* TODO(bastien): Replace with something like:
 	 *
-	 * ... Once f*** nodes are fully converted to that too :( */
+	 *   Material *ma_copy;
+	 *   BKE_id_copy_ex(bmain, &ma->id, (ID **)&ma_copy,
+	 *                  LIB_ID_COPY_NO_MAIN | LIB_ID_COPY_NO_PREVIEW | LIB_ID_COPY_NO_USER_REFCOUNT,
+	 *                  false);
+	 *   return ma_copy;
+	 *
+	 * NOTE: Only possible once nested node trees are fully converted to that too. */
 
 	Material *man;
 	int a;
@@ -546,9 +549,9 @@ void BKE_material_clear_id(Main *bmain, ID *id, bool update_data)
 	}
 }
 
-Material *give_current_material(Object *ob, short act)
+Material **give_current_material_p(Object *ob, short act)
 {
-	Material ***matarar, *ma;
+	Material ***matarar, **ma_p;
 	const short *totcolp;
 
 	if (ob == NULL) return NULL;
@@ -568,7 +571,7 @@ Material *give_current_material(Object *ob, short act)
 	}
 
 	if (ob->matbits && ob->matbits[act - 1]) {    /* in object */
-		ma = ob->mat[act - 1];
+		ma_p = &ob->mat[act - 1];
 	}
 	else {                              /* in data */
 
@@ -579,12 +582,21 @@ Material *give_current_material(Object *ob, short act)
 
 		matarar = give_matarar(ob);
 
-		if (matarar && *matarar) ma = (*matarar)[act - 1];
-		else ma = NULL;
-
+		if (matarar && *matarar) {
+			ma_p = &(*matarar)[act - 1];
+		}
+		else {
+			ma_p = NULL;
+		}
 	}
 
-	return ma;
+	return ma_p;
+}
+
+Material *give_current_material(Object *ob, short act)
+{
+	Material **ma_p = give_current_material_p(ob, act);
+	return ma_p ? *ma_p : NULL;
 }
 
 Material *give_node_material(Material *ma)
@@ -850,7 +862,7 @@ void BKE_material_remap_object_calc(
 
 	for (int i = 0; i < ob_dst->totcol; i++) {
 		Material *ma_src = give_current_material(ob_dst, i + 1);
-		BLI_ghash_reinsert(gh_mat_map, ma_src, SET_INT_IN_POINTER(i), NULL, NULL);
+		BLI_ghash_reinsert(gh_mat_map, ma_src, POINTER_FROM_INT(i), NULL, NULL);
 	}
 
 	/* setup default mapping (when materials don't match) */
@@ -880,7 +892,7 @@ void BKE_material_remap_object_calc(
 		else {
 			void **index_src_p = BLI_ghash_lookup_p(gh_mat_map, ma_src);
 			if (index_src_p) {
-				remap_src_to_dst[i] = GET_INT_FROM_POINTER(*index_src_p);
+				remap_src_to_dst[i] = POINTER_AS_INT(*index_src_p);
 			}
 		}
 	}

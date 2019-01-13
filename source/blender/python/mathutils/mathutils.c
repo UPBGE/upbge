@@ -405,7 +405,7 @@ int EXPP_VectorsAreEqual(const float *vecA, const float *vecB, int size, int flo
 }
 
 #ifndef MATH_STANDALONE
-/* dynstr as python string utility funcions, frees 'ds'! */
+/* dynstr as python string utility functions, frees 'ds'! */
 PyObject *mathutils_dynstr_to_py(struct DynStr *ds)
 {
 	const int ds_len = BLI_dynstr_get_len(ds); /* space for \0 */
@@ -615,7 +615,7 @@ PyMODINIT_FUNC PyInit_mathutils(void)
 {
 	PyObject *mod;
 	PyObject *submodule;
-	PyObject *sys_modules = PyThreadState_GET()->interp->modules;
+	PyObject *sys_modules = PyImport_GetModuleDict();
 
 	if (PyType_Ready(&vector_Type) < 0)
 		return NULL;
@@ -641,7 +641,7 @@ PyMODINIT_FUNC PyInit_mathutils(void)
 
 	/* submodule */
 	PyModule_AddObject(mod, "geometry",       (submodule = PyInit_mathutils_geometry()));
-	/* XXX, python doesnt do imports with this usefully yet
+	/* XXX, python doesn't do imports with this usefully yet
 	 * 'from mathutils.geometry import PolyFill'
 	 * ...fails without this. */
 	PyDict_SetItem(sys_modules, PyModule_GetNameObject(submodule), submodule);

@@ -364,6 +364,7 @@ int main(
 	BKE_appdir_program_path_init(argv[0]);
 
 	BLI_threadapi_init();
+	BLI_thread_put_process_on_fast_node();
 
 	DNA_sdna_current_init();
 
@@ -539,7 +540,7 @@ int main(
 	WM_main(C);
 
 	return 0;
-} /* end of int main(argc, argv)	*/
+} /* end of int main(argc, argv) */
 
 #ifdef WITH_PYTHON_MODULE
 void main_python_exit(void)

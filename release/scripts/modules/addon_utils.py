@@ -352,7 +352,7 @@ def enable(module_name, *, default_set=False, persistent=False, handle_error=Non
             mod.__time__ = os.path.getmtime(mod.__file__)
             mod.__addon_enabled__ = False
         except Exception as ex:
-            # if the addon doesn't exist, dont print full traceback
+            # if the addon doesn't exist, don't print full traceback
             if type(ex) is ImportError and ex.name == module_name:
                 print("addon not found:", repr(module_name))
             else:
@@ -472,7 +472,12 @@ def reset_all(*, reload_scripts=False):
 
 def disable_all():
     import sys
-    for mod_name, mod in sys.modules.items():
+    # Collect modules to disable first because dict can be modified as we disable.
+    addon_modules = [
+        item for item in sys.modules.items()
+        if getattr(item[1], "__addon_enabled__", False)
+    ]
+    for mod_name, mod in addon_modules:
         if getattr(mod, "__addon_enabled__", False):
             disable(mod_name)
 

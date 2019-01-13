@@ -148,8 +148,8 @@ static void view2d_masks(View2D *v2d, bool check_scrollers)
 	scroll = view2d_scroll_mapped(v2d->scroll);
 
 	/* scrollers shrink mask area, but should be based off regionsize
-	 *	- they can only be on one to two edges of the region they define
-	 *	- if they overlap, they must not occupy the corners (which are reserved for other widgets)
+	 * - they can only be on one to two edges of the region they define
+	 * - if they overlap, they must not occupy the corners (which are reserved for other widgets)
 	 */
 	if (scroll) {
 		/* vertical scroller */
@@ -215,8 +215,8 @@ void UI_view2d_region_reinit(View2D *v2d, short type, int winx, int winy)
 	/* see eView2D_CommonViewTypes in UI_view2d.h for available view presets */
 	switch (type) {
 		/* 'standard view' - optimum setup for 'standard' view behavior,
-		 *  that should be used new views as basis for their
-		 *  own unique View2D settings, which should be used instead of this in most cases...
+		 * that should be used new views as basis for their
+		 * own unique View2D settings, which should be used instead of this in most cases...
 		 */
 		case V2D_COMMONVIEW_STANDARD:
 		{
@@ -226,9 +226,9 @@ void UI_view2d_region_reinit(View2D *v2d, short type, int winx, int winy)
 			v2d->maxzoom = 1000.0f;
 
 			/* tot rect and cur should be same size, and aligned using 'standard' OpenGL coordinates for now
-			 *	- region can resize 'tot' later to fit other data
-			 *	- keeptot is only within bounds, as strict locking is not that critical
-			 *	- view is aligned for (0,0) -> (winx-1, winy-1) setup
+			 * - region can resize 'tot' later to fit other data
+			 * - keeptot is only within bounds, as strict locking is not that critical
+			 * - view is aligned for (0,0) -> (winx-1, winy-1) setup
 			 */
 			v2d->align = (V2D_ALIGN_NO_NEG_X | V2D_ALIGN_NO_NEG_Y);
 			v2d->keeptot = V2D_KEEPTOT_BOUNDS;
@@ -260,7 +260,7 @@ void UI_view2d_region_reinit(View2D *v2d, short type, int winx, int winy)
 			break;
 		}
 		/* 'stack view' - practically the same as list/channel view, except is located in the pos y half instead.
-		 *  zoom, aspect ratio, and alignment restrictions are set here */
+		 * zoom, aspect ratio, and alignment restrictions are set here */
 		case V2D_COMMONVIEW_STACK:
 		{
 			/* zoom + aspect ratio are locked */
@@ -387,16 +387,16 @@ static void ui_view2d_curRect_validate_resize(View2D *v2d, bool resize, bool mas
 	tot = &v2d->tot;
 
 	/* we must satisfy the following constraints (in decreasing order of importance):
-	 *	- alignment restrictions are respected
-	 *	- cur must not fall outside of tot
-	 *	- axis locks (zoom and offset) must be maintained
-	 *	- zoom must not be excessive (check either sizes or zoom values)
-	 *	- aspect ratio should be respected (NOTE: this is quite closely related to zoom too)
+	 * - alignment restrictions are respected
+	 * - cur must not fall outside of tot
+	 * - axis locks (zoom and offset) must be maintained
+	 * - zoom must not be excessive (check either sizes or zoom values)
+	 * - aspect ratio should be respected (NOTE: this is quite closely related to zoom too)
 	 */
 
 	/* Step 1: if keepzoom, adjust the sizes of the rects only
-	 *	- firstly, we calculate the sizes of the rects
-	 *	- curwidth and curheight are saved as reference... modify width and height values here
+	 * - firstly, we calculate the sizes of the rects
+	 * - curwidth and curheight are saved as reference... modify width and height values here
 	 */
 	totwidth  = BLI_rctf_size_x(tot);
 	totheight = BLI_rctf_size_y(tot);
@@ -478,7 +478,7 @@ static void ui_view2d_curRect_validate_resize(View2D *v2d, bool resize, bool mas
 		float curRatio, winRatio;
 
 		/* when a window edge changes, the aspect ratio can't be used to
-		 * find which is the best new 'cur' rect. thats why it stores 'old'
+		 * find which is the best new 'cur' rect. that's why it stores 'old'
 		 */
 		if (winx != v2d->oldwinx) do_x = true;
 		if (winy != v2d->oldwiny) do_y = true;
@@ -506,9 +506,9 @@ static void ui_view2d_curRect_validate_resize(View2D *v2d, bool resize, bool mas
 		if (do_cur) {
 			if ((v2d->keeptot == V2D_KEEPTOT_STRICT) && (winx != v2d->oldwinx)) {
 				/* special exception for Outliner (and later channel-lists):
-				 *  - The view may be moved left to avoid contents being pushed out of view when view shrinks.
-				 *	- The keeptot code will make sure cur->xmin will not be less than tot->xmin (which cannot be allowed)
-				 *	- width is not adjusted for changed ratios here...
+				 * - The view may be moved left to avoid contents being pushed out of view when view shrinks.
+				 * - The keeptot code will make sure cur->xmin will not be less than tot->xmin (which cannot be allowed)
+				 * - width is not adjusted for changed ratios here...
 				 */
 				if (winx < v2d->oldwinx) {
 					float temp = v2d->oldwinx - winx;
@@ -529,7 +529,7 @@ static void ui_view2d_curRect_validate_resize(View2D *v2d, bool resize, bool mas
 		else {
 			if ((v2d->keeptot == V2D_KEEPTOT_STRICT) && (winy != v2d->oldwiny)) {
 				/* special exception for Outliner (and later channel-lists):
-				 *	- Currently, no actions need to be taken here...
+				 * - Currently, no actions need to be taken here...
 				 */
 
 				if (winy < v2d->oldwiny) {
@@ -616,8 +616,8 @@ static void ui_view2d_curRect_validate_resize(View2D *v2d, bool resize, bool mas
 		}
 		else if (v2d->keeptot == V2D_KEEPTOT_STRICT) {
 			/* This is an exception for the outliner (and later channel-lists, headers)
-			 *	- must clamp within tot rect (absolutely no excuses)
-			 *	--> therefore, cur->xmin must not be less than tot->xmin
+			 * - must clamp within tot rect (absolutely no excuses)
+			 * --> therefore, cur->xmin must not be less than tot->xmin
 			 */
 			if (cur->xmin < tot->xmin) {
 				/* move cur across so that it sits at minimum of tot */
@@ -628,7 +628,7 @@ static void ui_view2d_curRect_validate_resize(View2D *v2d, bool resize, bool mas
 			}
 			else if (cur->xmax > tot->xmax) {
 				/* - only offset by difference of cur-xmax and tot-xmax if that would not move
-				 *  cur-xmin to lie past tot-xmin
+				 *   cur-xmin to lie past tot-xmin
 				 * - otherwise, simply shift to tot-xmin???
 				 */
 				temp = cur->xmax - tot->xmax;
@@ -648,8 +648,8 @@ static void ui_view2d_curRect_validate_resize(View2D *v2d, bool resize, bool mas
 		}
 		else {
 			/* This here occurs when:
-			 *  - width too big, but maintaining zoom (i.e. widths cannot be changed)
-			 *	- width is OK, but need to check if outside of boundaries
+			 * - width too big, but maintaining zoom (i.e. widths cannot be changed)
+			 * - width is OK, but need to check if outside of boundaries
 			 *
 			 * So, resolution is to just shift view by the gap between the extremities.
 			 * We favour moving the 'minimum' across, as that's origin for most things
@@ -672,7 +672,7 @@ static void ui_view2d_curRect_validate_resize(View2D *v2d, bool resize, bool mas
 			}
 			else if (cur->xmax > tot->xmax) {
 				/* - only offset by difference of cur-xmax and tot-xmax if that would not move
-				 *  cur-xmin to lie past tot-xmin
+				 *   cur-xmin to lie past tot-xmin
 				 * - otherwise, simply shift to tot-xmin???
 				 */
 				temp = cur->xmax - tot->xmax;
@@ -699,8 +699,8 @@ static void ui_view2d_curRect_validate_resize(View2D *v2d, bool resize, bool mas
 		}
 		else {
 			/* This here occurs when:
-			 *  - height too big, but maintaining zoom (i.e. heights cannot be changed)
-			 *	- height is OK, but need to check if outside of boundaries
+			 * - height too big, but maintaining zoom (i.e. heights cannot be changed)
+			 * - height is OK, but need to check if outside of boundaries
 			 *
 			 * So, resolution is to just shift view by the gap between the extremities.
 			 * We favour moving the 'minimum' across, as that's origin for most things
@@ -1189,7 +1189,7 @@ static void step_to_grid(float *step, int *power, int unit)
 		/* for frames, we want 1.0 frame intervals only */
 		if (unit == V2D_UNIT_FRAMES) {
 			rem = 1.0f;
-			*step = 2.0f; /* use 2 since there are grid lines drawn in between, this way to get 1 line per frane */
+			*step = 2.0f; /* use 2 since there are grid lines drawn in between, this way to get 1 line per frame */
 		}
 
 		/* prevents printing 1.0 2.0 3.0 etc */
@@ -1561,8 +1561,8 @@ View2DScrollers *UI_view2d_scrollers_calc(
 	scrollers->hor = hor;
 
 	/* scroller 'buttons':
-	 *	- These should always remain within the visible region of the scrollbar
-	 *	- They represent the region of 'tot' that is visible in 'cur'
+	 * - These should always remain within the visible region of the scrollbar
+	 * - They represent the region of 'tot' that is visible in 'cur'
 	 */
 
 	/* horizontal scrollers */
@@ -1712,7 +1712,7 @@ void UI_view2d_scrollers_draw(const bContext *C, View2D *v2d, View2DScrollers *v
 		uiWidgetColors wcol = btheme->tui.wcol_scroll;
 		rcti slider;
 		int state;
-		unsigned char col[4];
+		uchar col[4];
 
 		slider.xmin = vs->hor_min;
 		slider.xmax = vs->hor_max;
@@ -1722,11 +1722,11 @@ void UI_view2d_scrollers_draw(const bContext *C, View2D *v2d, View2DScrollers *v
 		state = (v2d->scroll_ui & V2D_SCROLL_H_ACTIVE) ? UI_SCROLL_PRESSED : 0;
 
 		/* show zoom handles if:
-		 *	- zooming on x-axis is allowed (no scroll otherwise)
-		 *	- slider bubble is large enough (no overdraw confusion)
-		 *	- scale is shown on the scroller
-		 *	  (workaround to make sure that button windows don't show these,
-		 *		and only the time-grids with their zoomability can do so)
+		 * - zooming on x-axis is allowed (no scroll otherwise)
+		 * - slider bubble is large enough (no overdraw confusion)
+		 * - scale is shown on the scroller
+		 *   (workaround to make sure that button windows don't show these,
+		 *   and only the time-grids with their zoomability can do so)
 		 */
 		if ((v2d->keepzoom & V2D_LOCKZOOM_X) == 0 &&
 		    (v2d->scroll & V2D_SCROLL_SCALE_HORIZONTAL) &&
@@ -1750,8 +1750,8 @@ void UI_view2d_scrollers_draw(const bContext *C, View2D *v2d, View2DScrollers *v
 			float fac, dfac, fac2, val;
 
 			/* the numbers: convert grid->startx and -dx to scroll coordinates
-			 *	- fac is x-coordinate to draw to
-			 *	- dfac is gap between scale markings
+			 * - fac is x-coordinate to draw to
+			 * - dfac is gap between scale markings
 			 */
 			fac = (grid->startx - v2d->cur.xmin) / BLI_rctf_size_x(&v2d->cur);
 			fac = (float)hor.xmin + fac * BLI_rcti_size_x(&hor);
@@ -1813,7 +1813,7 @@ void UI_view2d_scrollers_draw(const bContext *C, View2D *v2d, View2DScrollers *v
 		uiWidgetColors wcol = btheme->tui.wcol_scroll;
 		rcti slider;
 		int state;
-		unsigned char col[4];
+		uchar col[4];
 
 		slider.xmin = vert.xmin;
 		slider.xmax = vert.xmax;
@@ -1823,11 +1823,11 @@ void UI_view2d_scrollers_draw(const bContext *C, View2D *v2d, View2DScrollers *v
 		state = (v2d->scroll_ui & V2D_SCROLL_V_ACTIVE) ? UI_SCROLL_PRESSED : 0;
 
 		/* show zoom handles if:
-		 *	- zooming on y-axis is allowed (no scroll otherwise)
-		 *	- slider bubble is large enough (no overdraw confusion)
-		 *	- scale is shown on the scroller
-		 *	  (workaround to make sure that button windows don't show these,
-		 *		and only the time-grids with their zoomability can do so)
+		 * - zooming on y-axis is allowed (no scroll otherwise)
+		 * - slider bubble is large enough (no overdraw confusion)
+		 * - scale is shown on the scroller
+		 *   (workaround to make sure that button windows don't show these,
+		 *   and only the time-grids with their zoomability can do so)
 		 */
 		if ((v2d->keepzoom & V2D_LOCKZOOM_Y) == 0 &&
 		    (v2d->scroll & V2D_SCROLL_SCALE_VERTICAL) &&
@@ -1852,10 +1852,10 @@ void UI_view2d_scrollers_draw(const bContext *C, View2D *v2d, View2DScrollers *v
 			float fac, dfac, val;
 
 			/* the numbers: convert grid->starty and dy to scroll coordinates
-			 *	- fac is y-coordinate to draw to
-			 *	- dfac is gap between scale markings
-			 *	- these involve a correction for horizontal scrollbar
-			 *	  NOTE: it's assumed that that scrollbar is there if this is involved!
+			 * - fac is y-coordinate to draw to
+			 * - dfac is gap between scale markings
+			 * - these involve a correction for horizontal scrollbar
+			 *   NOTE: it's assumed that that scrollbar is there if this is involved!
 			 */
 			fac = (grid->starty - v2d->cur.ymin) / BLI_rctf_size_y(&v2d->cur);
 			fac = vert.ymin + fac * BLI_rcti_size_y(&vert);
@@ -2326,7 +2326,7 @@ short UI_view2d_mouse_in_scrollers(const bContext *C, View2D *v2d, int x, int y)
 typedef struct View2DString {
 	struct View2DString *next;
 	union {
-		unsigned char ub[4];
+		uchar ub[4];
 		int pack;
 	} col;
 	rcti rect;

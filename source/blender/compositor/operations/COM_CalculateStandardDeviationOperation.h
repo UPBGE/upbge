@@ -16,8 +16,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * Contributor:
- *		Jeroen Bakker
- *		Monique Dewanchand
+ *      Jeroen Bakker
+ *      Monique Dewanchand
  */
 
 #ifndef __COM_CALCULATESTANDARDDEVIATIONOPERATION_H__
@@ -26,8 +26,8 @@
 #include "DNA_node_types.h"
 #include "COM_CalculateMeanOperation.h"
 /**
- * @brief base class of CalculateStandardDeviation, implementing the simple CalculateStandardDeviation
- * @ingroup operation
+ * \brief base class of CalculateStandardDeviation, implementing the simple CalculateStandardDeviation
+ * \ingroup operation
  */
 class CalculateStandardDeviationOperation : public CalculateMeanOperation {
 protected:

@@ -16,8 +16,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * Contributor:
- *		Jeroen Bakker
- *		Monique Dewanchand
+ *      Jeroen Bakker
+ *      Monique Dewanchand
  */
 
 #ifndef __COM_CALCULATEMEANOPERATION_H__
@@ -26,13 +26,13 @@
 #include "DNA_node_types.h"
 
 /**
- * @brief base class of CalculateMean, implementing the simple CalculateMean
- * @ingroup operation
+ * \brief base class of CalculateMean, implementing the simple CalculateMean
+ * \ingroup operation
  */
 class CalculateMeanOperation : public NodeOperation {
 protected:
 	/**
-	 * @brief Cached reference to the reader
+	 * \brief Cached reference to the reader
 	 */
 	SocketReader *m_imageReader;
 

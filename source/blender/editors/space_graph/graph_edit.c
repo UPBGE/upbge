@@ -344,7 +344,7 @@ static void create_ghost_curves(bAnimContext *ac, int start, int end)
 	int filter;
 
 	/* free existing ghost curves */
-	free_fcurves(&sipo->ghostCurves);
+	free_fcurves(&sipo->runtime.ghost_curves);
 
 	/* sanity check */
 	if (start >= end) {
@@ -374,7 +374,7 @@ static void create_ghost_curves(bAnimContext *ac, int start, int end)
 		unitFac = ANIM_unit_mapping_get_factor(ac->scene, ale->id, fcu, mapping_flag, &offset);
 
 		/* create samples, but store them in a new curve
-		 *	- we cannot use fcurve_store_samples() as that will only overwrite the original curve
+		 * - we cannot use fcurve_store_samples() as that will only overwrite the original curve
 		 */
 		gcu->fpt = fpt = MEM_callocN(sizeof(FPoint) * (end - start + 1), "Ghost FPoint Samples");
 		gcu->totvert = end - start + 1;
@@ -388,14 +388,14 @@ static void create_ghost_curves(bAnimContext *ac, int start, int end)
 		}
 
 		/* set color of ghost curve
-		 *	- make the color slightly darker
+		 * - make the color slightly darker
 		 */
 		gcu->color[0] = fcu->color[0] - 0.07f;
 		gcu->color[1] = fcu->color[1] - 0.07f;
 		gcu->color[2] = fcu->color[2] - 0.07f;
 
 		/* store new ghost curve */
-		BLI_addtail(&sipo->ghostCurves, gcu);
+		BLI_addtail(&sipo->runtime.ghost_curves, gcu);
 
 		/* restore driver */
 		fcu->driver = driver;
@@ -462,11 +462,11 @@ static int graphkeys_clear_ghostcurves_exec(bContext *C, wmOperator *UNUSED(op))
 	sipo = (SpaceIpo *)ac.sl;
 
 	/* if no ghost curves, don't do anything */
-	if (BLI_listbase_is_empty(&sipo->ghostCurves))
+	if (BLI_listbase_is_empty(&sipo->runtime.ghost_curves)) {
 		return OPERATOR_CANCELLED;
-
+	}
 	/* free ghost curves */
-	free_fcurves(&sipo->ghostCurves);
+	free_fcurves(&sipo->runtime.ghost_curves);
 
 	/* update this editor only */
 	ED_area_tag_redraw(CTX_wm_area(C));
@@ -1818,10 +1818,10 @@ static int graphkeys_euler_filter_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 
 	/* The process is done in two passes:
-	 *   1) Sets of three related rotation curves are identified from the selected channels,
-	 *		and are stored as a single 'operation unit' for the next step
-	 *	 2) Each set of three F-Curves is processed for each keyframe, with the values being
-	 *      processed as necessary
+	 * 1) Sets of three related rotation curves are identified from the selected channels,
+	 *    and are stored as a single 'operation unit' for the next step
+	 * 2) Each set of three F-Curves is processed for each keyframe, with the values being
+	 *    processed as necessary
 	 */
 
 	/* step 1: extract only the rotation f-curves */
@@ -1832,8 +1832,8 @@ static int graphkeys_euler_filter_exec(bContext *C, wmOperator *op)
 		FCurve *fcu = (FCurve *)ale->data;
 
 		/* check if this is an appropriate F-Curve
-		 *	- only rotation curves
-		 *	- for pchan curves, make sure we're only using the euler curves
+		 * - only rotation curves
+		 * - for pchan curves, make sure we're only using the euler curves
 		 */
 		if (strstr(fcu->rna_path, "rotation_euler") == NULL)
 			continue;
@@ -1873,7 +1873,7 @@ static int graphkeys_euler_filter_exec(bContext *C, wmOperator *op)
 	}
 
 	/* step 2: go through each set of curves, processing the values at each keyframe
-	 *	- it is assumed that there must be a full set of keyframes at each keyframe position
+	 * - it is assumed that there must be a full set of keyframes at each keyframe position
 	 */
 	for (euf = eulers.first; euf; euf = euf->next) {
 		int f;

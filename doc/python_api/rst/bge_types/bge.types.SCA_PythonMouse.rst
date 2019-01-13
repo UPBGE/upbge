@@ -51,7 +51,7 @@ base class --- :class:`EXP_PyObjectPlus`
       .. deprecated:: use :data:`activeInputs`
 
       :type: dictionary {:ref:`keycode<mouse-keys>`::ref:`status<input-status>`, ...}
-      
+
    .. attribute:: position
 
       The normalized x and y position of the mouse cursor.
@@ -61,5 +61,5 @@ base class --- :class:`EXP_PyObjectPlus`
    .. attribute:: visible
 
       The visibility of the mouse cursor.
-      
+
       :type: boolean

@@ -16,8 +16,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * Contributor:
- *		Jeroen Bakker
- *		Monique Dewanchand
+ *      Jeroen Bakker
+ *      Monique Dewanchand
  */
 
 #include <string.h>
@@ -761,7 +761,7 @@ void zbuf_accumulate_vecblur(
 			}
 
 			/* blend with a falloff. this fixes the ugly effect you get with
-			 * a fast moving object. then it looks like a solid object overlayed
+			 * a fast moving object. then it looks like a solid object overlaid
 			 * over a very transparent moving version of itself. in reality, the
 			 * whole object should become transparent if it is moving fast, be
 			 * we don't know what is behind it so we don't do that. this hack

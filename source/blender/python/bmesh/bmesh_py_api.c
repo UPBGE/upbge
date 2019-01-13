@@ -115,7 +115,7 @@ static PyObject *bpy_bm_from_edit_mesh(PyObject *UNUSED(self), PyObject *value)
 PyDoc_STRVAR(bpy_bm_update_edit_mesh_doc,
 ".. method:: update_edit_mesh(mesh, tessface=True, destructive=True)\n"
 "\n"
-"   Update the mesh after changes to the BMesh in editmode, \n"
+"   Update the mesh after changes to the BMesh in editmode,\n"
 "   optionally recalculating n-gon tessellation.\n"
 "\n"
 "   :arg mesh: The editmode mesh.\n"
@@ -196,7 +196,7 @@ PyObject *BPyInit_bmesh(void)
 {
 	PyObject *mod;
 	PyObject *submodule;
-	PyObject *sys_modules = PyThreadState_GET()->interp->modules;
+	PyObject *sys_modules = PyImport_GetModuleDict();
 
 	BPy_BM_init_types();
 	BPy_BM_init_types_select();

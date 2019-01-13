@@ -108,7 +108,7 @@ static float bm_face_calc_poly_normal_vertex_cos(
 /**
  * \brief COMPUTE POLY CENTER (BMFace)
  */
-static void bm_face_calc_poly_center_mean_vertex_cos(
+static void bm_face_calc_poly_center_median_vertex_cos(
         const BMFace *f, float r_cent[3],
         float const (*vertexCos)[3])
 {
@@ -240,6 +240,28 @@ float BM_face_calc_area(const BMFace *f)
 }
 
 /**
+ * Get the area of the face in world space.
+ */
+float BM_face_calc_area_with_mat3(const BMFace *f, float mat3[3][3])
+{
+	/* inline 'area_poly_v3' logic, avoid creating a temp array */
+	const BMLoop *l_iter, *l_first;
+	float co[3];
+	float n[3];
+
+	zero_v3(n);
+	l_iter = l_first = BM_FACE_FIRST_LOOP(f);
+	mul_v3_m3v3(co, mat3, l_iter->v->co);
+	do {
+		float co_next[3];
+		mul_v3_m3v3(co_next, mat3, l_iter->next->v->co);
+		add_newell_cross_v3_v3v3(n, co, co_next);
+		copy_v3_v3(co, co_next);
+	} while ((l_iter = l_iter->next) != l_first);
+	return len_v3(n) * 0.5f;
+}
+
+/**
  * compute the perimeter of an ngon
  */
 float BM_face_calc_perimeter(const BMFace *f)
@@ -250,6 +272,27 @@ float BM_face_calc_perimeter(const BMFace *f)
 	l_iter = l_first = BM_FACE_FIRST_LOOP(f);
 	do {
 		perimeter += len_v3v3(l_iter->v->co, l_iter->next->v->co);
+	} while ((l_iter = l_iter->next) != l_first);
+
+	return perimeter;
+}
+
+/**
+ * Calculate the perimeter of a ngon in world space.
+ */
+float BM_face_calc_perimeter_with_mat3(const BMFace *f, float mat3[3][3])
+{
+	const BMLoop *l_iter, *l_first;
+	float co[3];
+	float perimeter = 0.0f;
+
+	l_iter = l_first = BM_FACE_FIRST_LOOP(f);
+	mul_v3_m3v3(co, mat3, l_iter->v->co);
+	do {
+		float co_next[3];
+		mul_v3_m3v3(co_next, mat3, l_iter->next->v->co);
+		perimeter += len_v3v3(co, co_next);
+		copy_v3_v3(co, co_next);
 	} while ((l_iter = l_iter->next) != l_first);
 
 	return perimeter;
@@ -487,7 +530,7 @@ void  BM_face_calc_tangent_vert_diagonal(const BMFace *f, float r_tangent[3])
 }
 
 /**
- * Compute a meaningful direction along the face (use for manipulator axis).
+ * Compute a meaningful direction along the face (use for gizmo axis).
  *
  * \note Callers shouldn't depend on the *exact* method used here.
  */
@@ -542,7 +585,7 @@ void BM_face_calc_center_bounds(const BMFace *f, float r_cent[3])
 /**
  * computes the center of a face, using the mean average
  */
-void BM_face_calc_center_mean(const BMFace *f, float r_cent[3])
+void BM_face_calc_center_median(const BMFace *f, float r_cent[3])
 {
 	const BMLoop *l_iter, *l_first;
 
@@ -559,7 +602,7 @@ void BM_face_calc_center_mean(const BMFace *f, float r_cent[3])
  * computes the center of a face, using the mean average
  * weighted by edge length
  */
-void BM_face_calc_center_mean_weighted(const BMFace *f, float r_cent[3])
+void BM_face_calc_center_median_weighted(const BMFace *f, float r_cent[3])
 {
 	const BMLoop *l_iter;
 	const BMLoop *l_first;
@@ -837,7 +880,7 @@ float BM_face_calc_normal_subset(const BMLoop *l_first, const BMLoop *l_last, fl
 }
 
 /* exact same as 'BM_face_calc_normal' but accepts vertex coords */
-void BM_face_calc_center_mean_vcos(
+void BM_face_calc_center_median_vcos(
         const BMesh *bm, const BMFace *f, float r_cent[3],
         float const (*vertexCos)[3])
 {
@@ -845,7 +888,7 @@ void BM_face_calc_center_mean_vcos(
 	BLI_assert((bm->elem_index_dirty & BM_VERT) == 0);
 	(void)bm;
 
-	bm_face_calc_poly_center_mean_vertex_cos(f, r_cent, vertexCos);
+	bm_face_calc_poly_center_median_vertex_cos(f, r_cent, vertexCos);
 }
 
 /**
@@ -869,7 +912,7 @@ void BM_face_normal_flip(BMesh *bm, BMFace *f)
 }
 
 /**
- *  BM POINT IN FACE
+ * BM POINT IN FACE
  *
  * Projects co onto face f, and returns true if it is inside
  * the face bounds.
@@ -907,7 +950,7 @@ bool BM_face_point_inside_test(const BMFace *f, const float co[3])
  * It uses polyfill for the ngons splitting, and
  * the beautify operator when use_beauty is true.
  *
- * \param r_faces_new if non-null, must be an array of BMFace pointers,
+ * \param r_faces_new: if non-null, must be an array of BMFace pointers,
  * with a length equal to (f->len - 3). It will be filled with the new
  * triangles (not including the original triangle).
  *
@@ -1060,7 +1103,7 @@ void BM_face_triangulate(
 		}
 
 		if (cd_loop_mdisp_offset != -1) {
-			BM_face_calc_center_mean(f, f_center);
+			BM_face_calc_center_median(f, f_center);
 		}
 
 		/* loop over calculated triangles and create new geometry */
@@ -1132,7 +1175,7 @@ void BM_face_triangulate(
 
 			if (cd_loop_mdisp_offset != -1) {
 				float f_new_center[3];
-				BM_face_calc_center_mean(f_new, f_new_center);
+				BM_face_calc_center_median(f_new, f_new_center);
 				BM_face_interp_multires_ex(bm, f_new, f, f_new_center, f_center, cd_loop_mdisp_offset);
 			}
 		}
@@ -1284,7 +1327,7 @@ void BM_face_splits_check_optimal(BMFace *f, BMLoop *(*loops)[2], int len)
  * Small utility functions for fast access
  *
  * faster alternative to:
- *  BM_iter_as_array(bm, BM_VERTS_OF_FACE, f, (void **)v, 3);
+ * BM_iter_as_array(bm, BM_VERTS_OF_FACE, f, (void **)v, 3);
  */
 void BM_face_as_array_vert_tri(BMFace *f, BMVert *r_verts[3])
 {
@@ -1299,7 +1342,7 @@ void BM_face_as_array_vert_tri(BMFace *f, BMVert *r_verts[3])
 
 /**
  * faster alternative to:
- *  BM_iter_as_array(bm, BM_VERTS_OF_FACE, f, (void **)v, 4);
+ * BM_iter_as_array(bm, BM_VERTS_OF_FACE, f, (void **)v, 4);
  */
 void BM_face_as_array_vert_quad(BMFace *f, BMVert *r_verts[4])
 {
@@ -1318,7 +1361,7 @@ void BM_face_as_array_vert_quad(BMFace *f, BMVert *r_verts[4])
  * Small utility functions for fast access
  *
  * faster alternative to:
- *  BM_iter_as_array(bm, BM_LOOPS_OF_FACE, f, (void **)l, 3);
+ * BM_iter_as_array(bm, BM_LOOPS_OF_FACE, f, (void **)l, 3);
  */
 void BM_face_as_array_loop_tri(BMFace *f, BMLoop *r_loops[3])
 {
@@ -1333,7 +1376,7 @@ void BM_face_as_array_loop_tri(BMFace *f, BMLoop *r_loops[3])
 
 /**
  * faster alternative to:
- *  BM_iter_as_array(bm, BM_LOOPS_OF_FACE, f, (void **)l, 4);
+ * BM_iter_as_array(bm, BM_LOOPS_OF_FACE, f, (void **)l, 4);
  */
 void BM_face_as_array_loop_quad(BMFace *f, BMLoop *r_loops[4])
 {
@@ -1350,9 +1393,9 @@ void BM_face_as_array_loop_quad(BMFace *f, BMLoop *r_loops[4])
 
 /**
  * \brief BM_mesh_calc_tessellation get the looptris and its number from a certain bmesh
- * \param looptris
+ * \param looptris:
  *
- * \note \a looptris  Must be pre-allocated to at least the size of given by: poly_to_tri_count
+ * \note \a looptris Must be pre-allocated to at least the size of given by: poly_to_tri_count
  */
 void BM_mesh_calc_tessellation(BMesh *bm, BMLoop *(*looptris)[3], int *r_looptris_tot)
 {

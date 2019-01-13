@@ -87,7 +87,7 @@ typedef struct View3DCameraControl {
 
 
 	/* -------------------------------------------------------------------- */
-	/* intial values */
+	/* initial values */
 
 	/* root most parent */
 	Object *root_parent;
@@ -281,7 +281,7 @@ void ED_view3d_cameracontrol_update(
 /**
  * Release view control.
  *
- * \param restore  Sets the view state to the values that were set
+ * \param restore: Sets the view state to the values that were set
  *                 before #ED_view3d_control_acquire was called.
  */
 void ED_view3d_cameracontrol_release(

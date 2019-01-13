@@ -1,4 +1,4 @@
-# Turn everything ON thats expected for an official release builds.
+# Turn everything ON that's expected for an official release builds.
 #
 # Example usage:
 #   cmake -C../blender/build_files/cmake/config/blender_full.cmake  ../blender
@@ -12,7 +12,6 @@ set(WITH_CODEC_FFMPEG        ON  CACHE BOOL "" FORCE)
 set(WITH_CODEC_SNDFILE       ON  CACHE BOOL "" FORCE)
 set(WITH_CYCLES              ON  CACHE BOOL "" FORCE)
 set(WITH_CYCLES_OSL          ON  CACHE BOOL "" FORCE)
-set(WITH_CYCLES_OPENSUBDIV   ON  CACHE BOOL "" FORCE)
 set(WITH_FFTW3               ON  CACHE BOOL "" FORCE)
 set(WITH_LIBMV               ON  CACHE BOOL "" FORCE)
 set(WITH_LIBMV_SCHUR_SPECIALIZATIONS ON CACHE BOOL "" FORCE)

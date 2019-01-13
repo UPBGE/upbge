@@ -188,7 +188,7 @@ BMesh *BM_mesh_create(
 /**
  * \brief BMesh Free Mesh Data
  *
- *	Frees a BMesh structure.
+ * Frees a BMesh structure.
  *
  * \note frees mesh, but not actual BMesh struct
  */
@@ -292,7 +292,7 @@ void BM_mesh_clear(BMesh *bm)
 /**
  * \brief BMesh Free Mesh
  *
- *	Frees a BMesh data and its structure.
+ * Frees a BMesh data and its structure.
  */
 void BM_mesh_free(BMesh *bm)
 {
@@ -363,6 +363,8 @@ typedef struct BMVertsCalcNormalsData {
 
 static void mesh_verts_calc_normals_accum_cb(void *userdata, MempoolIterData *mp_f)
 {
+#define FLT_EQ_NONAN(_fa, _fb) (*((const uint32_t *)&_fa) == *((const uint32_t *)&_fb))
+
 	BMVertsCalcNormalsData *data = userdata;
 	BMFace *f = (BMFace *)mp_f;
 
@@ -390,6 +392,11 @@ static void mesh_verts_calc_normals_accum_cb(void *userdata, MempoolIterData *mp
 
 		fac = saacos(-dotprod);
 
+		if (fac != fac) {  /* NAN detection. */
+			/* Degenerated case, nothing to do here, just ignore that vertex. */
+			continue;
+		}
+
 		/* accumulate weighted face normal into the vertex's normal */
 		float *v_no = data->vnos ? data->vnos[BM_elem_index_get(l_iter->v)] : l_iter->v->no;
 
@@ -405,7 +412,7 @@ static void mesh_verts_calc_normals_accum_cb(void *userdata, MempoolIterData *mp
 			 *   - v_no[0] was not FLT_MAX, i.e. it was not locked by another thread.
 			 */
 			const float vl = atomic_cas_float(&v_no[0], virtual_lock, FLT_MAX);
-			if (vl == virtual_lock && vl != FLT_MAX) {
+			if (FLT_EQ_NONAN(vl, virtual_lock) && vl != FLT_MAX) {
 				break;
 			}
 			virtual_lock = vl;
@@ -423,6 +430,8 @@ static void mesh_verts_calc_normals_accum_cb(void *userdata, MempoolIterData *mp
 		BLI_assert(virtual_lock == FLT_MAX);
 
 	} while ((l_iter = l_iter->next) != l_first);
+
+#undef FLT_EQ_NONAN
 }
 
 static void mesh_verts_calc_normals_normalize_cb(void *userdata, MempoolIterData *mp_v)
@@ -894,7 +903,10 @@ static void bm_mesh_loops_calc_normals(
 								clnors_avg[0] /= clnors_nbr;
 								clnors_avg[1] /= clnors_nbr;
 								/* Fix/update all clnors of this fan with computed average value. */
-								printf("Invalid clnors in this fan!\n");
+
+								/* Prints continuously when merge custom normals, so commenting. */
+								/* printf("Invalid clnors in this fan!\n"); */
+
 								while ((clnor = BLI_SMALLSTACK_POP(clnors))) {
 									//print_v2("org clnor", clnor);
 									clnor[0] = (short)clnors_avg[0];
@@ -1009,7 +1021,8 @@ void BM_mesh_loop_normals_update(
 void BM_loops_calc_normal_vcos(
         BMesh *bm, const float (*vcos)[3], const float (*vnos)[3], const float (*fnos)[3],
         const bool use_split_normals, const float split_angle, float (*r_lnos)[3],
-        MLoopNorSpaceArray *r_lnors_spacearr, short (*clnors_data)[2], const int cd_loop_clnors_offset)
+        MLoopNorSpaceArray *r_lnors_spacearr, short (*clnors_data)[2],
+        const int cd_loop_clnors_offset)
 {
 	const bool has_clnors = clnors_data || (cd_loop_clnors_offset != -1);
 
@@ -1019,7 +1032,8 @@ void BM_loops_calc_normal_vcos(
 		bm_mesh_edges_sharp_tag(bm, vnos, fnos, r_lnos, has_clnors ? (float)M_PI : split_angle, false);
 
 		/* Finish computing lnos by accumulating face normals in each fan of faces defined by sharp edges. */
-		bm_mesh_loops_calc_normals(bm, vcos, fnos, r_lnos, r_lnors_spacearr, clnors_data, cd_loop_clnors_offset);
+		bm_mesh_loops_calc_normals(
+		        bm, vcos, fnos, r_lnos, r_lnors_spacearr, clnors_data, cd_loop_clnors_offset);
 	}
 	else {
 		BLI_assert(!r_lnors_spacearr);
@@ -1454,28 +1468,6 @@ void BM_mesh_elem_table_free(BMesh *bm, const char htype)
 		MEM_SAFE_FREE(bm->ftable);
 	}
 }
-
-BMVert *BM_vert_at_index(BMesh *bm, const int index)
-{
-	BLI_assert((index >= 0) && (index < bm->totvert));
-	BLI_assert((bm->elem_table_dirty & BM_VERT) == 0);
-	return bm->vtable[index];
-}
-
-BMEdge *BM_edge_at_index(BMesh *bm, const int index)
-{
-	BLI_assert((index >= 0) && (index < bm->totedge));
-	BLI_assert((bm->elem_table_dirty & BM_EDGE) == 0);
-	return bm->etable[index];
-}
-
-BMFace *BM_face_at_index(BMesh *bm, const int index)
-{
-	BLI_assert((index >= 0) && (index < bm->totface));
-	BLI_assert((bm->elem_table_dirty & BM_FACE) == 0);
-	return bm->ftable[index];
-}
-
 
 BMVert *BM_vert_at_index_find(BMesh *bm, const int index)
 {

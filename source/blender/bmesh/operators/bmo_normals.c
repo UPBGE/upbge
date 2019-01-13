@@ -107,7 +107,7 @@ static int recalc_face_normals_find_index(BMesh *bm, BMFace **faces, const int f
 	for (i = 0; i < faces_len; i++) {
 		float f_cent[3];
 		const float f_area = BM_face_calc_area(faces[i]);
-		BM_face_calc_center_mean_weighted(faces[i], f_cent);
+		BM_face_calc_center_median_weighted(faces[i], f_cent);
 		madd_v3_v3fl(cent, f_cent, cent_fac * f_area);
 		cent_area_accum += f_area;
 
@@ -191,10 +191,10 @@ static int recalc_face_normals_find_index(BMesh *bm, BMFace **faces, const int f
  * Given an array of faces, recalculate their normals.
  * this functions assumes all faces in the array are connected by edges.
  *
- * \param bm
- * \param faces  Array of connected faces.
- * \param faces_len  Length of \a faces
- * \param oflag  Flag to check before doing the actual face flipping.
+ * \param bm:
+ * \param faces: Array of connected faces.
+ * \param faces_len: Length of \a faces
+ * \param oflag: Flag to check before doing the actual face flipping.
  */
 static void bmo_recalc_face_normals_array(BMesh *bm, BMFace **faces, const int faces_len, const short oflag)
 {

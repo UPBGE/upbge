@@ -16,8 +16,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * Contributor:
- *		Jeroen Bakker
- *		Monique Dewanchand
+ *      Jeroen Bakker
+ *      Monique Dewanchand
  */
 
 #ifndef __COM_READBUFFEROPERATION_H__
@@ -44,7 +44,7 @@ public:
 	void executePixelExtend(float output[4], float x, float y, PixelSampler sampler,
 	                        MemoryBufferExtend extend_x, MemoryBufferExtend extend_y);
 	void executePixelFiltered(float output[4], float x, float y, float dx[2], float dy[2]);
-	const bool isReadBufferOperation() const { return true; }
+	bool isReadBufferOperation() const { return true; }
 	void setOffset(unsigned int offset) { this->m_offset = offset; }
 	unsigned int getOffset() const { return this->m_offset; }
 	bool determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output);

@@ -145,8 +145,8 @@ that happens to redraw but is more flexible and integrates better with Blenders 
 
 **Ok, Ok! I still want to draw from Python**
 
-If you insist - yes its possible, but scripts that use this hack wont be considered
-for inclusion in Blender and any issues with using it wont be considered bugs,
+If you insist - yes its possible, but scripts that use this hack won't be considered
+for inclusion in Blender and any issues with using it won't be considered bugs,
 this is also not guaranteed to work in future releases.
 
 .. code-block:: python
@@ -205,8 +205,8 @@ Support Overview
 
    * - Usage
      - :class:`bpy.types.MeshPolygon`
-     - :class:`bpy.types.MeshTessFace` 
-     - :class:`bmesh.types.BMFace` 
+     - :class:`bpy.types.MeshTessFace`
+     - :class:`bmesh.types.BMFace`
    * - Import/Create
      - Poor *(inflexible)*
      - Good *(supported as upgrade path)*
@@ -265,7 +265,7 @@ All 3 data types can be used for exporting,
 the choice mostly depends on whether the target format supports ngons or not.
 
 - Polygons are the most direct & efficient way to export providing they convert into the output format easily enough.
-- Tessfaces work well for exporting to formats which dont support ngons,
+- Tessfaces work well for exporting to formats which don't support ngons,
   in fact this is the only place where their use is encouraged.
 - BMesh-Faces can work for exporting too but may not be necessary if polygons can be used
   since using bmesh gives some overhead because its not the native storage format in object mode.
@@ -317,7 +317,7 @@ Example using :class:`bpy.types.EditBone` in armature editmode:
 
 This is only possible in edit mode.
 
-   >>> bpy.context.object.data.edit_bones["Bone"].head = Vector((1.0, 2.0, 3.0)) 
+   >>> bpy.context.object.data.edit_bones["Bone"].head = Vector((1.0, 2.0, 3.0))
 
 This will be empty outside of editmode.
 
@@ -362,7 +362,7 @@ Examples using :class:`bpy.types.PoseBone` in object or pose mode:
 .. code-block:: python
 
    # Gets the name of the first constraint (if it exists)
-   bpy.context.object.pose.bones["Bone"].constraints[0].name 
+   bpy.context.object.pose.bones["Bone"].constraints[0].name
 
    # Gets the last selected pose bone (pose mode only)
    bpy.context.active_pose_bone
@@ -407,7 +407,7 @@ This can cause bugs when you add some data (normally imported) then reference it
 .. code-block:: python
 
    bpy.data.meshes.new(name=meshid)
-   
+
    # normally some code, function calls...
    bpy.data.meshes[meshid]
 
@@ -417,7 +417,7 @@ Or with name assignment...
 .. code-block:: python
 
    obj.name = objname
-   
+
    # normally some code, function calls...
    obj = bpy.data.meshes[objname]
 
@@ -437,12 +437,12 @@ this way you don't run this risk of referencing existing data from the blend fil
 
    # typically declared in the main body of the function.
    mesh_name_mapping = {}
-   
+
    mesh = bpy.data.meshes.new(name=meshid)
    mesh_name_mapping[meshid] = mesh
-   
+
    # normally some code, or function calls...
-   
+
    # use own dictionary rather than bpy.data
    mesh = mesh_name_mapping[meshid]
 
@@ -551,7 +551,7 @@ to avoid getting stuck too deep in encoding problems - here are some suggestions
 
 .. note::
 
-   Sometimes it's preferrable to avoid string encoding issues by using bytes instead of Python strings,
+   Sometimes it's preferable to avoid string encoding issues by using bytes instead of Python strings,
    when reading some input its less trouble to read it as binary data
    though you will still need to decide how to treat any strings you want to use with Blender,
    some importers do this.

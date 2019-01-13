@@ -46,17 +46,23 @@ typedef std::condition_variable thread_condition_variable;
 
 class thread {
 public:
-	thread(function<void(void)> run_cb, int group = -1);
+	/* NOTE: Node index of -1 means that affinity will be inherited from the
+	 * parent thread and no override on top of that will happen. */
+	thread(function<void()> run_cb, int node = -1);
 	~thread();
 
 	static void *run(void *arg);
 	bool join();
 
+	/* For an existing thread descriptor which is NOT running yet, assign node
+	 * on which it should be running. */
+	void schedule_to_node(int node);
+
 protected:
-	function<void(void)> run_cb_;
+	function<void()> run_cb_;
 	std::thread thread_;
 	bool joined_;
-	int group_;
+	int node_;
 };
 
 /* Own wrapper around pthread's spin lock to make it's use easier. */
@@ -138,4 +144,4 @@ protected:
 
 CCL_NAMESPACE_END
 
-#endif /* __UTIL_THREAD_H__ */
+#endif  /* __UTIL_THREAD_H__ */

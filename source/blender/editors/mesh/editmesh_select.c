@@ -443,11 +443,11 @@ static void findnearestvert__doClosest(void *userData, BMVert *eve, const float 
 /**
  * Nearest vertex under the cursor.
  *
- * \param r_dist (in/out), minimal distance to the nearest and at the end, actual distance
- * \param use_select_bias
+ * \param r_dist: (in/out), minimal distance to the nearest and at the end, actual distance
+ * \param use_select_bias:
  * - When true, selected vertice are given a 5 pixel bias to make them further than unselect verts.
  * - When false, unselected vertice are given the bias.
- * \param use_cycle Cycle over elements within #FIND_NEAR_CYCLE_THRESHOLD_MIN in order of index.
+ * \param use_cycle: Cycle over elements within #FIND_NEAR_CYCLE_THRESHOLD_MIN in order of index.
  */
 BMVert *EDBM_vert_find_nearest_ex(
         ViewContext *vc, float *r_dist,
@@ -1701,7 +1701,7 @@ static bool mouse_mesh_loop(bContext *C, const int mval[2], bool extend, bool de
 					float cent[3];
 					float co[2], tdist;
 
-					BM_face_calc_center_mean(f, cent);
+					BM_face_calc_center_median(f, cent);
 					if (ED_view3d_project_float_object(
 					            vc.ar, cent, co, V3D_PROJ_TEST_CLIP_NEAR) == V3D_PROJ_RET_OK)
 					{

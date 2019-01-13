@@ -180,6 +180,7 @@ endif()
 		extern_rangetree
 		extern_wcwidth
 		extern_sdlew
+		bf_intern_numaapi
 	)
 
 	if(NOT WITH_SYSTEM_GLOG)

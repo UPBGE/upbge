@@ -2095,7 +2095,7 @@ void ED_object_single_users(Main *bmain, Scene *scene, const bool full, const bo
 	}
 
 	/* Relink nodetrees' pointers that have been duplicated. */
-	FOREACH_NODETREE(bmain, ntree, id)
+	FOREACH_NODETREE_BEGIN(bmain, ntree, id)
 	{
 		/* This is a bit convoluted, we want to root ntree of copied IDs and only those,
 		 * so we first check that old ID has been copied and that ntree is root tree of old ID,
@@ -2104,7 +2104,7 @@ void ED_object_single_users(Main *bmain, Scene *scene, const bool full, const bo
 			ntree = ntreeFromID(id->newid);
 			BKE_libblock_relink_to_newid(&ntree->id);
 		}
-	} FOREACH_NODETREE_END
+	} FOREACH_NODETREE_END;
 
 	/* Relink datablock pointer properties */
 	{
@@ -2501,7 +2501,6 @@ void OBJECT_OT_drop_named_material(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name = "Drop Named Material on Object";
-	ot->description = "";
 	ot->idname = "OBJECT_OT_drop_named_material";
 
 	/* api callbacks */
@@ -2558,7 +2557,6 @@ void OBJECT_OT_unlink_data(wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "Unlink";
 	ot->idname = "OBJECT_OT_unlink_data";
-	ot->description = "";
 
 	/* api callbacks */
 	ot->exec = object_unlink_data_exec;

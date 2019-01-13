@@ -413,7 +413,7 @@ void BKE_sequence_clipboard_pointers_restore(Sequence *seq, Main *bmain)
 	seqclipboard_ptr_restore(bmain, (ID **)&seq->sound);
 }
 
-/* recursive versions of funcions above */
+/* recursive versions of functions above */
 void BKE_sequencer_base_clipboard_pointers_free(ListBase *seqbase)
 {
 	Sequence *seq;
@@ -469,8 +469,7 @@ void BKE_sequencer_editing_free(Scene *scene, const bool do_id_user)
 	{
 		/* handle cache freeing above */
 		BKE_sequence_free_ex(scene, seq, false, do_id_user);
-	}
-	SEQ_END
+	} SEQ_END;
 
 	BLI_freelistN(&ed->metastack);
 
@@ -1060,7 +1059,7 @@ void BKE_sequencer_sort(Scene *scene)
 	*(ed->seqbasep) = seqbase;
 }
 
-/** Comparision function suitable to be used with BLI_listbase_sort()... */
+/** Comparison function suitable to be used with BLI_listbase_sort()... */
 int BKE_sequencer_cmp_time_startdisp(const void *a, const void *b)
 {
 	const Sequence *seq_a = a;
@@ -1970,7 +1969,7 @@ void BKE_sequencer_proxy_rebuild_context(Main *bmain, Scene *scene, Sequence *se
 
 		context = MEM_callocN(sizeof(SeqIndexBuildContext), "seq proxy rebuild context");
 
-		nseq = BKE_sequence_dupli_recursive(scene, scene, seq, 0);
+		nseq = BKE_sequence_dupli_recursive(scene, scene, NULL, seq, 0);
 
 		context->tc_flags   = nseq->strip->proxy->build_tc_flags;
 		context->size_flags = nseq->strip->proxy->build_size_flags;
@@ -2410,21 +2409,21 @@ void BKE_sequencer_color_balance_apply(StripColorBalance *cb, ImBuf *ibuf, float
 }
 
 /*
- *  input preprocessing for SEQ_TYPE_IMAGE, SEQ_TYPE_MOVIE, SEQ_TYPE_MOVIECLIP and SEQ_TYPE_SCENE
+ * input preprocessing for SEQ_TYPE_IMAGE, SEQ_TYPE_MOVIE, SEQ_TYPE_MOVIECLIP and SEQ_TYPE_SCENE
  *
- *  Do all the things you can't really do afterwards using sequence effects
- *  (read: before rescaling to render resolution has been done)
+ * Do all the things you can't really do afterwards using sequence effects
+ * (read: before rescaling to render resolution has been done)
  *
- *  Order is important!
+ * Order is important!
  *
- *  - Deinterlace
- *  - Crop and transform in image source coordinate space
- *  - Flip X + Flip Y (could be done afterwards, backward compatibility)
- *  - Promote image to float data (affects pipeline operations afterwards)
- *  - Color balance (is most efficient in the byte -> float
- *    (future: half -> float should also work fine!)
- *    case, if done on load, since we can use lookup tables)
- *  - Premultiply
+ * - Deinterlace
+ * - Crop and transform in image source coordinate space
+ * - Flip X + Flip Y (could be done afterwards, backward compatibility)
+ * - Promote image to float data (affects pipeline operations afterwards)
+ * - Color balance (is most efficient in the byte -> float
+ *   (future: half -> float should also work fine!)
+ *   case, if done on load, since we can use lookup tables)
+ * - Premultiply
  */
 
 bool BKE_sequencer_input_have_to_preprocess(const SeqRenderData *context, Sequence *seq, float UNUSED(cfra))
@@ -4507,7 +4506,7 @@ Sequence *BKE_sequencer_foreground_frame_get(Scene *scene, int frame)
 	return best_seq;
 }
 
-/* return 0 if there werent enough space */
+/* return 0 if there weren't enough space */
 bool BKE_sequence_base_shuffle_ex(ListBase *seqbasep, Sequence *test, Scene *evil_scene, int channel_delta)
 {
 	const int orig_machine = test->machine;
@@ -5430,7 +5429,8 @@ Sequence *BKE_sequencer_add_movie_strip(bContext *C, ListBase *seqbasep, SeqLoad
 	return seq;
 }
 
-static Sequence *seq_dupli(const Scene *scene_src, Scene *scene_dst, Sequence *seq, int dupe_flag, const int flag)
+static Sequence *seq_dupli(
+        const Scene *scene_src, Scene *scene_dst, ListBase *new_seq_list, Sequence *seq, int dupe_flag, const int flag)
 {
 	Sequence *seqn = MEM_dupallocN(seq);
 
@@ -5515,9 +5515,18 @@ static Sequence *seq_dupli(const Scene *scene_src, Scene *scene_dst, Sequence *s
 		BLI_assert(0);
 	}
 
+	/* When using SEQ_DUPE_UNIQUE_NAME, it is mandatory to add new sequences in relevant container
+	 * (scene or meta's one), *before* checking for unique names. Otherwise the meta's list is empty
+	 * and hence we miss all seqs in that meta that have already been duplicated (see T55668).
+	 * Note that unique name check itslef could be done at a later step in calling code, once all seqs
+	 * have bee duplicated (that was first, simpler solution), but then handling of animation data will
+	 * be broken (see T60194). */
+	if (new_seq_list != NULL) {
+		BLI_addtail(new_seq_list, seqn);
+	}
+
 	if (scene_src == scene_dst) {
 		if (dupe_flag & SEQ_DUPE_UNIQUE_NAME) {
-			/* TODO this is broken in case of Meta strips recursive duplication... Not trivial to fix. */
 			BKE_sequence_base_unique_name_recursive(&scene_dst->ed->seqbase, seqn);
 		}
 
@@ -5551,22 +5560,30 @@ static void seq_new_fix_links_recursive(Sequence *seq)
 	}
 }
 
-Sequence *BKE_sequence_dupli_recursive(const Scene *scene_src, Scene *scene_dst, Sequence *seq, int dupe_flag)
+static Sequence *sequence_dupli_recursive_do(
+        const Scene *scene_src, Scene *scene_dst, ListBase *new_seq_list, Sequence *seq, const int dupe_flag)
 {
 	Sequence *seqn;
 
 	seq->tmp = NULL;
-	seqn = seq_dupli(scene_src, scene_dst, seq, dupe_flag, 0);
+	seqn = seq_dupli(scene_src, scene_dst, new_seq_list, seq, dupe_flag, 0);
 	if (seq->type == SEQ_TYPE_META) {
 		Sequence *s;
 		for (s = seq->seqbase.first; s; s = s->next) {
-			Sequence *n = BKE_sequence_dupli_recursive(scene_src, scene_dst, s, dupe_flag);
-			if (n) {
-				BLI_addtail(&seqn->seqbase, n);
-			}
+			sequence_dupli_recursive_do(scene_src, scene_dst, &seqn->seqbase, s, dupe_flag);
 		}
 	}
 
+	return seqn;
+}
+
+Sequence *BKE_sequence_dupli_recursive(
+        const Scene *scene_src, Scene *scene_dst,
+        ListBase *new_seq_list, Sequence *seq, int dupe_flag)
+{
+	Sequence *seqn = sequence_dupli_recursive_do(scene_src, scene_dst, new_seq_list, seq, dupe_flag);
+
+	/* This does not need to be in recursive call itself, since it is already recursive... */
 	seq_new_fix_links_recursive(seqn);
 
 	return seqn;
@@ -5585,14 +5602,13 @@ void BKE_sequence_base_dupli_recursive(
 	for (seq = seqbase->first; seq; seq = seq->next) {
 		seq->tmp = NULL;
 		if ((seq->flag & SELECT) || (dupe_flag & SEQ_DUPE_ALL)) {
-			seqn = seq_dupli(scene_src, scene_dst, seq, dupe_flag, flag);
+			seqn = seq_dupli(scene_src, scene_dst, nseqbase, seq, dupe_flag, flag);
 			if (seqn) { /*should never fail */
 				if (dupe_flag & SEQ_DUPE_CONTEXT) {
 					seq->flag &= ~SEQ_ALLSEL;
 					seqn->flag &= ~(SEQ_LEFTSEL + SEQ_RIGHTSEL + SEQ_LOCK);
 				}
 
-				BLI_addtail(nseqbase, seqn);
 				if (seq->type == SEQ_TYPE_META) {
 					BKE_sequence_base_dupli_recursive(
 					        scene_src, scene_dst, &seqn->seqbase, &seq->seqbase,

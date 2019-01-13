@@ -166,7 +166,6 @@ public:
 	bool use_bvh_spatial_split;
 	bool use_bvh_unaligned_nodes;
 	int num_bvh_time_steps;
-
 	bool persistent_data;
 	int texture_limit;
 
@@ -269,4 +268,4 @@ protected:
 
 CCL_NAMESPACE_END
 
-#endif /*  __SCENE_H__ */
+#endif  /*  __SCENE_H__ */

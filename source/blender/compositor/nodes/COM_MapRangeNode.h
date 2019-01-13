@@ -16,8 +16,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * Contributor:
- *		Dalai Felinto
- *		Daniel Salazar
+ *      Dalai Felinto
+ *      Daniel Salazar
  */
 
 #ifndef __COM_MAPRANGENODE_H__
@@ -26,8 +26,8 @@
 #include "COM_Node.h"
 #include "DNA_node_types.h"
 /**
- * @brief MapRangeNode
- * @ingroup Node
+ * \brief MapRangeNode
+ * \ingroup Node
  */
 class MapRangeNode : public Node {
 public:

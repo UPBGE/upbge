@@ -624,7 +624,7 @@ void colormanagement_init(void)
 
 	OCIO_init();
 
-	ocio_env = getenv("OCIO");
+	ocio_env = BLI_getenv("OCIO");
 
 	if (ocio_env && ocio_env[0] != '\0') {
 		config = OCIO_configCreateFromEnv();
@@ -1133,8 +1133,7 @@ void IMB_colormanagement_check_file_config(Main *bmain)
 			if (seq->strip) {
 				colormanage_check_colorspace_settings(&seq->strip->colorspace_settings, "sequencer strip");
 			}
-		}
-		SEQ_END
+		} SEQ_END;
 	}
 
 	/* ** check input color space settings ** */

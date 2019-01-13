@@ -16,8 +16,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * Contributor:
- *		Jeroen Bakker
- *		Monique Dewanchand
+ *      Jeroen Bakker
+ *      Monique Dewanchand
  */
 
 #ifndef __COM_VECTORBLUROPERATION_H__
@@ -29,14 +29,14 @@
 class VectorBlurOperation : public NodeOperation, public QualityStepHelper {
 private:
 	/**
-	 * @brief Cached reference to the inputProgram
+	 * \brief Cached reference to the inputProgram
 	 */
 	SocketReader *m_inputImageProgram;
 	SocketReader *m_inputSpeedProgram;
 	SocketReader *m_inputZProgram;
 
 	/**
-	 * @brief settings of the glare node.
+	 * \brief settings of the glare node.
 	 */
 	NodeBlurData *m_settings;
 

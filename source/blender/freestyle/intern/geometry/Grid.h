@@ -30,7 +30,7 @@
 
 #include <cstring> // for memset
 #include <float.h>
-#include <stdint.h> // For SET_UINT_IN_POINTER, i.e. uintptr_t.
+#include <stdint.h> // For POINTER_FROM_UINT, i.e. uintptr_t.
 #include <vector>
 
 #include "Geom.h"
@@ -290,8 +290,9 @@ public:
 	 *  Returns the first intersection (occluder,t,u,v) or null.
 	 *  Starts with a call to InitRay.
 	 */
-	Polygon3r * castRayToFindFirstIntersection(const Vec3r& orig, const Vec3r& dir, double& t,
-	                                           double& u, double& v, unsigned timestamp);
+	Polygon3r *castRayToFindFirstIntersection(
+	        const Vec3r& orig, const Vec3r& dir, double& t,
+	        double& u, double& v, unsigned timestamp);
 
 
 	/*! Init all structures and values for computing the cells intersected by this new ray */
@@ -338,8 +339,8 @@ protected:
 				visitor.discoverCell(current_cell);
 				OccludersSet& occluders = current_cell->getOccluders(); // FIXME: I had forgotten the ref &
 				for (OccludersSet::iterator it = occluders.begin(); it != occluders.end(); it++) {
-					if (GET_UINT_FROM_POINTER((*it)->userdata2) != _timestamp) {
-						(*it)->userdata2 = SET_UINT_IN_POINTER(_timestamp);
+					if (POINTER_AS_UINT((*it)->userdata2) != _timestamp) {
+						(*it)->userdata2 = POINTER_FROM_UINT(_timestamp);
 						visitor.examineOccluder(*it);
 					}
 				}

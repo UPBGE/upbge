@@ -16,8 +16,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * Contributor: Peter Schlaile
- *		Jeroen Bakker
- *		Monique Dewanchand
+ *      Jeroen Bakker
+ *      Monique Dewanchand
  */
 
 #ifndef __COM_INPAINTNODE_H__
@@ -26,8 +26,8 @@
 #include "COM_Node.h"
 
 /**
- * @brief InpaintNode
- * @ingroup Node
+ * \brief InpaintNode
+ * \ingroup Node
  */
 class InpaintNode : public Node {
 public:

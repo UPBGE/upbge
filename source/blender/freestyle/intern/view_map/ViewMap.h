@@ -1364,14 +1364,14 @@ public:
 
 	/*! Returns an Interface0DIterator to iterate over the points of this ViewEdge at a given resolution.
 	 *  The returned Interface0DIterator points on the first Point of the ViewEdge.
-	 *  \param t
+	 *  \param t:
 	 *    the sampling value.
 	 */
 	virtual Interface0DIterator pointsBegin(float t = 0.0f);
 
 	/*! Returns an Interface0DIterator to iterate over the points of this ViewEdge at a given resolution.
 	 *  The returned Interface0DIterator points after the last Point of the ViewEdge.
-	 *  \param t
+	 *  \param t:
 	 *    the sampling value.
 	 */
 	virtual Interface0DIterator pointsEnd(float t = 0.0f);
@@ -1625,16 +1625,16 @@ public:
 
 
 /*
-  #############################################
-  #############################################
-  #############################################
-  ######                                 ######
-  ######   I M P L E M E N T A T I O N   ######
-  ######                                 ######
-  #############################################
-  #############################################
-  #############################################
-*/
+ * #############################################
+ * #############################################
+ * #############################################
+ * ######                                 ######
+ * ######   I M P L E M E N T A T I O N   ######
+ * ######                                 ######
+ * #############################################
+ * #############################################
+ * #############################################
+ */
 /* for inline functions */
 
 void ViewShape::SplitEdge(FEdge *fe, const vector<TVertex*>& iViewVertices, vector<FEdge*>& ioNewEdges,

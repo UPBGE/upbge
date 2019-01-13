@@ -99,7 +99,7 @@ static VChar *freetypechar_to_vchar(FT_Face face, FT_ULong charcode, VFontData *
 		che->index = charcode;
 		che->width = glyph->advance.x * scale;
 
-		BLI_ghash_insert(vfd->characters, SET_UINT_IN_POINTER(che->index), che);
+		BLI_ghash_insert(vfd->characters, POINTER_FROM_UINT(che->index), che);
 
 		/* Start converting the FT data */
 		onpoints = (int *)MEM_callocN((ftoutline.n_contours) * sizeof(int), "onpoints");
@@ -453,7 +453,7 @@ static int check_freetypefont(PackedFile *pf)
  * Construct a new VFontData structure from
  * Freetype font data in a PackedFile.
  *
- * \param pf The font data.
+ * \param pf: The font data.
  * \retval A new VFontData structure, or NULL
  * if unable to load.
  */

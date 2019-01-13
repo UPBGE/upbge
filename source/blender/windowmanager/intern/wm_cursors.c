@@ -191,7 +191,7 @@ void WM_cursor_wait(bool val)
 }
 
 /**
- * \param bounds can be NULL
+ * \param bounds: can be NULL
  */
 void WM_cursor_grab_enable(wmWindow *win, bool wrap, bool hide, int bounds[4])
 {
@@ -274,7 +274,7 @@ bool wm_cursor_arrow_move(wmWindow *win, const wmEvent *event)
 }
 
 
-/* afer this you can call restore too */
+/* after this you can call restore too */
 void WM_cursor_time(wmWindow *win, int nr)
 {
 	/* 10 8x8 digits */

@@ -154,12 +154,12 @@ static void emDM_ensurePolyCenters(EditDerivedBMesh *bmdm)
 			BM_mesh_elem_index_ensure(bm, BM_VERT);
 
 			BM_ITER_MESH_INDEX (efa, &fiter, bm, BM_FACES_OF_MESH, i) {
-				BM_face_calc_center_mean_vcos(bm, efa, polyCos[i], vertexCos);
+				BM_face_calc_center_median_vcos(bm, efa, polyCos[i], vertexCos);
 			}
 		}
 		else {
 			BM_ITER_MESH_INDEX (efa, &fiter, bm, BM_FACES_OF_MESH, i) {
-				BM_face_calc_center_mean(efa, polyCos[i]);
+				BM_face_calc_center_median(efa, polyCos[i]);
 			}
 		}
 
@@ -229,7 +229,7 @@ static void emDM_calcLoopNormalsSpaceArray(
 				       r_lnors_spacearr->lspacearr[i]->ref_beta, r_lnors_spacearr->lspacearr[i]->loops);
 				printf("\t\t(shared with loops");
 				while (loops) {
-					printf(" %d", GET_INT_FROM_POINTER(loops->link));
+					printf(" %d", POINTER_AS_INT(loops->link));
 					loops = loops->next;
 				}
 				printf(")\n");
@@ -2801,12 +2801,12 @@ static void cage_mapped_verts_callback(
 
 float (*BKE_editmesh_vertexCos_get(BMEditMesh *em, Scene *scene, int *r_numVerts))[3]
 {
-	DerivedMesh *cage, *final;
+	DerivedMesh *cage;
 	BLI_bitmap *visit_bitmap;
 	struct CageUserData data;
 	float (*cos_cage)[3];
 
-	cage = editbmesh_get_derived_cage_and_final(scene, em->ob, em, CD_MASK_BAREMESH, &final);
+	cage = editbmesh_get_derived_cage(scene, em->ob, em, CD_MASK_BAREMESH);
 	cos_cage = MEM_callocN(sizeof(*cos_cage) * em->bm->totvert, "bmbvh cos_cage");
 
 	/* when initializing cage verts, we only want the first cage coordinate for each vertex,

@@ -166,7 +166,7 @@ static void sequencer_generic_invoke_xy__internal(bContext *C, wmOperator *op, i
 	RNA_int_set(op->ptr, "frame_start", cfra);
 
 	if ((flag & SEQPROP_ENDFRAME) && RNA_struct_property_is_set(op->ptr, "frame_end") == 0)
-		RNA_int_set(op->ptr, "frame_end", cfra + 25);  // XXX arbitary but ok for now.
+		RNA_int_set(op->ptr, "frame_end", cfra + 25);  // XXX arbitrary but ok for now.
 
 	if (!(flag & SEQPROP_NOPATHS)) {
 		sequencer_generic_invoke_path__internal(C, op, "filepath");
@@ -650,13 +650,13 @@ static int sequencer_add_movie_strip_invoke(bContext *C, wmOperator *op, const w
 	Editing *ed = BKE_sequencer_editing_get(scene, false);
 
 	/* only enable "use_framerate" if there aren't any existing strips
-	 *  -  When there are no strips yet, there is no harm in enabling this,
-	 *     and it makes the single-strip case really nice for casual users
-	 *  -  When there are strips, it's best we don't touch the framerate,
-	 *     as all hell may break loose (e.g. audio strips start overlapping
-	 *     and can't be restored)
-	 *  -  These initial guesses can still be manually overridden by users
-	 *     from the modal options panel
+	 * - When there are no strips yet, there is no harm in enabling this,
+	 *   and it makes the single-strip case really nice for casual users
+	 * - When there are strips, it's best we don't touch the framerate,
+	 *   as all hell may break loose (e.g. audio strips start overlapping
+	 *   and can't be restored)
+	 * - These initial guesses can still be manually overridden by users
+	 *   from the modal options panel
 	 */
 	if (ed && ed->seqbasep && ed->seqbasep->first) {
 		RNA_boolean_set(op->ptr, "use_framerate", false);

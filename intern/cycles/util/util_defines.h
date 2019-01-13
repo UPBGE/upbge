@@ -69,10 +69,12 @@
 #  endif  /* _WIN32 && !FREE_WINDOWS */
 
 /* Use to suppress '-Wimplicit-fallthrough' (in place of 'break'). */
-#  if defined(__GNUC__) && (__GNUC__ >= 7)  /* gcc7.0+ only */
-#    define ATTR_FALLTHROUGH __attribute__((fallthrough))
-#  else
-#    define ATTR_FALLTHROUGH ((void)0)
+#  ifndef ATTR_FALLTHROUGH
+#    if defined(__GNUC__) && (__GNUC__ >= 7)  /* gcc7.0+ only */
+#      define ATTR_FALLTHROUGH __attribute__((fallthrough))
+#    else
+#      define ATTR_FALLTHROUGH ((void) 0)
+#    endif
 #  endif
 #endif  /* __KERNEL_GPU__ */
 
@@ -104,14 +106,14 @@ template<typename T> static inline T decltype_helper(T x) { return x; }
 #define CHECK_TYPE(var, type)  {  \
 	TYPEOF(var) *__tmp;           \
 	__tmp = (type *)NULL;         \
-	(void)__tmp;                  \
-} (void)0
+	(void) __tmp;                 \
+} (void) 0
 
 #define CHECK_TYPE_PAIR(var_a, var_b)  {  \
 	TYPEOF(var_a) *__tmp;                 \
 	__tmp = (typeof(var_b) *)NULL;        \
-	(void)__tmp;                          \
-} (void)0
+	(void) __tmp;                          \
+} (void) 0
 #else
 #  define CHECK_TYPE(var, type)
 #  define CHECK_TYPE_PAIR(var_a, var_b)
@@ -128,4 +130,4 @@ template<typename T> static inline T decltype_helper(T x) { return x; }
 #  define util_assert(statement)
 #endif
 
-#endif /* __UTIL_DEFINES_H__ */
+#endif  /* __UTIL_DEFINES_H__ */

@@ -146,9 +146,6 @@ enum {
 	GAME_CAM_VIEWPORT					= (1 << 3),
 };
 
-/* yafray: dof sampling switch */
-/* #define CAM_YF_NO_QMC	512 */ /* deprecated */
-
 /* Sensor fit */
 enum {
 	CAMERA_SENSOR_FIT_AUTO  = 0,

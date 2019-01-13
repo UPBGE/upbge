@@ -16,9 +16,9 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * Contributor:
- *		Jeroen Bakker
- *		Monique Dewanchand
- *		Sergey Sharybin
+ *      Jeroen Bakker
+ *      Monique Dewanchand
+ *      Sergey Sharybin
  */
 
 #include "COM_MaskNode.h"
@@ -62,7 +62,6 @@ void MaskNode::convertToOperations(NodeConverter &converter, const CompositorCon
 
 	operation->setMask(mask);
 	operation->setFramenumber(context.getFramenumber());
-	operation->setSmooth((bool)(editorNode->custom1 & CMP_NODEFLAG_MASK_AA) != 0);
 	operation->setFeather((bool)(editorNode->custom1 & CMP_NODEFLAG_MASK_NO_FEATHER) == 0);
 
 	if ((editorNode->custom1 & CMP_NODEFLAG_MASK_MOTION_BLUR) &&

@@ -132,8 +132,8 @@ static void join_mesh_single(
 			}
 
 			/* for each shapekey in destination mesh:
-			 *	- if there's a matching one, copy it across (will need to transform vertices into new space...)
-			 *	- otherwise, just copy own coordinates of mesh (no need to transform vertex coordinates into new space)
+			 * - if there's a matching one, copy it across (will need to transform vertices into new space...)
+			 * - otherwise, just copy own coordinates of mesh (no need to transform vertex coordinates into new space)
 			 */
 			if (key) {
 				/* if this mesh has any shapekeys, check first, otherwise just copy coordinates */
@@ -162,8 +162,8 @@ static void join_mesh_single(
 		}
 		else {
 			/* for each shapekey in destination mesh:
-			 *	- if it was an 'original', copy the appropriate data from nkey
-			 *	- otherwise, copy across plain coordinates (no need to transform coordinates)
+			 * - if it was an 'original', copy the appropriate data from nkey
+			 * - otherwise, copy across plain coordinates (no need to transform coordinates)
 			 */
 			if (key) {
 				for (KeyBlock *kb = key->block.first; kb; kb = kb->next) {
@@ -349,9 +349,9 @@ int join_mesh_exec(bContext *C, wmOperator *op)
 	}
 
 	/* - if destination mesh had shapekeys, move them somewhere safe, and set up placeholders
-	 *  with arrays that are large enough to hold shapekey data for all meshes
-	 * -	if destination mesh didn't have shapekeys, but we encountered some in the meshes we're
-	 *	joining, set up a new keyblock and assign to the mesh
+	 *   with arrays that are large enough to hold shapekey data for all meshes
+	 * - if destination mesh didn't have shapekeys, but we encountered some in the meshes we're
+	 *   joining, set up a new keyblock and assign to the mesh
 	 */
 	if (key) {
 		/* make a duplicate copy that will only be used here... (must remember to free it!) */

@@ -39,6 +39,10 @@
 #include "util/util_progress.h"
 #include "util/util_set.h"
 
+#ifdef WITH_EMBREE
+#  include "bvh/bvh_embree.h"
+#endif
+
 CCL_NAMESPACE_BEGIN
 
 /* Triangle */
@@ -1068,11 +1072,14 @@ void Mesh::compute_bvh(Device *device,
 			bparams.use_spatial_split = params->use_bvh_spatial_split;
 			bparams.bvh_layout = BVHParams::best_bvh_layout(
 			        params->bvh_layout,
-			        device->info.bvh_layout_mask);
+			        device->get_bvh_layout_mask());
 			bparams.use_unaligned_nodes = dscene->data.bvh.have_curves &&
 			                              params->use_bvh_unaligned_nodes;
 			bparams.num_motion_triangle_steps = params->num_bvh_time_steps;
 			bparams.num_motion_curve_steps = params->num_bvh_time_steps;
+			bparams.bvh_type = params->bvh_type;
+			bparams.curve_flags = dscene->data.curve.curveflags;
+			bparams.curve_subdivisions = dscene->data.curve.subdivisions;
 
 			delete bvh;
 			bvh = BVH::create(bparams, objects);
@@ -1284,9 +1291,9 @@ void MeshManager::update_osl_attributes(Device *device, Scene *scene, vector<Att
 		}
 	}
 #else
-	(void)device;
-	(void)scene;
-	(void)mesh_attributes;
+	(void) device;
+	(void) scene;
+	(void) mesh_attributes;
 #endif
 }
 
@@ -1855,20 +1862,38 @@ void MeshManager::device_update_bvh(Device *device, DeviceScene *dscene, Scene *
 	bparams.top_level = true;
 	bparams.bvh_layout = BVHParams::best_bvh_layout(
 	        scene->params.bvh_layout,
-	        device->info.bvh_layout_mask);
+	        device->get_bvh_layout_mask());
 	bparams.use_spatial_split = scene->params.use_bvh_spatial_split;
 	bparams.use_unaligned_nodes = dscene->data.bvh.have_curves &&
 	                              scene->params.use_bvh_unaligned_nodes;
 	bparams.num_motion_triangle_steps = scene->params.num_bvh_time_steps;
 	bparams.num_motion_curve_steps = scene->params.num_bvh_time_steps;
+	bparams.bvh_type = scene->params.bvh_type;
+	bparams.curve_flags = dscene->data.curve.curveflags;
+	bparams.curve_subdivisions = dscene->data.curve.subdivisions;
 
 	VLOG(1) << "Using " << bvh_layout_name(bparams.bvh_layout)
 	        << " layout.";
 
+#ifdef WITH_EMBREE
+	if(bparams.bvh_layout == BVH_LAYOUT_EMBREE) {
+		if(dscene->data.bvh.scene) {
+			BVHEmbree::destroy(dscene->data.bvh.scene);
+		}
+	}
+#endif
+
 	BVH *bvh = BVH::create(bparams, scene->objects);
-	bvh->build(progress);
+	bvh->build(progress, &device->stats);
 
 	if(progress.get_cancel()) {
+#ifdef WITH_EMBREE
+		if(bparams.bvh_layout == BVH_LAYOUT_EMBREE) {
+			if(dscene->data.bvh.scene) {
+				BVHEmbree::destroy(dscene->data.bvh.scene);
+			}
+		}
+#endif
 		delete bvh;
 		return;
 	}
@@ -1922,6 +1947,16 @@ void MeshManager::device_update_bvh(Device *device, DeviceScene *dscene, Scene *
 	dscene->data.bvh.root = pack.root_index;
 	dscene->data.bvh.bvh_layout = bparams.bvh_layout;
 	dscene->data.bvh.use_bvh_steps = (scene->params.num_bvh_time_steps != 0);
+
+
+#ifdef WITH_EMBREE
+	if(bparams.bvh_layout == BVH_LAYOUT_EMBREE) {
+		dscene->data.bvh.scene = ((BVHEmbree*)bvh)->scene;
+	}
+	else {
+		dscene->data.bvh.scene = NULL;
+	}
+#endif
 
 	delete bvh;
 }
@@ -2162,10 +2197,9 @@ void MeshManager::device_update(Device *device, DeviceScene *dscene, Scene *scen
 				num_bvh++;
 			}
 		}
-	}
 
-	/* TODO: properly handle cancel halfway displacement */
-	if(progress.get_cancel()) return;
+		if(progress.get_cancel()) return;
+	}
 
 	/* Device re-update after displacement. */
 	if(displacement_done) {
@@ -2267,7 +2301,7 @@ void MeshManager::device_free(Device *device, DeviceScene *dscene)
 		og->object_names.clear();
 	}
 #else
-	(void)device;
+	(void) device;
 #endif
 }
 

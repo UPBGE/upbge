@@ -1092,8 +1092,8 @@ static void image_open_cancel(bContext *UNUSED(C), wmOperator *op)
 
 /**
  * \brief Get a list of frames from the list of image files matching the first file name sequence pattern
- * \param ptr [in] the RNA pointer containing the "directory" entry and "files" collection
- * \param frames_all [out] the list of frame numbers found in the files matching the first one by name
+ * \param ptr: [in] the RNA pointer containing the "directory" entry and "files" collection
+ * \param frames_all: [out] the list of frame numbers found in the files matching the first one by name
  */
 static void image_sequence_get_frame_ranges(PointerRNA *ptr, ListBase *frames_all)
 {
@@ -1134,7 +1134,7 @@ static void image_sequence_get_frame_ranges(PointerRNA *ptr, ListBase *frames_al
 		BLI_addtail(&frame_range->frames, frame);
 		MEM_freeN(filename);
 	}
-	RNA_END
+	RNA_END;
 }
 
 static int image_cmp_frame(const void *a, const void *b)
@@ -1855,6 +1855,8 @@ static bool save_image_doit(bContext *C, SpaceImage *sima, wmOperator *op, SaveI
 		rr = BKE_image_acquire_renderresult(scene, ima);
 		bool is_mono = rr ? BLI_listbase_count_at_most(&rr->views, 2) < 2 : BLI_listbase_count_at_most(&ima->views, 2) < 2;
 		bool is_exr_rr = rr && ELEM(imf->imtype, R_IMF_IMTYPE_OPENEXR, R_IMF_IMTYPE_MULTILAYER) && RE_HasFloatPixels(rr);
+		bool is_multilayer = is_exr_rr && (imf->imtype == R_IMF_IMTYPE_MULTILAYER);
+		int layer = (is_multilayer) ? -1 : sima->iuser.layer;
 
 		/* error handling */
 		if (!rr) {
@@ -1886,14 +1888,14 @@ static bool save_image_doit(bContext *C, SpaceImage *sima, wmOperator *op, SaveI
 		/* fancy multiview OpenEXR */
 		if (imf->views_format == R_IMF_VIEWS_MULTIVIEW && is_exr_rr) {
 			/* save render result */
-			ok = RE_WriteRenderResult(op->reports, rr, simopts->filepath, imf, NULL, sima->iuser.layer);
+			ok = RE_WriteRenderResult(op->reports, rr, simopts->filepath, imf, NULL, layer);
 			save_image_post(bmain, op, ibuf, ima, ok, true, relbase, relative, do_newpath, simopts->filepath);
 			ED_space_image_release_buffer(sima, ibuf, lock);
 		}
 		/* regular mono pipeline */
 		else if (is_mono) {
 			if (is_exr_rr) {
-				ok = RE_WriteRenderResult(op->reports, rr, simopts->filepath, imf, NULL, -1);
+				ok = RE_WriteRenderResult(op->reports, rr, simopts->filepath, imf, NULL, layer);
 			}
 			else {
 				colormanaged_ibuf = IMB_colormanagement_imbuf_for_write(ibuf, save_as_render, true, &imf->view_settings, &imf->display_settings, imf);
@@ -1921,7 +1923,7 @@ static bool save_image_doit(bContext *C, SpaceImage *sima, wmOperator *op, SaveI
 
 				if (is_exr_rr) {
 					BKE_scene_multiview_view_filepath_get(&scene->r, simopts->filepath, view, filepath);
-					ok_view = RE_WriteRenderResult(op->reports, rr, filepath, imf, view, -1);
+					ok_view = RE_WriteRenderResult(op->reports, rr, filepath, imf, view, layer);
 					save_image_post(bmain, op, ibuf, ima, ok_view, true, relbase, relative, do_newpath, filepath);
 				}
 				else {
@@ -1956,7 +1958,7 @@ static bool save_image_doit(bContext *C, SpaceImage *sima, wmOperator *op, SaveI
 		/* stereo (multiview) images */
 		else if (simopts->im_format.views_format == R_IMF_VIEWS_STEREO_3D) {
 			if (imf->imtype == R_IMF_IMTYPE_MULTILAYER) {
-				ok = RE_WriteRenderResult(op->reports, rr, simopts->filepath, imf, NULL, -1);
+				ok = RE_WriteRenderResult(op->reports, rr, simopts->filepath, imf, NULL, layer);
 				save_image_post(bmain, op, ibuf, ima, ok, true, relbase, relative, do_newpath, simopts->filepath);
 				ED_space_image_release_buffer(sima, ibuf, lock);
 			}

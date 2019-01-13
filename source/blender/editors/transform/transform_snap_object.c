@@ -467,7 +467,7 @@ static bool raycastDerivedMesh(
 		}
 	}
 	/* You need to make sure that ray_start is really far away,
-	 * because even in the Orthografic view, in some cases,
+	 * because even in the orthographic view, in some cases,
 	 * the ray can start inside the object (see T50486) */
 	if (len_diff > 400.0f) {
 		/* We pass a temp ray_start, set from object's boundbox, to avoid precision issues with
@@ -2425,7 +2425,7 @@ bool ED_transform_snap_object_project_all_view3d_ex(
 {
 	float ray_start[3], ray_normal[3];
 
-	if (!ED_view3d_win_to_ray_ex(
+	if (!ED_view3d_win_to_ray_clipped_ex(
 	        sctx->v3d_data.ar, sctx->v3d_data.v3d,
 	        mval, NULL, ray_normal, ray_start, true))
 	{

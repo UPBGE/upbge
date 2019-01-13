@@ -57,7 +57,7 @@ if(WITH_ALEMBIC)
 	set(ALEMBIC_FOUND ON)
 endif()
 
-if(WITH_OPENSUBDIV OR WITH_CYCLES_OPENSUBDIV)
+if(WITH_OPENSUBDIV)
 	set(OPENSUBDIV ${LIBDIR}/opensubdiv)
 	set(OPENSUBDIV_LIBPATH ${OPENSUBDIV}/lib)
 	find_library(OSD_LIB_CPU NAMES osdCPU PATHS ${OPENSUBDIV_LIBPATH})
@@ -85,7 +85,7 @@ if(WITH_CODEC_SNDFILE)
 endif()
 
 if(WITH_PYTHON)
-	# we use precompiled libraries for py 3.5 and up by default
+	# we use precompiled libraries for py 3.7 and up by default
 	set(PYTHON_VERSION 3.7)
 	if(NOT WITH_PYTHON_MODULE AND NOT WITH_PYTHON_FRAMEWORK)
 		# normally cached but not since we include them with blender
@@ -142,13 +142,12 @@ if(WITH_IMAGE_OPENEXR)
 	set(OPENEXR ${LIBDIR}/openexr)
 	set(OPENEXR_INCLUDE_DIR ${OPENEXR}/include)
 	set(OPENEXR_INCLUDE_DIRS ${OPENEXR_INCLUDE_DIR} ${OPENEXR}/include/OpenEXR)
-	set(OPENEXR_POSTFIX -2_2)
 	set(OPENEXR_LIBRARIES
-		Iex${OPENEXR_POSTFIX}
+		Iex
 		Half
-		IlmImf${OPENEXR_POSTFIX}
-		Imath${OPENEXR_POSTFIX}
-		IlmThread${OPENEXR_POSTFIX})
+		IlmImf
+		Imath
+		IlmThread)
 	set(OPENEXR_LIBPATH ${OPENEXR}/lib)
 endif()
 
@@ -157,23 +156,18 @@ if(WITH_CODEC_FFMPEG)
 	set(FFMPEG_INCLUDE_DIRS ${FFMPEG}/include)
 	set(FFMPEG_LIBRARIES
 		avcodec avdevice avformat avutil
-		mp3lame swscale x264 xvidcore theora theoradec theoraenc vorbis vorbisenc vorbisfile ogg
-		)
-	      # commenting out until libs are updated on svn. schroedinger and orc
-	      # will be removed then
-	      #	set(FFMPEG_LIBRARIES ${FFMPEG_LIBRARIES} vpx webp swresample)
-	set(FFMPEG_LIBRARIES ${FFMPEG_LIBRARIES} schroedinger orc vpx webp swresample)
+		mp3lame swscale x264 xvidcore
+		theora theoradec theoraenc
+		vorbis vorbisenc vorbisfile ogg
+		vpx swresample)
 	set(FFMPEG_LIBPATH ${FFMPEG}/lib)
 endif()
 
 if(WITH_IMAGE_OPENJPEG OR WITH_CODEC_FFMPEG)
 	# use openjpeg from libdir that is linked into ffmpeg
 	set(OPENJPEG ${LIBDIR}/openjpeg)
-	set(WITH_SYSTEM_OPENJPEG ON)
 	set(OPENJPEG_INCLUDE_DIRS ${OPENJPEG}/include)
-	# same as with ffmpeg libs, update when svn are updated
-	#set(OPENJPEG_LIBRARIES ${OPENJPEG}/lib/libopenjp2.a)
-	set(OPENJPEG_LIBRARIES ${OPENJPEG}/lib/libopenjpeg.a)
+	set(OPENJPEG_LIBRARIES ${OPENJPEG}/lib/libopenjp2.a)
 endif()
 
 find_library(SYSTEMSTUBS_LIBRARY
@@ -221,17 +215,14 @@ if(WITH_OPENCOLLADA)
 		-lOpenCOLLADAStreamWriter
 		-lMathMLSolver
 		-lGeneratedSaxParser
-		-lxml2 -lbuffer -lftoa
+		-lbuffer -lftoa -lUTF
+		${OPENCOLLADA_LIBPATH}/libxml2.a
 	)
-	# Use UTF functions from collada if LLVM is not enabled
-	if(NOT WITH_LLVM)
-		list(APPEND OPENCOLLADA_LIBRARIES -lUTF)
-	endif()
-	# pcre is bundled with openCollada
+	# PCRE is bundled with openCollada
 	#set(PCRE ${LIBDIR}/pcre)
 	#set(PCRE_LIBPATH ${PCRE}/lib)
 	set(PCRE_LIBRARIES pcre)
-	#libxml2 is used
+	# libxml2 is used
 	#set(EXPAT ${LIBDIR}/expat)
 	#set(EXPAT_LIBPATH ${EXPAT}/lib)
 	set(EXPAT_LIB)
@@ -301,7 +292,6 @@ if(WITH_OPENIMAGEIO)
 		${OPENJPEG_LIBRARIES}
 		${ZLIB_LIBRARIES}
 	)
-	set(OPENIMAGEIO_LIBRARIES ${OPENIMAGEIO_LIBRARIES} ${LIBDIR}/ffmpeg/lib/libwebp.a)
 	set(OPENIMAGEIO_LIBPATH
 		${OPENIMAGEIO}/lib
 		${JPEG_LIBPATH}
@@ -393,6 +383,11 @@ if(WITH_CYCLES_OSL)
 	endif()
 endif()
 
+if(WITH_CYCLES_EMBREE)
+	find_package(Embree 3.2.4 REQUIRED)
+	set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -Xlinker -stack_size -Xlinker 0x100000")
+endif()
+
 if(WITH_OPENMP)
 	execute_process(COMMAND ${CMAKE_C_COMPILER} --version OUTPUT_VARIABLE COMPILER_VENDOR)
 	string(SUBSTRING "${COMPILER_VENDOR}" 0 5 VENDOR_NAME) # truncate output
@@ -423,7 +418,7 @@ if(${XCODE_VERSION} VERSION_EQUAL 5 OR ${XCODE_VERSION} VERSION_GREATER 5)
 	# Xcode 5 is always using CLANG, which has too low template depth of 128 for libmv
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ftemplate-depth=1024")
 endif()
-# Get rid of eventually clashes, we export some symbols explicite as local
+# Get rid of eventually clashes, we export some symbols explicitly as local
 set(PLATFORM_LINKFLAGS
 	"${PLATFORM_LINKFLAGS} -Xlinker -unexported_symbols_list -Xlinker '${CMAKE_SOURCE_DIR}/source/creator/osx_locals.map'"
 )

@@ -75,11 +75,13 @@ void BPY_thread_restore(BPy_ThreadStatePtr tstate);
 
 bool	BPY_execute_filepath(struct bContext *C, const char *filepath, struct ReportList *reports);
 bool	BPY_execute_text(struct bContext *C, struct Text *text, struct ReportList *reports, const bool do_jump);
-bool	BPY_execute_string_as_number(struct bContext *C, const char *expr, const bool verbose, double *r_value);
-bool	BPY_execute_string_as_intptr(struct bContext *C, const char *expr, const bool verbose, intptr_t *r_value);
-bool	BPY_execute_string_as_string(struct bContext *C, const char *expr, const bool verbose, char **r_value);
-bool	BPY_execute_string_ex(struct bContext *C, const char *expr, bool use_eval);
-bool	BPY_execute_string(struct bContext *C, const char *expr);
+
+bool	BPY_execute_string_as_number(struct bContext *C, const char *imports[], const char *expr, const bool verbose, double *r_value);
+bool	BPY_execute_string_as_intptr(struct bContext *C, const char *imports[], const char *expr, const bool verbose, intptr_t *r_value);
+bool	BPY_execute_string_as_string(struct bContext *C, const char *imports[], const char *expr, const bool verbose, char **r_value);
+
+bool	BPY_execute_string_ex(struct bContext *C, const char *imports[], const char *expr, bool use_eval);
+bool	BPY_execute_string(struct bContext *C, const char *imports[], const char *expr);
 
 void	BPY_text_free_code(struct Text *text);
 void	BPY_modules_update(struct bContext *C); // XXX - annoying, need this for pointers that get out of date

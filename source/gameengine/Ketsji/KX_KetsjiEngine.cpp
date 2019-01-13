@@ -148,7 +148,7 @@ KX_KetsjiEngine::KX_KetsjiEngine()
 }
 
 /**
- *	Destructor of the Ketsji Engine, release all memory
+ * Destructor of the Ketsji Engine, release all memory
  */
 KX_KetsjiEngine::~KX_KetsjiEngine()
 {

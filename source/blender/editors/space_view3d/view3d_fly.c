@@ -28,7 +28,7 @@
 
 #ifdef WITH_INPUT_NDOF
 //#  define NDOF_FLY_DEBUG
-//#  define NDOF_FLY_DRAW_TOOMUCH  /* is this needed for ndof? - commented so redraw doesnt thrash - campbell */
+//#  define NDOF_FLY_DRAW_TOOMUCH  /* is this needed for ndof? - commented so redraw doesn't thrash - campbell */
 #endif /* WITH_INPUT_NDOF */
 
 #include "DNA_object_types.h"
@@ -150,7 +150,7 @@ void fly_modal_keymap(wmKeyConfig *keyconf)
 	WM_modalkeymap_add_item(keymap, MOUSEPAN, 0, 0, 0, FLY_MODAL_SPEED);
 
 	WM_modalkeymap_add_item(keymap, MIDDLEMOUSE, KM_PRESS, KM_ANY, 0, FLY_MODAL_PAN_ENABLE);
-	/* XXX - Bug in the event system, middle mouse release doesnt work */
+	/* XXX - Bug in the event system, middle mouse release doesn't work */
 	WM_modalkeymap_add_item(keymap, MIDDLEMOUSE, KM_RELEASE, KM_ANY, 0, FLY_MODAL_PAN_DISABLE);
 
 	/* WASD */
@@ -240,7 +240,7 @@ static void drawFlyPixel(const struct bContext *UNUSED(C), ARegion *UNUSED(ar), 
 	int xoff, yoff;
 	float x1, x2, y1, y2;
 
-	if (fly->scene->camera) {
+	if (ED_view3d_cameracontrol_object_get(fly->v3d_camera_control)) {
 		ED_view3d_calc_camera_border(fly->scene, fly->ar, fly->v3d, fly->rv3d, &viewborder, false);
 		xoff = viewborder.xmin;
 		yoff = viewborder.ymin;
@@ -411,7 +411,7 @@ static bool initFlyInfo(bContext *C, FlyInfo *fly, wmOperator *op, const wmEvent
 	        (U.uiflag & USER_CAM_LOCK_NO_PARENT) == 0);
 
 	/* calculate center */
-	if (fly->scene->camera) {
+	if (ED_view3d_cameracontrol_object_get(fly->v3d_camera_control)) {
 		ED_view3d_calc_camera_border(fly->scene, fly->ar, fly->v3d, fly->rv3d, &viewborder, false);
 
 		fly->width = BLI_rctf_size_x(&viewborder);
@@ -730,7 +730,7 @@ static int flyApply(bContext *C, FlyInfo *fly)
 	RegionView3D *rv3d = fly->rv3d;
 
 	float mat[3][3]; /* 3x3 copy of the view matrix so we can move along the view axis */
-	float dvec[3] = {0, 0, 0}; /* this is the direction thast added to the view offset per redraw */
+	float dvec[3] = {0, 0, 0}; /* this is the direction that's added to the view offset per redraw */
 
 	/* Camera Uprighting variables */
 	float moffset[2]; /* mouse offset from the views center */

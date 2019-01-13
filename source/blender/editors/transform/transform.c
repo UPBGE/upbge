@@ -782,7 +782,7 @@ enum {
 	TFM_MODAL_ADD_SNAP       = 16,
 	TFM_MODAL_REMOVE_SNAP    = 17,
 
-/*	18 and 19 used by numinput, defined in transform.h */
+/* 18 and 19 used by numinput, defined in transform.h */
 
 	TFM_MODAL_PROPSIZE_UP    = 20,
 	TFM_MODAL_PROPSIZE_DOWN  = 21,
@@ -1852,7 +1852,7 @@ static void drawTransformPixel(const struct bContext *UNUSED(C), ARegion *ar, vo
 
 	/* draw autokeyframing hint in the corner
 	 * - only draw if enabled (advanced users may be distracted/annoyed),
-	 *   for objects that will be autokeyframed (no point ohterwise),
+	 *   for objects that will be autokeyframed (no point otherwise),
 	 *   AND only for the active region (as showing all is too overwhelming)
 	 */
 	if ((U.autokey_flag & AUTOKEY_FLAG_NOWARNING) == 0) {
@@ -2561,8 +2561,8 @@ static void constraintTransLim(TransInfo *t, TransData *td)
 		float ctime = (float)(t->scene->r.cfra);
 
 		/* Make a temporary bConstraintOb for using these limit constraints
-		 *  - they only care that cob->matrix is correctly set ;-)
-		 *	- current space should be local
+		 * - they only care that cob->matrix is correctly set ;-)
+		 * - current space should be local
 		 */
 		unit_m4(cob.matrix);
 		copy_v3_v3(cob.matrix[3], td->loc);
@@ -2599,7 +2599,7 @@ static void constraintTransLim(TransInfo *t, TransData *td)
 					mul_m4_m3m4(cob.matrix, td->mtx, cob.matrix);
 				}
 				else if (con->ownspace != CONSTRAINT_SPACE_LOCAL) {
-					/* skip... incompatable spacetype */
+					/* skip... incompatible spacetype */
 					continue;
 				}
 
@@ -2628,8 +2628,8 @@ static void constraintTransLim(TransInfo *t, TransData *td)
 static void constraintob_from_transdata(bConstraintOb *cob, TransData *td)
 {
 	/* Make a temporary bConstraintOb for use by limit constraints
-	 *  - they only care that cob->matrix is correctly set ;-)
-	 *	- current space should be local
+	 * - they only care that cob->matrix is correctly set ;-)
+	 * - current space should be local
 	 */
 	memset(cob, 0, sizeof(bConstraintOb));
 	if (td->ext) {
@@ -2675,7 +2675,7 @@ static void constraintRotLim(TransInfo *UNUSED(t), TransData *td)
 				if ((data->flag2 & LIMIT_TRANSFORM) == 0)
 					continue;
 
-				/* skip incompatable spacetypes */
+				/* skip incompatible spacetypes */
 				if (!ELEM(con->ownspace, CONSTRAINT_SPACE_WORLD, CONSTRAINT_SPACE_LOCAL))
 					continue;
 
@@ -2730,8 +2730,8 @@ static void constraintSizeLim(TransInfo *t, TransData *td)
 		int i;
 
 		/* Make a temporary bConstraintOb for using these limit constraints
-		 *  - they only care that cob->matrix is correctly set ;-)
-		 *	- current space should be local
+		 * - they only care that cob->matrix is correctly set ;-)
+		 * - current space should be local
 		 */
 		if ((td->flag & TD_SINGLESIZE) && !(t->con.mode & CON_APPLY)) {
 			/* scale val and reset size */
@@ -5550,7 +5550,7 @@ static void slide_origdata_interp_data_vert(
 		BM_loop_interp_from_face(bm, l, f_copy, false, false);
 
 		/* make sure face-attributes are correct (e.g. MTexPoly) */
-		BM_elem_attrs_copy(sod->bm_origfaces, bm, f_copy, l->f);
+		BM_elem_attrs_copy_ex(sod->bm_origfaces, bm, f_copy, l->f, 0x0, CD_MASK_NORMAL);
 
 		/* weight the loop */
 		if (do_loop_weight) {
@@ -5618,7 +5618,7 @@ static void slide_origdata_interp_data_vert(
 		BMLoop *l;
 
 		BM_ITER_ELEM_INDEX (l, &liter, sv->v, BM_LOOPS_OF_VERT, j) {
-			BM_face_calc_center_mean(l->f, faces_center[j]);
+			BM_face_calc_center_median(l->f, faces_center[j]);
 		}
 
 		BM_ITER_ELEM_INDEX (l, &liter, sv->v, BM_LOOPS_OF_VERT, j) {
@@ -5628,7 +5628,7 @@ static void slide_origdata_interp_data_vert(
 			BMLoop *l_other;
 			int j_other;
 
-			BM_face_calc_center_mean(f_copy, f_copy_center);
+			BM_face_calc_center_median(f_copy, f_copy_center);
 
 			BM_ITER_ELEM_INDEX (l_other, &liter_other, sv->v, BM_LOOPS_OF_VERT, j_other) {
 				BM_face_interp_multires_ex(
@@ -5713,7 +5713,7 @@ static void calcEdgeSlideCustomPoints(struct TransInfo *t)
 	setCustomPoints(t, &t->mouse, sld->mval_end, sld->mval_start);
 
 	/* setCustomPoints isn't normally changing as the mouse moves,
-	 * in this case apply mouse input immediatly so we don't refresh
+	 * in this case apply mouse input immediately so we don't refresh
 	 * with the value from the previous points */
 	applyMouseInput(t, &t->mouse, t->mval, t->values);
 }
@@ -5806,7 +5806,7 @@ static bool bm_loop_calc_opposite_co(BMLoop *l_tmp,
  * Given 2 edges and a loop, step over the loops
  * and calculate a direction to slide along.
  *
- * \param r_slide_vec the direction to slide,
+ * \param r_slide_vec: the direction to slide,
  * the length of the vector defines the slide distance.
  */
 static BMLoop *get_next_loop(BMVert *v, BMLoop *l,
@@ -7081,7 +7081,7 @@ static void calcVertSlideCustomPoints(struct TransInfo *t)
 	}
 
 	/* setCustomPoints isn't normally changing as the mouse moves,
-	 * in this case apply mouse input immediatly so we don't refresh
+	 * in this case apply mouse input immediately so we don't refresh
 	 * with the value from the previous points */
 	applyMouseInput(t, &t->mouse, t->mval, t->values);
 }
@@ -8056,7 +8056,7 @@ static short getAnimEdit_SnapMode(TransInfo *t)
 	}
 
 	/* toggle autosnap on/off
-	 *  - when toggling on, prefer nearest frame over 1.0 frame increments
+	 * - when toggling on, prefer nearest frame over 1.0 frame increments
 	 */
 	if (t->modifiers & MOD_SNAP_INVERT) {
 		if (autosnap)

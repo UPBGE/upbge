@@ -26,6 +26,10 @@
 #include "bvh/bvh_build.h"
 #include "bvh/bvh_node.h"
 
+#ifdef WITH_EMBREE
+#include "bvh/bvh_embree.h"
+#endif
+
 #include "util/util_foreach.h"
 #include "util/util_logging.h"
 #include "util/util_progress.h"
@@ -41,6 +45,7 @@ const char *bvh_layout_name(BVHLayout layout)
 		case BVH_LAYOUT_BVH4: return "BVH4";
 		case BVH_LAYOUT_BVH8: return "BVH8";
 		case BVH_LAYOUT_NONE: return "NONE";
+		case BVH_LAYOUT_EMBREE: return "EMBREE";
 		case BVH_LAYOUT_ALL:  return "ALL";
 	}
 	LOG(DFATAL) << "Unsupported BVH layout was passed.";
@@ -96,6 +101,10 @@ BVH *BVH::create(const BVHParams& params, const vector<Object*>& objects)
 			return new BVH4(params, objects);
 		case BVH_LAYOUT_BVH8:
 			return new BVH8(params, objects);
+		case BVH_LAYOUT_EMBREE:
+#ifdef WITH_EMBREE
+			return new BVHEmbree(params, objects);
+#endif
 		case BVH_LAYOUT_NONE:
 		case BVH_LAYOUT_ALL:
 			break;
@@ -106,7 +115,7 @@ BVH *BVH::create(const BVHParams& params, const vector<Object*>& objects)
 
 /* Building */
 
-void BVH::build(Progress& progress)
+void BVH::build(Progress& progress, Stats*)
 {
 	progress.set_substatus("Building BVH");
 
@@ -118,10 +127,26 @@ void BVH::build(Progress& progress)
 	                   pack.prim_time,
 	                   params,
 	                   progress);
-	BVHNode *root = bvh_build.run();
+	BVHNode *bvh2_root = bvh_build.run();
 
 	if(progress.get_cancel()) {
-		if(root) root->deleteSubtree();
+		if(bvh2_root != NULL) {
+			bvh2_root->deleteSubtree();
+		}
+		return;
+	}
+
+	/* BVH builder returns tree in a binary mode (with two children per inner
+	 * node. Need to adopt that for a wider BVH implementations. */
+	BVHNode *root = widen_children_nodes(bvh2_root);
+	if(root != bvh2_root) {
+		bvh2_root->deleteSubtree();
+	}
+
+	if(progress.get_cancel()) {
+		if(root != NULL) {
+			root->deleteSubtree();
+		}
 		return;
 	}
 
@@ -220,37 +245,6 @@ void BVH::refit_primitives(int start, int end, BoundBox& bbox, uint& visibility)
 		}
 		visibility |= ob->visibility_for_tracing();
 
-	}
-}
-
-bool BVH::leaf_check(const BVHNode *node, BVH_TYPE bvh)
-{
-	if(node->is_leaf()) {
-		return node->is_unaligned;
-	}
-	else {
-		return node_is_unaligned(node, bvh);
-	}
-}
-
-bool BVH::node_is_unaligned(const BVHNode *node, BVH_TYPE bvh)
-{
-	const BVHNode *node0 = node->get_child(0);
-	const BVHNode *node1 = node->get_child(1);
-
-	switch(bvh) {
-		case bvh2:
-			return node0->is_unaligned || node1->is_unaligned;
-			break;
-		case bvh4:
-			return leaf_check(node0, bvh2) || leaf_check(node1, bvh2);
-			break;
-		case bvh8:
-			return leaf_check(node0, bvh4) || leaf_check(node1, bvh4);
-			break;
-		default:
-			assert(0);
-			return false;
 	}
 }
 

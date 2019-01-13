@@ -966,9 +966,9 @@ void eulO_to_axis_angle(float axis[3], float *angle, const float eul[3], const s
  *
  * This takes the angle with sin/cos applied so we can avoid calculating it in some cases.
  *
- * \param axis rotation axis (must be normalized).
- * \param angle_sin sin(angle)
- * \param angle_cos cos(angle)
+ * \param axis: rotation axis (must be normalized).
+ * \param angle_sin: sin(angle)
+ * \param angle_cos: cos(angle)
  */
 void axis_angle_normalized_to_mat3_ex(float mat[3][3], const float axis[3],
                                       const float angle_sin, const float angle_cos)
@@ -1477,7 +1477,7 @@ static const RotOrderInfo rotOrders[] = {
 
 /* Get relevant pointer to rotation order set from the array
  * NOTE: since we start at 1 for the values, but arrays index from 0,
- *		 there is -1 factor involved in this process...
+ *       there is -1 factor involved in this process...
  */
 static const RotOrderInfo *get_rotation_order_info(const short order)
 {

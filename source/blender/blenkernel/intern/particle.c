@@ -408,8 +408,8 @@ void BKE_particlesettings_free(ParticleSettings *part)
 	if (part->twistcurve)
 		curvemapping_free(part->twistcurve);
 
-	free_partdeflect(part->pd);
-	free_partdeflect(part->pd2);
+	BKE_partdeflect_free(part->pd);
+	BKE_partdeflect_free(part->pd2);
 
 	MEM_SAFE_FREE(part->effector_weights);
 
@@ -1433,11 +1433,11 @@ static void psys_origspace_to_w(OrigSpaceFace *osface, int quad, const float w[4
  * Find the final derived mesh tessface for a particle, from its original tessface index.
  * This is slow and can be optimized but only for many lookups.
  *
- * \param dm_final final DM, it may not have the same topology as original mesh.
- * \param dm_deformed deformed-only DM, it has the exact same topology as original mesh.
- * \param findex_orig the input tessface index.
- * \param fw face weights (position of the particle inside the \a findex_orig tessface).
- * \param poly_nodes may be NULL, otherwise an array of linked list, one for each final DM polygon, containing all
+ * \param dm_final: final DM, it may not have the same topology as original mesh.
+ * \param dm_deformed: deformed-only DM, it has the exact same topology as original mesh.
+ * \param findex_orig: the input tessface index.
+ * \param fw: face weights (position of the particle inside the \a findex_orig tessface).
+ * \param poly_nodes: may be NULL, otherwise an array of linked list, one for each final DM polygon, containing all
  *                   its tessfaces indices.
  * \return the DM tessface index.
  */
@@ -1507,7 +1507,7 @@ int psys_particle_dm_face_lookup(
 		LinkNode *tessface_node = poly_nodes[pindex_orig];
 
 		for (; tessface_node; tessface_node = tessface_node->next) {
-			int findex_dst = GET_INT_FROM_POINTER(tessface_node->link);
+			int findex_dst = POINTER_AS_INT(tessface_node->link);
 			faceuv = osface_final[findex_dst].uv;
 
 			/* check that this intersects - Its possible this misses :/ -
@@ -2309,12 +2309,12 @@ static void psys_thread_create_path(ParticleTask *task, struct ChildParticle *cp
 
 		/*
 		 * NOTE: Should in theory be the same as:
-		 cpa_num = psys_particle_dm_face_lookup(
-		        ctx->sim.psmd->dm_final,
-		        ctx->sim.psmd->dm_deformed,
-		        pa->num, pa->fuv,
-		        NULL);
-		*/
+		 * cpa_num = psys_particle_dm_face_lookup(
+		 *        ctx->sim.psmd->dm_final,
+		 *        ctx->sim.psmd->dm_deformed,
+		 *        pa->num, pa->fuv,
+		 *        NULL);
+		 */
 		cpa_num = (ELEM(pa->num_dmcache, DMCACHE_ISCHILD, DMCACHE_NOTFOUND))
 		        ? pa->num
 		        : pa->num_dmcache;
@@ -3314,7 +3314,7 @@ static void default_particle_settings(ParticleSettings *part)
 	part->simplify_viewport = 0.8;
 
 	if (!part->effector_weights)
-		part->effector_weights = BKE_add_effector_weights(NULL);
+		part->effector_weights = BKE_effector_add_weights(NULL);
 
 	part->omat = 1;
 	part->use_modifier_stack = false;
@@ -3374,7 +3374,7 @@ void BKE_particlesettings_twist_curve_init(ParticleSettings *part)
  *
  * WARNING! This function will not handle ID user count!
  *
- * \param flag  Copying options (see BKE_library.h's LIB_ID_COPY_... flags for more).
+ * \param flag: Copying options (see BKE_library.h's LIB_ID_COPY_... flags for more).
  */
 void BKE_particlesettings_copy_data(
         Main *UNUSED(bmain), ParticleSettings *part_dst, const ParticleSettings *part_src, const int UNUSED(flag))

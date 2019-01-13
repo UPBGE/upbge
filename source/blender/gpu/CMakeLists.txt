@@ -63,36 +63,6 @@ set(SRC
 	intern/gpu_texture.c
 	intern/gpu_vertex_array.c
 
-	shaders/gpu_shader_2d_box_vert.glsl
-	shaders/gpu_shader_flat_color_frag.glsl
-	shaders/gpu_shader_flat_color_vert.glsl
-	shaders/gpu_shader_fx_lib.glsl
-	shaders/gpu_shader_fx_ssao_frag.glsl
-	shaders/gpu_shader_fx_dof_frag.glsl
-	shaders/gpu_shader_fx_dof_vert.glsl
-	shaders/gpu_shader_fx_dof_hq_frag.glsl
-	shaders/gpu_shader_fx_dof_hq_vert.glsl
-	shaders/gpu_shader_fx_dof_hq_geo.glsl
-	shaders/gpu_shader_fx_vert.glsl
-	shaders/gpu_shader_material.glsl
-	shaders/gpu_shader_sep_gaussian_blur_frag.glsl
-	shaders/gpu_shader_sep_gaussian_blur_vert.glsl
-	shaders/gpu_shader_basic_frag.glsl
-	shaders/gpu_shader_black_frag.glsl
-	shaders/gpu_shader_black_vert.glsl
-	shaders/gpu_shader_basic_vert.glsl
-	shaders/gpu_shader_basic_geom.glsl
-	shaders/gpu_shader_vertex.glsl
-	shaders/gpu_shader_vsm_store_frag.glsl
-	shaders/gpu_shader_vsm_store_vert.glsl
-	shaders/gpu_shader_fx_depth_resolve.glsl
-	shaders/gpu_shader_fire_frag.glsl
-	shaders/gpu_shader_frustum_line_vert.glsl
-	shaders/gpu_shader_frustum_solid_frag.glsl
-	shaders/gpu_shader_frustum_solid_vert.glsl
-	shaders/gpu_shader_smoke_frag.glsl
-	shaders/gpu_shader_smoke_vert.glsl
-
 	GPU_basic_shader.h
 	GPU_buffers.h
 	GPU_compositing.h

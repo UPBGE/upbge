@@ -49,8 +49,8 @@
 /**
  * Variable to control debug output of makesrna.
  * debugSRNA:
- *  - 0 = no output, except errors
- *  - 1 = detail actions
+ * - 0 = no output, except errors
+ * - 1 = detail actions
  */
 static int debugSRNA = 0;
 
@@ -4014,7 +4014,10 @@ static void rna_generate_header_cpp(BlenderRNA *UNUSED(brna), FILE *f)
 static void make_bad_file(const char *file, int line)
 {
 	FILE *fp = fopen(file, "w");
-	fprintf(fp, "#error \"Error! can't make correct RNA file from %s:%d, STUPID!\"\n", __FILE__, line);
+	fprintf(fp,
+	       "#error \"Error! can't make correct RNA file from %s:%d, "
+	       "check DNA properties.\"\n",
+	       __FILE__, line);
 	fclose(fp);
 }
 

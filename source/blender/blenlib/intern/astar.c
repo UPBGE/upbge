@@ -62,7 +62,7 @@
 /**
  * Init a node in A* graph.
  *
- * \param custom_data an opaque pointer attached to this link, available e.g. to cost callback function.
+ * \param custom_data: an opaque pointer attached to this link, available e.g. to cost callback function.
  */
 void BLI_astar_node_init(BLI_AStarGraph *as_graph, const int node_index, void *custom_data)
 {
@@ -72,8 +72,8 @@ void BLI_astar_node_init(BLI_AStarGraph *as_graph, const int node_index, void *c
 /**
  * Add a link between two nodes of our A* graph.
  *
- * \param cost the 'length' of the link (actual distance between two vertices or face centers e.g.).
- * \param custom_data an opaque pointer attached to this link, available e.g. to cost callback function.
+ * \param cost: the 'length' of the link (actual distance between two vertices or face centers e.g.).
+ * \param custom_data: an opaque pointer attached to this link, available e.g. to cost callback function.
  */
 void BLI_astar_node_link_add(
         BLI_AStarGraph *as_graph, const int node1_index, const int node2_index, const float cost, void *custom_data)
@@ -104,7 +104,7 @@ int BLI_astar_node_link_other_node(BLI_AStarGNLink *lnk, const int idx)
 /**
  * Initialize a solution data for given A* graph. Does not compute anything!
  *
- * \param custom_data an opaque pointer attached to this link, available e.g. to cost callback function.
+ * \param custom_data: an opaque pointer attached to this link, available e.g. to cost callback function.
  *
  * \note BLI_AStarSolution stores nearly all data needed during solution compute.
  */
@@ -169,7 +169,7 @@ void BLI_astar_solution_free(BLI_AStarSolution *as_solution)
  *
  * Nodes might be e.g. vertices, faces, ...
  *
- * \param custom_data an opaque pointer attached to this link, available e.g. to cost callback function.
+ * \param custom_data: an opaque pointer attached to this link, available e.g. to cost callback function.
  */
 void BLI_astar_graph_init(BLI_AStarGraph *as_graph, const int node_num, void *custom_data)
 {
@@ -198,7 +198,7 @@ void BLI_astar_graph_free(BLI_AStarGraph *as_graph)
 /**
  * Solve a path in given graph, using given 'cost' callback function.
  *
- * \param max_steps maximum number of nodes the found path may have. Useful in performance-critical usages.
+ * \param max_steps: maximum number of nodes the found path may have. Useful in performance-critical usages.
  *                  If no path is found within given steps, returns false too.
  * \return true if a path was found, false otherwise.
  */
@@ -228,10 +228,10 @@ bool BLI_astar_graph_solve(
 	todo_nodes = BLI_heap_new();
 	BLI_heap_insert(todo_nodes,
 	                f_cost_cb(as_graph, r_solution, NULL, -1, node_index_src, node_index_dst),
-	                SET_INT_IN_POINTER(node_index_src));
+	                POINTER_FROM_INT(node_index_src));
 
 	while (!BLI_heap_is_empty(todo_nodes)) {
-		const int node_curr_idx = GET_INT_FROM_POINTER(BLI_heap_pop_min(todo_nodes));
+		const int node_curr_idx = POINTER_AS_INT(BLI_heap_pop_min(todo_nodes));
 		BLI_AStarGNode *node_curr = &as_graph->nodes[node_curr_idx];
 		LinkData *ld;
 
@@ -271,7 +271,7 @@ bool BLI_astar_graph_solve(
 					 * no problem. */
 					BLI_heap_insert(todo_nodes,
 					                f_cost_cb(as_graph, r_solution, link, node_curr_idx, node_next_idx, node_index_dst),
-					                SET_INT_IN_POINTER(node_next_idx));
+					                POINTER_FROM_INT(node_next_idx));
 				}
 			}
 		}

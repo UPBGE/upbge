@@ -60,6 +60,8 @@
 #include "BKE_mesh.h"
 #include "BKE_subsurf.h"
 #include "BKE_undo_system.h"
+#include "BKE_global.h"
+#include "BKE_main.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -138,8 +140,8 @@ static bool sculpt_undo_restore_deformed(
 static bool sculpt_undo_restore_coords(bContext *C, DerivedMesh *dm, SculptUndoNode *unode)
 {
 	Scene *scene = CTX_data_scene(C);
-	Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
-	Object *ob = CTX_data_active_object(C);
+	Object *ob = OBACT;
+	Sculpt *sd = scene->toolsettings->sculpt;
 	SculptSession *ss = ob->sculpt;
 	MVert *mvert;
 	int *index;
@@ -254,7 +256,8 @@ static bool sculpt_undo_restore_hidden(
         bContext *C, DerivedMesh *dm,
         SculptUndoNode *unode)
 {
-	Object *ob = CTX_data_active_object(C);
+	Scene *scene = CTX_data_scene(C);
+	Object *ob = OBACT;
 	SculptSession *ss = ob->sculpt;
 	int i;
 
@@ -286,7 +289,8 @@ static bool sculpt_undo_restore_hidden(
 
 static bool sculpt_undo_restore_mask(bContext *C, DerivedMesh *dm, SculptUndoNode *unode)
 {
-	Object *ob = CTX_data_active_object(C);
+	Scene *scene = CTX_data_scene(C);
+	Object *ob = OBACT;
 	SculptSession *ss = ob->sculpt;
 	MVert *mvert;
 	float *vmask;
@@ -471,7 +475,7 @@ static void sculpt_undo_restore_list(bContext *C, ListBase *lb)
 {
 	Scene *scene = CTX_data_scene(C);
 	Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
-	Object *ob = CTX_data_active_object(C);
+	Object *ob = OBACT;
 	DerivedMesh *dm;
 	SculptSession *ss = ob->sculpt;
 	SculptUndoNode *unode;
@@ -589,10 +593,9 @@ static void sculpt_undo_restore_list(bContext *C, ListBase *lb)
 
 static void sculpt_undo_free_list(ListBase *lb)
 {
-	SculptUndoNode *unode;
-	int i;
-
-	for (unode = lb->first; unode; unode = unode->next) {
+	SculptUndoNode *unode = lb->first;
+	while (unode != NULL) {
+		SculptUndoNode *unode_next = unode->next;
 		if (unode->co)
 			MEM_freeN(unode->co);
 		if (unode->no)
@@ -606,7 +609,7 @@ static void sculpt_undo_free_list(ListBase *lb)
 		if (unode->vert_hidden)
 			MEM_freeN(unode->vert_hidden);
 		if (unode->grid_hidden) {
-			for (i = 0; i < unode->totgrid; i++) {
+			for (int i = 0; i < unode->totgrid; i++) {
 				if (unode->grid_hidden[i])
 					MEM_freeN(unode->grid_hidden[i]);
 			}
@@ -627,6 +630,10 @@ static void sculpt_undo_free_list(ListBase *lb)
 			CustomData_free(&unode->bm_enter_ldata, unode->bm_enter_totloop);
 		if (unode->bm_enter_totpoly)
 			CustomData_free(&unode->bm_enter_pdata, unode->bm_enter_totpoly);
+
+		MEM_freeN(unode);
+
+		unode = unode_next;
 	}
 }
 
@@ -634,7 +641,8 @@ static void sculpt_undo_free_list(ListBase *lb)
 #if 0
 static bool sculpt_undo_cleanup(bContext *C, ListBase *lb)
 {
-	Object *ob = CTX_data_active_object(C);
+	Scene *scene = CTX_data_scene(C);
+	Object *ob = OBACT;
 	SculptUndoNode *unode;
 
 	unode = lb->first;
@@ -994,8 +1002,12 @@ void sculpt_undo_push_end(void)
 			BKE_pbvh_node_layer_disp_free(unode->node);
 	}
 
-	UndoStack *ustack = ED_undo_stack_get();
-	BKE_undosys_step_push(ustack, NULL, NULL);
+	/* We could remove this and enforce all callers run in an operator using 'OPTYPE_UNDO'. */
+	wmWindowManager *wm = G_MAIN->wm.first;
+	if (wm->op_undo_depth == 0) {
+		UndoStack *ustack = ED_undo_stack_get();
+		BKE_undosys_step_push(ustack, NULL, NULL);
+	}
 }
 
 /* -------------------------------------------------------------------- */
@@ -1012,7 +1024,8 @@ static bool sculpt_undosys_poll(bContext *C)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	if (sa && (sa->spacetype == SPACE_VIEW3D)) {
-		Object *obact = CTX_data_active_object(C);
+		Scene *scene = CTX_data_scene(C);
+		Object *obact = OBACT;
 		if (obact && (obact->mode & OB_MODE_SCULPT)) {
 			return true;
 		}

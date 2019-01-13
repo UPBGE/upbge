@@ -1605,7 +1605,7 @@ static int gp_snap_cursor_to_sel(bContext *C, wmOperator *UNUSED(op))
 		}
 	}
 
-	if (v3d->around == V3D_AROUND_CENTER_MEAN && count) {
+	if (v3d->around == V3D_AROUND_CENTER_MEDIAN && count) {
 		mul_v3_fl(centroid, 1.0f / (float)count);
 		copy_v3_v3(cursor, centroid);
 	}
@@ -2091,8 +2091,8 @@ typedef enum eGP_ReprojectModes {
 static bool gp_strokes_reproject_poll(bContext *C)
 {
 	/* 2 Requirements:
-	 *  - 1) Editable GP data
-	 *  - 2) 3D View only (2D editors don't have projection issues)
+	 * - 1) Editable GP data
+	 * - 2) 3D View only (2D editors don't have projection issues)
 	 */
 	return (gp_stroke_edit_poll(C) && ED_operator_view3d_active(C));
 }

@@ -16,7 +16,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * Contributor:
- *		Sergey Sharybin
+ *      Sergey Sharybin
  */
 
 #include "COM_Node.h"
@@ -27,8 +27,8 @@ extern "C" {
 }
 
 /**
- * @brief PlaneTrackDeformNode
- * @ingroup Node
+ * \brief PlaneTrackDeformNode
+ * \ingroup Node
  */
 class PlaneTrackDeformNode : public Node {
 public:

@@ -251,16 +251,16 @@ typedef struct View3D {
 #define V3D_S3D_DISPVOLUME		(1 << 2)
 
 /* View3D->flag (short) */
-/*#define V3D_DISPIMAGE		1*/ /*UNUSED*/
-#define V3D_DISPBGPICS		2
-#define V3D_HIDE_HELPLINES	4
-#define V3D_INVALID_BACKBUF	8
+/*#define V3D_DISPIMAGE     (1 << 0) */ /*UNUSED*/
+#define V3D_DISPBGPICS      (1 << 1)
+#define V3D_HIDE_HELPLINES  (1 << 2)
+#define V3D_INVALID_BACKBUF (1 << 3)
 
-#define V3D_ALIGN			1024
-#define V3D_SELECT_OUTLINE	2048
-#define V3D_ZBUF_SELECT		4096
-#define V3D_GLOBAL_STATS	8192
-#define V3D_DRAW_CENTERS	32768
+#define V3D_ALIGN           (1 << 10)
+#define V3D_SELECT_OUTLINE  (1 << 11)
+#define V3D_ZBUF_SELECT     (1 << 12)
+#define V3D_GLOBAL_STATS    (1 << 13)
+#define V3D_DRAW_CENTERS    (1 << 15)
 
 /* RegionView3d->persp */
 #define RV3D_ORTHO				0
@@ -268,10 +268,10 @@ typedef struct View3D {
 #define RV3D_CAMOB				2
 
 /* RegionView3d->rflag */
-#define RV3D_CLIPPING				4
-#define RV3D_NAVIGATING				8
-#define RV3D_GPULIGHT_UPDATE		16
-#define RV3D_IS_GAME_ENGINE			32  /* runtime flag, used to check if LoD's should be used */
+#define RV3D_CLIPPING               (1 << 2)
+#define RV3D_NAVIGATING             (1 << 3)
+#define RV3D_GPULIGHT_UPDATE        (1 << 4)
+#define RV3D_IS_GAME_ENGINE         (1 << 5)  /* runtime flag, used to check if LoD's should be used */
 /**
  * Disable zbuffer offset, skip calls to #ED_view3d_polygon_offset.
  * Use when precise surface depth is needed and picking bias isn't, see T45434).
@@ -322,7 +322,7 @@ enum {
 	/* center of the bounding box */
 	V3D_AROUND_CENTER_BOUNDS	= 0,
 	/* center from the sum of all points divided by the total */
-	V3D_AROUND_CENTER_MEAN		= 3,
+	V3D_AROUND_CENTER_MEDIAN    = 3,
 	/* pivot around the 2D/3D cursor */
 	V3D_AROUND_CURSOR			= 1,
 	/* pivot around each items own origin */
@@ -342,15 +342,15 @@ enum {
 #define V3D_VIEW_PANUP			 8
 
 /* View3d->gridflag */
-#define V3D_SHOW_FLOOR			1
-#define V3D_SHOW_X				2
-#define V3D_SHOW_Y				4
-#define V3D_SHOW_Z				8
+#define V3D_SHOW_FLOOR          (1 << 0)
+#define V3D_SHOW_X              (1 << 1)
+#define V3D_SHOW_Y              (1 << 2)
+#define V3D_SHOW_Z              (1 << 3)
 
 /* View3d->twtype (bits, we can combine them) */
-#define V3D_MANIP_TRANSLATE		1
-#define V3D_MANIP_ROTATE		2
-#define V3D_MANIP_SCALE			4
+#define V3D_MANIP_TRANSLATE     (1 << 0)
+#define V3D_MANIP_ROTATE        (1 << 1)
+#define V3D_MANIP_SCALE         (1 << 2)
 
 /* View3d->twmode */
 #define V3D_MANIP_GLOBAL		0
@@ -362,9 +362,9 @@ enum {
 
 /* View3d->twflag */
    /* USE = user setting, DRAW = based on selection */
-#define V3D_USE_MANIPULATOR		1
-#define V3D_DRAW_MANIPULATOR	2
-/* #define V3D_CALC_MANIPULATOR	4 */ /*UNUSED*/
+#define V3D_USE_MANIPULATOR		(1 << 0)
+#define V3D_DRAW_MANIPULATOR	(1 << 1)
+/* #define V3D_CALC_MANIPULATOR	(1 << 2) */ /*UNUSED*/
 
 /* BGPic->flag */
 /* may want to use 1 for select ? */

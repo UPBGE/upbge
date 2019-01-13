@@ -16,9 +16,9 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * Contributor:
- *		Jeroen Bakker
- *		Monique Dewanchand
- *		Lukas Tönne
+ *      Jeroen Bakker
+ *      Monique Dewanchand
+ *      Lukas Tönne
  */
 
 #ifndef __COM_OUTPUTFILENODE_H__
@@ -28,8 +28,8 @@
 #include "DNA_node_types.h"
 
 /**
- * @brief OutputFileNode
- * @ingroup Node
+ * \brief OutputFileNode
+ * \ingroup Node
  */
 class OutputFileNode : public Node {
 public:

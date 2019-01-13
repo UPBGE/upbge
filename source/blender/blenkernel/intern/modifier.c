@@ -287,7 +287,7 @@ void modifier_copyData_generic(const ModifierData *md_src, ModifierData *md_dst)
 {
 	const ModifierTypeInfo *mti = modifierType_getInfo(md_src->type);
 
-	/* md_dst may have alredy be fully initialized with some extra allocated data,
+	/* md_dst may have already be fully initialized with some extra allocated data,
 	 * we need to free it now to avoid memleak. */
 	if (mti->freeData) {
 		mti->freeData(md_dst);
@@ -466,7 +466,7 @@ bool modifiers_isParticleEnabled(Object *ob)
 /**
  * Check whether is enabled.
  *
- * \param scene Current scene, may be NULL, in which case isDisabled callback of the modifier is never called.
+ * \param scene: Current scene, may be NULL, in which case isDisabled callback of the modifier is never called.
  */
 bool modifier_isEnabled(struct Scene *scene, ModifierData *md, int required_mode)
 {
@@ -754,7 +754,7 @@ void test_object_modifiers(Object *ob)
 	}
 }
 
-/* where should this go?, it doesnt fit well anywhere :S - campbell */
+/* where should this go?, it doesn't fit well anywhere :S - campbell */
 
 /* elubie: changed this to default to the same dir as the render output
  * to prevent saving to C:\ on Windows */

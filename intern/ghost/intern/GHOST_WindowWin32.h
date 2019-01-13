@@ -225,10 +225,10 @@ public:
 	 * capturing).
 	 *
 	 * \param press
-	 *		0 - mouse pressed
-	 *		1 - mouse released
-	 *		2 - operator grab
-	 *		3 - operator ungrab
+	 *      0 - mouse pressed
+	 *      1 - mouse released
+	 *      2 - operator grab
+	 *      3 - operator ungrab
 	 */
 	void registerMouseClickEvent(int press);
 
@@ -265,7 +265,7 @@ public:
 	bool m_inLiveResize;
 
 #ifdef WITH_INPUT_IME
-	GHOST_ImeWin32 *getImeInput() {return &m_imeImput;}
+	GHOST_ImeWin32 *getImeInput() {return &m_imeInput;}
 
 	void beginIME(
 	        GHOST_TInt32 x, GHOST_TInt32 y,
@@ -369,7 +369,7 @@ private:
 
 #ifdef WITH_INPUT_IME
 	/** Handle input method editors event */
-	GHOST_ImeWin32 m_imeImput;
+	GHOST_ImeWin32 m_imeInput;
 #endif
 	bool m_debug_context;
 };

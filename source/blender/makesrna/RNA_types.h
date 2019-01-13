@@ -24,11 +24,10 @@
  *  \ingroup RNA
  */
 
-
-#include "../blenlib/BLI_sys_types.h"
-
 #ifndef __RNA_TYPES_H__
 #define __RNA_TYPES_H__
+
+#include "../blenlib/BLI_sys_types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -400,7 +399,7 @@ typedef struct ParameterDynAlloc {
 
 typedef enum FunctionFlag {
 	/***** Options affecting callback signature. *****/
-	/* Those add additionnal parameters at the beginning of the C callback, like that:
+	/* Those add additional parameters at the beginning of the C callback, like that:
 	 *     rna_my_func([ID *_selfid],
 	 *                 [<DNA_STRUCT> *self|StructRNA *type],
 	 *                 [Main *bmain],

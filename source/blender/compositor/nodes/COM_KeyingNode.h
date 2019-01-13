@@ -16,16 +16,16 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * Contributor:
- *		Jeroen Bakker
- *		Monique Dewanchand
- *		Sergey Sharybin
+ *      Jeroen Bakker
+ *      Monique Dewanchand
+ *      Sergey Sharybin
  */
 
 #include "COM_Node.h"
 
 /**
- * @brief KeyingNode
- * @ingroup Node
+ * \brief KeyingNode
+ * \ingroup Node
  */
 class KeyingNode : public Node {
 protected:

@@ -108,7 +108,7 @@ int ArmatureImporter::create_bone(SkinInfo *skin, COLLADAFW::Node *node, EditBon
 
 	/*
 	 * We use the inv_bind_shape matrix to apply the armature bind pose as its rest pose.
-	*/
+	 */
 
 	std::map<COLLADAFW::UniqueId, SkinInfo>::iterator skin_it;
 	bool bone_is_skinned = false;
@@ -460,11 +460,11 @@ void ArmatureImporter::create_armature_bones(Main *bmain, std::vector<Object *> 
 		if (!ob_arm)
 			continue;
 
-		bArmature * armature = (bArmature *)ob_arm->data;
+		bArmature *armature = (bArmature *)ob_arm->data;
 		if (!armature)
 			continue;
 
-		char * bone_name = (char *)bc_get_joint_name(*ri);
+		char *bone_name = (char *)bc_get_joint_name(*ri);
 		Bone *bone = BKE_armature_find_bone_name(armature, bone_name);
 		if (bone) {
 			fprintf(stderr, "Reuse of child bone [%s] as root bone in same Armature is not supported.\n", bone_name);
@@ -516,32 +516,32 @@ Object *ArmatureImporter::create_armature_bones(Main *bmain, SkinInfo& skin)
 	 * if so, use that skin's armature
 	 */
 
-	/*
-	  Pseudocode:
-
-	  find_node_in_tree(node, root_joint)
-
-	  skin::find_root_joints(root_joints):
-		std::vector root_joints;
-		for each root in root_joints:
-			for each joint in joints:
-				if find_node_in_tree(joint, root):
-					if (std::find(root_joints.begin(), root_joints.end(), root) == root_joints.end())
-						root_joints.push_back(root);
-
-	  for (each skin B with armature) {
-		  find all root joints for skin B
-
-		  for each joint X in skin A:
-			for each root joint R in skin B:
-				if (find_node_in_tree(X, R)) {
-					shared = 1;
-					goto endloop;
-				}
-	  }
-
-	  endloop:
-	*/
+	/**
+	 * Pseudocode:
+	 *
+	 * find_node_in_tree(node, root_joint)
+	 *
+	 * skin::find_root_joints(root_joints):
+	 *     std::vector root_joints;
+	 *     for each root in root_joints:
+	 *         for each joint in joints:
+	 *             if find_node_in_tree(joint, root):
+	 *                 if (std::find(root_joints.begin(), root_joints.end(), root) == root_joints.end())
+	 *                     root_joints.push_back(root);
+	 *
+	 * for (each skin B with armature) {
+	 *     find all root joints for skin B
+	 *
+	 *     for each joint X in skin A:
+	 *         for each root joint R in skin B:
+	 *             if (find_node_in_tree(X, R)) {
+	 *                 shared = 1;
+	 *                 goto endloop;
+	 *             }
+	 * }
+	 *
+	 * endloop:
+	 */
 
 	SkinInfo *a = &skin;
 	Object *shared = NULL;
@@ -589,7 +589,7 @@ Object *ArmatureImporter::create_armature_bones(Main *bmain, SkinInfo& skin)
 	}
 
 	// enter armature edit mode
-	bArmature * armature = (bArmature *)ob_arm->data;
+	bArmature *armature = (bArmature *)ob_arm->data;
 	ED_armature_to_edit(armature);
 
 	totbone = 0;

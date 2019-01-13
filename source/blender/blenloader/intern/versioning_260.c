@@ -344,7 +344,7 @@ static void do_versions_mesh_mloopcol_swap_2_62_1(Mesh *me)
 		if (layer->type == CD_MLOOPCOL) {
 			mloopcol = (MLoopCol *)layer->data;
 			for (i = 0; i < me->totloop; i++, mloopcol++) {
-				SWAP(unsigned char, mloopcol->r, mloopcol->b);
+				SWAP(uchar, mloopcol->r, mloopcol->b);
 			}
 		}
 	}
@@ -400,7 +400,7 @@ static void do_versions_nodetree_image_layer_2_64_5(bNodeTree *ntree)
 				NodeImageLayer *output = MEM_callocN(sizeof(NodeImageLayer), "node image layer");
 
 				/* take pass index both from current storage ptr (actually an int) */
-				output->pass_index = GET_INT_FROM_POINTER(sock->storage);
+				output->pass_index = POINTER_AS_INT(sock->storage);
 
 				/* replace socket data pointer */
 				sock->storage = output;
@@ -428,7 +428,7 @@ static void do_versions_nodetree_frame_2_64_6(bNodeTree *ntree)
 		}
 
 		/* initialize custom node color */
-		node->color[0] = node->color[1] = node->color[2] = 0.608f;	/* default theme color */
+		node->color[0] = node->color[1] = node->color[2] = 0.608f;  /* default theme color */
 	}
 }
 
@@ -688,7 +688,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *bmain)
 	}
 
 	if (bmain->versionfile < 260 || (bmain->versionfile == 260 && bmain->subversionfile < 2)) {
-		FOREACH_NODETREE(bmain, ntree, id) {
+		FOREACH_NODETREE_BEGIN(bmain, ntree, id) {
 			if (ntree->type == NTREE_SHADER) {
 				bNode *node;
 				for (node = ntree->nodes.first; node; node = node->next) {
@@ -702,7 +702,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *bmain)
 					}
 				}
 			}
-		} FOREACH_NODETREE_END
+		} FOREACH_NODETREE_END;
 	}
 
 	if (bmain->versionfile < 260 || (bmain->versionfile == 260 && bmain->subversionfile < 4)) {
@@ -972,7 +972,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *bmain)
 					if (act->type == ACT_CAMERA) {
 						bCameraActuator *ba = act->data;
 
-						if (ba->axis == (float) 'x') ba->axis = OB_POSX;
+						if (ba->axis == (float)'x') ba->axis = OB_POSX;
 						else if (ba->axis == (float)'y') ba->axis = OB_POSY;
 						/* don't do an if/else to avoid imediate subversion bump*/
 //						ba->axis=((ba->axis == (float)'x') ? OB_POSX_X : OB_POSY);
@@ -1045,7 +1045,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *bmain)
 
 			for (md = ob->modifiers.first; md; md = md->next) {
 				if (md->type == eModifierType_Cloth) {
-					ClothModifierData *clmd = (ClothModifierData *) md;
+					ClothModifierData *clmd = (ClothModifierData *)md;
 					if (clmd->sim_parms)
 						clmd->sim_parms->vel_damping = 1.0f;
 				}
@@ -1330,7 +1330,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *bmain)
 	}
 
 	if (bmain->versionfile < 263 || (bmain->versionfile == 263 && bmain->subversionfile < 9)) {
-		FOREACH_NODETREE(bmain, ntree, id) {
+		FOREACH_NODETREE_BEGIN(bmain, ntree, id) {
 			if (ntree->type == NTREE_SHADER) {
 				bNode *node;
 				for (node = ntree->nodes.first; node; node = node->next) {
@@ -1344,7 +1344,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *bmain)
 					}
 				}
 			}
-		} FOREACH_NODETREE_END
+		} FOREACH_NODETREE_END;
 	}
 
 	if (bmain->versionfile < 263 || (bmain->versionfile == 263 && bmain->subversionfile < 10)) {
@@ -1359,7 +1359,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *bmain)
 				}
 			}
 
-			FOREACH_NODETREE(bmain, ntree, id) {
+			FOREACH_NODETREE_BEGIN(bmain, ntree, id) {
 				if (ntree->type == NTREE_COMPOSIT) {
 					bNode *node;
 					for (node = ntree->nodes.first; node; node = node->next) {
@@ -1371,7 +1371,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *bmain)
 						}
 					}
 				}
-			} FOREACH_NODETREE_END
+			} FOREACH_NODETREE_END;
 		}
 
 		{
@@ -1388,7 +1388,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *bmain)
 							SpaceClip *sclip = (SpaceClip *)sl;
 
 							if (sclip->around == 0) {
-								sclip->around = V3D_AROUND_CENTER_MEAN;
+								sclip->around = V3D_AROUND_CENTER_MEDIAN;
 							}
 						}
 					}
@@ -1429,7 +1429,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *bmain)
 	}
 
 	if (bmain->versionfile < 263 || (bmain->versionfile == 263 && bmain->subversionfile < 13)) {
-		FOREACH_NODETREE(bmain, ntree, id) {
+		FOREACH_NODETREE_BEGIN(bmain, ntree, id) {
 			if (ntree->type == NTREE_COMPOSIT) {
 				bNode *node;
 				for (node = ntree->nodes.first; node; node = node->next) {
@@ -1442,13 +1442,13 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *bmain)
 					}
 				}
 			}
-		} FOREACH_NODETREE_END
+		} FOREACH_NODETREE_END;
 	}
 
 	if (bmain->versionfile < 263 || (bmain->versionfile == 263 && bmain->subversionfile < 14)) {
 		ParticleSettings *part;
 
-		FOREACH_NODETREE(bmain, ntree, id) {
+		FOREACH_NODETREE_BEGIN(bmain, ntree, id) {
 			if (ntree->type == NTREE_COMPOSIT) {
 				bNode *node;
 				for (node = ntree->nodes.first; node; node = node->next) {
@@ -1461,7 +1461,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *bmain)
 					}
 				}
 			}
-		} FOREACH_NODETREE_END
+		} FOREACH_NODETREE_END;
 
 		/* keep compatibility for dupliobject particle size */
 		for (part = bmain->particle.first; part; part = part->id.next)
@@ -1471,7 +1471,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *bmain)
 	}
 
 	if (bmain->versionfile < 263 || (bmain->versionfile == 263 && bmain->subversionfile < 17)) {
-		FOREACH_NODETREE(bmain, ntree, id) {
+		FOREACH_NODETREE_BEGIN(bmain, ntree, id) {
 			if (ntree->type == NTREE_COMPOSIT) {
 				bNode *node;
 				for (node = ntree->nodes.first; node; node = node->next) {
@@ -1487,7 +1487,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *bmain)
 					}
 				}
 			}
-		} FOREACH_NODETREE_END
+		} FOREACH_NODETREE_END;
 	}
 
 	if (bmain->versionfile < 263 || (bmain->versionfile == 263 && bmain->subversionfile < 18)) {
@@ -1506,7 +1506,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *bmain)
 						ColorBalanceModifierData *cbmd;
 
 						smd = BKE_sequence_modifier_new(seq, NULL, seqModifierType_ColorBalance);
-						cbmd = (ColorBalanceModifierData *) smd;
+						cbmd = (ColorBalanceModifierData *)smd;
 
 						cbmd->color_balance = *strip->color_balance;
 
@@ -1520,8 +1520,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *bmain)
 						MEM_freeN(strip->color_balance);
 						strip->color_balance = NULL;
 					}
-				}
-				SEQ_END
+				} SEQ_END;
 			}
 		}
 	}
@@ -1614,14 +1613,14 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *bmain)
 	}
 
 	if (bmain->versionfile < 264 || (bmain->versionfile == 264 && bmain->subversionfile < 1)) {
-		FOREACH_NODETREE(bmain, ntree, id) {
+		FOREACH_NODETREE_BEGIN(bmain, ntree, id) {
 			if (ntree->type == NTREE_SHADER) {
 				bNode *node;
 				for (node = ntree->nodes.first; node; node = node->next)
 					if (node->type == SH_NODE_TEX_COORD)
 						node->flag |= NODE_OPTIONS;
 			}
-		} FOREACH_NODETREE_END
+		} FOREACH_NODETREE_END;
 	}
 
 	if (bmain->versionfile < 264 || (bmain->versionfile == 264 && bmain->subversionfile < 2)) {
@@ -1723,7 +1722,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *bmain)
 		/* Fix for bug #32982, internal_links list could get corrupted from r51630 onward.
 		 * Simply remove bad internal_links lists to avoid NULL pointers.
 		 */
-		FOREACH_NODETREE(bmain, ntree, id) {
+		FOREACH_NODETREE_BEGIN(bmain, ntree, id) {
 			bNode *node;
 			bNodeLink *link, *nextlink;
 
@@ -1735,7 +1734,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *bmain)
 					}
 				}
 			}
-		} FOREACH_NODETREE_END
+		} FOREACH_NODETREE_END;
 	}
 
 	if (bmain->versionfile < 264 || (bmain->versionfile == 264 && bmain->subversionfile < 6)) {
@@ -1745,7 +1744,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *bmain)
 			ScrArea *sa;
 			for (sa = sc->areabase.first; sa; sa = sa->next) {
 				SpaceLink *sl;
-				if ( sa->spacetype == SPACE_LOGIC)
+				if (sa->spacetype == SPACE_LOGIC)
 					do_version_logic_264(&sa->regionbase);
 
 				for (sl = sa->spacedata.first; sl; sl = sl->next) {
@@ -1880,8 +1879,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *bmain)
 				else {
 					BKE_sequence_alpha_mode_from_extension(seq);
 				}
-			}
-			SEQ_END
+			} SEQ_END;
 
 			if (scene->r.bake_samples == 0)
 				scene->r.bake_samples = 256;
@@ -1923,7 +1921,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *bmain)
 			}
 		}
 
-		FOREACH_NODETREE(bmain, ntree, id) {
+		FOREACH_NODETREE_BEGIN(bmain, ntree, id) {
 			if (ntree->type == NTREE_COMPOSIT) {
 				bNode *node;
 				for (node = ntree->nodes.first; node; node = node->next) {
@@ -1937,7 +1935,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *bmain)
 					}
 				}
 			}
-		} FOREACH_NODETREE_END
+		} FOREACH_NODETREE_END;
 	}
 	else if (bmain->versionfile < 266 || (bmain->versionfile == 266 && bmain->subversionfile < 1)) {
 		/* texture use alpha was removed for 2.66 but added back again for 2.66a,
@@ -1954,7 +1952,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *bmain)
 
 		for (cu = bmain->curve.first; cu; cu = cu->id.next) {
 			if (cu->flag & (CU_FRONT | CU_BACK)) {
-				if ( cu->ext1 != 0.0f || cu->ext2 != 0.0f) {
+				if (cu->ext1 != 0.0f || cu->ext2 != 0.0f) {
 					Nurb *nu;
 
 					for (nu = cu->nurb.first; nu; nu = nu->next) {
@@ -2002,7 +2000,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *bmain)
 
 	// add storage for compositor translate nodes when not existing
 	if (MAIN_VERSION_OLDER(bmain, 265, 11)) {
-		FOREACH_NODETREE(bmain, ntree, id) {
+		FOREACH_NODETREE_BEGIN(bmain, ntree, id) {
 			if (ntree->type == NTREE_COMPOSIT) {
 				bNode *node;
 				for (node = ntree->nodes.first; node; node = node->next) {
@@ -2011,13 +2009,13 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *bmain)
 					}
 				}
 			}
-		} FOREACH_NODETREE_END
+		} FOREACH_NODETREE_END;
 	}
 
 	if (MAIN_VERSION_OLDER(bmain, 266, 2)) {
-		FOREACH_NODETREE(bmain, ntree, id) {
+		FOREACH_NODETREE_BEGIN(bmain, ntree, id) {
 			do_versions_nodetree_customnodes(ntree, ((ID *)ntree == id));
-		} FOREACH_NODETREE_END
+		} FOREACH_NODETREE_END;
 	}
 
 	if (MAIN_VERSION_OLDER(bmain, 266, 2)) {
@@ -2056,7 +2054,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *bmain)
 
 	/* Set flag for delayed do_versions in lib_verify_nodetree. It needs valid typeinfo pointers ... */
 	{
-		FOREACH_NODETREE(bmain, ntree, id) {
+		FOREACH_NODETREE_BEGIN(bmain, ntree, id) {
 			/* XXX This should be kept without version check for now!
 			 * As long as USE_NODE_COMPAT_CUSTOMNODES is active, files will write links
 			 * to tree interface sockets for forward compatibility. These links need to be removed again
@@ -2071,7 +2069,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *bmain)
 			if (MAIN_VERSION_OLDER(bmain, 266, 2))
 				ntree->flag |= NTREE_DO_VERSIONS_CUSTOMNODES_GROUP_CREATE_INTERFACE;
 		}
-		FOREACH_NODETREE_END
+		FOREACH_NODETREE_END;
 	}
 
 	if (MAIN_VERSION_OLDER(bmain, 266, 3)) {
@@ -2083,14 +2081,14 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *bmain)
 			 * so do this now to ensure old files don't break.
 			 */
 			bNode *node;
-			FOREACH_NODETREE(bmain, ntree, id) {
+			FOREACH_NODETREE_BEGIN(bmain, ntree, id) {
 				if (id == &ntree->id)
-					continue;	/* already fixed for node groups */
+					continue;   /* already fixed for node groups */
 
 				for (node = ntree->nodes.first; node; node = node->next)
 					nodeUniqueName(ntree, node);
 			}
-			FOREACH_NODETREE_END
+			FOREACH_NODETREE_END;
 		}
 	}
 
@@ -2399,7 +2397,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *bmain)
 
 	if (!MAIN_VERSION_ATLEAST(bmain, 269, 1)) {
 		/* Removal of Cycles SSS Compatible falloff */
-		FOREACH_NODETREE(bmain, ntree, id) {
+		FOREACH_NODETREE_BEGIN(bmain, ntree, id) {
 			if (ntree->type == NTREE_SHADER) {
 				bNode *node;
 				for (node = ntree->nodes.first; node; node = node->next) {
@@ -2410,12 +2408,12 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *bmain)
 					}
 				}
 			}
-		} FOREACH_NODETREE_END
+		} FOREACH_NODETREE_END;
 	}
 
 	if (!MAIN_VERSION_ATLEAST(bmain, 269, 2)) {
 		/* Initialize CDL settings for Color Balance nodes */
-		FOREACH_NODETREE(bmain, ntree, id) {
+		FOREACH_NODETREE_BEGIN(bmain, ntree, id) {
 			if (ntree->type == NTREE_COMPOSIT) {
 				bNode *node;
 				for (node = ntree->nodes.first; node; node = node->next) {
@@ -2437,7 +2435,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *bmain)
 					}
 				}
 			}
-		} FOREACH_NODETREE_END
+		} FOREACH_NODETREE_END;
 	}
 
 	if (!MAIN_VERSION_ATLEAST(bmain, 269, 3)) {
@@ -2454,8 +2452,8 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *bmain)
 						SpaceOops *so = (SpaceOops *)sl;
 
 						if (!ELEM(so->outlinevis, SO_ALL_SCENES, SO_CUR_SCENE, SO_VISIBLE, SO_SELECTED, SO_ACTIVE,
-						                          SO_SAME_TYPE, SO_GROUPS, SO_LIBRARIES, SO_SEQUENCE, SO_DATABLOCKS,
-						                          SO_USERDEF))
+						          SO_SAME_TYPE, SO_GROUPS, SO_LIBRARIES, SO_SEQUENCE, SO_DATABLOCKS,
+						          SO_USERDEF))
 						{
 							so->outlinevis = SO_ALL_SCENES;
 						}
@@ -2582,11 +2580,10 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *bmain)
 						WipeVars *wv = seq->effectdata;
 						wv->angle = DEG2RADF(wv->angle);
 					}
-				}
-				SEQ_END
+				} SEQ_END;
 			}
 
-			FOREACH_NODETREE(bmain, ntree, id) {
+			FOREACH_NODETREE_BEGIN(bmain, ntree, id) {
 				if (ntree->type == NTREE_COMPOSIT) {
 					bNode *node;
 					for (node = ntree->nodes.first; node; node = node->next) {
@@ -2604,7 +2601,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *bmain)
 						}
 					}
 				}
-			} FOREACH_NODETREE_END
+			} FOREACH_NODETREE_END;
 		}
 
 		if (!DNA_struct_elem_find(fd->filesdna, "MovieTrackingPlaneTrack", "float", "image_opacity")) {

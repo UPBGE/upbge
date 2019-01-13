@@ -59,6 +59,9 @@ protected:
 	friend class BVH;
 	BVH8(const BVHParams& params, const vector<Object*>& objects);
 
+	/* Building process. */
+	virtual BVHNode *widen_children_nodes(const BVHNode *root) override;
+
 	/* pack */
 	void pack_nodes(const BVHNode *root);
 
@@ -95,4 +98,4 @@ protected:
 
 CCL_NAMESPACE_END
 
-#endif /* __BVH8_H__ */
+#endif  /* __BVH8_H__ */

@@ -26,7 +26,7 @@
  * Cut the geometry in half using a plane.
  *
  * \par Implementation
- * This simply works by splitting tagged edges whos verts span either side of
+ * This simply works by splitting tagged edges who's verts span either side of
  * the plane, then splitting faces along their dividing verts.
  * The only complex case is when a ngon spans the axis multiple times,
  * in this case we need to do some extra checks to correctly bisect the ngon.
@@ -302,9 +302,9 @@ finally:
 /* Main logic */
 
 /**
- * \param use_snap_center  Snap verts onto the plane.
- * \param use_tag  Only bisect tagged edges and faces.
- * \param oflag_center  Operator flag, enabled for geometry on the axis (existing and created)
+ * \param use_snap_center: Snap verts onto the plane.
+ * \param use_tag: Only bisect tagged edges and faces.
+ * \param oflag_center: Operator flag, enabled for geometry on the axis (existing and created)
  */
 void BM_mesh_bisect_plane(
         BMesh *bm, const float plane[4],

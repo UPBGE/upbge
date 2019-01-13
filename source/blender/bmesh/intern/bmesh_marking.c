@@ -828,7 +828,7 @@ void BM_editselection_center(BMEditSelection *ese, float r_center[3])
 	}
 	else if (ese->htype == BM_FACE) {
 		BMFace *efa = (BMFace *)ese->ele;
-		BM_face_calc_center_mean(efa, r_center);
+		BM_face_calc_center_median(efa, r_center);
 	}
 }
 
@@ -863,7 +863,7 @@ void BM_editselection_normal(BMEditSelection *ese, float r_normal[3])
 
 /* Calculate a plane that is rightangles to the edge/vert/faces normal
  * also make the plane run along an axis that is related to the geometry,
- * because this is used for the manipulators Y axis. */
+ * because this is used for the gizmos Y axis. */
 void BM_editselection_plane(BMEditSelection *ese, float r_plane[3])
 {
 	if (ese->htype == BM_VERT) {
@@ -895,7 +895,7 @@ void BM_editselection_plane(BMEditSelection *ese, float r_plane[3])
 		else {
 			/* the plane is simple, it runs along the edge
 			 * however selecting different edges can swap the direction of the y axis.
-			 * this makes it less likely for the y axis of the manipulator
+			 * this makes it less likely for the y axis of the gizmo
 			 * (running along the edge).. to flip less often.
 			 * at least its more predictable */
 			if (eed->v2->co[1] > eed->v1->co[1]) {  /* check which to do first */
@@ -1148,10 +1148,6 @@ void BM_mesh_elem_hflag_enable_test(
 	int i;
 
 	BLI_assert((htype & ~BM_ALL_NOLOOP) == 0);
-
-	if (hflag & BM_ELEM_SELECT) {
-		BM_select_history_clear(bm);
-	}
 
 	/* note, better not attempt a fast path for selection as done with de-select
 	 * because hidden geometry and different selection modes can give different results,

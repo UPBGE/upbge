@@ -19,12 +19,13 @@
 #define __BVH_H__
 
 #include "bvh/bvh_params.h"
-
+#include "util/util_array.h"
 #include "util/util_types.h"
 #include "util/util_vector.h"
 
 CCL_NAMESPACE_BEGIN
 
+class Stats;
 class BVHNode;
 struct BVHStackEntry;
 class BVHParams;
@@ -35,7 +36,6 @@ class Progress;
 
 #define BVH_ALIGN     4096
 #define TRI_NODE_SIZE 3
-
 /* Packed BVH
  *
  * BVH stored as it will be used for traversal on the rendering device. */
@@ -91,7 +91,7 @@ public:
 	static BVH *create(const BVHParams& params, const vector<Object*>& objects);
 	virtual ~BVH() {}
 
-	void build(Progress& progress);
+	virtual void build(Progress& progress, Stats *stats=NULL);
 	void refit(Progress& progress);
 
 protected:
@@ -99,8 +99,6 @@ protected:
 
 	/* Refit range of primitives. */
 	void refit_primitives(int start, int end, BoundBox& bbox, uint& visibility);
-	static __forceinline bool leaf_check(const BVHNode *node, BVH_TYPE bvh);
-	static bool node_is_unaligned(const BVHNode *node, BVH_TYPE bvh);
 
 	/* triangles and strands */
 	void pack_primitives();
@@ -112,6 +110,8 @@ protected:
 	/* for subclasses to implement */
 	virtual void pack_nodes(const BVHNode *root) = 0;
 	virtual void refit_nodes() = 0;
+
+	virtual BVHNode *widen_children_nodes(const BVHNode *root) = 0;
 };
 
 /* Pack Utility */
@@ -126,4 +126,4 @@ struct BVHStackEntry
 
 CCL_NAMESPACE_END
 
-#endif /* __BVH_H__ */
+#endif  /* __BVH_H__ */

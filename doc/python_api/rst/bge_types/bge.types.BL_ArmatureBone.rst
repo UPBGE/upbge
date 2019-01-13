@@ -81,8 +81,8 @@ base class --- :class:`EXP_PyObjectPlus`
       :type: matrix [4][4]
 
       .. note::
-      
-         This matrix has no scale part. 
+
+         This matrix has no scale part.
 
    .. attribute:: bone_mat
 

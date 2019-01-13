@@ -58,9 +58,9 @@ public:
 	bool advanced_shading;          /* Supports full shading system. */
 	bool has_half_images;           /* Support half-float textures. */
 	bool has_volume_decoupled;      /* Decoupled volume shading. */
-	BVHLayoutMask bvh_layout_mask;  /* Bitmask of supported BVH layouts. */
 	bool has_osl;                   /* Support Open Shading Language. */
 	bool use_split_kernel;          /* Use split or mega kernel. */
+	bool has_profiling;             /* Supports runtime collection of profiling info. */
 	int cpu_threads;
 	vector<DeviceInfo> multi_devices;
 
@@ -74,9 +74,9 @@ public:
 		advanced_shading = true;
 		has_half_images = false;
 		has_volume_decoupled = false;
-		bvh_layout_mask = BVH_LAYOUT_NONE;
 		has_osl = false;
 		use_split_kernel = false;
+		has_profiling = false;
 	}
 
 	bool operator==(const DeviceInfo &info) {
@@ -183,7 +183,7 @@ public:
 	/* Convert the requested features structure to a build options,
 	 * which could then be passed to compilers.
 	 */
-	string get_build_options(void) const
+	string get_build_options() const
 	{
 		string build_options = "";
 		if(experimental) {
@@ -242,14 +242,14 @@ std::ostream& operator <<(std::ostream &os,
 /* Device */
 
 struct DeviceDrawParams {
-	function<void(void)> bind_display_space_shader_cb;
-	function<void(void)> unbind_display_space_shader_cb;
+	function<void()> bind_display_space_shader_cb;
+	function<void()> unbind_display_space_shader_cb;
 };
 
 class Device {
 	friend class device_sub_ptr;
 protected:
-	Device(DeviceInfo& info_, Stats &stats_, bool background) : background(background), vertex_buffer(0), info(info_), stats(stats_) {}
+	Device(DeviceInfo& info_, Stats &stats_, Profiler &profiler_, bool background) : background(background), vertex_buffer(0), info(info_), stats(stats_), profiler(profiler_) {}
 
 	bool background;
 	string error_msg;
@@ -281,9 +281,11 @@ public:
 		fflush(stderr);
 	}
 	virtual bool show_samples() const { return false; }
+	virtual BVHLayoutMask get_bvh_layout_mask() const = 0;
 
 	/* statistics */
 	Stats &stats;
+	Profiler &profiler;
 
 	/* memory alignment */
 	virtual int mem_sub_ptr_alignment() { return MIN_ALIGNMENT_CPU_DATA_TYPES; }
@@ -322,7 +324,7 @@ public:
 	virtual void unmap_neighbor_tiles(Device * /*sub_device*/, RenderTile * /*tiles*/) {}
 
 	/* static */
-	static Device *create(DeviceInfo& info, Stats &stats, bool background = true);
+	static Device *create(DeviceInfo& info, Stats &stats, Profiler& profiler, bool background = true);
 
 	static DeviceType type_from_string(const char *name);
 	static string string_from_type(DeviceType type);
@@ -361,4 +363,4 @@ private:
 
 CCL_NAMESPACE_END
 
-#endif /* __DEVICE_H__ */
+#endif  /* __DEVICE_H__ */

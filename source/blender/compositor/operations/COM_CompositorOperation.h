@@ -16,8 +16,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * Contributor:
- *		Jeroen Bakker
- *		Monique Dewanchand
+ *      Jeroen Bakker
+ *      Monique Dewanchand
  */
 
 #ifndef __COM_COMPOSITOROPERATION_H__
@@ -29,63 +29,63 @@
 struct Scene;
 
 /**
- * @brief Compositor output operation
+ * \brief Compositor output operation
  */
 class CompositorOperation : public NodeOperation {
 private:
 	const struct Scene *m_scene;
 	/**
-	 * @brief Scene name, used for getting the render output, includes 'SC' prefix.
+	 * \brief Scene name, used for getting the render output, includes 'SC' prefix.
 	 */
 	char m_sceneName[MAX_ID_NAME];
 
 	/**
-	 * @brief local reference to the scene
+	 * \brief local reference to the scene
 	 */
 	const RenderData *m_rd;
 
 	/**
-	 * @brief reference to the output float buffer
+	 * \brief reference to the output float buffer
 	 */
 	float *m_outputBuffer;
 
 	/**
-	 * @brief reference to the output depth float buffer
+	 * \brief reference to the output depth float buffer
 	 */
 	float *m_depthBuffer;
 
 	/**
-	 * @brief local reference to the input image operation
+	 * \brief local reference to the input image operation
 	 */
 	SocketReader *m_imageInput;
 
 	/**
-	 * @brief local reference to the input alpha operation
+	 * \brief local reference to the input alpha operation
 	 */
 	SocketReader *m_alphaInput;
 
 	/**
-	 * @brief local reference to the depth operation
+	 * \brief local reference to the depth operation
 	 */
 	SocketReader *m_depthInput;
 
 	/**
-	 * @brief Ignore any alpha input
+	 * \brief Ignore any alpha input
 	 */
 	bool m_useAlphaInput;
 
 	/**
-	 * @brief operation is active for calculating final compo result
+	 * \brief operation is active for calculating final compo result
 	 */
 	bool m_active;
 
 	/**
-	 * @brief View name, used for multiview
+	 * \brief View name, used for multiview
 	 */
 	const char *m_viewName;
 public:
 	CompositorOperation();
-	const bool isActiveCompositorOutput() const { return this->m_active; }
+	bool isActiveCompositorOutput() const { return this->m_active; }
 	void executeRegion(rcti *rect, unsigned int tileNumber);
 	void setScene(const struct Scene *scene) { m_scene = scene; }
 	void setSceneName(const char *sceneName) { BLI_strncpy(this->m_sceneName, sceneName, sizeof(this->m_sceneName)); }
@@ -94,7 +94,7 @@ public:
 	bool isOutputOperation(bool /*rendering*/) const { return this->isActiveCompositorOutput(); }
 	void initExecution();
 	void deinitExecution();
-	const CompositorPriority getRenderPriority() const { return COM_PRIORITY_MEDIUM; }
+	CompositorPriority getRenderPriority() const { return COM_PRIORITY_MEDIUM; }
 	void determineResolution(unsigned int resolution[2], unsigned int preferredResolution[2]);
 	void setUseAlphaInput(bool value) { this->m_useAlphaInput = value; }
 	void setActive(bool active) { this->m_active = active; }

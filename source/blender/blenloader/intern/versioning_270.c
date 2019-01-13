@@ -330,7 +330,7 @@ static void do_version_bbone_easing_fcurve_fix(ID *UNUSED(id), FCurve *fcu, void
 	/* Driver -> Driver Vars (for bbone_in/out) */
 	if (fcu->driver) {
 		for (DriverVar *dvar = fcu->driver->variables.first; dvar; dvar = dvar->next) {
-			DRIVER_TARGETS_LOOPER(dvar)
+			DRIVER_TARGETS_LOOPER_BEGIN(dvar)
 			{
 				if (dtar->rna_path) {
 					dtar->rna_path = replace_bbone_easing_rnapath(dtar->rna_path);
@@ -379,7 +379,7 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *bmain)
 		}
 
 		/* nodes don't use fixed node->id any more, clean up */
-		FOREACH_NODETREE(bmain, ntree, id) {
+		FOREACH_NODETREE_BEGIN(bmain, ntree, id) {
 			if (ntree->type == NTREE_COMPOSIT) {
 				bNode *node;
 				for (node = ntree->nodes.first; node; node = node->next) {
@@ -388,7 +388,7 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *bmain)
 					}
 				}
 			}
-		} FOREACH_NODETREE_END
+		} FOREACH_NODETREE_END;
 
 		{
 			bScreen *screen;
@@ -399,7 +399,7 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *bmain)
 					SpaceLink *space_link;
 					for (space_link = area->spacedata.first; space_link; space_link = space_link->next) {
 						if (space_link->spacetype == SPACE_CLIP) {
-							SpaceClip *space_clip = (SpaceClip *) space_link;
+							SpaceClip *space_clip = (SpaceClip *)space_link;
 							if (space_clip->mode != SC_MODE_MASKEDIT) {
 								space_clip->mode = SC_MODE_TRACKING;
 							}
@@ -671,7 +671,7 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *bmain)
 	}
 
 	if (!MAIN_VERSION_ATLEAST(bmain, 273, 1)) {
-#define	BRUSH_RAKE (1 << 7)
+#define BRUSH_RAKE (1 << 7)
 #define BRUSH_RANDOM_ROTATION (1 << 25)
 
 		Brush *br;
@@ -779,7 +779,7 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *bmain)
 		}
 
 		if (!DNA_struct_elem_find(fd->filesdna, "NodePlaneTrackDeformData", "char", "flag")) {
-			FOREACH_NODETREE(bmain, ntree, id) {
+			FOREACH_NODETREE_BEGIN(bmain, ntree, id) {
 				if (ntree->type == NTREE_COMPOSIT) {
 					bNode *node;
 					for (node = ntree->nodes.first; node; node = node->next) {
@@ -792,7 +792,7 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *bmain)
 					}
 				}
 			}
-			FOREACH_NODETREE_END
+			FOREACH_NODETREE_END;
 		}
 
 		if (!DNA_struct_elem_find(fd->filesdna, "Camera", "GPUDOFSettings", "gpu_dof")) {
@@ -879,7 +879,7 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *bmain)
 	}
 
 	if (!MAIN_VERSION_ATLEAST(bmain, 274, 2)) {
-		FOREACH_NODETREE(bmain, ntree, id) {
+		FOREACH_NODETREE_BEGIN(bmain, ntree, id) {
 			bNode *node;
 			bNodeSocket *sock;
 
@@ -902,7 +902,7 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *bmain)
 					}
 				}
 			}
-		} FOREACH_NODETREE_END
+		} FOREACH_NODETREE_END;
 	}
 
 	if (!MAIN_VERSION_ATLEAST(bmain, 274, 4)) {
@@ -940,8 +940,7 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *bmain)
 #undef SEQ_USE_PROXY_CUSTOM_DIR
 #undef SEQ_USE_PROXY_CUSTOM_FILE
 
-			}
-			SEQ_END
+			} SEQ_END;
 		}
 
 		for (screen = bmain->screen.first; screen; screen = screen->id.next) {
@@ -962,7 +961,7 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *bmain)
 						}
 						case SPACE_IMAGE:
 						{
-							SpaceImage *sima = (SpaceImage *) sl;
+							SpaceImage *sima = (SpaceImage *)sl;
 							sima->iuser.flag |= IMA_SHOW_STEREO;
 							break;
 						}
@@ -1067,7 +1066,7 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *bmain)
 
 		{
 			bScreen *screen;
-#define RV3D_VIEW_PERSPORTHO	 7
+#define RV3D_VIEW_PERSPORTHO     7
 			for (screen = bmain->screen.first; screen; screen = screen->id.next) {
 				ScrArea *sa;
 				for (sa = screen->areabase.first; sa; sa = sa->next) {
@@ -1096,7 +1095,7 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *bmain)
 
 		{
 			Lamp *lamp;
-#define LA_YF_PHOTON	5
+#define LA_YF_PHOTON    5
 			for (lamp = bmain->lamp.first; lamp; lamp = lamp->id.next) {
 				if (lamp->type == LA_YF_PHOTON) {
 					lamp->type = LA_LOCAL;
@@ -1325,8 +1324,7 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *bmain)
 					copy_v4_fl(data->color, 1.0f);
 					data->shadow_color[3] = 1.0f;
 				}
-			}
-			SEQ_END
+			} SEQ_END;
 		}
 
 		/* Adding "Properties" region to DopeSheet */
@@ -1694,7 +1692,7 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *bmain)
 
 		/* Fix for T50736, Glare comp node using same var for two different things. */
 		if (!DNA_struct_elem_find(fd->filesdna, "NodeGlare", "char", "star_45")) {
-			FOREACH_NODETREE(bmain, ntree, id) {
+			FOREACH_NODETREE_BEGIN(bmain, ntree, id) {
 				if (ntree->type == NTREE_COMPOSIT) {
 					ntreeSetTypes(NULL, ntree);
 					for (bNode *node = ntree->nodes.first; node; node = node->next) {
@@ -1713,7 +1711,7 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *bmain)
 						}
 					}
 				}
-			} FOREACH_NODETREE_END
+			} FOREACH_NODETREE_END;
 		}
 
 		if (!DNA_struct_elem_find(fd->filesdna, "SurfaceDeformModifierData", "float", "mat[4][4]")) {
@@ -1727,11 +1725,11 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *bmain)
 			}
 		}
 
-		FOREACH_NODETREE(bmain, ntree, id) {
+		FOREACH_NODETREE_BEGIN(bmain, ntree, id) {
 			if (ntree->type == NTREE_COMPOSIT) {
 				do_versions_compositor_render_passes(ntree);
 			}
-		} FOREACH_NODETREE_END
+		} FOREACH_NODETREE_END;
 	}
 
 	if (!MAIN_VERSION_ATLEAST(bmain, 279, 0)) {
@@ -1852,7 +1850,7 @@ void do_versions_after_linking_270(Main *bmain)
 {
 	/* To be added to next subversion bump! */
 	if (!MAIN_VERSION_ATLEAST(bmain, 279, 0)) {
-		FOREACH_NODETREE(bmain, ntree, id) {
+		FOREACH_NODETREE_BEGIN(bmain, ntree, id) {
 			if (ntree->type == NTREE_COMPOSIT) {
 				ntreeSetTypes(NULL, ntree);
 				for (bNode *node = ntree->nodes.first; node; node = node->next) {
@@ -1861,7 +1859,7 @@ void do_versions_after_linking_270(Main *bmain)
 					}
 				}
 			}
-		} FOREACH_NODETREE_END
+		} FOREACH_NODETREE_END;
 	}
 
 	if (!MAIN_VERSION_ATLEAST(bmain, 279, 2)) {

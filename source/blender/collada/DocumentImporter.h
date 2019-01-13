@@ -49,8 +49,6 @@
 #include "MeshImporter.h"
 #include "ImportSettings.h"
 
-
-
 struct bContext;
 
 /** Importer class. */
@@ -85,7 +83,7 @@ public:
 	/**
 	 * This method will be called if an error in the loading process occurred and the loader cannot
 	 * continue to load. The writer should undo all operations that have been performed.
-	 * \param errorMessage A message containing informations about the error that occurred.
+	 * \param errorMessage: A message containing information about the error that occurred.
 	 */
 	void cancel(const COLLADAFW::String& errorMessage);
 
@@ -107,6 +105,11 @@ public:
 	bool writeAnimation(const COLLADAFW::Animation*);
 
 	bool writeAnimationList(const COLLADAFW::AnimationList*);
+
+#if WITH_OPENCOLLADA_ANIMATION_CLIP
+	// Please enable this when building with Collada 1.6.65 or newer (also in DocumentImporter.cpp)
+	bool writeAnimationClip(const COLLADAFW::AnimationClip *animationClip);
+#endif
 
 	bool writeGeometry(const COLLADAFW::Geometry*);
 

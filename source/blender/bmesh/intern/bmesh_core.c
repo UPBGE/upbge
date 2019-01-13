@@ -420,11 +420,11 @@ BLI_INLINE BMFace *bm_face_create__internal(BMesh *bm)
 /**
  * Main face creation function
  *
- * \param bm  The mesh
- * \param verts  A sorted array of verts size of len
- * \param edges  A sorted array of edges size of len
- * \param len  Length of the face
- * \param create_flag  Options for creating the face
+ * \param bm: The mesh
+ * \param verts: A sorted array of verts size of len
+ * \param edges: A sorted array of edges size of len
+ * \param len: Length of the face
+ * \param create_flag: Options for creating the face
  */
 BMFace *BM_face_create(
         BMesh *bm, BMVert **verts, BMEdge **edges, const int len,
@@ -1332,9 +1332,9 @@ BMFace *BM_faces_join(BMesh *bm, BMFace **faces, int totface, const bool do_del)
 		float f_center[3];
 		float (*faces_center)[3] = BLI_array_alloca(faces_center, totface);
 
-		BM_face_calc_center_mean(f_new, f_center);
+		BM_face_calc_center_median(f_new, f_center);
 		for (i = 0; i < totface; i++) {
-			BM_face_calc_center_mean(faces[i], faces_center[i]);
+			BM_face_calc_center_median(faces[i], faces_center[i]);
 		}
 
 		l_iter = l_first = BM_FACE_FIRST_LOOP(f_new);
@@ -2395,7 +2395,7 @@ void bmesh_kernel_vert_separate(
  *
  * Any edges which failed to split off in #bmesh_kernel_vert_separate will be merged back into the original edge.
  *
- * \param edges_separate
+ * \param edges_separate:
  * A list-of-lists, each list is from a single original edge (the first edge is the original),
  * Check for duplicates (not just with the first) but between all.
  * This is O(n2) but radial edges are very rarely >2 and almost never >~10.

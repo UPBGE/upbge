@@ -164,7 +164,7 @@ Functions
    monitor). Can return the size of the entire view, so the
    combination of all monitors; for example, ``(3840, 1080)`` for two
    side-by-side 1080p monitors.
-   
+
    :rtype: tuple (width, height)
 
 .. function:: makeScreenshot(filename)

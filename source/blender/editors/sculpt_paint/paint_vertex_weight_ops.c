@@ -238,7 +238,7 @@ static int weight_sample_invoke(bContext *C, wmOperator *op, const wmEvent *even
 	}
 
 	if (changed) {
-		/* not really correct since the brush didnt change, but redraws the toolbar */
+		/* not really correct since the brush didn't change, but redraws the toolbar */
 		WM_main_add_notifier(NC_BRUSH | NA_EDITED, NULL); /* ts->wpaint->paint.brush */
 
 		return OPERATOR_FINISHED;
@@ -687,13 +687,15 @@ static int paint_weight_gradient_modal(bContext *C, wmOperator *op, const wmEven
 
 	if (ret & OPERATOR_CANCELLED) {
 		Object *ob = CTX_data_active_object(C);
-		Mesh *me = ob->data;
-		if (vert_cache->wpp.wpaint_prev) {
-			BKE_defvert_array_free_elems(me->dvert, me->totvert);
-			BKE_defvert_array_copy(me->dvert, vert_cache->wpp.wpaint_prev, me->totvert);
-			wpaint_prev_destroy(&vert_cache->wpp);
+		if (vert_cache != NULL) {
+			Mesh *me = ob->data;
+			if (vert_cache->wpp.wpaint_prev) {
+				BKE_defvert_array_free_elems(me->dvert, me->totvert);
+				BKE_defvert_array_copy(me->dvert, vert_cache->wpp.wpaint_prev, me->totvert);
+				wpaint_prev_destroy(&vert_cache->wpp);
+			}
+			MEM_freeN(vert_cache);
 		}
-		MEM_freeN(vert_cache);
 
 		DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 		WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);

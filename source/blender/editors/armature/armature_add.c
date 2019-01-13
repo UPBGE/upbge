@@ -428,7 +428,7 @@ EditBone *duplicateEditBoneObjects(EditBone *curBone, const char *name, ListBase
 {
 	EditBone *eBone = MEM_mallocN(sizeof(EditBone), "addup_editbone");
 
-	/*	Copy data from old bone to new bone */
+	/* Copy data from old bone to new bone */
 	memcpy(eBone, curBone, sizeof(EditBone));
 
 	curBone->temp.ebone = eBone;
@@ -454,7 +454,7 @@ EditBone *duplicateEditBoneObjects(EditBone *curBone, const char *name, ListBase
 		chanold = BKE_pose_channel_verify(src_ob->pose, curBone->name);
 		if (chanold) {
 			/* WARNING: this creates a new posechannel, but there will not be an attached bone
-			 *		yet as the new bones created here are still 'EditBones' not 'Bones'.
+			 * yet as the new bones created here are still 'EditBones' not 'Bones'.
 			 */
 			channew = BKE_pose_channel_verify(dst_ob->pose, eBone->name);
 
@@ -667,7 +667,7 @@ static int armature_symmetrize_exec(bContext *C, wmOperator *op)
 						if (axis_delta == 0.0f) {
 							/* both mirrored bones exist and point to eachother and overlap exactly.
 							 *
-							 * in this case theres no well defined solution, so de-select both and skip.
+							 * in this case there's no well defined solution, so de-select both and skip.
 							 */
 							ebone->flag      &= ~(BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
 							ebone_iter->flag &= ~(BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);

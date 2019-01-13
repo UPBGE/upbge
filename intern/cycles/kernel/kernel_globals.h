@@ -19,8 +19,11 @@
 #ifndef __KERNEL_GLOBALS_H__
 #define __KERNEL_GLOBALS_H__
 
+#include "kernel/kernel_profiling.h"
+
 #ifdef __KERNEL_CPU__
 #  include "util/util_vector.h"
+#  include "util/util_map.h"
 #endif
 
 #ifdef __KERNEL_OPENCL__
@@ -41,6 +44,8 @@ struct OSLGlobals;
 struct OSLThreadData;
 struct OSLShadingSystem;
 #  endif
+
+typedef unordered_map<float, float> CoverageMap;
 
 struct Intersection;
 struct VolumeStep;
@@ -68,12 +73,19 @@ typedef struct KernelGlobals {
 	VolumeStep *decoupled_volume_steps[2];
 	int decoupled_volume_steps_index;
 
+	/* A buffer for storing per-pixel coverage for Cryptomatte. */
+	CoverageMap *coverage_object;
+	CoverageMap *coverage_material;
+	CoverageMap *coverage_asset;
+
 	/* split kernel */
 	SplitData split_data;
 	SplitParams split_param_data;
 
 	int2 global_size;
 	int2 global_id;
+
+	ProfilingState profiler;
 } KernelGlobals;
 
 #endif  /* __KERNEL_CPU__ */

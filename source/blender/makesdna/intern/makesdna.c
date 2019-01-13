@@ -153,10 +153,10 @@ static short **structs, *structdata; /* at sp = structs[a] is the first address 
 /**
  * Variable to control debug output of makesdna.
  * debugSDNA:
- *  - 0 = no output, except errors
- *  - 1 = detail actions
- *  - 2 = full trace, tell which names and types were found
- *  - 4 = full trace, plus all gritty details
+ * - 0 = no output, except errors
+ * - 1 = detail actions
+ * - 2 = full trace, tell which names and types were found
+ * - 4 = full trace, plus all gritty details
  */
 static int debugSDNA = 0;
 static int additional_slen_offset;
@@ -167,14 +167,14 @@ static int additional_slen_offset;
 
 /**
  * Add type \c str to struct indexed by \c len, if it was not yet found.
- * \param str char
- * \param len int
+ * \param str: char
+ * \param len: int
  */
 static int add_type(const char *str, int len);
 
 /**
  * Add variable \c str to
- * \param str
+ * \param str:
  */
 static int add_name(const char *str);
 
@@ -985,7 +985,7 @@ static int make_structDNA(const char *baseDirectory, FILE *file, FILE *file_offs
 		printf("Running makesdna at debug level %d\n", debugSDNA);
 	}
 
-	/* the longest known struct is 50k, so we assume 100k is sufficent! */
+	/* the longest known struct is 50k, so we assume 100k is sufficient! */
 	namedata = MEM_callocN(maxdata, "namedata");
 	typedata = MEM_callocN(maxdata, "typedata");
 	structdata = MEM_callocN(maxdata, "structdata");
@@ -1196,7 +1196,9 @@ static int make_structDNA(const char *baseDirectory, FILE *file, FILE *file_offs
 static void make_bad_file(const char *file, int line)
 {
 	FILE *fp = fopen(file, "w");
-	fprintf(fp, "#error \"Error! can't make correct DNA.c file from %s:%d, STUPID!\"\n", __FILE__, line);
+	fprintf(fp,
+	       "#error \"Error! can't make correct DNA.c file from %s:%d, check alignment.\"\n",
+	       __FILE__, line);
 	fclose(fp);
 }
 
@@ -1259,7 +1261,7 @@ int main(int argc, char **argv)
 	return(return_status);
 }
 
-/* handy but fails on struct bounds which makesdna doesnt care about
+/* handy but fails on struct bounds which makesdna doesn't care about
  * with quite the same strictness as GCC does */
 #if 0
 /* include files for automatic dependencies */

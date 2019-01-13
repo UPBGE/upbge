@@ -22,6 +22,7 @@ CCL_NAMESPACE_BEGIN
 
 DenoisingTask::DenoisingTask(Device *device, const DeviceTask &task)
 : tile_info_mem(device, "denoising tile info mem", MEM_READ_WRITE),
+  profiler(NULL),
   storage(device),
   buffer(device),
   device(device)
@@ -99,14 +100,18 @@ void DenoisingTask::setup_denoising_buffer()
 	buffer.mem.alloc_to_device(mem_size, false);
 
 	/* CPUs process shifts sequentially while GPUs process them in parallel. */
-	int num_shifts = 1;
+	int num_layers;
 	if(buffer.gpu_temporary_mem) {
 		/* Shadowing prefiltering uses a radius of 6, so allocate at least that much. */
 		int max_radius = max(radius, 6);
-		num_shifts = (2*max_radius + 1) * (2*max_radius + 1);
+		int num_shifts = (2*max_radius + 1) * (2*max_radius + 1);
+		num_layers = 2*num_shifts + 1;
+	}
+	else {
+		num_layers = 3;
 	}
 	/* Allocate two layers per shift as well as one for the weight accumulation. */
-	buffer.temporary_mem.alloc_to_device((2*num_shifts + 1) * buffer.pass_stride);
+	buffer.temporary_mem.alloc_to_device(num_layers * buffer.pass_stride);
 }
 
 void DenoisingTask::prefilter_shadowing()

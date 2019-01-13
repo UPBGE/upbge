@@ -479,7 +479,7 @@ static KnifeEdge *get_bm_knife_edge(KnifeTool_OpData *kcd, BMEdge *e)
 /* Record the index in kcd->em->looptris of first looptri triple for a given face,
  * given an index for some triple in that array.
  * This assumes that all of the triangles for a given face are contiguous
- * in that array (as they are by the current tesselation routines).
+ * in that array (as they are by the current tessellation routines).
  * Actually store index + 1 in the hash, because 0 looks like "no entry"
  * to hash lookup routine; will reverse this in the get routine.
  * Doing this lazily rather than all at once for all faces.
@@ -502,7 +502,7 @@ static void set_lowest_face_tri(KnifeTool_OpData *kcd, BMFace *f, int index)
 	if (i == -1)
 		i++;
 
-	BLI_ghash_insert(kcd->facetrimap, f, SET_INT_IN_POINTER(i + 1));
+	BLI_ghash_insert(kcd->facetrimap, f, POINTER_FROM_INT(i + 1));
 }
 
 /* This should only be called for faces that have had a lowest face tri set by previous function */
@@ -510,7 +510,7 @@ static int get_lowest_face_tri(KnifeTool_OpData *kcd, BMFace *f)
 {
 	int ans;
 
-	ans = GET_INT_FROM_POINTER(BLI_ghash_lookup(kcd->facetrimap, f));
+	ans = POINTER_AS_INT(BLI_ghash_lookup(kcd->facetrimap, f));
 	BLI_assert(ans != 0);
 	return ans - 1;
 }
@@ -1217,7 +1217,7 @@ static bool knife_ray_intersect_face(
 		lv2 = kcd->cagecos[BM_elem_index_get(tri[1]->v)];
 		lv3 = kcd->cagecos[BM_elem_index_get(tri[2]->v)];
 		/* using epsilon test in case ray is directly through an internal
-		 * tesselation edge and might not hit either tesselation tri with
+		 * tessellation edge and might not hit either tessellation tri with
 		 * an exact test;
 		 * we will exclude hits near real edges by a later test */
 		if (isect_ray_tri_epsilon_v3(v1, raydir, lv1, lv2, lv3, &lambda, ray_tri_uv, KNIFE_FLT_EPS)) {
@@ -1390,7 +1390,7 @@ static bool bm_ray_cast_cb_elem_not_in_face_check(BMFace *f, void *user_data)
  * Check if \a p is visible (not clipped, not occluded by another face).
  * s in screen projection of p.
  *
- * \param ele_test  Optional vert/edge/face to use when \a p is on the surface of the geometry,
+ * \param ele_test: Optional vert/edge/face to use when \a p is on the surface of the geometry,
  * intersecting faces matching this face (or connected when an vert/edge) will be ignored.
  */
 static bool point_is_visible(
@@ -1542,8 +1542,8 @@ static void knife_find_line_hits(KnifeTool_OpData *kcd)
 	}
 
 	/* unproject screen line */
-	ED_view3d_win_to_segment(kcd->ar, kcd->vc.v3d, s1, v1, v3, true);
-	ED_view3d_win_to_segment(kcd->ar, kcd->vc.v3d, s2, v2, v4, true);
+	ED_view3d_win_to_segment_clipped(kcd->ar, kcd->vc.v3d, s1, v1, v3, true);
+	ED_view3d_win_to_segment_clipped(kcd->ar, kcd->vc.v3d, s2, v2, v4, true);
 
 	mul_m4_v3(kcd->ob->imat, v1);
 	mul_m4_v3(kcd->ob->imat, v2);
@@ -1551,7 +1551,7 @@ static void knife_find_line_hits(KnifeTool_OpData *kcd)
 	mul_m4_v3(kcd->ob->imat, v4);
 
 	/* numeric error, 'v1' -> 'v2', 'v2' -> 'v4' can end up being ~2000 units apart in otho mode
-	 * (from ED_view3d_win_to_segment_clip() above)
+	 * (from ED_view3d_win_to_segment_clipped() above)
 	 * this gives precision error; rather then solving properly
 	 * (which may involve using doubles everywhere!),
 	 * limit the distance between these points */
@@ -2194,7 +2194,7 @@ static int knife_update_active(KnifeTool_OpData *kcd)
 	/* if no hits are found this would normally default to (0, 0, 0) so instead
 	 * get a point at the mouse ray closest to the previous point.
 	 * Note that drawing lines in `free-space` isn't properly supported
-	 * but theres no guarantee (0, 0, 0) has any geometry either - campbell */
+	 * but there's no guarantee (0, 0, 0) has any geometry either - campbell */
 	if (kcd->curr.vert == NULL && kcd->curr.edge == NULL && kcd->curr.bmface == NULL) {
 		float origin[3];
 		float origin_ofs[3];
@@ -3003,7 +3003,7 @@ static bool edbm_mesh_knife_point_isect(LinkNode *polys, const float cent_ss[2])
 }
 
 /**
- * \param use_tag  When set, tag all faces inside the polylines.
+ * \param use_tag: When set, tag all faces inside the polylines.
  */
 void EDBM_mesh_knife(bContext *C, LinkNode *polys, bool use_tag, bool cut_through)
 {

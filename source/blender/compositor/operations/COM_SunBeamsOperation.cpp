@@ -16,7 +16,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * Contributor:
- *		Lukas Toenne
+ *      Lukas Toenne
  */
 
 #include "MEM_guardedalloc.h"
@@ -105,9 +105,9 @@ struct BufferLineAccumulator {
 	 * at dist_min from the target pt. This way the loop can be canceled as soon as it runs
 	 * out of the buffer rect, because no pixels further along the line can contribute.
 	 *
-	 * \param x, y  Start location in the buffer
-	 * \param num  Total steps in the loop
-	 * \param v, dv  Vertical offset in sector space, for line offset perpendicular to the loop axis
+	 * \param x, y: Start location in the buffer
+	 * \param num: Total steps in the loop
+	 * \param v, dv: Vertical offset in sector space, for line offset perpendicular to the loop axis
 	 */
 	static float *init_buffer_iterator(MemoryBuffer *input, const float source[2], const float co[2],
 	                                   float dist_min, float dist_max,
@@ -141,7 +141,7 @@ struct BufferLineAccumulator {
 
 	/**
 	 * Perform the actual accumulation along a ray segment from source to pt.
-	 * Only pixels withing dist_min..dist_max contribute.
+	 * Only pixels within dist_min..dist_max contribute.
 	 *
 	 * The loop runs backwards(!) over the primary sector space axis u, i.e. increasing distance to pt.
 	 * After each step it decrements v by dv < 1, adding a buffer shift when necessary.

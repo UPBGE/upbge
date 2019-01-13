@@ -59,6 +59,7 @@
 
 #ifdef __linux__
 #include <mntent.h>
+#include "BLI_fileops_types.h"
 #endif
 
 #include "fsmenu.h"  /* include ourselves */
@@ -439,7 +440,7 @@ void fsmenu_read_bookmarks(struct FSMenu *fsmenu, const char *filename)
 					line[len - 1] = '\0';
 				}
 				/* don't do this because it can be slow on network drives,
-				 * having a bookmark from a drive thats ejected or so isn't
+				 * having a bookmark from a drive that's ejected or so isn't
 				 * all _that_ bad */
 #if 0
 				if (BLI_exists(line))
@@ -577,7 +578,7 @@ void fsmenu_read_system(struct FSMenu *fsmenu, int read_bookmarks)
 #else
 	/* unix */
 	{
-		const char *home = getenv("HOME");
+		const char *home = BLI_getenv("HOME");
 
 		if (read_bookmarks && home) {
 			BLI_snprintf(line, sizeof(line), "%s/", home);
@@ -598,13 +599,22 @@ void fsmenu_read_system(struct FSMenu *fsmenu, int read_bookmarks)
 
 			fp = setmntent(MOUNTED, "r");
 			if (fp == NULL) {
-				fprintf(stderr, "could not get a list of mounted filesystemts\n");
+				fprintf(stderr, "could not get a list of mounted filesystems\n");
 			}
 			else {
 				while ((mnt = getmntent(fp))) {
-					/* not sure if this is right, but seems to give the relevant mnts */
-					if (!STREQLEN(mnt->mnt_fsname, "/dev", 4))
+					if (STRPREFIX(mnt->mnt_dir, "/boot")) {
+						/* Hide share not usable to the user. */
 						continue;
+					}
+					else if (!STRPREFIX(mnt->mnt_fsname, "/dev")) {
+						continue;
+					}
+					else if (STRPREFIX(mnt->mnt_fsname, "/dev/loop")) {
+						/* The dev/loop* entries are SNAPS used by desktop environment
+						 * (Gnome) no need for them to show up in the list. */
+						continue;
+					}
 
 					len = strlen(mnt->mnt_dir);
 					if (len && mnt->mnt_dir[len - 1] != '/') {
@@ -618,8 +628,35 @@ void fsmenu_read_system(struct FSMenu *fsmenu, int read_bookmarks)
 					found = 1;
 				}
 				if (endmntent(fp) == 0) {
-					fprintf(stderr, "could not close the list of mounted filesystemts\n");
+					fprintf(stderr, "could not close the list of mounted filesystems\n");
 				}
+			}
+			/* Check gvfs shares. */
+			const char * const xdg_runtime_dir = BLI_getenv("XDG_RUNTIME_DIR");
+			if (xdg_runtime_dir != NULL) {
+				struct direntry *dir;
+				char name[FILE_MAX];
+				BLI_join_dirfile(name, sizeof(name), xdg_runtime_dir, "gvfs/");
+				const uint dir_len = BLI_filelist_dir_contents(name, &dir);
+				for (uint i = 0; i < dir_len; i++) {
+					if ((dir[i].type & S_IFDIR)) {
+						const char *dirname = dir[i].relname;
+						if (dirname[0] != '.') {
+							/* Dir names contain a lot of unwanted text.
+							 * Assuming every entry ends with the share name */
+							const char *label = strstr(dirname, "share=");
+							if (label != NULL) {
+								/* Move pointer so "share=" is trimmed off or use full dirname as label. */
+								const char *label_test = label + 6;
+								label = *label_test ? label_test : dirname;
+							}
+							BLI_snprintf(line, sizeof(line), "%s%s/", name, dirname);
+							fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM, line, label, FS_INSERT_SORTED);
+							found = 1;
+						}
+					}
+				}
+				BLI_filelist_free(dir, dir_len);
 			}
 #endif
 

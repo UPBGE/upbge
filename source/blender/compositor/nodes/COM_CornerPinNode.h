@@ -16,7 +16,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * Contributor:
- *		Lukas Toenne
+ *      Lukas Toenne
  */
 
 #ifndef __COM_CORNERPINNODE_H__
@@ -29,8 +29,8 @@ extern "C" {
 }
 
 /**
- * @brief CornerPinNode
- * @ingroup Node
+ * \brief CornerPinNode
+ * \ingroup Node
  */
 class CornerPinNode : public Node {
 public:

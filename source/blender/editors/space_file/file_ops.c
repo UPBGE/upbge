@@ -1301,7 +1301,7 @@ void file_operator_to_sfile(bContext *C, SpaceFile *sfile, wmOperator *op)
 	}
 
 	/* we could check for relative_path property which is used when converting
-	 * in the other direction but doesnt hurt to do this every time */
+	 * in the other direction but doesn't hurt to do this every time */
 	BLI_path_abs(sfile->params->dir, BKE_main_blendfile_path(bmain));
 
 	/* XXX, files and dirs updates missing, not really so important though */
@@ -1714,7 +1714,6 @@ static int filepath_drop_exec(bContext *C, wmOperator *op)
 void FILE_OT_filepath_drop(wmOperatorType *ot)
 {
 	ot->name = "File Selector Drop";
-	ot->description = "";
 	ot->idname = "FILE_OT_filepath_drop";
 
 	ot->exec = filepath_drop_exec;

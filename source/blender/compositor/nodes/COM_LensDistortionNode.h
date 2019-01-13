@@ -16,8 +16,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * Contributor:
- *		Jeroen Bakker
- *		Monique Dewanchand
+ *      Jeroen Bakker
+ *      Monique Dewanchand
  */
 
 #ifndef __COM_LENSDISTORTIONNODE_H__
@@ -26,8 +26,8 @@
 #include "COM_Node.h"
 
 /**
- * @brief LensDistortionNode
- * @ingroup Node
+ * \brief LensDistortionNode
+ * \ingroup Node
  */
 class LensDistortionNode : public Node {
 public:

@@ -15,7 +15,9 @@ set(SRC
 	util_logging.cpp
 	util_math_cdf.cpp
 	util_md5.cpp
+	util_murmurhash.cpp
 	util_path.cpp
+	util_profiling.cpp
 	util_string.cpp
 	util_simd.cpp
 	util_system.cpp
@@ -23,19 +25,24 @@ set(SRC
 	util_thread.cpp
 	util_time.cpp
 	util_transform.cpp
-	util_windows.cpp
 )
 
-if(WITH_CYCLES_STANDALONE AND WITH_CYCLES_STANDALONE_GUI)
-	list(APPEND SRC
-		util_view.cpp
-	)
+if(WITH_CYCLES_STANDALONE)
+	if (WITH_CYCLES_STANDALONE_GUI)
+		list(APPEND SRC
+			util_view.cpp
+		)
+	endif()
+	list(APPEND INC_SYS ../../third_party/numaapi/include)
+else()
+	list(APPEND INC_SYS ../../numaapi/include)
 endif()
 
 set(SRC_HEADERS
 	util_algorithm.h
 	util_aligned_malloc.h
 	util_args.h
+	util_array.h
 	util_atomic.h
 	util_boundbox.h
 	util_debug.h
@@ -64,10 +71,12 @@ set(SRC_HEADERS
 	util_math_int4.h
 	util_math_matrix.h
 	util_md5.h
+	util_murmurhash.h
 	util_opengl.h
 	util_optimization.h
 	util_param.h
 	util_path.h
+	util_profiling.h
 	util_progress.h
 	util_projection.h
 	util_queue.h
