@@ -173,7 +173,6 @@ endif()
 		bf_intern_audaspace
 
 		extern_bullet
-		extern_openjpeg
 		extern_binreloc
 		extern_minilzo
 		extern_recastnavigation
