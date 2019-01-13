@@ -64,7 +64,7 @@ set(INC_SYS
 
 set(SRC
 	GPG_Canvas.cpp
-	GPG_ghost.cpp
+	GPG_Ghost.cpp
 
 	GPG_Canvas.h
 )

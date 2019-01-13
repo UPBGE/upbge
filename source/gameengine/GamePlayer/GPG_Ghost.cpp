@@ -26,7 +26,7 @@
  * Start up of the Blender Player on GHOST.
  */
 
-/** \file gameengine/GamePlayer/GPG_ghost.cpp
+/** \file gameengine/GamePlayer/GPG_Ghost.cpp
  *  \ingroup player
  */
 
