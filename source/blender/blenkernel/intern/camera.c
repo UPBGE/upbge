@@ -778,6 +778,12 @@ static bool camera_is_left(const char *viewname)
 
 void BKE_camera_multiview_model_matrix(RenderData *rd, const Object *camera, const char *viewname, float r_modelmat[4][4])
 {
+	BKE_camera_multiview_model_matrix_scaled(rd, camera, viewname, r_modelmat);
+	normalize_m4(r_modelmat);
+}
+
+void BKE_camera_multiview_model_matrix_scaled(RenderData *rd, const Object *camera, const char *viewname, float r_modelmat[4][4])
+{
 	const bool is_multiview = (rd && rd->scemode & R_MULTIVIEW) != 0;
 
 	if (!is_multiview) {
@@ -790,7 +796,22 @@ void BKE_camera_multiview_model_matrix(RenderData *rd, const Object *camera, con
 		const bool is_left = camera_is_left(viewname);
 		camera_stereo3d_model_matrix(camera, is_left, r_modelmat);
 	}
-	normalize_m4(r_modelmat);
+}
+
+void BKE_camera_multiview_window_matrix(RenderData *rd, const Object *camera, const char *viewname, float r_winmat[4][4])
+{
+	CameraParams params;
+
+	/* Setup parameters */
+	BKE_camera_params_init(&params);
+	BKE_camera_params_from_object(&params, camera);
+	BKE_camera_multiview_params(rd, &params, camera, viewname);
+
+	/* Compute matrix, viewplane, .. */
+	BKE_camera_params_compute_viewplane(&params, rd->xsch, rd->ysch, rd->xasp, rd->yasp);
+	BKE_camera_params_compute_matrix(&params);
+
+	copy_m4_m4(r_winmat, params.winmat);
 }
 
 bool BKE_camera_multiview_spherical_stereo(RenderData *rd, const Object *camera)

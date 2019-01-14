@@ -46,6 +46,7 @@ struct Sequence;
 struct SequenceModifierData;
 struct Stereo3dFormat;
 struct StripElem;
+struct TextVars;
 struct bSound;
 
 struct SeqIndexBuildContext;
@@ -145,7 +146,7 @@ struct SeqEffectHandle {
 
 	/* load is called first time after readblenfile in
 	 * get_sequence_effect automatically */
-	void (*load)(struct Sequence *seq);
+	void (*load)(struct Sequence *seqconst);
 
 	/* duplicate */
 	void (*copy)(struct Sequence *dst, struct Sequence *src, const int flag);
@@ -301,6 +302,9 @@ void BKE_sequence_effect_speed_rebuild_map(struct Scene *scene, struct Sequence 
 struct SeqEffectHandle BKE_sequence_get_effect(struct Sequence *seq);
 int BKE_sequence_effect_get_num_inputs(int seq_type);
 int BKE_sequence_effect_get_supports_mask(int seq_type);
+void BKE_sequencer_text_font_unload(struct TextVars *data, const bool do_id_user);
+void BKE_sequencer_text_font_load(struct TextVars *data, const bool do_id_user);
+
 
 /* **********************************************************************
  * Sequencer editing functions
@@ -335,7 +339,8 @@ bool BKE_sequence_base_shuffle_time(ListBase *seqbasep, struct Scene *evil_scene
 bool BKE_sequence_base_isolated_sel_check(struct ListBase *seqbase);
 void BKE_sequencer_free_imbuf(struct Scene *scene, struct ListBase *seqbasep, bool for_render);
 struct Sequence *BKE_sequence_dupli_recursive(
-        const struct Scene *scene_src, struct Scene *scene_dst, struct Sequence *seq, int dupe_flag);
+        const struct Scene *scene_src, struct Scene *scene_dst,
+        struct ListBase *new_seq_list, struct Sequence *seq, int dupe_flag);
 int BKE_sequence_swap(struct Sequence *seq_a, struct Sequence *seq_b, const char **error_str);
 
 bool BKE_sequence_check_depend(struct Sequence *seq, struct Sequence *cur);
@@ -391,7 +396,7 @@ typedef struct SeqLoadInfo {
 
 
 /* seq_dupli' flags */
-#define SEQ_DUPE_UNIQUE_NAME    (1 << 0)  /* WARNING: does NOT work when duplicating Meta strips! */
+#define SEQ_DUPE_UNIQUE_NAME    (1 << 0)
 #define SEQ_DUPE_CONTEXT        (1 << 1)
 #define SEQ_DUPE_ANIM           (1 << 2)
 #define SEQ_DUPE_ALL            (1 << 3) /* otherwise only selected are copied */
