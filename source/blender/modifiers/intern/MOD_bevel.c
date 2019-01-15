@@ -74,12 +74,12 @@ static void initData(ModifierData *md)
 	bmd->clnordata.faceHash = NULL;
 }
 
-static void copyData(const ModifierData *md_src, ModifierData *md_dst, const int UNUSED(flag))
+static void copyData(const ModifierData *md_src, ModifierData *md_dst, const int flag)
 {
-	BevelModifierData *bmd_src = (BevelModifierData *)md_src;
 	BevelModifierData *bmd_dst = (BevelModifierData *)md_dst;
 
-	*bmd_dst = *bmd_src;
+	modifier_copyData_generic(md_src, md_dst, flag);
+
 	bmd_dst->clnordata.faceHash = NULL;
 }
 
