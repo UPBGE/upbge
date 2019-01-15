@@ -59,6 +59,7 @@ extern "C"
 
 #  include "BKE_appdir.h"
 #  include "BKE_blender.h"
+#  include "BKE_font.h"
 #  include "BKE_global.h"
 #  include "BKE_icons.h"
 #  include "BKE_image.h"
@@ -83,6 +84,8 @@ extern "C"
 #  include "DEG_depsgraph.h"
 #  include "DEG_depsgraph_build.h"
 #  include "DEG_depsgraph_query.h"
+
+#  include "../blender/editors/include/ED_datafiles.h"
 
 #  ifdef __APPLE__
 	int GHOST_HACK_getFirstFile(char buf[]);
@@ -745,6 +748,9 @@ int main(
 #ifdef WITH_FFMPEG
 	IMB_ffmpeg_init();
 #endif
+
+	/* background render uses this font too */
+	BKE_vfont_builtin_register(datatoc_bfont_pfb, datatoc_bfont_pfb_size);
 
 	// Setup builtin font for BLF (mostly copied from creator.c, wm_init_exit.c and interface_style.c)
 	BLF_init();
