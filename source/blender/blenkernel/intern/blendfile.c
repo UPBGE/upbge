@@ -443,9 +443,9 @@ bool BKE_blendfile_read_from_memfile(
 	if (bfd) {
 		/* remove the unused screens and wm */
 		while (bfd->main->wm.first)
-			BKE_libblock_free(bfd->main, bfd->main->wm.first);
+			BKE_id_free(bfd->main, bfd->main->wm.first);
 		while (bfd->main->screen.first)
-			BKE_libblock_free(bfd->main, bfd->main->screen.first);
+			BKE_id_free(bfd->main, bfd->main->screen.first);
 
 		setup_app_data(C, bfd, "<memory1>", params->is_startup, reports);
 	}
@@ -476,7 +476,7 @@ void BKE_blendfile_read_make_empty(bContext *C)
 				continue;
 			}
 			while ((id = lbarray[a]->first)) {
-				BKE_libblock_delete(bmain, id);
+				BKE_id_delete(bmain, id);
 			}
 		}
 	}

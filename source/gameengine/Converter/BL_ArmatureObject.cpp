@@ -240,11 +240,11 @@ BL_ArmatureObject::~BL_ArmatureObject()
 	m_controlledConstraints->Release();
 
 	if (m_objArma) {
-		BKE_libblock_free(G.main, m_objArma->data);
+		BKE_id_free_us(G.main, m_objArma->data);
 		/* avoid BKE_libblock_free(G.main, m_objArma)
 		   try to access m_objArma->data */
 		m_objArma->data = nullptr;
-		BKE_libblock_free(G.main, m_objArma);
+		BKE_id_free_us(G.main, m_objArma);
 	}
 }
 

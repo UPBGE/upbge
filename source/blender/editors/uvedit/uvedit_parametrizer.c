@@ -72,7 +72,7 @@
 #endif
 typedef enum PBool {
 	P_TRUE = 1,
-	P_FALSE = 0
+	P_FALSE = 0,
 } PBool;
 
 /* Special Purpose Hash */
@@ -155,7 +155,7 @@ enum PVertFlag {
 	PVERT_SELECT = 2,
 	PVERT_INTERIOR = 4,
 	PVERT_COLLAPSE = 8,
-	PVERT_SPLIT = 16
+	PVERT_SPLIT = 16,
 };
 
 enum PEdgeFlag {
@@ -167,7 +167,7 @@ enum PEdgeFlag {
 	PEDGE_FILLED = 32,
 	PEDGE_COLLAPSE = 64,
 	PEDGE_COLLAPSE_EDGE = 128,
-	PEDGE_COLLAPSE_PAIR = 256
+	PEDGE_COLLAPSE_PAIR = 256,
 };
 
 /* for flipping faces */
@@ -176,7 +176,7 @@ enum PEdgeFlag {
 enum PFaceFlag {
 	PFACE_CONNECTED = 1,
 	PFACE_FILLED = 2,
-	PFACE_COLLAPSE = 4
+	PFACE_COLLAPSE = 4,
 };
 
 /* Chart */
@@ -208,7 +208,7 @@ typedef struct PChart {
 } PChart;
 
 enum PChartFlag {
-	PCHART_HAS_PINS = 1
+	PCHART_HAS_PINS = 1,
 };
 
 enum PHandleState {
@@ -4547,7 +4547,8 @@ void param_pack(ParamHandle *handle, float margin, bool do_rotate, bool ignore_p
 	if (margin > 0.0f) {
 		/* multiply the margin by the area to give predictable results not dependent on UV scale,
 		 * ...Without using the area running pack multiple times also gives a bad feedback loop.
-		 * multiply by 0.1 so the margin value from the UI can be from 0.0 to 1.0 but not give a massive margin */
+		 * multiply by 0.1 so the margin value from the UI can be from
+		 * 0.0 to 1.0 but not give a massive margin */
 		margin = (margin * (float)area) * 0.1f;
 		unpacked = 0;
 		for (i = 0; i < phandle->ncharts; i++) {

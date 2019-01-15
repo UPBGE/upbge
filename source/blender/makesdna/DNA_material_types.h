@@ -63,7 +63,7 @@ typedef struct TexPaintSlot {
 	/** Do we have a valid image and UV map. */
 	int valid;
 	/** Copy of node inteporlation setting. */
-	int interp;        
+	int interp;
 } TexPaintSlot;
 
 typedef struct MaterialGPencilStyle {
@@ -136,7 +136,7 @@ typedef enum eMaterialGPencilStyle_Flag {
 	/* Stroke show main switch */
 	GP_STYLE_STROKE_SHOW = (1 << 8),
 	/* Fill  show main switch */
-	GP_STYLE_FILL_SHOW = (1 << 9)
+	GP_STYLE_FILL_SHOW = (1 << 9),
 } eMaterialGPencilStyle_Flag;
 
 typedef enum eMaterialGPencilStyle_Mode {
@@ -296,7 +296,8 @@ typedef struct Material {
 #define TEXCO_TANGENT   (1 << 12)
 	/* still stored in vertex->accum, 1 D */
 #define TEXCO_STRAND    (1 << 13)
-#define TEXCO_PARTICLE  (1 << 13) /* strand is used for normal materials, particle for halo materials */
+/** strand is used for normal materials, particle for halo materials */
+#define TEXCO_PARTICLE  (1 << 13)
 #define TEXCO_STRESS    (1 << 14)
 #define TEXCO_SPEED     (1 << 15)
 

@@ -183,7 +183,8 @@ typedef struct Sequence {
 	/** Old animation system, deprecated for 2.5. */
 	struct Ipo *ipo DNA_DEPRECATED;
 
-	/* these ID vars should never be NULL but can be when linked libs fail to load, so check on access */
+	/** these ID vars should never be NULL but can be when linked libs fail to load,
+	 * so check on access */
 	struct Scene     *scene;
 	/** Override scene camera. */
 	struct Object    *scene_camera;
@@ -542,7 +543,7 @@ enum {
 /* seq->alpha_mode */
 enum {
 	SEQ_ALPHA_STRAIGHT = 0,
-	SEQ_ALPHA_PREMUL   = 1
+	SEQ_ALPHA_PREMUL   = 1,
 };
 
 /* seq->type WATCH IT: SEQ_TYPE_EFFECT BIT is used to determine if this is an effect strip!!! */
@@ -597,7 +598,7 @@ enum {
 	SEQ_TYPE_DIFFERENCE  = 59,
 	SEQ_TYPE_EXCLUSION   = 60,
 
-	SEQ_TYPE_MAX         = 60
+	SEQ_TYPE_MAX         = 60,
 };
 
 #define SEQ_MOVIECLIP_RENDER_UNDISTORTED (1 << 0)
@@ -635,7 +636,7 @@ enum {
 
 enum {
 	SEQUENCE_MASK_INPUT_STRIP   = 0,
-	SEQUENCE_MASK_INPUT_ID      = 1
+	SEQUENCE_MASK_INPUT_ID      = 1,
 };
 
 enum {

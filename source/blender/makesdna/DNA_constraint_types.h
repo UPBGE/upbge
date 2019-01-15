@@ -121,15 +121,20 @@ typedef struct bConstraintTarget {
 
 /* bConstraintTarget -> flag */
 typedef enum eConstraintTargetFlag {
-	CONSTRAINT_TAR_TEMP = (1<<0)		/* temporary target-struct that needs to be freed after use */
+	/** temporary target-struct that needs to be freed after use */
+	CONSTRAINT_TAR_TEMP = (1<<0),
 } eConstraintTargetFlag;
 
 /* bConstraintTarget/bConstraintOb -> type */
 typedef enum eConstraintObType {
-	CONSTRAINT_OBTYPE_OBJECT = 1,	/* string is "" */
-	CONSTRAINT_OBTYPE_BONE   = 2,	/* string is bone-name */
-	CONSTRAINT_OBTYPE_VERT   = 3,	/* string is vertex-group name */
-	CONSTRAINT_OBTYPE_CV     = 4	/* string is vertex-group name - is not available until curves get vgroups */
+	/** string is "" */
+	CONSTRAINT_OBTYPE_OBJECT = 1,
+	/** string is bone-name */
+	CONSTRAINT_OBTYPE_BONE   = 2,
+	/** string is vertex-group name */
+	CONSTRAINT_OBTYPE_VERT   = 3,
+	/** string is vertex-group name - is not available until curves get vgroups */
+	CONSTRAINT_OBTYPE_CV     = 4,
 } eConstraintObType;
 
 
@@ -201,8 +206,10 @@ typedef struct bKinematicConstraint {
 } bKinematicConstraint;
 
 typedef enum eConstraint_IK_Type {
-	CONSTRAINT_IK_COPYPOSE = 0,		/* 'standard' IK constraint: match position and/or orientation of target */
-	CONSTRAINT_IK_DISTANCE = 1		/* maintain distance with target */
+	/** 'standard' IK constraint: match position and/or orientation of target */
+	CONSTRAINT_IK_COPYPOSE = 0,
+	/** maintain distance with target */
+	CONSTRAINT_IK_DISTANCE = 1,
 } eConstraint_IK_Type;
 
 
@@ -606,37 +613,62 @@ typedef struct bTransformCacheConstraint {
  *   broken as their correct value cannot be resolved
  */
 typedef enum eBConstraint_Types {
-	CONSTRAINT_TYPE_NULL = 0,			/* Invalid/legacy constraint */
-	CONSTRAINT_TYPE_CHILDOF = 1,			/* Unimplemented non longer :) - during constraints recode, Aligorith */
+	/** Invalid/legacy constraint */
+	CONSTRAINT_TYPE_NULL = 0,
+	/** Unimplemented non longer :) - during constraints recode, Aligorith */
+	CONSTRAINT_TYPE_CHILDOF = 1,
 	CONSTRAINT_TYPE_TRACKTO = 2,
 	CONSTRAINT_TYPE_KINEMATIC = 3,
 	CONSTRAINT_TYPE_FOLLOWPATH = 4,
-	CONSTRAINT_TYPE_ROTLIMIT = 5,			/* Unimplemented no longer :) - Aligorith */
-	CONSTRAINT_TYPE_LOCLIMIT = 6,			/* Unimplemented no longer :) - Aligorith */
-	CONSTRAINT_TYPE_SIZELIMIT = 7,			/* Unimplemented no longer :) - Aligorith */
+	/** Unimplemented no longer :) - Aligorith */
+	CONSTRAINT_TYPE_ROTLIMIT = 5,
+	/** Unimplemented no longer :) - Aligorith */
+	CONSTRAINT_TYPE_LOCLIMIT = 6,
+	/** Unimplemented no longer :) - Aligorith */
+	CONSTRAINT_TYPE_SIZELIMIT = 7,
 	CONSTRAINT_TYPE_ROTLIKE = 8,
 	CONSTRAINT_TYPE_LOCLIKE = 9,
 	CONSTRAINT_TYPE_SIZELIKE = 10,
-	CONSTRAINT_TYPE_PYTHON = 11,				/* Unimplemented no longer :) - Aligorith. Scripts */
+	/** Unimplemented no longer :) - Aligorith. Scripts */
+	CONSTRAINT_TYPE_PYTHON = 11,
 	CONSTRAINT_TYPE_ACTION = 12,
-	CONSTRAINT_TYPE_LOCKTRACK = 13,			/* New Tracking constraint that locks an axis in place - theeth */
-	CONSTRAINT_TYPE_DISTLIMIT = 14,			/* limit distance */
-	CONSTRAINT_TYPE_STRETCHTO = 15,			/* claiming this to be mine :) is in tuhopuu bjornmose */
-	CONSTRAINT_TYPE_MINMAX = 16,  			/* floor constraint */
-	CONSTRAINT_TYPE_RIGIDBODYJOINT = 17,		/* rigidbody constraint */
-	CONSTRAINT_TYPE_CLAMPTO = 18, 			/* clampto constraint */
-	CONSTRAINT_TYPE_TRANSFORM = 19,			/* transformation (loc/rot/size -> loc/rot/size) constraint */
-	CONSTRAINT_TYPE_SHRINKWRAP = 20,		/* shrinkwrap (loc/rot) constraint */
-	CONSTRAINT_TYPE_DAMPTRACK = 21,			/* New Tracking constraint that minimizes twisting */
-	CONSTRAINT_TYPE_SPLINEIK = 22,			/* Spline-IK - Align 'n' bones to a curve */
-	CONSTRAINT_TYPE_TRANSLIKE = 23,			/* Copy transform matrix */
-	CONSTRAINT_TYPE_SAMEVOL = 24,			/* Maintain volume during scaling */
-	CONSTRAINT_TYPE_PIVOT = 25,			/* Pivot Constraint */
-	CONSTRAINT_TYPE_FOLLOWTRACK = 26,		/* Follow Track Constraint */
-	CONSTRAINT_TYPE_CAMERASOLVER = 27,		/* Camera Solver Constraint */
-	CONSTRAINT_TYPE_OBJECTSOLVER = 28,		/* Object Solver Constraint */
-	CONSTRAINT_TYPE_TRANSFORM_CACHE = 29,	/* Transform Cache Constraint */
-	CONSTRAINT_TYPE_ARMATURE = 30,			/* Armature Deform Constraint */
+	/** New Tracking constraint that locks an axis in place - theeth */
+	CONSTRAINT_TYPE_LOCKTRACK = 13,
+	/** limit distance */
+	CONSTRAINT_TYPE_DISTLIMIT = 14,
+	/** claiming this to be mine :) is in tuhopuu bjornmose */
+	CONSTRAINT_TYPE_STRETCHTO = 15,
+	/** floor constraint */
+	CONSTRAINT_TYPE_MINMAX = 16,
+	/* CONSTRAINT_TYPE_DEPRECATED = 17 */
+	/** clampto constraint */
+	CONSTRAINT_TYPE_CLAMPTO = 18,
+	/** transformation (loc/rot/size -> loc/rot/size) constraint */
+	CONSTRAINT_TYPE_TRANSFORM = 19,
+	/** shrinkwrap (loc/rot) constraint */
+	CONSTRAINT_TYPE_SHRINKWRAP = 20,
+	/** New Tracking constraint that minimizes twisting */
+	CONSTRAINT_TYPE_DAMPTRACK = 21,
+	/** Spline-IK - Align 'n' bones to a curve */
+	CONSTRAINT_TYPE_SPLINEIK = 22,
+	/** Copy transform matrix */
+	CONSTRAINT_TYPE_TRANSLIKE = 23,
+	/** Maintain volume during scaling */
+	CONSTRAINT_TYPE_SAMEVOL = 24,
+	/** Pivot Constraint */
+	CONSTRAINT_TYPE_PIVOT = 25,
+	/** Follow Track Constraint */
+	CONSTRAINT_TYPE_FOLLOWTRACK = 26,
+	/** Camera Solver Constraint */
+	CONSTRAINT_TYPE_CAMERASOLVER = 27,
+	/** Object Solver Constraint */
+	CONSTRAINT_TYPE_OBJECTSOLVER = 28,
+	/** Transform Cache Constraint */
+	CONSTRAINT_TYPE_TRANSFORM_CACHE = 29,
+	/** Armature Deform Constraint */
+	CONSTRAINT_TYPE_ARMATURE = 30,
+	/* rigidbody constraint */
+	CONSTRAINT_TYPE_RIGIDBODYJOINT = 31,
 
 	/* NOTE: no constraints are allowed to be added after this */
 	NUM_CONSTRAINT_TYPES
@@ -644,27 +676,28 @@ typedef enum eBConstraint_Types {
 
 /* bConstraint->flag */
 /* flags 0x2 (1<<1) and 0x8 (1<<3) were used in past */
-/* flag 0x20 (1<<5) was used to indicate that a constraint was evaluated using a 'local' hack for posebones only  */
+/* flag 0x20 (1<<5) was used to indicate that a constraint was evaluated
+ *                  using a 'local' hack for posebones only. */
 typedef enum eBConstraint_Flags {
-		/* expand for UI */
+	/* expand for UI */
 	CONSTRAINT_EXPAND =		(1<<0),
-		/* pre-check for illegal object name or bone name */
+	/* pre-check for illegal object name or bone name */
 	CONSTRAINT_DISABLE = 	(1<<2),
-		/* to indicate which Ipo should be shown, maybe for 3d access later too */
+	/* to indicate which Ipo should be shown, maybe for 3d access later too */
 	CONSTRAINT_ACTIVE = 	(1<<4),
-		/* to indicate that the owner's space should only be changed into ownspace, but not out of it */
+	/* to indicate that the owner's space should only be changed into ownspace, but not out of it */
 	CONSTRAINT_SPACEONCE = 	(1<<6),
-		/* influence ipo is on constraint itself, not in action channel */
+	/* influence ipo is on constraint itself, not in action channel */
 	CONSTRAINT_OWN_IPO	= (1<<7),
-		/* indicates that constraint was added locally (i.e.  didn't come from the proxy-lib) */
+	/* indicates that constraint was added locally (i.e.  didn't come from the proxy-lib) */
 	CONSTRAINT_PROXY_LOCAL = (1<<8),
-		/* indicates that constraint is temporarily disabled (only used in GE) */
+	/* indicates that constraint is temporarily disabled (only used in GE) */
 	CONSTRAINT_OFF = (1<<9),
-		/* use bbone curve shape when calculating headtail values (also used by dependency graph!) */
+	/* use bbone curve shape when calculating headtail values (also used by dependency graph!) */
 	CONSTRAINT_BBONE_SHAPE = (1<<10),
-		/* That constraint has been inserted in local override (i.e. it can be fully edited!). */
+	/* That constraint has been inserted in local override (i.e. it can be fully edited!). */
 	CONSTRAINT_STATICOVERRIDE_LOCAL = (1 << 11),
-		/* use full transformation (not just segment locations) - only set at runtime  */
+	/* use full transformation (not just segment locations) - only set at runtime  */
 	CONSTRAINT_BBONE_SHAPE_FULL = (1 << 12),
 } eBConstraint_Flags;
 
@@ -688,7 +721,7 @@ typedef enum eBConstraint_SpaceTypes {
 // XXX deprecated... old AnimSys
 typedef enum eConstraintChannel_Flags {
 	CONSTRAINT_CHANNEL_SELECT =		(1<<0),
-	CONSTRAINT_CHANNEL_PROTECTED =	(1<<1)
+	CONSTRAINT_CHANNEL_PROTECTED =	(1<<1),
 } eConstraintChannel_Flags;
 
 /* -------------------------------------- */
@@ -701,7 +734,7 @@ typedef enum eCopyRotation_Flags {
 	ROTLIKE_X_INVERT	= (1<<4),
 	ROTLIKE_Y_INVERT	= (1<<5),
 	ROTLIKE_Z_INVERT 	= (1<<6),
-	ROTLIKE_OFFSET		= (1<<7)
+	ROTLIKE_OFFSET		= (1<<7),
 } eCopyRotation_Flags;
 
 /* bLocateLikeConstraint.flag */
@@ -714,7 +747,7 @@ typedef enum eCopyLocation_Flags {
 	LOCLIKE_X_INVERT	= (1<<4),
 	LOCLIKE_Y_INVERT	= (1<<5),
 	LOCLIKE_Z_INVERT	= (1<<6),
-	LOCLIKE_OFFSET		= (1<<7)
+	LOCLIKE_OFFSET		= (1<<7),
 } eCopyLocation_Flags;
 
 /* bSizeLikeConstraint.flag */
@@ -737,7 +770,7 @@ typedef enum eTransform_ToFrom {
 typedef enum eSameVolume_Modes {
 	SAMEVOL_X		= 0,
 	SAMEVOL_Y		= 1,
-	SAMEVOL_Z		= 2
+	SAMEVOL_Z		= 2,
 } eSameVolume_Modes;
 
 /* bActionConstraint.flag */
@@ -750,14 +783,14 @@ typedef enum eActionConstraint_Flags {
 typedef enum eLockAxis_Modes {
 	LOCK_X = 0,
 	LOCK_Y = 1,
-	LOCK_Z = 2
+	LOCK_Z = 2,
 } eLockAxis_Modes;
 
 /* Up-Axis Values (TrackTo and Locked Track) */
 typedef enum eUpAxis_Modes {
 	UP_X = 0,
 	UP_Y = 1,
-	UP_Z = 2
+	UP_Z = 2,
 } eUpAxis_Modes;
 
 /* Tracking axis (TrackTo, Locked Track, Damped Track) and minmax (floor) constraint */
@@ -791,12 +824,12 @@ typedef enum eShrinkwrap_Flags {
 typedef enum eFollowPath_Flags {
 	FOLLOWPATH_FOLLOW	= (1<<0),
 	FOLLOWPATH_STATIC	= (1<<1),
-	FOLLOWPATH_RADIUS	= (1<<2)
+	FOLLOWPATH_RADIUS	= (1<<2),
 } eFollowPath_Flags;
 
 /* bTrackToConstraint->flags */
 typedef enum eTrackTo_Flags {
-	TARGET_Z_UP 	= (1<<0)
+	TARGET_Z_UP 	= (1<<0),
 } eTrackTo_Flags;
 
 /* Stretch To Constraint -> volmode */
@@ -804,14 +837,14 @@ typedef enum eStretchTo_VolMode {
 	VOLUME_XZ	= 0,
 	VOLUME_X	= 1,
 	VOLUME_Z	= 2,
-	NO_VOLUME	= 3
+	NO_VOLUME	= 3,
 } eStretchTo_VolMode;
 
 /* Stretch To Constraint -> plane mode */
 typedef enum eStretchTo_PlaneMode {
 	PLANE_X		= 0,
 	PLANE_Y		= 1,
-	PLANE_Z		= 2
+	PLANE_Z		= 2,
 } eStretchTo_PlaneMode;
 
 /* Clamp-To Constraint ->flag */
@@ -819,12 +852,12 @@ typedef enum eClampTo_Modes {
 	CLAMPTO_AUTO = 0,
 	CLAMPTO_X    = 1,
 	CLAMPTO_Y    = 2,
-	CLAMPTO_Z    = 3
+	CLAMPTO_Z    = 3,
 } eClampTo_Modes;
 
 /* ClampTo Constraint ->flag2 */
 typedef enum eClampTo_Flags {
-	CLAMPTO_CYCLIC	= (1<<0)
+	CLAMPTO_CYCLIC	= (1<<0),
 } eClampTo_Flags;
 
 /* bKinematicConstraint->flag */
@@ -847,7 +880,7 @@ typedef enum eKinematic_Flags {
 	CONSTRAINT_IK_NO_ROT_Y		= (1<<12),
 	CONSTRAINT_IK_NO_ROT_Z		= (1<<13),
 	/* axis relative to target */
-	CONSTRAINT_IK_TARGETAXIS	= (1<<14)
+	CONSTRAINT_IK_TARGETAXIS	= (1<<14),
 } eKinematic_Flags;
 
 /* bSplineIKConstraint->flag */
@@ -877,21 +910,24 @@ typedef enum eSplineIK_XZScaleModes {
 	/* x/z scales are the inverse of the y-scale */
 	CONSTRAINT_SPLINEIK_XZS_INVERSE			= 2,
 	/* x/z scales are computed using a volume preserving technique (from Stretch To constraint) */
-	CONSTRAINT_SPLINEIK_XZS_VOLUMETRIC		= 3
+	CONSTRAINT_SPLINEIK_XZS_VOLUMETRIC		= 3,
 } eSplineIK_XZScaleModes;
 
 /* bArmatureConstraint -> flag */
 typedef enum eArmature_Flags {
-	CONSTRAINT_ARMATURE_QUATERNION  	= (1<<0),	/* use dual quaternion blending */
-	CONSTRAINT_ARMATURE_ENVELOPE    	= (1<<1),	/* use envelopes */
-	CONSTRAINT_ARMATURE_CUR_LOCATION	= (1<<2),	/* use current bone location */
+	/** use dual quaternion blending */
+	CONSTRAINT_ARMATURE_QUATERNION      = (1<<0),
+	/** use envelopes */
+	CONSTRAINT_ARMATURE_ENVELOPE        = (1<<1),
+	/** use current bone location */
+	CONSTRAINT_ARMATURE_CUR_LOCATION    = (1<<2),
 } eArmature_Flags;
 
 /* MinMax (floor) flags */
 typedef enum eFloor_Flags {
 	MINMAX_STICKY	= (1<<0),
 	MINMAX_STUCK	= (1<<1),
-	MINMAX_USEROT	= (1<<2)
+	MINMAX_USEROT	= (1<<2),
 } eFloor_Flags;
 
 /* transform limiting constraints -> flag2 */
@@ -899,7 +935,7 @@ typedef enum eTransformLimits_Flags2 {
 	/* not used anymore - for older Limit Location constraints only */
 	LIMIT_NOPARENT 	= (1<<0),
 	/* for all Limit constraints - allow to be used during transform? */
-	LIMIT_TRANSFORM = (1<<1)
+	LIMIT_TRANSFORM = (1<<1),
 } eTransformLimits_Flags2;
 
 /* transform limiting constraints -> flag (own flags)  */
@@ -909,14 +945,14 @@ typedef enum eTransformLimits_Flags {
 	LIMIT_YMIN = (1<<2),
 	LIMIT_YMAX = (1<<3),
 	LIMIT_ZMIN = (1<<4),
-	LIMIT_ZMAX = (1<<5)
+	LIMIT_ZMAX = (1<<5),
 } eTransformLimits_Flags;
 
 /* limit rotation constraint -> flag (own flags) */
 typedef enum eRotLimit_Flags {
 	LIMIT_XROT = (1<<0),
 	LIMIT_YROT = (1<<1),
-	LIMIT_ZROT = (1<<2)
+	LIMIT_ZROT = (1<<2),
 } eRotLimit_Flags;
 
 /* distance limit constraint */
@@ -925,20 +961,20 @@ typedef enum eDistLimit_Flag {
 	/* "soft" cushion effect when reaching the limit sphere */ // NOT IMPLEMENTED!
 	LIMITDIST_USESOFT	= (1<<0),
 	/* as for all Limit constraints - allow to be used during transform? */
-	LIMITDIST_TRANSFORM = (1<<1)
+	LIMITDIST_TRANSFORM = (1<<1),
 } eDistLimit_Flag;
 
 	/* bDistLimitConstraint->mode */
 typedef enum eDistLimit_Modes {
 	LIMITDIST_INSIDE    = 0,
 	LIMITDIST_OUTSIDE   = 1,
-	LIMITDIST_ONSURFACE = 2
+	LIMITDIST_ONSURFACE = 2,
 } eDistLimit_Modes;
 
 /* python constraint -> flag */
 typedef enum ePyConstraint_Flags {
 	PYCON_USETARGETS	= (1<<0),
-	PYCON_SCRIPTERROR	= (1<<1)
+	PYCON_SCRIPTERROR	= (1<<1),
 } ePyConstraint_Flags;
 
 /* ChildOf Constraint -> flag */
@@ -952,7 +988,7 @@ typedef enum eChildOf_Flags {
 	CHILDOF_SIZEX	= (1<<6),
 	CHILDOF_SIZEY	= (1<<7),
 	CHILDOF_SIZEZ	= (1<<8),
-	CHILDOF_ALL		= 511
+	CHILDOF_ALL		= 511,
 } eChildOf_Flags;
 
 /* Pivot Constraint */
@@ -973,7 +1009,7 @@ typedef enum ePivotConstraint_Axis {
 	/* consider +ve y-axis rotations */
 	PIVOTCON_AXIS_Y = 4,
 	/* consider +ve z-axis rotations */
-	PIVOTCON_AXIS_Z = 5
+	PIVOTCON_AXIS_Z = 5,
 } ePivotConstraint_Axis;
 
 	/* settings for Pivot Constraint in general */
@@ -981,29 +1017,29 @@ typedef enum ePivotConstraint_Flag {
 	/* offset is to be interpreted as being a fixed-point in space */
 	PIVOTCON_FLAG_OFFSET_ABS	= (1<<0),
 	/* rotation-based activation uses negative rotation to drive result */
-	PIVOTCON_FLAG_ROTACT_NEG	= (1<<1)
+	PIVOTCON_FLAG_ROTACT_NEG	= (1<<1),
 } ePivotConstraint_Flag;
 
 typedef enum eFollowTrack_Flags {
 	FOLLOWTRACK_ACTIVECLIP	= (1<<0),
 	FOLLOWTRACK_USE_3D_POSITION	= (1<<1),
-	FOLLOWTRACK_USE_UNDISTORTION	= (1<<2)
+	FOLLOWTRACK_USE_UNDISTORTION	= (1<<2),
 } eFollowTrack_Flags;
 
 typedef enum eFollowTrack_FrameMethod {
 	FOLLOWTRACK_FRAME_STRETCH = 0,
 	FOLLOWTRACK_FRAME_FIT = 1,
-	FOLLOWTRACK_FRAME_CROP = 2
+	FOLLOWTRACK_FRAME_CROP = 2,
 } eFollowTrack_FrameMethod;
 
 /* CameraSolver Constraint -> flag */
 typedef enum eCameraSolver_Flags {
-	CAMERASOLVER_ACTIVECLIP	= (1<<0)
+	CAMERASOLVER_ACTIVECLIP	= (1<<0),
 } eCameraSolver_Flags;
 
 /* ObjectSolver Constraint -> flag */
 typedef enum eObjectSolver_Flags {
-	OBJECTSOLVER_ACTIVECLIP	= (1<<0)
+	OBJECTSOLVER_ACTIVECLIP	= (1<<0),
 } eObjectSolver_Flags;
 
 /* Rigid-Body Constraint */

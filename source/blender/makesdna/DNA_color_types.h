@@ -133,12 +133,12 @@ enum {
 	HISTO_MODE_R      = 2,
 	HISTO_MODE_G      = 3,
 	HISTO_MODE_B      = 4,
-	HISTO_MODE_ALPHA  = 5
+	HISTO_MODE_ALPHA  = 5,
 };
 
 enum {
 	HISTO_FLAG_LINE        = (1 << 0),
-	HISTO_FLAG_SAMPLELINE  = (1 << 1)
+	HISTO_FLAG_SAMPLELINE  = (1 << 1),
 };
 
 typedef struct Histogram {
@@ -191,7 +191,8 @@ typedef struct Scopes {
 
 typedef struct ColorManagedViewSettings {
 	int flag, pad;
-	/** Look which is being applied when displaying buffer on the screen (prior to view transform). */
+	/** Look which is being applied when displaying buffer on the screen
+	 * (prior to view transform). */
 	char look[64];
 	/** View transform which is being applied when displaying buffer on the screen. */
 	char view_transform[64];
@@ -215,7 +216,7 @@ typedef struct ColorManagedColorspaceSettings {
 
 /* ColorManagedViewSettings->flag */
 enum {
-	COLORMANAGE_VIEW_USE_CURVES = (1 << 0)
+	COLORMANAGE_VIEW_USE_CURVES = (1 << 0),
 };
 
 #endif

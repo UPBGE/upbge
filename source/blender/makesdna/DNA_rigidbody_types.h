@@ -101,7 +101,7 @@ typedef enum eRigidBodyWorld_Flag {
 	/* sim data needs to be rebuilt */
 	RBW_FLAG_NEEDS_REBUILD		= (1 << 1),
 	/* usse split impulse when stepping the simulation */
-	RBW_FLAG_USE_SPLIT_IMPULSE	= (1 << 2)
+	RBW_FLAG_USE_SPLIT_IMPULSE	= (1 << 2),
 } eRigidBodyWorld_Flag;
 
 /* ******************************** */
@@ -200,7 +200,7 @@ typedef enum eRigidBodyOb_Flag {
 	/* collision margin is not embedded (only used by convex hull shapes for now) */
 	RBO_FLAG_USE_MARGIN			= (1 << 6),
 	/* collision shape deforms during simulation (only for passive triangle mesh shapes) */
-	RBO_FLAG_USE_DEFORM			= (1 << 7)
+	RBO_FLAG_USE_DEFORM			= (1 << 7),
 } eRigidBodyOb_Flag;
 
 /* RigidBody Collision Shape */
@@ -312,29 +312,30 @@ typedef struct RigidBodyCon {
 
 /* Participation types for RigidBodyOb */
 typedef enum eRigidBodyCon_Type {
-	/* lets bodies rotate around a specified point */
+	/** lets bodies rotate around a specified point */
 	RBC_TYPE_POINT = 0,
-	/* lets bodies rotate around a specified axis */
+	/** lets bodies rotate around a specified axis */
 	RBC_TYPE_HINGE,
-	/* simulates wheel suspension */
+	/** simulates wheel suspension */
 	RBC_TYPE_HINGE2,
-	/* restricts movent to a specified axis */
+	/** restricts movent to a specified axis */
 	RBC_TYPE_SLIDER,
-	/* lets object rotate within a cpecified cone */
+	/** lets object rotate within a cpecified cone */
 	RBC_TYPE_CONE_TWIST,
-	/* allows user to specify constraint axes */
+	/** allows user to specify constraint axes */
 	RBC_TYPE_6DOF,
-	/* like 6DOF but has springs */
+	/** like 6DOF but has springs */
 	RBC_TYPE_6DOF_SPRING,
-	/* simulates a universal joint */
+	/** simulates a universal joint */
 	RBC_TYPE_UNIVERSAL,
-	/* glues two bodies together */
+	/** glues two bodies together */
 	RBC_TYPE_FIXED,
-	/* similar to slider but also allows rotation around slider axis */
+	/** similar to slider but also allows rotation around slider axis */
 	RBC_TYPE_PISTON,
-	/* Simplified spring constraint with only once axis that's automatically placed between the connected bodies */
+	/** Simplified spring constraint with only once axis that's
+	 * automatically placed between the connected bodies */
 	RBC_TYPE_SPRING,
-	/* dirves bodies by applying linear and angular forces */
+	/** dirves bodies by applying linear and angular forces */
 	RBC_TYPE_MOTOR,
 } eRigidBodyCon_Type;
 
@@ -373,7 +374,7 @@ typedef enum eRigidBodyCon_Flag {
 	/* angular springs */
 	RBC_FLAG_USE_SPRING_ANG_X			= (1 << 16),
 	RBC_FLAG_USE_SPRING_ANG_Y			= (1 << 17),
-	RBC_FLAG_USE_SPRING_ANG_Z			= (1 << 18)
+	RBC_FLAG_USE_SPRING_ANG_Z			= (1 << 18),
 } eRigidBodyCon_Flag;
 
 /* ******************************** */

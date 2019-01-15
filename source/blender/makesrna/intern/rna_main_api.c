@@ -133,11 +133,14 @@ static void rna_Main_ID_remove(
 {
 	ID *id = id_ptr->data;
 	if (do_unlink) {
-		BKE_libblock_delete(bmain, id);
+		BKE_id_delete(bmain, id);
 		RNA_POINTER_INVALIDATE(id_ptr);
 	}
 	else if (ID_REAL_USERS(id) <= 0) {
-		BKE_libblock_free_ex(bmain, id, do_id_user, do_ui_user);
+		const int flag = (do_id_user ? 0 : LIB_ID_FREE_NO_USER_REFCOUNT) |
+		                 (do_ui_user ? 0 : LIB_ID_FREE_NO_UI_USER);
+		/* Still using ID flags here, this is in-between commit anyway... */
+		BKE_id_free_ex(bmain, id, flag, true);
 		RNA_POINTER_INVALIDATE(id_ptr);
 	}
 	else {
@@ -167,7 +170,7 @@ static Scene *rna_Main_scenes_new(Main *bmain, const char *name)
 }
 static void rna_Main_scenes_remove(Main *bmain, bContext *C, ReportList *reports, PointerRNA *scene_ptr, bool do_unlink)
 {
-	/* don't call BKE_libblock_free(...) directly */
+	/* don't call BKE_id_free(...) directly */
 	Scene *scene = scene_ptr->data;
 	Scene *scene_new;
 

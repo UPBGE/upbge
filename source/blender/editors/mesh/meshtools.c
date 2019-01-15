@@ -151,7 +151,8 @@ static void join_mesh_single(
 					/* check if this mesh has such a shapekey */
 					KeyBlock *okb = me->key ? BKE_keyblock_find_name(me->key, kb->name) : NULL;
 					if (okb) {
-						/* copy this mesh's shapekey to the destination shapekey (need to transform first) */
+						/* copy this mesh's shapekey to the destination shapekey
+						 * (need to transform first) */
 						float (*ocos)[3] = okb->data;
 						for (a = 0; a < me->totvert; a++, cos++, ocos++) {
 							copy_v3_v3(*cos, *ocos);
@@ -400,7 +401,8 @@ int join_mesh_exec(bContext *C, wmOperator *op)
 
 
 			if (me->totvert) {
-				/* Add this object's materials to the base one's if they don't exist already (but only if limits not exceeded yet) */
+				/* Add this object's materials to the base one's if they don't exist already
+				 * (but only if limits not exceeded yet) */
 				if (totcol < MAXMAT) {
 					for (a = 1; a <= ob_iter->totcol; a++) {
 						ma = give_current_material(ob_iter, a);
@@ -423,7 +425,8 @@ int join_mesh_exec(bContext *C, wmOperator *op)
 					}
 				}
 
-				/* if this mesh has shapekeys, check if destination mesh already has matching entries too */
+				/* if this mesh has shapekeys,
+				 * check if destination mesh already has matching entries too */
 				if (me->key && key) {
 					/* for remapping KeyBlock.relative */
 					int      *index_map = MEM_mallocN(sizeof(int)        * me->key->totkey, __func__);
@@ -454,7 +457,8 @@ int join_mesh_exec(bContext *C, wmOperator *op)
 
 					/* remap relative index values */
 					for (kb = me->key->block.first, i = 0; kb; kb = kb->next, i++) {
-						if (LIKELY(kb->relative < me->key->totkey)) {  /* sanity check, should always be true */
+						/* sanity check, should always be true */
+						if (LIKELY(kb->relative < me->key->totkey)) {
 							kb_map[i]->relative = index_map[kb->relative];
 						}
 					}
@@ -488,8 +492,10 @@ int join_mesh_exec(bContext *C, wmOperator *op)
 	/* inverse transform for all selected meshes in this object */
 	invert_m4_m4(imat, ob->obmat);
 
-	/* Add back active mesh first. This allows to keep things similar as they were, as much as possible (i.e. data from
-	 * active mesh will remain first ones in new result of the merge, in same order for CD layers, etc. See also T50084.
+	/* Add back active mesh first.
+	 * This allows to keep things similar as they were, as much as possible
+	 * (i.e. data from active mesh will remain first ones in new result of the merge,
+	 * in same order for CD layers, etc). See also T50084.
 	 */
 	join_mesh_single(
 	            depsgraph, bmain, scene,
@@ -580,7 +586,7 @@ int join_mesh_exec(bContext *C, wmOperator *op)
 	/* free temp copy of destination shapekeys (if applicable) */
 	if (nkey) {
 		/* We can assume nobody is using that ID currently. */
-		BKE_libblock_free_ex(bmain, nkey, false, false);
+		BKE_id_free_ex(bmain, nkey, LIB_ID_FREE_NO_MAIN | LIB_ID_FREE_NO_UI_USER | LIB_ID_FREE_NO_USER_REFCOUNT, false);
 	}
 
 	/* ensure newly inserted keys are time sorted */

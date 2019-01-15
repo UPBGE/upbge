@@ -629,7 +629,9 @@ static void gp_duplicate_points(const bGPDstroke *gps, ListBase *new_strokes, co
 
 				/* make a stupid copy first of the entire stroke (to get the flags too) */
 				gpsd = MEM_dupallocN(gps);
-				BLI_strncpy(gpsd->runtime.tmp_layerinfo, layername, sizeof(gpsd->runtime.tmp_layerinfo)); /* saves original layer name */
+
+				/* saves original layer name */
+				BLI_strncpy(gpsd->runtime.tmp_layerinfo, layername, sizeof(gpsd->runtime.tmp_layerinfo));
 
 				/* initialize triangle memory - will be calculated on next redraw */
 				gpsd->triangles = NULL;
@@ -930,7 +932,8 @@ static int gp_strokes_copy_exec(bContext *C, wmOperator *op)
 
 					/* make direct copies of the stroke and its points */
 					gpsd = MEM_dupallocN(gps);
-					BLI_strncpy(gpsd->runtime.tmp_layerinfo, gpl->info, sizeof(gpsd->runtime.tmp_layerinfo)); /* saves original layer name */
+					/* saves original layer name */
+					BLI_strncpy(gpsd->runtime.tmp_layerinfo, gpl->info, sizeof(gpsd->runtime.tmp_layerinfo));
 					gpsd->points = MEM_dupallocN(gps->points);
 					if (gps->dvert != NULL) {
 						gpsd->dvert = MEM_dupallocN(gps->dvert);
@@ -1009,7 +1012,7 @@ static bool gp_strokes_paste_poll(bContext *C)
 
 typedef enum eGP_PasteMode {
 	GP_COPY_ONLY = -1,
-	GP_COPY_MERGE = 1
+	GP_COPY_MERGE = 1,
 } eGP_PasteMode;
 
 static int gp_strokes_paste_exec(bContext *C, wmOperator *op)
@@ -2428,7 +2431,7 @@ void GPENCIL_OT_stroke_apply_thickness(wmOperatorType *ot)
 enum {
 	GP_STROKE_CYCLIC_CLOSE = 1,
 	GP_STROKE_CYCLIC_OPEN = 2,
-	GP_STROKE_CYCLIC_TOGGLE = 3
+	GP_STROKE_CYCLIC_TOGGLE = 3,
 };
 
 static int gp_stroke_cyclical_set_exec(bContext *C, wmOperator *op)
@@ -2521,7 +2524,7 @@ enum {
 	GP_STROKE_CAPS_TOGGLE_BOTH    = 0,
 	GP_STROKE_CAPS_TOGGLE_START   = 1,
 	GP_STROKE_CAPS_TOGGLE_END     = 2,
-	GP_STROKE_CAPS_TOGGLE_DEFAULT = 3
+	GP_STROKE_CAPS_TOGGLE_DEFAULT = 3,
 };
 
 static int gp_stroke_caps_set_exec(bContext *C, wmOperator *op)
@@ -3061,13 +3064,15 @@ static int gp_strokes_reproject_exec(bContext *C, wmOperator *op)
 				}
 				else {
 					/* Geometry - Snap to surfaces of visible geometry */
-					/* XXX: There will be precision loss (possible stairstep artifacts) from this conversion to satisfy the API's */
+					/* XXX: There will be precision loss (possible stairstep artifacts)
+					 * from this conversion to satisfy the API's */
 					const int screen_co[2] = {(int)xy[0], (int)xy[1]};
 
 					int depth_margin = 0; // XXX: 4 for strokes, 0 for normal
 					float depth;
 
-					/* XXX: The proper procedure computes the depths into an array, to have smooth transitions when all else fails... */
+					/* XXX: The proper procedure computes the depths into an array,
+					 * to have smooth transitions when all else fails... */
 					if (ED_view3d_autodist_depth(gsc.ar, screen_co, depth_margin, &depth)) {
 						ED_view3d_autodist_simple(gsc.ar, screen_co, &pt->x, 0, &depth);
 					}

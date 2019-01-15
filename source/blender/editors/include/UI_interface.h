@@ -541,7 +541,9 @@ typedef void (*uiBlockCancelFunc)(struct bContext *C, void *arg1);
 void UI_popup_block_invoke(struct bContext *C, uiBlockCreateFunc func, void *arg);
 void UI_popup_block_invoke_ex(struct bContext *C, uiBlockCreateFunc func, void *arg, const char *opname, int opcontext);
 void UI_popup_block_ex(struct bContext *C, uiBlockCreateFunc func, uiBlockHandleFunc popup_func, uiBlockCancelFunc cancel_func, void *arg, struct wmOperator *op);
-/* void uiPupBlockOperator(struct bContext *C, uiBlockCreateFunc func, struct wmOperator *op, int opcontext); */ /* UNUSED */
+#if 0  /* UNUSED */
+void uiPupBlockOperator(struct bContext *C, uiBlockCreateFunc func, struct wmOperator *op, int opcontext);
+#endif
 
 void UI_popup_block_close(struct bContext *C, struct wmWindow *win, uiBlock *block);
 
@@ -1043,7 +1045,7 @@ enum {
 	UI_CNR_BOTTOM_LEFT  = 1 << 3,
 	/* just for convenience */
 	UI_CNR_NONE         = 0,
-	UI_CNR_ALL          = (UI_CNR_TOP_LEFT | UI_CNR_TOP_RIGHT | UI_CNR_BOTTOM_RIGHT | UI_CNR_BOTTOM_LEFT)
+	UI_CNR_ALL          = (UI_CNR_TOP_LEFT | UI_CNR_TOP_RIGHT | UI_CNR_BOTTOM_RIGHT | UI_CNR_BOTTOM_LEFT),
 };
 
 uiLayout *UI_block_layout(uiBlock *block, int dir, int type, int x, int y, int size, int em, int padding, struct uiStyle *style);
@@ -1268,13 +1270,19 @@ void uiItemsFullEnumO_items(
         const EnumPropertyItem *item_array, int totitem);
 
 void uiItemL(uiLayout *layout, const char *name, int icon); /* label */
-void uiItemLDrag(uiLayout *layout, struct PointerRNA *ptr, const char *name, int icon); /* label icon for dragging */
-void uiItemM(uiLayout *layout, const char *menuname, const char *name, int icon); /* menu */
-void uiItemMContents(uiLayout *layout, const char *menuname); /* menu contents */
-void uiItemV(uiLayout *layout, const char *name, int icon, int argval); /* value */
-void uiItemS(uiLayout *layout); /* separator */
+/* label icon for dragging */
+void uiItemLDrag(uiLayout *layout, struct PointerRNA *ptr, const char *name, int icon);
+/* menu */
+void uiItemM(uiLayout *layout, const char *menuname, const char *name, int icon);
+/* menu contents */
+void uiItemMContents(uiLayout *layout, const char *menuname);
+/* value */
+void uiItemV(uiLayout *layout, const char *name, int icon, int argval);
+/* separator */
+void uiItemS(uiLayout *layout);
 void uiItemS_ex(uiLayout *layout, float factor);
-void uiItemSpacer(uiLayout *layout); /* Special separator. */
+/* Special separator. */
+void uiItemSpacer(uiLayout *layout);
 
 void uiItemPopoverPanel_ptr(
         uiLayout *layout, struct bContext *C,
@@ -1335,7 +1343,7 @@ uiBut *UI_region_active_but_get(struct ARegion *ar);
 typedef enum eFontStyle_Align {
 	UI_STYLE_TEXT_LEFT		= 0,
 	UI_STYLE_TEXT_CENTER	= 1,
-	UI_STYLE_TEXT_RIGHT		= 2
+	UI_STYLE_TEXT_RIGHT		= 2,
 } eFontStyle_Align;
 
 struct uiFontStyleDraw_Params {

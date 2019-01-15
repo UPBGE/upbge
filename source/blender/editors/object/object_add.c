@@ -1369,7 +1369,7 @@ static int object_delete_exec(bContext *C, wmOperator *op)
 		 */
 		if (use_global && ob->id.lib == NULL) {
 			/* We want to nuke the object, let's nuke it the easy way (not for linked data though)... */
-			BKE_libblock_delete(bmain, &ob->id);
+			BKE_id_delete(bmain, &ob->id);
 			changed_count += 1;
 			continue;
 		}
@@ -1610,8 +1610,9 @@ static void make_object_duplilist_real(bContext *C, Scene *scene, Base *base,
 		BLI_ghash_insert(dupli_gh, dob, ob_dst);
 		if (parent_gh) {
 			void **val;
-			/* Due to nature of hash/comparison of this ghash, a lot of duplis may be considered as 'the same',
-			 * this avoids trying to insert same key several time and raise asserts in debug builds... */
+			/* Due to nature of hash/comparison of this ghash, a lot of duplis may be considered as
+			 * 'the same', this avoids trying to insert same key several time and
+			 * raise asserts in debug builds... */
 			if (!BLI_ghash_ensure_p(parent_gh, dob, &val)) {
 				*val = ob_dst;
 			}
@@ -1996,7 +1997,8 @@ static int convert_exec(bContext *C, wmOperator *op)
 			 *               datablock, but for until we've got granular update
 			 *               lets take care by selves.
 			 */
-			/* XXX This may fail/crash, since BKE_vfont_to_curve() accesses evaluated data in some cases (bastien). */
+			/* XXX This may fail/crash, since BKE_vfont_to_curve()
+			 * accesses evaluated data in some cases (bastien). */
 			BKE_vfont_to_curve(newob, FO_EDIT);
 
 			newob->type = OB_CURVE;

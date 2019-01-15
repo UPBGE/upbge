@@ -78,7 +78,7 @@ Scene *ED_scene_add(Main *bmain, bContext *C, wmWindow *win, eSceneCopyMethod me
 			ED_object_single_users(bmain, scene_new, false, true);
 		}
 		else if (method == SCE_COPY_FULL) {
-			ED_editors_flush_edits(C, false);
+			ED_editors_flush_edits(bmain, false);
 			ED_object_single_users(bmain, scene_new, true, true);
 		}
 	}
@@ -115,7 +115,7 @@ bool ED_scene_delete(bContext *C, Main *bmain, wmWindow *win, Scene *scene)
 
 	id_us_clear_real(&scene->id);
 	if (scene->id.us == 0) {
-		BKE_libblock_free(bmain, scene);
+		BKE_id_free(bmain, scene);
 	}
 
 	return true;

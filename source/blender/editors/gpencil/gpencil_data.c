@@ -112,7 +112,8 @@ static int gp_data_add_exec(bContext *C, wmOperator *op)
 	}
 	else {
 		/* decrement user count and add new datablock */
-		/* TODO: if a datablock exists, we should make a copy of it instead of starting fresh (as in other areas) */
+		/* TODO: if a datablock exists,
+		 * we should make a copy of it instead of starting fresh (as in other areas) */
 		Main *bmain = CTX_data_main(C);
 
 		/* decrement user count of old GP datablock */
@@ -334,7 +335,7 @@ void GPENCIL_OT_layer_remove(wmOperatorType *ot)
 
 enum {
 	GP_LAYER_MOVE_UP   = -1,
-	GP_LAYER_MOVE_DOWN = 1
+	GP_LAYER_MOVE_DOWN = 1,
 };
 
 static int gp_layer_move_exec(bContext *C, wmOperator *op)
@@ -425,7 +426,7 @@ void GPENCIL_OT_layer_duplicate(wmOperatorType *ot)
 /* ********************* Duplicate Layer in a new object ************************** */
 enum {
 	GP_LAYER_COPY_OBJECT_ALL_FRAME = 0,
-	GP_LAYER_COPY_OBJECT_ACT_FRAME = 1
+	GP_LAYER_COPY_OBJECT_ACT_FRAME = 1,
 };
 
 static bool gp_layer_duplicate_object_poll(bContext *C)
@@ -562,7 +563,7 @@ void GPENCIL_OT_layer_duplicate_object(wmOperatorType *ot)
 /* ********************* Duplicate Frame ************************** */
 enum {
 	GP_FRAME_DUP_ACTIVE = 0,
-	GP_FRAME_DUP_ALL = 1
+	GP_FRAME_DUP_ALL = 1,
 };
 
 static int gp_frame_duplicate_exec(bContext *C, wmOperator *op)
@@ -622,7 +623,7 @@ void GPENCIL_OT_frame_duplicate(wmOperatorType *ot)
 /* ********************* Clean Fill Boundaries on Frame ************************** */
 enum {
 	GP_FRAME_CLEAN_FILL_ACTIVE = 0,
-	GP_FRAME_CLEAN_FILL_ALL = 1
+	GP_FRAME_CLEAN_FILL_ALL = 1,
 };
 
 static int gp_frame_clean_fill_exec(bContext *C, wmOperator *op)
@@ -1217,7 +1218,7 @@ enum {
 	GP_STROKE_MOVE_UP = -1,
 	GP_STROKE_MOVE_DOWN = 1,
 	GP_STROKE_MOVE_TOP = 2,
-	GP_STROKE_MOVE_BOTTOM = 3
+	GP_STROKE_MOVE_BOTTOM = 3,
 };
 
 static int gp_stroke_arrange_exec(bContext *C, wmOperator *op)
@@ -1887,7 +1888,8 @@ static void joined_gpencil_fix_animdata_cb(ID *id, FCurve *fcu, void *user_data)
 			const char *old_name = BLI_ghashIterator_getKey(&gh_iter);
 			const char *new_name = BLI_ghashIterator_getValue(&gh_iter);
 
-			/* only remap if changed; this still means there will be some waste if there aren't many drivers/keys */
+			/* only remap if changed;
+			 * this still means there will be some waste if there aren't many drivers/keys */
 			if (!STREQ(old_name, new_name) && strstr(fcu->rna_path, old_name)) {
 				fcu->rna_path = BKE_animsys_fix_rna_path_rename(
 				        id, fcu->rna_path, "layers",

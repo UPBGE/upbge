@@ -464,7 +464,7 @@ enum {
 	SLIDE_ACTION_POINT   = 1,
 	SLIDE_ACTION_HANDLE  = 2,
 	SLIDE_ACTION_FEATHER = 3,
-	SLIDE_ACTION_SPLINE  = 4
+	SLIDE_ACTION_SPLINE  = 4,
 };
 
 typedef struct SlidePointData {
@@ -2220,7 +2220,8 @@ static int mask_duplicate_exec(bContext *C, wmOperator *UNUSED(op))
 					MaskSplinePoint *new_point;
 					int b;
 
-					/* BKE_mask_spline_add might allocate the points, need to free them in this case. */
+					/* BKE_mask_spline_add might allocate the points,
+					 * need to free them in this case. */
 					if (new_spline->points) {
 						MEM_freeN(new_spline->points);
 					}

@@ -157,17 +157,17 @@ void ED_editors_init(bContext *C)
 }
 
 /* frees all editmode stuff */
-void ED_editors_exit(bContext *C)
+void ED_editors_exit(Main *bmain, bool do_undo_system)
 {
-	Main *bmain = CTX_data_main(C);
-
-	if (!bmain)
+	if (!bmain) {
 		return;
+	}
 
 	/* frees all editmode undos */
-	if (G_MAIN->wm.first) {
+	if (do_undo_system && G_MAIN->wm.first) {
 		wmWindowManager *wm = G_MAIN->wm.first;
-		/* normally we don't check for NULL undo stack, do here since it may run in different context. */
+		/* normally we don't check for NULL undo stack,
+		 * do here since it may run in different context. */
 		if (wm->undo_stack) {
 			BKE_undosys_stack_destroy(wm->undo_stack);
 			wm->undo_stack = NULL;
@@ -198,11 +198,10 @@ void ED_editors_exit(bContext *C)
 
 /* flush any temp data from object editing to DNA before writing files,
  * rendering, copying, etc. */
-bool ED_editors_flush_edits(const bContext *C, bool for_render)
+bool ED_editors_flush_edits(Main *bmain, bool for_render)
 {
 	bool has_edited = false;
 	Object *ob;
-	Main *bmain = CTX_data_main(C);
 
 	/* loop through all data to find edit mode or object mode, because during
 	 * exiting we might not have a context for edit object and multiple sculpt
@@ -210,7 +209,8 @@ bool ED_editors_flush_edits(const bContext *C, bool for_render)
 	for (ob = bmain->object.first; ob; ob = ob->id.next) {
 		if (ob->mode & OB_MODE_SCULPT) {
 			/* Don't allow flushing while in the middle of a stroke (frees data in use).
-			 * Auto-save prevents this from happening but scripts may cause a flush on saving: T53986. */
+			 * Auto-save prevents this from happening but scripts
+			 * may cause a flush on saving: T53986. */
 			if ((ob->sculpt && ob->sculpt->cache) == 0) {
 				/* flush multires changes (for sculpt) */
 				multires_force_update(ob);
@@ -400,7 +400,8 @@ void ED_spacedata_id_remap(struct ScrArea *sa, struct SpaceLink *sl, ID *old_id,
 
 static int ed_flush_edits_exec(bContext *C, wmOperator *UNUSED(op))
 {
-	ED_editors_flush_edits(C, false);
+	Main *bmain = CTX_data_main(C);
+	ED_editors_flush_edits(bmain, false);
 	return OPERATOR_FINISHED;
 }
 

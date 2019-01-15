@@ -136,7 +136,7 @@ typedef enum eGPDpalettecolor_Flag {
 	/* do onion skinning */
 	PC_COLOR_ONIONSKIN = (1 << 3),
 	/* "volumetric" strokes */
-	PC_COLOR_VOLUMETRIC = (1 << 4)
+	PC_COLOR_VOLUMETRIC = (1 << 4),
 } eGPDpalettecolor_Flag;
 
 /* palette of colors */
@@ -155,7 +155,7 @@ typedef struct bGPDpalette {
 /* bGPDpalette->flag */
 typedef enum eGPDpalette_Flag {
 	/* palette is active */
-	PL_PALETTE_ACTIVE = (1 << 0)
+A,	PL_PALETTE_ACTIVE = (1 << 0)
 } eGPDpalette_Flag;
 
 /* ***************************************** */
@@ -223,14 +223,16 @@ typedef enum eGPDstroke_Flag {
 	GP_STROKE_2DIMAGE		= (1 << 2),
 	/* stroke is selected */
 	GP_STROKE_SELECT		= (1 << 3),
-	/* Recalculate geometry data (triangulation, UVs, Bound Box,... (when true, force a new recalc) */
+	/* Recalculate geometry data (triangulation, UVs, Bound Box,...
+	 * (when true, force a new recalc) */
 	GP_STROKE_RECALC_GEOMETRY = (1 << 4),
 	/* Flag used to indicate that stroke is closed and draw edge between last and first point */
 	GP_STROKE_CYCLIC = (1 << 7),
-	/* Flag used to indicate that stroke is used for fill close and must use fill color for stroke and no fill area */
+	/* Flag used to indicate that stroke is used for fill close and must use
+	 * fill color for stroke and no fill area */
 	GP_STROKE_NOFILL = (1 << 8),
 	/* only for use with stroke-buffer (while drawing eraser) */
-	GP_STROKE_ERASER		= (1 << 15)
+	GP_STROKE_ERASER		= (1 << 15),
 } eGPDstroke_Flag;
 
 /* bGPDstroke->caps */
@@ -276,7 +278,7 @@ typedef enum eGPDframe_Flag {
 	/* frame is being painted on */
 	GP_FRAME_PAINT		= (1 << 0),
 	/* for editing in Action Editor */
-	GP_FRAME_SELECT		= (1 << 1)
+	GP_FRAME_SELECT		= (1 << 1),
 } eGPDframe_Flag;
 
 /* ***************************************** */
@@ -303,7 +305,8 @@ typedef struct bGPDlayer {
 	/** Per-layer onion-skinning flags (eGPDlayer_OnionFlag). */
 	short onion_flag;
 
-	/** Color for strokes in layers. Used for annotations, and for ruler (which uses GPencil internally). */
+	/** Color for strokes in layers. Used for annotations, and for ruler
+	 * (which uses GPencil internally). */
 	float color[4];
 	/** Fill color for strokes in layers. Not used anymore (was only for). */
 	float fill[4];
@@ -551,7 +554,8 @@ typedef enum eGPdata_Flag {
 	GP_DATA_DEPTH_STROKE_ENDPOINTS = (1 << 7),
 /* ------------------------------------------------ DEPRECATED */
 
-	/* Stroke Editing Mode - Toggle to enable alternative keymap for easier editing of stroke points */
+	/* Stroke Editing Mode - Toggle to enable alternative keymap
+	 * for easier editing of stroke points */
 	GP_DATA_STROKE_EDITMODE	= (1 << 8),
 
 	/* Main flag to switch onion skinning on/off */
@@ -615,7 +619,7 @@ typedef enum eGP_OnionModes {
 typedef enum eGP_DepthOrdering {
 	GP_XRAY_FRONT = 0,
 	GP_XRAY_3DSPACE = 1,
-	GP_XRAY_BACK  = 2
+	GP_XRAY_BACK  = 2,
 } eGP_DepthOrdering;
 
 /* ***************************************** */

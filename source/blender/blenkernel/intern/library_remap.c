@@ -812,7 +812,22 @@ void BKE_libblock_free_datablock(ID *id, const int UNUSED(flag))
 	}
 }
 
-
+/**
+ * Complete ID freeing, extended version for corner cases.
+ * Can override default (and safe!) freeing process, to gain some speed up.
+ *
+ * At that point, given id is assumed to not be used by any other data-block already
+ * (might not be actually true, in case e.g. several inter-related IDs get freed together...).
+ * However, they might still be using (referencing) other IDs, this code takes care of it if
+ * \a LIB_TAG_NO_USER_REFCOUNT is not defined.
+ *
+ * \param bmain Main database containing the freed ID, can be NULL in case it's a temp ID outside of any Main.
+ * \param idv Pointer to ID to be freed.
+ * \param flag Set of \a LIB_ID_FREE_... flags controlling/overriding usual freeing process,
+ *             0 to get default safe behavior.
+ * \param use_flag_from_idtag Still use freeing info flags from given ID datablock,
+ *                            even if some overriding ones are passed in \a falg parameter.
+ */
 void BKE_id_free_ex(Main *bmain, void *idv, int flag, const bool use_flag_from_idtag)
 {
 	ID *id = idv;
@@ -851,7 +866,12 @@ void BKE_id_free_ex(Main *bmain, void *idv, int flag, const bool use_flag_from_i
 	}
 
 #ifdef WITH_PYTHON
+#  ifdef WITH_PYTHON_SAFETY
 	BPY_id_release(id);
+#  endif
+	if (id->py_instance) {
+		BPY_DECREF_RNA_INVALIDATE(id->py_instance);
+	}
 #endif
 
 	if ((flag & LIB_ID_FREE_NO_USER_REFCOUNT) == 0) {
@@ -861,7 +881,7 @@ void BKE_id_free_ex(Main *bmain, void *idv, int flag, const bool use_flag_from_i
 	BKE_libblock_free_datablock(id, flag);
 
 	/* avoid notifying on removed data */
-	if (bmain) {
+	if ((flag & LIB_ID_FREE_NO_MAIN) == 0) {
 		BKE_main_lock(bmain);
 	}
 
@@ -882,7 +902,7 @@ void BKE_id_free_ex(Main *bmain, void *idv, int flag, const bool use_flag_from_i
 
 	BKE_libblock_free_data(id, (flag & LIB_ID_FREE_NO_USER_REFCOUNT) == 0);
 
-	if (bmain) {
+	if ((flag & LIB_ID_FREE_NO_MAIN) == 0) {
 		BKE_main_unlock(bmain);
 	}
 
@@ -891,69 +911,23 @@ void BKE_id_free_ex(Main *bmain, void *idv, int flag, const bool use_flag_from_i
 	}
 }
 
+/**
+ * Complete ID freeing, should be usable in most cases (even for out-of-Main IDs).
+ *
+ * See #BKE_id_free_ex description for full details.
+ *
+ * \param bmain Main database containing the freed ID, can be NULL in case it's a temp ID outside of any Main.
+ * \param idv Pointer to ID to be freed.
+ */
 void BKE_id_free(Main *bmain, void *idv)
 {
 	BKE_id_free_ex(bmain, idv, 0, true);
 }
 
 /**
- * used in headerbuttons.c image.c mesh.c screen.c sound.c and library.c
- *
- * \param do_id_user: if \a true, try to release other ID's 'references' hold by \a idv.
- *                    (only applies to main database)
- * \param do_ui_user: similar to do_id_user but makes sure UI does not hold references to
- *                    \a id.
+ * Not really a freeing function by itself, it decrements usercount of given id, and only frees it if it reaches 0.
  */
-void BKE_libblock_free_ex(Main *bmain, void *idv, const bool do_id_user, const bool do_ui_user)
-{
-	ID *id = idv;
-	short type = GS(id->name);
-	ListBase *lb = which_libbase(bmain, type);
-
-	DEG_id_type_tag(bmain, type);
-
-#ifdef WITH_PYTHON
-#ifdef WITH_PYTHON_SAFETY
-	BPY_id_release(id);
-#endif
-	if (id->py_instance) {
-		BPY_DECREF_RNA_INVALIDATE(id->py_instance);
-	}
-#endif
-
-	if (do_id_user) {
-		BKE_libblock_relink_ex(bmain, id, NULL, NULL, true);
-	}
-
-	BKE_libblock_free_datablock(id, 0);
-
-	/* avoid notifying on removed data */
-	BKE_main_lock(bmain);
-
-	if (do_ui_user) {
-		if (free_notifier_reference_cb) {
-			free_notifier_reference_cb(id);
-		}
-
-		if (remap_editor_id_reference_cb) {
-			remap_editor_id_reference_cb(id, NULL);
-		}
-	}
-
-	BLI_remlink(lb, id);
-
-	BKE_libblock_free_data(id, do_id_user);
-	BKE_main_unlock(bmain);
-
-	MEM_freeN(id);
-}
-
-void BKE_libblock_free(Main *bmain, void *idv)
-{
-	BKE_libblock_free_ex(bmain, idv, true, true);
-}
-
-void BKE_libblock_free_us(Main *bmain, void *idv)      /* test users */
+void BKE_id_free_us(Main *bmain, void *idv)      /* test users */
 {
 	ID *id = idv;
 
@@ -973,11 +947,11 @@ void BKE_libblock_free_us(Main *bmain, void *idv)      /* test users */
 	if (id->us == 0) {
 		BKE_libblock_unlink(bmain, id, false, false);
 
-		BKE_libblock_free(bmain, id);
+		BKE_id_free(bmain, id);
 	}
 }
 
-void BKE_libblock_delete(Main *bmain, void *idv)
+void BKE_id_delete(Main *bmain, void *idv)
 {
 	ListBase *lbarray[MAX_LIBARRAY];
 	int base_count, i;
@@ -1022,7 +996,7 @@ void BKE_libblock_delete(Main *bmain, void *idv)
 #endif
 					BLI_assert(id->us == 0);
 				}
-				BKE_libblock_free(bmain, id);
+				BKE_id_free(bmain, id);
 			}
 		}
 	}

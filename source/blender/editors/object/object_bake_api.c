@@ -635,9 +635,15 @@ static size_t initialize_internal_images(BakeImages *bake_images, ReportList *re
 /* create new mesh with edit mode changes and modifiers applied */
 static Mesh *bake_mesh_new_from_object(Depsgraph *depsgraph, Main *bmain, Scene *scene, Object *ob)
 {
-	ED_object_editmode_load(bmain, ob);
+	bool apply_modifiers = false;
 
-	Mesh *me = BKE_mesh_new_from_object(depsgraph, bmain, scene, ob, 1, 0);
+	/* Mesh is already updated and has modifiers applied. */
+	if (ob->type != OB_MESH) {
+		ED_object_editmode_load(bmain, ob);
+		apply_modifiers = true;
+	}
+
+	Mesh *me = BKE_mesh_new_from_object(depsgraph, bmain, scene, ob, apply_modifiers, 0);
 	if (me->flag & ME_AUTOSMOOTH) {
 		BKE_mesh_split_faces(me, true);
 	}
@@ -655,7 +661,8 @@ static int bake(
         const char *custom_cage, const char *filepath, const int width, const int height,
         const char *identifier, ScrArea *sa, const char *uv_layer)
 {
-	/* We build a depsgraph for the baking, so we don't need to change the original data to adjust visibility and modifiers. */
+	/* We build a depsgraph for the baking,
+	 * so we don't need to change the original data to adjust visibility and modifiers. */
 	Depsgraph *depsgraph = DEG_graph_new(scene, view_layer, DAG_EVAL_RENDER);
 	DEG_graph_build_from_view_layer(depsgraph, bmain, scene, view_layer);
 
@@ -961,7 +968,7 @@ static int bake(
 					RE_bake_pixels_populate(me_nores, pixel_array_low, num_pixels, &bake_images, uv_layer);
 
 					RE_bake_normal_world_to_tangent(pixel_array_low, num_pixels, depth, result, me_nores, normal_swizzle, ob_low->obmat);
-					BKE_libblock_free(bmain, me_nores);
+					BKE_id_free(bmain, me_nores);
 
 					if (md)
 						md->mode = mode;
@@ -1070,7 +1077,7 @@ cleanup:
 		int i;
 		for (i = 0; i < tot_highpoly; i++) {
 			if (highpoly[i].me)
-				BKE_libblock_free(bmain, highpoly[i].me);
+				BKE_id_free(bmain, highpoly[i].me);
 		}
 		MEM_freeN(highpoly);
 	}
@@ -1094,10 +1101,10 @@ cleanup:
 		MEM_freeN(result);
 
 	if (me_low)
-		BKE_libblock_free(bmain, me_low);
+		BKE_id_free(bmain, me_low);
 
 	if (me_cage)
-		BKE_libblock_free(bmain, me_cage);
+		BKE_id_free(bmain, me_cage);
 
 	DEG_graph_free(depsgraph);
 

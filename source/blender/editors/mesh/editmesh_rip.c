@@ -313,7 +313,8 @@ static EdgeLoopPair *edbm_ripsel_looptag_helper(BMesh *bm)
 		uid = uid_end + bm->totedge;
 
 		lp = BLI_array_append_ret(eloop_pairs);
-		BM_edge_loop_pair(e_last, &lp->l_a, &lp->l_b); /* no need to check, we know this will be true */
+		/* no need to check, we know this will be true */
+		BM_edge_loop_pair(e_last, &lp->l_a, &lp->l_b);
 
 
 		BLI_assert(tot == uid_end - uid_start);
@@ -408,7 +409,7 @@ typedef struct UnorderedLoopPair {
 } UnorderedLoopPair;
 enum {
 	ULP_FLIP_0 = (1 << 0),
-	ULP_FLIP_1 = (1 << 1)
+	ULP_FLIP_1 = (1 << 1),
 };
 
 static UnorderedLoopPair *edbm_tagged_loop_pairs_to_fill(BMesh *bm)
@@ -795,7 +796,8 @@ static int edbm_rip_invoke__vert(bContext *C, const wmEvent *event, Object *obed
 
 					if (do_fill) {
 						/* Only needed when filling...
-						 * Also, we never want to tag best edge, that one won't change during split. See T44618. */
+						 * Also, we never want to tag best edge,
+						 * that one won't change during split. See T44618. */
 						if (larr[larr_len]->e == e_best) {
 							BM_elem_flag_enable(larr[larr_len]->prev->e, BM_ELEM_TAG);
 						}

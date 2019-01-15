@@ -105,7 +105,7 @@ BL_Action::~BL_Action()
 	ClearControllerList();
 
 	if (m_tmpaction) {
-		BKE_libblock_free(G.main, m_tmpaction);
+		BKE_id_free_us(G.main, m_tmpaction);
 		m_tmpaction = nullptr;
 	}
 	m_obj->GetScene()->GetBlenderScene()->r.cfra = int(m_backupFrame); //eevee
@@ -179,7 +179,7 @@ bool BL_Action::Play(const std::string& name,
 
 	// Keep a copy of the action for threading purposes
 	if (m_tmpaction) {
-		BKE_libblock_free(G.main, m_tmpaction);
+		BKE_id_free_us(G.main, m_tmpaction);
 		m_tmpaction = nullptr;
 	}
 	m_tmpaction = BKE_action_copy(G.main, m_action);

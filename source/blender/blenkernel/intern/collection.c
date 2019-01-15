@@ -173,7 +173,7 @@ bool BKE_collection_delete(Main *bmain, Collection *collection, bool hierarchy)
 		}
 	}
 
-	BKE_libblock_delete(bmain, collection);
+	BKE_id_delete(bmain, collection);
 
 	BKE_main_collection_sync(bmain);
 
@@ -534,7 +534,7 @@ static bool collection_object_remove(Main *bmain, Collection *collection, Object
 	BKE_collection_object_cache_free(collection);
 
 	if (free_us) {
-		BKE_libblock_free_us(bmain, ob);
+		BKE_id_free_us(bmain, ob);
 	}
 	else {
 		id_us_min(&ob->id);
