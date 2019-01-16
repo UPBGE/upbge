@@ -96,9 +96,7 @@ class KX_ObstacleSimulation;
 struct TaskPool;
 
 /*********EEVEE INTEGRATION************/
-struct DRWPass;
-struct EEVEE_PassList;
-struct IDProperty;
+struct Object;
 /**************************************/
 
 /* for ID freeing */
@@ -147,7 +145,6 @@ protected:
 	/***************EEVEE INTEGRATION*****************/
 
 	std::vector<KX_GameObject *>m_staticObjects;
-	std::vector<KX_GameObject *>m_lightProbes;
 
 	int m_taaSamplesBackup;
 	bool m_resetTaaSamples;
@@ -343,11 +340,8 @@ public:
 	bool ObjectsAreStatic();
 	void ResetTaaSamples();
 
-
 	bool m_isRuntime; // Too lazy to put that in protected
-
-	void AppendProbeList(KX_GameObject *probe);
-	std::vector<KX_GameObject *>GetProbeList();
+	std::vector<Object *>m_hiddenObjectsDuringRuntime;
 
 	void RenderAfterCameraSetup(bool calledFromConstructor);
 	

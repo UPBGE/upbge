@@ -145,7 +145,6 @@ public:
 	void TagForUpdate();
 	void ReplicateBlenderObject();
 	void HideOriginalObject();
-	void UnHideOriginalObject();
 	void RemoveReplicaObject();
 	void SetBackupMesh(Mesh *me);
 	void RestoreOriginalMesh();

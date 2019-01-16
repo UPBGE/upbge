@@ -1109,7 +1109,13 @@ static KX_GameObject *gameobject_from_blenderobject(
 	case OB_LIGHTPROBE:
 	{
 		gameobj = new KX_EmptyObject(kxscene, KX_Scene::m_callbacks);
-		kxscene->AppendProbeList(gameobj);
+		// set transformation
+		break;
+	}
+
+	case OB_MBALL:
+	{
+		gameobj = new KX_EmptyObject(kxscene, KX_Scene::m_callbacks);
 		// set transformation
 		break;
 	}

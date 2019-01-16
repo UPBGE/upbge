@@ -264,6 +264,15 @@ KX_Scene::~KX_Scene()
 
 	DRW_game_render_loop_end();
 
+	for (Object *hiddenOb : m_hiddenObjectsDuringRuntime) {
+		Scene *scene = GetBlenderScene();
+		ViewLayer *view_layer = BKE_view_layer_default_view(scene);
+		Base *base = BKE_view_layer_base_find(view_layer, hiddenOb);
+		base->flag &= ~BASE_HIDDEN;
+		BKE_layer_collection_sync(scene, view_layer);
+		DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
+	}
+
 	Scene *scene = GetBlenderScene();
 	scene->eevee.taa_samples = m_taaSamplesBackup;
 	DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
@@ -408,16 +417,6 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
 	}
 
 	DRW_game_render_loop_finish();
-}
-
-void KX_Scene::AppendProbeList(KX_GameObject *probe)
-{
-	m_lightProbes.push_back(probe);
-}
-
-std::vector<KX_GameObject *>KX_Scene::GetProbeList()
-{
-	return m_lightProbes;
 }
 
 /******************End of EEVEE INTEGRATION****************************/

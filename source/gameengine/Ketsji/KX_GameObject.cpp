@@ -190,11 +190,10 @@ KX_GameObject::~KX_GameObject()
 	KX_Scene *scene = GetScene();
 
 	if (scene->m_isRuntime) {
-		//HideOriginalObject();
+		HideOriginalObject();
 		RemoveReplicaObject();
 	}
 	else { // at scene exit
-		//UnHideOriginalObject();
 		RestoreOriginalMesh(); // we restore original mesh in the case we modified it during runtime
 		RemoveReplicaObject();
 	}
@@ -312,11 +311,13 @@ void KX_GameObject::RemoveReplicaObject()
 		DEG_relations_tag_update(bmain);
 	}
 }
+
 void KX_GameObject::SetBackupMesh(Mesh *me)
 {
 	Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
-	m_backupMesh = BKE_mesh_copy(bmain, me);
+	BKE_id_copy_ex(bmain, &me->id, (ID **)&m_backupMesh, 0, false);
 }
+
 void KX_GameObject::RestoreOriginalMesh()
 {
 	Object *ob = GetBlenderObject();
@@ -324,6 +325,8 @@ void KX_GameObject::RestoreOriginalMesh()
 		Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
 		Mesh *origMesh = (Mesh *)ob->data;
 		BKE_mesh_copy_data(bmain, origMesh, m_backupMesh, 0);
+		BKE_id_free(bmain, m_backupMesh);
+		m_backupMesh = nullptr;
 		DEG_id_tag_update(&origMesh->id, ID_RECALC_GEOMETRY);
 	}
 }
@@ -335,29 +338,13 @@ void KX_GameObject::HideOriginalObject()
 		Scene *scene = GetScene()->GetBlenderScene();
 		ViewLayer *view_layer = BKE_view_layer_default_view(scene);
 		Base *base = BKE_view_layer_base_find(view_layer, ob);
-		base->flag &= ~BASE_VISIBLE;
-		BKE_scene_object_base_flag_sync_from_base(base);
-		BKE_base_set_visible(scene, view_layer, base, false);
+		base->flag |= BASE_HIDDEN;
+		BKE_layer_collection_sync(scene, view_layer);
 		DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
+		GetScene()->m_hiddenObjectsDuringRuntime.push_back(ob);
 		GetScene()->ResetTaaSamples();
 	}
 }
-
-void KX_GameObject::UnHideOriginalObject()
-{
-	Object *ob = GetBlenderObject();
-	if (ob && !m_isReplica) {
-		Scene *scene = GetScene()->GetBlenderScene();
-		ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-		Base *base = BKE_view_layer_base_find(view_layer, ob);
-		base->flag |= BASE_VISIBLE;
-		BKE_scene_object_base_flag_sync_from_base(base);
-		BKE_base_set_visible(scene, view_layer, base, true);
-		DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
-		GetScene()->ResetTaaSamples();
-	}
-}
-
 /********************End of EEVEE INTEGRATION*********************/
 
 KX_GameObject* KX_GameObject::GetClientObject(KX_ClientObjectInfo *info)
