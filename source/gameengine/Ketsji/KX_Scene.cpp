@@ -167,6 +167,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
     class RAS_ICanvas* canvas,
 	KX_NetworkMessageManager *messageManager) :
 	CValue(),
+	m_resetTaaSamples(false), //eevee
 	m_keyboardmgr(nullptr),
 	m_mousemgr(nullptr),
 	m_physicsEnvironment(0),
@@ -177,9 +178,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_suspendeddelta(0.0),
 	m_blenderScene(scene),
 	m_isActivedHysteresis(false),
-	m_isRuntime(true), //eevee
-	m_resetTaaSamples(false),
-	m_lodHysteresisValue(0)
+	m_lodHysteresisValue(0),
+	m_isRuntime(true) //eevee
 {
 
 	m_dbvt_culling = false;
