@@ -602,13 +602,13 @@ static void ui_draw_linkline(uiLinkLine *line, int highlightActiveLines, int das
 	rect.ymax = BLI_rctf_cent_y(&line->to->rect);
 	
 	if (dashInactiveLines)
-		rgba_float_args_set_ch(color, 255, 100, 100, 255);
+		UI_GetThemeColor4fv(TH_GRID, color);
 	else if (line->flag & UI_SELECT)
-		rgba_float_args_set_ch(color, 100, 255, 100, 255);
+		rgba_float_args_set_ch(color, 120, 120, 120, 255);
 	else if (highlightActiveLines && ((line->from->flag & UI_ACTIVE) || (line->to->flag & UI_ACTIVE)))
-		rgba_float_args_set_ch(color, 100, 100, 255, 255);
+		UI_GetThemeColor4fv(TH_TEXT_HI, color);
 	else
-		rgba_float_args_set_ch(color, 255, 255, 255, 255);
+		rgba_float_args_set_ch(color, 100, 100, 100, 255);
 
 	ui_draw_link_bezier(&rect, color);
 }

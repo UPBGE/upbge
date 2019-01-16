@@ -160,7 +160,9 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
 					ts = &btheme->tnode;
 					break;
 				case SPACE_LOGIC:
+					btheme->tlogic = btheme->tv3d;
 					ts = &btheme->tlogic;
+					rgba_char_args_set(btheme->tlogic.back, 40, 40, 40, 255);
 					break;
 				case SPACE_CLIP:
 					ts = &btheme->tclip;
