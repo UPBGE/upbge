@@ -34,6 +34,7 @@
 
 struct Mesh;
 struct Scene;
+struct Subdiv;
 
 typedef enum ModifierType {
 	eModifierType_None              = 0,
@@ -167,7 +168,10 @@ typedef struct SubsurfModifierData {
 	short quality;
 	short pad[2];
 
+	/* TODO(sergey): Get rid of those with the old CCG subdivision code. */
 	void *emCache, *mCache;
+	/* Cached subdivision surface descriptor, with topology and settings. */
+	struct Subdiv *subdiv;
 } SubsurfModifierData;
 
 typedef struct LatticeModifierData {
@@ -945,6 +949,8 @@ typedef struct MultiresModifierData {
 	short quality;
 	short uv_smooth;
 	short pad2[2];
+	struct Subdiv *subdiv;
+	void *pad3;
 } MultiresModifierData;
 
 typedef enum {

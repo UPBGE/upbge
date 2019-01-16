@@ -799,7 +799,7 @@ int main(
 
 	U.anisotropic_filter = 2;
 	// enable fast mipmap generation
-	U.use_gpu_mipmap = 1;
+	//U.use_gpu_mipmap = 1;
 
 	BKE_sound_init_once();
 
@@ -1391,7 +1391,7 @@ int main(
 							}
 
 							GPU_set_anisotropic(maggie, U.anisotropic_filter);
-							GPU_set_gpu_mipmapping(maggie, U.use_gpu_mipmap);
+							//GPU_set_gpu_mipmapping(maggie, U.use_gpu_mipmap);
 							GPU_set_linear_mipmap(true);
 						}
 

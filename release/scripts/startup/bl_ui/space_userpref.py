@@ -656,9 +656,6 @@ class USERPREF_PT_system_opengl_textures(PreferencePanel):
         flow.prop(system, "texture_collection_rate", text="Garbage Collection Rate")
         flow.prop(system, "image_draw_method", text="Image Display Method")
 
-        flow.prop(system, "use_16bit_textures")
-        flow.prop(system, "use_gpu_mipmap")
-
 
 class USERPREF_PT_system_opengl_selection(PreferencePanel):
     bl_label = "Selection"
@@ -670,7 +667,6 @@ class USERPREF_PT_system_opengl_selection(PreferencePanel):
 
         flow = layout.grid_flow(row_major=False, columns=0, even_columns=True, even_rows=False, align=False)
 
-        flow.prop(system, "select_method", text="Selection Method")
         flow.prop(system, "use_select_pick_depth")
 
 

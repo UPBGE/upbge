@@ -79,6 +79,7 @@ typedef enum eSubdivStatsValue {
 	SUBDIV_STATS_EVALUATOR_REFINE,
 	SUBDIV_STATS_SUBDIV_TO_CCG,
 	SUBDIV_STATS_SUBDIV_TO_CCG_ELEMENTS,
+	SUBDIV_STATS_TOPOLOGY_COMPARE,
 
 	NUM_SUBDIV_STATS_VALUES,
 } eSubdivStatsValue;
@@ -102,6 +103,8 @@ typedef struct SubdivStats {
 			double subdiv_to_ccg_time;
 			/* Time spent on CCG elements evaluation/initialization. */
 			double subdiv_to_ccg_elements_time;
+			/* Time spent on CCG elements evaluation/initialization. */
+			double topology_compare_time;
 		};
 		double values_[NUM_SUBDIV_STATS_VALUES];
 	};
@@ -167,13 +170,12 @@ typedef struct Subdiv {
 	/* Cached values, are not supposed to be accessed directly. */
 	struct {
 		/* Indexed by base face index, element indicates total number of ptex
-		 *faces created for preceding base faces.
-		 */
+		 *faces created for preceding base faces. */
 		int *face_ptex_offset;
 	} cache_;
 } Subdiv;
 
-/* ================================ HELPERS ================================= */
+/* ========================== CONVERSION HELPERS ============================ */
 
 /* NOTE: uv_smooth is eSubsurfUVSmooth. */
 eSubdivFVarLinearInterpolation
@@ -186,15 +188,40 @@ void BKE_subdiv_stats_init(SubdivStats *stats);
 void BKE_subdiv_stats_begin(SubdivStats *stats, eSubdivStatsValue value);
 void BKE_subdiv_stats_end(SubdivStats *stats, eSubdivStatsValue value);
 
+void BKE_subdiv_stats_reset(SubdivStats *stats, eSubdivStatsValue value);
+
 void BKE_subdiv_stats_print(const SubdivStats *stats);
+
+/* ================================ SETTINGS ================================ */
+
+bool BKE_subdiv_settings_equal(const SubdivSettings *settings_a,
+                               const SubdivSettings *settings_b);
 
 /* ============================== CONSTRUCTION ============================== */
 
+/* Construct new subdivision surface descriptor, from scratch, using given
+ * settings and topology. */
 Subdiv *BKE_subdiv_new_from_converter(const SubdivSettings *settings,
                                       struct OpenSubdiv_Converter *converter);
-
 Subdiv *BKE_subdiv_new_from_mesh(const SubdivSettings *settings,
-                                 struct Mesh *mesh);
+                                 const struct Mesh *mesh);
+
+/* Similar to above, but will not re-create descriptor if it was created for the
+ * same settings and topology.
+ * If settings or topology did change, the existing descriptor is freed and a
+ * new one is created from scratch.
+ *
+ * NOTE: It is allowed to pass NULL as an existing subdivision surface
+ * descriptor. This will create enw descriptor without any extra checks.
+ */
+Subdiv *BKE_subdiv_update_from_converter(
+        Subdiv *subdiv,
+        const SubdivSettings *settings,
+        struct OpenSubdiv_Converter *converter);
+Subdiv *BKE_subdiv_update_from_mesh(
+        Subdiv *subdiv,
+        const SubdivSettings *settings,
+        const struct Mesh *mesh);
 
 void BKE_subdiv_free(Subdiv *subdiv);
 
@@ -211,7 +238,7 @@ void BKE_subdiv_displacement_detach(Subdiv *subdiv);
 
 int *BKE_subdiv_face_ptex_offset_get(Subdiv *subdiv);
 
-/* ============================= VARIOUS HELPERS ============================ */
+/* =========================== PTEX FACES AND GRIDS ========================= */
 
 /* For a given (ptex_u, ptex_v) within a ptex face get corresponding
  * (grid_u, grid_v) within a grid. */
