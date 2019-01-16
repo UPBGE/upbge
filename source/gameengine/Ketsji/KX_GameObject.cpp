@@ -272,7 +272,7 @@ void KX_GameObject::TagForUpdate()
 			DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);
 		}
 
-		if (!staticObject && ELEM(ob->type, OB_MESH, OB_CURVE, OB_FONT)) {
+		if (!staticObject && ELEM(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL)) {
 			if (m_castShadows) {
 				EEVEE_ObjectEngineData *oedata = EEVEE_object_data_ensure(ob);
 				oedata->need_update = true;
