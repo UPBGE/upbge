@@ -325,7 +325,7 @@ void KX_GameObject::RestoreOriginalMesh()
 		Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
 		Mesh *origMesh = (Mesh *)ob->data;
 		BKE_mesh_copy_data(bmain, origMesh, m_backupMesh, 0);
-		BKE_id_free(bmain, m_backupMesh);
+		//BKE_id_free(bmain, m_backupMesh);
 		m_backupMesh = nullptr;
 		DEG_id_tag_update(&origMesh->id, ID_RECALC_GEOMETRY);
 	}
