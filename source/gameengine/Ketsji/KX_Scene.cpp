@@ -122,7 +122,6 @@ extern "C" {
 #  include "BKE_object.h"
 #  include "DRW_engine.h"
 #  include "DRW_render.h"
-#  include "GPU_glew.h"
 #  include "MEM_guardedalloc.h"
 }
 /*********************END OF EEVEE INTEGRATION***************************/
@@ -406,9 +405,9 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
 
 	GPUTexture *finaltex = DRW_game_render_loop(bmain, scene, maincam, viewportsize, state, v, calledFromConstructor, reset_taa_samples);
 
-	glEnable(GL_SCISSOR_TEST);
-	glViewport(v[0], v[1], v[2], v[3]);
-	glScissor(v[0], v[1], v[2], v[3]);
+	rasty->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
+	rasty->SetViewport(v[0], v[1], v[2], v[3]);
+	rasty->SetScissor(v[0], v[1], v[2], v[3]);
 
 	DRW_transform_to_display(finaltex, false);
 
