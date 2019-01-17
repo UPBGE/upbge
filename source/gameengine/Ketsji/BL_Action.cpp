@@ -122,6 +122,18 @@ BL_Action::~BL_Action()
 		BKE_object_modifier_update_subframe(depsgraph, sc, ob, true, 5, m_backupFrame, 8);
 		BLI_mutex_unlock(&object_update_lock);
 	}
+	else {
+		Object *ob = m_obj->GetBlenderObject(); //eevee
+		DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+
+		Scene *sc = m_obj->GetScene()->GetBlenderScene();
+		ViewLayer *view_layer = BKE_view_layer_default_view(sc);
+		Depsgraph *depsgraph = BKE_scene_get_depsgraph(sc, view_layer, false);
+
+		BLI_mutex_lock(&object_update_lock);
+		BKE_object_modifier_update_subframe(depsgraph, sc, ob, true, 5, m_backupFrame, 41);
+		BLI_mutex_unlock(&object_update_lock);
+	}
 }
 
 void BL_Action::ClearControllerList()

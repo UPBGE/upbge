@@ -72,6 +72,7 @@ typedef struct EyedropperColorband {
 	ColorBand *color_band;
 	PointerRNA ptr;
 	PropertyRNA *prop;
+	bool is_undo;
 } EyedropperColorband;
 
 /* For user-data only. */
@@ -83,7 +84,6 @@ struct EyedropperColorband_Context {
 static bool eyedropper_colorband_init(bContext *C, wmOperator *op)
 {
 	ColorBand *band = NULL;
-	EyedropperColorband *eye;
 
 	uiBut *but = UI_context_active_but_get(C);
 
@@ -99,10 +99,11 @@ static bool eyedropper_colorband_init(bContext *C, wmOperator *op)
 		band = (ColorBand *)but->custom_data;
 	}
 
-	if (!band)
+	if (!band) {
 		return false;
+	}
 
-	op->customdata = eye = MEM_callocN(sizeof(EyedropperColorband), __func__);
+	EyedropperColorband *eye = MEM_callocN(sizeof(EyedropperColorband), __func__);
 	eye->color_buffer_alloc = 16;
 	eye->color_buffer = MEM_mallocN(sizeof(*eye->color_buffer) * eye->color_buffer_alloc, __func__);
 	eye->color_buffer_len = 0;
@@ -110,6 +111,9 @@ static bool eyedropper_colorband_init(bContext *C, wmOperator *op)
 	eye->init_color_band = *eye->color_band;
 	eye->ptr = ((Colorband_RNAUpdateCb *)but->func_argN)->ptr;
 	eye->prop  = ((Colorband_RNAUpdateCb *)but->func_argN)->prop;
+	eye->is_undo = UI_but_flag_is_set(but, UI_BUT_UNDO);
+
+	op->customdata = eye;
 
 	return true;
 }
@@ -190,10 +194,14 @@ static int eyedropper_colorband_modal(bContext *C, wmOperator *op, const wmEvent
 				eyedropper_colorband_cancel(C, op);
 				return OPERATOR_CANCELLED;
 			case EYE_MODAL_SAMPLE_CONFIRM:
+			{
+				const bool is_undo = eye->is_undo;
 				eyedropper_colorband_sample_segment(C, eye, event->x, event->y);
 				eyedropper_colorband_apply(C, op);
 				eyedropper_colorband_exit(C, op);
-				return OPERATOR_FINISHED;
+				/* Could support finished & undo-skip. */
+				return is_undo ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
+			}
 			case EYE_MODAL_SAMPLE_BEGIN:
 				/* enable accum and make first sample */
 				eye->sample_start = true;
@@ -266,7 +274,6 @@ static int eyedropper_colorband_invoke(bContext *C, wmOperator *op, const wmEven
 		return OPERATOR_RUNNING_MODAL;
 	}
 	else {
-		eyedropper_colorband_exit(C, op);
 		return OPERATOR_CANCELLED;
 	}
 }
@@ -311,7 +318,7 @@ void UI_OT_eyedropper_colorband(wmOperatorType *ot)
 	ot->poll = eyedropper_colorband_poll;
 
 	/* flags */
-	ot->flag = OPTYPE_BLOCKING | OPTYPE_INTERNAL;
+	ot->flag = OPTYPE_UNDO | OPTYPE_BLOCKING | OPTYPE_INTERNAL;
 
 	/* properties */
 }
@@ -331,7 +338,7 @@ void UI_OT_eyedropper_colorband_point(wmOperatorType *ot)
 	ot->poll = eyedropper_colorband_poll;
 
 	/* flags */
-	ot->flag = OPTYPE_BLOCKING | OPTYPE_INTERNAL;
+	ot->flag = OPTYPE_UNDO | OPTYPE_BLOCKING | OPTYPE_INTERNAL;
 
 	/* properties */
 }

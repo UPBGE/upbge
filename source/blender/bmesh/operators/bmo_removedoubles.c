@@ -31,6 +31,7 @@
 #include "BLI_math.h"
 #include "BLI_alloca.h"
 #include "BLI_kdtree.h"
+#include "BLI_listbase.h"
 #include "BLI_utildefines_stack.h"
 #include "BLI_stack.h"
 
@@ -38,7 +39,6 @@
 
 #include "bmesh.h"
 #include "intern/bmesh_operators_private.h"
-
 
 static void remdoubles_splitface(BMFace *f, BMesh *bm, BMOperator *op, BMOpSlot *slot_targetmap)
 {
@@ -79,7 +79,7 @@ static void remdoubles_splitface(BMFace *f, BMesh *bm, BMOperator *op, BMOpSlot 
 /**
  * helper function for bmo_weld_verts_exec so we can use stack memory
  */
-static BMFace *remdoubles_createface(BMesh *bm, BMFace *f, BMOpSlot *slot_targetmap)
+static BMFace *remdoubles_createface(BMesh *bm, BMFace *f, BMOpSlot *slot_targetmap, bool *r_created)
 {
 	BMEdge *e_new;
 
@@ -95,6 +95,7 @@ static BMFace *remdoubles_createface(BMesh *bm, BMFace *f, BMOpSlot *slot_target
 	STACK_INIT(loops, f->len);
 	STACK_INIT(verts, f->len);
 
+	*r_created = false;
 
 	{
 #define LOOP_MAP_VERT_INIT(l_init, v_map, is_del) \
@@ -161,20 +162,23 @@ finally:
 	}
 
 	if (STACK_SIZE(edges) >= 3) {
-		if (!BM_face_exists(verts, STACK_SIZE(edges))) {
-			BMFace *f_new = BM_face_create(bm, verts, edges, STACK_SIZE(edges), f, BM_CREATE_NOP);
-			BLI_assert(f_new != f);
+		BMFace *f_new = BM_face_exists(verts, STACK_SIZE(verts));
+		if (f_new) {
+			return f_new;
+		}
+		f_new = BM_face_create(bm, verts, edges, STACK_SIZE(edges), f, BM_CREATE_NOP);
+		BLI_assert(f_new != f);
 
-			if (f_new) {
-				uint i = 0;
-				BMLoop *l_iter, *l_first;
-				l_iter = l_first = BM_FACE_FIRST_LOOP(f_new);
-				do {
-					BM_elem_attrs_copy(bm, bm, loops[i], l_iter);
-				} while ((void)i++, (l_iter = l_iter->next) != l_first);
+		if (f_new) {
+			uint i = 0;
+			BMLoop *l_iter, *l_first;
+			l_iter = l_first = BM_FACE_FIRST_LOOP(f_new);
+			do {
+				BM_elem_attrs_copy(bm, bm, loops[i], l_iter);
+			} while ((void)i++, (l_iter = l_iter->next) != l_first);
 
-				return f_new;
-			}
+			*r_created = true;
+			return f_new;
 		}
 	}
 
@@ -190,19 +194,34 @@ finally:
 void bmo_weld_verts_exec(BMesh *bm, BMOperator *op)
 {
 	BMIter iter, liter;
-	BMVert *v1, *v2;
+	BMVert *v;
 	BMEdge *e;
 	BMLoop *l;
 	BMFace *f;
 	BMOpSlot *slot_targetmap = BMO_slot_get(op->slots_in, "targetmap");
 
+	/* Maintain selection history. */
+	const bool has_selected = !BLI_listbase_is_empty(&bm->selected);
+	const bool use_targetmap_all = has_selected;
+	GHash *targetmap_all = NULL;
+	if (use_targetmap_all) {
+		/* Map deleted to keep elem. */
+		targetmap_all = BLI_ghash_ptr_new(__func__);
+	}
+
 	/* mark merge verts for deletion */
-	BM_ITER_MESH (v1, &iter, bm, BM_VERTS_OF_MESH) {
-		if ((v2 = BMO_slot_map_elem_get(slot_targetmap, v1))) {
-			BMO_vert_flag_enable(bm, v1, ELE_DEL);
+	BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
+		BMVert *v_dst = BMO_slot_map_elem_get(slot_targetmap, v);
+		if (v_dst != NULL) {
+			BMO_vert_flag_enable(bm, v, ELE_DEL);
 
 			/* merge the vertex flags, else we get randomly selected/unselected verts */
-			BM_elem_flag_merge_ex(v1, v2, BM_ELEM_HIDDEN);
+			BM_elem_flag_merge_ex(v, v_dst, BM_ELEM_HIDDEN);
+
+			if (use_targetmap_all) {
+				BLI_assert(v != v_dst);
+				BLI_ghash_insert(targetmap_all, v, v_dst);
+			}
 		}
 	}
 
@@ -213,6 +232,7 @@ void bmo_weld_verts_exec(BMesh *bm, BMOperator *op)
 	}
 
 	BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
+		BMVert *v1, *v2;
 		const bool is_del_v1 = BMO_vert_flag_test_bool(bm, (v1 = e->v1), ELE_DEL);
 		const bool is_del_v2 = BMO_vert_flag_test_bool(bm, (v2 = e->v2), ELE_DEL);
 
@@ -232,6 +252,10 @@ void bmo_weld_verts_exec(BMesh *bm, BMOperator *op)
 					e_new = BM_edge_create(bm, v1, v2, e, BM_CREATE_NOP);
 				}
 				BM_elem_flag_merge_ex(e_new, e, BM_ELEM_HIDDEN);
+				if (use_targetmap_all) {
+					BLI_assert(e != e_new);
+					BLI_ghash_insert(targetmap_all, e, e_new);
+				}
 			}
 
 			BMO_edge_flag_enable(bm, e, ELE_DEL);
@@ -254,25 +278,50 @@ void bmo_weld_verts_exec(BMesh *bm, BMOperator *op)
 		}
 
 		if (vert_delete) {
+			bool use_in_place = false;
+			BMFace *f_new = NULL;
 			BMO_face_flag_enable(bm, f, ELE_DEL);
 
 			if (f->len - edge_collapse >= 3) {
-				BMFace *f_new = remdoubles_createface(bm, f, slot_targetmap);
-
+				bool created;
+				f_new = remdoubles_createface(bm, f, slot_targetmap, &created);
 				/* do this so we don't need to return a list of created faces */
 				if (f_new) {
-					bmesh_face_swap_data(f_new, f);
+					if (created) {
+						bmesh_face_swap_data(f_new, f);
 
-					if (bm->use_toolflags) {
-						SWAP(BMFlagLayer *, ((BMFace_OFlag *)f)->oflags, ((BMFace_OFlag *)f_new)->oflags);
+						if (bm->use_toolflags) {
+							SWAP(BMFlagLayer *, ((BMFace_OFlag *)f)->oflags, ((BMFace_OFlag *)f_new)->oflags);
+						}
+
+						BMO_face_flag_disable(bm, f, ELE_DEL);
+						BM_face_kill(bm, f_new);
+						use_in_place = true;
 					}
+					else {
+						BM_elem_flag_merge_ex(f_new, f, BM_ELEM_HIDDEN);
+					}
+				}
+			}
 
-					BMO_face_flag_disable(bm, f, ELE_DEL);
-
-					BM_face_kill(bm, f_new);
+			if ((use_in_place == false) && (f_new != NULL)) {
+				BLI_assert(f != f_new);
+				if (use_targetmap_all) {
+					BLI_ghash_insert(targetmap_all, f, f_new);
+				}
+				if (bm->act_face && (f == bm->act_face)) {
+					bm->act_face = f_new;
 				}
 			}
 		}
+	}
+
+	if (has_selected) {
+		BM_select_history_merge_from_targetmap(bm, targetmap_all, targetmap_all, targetmap_all, true);
+	}
+
+	if (use_targetmap_all) {
+		BLI_ghash_free(targetmap_all, NULL, NULL);
 	}
 
 	BMO_mesh_delete_oflag_context(bm, ELE_DEL, DEL_ONLYTAGGED);

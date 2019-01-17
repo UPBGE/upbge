@@ -151,7 +151,10 @@ static void rna_DepsgraphObjectInstance_matrix_world_get(PointerRNA *ptr, float 
 		copy_m4_m4((float(*)[4])mat, deg_iter->dupli_object_current->mat);
 	}
 	else {
-		unit_m4((float(*)[4])mat);
+		/* We can return actual object's matrix here, no reason to return identity matrix
+		 * when this is not actually an instance... */
+		Object *ob = (Object *)iterator->current;
+		copy_m4_m4((float(*)[4])mat, ob->obmat);
 	}
 }
 
@@ -668,7 +671,10 @@ static void rna_def_depsgraph(BlenderRNA *brna)
 	                                  "rna_Depsgraph_object_instances_end",
 	                                  "rna_Depsgraph_object_instances_get",
 	                                  NULL, NULL, NULL, NULL);
-	RNA_def_property_ui_text(prop, "Object Instances", "All object instances to display or render");
+	RNA_def_property_ui_text(prop, "Object Instances",
+	                         "All object instances to display or render "
+	                         "(WARNING: only use this as an iterator, never as a sequence, "
+	                         "and do not keep any references to its items)");
 
 	prop = RNA_def_property(srna, "updates", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_struct_type(prop, "DepsgraphUpdate");
