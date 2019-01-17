@@ -640,7 +640,8 @@ typedef enum eBConstraint_Types {
 	CONSTRAINT_TYPE_STRETCHTO = 15,
 	/** floor constraint */
 	CONSTRAINT_TYPE_MINMAX = 16,
-	/* CONSTRAINT_TYPE_DEPRECATED = 17 */
+	/* rigidbody constraint */
+	CONSTRAINT_TYPE_RIGIDBODYJOINT = 17,
 	/** clampto constraint */
 	CONSTRAINT_TYPE_CLAMPTO = 18,
 	/** transformation (loc/rot/size -> loc/rot/size) constraint */
@@ -667,8 +668,6 @@ typedef enum eBConstraint_Types {
 	CONSTRAINT_TYPE_TRANSFORM_CACHE = 29,
 	/** Armature Deform Constraint */
 	CONSTRAINT_TYPE_ARMATURE = 30,
-	/* rigidbody constraint */
-	CONSTRAINT_TYPE_RIGIDBODYJOINT = 31,
 
 	/* NOTE: no constraints are allowed to be added after this */
 	NUM_CONSTRAINT_TYPES
