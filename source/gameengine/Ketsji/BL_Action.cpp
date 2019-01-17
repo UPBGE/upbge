@@ -495,6 +495,18 @@ void BL_Action::Update(float curtime, bool applyToObject)
 	}
 	else
 	{
+		Object *ob = m_obj->GetBlenderObject(); //eevee
+		DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+
+		Scene *sc = scene->GetBlenderScene();
+		ViewLayer *view_layer = BKE_view_layer_default_view(sc);
+		Depsgraph *depsgraph = BKE_scene_get_depsgraph(sc, view_layer, false);
+
+		BLI_mutex_lock(&object_update_lock);
+		BKE_object_modifier_update_subframe(depsgraph, sc, ob, true, 5, m_localframe, 41);
+		BLI_mutex_unlock(&object_update_lock);
+
+		scene->ResetTaaSamples();
 		//BL_DeformableGameObject *obj = (BL_DeformableGameObject*)m_obj;
 		//BL_ShapeDeformer *shape_deformer = dynamic_cast<BL_ShapeDeformer*>(obj->GetDeformer());
 
