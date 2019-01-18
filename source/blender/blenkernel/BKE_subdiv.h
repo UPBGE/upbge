@@ -246,6 +246,11 @@ BLI_INLINE void BKE_subdiv_ptex_face_uv_to_grid_uv(
         const float ptex_u, const float ptex_v,
         float *r_grid_u, float *r_grid_v);
 
+/* Onverse of above. */
+BLI_INLINE void BKE_subdiv_grid_uv_to_ptex_face_uv(
+        const float grid_u, const float grid_v,
+        float *r_ptex_u, float *r_ptex_v);
+
 /* For a given subdivision level (which is NOT refinement level) get size of
  * CCG grid (number of grid points on a side).
  */
@@ -256,8 +261,15 @@ BLI_INLINE int BKE_subdiv_grid_size_from_level(const int level);
  *
  * NOTE: Output coordinates are in ptex coordinates. */
 BLI_INLINE int BKE_subdiv_rotate_quad_to_corner(
-        const float u, const float v,
-        float *r_u, float *r_v);
+        const float quad_u, const float quad_v,
+        float *r_corner_u, float *r_corner_v);
+
+/* Converts (u, v) coordinate from within a grid to a quad coordinate in
+ * normalized ptex coordinates. */
+BLI_INLINE void BKE_subdiv_rotate_grid_to_quad(
+        const int corner,
+        const float grid_u, const float grid_v,
+        float *r_quad_u, float *r_quad_v);
 
 #include "intern/subdiv_inline.h"
 

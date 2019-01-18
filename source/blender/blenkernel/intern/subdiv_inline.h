@@ -43,38 +43,70 @@ BLI_INLINE void BKE_subdiv_ptex_face_uv_to_grid_uv(
 	*r_grid_v = 1.0f - ptex_u;
 }
 
+BLI_INLINE void BKE_subdiv_grid_uv_to_ptex_face_uv(
+        const float grid_u, const float grid_v,
+        float *r_ptex_u, float *r_ptex_v)
+{
+	*r_ptex_u = 1.0f - grid_v;
+	*r_ptex_v = 1.0f - grid_u;
+}
+
 BLI_INLINE int BKE_subdiv_grid_size_from_level(const int level)
 {
 	return (1 << (level - 1)) + 1;
 }
 
 BLI_INLINE int BKE_subdiv_rotate_quad_to_corner(
-        const float u, const float v,
-        float *r_u, float *r_v)
+        const float quad_u, const float quad_v,
+        float *r_corner_u, float *r_corner_v)
 {
 	int corner;
-	if (u <= 0.5f && v <= 0.5f) {
+	if (quad_u <= 0.5f && quad_v <= 0.5f) {
 		corner = 0;
-		*r_u = 2.0f * u;
-		*r_v = 2.0f * v;
+		*r_corner_u = 2.0f * quad_u;
+		*r_corner_v = 2.0f * quad_v;
 	}
-	else if (u > 0.5f  && v <= 0.5f) {
+	else if (quad_u > 0.5f  && quad_v <= 0.5f) {
 		corner = 1;
-		*r_u = 2.0f * v;
-		*r_v = 2.0f * (1.0f - u);
+		*r_corner_u = 2.0f * quad_v;
+		*r_corner_v = 2.0f * (1.0f - quad_u);
 	}
-	else if (u > 0.5f  && v > 0.5f) {
+	else if (quad_u > 0.5f  && quad_v > 0.5f) {
 		corner = 2;
-		*r_u = 2.0f * (1.0f - u);
-		*r_v = 2.0f * (1.0f - v);
+		*r_corner_u = 2.0f * (1.0f - quad_u);
+		*r_corner_v = 2.0f * (1.0f - quad_v);
 	}
 	else {
-		BLI_assert(u <= 0.5f && v >= 0.5f);
+		BLI_assert(quad_u <= 0.5f && quad_v >= 0.5f);
 		corner = 3;
-		*r_u = 2.0f * (1.0f - v);
-		*r_v = 2.0f * u;
+		*r_corner_u = 2.0f * (1.0f - quad_v);
+		*r_corner_v = 2.0f * quad_u;
 	}
 	return corner;
+}
+
+BLI_INLINE void BKE_subdiv_rotate_grid_to_quad(
+        const int corner,
+        const float grid_u, const float grid_v,
+        float *r_quad_u, float *r_quad_v)
+{
+	if (corner == 0) {
+		*r_quad_u = 0.5f - grid_v * 0.5f;
+		*r_quad_v = 0.5f - grid_u * 0.5f;
+	}
+	else if (corner == 1) {
+		*r_quad_u = 0.5f + grid_u * 0.5f;
+		*r_quad_v = 0.5f - grid_v * 0.5f;
+	}
+	else if (corner == 2) {
+		*r_quad_u = 0.5f + grid_v * 0.5f;
+		*r_quad_v = 0.5f + grid_u * 0.5f;
+	}
+	else {
+		BLI_assert(corner == 3);
+		*r_quad_u = 0.5f - grid_u * 0.5f;
+		*r_quad_v = 0.5f + grid_v * 0.5f;
+	}
 }
 
 #endif  /* __SUBDIV_INLINE_H__ */
