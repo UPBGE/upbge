@@ -122,8 +122,6 @@ static void drw_shgroup_uniform(DRWShadingGroup *shgroup, const char *name,
 	}
 
 	if (location == -1) {
-		if (G.debug & G_DEBUG_GPU)
-			fprintf(stderr, "Warning: Pass : %s, Uniform '%s' not found!\n", shgroup->pass_parent->name, name);
 		/* Nice to enable eventually, for now eevee uses uniforms that might not exist. */
 		// BLI_assert(0);
 		return;
@@ -134,10 +132,24 @@ static void drw_shgroup_uniform(DRWShadingGroup *shgroup, const char *name,
 
 	drw_shgroup_uniform_create_ex(shgroup, location, type, value, length, arraysize);
 
-#ifndef NDEBUG
-	/* Save uniform name to easily identify it when debugging. */
-	BLI_strncpy(shgroup->uniforms->name, name, MAX_UNIFORM_NAME);
-#endif
+	/* If location is -2, the uniform has not yet been queried.
+	 * We save the name for query just before drawing. */
+	if (location == -2 || DRW_DEBUG_USE_UNIFORM_NAME) {
+		int ofs = DST.uniform_names.buffer_ofs;
+		int max_len = DST.uniform_names.buffer_len - ofs;
+		size_t len = strlen(name) + 1;
+
+		if (len >= max_len) {
+			DST.uniform_names.buffer_len += DRW_UNIFORM_BUFFER_NAME_INC;
+			DST.uniform_names.buffer = MEM_reallocN(DST.uniform_names.buffer, DST.uniform_names.buffer_len);
+		}
+
+		char *dst = DST.uniform_names.buffer + ofs;
+		memcpy(dst, name, len); /* Copies NULL terminator. */
+
+		DST.uniform_names.buffer_ofs += len;
+		shgroup->uniforms->name_ofs = ofs;
+	}
 }
 
 void DRW_shgroup_uniform_texture(DRWShadingGroup *shgroup, const char *name, const GPUTexture *tex)

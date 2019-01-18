@@ -71,6 +71,7 @@ typedef struct Eyedropper {
 	int index;
 	bool is_undo;
 
+	bool is_set;
 	float init_col[3]; /* for resetting on cancel */
 
 	bool  accum_start; /* has mouse been pressed */
@@ -100,22 +101,21 @@ static bool eyedropper_init(bContext *C, wmOperator *op)
 
 	eye->is_undo = UI_but_flag_is_set(but, UI_BUT_UNDO);
 
+	float col[4];
+	RNA_property_float_get_array(&eye->ptr, eye->prop, col);
 	if (RNA_property_subtype(eye->prop) != PROP_COLOR) {
 		Scene *scene = CTX_data_scene(C);
 		const char *display_device;
-		float col[4];
 
 		display_device = scene->display_settings.display_device;
 		eye->display = IMB_colormanagement_display_get_named(display_device);
 
 		/* store initial color */
-		RNA_property_float_get_array(&eye->ptr, eye->prop, col);
 		if (eye->display) {
 			IMB_colormanagement_display_to_scene_linear_v3(col, eye->display);
 		}
-		copy_v3_v3(eye->init_col, col);
 	}
-
+	copy_v3_v3(eye->init_col, col);
 
 	return true;
 }
@@ -213,6 +213,7 @@ static void eyedropper_color_set(bContext *C, Eyedropper *eye, const float col[3
 	}
 
 	RNA_property_float_set_array(&eye->ptr, eye->prop, col_conv);
+	eye->is_set = true;
 
 	RNA_property_update(C, &eye->ptr, eye->prop);
 }
@@ -246,7 +247,9 @@ static void eyedropper_color_sample(bContext *C, Eyedropper *eye, int mx, int my
 static void eyedropper_cancel(bContext *C, wmOperator *op)
 {
 	Eyedropper *eye = op->customdata;
-	eyedropper_color_set(C, eye, eye->init_col);
+	if (eye->is_set) {
+		eyedropper_color_set(C, eye, eye->init_col);
+	}
 	eyedropper_exit(C, op);
 }
 
