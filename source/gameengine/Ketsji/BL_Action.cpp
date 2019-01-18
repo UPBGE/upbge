@@ -461,17 +461,19 @@ void BL_Action::Update(float curtime, bool applyToObject)
 	if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE)
 	{
 		Object *ob = m_obj->GetBlenderObject(); //eevee
-		DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
+		if (ob->adt->action == m_action) {
+			DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
 
-		Scene *sc = scene->GetBlenderScene();
-		ViewLayer *view_layer = BKE_view_layer_default_view(sc);
-		Depsgraph *depsgraph = BKE_scene_get_depsgraph(sc, view_layer, false);
+			Scene *sc = scene->GetBlenderScene();
+			ViewLayer *view_layer = BKE_view_layer_default_view(sc);
+			Depsgraph *depsgraph = BKE_scene_get_depsgraph(sc, view_layer, false);
 
-		BLI_mutex_lock(&object_update_lock);
-		BKE_object_modifier_update_subframe(depsgraph, sc, ob, true, 5, m_localframe, 8);
-		BLI_mutex_unlock(&object_update_lock);
+			BLI_mutex_lock(&object_update_lock);
+			BKE_object_modifier_update_subframe(depsgraph, sc, ob, true, 5, m_localframe, 8);
+			BLI_mutex_unlock(&object_update_lock);
 
-		scene->ResetTaaSamples();
+			scene->ResetTaaSamples();
+		}
 
 		//// Handle blending between armature actions
 		//if (m_blendin && m_blendframe < m_blendin) {
