@@ -56,6 +56,7 @@ extern "C" {
 
 // Needed for material IPOs
 #include "BKE_material.h"
+#include "BKE_modifier.h"
 #include "BKE_object.h"
 #include "DNA_anim_types.h"
 #include "DNA_material_types.h"
@@ -515,18 +516,20 @@ void BL_Action::Update(float curtime, bool applyToObject)
 		for (ModifierData *md = (ModifierData *)ob->modifiers.first; md; md = (ModifierData *)md->next) {
 			if (BKE_object_modifier_use_time(ob, md)) {
 				// TODO: We need to find the good notifier per action
-				DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+				if (!modifier_isNonGeometrical(md)) {
+					DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
 
-				Scene *sc = scene->GetBlenderScene();
-				ViewLayer *view_layer = BKE_view_layer_default_view(sc);
-				Depsgraph *depsgraph = BKE_scene_get_depsgraph(sc, view_layer, false);
+					Scene *sc = scene->GetBlenderScene();
+					ViewLayer *view_layer = BKE_view_layer_default_view(sc);
+					Depsgraph *depsgraph = BKE_scene_get_depsgraph(sc, view_layer, false);
 
-				BLI_mutex_lock(&object_update_lock);
-				BKE_object_modifier_update_subframe(depsgraph, sc, ob, true, 5, m_localframe, 41);
-				BLI_mutex_unlock(&object_update_lock);
+					BLI_mutex_lock(&object_update_lock);
+					BKE_object_modifier_update_subframe(depsgraph, sc, ob, true, 5, m_localframe, 41);
+					BLI_mutex_unlock(&object_update_lock);
 
-				scene->ResetTaaSamples();
-				break;
+					scene->ResetTaaSamples();
+					break;
+				}
 			}
 		}
 		//BL_DeformableGameObject *obj = (BL_DeformableGameObject*)m_obj;
