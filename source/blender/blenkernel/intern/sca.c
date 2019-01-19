@@ -338,10 +338,10 @@ void free_actuator(bActuator *act)
 			}*/
 			case ACT_SOUND:
 			{
-				bSoundActuator *sa = (bSoundActuator *) act->data;
+				/*bSoundActuator *sa = (bSoundActuator *) act->data;
 				if (sa->sound)
 					id_us_min((ID *)sa->sound);
-				break;
+				break;*/
 			}
 		}
 
@@ -381,11 +381,11 @@ bActuator *copy_actuator(bActuator *act, const int flag)
 		}*/
 		case ACT_SOUND:
 		{
-			bSoundActuator *sa = (bSoundActuator *)act->data;
+			/*bSoundActuator *sa = (bSoundActuator *)act->data;
 			if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
 				id_us_plus((ID *)sa->sound);
 			}
-			break;
+			break;*/
 		}
 	}
 	return actn;
