@@ -6766,7 +6766,7 @@ static int ui_do_but_LINK(
         bContext *C, uiBut *but,
         uiHandleButtonData *data, const wmEvent *event)
 {	
-	VECCOPY2D(but->linkto, event->mval);
+	copy_v2_v2_int(but->linkto, event->mval);
 
 	if (data->state == BUTTON_STATE_HIGHLIGHT) {
 		if (event->type == LEFTMOUSE && event->val == KM_PRESS) {

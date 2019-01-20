@@ -286,7 +286,7 @@ struct uiBut {
 	void *hold_argN;
 
 	uiLink *link;
-	short linkto[2];  /* region relative coords */
+	int linkto[2];  /* region relative coords */
 	
 	const char *tip;
 	uiButToolTipFunc tip_func;
