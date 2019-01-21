@@ -121,6 +121,9 @@ KX_GameObject::KX_GameObject(
         void* sgReplicationInfo,
         SG_Callbacks callbacks)
     : SCA_IObject(),
+	  m_castShadows(true), //eevee
+	  m_isReplica(false), //eevee
+	  m_backupMesh(nullptr), //eevee
       m_layer(0),
       m_lodManager(nullptr),
       m_currentLodLevel(0),
@@ -137,9 +140,6 @@ KX_GameObject::KX_GameObject(
       m_cullingNode(this),
       m_pInstanceObjects(nullptr),
       m_pDupliGroupObject(nullptr),
-	  m_castShadows(true), //eevee
-	  m_isReplica(false), //eevee
-	  m_backupMesh(nullptr), //eevee
       m_actionManager(nullptr)
 #ifdef WITH_PYTHON
     , m_attr_dict(nullptr),

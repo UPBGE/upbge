@@ -1734,7 +1734,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 
 	// Create and set bounding volume.
 	for (KX_GameObject *gameobj : sumolist) {
-		Object *blenderobject = gameobj->GetBlenderObject();
+		//Object *blenderobject = gameobj->GetBlenderObject();
 
 		// The object allow AABB auto update only if there's no predefined bound.
 		gameobj->SetAutoUpdateBounds(true);

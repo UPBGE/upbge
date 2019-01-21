@@ -376,7 +376,6 @@ PyObject *KX_VehicleWrapper::pyattr_get_constraintId(PyObjectPlus *self_v, const
 
 PyObject *KX_VehicleWrapper::pyattr_get_constraintType(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_VehicleWrapper* self = static_cast<KX_VehicleWrapper*>(self_v);
 	return PyLong_FromLong(PHY_VEHICLE_CONSTRAINT);
 }
 

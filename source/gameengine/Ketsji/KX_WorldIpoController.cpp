@@ -50,7 +50,7 @@ bool KX_WorldIpoController::Update(double currentTime)
 			(*i)->Execute(m_ipotime);
 		}
 
-		KX_WorldInfo *world = KX_GetActiveScene()->GetWorldInfo();
+		//KX_WorldInfo *world = KX_GetActiveScene()->GetWorldInfo();
 
 		m_modified = false;
 	}

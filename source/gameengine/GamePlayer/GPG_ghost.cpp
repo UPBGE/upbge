@@ -658,10 +658,10 @@ int main(
 	bool closeConsole = true;
 #endif
 
-#ifdef WITH_GAMEENGINE_BPPLAYER
-	bool useLocalPath = false;
-	std::string hexKey;
-#endif  // WITH_GAMEENGINE_BPPLAYER
+//#ifdef WITH_GAMEENGINE_BPPLAYER
+//	bool useLocalPath = false;
+//	std::string hexKey;
+//#endif  // WITH_GAMEENGINE_BPPLAYER
 	RAS_Rasterizer::StereoMode stereomode = RAS_Rasterizer::RAS_STEREO_NOSTEREO;
 	bool stereoWindow = false;
 	bool stereoParFound = false;

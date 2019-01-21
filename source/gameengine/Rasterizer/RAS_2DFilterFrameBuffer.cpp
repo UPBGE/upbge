@@ -39,12 +39,12 @@ extern "C" {
 RAS_2DFilterFrameBuffer::RAS_2DFilterFrameBuffer(unsigned short colorSlots, Flag flag,
 	unsigned int width, unsigned int height, RAS_Rasterizer::HdrType hdrtype)
 	:m_flag(flag),
-	m_hdrType(hdrtype),
 	m_colorSlots(colorSlots),
 	m_width(width),
 	m_height(height),
+	m_frameBuffer(nullptr),
 	m_depthTexture(nullptr),
-	m_frameBuffer(nullptr)
+	m_hdrType(hdrtype)
 {
 	for (unsigned short i = 0; i < NUM_COLOR_SLOTS; ++i) {
 		m_colorTextures[i] = nullptr;

@@ -34,9 +34,9 @@ extern "C" {
 }
 
 RAS_FrameBuffer::RAS_FrameBuffer(unsigned int width, unsigned int height, RAS_Rasterizer::HdrType hdrtype, RAS_Rasterizer::FrameBufferType fbtype)
-	:m_frameBufferType(fbtype),
-	m_hdrType(hdrtype),
-	m_frameBuffer(nullptr)
+	:m_frameBuffer(nullptr),
+	m_frameBufferType(fbtype),
+	m_hdrType(hdrtype)
 {
 	m_colorAttachment = nullptr;
 	m_depthAttachment = nullptr;

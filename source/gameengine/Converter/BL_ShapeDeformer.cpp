@@ -187,7 +187,7 @@ bool BL_ShapeDeformer::Update()
 	/* See if the object shape has changed */
 	if (m_lastShapeUpdate != m_gameobj->GetLastFrame()) {
 		/* the key coefficient have been set already, we just need to blend the keys */
-		Object *blendobj = m_gameobj->GetBlendObject();
+		//Object *blendobj = m_gameobj->GetBlendObject();
 
 		/* we will blend the key directly in m_transverts array: it is used by armature as the start position */
 		/* m_key can be nullptr in case of Modifier deformer */

@@ -93,10 +93,9 @@ BL_Action::BL_Action(class KX_GameObject* gameobj)
 	m_appliedToObject(true),
 	m_requestIpo(false),
 	m_calc_localtime(true),
-	m_prevUpdate(-1.0f),
-	m_backupFrame(1.0f) //eevee
+	m_prevUpdate(-1.0f)
 {
-	m_backupFrame = gameobj->GetScene()->GetBlenderScene()->r.cfra;
+	m_backupFrame = gameobj->GetScene()->GetBlenderScene()->r.cfra; //eevee
 }
 
 BL_Action::~BL_Action()
