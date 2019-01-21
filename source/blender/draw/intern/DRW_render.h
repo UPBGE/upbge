@@ -61,7 +61,6 @@
 
 #include "RE_engine.h"
 
-#include "../draw/engines/eevee/eevee_private.h" // For bge (DRWMatrixState)
 #include "../depsgraph/DEG_depsgraph.h" // For bge (EvaluationContext)
 
 struct rcti;
@@ -441,6 +440,21 @@ typedef enum {
 	DRW_MAT_COUNT, // Don't use this.
 } DRWViewportMatrixType;
 
+typedef struct DRWMatrixState {
+	union {
+		float mat[DRW_MAT_COUNT][4][4];
+		struct {
+			/* keep in sync with the enum DRWViewportMatrixType. */
+			float persmat[4][4];
+			float persinv[4][4];
+			float viewmat[4][4];
+			float viewinv[4][4];
+			float winmat[4][4];
+			float wininv[4][4];
+		};
+	};
+} DRWMatrixState;
+
 void DRW_viewport_matrix_get(float mat[4][4], DRWViewportMatrixType type);
 void DRW_viewport_matrix_get_all(DRWMatrixState *state);
 void DRW_viewport_matrix_override_set(const float mat[4][4], DRWViewportMatrixType type);
@@ -582,6 +596,10 @@ const DRWContextState *DRW_context_state_get(void);
 #define XRAY_ENABLED(v3d) ((((v3d)->shading.flag & XRAY_FLAG(v3d)) != 0) && (XRAY_ALPHA(v3d) < 1.0f))
 
 /*****************************GAME ENGINE***********************************/
+struct GPUTexture *DRW_game_render_loop(struct Main *bmain, struct Scene *scene, struct Object *maincam, int viewportsize[2],
+	struct DRWMatrixState state, int v[4], bool called_from_constructor, bool reset_taa_samples);
+void DRW_game_render_loop_finish(void);
+void DRW_game_render_loop_end(void);
 bool DRW_state_is_game_engine(void);
 /**************************END OF GAME ENGINE*******************************/
 

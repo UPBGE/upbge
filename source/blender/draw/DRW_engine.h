@@ -156,11 +156,4 @@ void DRW_deferred_shader_remove(struct GPUMaterial *mat);
 struct DrawDataList *DRW_drawdatalist_from_id(struct ID *id);
 void DRW_drawdata_free(struct ID *id);
 
-/*************************************************Game engine************************************************/
-struct GPUTexture *DRW_game_render_loop(struct Main *bmain, struct Scene *scene, struct Object *maincam, int viewportsize[2],
-	struct DRWMatrixState state, int v[4], bool called_from_constructor, bool reset_taa_samples);
-void DRW_game_render_loop_finish(void);
-void DRW_game_render_loop_end(void);
-/********************************************End of game engine**********************************************/
-
 #endif /* __DRW_ENGINE_H__ */

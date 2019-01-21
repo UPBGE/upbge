@@ -2769,6 +2769,7 @@ void DRW_gawain_render_context_disable(void *UNUSED(re_gpu_context))
 #include "BKE_scene.h"
 
 #include "engines/eevee/eevee_lightcache.h"
+#include "engines/eevee/eevee_private.h"
 
 static void eevee_game_view_layer_data_free()
 {

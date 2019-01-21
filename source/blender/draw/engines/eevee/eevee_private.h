@@ -31,21 +31,6 @@
 #include "BLI_listbase.h" // For bge
 #include "DNA_object_types.h" // For bge
 
-typedef struct DRWMatrixState { // For bge
-	union {
-		float mat[6][4][4];
-		struct {
-			/* keep in sync with the enum DRWViewportMatrixType. */
-			float persmat[4][4];
-			float persinv[4][4];
-			float viewmat[4][4];
-			float viewinv[4][4];
-			float winmat[4][4];
-			float wininv[4][4];
-		};
-	};
-} DRWMatrixState; // For bge
-
 struct Object;
 struct Material;
 struct EEVEE_BoundSphere;
