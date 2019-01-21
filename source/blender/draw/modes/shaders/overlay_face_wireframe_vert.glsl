@@ -1,5 +1,6 @@
 
 uniform mat4 ModelViewProjectionMatrix;
+uniform mat4 ModelMatrix;
 uniform mat3 NormalMatrix;
 
 uniform vec2 wireStepParam;
@@ -76,6 +77,10 @@ void main()
 	gl_Position = ModelViewProjectionMatrix * vec4(pos, 1.0);
 
 	facing = normalize(NormalMatrix * nor).z;
+
+#ifdef USE_WORLD_CLIP_PLANES
+	world_clip_planes_calc_clip_distance((ModelMatrix * vec4(pos, 1.0)).xyz);
+#endif
 }
 
 #endif /* SELECT_EDGES */

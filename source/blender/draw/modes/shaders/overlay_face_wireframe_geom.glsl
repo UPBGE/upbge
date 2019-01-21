@@ -17,25 +17,42 @@ out vec3 barycentric;
 flat out vec3 edgeSharpness;
 #endif
 
+void vert_from_gl_in(int v)
+{
+	gl_Position = gl_in[v].gl_Position;
+#ifdef USE_WORLD_CLIP_PLANES
+	world_clip_planes_set_clip_distance(gl_in[v].gl_ClipDistance);
+#endif
+}
+
 void main(void)
 {
 #ifdef SELECT_EDGES
 	const float edge_select_threshold = 0.3;
 	if (edgeSharpness_g[0] > edge_select_threshold) {
-		gl_Position = gl_in[0].gl_Position; EmitVertex();
-		gl_Position = gl_in[1].gl_Position; EmitVertex();
+		vert_from_gl_in(0);
+		EmitVertex();
+		vert_from_gl_in(1);
+		EmitVertex();
+
 		EndPrimitive();
 	}
 
 	if (edgeSharpness_g[1] > edge_select_threshold) {
-		gl_Position = gl_in[1].gl_Position; EmitVertex();
-		gl_Position = gl_in[2].gl_Position; EmitVertex();
+		vert_from_gl_in(1);
+		EmitVertex();
+		vert_from_gl_in(2);
+		EmitVertex();
+
 		EndPrimitive();
 	}
 
 	if (edgeSharpness_g[2] > edge_select_threshold) {
-		gl_Position = gl_in[2].gl_Position; EmitVertex();
-		gl_Position = gl_in[0].gl_Position; EmitVertex();
+		vert_from_gl_in(2);
+		EmitVertex();
+		vert_from_gl_in(0);
+		EmitVertex();
+
 		EndPrimitive();
 	}
 #else
@@ -50,17 +67,17 @@ void main(void)
 	edgeSharpness = vec3(1.0);
 
 	barycentric = vec3(1.0, 0.0, 0.0);
-	gl_Position = gl_in[0].gl_Position;
+	vert_from_gl_in(0);
 	facing = facing_g[0];
 	EmitVertex();
 
 	barycentric = vec3(0.0, 1.0, 0.0);
-	gl_Position = gl_in[1].gl_Position;
+	vert_from_gl_in(1);
 	facing = facing_g[1];
 	EmitVertex();
 
 	barycentric = vec3(0.0, 0.0, 1.0);
-	gl_Position = gl_in[2].gl_Position;
+	vert_from_gl_in(2);
 	facing = facing_g[2];
 	EmitVertex();
 	EndPrimitive();
