@@ -6,7 +6,12 @@ layout(lines) in;
 layout(triangle_strip, max_vertices=4) out;
 
 uniform mat4 ProjectionMatrix;
+uniform mat4 ViewProjectionMatrixInverse;
 uniform vec2 viewportSize;
+
+#ifdef USE_WORLD_CLIP_PLANES
+uniform int  WorldClipPlanesLen;
+#endif
 
 in vec4 pPos[];
 in ivec4 vData[];
@@ -56,6 +61,12 @@ void doVertex(int v, vec4 pos)
 #endif
 
 	gl_Position = pos;
+
+#ifdef USE_WORLD_CLIP_PLANES
+	for (int i = 0; i < WorldClipPlanesLen; i++) {
+		gl_ClipDistance[i] = gl_in[v].gl_ClipDistance[i];
+	}
+#endif
 
 	EmitVertex();
 }
