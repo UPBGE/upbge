@@ -1797,6 +1797,10 @@ static int gpencil_vertex_group_smooth_exec(bContext *C, wmOperator *op)
 
 	CTX_DATA_BEGIN(C, bGPDstroke *, gps, editable_gpencil_strokes)
 	{
+		if (gps->dvert == NULL) {
+			continue;
+		}
+
 		for (int s = 0; s < repeat; s++) {
 			for (int i = 0; i < gps->totpoints; i++) {
 				/* previous point */
@@ -1831,6 +1835,7 @@ static int gpencil_vertex_group_smooth_exec(bContext *C, wmOperator *op)
 				MDeformWeight *dw = defvert_verify_index(dvertb, def_nr);
 				if (dw) {
 					dw->weight = interpf(wb, optimal, fac);
+					CLAMP(dw->weight, 0.0, 1.0f);
 				}
 			}
 		}
