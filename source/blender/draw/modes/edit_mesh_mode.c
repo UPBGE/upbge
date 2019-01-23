@@ -126,8 +126,7 @@ typedef struct EDIT_MESH_Shaders {
 
 /* *********** STATIC *********** */
 static struct {
-	/* 0: normal, 1: clipped. */
-	EDIT_MESH_Shaders sh_data[2];
+	EDIT_MESH_Shaders sh_data[DRW_SHADER_SLOT_LEN];
 
 	/* temp buffer texture */
 	struct GPUTexture *occlude_wire_depth_tx;
@@ -163,14 +162,6 @@ typedef struct EDIT_MESH_PrivateData {
 } EDIT_MESH_PrivateData; /* Transient data */
 
 /* *********** FUNCTIONS *********** */
-
-static int EDIT_MESH_sh_data_index_from_rv3d(const RegionView3D *rv3d)
-{
-	if (rv3d->rflag & RV3D_CLIPPING) {
-		return 1;
-	}
-	return 0;
-}
 
 static int EDIT_MESH_sh_index(ToolSettings *tsettings, RegionView3D *rv3d, bool supports_fast_mode)
 {
@@ -263,7 +254,7 @@ static void EDIT_MESH_engine_init(void *vedata)
 	EDIT_MESH_FramebufferList *fbl = ((EDIT_MESH_Data *)vedata)->fbl;
 
 	const DRWContextState *draw_ctx = DRW_context_state_get();
-	EDIT_MESH_Shaders *sh_data = &e_data.sh_data[EDIT_MESH_sh_data_index_from_rv3d(draw_ctx->rv3d)];
+	EDIT_MESH_Shaders *sh_data = &e_data.sh_data[draw_ctx->shader_slot];
 	const bool is_clip = (draw_ctx->rv3d->rflag & RV3D_CLIPPING) != 0;
 
 	const float *viewport_size = DRW_viewport_size_get();
@@ -364,7 +355,7 @@ static DRWPass *edit_mesh_create_overlay_pass(
 	Scene *scene = draw_ctx->scene;
 	ToolSettings *tsettings = scene->toolsettings;
 	const int fast_mode = rv3d->rflag & RV3D_NAVIGATING;
-	EDIT_MESH_Shaders *sh_data = &e_data.sh_data[EDIT_MESH_sh_data_index_from_rv3d(draw_ctx->rv3d)];
+	EDIT_MESH_Shaders *sh_data = &e_data.sh_data[draw_ctx->shader_slot];
 
 	ledge_sh = EDIT_MESH_ensure_shader(sh_data, tsettings, rv3d, false, true);
 	tri_sh = EDIT_MESH_ensure_shader(sh_data, tsettings, rv3d, true, false);
@@ -373,68 +364,70 @@ static DRWPass *edit_mesh_create_overlay_pass(
 	        "Edit Mesh Face Overlay Pass",
 	        DRW_STATE_WRITE_COLOR | DRW_STATE_POINT | statemod);
 
+	DRWShadingGroup *grp;
+
 	if ((tsettings->selectmode & SCE_SELECT_VERTEX) != 0) {
-		*r_lverts_shgrp = DRW_shgroup_create(sh_data->overlay_lvert, pass);
-		DRW_shgroup_uniform_block(*r_lverts_shgrp, "globalsBlock", G_draw.block_ubo);
-		DRW_shgroup_uniform_vec2(*r_lverts_shgrp, "viewportSize", DRW_viewport_size_get(), 1);
-		DRW_shgroup_uniform_float(*r_lverts_shgrp, "edgeScale", edge_width_scale, 1);
-		DRW_shgroup_state_enable(*r_lverts_shgrp, DRW_STATE_WRITE_DEPTH);
-		DRW_shgroup_state_disable(*r_lverts_shgrp, DRW_STATE_BLEND);
+		grp = *r_lverts_shgrp = DRW_shgroup_create(sh_data->overlay_lvert, pass);
+		DRW_shgroup_uniform_block(grp, "globalsBlock", G_draw.block_ubo);
+		DRW_shgroup_uniform_vec2(grp, "viewportSize", DRW_viewport_size_get(), 1);
+		DRW_shgroup_uniform_float(grp, "edgeScale", edge_width_scale, 1);
+		DRW_shgroup_state_enable(grp, DRW_STATE_WRITE_DEPTH);
+		DRW_shgroup_state_disable(grp, DRW_STATE_BLEND);
 		if (rv3d->rflag & RV3D_CLIPPING) {
-			DRW_shgroup_world_clip_planes_from_rv3d(*r_lverts_shgrp, rv3d);
+			DRW_shgroup_world_clip_planes_from_rv3d(grp, rv3d);
 		}
 
-		*r_verts_shgrp = DRW_shgroup_create(sh_data->overlay_vert, pass);
-		DRW_shgroup_uniform_block(*r_verts_shgrp, "globalsBlock", G_draw.block_ubo);
-		DRW_shgroup_uniform_vec2(*r_verts_shgrp, "viewportSize", DRW_viewport_size_get(), 1);
-		DRW_shgroup_uniform_float(*r_verts_shgrp, "edgeScale", edge_width_scale, 1);
-		DRW_shgroup_state_enable(*r_verts_shgrp, DRW_STATE_WRITE_DEPTH);
-		DRW_shgroup_state_disable(*r_verts_shgrp, DRW_STATE_BLEND);
+		grp = *r_verts_shgrp = DRW_shgroup_create(sh_data->overlay_vert, pass);
+		DRW_shgroup_uniform_block(grp, "globalsBlock", G_draw.block_ubo);
+		DRW_shgroup_uniform_vec2(grp, "viewportSize", DRW_viewport_size_get(), 1);
+		DRW_shgroup_uniform_float(grp, "edgeScale", edge_width_scale, 1);
+		DRW_shgroup_state_enable(grp, DRW_STATE_WRITE_DEPTH);
+		DRW_shgroup_state_disable(grp, DRW_STATE_BLEND);
 		if (rv3d->rflag & RV3D_CLIPPING) {
-			DRW_shgroup_world_clip_planes_from_rv3d(*r_verts_shgrp, rv3d);
+			DRW_shgroup_world_clip_planes_from_rv3d(grp, rv3d);
 		}
 	}
 
 	if ((tsettings->selectmode & SCE_SELECT_FACE) != 0) {
-		*r_facedot_shgrp = DRW_shgroup_create(sh_data->overlay_facedot, pass);
-		DRW_shgroup_uniform_block(*r_facedot_shgrp, "globalsBlock", G_draw.block_ubo);
-		DRW_shgroup_uniform_float(*r_facedot_shgrp, "edgeScale", edge_width_scale, 1);
-		DRW_shgroup_state_enable(*r_facedot_shgrp, DRW_STATE_WRITE_DEPTH);
+		grp = *r_facedot_shgrp = DRW_shgroup_create(sh_data->overlay_facedot, pass);
+		DRW_shgroup_uniform_block(grp, "globalsBlock", G_draw.block_ubo);
+		DRW_shgroup_uniform_float(grp, "edgeScale", edge_width_scale, 1);
+		DRW_shgroup_state_enable(grp, DRW_STATE_WRITE_DEPTH);
 		if (rv3d->rflag & RV3D_CLIPPING) {
-			DRW_shgroup_world_clip_planes_from_rv3d(*r_facedot_shgrp, rv3d);
+			DRW_shgroup_world_clip_planes_from_rv3d(grp, rv3d);
 		}
 	}
 
-	*r_face_shgrp = DRW_shgroup_create(tri_sh, pass);
-	DRW_shgroup_uniform_block(*r_face_shgrp, "globalsBlock", G_draw.block_ubo);
-	DRW_shgroup_uniform_vec2(*r_face_shgrp, "viewportSize", DRW_viewport_size_get(), 1);
-	DRW_shgroup_uniform_float(*r_face_shgrp, "faceAlphaMod", face_alpha, 1);
-	DRW_shgroup_uniform_float(*r_face_shgrp, "edgeScale", edge_width_scale, 1);
-	DRW_shgroup_uniform_ivec4(*r_face_shgrp, "dataMask", data_mask, 1);
-	DRW_shgroup_uniform_bool_copy(*r_face_shgrp, "doEdges", do_edges);
+	grp = *r_face_shgrp = DRW_shgroup_create(tri_sh, pass);
+	DRW_shgroup_uniform_block(grp, "globalsBlock", G_draw.block_ubo);
+	DRW_shgroup_uniform_vec2(grp, "viewportSize", DRW_viewport_size_get(), 1);
+	DRW_shgroup_uniform_float(grp, "faceAlphaMod", face_alpha, 1);
+	DRW_shgroup_uniform_float(grp, "edgeScale", edge_width_scale, 1);
+	DRW_shgroup_uniform_ivec4(grp, "dataMask", data_mask, 1);
+	DRW_shgroup_uniform_bool_copy(grp, "doEdges", do_edges);
 	if (!fast_mode) {
-		DRW_shgroup_uniform_bool_copy(*r_face_shgrp, "isXray", xray);
+		DRW_shgroup_uniform_bool_copy(grp, "isXray", xray);
 	}
 	else {
 		/* To be able to use triple load. */
-		DRW_shgroup_state_enable(*r_face_shgrp, DRW_STATE_FIRST_VERTEX_CONVENTION);
+		DRW_shgroup_state_enable(grp, DRW_STATE_FIRST_VERTEX_CONVENTION);
 	}
 	if (rv3d->rflag & RV3D_CLIPPING) {
-		DRW_shgroup_world_clip_planes_from_rv3d(*r_face_shgrp, rv3d);
+		DRW_shgroup_world_clip_planes_from_rv3d(grp, rv3d);
 	}
 
 	/* Cage geom needs to be offseted to avoid Z-fighting. */
-	*r_face_cage_shgrp = DRW_shgroup_create_sub(*r_face_shgrp);
-	DRW_shgroup_state_enable(*r_face_cage_shgrp, DRW_STATE_OFFSET_NEGATIVE);
+	grp = *r_face_cage_shgrp = DRW_shgroup_create_sub(*r_face_shgrp);
+	DRW_shgroup_state_enable(grp, DRW_STATE_OFFSET_NEGATIVE);
 
-	*r_ledges_shgrp = DRW_shgroup_create(ledge_sh, pass);
-	DRW_shgroup_uniform_block(*r_ledges_shgrp, "globalsBlock", G_draw.block_ubo);
-	DRW_shgroup_uniform_vec2(*r_ledges_shgrp, "viewportSize", DRW_viewport_size_get(), 1);
-	DRW_shgroup_uniform_float(*r_ledges_shgrp, "edgeScale", edge_width_scale, 1);
-	DRW_shgroup_uniform_ivec4(*r_ledges_shgrp, "dataMask", data_mask, 1);
-	DRW_shgroup_uniform_bool_copy(*r_ledges_shgrp, "doEdges", do_edges);
+	grp = *r_ledges_shgrp = DRW_shgroup_create(ledge_sh, pass);
+	DRW_shgroup_uniform_block(grp, "globalsBlock", G_draw.block_ubo);
+	DRW_shgroup_uniform_vec2(grp, "viewportSize", DRW_viewport_size_get(), 1);
+	DRW_shgroup_uniform_float(grp, "edgeScale", edge_width_scale, 1);
+	DRW_shgroup_uniform_ivec4(grp, "dataMask", data_mask, 1);
+	DRW_shgroup_uniform_bool_copy(grp, "doEdges", do_edges);
 	if (rv3d->rflag & RV3D_CLIPPING) {
-		DRW_shgroup_world_clip_planes_from_rv3d(*r_ledges_shgrp, rv3d);
+		DRW_shgroup_world_clip_planes_from_rv3d(grp, rv3d);
 	}
 
 	return pass;
@@ -455,7 +448,7 @@ static void EDIT_MESH_cache_init(void *vedata)
 	RegionView3D *rv3d = draw_ctx->rv3d;
 	Scene *scene = draw_ctx->scene;
 	ToolSettings *tsettings = scene->toolsettings;
-	EDIT_MESH_Shaders *sh_data = &e_data.sh_data[EDIT_MESH_sh_data_index_from_rv3d(draw_ctx->rv3d)];
+	EDIT_MESH_Shaders *sh_data = &e_data.sh_data[draw_ctx->shader_slot];
 	static float zero = 0.0f;
 
 	if (!stl->g_data) {

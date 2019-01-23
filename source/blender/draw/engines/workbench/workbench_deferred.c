@@ -409,9 +409,9 @@ void workbench_deferred_engine_init(WORKBENCH_Data *vedata)
 	{
 		const float *viewport_size = DRW_viewport_size_get();
 		const int size[2] = {(int)viewport_size[0], (int)viewport_size[1]};
-		const GPUTextureFormat nor_tex_format = NORMAL_ENCODING_ENABLED() ? GPU_RG16 : GPU_RGBA32F;
-		const GPUTextureFormat comp_tex_format = DRW_state_is_image_render() ? GPU_RGBA16F : GPU_R11F_G11F_B10F;
-		const GPUTextureFormat id_tex_format = OBJECT_ID_PASS_ENABLED(wpd) ? GPU_R32UI : GPU_R8;
+		const eGPUTextureFormat nor_tex_format = NORMAL_ENCODING_ENABLED() ? GPU_RG16 : GPU_RGBA32F;
+		const eGPUTextureFormat comp_tex_format = DRW_state_is_image_render() ? GPU_RGBA16F : GPU_R11F_G11F_B10F;
+		const eGPUTextureFormat id_tex_format = OBJECT_ID_PASS_ENABLED(wpd) ? GPU_R32UI : GPU_R8;
 
 		e_data.object_id_tx = NULL;
 		e_data.color_buffer_tx = NULL;
@@ -640,6 +640,14 @@ void workbench_deferred_cache_init(WORKBENCH_Data *vedata)
 			DRW_shgroup_uniform_texture_ref(grp, "objectId", &e_data.object_id_tx);
 		}
 		DRW_shgroup_call_add(grp, DRW_cache_fullscreen_quad_get(), NULL);
+
+		if (draw_ctx->rv3d && (draw_ctx->rv3d->rflag & RV3D_CLIPPING) && draw_ctx->rv3d->clipbb) {
+			GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_3D_UNIFORM_COLOR_BACKGROUND);
+			grp = DRW_shgroup_create(shader, psl->background_pass);
+			wpd->world_clip_planes_batch = DRW_draw_background_clipping_batch_from_rv3d(draw_ctx->rv3d);
+			DRW_shgroup_call_add(grp, wpd->world_clip_planes_batch, NULL);
+			DRW_shgroup_uniform_vec4(grp, "color", &wpd->world_clip_planes_color[0], 1);
+		}
 	}
 
 	/* Deferred Mix Pass */
