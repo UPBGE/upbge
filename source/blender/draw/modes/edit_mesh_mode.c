@@ -1,5 +1,5 @@
 /*
- * Copyright 2016, Blender Foundation.
+ * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -15,7 +15,10 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
+ * Copyright 2016, Blender Foundation.
  * Contributor(s): Blender Institute
+ *
+ * ***** END GPL LICENSE BLOCK *****
  *
  */
 
@@ -43,12 +46,6 @@
 
 #include "BLI_dynstr.h"
 #include "BLI_string_utils.h"
-
-
-extern struct GPUUniformBuffer *globals_ubo; /* draw_common.c */
-extern struct GlobalsUboStorage ts; /* draw_common.c */
-
-extern struct GPUTexture *globals_weight_ramp; /* draw_common.c */
 
 extern char datatoc_common_world_clip_lib_glsl[];
 
@@ -106,10 +103,8 @@ typedef struct EDIT_MESH_Data {
 
 #define MAX_SHADERS 16
 
-#define DEF_WORLD_CLIP_STR "#define USE_WORLD_CLIP_PLANES\n"
-
 /** Can only contain shaders (freed as array). */
-typedef struct EDIT_MESH_ShaderData {
+typedef struct EDIT_MESH_Shaders {
 	/* weight */
 	GPUShader *weight_face;
 
@@ -127,12 +122,12 @@ typedef struct EDIT_MESH_ShaderData {
 	GPUShader *normals;
 	GPUShader *depth;
 	GPUShader *ghost_clear_depth;
-} EDIT_MESH_ShaderData;
+} EDIT_MESH_Shaders;
 
 /* *********** STATIC *********** */
 static struct {
 	/* 0: normal, 1: clipped. */
-	EDIT_MESH_ShaderData sh_data[2];
+	EDIT_MESH_Shaders sh_data[2];
 
 	/* temp buffer texture */
 	struct GPUTexture *occlude_wire_depth_tx;
@@ -217,44 +212,30 @@ static char *EDIT_MESH_sh_defines(ToolSettings *tsettings, RegionView3D *rv3d, b
 	if (!looseedge) {
 		BLI_dynstr_append(ds, "#define VERTEX_FACING\n");
 	}
-	if (rv3d->rflag & RV3D_CLIPPING) {
-		BLI_dynstr_append(ds, DEF_WORLD_CLIP_STR);
-	}
-
 	str = BLI_dynstr_get_cstring(ds);
 	BLI_dynstr_free(ds);
 	return str;
 }
-static char *EDIT_MESH_sh_lib(void)
-{
-	char *str = NULL;
-	DynStr *ds = BLI_dynstr_new();
-
-	BLI_dynstr_append(ds, datatoc_common_globals_lib_glsl);
-	BLI_dynstr_append(ds, datatoc_edit_mesh_overlay_common_lib_glsl);
-	BLI_dynstr_append(ds, datatoc_common_world_clip_lib_glsl);
-
-	str = BLI_dynstr_get_cstring(ds);
-	BLI_dynstr_free(ds);
-	return str;
-}
-
 static GPUShader *EDIT_MESH_ensure_shader(
-        EDIT_MESH_ShaderData *sh_data,
+        EDIT_MESH_Shaders *sh_data,
         ToolSettings *tsettings, RegionView3D *rv3d, bool supports_fast_mode, bool looseedge)
 {
 	const int index = EDIT_MESH_sh_index(tsettings, rv3d, supports_fast_mode);
-	const int fast_mode = rv3d->rflag & RV3D_NAVIGATING;
+	const bool fast_mode = (rv3d->rflag & RV3D_NAVIGATING) != 0;
+	const bool is_clip = (rv3d->rflag & RV3D_CLIPPING) != 0;
+	const char *world_clip_lib_or_empty = is_clip ? datatoc_common_world_clip_lib_glsl : "";
+	const char *world_clip_def_or_empty = is_clip ? "#define USE_WORLD_CLIP_PLANES\n" : "";
+
 	if (looseedge) {
 		if (!sh_data->overlay_loose_edge_cache[index]) {
+			char *lib = BLI_string_joinN(world_clip_lib_or_empty, datatoc_common_globals_lib_glsl, datatoc_edit_mesh_overlay_common_lib_glsl);
 			char *defines = EDIT_MESH_sh_defines(tsettings, rv3d, true, true);
-			char *lib = EDIT_MESH_sh_lib();
-			sh_data->overlay_loose_edge_cache[index] = DRW_shader_create_with_lib(
-			        datatoc_edit_mesh_overlay_vert_glsl,
-			        datatoc_edit_mesh_overlay_geom_edge_glsl,
-			        datatoc_edit_mesh_overlay_frag_glsl,
-			        lib,
-			        defines);
+			sh_data->overlay_loose_edge_cache[index] = DRW_shader_create_from_arrays({
+			        .vert = (const char *[]){lib, datatoc_edit_mesh_overlay_vert_glsl, NULL},
+			        .geom = (const char *[]){lib, datatoc_edit_mesh_overlay_geom_edge_glsl, NULL},
+			        .frag = (const char *[]){lib, datatoc_edit_mesh_overlay_frag_glsl, NULL},
+			        .defs = (const char *[]){world_clip_def_or_empty, defines, NULL},
+			});
 			MEM_freeN(lib);
 			MEM_freeN(defines);
 		}
@@ -262,14 +243,14 @@ static GPUShader *EDIT_MESH_ensure_shader(
 	}
 	else {
 		if (!sh_data->overlay_tri_cache[index]) {
+			char *lib = BLI_string_joinN(world_clip_lib_or_empty, datatoc_common_globals_lib_glsl, datatoc_edit_mesh_overlay_common_lib_glsl);
 			char *defines = EDIT_MESH_sh_defines(tsettings, rv3d, true, false);
-			char *lib = EDIT_MESH_sh_lib();
-			sh_data->overlay_tri_cache[index] = DRW_shader_create_with_lib(
-			        datatoc_edit_mesh_overlay_vert_glsl,
-			        fast_mode ? NULL : datatoc_edit_mesh_overlay_geom_tri_glsl,
-			        datatoc_edit_mesh_overlay_frag_glsl,
-			        lib,
-			        defines);
+			sh_data->overlay_tri_cache[index] = DRW_shader_create_from_arrays({
+			        .vert = (const char *[]){lib, datatoc_edit_mesh_overlay_vert_glsl, NULL},
+			        .geom = fast_mode ? NULL : (const char *[]){lib, datatoc_edit_mesh_overlay_geom_tri_glsl, NULL},
+			        .frag = (const char *[]){lib, datatoc_edit_mesh_overlay_frag_glsl, NULL},
+			        .defs = (const char *[]){world_clip_def_or_empty, defines, NULL},
+			});
 			MEM_freeN(lib);
 			MEM_freeN(defines);
 		}
@@ -282,7 +263,7 @@ static void EDIT_MESH_engine_init(void *vedata)
 	EDIT_MESH_FramebufferList *fbl = ((EDIT_MESH_Data *)vedata)->fbl;
 
 	const DRWContextState *draw_ctx = DRW_context_state_get();
-	EDIT_MESH_ShaderData *sh_data = &e_data.sh_data[EDIT_MESH_sh_data_index_from_rv3d(draw_ctx->rv3d)];
+	EDIT_MESH_Shaders *sh_data = &e_data.sh_data[EDIT_MESH_sh_data_index_from_rv3d(draw_ctx->rv3d)];
 	const bool is_clip = (draw_ctx->rv3d->rflag & RV3D_CLIPPING) != 0;
 
 	const float *viewport_size = DRW_viewport_size_get();
@@ -302,90 +283,64 @@ static void EDIT_MESH_engine_init(void *vedata)
 		DRW_state_clip_planes_set_from_rv3d(draw_ctx->rv3d);
 	}
 
+	const char *world_clip_lib_or_empty = is_clip ? datatoc_common_world_clip_lib_glsl : "";
+	const char *world_clip_def_or_empty = is_clip ? "#define USE_WORLD_CLIP_PLANES\n" : "";
+
 	if (!sh_data->weight_face) {
-		char *lib = BLI_string_joinN(
-		        datatoc_common_world_clip_lib_glsl,
-		        datatoc_common_globals_lib_glsl);
-		sh_data->weight_face = DRW_shader_create_with_lib(
-		        datatoc_paint_weight_vert_glsl, NULL,
-		        datatoc_paint_weight_frag_glsl,
-		        lib,
-		        is_clip ? DEF_WORLD_CLIP_STR : NULL);
-		MEM_freeN(lib);
+		sh_data->weight_face = DRW_shader_create_from_arrays({
+		        .vert = (const char *[]){world_clip_lib_or_empty, datatoc_common_globals_lib_glsl, datatoc_paint_weight_vert_glsl, NULL},
+		        .frag = (const char *[]){datatoc_common_globals_lib_glsl, datatoc_paint_weight_frag_glsl, NULL},
+		        .defs = (const char *[]){world_clip_def_or_empty, NULL}});
 	}
 
 	if (!sh_data->overlay_vert) {
-		char *lib = EDIT_MESH_sh_lib();
-		const char *defs =
-			DEF_WORLD_CLIP_STR
-			"#define VERTEX_FACING\n" ;
-		sh_data->overlay_vert = DRW_shader_create_with_lib(
-		        datatoc_edit_mesh_overlay_points_vert_glsl, NULL,
-		        datatoc_gpu_shader_point_varying_color_frag_glsl, lib,
-		        defs + (is_clip ? 0 : strlen(DEF_WORLD_CLIP_STR)));
-		sh_data->overlay_lvert = DRW_shader_create_with_lib(
-		        datatoc_edit_mesh_overlay_points_vert_glsl, NULL,
-		        datatoc_gpu_shader_point_varying_color_frag_glsl, lib,
-		        is_clip ? DEF_WORLD_CLIP_STR : NULL);
+		char *lib = BLI_string_joinN(world_clip_lib_or_empty, datatoc_common_globals_lib_glsl, datatoc_edit_mesh_overlay_common_lib_glsl);
+		sh_data->overlay_vert = DRW_shader_create_from_arrays({
+		        .vert = (const char *[]){lib, datatoc_edit_mesh_overlay_points_vert_glsl, NULL},
+		        .frag = (const char *[]){datatoc_gpu_shader_point_varying_color_frag_glsl, NULL},
+		        .defs = (const char *[]){world_clip_def_or_empty, "#define VERTEX_FACING\n", NULL}});
+
+		sh_data->overlay_lvert = DRW_shader_create_from_arrays({
+		        .vert = (const char *[]){lib, datatoc_edit_mesh_overlay_points_vert_glsl, NULL},
+		        .frag = (const char *[]){datatoc_gpu_shader_point_varying_color_frag_glsl, NULL},
+		        .defs = (const char *[]){world_clip_def_or_empty, NULL}});
 		MEM_freeN(lib);
 	}
 	if (!sh_data->overlay_facedot) {
-		char *lib = BLI_string_joinN(
-		        datatoc_common_world_clip_lib_glsl,
-		        datatoc_common_globals_lib_glsl);
-		const char *defs =
-			DEF_WORLD_CLIP_STR
-			"#define VERTEX_FACING\n" ;
-		sh_data->overlay_facedot = DRW_shader_create_with_lib(
-		        datatoc_edit_mesh_overlay_facedot_vert_glsl, NULL,
-		        datatoc_edit_mesh_overlay_facedot_frag_glsl,
-		        lib,
-		        defs + (is_clip ? 0 : strlen(DEF_WORLD_CLIP_STR)));
-		MEM_freeN(lib);
+		sh_data->overlay_facedot = DRW_shader_create_from_arrays({
+		        .vert = (const char *[]){world_clip_lib_or_empty, datatoc_common_globals_lib_glsl, datatoc_edit_mesh_overlay_facedot_vert_glsl, NULL},
+		        .frag = (const char *[]){datatoc_common_globals_lib_glsl, datatoc_edit_mesh_overlay_facedot_frag_glsl, NULL},
+		        .defs = (const char *[]){world_clip_def_or_empty, "#define VERTEX_FACING\n", NULL}});
 	}
 	if (!sh_data->overlay_mix) {
 		sh_data->overlay_mix = DRW_shader_create_fullscreen(datatoc_edit_mesh_overlay_mix_frag_glsl, NULL);
 	}
 	if (!sh_data->overlay_facefill) {
-		char *lib = BLI_string_joinN(
-		        datatoc_common_world_clip_lib_glsl,
-		        datatoc_common_globals_lib_glsl);
-		sh_data->overlay_facefill = DRW_shader_create_with_lib(
-		        datatoc_edit_mesh_overlay_facefill_vert_glsl, NULL,
-		        datatoc_edit_mesh_overlay_facefill_frag_glsl,
-		        lib,
-		        is_clip ? DEF_WORLD_CLIP_STR : NULL);
-		MEM_freeN(lib);
+		sh_data->overlay_facefill = DRW_shader_create_from_arrays({
+		        .vert = (const char *[]){world_clip_lib_or_empty, datatoc_common_globals_lib_glsl, datatoc_edit_mesh_overlay_facefill_vert_glsl, NULL},
+		        .frag = (const char *[]){datatoc_common_globals_lib_glsl, datatoc_edit_mesh_overlay_facefill_frag_glsl, NULL},
+		        .defs = (const char *[]){world_clip_def_or_empty, NULL}});
 	}
 	if (!sh_data->normals_face) {
-		const char *defs =
-			DEF_WORLD_CLIP_STR
-			"#define FACE_NORMALS\n";
-		sh_data->normals_face = DRW_shader_create_with_lib(
-		        datatoc_edit_normals_vert_glsl,
-		        datatoc_edit_normals_geom_glsl,
-		        datatoc_gpu_shader_uniform_color_frag_glsl,
-		        datatoc_common_world_clip_lib_glsl,
-		        defs + (is_clip ? 0 : strlen(DEF_WORLD_CLIP_STR)));
+		sh_data->normals_face = DRW_shader_create_from_arrays({
+		        .vert = (const char *[]){world_clip_lib_or_empty, datatoc_edit_normals_vert_glsl, NULL},
+		        .geom = (const char *[]){world_clip_lib_or_empty, datatoc_edit_normals_geom_glsl, NULL},
+		        .frag = (const char *[]){datatoc_gpu_shader_uniform_color_frag_glsl, NULL},
+		        .defs = (const char *[]){world_clip_def_or_empty, "#define FACE_NORMALS\n", NULL}});
 	}
 	if (!sh_data->normals_loop) {
-		const char *defs =
-			DEF_WORLD_CLIP_STR
-			"#define LOOP_NORMALS\n";
-		sh_data->normals_loop = DRW_shader_create_with_lib(
-		        datatoc_edit_normals_vert_glsl,
-		        datatoc_edit_normals_geom_glsl,
-		        datatoc_gpu_shader_uniform_color_frag_glsl,
-		        datatoc_common_world_clip_lib_glsl,
-		        defs + (is_clip ? 0 : strlen(DEF_WORLD_CLIP_STR)));
+		sh_data->normals_loop = DRW_shader_create_from_arrays({
+		        .vert = (const char *[]){world_clip_lib_or_empty, datatoc_edit_normals_vert_glsl, NULL},
+		        .geom = (const char *[]){world_clip_lib_or_empty, datatoc_edit_normals_geom_glsl, NULL},
+		        .frag = (const char *[]){datatoc_gpu_shader_uniform_color_frag_glsl, NULL},
+		        .defs = (const char *[]){world_clip_def_or_empty, "#define LOOP_NORMALS\n", NULL}});
 	}
 	if (!sh_data->normals) {
-		sh_data->normals = DRW_shader_create_with_lib(
-		        datatoc_edit_normals_vert_glsl,
-		        datatoc_edit_normals_geom_glsl,
-		        datatoc_gpu_shader_uniform_color_frag_glsl,
-		        datatoc_common_world_clip_lib_glsl,
-		        is_clip ? DEF_WORLD_CLIP_STR : NULL);
+		sh_data->normals = DRW_shader_create_from_arrays({
+		        .vert = (const char *[]){world_clip_lib_or_empty, datatoc_edit_normals_vert_glsl, NULL},
+		        .geom = (const char *[]){world_clip_lib_or_empty, datatoc_edit_normals_geom_glsl, NULL},
+		        .frag = (const char *[]){datatoc_gpu_shader_uniform_color_frag_glsl, NULL},
+		        .defs = (const char *[]){world_clip_def_or_empty, NULL}});
 	}
 	if (!sh_data->depth) {
 		sh_data->depth = DRW_shader_create_3D_depth_only();
@@ -409,7 +364,7 @@ static DRWPass *edit_mesh_create_overlay_pass(
 	Scene *scene = draw_ctx->scene;
 	ToolSettings *tsettings = scene->toolsettings;
 	const int fast_mode = rv3d->rflag & RV3D_NAVIGATING;
-	EDIT_MESH_ShaderData *sh_data = &e_data.sh_data[EDIT_MESH_sh_data_index_from_rv3d(draw_ctx->rv3d)];
+	EDIT_MESH_Shaders *sh_data = &e_data.sh_data[EDIT_MESH_sh_data_index_from_rv3d(draw_ctx->rv3d)];
 
 	ledge_sh = EDIT_MESH_ensure_shader(sh_data, tsettings, rv3d, false, true);
 	tri_sh = EDIT_MESH_ensure_shader(sh_data, tsettings, rv3d, true, false);
@@ -420,7 +375,7 @@ static DRWPass *edit_mesh_create_overlay_pass(
 
 	if ((tsettings->selectmode & SCE_SELECT_VERTEX) != 0) {
 		*r_lverts_shgrp = DRW_shgroup_create(sh_data->overlay_lvert, pass);
-		DRW_shgroup_uniform_block(*r_lverts_shgrp, "globalsBlock", globals_ubo);
+		DRW_shgroup_uniform_block(*r_lverts_shgrp, "globalsBlock", G_draw.block_ubo);
 		DRW_shgroup_uniform_vec2(*r_lverts_shgrp, "viewportSize", DRW_viewport_size_get(), 1);
 		DRW_shgroup_uniform_float(*r_lverts_shgrp, "edgeScale", edge_width_scale, 1);
 		DRW_shgroup_state_enable(*r_lverts_shgrp, DRW_STATE_WRITE_DEPTH);
@@ -430,7 +385,7 @@ static DRWPass *edit_mesh_create_overlay_pass(
 		}
 
 		*r_verts_shgrp = DRW_shgroup_create(sh_data->overlay_vert, pass);
-		DRW_shgroup_uniform_block(*r_verts_shgrp, "globalsBlock", globals_ubo);
+		DRW_shgroup_uniform_block(*r_verts_shgrp, "globalsBlock", G_draw.block_ubo);
 		DRW_shgroup_uniform_vec2(*r_verts_shgrp, "viewportSize", DRW_viewport_size_get(), 1);
 		DRW_shgroup_uniform_float(*r_verts_shgrp, "edgeScale", edge_width_scale, 1);
 		DRW_shgroup_state_enable(*r_verts_shgrp, DRW_STATE_WRITE_DEPTH);
@@ -442,7 +397,7 @@ static DRWPass *edit_mesh_create_overlay_pass(
 
 	if ((tsettings->selectmode & SCE_SELECT_FACE) != 0) {
 		*r_facedot_shgrp = DRW_shgroup_create(sh_data->overlay_facedot, pass);
-		DRW_shgroup_uniform_block(*r_facedot_shgrp, "globalsBlock", globals_ubo);
+		DRW_shgroup_uniform_block(*r_facedot_shgrp, "globalsBlock", G_draw.block_ubo);
 		DRW_shgroup_uniform_float(*r_facedot_shgrp, "edgeScale", edge_width_scale, 1);
 		DRW_shgroup_state_enable(*r_facedot_shgrp, DRW_STATE_WRITE_DEPTH);
 		if (rv3d->rflag & RV3D_CLIPPING) {
@@ -451,7 +406,7 @@ static DRWPass *edit_mesh_create_overlay_pass(
 	}
 
 	*r_face_shgrp = DRW_shgroup_create(tri_sh, pass);
-	DRW_shgroup_uniform_block(*r_face_shgrp, "globalsBlock", globals_ubo);
+	DRW_shgroup_uniform_block(*r_face_shgrp, "globalsBlock", G_draw.block_ubo);
 	DRW_shgroup_uniform_vec2(*r_face_shgrp, "viewportSize", DRW_viewport_size_get(), 1);
 	DRW_shgroup_uniform_float(*r_face_shgrp, "faceAlphaMod", face_alpha, 1);
 	DRW_shgroup_uniform_float(*r_face_shgrp, "edgeScale", edge_width_scale, 1);
@@ -473,7 +428,7 @@ static DRWPass *edit_mesh_create_overlay_pass(
 	DRW_shgroup_state_enable(*r_face_cage_shgrp, DRW_STATE_OFFSET_NEGATIVE);
 
 	*r_ledges_shgrp = DRW_shgroup_create(ledge_sh, pass);
-	DRW_shgroup_uniform_block(*r_ledges_shgrp, "globalsBlock", globals_ubo);
+	DRW_shgroup_uniform_block(*r_ledges_shgrp, "globalsBlock", G_draw.block_ubo);
 	DRW_shgroup_uniform_vec2(*r_ledges_shgrp, "viewportSize", DRW_viewport_size_get(), 1);
 	DRW_shgroup_uniform_float(*r_ledges_shgrp, "edgeScale", edge_width_scale, 1);
 	DRW_shgroup_uniform_ivec4(*r_ledges_shgrp, "dataMask", data_mask, 1);
@@ -500,7 +455,7 @@ static void EDIT_MESH_cache_init(void *vedata)
 	RegionView3D *rv3d = draw_ctx->rv3d;
 	Scene *scene = draw_ctx->scene;
 	ToolSettings *tsettings = scene->toolsettings;
-	EDIT_MESH_ShaderData *sh_data = &e_data.sh_data[EDIT_MESH_sh_data_index_from_rv3d(draw_ctx->rv3d)];
+	EDIT_MESH_Shaders *sh_data = &e_data.sh_data[EDIT_MESH_sh_data_index_from_rv3d(draw_ctx->rv3d)];
 	static float zero = 0.0f;
 
 	if (!stl->g_data) {
@@ -564,8 +519,8 @@ static void EDIT_MESH_cache_init(void *vedata)
 
 		static float alpha = 1.0f;
 		DRW_shgroup_uniform_float(stl->g_data->fweights_shgrp, "opacity", &alpha, 1);
-		DRW_shgroup_uniform_texture(stl->g_data->fweights_shgrp, "colorramp", globals_weight_ramp);
-		DRW_shgroup_uniform_block(stl->g_data->fweights_shgrp, "globalsBlock", globals_ubo);
+		DRW_shgroup_uniform_texture(stl->g_data->fweights_shgrp, "colorramp", G_draw.weight_ramp);
+		DRW_shgroup_uniform_block(stl->g_data->fweights_shgrp, "globalsBlock", G_draw.block_ubo);
 		if (rv3d->rflag & RV3D_CLIPPING) {
 			DRW_shgroup_world_clip_planes_from_rv3d(stl->g_data->fweights_shgrp, rv3d);
 		}
@@ -598,21 +553,21 @@ static void EDIT_MESH_cache_init(void *vedata)
 
 		stl->g_data->fnormals_shgrp = DRW_shgroup_create(sh_data->normals_face, psl->normals);
 		DRW_shgroup_uniform_float(stl->g_data->fnormals_shgrp, "normalSize", &size_normal, 1);
-		DRW_shgroup_uniform_vec4(stl->g_data->fnormals_shgrp, "color", ts.colorNormal, 1);
+		DRW_shgroup_uniform_vec4(stl->g_data->fnormals_shgrp, "color", G_draw.block.colorNormal, 1);
 		if (rv3d->rflag & RV3D_CLIPPING) {
 			DRW_shgroup_world_clip_planes_from_rv3d(stl->g_data->fnormals_shgrp, rv3d);
 		}
 
 		stl->g_data->vnormals_shgrp = DRW_shgroup_create(sh_data->normals, psl->normals);
 		DRW_shgroup_uniform_float(stl->g_data->vnormals_shgrp, "normalSize", &size_normal, 1);
-		DRW_shgroup_uniform_vec4(stl->g_data->vnormals_shgrp, "color", ts.colorVNormal, 1);
+		DRW_shgroup_uniform_vec4(stl->g_data->vnormals_shgrp, "color", G_draw.block.colorVNormal, 1);
 		if (rv3d->rflag & RV3D_CLIPPING) {
 			DRW_shgroup_world_clip_planes_from_rv3d(stl->g_data->vnormals_shgrp, rv3d);
 		}
 
 		stl->g_data->lnormals_shgrp = DRW_shgroup_create(sh_data->normals_loop, psl->normals);
 		DRW_shgroup_uniform_float(stl->g_data->lnormals_shgrp, "normalSize", &size_normal, 1);
-		DRW_shgroup_uniform_vec4(stl->g_data->lnormals_shgrp, "color", ts.colorLNormal, 1);
+		DRW_shgroup_uniform_vec4(stl->g_data->lnormals_shgrp, "color", G_draw.block.colorLNormal, 1);
 		if (rv3d->rflag & RV3D_CLIPPING) {
 			DRW_shgroup_world_clip_planes_from_rv3d(stl->g_data->lnormals_shgrp, rv3d);
 		}
@@ -647,7 +602,7 @@ static void EDIT_MESH_cache_init(void *vedata)
 		        "Front Face Color",
 		        DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_BLEND);
 		stl->g_data->facefill_occluded_shgrp = DRW_shgroup_create(sh_data->overlay_facefill, psl->facefill_occlude);
-		DRW_shgroup_uniform_block(stl->g_data->facefill_occluded_shgrp, "globalsBlock", globals_ubo);
+		DRW_shgroup_uniform_block(stl->g_data->facefill_occluded_shgrp, "globalsBlock", G_draw.block_ubo);
 		DRW_shgroup_uniform_ivec4(stl->g_data->facefill_occluded_shgrp, "dataMask", stl->g_data->data_mask, 1);
 		if (rv3d->rflag & RV3D_CLIPPING) {
 			DRW_shgroup_world_clip_planes_from_rv3d(stl->g_data->facefill_occluded_shgrp, rv3d);
@@ -874,11 +829,11 @@ static void EDIT_MESH_draw_scene(void *vedata)
 static void EDIT_MESH_engine_free(void)
 {
 	for (int sh_data_index = 0; sh_data_index < ARRAY_SIZE(e_data.sh_data); sh_data_index++) {
-		EDIT_MESH_ShaderData *sh_data = &e_data.sh_data[sh_data_index];
+		EDIT_MESH_Shaders *sh_data = &e_data.sh_data[sh_data_index];
 		/* Don't free builtins. */
 		sh_data->depth = NULL;
 		GPUShader **sh_data_as_array = (GPUShader **)sh_data;
-		for (int i = 0; i < (sizeof(EDIT_MESH_ShaderData) / sizeof(GPUShader *)); i++) {
+		for (int i = 0; i < (sizeof(EDIT_MESH_Shaders) / sizeof(GPUShader *)); i++) {
 			DRW_SHADER_FREE_SAFE(sh_data_as_array[i]);
 		}
 	}

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016, Blender Foundation.
+ * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -15,7 +15,10 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
+ * Copyright 2016, Blender Foundation.
  * Contributor(s): Blender Institute
+ *
+ * ***** END GPL LICENSE BLOCK *****
  *
  */
 
@@ -39,12 +42,6 @@
 #include "draw_common.h"
 
 #include "draw_mode_engines.h"
-
-/* If needed, contains all global/Theme colors
- * Add needed theme colors / values to DRW_globals_update() and update UBO
- * Not needed for constant color. */
-extern struct GPUUniformBuffer *globals_ubo; /* draw_common.c */
-extern struct GlobalsUboStorage ts; /* draw_common.c */
 
 /* *********** LISTS *********** */
 /* All lists are per viewport specific datas.
@@ -190,8 +187,8 @@ static void EDIT_TEXT_cache_init(void *vedata)
 		psl->text_box_pass = DRW_pass_create(
 		        "Font Text Boxes",
 		        DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH);
-		stl->g_data->box_shgrp = shgroup_dynlines_dashed_uniform_color(psl->text_box_pass, ts.colorWire);
-		stl->g_data->box_active_shgrp = shgroup_dynlines_dashed_uniform_color(psl->text_box_pass, ts.colorActive);
+		stl->g_data->box_shgrp = shgroup_dynlines_dashed_uniform_color(psl->text_box_pass, G_draw.block.colorWire);
+		stl->g_data->box_active_shgrp = shgroup_dynlines_dashed_uniform_color(psl->text_box_pass, G_draw.block.colorActive);
 	}
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016, Blender Foundation.
+ * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -15,7 +15,10 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
+ * Copyright 2016, Blender Foundation.
  * Contributor(s): Blender Institute
+ *
+ * ***** END GPL LICENSE BLOCK *****
  *
  */
 
@@ -243,6 +246,11 @@ void DRW_multisamples_resolve(
 /* Shaders */
 struct GPUShader *DRW_shader_create(
         const char *vert, const char *geom, const char *frag, const char *defines);
+struct DRW_ShaderCreateFromArray_Params { const char **vert, **geom, **frag, **defs; };
+struct GPUShader *DRW_shader_create_from_arrays_impl(
+        const struct DRW_ShaderCreateFromArray_Params *params);
+#define DRW_shader_create_from_arrays(...) \
+	DRW_shader_create_from_arrays_impl(&(const struct DRW_ShaderCreateFromArray_Params)__VA_ARGS__)
 struct GPUShader *DRW_shader_create_with_lib(
         const char *vert, const char *geom, const char *frag, const char *lib, const char *defines);
 struct GPUShader *DRW_shader_create_with_transform_feedback(

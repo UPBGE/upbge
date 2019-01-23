@@ -1,3 +1,27 @@
+/*
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * Copyright 2018, Blender Foundation.
+ * Contributor(s): Blender Institute
+ *
+ * ***** END GPL LICENSE BLOCK *****
+ *
+ */
+
 #include "workbench_private.h"
 
 #include "DNA_userdef_types.h"
@@ -88,7 +112,8 @@ void workbench_private_data_init(WORKBENCH_PrivateData *wpd)
 	wd->curvature_ridge = 0.5f / max_ff(SQUARE(wpd->shading.curvature_ridge_factor), 1e-4f);
 	wd->curvature_valley = 0.7f / max_ff(SQUARE(wpd->shading.curvature_valley_factor), 1e-4f);
 
-	{
+	/* Will be NULL when rendering. */
+	if (draw_ctx->rv3d != NULL) {
 		RegionView3D *rv3d = draw_ctx->rv3d;
 		if (rv3d->rflag & RV3D_CLIPPING) {
 			wpd->world_clip_planes = rv3d->clip;

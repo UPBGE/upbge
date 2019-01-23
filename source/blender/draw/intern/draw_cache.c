@@ -1,5 +1,5 @@
 /*
- * Copyright 2016, Blender Foundation.
+ * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -15,7 +15,9 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributor(s): Blender Institute
+ * Contributor(s): Blender Foundation (2008).
+ *
+ * ***** END GPL LICENSE BLOCK *****
  *
  */
 
@@ -40,6 +42,7 @@
 #include "BLI_listbase.h"
 
 #include "BKE_object.h"
+#include "BKE_paint.h"
 #include "BKE_object_deform.h"
 
 #include "GPU_batch.h"
@@ -3753,8 +3756,11 @@ void drw_batch_cache_generate_requested(Object *ob)
 	const ToolSettings *ts = draw_ctx->scene->toolsettings;
 	const int mode = CTX_data_mode_enum_ex(draw_ctx->object_edit, draw_ctx->obact, draw_ctx->object_mode);
 	const bool is_paint_mode = ELEM(mode, CTX_MODE_PAINT_TEXTURE, CTX_MODE_PAINT_VERTEX, CTX_MODE_PAINT_WEIGHT);
-	const bool use_hide = (ob->type == OB_MESH) && ((is_paint_mode && (ob == draw_ctx->obact)) ||
-	                                               ((mode == CTX_MODE_EDIT_MESH) && BKE_object_is_in_editmode(ob)));
+	const bool use_hide = (
+	        (ob->type == OB_MESH) &&
+	        ((is_paint_mode && (ob == draw_ctx->obact) &&
+	          (BKE_paint_select_face_test(ob) || BKE_paint_select_vert_test(ob))) ||
+	         ((mode == CTX_MODE_EDIT_MESH) && BKE_object_is_in_editmode(ob))));
 
 	struct Mesh *mesh_eval = ob->runtime.mesh_eval;
 	switch (ob->type) {

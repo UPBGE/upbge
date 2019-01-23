@@ -1,5 +1,5 @@
 /*
- * Copyright 2016, Blender Foundation.
+ * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -15,7 +15,10 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
+ * Copyright 2016, Blender Foundation.
  * Contributor(s): Blender Institute
+ *
+ * ***** END GPL LICENSE BLOCK *****
  *
  */
 
@@ -50,12 +53,6 @@ extern char datatoc_paint_wire_frag_glsl[];
 extern char datatoc_paint_face_vert_glsl[];
 
 extern char datatoc_gpu_shader_uniform_color_frag_glsl[];
-
-/* If needed, contains all global/Theme colors
- * Add needed theme colors / values to DRW_globals_update() and update UBO
- * Not needed for constant color. */
-extern struct GPUUniformBuffer *globals_ubo; /* draw_common.c */
-extern struct GlobalsUboStorage ts; /* draw_common.c */
 
 /* *********** LISTS *********** */
 /* All lists are per viewport specific datas.
@@ -209,7 +206,7 @@ static void PAINT_TEXTURE_cache_init(void *vedata)
 						DRWShadingGroup *grp = DRW_shgroup_create(e_data.image_sh, psl->image_faces);
 						DRW_shgroup_uniform_texture(grp, "image", tex);
 						DRW_shgroup_uniform_float(grp, "alpha", &draw_ctx->v3d->overlay.texture_paint_mode_opacity, 1);
-						DRW_shgroup_uniform_block(grp, "globalsBlock", globals_ubo);
+						DRW_shgroup_uniform_block(grp, "globalsBlock", G_draw.block_ubo);
 						DRW_shgroup_uniform_bool_copy(grp, "nearestInterp", interp == SHD_INTERP_CLOSEST);
 						stl->g_data->shgroup_image_array[i] = grp;
 					}
@@ -227,7 +224,7 @@ static void PAINT_TEXTURE_cache_init(void *vedata)
 					DRWShadingGroup *grp = DRW_shgroup_create(e_data.image_sh, psl->image_faces);
 					DRW_shgroup_uniform_texture(grp, "image", tex);
 					DRW_shgroup_uniform_float(grp, "alpha", &draw_ctx->v3d->overlay.texture_paint_mode_opacity, 1);
-					DRW_shgroup_uniform_block(grp, "globalsBlock", globals_ubo);
+					DRW_shgroup_uniform_block(grp, "globalsBlock", G_draw.block_ubo);
 					DRW_shgroup_uniform_bool_copy(grp, "nearestInterp", imapaint->interp == IMAGEPAINT_INTERP_CLOSEST);
 					stl->g_data->shgroup_image_array[0] = grp;
 				}
@@ -245,7 +242,7 @@ static void PAINT_TEXTURE_cache_init(void *vedata)
 		        DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_OFFSET_NEGATIVE);
 
 		stl->g_data->lwire_shgrp = DRW_shgroup_create(e_data.wire_overlay_shader, psl->wire_overlay);
-		DRW_shgroup_uniform_block(stl->g_data->lwire_shgrp, "globalsBlock", globals_ubo);
+		DRW_shgroup_uniform_block(stl->g_data->lwire_shgrp, "globalsBlock", G_draw.block_ubo);
 	}
 
 	{

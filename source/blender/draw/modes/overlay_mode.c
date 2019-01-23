@@ -1,5 +1,5 @@
 /*
- * Copyright 2016, Blender Foundation.
+ * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -15,7 +15,10 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
+ * Copyright 2016, Blender Foundation.
  * Contributor(s): Blender Institute
+ *
+ * ***** END GPL LICENSE BLOCK *****
  *
  */
 
@@ -56,30 +59,28 @@ typedef struct OVERLAY_Data {
 
 typedef struct OVERLAY_PrivateData {
 	DRWShadingGroup *face_orientation_shgrp;
-	DRWShadingGroup *face_wires;
-	DRWShadingGroup *flat_wires;
-	DRWShadingGroup *sculpt_wires;
+	DRWShadingGroup *face_wires_shgrp;
+	DRWShadingGroup *flat_wires_shgrp;
+	DRWShadingGroup *sculpt_wires_shgrp;
 	View3DOverlay overlay;
 	float wire_step_param[2];
 	bool ghost_stencil_test;
 	bool show_overlays;
 } OVERLAY_PrivateData; /* Transient data */
 
-#define DEF_WORLD_CLIP_STR "#define USE_WORLD_CLIP_PLANES\n"
-
-typedef struct OVERLAY_ShaderData {
+typedef struct OVERLAY_Shaders {
 	/* Face orientation shader */
-	struct GPUShader *face_orientation_sh;
+	struct GPUShader *face_orientation;
 	/* Wireframe shader */
-	struct GPUShader *select_wireframe_sh;
-	struct GPUShader *face_wireframe_sh;
-	struct GPUShader *face_wireframe_sculpt_sh;
-} OVERLAY_ShaderData;
+	struct GPUShader *select_wireframe;
+	struct GPUShader *face_wireframe;
+	struct GPUShader *face_wireframe_sculpt;
+} OVERLAY_Shaders;
 
 /* *********** STATIC *********** */
 static struct {
 	/* 0: normal, 1: clipped. */
-	OVERLAY_ShaderData sh_data[2];
+	OVERLAY_Shaders sh_data[2];
 } e_data = {NULL};
 
 extern char datatoc_common_world_clip_lib_glsl[];
@@ -92,8 +93,6 @@ extern char datatoc_overlay_face_wireframe_vert_glsl[];
 extern char datatoc_overlay_face_wireframe_geom_glsl[];
 extern char datatoc_overlay_face_wireframe_frag_glsl[];
 extern char datatoc_gpu_shader_depth_only_frag_glsl[];
-
-extern struct GlobalsUboStorage ts; /* draw_common.c */
 
 static int OVERLAY_sh_data_index_from_rv3d(const RegionView3D *rv3d)
 {
@@ -110,7 +109,7 @@ static void overlay_engine_init(void *vedata)
 	OVERLAY_StorageList *stl = data->stl;
 
 	const DRWContextState *draw_ctx = DRW_context_state_get();
-	OVERLAY_ShaderData *sh_data = &e_data.sh_data[OVERLAY_sh_data_index_from_rv3d(draw_ctx->rv3d)];
+	OVERLAY_Shaders *sh_data = &e_data.sh_data[OVERLAY_sh_data_index_from_rv3d(draw_ctx->rv3d)];
 	const bool is_clip = (draw_ctx->rv3d->rflag & RV3D_CLIPPING) != 0;
 
 	if (is_clip) {
@@ -123,38 +122,34 @@ static void overlay_engine_init(void *vedata)
 	}
 	stl->g_data->ghost_stencil_test = false;
 
-	if (!sh_data->face_orientation_sh) {
+	const char *world_clip_lib_or_empty = is_clip ? datatoc_common_world_clip_lib_glsl : "";
+	const char *world_clip_def_or_empty = is_clip ? "#define USE_WORLD_CLIP_PLANES\n" : "";
+
+	if (!sh_data->face_orientation) {
 		/* Face orientation */
-		sh_data->face_orientation_sh = DRW_shader_create_with_lib(
-		        datatoc_overlay_face_orientation_vert_glsl, NULL,
-		        datatoc_overlay_face_orientation_frag_glsl,
-		        datatoc_common_world_clip_lib_glsl,
-		        is_clip ? NULL : DEF_WORLD_CLIP_STR);
+		sh_data->face_orientation = DRW_shader_create_from_arrays({
+		        .vert = (const char *[]){world_clip_lib_or_empty, datatoc_overlay_face_orientation_vert_glsl, NULL},
+		        .frag = (const char *[]){datatoc_overlay_face_orientation_frag_glsl, NULL},
+		        .defs = (const char *[]){world_clip_def_or_empty, NULL}});
 	}
 
-	if (!sh_data->face_wireframe_sh) {
-		sh_data->select_wireframe_sh = DRW_shader_create_with_lib(
-		        datatoc_overlay_face_wireframe_vert_glsl,
-		        datatoc_overlay_face_wireframe_geom_glsl,
-		        datatoc_gpu_shader_depth_only_frag_glsl,
-		        datatoc_common_world_clip_lib_glsl,
-		        DEF_WORLD_CLIP_STR "#define SELECT_EDGES\n" +
-		        (is_clip ? 0 : strlen(DEF_WORLD_CLIP_STR)));
+	if (!sh_data->face_wireframe) {
+		sh_data->select_wireframe = DRW_shader_create_from_arrays({
+		        .vert = (const char *[]){world_clip_lib_or_empty, datatoc_overlay_face_wireframe_vert_glsl, NULL},
+		        .geom = (const char *[]){world_clip_lib_or_empty, datatoc_overlay_face_wireframe_geom_glsl, NULL},
+		        .frag = (const char *[]){datatoc_gpu_shader_depth_only_frag_glsl, NULL},
+		        .defs = (const char *[]){world_clip_def_or_empty, "#define SELECT_EDGES\n", NULL}});
 
-		sh_data->face_wireframe_sh = DRW_shader_create_with_lib(
-		        datatoc_overlay_face_wireframe_vert_glsl,
-		        NULL,
-		        datatoc_overlay_face_wireframe_frag_glsl,
-		        datatoc_common_world_clip_lib_glsl,
-		        is_clip ? DEF_WORLD_CLIP_STR : NULL);
+		sh_data->face_wireframe = DRW_shader_create_from_arrays({
+		        .vert = (const char *[]){world_clip_lib_or_empty, datatoc_overlay_face_wireframe_vert_glsl, NULL},
+		        .frag = (const char *[]){datatoc_overlay_face_wireframe_frag_glsl, NULL},
+		        .defs = (const char *[]){world_clip_def_or_empty, NULL}});
 
-		sh_data->face_wireframe_sculpt_sh = DRW_shader_create_with_lib(
-		        datatoc_overlay_face_wireframe_vert_glsl,
-		        datatoc_overlay_face_wireframe_geom_glsl,
-		        datatoc_overlay_face_wireframe_frag_glsl,
-		        datatoc_common_world_clip_lib_glsl,
-		        DEF_WORLD_CLIP_STR "#define USE_SCULPT\n" +
-		        (is_clip ? 0 : strlen(DEF_WORLD_CLIP_STR)));
+		sh_data->face_wireframe_sculpt = DRW_shader_create_from_arrays({
+		        .vert = (const char *[]){world_clip_lib_or_empty, datatoc_overlay_face_wireframe_vert_glsl, NULL},
+		        .geom = (const char *[]){world_clip_lib_or_empty, datatoc_overlay_face_wireframe_geom_glsl, NULL},
+		        .frag = (const char *[]){datatoc_overlay_face_wireframe_frag_glsl, NULL},
+		        .defs = (const char *[]){world_clip_def_or_empty, "#define USE_SCULPT\n", NULL}});
 	}
 }
 
@@ -167,7 +162,7 @@ static void overlay_cache_init(void *vedata)
 
 	const DRWContextState *draw_ctx = DRW_context_state_get();
 	RegionView3D *rv3d = draw_ctx->rv3d;
-	OVERLAY_ShaderData *sh_data = &e_data.sh_data[OVERLAY_sh_data_index_from_rv3d(rv3d)];
+	OVERLAY_Shaders *sh_data = &e_data.sh_data[OVERLAY_sh_data_index_from_rv3d(rv3d)];
 
 	const DRWContextState *DCS = DRW_context_state_get();
 
@@ -195,7 +190,7 @@ static void overlay_cache_init(void *vedata)
 		DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_EQUAL | DRW_STATE_BLEND;
 		psl->face_orientation_pass = DRW_pass_create("Face Orientation", state);
 		g_data->face_orientation_shgrp = DRW_shgroup_create(
-		        sh_data->face_orientation_sh, psl->face_orientation_pass);
+		        sh_data->face_orientation, psl->face_orientation_pass);
 		if (rv3d->rflag & RV3D_CLIPPING) {
 			DRW_shgroup_world_clip_planes_from_rv3d(g_data->face_orientation_shgrp, rv3d);
 		}
@@ -207,31 +202,31 @@ static void overlay_cache_init(void *vedata)
 		float wire_size = max_ff(0.0f, U.pixelsize - 1.0f) * 0.5f;
 
 		const bool use_select = (DRW_state_is_select() || DRW_state_is_depth());
-		GPUShader *sculpt_wire_sh = use_select ? sh_data->select_wireframe_sh : sh_data->face_wireframe_sculpt_sh;
-		GPUShader *face_wires_sh = use_select ? sh_data->select_wireframe_sh : sh_data->face_wireframe_sh;
+		GPUShader *sculpt_wire_sh = use_select ? sh_data->select_wireframe : sh_data->face_wireframe_sculpt;
+		GPUShader *face_wires_sh = use_select ? sh_data->select_wireframe : sh_data->face_wireframe;
 		GPUShader *flat_wires_sh = GPU_shader_get_builtin_shader(GPU_SHADER_3D_UNIFORM_COLOR);
 
 		psl->face_wireframe_pass = DRW_pass_create("Face Wires", state);
 
-		g_data->flat_wires = DRW_shgroup_create(flat_wires_sh, psl->face_wireframe_pass);
+		g_data->flat_wires_shgrp = DRW_shgroup_create(flat_wires_sh, psl->face_wireframe_pass);
 		if (rv3d->rflag & RV3D_CLIPPING) {
-			DRW_shgroup_world_clip_planes_from_rv3d(g_data->flat_wires, rv3d);
+			DRW_shgroup_world_clip_planes_from_rv3d(g_data->flat_wires_shgrp, rv3d);
 		}
 
-		g_data->sculpt_wires = DRW_shgroup_create(sculpt_wire_sh, psl->face_wireframe_pass);
+		g_data->sculpt_wires_shgrp = DRW_shgroup_create(sculpt_wire_sh, psl->face_wireframe_pass);
 		if (rv3d->rflag & RV3D_CLIPPING) {
-			DRW_shgroup_world_clip_planes_from_rv3d(g_data->sculpt_wires, rv3d);
+			DRW_shgroup_world_clip_planes_from_rv3d(g_data->sculpt_wires_shgrp, rv3d);
 		}
 
-		g_data->face_wires = DRW_shgroup_create(face_wires_sh, psl->face_wireframe_pass);
-		DRW_shgroup_uniform_vec2(g_data->face_wires, "wireStepParam", g_data->wire_step_param, 1);
+		g_data->face_wires_shgrp = DRW_shgroup_create(face_wires_sh, psl->face_wireframe_pass);
+		DRW_shgroup_uniform_vec2(g_data->face_wires_shgrp, "wireStepParam", g_data->wire_step_param, 1);
 		if (rv3d->rflag & RV3D_CLIPPING) {
-			DRW_shgroup_world_clip_planes_from_rv3d(g_data->face_wires, rv3d);
+			DRW_shgroup_world_clip_planes_from_rv3d(g_data->face_wires_shgrp, rv3d);
 		}
 
 		if (!use_select) {
-			DRW_shgroup_uniform_float_copy(g_data->sculpt_wires, "wireSize", wire_size);
-			DRW_shgroup_uniform_float_copy(g_data->face_wires, "wireSize", wire_size);
+			DRW_shgroup_uniform_float_copy(g_data->sculpt_wires_shgrp, "wireSize", wire_size);
+			DRW_shgroup_uniform_float_copy(g_data->face_wires_shgrp, "wireSize", wire_size);
 		}
 
 		/* Control aspect of the falloff. */
@@ -299,40 +294,40 @@ static void overlay_cache_populate(void *vedata, Object *ob)
 			const float *rim_col = NULL;
 			const float *wire_col = NULL;
 			if (UNLIKELY(ob->base_flag & BASE_FROM_SET)) {
-				rim_col = ts.colorDupli;
-				wire_col = ts.colorDupli;
+				rim_col = G_draw.block.colorDupli;
+				wire_col = G_draw.block.colorDupli;
 			}
 			else if (UNLIKELY(ob->base_flag & BASE_FROM_DUPLI)) {
 				if (ob->base_flag & BASE_SELECTED) {
 					if (G.moving & G_TRANSFORM_OBJ) {
-						rim_col = ts.colorTransform;
+						rim_col = G_draw.block.colorTransform;
 					}
 					else {
-						rim_col = ts.colorDupliSelect;
+						rim_col = G_draw.block.colorDupliSelect;
 					}
 				}
 				else {
-					rim_col = ts.colorDupli;
+					rim_col = G_draw.block.colorDupli;
 				}
-				wire_col = ts.colorDupli;
+				wire_col = G_draw.block.colorDupli;
 			}
 			else if ((ob->base_flag & BASE_SELECTED) &&
 			         (!is_edit_mode && !is_sculpt_mode && !has_edit_mesh_cage))
 			{
 				if (G.moving & G_TRANSFORM_OBJ) {
-					rim_col = ts.colorTransform;
+					rim_col = G_draw.block.colorTransform;
 				}
 				else if (ob == draw_ctx->obact) {
-					rim_col = ts.colorActive;
+					rim_col = G_draw.block.colorActive;
 				}
 				else {
-					rim_col = ts.colorSelect;
+					rim_col = G_draw.block.colorSelect;
 				}
-				wire_col = ts.colorWire;
+				wire_col = G_draw.block.colorWire;
 			}
 			else {
-				rim_col = ts.colorWire;
-				wire_col = ts.colorWire;
+				rim_col = G_draw.block.colorWire;
+				wire_col = G_draw.block.colorWire;
 			}
 			BLI_assert(rim_col && wire_col);
 
@@ -347,7 +342,7 @@ static void overlay_cache_populate(void *vedata, Object *ob)
 				/* Avoid losing flat objects when in ortho views (see T56549) */
 				struct GPUBatch *geom = DRW_cache_object_all_edges_get(ob);
 				if (geom) {
-					shgrp = pd->flat_wires;
+					shgrp = pd->flat_wires_shgrp;
 					shgrp = DRW_shgroup_create_sub(shgrp);
 					DRW_shgroup_stencil_mask(shgrp, stencil_mask);
 					DRW_shgroup_call_object_add(shgrp, geom, ob);
@@ -357,13 +352,13 @@ static void overlay_cache_populate(void *vedata, Object *ob)
 			else {
 				struct GPUBatch *geom = DRW_cache_object_face_wireframe_get(ob);
 				if (geom || is_sculpt_mode) {
-					shgrp = (is_sculpt_mode) ? pd->sculpt_wires : pd->face_wires;
+					shgrp = (is_sculpt_mode) ? pd->sculpt_wires_shgrp : pd->face_wires_shgrp;
 					shgrp = DRW_shgroup_create_sub(shgrp);
 
 					static float all_wires_params[2] = {0.0f, 10.0f}; /* Parameters for all wires */
-					DRW_shgroup_uniform_vec2(shgrp, "wireStepParam", (all_wires)
-					                                                 ? all_wires_params
-					                                                 : pd->wire_step_param, 1);
+					DRW_shgroup_uniform_vec2(
+					        shgrp, "wireStepParam", (all_wires) ?
+					        all_wires_params : pd->wire_step_param, 1);
 
 					if (!(DRW_state_is_select() || DRW_state_is_depth())) {
 						DRW_shgroup_stencil_mask(shgrp, stencil_mask);
@@ -427,9 +422,9 @@ static void overlay_draw_scene(void *vedata)
 static void overlay_engine_free(void)
 {
 	for (int sh_data_index = 0; sh_data_index < ARRAY_SIZE(e_data.sh_data); sh_data_index++) {
-		OVERLAY_ShaderData *sh_data = &e_data.sh_data[sh_data_index];
+		OVERLAY_Shaders *sh_data = &e_data.sh_data[sh_data_index];
 		GPUShader **sh_data_as_array = (GPUShader **)sh_data;
-		for (int i = 0; i < (sizeof(OVERLAY_ShaderData) / sizeof(GPUShader *)); i++) {
+		for (int i = 0; i < (sizeof(OVERLAY_Shaders) / sizeof(GPUShader *)); i++) {
 			DRW_SHADER_FREE_SAFE(sh_data_as_array[i]);
 		}
 	}

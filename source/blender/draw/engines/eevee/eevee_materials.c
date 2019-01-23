@@ -1,5 +1,5 @@
 /*
- * Copyright 2016, Blender Foundation.
+ * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -15,7 +15,10 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
+ * Copyright 2016, Blender Foundation.
  * Contributor(s): Blender Institute
+ *
+ * ***** END GPL LICENSE BLOCK *****
  *
  */
 
@@ -108,7 +111,6 @@ extern char datatoc_volumetric_lib_glsl[];
 extern char datatoc_gpu_shader_uniform_color_frag_glsl[];
 
 extern Material defmaterial;
-extern GlobalsUboStorage ts;
 
 /* *********** FUNCTIONS *********** */
 
@@ -961,7 +963,7 @@ void EEVEE_materials_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
 		Scene *scene = draw_ctx->scene;
 		World *wo = scene->world;
 
-		float *col = ts.colorBackground;
+		const float *col = G_draw.block.colorBackground;
 		
 		if (!DRW_state_is_game_engine()) {
 			/* LookDev */

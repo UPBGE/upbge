@@ -1,5 +1,5 @@
 /*
- * Copyright 2016, Blender Foundation.
+ * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -15,7 +15,10 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
+ * Copyright 2016, Blender Foundation.
  * Contributor(s): Blender Institute
+ *
+ * ***** END GPL LICENSE BLOCK *****
  *
  */
 
@@ -97,7 +100,6 @@ extern char datatoc_effect_velocity_resolve_frag_glsl[];
 /* Temporal Sampling */
 extern char datatoc_effect_temporal_aa_glsl[];
 
-extern GlobalsUboStorage ts;
 
 /* *********** FUNCTIONS *********** */
 

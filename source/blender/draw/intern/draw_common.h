@@ -1,5 +1,5 @@
 /*
- * Copyright 2016, Blender Foundation.
+ * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -15,7 +15,10 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
+ * Copyright 2016, Blender Foundation.
  * Contributor(s): Blender Institute
+ *
+ * ***** END GPL LICENSE BLOCK *****
  *
  */
 
@@ -128,11 +131,11 @@ void DRW_globals_free(void);
 void DRW_shgroup_world_clip_planes_from_rv3d(struct DRWShadingGroup *shgrp, const RegionView3D *rv3d);
 
 struct DRWShadingGroup *shgroup_dynlines_flat_color(struct DRWPass *pass);
-struct DRWShadingGroup *shgroup_dynlines_dashed_uniform_color(struct DRWPass *pass, float color[4]);
-struct DRWShadingGroup *shgroup_dynpoints_uniform_color(struct DRWPass *pass, float color[4], float *size);
-struct DRWShadingGroup *shgroup_groundlines_uniform_color(struct DRWPass *pass, float color[4]);
-struct DRWShadingGroup *shgroup_groundpoints_uniform_color(struct DRWPass *pass, float color[4]);
-struct DRWShadingGroup *shgroup_instance_screenspace(struct DRWPass *pass, struct GPUBatch *geom, float *size);
+struct DRWShadingGroup *shgroup_dynlines_dashed_uniform_color(struct DRWPass *pass, const float color[4]);
+struct DRWShadingGroup *shgroup_dynpoints_uniform_color(struct DRWPass *pass, const float color[4], const float *size);
+struct DRWShadingGroup *shgroup_groundlines_uniform_color(struct DRWPass *pass, const float color[4]);
+struct DRWShadingGroup *shgroup_groundpoints_uniform_color(struct DRWPass *pass, const float color[4]);
+struct DRWShadingGroup *shgroup_instance_screenspace(struct DRWPass *pass, struct GPUBatch *geom, const float *size);
 struct DRWShadingGroup *shgroup_instance_solid(struct DRWPass *pass, struct GPUBatch *geom);
 struct DRWShadingGroup *shgroup_instance_wire(struct DRWPass *pass, struct GPUBatch *geom);
 struct DRWShadingGroup *shgroup_instance_screen_aligned(struct DRWPass *pass, struct GPUBatch *geom);
@@ -203,5 +206,19 @@ void DRW_hair_free(void);
 /* pose_mode.c */
 bool DRW_pose_mode_armature(
     struct Object *ob, struct Object *active_ob);
+
+/* draw_common.c */
+struct DRW_Global {
+	/** If needed, contains all global/Theme colors
+	 * Add needed theme colors / values to DRW_globals_update() and update UBO
+	 * Not needed for constant color. */
+	GlobalsUboStorage block;
+	/** Define "globalsBlock" uniform for 'block'.  */
+	struct GPUUniformBuffer *block_ubo;
+
+	struct GPUTexture *ramp;
+	struct GPUTexture *weight_ramp;
+};
+extern struct DRW_Global G_draw;
 
 #endif /* __DRAW_COMMON_H__ */
