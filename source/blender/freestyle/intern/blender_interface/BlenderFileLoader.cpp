@@ -32,10 +32,10 @@
 
 namespace Freestyle {
 
-BlenderFileLoader::BlenderFileLoader(Render *re, ViewLayer *view_layer)
+BlenderFileLoader::BlenderFileLoader(Render *re, ViewLayer *view_layer, Depsgraph *depsgraph)
 {
 	_re = re;
-	_view_layer = view_layer;
+	_depsgraph = depsgraph;
 	_Scene = NULL;
 	_numFacesRead = 0;
 #if 0
@@ -79,11 +79,6 @@ NodeGroup *BlenderFileLoader::Load()
 		_z_offset = 0.f;
 	}
 
-	ViewLayer *view_layer = (ViewLayer*)BLI_findstring(&_re->scene->view_layers, _view_layer->name, offsetof(ViewLayer, name));
-	Depsgraph *depsgraph = DEG_graph_new(_re->scene, view_layer, DAG_EVAL_RENDER);
-
-	BKE_scene_graph_update_tagged(depsgraph, _re->main);
-
 #if 0
 	if (G.debug & G_DEBUG_FREESTYLE) {
 		cout << "Frustum: l " << _viewplane_left << " r " << _viewplane_right
@@ -95,7 +90,7 @@ NodeGroup *BlenderFileLoader::Load()
 	int id = 0;
 
 	DEG_OBJECT_ITER_BEGIN(
-	        depsgraph, ob,
+	        _depsgraph, ob,
 	        DEG_ITER_OBJECT_FLAG_LINKED_DIRECTLY |
 	        DEG_ITER_OBJECT_FLAG_LINKED_VIA_SET |
 	        DEG_ITER_OBJECT_FLAG_VISIBLE |
@@ -105,9 +100,13 @@ NodeGroup *BlenderFileLoader::Load()
 			break;
 		}
 
+		if (ob->base_flag & (BASE_HOLDOUT | BASE_INDIRECT_ONLY)) {
+			continue;
+		}
+
 		bool apply_modifiers = false;
 		bool calc_undeformed = false;
-		Mesh *mesh = BKE_mesh_new_from_object(depsgraph,
+		Mesh *mesh = BKE_mesh_new_from_object(_depsgraph,
 		                                      _re->main,
 		                                      _re->scene,
 		                                      ob,
@@ -120,8 +119,6 @@ NodeGroup *BlenderFileLoader::Load()
 		}
 	}
 	DEG_OBJECT_ITER_END;
-
-	DEG_graph_free(depsgraph);
 
 	// Return the built scene.
 	return _Scene;
@@ -411,9 +408,15 @@ void BlenderFileLoader::insertShapeNode(Object *ob, Mesh *me, int id)
 	FreestyleEdge *fed = (FreestyleEdge*)CustomData_get_layer(&me->edata, CD_FREESTYLE_EDGE);
 	FreestyleFace *ffa = (FreestyleFace*)CustomData_get_layer(&me->pdata, CD_FREESTYLE_FACE);
 
+	// Compute view matrix
+	Object *ob_camera_eval = DEG_get_evaluated_object(_depsgraph, RE_GetCamera(_re));
+	float viewinv[4][4], viewmat[4][4];
+	RE_GetCameraModelMatrix(_re, ob_camera_eval, viewinv);
+	invert_m4_m4(viewmat, viewinv);
+
 	// Compute matrix including camera transform
 	float obmat[4][4], nmat[4][4];
-	mul_m4_m4m4(obmat, _re->viewmat, ob->obmat);
+	mul_m4_m4m4(obmat, viewmat, ob->obmat);
 	invert_m4_m4(nmat, obmat);
 	transpose_m4(nmat);
 

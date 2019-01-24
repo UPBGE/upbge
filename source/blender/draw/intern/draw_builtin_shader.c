@@ -38,12 +38,13 @@
 
 extern char datatoc_common_world_clip_lib_glsl[];
 
-extern char datatoc_drw_shader_3D_vert_glsl[];
-extern char datatoc_drw_shader_3D_smooth_color_vert_glsl[];
-
-extern char datatoc_gpu_shader_uniform_color_frag_glsl[];
 extern char datatoc_gpu_shader_3D_smooth_color_frag_glsl[];
+extern char datatoc_gpu_shader_3D_smooth_color_vert_glsl[];
+extern char datatoc_gpu_shader_3D_vert_glsl[];
 extern char datatoc_gpu_shader_depth_only_frag_glsl[];
+extern char datatoc_gpu_shader_flat_color_frag_glsl[];
+extern char datatoc_gpu_shader_instance_camera_vert_glsl[];
+extern char datatoc_gpu_shader_uniform_color_frag_glsl[];
 
 /* cache of built-in shaders (each is created on first use) */
 static struct {
@@ -66,7 +67,7 @@ static GPUShader *drw_shader_get_builtin_shader_clipped(eGPUBuiltinShader shader
 				break;
 			}
 			shader = DRW_shader_create_from_arrays({
-			        .vert = (const char *[]){world_clip_lib, datatoc_drw_shader_3D_vert_glsl, NULL},
+			        .vert = (const char *[]){world_clip_lib, datatoc_gpu_shader_3D_vert_glsl, NULL},
 			        .frag = (const char *[]){datatoc_gpu_shader_uniform_color_frag_glsl, NULL},
 			        .defs = (const char *[]){world_clip_def, NULL}});
 			break;
@@ -75,7 +76,7 @@ static GPUShader *drw_shader_get_builtin_shader_clipped(eGPUBuiltinShader shader
 				break;
 			}
 			shader = DRW_shader_create_from_arrays({
-			        .vert = (const char *[]){world_clip_lib, datatoc_drw_shader_3D_smooth_color_vert_glsl, NULL},
+			        .vert = (const char *[]){world_clip_lib, datatoc_gpu_shader_3D_smooth_color_vert_glsl, NULL},
 			        .frag = (const char *[]){datatoc_gpu_shader_3D_smooth_color_frag_glsl, NULL},
 			        .defs = (const char *[]){world_clip_def, NULL}});
 			break;
@@ -84,8 +85,17 @@ static GPUShader *drw_shader_get_builtin_shader_clipped(eGPUBuiltinShader shader
 				break;
 			}
 			shader = DRW_shader_create_from_arrays({
-			        .vert = (const char *[]){world_clip_lib, datatoc_drw_shader_3D_vert_glsl, NULL},
+			        .vert = (const char *[]){world_clip_lib, datatoc_gpu_shader_3D_vert_glsl, NULL},
 			        .frag = (const char *[]){datatoc_gpu_shader_depth_only_frag_glsl, NULL},
+			        .defs = (const char *[]){world_clip_def, NULL}});
+			break;
+		case GPU_SHADER_CAMERA:
+			if (r_test_only) {
+				break;
+			}
+			shader = DRW_shader_create_from_arrays({
+			        .vert = (const char *[]){world_clip_lib, datatoc_gpu_shader_instance_camera_vert_glsl, NULL},
+			        .frag = (const char *[]){datatoc_gpu_shader_flat_color_frag_glsl, NULL},
 			        .defs = (const char *[]){world_clip_def, NULL}});
 			break;
 		default:

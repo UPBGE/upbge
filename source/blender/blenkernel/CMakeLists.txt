@@ -132,11 +132,14 @@ set(SRC
 	intern/keyconfig.c
 	intern/lamp.c
 	intern/lattice.c
+	intern/layer.c
+	intern/layer_utils.c
 	intern/library.c
 	intern/library_idmap.c
 	intern/library_override.c
 	intern/library_query.c
 	intern/library_remap.c
+	intern/lightprobe.c
 	intern/linestyle.c
 	intern/main.c
 	intern/mask.c
@@ -163,9 +166,9 @@ set(SRC
 	intern/nla.c
 	intern/node.c
 	intern/object.c
-	intern/object_facemap.c
 	intern/object_deform.c
 	intern/object_dupli.c
+	intern/object_facemap.c
 	intern/object_update.c
 	intern/ocean.c
 	intern/outliner_treehash.c
@@ -180,9 +183,6 @@ set(SRC
 	intern/pbvh_bmesh.c
 	intern/pointcache.c
 	intern/property.c
-	intern/layer.c
-	intern/layer_utils.c
-	intern/lightprobe.c
 	intern/report.c
 	intern/rigidbody.c
 	intern/sca.c
@@ -288,11 +288,13 @@ set(SRC
 	BKE_keyconfig.h
 	BKE_lamp.h
 	BKE_lattice.h
+	BKE_layer.h
 	BKE_library.h
 	BKE_library_idmap.h
 	BKE_library_override.h
 	BKE_library_query.h
 	BKE_library_remap.h
+	BKE_lightprobe.h
 	BKE_linestyle.h
 	BKE_main.h
 	BKE_mask.h
@@ -311,8 +313,8 @@ set(SRC
 	BKE_nla.h
 	BKE_node.h
 	BKE_object.h
-	BKE_object_facemap.h
 	BKE_object_deform.h
+	BKE_object_facemap.h
 	BKE_ocean.h
 	BKE_outliner_treehash.h
 	BKE_packedFile.h
@@ -321,8 +323,6 @@ set(SRC
 	BKE_pbvh.h
 	BKE_pointcache.h
 	BKE_property.h
-	BKE_layer.h
-	BKE_lightprobe.h
 	BKE_report.h
 	BKE_rigidbody.h
 	BKE_sca.h

@@ -215,30 +215,24 @@ static void playanim_event_qual_update(void)
 
 	/* Shift */
 	GHOST_GetModifierKeyState(g_WS.ghost_system, GHOST_kModifierKeyLeftShift, &val);
-	if (val) g_WS.qual |=  WS_QUAL_LSHIFT;
-	else     g_WS.qual &= ~WS_QUAL_LSHIFT;
+	SET_FLAG_FROM_TEST(g_WS.qual, val, WS_QUAL_LSHIFT);
 
 	GHOST_GetModifierKeyState(g_WS.ghost_system, GHOST_kModifierKeyRightShift, &val);
-	if (val) g_WS.qual |=  WS_QUAL_RSHIFT;
-	else     g_WS.qual &= ~WS_QUAL_RSHIFT;
+	SET_FLAG_FROM_TEST(g_WS.qual, val, WS_QUAL_RSHIFT);
 
 	/* Control */
 	GHOST_GetModifierKeyState(g_WS.ghost_system, GHOST_kModifierKeyLeftControl, &val);
-	if (val) g_WS.qual |=  WS_QUAL_LCTRL;
-	else     g_WS.qual &= ~WS_QUAL_LCTRL;
+	SET_FLAG_FROM_TEST(g_WS.qual, val, WS_QUAL_LCTRL);
 
 	GHOST_GetModifierKeyState(g_WS.ghost_system, GHOST_kModifierKeyRightControl, &val);
-	if (val) g_WS.qual |=  WS_QUAL_RCTRL;
-	else     g_WS.qual &= ~WS_QUAL_RCTRL;
+	SET_FLAG_FROM_TEST(g_WS.qual, val, WS_QUAL_RCTRL);
 
 	/* Alt */
 	GHOST_GetModifierKeyState(g_WS.ghost_system, GHOST_kModifierKeyLeftAlt, &val);
-	if (val) g_WS.qual |=  WS_QUAL_LALT;
-	else     g_WS.qual &= ~WS_QUAL_LALT;
+	SET_FLAG_FROM_TEST(g_WS.qual, val, WS_QUAL_LALT);
 
 	GHOST_GetModifierKeyState(g_WS.ghost_system, GHOST_kModifierKeyRightAlt, &val);
-	if (val) g_WS.qual |=  WS_QUAL_RALT;
-	else     g_WS.qual &= ~WS_QUAL_RALT;
+	SET_FLAG_FROM_TEST(g_WS.qual, val, WS_QUAL_RALT);
 }
 
 typedef struct PlayAnimPict {
@@ -930,7 +924,7 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 				{
 					if (val == 0) break;
 					if (g_WS.qual & WS_QUAL_CTRL) {
-						playanim_window_zoom(ps, 1.0f);
+						playanim_window_zoom(ps, 0.1f);
 					}
 					else {
 						if (swaptime > ps->fstep / 60.0) {
@@ -945,7 +939,7 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 				{
 					if (val == 0) break;
 					if (g_WS.qual & WS_QUAL_CTRL) {
-						playanim_window_zoom(ps, -1.0f);
+						playanim_window_zoom(ps, -0.1f);
 					}
 					else {
 						if (swaptime < ps->fstep / 5.0) {
@@ -1047,10 +1041,6 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 
 			/* zoom always show entire image */
 			ps->zoom = MIN2(zoomx, zoomy);
-
-			/* zoom steps of 2 for speed */
-			ps->zoom = floor(ps->zoom + 0.5f);
-			if (ps->zoom < 1.0f) ps->zoom = 1.0f;
 
 			glViewport(0, 0, ps->win_x, ps->win_y);
 			glScissor(0, 0, ps->win_x, ps->win_y);

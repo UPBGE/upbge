@@ -105,7 +105,7 @@ extern char datatoc_gpu_shader_flat_color_frag_glsl[];
 extern char datatoc_gpu_shader_flat_id_frag_glsl[];
 extern char datatoc_common_fullscreen_vert_glsl[];
 extern char datatoc_gpu_shader_uniform_color_frag_glsl[];
-extern char datatoc_drw_shader_3D_vert_glsl[];
+extern char datatoc_gpu_shader_3D_vert_glsl[];
 
 /* *********** LISTS *********** */
 typedef struct OBJECT_PassList {
@@ -419,7 +419,7 @@ static void OBJECT_engine_init(void *vedata)
 	if (!sh_data->outline_resolve) {
 		/* Outline */
 		sh_data->outline_prepass = DRW_shader_create_from_arrays({
-		        .vert = (const char *[]){world_clip_lib_or_empty, datatoc_drw_shader_3D_vert_glsl, NULL},
+		        .vert = (const char *[]){world_clip_lib_or_empty, datatoc_gpu_shader_3D_vert_glsl, NULL},
 		        .frag = (const char *[]){datatoc_object_outline_prepass_frag_glsl, NULL},
 		        .defs = (const char *[]){world_clip_def_or_empty, NULL}});
 		sh_data->outline_prepass_wire = DRW_shader_create_from_arrays({
@@ -495,7 +495,7 @@ static void OBJECT_engine_init(void *vedata)
 
 		/* Loose Points */
 		sh_data->loose_points = DRW_shader_create_from_arrays({
-		        .vert = (const char *[]){world_clip_lib_or_empty, datatoc_drw_shader_3D_vert_glsl, NULL},
+		        .vert = (const char *[]){world_clip_lib_or_empty, datatoc_gpu_shader_3D_vert_glsl, NULL},
 		        .frag = (const char *[]){datatoc_object_loose_points_frag_glsl, NULL},
 		        .defs = (const char *[]){world_clip_def_or_empty, NULL}});
 	}
@@ -542,12 +542,15 @@ static void OBJECT_engine_init(void *vedata)
 			grid_res = fabsf(tanf(fov)) / grid_scale;
 
 			e_data.grid_flag = (1 << 4); /* XY plane */
-			if (show_axis_x)
+			if (show_axis_x) {
 				e_data.grid_flag |= SHOW_AXIS_X;
-			if (show_axis_y)
+			}
+			if (show_axis_y) {
 				e_data.grid_flag |= SHOW_AXIS_Y;
-			if (show_floor)
+			}
+			if (show_floor) {
 				e_data.grid_flag |= SHOW_GRID;
+			}
 
 		}
 		else {
@@ -925,8 +928,9 @@ static void DRW_shgroup_empty_image(
 {
 	/* TODO: 'StereoViews', see draw_empty_image. */
 
-	if (!BKE_object_empty_image_is_visible_in_view3d(ob, rv3d))
+	if (!BKE_object_empty_image_is_visible_in_view3d(ob, rv3d)) {
 		return;
+	}
 
 	/* Calling 'BKE_image_get_size' may free the texture. Get the size from 'tex' instead, see: T59347 */
 	int size[2] = {0};
@@ -1239,13 +1243,13 @@ static void OBJECT_cache_init(void *vedata)
 
 		/* Camera */
 		geom = DRW_cache_camera_get();
-		sgl->camera = shgroup_camera_instance(sgl->non_meshes, geom);
+		sgl->camera = shgroup_camera_instance(sgl->non_meshes, geom, draw_ctx->shader_slot);
 
 		geom = DRW_cache_camera_frame_get();
-		sgl->camera_frame = shgroup_camera_instance(sgl->non_meshes, geom);
+		sgl->camera_frame = shgroup_camera_instance(sgl->non_meshes, geom, draw_ctx->shader_slot);
 
 		geom = DRW_cache_camera_tria_get();
-		sgl->camera_tria = shgroup_camera_instance(sgl->non_meshes, geom);
+		sgl->camera_tria = shgroup_camera_instance(sgl->non_meshes, geom, draw_ctx->shader_slot);
 
 		geom = DRW_cache_plain_axes_get();
 		sgl->camera_focus = shgroup_instance(sgl->non_meshes, geom);
