@@ -1041,6 +1041,42 @@ int WM_operator_repeat(bContext *C, wmOperator *op)
 	return wm_operator_exec(C, op, true, true);
 }
 /**
+ * Execute this operator again interactively
+ * without using #PROP_SKIP_SAVE properties, see: T60777.
+ */
+int WM_operator_repeat_interactive(bContext *C, wmOperator *op)
+{
+	IDProperty *properties = op->properties ? IDP_New(IDP_GROUP, &(IDPropertyTemplate){0}, "wmOperatorProperties") : NULL;
+	PointerRNA *ptr = MEM_dupallocN(op->ptr);
+
+	SWAP(IDProperty *, op->properties, properties);
+	SWAP(PointerRNA *, op->ptr, ptr);
+	if (op->ptr) {
+		op->ptr->data = op->properties;
+	}
+
+	/* Use functionality to initialize from previous execution to avoid re-using PROP_SKIP_SAVE. */
+	if (properties) {
+		WM_operator_last_properties_init_ex(op, properties);
+	}
+
+	int retval = wm_operator_exec(C, op, true, true);
+
+	SWAP(IDProperty *, op->properties, properties);
+	SWAP(PointerRNA *, op->ptr, ptr);
+
+	if (properties) {
+		IDP_FreeProperty(properties);
+		MEM_freeN(properties);
+	}
+	if (ptr) {
+		MEM_freeN(ptr);
+	}
+
+	return retval;
+}
+
+/**
  * \return true if #WM_operator_repeat can run
  * simple check for now but may become more involved.
  * To be sure the operator can run call `WM_operator_poll(C, op->type)` also, since this call
@@ -1226,19 +1262,24 @@ static bool operator_last_properties_init_impl(wmOperator *op, IDProperty *last_
 	return changed;
 }
 
-bool WM_operator_last_properties_init(wmOperator *op)
+bool WM_operator_last_properties_init_ex(wmOperator *op, IDProperty *last_properties)
 {
 	bool changed = false;
-	if (op->type->last_properties) {
-		changed |= operator_last_properties_init_impl(op, op->type->last_properties);
+	if (last_properties) {
+		changed |= operator_last_properties_init_impl(op, last_properties);
 		for (wmOperator *opm = op->macro.first; opm; opm = opm->next) {
-			IDProperty *idp_src = IDP_GetPropertyFromGroup(op->type->last_properties, opm->idname);
+			IDProperty *idp_src = IDP_GetPropertyFromGroup(last_properties, opm->idname);
 			if (idp_src) {
 				changed |= operator_last_properties_init_impl(opm, idp_src);
 			}
 		}
 	}
 	return changed;
+}
+
+bool WM_operator_last_properties_init(wmOperator *op)
+{
+	return WM_operator_last_properties_init_ex(op, op->type->last_properties);
 }
 
 bool WM_operator_last_properties_store(wmOperator *op)
@@ -1271,6 +1312,11 @@ bool WM_operator_last_properties_store(wmOperator *op)
 }
 
 #else
+
+bool WM_operator_last_properties_init_ex(wmOperator *UNUSED(op), IDProperty *UNUSED(last_properties))
+{
+	return false;
+}
 
 bool WM_operator_last_properties_init(wmOperator *UNUSED(op))
 {
@@ -3675,7 +3721,7 @@ static int convert_key(GHOST_TKey key)
 	}
 }
 
-static void wm_eventemulation(wmEvent *event)
+static void wm_eventemulation(wmEvent *event, bool test_only)
 {
 	/* Store last mmb/rmb event value to make emulation work when modifier keys
 	 * are released first. This really should be in a data structure somewhere. */
@@ -3688,13 +3734,19 @@ static void wm_eventemulation(wmEvent *event)
 			if (event->val == KM_PRESS && event->alt) {
 				event->type = MIDDLEMOUSE;
 				event->alt = 0;
-				emulating_event = MIDDLEMOUSE;
+
+				if (!test_only) {
+					emulating_event = MIDDLEMOUSE;
+				}
 			}
 #ifdef __APPLE__
 			else if (event->val == KM_PRESS && event->oskey) {
 				event->type = RIGHTMOUSE;
 				event->oskey = 0;
-				emulating_event = RIGHTMOUSE;
+
+				if (!test_only) {
+					emulating_event = RIGHTMOUSE;
+				}
 			}
 #endif
 			else if (event->val == KM_RELEASE) {
@@ -3707,7 +3759,10 @@ static void wm_eventemulation(wmEvent *event)
 					event->type = RIGHTMOUSE;
 					event->oskey = 0;
 				}
-				emulating_event = EVENT_NONE;
+
+				if (!test_only) {
+					emulating_event = EVENT_NONE;
+				}
 			}
 		}
 
@@ -3990,7 +4045,7 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 			else
 				event.type = MIDDLEMOUSE;
 
-			wm_eventemulation(&event);
+			wm_eventemulation(&event, false);
 
 			/* copy previous state to prev event state (two old!) */
 			evt->prevval = evt->val;
@@ -4050,7 +4105,7 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 			memcpy(event.utf8_buf, kd->utf8_buf, sizeof(event.utf8_buf)); /* might be not null terminated*/
 			event.val = (type == GHOST_kEventKeyDown) ? KM_PRESS : KM_RELEASE;
 
-			wm_eventemulation(&event);
+			wm_eventemulation(&event, false);
 
 			/* copy previous state to prev event state (two old!) */
 			evt->prevval = evt->val;
@@ -4628,7 +4683,7 @@ void WM_window_cursor_keymap_status_refresh(bContext *C, wmWindow *win)
 		wmEvent test_event = *win->eventstate;
 		test_event.type = event_data[data_index].event_type;
 		test_event.val = event_data[data_index].event_value;
-		wm_eventemulation(&test_event);
+		wm_eventemulation(&test_event, true);
 		wmKeyMapItem *kmi = NULL;
 		for (int handler_index = 0; handler_index < ARRAY_SIZE(handlers); handler_index++) {
 			kmi = wm_kmi_from_event(C, wm, handlers[handler_index], &test_event);
