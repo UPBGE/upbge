@@ -175,10 +175,9 @@ KX_TextureRenderScheduleList KX_TextureRendererManager::ScheduleRenderer(RAS_Ras
 				viewpoint->SetVisible(visible, false);
 			};
 
-			renderer->EndRender(rasty, layer);
-
 			textures.push_back(textureSchedule);
 		}
+		renderer->EndRender(rasty, layer);
 	}
 
 	return textures;
