@@ -1097,6 +1097,8 @@ void BKE_texpaint_slot_refresh_cache(Scene *scene, Material *ma)
 	if (!ma)
 		return;
 
+	DEG_id_tag_update(&ma->id, ID_RECALC_SHADING);
+
 	if (ma->texpaintslot) {
 		MEM_freeN(ma->texpaintslot);
 		ma->tot_slots = 0;

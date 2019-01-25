@@ -940,7 +940,9 @@ static void wm_operator_finished(bContext *C, wmOperator *op, const bool repeat,
 }
 
 /* if repeat is true, it doesn't register again, nor does it free */
-static int wm_operator_exec(bContext *C, wmOperator *op, const bool repeat, const bool store)
+static int wm_operator_exec(
+        bContext *C, wmOperator *op,
+        const bool repeat, const bool use_repeat_op_flag, const bool store)
 {
 	wmWindowManager *wm = CTX_wm_manager(C);
 	int retval = OPERATOR_CANCELLED;
@@ -958,12 +960,12 @@ static int wm_operator_exec(bContext *C, wmOperator *op, const bool repeat, cons
 			wm->op_undo_depth++;
 		}
 
-		if (repeat) {
+		if (repeat && use_repeat_op_flag) {
 			op->flag |= OP_IS_REPEAT;
 		}
 		retval = op->type->exec(C, op);
 		OPERATOR_RETVAL_CHECK(retval);
-		if (repeat) {
+		if (repeat && use_repeat_op_flag) {
 			op->flag &= ~OP_IS_REPEAT;
 		}
 
@@ -1015,7 +1017,7 @@ static int wm_operator_exec_notest(bContext *C, wmOperator *op)
 int WM_operator_call_ex(bContext *C, wmOperator *op,
                         const bool store)
 {
-	return wm_operator_exec(C, op, false, store);
+	return wm_operator_exec(C, op, false, false, store);
 }
 
 int WM_operator_call(bContext *C, wmOperator *op)
@@ -1038,44 +1040,12 @@ int WM_operator_call_notest(bContext *C, wmOperator *op)
  */
 int WM_operator_repeat(bContext *C, wmOperator *op)
 {
-	return wm_operator_exec(C, op, true, true);
+	return wm_operator_exec(C, op, true, true, true);
 }
-/**
- * Execute this operator again interactively
- * without using #PROP_SKIP_SAVE properties, see: T60777.
- */
 int WM_operator_repeat_interactive(bContext *C, wmOperator *op)
 {
-	IDProperty *properties = op->properties ? IDP_New(IDP_GROUP, &(IDPropertyTemplate){0}, "wmOperatorProperties") : NULL;
-	PointerRNA *ptr = MEM_dupallocN(op->ptr);
-
-	SWAP(IDProperty *, op->properties, properties);
-	SWAP(PointerRNA *, op->ptr, ptr);
-	if (op->ptr) {
-		op->ptr->data = op->properties;
-	}
-
-	/* Use functionality to initialize from previous execution to avoid re-using PROP_SKIP_SAVE. */
-	if (properties) {
-		WM_operator_last_properties_init_ex(op, properties);
-	}
-
-	int retval = wm_operator_exec(C, op, true, true);
-
-	SWAP(IDProperty *, op->properties, properties);
-	SWAP(PointerRNA *, op->ptr, ptr);
-
-	if (properties) {
-		IDP_FreeProperty(properties);
-		MEM_freeN(properties);
-	}
-	if (ptr) {
-		MEM_freeN(ptr);
-	}
-
-	return retval;
+	return wm_operator_exec(C, op, true, false, true);
 }
-
 /**
  * \return true if #WM_operator_repeat can run
  * simple check for now but may become more involved.
@@ -1262,24 +1232,19 @@ static bool operator_last_properties_init_impl(wmOperator *op, IDProperty *last_
 	return changed;
 }
 
-bool WM_operator_last_properties_init_ex(wmOperator *op, IDProperty *last_properties)
+bool WM_operator_last_properties_init(wmOperator *op)
 {
 	bool changed = false;
-	if (last_properties) {
-		changed |= operator_last_properties_init_impl(op, last_properties);
+	if (op->type->last_properties) {
+		changed |= operator_last_properties_init_impl(op, op->type->last_properties);
 		for (wmOperator *opm = op->macro.first; opm; opm = opm->next) {
-			IDProperty *idp_src = IDP_GetPropertyFromGroup(last_properties, opm->idname);
+			IDProperty *idp_src = IDP_GetPropertyFromGroup(op->type->last_properties, opm->idname);
 			if (idp_src) {
 				changed |= operator_last_properties_init_impl(opm, idp_src);
 			}
 		}
 	}
 	return changed;
-}
-
-bool WM_operator_last_properties_init(wmOperator *op)
-{
-	return WM_operator_last_properties_init_ex(op, op->type->last_properties);
 }
 
 bool WM_operator_last_properties_store(wmOperator *op)
@@ -1312,11 +1277,6 @@ bool WM_operator_last_properties_store(wmOperator *op)
 }
 
 #else
-
-bool WM_operator_last_properties_init_ex(wmOperator *UNUSED(op), IDProperty *UNUSED(last_properties))
-{
-	return false;
-}
 
 bool WM_operator_last_properties_init(wmOperator *UNUSED(op))
 {

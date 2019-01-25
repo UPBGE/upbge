@@ -283,10 +283,6 @@ class PARTICLE_PT_emission(ParticleButtonsPanel, Panel):
             col.prop(part, "hair_length")
             col.prop(part, "hair_step")
 
-            if not part.use_advanced_hair:
-                col.prop(part, "use_modifier_stack")
-                return
-
         if part.type != 'HAIR':
 
             col = layout.column()
@@ -321,7 +317,6 @@ class PARTICLE_PT_emission_source(ParticleButtonsPanel, Panel):
         if part.emit_from == 'VERT':
             col.prop(part, "use_emit_random", text="Random Order")
         elif part.distribution == 'GRID':
-            col.label(text="Grid")
             col.prop(part, "invert_grid")
             col.prop(part, "hexagonal_grid")
         else:
@@ -1265,7 +1260,6 @@ class PARTICLE_PT_render_extra(ParticleButtonsPanel, Panel):
 class PARTICLE_PT_render_line(ParticleButtonsPanel, Panel):
     bl_label = "Line"
     bl_parent_id = "PARTICLE_PT_render"
-    bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
 
     @classmethod
@@ -1291,7 +1285,6 @@ class PARTICLE_PT_render_line(ParticleButtonsPanel, Panel):
 class PARTICLE_PT_render_path(ParticleButtonsPanel, Panel):
     bl_label = "Path"
     bl_parent_id = "PARTICLE_PT_render"
-    bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
 
     @classmethod
@@ -1355,7 +1348,6 @@ class PARTICLE_PT_render_path_timing(ParticleButtonsPanel, Panel):
 class PARTICLE_PT_render_object(ParticleButtonsPanel, Panel):
     bl_label = "Object"
     bl_parent_id = "PARTICLE_PT_render"
-    bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
 
     @classmethod
@@ -1381,7 +1373,6 @@ class PARTICLE_PT_render_object(ParticleButtonsPanel, Panel):
 class PARTICLE_PT_render_collection(ParticleButtonsPanel, Panel):
     bl_label = "Collection"
     bl_parent_id = "PARTICLE_PT_render"
-    bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
 
     @classmethod
@@ -1397,7 +1388,7 @@ class PARTICLE_PT_render_collection(ParticleButtonsPanel, Panel):
 
         col = layout.column()
 
-        col.prop(part, "instance_collection")
+        col.prop(part, "instance_collection", text="Instance Collection")
 
         col.prop(part, "use_whole_collection")
         sub = col.column()
