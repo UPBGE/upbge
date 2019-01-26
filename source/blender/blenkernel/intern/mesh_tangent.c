@@ -38,11 +38,9 @@
 
 #include "BLI_utildefines.h"
 #include "BLI_math.h"
-#include "BLI_stack.h"
 #include "BLI_task.h"
 
 #include "BKE_customdata.h"
-#include "BKE_global.h"
 #include "BKE_mesh.h"
 #include "BKE_mesh_tangent.h"
 #include "BKE_mesh_runtime.h"
@@ -55,7 +53,6 @@
 
 
 /* -------------------------------------------------------------------- */
-
 /** \name Mesh Tangent Calculations (Single Layer)
  * \{ */
 
@@ -204,7 +201,6 @@ void BKE_mesh_calc_loop_tangent_single(Mesh *mesh, const char *uvmap, float (*r_
 
 
 /* -------------------------------------------------------------------- */
-
 /** \name Mesh Tangent Calculations (All Layers)
  * \{ */
 

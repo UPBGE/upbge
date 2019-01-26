@@ -37,8 +37,6 @@
 #include "BLI_threads.h"
 #include "BLI_jitter_2d.h"
 
-#include "BIF_gl.h"
-#include "BIF_glutil.h"
 
 #include "BKE_camera.h"
 #include "BKE_collection.h"
@@ -1376,7 +1374,6 @@ void view3d_main_region_draw(const bContext *C, ARegion *ar)
 }
 
 /* -------------------------------------------------------------------- */
-
 /** \name Offscreen Drawing
  * \{ */
 

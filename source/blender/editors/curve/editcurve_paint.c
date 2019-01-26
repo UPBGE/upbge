@@ -34,7 +34,6 @@
 #include "BKE_context.h"
 #include "BKE_curve.h"
 #include "BKE_fcurve.h"
-#include "BKE_main.h"
 #include "BKE_report.h"
 #include "BKE_layer.h"
 
@@ -48,7 +47,6 @@
 #include "ED_view3d.h"
 #include "ED_curve.h"
 
-#include "BIF_gl.h"
 
 #include "GPU_batch.h"
 #include "GPU_batch_presets.h"
@@ -80,7 +78,6 @@
 #define STROKE_CYCLIC_DIST_PX     8
 
 /* -------------------------------------------------------------------- */
-
 /** \name StrokeElem / #RNA_OperatorStrokeElement Conversion Functions
  * \{ */
 
@@ -300,7 +297,6 @@ static bool stroke_elem_project_fallback_elem(
 
 
 /* -------------------------------------------------------------------- */
-
 /** \name Operator/Stroke Conversion
  * \{ */
 
@@ -354,7 +350,6 @@ static void curve_draw_stroke_from_operator(wmOperator *op)
 
 
 /* -------------------------------------------------------------------- */
-
 /** \name Operator Callbacks & Helpers
  * \{ */
 

@@ -30,18 +30,14 @@
 
 #include "BLI_mempool.h"
 
-#include "BIF_glutil.h"
 
 #include "BKE_global.h"
-#include "BKE_object.h"
 
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
 #include "intern/gpu_shader_private.h"
 
 #ifdef USE_GPU_SELECT
-#  include "ED_view3d.h"
-#  include "ED_armature.h"
 #  include "GPU_select.h"
 #endif
 
@@ -58,7 +54,6 @@ void DRW_select_load_id(uint id)
 struct GPUUniformBuffer *view_ubo;
 
 /* -------------------------------------------------------------------- */
-
 /** \name Draw State (DRW_state)
  * \{ */
 
@@ -466,7 +461,6 @@ void DRW_state_clip_planes_set_from_rv3d(RegionView3D *rv3d)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-
 /** \name Clipping (DRW_clipping)
  * \{ */
 
@@ -765,7 +759,6 @@ void DRW_culling_frustum_planes_get(float planes[6][4])
 /** \} */
 
 /* -------------------------------------------------------------------- */
-
 /** \name Draw (DRW_draw)
  * \{ */
 

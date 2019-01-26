@@ -35,7 +35,6 @@
 #include "BLI_utildefines.h"
 #include "BLI_math_vector.h"
 #include "BLI_math_bits.h"
-#include "BLI_math_color.h"
 #include "BLI_string.h"
 #include "BLI_alloca.h"
 #include "BLI_edgehash.h"
@@ -43,7 +42,6 @@
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
-#include "DNA_space_types.h"
 #include "DNA_scene_types.h"
 
 #include "BKE_customdata.h"
@@ -54,23 +52,16 @@
 #include "BKE_mesh.h"
 #include "BKE_mesh_tangent.h"
 #include "BKE_mesh_runtime.h"
-#include "BKE_object.h"
 #include "BKE_object_deform.h"
-#include "BKE_colorband.h"
-#include "BKE_cdderivedmesh.h"
 
-#include "DEG_depsgraph_query.h"
 
 #include "bmesh.h"
 
 #include "GPU_batch.h"
-#include "GPU_batch_presets.h"
-#include "GPU_draw.h"
 #include "GPU_material.h"
 
 #include "DRW_render.h"
 
-#include "ED_image.h"
 #include "ED_mesh.h"
 #include "ED_uvedit.h"
 
@@ -99,7 +90,6 @@ enum {
 };
 
 /* ---------------------------------------------------------------------- */
-
 /** \name Mesh/BMesh Interface (direct access to basic data).
  * \{ */
 
@@ -137,7 +127,6 @@ static int UNUSED_FUNCTION(mesh_render_loops_len_get)(Mesh *me)
 
 
 /* ---------------------------------------------------------------------- */
-
 /** \name Mesh/BMesh Interface (indirect, partially cached access to complex data).
  * \{ */
 
@@ -1135,7 +1124,6 @@ static MeshRenderData *mesh_render_data_create(Mesh *me, const int types)
 /** \} */
 
 /* ---------------------------------------------------------------------- */
-
 /** \name Accessor Functions
  * \{ */
 
@@ -1483,7 +1471,6 @@ fallback:
 /** \} */
 
 /* ---------------------------------------------------------------------- */
-
 /** \name Internal Cache Generation
  * \{ */
 
@@ -1925,7 +1912,6 @@ static bool add_edit_facedot_mapped(
 /** \} */
 
 /* ---------------------------------------------------------------------- */
-
 /** \name Vertex Group Selection
  * \{ */
 
@@ -2001,7 +1987,6 @@ static void drw_mesh_weight_state_extract(
 /** \} */
 
 /* ---------------------------------------------------------------------- */
-
 /** \name Mesh GPUBatch Cache
  * \{ */
 
@@ -4381,7 +4366,6 @@ static void mesh_create_edit_loops_tris(MeshRenderData *rdata, GPUIndexBuf *ibo)
 
 
 /* ---------------------------------------------------------------------- */
-
 /** \name Public API
  * \{ */
 
@@ -4578,7 +4562,6 @@ GPUBatch *DRW_mesh_batch_cache_get_surface_vertpaint(Mesh *me)
 /** \} */
 
 /* ---------------------------------------------------------------------- */
-
 /** \name Edit Mode selection API
  * \{ */
 
@@ -4609,7 +4592,6 @@ GPUBatch *DRW_mesh_batch_cache_get_verts_with_select_id(Mesh *me)
 /** \} */
 
 /* ---------------------------------------------------------------------- */
-
 /** \name UV Image editor API
  * \{ */
 
@@ -4978,7 +4960,6 @@ static void mesh_create_uvedit_buffers(
 
 
 /* ---------------------------------------------------------------------- */
-
 /** \name Grouped batch generation
  * \{ */
 

@@ -39,7 +39,6 @@
 
 #include "GPU_batch.h"
 
-#include "DRW_render.h"
 
 #include "draw_cache_impl.h"  /* own include */
 
@@ -150,7 +149,6 @@ static GPUVertBuf *mball_batch_cache_get_pos_and_normals(Object *ob, MetaBallBat
 }
 
 /* -------------------------------------------------------------------- */
-
 /** \name Public Object/MetaBall API
  * \{ */
 

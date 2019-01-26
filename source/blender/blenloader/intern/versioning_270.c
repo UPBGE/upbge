@@ -64,7 +64,6 @@
 #include "BKE_colortools.h"
 #include "BKE_fcurve.h"
 #include "BKE_gpencil.h"
-#include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_mask.h"
 #include "BKE_modifier.h"

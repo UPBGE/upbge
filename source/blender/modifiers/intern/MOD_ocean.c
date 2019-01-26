@@ -41,9 +41,7 @@
 #include "BLI_task.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_global.h"
 #include "BKE_library.h"
-#include "BKE_main.h"
 #include "BKE_mesh.h"
 #include "BKE_modifier.h"
 #include "BKE_ocean.h"

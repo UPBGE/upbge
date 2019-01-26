@@ -30,35 +30,22 @@
 #include <string.h>
 #include <math.h>
 
-#include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_screen_types.h"
 #include "DNA_view3d_types.h"
 #include "DNA_object_types.h"
 
 #include "DRW_render.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_math.h"
-#include "BLI_dlrbTree.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_animsys.h"
-#include "BKE_action.h"
 #include "BKE_armature.h"
-#include "BKE_global.h"
-#include "BKE_modifier.h"
-#include "BKE_nla.h"
-#include "BKE_curve.h"
 
-#include "BIF_gl.h"
 
 #include "ED_armature.h"
-#include "ED_keyframes_draw.h"
 
-#include "GPU_select.h"
 
 #include "UI_resources.h"
 
@@ -131,7 +118,6 @@ static struct {
 
 
 /* -------------------------------------------------------------------- */
-
 /** \name Shader Groups (DRW_shgroup)
  * \{ */
 
@@ -472,7 +458,6 @@ static void drw_shgroup_bone_ik_spline_lines(const float start[3], const float e
 
 
 /* -------------------------------------------------------------------- */
-
 /** \name Drawing Theme Helpers
  *
  * Note, this section is duplicate of code in 'drawarmature.c'.
@@ -739,7 +724,6 @@ static bool set_pchan_color(short colCode, const int boneflag, const short const
 
 
 /* -------------------------------------------------------------------- */
-
 /** \name Drawing Color Helpers
  * \{ */
 
@@ -894,7 +878,6 @@ static const float *get_bone_hint_color(
 
 
 /* -------------------------------------------------------------------- */
-
 /** \name Helper Utils
  * \{ */
 
@@ -1266,7 +1249,6 @@ static void draw_points(
 
 
 /* -------------------------------------------------------------------- */
-
 /** \name Draw Bones
  * \{ */
 
@@ -1494,7 +1476,6 @@ static void draw_bone_octahedral(
 
 
 /* -------------------------------------------------------------------- */
-
 /** \name Draw Degrees of Freedom
  * \{ */
 
@@ -1571,7 +1552,6 @@ static void draw_bone_dofs(bPoseChannel *pchan)
 
 
 /* -------------------------------------------------------------------- */
-
 /** \name Draw Relationships
  * \{ */
 
@@ -1694,7 +1674,6 @@ static void draw_bone_relations(
 /** \} */
 
 /* -------------------------------------------------------------------- */
-
 /** \name Main Draw Loops
  * \{ */
 

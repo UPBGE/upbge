@@ -39,9 +39,7 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_math.h"
 #include "BLI_listbase.h"
-#include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
@@ -377,11 +375,6 @@ static int gpencil_edit_modifier_poll_generic(bContext *C, StructRNA *rna_type, 
 {
 	PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", rna_type);
 	Object *ob = (ptr.id.data) ? ptr.id.data : ED_object_active_context(C);
-
-	if (!ptr.data) {
-		CTX_wm_operator_poll_msg_set(C, "Context missing 'modifier'");
-		return 0;
-	}
 
 	if (!ob || ID_IS_LINKED(ob)) return 0;
 	if (obtype_flag && ((1 << ob->type) & obtype_flag) == 0) return 0;

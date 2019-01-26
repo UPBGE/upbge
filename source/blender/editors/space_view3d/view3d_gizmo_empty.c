@@ -23,7 +23,6 @@
  */
 
 
-#include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 
@@ -51,7 +50,6 @@
 #include "view3d_intern.h"  /* own include */
 
 /* -------------------------------------------------------------------- */
-
 /** \name Empty Image Gizmos
  * \{ */
 

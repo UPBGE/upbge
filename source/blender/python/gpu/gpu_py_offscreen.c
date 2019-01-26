@@ -36,7 +36,6 @@
 
 #include "BLI_utildefines.h"
 
-#include "BKE_global.h"
 #include "BKE_library.h"
 #include "BKE_scene.h"
 
@@ -81,7 +80,6 @@ static int bpygpu_offscreen_valid_check(BPyGPUOffScreen *bpygpu_ofs)
 
 
 /* -------------------------------------------------------------------- */
-
 /** \name GPUOffscreen Type
  * \{ */
 
@@ -355,7 +353,6 @@ PyTypeObject BPyGPUOffScreen_Type = {
 
 
 /* -------------------------------------------------------------------- */
-
 /** \name Public API
  * \{ */
 

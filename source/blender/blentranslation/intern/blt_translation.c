@@ -38,11 +38,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_fileops.h"
-#include "BLI_path_util.h"
-#include "BLI_string.h"
-#include "BLI_threads.h"
-
 #include "DNA_userdef_types.h" /* For user settings. */
 
 #ifdef WITH_PYTHON
@@ -50,7 +45,8 @@
 #endif
 
 #ifdef WITH_INTERNATIONAL
-#include "boost_locale_wrapper.h"
+#  include "BLI_threads.h"
+#  include "boost_locale_wrapper.h"
 #endif  /* WITH_INTERNATIONAL */
 
 bool BLT_is_default_context(const char *msgctxt)

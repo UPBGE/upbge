@@ -101,7 +101,6 @@
 
 
 /* -------------------------------------------------------------------- */
-
 /** \name Utility String Parsing
  * \{ */
 
@@ -433,7 +432,6 @@ static void arg_py_context_restore(
 /** \} */
 
 /* -------------------------------------------------------------------- */
-
 /** \name Handle Argument Callbacks
  *
  * \note Doc strings here are used in differently:

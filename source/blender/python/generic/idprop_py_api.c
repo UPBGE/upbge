@@ -30,7 +30,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_utildefines.h"
-#include "BLI_string.h"
 
 #include "idprop_py_api.h"
 
@@ -649,7 +648,6 @@ static IDProperty *idp_from_PyObject(PyObject *name_obj, PyObject *ob)
 }
 
 /* -------------------------------------------------------------------------- */
-
 /**
  * \note group can be a pointer array or a group.
  * assume we already checked key is a string.

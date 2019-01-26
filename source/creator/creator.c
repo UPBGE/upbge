@@ -138,7 +138,6 @@ struct ApplicationState app_state = {
 };
 
 /* -------------------------------------------------------------------- */
-
 /** \name Application Level Callbacks
  *
  * Initialize callbacks for the modules that need them.
@@ -194,9 +193,7 @@ static void callback_clg_fatal(void *fp)
 /** \} */
 
 
-
 /* -------------------------------------------------------------------- */
-
 /** \name Main Function
  * \{ */
 

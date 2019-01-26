@@ -39,14 +39,11 @@
 
 #include "BLI_utildefines.h"
 #include "BLI_math.h"
-#include "BLI_listbase.h"
 
 #include "BKE_object.h"
 #include "BKE_paint.h"
-#include "BKE_object_deform.h"
 
 #include "GPU_batch.h"
-#include "GPU_batch_presets.h"
 #include "GPU_batch_utils.h"
 
 #include "MEM_guardedalloc.h"
@@ -148,7 +145,6 @@ void DRW_shape_cache_reset(void)
 }
 
 /* -------------------------------------------------------------------- */
-
 /** \name Helper functions
  * \{ */
 
@@ -389,7 +385,6 @@ GPUBatch *DRW_cache_sphere_get(void)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-
 /** \name Common
  * \{ */
 
@@ -670,7 +665,6 @@ GPUBatch *DRW_cache_gpencil_axes_get(void)
 
 
 /* -------------------------------------------------------------------- */
-
 /** \name Common Object API
 * \{ */
 
@@ -784,7 +778,6 @@ GPUBatch **DRW_cache_object_surface_material_get(
 
 
 /* -------------------------------------------------------------------- */
-
 /** \name Empties
  * \{ */
 
@@ -1309,7 +1302,6 @@ GPUBatch *DRW_cache_field_cone_limit_get(void)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-
 /** \name Lamps
  * \{ */
 
@@ -1727,7 +1719,6 @@ GPUBatch *DRW_cache_lamp_spot_square_volume_get(void)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-
 /** \name Speaker
  * \{ */
 
@@ -1791,7 +1782,6 @@ GPUBatch *DRW_cache_speaker_get(void)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-
 /** \name Probe
  * \{ */
 
@@ -1932,7 +1922,6 @@ GPUBatch *DRW_cache_lightprobe_planar_get(void)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-
 /** \name Armature Bones
  * \{ */
 
@@ -2825,7 +2814,6 @@ GPUBatch *DRW_cache_bone_dof_lines_get(void)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-
 /** \name Camera
  * \{ */
 
@@ -2971,7 +2959,6 @@ GPUBatch *DRW_cache_camera_tria_get(void)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-
 /** \name Object Mode Helpers
  * \{ */
 
@@ -3001,7 +2988,6 @@ GPUBatch *DRW_cache_single_vert_get(void)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-
 /** \name Meshes
  * \{ */
 
@@ -3094,7 +3080,6 @@ void DRW_cache_mesh_sculpt_coords_ensure(Object *ob)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-
 /** \name Curve
  * \{ */
 
@@ -3193,7 +3178,6 @@ GPUBatch **DRW_cache_curve_surface_shaded_get(
 /** \} */
 
 /* -------------------------------------------------------------------- */
-
 /** \name MetaBall
  * \{ */
 
@@ -3220,7 +3204,6 @@ GPUBatch **DRW_cache_mball_surface_shaded_get(
 /** \} */
 
 /* -------------------------------------------------------------------- */
-
 /** \name Font
  * \{ */
 
@@ -3301,7 +3284,6 @@ GPUBatch **DRW_cache_text_surface_shaded_get(
 /** \} */
 
 /* -------------------------------------------------------------------- */
-
 /** \name Surface
  * \{ */
 
@@ -3376,7 +3358,6 @@ GPUBatch **DRW_cache_surf_surface_shaded_get(
 /** \} */
 
 /* -------------------------------------------------------------------- */
-
 /** \name Lattice
  * \{ */
 
@@ -3413,7 +3394,6 @@ GPUBatch *DRW_cache_lattice_vert_overlay_get(Object *ob)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-
 /** \name Particles
  * \{ */
 
@@ -3681,7 +3661,6 @@ GPUBatch *DRW_cache_cursor_get(bool crosshair_lines)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-
 /** \name Batch Cache Impl. common
  * \{ */
 

@@ -916,29 +916,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
 				sce->gm.flag |= GAME_SHOW_DEBUG_PROPS;
 			if (fd->fileflags & G_FILE_SHOW_FRAMERATE)
 				sce->gm.flag |= GAME_SHOW_FRAMERATE;
-			if (fd->fileflags & G_FILE_SHOW_PHYSICS)
-				sce->gm.flag |= GAME_SHOW_PHYSICS;
-			if (fd->fileflags & G_FILE_GLSL_NO_SHADOWS)
-				sce->gm.flag |= GAME_GLSL_NO_SHADOWS;
-			if (fd->fileflags & G_FILE_GLSL_NO_SHADERS)
-				sce->gm.flag |= GAME_GLSL_NO_SHADERS;
-			if (fd->fileflags & G_FILE_GLSL_NO_RAMPS)
-				sce->gm.flag |= GAME_GLSL_NO_RAMPS;
-			if (fd->fileflags & G_FILE_GLSL_NO_NODES)
-				sce->gm.flag |= GAME_GLSL_NO_NODES;
-			if (fd->fileflags & G_FILE_GLSL_NO_EXTRA_TEX)
-				sce->gm.flag |= GAME_GLSL_NO_EXTRA_TEX;
-			if (fd->fileflags & G_FILE_GLSL_NO_ENV_LIGHTING)
-				sce->gm.flag |= GAME_GLSL_NO_ENV_LIGHTING;
-			if (fd->fileflags & G_FILE_IGNORE_DEPRECATION_WARNINGS)
-				sce->gm.flag |= GAME_IGNORE_DEPRECATION_WARNINGS;
-
-			if (fd->fileflags & G_FILE_GAME_MAT_GLSL)
-				sce->gm.matmode = GAME_MAT_GLSL;
-			else if (fd->fileflags & G_FILE_GAME_MAT)
-				sce->gm.matmode = GAME_MAT_MULTITEX;
-			else
-				sce->gm.matmode = GAME_MAT_TEXFACE;
+			sce->gm.matmode = GAME_MAT_GLSL;
 		}
 
 		for (ob = bmain->object.first; ob; ob = ob->id.next) {

@@ -31,10 +31,8 @@
 #include "DNA_material_types.h"
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
 #include "BLI_string_utils.h"
 #include "BLI_threads.h"
-#include "BLI_task.h"
 
 #include "BKE_global.h"
 #include "BKE_main.h"
@@ -58,7 +56,6 @@ extern char datatoc_common_fullscreen_vert_glsl[];
 #define USE_DEFERRED_COMPILATION 1
 
 /* -------------------------------------------------------------------- */
-
 /** \name Deferred Compilation (DRW_deferred)
  *
  * Since compiling shader can take a long time, we do it in a non blocking
