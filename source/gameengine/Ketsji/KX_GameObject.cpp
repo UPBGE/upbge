@@ -266,23 +266,19 @@ void KX_GameObject::TagForUpdate()
 	}
 	Object *ob = GetBlenderObject();
 	if (ob) {
+		copy_m4_m4(ob->obmat, obmat);
+		invert_m4_m4(ob->imat, obmat);
 		/* NORMAL CASE */
 		if (!staticObject && ob->type != OB_MBALL) {
-			copy_m4_m4(ob->obmat, obmat);
-			invert_m4_m4(ob->imat, obmat);
 			DEG_id_tag_update(&ob->id, NC_OBJECT | ND_TRANSFORM);
 			DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);
 		}
 		/* SPECIAL CASE: EXPERIMENTAL -> TEST METABALLS (incomplete) (TODO restore elems position at ge exit) */
 		else if (!staticObject && ob->type == OB_MBALL) {
 			if (!BKE_mball_is_basis(ob)) {
-				copy_m4_m4(ob->obmat, obmat);
-				invert_m4_m4(ob->imat, obmat);
 				DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
 			}
 			else {
-				copy_m4_m4(ob->obmat, obmat);
-				invert_m4_m4(ob->imat, obmat);
 				DEG_id_tag_update(&ob->id, NC_OBJECT | ND_TRANSFORM);
 				DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);
 			}
