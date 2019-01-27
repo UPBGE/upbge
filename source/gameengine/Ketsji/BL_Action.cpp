@@ -531,14 +531,6 @@ void BL_Action::Update(float curtime, bool applyToObject)
 				}
 			}
 		}
-
-		// TEST METABALLS (WRONG CODE BUT JUST FOR TESTING PURPOSES
-		/* To test metaballs, add 1 metaball, then duplicate it. Add keyframes
-		 * on "duplicated metaball HANDLE", then put an ACTION logic brick
-		 * on "duplicated metaball HANDLE" and press P */
-		if (ob->type == OB_MBALL) {
-			DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-		}
 		//BL_DeformableGameObject *obj = (BL_DeformableGameObject*)m_obj;
 		//BL_ShapeDeformer *shape_deformer = dynamic_cast<BL_ShapeDeformer*>(obj->GetDeformer());
 
