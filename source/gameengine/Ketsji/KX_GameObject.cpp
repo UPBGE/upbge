@@ -197,6 +197,9 @@ KX_GameObject::~KX_GameObject()
 	else { // at scene exit
 		RestoreOriginalMesh(); // we restore original mesh in the case we modified it during runtime
 		RemoveReplicaObject();
+		if (ob && ob->type == OB_MBALL) {
+			DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+		}
 	}
 
 	/* END OF EEVEE INTEGRATION */
