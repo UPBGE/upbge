@@ -117,7 +117,7 @@ int EEVEE_motion_blur_init(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data *veda
 
 	if (scene_eval->eevee.flag & SCE_EEVEE_MOTION_BLUR_ENABLED) {
 		/* Update Motion Blur Matrices */
-		if (camera) {
+		if (camera && !DRW_state_is_game_engine()) {
 			float persmat[4][4];
 			float ctime = DEG_get_ctime(draw_ctx->depsgraph);
 			float delta = scene_eval->eevee.motion_blur_shutter;
@@ -166,6 +166,26 @@ int EEVEE_motion_blur_init(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data *veda
 				return EFFECT_MOTION_BLUR | EFFECT_POST_BUFFER;
 			}
 		}
+		/* Game engine transition hack */
+		else if (DRW_state_is_game_engine()) {
+			float persmat[4][4];
+
+			/* Viewport Matrix */
+			DRW_viewport_matrix_get(persmat, DRW_MAT_PERS);
+
+			/* Only continue if camera is not being keyed */
+			if (!compare_m4m4(persmat, effects->prev_persmat, 0.01f)) {
+				copy_m4_m4(effects->past_world_to_ndc, effects->prev_persmat);
+				invert_m4_m4(effects->current_ndc_to_world, persmat);
+				effects->motion_blur_samples = scene_eval->eevee.motion_blur_samples;
+
+				if (!e_data.motion_blur_sh) {
+					EEVEE_create_shader_motion_blur();
+				}
+				return EFFECT_MOTION_BLUR | EFFECT_POST_BUFFER;
+			}
+		}
+		/* Game engine transition hack END */
 	}
 
 	return 0;
