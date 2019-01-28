@@ -35,11 +35,13 @@
 #include "GPU_vertex_format.h"
 
 #define VRAM_USAGE 1
-/* How to create a GPUVertBuf: */
-/* 1) verts = GPU_vertbuf_create() or GPU_vertbuf_init(verts) */
-/* 2) GPU_vertformat_attr_add(verts->format, ...) */
-/* 3) GPU_vertbuf_data_alloc(verts, vertex_len) <-- finalizes/packs vertex format */
-/* 4) GPU_vertbuf_attr_fill(verts, pos, application_pos_buffer) */
+/**
+ * How to create a #GPUVertBuf:
+ * 1) verts = GPU_vertbuf_create() or GPU_vertbuf_init(verts)
+ * 2) GPU_vertformat_attr_add(verts->format, ...)
+ * 3) GPU_vertbuf_data_alloc(verts, vertex_len) <-- finalizes/packs vertex format
+ * 4) GPU_vertbuf_attr_fill(verts, pos, application_pos_buffer)
+ */
 
 /* Is GPUVertBuf always used as part of a GPUBatch? */
 
@@ -79,10 +81,10 @@ void GPU_vertbuf_data_alloc(GPUVertBuf *, uint v_len);
 void GPU_vertbuf_data_resize(GPUVertBuf *, uint v_len);
 void GPU_vertbuf_data_len_set(GPUVertBuf *, uint v_len);
 
-/* The most important set_attrib variant is the untyped one. Get it right first. */
-/* It takes a void* so the app developer is responsible for matching their app data types */
-/* to the vertex attribute's type and component count. They're in control of both, so this */
-/* should not be a problem. */
+/* The most important #set_attr variant is the untyped one. Get it right first.
+ * It takes a void* so the app developer is responsible for matching their app data types
+ * to the vertex attribute's type and component count. They're in control of both, so this
+ * should not be a problem. */
 
 void GPU_vertbuf_attr_set(GPUVertBuf *, uint a_idx, uint v_idx, const void *data);
 void GPU_vertbuf_attr_fill(GPUVertBuf *, uint a_idx, const void *data); /* tightly packed, non interleaved input data */
@@ -116,17 +118,6 @@ GPU_INLINE uint GPU_vertbuf_raw_used(GPUVertBufRaw *a)
 }
 
 void GPU_vertbuf_attr_get_raw_data(GPUVertBuf *, uint a_idx, GPUVertBufRaw *access);
-
-/* TODO: decide whether to keep the functions below */
-/* doesn't immediate mode satisfy these needs? */
-
-/*	void setAttrib1f(uint a_idx, uint v_idx, float x); */
-/*	void setAttrib2f(uint a_idx, unsigned v_idx, float x, float y); */
-/*	void setAttrib3f(unsigned a_idx, unsigned v_idx, float x, float y, float z); */
-/*	void setAttrib4f(unsigned a_idx, unsigned v_idx, float x, float y, float z, float w); */
-
-/*	void setAttrib3ub(unsigned a_idx, unsigned v_idx, unsigned char r, unsigned char g, unsigned char b); */
-/*	void setAttrib4ub(unsigned a_idx, unsigned v_idx, unsigned char r, unsigned char g, unsigned char b, unsigned char a); */
 
 void GPU_vertbuf_use(GPUVertBuf *);
 

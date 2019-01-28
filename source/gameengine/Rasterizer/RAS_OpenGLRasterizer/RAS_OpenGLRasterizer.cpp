@@ -273,24 +273,6 @@ void RAS_OpenGLRasterizer::DrawOverlayPlane()
 	m_screenPlane.Render();
 }
 
-// Code for hooking into Blender's mesh drawing for derived meshes.
-// If/when we use more of Blender's drawing code, we may be able to
-// clean this up
-static int current_blmat_nr;
-static GPUVertexAttribs current_gpu_attribs;
-static int CheckMaterialDM(int matnr, void *attribs)
-{
-	// only draw the current material
-	if (matnr != current_blmat_nr) {
-		return 0;
-	}
-	GPUVertexAttribs *gattribs = (GPUVertexAttribs *)attribs;
-	if (gattribs) {
-		memcpy(gattribs, &current_gpu_attribs, sizeof(GPUVertexAttribs));
-	}
-	return 1;
-}
-
 void RAS_OpenGLRasterizer::SetViewport(int x, int y, int width, int height)
 {
 	glViewport(x, y, width, height);
