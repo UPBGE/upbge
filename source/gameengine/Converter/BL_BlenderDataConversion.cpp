@@ -1120,6 +1120,13 @@ static KX_GameObject *gameobject_from_blenderobject(
 		break;
 	}
 
+	case OB_SURF:
+	{
+		gameobj = new KX_EmptyObject(kxscene, KX_Scene::m_callbacks);
+		// set transformation
+		break;
+	}
+
 	case OB_FONT:
 	{
 		bool do_color_management = BKE_scene_check_color_management_enabled(blenderscene);
