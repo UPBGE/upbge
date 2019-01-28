@@ -66,28 +66,28 @@
 
 #include "../depsgraph/DEG_depsgraph.h" // For bge (EvaluationContext)
 
-struct rcti;
-struct bContext;
-struct GPUFrameBuffer;
-struct GPUShader;
-struct GPUMaterial;
-struct GPUTexture;
-struct GPUUniformBuffer;
-struct Object;
-struct GPUBatch;
+struct DRWTextStore;
 struct DefaultFramebufferList;
 struct DefaultTextureList;
-struct DRWTextStore;
+struct GPUBatch;
+struct GPUFrameBuffer;
+struct GPUMaterial;
+struct GPUShader;
+struct GPUTexture;
+struct GPUUniformBuffer;
 struct LampEngineData;
+struct Object;
 struct ParticleSystem;
 struct RenderEngineType;
 struct ViewportEngineData;
 struct ViewportEngineData_Info;
+struct bContext;
+struct rcti;
 
-typedef struct DRWUniform DRWUniform;
 typedef struct DRWInterface DRWInterface;
 typedef struct DRWPass DRWPass;
 typedef struct DRWShadingGroup DRWShadingGroup;
+typedef struct DRWUniform DRWUniform;
 
 /* TODO Put it somewhere else? */
 typedef struct BoundSphere {

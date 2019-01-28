@@ -34,13 +34,13 @@
 #include "BLI_listbase.h" // For bge
 #include "DNA_object_types.h" // For bge
 
-struct Object;
 struct Material;
 struct EEVEE_BoundSphere;
 struct EEVEE_ShadowCasterBuffer;
+struct GPUFrameBuffer;
+struct Object;
 struct RenderLayer;
 struct RenderResult;
-struct GPUFrameBuffer;
 
 extern struct DrawEngineType draw_engine_eevee_type;
 

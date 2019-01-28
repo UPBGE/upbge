@@ -36,11 +36,11 @@ extern "C" {
 #include "BLI_compiler_attrs.h"
 
 struct Base;
+struct BoundBox;
 struct Depsgraph;
 struct GpencilModifierData;
-struct Scene;
-struct ShaderFxData;
-struct ViewLayer;
+struct HookGpencilModifierData;
+struct HookModifierData;
 struct ID;
 struct Object;
 struct BoundBox;
@@ -50,11 +50,16 @@ struct BulletSoftBody;
 struct MovieClip;
 struct Main;
 struct Mesh;
-struct RigidBodyWorld;
-struct HookModifierData;
 struct ModifierData;
-struct HookGpencilModifierData;
+struct MovieClip;
+struct Object;
 struct RegionView3D;
+struct RigidBodyWorld;
+struct Scene;
+struct ShaderFxData;
+struct SoftBody;
+struct View3D;
+struct ViewLayer;
 
 #include "DNA_object_enums.h"
 

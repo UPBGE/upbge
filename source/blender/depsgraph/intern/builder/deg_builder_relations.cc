@@ -1622,7 +1622,7 @@ void DepsgraphRelationBuilder::build_rigidbody(Scene *scene)
 	add_relation(time_src_key, init_key, "TimeSrc -> Rigidbody Reset/Rebuild (Optional)");
 
 	/* objects - simulation participants */
-	if (rbw->group) {
+	if (rbw->group != NULL) {
 		build_collection(NULL, NULL, rbw->group);
 
 		FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN(rbw->group, object)
@@ -1684,9 +1684,8 @@ void DepsgraphRelationBuilder::build_rigidbody(Scene *scene)
 		}
 		FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
 	}
-
-	/* constraints */
-	if (rbw->constraints) {
+	/* Constraints. */
+	if (rbw->constraints != NULL) {
 		FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN(rbw->constraints, object)
 		{
 			RigidBodyCon *rbc = object->rigidbody_constraint;
@@ -1694,19 +1693,19 @@ void DepsgraphRelationBuilder::build_rigidbody(Scene *scene)
 				/* When either ob1 or ob2 is NULL, the constraint doesn't work. */
 				continue;
 			}
-
-			/* final result of the constraint object's transform controls how the
-			 * constraint affects the physics sim for these objects
-			 */
+			/* Make sure indirectly linked objects are fully built. */
+			build_object(NULL, object);
+			build_object(NULL, rbc->ob1);
+			build_object(NULL, rbc->ob2);
+			/* final result of the constraint object's transform controls how
+			 * the constraint affects the physics sim for these objects. */
 			ComponentKey trans_key(&object->id, DEG_NODE_TYPE_TRANSFORM);
 			OperationKey ob1_key(&rbc->ob1->id, DEG_NODE_TYPE_TRANSFORM, DEG_OPCODE_RIGIDBODY_TRANSFORM_COPY);
 			OperationKey ob2_key(&rbc->ob2->id, DEG_NODE_TYPE_TRANSFORM, DEG_OPCODE_RIGIDBODY_TRANSFORM_COPY);
-
-			/* - constrained-objects sync depends on the constraint-holder */
+			/* Constrained-objects sync depends on the constraint-holder. */
 			add_relation(trans_key, ob1_key, "RigidBodyConstraint -> RBC.Object_1");
 			add_relation(trans_key, ob2_key, "RigidBodyConstraint -> RBC.Object_2");
-
-			/* - ensure that sim depends on this constraint's transform */
+			/* Ensure that sim depends on this constraint's transform. */
 			add_relation(trans_key, sim_key, "RigidBodyConstraint Transform -> RB Simulation");
 		}
 		FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
@@ -1868,6 +1867,14 @@ void DepsgraphRelationBuilder::build_particle_settings(ParticleSettings *part)
 		             particle_settings_reset_key,
 		             "Particle Texture",
 		             DEPSREL_FLAG_FLUSH_USER_EDIT_ONLY);
+		/* TODO(sergey): Consider moving texture space handling to an own
+		 * function. */
+		if (mtex->texco == TEXCO_OBJECT && mtex->object != NULL) {
+			ComponentKey object_key(&mtex->object->id, DEG_NODE_TYPE_TRANSFORM);
+			add_relation(object_key,
+			             particle_settings_eval_key,
+			             "Particle Texture Space");
+		}
 	}
 	if (check_id_has_anim_component(&part->id)) {
 		ComponentKey animation_key(&part->id, DEG_NODE_TYPE_ANIMATION);
