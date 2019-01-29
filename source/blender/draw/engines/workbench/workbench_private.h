@@ -45,7 +45,7 @@
 #define M_GOLDEN_RATION_CONJUGATE 0.618033988749895
 #define MAX_COMPOSITE_SHADERS (1 << 6)
 #define MAX_PREPASS_SHADERS (1 << 7)
-#define MAX_ACCUM_SHADERS (1 << 4)
+#define MAX_ACCUM_SHADERS (1 << 5)
 #define MAX_CAVITY_SHADERS (1 << 3)
 
 #define TEXTURE_DRAWING_ENABLED(wpd) (wpd->shading.color_type == V3D_SHADING_TEXTURE_COLOR)
@@ -61,6 +61,8 @@
 #define CAVITY_ENABLED(wpd) (CURVATURE_ENABLED(wpd) || SSAO_ENABLED(wpd))
 #define SHADOW_ENABLED(wpd) (wpd->shading.flag & V3D_SHADING_SHADOW)
 #define GHOST_ENABLED(psl) (!DRW_pass_is_empty(psl->ghost_prepass_pass) || !DRW_pass_is_empty(psl->ghost_prepass_hair_pass))
+#define CULL_BACKFACE_ENABLED(wpd) ((wpd->shading.flag & V3D_SHADING_BACKFACE_CULLING) != 0)
+#define OIT_ENABLED(wpd) (wpd->shading.color_type == V3D_SHADING_MATERIAL_COLOR)
 
 #define IS_NAVIGATING(wpd) ((DRW_context_state_get()->rv3d) && (DRW_context_state_get()->rv3d->rflag & RV3D_NAVIGATING))
 #define FXAA_ENABLED(wpd) ((!DRW_state_is_opengl_render()) && \
@@ -108,6 +110,8 @@ typedef struct WORKBENCH_FramebufferList {
 } WORKBENCH_FramebufferList;
 
 typedef struct WORKBENCH_TextureList {
+	struct GPUTexture *dof_source_tx;
+	struct GPUTexture *coc_halfres_tx;
 	struct GPUTexture *history_buffer_tx;
 	struct GPUTexture *depth_buffer_tx;
 } WORKBENCH_TextureList;
@@ -133,11 +137,13 @@ typedef struct WORKBENCH_PassList {
 	struct DRWPass *shadow_depth_fail_caps_mani_pass;
 	struct DRWPass *composite_pass;
 	struct DRWPass *composite_shadow_pass;
+	struct DRWPass *oit_composite_pass;
 	struct DRWPass *background_pass;
 	struct DRWPass *background_pass_clip;
 	struct DRWPass *ghost_resolve_pass;
 	struct DRWPass *effect_aa_pass;
 	struct DRWPass *dof_down_ps;
+	struct DRWPass *dof_down2_ps;
 	struct DRWPass *dof_flatten_v_ps;
 	struct DRWPass *dof_flatten_h_ps;
 	struct DRWPass *dof_dilate_h_ps;
@@ -187,6 +193,7 @@ BLI_STATIC_ASSERT_ALIGN(WORKBENCH_UBO_World, 16)
 
 typedef struct WORKBENCH_PrivateData {
 	struct GHash *material_hash;
+	struct GHash *material_transp_hash;
 	struct GPUShader *prepass_solid_sh;
 	struct GPUShader *prepass_solid_hair_sh;
 	struct GPUShader *prepass_texture_sh;
@@ -205,6 +212,8 @@ typedef struct WORKBENCH_PrivateData {
 	struct DRWShadingGroup *depth_shgrp;
 	WORKBENCH_UBO_World world_data;
 	float shadow_multiplier;
+	float shadow_shift;
+	float shadow_focus;
 	float cached_shadow_direction[3];
 	float shadow_mat[4][4];
 	float shadow_inv[4][4];
@@ -235,9 +244,7 @@ typedef struct WORKBENCH_PrivateData {
 	float ssao_settings[4];
 
 	/* Dof */
-	struct GPUTexture *half_res_col_tx;
 	struct GPUTexture *dof_blur_tx;
-	struct GPUTexture *coc_halfres_tx;
 	struct GPUTexture *coc_temp_tx;
 	struct GPUTexture *coc_tiles_tx[2];
 	struct GPUUniformBuffer *dof_ubo;
@@ -316,6 +323,12 @@ void workbench_forward_cache_init(WORKBENCH_Data *vedata);
 void workbench_forward_cache_populate(WORKBENCH_Data *vedata, Object *ob);
 void workbench_forward_cache_finish(WORKBENCH_Data *vedata);
 
+/* For OIT in deferred */
+void workbench_forward_outline_shaders_ensure(WORKBENCH_PrivateData *wpd);
+void workbench_forward_choose_shaders(WORKBENCH_PrivateData *wpd);
+WORKBENCH_MaterialData *workbench_forward_get_or_create_material_data(
+        WORKBENCH_Data *vedata, Object *ob, Material *mat, Image *ima, int color_type, int interp);
+
 /* workbench_effect_aa.c */
 void workbench_aa_create_pass(WORKBENCH_Data *vedata, GPUTexture **tx);
 void workbench_aa_draw_pass(WORKBENCH_Data *vedata, GPUTexture *tx);
@@ -337,7 +350,7 @@ int workbench_taa_calculate_num_iterations(WORKBENCH_Data *vedata);
 /* workbench_effect_dof.c */
 void workbench_dof_engine_init(WORKBENCH_Data *vedata, Object *camera);
 void workbench_dof_engine_free(void);
-void workbench_dof_create_pass(WORKBENCH_Data *vedata, GPUTexture **dof_input);
+void workbench_dof_create_pass(WORKBENCH_Data *vedata, GPUTexture **dof_input, GPUTexture *noise_tex);
 void workbench_dof_draw_pass(WORKBENCH_Data *vedata);
 
 /* workbench_materials.c */

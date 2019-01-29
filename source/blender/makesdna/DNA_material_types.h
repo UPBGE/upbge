@@ -162,7 +162,8 @@ typedef struct Material {
 	float gloss_mir  DNA_DEPRECATED;
 	float roughness;
 	float metallic;
-	float pad4[2];
+	float transparency;
+	float pad4;
 	struct GameSettings game;
 
 	/* Ror buttons and render. */

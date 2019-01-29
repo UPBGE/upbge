@@ -1252,12 +1252,12 @@ static void OBJECT_cache_init(void *vedata)
 		sgl->camera_focus = shgroup_instance(sgl->non_meshes, geom, draw_ctx->shader_slot);
 
 		geom = DRW_cache_single_line_get();
-		sgl->camera_clip = shgroup_distance_lines_instance(sgl->non_meshes, geom);
-		sgl->camera_mist = shgroup_distance_lines_instance(sgl->non_meshes, geom);
+		sgl->camera_clip = shgroup_distance_lines_instance(sgl->non_meshes, geom, draw_ctx->shader_slot);
+		sgl->camera_mist = shgroup_distance_lines_instance(sgl->non_meshes, geom, draw_ctx->shader_slot);
 
 		geom = DRW_cache_single_line_endpoints_get();
-		sgl->camera_clip_points = shgroup_distance_lines_instance(sgl->non_meshes, geom);
-		sgl->camera_mist_points = shgroup_distance_lines_instance(sgl->non_meshes, geom);
+		sgl->camera_clip_points = shgroup_distance_lines_instance(sgl->non_meshes, geom, draw_ctx->shader_slot);
+		sgl->camera_mist_points = shgroup_distance_lines_instance(sgl->non_meshes, geom, draw_ctx->shader_slot);
 
 		geom = DRW_cache_quad_get();
 		sgl->camera_stereo_plane = shgroup_instance_alpha(sgl->non_meshes, geom, draw_ctx->shader_slot);
@@ -1310,7 +1310,7 @@ static void OBJECT_cache_init(void *vedata)
 
 		/* start with buflimit because we don't want stipples */
 		geom = DRW_cache_single_line_get();
-		sgl->lamp_buflimit = shgroup_distance_lines_instance(sgl->non_meshes, geom);
+		sgl->lamp_buflimit = shgroup_distance_lines_instance(sgl->non_meshes, geom, draw_ctx->shader_slot);
 
 		sgl->lamp_center = shgroup_dynpoints_uniform_color(sgl->non_meshes, gb->colorLampNoAlpha, &gb->sizeLampCenter, draw_ctx->shader_slot);
 
@@ -1322,8 +1322,8 @@ static void OBJECT_cache_init(void *vedata)
 		geom = DRW_cache_lamp_sunrays_get();
 		sgl->lamp_sunrays = shgroup_instance_screenspace(sgl->non_meshes, geom, &gb->sizeLampCircle, draw_ctx->shader_slot);
 
-		sgl->lamp_groundline = shgroup_groundlines_uniform_color(sgl->non_meshes, gb->colorLamp);
-		sgl->lamp_groundpoint = shgroup_groundpoints_uniform_color(sgl->non_meshes, gb->colorLamp);
+		sgl->lamp_groundline = shgroup_groundlines_uniform_color(sgl->non_meshes, gb->colorLamp, draw_ctx->shader_slot);
+		sgl->lamp_groundpoint = shgroup_groundpoints_uniform_color(sgl->non_meshes, gb->colorLamp, draw_ctx->shader_slot);
 
 		geom = DRW_cache_screenspace_circle_get();
 		sgl->lamp_area_sphere = shgroup_instance_screen_aligned(sgl->non_meshes, geom, draw_ctx->shader_slot);
@@ -1338,13 +1338,13 @@ static void OBJECT_cache_init(void *vedata)
 		sgl->lamp_hemi = shgroup_instance(sgl->non_meshes, geom, draw_ctx->shader_slot);
 
 		geom = DRW_cache_single_line_get();
-		sgl->lamp_distance = shgroup_distance_lines_instance(sgl->non_meshes, geom);
+		sgl->lamp_distance = shgroup_distance_lines_instance(sgl->non_meshes, geom, draw_ctx->shader_slot);
 
 		geom = DRW_cache_single_line_endpoints_get();
-		sgl->lamp_buflimit_points = shgroup_distance_lines_instance(sgl->non_meshes, geom);
+		sgl->lamp_buflimit_points = shgroup_distance_lines_instance(sgl->non_meshes, geom, draw_ctx->shader_slot);
 
 		geom = DRW_cache_lamp_spot_get();
-		sgl->lamp_spot_cone = shgroup_spot_instance(sgl->non_meshes, geom);
+		sgl->lamp_spot_cone = shgroup_spot_instance(sgl->non_meshes, geom, draw_ctx->shader_slot);
 
 		geom = DRW_cache_circle_get();
 		sgl->lamp_spot_blend = shgroup_instance(sgl->non_meshes, geom, draw_ctx->shader_slot);
@@ -1905,7 +1905,7 @@ static void DRW_shgroup_camera(OBJECT_ShadingGroupList *sgl, Object *ob, ViewLay
 	normalize_m4_m4(cam->drwnormalmat, ob->obmat);
 
 	if (cam->flag & CAM_SHOWLIMITS) {
-		static float col[3] = {0.5f, 0.5f, 0.25f}, col_hi[3] = {1.0f, 1.0f, 0.5f};
+		static float col[4] = {0.5f, 0.5f, 0.25f, 1.0f}, col_hi[4] = {1.0f, 1.0f, 0.5f, 1.0f};
 		float sizemat[4][4], size[3] = {1.0f, 1.0f, 0.0f};
 		float focusdist = BKE_camera_object_dof_distance(ob);
 
@@ -1930,7 +1930,7 @@ static void DRW_shgroup_camera(OBJECT_ShadingGroupList *sgl, Object *ob, ViewLay
 		World *world = scene->world;
 
 		if (world) {
-			static float col[3] = {0.5f, 0.5f, 0.5f}, col_hi[3] = {1.0f, 1.0f, 1.0f};
+			static float col[4] = {0.5f, 0.5f, 0.5f, 1.0f}, col_hi[4] = {1.0f, 1.0f, 1.0f, 1.0f};
 			world->mistend = world->miststa + world->mistdist;
 			DRW_shgroup_call_dynamic_add(
 			        sgl->camera_mist, color,
