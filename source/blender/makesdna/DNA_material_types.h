@@ -153,7 +153,7 @@ typedef struct Material {
 	short flag, pad1[7];
 
 	/* Colors from Blender Internal that we are still using. */
-	float r, g, b;
+	float r, g, b, a;
 	float specr, specg, specb;
 	float alpha DNA_DEPRECATED;
 	float ray_mirror  DNA_DEPRECATED;
@@ -162,7 +162,6 @@ typedef struct Material {
 	float gloss_mir  DNA_DEPRECATED;
 	float roughness;
 	float metallic;
-	float transparency;
 	float pad4;
 	struct GameSettings game;
 
