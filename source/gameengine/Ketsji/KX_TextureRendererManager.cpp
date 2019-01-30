@@ -177,6 +177,7 @@ KX_TextureRenderScheduleList KX_TextureRendererManager::ScheduleRenderer(RAS_Ras
 
 			textures.push_back(textureSchedule);
 		}
+		renderer->EndRender(rasty, layer);
 	}
 
 	return textures;
