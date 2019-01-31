@@ -656,15 +656,11 @@ bool ED_object_editmode_enter(bContext *C, int flag)
 {
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
-	ViewLayer *view_layer = CTX_data_view_layer(C);
 	Object *ob;
 
-	if ((flag & EM_IGNORE_LAYER) == 0) {
-		ob = CTX_data_active_object(C); /* active layer checked here for view3d */
-	}
-	else {
-		ob = view_layer->basact->object;
-	}
+	/* Active layer checked here for view3d,
+	 * callers that don't want view context can call the extended version. */
+	ob = CTX_data_active_object(C);
 	if ((ob == NULL) || ID_IS_LINKED(ob)) {
 		return false;
 	}

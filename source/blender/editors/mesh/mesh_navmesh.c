@@ -44,6 +44,7 @@
 #include "BKE_library.h"
 #include "BKE_context.h"
 #include "BKE_mesh.h"
+#include "BKE_main.h"
 #include "BKE_scene.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_report.h"
@@ -338,6 +339,8 @@ static Object *createRepresentation(bContext *C, struct recast_polyMesh *pmesh, 
 	unsigned short *v;
 	int face[3];
 	ViewLayer *view_layer = CTX_data_view_layer(C);
+	Main *bmain = CTX_data_main(C);
+	Scene *scene = CTX_data_scene(C);
 	Object *obedit;
 	int createob = base == NULL;
 	int nverts, nmeshes, nvp;
@@ -361,7 +364,7 @@ static Object *createRepresentation(bContext *C, struct recast_polyMesh *pmesh, 
 		copy_v3_v3(obedit->rot, rot);
 	}
 
-	ED_object_editmode_enter(C, EM_IGNORE_LAYER);
+	ED_object_editmode_enter_ex(bmain, scene, obedit, 0);
 	em = BKE_editmesh_from_object(obedit);
 
 	if (!createob) {

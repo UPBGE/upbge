@@ -46,6 +46,7 @@
 
 #include "ED_paint.h"
 #include "ED_undo.h"
+#include "ED_util.h"
 
 #include "GPU_draw.h"
 
@@ -345,10 +346,10 @@ static void image_undo_restore_list(ListBase *lb, struct UndoIDPtrMap *id_map)
 
 static void image_undo_free_list(ListBase *lb)
 {
-	UndoImageTile *tile;
-
-	for (tile = lb->first; tile; tile = tile->next) {
+	for (UndoImageTile *tile = lb->first, *tile_next; tile; tile = tile_next) {
+		tile_next = tile->next;
 		MEM_freeN(tile->rect.pt);
+		MEM_freeN(tile);
 	}
 }
 
@@ -436,7 +437,7 @@ static void image_undosys_step_encode_init(struct bContext *UNUSED(C), UndoStep 
 	BLI_listbase_clear(&us->tiles);
 }
 
-static bool image_undosys_step_encode(struct bContext *UNUSED(C), UndoStep *us_p)
+static bool image_undosys_step_encode(struct bContext *UNUSED(C), struct Main *UNUSED(bmain), UndoStep *us_p)
 {
 	/* dummy, encoding is done along the way by adding tiles
 	 * to the current 'ImageUndoStep' added by encode_init. */
@@ -466,13 +467,16 @@ static bool image_undosys_step_encode(struct bContext *UNUSED(C), UndoStep *us_p
 	return true;
 }
 
-static void image_undosys_step_decode(struct bContext *UNUSED(C), UndoStep *us_p, int UNUSED(dir))
+static void image_undosys_step_decode(struct bContext *UNUSED(C), struct Main *bmain, UndoStep *us_p, int UNUSED(dir))
 {
 	ImageUndoStep *us = (ImageUndoStep *)us_p;
 #if 0
 	paint_undosys_step_decode_restore_ids(us);
 #endif
 	image_undo_restore_list(&us->tiles, us->id_map);
+
+	/* Refresh texture slots. */
+	ED_editors_init_for_undo(bmain);
 }
 
 static void image_undosys_step_free(UndoStep *us_p)
