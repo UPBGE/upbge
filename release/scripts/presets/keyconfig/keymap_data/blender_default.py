@@ -1061,6 +1061,8 @@ def km_view3d(params):
         op_panel("VIEW3D_PT_snapping", {"type": 'TAB', "value": 'PRESS', "shift": True, "ctrl": True}, [("keep_open", False)]),
         ("object.transform_axis_target", {"type": 'T', "value": 'PRESS', "shift": True}, None),
         ("transform.skin_resize", {"type": 'A', "value": 'PRESS', "ctrl": True}, None),
+        # Game start
+        ("view3d.game_start", {"type": 'P', "value": 'PRESS'}, None),
     ])
 
     if params.apple:
