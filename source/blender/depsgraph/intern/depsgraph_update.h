@@ -24,29 +24,21 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file depsgraph/intern/nodes/deg_node_time.h
+/** \file blender/depsgraph/intern/depsgraph_update.h
  *  \ingroup depsgraph
  */
 
 #pragma once
 
-#include "intern/nodes/deg_node.h"
+struct DEGEditorUpdateContext;
+struct ID;
 
 namespace DEG {
 
-/* Time Source Node. */
-struct TimeSourceDepsNode : public DepsNode {
-	/* New "current time". */
-	float cfra;
+void deg_editors_id_update(const DEGEditorUpdateContext *update_ctx,
+                           struct ID *id);
 
-	/* time-offset relative to the "official" time source that this one has. */
-	float offset;
-
-	// TODO: evaluate() operation needed
-
-	virtual void tag_update(Depsgraph *graph, eDepsTag_Source source) override;
-
-	DEG_DEPSNODE_DECLARE;
-};
+void deg_editors_scene_update(const DEGEditorUpdateContext *update_ctx,
+                              bool updated);
 
 }  // namespace DEG

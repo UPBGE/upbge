@@ -41,16 +41,14 @@ public:
 	~BuilderMap();
 
 	/* Check whether given ID is already handled by builder (or if it's being
-	 * handled).
-	 */
+	 * handled). */
 	bool checkIsBuilt(ID *id);
 
 	/* Tag given ID as handled/built. */
 	void tagBuild(ID *id);
 
 	/* Combination of previous two functions, returns truth if ID was already
-	 * handled, or tags is handled otherwise and return false.
-	 */
+	 * handled, or tags is handled otherwise and return false. */
 	bool checkIsBuiltAndTag(ID *id);
 
 	template<typename T> bool checkIsBuilt(T *datablock) {

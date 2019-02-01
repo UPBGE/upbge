@@ -35,23 +35,20 @@
 
 #include "intern/depsgraph.h"
 
-#include "intern/nodes/deg_node.h"
-#include "intern/nodes/deg_node_component.h"
-#include "intern/nodes/deg_node_id.h"
-#include "intern/nodes/deg_node_operation.h"
-
-#include "util/deg_util_foreach.h"
+#include "intern/node/deg_node.h"
+#include "intern/node/deg_node_component.h"
+#include "intern/node/deg_node_id.h"
+#include "intern/node/deg_node_operation.h"
 
 namespace DEG {
 
 void deg_eval_stats_aggregate(Depsgraph *graph)
 {
 	/* Reset current evaluation stats for ID and component nodes.
-	 * Those are not filled in by the evaluation engine.
-	 */
-	foreach (DepsNode *node, graph->id_nodes) {
-		IDDepsNode *id_node = (IDDepsNode *)node;
-		GHASH_FOREACH_BEGIN(ComponentDepsNode *, comp_node, id_node->components)
+	 * Those are not filled in by the evaluation engine. */
+	for (Node *node : graph->id_nodes) {
+		IDNode *id_node = (IDNode *)node;
+		GHASH_FOREACH_BEGIN(ComponentNode *, comp_node, id_node->components)
 		{
 			comp_node->stats.reset_current();
 		}
@@ -59,9 +56,9 @@ void deg_eval_stats_aggregate(Depsgraph *graph)
 		id_node->stats.reset_current();
 	}
 	/* Now accumulate operation timings to components and IDs. */
-	foreach (OperationDepsNode *op_node, graph->operations) {
-		ComponentDepsNode *comp_node = op_node->owner;
-		IDDepsNode *id_node = comp_node->owner;
+	for (OperationNode *op_node : graph->operations) {
+		ComponentNode *comp_node = op_node->owner;
+		IDNode *id_node = comp_node->owner;
 		id_node->stats.current_time += op_node->stats.current_time;
 		comp_node->stats.current_time += op_node->stats.current_time;
 	}

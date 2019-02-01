@@ -54,8 +54,7 @@ protected:
 	 * - Values are "sets" (const char *) - not dynamically allocated.
 	 *
 	 * We don't use the C++ maps here, as it's more convenient to use
-	 * Blender's GHash and be able to compare by-value instead of by-ref.
-	 */
+	 * Blender's GHash and be able to compare by-value instead of by-ref. */
 	struct GHash *map_;
 };
 

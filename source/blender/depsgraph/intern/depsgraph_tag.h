@@ -15,19 +15,39 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2016 Blender Foundation.
+ * The Original Code is Copyright (C) 2019 Blender Foundation.
  * All rights reserved.
  *
  * Original Author: Sergey Sharybin
- * Contributor(s):
+ * Contributor(s): None Yet
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/depsgraph/util/deg_util_foreach.h
+/** \file blender/depsgraph/intern/depsgraph_tag.h
  *  \ingroup depsgraph
  */
 
-#pragma once
+#include "intern/node/deg_node.h"
 
-#define foreach(x, y) for(x : y)
+struct ID;
+struct Main;
+
+namespace DEG {
+
+struct Depsgraph;
+
+/* Get type of a node which corresponds to a ID_RECALC_GEOMETRY tag.  */
+NodeType geometry_tag_to_component(const ID *id);
+
+/* Tag given ID for an update in all registered dependency graphs. */
+void id_tag_update(Main *bmain, ID *id, int flag, eUpdateSource update_source);
+
+/* Tag given ID for an update with in a given dependency graph. */
+void graph_id_tag_update(Main *bmain,
+                         Depsgraph *graph,
+                         ID *id,
+                         int flag,
+                         eUpdateSource update_source);
+
+}  // namespace DEG

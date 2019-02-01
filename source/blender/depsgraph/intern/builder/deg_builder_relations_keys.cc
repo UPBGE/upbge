@@ -34,7 +34,7 @@
 
 namespace DEG {
 
-/////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 // Time source.
 
 TimeSourceKey::TimeSourceKey()
@@ -52,17 +52,17 @@ string TimeSourceKey::identifier() const
 	return string("TimeSourceKey");
 }
 
-/////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 // Component.
 
 ComponentKey::ComponentKey()
         : id(NULL),
-          type(DEG_NODE_TYPE_UNDEFINED),
+          type(NodeType::UNDEFINED),
           name("")
 {
 }
 
-ComponentKey::ComponentKey(ID *id, eDepsNode_Type type, const char *name)
+ComponentKey::ComponentKey(ID *id, NodeType type, const char *name)
         : id(id),
           type(type),
           name(name)
@@ -82,49 +82,49 @@ string ComponentKey::identifier() const
 	return result;
 }
 
-/////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 // Operation.
 
 OperationKey::OperationKey()
         : id(NULL),
-          component_type(DEG_NODE_TYPE_UNDEFINED),
+          component_type(NodeType::UNDEFINED),
           component_name(""),
-          opcode(DEG_OPCODE_OPERATION),
+          opcode(OperationCode::OPERATION),
           name(""),
           name_tag(-1)
 {
 }
 
 OperationKey::OperationKey(ID *id,
-                           eDepsNode_Type component_type,
+                           NodeType component_type,
                            const char *name,
                            int name_tag)
         : id(id),
           component_type(component_type),
           component_name(""),
-          opcode(DEG_OPCODE_OPERATION),
+          opcode(OperationCode::OPERATION),
           name(name),
           name_tag(name_tag)
 {
 }
 
 OperationKey::OperationKey(ID *id,
-                           eDepsNode_Type component_type,
+                           NodeType component_type,
                            const char *component_name,
                            const char *name,
                            int name_tag)
         : id(id),
           component_type(component_type),
           component_name(component_name),
-          opcode(DEG_OPCODE_OPERATION),
+          opcode(OperationCode::OPERATION),
           name(name),
           name_tag(name_tag)
 {
 }
 
 OperationKey::OperationKey(ID *id,
-                           eDepsNode_Type component_type,
-                           eDepsOperation_Code opcode)
+                           NodeType component_type,
+                           OperationCode opcode)
         : id(id),
           component_type(component_type),
           component_name(""),
@@ -135,9 +135,9 @@ OperationKey::OperationKey(ID *id,
 }
 
 OperationKey::OperationKey(ID *id,
-                           eDepsNode_Type component_type,
+                           NodeType component_type,
                            const char *component_name,
-                           eDepsOperation_Code opcode)
+                           OperationCode opcode)
         : id(id),
           component_type(component_type),
           component_name(component_name),
@@ -148,8 +148,8 @@ OperationKey::OperationKey(ID *id,
 }
 
 OperationKey::OperationKey(ID *id,
-                           eDepsNode_Type component_type,
-                           eDepsOperation_Code opcode,
+                           NodeType component_type,
+                           OperationCode opcode,
                            const char *name,
                            int name_tag)
         : id(id),
@@ -162,9 +162,9 @@ OperationKey::OperationKey(ID *id,
 }
 
 OperationKey::OperationKey(ID *id,
-                           eDepsNode_Type component_type,
+                           NodeType component_type,
                            const char *component_name,
-                           eDepsOperation_Code opcode,
+                           OperationCode opcode,
                            const char *name,
                            int name_tag)
         : id(id),
@@ -189,28 +189,33 @@ string OperationKey::identifier() const
 	return result;
 }
 
-/////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 // RNA path.
 
-RNAPathKey::RNAPathKey(ID *id, const PointerRNA &ptr, PropertyRNA *prop)
+RNAPathKey::RNAPathKey(ID *id, const char *path, RNAPointerSource source)
         : id(id),
-          ptr(ptr),
-          prop(prop)
+          source(source)
 {
-}
-
-RNAPathKey::RNAPathKey(ID *id, const char *path)
-        : id(id)
-{
-	/* create ID pointer for root of path lookup */
+	/* Create ID pointer for root of path lookup. */
 	PointerRNA id_ptr;
 	RNA_id_pointer_create(id, &id_ptr);
-	/* try to resolve path... */
+	/* Try to resolve path. */
 	int index;
-	if (!RNA_path_resolve_full(&id_ptr, path, &this->ptr, &this->prop, &index)) {
-		this->ptr = PointerRNA_NULL;
-		this->prop = NULL;
+	if (!RNA_path_resolve_full(&id_ptr, path, &ptr, &prop, &index)) {
+		ptr = PointerRNA_NULL;
+		prop = NULL;
 	}
+}
+
+RNAPathKey::RNAPathKey(ID *id,
+                       const PointerRNA &ptr,
+                       PropertyRNA *prop,
+                       RNAPointerSource source)
+        : id(id),
+          ptr(ptr),
+          prop(prop),
+          source(source)
+{
 }
 
 string RNAPathKey::identifier() const

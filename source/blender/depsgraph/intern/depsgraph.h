@@ -47,7 +47,7 @@
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_physics.h"
 
-#include "intern/depsgraph_types.h"
+#include "intern/depsgraph_type.h"
 
 struct GHash;
 struct GSet;
@@ -60,47 +60,60 @@ struct ViewLayer;
 
 namespace DEG {
 
-struct ComponentDepsNode;
-struct DepsNode;
-struct IDDepsNode;
-struct OperationDepsNode;
-struct TimeSourceDepsNode;
+struct ComponentNode;
+struct Node;
+struct IDNode;
+struct OperationNode;
+struct TimeSourceNode;
 
 /* *************************** */
 /* Relationships Between Nodes */
 
-/* Settings/Tags on Relationship */
-typedef enum eDepsRelation_Flag {
+/* Settings/Tags on Relationship.
+ * NOTE: Is a bitmask, allowing accumulation. */
+enum RelationFlag {
 	/* "cyclic" link - when detecting cycles, this relationship was the one
 	 * which triggers a cyclic relationship to exist in the graph. */
-	DEPSREL_FLAG_CYCLIC               = (1 << 0),
+	RELATION_FLAG_CYCLIC               = (1 << 0),
 	/* Update flush will not go through this relation. */
-	DEPSREL_FLAG_NO_FLUSH             = (1 << 1),
+	RELATION_FLAG_NO_FLUSH             = (1 << 1),
 	/* Only flush along the relation is update comes from a node which was
 	 * affected by user input. */
-	DEPSREL_FLAG_FLUSH_USER_EDIT_ONLY = (1 << 2),
+	RELATION_FLAG_FLUSH_USER_EDIT_ONLY = (1 << 2),
 	/* The relation can not be killed by the cyclic dependencies solver. */
-	DEPSREL_FLAG_GODMODE              = (1 << 3),
-} eDepsRelation_Flag;
+	RELATION_FLAG_GODMODE              = (1 << 3),
+	/* Relation will check existance before being added. */
+	RELATION_CHECK_BEFORE_ADD          = (1 << 4),
+};
 
 /* B depends on A (A -> B) */
-struct DepsRelation {
+struct Relation {
+	Relation(Node *from, Node *to, const char *description);
+	~Relation();
+
+	void unlink();
+
 	/* the nodes in the relationship (since this is shared between the nodes) */
-	DepsNode *from;               /* A */
-	DepsNode *to;                 /* B */
+	Node *from;               /* A */
+	Node *to;                 /* B */
 
 	/* relationship attributes */
 	const char *name;             /* label for debugging */
+	int flag;                     /* Bitmask of RelationFlag) */
+};
 
-	int flag;                     /* (eDepsRelation_Flag) */
-
-	DepsRelation(DepsNode *from,
-	             DepsNode *to,
-	             const char *description);
-
-	~DepsRelation();
-
-	void unlink();
+/* For queries which gives operation node or key defines whether we are
+ * interested in a result of the given property or whether we are linking some
+ * dependency to that property. */
+enum class RNAPointerSource {
+	/* Query will return pointer to an entry operation of component which is
+	 * responsible for evaluation of the given property. */
+	ENTRY,
+	/* Query will return pointer to an exit operation of component which is
+	 * responsible for evaluation of the given property.
+	 * More precisely, it will return operation at which the property is known
+	 * to be evaluated. */
+	EXIT,
 };
 
 /* ********* */
@@ -109,8 +122,8 @@ struct DepsRelation {
 /* Dependency Graph object */
 struct Depsgraph {
 	// TODO(sergey): Go away from C++ container and use some native BLI.
-	typedef vector<OperationDepsNode *> OperationNodes;
-	typedef vector<IDDepsNode *> IDDepsNodes;
+	typedef vector<OperationNode *> OperationNodes;
+	typedef vector<IDNode *> IDDepsNodes;
 
 	Depsgraph(Scene *scene,
 	          ViewLayer *view_layer,
@@ -125,41 +138,34 @@ struct Depsgraph {
 	 *              results in inner nodes being returned
 	 *
 	 * \return A node matching the required characteristics if it exists
-	 * or NULL if no such node exists in the graph
-	 */
-	DepsNode *find_node_from_pointer(const PointerRNA *ptr, const PropertyRNA *prop) const;
+	 * or NULL if no such node exists in the graph */
+	Node *find_node_from_pointer(const PointerRNA *ptr,
+	                                 const PropertyRNA *prop,
+	                                 RNAPointerSource source) const;
 
-	TimeSourceDepsNode *add_time_source();
-	TimeSourceDepsNode *find_time_source() const;
+	TimeSourceNode *add_time_source();
+	TimeSourceNode *find_time_source() const;
 
-	IDDepsNode *find_id_node(const ID *id) const;
-	IDDepsNode *add_id_node(ID *id, ID *id_cow_hint = NULL);
+	IDNode *find_id_node(const ID *id) const;
+	IDNode *add_id_node(ID *id, ID *id_cow_hint = NULL);
 	void clear_id_nodes();
 	void clear_id_nodes_conditional(const std::function <bool (ID_Type id_type)>& filter);
 
 	/* Add new relationship between two nodes. */
-	DepsRelation *add_new_relation(OperationDepsNode *from,
-	                               OperationDepsNode *to,
-	                               const char *description,
-	                               bool check_unique = false,
-	                               int flags = 0);
-
-	DepsRelation *add_new_relation(DepsNode *from,
-	                               DepsNode *to,
-	                               const char *description,
-	                               bool check_unique = false,
-	                               int flags = 0);
+	Relation *add_new_relation(Node *from,
+	                           Node *to,
+	                           const char *description,
+	                           int flags = 0);
 
 	/* Check whether two nodes are connected by relation with given
 	 * description. Description might be NULL to check ANY relation between
-	 * given nodes.
-	 */
-	DepsRelation *check_nodes_connected(const DepsNode *from,
-	                                    const DepsNode *to,
-	                                    const char *description);
+	 * given nodes. */
+	Relation *check_nodes_connected(const Node *from,
+	                                const Node *to,
+	                                const char *description);
 
 	/* Tag a specific node as needing updates. */
-	void add_entry_tag(OperationDepsNode *node);
+	void add_entry_tag(OperationNode *node);
 
 	/* Clear storage used by all nodes. */
 	void clear_all_nodes();
@@ -171,19 +177,17 @@ struct Depsgraph {
 
 	/* Core Graph Functionality ........... */
 
-	/* <ID : IDDepsNode> mapping from ID blocks to nodes representing these
-	 * blocks, used for quick lookups.
-	 */
+	/* <ID : IDNode> mapping from ID blocks to nodes representing these
+	 * blocks, used for quick lookups. */
 	GHash *id_hash;
 
 	/* Ordered list of ID nodes, order matches ID allocation order.
 	 * Used for faster iteration, especially for areas which are critical to
-	 * keep exact order of iteration.
-	 */
+	 * keep exact order of iteration. */
 	IDDepsNodes id_nodes;
 
 	/* Top-level time source node. */
-	TimeSourceDepsNode *time_source;
+	TimeSourceNode *time_source;
 
 	/* Indicates whether relations needs to be updated. */
 	bool need_update;
@@ -203,8 +207,7 @@ struct Depsgraph {
 	OperationNodes operations;
 
 	/* Spin lock for threading-critical operations.
-	 * Mainly used by graph evaluation.
-	 */
+	 * Mainly used by graph evaluation. */
 	SpinLock lock;
 
 	/* Scene, layer, mode this dependency graph is built for. */
@@ -216,8 +219,7 @@ struct Depsgraph {
 	float ctime;
 
 	/* Evaluated version of datablocks we access a lot.
-	 * Stored here to save us form doing hash lookup.
-	 */
+	 * Stored here to save us form doing hash lookup. */
 	Scene *scene_cow;
 
 	/* Active dependency graph is a dependency graph which is used by the
@@ -226,11 +228,10 @@ struct Depsgraph {
 	 * result and other selective things (object matrix?) to original object.
 	 *
 	 * This way we simplify operators, which don't need to worry about where
-	 * to read stuff from.
-	 */
+	 * to read stuff from. */
 	bool is_active;
 
-	/* NITE: Corresponds to G_DEBUG_DEPSGRAPH_* flags. */
+	/* NOTE: Corresponds to G_DEBUG_DEPSGRAPH_* flags. */
 	int debug_flags;
 	string debug_name;
 
