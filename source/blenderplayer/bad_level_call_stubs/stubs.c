@@ -247,6 +247,10 @@ bool BPY_string_is_keyword(const char *str) { return false; }
 /* -------------------------------------------------------------------- */
 /* Stubs */
 
+void CLG_logf(struct CLG_LogType *lg, enum CLG_Severity severity, const char *file_line, const char *fn, const char *format, ...) RET_NONE
+void CLG_logref_init(struct CLG_LogRef *clg_ref) RET_NONE
+void CLG_log_str(struct CLG_LogType *lg, enum CLG_Severity severity, const char *file_line, const char *fn,	const char *message) RET_NONE
+
 short compare_ak_cfraPtr(void *node, void *data) RET_ZERO
 void agroup_to_keylist(struct AnimData *adt, struct bActionGroup *agrp, struct DLRBT_Tree *keys, int saction_flag) RET_NONE
 void action_to_keylist(struct AnimData *adt, struct bAction *act, struct DLRBT_Tree *keys, int saction_flag) RET_NONE
