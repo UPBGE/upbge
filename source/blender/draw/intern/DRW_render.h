@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -16,10 +14,6 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * Copyright 2016, Blender Foundation.
- * Contributor(s): Blender Institute
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  */
 
 /** \file DRW_render.h
@@ -238,7 +232,7 @@ void DRW_uniformbuffer_free(struct GPUUniformBuffer *ubo);
 	} \
 } while (0)
 
-void DRW_transform_to_display(struct GPUTexture *tex, bool use_view_settings);
+void DRW_transform_to_display(struct GPUTexture *tex, bool use_view_transform, bool use_render_settings);
 void DRW_transform_none(struct GPUTexture *tex);
 void DRW_multisamples_resolve(
         struct GPUTexture *src_depth, struct GPUTexture *src_color, bool use_depth);

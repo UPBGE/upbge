@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file creator/creator.c
@@ -529,14 +521,14 @@ int main(
 	}
 	else {
 		if (G.fileflags & G_FILE_AUTOPLAY) {
-			if (G.f & G_SCRIPT_AUTOEXEC) {
+			if (G.f & G_FLAG_SCRIPT_AUTOEXEC) {
 				if (WM_init_game(C)) {
 					return 0;
 				}
 			}
 			else {
-				if (!(G.f & G_SCRIPT_AUTOEXEC_FAIL_QUIET)) {
-					G.f |= G_SCRIPT_AUTOEXEC_FAIL;
+				if (!(G.f & G_FLAG_SCRIPT_AUTOEXEC_FAIL_QUIET)) {
+					G.f |= G_FLAG_SCRIPT_AUTOEXEC_FAIL;
 					BLI_snprintf(G.autoexec_fail, sizeof(G.autoexec_fail), "Game AutoStart");
 				}
 			}

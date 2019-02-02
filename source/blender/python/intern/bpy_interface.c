@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -15,10 +13,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributor(s): Michel Selten, Willian P. Germano, Stephen Swaney,
  * Chris Keith, Chris Want, Ken Hughes, Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/python/intern/bpy_interface.c
@@ -394,7 +389,7 @@ void BPY_python_end(void)
 void BPY_python_reset(bContext *C)
 {
 	/* unrelated security stuff */
-	G.f &= ~(G_SCRIPT_AUTOEXEC_FAIL | G_SCRIPT_AUTOEXEC_FAIL_QUIET);
+	G.f &= ~(G_FLAG_SCRIPT_AUTOEXEC_FAIL | G_FLAG_SCRIPT_AUTOEXEC_FAIL_QUIET);
 	G.autoexec_fail[0] = '\0';
 
 	BPY_driver_reset();
@@ -769,9 +764,9 @@ void BPY_modules_load_user(bContext *C)
 
 	for (text = bmain->text.first; text; text = text->id.next) {
 		if (text->flags & TXT_ISSCRIPT && BLI_path_extension_check(text->id.name + 2, ".py")) {
-			if (!(G.f & G_SCRIPT_AUTOEXEC)) {
-				if (!(G.f & G_SCRIPT_AUTOEXEC_FAIL_QUIET)) {
-					G.f |= G_SCRIPT_AUTOEXEC_FAIL;
+			if (!(G.f & G_FLAG_SCRIPT_AUTOEXEC)) {
+				if (!(G.f & G_FLAG_SCRIPT_AUTOEXEC_FAIL_QUIET)) {
+					G.f |= G_FLAG_SCRIPT_AUTOEXEC_FAIL;
 					BLI_snprintf(G.autoexec_fail, sizeof(G.autoexec_fail), "Text '%s'", text->id.name + 2);
 
 					printf("scripts disabled for \"%s\", skipping '%s'\n", BKE_main_blendfile_path(bmain), text->id.name + 2);

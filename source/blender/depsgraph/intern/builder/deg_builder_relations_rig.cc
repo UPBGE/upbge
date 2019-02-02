@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2013 Blender Foundation.
  * All rights reserved.
- *
- * Original Author: Joshua Leung
- * Contributor(s): Based on original depsgraph.c code - Blender Foundation (2005-2013)
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/depsgraph/intern/builder/deg_builder_relations_rig.cc
@@ -348,8 +341,7 @@ void DepsgraphRelationBuilder::build_rig(Object *object)
 	build_armature(armature);
 	OperationKey armature_key(&armature->id,
 	                          NodeType::PARAMETERS,
-	                          OperationCode::PLACEHOLDER,
-	                          "Armature Eval");
+	                          OperationCode::ARMATURE_EVAL);
 	add_relation(armature_key, pose_init_key, "Data dependency");
 	/* IK Solvers.
 	 *

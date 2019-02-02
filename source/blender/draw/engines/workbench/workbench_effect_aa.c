@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -16,10 +14,6 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * Copyright 2016, Blender Foundation.
- * Contributor(s): Blender Institute
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  */
 
 /** \file workbench_effect_aa.c
@@ -67,7 +61,7 @@ static void workspace_aa_draw_transform(GPUTexture *tx, WORKBENCH_PrivateData *w
 	}
 	else {
 		/* Display space result for viewport. */
-		DRW_transform_to_display(tx, wpd->use_color_view_settings);
+		DRW_transform_to_display(tx, wpd->use_color_render_settings, wpd->use_color_render_settings);
 	}
 }
 

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file ghost/intern/GHOST_Debug.h
@@ -41,8 +33,6 @@
  * The four extreme coordinates are stored as left, top, right and bottom.
  * To be valid, a rectangle should have a left coordinate smaller than or equal to right.
  * To be valid, a rectangle should have a top coordinate smaller than or equal to bottom.
- * \author  Maarten Gribnau
- * \date    May 10, 2001
  */
 
 class GHOST_Rect {

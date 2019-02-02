@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_view3d/view3d_draw.c
@@ -1427,7 +1420,7 @@ void ED_view3d_draw_offscreen(
 	UI_SetTheme(SPACE_VIEW3D, RGN_TYPE_WINDOW);
 
 	/* set flags */
-	G.f |= G_RENDER_OGL;
+	G.f |= G_FLAG_RENDER_VIEWPORT;
 
 	{
 		/* free images which can have changed on frame-change
@@ -1460,7 +1453,7 @@ void ED_view3d_draw_offscreen(
 
 	UI_Theme_Restore(&theme_state);
 
-	G.f &= ~G_RENDER_OGL;
+	G.f &= ~G_FLAG_RENDER_VIEWPORT;
 }
 
 /**

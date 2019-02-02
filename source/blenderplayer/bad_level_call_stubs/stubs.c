@@ -460,6 +460,7 @@ void ED_armature_bone_rename(struct Main *bmain, struct bArmature *arm, const ch
 void ED_armature_transform(struct Main *bmain, struct bArmature *arm, float mat[4][4], const bool do_props) RET_NONE
 struct wmEventHandler *WM_event_add_modal_handler(struct bContext *C, struct wmOperator *op) RET_NULL
 struct wmTimer *WM_event_add_timer(struct wmWindowManager *wm, struct wmWindow *win, int event_type, double timestep) RET_NULL
+struct wmEvent *WM_event_add_simulate(struct wmWindow *win, const struct wmEvent *event_to_add) RET_NULL
 void WM_event_remove_timer(struct wmWindowManager *wm, struct wmWindow *win, struct wmTimer *timer) RET_NONE
 float WM_event_tablet_data(const struct wmEvent *event, int *pen_flip, float tilt[2]) RET_ZERO
 bool WM_event_is_tablet(const struct wmEvent *event) RET_ZERO

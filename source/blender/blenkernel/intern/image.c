@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation, 2006, full recode
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenkernel/intern/image.c
@@ -3483,7 +3477,7 @@ static ImBuf *load_image_single(
 			*r_assign = true;
 
 			/* make packed file for autopack */
-			if ((has_packed == false) && (G.fileflags & G_AUTOPACK)) {
+			if ((has_packed == false) && (G.fileflags & G_FILE_AUTOPACK)) {
 				ImagePackedFile *imapf = MEM_mallocN(sizeof(ImagePackedFile), "Image Packefile");
 				BLI_addtail(&ima->packedfiles, imapf);
 

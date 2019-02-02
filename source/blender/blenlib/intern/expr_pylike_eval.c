@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,18 +15,10 @@
  *
  * The Original Code is Copyright (C) 2018 Blender Foundation, Alexander Gavrilov
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Alexander Gavrilov
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenlib/intern/expr_pylike_eval.c
  *  \ingroup bli
- *  \author Alexander Gavrilov
- *  \since 2018
  *
  * Simple evaluator for a subset of Python expressions that can be
  * computed using purely double precision floating point values.

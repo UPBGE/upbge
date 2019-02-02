@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Blender Foundation (2008).
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/makesrna/intern/rna_lamp.c
@@ -145,7 +139,7 @@ static void rna_def_light(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "energy", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_default(prop, 10.0f);
-	RNA_def_property_ui_range(prop, 0, 10, 1, 3);
+	RNA_def_property_ui_range(prop, 0, 1000000.0f, 1, 3);
 	RNA_def_property_ui_text(prop, "Energy", "Amount of light emitted");
 	RNA_def_property_update(prop, 0, "rna_Light_draw_update");
 

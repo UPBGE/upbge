@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2007 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/sound/sound_ops.c
@@ -766,7 +759,7 @@ static int sound_unpack_exec(bContext *C, wmOperator *op)
 	if (!sound || !sound->packedfile)
 		return OPERATOR_CANCELLED;
 
-	if (G.fileflags & G_AUTOPACK)
+	if (G.fileflags & G_FILE_AUTOPACK)
 		BKE_report(op->reports, RPT_WARNING, "AutoPack is enabled, so image will be packed again on file save");
 
 	unpackSound(bmain, op->reports, sound, method);
@@ -790,7 +783,7 @@ static int sound_unpack_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSE
 	if (!sound || !sound->packedfile)
 		return OPERATOR_CANCELLED;
 
-	if (G.fileflags & G_AUTOPACK)
+	if (G.fileflags & G_FILE_AUTOPACK)
 		BKE_report(op->reports, RPT_WARNING, "AutoPack is enabled, so image will be packed again on file save");
 
 	unpack_menu(C, "SOUND_OT_unpack", sound->id.name + 2, sound->name, "sounds", sound->packedfile);

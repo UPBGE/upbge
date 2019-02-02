@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation, 2002-2009, Xavier Thomas
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_image/image_ops.c
@@ -2816,7 +2810,7 @@ static int image_unpack_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 
-	if (G.fileflags & G_AUTOPACK)
+	if (G.fileflags & G_FILE_AUTOPACK)
 		BKE_report(op->reports, RPT_WARNING, "AutoPack is enabled, so image will be packed again on file save");
 
 	/* XXX unpackImage frees image buffers */
@@ -2844,7 +2838,7 @@ static int image_unpack_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSE
 		return OPERATOR_CANCELLED;
 	}
 
-	if (G.fileflags & G_AUTOPACK)
+	if (G.fileflags & G_FILE_AUTOPACK)
 		BKE_report(op->reports, RPT_WARNING, "AutoPack is enabled, so image will be packed again on file save");
 
 	unpack_menu(C, "IMAGE_OT_unpack", ima->id.name + 2, ima->name, "textures", BKE_image_has_packedfile(ima) ? ((ImagePackedFile *)ima->packedfiles.first)->packedfile : NULL);

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -18,10 +16,6 @@
  * The Original Code is Copyright (C) 2007 Blender Foundation but based
  * on ghostwinlay.c (C) 2001-2002 by NaN Holding BV
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation, 2008
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/windowmanager/intern/wm_window.c
@@ -1055,6 +1049,11 @@ void wm_cursor_position_to_ghost(wmWindow *win, int *x, int *y)
 
 void wm_get_cursor_position(wmWindow *win, int *x, int *y)
 {
+	if (UNLIKELY(G.f & G_FLAG_EVENT_SIMULATE)) {
+		*x = win->eventstate->x;
+		*y = win->eventstate->y;
+		return;
+	}
 	GHOST_GetCursorPosition(g_system, x, y);
 	wm_cursor_position_from_ghost(win, x, y);
 }

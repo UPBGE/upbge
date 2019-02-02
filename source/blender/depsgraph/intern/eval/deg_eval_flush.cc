@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2013 Blender Foundation.
  * All rights reserved.
- *
- * Original Author: Joshua Leung
- * Contributor(s): None Yet
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/depsgraph/intern/eval/deg_eval_flush.cc
@@ -238,7 +231,7 @@ void flush_engine_data_update(ID *id)
 	if (draw_data_list == NULL) {
 		return;
 	}
-	LISTBASE_FOREACH(DrawData *, draw_data, draw_data_list) {
+	LISTBASE_FOREACH (DrawData *, draw_data, draw_data_list) {
 		draw_data->recalc |= id->recalc;
 	}
 }

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2013 Blender Foundation.
  * All rights reserved.
- *
- * Original Author: Joshua Leung
- * Contributor(s): Based on original depsgraph.c code - Blender Foundation (2005-2013)
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/depsgraph/intern/builder/deg_builder_nodes_view_layer.cc
@@ -106,7 +99,7 @@ void DepsgraphNodeBuilder::build_view_layer(
 	int base_index = 0;
 	const int base_flag = (graph_->mode == DAG_EVAL_VIEWPORT) ?
 		BASE_ENABLED_VIEWPORT : BASE_ENABLED_RENDER;
-	LISTBASE_FOREACH(Base *, base, &view_layer->object_bases) {
+	LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
 		/* object itself */
 		const bool is_object_visible = (base->flag & base_flag);
 		if (is_object_visible) {
@@ -163,17 +156,14 @@ void DepsgraphNodeBuilder::build_view_layer(
 	/* Collections. */
 	add_operation_node(&scene->id,
 	                   NodeType::LAYER_COLLECTIONS,
+	                   OperationCode::VIEW_LAYER_EVAL,
 	                   function_bind(BKE_layer_eval_view_layer_indexed,
 	                                 _1,
 	                                 scene_cow,
-	                                 view_layer_index_),
-	                   OperationCode::VIEW_LAYER_EVAL);
+	                                 view_layer_index_));
 	/* Parameters evaluation for scene relations mainly. */
-	add_operation_node(&scene->id,
-	                   NodeType::PARAMETERS,
-	                   NULL,
-	                   OperationCode::PLACEHOLDER,
-	                   "Scene Eval");
+	add_operation_node(
+	        &scene->id, NodeType::PARAMETERS, OperationCode::SCENE_EVAL);
 	/* Build all set scenes. */
 	if (scene->set != NULL) {
 		ViewLayer *set_view_layer = BKE_view_layer_default_render(scene->set);

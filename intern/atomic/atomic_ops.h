@@ -24,9 +24,6 @@
  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -45,17 +42,14 @@
  * All rights reserved.
  *
  * The Original Code is: adapted from jemalloc.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /**
  * \file atomic_ops.h
  * \ingroup Atomic
  *
- * \author Copyright (C) 2016 Blender Foundation, adapted from jemalloc.
- * \brief Provides wrapper around system-specific atomic primitives, and some extensions (faked-atomic operations
- *        over float numbers).
+ * \brief Provides wrapper around system-specific atomic primitives,
+ * and some extensions (faked-atomic operations over float numbers).
  */
 
 #ifndef __ATOMIC_OPS_H__

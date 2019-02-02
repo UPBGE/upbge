@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,11 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  */
 
 /** \file blender/blenloader/intern/versioning_defaults.c
@@ -309,6 +302,7 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
 			if (app_template && STREQ(app_template, "Video_Editing")) {
 				/* Filmic is too slow, use default until it is optimized. */
 				STRNCPY(scene->view_settings.view_transform, "Default");
+				STRNCPY(scene->view_settings.look, "None");
 			}
 			else {
 				/* AV Sync break physics sim caching, disable until that is fixed. */

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file creator/creator_args.c
@@ -581,6 +577,7 @@ static int arg_handle_print_help(int UNUSED(argc), const char **UNUSED(argv), vo
 	BLI_argsPrintArgDoc(ba, "--app-template");
 	BLI_argsPrintArgDoc(ba, "--factory-startup");
 	BLI_argsPrintArgDoc(ba, "--enable-static-override");
+	BLI_argsPrintArgDoc(ba, "--enable-event-simulate");
 	printf("\n");
 	BLI_argsPrintArgDoc(ba, "--env-system-datafiles");
 	BLI_argsPrintArgDoc(ba, "--env-system-scripts");
@@ -679,12 +676,12 @@ static const char arg_handle_python_set_doc_disable[] =
 static int arg_handle_python_set(int UNUSED(argc), const char **UNUSED(argv), void *data)
 {
 	if ((bool)data) {
-		G.f |= G_SCRIPT_AUTOEXEC;
+		G.f |= G_FLAG_SCRIPT_AUTOEXEC;
 	}
 	else {
-		G.f &= ~G_SCRIPT_AUTOEXEC;
+		G.f &= ~G_FLAG_SCRIPT_AUTOEXEC;
 	}
-	G.f |= G_SCRIPT_OVERRIDE_PREF;
+	G.f |= G_FLAG_SCRIPT_OVERRIDE_PREF;
 	return 0;
 }
 
@@ -1031,6 +1028,15 @@ static const char arg_handle_enable_static_override_doc[] =
 static int arg_handle_enable_static_override(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
 {
 	BKE_override_static_enable(true);
+	return 0;
+}
+
+static const char arg_handle_enable_event_simulate_doc[] =
+"\n\tEnable event simulation testing feature 'bpy.types.Window.event_simulate'."
+;
+static int arg_handle_enable_event_simulate(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
+{
+	G.f |= G_FLAG_EVENT_SIMULATE;
 	return 0;
 }
 
@@ -2060,6 +2066,7 @@ void main_args_setup(bContext *C, bArgs *ba, SYS_SystemHandle *syshandle)
 	BLI_argsAdd(ba, 1, NULL, "--app-template", CB(arg_handle_app_template), NULL);
 	BLI_argsAdd(ba, 1, NULL, "--factory-startup", CB(arg_handle_factory_startup_set), NULL);
 	BLI_argsAdd(ba, 1, NULL, "--enable-static-override", CB(arg_handle_enable_static_override), NULL);
+	BLI_argsAdd(ba, 1, NULL, "--enable-event-simulate", CB(arg_handle_enable_event_simulate), NULL);
 
 	/* TODO, add user env vars? */
 	BLI_argsAdd(ba, 1, NULL, "--env-system-datafiles", CB_EX(arg_handle_env_system_set, datafiles), NULL);

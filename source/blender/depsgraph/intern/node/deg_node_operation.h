@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2013 Blender Foundation.
  * All rights reserved.
- *
- * Original Author: Joshua Leung
- * Contributor(s): None Yet
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/depsgraph/intern/node/deg_node_operation.h
@@ -56,14 +49,14 @@ enum class OperationCode {
 	ID_PROPERTY,
 	PARAMETERS_EVAL,
 
-	// XXX: Placeholder while porting depsgraph code
-	PLACEHOLDER,
-
 	/* Animation, Drivers, etc. --------------------------------------------- */
 	/* NLA + Action */
 	ANIMATION,
 	/* Driver */
 	DRIVER,
+
+	/* Scene related. ------------------------------------------------------- */
+	SCENE_EVAL,
 
 	/* Object related. ------------------------------------------------------ */
 	OBJECT_BASE_FLAGS,
@@ -89,14 +82,21 @@ enum class OperationCode {
 
 	/* Geometry. ------------------------------------------------------------ */
 
+	/* Initialize evaluation of the geometry. Is an entry operation of geometry
+	 * component. */
+	GEOMETRY_EVAL_INIT,
 	/* Evaluate the whole geometry, including modifiers. */
-	GEOMETRY_UBEREVAL,
-	/* Evaluation of a shape key. */
+	GEOMETRY_EVAL,
+	/* Evaluation of geometry is completely done.. */
+	GEOMETRY_EVAL_DONE,
+	/* Evaluation of a shape key.
+	 * NOTE: Currently only for object data datablocks. */
 	GEOMETRY_SHAPEKEY,
 
 	/* Object data. --------------------------------------------------------- */
 	LIGHT_PROBE_EVAL,
 	SPEAKER_EVAL,
+	ARMATURE_EVAL,
 
 	/* Pose. ---------------------------------------------------------------- */
 	/* Init pose, clear flags, etc. */
@@ -146,6 +146,9 @@ enum class OperationCode {
 	/* Point Cache. --------------------------------------------------------- */
 	POINT_CACHE_RESET,
 
+	/* File cache. ---------------------------------------------------------- */
+	FILE_CACHE_UPDATE,
+
 	/* Collections. --------------------------------------------------------- */
 	VIEW_LAYER_EVAL,
 
@@ -173,6 +176,9 @@ enum class OperationCode {
 
 	/* Generic datablock ---------------------------------------------------- */
 	GENERIC_DATABLOCK_UPDATE,
+
+	/* Duplication/instancing system. --------------------------------------- */
+	DUPLI,
 };
 const char *operationCodeAsString(OperationCode opcode);
 

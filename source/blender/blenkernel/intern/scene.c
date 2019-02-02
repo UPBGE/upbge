@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenkernel/intern/scene.c
@@ -831,7 +823,8 @@ void BKE_scene_init(Scene *sce)
 
 	BKE_color_managed_display_settings_init(&sce->display_settings);
 	BKE_color_managed_view_settings_init_render(&sce->view_settings,
-	                                            &sce->display_settings);
+	                                            &sce->display_settings,
+	                                            "Filmic");
 	BLI_strncpy(sce->sequencer_colorspace_settings.name, colorspace_name,
 	            sizeof(sce->sequencer_colorspace_settings.name));
 

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_view3d/view3d_draw_legacy.c
@@ -236,7 +229,7 @@ static void backdrawview3d(
 	if (rv3d->rflag & RV3D_CLIPPING)
 		ED_view3d_clipping_set(rv3d);
 
-	G.f |= G_BACKBUFSEL;
+	G.f |= G_FLAG_BACKBUFSEL;
 
 	if (obact_eval && ((obact_eval->base_flag & BASE_VISIBLE) != 0)) {
 		draw_object_backbufsel(depsgraph, scene_eval, v3d, rv3d, obact_eval, select_mode);
@@ -247,7 +240,7 @@ static void backdrawview3d(
 
 	v3d->flag &= ~V3D_INVALID_BACKBUF;
 
-	G.f &= ~G_BACKBUFSEL;
+	G.f &= ~G_FLAG_BACKBUFSEL;
 	GPU_depth_test(false);
 	glEnable(GL_DITHER);
 

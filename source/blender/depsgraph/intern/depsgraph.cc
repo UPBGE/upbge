@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2013 Blender Foundation.
  * All rights reserved.
- *
- * Original Author: Joshua Leung
- * Contributor(s): Sergey Sharybin
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/depsgraph/intern/depsgraph.cc
@@ -181,7 +174,7 @@ static bool pointer_to_component_node_criteria(
 			return true;
 		}
 		else if (object->pose != NULL) {
-			LISTBASE_FOREACH(bPoseChannel *, pchan, &object->pose->chanbase) {
+			LISTBASE_FOREACH (bPoseChannel *, pchan, &object->pose->chanbase) {
 				if (BLI_findindex(&pchan->constraints, con) != -1) {
 					*type = NodeType::BONE;
 					*operation_code = OperationCode::BONE_LOCAL;

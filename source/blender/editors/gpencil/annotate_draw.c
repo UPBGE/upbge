@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008, Blender Foundation
  * This is a new part of Blender
- *
- * Contributor(s): Joshua Leung, Antonio Vazquez
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/gpencil/annotate_draw.c
@@ -854,7 +848,7 @@ static void gp_draw_data_layers(
 		 *    (NOTE: doing it this way means that the toggling editmode shows visible change immediately)
 		 */
 		/* XXX: perhaps we don't want to show these when users are drawing... */
-		if ((G.f & G_RENDER_OGL) == 0 &&
+		if ((G.f & G_FLAG_RENDER_VIEWPORT) == 0 &&
 		    (gpl->flag & GP_LAYER_LOCKED) == 0 &&
 		    (gpd->flag & GP_DATA_STROKE_EDITMODE))
 		{
@@ -887,7 +881,7 @@ static void gp_draw_status_text(const bGPdata *gpd, ARegion *ar)
 	rcti rect;
 
 	/* Cannot draw any status text when drawing OpenGL Renders */
-	if (G.f & G_RENDER_OGL)
+	if (G.f & G_FLAG_RENDER_VIEWPORT)
 		return;
 
 	/* Get bounds of region - Necessary to avoid problems with region overlap */
@@ -1105,7 +1099,7 @@ void ED_gpencil_draw_view3d_annotations(
 
 	/* when rendering to the offscreen buffer we don't want to
 	 * deal with the camera border, otherwise map the coords to the camera border. */
-	if ((rv3d->persp == RV3D_CAMOB) && !(G.f & G_RENDER_OGL)) {
+	if ((rv3d->persp == RV3D_CAMOB) && !(G.f & G_FLAG_RENDER_VIEWPORT)) {
 		rctf rectf;
 		ED_view3d_calc_camera_border(scene, depsgraph, ar, v3d, rv3d, &rectf, true); /* no shift */
 

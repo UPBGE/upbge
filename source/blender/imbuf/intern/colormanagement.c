@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,15 +15,6 @@
  *
  * The Original Code is Copyright (C) 2012 by Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Xavier Thomas,
- *                 Lukas Toenne,
- *                 Sergey Sharybin
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  */
 
 /** \file blender/imbuf/intern/colormanagement.c
@@ -1179,7 +1168,7 @@ void IMB_colormanagement_check_file_config(Main *bmain)
 	}
 }
 
-void IMB_colormanagement_validate_settings(ColorManagedDisplaySettings *display_settings,
+void IMB_colormanagement_validate_settings(const ColorManagedDisplaySettings *display_settings,
                                            ColorManagedViewSettings *view_settings)
 {
 	ColorManagedDisplay *display;

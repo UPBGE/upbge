@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file ghost/intern/GHOST_WindowX11.h
@@ -55,8 +47,6 @@ class GHOST_DropTargetX11;
 /**
  * X11 implementation of GHOST_IWindow.
  * Dimensions are given in screen coordinates that are relative to the upper-left corner of the screen.
- * \author	Laurence Bourn
- * \date	October 26, 2001
  */
 
 class GHOST_WindowX11 : public GHOST_Window

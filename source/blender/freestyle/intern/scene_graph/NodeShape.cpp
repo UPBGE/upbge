@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,15 +12,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/freestyle/intern/scene_graph/NodeShape.cpp
  *  \ingroup freestyle
  *  \brief Class to build a shape node. It contains a Rep, which is the shape geometry
- *  \author Stephane Grabli
- *  \date 25/01/2002
  */
 
 #include "NodeShape.h"

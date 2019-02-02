@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 20137Blender Foundation.
  * All rights reserved.
- *
- * Original Author: Sergey Sharybin
- * Contributor(s): None Yet
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 
@@ -153,7 +146,7 @@ void nested_id_hack_discard_pointers(ID *id_cow)
 		{
 			/* Clear the ParticleSettings pointer to prevent doubly-freeing it. */
 			Object *ob = (Object *)id_cow;
-			LISTBASE_FOREACH(ParticleSystem *, psys, &ob->particlesystem) {
+			LISTBASE_FOREACH (ParticleSystem *, psys, &ob->particlesystem) {
 				psys->part = NULL;
 			}
 			break;

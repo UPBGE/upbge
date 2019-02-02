@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file ghost/intern/GHOST_EventWheel.h
@@ -39,8 +31,6 @@
  * Mouse wheel event.
  * The displacement of the mouse wheel is counted in ticks.
  * A positive value means the wheel is turned away from the user.
- * \author	Maarten Gribnau
- * \date	May 11, 2001
  */
 class GHOST_EventWheel : public GHOST_Event
 {

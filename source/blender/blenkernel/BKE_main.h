@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,20 +15,12 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 #ifndef __BKE_MAIN_H__
 #define __BKE_MAIN_H__
 
 /** \file BKE_main.h
  *  \ingroup bke
- *  \since March 2001
- *  \author nzc
  *  \section aboutmain Main struct
  * Main is the root of the 'database' of a Blender context. All data
  * is stuffed into lists, and all these lists are knotted to here. A
@@ -38,7 +28,6 @@
  * lists. This list of lists is not serialized itself.
  *
  * Oops... this should be a _types.h file.
- *
  */
 #include "DNA_listBase.h"
 

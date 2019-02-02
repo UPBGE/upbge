@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): 2007, Joshua Leung, major recode
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenkernel/intern/constraint.c
@@ -2063,7 +2055,7 @@ static void pycon_get_tarmat(struct Depsgraph *UNUSED(depsgraph),
 
 		/* only execute target calculation if allowed */
 #ifdef WITH_PYTHON
-		if (G.f & G_SCRIPT_AUTOEXEC)
+		if (G.f & G_FLAG_SCRIPT_AUTOEXEC)
 			BPY_pyconstraint_target(data, ct);
 #endif
 	}
@@ -2080,7 +2072,7 @@ static void pycon_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *targe
 	bPythonConstraint *data = con->data;
 
 	/* only evaluate in python if we're allowed to do so */
-	if ((G.f & G_SCRIPT_AUTOEXEC) == 0) return;
+	if ((G.f & G_FLAG_SCRIPT_AUTOEXEC) == 0) return;
 
 	/* Now, run the actual 'constraint' function, which should only access the matrices */
 	BPY_pyconstraint_exec(data, cob, targets);

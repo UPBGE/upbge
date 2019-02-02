@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Willian P. Germano, Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/python/intern/bpy_driver.c
@@ -408,9 +402,9 @@ float BPY_driver_exec(struct PathResolvedRNA *anim_rna, ChannelDriver *driver, C
 		return 0.0f;
 
 #ifndef USE_BYTECODE_WHITELIST
-	if (!(G.f & G_SCRIPT_AUTOEXEC)) {
-		if (!(G.f & G_SCRIPT_AUTOEXEC_FAIL_QUIET)) {
-			G.f |= G_SCRIPT_AUTOEXEC_FAIL;
+	if (!(G.f & G_FLAG_SCRIPT_AUTOEXEC)) {
+		if (!(G.f & G_FLAG_SCRIPT_AUTOEXEC_FAIL_QUIET)) {
+			G.f |= G_FLAG_SCRIPT_AUTOEXEC_FAIL;
 			BLI_snprintf(G.autoexec_fail, sizeof(G.autoexec_fail), "Driver '%s'", expr);
 
 			printf("skipping driver '%s', automatic scripts are disabled\n", expr);
@@ -549,7 +543,7 @@ float BPY_driver_exec(struct PathResolvedRNA *anim_rna, ChannelDriver *driver, C
 
 #ifdef USE_BYTECODE_WHITELIST
 	if (is_recompile && expr_code) {
-		if (!(G.f & G_SCRIPT_AUTOEXEC)) {
+		if (!(G.f & G_FLAG_SCRIPT_AUTOEXEC)) {
 			if (!bpy_driver_secure_bytecode_validate(
 			            expr_code, (PyObject *[]){
 			                bpy_pydriver_Dict,

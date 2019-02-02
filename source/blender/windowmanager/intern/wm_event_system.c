@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2007 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/windowmanager/intern/wm_event_system.c
@@ -132,6 +125,18 @@ wmEvent *wm_event_add_ex(wmWindow *win, const wmEvent *event_to_add, const wmEve
 wmEvent *wm_event_add(wmWindow *win, const wmEvent *event_to_add)
 {
 	return wm_event_add_ex(win, event_to_add, NULL);
+}
+
+wmEvent *WM_event_add_simulate(wmWindow *win, const wmEvent *event_to_add)
+{
+	if ((G.f & G_FLAG_EVENT_SIMULATE) == 0) {
+		BLI_assert(0);
+		return NULL;
+	}
+	wmEvent *event = wm_event_add(win, event_to_add);
+	win->eventstate->x = event->x;
+	win->eventstate->y = event->y;
+	return event;
 }
 
 void wm_event_free(wmEvent *event)
@@ -3905,6 +3910,10 @@ static wmEvent *wm_event_add_mousemove(wmWindow *win, const wmEvent *event)
 void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int UNUSED(time), void *customdata)
 {
 	wmWindow *owin;
+
+	if (UNLIKELY(G.f & G_FLAG_EVENT_SIMULATE)) {
+		return;
+	}
 
 	/* Having both, event and evt, can be highly confusing to work with, but is necessary for
 	 * our current event system, so let's clear things up a bit:

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenkernel/intern/object_dupli.c
@@ -732,8 +724,7 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
 	ParticleKey state;
 	ParticleCacheKey *cache;
 	float ctime, scale = 1.0f;
-	float tmat[4][4], mat[4][4], pamat[4][4], vec[3], size = 0.0;
-	float (*obmat)[4];
+	float tmat[4][4], mat[4][4], pamat[4][4], size = 0.0;
 	int a, b, hair = 0;
 	int totpart, totchild;
 
@@ -901,10 +892,6 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
 					b = a % totcollection;
 
 				ob = oblist[b];
-				obmat = oblist[b]->obmat;
-			}
-			else {
-				obmat = ob->obmat;
 			}
 
 			if (hair) {
@@ -967,8 +954,12 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
 				FOREACH_COLLECTION_VISIBLE_OBJECT_RECURSIVE_END;
 			}
 			else {
+				float obmat[4][4];
+				copy_m4_m4(obmat, ob->obmat);
+
+				float vec[3];
 				copy_v3_v3(vec, obmat[3]);
-				obmat[3][0] = obmat[3][1] = obmat[3][2] = 0.0f;
+				zero_v3(obmat[3]);
 
 				/* particle rotation uses x-axis as the aligned axis, so pre-rotate the object accordingly */
 				if ((part->draw & PART_DRAW_ROTATE_OB) == 0) {

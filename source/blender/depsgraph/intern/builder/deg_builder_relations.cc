@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2013 Blender Foundation.
  * All rights reserved.
- *
- * Original Author: Joshua Leung
- * Contributor(s): Based on original depsgraph.c code - Blender Foundation (2005-2013)
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/depsgraph/intern/builder/deg_builder_relations.cc
@@ -917,28 +910,45 @@ void DepsgraphRelationBuilder::build_object_pointcache(Object *object)
 	int handled_components = 0;
 	LISTBASE_FOREACH (PTCacheID *, ptcache_id, &ptcache_id_list) {
 		/* Check which components needs the point cache. */
-		int flag;
+		int flag = -1;
 		if (ptcache_id->type == PTCACHE_TYPE_RIGIDBODY) {
 			flag = FLAG_TRANSFORM;
-			ComponentKey transform_key(&object->id,
-			                           NodeType::TRANSFORM);
+			ComponentKey transform_key(&object->id, NodeType::TRANSFORM);
 			add_relation(point_cache_key,
 			             transform_key,
 			             "Point Cache -> Rigid Body");
 		}
 		else {
 			flag = FLAG_GEOMETRY;
-			ComponentKey geometry_key(&object->id,
-			                           NodeType::GEOMETRY);
-			add_relation(point_cache_key,
-			             geometry_key,
-			             "Point Cache -> Geometry");
+			OperationKey geometry_key(&object->id,
+			                          NodeType::GEOMETRY,
+			                          OperationCode::GEOMETRY_EVAL);
+			add_relation(
+			        point_cache_key, geometry_key, "Point Cache -> Geometry");
 		}
+		BLI_assert(flag != -1);
 		/* Tag that we did handle that component. */
 		handled_components |= flag;
 		if (handled_components == FLAG_ALL) {
 			break;
 		}
+	}
+	/* Manual edits to any dependency (or self) should reset the point cache. */
+	if (!BLI_listbase_is_empty(&ptcache_id_list)) {
+		OperationKey transform_local_key(&object->id,
+		                                 NodeType::TRANSFORM,
+		                                 OperationCode::TRANSFORM_LOCAL);
+		OperationKey geometry_init_key(&object->id,
+		                               NodeType::GEOMETRY,
+		                               OperationCode::GEOMETRY_EVAL_INIT);
+		add_relation(transform_local_key,
+		             point_cache_key,
+		             "Transform Local -> Point Cache",
+		             RELATION_FLAG_FLUSH_USER_EDIT_ONLY);
+		add_relation(geometry_init_key,
+		             point_cache_key,
+		             "Geometry Init -> Point Cache",
+		             RELATION_FLAG_FLUSH_USER_EDIT_ONLY);
 	}
 	BLI_freelistN(&ptcache_id_list);
 }
@@ -1210,7 +1220,7 @@ void DepsgraphRelationBuilder::build_animdata_curves_targets(
 	/* Iterate over all curves and build relations. */
 	PointerRNA id_ptr;
 	RNA_id_pointer_create(id, &id_ptr);
-	LISTBASE_FOREACH(FCurve *, fcu, curves) {
+	LISTBASE_FOREACH (FCurve *, fcu, curves) {
 		PointerRNA ptr;
 		PropertyRNA *prop;
 		int index;
@@ -1261,7 +1271,7 @@ void DepsgraphRelationBuilder::build_animdata_nlastrip_targets(
         OperationNode *operation_from,
         ListBase *strips)
 {
-	LISTBASE_FOREACH(NlaStrip *, strip, strips) {
+	LISTBASE_FOREACH (NlaStrip *, strip, strips) {
 		if (strip->act != NULL) {
 			build_action(strip->act);
 
@@ -1702,7 +1712,7 @@ void DepsgraphRelationBuilder::build_particle_systems(Object *object)
 	TimeSourceKey time_src_key;
 	OperationKey obdata_ubereval_key(&object->id,
 	                                 NodeType::GEOMETRY,
-	                                 OperationCode::GEOMETRY_UBEREVAL);
+	                                 OperationCode::GEOMETRY_EVAL);
 	OperationKey eval_init_key(&object->id,
 	                           NodeType::PARTICLE_SYSTEM,
 	                           OperationCode::PARTICLE_SYSTEM_INIT);
@@ -1895,7 +1905,7 @@ void DepsgraphRelationBuilder::build_particle_system_visualization_object(
 	                      psys->name);
 	OperationKey obdata_ubereval_key(&object->id,
 	                                 NodeType::GEOMETRY,
-	                                 OperationCode::GEOMETRY_UBEREVAL);
+	                                 OperationCode::GEOMETRY_EVAL);
 	ComponentKey dup_ob_key(&draw_object->id, NodeType::TRANSFORM);
 	add_relation(dup_ob_key, psys_key, "Particle Object Visualization");
 	if (draw_object->type == OB_MBALL) {
@@ -1943,16 +1953,14 @@ void DepsgraphRelationBuilder::build_shapekeys(Key *key)
  *        and also for the links coming from the shapekey datablocks
  * - Animation/Drivers affecting the parameters of the geometry are made to
  *   trigger updates on the obdata geometry component, which then trigger
- *   downstream re-evaluation of the individual instances of this geometry.
- */
+ *   downstream re-evaluation of the individual instances of this geometry. */
 void DepsgraphRelationBuilder::build_object_data_geometry(Object *object)
 {
 	ID *obdata = (ID *)object->data;
 	/* Init operation of object-level geometry evaluation. */
 	OperationKey geom_init_key(&object->id,
 	                           NodeType::GEOMETRY,
-	                           OperationCode::PLACEHOLDER,
-	                           "Eval Init");
+	                           OperationCode::GEOMETRY_EVAL_INIT);
 	/* Get nodes for result of obdata's evaluation, and geometry evaluation
 	 * on object. */
 	ComponentKey obdata_geom_key(obdata, NodeType::GEOMETRY);
@@ -1961,7 +1969,7 @@ void DepsgraphRelationBuilder::build_object_data_geometry(Object *object)
 	add_relation(obdata_geom_key, geom_key, "Object Geometry Base Data");
 	OperationKey obdata_ubereval_key(&object->id,
 	                                 NodeType::GEOMETRY,
-	                                 OperationCode::GEOMETRY_UBEREVAL);
+	                                 OperationCode::GEOMETRY_EVAL);
 	/* Special case: modifiers evaluation queries scene for various things like
 	 * data mask to be used. We add relation here to ensure object is never
 	 * evaluated prior to Scene's CoW is ready. */
@@ -1988,12 +1996,12 @@ void DepsgraphRelationBuilder::build_object_data_geometry(Object *object)
 			}
 		}
 	}
-	/* Grease Pencil Modifiers */
+	/* Grease Pencil Modifiers. */
 	if (object->greasepencil_modifiers.first != NULL) {
 		ModifierUpdateDepsgraphContext ctx = {};
 		ctx.scene = scene_;
 		ctx.object = object;
-		LISTBASE_FOREACH(GpencilModifierData *, md, &object->greasepencil_modifiers) {
+		LISTBASE_FOREACH (GpencilModifierData *, md, &object->greasepencil_modifiers) {
 			const GpencilModifierTypeInfo *mti = BKE_gpencil_modifierType_getInfo((GpencilModifierType)md->type);
 			if (mti->updateDepsgraph) {
 				DepsNodeHandle handle = create_node_handle(obdata_ubereval_key);
@@ -2006,12 +2014,12 @@ void DepsgraphRelationBuilder::build_object_data_geometry(Object *object)
 			}
 		}
 	}
-	/* Shader FX */
+	/* Shader FX. */
 	if (object->shader_fx.first != NULL) {
 		ModifierUpdateDepsgraphContext ctx = {};
 		ctx.scene = scene_;
 		ctx.object = object;
-		LISTBASE_FOREACH(ShaderFxData *, fx, &object->shader_fx) {
+		LISTBASE_FOREACH (ShaderFxData *, fx, &object->shader_fx) {
 			const ShaderFxTypeInfo *fxi = BKE_shaderfxType_getInfo((ShaderFxType)fx->type);
 			if (fxi->updateDepsgraph) {
 				DepsNodeHandle handle = create_node_handle(obdata_ubereval_key);
@@ -2047,14 +2055,12 @@ void DepsgraphRelationBuilder::build_object_data_geometry(Object *object)
 	if (ELEM(object->type, OB_MESH, OB_CURVE, OB_LATTICE)) {
 		// add geometry collider relations
 	}
-	/* Make sure uber update is the last in the dependencies.
-	 *
-	 * TODO(sergey): Get rid of this node. */
+	/* Make sure uber update is the last in the dependencies. */
 	if (object->type != OB_ARMATURE) {
 		/* Armatures does no longer require uber node. */
 		OperationKey obdata_ubereval_key(&object->id,
 		                                 NodeType::GEOMETRY,
-		                                 OperationCode::GEOMETRY_UBEREVAL);
+		                                 OperationCode::GEOMETRY_EVAL);
 		add_relation(geom_init_key,
 		             obdata_ubereval_key,
 		             "Object Geometry UberEval");
@@ -2094,7 +2100,7 @@ void DepsgraphRelationBuilder::build_object_data_geometry(Object *object)
 		TimeSourceKey time_key;
 		OperationKey obdata_ubereval_key(&object->id,
 		                                 NodeType::GEOMETRY,
-		                                 OperationCode::GEOMETRY_UBEREVAL);
+		                                 OperationCode::GEOMETRY_EVAL);
 		add_relation(time_key, obdata_ubereval_key, "Legacy particle time");
 	}
 	/* Object data datablock. */
@@ -2132,14 +2138,11 @@ void DepsgraphRelationBuilder::build_object_data_geometry_datablock(ID *obdata)
 		build_shapekeys(key);
 	}
 	/* Link object data evaluation node to exit operation. */
-	OperationKey obdata_geom_eval_key(obdata,
-		NodeType::GEOMETRY,
-		OperationCode::PLACEHOLDER,
-		"Geometry Eval");
+	OperationKey obdata_geom_eval_key(
+	        obdata, NodeType::GEOMETRY, OperationCode::GEOMETRY_EVAL);
 	OperationKey obdata_geom_done_key(obdata,
-		NodeType::GEOMETRY,
-		OperationCode::PLACEHOLDER,
-		"Eval Done");
+	                                  NodeType::GEOMETRY,
+	                                  OperationCode::GEOMETRY_EVAL_DONE);
 	add_relation(obdata_geom_eval_key,
 	             obdata_geom_done_key,
 	             "ObData Geom Eval Done");

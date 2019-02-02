@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2013 Blender Foundation.
  * All rights reserved.
- *
- * Original Author: Joshua Leung
- * Contributor(s): None Yet
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/depsgraph/intern/node/deg_node_operation.cc
@@ -49,10 +42,11 @@ const char *operationCodeAsString(OperationCode opcode)
 		case OperationCode::OPERATION: return "OPERATION";
 		case OperationCode::ID_PROPERTY: return "ID_PROPERTY";
 		case OperationCode::PARAMETERS_EVAL: return "PARAMETERS_EVAL";
-		case OperationCode::PLACEHOLDER: return "PLACEHOLDER";
 		/* Animation, Drivers, etc. */
 		case OperationCode::ANIMATION: return "ANIMATION";
 		case OperationCode::DRIVER: return "DRIVER";
+		/* Scene related. */
+		case OperationCode::SCENE_EVAL: return "SCENE_EVAL";
 		/* Object related. */
 		case OperationCode::OBJECT_BASE_FLAGS: return "OBJECT_BASE_FLAGS";
 		/* Transform. */
@@ -69,11 +63,14 @@ const char *operationCodeAsString(OperationCode opcode)
 		case OperationCode::RIGIDBODY_TRANSFORM_COPY:
 			return "RIGIDBODY_TRANSFORM_COPY";
 		/* Geometry. */
-		case OperationCode::GEOMETRY_UBEREVAL: return "GEOMETRY_UBEREVAL";
+		case OperationCode::GEOMETRY_EVAL_INIT: return "GEOMETRY_EVAL_INIT";
+		case OperationCode::GEOMETRY_EVAL: return "GEOMETRY_EVAL";
+		case OperationCode::GEOMETRY_EVAL_DONE: return "GEOMETRY_EVAL_DONE";
 		case OperationCode::GEOMETRY_SHAPEKEY: return "GEOMETRY_SHAPEKEY";
 		/* Object data. */
 		case OperationCode::LIGHT_PROBE_EVAL: return "LIGHT_PROBE_EVAL";
 		case OperationCode::SPEAKER_EVAL: return "SPEAKER_EVAL";
+		case OperationCode::ARMATURE_EVAL: return "ARMATURE_EVAL";
 		/* Pose. */
 		case OperationCode::POSE_INIT: return "POSE_INIT";
 		case OperationCode::POSE_INIT_IK: return "POSE_INIT_IK";
@@ -102,6 +99,8 @@ const char *operationCodeAsString(OperationCode opcode)
 			return "PARTICLE_SETTINGS_RESET";
 		/* Point Cache. */
 		case OperationCode::POINT_CACHE_RESET: return "POINT_CACHE_RESET";
+		/* File cache. */
+		case OperationCode::FILE_CACHE_UPDATE: return "FILE_CACHE_UPDATE";
 		/* Batch cache. */
 		case OperationCode::GEOMETRY_SELECT_UPDATE:
 			return "GEOMETRY_SELECT_UPDATE";
@@ -126,6 +125,8 @@ const char *operationCodeAsString(OperationCode opcode)
 		/* Generic datablock. */
 		case OperationCode::GENERIC_DATABLOCK_UPDATE:
 			return "GENERIC_DATABLOCK_UPDATE";
+		/* instancing/duplication. */
+		case OperationCode::DUPLI: return "DUPLI";
 	}
 	BLI_assert(!"Unhandled operation code, should never happen.");
 	return "UNKNOWN";

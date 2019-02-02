@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Blender Foundation (2008).
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/makesrna/intern/rna_userdef.c
@@ -169,8 +163,8 @@ static void rna_userdef_language_update(Main *UNUSED(bmain), Scene *UNUSED(scene
 static void rna_userdef_script_autoexec_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	UserDef *userdef = (UserDef *)ptr->data;
-	if (userdef->flag & USER_SCRIPT_AUTOEXEC_DISABLE) G.f &= ~G_SCRIPT_AUTOEXEC;
-	else G.f |=  G_SCRIPT_AUTOEXEC;
+	if (userdef->flag & USER_SCRIPT_AUTOEXEC_DISABLE) G.f &= ~G_FLAG_SCRIPT_AUTOEXEC;
+	else G.f |=  G_FLAG_SCRIPT_AUTOEXEC;
 }
 
 static void rna_userdef_load_ui_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)

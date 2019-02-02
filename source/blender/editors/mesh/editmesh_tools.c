@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2004 by Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Joseph Eagar
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/mesh/editmesh_tools.c
@@ -3362,26 +3354,6 @@ void MESH_OT_solidify(wmOperatorType *ot)
 /* -------------------------------------------------------------------- */
 /** \name Knife Subdivide Operator
  * \{ */
-
-/* ******************************************************************** */
-/* Knife Subdivide Tool.  Subdivides edges intersected by a mouse trail
- * drawn by user.
- *
- * Currently mapped to KKey when in MeshEdit mode.
- * Usage:
- * - Hit Shift K, Select Centers or Exact
- * - Hold LMB down to draw path, hit RETKEY.
- * - ESC cancels as expected.
- *
- * Contributed by Robert Wenzlaff (Det. Thorn).
- *
- * 2.5 Revamp:
- * - non modal (no menu before cutting)
- * - exit on mouse release
- * - polygon/segment drawing can become handled by WM cb later
- *
- * bmesh port version
- */
 
 #define KNIFE_EXACT     1
 #define KNIFE_MIDPOINT  2

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation, full recode and added functions
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_view3d/drawobject.c
@@ -70,7 +64,7 @@ static bool check_ob_drawface_dot(Scene *sce, View3D *vd, char dt)
 	if ((sce->toolsettings->selectmode & SCE_SELECT_FACE) == 0)
 		return false;
 
-	if (G.f & G_BACKBUFSEL)
+	if (G.f & G_FLAG_BACKBUFSEL)
 		return false;
 
 	/* if its drawing textures with zbuf sel, then don't draw dots */

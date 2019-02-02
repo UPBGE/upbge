@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -16,10 +14,6 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * Copyright 2018, Blender Foundation.
- * Contributor(s): Blender Institute
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  */
 
 #include "workbench_private.h"
@@ -48,17 +42,17 @@ void workbench_private_data_init(WORKBENCH_PrivateData *wpd)
 	View3D *v3d = draw_ctx->v3d;
 	if (!v3d) {
 		wpd->shading = scene->display.shading;
-		wpd->use_color_view_settings = true;
+		wpd->use_color_render_settings = true;
 	}
 	else if (v3d->shading.type == OB_RENDER &&
 	         BKE_scene_uses_blender_workbench(scene))
 	{
 		wpd->shading = scene->display.shading;
-		wpd->use_color_view_settings = true;
+		wpd->use_color_render_settings = true;
 	}
 	else {
 		wpd->shading = v3d->shading;
-		wpd->use_color_view_settings = false;
+		wpd->use_color_render_settings = false;
 	}
 
 	if (wpd->shading.light == V3D_LIGHTING_MATCAP) {

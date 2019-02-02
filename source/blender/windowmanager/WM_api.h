@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2007 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 #ifndef __WM_API_H__
 #define __WM_API_H__
@@ -623,6 +616,9 @@ bool        WM_event_is_tablet(const struct wmEvent *event);
 #ifdef WITH_INPUT_IME
 bool        WM_event_is_ime_switch(const struct wmEvent *event);
 #endif
+
+/* For testing only 'G_FLAG_EVENT_SIMULATE' */
+struct wmEvent *WM_event_add_simulate(struct wmWindow *win, const struct wmEvent *event_to_add);
 
 const char *WM_window_cursor_keymap_status_get(const struct wmWindow *win, int button_index, int type_index);
 void WM_window_cursor_keymap_status_refresh(struct bContext *C, struct wmWindow *win);
