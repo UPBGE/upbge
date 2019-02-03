@@ -125,6 +125,7 @@ KX_GameObject::KX_GameObject(
 	  m_castShadows(true), //eevee
 	  m_isReplica(false), //eevee
 	  m_backupMesh(nullptr), //eevee
+	  m_staticObject(true), //eevee
       m_layer(0),
       m_lodManager(nullptr),
       m_currentLodLevel(0),
@@ -262,9 +263,9 @@ void KX_GameObject::TagForUpdate()
 {
 	float obmat[4][4];
 	NodeGetWorldTransform().getValue(&obmat[0][0]);
-	bool staticObject = compare_m4m4(m_prevObmat, obmat, FLT_MIN);
+	m_staticObject = compare_m4m4(m_prevObmat, obmat, FLT_MIN);
 
-	if (staticObject) {
+	if (m_staticObject) {
 		GetScene()->AppendToStaticObjects(this);
 	}
 	Object *ob = GetBlenderObject();
@@ -272,12 +273,12 @@ void KX_GameObject::TagForUpdate()
 		copy_m4_m4(ob->obmat, obmat);
 		invert_m4_m4(ob->imat, obmat);
 		/* NORMAL CASE */
-		if (!staticObject && ob->type != OB_MBALL) {
+		if (!m_staticObject && ob->type != OB_MBALL) {
 			DEG_id_tag_update(&ob->id, NC_OBJECT | ND_TRANSFORM);
 			DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);
 		}
 		/* SPECIAL CASE: EXPERIMENTAL -> TEST METABALLS (incomplete) (TODO restore elems position at ge exit) */
-		else if (!staticObject && ob->type == OB_MBALL) {
+		else if (!m_staticObject && ob->type == OB_MBALL) {
 			if (!BKE_mball_is_basis(ob)) {
 				DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
 			}
@@ -287,7 +288,7 @@ void KX_GameObject::TagForUpdate()
 			}
 		}
 
-		if (!staticObject && ELEM(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL)) {
+		if (!m_staticObject && ELEM(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL)) {
 			if (m_castShadows) {
 				EEVEE_ObjectEngineData *oedata = EEVEE_object_data_ensure(ob);
 				oedata->need_update = true;
@@ -344,6 +345,11 @@ void KX_GameObject::RestoreOriginalMesh()
 		m_backupMesh = nullptr;
 		DEG_id_tag_update(&origMesh->id, ID_RECALC_GEOMETRY);
 	}
+}
+
+bool KX_GameObject::IsStatic()
+{
+	return m_staticObject;
 }
 
 void KX_GameObject::HideOriginalObject()

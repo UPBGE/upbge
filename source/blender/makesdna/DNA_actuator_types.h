@@ -217,6 +217,11 @@ typedef struct bParentActuator {
 	struct Object *ob;
 } bParentActuator;
 
+typedef struct bModifierActuator {
+	short type;
+	short flag;
+} bModifierActuator;
+
 typedef struct bStateActuator {
 	int type;			/* 0=Set, 1=Add, 2=Rem, 3=Chg */
 	unsigned int mask;	/* the bits to change */
@@ -329,6 +334,7 @@ typedef struct bActuator {
 #define ACT_ARMATURE	23
 #define ACT_STEERING    24
 #define ACT_MOUSE		25
+#define ACT_MODIFIER	26
 
 /* actuator flag */
 #define ACT_SHOW		1
@@ -534,6 +540,9 @@ typedef struct bActuator {
 /* parentactuator->flag */
 #define ACT_PARENT_COMPOUND	1
 #define ACT_PARENT_GHOST	2
+
+/* modifieractuator->flag */
+#define ACT_MODIFIER_ACTIVATED 1
 
 /* armatureactuator->type */
 #define ACT_ARM_RUN			0

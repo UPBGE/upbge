@@ -5093,6 +5093,8 @@ static void lib_link_object(FileData *fd, Main *main)
 					case ACT_MOUSE:
 						/* bMouseActuator *moa = act->data; */
 						break;
+					case ACT_MODIFIER:
+						break;
 				}
 			}
 			
@@ -10131,6 +10133,10 @@ static void expand_object(FileData *fd, Main *mainvar, Object *ob)
 		else if (act->type == ACT_MESSAGE) {
 			bMessageActuator *ma = act->data;
 			expand_doit(fd, mainvar, ma->toObject);
+		}
+		else if (act->type == ACT_MODIFIER) {
+			bParentActuator *pa = act->data;
+			expand_doit(fd, mainvar, pa->ob);
 		}
 		else if (act->type==ACT_PARENT) {
 			bParentActuator *pa = act->data;

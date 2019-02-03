@@ -480,6 +480,9 @@ void init_actuator(bActuator *act)
 	case ACT_2DFILTER:
 		act->data = MEM_callocN(sizeof( bTwoDFilterActuator ), "2d filter act");
 		break;
+	case ACT_MODIFIER:
+		act->data = MEM_callocN(sizeof(bModifierActuator), "modifier act");
+		break;
 	case ACT_PARENT:
 		act->data = MEM_callocN(sizeof( bParentActuator ), "parent act");
 		break;
@@ -1155,6 +1158,7 @@ void BKE_sca_actuators_id_loop(ListBase *actlist, SCAActuatorIDFunc func, void *
 			case ACT_SHAPEACTION:
 			case ACT_STATE:
 			case ACT_MOUSE:
+			case ACT_MODIFIER:
 			default:
 				break;
 		}

@@ -93,6 +93,7 @@ protected:
 	bool m_castShadows;
 	bool m_isReplica;
 	Mesh *m_backupMesh;
+	bool m_staticObject;
 	/* END OF EEVEE INTEGRATION */
 
 
@@ -148,6 +149,7 @@ public:
 	void RemoveReplicaObject();
 	void SetBackupMesh(Mesh *me);
 	void RestoreOriginalMesh();
+	bool IsStatic();
 
 	/* END OF EEVEE INTEGRATION */
 
