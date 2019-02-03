@@ -42,7 +42,7 @@ const EnumPropertyItem rna_enum_image_generated_type_items[] = {
 	{IMA_GENTYPE_BLANK, "BLANK", 0, "Blank", "Generate a blank image"},
 	{IMA_GENTYPE_GRID, "UV_GRID", 0, "UV Grid", "Generated grid to test UV mappings"},
 	{IMA_GENTYPE_GRID_COLOR, "COLOR_GRID", 0, "Color Grid", "Generated improved UV grid to test UV mappings"},
-	{0, NULL, 0, NULL, NULL}
+	{0, NULL, 0, NULL, NULL},
 };
 
 static const EnumPropertyItem image_source_items[] = {
@@ -51,7 +51,7 @@ static const EnumPropertyItem image_source_items[] = {
 	{IMA_SRC_MOVIE, "MOVIE", 0, "Movie", "Movie file"},
 	{IMA_SRC_GENERATED, "GENERATED", 0, "Generated", "Generated image"},
 	{IMA_SRC_VIEWER, "VIEWER", 0, "Viewer", "Compositing node viewer"},
-	{0, NULL, 0, NULL, NULL}
+	{0, NULL, 0, NULL, NULL},
 };
 
 #ifdef RNA_RUNTIME
@@ -636,17 +636,17 @@ static void rna_def_image(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 	static const EnumPropertyItem prop_type_items[] = {
-		{ IMA_TYPE_IMAGE, "IMAGE", 0, "Image", "" },
-	{ IMA_TYPE_MULTILAYER, "MULTILAYER", 0, "Multilayer", "" },
-	{ IMA_TYPE_UV_TEST, "UV_TEST", 0, "UV Test", "" },
-	{ IMA_TYPE_R_RESULT, "RENDER_RESULT", 0, "Render Result", "" },
-	{ IMA_TYPE_COMPOSITE, "COMPOSITING", 0, "Compositing", "" },
-	{ 0, NULL, 0, NULL, NULL }
+		{IMA_TYPE_IMAGE, "IMAGE", 0, "Image", ""},
+		{IMA_TYPE_MULTILAYER, "MULTILAYER", 0, "Multilayer", ""},
+		{IMA_TYPE_UV_TEST, "UV_TEST", 0, "UV Test", ""},
+		{IMA_TYPE_R_RESULT, "RENDER_RESULT", 0, "Render Result", ""},
+		{IMA_TYPE_COMPOSITE, "COMPOSITING", 0, "Compositing", ""},
+		{0, NULL, 0, NULL, NULL},
 	};
 	static const EnumPropertyItem alpha_mode_items[] = {
-		{ IMA_ALPHA_STRAIGHT, "STRAIGHT", 0, "Straight", "Transparent RGB and alpha pixels are unmodified" },
-	{ IMA_ALPHA_PREMUL, "PREMUL", 0, "Premultiplied", "Transparent RGB pixels are multiplied by the alpha channel" },
-	{ 0, NULL, 0, NULL, NULL }
+		{IMA_ALPHA_STRAIGHT, "STRAIGHT", 0, "Straight", "Transparent RGB and alpha pixels are unmodified"},
+		{IMA_ALPHA_PREMUL, "PREMUL", 0, "Premultiplied", "Transparent RGB pixels are multiplied by the alpha channel"},
+		{0, NULL, 0, NULL, NULL},
 	};
 
 	srna = RNA_def_struct(brna, "Image", "ID");
