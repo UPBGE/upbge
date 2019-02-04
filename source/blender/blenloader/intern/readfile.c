@@ -3943,6 +3943,12 @@ static void direct_link_image(FileData *fd, Image *ima)
 		}
 		ima->rr = NULL;
 	}
+	else {
+		for (int i = 0; i < TEXTARGET_COUNT; i++) {
+			ima->gputexture[i] = newimaadr(fd, ima->gputexture[i]);
+		}
+		ima->rr = newimaadr(fd, ima->rr);
+	}
 
 	//ima->repbind = NULL;
 	
