@@ -168,7 +168,7 @@ static void copy_bonechildren(
 
 /**
  * Only copy internal data of Armature ID from source to already allocated/initialized destination.
- * You probably nerver want to use that directly, use id_copy or BKE_id_copy_ex for typical needs.
+ * You probably never want to use that directly, use BKE_id_copy or BKE_id_copy_ex for typical needs.
  *
  * WARNING! This function will not handle ID user count!
  *
@@ -201,7 +201,7 @@ void BKE_armature_copy_data(Main *UNUSED(bmain), bArmature *arm_dst, const bArma
 bArmature *BKE_armature_copy(Main *bmain, const bArmature *arm)
 {
 	bArmature *arm_copy;
-	BKE_id_copy_ex(bmain, &arm->id, (ID **)&arm_copy, 0, false);
+	BKE_id_copy(bmain, &arm->id, (ID **)&arm_copy);
 	return arm_copy;
 }
 

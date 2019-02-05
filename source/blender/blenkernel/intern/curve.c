@@ -186,7 +186,7 @@ Curve *BKE_curve_add(Main *bmain, const char *name, int type)
 
 /**
  * Only copy internal data of Curve ID from source to already allocated/initialized destination.
- * You probably nerver want to use that directly, use id_copy or BKE_id_copy_ex for typical needs.
+ * You probably never want to use that directly, use BKE_id_copy or BKE_id_copy_ex for typical needs.
  *
  * WARNING! This function will not handle ID user count!
  *
@@ -206,7 +206,7 @@ void BKE_curve_copy_data(Main *bmain, Curve *cu_dst, const Curve *cu_src, const 
 	cu_dst->batch_cache = NULL;
 
 	if (cu_src->key && (flag & LIB_ID_COPY_SHAPEKEY)) {
-		BKE_id_copy_ex(bmain, &cu_src->key->id, (ID **)&cu_dst->key, flag, false);
+		BKE_id_copy_ex(bmain, &cu_src->key->id, (ID **)&cu_dst->key, flag);
 	}
 
 	cu_dst->editnurb = NULL;
@@ -216,7 +216,7 @@ void BKE_curve_copy_data(Main *bmain, Curve *cu_dst, const Curve *cu_src, const 
 Curve *BKE_curve_copy(Main *bmain, const Curve *cu)
 {
 	Curve *cu_copy;
-	BKE_id_copy_ex(bmain, &cu->id, (ID **)&cu_copy, LIB_ID_COPY_SHAPEKEY, false);
+	BKE_id_copy(bmain, &cu->id, (ID **)&cu_copy);
 	return cu_copy;
 }
 

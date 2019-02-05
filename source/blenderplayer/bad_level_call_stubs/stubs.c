@@ -247,6 +247,12 @@ bool BPY_string_is_keyword(const char *str) { return false; }
 /* -------------------------------------------------------------------- */
 /* Stubs */
 
+bool uvedit_face_visible_nolocal_ex(const struct ToolSettings *ts, struct BMFace *efa) RET_ZERO
+bool uvedit_face_select_test_ex(const struct ToolSettings *ts, struct BMFace *efa, const int cd_loop_uv_offset) RET_ZERO
+bool uvedit_edge_select_test_ex(const struct ToolSettings *ts, struct BMLoop *l, const int cd_loop_uv_offset) RET_ZERO
+bool uvedit_uv_select_test_ex(const struct ToolSettings *ts, struct BMLoop *l, const int cd_loop_uv_offset) RET_ZERO
+float bglPolygonOffsetCalc(const float winmat[16], float viewdist, float dist) RET_ZERO
+
 void CLG_logf(struct CLG_LogType *lg, enum CLG_Severity severity, const char *file_line, const char *fn, const char *format, ...) RET_NONE
 void CLG_logref_init(struct CLG_LogRef *clg_ref) RET_NONE
 void CLG_log_str(struct CLG_LogType *lg, enum CLG_Severity severity, const char *file_line, const char *fn,	const char *message) RET_NONE

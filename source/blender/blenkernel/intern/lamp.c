@@ -97,7 +97,7 @@ Lamp *BKE_lamp_add(Main *bmain, const char *name)
 
 /**
  * Only copy internal data of Lamp ID from source to already allocated/initialized destination.
- * You probably nerver want to use that directly, use id_copy or BKE_id_copy_ex for typical needs.
+ * You probably never want to use that directly, use BKE_id_copy or BKE_id_copy_ex for typical needs.
  *
  * WARNING! This function will not handle ID user count!
  *
@@ -110,7 +110,7 @@ void BKE_lamp_copy_data(Main *bmain, Lamp *la_dst, const Lamp *la_src, const int
 	if (la_src->nodetree) {
 		/* Note: nodetree is *not* in bmain, however this specific case is handled at lower level
 		 *       (see BKE_libblock_copy_ex()). */
-		BKE_id_copy_ex(bmain, (ID *)la_src->nodetree, (ID **)&la_dst->nodetree, flag, false);
+		BKE_id_copy_ex(bmain, (ID *)la_src->nodetree, (ID **)&la_dst->nodetree, flag);
 	}
 
 	if ((flag & LIB_ID_COPY_NO_PREVIEW) == 0) {
@@ -124,7 +124,7 @@ void BKE_lamp_copy_data(Main *bmain, Lamp *la_dst, const Lamp *la_src, const int
 Lamp *BKE_lamp_copy(Main *bmain, const Lamp *la)
 {
 	Lamp *la_copy;
-	BKE_id_copy_ex(bmain, &la->id, (ID **)&la_copy, 0, false);
+	BKE_id_copy(bmain, &la->id, (ID **)&la_copy);
 	return la_copy;
 }
 

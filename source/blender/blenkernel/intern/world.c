@@ -97,7 +97,7 @@ World *BKE_world_add(Main *bmain, const char *name)
 
 /**
  * Only copy internal data of World ID from source to already allocated/initialized destination.
- * You probably nerver want to use that directly, use id_copy or BKE_id_copy_ex for typical needs.
+ * You probably never want to use that directly, use BKE_id_copy or BKE_id_copy_ex for typical needs.
  *
  * WARNING! This function will not handle ID user count!
  *
@@ -108,7 +108,7 @@ void BKE_world_copy_data(Main *bmain, World *wrld_dst, const World *wrld_src, co
 	if (wrld_src->nodetree) {
 		/* Note: nodetree is *not* in bmain, however this specific case is handled at lower level
 		 *       (see BKE_libblock_copy_ex()). */
-		BKE_id_copy_ex(bmain, (ID *)wrld_src->nodetree, (ID **)&wrld_dst->nodetree, flag, false);
+		BKE_id_copy_ex(bmain, (ID *)wrld_src->nodetree, (ID **)&wrld_dst->nodetree, flag);
 	}
 
 	BLI_listbase_clear(&wrld_dst->gpumaterial);
@@ -125,7 +125,7 @@ void BKE_world_copy_data(Main *bmain, World *wrld_dst, const World *wrld_src, co
 World *BKE_world_copy(Main *bmain, const World *wrld)
 {
 	World *wrld_copy;
-	BKE_id_copy_ex(bmain, &wrld->id, (ID **)&wrld_copy, 0, false);
+	BKE_id_copy(bmain, &wrld->id, (ID **)&wrld_copy);
 	return wrld_copy;
 }
 

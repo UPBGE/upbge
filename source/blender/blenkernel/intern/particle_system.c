@@ -3195,13 +3195,7 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 	clmd_effweights = psys->clmd->sim_parms->effector_weights;
 	psys->clmd->sim_parms->effector_weights = psys->part->effector_weights;
 
-	BKE_id_copy_ex(
-	            NULL, &psys->hair_in_mesh->id, (ID **)&psys->hair_out_mesh,
-	            LIB_ID_CREATE_NO_MAIN |
-	            LIB_ID_CREATE_NO_USER_REFCOUNT |
-	            LIB_ID_CREATE_NO_DEG_TAG |
-	            LIB_ID_COPY_NO_PREVIEW,
-	            false);
+	BKE_id_copy_ex(NULL, &psys->hair_in_mesh->id, (ID **)&psys->hair_out_mesh, LIB_ID_COPY_LOCALIZE);
 	deformedVerts = BKE_mesh_vertexCos_get(psys->hair_out_mesh, NULL);
 	clothModifier_do(psys->clmd, sim->depsgraph, sim->scene, sim->ob, psys->hair_in_mesh, deformedVerts);
 	BKE_mesh_apply_vert_coords(psys->hair_out_mesh, deformedVerts);
@@ -4192,15 +4186,10 @@ static int hair_needs_recalc(ParticleSystem *psys)
 static ParticleSettings *particle_settings_localize(ParticleSettings *particle_settings)
 {
 	ParticleSettings *particle_settings_local;
-	/* TODO(sergey): Consider making this a  */
 	BKE_id_copy_ex(NULL,
 	               (ID *)&particle_settings->id,
 	               (ID **)&particle_settings_local,
-	               (LIB_ID_CREATE_NO_MAIN |
-	                LIB_ID_CREATE_NO_USER_REFCOUNT |
-	                LIB_ID_CREATE_NO_DEG_TAG |
-	                LIB_ID_COPY_CACHES),
-	               false);
+	               LIB_ID_COPY_LOCALIZE);
 	return particle_settings_local;
 }
 

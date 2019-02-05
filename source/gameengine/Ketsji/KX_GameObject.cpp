@@ -305,7 +305,7 @@ void KX_GameObject::ReplicateBlenderObject()
 	if (ob) {
 		Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
 		Object *newob;
-		BKE_id_copy_ex(bmain, &ob->id, (ID **)&newob, 0, false);
+		BKE_id_copy_ex(bmain, &ob->id, (ID **)&newob, 0);
 		Scene *scene = GetScene()->GetBlenderScene();
 		ViewLayer *view_layer = BKE_view_layer_default_view(scene);
 		BKE_collection_object_add_from(bmain, scene, BKE_view_layer_camera_find(view_layer), newob); //add replica where is the active camera
@@ -331,7 +331,7 @@ void KX_GameObject::RemoveReplicaObject()
 void KX_GameObject::SetBackupMesh(Mesh *me)
 {
 	Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
-	BKE_id_copy_ex(bmain, &me->id, (ID **)&m_backupMesh, 0, false);
+	BKE_id_copy_ex(bmain, &me->id, (ID **)&m_backupMesh, 0);
 }
 
 void KX_GameObject::RestoreOriginalMesh()

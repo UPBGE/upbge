@@ -518,7 +518,7 @@ Mesh *BKE_mesh_add(Main *bmain, const char *name)
 
 /**
  * Only copy internal data of Mesh ID from source to already allocated/initialized destination.
- * You probably nerver want to use that directly, use id_copy or BKE_id_copy_ex for typical needs.
+ * You probably never want to use that directly, use BKE_id_copy or BKE_id_copy_ex for typical needs.
  *
  * WARNING! This function will not handle ID user count!
  *
@@ -572,7 +572,7 @@ void BKE_mesh_copy_data(Main *bmain, Mesh *me_dst, const Mesh *me_src, const int
 
 	/* TODO Do we want to add flag to prevent this? */
 	if (me_src->key && (flag & LIB_ID_COPY_SHAPEKEY)) {
-		BKE_id_copy_ex(bmain, &me_src->key->id, (ID **)&me_dst->key, flag, false);
+		BKE_id_copy_ex(bmain, &me_src->key->id, (ID **)&me_dst->key, flag);
 	}
 }
 
@@ -609,9 +609,7 @@ Mesh *BKE_mesh_new_nomain(int verts_len, int edges_len, int tessface_len, int lo
 	Mesh *mesh = BKE_libblock_alloc(
 	        NULL, ID_ME,
 	        BKE_idcode_to_name(ID_ME),
-	        LIB_ID_CREATE_NO_MAIN |
-	        LIB_ID_CREATE_NO_USER_REFCOUNT |
-	        LIB_ID_CREATE_NO_DEG_TAG);
+	        LIB_ID_COPY_LOCALIZE);
 	BKE_libblock_init_empty(&mesh->id);
 
 	/* don't use CustomData_reset(...); because we dont want to touch customdata */
@@ -691,24 +689,21 @@ Mesh *BKE_mesh_new_nomain_from_template(
 
 Mesh *BKE_mesh_copy_for_eval(struct Mesh *source, bool reference)
 {
-	int flags = (LIB_ID_CREATE_NO_MAIN |
-	             LIB_ID_CREATE_NO_USER_REFCOUNT |
-	             LIB_ID_CREATE_NO_DEG_TAG |
-	             LIB_ID_COPY_NO_PREVIEW);
+	int flags = LIB_ID_COPY_LOCALIZE;
 
 	if (reference) {
 		flags |= LIB_ID_COPY_CD_REFERENCE;
 	}
 
 	Mesh *result;
-	BKE_id_copy_ex(NULL, &source->id, (ID **)&result, flags, false);
+	BKE_id_copy_ex(NULL, &source->id, (ID **)&result, flags);
 	return result;
 }
 
 Mesh *BKE_mesh_copy(Main *bmain, const Mesh *me)
 {
 	Mesh *me_copy;
-	BKE_id_copy_ex(bmain, &me->id, (ID **)&me_copy, LIB_ID_COPY_SHAPEKEY, false);
+	BKE_id_copy(bmain, &me->id, (ID **)&me_copy);
 	return me_copy;
 }
 

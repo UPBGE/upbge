@@ -61,7 +61,7 @@ void *BKE_speaker_add(Main *bmain, const char *name)
 
 /**
  * Only copy internal data of Speaker ID from source to already allocated/initialized destination.
- * You probably nerver want to use that directly, use id_copy or BKE_id_copy_ex for typical needs.
+ * You probably never want to use that directly, use BKE_id_copy or BKE_id_copy_ex for typical needs.
  *
  * WARNING! This function will not handle ID user count!
  *
@@ -75,7 +75,7 @@ void BKE_speaker_copy_data(Main *UNUSED(bmain), Speaker *UNUSED(spk_dst), const 
 Speaker *BKE_speaker_copy(Main *bmain, const Speaker *spk)
 {
 	Speaker *spk_copy;
-	BKE_id_copy_ex(bmain, &spk->id, (ID **)&spk_copy, 0, false);
+	BKE_id_copy(bmain, &spk->id, (ID **)&spk_copy);
 	return spk_copy;
 }
 

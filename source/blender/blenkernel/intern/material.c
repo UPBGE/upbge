@@ -173,7 +173,7 @@ Material *BKE_material_add_gpencil(Main *bmain, const char *name)
 
 /**
  * Only copy internal data of Material ID from source to already allocated/initialized destination.
- * You probably nerver want to use that directly, use id_copy or BKE_id_copy_ex for typical needs.
+ * You probably never want to use that directly, use BKE_id_copy or BKE_id_copy_ex for typical needs.
  *
  * WARNING! This function will not handle ID user count!
  *
@@ -184,7 +184,7 @@ void BKE_material_copy_data(Main *bmain, Material *ma_dst, const Material *ma_sr
 	if (ma_src->nodetree) {
 		/* Note: nodetree is *not* in bmain, however this specific case is handled at lower level
 		 *       (see BKE_libblock_copy_ex()). */
-		BKE_id_copy_ex(bmain, (ID *)ma_src->nodetree, (ID **)&ma_dst->nodetree, flag, false);
+		BKE_id_copy_ex(bmain, (ID *)ma_src->nodetree, (ID **)&ma_dst->nodetree, flag);
 	}
 
 	if ((flag & LIB_ID_COPY_NO_PREVIEW) == 0) {
@@ -210,7 +210,7 @@ void BKE_material_copy_data(Main *bmain, Material *ma_dst, const Material *ma_sr
 Material *BKE_material_copy(Main *bmain, const Material *ma)
 {
 	Material *ma_copy;
-	BKE_id_copy_ex(bmain, &ma->id, (ID **)&ma_copy, 0, false);
+	BKE_id_copy(bmain, &ma->id, (ID **)&ma_copy);
 	return ma_copy;
 }
 

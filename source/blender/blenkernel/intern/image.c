@@ -379,7 +379,7 @@ static void copy_image_packedfiles(ListBase *lb_dst, const ListBase *lb_src)
 
 /**
  * Only copy internal data of Image ID from source to already allocated/initialized destination.
- * You probably nerver want to use that directly, use id_copy or BKE_id_copy_ex for typical needs.
+ * You probably never want to use that directly, use BKE_id_copy or BKE_id_copy_ex for typical needs.
  *
  * WARNING! This function will not handle ID user count!
  *
@@ -423,7 +423,7 @@ void BKE_image_copy_data(Main *UNUSED(bmain), Image *ima_dst, const Image *ima_s
 Image *BKE_image_copy(Main *bmain, const Image *ima)
 {
 	Image *ima_copy;
-	BKE_id_copy_ex(bmain, &ima->id, (ID **)&ima_copy, 0, false);
+	BKE_id_copy(bmain, &ima->id, (ID **)&ima_copy);
 	return ima_copy;
 }
 
@@ -2183,6 +2183,9 @@ void BKE_imbuf_stamp_info(RenderResult *rr, struct ImBuf *ibuf)
 
 void BKE_stamp_info_from_imbuf(RenderResult *rr, struct ImBuf *ibuf)
 {
+	if (rr->stamp_data == NULL) {
+		rr->stamp_data = MEM_callocN(sizeof(StampData), "RenderResult.stamp_data");
+	}
 	struct StampData *stamp_data = rr->stamp_data;
 	IMB_metadata_ensure(&ibuf->metadata);
 	BKE_stamp_info_callback(ibuf, stamp_data, metadata_get_field, true);
@@ -3076,8 +3079,10 @@ static void image_create_multilayer(Image *ima, ImBuf *ibuf, int framenr)
 	IMB_exr_close(ibuf->userdata);
 
 	ibuf->userdata = NULL;
-	if (ima->rr)
+	if (ima->rr != NULL) {
 		ima->rr->framenr = framenr;
+		BKE_stamp_info_from_imbuf(ima->rr, ibuf);
+	}
 
 	/* set proper views */
 	image_init_multilayer_multiview(ima, ima->rr);
@@ -3277,6 +3282,8 @@ static ImBuf *image_load_sequence_multilayer(Image *ima, ImageUser *iuser, int f
 			ibuf->flags |= IB_rectfloat;
 			ibuf->mall = IB_rectfloat;
 			ibuf->channels = rpass->channels;
+
+			BKE_imbuf_stamp_info(ima->rr, ibuf);
 
 			image_initialize_after_load(ima, ibuf);
 			image_assign_ibuf(ima, ibuf, iuser ? iuser->multi_index : 0, frame);
@@ -3588,6 +3595,8 @@ static ImBuf *image_get_ibuf_multilayer(Image *ima, ImageUser *iuser)
 			ibuf->rect_float = rpass->rect;
 			ibuf->flags |= IB_rectfloat;
 			ibuf->channels = rpass->channels;
+
+			BKE_imbuf_stamp_info(ima->rr, ibuf);
 
 			image_assign_ibuf(ima, ibuf, iuser ? iuser->multi_index : IMA_NO_INDEX, 0);
 		}

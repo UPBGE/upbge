@@ -275,7 +275,7 @@ struct ValidateData {
 	bool is_valid;
 };
 
-/* Similar to generic id_copy() but does not require main and assumes pointer
+/* Similar to generic BKE_id_copy() but does not require main and assumes pointer
  * is already allocated,
  */
 bool id_copy_inplace_no_main(const ID *id, ID *newid)
@@ -290,12 +290,8 @@ bool id_copy_inplace_no_main(const ID *id, ID *newid)
 	bool result = BKE_id_copy_ex(NULL,
 	                             (ID *)id_for_copy,
 	                             &newid,
-	                             (LIB_ID_CREATE_NO_MAIN |
-	                              LIB_ID_CREATE_NO_USER_REFCOUNT |
-	                              LIB_ID_CREATE_NO_ALLOCATE |
-	                              LIB_ID_CREATE_NO_DEG_TAG |
-	                              LIB_ID_COPY_CACHES),
-	                             false);
+	                             (LIB_ID_COPY_LOCALIZE |
+	                              LIB_ID_CREATE_NO_ALLOCATE));
 
 #ifdef NESTED_ID_NASTY_WORKAROUND
 	if (result) {
@@ -322,11 +318,8 @@ bool scene_copy_inplace_no_main(const Scene *scene, Scene *new_scene)
 	bool result = BKE_id_copy_ex(NULL,
 	                             id_for_copy,
 	                             (ID **)&new_scene,
-	                             LIB_ID_CREATE_NO_MAIN |
-	                             LIB_ID_CREATE_NO_USER_REFCOUNT |
-	                             LIB_ID_CREATE_NO_ALLOCATE |
-	                             LIB_ID_CREATE_NO_DEG_TAG,
-	                             false);
+	                             LIB_ID_COPY_LOCALIZE |
+	                             LIB_ID_CREATE_NO_ALLOCATE);
 
 #ifdef NESTED_ID_NASTY_WORKAROUND
 	if (result) {
@@ -704,7 +697,7 @@ ID *deg_expand_copy_on_write_datablock(const Depsgraph *depsgraph,
 	 * - We don't want heap-allocations here.
 	 * - We don't want bmain's content to be freed when main is freed. */
 	bool done = false;
-	/* First we handle special cases which are not covered by id_copy() yet.
+	/* First we handle special cases which are not covered by BKE_id_copy() yet.
 	 * or cases where we want to do something smarter than simple datablock
 	 * copy. */
 	const ID_Type id_type = GS(id_orig->name);

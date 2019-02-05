@@ -89,7 +89,7 @@ void *BKE_camera_add(Main *bmain, const char *name)
 
 /**
  * Only copy internal data of Camera ID from source to already allocated/initialized destination.
- * You probably nerver want to use that directly, use id_copy or BKE_id_copy_ex for typical needs.
+ * You probably never want to use that directly, use BKE_id_copy or BKE_id_copy_ex for typical needs.
  *
  * WARNING! This function will not handle ID user count!
  *
@@ -103,7 +103,7 @@ void BKE_camera_copy_data(Main *UNUSED(bmain), Camera *cam_dst, const Camera *ca
 Camera *BKE_camera_copy(Main *bmain, const Camera *cam)
 {
 	Camera *cam_copy;
-	BKE_id_copy_ex(bmain, &cam->id, (ID **)&cam_copy, 0, false);
+	BKE_id_copy(bmain, &cam->id, (ID **)&cam_copy);
 	return cam_copy;
 }
 

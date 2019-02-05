@@ -177,7 +177,7 @@ bool BKE_collection_delete(Main *bmain, Collection *collection, bool hierarchy)
 
 /**
  * Only copy internal data of Collection ID from source to already allocated/initialized destination.
- * You probably nerver want to use that directly, use id_copy or BKE_id_copy_ex for typical needs.
+ * You probably never want to use that directly, use BKE_id_copy or BKE_id_copy_ex for typical needs.
  *
  * WARNING! This function will not handle ID user count!
  *
@@ -224,7 +224,7 @@ Collection *BKE_collection_copy(Main *bmain, Collection *parent, Collection *col
 	}
 
 	Collection *collection_new;
-	BKE_id_copy_ex(bmain, &collection->id, (ID **)&collection_new, 0, false);
+	BKE_id_copy(bmain, &collection->id, (ID **)&collection_new);
 	id_us_min(&collection_new->id);  /* Copying add one user by default, need to get rid of that one. */
 
 	/* Optionally add to parent. */

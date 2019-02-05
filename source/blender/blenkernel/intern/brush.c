@@ -556,7 +556,7 @@ struct Brush *BKE_brush_first_search(struct Main *bmain, const eObjectMode ob_mo
 
 /**
  * Only copy internal data of Brush ID from source to already allocated/initialized destination.
- * You probably nerver want to use that directly, use id_copy or BKE_id_copy_ex for typical needs.
+ * You probably never want to use that directly, use BKE_id_copy or BKE_id_copy_ex for typical needs.
  *
  * WARNING! This function will not handle ID user count!
  *
@@ -590,7 +590,7 @@ void BKE_brush_copy_data(Main *UNUSED(bmain), Brush *brush_dst, const Brush *bru
 Brush *BKE_brush_copy(Main *bmain, const Brush *brush)
 {
 	Brush *brush_copy;
-	BKE_id_copy_ex(bmain, &brush->id, (ID **)&brush_copy, 0, false);
+	BKE_id_copy(bmain, &brush->id, (ID **)&brush_copy);
 	return brush_copy;
 }
 

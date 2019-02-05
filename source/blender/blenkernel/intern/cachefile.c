@@ -104,7 +104,7 @@ void BKE_cachefile_free(CacheFile *cache_file)
 
 /**
  * Only copy internal data of CacheFile ID from source to already allocated/initialized destination.
- * You probably nerver want to use that directly, use id_copy or BKE_id_copy_ex for typical needs.
+ * You probably never want to use that directly, use BKE_id_copy or BKE_id_copy_ex for typical needs.
  *
  * WARNING! This function will not handle ID user count!
  *
@@ -126,7 +126,7 @@ void BKE_cachefile_copy_data(
 CacheFile *BKE_cachefile_copy(Main *bmain, const CacheFile *cache_file)
 {
 	CacheFile *cache_file_copy;
-	BKE_id_copy_ex(bmain, &cache_file->id, (ID **)&cache_file_copy, 0, false);
+	BKE_id_copy(bmain, &cache_file->id, (ID **)&cache_file_copy);
 	return cache_file_copy;
 }
 

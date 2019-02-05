@@ -1540,7 +1540,7 @@ void BKE_object_transform_copy(Object *ob_tar, const Object *ob_src)
 
 /**
  * Only copy internal data of Object ID from source to already allocated/initialized destination.
- * You probably nerver want to use that directly, use id_copy or BKE_id_copy_ex for typical needs.
+ * You probably never want to use that directly, use BKE_id_copy or BKE_id_copy_ex for typical needs.
  *
  * WARNING! This function will not handle ID user count!
  *
@@ -1658,7 +1658,7 @@ void BKE_object_copy_data(Main *bmain, Object *ob_dst, const Object *ob_src, con
 Object *BKE_object_copy(Main *bmain, const Object *ob)
 {
 	Object *ob_copy;
-	BKE_id_copy_ex(bmain, &ob->id, (ID **)&ob_copy, 0, false);
+	BKE_id_copy(bmain, &ob->id, (ID **)&ob_copy);
 
 	/* We increase object user count when linking to Collections. */
 	id_us_min(&ob_copy->id);

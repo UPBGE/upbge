@@ -3288,7 +3288,7 @@ void BKE_particlesettings_twist_curve_init(ParticleSettings *part)
 
 /**
  * Only copy internal data of ParticleSettings ID from source to already allocated/initialized destination.
- * You probably nerver want to use that directly, use id_copy or BKE_id_copy_ex for typical needs.
+ * You probably never want to use that directly, use BKE_id_copy or BKE_id_copy_ex for typical needs.
  *
  * WARNING! This function will not handle ID user count!
  *
@@ -3326,7 +3326,7 @@ void BKE_particlesettings_copy_data(
 ParticleSettings *BKE_particlesettings_copy(Main *bmain, const ParticleSettings *part)
 {
 	ParticleSettings *part_copy;
-	BKE_id_copy_ex(bmain, &part->id, (ID **)&part_copy, 0, false);
+	BKE_id_copy(bmain, &part->id, (ID **)&part_copy);
 	return part_copy;
 }
 

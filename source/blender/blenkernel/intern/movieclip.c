@@ -197,6 +197,94 @@ static void get_proxy_fname(const MovieClip *clip,
 	strcat(name, ".jpg");
 }
 
+#ifdef WITH_OPENEXR
+
+typedef struct MultilayerConvertContext {
+	float *combined_pass;
+	int num_combined_channels;
+} MultilayerConvertContext;
+
+static void *movieclip_convert_multilayer_add_view(
+        void *UNUSED(ctx_v),
+        const char *UNUSED(view_name))
+{
+	return NULL;
+}
+
+static void *movieclip_convert_multilayer_add_layer(
+        void *ctx_v,
+        const char *UNUSED(layer_name))
+{
+	/* Return dummy non-NULL value, we don't use layer handle but need to return
+	 * something, so render API invokes the add_pass() callbacks. */
+	return ctx_v;
+}
+
+static void movieclip_convert_multilayer_add_pass(
+        void *UNUSED(layer),
+        void *ctx_v,
+        const char *pass_name,
+        float *rect,
+        int num_channels,
+        const char *chan_id,
+        const char *UNUSED(view_name))
+{
+	/* NOTE: This function must free pass pixels data if it is not used, this
+	 * is how IMB_exr_multilayer_convert() is working. */
+	MultilayerConvertContext *ctx = ctx_v;
+	/* If we've found a first combined pass, skip all the rest ones. */
+	if (ctx->combined_pass != NULL) {
+		MEM_freeN(rect);
+		return;
+	}
+	if (STREQ(pass_name, RE_PASSNAME_COMBINED) ||
+	    STREQ(chan_id, "RGBA") ||
+		STREQ(chan_id, "RGB"))
+	{
+		ctx->combined_pass = rect;
+		ctx->num_combined_channels = num_channels;
+	}
+	else {
+		MEM_freeN(rect);
+	}
+}
+
+#endif  /* WITH_OPENEXR */
+
+/* Will try to make image buffer usable when originating from the multi-layer
+ * source.
+ * Internally finds a first combined pass and uses that as a buffer. Not ideal,
+ * but is better than a complete empty buffer. */
+void BKE_movieclip_convert_multilayer_ibuf(struct ImBuf *ibuf)
+{
+	if (ibuf == NULL) {
+		return;
+	}
+#ifdef WITH_OPENEXR
+	if (ibuf->ftype != IMB_FTYPE_OPENEXR || ibuf->userdata == NULL) {
+		return;
+	}
+	MultilayerConvertContext ctx;
+	ctx.combined_pass = NULL;
+	ctx.num_combined_channels = 0;
+	IMB_exr_multilayer_convert(
+	        ibuf->userdata,
+	        &ctx,
+	        movieclip_convert_multilayer_add_view,
+	        movieclip_convert_multilayer_add_layer,
+	        movieclip_convert_multilayer_add_pass);
+	if (ctx.combined_pass != NULL) {
+		BLI_assert(ibuf->rect_float == NULL);
+		ibuf->rect_float = ctx.combined_pass;
+		ibuf->channels = ctx.num_combined_channels;
+		ibuf->flags |= IB_rectfloat;
+		ibuf->mall |= IB_rectfloat;
+	}
+	IMB_exr_close(ibuf->userdata);
+	ibuf->userdata = NULL;
+#endif
+}
+
 static ImBuf *movieclip_load_sequence_file(MovieClip *clip,
                                            const MovieClipUser *user,
                                            int framenr,
@@ -234,15 +322,7 @@ static ImBuf *movieclip_load_sequence_file(MovieClip *clip,
 
 	/* read ibuf */
 	ibuf = IMB_loadiffname(name, loadflag, colorspace);
-
-#ifdef WITH_OPENEXR
-	if (ibuf) {
-		if (ibuf->ftype == IMB_FTYPE_OPENEXR && ibuf->userdata) {
-			IMB_exr_close(ibuf->userdata);
-			ibuf->userdata = NULL;
-		}
-	}
-#endif
+	BKE_movieclip_convert_multilayer_ibuf(ibuf);
 
 	return ibuf;
 }
@@ -1502,7 +1582,7 @@ void BKE_movieclip_free(MovieClip *clip)
 
 /**
  * Only copy internal data of MovieClip ID from source to already allocated/initialized destination.
- * You probably nerver want to use that directly, use id_copy or BKE_id_copy_ex for typical needs.
+ * You probably never want to use that directly, use BKE_id_copy or BKE_id_copy_ex for typical needs.
  *
  * WARNING! This function will not handle ID user count!
  *
@@ -1525,7 +1605,7 @@ void BKE_movieclip_copy_data(Main *UNUSED(bmain), MovieClip *clip_dst, const Mov
 MovieClip *BKE_movieclip_copy(Main *bmain, const MovieClip *clip)
 {
 	MovieClip *clip_copy;
-	BKE_id_copy_ex(bmain, &clip->id, (ID **)&clip_copy, 0, false);
+	BKE_id_copy(bmain, &clip->id, (ID **)&clip_copy);
 	return clip_copy;
 }
 

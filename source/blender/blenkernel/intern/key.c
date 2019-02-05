@@ -152,7 +152,7 @@ Key *BKE_key_add(Main *bmain, ID *id)    /* common function */
 
 /**
  * Only copy internal data of ShapeKey ID from source to already allocated/initialized destination.
- * You probably nerver want to use that directly, use id_copy or BKE_id_copy_ex for typical needs.
+ * You probably never want to use that directly, use BKE_id_copy or BKE_id_copy_ex for typical needs.
  *
  * WARNING! This function will not handle ID user count!
  *
@@ -179,7 +179,7 @@ void BKE_key_copy_data(Main *UNUSED(bmain), Key *key_dst, const Key *key_src, co
 Key *BKE_key_copy(Main *bmain, const Key *key)
 {
 	Key *key_copy;
-	BKE_id_copy_ex(bmain, &key->id, (ID **)&key_copy, 0, false);
+	BKE_id_copy(bmain, &key->id, (ID **)&key_copy);
 	return key_copy;
 }
 

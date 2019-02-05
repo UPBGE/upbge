@@ -429,7 +429,7 @@ PaintCurve *BKE_paint_curve_add(Main *bmain, const char *name)
 
 /**
  * Only copy internal data of PaintCurve ID from source to already allocated/initialized destination.
- * You probably nerver want to use that directly, use id_copy or BKE_id_copy_ex for typical needs.
+ * You probably never want to use that directly, use BKE_id_copy or BKE_id_copy_ex for typical needs.
  *
  * WARNING! This function will not handle ID user count!
  *
@@ -445,7 +445,7 @@ void BKE_paint_curve_copy_data(Main *UNUSED(bmain), PaintCurve *pc_dst, const Pa
 PaintCurve *BKE_paint_curve_copy(Main *bmain, const PaintCurve *pc)
 {
 	PaintCurve *pc_copy;
-	BKE_id_copy_ex(bmain, &pc->id, (ID **)&pc_copy, 0, false);
+	BKE_id_copy(bmain, &pc->id, (ID **)&pc_copy);
 	return pc_copy;
 }
 
@@ -512,7 +512,7 @@ Palette *BKE_palette_add(Main *bmain, const char *name)
 
 /**
  * Only copy internal data of Palette ID from source to already allocated/initialized destination.
- * You probably nerver want to use that directly, use id_copy or BKE_id_copy_ex for typical needs.
+ * You probably never want to use that directly, use BKE_id_copy or BKE_id_copy_ex for typical needs.
  *
  * WARNING! This function will not handle ID user count!
  *
@@ -526,7 +526,7 @@ void BKE_palette_copy_data(Main *UNUSED(bmain), Palette *palette_dst, const Pale
 Palette *BKE_palette_copy(Main *bmain, const Palette *palette)
 {
 	Palette *palette_copy;
-	BKE_id_copy_ex(bmain, &palette->id, (ID **)&palette_copy, 0, false);
+	BKE_id_copy(bmain, &palette->id, (ID **)&palette_copy);
 	return palette_copy;
 }
 

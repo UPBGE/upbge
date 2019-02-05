@@ -81,27 +81,44 @@ enum {
 	 * Implies LIB_ID_CREATE_NO_MAIN. */
 	LIB_ID_CREATE_NO_ALLOCATE        = 1 << 2,
 
-	LIB_ID_CREATE_NO_DEG_TAG         = 1 << 8,  /* Do not tag new ID for update in depsgraph. */
+	/* Do not tag new ID for update in depsgraph. */
+	LIB_ID_CREATE_NO_DEG_TAG         = 1 << 8,
 
-	/*** Specific options to some ID types or usages. ***/
-	/* May be ignored by unrelated ID copying functions. */
-	LIB_ID_COPY_NO_PROXY_CLEAR     = 1 << 16,  /* Object only, needed by make_local code. */
-	LIB_ID_COPY_NO_PREVIEW         = 1 << 17,  /* Do not copy preview data, when supported. */
-	LIB_ID_COPY_CACHES             = 1 << 18,  /* Copy runtime data caches. */
-	LIB_ID_COPY_NO_ANIMDATA        = 1 << 19,  /* Don't copy id->adt, used by ID datablock localization routines. */
-	LIB_ID_COPY_CD_REFERENCE       = 1 << 20,  /* Mesh: Reference CD data layers instead of doing real copy. */
+	/* *** Specific options to some ID types or usages. *** */
+	/* *** May be ignored by unrelated ID copying functions. *** */
+	/* Object only, needed by make_local code. */
+	LIB_ID_COPY_NO_PROXY_CLEAR     = 1 << 16,
+	/* Do not copy preview data, when supported. */
+	LIB_ID_COPY_NO_PREVIEW         = 1 << 17,
+	/* Copy runtime data caches. */
+	LIB_ID_COPY_CACHES             = 1 << 18,
+	/* Don't copy id->adt, used by ID datablock localization routines. */
+	LIB_ID_COPY_NO_ANIMDATA        = 1 << 19,
+	/* Mesh: Reference CD data layers instead of doing real copy - USE WITH CAUTION! */
+	LIB_ID_COPY_CD_REFERENCE       = 1 << 20,
 
-	/*** XXX Hackish/not-so-nice specific behaviors needed for some corner cases. ***/
-	/* Ideally we should not have those, but we need them for now... */
-	LIB_ID_COPY_ACTIONS            = 1 << 24,  /* EXCEPTION! Deep-copy actions used by animdata of copied ID. */
-	LIB_ID_COPY_KEEP_LIB           = 1 << 25,  /* Keep the library pointer when copying datablock outside of bmain. */
-	LIB_ID_COPY_SHAPEKEY           = 1 << 26,  /* EXCEPTION! Deep-copy shapekeys used by copied obdata ID. */
+	/* *** XXX Hackish/not-so-nice specific behaviors needed for some corner cases. *** */
+	/* *** Ideally we should not have those, but we need them for now... *** */
+	/* EXCEPTION! Deep-copy actions used by animdata of copied ID. */
+	LIB_ID_COPY_ACTIONS            = 1 << 24,
+	/* Keep the library pointer when copying datablock outside of bmain. */
+	LIB_ID_COPY_KEEP_LIB           = 1 << 25,
+	/* EXCEPTION! Deep-copy shapekeys used by copied obdata ID. */
+	LIB_ID_COPY_SHAPEKEY           = 1 << 26,
+
+	/* *** Helper 'defines' gathering most common flag sets. *** */
+	/* Shapekeys are not real ID's, more like local data to geometry IDs... */
+	LIB_ID_COPY_DEFAULT            = LIB_ID_COPY_SHAPEKEY,
+	/* Generate a local copy, outside of bmain, to work on (used by COW e.g.). */
+	LIB_ID_COPY_LOCALIZE           = LIB_ID_CREATE_NO_MAIN |
+	                                 LIB_ID_CREATE_NO_USER_REFCOUNT |
+	                                 LIB_ID_CREATE_NO_DEG_TAG |
+	                                 LIB_ID_COPY_NO_PREVIEW |
+	                                 LIB_ID_COPY_CACHES,
 };
 
 void BKE_libblock_copy_ex(struct Main *bmain, const struct ID *id, struct ID **r_newid, const int flag);
 void *BKE_libblock_copy(struct Main *bmain, const struct ID *id) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
-/* "Deprecated" old API. */
-void *BKE_libblock_copy_nolib(const struct ID *id, const bool do_action) ATTR_NONNULL();
 /* Special version. sued by datablock localization. */
 void *BKE_libblock_copy_for_localize(const struct ID *id);
 
@@ -162,8 +179,9 @@ void BKE_id_clear_newpoin(struct ID *id);
 void BKE_id_make_local_generic(struct Main *bmain, struct ID *id, const bool id_in_mainlist, const bool lib_local);
 bool id_make_local(struct Main *bmain, struct ID *id, const bool test, const bool force_local);
 bool id_single_user(struct bContext *C, struct ID *id, struct PointerRNA *ptr, struct PropertyRNA *prop);
-bool id_copy(struct Main *bmain, const struct ID *id, struct ID **newid, bool test);
-bool BKE_id_copy_ex(struct Main *bmain, const struct ID *id, struct ID **r_newid, const int flag, const bool test);
+bool BKE_id_copy_is_allowed(const struct ID *id);
+bool BKE_id_copy(struct Main *bmain, const struct ID *id, struct ID **newid);
+bool BKE_id_copy_ex(struct Main *bmain, const struct ID *id, struct ID **r_newid, const int flag);
 void BKE_id_swap(struct Main *bmain, struct ID *id_a, struct ID *id_b);
 void id_sort_by_name(struct ListBase *lb, struct ID *id);
 void BKE_id_expand_local(struct Main *bmain, struct ID *id);

@@ -227,7 +227,7 @@ void BKE_toolsettings_free(ToolSettings *toolsettings)
 
 /**
  * Only copy internal data of Scene ID from source to already allocated/initialized destination.
- * You probably nerver want to use that directly, use id_copy or BKE_id_copy_ex for typical needs.
+ * You probably never want to use that directly, use BKE_id_copy or BKE_id_copy_ex for typical needs.
  *
  * WARNING! This function will not handle ID user count!
  *
@@ -264,7 +264,7 @@ void BKE_scene_copy_data(Main *bmain, Scene *sce_dst, const Scene *sce_src, cons
 	if (sce_src->nodetree) {
 		/* Note: nodetree is *not* in bmain, however this specific case is handled at lower level
 		 *       (see BKE_libblock_copy_ex()). */
-		BKE_id_copy_ex(bmain, (ID *)sce_src->nodetree, (ID **)&sce_dst->nodetree, flag, false);
+		BKE_id_copy_ex(bmain, (ID *)sce_src->nodetree, (ID **)&sce_dst->nodetree, flag);
 		BKE_libblock_relink_ex(bmain, sce_dst->nodetree, (void *)(&sce_src->id), &sce_dst->id, false);
 	}
 
@@ -387,7 +387,7 @@ Scene *BKE_scene_copy(Main *bmain, Scene *sce, int type)
 		return sce_copy;
 	}
 	else {
-		BKE_id_copy_ex(bmain, (ID *)sce, (ID **)&sce_copy, LIB_ID_COPY_ACTIONS, false);
+		BKE_id_copy_ex(bmain, (ID *)sce, (ID **)&sce_copy, LIB_ID_COPY_ACTIONS);
 		id_us_min(&sce_copy->id);
 		id_us_ensure_real(&sce_copy->id);
 
@@ -399,8 +399,11 @@ Scene *BKE_scene_copy(Main *bmain, Scene *sce, int type)
 				for (FreestyleLineSet *lineset = view_layer_dst->freestyle_config.linesets.first; lineset; lineset = lineset->next) {
 					if (lineset->linestyle) {
 						id_us_min(&lineset->linestyle->id);
-						/* XXX Not copying anim/actions here? */
-						BKE_id_copy_ex(bmain, (ID *)lineset->linestyle, (ID **)&lineset->linestyle, 0, false);
+						BKE_id_copy_ex(
+						            bmain,
+						            (ID *)lineset->linestyle,
+						            (ID **)&lineset->linestyle,
+						            LIB_ID_COPY_ACTIONS);
 					}
 				}
 			}
@@ -408,17 +411,16 @@ Scene *BKE_scene_copy(Main *bmain, Scene *sce, int type)
 			/* Full copy of world (included animations) */
 			if (sce_copy->world) {
 				id_us_min(&sce_copy->world->id);
-				BKE_id_copy_ex(bmain, (ID *)sce_copy->world, (ID **)&sce_copy->world, LIB_ID_COPY_ACTIONS, false);
+				BKE_id_copy_ex(bmain, (ID *)sce_copy->world, (ID **)&sce_copy->world, LIB_ID_COPY_ACTIONS);
 			}
 
 			/* Collections */
 			BKE_collection_copy_full(bmain, sce_copy->master_collection);
 
 			/* Full copy of GreasePencil. */
-			/* XXX Not copying anim/actions here? */
 			if (sce_copy->gpd) {
 				id_us_min(&sce_copy->gpd->id);
-				BKE_id_copy_ex(bmain, (ID *)sce_copy->gpd, (ID **)&sce_copy->gpd, 0, false);
+				BKE_id_copy_ex(bmain, (ID *)sce_copy->gpd, (ID **)&sce_copy->gpd, LIB_ID_COPY_ACTIONS);
 			}
 		}
 		else {
