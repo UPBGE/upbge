@@ -17,9 +17,8 @@
  * This is a new part of Blender
  */
 
- /** \file blender/editors/gpencil/gpencil_fill.c
-  *  \ingroup edgpencil
-  */
+/** \file \ingroup edgpencil
+ */
 
 #include <stdio.h>
 

@@ -17,10 +17,8 @@
  * This is a new part of Blender
  */
 
- /** \file blender/editors/gpencil/gpencil_paint.c
-  *  \ingroup edgpencil
-  */
-
+/** \file \ingroup edgpencil
+ */
 
 #include <stdio.h>
 #include <stddef.h>

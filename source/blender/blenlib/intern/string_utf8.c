@@ -19,9 +19,8 @@
  * All rights reserved.
  */
 
- /** \file blender/blenlib/intern/string_utf8.c
-  *  \ingroup bli
-  */
+/** \file \ingroup bli
+ */
 
 #include <string.h>
 #include <wchar.h>

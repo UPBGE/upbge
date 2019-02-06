@@ -17,9 +17,7 @@
  * All rights reserved.
  */
 
-/** \file blender/depsgraph/intern/node/deg_node_factory.cc
- *
- *  \ingroup depsgraph
+/** \file \ingroup depsgraph
  */
 
 #include "intern/node/deg_node_factory.h"

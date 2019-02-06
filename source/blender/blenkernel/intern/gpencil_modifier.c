@@ -17,10 +17,8 @@
  * This is a new part of Blender
  */
 
- /** \file blender/blenkernel/intern/gpencil_modifier.c
-  *  \ingroup bke
-  */
-
+/** \file \ingroup bke
+ */
 
 #include <stdio.h>
 

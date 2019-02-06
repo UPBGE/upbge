@@ -14,8 +14,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-/** \file blender/editors/curve/editfont_undo.c
- *  \ingroup edcurve
+/** \file \ingroup edcurve
  */
 
 #include <stdlib.h>
@@ -383,7 +382,6 @@ void ED_font_undosys_type(UndoType *ut)
 
 	ut->step_foreach_ID_ref = font_undosys_foreach_ID_ref;
 
-	ut->mode = BKE_UNDOTYPE_MODE_STORE;
 	ut->use_context = true;
 
 	ut->step_size = sizeof(FontUndoStep);

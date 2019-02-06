@@ -18,10 +18,8 @@
  * Operators for editing Grease Pencil strokes
  */
 
- /** \file blender/editors/gpencil/gpencil_edit.c
-  *  \ingroup edgpencil
-  */
-
+/** \file \ingroup edgpencil
+ */
 
 #include <stdio.h>
 #include <string.h>

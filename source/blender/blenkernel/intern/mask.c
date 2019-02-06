@@ -17,8 +17,7 @@
  * All rights reserved.
  */
 
-/** \file blender/blenkernel/intern/mask.c
- *  \ingroup bke
+/** \file \ingroup bke
  */
 
 #include <stddef.h>
@@ -1486,7 +1485,7 @@ void BKE_mask_layer_shape_from_mask(MaskLayer *masklay, MaskLayerShape *masklay_
 	}
 	else {
 		CLOG_ERROR(&LOG, "vert mismatch %d != %d (frame %d)",
-				   masklay_shape->tot_vert, tot, masklay_shape->frame);
+		           masklay_shape->tot_vert, tot, masklay_shape->frame);
 	}
 }
 

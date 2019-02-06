@@ -18,10 +18,8 @@
  * Operators for merge Grease Pencil strokes
  */
 
- /** \file blender/editors/gpencil/gpencil_merge.c
-  *  \ingroup edgpencil
-  */
-
+/** \file \ingroup edgpencil
+ */
 
 #include <stdio.h>
 

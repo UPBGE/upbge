@@ -14,8 +14,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-/** \file blender/editors/metaball/editmball_undo.c
- *  \ingroup edmeta
+/** \file \ingroup edmeta
  */
 
 #include <math.h>
@@ -237,7 +236,6 @@ void ED_mball_undosys_type(UndoType *ut)
 
 	ut->step_foreach_ID_ref = mball_undosys_foreach_ID_ref;
 
-	ut->mode = BKE_UNDOTYPE_MODE_STORE;
 	ut->use_context = true;
 
 	ut->step_size = sizeof(MBallUndoStep);

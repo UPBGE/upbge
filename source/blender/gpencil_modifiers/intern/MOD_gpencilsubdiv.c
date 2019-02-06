@@ -17,9 +17,8 @@
  * This is a new part of Blender
  */
 
- /** \file blender/gpencil_modifiers/intern/MOD_gpencilsubdiv.c
-  *  \ingroup modifiers
-  */
+/** \file \ingroup modifiers
+ */
 
 #include <stdio.h>
 

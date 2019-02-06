@@ -14,8 +14,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-/** \file blender/blenloader/intern/versioning_defaults.c
- *  \ingroup blenloader
+/** \file \ingroup blenloader
  */
 
 #include "MEM_guardedalloc.h"
@@ -320,6 +319,11 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
 
 			/* Rename render layers. */
 			BKE_view_layer_rename(bmain, scene, scene->view_layers.first, "View Layer");
+
+			/* New EEVEE defaults. */
+			scene->eevee.bloom_intensity = 0.05f;
+			scene->eevee.bloom_clamp = 0.0f;
+			scene->eevee.motion_blur_shutter = 0.5f;
 		}
 
 		/* Rename lamp objects. */

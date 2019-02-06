@@ -18,8 +18,7 @@
  * The Original Code is: some of this file.
  */
 
-/** \file blender/editors/sculpt_paint/paint_image_proj.c
- *  \ingroup edsculpt
+/** \file \ingroup edsculpt
  *  \brief Functions to paint images in 2D and 3D.
  */
 
@@ -5546,7 +5545,7 @@ static int texture_paint_camera_project_exec(bContext *C, wmOperator *op)
 
 	scene->toolsettings->imapaint.flag |= IMAGEPAINT_DRAWING;
 
-	ED_image_undo_push_begin(op->type->name);
+	ED_image_undo_push_begin(op->type->name, PAINT_MODE_TEXTURE_3D);
 
 	/* allocate and initialize spatial data structures */
 	project_paint_begin(C, &ps, false, 0);

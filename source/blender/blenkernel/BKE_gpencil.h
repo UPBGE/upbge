@@ -20,9 +20,8 @@
 #ifndef __BKE_GPENCIL_H__
 #define __BKE_GPENCIL_H__
 
- /** \file BKE_gpencil.h
-  *  \ingroup bke
-  */
+/** \file \ingroup bke
+ */
 
 struct ArrayGpencilModifierData;
 struct BoundBox;

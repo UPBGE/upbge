@@ -14,8 +14,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-/** \file blender/editors/mesh/editmesh_undo.c
- *  \ingroup edmesh
+/** \file \ingroup edmesh
  */
 
 #include "MEM_guardedalloc.h"
@@ -794,7 +793,6 @@ void ED_mesh_undosys_type(UndoType *ut)
 
 	ut->step_foreach_ID_ref = mesh_undosys_foreach_ID_ref;
 
-	ut->mode = BKE_UNDOTYPE_MODE_STORE;
 	ut->use_context = true;
 
 	ut->step_size = sizeof(MeshUndoStep);

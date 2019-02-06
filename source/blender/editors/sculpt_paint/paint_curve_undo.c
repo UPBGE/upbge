@@ -14,8 +14,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-/** \file blender/editors/sculpt_paint/paint_curve_undo.c
- *  \ingroup edsculpt
+/** \file \ingroup edsculpt
  */
 
 #include <string.h>
@@ -134,7 +133,6 @@ void ED_paintcurve_undosys_type(UndoType *ut)
 	ut->step_decode = paintcurve_undosys_step_decode;
 	ut->step_free = paintcurve_undosys_step_free;
 
-	ut->mode = BKE_UNDOTYPE_MODE_STORE;
 	ut->use_context = false;
 
 	ut->step_size = sizeof(PaintCurveUndoStep);

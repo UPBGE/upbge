@@ -17,8 +17,7 @@
 #ifndef __BKE_LAYER_H__
 #define __BKE_LAYER_H__
 
-/** \file blender/blenkernel/BKE_layer.h
- *  \ingroup bke
+/** \file \ingroup bke
  */
 
 #include "BKE_collection.h"
@@ -105,9 +104,12 @@ bool BKE_layer_collection_objects_select(
         struct ViewLayer *view_layer, struct LayerCollection *lc, bool deselect);
 bool BKE_layer_collection_has_selected_objects(
         struct ViewLayer *view_layer, struct LayerCollection *lc);
+bool BKE_layer_collection_has_layer_collection(
+        struct LayerCollection *lc_parent, struct LayerCollection *lc_child);
 
 void BKE_base_set_visible(struct Scene *scene, struct ViewLayer *view_layer, struct Base *base, bool extend);
-void BKE_layer_collection_set_visible(struct Scene *scene, struct ViewLayer *view_layer, struct LayerCollection *lc, bool extend);
+bool BKE_layer_collection_isolate(struct Scene *scene, struct ViewLayer *view_layer, struct LayerCollection *lc, bool extend);
+bool BKE_layer_collection_set_visible(struct ViewLayer *view_layer, struct LayerCollection *lc, const bool visible, const bool hierarchy);
 
 /* evaluation */
 

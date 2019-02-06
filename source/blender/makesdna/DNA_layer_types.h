@@ -14,8 +14,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-/** \file DNA_layer_types.h
- *  \ingroup DNA
+/** \file \ingroup DNA
  */
 
 #ifndef __DNA_LAYER_TYPES_H__
@@ -120,6 +119,7 @@ enum {
 	LAYER_COLLECTION_EXCLUDE = (1 << 4),
 	LAYER_COLLECTION_HOLDOUT = (1 << 5),
 	LAYER_COLLECTION_INDIRECT_ONLY = (1 << 6),
+	LAYER_COLLECTION_RESTRICT_VIEW = (1 << 7),
 };
 
 /* Layer Collection->runtime_flag */
@@ -128,6 +128,7 @@ enum {
 	LAYER_COLLECTION_HAS_VISIBLE_OBJECTS = (1 << 1),
 	LAYER_COLLECTION_HAS_HIDDEN_OBJECTS = (1 << 2),
 	LAYER_COLLECTION_HAS_ENABLED_OBJECTS = (1 << 3),
+	LAYER_COLLECTION_VISIBLE = (1 << 4),
 };
 
 /* ViewLayer->flag */

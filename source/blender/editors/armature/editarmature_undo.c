@@ -17,8 +17,7 @@
  * All rights reserved.
  */
 
-/** \file blender/editors/armature/editarmature_undo.c
- *  \ingroup edarmature
+/** \file \ingroup edarmature
  */
 
 #include "MEM_guardedalloc.h"
@@ -227,7 +226,6 @@ void ED_armature_undosys_type(UndoType *ut)
 
 	ut->step_foreach_ID_ref = armature_undosys_foreach_ID_ref;
 
-	ut->mode = BKE_UNDOTYPE_MODE_STORE;
 	ut->use_context = true;
 
 	ut->step_size = sizeof(ArmatureUndoStep);

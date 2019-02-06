@@ -18,10 +18,8 @@
  * Operators for creating new Grease Pencil primitives (boxes, circles, ...)
  */
 
- /** \file blender/editors/gpencil/gpencil_primitive.c
-  *  \ingroup edgpencil
-  */
-
+/** \file \ingroup edgpencil
+ */
 
 #include <stdio.h>
 #include <string.h>

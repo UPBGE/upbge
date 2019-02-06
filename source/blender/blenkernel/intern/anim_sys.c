@@ -17,8 +17,7 @@
  * All rights reserved.
  */
 
-/** \file blender/blenkernel/intern/anim_sys.c
- *  \ingroup bke
+/** \file \ingroup bke
  */
 
 
@@ -447,7 +446,7 @@ void action_move_fcurves_by_basepath(bAction *srcAct, bAction *dstAct, const cha
 	if (ELEM(NULL, srcAct, dstAct, basepath)) {
 		if (G.debug & G_DEBUG) {
 			CLOG_ERROR(&LOG, "srcAct: %p, dstAct: %p, basepath: %p has insufficient info to work with",
-					   (void *)srcAct, (void *)dstAct, (void *)basepath);
+			           (void *)srcAct, (void *)dstAct, (void *)basepath);
 		}
 		return;
 	}
@@ -550,7 +549,7 @@ void BKE_animdata_separate_by_basepath(
 		}
 		else if (dstAdt->action == srcAdt->action) {
 			CLOG_WARN(&LOG, "Argh! Source and Destination share animation! "
-				      "('%s' and '%s' both use '%s') Making new empty action",
+			          "('%s' and '%s' both use '%s') Making new empty action",
 			          srcID->name, dstID->name, srcAdt->action->id.name);
 
 			/* TODO: review this... */
