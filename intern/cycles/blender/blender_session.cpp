@@ -393,6 +393,28 @@ static void add_cryptomatte_layer(BL::RenderResult& b_rr, string name, string ma
 	render_add_metadata(b_rr, prefix+"manifest", manifest);
 }
 
+void BlenderSession::stamp_view_layer_metadata_do(const string& prefix)
+{
+	BL::RenderResult b_rr = b_engine.get_result();
+	/* Configured number of samples for the view layer. */
+	b_rr.stamp_data_add_field((prefix + "samples").c_str(),
+	                          to_string(session->params.samples).c_str());
+	/* Store ranged samples information. */
+	if(session->tile_manager.range_num_samples != -1) {
+		b_rr.stamp_data_add_field(
+		        (prefix + "range_start_sample").c_str(),
+		        to_string(session->tile_manager.range_start_sample).c_str());
+		b_rr.stamp_data_add_field(
+		        (prefix + "range_num_samples").c_str(),
+		        to_string(session->tile_manager.range_num_samples).c_str());
+	}
+}
+
+void BlenderSession::stamp_view_layer_metadata(const string& view_layer_name)
+{
+	stamp_view_layer_metadata_do("cycles." + view_layer_name + ".");
+}
+
 void BlenderSession::render(BL::Depsgraph& b_depsgraph_)
 {
 	b_depsgraph = b_depsgraph_;
@@ -408,9 +430,6 @@ void BlenderSession::render(BL::Depsgraph& b_depsgraph_)
 	/* render each layer */
 	BL::ViewLayer b_view_layer = b_depsgraph.view_layer_eval();
 
-	/* We do some special meta attributes when we only have single layer. */
-	const bool is_single_layer = (b_scene.view_layers.length() == 1);
-
 	/* temporary render result to find needed passes and views */
 	BL::RenderResult b_rr = begin_render_result(b_engine, 0, 0, 1, 1, b_view_layer.name().c_str(), NULL);
 	BL::RenderResult::layers_iterator b_single_rlay;
@@ -423,15 +442,19 @@ void BlenderSession::render(BL::Depsgraph& b_depsgraph_)
 	buffer_params.passes = passes;
 
 	PointerRNA crl = RNA_pointer_get(&b_view_layer.ptr, "cycles");
-	bool use_denoising = get_boolean(crl, "use_denoising");
-	bool denoising_passes = use_denoising || get_boolean(crl, "denoising_store_passes");
+	bool full_denoising = get_boolean(crl, "use_denoising");
+	bool write_denoising_passes = get_boolean(crl, "denoising_store_passes");
 
-	session->tile_manager.schedule_denoising = use_denoising;
-	buffer_params.denoising_data_pass = denoising_passes;
+	bool run_denoising = full_denoising || write_denoising_passes;
+
+	session->tile_manager.schedule_denoising = run_denoising;
+	buffer_params.denoising_data_pass = run_denoising;
 	buffer_params.denoising_clean_pass = (scene->film->denoising_flags & DENOISING_CLEAN_ALL_PASSES);
+	buffer_params.denoising_prefiltered_pass = write_denoising_passes;
 
-	session->params.use_denoising = use_denoising;
-	session->params.denoising_passes = denoising_passes;
+	session->params.run_denoising = run_denoising;
+	session->params.full_denoising = full_denoising;
+	session->params.write_denoising_passes = write_denoising_passes;
 	session->params.denoising_radius = get_int(crl, "denoising_radius");
 	session->params.denoising_strength = get_float(crl, "denoising_strength");
 	session->params.denoising_feature_strength = get_float(crl, "denoising_feature_strength");
@@ -439,6 +462,7 @@ void BlenderSession::render(BL::Depsgraph& b_depsgraph_)
 
 	scene->film->denoising_data_pass = buffer_params.denoising_data_pass;
 	scene->film->denoising_clean_pass = buffer_params.denoising_clean_pass;
+	scene->film->denoising_prefiltered_pass = buffer_params.denoising_prefiltered_pass;
 	session->params.denoising_radius = get_int(crl, "denoising_radius");
 	session->params.denoising_strength = get_float(crl, "denoising_strength");
 	session->params.denoising_feature_strength = get_float(crl, "denoising_feature_strength");
@@ -520,14 +544,7 @@ void BlenderSession::render(BL::Depsgraph& b_depsgraph_)
 			break;
 	}
 
-	if(is_single_layer) {
-		BL::RenderResult b_rr = b_engine.get_result();
-		string num_aa_samples = string_printf("%d", session->params.samples);
-		b_rr.stamp_data_add_field("Cycles Samples", num_aa_samples.c_str());
-		/* TODO(sergey): Report whether we're doing resumable render
-		 * and also start/end sample if so.
-		 */
-	}
+	stamp_view_layer_metadata(b_rlay_name);
 
 	/* Write cryptomatte metadata. */
 	if(scene->film->cryptomatte_passes & CRYPT_OBJECT) {
