@@ -101,9 +101,13 @@ void ED_undo_push(bContext *C, const char *str)
 	WM_file_tag_modified();
 }
 
-/* note: also check undo_history_exec() in bottom if you change notifiers */
+/**
+ * \note Also check #undo_history_exec in bottom if you change notifiers.
+ */
 static int ed_undo_step(bContext *C, int step, const char *undoname, ReportList *reports)
 {
+	/* Mutually exclusives, ensure correct input. */
+	BLI_assert((undoname && !step) || (!undoname && step));
 	CLOG_INFO(&LOG, 1, "name='%s', step=%d", undoname, step);
 	wmWindowManager *wm = CTX_wm_manager(C);
 	Scene *scene = CTX_data_scene(C);
@@ -164,7 +168,12 @@ static int ed_undo_step(bContext *C, int step, const char *undoname, ReportList 
 			BKE_undosys_step_undo_with_data(wm->undo_stack, C, step_data_from_name);
 		}
 		else {
-			BKE_undosys_step_undo_compat_only(wm->undo_stack, C, step);
+			if (step == 1) {
+				BKE_undosys_step_undo(wm->undo_stack, C);
+			}
+			else {
+				BKE_undosys_step_redo(wm->undo_stack, C);
+			}
 		}
 
 		/* Set special modes for grease pencil */
@@ -642,6 +651,39 @@ void ED_undo_object_set_active_or_warn(ViewLayer *view_layer, Object *ob, const 
 			CLOG_WARN(log, "'%s' failed to restore active object: '%s'", info, ob->id.name + 2);
 		}
 	}
+}
+
+void ED_undo_object_editmode_restore_helper(
+        struct bContext *C, Object **object_array, uint object_array_len, uint object_array_stride)
+{
+	Main *bmain = CTX_data_main(C);
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	uint bases_len = 0;
+	/* Don't request unique data because we wan't to de-select objects when exiting edit-mode
+	 * for that to be done on all objects we can't skip ones that share data. */
+	Base **bases = BKE_view_layer_array_from_bases_in_edit_mode(
+	        view_layer, NULL, &bases_len);
+	for (uint i = 0; i < bases_len; i++) {
+		((ID *)bases[i]->object->data)->tag |= LIB_TAG_DOIT;
+	}
+	Scene *scene = CTX_data_scene(C);
+	Object **ob_p = object_array;
+	for (uint i = 0; i < object_array_len; i++, ob_p = POINTER_OFFSET(ob_p, object_array_stride)) {
+		Object *obedit = *ob_p;
+		ED_object_editmode_enter_ex(bmain, scene, obedit, EM_NO_CONTEXT);
+		((ID *)obedit->data)->tag &= ~LIB_TAG_DOIT;
+	}
+	for (uint i = 0; i < bases_len; i++) {
+		ID *id = bases[i]->object->data;
+		if (id->tag & LIB_TAG_DOIT) {
+			ED_object_editmode_exit_ex(bmain, scene, bases[i]->object, EM_FREEDATA);
+			/* Ideally we would know the selection state it was before entering edit-mode,
+			 * for now follow the convention of having them unselected when exiting the mode. */
+			ED_object_base_select(bases[i], BA_DESELECT);
+
+		}
+	}
+	MEM_freeN(bases);
 }
 
 /** \} */
