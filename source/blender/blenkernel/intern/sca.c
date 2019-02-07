@@ -421,6 +421,9 @@ void init_actuator(bActuator *act)
 	
 	switch (act->type) {
 	case ACT_ACTION:
+	case ACT_MODIFIER:
+		act->data = MEM_callocN(sizeof(bModifierActuator), "modifieract");
+		break;
 	case ACT_SHAPEACTION:
 		act->data= MEM_callocN(sizeof(bActionActuator), "actionact");
 		break;
@@ -479,9 +482,6 @@ void init_actuator(bActuator *act)
 		break;
 	case ACT_2DFILTER:
 		act->data = MEM_callocN(sizeof( bTwoDFilterActuator ), "2d filter act");
-		break;
-	case ACT_MODIFIER:
-		act->data = MEM_callocN(sizeof(bModifierActuator), "modifier act");
 		break;
 	case ACT_PARENT:
 		act->data = MEM_callocN(sizeof( bParentActuator ), "parent act");
@@ -1070,6 +1070,12 @@ void BKE_sca_actuators_id_loop(ListBase *actlist, SCAActuatorIDFunc func, void *
 				func(actuator, (ID **)&aoa->ob, userdata, IDWALK_CB_NOP);
 				break;
 			}
+			case ACT_MODIFIER:
+			{
+				bModifierActuator *mm = actuator->data;
+				func(actuator, (ID **)&mm->modifier, userdata, IDWALK_CB_NOP);
+				break;
+			}
 			case ACT_ACTION:
 			{
 				bActionActuator *aa = actuator->data;
@@ -1158,7 +1164,6 @@ void BKE_sca_actuators_id_loop(ListBase *actlist, SCAActuatorIDFunc func, void *
 			case ACT_SHAPEACTION:
 			case ACT_STATE:
 			case ACT_MOUSE:
-			case ACT_MODIFIER:
 			default:
 				break;
 		}

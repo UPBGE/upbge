@@ -1876,6 +1876,13 @@ static void rna_def_modifier_actuator(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "Modifier Actuator", "Apply Modifier stack during transform update");
 	RNA_def_struct_sdna_from(srna, "bModifierActuator", "data");
 
+	prop = RNA_def_property(srna, "modifier_pointer", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(prop, "Modifier");
+	RNA_def_property_pointer_sdna(prop, NULL, "modifier");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Modifier", "Set modifier");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
 	/* booleans */
 	prop = RNA_def_property(srna, "use_modifier_activated", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", ACT_MODIFIER_ACTIVATED);

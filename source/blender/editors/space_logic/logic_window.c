@@ -42,6 +42,7 @@
 #include "DNA_screen_types.h"
 #include "DNA_sensor_types.h"
 #include "DNA_constraint_types.h"
+#include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 
 #include "MEM_guardedalloc.h"
@@ -395,6 +396,8 @@ static const char *actuator_name(int type)
 	switch (type) {
 	case ACT_SHAPEACTION:
 		return N_("Shape Action");
+	case ACT_MODIFIER:
+		return N_("Modifier");
 	case ACT_ACTION:
 		return N_("Action");
 	case ACT_OBJECT:
@@ -427,8 +430,6 @@ static const char *actuator_name(int type)
 		return N_("Visibility");
 	case ACT_2DFILTER:
 		return N_("Filter 2D");
-	case ACT_MODIFIER:
-		return N_("Modifier");
 	case ACT_PARENT:
 		return N_("Parent");
 	case ACT_STATE:
@@ -1834,8 +1835,14 @@ static void draw_actuator_motion(uiLayout *layout, PointerRNA *ptr)
 static void draw_actuator_modifier(uiLayout *layout, PointerRNA *ptr)
 {
 	uiLayout *row;
-	row = uiLayoutRow(layout, false);
+	Object *ob = (Object *)ptr->id.data;
+	PointerRNA modifier_ptr;
 
+	/* create RNA pointer */
+	RNA_pointer_create(&ob->id, &RNA_Object, ob, &modifier_ptr);
+	uiItemPointerR(layout, ptr, "modifier_pointer", &modifier_ptr, "modifiers", NULL, ICON_MODIFIER_DATA);
+
+	row = uiLayoutRow(layout, false);
 	uiItemR(row, ptr, "use_modifier_activated", 0, NULL, ICON_NONE);
 }
 

@@ -220,6 +220,8 @@ typedef struct bParentActuator {
 typedef struct bModifierActuator {
 	short type;
 	short flag;
+	int pad;
+	struct Modifier *modifier;
 } bModifierActuator;
 
 typedef struct bStateActuator {
