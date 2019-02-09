@@ -41,6 +41,7 @@ struct BLI_mempool;
 struct BlendThumbnail;
 struct Depsgraph;
 struct GHash;
+struct GSet;
 struct ImBuf;
 struct Library;
 struct MainLock;
@@ -135,6 +136,18 @@ void BKE_main_unlock(struct Main *bmain);
 
 void BKE_main_relations_create(struct Main *bmain);
 void BKE_main_relations_free(struct Main *bmain);
+
+struct GSet *BKE_main_gset_create(struct Main *bmain, struct GSet *gset);
+
+/* *** Generic utils to loop over whole Main database. *** */
+/** \return false to stop iteration, true to keep going. */
+typedef bool (*MainForeachIDCallback) (struct Main *bmain, struct ID *id, void *user_data);
+bool BKE_main_listbase_foreach_id(
+        struct Main *bmain, struct ListBase *lb,
+        MainForeachIDCallback callback, void *user_data);
+bool BKE_main_foreach_id(
+        struct Main *bmain, const bool reverse_type_order,
+        MainForeachIDCallback callback, void *user_data);
 
 struct BlendThumbnail *BKE_main_thumbnail_from_imbuf(struct Main *bmain, struct ImBuf *img);
 struct ImBuf *BKE_main_thumbnail_to_imbuf(struct Main *bmain, struct BlendThumbnail *data);

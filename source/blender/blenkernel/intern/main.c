@@ -140,7 +140,7 @@ void BKE_main_unlock(struct Main *bmain)
 }
 
 
-static int main_relations_create_cb(void *user_data, ID *id_self, ID **id_pointer, int cb_flag)
+static int main_relations_create_idlink_cb(void *user_data, ID *id_self, ID **id_pointer, int cb_flag)
 {
 	MainIDRelations *rel = user_data;
 
@@ -173,13 +173,15 @@ static int main_relations_create_cb(void *user_data, ID *id_self, ID **id_pointe
 	return IDWALK_RET_NOP;
 }
 
+static bool main_relations_create_id_cb(Main *bmain, ID *id, void *UNUSED(user_data))
+{
+	BKE_library_foreach_ID_link(NULL, id, main_relations_create_idlink_cb, bmain->relations, IDWALK_READONLY);
+	return true;
+}
+
 /** Generate the mappings between used IDs and their users, and vice-versa. */
 void BKE_main_relations_create(Main *bmain)
 {
-	ListBase *lbarray[MAX_LIBARRAY];
-	ID *id;
-	int a;
-
 	if (bmain->relations != NULL) {
 		BKE_main_relations_free(bmain);
 	}
@@ -189,11 +191,7 @@ void BKE_main_relations_create(Main *bmain)
 	bmain->relations->id_user_to_used = BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, __func__);
 	bmain->relations->entry_pool = BLI_mempool_create(sizeof(MainIDRelationsEntry), 128, 128, BLI_MEMPOOL_NOP);
 
-	for (a = set_listbasepointers(bmain, lbarray); a--; ) {
-		for (id = lbarray[a]->first; id; id = id->next) {
-			BKE_library_foreach_ID_link(NULL, id, main_relations_create_cb, bmain->relations, IDWALK_READONLY);
-		}
-	}
+	BKE_main_foreach_id(bmain, false, main_relations_create_id_cb, NULL);
 }
 
 void BKE_main_relations_free(Main *bmain)
@@ -209,6 +207,77 @@ void BKE_main_relations_free(Main *bmain)
 		MEM_freeN(bmain->relations);
 		bmain->relations = NULL;
 	}
+}
+
+static bool main_gset_create(Main *UNUSED(bmain), ID *id, void *user_data)
+{
+	GSet *gset = user_data;
+	BLI_gset_add(gset, id);
+	return true;
+}
+
+/**
+ * Create a GSet storing all IDs present in given \a bmain, by their pointers.
+ *
+ * \param gset If not NULL, given GSet will be extended with IDs from given \a bmain, instead of creating a new one.
+ */
+GSet *BKE_main_gset_create(Main *bmain, GSet *gset)
+{
+	if (gset == NULL) {
+		gset = BLI_gset_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, __func__);
+	}
+	BKE_main_foreach_id(bmain, false, main_gset_create, gset);
+	return gset;
+}
+
+/**
+ * Call given callback over every IDs of given \a lb listbase (assumed to be part of given \a bmain).
+ *
+ * \return false if the iteration was iterrupted by the callback.
+ *
+ * \warning \a callback may affect the ID, but DO NOT change the listbase or Main database (add/remove/reorder its IDs).
+ */
+bool BKE_main_listbase_foreach_id(
+        Main *bmain, ListBase *lb,
+        MainForeachIDCallback callback, void *user_data)
+{
+	bool keep_looping = true;
+	for (ID *id = lb->first; id; id = id->next) {
+		if (!(keep_looping = callback(bmain, id, user_data))) {
+			return keep_looping;
+		}
+	}
+	return keep_looping;
+}
+
+/**
+ * Call given callback over every IDs of given \a bmain Main database.
+ *
+ * \param reverse_type_order Allow to reverse order in which ID *types* are handled
+ *                           (i.e. does not reverse the order in which IDs themselves are handled
+ *                           whithin a give listbase).
+ *                           Note that in most cases, you want to set that parameter to true.
+ * \return false if the iteration was iterrupted by the callback.
+ *
+ * \warning \a callback may affect the ID, but DO NOT change the Main database (add/remove/reorder its IDs).
+ */
+bool BKE_main_foreach_id(
+        Main *bmain, const bool reverse_type_order,
+        MainForeachIDCallback callback, void *user_data)
+{
+	ListBase *lbarray[MAX_LIBARRAY];
+	const int nbr_types = set_listbasepointers(bmain, lbarray);
+
+	bool keep_looping = true;
+	for (int i = reverse_type_order ? nbr_types - 1 : 0;
+	     reverse_type_order ? i >= 0 : i < nbr_types;
+	     reverse_type_order ? i-- : i++)
+	{
+		if (!(keep_looping = BKE_main_listbase_foreach_id(bmain, lbarray[i], callback, user_data))) {
+			return keep_looping;
+		}
+	}
+	return keep_looping;
 }
 
 /**
