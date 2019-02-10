@@ -380,6 +380,13 @@ typedef enum eGPUShaderConfig {
 } eGPUShaderConfig;
 #define GPU_SHADER_CFG_LEN (GPU_SHADER_CFG_CLIPPED + 1)
 
+typedef struct GPUShaderConfigData {
+	const char *lib;
+	const char *def;
+} GPUShaderConfigData;
+/* shader.c */
+extern const GPUShaderConfigData GPU_shader_cfg_data[GPU_SHADER_CFG_LEN];
+
 /** Keep these in sync with:
  * - `gpu_shader_image_interlace_frag.glsl`
  * - `gpu_shader_image_rect_interlace_frag.glsl`
@@ -391,7 +398,7 @@ typedef enum eGPUInterlaceShader {
 } eGPUInterlaceShader;
 
 GPUShader *GPU_shader_get_builtin_shader_with_config(
-        eGPUBuiltinShader shader, eGPUShaderConfig shader_cfg);
+        eGPUBuiltinShader shader, eGPUShaderConfig sh_cfg);
 GPUShader *GPU_shader_get_builtin_shader(
         eGPUBuiltinShader shader);
 

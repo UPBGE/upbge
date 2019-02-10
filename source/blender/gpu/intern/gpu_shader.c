@@ -178,6 +178,17 @@ extern char datatoc_gpu_shader_frame_buffer_frag_glsl[];
 extern char datatoc_gpu_shader_frame_buffer_vert_glsl[];
 /*****************End of Game engine*****************/
 
+const struct GPUShaderConfigData GPU_shader_cfg_data[GPU_SHADER_CFG_LEN] = {
+	[GPU_SHADER_CFG_DEFAULT] = {
+		.lib = "",
+		.def = "",
+	},
+	[GPU_SHADER_CFG_CLIPPED] = {
+		.lib = datatoc_gpu_shader_cfg_world_clip_lib_glsl,
+		.def = "#define USE_WORLD_CLIP_PLANES\n",
+	},
+};
+
 /* cache of built-in shaders (each is created on first use) */
 static GPUShader *builtin_shaders[GPU_SHADER_CFG_LEN][GPU_SHADER_BUILTIN_LEN] = {NULL};
 
@@ -1230,11 +1241,11 @@ static const GPUShaderStages builtin_shader_stages[GPU_SHADER_BUILTIN_LEN] = {
 };
 
 GPUShader *GPU_shader_get_builtin_shader_with_config(
-        eGPUBuiltinShader shader, eGPUShaderConfig shader_cfg)
+        eGPUBuiltinShader shader, eGPUShaderConfig sh_cfg)
 {
 	BLI_assert(shader < GPU_SHADER_BUILTIN_LEN);
-	BLI_assert(shader_cfg < GPU_SHADER_CFG_LEN);
-	GPUShader **sh_p = &builtin_shaders[shader_cfg][shader];
+	BLI_assert(sh_cfg < GPU_SHADER_CFG_LEN);
+	GPUShader **sh_p = &builtin_shaders[sh_cfg][shader];
 
 	if (*sh_p == NULL) {
 		GPUShaderStages stages_legacy = {NULL};
@@ -1259,10 +1270,10 @@ GPUShader *GPU_shader_get_builtin_shader_with_config(
 		}
 
 		/* common case */
-		if (shader_cfg == GPU_SHADER_CFG_DEFAULT) {
+		if (sh_cfg == GPU_SHADER_CFG_DEFAULT) {
 			*sh_p = GPU_shader_create(stages->vert, stages->frag, stages->geom, NULL, stages->defs, __func__);
 		}
-		else if (shader_cfg == GPU_SHADER_CFG_CLIPPED) {
+		else if (sh_cfg == GPU_SHADER_CFG_CLIPPED) {
 			/* Remove eventually, for now ensure support for each shader has been added. */
 			BLI_assert(ELEM(shader,
 			                GPU_SHADER_3D_UNIFORM_COLOR,

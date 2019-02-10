@@ -93,8 +93,7 @@ typedef struct EDIT_METABALL_PrivateData {
 static void EDIT_METABALL_engine_init(void *UNUSED(vedata))
 {
 	const DRWContextState *draw_ctx = DRW_context_state_get();
-	const bool is_clip = (draw_ctx->rv3d->rflag & RV3D_CLIPPING) != 0;
-	if (is_clip) {
+	if (draw_ctx->sh_cfg == GPU_SHADER_CFG_CLIPPED) {
 		DRW_state_clip_planes_set_from_rv3d(draw_ctx->rv3d);
 	}
 }
@@ -121,7 +120,7 @@ static void EDIT_METABALL_cache_init(void *vedata)
 		psl->pass = DRW_pass_create("My Pass", state);
 
 		/* Create a shadingGroup using a function in draw_common.c or custom one */
-		stl->g_data->group = shgroup_instance_mball_handles(psl->pass, draw_ctx->shader_cfg);
+		stl->g_data->group = shgroup_instance_mball_handles(psl->pass, draw_ctx->sh_cfg);
 	}
 }
 

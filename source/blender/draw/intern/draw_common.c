@@ -228,7 +228,6 @@ extern char datatoc_armature_stick_frag_glsl[];
 extern char datatoc_armature_dof_vert_glsl[];
 
 extern char datatoc_common_globals_lib_glsl[];
-extern char datatoc_gpu_shader_cfg_world_clip_lib_glsl[];
 
 extern char datatoc_gpu_shader_flat_color_frag_glsl[];
 extern char datatoc_gpu_shader_3D_smooth_color_frag_glsl[];
@@ -305,9 +304,9 @@ void DRW_shgroup_world_clip_planes_from_rv3d(DRWShadingGroup *shgrp, const Regio
 	DRW_shgroup_state_enable(shgrp, DRW_STATE_CLIP_PLANES);
 }
 
-DRWShadingGroup *shgroup_dynlines_flat_color(DRWPass *pass, eGPUShaderConfig shader_cfg)
+DRWShadingGroup *shgroup_dynlines_flat_color(DRWPass *pass, eGPUShaderConfig sh_cfg)
 {
-	GPUShader *sh = GPU_shader_get_builtin_shader_with_config(GPU_SHADER_3D_FLAT_COLOR, shader_cfg);
+	GPUShader *sh = GPU_shader_get_builtin_shader_with_config(GPU_SHADER_3D_FLAT_COLOR, sh_cfg);
 
 	DRW_shgroup_instance_format(g_formats.dynlines_color, {
 		{"pos",       DRW_ATTR_FLOAT, 3},
@@ -315,7 +314,7 @@ DRWShadingGroup *shgroup_dynlines_flat_color(DRWPass *pass, eGPUShaderConfig sha
 	});
 
 	DRWShadingGroup *grp = DRW_shgroup_line_batch_create_with_format(sh, pass, g_formats.dynlines_color);
-	if (shader_cfg == GPU_SHADER_CFG_CLIPPED) {
+	if (sh_cfg == GPU_SHADER_CFG_CLIPPED) {
 		DRW_shgroup_world_clip_planes_from_rv3d(grp, DRW_context_state_get()->rv3d);
 	}
 	return grp;
@@ -338,49 +337,49 @@ DRWShadingGroup *shgroup_dynlines_dashed_uniform_color(DRWPass *pass, const floa
 }
 
 DRWShadingGroup *shgroup_dynpoints_uniform_color(
-        DRWPass *pass, const float color[4], const float *size, eGPUShaderConfig shader_cfg)
+        DRWPass *pass, const float color[4], const float *size, eGPUShaderConfig sh_cfg)
 {
-	GPUShader *sh = GPU_shader_get_builtin_shader_with_config(GPU_SHADER_3D_POINT_UNIFORM_SIZE_UNIFORM_COLOR_AA, shader_cfg);
+	GPUShader *sh = GPU_shader_get_builtin_shader_with_config(GPU_SHADER_3D_POINT_UNIFORM_SIZE_UNIFORM_COLOR_AA, sh_cfg);
 
 	DRWShadingGroup *grp = DRW_shgroup_point_batch_create(sh, pass);
 	DRW_shgroup_uniform_vec4(grp, "color", color, 1);
 	DRW_shgroup_uniform_float(grp, "size", size, 1);
 	DRW_shgroup_state_enable(grp, DRW_STATE_POINT);
-	if (shader_cfg == GPU_SHADER_CFG_CLIPPED) {
+	if (sh_cfg == GPU_SHADER_CFG_CLIPPED) {
 		DRW_shgroup_world_clip_planes_from_rv3d(grp, DRW_context_state_get()->rv3d);
 	}
 	return grp;
 }
 
-DRWShadingGroup *shgroup_groundlines_uniform_color(DRWPass *pass, const float color[4], eGPUShaderConfig shader_cfg)
+DRWShadingGroup *shgroup_groundlines_uniform_color(DRWPass *pass, const float color[4], eGPUShaderConfig sh_cfg)
 {
-	GPUShader *sh = GPU_shader_get_builtin_shader_with_config(GPU_SHADER_3D_GROUNDLINE, shader_cfg);
+	GPUShader *sh = GPU_shader_get_builtin_shader_with_config(GPU_SHADER_3D_GROUNDLINE, sh_cfg);
 
 	DRWShadingGroup *grp = DRW_shgroup_point_batch_create(sh, pass);
 	DRW_shgroup_uniform_vec4(grp, "color", color, 1);
-	if (shader_cfg == GPU_SHADER_CFG_CLIPPED) {
+	if (sh_cfg == GPU_SHADER_CFG_CLIPPED) {
 		DRW_shgroup_world_clip_planes_from_rv3d(grp, DRW_context_state_get()->rv3d);
 	}
 	return grp;
 }
 
-DRWShadingGroup *shgroup_groundpoints_uniform_color(DRWPass *pass, const float color[4], eGPUShaderConfig shader_cfg)
+DRWShadingGroup *shgroup_groundpoints_uniform_color(DRWPass *pass, const float color[4], eGPUShaderConfig sh_cfg)
 {
-	GPUShader *sh = GPU_shader_get_builtin_shader_with_config(GPU_SHADER_3D_GROUNDPOINT, shader_cfg);
+	GPUShader *sh = GPU_shader_get_builtin_shader_with_config(GPU_SHADER_3D_GROUNDPOINT, sh_cfg);
 
 	DRWShadingGroup *grp = DRW_shgroup_point_batch_create(sh, pass);
 	DRW_shgroup_uniform_vec4(grp, "color", color, 1);
 	DRW_shgroup_state_enable(grp, DRW_STATE_POINT);
-	if (shader_cfg == GPU_SHADER_CFG_CLIPPED) {
+	if (sh_cfg == GPU_SHADER_CFG_CLIPPED) {
 		DRW_shgroup_world_clip_planes_from_rv3d(grp, DRW_context_state_get()->rv3d);
 	}
 	return grp;
 }
 
 DRWShadingGroup *shgroup_instance_screenspace(
-        DRWPass *pass, struct GPUBatch *geom, const float *size, eGPUShaderConfig shader_cfg)
+        DRWPass *pass, struct GPUBatch *geom, const float *size, eGPUShaderConfig sh_cfg)
 {
-	GPUShader *sh = GPU_shader_get_builtin_shader_with_config(GPU_SHADER_3D_SCREENSPACE_VARIYING_COLOR, shader_cfg);
+	GPUShader *sh = GPU_shader_get_builtin_shader_with_config(GPU_SHADER_3D_SCREENSPACE_VARIYING_COLOR, sh_cfg);
 
 	DRW_shgroup_instance_format(g_formats.instance_screenspace, {
 		{"world_pos", DRW_ATTR_FLOAT, 3},
@@ -391,7 +390,7 @@ DRWShadingGroup *shgroup_instance_screenspace(
 	DRW_shgroup_uniform_float(grp, "size", size, 1);
 	DRW_shgroup_uniform_float(grp, "pixel_size", DRW_viewport_pixelsize_get(), 1);
 	DRW_shgroup_uniform_vec3(grp, "screen_vecs[0]", DRW_viewport_screenvecs_get(), 2);
-	if (shader_cfg == GPU_SHADER_CFG_CLIPPED) {
+	if (sh_cfg == GPU_SHADER_CFG_CLIPPED) {
 		DRW_shgroup_world_clip_planes_from_rv3d(grp, DRW_context_state_get()->rv3d);
 	}
 	return grp;
@@ -428,9 +427,9 @@ DRWShadingGroup *shgroup_instance_wire(DRWPass *pass, struct GPUBatch *geom)
 }
 
 DRWShadingGroup *shgroup_instance_screen_aligned(
-        DRWPass *pass, struct GPUBatch *geom, eGPUShaderConfig shader_cfg)
+        DRWPass *pass, struct GPUBatch *geom, eGPUShaderConfig sh_cfg)
 {
-	GPUShader *sh = GPU_shader_get_builtin_shader_with_config(GPU_SHADER_3D_INSTANCE_SCREEN_ALIGNED, shader_cfg);
+	GPUShader *sh = GPU_shader_get_builtin_shader_with_config(GPU_SHADER_3D_INSTANCE_SCREEN_ALIGNED, sh_cfg);
 
 	DRW_shgroup_instance_format(g_formats.instance_screen_aligned, {
 		{"color",               DRW_ATTR_FLOAT, 3},
@@ -440,15 +439,15 @@ DRWShadingGroup *shgroup_instance_screen_aligned(
 
 	DRWShadingGroup *grp = DRW_shgroup_instance_create(sh, pass, geom, g_formats.instance_screen_aligned);
 	DRW_shgroup_uniform_vec3(grp, "screen_vecs[0]", DRW_viewport_screenvecs_get(), 2);
-	if (shader_cfg == GPU_SHADER_CFG_CLIPPED) {
+	if (sh_cfg == GPU_SHADER_CFG_CLIPPED) {
 		DRW_shgroup_world_clip_planes_from_rv3d(grp, DRW_context_state_get()->rv3d);
 	}
 	return grp;
 }
 
-DRWShadingGroup *shgroup_instance_scaled(DRWPass *pass, struct GPUBatch *geom, eGPUShaderConfig shader_cfg)
+DRWShadingGroup *shgroup_instance_scaled(DRWPass *pass, struct GPUBatch *geom, eGPUShaderConfig sh_cfg)
 {
-	GPUShader *sh_inst = GPU_shader_get_builtin_shader_with_config(GPU_SHADER_INSTANCE_VARIYING_COLOR_VARIYING_SCALE, shader_cfg);
+	GPUShader *sh_inst = GPU_shader_get_builtin_shader_with_config(GPU_SHADER_INSTANCE_VARIYING_COLOR_VARIYING_SCALE, sh_cfg);
 
 	DRW_shgroup_instance_format(g_formats.instance_scaled, {
 		{"color",               DRW_ATTR_FLOAT, 3},
@@ -457,15 +456,15 @@ DRWShadingGroup *shgroup_instance_scaled(DRWPass *pass, struct GPUBatch *geom, e
 	});
 
 	DRWShadingGroup *grp = DRW_shgroup_instance_create(sh_inst, pass, geom, g_formats.instance_scaled);
-	if (shader_cfg == GPU_SHADER_CFG_CLIPPED) {
+	if (sh_cfg == GPU_SHADER_CFG_CLIPPED) {
 		DRW_shgroup_world_clip_planes_from_rv3d(grp, DRW_context_state_get()->rv3d);
 	}
 	return grp;
 }
 
-DRWShadingGroup *shgroup_instance(DRWPass *pass, struct GPUBatch *geom, eGPUShaderConfig shader_cfg)
+DRWShadingGroup *shgroup_instance(DRWPass *pass, struct GPUBatch *geom, eGPUShaderConfig sh_cfg)
 {
-	GPUShader *sh_inst = GPU_shader_get_builtin_shader_with_config(GPU_SHADER_INSTANCE_VARIYING_COLOR_VARIYING_SIZE, shader_cfg);
+	GPUShader *sh_inst = GPU_shader_get_builtin_shader_with_config(GPU_SHADER_INSTANCE_VARIYING_COLOR_VARIYING_SIZE, sh_cfg);
 
 	DRW_shgroup_instance_format(g_formats.instance_sized, {
 		{"color",               DRW_ATTR_FLOAT, 4},
@@ -475,15 +474,15 @@ DRWShadingGroup *shgroup_instance(DRWPass *pass, struct GPUBatch *geom, eGPUShad
 
 	DRWShadingGroup *grp = DRW_shgroup_instance_create(sh_inst, pass, geom, g_formats.instance_sized);
 	DRW_shgroup_state_disable(grp, DRW_STATE_BLEND);
-	if (shader_cfg == GPU_SHADER_CFG_CLIPPED) {
+	if (sh_cfg == GPU_SHADER_CFG_CLIPPED) {
 		DRW_shgroup_world_clip_planes_from_rv3d(grp, DRW_context_state_get()->rv3d);
 	}
 	return grp;
 }
 
-DRWShadingGroup *shgroup_instance_alpha(DRWPass *pass, struct GPUBatch *geom, eGPUShaderConfig shader_cfg)
+DRWShadingGroup *shgroup_instance_alpha(DRWPass *pass, struct GPUBatch *geom, eGPUShaderConfig sh_cfg)
 {
-	GPUShader *sh_inst = GPU_shader_get_builtin_shader_with_config(GPU_SHADER_INSTANCE_VARIYING_COLOR_VARIYING_SIZE, shader_cfg);
+	GPUShader *sh_inst = GPU_shader_get_builtin_shader_with_config(GPU_SHADER_INSTANCE_VARIYING_COLOR_VARIYING_SIZE, sh_cfg);
 
 	DRW_shgroup_instance_format(g_formats.instance_sized, {
 		{"color",               DRW_ATTR_FLOAT, 4},
@@ -492,22 +491,21 @@ DRWShadingGroup *shgroup_instance_alpha(DRWPass *pass, struct GPUBatch *geom, eG
 	});
 
 	DRWShadingGroup *grp = DRW_shgroup_instance_create(sh_inst, pass, geom, g_formats.instance_sized);
-	if (shader_cfg == GPU_SHADER_CFG_CLIPPED) {
+	if (sh_cfg == GPU_SHADER_CFG_CLIPPED) {
 		DRW_shgroup_world_clip_planes_from_rv3d(grp, DRW_context_state_get()->rv3d);
 	}
 	return grp;
 }
 
-DRWShadingGroup *shgroup_instance_empty_axes(DRWPass *pass, struct GPUBatch *geom, eGPUShaderConfig shader_cfg)
+DRWShadingGroup *shgroup_instance_empty_axes(DRWPass *pass, struct GPUBatch *geom, eGPUShaderConfig sh_cfg)
 {
-	COMMON_Shaders *sh_data = &g_shaders[shader_cfg];
-	const char *world_clip_lib_or_empty = (shader_cfg == GPU_SHADER_CFG_CLIPPED) ? datatoc_gpu_shader_cfg_world_clip_lib_glsl : "";
-	const char *world_clip_def_or_empty = (shader_cfg == GPU_SHADER_CFG_CLIPPED) ? "#define USE_WORLD_CLIP_PLANES\n" : "";
+	COMMON_Shaders *sh_data = &g_shaders[sh_cfg];
 	if (sh_data->empty_axes_sh == NULL) {
+		const GPUShaderConfigData *sh_cfg_data = &GPU_shader_cfg_data[sh_cfg];
 		sh_data->empty_axes_sh = GPU_shader_create_from_arrays({
-		        .vert = (const char *[]){world_clip_lib_or_empty, datatoc_object_empty_axes_vert_glsl, NULL},
+		        .vert = (const char *[]){sh_cfg_data->lib, datatoc_object_empty_axes_vert_glsl, NULL},
 		        .frag = (const char *[]){datatoc_gpu_shader_flat_color_frag_glsl, NULL},
-		        .defs = (const char *[]){world_clip_def_or_empty, NULL},
+		        .defs = (const char *[]){sh_cfg_data->def, NULL},
 		});
 	}
 
@@ -519,7 +517,7 @@ DRWShadingGroup *shgroup_instance_empty_axes(DRWPass *pass, struct GPUBatch *geo
 
 	DRWShadingGroup *grp = DRW_shgroup_instance_create(sh_data->empty_axes_sh, pass, geom, g_formats.instance_sized);
 	DRW_shgroup_uniform_vec3(grp, "screenVecs[0]", DRW_viewport_screenvecs_get(), 2);
-	if (shader_cfg == GPU_SHADER_CFG_CLIPPED) {
+	if (sh_cfg == GPU_SHADER_CFG_CLIPPED) {
 		DRW_shgroup_world_clip_planes_from_rv3d(grp, DRW_context_state_get()->rv3d);
 	}
 	return grp;
@@ -541,9 +539,9 @@ DRWShadingGroup *shgroup_instance_outline(DRWPass *pass, struct GPUBatch *geom, 
 	return grp;
 }
 
-DRWShadingGroup *shgroup_camera_instance(DRWPass *pass, struct GPUBatch *geom, eGPUShaderConfig shader_cfg)
+DRWShadingGroup *shgroup_camera_instance(DRWPass *pass, struct GPUBatch *geom, eGPUShaderConfig sh_cfg)
 {
-	GPUShader *sh_inst = GPU_shader_get_builtin_shader_with_config(GPU_SHADER_CAMERA, shader_cfg);
+	GPUShader *sh_inst = GPU_shader_get_builtin_shader_with_config(GPU_SHADER_CAMERA, sh_cfg);
 
 	DRW_shgroup_instance_format(g_formats.instance_camera, {
 		{"color",               DRW_ATTR_FLOAT, 3},
@@ -554,15 +552,15 @@ DRWShadingGroup *shgroup_camera_instance(DRWPass *pass, struct GPUBatch *geom, e
 	});
 
 	DRWShadingGroup *grp = DRW_shgroup_instance_create(sh_inst, pass, geom, g_formats.instance_camera);
-	if (shader_cfg == GPU_SHADER_CFG_CLIPPED) {
+	if (sh_cfg == GPU_SHADER_CFG_CLIPPED) {
 		DRW_shgroup_world_clip_planes_from_rv3d(grp, DRW_context_state_get()->rv3d);
 	}
 	return grp;
 }
 
-DRWShadingGroup *shgroup_distance_lines_instance(DRWPass *pass, struct GPUBatch *geom, eGPUShaderConfig shader_cfg)
+DRWShadingGroup *shgroup_distance_lines_instance(DRWPass *pass, struct GPUBatch *geom, eGPUShaderConfig sh_cfg)
 {
-	GPUShader *sh_inst = GPU_shader_get_builtin_shader_with_config(GPU_SHADER_DISTANCE_LINES, shader_cfg);
+	GPUShader *sh_inst = GPU_shader_get_builtin_shader_with_config(GPU_SHADER_DISTANCE_LINES, sh_cfg);
 	static float point_size = 4.0f;
 
 	DRW_shgroup_instance_format(g_formats.instance_distance_lines, {
@@ -574,15 +572,15 @@ DRWShadingGroup *shgroup_distance_lines_instance(DRWPass *pass, struct GPUBatch 
 
 	DRWShadingGroup *grp = DRW_shgroup_instance_create(sh_inst, pass, geom, g_formats.instance_distance_lines);
 	DRW_shgroup_uniform_float(grp, "size", &point_size, 1);
-	if (shader_cfg == GPU_SHADER_CFG_CLIPPED) {
+	if (sh_cfg == GPU_SHADER_CFG_CLIPPED) {
 		DRW_shgroup_world_clip_planes_from_rv3d(grp, DRW_context_state_get()->rv3d);
 	}
 	return grp;
 }
 
-DRWShadingGroup *shgroup_spot_instance(DRWPass *pass, struct GPUBatch *geom, eGPUShaderConfig shader_cfg)
+DRWShadingGroup *shgroup_spot_instance(DRWPass *pass, struct GPUBatch *geom, eGPUShaderConfig sh_cfg)
 {
-	GPUShader *sh_inst = GPU_shader_get_builtin_shader_with_config(GPU_SHADER_INSTANCE_EDGES_VARIYING_COLOR, shader_cfg);
+	GPUShader *sh_inst = GPU_shader_get_builtin_shader_with_config(GPU_SHADER_INSTANCE_EDGES_VARIYING_COLOR, sh_cfg);
 	static const int True = true;
 	static const int False = false;
 
@@ -595,7 +593,7 @@ DRWShadingGroup *shgroup_spot_instance(DRWPass *pass, struct GPUBatch *geom, eGP
 	DRW_shgroup_uniform_bool(grp, "drawFront", &False, 1);
 	DRW_shgroup_uniform_bool(grp, "drawBack", &False, 1);
 	DRW_shgroup_uniform_bool(grp, "drawSilhouette", &True, 1);
-	if (shader_cfg == GPU_SHADER_CFG_CLIPPED) {
+	if (sh_cfg == GPU_SHADER_CFG_CLIPPED) {
 		DRW_shgroup_world_clip_planes_from_rv3d(grp, DRW_context_state_get()->rv3d);
 	}
 	return grp;
@@ -698,17 +696,15 @@ DRWShadingGroup *shgroup_instance_bone_envelope_solid(DRWPass *pass, bool transp
 	return grp;
 }
 
-DRWShadingGroup *shgroup_instance_mball_handles(DRWPass *pass, eGPUShaderConfig shader_cfg)
+DRWShadingGroup *shgroup_instance_mball_handles(DRWPass *pass, eGPUShaderConfig sh_cfg)
 {
-	COMMON_Shaders *sh_data = &g_shaders[shader_cfg];
+	COMMON_Shaders *sh_data = &g_shaders[sh_cfg];
 	if (sh_data->mball_handles == NULL) {
-		bool is_clip = (shader_cfg == GPU_SHADER_CFG_CLIPPED);
-		const char *world_clip_lib_or_empty = is_clip ? datatoc_gpu_shader_cfg_world_clip_lib_glsl : "";
-		const char *world_clip_def_or_empty = is_clip ? "#define USE_WORLD_CLIP_PLANES\n" : "";
+		const GPUShaderConfigData *sh_cfg_data = &GPU_shader_cfg_data[sh_cfg];
 		sh_data->mball_handles = GPU_shader_create_from_arrays({
-		        .vert = (const char *[]){world_clip_lib_or_empty, datatoc_object_mball_handles_vert_glsl, NULL},
+		        .vert = (const char *[]){sh_cfg_data->lib, datatoc_object_mball_handles_vert_glsl, NULL},
 		        .frag = (const char *[]){datatoc_gpu_shader_flat_color_frag_glsl, NULL},
-		        .defs = (const char *[]){world_clip_def_or_empty, NULL},
+		        .defs = (const char *[]){sh_cfg_data->def, NULL},
 		});
 	}
 
@@ -723,7 +719,7 @@ DRWShadingGroup *shgroup_instance_mball_handles(DRWPass *pass, eGPUShaderConfig 
 	        DRW_cache_screenspace_circle_get(),
 	        g_formats.instance_mball_handles);
 	DRW_shgroup_uniform_vec3(grp, "screen_vecs[0]", DRW_viewport_screenvecs_get(), 2);
-	if (shader_cfg == GPU_SHADER_CFG_CLIPPED) {
+	if (sh_cfg == GPU_SHADER_CFG_CLIPPED) {
 		DRW_shgroup_world_clip_planes_from_rv3d(grp, DRW_context_state_get()->rv3d);
 	}
 	return grp;
@@ -731,17 +727,16 @@ DRWShadingGroup *shgroup_instance_mball_handles(DRWPass *pass, eGPUShaderConfig 
 
 /* Only works with batches with adjacency infos. */
 DRWShadingGroup *shgroup_instance_bone_shape_outline(
-        DRWPass *pass, struct GPUBatch *geom, eGPUShaderConfig shader_cfg)
+        DRWPass *pass, struct GPUBatch *geom, eGPUShaderConfig sh_cfg)
 {
-	COMMON_Shaders *sh_data = &g_shaders[shader_cfg];
+	COMMON_Shaders *sh_data = &g_shaders[sh_cfg];
 	if (sh_data->shape_outline == NULL) {
-		const char *world_clip_lib_or_empty = (shader_cfg == GPU_SHADER_CFG_CLIPPED) ? datatoc_gpu_shader_cfg_world_clip_lib_glsl : "";
-		const char *world_clip_def_or_empty = (shader_cfg == GPU_SHADER_CFG_CLIPPED) ? "#define USE_WORLD_CLIP_PLANES\n" : "";
+		const GPUShaderConfigData *sh_cfg_data = &GPU_shader_cfg_data[sh_cfg];
 		sh_data->shape_outline = GPU_shader_create_from_arrays({
-		        .vert = (const char *[]){world_clip_lib_or_empty, datatoc_armature_shape_outline_vert_glsl, NULL},
-		        .geom = (const char *[]){world_clip_lib_or_empty, datatoc_armature_shape_outline_geom_glsl, NULL},
+		        .vert = (const char *[]){sh_cfg_data->lib, datatoc_armature_shape_outline_vert_glsl, NULL},
+		        .geom = (const char *[]){sh_cfg_data->lib, datatoc_armature_shape_outline_geom_glsl, NULL},
 		        .frag = (const char *[]){datatoc_gpu_shader_flat_color_frag_glsl, NULL},
-		        .defs = (const char *[]){world_clip_def_or_empty, NULL},
+		        .defs = (const char *[]){sh_cfg_data->def, NULL},
 		});
 	}
 
@@ -754,23 +749,22 @@ DRWShadingGroup *shgroup_instance_bone_shape_outline(
 	        sh_data->shape_outline,
 	        pass, geom, g_formats.instance_bone_outline);
 	DRW_shgroup_uniform_vec2(grp, "viewportSize", DRW_viewport_size_get(), 1);
-	if (shader_cfg == GPU_SHADER_CFG_CLIPPED) {
+	if (sh_cfg == GPU_SHADER_CFG_CLIPPED) {
 		DRW_shgroup_world_clip_planes_from_rv3d(grp, DRW_context_state_get()->rv3d);
 	}
 	return grp;
 }
 
 DRWShadingGroup *shgroup_instance_bone_shape_solid(
-        DRWPass *pass, struct GPUBatch *geom, bool transp, eGPUShaderConfig shader_cfg)
+        DRWPass *pass, struct GPUBatch *geom, bool transp, eGPUShaderConfig sh_cfg)
 {
-	COMMON_Shaders *sh_data = &g_shaders[shader_cfg];
+	COMMON_Shaders *sh_data = &g_shaders[sh_cfg];
 	if (sh_data->shape_solid == NULL) {
-		const char *world_clip_lib_or_empty = (shader_cfg == GPU_SHADER_CFG_CLIPPED) ? datatoc_gpu_shader_cfg_world_clip_lib_glsl : "";
-		const char *world_clip_def_or_empty = (shader_cfg == GPU_SHADER_CFG_CLIPPED) ? "#define USE_WORLD_CLIP_PLANES\n" : "";
+		const GPUShaderConfigData *sh_cfg_data = &GPU_shader_cfg_data[sh_cfg];
 		sh_data->shape_solid = GPU_shader_create_from_arrays({
-		        .vert = (const char *[]){world_clip_lib_or_empty, datatoc_armature_shape_solid_vert_glsl, NULL},
+		        .vert = (const char *[]){sh_cfg_data->lib, datatoc_armature_shape_solid_vert_glsl, NULL},
 		        .frag = (const char *[]){datatoc_armature_shape_solid_frag_glsl, NULL},
-		        .defs = (const char *[]){world_clip_def_or_empty, NULL},
+		        .defs = (const char *[]){sh_cfg_data->def, NULL},
 		});
 	}
 
@@ -784,7 +778,7 @@ DRWShadingGroup *shgroup_instance_bone_shape_solid(
 	        sh_data->shape_solid,
 	        pass, geom, g_formats.instance_bone);
 	DRW_shgroup_uniform_float_copy(grp, "alpha", transp ? 0.6f : 1.0f);
-	if (shader_cfg == GPU_SHADER_CFG_CLIPPED) {
+	if (sh_cfg == GPU_SHADER_CFG_CLIPPED) {
 		DRW_shgroup_world_clip_planes_from_rv3d(grp, DRW_context_state_get()->rv3d);
 	}
 	return grp;
@@ -837,16 +831,15 @@ DRWShadingGroup *shgroup_instance_bone_sphere_outline(DRWPass *pass)
 	return grp;
 }
 
-DRWShadingGroup *shgroup_instance_bone_stick(DRWPass *pass, eGPUShaderConfig shader_cfg)
+DRWShadingGroup *shgroup_instance_bone_stick(DRWPass *pass, eGPUShaderConfig sh_cfg)
 {
-	COMMON_Shaders *sh_data = &g_shaders[shader_cfg];
+	COMMON_Shaders *sh_data = &g_shaders[sh_cfg];
 	if (sh_data->bone_stick == NULL) {
-		const char *world_clip_lib_or_empty = (shader_cfg == GPU_SHADER_CFG_CLIPPED) ? datatoc_gpu_shader_cfg_world_clip_lib_glsl : "";
-		const char *world_clip_def_or_empty = (shader_cfg == GPU_SHADER_CFG_CLIPPED) ? "#define USE_WORLD_CLIP_PLANES\n" : "";
+		const GPUShaderConfigData *sh_cfg_data = &GPU_shader_cfg_data[sh_cfg];
 		sh_data->bone_stick = GPU_shader_create_from_arrays({
-		        .vert = (const char *[]){world_clip_lib_or_empty, datatoc_armature_stick_vert_glsl, NULL},
+		        .vert = (const char *[]){sh_cfg_data->lib, datatoc_armature_stick_vert_glsl, NULL},
 		        .frag = (const char *[]){datatoc_armature_stick_frag_glsl, NULL},
-		        .defs = (const char *[]){world_clip_def_or_empty, NULL},
+		        .defs = (const char *[]){sh_cfg_data->def, NULL},
 		});
 	}
 
@@ -865,7 +858,7 @@ DRWShadingGroup *shgroup_instance_bone_stick(DRWPass *pass, eGPUShaderConfig sha
 	        g_formats.instance_bone_stick);
 	DRW_shgroup_uniform_vec2(grp, "viewportSize", DRW_viewport_size_get(), 1);
 	DRW_shgroup_uniform_float_copy(grp, "stickSize", 5.0f * U.pixelsize);
-	if (shader_cfg == GPU_SHADER_CFG_CLIPPED) {
+	if (sh_cfg == GPU_SHADER_CFG_CLIPPED) {
 		DRW_shgroup_world_clip_planes_from_rv3d(grp, DRW_context_state_get()->rv3d);
 	}
 	return grp;
