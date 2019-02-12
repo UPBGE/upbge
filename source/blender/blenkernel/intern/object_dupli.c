@@ -387,7 +387,6 @@ static void make_child_duplis_verts(const DupliContext *ctx, void *userdata, Obj
 
 static void make_duplis_verts(const DupliContext *ctx)
 {
-	Scene *scene = ctx->scene;
 	Object *parent = ctx->object;
 	bool use_texcoords = (DEG_get_mode(ctx->depsgraph) == DAG_EVAL_RENDER);
 	VertexDupliData vdd;
@@ -397,16 +396,21 @@ static void make_duplis_verts(const DupliContext *ctx)
 
 	/* gather mesh info */
 	{
-		CustomDataMask dm_mask = (use_texcoords ? CD_MASK_BAREMESH | CD_MASK_ORCO : CD_MASK_BAREMESH);
 		vdd.edit_btmesh = BKE_editmesh_from_object(parent);
 
-		/* We do not need any render-smecific handling anymore, depsgraph takes care of that. */
+		/* We do not need any render-specific handling anymore, depsgraph takes care of that. */
+		/* NOTE: Do direct access to the evaluated mesh: this function is used
+		 * during meta balls evaluation. But even without those all the objects
+		 * which are needed for correct instancing are already evaluated. */
 		if (vdd.edit_btmesh != NULL) {
-			/* XXX TODO replace with equivalent of editbmesh_get_eval_cage when available. */
-			vdd.me_eval = mesh_get_eval_deform(ctx->depsgraph, scene, parent, dm_mask);
+			vdd.me_eval = vdd.edit_btmesh->mesh_eval_cage;
 		}
 		else {
-			vdd.me_eval = mesh_get_eval_final(ctx->depsgraph, scene, parent, dm_mask);
+			vdd.me_eval = parent->runtime.mesh_eval;
+		}
+
+		if (vdd.me_eval == NULL) {
+			return;
 		}
 
 		if (use_texcoords) {
@@ -658,7 +662,6 @@ static void make_child_duplis_faces(const DupliContext *ctx, void *userdata, Obj
 
 static void make_duplis_faces(const DupliContext *ctx)
 {
-	Scene *scene = ctx->scene;
 	Object *parent = ctx->object;
 	bool use_texcoords = (DEG_get_mode(ctx->depsgraph) == DAG_EVAL_RENDER);
 	FaceDupliData fdd;
@@ -668,15 +671,20 @@ static void make_duplis_faces(const DupliContext *ctx)
 	/* gather mesh info */
 	{
 		BMEditMesh *em = BKE_editmesh_from_object(parent);
-		CustomDataMask dm_mask = (use_texcoords ? CD_MASK_BAREMESH | CD_MASK_ORCO | CD_MASK_MLOOPUV : CD_MASK_BAREMESH);
 
 		/* We do not need any render-smecific handling anymore, depsgraph takes care of that. */
+		/* NOTE: Do direct access to the evaluated mesh: this function is used
+		 * during meta balls evaluation. But even without those all the objects
+		 * which are needed for correct instancing are already evaluated. */
 		if (em != NULL) {
-			/* XXX TODO replace with equivalent of editbmesh_get_eval_cage when available. */
-			fdd.me_eval = mesh_get_eval_deform(ctx->depsgraph, scene, parent, dm_mask);
+			fdd.me_eval = em->mesh_eval_cage;
 		}
 		else {
-			fdd.me_eval = mesh_get_eval_final(ctx->depsgraph, scene, parent, dm_mask);
+			fdd.me_eval = parent->runtime.mesh_eval;
+		}
+
+		if (fdd.me_eval == NULL) {
+			return;
 		}
 
 		if (use_texcoords) {
@@ -1093,29 +1101,4 @@ void free_object_duplilist(ListBase *lb)
 {
 	BLI_freelistN(lb);
 	MEM_freeN(lb);
-}
-
-int count_duplilist(Object *ob)
-{
-	if (ob->transflag & OB_DUPLI) {
-		if (ob->transflag & OB_DUPLIVERTS) {
-			if (ob->type == OB_MESH) {
-				if (ob->transflag & OB_DUPLIVERTS) {
-					ParticleSystem *psys = ob->particlesystem.first;
-					int pdup = 0;
-
-					for (; psys; psys = psys->next)
-						pdup += psys->totpart;
-
-					if (pdup == 0) {
-						Mesh *me = ob->data;
-						return me->totvert;
-					}
-					else
-						return pdup;
-				}
-			}
-		}
-	}
-	return 1;
 }
