@@ -417,7 +417,7 @@ ATTR_NONNULL(1) static void libblock_remap_data(
 	else {
 		i = set_listbasepointers(bmain, lb_array);
 
-		/* Note that this is a very 'bruteforce' approach, maybe we could use some depsgraph to only process
+		/* Note that this is a very 'brute force' approach, maybe we could use some depsgraph to only process
 		 * objects actually using given old_id... sounds rather unlikely currently, though, so this will do for now. */
 
 		while (i--) {
@@ -820,12 +820,12 @@ void BKE_libblock_free_datablock(ID *id, const int UNUSED(flag))
  * However, they might still be using (referencing) other IDs, this code takes care of it if
  * \a LIB_TAG_NO_USER_REFCOUNT is not defined.
  *
- * \param bmain Main database containing the freed ID, can be NULL in case it's a temp ID outside of any Main.
- * \param idv Pointer to ID to be freed.
- * \param flag Set of \a LIB_ID_FREE_... flags controlling/overriding usual freeing process,
- *             0 to get default safe behavior.
- * \param use_flag_from_idtag Still use freeing info flags from given ID datablock,
- *                            even if some overriding ones are passed in \a falg parameter.
+ * \param bmain: Main database containing the freed ID, can be NULL in case it's a temp ID outside of any Main.
+ * \param idv: Pointer to ID to be freed.
+ * \param flag: Set of \a LIB_ID_FREE_... flags controlling/overriding usual freeing process,
+ * 0 to get default safe behavior.
+ * \param use_flag_from_idtag: Still use freeing info flags from given ID datablock,
+ * even if some overriding ones are passed in \a falg parameter.
  */
 void BKE_id_free_ex(Main *bmain, void *idv, int flag, const bool use_flag_from_idtag)
 {
@@ -915,8 +915,8 @@ void BKE_id_free_ex(Main *bmain, void *idv, int flag, const bool use_flag_from_i
  *
  * See #BKE_id_free_ex description for full details.
  *
- * \param bmain Main database containing the freed ID, can be NULL in case it's a temp ID outside of any Main.
- * \param idv Pointer to ID to be freed.
+ * \param bmain: Main database containing the freed ID, can be NULL in case it's a temp ID outside of any Main.
+ * \param idv: Pointer to ID to be freed.
  */
 void BKE_id_free(Main *bmain, void *idv)
 {
@@ -971,7 +971,7 @@ static void id_delete(Main *bmain, const bool do_tagged_deletion)
 		 * This means that we won't have to loop over all deleted IDs to remove usages
 		 * of other deleted IDs.
 		 * This gives tremendous speed-up when deleting a large amount of IDs from a Main
-		 * countaining thousands of those.
+		 * containing thousands of those.
 		 * This also means that we have to be very careful here, as we by-pass many 'common'
 		 * processing, hence risking to 'corrupt' at least user counts, if not IDs themselves. */
 		bool keep_looping = true;
@@ -1086,7 +1086,7 @@ void BKE_id_delete(Main *bmain, void *idv)
 /**
  * Properly delete all IDs tagged with \a LIB_TAG_DOIT, in given \a bmain database.
  *
- * This is more efficient than calling #BKE_id_delete repitively on a large set of IDs
+ * This is more efficient than calling #BKE_id_delete repetitively on a large set of IDs
  * (several times faster when deleting most of the IDs at once)...
  *
  * \warning Considered experimental for now, seems to be working OK but this is

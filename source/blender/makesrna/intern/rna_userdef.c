@@ -2400,7 +2400,7 @@ static void rna_def_userdef_theme_space_node(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "group_node", PROP_FLOAT, PROP_COLOR_GAMMA);
 	RNA_def_property_float_sdna(prop, NULL, "syntaxc");
-	RNA_def_property_array(prop, 3);
+	RNA_def_property_array(prop, 4);
 	RNA_def_property_ui_text(prop, "Group Node", "");
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
 
@@ -4463,7 +4463,7 @@ static void rna_def_userdef_system(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Ambient Color", "Color of the ambient light that uniformly lit the scene");
 	RNA_def_property_update(prop, 0, "rna_UserDef_viewport_lights_update");
 
-	prop = RNA_def_property(srna, "edit_studio_light", PROP_BOOLEAN, PROP_NONE);
+	prop = RNA_def_property(srna, "use_studio_light_edit", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "edit_studio_light", 1);
 	RNA_def_property_ui_text(prop, "Edit Studio Light",
 	                               "View the result of the studio light editor in the viewport");
@@ -4709,16 +4709,11 @@ static void rna_def_userdef_input(BlenderRNA *brna)
 
 	/* tweak tablet & mouse preset */
 	prop = RNA_def_property(srna, "drag_threshold", PROP_INT, PROP_PIXEL);
-	RNA_def_property_int_sdna(prop, NULL, "dragthreshold");
-	RNA_def_property_range(prop, 3, 40);
-	RNA_def_property_ui_text(prop, "Drag Threshold",
-	                         "Amount of pixels you have to drag before dragging UI items happens");
-
-	prop = RNA_def_property(srna, "tweak_threshold", PROP_INT, PROP_PIXEL);
 	RNA_def_property_int_sdna(prop, NULL, "tweak_threshold");
 	RNA_def_property_range(prop, 3, 1024);
-	RNA_def_property_ui_text(prop, "Tweak Threshold",
-	                         "Number of pixels you have to drag before tweak event is triggered");
+	RNA_def_property_ui_text(prop, "Drag Threshold",
+	                         "Number of pixels you have to drag before a tweak/drag event is triggered "
+	                         "(otherwise click events are detected)");
 
 	/* tablet pressure curve */
 	prop = RNA_def_property(srna, "pressure_threshold_max", PROP_FLOAT, PROP_FACTOR);

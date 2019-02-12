@@ -1138,6 +1138,23 @@ static char *rna_MaterialSlot_path(PointerRNA *ptr)
 	return BLI_sprintfN("material_slots[%d]", index);
 }
 
+static PointerRNA rna_Object_display_get(PointerRNA *ptr)
+{
+	return rna_pointer_inherit_refine(ptr, &RNA_ObjectDisplay, ptr->data);
+}
+
+static char *rna_ObjectDisplay_path(PointerRNA *UNUSED(ptr))
+{
+	return BLI_strdup("display");
+}
+
+static PointerRNA rna_Object_active_particle_system_get(PointerRNA *ptr)
+{
+	Object *ob = (Object *)ptr->id.data;
+	ParticleSystem *psys = psys_get_current(ob);
+	return rna_pointer_inherit_refine(ptr, &RNA_ParticleSystem, psys);
+}
+
 /* why does this have to be so complicated?, can't all this crap be
  * moved to in BGE conversion function? - Campbell *
  *
@@ -1258,18 +1275,6 @@ static void rna_GameObjectSettings_physics_type_set(PointerRNA *ptr, int value)
 	}
 
 	WM_main_add_notifier(NC_OBJECT | ND_DRAW, ptr->id.data);
-}
-
-static char *rna_ObjectDisplay_path(PointerRNA *UNUSED(ptr))
-{
-	return BLI_strdup("display");
-}
-
-static PointerRNA rna_Object_active_particle_system_get(PointerRNA *ptr)
-{
-	Object *ob = (Object *)ptr->id.data;
-	ParticleSystem *psys = psys_get_current(ob);
-	return rna_pointer_inherit_refine(ptr, &RNA_ParticleSystem, psys);
 }
 
 static PointerRNA rna_Object_game_settings_get(PointerRNA *ptr)
@@ -2664,11 +2669,12 @@ static void rna_def_object_display(BlenderRNA *brna)
 
 	srna = RNA_def_struct(brna, "ObjectDisplay", NULL);
 	RNA_def_struct_ui_text(srna, "Object Display", "Object display settings for 3d viewport");
-	RNA_def_struct_sdna(srna, "ObjectDisplay");
+	RNA_def_struct_sdna(srna, "Object");
+	RNA_def_struct_nested(brna, srna, "Object");
 	RNA_def_struct_path_func(srna, "rna_ObjectDisplay_path");
 
 	prop = RNA_def_property(srna, "show_shadows", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", OB_SHOW_SHADOW);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "dtx", OB_DRAW_NO_SHADOW_CAST);
 	RNA_def_property_boolean_default(prop, true);
 	RNA_def_property_ui_text(prop, "Shadow", "Object cast shadows in the 3d viewport");
 	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
@@ -3420,8 +3426,9 @@ static void rna_def_object(BlenderRNA *brna)
 
 	/* Object Display */
 	prop = RNA_def_property(srna, "display", PROP_POINTER, PROP_NONE);
-	RNA_def_property_pointer_sdna(prop, NULL, "display");
+	RNA_def_property_flag(prop, PROP_NEVER_NULL);
 	RNA_def_property_struct_type(prop, "ObjectDisplay");
+	RNA_def_property_pointer_funcs(prop, "rna_Object_display_get", NULL, NULL, NULL);
 	RNA_def_property_ui_text(prop, "Object Display", "Object display settings for 3d viewport");
 
 	RNA_api_object(srna);

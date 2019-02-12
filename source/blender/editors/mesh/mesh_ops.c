@@ -328,4 +328,5 @@ void ED_keymap_mesh(wmKeyConfig *keyconf)
 
 	knifetool_modal_keymap(keyconf);
 	point_normals_modal_keymap(keyconf);
+	bevel_modal_keymap(keyconf);
 }

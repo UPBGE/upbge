@@ -182,7 +182,7 @@ typedef struct bPoseChannelDrawData {
 struct DualQuat;
 struct Mat4;
 
-typedef struct bPoseChannelRuntime {
+typedef struct bPoseChannel_Runtime {
 	int bbone_segments;
 	char pad[4];
 
@@ -193,7 +193,7 @@ typedef struct bPoseChannelRuntime {
 	/* Delta from rest to pose in matrix and DualQuat form. */
 	struct Mat4 *bbone_deform_mats;
 	struct DualQuat *bbone_dual_quats;
-} bPoseChannelRuntime;
+} bPoseChannel_Runtime;
 
 /* ************************************************ */
 /* Poses */
@@ -276,7 +276,7 @@ typedef struct bPoseChannel {
 	short rotmode;
 	short pad;
 
-	/** Matrix result of l.oc/quat/size, and where we put deform in, see next line */
+	/** Matrix result of loc/quat/size, and where we put deform in, see next line */
 	float chan_mat[4][4];
 	/**
 	 * Constraints accumulate here. in the end, pose_mat = bone->arm_mat * chan_mat
@@ -330,8 +330,8 @@ typedef struct bPoseChannel {
 	/** Points to an original pose channel. */
 	struct bPoseChannel *orig_pchan;
 
-	/** Runtime data. */
-	struct bPoseChannelRuntime runtime;
+	/** Runtime data (keep last). */
+	struct bPoseChannel_Runtime runtime;
 } bPoseChannel;
 
 
