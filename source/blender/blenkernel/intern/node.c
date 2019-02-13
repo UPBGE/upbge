@@ -1020,11 +1020,6 @@ bNode *BKE_node_copy_ex(bNodeTree *ntree, bNode *node_src, const int flag)
 	return node_dst;
 }
 
-bNode *nodeCopyNode(bNodeTree *ntree, bNode *node)
-{
-	return BKE_node_copy_ex(ntree, node, LIB_ID_CREATE_NO_USER_REFCOUNT);
-}
-
 /* also used via rna api, so we check for proper input output direction */
 bNodeLink *nodeAddLink(bNodeTree *ntree, bNode *fromnode, bNodeSocket *fromsock, bNode *tonode, bNodeSocket *tosock)
 {
@@ -1753,7 +1748,8 @@ static void node_free_node_ex(
 	BLI_freelistN(&node->internal_links);
 
 	if (node->prop) {
-		IDP_FreeProperty(node->prop);
+		/* Remember, no ID user refcount management here! */
+		IDP_FreeProperty_ex(node->prop, false);
 		MEM_freeN(node->prop);
 	}
 
@@ -3368,8 +3364,8 @@ static void register_undefined_types(void)
 	 */
 
 	strcpy(NodeTreeTypeUndefined.idname, "NodeTreeUndefined");
-	strcpy(NodeTreeTypeUndefined.ui_name, "Undefined");
-	strcpy(NodeTreeTypeUndefined.ui_description, "Undefined Node Tree Type");
+	strcpy(NodeTreeTypeUndefined.ui_name, N_("Undefined"));
+	strcpy(NodeTreeTypeUndefined.ui_description, N_("Undefined Node Tree Type"));
 
 	node_type_base_custom(&NodeTypeUndefined, "NodeUndefined", "Undefined", 0, 0);
 	NodeTypeUndefined.poll = node_undefined_poll;

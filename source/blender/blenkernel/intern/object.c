@@ -787,7 +787,7 @@ static const char *get_obdata_defname(int type)
 		case OB_FONT: return DATA_("Text");
 		case OB_MBALL: return DATA_("Mball");
 		case OB_CAMERA: return DATA_("Camera");
-		case OB_LAMP: return DATA_("Light");
+		case OB_LAMP: return CTX_DATA_(BLT_I18NCONTEXT_ID_LIGHT, "Light");
 		case OB_LATTICE: return DATA_("Lattice");
 		case OB_ARMATURE: return DATA_("Armature");
 		case OB_SPEAKER: return DATA_("Speaker");
@@ -1550,7 +1550,7 @@ void BKE_object_copy_data(Main *bmain, Object *ob_dst, const Object *ob_src, con
 	ShaderFxData *fx;
 
 	/* Do not copy runtime data. */
-	BKE_object_runtime_reset(ob_dst);
+	BKE_object_runtime_reset_on_copy(ob_dst, flag);
 
 	/* We never handle usercount here for own data. */
 	const int flag_subdata = flag | LIB_ID_CREATE_NO_USER_REFCOUNT;
@@ -3788,7 +3788,7 @@ void BKE_object_runtime_reset(Object *object)
 }
 
 /* Reset all pointers which we don't want to be shared when copying the object. */
-void BKE_object_runtime_reset_on_copy(Object *object)
+void BKE_object_runtime_reset_on_copy(Object *object, const int UNUSED(flag))
 {
 	Object_Runtime *runtime = &object->runtime;
 	runtime->mesh_eval = NULL;
