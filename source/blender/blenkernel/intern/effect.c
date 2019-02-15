@@ -158,7 +158,7 @@ static void precalculate_effector(struct Depsgraph *depsgraph, EffectorCache *ef
 		Curve *cu = eff->ob->data;
 		if (cu->flag & CU_PATH) {
 			if (eff->ob->runtime.curve_cache == NULL || eff->ob->runtime.curve_cache->path == NULL || eff->ob->runtime.curve_cache->path->data == NULL)
-				BKE_displist_make_curveTypes(depsgraph, eff->scene, eff->ob, false, false);
+				BKE_displist_make_curveTypes(depsgraph, eff->scene, eff->ob, false, false, NULL);
 
 			if (eff->ob->runtime.curve_cache->path && eff->ob->runtime.curve_cache->path->data) {
 				where_on_path(eff->ob, 0.0, eff->guide_loc, eff->guide_dir, NULL, &eff->guide_radius, NULL);
@@ -946,7 +946,7 @@ static void do_physical_effector(EffectorCache *eff, EffectorData *efd, Effected
 			zero_v3(force);
 			if (pd->f_source) {
 				float density;
-				if ((density = smoke_get_velocity_at(pd->f_source, point->loc, force)) >= 0.0f) {
+				if ((density = BKE_smoke_get_velocity_at(pd->f_source, point->loc, force)) >= 0.0f) {
 					float influence = strength * efd->falloff;
 					if (pd->flag & PFIELD_SMOKE_DENSITY) {
 						influence *= density;

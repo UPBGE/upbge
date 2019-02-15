@@ -280,7 +280,6 @@ void depsgraph_tag_component(Depsgraph *graph,
 		ComponentNode *cow_comp =
 		        id_node->find_component(NodeType::COPY_ON_WRITE);
 		cow_comp->tag_update(graph, update_source);
-		id_node->id_orig->recalc |= ID_RECALC_COPY_ON_WRITE;
 	}
 }
 
@@ -485,6 +484,13 @@ void deg_graph_on_visible_update(Main *bmain, Depsgraph *graph)
 		int flag = 0;
 		if (!DEG::deg_copy_on_write_is_expanded(id_node->id_cow)) {
 			flag |= ID_RECALC_COPY_ON_WRITE;
+			/* TODO(sergey): Shouldn't be needed, but currently we are lackign
+			 * some flushing of evaluated data to the original one, which makes,
+			 * for example, files saved with the rest pose.
+			 * Need to solve those issues carefully, for until then we evaluate
+			 * animation for datablocks which appears in the graph for the first
+			 * time. */
+			flag |= ID_RECALC_ANIMATION;
 		}
 		/* We only tag components which needs an update. Tagging everything is
 		 * not a good idea because that might reset particles cache (or any
@@ -498,7 +504,8 @@ void deg_graph_on_visible_update(Main *bmain, Depsgraph *graph)
 		graph_id_tag_update(bmain,
 		                    graph,
 		                    id_node->id_orig,
-		                    flag, DEG_UPDATE_SOURCE_VISIBILITY);
+		                    flag,
+		                    DEG_UPDATE_SOURCE_VISIBILITY);
 		if (id_type == ID_SCE) {
 			/* Make sure collection properties are up to date. */
 			id_node->tag_update(graph, DEG_UPDATE_SOURCE_VISIBILITY);
@@ -758,7 +765,6 @@ static void deg_graph_clear_id_node_func(
 	DEG::Depsgraph *deg_graph = reinterpret_cast<DEG::Depsgraph *>(data_v);
 	DEG::IDNode *id_node = deg_graph->id_nodes[i];
 	id_node->id_cow->recalc &= ~ID_RECALC_ALL;
-	id_node->id_orig->recalc &= ~ID_RECALC_ALL;
 
 	/* Clear embedded node trees too. */
 	bNodeTree *ntree_cow = ntreeFromID(id_node->id_cow);
