@@ -86,15 +86,11 @@ typedef struct Camera {
 	char dtx;
 	short flag;
 	float passepartalpha;
-	float clipsta, clipend;
+	float clip_start, clip_end;
 	float lens, ortho_scale, drawsize;
 	float sensor_x, sensor_y;
 	float shiftx, shifty;
-
-	/* yafray: dof params */
-	/* qdn: yafray var 'YF_dofdist' now enabled for defocus composite node as well.
-	 * The name was not changed so that no other files need to be modified */
-	float YF_dofdist;
+	float dof_distance;
 
 	/** Old animation system, deprecated for 2.5. */
 	struct Ipo *ipo  DNA_DEPRECATED;

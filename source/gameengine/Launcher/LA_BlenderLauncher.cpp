@@ -126,8 +126,8 @@ void LA_BlenderLauncher::InitCamera()
 	if (rv3d->persp != RV3D_CAMOB) {
 		RAS_CameraData camdata = RAS_CameraData();
 		camdata.m_lens = m_view3d->lens;
-		camdata.m_clipstart = m_view3d->near;
-		camdata.m_clipend = m_view3d->far;
+		camdata.m_clipstart = m_view3d->clip_start;
+		camdata.m_clipend = m_view3d->clip_end;
 		camdata.m_perspective = (rv3d->persp != RV3D_ORTHO);
 
 		m_ketsjiEngine->EnableCameraOverride(m_startSceneName, MT_Matrix4x4(&rv3d->winmat[0][0]), MT_Matrix4x4(&rv3d->viewmat[0][0]), camdata);

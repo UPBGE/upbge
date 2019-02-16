@@ -233,8 +233,8 @@ SG_Controller *BL_CreateCameraIPO(struct bAction *action, KX_GameObject*  camera
 	Camera *blendercamera = (Camera*)cameraobj->GetBlenderObject()->data;
 
 	ipocontr->m_lens = blendercamera->lens;
-	ipocontr->m_clipstart = blendercamera->clipsta;
-	ipocontr->m_clipend = blendercamera->clipend;
+	ipocontr->m_clipstart = blendercamera->clip_start;
+	ipocontr->m_clipend = blendercamera->clip_end;
 
 	BL_InterpolatorList *adtList= GetAdtList(action, scene);
 

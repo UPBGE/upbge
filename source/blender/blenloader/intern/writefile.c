@@ -2966,12 +2966,12 @@ static void write_uilist(WriteData *wd, uiList *ui_list)
 	}
 }
 
-static void write_soops(WriteData *wd, SpaceOops *so)
+static void write_soops(WriteData *wd, SpaceOutliner *so)
 {
 	BLI_mempool *ts = so->treestore;
 
 	if (ts) {
-		SpaceOops so_flat = *so;
+		SpaceOutliner so_flat = *so;
 
 		int elems = BLI_mempool_len(ts);
 		/* linearize mempool to array */
@@ -2992,7 +2992,7 @@ static void write_soops(WriteData *wd, SpaceOops *so)
 			ts_flat.totelem = elems;
 			ts_flat.data = data_addr;
 
-			writestruct(wd, DATA, SpaceOops, 1, so);
+			writestruct(wd, DATA, SpaceOutliner, 1, so);
 
 			writestruct_at_address(wd, DATA, TreeStore, 1, ts, &ts_flat);
 			writestruct_at_address(wd, DATA, TreeStoreElem, elems, data_addr, data);
@@ -3001,11 +3001,11 @@ static void write_soops(WriteData *wd, SpaceOops *so)
 		}
 		else {
 			so_flat.treestore = NULL;
-			writestruct_at_address(wd, DATA, SpaceOops, 1, so, &so_flat);
+			writestruct_at_address(wd, DATA, SpaceOutliner, 1, so, &so_flat);
 		}
 	}
 	else {
-		writestruct(wd, DATA, SpaceOops, 1, so);
+		writestruct(wd, DATA, SpaceOutliner, 1, so);
 	}
 }
 
@@ -3056,14 +3056,14 @@ static void write_area_regions(WriteData *wd, ScrArea *area)
 				writestruct(wd, DATA, GPUDOFSettings, 1, v3d->fx_settings.dof);
 			}
 		}
-		else if (sl->spacetype == SPACE_IPO) {
-			SpaceIpo *sipo = (SpaceIpo *)sl;
+		else if (sl->spacetype == SPACE_GRAPH) {
+			SpaceGraph *sipo = (SpaceGraph *)sl;
 			ListBase tmpGhosts = sipo->runtime.ghost_curves;
 
 			/* temporarily disable ghost curves when saving */
 			BLI_listbase_clear(&sipo->runtime.ghost_curves);
 
-			writestruct(wd, DATA, SpaceIpo, 1, sl);
+			writestruct(wd, DATA, SpaceGraph, 1, sl);
 			if (sipo->ads) {
 				writestruct(wd, DATA, bDopeSheet, 1, sipo->ads);
 			}
@@ -3071,8 +3071,8 @@ static void write_area_regions(WriteData *wd, ScrArea *area)
 			/* reenable ghost curves */
 			sipo->runtime.ghost_curves = tmpGhosts;
 		}
-		else if (sl->spacetype == SPACE_BUTS) {
-			writestruct(wd, DATA, SpaceButs, 1, sl);
+		else if (sl->spacetype == SPACE_PROPERTIES) {
+			writestruct(wd, DATA, SpaceProperties, 1, sl);
 		}
 		else if (sl->spacetype == SPACE_FILE) {
 			SpaceFile *sfile = (SpaceFile *)sl;
@@ -3086,7 +3086,7 @@ static void write_area_regions(WriteData *wd, ScrArea *area)
 			writestruct(wd, DATA, SpaceSeq, 1, sl);
 		}
 		else if (sl->spacetype == SPACE_OUTLINER) {
-			SpaceOops *so = (SpaceOops *)sl;
+			SpaceOutliner *so = (SpaceOutliner *)sl;
 			write_soops(wd, so);
 		}
 		else if (sl->spacetype == SPACE_IMAGE) {

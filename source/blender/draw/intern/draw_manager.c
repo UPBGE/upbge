@@ -2830,8 +2830,8 @@ static void game_camera_border(Depsgraph *depsgraph,
 	/* get camera viewplane */
 	BKE_camera_params_init(&params);
 	/* fallback for non camera objects */
-	params.clipsta = v3d->near;
-	params.clipend = v3d->far;
+	params.clip_start = v3d->clip_start;
+	params.clip_end = v3d->clip_end;
 	BKE_camera_params_from_object(&params, v3d->camera);
 	if (no_shift) {
 		params.shiftx = 0.0f;
@@ -2902,8 +2902,8 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam, int
 	Camera *cam = (Camera *)obcam;
 	v3d.camera = obcam;
 	v3d.lens = cam->lens;
-	v3d.near = cam->clipsta;
-	v3d.far = cam->clipend;
+	v3d.clip_start = cam->clip_start;
+	v3d.clip_end = cam->clip_end;
 
 
 	game_rv3d.camdx = 0.0f;

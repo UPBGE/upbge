@@ -726,10 +726,10 @@ struct SpaceImage *CTX_wm_space_image(const bContext *C)
 	return NULL;
 }
 
-struct SpaceButs *CTX_wm_space_buts(const bContext *C)
+struct SpaceProperties *CTX_wm_space_properties(const bContext *C)
 {
 	ScrArea *sa = CTX_wm_area(C);
-	if (sa && sa->spacetype == SPACE_BUTS)
+	if (sa && sa->spacetype == SPACE_PROPERTIES)
 		return sa->spacedata.first;
 	return NULL;
 }
@@ -750,7 +750,7 @@ struct SpaceSeq *CTX_wm_space_seq(const bContext *C)
 	return NULL;
 }
 
-struct SpaceOops *CTX_wm_space_outliner(const bContext *C)
+struct SpaceOutliner *CTX_wm_space_outliner(const bContext *C)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	if (sa && sa->spacetype == SPACE_OUTLINER)
@@ -782,10 +782,10 @@ struct SpaceLogic *CTX_wm_space_logic(const bContext *C)
 	return NULL;
 }
 
-struct SpaceIpo *CTX_wm_space_graph(const bContext *C)
+struct SpaceGraph *CTX_wm_space_graph(const bContext *C)
 {
 	ScrArea *sa = CTX_wm_area(C);
-	if (sa && sa->spacetype == SPACE_IPO)
+	if (sa && sa->spacetype == SPACE_GRAPH)
 		return sa->spacedata.first;
 	return NULL;
 }

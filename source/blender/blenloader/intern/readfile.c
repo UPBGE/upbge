@@ -6984,8 +6984,8 @@ static void direct_link_area(FileData *fd, ScrArea *area)
 
 			blo_do_versions_view3d_split_250(v3d, &sl->regionbase);
 		}
-		else if (sl->spacetype == SPACE_IPO) {
-			SpaceIpo *sipo = (SpaceIpo *)sl;
+		else if (sl->spacetype == SPACE_GRAPH) {
+			SpaceGraph *sipo = (SpaceGraph *)sl;
 
 			sipo->ads = newdataadr(fd, sipo->ads);
 			BLI_listbase_clear(&sipo->runtime.ghost_curves);
@@ -6996,7 +6996,7 @@ static void direct_link_area(FileData *fd, ScrArea *area)
 			snla->ads = newdataadr(fd, snla->ads);
 		}
 		else if (sl->spacetype == SPACE_OUTLINER) {
-			SpaceOops *soops = (SpaceOops *)sl;
+			SpaceOutliner *soops = (SpaceOutliner *)sl;
 
 			/* use newdataadr_no_us and do not free old memory avoiding double
 			 * frees and use of freed memory. this could happen because of a
@@ -7095,8 +7095,8 @@ static void direct_link_area(FileData *fd, ScrArea *area)
 			sseq->scopes.histogram_ibuf = NULL;
 			sseq->compositor = NULL;
 		}
-		else if (sl->spacetype == SPACE_BUTS) {
-			SpaceButs *sbuts = (SpaceButs *)sl;
+		else if (sl->spacetype == SPACE_PROPERTIES) {
+			SpaceProperties *sbuts = (SpaceProperties *)sl;
 
 			sbuts->path = NULL;
 			sbuts->texuser = NULL;
@@ -7179,9 +7179,9 @@ static void lib_link_area(FileData *fd, ID *parent_id, ScrArea *area)
 				}
 				break;
 			}
-			case SPACE_IPO:
+			case SPACE_GRAPH:
 			{
-				SpaceIpo *sipo = (SpaceIpo *)sl;
+				SpaceGraph *sipo = (SpaceGraph *)sl;
 				bDopeSheet *ads = sipo->ads;
 
 				if (ads) {
@@ -7190,9 +7190,9 @@ static void lib_link_area(FileData *fd, ID *parent_id, ScrArea *area)
 				}
 				break;
 			}
-			case SPACE_BUTS:
+			case SPACE_PROPERTIES:
 			{
-				SpaceButs *sbuts = (SpaceButs *)sl;
+				SpaceProperties *sbuts = (SpaceProperties *)sl;
 				sbuts->pinid = newlibadr(fd, parent_id->lib, sbuts->pinid);
 				if (sbuts->pinid == NULL) {
 					sbuts->flag &= ~SB_PIN_CONTEXT;
@@ -7269,7 +7269,7 @@ static void lib_link_area(FileData *fd, ID *parent_id, ScrArea *area)
 			}
 			case SPACE_OUTLINER:
 			{
-				SpaceOops *so = (SpaceOops *)sl;
+				SpaceOutliner *so = (SpaceOutliner *)sl;
 				so->search_tse.id = newlibadr(fd, NULL, so->search_tse.id);
 
 				if (so->treestore) {
@@ -7673,8 +7673,8 @@ static void lib_link_workspace_layout_restore(struct IDNameLib_Map *id_map, Main
 						}
 					}
 				}
-				else if (sl->spacetype == SPACE_IPO) {
-					SpaceIpo *sipo = (SpaceIpo *)sl;
+				else if (sl->spacetype == SPACE_GRAPH) {
+					SpaceGraph *sipo = (SpaceGraph *)sl;
 					bDopeSheet *ads = sipo->ads;
 
 					if (ads) {
@@ -7689,8 +7689,8 @@ static void lib_link_workspace_layout_restore(struct IDNameLib_Map *id_map, Main
 					 */
 					sipo->runtime.flag |= SIPO_RUNTIME_FLAG_NEED_CHAN_SYNC_COLOR;
 				}
-				else if (sl->spacetype == SPACE_BUTS) {
-					SpaceButs *sbuts = (SpaceButs *)sl;
+				else if (sl->spacetype == SPACE_PROPERTIES) {
+					SpaceProperties *sbuts = (SpaceProperties *)sl;
 					sbuts->pinid = restore_pointer_by_name(id_map, sbuts->pinid, USER_IGNORE);
 					if (sbuts->pinid == NULL) {
 						sbuts->flag &= ~SB_PIN_CONTEXT;
@@ -7780,7 +7780,7 @@ static void lib_link_workspace_layout_restore(struct IDNameLib_Map *id_map, Main
 					}
 				}
 				else if (sl->spacetype == SPACE_OUTLINER) {
-					SpaceOops *so = (SpaceOops *)sl;
+					SpaceOutliner *so = (SpaceOutliner *)sl;
 
 					so->search_tse.id = restore_pointer_by_name(id_map, so->search_tse.id, USER_IGNORE);
 
@@ -8994,8 +8994,8 @@ static void do_versions_userdef(FileData *fd, BlendFileData *bfd)
 
 		/* themes for Node and Sequence editor were not using grid color, but back. we copy this over then */
 		for (btheme = user->themes.first; btheme; btheme = btheme->next) {
-			copy_v4_v4_char(btheme->tnode.grid, btheme->tnode.back);
-			copy_v4_v4_char(btheme->tseq.grid, btheme->tseq.back);
+			copy_v4_v4_char(btheme->space_node.grid, btheme->space_node.back);
+			copy_v4_v4_char(btheme->space_sequencer.grid, btheme->space_sequencer.back);
 		}
 	}
 

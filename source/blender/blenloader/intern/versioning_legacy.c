@@ -681,8 +681,8 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
 			while (sa) {
 				SpaceLink *sl = sa->spacedata.first;
 				while (sl) {
-					if (sl->spacetype == SPACE_IPO) {
-						SpaceIpo *sipo = (SpaceIpo *)sl;
+					if (sl->spacetype == SPACE_GRAPH) {
+						SpaceGraph *sipo = (SpaceGraph *)sl;
 						sipo->v2d.max[0] = 15000.0;
 					}
 					sl = sl->next;
@@ -880,7 +880,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
 				SpaceLink *sl;
 
 				for (sl = sa->spacedata.first; sl; sl = sl->next) {
-					if (sl->spacetype == SPACE_IPO) {
+					if (sl->spacetype == SPACE_GRAPH) {
 						SpaceSeq *sseq = (SpaceSeq *)sl;
 						sseq->v2d.keeptot = 0;
 					}
@@ -1020,8 +1020,8 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
 				SpaceLink *sl;
 
 				for (sl = sa->spacedata.first; sl; sl = sl->next) {
-					if (sl->spacetype == SPACE_BUTS) {
-						SpaceButs *sbuts = (SpaceButs *)sl;
+					if (sl->spacetype == SPACE_PROPERTIES) {
+						SpaceProperties *sbuts = (SpaceProperties *)sl;
 
 						sbuts->v2d.maxzoom = 1.2f;
 
@@ -2508,9 +2508,9 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
 							sact->autosnap = SACTSNAP_FRAME;
 							break;
 						}
-						case SPACE_IPO:
+						case SPACE_GRAPH:
 						{
-							SpaceIpo *sipo = (SpaceIpo *)sl;
+							SpaceGraph *sipo = (SpaceGraph *)sl;
 							sipo->autosnap = SACTSNAP_FRAME;
 							break;
 						}

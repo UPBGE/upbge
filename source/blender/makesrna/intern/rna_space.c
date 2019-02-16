@@ -74,7 +74,7 @@ const EnumPropertyItem rna_enum_space_type_items[] = {
 	{0, "", ICON_NONE, "Animation", ""},
 	//{SPACE_ACTION, "TIMELINE", ICON_TIME, "Timeline", "Timeline and playback controls (NOTE: Switch to 'Timeline' mode)"}, /* XXX */
 	{SPACE_ACTION, "DOPESHEET_EDITOR", ICON_ACTION, "Dope Sheet", "Adjust timing of keyframes"},
-	{SPACE_IPO, "GRAPH_EDITOR", ICON_GRAPH, "Graph Editor", "Edit drivers and keyframe interpolation"},
+	{SPACE_GRAPH, "GRAPH_EDITOR", ICON_GRAPH, "Graph Editor", "Edit drivers and keyframe interpolation"},
 	{SPACE_NLA, "NLA_EDITOR", ICON_NLA, "Nonlinear Animation", "Combine and layer Actions"},
 
 	/* Scripting */
@@ -94,7 +94,7 @@ const EnumPropertyItem rna_enum_space_type_items[] = {
 	/* Data */
 	{0, "", ICON_NONE, "Data", ""},
 	{SPACE_OUTLINER, "OUTLINER", ICON_OUTLINER, "Outliner", "Overview of scene graph and all available data-blocks"},
-	{SPACE_BUTS, "PROPERTIES", ICON_PROPERTIES, "Properties", "Edit properties of active object and related data-blocks"},
+	{SPACE_PROPERTIES, "PROPERTIES", ICON_PROPERTIES, "Properties", "Edit properties of active object and related data-blocks"},
 	{SPACE_FILE, "FILE_BROWSER", ICON_FILEBROWSER, "File Browser", "Browse for files and assets"},
 	{SPACE_USERPREF, "PREFERENCES", ICON_PREFERENCES, "Preferences",
 	                 "Edit persistent configuration settings"},
@@ -386,11 +386,11 @@ static StructRNA *rna_Space_refine(struct PointerRNA *ptr)
 	switch (space->spacetype) {
 		case SPACE_VIEW3D:
 			return &RNA_SpaceView3D;
-		case SPACE_IPO:
+		case SPACE_GRAPH:
 			return &RNA_SpaceGraphEditor;
 		case SPACE_OUTLINER:
 			return &RNA_SpaceOutliner;
-		case SPACE_BUTS:
+		case SPACE_PROPERTIES:
 			return &RNA_SpaceProperties;
 		case SPACE_FILE:
 			return &RNA_SpaceFileBrowser;
@@ -1220,13 +1220,13 @@ static void rna_SpaceTextEditor_updateEdited(Main *UNUSED(bmain), Scene *UNUSED(
 /* note: this function exists only to avoid id refcounting */
 static void rna_SpaceProperties_pin_id_set(PointerRNA *ptr, PointerRNA value)
 {
-	SpaceButs *sbuts = (SpaceButs *)(ptr->data);
+	SpaceProperties *sbuts = (SpaceProperties *)(ptr->data);
 	sbuts->pinid = value.data;
 }
 
 static StructRNA *rna_SpaceProperties_pin_id_typef(PointerRNA *ptr)
 {
-	SpaceButs *sbuts = (SpaceButs *)(ptr->data);
+	SpaceProperties *sbuts = (SpaceProperties *)(ptr->data);
 
 	if (sbuts->pinid)
 		return ID_code_to_RNA_type(GS(sbuts->pinid->name));
@@ -1236,7 +1236,7 @@ static StructRNA *rna_SpaceProperties_pin_id_typef(PointerRNA *ptr)
 
 static void rna_SpaceProperties_pin_id_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
-	SpaceButs *sbuts = (SpaceButs *)(ptr->data);
+	SpaceProperties *sbuts = (SpaceProperties *)(ptr->data);
 	ID *id = sbuts->pinid;
 
 	if (id == NULL) {
@@ -1265,7 +1265,7 @@ static void rna_SpaceProperties_pin_id_update(Main *UNUSED(bmain), Scene *UNUSED
 
 static void rna_SpaceProperties_context_set(PointerRNA *ptr, int value)
 {
-	SpaceButs *sbuts = (SpaceButs *)(ptr->data);
+	SpaceProperties *sbuts = (SpaceProperties *)(ptr->data);
 
 	sbuts->mainb = value;
 	sbuts->mainbuser = value;
@@ -1275,7 +1275,7 @@ static const EnumPropertyItem *rna_SpaceProperties_context_itemf(
         bContext *UNUSED(C), PointerRNA *ptr,
         PropertyRNA *UNUSED(prop), bool *r_free)
 {
-	SpaceButs *sbuts = (SpaceButs *)(ptr->data);
+	SpaceProperties *sbuts = (SpaceProperties *)(ptr->data);
 	EnumPropertyItem *item = NULL;
 	int totitem = 0;
 
@@ -1364,7 +1364,7 @@ static const EnumPropertyItem *rna_SpaceProperties_context_itemf(
 
 static void rna_SpaceProperties_context_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
-	SpaceButs *sbuts = (SpaceButs *)(ptr->data);
+	SpaceProperties *sbuts = (SpaceProperties *)(ptr->data);
 	/* XXX BCONTEXT_DATA is ugly, but required for lights... See T51318. */
 	if (ELEM(sbuts->mainb, BCONTEXT_WORLD, BCONTEXT_MATERIAL, BCONTEXT_TEXTURE, BCONTEXT_DATA)) {
 		sbuts->preview = 1;
@@ -1588,7 +1588,7 @@ static void rna_SpaceDopeSheetEditor_mode_update(bContext *C, PointerRNA *ptr)
 static void rna_SpaceGraphEditor_display_mode_update(bContext *C, PointerRNA *ptr)
 {
 	ScrArea *sa = rna_area_from_space(ptr);
-	SpaceIpo *sipo = (SpaceIpo *)ptr->data;
+	SpaceGraph *sipo = (SpaceGraph *)ptr->data;
 
 	/* for "Drivers" mode, enable all the necessary bits and pieces */
 	if (sipo->mode == SIPO_MODE_DRIVERS) {
@@ -1604,7 +1604,7 @@ static void rna_SpaceGraphEditor_display_mode_update(bContext *C, PointerRNA *pt
 
 static bool rna_SpaceGraphEditor_has_ghost_curves_get(PointerRNA *ptr)
 {
-	SpaceIpo *sipo = (SpaceIpo *)(ptr->data);
+	SpaceGraph *sipo = (SpaceGraph *)(ptr->data);
 	return (BLI_listbase_is_empty(&sipo->runtime.ghost_curves) == false);
 }
 
@@ -2295,7 +2295,7 @@ static void rna_def_space_outliner(BlenderRNA *brna)
 	};
 
 	srna = RNA_def_struct(brna, "SpaceOutliner", "Space");
-	RNA_def_struct_sdna(srna, "SpaceOops");
+	RNA_def_struct_sdna(srna, "SpaceOutliner");
 	RNA_def_struct_ui_text(srna, "Space Outliner", "Outliner space data");
 
 	prop = RNA_def_property(srna, "display_mode", PROP_ENUM, PROP_NONE);
@@ -3136,7 +3136,6 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
 	prop = RNA_def_property(srna, "clip_start", PROP_FLOAT, PROP_DISTANCE);
-	RNA_def_property_float_sdna(prop, NULL, "near");
 	RNA_def_property_range(prop, 1e-6f, FLT_MAX);
 	RNA_def_property_ui_range(prop, 0.001f, FLT_MAX, 10, 3);
 	RNA_def_property_float_default(prop, 0.1f);
@@ -3144,7 +3143,6 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
 	prop = RNA_def_property(srna, "clip_end", PROP_FLOAT, PROP_DISTANCE);
-	RNA_def_property_float_sdna(prop, NULL, "far");
 	RNA_def_property_range(prop, 1e-6f, FLT_MAX);
 	RNA_def_property_ui_range(prop, 0.001f, FLT_MAX, 10, 3);
 	RNA_def_property_float_default(prop, 1000.0f);
@@ -3453,7 +3451,7 @@ static void rna_def_space_buttons(BlenderRNA *brna)
 	PropertyRNA *prop;
 
 	srna = RNA_def_struct(brna, "SpaceProperties", "Space");
-	RNA_def_struct_sdna(srna, "SpaceButs");
+	RNA_def_struct_sdna(srna, "SpaceProperties");
 	RNA_def_struct_ui_text(srna, "Properties Space", "Properties space data");
 
 	prop = RNA_def_property(srna, "context", PROP_ENUM, PROP_NONE);
@@ -4081,7 +4079,7 @@ static void rna_def_space_graph(BlenderRNA *brna)
 
 
 	srna = RNA_def_struct(brna, "SpaceGraphEditor", "Space");
-	RNA_def_struct_sdna(srna, "SpaceIpo");
+	RNA_def_struct_sdna(srna, "SpaceGraph");
 	RNA_def_struct_ui_text(srna, "Space Graph Editor", "Graph Editor space data");
 
 	/* mode */
