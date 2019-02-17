@@ -1351,7 +1351,6 @@ static void rna_def_edit_object_actuator(BlenderRNA *brna)
 	static const EnumPropertyItem prop_type_items[] = {
 		{ACT_EDOB_ADD_OBJECT, "ADDOBJECT", 0, "Add Object", ""},
 		{ACT_EDOB_END_OBJECT, "ENDOBJECT", 0, "End Object", ""},
-		{ACT_EDOB_REPLACE_MESH, "REPLACEMESH", 0, "Replace Mesh", ""},
 		{ACT_EDOB_TRACK_TO, "TRACKTO", 0, "Track to", ""},
 		{ACT_EDOB_DYNAMICS, "DYNAMICS", 0, "Dynamics", ""},
 		{0, NULL, 0, NULL, NULL}

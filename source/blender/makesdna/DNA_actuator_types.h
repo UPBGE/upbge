@@ -420,7 +420,6 @@ typedef struct bActuator {
 /* editObjectActuator->type */
 #define ACT_EDOB_ADD_OBJECT		0
 #define ACT_EDOB_END_OBJECT		1
-#define ACT_EDOB_REPLACE_MESH		2
 #define ACT_EDOB_TRACK_TO		3
 #define ACT_EDOB_DYNAMICS		4
 

@@ -67,7 +67,6 @@
 #include "KX_VisibilityActuator.h"
 #include "KX_SCA_AddObjectActuator.h"
 #include "KX_SCA_EndObjectActuator.h"
-#include "KX_SCA_ReplaceMeshActuator.h"
 #include "KX_ParentActuator.h"
 #include "KX_SCA_DynamicActuator.h"
 #include "KX_SteeringActuator.h"
@@ -458,25 +457,6 @@ void BL_ConvertActuators(const char* maggiename,
 						KX_SCA_EndObjectActuator* tmpendact 
 							= new KX_SCA_EndObjectActuator(gameobj,scene);
 						baseact = tmpendact;
-					}
-					break;
-				case ACT_EDOB_REPLACE_MESH:
-					{
-						RAS_MeshObject *tmpmesh = converter.FindGameMesh(editobact->me);
-
-						if (!tmpmesh) {
-							CM_Warning("object \"" << objectname << "\" from ReplaceMesh actuator \"" << uniquename
-								<< "\" uses a mesh not owned by an object in scene \"" << scene->GetName() << "\".");
-						}
-
-						KX_SCA_ReplaceMeshActuator* tmpreplaceact = new KX_SCA_ReplaceMeshActuator(
-						            gameobj,
-						            tmpmesh,
-						            scene,
-						            (editobact->flag & ACT_EDOB_REPLACE_MESH_NOGFX) == 0,
-						            (editobact->flag & ACT_EDOB_REPLACE_MESH_PHYS) != 0);
-
-						baseact = tmpreplaceact;
 					}
 					break;
 				case ACT_EDOB_TRACK_TO:

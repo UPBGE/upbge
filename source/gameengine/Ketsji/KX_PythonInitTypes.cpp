@@ -66,7 +66,6 @@
 #include "KX_PolyProxy.h"
 #include "KX_SCA_AddObjectActuator.h"
 #include "KX_SCA_EndObjectActuator.h"
-#include "KX_SCA_ReplaceMeshActuator.h"
 #include "KX_SceneActuator.h"
 #include "KX_StateActuator.h"
 #include "KX_SteeringActuator.h"
@@ -240,7 +239,6 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
 		PyType_Ready_Attr(dict, KX_SCA_AddObjectActuator, init_getset);
 		PyType_Ready_Attr(dict, KX_SCA_DynamicActuator, init_getset);
 		PyType_Ready_Attr(dict, KX_SCA_EndObjectActuator, init_getset);
-		PyType_Ready_Attr(dict, KX_SCA_ReplaceMeshActuator, init_getset);
 		PyType_Ready_Attr(dict, KX_Scene, init_getset);
 		PyType_Ready_Attr(dict, KX_WorldInfo, init_getset);
 		PyType_Ready_Attr(dict, KX_NavMeshObject, init_getset);

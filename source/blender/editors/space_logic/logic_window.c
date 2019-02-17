@@ -1628,17 +1628,6 @@ static void draw_actuator_edit_object(uiLayout *layout, PointerRNA *ptr)
 			break;
 		case ACT_EDOB_END_OBJECT:
 			break;
-		case ACT_EDOB_REPLACE_MESH:
-			if (ob->type != OB_MESH) {
-				uiItemL(layout, IFACE_("Mode only available for mesh objects"), ICON_NONE);
-				break;
-			}
-			split = uiLayoutSplit(layout, 0.6, false);
-			uiItemR(split, ptr, "mesh", 0, NULL, ICON_NONE);
-			row = uiLayoutRow(split, false);
-			uiItemR(row, ptr, "use_replace_display_mesh", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
-			uiItemR(row, ptr, "use_replace_physics_mesh", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
-			break;
 		case ACT_EDOB_TRACK_TO:
 			split = uiLayoutSplit(layout, 0.5, false);
 			uiItemR(split, ptr, "track_object", 0, NULL, ICON_NONE);
