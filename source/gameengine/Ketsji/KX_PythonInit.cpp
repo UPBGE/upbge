@@ -79,7 +79,6 @@ extern "C" {
 #include "KX_ArmatureSensor.h"
 #include "KX_SceneActuator.h"
 #include "KX_GameActuator.h"
-//#include "KX_ModifierActuator.h"
 #include "KX_ParentActuator.h"
 #include "KX_SCA_DynamicActuator.h"
 #include "KX_SteeringActuator.h"

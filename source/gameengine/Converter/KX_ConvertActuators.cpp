@@ -68,7 +68,6 @@
 #include "KX_SCA_AddObjectActuator.h"
 #include "KX_SCA_EndObjectActuator.h"
 #include "KX_SCA_ReplaceMeshActuator.h"
-#include "KX_ModifierActuator.h"
 #include "KX_ParentActuator.h"
 #include "KX_SCA_DynamicActuator.h"
 #include "KX_SteeringActuator.h"
@@ -998,17 +997,6 @@ void BL_ConvertActuators(const char* maggiename,
 				baseact = tmpparact;
 				break;
 			}
-		case ACT_MODIFIER:
-		{
-			bModifierActuator *modAct = (bModifierActuator *)bact->data;
-			bool activated = ((modAct->flag & ACT_MODIFIER_ACTIVATED) != 0);
-
-			KX_ModifierActuator *tmpmodact
-				= new KX_ModifierActuator(gameobj,
-					activated);
-			baseact = tmpmodact;
-			break;
-		}
 		
 		case ACT_ARMATURE:
 			{

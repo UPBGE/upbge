@@ -396,8 +396,6 @@ static const char *actuator_name(int type)
 	switch (type) {
 	case ACT_SHAPEACTION:
 		return N_("Shape Action");
-	case ACT_MODIFIER:
-		return N_("Modifier");
 	case ACT_ACTION:
 		return N_("Action");
 	case ACT_OBJECT:
@@ -1832,20 +1830,6 @@ static void draw_actuator_motion(uiLayout *layout, PointerRNA *ptr)
 	}
 }
 
-static void draw_actuator_modifier(uiLayout *layout, PointerRNA *ptr)
-{
-	uiLayout *row;
-	Object *ob = (Object *)ptr->id.data;
-	PointerRNA modifier_ptr;
-
-	/* create RNA pointer */
-	RNA_pointer_create(&ob->id, &RNA_Object, ob, &modifier_ptr);
-	uiItemPointerR(layout, ptr, "modifier_pointer", &modifier_ptr, "modifiers", NULL, ICON_MODIFIER_DATA);
-
-	row = uiLayoutRow(layout, false);
-	uiItemR(row, ptr, "use_modifier_activated", 0, NULL, ICON_NONE);
-}
-
 static void draw_actuator_parent(uiLayout *layout, PointerRNA *ptr)
 {
 	uiLayout *row, *sub;
@@ -2229,9 +2213,6 @@ static void draw_brick_actuator(uiLayout *layout, PointerRNA *ptr, bContext *C)
 			break;
 		case ACT_OBJECT:
 			draw_actuator_motion(box, ptr);
-			break;
-		case ACT_MODIFIER:
-			draw_actuator_modifier(box, ptr);
 			break;
 		case ACT_PARENT:
 			draw_actuator_parent(box, ptr);

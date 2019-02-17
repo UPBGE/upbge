@@ -59,7 +59,6 @@ static const EnumPropertyItem actuator_type_items[] = {
 	{ACT_OBJECT, "MOTION", 0, "Motion", ""},
 	{ACT_MOUSE, "MOUSE", 0, "Mouse", ""},
 	{ACT_PARENT, "PARENT", 0, "Parent", ""},
-	{ACT_MODIFIER, "MODIFIER", 0, "Modifier", ""},
 	{ACT_PROPERTY, "PROPERTY", 0, "Property", ""},
 	{ACT_RANDOM, "RANDOM", 0, "Random", ""},
 	{ACT_SCENE, "SCENE", 0, "Scene", ""},
@@ -105,8 +104,6 @@ static StructRNA *rna_Actuator_refine(struct PointerRNA *ptr)
 			return &RNA_VisibilityActuator;
 		case ACT_2DFILTER:
 			return &RNA_Filter2DActuator;
-		case ACT_MODIFIER:
-			return &RNA_ModifierActuator;
 		case ACT_PARENT:
 			return &RNA_ParentActuator;
 		case ACT_STATE:
@@ -464,7 +461,6 @@ const EnumPropertyItem *rna_Actuator_type_itemf(bContext *C, PointerRNA *ptr, Pr
 	RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_MESSAGE);
 	RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_MOUSE);
 	RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_OBJECT);
-	RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_MODIFIER);
 	RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_PARENT);
 	RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_PROPERTY);
 	RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_RANDOM);
@@ -1867,29 +1863,6 @@ static void rna_def_parent_actuator(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 }
 
-static void rna_def_modifier_actuator(BlenderRNA *brna)
-{
-	StructRNA *srna;
-	PropertyRNA *prop;
-
-	srna = RNA_def_struct(brna, "ModifierActuator", "Actuator");
-	RNA_def_struct_ui_text(srna, "Modifier Actuator", "Apply Modifier stack during transform update");
-	RNA_def_struct_sdna_from(srna, "bModifierActuator", "data");
-
-	prop = RNA_def_property(srna, "modifier_pointer", PROP_POINTER, PROP_NONE);
-	RNA_def_property_struct_type(prop, "Modifier");
-	RNA_def_property_pointer_sdna(prop, NULL, "modifier");
-	RNA_def_property_flag(prop, PROP_EDITABLE);
-	RNA_def_property_ui_text(prop, "Modifier", "Set modifier");
-	RNA_def_property_update(prop, NC_LOGIC, NULL);
-
-	/* booleans */
-	prop = RNA_def_property(srna, "use_modifier_activated", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", ACT_MODIFIER_ACTIVATED);
-	RNA_def_property_ui_text(prop, "Activated", "Use modifier stack during transform");
-	RNA_def_property_update(prop, NC_LOGIC, NULL);
-}
-
 static void rna_def_state_actuator(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -2238,7 +2211,6 @@ void RNA_def_actuator(BlenderRNA *brna)
 	rna_def_visibility_actuator(brna);
 	rna_def_twodfilter_actuator(brna);
 	rna_def_parent_actuator(brna);
-	rna_def_modifier_actuator(brna);
 	rna_def_state_actuator(brna);
 	rna_def_armature_actuator(brna);
 	rna_def_steering_actuator(brna);

@@ -5055,12 +5055,6 @@ static void lib_link_object(FileData *fd, Main *main)
 						sa->scene = newlibadr(fd, ob->id.lib, sa->scene);
 						break;
 					}
-					case ACT_MODIFIER:
-					{
-						bModifierActuator *mm = act->data;
-						mm->modifier = newlibadr_us(fd, ob->id.lib, mm->modifier);
-						break;
-					}
 					case ACT_ACTION:
 					{
 						bActionActuator *aa = act->data;
@@ -10158,10 +10152,6 @@ static void expand_object(FileData *fd, Main *mainvar, Object *ob)
 		else if (act->type == ACT_MESSAGE) {
 			bMessageActuator *ma = act->data;
 			expand_doit(fd, mainvar, ma->toObject);
-		}
-		else if (act->type == ACT_MODIFIER) {
-			bModifierActuator *mm = act->data;
-			expand_doit(fd, mainvar, mm->modifier);
 		}
 		else if (act->type==ACT_PARENT) {
 			bParentActuator *pa = act->data;

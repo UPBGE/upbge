@@ -421,9 +421,6 @@ void init_actuator(bActuator *act)
 	
 	switch (act->type) {
 	case ACT_ACTION:
-	case ACT_MODIFIER:
-		act->data = MEM_callocN(sizeof(bModifierActuator), "modifieract");
-		break;
 	case ACT_SHAPEACTION:
 		act->data= MEM_callocN(sizeof(bActionActuator), "actionact");
 		break;
@@ -1068,12 +1065,6 @@ void BKE_sca_actuators_id_loop(ListBase *actlist, SCAActuatorIDFunc func, void *
 			{
 				bAddObjectActuator *aoa = actuator->data;
 				func(actuator, (ID **)&aoa->ob, userdata, IDWALK_CB_NOP);
-				break;
-			}
-			case ACT_MODIFIER:
-			{
-				bModifierActuator *mm = actuator->data;
-				func(actuator, (ID **)&mm->modifier, userdata, IDWALK_CB_NOP);
 				break;
 			}
 			case ACT_ACTION:

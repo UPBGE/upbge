@@ -1643,9 +1643,6 @@ static void write_actuators(WriteData *wd, ListBase *lb)
 			case ACT_2DFILTER:
 				writestruct(wd, DATA, bTwoDFilterActuator, 1, act->data);
 				break;
-			case ACT_MODIFIER:
-				writestruct(wd, DATA, bModifierActuator, 1, act->data);
-				break;
 			case ACT_PARENT:
 				writestruct(wd, DATA, bParentActuator, 1, act->data);
 				break;
