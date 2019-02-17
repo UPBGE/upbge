@@ -2851,9 +2851,6 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 			sce->gm.recastData.detailsampledist = 6.0f;
 			sce->gm.recastData.detailsamplemaxerror = 1.0f;
 
-			sce->gm.lodflag = SCE_LOD_USE_HYST;
-			sce->gm.scehysteresis = 10;
-
 			sce->gm.exitkey = 218; // Blender key code for ESC
 
 			//sce->gm.pythonkeys[0] = LEFTCTRLKEY;
@@ -2885,7 +2882,6 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 			//ob->max_slope = M_PI_2;
 			ob->col_group = 0x01;
 			ob->col_mask = 0xffff;
-			//ob->lodfactor = 1.0f;
 			ob->preview = NULL;
 			ob->duplicator_visibility_flag = OB_DUPLI_FLAG_VIEWPORT | OB_DUPLI_FLAG_RENDER;
 		}

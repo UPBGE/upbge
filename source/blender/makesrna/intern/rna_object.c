@@ -1879,17 +1879,6 @@ int rna_Object_use_dynamic_topology_sculpting_get(PointerRNA *ptr)
 	SculptSession *ss = ((Object *)ptr->id.data)->sculpt;
 	return (ss && ss->bm);
 }
-
-static void rna_Object_lod_distance_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
-{
-	Object *ob = (Object *)ptr->id.data;
-
-#ifdef WITH_GAMEENGINE
-	BKE_object_lod_sort(ob);
-#else
-	(void)ob;
-#endif
-}
 #else
 
 static void rna_def_vertex_group(BlenderRNA *brna)
@@ -2682,53 +2671,6 @@ static void rna_def_object_display(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
 }
 
-static void rna_def_object_lodlevel(BlenderRNA *brna)
-{
-	StructRNA *srna;
-	PropertyRNA *prop;
-
-	srna = RNA_def_struct(brna, "LodLevel", NULL);
-	RNA_def_struct_sdna(srna, "LodLevel");
-
-	prop = RNA_def_property(srna, "distance", PROP_FLOAT, PROP_DISTANCE);
-	RNA_def_property_float_sdna(prop, NULL, "distance");
-	RNA_def_property_range(prop, 0.0, FLT_MAX);
-	RNA_def_property_ui_text(prop, "Distance", "Distance to begin using this level of detail");
-	RNA_def_property_update(prop, NC_OBJECT | ND_LOD, "rna_Object_lod_distance_update");
-
-	prop = RNA_def_property(srna, "object_hysteresis_percentage", PROP_INT, PROP_PERCENTAGE);
-	RNA_def_property_int_sdna(prop, NULL, "obhysteresis");
-	RNA_def_property_range(prop, 0, 100);
-	RNA_def_property_ui_range(prop, 0, 100, 10, 1);
-	RNA_def_property_ui_text(prop, "Hysteresis %",
-	                         "Minimum distance change required to transition to the previous level of detail");
-	RNA_def_property_update(prop, NC_OBJECT | ND_LOD, NULL);
-
-	prop = RNA_def_property(srna, "object", PROP_POINTER, PROP_NONE);
-	RNA_def_property_pointer_sdna(prop, NULL, "source");
-	RNA_def_property_struct_type(prop, "Object");
-	RNA_def_property_flag(prop, PROP_EDITABLE);
-	RNA_def_property_ui_text(prop, "Object", "Object to use for this level of detail");
-	RNA_def_property_update(prop, NC_OBJECT | ND_LOD, NULL);
-
-	prop = RNA_def_property(srna, "use_mesh", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flags", OB_LOD_USE_MESH);
-	RNA_def_property_ui_text(prop, "Use Mesh", "Use the mesh from this object at this level of detail");
-	RNA_def_property_ui_icon(prop, ICON_MESH_DATA, 0);
-	RNA_def_property_update(prop, NC_OBJECT | ND_LOD, NULL);
-
-	prop = RNA_def_property(srna, "use_material", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flags", OB_LOD_USE_MAT);
-	RNA_def_property_ui_text(prop, "Use Material", "Use the material from this object at this level of detail");
-	RNA_def_property_ui_icon(prop, ICON_MATERIAL, 0);
-	RNA_def_property_update(prop, NC_OBJECT | ND_LOD, NULL);
-
-	prop = RNA_def_property(srna, "use_object_hysteresis", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flags", OB_LOD_USE_HYST);
-	RNA_def_property_ui_text(prop, "Hysteresis Override", "Override LoD Hysteresis scene setting for this LoD level");
-	RNA_def_property_update(prop, NC_OBJECT | ND_LOD, NULL);
-}
-
 static void rna_def_object(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -3409,13 +3351,6 @@ static void rna_def_object(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Dynamic Topology Sculpting", NULL);
 
-	/* Levels of Detail */
-	prop = RNA_def_property(srna, "lod_levels", PROP_COLLECTION, PROP_NONE);
-	RNA_def_property_collection_sdna(prop, NULL, "lodlevels", NULL);
-	RNA_def_property_struct_type(prop, "LodLevel");
-	RNA_def_property_ui_text(prop, "Level of Detail Levels", "A collection of detail levels to automatically switch between");
-	RNA_def_property_update(prop, NC_OBJECT | ND_LOD, NULL);
-
 	/* Base Settings */
 	prop = RNA_def_property(srna, "is_from_instancer", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "base_flag", BASE_FROM_DUPLI);
@@ -3448,7 +3383,6 @@ void RNA_def_object(BlenderRNA *brna)
 	rna_def_material_slot(brna);
 	rna_def_object_display(brna);
 	RNA_define_animate_sdna(true);
-	rna_def_object_lodlevel(brna);
 }
 
 #endif

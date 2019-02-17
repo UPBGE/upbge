@@ -884,24 +884,6 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *bmain)
 				}
 			}
 		}
-
-		/* hysteresis setted to 10% but not actived */
-		if (!DNA_struct_elem_find(fd->filesdna, "LodLevel", "int", "obhysteresis")) {
-			Object *ob;
-			for (ob = bmain->object.first; ob; ob = ob->id.next) {
-				LodLevel *level;
-				for (level = ob->lodlevels.first; level; level = level->next) {
-					level->obhysteresis = 10;
-				}
-			}
-		}
-
-		if (!DNA_struct_elem_find(fd->filesdna, "GameData", "int", "scehysteresis")) {
-			Scene *scene;
-			for (scene = bmain->scene.first; scene; scene = scene->id.next) {
-				scene->gm.scehysteresis = 10;
-			}
-		}
 	}
 
 	if (!MAIN_VERSION_ATLEAST(bmain, 274, 4)) {

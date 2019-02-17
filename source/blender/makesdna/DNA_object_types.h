@@ -106,14 +106,6 @@ enum {
 	BOUNDBOX_DIRTY  = (1 << 1),
 };
 
-typedef struct LodLevel {
-	struct LodLevel *next, *prev;
-	struct Object *source;
-	int flags;
-	float distance, pad;
-	int obhysteresis;
-} LodLevel;
-
 /* Forward declaration for cache bbone deformation information.
  *
  * TODO(sergey): Consider moving it to more appropriate place. */
@@ -409,10 +401,6 @@ typedef struct Object {
 	char empty_image_visibility_flag;
 	char empty_image_depth;
 	char pad11[6];
-
-	/** Contains data for levels of detail. */
-	ListBase lodlevels;
-	LodLevel *currentlod;
 
 	struct PreviewImage *preview;
 

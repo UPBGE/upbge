@@ -607,8 +607,6 @@ void BKE_object_free(Object *ob)
 
 	BLI_freelistN(&ob->pc_ids);
 
-	BLI_freelistN(&ob->lodlevels);
-
 	/* Free runtime curves data. */
 	if (ob->runtime.curve_cache) {
 		BKE_curve_bevelList_free(&ob->runtime.curve_cache->bev);
@@ -893,7 +891,6 @@ void BKE_object_init(Object *ob)
 	//ob->max_slope = M_PI_2;
 	ob->col_group = 0x01;
 	ob->col_mask = 0xffff;
-	//ob->lodfactor = 1.0f;
 	ob->preview = NULL;
 	ob->duplicator_visibility_flag = OB_DUPLI_FLAG_VIEWPORT | OB_DUPLI_FLAG_RENDER;
 
@@ -1075,138 +1072,6 @@ void BKE_object_copy_softbody(struct Object *ob_dst, const struct Object *ob_src
 
 	ob_dst->soft = sbn;
 }
-
-#ifdef WITH_GAMEENGINE
-
-void BKE_object_lod_add(Object *ob)
-{
-	LodLevel *lod = MEM_callocN(sizeof(LodLevel), "LoD Level");
-	LodLevel *last = ob->lodlevels.last;
-
-	/* If the lod list is empty, initialize it with the base lod level */
-	if (!last) {
-		LodLevel *base = MEM_callocN(sizeof(LodLevel), "Base LoD Level");
-		BLI_addtail(&ob->lodlevels, base);
-		base->flags = OB_LOD_USE_MESH | OB_LOD_USE_MAT;
-		base->source = ob;
-		base->obhysteresis = 10;
-		last = ob->currentlod = base;
-	}
-	
-	lod->distance = last->distance + 25.0f;
-	lod->obhysteresis = 10;
-	lod->flags = OB_LOD_USE_MESH | OB_LOD_USE_MAT;
-
-	BLI_addtail(&ob->lodlevels, lod);
-}
-
-static int lod_cmp(const void *a, const void *b)
-{
-	const LodLevel *loda = a;
-	const LodLevel *lodb = b;
-
-	if (loda->distance < lodb->distance) return -1;
-	return loda->distance > lodb->distance;
-}
-
-void BKE_object_lod_sort(Object *ob)
-{
-	BLI_listbase_sort(&ob->lodlevels, lod_cmp);
-}
-
-bool BKE_object_lod_remove(Object *ob, int level)
-{
-	LodLevel *rem;
-
-	if (level < 1 || level > BLI_listbase_count(&ob->lodlevels) - 1)
-		return false;
-
-	rem = BLI_findlink(&ob->lodlevels, level);
-
-	if (rem == ob->currentlod) {
-		ob->currentlod = rem->prev;
-	}
-
-	BLI_remlink(&ob->lodlevels, rem);
-	MEM_freeN(rem);
-
-	/* If there are no user defined lods, remove the base lod as well */
-	if (BLI_listbase_is_single(&ob->lodlevels)) {
-		LodLevel *base = ob->lodlevels.first;
-		BLI_remlink(&ob->lodlevels, base);
-		MEM_freeN(base);
-		ob->currentlod = NULL;
-	}
-
-	return true;
-}
-
-static LodLevel *lod_level_select(Object *ob, const float camera_position[3])
-{
-	LodLevel *current = ob->currentlod;
-	float dist_sq;
-
-	if (!current) return NULL;
-
-	dist_sq = len_squared_v3v3(ob->obmat[3], camera_position);
-
-	if (dist_sq < SQUARE(current->distance)) {
-		/* check for higher LoD */
-		while (current->prev && dist_sq < SQUARE(current->distance)) {
-			current = current->prev;
-		}
-	}
-	else {
-		/* check for lower LoD */
-		while (current->next && dist_sq > SQUARE(current->next->distance)) {
-			current = current->next;
-		}
-	}
-
-	return current;
-}
-
-bool BKE_object_lod_is_usable(Object *ob, ViewLayer *view_layer)
-{
-	bool active = (view_layer) ? ob == OBACT(view_layer) : false;
-	return (ob->mode == OB_MODE_OBJECT || !active);
-}
-
-void BKE_object_lod_update(Object *ob, const float camera_position[3])
-{
-	LodLevel *cur_level = ob->currentlod;
-	LodLevel *new_level = lod_level_select(ob, camera_position);
-
-	if (new_level != cur_level) {
-		ob->currentlod = new_level;
-	}
-}
-
-static Object *lod_ob_get(Object *ob, ViewLayer *view_layer, int flag)
-{
-	LodLevel *current = ob->currentlod;
-
-	if (!current || !BKE_object_lod_is_usable(ob, view_layer))
-		return ob;
-
-	while (current->prev && (!(current->flags & flag) || !current->source || current->source->type != OB_MESH)) {
-		current = current->prev;
-	}
-
-	return current->source;
-}
-
-struct Object *BKE_object_lod_meshob_get(Object *ob, ViewLayer *view_layer)
-{
-	return lod_ob_get(ob, view_layer, OB_LOD_USE_MESH);
-}
-
-struct Object *BKE_object_lod_matob_get(Object *ob, ViewLayer *view_layer)
-{
-	return lod_ob_get(ob, view_layer, OB_LOD_USE_MAT);
-}
-
-#endif  /* WITH_GAMEENGINE */
 
 
 SoftBody *copy_softbody(const SoftBody *sb, const int flag)
@@ -1392,13 +1257,6 @@ static void copy_object_pose(Object *obn, const Object *ob, const int flag)
 			}
 		}
 	}
-}
-
-static void copy_object_lod(Object *obn, const Object *ob, const int UNUSED(flag))
-{
-	BLI_duplicatelist(&obn->lodlevels, &ob->lodlevels);
-
-	obn->currentlod = (LodLevel *)obn->lodlevels.first;
 }
 
 bool BKE_object_pose_context_check(const Object *ob)
@@ -1639,8 +1497,6 @@ void BKE_object_copy_data(Main *bmain, Object *ob_dst, const Object *ob_src, con
 
 	ob_dst->avs = ob_src->avs;
 	ob_dst->mpath = animviz_copy_motionpath(ob_src->mpath);
-
-	copy_object_lod(ob_dst, ob_src, flag_subdata);
 
 	/* Do not copy object's preview (mostly due to the fact renderers create temp copy of objects). */
 	if ((flag & LIB_ID_COPY_NO_PREVIEW) == 0 && false) {  /* XXX TODO temp hack */

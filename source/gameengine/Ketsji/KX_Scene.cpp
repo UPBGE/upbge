@@ -58,7 +58,6 @@
 #include "KX_PyMath.h"
 #include "RAS_MeshObject.h"
 #include "SCA_IScene.h"
-#include "KX_LodManager.h"
 #include "KX_CullingHandler.h"
 
 #include "RAS_Rasterizer.h"
@@ -176,8 +175,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_ueberExecutionPriority(0),
 	m_suspendeddelta(0.0),
 	m_blenderScene(scene),
-	m_isActivedHysteresis(false),
-	m_lodHysteresisValue(0),
 	m_isRuntime(true) //eevee
 {
 
@@ -1742,36 +1739,6 @@ void KX_Scene::AppendToStaticObjects(KX_GameObject *gameobj)
 }
 /************************End of TAA UTILS**************************/
 /*************************************End of EEVEE INTEGRATION*********************************************/
-
-void KX_Scene::UpdateObjectLods(KX_Camera *cam, const KX_CullingNodeList& nodes)
-{
-	const MT_Vector3& cam_pos = cam->NodeGetWorldPosition();
-	const float lodfactor = cam->GetLodDistanceFactor();
-
-	for (KX_CullingNode *node : nodes) {
-		node->GetObject()->UpdateLod(cam_pos, lodfactor);
-	}
-}
-
-void KX_Scene::SetLodHysteresis(bool active)
-{
-	m_isActivedHysteresis = active;
-}
-
-bool KX_Scene::IsActivedLodHysteresis(void)
-{
-	return m_isActivedHysteresis;
-}
-
-void KX_Scene::SetLodHysteresisValue(int hysteresisvalue)
-{
-	m_lodHysteresisValue = hysteresisvalue;
-}
-
-int KX_Scene::GetLodHysteresisValue(void)
-{
-	return m_lodHysteresisValue;
-}
 
 void KX_Scene::UpdateObjectActivity(void) 
 {

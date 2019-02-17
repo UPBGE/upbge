@@ -56,8 +56,6 @@
 #include "KX_GameActuator.h"
 #include "KX_LibLoadStatus.h"
 #include "KX_Light.h"
-#include "KX_LodLevel.h"
-#include "KX_LodManager.h"
 #include "KX_FontObject.h"
 #include "KX_MeshProxy.h"
 #include "KX_MouseFocusSensor.h"
@@ -228,8 +226,6 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
 		PyType_Ready_Attr(dict, KX_GameObject, init_getset);
 		PyType_Ready_Attr(dict, KX_LibLoadStatus, init_getset);
 		PyType_Ready_Attr(dict, KX_LightObject, init_getset);
-		PyType_Ready_Attr(dict, KX_LodLevel, init_getset);
-		PyType_Ready_Attr(dict, KX_LodManager, init_getset);
 		PyType_Ready_Attr(dict, KX_FontObject, init_getset);
 		PyType_Ready_Attr(dict, KX_MeshProxy, init_getset);
 		PyType_Ready_Attr(dict, KX_MouseFocusSensor, init_getset);

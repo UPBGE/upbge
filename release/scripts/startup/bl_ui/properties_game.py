@@ -414,89 +414,15 @@ class SCENE_PT_game_navmesh(SceneButtonsPanel, Panel):
         row.prop(rd, "sample_max_error")
 
 
-class SCENE_PT_game_hysteresis(SceneButtonsPanel, Panel):
-    bl_label = "Level of Detail"
-    COMPAT_ENGINES = {'BLENDER_GAME', 'BLENDER_EEVEE'}
-
-    @classmethod
-    def poll(cls, context):
-        scene = context.scene
-        return (scene and scene.render.engine in cls.COMPAT_ENGINES)
-
-    def draw(self, context):
-        layout = self.layout
-        gs = context.scene.game_settings
-
-        row = layout.row()
-        row.prop(gs, "use_scene_hysteresis", text="Hysteresis")
-        row = layout.row()
-        row.active = gs.use_scene_hysteresis
-        row.prop(gs, "scene_hysteresis_percentage", text="")
-
-
 class DataButtonsPanel:
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "data"
 
-
 class ObjectButtonsPanel:
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "object"
-
-
-class OBJECT_MT_lod_tools(Menu):
-    bl_label = "Level Of Detail Tools"
-
-    def draw(self, context):
-        layout = self.layout
-
-        layout.operator("object.lod_by_name", text="Set By Name")
-        layout.operator("object.lod_generate", text="Generate")
-        layout.operator("object.lod_clear_all", text="Clear All", icon='PANEL_CLOSE')
-
-
-class OBJECT_PT_levels_of_detail(ObjectButtonsPanel, Panel):
-    bl_label = "Levels of Detail"
-    COMPAT_ENGINES = {'BLENDER_GAME', 'BLENDER_EEVEE'}
-
-    @classmethod
-    def poll(cls, context):
-        return context.engine in cls.COMPAT_ENGINES
-
-    def draw(self, context):
-        layout = self.layout
-        ob = context.object
-        gs = context.scene.game_settings
-
-        col = layout.column()
-
-        for i, level in enumerate(ob.lod_levels):
-            if i == 0:
-                continue
-            box = col.box()
-            row = box.row()
-            row.prop(level, "object", text="")
-            row.operator("object.lod_remove", text="", icon='PANEL_CLOSE').index = i
-
-            row = box.row()
-            row.prop(level, "distance")
-            row = row.row(align=True)
-            row.prop(level, "use_mesh", text="")
-            row.prop(level, "use_material", text="")
-
-            row = box.row()
-            row.active = gs.use_scene_hysteresis
-            row.prop(level, "use_object_hysteresis", text="Hysteresis Override")
-            row = box.row()
-            row.active = gs.use_scene_hysteresis and level.use_object_hysteresis
-            row.prop(level, "object_hysteresis_percentage", text="")
-
-        row = col.row(align=True)
-        row.operator("object.lod_add", text="Add", icon='PLUS')
-        row.menu("OBJECT_MT_lod_tools", text="", icon='TRIA_DOWN')
-
 
 classes = (
     PHYSICS_PT_game_physics,
@@ -505,9 +431,6 @@ classes = (
     SCENE_PT_game_physics,
     SCENE_PT_game_physics_obstacles,
     SCENE_PT_game_navmesh,
-    SCENE_PT_game_hysteresis,
-    OBJECT_MT_lod_tools,
-    OBJECT_PT_levels_of_detail,
 )
 
 if __name__ == "__main__":  # only for live edit.

@@ -100,8 +100,6 @@ set(SRC
 	KX_KetsjiEngine.cpp
 	KX_Light.cpp
 	KX_LightIpoSGController.cpp
-	KX_LodLevel.cpp
-	KX_LodManager.cpp
 	KX_MaterialIpoController.cpp
 	KX_MaterialShader.cpp
 	KX_MeshProxy.cpp
@@ -181,8 +179,6 @@ set(SRC
 	KX_KetsjiEngine.h
 	KX_Light.h
 	KX_LightIpoSGController.h
-	KX_LodLevel.h
-	KX_LodManager.h
 	KX_MaterialIpoController.h
 	KX_MaterialShader.h
 	KX_MeshProxy.h

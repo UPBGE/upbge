@@ -2091,7 +2091,6 @@ static void write_object(WriteData *wd, Object *ob)
 		write_shaderfxs(wd, &ob->shader_fx);
 
 		writelist(wd, DATA, LinkData, &ob->pc_ids);
-		writelist(wd, DATA, LodLevel, &ob->lodlevels);
 
 		write_previews(wd, ob->preview);
 	}
