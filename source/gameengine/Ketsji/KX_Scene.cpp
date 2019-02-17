@@ -2418,6 +2418,7 @@ PyAttributeDef KX_Scene::Attributes[] = {
 	KX_PYATTRIBUTE_BOOL_RO("activity_culling",		KX_Scene, m_activity_culling),
 	KX_PYATTRIBUTE_FLOAT_RW("activity_culling_radius", 0.5f, FLT_MAX, KX_Scene, m_activity_box_radius),
 	KX_PYATTRIBUTE_BOOL_RO("dbvt_culling",			KX_Scene, m_dbvt_culling),
+	KX_PYATTRIBUTE_BOOL_RW("resetTaaSamples",		KX_Scene, m_resetTaaSamples),
 	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
