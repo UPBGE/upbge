@@ -1020,8 +1020,8 @@ static void copy_attr(Main *bmain, Scene *scene, ViewLayer *view_layer, View3D *
 					copy_qt_qt(base->object->quat, ob->quat);
 					copy_qt_qt(base->object->dquat, ob->dquat);
 				}
-				else if (event == 3) {  /* size */
-					copy_v3_v3(base->object->size, ob->size);
+				else if (event == 3) {  /* scale */
+					copy_v3_v3(base->object->scale, ob->scale);
 					copy_v3_v3(base->object->dscale, ob->dscale);
 				}
 				else if (event == 4) {  /* drawtype */

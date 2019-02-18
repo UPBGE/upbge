@@ -222,7 +222,7 @@ Support Overview
 
 .. note::
 
-   Using the :mod:`bmesh` api is completely separate api from :mod:`bpy`,
+   Using the :mod:`bmesh` API is completely separate API from :mod:`bpy`,
    typically you would would use one or the other based on the level of editing needed,
    not simply for a different way to access faces.
 
@@ -233,7 +233,7 @@ Creating
 All 3 datatypes can be used for face creation.
 
 - polygons are the most efficient way to create faces but the data structure is _very_ rigid and inflexible,
-  you must have all your vertes and faces ready and create them all at once.
+  you must have all your vertices and faces ready and create them all at once.
   This is further complicated by the fact that each polygon does not store its own verts,
   rather they reference an index and size in :class:`bpy.types.Mesh.loops` which are a fixed array too.
 - bmesh-faces are most likely the easiest way for new scripts to create faces,
@@ -534,7 +534,7 @@ Strange errors using 'threading' module
 Python threading with Blender only works properly when the threads finish up before the script does.
 By using ``threading.join()`` for example.
 
-Heres an example of threading supported by Blender:
+Here is an example of threading supported by Blender:
 
 .. code-block:: python
 
@@ -604,12 +604,17 @@ so until its properly supported, best not make use of this.
 Help! My script crashes Blender
 ===============================
 
+**TL;DR:** Do not keep direct references to Blender data (of any kind) when modifying the container
+of that data, and/or when some undo/redo may happen (e.g. during modal operators execution...).
+Instead, use indices (or other data always stored by value in Python, like string keys...),
+that allow you to get access to the desired data.
+
 Ideally it would be impossible to crash Blender from Python
 however there are some problems with the API where it can be made to crash.
 
 Strictly speaking this is a bug in the API but fixing it would mean adding memory verification
 on every access since most crashes are caused by the Python objects referencing Blenders memory directly,
-whenever the memory is freed, further Python access to it can crash the script.
+whenever the memory is freed or re-allocated, further Python access to it can crash the script.
 But fixing this would make the scripts run very slow,
 or writing a very different kind of API which doesn't reference the memory directly.
 
@@ -619,10 +624,15 @@ Here are some general hints to avoid running into these problems.
   especially when working with large lists since Blender can crash simply by running out of memory.
 - Many hard to fix crashes end up being because of referencing freed data,
   when removing data be sure not to hold any references to it.
+- Re-allocation can lead to the same issues
+  (e.g. if you add a lot of items to some Collection,
+  this can lead to re-allocating the underlying container's memory,
+  invalidating all previous references to existing items).
 - Modules or classes that remain active while Blender is used,
   should not hold references to data the user may remove, instead,
   fetch data from the context each time the script is activated.
 - Crashes may not happen every time, they may happen more on some configurations/operating-systems.
+- Be wary of recursive patterns, those are very efficient at hiding the issues described here.
 
 .. note::
 
@@ -631,6 +641,55 @@ Here are some general hints to avoid running into these problems.
 
    While the crash may be in Blenders C/C++ code,
    this can help a lot to track down the area of the script that causes the crash.
+
+.. note::
+
+   Some container modifications are actually safe, because they will never re-allocate existing data
+   (e.g. linked lists containers will never re-allocate existing items when adding or removing others).
+
+   But knowing which cases are safe and which aren't implies a deep understanding of Blender's internals.
+   That's why, unless you are willing to dive into the RNA C implementation, it's simpler to
+   always assume that data references will become invalid when modifying their containers,
+   in any possible way.
+
+
+**Don’t:**
+
+.. code-block:: python
+
+   class TestItems(bpy.types.PropertyGroup):
+       name: bpy.props.StringProperty()
+
+   bpy.utils.register_class(TestItems)
+   bpy.types.Scene.test_items = bpy.props.CollectionProperty(type=TestItems)
+
+   first_item = bpy.context.scene.test_items.add()
+   for i in range(100):
+       bpy.context.scene.test_items.add()
+
+   # This is likely to crash, as internal code may re-allocate
+   # the whole container (the collection) memory at some point.
+   first_item.name = "foobar"
+
+
+**Do:**
+
+.. code-block:: python
+
+   class TestItems(bpy.types.PropertyGroup):
+       name: bpy.props.StringProperty()
+
+   bpy.utils.register_class(TestItems)
+   bpy.types.Scene.test_items = bpy.props.CollectionProperty(type=TestItems)
+
+   first_item = bpy.context.scene.test_items.add()
+   for i in range(100):
+       bpy.context.scene.test_items.add()
+
+   # This is safe, we are getting again desired data *after*
+   # all modifications to its container are done.
+   first_item = bpy.context.scene.test_items[0]
+   first_item.name = "foobar"
 
 
 Undo/Redo
@@ -716,7 +775,7 @@ the object data but are most common when switching edit-mode.
 Array Re-Allocation
 -------------------
 
-When adding new points to a curve or vertices's/edges/polygons to a mesh,
+When adding new points to a curve or vertices/edges/polygons to a mesh,
 internally the array which stores this data is re-allocated.
 
 .. code-block:: python
@@ -729,7 +788,7 @@ internally the array which stores this data is re-allocated.
    point.co = 1.0, 2.0, 3.0
 
 This can be avoided by re-assigning the point variables after adding the new one or by storing
-indices's to the points rather than the points themselves.
+indices to the points rather than the points themselves.
 
 The best way is to sidestep the problem altogether add all the points to the curve at once.
 This means you don't have to worry about array re-allocation and its faster too
@@ -745,7 +804,7 @@ along with objects, scenes, collections, bones.. etc.
 
 The ``remove()`` api calls will invalidate the data they free to prevent common mistakes.
 
-The following example shows how this precortion works.
+The following example shows how this precaution works.
 
 .. code-block:: python
 

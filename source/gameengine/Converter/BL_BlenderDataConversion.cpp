@@ -1217,7 +1217,7 @@ static void bl_ConvertBlenderObject_Single(
 	BKE_object_rot_to_mat3(blenderobject, rotmat, false);
 	rotation.setValue3x3((float*)rotmat);
 
-	MT_Vector3 scale(blenderobject->size);
+	MT_Vector3 scale(blenderobject->scale);
 
 	gameobj->NodeSetLocalPosition(pos);
 	gameobj->NodeSetLocalOrientation(rotation);

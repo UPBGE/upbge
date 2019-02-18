@@ -88,7 +88,7 @@ SG_Controller *BL_CreateIPO(struct bAction *action, KX_GameObject* gameobj, KX_S
 
 	ipocontr->GetIPOTransform().SetPosition(MT_Vector3(blenderobject->loc));
 	ipocontr->GetIPOTransform().SetEulerAngles(MT_Vector3(blenderobject->rot));
-	ipocontr->GetIPOTransform().SetScaling(MT_Vector3(blenderobject->size));
+	ipocontr->GetIPOTransform().SetScaling(MT_Vector3(blenderobject->scale));
 
 	const char *rotmode, *drotmode;
 

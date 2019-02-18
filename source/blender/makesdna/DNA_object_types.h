@@ -58,7 +58,7 @@ typedef struct bDeformGroup {
 	/** MAX_VGROUP_NAME. */
 	char name[64];
 	/* need this flag for locking weights */
-	char flag, pad[7];
+	char flag, _pad0[7];
 } bDeformGroup;
 
 /* Face Maps*/
@@ -67,7 +67,7 @@ typedef struct bFaceMap {
 	/** MAX_VGROUP_NAME. */
 	char name[64];
 	char flag;
-	char pad[7];
+	char _pad0[7];
 } bFaceMap;
 
 #define MAX_VGROUP_NAME 64
@@ -98,7 +98,8 @@ typedef struct bFaceMap {
  */
 typedef struct BoundBox {
 	float vec[8][3];
-	int flag, pad;
+	int flag;
+	char _pad0[4];
 } BoundBox;
 
 /* boundbox flag */
@@ -119,6 +120,15 @@ typedef struct Object_Runtime {
 	 * to calculate mesh_eval and mesh_deform_eval.
 	 */
 	uint64_t last_data_mask;
+
+	/** Did last modifier stack generation need mapping support? */
+	char last_need_mapping;
+
+	char _pad0[3];
+
+	/** Only used for drawing the parent/child help-line. */
+	float parent_origin_eval[3];
+
 
 	/** Axis aligned boundbox (in localspace). */
 	struct BoundBox *bb;
@@ -148,9 +158,6 @@ typedef struct Object_Runtime {
 
 	struct ObjectBBoneDeform *cached_bbone_deformation;
 
-	/** Did last modifier stack generation need mapping support? */
-	char last_need_mapping;
-	char pad[7];
 } Object_Runtime;
 
 typedef struct Object {
@@ -188,7 +195,7 @@ typedef struct Object {
 	bAnimVizSettings avs;
 	/** Motion path cache for this object. */
 	bMotionPath *mpath;
-	void *pad1;
+	void *_pad0;
 
 	ListBase constraintChannels  DNA_DEPRECATED; // XXX deprecated... old animation system
 	ListBase effect  DNA_DEPRECATED;             // XXX deprecated... keep for readfile
@@ -218,9 +225,9 @@ typedef struct Object {
 	int actcol;
 
 	/* rot en drot have to be together! (transform('r' en 's')) */
-	float loc[3], dloc[3], orig[3];
-	/** Scale in fact. */
-	float size[3];
+	float loc[3], dloc[3];
+	/** Scale (can be negative). */
+	float scale[3];
 	/** DEPRECATED, 2.60 and older only. */
 	float dsize[3] DNA_DEPRECATED ;
 	/** Ack!, changing. */
@@ -266,13 +273,93 @@ typedef struct Object {
 	/** Transformation settings and transform locks . */
 	short transflag, protectflag;
 	short trackflag, upflag;
-	short nlaflag;				/* used for DopeSheet filtering settings (expanded/collapsed) */
-	short scaflag;				/* ui state for game logic */
-	char scavisflag;			/* more display settings for game logic */
-	char pad;
+	/** Used for DopeSheet filtering settings (expanded/collapsed). */
+	short nlaflag;
 
-	char pad12;
+	char _pad1;
 	char duplicator_visibility_flag;
+
+	/* Depsgraph */
+	/** Used by depsgraph, flushed from base. */
+	short base_flag;
+	/** Used by viewport, synced from base. */
+	unsigned short base_local_view_bits;
+
+	/** Collision mask settings */
+	unsigned short col_group, col_mask;
+
+	/** Rotation mode - uses defines set out in DNA_action_types.h for PoseChannel rotations.... */
+	short rotmode;
+
+	/** Bounding box use for drawing. */
+	char boundtype;
+	/** Bounding box type used for collision. */
+	char collision_boundtype;
+
+	/** Viewport draw extra settings. */
+	short dtx;
+	/** Viewport draw type. */
+	char dt;
+	char empty_drawtype;
+	float empty_drawsize;
+	/** Dupliface scale. */
+	float instance_faces_scale;
+
+	/** Custom index, for renderpasses. */
+	short index;
+	/** Current deformation group, note: index starts at 1. */
+	unsigned short actdef;
+	/** Current face map, note: index starts at 1. */
+	unsigned short actfmap;
+	char _pad2[2];
+	/** Object color. */
+	float col[4];
+
+	/** Softbody settings. */
+	short softflag;
+
+	/** For restricting view, select, render etc. accessible in outliner. */
+	char restrictflag;
+
+	/** Flag for pinning. */
+	char  shapeflag;
+	/** Current shape key for menu or pinned. */
+	short shapenr;
+
+	char _pad3[2];
+
+	/** Smoothresh is phong interpolation ray_shadow correction in render. */
+	float smoothresh;
+
+	char _pad4[4];
+
+	/** Object constraints. */
+	ListBase constraints;
+	ListBase nlastrips  DNA_DEPRECATED;			// XXX deprecated... old animation system
+	ListBase hooks  DNA_DEPRECATED;				// XXX deprecated... old animation system
+	/** Particle systems. */
+	ListBase particlesystem;
+
+	/** Particle deflector/attractor/collision data. */
+	struct PartDeflect *pd;
+	/** If exists, saved in file. */
+	struct SoftBody *soft;
+	/** Object duplicator for group. */
+	struct Collection *instance_collection;
+
+	/** If fluidsim enabled, store additional settings. */
+	struct FluidsimSettings *fluidsimSettings;
+
+	struct DerivedMesh *derivedDeform, *derivedFinal;
+
+	/************Game engine**************/
+
+	/* settings for game engine bullet soft body */
+	struct BulletSoftBody *bsoft;
+
+	short scaflag;			/* ui state for game logic */
+	short scavisflag;		/* more display settings for game logic */
+	short pad53[2];
 
 	/* dupli-frame settings */
 	int dupon, dupoff, dupsta, dupend;
@@ -305,94 +392,11 @@ typedef struct Object {
 	float step_height;
 	float jump_speed;
 	float fall_speed;
-	unsigned char max_jumps;
-	char pad2;
-
-	/* Depsgraph */
-	/** Used by depsgraph, flushed from base. */
-	short base_flag;
-	/** Used by viewport, synced from base. */
-	unsigned short base_local_view_bits;
-
-	/** Collision mask settings */
-	unsigned short col_group, col_mask;
-
-	/** Rotation mode - uses defines set out in DNA_action_types.h for PoseChannel rotations.... */
-	short rotmode;
-
-	/** Bounding box use for drawing. */
-	char boundtype;
-	/** Bounding box type used for collision. */
-	char collision_boundtype;
-
-	/** Viewport draw extra settings. */
-	short dtx;
-	/** Viewport draw type. */
-	char dt;
-	char empty_drawtype;
-	char pad52[6];
-	float empty_drawsize;
-	/** Dupliface scale. */
-	float instance_faces_scale;
-	
-	ListBase prop;			/* game logic property list (not to be confused with IDProperties) */
-	ListBase sensors;		/* game logic sensors */
-	ListBase controllers;	/* game logic controllers */
-	ListBase actuators;		/* game logic actuators */
-
-	float sf; /* sf is time-offset */
-
-	short index;			/* custom index, for renderpasses */
-	unsigned short actdef;	/* current deformation group, note: index starts at 1 */
-	unsigned short actfmap;	/* current face map, note: index starts at 1 */
-	unsigned char pad5[6];
-	/** Object color. */
-	float col[4];
-
-	int gameflag;
-	int gameflag2;
-
-	char restrictflag;		/* for restricting view, select, render etc. accessible in outliner */
-	char pad3;
-	short softflag;			/* softbody settings */
-	float anisotropicFriction[3];
-
-	/************Game engine**************/
-	/* dynamic properties */
-	float friction, rolling_friction, fh, reflect;
-	float fhdist, xyfrict;
-	short dynamode, pad51[3];
-	/********End of Game engine***********/
-
-	/** Object constraints. */
-	ListBase constraints;
-	ListBase nlastrips  DNA_DEPRECATED;			// XXX deprecated... old animation system
-	ListBase hooks  DNA_DEPRECATED;				// XXX deprecated... old animation system
-	/** Particle systems. */
-	ListBase particlesystem;
-	
-	/* settings for game engine bullet soft body */
-	struct BulletSoftBody *bsoft;
-	/** Particle deflector/attractor/collision data. */
-	struct PartDeflect *pd;
-	/** If exists, saved in file. */
-	struct SoftBody *soft;
-	/** Object duplicator for group. */
-	struct Collection *instance_collection;
+	short max_jumps;
 
 	/* for now used to temporarily holds the type of collision object */
-	char  body_type;
-	/** Flag for pinning. */
-	char  shapeflag;
-	/** Current shape key for menu or pinned. */
-	short shapenr;
-	/** Smoothresh is phong interpolation ray_shadow correction in render. */
-	float smoothresh;
-
-	/** if fluidsim enabled, store additional settings */
-	struct FluidsimSettings *fluidsimSettings;
-
-	struct DerivedMesh *derivedDeform, *derivedFinal;
+	short  body_type, pad52[2];
+	
 	/** the custom data layer mask that was last used to calculate derivedDeform and derivedFinal */
 	uint64_t lastDataMask;
 	/** (extra) custom data layer mask to use for creating derivedmesh, set by depsgraph */
@@ -401,6 +405,24 @@ typedef struct Object {
 	unsigned int state;
 	/** bit masks of initial state as recorded by the users */
 	unsigned int init_state;
+
+	ListBase prop;			/* game logic property list (not to be confused with IDProperties) */
+	ListBase sensors;		/* game logic sensors */
+	ListBase controllers;	/* game logic controllers */
+	ListBase actuators;		/* game logic actuators */
+
+	float sf; /* sf is time-offset */
+
+	int gameflag;
+	int gameflag2;
+
+	float anisotropicFriction[3];
+
+	/* dynamic properties */
+	float friction, rolling_friction, fh, reflect;
+	float fhdist, xyfrict;
+	short dynamode, pad51[3];
+	/********End of Game engine***********/
 
 	ListBase pc_ids;
 
@@ -415,14 +437,13 @@ typedef struct Object {
 	ImageUser *iuser;
 	char empty_image_visibility_flag;
 	char empty_image_depth;
-	char pad11[6];
+	char _pad8[2];
+
+	int select_color;
 
 	struct PreviewImage *preview;
 
-	int pad6;
-	int select_color;
-
-	/* Runtime evaluation data (keep last). */
+	/** Runtime evaluation data (keep last). */
 	Object_Runtime runtime;
 } Object;
 
