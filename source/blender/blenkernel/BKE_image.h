@@ -27,6 +27,8 @@
 extern "C" {
 #endif
 
+struct Depsgraph;
+struct ID;
 struct ImBuf;
 struct Image;
 struct ImageFormatData;
@@ -193,6 +195,8 @@ struct Image *BKE_image_add_from_imbuf(struct Main *bmain, struct ImBuf *ibuf, c
 void BKE_image_init_imageuser(struct Image *ima, struct ImageUser *iuser);
 void BKE_image_signal(struct Main *bmain, struct Image *ima, struct ImageUser *iuser, int signal);
 
+void BKE_image_walk_id_all_users(struct ID *id, void *customdata,
+                                 void callback(struct Image *ima, struct ImageUser *iuser, void *customdata));
 void BKE_image_walk_all_users(const struct Main *mainp, void *customdata,
                               void callback(struct Image *ima, struct ImageUser *iuser, void *customdata));
 
@@ -203,10 +207,13 @@ void BKE_image_verify_viewer_views(const struct RenderData *rd, struct Image *im
 
 /* called on frame change or before render */
 void BKE_image_user_frame_calc(struct ImageUser *iuser, int cfra);
-void BKE_image_user_check_frame_calc(struct ImageUser *iuser, int cfra);
 int  BKE_image_user_frame_get(const struct ImageUser *iuser, int cfra, bool *r_is_in_range);
 void BKE_image_user_file_path(struct ImageUser *iuser, struct Image *ima, char *path);
-void BKE_image_update_frame(const struct Main *bmain, int cfra);
+void BKE_image_editors_update_frame(const struct Main *bmain, int cfra);
+
+/* dependency graph update for image user users */
+bool BKE_image_user_id_has_animation(struct ID *id);
+void BKE_image_user_id_eval_animation(struct Depsgraph *depsgrah, struct ID *id);
 
 /* sets index offset for multilayer files */
 struct RenderPass *BKE_image_multilayer_index(struct RenderResult *rr, struct ImageUser *iuser);

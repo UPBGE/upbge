@@ -88,6 +88,9 @@
 
 #include "BLI_sys_types.h" // for intptr_t support
 
+#include "DEG_depsgraph.h"
+#include "DEG_depsgraph_query.h"
+
 /* for image user iteration */
 #include "DNA_node_types.h"
 #include "DNA_space_types.h"
@@ -2627,62 +2630,148 @@ void BKE_image_verify_viewer_views(const RenderData *rd, Image *ima, ImageUser *
 	BLI_thread_unlock(LOCK_DRAW_IMAGE);
 }
 
-void BKE_image_walk_all_users(const Main *mainp, void *customdata,
-                              void callback(Image *ima, ImageUser *iuser, void *customdata))
+static void image_walk_ntree_all_users(bNodeTree *ntree, void *customdata,
+                                       void callback(Image *ima, ImageUser *iuser, void *customdata))
 {
-	wmWindowManager *wm;
-	wmWindow *win;
-	Tex *tex;
-
-	/* texture users */
-	for (tex = mainp->tex.first; tex; tex = tex->id.next) {
-		if (tex->type == TEX_IMAGE && tex->ima) {
-			callback(tex->ima, &tex->iuser, customdata);
-		}
-
-		if (tex->nodetree) {
-			bNode *node;
-			for (node = tex->nodetree->nodes.first; node; node = node->next) {
+	switch (ntree->type) {
+		case NTREE_SHADER:
+			for (bNode *node = ntree->nodes.first; node; node = node->next) {
+				if (node->id) {
+					if (node->type == SH_NODE_TEX_IMAGE) {
+						NodeTexImage *tex = node->storage;
+						Image *ima = (Image *)node->id;
+						callback(ima, &tex->iuser, customdata);
+					}
+					if (node->type == SH_NODE_TEX_ENVIRONMENT) {
+						NodeTexImage *tex = node->storage;
+						Image *ima = (Image *)node->id;
+						callback(ima, &tex->iuser, customdata);
+					}
+				}
+			}
+			break;
+		case NTREE_TEXTURE:
+			for (bNode *node = ntree->nodes.first; node; node = node->next) {
 				if (node->id && node->type == TEX_NODE_IMAGE) {
 					Image *ima = (Image *)node->id;
 					ImageUser *iuser = node->storage;
 					callback(ima, iuser, customdata);
 				}
 			}
-		}
-	}
-
-	for (Camera *cam = mainp->camera.first; cam; cam = cam->id.next) {
-		for (CameraBGImage *bgpic = cam->bg_images.first; bgpic; bgpic = bgpic->next) {
-			callback(bgpic->ima, &bgpic->iuser, customdata);
-		}
-	}
-
-	/* image window, compo node users */
-	for (wm = mainp->wm.first; wm; wm = wm->id.next) { /* only 1 wm */
-		for (win = wm->windows.first; win; win = win->next) {
-			const bScreen *screen = BKE_workspace_active_screen_get(win->workspace_hook);
-
-			for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
-				if (sa->spacetype == SPACE_IMAGE) {
-					SpaceImage *sima = sa->spacedata.first;
-					callback(sima->image, &sima->iuser, customdata);
+			break;
+		case NTREE_COMPOSIT:
+			for (bNode *node = ntree->nodes.first; node; node = node->next) {
+				if (node->id && node->type == CMP_NODE_IMAGE) {
+					Image *ima = (Image *)node->id;
+					ImageUser *iuser = node->storage;
+					callback(ima, iuser, customdata);
 				}
-				else if (sa->spacetype == SPACE_NODE) {
-					SpaceNode *snode = sa->spacedata.first;
-					if (snode->nodetree && snode->nodetree->type == NTREE_COMPOSIT) {
-						bNode *node;
-						for (node = snode->nodetree->nodes.first; node; node = node->next) {
-							if (node->id && node->type == CMP_NODE_IMAGE) {
-								Image *ima = (Image *)node->id;
-								ImageUser *iuser = node->storage;
-								callback(ima, iuser, customdata);
-							}
-						}
+			}
+			break;
+	}
+}
+
+void BKE_image_walk_id_all_users(ID *id, void *customdata,
+                                 void callback(Image *ima, ImageUser *iuser, void *customdata))
+{
+	switch(GS(id->name)) {
+		case ID_OB:
+		{
+			Object *ob = (Object *)id;
+			if (ob->empty_drawtype == OB_EMPTY_IMAGE && ob->data) {
+				callback(ob->data, ob->iuser, customdata);
+			}
+			break;
+		}
+		case ID_MA:
+		{
+			Material *ma = (Material *)id;
+			if (ma->nodetree && ma->use_nodes) {
+				image_walk_ntree_all_users(ma->nodetree, customdata, callback);
+			}
+			break;
+		}
+		case ID_TE:
+		{
+			Tex *tex = (Tex *)id;
+			if (tex->type == TEX_IMAGE && tex->ima) {
+				callback(tex->ima, &tex->iuser, customdata);
+			}
+			if (tex->nodetree && tex->use_nodes) {
+				image_walk_ntree_all_users(tex->nodetree, customdata, callback);
+			}
+			break;
+		}
+		case ID_NT:
+		{
+			bNodeTree *ntree = (bNodeTree *)id;
+			image_walk_ntree_all_users(ntree, customdata, callback);
+			break;
+		}
+		case ID_CA:
+		{
+			Camera *cam = (Camera *)id;
+			for (CameraBGImage *bgpic = cam->bg_images.first; bgpic; bgpic = bgpic->next) {
+				callback(bgpic->ima, &bgpic->iuser, customdata);
+			}
+			break;
+		}
+		case ID_WM:
+		{
+			wmWindowManager *wm = (wmWindowManager *)id;
+			for (wmWindow *win = wm->windows.first; win; win = win->next) {
+				const bScreen *screen = BKE_workspace_active_screen_get(win->workspace_hook);
+
+				for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
+					if (sa->spacetype == SPACE_IMAGE) {
+						SpaceImage *sima = sa->spacedata.first;
+						callback(sima->image, &sima->iuser, customdata);
 					}
 				}
 			}
+			break;
 		}
+		case ID_SCE:
+		{
+			Scene *scene = (Scene *)id;
+			if (scene->nodetree && scene->use_nodes) {
+				image_walk_ntree_all_users(scene->nodetree, customdata, callback);
+			}
+		}
+		default:
+			break;
+	}
+}
+
+void BKE_image_walk_all_users(const Main *mainp, void *customdata,
+                              void callback(Image *ima, ImageUser *iuser, void *customdata))
+{
+	for (Scene *scene = mainp->scene.first; scene; scene = scene->id.next) {
+		BKE_image_walk_id_all_users(&scene->id, customdata, callback);
+	}
+
+	for (Object *ob = mainp->object.first; ob; ob = ob->id.next) {
+		BKE_image_walk_id_all_users(&ob->id, customdata, callback);
+	}
+
+	for (bNodeTree *ntree = mainp->nodetree.first; ntree; ntree = ntree->id.next) {
+		BKE_image_walk_id_all_users(&ntree->id, customdata, callback);
+	}
+
+	for (Material *ma = mainp->mat.first; ma; ma = ma->id.next) {
+		BKE_image_walk_id_all_users(&ma->id, customdata, callback);
+	}
+
+	for (Tex *tex = mainp->tex.first; tex; tex = tex->id.next) {
+		BKE_image_walk_id_all_users(&tex->id, customdata, callback);
+	}
+
+	for (Camera *cam = mainp->camera.first; cam; cam = cam->id.next) {
+		BKE_image_walk_id_all_users(&cam->id, customdata, callback);
+	}
+
+	for (wmWindowManager *wm = mainp->wm.first; wm; wm = wm->id.next) { /* only 1 wm */
+		BKE_image_walk_id_all_users(&wm->id, customdata, callback);
 	}
 }
 
@@ -2692,6 +2781,19 @@ static void image_tag_frame_recalc(Image *ima, ImageUser *iuser, void *customdat
 
 	if (ima == changed_image && BKE_image_is_animated(ima)) {
 		iuser->flag |= IMA_NEED_FRAME_RECALC;
+		iuser->ok = 1;
+	}
+}
+
+static void image_tag_reload(Image *ima, ImageUser *iuser, void *customdata)
+{
+	Image *changed_image = customdata;
+
+	if (ima == changed_image) {
+		iuser->ok = 1;
+		if (iuser->scene) {
+			image_update_views_format(ima, iuser);
+		}
 	}
 }
 
@@ -2764,9 +2866,9 @@ void BKE_image_signal(Main *bmain, Image *ima, ImageUser *iuser, int signal)
 			BKE_image_free_buffers(ima);
 
 			ima->ok = 1;
-			if (iuser)
-				iuser->ok = 1;
-
+			if (iuser) {
+				image_tag_frame_recalc(ima, iuser, ima);
+			}
 			BKE_image_walk_all_users(bmain, ima, image_tag_frame_recalc);
 
 			break;
@@ -2803,12 +2905,9 @@ void BKE_image_signal(Main *bmain, Image *ima, ImageUser *iuser, int signal)
 				BKE_image_free_buffers(ima);
 
 			if (iuser) {
-				iuser->ok = 1;
-				if (iuser->scene) {
-					image_update_views_format(ima, iuser);
-				}
+				image_tag_reload(ima, iuser, ima);
 			}
-
+			BKE_image_walk_all_users(bmain, ima, image_tag_reload);
 			break;
 		case IMA_SIGNAL_USER_NEW_IMAGE:
 			if (iuser) {
@@ -3191,7 +3290,7 @@ static ImBuf *load_sequence_single(Image *ima, ImageUser *iuser, int frame, cons
 
 	/* XXX temp stuff? */
 	if (ima->lastframe != frame)
-		ima->tpageflag |= IMA_TPAGE_REFRESH;
+		ima->gpuflag |= IMA_GPU_REFRESH;
 
 	ima->lastframe = frame;
 
@@ -3915,7 +4014,7 @@ static ImBuf *image_get_cached_ibuf(Image *ima, ImageUser *iuser, int *r_frame, 
 		ibuf = image_get_cached_ibuf_for_index_frame(ima, index, frame);
 		/* XXX temp stuff? */
 		if (ima->lastframe != frame)
-			ima->tpageflag |= IMA_TPAGE_REFRESH;
+			ima->gpuflag |= IMA_GPU_REFRESH;
 		ima->lastframe = frame;
 	}
 	else if (ima->source == IMA_SRC_SEQUENCE) {
@@ -3925,7 +4024,7 @@ static ImBuf *image_get_cached_ibuf(Image *ima, ImageUser *iuser, int *r_frame, 
 
 			/* XXX temp stuff? */
 			if (ima->lastframe != frame) {
-				ima->tpageflag |= IMA_TPAGE_REFRESH;
+				ima->gpuflag |= IMA_GPU_REFRESH;
 			}
 			ima->lastframe = frame;
 
@@ -4320,36 +4419,77 @@ void BKE_image_user_frame_calc(ImageUser *iuser, int cfra)
 			iuser->flag &= ~IMA_USER_FRAME_IN_RANGE;
 		}
 
-		/* allows image users to handle redraws */
-		if (iuser->flag & IMA_ANIM_ALWAYS)
-			if (framenr != iuser->framenr)
-				iuser->flag |= IMA_ANIM_REFRESHED;
-
 		iuser->framenr = framenr;
 		if (iuser->ok == 0) iuser->ok = 1;
 	}
 }
 
-void BKE_image_user_check_frame_calc(ImageUser *iuser, int cfra)
+/* goes over all ImageUsers, and sets frame numbers if auto-refresh is set */
+static void image_editors_update_frame(struct Image *UNUSED(ima), struct ImageUser *iuser, void *customdata)
 {
-	if ((iuser->flag & IMA_ANIM_ALWAYS) || (iuser->flag & IMA_NEED_FRAME_RECALC)) {
-		BKE_image_user_frame_calc(iuser, cfra);
+	int cfra = *(int *)customdata;
 
+	if ((iuser->flag & IMA_ANIM_ALWAYS) ||
+	    (iuser->flag & IMA_NEED_FRAME_RECALC))
+	{
+		BKE_image_user_frame_calc(iuser, cfra);
 		iuser->flag &= ~IMA_NEED_FRAME_RECALC;
 	}
 }
 
-/* goes over all ImageUsers, and sets frame numbers if auto-refresh is set */
-static void image_update_frame(struct Image *UNUSED(ima), struct ImageUser *iuser, void *customdata)
+void BKE_image_editors_update_frame(const Main *bmain, int cfra)
 {
-	int cfra = *(int *)customdata;
-
-	BKE_image_user_check_frame_calc(iuser, cfra);
+	/* This only updates images used by the user interface. For others the
+	 * dependency graph will call BKE_image_user_id_eval_animation. */
+	wmWindowManager *wm = bmain->wm.first;
+	BKE_image_walk_id_all_users(&wm->id, &cfra, image_editors_update_frame);
 }
 
-void BKE_image_update_frame(const Main *bmain, int cfra)
+static void image_user_id_has_animation(struct Image *ima, struct ImageUser *UNUSED(iuser), void *customdata)
 {
-	BKE_image_walk_all_users(bmain, &cfra, image_update_frame);
+	if (ima && BKE_image_is_animated(ima)) {
+		*(bool *)customdata = true;
+	}
+}
+
+bool BKE_image_user_id_has_animation(ID *id)
+{
+	bool has_animation = false;
+	BKE_image_walk_id_all_users(id, &has_animation, image_user_id_has_animation);
+	return has_animation;
+}
+
+static void image_user_id_eval_animation(struct Image *ima, struct ImageUser *iuser, void *customdata)
+{
+	if (ima && BKE_image_is_animated(ima)) {
+		Depsgraph *depsgraph = (Depsgraph *)customdata;
+
+		if ((iuser->flag & IMA_ANIM_ALWAYS) ||
+		    (iuser->flag & IMA_NEED_FRAME_RECALC) ||
+		    (DEG_get_mode(depsgraph) == DAG_EVAL_RENDER))
+		{
+			int framenr = iuser->framenr;
+			float cfra = DEG_get_ctime(depsgraph);
+
+			BKE_image_user_frame_calc(iuser, cfra);
+			iuser->flag &= ~IMA_NEED_FRAME_RECALC;
+
+			if (iuser->framenr != framenr) {
+				/* Note: a single texture and refresh doesn't really work when
+				 * multiple image users may use different frames, this is to
+				 * be improved with perhaps a GPU texture cache. */
+				ima->gpuflag |= IMA_GPU_REFRESH;
+			}
+		}
+	}
+}
+
+void BKE_image_user_id_eval_animation(Depsgraph *depsgraph, ID *id)
+{
+	/* This is called from the dependency graph to update the image
+	 * users in datablocks. It computes the current frame number
+	 * and tags the image to be refreshed. */
+	BKE_image_walk_id_all_users(id, depsgraph, image_user_id_eval_animation);
 }
 
 void BKE_image_user_file_path(ImageUser *iuser, Image *ima, char *filepath)
@@ -4517,11 +4657,7 @@ bool BKE_image_has_packedfile(Image *ima)
 	return (BLI_listbase_is_empty(&ima->packedfiles) == false);
 }
 
-/**
- * Checks the image buffer changes (not keyframed values)
- *
- * to see if we need to call #BKE_image_user_check_frame_calc
- */
+/* Checks the image buffer changes with time (not keyframed values). */
 bool BKE_image_is_animated(Image *image)
 {
 	return ELEM(image->source, IMA_SRC_MOVIE, IMA_SRC_SEQUENCE);

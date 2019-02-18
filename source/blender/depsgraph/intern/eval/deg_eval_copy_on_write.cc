@@ -815,11 +815,15 @@ static void deg_backup_object_runtime(
 	Mesh *mesh_eval = object->runtime.mesh_eval;
 	object_runtime_backup->runtime = object->runtime;
 	BKE_object_runtime_reset(object);
+	/* Keep bbox (for now at least...). */
+	object->runtime.bb = object_runtime_backup->runtime.bb;
 	/* Object update will override actual object->data to an evaluated version.
 	 * Need to make sure we don't have data set to evaluated one before free
 	 * anything. */
 	if (mesh_eval != NULL && object->data == mesh_eval) {
-		object->data = object->runtime.mesh_orig;
+		/* XXX Is this still useful? code was broken for some times (always setting object->data to NULL),
+		 *     and did not seem to cause any issue? */
+		object->data = object_runtime_backup->runtime.mesh_orig;
 	}
 	/* Make a backup of base flags. */
 	object_runtime_backup->base_flag = object->base_flag;
@@ -831,8 +835,10 @@ static void deg_restore_object_runtime(
         const ObjectRuntimeBackup *object_runtime_backup)
 {
 	Mesh *mesh_orig = object->runtime.mesh_orig;
+	BoundBox *bb = object->runtime.bb;
 	object->runtime = object_runtime_backup->runtime;
 	object->runtime.mesh_orig = mesh_orig;
+	object->runtime.bb = bb;
 	if (object->type == OB_MESH && object->runtime.mesh_eval != NULL) {
 		if (object->id.recalc & ID_RECALC_GEOMETRY) {
 			/* If geometry is tagged for update it means, that part of

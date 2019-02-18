@@ -1683,7 +1683,7 @@ void blo_end_image_pointer_map(FileData *fd, Main *oldmain)
 	for (; ima; ima = ima->id.next) {
 		ima->cache = newimaadr(fd, ima->cache);
 		if (ima->cache == NULL) {
-			ima->tpageflag &= ~IMA_GLBIND_IS_DATA;
+			ima->gpuflag = 0;
 			for (i = 0; i < TEXTARGET_COUNT; i++) {
 				ima->gputexture[i] = NULL;
 			}
@@ -3950,7 +3950,7 @@ static void direct_link_image(FileData *fd, Image *ima)
 
 	/* if not restored, we keep the binded opengl index */
 	if (!ima->cache) {
-		ima->tpageflag &= ~IMA_GLBIND_IS_DATA;
+		ima->gpuflag = 0;
 		for (int i = 0; i < TEXTARGET_COUNT; i++) {
 			ima->gputexture[i] = NULL;
 		}
@@ -5829,7 +5829,6 @@ static void direct_link_object(FileData *fd, Object *ob)
 		BKE_object_empty_draw_type_set(ob, ob->empty_drawtype);
 	}
 
-	ob->runtime.bb = NULL;
 	ob->derivedDeform = NULL;
 	ob->derivedFinal = NULL;
 	BKE_object_runtime_reset(ob);

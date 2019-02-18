@@ -159,6 +159,7 @@ static PyObject *bpy_user_map(PyObject *UNUSED(self), PyObject *args, PyObject *
 #else
 	Main *bmain = G_MAIN;  /* XXX Ugly, but should work! */
 #endif
+	ID *id;
 
 	PyObject *subset = NULL;
 
@@ -168,6 +169,8 @@ static PyObject *bpy_user_map(PyObject *UNUSED(self), PyObject *args, PyObject *
 	BLI_bitmap *val_types_bitmap = NULL;
 
 	PyObject *ret = NULL;
+
+	IDUserMapData data_cb = {NULL};
 
 	static const char *_keywords[] = {"subset", "key_types", "value_types", NULL};
 	static _PyArg_Parser _parser = {"|O$O!O!:user_map", _keywords, 0};
@@ -196,8 +199,6 @@ static PyObject *bpy_user_map(PyObject *UNUSED(self), PyObject *args, PyObject *
 		}
 	}
 
-	IDUserMapData data_cb = {NULL};
-
 	if (subset) {
 		PyObject *subset_fast = PySequence_Fast(subset, "user_map");
 		if (subset_fast == NULL) {
@@ -222,69 +223,74 @@ static PyObject *bpy_user_map(PyObject *UNUSED(self), PyObject *args, PyObject *
 
 	data_cb.types_bitmap = key_types_bitmap;
 
-	ListBase *lb_array[MAX_LIBARRAY];
-	int lb_index;
-	lb_index = set_listbasepointers(bmain, lb_array);
-
-	while (lb_index--) {
-		if (val_types_bitmap && lb_array[lb_index]->first) {
-			if (!id_check_type(lb_array[lb_index]->first, val_types_bitmap)) {
-				continue;
+	FOREACH_MAIN_ID_BEGIN(bmain, id)
+	{
+		/* We cannot skip here in case we have some filter on key types... */
+		if (key_types_bitmap == NULL && val_types_bitmap != NULL) {
+			if (!id_check_type(id, val_types_bitmap)) {
+				break;  /* Break iter on that type of IDs, continues with next ID type. */
 			}
 		}
 
-		for (ID *id = lb_array[lb_index]->first; id; id = id->next) {
-			/* One-time init, ID is just used as placeholder here, we abuse this in iterator callback
-			 * to avoid having to rebuild a complete bpyrna object each time for the key searching
-			 * (where only ID pointer value is used). */
-			if (data_cb.py_id_key_lookup_only == NULL) {
-				data_cb.py_id_key_lookup_only = pyrna_id_CreatePyObject(id);
+		/* One-time init, ID is just used as placeholder here, we abuse this in iterator callback
+		 * to avoid having to rebuild a complete bpyrna object each time for the key searching
+		 * (where only ID pointer value is used). */
+		if (data_cb.py_id_key_lookup_only == NULL) {
+			data_cb.py_id_key_lookup_only = pyrna_id_CreatePyObject(id);
+		}
+
+		if (!data_cb.is_subset &&
+		    /* We do not want to pre-add keys of flitered out types. */
+		    (key_types_bitmap == NULL || id_check_type(id, key_types_bitmap)) &&
+		    /* We do not want to pre-add keys when we have filter on value types, but not on key types. */
+		    (val_types_bitmap == NULL || key_types_bitmap != NULL))
+		{
+			PyObject *key = data_cb.py_id_key_lookup_only;
+			PyObject *set;
+
+			RNA_id_pointer_create(id, &((BPy_StructRNA *)key)->ptr);
+
+			/* We have to insert the key now, otherwise ID unused would be missing from final dict... */
+			if ((set = PyDict_GetItem(data_cb.user_map, key)) == NULL) {
+				/* Cannot use our placeholder key here! */
+				key = pyrna_id_CreatePyObject(id);
+				set = PySet_New(NULL);
+				PyDict_SetItem(data_cb.user_map, key, set);
+				Py_DECREF(set);
+				Py_DECREF(key);
 			}
+		}
 
-			if (!data_cb.is_subset) {
-				PyObject *key = data_cb.py_id_key_lookup_only;
-				PyObject *set;
+		if (val_types_bitmap != NULL && !id_check_type(id, val_types_bitmap)) {
+			continue;
+		}
 
-				RNA_id_pointer_create(id, &((BPy_StructRNA *)key)->ptr);
+		data_cb.id_curr = id;
+		BKE_library_foreach_ID_link(NULL, id, foreach_libblock_id_user_map_callback, &data_cb, IDWALK_CB_NOP);
 
-				/* We have to insert the key now, otherwise ID unused would be missing from final dict... */
-				if ((set = PyDict_GetItem(data_cb.user_map, key)) == NULL) {
-					/* Cannot use our placeholder key here! */
-					key = pyrna_id_CreatePyObject(id);
-					set = PySet_New(NULL);
-					PyDict_SetItem(data_cb.user_map, key, set);
-					Py_DECREF(set);
-					Py_DECREF(key);
-				}
-			}
-
-			data_cb.id_curr = id;
-			BKE_library_foreach_ID_link(NULL, id, foreach_libblock_id_user_map_callback, &data_cb, IDWALK_CB_NOP);
-
-			if (data_cb.py_id_curr) {
-				Py_DECREF(data_cb.py_id_curr);
-				data_cb.py_id_curr = NULL;
-			}
+		if (data_cb.py_id_curr) {
+			Py_DECREF(data_cb.py_id_curr);
+			data_cb.py_id_curr = NULL;
 		}
 	}
+	FOREACH_MAIN_ID_END;
 
 	ret = data_cb.user_map;
 
-
 error:
+	if (data_cb.py_id_key_lookup_only != NULL) {
+		Py_XDECREF(data_cb.py_id_key_lookup_only);
+	}
 
-	Py_XDECREF(data_cb.py_id_key_lookup_only);
-
-	if (key_types_bitmap) {
+	if (key_types_bitmap != NULL) {
 		MEM_freeN(key_types_bitmap);
 	}
 
-	if (val_types_bitmap) {
+	if (val_types_bitmap != NULL) {
 		MEM_freeN(val_types_bitmap);
 	}
 
 	return ret;
-
 }
 
 PyDoc_STRVAR(bpy_batch_remove_doc,
