@@ -149,7 +149,7 @@ RAS_FrameBuffer *RAS_2DFilterManager::RenderFilters(RAS_Rasterizer *rasty, RAS_I
 	// The last filter doesn't use its own off screen and didn't render to the targeted off screen ?
 	if (previousfb != targetfb) {
 		// Render manually to the targeted off screen as the last filter didn't do it for us.
-		//DRW_framebuffer_bind(targetfb->GetFrameBuffer());
+		GPU_framebuffer_bind(targetfb->GetFrameBuffer());
 		rasty->DrawFrameBuffer(previousfb, targetfb);
 	}
 

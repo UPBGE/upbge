@@ -971,17 +971,17 @@ void GPU_clear(eGPUFrameBufferBits flags)
 
 int GPU_framebuffer_color_bindcode(const GPUFrameBuffer *fb)
 {
-	return GPU_texture_opengl_bindcode(fb->attachments[0].tex);
+	return GPU_texture_opengl_bindcode(fb->attachments[GPU_FB_COLOR_ATTACHMENT0].tex);
 }
 
 GPUTexture *GPU_framebuffer_color_texture(const GPUFrameBuffer *fb)
 {
-	return fb->attachments[0].tex;
+	return fb->attachments[GPU_FB_COLOR_ATTACHMENT0].tex;
 }
 
 GPUTexture *GPU_framebuffer_depth_texture(const GPUFrameBuffer *fb)
 {
-	return fb->attachments[1].tex;
+	return fb->attachments[GPU_FB_DEPTH_ATTACHMENT].tex;
 }
 
 void GPU_framebuffer_mipmap_texture(GPUFrameBuffer *fb)

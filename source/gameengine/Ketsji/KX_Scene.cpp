@@ -123,6 +123,8 @@ extern "C" {
 #  include "DRW_render.h"
 #  include "MEM_guardedalloc.h"
 }
+
+#include "RAS_FrameBuffer.h"
 /*********************END OF EEVEE INTEGRATION***************************/
 
 static void *KX_SceneReplicationFunc(SG_Node* node,void* gameobj,void* scene)
@@ -367,6 +369,9 @@ void KX_Scene::ResetTaaSamples()
 	m_resetTaaSamples = true;
 }
 
+static RAS_Rasterizer::FrameBufferType r = RAS_Rasterizer::RAS_FRAMEBUFFER_EYE_LEFT0;
+static RAS_Rasterizer::FrameBufferType s = RAS_Rasterizer::RAS_FRAMEBUFFER_FILTER0;
+
 void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
 {
 
@@ -402,15 +407,30 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
 
 	GPUTexture *finaltex = DRW_game_render_loop(bmain, scene, maincam, viewportsize, state, v, calledFromConstructor, reset_taa_samples);
 
+	RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextRenderFrameBuffer(r));
+	RAS_FrameBuffer *output = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(s));
+
+	GPU_framebuffer_texture_attach(input->GetFrameBuffer(), finaltex, 0, 0);
+	GPU_framebuffer_texture_attach(output->GetFrameBuffer(), DRW_viewport_texture_list_get()->color, 0, 0);
+
+	GPU_framebuffer_bind(input->GetFrameBuffer());
+
+	RAS_FrameBuffer *f = Render2DFilters(rasty, canvas, input, output);
+
+	GPU_framebuffer_restore();
+
 	rasty->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
 	rasty->SetViewport(v[0], v[1], v[2], v[3]);
 	rasty->SetScissor(v[0], v[1], v[2], v[3]);
 
-	DRW_transform_to_display(finaltex, true, false);
+	DRW_transform_to_display(GPU_framebuffer_color_texture(f->GetFrameBuffer()), true, false);
 
 	if (!calledFromConstructor) {
 		engine->EndFrame();
 	}
+
+	GPU_framebuffer_texture_detach(input->GetFrameBuffer(), finaltex);
+	GPU_framebuffer_texture_detach(output->GetFrameBuffer(), DRW_viewport_texture_list_get()->color);
 
 	DRW_game_render_loop_finish();
 }

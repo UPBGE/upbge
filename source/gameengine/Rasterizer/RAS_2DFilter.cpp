@@ -131,7 +131,7 @@ RAS_FrameBuffer *RAS_2DFilter::Start(RAS_Rasterizer *rasty, RAS_ICanvas *canvas,
 		m_frameBuffer->Bind(rasty);
 	}
 	else {
-		//DRW_framebuffer_bind(targetfb->GetFrameBuffer());
+		GPU_framebuffer_bind(targetfb->GetFrameBuffer());
 		outpufb = targetfb;
 	}
 
