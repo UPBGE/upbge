@@ -17,7 +17,8 @@
  * All rights reserved.
  */
 
-/** \file \ingroup spview3d
+/** \file
+ * \ingroup spview3d
  */
 
 #include "DNA_mesh_types.h"
@@ -302,7 +303,7 @@ void draw_object_backbufsel(
 		case OB_MESH:
 			if (ob->mode & OB_MODE_EDIT) {
 				Mesh *me = ob->data;
-				BMEditMesh *em = me->edit_btmesh;
+				BMEditMesh *em = me->edit_mesh;
 				const bool draw_facedot = check_ob_drawface_dot(scene, v3d, ob->dt);
 				const bool use_faceselect = (select_mode & SCE_SELECT_FACE) != 0;
 

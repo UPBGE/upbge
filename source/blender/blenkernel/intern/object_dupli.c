@@ -17,7 +17,8 @@
  * All rights reserved.
  */
 
-/** \file \ingroup bke
+/** \file
+ * \ingroup bke
  */
 
 #include <limits.h>
@@ -119,7 +120,7 @@ static void copy_dupli_context(DupliContext *r_ctx, const DupliContext *ctx, Obj
 
 	/* XXX annoying, previously was done by passing an ID* argument, this at least is more explicit */
 	if (ctx->gen->type == OB_DUPLICOLLECTION)
-		r_ctx->collection = ctx->object->dup_group;
+		r_ctx->collection = ctx->object->instance_collection;
 
 	r_ctx->object = ob;
 	if (mat)
@@ -270,12 +271,12 @@ static void make_duplis_collection(const DupliContext *ctx)
 	Collection *collection;
 	float collection_mat[4][4];
 
-	if (ob->dup_group == NULL) return;
-	collection = ob->dup_group;
+	if (ob->instance_collection == NULL) return;
+	collection = ob->instance_collection;
 
 	/* combine collection offset and obmat */
 	unit_m4(collection_mat);
-	sub_v3_v3(collection_mat[3], collection->dupli_ofs);
+	sub_v3_v3(collection_mat[3], collection->instance_offset);
 	mul_m4_m4m4(collection_mat, ob->obmat, collection_mat);
 	/* don't access 'ob->obmat' from now on. */
 
@@ -305,7 +306,7 @@ static const DupliGenerator gen_dupli_collection = {
 /* OB_DUPLIVERTS */
 typedef struct VertexDupliData {
 	Mesh *me_eval;
-	BMEditMesh *edit_btmesh;
+	BMEditMesh *edit_mesh;
 	int totvert;
 	float (*orco)[3];
 	bool use_rotation;
@@ -396,14 +397,14 @@ static void make_duplis_verts(const DupliContext *ctx)
 
 	/* gather mesh info */
 	{
-		vdd.edit_btmesh = BKE_editmesh_from_object(parent);
+		vdd.edit_mesh = BKE_editmesh_from_object(parent);
 
 		/* We do not need any render-specific handling anymore, depsgraph takes care of that. */
 		/* NOTE: Do direct access to the evaluated mesh: this function is used
 		 * during meta balls evaluation. But even without those all the objects
 		 * which are needed for correct instancing are already evaluated. */
-		if (vdd.edit_btmesh != NULL) {
-			vdd.me_eval = vdd.edit_btmesh->mesh_eval_cage;
+		if (vdd.edit_mesh != NULL) {
+			vdd.me_eval = vdd.edit_mesh->mesh_eval_cage;
 		}
 		else {
 			vdd.me_eval = parent->runtime.mesh_eval;
@@ -614,7 +615,7 @@ static void make_child_duplis_faces(const DupliContext *ctx, void *userdata, Obj
 			continue;
 
 		/* obmat is transform to face */
-		get_dupliface_transform(mp, loopstart, mvert, fdd->use_scale, ctx->object->dupfacesca, obmat);
+		get_dupliface_transform(mp, loopstart, mvert, fdd->use_scale, ctx->object->instance_faces_scale, obmat);
 		/* make offset relative to inst_ob using relative child transform */
 		mul_mat3_m4_v3(child_imat, obmat[3]);
 
@@ -767,14 +768,14 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
 
 		/* first check for loops (particle system object used as dupli object) */
 		if (part->ren_as == PART_DRAW_OB) {
-			if (ELEM(part->dup_ob, NULL, par))
+			if (ELEM(part->instance_object, NULL, par))
 				return;
 		}
 		else { /*PART_DRAW_GR */
-			if (part->dup_group == NULL)
+			if (part->instance_collection == NULL)
 				return;
 
-			const ListBase dup_collection_objects = BKE_collection_object_cache_get(part->dup_group);
+			const ListBase dup_collection_objects = BKE_collection_object_cache_get(part->instance_collection);
 			if (BLI_listbase_is_empty(&dup_collection_objects))
 				return;
 
@@ -806,8 +807,8 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
 			if (part->draw & PART_DRAW_COUNT_GR) {
 				psys_find_group_weights(part);
 
-				for (dw = part->dupliweights.first; dw; dw = dw->next) {
-					FOREACH_COLLECTION_VISIBLE_OBJECT_RECURSIVE_BEGIN(part->dup_group, object, mode)
+				for (dw = part->instance_weights.first; dw; dw = dw->next) {
+					FOREACH_COLLECTION_VISIBLE_OBJECT_RECURSIVE_BEGIN(part->instance_collection, object, mode)
 					{
 						if (dw->ob == object) {
 							totcollection += dw->count;
@@ -818,7 +819,7 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
 				}
 			}
 			else {
-				FOREACH_COLLECTION_VISIBLE_OBJECT_RECURSIVE_BEGIN(part->dup_group, object, mode)
+				FOREACH_COLLECTION_VISIBLE_OBJECT_RECURSIVE_BEGIN(part->instance_collection, object, mode)
 				{
 					(void) object;
 					totcollection++;
@@ -830,8 +831,8 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
 
 			if (part->draw & PART_DRAW_COUNT_GR) {
 				a = 0;
-				for (dw = part->dupliweights.first; dw; dw = dw->next) {
-					FOREACH_COLLECTION_VISIBLE_OBJECT_RECURSIVE_BEGIN(part->dup_group, object, mode)
+				for (dw = part->instance_weights.first; dw; dw = dw->next) {
+					FOREACH_COLLECTION_VISIBLE_OBJECT_RECURSIVE_BEGIN(part->instance_collection, object, mode)
 					{
 						if (dw->ob == object) {
 							for (b = 0; b < dw->count; b++, a++) {
@@ -845,7 +846,7 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
 			}
 			else {
 				a = 0;
-				FOREACH_COLLECTION_VISIBLE_OBJECT_RECURSIVE_BEGIN(part->dup_group, object, mode)
+				FOREACH_COLLECTION_VISIBLE_OBJECT_RECURSIVE_BEGIN(part->instance_collection, object, mode)
 				{
 					oblist[a] = object;
 					a++;
@@ -854,7 +855,7 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
 			}
 		}
 		else {
-			ob = part->dup_ob;
+			ob = part->instance_object;
 		}
 
 		if (totchild == 0 || part->draw & PART_DRAW_PARENT)
@@ -933,7 +934,7 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
 
 			if (part->ren_as == PART_DRAW_GR && psys->part->draw & PART_DRAW_WHOLE_GR) {
 				b = 0;
-				FOREACH_COLLECTION_VISIBLE_OBJECT_RECURSIVE_BEGIN(part->dup_group, object, mode)
+				FOREACH_COLLECTION_VISIBLE_OBJECT_RECURSIVE_BEGIN(part->instance_collection, object, mode)
 				{
 					copy_m4_m4(tmat, oblist[b]->obmat);
 
@@ -942,8 +943,8 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
 					mul_v3_fl(tmat[3], size * scale);
 
 					/* collection dupli offset, should apply after everything else */
-					if (!is_zero_v3(part->dup_group->dupli_ofs)) {
-						sub_v3_v3(tmat[3], part->dup_group->dupli_ofs);
+					if (!is_zero_v3(part->instance_collection->instance_offset)) {
+						sub_v3_v3(tmat[3], part->instance_collection->instance_offset);
 					}
 
 					/* individual particle transform */

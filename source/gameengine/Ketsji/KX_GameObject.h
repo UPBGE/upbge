@@ -580,7 +580,7 @@ public:
 	{ 
 		return (m_pBlenderObject &&
 				(m_pBlenderObject->transflag & OB_DUPLICOLLECTION) &&
-				m_pBlenderObject->dup_group != nullptr) ? true : false;
+				m_pBlenderObject->instance_collection != nullptr) ? true : false;
 	}
 
 	/**

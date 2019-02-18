@@ -17,7 +17,8 @@
  * All rights reserved.
  */
 
-/** \file \ingroup bke
+/** \file
+ * \ingroup bke
  */
 
 #include <stdlib.h>
@@ -593,7 +594,7 @@ void BKE_library_foreach_ID_link(Main *bmain, ID *id, LibraryIDLinkCallback call
 				data.cb_flag = data_cb_flag;
 
 				CALLBACK_INVOKE(object->gpd, IDWALK_CB_USER);
-				CALLBACK_INVOKE(object->dup_group, IDWALK_CB_USER);
+				CALLBACK_INVOKE(object->instance_collection, IDWALK_CB_USER);
 
 				if (object->pd) {
 					CALLBACK_INVOKE(object->pd->tex, IDWALK_CB_USER);
@@ -842,8 +843,8 @@ void BKE_library_foreach_ID_link(Main *bmain, ID *id, LibraryIDLinkCallback call
 			case ID_PA:
 			{
 				ParticleSettings *psett = (ParticleSettings *) id;
-				CALLBACK_INVOKE(psett->dup_group, IDWALK_CB_USER);
-				CALLBACK_INVOKE(psett->dup_ob, IDWALK_CB_NOP);
+				CALLBACK_INVOKE(psett->instance_collection, IDWALK_CB_USER);
+				CALLBACK_INVOKE(psett->instance_object, IDWALK_CB_NOP);
 				CALLBACK_INVOKE(psett->bb_ob, IDWALK_CB_NOP);
 				CALLBACK_INVOKE(psett->collision_group, IDWALK_CB_NOP);
 
@@ -884,7 +885,7 @@ void BKE_library_foreach_ID_link(Main *bmain, ID *id, LibraryIDLinkCallback call
 					}
 				}
 
-				for (ParticleDupliWeight *dw = psett->dupliweights.first; dw; dw = dw->next) {
+				for (ParticleDupliWeight *dw = psett->instance_weights.first; dw; dw = dw->next) {
 					CALLBACK_INVOKE(dw->ob, IDWALK_CB_NOP);
 				}
 				break;

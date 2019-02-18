@@ -14,7 +14,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-/** \file \ingroup edtransform
+/** \file
+ * \ingroup edtransform
  */
 
 #include <stdlib.h>
@@ -561,7 +562,7 @@ static bool raycastEditMesh(
 		BMEditMesh *em_orig;
 		int looptri_num_active = -1;
 
-		/* Get original version of the edit_btmesh. */
+		/* Get original version of the edit_mesh. */
 		em_orig = BKE_editmesh_from_object(DEG_get_original_object(ob));
 
 		if (sctx->callbacks.edit_mesh.test_face_fn) {
@@ -640,7 +641,7 @@ static bool raycastEditMesh(
 				retval = true;
 
 				if (r_index) {
-					/* Get original version of the edit_btmesh. */
+					/* Get original version of the edit_mesh. */
 					BMEditMesh *em_orig = BKE_editmesh_from_object(DEG_get_original_object(ob));
 
 					*r_index = BM_elem_index_get(em_orig->looptris[hit.index][0]->f);

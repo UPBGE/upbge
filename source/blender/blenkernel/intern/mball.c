@@ -22,7 +22,8 @@
  * texture coordinates are patched within the displist
  */
 
-/** \file \ingroup bke
+/** \file
+ * \ingroup bke
  */
 
 #include <stdio.h>
@@ -186,8 +187,10 @@ void BKE_mball_texspace_calc(Object *ob)
 	int tot;
 	bool do_it = false;
 
-	if (ob->bb == NULL) ob->bb = MEM_callocN(sizeof(BoundBox), "mb boundbox");
-	bb = ob->bb;
+	if (ob->runtime.bb == NULL) {
+		ob->runtime.bb = MEM_callocN(sizeof(BoundBox), "mb boundbox");
+	}
+	bb = ob->runtime.bb;
 
 	/* Weird one, this. */
 /*      INIT_MINMAX(min, max); */
@@ -222,8 +225,8 @@ BoundBox *BKE_mball_boundbox_get(Object *ob)
 {
 	BLI_assert(ob->type == OB_MBALL);
 
-	if (ob->bb != NULL && (ob->bb->flag & BOUNDBOX_DIRTY) == 0) {
-		return ob->bb;
+	if (ob->runtime.bb != NULL && (ob->runtime.bb->flag & BOUNDBOX_DIRTY) == 0) {
+		return ob->runtime.bb;
 	}
 
 	/* This should always only be called with evaluated objects, but currently RNA is a problem here... */
@@ -231,7 +234,7 @@ BoundBox *BKE_mball_boundbox_get(Object *ob)
 		BKE_mball_texspace_calc(ob);
 	}
 
-	return ob->bb;
+	return ob->runtime.bb;
 }
 
 float *BKE_mball_make_orco(Object *ob, ListBase *dispbase)
@@ -243,7 +246,7 @@ float *BKE_mball_make_orco(Object *ob, ListBase *dispbase)
 	int a;
 
 	/* restore size and loc */
-	bb = ob->bb;
+	bb = ob->runtime.bb;
 	loc[0] = (bb->vec[0][0] + bb->vec[4][0]) / 2.0f;
 	size[0] = bb->vec[4][0] - loc[0];
 	loc[1] = (bb->vec[0][1] + bb->vec[2][1]) / 2.0f;

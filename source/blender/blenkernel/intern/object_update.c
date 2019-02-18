@@ -17,7 +17,8 @@
  * All rights reserved.
  */
 
-/** \file \ingroup bke
+/** \file
+ * \ingroup bke
  */
 
 #include "DNA_anim_types.h"
@@ -162,7 +163,7 @@ void BKE_object_handle_data_update(
 #if 0
 			BMEditMesh *em = (ob->mode & OB_MODE_EDIT) ? BKE_editmesh_from_object(ob) : NULL;
 #else
-			BMEditMesh *em = (ob->mode & OB_MODE_EDIT) ? ((Mesh *)ob->data)->edit_btmesh : NULL;
+			BMEditMesh *em = (ob->mode & OB_MODE_EDIT) ? ((Mesh *)ob->data)->edit_mesh : NULL;
 			if (em && em->ob != ob) {
 				em = NULL;
 			}
@@ -226,8 +227,8 @@ void BKE_object_handle_data_update(
 			if (psys_check_enabled(ob, psys, use_render_params)) {
 				/* check use of dupli objects here */
 				if (psys->part && (psys->part->draw_as == PART_DRAW_REND || use_render_params) &&
-				    ((psys->part->ren_as == PART_DRAW_OB && psys->part->dup_ob) ||
-				     (psys->part->ren_as == PART_DRAW_GR && psys->part->dup_group)))
+				    ((psys->part->ren_as == PART_DRAW_OB && psys->part->instance_object) ||
+				     (psys->part->ren_as == PART_DRAW_GR && psys->part->instance_collection)))
 				{
 					ob->transflag |= OB_DUPLIPARTS;
 				}
@@ -258,10 +259,10 @@ void BKE_object_eval_boundbox(Depsgraph *depsgraph, Object *object)
 	Object *ob_orig = DEG_get_original_object(object);
 	BoundBox *bb = BKE_object_boundbox_get(object);
 	if (bb != NULL) {
-		if (ob_orig->bb == NULL) {
-			ob_orig->bb = MEM_mallocN(sizeof(*ob_orig->bb), __func__);
+		if (ob_orig->runtime.bb == NULL) {
+			ob_orig->runtime.bb = MEM_mallocN(sizeof(*ob_orig->runtime.bb), __func__);
 		}
-		*ob_orig->bb = *bb;
+		*ob_orig->runtime.bb = *bb;
 	}
 }
 
@@ -306,8 +307,8 @@ bool BKE_object_eval_proxy_copy(Depsgraph *depsgraph,
 			invert_m4_m4(imat, obg->obmat);
 			mul_m4_m4m4(object->obmat, imat, object->proxy_from->obmat);
 			/* Should always be true. */
-			if (obg->dup_group) {
-				add_v3_v3(object->obmat[3], obg->dup_group->dupli_ofs);
+			if (obg->instance_collection) {
+				add_v3_v3(object->obmat[3], obg->instance_collection->instance_offset);
 			}
 		}
 		else {

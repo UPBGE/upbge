@@ -17,7 +17,8 @@
  * All rights reserved.
  */
 
-/** \file \ingroup DNA
+/** \file
+ * \ingroup DNA
  */
 
 #ifndef __DNA_SCENE_TYPES_H__
@@ -1695,15 +1696,6 @@ typedef struct ToolSettings {
 
 /* *************************************************************** */
 /* Assorted Scene Data */
-
-/* ------------------------------------------- */
-/* Stats (show in Info header) */
-
-typedef struct bStats {
-	/* scene totals for visible layers */
-	int totobj, totlamp, totobjsel, totcurve, totmesh, totarmature;
-	int totvert, totface;
-} bStats;
 
 /* ------------------------------------------- */
 /* Unit Settings */

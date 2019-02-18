@@ -14,7 +14,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-/** \file \ingroup pythonintern
+/** \file
+ * \ingroup pythonintern
  *
  * This file defines 'bpy.props' module used so scripts can define their own
  * rna properties for use with python operators or adding new properties to
@@ -131,6 +132,7 @@ static const EnumPropertyItem property_subtype_array_items[] = {
 	{PROP_COLOR_GAMMA, "COLOR_GAMMA", 0, "Color Gamma", ""},
 	{PROP_LAYER, "LAYER", 0, "Layer", ""},
 	{PROP_LAYER_MEMBER, "LAYER_MEMBER", 0, "Layer Member", ""},
+	{PROP_POWER, "Power", 0, "Power", ""},
 
 	{PROP_NONE, "NONE", 0, "None", ""},
 	{0, NULL, 0, NULL, NULL},
@@ -139,7 +141,7 @@ static const EnumPropertyItem property_subtype_array_items[] = {
 #define BPY_PROPDEF_SUBTYPE_ARRAY_DOC \
 "   :arg subtype: Enumerator in ['COLOR', 'TRANSLATION', 'DIRECTION', " \
                                 "'VELOCITY', 'ACCELERATION', 'MATRIX', 'EULER', 'QUATERNION', 'AXISANGLE', " \
-                                "'XYZ', 'COLOR_GAMMA', 'LAYER', 'LAYER_MEMBER', 'NONE'].\n" \
+                                "'XYZ', 'COLOR_GAMMA', 'LAYER', 'LAYER_MEMBER', 'POWER', 'NONE'].\n" \
 "   :type subtype: string\n"
 
 /* PyObject's */
@@ -1902,7 +1904,7 @@ static void bpy_prop_callback_assign_enum(struct PropertyRNA *prop, PyObject *ge
 "   :type description: string\n" \
 
 #define BPY_PROPDEF_UNIT_DOC \
-"   :arg unit: Enumerator in ['NONE', 'LENGTH', 'AREA', 'VOLUME', 'ROTATION', 'TIME', 'VELOCITY', 'ACCELERATION', 'MASS', 'CAMERA'].\n" \
+"   :arg unit: Enumerator in ['NONE', 'LENGTH', 'AREA', 'VOLUME', 'ROTATION', 'TIME', 'VELOCITY', 'ACCELERATION', 'MASS', 'CAMERA', 'POWER'].\n" \
 "   :type unit: string\n" \
 
 #define BPY_PROPDEF_NUM_MIN_DOC \

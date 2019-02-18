@@ -14,7 +14,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-/** \file \ingroup RNA
+/** \file
+ * \ingroup RNA
  */
 
 #include <stdlib.h>
@@ -1484,9 +1485,9 @@ static void rna_Scene_editmesh_select_mode_set(PointerRNA *ptr, const bool *valu
 
 			if (view_layer && view_layer->basact) {
 				Mesh *me = BKE_mesh_from_object(view_layer->basact->object);
-				if (me && me->edit_btmesh && me->edit_btmesh->selectmode != flag) {
-					me->edit_btmesh->selectmode = flag;
-					EDBM_selectmode_set(me->edit_btmesh);
+				if (me && me->edit_mesh && me->edit_mesh->selectmode != flag) {
+					me->edit_mesh->selectmode = flag;
+					EDBM_selectmode_set(me->edit_mesh);
 				}
 			}
 		}
@@ -1500,7 +1501,7 @@ static void rna_Scene_editmesh_select_mode_update(bContext *C, PointerRNA *UNUSE
 
 	if (view_layer->basact) {
 		me = BKE_mesh_from_object(view_layer->basact->object);
-		if (me && me->edit_btmesh == NULL)
+		if (me && me->edit_mesh == NULL)
 			me = NULL;
 	}
 
@@ -1530,10 +1531,10 @@ static void object_simplify_update(Object *ob)
 	for (psys = ob->particlesystem.first; psys; psys = psys->next)
 		psys->recalc |= ID_RECALC_PSYS_CHILD;
 
-	if (ob->dup_group) {
+	if (ob->instance_collection) {
 		CollectionObject *cob;
 
-		for (cob = ob->dup_group->gobject.first; cob; cob = cob->next)
+		for (cob = ob->instance_collection->gobject.first; cob; cob = cob->next)
 			object_simplify_update(cob->ob);
 	}
 }
@@ -1761,7 +1762,7 @@ static void rna_EditMesh_update(bContext *C, PointerRNA *UNUSED(ptr))
 
 	if (view_layer->basact) {
 		me = BKE_mesh_from_object(view_layer->basact->object);
-		if (me && me->edit_btmesh == NULL)
+		if (me && me->edit_mesh == NULL)
 			me = NULL;
 	}
 

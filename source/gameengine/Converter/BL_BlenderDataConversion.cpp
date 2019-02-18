@@ -1445,7 +1445,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 			BL_CONVERTBLENDEROBJECT_SINGLE;
 
 			if (gameobj->IsDupliGroup()) {
-				grouplist.insert(blenderobject->dup_group);
+				grouplist.insert(blenderobject->instance_collection);
 			}
 
 			/* Note about memory leak issues:
@@ -1500,9 +1500,9 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 
 							if (gameobj->IsDupliGroup())
 							{
-								if (allgrouplist.insert(blenderobject->dup_group).second)
+								if (allgrouplist.insert(blenderobject->instance_collection).second)
 								{
-									grouplist.insert(blenderobject->dup_group);
+									grouplist.insert(blenderobject->instance_collection);
 								}
 							}
 

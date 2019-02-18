@@ -17,7 +17,8 @@
  * All rights reserved.
  */
 
-/** \file \ingroup bke
+/** \file
+ * \ingroup bke
  */
 
 
@@ -1146,7 +1147,7 @@ int BKE_scene_base_iter_next(Depsgraph *depsgraph, SceneBaseIter *iter,
 						/* collections cannot be duplicated for mballs yet,
 						 * this enters eternal loop because of
 						 * makeDispListMBall getting called inside of collection_duplilist */
-						if ((*base)->object->dup_group == NULL) {
+						if ((*base)->object->instance_collection == NULL) {
 							iter->duplilist = object_duplilist(depsgraph, (*scene), (*base)->object);
 
 							iter->dupob = iter->duplilist->first;
@@ -1500,7 +1501,7 @@ static void prepare_mesh_for_viewport_render(
 		     (mesh->id.recalc & ID_RECALC_ALL)))
 		{
 			if (check_rendered_viewport_visible(bmain)) {
-				BMesh *bm = mesh->edit_btmesh->bm;
+				BMesh *bm = mesh->edit_mesh->bm;
 				BM_mesh_bm_to_me(
 				        bmain, bm, mesh,
 				        (&(struct BMeshToMeshParams){
@@ -1848,6 +1849,7 @@ double BKE_scene_unit_scale(const UnitSettings *unit, const int unit_type, doubl
 		case B_UNIT_LENGTH:
 			return value * (double)unit->scale_length;
 		case B_UNIT_AREA:
+		case B_UNIT_POWER:
 			return value * pow(unit->scale_length, 2);
 		case B_UNIT_VOLUME:
 			return value * pow(unit->scale_length, 3);

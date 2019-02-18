@@ -17,7 +17,8 @@
  * All rights reserved.
  */
 
-/** \file \ingroup bke
+/** \file
+ * \ingroup bke
  */
 
 #include "MEM_guardedalloc.h"
@@ -83,12 +84,12 @@ BMEditMesh *BKE_editmesh_from_object(Object *ob)
 	/* sanity check */
 #if 0 /* disable in mutlti-object edit. */
 #ifndef NDEBUG
-	if (((Mesh *)ob->data)->edit_btmesh) {
-		BLI_assert(((Mesh *)ob->data)->edit_btmesh->ob == ob);
+	if (((Mesh *)ob->data)->edit_mesh) {
+		BLI_assert(((Mesh *)ob->data)->edit_mesh->ob == ob);
 	}
 #endif
 #endif
-	return ((Mesh *)ob->data)->edit_btmesh;
+	return ((Mesh *)ob->data)->edit_mesh;
 }
 
 

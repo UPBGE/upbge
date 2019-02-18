@@ -1,7 +1,4 @@
 /*
- * Copyright © 2001 Robert Penner
- * All rights reserved.
- *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
@@ -26,12 +23,16 @@
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Copyright (c) 2001 Robert Penner
+ * All rights reserved.
  */
 
 #ifndef __BLI_EASING_H__
 #define __BLI_EASING_H__
 
-/** \file \ingroup bli
+/** \file
+ * \ingroup bli
  */
 
 #ifdef __cplusplus

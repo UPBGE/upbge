@@ -16,7 +16,8 @@
  * Copyright 2016, Blender Foundation.
  */
 
-/** \file \ingroup draw_engine
+/** \file
+ * \ingroup draw_engine
  */
 
 #include "DNA_mesh_types.h"
@@ -253,7 +254,7 @@ static void overlay_cache_populate(void *vedata, Object *ob)
 		if (ob->type == OB_MESH) {
 			/* TODO: Should be its own function. */
 			Mesh *me = (Mesh *)ob->data;
-			BMEditMesh *embm = me->edit_btmesh;
+			BMEditMesh *embm = me->edit_mesh;
 			if (embm) {
 				has_edit_mesh_cage = embm->mesh_eval_cage && (embm->mesh_eval_cage != embm->mesh_eval_final);
 			}

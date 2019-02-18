@@ -820,7 +820,7 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
 	// Again, this is match what Blender is doing (it doesn't care of parent relationship)
 	m_groupGameObjects.clear();
 
-	group = blgroupobj->dup_group;
+	group = blgroupobj->instance_collection;
 	FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN(group, blenderobj)
 	{
 		if (blgroupobj == blenderobj)
@@ -882,7 +882,7 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
 		// set the replica's relative scale with the rootnode's scale
 		replica->NodeSetRelativeScale(newscale);
 
-		MT_Vector3 offset(group->dupli_ofs);
+		MT_Vector3 offset(group->instance_offset);
 		MT_Vector3 newpos = groupobj->NodeGetWorldPosition() + 
 			newscale*(groupobj->NodeGetWorldOrientation() * (gameobj->NodeGetWorldPosition()-offset));
 		replica->NodeSetLocalPosition(newpos);

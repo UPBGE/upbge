@@ -18,7 +18,8 @@
  * DNA handling
  */
 
-/** \file \ingroup DNA
+/** \file
+ * \ingroup DNA
  *
  * Defines in this header are only used to define blend file storage.
  * This allows us to rename variables & structs without breaking compatibility.
@@ -36,7 +37,14 @@
  * - Old names aren't sanity checked (since this file is the only place that knows about them)
  *   typos in the old names will break both backwards & forwards compatibility **TAKE CARE**.
  *
- * \see versioning_dna.c for a actual version patching.
+ * - Before editing rename defines run:
+ *
+ *   `sha1sum $BUILD_DIR/source/blender/makesdna/intern/dna.c`
+ *
+ *   Compare the results before & after to ensure all changes are reversed by renaming
+ *   and the DNA remains unchanged.
+ *
+ * \see versioning_dna.c for actual version patching.
  */
 
 /* No include guard (intentional). */
@@ -49,6 +57,12 @@ DNA_STRUCT_RENAME(SpaceOops, SpaceOutliner)
 DNA_STRUCT_RENAME_ELEM(Camera, YF_dofdist, dof_distance)
 DNA_STRUCT_RENAME_ELEM(Camera, clipend, clip_end)
 DNA_STRUCT_RENAME_ELEM(Camera, clipsta, clip_start)
+DNA_STRUCT_RENAME_ELEM(Collection, dupli_ofs, instance_offset)
+DNA_STRUCT_RENAME_ELEM(Object, dup_group, instance_collection)
+DNA_STRUCT_RENAME_ELEM(Object, dupfacesca, instance_faces_scale)
+DNA_STRUCT_RENAME_ELEM(ParticleSettings, dup_group, instance_collection)
+DNA_STRUCT_RENAME_ELEM(ParticleSettings, dup_ob, instance_object)
+DNA_STRUCT_RENAME_ELEM(ParticleSettings, dupliweights, instance_weights)
 DNA_STRUCT_RENAME_ELEM(View3D, far, clip_end)
 DNA_STRUCT_RENAME_ELEM(View3D, near, clip_start)
 DNA_STRUCT_RENAME_ELEM(bTheme, tact, space_action)
@@ -71,5 +85,4 @@ DNA_STRUCT_RENAME_ELEM(bTheme, tv3d, space_view3d)
 
 #if 0
 DNA_STRUCT_RENAME(Lamp, Light)
-DNA_STRUCT_RENAME_ELEM(Object, dup_group, instance_collection)
 #endif

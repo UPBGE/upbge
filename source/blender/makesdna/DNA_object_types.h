@@ -17,8 +17,9 @@
  * All rights reserved.
  */
 
-/** \file \ingroup DNA
- *  \brief Object is a sort of wrapper for general info.
+/** \file
+ * \ingroup DNA
+ * \brief Object is a sort of wrapper for general info.
  */
 
 #ifndef __DNA_OBJECT_TYPES_H__
@@ -114,6 +115,15 @@ struct ObjectBBoneDeform;
 /* Not saved in file! */
 typedef struct Object_Runtime {
 	/**
+	 * The custom data layer mask that was last used
+	 * to calculate mesh_eval and mesh_deform_eval.
+	 */
+	uint64_t last_data_mask;
+
+	/** Axis aligned boundbox (in localspace). */
+	struct BoundBox *bb;
+
+	/**
 	 * Original mesh pointer, before object->data was changed to point
 	 * to mesh_eval.
 	 * Is assigned by dependency graph's copy-on-write evaluation.
@@ -130,7 +140,6 @@ typedef struct Object_Runtime {
 	 */
 	struct Mesh *mesh_deform_eval;
 
-
 	/** Runtime evaluated curve-specific data, not stored in the file. */
 	struct CurveCache *curve_cache;
 
@@ -138,12 +147,6 @@ typedef struct Object_Runtime {
 	struct GpencilBatchCache *gpencil_cache;
 
 	struct ObjectBBoneDeform *cached_bbone_deformation;
-
-	/**
-	 * The custom data layer mask that was last used
-	 * to calculate mesh_eval and mesh_deform_eval.
-	 */
-	uint64_t last_data_mask;
 
 	/** Did last modifier stack generation need mapping support? */
 	char last_need_mapping;
@@ -171,8 +174,6 @@ typedef struct Object {
 	/** Old animation system, deprecated for 2.5. */
 	struct Ipo *ipo  DNA_DEPRECATED;
 	/* struct Path *path; */
-	/** Axis aligned boundbox (in localspace). */
-	struct BoundBox *bb;
 	struct bAction *action  DNA_DEPRECATED;	 // XXX deprecated... old animation system
 	struct bAction *poselib;
 	/** Pose data, armature objects only. */
@@ -331,7 +332,8 @@ typedef struct Object {
 	char empty_drawtype;
 	char pad52[6];
 	float empty_drawsize;
-	float dupfacesca;	/* dupliface scale */
+	/** Dupliface scale. */
+	float instance_faces_scale;
 	
 	ListBase prop;			/* game logic property list (not to be confused with IDProperties) */
 	ListBase sensors;		/* game logic sensors */
@@ -366,26 +368,39 @@ typedef struct Object {
 	ListBase constraints;
 	ListBase nlastrips  DNA_DEPRECATED;			// XXX deprecated... old animation system
 	ListBase hooks  DNA_DEPRECATED;				// XXX deprecated... old animation system
-	ListBase particlesystem;	/* particle systems */
+	/** Particle systems. */
+	ListBase particlesystem;
 	
-	struct BulletSoftBody *bsoft;	/* settings for game engine bullet soft body */
-	struct PartDeflect *pd;		/* particle deflector/attractor/collision data */
-	struct SoftBody *soft;		/* if exists, saved in file */
-	struct Collection *dup_group;	/* object duplicator for group */
+	/* settings for game engine bullet soft body */
+	struct BulletSoftBody *bsoft;
+	/** Particle deflector/attractor/collision data. */
+	struct PartDeflect *pd;
+	/** If exists, saved in file. */
+	struct SoftBody *soft;
+	/** Object duplicator for group. */
+	struct Collection *instance_collection;
 
-	char  body_type;			/* for now used to temporarily holds the type of collision object */
-	char  shapeflag;			/* flag for pinning */
-	short shapenr;				/* current shape key for menu or pinned */
-	float smoothresh;			/* smoothresh is phong interpolation ray_shadow correction in render */
+	/* for now used to temporarily holds the type of collision object */
+	char  body_type;
+	/** Flag for pinning. */
+	char  shapeflag;
+	/** Current shape key for menu or pinned. */
+	short shapenr;
+	/** Smoothresh is phong interpolation ray_shadow correction in render. */
+	float smoothresh;
 
-	struct FluidsimSettings *fluidsimSettings; /* if fluidsim enabled, store additional settings */
+	/** if fluidsim enabled, store additional settings */
+	struct FluidsimSettings *fluidsimSettings;
 
 	struct DerivedMesh *derivedDeform, *derivedFinal;
-	void *pad7;
-	uint64_t lastDataMask;   /* the custom data layer mask that was last used to calculate derivedDeform and derivedFinal */
-	uint64_t customdata_mask; /* (extra) custom data layer mask to use for creating derivedmesh, set by depsgraph */
-	unsigned int state;			/* bit masks of game controllers that are active */
-	unsigned int init_state;	/* bit masks of initial state as recorded by the users */
+	/** the custom data layer mask that was last used to calculate derivedDeform and derivedFinal */
+	uint64_t lastDataMask;
+	/** (extra) custom data layer mask to use for creating derivedmesh, set by depsgraph */
+	uint64_t customdata_mask;
+	/** bit masks of game controllers that are active */
+	unsigned int state;
+	/** bit masks of initial state as recorded by the users */
+	unsigned int init_state;
 
 	ListBase pc_ids;
 

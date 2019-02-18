@@ -17,7 +17,8 @@
  * All rights reserved.
  */
 
-/** \file \ingroup DNA
+/** \file
+ * \ingroup DNA
  *
  * \brief Object groups, one object can be in many groups at once.
  */
@@ -55,7 +56,7 @@ typedef struct Collection {
 	struct PreviewImage *preview;
 
 	unsigned int layer DNA_DEPRECATED;
-	float dupli_ofs[3];
+	float instance_offset[3];
 
 	short flag, pad[3];
 

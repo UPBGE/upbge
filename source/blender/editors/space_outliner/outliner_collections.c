@@ -14,7 +14,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-/** \file \ingroup spoutliner
+/** \file
+ * \ingroup spoutliner
  */
 
 #include <string.h>
@@ -562,7 +563,7 @@ static int collection_instance_exec(bContext *C, wmOperator *UNUSED(op))
 	GSET_ITER(collections_to_edit_iter, data.collections_to_edit) {
 		Collection *collection = BLI_gsetIterator_getKey(&collections_to_edit_iter);
 		Object *ob = ED_object_add_type(C, OB_EMPTY, collection->id.name + 2, scene->cursor.location, NULL, false, 0);
-		ob->dup_group = collection;
+		ob->instance_collection = collection;
 		ob->transflag |= OB_DUPLICOLLECTION;
 		id_lib_extern(&collection->id);
 	}

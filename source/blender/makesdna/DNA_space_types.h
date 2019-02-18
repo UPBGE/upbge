@@ -16,7 +16,8 @@
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
  */
-/** \file \ingroup DNA
+/** \file
+ * \ingroup DNA
  *
  * Structs for each of space type in the user interface.
  */
@@ -512,28 +513,6 @@ typedef enum eSpaceNla_Flag {
 	/* don't show local strip marker indications */
 	SNLA_NOLOCALMARKERS    = (1 << 7),
 } eSpaceNla_Flag;
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Timeline
- * \{ */
-
-/* SpaceTime.redraws (now bScreen.redraws_flag) */
-typedef enum eScreen_Redraws_Flag {
-	TIME_REGION            = (1 << 0),
-	TIME_ALL_3D_WIN        = (1 << 1),
-	TIME_ALL_ANIM_WIN      = (1 << 2),
-	TIME_ALL_BUTS_WIN      = (1 << 3),
-	// TIME_WITH_SEQ_AUDIO    = (1 << 4), /* DEPRECATED */
-	TIME_SEQ               = (1 << 5),
-	TIME_ALL_IMAGE_WIN     = (1 << 6),
-	// TIME_CONTINUE_PHYSICS  = (1 << 7), /* UNUSED */
-	TIME_NODES             = (1 << 8),
-	TIME_CLIPS             = (1 << 9),
-
-	TIME_FOLLOW            = (1 << 15),
-} eScreen_Redraws_Flag;
 
 /** \} */
 

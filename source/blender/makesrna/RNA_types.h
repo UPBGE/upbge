@@ -14,7 +14,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-/** \file \ingroup RNA
+/** \file
+ * \ingroup RNA
  */
 
 #ifndef __RNA_TYPES_H__
@@ -90,6 +91,7 @@ typedef enum PropertyUnit {
 	PROP_UNIT_VELOCITY     = (7 << 16),   /* m/s */
 	PROP_UNIT_ACCELERATION = (8 << 16),   /* m/(s^2) */
 	PROP_UNIT_CAMERA       = (9 << 16),   /* mm */
+	PROP_UNIT_POWER        = (10 << 16),  /* W */
 } PropertyUnit;
 
 #define RNA_SUBTYPE_UNIT(subtype)       ((subtype) &  0x00FF0000)
@@ -146,6 +148,9 @@ typedef enum PropertySubType {
 	/* booleans */
 	PROP_LAYER             = 40,
 	PROP_LAYER_MEMBER      = 41,
+
+	/* light */
+	PROP_POWER             = 42 | PROP_UNIT_POWER,
 } PropertySubType;
 
 /* Make sure enums are updated with these */

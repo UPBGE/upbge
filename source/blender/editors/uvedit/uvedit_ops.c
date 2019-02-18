@@ -17,7 +17,8 @@
  * All rights reserved.
  */
 
-/** \file \ingroup eduv
+/** \file
+ * \ingroup eduv
  */
 
 
@@ -4431,7 +4432,7 @@ static int uv_seams_from_islands_exec(bContext *C, wmOperator *op)
 	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
 		Object *ob = objects[ob_index];
 		Mesh *me = (Mesh *)ob->data;
-		BMEditMesh *em = me->edit_btmesh;
+		BMEditMesh *em = me->edit_mesh;
 		BMesh *bm = em->bm;
 
 		UvVertMap *vmap;
@@ -4578,7 +4579,7 @@ static int uv_mark_seam_exec(bContext *C, wmOperator *op)
 	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
 		Object *ob = objects[ob_index];
 		Mesh *me = (Mesh *)ob->data;
-		BMEditMesh *em = me->edit_btmesh;
+		BMEditMesh *em = me->edit_mesh;
 		BMesh *bm = em->bm;
 
 		if (synced_selection && (bm->totedgesel == 0)) {

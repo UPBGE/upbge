@@ -1,4 +1,3 @@
-
 /*
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -18,7 +17,8 @@
  * All rights reserved.
  */
 
-/** \file \ingroup bke
+/** \file
+ * \ingroup bke
  */
 
 #include <string.h>
@@ -132,8 +132,8 @@ static void object_fmap_remove_edit_mode(Object *ob, bFaceMap *fmap, bool do_sel
 	if (ob->type == OB_MESH) {
 		Mesh *me = ob->data;
 
-		if (me->edit_btmesh) {
-			BMEditMesh *em = me->edit_btmesh;
+		if (me->edit_mesh) {
+			BMEditMesh *em = me->edit_mesh;
 			const int cd_fmap_offset = CustomData_get_offset(&em->bm->pdata, CD_FACEMAP);
 
 			if (cd_fmap_offset != -1) {

@@ -17,7 +17,8 @@
  * All rights reserved.
  */
 
-/** \file \ingroup edobj
+/** \file
+ * \ingroup edobj
  */
 
 
@@ -842,7 +843,7 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
 	if (obedit) {
 		if (obedit->type == OB_MESH) {
 			Mesh *me = obedit->data;
-			BMEditMesh *em = me->edit_btmesh;
+			BMEditMesh *em = me->edit_mesh;
 			BMVert *eve;
 			BMIter iter;
 
@@ -903,8 +904,8 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
 	for (tob = bmain->object.first; tob; tob = tob->id.next) {
 		if (tob->data)
 			((ID *)tob->data)->tag &= ~LIB_TAG_DOIT;
-		if (tob->dup_group)
-			((ID *)tob->dup_group)->tag &= ~LIB_TAG_DOIT;
+		if (tob->instance_collection)
+			((ID *)tob->instance_collection)->tag &= ~LIB_TAG_DOIT;
 	}
 
 	for (ctx_ob = ctx_data_list.first;
@@ -925,8 +926,8 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
 
 			if (ob->data == NULL) {
 				/* special support for dupligroups */
-				if ((ob->transflag & OB_DUPLICOLLECTION) && ob->dup_group && (ob->dup_group->id.tag & LIB_TAG_DOIT) == 0) {
-					if (ID_IS_LINKED(ob->dup_group)) {
+				if ((ob->transflag & OB_DUPLICOLLECTION) && ob->instance_collection && (ob->instance_collection->id.tag & LIB_TAG_DOIT) == 0) {
+					if (ID_IS_LINKED(ob->instance_collection)) {
 						tot_lib_error++;
 					}
 					else {
@@ -943,10 +944,10 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
 							mul_m4_v3(ob->imat, cent);
 						}
 
-						add_v3_v3(ob->dup_group->dupli_ofs, cent);
+						add_v3_v3(ob->instance_collection->instance_offset, cent);
 
 						tot_change++;
-						ob->dup_group->id.tag |= LIB_TAG_DOIT;
+						ob->instance_collection->id.tag |= LIB_TAG_DOIT;
 						do_inverse_offset = true;
 					}
 				}
@@ -1011,7 +1012,7 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
 
 				Curve *cu = ob->data;
 
-				if (ob->bb == NULL && (centermode != ORIGIN_TO_CURSOR)) {
+				if (ob->runtime.bb == NULL && (centermode != ORIGIN_TO_CURSOR)) {
 					/* do nothing*/
 				}
 				else {
@@ -1020,8 +1021,8 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
 					}
 					else {
 						/* extra 0.5 is the height o above line */
-						cent[0] = 0.5f * (ob->bb->vec[4][0] + ob->bb->vec[0][0]);
-						cent[1] = 0.5f * (ob->bb->vec[0][1] + ob->bb->vec[2][1]);
+						cent[0] = 0.5f * (ob->runtime.bb->vec[4][0] + ob->runtime.bb->vec[0][0]);
+						cent[1] = 0.5f * (ob->runtime.bb->vec[0][1] + ob->runtime.bb->vec[2][1]);
 					}
 
 					cent[2] = 0.0f;
@@ -1197,7 +1198,7 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
 
 					if ((ob_other->flag & OB_DONE) == 0 &&
 					    ((ob->data && (ob->data == ob_other->data)) ||
-					     (ob->dup_group == ob_other->dup_group &&
+					     (ob->instance_collection == ob_other->instance_collection &&
 					      (ob->transflag | ob_other->transflag) & OB_DUPLICOLLECTION)))
 					{
 						ob_other->flag |= OB_DONE;

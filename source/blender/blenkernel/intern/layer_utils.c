@@ -14,7 +14,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-/** \file \ingroup bke
+/** \file
+ * \ingroup bke
  */
 
 #include <string.h>
@@ -96,7 +97,7 @@ bool BKE_view_layer_filter_edit_mesh_has_uvs(Object *ob, void *UNUSED(user_data)
 {
 	if (ob->type == OB_MESH) {
 		Mesh *me = ob->data;
-		BMEditMesh *em = me->edit_btmesh;
+		BMEditMesh *em = me->edit_mesh;
 		if (em != NULL) {
 			if (CustomData_get_offset(&em->bm->ldata, CD_MLOOPUV) != -1) {
 				return true;
@@ -110,7 +111,7 @@ bool BKE_view_layer_filter_edit_mesh_has_edges(Object *ob, void *UNUSED(user_dat
 {
 	if (ob->type == OB_MESH) {
 		Mesh *me = ob->data;
-		BMEditMesh *em = me->edit_btmesh;
+		BMEditMesh *em = me->edit_mesh;
 		if (em != NULL) {
 			if (em->bm->totedge != 0) {
 				return true;

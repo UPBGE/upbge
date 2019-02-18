@@ -17,7 +17,8 @@
 #ifndef __BKE_UNIT_H__
 #define __BKE_UNIT_H__
 
-/** \file \ingroup bke
+/** \file
+ * \ingroup bke
  */
 
 #ifdef __cplusplus
@@ -77,7 +78,8 @@ enum {
 	B_UNIT_VELOCITY         = 7,
 	B_UNIT_ACCELERATION     = 8,
 	B_UNIT_CAMERA           = 9,
-	B_UNIT_TYPE_TOT         = 10,
+	B_UNIT_POWER            = 10,
+	B_UNIT_TYPE_TOT         = 11,
 };
 
 #ifdef __cplusplus

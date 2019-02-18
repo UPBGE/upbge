@@ -17,7 +17,8 @@
  * All rights reserved.
  */
 
-/** \file \ingroup bke
+/** \file
+ * \ingroup bke
  */
 
 
@@ -461,9 +462,9 @@ void BKE_object_free_derived_caches(Object *ob)
 		}
 	}
 
-	if (ob->bb) {
-		MEM_freeN(ob->bb);
-		ob->bb = NULL;
+	if (ob->runtime.bb) {
+		MEM_freeN(ob->runtime.bb);
+		ob->runtime.bb = NULL;
 	}
 
 	object_update_from_subsurf_ccg(ob);
@@ -477,7 +478,7 @@ void BKE_object_free_derived_caches(Object *ob)
 			ob->data = ob->runtime.mesh_orig;
 		}
 		/* Evaluated mesh points to edit mesh, but does not own it. */
-		mesh_eval->edit_btmesh = NULL;
+		mesh_eval->edit_mesh = NULL;
 		BKE_mesh_free(mesh_eval);
 		BKE_libblock_free_data(&mesh_eval->id, false);
 		MEM_freeN(mesh_eval);
@@ -577,7 +578,7 @@ void BKE_object_free(Object *ob)
 	MEM_SAFE_FREE(ob->mat);
 	MEM_SAFE_FREE(ob->matbits);
 	MEM_SAFE_FREE(ob->iuser);
-	MEM_SAFE_FREE(ob->bb);
+	MEM_SAFE_FREE(ob->runtime.bb);
 
 	BLI_freelistN(&ob->defbase);
 	BLI_freelistN(&ob->fmaps);
@@ -628,7 +629,7 @@ bool BKE_object_is_in_editmode(const Object *ob)
 
 	switch (ob->type) {
 		case OB_MESH:
-			return ((Mesh *)ob->data)->edit_btmesh != NULL;
+			return ((Mesh *)ob->data)->edit_mesh != NULL;
 		case OB_ARMATURE:
 			return ((bArmature *)ob->data)->edbo != NULL;
 		case OB_FONT:
@@ -657,7 +658,7 @@ bool BKE_object_data_is_in_editmode(const ID *id)
 	BLI_assert(OB_DATA_SUPPORT_EDITMODE(type));
 	switch (type) {
 		case ID_ME:
-			return ((const Mesh *)id)->edit_btmesh != NULL;
+			return ((const Mesh *)id)->edit_mesh != NULL;
 		case ID_CU:
 			return (
 			        (((const Curve *)id)->editnurb != NULL) ||
@@ -680,7 +681,7 @@ bool BKE_object_is_in_wpaint_select_vert(const Object *ob)
 	if (ob->type == OB_MESH) {
 		Mesh *me = ob->data;
 		return ((ob->mode & OB_MODE_WEIGHT_PAINT) &&
-		        (me->edit_btmesh == NULL) &&
+		        (me->edit_mesh == NULL) &&
 		        (ME_EDIT_PAINT_SEL_MODE(me) == SCE_SELECT_VERTEX));
 	}
 
@@ -867,7 +868,7 @@ void BKE_object_init(Object *ob)
 		ob->upflag = OB_POSZ;
 	}
 
-	ob->dupfacesca = 1.0;
+	ob->instance_faces_scale = 1.0;
 
 	/* Game engine defaults*/
 	ob->mass = ob->inertia = 1.0f;
@@ -1427,7 +1428,7 @@ void BKE_object_copy_data(Main *bmain, Object *ob_dst, const Object *ob_src, con
 
 	if (ob_src->iuser) ob_dst->iuser = MEM_dupallocN(ob_src->iuser);
 
-	if (ob_src->bb) ob_dst->bb = MEM_dupallocN(ob_src->bb);
+	if (ob_src->runtime.bb) ob_dst->runtime.bb = MEM_dupallocN(ob_src->runtime.bb);
 
 	BLI_listbase_clear(&ob_dst->modifiers);
 
@@ -1665,9 +1666,9 @@ void BKE_object_make_proxy(Main *bmain, Object *ob, Object *target, Object *cob)
 	if (cob) {
 		ob->rotmode = target->rotmode;
 		mul_m4_m4m4(ob->obmat, cob->obmat, target->obmat);
-		if (cob->dup_group) { /* should always be true */
+		if (cob->instance_collection) { /* should always be true */
 			float tvec[3];
-			mul_v3_mat3_m4v3(tvec, ob->obmat, cob->dup_group->dupli_ofs);
+			mul_v3_mat3_m4v3(tvec, ob->obmat, cob->instance_collection->instance_offset);
 			sub_v3_v3(ob->obmat[3], tvec);
 		}
 		BKE_object_apply_mat4(ob, ob->obmat, false, true);
@@ -2090,7 +2091,7 @@ static void give_parvert(Object *par, int nr, float vec[3])
 
 	if (par->type == OB_MESH) {
 		Mesh *me = par->data;
-		BMEditMesh *em = me->edit_btmesh;
+		BMEditMesh *em = me->edit_mesh;
 		Mesh *me_eval = (em) ? em->mesh_eval_final : par->runtime.mesh_eval;
 
 		if (me_eval) {
@@ -2536,13 +2537,13 @@ void BKE_object_boundbox_calc_from_mesh(struct Object *ob, struct Mesh *me_eval)
 		zero_v3(max);
 	}
 
-	if (ob->bb == NULL) {
-		ob->bb = MEM_callocN(sizeof(BoundBox), "DM-BoundBox");
+	if (ob->runtime.bb == NULL) {
+		ob->runtime.bb = MEM_callocN(sizeof(BoundBox), "DM-BoundBox");
 	}
 
-	BKE_boundbox_init_from_minmax(ob->bb, min, max);
+	BKE_boundbox_init_from_minmax(ob->runtime.bb, min, max);
 
-	ob->bb->flag &= ~BOUNDBOX_DIRTY;
+	ob->runtime.bb->flag &= ~BOUNDBOX_DIRTY;
 }
 
 void BKE_object_dimensions_get(Object *ob, float vec[3])

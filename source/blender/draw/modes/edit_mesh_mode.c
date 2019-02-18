@@ -16,7 +16,8 @@
  * Copyright 2016, Blender Foundation.
  */
 
-/** \file \ingroup draw
+/** \file
+ * \ingroup draw
  */
 
 #include "DRW_engine.h"
@@ -545,7 +546,7 @@ static void edit_mesh_add_ob_to_pass(
 	bool has_edit_mesh_cage = false;
 	/* TODO: Should be its own function. */
 	Mesh *me = (Mesh *)ob->data;
-	BMEditMesh *embm = me->edit_btmesh;
+	BMEditMesh *embm = me->edit_mesh;
 	if (embm) {
 		has_edit_mesh_cage = embm->mesh_eval_cage && (embm->mesh_eval_cage != embm->mesh_eval_final);
 	}
