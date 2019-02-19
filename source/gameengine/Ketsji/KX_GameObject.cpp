@@ -357,6 +357,14 @@ void KX_GameObject::HideOriginalObject()
 		GetScene()->ResetTaaSamples();
 	}
 }
+
+void KX_GameObject::RecalcGeometry()
+{
+	Object *ob = GetBlenderObject();
+	if (ob) {
+		DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+	}
+}
 /********************End of EEVEE INTEGRATION*********************/
 
 KX_GameObject* KX_GameObject::GetClientObject(KX_ClientObjectInfo *info)
@@ -1869,6 +1877,7 @@ PyMethodDef KX_GameObject::Methods[] = {
 	KX_PYMETHODTABLE(KX_GameObject, getActionName),
 	KX_PYMETHODTABLE(KX_GameObject, setActionFrame),
 	KX_PYMETHODTABLE(KX_GameObject, isPlayingAction),
+	KX_PYMETHODTABLE(KX_GameObject, recalcGeometry),
 	
 	// dict style access for props
 	{"get",(PyCFunction) KX_GameObject::sPyget, METH_VARARGS},
@@ -4024,6 +4033,14 @@ KX_PYMETHODDEF_DOC(KX_GameObject, isPlayingAction,
 	layer_check(layer, "isPlayingAction");
 
 	return PyBool_FromLong(!IsActionDone(layer));
+}
+
+KX_PYMETHODDEF_DOC(KX_GameObject, recalcGeometry,
+	"ID_RECALC_GEOMETRY depsgraph notifier\n")
+{
+	RecalcGeometry();
+
+	Py_RETURN_NONE;
 }
 
 

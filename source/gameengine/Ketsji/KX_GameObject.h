@@ -145,6 +145,7 @@ public:
 	void SetBackupMesh(Mesh *me);
 	void RestoreOriginalMesh();
 	bool IsStatic();
+	void RecalcGeometry();
 
 	/* END OF EEVEE INTEGRATION */
 
@@ -954,6 +955,7 @@ public:
 	KX_PYMETHOD_DOC(KX_GameObject, getActionName);
 	KX_PYMETHOD_DOC(KX_GameObject, setActionFrame);
 	KX_PYMETHOD_DOC(KX_GameObject, isPlayingAction);
+	KX_PYMETHOD_DOC(KX_GameObject, recalcGeometry);
 	
 	/* Dict access */
 	KX_PYMETHOD_VARARGS(KX_GameObject,get);
