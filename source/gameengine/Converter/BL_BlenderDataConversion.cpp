@@ -1098,20 +1098,6 @@ struct parentChildLink {
 	SG_Node* m_gamechildnode;
 };
 
-static bPoseChannel *get_active_posechannel2(Object *ob)
-{
-	bArmature *arm= (bArmature*)ob->data;
-	bPoseChannel *pchan;
-	
-	/* find active */
-	for (pchan= (bPoseChannel *)ob->pose->chanbase.first; pchan; pchan= pchan->next) {
-		if (pchan->bone && (pchan->bone == arm->act_bone) && (pchan->bone->layer & arm->layer))
-			return pchan;
-	}
-	
-	return nullptr;
-}
-
 static ListBase *get_active_constraints2(Object *ob)
 {
 	if (!ob)
@@ -1600,21 +1586,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 			meshobj = gameobj->GetMesh(0);
 		}
 		int layerMask = (groupobj.find(blenderobject) == groupobj.end()) ? activeLayerBitInfo : 0;
-		BL_CreatePhysicsObjectNew(gameobj,blenderobject,meshobj,kxscene,layerMask,converter,processCompoundChildren);
-	}
-
-	processCompoundChildren = true;
-	// create physics information
-	for (KX_GameObject *gameobj : sumolist) {
-		struct Object* blenderobject = gameobj->GetBlenderObject();
-		int nummeshes = gameobj->GetMeshCount();
-		RAS_MeshObject* meshobj = 0;
-		if (nummeshes > 0)
-		{
-			meshobj = gameobj->GetMesh(0);
-		}
-		int layerMask = (groupobj.find(blenderobject) == groupobj.end()) ? activeLayerBitInfo : 0;
-		BL_CreatePhysicsObjectNew(gameobj,blenderobject,meshobj,kxscene,layerMask,converter,processCompoundChildren);
+		BL_CreatePhysicsObjectNew(gameobj, blenderobject, meshobj, kxscene, layerMask, converter, processCompoundChildren);
 	}
 
 	// Create and set bounding volume.
