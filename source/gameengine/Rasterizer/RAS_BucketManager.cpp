@@ -43,22 +43,6 @@
 #include "RAS_BucketManager.h"
 
 #include <algorithm>
-/* sorting */
-
-RAS_BucketManager::SortedMeshSlot::SortedMeshSlot(RAS_MeshSlot *ms, const MT_Vector3& pnorm)
-	:m_ms(ms)
-{
-}
-
-bool RAS_BucketManager::backtofront::operator()(const SortedMeshSlot &a, const SortedMeshSlot &b)
-{
-	return (a.m_z < b.m_z) || (a.m_z == b.m_z && a.m_ms < b.m_ms);
-}
-
-bool RAS_BucketManager::fronttoback::operator()(const SortedMeshSlot &a, const SortedMeshSlot &b)
-{
-	return (a.m_z > b.m_z) || (a.m_z == b.m_z && a.m_ms > b.m_ms);
-}
 
 RAS_BucketManager::RAS_BucketManager(RAS_IPolyMaterial *textMaterial)
 {

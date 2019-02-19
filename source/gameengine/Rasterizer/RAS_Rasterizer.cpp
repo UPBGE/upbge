@@ -673,7 +673,7 @@ const MT_Matrix4x4& RAS_Rasterizer::GetPersInvMatrix() const
 	return m_matrices.persinv;
 }
 
-void RAS_Rasterizer::IndexPrimitivesText(RAS_MeshSlot *ms)
+void RAS_Rasterizer::IndexPrimitivesText()
 {
 }
 

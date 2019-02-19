@@ -24,7 +24,6 @@
 
 
 #include "BL_Shader.h"
-#include "RAS_MeshSlot.h"
 
 #include "KX_PyMath.h"
 #include "KX_PythonInit.h"

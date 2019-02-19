@@ -83,14 +83,12 @@ RAS_MeshMaterial *RAS_DisplayArrayBucket::GetMeshMaterial() const
 	return m_meshMaterial;
 }
 
-void RAS_DisplayArrayBucket::ActivateMesh(RAS_MeshSlot *slot)
+void RAS_DisplayArrayBucket::ActivateMesh()
 {
-	m_activeMeshSlots.push_back(slot);
 }
 
 void RAS_DisplayArrayBucket::RemoveActiveMeshSlots()
 {
-	m_activeMeshSlots.clear();
 }
 
 bool RAS_DisplayArrayBucket::UseBatching() const

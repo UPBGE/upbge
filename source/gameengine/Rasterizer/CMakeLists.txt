@@ -76,7 +76,6 @@ set(SRC
 	RAS_MaterialBucket.cpp
 	RAS_MeshMaterial.cpp
 	RAS_MeshObject.cpp
-	RAS_MeshSlot.cpp
 	RAS_Polygon.cpp
 	RAS_Shader.cpp
 	RAS_Texture.cpp
@@ -103,7 +102,6 @@ set(SRC
 	RAS_MaterialShader.h
 	RAS_MeshMaterial.h
 	RAS_MeshObject.h
-	RAS_MeshSlot.h
 	RAS_Polygon.h
 	RAS_Rect.h
 	RAS_Shader.h
