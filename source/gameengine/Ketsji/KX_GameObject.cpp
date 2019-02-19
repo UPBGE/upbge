@@ -61,7 +61,6 @@
 #include "KX_NetworkMessageScene.h" //Needed for sendMessage()
 #include "KX_ObstacleSimulation.h"
 #include "KX_Scene.h"
-#include "KX_BoundingBox.h"
 #include "KX_CullingNode.h"
 #include "KX_CollisionContactPoints.h"
 
@@ -1899,7 +1898,6 @@ PyAttributeDef KX_GameObject::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("layer", KX_GameObject, pyattr_get_layer, pyattr_set_layer),
 	KX_PYATTRIBUTE_RW_FUNCTION("visible",	KX_GameObject, pyattr_get_visible,	pyattr_set_visible),
 	KX_PYATTRIBUTE_RO_FUNCTION("culled", KX_GameObject, pyattr_get_culled),
-	KX_PYATTRIBUTE_RO_FUNCTION("cullingBox",	KX_GameObject, pyattr_get_cullingBox),
 	KX_PYATTRIBUTE_BOOL_RW    ("occlusion", KX_GameObject, m_bOccluder),
 	KX_PYATTRIBUTE_RW_FUNCTION("position",	KX_GameObject, pyattr_get_worldPosition,	pyattr_set_localPosition),
 	KX_PYATTRIBUTE_RO_FUNCTION("localInertia",	KX_GameObject, pyattr_get_localInertia),
@@ -2548,12 +2546,6 @@ PyObject *KX_GameObject::pyattr_get_culled(PyObjectPlus *self_v, const KX_PYATTR
 {
 	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
 	return PyBool_FromLong(self->GetCulled());
-}
-
-PyObject *KX_GameObject::pyattr_get_cullingBox(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-{
-	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
-	return (new KX_BoundingBox(self))->NewProxy(true);
 }
 
 PyObject *KX_GameObject::pyattr_get_worldPosition(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
