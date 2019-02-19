@@ -54,7 +54,6 @@
 //Forward declarations.
 struct KX_ClientObjectInfo;
 class KX_RayCast;
-class KX_CullingNode;
 class RAS_MeshObject;
 class PHY_IGraphicController;
 class PHY_IPhysicsEnvironment;
@@ -120,8 +119,6 @@ protected:
 
 	PHY_IPhysicsController*				m_pPhysicsController;
 	PHY_IGraphicController*				m_pGraphicController;
-
-	KX_CullingNode m_cullingNode;
 	SG_Node*							m_pSGNode;
 
 	std::vector<bRigidBodyJointConstraint*>	m_constraints;
@@ -771,22 +768,6 @@ public:
 		bool b,
 		bool recursive
 	);
-
-	/**
-	 * Was this object culled?
-	 */
-	inline bool
-	GetCulled(
-		void
-	) { return m_cullingNode.GetCulled(); }
-
-	/**
-	 * Set culled flag of this object
-	 */
-	inline void
-	SetCulled(
-		bool c
-	) { m_cullingNode.SetCulled(c); }
 	
 	/**
 	 * Is this object an occluder?
@@ -843,8 +824,6 @@ public:
 	void UpdateBounds(bool force);
 	void SetBoundsAabb(MT_Vector3 aabbMin, MT_Vector3 aabbMax);
 	void GetBoundsAabb(MT_Vector3 &aabbMin, MT_Vector3 &aabbMax) const;
-
-	KX_CullingNode *GetCullingNode();
 
 	/**
 	 * Get the negative scaling state
@@ -976,7 +955,6 @@ public:
 	static int			pyattr_set_layer(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_visible(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_visible(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_culled(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_worldPosition(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_worldPosition(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_localPosition(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);

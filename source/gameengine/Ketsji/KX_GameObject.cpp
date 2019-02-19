@@ -61,7 +61,6 @@
 #include "KX_NetworkMessageScene.h" //Needed for sendMessage()
 #include "KX_ObstacleSimulation.h"
 #include "KX_Scene.h"
-#include "KX_CullingNode.h"
 #include "KX_CollisionContactPoints.h"
 
 #include "BKE_object.h"
@@ -130,7 +129,6 @@ KX_GameObject::KX_GameObject(
       m_autoUpdateBounds(false),
       m_pPhysicsController(nullptr),
       m_pGraphicController(nullptr),
-      m_cullingNode(this),
       m_pInstanceObjects(nullptr),
       m_pDupliGroupObject(nullptr),
       m_actionManager(nullptr)
@@ -657,8 +655,6 @@ void KX_GameObject::ProcessReplica()
 	m_pGraphicController = nullptr;
 	m_pPhysicsController = nullptr;
 	m_pSGNode = nullptr;
-
-	m_cullingNode.SetObject(this);
 
 	/* Dupli group and instance list are set later in replication.
 	 * See KX_Scene::DupliGroupRecurse. */
@@ -1416,24 +1412,10 @@ void KX_GameObject::UpdateBounds(bool force)
 
 void KX_GameObject::SetBoundsAabb(MT_Vector3 aabbMin, MT_Vector3 aabbMax)
 {
-	// Set the AABB in culling node box.
-	m_cullingNode.GetAabb().Set(aabbMin, aabbMax);
-
 	// Synchronize the AABB with the graphic controller.
 	if (m_pGraphicController) {
 		m_pGraphicController->SetLocalAabb(aabbMin, aabbMax);
 	}
-}
-
-void KX_GameObject::GetBoundsAabb(MT_Vector3 &aabbMin, MT_Vector3 &aabbMax) const
-{
-	// Get the culling node box AABB
-	m_cullingNode.GetAabb().Get(aabbMin, aabbMax);
-}
-
-KX_CullingNode *KX_GameObject::GetCullingNode()
-{
-	return &m_cullingNode;
 }
 
 void KX_GameObject::UnregisterCollisionCallbacks()
@@ -1897,7 +1879,6 @@ PyAttributeDef KX_GameObject::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("angularVelocityMax", KX_GameObject, pyattr_get_ang_vel_max, pyattr_set_ang_vel_max),
 	KX_PYATTRIBUTE_RW_FUNCTION("layer", KX_GameObject, pyattr_get_layer, pyattr_set_layer),
 	KX_PYATTRIBUTE_RW_FUNCTION("visible",	KX_GameObject, pyattr_get_visible,	pyattr_set_visible),
-	KX_PYATTRIBUTE_RO_FUNCTION("culled", KX_GameObject, pyattr_get_culled),
 	KX_PYATTRIBUTE_BOOL_RW    ("occlusion", KX_GameObject, m_bOccluder),
 	KX_PYATTRIBUTE_RW_FUNCTION("position",	KX_GameObject, pyattr_get_worldPosition,	pyattr_set_localPosition),
 	KX_PYATTRIBUTE_RO_FUNCTION("localInertia",	KX_GameObject, pyattr_get_localInertia),
@@ -2540,12 +2521,6 @@ int KX_GameObject::pyattr_set_visible(PyObjectPlus *self_v, const KX_PYATTRIBUTE
 
 	self->SetVisible(param, false);
 	return PY_SET_ATTR_SUCCESS;
-}
-
-PyObject *KX_GameObject::pyattr_get_culled(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-{
-	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
-	return PyBool_FromLong(self->GetCulled());
 }
 
 PyObject *KX_GameObject::pyattr_get_worldPosition(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)

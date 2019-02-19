@@ -34,7 +34,6 @@
 
 
 #include "KX_PhysicsEngineEnums.h"
-#include "KX_CullingNode.h" // For KX_CullingNodeList.
 
 #include <vector>
 #include <set>
@@ -127,17 +126,6 @@ private:
 	PyObject*	m_attr_dict;
 	PyObject*	m_drawCallbacks[MAX_DRAW_CALLBACK];
 #endif
-
-	struct CullingInfo {
-		int m_layer;
-		KX_CullingNodeList& m_nodes;
-
-		CullingInfo(int layer, KX_CullingNodeList& nodes)
-			:m_layer(layer),
-			m_nodes(nodes)
-		{
-		}
-	};
 
 protected:
 
@@ -335,8 +323,6 @@ public:
 
 	void RenderAfterCameraSetup(bool calledFromConstructor);
 	void RenderAfterCameraSetupImageRender(KX_Camera *cam, RAS_ICanvas *canvas);
-	
-	//void RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer *rasty);
 	/***************End of EEVEE INTEGRATION**********************/
 
 	RAS_BucketManager* GetBucketManager() const;
@@ -480,11 +466,8 @@ public:
 
 	void SetWorldInfo(class KX_WorldInfo* wi);
 	KX_WorldInfo* GetWorldInfo();
-	void CalculateVisibleMeshes(KX_CullingNodeList& nodes, KX_Camera *cam, int layer);
-	void CalculateVisibleMeshes(KX_CullingNodeList& nodes, const SG_Frustum& frustum, int layer);
 
 	/// \section Debug draw.
-	void DrawDebug(RAS_DebugDraw& debugDraw, const KX_CullingNodeList& nodes);
 	void RenderDebugProperties(RAS_DebugDraw& debugDraw, int xindent, int ysize, int& xcoord, int& ycoord, unsigned short propsMax);
 
 	/**

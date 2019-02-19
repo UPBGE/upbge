@@ -880,25 +880,16 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene, const CameraRenderData& came
 
 	m_logger.StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds());
 
-	//KX_CullingNodeList nodes;
-	//scene->CalculateVisibleMeshes(nodes, cullingcam, 0);
-
 	m_logger.StartLog(tc_animations, m_kxsystem->GetTimeInSeconds());
 	UpdateAnimations(scene);
 
 	m_logger.StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds());
-
-	//RAS_DebugDraw& debugDraw = m_rasterizer->GetDebugDraw(scene);
-	// Draw debug infos.
-	//scene->DrawDebug(debugDraw, nodes);
 
 #ifdef WITH_PYTHON
 	PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());
 	// Run any pre-drawing python callbacks
 	scene->RunDrawingCallbacks(KX_Scene::PRE_DRAW, rendercam);
 #endif
-
-	//scene->RenderBucketsNew(nodes, m_rasterizer);
 
 	scene->RenderAfterCameraSetup(false);
 

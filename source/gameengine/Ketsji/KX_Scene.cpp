@@ -58,7 +58,6 @@
 #include "KX_PyMath.h"
 #include "RAS_MeshObject.h"
 #include "SCA_IScene.h"
-#include "KX_CullingHandler.h"
 
 #include "RAS_Rasterizer.h"
 #include "RAS_ICanvas.h"
@@ -1261,81 +1260,10 @@ void KX_Scene::SetCameraOnTop(KX_Camera* cam)
 
 void KX_Scene::PhysicsCullingCallback(KX_ClientObjectInfo *objectInfo, void *cullingInfo)
 {
-	CullingInfo *info = static_cast<CullingInfo *>(cullingInfo);
 	KX_GameObject* gameobj = objectInfo->m_gameobject;
 	if (!gameobj->GetVisible() || !gameobj->UseCulling()) {
 		// ideally, invisible objects should be removed from the culling tree temporarily
 		return;
-	}
-	if (info->m_layer && !(gameobj->GetLayer() & info->m_layer)) {
-		// used for shadow: object is not in shadow layer
-		return;
-	}
-
-	// make object visible
-	gameobj->SetCulled(false);
-	info->m_nodes.push_back(gameobj->GetCullingNode());
-}
-
-void KX_Scene::CalculateVisibleMeshes(KX_CullingNodeList& nodes, KX_Camera *cam, int layer)
-{
-	if (!cam->GetFrustumCulling()) {
-		for (KX_GameObject *gameobj : m_objectlist) {
-			KX_CullingNode *node = gameobj->GetCullingNode();
-			nodes.push_back(gameobj->GetCullingNode());
-			node->SetCulled(false);
-		}
-		return;
-	}
-
-	CalculateVisibleMeshes(nodes, cam->GetFrustum(), layer);
-}
-
-void KX_Scene::CalculateVisibleMeshes(KX_CullingNodeList& nodes, const SG_Frustum& frustum, int layer)
-{
-
-	bool dbvt_culling = false;
-	if (m_dbvt_culling) {
-		// test culling through Bullet
-		// get the clip planes
-		const std::array<MT_Vector4, 6>& planes = frustum.GetPlanes();
-		const MT_Matrix4x4& matrix = frustum.GetMatrix();
-		int viewport[4];
-		KX_GetActiveEngine()->GetCanvas()->GetViewportArea().Pack(viewport);
-
-		CullingInfo info(layer, nodes);
-
-		dbvt_culling = m_physicsEnvironment->CullingTest(PhysicsCullingCallback, &info, planes, m_dbvt_occlusion_res, viewport, matrix);
-	}
-	if (!dbvt_culling) {
-	}
-}
-
-void KX_Scene::DrawDebug(RAS_DebugDraw& debugDraw, const KX_CullingNodeList& nodes)
-{
-	const KX_DebugOption showBoundingBox = KX_GetActiveEngine()->GetShowBoundingBox();
-	if (showBoundingBox != KX_DebugOption::DISABLE) {
-		for (KX_GameObject *gameobj : m_objectlist) {
-			const MT_Vector3& scale = gameobj->NodeGetWorldScaling();
-			const MT_Vector3& position = gameobj->NodeGetWorldPosition();
-			const MT_Matrix3x3& orientation = gameobj->NodeGetWorldOrientation();
-			const SG_BBox& box = gameobj->GetCullingNode()->GetAabb();
-			const MT_Vector3& center = box.GetCenter();
-
-			debugDraw.DrawAabb(position, orientation, box.GetMin() * scale, box.GetMax() * scale,
-				MT_Vector4(1.0f, 0.0f, 1.0f, 1.0f));
-
-			// Render center in red, green and blue.
-			debugDraw.DrawLine(orientation * center * scale + position,
-				orientation * (center + MT_Vector3(1.0f, 0.0f, 0.0f)) * scale + position,
-				MT_Vector4(1.0f, 0.0f, 0.0f, 1.0f));
-			debugDraw.DrawLine(orientation * center * scale + position,
-				orientation * (center + MT_Vector3(0.0f, 1.0f, 0.0f)) * scale  + position,
-				MT_Vector4(0.0f, 1.0f, 0.0f, 1.0f));
-			debugDraw.DrawLine(orientation * center * scale + position,
-				orientation * (center + MT_Vector3(0.0f, 0.0f, 1.0f)) * scale  + position,
-				MT_Vector4(0.0f, 0.0f, 1.0f, 1.0f));
-		}
 	}
 }
 
