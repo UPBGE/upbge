@@ -886,10 +886,6 @@ void RAS_Rasterizer::SetPolygonOffset(float mult, float add)
 	}
 }
 
-void RAS_Rasterizer::SetAlphaBlend(int alphablend)
-{
-}
-
 void RAS_Rasterizer::SetFrontFace(bool ccw)
 {
 	// Invert the front face if the camera has a negative scale or if we force to inverse the front face.
@@ -1089,12 +1085,9 @@ void RAS_Rasterizer::GetTransform(float *origmat, int objectdrawmode, float mat[
 
 void RAS_Rasterizer::DisableForText()
 {
-	SetAlphaBlend(GPU_BLEND_ALPHA);
 	SetLines(false); /* needed for texture fonts otherwise they render as wireframe */
 
 	Enable(RAS_CULL_FACE);
-
-	//DisableLights();
 
 	m_impl->DisableForText();
 }

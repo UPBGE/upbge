@@ -360,8 +360,6 @@ void RAS_OpenGLRasterizer::RenderText3D(
 	BLF_draw(fontid, text.c_str(), text.size());
 
 	BLF_disable(fontid, BLF_MATRIX | BLF_ASPECT);
-
-	m_rasterizer->SetAlphaBlend(GPU_BLEND_SOLID);
 }
 
 void RAS_OpenGLRasterizer::PrintHardwareInfo()

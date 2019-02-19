@@ -162,7 +162,6 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_
 	MT_Matrix4x4 m_cameraMatrix(cam->GetProjectionMatrix() * cam->GetModelviewMatrix());
 
 	rasty->SetFrontFace(true);
-	rasty->SetAlphaBlend(GPU_BLEND_ALPHA);
 
 	// draw lines
 	GPUVertFormat *format = immVertexFormat();

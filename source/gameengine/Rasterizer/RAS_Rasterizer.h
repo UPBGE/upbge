@@ -552,7 +552,6 @@ public:
 	const MT_Matrix4x4& GetPersMatrix() const;
 	const MT_Matrix4x4& GetPersInvMatrix() const;
 
-	void SetAlphaBlend(int alphablend);
 	void SetFrontFace(bool ccw);
 
 	void SetInvertFrontFace(bool invert);
