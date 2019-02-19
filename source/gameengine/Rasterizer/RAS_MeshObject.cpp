@@ -32,7 +32,6 @@
 #include "DNA_mesh_types.h"
 
 #include "RAS_MeshObject.h"
-#include "RAS_BoundingBoxManager.h"
 #include "RAS_Polygon.h"
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_BucketManager.h"
@@ -322,7 +321,7 @@ const float *RAS_MeshObject::GetVertexLocation(unsigned int orig_index)
 	return it->m_darray->GetVertex(it->m_offset)->getXYZ();
 }
 
-void RAS_MeshObject::EndConversion(RAS_BoundingBoxManager *boundingBoxManager)
+void RAS_MeshObject::EndConversion()
 {
 #if 0
 	m_sharedvertex_map.clear(); // SharedVertex

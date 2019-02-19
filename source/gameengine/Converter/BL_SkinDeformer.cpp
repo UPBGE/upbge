@@ -42,7 +42,6 @@
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_DisplayArray.h"
 #include "RAS_MeshObject.h"
-#include "RAS_BoundingBox.h"
 
 //#include "BL_ArmatureController.h"
 #include "BL_DeformableGameObject.h"
@@ -348,8 +347,6 @@ void BL_SkinDeformer::UpdateTransverts()
 
 			array->SetModifiedFlag(RAS_IDisplayArray::POSITION_MODIFIED | RAS_IDisplayArray::NORMAL_MODIFIED);
 		}
-
-		m_boundingBox->SetAabb(aabbMin, aabbMax);
 
 
 		if (m_copyNormals)

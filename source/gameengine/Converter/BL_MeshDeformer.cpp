@@ -40,7 +40,6 @@
 #include "RAS_DisplayArray.h"
 #include "BL_DeformableGameObject.h"
 #include "BL_MeshDeformer.h"
-#include "RAS_BoundingBoxManager.h"
 #include "RAS_MeshObject.h"
 #include "RAS_Polygon.h"
 #include "DNA_mesh_types.h"

@@ -65,7 +65,6 @@
 #include "RAS_2DFilterData.h"
 #include "RAS_2DFilter.h"
 #include "KX_2DFilterManager.h"
-#include "RAS_BoundingBoxManager.h"
 #include "RAS_BucketManager.h"
 #include "RAS_ILightObject.h"
 
@@ -216,7 +215,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
 	KX_TextMaterial *textMaterial = new KX_TextMaterial();
 	m_bucketmanager=new RAS_BucketManager(textMaterial);
-	m_boundingBoxManager = new RAS_BoundingBoxManager();
 	
 	bool showObstacleSimulation = (scene->gm.flag & GAME_SHOW_OBSTACLE_SIMULATION) != 0;
 	switch (scene->gm.obstacleSimulation)
@@ -337,10 +335,6 @@ KX_Scene::~KX_Scene()
 	if (m_bucketmanager)
 	{
 		delete m_bucketmanager;
-	}
-
-	if (m_boundingBoxManager) {
-		delete m_boundingBoxManager;
 	}
 
 #ifdef WITH_PYTHON
@@ -484,11 +478,6 @@ void KX_Scene::SetName(const std::string& name)
 RAS_BucketManager* KX_Scene::GetBucketManager() const
 {
 	return m_bucketmanager;
-}
-
-RAS_BoundingBoxManager *KX_Scene::GetBoundingBoxManager() const
-{
-	return m_boundingBoxManager;
 }
 
 CListValue<KX_GameObject> *KX_Scene::GetObjectList() const
@@ -1312,7 +1301,6 @@ void KX_Scene::CalculateVisibleMeshes(KX_CullingNodeList& nodes, KX_Camera *cam,
 
 void KX_Scene::CalculateVisibleMeshes(KX_CullingNodeList& nodes, const SG_Frustum& frustum, int layer)
 {
-	m_boundingBoxManager->Update(false);
 
 	bool dbvt_culling = false;
 	if (m_dbvt_culling) {
@@ -1361,8 +1349,6 @@ void KX_Scene::CalculateVisibleMeshes(KX_CullingNodeList& nodes, const SG_Frustu
 			}
 		}
 	}
-
-	m_boundingBoxManager->ClearModified();
 }
 
 void KX_Scene::DrawDebug(RAS_DebugDraw& debugDraw, const KX_CullingNodeList& nodes)
@@ -1829,7 +1815,6 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 	}
 
 	GetBucketManager()->MergeBucketManager(other->GetBucketManager());
-	GetBoundingBoxManager()->Merge(other->GetBoundingBoxManager());
 
 	/* active + inactive == all ??? - lets hope so */
 	for (KX_GameObject *gameobj : *other->GetObjectList()) {

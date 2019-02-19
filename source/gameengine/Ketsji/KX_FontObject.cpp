@@ -41,7 +41,6 @@
 #include "RAS_Rasterizer.h"
 #include "RAS_BucketManager.h"
 #include "RAS_MaterialBucket.h"
-#include "RAS_BoundingBox.h"
 
 /* paths needed for font load */
 #include "BLI_blenlib.h"
@@ -87,7 +86,6 @@ static std::vector<std::string> split_string(std::string str)
 KX_FontObject::KX_FontObject(void *sgReplicationInfo,
                              SG_Callbacks callbacks,
                              RAS_Rasterizer *rasterizer,
-							 RAS_BoundingBoxManager *boundingBoxManager,
                              Object *ob,
                              bool do_color_management)
 	:KX_GameObject(sgReplicationInfo, callbacks),

@@ -34,8 +34,6 @@
 
 #include "KX_GameObject.h"
 
-class RAS_BoundingBox;
-
 class KX_FontObject : public KX_GameObject
 {
 public:
@@ -43,7 +41,6 @@ public:
 	KX_FontObject(void *sgReplicationInfo,
 	              SG_Callbacks callbacks,
 	              RAS_Rasterizer *rasterizer,
-				  RAS_BoundingBoxManager *boundingBoxManager,
 	              Object *ob,
 	              bool do_color_management);
 

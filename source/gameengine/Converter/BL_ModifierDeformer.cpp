@@ -38,7 +38,6 @@
 #include <string>
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_MeshObject.h"
-#include "RAS_BoundingBox.h"
 
 #include "DNA_armature_types.h"
 #include "DNA_action_types.h"
@@ -207,7 +206,6 @@ bool BL_ModifierDeformer::Update(void)
 				float min[3], max[3];
 				INIT_MINMAX(min, max);
 				m_dm->getMinMax(m_dm, min, max);
-				m_boundingBox->SetAabb(MT_Vector3(min), MT_Vector3(max));
 			}
 		}
 		m_lastModifierUpdate = m_gameobj->GetLastFrame();

@@ -62,8 +62,6 @@ set(SRC
 	RAS_2DFilterData.cpp
 	RAS_2DFilterManager.cpp
 	RAS_2DFilterFrameBuffer.cpp
-	RAS_BoundingBox.cpp
-	RAS_BoundingBoxManager.cpp
 	RAS_BucketManager.cpp
 	RAS_DebugDraw.cpp
 	RAS_Deformer.cpp
@@ -87,8 +85,6 @@ set(SRC
 	RAS_2DFilter.h
 	RAS_2DFilterManager.h
 	RAS_2DFilterFrameBuffer.h
-	RAS_BoundingBox.h
-	RAS_BoundingBoxManager.h
 	RAS_BucketManager.h
 	RAS_CameraData.h
 	RAS_DebugDraw.h

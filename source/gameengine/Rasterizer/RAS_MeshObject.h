@@ -50,8 +50,6 @@
 class RAS_Deformer;
 class RAS_Polygon;
 class RAS_ITexVert;
-class RAS_BoundingBox;
-class RAS_BoundingBoxManager;
 struct Mesh;
 struct MTFace;
 struct MCol;
@@ -147,7 +145,7 @@ public:
 	int NumPolygons();
 	RAS_Polygon *GetPolygon(int num) const;
 
-	void EndConversion(RAS_BoundingBoxManager *boundingBoxManager);
+	void EndConversion();
 
 	/// Return the list of blender's layers.
 	const LayersInfo& GetLayersInfo() const;

@@ -39,7 +39,6 @@
 #include "KX_SoftBodyDeformer.h"
 #include "RAS_MeshObject.h"
 #include "RAS_DisplayArray.h"
-#include "RAS_BoundingBoxManager.h"
 
 #ifdef WITH_BULLET
 
@@ -92,7 +91,6 @@ bool KX_SoftBodyDeformer::Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *ar
 	btSoftBody::tNodeArray&   nodes(softBody->m_nodes);
 
 	if (m_needUpdateAabb) {
-		m_boundingBox->SetAabb(MT_Vector3(0.0f, 0.0f, 0.0f), MT_Vector3(0.0f, 0.0f, 0.0f));
 		m_needUpdateAabb = false;
 	}
 
@@ -151,8 +149,6 @@ bool KX_SoftBodyDeformer::Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *ar
 					 (RAS_IDisplayArray::TANGENT_MODIFIED |
 					  RAS_IDisplayArray::UVS_MODIFIED |
 					  RAS_IDisplayArray::COLORS_MODIFIED));
-
-	m_boundingBox->ExtendAabb(aabbMin, aabbMax);
 
 	array->SetModifiedFlag(RAS_IDisplayArray::POSITION_MODIFIED | RAS_IDisplayArray::NORMAL_MODIFIED);
 

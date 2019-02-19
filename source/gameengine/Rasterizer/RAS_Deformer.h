@@ -40,7 +40,6 @@
 #include <map>
 #include "MT_Vector3.h"
 
-#include "RAS_BoundingBox.h"
 #include "RAS_IDisplayArray.h" // For RAS_IDisplayArrayList.
 #include "RAS_DisplayArrayBucket.h" // For RAS_DisplayArrayBucketList.
 
@@ -55,8 +54,7 @@ class RAS_Deformer
 public:
 	RAS_Deformer(RAS_MeshObject *mesh)
 		:m_mesh(mesh),
-		m_bDynamic(false),
-		m_boundingBox(nullptr)
+		m_bDynamic(false)
 	{
 	}
 
@@ -69,7 +67,6 @@ public:
 	virtual RAS_Deformer *GetReplica()=0;
 	virtual void ProcessReplica()
 	{
-		m_boundingBox = m_boundingBox->GetReplica();
 	}
 	virtual bool SkipVertexTransform()
 	{
@@ -98,11 +95,6 @@ public:
 	}
 	virtual float (* GetTransVerts(int *tot))[3]	{	*tot= 0; return nullptr; }
 
-	RAS_BoundingBox *GetBoundingBox() const
-	{
-		return m_boundingBox;
-	}
-
 	void AddDisplayArray(RAS_IDisplayArray *array, RAS_DisplayArrayBucket *arrayBucket);
 
 protected:
@@ -111,9 +103,6 @@ protected:
 
 	RAS_IDisplayArrayList m_displayArrayList;
 	RAS_DisplayArrayBucketList m_displayArrayBucketList;
-
-	/// Deformer bounding box.
-	RAS_BoundingBox *m_boundingBox;
 };
 
 #endif
