@@ -179,7 +179,6 @@ extern Material defmaterial;	/* material.c */
 
 #ifdef WITH_BULLET
 #include "CcdPhysicsEnvironment.h"
-#include "CcdGraphicController.h"
 #endif
 
 #include "KX_MotionState.h"
@@ -774,37 +773,6 @@ static PHY_ShapeProps *CreateShapePropsFromBlenderObject(struct Object* blendero
 }
 
 //////////////////////////////////////////////////////
-
-
-static void BL_CreateGraphicObjectNew(KX_GameObject* gameobj,
-                                      KX_Scene* kxscene,
-                                      bool isActive,
-                                      e_PhysicsEngine physics_engine)
-{
-	switch (physics_engine)
-	{
-#ifdef WITH_BULLET
-	case UseBullet:
-		{
-			CcdPhysicsEnvironment* env = (CcdPhysicsEnvironment*)kxscene->GetPhysicsEnvironment();
-			BLI_assert(env);
-			PHY_IMotionState* motionstate = new KX_MotionState(gameobj->GetSGNode());
-			CcdGraphicController* ctrl = new CcdGraphicController(env, motionstate);
-			gameobj->SetGraphicController(ctrl);
-			ctrl->SetNewClientInfo(gameobj->getClientInfo());
-			if (isActive) {
-				// add first, this will create the proxy handle, only if the object is visible
-				if (gameobj->GetVisible())
-					env->AddCcdGraphicController(ctrl);
-			}
-		}
-		break;
-#endif
-	default:
-		break;
-	}
-}
-
 static void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
                                       struct Object* blenderobject,
                                       RAS_MeshObject* meshobj,
@@ -1556,22 +1524,6 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 		}
 	}
 
-	// create graphic controller for culling
-	if (kxscene->GetDbvtCulling())
-	{
-		bool occlusion = false;
-		for (KX_GameObject *gameobj : sumolist) {
-			// The object can be culled ?
-			if (gameobj->GetMeshCount() || gameobj->GetGameObjectType() == SCA_IObject::OBJ_TEXT) {
-				bool isactive = objectlist->SearchValue(gameobj);
-				BL_CreateGraphicObjectNew(gameobj, kxscene, isactive, physics_engine);
-				if (gameobj->GetOccluder())
-					occlusion = true;
-			}
-		}
-		if (occlusion)
-			kxscene->SetDbvtOcclusionRes(blenderscene->gm.occlusionRes);
-	}
 	if (blenderscene->world)
 		kxscene->GetPhysicsEnvironment()->SetNumTimeSubSteps(blenderscene->gm.physubstep);
 
@@ -1587,16 +1539,6 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 		}
 		int layerMask = (groupobj.find(blenderobject) == groupobj.end()) ? activeLayerBitInfo : 0;
 		BL_CreatePhysicsObjectNew(gameobj, blenderobject, meshobj, kxscene, layerMask, converter, processCompoundChildren);
-	}
-
-	// Create and set bounding volume.
-	for (KX_GameObject *gameobj : sumolist) {
-		//Object *blenderobject = gameobj->GetBlenderObject();
-
-		// The object allow AABB auto update only if there's no predefined bound.
-		gameobj->SetAutoUpdateBounds(true);
-
-		gameobj->UpdateBounds(true);
 	}
 
 	// create physics joints

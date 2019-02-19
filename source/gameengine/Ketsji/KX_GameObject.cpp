@@ -47,7 +47,6 @@
 #include "KX_MeshProxy.h"
 #include "KX_PolyProxy.h"
 #include "SG_Controller.h"
-#include "PHY_IGraphicController.h"
 #include "SG_Node.h"
 #include "SG_Familly.h"
 #include "KX_ClientObjectInfo.h"
@@ -126,9 +125,7 @@ KX_GameObject::KX_GameObject(
       m_objectColor(1.0f, 1.0f, 1.0f, 1.0f),
       m_bVisible(true),
       m_bOccluder(false),
-      m_autoUpdateBounds(false),
       m_pPhysicsController(nullptr),
-      m_pGraphicController(nullptr),
       m_pInstanceObjects(nullptr),
       m_pDupliGroupObject(nullptr),
       m_actionManager(nullptr)
@@ -217,10 +214,6 @@ KX_GameObject::~KX_GameObject()
 		m_pSGNode->SetSGClientObject(nullptr);
 
 		/* m_pSGNode is freed in KX_Scene::RemoveNodeDestructObject */
-	}
-	if (m_pGraphicController)
-	{
-		delete m_pGraphicController;
 	}
 
 	if (m_pPhysicsController)
@@ -523,7 +516,6 @@ void KX_GameObject::SetParent(KX_GameObject* obj, bool addToCompound, bool ghost
 				rootobj->m_pPhysicsController->AddCompoundChild(m_pPhysicsController);
 			}
 		}
-		// graphically, the object hasn't change place, no need to update m_pGraphicController
 	}
 }
 
@@ -572,7 +564,6 @@ void KX_GameObject::RemoveParent()
 				m_pPhysicsController->SetAngularVelocity(angVel, false);
 			}
 		}
-		// graphically, the object hasn't change place, no need to update m_pGraphicController
 	}
 }
 
@@ -652,7 +643,6 @@ void KX_GameObject::ProcessReplica()
 
 	ReplicateBlenderObject();
 
-	m_pGraphicController = nullptr;
 	m_pPhysicsController = nullptr;
 	m_pSGNode = nullptr;
 
@@ -671,36 +661,6 @@ void KX_GameObject::ProcessReplica()
 		m_attr_dict= PyDict_Copy(m_attr_dict);
 
 #endif
-}
-
-static void setGraphicController_recursive(SG_Node* node)
-{
-	NodeList& children = node->GetSGChildren();
-
-	for (NodeList::iterator childit = children.begin();!(childit==children.end());++childit)
-	{
-		SG_Node* childnode = (*childit);
-		KX_GameObject *clientgameobj = static_cast<KX_GameObject*>( (*childit)->GetSGClientObject());
-		if (clientgameobj != nullptr) // This is a GameObject
-			clientgameobj->ActivateGraphicController(false);
-		
-		// if the childobj is nullptr then this may be an inverse parent link
-		// so a non recursive search should still look down this node.
-		setGraphicController_recursive(childnode);
-	}
-}
-
-
-void KX_GameObject::ActivateGraphicController(bool recurse)
-{
-	if (m_pGraphicController)
-	{
-		m_pGraphicController->Activate(m_bVisible);
-	}
-	if (recurse)
-	{
-		setGraphicController_recursive(GetSGNode());
-	}
 }
 
 void KX_GameObject::SetUserCollisionGroup(unsigned short group)
@@ -861,9 +821,6 @@ void KX_GameObject::UpdateTransform()
 	// HACK: saves function call for dynamic object, they are handled differently
 	if (m_pPhysicsController && !m_pPhysicsController->IsDynamic())
 		m_pPhysicsController->SetTransform();
-	if (m_pGraphicController)
-		// update the culling tree
-		m_pGraphicController->SetGraphicTransform();
 
 }
 
@@ -877,8 +834,6 @@ void KX_GameObject::SynchronizeTransform()
 	// only used for sensor object, do full synchronization as bullet doesn't do it
 	if (m_pPhysicsController)
 		m_pPhysicsController->SetTransform();
-	if (m_pGraphicController)
-		m_pGraphicController->SetGraphicTransform();
 }
 
 void KX_GameObject::SynchronizeTransformFunc(SG_Node* node, void* gameobj, void* scene)
@@ -942,10 +897,6 @@ KX_GameObject::SetVisible(
 	)
 {
 	m_bVisible = v;
-	if (m_pGraphicController)
-		m_pGraphicController->Activate(m_bVisible);
-	if (recursive)
-		setVisible_recursive(GetSGNode(), v);
 }
 
 static void setOccluder_recursive(SG_Node* node, bool v)
@@ -1404,18 +1355,6 @@ MT_Transform KX_GameObject::NodeGetWorldTransform() const
 MT_Transform KX_GameObject::NodeGetLocalTransform() const
 {
 	return m_pSGNode->GetLocalTransform();
-}
-
-void KX_GameObject::UpdateBounds(bool force)
-{
-}
-
-void KX_GameObject::SetBoundsAabb(MT_Vector3 aabbMin, MT_Vector3 aabbMax)
-{
-	// Synchronize the AABB with the graphic controller.
-	if (m_pGraphicController) {
-		m_pGraphicController->SetLocalAabb(aabbMin, aabbMax);
-	}
 }
 
 void KX_GameObject::UnregisterCollisionCallbacks()

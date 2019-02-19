@@ -55,7 +55,6 @@
 struct KX_ClientObjectInfo;
 class KX_RayCast;
 class RAS_MeshObject;
-class PHY_IGraphicController;
 class PHY_IPhysicsEnvironment;
 class PHY_IPhysicsController;
 class BL_ActionManager;
@@ -115,10 +114,7 @@ protected:
 	bool       							m_bVisible; 
 	bool								m_bOccluder;
 
-	bool								m_autoUpdateBounds;
-
 	PHY_IPhysicsController*				m_pPhysicsController;
-	PHY_IGraphicController*				m_pGraphicController;
 	SG_Node*							m_pSGNode;
 
 	std::vector<bRigidBodyJointConstraint*>	m_constraints;
@@ -457,23 +453,6 @@ public:
 		return false;
 	}
 
-	/**
-	 * \return a pointer to the graphic controller owner by this class 
-	 */
-	PHY_IGraphicController* GetGraphicController()
-	{
-		return m_pGraphicController;
-	}
-
-	void SetGraphicController(PHY_IGraphicController* graphiccontroller) 
-	{ 
-		m_pGraphicController = graphiccontroller;
-	}
-	/*
-	 * @add/remove the graphic controller to the physic system
-	 */
-	void ActivateGraphicController(bool recurse);
-
 	/** Set the object's collison group
 	 * \param filter The group bitfield
 	 */
@@ -802,28 +781,6 @@ public:
 	GetLayer(
 		void
 	);
-
-	/// Allow auto updating bounding volume box.
-	inline void SetAutoUpdateBounds(bool autoUpdate)
-	{
-		m_autoUpdateBounds = autoUpdate;
-	}
-
-	inline bool GetAutoUpdateBounds() const
-	{
-		return m_autoUpdateBounds;
-	}
-
-	/** Update the game object bounding box (AABB) by using the one existing in the
-	 * mesh or the mesh deformer.
-	 * \param force Force the AABB update even if the object doesn't allow auto update or if the mesh is
-	 * not modified like in the case of mesh replacement or object duplication.
-	 * \warning Should be called when the game object contains a valid scene graph node
-	 * and a valid graphic controller (if it exists).
-	 */
-	void UpdateBounds(bool force);
-	void SetBoundsAabb(MT_Vector3 aabbMin, MT_Vector3 aabbMax);
-	void GetBoundsAabb(MT_Vector3 &aabbMin, MT_Vector3 &aabbMax) const;
 
 	/**
 	 * Get the negative scaling state

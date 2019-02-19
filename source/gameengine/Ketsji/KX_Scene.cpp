@@ -85,7 +85,6 @@
 
 #include "KX_NetworkMessageScene.h"
 #include "PHY_IPhysicsEnvironment.h"
-#include "PHY_IGraphicController.h"
 #include "PHY_IPhysicsController.h"
 #include "KX_BlenderConverter.h"
 #include "KX_MotionState.h"
@@ -688,14 +687,6 @@ KX_GameObject* KX_Scene::AddNodeReplicaObject(SG_Node* node, KX_GameObject *game
 			replicanode->AddSGController(replicacontroller);
 		}
 	}
-	// replicate graphic controller
-	if (gameobj->GetGraphicController())
-	{
-		PHY_IMotionState* motionstate = new KX_MotionState(newobj->GetSGNode());
-		PHY_IGraphicController* newctrl = gameobj->GetGraphicController()->GetReplica(motionstate);
-		newctrl->SetNewClientInfo(newobj->getClientInfo());
-		newobj->SetGraphicController(newctrl);
-	}
 
 	// replicate physics controller
 	if (gameobj->GetPhysicsController())
@@ -714,9 +705,6 @@ KX_GameObject* KX_Scene::AddNodeReplicaObject(SG_Node* node, KX_GameObject *game
 		if (parent)
 			newctrl->SuspendDynamics();
 	}
-
-	// Always make sure that the bounding box is valid.
-	newobj->UpdateBounds(true);
 
 	return newobj;
 }
@@ -923,8 +911,6 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
 		replica->NodeSetLocalOrientation(newori);
 		// update scenegraph for entire tree of children
 		replica->GetSGNode()->UpdateWorldData(0);
-		// we can now add the graphic controller to the physic engine
-		replica->ActivateGraphicController(true);
 
 		// done with replica
 		replica->Release();
@@ -1036,8 +1022,6 @@ KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobject, KX_Game
 	}
 
 	replica->GetSGNode()->UpdateWorldData(0);
-	// the size is correct, we can add the graphic controller to the physic engine
-	replica->ActivateGraphicController(true);
 
 	// now replicate logic
 	for (KX_GameObject *gameobj : m_logicHierarchicalGameObjects) {
@@ -1627,13 +1611,7 @@ static void MergeScene_GameObject(KX_GameObject* gameobj, KX_Scene *to, KX_Scene
 	}
 
 	/* graphics controller */
-	PHY_IController *ctrl = gameobj->GetGraphicController();
-	if (ctrl) {
-		/* SHOULD update the m_cullingTree */
-		ctrl->SetPhysicsEnvironment(to->GetPhysicsEnvironment());
-	}
-
-	ctrl = gameobj->GetPhysicsController();
+	PHY_IController *ctrl = gameobj->GetPhysicsController();
 	if (ctrl) {
 		ctrl->SetPhysicsEnvironment(to->GetPhysicsEnvironment());
 	}
