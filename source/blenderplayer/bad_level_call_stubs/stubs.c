@@ -464,7 +464,7 @@ void WM_event_add_notifier(const struct bContext *C, unsigned int type, void *re
 void WM_main_add_notifier(unsigned int type, void *reference) RET_NONE
 void ED_armature_bone_rename(struct Main *bmain, struct bArmature *arm, const char *oldnamep, const char *newnamep) RET_NONE
 void ED_armature_transform(struct Main *bmain, struct bArmature *arm, float mat[4][4], const bool do_props) RET_NONE
-struct wmEventHandler *WM_event_add_modal_handler(struct bContext *C, struct wmOperator *op) RET_NULL
+struct wmEventHandler_Op *WM_event_add_modal_handler(struct bContext *C, struct wmOperator *op) RET_NULL
 struct wmTimer *WM_event_add_timer(struct wmWindowManager *wm, struct wmWindow *win, int event_type, double timestep) RET_NULL
 struct wmEvent *WM_event_add_simulate(struct wmWindow *win, const struct wmEvent *event_to_add) RET_NULL
 void WM_event_remove_timer(struct wmWindowManager *wm, struct wmWindow *win, struct wmTimer *timer) RET_NONE
@@ -609,7 +609,7 @@ void ED_space_image_get_uv_aspect(struct SpaceImage *sima, float *aspx, float *a
 struct FCurve *verify_driver_fcurve(struct ID *id, const char rna_path[], const int array_index, short add) RET_NULL
 
 
-const char *ED_info_stats_string(struct Scene *scene, struct ViewLayer *view_layer) RET_NULL
+const char *ED_info_stats_string(struct Main *bmain, struct Scene *scene, struct ViewLayer *view_layer) RET_NULL
 void ED_area_tag_redraw(struct ScrArea *sa) RET_NONE
 void ED_area_tag_refresh(struct ScrArea *sa) RET_NONE
 void ED_area_newspace(struct bContext *C, struct ScrArea *sa, int type, const bool skip_ar_exit) RET_NONE

@@ -940,7 +940,7 @@ static void DRW_shgroup_empty_image(
 	/* OPTI(fclem) We need sorting only for transparent images. If an image as no alpha channel and
 	 * ob->col[3] == 1.0f,  we could remove it from the sorting pass. */
 
-	if (tex && (ob->col[3] > 0.0f)) {
+	if (tex && (ob->color[3] > 0.0f)) {
 		DRWShadingGroup *grp = DRW_shgroup_create(sh_data->object_empty_image, sgl->image_empties);
 		DRW_shgroup_uniform_texture(grp, "image", tex);
 		/* TODO(fclem) implement DRW_shgroup_uniform_vec2_copy */
@@ -949,7 +949,7 @@ static void DRW_shgroup_empty_image(
 		DRW_shgroup_uniform_int_copy(grp, "depthMode", ob->empty_image_depth);
 		DRW_shgroup_uniform_float(grp, "size", &ob->empty_drawsize, 1);
 		DRW_shgroup_uniform_vec2(grp, "offset", ob->ima_ofs, 1);
-		DRW_shgroup_uniform_vec4(grp, "objectColor", ob->col, 1);
+		DRW_shgroup_uniform_vec4(grp, "objectColor", ob->color, 1);
 		if (sh_cfg == GPU_SHADER_CFG_CLIPPED) {
 			DRW_shgroup_world_clip_planes_from_rv3d(grp, DRW_context_state_get()->rv3d);
 		}
@@ -2016,7 +2016,7 @@ static void DRW_shgroup_camera(OBJECT_ShadingGroupList *sgl, Object *ob, ViewLay
 				}
 
 				if (is_select) {
-					DRW_select_load_id(camera_object->select_color | (track_index << 16));
+					DRW_select_load_id(camera_object->select_id | (track_index << 16));
 					track_index++;
 				}
 
@@ -2553,7 +2553,7 @@ static void DRW_shgroup_relationship_lines(
         Object *ob)
 {
 	if (ob->parent && (DRW_object_visibility_in_active_context(ob->parent) & OB_VISIBLE_SELF)) {
-		DRW_shgroup_call_dynamic_add(sgl->relationship_lines, ob->runtime.parent_origin_eval);
+		DRW_shgroup_call_dynamic_add(sgl->relationship_lines, ob->runtime.parent_display_origin);
 		DRW_shgroup_call_dynamic_add(sgl->relationship_lines, ob->obmat[3]);
 	}
 

@@ -673,37 +673,38 @@ wmGizmo *wm_gizmomap_highlight_find(
 
 void WM_gizmomap_add_handlers(ARegion *ar, wmGizmoMap *gzmap)
 {
-	wmEventHandler *handler;
-
-	for (handler = ar->handlers.first; handler; handler = handler->next) {
-		if (handler->gizmo_map == gzmap) {
-			return;
+	LISTBASE_FOREACH (wmEventHandler *, handler_base, &ar->handlers) {
+		if (handler_base->type == WM_HANDLER_TYPE_GIZMO) {
+			wmEventHandler_Gizmo *handler = (wmEventHandler_Gizmo *)handler_base;
+			if (handler->gizmo_map == gzmap) {
+				return;
+			}
 		}
 	}
 
-	handler = MEM_callocN(sizeof(wmEventHandler), "gizmo handler");
-
+	wmEventHandler_Gizmo *handler = MEM_callocN(sizeof(*handler), __func__);
+	handler->base.type = WM_HANDLER_TYPE_GIZMO;
 	BLI_assert(gzmap == ar->gizmo_map);
 	handler->gizmo_map = gzmap;
 	BLI_addtail(&ar->handlers, handler);
 }
 
 void wm_gizmomaps_handled_modal_update(
-        bContext *C, wmEvent *event, wmEventHandler *handler)
+        bContext *C, wmEvent *event, wmEventHandler_Op *handler)
 {
 	const bool modal_running = (handler->op != NULL);
 
 	/* happens on render or when joining areas */
-	if (!handler->op_region || !handler->op_region->gizmo_map) {
+	if (!handler->context.region || !handler->context.region->gizmo_map) {
 		return;
 	}
 
-	wmGizmoMap *gzmap = handler->op_region->gizmo_map;
+	wmGizmoMap *gzmap = handler->context.region->gizmo_map;
 	wmGizmo *gz = wm_gizmomap_modal_get(gzmap);
 	ScrArea *area = CTX_wm_area(C);
 	ARegion *region = CTX_wm_region(C);
 
-	wm_gizmomap_handler_context(C, handler);
+	wm_gizmomap_handler_context_op(C, handler);
 
 	/* regular update for running operator */
 	if (modal_running) {
@@ -829,38 +830,39 @@ bool WM_gizmomap_select_all(bContext *C, wmGizmoMap *gzmap, const int action)
  * Prepare context for gizmo handling (but only if area/region is
  * part of screen). Version of #wm_handler_op_context for gizmos.
  */
-void wm_gizmomap_handler_context(bContext *C, wmEventHandler *handler)
+void wm_gizmomap_handler_context_op(bContext *C, wmEventHandler_Op *handler)
 {
 	bScreen *screen = CTX_wm_screen(C);
 
 	if (screen) {
-		if (handler->op_area == NULL) {
-			/* do nothing in this context */
+		ScrArea *sa;
+
+		for (sa = screen->areabase.first; sa; sa = sa->next) {
+			if (sa == handler->context.area) {
+				break;
+			}
+		}
+		if (sa == NULL) {
+			/* when changing screen layouts with running modal handlers (like render display), this
+			 * is not an error to print */
+			printf("internal error: modal gizmo-map handler has invalid area\n");
 		}
 		else {
-			ScrArea *sa;
-
-			for (sa = screen->areabase.first; sa; sa = sa->next)
-				if (sa == handler->op_area)
+			ARegion *ar;
+			CTX_wm_area_set(C, sa);
+			for (ar = sa->regionbase.first; ar; ar = ar->next)
+				if (ar == handler->context.region)
 					break;
-			if (sa == NULL) {
-				/* when changing screen layouts with running modal handlers (like render display), this
-				 * is not an error to print */
-				if (handler->gizmo_map == NULL)
-					printf("internal error: modal gizmo-map handler has invalid area\n");
-			}
-			else {
-				ARegion *ar;
-				CTX_wm_area_set(C, sa);
-				for (ar = sa->regionbase.first; ar; ar = ar->next)
-					if (ar == handler->op_region)
-						break;
-				/* XXX no warning print here, after full-area and back regions are remade */
-				if (ar)
-					CTX_wm_region_set(C, ar);
-			}
+			/* XXX no warning print here, after full-area and back regions are remade */
+			if (ar)
+				CTX_wm_region_set(C, ar);
 		}
 	}
+}
+
+void wm_gizmomap_handler_context_gizmo(bContext *UNUSED(C), wmEventHandler_Gizmo *UNUSED(handler))
+{
+	/* pass */
 }
 
 bool WM_gizmomap_cursor_set(const wmGizmoMap *gzmap, wmWindow *win)

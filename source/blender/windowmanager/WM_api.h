@@ -58,6 +58,8 @@ struct wmDrag;
 struct wmDropBox;
 struct wmEvent;
 struct wmEventHandler;
+struct wmEventHandler_Keymap;
+struct wmEventHandler_UI;
 struct wmGesture;
 struct wmJob;
 struct wmMsgSubscribeKey;
@@ -188,23 +190,26 @@ int			WM_userdef_event_type_from_keymap_type(int kmitype);
 
 			/* handlers */
 
-struct wmEventHandler *WM_event_add_keymap_handler(ListBase *handlers, wmKeyMap *keymap);
-						/* boundbox, optional subwindow boundbox for offset */
-struct wmEventHandler *WM_event_add_keymap_handler_bb(ListBase *handlers, wmKeyMap *keymap, const rcti *bb, const rcti *swinbb);
-						/* priority not implemented, it adds in begin */
-struct wmEventHandler *WM_event_add_keymap_handler_priority(ListBase *handlers, wmKeyMap *keymap, int priority);
+struct wmEventHandler_Keymap *WM_event_add_keymap_handler(
+        ListBase *handlers, wmKeyMap *keymap);
+/* boundbox, optional subwindow boundbox for offset */
+struct wmEventHandler_Keymap *WM_event_add_keymap_handler_bb(
+        ListBase *handlers, wmKeyMap *keymap, const rcti *bb, const rcti *swinbb);
+/* priority not implemented, it adds in begin */
+struct wmEventHandler_Keymap *WM_event_add_keymap_handler_priority(
+        ListBase *handlers, wmKeyMap *keymap, int priority);
 
 void		WM_event_remove_keymap_handler(ListBase *handlers, wmKeyMap *keymap);
 
 void WM_event_set_keymap_handler_callback(
-        struct wmEventHandler *handler,
+        struct wmEventHandler_Keymap *handler,
         void (keymap_tag)(wmKeyMap *keymap, wmKeyMapItem *kmi, void *user_data),
         void *user_data);
 
 typedef int (*wmUIHandlerFunc)(struct bContext *C, const struct wmEvent *event, void *userdata);
 typedef void (*wmUIHandlerRemoveFunc)(struct bContext *C, void *userdata);
 
-struct wmEventHandler *WM_event_add_ui_handler(
+struct wmEventHandler_UI *WM_event_add_ui_handler(
         const struct bContext *C, ListBase *handlers,
         wmUIHandlerFunc ui_handle, wmUIHandlerRemoveFunc ui_remove,
         void *userdata, const char flag);
@@ -218,7 +223,7 @@ void WM_event_free_ui_handler_all(
         struct bContext *C, ListBase *handlers,
         wmUIHandlerFunc ui_handle, wmUIHandlerRemoveFunc ui_remove);
 
-struct wmEventHandler *WM_event_add_modal_handler(struct bContext *C, struct wmOperator *op);
+struct wmEventHandler_Op *WM_event_add_modal_handler(struct bContext *C, struct wmOperator *op);
 void WM_event_modal_handler_area_replace(wmWindow *win, const struct ScrArea *old_area, struct ScrArea *new_area);
 void WM_event_modal_handler_region_replace(wmWindow *win, const struct ARegion *old_region, struct ARegion *new_region);
 
@@ -233,7 +238,8 @@ enum {
 	WM_HANDLER_DO_FREE              = (1 << 7),  /* handler tagged to be freed in wm_handlers_do() */
 };
 
-struct wmEventHandler *WM_event_add_dropbox_handler(ListBase *handlers, ListBase *dropboxes);
+struct wmEventHandler_Dropbox *WM_event_add_dropbox_handler(
+        ListBase *handlers, ListBase *dropboxes);
 
 			/* mouse */
 void		WM_event_add_mousemove(const struct bContext *C);

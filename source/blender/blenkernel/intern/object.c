@@ -825,8 +825,7 @@ void BKE_object_init(Object *ob)
 {
 	/* BLI_assert(MEMCMP_STRUCT_OFS_IS_ZERO(ob, id)); */  /* ob->type is already initialized... */
 
-	ob->col[0] = ob->col[1] = ob->col[2] = 1.0;
-	ob->col[3] = 1.0;
+	copy_v4_fl(ob->color, 1.0f);
 
 	ob->scale[0] = ob->scale[1] = ob->scale[2] = 1.0;
 	ob->dscale[0] = ob->dscale[1] = ob->dscale[2] = 1.0;
@@ -2280,10 +2279,10 @@ static void solve_parenting(Object *ob, Object *par, float obmat[4][4],
 	/* origin, for help line */
 	if (set_origin) {
 		if ((ob->partype & PARTYPE) == PARSKEL) {
-			copy_v3_v3(ob->runtime.parent_origin_eval, par->obmat[3]);
+			copy_v3_v3(ob->runtime.parent_display_origin, par->obmat[3]);
 		}
 		else {
-			copy_v3_v3(ob->runtime.parent_origin_eval, totmat[3]);
+			copy_v3_v3(ob->runtime.parent_display_origin, totmat[3]);
 		}
 	}
 }

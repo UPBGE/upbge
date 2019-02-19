@@ -1216,7 +1216,7 @@ static void copy_attr(Main *bmain, Scene *scene, ViewLayer *view_layer, View3D *
 					base->object->index = ob->index;
 				}
 				else if (event == 31) { /* object color */
-					copy_v4_v4(base->object->col, ob->col);
+					copy_v4_v4(base->object->color, ob->color);
 				}
 			}
 		}

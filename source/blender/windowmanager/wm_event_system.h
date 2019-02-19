@@ -40,45 +40,86 @@ struct wmEventHandler_KeymapFn {
 	void  *user_data;
 };
 
+/** Custom types for handlers, for signaling, freeing */
+enum eWM_EventHandlerType {
+	WM_HANDLER_TYPE_GIZMO = 1,
+	WM_HANDLER_TYPE_UI,
+	WM_HANDLER_TYPE_OP,
+	WM_HANDLER_TYPE_DROPBOX,
+	WM_HANDLER_TYPE_KEYMAP,
+};
+
 typedef struct wmEventHandler {
 	struct wmEventHandler *next, *prev;
 
-	char type;                          /* WM_HANDLER_DEFAULT, ... */
+	enum eWM_EventHandlerType type;
 	char flag;                          /* WM_HANDLER_BLOCKING, ... */
 
-	/* keymap handler */
-	wmKeyMap *keymap;                   /* pointer to builtin/custom keymaps */
-	const rcti *bblocal, *bbwin;              /* optional local and windowspace bb */
-	/* Run after the keymap item runs. */
+	/** Optional local and windowspace bb. */
+	const rcti *bblocal, *bbwin;
+} wmEventHandler;
+
+/** #WM_HANDLER_TYPE_KEYMAP */
+typedef struct wmEventHandler_Keymap {
+	wmEventHandler base;
+
+	/** Pointer to builtin/custom keymaps (never NULL). */
+	wmKeyMap *keymap;
+	/** Run after the keymap item runs. */
 	struct wmEventHandler_KeymapFn keymap_callback;
 
 	struct bToolRef *keymap_tool;
+} wmEventHandler_Keymap;
 
-	/* modal operator handler */
-	wmOperator *op;                     /* for derived/modal handlers */
-	struct ScrArea *op_area;            /* for derived/modal handlers */
-	struct ARegion *op_region;          /* for derived/modal handlers */
-	short           op_region_type;     /* for derived/modal handlers */
+/** #WM_HANDLER_TYPE_GIZMO */
+typedef struct wmEventHandler_Gizmo {
+	wmEventHandler base;
 
-	/* ui handler */
-	wmUIHandlerFunc ui_handle;          /* callback receiving events */
-	wmUIHandlerRemoveFunc ui_remove;    /* callback when handler is removed */
-	void *ui_userdata;                  /* user data pointer */
-	struct ScrArea *ui_area;            /* for derived/modal handlers */
-	struct ARegion *ui_region;          /* for derived/modal handlers */
-	struct ARegion *ui_menu;            /* for derived/modal handlers */
-
-	/* drop box handler */
-	ListBase *dropboxes;
-	/* gizmo handler */
+	/** Gizmo handler (never NULL). */
 	struct wmGizmoMap *gizmo_map;
-} wmEventHandler;
+} wmEventHandler_Gizmo;
 
-/* custom types for handlers, for signaling, freeing */
-enum {
-	WM_HANDLER_DEFAULT,
-	WM_HANDLER_FILESELECT,
-};
+/** #WM_HANDLER_TYPE_UI */
+typedef struct wmEventHandler_UI {
+	wmEventHandler base;
+
+	wmUIHandlerFunc handle_fn;          /* callback receiving events */
+	wmUIHandlerRemoveFunc remove_fn;    /* callback when handler is removed */
+	void *user_data;                  /* user data pointer */
+
+	/** Store context for this handler for derived/modal handlers. */
+	struct {
+		struct ScrArea *area;
+		struct ARegion *region;
+		struct ARegion *menu;
+	} context;
+} wmEventHandler_UI;
+
+/** #WM_HANDLER_TYPE_OP */
+typedef struct wmEventHandler_Op {
+	wmEventHandler base;
+
+	/** Operator can be NULL. */
+	wmOperator *op;
+
+	/** Hack, special case for file-select. */
+	bool is_fileselect;
+
+	/** Store context for this handler for derived/modal handlers. */
+	struct {
+		struct ScrArea *area;
+		struct ARegion *region;
+		short           region_type;
+	} context;
+} wmEventHandler_Op;
+
+/** #WM_HANDLER_TYPE_DROPBOX */
+typedef struct wmEventHandler_Dropbox {
+	wmEventHandler base;
+
+	/** Never NULL. */
+	ListBase *dropboxes;
+} wmEventHandler_Dropbox;
 
 /* wm_event_system.c */
 void        wm_event_free_all       (wmWindow *win);
