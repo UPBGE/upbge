@@ -33,7 +33,6 @@
 #include "SCA_LogicManager.h"
 #include "BL_ActionActuator.h"
 #include "BL_ArmatureObject.h"
-#include "BL_SkinDeformer.h"
 #include "BL_Action.h"
 #include "BL_ActionManager.h"
 #include "KX_GameObject.h"

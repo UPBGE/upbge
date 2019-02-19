@@ -64,7 +64,6 @@ set(SRC
 	RAS_2DFilterFrameBuffer.cpp
 	RAS_BucketManager.cpp
 	RAS_DebugDraw.cpp
-	RAS_Deformer.cpp
 	RAS_DisplayArrayBucket.cpp
 	RAS_FrameBuffer.cpp
 	RAS_FramingManager.cpp
@@ -87,7 +86,6 @@ set(SRC
 	RAS_BucketManager.h
 	RAS_CameraData.h
 	RAS_DebugDraw.h
-	RAS_Deformer.h
 	RAS_DisplayArray.h
 	RAS_DisplayArrayBucket.h
 	RAS_FrameBuffer.h

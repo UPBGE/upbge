@@ -28,8 +28,6 @@
 
 #include "BL_Action.h"
 #include "BL_ArmatureObject.h"
-#include "BL_DeformableGameObject.h"
-#include "BL_ShapeDeformer.h"
 #include "KX_IpoConvert.h"
 #include "KX_GameObject.h"
 #include "KX_Globals.h"
@@ -266,19 +264,6 @@ bool BL_Action::Play(const std::string& name,
 	}
 	else
 	{
-		BL_DeformableGameObject *obj = (BL_DeformableGameObject*)m_obj;
-		BL_ShapeDeformer *shape_deformer = dynamic_cast<BL_ShapeDeformer*>(obj->GetDeformer());
-		
-		if (shape_deformer && shape_deformer->GetKey())
-		{
-			obj->GetShape(m_blendinshape);
-
-			// Now that we have the previous blend shape saved, we can clear out the key to avoid any
-			// further interference.
-			KeyBlock *kb;
-			for (kb=(KeyBlock *)shape_deformer->GetKey()->block.first; kb; kb=(KeyBlock *)kb->next)
-				kb->curval = 0.f;
-		}
 	}
 
 	// Now that we have an action, we have something we can play
@@ -392,17 +377,6 @@ void BL_Action::IncrementBlending(float curtime)
 
 void BL_Action::BlendShape(Key* key, float srcweight, std::vector<float>& blendshape)
 {
-	std::vector<float>::const_iterator it;
-	float dstweight;
-	KeyBlock *kb;
-	
-	dstweight = 1.0F - srcweight;
-	for (it=blendshape.begin(), kb = (KeyBlock *)key->block.first; 
-	     kb && it != blendshape.end();
-	     kb = (KeyBlock *)kb->next, it++)
-	{
-		kb->curval = kb->curval * dstweight + (*it) * srcweight;
-	}
 }
 
 void BL_Action::Update(float curtime, bool applyToObject)
@@ -531,49 +505,6 @@ void BL_Action::Update(float curtime, bool applyToObject)
 				}
 			}
 		}
-		//BL_DeformableGameObject *obj = (BL_DeformableGameObject*)m_obj;
-		//BL_ShapeDeformer *shape_deformer = dynamic_cast<BL_ShapeDeformer*>(obj->GetDeformer());
-
-		//// Handle shape actions if we have any
-		//if (shape_deformer && shape_deformer->GetKey())
-		//{
-		//	Key *key = shape_deformer->GetKey();
-
-		//	PointerRNA ptrrna;
-		//	RNA_id_pointer_create(&key->id, &ptrrna);
-
-		//	Scene *scene = KX_GetActiveScene()->GetBlenderScene();
-		//	ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-		//	Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer, false);
-
-		//	animsys_evaluate_action(depsgraph, &ptrrna, m_tmpaction, m_localframe);
-
-		//	// Handle blending between shape actions
-		//	if (m_blendin && m_blendframe < m_blendin)
-		//	{
-		//		IncrementBlending(curtime);
-
-		//		float weight = 1.f - (m_blendframe/m_blendin);
-
-		//		// We go through and clear out the keyblocks so there isn't any interference
-		//		// from other shape actions
-		//		KeyBlock *kb;
-		//		for (kb=(KeyBlock *)key->block.first; kb; kb=(KeyBlock *)kb->next)
-		//			kb->curval = 0.f;
-
-		//		// Now blend the shape
-		//		BlendShape(key, weight, m_blendinshape);
-		//	}
-
-		//	// Handle layer blending
-		//	if (m_layer_weight >= 0)
-		//	{
-		//		obj->GetShape(m_blendshape);
-		//		BlendShape(key, m_layer_weight, m_blendshape);
-		//	}
-
-		//	obj->SetActiveAction(0, curtime);
-		//}
 	}
 }
 

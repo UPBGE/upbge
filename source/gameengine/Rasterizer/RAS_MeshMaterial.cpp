@@ -32,7 +32,7 @@ RAS_MeshMaterial::RAS_MeshMaterial(RAS_MeshObject *mesh, RAS_MaterialBucket *buc
 	RAS_IDisplayArray::PrimitiveType type = (bucket->IsWire()) ? RAS_IDisplayArray::LINES : RAS_IDisplayArray::TRIANGLES;
 	m_displayArray = RAS_IDisplayArray::ConstructArray(type, format);
 
-	m_displayArrayBucket = new RAS_DisplayArrayBucket(bucket, m_displayArray, mesh, this, nullptr);
+	m_displayArrayBucket = new RAS_DisplayArrayBucket(bucket, m_displayArray, mesh, this);
 }
 
 RAS_MeshMaterial::~RAS_MeshMaterial()

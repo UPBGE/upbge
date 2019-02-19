@@ -90,15 +90,7 @@
 #include "PHY_IPhysicsController.h"
 #include "KX_BlenderConverter.h"
 #include "KX_MotionState.h"
-
-#include "BL_ModifierDeformer.h"
-#include "BL_ShapeDeformer.h"
-#include "BL_DeformableGameObject.h"
 #include "KX_ObstacleSimulation.h"
-
-#ifdef WITH_BULLET
-#  include "KX_SoftBodyDeformer.h"
-#endif
 
 #ifdef WITH_PYTHON
 #  include "EXP_PythonCallBack.h"
@@ -1304,22 +1296,6 @@ void KX_Scene::CalculateVisibleMeshes(KX_CullingNodeList& nodes, const SG_Frustu
 
 	bool dbvt_culling = false;
 	if (m_dbvt_culling) {
-		for (KX_GameObject *gameobj : m_objectlist) {
-			gameobj->SetCulled(true);
-			/* Reset KX_GameObject m_culled to true before doing culling
-			 * since DBVT culling will only set it to false.
-			 */
-			if (gameobj->GetDeformer()) {
-				/** Update all the deformer, not only per material.
-				 * One of the side effect is to clear some flags about AABB calculation.
-				 * like in KX_SoftBodyDeformer.
-				 */
-				gameobj->GetDeformer()->UpdateBuckets();
-			}
-			// Update the object bounding volume box.
-			gameobj->UpdateBounds(false);
-		}
-
 		// test culling through Bullet
 		// get the clip planes
 		const std::array<MT_Vector4, 6>& planes = frustum.GetPlanes();
@@ -1332,22 +1308,6 @@ void KX_Scene::CalculateVisibleMeshes(KX_CullingNodeList& nodes, const SG_Frustu
 		dbvt_culling = m_physicsEnvironment->CullingTest(PhysicsCullingCallback, &info, planes, m_dbvt_occlusion_res, viewport, matrix);
 	}
 	if (!dbvt_culling) {
-		KX_CullingHandler handler(nodes, frustum);
-		for (KX_GameObject *gameobj : m_objectlist) {
-			if (gameobj->UseCulling() && gameobj->GetVisible() && (layer == 0 || gameobj->GetLayer() & layer)) {
-				if (gameobj->GetDeformer()) {
-					/** Update all the deformer, not only per material.
-					 * One of the side effect is to clear some flags about AABB calculation.
-					 * like in KX_SoftBodyDeformer.
-					 */
-					gameobj->GetDeformer()->UpdateBuckets();
-				}
-				// Update the object bounding volume box.
-				gameobj->UpdateBounds(false);
-
-				handler.Process(gameobj->GetCullingNode());
-			}
-		}
 	}
 }
 
@@ -1375,19 +1335,6 @@ void KX_Scene::DrawDebug(RAS_DebugDraw& debugDraw, const KX_CullingNodeList& nod
 			debugDraw.DrawLine(orientation * center * scale + position,
 				orientation * (center + MT_Vector3(0.0f, 0.0f, 1.0f)) * scale  + position,
 				MT_Vector4(0.0f, 0.0f, 1.0f, 1.0f));
-		}
-	}
-
-	const KX_DebugOption showArmatures = KX_GetActiveEngine()->GetShowArmatures();
-	if (showArmatures != KX_DebugOption::DISABLE) {
-		// The side effect of a armature is that it was added in the animated object list.
-		for (KX_GameObject *gameobj : m_animatedlist) {
-			if (gameobj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
-				BL_ArmatureObject *armature = (BL_ArmatureObject *)gameobj;
-				if (showArmatures == KX_DebugOption::FORCE || armature->GetDrawDebug()) {
-					armature->DrawDebug(debugDraw);
-				}
-			}
 		}
 	}
 }
@@ -1527,17 +1474,6 @@ static void update_anim_thread_func(TaskPool *pool, void *taskdata, int UNUSED(t
 	if (needs_update) {
 		children = gameobj->GetChildren();
 		parent = gameobj->GetParent();
-
-		// Only do deformers here if they are not parented to an armature, otherwise the armature will
-		// handle updating its children
-		if (gameobj->GetDeformer() && (!parent || parent->GetGameObjectType() != SCA_IObject::OBJ_ARMATURE))
-			gameobj->GetDeformer()->Update();
-
-		for (KX_GameObject *child : children) {
-			if (child->GetDeformer()) {
-				child->GetDeformer()->Update();
-			}
-		}
 
 		children->Release();
 	}

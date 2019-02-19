@@ -34,7 +34,6 @@
 #include "RAS_DisplayArray.h"
 #include "RAS_MeshObject.h"
 #include "RAS_Polygon.h"
-#include "RAS_Deformer.h"
 #include "KX_GameObject.h"
 
 #include "BulletSoftBody/btSoftBody.h"
@@ -1636,7 +1635,7 @@ bool CcdPhysicsController::ReinstancePhysicsShape(KX_GameObject *from_gameobj, R
 	}
 
 	/* updates the arrays used for making the new bullet mesh */
-	m_shapeInfo->UpdateMesh(from_gameobj, from_meshobj);
+	m_shapeInfo->UpdateMesh(from_gameobj);
 
 	/* create the new bullet mesh */
 	GetPhysicsEnvironment()->UpdateCcdPhysicsControllerShape(m_shapeInfo);
@@ -2080,7 +2079,7 @@ cleanup_empty_mesh:
 /* Updates the arrays used by CreateBulletShape(),
  * take care that recalcLocalAabb() runs after CreateBulletShape is called.
  * */
-bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *gameobj, class RAS_MeshObject *meshobj)
+bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *gameobj)
 {
 	int numpolys;
 	int numverts;
@@ -2096,23 +2095,21 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *gameobj, class RA
 	const int tri_verts[4] = {0, 1, 2, -1};
 	const int *fv_pt;
 
+	RAS_MeshObject *meshobj = gameobj->GetMesh(0);
+
 	if (!gameobj && !meshobj)
 		return false;
 
 	if (m_shapeType != PHY_SHAPE_MESH)
 		return false;
 
-	RAS_Deformer *deformer = gameobj ? gameobj->GetDeformer() : nullptr;
-	DerivedMesh *dm = nullptr;
-
-	if (deformer)
-		dm = deformer->GetPhysicsMesh();
+	DerivedMesh *dm = CDDM_from_mesh(meshobj->GetMesh());
 
 	// get the mesh from the object if not defined
 	if (!meshobj) {
 		// modifier mesh
 		if (dm)
-			meshobj = deformer->GetRasMesh();
+			meshobj = gameobj->GetMesh(0);
 
 		// game object first mesh
 		if (!meshobj) {
@@ -2122,7 +2119,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *gameobj, class RA
 		}
 	}
 
-	if (dm && deformer->GetRasMesh() == meshobj) {
+	if (dm && meshobj) {
 		/*
 		 * Derived Mesh Update
 		 *
@@ -2274,15 +2271,6 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *gameobj, class RA
 		/* transverts are only used for deformed RAS_Meshes, the RAS_TexVert data
 		 * is too hard to get at, see below for details */
 		float(*transverts)[3] = nullptr;
-		int transverts_tot = 0; // with deformed meshes - should always be greater than the max orginal index, or we get crashes
-
-		if (deformer) {
-			/* map locations from the deformed array
-			 *
-			 * Could call deformer->Update(); but rely on redraw updating.
-			 * */
-			transverts = deformer->GetTransVerts(&transverts_tot);
-		}
 
 		// Tag verts we're using
 		numpolys = meshobj->NumPolygons();

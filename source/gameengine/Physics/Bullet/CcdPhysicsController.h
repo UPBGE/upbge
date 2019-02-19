@@ -144,7 +144,7 @@ public:
 		return m_meshObject;
 	}
 
-	bool UpdateMesh(class KX_GameObject *gameobj, class RAS_MeshObject *mesh);
+	bool UpdateMesh(class KX_GameObject *gameobj);
 
 	CcdShapeConstructionInfo *GetReplica();
 

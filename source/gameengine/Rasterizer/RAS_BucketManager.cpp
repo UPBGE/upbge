@@ -49,7 +49,7 @@ RAS_BucketManager::RAS_BucketManager(RAS_IPolyMaterial *textMaterial)
 	m_text.m_material = textMaterial;
 	bool created;
 	RAS_MaterialBucket *bucket = FindBucket(m_text.m_material, created);
-	m_text.m_arrayBucket = new RAS_DisplayArrayBucket(bucket, nullptr, nullptr, nullptr, nullptr);
+	m_text.m_arrayBucket = new RAS_DisplayArrayBucket(bucket, nullptr, nullptr, nullptr);
 }
 
 RAS_BucketManager::~RAS_BucketManager()

@@ -33,7 +33,6 @@
 #include "RAS_MaterialBucket.h"
 #include "RAS_MaterialShader.h"
 #include "RAS_MeshObject.h"
-#include "RAS_Deformer.h"
 #include "RAS_Rasterizer.h"
 #include "RAS_BucketManager.h"
 
@@ -48,12 +47,11 @@
 #endif // WIN32
 
 RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_IDisplayArray *array,
-											   RAS_MeshObject *mesh, RAS_MeshMaterial *meshmat, RAS_Deformer *deformer)
+											   RAS_MeshObject *mesh, RAS_MeshMaterial *meshmat)
 	:m_bucket(bucket),
 	m_displayArray(array),
 	m_mesh(mesh),
-	m_meshMaterial(meshmat),
-	m_deformer(deformer)
+	m_meshMaterial(meshmat)
 {
 	//m_bucket->AddDisplayArrayBucket(this);
 }
@@ -93,23 +91,11 @@ void RAS_DisplayArrayBucket::RemoveActiveMeshSlots()
 
 bool RAS_DisplayArrayBucket::UseBatching() const
 {
-	return (m_displayArray && m_displayArray->GetType() == RAS_IDisplayArray::BATCHING);
+	return false;
 }
 
 void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_Rasterizer::DrawType drawingMode, RAS_MaterialShader *shader)
 {
-	bool arrayModified = false;
-
-	if (m_deformer) {
-		m_deformer->Apply(m_meshMaterial, m_displayArray);
-	}
-
-	if (m_displayArray) {
-		if (m_displayArray->GetModifiedFlag() & RAS_IDisplayArray::MESH_MODIFIED) {
-			arrayModified = true;
-			m_displayArray->SetModifiedFlag(RAS_IDisplayArray::NONE_MODIFIED);
-		}
-	}
 }
 
 void RAS_DisplayArrayBucket::ChangeMaterialBucket(RAS_MaterialBucket *bucket)

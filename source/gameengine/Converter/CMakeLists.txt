@@ -74,11 +74,6 @@ set(SRC
 	BL_ArmatureConstraint.cpp
 	BL_ArmatureObject.cpp
 	BL_BlenderDataConversion.cpp
-	BL_DeformableGameObject.cpp
-	BL_MeshDeformer.cpp
-	BL_ModifierDeformer.cpp
-	BL_ShapeDeformer.cpp
-	BL_SkinDeformer.cpp
 	KX_BlenderConverter.cpp
 	KX_BlenderScalarInterpolator.cpp
 	KX_BlenderSceneConverter.cpp
@@ -88,7 +83,6 @@ set(SRC
 	KX_ConvertSensors.cpp
 	KX_IpoConvert.cpp
 	KX_LibLoadStatus.cpp
-	KX_SoftBodyDeformer.cpp
 
 	BL_ActionActuator.h
 	BL_ArmatureActuator.h
@@ -96,11 +90,6 @@ set(SRC
 	BL_ArmatureConstraint.h
 	BL_ArmatureObject.h
 	BL_BlenderDataConversion.h
-	BL_DeformableGameObject.h
-	BL_MeshDeformer.h
-	BL_ModifierDeformer.h
-	BL_ShapeDeformer.h
-	BL_SkinDeformer.h
 	KX_BlenderConverter.h
 	KX_BlenderScalarInterpolator.h
 	KX_BlenderSceneConverter.h
@@ -110,7 +99,6 @@ set(SRC
 	KX_ConvertSensors.h
 	KX_IpoConvert.h
 	KX_LibLoadStatus.h
-	KX_SoftBodyDeformer.h
 )
 
 if(WITH_BULLET)

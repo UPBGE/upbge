@@ -36,7 +36,6 @@
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_BucketManager.h"
 #include "RAS_DisplayArray.h"
-#include "RAS_Deformer.h"
 
 #include "SCA_IScene.h"
 

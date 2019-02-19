@@ -454,16 +454,7 @@ public:
 	{ 
 		m_pPhysicsController = physicscontroller;
 	}
-
-	virtual class RAS_Deformer* GetDeformer()
-	{
-		return 0;
-	}
-	virtual void	SetDeformer(class RAS_Deformer* deformer)
-	{
-
-	}
-	/// Return true when the game object is a BL_DeformableGameObject.
+	/// Return true when the game object is a .
 	virtual bool IsDeformable() const
 	{
 		return false;

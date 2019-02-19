@@ -47,7 +47,6 @@
 #include "MT_Vector2.h"
 #include <string>
 
-class RAS_Deformer;
 class RAS_Polygon;
 class RAS_ITexVert;
 struct Mesh;

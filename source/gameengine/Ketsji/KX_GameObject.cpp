@@ -41,7 +41,6 @@
 #include "KX_Light.h"  // only for their ::Type
 #include "KX_FontObject.h"  // only for their ::Type
 #include "RAS_MeshObject.h"
-#include "RAS_Deformer.h"
 #include "RAS_IDisplayArray.h"
 #include "RAS_Polygon.h"
 #include "KX_NavMeshObject.h"

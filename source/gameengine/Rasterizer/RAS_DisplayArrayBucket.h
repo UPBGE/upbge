@@ -45,7 +45,6 @@ class RAS_IDisplayArray;
 class RAS_MaterialShader;
 class RAS_MeshObject;
 class RAS_MeshMaterial;
-class RAS_Deformer;
 
 class RAS_DisplayArrayBucket
 {
@@ -71,12 +70,10 @@ private:
 	RAS_MeshObject *m_mesh;
 	/// The material mesh.
 	RAS_MeshMaterial *m_meshMaterial;
-	/// The deformer using this display array.
-	RAS_Deformer *m_deformer;
 
 public:
 	RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_IDisplayArray *array,
-						   RAS_MeshObject *mesh, RAS_MeshMaterial *meshmat, RAS_Deformer *deformer);
+						   RAS_MeshObject *mesh, RAS_MeshMaterial *meshmat);
 	~RAS_DisplayArrayBucket();
 
 	/// \section Accesor
