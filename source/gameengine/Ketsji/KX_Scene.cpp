@@ -435,6 +435,39 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
 	DRW_game_render_loop_finish();
 }
 
+void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam, RAS_ICanvas *canvas)
+{
+	for (KX_GameObject *gameobj : GetObjectList()) {
+		gameobj->TagForUpdate();
+	}
+
+	bool reset_taa_samples = !ObjectsAreStatic() || m_resetTaaSamples;
+	m_resetTaaSamples = false;
+	m_staticObjects.clear();
+
+	KX_KetsjiEngine *engine = KX_GetActiveEngine();
+	RAS_Rasterizer *rasty = engine->GetRasterizer();
+	Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
+	Scene *scene = GetBlenderScene();
+	ViewLayer *view_layer = BKE_view_layer_default_view(scene);
+	Object *maincam = cam ? cam->GetBlenderObject() : BKE_view_layer_camera_find(view_layer);
+
+	const RAS_Rect *viewport = &canvas->GetViewportArea();
+	int v[4] = { viewport->GetLeft(), viewport->GetBottom(), viewport->GetWidth() + 1, viewport->GetHeight() + 1 };
+
+	rasty->SetMatrix(cam->GetModelviewMatrix(), cam->GetProjectionMatrix(),
+			cam->NodeGetWorldPosition(), cam->NodeGetLocalScaling());
+
+	DRWMatrixState state;
+	DRW_viewport_matrix_get_all(&state);
+
+	int viewportsize[2] = { canvas->GetWidth(), canvas->GetHeight() };
+
+	DRW_game_render_loop(bmain, scene, maincam, viewportsize, state, v, false, reset_taa_samples);
+
+	DRW_game_render_loop_finish();
+}
+
 /******************End of EEVEE INTEGRATION****************************/
 
 std::string KX_Scene::GetName()

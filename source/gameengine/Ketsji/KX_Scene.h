@@ -338,6 +338,7 @@ public:
 	std::vector<Object *>m_hiddenObjectsDuringRuntime;
 
 	void RenderAfterCameraSetup(bool calledFromConstructor);
+	void RenderAfterCameraSetupImageRender(KX_Camera *cam, RAS_ICanvas *canvas);
 	
 	//void RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer *rasty);
 	/***************End of EEVEE INTEGRATION**********************/

@@ -100,6 +100,10 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
 	else {
 		m_internalFormat = GL_R11F_G11F_B10F;
 	}
+
+	m_frameBuffer = new RAS_FrameBuffer();
+	m_gpuTexture = GPU_texture_create_2D(m_width, m_height, GPU_RGBA16F, nullptr, nullptr);
+	GPU_framebuffer_texture_attach(m_frameBuffer->GetFrameBuffer(), m_gpuTexture, 0, 0);
 }
 
 // destructor
@@ -108,11 +112,16 @@ ImageRender::~ImageRender (void)
 	if (m_owncamera) {
 		m_camera->Release();
 	}
+
+	GPU_framebuffer_texture_detach(m_frameBuffer->GetFrameBuffer(), m_gpuTexture);
+	GPU_texture_free(m_gpuTexture);
+
+	delete m_frameBuffer;
 }
 
 int ImageRender::GetColorBindCode() const
 {
-	return GPU_framebuffer_color_bindcode(DRW_viewport_framebuffer_list_get()->default_fb);
+	return GPU_framebuffer_color_bindcode(m_frameBuffer->GetFrameBuffer());
 }
 
 // capture image from viewport
@@ -132,6 +141,8 @@ void ImageRender::calcViewport (unsigned int texId, double ts, unsigned int form
 	const RAS_Rect& viewport = m_canvas->GetViewportArea();
 	m_rasterizer->SetViewport(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);
 	m_rasterizer->SetScissor(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);
+
+	DRW_transform_to_display(m_gpuTexture, true, false);
 
 	GPU_framebuffer_restore();
 }
@@ -310,12 +321,11 @@ bool ImageRender::Render()
 		glDisable(GL_POLYGON_STIPPLE);
 	}
 
-	//KX_CullingNodeList nodes;
-	//m_scene->CalculateVisibleMeshes(nodes, m_camera, 0);
-
 	m_engine->UpdateAnimations(m_scene);
 
-	//m_scene->RenderBucketsNew(nodes, m_rasterizer);
+	GPU_framebuffer_bind(m_frameBuffer->GetFrameBuffer());
+	m_scene->RenderAfterCameraSetupImageRender(m_camera, m_canvas);
+	GPU_framebuffer_restore(); //already called but..
 
 	m_canvas->EndFrame();
 

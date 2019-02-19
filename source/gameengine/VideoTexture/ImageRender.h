@@ -83,6 +83,9 @@ protected:
 	/// do we own the camera?
 	bool m_owncamera;
 
+	RAS_FrameBuffer *m_frameBuffer;
+	GPUTexture *m_gpuTexture;
+
 	/// for mirror operation
 	KX_GameObject * m_observer;
 	KX_GameObject * m_mirror;

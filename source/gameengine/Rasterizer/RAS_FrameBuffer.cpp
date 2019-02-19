@@ -43,6 +43,15 @@ RAS_FrameBuffer::RAS_FrameBuffer(unsigned int width, unsigned int height, RAS_Ra
 	m_frameBuffer = GPU_framebuffer_create();
 }
 
+RAS_FrameBuffer::RAS_FrameBuffer()
+{
+	m_frameBuffer = GPU_framebuffer_create();
+	m_frameBufferType = RAS_Rasterizer::FrameBufferType::RAS_FRAMEBUFFER_CUSTOM;
+	m_hdrType = RAS_Rasterizer::HdrType::RAS_HDR_HALF_FLOAT;
+	m_colorAttachment = nullptr;
+	m_depthAttachment = nullptr;
+}
+
 RAS_FrameBuffer::~RAS_FrameBuffer()
 {
 	GPU_framebuffer_free(m_frameBuffer);
