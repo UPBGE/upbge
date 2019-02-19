@@ -36,7 +36,6 @@
 
 #include "RAS_MaterialBucket.h"
 #include "RAS_MeshObject.h"
-#include "RAS_MeshUser.h"
 #include "RAS_Polygon.h"
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_Rasterizer.h"
@@ -49,11 +48,6 @@
 RAS_BucketManager::SortedMeshSlot::SortedMeshSlot(RAS_MeshSlot *ms, const MT_Vector3& pnorm)
 	:m_ms(ms)
 {
-	// would be good to use the actual bounding box center instead
-	float *matrix = m_ms->m_meshUser->GetMatrix();
-	const MT_Vector3 pos(matrix[12], matrix[13], matrix[14]);
-
-	m_z = MT_dot(pnorm, pos);
 }
 
 bool RAS_BucketManager::backtofront::operator()(const SortedMeshSlot &a, const SortedMeshSlot &b)

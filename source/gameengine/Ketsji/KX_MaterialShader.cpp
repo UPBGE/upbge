@@ -1,6 +1,5 @@
 #include "KX_MaterialShader.h"
 #include "BL_Shader.h"
-#include "RAS_MeshUser.h"
 
 KX_MaterialShader::KX_MaterialShader()
 	:m_shader(new BL_Shader())
@@ -32,8 +31,8 @@ void KX_MaterialShader::Desactivate()
 	m_shader->SetProg(false);
 }
 
-void KX_MaterialShader::Update(RAS_Rasterizer *rasty, RAS_MeshUser *meshUser)
+void KX_MaterialShader::Update(RAS_Rasterizer *rasty, KX_GameObject *gameobj)
 {
-	m_shader->Update(rasty, meshUser);
+	m_shader->Update(rasty, gameobj);
 }
 

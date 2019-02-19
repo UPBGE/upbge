@@ -49,7 +49,6 @@ public:
 
 	virtual ~KX_FontObject();
 
-	virtual void AddMeshUser();
 	virtual void UpdateBuckets();
 
 	/**
@@ -85,9 +84,6 @@ protected:
 	MT_Vector3 m_offset;
 
 	std::string m_backupText; //eevee
-
-	/// Text bounding box for mesh/text user.
-	RAS_BoundingBox *m_boundingBox;
 	/// needed for drawing routine
 	class RAS_Rasterizer *m_rasterizer;
 

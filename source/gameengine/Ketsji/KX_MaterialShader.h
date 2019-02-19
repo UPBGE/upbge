@@ -6,6 +6,7 @@
 #include <memory>
 
 class BL_Shader;
+class KX_GameObject;
 
 class KX_MaterialShader : public RAS_MaterialShader
 {
@@ -21,7 +22,7 @@ public:
 	virtual bool IsValid(RAS_Rasterizer::DrawType drawtype) const;
 	virtual void Activate(RAS_Rasterizer *rasty);
 	virtual void Desactivate();
-	virtual void Update(RAS_Rasterizer *rasty, RAS_MeshUser *meshUser);
+	virtual void Update(RAS_Rasterizer *rasty, KX_GameObject *gameobj);
 
 };
 

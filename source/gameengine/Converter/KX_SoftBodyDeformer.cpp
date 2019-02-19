@@ -54,11 +54,6 @@ KX_SoftBodyDeformer::KX_SoftBodyDeformer(RAS_MeshObject *pMeshObject, BL_Deforma
 	m_gameobj(gameobj),
 	m_needUpdateAabb(true)
 {
-	KX_Scene *scene = m_gameobj->GetScene();
-	RAS_BoundingBoxManager *boundingBoxManager = scene->GetBoundingBoxManager();
-	m_boundingBox = boundingBoxManager->CreateBoundingBox();
-	// Set AABB default to mesh bounding box AABB.
-	m_boundingBox->CopyAabb(m_mesh->GetBoundingBox());
 }
 
 KX_SoftBodyDeformer::~KX_SoftBodyDeformer()

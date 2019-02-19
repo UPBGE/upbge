@@ -47,7 +47,6 @@
 #include "MT_Vector2.h"
 #include <string>
 
-class RAS_MeshUser;
 class RAS_Deformer;
 class RAS_Polygon;
 class RAS_ITexVert;
@@ -99,9 +98,6 @@ private:
 	struct backtofront;
 	struct fronttoback;
 
-	/// The mesh bounding box.
-	RAS_BoundingBox *m_boundingBox;
-
 protected:
 	RAS_MeshMaterialList m_materials;
 	Mesh *m_mesh;
@@ -150,10 +146,6 @@ public:
 
 	int NumPolygons();
 	RAS_Polygon *GetPolygon(int num) const;
-
-	RAS_BoundingBox *GetBoundingBox() const;
-	// buckets
-	RAS_MeshUser *AddMeshUser(void *clientobj, RAS_Deformer *deformer);
 
 	void EndConversion(RAS_BoundingBoxManager *boundingBoxManager);
 

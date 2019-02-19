@@ -30,7 +30,6 @@
  */
 
 #include "RAS_MeshSlot.h"
-#include "RAS_MeshUser.h"
 #include "RAS_MaterialShader.h"
 #include "RAS_TexVert.h"
 #include "RAS_MeshObject.h"
@@ -56,11 +55,10 @@ extern "C" {
 #endif // WIN32
 
 // mesh slot
-RAS_MeshSlot::RAS_MeshSlot(RAS_MeshObject *mesh, RAS_MeshUser *meshUser, RAS_DisplayArrayBucket *arrayBucket)
+RAS_MeshSlot::RAS_MeshSlot(RAS_MeshObject *mesh, RAS_DisplayArrayBucket *arrayBucket)
 	:m_displayArrayBucket(arrayBucket),
 	m_mesh(mesh),
-	m_pDerivedMesh(nullptr),
-	m_meshUser(meshUser)
+	m_pDerivedMesh(nullptr)
 {
 }
 

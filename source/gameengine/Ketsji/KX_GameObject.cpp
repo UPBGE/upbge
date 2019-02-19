@@ -41,7 +41,6 @@
 #include "KX_Light.h"  // only for their ::Type
 #include "KX_FontObject.h"  // only for their ::Type
 #include "RAS_MeshObject.h"
-#include "RAS_MeshUser.h"
 #include "RAS_BoundingBoxManager.h"
 #include "RAS_Deformer.h"
 #include "RAS_IDisplayArray.h"
@@ -125,7 +124,6 @@ KX_GameObject::KX_GameObject(
 	  m_backupMesh(nullptr), //eevee
 	  m_staticObject(true), //eevee
       m_layer(0),
-      m_meshUser(nullptr),
       m_pBlenderObject(nullptr),
       m_pBlenderGroupObject(nullptr),
       m_bIsNegativeScaling(false),
@@ -666,8 +664,6 @@ void KX_GameObject::ProcessReplica()
 	m_actionManager = nullptr;
 	m_state = 0;
 
-	m_meshUser = nullptr;
-
 #ifdef WITH_PYTHON
 
 	if (m_attr_dict)
@@ -844,51 +840,19 @@ void KX_GameObject::UpdateBlenderObjectMatrix(Object* blendobj)
 	}
 }
 
-void KX_GameObject::AddMeshUser()
-{
-	for (size_t i = 0; i < m_meshes.size(); ++i) {
-		m_meshUser = m_meshes[i]->AddMeshUser(m_pClient_info, GetDeformer());
-	}
-
-	if (m_meshUser) {
-		NodeGetWorldTransform().getValue(m_meshUser->GetMatrix());
-	}
-}
-
 void KX_GameObject::UpdateBuckets()
 {
-	// Update datas and add mesh slot to be rendered only if the object is not culled.
-	if (m_pSGNode->IsDirty(SG_Node::DIRTY_RENDER)) {
-		NodeGetWorldTransform().getValue(m_meshUser->GetMatrix());
-		m_pSGNode->ClearDirty(SG_Node::DIRTY_RENDER);
-	}
-
-	m_meshUser->SetColor(m_objectColor);
-	m_meshUser->SetFrontFace(!m_bIsNegativeScaling);
-	m_meshUser->ActivateMeshSlots();
 }
 
 void KX_GameObject::RemoveMeshes()
 {
-	// Remove all mesh slots.
-	if (m_meshUser) {
-		delete m_meshUser;
-		m_meshUser = nullptr;
-	}
-
 	//note: meshes can be shared, and are deleted by KX_BlenderSceneConverter
-
 	m_meshes.clear();
-}
-
-RAS_MeshUser *KX_GameObject::GetMeshUser() const
-{
-	return m_meshUser;
 }
 
 bool KX_GameObject::UseCulling() const
 {
-	return (m_meshUser != nullptr);
+	return false;
 }
 
 void KX_GameObject::UpdateTransform()
@@ -1443,22 +1407,6 @@ MT_Transform KX_GameObject::NodeGetLocalTransform() const
 
 void KX_GameObject::UpdateBounds(bool force)
 {
-	if ((!m_autoUpdateBounds && !force) || !m_meshUser) {
-		return;
-	}
-
-	RAS_BoundingBox *boundingBox = m_meshUser->GetBoundingBox();
-	if (!boundingBox || (!boundingBox->GetModified() && !force)) {
-		return;
-	}
-
-	// AABB Box : min/max.
-	MT_Vector3 aabbMin;
-	MT_Vector3 aabbMax;
-
-	boundingBox->GetAabb(aabbMin, aabbMax);
-
-	SetBoundsAabb(aabbMin, aabbMax);
 }
 
 void KX_GameObject::SetBoundsAabb(MT_Vector3 aabbMin, MT_Vector3 aabbMax)

@@ -10,7 +10,7 @@
 #include "RAS_Shader.h"
 #include "RAS_Texture.h" // For RAS_Texture::MaxUnits.
 
-class RAS_MeshUser;
+class KX_GameObject;
 
 class BL_Shader : public PyObjectPlus, public virtual RAS_Shader
 {
@@ -46,7 +46,7 @@ public:
 	 * The python callbacks are executed in this function and at the end
 	 * RAS_Shader::Update(rasty, mat) is called.
 	 */
-	void Update(RAS_Rasterizer *rasty, RAS_MeshUser *meshUser);
+	void Update(RAS_Rasterizer *rasty, KX_GameObject *gameobj);
 
 	// Python interface
 #ifdef WITH_PYTHON

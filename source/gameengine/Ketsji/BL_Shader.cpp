@@ -25,7 +25,6 @@
 
 #include "BL_Shader.h"
 #include "RAS_MeshSlot.h"
-#include "RAS_MeshUser.h"
 
 #include "KX_PyMath.h"
 #include "KX_PythonInit.h"
@@ -84,17 +83,16 @@ void BL_Shader::SetProg(bool enable)
 	RAS_Shader::SetProg(enable);
 }
 
-void BL_Shader::Update(RAS_Rasterizer *rasty, RAS_MeshUser *meshUser)
+void BL_Shader::Update(RAS_Rasterizer *rasty, KX_GameObject *gameobj)
 {
 #ifdef WITH_PYTHON
 	if (PyList_GET_SIZE(m_callbacks[CALLBACKS_OBJECT]) > 0) {
-		KX_GameObject *gameobj = KX_GameObject::GetClientObject((KX_ClientObjectInfo *)meshUser->GetClientObject());
 		PyObject *args[] = {gameobj->GetProxy()};
 		RunPythonCallBackList(m_callbacks[CALLBACKS_OBJECT], args, 0, ARRAY_SIZE(args));
 	}
 #endif  // WITH_PYTHON
 
-	RAS_Shader::Update(rasty, MT_Matrix4x4(meshUser->GetMatrix()));
+	RAS_Shader::Update(rasty, MT_Matrix4x4(gameobj->NodeGetWorldTransform()));
 }
 
 #ifdef WITH_PYTHON

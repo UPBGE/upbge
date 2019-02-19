@@ -654,7 +654,6 @@ KX_GameObject* KX_Scene::AddNodeReplicaObject(SG_Node* node, KX_GameObject *game
 			break;
 		}
 	}
-	newobj->AddMeshUser();
 
 	// logic cannot be replicated, until the whole hierarchy is replicated.
 	m_logicHierarchicalGameObjects.push_back(newobj);

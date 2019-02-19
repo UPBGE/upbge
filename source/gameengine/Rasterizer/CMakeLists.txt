@@ -79,11 +79,9 @@ set(SRC
 	RAS_MeshMaterial.cpp
 	RAS_MeshObject.cpp
 	RAS_MeshSlot.cpp
-	RAS_MeshUser.cpp
 	RAS_Polygon.cpp
 	RAS_Shader.cpp
 	RAS_Texture.cpp
-	RAS_TextUser.cpp
  	
 	RAS_2DFilterData.h
 	RAS_2DFilter.h
@@ -110,12 +108,10 @@ set(SRC
 	RAS_MeshMaterial.h
 	RAS_MeshObject.h
 	RAS_MeshSlot.h
-	RAS_MeshUser.h
 	RAS_Polygon.h
 	RAS_Rect.h
 	RAS_Shader.h
 	RAS_Texture.h
-	RAS_TextUser.h
 	RAS_TexVert.h
 )
 

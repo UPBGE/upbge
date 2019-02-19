@@ -32,7 +32,6 @@
 #include "DNA_mesh_types.h"
 
 #include "RAS_MeshObject.h"
-#include "RAS_MeshUser.h"
 #include "RAS_BoundingBoxManager.h"
 #include "RAS_Polygon.h"
 #include "RAS_IPolygonMaterial.h"
@@ -105,7 +104,6 @@ struct RAS_MeshObject::fronttoback
 RAS_MeshObject::RAS_MeshObject(Mesh *mesh, const LayersInfo& layersInfo)
 	:m_name(mesh->id.name + 2),
 	m_layersInfo(layersInfo),
-	m_boundingBox(nullptr),
 	m_mesh(mesh)
 {
 }
@@ -324,42 +322,6 @@ const float *RAS_MeshObject::GetVertexLocation(unsigned int orig_index)
 	return it->m_darray->GetVertex(it->m_offset)->getXYZ();
 }
 
-RAS_BoundingBox *RAS_MeshObject::GetBoundingBox() const
-{
-	return m_boundingBox;
-}
-
-RAS_MeshUser* RAS_MeshObject::AddMeshUser(void *clientobj, RAS_Deformer *deformer)
-{
-	RAS_BoundingBox *boundingBox = (deformer) ? deformer->GetBoundingBox() : m_boundingBox;
-	RAS_MeshUser *meshUser = new RAS_MeshUser(clientobj, boundingBox);
-
-	for (RAS_MeshMaterial *mmat : m_materials) {
-		RAS_DisplayArrayBucket *arrayBucket;
-		/* Duplicate the display array bucket and the display array if needed to store
-		 * the mesh slot on a unique list (= display array bucket) and use an unique vertex
-		 * array (=display array). */
-		if (deformer) {
-			RAS_IDisplayArray *array = nullptr;
-			if (deformer->UseVertexArray()) {
-				// The deformer makes use of vertex array, make sure we have our local copy.
-				array = mmat->GetDisplayArray()->GetReplica();
-			}
-
-			arrayBucket = new RAS_DisplayArrayBucket(mmat->GetBucket(), array, this, mmat, deformer);
-			// Make the deformer the owner of the display array (and bucket).
-			deformer->AddDisplayArray(array, arrayBucket);
-		}
-		else {
-			arrayBucket = mmat->GetDisplayArrayBucket();
-		}
-
-		RAS_MeshSlot *ms = new RAS_MeshSlot(this, meshUser, arrayBucket);
-		meshUser->AddMeshSlot(ms);
-	}
-	return meshUser;
-}
-
 void RAS_MeshObject::EndConversion(RAS_BoundingBoxManager *boundingBoxManager)
 {
 #if 0
@@ -390,10 +352,6 @@ void RAS_MeshObject::EndConversion(RAS_BoundingBoxManager *boundingBoxManager)
 			}
 		}
 	}
-
-	// Construct the bounding box of this mesh without deformers.
-	m_boundingBox = boundingBoxManager->CreateMeshBoundingBox(arrayList);
-	m_boundingBox->Update(true);
 }
 
 const RAS_MeshObject::LayersInfo& RAS_MeshObject::GetLayersInfo() const

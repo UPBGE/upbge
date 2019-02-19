@@ -42,7 +42,6 @@
 #include "RAS_BucketManager.h"
 #include "RAS_MaterialBucket.h"
 #include "RAS_BoundingBox.h"
-#include "RAS_TextUser.h"
 
 /* paths needed for font load */
 #include "BLI_blenlib.h"
@@ -105,8 +104,6 @@ KX_FontObject::KX_FontObject(void *sgReplicationInfo,
 
 	m_fontid = GetFontId(text->vfont);
 
-	m_boundingBox = new RAS_BoundingBox(boundingBoxManager);
-
 	SetText(text->str);
 
 	m_backupText = std::string(text->str); //eevee
@@ -129,31 +126,10 @@ CValue *KX_FontObject::GetReplica()
 void KX_FontObject::ProcessReplica()
 {
 	KX_GameObject::ProcessReplica();
-
-	m_boundingBox = m_boundingBox->GetReplica();
-}
-
-void KX_FontObject::AddMeshUser()
-{
-	m_meshUser = new RAS_TextUser(m_pClient_info, m_boundingBox);
-
-	NodeGetWorldTransform().getValue(m_meshUser->GetMatrix());
-
-	RAS_BucketManager *bucketManager = GetScene()->GetBucketManager();
-	RAS_DisplayArrayBucket *arrayBucket = bucketManager->GetTextDisplayArrayBucket();
-
-	RAS_MeshSlot *ms = new RAS_MeshSlot(nullptr, m_meshUser, arrayBucket);
-	m_meshUser->AddMeshSlot(ms);
 }
 
 void KX_FontObject::UpdateBuckets()
 {
-	// Update datas and add mesh slot to be rendered only if the object is not culled.
-	if (m_pSGNode->IsDirty(SG_Node::DIRTY_RENDER)) {
-		NodeGetWorldTransform().getValue(m_meshUser->GetMatrix());
-		m_pSGNode->ClearDirty(SG_Node::DIRTY_RENDER);
-	}
-
 	// Font Objects don't use the glsl shader, this color management code is copied from gpu_shader_material.glsl
 	float color[4];
 	if (m_do_color_management) {
@@ -173,30 +149,12 @@ void KX_FontObject::UpdateBuckets()
 	MT_Vector3 offset = NodeGetWorldOrientation() * m_offset * NodeGetWorldScaling();
 	// Orient the spacing vector
 	MT_Vector3 spacing = NodeGetWorldOrientation() * MT_Vector3(0.0f, m_fsize * m_line_spacing, 0.0f) * NodeGetWorldScaling()[1];
-
-	RAS_TextUser *textUser = (RAS_TextUser *)m_meshUser;
-
-	textUser->SetColor(MT_Vector4(color));
-	textUser->SetFrontFace(!m_bIsNegativeScaling);
-	textUser->SetFontId(m_fontid);
-	textUser->SetSize(size);
-	textUser->SetDpi(m_dpi);
-	textUser->SetAspect(aspect);
-	textUser->SetOffset(offset);
-	textUser->SetSpacing(spacing);
-	textUser->SetTexts(m_texts);
-	textUser->ActivateMeshSlots();
 }
 
 void KX_FontObject::SetText(const std::string& text)
 {
 	m_text = text;
 	m_texts = split_string(text);
-
-	MT_Vector2 min;
-	MT_Vector2 max;
-	GetTextAabb(min, max);
-	m_boundingBox->SetAabb(MT_Vector3(min.x(), min.y(), 0.0f), MT_Vector3(max.x(), max.y(), 0.0f));
 }
 
 void KX_FontObject::UpdateCurveText(std::string newText) //eevee

@@ -56,7 +56,6 @@ struct KX_ClientObjectInfo;
 class KX_RayCast;
 class KX_CullingNode;
 class RAS_MeshObject;
-class RAS_MeshUser;
 class PHY_IGraphicController;
 class PHY_IPhysicsEnvironment;
 class PHY_IPhysicsController;
@@ -102,7 +101,6 @@ protected:
 	std::string							m_text;
 	int									m_layer;
 	std::vector<RAS_MeshObject*>		m_meshes;
-	RAS_MeshUser						*m_meshUser;
 	struct Object*						m_pBlenderObject;
 	struct Object*						m_pBlenderGroupObject;
 	
@@ -711,14 +709,6 @@ public:
 	/**
 	 * \section Mesh accessor functions.
 	 */
-
-	/**
-	 * Update buckets to indicate that there is a new
-	 * user of this object's meshes.
-	 */
-	virtual void
-	AddMeshUser(
-	);
 	
 	/**
 	 * Update buckets with data about the mesh after
@@ -768,9 +758,6 @@ public:
 	) const { 
 		return m_meshes.size(); 
 	}
-
-	/// Return the mesh user of this game object.
-	RAS_MeshUser *GetMeshUser() const;
 
 	/// Return true when the object can be culled.
 	bool UseCulling() const;

@@ -38,7 +38,6 @@
 #include <string>
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_MeshObject.h"
-#include "RAS_MeshUser.h"
 #include "RAS_BoundingBox.h"
 
 #include "DNA_armature_types.h"
@@ -213,11 +212,6 @@ bool BL_ModifierDeformer::Update(void)
 		}
 		m_lastModifierUpdate = m_gameobj->GetLastFrame();
 		bShapeUpdate = true;
-
-		RAS_MeshUser *meshUser = m_gameobj->GetMeshUser();
-		for (RAS_MeshSlot *slot : meshUser->GetMeshSlots()) {
-			slot->m_pDerivedMesh = m_dm;
-		}
 	}
 
 	return bShapeUpdate;

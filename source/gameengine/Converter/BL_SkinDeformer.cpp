@@ -42,7 +42,6 @@
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_DisplayArray.h"
 #include "RAS_MeshObject.h"
-#include "RAS_MeshUser.h"
 #include "RAS_BoundingBox.h"
 
 //#include "BL_ArmatureController.h"

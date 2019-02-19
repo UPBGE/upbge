@@ -1296,7 +1296,6 @@ static void bl_ConvertBlenderObject_Single(
 		//tf.Add(gameobj->GetSGNode());
 
 		gameobj->NodeUpdateGS(0);
-		gameobj->AddMeshUser();
 	}
 	else
 	{

@@ -37,7 +37,6 @@
 #include "RAS_FrameBuffer.h"
 #include "RAS_ICanvas.h"
 #include "RAS_Rect.h"
-#include "RAS_TextUser.h"
 #include "RAS_Polygon.h"
 #include "RAS_ILightObject.h"
 
@@ -676,27 +675,6 @@ const MT_Matrix4x4& RAS_Rasterizer::GetPersInvMatrix() const
 
 void RAS_Rasterizer::IndexPrimitivesText(RAS_MeshSlot *ms)
 {
-	RAS_TextUser *textUser = (RAS_TextUser *)ms->m_meshUser;
-
-	float mat[16];
-	memcpy(mat, textUser->GetMatrix(), sizeof(float) * 16);
-
-	const MT_Vector3& spacing = textUser->GetSpacing();
-	const MT_Vector3& offset = textUser->GetOffset();
-
-	mat[12] += offset[0];
-	mat[13] += offset[1];
-	mat[14] += offset[2];
-
-	for (unsigned short int i = 0, size = textUser->GetTexts().size(); i < size; ++i) {
-		if (i != 0) {
-			mat[12] -= spacing[0];
-			mat[13] -= spacing[1];
-			mat[14] -= spacing[2];
-		}
-		RenderText3D(textUser->GetFontId(), textUser->GetTexts()[i], textUser->GetSize(), textUser->GetDpi(),
-					 textUser->GetColor().getValue(), mat, textUser->GetAspect());
-	}
 }
 
 MT_Matrix4x4 RAS_Rasterizer::GetFrustumMatrix(
