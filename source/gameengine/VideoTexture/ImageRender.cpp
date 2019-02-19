@@ -155,7 +155,6 @@ bool ImageRender::Render()
 	RAS_FrameFrustum frustum;
 
 	if (!m_render ||
-	    m_rasterizer->GetDrawingMode() != RAS_Rasterizer::RAS_TEXTURED ||   // no need for texture
         m_camera->GetViewport() ||        // camera must be inactive
         m_camera == m_scene->GetActiveCamera())
 	{

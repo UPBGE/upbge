@@ -99,18 +99,6 @@ void LA_PlayerLauncher::RunPythonMainLoop(const std::string& pythonCode)
 	LA_Launcher::RunPythonMainLoop(pythonCode);
 }
 
-RAS_Rasterizer::DrawType LA_PlayerLauncher::GetRasterizerDrawMode()
-{
-	const SYS_SystemHandle& syshandle = SYS_GetSystem();
-	const bool wireframe = SYS_GetCommandLineInt(syshandle, "wireframe", 0);
-
-	if (wireframe) {
-		return RAS_Rasterizer::RAS_WIREFRAME;
-	}
-
-	return RAS_Rasterizer::RAS_TEXTURED;
-}
-
 bool LA_PlayerLauncher::GetUseAlwaysExpandFraming()
 {
 	return false;

@@ -78,27 +78,6 @@ RAS_ICanvas *LA_BlenderLauncher::CreateCanvas()
 	return (new KX_BlenderCanvas(m_rasterizer, m_windowManager, m_window, m_camFrame, m_ar));
 }
 
-RAS_Rasterizer::DrawType LA_BlenderLauncher::GetRasterizerDrawMode()
-{
-	View3D *v3d = CTX_wm_view3d(m_context);
-
-	RAS_Rasterizer::DrawType drawmode = RAS_Rasterizer::RAS_TEXTURED;
-	switch(v3d->drawtype) {
-		case OB_BOUNDBOX:
-		case OB_WIRE:
-		{
-			drawmode = RAS_Rasterizer::RAS_WIREFRAME;
-			break;
-		}
-		case OB_MATERIAL:
-		{
-			drawmode = RAS_Rasterizer::RAS_TEXTURED;
-			break;
-		}
-	}
-	return drawmode;
-}
-
 bool LA_BlenderLauncher::GetUseAlwaysExpandFraming()
 {
 	return m_alwaysUseExpandFraming;

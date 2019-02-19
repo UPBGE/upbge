@@ -54,7 +54,6 @@ protected:
 #endif  // WITH_PYTHON
 
 	virtual RAS_ICanvas *CreateCanvas();
-	virtual RAS_Rasterizer::DrawType GetRasterizerDrawMode();
 	virtual bool GetUseAlwaysExpandFraming();
 	virtual void InitCamera();
 	virtual void InitPython();

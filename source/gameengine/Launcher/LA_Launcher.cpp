@@ -168,7 +168,6 @@ void LA_Launcher::InitEngine()
 	// Stereo parameters - Eye Separation from the UI - stereomode from the command-line/UI
 	m_rasterizer->SetStereoMode(m_stereoMode);
 	m_rasterizer->SetEyeSeparation(m_startScene->gm.eyeseparation);
-	m_rasterizer->SetDrawingMode(GetRasterizerDrawMode());
 
 	// Copy current anisotropic level to restore it at the game end.
 	m_savedData.anisotropic = m_rasterizer->GetAnisotropicFiltering();

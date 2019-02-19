@@ -202,7 +202,6 @@ RAS_Rasterizer::RAS_Rasterizer()
 	m_noOfScanlines(32),
 	m_clientobject(nullptr),
 	m_auxilaryClientInfo(nullptr),
-	m_drawingmode(RAS_TEXTURED),
 	m_shadowMode(RAS_SHADOW_NONE),
 	m_invertFrontFace(false),
 	m_last_frontface(true)
@@ -341,16 +340,6 @@ void RAS_Rasterizer::EndFrame()
 	SetColorMask(true, true, true, true);
 
 	Disable(RAS_MULTISAMPLE);
-}
-
-void RAS_Rasterizer::SetDrawingMode(RAS_Rasterizer::DrawType drawingmode)
-{
-	m_drawingmode = drawingmode;
-}
-
-RAS_Rasterizer::DrawType RAS_Rasterizer::GetDrawingMode()
-{
-	return m_drawingmode;
 }
 
 void RAS_Rasterizer::SetShadowMode(RAS_Rasterizer::ShadowType shadowmode)
@@ -886,7 +875,7 @@ void RAS_Rasterizer::SetPolygonOffset(float mult, float add)
 {
 	m_impl->SetPolygonOffset(mult, add);
 	EnableBit mode = RAS_POLYGON_OFFSET_FILL;
-	if (m_drawingmode < RAS_TEXTURED) {
+	if (0) {
 		mode = RAS_POLYGON_OFFSET_LINE;
 	}
 	if (mult != 0.0f || add != 0.0f) {

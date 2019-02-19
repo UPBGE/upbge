@@ -80,19 +80,6 @@ public:
 	};
 
 	/**
-	 * Drawing types
-	 */
-	enum DrawType {
-		RAS_WIREFRAME = 0,
-		RAS_TEXTURED,
-		RAS_RENDERER,
-		RAS_SHADOW,
-		RAS_DEPTH_PASS,
-		RAS_DEPTH_PASS_CLIP,
-		RAS_DRAW_MAX,
-	};
-
-	/**
 	 * Valid SetDepthMask parameters
 	 */
 	enum DepthMask {
@@ -308,8 +295,6 @@ private:
 
 	/// Class used to manage off screens used by the rasterizer.
 	FrameBuffers m_frameBuffers;
-
-	DrawType m_drawingmode;
 	ShadowType m_shadowMode;
 
 	bool m_invertFrontFace;
@@ -494,16 +479,6 @@ public:
 	 */
 	const MT_Vector3& GetCameraPosition();
 	bool GetCameraOrtho();
-	
-	/**
-	 * \param drawingmode = RAS_WIREFRAME, RAS_SOLID, RAS_SHADOW or RAS_TEXTURED.
-	 */
-	void SetDrawingMode(DrawType drawingmode);
-
-	/**
-	 * \return the current drawing mode: RAS_WIREFRAME, RAS_SOLID RAS_SHADOW or RAS_TEXTURED.
-	 */
-	DrawType GetDrawingMode();
 
 	/// \param shadowmode = RAS_SHADOW_SIMPLE, RAS_SHADOW_VARIANCE.
 	void SetShadowMode(ShadowType shadowmode);

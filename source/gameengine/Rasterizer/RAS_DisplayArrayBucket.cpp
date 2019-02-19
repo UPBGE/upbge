@@ -94,7 +94,7 @@ bool RAS_DisplayArrayBucket::UseBatching() const
 	return false;
 }
 
-void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_Rasterizer::DrawType drawingMode, RAS_MaterialShader *shader)
+void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_MaterialShader *shader)
 {
 }
 

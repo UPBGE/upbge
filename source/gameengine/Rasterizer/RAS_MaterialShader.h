@@ -13,7 +13,7 @@ public:
 	virtual ~RAS_MaterialShader() = default;
 
 	/// Return true when the shader can be bound.
-	virtual bool IsValid(RAS_Rasterizer::DrawType drawtype) const = 0;
+	virtual bool IsValid() const = 0;
 	// Bind the shader and mainly update global uniforms.
 	virtual void Activate(RAS_Rasterizer *rasty) = 0;
 	/// Unbind the shader.

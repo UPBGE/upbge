@@ -19,7 +19,7 @@ public:
 
 	BL_Shader *GetShader() const;
 
-	virtual bool IsValid(RAS_Rasterizer::DrawType drawtype) const;
+	virtual bool IsValid() const;
 	virtual void Activate(RAS_Rasterizer *rasty);
 	virtual void Desactivate();
 	virtual void Update(RAS_Rasterizer *rasty, KX_GameObject *gameobj);
