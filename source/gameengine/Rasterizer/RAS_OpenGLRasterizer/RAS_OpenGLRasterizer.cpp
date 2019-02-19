@@ -335,33 +335,6 @@ void RAS_OpenGLRasterizer::DisableForText()
 	glActiveTexture(GL_TEXTURE0);
 }
 
-void RAS_OpenGLRasterizer::RenderText3D(
-        int fontid, const std::string& text, int size, int dpi,
-        const float color[4], const float mat[16], float aspect)
-{
-	/* gl prepping */
-	m_rasterizer->DisableForText();
-	SetFrontFace(true);
-
-	/* the actual drawing */
-	BLF_color4fv(fontid, color);
-
-	/* multiply the text matrix by the object matrix */
-	BLF_enable(fontid, BLF_MATRIX | BLF_ASPECT);
-	BLF_matrix(fontid, mat);
-
-	/* aspect is the inverse scale that allows you to increase
-	 * your resolution without sizing the final text size
-	 * the bigger the size, the smaller the aspect */
-	BLF_aspect(fontid, aspect, aspect, aspect);
-
-	BLF_size(fontid, size, dpi);
-	BLF_position(fontid, 0, 0, 0);
-	BLF_draw(fontid, text.c_str(), text.size());
-
-	BLF_disable(fontid, BLF_MATRIX | BLF_ASPECT);
-}
-
 void RAS_OpenGLRasterizer::PrintHardwareInfo()
 {
 	CM_Message("GL_VENDOR: " << glGetString(GL_VENDOR));

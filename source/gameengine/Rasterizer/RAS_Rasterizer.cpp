@@ -662,10 +662,6 @@ const MT_Matrix4x4& RAS_Rasterizer::GetPersInvMatrix() const
 	return m_matrices.persinv;
 }
 
-void RAS_Rasterizer::IndexPrimitivesText()
-{
-}
-
 MT_Matrix4x4 RAS_Rasterizer::GetFrustumMatrix(
 	StereoEye eye,
     float left,
@@ -1090,14 +1086,6 @@ void RAS_Rasterizer::DisableForText()
 	Enable(RAS_CULL_FACE);
 
 	m_impl->DisableForText();
-}
-
-void RAS_Rasterizer::RenderText3D(
-        int fontid, const std::string& text, int size, int dpi,
-        const float color[4], const float mat[16], float aspect)
-{
-	/* TEMP: DISABLE TEXT DRAWING in 2.8 WAITING FOR REFACTOR */
-	m_impl->RenderText3D(fontid, text, size, dpi, color, mat, aspect);
 }
 
 void RAS_Rasterizer::SetClientObject(void *obj)

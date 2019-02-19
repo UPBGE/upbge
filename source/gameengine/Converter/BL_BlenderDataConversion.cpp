@@ -1058,9 +1058,8 @@ static KX_GameObject *gameobject_from_blenderobject(
 
 	case OB_FONT:
 	{
-		bool do_color_management = BKE_scene_check_color_management_enabled(blenderscene);
 		/* font objects have no bounding box */
-		KX_FontObject *fontobj = new KX_FontObject(kxscene, KX_Scene::m_callbacks, rasty, ob, do_color_management);
+		KX_FontObject *fontobj = new KX_FontObject(kxscene, KX_Scene::m_callbacks, rasty, ob);
 		gameobj = fontobj;
 
 		kxscene->GetFontList()->Add(CM_AddRef(fontobj));

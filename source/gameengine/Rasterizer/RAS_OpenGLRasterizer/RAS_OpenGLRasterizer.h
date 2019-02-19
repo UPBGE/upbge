@@ -108,8 +108,6 @@ public:
 	 */
 
 	void DisableForText();
-	void RenderText3D(int fontid, const std::string& text, int size, int dpi,
-	                  const float color[4], const float mat[16], float aspect);
 
 	/**
 	 * Prints information about what the hardware supports.

@@ -454,9 +454,6 @@ public:
 	 */
 	void SetFocalLength(const float focallength);
 	float GetFocalLength();
-
-	/// Render text mesh slot using BLF functions.
-	void IndexPrimitivesText();
  
 	/// Get the modelview matrix according to the stereo settings.
 	MT_Matrix4x4 GetViewMatrix(StereoEye eye, const MT_Transform &camtrans, bool perspective);
@@ -573,19 +570,6 @@ public:
 	void GetTransform(float *origmat, int objectdrawmode, float mat[16]);
 
 	void DisableForText();
-	/**
-	 * Renders 3D text string using BFL.
-	 * \param fontid	The id of the font.
-	 * \param text		The string to render.
-	 * \param size		The size of the text.
-	 * \param dpi		The resolution of the text.
-	 * \param color		The color of the object.
-	 * \param mat		The Matrix of the text object.
-	 * \param aspect	A scaling factor to compensate for the size.
-	 */
-	void RenderText3D(
-	        int fontid, const std::string& text, int size, int dpi,
-	        const float color[4], const float mat[16], float aspect);
 
 	void SetClientObject(void *obj);
 
