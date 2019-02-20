@@ -429,7 +429,6 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam, GPUTexture *fin
 	m_resetTaaSamples = false;
 	m_staticObjects.clear();
 
-	KX_KetsjiEngine *engine = KX_GetActiveEngine();
 	Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
 	Scene *scene = GetBlenderScene();
 	ViewLayer *view_layer = BKE_view_layer_default_view(scene);
