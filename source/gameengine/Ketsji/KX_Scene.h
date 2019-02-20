@@ -323,7 +323,7 @@ public:
 	std::vector<Object *>m_hiddenObjectsDuringRuntime;
 
 	void RenderAfterCameraSetup(bool calledFromConstructor);
-	void RenderAfterCameraSetupImageRender(KX_Camera *cam, RAS_ICanvas *canvas, GPUTexture *finaltex);
+	void RenderAfterCameraSetupImageRender(KX_Camera *cam, GPUTexture *finaltex, int *viewport);
 	/***************End of EEVEE INTEGRATION**********************/
 
 	RAS_BucketManager* GetBucketManager() const;

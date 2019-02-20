@@ -230,8 +230,11 @@ bool ImageRender::Render()
 
 	m_rasterizer->BeginFrame(m_engine->GetClockTime());
 
-	m_rasterizer->SetViewport(m_position[0], m_position[1], m_position[0] + m_capSize[0], m_position[1] + m_capSize[1]);
-	m_rasterizer->SetScissor(m_position[0], m_position[1], m_position[0] + m_capSize[0], m_position[1] + m_capSize[1]);
+	int viewport[4] = { m_position[0], m_position[1], m_position[0] + m_capSize[0], m_position[1] + m_capSize[1] };
+
+	m_rasterizer->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
+	m_rasterizer->SetViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
+	m_rasterizer->SetScissor(viewport[0], viewport[1], viewport[2], viewport[3]);
 
 	m_rasterizer->Clear(RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT);
 
@@ -321,7 +324,7 @@ bool ImageRender::Render()
 
 	m_engine->UpdateAnimations(m_scene);
 
-	m_scene->RenderAfterCameraSetupImageRender(m_camera, m_canvas, m_gpuTexture);
+	m_scene->RenderAfterCameraSetupImageRender(m_camera, m_gpuTexture, viewport);
 
 	m_canvas->EndFrame();
 
