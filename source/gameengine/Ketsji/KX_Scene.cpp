@@ -419,7 +419,7 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
 	DRW_game_render_loop_finish();
 }
 
-void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam, RAS_ICanvas *canvas)
+void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam, RAS_ICanvas *canvas, GPUTexture *finaltex)
 {
 	for (KX_GameObject *gameobj : GetObjectList()) {
 		gameobj->TagForUpdate();
@@ -447,9 +447,7 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam, RAS_ICanvas *ca
 
 	int viewportsize[2] = { canvas->GetWidth(), canvas->GetHeight() };
 
-	DRW_game_render_loop(bmain, scene, maincam, viewportsize, state, v, false, reset_taa_samples);
-
-	DRW_game_render_loop_finish();
+	finaltex = DRW_game_render_loop(bmain, scene, maincam, viewportsize, state, v, false, reset_taa_samples);
 }
 
 /******************End of EEVEE INTEGRATION****************************/

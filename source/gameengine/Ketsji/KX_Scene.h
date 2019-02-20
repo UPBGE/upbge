@@ -94,6 +94,7 @@ class KX_ObstacleSimulation;
 struct TaskPool;
 
 /*********EEVEE INTEGRATION************/
+struct GPUTexture;
 struct Object;
 /**************************************/
 
@@ -322,7 +323,7 @@ public:
 	std::vector<Object *>m_hiddenObjectsDuringRuntime;
 
 	void RenderAfterCameraSetup(bool calledFromConstructor);
-	void RenderAfterCameraSetupImageRender(KX_Camera *cam, RAS_ICanvas *canvas);
+	void RenderAfterCameraSetupImageRender(KX_Camera *cam, RAS_ICanvas *canvas, GPUTexture *finaltex);
 	/***************End of EEVEE INTEGRATION**********************/
 
 	RAS_BucketManager* GetBucketManager() const;
