@@ -381,7 +381,7 @@ static void GetRGB(
 	}
 }
 
-static void GetUVs(const RAS_MeshObject::LayerList& layers, MFace *mface, MTFace *tface, MT_Vector2 uvs[4][RAS_Texture::MaxUnits])
+static void GetUVs(const RAS_MeshObject::LayerList& layers, MFace *mface, MTFace *tface, MT_Vector2 uvs[4][RAS_ITexVert::MAX_UNIT])
 {
 	if (tface) {
 		uvs[0][0].setValue(tface->uv[0]);
