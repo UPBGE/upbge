@@ -650,15 +650,17 @@ typedef struct sActionzoneData {
 static bool actionzone_area_poll(bContext *C)
 {
 	wmWindow *win = CTX_wm_window(C);
-	ScrArea *sa = CTX_wm_area(C);
+	bScreen *screen = WM_window_get_active_screen(win);
 
-	if (sa && win && win->eventstate) {
+	if (screen && win && win->eventstate) {
 		const int *xy = &win->eventstate->x;
 		AZone *az;
 
-		for (az = sa->actionzones.first; az; az = az->next)
-			if (BLI_rcti_isect_pt_v(&az->rect, xy))
-				return 1;
+		for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
+			for (az = sa->actionzones.first; az; az = az->next)
+				if (BLI_rcti_isect_pt_v(&az->rect, xy))
+					return 1;
+		}
 	}
 	return 0;
 }
@@ -829,6 +831,31 @@ static AZone *area_actionzone_refresh_xy(ScrArea *sa, const int xy[2], const boo
 	return az;
 }
 
+/* Finds an actionzone by position in entire screen so azones can overlap */
+static AZone *screen_actionzone_find_xy(bScreen *sc, const int xy[2])
+{
+	for (ScrArea *sa = sc->areabase.first; sa; sa = sa->next) {
+		AZone *az = area_actionzone_refresh_xy(sa, xy, true);
+		if (az != NULL) {
+			return az;
+		}
+	}
+	return NULL;
+}
+
+/* Returns the area that the azone belongs to */
+static ScrArea *screen_actionzone_area(bScreen *sc, const AZone *az)
+{
+	for (ScrArea *area = sc->areabase.first; area; area = area->next) {
+		for (AZone *zone = area->actionzones.first; zone; zone = zone->next) {
+			if (zone == az) {
+				return area;
+			}
+		}
+	}
+	return NULL;
+}
+
 AZone *ED_area_actionzone_find_xy(ScrArea *sa, const int xy[2])
 {
 	return area_actionzone_refresh_xy(sa, xy, true);
@@ -874,8 +901,8 @@ static void actionzone_apply(bContext *C, wmOperator *op, int type)
 
 static int actionzone_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-	ScrArea *sa = CTX_wm_area(C);
-	AZone *az = ED_area_actionzone_find_xy(sa, &event->x);
+	bScreen *sc = CTX_wm_screen(C);
+	AZone *az = screen_actionzone_find_xy(sc, &event->x);
 	sActionzoneData *sad;
 
 	/* quick escape - Scroll azones only hide/unhide the scroll-bars, they have their own handling. */
@@ -884,7 +911,7 @@ static int actionzone_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
 	/* ok we do the actionzone */
 	sad = op->customdata = MEM_callocN(sizeof(sActionzoneData), "sActionzoneData");
-	sad->sa1 = sa;
+	sad->sa1 = screen_actionzone_area(sc, az);
 	sad->az = az;
 	sad->x = event->x; sad->y = event->y;
 
@@ -918,12 +945,11 @@ static int actionzone_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
 			/* Movement in dominant direction. */
 			const int delta_max = max_ii(ABS(delta_x), ABS(delta_y));
-			/* Movement in secondary direction. */
-			const int delta_min = min_ii(ABS(delta_x), ABS(delta_y));
-			/* Movement required in dominant direction. */
-			const int delta_threshold = (0.2 * U.widget_unit);
-			/* Must be over threshold and 2:1 ratio or more. */
-			const int delta_okay = (delta_max > delta_threshold) && (delta_min * 2 <= delta_max);
+
+			/* Movement in dominant direction before action taken. */
+			const int join_threshold  = (0.6 * U.widget_unit);
+			const int split_threshold = (1.2 * U.widget_unit);
+			const int area_threshold  = (0.1 * U.widget_unit);
 
 			/* Calculate gesture cardinal direction. */
 			if (delta_y > ABS(delta_x))
@@ -936,18 +962,41 @@ static int actionzone_modal(bContext *C, wmOperator *op, const wmEvent *event)
 				sad->gesture_dir = 'w';
 
 			if (sad->az->type == AZONE_AREA) {
-				const wmWindow *win = CTX_wm_window(C);
+				wmWindow *win = CTX_wm_window(C);
 				rcti screen_rect;
 
 				WM_window_screen_rect_calc(win, &screen_rect);
-				/* once we drag outside the actionzone, register a gesture
-				 * check we're not on an edge so join finds the other area */
-				is_gesture = (delta_okay && (ED_area_actionzone_find_xy(sad->sa1, &event->x) != sad->az) &&
-				              (screen_geom_area_map_find_active_scredge(
-				                   AREAMAP_FROM_SCREEN(sc), &screen_rect, event->x, event->y) == NULL));
+
+				/* Have we dragged off the zone and are not on an edge? */
+				if ((ED_area_actionzone_find_xy(sad->sa1, &event->x) != sad->az) &&
+					(screen_geom_area_map_find_active_scredge(
+						AREAMAP_FROM_SCREEN(sc), &screen_rect, event->x, event->y) == NULL)) {
+					/* Are we still in same area? */
+					if (BKE_screen_find_area_xy(sc, SPACE_TYPE_ANY, event->x, event->y) == sad->sa1) {
+						/* Same area, so possible split. */
+						WM_cursor_set(win, (ELEM(sad->gesture_dir, 'n', 's')) ? BC_V_SPLITCURSOR : BC_H_SPLITCURSOR);
+						is_gesture = (delta_max > split_threshold);
+					}
+					else {
+						/* Different area, so posible join. */
+						if (sad->gesture_dir == 'n')
+							WM_cursor_set(win, BC_N_ARROWCURSOR);
+						else if (sad->gesture_dir == 's')
+							WM_cursor_set(win, BC_S_ARROWCURSOR);
+						else if (sad->gesture_dir == 'e')
+							WM_cursor_set(win, BC_E_ARROWCURSOR);
+						else
+							WM_cursor_set(win, BC_W_ARROWCURSOR);
+						is_gesture = (delta_max > join_threshold);
+					}
+				}
+				else {
+					WM_cursor_set(CTX_wm_window(C), BC_CROSSCURSOR);
+					is_gesture = false;
+				}
 			}
 			else {
-				is_gesture = delta_okay;
+				is_gesture = (delta_max > area_threshold);
 			}
 
 			/* gesture is large enough? */
@@ -1897,7 +1946,7 @@ static void area_split_preview_update_cursor(bContext *C, wmOperator *op)
 {
 	wmWindow *win = CTX_wm_window(C);
 	int dir = RNA_enum_get(op->ptr, "direction");
-	WM_cursor_set(win, (dir == 'v') ? CURSOR_X_MOVE : CURSOR_Y_MOVE);
+	WM_cursor_set(win, (dir == 'n' || dir == 's') ? BC_V_SPLITCURSOR : BC_H_SPLITCURSOR);
 }
 
 /* UI callback, adds new handler */
@@ -2997,7 +3046,6 @@ static int area_join_init(bContext *C, wmOperator *op)
 	sAreaJoinData *jd = NULL;
 	int x1, y1;
 	int x2, y2;
-	int shared = 0;
 
 	/* required properties, make negative to get return 0 if not set by caller */
 	x1 = RNA_int_get(op->ptr, "min_x");
@@ -3018,16 +3066,6 @@ static int area_join_init(bContext *C, wmOperator *op)
 		return 0;
 	}
 	else if (sa1 == NULL || sa2 == NULL || sa1 == sa2) {
-		return 0;
-	}
-
-	/* do areas share an edge? */
-	if (sa1->v1 == sa2->v1 || sa1->v1 == sa2->v2 || sa1->v1 == sa2->v3 || sa1->v1 == sa2->v4) shared++;
-	if (sa1->v2 == sa2->v1 || sa1->v2 == sa2->v2 || sa1->v2 == sa2->v3 || sa1->v2 == sa2->v4) shared++;
-	if (sa1->v3 == sa2->v1 || sa1->v3 == sa2->v2 || sa1->v3 == sa2->v3 || sa1->v3 == sa2->v4) shared++;
-	if (sa1->v4 == sa2->v1 || sa1->v4 == sa2->v2 || sa1->v4 == sa2->v3 || sa1->v4 == sa2->v4) shared++;
-	if (shared != 2) {
-		printf("areas don't share edge\n");
 		return 0;
 	}
 
@@ -3110,10 +3148,10 @@ static int area_join_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 			return OPERATOR_PASS_THROUGH;
 
 		/* prepare operator state vars */
-		RNA_int_set(op->ptr, "min_x", sad->x);
-		RNA_int_set(op->ptr, "min_y", sad->y);
-		RNA_int_set(op->ptr, "max_x", event->x);
-		RNA_int_set(op->ptr, "max_y", event->y);
+		RNA_int_set(op->ptr, "min_x", sad->sa1->totrct.xmin);
+		RNA_int_set(op->ptr, "min_y", sad->sa1->totrct.ymin);
+		RNA_int_set(op->ptr, "max_x", sad->sa2->totrct.xmin);
+		RNA_int_set(op->ptr, "max_y", sad->sa2->totrct.ymin);
 	}
 
 
@@ -3137,6 +3175,7 @@ static void area_join_cancel(bContext *C, wmOperator *op)
 static int area_join_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	bScreen *sc = CTX_wm_screen(C);
+	wmWindow *win = CTX_wm_window(C);
 	sAreaJoinData *jd = (sAreaJoinData *)op->customdata;
 
 	/* execute the events */
@@ -3145,7 +3184,7 @@ static int area_join_modal(bContext *C, wmOperator *op, const wmEvent *event)
 		case MOUSEMOVE:
 		{
 			ScrArea *sa = BKE_screen_find_area_xy(sc, SPACE_TYPE_ANY, event->x, event->y);
-			int dir;
+			int dir = -1;
 
 			if (sa) {
 				if (jd->sa1 != sa) {
@@ -3189,6 +3228,18 @@ static int area_join_modal(bContext *C, wmOperator *op, const wmEvent *event)
 					WM_event_add_notifier(C, NC_WINDOW, NULL);
 				}
 			}
+
+			if (dir == 1)
+				WM_cursor_set(win, BC_N_ARROWCURSOR);
+			else if (dir == 3)
+				WM_cursor_set(win, BC_S_ARROWCURSOR);
+			else if (dir == 2)
+				WM_cursor_set(win, BC_E_ARROWCURSOR);
+			else if (dir == 0)
+				WM_cursor_set(win, BC_W_ARROWCURSOR);
+			else
+				WM_cursor_set(win, BC_STOPCURSOR);
+
 			break;
 		}
 		case LEFTMOUSE:

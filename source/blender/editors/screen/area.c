@@ -752,25 +752,25 @@ static void area_azone_initialize(wmWindow *win, const bScreen *screen, ScrArea 
 
 	float coords[4][4] = {
 	    /* Bottom-left. */
-	    {sa->totrct.xmin,
-	     sa->totrct.ymin,
+	    {sa->totrct.xmin - U.pixelsize,
+	     sa->totrct.ymin - U.pixelsize,
 	     sa->totrct.xmin + AZONESPOTW,
 	     sa->totrct.ymin + AZONESPOTH},
 	    /* Bottom-right. */
 	    {sa->totrct.xmax - AZONESPOTW,
-	     sa->totrct.ymin,
-	     sa->totrct.xmax,
+	     sa->totrct.ymin - U.pixelsize,
+	     sa->totrct.xmax + U.pixelsize,
 	     sa->totrct.ymin + AZONESPOTH},
 	    /* Top-left. */
-	    {sa->totrct.xmin,
+	    {sa->totrct.xmin - U.pixelsize,
 	     sa->totrct.ymax - AZONESPOTH,
 	     sa->totrct.xmin + AZONESPOTW,
-	     sa->totrct.ymax},
+	     sa->totrct.ymax + U.pixelsize},
 	    /* Top-right. */
 	    {sa->totrct.xmax - AZONESPOTW,
 	     sa->totrct.ymax - AZONESPOTH,
-	     sa->totrct.xmax,
-	     sa->totrct.ymax}};
+	     sa->totrct.xmax + U.pixelsize,
+	     sa->totrct.ymax + U.pixelsize}};
 
 	for (int i = 0; i < 4; i++) {
 		/* can't click on bottom corners on OS X, already used for resizing */
@@ -2504,10 +2504,10 @@ void ED_region_header_init(ARegion *ar)
 	UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_HEADER, ar->winx, ar->winy);
 }
 
-/* UI_UNIT_Y is defined as U variable now, depending dpi */
 int ED_area_headersize(void)
 {
-	return (int)(HEADERY * UI_DPI_FAC);
+	/* Accomodate widget and padding. */
+	return U.widget_unit + (int)(UI_DPI_FAC * HEADER_PADDING_Y);
 }
 
 int ED_area_header_alignment_or_fallback(const ScrArea *area, int fallback)
