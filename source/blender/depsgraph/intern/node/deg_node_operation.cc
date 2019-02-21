@@ -41,9 +41,13 @@ const char *operationCodeAsString(OperationCode opcode)
 		/* Generic Operations. */
 		case OperationCode::OPERATION: return "OPERATION";
 		case OperationCode::ID_PROPERTY: return "ID_PROPERTY";
+		case OperationCode::PARAMETERS_ENTRY: return "PARAMETERS_ENTRY";
 		case OperationCode::PARAMETERS_EVAL: return "PARAMETERS_EVAL";
+		case OperationCode::PARAMETERS_EXIT: return "PARAMETERS_EXIT";
 		/* Animation, Drivers, etc. */
-		case OperationCode::ANIMATION: return "ANIMATION";
+		case OperationCode::ANIMATION_ENTRY: return "ANIMATION_ENTRY";
+		case OperationCode::ANIMATION_EVAL: return "ANIMATION_EVAL";
+		case OperationCode::ANIMATION_EXIT: return "ANIMATION_EXIT";
 		case OperationCode::DRIVER: return "DRIVER";
 		/* Scene related. */
 		case OperationCode::SCENE_EVAL: return "SCENE_EVAL";

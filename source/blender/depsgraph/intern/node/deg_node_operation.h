@@ -47,11 +47,15 @@ enum class OperationCode {
 
 	/* Generic parameters evaluation. */
 	ID_PROPERTY,
+	PARAMETERS_ENTRY,
 	PARAMETERS_EVAL,
+	PARAMETERS_EXIT,
 
 	/* Animation, Drivers, etc. --------------------------------------------- */
 	/* NLA + Action */
-	ANIMATION,
+	ANIMATION_ENTRY,
+	ANIMATION_EVAL,
+	ANIMATION_EXIT,
 	/* Driver */
 	DRIVER,
 
