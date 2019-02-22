@@ -985,7 +985,7 @@ GPUTexture *GPU_framebuffer_color_texture(const GPUFrameBuffer *fb)
 
 GPUTexture *GPU_framebuffer_depth_texture(const GPUFrameBuffer *fb)
 {
-	return fb->attachments[GPU_FB_DEPTH_ATTACHMENT].tex;
+	return fb->attachments[GPU_FB_DEPTH_STENCIL_ATTACHMENT].tex;
 }
 
 void GPU_framebuffer_mipmap_texture(GPUFrameBuffer *fb)

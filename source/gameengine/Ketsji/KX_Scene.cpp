@@ -156,6 +156,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
     class RAS_ICanvas* canvas,
 	KX_NetworkMessageManager *messageManager) :
 	CValue(),
+	m_2dfiltersDepthTex(nullptr), //eevee
 	m_resetTaaSamples(false), //eevee
 	m_keyboardmgr(nullptr),
 	m_mousemgr(nullptr),
@@ -268,6 +269,10 @@ KX_Scene::~KX_Scene()
 	Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer, false);
 	Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
 	BKE_scene_graph_update_tagged(depsgraph, bmain);
+
+	if (m_2dfiltersDepthTex) {
+		GPU_texture_free(m_2dfiltersDepthTex);
+	}
 
 	/* End of EEVEE INTEGRATION */
 
@@ -394,8 +399,15 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
 	RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextRenderFrameBuffer(r));
 	RAS_FrameBuffer *output = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(s));
 
+	if (!m_2dfiltersDepthTex) {
+		// I create an extra depth tex to attach to output filter framebuffer to write depth and use bgl_DepthTexture
+		m_2dfiltersDepthTex = GPU_texture_create_2D(viewportsize[0], viewportsize[1], GPU_DEPTH24_STENCIL8, nullptr, nullptr);
+	}
+
 	GPU_framebuffer_texture_attach(input->GetFrameBuffer(), finaltex, 0, 0);
+	GPU_framebuffer_texture_attach(input->GetFrameBuffer(), DRW_viewport_texture_list_get()->depth, 0, 0);
 	GPU_framebuffer_texture_attach(output->GetFrameBuffer(), DRW_viewport_texture_list_get()->color, 0, 0);
+	GPU_framebuffer_texture_attach(output->GetFrameBuffer(), m_2dfiltersDepthTex, 0, 0);
 
 	GPU_framebuffer_bind(input->GetFrameBuffer());
 
@@ -414,7 +426,9 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
 	}
 
 	GPU_framebuffer_texture_detach(input->GetFrameBuffer(), finaltex);
+	GPU_framebuffer_texture_detach(input->GetFrameBuffer(), DRW_viewport_texture_list_get()->depth);
 	GPU_framebuffer_texture_detach(output->GetFrameBuffer(), DRW_viewport_texture_list_get()->color);
+	GPU_framebuffer_texture_detach(output->GetFrameBuffer(), m_2dfiltersDepthTex);
 
 	DRW_game_render_loop_finish();
 }
