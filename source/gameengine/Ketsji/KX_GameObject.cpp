@@ -94,6 +94,7 @@ extern "C" {
 #  include "BLI_alloca.h"
 #  include "BLI_listbase.h"
 #  include "depsgraph/DEG_depsgraph_build.h"
+#  include "depsgraph/DEG_depsgraph_query.h"
 #  include "DNA_mesh_types.h"
 #  include "DRW_render.h"
 #  include "eevee_private.h"
@@ -244,17 +245,20 @@ void KX_GameObject::TagForUpdate()
 	NodeGetWorldTransform().getValue(&obmat[0][0]);
 	m_staticObject = compare_m4m4(m_prevObmat, obmat, FLT_MIN);
 
+	Scene *sc = GetScene()->GetBlenderScene();
+	ViewLayer *view_layer = BKE_view_layer_default_view(sc);
+	Depsgraph *depsgraph = BKE_scene_get_depsgraph(sc, view_layer, false);
+
 	if (m_staticObject) {
 		GetScene()->AppendToStaticObjects(this);
 	}
-	Object *ob = GetBlenderObject();
+	Object *ob = DEG_get_evaluated_object(depsgraph, GetBlenderObject());
 	if (ob) {
 		copy_m4_m4(ob->obmat, obmat);
 		invert_m4_m4(ob->imat, obmat);
 		/* NORMAL CASE */
 		if (!m_staticObject && ob->type != OB_MBALL) {
-			DEG_id_tag_update(&ob->id, NC_OBJECT | ND_TRANSFORM);
-			DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);
+			DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
 		}
 		/* SPECIAL CASE: EXPERIMENTAL -> TEST METABALLS (incomplete) (TODO restore elems position at ge exit) */
 		else if (!m_staticObject && ob->type == OB_MBALL) {
@@ -262,8 +266,7 @@ void KX_GameObject::TagForUpdate()
 				DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
 			}
 			else {
-				DEG_id_tag_update(&ob->id, NC_OBJECT | ND_TRANSFORM);
-				DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);
+				DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
 			}
 		}
 
