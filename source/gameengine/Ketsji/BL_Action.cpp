@@ -61,6 +61,7 @@ extern "C" {
 #include "DNA_modifier_types.h"
 #include "DNA_scene_types.h"
 #include "depsgraph/DEG_depsgraph.h"
+#include "depsgraph/DEG_depsgraph_query.h"
 }
 
 #include "MEM_guardedalloc.h"
@@ -119,7 +120,7 @@ BL_Action::~BL_Action()
 		Depsgraph *depsgraph = BKE_scene_get_depsgraph(sc, view_layer, false);
 
 		BLI_mutex_lock(&object_update_lock);
-		BKE_object_modifier_update_subframe(depsgraph, sc, ob, true, 5, m_backupFrame, 8);
+		BKE_object_modifier_update_subframe(depsgraph, sc, DEG_get_evaluated_object(depsgraph, ob), true, 5, m_backupFrame, 8);
 		BLI_mutex_unlock(&object_update_lock);
 	}
 	else {
@@ -131,7 +132,7 @@ BL_Action::~BL_Action()
 		Depsgraph *depsgraph = BKE_scene_get_depsgraph(sc, view_layer, false);
 
 		BLI_mutex_lock(&object_update_lock);
-		BKE_object_modifier_update_subframe(depsgraph, sc, ob, true, 5, m_backupFrame, 41);
+		BKE_object_modifier_update_subframe(depsgraph, sc, DEG_get_evaluated_object(depsgraph, ob), true, 5, m_backupFrame, 41);
 		BLI_mutex_unlock(&object_update_lock);
 	}
 }
@@ -443,7 +444,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
 		Depsgraph *depsgraph = BKE_scene_get_depsgraph(sc, view_layer, false);
 
 		BLI_mutex_lock(&object_update_lock);
-		BKE_object_modifier_update_subframe(depsgraph, sc, ob, true, 5, m_localframe, 8);
+		BKE_object_modifier_update_subframe(depsgraph, sc, DEG_get_evaluated_object(depsgraph, ob), true, 5, m_localframe, 8);
 		BLI_mutex_unlock(&object_update_lock);
 
 		scene->ResetTaaSamples();
@@ -497,7 +498,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
 					Depsgraph *depsgraph = BKE_scene_get_depsgraph(sc, view_layer, false);
 
 					BLI_mutex_lock(&object_update_lock);
-					BKE_object_modifier_update_subframe(depsgraph, sc, ob, true, 5, m_localframe, 41);
+					BKE_object_modifier_update_subframe(depsgraph, sc, DEG_get_evaluated_object(depsgraph, ob), true, 5, m_localframe, 41);
 					BLI_mutex_unlock(&object_update_lock);
 
 					scene->ResetTaaSamples();
