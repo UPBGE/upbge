@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/interface/interface_style.c
@@ -510,7 +504,8 @@ void uiStyleInit(void)
 	}
 #endif
 
-	/* XXX, this should be moved into a style, but for now best only load the monospaced font once. */
+	/* XXX, this should be moved into a style,
+	 * but for now best only load the monospaced font once. */
 	BLI_assert(blf_mono_font == -1);
 	if (U.font_path_ui_mono[0]) {
 		blf_mono_font = BLF_load_unique(U.font_path_ui_mono);

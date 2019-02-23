@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Blender Foundation, Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/mesh/mesh_mirror.c
@@ -313,7 +307,8 @@ void ED_mesh_mirrtopo_init(Mesh *me, DerivedMesh *dm, const int ob_mode, MirrTop
 	if (em) {
 		BMVert **vtable = em->bm->vtable;
 		for (a = 1; a <= totvert; a++) {
-			/* printf("I %d %ld %d\n", (a - last), MirrTopoPairs[a].hash, MirrTopoPairs[a].v_indexs); */
+			// printf("I %d %ld %d\n",
+			//        (a - last), MirrTopoPairs[a].hash, MirrTopoPairs[a].v_indexs);
 			if ((a == totvert) || (topo_pairs[a - 1].hash != topo_pairs[a].hash)) {
 				const int match_count = a - last;
 				if (match_count == 2) {

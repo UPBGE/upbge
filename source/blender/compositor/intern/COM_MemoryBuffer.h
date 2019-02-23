@@ -14,10 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor:
- *      Jeroen Bakker
- *      Monique Dewanchand
  */
 
 class MemoryBuffer;
@@ -44,7 +40,7 @@ typedef enum MemoryBufferState {
 	/** \brief memory is available for use, content has been created */
 	COM_MB_AVAILABLE = 2,
 	/** \brief chunk is consolidated from other chunks. special state.*/
-	COM_MB_TEMPORARILY = 6
+	COM_MB_TEMPORARILY = 6,
 } MemoryBufferState;
 
 typedef enum MemoryBufferExtend {

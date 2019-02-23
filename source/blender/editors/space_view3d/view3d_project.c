@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_view3d/view3d_project.c
@@ -117,9 +110,10 @@ eV3DProjStatus ED_view3d_project_base(const struct ARegion *ar, struct Base *bas
  * - 'rv3d->perspmat',   is_local == false
  * - 'rv3d->persmatob', is_local == true
  */
-static eV3DProjStatus ed_view3d_project__internal(const ARegion *ar,
-                                                  float perspmat[4][4], const bool is_local,  /* normally hidden */
-                                                  const float co[3], float r_co[2], const eV3DProjTest flag)
+static eV3DProjStatus ed_view3d_project__internal(
+        const ARegion *ar,
+        float perspmat[4][4], const bool is_local,  /* normally hidden */
+        const float co[3], float r_co[2], const eV3DProjTest flag)
 {
 	float vec4[4];
 

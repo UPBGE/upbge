@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation, Joshua Leung
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/animation/fmodifier_ui.c
@@ -349,9 +342,11 @@ static void fmod_envelope_addpoint_cb(bContext *C, void *fcm_dv, void *UNUSED(ar
 		bool exists;
 		int i = BKE_fcm_envelope_find_index(env->data, (float)(scene->r.cfra), env->totvert, &exists);
 
-		/* binarysearch_...() will set exists by default to 0, so if it is non-zero, that means that the point exists already */
-		if (exists)
+		/* binarysearch_...() will set exists by default to 0,
+		 * so if it is non-zero, that means that the point exists already */
+		if (exists) {
 			return;
+		}
 
 		/* add new */
 		fedn = MEM_callocN((env->totvert + 1) * sizeof(FCM_EnvelopeData), "FCM_EnvelopeData");

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Geoffrey Bantle, Levi Schooley, Joseph Eagar.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __BMESH_CLASS_H__
@@ -32,11 +26,11 @@
 /* dissable holes for now, these are ifdef'd because they use more memory and cant be saved in DNA currently */
 // #define USE_BMESH_HOLES
 
-struct BMesh;
-struct BMVert;
 struct BMEdge;
-struct BMLoop;
 struct BMFace;
+struct BMLoop;
+struct BMVert;
+struct BMesh;
 
 struct BLI_mempool;
 
@@ -260,7 +254,7 @@ enum {
 	BM_VERT = 1,
 	BM_EDGE = 2,
 	BM_LOOP = 4,
-	BM_FACE = 8
+	BM_FACE = 8,
 };
 
 #define BM_ALL (BM_VERT | BM_EDGE | BM_LOOP | BM_FACE)

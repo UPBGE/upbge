@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Brecht Van Lommel.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/render/intern/include/strand.h
@@ -28,17 +22,17 @@
 #ifndef __STRAND_H__
 #define __STRAND_H__
 
-struct StrandVert;
-struct StrandRen;
-struct StrandBuffer;
-struct ShadeSample;
-struct StrandPart;
-struct Render;
-struct ZSpan;
-struct ObjectInstanceRen;
-struct StrandSurface;
 struct DerivedMesh;
+struct ObjectInstanceRen;
 struct ObjectRen;
+struct Render;
+struct ShadeSample;
+struct StrandBuffer;
+struct StrandPart;
+struct StrandRen;
+struct StrandSurface;
+struct StrandVert;
+struct ZSpan;
 
 typedef struct StrandPoint {
 	/* position within segment */

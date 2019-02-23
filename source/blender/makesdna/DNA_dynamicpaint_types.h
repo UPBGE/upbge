@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,11 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software  Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Miika Hämäläinen
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  */
 
 /** \file DNA_dynamicpaint_types.h
@@ -155,9 +148,11 @@ enum {
 	/* This should not be needed, having a valid WEIGHT_MCOL layer should be enough.
 	 * And if not, should be a general flag. But seems unnecessary for now... */
 #if 0
-	MOD_DPAINT_PREVIEW_READY      = 1 << 0,  /* if viewport preview is ready */
+	/** if viewport preview is ready */
+	MOD_DPAINT_PREVIEW_READY      = 1 << 0,
 #endif
-	MOD_DPAINT_BAKING             = 1 << 1,  /* surface is already baking, so it wont get updated (loop) */
+	/** surface is already baking, so it wont get updated (loop) */
+	MOD_DPAINT_BAKING             = 1 << 1,
 };
 
 /* Canvas settings */

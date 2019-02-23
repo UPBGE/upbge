@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2007 by Nicholas Bishop
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __BKE_MULTIRES_H__
@@ -43,9 +35,9 @@ struct Object;
 struct Scene;
 
 struct MLoop;
-struct MVert;
-struct MPoly;
 struct MLoopTri;
+struct MPoly;
+struct MVert;
 
 /* Delete mesh mdisps and grid paint masks */
 void multires_customdata_delete(struct Mesh *me);
@@ -69,7 +61,7 @@ typedef enum {
 	MULTIRES_USE_LOCAL_MMD = 1,
 	MULTIRES_USE_RENDER_PARAMS = 2,
 	MULTIRES_ALLOC_PAINT_MASK = 4,
-	MULTIRES_IGNORE_SIMPLIFY = 8
+	MULTIRES_IGNORE_SIMPLIFY = 8,
 } MultiresFlags;
 
 struct DerivedMesh *multires_make_derived_from_derived(struct DerivedMesh *dm,

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2005 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Bob Holcomb.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __BKE_NODE_H__
@@ -51,34 +43,34 @@
 /* not very important, but the stack solver likes to know a maximum */
 #define MAX_SOCKET	512
 
-struct bContext;
-struct bNode;
-struct bNodeLink;
-struct bNodeSocket;
-struct bNodeStack;
-struct bNodeTree;
-struct bNodeTreeType;
-struct bNodeTreeExec;
-struct bNodeExecContext;
-struct bNodeExecData;
+struct ARegion;
+struct ColorManagedDisplaySettings;
+struct ColorManagedViewSettings;
 struct GPUMaterial;
 struct GPUNodeStack;
 struct ID;
 struct ImBuf;
 struct ImageFormatData;
 struct ListBase;
-struct Main;
-struct uiLayout;
 struct MTex;
+struct Main;
 struct PointerRNA;
 struct RenderData;
 struct Scene;
-struct Tex;
 struct SpaceNode;
-struct ARegion;
-struct ColorManagedViewSettings;
-struct ColorManagedDisplaySettings;
+struct Tex;
+struct bContext;
+struct bNode;
+struct bNodeExecContext;
+struct bNodeExecData;
 struct bNodeInstanceHash;
+struct bNodeLink;
+struct bNodeSocket;
+struct bNodeStack;
+struct bNodeTree;
+struct bNodeTreeExec;
+struct bNodeTreeType;
+struct uiLayout;
 
 /* -------------------------------------------------------------------- */
 /** \name Node Type Definitions

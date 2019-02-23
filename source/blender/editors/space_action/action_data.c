@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2015 Blender Foundation
  * This is a new part of Blender
- *
- * Contributor(s): Joshua Leung
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_action/action_data.c
@@ -867,7 +861,8 @@ static bool action_layer_prev_poll(bContext *C)
 		AnimData *adt = ED_actedit_animdata_from_context(C);
 		if (adt) {
 			if (adt->flag & ADT_NLA_EDIT_ON) {
-				/* Tweak Mode: We need to check if there are any tracks below the active one that we can move to */
+				/* Tweak Mode: We need to check if there are any tracks below the active one
+				 * that we can move to */
 				if (adt->nla_tracks.first) {
 					NlaTrack *nlt = (NlaTrack *)adt->nla_tracks.first;
 

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -20,7 +18,6 @@
 
  * The Original Code is: some of this file.
  *
- * ***** END GPL LICENSE BLOCK *****
  * */
 
 /** \file blender/blenlib/intern/math_rotation.c
@@ -2005,12 +2002,18 @@ void quat_apply_track(float quat[4], short axis, short upflag)
 	/* rotations are hard coded to match vec_to_quat */
 	const float sqrt_1_2 = (float)M_SQRT1_2;
 	const float quat_track[][4] = {
-		{sqrt_1_2, 0.0, -sqrt_1_2, 0.0}, /* pos-y90 */
-		{0.5, 0.5, 0.5, 0.5}, /* Quaternion((1,0,0), radians(90)) * Quaternion((0,1,0), radians(90)) */
-		{sqrt_1_2, 0.0, 0.0, sqrt_1_2}, /* pos-z90 */
-		{sqrt_1_2, 0.0, sqrt_1_2, 0.0}, /* neg-y90 */
-		{0.5, -0.5, -0.5, 0.5}, /* Quaternion((1,0,0), radians(-90)) * Quaternion((0,1,0), radians(-90)) */
-		{0.0, sqrt_1_2, sqrt_1_2, 0.0} /* no rotation */
+		/* pos-y90 */
+		{sqrt_1_2, 0.0, -sqrt_1_2, 0.0},
+		/* Quaternion((1,0,0), radians(90)) * Quaternion((0,1,0), radians(90)) */
+		{0.5, 0.5, 0.5, 0.5},
+		/* pos-z90 */
+		{sqrt_1_2, 0.0, 0.0, sqrt_1_2},
+		/* neg-y90 */
+		{sqrt_1_2, 0.0, sqrt_1_2, 0.0},
+		/* Quaternion((1,0,0), radians(-90)) * Quaternion((0,1,0), radians(-90)) */
+		{0.5, -0.5, -0.5, 0.5},
+		/* no rotation */
+		{0.0, sqrt_1_2, sqrt_1_2, 0.0}
 	};
 
 	assert(axis >= 0 && axis <= 5);

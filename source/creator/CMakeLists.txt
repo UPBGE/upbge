@@ -791,13 +791,6 @@ elseif(WIN32)
 		endif()
 	endif()
 
-	if(MSVC)
-		install(
-			FILES ${LIBDIR}/pthreads/lib/pthreadVC3.dll
-			DESTINATION "."
-		)
-	endif()
-
 	if(WITH_CODEC_FFMPEG)
 		install(
 			FILES
@@ -922,6 +915,13 @@ elseif(APPLE)
 		blender.app/Contents/
 	)
 
+	if(WITH_OPENMP AND OPENMP_CUSTOM)
+		install(
+			FILES ${LIBDIR}/openmp/lib/libomp.dylib
+			DESTINATION blender.app/Contents/Resources/lib
+		)
+	endif()
+
 	if(WITH_LLVM AND NOT LLVM_STATIC)
 		install(
 			FILES ${LIBDIR}/llvm/lib/libLLVM-3.4.dylib
@@ -980,13 +980,12 @@ elseif(APPLE)
 			blenderplayer.app/Contents/
 		)
 
-		if(WITH_OPENMP AND CMAKE_C_COMPILER_ID MATCHES "Clang" AND NOT ${CMAKE_C_COMPILER_VERSION} VERSION_LESS '3.4')
+		if(WITH_OPENMP AND OPENMP_CUSTOM)
 			install(
-				FILES ${LIBDIR}/openmp/lib/libiomp5.dylib
-				DESTINATION blenderplayer.app/Contents/Resources/lib/
+				FILES ${LIBDIR}/openmp/lib/libomp.dylib
+				DESTINATION blenderplayer.app/Contents/Resources/lib
 			)
 		endif()
-
 
 		# python
 		if(WITH_PYTHON AND NOT WITH_PYTHON_FRAMEWORK)

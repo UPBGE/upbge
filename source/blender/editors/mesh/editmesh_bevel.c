@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Joseph Eagar, Howard Trickey, Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/mesh/editmesh_bevel.c
@@ -80,7 +74,8 @@ typedef struct {
 	float initial_length[NUM_VALUE_KINDS];
 	float scale[NUM_VALUE_KINDS];
 	NumInput num_input[NUM_VALUE_KINDS];
-	float shift_value[NUM_VALUE_KINDS]; /* The current value when shift is pressed. Negative when shift not active. */
+	/** The current value when shift is pressed. Negative when shift not active. */
+	float shift_value[NUM_VALUE_KINDS];
 	bool is_modal;
 
 	/* modal only */
@@ -166,7 +161,8 @@ static bool edbm_bevel_init(bContext *C, wmOperator *op, const bool is_modal)
 		if (i == OFFSET_VALUE) {
 			opdata->num_input[i].unit_sys = scene->unit.system;
 		}
-		opdata->num_input[i].unit_type[0] = B_UNIT_NONE;  /* Not sure this is a factor or a unit? */
+		/* Not sure this is a factor or a unit? */
+		opdata->num_input[i].unit_type[0] = B_UNIT_NONE;
 	}
 
 	/* avoid the cost of allocating a bm copy */

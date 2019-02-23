@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,12 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 #ifndef __BKE_MODIFIER_H__
 #define __BKE_MODIFIER_H__
@@ -32,18 +24,18 @@
 #include "BLI_compiler_attrs.h"
 #include "BKE_customdata.h"
 
-struct ID;
-struct DerivedMesh;
+struct BMEditMesh;
 struct DagForest;
 struct DagNode;
-struct Object;
-struct Scene;
+struct DepsNodeHandle;
+struct DerivedMesh;
+struct ID;
 struct ListBase;
-struct bArmature;
 struct Main;
 struct ModifierData;
-struct BMEditMesh;
-struct DepsNodeHandle;
+struct Object;
+struct Scene;
+struct bArmature;
 
 typedef enum {
 	/* Should not be used, only for None modifier type */

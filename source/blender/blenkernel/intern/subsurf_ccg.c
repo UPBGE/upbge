@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2005 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenkernel/intern/subsurf_ccg.c
@@ -131,7 +123,7 @@ typedef enum {
 	CCG_CALC_NORMALS = 4,
 	/* add an extra four bytes for a mask layer */
 	CCG_ALLOC_MASK = 8,
-	CCG_SIMPLE_SUBDIV = 16
+	CCG_SIMPLE_SUBDIV = 16,
 } CCGFlags;
 
 static CCGSubSurf *_getSubSurf(CCGSubSurf *prevSS, int subdivLevels,

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2015, Blender Foundation
  * This is a new part of Blender
- *
- * Contributor(s): Joshua Leung, Antonio Vazquez
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  * Brush based operators for editing Grease Pencil strokes
  */
 
@@ -607,7 +600,8 @@ static bool gp_brush_twist_apply(tGP_BrushEditData *gso, bGPDstroke *gps, int i,
 		axis_angle_normalized_to_mat3(rmat, axis, angle);
 
 		/* Rotate point (no matrix-space transforms needed, as GP points are in world space) */
-		sub_v3_v3v3(vec, &pt->x, gso->dvec); /* make relative to center (center is stored in dvec) */
+		sub_v3_v3v3(vec, &pt->x, gso->dvec); /* make relative to center
+		                                      * (center is stored in dvec) */
 		mul_m3_v3(rmat, vec);
 		add_v3_v3v3(&pt->x, vec, gso->dvec); /* restore */
 	}

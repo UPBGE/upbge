@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -16,12 +14,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_text/text_draw.c
@@ -182,7 +174,6 @@ static void format_draw_color(char formatchar)
  *             draw_end = pos+1
  *         pos += 1
  *     print line[draw_start:]
- *
  */
 
 int wrap_width(const SpaceText *st, ARegion *ar)
@@ -559,13 +550,21 @@ static void text_update_drawcache(SpaceText *st, ARegion *ar)
 	nlines = drawcache->nlines;
 
 	/* check if full cache update is needed */
-	full_update |= drawcache->winx != ar->winx;               /* area was resized */
-	full_update |= drawcache->wordwrap != st->wordwrap;       /* word-wrapping option was toggled */
-	full_update |= drawcache->showlinenrs != st->showlinenrs; /* word-wrapping option was toggled */
-	full_update |= drawcache->tabnumber != st->tabnumber;     /* word-wrapping option was toggled */
-	full_update |= drawcache->lheight != st->lheight_dpi;         /* word-wrapping option was toggled */
-	full_update |= drawcache->cwidth != st->cwidth;           /* word-wrapping option was toggled */
-	full_update |= !STREQLEN(drawcache->text_id, txt->id.name, MAX_ID_NAME); /* text datablock was changed */
+
+	/* area was resized */
+	full_update |= drawcache->winx != ar->winx;
+	/* word-wrapping option was toggled */
+	full_update |= drawcache->wordwrap != st->wordwrap;
+	/* word-wrapping option was toggled */
+	full_update |= drawcache->showlinenrs != st->showlinenrs;
+	/* word-wrapping option was toggled */
+	full_update |= drawcache->tabnumber != st->tabnumber;
+	/* word-wrapping option was toggled */
+	full_update |= drawcache->lheight != st->lheight_dpi;
+	/* word-wrapping option was toggled */
+	full_update |= drawcache->cwidth != st->cwidth;
+	/* text datablock was changed */
+	full_update |= !STREQLEN(drawcache->text_id, txt->id.name, MAX_ID_NAME);
 
 	if (st->wordwrap) {
 		/* update line heights */
@@ -812,7 +811,8 @@ static void calc_text_rcts(SpaceText *st, ARegion *ar, rcti *scroll, rcti *back)
 	scroll->ymin = 4;
 	scroll->ymax = 4 + pix_available;
 
-	/* when re-sizing a view-port with the bar at the bottom to a greater height more blank lines will be added */
+	/* when re-sizing a view-port with the bar at the bottom to a greater height
+	 * more blank lines will be added */
 	if (ltexth + blank_lines < st->top + st->viewlines) {
 		blank_lines = st->top + st->viewlines - ltexth;
 	}

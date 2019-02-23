@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __SHADBUF_H__
@@ -51,7 +43,6 @@ void threaded_makeshadowbufs(struct Render *re);
  *         shadow.
  * \param shb: The shadowbuffer to find the shadow factor in.
  * \param inp: The inproduct between viewvector and ?
- *
  */
 float testshadowbuf(struct Render *re, struct ShadBuf *shb, const float rco[3], const float dxco[3], const float dyco[3], float inp, float mat_bias);
 
@@ -64,8 +55,8 @@ float shadow_halo(LampRen *lar, const float p1[3], const float p2[3]);
  * Irregular shadowbuffer
  */
 
-struct MemArena;
 struct APixstr;
+struct MemArena;
 
 void ISB_create(RenderPart *pa, struct APixstr *apixbuf);
 void ISB_free(RenderPart *pa);

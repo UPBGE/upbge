@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,8 +15,6 @@
  *
  * The Original Code is Copyright (C) 2005 Blender Foundation.
  * All rights reserved.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file ED_render.h
@@ -30,13 +26,13 @@
 
 #include "DNA_vec_types.h"
 
-struct bContext;
 struct ID;
-struct Main;
 struct MTex;
+struct Main;
 struct Render;
 struct Scene;
 struct ScrArea;
+struct bContext;
 struct wmWindowManager;
 
 /* render_ops.c */

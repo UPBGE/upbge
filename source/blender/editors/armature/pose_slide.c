@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2009, Blender Foundation, Joshua Leung
  * This is a new part of Blender
- *
- * Contributor(s): Joshua Leung
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/armature/pose_slide.c
@@ -95,10 +89,13 @@ typedef struct tPoseSlideOp {
 	ListBase pfLinks;   /* links between posechannels and f-curves  */
 	DLRBT_Tree keys;    /* binary tree for quicker searching for keyframes (when applicable) */
 
-	int cframe;         /* current frame number - global time */
+	/** current frame number - global time */
+	int cframe;
 
-	int prevFrame;      /* frame before current frame (blend-from) - global time */
-	int nextFrame;      /* frame after current frame (blend-to)    - global time */
+	/** frame before current frame (blend-from) - global time */
+	int prevFrame;
+	/** frame after current frame (blend-to)    - global time */
+	int nextFrame;
 
 	float prevFrameF;   /* prevFrame, but in local action time (for F-Curve lookups to work) */
 	float nextFrameF;   /* nextFrame, but in local action time (for F-Curve lookups to work) */
@@ -106,10 +103,13 @@ typedef struct tPoseSlideOp {
 	short mode;         /* sliding mode (ePoseSlide_Modes) */
 	short flag;         /* unused for now, but can later get used for storing runtime settings.... */
 
-	short channels;     /* which transforms/channels are affected (ePoseSlide_Channels) */
-	short axislock;     /* axis-limits for transforms (ePoseSlide_AxisLock) */
+	/** which transforms/channels are affected (ePoseSlide_Channels) */
+	short channels;
+	/** axis-limits for transforms (ePoseSlide_AxisLock) */
+	short axislock;
 
-	float percentage;   /* 0-1 value for determining the influence of whatever is relevant */
+	/** 0-1 value for determining the influence of whatever is relevant */
+	float percentage;
 
 	NumInput num;       /* numeric input */
 } tPoseSlideOp;
@@ -151,7 +151,7 @@ static const EnumPropertyItem prop_channels_types[] = {
 typedef enum ePoseSlide_AxisLock {
 	PS_LOCK_X = (1 << 0),
 	PS_LOCK_Y = (1 << 1),
-	PS_LOCK_Z = (1 << 2)
+	PS_LOCK_Z = (1 << 2),
 } ePoseSlide_AxisLock;
 
 /* Property enum for ePoseSlide_AxisLock */
@@ -310,7 +310,8 @@ static void pose_slide_apply_val(tPoseSlideOp *pso, FCurve *fcu, float *val)
 			 * - numerator should be larger than denominator to 'expand' the result
 			 * - perform this weighting a number of times given by the percentage...
 			 */
-			int iters = (int)ceil(10.0f * pso->percentage); /* TODO: maybe a sensitivity ctrl on top of this is needed */
+			/* TODO: maybe a sensitivity ctrl on top of this is needed */
+			int iters = (int)ceil(10.0f * pso->percentage);
 
 			while (iters-- > 0) {
 				(*val) = (-((sVal * w2) + (eVal * w1)) + ((*val) * 6.0f) ) / 5.0f;
@@ -323,7 +324,8 @@ static void pose_slide_apply_val(tPoseSlideOp *pso, FCurve *fcu, float *val)
 			 * - numerator should be smaller than denominator to 'relax' the result
 			 * - perform this weighting a number of times given by the percentage...
 			 */
-			int iters = (int)ceil(10.0f * pso->percentage); /* TODO: maybe a sensitivity ctrl on top of this is needed */
+			/* TODO: maybe a sensitivity ctrl on top of this is needed */
+			int iters = (int)ceil(10.0f * pso->percentage);
 
 			while (iters-- > 0) {
 				(*val) = ( ((sVal * w2) + (eVal * w1)) + ((*val) * 5.0f) ) / 6.0f;
@@ -522,7 +524,8 @@ static void pose_slide_apply_quat(tPoseSlideOp *pso, tPChanFCurveLink *pfl)
 		}
 		else {
 			float quat_interp[4], quat_orig[4];
-			int iters = (int)ceil(10.0f * pso->percentage); /* TODO: maybe a sensitivity ctrl on top of this is needed */
+			/* TODO: maybe a sensitivity ctrl on top of this is needed */
+			int iters = (int)ceil(10.0f * pso->percentage);
 
 			/* perform this blending several times until a satisfactory result is reached */
 			while (iters-- > 0) {

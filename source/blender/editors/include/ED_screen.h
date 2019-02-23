@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file ED_screen.h
@@ -36,18 +29,18 @@
 #include "DNA_view2d_types.h"
 #include "DNA_view3d_types.h"
 
-struct wmWindowManager;
-struct wmWindow;
-struct wmNotifier;
+struct ARegion;
+struct Main;
+struct Scene;
+struct bContext;
+struct bScreen;
+struct rcti;
+struct uiBlock;
 struct wmEvent;
 struct wmKeyConfig;
-struct bContext;
-struct Scene;
-struct bScreen;
-struct ARegion;
-struct uiBlock;
-struct rcti;
-struct Main;
+struct wmNotifier;
+struct wmWindow;
+struct wmWindowManager;
 
 /* regions */
 void    ED_region_do_listen(struct bScreen *sc, struct ScrArea *sa, struct ARegion *ar, struct wmNotifier *note);

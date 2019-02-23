@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -16,10 +14,6 @@
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/render/render_shading.c
@@ -1790,7 +1784,8 @@ void MATERIAL_OT_copy(wmOperatorType *ot)
 	ot->exec = copy_material_exec;
 
 	/* flags */
-	ot->flag = OPTYPE_REGISTER | OPTYPE_INTERNAL; /* no undo needed since no changes are made to the material */
+	/* no undo needed since no changes are made to the material */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_INTERNAL;
 }
 
 static int paste_material_exec(bContext *C, wmOperator *UNUSED(op))
@@ -1944,7 +1939,8 @@ void TEXTURE_OT_slot_copy(wmOperatorType *ot)
 	ot->poll = copy_mtex_poll;
 
 	/* flags */
-	ot->flag = OPTYPE_REGISTER | OPTYPE_INTERNAL; /* no undo needed since no changes are made to the mtex */
+	/* no undo needed since no changes are made to the mtex */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_INTERNAL;
 }
 
 static int paste_mtex_exec(bContext *C, wmOperator *UNUSED(op))

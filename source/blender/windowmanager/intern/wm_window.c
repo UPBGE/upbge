@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -18,10 +16,6 @@
  * The Original Code is Copyright (C) 2007 Blender Foundation but based
  * on ghostwinlay.c (C) 2001-2002 by NaN Holding BV
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation, 2008
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/windowmanager/intern/wm_window.c
@@ -90,7 +84,7 @@ static GHOST_SystemHandle g_system = NULL;
 
 typedef enum WinOverrideFlag {
 	WIN_OVERRIDE_GEOM     = (1 << 0),
-	WIN_OVERRIDE_WINSTATE = (1 << 1)
+	WIN_OVERRIDE_WINSTATE = (1 << 1),
 } WinOverrideFlag;
 
 /* set by commandline */

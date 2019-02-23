@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 #ifndef __BKE_TEXT_H__
 #define __BKE_TEXT_H__
@@ -131,7 +123,7 @@ extern int text_check_identifier_nodigit_unicode(const unsigned int ch);
 
 enum {
 	TXT_MOVE_LINE_UP   = -1,
-	TXT_MOVE_LINE_DOWN =  1
+	TXT_MOVE_LINE_DOWN =  1,
 };
 
 typedef struct TextUndoBuf {

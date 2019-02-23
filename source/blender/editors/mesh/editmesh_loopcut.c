@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2007 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Joseph Eagar, Joshua Leung
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/mesh/editmesh_loopcut.c
@@ -461,10 +454,13 @@ static void ringsel_finish(bContext *C, wmOperator *op)
 			/* XXX Is this piece of code ever used now? Simple loop select is now
 			 *     in editmesh_select.c (around line 1000)... */
 			/* sets as active, useful for other tools */
-			if (em->selectmode & SCE_SELECT_VERTEX)
-				BM_select_history_store(em->bm, lcd->eed->v1);  /* low priority TODO, get vertrex close to mouse */
-			if (em->selectmode & SCE_SELECT_EDGE)
+			if (em->selectmode & SCE_SELECT_VERTEX) {
+				/* low priority TODO, get vertrex close to mouse */
+				BM_select_history_store(em->bm, lcd->eed->v1);
+			}
+			if (em->selectmode & SCE_SELECT_EDGE) {
 				BM_select_history_store(em->bm, lcd->eed);
+			}
 
 			EDBM_selectmode_flush(lcd->em);
 			WM_event_add_notifier(C, NC_GEOM | ND_SELECT, lcd->ob->data);
@@ -848,7 +844,8 @@ void MESH_OT_loopcut(wmOperatorType *ot)
 
 	/* properties */
 	prop = RNA_def_int(ot->srna, "number_cuts", 1, 1, 1000000, "Number of Cuts", "", 1, 100);
-	/* avoid re-using last var because it can cause _very_ high poly meshes and annoy users (or worse crash) */
+	/* avoid re-using last var because it can cause
+	 * _very_ high poly meshes and annoy users (or worse crash) */
 	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
 	prop = RNA_def_float(ot->srna, "smoothness", 0.0f, -1e3f, 1e3f,

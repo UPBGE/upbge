@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,13 +15,6 @@
  *
  * The Original Code is Copyright (C) 2012 by Nicholas Bishop
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s):
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  */
 
 /** \file blender/editors/sculpt_paint/paint_mask.c
@@ -486,7 +477,8 @@ static int paint_mask_gesture_lasso_exec(bContext *C, wmOperator *op)
 
 				data.symmpass = symmpass;
 
-				/* gather nodes inside lasso's enclosing rectangle (should greatly help with bigger meshes) */
+				/* gather nodes inside lasso's enclosing rectangle
+				 * (should greatly help with bigger meshes) */
 				BKE_pbvh_search_gather(pbvh, BKE_pbvh_node_planes_contain_AABB, clip_planes_final, &nodes, &totnode);
 
 				data.task_data.ob = ob;

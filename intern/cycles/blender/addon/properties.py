@@ -726,7 +726,7 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
 
         cls.debug_opencl_kernel_single_program = BoolProperty(
             name="Single Program",
-            default=True,
+            default=False,
             update=devices_update_callback,
         )
 
@@ -892,7 +892,7 @@ class CyclesMaterialSettings(bpy.types.PropertyGroup):
             name="Displacement Method",
             description="Method to use for the displacement",
             items=enum_displacement_methods,
-            default='DISPLACEMENT',
+            default='BUMP',
         )
 
     @classmethod
@@ -1344,6 +1344,12 @@ class CyclesRenderLayerSettings(bpy.types.PropertyGroup):
             default=False,
             update=update_render_passes,
         )
+        denoising_neighbor_frames: IntProperty(
+            name="Neighbor Frames",
+            description="Number of neighboring frames to use for denoising animations (more frames produce smoother results at the cost of performance)",
+            min=0, max=7,
+            default=0,
+        )
         cls.use_pass_crypto_object = BoolProperty(
                 name="Cryptomatte Object",
                 description="Render cryptomatte object pass, for isolating objects in compositing",
@@ -1478,7 +1484,7 @@ class CyclesPreferences(bpy.types.AddonPreferences):
     def get_devices(self):
         import _cycles
         # Layout of the device tuples: (Name, Type, Persistent ID)
-        device_list = _cycles.available_devices()
+        device_list = _cycles.available_devices(self.compute_device_type)
         # Make sure device entries are up to date and not referenced before
         # we know we don't add new devices. This way we guarantee to not
         # hold pointers to a resized array.
@@ -1502,7 +1508,7 @@ class CyclesPreferences(bpy.types.AddonPreferences):
 
     def get_num_gpu_devices(self):
         import _cycles
-        device_list = _cycles.available_devices()
+        device_list = _cycles.available_devices(self.compute_device_type)
         num = 0
         for device in device_list:
             if device[1] != self.compute_device_type:
@@ -1515,26 +1521,32 @@ class CyclesPreferences(bpy.types.AddonPreferences):
     def has_active_device(self):
         return self.get_num_gpu_devices() > 0
 
-    def draw_impl(self, layout, context):
-        available_device_types = self.get_device_types(context)
-        layout.label(text="Cycles Compute Device:")
-        if len(available_device_types) == 1:
-            layout.label(text="No compatible GPUs found", icon='INFO')
+    def _draw_devices(self, layout, device_type, devices):
+        box = layout.box()
+
+        found_device = False
+        for device in devices:
+            if device.type == device_type:
+                found_device = True
+                break
+
+        if not found_device:
+            box.label(text="No compatible GPUs found", icon='INFO')
             return
-        layout.row().prop(self, "compute_device_type", expand=True)
+
+        for device in devices:
+            box.prop(device, "use", text=device.name)
+
+    def draw_impl(self, layout, context):
+        row = layout.row()
+        row.prop(self, "compute_device_type", expand=True)
 
         cuda_devices, opencl_devices = self.get_devices()
         row = layout.row()
-
-        if self.compute_device_type == 'CUDA' and cuda_devices:
-            box = row.box()
-            for device in cuda_devices:
-                box.prop(device, "use", text=device.name)
-
-        if self.compute_device_type == 'OPENCL' and opencl_devices:
-            box = row.box()
-            for device in opencl_devices:
-                box.prop(device, "use", text=device.name)
+        if self.compute_device_type == 'CUDA':
+            self._draw_devices(row, 'CUDA', cuda_devices)
+        elif self.compute_device_type == 'OPENCL':
+            self._draw_devices(row, 'OPENCL', opencl_devices)
 
     def draw(self, context):
         self.draw_impl(self.layout, context)

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2005 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): David Millan Escriva, Juho Vepsäläinen, Nathan Letwory
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_node/node_edit.c
@@ -83,7 +75,7 @@
 
 enum {
 	COM_RECALC_COMPOSITE = 1,
-	COM_RECALC_VIEWER    = 2
+	COM_RECALC_VIEWER    = 2,
 };
 
 typedef struct CompoJob {
@@ -2009,7 +2001,8 @@ static int node_clipboard_copy_exec(bContext *C, wmOperator *UNUSED(op))
 
 			/* ensure valid pointers */
 			if (new_node->parent) {
-				/* parent pointer must be redirected to new node or detached if parent is not copied */
+				/* parent pointer must be redirected to new node or detached if parent is
+				 * not copied */
 				if (new_node->parent->flag & NODE_SELECT) {
 					new_node->parent = new_node->parent->new_node;
 				}

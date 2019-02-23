@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenlib/intern/scanfill_utils.c
@@ -228,7 +222,10 @@ static bool scanfill_preprocess_self_isect(
 						copy_v2_v2(isect->co, pt);
 						isect->co[2] = eed->v1->co[2];
 						isect->v = BLI_scanfill_vert_add(sf_ctx, isect->co);
-						isect->v->poly_nr = eed->v1->poly_nr;  /* NOTE: vert may belong to 2 polys now */
+
+						/* NOTE: vert may belong to 2 polys now */
+						isect->v->poly_nr = eed->v1->poly_nr;
+
 						VFLAG_SET(isect->v, V_ISISECT);
 						edge_isect_ls_add(isect_hash, eed, isect);
 						edge_isect_ls_add(isect_hash, eed_other, isect);

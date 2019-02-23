@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/physics/particle_object.c
@@ -629,7 +623,8 @@ void PARTICLE_OT_disconnect_hair(wmOperatorType *ot)
 	ot->exec = disconnect_hair_exec;
 
 	/* flags */
-	ot->flag = OPTYPE_UNDO;  /* No REGISTER, redo does not work due to missing update, see T47750. */
+	/* No REGISTER, redo does not work due to missing update, see T47750. */
+	ot->flag = OPTYPE_UNDO;
 
 	RNA_def_boolean(ot->srna, "all", 0, "All hair", "Disconnect all hair systems from the emitter mesh");
 }
@@ -885,7 +880,8 @@ void PARTICLE_OT_connect_hair(wmOperatorType *ot)
 	ot->exec = connect_hair_exec;
 
 	/* flags */
-	ot->flag = OPTYPE_UNDO;  /* No REGISTER, redo does not work due to missing update, see T47750. */
+	/* No REGISTER, redo does not work due to missing update, see T47750. */
+	ot->flag = OPTYPE_UNDO;
 
 	RNA_def_boolean(ot->srna, "all", 0, "All hair", "Connect all hair systems to the emitter mesh");
 }

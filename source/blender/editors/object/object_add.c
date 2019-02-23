@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation, 2002-2008 full recode
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/object/object_add.c
@@ -1404,8 +1398,9 @@ static void make_object_duplilist_real(bContext *C, Scene *scene, Base *base,
 		BLI_ghash_insert(dupli_gh, dob, ob_dst);
 		if (parent_gh) {
 			void **val;
-			/* Due to nature of hash/comparison of this ghash, a lot of duplis may be considered as 'the same',
-			 * this avoids trying to insert same key several time and raise asserts in debug builds... */
+			/* Due to nature of hash/comparison of this ghash, a lot of duplis may be considered as
+			 * 'the same', this avoids trying to insert same key several time and
+			 * raise asserts in debug builds... */
 			if (!BLI_ghash_ensure_p(parent_gh, dob, &val)) {
 				*val = ob_dst;
 			}

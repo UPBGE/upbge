@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __BKE_DERIVEDMESH_H__
@@ -80,24 +72,24 @@
 #include "BKE_customdata.h"
 #include "BKE_bvhutils.h"
 
+struct BMEditMesh;
 struct CCGElem;
 struct CCGKey;
-struct MVert;
+struct ColorBand;
+struct GPUDrawObject;
+struct GPUVertexAttribs;
+struct KeyBlock;
+struct MCol;
 struct MEdge;
 struct MFace;
-struct MTFace;
-struct Object;
-struct Scene;
-struct Mesh;
 struct MLoopNorSpaceArray;
-struct BMEditMesh;
-struct KeyBlock;
+struct MTFace;
+struct MVert;
+struct Mesh;
 struct ModifierData;
-struct MCol;
-struct ColorBand;
-struct GPUVertexAttribs;
-struct GPUDrawObject;
+struct Object;
 struct PBVH;
+struct Scene;
 
 /* number of sub-elements each mesh element has (for interpolation) */
 #define SUB_ELEMS_VERT 0
@@ -153,7 +145,7 @@ typedef enum DMDrawFlag {
 	DM_DRAW_SKIP_HIDDEN         = (1 << 4),
 	DM_DRAW_SKIP_SELECT         = (1 << 5),
 	DM_DRAW_SELECT_USE_EDITMODE = (1 << 6),
-	DM_DRAW_NEED_NORMALS        = (1 << 7)
+	DM_DRAW_NEED_NORMALS        = (1 << 7),
 } DMDrawFlag;
 
 typedef enum DMForeachFlag {

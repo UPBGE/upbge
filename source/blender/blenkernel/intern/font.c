@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenkernel/intern/font.c
@@ -1130,7 +1122,7 @@ makebreak:
 			timeofs += distfac * cu->xof;  /* not cyclic */
 
 			ct = chartransdata;
-			for (i = 0; i < slen; i++, ct++) {
+			for (i = 0; i <= slen; i++, ct++) {
 				float ctime, dtime, vec[4], tvec[4], rotvec[3];
 				float si, co;
 
@@ -1172,9 +1164,8 @@ makebreak:
 					sb = &selboxes[i - selstart];
 					sb->rot = -ct->rot;
 				}
+				
 			}
-			/* null character is always zero width, no need to iterate over it */
-			chartransdata[slen] = chartransdata[slen - 1];
 		}
 	}
 

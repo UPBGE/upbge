@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2012 Blender Foundation.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation,
- *                 Sergey Sharybin,
- *                 Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __BKE_MASK_H__
@@ -33,14 +25,14 @@
  */
 
 struct EvaluationContext;
-struct ImageUser;
 struct Image;
+struct ImageUser;
 struct ListBase;
 struct Main;
 struct Mask;
-struct MaskParent;
 struct MaskLayer;
 struct MaskLayerShape;
+struct MaskParent;
 struct MaskSpline;
 struct MaskSplinePoint;
 struct MaskSplinePointUW;
@@ -99,7 +91,7 @@ struct BezTriple *BKE_mask_spline_point_next_bezt(struct MaskSpline *spline, str
 typedef enum {
 	MASK_PROJ_NEG = -1,
 	MASK_PROJ_ANY = 0,
-	MASK_PROJ_POS = 1
+	MASK_PROJ_POS = 1,
 } eMaskSign;
 float BKE_mask_spline_project_co(struct MaskSpline *spline, struct MaskSplinePoint *point,
                                  float start_u, const float co[2], const eMaskSign sign);

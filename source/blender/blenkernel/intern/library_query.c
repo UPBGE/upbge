@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2014 by Blender Foundation.
  * All rights reserved.
- *
- * Contributor(s): Sergey Sharybin.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenkernel/intern/library_query.c
@@ -454,6 +448,11 @@ void BKE_library_foreach_ID_link(Main *bmain, ID *id, LibraryIDLinkCallback call
 						library_foreach_idproperty_ID_link(&data, seq->prop, IDWALK_CB_USER);
 						for (SequenceModifierData *smd = seq->modifiers.first; smd; smd = smd->next) {
 							CALLBACK_INVOKE(smd->mask_id, IDWALK_CB_USER);
+						}
+
+						if (seq->type == SEQ_TYPE_TEXT && seq->effectdata) {
+							TextVars *text_data = seq->effectdata;
+							CALLBACK_INVOKE(text_data->text_font, IDWALK_CB_USER);
 						}
 					} SEQ_END;
 				}

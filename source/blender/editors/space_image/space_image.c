@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_image/space_image.c
@@ -377,9 +370,12 @@ static void image_keymap(struct wmKeyConfig *keyconf)
 /* dropboxes */
 static bool image_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *UNUSED(event))
 {
-	if (drag->type == WM_DRAG_PATH)
-		if (ELEM(drag->icon, 0, ICON_FILE_IMAGE, ICON_FILE_MOVIE, ICON_FILE_BLANK)) /* rule might not work? */
+	if (drag->type == WM_DRAG_PATH) {
+		/* rule might not work? */
+		if (ELEM(drag->icon, 0, ICON_FILE_IMAGE, ICON_FILE_MOVIE, ICON_FILE_BLANK)) {
 			return 1;
+		}
+	}
 	return 0;
 }
 
@@ -501,7 +497,8 @@ static void image_listener(bScreen *sc, ScrArea *sa, wmNotifier *wmn)
 		case NC_MASK:
 		{
 			// Scene *scene = wmn->window->screen->scene;
-			/* ideally would check for: ED_space_image_check_show_maskedit(scene, sima) but we cant get the scene */
+			/* ideally would check for: ED_space_image_check_show_maskedit(scene, sima)
+			 * but we cant get the scene */
 			if (sima->mode == SI_MODE_MASK) {
 				switch (wmn->data) {
 					case ND_SELECT:

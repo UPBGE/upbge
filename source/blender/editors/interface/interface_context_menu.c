@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/interface/interface_context_menu.c
@@ -52,7 +48,8 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
-/* This hack is needed because we don't have a good way to re-reference keymap items once added: T42944 */
+/* This hack is needed because we don't have a good way to
+ * re-reference keymap items once added: T42944 */
 #define USE_KEYMAP_ADD_HACK
 
 /* -------------------------------------------------------------------- */
@@ -130,7 +127,8 @@ static uiBlock *menu_add_shortcut(bContext *C, ARegion *ar, void *arg)
 	IDProperty *prop = (but->opptr) ? but->opptr->data : NULL;
 	int kmi_id;
 
-	/* XXX this guess_opname can potentially return a different keymap than being found on adding later... */
+	/* XXX this guess_opname can potentially return a different keymap
+	 * than being found on adding later... */
 	km = WM_keymap_guess_opname(C, but->optype->idname);
 	kmi = WM_keymap_add_item(km, but->optype->idname, AKEY, KM_PRESS, 0, 0);
 	kmi_id = kmi->id;
@@ -277,7 +275,8 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but)
 		/*bool is_idprop = RNA_property_is_idprop(prop);*/ /* XXX does not work as expected, not strictly needed */
 		bool is_set = RNA_property_is_set(ptr, prop);
 
-		/* second slower test, saved people finding keyframe items in menus when its not possible */
+		/* second slower test,
+		 * saved people finding keyframe items in menus when its not possible */
 		if (is_anim)
 			is_anim = RNA_property_path_from_ID_check(&but->rnapoin, but->rnaprop);
 

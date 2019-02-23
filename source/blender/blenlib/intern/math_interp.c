@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,13 +15,6 @@
  *
  * The Original Code is Copyright (C) 2012 by Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Sergey Sharybin
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  */
 
 /** \file blender/blenlib/intern/math_interp.c
@@ -146,7 +137,8 @@ BLI_INLINE void bicubic_interpolation(const unsigned char *byte_buffer, const fl
 			CLAMP(y1, 0, height - 1);
 			/* normally we could do this */
 			/* w = P(n-a) * P(b-m); */
-			/* except that would call P() 16 times per pixel therefor pow() 64 times, better precalc these */
+			/* except that would call P() 16 times per pixel therefor pow() 64 times,
+			 * better precalc these */
 			w = wx * wy[m + 1];
 
 			if (float_output) {
@@ -414,7 +406,8 @@ void BLI_bilinear_interpolation_wrap_char(const unsigned char *buffer, unsigned 
 
 /**************************************************************************
  * Filtering method based on
- * "Creating raster omnimax images from multiple perspective views using the elliptical weighted average filter"
+ * "Creating raster omnimax images from multiple perspective views
+ * using the elliptical weighted average filter"
  * by Ned Greene and Paul S. Heckbert (1986)
  ***************************************************************************/
 

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2004 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/mesh/editmesh_path.c
@@ -66,7 +58,8 @@
  * \{ */
 
 struct PathSelectParams {
-	bool track_active;  /* ensure the active element is the last selected item (handy for picking) */
+	/** ensure the active element is the last selected item (handy for picking) */
+	bool track_active;
 	bool use_topology_distance;
 	bool use_face_step;
 	bool use_fill;

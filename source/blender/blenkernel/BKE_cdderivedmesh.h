@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2006 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Ben Batt <benbatt@gmail.com>
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file BKE_cdderivedmesh.h
@@ -37,10 +29,10 @@
 
 #include "BKE_DerivedMesh.h"
 
-struct DerivedMesh;
 struct BMEditMesh;
-struct Mesh;
+struct DerivedMesh;
 struct MLoopNorSpaceArray;
+struct Mesh;
 struct Object;
 
 /* creates a new CDDerivedMesh */

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -16,10 +14,6 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation
- *
- * Contributor(s): Joshua Leung
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_graph/graph_select.c
@@ -1406,7 +1400,8 @@ static void mouse_graph_keys(bAnimContext *ac, const int mval[2], short select_m
 	}
 
 	/* set active F-Curve (NOTE: sync the filter flags with findnearest_fcurve_vert) */
-	/* needs to be called with (sipo->flag & SIPO_SELCUVERTSONLY) otherwise the active flag won't be set [#26452] */
+	/* needs to be called with (sipo->flag & SIPO_SELCUVERTSONLY)
+	 * otherwise the active flag won't be set T26452. */
 	if (nvi->fcu->flag & FCURVE_SELECTED) {
 		int filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_CURVE_VISIBLE | ANIMFILTER_NODUPLIS);
 		ANIM_set_active_channel(ac, ac->data, ac->datatype, filter, nvi->fcu, nvi->ctype);
@@ -1416,7 +1411,8 @@ static void mouse_graph_keys(bAnimContext *ac, const int mval[2], short select_m
 	MEM_freeN(nvi);
 }
 
-/* Option 2) Selects all the keyframes on either side of the current frame (depends on which side the mouse is on) */
+/* Option 2) Selects all the keyframes on either side of the current frame
+ * (depends on which side the mouse is on) */
 /* (see graphkeys_select_leftright) */
 
 /* Option 3) Selects all visible keyframes in the same frame as the mouse click */

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file ghost/intern/GHOST_WindowX11.cpp
@@ -1529,7 +1521,7 @@ setWindowCursorGrab(
 			 * blender gets can be outside the screen causing menus not to show
 			 * properly unless the user moves the mouse */
 
-#ifdef WITH_X11_XINPUT
+#if defined(WITH_X11_XINPUT) && defined(USE_X11_XINPUT_WARP)
 			if ((m_system->m_xinput_version.present) &&
 			    (m_system->m_xinput_version.major_version >= 2))
 			{

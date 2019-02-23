@@ -1,9 +1,5 @@
 /*
  * envmap_ext.h
- *
- *
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -20,12 +16,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/render/intern/include/envmap.h
@@ -42,9 +32,9 @@
  * (initrender.c)
  */
 
+struct ImagePool;
 struct Render;
 struct TexResult;
-struct ImagePool;
 
 void make_envmaps(struct Render *re);
 int envmaptex(struct Tex *tex, const float texvec[3], float dxt[3], float dyt[3], int osatex, struct TexResult *texres, struct ImagePool *pool, const bool skip_image_load);

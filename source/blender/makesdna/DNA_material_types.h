@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file DNA_material_types.h
@@ -40,13 +32,13 @@
 #define MAX_MTEX	18
 #endif
 
-struct MTex;
-struct Image;
+struct AnimData;
 struct ColorBand;
 struct Group;
-struct bNodeTree;
-struct AnimData;
+struct Image;
 struct Ipo;
+struct MTex;
+struct bNodeTree;
 
 /* WATCH IT: change type? also make changes in ipo.h  */
 
@@ -402,7 +394,8 @@ typedef struct Material {
 #define TEXCO_TANGENT   (1 << 12)
 	/* still stored in vertex->accum, 1 D */
 #define TEXCO_STRAND    (1 << 13)
-#define TEXCO_PARTICLE  (1 << 13) /* strand is used for normal materials, particle for halo materials */
+/** strand is used for normal materials, particle for halo materials */
+#define TEXCO_PARTICLE  (1 << 13)
 #define TEXCO_STRESS    (1 << 14)
 #define TEXCO_SPEED     (1 << 15)
 

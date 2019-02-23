@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __BLI_SCANFILL_H__
@@ -71,13 +63,19 @@ typedef struct ScanFillVert {
 		int                  i;
 		unsigned int         u;
 	} tmp;
-	float co[3];  /* vertex location */
-	float xy[2];  /* 2D projection of vertex location */
-	unsigned int keyindex; /* index, caller can use how it likes to match the scanfill result with own data */
+	/** vertex location */
+	float co[3];
+	/** 2D projection of vertex location */
+	float xy[2];
+	/** index, caller can use how it likes to match the scanfill result with own data */
+	unsigned int keyindex;
 	unsigned short poly_nr;
-	unsigned char edge_tot;  /* number of edges using this vertex */
-	unsigned int f : 4;  /* vert status */
-	unsigned int user_flag : 4;  /* flag callers can use as they like */
+	/** number of edges using this vertex */
+	unsigned char edge_tot;
+	/** vert status */
+	unsigned int f : 4;
+	/** flag callers can use as they like */
+	unsigned int user_flag : 4;
 } ScanFillVert;
 
 typedef struct ScanFillEdge {

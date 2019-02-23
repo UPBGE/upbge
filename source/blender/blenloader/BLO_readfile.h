@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 #ifndef __BLO_READFILE_H__
 #define __BLO_READFILE_H__
@@ -36,8 +28,10 @@
 extern "C" {
 #endif
 
+struct BHead;
+struct BlendFileReadParams;
 struct BlendThumbnail;
-struct bScreen;
+struct FileData;
 struct LinkNode;
 struct Main;
 struct MemFile;
@@ -46,16 +40,14 @@ struct Scene;
 struct UserDef;
 struct View3D;
 struct bContext;
-struct BHead;
-struct FileData;
-struct BlendFileReadParams;
+struct bScreen;
 
 typedef struct BlendHandle BlendHandle;
 
 typedef enum eBlenFileType {
 	BLENFILETYPE_BLEND = 1,
 	BLENFILETYPE_PUB = 2,
-	BLENFILETYPE_RUNTIME = 3
+	BLENFILETYPE_RUNTIME = 3,
 } eBlenFileType;
 
 typedef struct BlendFileData {

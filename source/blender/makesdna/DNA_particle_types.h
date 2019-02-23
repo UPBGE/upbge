@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2007 by Janne Karhu.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file DNA_particle_types.h
@@ -268,8 +260,11 @@ typedef struct ParticleSettings {
 } ParticleSettings;
 
 typedef struct ParticleSystem {
-	/* note1: make sure all (runtime) are NULL's in 'copy_particlesystem' XXX, this function is no more! - need to invstigate */
-	/* note2: make sure any uses of this struct in DNA are accounted for in 'BKE_object_copy_particlesystems' */
+	/* note1: make sure all (runtime) are NULL's in 'copy_particlesystem' XXX,
+	 * this function is no more! - need to invstigate */
+
+	/* note2: make sure any uses of this struct in DNA are
+	 * accounted for in 'BKE_object_copy_particlesystems' */
 
 	struct ParticleSystem *next, *prev;
 

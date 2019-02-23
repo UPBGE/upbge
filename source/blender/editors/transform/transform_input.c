@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/transform/transform_input.c
@@ -182,7 +176,8 @@ static void InputAngle(TransInfo *UNUSED(t), MouseInput *mi, const double mval[2
 	double dx3 = mval[0] - data->mval_prev[0];
 	double dy3 = mval[1] - data->mval_prev[1];
 
-	/* use doubles here, to make sure a "1.0" (no rotation) doesn't become 9.999999e-01, which gives 0.02 for acos */
+	/* use doubles here, to make sure a "1.0" (no rotation)
+	 * doesn't become 9.999999e-01, which gives 0.02 for acos */
 	double deler = (((dx1 * dx1 + dy1 * dy1) +
 	                 (dx2 * dx2 + dy2 * dy2) -
 	                 (dx3 * dx3 + dy3 * dy3)) / (2.0 * (((A * B) != 0.0) ? (A * B) : 1.0)));

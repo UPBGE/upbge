@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation, Joshua Leung
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Joshua Leung (full recode)
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/animation/keyingsets.c
@@ -1024,7 +1016,8 @@ int ANIM_apply_keyingset(bContext *C, ListBase *dsources, bAction *act, KeyingSe
 			RNA_id_pointer_create(ksp->id, &id_ptr);
 			if (RNA_path_resolve_property(&id_ptr, ksp->rna_path, &ptr, &prop)) {
 				arraylen = RNA_property_array_length(&ptr, prop);
-				i = 0;  /* start from start of array, instead of the previously specified index - T48020 */
+				/* start from start of array, instead of the previously specified index - T48020 */
+				i = 0;
 			}
 		}
 

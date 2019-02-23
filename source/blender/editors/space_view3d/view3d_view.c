@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_view3d/view3d_view.c
@@ -212,7 +205,8 @@ void ED_view3d_smooth_view_ex(
 			}
 			/* grid draw as floor */
 			if ((rv3d->viewlock & RV3D_LOCKED) == 0) {
-				/* use existing if exists, means multiple calls to smooth view wont loose the original 'view' setting */
+				/* use existing if exists, means multiple calls to smooth view
+				 * wont loose the original 'view' setting */
 				rv3d->view = RV3D_VIEW_USER;
 			}
 
@@ -224,7 +218,8 @@ void ED_view3d_smooth_view_ex(
 			 * this means small rotations wont lag */
 			if (sview->quat && !sview->ofs && !sview->dist) {
 				/* scale the time allowed by the rotation */
-				sms.time_allowed *= (double)fabsf(angle_signed_normalized_qtqt(sms.dst.quat, sms.src.quat)) / M_PI; /* 180deg == 1.0 */
+				/* 180deg == 1.0 */
+				sms.time_allowed *= (double)fabsf(angle_signed_normalized_qtqt(sms.dst.quat, sms.src.quat)) / M_PI;
 			}
 
 			/* ensure it shows correct */
@@ -238,8 +233,8 @@ void ED_view3d_smooth_view_ex(
 
 			rv3d->rflag |= RV3D_NAVIGATING;
 
-			/* not essential but in some cases the caller will tag the area for redraw,
-			 * and in that case we can get a flicker of the 'org' user view but we want to see 'src' */
+			/* not essential but in some cases the caller will tag the area for redraw, and in that
+			 * case we can get a flicker of the 'org' user view but we want to see 'src' */
 			view3d_smooth_view_state_restore(&sms.src, v3d, rv3d);
 
 			/* keep track of running timer! */
@@ -251,7 +246,8 @@ void ED_view3d_smooth_view_ex(
 				WM_event_remove_timer(wm, win, rv3d->smooth_timer);
 			}
 			/* TIMER1 is hardcoded in keymap */
-			rv3d->smooth_timer = WM_event_add_timer(wm, win, TIMER1, 1.0 / 100.0); /* max 30 frs/sec */
+			/* max 30 frs/sec */
+			rv3d->smooth_timer = WM_event_add_timer(wm, win, TIMER1, 1.0 / 100.0);
 
 			ok = true;
 		}

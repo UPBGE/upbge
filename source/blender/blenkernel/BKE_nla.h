@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation, Joshua Leung
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Joshua Leung (full recode)
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __BKE_NLA_H__
@@ -37,9 +29,9 @@ struct AnimData;
 struct Main;
 struct NlaStrip;
 struct NlaTrack;
-struct bAction;
 struct Scene;
 struct Speaker;
+struct bAction;
 
 struct PointerRNA;
 struct PropertyRNA;

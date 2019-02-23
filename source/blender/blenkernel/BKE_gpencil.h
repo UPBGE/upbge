@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008, Blender Foundation
  * This is a new part of Blender
- *
- * Contributor(s): Joshua Leung
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __BKE_GPENCIL_H__
@@ -31,15 +25,15 @@
  *  \author Joshua Leung
  */
 
-struct ToolSettings;
 struct ListBase;
-struct bGPdata;
-struct bGPDlayer;
+struct Main;
+struct ToolSettings;
 struct bGPDframe;
-struct bGPDstroke;
+struct bGPDlayer;
 struct bGPDpalette;
 struct bGPDpalettecolor;
-struct Main;
+struct bGPDstroke;
+struct bGPdata;
 
 /* ------------ Grease-Pencil API ------------------ */
 
@@ -92,7 +86,7 @@ typedef enum eGP_GetFrame_Mode {
 	/* Add a new empty/blank frame */
 	GP_GETFRAME_ADD_NEW   = 1,
 	/* Make a copy of the active frame */
-	GP_GETFRAME_ADD_COPY  = 2
+	GP_GETFRAME_ADD_COPY  = 2,
 } eGP_GetFrame_Mode;
 
 struct bGPDframe *BKE_gpencil_layer_getframe(struct bGPDlayer *gpl, int cframe, eGP_GetFrame_Mode addnew);

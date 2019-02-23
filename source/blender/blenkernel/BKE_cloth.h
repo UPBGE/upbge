@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Daniel Genrich
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 #ifndef __BKE_CLOTH_H__
 #define __BKE_CLOTH_H__
@@ -35,12 +27,12 @@
 #include <float.h>
 #include "BLI_math_inline.h"
 
-struct Object;
-struct Scene;
-struct MFace;
-struct DerivedMesh;
 struct ClothModifierData;
 struct CollisionModifierData;
+struct DerivedMesh;
+struct MFace;
+struct Object;
+struct Scene;
 
 #define DO_INLINE MALWAYS_INLINE
 
@@ -81,7 +73,6 @@ typedef struct ClothSolverResult {
  * rectangular ordered grid for which the original paper is written.
  * At some point they need to disappear and we need to determine out
  * own connectivity of the mesh based on the actual edges in the mesh.
- *
  */
 typedef struct Cloth {
 	struct ClothVertex	*verts;			/* The vertices that represent this cloth. */

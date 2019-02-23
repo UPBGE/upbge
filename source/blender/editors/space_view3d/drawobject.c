@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation, full recode and added functions
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_view3d/drawobject.c
@@ -121,7 +115,7 @@
 typedef enum eWireDrawMode {
 	OBDRAW_WIRE_OFF = 0,
 	OBDRAW_WIRE_ON = 1,
-	OBDRAW_WIRE_ON_DEPTH = 2
+	OBDRAW_WIRE_ON_DEPTH = 2,
 } eWireDrawMode;
 
 typedef struct drawDMVerts_userData {

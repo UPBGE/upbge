@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Joseph Eagar, Geoffrey Bantle, Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/bmesh/intern/bmesh_inline.h
@@ -37,6 +31,7 @@
 #define BM_elem_flag_set(      ele, hflag, val) _bm_elem_flag_set      (&(ele)->head, hflag, val)
 #define BM_elem_flag_toggle(   ele, hflag)      _bm_elem_flag_toggle   (&(ele)->head, hflag)
 #define BM_elem_flag_merge(    ele_a, ele_b)    _bm_elem_flag_merge    (&(ele_a)->head, &(ele_b)->head)
+#define BM_elem_flag_merge_ex( ele_a, ele_b, hflag_and)_bm_elem_flag_merge_ex (&(ele_a)->head, &(ele_b)->head, hflag_and)
 #define BM_elem_flag_merge_into(ele, ele_a, ele_b)_bm_elem_flag_merge_into (&(ele)->head, &(ele_a)->head, &(ele_b)->head)
 
 ATTR_WARN_UNUSED_RESULT
@@ -75,6 +70,15 @@ BLI_INLINE void _bm_elem_flag_toggle(BMHeader *head, const char hflag)
 BLI_INLINE void _bm_elem_flag_merge(BMHeader *head_a, BMHeader *head_b)
 {
 	head_a->hflag = head_b->hflag = head_a->hflag | head_b->hflag;
+}
+
+BLI_INLINE void _bm_elem_flag_merge_ex(BMHeader *head_a, BMHeader *head_b, const char hflag_and)
+{
+	if (((head_a->hflag & head_b->hflag) & hflag_and) == 0) {
+		head_a->hflag &= ~hflag_and;
+		head_b->hflag &= ~hflag_and;
+	}
+	_bm_elem_flag_merge(head_a, head_b);
 }
 
 BLI_INLINE void _bm_elem_flag_merge_into(BMHeader *head, const BMHeader *head_a, const BMHeader *head_b)

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2007 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_file/filelist.h
@@ -47,13 +39,13 @@ struct FileDirEntry;
 typedef enum FileSelType {
 	FILE_SEL_REMOVE = 0,
 	FILE_SEL_ADD    = 1,
-	FILE_SEL_TOGGLE = 2
+	FILE_SEL_TOGGLE = 2,
 } FileSelType;
 
 typedef enum FileCheckType {
 	CHECK_DIRS = 1,
 	CHECK_FILES = 2,
-	CHECK_ALL = 3
+	CHECK_ALL = 3,
 } FileCheckType;
 
 struct ListBase    *folderlist_new(void);

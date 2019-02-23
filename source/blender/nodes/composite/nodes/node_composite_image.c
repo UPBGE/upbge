@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2006 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/nodes/composite/nodes/node_composite_image.c
@@ -213,6 +205,21 @@ void node_cmp_rlayers_register_pass(bNodeTree *ntree, bNode *node, Scene *scene,
 	}
 }
 
+static void cmp_node_rlayer_create_outputs_cb(RenderEngine *UNUSED(engine), Scene *scene, SceneRenderLayer *srl,
+                                              const char *name, int UNUSED(channels), const char *UNUSED(chanid), int type)
+{
+	/* Register the pass in all scenes that have a render layer node for this layer.
+	 * Since multiple scenes can be used in the compositor, the code must loop over all scenes
+	 * and check whether their nodetree has a node that needs to be updated. */
+	/* NOTE: using G_MAIN seems valid here,
+	 * unless we want to register that for every other temp Main we could generate??? */
+	for (Scene *sce = G_MAIN->scene.first; sce; sce = sce->id.next) {
+		if (sce->nodetree) {
+			ntreeCompositRegisterPass(sce->nodetree, scene, srl, name, type);
+		}
+	}
+}
+
 static void cmp_node_rlayer_create_outputs(bNodeTree *ntree, bNode *node, LinkNodePair *available_sockets)
 {
 	Scene *scene = (Scene *)node->id;
@@ -228,7 +235,7 @@ static void cmp_node_rlayer_create_outputs(bNodeTree *ntree, bNode *node, LinkNo
 				node->storage = data;
 
 				RenderEngine *engine = RE_engine_create(engine_type);
-				engine_type->update_render_passes(engine, scene, srl);
+				RE_engine_update_render_passes(engine, scene, srl, cmp_node_rlayer_create_outputs_cb);
 				RE_engine_free(engine);
 
 				MEM_freeN(data);

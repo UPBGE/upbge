@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file ghost/intern/GHOST_SystemX11.h
@@ -42,6 +34,12 @@
 // For tablets
 #ifdef WITH_X11_XINPUT
 #  include <X11/extensions/XInput.h>
+
+/* Disable xinput warp, currently not implemented by Xorg for multi-head display.
+ * (see comment in xserver "Xi/xiwarppointer.c" -> "FIXME: panoramix stuff is missing" ~ v1.13.4)
+ * If this is supported we can add back xinput for warping (fixing T48901).
+ * For now disable (see T50383). */
+// #  define USE_X11_XINPUT_WARP
 #endif
 
 #if defined(WITH_X11_XINPUT) && defined(X_HAVE_UTF8_STRING)

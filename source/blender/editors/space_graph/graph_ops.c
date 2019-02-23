@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_graph/graph_ops.c
@@ -82,7 +75,8 @@ static void graphview_cursor_apply(bContext *C, wmOperator *op)
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
 	SpaceIpo *sipo = CTX_wm_space_graph(C);
-	float frame = RNA_float_get(op->ptr, "frame"); /* this isn't technically "frame", but it'll do... */
+	/* this isn't technically "frame", but it'll do... */
+	float frame = RNA_float_get(op->ptr, "frame");
 
 	/* adjust the frame or the cursor x-value */
 	if (sipo->mode == SIPO_MODE_DRIVERS) {
@@ -265,7 +259,8 @@ static int graphview_curves_hide_exec(bContext *C, wmOperator *op)
 	ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
 
 	for (ale = anim_data.first; ale; ale = ale->next) {
-		/* hack: skip object channels for now, since flushing those will always flush everything, but they are always included */
+		/* hack: skip object channels for now, since flushing those will always flush everything,
+		 * but they are always included */
 		/* TODO: find out why this is the case, and fix that */
 		if (ale->type == ANIMTYPE_OBJECT)
 			continue;
@@ -291,7 +286,9 @@ static int graphview_curves_hide_exec(bContext *C, wmOperator *op)
 		ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
 
 		for (ale = anim_data.first; ale; ale = ale->next) {
-			/* hack: skip object channels for now, since flushing those will always flush everything, but they are always included */
+			/* hack: skip object channels for now, since flushing those
+			 * will always flush everything, but they are always included */
+
 			/* TODO: find out why this is the case, and fix that */
 			if (ale->type == ANIMTYPE_OBJECT)
 				continue;
@@ -359,7 +356,8 @@ static int graphview_curves_reveal_exec(bContext *C, wmOperator *op)
 	ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
 
 	for (ale = anim_data.first; ale; ale = ale->next) {
-		/* hack: skip object channels for now, since flushing those will always flush everything, but they are always included */
+		/* hack: skip object channels for now, since flushing those will always flush everything,
+		 * but they are always included. */
 		/* TODO: find out why this is the case, and fix that */
 		if (ale->type == ANIMTYPE_OBJECT)
 			continue;

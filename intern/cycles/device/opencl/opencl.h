@@ -18,6 +18,7 @@
 
 #include "device/device.h"
 #include "device/device_denoising.h"
+#include "device/device_split_kernel.h"
 
 #include "util/util_map.h"
 #include "util/util_param.h"
@@ -84,8 +85,6 @@ public:
 	static cl_device_type device_type();
 	static bool use_debug();
 	static bool kernel_use_advanced_shading(const string& platform_name);
-	static bool kernel_use_split(const string& platform_name,
-	                             const cl_device_type device_type);
 	static bool device_supported(const string& platform_name,
 	                             const cl_device_id device_id);
 	static bool platform_version_check(cl_platform_id platform,
@@ -259,7 +258,7 @@ public:
 		} \
 	} (void) 0
 
-class OpenCLDeviceBase : public Device
+class OpenCLDevice : public Device
 {
 public:
 	DedicatedTaskPool task_pool;
@@ -268,11 +267,12 @@ public:
 	cl_platform_id cpPlatform;
 	cl_device_id cdDevice;
 	cl_int ciErr;
+	int device_num;
 
 	class OpenCLProgram {
 	public:
 		OpenCLProgram() : loaded(false), program(NULL), device(NULL) {}
-		OpenCLProgram(OpenCLDeviceBase *device,
+		OpenCLProgram(OpenCLDevice *device,
 		              const string& program_name,
 		              const string& kernel_name,
 		              const string& kernel_build_options,
@@ -293,7 +293,15 @@ public:
 
 	private:
 		bool build_kernel(const string *debug_src);
+		/* Build the program by calling the own process.
+		 * This is required for multithreaded OpenCL compilation, since most Frameworks serialize
+		 * build calls internally if they come from the same process.
+		 * If that is not supported, this function just returns false.
+		 */
+		bool compile_separate(const string& clbin);
+		/* Build the program by calling OpenCL directly. */
 		bool compile_kernel(const string *debug_src);
+		/* Loading and saving the program from/to disk. */
 		bool load_binary(const string& clbin, const string *debug_src = NULL);
 		bool save_binary(const string& clbin);
 
@@ -302,7 +310,7 @@ public:
 
 		bool loaded;
 		cl_program program;
-		OpenCLDeviceBase *device;
+		OpenCLDevice *device;
 
 		/* Used for the OpenCLCache key. */
 		string program_name;
@@ -316,7 +324,37 @@ public:
 		map<ustring, cl_kernel> kernels;
 	};
 
-	OpenCLProgram base_program, denoising_program;
+	DeviceSplitKernel *split_kernel;
+
+	OpenCLProgram program_data_init;
+	OpenCLProgram program_state_buffer_size;
+
+	OpenCLProgram program_split;
+
+	OpenCLProgram program_path_init;
+	OpenCLProgram program_scene_intersect;
+	OpenCLProgram program_lamp_emission;
+	OpenCLProgram program_do_volume;
+	OpenCLProgram program_queue_enqueue;
+	OpenCLProgram program_indirect_background;
+	OpenCLProgram program_shader_setup;
+	OpenCLProgram program_shader_sort;
+	OpenCLProgram program_shader_eval;
+	OpenCLProgram program_holdout_emission_blurring_pathtermination_ao;
+	OpenCLProgram program_subsurface_scatter;
+	OpenCLProgram program_direct_lighting;
+	OpenCLProgram program_shadow_blocked_ao;
+	OpenCLProgram program_shadow_blocked_dl;
+	OpenCLProgram program_enqueue_inactive;
+	OpenCLProgram program_next_iteration_setup;
+	OpenCLProgram program_indirect_subsurface;
+	OpenCLProgram program_buffer_update;
+
+	OpenCLProgram base_program;
+	OpenCLProgram bake_program;
+	OpenCLProgram displace_program;
+	OpenCLProgram background_program;
+	OpenCLProgram denoising_program;
 
 	typedef map<string, device_vector<uchar>*> ConstMemMap;
 	typedef map<string, device_ptr> MemMap;
@@ -333,8 +371,8 @@ public:
 	void opencl_error(const string& message);
 	void opencl_assert_err(cl_int err, const char* where);
 
-	OpenCLDeviceBase(DeviceInfo& info, Stats &stats, Profiler &profiler, bool background_);
-	~OpenCLDeviceBase();
+	OpenCLDevice(DeviceInfo& info, Stats &stats, Profiler &profiler, bool background_);
+	~OpenCLDevice();
 
 	static void CL_CALLBACK context_notify_callback(const char *err_info,
 		const void * /*private_info*/, size_t /*cb*/, void *user_data);
@@ -344,10 +382,12 @@ public:
 	string device_md5_hash(string kernel_custom_build_options = "");
 	bool load_kernels(const DeviceRequestedFeatures& requested_features);
 
-	/* Has to be implemented by the real device classes.
-	 * The base device will then load all these programs. */
-	virtual bool load_kernels(const DeviceRequestedFeatures& requested_features,
-	                          vector<OpenCLProgram*> &programs) = 0;
+	/* Get the name of the opencl program for the given kernel */
+	const string get_opencl_program_name(bool single_program, const string& kernel_name);
+	/* Get the program file name to compile (*.cl) for the given kernel */
+	const string get_opencl_program_filename(bool single_program, const string& kernel_name);
+	string get_build_options(const DeviceRequestedFeatures& requested_features);
+	string get_build_options_for_bake(const DeviceRequestedFeatures& requested_features);
 
 	void mem_alloc(device_memory& mem);
 	void mem_copy_to(device_memory& mem);
@@ -375,10 +415,10 @@ public:
 
 	class OpenCLDeviceTask : public DeviceTask {
 	public:
-		OpenCLDeviceTask(OpenCLDeviceBase *device, DeviceTask& task)
+		OpenCLDeviceTask(OpenCLDevice *device, DeviceTask& task)
 		: DeviceTask(task)
 		{
-			run = function_bind(&OpenCLDeviceBase::thread_run,
+			run = function_bind(&OpenCLDevice::thread_run,
 			                    device,
 			                    this);
 		}
@@ -404,9 +444,16 @@ public:
 		task_pool.cancel();
 	}
 
-	virtual void thread_run(DeviceTask * /*task*/) = 0;
+	void thread_run(DeviceTask *task);
 
-	virtual bool is_split_kernel() = 0;
+	virtual BVHLayoutMask get_bvh_layout_mask() const {
+		return BVH_LAYOUT_BVH2;
+	}
+
+	virtual bool show_samples() const {
+		return true;
+	}
+
 
 protected:
 	string kernel_build_options(const string *debug_src = NULL);
@@ -419,10 +466,13 @@ protected:
 	                               device_ptr out_ptr,
 	                               DenoisingTask *task);
 	bool denoising_construct_transform(DenoisingTask *task);
-	bool denoising_reconstruct(device_ptr color_ptr,
-	                           device_ptr color_variance_ptr,
-	                           device_ptr output_ptr,
-	                           DenoisingTask *task);
+	bool denoising_accumulate(device_ptr color_ptr,
+	                          device_ptr color_variance_ptr,
+	                          device_ptr scale_ptr,
+	                          int frame,
+	                          DenoisingTask *task);
+	bool denoising_solve(device_ptr output_ptr,
+	                     DenoisingTask *task);
 	bool denoising_combine_halves(device_ptr a_ptr,
 	                              device_ptr b_ptr,
 	                              device_ptr mean_ptr,
@@ -439,7 +489,12 @@ protected:
 	                           int variance_offset,
 	                           device_ptr mean_ptr,
 	                           device_ptr variance_ptr,
+	                           float scale,
 	                           DenoisingTask *task);
+	bool denoising_write_feature(int to_offset,
+	                             device_ptr from_ptr,
+	                             device_ptr buffer_ptr,
+	                             DenoisingTask *task);
 	bool denoising_detect_outliers(device_ptr image_ptr,
 	                               device_ptr variance_ptr,
 	                               device_ptr depth_ptr,
@@ -540,17 +595,14 @@ protected:
 
 	/* ** Those guys are for workign around some compiler-specific bugs ** */
 
-	virtual cl_program load_cached_kernel(
+	cl_program load_cached_kernel(
 	        ustring key,
 	        thread_scoped_lock& cache_locker);
 
-	virtual void store_cached_kernel(
+	void store_cached_kernel(
 	        cl_program program,
 	        ustring key,
 	        thread_scoped_lock& cache_locker);
-
-	virtual string build_options_for_base_program(
-	        const DeviceRequestedFeatures& /*requested_features*/);
 
 private:
 	MemoryManager memory_manager;
@@ -566,9 +618,11 @@ private:
 
 protected:
 	void flush_texture_buffers();
+
+	friend class OpenCLSplitKernel;
+	friend class OpenCLSplitKernelFunction;
 };
 
-Device *opencl_create_mega_device(DeviceInfo& info, Stats& stats, Profiler &profiler, bool background);
 Device *opencl_create_split_device(DeviceInfo& info, Stats& stats, Profiler &profiler, bool background);
 
 CCL_NAMESPACE_END

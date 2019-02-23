@@ -14,10 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor:
- *      Jeroen Bakker
- *      Monique Dewanchand
  */
 
 #ifndef __COM_NODEOPERATION_H__
@@ -68,7 +64,7 @@ typedef enum InputResizeMode {
 	/** \brief Fit the width or the height of the input image to the width or height of the working area of the node, image will be larger than the working area */
 	COM_SC_FIT = NS_CR_FIT,
 	/** \brief Fit the width and the height of the input image to the width and height of the working area of the node, image will be equally larger than the working area */
-	COM_SC_STRETCH = NS_CR_STRETCH
+	COM_SC_STRETCH = NS_CR_STRETCH,
 } InputResizeMode;
 
 /**

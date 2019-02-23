@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008, Blender Foundation, Joshua Leung
  * This is a new part of Blender
- *
- * Contributor(s): Joshua Leung, Antonio Vazquez
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/gpencil/gpencil_paint.c
@@ -2199,7 +2193,8 @@ static void gpencil_draw_apply_event(wmOperator *op, const wmEvent *event)
 	gpencil_draw_apply(op, p);
 
 	/* force refresh */
-	ED_region_tag_redraw(p->ar); /* just active area for now, since doing whole screen is too slow */
+	/* just active area for now, since doing whole screen is too slow */
+	ED_region_tag_redraw(p->ar);
 }
 
 /* ------------------------------- */
@@ -2771,7 +2766,8 @@ void GPENCIL_OT_draw(wmOperatorType *ot)
 	prop = RNA_def_collection_runtime(ot->srna, "stroke", &RNA_OperatorStrokeElement, "Stroke", "");
 	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
-	/* NOTE: wait for input is enabled by default, so that all UI code can work properly without needing users to know about this */
+	/* NOTE: wait for input is enabled by default,
+	 * so that all UI code can work properly without needing users to know about this */
 	prop = RNA_def_boolean(ot->srna, "wait_for_input", true, "Wait for Input", "Wait for first click instead of painting immediately");
 	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }

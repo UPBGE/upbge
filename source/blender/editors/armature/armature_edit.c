@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation, 2002-2009 full recode.
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  * Armature EditMode tools - transforms, chain based editing, and other settings
  */
 
@@ -85,7 +78,7 @@ void ED_armature_transform_apply(Main *bmain, Object *ob, float mat[4][4], const
 void ED_armature_transform_bones(struct bArmature *arm, float mat[4][4], const bool do_props)
 {
 	EditBone *ebone;
-	float scale = mat4_to_scale(mat);   /* store the scale of the matrix here to use on envelopes */
+	float scale = mat4_to_scale(mat);  /* store the scale of the matrix here to use on envelopes */
 	float mat3[3][3];
 
 	copy_m3_m4(mat3, mat);

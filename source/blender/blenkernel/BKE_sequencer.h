@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2004 Blender Foundation.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation (2008).
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __BKE_SEQUENCER_H__
@@ -30,13 +24,11 @@
  *  \ingroup bke
  */
 
-struct bContext;
-struct EvaluationContext;
-struct StripColorBalance;
 struct Editing;
-struct GSet;
-struct GPUOffScreen;
+struct EvaluationContext;
 struct GPUFX;
+struct GPUOffScreen;
+struct GSet;
 struct ImBuf;
 struct Main;
 struct Mask;
@@ -44,7 +36,10 @@ struct Scene;
 struct Sequence;
 struct SequenceModifierData;
 struct Stereo3dFormat;
+struct StripColorBalance;
 struct StripElem;
+struct TextVars;
+struct bContext;
 struct bSound;
 
 struct SeqIndexBuildContext;
@@ -142,13 +137,13 @@ struct SeqEffectHandle {
 
 	/* load is called first time after readblenfile in
 	 * get_sequence_effect automatically */
-	void (*load)(struct Sequence *seq);
+	void (*load)(struct Sequence *seqconst);
 
 	/* duplicate */
-	void (*copy)(struct Sequence *dst, struct Sequence *src);
+	void (*copy)(struct Sequence *dst, struct Sequence *src, const int flag);
 
 	/* destruct */
-	void (*free)(struct Sequence *seq);
+	void (*free)(struct Sequence *seq, const bool do_id_user);
 
 	/* returns: -1: no input needed,
 	 * 0: no early out,
@@ -226,12 +221,8 @@ int BKE_sequencer_recursive_apply(struct Sequence *seq, int (*apply_func)(struct
 
 void BKE_sequencer_free_clipboard(void);
 
-void BKE_sequence_clipboard_pointers_free(struct Sequence *seq);
-void BKE_sequence_clipboard_pointers_store(struct Sequence *seq);
-void BKE_sequence_clipboard_pointers_restore(struct Sequence *seq, struct Main *bmain);
-
 void BKE_sequencer_base_clipboard_pointers_free(struct ListBase *seqbase);
-void BKE_sequencer_base_clipboard_pointers_store(struct ListBase *seqbase);
+void BKE_sequencer_base_clipboard_pointers_store(struct Main *bmain, struct ListBase *seqbase);
 void BKE_sequencer_base_clipboard_pointers_restore(struct ListBase *seqbase, struct Main *bmain);
 
 void BKE_sequence_free(struct Scene *scene, struct Sequence *seq);
@@ -302,6 +293,9 @@ void BKE_sequence_effect_speed_rebuild_map(struct Scene *scene, struct Sequence 
 struct SeqEffectHandle BKE_sequence_get_effect(struct Sequence *seq);
 int BKE_sequence_effect_get_num_inputs(int seq_type);
 int BKE_sequence_effect_get_supports_mask(int seq_type);
+void BKE_sequencer_text_font_unload(struct TextVars *data, const bool do_id_user);
+void BKE_sequencer_text_font_load(struct TextVars *data, const bool do_id_user);
+
 
 /* **********************************************************************
  * Sequencer editing functions

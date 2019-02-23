@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/interface/interface_region_color_picker.c
@@ -155,7 +149,8 @@ static void ui_update_color_picker_buts_rgb(
 	if (block->color_profile)
 		display = ui_block_cm_display_get(block);
 
-	/* this updates button strings, is hackish... but button pointers are on stack of caller function */
+	/* this updates button strings,
+	 * is hackish... but button pointers are on stack of caller function */
 	for (bt = block->buttons.first; bt; bt = bt->next) {
 		if (bt->custom_data != cpicker)
 			continue;

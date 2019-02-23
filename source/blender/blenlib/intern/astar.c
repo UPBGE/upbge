@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2014 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Bastien Montagne
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenlib/intern/astar.c
@@ -236,7 +228,8 @@ bool BLI_astar_graph_solve(
 		LinkData *ld;
 
 		if (BLI_BITMAP_TEST(done_nodes, node_curr_idx)) {
-			/* Might happen, because we always add nodes to heap when evaluating them, without ever removing them. */
+			/* Might happen, because we always add nodes to heap when evaluating them,
+			 * without ever removing them. */
 			continue;
 		}
 

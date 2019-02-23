@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -18,10 +16,6 @@
  * All rights reserved.
  *
  * The Original Code is: some of this file.
- *
- * Contributor(s): Jens Ole Wund (bjornmose), Campbell Barton (ideasman42)
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/sculpt_paint/paint_image.c
@@ -375,11 +369,14 @@ void paint_brush_init_tex(Brush *brush)
 	/* init mtex nodes */
 	if (brush) {
 		MTex *mtex = &brush->mtex;
-		if (mtex->tex && mtex->tex->nodetree)
-			ntreeTexBeginExecTree(mtex->tex->nodetree);  /* has internal flag to detect it only does it once */
-		mtex = &brush->mask_mtex;
-		if (mtex->tex && mtex->tex->nodetree)
+		if (mtex->tex && mtex->tex->nodetree) {
+			/* has internal flag to detect it only does it once */
 			ntreeTexBeginExecTree(mtex->tex->nodetree);
+		}
+		mtex = &brush->mask_mtex;
+		if (mtex->tex && mtex->tex->nodetree) {
+			ntreeTexBeginExecTree(mtex->tex->nodetree);
+		}
 	}
 }
 
@@ -1065,7 +1062,8 @@ static int texture_paint_toggle_exec(bContext *C, wmOperator *op)
 
 		/* entering paint mode also sets image to editors */
 		if (imapaint->mode == IMAGEPAINT_MODE_MATERIAL) {
-			Material *ma = give_current_material(ob, ob->actcol); /* set the current material active paint slot on image editor */
+			/* set the current material active paint slot on image editor */
+			Material *ma = give_current_material(ob, ob->actcol);
 
 			if (ma && ma->texpaintslot)
 				ima = ma->texpaintslot[ma->paint_active_slot].ima;

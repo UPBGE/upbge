@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation, Joshua Leung
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Joshua Leung (full recode)
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/animation/keyframing.c
@@ -443,11 +435,15 @@ int insert_vert_fcurve(FCurve *fcu, float x, float y, eBezTriple_KeyframeType ke
 	 *       to these later, we want these to work in a sane way out of
 	 *       the box.
 	 */
-	beztr.back = 1.70158f;     /* "back" easing - this value used to be used when overshoot=0, but that        */
-	                           /*                 introduced discontinuities in how the param worked           */
 
-	beztr.amplitude = 0.8f;    /* "elastic" easing - values here were hand-optimised for a default duration of */
-	beztr.period = 4.1f;       /*                    ~10 frames (typical mograph motion length)                */
+	/* "back" easing - this value used to be used when overshoot=0, but that
+	 *                 introduced discontinuities in how the param worked. */
+	beztr.back = 1.70158f;
+
+	/* "elastic" easing - values here were hand-optimised for a default duration of
+	 *                    ~10 frames (typical mograph motion length) */
+	beztr.amplitude = 0.8f;
+	beztr.period = 4.1f;
 
 	/* add temp beztriple to keyframes */
 	a = insert_bezt_fcurve(fcu, &beztr, flag);

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 #ifndef __BKE_SHRINKWRAP_H__
 #define __BKE_SHRINKWRAP_H__
@@ -46,13 +38,13 @@
  * (So that you don't have to pass an enormous amount of arguments to functions)
  */
 
-struct Object;
-struct DerivedMesh;
-struct MVert;
-struct MDeformVert;
-struct ShrinkwrapModifierData;
-struct MDeformVert;
 struct BVHTree;
+struct DerivedMesh;
+struct MDeformVert;
+struct MDeformVert;
+struct MVert;
+struct Object;
+struct ShrinkwrapModifierData;
 struct SpaceTransform;
 
 

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_view3d/view3d_buttons.c
@@ -685,7 +678,8 @@ static void v3d_editvertex_buts(uiLayout *layout, View3D *v3d, Object *ob, float
 								apply_raw_diff(&bezt->alfa, tot, ve_median[C_TILT], median[C_TILT]);
 							}
 						}
-						else if (apply_vcos) {  /* Handles can only have their coordinates changed here. */
+						else if (apply_vcos) {
+							/* Handles can only have their coordinates changed here. */
 							if (bezt->f1 & SELECT) {
 								apply_raw_diff_v3(bezt->vec[0], tot, &ve_median[LOC_X], &median[LOC_X]);
 							}

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation, 2003-2009, Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_sequencer/sequencer_select.c
@@ -350,7 +344,8 @@ static int sequencer_select_invoke(bContext *C, wmOperator *op, const wmEvent *e
 				marker->flag |= SELECT;
 		}
 		else {
-			/* deselect_markers(0, 0); */ /* XXX, in 2.4x, seq selection used to deselect all, need to re-thnik this for 2.5 */
+			/* XXX, in 2.4x, seq selection used to deselect all, need to re-thnik this for 2.5 */
+			/* deselect_markers(0, 0); */
 			marker->flag |= SELECT;
 		}
 

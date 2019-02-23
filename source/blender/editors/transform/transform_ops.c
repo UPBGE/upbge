@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/transform/transform_ops.c
@@ -403,7 +397,8 @@ static int transform_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	/* XXX, workaround: active needs to be calculated before transforming,
 	 * since we're not reading from 'td->center' in this case. see: T40241 */
 	if (t->tsnap.target == SCE_SNAP_TARGET_ACTIVE) {
-		/* In camera view, tsnap callback is not set (see initSnappingMode() in transfrom_snap.c, and T40348). */
+		/* In camera view, tsnap callback is not set
+		 * (see initSnappingMode() in transfrom_snap.c, and T40348). */
 		if (t->tsnap.targetSnap && ((t->tsnap.status & TARGET_INIT) == 0)) {
 			t->tsnap.targetSnap(t);
 		}

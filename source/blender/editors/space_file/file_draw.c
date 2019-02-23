@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_file/file_draw.c
@@ -304,7 +297,8 @@ static void file_draw_string(int sx, int sy, const char *string, float width, in
 	BLI_strncpy(fname, string, FILE_MAXFILE);
 	UI_text_clip_middle_ex(&fs, fname, width, UI_DPI_ICON_SIZE, sizeof(fname), '\0');
 
-	/* no text clipping needed, UI_fontstyle_draw does it but is a bit too strict (for buttons it works) */
+	/* no text clipping needed, UI_fontstyle_draw does it but is a bit too strict
+	 * (for buttons it works) */
 	rect.xmin = sx;
 	rect.xmax = (int)(sx + ceil(width + 5.0f / UI_DPI_FAC));
 	rect.ymin = sy - height;

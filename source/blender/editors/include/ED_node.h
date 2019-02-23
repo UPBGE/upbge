@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file ED_node.h
@@ -34,23 +27,23 @@
 struct ID;
 struct Main;
 struct Scene;
+struct Scene;
+struct ScrArea;
 struct Tex;
+struct View2D;
 struct bContext;
-struct bNodeTree;
 struct bNode;
-struct bNodeType;
 struct bNodeSocketType;
 struct bNodeTree;
+struct bNodeTree;
 struct bNodeTreeType;
-struct ScrArea;
-struct Scene;
-struct View2D;
+struct bNodeType;
 
 typedef enum {
 	NODE_TOP    = 1,
 	NODE_BOTTOM = 2,
 	NODE_LEFT   = 4,
-	NODE_RIGHT  = 8
+	NODE_RIGHT  = 8,
 } NodeBorder;
 
 #define NODE_GRID_STEPS     5

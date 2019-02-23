@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  */
 
 /** \file blender/blenloader/intern/readfile.c
@@ -5913,6 +5905,10 @@ static void lib_link_scene(FileData *fd, Main *main)
 						seq->scene_sound = BKE_sound_add_scene_sound_defaults(sce, seq);
 					}
 				}
+				if (seq->type == SEQ_TYPE_TEXT) {
+					TextVars *t = seq->effectdata;
+					t->text_font = newlibadr_us(fd, sce->id.lib, t->text_font);
+				}
 				BLI_listbase_clear(&seq->anims);
 
 				lib_link_sequence_modifiers(fd, sce, &seq->modifiers);
@@ -6161,6 +6157,11 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 			if (seq->type == SEQ_TYPE_SPEED) {
 				SpeedControlVars *s = seq->effectdata;
 				s->frameMap = NULL;
+			}
+
+			if (seq->type == SEQ_TYPE_TEXT) {
+				TextVars *t = seq->effectdata;
+				t->text_blf_id = SEQ_FONT_NOT_LOADED;
 			}
 
 			seq->prop = newdataadr(fd, seq->prop);
@@ -9793,6 +9794,11 @@ static void expand_scene(FileData *fd, Main *mainvar, Scene *sce)
 			if (seq->clip) expand_doit(fd, mainvar, seq->clip);
 			if (seq->mask) expand_doit(fd, mainvar, seq->mask);
 			if (seq->sound) expand_doit(fd, mainvar, seq->sound);
+
+			if (seq->type == SEQ_TYPE_TEXT && seq->effectdata) {
+				TextVars *data = seq->effectdata;
+				expand_doit(fd, mainvar, data->text_font);
+			}
 		} SEQ_END;
 	}
 

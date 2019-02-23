@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,15 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Maarten Gribnau 05/2001
- *                 Damien Plisson  10/2009
- *                 Jason Wilkins   02/2014
- *                 Jens Verwiebe   10/2014
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #include "GHOST_WindowCocoa.h"
@@ -571,11 +560,6 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(
 	updateDrawingContext();
 	activateDrawingContext();
 
-	if (m_systemCocoa->m_nativePixel) {
-		NSRect backingBounds = [m_openGLView convertRectToBacking:[m_openGLView bounds]];
-		m_nativePixelSize = (float)backingBounds.size.width / (float)rect.size.width;
-	}
-	
 	setTitle(title);
 	
 	m_tablet.Active = GHOST_kTabletModeNone;
@@ -598,6 +582,8 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(
 	
 	if (state == GHOST_kWindowStateFullScreen)
 		setState(GHOST_kWindowStateFullScreen);
+
+	setNativePixelSize();
 
 	[pool drain];
 }

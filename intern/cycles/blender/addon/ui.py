@@ -22,7 +22,6 @@ import _cycles
 from bpy.types import (
     Panel,
     Menu,
-    Operator,
 )
 
 
@@ -912,27 +911,6 @@ class CYCLES_OBJECT_PT_cycles_settings(CyclesButtonsPanel, Panel):
         sub.prop(cob, "use_distance_cull")
 
 
-class CYCLES_OT_use_shading_nodes(Operator):
-    """Enable nodes on a material, world or lamp"""
-    bl_idname = "cycles.use_shading_nodes"
-    bl_label = "Use Nodes"
-
-    @classmethod
-    def poll(cls, context):
-        return (getattr(context, "material", False) or getattr(context, "world", False) or
-                getattr(context, "lamp", False))
-
-    def execute(self, context):
-        if context.material:
-            context.material.use_nodes = True
-        elif context.world:
-            context.world.use_nodes = True
-        elif context.lamp:
-            context.lamp.use_nodes = True
-
-        return {'FINISHED'}
-
-
 def find_node(material, nodetype):
     if material and material.node_tree:
         ntree = material.node_tree
@@ -1656,7 +1634,6 @@ class CYCLES_RENDER_PT_debug(CyclesButtonsPanel, Panel):
 
         col = layout.column()
         col.label('OpenCL Flags:')
-        col.prop(cscene, "debug_opencl_kernel_type", text="Kernel")
         col.prop(cscene, "debug_opencl_device_type", text="Device")
         col.prop(cscene, "debug_opencl_kernel_single_program", text="Single Program")
         col.prop(cscene, "debug_use_opencl_debug", text="Debug")
@@ -1870,7 +1847,6 @@ classes = (
     CYCLES_PT_context_material,
     CYCLES_OBJECT_PT_motion_blur,
     CYCLES_OBJECT_PT_cycles_settings,
-    CYCLES_OT_use_shading_nodes,
     CYCLES_LAMP_PT_preview,
     CYCLES_LAMP_PT_lamp,
     CYCLES_LAMP_PT_nodes,

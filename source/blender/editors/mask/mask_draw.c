@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,13 +15,6 @@
  *
  * The Original Code is Copyright (C) 2012 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation,
- *                 Campbell Barton,
- *                 Sergey Sharybin
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/mask/mask_draw.c
@@ -677,14 +668,17 @@ static float *mask_rasterize(Mask *mask, const int width, const int height)
 
 /* sets up the opengl context.
  * width, height are to match the values from ED_mask_get_size() */
-void ED_mask_draw_region(Mask *mask, ARegion *ar,
-                         const char draw_flag, const char draw_type, const char overlay_mode,
-                         const int width_i, const int height_i,  /* convert directly into aspect corrected vars */
-                         const float aspx, const float aspy,
-                         const bool do_scale_applied, const bool do_draw_cb,
-                         float stabmat[4][4], /* optional - only used by clip */
-                         const bContext *C    /* optional - only used when do_post_draw is set or called from clip editor */
-                         )
+void ED_mask_draw_region(
+        Mask *mask, ARegion *ar,
+        const char draw_flag, const char draw_type, const char overlay_mode,
+        /* convert directly into aspect corrected vars */
+        const int width_i, const int height_i,
+        const float aspx, const float aspy,
+        const bool do_scale_applied, const bool do_draw_cb,
+        /* optional - only used by clip */
+        float stabmat[4][4],
+        /* optional - only used when do_post_draw is set or called from clip editor */
+        const bContext *C)
 {
 	struct View2D *v2d = &ar->v2d;
 

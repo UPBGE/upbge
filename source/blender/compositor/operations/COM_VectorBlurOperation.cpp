@@ -14,10 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor:
- *      Jeroen Bakker
- *      Monique Dewanchand
  */
 
 #include <string.h>
@@ -33,8 +29,8 @@ extern "C" {
 #define PASS_VECTOR_MAX 10000.0f
 
 /* Forward declarations */
-struct ZSpan;
 struct DrawBufPixel;
+struct ZSpan;
 void zbuf_accumulate_vecblur(
         NodeBlurData *nbd, int xsize, int ysize, float *newrect,
         const float *imgrect, float *vecbufrect, const float *zbufrect);

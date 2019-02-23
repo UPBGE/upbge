@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/transform/transform_generics.c
@@ -264,7 +256,8 @@ static void animrecord_check_state(Scene *scene, ID *id, wmTimer *animtimer)
 	 * - the option to add new actions for each round is not enabled
 	 */
 	if (IS_AUTOKEY_FLAG(scene, INSERTAVAIL) == 0 && (scene->toolsettings->autokey_flag & ANIMRECORD_FLAG_WITHNLA)) {
-		/* if playback has just looped around, we need to add a new NLA track+strip to allow a clean pass to occur */
+		/* if playback has just looped around,
+		 * we need to add a new NLA track+strip to allow a clean pass to occur */
 		if ((sad) && (sad->flag & ANIMPLAY_FLAG_JUMPED)) {
 			AnimData *adt = BKE_animdata_from_id(id);
 			const bool is_first = (adt) && (adt->nla_tracks.first == NULL);
@@ -552,7 +545,8 @@ static void recalcData_nla(TransInfo *t)
 		if (t->state != TRANS_CANCEL) {
 			switch (snla->autosnap) {
 				case SACTSNAP_FRAME: /* snap to nearest frame */
-				case SACTSNAP_STEP: /* frame step - this is basically the same, since we don't have any remapping going on */
+				case SACTSNAP_STEP: /* frame step - this is basically the same,
+				                     * since we don't have any remapping going on */
 				{
 					tdn->h1[0] = floorf(tdn->h1[0] + 0.5f);
 					tdn->h2[0] = floorf(tdn->h2[0] + 0.5f);
@@ -560,7 +554,8 @@ static void recalcData_nla(TransInfo *t)
 				}
 
 				case SACTSNAP_SECOND: /* snap to nearest second */
-				case SACTSNAP_TSTEP: /* second step - this is basically the same, since we don't have any remapping going on */
+				case SACTSNAP_TSTEP: /* second step - this is basically the same,
+				                      * since we don't have any remapping going on */
 				{
 					/* This case behaves differently from the rest, since lengths of strips
 					 * may not be multiples of a second. If we just naively resize adjust

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file creator/creator.c
@@ -249,7 +241,8 @@ int main(
 	_putenv_s("OMP_WAIT_POLICY", "PASSIVE");
 # endif
 
-	/* FMA3 support in the 2013 CRT is broken on Vista and Windows 7 RTM (fixed in SP1). Just disable it. */
+	/* FMA3 support in the 2013 CRT is broken on Vista and Windows 7 RTM
+	 * (fixed in SP1). Just disable it. */
 #  if defined(_MSC_VER) && defined(_M_X64)
 	_set_FMA3_enable(0);
 #  endif

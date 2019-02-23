@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation, Joshua Leung
  * All rights reserved.
- *
- * Contributor(s): Joshua Leung (full recode)
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __BKE_FCURVE_H__
@@ -36,21 +30,21 @@
 extern "C" {
 #endif
 
+struct ChannelDriver;
+struct DriverTarget;
+struct DriverVar;
+struct FCM_EnvelopeData;
 struct FCurve;
 struct FModifier;
-struct ChannelDriver;
-struct DriverVar;
-struct DriverTarget;
-struct FCM_EnvelopeData;
 
-struct bContext;
 struct AnimData;
-struct bAction;
 struct BezTriple;
-struct StructRNA;
 struct PathResolvedRNA;
 struct PointerRNA;
 struct PropertyRNA;
+struct StructRNA;
+struct bAction;
+struct bContext;
 
 #include "DNA_curve_types.h"
 
@@ -179,7 +173,7 @@ typedef enum eFMI_Requirement_Flags {
 	FMI_REQUIRES_RUNTIME_CHECK      = (1 << 2),
 
 	/* Requires to store data shared between time and valua evaluation */
-	FMI_REQUIRES_STORAGE            = (1 << 3)
+	FMI_REQUIRES_STORAGE            = (1 << 3),
 } eFMI_Requirement_Flags;
 
 /* Function Prototypes for FModifierTypeInfo's */

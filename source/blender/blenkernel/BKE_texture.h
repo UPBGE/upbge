@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 #ifndef __BKE_TEXTURE_H__
 #define __BKE_TEXTURE_H__
@@ -37,16 +29,15 @@
 extern "C" {
 #endif
 
-struct bNode;
 struct Brush;
 struct ColorBand;
 struct EnvMap;
 struct FreestyleLineStyle;
 struct ImagePool;
 struct Lamp;
+struct MTex;
 struct Main;
 struct Material;
-struct MTex;
 struct OceanTex;
 struct ParticleSettings;
 struct PointDensity;
@@ -55,6 +46,7 @@ struct TexMapping;
 struct TexResult;
 struct VoxelData;
 struct World;
+struct bNode;
 
 /*  in ColorBand struct */
 #define MAXCOLORBAND 32

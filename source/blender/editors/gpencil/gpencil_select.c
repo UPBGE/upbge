@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2014, Blender Foundation
  * This is a new part of Blender
- *
- * Contributor(s): Joshua Leung
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/gpencil/gpencil_select.c
@@ -772,7 +766,8 @@ static int gpencil_circle_select_exec(bContext *C, wmOperator *op)
 	bool select = !RNA_boolean_get(op->ptr, "deselect");
 
 	GP_SpaceConversion gsc = {NULL};
-	rcti rect = {0};            /* for bounding rect around circle (for quicky intersection testing) */
+	/* for bounding rect around circle (for quicky intersection testing) */
+	rcti rect = {0};
 
 	bool changed = false;
 

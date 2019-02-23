@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,13 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Michel Selten,
- *                 Willian P. Germano,
- *                 Chris Keith,
- *                 Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file BPY_extern.h
@@ -32,19 +23,19 @@
 #ifndef __BPY_EXTERN_H__
 #define __BPY_EXTERN_H__
 
-struct PathResolvedRNA;
-struct Text; /* defined in DNA_text_types.h */
-struct ID; /* DNA_ID.h */
-struct Object; /* DNA_object_types.h */
 struct ChannelDriver; /* DNA_anim_types.h */
+struct ID; /* DNA_ID.h */
 struct ListBase; /* DNA_listBase.h */
+struct Object; /* DNA_object_types.h */
+struct PathResolvedRNA;
+struct ReportList;
+struct Text; /* defined in DNA_text_types.h */
 struct bConstraint; /* DNA_constraint_types.h */
-struct bPythonConstraint; /* DNA_constraint_types.h */
 struct bConstraintOb; /* DNA_constraint_types.h */
 struct bConstraintTarget; /* DNA_constraint_types.h*/
 struct bContext;
 struct bContextDataResult;
-struct ReportList;
+struct bPythonConstraint; /* DNA_constraint_types.h */
 
 #ifdef __cplusplus
 extern "C" {

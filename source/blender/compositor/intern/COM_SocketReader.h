@@ -14,10 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor:
- *      Jeroen Bakker
- *      Monique Dewanchand
  */
 
 #ifndef __COM_SOCKETREADER_H__
@@ -32,7 +28,7 @@
 typedef enum PixelSampler {
 	COM_PS_NEAREST = 0,
 	COM_PS_BILINEAR = 1,
-	COM_PS_BICUBIC = 2
+	COM_PS_BICUBIC = 2,
 } PixelSampler;
 
 class MemoryBuffer;

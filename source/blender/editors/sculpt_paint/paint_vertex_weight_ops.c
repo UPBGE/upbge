@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/sculpt_paint/paint_vertex_weight_ops.c
@@ -210,7 +206,8 @@ static int weight_sample_invoke(bContext *C, wmOperator *op, const wmEvent *even
 			const int vgroup_active = vc.obact->actdef - 1;
 			float vgroup_weight = defvert_find_weight(&me->dvert[v_idx_best], vgroup_active);
 
-			/* use combined weight in multipaint mode, since that's what is displayed to the user in the colors */
+			/* use combined weight in multipaint mode,
+			 * since that's what is displayed to the user in the colors */
 			if (ts->multipaint) {
 				int defbase_tot_sel;
 				const int defbase_tot = BLI_listbase_count(&vc.obact->defbase);
@@ -225,7 +222,8 @@ static int weight_sample_invoke(bContext *C, wmOperator *op, const wmEvent *even
 					vgroup_weight = BKE_defvert_multipaint_collective_weight(
 					        &me->dvert[v_idx_best], defbase_tot, defbase_sel, defbase_tot_sel, ts->auto_normalize);
 
-					/* if autonormalize is enabled, but weights are not normalized, the value can exceed 1 */
+					/* if autonormalize is enabled, but weights are not normalized,
+					 * the value can exceed 1 */
 					CLAMP(vgroup_weight, 0.0f, 1.0f);
 				}
 
@@ -372,7 +370,8 @@ static int weight_sample_group_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-/* TODO, we could make this a menu into OBJECT_OT_vertex_group_set_active rather than its own operator */
+/* TODO, we could make this a menu into OBJECT_OT_vertex_group_set_active
+ * rather than its own operator */
 void PAINT_OT_weight_sample_group(wmOperatorType *ot)
 {
 	PropertyRNA *prop = NULL;
@@ -537,7 +536,7 @@ typedef struct DMGradient_vertStore {
 	float weight_orig;
 	enum {
 		VGRAD_STORE_NOP      = 0,
-		VGRAD_STORE_DW_EXIST = (1 << 0)
+		VGRAD_STORE_DW_EXIST = (1 << 0),
 	} flag;
 } DMGradient_vertStore;
 

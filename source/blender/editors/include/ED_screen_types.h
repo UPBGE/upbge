@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file ED_screen_types.h
@@ -56,7 +49,7 @@ enum {
 	/* don't drop frames (and ignore SCE_FRAME_DROP flag) */
 	ANIMPLAY_FLAG_NO_SYNC       = (1 << 3),
 	/* use nextfra at next timer update */
-	ANIMPLAY_FLAG_USE_NEXT_FRAME = (1 << 4)
+	ANIMPLAY_FLAG_USE_NEXT_FRAME = (1 << 4),
 };
 
 /* ----------------------------------------------------- */
@@ -77,10 +70,18 @@ typedef struct ScreenFrameRateInfo {
 
 /* Enum for Action Zone Edges. Which edge of area is action zone. */
 typedef enum {
-	AE_RIGHT_TO_TOPLEFT,    /* Region located on the left, _right_ edge is action zone. Region minimized to the top left */
-	AE_LEFT_TO_TOPRIGHT,    /* Region located on the right, _left_ edge is action zone. Region minimized to the top right */
-	AE_TOP_TO_BOTTOMRIGHT,  /* Region located at the bottom, _top_ edge is action zone. Region minimized to the bottom right */
-	AE_BOTTOM_TO_TOPLEFT    /* Region located at the top, _bottom_ edge is action zone. Region minimized to the top left */
+	/** Region located on the left, _right_ edge is action zone.
+	 * Region minimized to the top left */
+	AE_RIGHT_TO_TOPLEFT,
+	/** Region located on the right, _left_ edge is action zone.
+	 * Region minimized to the top right */
+	AE_LEFT_TO_TOPRIGHT,
+	/** Region located at the bottom, _top_ edge is action zone.
+	 * Region minimized to the bottom right */
+	AE_TOP_TO_BOTTOMRIGHT,
+	/** Region located at the top, _bottom_ edge is action zone.
+	 * Region minimized to the top left */
+	AE_BOTTOM_TO_TOPLEFT
 } AZEdge;
 
 /* for editing areas/regions */

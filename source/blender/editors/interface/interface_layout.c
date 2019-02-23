@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Blender Foundation 2009.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/interface/interface_layout.c
@@ -1086,7 +1080,8 @@ void uiItemsFullEnumO_items(
 					but = block->buttons.last;
 				}
 				else {
-					/* Do not use uiItemL here, as our root layout is a menu one, it will add a fake blank icon! */
+					/* Do not use uiItemL here, as our root layout is a menu one,
+					 * it will add a fake blank icon! */
 					but = uiDefBut(
 					        block, UI_BTYPE_LABEL, 0, item->name, 0, 0, UI_UNIT_X * 5, UI_UNIT_Y, NULL,
 					        0.0, 0.0, 0, 0, "");
@@ -1095,7 +1090,8 @@ void uiItemsFullEnumO_items(
 			}
 			else {
 				if (radial) {
-					/* invisible dummy button to ensure all items are always at the same position */
+					/* invisible dummy button to ensure all items are
+					 * always at the same position */
 					uiItemS(target);
 				}
 				else {
@@ -1812,7 +1808,8 @@ void ui_but_add_search(uiBut *but, PointerRNA *ptr, PropertyRNA *prop, PointerRN
 		UI_but_func_search_set(but, ui_searchbox_create_generic, rna_search_cb, but, NULL, NULL);
 	}
 	else if (but->type == UI_BTYPE_SEARCH_MENU) {
-		/* In case we fail to find proper searchprop, so other code might have already set but->type to search menu... */
+		/* In case we fail to find proper searchprop,
+		 * so other code might have already set but->type to search menu... */
 		but->flag |= UI_BUT_DISABLED;
 	}
 }
@@ -1953,7 +1950,8 @@ static uiBut *ui_item_menu(
 		UI_block_emboss_set(block, UI_EMBOSS);
 	}
 	if (ELEM(layout->root->type, UI_LAYOUT_PANEL, UI_LAYOUT_TOOLBAR) ||
-	    (force_menu && layout->root->type != UI_LAYOUT_MENU))  /* We never want a dropdown in menu! */
+	    /* We never want a dropdown in menu! */
+	    (force_menu && layout->root->type != UI_LAYOUT_MENU))
 	{
 		UI_but_type_set_menu_from_pulldown(but);
 	}

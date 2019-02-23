@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 #ifndef __BKE_SUBSURF_H__
 #define __BKE_SUBSURF_H__
@@ -37,21 +29,20 @@
 /* Thread sync primitives used directly.  */
 #include "BLI_threads.h"
 
-struct CCGElem;
-struct DMFlagMat;
-struct DMGridAdjacency;
-struct DerivedMesh;
-struct MeshElemMap;
-struct Mesh;
-struct MPoly;
-struct Object;
-struct PBVH;
-struct SubsurfModifierData;
 struct CCGEdge;
+struct CCGElem;
 struct CCGFace;
 struct CCGVert;
+struct DMFlagMat;
+struct DerivedMesh;
 struct EdgeHash;
+struct MPoly;
+struct Mesh;
+struct MeshElemMap;
+struct Object;
 struct PBVH;
+struct PBVH;
+struct SubsurfModifierData;
 
 /**************************** External *****************************/
 
@@ -96,7 +87,7 @@ typedef enum MultiresModifiedFlags {
 	 * have to be updated */
 	MULTIRES_COORDS_MODIFIED = 1,
 	/* indicates elements have been hidden or unhidden */
-	MULTIRES_HIDDEN_MODIFIED = 2
+	MULTIRES_HIDDEN_MODIFIED = 2,
 } MultiresModifiedFlags;
 
 /**************************** Internal *****************************/

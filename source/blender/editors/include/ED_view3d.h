@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file ED_view3d.h
@@ -41,6 +34,9 @@ struct Base;
 struct BezTriple;
 struct BoundBox;
 struct EditBone;
+struct GPUFX;
+struct GPUFXSettings;
+struct GPUOffScreen;
 struct ImBuf;
 struct MVert;
 struct Main;
@@ -63,9 +59,6 @@ struct wmOperator;
 struct wmOperatorType;
 struct wmWindow;
 struct wmWindowManager;
-struct GPUFX;
-struct GPUOffScreen;
-struct GPUFXSettings;
 enum eGPUFXFlags;
 
 /* for derivedmesh drawing callbacks, for view3d_select, .... */
@@ -123,11 +116,16 @@ void  ED_view3d_depth_tag_update(struct RegionView3D *rv3d);
 /* return values for ED_view3d_project_...() */
 typedef enum {
 	V3D_PROJ_RET_OK   = 0,
-	V3D_PROJ_RET_CLIP_NEAR = 1,  /* can't avoid this when in perspective mode, (can't avoid) */
-	V3D_PROJ_RET_CLIP_ZERO = 2,  /* so close to zero we can't apply a perspective matrix usefully */
-	V3D_PROJ_RET_CLIP_BB   = 3,  /* bounding box clip - RV3D_CLIPPING */
-	V3D_PROJ_RET_CLIP_WIN  = 4,  /* outside window bounds */
-	V3D_PROJ_RET_OVERFLOW  = 5   /* outside range (mainly for short), (can't avoid) */
+	/** can't avoid this when in perspective mode, (can't avoid) */
+	V3D_PROJ_RET_CLIP_NEAR = 1,
+	/** so close to zero we can't apply a perspective matrix usefully */
+	V3D_PROJ_RET_CLIP_ZERO = 2,
+	/** bounding box clip - RV3D_CLIPPING */
+	V3D_PROJ_RET_CLIP_BB   = 3,
+	/** outside window bounds */
+	V3D_PROJ_RET_CLIP_WIN  = 4,
+	/** outside range (mainly for short), (can't avoid) */
+	V3D_PROJ_RET_OVERFLOW  = 5,
 } eV3DProjStatus;
 
 /* some clipping tests are optional */
@@ -136,7 +134,7 @@ typedef enum {
 	V3D_PROJ_TEST_CLIP_BB    = (1 << 0),
 	V3D_PROJ_TEST_CLIP_WIN   = (1 << 1),
 	V3D_PROJ_TEST_CLIP_NEAR  = (1 << 2),
-	V3D_PROJ_TEST_CLIP_ZERO  = (1 << 3)
+	V3D_PROJ_TEST_CLIP_ZERO  = (1 << 3),
 } eV3DProjTest;
 
 #define V3D_PROJ_TEST_CLIP_DEFAULT \

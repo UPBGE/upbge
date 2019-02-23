@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenfont/BLF_api.h
@@ -35,9 +28,9 @@
 #include "BLI_compiler_attrs.h"
 #include "BLI_sys_types.h"
 
-struct rctf;
 struct ColorManagedDisplay;
 struct ResultBLF;
+struct rctf;
 
 int BLF_init(void);
 void BLF_exit(void);
@@ -46,6 +39,7 @@ void BLF_default_set(int fontid);
 
 void BLF_cache_clear(void);
 
+/* Loads a font, or returns an already loaded font and increments its reference count. */
 int BLF_load(const char *name) ATTR_NONNULL();
 int BLF_load_mem(const char *name, const unsigned char *mem, int mem_size) ATTR_NONNULL();
 
@@ -72,7 +66,6 @@ void BLF_size(int fontid, int size, int dpi);
  *  | m[1]  m[5]  m[9]  m[13] |
  *  | m[2]  m[6]  m[10] m[14] |
  *  | m[3]  m[7]  m[11] m[15] |
- *
  */
 void BLF_matrix(int fontid, const float m[16]);
 

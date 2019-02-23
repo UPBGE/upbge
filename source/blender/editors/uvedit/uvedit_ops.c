@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Antony Riakiotakis.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/uvedit/uvedit_ops.c
@@ -2172,7 +2164,9 @@ static int uv_mouse_select(bContext *C, const float co[2], bool extend, bool loo
 	UvNearestHit hit = UV_NEAREST_HIT_INIT;
 	int i, selectmode, sticky, sync, *hitv = NULL;
 	bool select = true;
-	int flush = 0, hitlen = 0; /* 0 == don't flush, 1 == sel, -1 == desel;  only use when selection sync is enabled */
+	/* 0 == don't flush, 1 == sel, -1 == desel;  only use when selection sync is enabled */
+	int flush = 0;
+	int hitlen = 0;
 	float limit[2], **hituv = NULL;
 
 	const int cd_loop_uv_offset  = CustomData_get_offset(&em->bm->ldata, CD_MLOOPUV);

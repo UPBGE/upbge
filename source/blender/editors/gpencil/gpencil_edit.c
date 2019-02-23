@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008, Blender Foundation, Joshua Leung
  * This is a new part of Blender
- *
- * Contributor(s): Joshua Leung, Antonio Vazquez
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  * Operators for editing Grease Pencil strokes
  */
 
@@ -527,7 +520,7 @@ static bool gp_strokes_paste_poll(bContext *C)
 
 typedef enum eGP_PasteMode {
 	GP_COPY_ONLY = -1,
-	GP_COPY_MERGE = 1
+	GP_COPY_MERGE = 1,
 } eGP_PasteMode;
 
 static int gp_strokes_paste_exec(bContext *C, wmOperator *op)
@@ -1677,7 +1670,7 @@ void GPENCIL_OT_stroke_apply_thickness(wmOperatorType *ot)
 enum {
 	GP_STROKE_CYCLIC_CLOSE = 1,
 	GP_STROKE_CYCLIC_OPEN = 2,
-	GP_STROKE_CYCLIC_TOGGLE = 3
+	GP_STROKE_CYCLIC_TOGGLE = 3,
 };
 
 static int gp_stroke_cyclical_set_exec(bContext *C, wmOperator *op)
@@ -2156,13 +2149,15 @@ static int gp_strokes_reproject_exec(bContext *C, wmOperator *op)
 				}
 				else {
 					/* Geometry - Snap to surfaces of visible geometry */
-					/* XXX: There will be precision loss (possible stairstep artifacts) from this conversion to satisfy the API's */
+					/* XXX: There will be precision loss (possible stairstep artifacts)
+					 * from this conversion to satisfy the API's */
 					const int screen_co[2] = {(int)xy[0], (int)xy[1]};
 
 					int depth_margin = 0; // XXX: 4 for strokes, 0 for normal
 					float depth;
 
-					/* XXX: The proper procedure computes the depths into an array, to have smooth transitions when all else fails... */
+					/* XXX: The proper procedure computes the depths into an array,
+					 * to have smooth transitions when all else fails... */
 					if (ED_view3d_autodist_depth(gsc.ar, screen_co, depth_margin, &depth)) {
 						ED_view3d_autodist_simple(gsc.ar, screen_co, &pt->x, 0, &depth);
 					}

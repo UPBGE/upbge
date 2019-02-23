@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008, Blender Foundation
  * This is a new part of Blender
- *
- * Contributor(s): Joshua Leung
- *                 Bastien Montagne
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  * Operator for converting Grease Pencil data to geometry
  */
 
@@ -1165,7 +1157,8 @@ static void gp_layer_to_curve(bContext *C, ReportList *reports, bGPdata *gpd, bG
 		const bool add_start_point = (link_strokes && !(prev_gps));
 		const bool add_end_point = (link_strokes && !(gps->next));
 
-		/* Detect new strokes created because of GP_STROKE_BUFFER_MAX reached, and stitch them to previous one. */
+		/* Detect new strokes created because of GP_STROKE_BUFFER_MAX reached,
+		 * and stitch them to previous one. */
 		bool stitch = false;
 		if (prev_gps) {
 			bGPDspoint *pt1 = &prev_gps->points[prev_gps->totpoints - 1];

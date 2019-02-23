@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/mesh/editmesh_inset.c
@@ -213,7 +207,8 @@ static bool edbm_inset_calc(wmOperator *op)
 	const float thickness          = RNA_float_get(op->ptr,   "thickness");
 	const float depth              = RNA_float_get(op->ptr,   "depth");
 	const bool use_outset          = RNA_boolean_get(op->ptr, "use_outset");
-	const bool use_select_inset    = RNA_boolean_get(op->ptr, "use_select_inset"); /* not passed onto the BMO */
+	/* not passed onto the BMO */
+	const bool use_select_inset    = RNA_boolean_get(op->ptr, "use_select_inset");
 	const bool use_individual      = RNA_boolean_get(op->ptr, "use_individual");
 	const bool use_interpolate     = RNA_boolean_get(op->ptr, "use_interpolate");
 

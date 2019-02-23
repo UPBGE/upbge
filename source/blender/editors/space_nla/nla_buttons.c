@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation, Joshua Leung
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_nla/nla_buttons.c
@@ -155,7 +148,8 @@ bool nla_panel_context(const bContext *C, PointerRNA *adt_ptr, PointerRNA *nlt_p
 						id = ale->id;
 					}
 					else {
-						/* ale->data is always the proper ID block we need, but ale->id may not be (i.e. for textures) */
+						/* ale->data is always the proper ID block we need,
+						 * but ale->id may not be (i.e. for textures) */
 						id = (ID *)ale->data;
 					}
 

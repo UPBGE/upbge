@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/curve/curve_intern.h
@@ -33,12 +26,12 @@
 #define __CURVE_INTERN_H__
 
 /* internal exports only */
-struct ListBase;
 struct EditNurb;
 struct GHash;
+struct ListBase;
 struct Object;
-struct wmOperatorType;
 struct ViewContext;
+struct wmOperatorType;
 
 /* editfont.c */
 enum { DEL_NEXT_CHAR, DEL_PREV_CHAR, DEL_NEXT_WORD, DEL_PREV_WORD, DEL_SELECTION, DEL_NEXT_SEL, DEL_PREV_SEL };

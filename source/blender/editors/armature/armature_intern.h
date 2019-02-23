@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/armature/armature_intern.h
@@ -34,19 +27,19 @@
 /* internal exports only */
 struct wmOperatorType;
 
-struct bContext;
-struct Scene;
-struct Object;
 struct Base;
+struct Object;
+struct Scene;
 struct bAction;
+struct bContext;
 struct bPoseChannel;
 
-struct bArmature;
-struct EditBone;
 struct Bone;
+struct EditBone;
+struct bArmature;
 
-struct ListBase;
 struct LinkData;
+struct ListBase;
 
 /* ******************************************************* */
 /* Armature EditMode Operators */

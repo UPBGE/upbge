@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,13 +15,6 @@
  *
  * The Original Code is Copyright (C) 2009 by Nicholas Bishop
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Jason Wilkins, Tom Musgrove.
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  */
 
 /** \file blender/editors/sculpt_paint/paint_stroke.c
@@ -461,8 +452,11 @@ static void paint_brush_stroke_add_step(bContext *C, wmOperator *op, const float
 	}
 
 	/* This can be removed once fixed properly in
-	 * BKE_brush_painter_paint(BrushPainter *painter, BrushFunc func, float *pos, double time, float pressure, void *user)
-	 * at zero pressure we should do nothing 1/2^12 is 0.0002 which is the sensitivity of the most sensitive pen tablet available */
+	 * BKE_brush_painter_paint(
+	 *     BrushPainter *painter, BrushFunc func,
+	 *     float *pos, double time, float pressure, void *user);
+	 * at zero pressure we should do nothing 1/2^12 is 0.0002
+	 * which is the sensitivity of the most sensitive pen tablet available */
 	if (tablet && (pressure < 0.0002f) &&
 	    ((pop->s.brush->flag & BRUSH_SPACING_PRESSURE) ||
 	     BKE_brush_use_alpha_pressure(scene, pop->s.brush) ||
@@ -947,7 +941,7 @@ static void paint_stroke_sample_average(
 	mul_v2_fl(average->mouse, 1.0f / stroke->num_samples);
 	average->pressure /= stroke->num_samples;
 
-	/*printf("avg=(%f, %f), num=%d\n", average->mouse[0], average->mouse[1], stroke->num_samples);*/
+	// printf("avg=(%f, %f), num=%d\n", average->mouse[0], average->mouse[1], stroke->num_samples);
 }
 
 /**

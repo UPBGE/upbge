@@ -14,11 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor:
- *      Jeroen Bakker
- *      Monique Dewanchand
- *      Sergey Sharybin
  */
 
 #ifndef __COM_KEYINGBLUROPERATION_H__
@@ -37,7 +32,7 @@ protected:
 public:
 	enum BlurAxis {
 		BLUR_AXIS_X = 0,
-		BLUR_AXIS_Y = 1
+		BLUR_AXIS_Y = 1,
 	};
 
 	KeyingBlurOperation();

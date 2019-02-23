@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Joshua Leung
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/animation/anim_draw.c
@@ -213,7 +206,8 @@ static short bezt_nlamapping_restore(KeyframeEditData *ked, BezTriple *bezt)
 	return 0;
 }
 
-/* helper function for ANIM_nla_mapping_apply_fcurve() -> "apply", i.e. mapping points to NLA-mapped global time */
+/* helper function for ANIM_nla_mapping_apply_fcurve() -> "apply",
+ * i.e. mapping points to NLA-mapped global time */
 static short bezt_nlamapping_apply(KeyframeEditData *ked, BezTriple *bezt)
 {
 	/* AnimData block providing scaling is stored in 'data', only_keys option is stored in i1 */

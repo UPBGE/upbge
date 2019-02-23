@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,9 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
- *
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/render/render_opengl.c
@@ -670,7 +665,9 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
 	oglrender->prevar = prevar;
 
 	if (is_view_context) {
-		ED_view3d_context_user_region(C, &oglrender->v3d, &oglrender->ar); /* so quad view renders camera */
+		/* so quad view renders camera */
+		ED_view3d_context_user_region(C, &oglrender->v3d, &oglrender->ar);
+
 		oglrender->rv3d = oglrender->ar->regiondata;
 
 		/* MUST be cleared on exit */

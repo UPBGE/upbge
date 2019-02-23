@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -13,8 +11,6 @@
  *
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/sculpt_paint/paint_image_undo.c
@@ -96,7 +92,7 @@ void image_undo_end_locks(void)
 typedef enum {
 	COPY = 0,
 	RESTORE = 1,
-	RESTORE_COPY = 2
+	RESTORE_COPY = 2,
 } CopyMode;
 
 static void undo_copy_tile(UndoImageTile *tile, ImBuf *tmpibuf, ImBuf *ibuf, CopyMode mode)

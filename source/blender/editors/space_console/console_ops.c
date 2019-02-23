@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_console/console_ops.c
@@ -747,7 +741,8 @@ static int console_history_cycle_exec(bContext *C, wmOperator *op)
 	SpaceConsole *sc = CTX_wm_space_console(C);
 	ARegion *ar = CTX_wm_region(C);
 
-	ConsoleLine *ci = console_history_verify(C); /* TODO - stupid, just prevents crashes when no command line */
+	/* TODO - stupid, just prevents crashes when no command line */
+	ConsoleLine *ci = console_history_verify(C);
 	const bool reverse = RNA_boolean_get(op->ptr, "reverse"); /* assumes down, reverse is up */
 	int prev_len = ci->len;
 
@@ -814,7 +809,8 @@ static int console_history_append_exec(bContext *C, wmOperator *op)
 	ARegion *ar = CTX_wm_region(C);
 	ScrArea *sa = CTX_wm_area(C);
 	ConsoleLine *ci = console_history_verify(C);
-	char *str = RNA_string_get_alloc(op->ptr, "text", NULL, 0); /* own this text in the new line, don't free */
+	/* own this text in the new line, don't free */
+	char *str = RNA_string_get_alloc(op->ptr, "text", NULL, 0);
 	int cursor = RNA_int_get(op->ptr, "current_character");
 	const bool rem_dupes = RNA_boolean_get(op->ptr, "remove_duplicates");
 	int prev_len = ci->len;
@@ -871,7 +867,8 @@ static int console_scrollback_append_exec(bContext *C, wmOperator *op)
 	ARegion *ar = CTX_wm_region(C);
 	ConsoleLine *ci;
 
-	char *str = RNA_string_get_alloc(op->ptr, "text", NULL, 0); /* own this text in the new line, don't free */
+	/* own this text in the new line, don't free */
+	char *str = RNA_string_get_alloc(op->ptr, "text", NULL, 0);
 	int type = RNA_enum_get(op->ptr, "type");
 
 	console_history_verify(C);

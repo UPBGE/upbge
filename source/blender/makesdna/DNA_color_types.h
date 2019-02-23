@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2006 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL/BL DUAL LICENSE BLOCK *****
  */
 
 /** \file DNA_color_types.h
@@ -108,12 +100,12 @@ enum {
 	HISTO_MODE_R      = 2,
 	HISTO_MODE_G      = 3,
 	HISTO_MODE_B      = 4,
-	HISTO_MODE_ALPHA  = 5
+	HISTO_MODE_ALPHA  = 5,
 };
 
 enum {
 	HISTO_FLAG_LINE        = (1 << 0),
-	HISTO_FLAG_SAMPLELINE  = (1 << 1)
+	HISTO_FLAG_SAMPLELINE  = (1 << 1),
 };
 
 typedef struct Histogram {
@@ -184,7 +176,7 @@ typedef struct ColorManagedColorspaceSettings {
 
 /* ColorManagedViewSettings->flag */
 enum {
-	COLORMANAGE_VIEW_USE_CURVES = (1 << 0)
+	COLORMANAGE_VIEW_USE_CURVES = (1 << 0),
 };
 
 #endif

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2004 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Joshua Leung
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_outliner/outliner_tree.c
@@ -1635,7 +1627,8 @@ void outliner_build_tree(Main *mainvar, Scene *scene, SpaceOops *soops)
 	Base *base;
 	TreeElement *te = NULL, *ten;
 	TreeStoreElem *tselem;
-	int show_opened = !soops->treestore || !BLI_mempool_len(soops->treestore); /* on first view, we open scenes */
+	/* on first view, we open scenes */
+	int show_opened = !soops->treestore || !BLI_mempool_len(soops->treestore);
 
 	/* Are we looking for something - we want to tag parents to filter child matches
 	 * - NOT in datablocks view - searching all datablocks takes way too long to be useful

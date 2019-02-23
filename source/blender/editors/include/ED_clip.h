@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation,
- *                 Sergey Sharybin
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file ED_clip.h
@@ -32,14 +25,14 @@
 #define __ED_CLIP_H__
 
 struct ARegion;
-struct bContext;
-struct bScreen;
 struct ImBuf;
 struct Main;
 struct Mask;
 struct MovieClip;
-struct SpaceClip;
 struct Scene;
+struct SpaceClip;
+struct bContext;
+struct bScreen;
 
 /*  ** clip_editor.c ** */
 

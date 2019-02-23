@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation 2002-2008
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file BIF_glutil.h
@@ -30,13 +24,13 @@
 #ifndef __BIF_GLUTIL_H__
 #define __BIF_GLUTIL_H__
 
-struct rcti;
 struct rctf;
+struct rcti;
 
+struct ColorManagedDisplaySettings;
+struct ColorManagedViewSettings;
 struct ImBuf;
 struct bContext;
-struct ColorManagedViewSettings;
-struct ColorManagedDisplaySettings;
 
 void fdrawbezier(float vec[4][3]);
 void fdrawline(float x1, float y1, float x2, float y2);

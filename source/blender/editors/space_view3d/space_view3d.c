@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_view3d/space_view3d.c
@@ -1260,7 +1253,8 @@ const char *view3d_context_dir[] = {
 
 static int view3d_context(const bContext *C, const char *member, bContextDataResult *result)
 {
-	/* fallback to the scene layer, allows duplicate and other object operators to run outside the 3d view */
+	/* fallback to the scene layer,
+	 * allows duplicate and other object operators to run outside the 3d view */
 
 	if (CTX_data_dir(member)) {
 		CTX_data_dir_set(result, view3d_context_dir);
@@ -1412,7 +1406,8 @@ static void view3d_id_remap(ScrArea *sa, SpaceLink *slink, ID *old_id, ID *new_i
 
 			if ((ID *)v3d->ob_centre == old_id) {
 				v3d->ob_centre = (Object *)new_id;
-				/* Otherwise, bonename may remain valid... We could be smart and check this, too? */
+				/* Otherwise, bonename may remain valid...
+				 * We could be smart and check this, too? */
 				if (new_id == NULL) {
 					v3d->ob_centre_bone[0] = '\0';
 				}

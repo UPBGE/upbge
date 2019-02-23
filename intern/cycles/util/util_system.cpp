@@ -22,16 +22,21 @@
 
 #include <numaapi.h>
 
+#include <OpenImageIO/sysutil.h>
+OIIO_NAMESPACE_USING
+
 #ifdef _WIN32
 #  if(!defined(FREE_WINDOWS))
 #    include <intrin.h>
 #  endif
 #  include "util_windows.h"
 #elif defined(__APPLE__)
+#  include <sys/ioctl.h>
 #  include <sys/sysctl.h>
 #  include <sys/types.h>
 #else
 #  include <unistd.h>
+#  include <sys/ioctl.h>
 #endif
 
 CCL_NAMESPACE_BEGIN
@@ -111,6 +116,25 @@ bool system_cpu_run_thread_on_node(int node)
 		return true;
 	}
 	return numaAPI_RunThreadOnNode(node);
+}
+
+int system_console_width()
+{
+	int columns = 0;
+
+#ifdef _WIN32
+	CONSOLE_SCREEN_BUFFER_INFO csbi;
+	if(GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi)) {
+		columns = csbi.dwSize.X;
+	}
+#else
+	struct winsize w;
+	if(ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == 0) {
+		columns = w.ws_col;
+	}
+#endif
+
+	return (columns > 0) ? columns : 80;
 }
 
 int system_cpu_num_active_group_processors()
@@ -307,6 +331,26 @@ bool system_cpu_support_avx2()
 }
 
 #endif
+
+bool system_call_self(const vector<string>& args)
+{
+	/* Escape program and arguments in case they contain spaces. */
+	string cmd = "\"" + Sysutil::this_program_path() + "\"";
+
+	for(int i = 0; i < args.size(); i++) {
+		cmd += " \"" + args[i] + "\"";
+	}
+
+#ifdef _WIN32
+	/* Use cmd /S to avoid issues with spaces in arguments. */
+	cmd = "cmd /S /C \"" + cmd + " > nul \"";
+#else
+	/* Quiet output. */
+	cmd += " > /dev/null";
+#endif
+
+	return (system(cmd.c_str()) == 0);
+}
 
 size_t system_physical_ram()
 {

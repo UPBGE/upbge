@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2007 by Janne Karhu.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file ED_physics.h
@@ -32,12 +24,12 @@
 #ifndef __ED_PHYSICS_H__
 #define __ED_PHYSICS_H__
 
-struct bContext;
 struct ReportList;
+struct bContext;
 struct wmKeyConfig;
 
-struct Scene;
 struct Object;
+struct Scene;
 
 /* particle_edit.c */
 bool PE_poll(struct bContext *C);

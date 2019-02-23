@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2004 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/mesh/editmesh_select.c
@@ -197,7 +189,8 @@ void EDBM_automerge(Scene *scene, Object *obedit, bool update, const char hflag)
 /** \name Back-Buffer OpenGL Selection
  * \{ */
 
-unsigned int bm_solidoffs = 0, bm_wireoffs = 0, bm_vertoffs = 0;    /* set in drawobject.c ... for colorindices */
+/* set in drawobject.c ... for colorindices */
+unsigned int bm_solidoffs = 0, bm_wireoffs = 0, bm_vertoffs = 0;
 
 /* facilities for border select and circle select */
 static BLI_bitmap *selbuf = NULL;
@@ -2044,7 +2037,8 @@ void EDBM_selectmode_set(BMEditMesh *em)
 
 	em->bm->selectmode = em->selectmode;
 
-	edbm_strip_selections(em); /* strip BMEditSelections from em->selected that are not relevant to new mode */
+	/* strip BMEditSelections from em->selected that are not relevant to new mode */
+	edbm_strip_selections(em);
 
 	if (em->bm->totvertsel == 0 &&
 	    em->bm->totedgesel == 0 &&

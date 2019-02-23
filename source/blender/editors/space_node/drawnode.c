@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2005 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): David Millan Escriva, Juho Vepsäläinen, Bob Holcomb, Thomas Dinges
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_node/drawnode.c
@@ -198,7 +190,8 @@ static void node_buts_curvevec(uiLayout *layout, bContext *UNUSED(C), PointerRNA
 }
 
 #define SAMPLE_FLT_ISNONE FLT_MAX
-static float _sample_col[4] = {SAMPLE_FLT_ISNONE};  /* bad bad, 2.5 will do better?... no it won't... */
+/* bad bad, 2.5 will do better?... no it won't... */
+static float _sample_col[4] = {SAMPLE_FLT_ISNONE};
 void ED_node_sample_set(const float col[4])
 {
 	if (col) {
@@ -404,7 +397,8 @@ static void node_draw_frame_label(bNodeTree *ntree, bNode *node, const float asp
 
 	BLF_enable(fontid, BLF_ASPECT);
 	BLF_aspect(fontid, aspect, aspect, 1.0f);
-	BLF_size(fontid, MIN2(24, font_size), U.dpi); /* clamp otherwise it can suck up a LOT of memory */
+	/* clamp otherwise it can suck up a LOT of memory */
+	BLF_size(fontid, MIN2(24, font_size), U.dpi);
 
 	/* title color */
 	UI_ThemeColorBlendShade(TH_TEXT, color_id, 0.4f, 10);
@@ -706,7 +700,8 @@ static void node_buts_image_user(uiLayout *layout, bContext *C, PointerRNA *ptr,
 	source = RNA_enum_get(imaptr, "source");
 
 	if (source == IMA_SRC_SEQUENCE) {
-		/* don't use iuser->framenr directly because it may not be updated if auto-refresh is off */
+		/* don't use iuser->framenr directly
+		 * because it may not be updated if auto-refresh is off */
 		Scene *scene = CTX_data_scene(C);
 		ImageUser *iuser = iuserptr->data;
 		/* Image *ima = imaptr->data; */  /* UNUSED */
@@ -1912,7 +1907,8 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
 		RNA_property_collection_lookup_int(ptr, RNA_struct_find_property(ptr, "file_slots"),
 		                                   active_index, &active_input_ptr);
 	}
-	/* XXX collection lookup does not return the ID part of the pointer, setting this manually here */
+	/* XXX collection lookup does not return the ID part of the pointer,
+	 * setting this manually here */
 	active_input_ptr.id.data = ptr->id.data;
 
 	col = uiLayoutColumn(row, true);
@@ -2992,7 +2988,7 @@ static void node_texture_set_butfunc(bNodeType *ntype)
 	}
 }
 
-/* ******* init draw callbacks for all tree types, only called in usiblender.c, once ************* */
+/* ****** init draw callbacks for all tree types, only called in usiblender.c, once ************ */
 
 static void node_property_update_default(Main *bmain, Scene *UNUSED(scene), PointerRNA *ptr)
 {
@@ -3143,7 +3139,8 @@ static void std_node_socket_interface_draw_color(bContext *UNUSED(C), PointerRNA
 	copy_v4_v4(r_color, std_node_socket_colors[type]);
 }
 
-/* draw function for file output node sockets, displays only sub-path and format, no value button */
+/* draw function for file output node sockets,
+ * displays only sub-path and format, no value button */
 static void node_file_output_socket_draw(bContext *C, uiLayout *layout, PointerRNA *ptr, PointerRNA *node_ptr)
 {
 	bNodeTree *ntree = ptr->id.data;

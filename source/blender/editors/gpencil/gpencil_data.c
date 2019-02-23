@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008, Blender Foundation, Joshua Leung
  * This is a new part of Blender
- *
- * Contributor(s): Joshua Leung, Antonio Vazquez
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  * Operators for dealing with GP datablocks and layers
  */
 
@@ -280,7 +273,7 @@ void GPENCIL_OT_layer_remove(wmOperatorType *ot)
 
 enum {
 	GP_LAYER_MOVE_UP   = -1,
-	GP_LAYER_MOVE_DOWN = 1
+	GP_LAYER_MOVE_DOWN = 1,
 };
 
 static int gp_layer_move_exec(bContext *C, wmOperator *op)
@@ -783,7 +776,7 @@ enum {
 	GP_STROKE_MOVE_UP = -1,
 	GP_STROKE_MOVE_DOWN = 1,
 	GP_STROKE_MOVE_TOP = 2,
-	GP_STROKE_MOVE_BOTTOM = 3
+	GP_STROKE_MOVE_BOTTOM = 3,
 };
 
 static int gp_stroke_arrange_exec(bContext *C, wmOperator *op)
@@ -1173,7 +1166,7 @@ void GPENCIL_OT_brush_change(wmOperatorType *ot)
 
 enum {
 	GP_BRUSH_MOVE_UP = -1,
-	GP_BRUSH_MOVE_DOWN = 1
+	GP_BRUSH_MOVE_DOWN = 1,
 };
 
 static int gp_brush_move_exec(bContext *C, wmOperator *op)
@@ -1932,7 +1925,7 @@ void GPENCIL_OT_palettecolor_unlock_all(wmOperatorType *ot)
 
 enum {
 	GP_COLOR_MOVE_UP = -1,
-	GP_COLOR_MOVE_DOWN = 1
+	GP_COLOR_MOVE_DOWN = 1,
 };
 
 static int gp_palettecolor_move_exec(bContext *C, wmOperator *op)

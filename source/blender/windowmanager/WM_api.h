@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2007 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 #ifndef __WM_API_H__
 #define __WM_API_H__
@@ -46,25 +39,25 @@
 extern "C" {
 #endif
 
-struct bContext;
+struct ARegion;
 struct GHashIterator;
 struct IDProperty;
+struct ImBuf;
+struct ImageFormatData;
+struct MenuType;
+struct PointerRNA;
+struct PropertyRNA;
+struct bContext;
+struct rcti;
+struct wmDrag;
+struct wmDropBox;
 struct wmEvent;
 struct wmEventHandler;
 struct wmGesture;
 struct wmJob;
-struct wmOperatorType;
 struct wmOperator;
+struct wmOperatorType;
 struct wmPaintCursor;
-struct rcti;
-struct PointerRNA;
-struct PropertyRNA;
-struct MenuType;
-struct wmDropBox;
-struct wmDrag;
-struct ImBuf;
-struct ImageFormatData;
-struct ARegion;
 
 #ifdef WITH_INPUT_NDOF
 struct wmNDOFMotionData;
@@ -448,7 +441,7 @@ enum {
 	WM_JOB_PRIORITY     = (1 << 0),
 	WM_JOB_EXCL_RENDER  = (1 << 1),
 	WM_JOB_PROGRESS     = (1 << 2),
-	WM_JOB_SUSPEND      = (1 << 3)
+	WM_JOB_SUSPEND      = (1 << 3),
 };
 
 /* identifying jobs by owner alone is unreliable, this isnt saved, order can change (keep 0 for 'any') */

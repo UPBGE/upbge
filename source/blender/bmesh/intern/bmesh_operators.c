@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Joseph Eagar, Geoffrey Bantle, Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/bmesh/intern/bmesh_operators.c
@@ -541,7 +535,6 @@ void BMO_slot_vec_get(BMOpSlot slot_args[BMO_OP_MAX_SLOTS], const char *slot_nam
  *
  * Counts the number of elements of a certain type that have a
  * specific flag enabled (or disabled if test_for_enabled is false).
- *
  */
 
 static int bmo_mesh_flag_count(
@@ -1614,8 +1607,6 @@ static int BMO_opcode_from_opname_check(const char *opname)
  *                  "delete context=%i geom=%hv",
  *                  DEL_ONLYFACES, BM_ELEM_SELECT);
  * \endcode
- *
- *
  * **Primitive Types**
  * - `b` - boolean (same as int but 1/0 only). #BMO_OP_SLOT_BOOL
  * - `i` - int. #BMO_OP_SLOT_INT
@@ -1624,16 +1615,12 @@ static int BMO_opcode_from_opname_check(const char *opname)
  * - `m3` - 3x3 matrix of floats. #BMO_OP_SLOT_MAT
  * - `m4` - 4x4 matrix of floats. #BMO_OP_SLOT_MAT
  * - `v` - 3D vector of floats. #BMO_OP_SLOT_VEC
- *
- *
  * **Utility**
  *
  * Pass an existing slot which is copied to either an input or output slot.
  * Taking the operator and slot-name pair of args (BMOperator *, const char *).
  * - `s` - slot_in (lower case)
  * - `S` - slot_out (upper case)
- *
- *
  * **Element Buffer** (#BMO_OP_SLOT_ELEMENT_BUF)
  * - `e` - single element vert/edge/face (use with #BMO_OP_SLOT_SUBTYPE_ELEM_IS_SINGLE).
  * - `eb` - elem buffer, take an array and a length.
@@ -1847,7 +1834,12 @@ bool BMO_op_vinitf(BMesh *bm, BMOperator *op, const int flag, const char *_fmt, 
 							BMO_slot_buffer_from_disabled_hflag(bm, op, op->slots_in, slot_name, htype, va_arg(vlist, int));
 						}
 						else if (type == 'a') {
-							BMO_slot_buffer_from_all(bm, op, op->slots_in, slot_name, htype);
+							if ((op->flag & BMO_FLAG_RESPECT_HIDE) == 0) {
+								BMO_slot_buffer_from_all(bm, op, op->slots_in, slot_name, htype);
+							}
+							else {
+								BMO_slot_buffer_from_disabled_hflag(bm, op, op->slots_in, slot_name, htype, BM_ELEM_HIDDEN);
+							}
 						}
 						else if (type == 'f') {
 							BMO_slot_buffer_from_enabled_flag(bm, op, op->slots_in, slot_name, htype, va_arg(vlist, int));

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,14 +15,8 @@
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation, Joshua Leung
- *
- *
  * Generic 2d view with should allow drawing grids,
  * panning, zooming, scrolling, ..
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file UI_view2d.h
@@ -131,13 +123,13 @@ struct View2D;
 struct View2DGrid;
 struct View2DScrollers;
 
-struct wmKeyConfig;
-struct bScreen;
+struct ARegion;
 struct Scene;
 struct ScrArea;
-struct ARegion;
 struct bContext;
+struct bScreen;
 struct rctf;
+struct wmKeyConfig;
 
 typedef struct View2DGrid View2DGrid;
 typedef struct View2DScrollers View2DScrollers;

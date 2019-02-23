@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2013 Blender Foundation.
  * All rights reserved.
- *
- * Original Author: Joshua Leung
- * Contributor(s): None Yet
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/depsgraph/intern/depsgraph_types.h
@@ -45,12 +38,12 @@
 #include <vector>
 #include <algorithm>
 
-struct bAction;
 struct ChannelDriver;
-struct ModifierData;
-struct PointerRNA;
 struct EvaluationContext;
 struct FCurve;
+struct ModifierData;
+struct PointerRNA;
+struct bAction;
 
 namespace DEG {
 

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -16,8 +14,6 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2009, Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file ED_sequencer.h
@@ -27,10 +23,10 @@
 #ifndef __ED_SEQUENCER_H__
 #define __ED_SEQUENCER_H__
 
-struct bContext;
 struct Scene;
 struct Sequence;
 struct SpaceSeq;
+struct bContext;
 
 void ED_sequencer_select_sequence_single(struct Scene *scene, struct Sequence *seq, bool deselect_all);
 void ED_sequencer_deselect_all(struct Scene *scene);
