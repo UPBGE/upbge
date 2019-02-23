@@ -145,7 +145,7 @@ static const char *includefiles[] = {
 /** \name Variables
  * \{ */
 
-MemArena *mem_arena = NULL;
+static MemArena *mem_arena = NULL;
 
 static int maxdata = 500000, maxnr = 50000;
 static int nr_names = 0;
@@ -1353,6 +1353,7 @@ int main(int argc, char **argv)
 				baseDirectory = BASE_HEADER;
 			}
 
+			fprintf(file_dna, "extern const unsigned char DNAstr[];\n");
 			fprintf(file_dna, "const unsigned char DNAstr[] = {\n");
 			if (make_structDNA(baseDirectory, file_dna, file_dna_offsets)) {
 				/* error */
@@ -1363,6 +1364,7 @@ int main(int argc, char **argv)
 			}
 			else {
 				fprintf(file_dna, "};\n");
+				fprintf(file_dna, "extern const int DNAlen;\n");
 				fprintf(file_dna, "const int DNAlen = sizeof(DNAstr);\n");
 			}
 		}

@@ -363,7 +363,7 @@ setup_platform_linker_flags()
 add_executable(makesrna ${SRC} ${SRC_RNA_INC} ${SRC_DNA_INC})
 
 target_link_libraries(makesrna bf_dna)
-target_link_libraries(makesrna bf_dna_blenlib ${PTHREADS_LIBRARIES})
+target_link_libraries(makesrna bf_dna_blenlib)
 
 # Output rna_*_gen.c
 # note (linux only): with crashes try add this after COMMAND: valgrind --leak-check=full --track-origins=yes
@@ -387,11 +387,3 @@ set(SRC
 add_definitions(${GL_DEFINITIONS})
 
 blender_add_lib(bf_rna "${SRC}" "${INC}" "${INC_SYS}")
-
-#makesrna needs the prhreads dll to properly run on windows
-if(WIN32)
-	ADD_CUSTOM_COMMAND(TARGET bf_rna
-			  PRE_BUILD
-			  COMMAND ${CMAKE_COMMAND} -E copy  ${LIBDIR}/pthreads/lib/pthreadVC3.dll $<TARGET_FILE_DIR:makesrna>/
-	)
-endif()

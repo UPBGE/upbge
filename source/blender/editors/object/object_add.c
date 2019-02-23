@@ -2562,8 +2562,6 @@ static int duplicate_exec(bContext *C, wmOperator *op)
 
 	copy_object_set_idnew(C);
 
-	BKE_main_id_clear_newpoins(bmain);
-
 	DEG_relations_tag_update(bmain);
 	DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE | ID_RECALC_SELECT);
 
@@ -2643,8 +2641,6 @@ static int add_named_exec(bContext *C, wmOperator *op)
 	ED_object_base_activate(C, basen);
 
 	copy_object_set_idnew(C);
-
-	BKE_main_id_clear_newpoins(bmain);
 
 	/* TODO(sergey): Only update relations for the current scene. */
 	DEG_relations_tag_update(bmain);
