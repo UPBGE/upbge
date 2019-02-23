@@ -208,9 +208,6 @@ set(SRC
 	shader/nodes/node_shader_tex_wave.c
 	shader/nodes/node_shader_texture.c
 	shader/nodes/node_shader_time.c
-	shader/nodes/node_shader_volume_scatter.c
-	shader/nodes/node_shader_volume_absorption.c
-	shader/nodes/node_shader_volume_principled.c
 	shader/nodes/node_shader_uvAlongStroke.c
 	shader/nodes/node_shader_uvmap.c
 	shader/nodes/node_shader_valToRgb.c
