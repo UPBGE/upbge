@@ -761,9 +761,9 @@ bool RAS_Rasterizer::GetCameraOrtho()
 
 void RAS_Rasterizer::SetCullFace(bool enable)
 {
-	if (enable == m_state.cullFace) {
+	/*if (enable == m_state.cullFace) {
 		return;
-	}
+	}*/
 	m_state.cullFace = enable;
 
 	if (enable) {
