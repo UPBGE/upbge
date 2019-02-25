@@ -229,10 +229,12 @@
 
 /**
  * Delay reading blocks we might not use (especially applies to library linking).
- * which keeps large arrays in memory from data-blocks we may not even use. */
-#if !defined(_WIN32)  /* Slow on windows, see: T61855 */
-#  define USE_BHEAD_READ_ON_DEMAND
-#endif
+ * which keeps large arrays in memory from data-blocks we may not even use.
+ *
+ * \note This is disabled when using compression,
+ * while zlib supports seek ist's unusably slow, see: T61880.
+ */
+#define USE_BHEAD_READ_ON_DEMAND
 
 /* use GHash for BHead name-based lookups (speeds up linking) */
 #define USE_GHASH_BHEAD
@@ -8279,8 +8281,8 @@ void blo_lib_link_restore(Main *oldmain, Main *newmain, wmWindowManager *curwm, 
 		BKE_workspace_active_set(win->workspace_hook, workspace);
 
 		/* keep cursor location through undo */
-		copy_v3_v3(win->scene->cursor.location, oldscene->cursor.location);
-		copy_qt_qt(win->scene->cursor.rotation, oldscene->cursor.rotation);
+		memcpy(&win->scene->cursor, &oldscene->cursor, sizeof(win->scene->cursor));
+
 		lib_link_window_scene_data_restore(win, win->scene, cur_view_layer);
 
 		BLI_assert(win->screen == NULL);
