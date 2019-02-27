@@ -22,6 +22,7 @@
 #include "DRW_engine.h"
 #include "DRW_render.h"
 
+#include "BKE_library.h"
 #include "BKE_object.h"
 #include "BKE_shader_fx.h"
 
@@ -30,13 +31,13 @@
 
 #include "draw_mode_engines.h"
 
-
 #include "GPU_texture.h"
 
 #include "gpencil_engine.h"
 
 #include "DEG_depsgraph_query.h"
 
+#include "ED_view3d.h"
 #include "ED_screen.h"
 
 
@@ -330,6 +331,7 @@ void GPENCIL_cache_init(void *vedata)
 	stl->g_data->gp_cache_used = 0;
 	stl->g_data->gp_cache_size = 0;
 	stl->g_data->gp_object_cache = NULL;
+	stl->g_data->do_instances = false;
 
 	{
 		/* Stroke pass 2D */
@@ -385,12 +387,12 @@ void GPENCIL_cache_init(void *vedata)
 		stl->storage->simplify_fx = GP_SIMPLIFY_FX(scene, stl->storage->is_playing);
 		stl->storage->simplify_blend = GP_SIMPLIFY_BLEND(scene, stl->storage->is_playing);
 
-		/* save shading type */
+		/* xray mode */
 		if (v3d) {
-			stl->storage->shading_type = v3d->shading.type;
+			stl->storage->is_xray = (v3d->shading.flag & V3D_XRAY_FLAG(v3d)) ? 1 : 0;
 		}
 		else {
-			stl->storage->shading_type = OB_SOLID;
+			stl->storage->is_xray = 0;
 		}
 
 		/* save pixsize */
@@ -522,9 +524,7 @@ void GPENCIL_cache_init(void *vedata)
 		DRW_shgroup_uniform_int(mix_shgrp, "tonemapping", &stl->storage->tonemapping, 1);
 
 		/* create effects passes */
-		if ((!stl->storage->simplify_fx) &&
-		    (stl->storage->shading_type != OB_WIRE))
-		{
+		if (!stl->storage->simplify_fx) {
 			GPENCIL_create_fx_passes(psl);
 		}
 	}
@@ -552,7 +552,7 @@ static void gpencil_add_draw_data(void *vedata, Object *ob)
 	/* FX passses */
 	cache_ob->has_fx = false;
 	if ((!stl->storage->simplify_fx) &&
-	    (stl->storage->shading_type != OB_WIRE) &&
+	    (cache_ob->shading_type != OB_WIRE) &&
 	    (BKE_shaderfx_has_gpencil(ob)))
 	{
 		cache_ob->has_fx = true;
@@ -595,6 +595,11 @@ void GPENCIL_cache_populate(void *vedata, Object *ob)
 			stl->g_data->gp_object_cache = gpencil_object_cache_add(
 				stl->g_data->gp_object_cache, ob,
 				&stl->g_data->gp_cache_size, &stl->g_data->gp_cache_used);
+
+			/* enable instance loop */
+			if (!stl->g_data->do_instances) {
+				stl->g_data->do_instances = ob->base_flag & BASE_FROM_DUPLI;
+			}
 
 			/* load drawing data */
 			gpencil_add_draw_data(vedata, ob);
@@ -641,9 +646,28 @@ void GPENCIL_cache_populate(void *vedata, Object *ob)
 void GPENCIL_cache_finish(void *vedata)
 {
 	GPENCIL_StorageList *stl = ((GPENCIL_Data *)vedata)->stl;
+	tGPencilObjectCache *cache_ob = NULL;
+	Object *ob = NULL;
 
-	/* draw particles */
-	DRW_gpencil_populate_particles(&e_data, vedata);
+	/* create data for instances */
+	if (stl->g_data->do_instances) {
+		GHash *gh_objects = BLI_ghash_str_new(__func__);
+		/* create hash of real object (non duplicated) */
+		for (int i = 0; i < stl->g_data->gp_cache_used; i++) {
+			cache_ob = &stl->g_data->gp_object_cache[i];
+			if (!cache_ob->is_dup_ob) {
+				ob = cache_ob->ob;
+				char *name = BKE_id_to_unique_string_key(&ob->id);
+				BLI_ghash_insert(gh_objects, name, cache_ob->ob);
+			}
+		}
+
+		/* draw particles */
+		DRW_gpencil_populate_particles(&e_data, gh_objects, vedata);
+
+		/* free hash */
+		BLI_ghash_free(gh_objects, NULL, NULL);
+	}
 
 	if (stl->g_data->session_flag & (GP_DRW_PAINT_IDLE | GP_DRW_PAINT_FILLING)) {
 		stl->storage->framebuffer_flag |= GP_FRAMEBUFFER_DRAW;

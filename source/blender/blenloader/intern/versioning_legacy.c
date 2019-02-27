@@ -43,7 +43,7 @@
 #include "DNA_effect_types.h"
 #include "DNA_key_types.h"
 #include "DNA_lattice_types.h"
-#include "DNA_lamp_types.h"
+#include "DNA_light_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -833,17 +833,11 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
 
 	if (bmain->versionfile <= 223) {
 		VFont *vf;
-		Image *ima;
 
 		for (vf = bmain->vfont.first; vf; vf = vf->id.next) {
 			if (STREQ(vf->name + strlen(vf->name) - 6, ".Bfont")) {
 				strcpy(vf->name, FO_BUILTIN_NAME);
 			}
-		}
-
-		/* Old textures animate at 25 FPS */
-		for (ima = bmain->image.first; ima; ima = ima->id.next) {
-			ima->animspeed = 25;
 		}
 	}
 
@@ -1185,14 +1179,6 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
 
 	if (bmain->versionfile <= 233) {
 		bScreen *sc;
-		Material *ma = bmain->mat.first;
-		/* Object *ob = bmain->object.first; */
-
-		while (ma) {
-			if (ma->pr_lamp == 0)
-				ma->pr_lamp = 3;
-			ma = ma->id.next;
-		}
 
 		for (sc = bmain->screen.first; sc; sc = sc->id.next) {
 			ScrArea *sa;
@@ -1386,7 +1372,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
 			sce = sce->id.next;
 		}
 
-		for (lt = bmain->latt.first; lt; lt = lt->id.next) {
+		for (lt = bmain->lattice.first; lt; lt = lt->id.next) {
 			if (lt->fu == 0.0f && lt->fv == 0.0f && lt->fw == 0.0f) {
 				calc_lat_fudu(lt->flag, lt->pntsu, &lt->fu, &lt->du);
 				calc_lat_fudu(lt->flag, lt->pntsv, &lt->fv, &lt->dv);
@@ -1548,7 +1534,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
 	if (bmain->versionfile <= 241) {
 		Object *ob;
 		Scene *sce;
-		Lamp *la;
+		Light *la;
 		bArmature *arm;
 		bNodeTree *ntree;
 
@@ -1588,7 +1574,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
 		for (ntree = bmain->nodetree.first; ntree; ntree = ntree->id.next)
 			ntree_version_241(ntree);
 
-		for (la = bmain->lamp.first; la; la = la->id.next)
+		for (la = bmain->light.first; la; la = la->id.next)
 			if (la->buffers == 0)
 				la->buffers = 1;
 
@@ -1922,7 +1908,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
 		Scene *sce;
 		Object *ob;
 		Image *ima;
-		Lamp *la;
+		Light *la;
 		Material *ma;
 		ParticleSettings *part;
 		Mesh *me;
@@ -2055,7 +2041,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
 		}
 
 		if (bmain->versionfile != 245 || bmain->subversionfile < 1) {
-			for (la = bmain->lamp.first; la; la = la->id.next) {
+			for (la = bmain->light.first; la; la = la->id.next) {
 				la->falloff_type = LA_FALLOFF_INVLINEAR;
 
 				if (la->curfalloff == NULL) {
@@ -2409,8 +2395,8 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
 		idproperties_fix_group_lengths(bmain->mat);
 		idproperties_fix_group_lengths(bmain->tex);
 		idproperties_fix_group_lengths(bmain->image);
-		idproperties_fix_group_lengths(bmain->latt);
-		idproperties_fix_group_lengths(bmain->lamp);
+		idproperties_fix_group_lengths(bmain->lattice);
+		idproperties_fix_group_lengths(bmain->light);
 		idproperties_fix_group_lengths(bmain->camera);
 		idproperties_fix_group_lengths(bmain->ipo);
 		idproperties_fix_group_lengths(bmain->key);

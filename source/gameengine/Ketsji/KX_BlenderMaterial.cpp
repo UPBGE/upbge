@@ -77,7 +77,7 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 	if (m_material->use_nodes && m_material->nodetree) {
 		EEVEE_Data *vedata = EEVEE_engine_data_get();
 		EEVEE_ViewLayerData *sldata = EEVEE_view_layer_data_get();
-		EEVEE_LampsInfo *linfo = sldata->lamps;
+		EEVEE_LightsInfo *linfo = sldata->lights;
 		EEVEE_EffectsInfo *effects = vedata->stl->effects;
 		const bool use_ssrefract = ((m_material->blend_flag & MA_BL_SS_REFRACTION) != 0) &&
 			((effects->enabled_effects & EFFECT_REFRACT) != 0);

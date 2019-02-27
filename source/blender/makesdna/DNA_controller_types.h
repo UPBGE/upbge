@@ -54,7 +54,7 @@ typedef struct bPythonCont {
 typedef struct bController {
 	struct bController *next, *prev, *mynew;
 	short type, flag, inputs, totlinks;
-	short otype, totslinks, pad2, pad3;
+	short otype, totslinks, _pad2, _pad3;
 	
 	char name[64];
 	void *data;

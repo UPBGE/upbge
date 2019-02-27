@@ -24,7 +24,7 @@
 
 #include <string.h>
 
-#include "DNA_lamp_types.h"
+#include "DNA_light_types.h"
 #include "DNA_material_types.h"
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
@@ -87,7 +87,7 @@ static void shader_get_from_context(const bContext *C, bNodeTreeType *UNUSED(tre
 			*r_from = &ob->id;
 			if (ob->type == OB_LAMP) {
 				*r_id = ob->data;
-				*r_ntree = ((Lamp *)ob->data)->nodetree;
+				*r_ntree = ((Light *)ob->data)->nodetree;
 			}
 			else {
 				Material *ma = give_current_material(ob, ob->actcol);

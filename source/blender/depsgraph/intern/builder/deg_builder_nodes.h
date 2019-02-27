@@ -40,8 +40,8 @@ struct GHash;
 struct ID;
 struct Image;
 struct Key;
-struct Lamp;
 struct LayerCollection;
+struct Light;
 struct LightProbe;
 struct ListBase;
 struct MTex;
@@ -172,7 +172,7 @@ struct DepsgraphNodeBuilder {
 	void build_object_data_geometry(Object *object, bool is_object_visible);
 	void build_object_data_geometry_datablock(ID *obdata,
 	                                          bool is_object_visible);
-	void build_object_data_lamp(Object *object);
+	void build_object_data_light(Object *object);
 	void build_object_data_lightprobe(Object *object);
 	void build_object_data_speaker(Object *object);
 	void build_object_transform(Object *object);
@@ -204,7 +204,7 @@ struct DepsgraphNodeBuilder {
 	void build_armature(bArmature *armature);
 	void build_shapekeys(Key *key);
 	void build_camera(Camera *camera);
-	void build_lamp(Lamp *lamp);
+	void build_light(Light *lamp);
 	void build_nodetree(bNodeTree *ntree);
 	void build_material(Material *ma);
 	void build_texture(Tex *tex);

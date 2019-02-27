@@ -26,7 +26,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_curve_types.h"
-#include "DNA_lamp_types.h"
+#include "DNA_light_types.h"
 #include "DNA_lightprobe_types.h"
 #include "DNA_material_types.h"
 #include "DNA_node_types.h"
@@ -1916,7 +1916,7 @@ static int paste_mtex_exec(bContext *C, wmOperator *UNUSED(op))
 
 	if (id == NULL) {
 		Material *ma = CTX_data_pointer_get_type(C, "material", &RNA_Material).data;
-		Lamp *la = CTX_data_pointer_get_type(C, "light", &RNA_Light).data;
+		Light *la = CTX_data_pointer_get_type(C, "light", &RNA_Light).data;
 		World *wo = CTX_data_pointer_get_type(C, "world", &RNA_World).data;
 		ParticleSystem *psys = CTX_data_pointer_get_type(C, "particle_system", &RNA_ParticleSystem).data;
 		FreestyleLineStyle *linestyle = CTX_data_pointer_get_type(C, "line_style", &RNA_FreestyleLineStyle).data;

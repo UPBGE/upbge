@@ -42,7 +42,7 @@
 #include "BLT_translation.h"
 
 #include "DNA_anim_types.h"
-#include "DNA_lamp_types.h"
+#include "DNA_light_types.h"
 #include "DNA_material_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
@@ -1131,8 +1131,8 @@ void BKE_animdata_main_cb(Main *bmain, ID_AnimData_Edit_Callback func, void *use
 	/* textures */
 	ANIMDATA_NODETREE_IDS_CB(bmain->tex.first, Tex);
 
-	/* lamps */
-	ANIMDATA_NODETREE_IDS_CB(bmain->lamp.first, Lamp);
+	/* lights */
+	ANIMDATA_NODETREE_IDS_CB(bmain->light.first, Light);
 
 	/* materials */
 	ANIMDATA_NODETREE_IDS_CB(bmain->mat.first, Material);
@@ -1153,7 +1153,7 @@ void BKE_animdata_main_cb(Main *bmain, ID_AnimData_Edit_Callback func, void *use
 	ANIMDATA_IDS_CB(bmain->armature.first);
 
 	/* lattices */
-	ANIMDATA_IDS_CB(bmain->latt.first);
+	ANIMDATA_IDS_CB(bmain->lattice.first);
 
 	/* meshes */
 	ANIMDATA_IDS_CB(bmain->mesh.first);
@@ -1186,10 +1186,10 @@ void BKE_animdata_main_cb(Main *bmain, ID_AnimData_Edit_Callback func, void *use
 	ANIMDATA_IDS_CB(bmain->gpencil.first);
 
 	/* palettes */
-	ANIMDATA_IDS_CB(bmain->palettes.first);
+	ANIMDATA_IDS_CB(bmain->palette.first);
 
 	/* cache files */
-	ANIMDATA_IDS_CB(bmain->cachefiles.first);
+	ANIMDATA_IDS_CB(bmain->cachefile.first);
 }
 
 /* Fix all RNA-Paths throughout the database (directly access the Global.main version)
@@ -1230,8 +1230,8 @@ void BKE_animdata_fix_paths_rename_all(ID *ref_id, const char *prefix, const cha
 	/* textures */
 	RENAMEFIX_ANIM_NODETREE_IDS(bmain->tex.first, Tex);
 
-	/* lamps */
-	RENAMEFIX_ANIM_NODETREE_IDS(bmain->lamp.first, Lamp);
+	/* lights */
+	RENAMEFIX_ANIM_NODETREE_IDS(bmain->light.first, Light);
 
 	/* materials */
 	RENAMEFIX_ANIM_NODETREE_IDS(bmain->mat.first, Material);
@@ -1252,7 +1252,7 @@ void BKE_animdata_fix_paths_rename_all(ID *ref_id, const char *prefix, const cha
 	RENAMEFIX_ANIM_IDS(bmain->armature.first);
 
 	/* lattices */
-	RENAMEFIX_ANIM_IDS(bmain->latt.first);
+	RENAMEFIX_ANIM_IDS(bmain->lattice.first);
 
 	/* meshes */
 	RENAMEFIX_ANIM_IDS(bmain->mesh.first);
@@ -1282,7 +1282,7 @@ void BKE_animdata_fix_paths_rename_all(ID *ref_id, const char *prefix, const cha
 	RENAMEFIX_ANIM_IDS(bmain->gpencil.first);
 
 	/* cache files */
-	RENAMEFIX_ANIM_IDS(bmain->cachefiles.first);
+	RENAMEFIX_ANIM_IDS(bmain->cachefile.first);
 
 	/* scenes */
 	RENAMEFIX_ANIM_NODETREE_IDS(bmain->scene.first, Scene);
@@ -3612,8 +3612,8 @@ void BKE_animsys_evaluate_all_animation(Main *main, Depsgraph *depsgraph, Scene 
 	/* textures */
 	EVAL_ANIM_NODETREE_IDS(main->tex.first, Tex, ADT_RECALC_ANIM);
 
-	/* lamps */
-	EVAL_ANIM_NODETREE_IDS(main->lamp.first, Lamp, ADT_RECALC_ANIM);
+	/* lights */
+	EVAL_ANIM_NODETREE_IDS(main->light.first, Light, ADT_RECALC_ANIM);
 
 	/* materials */
 	EVAL_ANIM_NODETREE_IDS(main->mat.first, Material, ADT_RECALC_ANIM);
@@ -3634,7 +3634,7 @@ void BKE_animsys_evaluate_all_animation(Main *main, Depsgraph *depsgraph, Scene 
 	EVAL_ANIM_IDS(main->armature.first, ADT_RECALC_ANIM);
 
 	/* lattices */
-	EVAL_ANIM_IDS(main->latt.first, ADT_RECALC_ANIM);
+	EVAL_ANIM_IDS(main->lattice.first, ADT_RECALC_ANIM);
 
 	/* meshes */
 	EVAL_ANIM_IDS(main->mesh.first, ADT_RECALC_ANIM);
@@ -3655,10 +3655,10 @@ void BKE_animsys_evaluate_all_animation(Main *main, Depsgraph *depsgraph, Scene 
 	EVAL_ANIM_IDS(main->gpencil.first, ADT_RECALC_ANIM);
 
 	/* palettes */
-	EVAL_ANIM_IDS(main->palettes.first, ADT_RECALC_ANIM);
+	EVAL_ANIM_IDS(main->palette.first, ADT_RECALC_ANIM);
 
 	/* cache files */
-	EVAL_ANIM_IDS(main->cachefiles.first, ADT_RECALC_ANIM);
+	EVAL_ANIM_IDS(main->cachefile.first, ADT_RECALC_ANIM);
 
 	/* objects */
 	/* ADT_RECALC_ANIM doesn't need to be supplied here, since object AnimData gets

@@ -52,7 +52,7 @@ typedef struct MTex {
 
 	char projx, projy, projz, mapping;
 	char brush_map_mode, brush_angle_mode;
-	char pad[2];
+	char _pad[2];
 	float ofs[3], size[3], rot, random_angle;
 
 	char _pad0[2];
@@ -78,7 +78,7 @@ typedef struct MTex {
 	float lifefac, sizefac, ivelfac, fieldfac;
 	float twistfac;
 
-	/* lamp */
+	/* light */
 	float shadowfac;
 
 	/* world */
@@ -106,7 +106,7 @@ typedef struct ColorBand {
 	short tot, cur;
 	char ipotype, ipotype_hue;
 	char color_mode;
-	char pad[1];
+	char _pad[1];
 
 	CBData data[32];
 } ColorBand;
@@ -118,7 +118,7 @@ typedef struct PointDensity {
 	float falloff_softness;
 	float radius;
 	short source;
-	short pad0;
+	char _pad0[2];
 
 	/** psys_color_source */
 	short color_source;
@@ -146,10 +146,11 @@ typedef struct PointDensity {
 	short noise_depth;
 	short noise_influence;
 	short noise_basis;
-	short pad1[3];
+	char _pad1[6];
 	float noise_fac;
 
-	float speed_scale, falloff_speed_scale, pad2;
+	float speed_scale, falloff_speed_scale;
+	char _pad2[4];
 	/** For time -> color */
 	struct ColorBand *coba;
 
@@ -164,7 +165,8 @@ typedef struct Tex {
 
 	float noisesize, turbul;
 	float bright, contrast, saturation, rfac, gfac, bfac;
-	float filtersize, pad2;
+	float filtersize;
+	char _pad2[4];
 
 	/* newnoise: musgrave parameters */
 	float mg_H, mg_lacunarity, mg_octaves, mg_offset, mg_gain;
@@ -202,7 +204,7 @@ typedef struct Tex {
 	int frames, offset, sfra;
 
 	float checkerdist, nabla;
-	float pad1;
+	char _pad1[4];
 
 	struct ImageUser iuser;
 
@@ -214,7 +216,7 @@ typedef struct Tex {
 	struct PreviewImage *preview;
 
 	char use_nodes;
-	char pad[7];
+	char _pad[7];
 
 } Tex;
 
@@ -240,7 +242,8 @@ typedef struct ColorMapping {
 
 	float blend_color[3];
 	float blend_factor;
-	int blend_type, pad[3];
+	int blend_type;
+	char _pad[4];
 } ColorMapping;
 
 /* texmap->flag */
@@ -405,7 +408,7 @@ typedef struct ColorMapping {
 #define TEX_RGB		1
 #define TEX_NOR		2
 
-/* pr_texture in material, world, lamp, */
+/* pr_texture in material, world, light. */
 #define TEX_PR_TEXTURE	0
 #define TEX_PR_OTHER	1
 #define TEX_PR_BOTH		2

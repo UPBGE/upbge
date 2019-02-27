@@ -75,7 +75,7 @@ static const char *includefiles[] = {
 	"DNA_camera_types.h",
 	"DNA_image_types.h",
 	"DNA_texture_types.h",
-	"DNA_lamp_types.h",
+	"DNA_light_types.h",
 	"DNA_material_types.h",
 	"DNA_vfont_types.h",
 	"DNA_meta_types.h",
@@ -296,6 +296,48 @@ static const char *version_elem_static_from_alias(
 	return elem_alias_full;
 }
 
+/**
+ * Enforce '_pad123' naming convention, disallow 'pad123' or 'pad_123',
+ * special exception for [a-z] after since there is a 'pad_rot_angle' preference.
+ */
+static bool is_name_legal(const char *name)
+{
+	const int name_size = strlen(name) + 1;
+	char *name_strip = alloca(name_size);
+	DNA_elem_id_strip_copy(name_strip, name);
+
+	const char prefix[] = {'p', 'a', 'd'};
+
+	if (name[0] == '_') {
+		if (strncmp(&name_strip[1], prefix, sizeof(prefix)) != 0) {
+			fprintf(stderr, "Error: only '_pad' variables can start with an underscore, found '%s'\n", name);
+			return false;
+		}
+	}
+	else if (strncmp(name_strip, prefix, sizeof(prefix)) == 0) {
+		int i = sizeof(prefix);
+		if (name_strip[i] >= 'a' && name_strip[i] <= 'z') {
+			/* may be part of a word, allow that. */
+			return true;
+		}
+		bool has_only_digit_or_none = true;
+		for (; name_strip[i]; i++) {
+			const char c = name_strip[i];
+			if (!((c >= '0' && c <= '9') || c == '_')) {
+				has_only_digit_or_none = false;
+				break;
+			}
+		}
+		if (has_only_digit_or_none) {
+			/* found 'pad' or 'pad123'. */
+			fprintf(stderr, "Error: padding variables must be formatted '_pad[number]', found '%s'\n", name);
+			return false;
+		}
+	}
+	return true;
+}
+
+
 static int add_type(const char *str, int len)
 {
 	int nr;
@@ -468,7 +510,12 @@ static int add_name(const char *str)
 		}
 	}
 
-	/* append new type */
+	/* Sanity check the name. */
+	if (!is_name_legal(name)) {
+		return -1;
+	}
+
+	/* Append new name. */
 	const int name_size = strlen(name) + 1;
 	cp = BLI_memarena_alloc(mem_arena, name_size);
 	memcpy(cp, name, name_size);
@@ -733,6 +780,10 @@ static int convert_include(const char *filename)
 										md1[slen - 1] = 0;
 
 										name = add_name(version_elem_static_from_alias(strct, md1));
+										if (name == -1) {
+											fprintf(stderr, "File '%s' contains struct with name that can't be added \"%s\"\n", filename, md1);
+											return 1;
+										}
 										slen += additional_slen_offset;
 										sp[0] = type;
 										sp[1] = name;
@@ -749,6 +800,10 @@ static int convert_include(const char *filename)
 									}
 
 									name = add_name(version_elem_static_from_alias(strct, md1));
+									if (name == -1) {
+										fprintf(stderr, "File '%s' contains struct with name that can't be added \"%s\"\n", filename, md1);
+										return 1;
+									}
 									slen += additional_slen_offset;
 
 									sp[0] = type;
@@ -1412,7 +1467,7 @@ int main(int argc, char **argv)
 #include "DNA_camera_types.h"
 #include "DNA_image_types.h"
 #include "DNA_texture_types.h"
-#include "DNA_lamp_types.h"
+#include "DNA_light_types.h"
 #include "DNA_material_types.h"
 #include "DNA_vfont_types.h"
 #include "DNA_meta_types.h"

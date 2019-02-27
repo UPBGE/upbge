@@ -33,7 +33,7 @@
 #include "DNA_mesh_types.h"
 #include "DNA_collection_types.h"
 #include "DNA_constraint_types.h"
-#include "DNA_lamp_types.h"
+#include "DNA_light_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_material_types.h"
 #include "DNA_meta_types.h"
@@ -67,7 +67,7 @@
 #include "BKE_gpencil.h"
 #include "BKE_fcurve.h"
 #include "BKE_idprop.h"
-#include "BKE_lamp.h"
+#include "BKE_light.h"
 #include "BKE_lattice.h"
 #include "BKE_layer.h"
 #include "BKE_library.h"
@@ -1181,7 +1181,7 @@ static int track_set_exec(bContext *C, wmOperator *op)
 					data->tar = obact;
 					DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
 
-					/* Lamp, Camera and Speaker track differently by default */
+					/* Light, Camera and Speaker track differently by default */
 					if (ELEM(ob->type, OB_LAMP, OB_CAMERA, OB_SPEAKER)) {
 						data->trackflag = TRACK_nZ;
 					}
@@ -1204,7 +1204,7 @@ static int track_set_exec(bContext *C, wmOperator *op)
 					data->tar = obact;
 					DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
 
-					/* Lamp, Camera and Speaker track differently by default */
+					/* Light, Camera and Speaker track differently by default */
 					if (ELEM(ob->type, OB_LAMP, OB_CAMERA, OB_SPEAKER)) {
 						data->reserved1 = TRACK_nZ;
 						data->reserved2 = UP_Y;
@@ -1228,7 +1228,7 @@ static int track_set_exec(bContext *C, wmOperator *op)
 					data->tar = obact;
 					DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
 
-					/* Lamp, Camera and Speaker track differently by default */
+					/* Light, Camera and Speaker track differently by default */
 					if (ELEM(ob->type, OB_LAMP, OB_CAMERA, OB_SPEAKER)) {
 						data->trackflag = TRACK_nZ;
 						data->lockflag = LOCK_Y;
@@ -1704,7 +1704,7 @@ static void new_id_matar(Main *bmain, Material **matar, const int totcol)
 
 static void single_obdata_users(Main *bmain, Scene *scene, ViewLayer *view_layer, View3D *v3d, const int flag)
 {
-	Lamp *la;
+	Light *la;
 	Curve *cu;
 	/* Camera *cam; */
 	Mesh *me;
@@ -1721,7 +1721,7 @@ static void single_obdata_users(Main *bmain, Scene *scene, ViewLayer *view_layer
 
 				switch (ob->type) {
 					case OB_LAMP:
-						ob->data = la = ID_NEW_SET(ob->data, BKE_lamp_copy(bmain, ob->data));
+						ob->data = la = ID_NEW_SET(ob->data, BKE_light_copy(bmain, ob->data));
 						break;
 					case OB_CAMERA:
 						ob->data = ID_NEW_SET(ob->data, BKE_camera_copy(bmain, ob->data));

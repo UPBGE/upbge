@@ -23,7 +23,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_lamp_types.h"
+#include "DNA_light_types.h"
 #include "DNA_material_types.h"
 #include "DNA_node_types.h"
 #include "DNA_text_types.h"
@@ -413,7 +413,7 @@ void ED_node_shader_default(const bContext *C, ID *id)
 		}
 		case ID_LA:
 		{
-			Lamp *la = (Lamp *)id;
+			Light *la = (Light *)id;
 			la->nodetree = ntree;
 
 			output_type = SH_NODE_OUTPUT_LIGHT;

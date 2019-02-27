@@ -44,7 +44,8 @@ typedef struct BrushClone {
 	/** Offset of clone image from canvas. */
 	float offset[2];
 	/** Transparency for drawing of clone image. */
-	float alpha, pad;
+	float alpha;
+	char _pad[4];
 } BrushClone;
 
 
@@ -71,8 +72,7 @@ typedef struct BrushGpencilSettings {
 	short draw_smoothlvl;
 	/** Number of times to subdivide new strokes. */
 	short draw_subdivide;
-	/** Internal grease pencil drawing flags. */
-	short flag;
+	short _pad;
 
 	/** Number of times to apply thickness smooth factor to new strokes. */
 	short thick_smoothlvl;
@@ -83,7 +83,7 @@ typedef struct BrushGpencilSettings {
 	float fill_threshold;
 	/** Number of pixel to consider the leak is too small (x 2). */
 	short fill_leak;
-	char pad_1[6];
+	char _pad1[6];
 
 	/** Number of simplify steps. */
 	int   fill_simplylvl;
@@ -106,7 +106,8 @@ typedef struct BrushGpencilSettings {
 	float era_strength_f;
 	/** Factor to apply to thickness for soft eraser. */
 	float era_thickness_f;
-	char pad_2[4];
+	/** Internal grease pencil drawing flags. */
+	int flag;
 
 	struct CurveMapping *curve_sensitivity;
 	struct CurveMapping *curve_strength;
@@ -147,6 +148,8 @@ typedef enum eGPDbrush_Flag {
 	GP_BRUSH_DISSABLE_LASSO = (1 << 14),
 	/* Do not erase strokes oLcluded */
 	GP_BRUSH_OCCLUDE_ERASER = (1 << 15),
+	/* Post process trim stroke */
+	GP_BRUSH_TRIM_STROKE = (1 << 16),
 } eGPDbrush_Flag;
 
 /* BrushGpencilSettings->gp_fill_draw_mode */
@@ -247,7 +250,7 @@ typedef struct Brush {
 	/** Source for fill tool color gradient application. */
 	char gradient_fill_mode;
 
-	char pad;
+	char _pad;
 	/** Projection shape (sphere, circle). */
 	char falloff_shape;
 	float falloff_angle;
@@ -319,7 +322,7 @@ typedef struct Palette {
 	ListBase colors;
 
 	int active_color;
-	int pad;
+	char _pad[4];
 } Palette;
 
 typedef struct PaintCurvePoint {

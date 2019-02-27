@@ -29,7 +29,7 @@
 #include "DNA_armature_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meta_types.h"
-#include "DNA_lamp_types.h"
+#include "DNA_light_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_gpencil_types.h"
@@ -510,7 +510,7 @@ static int apply_objects_internal(
 		}
 
 		if (ob->type == OB_LAMP) {
-			Lamp *la = ob->data;
+			Light *la = ob->data;
 			if (la->type == LA_AREA) {
 				if (apply_rot || apply_loc) {
 					BKE_reportf(reports, RPT_ERROR,
@@ -654,7 +654,7 @@ static int apply_objects_internal(
 			}
 		}
 		else if (ob->type == OB_LAMP) {
-			Lamp *la = ob->data;
+			Light *la = ob->data;
 			if (la->type != LA_AREA) {
 				continue;
 			}
@@ -1287,14 +1287,14 @@ void OBJECT_OT_origin_set(wmOperatorType *ot)
 /* -------------------------------------------------------------------- */
 /** \name Transform Axis Target
  *
- * Note this is an experemental operator to point lamps/cameras at objects.
+ * Note this is an experemental operator to point lights/cameras at objects.
  * We may re-work how this behaves based on user feedback.
  * - campbell.
  * \{ */
 
 /* When using multiple objects, apply their relative rotational offset to the active object. */
 #define USE_RELATIVE_ROTATION
-/* Disable overlays, ignoring user setting (lamp wire gets in the way). */
+/* Disable overlays, ignoring user setting (light wire gets in the way). */
 #define USE_RENDER_OVERRIDE
 /* Calculate a depth if the cursor isn't already over a depth (not essential but feels buggy without). */
 #define USE_FAKE_DEPTH_INIT
@@ -1361,12 +1361,12 @@ static void object_transform_axis_target_calc_depth_init(struct XFormAxisData *x
 static bool object_is_target_compat(const Object *ob)
 {
 	if (ob->type == OB_LAMP) {
-		const Lamp *la = ob->data;
+		const Light *la = ob->data;
 		if (ELEM(la->type, LA_SUN, LA_SPOT, LA_AREA)) {
 			return true;
 		}
 	}
-	/* We might want to enable this later, for now just lamps */
+	/* We might want to enable this later, for now just lights. */
 #if 0
 	else if (ob->type == OB_CAMERA) {
 		return true;

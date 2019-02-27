@@ -44,7 +44,7 @@ typedef struct GameSettings {
 	int flag;
 	int alpha_blend;
 	int face_orientation;
-	int pad1;
+	int _pad1;
 } GameSettings;
 
 typedef struct TexPaintSlot {
@@ -104,7 +104,7 @@ typedef struct MaterialGPencilStyle {
 
 	/** Type of gradient. */
 	int gradient_type;
-	char pad[4];
+	char _pad[4];
 } MaterialGPencilStyle;
 
 /* MaterialGPencilStyle->flag */
@@ -142,7 +142,8 @@ typedef struct Material {
 	/** Animation data (must be immediately after id for utilities to use it). */
 	struct AnimData *adt;
 
-	short flag, pad1[7];
+	short flag;
+	char _pad1[2];
 
 	/* Colors from Blender Internal that we are still using. */
 	float r, g, b, a;
@@ -154,14 +155,13 @@ typedef struct Material {
 	float gloss_mir  DNA_DEPRECATED;
 	float roughness;
 	float metallic;
-	float pad4;
-	struct GameSettings game;
+	char _pad0[2];
 
-	/* Ror buttons and render. */
+	/** For buttons and render. */
 	char pr_type, use_nodes;
-	short pr_lamp, pr_texture;
+	short pr_texture;
 
-	/* Index for render passes. */
+	/** Index for render passes. */
 	short index;
 
 	struct bNodeTree *nodetree;
@@ -172,7 +172,8 @@ typedef struct Material {
 	/* dynamic properties */
 	float friction DNA_DEPRECATED, fh DNA_DEPRECATED, reflect DNA_DEPRECATED;
 	float fhdist DNA_DEPRECATED, xyfrict DNA_DEPRECATED;
-	short dynamode DNA_DEPRECATED, pad50;
+	short dynamode DNA_DEPRECATED, _pad50[5];
+	struct GameSettings game;
 
 	/* Freestyle line settings */
 	float line_col[4];
@@ -183,7 +184,7 @@ typedef struct Material {
 	short paint_active_slot;
 	short paint_clone_slot;
 	short tot_slots;
-	short pad2[3];
+	char _pad2[2];
 
 	/* Transparency. */
 	float alpha_threshold;
@@ -191,7 +192,7 @@ typedef struct Material {
 	char blend_method;
 	char blend_shadow;
 	char blend_flag;
-	char pad3[5];
+	char _pad3[1];
 
 	/**
 	 * Cached slots for texture painting, must be refreshed in
@@ -236,7 +237,7 @@ typedef struct Material {
 /* **************** MATERIAL ********************* */
 
 /* maximum number of materials per material array.
- * (on object, mesh, lamp, etc.). limited by
+ * (on object, mesh, light, etc.). limited by
  * short mat_nr in verts, faces.
  * -1 because for active material we store the index + 1 */
 #define MAXMAT			(32767-1)

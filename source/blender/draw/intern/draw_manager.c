@@ -2752,7 +2752,7 @@ static void eevee_game_view_layer_data_free()
 	EEVEE_ViewLayerData *sldata = EEVEE_view_layer_data_ensure();
 
 	/* Lights */
-	MEM_SAFE_FREE(sldata->lamps);
+	MEM_SAFE_FREE(sldata->lights);
 	DRW_UBO_FREE_SAFE(sldata->light_ubo);
 	DRW_UBO_FREE_SAFE(sldata->shadow_ubo);
 	DRW_UBO_FREE_SAFE(sldata->shadow_render_ubo);

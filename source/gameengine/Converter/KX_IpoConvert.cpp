@@ -51,7 +51,7 @@
 #include "DNA_action_types.h"
 #include "DNA_anim_types.h"
 #include "DNA_ipo_types.h"
-#include "DNA_lamp_types.h"
+#include "DNA_light_types.h"
 #include "DNA_world_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_material_types.h"
@@ -187,7 +187,7 @@ SG_Controller *BL_CreateLampIPO(struct bAction *action, KX_GameObject*  lightobj
 {
 	KX_LightIpoSGController* ipocontr = new KX_LightIpoSGController();
 
-	Lamp *blenderlamp = (Lamp*)lightobj->GetBlenderObject()->data;
+	Light *blenderlamp = (Light *)lightobj->GetBlenderObject()->data;
 
 	ipocontr->m_energy = blenderlamp->energy;
 	ipocontr->m_col_rgb[0] = blenderlamp->r;

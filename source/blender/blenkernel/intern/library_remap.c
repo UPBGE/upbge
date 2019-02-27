@@ -41,7 +41,7 @@
 #include "DNA_gpencil_types.h"
 #include "DNA_ipo_types.h"
 #include "DNA_key_types.h"
-#include "DNA_lamp_types.h"
+#include "DNA_light_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_linestyle_types.h"
 #include "DNA_material_types.h"
@@ -80,7 +80,7 @@
 #include "BKE_image.h"
 #include "BKE_ipo.h"
 #include "BKE_key.h"
-#include "BKE_lamp.h"
+#include "BKE_light.h"
 #include "BKE_lattice.h"
 #include "BKE_layer.h"
 #include "BKE_library.h"
@@ -737,7 +737,7 @@ void BKE_libblock_free_datablock(ID *id, const int UNUSED(flag))
 			BKE_lattice_free((Lattice *)id);
 			break;
 		case ID_LA:
-			BKE_lamp_free((Lamp *)id);
+			BKE_light_free((Light *)id);
 			break;
 		case ID_CA:
 			BKE_camera_free((Camera *) id);

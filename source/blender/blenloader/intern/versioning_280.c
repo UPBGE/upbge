@@ -36,7 +36,7 @@
 #include "DNA_collection_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_gpu_types.h"
-#include "DNA_lamp_types.h"
+#include "DNA_light_types.h"
 #include "DNA_layer_types.h"
 #include "DNA_lightprobe_types.h"
 #include "DNA_material_types.h"
@@ -123,7 +123,7 @@ static void do_version_workspaces_create_from_screens(Main *bmain)
 			/* fullscreen with "Back to Previous" option, don't create
 			 * a new workspace, add layout workspace containing parent */
 			workspace = BLI_findstring(
-			        &bmain->workspaces, screen_parent->id.name + 2, offsetof(ID, name) + 2);
+			        &bmain->workspace, screen_parent->id.name + 2, offsetof(ID, name) + 2);
 		}
 		else {
 			workspace = BKE_workspace_add(bmain, screen->id.name + 2);
@@ -176,7 +176,7 @@ static void do_version_area_change_space_to_space_action(ScrArea *area, const Sc
  */
 static void do_version_workspaces_after_lib_link(Main *bmain)
 {
-	BLI_assert(BLI_listbase_is_empty(&bmain->workspaces));
+	BLI_assert(BLI_listbase_is_empty(&bmain->workspace));
 
 	do_version_workspaces_create_from_screens(bmain);
 
@@ -194,7 +194,7 @@ static void do_version_workspaces_after_lib_link(Main *bmain)
 				continue;
 			}
 
-			WorkSpace *workspace = BLI_findstring(&bmain->workspaces, screen->id.name + 2, offsetof(ID, name) + 2);
+			WorkSpace *workspace = BLI_findstring(&bmain->workspace, screen->id.name + 2, offsetof(ID, name) + 2);
 			BLI_assert(workspace != NULL);
 			ListBase *layouts = BKE_workspace_layouts_get(workspace);
 
@@ -923,8 +923,8 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 	}
 
 	if (!MAIN_VERSION_ATLEAST(bmain, 280, 1)) {
-		if (!DNA_struct_elem_find(fd->filesdna, "Lamp", "float", "bleedexp")) {
-			for (Lamp *la = bmain->lamp.first; la; la = la->id.next) {
+		if (!DNA_struct_elem_find(fd->filesdna, "Light", "float", "bleedexp")) {
+			for (Light *la = bmain->light.first; la; la = la->id.next) {
 				la->bleedexp = 2.5f;
 			}
 		}
@@ -950,8 +950,8 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 	}
 
 	if (!MAIN_VERSION_ATLEAST(bmain, 280, 2)) {
-		if (!DNA_struct_elem_find(fd->filesdna, "Lamp", "float", "cascade_max_dist")) {
-			for (Lamp *la = bmain->lamp.first; la; la = la->id.next) {
+		if (!DNA_struct_elem_find(fd->filesdna, "Light", "float", "cascade_max_dist")) {
+			for (Light *la = bmain->light.first; la; la = la->id.next) {
 				la->cascade_max_dist = 1000.0f;
 				la->cascade_count = 4;
 				la->cascade_exponent = 0.8f;
@@ -959,8 +959,8 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 			}
 		}
 
-		if (!DNA_struct_elem_find(fd->filesdna, "Lamp", "float", "contact_dist")) {
-			for (Lamp *la = bmain->lamp.first; la; la = la->id.next) {
+		if (!DNA_struct_elem_find(fd->filesdna, "Light", "float", "contact_dist")) {
+			for (Light *la = bmain->light.first; la; la = la->id.next) {
 				la->contact_dist = 0.2f;
 				la->contact_bias = 0.03f;
 				la->contact_spread = 0.2f;
@@ -1280,10 +1280,10 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 	}
 
 	if (!MAIN_VERSION_ATLEAST(bmain, 280, 11)) {
-		for (Lamp *lamp = bmain->lamp.first; lamp; lamp = lamp->id.next) {
-			if (lamp->mode & (1 << 13)) { /* LA_SHAD_RAY */
-				lamp->mode |= LA_SHADOW;
-				lamp->mode &= ~(1 << 13);
+		for (Light *la = bmain->light.first; la; la = la->id.next) {
+			if (la->mode & (1 << 13)) { /* LA_SHAD_RAY */
+				la->mode |= LA_SHADOW;
+				la->mode &= ~(1 << 13);
 			}
 		}
 	}
@@ -1312,8 +1312,8 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 
 	if (!MAIN_VERSION_ATLEAST(bmain, 280, 13)) {
 		/* Initialize specular factor. */
-		if (!DNA_struct_elem_find(fd->filesdna, "Lamp", "float", "spec_fac")) {
-			for (Lamp *la = bmain->lamp.first; la; la = la->id.next) {
+		if (!DNA_struct_elem_find(fd->filesdna, "Light", "float", "spec_fac")) {
+			for (Light *la = bmain->light.first; la; la = la->id.next) {
 				la->spec_fac = 1.0f;
 			}
 		}
@@ -2219,7 +2219,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 			}
 		}
 
-		for (Lamp *la = bmain->lamp.first; la; la = la->id.next) {
+		for (Light *la = bmain->light.first; la; la = la->id.next) {
 			/* Removed Hemi lights. */
 			if (!ELEM(la->type, LA_LOCAL, LA_SUN, LA_SPOT, LA_AREA)) {
 				la->type = LA_SUN;
@@ -2244,8 +2244,8 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 			}
 		}
 
-		if (!DNA_struct_elem_find(fd->filesdna, "Lamp", "float", "att_dist")) {
-			for (Lamp *la = bmain->lamp.first; la; la = la->id.next) {
+		if (!DNA_struct_elem_find(fd->filesdna, "Light", "float", "att_dist")) {
+			for (Light *la = bmain->light.first; la; la = la->id.next) {
 				la->att_dist = la->clipend;
 			}
 		}

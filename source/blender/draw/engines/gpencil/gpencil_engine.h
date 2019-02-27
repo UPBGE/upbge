@@ -69,6 +69,7 @@ typedef struct tGPencilObjectCache {
 	struct Object *ob;
 	struct bGPdata *gpd;
 	int idx;  /*original index, can change after sort */
+	char *name;
 
 	/* effects */
 	bool has_fx;
@@ -91,6 +92,9 @@ typedef struct tGPencilObjectCache {
 	bool is_dup_ob;  /* flag to tag duplicate objects */
 	float scale;
 
+	/* shading type */
+	int shading_type;
+	
 	/* GPU data size */
 	int tot_vertex;
 	int tot_triangles;
@@ -114,6 +118,11 @@ typedef struct GPENCIL_shgroup {
 	int keep_size;
 	int caps_mode[2];
 	float obj_scale;
+
+	/* color of the wireframe */
+	float wire_color[4];
+	/* shading type */
+	int shading_type;
 } GPENCIL_shgroup;
 
 typedef struct GPENCIL_Storage {
@@ -129,6 +138,7 @@ typedef struct GPENCIL_Storage {
 	bool is_playing;
 	bool is_render;
 	bool is_mat_preview;
+	int is_xray;
 	bool reset_cache;
 	bool buffer_stroke;
 	bool buffer_fill;
@@ -157,9 +167,6 @@ typedef struct GPENCIL_Storage {
 	float view_vecs[2][4]; /* vec4[2] */
 
 	float grid_matrix[4][4];
-
-	/* shading type */
-	char shading_type;
 
 	Object *camera; /* camera pointer for render mode */
 } GPENCIL_Storage;
@@ -239,6 +246,7 @@ typedef struct g_data {
 	struct tGPencilObjectCache *gp_object_cache;
 
 	int session_flag;
+	bool do_instances;
 
 } g_data; /* Transient data */
 
@@ -367,8 +375,10 @@ typedef struct GpencilBatchCache {
 /* general drawing functions */
 struct DRWShadingGroup *DRW_gpencil_shgroup_stroke_create(
         struct GPENCIL_e_data *e_data, struct GPENCIL_Data *vedata, struct DRWPass *pass, struct GPUShader *shader,
-        struct Object *ob, struct bGPdata *gpd, struct bGPDstroke *gps,
-        struct MaterialGPencilStyle *gp_style, int id, bool onion, const float scale);
+        struct Object *ob, struct bGPdata *gpd,
+		struct bGPDlayer *gpl, struct bGPDstroke *gps,
+        struct MaterialGPencilStyle *gp_style, int id, bool onion,
+		const float scale, int shading_type);
 void DRW_gpencil_populate_datablock(
         struct GPENCIL_e_data *e_data, void *vedata,
         struct Object *ob, struct tGPencilObjectCache *cache_ob);
@@ -378,7 +388,7 @@ void DRW_gpencil_populate_multiedit(
         struct GPENCIL_e_data *e_data, void *vedata,
         struct Object *ob, struct tGPencilObjectCache *cache_ob);
 void DRW_gpencil_triangulate_stroke_fill(struct Object *ob, struct bGPDstroke *gps);
-void DRW_gpencil_populate_particles(struct GPENCIL_e_data *e_data, void *vedata);
+void DRW_gpencil_populate_particles(struct GPENCIL_e_data *e_data, struct GHash *gh_objects, void *vedata);
 
 void DRW_gpencil_multisample_ensure(struct GPENCIL_Data *vedata, int rect_w, int rect_h);
 
@@ -420,10 +430,10 @@ void GPENCIL_create_fx_passes(struct GPENCIL_PassList *psl);
 
 void DRW_gpencil_fx_prepare(
 	struct GPENCIL_e_data *e_data, struct GPENCIL_Data *vedata,
-	struct tGPencilObjectCache *cache);
+	struct tGPencilObjectCache *cache_ob);
 void DRW_gpencil_fx_draw(
 	struct GPENCIL_e_data *e_data, struct GPENCIL_Data *vedata,
-	struct tGPencilObjectCache *cache);
+	struct tGPencilObjectCache *cache_ob);
 
 /* main functions */
 void GPENCIL_engine_init(void *vedata);
@@ -457,5 +467,8 @@ void GPENCIL_render_to_image(void *vedata, struct RenderEngine *engine, struct R
 
 #define GPENCIL_3D_DRAWMODE(gpd) \
 	((gpd) && (gpd->draw_mode == GP_DRAWMODE_3D) && (gpd->xray_mode == GP_XRAY_3DSPACE))
+
+#define GPENCIL_USE_SOLID(stl) \
+	((stl) && ((stl->storage->is_render) || (stl->storage->is_mat_preview)))
 
 #endif /* __GPENCIL_ENGINE_H__ */

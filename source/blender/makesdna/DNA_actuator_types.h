@@ -44,7 +44,7 @@ struct Text;
 
 /* unused now, moved to editobjectactuator in 2.02. Still needed for dna */
 typedef struct bAddObjectActuator {
-	int time, pad;
+	int time, _pad;
 	struct Object *ob;
 } bAddObjectActuator;
 
@@ -77,13 +77,13 @@ typedef struct Sound3D {
 
 typedef struct bSoundActuator {
 	short flag, sndnr;
-	int pad1, pad2;
-	short pad3[2];
+	int _pad1, _pad2;
+	short _pad3[2];
 	float volume, pitch;
 	struct bSound *sound;
 	struct Sound3D sound3D;
-	short type, pad4;
-	short pad5, pad6[1];
+	short type, _pad4;
+	short _pad5, _pad6[1];
 } bSoundActuator;
 
 typedef struct bEditObjectActuator {
@@ -98,18 +98,18 @@ typedef struct bEditObjectActuator {
 	short localflag; /* flag for the lin & ang. vel: apply locally   */
 	short dyn_operation;
 	short upflag, trackflag; /* flag for up axis and track axis */
-	int pad;
+	int _pad;
 } bEditObjectActuator;
 
 typedef struct bSceneActuator {
-	short type, pad1;
-	int pad;
+	short type, _pad1;
+	int _pad;
 	struct Scene *scene;
 	struct Object *camera;
 } bSceneActuator;
 
 typedef struct bPropertyActuator {
-	int pad, type;
+	int _pad, type;
 	char name[64], value[64];	/* MAX_NAME */
 	struct Object *ob;
 } bPropertyActuator;
@@ -118,7 +118,7 @@ typedef struct bObjectActuator {
 	short flag, type, otype;
 	short damping;
 	float forceloc[3], forcerot[3];
-	float pad[3], pad1[3];
+	float _pad[3], _pad1[3];
 	float dloc[3], drot[3]; /* angle in radians */
 	float linearvelocity[3], angularvelocity[3];
 	struct Object *reference;
@@ -131,7 +131,7 @@ typedef struct bIpoActuator {
 	char name[64];		/* MAX_NAME */
 	char frameProp[64];	/* Set this property to the actions current frame, MAX_NAME */
 	
-	short pad1, pad2, pad3, pad4;
+	short _pad1, _pad2, _pad3, _pad4;
 	
 } bIpoActuator;
 
@@ -139,15 +139,15 @@ typedef struct bCameraActuator {
 	struct Object *ob;
 	float height, min, max;
 	float damping;
-	short pad1, axis;
-	float pad2;
+	short _pad1, axis;
+	float _pad2;
 } bCameraActuator;
 
 typedef struct bConstraintActuator {
 	short type, mode;
 	short flag, damp;
 	short time, rotdamp;
-	int pad;
+	int _pad;
 	float minloc[3], maxloc[3];
 	float minrot[3], maxrot[3];
 	char matprop[64];	/* MAX_NAME */
@@ -158,7 +158,7 @@ typedef struct bGroupActuator {
 	int sta, end;
 	char name[64];		/* property or groupkey, MAX_NAME */
 	
-	short pad[3], cur, butsta, butend;/* not referenced, can remove? */
+	short _pad[3], cur, butsta, butend;/* not referenced, can remove? */
 	/* struct Group *group;		not used, remove */
 	
 } bGroupActuator;
@@ -178,8 +178,8 @@ typedef struct bMessageActuator {
 	char toPropName[64];	/* Send to all objects with this propertyname. Empty to broadcast. MAX_NAME. */
 	struct Object *toObject;/* (Possible future use) pointer to a single destination object. */
 	char subject[64];		/* Message Subject to send. MAX_NAME. */
-	short bodyType, pad1;	/* bodyType is either 'User defined text' or PropName */
-	int pad2;
+	short bodyType, _pad1;	/* bodyType is either 'User defined text' or PropName */
+	int _pad2;
 	char body[64];			/* Either User Defined Text or our PropName to send value of, MAX_NAME */
 } bMessageActuator;
 
@@ -198,7 +198,7 @@ typedef struct bVisibilityActuator {
 } bVisibilityActuator;
 
 typedef struct bTwoDFilterActuator {
-	char pad[4];
+	char _pad[4];
 	/* Tells what type of 2D Filter */
 	short type;
 	/* (flag == 0) means 2D filter is activate and
@@ -211,7 +211,7 @@ typedef struct bTwoDFilterActuator {
 } bTwoDFilterActuator;
 
 typedef struct bParentActuator {
-	char pad[2];
+	char _pad[2];
 	short flag;
 	int type;
 	struct Object *ob;
@@ -228,13 +228,13 @@ typedef struct bArmatureActuator {
 	int type;		/* 0=run, 1=enable, 2=disable, 3=set target, 4=set weight */
 	float weight;
 	float influence;
-	float pad;
+	float _pad;
 	struct Object *target;
 	struct Object *subtarget;
 } bArmatureActuator;
 
 typedef struct bSteeringActuator {
-	char pad[5];
+	char _pad[5];
 	char flag;
 	short facingaxis;
 	int type;		/* 0=seek, 1=flee, 2=path following */

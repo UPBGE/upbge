@@ -723,7 +723,7 @@ typedef struct UserDef {
 	float gpencil_new_layer_col[4];
 
 	short tweak_threshold;
-	char navigation_mode, pad10;
+	char navigation_mode, _pad10;
 
 	char font_path_ui[1024];
 	char font_path_ui_mono[1024];

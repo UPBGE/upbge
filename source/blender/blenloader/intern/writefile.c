@@ -116,7 +116,7 @@
 #include "DNA_fileglobal_types.h"
 #include "DNA_key_types.h"
 #include "DNA_lattice_types.h"
-#include "DNA_lamp_types.h"
+#include "DNA_light_types.h"
 #include "DNA_layer_types.h"
 #include "DNA_linestyle_types.h"
 #include "DNA_meta_types.h"
@@ -2550,11 +2550,11 @@ static void write_world(WriteData *wd, World *wrld)
 	}
 }
 
-static void write_lamp(WriteData *wd, Lamp *la)
+static void write_light(WriteData *wd, Light *la)
 {
 	if (la->id.us > 0 || wd->use_memfile) {
 		/* write LibData */
-		writestruct(wd, ID_LA, Lamp, 1, la);
+		writestruct(wd, ID_LA, Light, 1, la);
 		write_iddata(wd, &la->id);
 
 		if (la->adt) {
@@ -2565,7 +2565,7 @@ static void write_lamp(WriteData *wd, Lamp *la)
 			write_curvemapping(wd, la->curfalloff);
 		}
 
-		/* nodetree is integral part of lamps, no libdata */
+		/* Node-tree is integral part of lights, no libdata. */
 		if (la->nodetree) {
 			writestruct(wd, DATA, bNodeTree, 1, la->nodetree);
 			write_nodetree_nolib(wd, la->nodetree);
@@ -3968,10 +3968,10 @@ static void write_global(WriteData *wd, int fileflags, Main *mainvar)
 	char subvstr[8];
 
 	/* prevent mem checkers from complaining */
-	memset(fg.pad, 0, sizeof(fg.pad));
+	memset(fg._pad, 0, sizeof(fg._pad));
 	memset(fg.filename, 0, sizeof(fg.filename));
 	memset(fg.build_hash, 0, sizeof(fg.build_hash));
-	fg.pad1 = NULL;
+	fg._pad1 = NULL;
 
 	current_screen_compat(mainvar, is_undo, &screen, &scene, &view_layer);
 
@@ -4119,7 +4119,7 @@ static bool write_file_handle(
 						write_camera(wd, (Camera *)id);
 						break;
 					case ID_LA:
-						write_lamp(wd, (Lamp *)id);
+						write_light(wd, (Light *)id);
 						break;
 					case ID_LT:
 						write_lattice(wd, (Lattice *)id);

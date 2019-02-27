@@ -29,6 +29,7 @@
 #include "DNA_gpencil_types.h"
 #include "DNA_view3d_types.h"
 
+#include "BKE_library.h"
 #include "BKE_gpencil.h"
 
 #include "gpencil_engine.h"
@@ -45,6 +46,7 @@ tGPencilObjectCache *gpencil_object_cache_add(
 	const DRWContextState *draw_ctx = DRW_context_state_get();
 	tGPencilObjectCache *cache_elem = NULL;
 	RegionView3D *rv3d = draw_ctx->rv3d;
+	View3D *v3d = draw_ctx->v3d;
 	tGPencilObjectCache *p = NULL;
 
 	/* By default a cache is created with one block with a predefined number of free slots,
@@ -67,6 +69,8 @@ tGPencilObjectCache *gpencil_object_cache_add(
 
 	cache_elem->ob = ob;
 	cache_elem->gpd = (bGPdata *)ob->data;
+	cache_elem->name = BKE_id_to_unique_string_key(&ob->id);
+
 	copy_v3_v3(cache_elem->loc, ob->obmat[3]);
 	copy_m4_m4(cache_elem->obmat, ob->obmat);
 	cache_elem->idx = *gp_cache_used;
@@ -78,6 +82,16 @@ tGPencilObjectCache *gpencil_object_cache_add(
 	/* save FXs */
 	cache_elem->pixfactor = cache_elem->gpd->pixfactor;
 	cache_elem->shader_fx = ob->shader_fx;
+
+	/* save wire mode (object mode is always primary option) */
+	if (ob->dt == OB_WIRE) {
+		cache_elem->shading_type = (int)OB_WIRE;
+	}
+	else {
+		if (v3d) {
+			cache_elem->shading_type = (int)v3d->shading.type;
+		}
+	}
 
 	/* shgrp array */
 	cache_elem->tot_layers = 0;

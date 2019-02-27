@@ -33,7 +33,7 @@
 #include "DNA_brush_types.h"
 #include "DNA_collection_types.h"
 #include "DNA_gpencil_types.h"
-#include "DNA_lamp_types.h"
+#include "DNA_light_types.h"
 #include "DNA_material_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
@@ -323,7 +323,7 @@ PreviewImage **BKE_previewimg_id_get_p(const ID *id)
 		ID_PRV_CASE(ID_MA, Material);
 		ID_PRV_CASE(ID_TE, Tex);
 		ID_PRV_CASE(ID_WO, World);
-		ID_PRV_CASE(ID_LA, Lamp);
+		ID_PRV_CASE(ID_LA, Light);
 		ID_PRV_CASE(ID_IM, Image);
 		ID_PRV_CASE(ID_BR, Brush);
 		ID_PRV_CASE(ID_OB, Object);

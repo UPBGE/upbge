@@ -28,7 +28,7 @@
 #include "DEG_depsgraph.h"
 
 #include "DNA_object_types.h"
-#include "DNA_lamp_types.h"
+#include "DNA_light_types.h"
 
 #include "ED_screen.h"
 #include "ED_gizmo_library.h"
@@ -45,10 +45,10 @@
 #include "view3d_intern.h"  /* own include */
 
 /* -------------------------------------------------------------------- */
-/** \name Spot Lamp Gizmos
+/** \name Spot Light Gizmos
  * \{ */
 
-static bool WIDGETGROUP_lamp_spot_poll(const bContext *C, wmGizmoGroupType *UNUSED(gzgt))
+static bool WIDGETGROUP_light_spot_poll(const bContext *C, wmGizmoGroupType *UNUSED(gzgt))
 {
 	View3D *v3d = CTX_wm_view3d(C);
 	if ((v3d->flag2 & V3D_RENDER_OVERRIDE) ||
@@ -62,14 +62,14 @@ static bool WIDGETGROUP_lamp_spot_poll(const bContext *C, wmGizmoGroupType *UNUS
 	if (base && BASE_SELECTABLE(v3d, base)) {
 		Object *ob = base->object;
 		if (ob->type == OB_LAMP) {
-			Lamp *la = ob->data;
+			Light *la = ob->data;
 			return (la->type == LA_SPOT);
 		}
 	}
 	return false;
 }
 
-static void WIDGETGROUP_lamp_spot_setup(const bContext *UNUSED(C), wmGizmoGroup *gzgroup)
+static void WIDGETGROUP_light_spot_setup(const bContext *UNUSED(C), wmGizmoGroup *gzgroup)
 {
 	wmGizmoWrapper *wwrapper = MEM_mallocN(sizeof(wmGizmoWrapper), __func__);
 
@@ -84,13 +84,13 @@ static void WIDGETGROUP_lamp_spot_setup(const bContext *UNUSED(C), wmGizmoGroup 
 	UI_GetThemeColor3fv(TH_GIZMO_SECONDARY, gz->color);
 }
 
-static void WIDGETGROUP_lamp_spot_refresh(const bContext *C, wmGizmoGroup *gzgroup)
+static void WIDGETGROUP_light_spot_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 {
 	wmGizmoWrapper *wwrapper = gzgroup->customdata;
 	wmGizmo *gz = wwrapper->gizmo;
 	ViewLayer *view_layer = CTX_data_view_layer(C);
 	Object *ob = OBACT(view_layer);
-	Lamp *la = ob->data;
+	Light *la = ob->data;
 	float dir[3];
 
 	negate_v3_v3(dir, ob->obmat[2]);
@@ -105,46 +105,46 @@ static void WIDGETGROUP_lamp_spot_refresh(const bContext *C, wmGizmoGroup *gzgro
 	WM_gizmo_target_property_def_rna(gz, "offset", &lamp_ptr, propname, -1);
 }
 
-void VIEW3D_GGT_lamp_spot(wmGizmoGroupType *gzgt)
+void VIEW3D_GGT_light_spot(wmGizmoGroupType *gzgt)
 {
 	gzgt->name = "Spot Light Widgets";
-	gzgt->idname = "VIEW3D_GGT_lamp_spot";
+	gzgt->idname = "VIEW3D_GGT_light_spot";
 
 	gzgt->flag |= (WM_GIZMOGROUPTYPE_PERSISTENT |
 	              WM_GIZMOGROUPTYPE_3D |
 	              WM_GIZMOGROUPTYPE_DEPTH_3D);
 
-	gzgt->poll = WIDGETGROUP_lamp_spot_poll;
-	gzgt->setup = WIDGETGROUP_lamp_spot_setup;
-	gzgt->refresh = WIDGETGROUP_lamp_spot_refresh;
+	gzgt->poll = WIDGETGROUP_light_spot_poll;
+	gzgt->setup = WIDGETGROUP_light_spot_setup;
+	gzgt->refresh = WIDGETGROUP_light_spot_refresh;
 }
 
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Area Lamp Gizmos
+/** \name Area Light Gizmos
  * \{ */
 
 /* scale callbacks */
-static void gizmo_area_lamp_prop_matrix_get(
+static void gizmo_area_light_prop_matrix_get(
         const wmGizmo *UNUSED(gz), wmGizmoProperty *gz_prop,
         void *value_p)
 {
 	BLI_assert(gz_prop->type->array_length == 16);
 	float (*matrix)[4] = value_p;
-	const Lamp *la = gz_prop->custom_func.user_data;
+	const Light *la = gz_prop->custom_func.user_data;
 
 	matrix[0][0] = la->area_size;
 	matrix[1][1] = ELEM(la->area_shape, LA_AREA_RECT, LA_AREA_ELLIPSE) ? la->area_sizey : la->area_size;
 }
 
-static void gizmo_area_lamp_prop_matrix_set(
+static void gizmo_area_light_prop_matrix_set(
         const wmGizmo *UNUSED(gz), wmGizmoProperty *gz_prop,
         const void *value_p)
 {
 	const float (*matrix)[4] = value_p;
 	BLI_assert(gz_prop->type->array_length == 16);
-	Lamp *la = gz_prop->custom_func.user_data;
+	Light *la = gz_prop->custom_func.user_data;
 
 	if (ELEM(la->area_shape, LA_AREA_RECT, LA_AREA_ELLIPSE)) {
 		la->area_size = len_v3(matrix[0]);
@@ -158,7 +158,7 @@ static void gizmo_area_lamp_prop_matrix_set(
 	WM_main_add_notifier(NC_LAMP | ND_LIGHTING_DRAW, la);
 }
 
-static bool WIDGETGROUP_lamp_area_poll(const bContext *C, wmGizmoGroupType *UNUSED(gzgt))
+static bool WIDGETGROUP_light_area_poll(const bContext *C, wmGizmoGroupType *UNUSED(gzgt))
 {
 	View3D *v3d = CTX_wm_view3d(C);
 	if (v3d->flag2 & V3D_RENDER_OVERRIDE) {
@@ -170,14 +170,14 @@ static bool WIDGETGROUP_lamp_area_poll(const bContext *C, wmGizmoGroupType *UNUS
 	if (base && BASE_SELECTABLE(v3d, base)) {
 		Object *ob = base->object;
 		if (ob->type == OB_LAMP) {
-			Lamp *la = ob->data;
+			Light *la = ob->data;
 			return (la->type == LA_AREA);
 		}
 	}
 	return false;
 }
 
-static void WIDGETGROUP_lamp_area_setup(const bContext *UNUSED(C), wmGizmoGroup *gzgroup)
+static void WIDGETGROUP_light_area_setup(const bContext *UNUSED(C), wmGizmoGroup *gzgroup)
 {
 	wmGizmoWrapper *wwrapper = MEM_mallocN(sizeof(wmGizmoWrapper), __func__);
 	wwrapper->gizmo = WM_gizmo_new("GIZMO_GT_cage_2d", gzgroup, NULL);
@@ -193,12 +193,12 @@ static void WIDGETGROUP_lamp_area_setup(const bContext *UNUSED(C), wmGizmoGroup 
 	UI_GetThemeColor3fv(TH_GIZMO_HI, gz->color_hi);
 }
 
-static void WIDGETGROUP_lamp_area_refresh(const bContext *C, wmGizmoGroup *gzgroup)
+static void WIDGETGROUP_light_area_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 {
 	wmGizmoWrapper *wwrapper = gzgroup->customdata;
 	ViewLayer *view_layer = CTX_data_view_layer(C);
 	Object *ob = OBACT(view_layer);
-	Lamp *la = ob->data;
+	Light *la = ob->data;
 	wmGizmo *gz = wwrapper->gizmo;
 
 	copy_m4_m4(gz->matrix_basis, ob->obmat);
@@ -213,35 +213,35 @@ static void WIDGETGROUP_lamp_area_refresh(const bContext *C, wmGizmoGroup *gzgro
 	WM_gizmo_target_property_def_func(
 	        gz, "matrix",
 	        &(const struct wmGizmoPropertyFnParams) {
-	            .value_get_fn = gizmo_area_lamp_prop_matrix_get,
-	            .value_set_fn = gizmo_area_lamp_prop_matrix_set,
+	            .value_get_fn = gizmo_area_light_prop_matrix_get,
+	            .value_set_fn = gizmo_area_light_prop_matrix_set,
 	            .range_get_fn = NULL,
 	            .user_data = la,
 	        });
 }
 
-void VIEW3D_GGT_lamp_area(wmGizmoGroupType *gzgt)
+void VIEW3D_GGT_light_area(wmGizmoGroupType *gzgt)
 {
 	gzgt->name = "Area Light Widgets";
-	gzgt->idname = "VIEW3D_GGT_lamp_area";
+	gzgt->idname = "VIEW3D_GGT_light_area";
 
 	gzgt->flag |= (WM_GIZMOGROUPTYPE_PERSISTENT |
 	              WM_GIZMOGROUPTYPE_3D |
 	              WM_GIZMOGROUPTYPE_DEPTH_3D);
 
-	gzgt->poll = WIDGETGROUP_lamp_area_poll;
-	gzgt->setup = WIDGETGROUP_lamp_area_setup;
-	gzgt->refresh = WIDGETGROUP_lamp_area_refresh;
+	gzgt->poll = WIDGETGROUP_light_area_poll;
+	gzgt->setup = WIDGETGROUP_light_area_setup;
+	gzgt->refresh = WIDGETGROUP_light_area_refresh;
 }
 
 /** \} */
 
 
 /* -------------------------------------------------------------------- */
-/** \name Lamp Target Gizmo
+/** \name Light Target Gizmo
  * \{ */
 
-static bool WIDGETGROUP_lamp_target_poll(const bContext *C, wmGizmoGroupType *UNUSED(gzgt))
+static bool WIDGETGROUP_light_target_poll(const bContext *C, wmGizmoGroupType *UNUSED(gzgt))
 {
 	View3D *v3d = CTX_wm_view3d(C);
 	if (v3d->flag2 & V3D_RENDER_OVERRIDE) {
@@ -253,7 +253,7 @@ static bool WIDGETGROUP_lamp_target_poll(const bContext *C, wmGizmoGroupType *UN
 	if (base && BASE_SELECTABLE(v3d, base)) {
 		Object *ob = base->object;
 		if (ob->type == OB_LAMP) {
-			Lamp *la = ob->data;
+			Light *la = ob->data;
 			return (ELEM(la->type, LA_SUN, LA_SPOT, LA_AREA));
 		}
 #if 0
@@ -265,7 +265,7 @@ static bool WIDGETGROUP_lamp_target_poll(const bContext *C, wmGizmoGroupType *UN
 	return false;
 }
 
-static void WIDGETGROUP_lamp_target_setup(const bContext *UNUSED(C), wmGizmoGroup *gzgroup)
+static void WIDGETGROUP_light_target_setup(const bContext *UNUSED(C), wmGizmoGroup *gzgroup)
 {
 	wmGizmoWrapper *wwrapper = MEM_mallocN(sizeof(wmGizmoWrapper), __func__);
 	wwrapper->gizmo = WM_gizmo_new("GIZMO_GT_move_3d", gzgroup, NULL);
@@ -286,7 +286,7 @@ static void WIDGETGROUP_lamp_target_setup(const bContext *UNUSED(C), wmGizmoGrou
 	WM_gizmo_operator_set(gz, 0, ot, NULL);
 }
 
-static void WIDGETGROUP_lamp_target_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
+static void WIDGETGROUP_light_target_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
 {
 	wmGizmoWrapper *wwrapper = gzgroup->customdata;
 	ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -297,9 +297,9 @@ static void WIDGETGROUP_lamp_target_draw_prepare(const bContext *C, wmGizmoGroup
 	unit_m4(gz->matrix_offset);
 
 	if (ob->type == OB_LAMP) {
-		Lamp *la = ob->data;
+		Light *la = ob->data;
 		if (la->type == LA_SPOT) {
-			/* Draw just past the lamp size angle gizmo. */
+			/* Draw just past the light size angle gizmo. */
 			madd_v3_v3fl(gz->matrix_basis[3], gz->matrix_basis[2], -la->spotsize);
 		}
 	}
@@ -307,17 +307,17 @@ static void WIDGETGROUP_lamp_target_draw_prepare(const bContext *C, wmGizmoGroup
 	WM_gizmo_set_flag(gz, WM_GIZMO_DRAW_OFFSET_SCALE, true);
 }
 
-void VIEW3D_GGT_lamp_target(wmGizmoGroupType *gzgt)
+void VIEW3D_GGT_light_target(wmGizmoGroupType *gzgt)
 {
 	gzgt->name = "Target Light Widgets";
-	gzgt->idname = "VIEW3D_GGT_lamp_target";
+	gzgt->idname = "VIEW3D_GGT_light_target";
 
 	gzgt->flag |= (WM_GIZMOGROUPTYPE_PERSISTENT |
 	              WM_GIZMOGROUPTYPE_3D);
 
-	gzgt->poll = WIDGETGROUP_lamp_target_poll;
-	gzgt->setup = WIDGETGROUP_lamp_target_setup;
-	gzgt->draw_prepare = WIDGETGROUP_lamp_target_draw_prepare;
+	gzgt->poll = WIDGETGROUP_light_target_poll;
+	gzgt->setup = WIDGETGROUP_light_target_setup;
+	gzgt->draw_prepare = WIDGETGROUP_light_target_draw_prepare;
 }
 
 /** \} */

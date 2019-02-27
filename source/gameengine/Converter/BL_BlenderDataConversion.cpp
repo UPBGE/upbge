@@ -119,7 +119,7 @@
 #include "DNA_material_types.h"
 #include "DNA_texture_types.h"
 #include "DNA_image_types.h"
-#include "DNA_lamp_types.h"
+#include "DNA_light_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_property_types.h"
@@ -841,7 +841,7 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
 	}
 }
 
-static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int layerflag, KX_Scene *kxscene)
+static KX_LightObject *gamelight_from_blamp(Object *ob, Light *la, unsigned int layerflag, KX_Scene *kxscene)
 {
 	RAS_ILightObject *lightobj = new RAS_OpenGLLight();
 
@@ -929,7 +929,7 @@ static KX_GameObject *gameobject_from_blenderobject(
 	switch (ob->type) {
 	case OB_LAMP:
 	{
-		KX_LightObject* gamelight = gamelight_from_blamp(ob, static_cast<Lamp*>(ob->data), ob->lay, kxscene);
+		KX_LightObject* gamelight = gamelight_from_blamp(ob, static_cast<Light *>(ob->data), ob->lay, kxscene);
 		gameobj = gamelight;
 		gamelight->AddRef();
 		kxscene->GetLightList()->Add(gamelight);

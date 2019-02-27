@@ -1636,8 +1636,7 @@ static int game_engine_exec(bContext *C, wmOperator *op)
 	game_set_commmandline_options(&startscene->gm);
 
 	if ((rv3d->persp == RV3D_CAMOB) &&
-	    (startscene->gm.framing.type == SCE_GAMEFRAMING_BARS) &&
-	    (startscene->gm.stereoflag != STEREO_DOME))
+	    (startscene->gm.framing.type == SCE_GAMEFRAMING_BARS))
 	{
 		Depsgraph *depsgraph = CTX_data_depsgraph(C);
 		/* Letterbox */

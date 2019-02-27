@@ -21,8 +21,8 @@
  * \ingroup DNA
  */
 
-#ifndef __DNA_LAMP_TYPES_H__
-#define __DNA_LAMP_TYPES_H__
+#ifndef __DNA_LIGHT_TYPES_H__
+#define __DNA_LIGHT_TYPES_H__
 
 #include "DNA_defs.h"
 #include "DNA_ID.h"
@@ -37,7 +37,7 @@ struct Ipo;
 struct MTex;
 struct bNodeTree;
 
-typedef struct Lamp {
+typedef struct Light {
 	ID id;
 	/** Animation data (must be immediately after id for utilities to use it). */
 	struct AnimData *adt;
@@ -55,7 +55,7 @@ typedef struct Lamp {
 	float coeff_const, coeff_lin, coeff_quad, coeff_pad;
 	struct CurveMapping *curfalloff;
 	short falloff_type;
-	short pad2;
+	char _pad2[2];
 
 	float clipsta, clipend;
 	float bias, soft, bleedbias, bleedexp;
@@ -71,7 +71,7 @@ typedef struct Lamp {
 	/** Old animation system, deprecated for 2.5. */
 	struct Ipo *ipo  DNA_DEPRECATED;
 	short pr_texture, use_nodes;
-	char pad6[4];
+	char _pad6[4];
 
 	/* Eevee */
 	float cascade_max_dist;
@@ -88,9 +88,9 @@ typedef struct Lamp {
 
 	/* nodes */
 	struct bNodeTree *nodetree;
-} Lamp;
+} Light;
 
-/* **************** LAMP ********************* */
+/* **************** LIGHT ********************* */
 
 /* flag */
 #define LA_DS_EXPAND    (1 << 0)
@@ -121,8 +121,8 @@ typedef struct Lamp {
 /* #define LA_NO_DIFF		(1 << 11) */ /* not used anywhere */
 /* #define LA_NO_SPEC		(1 << 12) */ /* not used anywhere */
 /* #define LA_SHAD_RAY		(1 << 13) */ /* not used anywhere - cleaned */
-/* yafray: lamp shadowbuffer flag, softlight */
-/* Since it is used with LOCAL lamp, can't use LA_SHAD */
+/* yafray: light  shadowbuffer flag, softlight */
+/* Since it is used with LOCAL light, can't use LA_SHAD */
 /* #define LA_YF_SOFT		(1 << 14) */ /* not used anymore */
 /* #define LA_LAYER_SHADOW	(1 << 15) */ /* not used anymore */
 /* #define LA_SHAD_TEX     	(1 << 16) */ /* not used anymore */
@@ -147,4 +147,4 @@ typedef struct Lamp {
 #define LA_AREA_DISK	4
 #define LA_AREA_ELLIPSE	5
 
-#endif /* __DNA_LAMP_TYPES_H__ */
+#endif /* __DNA_LIGHT_TYPES_H__ */

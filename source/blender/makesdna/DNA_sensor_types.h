@@ -44,7 +44,7 @@ struct Material;
 typedef struct bNearSensor {
 	char name[64];	/* MAX_NAME */
 	float dist, resetdist;
-	int lastval, pad;
+	int lastval, _pad;
 } bNearSensor;
 
 /**
@@ -56,7 +56,7 @@ typedef struct bMouseSensor {
 	 */
 	short type;
 	short flag;
-	short pad1;
+	short _pad1;
 	short mode;			/* flag to choose material or property */
 	char propname[64];
 	char matname[64];
@@ -66,7 +66,7 @@ typedef struct bMouseSensor {
 typedef struct bTouchSensor {
 	char name[64];	/* MAX_NAME */
 	struct Material *ma;
-	float dist, pad;
+	float dist, _pad;
 } bTouchSensor;
 
 typedef struct bKeyboardSensor {
@@ -84,7 +84,7 @@ typedef struct bKeyboardSensor {
 
 typedef struct bPropertySensor {
 	int type;
-	int pad;
+	int _pad;
 	char name[64];	/* MAX_NAME */
 	char value[64];
 	char maxvalue[64];
@@ -92,7 +92,7 @@ typedef struct bPropertySensor {
 
 typedef struct bActuatorSensor {
 	int type;
-	int pad;
+	int _pad;
 	char name[64];	/* MAX_NAME */
 } bActuatorSensor;
 
@@ -100,7 +100,7 @@ typedef struct bDelaySensor {
 	short delay;
 	short duration;
 	short flag;
-	short pad;
+	short _pad;
 } bDelaySensor;
 
 typedef struct bCollisionSensor {
@@ -109,7 +109,7 @@ typedef struct bCollisionSensor {
 	// struct Material *ma; // XXX remove materialName
 	short damptimer, damp;
 	short mode;             /* flag to choose material or property */
-	short pad2;
+	short _pad2;
 } bCollisionSensor;
 
 typedef struct bRadarSensor {
@@ -132,7 +132,7 @@ typedef struct bRaySensor {
 	char matname[64];
 	//struct Material *ma; // XXX remove materialName
 	short mode;
-	short pad1;
+	short _pad1;
 	int axisflag;
 } bRaySensor;
 
@@ -164,7 +164,7 @@ typedef struct bSensor {
 	struct bSensor *next, *prev;
 	/* pulse and freq are the bool toggle and frame count for pulse mode */
 	short type, otype, flag, pulse;
-	short freq, totlinks, pad1, pad2; /* freq makes reference to skipped ticks between 2 active pulses */
+	short freq, totlinks, _pad1, _pad2; /* freq makes reference to skipped ticks between 2 active pulses */
 	char name[64];	/* MAX_NAME */
 	void *data;
 	
@@ -176,7 +176,7 @@ typedef struct bSensor {
 	short invert; /* Whether or not to invert the output. */
 	short level;  /* Whether the sensor is level base (edge by default) */
 	short tap;
-	short pad;
+	short _pad;
 } bSensor;
 
 typedef struct bJoystickSensor {

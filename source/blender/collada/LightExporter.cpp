@@ -29,7 +29,7 @@
 #include "collada_internal.h"
 
 template<class Functor>
-void forEachLampObjectInExportSet(Scene *sce, Functor &f, LinkNode *export_set)
+void forEachLightObjectInExportSet(Scene *sce, Functor &f, LinkNode *export_set)
 {
 	LinkNode *node;
 	for (node = export_set; node; node = node->next) {
@@ -48,14 +48,14 @@ void LightsExporter::exportLights(Scene *sce)
 {
 	openLibrary();
 
-	forEachLampObjectInExportSet(sce, *this, this->export_settings->export_set);
+	forEachLightObjectInExportSet(sce, *this, this->export_settings->export_set);
 
 	closeLibrary();
 }
 
 void LightsExporter::operator()(Object *ob)
 {
-	Lamp *la = (Lamp *)ob->data;
+	Light *la = (Light *)ob->data;
 	std::string la_id(get_light_id(ob));
 	std::string la_name(id_name(la));
 	COLLADASW::Color col(la->r * la->energy, la->g * la->energy, la->b * la->energy);
@@ -105,7 +105,7 @@ void LightsExporter::operator()(Object *ob)
 		exportBlenderProfile(cla, la);
 		addLight(cla);
 	}
-	// area lamp is not supported
+	// area light is not supported
 	// it will be exported as a local lamp
 	else {
 		COLLADASW::PointLight cla(mSW, la_id, la_name);
@@ -119,7 +119,7 @@ void LightsExporter::operator()(Object *ob)
 
 }
 
-bool LightsExporter::exportBlenderProfile(COLLADASW::Light &cla, Lamp *la)
+bool LightsExporter::exportBlenderProfile(COLLADASW::Light &cla, Light *la)
 {
 	cla.addExtraTechniqueParameter("blender", "type", la->type);
 	cla.addExtraTechniqueParameter("blender", "flag", la->flag);

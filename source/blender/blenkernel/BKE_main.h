@@ -93,8 +93,8 @@ typedef struct Main {
 	ListBase mat;
 	ListBase tex;
 	ListBase image;
-	ListBase latt;
-	ListBase lamp;
+	ListBase lattice;
+	ListBase light;
 	ListBase camera;
 	ListBase ipo;   // XXX deprecated
 	ListBase key;
@@ -111,15 +111,15 @@ typedef struct Main {
 	ListBase nodetree;
 	ListBase brush;
 	ListBase particle;
-	ListBase palettes;
-	ListBase paintcurves;
+	ListBase palette;
+	ListBase paintcurve;
 	ListBase wm;
 	ListBase gpencil;
 	ListBase movieclip;
 	ListBase mask;
 	ListBase linestyle;
-	ListBase cachefiles;
-	ListBase workspaces;
+	ListBase cachefile;
+	ListBase workspace;
 
 	/* Must be generated, used and freed by same code - never assume this is valid data unless you know
 	 * when, who and how it was created.

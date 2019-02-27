@@ -125,7 +125,6 @@ set(SRC
 	intern/ipo.c
 	intern/key.c
 	intern/keyconfig.c
-	intern/lamp.c
 	intern/lattice.c
 	intern/layer.c
 	intern/layer_utils.c
@@ -134,6 +133,7 @@ set(SRC
 	intern/library_override.c
 	intern/library_query.c
 	intern/library_remap.c
+	intern/light.c
 	intern/lightprobe.c
 	intern/linestyle.c
 	intern/main.c
@@ -282,7 +282,6 @@ set(SRC
 	BKE_ipo.h
 	BKE_key.h
 	BKE_keyconfig.h
-	BKE_lamp.h
 	BKE_lattice.h
 	BKE_layer.h
 	BKE_library.h
@@ -290,6 +289,7 @@ set(SRC
 	BKE_library_override.h
 	BKE_library_query.h
 	BKE_library_remap.h
+	BKE_light.h
 	BKE_lightprobe.h
 	BKE_linestyle.h
 	BKE_main.h

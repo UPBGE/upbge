@@ -356,10 +356,10 @@ typedef struct EEVEE_Light {
 	float spotsize, spotblend, radius, shadowid;
 	float rightvec[3], sizex;
 	float upvec[3], sizey;
-	float forwardvec[3], lamptype;
+	float forwardvec[3], light_type;
 } EEVEE_Light;
 
-/* Special type for elliptic area lamps, matches lamps_lib.glsl */
+/* Special type for elliptic area lights, matches lamps_lib.glsl */
 #define LAMPTYPE_AREA_ELLIPSE 100.0f
 
 typedef struct EEVEE_Shadow {
@@ -373,7 +373,7 @@ typedef struct EEVEE_ShadowCube {
 } EEVEE_ShadowCube;
 
 typedef struct EEVEE_ShadowCascade {
-	/* World->Lamp->NDC->Tex : used for sampling the shadow map. */
+	/* World->Light->NDC->Tex : used for sampling the shadow map. */
 	float shadowmat[MAX_CASCADE_NUM][4][4];
 	float split_start[4];
 	float split_end[4];
@@ -409,7 +409,7 @@ typedef struct EEVEE_ShadowCasterBuffer {
 } EEVEE_ShadowCasterBuffer;
 
 /* ************ LIGHT DATA ************* */
-typedef struct EEVEE_LampsInfo {
+typedef struct EEVEE_LightsInfo {
 	int num_light, cache_num_light;
 	int num_cube_layer, cache_num_cube_layer;
 	int num_cascade_layer, cache_num_cascade_layer;
@@ -440,15 +440,15 @@ typedef struct EEVEE_LampsInfo {
 	/* Pointers only. */
 	struct EEVEE_ShadowCasterBuffer *shcaster_frontbuffer;
 	struct EEVEE_ShadowCasterBuffer *shcaster_backbuffer;
-} EEVEE_LampsInfo;
+} EEVEE_LightsInfo;
 
-/* EEVEE_LampsInfo->shadow_casters_flag */
+/* EEVEE_LightsInfo->shadow_casters_flag */
 enum {
 	SHADOW_CASTER_PRUNED = (1 << 0),
 	SHADOW_CASTER_UPDATED = (1 << 1),
 };
 
-/* EEVEE_LampsInfo->update_flag */
+/* EEVEE_LightsInfo->update_flag */
 enum {
 	LIGHT_UPDATE_SHADOW_CUBE = (1 << 0),
 };
@@ -650,7 +650,7 @@ typedef struct EEVEE_CommonUniformBuffer {
 	int sss_toggle; /* bool */
 	/* Specular */
 	int spec_toggle; /* bool */
-	/* Lamps */
+	/* Lights */
 	int la_num_light; /* int */
 	/* Probes */
 	int prb_num_planar; /* int */
@@ -680,8 +680,8 @@ typedef struct EEVEE_ClipPlanesUniformBuffer {
 
 /* ************** SCENE LAYER DATA ************** */
 typedef struct EEVEE_ViewLayerData {
-	/* Lamps */
-	struct EEVEE_LampsInfo *lamps;
+	/* Lights */
+	struct EEVEE_LightsInfo *lights;
 
 	struct GPUUniformBuffer *light_ubo;
 	struct GPUUniformBuffer *shadow_ubo;
@@ -731,7 +731,7 @@ typedef struct EEVEE_ShadowCubeData {
 
 typedef struct EEVEE_ShadowCascadeData {
 	short light_id, shadow_id, cascade_id, layer_id;
-	/* World->Lamp->NDC : used for rendering the shadow map. */
+	/* World->Light->NDC : used for rendering the shadow map. */
 	float viewprojmat[MAX_CASCADE_NUM][4][4];
 	float projmat[MAX_CASCADE_NUM][4][4];
 	float viewmat[4][4], viewinv[4][4];
@@ -741,7 +741,7 @@ typedef struct EEVEE_ShadowCascadeData {
 /* Theses are the structs stored inside Objects.
  * It works with even if the object is in multiple layers
  * because we don't get the same "Object *" for each layer. */
-typedef struct EEVEE_LampEngineData {
+typedef struct EEVEE_LightEngineData {
 	DrawData dd;
 
 	bool need_update;
@@ -752,7 +752,7 @@ typedef struct EEVEE_LampEngineData {
 		struct EEVEE_ShadowCubeData scd;
 		struct EEVEE_ShadowCascadeData scad;
 	} data;
-} EEVEE_LampEngineData;
+} EEVEE_LightEngineData;
 
 typedef struct EEVEE_LightProbeEngineData {
 	DrawData dd;
@@ -831,8 +831,8 @@ EEVEE_ObjectEngineData *EEVEE_object_data_get(Object *ob);
 EEVEE_ObjectEngineData *EEVEE_object_data_ensure(Object *ob);
 EEVEE_LightProbeEngineData *EEVEE_lightprobe_data_get(Object *ob);
 EEVEE_LightProbeEngineData *EEVEE_lightprobe_data_ensure(Object *ob);
-EEVEE_LampEngineData *EEVEE_lamp_data_get(Object *ob);
-EEVEE_LampEngineData *EEVEE_lamp_data_ensure(Object *ob);
+EEVEE_LightEngineData *EEVEE_light_data_get(Object *ob);
+EEVEE_LightEngineData *EEVEE_light_data_ensure(Object *ob);
 EEVEE_WorldEngineData *EEVEE_world_data_get(World *wo);
 EEVEE_WorldEngineData *EEVEE_world_data_ensure(World *wo);
 

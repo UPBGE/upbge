@@ -145,7 +145,7 @@ void ED_view3d_update_viewmat(
 		rv3d->viewcamtexcofac[2] = rv3d->viewcamtexcofac[3] = 0.0f;
 	}
 
-	/* calculate pixelsize factor once, is used for lamps and obcenters */
+	/* calculate pixelsize factor once, is used for lights and obcenters */
 	{
 		/* note:  '1.0f / len_v3(v1)'  replaced  'len_v3(rv3d->viewmat[0])'
 		 * because of float point precision problems at large values [#23908] */
@@ -790,12 +790,11 @@ float ED_view3d_grid_view_scale(
 			/* Allow 3 more subdivisions (see OBJECT_engine_init). */
 			grid_scale /= powf(grid_subdiv, 3);
 
-			float grid_distance = rv3d->dist;
-			float lvl = (logf(grid_distance / grid_scale) / logf(grid_subdiv));
+			/* `3.0` was a value obtained by trial and error in order to get
+			 * a nice snap distance.*/
+			float grid_res = 3.0 * (rv3d->dist / v3d->lens);
+			float lvl = (logf(grid_res / grid_scale) / logf(grid_subdiv));
 
-			/* 1.3f is a visually chosen offset for the
-			 * subdivision to match the visible grid. */
-			lvl -= 1.3f;
 			CLAMP_MIN(lvl, 0.0f);
 
 			grid_scale *= pow(grid_subdiv, (int)lvl);

@@ -32,7 +32,7 @@
 
 #include "DNA_action_types.h"
 #include "DNA_anim_types.h"
-#include "DNA_lamp_types.h"
+#include "DNA_light_types.h"
 #include "DNA_material_types.h"
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
@@ -1965,7 +1965,7 @@ bNodeTree *ntreeFromID(const ID *id)
 {
 	switch (GS(id->name)) {
 		case ID_MA:  return ((const Material *)id)->nodetree;
-		case ID_LA:  return ((const Lamp *)id)->nodetree;
+		case ID_LA:  return ((const Light *)id)->nodetree;
 		case ID_WO:  return ((const World *)id)->nodetree;
 		case ID_TE:  return ((const Tex *)id)->nodetree;
 		case ID_SCE: return ((const Scene *)id)->nodetree;
@@ -3550,7 +3550,7 @@ static void registerShaderNodes(void)
 	register_node_type_sh_uvalongstroke();
 	register_node_type_sh_eevee_specular();
 
-	register_node_type_sh_output_lamp();
+	register_node_type_sh_output_light();
 	register_node_type_sh_output_material();
 	register_node_type_sh_output_world();
 	register_node_type_sh_output_linestyle();
@@ -3694,7 +3694,7 @@ void BKE_node_tree_iter_init(struct NodeTreeIterStore *ntreeiter, struct Main *b
 	ntreeiter->scene = bmain->scene.first;
 	ntreeiter->mat = bmain->mat.first;
 	ntreeiter->tex = bmain->tex.first;
-	ntreeiter->lamp = bmain->lamp.first;
+	ntreeiter->light = bmain->light.first;
 	ntreeiter->world = bmain->world.first;
 	ntreeiter->linestyle = bmain->linestyle.first;
 }
@@ -3721,10 +3721,10 @@ bool BKE_node_tree_iter_step(struct NodeTreeIterStore *ntreeiter,
 		*r_id       = (ID *)ntreeiter->tex;
 		ntreeiter->tex =    ntreeiter->tex->id.next;
 	}
-	else if (ntreeiter->lamp) {
-		*r_nodetree =       ntreeiter->lamp->nodetree;
-		*r_id       = (ID *)ntreeiter->lamp;
-		ntreeiter->lamp =   ntreeiter->lamp->id.next;
+	else if (ntreeiter->light) {
+		*r_nodetree =       ntreeiter->light->nodetree;
+		*r_id       = (ID *)ntreeiter->light;
+		ntreeiter->light =  ntreeiter->light->id.next;
 	}
 	else if (ntreeiter->world) {
 		*r_nodetree =       ntreeiter->world->nodetree;

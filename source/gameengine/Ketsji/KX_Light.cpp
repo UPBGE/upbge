@@ -45,7 +45,7 @@
 #include "KX_PyMath.h"
 
 #include "DNA_object_types.h"
-#include "DNA_lamp_types.h"
+#include "DNA_light_types.h"
 
 #include "BKE_scene.h"
 #include "MEM_guardedalloc.h"

@@ -40,7 +40,7 @@
 #include "DNA_ipo_types.h"
 #include "DNA_key_types.h"
 #include "DNA_lattice_types.h"
-#include "DNA_lamp_types.h"
+#include "DNA_light_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -861,24 +861,11 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
 				ts->vgroup_weight = 1.0f;
 			}
 
-			/* Game Settings */
-			/* Dome */
-			sce->gm.dome.angle = sce->r.domeangle;
-			sce->gm.dome.mode = sce->r.domemode;
-			sce->gm.dome.res = sce->r.domeres;
-			sce->gm.dome.resbuf = sce->r.domeresbuf;
-			sce->gm.dome.tilt = sce->r.dometilt;
-			sce->gm.dome.warptext = sce->r.dometext;
-
 			/* Stereo */
 			sce->gm.stereomode = sce->r.stereomode;
-			/* reassigning stereomode NO_STEREO and DOME to a separeted flag*/
+			/* reassigning stereomode NO_STEREO to a separeted flag*/
 			if (sce->gm.stereomode == 1) { // 1 = STEREO_NOSTEREO
 				sce->gm.stereoflag = STEREO_NOSTEREO;
-				sce->gm.stereomode = STEREO_ANAGLYPH;
-			}
-			else if (sce->gm.stereomode == 8) { // 8 = STEREO_DOME
-				sce->gm.stereoflag = STEREO_DOME;
 				sce->gm.stereomode = STEREO_ANAGLYPH;
 			}
 			else
@@ -1039,7 +1026,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
 			}
 		}
 
-		for (lt = bmain->latt.first; lt; lt = lt->id.next) {
+		for (lt = bmain->lattice.first; lt; lt = lt->id.next) {
 			if ((key = blo_do_versions_newlibadr(fd, lib, lt->key)) && key->refkey) {
 				data = key->refkey->data;
 				tot = MIN2(lt->pntsu * lt->pntsv * lt->pntsw, key->refkey->totelem);
@@ -1486,7 +1473,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
 		/* Blender 2.5.2 - subversion 0 introduced a new setting: V3D_RENDER_OVERRIDE.
 		 * This bit was used in the past for V3D_TRANSFORM_SNAP, which is now deprecated.
 		 * Here we clear it for old files so they don't come in with V3D_RENDER_OVERRIDE set,
-		 * which would cause cameras, lamps, etc to become invisible */
+		 * which would cause cameras, lights, etc to become invisible */
 		for (sc = bmain->screen.first; sc; sc = sc->id.next) {
 			ScrArea *sa;
 			for (sa = sc->areabase.first; sa; sa = sa->next) {

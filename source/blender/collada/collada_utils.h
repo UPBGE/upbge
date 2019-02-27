@@ -39,7 +39,7 @@ extern "C" {
 #include "DNA_anim_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_lamp_types.h"
+#include "DNA_light_types.h"
 #include "DNA_camera_types.h"
 
 #include "DNA_customdata_types.h"
@@ -90,13 +90,13 @@ inline bAction *bc_getSceneObjectAction(Object *ob)
 	return (ob->adt && ob->adt->action) ? ob->adt->action : NULL;
 }
 
-/* Returns Lamp Action or NULL */
-inline bAction *bc_getSceneLampAction(Object *ob)
+/* Returns Light Action or NULL */
+inline bAction *bc_getSceneLightAction(Object *ob)
 {
 	if (ob->type != OB_LAMP)
 		return NULL;
 
-	Lamp *lamp = (Lamp *)ob->data;
+	Light *lamp = (Light *)ob->data;
 	return (lamp->adt && lamp->adt->action) ? lamp->adt->action : NULL;
 }
 

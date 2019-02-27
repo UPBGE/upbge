@@ -354,7 +354,7 @@ typedef struct Object {
 
 	short scaflag;			/* ui state for game logic */
 	short scavisflag;		/* more display settings for game logic */
-	short pad53[2];
+	short _pad53[2];
 
 	/* dupli-frame settings */
 	int dupon, dupoff, dupsta, dupend;
@@ -390,7 +390,7 @@ typedef struct Object {
 	short max_jumps;
 
 	/* for now used to temporarily holds the type of collision object */
-	short  body_type, pad52[2];
+	short  body_type, _pad52[2];
 	
 	/** the custom data layer mask that was last used to calculate derivedDeform and derivedFinal */
 	uint64_t lastDataMask;
@@ -416,7 +416,7 @@ typedef struct Object {
 	/* dynamic properties */
 	float friction, rolling_friction, fh, reflect;
 	float fhdist, xyfrict;
-	short dynamode, pad51[3];
+	short dynamode, _pad51[3];
 	/********End of Game engine***********/
 
 	ListBase pc_ids;

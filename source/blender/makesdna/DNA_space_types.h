@@ -97,7 +97,7 @@ typedef struct SpaceInfo {
 	/* End 'SpaceLink' header. */
 
 	char rpt_mask;
-	char pad[7];
+	char _pad[7];
 } SpaceInfo;
 
 /* SpaceInfo.rpt_mask */
@@ -262,7 +262,7 @@ typedef struct SpaceOutliner {
 	short flag, outlinevis, storeflag, search_flags;
 	int filter;
 	char filter_state;
-	char pad;
+	char _pad;
 	short filter_id_type;
 
 	/**
@@ -415,7 +415,7 @@ typedef struct SpaceGraph {
 	float cursorVal;
 	/** Pivot point for transforms. */
 	int around;
-	int pad;
+	char _pad[4];
 
 	SpaceGraph_Runtime runtime;
 } SpaceGraph;
@@ -492,7 +492,7 @@ typedef struct SpaceNla {
 	/** This uses the same settings as autosnap for Action Editor. */
 	short autosnap;
 	short flag;
-	int pad;
+	char _pad[4];
 
 	struct bDopeSheet *ads;
 	/** Deprecated, copied to region. */
@@ -514,6 +514,8 @@ typedef enum eSpaceNla_Flag {
 	SNLA_NOREALTIMEUPDATES = (1 << 6),
 	/* don't show local strip marker indications */
 	SNLA_NOLOCALMARKERS    = (1 << 7),
+	/* show vertical line for every marker */
+	SNLA_SHOW_MARKER_LINES = (1 << 8),
 } eSpaceNla_Flag;
 
 /** \} */
@@ -551,7 +553,7 @@ typedef struct SpaceSeq {
 	int overlay_type;
 	/** Overlay an image of the editing on below the strips. */
 	int draw_flag;
-	int pad;
+	char _pad[4];
 
 	/** Grease-pencil data. */
 	struct bGPdata *gpd;
@@ -561,10 +563,10 @@ typedef struct SpaceSeq {
 
 	/** Multiview current eye - for internal use. */
 	char multiview_eye;
-	char pad2[7];
+	char _pad2[7];
 
 	struct GPUFX *compositor;
-	void *pad3;
+	void *_pad3;
 } SpaceSeq;
 
 
@@ -625,7 +627,7 @@ typedef struct MaskSpaceInfo {
 	char draw_flag;
 	char draw_type;
 	char overlay_mode;
-	char pad3[5];
+	char _pad3[5];
 } MaskSpaceInfo;
 
 /* SpaceSeq.mainb */
@@ -650,7 +652,7 @@ typedef struct FileSelectParams {
 	 * needs to be linked in, where foo.blend/Armature need adding
 	 */
 	char dir[1090];
-	char pad_c1[2];
+	char _pad0[2];
 	char file[256];
 	char renamefile[256];
 	/** Annoying but the first is only used for initialization. */
@@ -671,7 +673,7 @@ typedef struct FileSelectParams {
 	int sel_first;
 	int sel_last;
 	unsigned short thumbnail_size;
-	short pad;
+	char _pad1[2];
 
 	/* short */
 	/** XXXXX for now store type here, should be moved to the operator. */
@@ -840,23 +842,30 @@ typedef enum eDirEntry_SelectFlag {
 #define ASSET_UUID_LENGTH     16
 
 /* Used to communicate with asset engines outside of 'import' context. */
+#
+#
 typedef struct AssetUUID {
 	int uuid_asset[4];
 	int uuid_variant[4];
 	int uuid_revision[4];
 } AssetUUID;
 
+#
+#
 typedef struct AssetUUIDList {
 	AssetUUID *uuids;
-	int nbr_uuids, pad;
+	int nbr_uuids;
+	char _pad[4];
 } AssetUUIDList;
 
 /* Container for a revision, only relevant in asset context. */
+#
+#
 typedef struct FileDirEntryRevision {
 	struct FileDirEntryRevision *next, *prev;
 
 	char *comment;
-	void *pad;
+	void *_pad;
 
 	int uuid[4];
 
@@ -870,6 +879,8 @@ typedef struct FileDirEntryRevision {
 
 /* Container for a variant, only relevant in asset context.
  * In case there are no variants, a single one shall exist, with NULL name/description. */
+#
+#
 typedef struct FileDirEntryVariant {
 	struct FileDirEntryVariant *next, *prev;
 
@@ -883,6 +894,8 @@ typedef struct FileDirEntryVariant {
 } FileDirEntryVariant;
 
 /* Container for mere direntry, with additional asset-related data. */
+#
+#
 typedef struct FileDirEntry {
 	struct FileDirEntry *next, *prev;
 
@@ -924,6 +937,8 @@ typedef struct FileDirEntry {
  * In AssetEngine context (i.e. outside of 'browsing' context), entries contain all needed data, there is no filtering,
  *                        so nbr_entries_filtered, entry_idx_start and entry_idx_end should all be set to -1.
  */
+#
+#
 typedef struct FileDirEntryArr {
 	ListBase entries;
 	int nbr_entries;
@@ -987,7 +1002,7 @@ typedef struct SpaceImage {
 	char mode_prev;
 
 	char  pin;
-	char _pad;
+	char _pad1;
 	/**
 	 * The currently active tile of the image when tile is enabled,
 	 * is kept in sync with the active faces tile.
@@ -1004,7 +1019,7 @@ typedef struct SpaceImage {
 	int flag;
 
 	char pixel_snap_mode;
-	char pad[3];
+	char _pad2[3];
 
 	MaskSpaceInfo mask_info;
 } SpaceImage;
@@ -1152,7 +1167,7 @@ typedef struct SpaceText {
 	short margin_column;
 	/** Actual lineheight, dpi controlled. */
 	short lheight_dpi;
-	char pad[4];
+	char _pad[4];
 
 	/** Cache for faster drawing. */
 	void *drawcache;
@@ -1221,7 +1236,7 @@ typedef struct SpaceScript {
 	struct Script *script;
 
 	short flags, menunr;
-	int pad1;
+	char _pad1[4];
 
 	void *but_refs;
 } SpaceScript;
@@ -1238,7 +1253,7 @@ typedef struct bNodeTreePath {
 	struct bNodeTree *nodetree;
 	/** Base key for nodes in this tree instance. */
 	bNodeInstanceKey parent_key;
-	int pad;
+	char _pad[4];
 	/** V2d center point, so node trees can have different offsets in editors. */
 	float view_center[2];
 
@@ -1261,9 +1276,11 @@ typedef struct SpaceNode {
 	/** Context, no need to save in file? well... pinning... */
 	struct ID *id, *from;
 	/** Menunr: browse id block in header. */
-	short flag, pad1;
+	short flag;
+	char _pad1[2];
 	/** Internal state variables. */
-	float aspect, pad2;
+	float aspect;
+	char _pad2[4];
 
 	/** Offset for drawing the backdrop. */
 	float xof, yof;
@@ -1285,7 +1302,7 @@ typedef struct SpaceNode {
 	char tree_idname[64];
 	/** Treetype: as same nodetree->type. */
 	int treetype DNA_DEPRECATED;
-	int pad3;
+	char _pad3[4];
 
 	/** Texfrom object, world or brush. */
 	short texfrom;
@@ -1296,7 +1313,7 @@ typedef struct SpaceNode {
 
 	/** Direction for offsetting nodes on insertion. */
 	char insert_ofs_dir;
-	char pad4;
+	char _pad4;
 
 	/** Temporary data for modal linking operator. */
 	ListBase linkdrag;
@@ -1359,7 +1376,7 @@ typedef struct SpaceLogic {
 	short blockhandler[8]  DNA_DEPRECATED;
 	
 	short flag, scaflag;
-	int pad;
+	int _pad;
 	
 	struct bGPdata *gpd;        /* grease-pencil data */
 } SpaceLogic;
@@ -1406,7 +1423,8 @@ typedef struct SpaceConsole {
 	/* End 'SpaceLink' header. */
 
 	/* space vars */
-	int lheight, pad;
+	int lheight;
+	char _pad[4];
 
 	/** ConsoleLine; output. */
 	ListBase scrollback;
@@ -1486,7 +1504,7 @@ typedef struct SpaceClip {
 	/* current stabilization data */
 	/** Pre-composed stabilization data. */
 	float loc[2], scale, angle;
-	int pad;
+	char _pad[4];
 	/**
 	 * Current stabilization matrix and the same matrix in unified space,
 	 * defined when drawing and used for mouse position calculation.
@@ -1497,10 +1515,12 @@ typedef struct SpaceClip {
 	int postproc_flag;
 
 	/* grease pencil */
-	short gpencil_src, pad2;
+	short gpencil_src;
+	char _pad2[2];
 
 	/** Pivot point for transforms. */
-	int around, pad4;
+	int around;
+	char _pad4[4];
 
 	/** Mask editor 2d cursor. */
 	float cursor[2];
