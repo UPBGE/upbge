@@ -28,13 +28,13 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/Ketsji/KX_ConstraintActuator.cpp
+/** \file gameengine/Ketsji/SCA_ConstraintActuator.cpp
  *  \ingroup ketsji
  */
 
 
 #include "SCA_IActuator.h"
-#include "KX_ConstraintActuator.h"
+#include "SCA_ConstraintActuator.h"
 #include "SCA_IObject.h"
 #include "MT_Vector3.h"
 #include "MT_Matrix3x3.h"
@@ -49,7 +49,7 @@
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
 
-KX_ConstraintActuator::KX_ConstraintActuator(SCA_IObject *gameobj, 
+SCA_ConstraintActuator::SCA_ConstraintActuator(SCA_IObject *gameobj, 
 											 int posDampTime,
 											 int rotDampTime,
 											 float minBound,
@@ -112,12 +112,12 @@ KX_ConstraintActuator::KX_ConstraintActuator(SCA_IObject *gameobj,
 
 } /* End of constructor */
 
-KX_ConstraintActuator::~KX_ConstraintActuator()
+SCA_ConstraintActuator::~SCA_ConstraintActuator()
 { 
 	// there's nothing to be done here, really....
 } /* end of destructor */
 
-bool KX_ConstraintActuator::RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, void *UNUSED(data))
+bool SCA_ConstraintActuator::RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, void *UNUSED(data))
 {
 
 	m_hitObject = client->m_gameobject;
@@ -153,7 +153,7 @@ bool KX_ConstraintActuator::RayHit(KX_ClientObjectInfo *client, KX_RayCast *resu
 /* This function is used to pre-filter the object before casting the ray on them.
  * This is useful for "X-Ray" option when we want to see "through" unwanted object.
  */
-bool KX_ConstraintActuator::NeedRayCast(KX_ClientObjectInfo *client, void *UNUSED(data))
+bool SCA_ConstraintActuator::NeedRayCast(KX_ClientObjectInfo *client, void *UNUSED(data))
 {
 	if (client->m_type > KX_ClientObjectInfo::ACTOR)
 	{
@@ -166,7 +166,7 @@ bool KX_ConstraintActuator::NeedRayCast(KX_ClientObjectInfo *client, void *UNUSE
 	return true;
 }
 
-bool KX_ConstraintActuator::Update(double curtime)
+bool SCA_ConstraintActuator::Update(double curtime)
 {
 
 	bool result = false;
@@ -347,7 +347,7 @@ bool KX_ConstraintActuator::Update(double curtime)
 						spc = parent->GetPhysicsController();
 					}
 				}
-				KX_RayCast::Callback<KX_ConstraintActuator, void> callback(this,dynamic_cast<PHY_IPhysicsController*>(spc));
+				KX_RayCast::Callback<SCA_ConstraintActuator, void> callback(this,dynamic_cast<PHY_IPhysicsController*>(spc));
 				result = KX_RayCast::RayTest(pe, position, topoint, callback);
 				if (result)	{
 					MT_Vector3 newnormal = callback.m_hitNormal;
@@ -459,7 +459,7 @@ bool KX_ConstraintActuator::Update(double curtime)
 				m_hitObject = nullptr;
 				// distance of Fh area is stored in m_minimum
 				MT_Vector3 topoint = position + (m_minimumBound+spc->GetRadius()) * direction;
-				KX_RayCast::Callback<KX_ConstraintActuator, void> callback(this, spc);
+				KX_RayCast::Callback<SCA_ConstraintActuator, void> callback(this, spc);
 				result = KX_RayCast::RayTest(pe, position, topoint, callback);
 				// we expect a hit object
 				if (!m_hitObject)
@@ -539,9 +539,9 @@ bool KX_ConstraintActuator::Update(double curtime)
 		m_currentTime = 0;
 	}
 	return result;
-} /* end of KX_ConstraintActuator::Update(double curtime,double deltatime)   */
+} /* end of SCA_ConstraintActuator::Update(double curtime,double deltatime)   */
 
-void KX_ConstraintActuator::Clamp(MT_Scalar &var, 
+void SCA_ConstraintActuator::Clamp(MT_Scalar &var, 
 								  float min, 
 								  float max) {
 	if (var < min) {
@@ -558,9 +558,9 @@ void KX_ConstraintActuator::Clamp(MT_Scalar &var,
 /* ------------------------------------------------------------------------- */
 
 /* Integration hooks ------------------------------------------------------- */
-PyTypeObject KX_ConstraintActuator::Type = {
+PyTypeObject SCA_ConstraintActuator::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
-	"KX_ConstraintActuator",
+	"SCA_ConstraintActuator",
 	sizeof(PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
@@ -580,32 +580,32 @@ PyTypeObject KX_ConstraintActuator::Type = {
 	py_base_new
 };
 
-PyMethodDef KX_ConstraintActuator::Methods[] = {
+PyMethodDef SCA_ConstraintActuator::Methods[] = {
 	{nullptr,nullptr} //Sentinel
 };
 
-PyAttributeDef KX_ConstraintActuator::Attributes[] = {
-	KX_PYATTRIBUTE_INT_RW("damp",0,100,true,KX_ConstraintActuator,m_posDampTime),
-	KX_PYATTRIBUTE_INT_RW("rotDamp",0,100,true,KX_ConstraintActuator,m_rotDampTime),
-	KX_PYATTRIBUTE_FLOAT_ARRAY_RW_CHECK("direction",-FLT_MAX,FLT_MAX,KX_ConstraintActuator,m_refDirection,3,pyattr_check_direction),
-	KX_PYATTRIBUTE_INT_RW("option",0,0xFFFF,false,KX_ConstraintActuator,m_option),
-	KX_PYATTRIBUTE_INT_RW("time",0,1000,true,KX_ConstraintActuator,m_activeTime),
-	KX_PYATTRIBUTE_STRING_RW("propName",0,MAX_PROP_NAME,true,KX_ConstraintActuator,m_property),
-	KX_PYATTRIBUTE_FLOAT_RW("min",-FLT_MAX,FLT_MAX,KX_ConstraintActuator,m_minimumBound),
-	KX_PYATTRIBUTE_FLOAT_RW("distance",-FLT_MAX,FLT_MAX,KX_ConstraintActuator,m_minimumBound),
-	KX_PYATTRIBUTE_FLOAT_RW("max",-FLT_MAX,FLT_MAX,KX_ConstraintActuator,m_maximumBound),
-	KX_PYATTRIBUTE_FLOAT_RW("rayLength",0,2000.f,KX_ConstraintActuator,m_maximumBound),
-	KX_PYATTRIBUTE_INT_RW("limit",KX_ConstraintActuator::KX_ACT_CONSTRAINT_NODEF+1,KX_ConstraintActuator::KX_ACT_CONSTRAINT_MAX-1,false,KX_ConstraintActuator,m_locrot),
+PyAttributeDef SCA_ConstraintActuator::Attributes[] = {
+	KX_PYATTRIBUTE_INT_RW("damp",0,100,true,SCA_ConstraintActuator,m_posDampTime),
+	KX_PYATTRIBUTE_INT_RW("rotDamp",0,100,true,SCA_ConstraintActuator,m_rotDampTime),
+	KX_PYATTRIBUTE_FLOAT_ARRAY_RW_CHECK("direction",-FLT_MAX,FLT_MAX,SCA_ConstraintActuator,m_refDirection,3,pyattr_check_direction),
+	KX_PYATTRIBUTE_INT_RW("option",0,0xFFFF,false,SCA_ConstraintActuator,m_option),
+	KX_PYATTRIBUTE_INT_RW("time",0,1000,true,SCA_ConstraintActuator,m_activeTime),
+	KX_PYATTRIBUTE_STRING_RW("propName",0,MAX_PROP_NAME,true,SCA_ConstraintActuator,m_property),
+	KX_PYATTRIBUTE_FLOAT_RW("min",-FLT_MAX,FLT_MAX,SCA_ConstraintActuator,m_minimumBound),
+	KX_PYATTRIBUTE_FLOAT_RW("distance",-FLT_MAX,FLT_MAX,SCA_ConstraintActuator,m_minimumBound),
+	KX_PYATTRIBUTE_FLOAT_RW("max",-FLT_MAX,FLT_MAX,SCA_ConstraintActuator,m_maximumBound),
+	KX_PYATTRIBUTE_FLOAT_RW("rayLength",0,2000.f,SCA_ConstraintActuator,m_maximumBound),
+	KX_PYATTRIBUTE_INT_RW("limit",SCA_ConstraintActuator::KX_ACT_CONSTRAINT_NODEF+1,SCA_ConstraintActuator::KX_ACT_CONSTRAINT_MAX-1,false,SCA_ConstraintActuator,m_locrot),
 	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
-int KX_ConstraintActuator::pyattr_check_direction(PyObjectPlus *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef)
+int SCA_ConstraintActuator::pyattr_check_direction(PyObjectPlus *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_ConstraintActuator* act = static_cast<KX_ConstraintActuator*>(self_v);
+	SCA_ConstraintActuator* act = static_cast<SCA_ConstraintActuator*>(self_v);
 	MT_Vector3 dir(act->m_refDirection);
 	MT_Scalar len = dir.length();
 	if (MT_fuzzyZero(len)) {
-		PyErr_SetString(PyExc_ValueError, "actuator.direction = vec: KX_ConstraintActuator, invalid direction");
+		PyErr_SetString(PyExc_ValueError, "actuator.direction = vec: SCA_ConstraintActuator, invalid direction");
 		return 1;
 	}
 	act->m_refDirVector = dir/len;

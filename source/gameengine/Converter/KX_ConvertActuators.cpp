@@ -60,7 +60,7 @@
 #include "KX_SoundActuator.h"
 #include "KX_ObjectActuator.h"
 #include "KX_TrackToActuator.h"
-#include "KX_ConstraintActuator.h"
+#include "SCA_ConstraintActuator.h"
 #include "SCA_CameraActuator.h"
 #include "KX_GameActuator.h"
 #include "KX_StateActuator.h"
@@ -490,7 +490,7 @@ void BL_ConvertActuators(const char* maggiename,
 			{
 				float min = 0.0, max = 0.0;
 				char *prop = nullptr;
-				KX_ConstraintActuator::KX_CONSTRAINTTYPE locrot = KX_ConstraintActuator::KX_ACT_CONSTRAINT_NODEF;
+				SCA_ConstraintActuator::KX_CONSTRAINTTYPE locrot = SCA_ConstraintActuator::KX_ACT_CONSTRAINT_NODEF;
 				bConstraintActuator *conact 
 					= (bConstraintActuator*) bact->data;
 				/* convert settings... degrees in the ui become radians  */ 
@@ -500,44 +500,44 @@ void BL_ConvertActuators(const char* maggiename,
 					max = conact->maxloc[0];
 					switch (conact->mode) {
 					case ACT_CONST_DIRPX:
-						locrot = KX_ConstraintActuator::KX_ACT_CONSTRAINT_ORIX;
+						locrot = SCA_ConstraintActuator::KX_ACT_CONSTRAINT_ORIX;
 						break;
 					case ACT_CONST_DIRPY:
-						locrot = KX_ConstraintActuator::KX_ACT_CONSTRAINT_ORIY;
+						locrot = SCA_ConstraintActuator::KX_ACT_CONSTRAINT_ORIY;
 						break;
 					case ACT_CONST_DIRPZ:
-						locrot = KX_ConstraintActuator::KX_ACT_CONSTRAINT_ORIZ;
+						locrot = SCA_ConstraintActuator::KX_ACT_CONSTRAINT_ORIZ;
 						break;
 					}
 				} else if (conact->type == ACT_CONST_TYPE_DIST) {
 					switch (conact->mode) {
 					case ACT_CONST_DIRPX:
-						locrot = KX_ConstraintActuator::KX_ACT_CONSTRAINT_DIRPX;
+						locrot = SCA_ConstraintActuator::KX_ACT_CONSTRAINT_DIRPX;
 						min = conact->minloc[0];
 						max = conact->maxloc[0];
 						break;
 					case ACT_CONST_DIRPY:
-						locrot = KX_ConstraintActuator::KX_ACT_CONSTRAINT_DIRPY;
+						locrot = SCA_ConstraintActuator::KX_ACT_CONSTRAINT_DIRPY;
 						min = conact->minloc[1];
 						max = conact->maxloc[1];
 						break;
 					case ACT_CONST_DIRPZ:
-						locrot = KX_ConstraintActuator::KX_ACT_CONSTRAINT_DIRPZ;
+						locrot = SCA_ConstraintActuator::KX_ACT_CONSTRAINT_DIRPZ;
 						min = conact->minloc[2];
 						max = conact->maxloc[2];
 						break;
 					case ACT_CONST_DIRNX:
-						locrot = KX_ConstraintActuator::KX_ACT_CONSTRAINT_DIRNX;
+						locrot = SCA_ConstraintActuator::KX_ACT_CONSTRAINT_DIRNX;
 						min = conact->minloc[0];
 						max = conact->maxloc[0];
 						break;
 					case ACT_CONST_DIRNY:
-						locrot = KX_ConstraintActuator::KX_ACT_CONSTRAINT_DIRNY;
+						locrot = SCA_ConstraintActuator::KX_ACT_CONSTRAINT_DIRNY;
 						min = conact->minloc[1];
 						max = conact->maxloc[1];
 						break;
 					case ACT_CONST_DIRNZ:
-						locrot = KX_ConstraintActuator::KX_ACT_CONSTRAINT_DIRNZ;
+						locrot = SCA_ConstraintActuator::KX_ACT_CONSTRAINT_DIRNZ;
 						min = conact->minloc[2];
 						max = conact->maxloc[2];
 						break;
@@ -546,32 +546,32 @@ void BL_ConvertActuators(const char* maggiename,
 				} else if (conact->type == ACT_CONST_TYPE_FH) {
 					switch (conact->mode) {
 					case ACT_CONST_DIRPX:
-						locrot = KX_ConstraintActuator::KX_ACT_CONSTRAINT_FHPX;
+						locrot = SCA_ConstraintActuator::KX_ACT_CONSTRAINT_FHPX;
 						min = conact->minloc[0];
 						max = conact->maxloc[0];
 						break;
 					case ACT_CONST_DIRPY:
-						locrot = KX_ConstraintActuator::KX_ACT_CONSTRAINT_FHPY;
+						locrot = SCA_ConstraintActuator::KX_ACT_CONSTRAINT_FHPY;
 						min = conact->minloc[1];
 						max = conact->maxloc[1];
 						break;
 					case ACT_CONST_DIRPZ:
-						locrot = KX_ConstraintActuator::KX_ACT_CONSTRAINT_FHPZ;
+						locrot = SCA_ConstraintActuator::KX_ACT_CONSTRAINT_FHPZ;
 						min = conact->minloc[2];
 						max = conact->maxloc[2];
 						break;
 					case ACT_CONST_DIRNX:
-						locrot = KX_ConstraintActuator::KX_ACT_CONSTRAINT_FHNX;
+						locrot = SCA_ConstraintActuator::KX_ACT_CONSTRAINT_FHNX;
 						min = conact->minloc[0];
 						max = conact->maxloc[0];
 						break;
 					case ACT_CONST_DIRNY:
-						locrot = KX_ConstraintActuator::KX_ACT_CONSTRAINT_FHNY;
+						locrot = SCA_ConstraintActuator::KX_ACT_CONSTRAINT_FHNY;
 						min = conact->minloc[1];
 						max = conact->maxloc[1];
 						break;
 					case ACT_CONST_DIRNZ:
-						locrot = KX_ConstraintActuator::KX_ACT_CONSTRAINT_FHNZ;
+						locrot = SCA_ConstraintActuator::KX_ACT_CONSTRAINT_FHNZ;
 						min = conact->minloc[2];
 						max = conact->maxloc[2];
 						break;
@@ -580,32 +580,32 @@ void BL_ConvertActuators(const char* maggiename,
 				} else {
 					switch (conact->flag) {
 					case ACT_CONST_LOCX:
-						locrot = KX_ConstraintActuator::KX_ACT_CONSTRAINT_LOCX; 
+						locrot = SCA_ConstraintActuator::KX_ACT_CONSTRAINT_LOCX; 
 						min = conact->minloc[0];
 						max = conact->maxloc[0];
 						break;
 					case ACT_CONST_LOCY:
-						locrot = KX_ConstraintActuator::KX_ACT_CONSTRAINT_LOCY; 
+						locrot = SCA_ConstraintActuator::KX_ACT_CONSTRAINT_LOCY; 
 						min = conact->minloc[1];
 						max = conact->maxloc[1];
 						break;
 					case ACT_CONST_LOCZ:
-						locrot = KX_ConstraintActuator::KX_ACT_CONSTRAINT_LOCZ;
+						locrot = SCA_ConstraintActuator::KX_ACT_CONSTRAINT_LOCZ;
 						min = conact->minloc[2];
 						max = conact->maxloc[2];
 						break;
 					case ACT_CONST_ROTX:
-						locrot = KX_ConstraintActuator::KX_ACT_CONSTRAINT_ROTX;
+						locrot = SCA_ConstraintActuator::KX_ACT_CONSTRAINT_ROTX;
 						min = conact->minrot[0] * (float)MT_RADS_PER_DEG;
 						max = conact->maxrot[0] * (float)MT_RADS_PER_DEG;
 						break;
 					case ACT_CONST_ROTY:
-						locrot = KX_ConstraintActuator::KX_ACT_CONSTRAINT_ROTY;
+						locrot = SCA_ConstraintActuator::KX_ACT_CONSTRAINT_ROTY;
 						min = conact->minrot[1] * (float)MT_RADS_PER_DEG;
 						max = conact->maxrot[1] * (float)MT_RADS_PER_DEG;
 						break;
 					case ACT_CONST_ROTZ:
-						locrot = KX_ConstraintActuator::KX_ACT_CONSTRAINT_ROTZ;
+						locrot = SCA_ConstraintActuator::KX_ACT_CONSTRAINT_ROTZ;
 						min = conact->minrot[2] * (float)MT_RADS_PER_DEG;
 						max = conact->maxrot[2] * (float)MT_RADS_PER_DEG;
 						break;
@@ -613,7 +613,7 @@ void BL_ConvertActuators(const char* maggiename,
 						; /* error */ 
 					}
 				}
-				KX_ConstraintActuator *tmpconact = new KX_ConstraintActuator(
+				SCA_ConstraintActuator *tmpconact = new SCA_ConstraintActuator(
 				            gameobj,
 				            conact->damp,
 				            conact->rotdamp,

@@ -25,12 +25,12 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file KX_ConstraintActuator.h
+/** \file SCA_ConstraintActuator.h
  *  \ingroup ketsji
  */
 
-#ifndef __KX_CONSTRAINTACTUATOR_H__
-#define __KX_CONSTRAINTACTUATOR_H__
+#ifndef __SCA_ConstraintActuator_H__
+#define __SCA_ConstraintActuator_H__
 
 #include "SCA_IActuator.h"
 #include "MT_Scalar.h"
@@ -42,7 +42,7 @@
 class KX_RayCast;
 class KX_GameObject;
 
-class KX_ConstraintActuator : public SCA_IActuator
+class SCA_ConstraintActuator : public SCA_IActuator
 {
 	Py_Header
 protected:
@@ -120,7 +120,7 @@ protected:
 	/// \see KX_RayCast
 	bool NeedRayCast(KX_ClientObjectInfo *client, void *UNUSED(data));
 
-	KX_ConstraintActuator(SCA_IObject* gameobj,
+	SCA_ConstraintActuator(SCA_IObject* gameobj,
 						  int posDamptime,
 						  int rotDampTime,
 						  float min,
@@ -130,9 +130,9 @@ protected:
 						  int time,
 						  int option,
 						  char *property);
-	virtual ~KX_ConstraintActuator();
+	virtual ~SCA_ConstraintActuator();
 	virtual CValue* GetReplica() {
-		KX_ConstraintActuator* replica = new KX_ConstraintActuator(*this);
+		SCA_ConstraintActuator* replica = new SCA_ConstraintActuator(*this);
 		replica->ProcessReplica();
 		return replica;
 	};
@@ -148,4 +148,4 @@ protected:
 
 };
 
-#endif  /* __KX_CONSTRAINTACTUATOR_H__ */
+#endif  /* __SCA_ConstraintActuator_H__ */

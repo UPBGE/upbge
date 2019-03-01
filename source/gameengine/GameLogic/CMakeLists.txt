@@ -56,6 +56,7 @@ set(SRC
 	SCA_BasicEventManager.cpp
 	SCA_CameraActuator.cpp
 	SCA_CollisionSensor.cpp
+	SCA_ConstraintActuator.cpp
 	SCA_DelaySensor.cpp
 	SCA_EventManager.cpp
 	SCA_ExpressionController.cpp
@@ -100,6 +101,7 @@ set(SRC
 	SCA_BasicEventManager.h
 	SCA_CameraActuator.h
 	SCA_CollisionSensor.h
+	SCA_ConstraintActuator.h
 	SCA_DelaySensor.h
 	SCA_EventManager.h
 	SCA_ExpressionController.h
