@@ -32,7 +32,7 @@
 
 #include "KX_CollisionEventManager.h"
 #include "SCA_ISensor.h"
-#include "KX_CollisionSensor.h"
+#include "SCA_CollisionSensor.h"
 #include "KX_GameObject.h"
 #include "KX_CollisionContactPoints.h"
 #include "PHY_IPhysicsEnvironment.h"
@@ -121,7 +121,7 @@ bool KX_CollisionEventManager::newBroadphaseResponse(void *client_data,
 		case KX_ClientObjectInfo::SENSOR:
 			if (info1->m_sensors.size() == 1) {
 				// only one sensor for this type of object
-				KX_CollisionSensor *collisionsensor = static_cast<KX_CollisionSensor *>(*info1->m_sensors.begin());
+				SCA_CollisionSensor *collisionsensor = static_cast<SCA_CollisionSensor *>(*info1->m_sensors.begin());
 				return collisionsensor->BroadPhaseFilterCollision(object1, object2);
 			}
 			break;
@@ -134,7 +134,7 @@ bool KX_CollisionEventManager::newBroadphaseResponse(void *client_data,
 			     ++it)
 			{
 				if ((*it)->GetSensorType() == SCA_ISensor::ST_TOUCH) {
-					KX_CollisionSensor *collisionsensor = static_cast<KX_CollisionSensor *>(*it);
+					SCA_CollisionSensor *collisionsensor = static_cast<SCA_CollisionSensor *>(*it);
 					if (collisionsensor->BroadPhaseSensorFilterCollision(object1, object2)) {
 						return true;
 					}
@@ -155,7 +155,7 @@ bool KX_CollisionEventManager::newBroadphaseResponse(void *client_data,
 
 void KX_CollisionEventManager::RegisterSensor(SCA_ISensor *sensor)
 {
-	KX_CollisionSensor *collisionsensor = static_cast<KX_CollisionSensor *>(sensor);
+	SCA_CollisionSensor *collisionsensor = static_cast<SCA_CollisionSensor *>(sensor);
 	if (m_sensors.AddBack(collisionsensor)) {
 		// the sensor was effectively inserted, register it
 		collisionsensor->RegisterSumo(this);
@@ -164,7 +164,7 @@ void KX_CollisionEventManager::RegisterSensor(SCA_ISensor *sensor)
 
 void KX_CollisionEventManager::RemoveSensor(SCA_ISensor *sensor)
 {
-	KX_CollisionSensor *collisionsensor = static_cast<KX_CollisionSensor *>(sensor);
+	SCA_CollisionSensor *collisionsensor = static_cast<SCA_CollisionSensor *>(sensor);
 	if (collisionsensor->Delink()) {
 		// the sensor was effectively removed, unregister it
 		collisionsensor->UnregisterSumo(this);
@@ -175,7 +175,7 @@ void KX_CollisionEventManager::RemoveSensor(SCA_ISensor *sensor)
 
 void KX_CollisionEventManager::EndFrame()
 {
-	SG_DList::iterator<KX_CollisionSensor> it(m_sensors);
+	SG_DList::iterator<SCA_CollisionSensor> it(m_sensors);
 	for (it.begin(); !it.end(); ++it) {
 		(*it)->EndFrame();
 	}
@@ -185,7 +185,7 @@ void KX_CollisionEventManager::EndFrame()
 
 void KX_CollisionEventManager::NextFrame()
 {
-	SG_DList::iterator<KX_CollisionSensor> it(m_sensors);
+	SG_DList::iterator<SCA_CollisionSensor> it(m_sensors);
 	for (it.begin(); !it.end(); ++it) {
 		(*it)->SynchronizeTransform();
 	}
@@ -204,7 +204,7 @@ void KX_CollisionEventManager::NextFrame()
 		// Invoke sensor response for each object
 		if (client_info) {
 			for (sit = client_info->m_sensors.begin(); sit != client_info->m_sensors.end(); ++sit) {
-				static_cast<KX_CollisionSensor *>(*sit)->NewHandleCollision(ctrl1, ctrl2, nullptr);
+				static_cast<SCA_CollisionSensor *>(*sit)->NewHandleCollision(ctrl1, ctrl2, nullptr);
 			}
 		}
 
@@ -214,7 +214,7 @@ void KX_CollisionEventManager::NextFrame()
 		KX_GameObject *kxObj2 = KX_GameObject::GetClientObject(client_info);
 		if (client_info) {
 			for (sit = client_info->m_sensors.begin(); sit != client_info->m_sensors.end(); ++sit) {
-				static_cast<KX_CollisionSensor *>(*sit)->NewHandleCollision(ctrl2, ctrl1, nullptr);
+				static_cast<SCA_CollisionSensor *>(*sit)->NewHandleCollision(ctrl2, ctrl1, nullptr);
 			}
 		}
 		// Run python callbacks

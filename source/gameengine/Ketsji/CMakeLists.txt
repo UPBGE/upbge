@@ -83,7 +83,6 @@ set(SRC
 	KX_CameraIpoSGController.cpp
 	KX_CharacterWrapper.cpp
 	KX_CollisionEventManager.cpp
-	KX_CollisionSensor.cpp
 	KX_ConstraintActuator.cpp
 	KX_ConstraintWrapper.cpp
 	KX_EmptyObject.cpp
@@ -205,7 +204,6 @@ set(SRC
 	KX_TimeCategoryLogger.h
 	KX_TimeLogger.h
 	KX_CollisionEventManager.h
-	KX_CollisionSensor.h
 	KX_TrackToActuator.h
 	KX_VehicleWrapper.h
 	KX_VertexProxy.h

@@ -59,7 +59,7 @@
 #include "SCA_KeyboardSensor.h"
 #include "SCA_MouseSensor.h"
 #include "SCA_AlwaysSensor.h"
-#include "KX_CollisionSensor.h"
+#include "SCA_CollisionSensor.h"
 #include "KX_NearSensor.h"
 #include "KX_RadarSensor.h"
 #include "KX_MouseFocusSensor.h"
@@ -181,7 +181,7 @@ void BL_ConvertSensors(struct Object* blenderobject,
 
 						if (gameobj->GetPhysicsController())
 						{
-							gamesensor = new KX_CollisionSensor(eventmgr,
+							gamesensor = new SCA_CollisionSensor(eventmgr,
 								gameobj,
 								bFindMaterial,
 								bCollisionPulse,

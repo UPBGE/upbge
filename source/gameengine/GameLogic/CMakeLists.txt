@@ -30,6 +30,7 @@ set(INC
 	../Device
 	../Expressions
 	../Ketsji
+	../Physics/Common
 	../Rasterizer
 	../SceneGraph
 	../../blender/blenkernel
@@ -54,6 +55,7 @@ set(SRC
 	SCA_ArmatureSensor.cpp
 	SCA_BasicEventManager.cpp
 	SCA_CameraActuator.cpp
+	SCA_CollisionSensor.cpp
 	SCA_DelaySensor.cpp
 	SCA_EventManager.cpp
 	SCA_ExpressionController.cpp
@@ -97,6 +99,7 @@ set(SRC
 	SCA_ArmatureSensor.h
 	SCA_BasicEventManager.h
 	SCA_CameraActuator.h
+	SCA_CollisionSensor.h
 	SCA_DelaySensor.h
 	SCA_EventManager.h
 	SCA_ExpressionController.h

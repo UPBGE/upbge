@@ -49,7 +49,7 @@ KX_NearSensor::KX_NearSensor(SCA_EventManager* eventmgr,
 							 bool bFindMaterial,
 							 const std::string& touchedpropname,
 							 PHY_IPhysicsController* ctrl)
-							:KX_CollisionSensor(eventmgr,
+							:SCA_CollisionSensor(eventmgr,
 							 gameobj,
 							 bFindMaterial,
 							 false,
@@ -96,7 +96,7 @@ CValue* KX_NearSensor::GetReplica()
 
 void KX_NearSensor::ProcessReplica()
 {
-	KX_CollisionSensor::ProcessReplica();
+	SCA_CollisionSensor::ProcessReplica();
 	
 	m_client_info = new KX_ClientObjectInfo(m_client_info->m_gameobject, KX_ClientObjectInfo::SENSOR);
 	
@@ -270,7 +270,7 @@ PyTypeObject KX_NearSensor::Type = {
 	Methods,
 	0,
 	0,
-	&KX_CollisionSensor::Type,
+	&SCA_CollisionSensor::Type,
 	0,0,0,0,0,0,
 	py_base_new
 };

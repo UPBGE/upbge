@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file KX_CollisionSensor.h
+/** \file SCA_CollisionSensor.h
  *  \ingroup ketsji
  *  \brief Senses touch and collision events
  */
@@ -48,7 +48,7 @@ typedef unsigned long uint_ptr;
 
 class KX_CollisionEventManager;
 
-class KX_CollisionSensor : public SCA_ISensor
+class SCA_CollisionSensor : public SCA_ISensor
 {
 protected:
 	Py_Header
@@ -76,12 +76,12 @@ protected:
 	std::string m_hitMaterial;
 
 public:
-	KX_CollisionSensor(class SCA_EventManager *eventmgr,
+	SCA_CollisionSensor(class SCA_EventManager *eventmgr,
 	                   class KX_GameObject *gameobj,
 	                   bool bFindMaterial,
 	                   bool bCollisionPulse,
 	                   const std::string& touchedpropname);
-	virtual ~KX_CollisionSensor();
+	virtual ~SCA_CollisionSensor();
 
 	virtual CValue *GetReplica();
 	virtual void ProcessReplica();

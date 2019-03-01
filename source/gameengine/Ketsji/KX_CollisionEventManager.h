@@ -34,7 +34,7 @@
 
 
 #include "SCA_EventManager.h"
-#include "KX_CollisionSensor.h"
+#include "SCA_CollisionSensor.h"
 #include "KX_GameObject.h"
 
 #include <vector>

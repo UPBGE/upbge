@@ -28,12 +28,12 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/Ketsji/KX_CollisionSensor.cpp
+/** \file gameengine/Ketsji/SCA_CollisionSensor.cpp
  *  \ingroup ketsji
  */
 
 
-#include "KX_CollisionSensor.h"
+#include "SCA_CollisionSensor.h"
 #include "SCA_EventManager.h"
 #include "SCA_LogicManager.h"
 #include "KX_GameObject.h"
@@ -51,13 +51,13 @@
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
 
-void KX_CollisionSensor::SynchronizeTransform()
+void SCA_CollisionSensor::SynchronizeTransform()
 {
 	// the touch sensor does not require any synchronization: it uses
 	// the same physical object which is already synchronized by Blender
 }
 
-void KX_CollisionSensor::EndFrame()
+void SCA_CollisionSensor::EndFrame()
 {
 	m_colliders->ReleaseAndRemoveAll();
 	m_hitObject = nullptr;
@@ -65,14 +65,14 @@ void KX_CollisionSensor::EndFrame()
 	m_bColliderHash = 0;
 }
 
-void KX_CollisionSensor::UnregisterToManager()
+void SCA_CollisionSensor::UnregisterToManager()
 {
 	// before unregistering the sensor, make sure we release all references
 	EndFrame();
 	SCA_ISensor::UnregisterToManager();
 }
 
-bool KX_CollisionSensor::Evaluate()
+bool SCA_CollisionSensor::Evaluate()
 {
 	bool result = false;
 	bool reset = m_reset && m_level;
@@ -101,7 +101,7 @@ bool KX_CollisionSensor::Evaluate()
 	return result;
 }
 
-KX_CollisionSensor::KX_CollisionSensor(SCA_EventManager *eventmgr, KX_GameObject *gameobj, bool bFindMaterial, bool bCollisionPulse, const std::string& touchedpropname)
+SCA_CollisionSensor::SCA_CollisionSensor(SCA_EventManager *eventmgr, KX_GameObject *gameobj, bool bFindMaterial, bool bCollisionPulse, const std::string& touchedpropname)
 	:SCA_ISensor(gameobj, eventmgr),
 	m_touchedpropname(touchedpropname),
 	m_bFindMaterial(bFindMaterial),
@@ -118,7 +118,7 @@ KX_CollisionSensor::KX_CollisionSensor(SCA_EventManager *eventmgr, KX_GameObject
 	Init();
 }
 
-void KX_CollisionSensor::Init()
+void SCA_CollisionSensor::Init()
 {
 	m_bCollision = false;
 	m_bTriggered = false;
@@ -129,26 +129,26 @@ void KX_CollisionSensor::Init()
 	m_reset = true;
 }
 
-KX_CollisionSensor::~KX_CollisionSensor()
+SCA_CollisionSensor::~SCA_CollisionSensor()
 {
 	m_colliders->Release();
 }
 
-CValue *KX_CollisionSensor::GetReplica()
+CValue *SCA_CollisionSensor::GetReplica()
 {
-	KX_CollisionSensor *replica = new KX_CollisionSensor(*this);
+	SCA_CollisionSensor *replica = new SCA_CollisionSensor(*this);
 	replica->ProcessReplica();
 	return replica;
 }
 
-void KX_CollisionSensor::ProcessReplica()
+void SCA_CollisionSensor::ProcessReplica()
 {
 	SCA_ISensor::ProcessReplica();
 	m_colliders = new CListValue<KX_GameObject>();
 	Init();
 }
 
-void KX_CollisionSensor::ReParent(SCA_IObject *parent)
+void SCA_CollisionSensor::ReParent(SCA_IObject *parent)
 {
 	KX_GameObject *gameobj = static_cast<KX_GameObject *>(parent);
 	PHY_IPhysicsController *sphy = ((KX_GameObject *)parent)->GetPhysicsController();
@@ -162,7 +162,7 @@ void KX_CollisionSensor::ReParent(SCA_IObject *parent)
 	SCA_ISensor::ReParent(parent);
 }
 
-void KX_CollisionSensor::RegisterSumo(KX_CollisionEventManager *collisionman)
+void SCA_CollisionSensor::RegisterSumo(KX_CollisionEventManager *collisionman)
 {
 	if (m_physCtrl) {
 		if (collisionman->GetPhysicsEnvironment()->RequestCollisionCallback(m_physCtrl)) {
@@ -173,7 +173,7 @@ void KX_CollisionSensor::RegisterSumo(KX_CollisionEventManager *collisionman)
 		}
 	}
 }
-void KX_CollisionSensor::UnregisterSumo(KX_CollisionEventManager *collisionman)
+void SCA_CollisionSensor::UnregisterSumo(KX_CollisionEventManager *collisionman)
 {
 	if (m_physCtrl) {
 		if (collisionman->GetPhysicsEnvironment()->RemoveCollisionCallback(m_physCtrl)) {
@@ -188,7 +188,7 @@ void KX_CollisionSensor::UnregisterSumo(KX_CollisionEventManager *collisionman)
 
 // this function is called only for sensor objects
 // return true if the controller can collide with the object
-bool KX_CollisionSensor::BroadPhaseSensorFilterCollision(void *obj1, void *obj2)
+bool SCA_CollisionSensor::BroadPhaseSensorFilterCollision(void *obj1, void *obj2)
 {
 	BLI_assert(obj1 == m_physCtrl && obj2);
 
@@ -228,7 +228,7 @@ bool KX_CollisionSensor::BroadPhaseSensorFilterCollision(void *obj1, void *obj2)
 	return found;
 }
 
-bool KX_CollisionSensor::NewHandleCollision(void *object1, void *object2, const PHY_CollData *colldata)
+bool SCA_CollisionSensor::NewHandleCollision(void *object1, void *object2, const PHY_CollData *colldata)
 {
 	KX_GameObject *parent = (KX_GameObject *)GetParent();
 
@@ -290,9 +290,9 @@ bool KX_CollisionSensor::NewHandleCollision(void *object1, void *object2, const 
 /* Python functions                                                          */
 /* ------------------------------------------------------------------------- */
 /* Integration hooks ------------------------------------------------------- */
-PyTypeObject KX_CollisionSensor::Type = {
+PyTypeObject SCA_CollisionSensor::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
-	"KX_CollisionSensor",
+	"SCA_CollisionSensor",
 	sizeof(PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
@@ -312,25 +312,25 @@ PyTypeObject KX_CollisionSensor::Type = {
 	py_base_new
 };
 
-PyMethodDef KX_CollisionSensor::Methods[] = {
+PyMethodDef SCA_CollisionSensor::Methods[] = {
 	{nullptr, nullptr} //Sentinel
 };
 
-PyAttributeDef KX_CollisionSensor::Attributes[] = {
-	KX_PYATTRIBUTE_STRING_RW("propName", 0, MAX_PROP_NAME, false, KX_CollisionSensor, m_touchedpropname),
-	KX_PYATTRIBUTE_BOOL_RW("useMaterial", KX_CollisionSensor, m_bFindMaterial),
-	KX_PYATTRIBUTE_BOOL_RW("usePulseCollision", KX_CollisionSensor, m_bCollisionPulse),
-	KX_PYATTRIBUTE_STRING_RO("hitMaterial", KX_CollisionSensor, m_hitMaterial),
-	KX_PYATTRIBUTE_RO_FUNCTION("hitObject", KX_CollisionSensor, pyattr_get_object_hit),
-	KX_PYATTRIBUTE_RO_FUNCTION("hitObjectList", KX_CollisionSensor, pyattr_get_object_hit_list),
+PyAttributeDef SCA_CollisionSensor::Attributes[] = {
+	KX_PYATTRIBUTE_STRING_RW("propName", 0, MAX_PROP_NAME, false, SCA_CollisionSensor, m_touchedpropname),
+	KX_PYATTRIBUTE_BOOL_RW("useMaterial", SCA_CollisionSensor, m_bFindMaterial),
+	KX_PYATTRIBUTE_BOOL_RW("usePulseCollision", SCA_CollisionSensor, m_bCollisionPulse),
+	KX_PYATTRIBUTE_STRING_RO("hitMaterial", SCA_CollisionSensor, m_hitMaterial),
+	KX_PYATTRIBUTE_RO_FUNCTION("hitObject", SCA_CollisionSensor, pyattr_get_object_hit),
+	KX_PYATTRIBUTE_RO_FUNCTION("hitObjectList", SCA_CollisionSensor, pyattr_get_object_hit_list),
 	KX_PYATTRIBUTE_NULL    //Sentinel
 };
 
 /* Python API */
 
-PyObject *KX_CollisionSensor::pyattr_get_object_hit(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_CollisionSensor::pyattr_get_object_hit(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_CollisionSensor *self = static_cast<KX_CollisionSensor *>(self_v);
+	SCA_CollisionSensor *self = static_cast<SCA_CollisionSensor *>(self_v);
 
 	if (self->m_hitObject) {
 		return self->m_hitObject->GetProxy();
@@ -340,9 +340,9 @@ PyObject *KX_CollisionSensor::pyattr_get_object_hit(PyObjectPlus *self_v, const 
 	}
 }
 
-PyObject *KX_CollisionSensor::pyattr_get_object_hit_list(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_CollisionSensor::pyattr_get_object_hit_list(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_CollisionSensor *self = static_cast<KX_CollisionSensor *>(self_v);
+	SCA_CollisionSensor *self = static_cast<SCA_CollisionSensor *>(self_v);
 	return self->m_colliders->GetProxy();
 }
 
