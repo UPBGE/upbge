@@ -101,7 +101,7 @@
 #include "SCA_VibrationActuator.h"
 #include "SCA_IController.h"
 #include "KX_NavMeshObject.h"
-#include "KX_MouseActuator.h"
+#include "SCA_MouseActuator.h"
 #include "KX_CollisionContactPoints.h"
 #include "EXP_ListWrapper.h"
 #include "Texture.h"
@@ -247,7 +247,7 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
 		PyType_Ready_Attr(dict, KX_VehicleWrapper, init_getset);
 		PyType_Ready_Attr(dict, KX_VertexProxy, init_getset);
 		PyType_Ready_Attr(dict, KX_VisibilityActuator, init_getset);
-		PyType_Ready_Attr(dict, KX_MouseActuator, init_getset);
+		PyType_Ready_Attr(dict, SCA_MouseActuator, init_getset);
 		PyType_Ready_Attr(dict, KX_CollisionContactPoint, init_getset);
 		PyType_Ready_Attr(dict, PyObjectPlus, init_getset);
 		PyType_Ready_Attr(dict, SCA_2DFilterActuator, init_getset);

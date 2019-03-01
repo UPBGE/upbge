@@ -83,7 +83,7 @@ extern "C" {
 #include "KX_SCA_DynamicActuator.h"
 #include "KX_SteeringActuator.h"
 #include "KX_NavMeshObject.h"
-#include "KX_MouseActuator.h"
+#include "SCA_MouseActuator.h"
 #include "KX_TrackToActuator.h"
 
 #include "SCA_IInputDevice.h"
@@ -1724,9 +1724,9 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
 	KX_MACRO_addTypesToDict(d, KX_ACTION_BLEND_ADD, BL_Action::ACT_BLEND_ADD);
 
 	/* Mouse Actuator object axis*/
-	KX_MACRO_addTypesToDict(d, KX_ACT_MOUSE_OBJECT_AXIS_X, KX_MouseActuator::KX_ACT_MOUSE_OBJECT_AXIS_X);
-	KX_MACRO_addTypesToDict(d, KX_ACT_MOUSE_OBJECT_AXIS_Y, KX_MouseActuator::KX_ACT_MOUSE_OBJECT_AXIS_Y);
-	KX_MACRO_addTypesToDict(d, KX_ACT_MOUSE_OBJECT_AXIS_Z, KX_MouseActuator::KX_ACT_MOUSE_OBJECT_AXIS_Z);
+	KX_MACRO_addTypesToDict(d, KX_ACT_MOUSE_OBJECT_AXIS_X, SCA_MouseActuator::KX_ACT_MOUSE_OBJECT_AXIS_X);
+	KX_MACRO_addTypesToDict(d, KX_ACT_MOUSE_OBJECT_AXIS_Y, SCA_MouseActuator::KX_ACT_MOUSE_OBJECT_AXIS_Y);
+	KX_MACRO_addTypesToDict(d, KX_ACT_MOUSE_OBJECT_AXIS_Z, SCA_MouseActuator::KX_ACT_MOUSE_OBJECT_AXIS_Z);
 
 
 	// Check for errors

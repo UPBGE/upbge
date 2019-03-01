@@ -20,8 +20,8 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __KX_MOUSEACTUATOR
-#define __KX_MOUSEACTUATOR
+#ifndef __SCA_MouseActuator
+#define __SCA_MouseActuator
 
 #include "SCA_IActuator.h"
 
@@ -30,7 +30,7 @@ class SCA_MouseManager;
 class SCA_IInputDevice;
 class RAS_ICanvas;
 
-class KX_MouseActuator : public SCA_IActuator
+class SCA_MouseActuator : public SCA_IActuator
 {
 	Py_Header
 
@@ -74,7 +74,7 @@ public:
 		KX_ACT_MOUSE_MAX
 	};
 
-	KX_MouseActuator(
+	SCA_MouseActuator(
 		SCA_IObject* gameobj,
 		KX_KetsjiEngine* ketsjiEngine,
 		SCA_MouseManager* eventmgr,
@@ -91,7 +91,7 @@ public:
 	);
 
 
-	~KX_MouseActuator();
+	~SCA_MouseActuator();
 
 	CValue* GetReplica();
 	virtual void ProcessReplica();
@@ -112,7 +112,7 @@ public:
 
 	/* Methods */
 
-	KX_PYMETHOD_DOC_NOARGS(KX_MouseActuator,Reset);
+	KX_PYMETHOD_DOC_NOARGS(SCA_MouseActuator,Reset);
 
 	/* Attributes */
 
@@ -128,4 +128,4 @@ public:
 
 };
 
-#endif //__KX_MOUSEACTUATOR_DOC
+#endif //__SCA_MouseActuator_DOC

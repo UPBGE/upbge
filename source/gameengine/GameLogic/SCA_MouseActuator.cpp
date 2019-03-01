@@ -20,7 +20,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include "KX_MouseActuator.h"
+#include "SCA_MouseActuator.h"
 #include "KX_KetsjiEngine.h"
 #include "KX_PyMath.h"
 #include "SCA_MouseManager.h"
@@ -42,7 +42,7 @@
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
 
-KX_MouseActuator::KX_MouseActuator(
+SCA_MouseActuator::SCA_MouseActuator(
 	SCA_IObject* gameobj,
 
 	KX_KetsjiEngine* ketsjiEngine,
@@ -86,11 +86,11 @@ KX_MouseActuator::KX_MouseActuator(
 	m_angle[1] = 0.f;
 }
 
-KX_MouseActuator::~KX_MouseActuator()
+SCA_MouseActuator::~SCA_MouseActuator()
 {
 }
 
-bool KX_MouseActuator::Update()
+bool SCA_MouseActuator::Update()
 {
 	bool result = false;
 
@@ -296,20 +296,20 @@ bool KX_MouseActuator::Update()
 	return result;
 }
 
-CValue* KX_MouseActuator::GetReplica()
+CValue* SCA_MouseActuator::GetReplica()
 {
-	KX_MouseActuator* replica = new KX_MouseActuator(*this);
+	SCA_MouseActuator* replica = new SCA_MouseActuator(*this);
 
 	replica->ProcessReplica();
 	return replica;
 }
 
-void KX_MouseActuator::ProcessReplica()
+void SCA_MouseActuator::ProcessReplica()
 {
 	SCA_IActuator::ProcessReplica();
 }
 
-void KX_MouseActuator::Replace_IScene(SCA_IScene *scene)
+void SCA_MouseActuator::Replace_IScene(SCA_IScene *scene)
 {
 	/* Changes the event manager when the scene changes in case of lib loading.
 	 * Using an event manager in an actuator is not a regular behaviour which is
@@ -319,7 +319,7 @@ void KX_MouseActuator::Replace_IScene(SCA_IScene *scene)
 	m_eventmgr = (SCA_MouseManager *)logicmgr->FindEventManager(m_eventmgr->GetType());
 }
 
-void KX_MouseActuator::getMousePosition(float* pos)
+void SCA_MouseActuator::getMousePosition(float* pos)
 {
 	BLI_assert(m_mouse);
 	const SCA_InputEvent & xevent = m_mouse->GetInput(SCA_IInputDevice::MOUSEX);
@@ -329,7 +329,7 @@ void KX_MouseActuator::getMousePosition(float* pos)
 	pos[1] = m_canvas->GetMouseNormalizedY(yevent.m_values[yevent.m_values.size() - 1]);
 }
 
-void KX_MouseActuator::setMousePosition(float fx, float fy)
+void SCA_MouseActuator::setMousePosition(float fx, float fy)
 {
 	int x, y;
 
@@ -346,9 +346,9 @@ void KX_MouseActuator::setMousePosition(float fx, float fy)
 /* ------------------------------------------------------------------------- */
 
 /* Integration hooks ------------------------------------------------------- */
-PyTypeObject KX_MouseActuator::Type = {
+PyTypeObject SCA_MouseActuator::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
-	"KX_MouseActuator",
+	"SCA_MouseActuator",
 	sizeof(PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
@@ -368,40 +368,40 @@ PyTypeObject KX_MouseActuator::Type = {
 	py_base_new
 };
 
-PyMethodDef KX_MouseActuator::Methods[] = {
-	{"reset", (PyCFunction) KX_MouseActuator::sPyReset, METH_NOARGS,"reset() : undo rotation caused by actuator\n"},
+PyMethodDef SCA_MouseActuator::Methods[] = {
+	{"reset", (PyCFunction) SCA_MouseActuator::sPyReset, METH_NOARGS,"reset() : undo rotation caused by actuator\n"},
 	{nullptr,nullptr} //Sentinel
 };
 
 
 
-PyAttributeDef KX_MouseActuator::Attributes[] = {
-	KX_PYATTRIBUTE_BOOL_RW("visible", KX_MouseActuator, m_visible),
-	KX_PYATTRIBUTE_BOOL_RW("use_axis_x", KX_MouseActuator, m_use_axis_x),
-	KX_PYATTRIBUTE_BOOL_RW("use_axis_y", KX_MouseActuator, m_use_axis_y),
-	KX_PYATTRIBUTE_FLOAT_ARRAY_RW("threshold", 0.0f, 0.5f, KX_MouseActuator, m_threshold, 2),
-	KX_PYATTRIBUTE_BOOL_RW("reset_x", KX_MouseActuator, m_reset_x),
-	KX_PYATTRIBUTE_BOOL_RW("reset_y", KX_MouseActuator, m_reset_y),
-	KX_PYATTRIBUTE_INT_ARRAY_RW("object_axis", 0, 2, 1, KX_MouseActuator, m_object_axis, 2),
-	KX_PYATTRIBUTE_BOOL_RW("local_x", KX_MouseActuator, m_local_x),
-	KX_PYATTRIBUTE_BOOL_RW("local_y", KX_MouseActuator, m_local_y),
-	KX_PYATTRIBUTE_FLOAT_ARRAY_RW("sensitivity", -FLT_MAX, FLT_MAX, KX_MouseActuator, m_sensitivity, 2),
-	KX_PYATTRIBUTE_RW_FUNCTION("limit_x", KX_MouseActuator, pyattr_get_limit_x, pyattr_set_limit_x),
-	KX_PYATTRIBUTE_RW_FUNCTION("limit_y", KX_MouseActuator, pyattr_get_limit_y, pyattr_set_limit_y),
-	KX_PYATTRIBUTE_RW_FUNCTION("angle", KX_MouseActuator, pyattr_get_angle, pyattr_set_angle),
+PyAttributeDef SCA_MouseActuator::Attributes[] = {
+	KX_PYATTRIBUTE_BOOL_RW("visible", SCA_MouseActuator, m_visible),
+	KX_PYATTRIBUTE_BOOL_RW("use_axis_x", SCA_MouseActuator, m_use_axis_x),
+	KX_PYATTRIBUTE_BOOL_RW("use_axis_y", SCA_MouseActuator, m_use_axis_y),
+	KX_PYATTRIBUTE_FLOAT_ARRAY_RW("threshold", 0.0f, 0.5f, SCA_MouseActuator, m_threshold, 2),
+	KX_PYATTRIBUTE_BOOL_RW("reset_x", SCA_MouseActuator, m_reset_x),
+	KX_PYATTRIBUTE_BOOL_RW("reset_y", SCA_MouseActuator, m_reset_y),
+	KX_PYATTRIBUTE_INT_ARRAY_RW("object_axis", 0, 2, 1, SCA_MouseActuator, m_object_axis, 2),
+	KX_PYATTRIBUTE_BOOL_RW("local_x", SCA_MouseActuator, m_local_x),
+	KX_PYATTRIBUTE_BOOL_RW("local_y", SCA_MouseActuator, m_local_y),
+	KX_PYATTRIBUTE_FLOAT_ARRAY_RW("sensitivity", -FLT_MAX, FLT_MAX, SCA_MouseActuator, m_sensitivity, 2),
+	KX_PYATTRIBUTE_RW_FUNCTION("limit_x", SCA_MouseActuator, pyattr_get_limit_x, pyattr_set_limit_x),
+	KX_PYATTRIBUTE_RW_FUNCTION("limit_y", SCA_MouseActuator, pyattr_get_limit_y, pyattr_set_limit_y),
+	KX_PYATTRIBUTE_RW_FUNCTION("angle", SCA_MouseActuator, pyattr_get_angle, pyattr_set_angle),
 	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
-PyObject* KX_MouseActuator::pyattr_get_limit_x(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject* SCA_MouseActuator::pyattr_get_limit_x(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_MouseActuator* self= static_cast<KX_MouseActuator*>(self_v);
+	SCA_MouseActuator* self= static_cast<SCA_MouseActuator*>(self_v);
 	return PyObjectFrom(MT_Vector2(self->m_limit_x[0] / (float)M_PI * 180.0f, self->m_limit_x[1] / (float)M_PI * 180.0f));
 }
 
-int KX_MouseActuator::pyattr_set_limit_x(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int SCA_MouseActuator::pyattr_set_limit_x(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	PyObject *item1, *item2;
-	KX_MouseActuator* self= static_cast<KX_MouseActuator*>(self_v);
+	SCA_MouseActuator* self= static_cast<SCA_MouseActuator*>(self_v);
 
 	if (!PyList_Check(value))
 		return PY_SET_ATTR_FAIL;
@@ -423,16 +423,16 @@ int KX_MouseActuator::pyattr_set_limit_x(PyObjectPlus *self_v, const KX_PYATTRIB
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject* KX_MouseActuator::pyattr_get_limit_y(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject* SCA_MouseActuator::pyattr_get_limit_y(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_MouseActuator* self= static_cast<KX_MouseActuator*>(self_v);
+	SCA_MouseActuator* self= static_cast<SCA_MouseActuator*>(self_v);
 	return PyObjectFrom(MT_Vector2(self->m_limit_y[0] / (float)M_PI * 180.0f, self->m_limit_y[1] / (float)M_PI * 180.0f));
 }
 
-int KX_MouseActuator::pyattr_set_limit_y(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int SCA_MouseActuator::pyattr_set_limit_y(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	PyObject *item1, *item2;
-	KX_MouseActuator* self= static_cast<KX_MouseActuator*>(self_v);
+	SCA_MouseActuator* self= static_cast<SCA_MouseActuator*>(self_v);
 
 	if (!PyList_Check(value))
 		return PY_SET_ATTR_FAIL;
@@ -454,16 +454,16 @@ int KX_MouseActuator::pyattr_set_limit_y(PyObjectPlus *self_v, const KX_PYATTRIB
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject* KX_MouseActuator::pyattr_get_angle(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject* SCA_MouseActuator::pyattr_get_angle(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_MouseActuator* self= static_cast<KX_MouseActuator*>(self_v);
+	SCA_MouseActuator* self= static_cast<SCA_MouseActuator*>(self_v);
 	return PyObjectFrom(MT_Vector2(self->m_angle[0] / (float)M_PI * 180.0f, self->m_angle[1] / (float)M_PI * 180.0f));
 }
 
-int KX_MouseActuator::pyattr_set_angle(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int SCA_MouseActuator::pyattr_set_angle(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	PyObject *item1, *item2;
-	KX_MouseActuator* self= static_cast<KX_MouseActuator*>(self_v);
+	SCA_MouseActuator* self= static_cast<SCA_MouseActuator*>(self_v);
 
 	if (!PyList_Check(value))
 		return PY_SET_ATTR_FAIL;
@@ -485,7 +485,7 @@ int KX_MouseActuator::pyattr_set_angle(PyObjectPlus *self_v, const KX_PYATTRIBUT
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject* KX_MouseActuator::PyReset()
+PyObject* SCA_MouseActuator::PyReset()
 {
 	MT_Vector3 rotation;
 	KX_GameObject *parent = static_cast<KX_GameObject *>(GetParent());
