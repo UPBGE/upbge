@@ -48,6 +48,7 @@ set(INC_SYS
 
 set(SRC
 	SCA_2DFilterActuator.cpp
+	SCA_AddObjectActuator.cpp
 	SCA_ANDController.cpp
 	SCA_ActuatorEventManager.cpp
 	SCA_ActuatorSensor.cpp
@@ -101,6 +102,7 @@ set(SRC
 	SCA_XORController.cpp
 
 	SCA_2DFilterActuator.h
+	SCA_AddObjectActuator.h
 	SCA_ANDController.h
 	SCA_ActuatorEventManager.h
 	SCA_ActuatorSensor.h

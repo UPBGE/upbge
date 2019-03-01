@@ -65,7 +65,7 @@
 #include "SCA_GameActuator.h"
 #include "KX_StateActuator.h"
 #include "KX_VisibilityActuator.h"
-#include "KX_SCA_AddObjectActuator.h"
+#include "SCA_AddObjectActuator.h"
 #include "KX_SCA_EndObjectActuator.h"
 #include "SCA_ParentActuator.h"
 #include "KX_SCA_DynamicActuator.h"
@@ -438,7 +438,7 @@ void BL_ConvertActuators(const char* maggiename,
 							}
 						}
 						
-						KX_SCA_AddObjectActuator* tmpaddact = new KX_SCA_AddObjectActuator(
+						SCA_AddObjectActuator* tmpaddact = new SCA_AddObjectActuator(
 						            gameobj,
 						            originalval,
 						            editobact->time,
