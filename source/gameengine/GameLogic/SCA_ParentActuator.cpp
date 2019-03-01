@@ -28,12 +28,12 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/Ketsji/KX_ParentActuator.cpp
+/** \file gameengine/Ketsji/SCA_ParentActuator.cpp
  *  \ingroup ketsji
  */
 
 
-#include "KX_ParentActuator.h"
+#include "SCA_ParentActuator.h"
 #include "KX_GameObject.h"
 #include "KX_Globals.h"
 
@@ -43,7 +43,7 @@
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
 
-KX_ParentActuator::KX_ParentActuator(SCA_IObject *gameobj, 
+SCA_ParentActuator::SCA_ParentActuator(SCA_IObject *gameobj, 
 									 int mode,
 									 bool addToCompound,
 									 bool ghost,
@@ -60,7 +60,7 @@ KX_ParentActuator::KX_ParentActuator(SCA_IObject *gameobj,
 
 
 
-KX_ParentActuator::~KX_ParentActuator()
+SCA_ParentActuator::~SCA_ParentActuator()
 {
 	if (m_ob)
 		m_ob->UnregisterActuator(this);
@@ -68,15 +68,15 @@ KX_ParentActuator::~KX_ParentActuator()
 
 
 
-CValue* KX_ParentActuator::GetReplica()
+CValue* SCA_ParentActuator::GetReplica()
 {
-	KX_ParentActuator* replica = new KX_ParentActuator(*this);
+	SCA_ParentActuator* replica = new SCA_ParentActuator(*this);
 	// replication just copy the m_base pointer => common random generator
 	replica->ProcessReplica();
 	return replica;
 }
 
-void KX_ParentActuator::ProcessReplica()
+void SCA_ParentActuator::ProcessReplica()
 {
 	if (m_ob)
 		m_ob->RegisterActuator(this);
@@ -84,7 +84,7 @@ void KX_ParentActuator::ProcessReplica()
 }
 
 
-bool KX_ParentActuator::UnlinkObject(SCA_IObject* clientobj)
+bool SCA_ParentActuator::UnlinkObject(SCA_IObject* clientobj)
 {
 	if (clientobj == m_ob)
 	{
@@ -95,7 +95,7 @@ bool KX_ParentActuator::UnlinkObject(SCA_IObject* clientobj)
 	return false;
 }
 
-void KX_ParentActuator::Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_map)
+void SCA_ParentActuator::Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_map)
 {
 	SCA_IObject *obj = obj_map[m_ob];
 	if (obj) {
@@ -108,7 +108,7 @@ void KX_ParentActuator::Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_map)
 
 
 
-bool KX_ParentActuator::Update()
+bool SCA_ParentActuator::Update()
 {
 	bool bNegativeEvent = IsNegativeEvent();
 	RemoveAllEvents();
@@ -137,9 +137,9 @@ bool KX_ParentActuator::Update()
 /* ------------------------------------------------------------------------- */
 
 /* Integration hooks ------------------------------------------------------- */
-PyTypeObject KX_ParentActuator::Type = {
+PyTypeObject SCA_ParentActuator::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
-	"KX_ParentActuator",
+	"SCA_ParentActuator",
 	sizeof(PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
@@ -159,33 +159,33 @@ PyTypeObject KX_ParentActuator::Type = {
 	py_base_new
 };
 
-PyMethodDef KX_ParentActuator::Methods[] = {
+PyMethodDef SCA_ParentActuator::Methods[] = {
 	{nullptr,nullptr} //Sentinel
 };
 
-PyAttributeDef KX_ParentActuator::Attributes[] = {
-	KX_PYATTRIBUTE_RW_FUNCTION("object", KX_ParentActuator, pyattr_get_object, pyattr_set_object),
-	KX_PYATTRIBUTE_INT_RW("mode", KX_PARENT_NODEF+1, KX_PARENT_MAX-1, true, KX_ParentActuator, m_mode),
-	KX_PYATTRIBUTE_BOOL_RW("compound", KX_ParentActuator, m_addToCompound),
-	KX_PYATTRIBUTE_BOOL_RW("ghost", KX_ParentActuator, m_ghost),
+PyAttributeDef SCA_ParentActuator::Attributes[] = {
+	KX_PYATTRIBUTE_RW_FUNCTION("object", SCA_ParentActuator, pyattr_get_object, pyattr_set_object),
+	KX_PYATTRIBUTE_INT_RW("mode", KX_PARENT_NODEF+1, KX_PARENT_MAX-1, true, SCA_ParentActuator, m_mode),
+	KX_PYATTRIBUTE_BOOL_RW("compound", SCA_ParentActuator, m_addToCompound),
+	KX_PYATTRIBUTE_BOOL_RW("ghost", SCA_ParentActuator, m_ghost),
 	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
-PyObject *KX_ParentActuator::pyattr_get_object(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_ParentActuator::pyattr_get_object(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_ParentActuator* actuator = static_cast<KX_ParentActuator*>(self);
+	SCA_ParentActuator* actuator = static_cast<SCA_ParentActuator*>(self);
 	if (!actuator->m_ob)
 		Py_RETURN_NONE;
 	else
 		return actuator->m_ob->GetProxy();
 }
 
-int KX_ParentActuator::pyattr_set_object(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int SCA_ParentActuator::pyattr_set_object(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
-	KX_ParentActuator* actuator = static_cast<KX_ParentActuator*>(self);
+	SCA_ParentActuator* actuator = static_cast<SCA_ParentActuator*>(self);
 	KX_GameObject *gameobj;
 		
-	if (!ConvertPythonToGameObject(actuator->GetLogicManager(), value, &gameobj, true, "actuator.object = value: KX_ParentActuator"))
+	if (!ConvertPythonToGameObject(actuator->GetLogicManager(), value, &gameobj, true, "actuator.object = value: SCA_ParentActuator"))
 		return PY_SET_ATTR_FAIL; // ConvertPythonToGameObject sets the error
 		
 	if (actuator->m_ob != nullptr)

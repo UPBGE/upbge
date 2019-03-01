@@ -83,6 +83,7 @@ set(SRC
 	SCA_NORController.cpp
 	SCA_ObjectActuator.cpp
 	SCA_ORController.cpp
+	SCA_ParentActuator.cpp
 	SCA_PropertyActuator.cpp
 	SCA_PropertySensor.cpp
 	SCA_PythonController.cpp
@@ -133,6 +134,7 @@ set(SRC
 	SCA_NORController.h
 	SCA_ObjectActuator.h
 	SCA_ORController.h
+	SCA_ParentActuator.h
 	SCA_PropertyActuator.h
 	SCA_PropertySensor.h
 	SCA_PythonController.h

@@ -79,7 +79,7 @@ extern "C" {
 #include "SCA_ArmatureSensor.h"
 #include "KX_SceneActuator.h"
 #include "SCA_GameActuator.h"
-#include "KX_ParentActuator.h"
+#include "SCA_ParentActuator.h"
 #include "KX_SCA_DynamicActuator.h"
 #include "KX_SteeringActuator.h"
 #include "KX_NavMeshObject.h"
@@ -1653,8 +1653,8 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
 	KX_MACRO_addTypesToDict(d, KX_SCENE_RESUME, KX_SceneActuator::KX_SCENE_RESUME);
 
 	/* Parent Actuator Modes */
-	KX_MACRO_addTypesToDict(d, KX_PARENT_SET, KX_ParentActuator::KX_PARENT_SET);
-	KX_MACRO_addTypesToDict(d, KX_PARENT_REMOVE, KX_ParentActuator::KX_PARENT_REMOVE);
+	KX_MACRO_addTypesToDict(d, KX_PARENT_SET, SCA_ParentActuator::KX_PARENT_SET);
+	KX_MACRO_addTypesToDict(d, KX_PARENT_REMOVE, SCA_ParentActuator::KX_PARENT_REMOVE);
 
 	/* BL_ArmatureConstraint type */
 	KX_MACRO_addTypesToDict(d, CONSTRAINT_TYPE_TRACKTO, CONSTRAINT_TYPE_TRACKTO);

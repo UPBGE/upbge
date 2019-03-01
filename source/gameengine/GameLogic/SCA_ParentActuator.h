@@ -25,18 +25,18 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file KX_ParentActuator.h
+/** \file SCA_ParentActuator.h
  *  \ingroup ketsji
  *  \brief Set or remove an objects parent
  */
 
-#ifndef __KX_PARENTACTUATOR_H__
-#define __KX_PARENTACTUATOR_H__
+#ifndef __SCA_ParentActuator_H__
+#define __SCA_ParentActuator_H__
 
 #include "SCA_IActuator.h"
 #include "SCA_LogicManager.h"
 
-class KX_ParentActuator : public SCA_IActuator
+class SCA_ParentActuator : public SCA_IActuator
 {
 	Py_Header
 	
@@ -61,12 +61,12 @@ public:
 
 	};
 
-	KX_ParentActuator(class SCA_IObject* gameobj,
+	SCA_ParentActuator(class SCA_IObject* gameobj,
 						int mode,
 						bool addToCompound,
 						bool ghost,
 						SCA_IObject *ob);
-	virtual ~KX_ParentActuator();
+	virtual ~SCA_ParentActuator();
 	virtual bool Update();
 	
 	virtual CValue* GetReplica();
@@ -86,6 +86,6 @@ public:
 	
 #endif  /* WITH_PYTHON */
 
-}; /* end of class KX_ParentActuator : public SCA_PropertyActuator */
+}; /* end of class SCA_ParentActuator : public SCA_PropertyActuator */
 
-#endif  /* __KX_PARENTACTUATOR_H__ */
+#endif  /* __SCA_ParentActuator_H__ */

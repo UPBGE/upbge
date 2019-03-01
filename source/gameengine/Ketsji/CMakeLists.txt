@@ -100,7 +100,6 @@ set(SRC
 	KX_ObColorIpoSGController.cpp
 	KX_ObstacleSimulation.cpp
 	KX_OrientationInterpolator.cpp
-	KX_ParentActuator.cpp
 	KX_PolyProxy.cpp
 	KX_PositionInterpolator.cpp
 	KX_PyConstraintBinding.cpp
@@ -165,7 +164,6 @@ set(SRC
 	KX_ObColorIpoSGController.h
 	KX_ObstacleSimulation.h
 	KX_OrientationInterpolator.h
-	KX_ParentActuator.h
 	KX_PhysicsEngineEnums.h
 	KX_PolyProxy.h
 	KX_PositionInterpolator.h

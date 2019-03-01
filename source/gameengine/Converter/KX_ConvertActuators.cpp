@@ -67,7 +67,7 @@
 #include "KX_VisibilityActuator.h"
 #include "KX_SCA_AddObjectActuator.h"
 #include "KX_SCA_EndObjectActuator.h"
-#include "KX_ParentActuator.h"
+#include "SCA_ParentActuator.h"
 #include "KX_SCA_DynamicActuator.h"
 #include "KX_SteeringActuator.h"
 #include "SCA_MouseActuator.h"
@@ -950,26 +950,26 @@ void BL_ConvertActuators(const char* maggiename,
 		case ACT_PARENT:
 			{
 				bParentActuator *parAct = (bParentActuator *) bact->data;
-				int mode = KX_ParentActuator::KX_PARENT_NODEF;
+				int mode = SCA_ParentActuator::KX_PARENT_NODEF;
 				bool addToCompound = true;
 				bool ghost = true;
 				KX_GameObject *tmpgob = nullptr;
 
 				switch (parAct->type) {
 					case ACT_PARENT_SET:
-						mode = KX_ParentActuator::KX_PARENT_SET;
+						mode = SCA_ParentActuator::KX_PARENT_SET;
 						tmpgob = converter.FindGameObject(parAct->ob);
 						addToCompound = !(parAct->flag & ACT_PARENT_COMPOUND);
 						ghost = !(parAct->flag & ACT_PARENT_GHOST);
 						break;
 					case ACT_PARENT_REMOVE:
-						mode = KX_ParentActuator::KX_PARENT_REMOVE;
+						mode = SCA_ParentActuator::KX_PARENT_REMOVE;
 						tmpgob = nullptr;
 						break;
 				}
 	
-				KX_ParentActuator *tmpparact
-					= new KX_ParentActuator(gameobj,
+				SCA_ParentActuator *tmpparact
+					= new SCA_ParentActuator(gameobj,
 					mode,
 					addToCompound,
 					ghost,

@@ -60,7 +60,7 @@
 #include "KX_NetworkMessageActuator.h"
 #include "KX_NetworkMessageSensor.h"
 #include "SCA_ObjectActuator.h"
-#include "KX_ParentActuator.h"
+#include "SCA_ParentActuator.h"
 #include "KX_PolyProxy.h"
 #include "KX_SCA_AddObjectActuator.h"
 #include "KX_SCA_EndObjectActuator.h"
@@ -229,7 +229,7 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
 		PyType_Ready_Attr(dict, KX_NetworkMessageActuator, init_getset);
 		PyType_Ready_Attr(dict, KX_NetworkMessageSensor, init_getset);
 		PyType_Ready_Attr(dict, SCA_ObjectActuator, init_getset);
-		PyType_Ready_Attr(dict, KX_ParentActuator, init_getset);
+		PyType_Ready_Attr(dict, SCA_ParentActuator, init_getset);
 		PyType_Ready_Attr(dict, KX_PolyProxy, init_getset);
 		PyType_Ready_Attr(dict, KX_RadarSensor, init_getset);
 		PyType_Ready_Attr(dict, KX_RaySensor, init_getset);
