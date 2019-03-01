@@ -107,7 +107,6 @@ set(SRC
 	KX_PythonInit.cpp
 	KX_PythonInitTypes.cpp
 	KX_PythonMain.cpp
-	KX_RadarSensor.cpp
 	KX_RayCast.cpp
 	KX_RaySensor.cpp
 	KX_SCA_AddObjectActuator.cpp
@@ -172,7 +171,6 @@ set(SRC
 	KX_PythonInit.h
 	KX_PythonInitTypes.h
 	KX_PythonMain.h
-	KX_RadarSensor.h
 	KX_RayCast.h
 	KX_RaySensor.h
 	KX_SCA_AddObjectActuator.h

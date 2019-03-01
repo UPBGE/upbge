@@ -61,7 +61,7 @@
 #include "SCA_AlwaysSensor.h"
 #include "SCA_CollisionSensor.h"
 #include "SCA_NearSensor.h"
-#include "KX_RadarSensor.h"
+#include "SCA_RadarSensor.h"
 #include "SCA_MouseFocusSensor.h"
 #include "SCA_ArmatureSensor.h"
 #include "SCA_JoystickSensor.h"
@@ -453,7 +453,7 @@ void BL_ConvertSensors(struct Object* blenderobject,
 						bool bFindMaterial = false;
 						PHY_IPhysicsController* ctrl = kxscene->GetPhysicsEnvironment()->CreateConeController((float)coneradius, (float)coneheight);
 
-						gamesensor = new KX_RadarSensor(
+						gamesensor = new SCA_RadarSensor(
 							eventmgr,
 							gameobj,
 							ctrl,

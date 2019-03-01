@@ -25,12 +25,12 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/Ketsji/KX_RadarSensor.cpp
+/** \file gameengine/Ketsji/SCA_RadarSensor.cpp
  *  \ingroup ketsji
  */
 
 
-#include "KX_RadarSensor.h"
+#include "SCA_RadarSensor.h"
 #include "KX_GameObject.h"
 #include "KX_PyMath.h"
 #include "PHY_IPhysicsController.h"
@@ -40,7 +40,7 @@
 /**
  * 	RadarSensor constructor. Creates a near-sensor derived class, with a cone collision shape.
  */
-KX_RadarSensor::KX_RadarSensor(SCA_EventManager* eventmgr,
+SCA_RadarSensor::SCA_RadarSensor(SCA_EventManager* eventmgr,
 		KX_GameObject* gameobj,
 		PHY_IPhysicsController* physCtrl,
 			double coneradius,
@@ -71,14 +71,14 @@ KX_RadarSensor::KX_RadarSensor(SCA_EventManager* eventmgr,
 	//sumoObj->setClientObject(&m_client_info);
 }
 			
-KX_RadarSensor::~KX_RadarSensor()
+SCA_RadarSensor::~SCA_RadarSensor()
 {
 	
 }
 
-CValue* KX_RadarSensor::GetReplica()
+CValue* SCA_RadarSensor::GetReplica()
 {
-	KX_RadarSensor* replica = new KX_RadarSensor(*this);
+	SCA_RadarSensor* replica = new SCA_RadarSensor(*this);
 	replica->ProcessReplica();
 	return replica;
 }
@@ -86,7 +86,7 @@ CValue* KX_RadarSensor::GetReplica()
 /**
  *	Transforms the collision object. A cone is not correctly centered
  *	for usage.  */
-void KX_RadarSensor::SynchronizeTransform()
+void SCA_RadarSensor::SynchronizeTransform()
 {
 	// Getting the parent location was commented out. Why?
 	MT_Transform trans;
@@ -178,9 +178,9 @@ void KX_RadarSensor::SynchronizeTransform()
 /* ------------------------------------------------------------------------- */
 /* Python Integration Hooks                                                  */
 /* ------------------------------------------------------------------------- */
-PyTypeObject KX_RadarSensor::Type = {
+PyTypeObject SCA_RadarSensor::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
-	"KX_RadarSensor",
+	"SCA_RadarSensor",
 	sizeof(PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
@@ -200,22 +200,22 @@ PyTypeObject KX_RadarSensor::Type = {
 	py_base_new
 };
 
-PyMethodDef KX_RadarSensor::Methods[] = {
+PyMethodDef SCA_RadarSensor::Methods[] = {
 	{nullptr, nullptr} //Sentinel
 };
 
-PyAttributeDef KX_RadarSensor::Attributes[] = {
-	KX_PYATTRIBUTE_FLOAT_ARRAY_RO("coneOrigin", KX_RadarSensor, m_cone_origin, 3),
-	KX_PYATTRIBUTE_FLOAT_ARRAY_RO("coneTarget", KX_RadarSensor, m_cone_target, 3),
-	KX_PYATTRIBUTE_FLOAT_RO("distance", KX_RadarSensor, m_coneheight),
-	KX_PYATTRIBUTE_RO_FUNCTION("angle", KX_RadarSensor, pyattr_get_angle),
-	KX_PYATTRIBUTE_INT_RW("axis", 0, 5, true, KX_RadarSensor, m_axis),
+PyAttributeDef SCA_RadarSensor::Attributes[] = {
+	KX_PYATTRIBUTE_FLOAT_ARRAY_RO("coneOrigin", SCA_RadarSensor, m_cone_origin, 3),
+	KX_PYATTRIBUTE_FLOAT_ARRAY_RO("coneTarget", SCA_RadarSensor, m_cone_target, 3),
+	KX_PYATTRIBUTE_FLOAT_RO("distance", SCA_RadarSensor, m_coneheight),
+	KX_PYATTRIBUTE_RO_FUNCTION("angle", SCA_RadarSensor, pyattr_get_angle),
+	KX_PYATTRIBUTE_INT_RW("axis", 0, 5, true, SCA_RadarSensor, m_axis),
 	KX_PYATTRIBUTE_NULL //Sentinel
 };
 
-PyObject *KX_RadarSensor::pyattr_get_angle(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_RadarSensor::pyattr_get_angle(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_RadarSensor* self = static_cast<KX_RadarSensor*>(self_v);
+	SCA_RadarSensor* self = static_cast<SCA_RadarSensor*>(self_v);
 
 	// The original angle from the gui was converted, so we recalculate the value here to maintain
 	// consistency between Python and the gui
