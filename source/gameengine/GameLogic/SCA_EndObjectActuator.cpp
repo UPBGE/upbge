@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/Ketsji/KX_SCA_EndObjectActuator.cpp
+/** \file gameengine/Ketsji/SCA_EndObjectActuator.cpp
  *  \ingroup ketsji
  */
 
@@ -38,11 +38,11 @@
 // \source\gameengine\GameLogic\SCA_EndObjectActuator.cpp
 // Please look here for revision history.
 
-#include "KX_SCA_EndObjectActuator.h"
+#include "SCA_EndObjectActuator.h"
 #include "KX_Scene.h"
 #include "KX_GameObject.h"
 
-KX_SCA_EndObjectActuator::KX_SCA_EndObjectActuator(KX_GameObject *gameobj,
+SCA_EndObjectActuator::SCA_EndObjectActuator(KX_GameObject *gameobj,
                                                    KX_Scene *scene):
     SCA_IActuator(gameobj, KX_ACT_END_OBJECT),
     m_scene(scene)
@@ -52,14 +52,14 @@ KX_SCA_EndObjectActuator::KX_SCA_EndObjectActuator(KX_GameObject *gameobj,
 
 
 
-KX_SCA_EndObjectActuator::~KX_SCA_EndObjectActuator()
+SCA_EndObjectActuator::~SCA_EndObjectActuator()
 { 
 	// there's nothing to be done here, really....
 } /* end of destructor */
 
 
 
-bool KX_SCA_EndObjectActuator::Update()
+bool SCA_EndObjectActuator::Update()
 {
 	// bool result = false;	/*unused*/
 	bool bNegativeEvent = IsNegativeEvent();
@@ -74,17 +74,17 @@ bool KX_SCA_EndObjectActuator::Update()
 
 
 
-CValue* KX_SCA_EndObjectActuator::GetReplica()
+CValue* SCA_EndObjectActuator::GetReplica()
 {
-	KX_SCA_EndObjectActuator* replica = 
-		new KX_SCA_EndObjectActuator(*this);
+	SCA_EndObjectActuator* replica = 
+		new SCA_EndObjectActuator(*this);
 	if (replica == nullptr) return nullptr;
 
 	replica->ProcessReplica();
 	return replica;
 };
 
-void KX_SCA_EndObjectActuator::Replace_IScene(SCA_IScene *val)
+void SCA_EndObjectActuator::Replace_IScene(SCA_IScene *val)
 {
 	m_scene = static_cast<KX_Scene *>(val);
 }
@@ -95,9 +95,9 @@ void KX_SCA_EndObjectActuator::Replace_IScene(SCA_IScene *val)
 /* Python functions : integration hooks                                      */
 /* ------------------------------------------------------------------------- */
 
-PyTypeObject KX_SCA_EndObjectActuator::Type = {
+PyTypeObject SCA_EndObjectActuator::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
-	"KX_SCA_EndObjectActuator",
+	"SCA_EndObjectActuator",
 	sizeof(PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
@@ -117,11 +117,11 @@ PyTypeObject KX_SCA_EndObjectActuator::Type = {
 	py_base_new
 };
 
-PyMethodDef KX_SCA_EndObjectActuator::Methods[] = {
+PyMethodDef SCA_EndObjectActuator::Methods[] = {
 	{nullptr,nullptr} //Sentinel
 };
 
-PyAttributeDef KX_SCA_EndObjectActuator::Attributes[] = {
+PyAttributeDef SCA_EndObjectActuator::Attributes[] = {
 	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 

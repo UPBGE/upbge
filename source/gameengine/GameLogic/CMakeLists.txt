@@ -60,6 +60,7 @@ set(SRC
 	SCA_ConstraintActuator.cpp
 	SCA_DelaySensor.cpp
 	SCA_DynamicActuator.cpp
+	SCA_EndObjectActuator.cpp
 	SCA_EventManager.cpp
 	SCA_ExpressionController.cpp
 	SCA_GameActuator.cpp
@@ -115,6 +116,7 @@ set(SRC
 	SCA_ConstraintActuator.h
 	SCA_DelaySensor.h
 	SCA_DynamicActuator.h
+	SCA_EndObjectActuator.h
 	SCA_EventManager.h
 	SCA_ExpressionController.h
 	SCA_GameActuator.h

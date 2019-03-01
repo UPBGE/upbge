@@ -66,7 +66,7 @@
 #include "KX_StateActuator.h"
 #include "KX_VisibilityActuator.h"
 #include "SCA_AddObjectActuator.h"
-#include "KX_SCA_EndObjectActuator.h"
+#include "SCA_EndObjectActuator.h"
 #include "SCA_ParentActuator.h"
 #include "SCA_DynamicActuator.h"
 #include "KX_SteeringActuator.h"
@@ -454,8 +454,8 @@ void BL_ConvertActuators(const char* maggiename,
 					break;
 				case ACT_EDOB_END_OBJECT:
 					{
-						KX_SCA_EndObjectActuator* tmpendact 
-							= new KX_SCA_EndObjectActuator(gameobj,scene);
+						SCA_EndObjectActuator* tmpendact 
+							= new SCA_EndObjectActuator(gameobj,scene);
 						baseact = tmpendact;
 					}
 					break;
