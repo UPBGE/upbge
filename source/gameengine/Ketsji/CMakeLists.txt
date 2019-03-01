@@ -132,7 +132,6 @@ set(SRC
 	KX_SoundActuator.cpp
 	KX_StateActuator.cpp
 	KX_SteeringActuator.cpp
-	KX_TextMaterial.cpp
 	KX_TimeCategoryLogger.cpp
 	KX_TimeLogger.cpp
 	KX_TrackToActuator.cpp
@@ -207,7 +206,6 @@ set(SRC
 	KX_SoundActuator.h
 	KX_StateActuator.h
 	KX_SteeringActuator.h
-	KX_TextMaterial.h
 	KX_TimeCategoryLogger.h
 	KX_TimeLogger.h
 	KX_CollisionEventManager.h

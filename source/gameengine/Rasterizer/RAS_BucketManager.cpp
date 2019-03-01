@@ -44,19 +44,12 @@
 
 #include <algorithm>
 
-RAS_BucketManager::RAS_BucketManager(RAS_IPolyMaterial *textMaterial)
+RAS_BucketManager::RAS_BucketManager()
 {
-	m_text.m_material = textMaterial;
-	bool created;
-	RAS_MaterialBucket *bucket = FindBucket(m_text.m_material, created);
-	m_text.m_arrayBucket = new RAS_DisplayArrayBucket(bucket, nullptr, nullptr, nullptr);
 }
 
 RAS_BucketManager::~RAS_BucketManager()
 {
-	delete m_text.m_arrayBucket;
-	delete m_text.m_material;
-
 	BucketList& buckets = m_buckets[ALL_BUCKET];
 	for (BucketList::iterator it = buckets.begin(), end = buckets.end(); it != end; ++it) {
 		delete *it;
@@ -103,11 +96,6 @@ RAS_MaterialBucket *RAS_BucketManager::FindBucket(RAS_IPolyMaterial *material, b
 	// Used to free the bucket.
 	m_buckets[ALL_BUCKET].push_back(bucket);
 	return bucket;
-}
-
-RAS_DisplayArrayBucket *RAS_BucketManager::GetTextDisplayArrayBucket() const
-{
-	return m_text.m_arrayBucket;
 }
 
 void RAS_BucketManager::UpdateShaders(RAS_IPolyMaterial *mat)
