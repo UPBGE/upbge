@@ -26,15 +26,15 @@
  * Actuator to toggle visibility/invisibility of objects
  */
 
-/** \file gameengine/Ketsji/KX_VisibilityActuator.cpp
+/** \file gameengine/Ketsji/SCA_VisibilityActuator.cpp
  *  \ingroup ketsji
  */
 
 
-#include "KX_VisibilityActuator.h"
+#include "SCA_VisibilityActuator.h"
 #include "KX_GameObject.h"
 
-KX_VisibilityActuator::KX_VisibilityActuator(
+SCA_VisibilityActuator::SCA_VisibilityActuator(
 	SCA_IObject* gameobj,
 	bool visible,
 	bool occlusion,
@@ -48,7 +48,7 @@ KX_VisibilityActuator::KX_VisibilityActuator(
 	// intentionally empty
 }
 
-KX_VisibilityActuator::~KX_VisibilityActuator(
+SCA_VisibilityActuator::~SCA_VisibilityActuator(
 	void
 	)
 {
@@ -56,17 +56,17 @@ KX_VisibilityActuator::~KX_VisibilityActuator(
 }
 
 CValue*
-KX_VisibilityActuator::GetReplica(
+SCA_VisibilityActuator::GetReplica(
 	void
 	)
 {
-	KX_VisibilityActuator* replica = new KX_VisibilityActuator(*this);
+	SCA_VisibilityActuator* replica = new SCA_VisibilityActuator(*this);
 	replica->ProcessReplica();
 	return replica;
 }
 
 bool
-KX_VisibilityActuator::Update()
+SCA_VisibilityActuator::Update()
 {
 	bool bNegativeEvent = IsNegativeEvent();
 	
@@ -90,9 +90,9 @@ KX_VisibilityActuator::Update()
 
 
 /* Integration hooks ------------------------------------------------------- */
-PyTypeObject KX_VisibilityActuator::Type = {
+PyTypeObject SCA_VisibilityActuator::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
-	"KX_VisibilityActuator",
+	"SCA_VisibilityActuator",
 	sizeof(PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
@@ -112,14 +112,14 @@ PyTypeObject KX_VisibilityActuator::Type = {
 	py_base_new
 };
 
-PyMethodDef KX_VisibilityActuator::Methods[] = {
+PyMethodDef SCA_VisibilityActuator::Methods[] = {
 	{nullptr,nullptr} //Sentinel
 };
 
-PyAttributeDef KX_VisibilityActuator::Attributes[] = {
-	KX_PYATTRIBUTE_BOOL_RW("visibility", KX_VisibilityActuator, m_visible),
-	KX_PYATTRIBUTE_BOOL_RW("useOcclusion", KX_VisibilityActuator, m_occlusion),
-	KX_PYATTRIBUTE_BOOL_RW("useRecursion", KX_VisibilityActuator, m_recursive),
+PyAttributeDef SCA_VisibilityActuator::Attributes[] = {
+	KX_PYATTRIBUTE_BOOL_RW("visibility", SCA_VisibilityActuator, m_visible),
+	KX_PYATTRIBUTE_BOOL_RW("useOcclusion", SCA_VisibilityActuator, m_occlusion),
+	KX_PYATTRIBUTE_BOOL_RW("useRecursion", SCA_VisibilityActuator, m_recursive),
 	KX_PYATTRIBUTE_NULL //Sentinel
 };
 

@@ -64,7 +64,7 @@
 #include "SCA_CameraActuator.h"
 #include "SCA_GameActuator.h"
 #include "SCA_StateActuator.h"
-#include "KX_VisibilityActuator.h"
+#include "SCA_VisibilityActuator.h"
 #include "SCA_AddObjectActuator.h"
 #include "SCA_EndObjectActuator.h"
 #include "SCA_ParentActuator.h"
@@ -847,12 +847,12 @@ void BL_ConvertActuators(const char* maggiename,
 		case ACT_VISIBILITY:
 		{
 			bVisibilityActuator *vis_act = (bVisibilityActuator *) bact->data;
-			KX_VisibilityActuator * tmp_vis_act = nullptr;
+			SCA_VisibilityActuator * tmp_vis_act = nullptr;
 			bool v = ((vis_act->flag & ACT_VISIBILITY_INVISIBLE) != 0);
 			bool o = ((vis_act->flag & ACT_VISIBILITY_OCCLUSION) != 0);
 			bool recursive = ((vis_act->flag & ACT_VISIBILITY_RECURSIVE) != 0);
 
-			tmp_vis_act = new KX_VisibilityActuator(gameobj, !v, o, recursive);
+			tmp_vis_act = new SCA_VisibilityActuator(gameobj, !v, o, recursive);
 			
 			baseact = tmp_vis_act;
 		}

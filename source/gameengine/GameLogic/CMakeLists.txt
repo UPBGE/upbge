@@ -104,6 +104,7 @@ set(SRC
 	SCA_TimeEventManager.cpp
 	SCA_TrackToActuator.cpp
 	SCA_VibrationActuator.cpp
+	SCA_VisibilityActuator.cpp
 	SCA_XNORController.cpp
 	SCA_XORController.cpp
 
@@ -164,6 +165,7 @@ set(SRC
 	SCA_TimeEventManager.h
 	SCA_TrackToActuator.h
 	SCA_VibrationActuator.h
+	SCA_VisibilityActuator.h
 	SCA_XNORController.h
 	SCA_XORController.h
 )
