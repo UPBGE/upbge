@@ -34,15 +34,14 @@
 #include "RAS_BucketManager.h"
 #include "RAS_Rasterizer.h"
 
-#include "GPU_draw.h"
-#include "GPU_material.h" // for GPU_BLEND_SOLID
-
-#include "DNA_material_types.h"
-#include "DNA_scene_types.h"
-
 extern "C" {
+#  include "DNA_material_types.h"
+#  include "DNA_scene_types.h"
 #  include "eevee_private.h"
 #  include "DRW_render.h"
+#  include "GPU_draw.h"
+#  include "GPU_material.h"
+#  include "GPU_texture.h"
 #  include "../gpu/intern/gpu_codegen.h"
 }
 
@@ -618,8 +617,8 @@ KX_PYMETHODDEF_DOC(KX_BlenderMaterial, getTextureBindcode, "getTextureBindcode(t
 	}
 	Image *ima = GetTexture(texslot)->GetImage();
 	if (ima) {
-		//unsigned int *bindcode = ima->bindcode;
-		return PyLong_FromLong(-1/**bindcode*/);
+		int bindcode = GPU_texture_opengl_bindcode(ima->gputexture[TEXTARGET_TEXTURE_2D]);
+		return PyLong_FromLong(bindcode);
 	}
 	PyErr_SetString(PyExc_ValueError, "material.getTextureBindcode(texslot): KX_BlenderMaterial, invalid texture slot.");
 	return nullptr;

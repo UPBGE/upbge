@@ -28,8 +28,6 @@
 #include <string>
 #include <array>
 
-struct MTex;
-struct Tex;
 struct Image;
 struct GPUTexture;
 
@@ -46,8 +44,6 @@ public:
 	virtual bool Ok() const = 0;
 	virtual bool IsCubeMap() const = 0;
 
-	virtual MTex *GetMTex() const = 0;
-	virtual Tex *GetTex() const = 0;
 	virtual Image *GetImage() const = 0;
 	virtual GPUTexture *GetGPUTexture() const = 0;
 	std::string& GetName();
