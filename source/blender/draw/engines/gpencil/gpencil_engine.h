@@ -94,7 +94,7 @@ typedef struct tGPencilObjectCache {
 
 	/* shading type */
 	int shading_type;
-	
+
 	/* GPU data size */
 	int tot_vertex;
 	int tot_triangles;
@@ -146,6 +146,8 @@ typedef struct GPENCIL_Storage {
 	const float *pixsize;
 	float render_pixsize;
 	int tonemapping;
+	int do_select_outline;
+	float select_color[4];
 	short multisamples;
 
 	short framebuffer_flag; /* flag what framebuffer need to create */
@@ -376,9 +378,9 @@ typedef struct GpencilBatchCache {
 struct DRWShadingGroup *DRW_gpencil_shgroup_stroke_create(
         struct GPENCIL_e_data *e_data, struct GPENCIL_Data *vedata, struct DRWPass *pass, struct GPUShader *shader,
         struct Object *ob, struct bGPdata *gpd,
-		struct bGPDlayer *gpl, struct bGPDstroke *gps,
+        struct bGPDlayer *gpl, struct bGPDstroke *gps,
         struct MaterialGPencilStyle *gp_style, int id, bool onion,
-		const float scale, int shading_type);
+        const float scale, int shading_type);
 void DRW_gpencil_populate_datablock(
         struct GPENCIL_e_data *e_data, void *vedata,
         struct Object *ob, struct tGPencilObjectCache *cache_ob);

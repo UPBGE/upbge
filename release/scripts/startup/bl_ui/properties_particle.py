@@ -668,7 +668,7 @@ class PARTICLE_PT_physics(ParticleButtonsPanel, Panel):
         if part.physics_type != 'NO':
             col = col.column()
             col.prop(part, "mass")
-            col.prop(part, "use_multiply_size_mass", text="Multiply mass with size")
+            col.prop(part, "use_multiply_size_mass", text="Multiply Mass with Size")
 
         if part.physics_type == 'FLUID':
             fluid = part.fluid
@@ -1777,17 +1777,35 @@ class PARTICLE_PT_children_clumping(ParticleButtonsPanel, Panel):
         else:
             sub.prop(part, "clump_factor", slider=True)
             sub.prop(part, "clump_shape", slider=True)
-        sub = col.column(align=True)
-        sub.prop(part, "use_clump_noise")
-        subsub = sub.column()
-        subsub.enabled = part.use_clump_noise
-        subsub.prop(part, "clump_noise_size")
 
         if part.child_type == 'SIMPLE':
-            sub.prop(part, "twist")
-            sub.prop(part, "use_twist_curve")
+            col.prop(part, "twist")
+            col.prop(part, "use_twist_curve")
             if part.use_twist_curve:
-                sub.template_curve_mapping(part, "twist_curve")
+                col.template_curve_mapping(part, "twist_curve")
+
+
+class PARTICLE_PT_children_clumping_noise(ParticleButtonsPanel, Panel):
+    bl_label = "Clump Noise"
+    bl_parent_id = "PARTICLE_PT_children_clumping"
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
+
+    def draw_header(self, context):
+
+        part = particle_get_settings(context)
+
+        self.layout.prop(part, "use_clump_noise", text="")
+
+    def draw(self, context):
+        layout = self.layout
+
+        part = particle_get_settings(context)
+
+        layout.use_property_split = True
+        layout.enabled = part.use_clump_noise
+
+        layout.prop(part, "clump_noise_size")
 
 
 class PARTICLE_PT_children_roughness(ParticleButtonsPanel, Panel):
@@ -2001,35 +2019,51 @@ class PARTICLE_PT_vertexgroups(ParticleButtonsPanel, Panel):
 
         col = layout.column()
         row = col.row(align=True)
-        row.prop_search(psys, "vertex_group_density", ob, "vertex_groups", text="Density")
+        sub = row.row(align=True)
+        sub.use_property_decorate = False
+        sub.prop_search(psys, "vertex_group_density", ob, "vertex_groups", text="Density")
         row.prop(psys, "invert_vertex_group_density", text="", toggle=True, icon='ARROW_LEFTRIGHT')
 
         row = col.row(align=True)
-        row.prop_search(psys, "vertex_group_length", ob, "vertex_groups", text="Length")
+        sub = row.row(align=True)
+        sub.use_property_decorate = False
+        sub.prop_search(psys, "vertex_group_length", ob, "vertex_groups", text="Length")
         row.prop(psys, "invert_vertex_group_length", text="", toggle=True, icon='ARROW_LEFTRIGHT')
 
         row = col.row(align=True)
-        row.prop_search(psys, "vertex_group_clump", ob, "vertex_groups", text="Clump")
+        sub = row.row(align=True)
+        sub.use_property_decorate = False
+        sub.prop_search(psys, "vertex_group_clump", ob, "vertex_groups", text="Clump")
         row.prop(psys, "invert_vertex_group_clump", text="", toggle=True, icon='ARROW_LEFTRIGHT')
 
         row = col.row(align=True)
-        row.prop_search(psys, "vertex_group_kink", ob, "vertex_groups", text="Kink")
+        sub = row.row(align=True)
+        sub.use_property_decorate = False
+        sub.prop_search(psys, "vertex_group_kink", ob, "vertex_groups", text="Kink")
         row.prop(psys, "invert_vertex_group_kink", text="", toggle=True, icon='ARROW_LEFTRIGHT')
 
         row = col.row(align=True)
-        row.prop_search(psys, "vertex_group_roughness_1", ob, "vertex_groups", text="Roughness 1")
+        sub = row.row(align=True)
+        sub.use_property_decorate = False
+        sub.prop_search(psys, "vertex_group_roughness_1", ob, "vertex_groups", text="Roughness 1")
         row.prop(psys, "invert_vertex_group_roughness_1", text="", toggle=True, icon='ARROW_LEFTRIGHT')
 
         row = col.row(align=True)
-        row.prop_search(psys, "vertex_group_roughness_2", ob, "vertex_groups", text="Roughness 2")
+        sub = row.row(align=True)
+        sub.use_property_decorate = False
+        sub.prop_search(psys, "vertex_group_roughness_2", ob, "vertex_groups", text="Roughness 2")
         row.prop(psys, "invert_vertex_group_roughness_2", text="", toggle=True, icon='ARROW_LEFTRIGHT')
 
         row = col.row(align=True)
-        row.prop_search(psys, "vertex_group_roughness_end", ob, "vertex_groups", text="Roughness End")
+        sub = row.row(align=True)
+        sub.use_property_decorate = False
+        sub.prop_search(psys, "vertex_group_roughness_end", ob, "vertex_groups", text="Roughness End")
         row.prop(psys, "invert_vertex_group_roughness_end", text="", toggle=True, icon='ARROW_LEFTRIGHT')
 
         row = col.row(align=True)
-        row.prop_search(psys, "vertex_group_twist", ob, "vertex_groups", text="Twist")
+        sub = row.row(align=True)
+        sub.use_property_decorate = False
+        sub.prop_search(psys, "vertex_group_twist", ob, "vertex_groups", text="Twist")
         row.prop(psys, "invert_vertex_group_twist", text="", toggle=True, icon='ARROW_LEFTRIGHT')
 
         # Commented out vertex groups don't work and are still waiting for better implementation
@@ -2111,7 +2145,7 @@ class PARTICLE_PT_hair_shape(ParticleButtonsPanel, Panel):
         col.prop(part, "tip_radius", text="Tip")
 
         col = layout.column()
-        col.prop(part, "radius_scale", text="Radius Scaling")
+        col.prop(part, "radius_scale")
         col.prop(part, "use_close_tip")
 
 
@@ -2164,6 +2198,7 @@ classes = (
     PARTICLE_PT_children,
     PARTICLE_PT_children_parting,
     PARTICLE_PT_children_clumping,
+    PARTICLE_PT_children_clumping_noise,
     PARTICLE_PT_children_roughness,
     PARTICLE_PT_children_kink,
     PARTICLE_PT_hair_shape,

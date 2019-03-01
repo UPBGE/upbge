@@ -609,9 +609,6 @@ class USERPREF_PT_viewport_quality(PreferencePanel):
         flow.prop(system, "multi_sample", text="Multisampling")
         flow.prop(system, "gpencil_multi_sample", text="Grease Pencil Multisampling")
 
-        if sys.platform == "linux" and system.multi_sample != 'NONE':
-            layout.label(text="Might fail for Mesh editing selection!")
-
 
 class USERPREF_PT_viewport_textures(PreferencePanel):
     bl_label = "Textures"
@@ -1262,7 +1259,7 @@ class USERPREF_PT_saveload_blend(PreferencePanel):
         flow.prop(paths, "use_load_ui")
         flow.prop(paths, "use_save_preview_images")
         flow.prop(paths, "use_tabs_as_spaces")
-        flow.prop(view, "use_quit_dialog")
+        flow.prop(view, "use_save_prompt")
 
         layout.separator()
 

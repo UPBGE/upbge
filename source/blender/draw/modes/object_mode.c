@@ -2321,14 +2321,6 @@ static void volumes_free_smoke_textures(void)
 	BLI_freelistN(&e_data.smoke_domains);
 }
 
-static void DRW_shgroup_gpencil(OBJECT_ShadingGroupList *sgl, Object *ob, ViewLayer *view_layer)
-{
-	float *color;
-	DRW_object_wire_theme_get(ob, view_layer, &color);
-
-	DRW_shgroup_call_dynamic_add(sgl->gpencil_axes, color, &ob->empty_drawsize, ob->obmat);
-}
-
 static void DRW_shgroup_speaker(OBJECT_ShadingGroupList *sgl, Object *ob, ViewLayer *view_layer)
 {
 	float *color;
@@ -3059,16 +3051,6 @@ static void OBJECT_cache_populate(void *vedata, Object *ob)
 			}
 			DRW_shgroup_empty(sh_data, sgl, ob, view_layer, rv3d, draw_ctx->sh_cfg);
 			break;
-		case OB_GPENCIL:
-			if (hide_object_extra) {
-				break;
-			}
-			/* in all modes except object mode hide always */
-			if (draw_ctx->object_mode != OB_MODE_OBJECT) {
-				break;
-			}
-			DRW_shgroup_gpencil(sgl, ob, view_layer);
-			break;
 		case OB_SPEAKER:
 			if (hide_object_extra) {
 				break;
@@ -3084,22 +3066,24 @@ static void OBJECT_cache_populate(void *vedata, Object *ob)
 		case OB_ARMATURE:
 		{
 			if ((v3d->flag2 & V3D_RENDER_OVERRIDE) ||
-			    (v3d->overlay.flag & V3D_OVERLAY_HIDE_BONES))
+			    (v3d->overlay.flag & V3D_OVERLAY_HIDE_BONES) ||
+			    ((ob->dt < OB_WIRE) && !DRW_state_is_select()))
 			{
 				break;
 			}
 			bArmature *arm = ob->data;
 			if (arm->edbo == NULL) {
 				if (DRW_state_is_select() || !DRW_pose_mode_armature(ob, draw_ctx->obact)) {
+					bool is_wire = (v3d->shading.type == OB_WIRE) || (ob->dt <= OB_WIRE);
 					DRWArmaturePasses passes = {
-					    .bone_solid = sgl->bone_solid,
+					    .bone_solid = (is_wire) ? NULL : sgl->bone_solid,
 					    .bone_outline = sgl->bone_outline,
 					    .bone_wire = sgl->bone_wire,
 					    .bone_envelope = sgl->bone_envelope,
 					    .bone_axes = sgl->bone_axes,
 					    .relationship_lines = NULL, /* Don't draw relationship lines */
 					};
-					DRW_shgroup_armature_object(ob, view_layer, passes);
+					DRW_shgroup_armature_object(ob, view_layer, passes, is_wire);
 				}
 			}
 			break;

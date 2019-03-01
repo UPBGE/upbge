@@ -1342,6 +1342,10 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 	/* Leave 't->orient_matrix_is_set' to false,
 	 * so we overwrite it when we have a useful value. */
 
+	/* Default to rotate on the Z axis. */
+	t->orient_axis = 2;
+	t->orient_axis_ortho = 1;
+
 	/* if there's an event, we're modal */
 	if (event) {
 		t->flag |= T_MODAL;
@@ -1516,6 +1520,13 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 			t->view = NULL;
 		}
 		t->around = V3D_AROUND_CENTER_BOUNDS;
+	}
+
+	if (op && (prop = RNA_struct_find_property(op->ptr, "orient_axis"))) {
+		t->orient_axis = RNA_property_enum_get(op->ptr, prop);
+	}
+	if (op && (prop = RNA_struct_find_property(op->ptr, "orient_axis_ortho"))) {
+		t->orient_axis_ortho = RNA_property_enum_get(op->ptr, prop);
 	}
 
 	if (op && ((prop = RNA_struct_find_property(op->ptr, "orient_matrix")) &&

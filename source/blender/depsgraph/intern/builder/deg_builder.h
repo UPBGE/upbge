@@ -23,12 +23,27 @@
 
 #pragma once
 
+struct Base;
 struct Main;
 
 namespace DEG {
 
 struct Depsgraph;
 
+class DepsgraphBuilder {
+public:
+	bool need_pull_base_into_graph(struct Base *base);
+
+protected:
+	DepsgraphBuilder(Main *bmain, Depsgraph *graph);
+
+	/* State which never changes, same for the whole builder time. */
+	Main *bmain_;
+	Depsgraph *graph_;
+};
+
+bool deg_check_base_available_for_build(const Depsgraph *graph,
+                                        Base *base);
 void deg_graph_build_finalize(struct Main *bmain, struct Depsgraph *graph);
 
 }  // namespace DEG

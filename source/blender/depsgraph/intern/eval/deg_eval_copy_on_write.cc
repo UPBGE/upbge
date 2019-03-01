@@ -88,6 +88,7 @@ extern "C" {
 }
 
 #include "intern/depsgraph.h"
+#include "intern/builder/deg_builder.h"
 #include "intern/builder/deg_builder_nodes.h"
 #include "intern/node/deg_node.h"
 #include "intern/node/deg_node_id.h"
@@ -365,16 +366,16 @@ void scene_remove_unused_view_layers(const Depsgraph *depsgraph,
 void view_layer_remove_disabled_bases(const Depsgraph *depsgraph,
                                       ViewLayer *view_layer)
 {
-	const int base_enabled_flag = (depsgraph->mode == DAG_EVAL_VIEWPORT) ?
-		BASE_ENABLED_VIEWPORT : BASE_ENABLED_RENDER;
 	ListBase enabled_bases = {NULL, NULL};
-	for (Base *base = reinterpret_cast<Base *>(view_layer->object_bases.first),
-	          *base_next;
-	     base != NULL;
-	     base = base_next)
-	{
-		base_next = base->next;
-		const bool is_object_enabled = (base->flag & base_enabled_flag);
+	LISTBASE_FOREACH_MUTABLE (Base *, base, &view_layer->object_bases) {
+		/* TODO(sergey): Would be cool to optimize this somehow, or make it so
+		 * builder tags bases.
+		 *
+		 * NOTE: The idea of using id's tag and check whether its copied ot not
+		 * is not reliable, since object might be indirectly linked into the
+		 * graph. */
+		const bool is_object_enabled =
+		        deg_check_base_available_for_build(depsgraph, base);
 		if (is_object_enabled) {
 			BLI_addtail(&enabled_bases, base);
 		}
@@ -388,15 +389,34 @@ void view_layer_remove_disabled_bases(const Depsgraph *depsgraph,
 	view_layer->object_bases = enabled_bases;
 }
 
-void scene_cleanup_view_layers(const Depsgraph *depsgraph, Scene *scene_cow)
+void view_layer_update_orig_base_pointers(ViewLayer *view_layer_orig,
+                                          ViewLayer *view_layer_eval)
+{
+	Base *base_orig =
+	        reinterpret_cast<Base *>(view_layer_orig->object_bases.first);
+	LISTBASE_FOREACH (Base *, base_eval, &view_layer_eval->object_bases) {
+		base_eval->base_orig = base_orig;
+		base_orig = base_orig->next;
+	}
+}
+
+void scene_setup_view_layers_before_remap(const Depsgraph *depsgraph,
+                                          Scene *scene_cow)
 {
 	scene_remove_unused_view_layers(depsgraph, scene_cow);
-	view_layer_remove_disabled_bases(
-	        depsgraph,
-	        reinterpret_cast<ViewLayer *>(scene_cow->view_layers.first));
 	/* TODO(sergey): Remove objects from collections as well.
 	 * Not a HUGE deal for now, nobody is looking into those CURRENTLY.
 	 * Still not an excuse to have those. */
+}
+
+void scene_setup_view_layers_after_remap(const Depsgraph *depsgraph,
+                                        Scene *scene_cow)
+{
+	ViewLayer *view_layer_orig = depsgraph->view_layer;
+	ViewLayer *view_layer_eval =
+	        reinterpret_cast<ViewLayer *>(scene_cow->view_layers.first);
+	view_layer_update_orig_base_pointers(view_layer_orig, view_layer_eval);
+	view_layer_remove_disabled_bases(depsgraph, view_layer_eval);
 }
 
 /* Check whether given ID is expanded or still a shallow copy. */
@@ -609,8 +629,8 @@ void update_pose_orig_pointers(const bPose *pose_orig, bPose *pose_cow)
  *
  * Only use for the newly created CoW datablocks.
  */
-void update_special_pointers(const Depsgraph *depsgraph,
-                             const ID *id_orig, ID *id_cow)
+void update_id_after_copy(const Depsgraph *depsgraph,
+                          const ID *id_orig, ID *id_cow)
 {
 	const ID_Type type = GS(id_orig->name);
 	switch (type) {
@@ -644,6 +664,7 @@ void update_special_pointers(const Depsgraph *depsgraph,
 			const Scene *scene_orig = (const Scene *)id_orig;
 			scene_cow->toolsettings = scene_orig->toolsettings;
 			scene_cow->eevee.light_cache = scene_orig->eevee.light_cache;
+			scene_setup_view_layers_after_remap(depsgraph, (Scene *)id_cow);
 			break;
 		}
 		default:
@@ -720,7 +741,10 @@ ID *deg_expand_copy_on_write_datablock(const Depsgraph *depsgraph,
 		{
 			done = scene_copy_inplace_no_main((Scene *)id_orig, (Scene *)id_cow);
 			if (done) {
-				scene_cleanup_view_layers(depsgraph, (Scene *)id_cow);
+				/* NOTE: This is important to do before remap, because this
+				 * function will make it so less IDs are to be remapped. */
+				scene_setup_view_layers_before_remap(
+				        depsgraph, (Scene *)id_cow);
 			}
 			break;
 		}
@@ -761,7 +785,7 @@ ID *deg_expand_copy_on_write_datablock(const Depsgraph *depsgraph,
 	                            IDWALK_NOP);
 	/* Correct or tweak some pointers which are not taken care by foreach
 	 * from above. */
-	update_special_pointers(depsgraph, id_orig, id_cow);
+	update_id_after_copy(depsgraph, id_orig, id_cow);
 	id_cow->recalc = id_orig->recalc | id_cow_recalc;
 	return id_cow;
 }

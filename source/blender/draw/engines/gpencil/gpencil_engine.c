@@ -40,6 +40,8 @@
 #include "ED_view3d.h"
 #include "ED_screen.h"
 
+#include "UI_resources.h"
+
 
 extern char datatoc_gpencil_fill_vert_glsl[];
 extern char datatoc_gpencil_fill_frag_glsl[];
@@ -455,6 +457,8 @@ void GPENCIL_cache_init(void *vedata)
 		DRW_shgroup_uniform_texture_ref(mix_shgrp, "strokeColor", &e_data.input_color_tx);
 		DRW_shgroup_uniform_texture_ref(mix_shgrp, "strokeDepth", &e_data.input_depth_tx);
 		DRW_shgroup_uniform_int(mix_shgrp, "tonemapping", &stl->storage->tonemapping, 1);
+		DRW_shgroup_uniform_int(mix_shgrp, "do_select", &stl->storage->do_select_outline, 1);
+		DRW_shgroup_uniform_vec4(mix_shgrp, "select_color", stl->storage->select_color, 1);
 
 		/* mix pass no blend used to copy between passes. A separated pass is required
 		 * because if mix_pass is used, the acumulation of blend degrade the colors.
@@ -470,6 +474,8 @@ void GPENCIL_cache_init(void *vedata)
 		DRW_shgroup_uniform_texture_ref(mix_shgrp_noblend, "strokeColor", &e_data.input_color_tx);
 		DRW_shgroup_uniform_texture_ref(mix_shgrp_noblend, "strokeDepth", &e_data.input_depth_tx);
 		DRW_shgroup_uniform_int(mix_shgrp_noblend, "tonemapping", &stl->storage->tonemapping, 1);
+		DRW_shgroup_uniform_int(mix_shgrp_noblend, "do_select", &stl->storage->do_select_outline, 1);
+		DRW_shgroup_uniform_vec4(mix_shgrp_noblend, "select_color", stl->storage->select_color, 1);
 
 		/* Painting session pass (used only to speedup while the user is drawing )
 		 * This pass is used to show the snapshot of the current grease pencil strokes captured
@@ -560,7 +566,6 @@ static void gpencil_add_draw_data(void *vedata, Object *ob)
 			DRW_gpencil_fx_prepare(&e_data, vedata, cache_ob);
 		}
 	}
-
 }
 
 void GPENCIL_cache_populate(void *vedata, Object *ob)
@@ -666,7 +671,7 @@ void GPENCIL_cache_finish(void *vedata)
 		DRW_gpencil_populate_particles(&e_data, gh_objects, vedata);
 
 		/* free hash */
-		BLI_ghash_free(gh_objects, NULL, NULL);
+		BLI_ghash_free(gh_objects, MEM_freeN, NULL);
 	}
 
 	if (stl->g_data->session_flag & (GP_DRW_PAINT_IDLE | GP_DRW_PAINT_FILLING)) {
@@ -675,7 +680,6 @@ void GPENCIL_cache_finish(void *vedata)
 
 	/* create framebuffers */
 	GPENCIL_create_framebuffers(vedata);
-
 }
 
 /* helper function to sort inverse gpencil objects using qsort */
@@ -711,15 +715,22 @@ static void gpencil_prepare_fast_drawing(
 
 static void gpencil_free_obj_runtime(GPENCIL_StorageList *stl)
 {
+	if (stl->g_data->gp_object_cache == NULL) {
+		return;
+	}
+
 	/* reset all cache flags */
 	for (int i = 0; i < stl->g_data->gp_cache_used; i++) {
 		tGPencilObjectCache *cache_ob = &stl->g_data->gp_object_cache[i];
-		bGPdata *gpd = cache_ob->gpd;
-		gpd->flag &= ~GP_DATA_CACHE_IS_DIRTY;
+		if (cache_ob) {
+			bGPdata *gpd = cache_ob->gpd;
+			gpd->flag &= ~GP_DATA_CACHE_IS_DIRTY;
 
-		/* free shgrp array */
-		cache_ob->tot_layers = 0;
-		MEM_SAFE_FREE(cache_ob->shgrp_array);
+			/* free shgrp array */
+			cache_ob->tot_layers = 0;
+			MEM_SAFE_FREE(cache_ob->name);
+			MEM_SAFE_FREE(cache_ob->shgrp_array);
+		}
 	}
 
 	/* free the cache itself */
@@ -748,7 +759,47 @@ static void gpencil_draw_pass_range(
 	if ((!stl->storage->is_mat_preview) && (multi)) {
 		MULTISAMPLE_GP_SYNC_DISABLE(stl->storage->multisamples, fbl, fb, txl);
 	}
+}
 
+/* draw strokes to use for selection */
+static void drw_gpencil_select_render(GPENCIL_StorageList *stl, GPENCIL_PassList *psl)
+{
+	tGPencilObjectCache *cache_ob;
+	tGPencilObjectCache_shgrp *array_elm = NULL;
+	DRWShadingGroup *init_shgrp = NULL;
+	DRWShadingGroup *end_shgrp = NULL;
+
+	/* Draw all pending objects */
+	if ((stl->g_data->gp_cache_used > 0) &&
+		(stl->g_data->gp_object_cache))
+	{
+		/* sort by zdepth */
+		qsort(stl->g_data->gp_object_cache, stl->g_data->gp_cache_used,
+			sizeof(tGPencilObjectCache), gpencil_object_cache_compare_zdepth);
+
+		for (int i = 0; i < stl->g_data->gp_cache_used; i++) {
+			cache_ob = &stl->g_data->gp_object_cache[i];
+			if (cache_ob) {
+				bGPdata *gpd = cache_ob->gpd;
+				init_shgrp = NULL;
+				if (cache_ob->tot_layers > 0) {
+					for (int e = 0; e < cache_ob->tot_layers; e++) {
+						array_elm = &cache_ob->shgrp_array[e];
+						if (init_shgrp == NULL) {
+							init_shgrp = array_elm->init_shgrp;
+						}
+						end_shgrp = array_elm->end_shgrp;
+					}
+					/* draw group */
+					DRW_draw_pass_subset(
+						GPENCIL_3D_DRAWMODE(gpd) ? psl->stroke_pass_3d : psl->stroke_pass_2d,
+						init_shgrp, end_shgrp);
+				}
+				/* the cache must be dirty for next loop */
+				gpd->flag |= GP_DATA_CACHE_IS_DIRTY;
+			}
+		}
+	}
 }
 
 /* draw scene */
@@ -776,6 +827,15 @@ void GPENCIL_draw_scene(void *ved)
 	const bool is_render = stl->storage->is_render;
 	bGPdata *gpd_act = (obact) && (obact->type == OB_GPENCIL) ? (bGPdata *)obact->data : NULL;
 	const bool is_edit = GPENCIL_ANY_EDIT_MODE(gpd_act);
+	const bool overlay = v3d != NULL ? (bool)((v3d->flag2 & V3D_RENDER_OVERRIDE) == 0) : true;
+
+	/* if the draw is for select, do a basic drawing and return */
+	if (DRW_state_is_select()) {
+		drw_gpencil_select_render(stl, psl);
+		/* free memory */
+		gpencil_free_obj_runtime(stl);
+		return;
+	}
 
 	/* paper pass to display a comfortable area to draw over complex scenes with geometry */
 	if ((!is_render) && (obact) && (obact->type == OB_GPENCIL)) {
@@ -808,7 +868,6 @@ void GPENCIL_draw_scene(void *ved)
 				DRW_draw_pass(psl->grid_pass);
 			}
 		}
-
 		return;
 	}
 
@@ -816,13 +875,13 @@ void GPENCIL_draw_scene(void *ved)
 
 		/* Draw all pending objects */
 		if (stl->g_data->gp_cache_used > 0) {
-
 			/* sort by zdepth */
 			qsort(stl->g_data->gp_object_cache, stl->g_data->gp_cache_used,
 			      sizeof(tGPencilObjectCache), gpencil_object_cache_compare_zdepth);
 
 			for (int i = 0; i < stl->g_data->gp_cache_used; i++) {
 				cache_ob = &stl->g_data->gp_object_cache[i];
+				Object *ob = cache_ob->ob;
 				bGPdata *gpd = cache_ob->gpd;
 				init_shgrp = NULL;
 				/* Render stroke in separated framebuffer */
@@ -886,7 +945,6 @@ void GPENCIL_draw_scene(void *ved)
 							/* prepare next group */
 							init_shgrp = NULL;
 						}
-
 					}
 					/* last group */
 					gpencil_draw_pass_range(
@@ -918,7 +976,25 @@ void GPENCIL_draw_scene(void *ved)
 				/* tonemapping */
 				stl->storage->tonemapping = stl->storage->is_render ? 1 : 0;
 
+				/* active select flag and selection color */
+				stl->storage->do_select_outline = ((overlay) &&
+										   (ob->base_flag & BASE_SELECTED) &&
+										   (ob->mode == OB_MODE_OBJECT) &&
+										   (!is_render) && (!playing) &&
+										   (v3d->flag & V3D_SELECT_OUTLINE));
+
+				/* if active object is not object mode, disable for all objects */
+				if ((draw_ctx->obact) && (draw_ctx->obact->mode != OB_MODE_OBJECT)) {
+					stl->storage->do_select_outline = 0;
+				}
+				UI_GetThemeColorShadeAlpha4fv((ob == draw_ctx->obact) ? TH_ACTIVE : TH_SELECT, 0, -40,
+											stl->storage->select_color);
+
+				/* draw mix pass */
 				DRW_draw_pass(psl->mix_pass);
+
+				/* disable select flag */
+				stl->storage->do_select_outline = 0;
 
 				/* prepare for fast drawing */
 				if (!is_render) {

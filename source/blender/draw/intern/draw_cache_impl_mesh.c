@@ -1507,6 +1507,7 @@ static void mesh_render_data_edge_flag(
 {
 	const ToolSettings *ts = rdata->toolsettings;
 	const bool is_vertex_select_mode = (ts != NULL) && (ts->selectmode & SCE_SELECT_VERTEX) != 0;
+	const bool is_face_only_select_mode = (ts != NULL) && (ts->selectmode == SCE_SELECT_FACE);
 
 	if (eed == rdata->eed_act) {
 		eattr->e_flag |= VFLAG_EDGE_ACTIVE;
@@ -1529,6 +1530,20 @@ static void mesh_render_data_edge_flag(
 	if (!BM_elem_flag_test(eed, BM_ELEM_SMOOTH)) {
 		eattr->e_flag |= VFLAG_EDGE_SHARP;
 	}
+
+	/* Use active edge color for active face edges because
+	 * specular highlights make it hard to see T55456#510873.
+	 *
+	 * This isn't ideal since it can't be used when mixing edge/face modes
+     * but it's still better then not being able to see the active face. */
+	if (is_face_only_select_mode) {
+		if (rdata->efa_act != NULL) {
+			if (BM_edge_in_face(eed, rdata->efa_act)) {
+				eattr->e_flag |= VFLAG_EDGE_ACTIVE;
+			}
+		}
+	}
+
 	/* Use a byte for value range */
 	if (rdata->cd.offset.crease != -1) {
 		float crease = BM_ELEM_CD_GET_FLOAT(eed, rdata->cd.offset.crease);
@@ -1587,9 +1602,10 @@ static bool add_edit_facedot(
 {
 	BLI_assert(rdata->types & (MR_DATATYPE_VERT | MR_DATATYPE_LOOP | MR_DATATYPE_POLY));
 	float pnor[3], center[3];
-	bool selected;
+	int facedot_flag;
 	if (rdata->edit_bmesh) {
-		const BMFace *efa = BM_face_at_index(rdata->edit_bmesh->bm, poly);
+		BMEditMesh *em = rdata->edit_bmesh;
+		const BMFace *efa = BM_face_at_index(em->bm, poly);
 		if (BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
 			return false;
 		}
@@ -1601,7 +1617,7 @@ static bool add_edit_facedot(
 			BM_face_calc_center_median(efa, center);
 			copy_v3_v3(pnor, efa->no);
 		}
-		selected = (BM_elem_flag_test(efa, BM_ELEM_SELECT) != 0) ? true : false;
+		facedot_flag = BM_elem_flag_test(efa, BM_ELEM_SELECT) ? ((efa == em->bm->act_face) ? -1 : 1) : 0;
 	}
 	else {
 		MVert *mvert = rdata->mvert;
@@ -1610,12 +1626,12 @@ static bool add_edit_facedot(
 
 		BKE_mesh_calc_poly_center(mpoly, mloop, mvert, center);
 		BKE_mesh_calc_poly_normal(mpoly, mloop, mvert, pnor);
-
-		selected = false; /* No selection if not in edit mode */
+		/* No selection if not in edit mode. */
+		facedot_flag = 0;
 	}
 
 	GPUPackedNormal nor = GPU_normal_convert_i10_v3(pnor);
-	nor.w = (selected) ? 1 : 0;
+	nor.w = facedot_flag;
 	GPU_vertbuf_attr_set(vbo, fdot_nor_flag_id, base_vert_idx, &nor);
 	GPU_vertbuf_attr_set(vbo, fdot_pos_id, base_vert_idx, center);
 
@@ -1634,7 +1650,7 @@ static bool add_edit_facedot_mapped(
 		return false;
 	}
 	BMEditMesh *em = rdata->edit_bmesh;
-	const BMFace *efa = BM_face_at_index(rdata->edit_bmesh->bm, p_orig);
+	const BMFace *efa = BM_face_at_index(em->bm, p_orig);
 	if (BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
 		return false;
 	}
@@ -1651,7 +1667,7 @@ static bool add_edit_facedot_mapped(
 	BKE_mesh_calc_poly_normal(mp, ml, mvert, pnor);
 
 	GPUPackedNormal nor = GPU_normal_convert_i10_v3(pnor);
-	nor.w = (BM_elem_flag_test(efa, BM_ELEM_SELECT) != 0) ? 1 : 0;
+	nor.w = BM_elem_flag_test(efa, BM_ELEM_SELECT) ? ((efa == em->bm->act_face) ? -1 : 1) : 0;
 	GPU_vertbuf_attr_set(vbo, fdot_nor_flag_id, base_vert_idx, &nor);
 	GPU_vertbuf_attr_set(vbo, fdot_pos_id, base_vert_idx, center);
 
