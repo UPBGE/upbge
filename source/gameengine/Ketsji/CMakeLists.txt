@@ -193,15 +193,6 @@ if(WITH_CODEC_FFMPEG)
 	add_definitions(-DWITH_FFMPEG)
 endif()
 
-if(WITH_AUDASPACE)
-	add_definitions(-DWITH_AUDASPACE)
-
-	list(APPEND INC_SYS
-		${AUDASPACE_C_INCLUDE_DIRS}
-		${AUDASPACE_PY_INCLUDE_DIRS}
-	)
-endif()
-
 if(WITH_BULLET)
 	list(APPEND INC
 		../Physics/Bullet
