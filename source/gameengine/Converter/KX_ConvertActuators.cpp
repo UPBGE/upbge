@@ -69,7 +69,7 @@
 #include "SCA_EndObjectActuator.h"
 #include "SCA_ParentActuator.h"
 #include "SCA_DynamicActuator.h"
-#include "KX_SteeringActuator.h"
+#include "SCA_SteeringActuator.h"
 #include "SCA_MouseActuator.h"
 
 #include "KX_Scene.h"
@@ -1008,16 +1008,16 @@ void BL_ConvertActuators(const char* maggiename,
 				}
 				KX_GameObject *targetob = converter.FindGameObject(stAct->target);
 
-				int mode = KX_SteeringActuator::KX_STEERING_NODEF;
+				int mode = SCA_SteeringActuator::KX_STEERING_NODEF;
 				switch (stAct->type) {
 				case ACT_STEERING_SEEK:
-					mode = KX_SteeringActuator::KX_STEERING_SEEK;
+					mode = SCA_SteeringActuator::KX_STEERING_SEEK;
 					break;
 				case ACT_STEERING_FLEE:
-					mode = KX_SteeringActuator::KX_STEERING_FLEE;
+					mode = SCA_SteeringActuator::KX_STEERING_FLEE;
 					break;
 				case ACT_STEERING_PATHFOLLOWING:
-					mode = KX_SteeringActuator::KX_STEERING_PATHFOLLOWING;
+					mode = SCA_SteeringActuator::KX_STEERING_PATHFOLLOWING;
 					break;
 				}
 
@@ -1026,8 +1026,8 @@ void BL_ConvertActuators(const char* maggiename,
 				short facingMode = (stAct->flag & ACT_STEERING_AUTOMATICFACING) ? stAct->facingaxis : 0;
 				bool normalup = (stAct->flag & ACT_STEERING_NORMALUP) !=0;
 				bool lockzvel = (stAct->flag & ACT_STEERING_LOCKZVEL) !=0;
-				KX_SteeringActuator *tmpstact
-					= new KX_SteeringActuator(gameobj, mode, targetob, navmeshob,stAct->dist, 
+				SCA_SteeringActuator *tmpstact
+					= new SCA_SteeringActuator(gameobj, mode, targetob, navmeshob,stAct->dist, 
 					stAct->velocity, stAct->acceleration, stAct->turnspeed, 
 					selfTerminated, stAct->updateTime,
 					scene->GetObstacleSimulation(), facingMode, normalup, enableVisualization, lockzvel);

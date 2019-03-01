@@ -81,7 +81,7 @@ extern "C" {
 #include "SCA_GameActuator.h"
 #include "SCA_ParentActuator.h"
 #include "SCA_DynamicActuator.h"
-#include "KX_SteeringActuator.h"
+#include "SCA_SteeringActuator.h"
 #include "KX_NavMeshObject.h"
 #include "SCA_MouseActuator.h"
 #include "KX_TrackToActuator.h"
@@ -1705,9 +1705,9 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
 	KX_MACRO_addTypesToDict(d, ROT_MODE_ZYX, ROT_MODE_ZYX);
 
 	/* Steering actuator */
-	KX_MACRO_addTypesToDict(d, KX_STEERING_SEEK, KX_SteeringActuator::KX_STEERING_SEEK);
-	KX_MACRO_addTypesToDict(d, KX_STEERING_FLEE, KX_SteeringActuator::KX_STEERING_FLEE);
-	KX_MACRO_addTypesToDict(d, KX_STEERING_PATHFOLLOWING, KX_SteeringActuator::KX_STEERING_PATHFOLLOWING);
+	KX_MACRO_addTypesToDict(d, KX_STEERING_SEEK, SCA_SteeringActuator::KX_STEERING_SEEK);
+	KX_MACRO_addTypesToDict(d, KX_STEERING_FLEE, SCA_SteeringActuator::KX_STEERING_FLEE);
+	KX_MACRO_addTypesToDict(d, KX_STEERING_PATHFOLLOWING, SCA_SteeringActuator::KX_STEERING_PATHFOLLOWING);
 
 	/* KX_NavMeshObject render mode */
 	KX_MACRO_addTypesToDict(d, RM_WALLS, KX_NavMeshObject::RM_WALLS);

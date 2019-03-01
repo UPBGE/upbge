@@ -100,6 +100,7 @@ set(SRC
 	SCA_RaySensor.cpp
 	SCA_SceneActuator.cpp
 	SCA_StateActuator.cpp
+	SCA_SteeringActuator.cpp
 	SCA_TimeEventManager.cpp
 	SCA_VibrationActuator.cpp
 	SCA_XNORController.cpp
@@ -158,10 +159,20 @@ set(SRC
 	SCA_RaySensor.h
 	SCA_SceneActuator.h
 	SCA_StateActuator.h
+	SCA_SteeringActuator.h
 	SCA_TimeEventManager.h
 	SCA_VibrationActuator.h
 	SCA_XNORController.h
 	SCA_XORController.h
+)
+
+set(INC_SYS
+	../../../intern/moto/include
+	../../../extern/recastnavigation/Recast/Include
+	../../../extern/recastnavigation/Detour/Include
+	#${PTHREADS_INCLUDE_DIRS}
+	#${GLEW_INCLUDE_PATH}
+	${BOOST_INCLUDE_DIR}
 )
 
 if(WITH_SDL)

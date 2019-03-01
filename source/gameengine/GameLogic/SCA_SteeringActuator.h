@@ -24,8 +24,8 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __KX_STEERINGACTUATOR_H__
-#define __KX_STEERINGACTUATOR_H__
+#ifndef __SCA_SteeringActuator_H__
+#define __SCA_SteeringActuator_H__
 
 #include "SCA_IActuator.h"
 #include "SCA_LogicManager.h"
@@ -37,7 +37,7 @@ struct KX_Obstacle;
 class KX_ObstacleSimulation;
 const int MAX_PATH_LENGTH  = 128;
 
-class KX_SteeringActuator : public SCA_IActuator
+class SCA_SteeringActuator : public SCA_IActuator
 {
 	Py_Header
 
@@ -77,7 +77,7 @@ public:
 		KX_STEERING_MAX
 	};
 
-	KX_SteeringActuator(class SCA_IObject* gameobj,
+	SCA_SteeringActuator(class SCA_IObject* gameobj,
 						int mode,
 						KX_GameObject *target, 
 						KX_GameObject *navmesh,
@@ -92,7 +92,7 @@ public:
 						bool normalup,
 						bool enableVisualization,
 	                    bool lockzvel);
-	virtual ~KX_SteeringActuator();
+	virtual ~SCA_SteeringActuator();
 	virtual bool Update(double curtime);
 
 	virtual CValue* GetReplica();
@@ -118,6 +118,6 @@ public:
 
 #endif  /* WITH_PYTHON */
 
-}; /* end of class KX_SteeringActuator : public SCA_PropertyActuator */
+}; /* end of class SCA_SteeringActuator : public SCA_PropertyActuator */
 
-#endif  /* __KX_STEERINGACTUATOR_H__ */
+#endif  /* __SCA_SteeringActuator_H__ */

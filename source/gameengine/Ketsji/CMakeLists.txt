@@ -114,7 +114,6 @@ set(SRC
 	KX_ScalingInterpolator.cpp
 	KX_Scene.cpp
 	KX_SoundActuator.cpp
-	KX_SteeringActuator.cpp
 	KX_TimeCategoryLogger.cpp
 	KX_TimeLogger.cpp
 	KX_TrackToActuator.cpp
@@ -172,7 +171,6 @@ set(SRC
 	KX_ScalingInterpolator.h
 	KX_Scene.h
 	KX_SoundActuator.h
-	KX_SteeringActuator.h
 	KX_TimeCategoryLogger.h
 	KX_TimeLogger.h
 	KX_CollisionEventManager.h
