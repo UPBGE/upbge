@@ -96,7 +96,7 @@ extern "C" {
 #include "SCA_2DFilterActuator.h"
 #include "SCA_ConstraintActuator.h"
 #include "KX_SoundActuator.h"
-#include "KX_StateActuator.h"
+#include "SCA_StateActuator.h"
 #include "BL_ActionActuator.h"
 #include "BL_ArmatureObject.h"
 #include "RAS_Rasterizer.h"
@@ -1628,10 +1628,10 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
 	KX_MACRO_addTypesToDict(d, KX_SOUNDACT_LOOPBIDIRECTIONAL_STOP, KX_SoundActuator::KX_SOUNDACT_LOOPBIDIRECTIONAL_STOP);
 
 	/* State Actuator */
-	KX_MACRO_addTypesToDict(d, KX_STATE_OP_CPY, KX_StateActuator::OP_CPY);
-	KX_MACRO_addTypesToDict(d, KX_STATE_OP_SET, KX_StateActuator::OP_SET);
-	KX_MACRO_addTypesToDict(d, KX_STATE_OP_CLR, KX_StateActuator::OP_CLR);
-	KX_MACRO_addTypesToDict(d, KX_STATE_OP_NEG, KX_StateActuator::OP_NEG);
+	KX_MACRO_addTypesToDict(d, KX_STATE_OP_CPY, SCA_StateActuator::OP_CPY);
+	KX_MACRO_addTypesToDict(d, KX_STATE_OP_SET, SCA_StateActuator::OP_SET);
+	KX_MACRO_addTypesToDict(d, KX_STATE_OP_CLR, SCA_StateActuator::OP_CLR);
+	KX_MACRO_addTypesToDict(d, KX_STATE_OP_NEG, SCA_StateActuator::OP_NEG);
 
 	/* Game Actuator Modes */
 	KX_MACRO_addTypesToDict(d, KX_GAME_LOAD, SCA_GameActuator::KX_GAME_LOAD);

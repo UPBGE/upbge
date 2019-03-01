@@ -59,7 +59,7 @@ class SCA_IObject :	public CValue
 	Py_Header
 	
 protected:
-	friend class KX_StateActuator;
+	friend class SCA_StateActuator;
 	friend class SCA_IActuator;
 	friend class SCA_IController;
 	SCA_SensorList         m_sensors;

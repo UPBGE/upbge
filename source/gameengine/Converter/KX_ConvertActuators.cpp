@@ -63,7 +63,7 @@
 #include "SCA_ConstraintActuator.h"
 #include "SCA_CameraActuator.h"
 #include "SCA_GameActuator.h"
-#include "KX_StateActuator.h"
+#include "SCA_StateActuator.h"
 #include "KX_VisibilityActuator.h"
 #include "SCA_AddObjectActuator.h"
 #include "SCA_EndObjectActuator.h"
@@ -861,10 +861,10 @@ void BL_ConvertActuators(const char* maggiename,
 		case ACT_STATE:
 		{
 			bStateActuator *sta_act = (bStateActuator *) bact->data;
-			KX_StateActuator * tmp_sta_act = nullptr;
+			SCA_StateActuator * tmp_sta_act = nullptr;
 
 			tmp_sta_act = 
-				new KX_StateActuator(gameobj, sta_act->type, sta_act->mask);
+				new SCA_StateActuator(gameobj, sta_act->type, sta_act->mask);
 			
 			baseact = tmp_sta_act;
 		}
