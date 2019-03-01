@@ -25,20 +25,20 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file KX_GameActuator.h
+/** \file SCA_GameActuator.h
  *  \ingroup ketsji
  *  \brief actuator for global game stuff
  */
 
-#ifndef __KX_GAMEACTUATOR_H__
-#define __KX_GAMEACTUATOR_H__
+#ifndef __SCA_GameActuator_H__
+#define __SCA_GameActuator_H__
 
 #include "SCA_IActuator.h"
 
 #include "SCA_IScene.h" /* Replace_IScene only */
 #include "KX_Scene.h" /* Replace_IScene only */
 
-class KX_GameActuator : public SCA_IActuator
+class SCA_GameActuator : public SCA_IActuator
 {
 	Py_Header
 protected:
@@ -50,7 +50,7 @@ protected:
 	class KX_KetsjiEngine*		m_ketsjiengine;
 
  public:
-	enum KX_GameActuatorMode
+	enum SCA_GameActuatorMode
 	{
 		KX_GAME_NODEF = 0,
 		KX_GAME_LOAD,
@@ -64,13 +64,13 @@ protected:
 
 	};
 
-	KX_GameActuator(SCA_IObject* gameobj,
+	SCA_GameActuator(SCA_IObject* gameobj,
 					 int mode,
 					 const std::string& filename,
 					 const std::string& loadinganimationname,
 					 SCA_IScene* scene,
 					 KX_KetsjiEngine* ketsjiEngine);
-	virtual ~KX_GameActuator();
+	virtual ~SCA_GameActuator();
 
 	virtual CValue* GetReplica();
 
@@ -85,7 +85,7 @@ protected:
 	/* Python interface ---------------------------------------------------- */
 	/* --------------------------------------------------------------------- */
 	
-}; /* end of class KX_GameActuator */
+}; /* end of class SCA_GameActuator */
 
 #endif
 

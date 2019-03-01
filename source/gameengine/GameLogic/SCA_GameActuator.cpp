@@ -28,13 +28,13 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/Ketsji/KX_GameActuator.cpp
+/** \file gameengine/Ketsji/SCA_GameActuator.cpp
  *  \ingroup ketsji
  */
 
 
 #include "SCA_IActuator.h"
-#include "KX_GameActuator.h"
+#include "SCA_GameActuator.h"
 //#include <iostream>
 #include "KX_Scene.h"
 #include "KX_KetsjiEngine.h"
@@ -47,7 +47,7 @@
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
 
-KX_GameActuator::KX_GameActuator(SCA_IObject *gameobj, 
+SCA_GameActuator::SCA_GameActuator(SCA_IObject *gameobj, 
 								   int mode,
 								   const std::string& filename,
 								   const std::string& loadinganimationname,
@@ -64,16 +64,16 @@ KX_GameActuator::KX_GameActuator(SCA_IObject *gameobj,
 
 
 
-KX_GameActuator::~KX_GameActuator()
+SCA_GameActuator::~SCA_GameActuator()
 { 
 	// there's nothing to be done here, really....
 } /* end of destructor */
 
 
 
-CValue* KX_GameActuator::GetReplica()
+CValue* SCA_GameActuator::GetReplica()
 {
-	KX_GameActuator* replica = new KX_GameActuator(*this);
+	SCA_GameActuator* replica = new SCA_GameActuator(*this);
 	replica->ProcessReplica();
 	
 	return replica;
@@ -81,7 +81,7 @@ CValue* KX_GameActuator::GetReplica()
 
 
 
-bool KX_GameActuator::Update()
+bool SCA_GameActuator::Update()
 {
 	// bool result = false;	 /*unused*/
 	bool bNegativeEvent = IsNegativeEvent();
@@ -170,9 +170,9 @@ bool KX_GameActuator::Update()
 /* ------------------------------------------------------------------------- */
 
 /* Integration hooks ------------------------------------------------------- */
-PyTypeObject KX_GameActuator::Type = {
+PyTypeObject SCA_GameActuator::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
-	"KX_GameActuator",
+	"SCA_GameActuator",
 	sizeof(PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
@@ -192,14 +192,14 @@ PyTypeObject KX_GameActuator::Type = {
 	py_base_new
 };
 
-PyMethodDef KX_GameActuator::Methods[] =
+PyMethodDef SCA_GameActuator::Methods[] =
 {
 	{nullptr,nullptr} //Sentinel
 };
 
-PyAttributeDef KX_GameActuator::Attributes[] = {
-	KX_PYATTRIBUTE_STRING_RW("fileName",0,100,false,KX_GameActuator,m_filename),
-	KX_PYATTRIBUTE_INT_RW("mode", KX_GAME_NODEF+1, KX_GAME_MAX-1, true, KX_GameActuator, m_mode),
+PyAttributeDef SCA_GameActuator::Attributes[] = {
+	KX_PYATTRIBUTE_STRING_RW("fileName",0,100,false,SCA_GameActuator,m_filename),
+	KX_PYATTRIBUTE_INT_RW("mode", KX_GAME_NODEF+1, KX_GAME_MAX-1, true, SCA_GameActuator, m_mode),
 	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 

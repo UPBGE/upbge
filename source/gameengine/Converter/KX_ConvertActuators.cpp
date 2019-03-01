@@ -62,7 +62,7 @@
 #include "KX_TrackToActuator.h"
 #include "SCA_ConstraintActuator.h"
 #include "SCA_CameraActuator.h"
-#include "KX_GameActuator.h"
+#include "SCA_GameActuator.h"
 #include "KX_StateActuator.h"
 #include "KX_VisibilityActuator.h"
 #include "KX_SCA_AddObjectActuator.h"
@@ -710,56 +710,56 @@ void BL_ConvertActuators(const char* maggiename,
 		case ACT_GAME:
 			{
 				bGameActuator *gameact = (bGameActuator *) bact->data;
-				KX_GameActuator* tmpgameact;
+				SCA_GameActuator* tmpgameact;
 				std::string filename = maggiename;
 				std::string loadinganimationname = "";
-				int mode = KX_GameActuator::KX_GAME_NODEF;
+				int mode = SCA_GameActuator::KX_GAME_NODEF;
 				switch (gameact->type)
 				{
 				case ACT_GAME_LOAD:
 					{
-						mode = KX_GameActuator::KX_GAME_LOAD;
+						mode = SCA_GameActuator::KX_GAME_LOAD;
 						filename = gameact->filename;
 						loadinganimationname = gameact->loadaniname;
 						break;
 					}
 				case ACT_GAME_START:
 					{
-						mode = KX_GameActuator::KX_GAME_START;
+						mode = SCA_GameActuator::KX_GAME_START;
 						filename = gameact->filename;
 						loadinganimationname = gameact->loadaniname;
 						break;
 					}
 				case ACT_GAME_RESTART:
 					{
-						mode = KX_GameActuator::KX_GAME_RESTART;
+						mode = SCA_GameActuator::KX_GAME_RESTART;
 						break;
 					}
 				case ACT_GAME_QUIT:
 					{
-						mode = KX_GameActuator::KX_GAME_QUIT;
+						mode = SCA_GameActuator::KX_GAME_QUIT;
 						break;
 					}
 				case ACT_GAME_SAVECFG:
 					{
-						mode = KX_GameActuator::KX_GAME_SAVECFG;
+						mode = SCA_GameActuator::KX_GAME_SAVECFG;
 						break;
 					}
 				case ACT_GAME_LOADCFG:
 					{
-						mode = KX_GameActuator::KX_GAME_LOADCFG;
+						mode = SCA_GameActuator::KX_GAME_LOADCFG;
 						break;
 					}
 					case ACT_GAME_SCREENSHOT:
 					{
-						mode = KX_GameActuator::KX_GAME_SCREENSHOT;
+						mode = SCA_GameActuator::KX_GAME_SCREENSHOT;
 						filename = gameact->filename;
 						break;
 					}
 				default:
 					; /* flag error */
 				}
-				tmpgameact = new KX_GameActuator(
+				tmpgameact = new SCA_GameActuator(
 				            gameobj,
 				            mode,
 				            filename,

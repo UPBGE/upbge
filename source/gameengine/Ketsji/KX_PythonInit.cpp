@@ -78,7 +78,7 @@ extern "C" {
 #include "KX_RaySensor.h"
 #include "SCA_ArmatureSensor.h"
 #include "KX_SceneActuator.h"
-#include "KX_GameActuator.h"
+#include "SCA_GameActuator.h"
 #include "KX_ParentActuator.h"
 #include "KX_SCA_DynamicActuator.h"
 #include "KX_SteeringActuator.h"
@@ -1634,13 +1634,13 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
 	KX_MACRO_addTypesToDict(d, KX_STATE_OP_NEG, KX_StateActuator::OP_NEG);
 
 	/* Game Actuator Modes */
-	KX_MACRO_addTypesToDict(d, KX_GAME_LOAD, KX_GameActuator::KX_GAME_LOAD);
-	KX_MACRO_addTypesToDict(d, KX_GAME_START, KX_GameActuator::KX_GAME_START);
-	KX_MACRO_addTypesToDict(d, KX_GAME_RESTART, KX_GameActuator::KX_GAME_RESTART);
-	KX_MACRO_addTypesToDict(d, KX_GAME_QUIT, KX_GameActuator::KX_GAME_QUIT);
-	KX_MACRO_addTypesToDict(d, KX_GAME_SAVECFG, KX_GameActuator::KX_GAME_SAVECFG);
-	KX_MACRO_addTypesToDict(d, KX_GAME_LOADCFG, KX_GameActuator::KX_GAME_LOADCFG);
-	KX_MACRO_addTypesToDict(d, KX_GAME_SCREENSHOT, KX_GameActuator::KX_GAME_SCREENSHOT);
+	KX_MACRO_addTypesToDict(d, KX_GAME_LOAD, SCA_GameActuator::KX_GAME_LOAD);
+	KX_MACRO_addTypesToDict(d, KX_GAME_START, SCA_GameActuator::KX_GAME_START);
+	KX_MACRO_addTypesToDict(d, KX_GAME_RESTART, SCA_GameActuator::KX_GAME_RESTART);
+	KX_MACRO_addTypesToDict(d, KX_GAME_QUIT, SCA_GameActuator::KX_GAME_QUIT);
+	KX_MACRO_addTypesToDict(d, KX_GAME_SAVECFG, SCA_GameActuator::KX_GAME_SAVECFG);
+	KX_MACRO_addTypesToDict(d, KX_GAME_LOADCFG, SCA_GameActuator::KX_GAME_LOADCFG);
+	KX_MACRO_addTypesToDict(d, KX_GAME_SCREENSHOT, SCA_GameActuator::KX_GAME_SCREENSHOT);
 
 	/* Scene Actuator Modes */
 	KX_MACRO_addTypesToDict(d, KX_SCENE_RESTART, KX_SceneActuator::KX_SCENE_RESTART);

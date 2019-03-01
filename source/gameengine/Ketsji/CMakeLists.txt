@@ -86,7 +86,6 @@ set(SRC
 	KX_ConstraintWrapper.cpp
 	KX_EmptyObject.cpp
 	KX_FontObject.cpp
-	KX_GameActuator.cpp
 	KX_GameObject.cpp
 	KX_Globals.cpp
 	KX_IPO_SGController.cpp
@@ -152,7 +151,6 @@ set(SRC
 	KX_ConstraintWrapper.h
 	KX_EmptyObject.h
 	KX_FontObject.h
-	KX_GameActuator.h
 	KX_GameObject.h
 	KX_Globals.h
 	KX_IInterpolator.h
