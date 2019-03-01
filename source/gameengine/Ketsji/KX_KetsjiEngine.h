@@ -39,7 +39,6 @@
 #include "KX_Scene.h"
 #include "KX_TimeCategoryLogger.h"
 #include "EXP_Python.h"
-#include "KX_WorldInfo.h"
 #include "RAS_CameraData.h"
 #include "RAS_Rasterizer.h"
 #include <vector>

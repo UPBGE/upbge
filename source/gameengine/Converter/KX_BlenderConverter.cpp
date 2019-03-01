@@ -35,7 +35,6 @@
 
 #include "KX_Scene.h"
 #include "KX_GameObject.h"
-#include "KX_WorldInfo.h"
 #include "RAS_MeshObject.h"
 #include "RAS_BucketManager.h"
 #include "KX_PhysicsEngineEnums.h"
@@ -250,10 +249,6 @@ void KX_BlenderConverter::ConvertScene(KX_Scene *destinationscene, RAS_Rasterize
  */
 void KX_BlenderConverter::RemoveScene(KX_Scene *scene)
 {
-	KX_WorldInfo *world = scene->GetWorldInfo();
-	if (world) {
-		delete world;
-	}
 
 #ifdef WITH_PYTHON
 	Texture::FreeAllTextures(scene);
@@ -748,10 +743,6 @@ void KX_BlenderConverter::MergeScene(KX_Scene *to, KX_Scene *from)
 
 	m_sceneSlots[to].Merge(sceneSlotFrom);
 	m_sceneSlots.erase(from);
-
-	// Delete from scene's world info.
-	delete from->GetWorldInfo();
-	from->SetWorldInfo(nullptr);
 }
 
 /** This function merges a mesh from the current scene into another main

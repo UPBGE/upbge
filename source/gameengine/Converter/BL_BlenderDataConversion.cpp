@@ -101,8 +101,6 @@
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_query.h"
 
-#include "KX_WorldInfo.h"
-
 #include "KX_KetsjiEngine.h"
 #include "KX_BlenderSceneConverter.h"
 
@@ -1295,10 +1293,6 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	
 	// no occlusion culling by default
 	kxscene->SetDbvtOcclusionRes(0);
-
-	// convert world
-	KX_WorldInfo* worldinfo = new KX_WorldInfo(blenderscene, blenderscene->world);
-	kxscene->SetWorldInfo(worldinfo);
 
 	int activeLayerBitInfo = blenderscene->lay;
 	

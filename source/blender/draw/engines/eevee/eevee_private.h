@@ -833,8 +833,8 @@ EEVEE_LightProbeEngineData *EEVEE_lightprobe_data_get(Object *ob);
 EEVEE_LightProbeEngineData *EEVEE_lightprobe_data_ensure(Object *ob);
 EEVEE_LightEngineData *EEVEE_light_data_get(Object *ob);
 EEVEE_LightEngineData *EEVEE_light_data_ensure(Object *ob);
-EEVEE_WorldEngineData *EEVEE_world_data_get(World *wo);
-EEVEE_WorldEngineData *EEVEE_world_data_ensure(World *wo);
+EEVEE_WorldEngineData *EEVEE_world_data_get(struct World *wo);
+EEVEE_WorldEngineData *EEVEE_world_data_ensure(struct World *wo);
 
 /* eevee_materials.c */
 struct GPUTexture *EEVEE_materials_get_util_tex(void); /* XXX */

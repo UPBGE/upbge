@@ -32,7 +32,6 @@
 
 #include "KX_WorldIpoController.h"
 #include "KX_ScalarInterpolator.h"
-#include "KX_WorldInfo.h"
 #include "KX_Globals.h"
 #include "KX_Scene.h"
 
@@ -49,8 +48,6 @@ bool KX_WorldIpoController::Update(double currentTime)
 		for (i = m_interpolators.begin(); !(i == m_interpolators.end()); ++i) {
 			(*i)->Execute(m_ipotime);
 		}
-
-		//KX_WorldInfo *world = KX_GetActiveScene()->GetWorldInfo();
 
 		m_modified = false;
 	}

@@ -531,18 +531,6 @@ const RAS_FrameSettings& KX_Scene::GetFramingType() const
 	return m_frame_settings;
 }
 
-void KX_Scene::SetWorldInfo(class KX_WorldInfo* worldinfo)
-{
-	m_worldinfo = worldinfo;
-}
-
-
-
-class KX_WorldInfo* KX_Scene::GetWorldInfo()
-{
-	return m_worldinfo;
-}
-
 void KX_Scene::Suspend()
 {
 	m_suspend = true;
@@ -1973,19 +1961,6 @@ PyObject *KX_Scene::pyattr_get_filter_manager(PyObjectPlus *self_v, const KX_PYA
 	return filterManager->GetProxy();
 }
 
-PyObject *KX_Scene::pyattr_get_world(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-{
-	KX_Scene* self = static_cast<KX_Scene*>(self_v);
-	KX_WorldInfo *world = self->GetWorldInfo();
-
-	if (world->GetName() != "") {
-		return world->GetProxy();
-	}
-	else {
-		Py_RETURN_NONE;
-	}
-}
-
 PyObject *KX_Scene::pyattr_get_texts(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_Scene *self = static_cast<KX_Scene *>(self_v);
@@ -2106,7 +2081,6 @@ PyAttributeDef KX_Scene::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("texts",				KX_Scene, pyattr_get_texts),
 	KX_PYATTRIBUTE_RO_FUNCTION("cameras",			KX_Scene, pyattr_get_cameras),
 	KX_PYATTRIBUTE_RO_FUNCTION("filterManager",		KX_Scene, pyattr_get_filter_manager),
-	KX_PYATTRIBUTE_RO_FUNCTION("world",				KX_Scene, pyattr_get_world),
 	KX_PYATTRIBUTE_RW_FUNCTION("active_camera",		KX_Scene, pyattr_get_active_camera, pyattr_set_active_camera),
 	KX_PYATTRIBUTE_RW_FUNCTION("overrideCullingCamera",KX_Scene, pyattr_get_overrideCullingCamera, pyattr_set_overrideCullingCamera),
 	KX_PYATTRIBUTE_RW_FUNCTION("pre_draw",			KX_Scene, pyattr_get_drawing_callback, pyattr_set_drawing_callback),

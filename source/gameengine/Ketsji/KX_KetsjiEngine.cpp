@@ -65,7 +65,6 @@
 #include "DEV_Joystick.h" // for DEV_Joystick::HandleEvents
 #include "KX_PythonInit.h" // for updatePythonJoysticks
 
-#include "KX_WorldInfo.h"
 #include "KX_BlenderConverter.h"
 
 #include "RAS_FramingManager.h"

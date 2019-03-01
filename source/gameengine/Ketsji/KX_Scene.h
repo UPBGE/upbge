@@ -71,7 +71,6 @@ class KX_NetworkMessageScene;
 class KX_NetworkMessageManager;
 class SG_Node;
 class SG_Node;
-class KX_WorldInfo;
 class KX_Camera;
 class KX_FontObject;
 class KX_GameObject;
@@ -185,11 +184,6 @@ protected:
 	 * The name of the scene
 	 */
 	std::string	m_sceneName;
-	
-	/**
-	 * stores the world-settings for a scene
-	 */
-	KX_WorldInfo* m_worldinfo;
 
 	/**
 	 * \section Different scenes, linked to ketsji scene
@@ -466,9 +460,6 @@ public:
 	void SetNetworkMessageScene(KX_NetworkMessageScene *newScene);
 	KX_NetworkMessageScene *GetNetworkMessageScene();
 
-	void SetWorldInfo(class KX_WorldInfo* wi);
-	KX_WorldInfo* GetWorldInfo();
-
 	/// \section Debug draw.
 	void RenderDebugProperties(RAS_DebugDraw& debugDraw, int xindent, int ysize, int& xcoord, int& ycoord, unsigned short propsMax);
 
@@ -551,7 +542,6 @@ public:
 	static PyObject*	pyattr_get_texts(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_cameras(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_filter_manager(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_world(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_active_camera(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_active_camera(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_overrideCullingCamera(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
