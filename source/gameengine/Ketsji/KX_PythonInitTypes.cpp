@@ -67,7 +67,7 @@
 #include "SCA_SceneActuator.h"
 #include "SCA_StateActuator.h"
 #include "SCA_SteeringActuator.h"
-#include "KX_TrackToActuator.h"
+#include "SCA_TrackToActuator.h"
 #include "KX_VehicleWrapper.h"
 #include "KX_VertexProxy.h"
 #include "SCA_2DFilterActuator.h"
@@ -243,7 +243,7 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
 		PyType_Ready_Attr(dict, SCA_StateActuator, init_getset);
 		PyType_Ready_Attr(dict, SCA_SteeringActuator, init_getset);
 		PyType_Ready_Attr(dict, SCA_CollisionSensor, init_getset);
-		PyType_Ready_Attr(dict, KX_TrackToActuator, init_getset);
+		PyType_Ready_Attr(dict, SCA_TrackToActuator, init_getset);
 		PyType_Ready_Attr(dict, KX_VehicleWrapper, init_getset);
 		PyType_Ready_Attr(dict, KX_VertexProxy, init_getset);
 		PyType_Ready_Attr(dict, KX_VisibilityActuator, init_getset);

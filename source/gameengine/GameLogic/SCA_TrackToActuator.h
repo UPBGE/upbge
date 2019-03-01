@@ -25,12 +25,12 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file KX_TrackToActuator.h
+/** \file SCA_TrackToActuator.h
  *  \ingroup ketsji
  */
 
-#ifndef __KX_TRACKTOACTUATOR_H__
-#define __KX_TRACKTOACTUATOR_H__
+#ifndef __SCA_TrackToActuator_H__
+#define __SCA_TrackToActuator_H__
 
 #include "SCA_IActuator.h"
 #include "SCA_IObject.h"
@@ -38,7 +38,7 @@
 #include "KX_GameObject.h"
 
 
-class KX_TrackToActuator : public SCA_IActuator
+class SCA_TrackToActuator : public SCA_IActuator
 {
 	Py_Header
 	// Object reference. Actually, we use the object's 'life'
@@ -54,11 +54,11 @@ class KX_TrackToActuator : public SCA_IActuator
 	KX_GameObject* m_parentobj;
 
   public:
-	KX_TrackToActuator(SCA_IObject* gameobj, SCA_IObject *ob, int time,
+	SCA_TrackToActuator(SCA_IObject* gameobj, SCA_IObject *ob, int time,
 	                   bool threedee,int trackflag,int upflag);
-	virtual ~KX_TrackToActuator();
+	virtual ~SCA_TrackToActuator();
 	virtual CValue* GetReplica() {
-		KX_TrackToActuator* replica = new KX_TrackToActuator(*this);
+		SCA_TrackToActuator* replica = new SCA_TrackToActuator(*this);
 		replica->ProcessReplica();
 		return replica;
 	};
@@ -93,6 +93,6 @@ class KX_TrackToActuator : public SCA_IActuator
 	
 #endif  /* WITH_PYTHON */
 
-}; /* end of class KX_TrackToActuator : public KX_EditObjectActuator */
+}; /* end of class SCA_TrackToActuator : public KX_EditObjectActuator */
 
-#endif  /* __KX_TRACKTOACTUATOR_H__ */
+#endif  /* __SCA_TrackToActuator_H__ */

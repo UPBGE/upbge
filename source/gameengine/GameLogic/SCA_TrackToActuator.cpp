@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/Ketsji/KX_TrackToActuator.cpp
+/** \file gameengine/Ketsji/SCA_TrackToActuator.cpp
  *  \ingroup ketsji
  *
  * Replace the mesh for this actuator's parent
@@ -37,7 +37,7 @@
 
 #include "MT_Scalar.h"
 #include "SCA_IActuator.h"
-#include "KX_TrackToActuator.h"
+#include "SCA_TrackToActuator.h"
 #include "SCA_IScene.h"
 #include "SCA_LogicManager.h"
 #include <math.h>
@@ -50,7 +50,7 @@
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
 
-KX_TrackToActuator::KX_TrackToActuator(SCA_IObject *gameobj, 
+SCA_TrackToActuator::SCA_TrackToActuator(SCA_IObject *gameobj, 
                                        SCA_IObject *ob,
                                        int time,
                                        bool allow3D,
@@ -248,7 +248,7 @@ static MT_Matrix3x3 vectomat(MT_Vector3 vec, short axis, short upflag, short thr
 	return mat;
 }
 
-KX_TrackToActuator::~KX_TrackToActuator()
+SCA_TrackToActuator::~SCA_TrackToActuator()
 {
 	if (m_object)
 		m_object->UnregisterActuator(this);
@@ -256,7 +256,7 @@ KX_TrackToActuator::~KX_TrackToActuator()
 		m_parentobj->UnregisterActuator(this);
 } /* end of destructor */
 
-void KX_TrackToActuator::ProcessReplica()
+void SCA_TrackToActuator::ProcessReplica()
 {
 	// the replica is tracking the same object => register it
 	if (m_object)
@@ -267,7 +267,7 @@ void KX_TrackToActuator::ProcessReplica()
 }
 
 
-bool KX_TrackToActuator::UnlinkObject(SCA_IObject* clientobj)
+bool SCA_TrackToActuator::UnlinkObject(SCA_IObject* clientobj)
 {
 	if (clientobj == m_object)
 	{
@@ -283,7 +283,7 @@ bool KX_TrackToActuator::UnlinkObject(SCA_IObject* clientobj)
 	return false;
 }
 
-void KX_TrackToActuator::Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_map)
+void SCA_TrackToActuator::Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_map)
 {
 	SCA_IObject *obj = obj_map[m_object];
 	if (obj) {
@@ -303,7 +303,7 @@ void KX_TrackToActuator::Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_map)
 }
 
 
-bool KX_TrackToActuator::Update(double curtime)
+bool SCA_TrackToActuator::Update(double curtime)
 {
 	bool result = false;
 	bool bNegativeEvent = IsNegativeEvent();
@@ -361,9 +361,9 @@ bool KX_TrackToActuator::Update(double curtime)
 /* ------------------------------------------------------------------------- */
 
 /* Integration hooks ------------------------------------------------------- */
-PyTypeObject KX_TrackToActuator::Type = {
+PyTypeObject SCA_TrackToActuator::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
-	"KX_TrackToActuator",
+	"SCA_TrackToActuator",
 	sizeof(PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
@@ -383,35 +383,35 @@ PyTypeObject KX_TrackToActuator::Type = {
 	py_base_new
 };
 
-PyMethodDef KX_TrackToActuator::Methods[] = {
+PyMethodDef SCA_TrackToActuator::Methods[] = {
 	{nullptr,nullptr} //Sentinel
 };
 
-PyAttributeDef KX_TrackToActuator::Attributes[] = {
-	KX_PYATTRIBUTE_INT_RW("time",0,1000,true,KX_TrackToActuator,m_time),
-	KX_PYATTRIBUTE_BOOL_RW("use3D",KX_TrackToActuator,m_allow3D),
-	KX_PYATTRIBUTE_INT_RW("upAxis", 0, 2, true, KX_TrackToActuator,m_upflag),
-	KX_PYATTRIBUTE_INT_RW("trackAxis", 0, 5, true, KX_TrackToActuator,m_trackflag),
-	KX_PYATTRIBUTE_RW_FUNCTION("object", KX_TrackToActuator, pyattr_get_object, pyattr_set_object),
+PyAttributeDef SCA_TrackToActuator::Attributes[] = {
+	KX_PYATTRIBUTE_INT_RW("time",0,1000,true,SCA_TrackToActuator,m_time),
+	KX_PYATTRIBUTE_BOOL_RW("use3D",SCA_TrackToActuator,m_allow3D),
+	KX_PYATTRIBUTE_INT_RW("upAxis", 0, 2, true, SCA_TrackToActuator,m_upflag),
+	KX_PYATTRIBUTE_INT_RW("trackAxis", 0, 5, true, SCA_TrackToActuator,m_trackflag),
+	KX_PYATTRIBUTE_RW_FUNCTION("object", SCA_TrackToActuator, pyattr_get_object, pyattr_set_object),
 
 	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
-PyObject *KX_TrackToActuator::pyattr_get_object(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_TrackToActuator::pyattr_get_object(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_TrackToActuator* actuator = static_cast<KX_TrackToActuator*>(self);
+	SCA_TrackToActuator* actuator = static_cast<SCA_TrackToActuator*>(self);
 	if (!actuator->m_object)
 		Py_RETURN_NONE;
 	else
 		return actuator->m_object->GetProxy();
 }
 
-int KX_TrackToActuator::pyattr_set_object(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int SCA_TrackToActuator::pyattr_set_object(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
-	KX_TrackToActuator* actuator = static_cast<KX_TrackToActuator*>(self);
+	SCA_TrackToActuator* actuator = static_cast<SCA_TrackToActuator*>(self);
 	KX_GameObject *gameobj;
 		
-	if (!ConvertPythonToGameObject(actuator->GetLogicManager(), value, &gameobj, true, "actuator.object = value: KX_TrackToActuator"))
+	if (!ConvertPythonToGameObject(actuator->GetLogicManager(), value, &gameobj, true, "actuator.object = value: SCA_TrackToActuator"))
 		return PY_SET_ATTR_FAIL; // ConvertPythonToGameObject sets the error
 		
 	if (actuator->m_object != nullptr)
