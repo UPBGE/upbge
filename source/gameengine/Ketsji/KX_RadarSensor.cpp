@@ -51,7 +51,7 @@ KX_RadarSensor::KX_RadarSensor(SCA_EventManager* eventmgr,
 			bool bFindMaterial,
 			const std::string& touchedpropname)
 
-			: KX_NearSensor(
+			: SCA_NearSensor(
 				eventmgr,
 				gameobj,
 				//DT_NewCone(coneradius,coneheight),
@@ -195,7 +195,7 @@ PyTypeObject KX_RadarSensor::Type = {
 	Methods,
 	0,
 	0,
-	&KX_NearSensor::Type,
+	&SCA_NearSensor::Type,
 	0,0,0,0,0,0,
 	py_base_new
 };

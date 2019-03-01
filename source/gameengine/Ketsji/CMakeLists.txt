@@ -97,7 +97,6 @@ set(SRC
 	KX_MeshProxy.cpp
 	KX_MotionState.cpp
 	KX_NavMeshObject.cpp
-	KX_NearSensor.cpp
 	KX_ObColorIpoSGController.cpp
 	KX_ObjectActuator.cpp
 	KX_ObstacleSimulation.cpp
@@ -164,7 +163,6 @@ set(SRC
 	KX_MeshProxy.h
 	KX_MotionState.h
 	KX_NavMeshObject.h
-	KX_NearSensor.h
 	KX_ObColorIpoSGController.h
 	KX_ObjectActuator.h
 	KX_ObstacleSimulation.h

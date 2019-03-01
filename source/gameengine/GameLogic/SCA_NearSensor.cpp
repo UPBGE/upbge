@@ -28,12 +28,12 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/Ketsji/KX_NearSensor.cpp
+/** \file gameengine/Ketsji/SCA_NearSensor.cpp
  *  \ingroup ketsji
  */
 
 
-#include "KX_NearSensor.h"
+#include "SCA_NearSensor.h"
 #include "SCA_LogicManager.h"
 #include "KX_GameObject.h"
 #include "KX_CollisionEventManager.h"
@@ -42,7 +42,7 @@
 #include "PHY_IPhysicsController.h"
 #include "PHY_IMotionState.h"
 
-KX_NearSensor::KX_NearSensor(SCA_EventManager* eventmgr,
+SCA_NearSensor::SCA_NearSensor(SCA_EventManager* eventmgr,
 							 KX_GameObject* gameobj,
 							 float margin,
 							 float resetmargin,
@@ -73,7 +73,7 @@ KX_NearSensor::KX_NearSensor(SCA_EventManager* eventmgr,
 	SynchronizeTransform();
 }
 
-void KX_NearSensor::SynchronizeTransform()
+void SCA_NearSensor::SynchronizeTransform()
 {
 	// The near and radar sensors are using a different physical object which is 
 	// not linked to the parent object, must synchronize it.
@@ -87,14 +87,14 @@ void KX_NearSensor::SynchronizeTransform()
 	}
 }
 
-CValue* KX_NearSensor::GetReplica()
+CValue* SCA_NearSensor::GetReplica()
 {
-	KX_NearSensor* replica = new KX_NearSensor(*this);
+	SCA_NearSensor* replica = new SCA_NearSensor(*this);
 	replica->ProcessReplica();
 	return replica;
 }
 
-void KX_NearSensor::ProcessReplica()
+void SCA_NearSensor::ProcessReplica()
 {
 	SCA_CollisionSensor::ProcessReplica();
 	
@@ -113,7 +113,7 @@ void KX_NearSensor::ProcessReplica()
 	}
 }
 
-void KX_NearSensor::ReParent(SCA_IObject* parent)
+void SCA_NearSensor::ReParent(SCA_IObject* parent)
 {
 	SCA_ISensor::ReParent(parent);
 	m_client_info->m_gameobject = static_cast<KX_GameObject*>(parent); 
@@ -124,7 +124,7 @@ void KX_NearSensor::ReParent(SCA_IObject* parent)
 
 
 
-KX_NearSensor::~KX_NearSensor()
+SCA_NearSensor::~SCA_NearSensor()
 {
 	// for nearsensor, the sensor is the 'owner' of sumoobj
 	// for collisionsensor, it's the parent
@@ -140,7 +140,7 @@ KX_NearSensor::~KX_NearSensor()
 		delete m_client_info;
 }
 
-void KX_NearSensor::SetPhysCtrlRadius()
+void SCA_NearSensor::SetPhysCtrlRadius()
 {
 	if (m_bTriggered)
 	{
@@ -157,7 +157,7 @@ void KX_NearSensor::SetPhysCtrlRadius()
 	}
 }
 
-bool KX_NearSensor::Evaluate()
+bool SCA_NearSensor::Evaluate()
 {
 	bool result = false;
 //	KX_GameObject* parent = static_cast<KX_GameObject*>(GetParent());
@@ -177,7 +177,7 @@ bool KX_NearSensor::Evaluate()
 // this function is called at broad phase stage to check if the two controller
 // need to interact at all. It is used for Near/Radar sensor that don't need to
 // check collision with object not included in filter
-bool	KX_NearSensor::BroadPhaseFilterCollision(void*obj1,void*obj2)
+bool	SCA_NearSensor::BroadPhaseFilterCollision(void*obj1,void*obj2)
 {
 	KX_GameObject* parent = static_cast<KX_GameObject*>(GetParent());
 	
@@ -205,7 +205,7 @@ bool	KX_NearSensor::BroadPhaseFilterCollision(void*obj1,void*obj2)
 	return false;
 }
 
-bool	KX_NearSensor::NewHandleCollision(void *obj1, void *obj2, const PHY_CollData *coll_data)
+bool	SCA_NearSensor::NewHandleCollision(void *obj1, void *obj2, const PHY_CollData *coll_data)
 {
 //	KX_CollisionEventManager* toucheventmgr = static_cast<KX_CollisionEventManager*>(m_eventmgr);
 //	KX_GameObject* parent = static_cast<KX_GameObject*>(GetParent());
@@ -253,9 +253,9 @@ bool	KX_NearSensor::NewHandleCollision(void *obj1, void *obj2, const PHY_CollDat
 /* Python Integration Hooks                                                  */
 /* ------------------------------------------------------------------------- */
 
-PyTypeObject KX_NearSensor::Type = {
+PyTypeObject SCA_NearSensor::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
-	"KX_NearSensor",
+	"SCA_NearSensor",
 	sizeof(PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
@@ -275,14 +275,14 @@ PyTypeObject KX_NearSensor::Type = {
 	py_base_new
 };
 
-PyMethodDef KX_NearSensor::Methods[] = {
+PyMethodDef SCA_NearSensor::Methods[] = {
 	//No methods
 	{nullptr,nullptr} //Sentinel
 };
 
-PyAttributeDef KX_NearSensor::Attributes[] = {
-	KX_PYATTRIBUTE_FLOAT_RW_CHECK("distance", 0, 10000, KX_NearSensor, m_Margin, CheckResetDistance),
-	KX_PYATTRIBUTE_FLOAT_RW_CHECK("resetDistance", 0, 10000, KX_NearSensor, m_ResetMargin, CheckResetDistance),
+PyAttributeDef SCA_NearSensor::Attributes[] = {
+	KX_PYATTRIBUTE_FLOAT_RW_CHECK("distance", 0, 10000, SCA_NearSensor, m_Margin, CheckResetDistance),
+	KX_PYATTRIBUTE_FLOAT_RW_CHECK("resetDistance", 0, 10000, SCA_NearSensor, m_ResetMargin, CheckResetDistance),
 	KX_PYATTRIBUTE_NULL //Sentinel
 };
 

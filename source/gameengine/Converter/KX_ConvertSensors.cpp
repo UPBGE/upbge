@@ -60,7 +60,7 @@
 #include "SCA_MouseSensor.h"
 #include "SCA_AlwaysSensor.h"
 #include "SCA_CollisionSensor.h"
-#include "KX_NearSensor.h"
+#include "SCA_NearSensor.h"
 #include "KX_RadarSensor.h"
 #include "SCA_MouseFocusSensor.h"
 #include "SCA_ArmatureSensor.h"
@@ -233,7 +233,7 @@ void BL_ConvertSensors(struct Object* blenderobject,
 
 
 
-						gamesensor = new KX_NearSensor(eventmgr,gameobj,
+						gamesensor = new SCA_NearSensor(eventmgr,gameobj,
 							blendernearsensor->dist,
 							blendernearsensor->resetdist,
 							bFindMaterial,

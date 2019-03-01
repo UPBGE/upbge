@@ -88,7 +88,7 @@
 #include "SCA_PythonJoystick.h"
 #include "SCA_PythonKeyboard.h"
 #include "SCA_PythonMouse.h"
-#include "KX_NearSensor.h"
+#include "SCA_NearSensor.h"
 #include "KX_RadarSensor.h"
 #include "KX_RaySensor.h"
 #include "KX_SCA_DynamicActuator.h"
@@ -225,7 +225,7 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
 		PyType_Ready_Attr(dict, KX_FontObject, init_getset);
 		PyType_Ready_Attr(dict, KX_MeshProxy, init_getset);
 		PyType_Ready_Attr(dict, SCA_MouseFocusSensor, init_getset);
-		PyType_Ready_Attr(dict, KX_NearSensor, init_getset);
+		PyType_Ready_Attr(dict, SCA_NearSensor, init_getset);
 		PyType_Ready_Attr(dict, KX_NetworkMessageActuator, init_getset);
 		PyType_Ready_Attr(dict, KX_NetworkMessageSensor, init_getset);
 		PyType_Ready_Attr(dict, KX_ObjectActuator, init_getset);

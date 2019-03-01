@@ -32,13 +32,13 @@
 #ifndef __KX_RADARSENSOR_H__
 #define __KX_RADARSENSOR_H__
 
-#include "KX_NearSensor.h"
+#include "SCA_NearSensor.h"
 #include "MT_Vector3.h"
 
 /**
  * Radar 'cone' sensor. Very similar to a near-sensor, but instead of a sphere, a cone is used.
  */
-class KX_RadarSensor : public KX_NearSensor
+class KX_RadarSensor : public SCA_NearSensor
 {
  protected:
 	Py_Header

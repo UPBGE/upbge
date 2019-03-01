@@ -79,6 +79,7 @@ set(SRC
 	SCA_MouseManager.cpp
 	SCA_MouseSensor.cpp
 	SCA_NANDController.cpp
+	SCA_NearSensor.cpp
 	SCA_NORController.cpp
 	SCA_ORController.cpp
 	SCA_PropertyActuator.cpp
@@ -127,6 +128,7 @@ set(SRC
 	SCA_MouseManager.h
 	SCA_MouseSensor.h
 	SCA_NANDController.h
+	SCA_NearSensor.h
 	SCA_NORController.h
 	SCA_ORController.h
 	SCA_PropertyActuator.h

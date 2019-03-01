@@ -25,13 +25,13 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file KX_NearSensor.h
+/** \file SCA_NearSensor.h
  *  \ingroup ketsji
  *  \brief Sense if other objects are near
  */
 
-#ifndef __KX_NEARSENSOR_H__
-#define __KX_NEARSENSOR_H__
+#ifndef __SCA_NearSensor_H__
+#define __SCA_NearSensor_H__
 
 #include "SCA_CollisionSensor.h"
 #include "KX_ClientObjectInfo.h"
@@ -39,7 +39,7 @@
 class KX_Scene;
 class PHY_CollData;
 
-class KX_NearSensor : public SCA_CollisionSensor
+class SCA_NearSensor : public SCA_CollisionSensor
 {
 	Py_Header
 protected:
@@ -48,7 +48,7 @@ protected:
 
 	KX_ClientObjectInfo*	m_client_info;
 public:
-	KX_NearSensor(class SCA_EventManager* eventmgr,
+	SCA_NearSensor(class SCA_EventManager* eventmgr,
 	              class KX_GameObject* gameobj,
 	              float margin,
 	              float resetmargin,
@@ -57,7 +57,7 @@ public:
 	              PHY_IPhysicsController*	ctrl);
 #if 0
 public:
-	KX_NearSensor(class SCA_EventManager* eventmgr,
+	SCA_NearSensor(class SCA_EventManager* eventmgr,
 			class KX_GameObject* gameobj,
 			double margin,
 			double resetmargin,
@@ -65,7 +65,7 @@ public:
 			const std::string& touchedpropname,
 			class KX_Scene* scene);
 #endif
-	virtual ~KX_NearSensor(); 
+	virtual ~SCA_NearSensor(); 
 	virtual void SynchronizeTransform();
 	virtual CValue* GetReplica();
 	virtual void ProcessReplica();
@@ -90,7 +90,7 @@ public:
 	//This method is used to make sure the distance does not exceed the reset distance
 	static int CheckResetDistance(PyObjectPlus *self, const PyAttributeDef*)
 	{
-		KX_NearSensor* sensor = reinterpret_cast<KX_NearSensor*>(self);
+		SCA_NearSensor* sensor = reinterpret_cast<SCA_NearSensor*>(self);
 
 		if (sensor->m_Margin > sensor->m_ResetMargin)
 			sensor->m_ResetMargin = sensor->m_Margin;
@@ -104,4 +104,4 @@ public:
 
 };
 
-#endif  /* __KX_NEARSENSOR_H__ */
+#endif  /* __SCA_NearSensor_H__ */
