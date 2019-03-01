@@ -72,7 +72,7 @@
 
 #include "SCA_PropertySensor.h"
 #include "SCA_RandomSensor.h"
-#include "KX_RaySensor.h"
+#include "SCA_RaySensor.h"
 #include "SCA_EventManager.h"
 #include "SCA_LogicManager.h"
 #include "KX_Scene.h"
@@ -487,7 +487,7 @@ void BL_ConvertSensors(struct Object* blenderobject,
 						int axis = blenderraysensor->axisflag;
 						int mask = 0xFFFF;
 
-						gamesensor = new KX_RaySensor(eventmgr,
+						gamesensor = new SCA_RaySensor(eventmgr,
 													  gameobj,
 													  checkname,
 													  bFindMaterial,

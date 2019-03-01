@@ -75,7 +75,7 @@ extern "C" {
 
 #include "KX_KetsjiEngine.h"
 #include "SCA_RadarSensor.h"
-#include "KX_RaySensor.h"
+#include "SCA_RaySensor.h"
 #include "SCA_ArmatureSensor.h"
 #include "KX_SceneActuator.h"
 #include "SCA_GameActuator.h"
@@ -1567,12 +1567,12 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
 	KX_MACRO_addTypesToDict(d, KX_RADAR_AXIS_NEG_Z, SCA_RadarSensor::KX_RADAR_AXIS_NEG_Z);
 
 	/* Ray Sensor */
-	KX_MACRO_addTypesToDict(d, KX_RAY_AXIS_POS_X, KX_RaySensor::KX_RAY_AXIS_POS_X);
-	KX_MACRO_addTypesToDict(d, KX_RAY_AXIS_POS_Y, KX_RaySensor::KX_RAY_AXIS_POS_Y);
-	KX_MACRO_addTypesToDict(d, KX_RAY_AXIS_POS_Z, KX_RaySensor::KX_RAY_AXIS_POS_Z);
-	KX_MACRO_addTypesToDict(d, KX_RAY_AXIS_NEG_X, KX_RaySensor::KX_RAY_AXIS_NEG_X);
-	KX_MACRO_addTypesToDict(d, KX_RAY_AXIS_NEG_Y, KX_RaySensor::KX_RAY_AXIS_NEG_Y);
-	KX_MACRO_addTypesToDict(d, KX_RAY_AXIS_NEG_Z, KX_RaySensor::KX_RAY_AXIS_NEG_Z);
+	KX_MACRO_addTypesToDict(d, KX_RAY_AXIS_POS_X, SCA_RaySensor::KX_RAY_AXIS_POS_X);
+	KX_MACRO_addTypesToDict(d, KX_RAY_AXIS_POS_Y, SCA_RaySensor::KX_RAY_AXIS_POS_Y);
+	KX_MACRO_addTypesToDict(d, KX_RAY_AXIS_POS_Z, SCA_RaySensor::KX_RAY_AXIS_POS_Z);
+	KX_MACRO_addTypesToDict(d, KX_RAY_AXIS_NEG_X, SCA_RaySensor::KX_RAY_AXIS_NEG_X);
+	KX_MACRO_addTypesToDict(d, KX_RAY_AXIS_NEG_Y, SCA_RaySensor::KX_RAY_AXIS_NEG_Y);
+	KX_MACRO_addTypesToDict(d, KX_RAY_AXIS_NEG_Z, SCA_RaySensor::KX_RAY_AXIS_NEG_Z);
 
 	/* TrackTo Actuator */
 	KX_MACRO_addTypesToDict(d, KX_TRACK_UPAXIS_POS_X, KX_TrackToActuator::KX_TRACK_UPAXIS_POS_X);

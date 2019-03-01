@@ -28,12 +28,12 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/Ketsji/KX_RaySensor.cpp
+/** \file gameengine/Ketsji/SCA_RaySensor.cpp
  *  \ingroup ketsji
  */
 
 
-#include "KX_RaySensor.h"
+#include "SCA_RaySensor.h"
 #include "SCA_EventManager.h"
 #include "SCA_LogicManager.h"
 #include "SCA_IObject.h"
@@ -49,7 +49,7 @@
 
 #include "CM_Message.h"
 
-KX_RaySensor::KX_RaySensor(class SCA_EventManager* eventmgr,
+SCA_RaySensor::SCA_RaySensor(class SCA_EventManager* eventmgr,
 					SCA_IObject* gameobj,
 					const std::string& propname,
 					bool bFindMaterial,
@@ -71,7 +71,7 @@ KX_RaySensor::KX_RaySensor(class SCA_EventManager* eventmgr,
 	Init();
 }
 
-void KX_RaySensor::Init()
+void SCA_RaySensor::Init()
 {
 	m_bTriggered = (m_invert)?true:false;
 	m_rayHit = false;
@@ -79,16 +79,16 @@ void KX_RaySensor::Init()
 	m_reset = true;
 }
 
-KX_RaySensor::~KX_RaySensor() 
+SCA_RaySensor::~SCA_RaySensor() 
 {
 	/* Nothing to be done here. */
 }
 
 
 
-CValue* KX_RaySensor::GetReplica()
+CValue* SCA_RaySensor::GetReplica()
 {
-	KX_RaySensor* replica = new KX_RaySensor(*this);
+	SCA_RaySensor* replica = new SCA_RaySensor(*this);
 	replica->ProcessReplica();
 	replica->Init();
 
@@ -97,7 +97,7 @@ CValue* KX_RaySensor::GetReplica()
 
 
 
-bool KX_RaySensor::IsPositiveTrigger()
+bool SCA_RaySensor::IsPositiveTrigger()
 {
 	bool result = m_rayHit;
 
@@ -107,7 +107,7 @@ bool KX_RaySensor::IsPositiveTrigger()
 	return result;
 }
 
-bool KX_RaySensor::RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, void *UNUSED(data))
+bool SCA_RaySensor::RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, void *UNUSED(data))
 {
 
 	KX_GameObject* hitKXObj = client->m_gameobject;
@@ -158,7 +158,7 @@ bool KX_RaySensor::RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, void 
 /* this function is used to pre-filter the object before casting the ray on them.
  * This is useful for "X-Ray" option when we want to see "through" unwanted object.
  */
-bool KX_RaySensor::NeedRayCast(KX_ClientObjectInfo *client, void *UNUSED(data))
+bool SCA_RaySensor::NeedRayCast(KX_ClientObjectInfo *client, void *UNUSED(data))
 {
 	KX_GameObject *hitKXObj = client->m_gameobject;
 
@@ -198,7 +198,7 @@ bool KX_RaySensor::NeedRayCast(KX_ClientObjectInfo *client, void *UNUSED(data))
 	return true;
 }
 
-bool KX_RaySensor::Evaluate()
+bool SCA_RaySensor::Evaluate()
 {
 	bool result = false;
 	bool reset = m_reset && m_level;
@@ -286,7 +286,7 @@ bool KX_RaySensor::Evaluate()
 	PHY_IPhysicsEnvironment* physics_environment = this->m_scene->GetPhysicsEnvironment();
 	
 
-	KX_RayCast::Callback<KX_RaySensor, void> callback(this, spc);
+	KX_RayCast::Callback<SCA_RaySensor, void> callback(this, spc);
 	KX_RayCast::RayTest(physics_environment, frompoint, topoint, callback);
 
 	/* now pass this result to some controller */
@@ -334,9 +334,9 @@ bool KX_RaySensor::Evaluate()
 /* ------------------------------------------------------------------------- */
 
 /* Integration hooks ------------------------------------------------------- */
-PyTypeObject KX_RaySensor::Type = {
+PyTypeObject SCA_RaySensor::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
-	"KX_RaySensor",
+	"SCA_RaySensor",
 	sizeof(PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
@@ -357,28 +357,28 @@ PyTypeObject KX_RaySensor::Type = {
 
 };
 
-PyMethodDef KX_RaySensor::Methods[] = {
+PyMethodDef SCA_RaySensor::Methods[] = {
 	{nullptr,nullptr} //Sentinel
 };
 
-PyAttributeDef KX_RaySensor::Attributes[] = {
-	KX_PYATTRIBUTE_BOOL_RW("useMaterial", KX_RaySensor, m_bFindMaterial),
-	KX_PYATTRIBUTE_BOOL_RW("useXRay", KX_RaySensor, m_bXRay),
-	KX_PYATTRIBUTE_FLOAT_RW("range", 0, 10000, KX_RaySensor, m_distance),
-	KX_PYATTRIBUTE_STRING_RW("propName", 0, MAX_PROP_NAME, false, KX_RaySensor, m_propertyname),
-	KX_PYATTRIBUTE_INT_RW("axis", 0, 5, true, KX_RaySensor, m_axis),
-	KX_PYATTRIBUTE_INT_RW("mask", 1, (1 << OB_MAX_COL_MASKS) - 1, true, KX_RaySensor, m_mask),
-	KX_PYATTRIBUTE_FLOAT_ARRAY_RO("hitPosition", KX_RaySensor, m_hitPosition, 3),
-	KX_PYATTRIBUTE_FLOAT_ARRAY_RO("rayDirection", KX_RaySensor, m_rayDirection, 3),
-	KX_PYATTRIBUTE_FLOAT_ARRAY_RO("hitNormal", KX_RaySensor, m_hitNormal, 3),
-	KX_PYATTRIBUTE_STRING_RO("hitMaterial", KX_RaySensor, m_hitMaterial),
-	KX_PYATTRIBUTE_RO_FUNCTION("hitObject", KX_RaySensor, pyattr_get_hitobject),
+PyAttributeDef SCA_RaySensor::Attributes[] = {
+	KX_PYATTRIBUTE_BOOL_RW("useMaterial", SCA_RaySensor, m_bFindMaterial),
+	KX_PYATTRIBUTE_BOOL_RW("useXRay", SCA_RaySensor, m_bXRay),
+	KX_PYATTRIBUTE_FLOAT_RW("range", 0, 10000, SCA_RaySensor, m_distance),
+	KX_PYATTRIBUTE_STRING_RW("propName", 0, MAX_PROP_NAME, false, SCA_RaySensor, m_propertyname),
+	KX_PYATTRIBUTE_INT_RW("axis", 0, 5, true, SCA_RaySensor, m_axis),
+	KX_PYATTRIBUTE_INT_RW("mask", 1, (1 << OB_MAX_COL_MASKS) - 1, true, SCA_RaySensor, m_mask),
+	KX_PYATTRIBUTE_FLOAT_ARRAY_RO("hitPosition", SCA_RaySensor, m_hitPosition, 3),
+	KX_PYATTRIBUTE_FLOAT_ARRAY_RO("rayDirection", SCA_RaySensor, m_rayDirection, 3),
+	KX_PYATTRIBUTE_FLOAT_ARRAY_RO("hitNormal", SCA_RaySensor, m_hitNormal, 3),
+	KX_PYATTRIBUTE_STRING_RO("hitMaterial", SCA_RaySensor, m_hitMaterial),
+	KX_PYATTRIBUTE_RO_FUNCTION("hitObject", SCA_RaySensor, pyattr_get_hitobject),
 	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
-PyObject *KX_RaySensor::pyattr_get_hitobject(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_RaySensor::pyattr_get_hitobject(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_RaySensor* self = static_cast<KX_RaySensor*>(self_v);
+	SCA_RaySensor* self = static_cast<SCA_RaySensor*>(self_v);
 	if (self->m_hitObject)
 		return self->m_hitObject->GetProxy();
 
