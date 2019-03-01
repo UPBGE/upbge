@@ -56,7 +56,7 @@
 #include "RAS_2DFilterManager.h" // for filter type.
 
 // Ketsji specific logicbricks
-#include "KX_SceneActuator.h"
+#include "SCA_SceneActuator.h"
 #include "KX_SoundActuator.h"
 #include "SCA_ObjectActuator.h"
 #include "KX_TrackToActuator.h"
@@ -637,8 +637,8 @@ void BL_ConvertActuators(const char* maggiename,
 				bSceneActuator *sceneact = (bSceneActuator *) bact->data;
 				std::string nextSceneName("");
 				
-				KX_SceneActuator* tmpsceneact;
-				int mode = KX_SceneActuator::KX_SCENE_NODEF;
+				SCA_SceneActuator* tmpsceneact;
+				int mode = SCA_SceneActuator::KX_SCENE_NODEF;
 				KX_Camera *cam = nullptr;
 				//KX_Scene* scene = nullptr;
 				switch (sceneact->type)
@@ -653,23 +653,23 @@ void BL_ConvertActuators(const char* maggiename,
 						switch (sceneact->type)
 						{
 						case ACT_SCENE_RESUME:
-							mode = KX_SceneActuator::KX_SCENE_RESUME;
+							mode = SCA_SceneActuator::KX_SCENE_RESUME;
 							break;
 						case ACT_SCENE_SUSPEND:
-							mode = KX_SceneActuator::KX_SCENE_SUSPEND;
+							mode = SCA_SceneActuator::KX_SCENE_SUSPEND;
 							break;
 						case ACT_SCENE_ADD_FRONT:
-							mode = KX_SceneActuator::KX_SCENE_ADD_FRONT_SCENE;
+							mode = SCA_SceneActuator::KX_SCENE_ADD_FRONT_SCENE;
 							break;
 						case ACT_SCENE_ADD_BACK:
-							mode = KX_SceneActuator::KX_SCENE_ADD_BACK_SCENE;
+							mode = SCA_SceneActuator::KX_SCENE_ADD_BACK_SCENE;
 							break;
 						case ACT_SCENE_REMOVE:
-							mode = KX_SceneActuator::KX_SCENE_REMOVE_SCENE;
+							mode = SCA_SceneActuator::KX_SCENE_REMOVE_SCENE;
 							break;
 						case ACT_SCENE_SET:
 						default:
-							mode = KX_SceneActuator::KX_SCENE_SET_SCENE;
+							mode = SCA_SceneActuator::KX_SCENE_SET_SCENE;
 							break;
 						};
 						
@@ -680,7 +680,7 @@ void BL_ConvertActuators(const char* maggiename,
 						break;
 					}
 				case ACT_SCENE_CAMERA:
-					mode = KX_SceneActuator::KX_SCENE_SET_CAMERA;
+					mode = SCA_SceneActuator::KX_SCENE_SET_CAMERA;
 					if (sceneact->camera)
 					{
 						KX_GameObject *tmp = converter.FindGameObject(sceneact->camera);
@@ -691,13 +691,13 @@ void BL_ConvertActuators(const char* maggiename,
 				case ACT_SCENE_RESTART:
 					{
 						
-						mode =  KX_SceneActuator::KX_SCENE_RESTART;
+						mode =  SCA_SceneActuator::KX_SCENE_RESTART;
 						break;
 					}
 				default:
 					; /* flag error */
 				}
-				tmpsceneact = new KX_SceneActuator(
+				tmpsceneact = new SCA_SceneActuator(
 				            gameobj,
 				            mode,
 				            scene,

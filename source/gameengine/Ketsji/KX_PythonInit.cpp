@@ -77,7 +77,7 @@ extern "C" {
 #include "SCA_RadarSensor.h"
 #include "SCA_RaySensor.h"
 #include "SCA_ArmatureSensor.h"
-#include "KX_SceneActuator.h"
+#include "SCA_SceneActuator.h"
 #include "SCA_GameActuator.h"
 #include "SCA_ParentActuator.h"
 #include "SCA_DynamicActuator.h"
@@ -1643,14 +1643,14 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
 	KX_MACRO_addTypesToDict(d, KX_GAME_SCREENSHOT, SCA_GameActuator::KX_GAME_SCREENSHOT);
 
 	/* Scene Actuator Modes */
-	KX_MACRO_addTypesToDict(d, KX_SCENE_RESTART, KX_SceneActuator::KX_SCENE_RESTART);
-	KX_MACRO_addTypesToDict(d, KX_SCENE_SET_SCENE, KX_SceneActuator::KX_SCENE_SET_SCENE);
-	KX_MACRO_addTypesToDict(d, KX_SCENE_SET_CAMERA, KX_SceneActuator::KX_SCENE_SET_CAMERA);
-	KX_MACRO_addTypesToDict(d, KX_SCENE_ADD_FRONT_SCENE, KX_SceneActuator::KX_SCENE_ADD_FRONT_SCENE);
-	KX_MACRO_addTypesToDict(d, KX_SCENE_ADD_BACK_SCENE, KX_SceneActuator::KX_SCENE_ADD_BACK_SCENE);
-	KX_MACRO_addTypesToDict(d, KX_SCENE_REMOVE_SCENE, KX_SceneActuator::KX_SCENE_REMOVE_SCENE);
-	KX_MACRO_addTypesToDict(d, KX_SCENE_SUSPEND, KX_SceneActuator::KX_SCENE_SUSPEND);
-	KX_MACRO_addTypesToDict(d, KX_SCENE_RESUME, KX_SceneActuator::KX_SCENE_RESUME);
+	KX_MACRO_addTypesToDict(d, KX_SCENE_RESTART, SCA_SceneActuator::KX_SCENE_RESTART);
+	KX_MACRO_addTypesToDict(d, KX_SCENE_SET_SCENE, SCA_SceneActuator::KX_SCENE_SET_SCENE);
+	KX_MACRO_addTypesToDict(d, KX_SCENE_SET_CAMERA, SCA_SceneActuator::KX_SCENE_SET_CAMERA);
+	KX_MACRO_addTypesToDict(d, KX_SCENE_ADD_FRONT_SCENE, SCA_SceneActuator::KX_SCENE_ADD_FRONT_SCENE);
+	KX_MACRO_addTypesToDict(d, KX_SCENE_ADD_BACK_SCENE, SCA_SceneActuator::KX_SCENE_ADD_BACK_SCENE);
+	KX_MACRO_addTypesToDict(d, KX_SCENE_REMOVE_SCENE, SCA_SceneActuator::KX_SCENE_REMOVE_SCENE);
+	KX_MACRO_addTypesToDict(d, KX_SCENE_SUSPEND, SCA_SceneActuator::KX_SCENE_SUSPEND);
+	KX_MACRO_addTypesToDict(d, KX_SCENE_RESUME, SCA_SceneActuator::KX_SCENE_RESUME);
 
 	/* Parent Actuator Modes */
 	KX_MACRO_addTypesToDict(d, KX_PARENT_SET, SCA_ParentActuator::KX_PARENT_SET);

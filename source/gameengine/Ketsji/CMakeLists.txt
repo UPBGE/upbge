@@ -113,7 +113,6 @@ set(SRC
 	KX_ScalarInterpolator.cpp
 	KX_ScalingInterpolator.cpp
 	KX_Scene.cpp
-	KX_SceneActuator.cpp
 	KX_SoundActuator.cpp
 	KX_StateActuator.cpp
 	KX_SteeringActuator.cpp
@@ -173,7 +172,6 @@ set(SRC
 	KX_ScalarInterpolator.h
 	KX_ScalingInterpolator.h
 	KX_Scene.h
-	KX_SceneActuator.h
 	KX_SoundActuator.h
 	KX_StateActuator.h
 	KX_SteeringActuator.h
