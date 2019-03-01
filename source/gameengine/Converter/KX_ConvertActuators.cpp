@@ -61,7 +61,7 @@
 #include "KX_ObjectActuator.h"
 #include "KX_TrackToActuator.h"
 #include "KX_ConstraintActuator.h"
-#include "KX_CameraActuator.h"
+#include "SCA_CameraActuator.h"
 #include "KX_GameActuator.h"
 #include "KX_StateActuator.h"
 #include "KX_VisibilityActuator.h"
@@ -250,7 +250,7 @@ void BL_ConvertActuators(const char* maggiename,
 					
 					/* visifac, fac and axis are not copied from the struct...   */ 
 					/* that's some internal state...                             */
-					KX_CameraActuator *tmpcamact = new KX_CameraActuator(
+					SCA_CameraActuator *tmpcamact = new SCA_CameraActuator(
 					            gameobj,
 					            tmpgob,
 					            camact->height,

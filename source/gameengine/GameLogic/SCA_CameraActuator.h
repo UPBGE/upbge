@@ -1,5 +1,5 @@
 /*
- * KX_CameraActuator.h
+ * SCA_CameraActuator.h
  *
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -28,12 +28,12 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file KX_CameraActuator.h
+/** \file SCA_CameraActuator.h
  *  \ingroup ketsji
  */
 
-#ifndef __KX_CAMERAACTUATOR_H__
-#define __KX_CAMERAACTUATOR_H__
+#ifndef __SCA_CameraActuator_H__
+#define __SCA_CameraActuator_H__
 
 #include "SCA_IActuator.h"
 #include "MT_Scalar.h"
@@ -47,7 +47,7 @@
  */
 
 
-class KX_CameraActuator : public SCA_IActuator
+class SCA_CameraActuator : public SCA_IActuator
 {
 	Py_Header
 private :
@@ -83,7 +83,7 @@ public:
 	/**
 	 * Set the bool toggle to true to use x lock, false for y lock
 	 */
-	KX_CameraActuator(
+	SCA_CameraActuator(
 
 		SCA_IObject *gameobj,
 		//const CValue *ob,
@@ -96,7 +96,7 @@ public:
 	);
 
 
-	~KX_CameraActuator();
+	~SCA_CameraActuator();
 
 
 
@@ -126,4 +126,4 @@ public:
 
 };
 
-#endif  /* __KX_CAMERAACTUATOR_H__ */
+#endif  /* __SCA_CameraActuator_H__ */

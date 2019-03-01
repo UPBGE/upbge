@@ -1,5 +1,5 @@
 /*
- * KX_CameraActuator.cpp
+ * SCA_CameraActuator.cpp
  *
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -29,13 +29,13 @@
  *
  */
 
-/** \file gameengine/Ketsji/KX_CameraActuator.cpp
+/** \file gameengine/Ketsji/SCA_CameraActuator.cpp
  *  \ingroup ketsji
  */
 
 #include "BLI_math_vector.h"
 
-#include "KX_CameraActuator.h"
+#include "SCA_CameraActuator.h"
 #include <math.h>
 #include <float.h>
 #include "KX_GameObject.h"
@@ -46,7 +46,7 @@
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
 
-KX_CameraActuator::KX_CameraActuator(
+SCA_CameraActuator::SCA_CameraActuator(
 	SCA_IObject* gameobj, 
 	SCA_IObject *obj,
 	float hght,
@@ -67,29 +67,29 @@ KX_CameraActuator::KX_CameraActuator(
 		m_ob->RegisterActuator(this);
 }
 
-KX_CameraActuator::~KX_CameraActuator()
+SCA_CameraActuator::~SCA_CameraActuator()
 {
 	if (m_ob)
 		m_ob->UnregisterActuator(this);
 }
 
 	CValue* 
-KX_CameraActuator::
+SCA_CameraActuator::
 GetReplica(
 ) {
-	KX_CameraActuator* replica = new KX_CameraActuator(*this);
+	SCA_CameraActuator* replica = new SCA_CameraActuator(*this);
 	replica->ProcessReplica();
 	return replica;
 };
 
-void KX_CameraActuator::ProcessReplica()
+void SCA_CameraActuator::ProcessReplica()
 {
 	if (m_ob)
 		m_ob->RegisterActuator(this);
 	SCA_IActuator::ProcessReplica();
 }
 
-bool KX_CameraActuator::UnlinkObject(SCA_IObject* clientobj)
+bool SCA_CameraActuator::UnlinkObject(SCA_IObject* clientobj)
 {
 	if (clientobj == m_ob)
 	{
@@ -101,7 +101,7 @@ bool KX_CameraActuator::UnlinkObject(SCA_IObject* clientobj)
 }
 
 
-void KX_CameraActuator::Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_map)
+void SCA_CameraActuator::Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_map)
 {
 	SCA_IObject *obj = obj_map[m_ob];
 	if (obj) {
@@ -179,7 +179,7 @@ static void Kx_VecUpMat3(float vec[3], float mat[3][3], short axis)
 	cross_v3_v3v3(mat[cox], mat[coy], mat[coz]);
 }
 
-bool KX_CameraActuator::Update(double curtime)
+bool SCA_CameraActuator::Update(double curtime)
 {
 	/* wondering... is it really necessary/desirable to suppress negative    */
 	/* events here?                                                          */
@@ -355,9 +355,9 @@ bool KX_CameraActuator::Update(double curtime)
 /* ------------------------------------------------------------------------- */
 
 /* Integration hooks ------------------------------------------------------- */
-PyTypeObject KX_CameraActuator::Type = {
+PyTypeObject SCA_CameraActuator::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
-	"KX_CameraActuator",
+	"SCA_CameraActuator",
 	sizeof(PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
@@ -377,35 +377,35 @@ PyTypeObject KX_CameraActuator::Type = {
 	py_base_new
 };
 
-PyMethodDef KX_CameraActuator::Methods[] = {
+PyMethodDef SCA_CameraActuator::Methods[] = {
 	{nullptr, nullptr} //Sentinel
 };
 
-PyAttributeDef KX_CameraActuator::Attributes[] = {
-	KX_PYATTRIBUTE_FLOAT_RW("min",-FLT_MAX,FLT_MAX,KX_CameraActuator,m_minHeight),
-	KX_PYATTRIBUTE_FLOAT_RW("max",-FLT_MAX,FLT_MAX,KX_CameraActuator,m_maxHeight),
-	KX_PYATTRIBUTE_FLOAT_RW("height",-FLT_MAX,FLT_MAX,KX_CameraActuator,m_height),
-	KX_PYATTRIBUTE_SHORT_RW("axis", 0, 5, true, KX_CameraActuator, m_axis),
-	KX_PYATTRIBUTE_RW_FUNCTION("object", KX_CameraActuator, pyattr_get_object, pyattr_set_object),
-	KX_PYATTRIBUTE_FLOAT_RW("damping",0.f,10.f,KX_CameraActuator,m_damping),
+PyAttributeDef SCA_CameraActuator::Attributes[] = {
+	KX_PYATTRIBUTE_FLOAT_RW("min",-FLT_MAX,FLT_MAX,SCA_CameraActuator,m_minHeight),
+	KX_PYATTRIBUTE_FLOAT_RW("max",-FLT_MAX,FLT_MAX,SCA_CameraActuator,m_maxHeight),
+	KX_PYATTRIBUTE_FLOAT_RW("height",-FLT_MAX,FLT_MAX,SCA_CameraActuator,m_height),
+	KX_PYATTRIBUTE_SHORT_RW("axis", 0, 5, true, SCA_CameraActuator, m_axis),
+	KX_PYATTRIBUTE_RW_FUNCTION("object", SCA_CameraActuator, pyattr_get_object, pyattr_set_object),
+	KX_PYATTRIBUTE_FLOAT_RW("damping",0.f,10.f,SCA_CameraActuator,m_damping),
 	KX_PYATTRIBUTE_NULL
 };
 
-PyObject *KX_CameraActuator::pyattr_get_object(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_CameraActuator::pyattr_get_object(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_CameraActuator* self = static_cast<KX_CameraActuator*>(self_v);
+	SCA_CameraActuator* self = static_cast<SCA_CameraActuator*>(self_v);
 	if (self->m_ob==nullptr)
 		Py_RETURN_NONE;
 	else
 		return self->m_ob->GetProxy();
 }
 
-int KX_CameraActuator::pyattr_set_object(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int SCA_CameraActuator::pyattr_set_object(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
-	KX_CameraActuator* self = static_cast<KX_CameraActuator*>(self_v);
+	SCA_CameraActuator* self = static_cast<SCA_CameraActuator*>(self_v);
 	KX_GameObject *gameobj;
 	
-	if (!ConvertPythonToGameObject(self->GetLogicManager(), value, &gameobj, true, "actuator.object = value: KX_CameraActuator"))
+	if (!ConvertPythonToGameObject(self->GetLogicManager(), value, &gameobj, true, "actuator.object = value: SCA_CameraActuator"))
 		return PY_SET_ATTR_FAIL; // ConvertPythonToGameObject sets the error
 	
 	if (self->m_ob)

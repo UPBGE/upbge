@@ -80,7 +80,6 @@ set(SRC
 	KX_2DFilterFrameBuffer.cpp
 	KX_BlenderMaterial.cpp
 	KX_Camera.cpp
-	KX_CameraActuator.cpp
 	KX_CameraIpoSGController.cpp
 	KX_CharacterWrapper.cpp
 	KX_CollisionEventManager.cpp
@@ -149,7 +148,6 @@ set(SRC
 	KX_2DFilterFrameBuffer.h
 	KX_BlenderMaterial.h
 	KX_Camera.h
-	KX_CameraActuator.h
 	KX_CameraIpoSGController.h
 	KX_CharacterWrapper.h
 	KX_ClientObjectInfo.h
