@@ -70,16 +70,11 @@ private:
 
 	BucketList m_buckets[NUM_BUCKET_TYPE];
 
-	void RenderBasicBuckets(RAS_Rasterizer *rasty, BucketType bucketType);
-	void RenderSortedBuckets(RAS_Rasterizer *rasty, BucketType bucketType);
-
 public:
 	/** Initialize bucket manager
 	 */
 	RAS_BucketManager();
 	virtual ~RAS_BucketManager();
-
-	void Renderbuckets(const MT_Transform & cameratrans, RAS_Rasterizer *rasty, RAS_FrameBuffer *frameBuffer);
 
 	RAS_MaterialBucket *FindBucket(RAS_IPolyMaterial *material, bool &bucketCreated);
 
