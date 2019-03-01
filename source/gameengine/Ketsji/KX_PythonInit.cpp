@@ -95,7 +95,7 @@ extern "C" {
 #include "SCA_PythonMouse.h"
 #include "SCA_2DFilterActuator.h"
 #include "SCA_ConstraintActuator.h"
-#include "KX_SoundActuator.h"
+#include "SCA_SoundActuator.h"
 #include "SCA_StateActuator.h"
 #include "BL_ActionActuator.h"
 #include "BL_ArmatureObject.h"
@@ -1473,12 +1473,12 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
 	KX_MACRO_addTypesToDict(d, KX_RANDOMACT_FLOAT_NEGATIVE_EXPONENTIAL, SCA_RandomActuator::KX_RANDOMACT_FLOAT_NEGATIVE_EXPONENTIAL);
 
 	/* 5. Sound actuator                                                      */
-	KX_MACRO_addTypesToDict(d, KX_SOUNDACT_PLAYSTOP,              KX_SoundActuator::KX_SOUNDACT_PLAYSTOP);
-	KX_MACRO_addTypesToDict(d, KX_SOUNDACT_PLAYEND,               KX_SoundActuator::KX_SOUNDACT_PLAYEND);
-	KX_MACRO_addTypesToDict(d, KX_SOUNDACT_LOOPSTOP,              KX_SoundActuator::KX_SOUNDACT_LOOPSTOP);
-	KX_MACRO_addTypesToDict(d, KX_SOUNDACT_LOOPEND,               KX_SoundActuator::KX_SOUNDACT_LOOPEND);
-	KX_MACRO_addTypesToDict(d, KX_SOUNDACT_LOOPBIDIRECTIONAL,     KX_SoundActuator::KX_SOUNDACT_LOOPBIDIRECTIONAL);
-	KX_MACRO_addTypesToDict(d, KX_SOUNDACT_LOOPBIDIRECTIONAL_STOP,     KX_SoundActuator::KX_SOUNDACT_LOOPBIDIRECTIONAL_STOP);
+	KX_MACRO_addTypesToDict(d, KX_SOUNDACT_PLAYSTOP,              SCA_SoundActuator::KX_SOUNDACT_PLAYSTOP);
+	KX_MACRO_addTypesToDict(d, KX_SOUNDACT_PLAYEND,               SCA_SoundActuator::KX_SOUNDACT_PLAYEND);
+	KX_MACRO_addTypesToDict(d, KX_SOUNDACT_LOOPSTOP,              SCA_SoundActuator::KX_SOUNDACT_LOOPSTOP);
+	KX_MACRO_addTypesToDict(d, KX_SOUNDACT_LOOPEND,               SCA_SoundActuator::KX_SOUNDACT_LOOPEND);
+	KX_MACRO_addTypesToDict(d, KX_SOUNDACT_LOOPBIDIRECTIONAL,     SCA_SoundActuator::KX_SOUNDACT_LOOPBIDIRECTIONAL);
+	KX_MACRO_addTypesToDict(d, KX_SOUNDACT_LOOPBIDIRECTIONAL_STOP,     SCA_SoundActuator::KX_SOUNDACT_LOOPBIDIRECTIONAL_STOP);
 
 	/* 6. Action actuator													   */
 	KX_MACRO_addTypesToDict(d, KX_ACTIONACT_PLAY,        ACT_ACTION_PLAY);
@@ -1620,12 +1620,12 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
 	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_CUSTOMFILTER, RAS_2DFilterManager::FILTER_CUSTOMFILTER);
 
 	/* Sound Actuator */
-	KX_MACRO_addTypesToDict(d, KX_SOUNDACT_PLAYSTOP, KX_SoundActuator::KX_SOUNDACT_PLAYSTOP);
-	KX_MACRO_addTypesToDict(d, KX_SOUNDACT_PLAYEND, KX_SoundActuator::KX_SOUNDACT_PLAYEND);
-	KX_MACRO_addTypesToDict(d, KX_SOUNDACT_LOOPSTOP, KX_SoundActuator::KX_SOUNDACT_LOOPSTOP);
-	KX_MACRO_addTypesToDict(d, KX_SOUNDACT_LOOPEND, KX_SoundActuator:: KX_SOUNDACT_LOOPEND);
-	KX_MACRO_addTypesToDict(d, KX_SOUNDACT_LOOPBIDIRECTIONAL, KX_SoundActuator::KX_SOUNDACT_LOOPBIDIRECTIONAL);
-	KX_MACRO_addTypesToDict(d, KX_SOUNDACT_LOOPBIDIRECTIONAL_STOP, KX_SoundActuator::KX_SOUNDACT_LOOPBIDIRECTIONAL_STOP);
+	KX_MACRO_addTypesToDict(d, KX_SOUNDACT_PLAYSTOP, SCA_SoundActuator::KX_SOUNDACT_PLAYSTOP);
+	KX_MACRO_addTypesToDict(d, KX_SOUNDACT_PLAYEND, SCA_SoundActuator::KX_SOUNDACT_PLAYEND);
+	KX_MACRO_addTypesToDict(d, KX_SOUNDACT_LOOPSTOP, SCA_SoundActuator::KX_SOUNDACT_LOOPSTOP);
+	KX_MACRO_addTypesToDict(d, KX_SOUNDACT_LOOPEND, SCA_SoundActuator:: KX_SOUNDACT_LOOPEND);
+	KX_MACRO_addTypesToDict(d, KX_SOUNDACT_LOOPBIDIRECTIONAL, SCA_SoundActuator::KX_SOUNDACT_LOOPBIDIRECTIONAL);
+	KX_MACRO_addTypesToDict(d, KX_SOUNDACT_LOOPBIDIRECTIONAL_STOP, SCA_SoundActuator::KX_SOUNDACT_LOOPBIDIRECTIONAL_STOP);
 
 	/* State Actuator */
 	KX_MACRO_addTypesToDict(d, KX_STATE_OP_CPY, SCA_StateActuator::OP_CPY);

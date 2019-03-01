@@ -1,5 +1,5 @@
 /*
- * KX_SoundActuator.cpp
+ * SCA_SoundActuator.cpp
  *
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -29,12 +29,12 @@
  *
  */
 
-/** \file gameengine/Ketsji/KX_SoundActuator.cpp
+/** \file gameengine/Ketsji/SCA_SoundActuator.cpp
  *  \ingroup ketsji
  */
 
 
-#include "KX_SoundActuator.h"
+#include "SCA_SoundActuator.h"
 
 #ifdef WITH_AUDASPACE
 typedef float sample_t;
@@ -54,7 +54,7 @@ typedef float sample_t;
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
-KX_SoundActuator::KX_SoundActuator(SCA_IObject* gameobj,
+SCA_SoundActuator::SCA_SoundActuator(SCA_IObject* gameobj,
 #ifdef WITH_AUDASPACE
 								   AUD_Sound* sound,
 #endif  // WITH_AUDASPACE
@@ -79,7 +79,7 @@ KX_SoundActuator::KX_SoundActuator(SCA_IObject* gameobj,
 
 
 
-KX_SoundActuator::~KX_SoundActuator()
+SCA_SoundActuator::~SCA_SoundActuator()
 {
 #ifdef WITH_AUDASPACE
 	if (m_handle) {
@@ -92,7 +92,7 @@ KX_SoundActuator::~KX_SoundActuator()
 #endif  // WITH_AUDASPACE
 }
 
-void KX_SoundActuator::play()
+void SCA_SoundActuator::play()
 {
 #ifdef WITH_AUDASPACE
 	if (m_handle) {
@@ -155,14 +155,14 @@ void KX_SoundActuator::play()
 #endif  // WITH_AUDASPACE
 }
 
-CValue* KX_SoundActuator::GetReplica()
+CValue* SCA_SoundActuator::GetReplica()
 {
-	KX_SoundActuator* replica = new KX_SoundActuator(*this);
+	SCA_SoundActuator* replica = new SCA_SoundActuator(*this);
 	replica->ProcessReplica();
 	return replica;
 }
 
-void KX_SoundActuator::ProcessReplica()
+void SCA_SoundActuator::ProcessReplica()
 {
 	SCA_IActuator::ProcessReplica();
 #ifdef WITH_AUDASPACE
@@ -171,7 +171,7 @@ void KX_SoundActuator::ProcessReplica()
 #endif  // WITH_AUDASPACE
 }
 
-bool KX_SoundActuator::Update(double curtime)
+bool SCA_SoundActuator::Update(double curtime)
 {
 	bool result = false;
 
@@ -294,9 +294,9 @@ bool KX_SoundActuator::Update(double curtime)
 
 
 /* Integration hooks ------------------------------------------------------- */
-PyTypeObject KX_SoundActuator::Type = {
+PyTypeObject SCA_SoundActuator::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
-	"KX_SoundActuator",
+	"SCA_SoundActuator",
 	sizeof(PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
@@ -316,34 +316,34 @@ PyTypeObject KX_SoundActuator::Type = {
 	py_base_new
 };
 
-PyMethodDef KX_SoundActuator::Methods[] = {
-	KX_PYMETHODTABLE_NOARGS(KX_SoundActuator, startSound),
-	KX_PYMETHODTABLE_NOARGS(KX_SoundActuator, pauseSound),
-	KX_PYMETHODTABLE_NOARGS(KX_SoundActuator, stopSound),
+PyMethodDef SCA_SoundActuator::Methods[] = {
+	KX_PYMETHODTABLE_NOARGS(SCA_SoundActuator, startSound),
+	KX_PYMETHODTABLE_NOARGS(SCA_SoundActuator, pauseSound),
+	KX_PYMETHODTABLE_NOARGS(SCA_SoundActuator, stopSound),
 	{nullptr, nullptr} //Sentinel
 };
 
-PyAttributeDef KX_SoundActuator::Attributes[] = {
-	KX_PYATTRIBUTE_BOOL_RO("is3D", KX_SoundActuator, m_is3d),
-	KX_PYATTRIBUTE_RW_FUNCTION("volume_maximum", KX_SoundActuator, pyattr_get_3d_property, pyattr_set_3d_property),
-	KX_PYATTRIBUTE_RW_FUNCTION("volume_minimum", KX_SoundActuator, pyattr_get_3d_property, pyattr_set_3d_property),
-	KX_PYATTRIBUTE_RW_FUNCTION("distance_reference", KX_SoundActuator, pyattr_get_3d_property, pyattr_set_3d_property),
-	KX_PYATTRIBUTE_RW_FUNCTION("distance_maximum", KX_SoundActuator, pyattr_get_3d_property, pyattr_set_3d_property),
-	KX_PYATTRIBUTE_RW_FUNCTION("attenuation", KX_SoundActuator, pyattr_get_3d_property, pyattr_set_3d_property),
-	KX_PYATTRIBUTE_RW_FUNCTION("cone_angle_inner", KX_SoundActuator, pyattr_get_3d_property, pyattr_set_3d_property),
-	KX_PYATTRIBUTE_RW_FUNCTION("cone_angle_outer", KX_SoundActuator, pyattr_get_3d_property, pyattr_set_3d_property),
-	KX_PYATTRIBUTE_RW_FUNCTION("cone_volume_outer", KX_SoundActuator, pyattr_get_3d_property, pyattr_set_3d_property),
-	KX_PYATTRIBUTE_RW_FUNCTION("sound", KX_SoundActuator, pyattr_get_sound, pyattr_set_sound),
+PyAttributeDef SCA_SoundActuator::Attributes[] = {
+	KX_PYATTRIBUTE_BOOL_RO("is3D", SCA_SoundActuator, m_is3d),
+	KX_PYATTRIBUTE_RW_FUNCTION("volume_maximum", SCA_SoundActuator, pyattr_get_3d_property, pyattr_set_3d_property),
+	KX_PYATTRIBUTE_RW_FUNCTION("volume_minimum", SCA_SoundActuator, pyattr_get_3d_property, pyattr_set_3d_property),
+	KX_PYATTRIBUTE_RW_FUNCTION("distance_reference", SCA_SoundActuator, pyattr_get_3d_property, pyattr_set_3d_property),
+	KX_PYATTRIBUTE_RW_FUNCTION("distance_maximum", SCA_SoundActuator, pyattr_get_3d_property, pyattr_set_3d_property),
+	KX_PYATTRIBUTE_RW_FUNCTION("attenuation", SCA_SoundActuator, pyattr_get_3d_property, pyattr_set_3d_property),
+	KX_PYATTRIBUTE_RW_FUNCTION("cone_angle_inner", SCA_SoundActuator, pyattr_get_3d_property, pyattr_set_3d_property),
+	KX_PYATTRIBUTE_RW_FUNCTION("cone_angle_outer", SCA_SoundActuator, pyattr_get_3d_property, pyattr_set_3d_property),
+	KX_PYATTRIBUTE_RW_FUNCTION("cone_volume_outer", SCA_SoundActuator, pyattr_get_3d_property, pyattr_set_3d_property),
+	KX_PYATTRIBUTE_RW_FUNCTION("sound", SCA_SoundActuator, pyattr_get_sound, pyattr_set_sound),
 
-	KX_PYATTRIBUTE_RW_FUNCTION("time", KX_SoundActuator, pyattr_get_audposition, pyattr_set_audposition),
-	KX_PYATTRIBUTE_RW_FUNCTION("volume", KX_SoundActuator, pyattr_get_gain, pyattr_set_gain),
-	KX_PYATTRIBUTE_RW_FUNCTION("pitch", KX_SoundActuator, pyattr_get_pitch, pyattr_set_pitch),
-	KX_PYATTRIBUTE_ENUM_RW("mode",KX_SoundActuator::KX_SOUNDACT_NODEF+1,KX_SoundActuator::KX_SOUNDACT_MAX-1,false,KX_SoundActuator,m_type),
+	KX_PYATTRIBUTE_RW_FUNCTION("time", SCA_SoundActuator, pyattr_get_audposition, pyattr_set_audposition),
+	KX_PYATTRIBUTE_RW_FUNCTION("volume", SCA_SoundActuator, pyattr_get_gain, pyattr_set_gain),
+	KX_PYATTRIBUTE_RW_FUNCTION("pitch", SCA_SoundActuator, pyattr_get_pitch, pyattr_set_pitch),
+	KX_PYATTRIBUTE_ENUM_RW("mode",SCA_SoundActuator::KX_SOUNDACT_NODEF+1,SCA_SoundActuator::KX_SOUNDACT_MAX-1,false,SCA_SoundActuator,m_type),
 	KX_PYATTRIBUTE_NULL //Sentinel
 };
 
 /* Methods ----------------------------------------------------------------- */
-KX_PYMETHODDEF_DOC_NOARGS(KX_SoundActuator, startSound,
+KX_PYMETHODDEF_DOC_NOARGS(SCA_SoundActuator, startSound,
 "startSound()\n"
 "\tStarts the sound.\n")
 {
@@ -362,7 +362,7 @@ KX_PYMETHODDEF_DOC_NOARGS(KX_SoundActuator, startSound,
 	Py_RETURN_NONE;
 }
 
-KX_PYMETHODDEF_DOC_NOARGS(KX_SoundActuator, pauseSound,
+KX_PYMETHODDEF_DOC_NOARGS(SCA_SoundActuator, pauseSound,
 "pauseSound()\n"
 "\tPauses the sound.\n")
 {
@@ -374,7 +374,7 @@ KX_PYMETHODDEF_DOC_NOARGS(KX_SoundActuator, pauseSound,
 	Py_RETURN_NONE;
 }
 
-KX_PYMETHODDEF_DOC_NOARGS(KX_SoundActuator, stopSound,
+KX_PYMETHODDEF_DOC_NOARGS(SCA_SoundActuator, stopSound,
 "stopSound()\n"
 "\tStops the sound.\n")
 {
@@ -390,9 +390,9 @@ KX_PYMETHODDEF_DOC_NOARGS(KX_SoundActuator, stopSound,
 }
 
 /* Atribute setting and getting -------------------------------------------- */
-PyObject *KX_SoundActuator::pyattr_get_3d_property(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_SoundActuator::pyattr_get_3d_property(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_SoundActuator * actuator = static_cast<KX_SoundActuator *> (self);
+	SCA_SoundActuator * actuator = static_cast<SCA_SoundActuator *> (self);
 	const std::string& prop = attrdef->m_name;
 	float result_value = 0.0f;
 
@@ -428,12 +428,12 @@ PyObject *KX_SoundActuator::pyattr_get_3d_property(PyObjectPlus *self, const str
 	return result;
 }
 
-PyObject *KX_SoundActuator::pyattr_get_audposition(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_SoundActuator::pyattr_get_audposition(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
 	float position = 0.0f;
 
 #ifdef WITH_AUDASPACE
-	KX_SoundActuator * actuator = static_cast<KX_SoundActuator *> (self);
+	SCA_SoundActuator * actuator = static_cast<SCA_SoundActuator *> (self);
 
 	if (actuator->m_handle)
 		position = AUD_Handle_getPosition(actuator->m_handle);
@@ -444,9 +444,9 @@ PyObject *KX_SoundActuator::pyattr_get_audposition(PyObjectPlus *self, const str
 	return result;
 }
 
-PyObject *KX_SoundActuator::pyattr_get_gain(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_SoundActuator::pyattr_get_gain(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_SoundActuator * actuator = static_cast<KX_SoundActuator *> (self);
+	SCA_SoundActuator * actuator = static_cast<SCA_SoundActuator *> (self);
 	float gain = actuator->m_volume;
 
 	PyObject *result = PyFloat_FromDouble(gain);
@@ -454,9 +454,9 @@ PyObject *KX_SoundActuator::pyattr_get_gain(PyObjectPlus *self, const struct KX_
 	return result;
 }
 
-PyObject *KX_SoundActuator::pyattr_get_pitch(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_SoundActuator::pyattr_get_pitch(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_SoundActuator * actuator = static_cast<KX_SoundActuator *> (self);
+	SCA_SoundActuator * actuator = static_cast<SCA_SoundActuator *> (self);
 	float pitch = actuator->m_pitch;
 
 	PyObject *result = PyFloat_FromDouble(pitch);
@@ -464,10 +464,10 @@ PyObject *KX_SoundActuator::pyattr_get_pitch(PyObjectPlus *self, const struct KX
 	return result;
 }
 
-PyObject *KX_SoundActuator::pyattr_get_sound(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_SoundActuator::pyattr_get_sound(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
 #ifdef WITH_AUDASPACE
-	KX_SoundActuator * actuator = static_cast<KX_SoundActuator *> (self);
+	SCA_SoundActuator * actuator = static_cast<SCA_SoundActuator *> (self);
 
 	if (actuator->m_sound)
 		return (PyObject *)AUD_getPythonSound(actuator->m_sound);
@@ -477,9 +477,9 @@ PyObject *KX_SoundActuator::pyattr_get_sound(PyObjectPlus *self, const struct KX
 
 }
 
-int KX_SoundActuator::pyattr_set_3d_property(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int SCA_SoundActuator::pyattr_set_3d_property(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
-	KX_SoundActuator * actuator = static_cast<KX_SoundActuator *> (self);
+	SCA_SoundActuator * actuator = static_cast<SCA_SoundActuator *> (self);
 	const std::string& prop = attrdef->m_name;
 	float prop_value = 0.0f;
 
@@ -553,14 +553,14 @@ int KX_SoundActuator::pyattr_set_3d_property(PyObjectPlus *self, const struct KX
 	return PY_SET_ATTR_SUCCESS;
 }
 
-int KX_SoundActuator::pyattr_set_audposition(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int SCA_SoundActuator::pyattr_set_audposition(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	float position = 1.0f;
 	if (!PyArg_Parse(value, "f", &position))
 		return PY_SET_ATTR_FAIL;
 
 #ifdef WITH_AUDASPACE
-	KX_SoundActuator * actuator = static_cast<KX_SoundActuator *> (self);
+	SCA_SoundActuator * actuator = static_cast<SCA_SoundActuator *> (self);
 
 	if (actuator->m_handle)
 		AUD_Handle_setPosition(actuator->m_handle, position);
@@ -569,10 +569,10 @@ int KX_SoundActuator::pyattr_set_audposition(PyObjectPlus *self, const struct KX
 	return PY_SET_ATTR_SUCCESS;
 }
 
-int KX_SoundActuator::pyattr_set_gain(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int SCA_SoundActuator::pyattr_set_gain(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	float gain = 1.0f;
-	KX_SoundActuator * actuator = static_cast<KX_SoundActuator *> (self);
+	SCA_SoundActuator * actuator = static_cast<SCA_SoundActuator *> (self);
 	if (!PyArg_Parse(value, "f", &gain))
 		return PY_SET_ATTR_FAIL;
 
@@ -586,10 +586,10 @@ int KX_SoundActuator::pyattr_set_gain(PyObjectPlus *self, const struct KX_PYATTR
 	return PY_SET_ATTR_SUCCESS;
 }
 
-int KX_SoundActuator::pyattr_set_pitch(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int SCA_SoundActuator::pyattr_set_pitch(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	float pitch = 1.0f;
-	KX_SoundActuator * actuator = static_cast<KX_SoundActuator *> (self);
+	SCA_SoundActuator * actuator = static_cast<SCA_SoundActuator *> (self);
 	if (!PyArg_Parse(value, "f", &pitch))
 		return PY_SET_ATTR_FAIL;
 
@@ -603,14 +603,14 @@ int KX_SoundActuator::pyattr_set_pitch(PyObjectPlus *self, const struct KX_PYATT
 	return PY_SET_ATTR_SUCCESS;
 }
 
-int KX_SoundActuator::pyattr_set_sound(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int SCA_SoundActuator::pyattr_set_sound(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	PyObject *sound = nullptr;
 	if (!PyArg_Parse(value, "O", &sound))
 		return PY_SET_ATTR_FAIL;
 
 #ifdef WITH_AUDASPACE
-	KX_SoundActuator * actuator = static_cast<KX_SoundActuator *> (self);
+	SCA_SoundActuator * actuator = static_cast<SCA_SoundActuator *> (self);
 
 	AUD_Sound *snd = AUD_getSoundFromPython(sound);
 

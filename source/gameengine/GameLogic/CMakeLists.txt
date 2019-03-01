@@ -99,6 +99,7 @@ set(SRC
 	SCA_RandomSensor.cpp
 	SCA_RaySensor.cpp
 	SCA_SceneActuator.cpp
+	SCA_SoundActuator.cpp
 	SCA_StateActuator.cpp
 	SCA_SteeringActuator.cpp
 	SCA_TimeEventManager.cpp
@@ -160,6 +161,7 @@ set(SRC
 	SCA_RandomSensor.h
 	SCA_RaySensor.h
 	SCA_SceneActuator.h
+	SCA_SoundActuator.h
 	SCA_StateActuator.h
 	SCA_SteeringActuator.h
 	SCA_TimeEventManager.h
@@ -178,6 +180,15 @@ set(INC_SYS
 	#${GLEW_INCLUDE_PATH}
 	${BOOST_INCLUDE_DIR}
 )
+
+if(WITH_AUDASPACE)
+	add_definitions(-DWITH_AUDASPACE)
+
+	list(APPEND INC_SYS
+		${AUDASPACE_C_INCLUDE_DIRS}
+		${AUDASPACE_PY_INCLUDE_DIRS}
+	)
+endif()
 
 if(WITH_SDL)
 	list(APPEND INC_SYS

@@ -57,7 +57,7 @@
 
 // Ketsji specific logicbricks
 #include "SCA_SceneActuator.h"
-#include "KX_SoundActuator.h"
+#include "SCA_SoundActuator.h"
 #include "SCA_ObjectActuator.h"
 #include "SCA_TrackToActuator.h"
 #include "SCA_ConstraintActuator.h"
@@ -302,35 +302,35 @@ void BL_ConvertActuators(const char* maggiename,
 			{
 				bSoundActuator* soundact = (bSoundActuator*) bact->data;
 				/* get type, and possibly a start and end frame */
-				KX_SoundActuator::KX_SOUNDACT_TYPE
-					soundActuatorType = KX_SoundActuator::KX_SOUNDACT_NODEF;
+				SCA_SoundActuator::KX_SOUNDACT_TYPE
+					soundActuatorType = SCA_SoundActuator::KX_SOUNDACT_NODEF;
 				
 				switch (soundact->type) {
 				case ACT_SND_PLAY_STOP_SOUND:
-					soundActuatorType = KX_SoundActuator::KX_SOUNDACT_PLAYSTOP;
+					soundActuatorType = SCA_SoundActuator::KX_SOUNDACT_PLAYSTOP;
 					break;
 				case ACT_SND_PLAY_END_SOUND:
-					soundActuatorType = KX_SoundActuator::KX_SOUNDACT_PLAYEND;
+					soundActuatorType = SCA_SoundActuator::KX_SOUNDACT_PLAYEND;
 					break;
 				case ACT_SND_LOOP_STOP_SOUND:
-					soundActuatorType = KX_SoundActuator::KX_SOUNDACT_LOOPSTOP;
+					soundActuatorType = SCA_SoundActuator::KX_SOUNDACT_LOOPSTOP;
 					break;
 				case ACT_SND_LOOP_END_SOUND:
-					soundActuatorType = KX_SoundActuator::KX_SOUNDACT_LOOPEND;
+					soundActuatorType = SCA_SoundActuator::KX_SOUNDACT_LOOPEND;
 					break;
 				case ACT_SND_LOOP_BIDIRECTIONAL_SOUND:
-					soundActuatorType = KX_SoundActuator::KX_SOUNDACT_LOOPBIDIRECTIONAL;
+					soundActuatorType = SCA_SoundActuator::KX_SOUNDACT_LOOPBIDIRECTIONAL;
 					break;
 				case ACT_SND_LOOP_BIDIRECTIONAL_STOP_SOUND:
-					soundActuatorType = KX_SoundActuator::KX_SOUNDACT_LOOPBIDIRECTIONAL_STOP;
+					soundActuatorType = SCA_SoundActuator::KX_SOUNDACT_LOOPBIDIRECTIONAL_STOP;
 					break;
 					
 				default:
 					/* This is an error!!! */
-					soundActuatorType = KX_SoundActuator::KX_SOUNDACT_NODEF;
+					soundActuatorType = SCA_SoundActuator::KX_SOUNDACT_NODEF;
 				}
 				
-				if (soundActuatorType != KX_SoundActuator::KX_SOUNDACT_NODEF) 
+				if (soundActuatorType != SCA_SoundActuator::KX_SOUNDACT_NODEF) 
 				{
 					bSound* sound = soundact->sound;
 					bool is3d = soundact->flag & ACT_SND_3D_SOUND ? true : false;
@@ -363,8 +363,8 @@ void BL_ConvertActuators(const char* maggiename,
 						}
 #endif  // WITH_AUDASPACE
 					}
-					KX_SoundActuator* tmpsoundact =
-						new KX_SoundActuator(gameobj,
+					SCA_SoundActuator* tmpsoundact =
+						new SCA_SoundActuator(gameobj,
 #ifdef WITH_AUDASPACE
 						snd_sound,
 #endif  // WITH_AUDASPACE
