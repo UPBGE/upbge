@@ -58,7 +58,7 @@
 // Ketsji specific logicbricks
 #include "KX_SceneActuator.h"
 #include "KX_SoundActuator.h"
-#include "KX_ObjectActuator.h"
+#include "SCA_ObjectActuator.h"
 #include "KX_TrackToActuator.h"
 #include "SCA_ConstraintActuator.h"
 #include "SCA_CameraActuator.h"
@@ -189,7 +189,7 @@ void BL_ConvertActuators(const char* maggiename,
 					obref = converter.FindGameObject(obact->reference);
 				}
 				
-				KX_ObjectActuator* tmpbaseact = new KX_ObjectActuator(
+				SCA_ObjectActuator* tmpbaseact = new SCA_ObjectActuator(
 				            gameobj,
 				            obref,
 				            forcevec,
