@@ -75,6 +75,7 @@ set(SRC
 	SCA_KeyboardSensor.cpp
 	SCA_LogicManager.cpp
 	SCA_MouseActuator.cpp
+	SCA_MouseFocusSensor.cpp
 	SCA_MouseManager.cpp
 	SCA_MouseSensor.cpp
 	SCA_NANDController.cpp
@@ -122,6 +123,7 @@ set(SRC
 	SCA_KeyboardSensor.h
 	SCA_LogicManager.h
 	SCA_MouseActuator.h
+	SCA_MouseFocusSensor.h
 	SCA_MouseManager.h
 	SCA_MouseSensor.h
 	SCA_NANDController.h

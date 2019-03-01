@@ -62,7 +62,7 @@
 #include "SCA_CollisionSensor.h"
 #include "KX_NearSensor.h"
 #include "KX_RadarSensor.h"
-#include "KX_MouseFocusSensor.h"
+#include "SCA_MouseFocusSensor.h"
 #include "SCA_ArmatureSensor.h"
 #include "SCA_JoystickSensor.h"
 #include "KX_NetworkMessageSensor.h"
@@ -330,7 +330,7 @@ void BL_ConvertSensors(struct Object* blenderobject,
 							int mask = 0xFFFF;
 							std::string checkname = (bFindMaterial? bmouse->matname : bmouse->propname);
 
-							gamesensor = new KX_MouseFocusSensor(eventmgr,
+							gamesensor = new SCA_MouseFocusSensor(eventmgr,
 								startx,
 								starty,
 								keytype,

@@ -96,7 +96,6 @@ set(SRC
 	KX_MaterialShader.cpp
 	KX_MeshProxy.cpp
 	KX_MotionState.cpp
-	KX_MouseFocusSensor.cpp
 	KX_NavMeshObject.cpp
 	KX_NearSensor.cpp
 	KX_ObColorIpoSGController.cpp
@@ -164,7 +163,6 @@ set(SRC
 	KX_MaterialShader.h
 	KX_MeshProxy.h
 	KX_MotionState.h
-	KX_MouseFocusSensor.h
 	KX_NavMeshObject.h
 	KX_NearSensor.h
 	KX_ObColorIpoSGController.h

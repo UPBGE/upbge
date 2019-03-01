@@ -23,7 +23,7 @@
  * Contributor(s): none yet.
  *
  * ***** END GPL LICENSE BLOCK *****
- * KX_MouseFocusSensor determines mouse in/out/over events.
+ * SCA_MouseFocusSensor determines mouse in/out/over events.
  */
 
 /** \file gameengine/Ketsji/KX_RayCast.cpp

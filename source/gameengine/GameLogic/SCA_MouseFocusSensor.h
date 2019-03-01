@@ -25,13 +25,13 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file KX_MouseFocusSensor.h
+/** \file SCA_MouseFocusSensor.h
  *  \ingroup ketsji
- *  \brief KX_MouseFocusSensor determines mouse in/out/over events.
+ *  \brief SCA_MouseFocusSensor determines mouse in/out/over events.
  */
 
-#ifndef __KX_MOUSEFOCUSSENSOR_H__
-#define __KX_MOUSEFOCUSSENSOR_H__
+#ifndef __SCA_MouseFocusSensor_H__
+#define __SCA_MouseFocusSensor_H__
 
 #include "SCA_MouseSensor.h"
 
@@ -46,14 +46,14 @@ class KX_RayCast;
  *
  * - extend the valid modes?
  * - */
-class KX_MouseFocusSensor : public SCA_MouseSensor
+class SCA_MouseFocusSensor : public SCA_MouseSensor
 {
 
 	Py_Header
 	
  public:
 	
-	KX_MouseFocusSensor(class SCA_MouseManager* eventmgr,
+	SCA_MouseFocusSensor(class SCA_MouseManager* eventmgr,
 						int startx,
 						int starty,
 						short int mousemode,
@@ -67,9 +67,9 @@ class KX_MouseFocusSensor : public SCA_MouseSensor
 						KX_KetsjiEngine* kxengine,
 						SCA_IObject* gameobj);
 
-	virtual ~KX_MouseFocusSensor() { }
+	virtual ~SCA_MouseFocusSensor() { }
 	virtual CValue* GetReplica() {
-		CValue* replica = new KX_MouseFocusSensor(*this);
+		CValue* replica = new SCA_MouseFocusSensor(*this);
 		// this will copy properties and so on...
 		replica->ProcessReplica();
 		return replica;
