@@ -68,7 +68,7 @@
 #include "SCA_AddObjectActuator.h"
 #include "KX_SCA_EndObjectActuator.h"
 #include "SCA_ParentActuator.h"
-#include "KX_SCA_DynamicActuator.h"
+#include "SCA_DynamicActuator.h"
 #include "KX_SteeringActuator.h"
 #include "SCA_MouseActuator.h"
 
@@ -477,7 +477,7 @@ void BL_ConvertActuators(const char* maggiename,
 					}
 				case ACT_EDOB_DYNAMICS:
 					{
-						KX_SCA_DynamicActuator* tmpdynact = new KX_SCA_DynamicActuator(
+						SCA_DynamicActuator* tmpdynact = new SCA_DynamicActuator(
 						            gameobj,
 						            editobact->dyn_operation,
 						            editobact->mass);

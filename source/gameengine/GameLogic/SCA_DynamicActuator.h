@@ -25,13 +25,13 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file KX_SCA_DynamicActuator.h
+/** \file SCA_DynamicActuator.h
  *  \ingroup ketsji
  *  \brief Add object to the game world on action of this actuator
  */
 
-#ifndef __KX_SCA_DYNAMICACTUATOR_H__
-#define __KX_SCA_DYNAMICACTUATOR_H__
+#ifndef __SCA_DynamicActuator_H__
+#define __SCA_DynamicActuator_H__
 
 #include "SCA_IActuator.h"
 #include "SCA_PropertyActuator.h"
@@ -39,7 +39,7 @@
 
 #include "KX_GameObject.h"
 
-class KX_SCA_DynamicActuator : public SCA_IActuator
+class SCA_DynamicActuator : public SCA_IActuator
 {
 	Py_Header
 
@@ -47,13 +47,13 @@ class KX_SCA_DynamicActuator : public SCA_IActuator
 	short m_dyn_operation;
 	float m_setmass;
  public:
-	KX_SCA_DynamicActuator(
+	SCA_DynamicActuator(
 	        SCA_IObject* gameobj,
 	        short dyn_operation,
 	        float setmass
 	        );
 
-	~KX_SCA_DynamicActuator(
+	~SCA_DynamicActuator(
 	);
 
 		CValue* 
