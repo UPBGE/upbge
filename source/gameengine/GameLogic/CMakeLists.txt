@@ -26,11 +26,15 @@
 set(INC
 	.
 	../Common
+	../Converter
 	../Device
 	../Expressions
+	../Ketsji
 	../Rasterizer
 	../SceneGraph
+	../../blender/blenkernel
 	../../blender/blenlib
+	../../blender/makesdna
 	../../blender/python/generic
 	../../../intern/termcolor
 	../../../intern/ghost
@@ -47,6 +51,7 @@ set(SRC
 	SCA_ActuatorEventManager.cpp
 	SCA_ActuatorSensor.cpp
 	SCA_AlwaysSensor.cpp
+	SCA_ArmatureSensor.cpp
 	SCA_BasicEventManager.cpp
 	SCA_DelaySensor.cpp
 	SCA_EventManager.cpp
@@ -88,6 +93,7 @@ set(SRC
 	SCA_ActuatorEventManager.h
 	SCA_ActuatorSensor.h
 	SCA_AlwaysSensor.h
+	SCA_ArmatureSensor.h
 	SCA_BasicEventManager.h
 	SCA_DelaySensor.h
 	SCA_EventManager.h

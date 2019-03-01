@@ -25,20 +25,20 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file KX_ArmatureSensor.h
+/** \file SCA_ArmatureSensor.h
  *  \ingroup ketsji
  *  \brief Property sensor
  */
 
-#ifndef __KX_ARMATURESENSOR_H__
-#define __KX_ARMATURESENSOR_H__
+#ifndef __SCA_ArmatureSensor_H__
+#define __SCA_ArmatureSensor_H__
 
 struct bConstraint;
 
 #include "SCA_ISensor.h"
 #include "DNA_sensor_types.h"
 
-class KX_ArmatureSensor : public SCA_ISensor
+class SCA_ArmatureSensor : public SCA_ISensor
 {
 	Py_Header
 	//class CExpression*	m_rightexpr;
@@ -46,7 +46,7 @@ class KX_ArmatureSensor : public SCA_ISensor
 protected:
 
 public:
-	KX_ArmatureSensor(class SCA_EventManager* eventmgr,
+	SCA_ArmatureSensor(class SCA_EventManager* eventmgr,
 					SCA_IObject* gameobj,
 					const std::string& posechannel,
 					const std::string& constraintname,
@@ -57,7 +57,7 @@ public:
 	 *  For property sensor, it is used to release the pre-calculated expression
 	 *  so that self references are removed before the sensor itself is released
 	 */
-	virtual ~KX_ArmatureSensor();
+	virtual ~SCA_ArmatureSensor();
 	virtual CValue* GetReplica();
 	virtual void ReParent(SCA_IObject* parent);
 	virtual void Init();

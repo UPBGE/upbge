@@ -63,7 +63,7 @@
 #include "KX_NearSensor.h"
 #include "KX_RadarSensor.h"
 #include "KX_MouseFocusSensor.h"
-#include "KX_ArmatureSensor.h"
+#include "SCA_ArmatureSensor.h"
 #include "SCA_JoystickSensor.h"
 #include "KX_NetworkMessageSensor.h"
 #include "SCA_ActuatorSensor.h"
@@ -418,7 +418,7 @@ void BL_ConvertSensors(struct Object* blenderobject,
 					{
 						std::string bonename=blenderarmsensor->posechannel;
 						std::string constraintname=blenderarmsensor->constraint;
-						gamesensor = new KX_ArmatureSensor(eventmgr,gameobj,bonename,constraintname, blenderarmsensor->type, blenderarmsensor->value);
+						gamesensor = new SCA_ArmatureSensor(eventmgr,gameobj,bonename,constraintname, blenderarmsensor->type, blenderarmsensor->value);
 					}
 					break;
 				}

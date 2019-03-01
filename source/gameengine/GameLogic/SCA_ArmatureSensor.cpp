@@ -28,7 +28,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/Ketsji/KX_ArmatureSensor.cpp
+/** \file gameengine/Ketsji/SCA_ArmatureSensor.cpp
  *  \ingroup ketsji
  */
 
@@ -39,11 +39,11 @@
 #include "DNA_sensor_types.h"
 
 #include "BL_ArmatureObject.h"
-#include "KX_ArmatureSensor.h"
+#include "SCA_ArmatureSensor.h"
 #include "SCA_EventManager.h"
 #include "SCA_LogicManager.h"
 
-KX_ArmatureSensor::KX_ArmatureSensor(class SCA_EventManager* eventmgr,
+SCA_ArmatureSensor::SCA_ArmatureSensor(class SCA_EventManager* eventmgr,
 					SCA_IObject* gameobj,
 					const std::string& posechannel,
 					const std::string& constraintname,
@@ -59,14 +59,14 @@ KX_ArmatureSensor::KX_ArmatureSensor(class SCA_EventManager* eventmgr,
 	FindConstraint();
 }
 
-void KX_ArmatureSensor::Init()
+void SCA_ArmatureSensor::Init()
 {
 	m_lastresult = m_invert?true:false;
 	m_result = false;
 	m_reset = true;
 }
 
-void KX_ArmatureSensor::FindConstraint()
+void SCA_ArmatureSensor::FindConstraint()
 {
 	m_constraint = nullptr;
 
@@ -96,32 +96,32 @@ void KX_ArmatureSensor::FindConstraint()
 }
 
 
-CValue* KX_ArmatureSensor::GetReplica()
+CValue* SCA_ArmatureSensor::GetReplica()
 {
-	KX_ArmatureSensor* replica = new KX_ArmatureSensor(*this);
+	SCA_ArmatureSensor* replica = new SCA_ArmatureSensor(*this);
 	// m_range_expr must be recalculated on replica!
 	replica->ProcessReplica();
 	return replica;
 }
 
-void KX_ArmatureSensor::ReParent(SCA_IObject* parent)
+void SCA_ArmatureSensor::ReParent(SCA_IObject* parent)
 {
 	SCA_ISensor::ReParent(parent);
 	// must remap the constraint
 	FindConstraint();
 }
 
-bool KX_ArmatureSensor::IsPositiveTrigger()
+bool SCA_ArmatureSensor::IsPositiveTrigger()
 {
 	return (m_invert) ? !m_result : m_result;
 }
 
 
-KX_ArmatureSensor::~KX_ArmatureSensor()
+SCA_ArmatureSensor::~SCA_ArmatureSensor()
 {
 }
 
-bool KX_ArmatureSensor::Evaluate()
+bool SCA_ArmatureSensor::Evaluate()
 {
 	bool reset = m_reset && m_level;
 
@@ -160,9 +160,9 @@ bool KX_ArmatureSensor::Evaluate()
 /* ------------------------------------------------------------------------- */
 
 /* Integration hooks ------------------------------------------------------- */
-PyTypeObject KX_ArmatureSensor::Type = {
+PyTypeObject SCA_ArmatureSensor::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
-	"KX_ArmatureSensor",
+	"SCA_ArmatureSensor",
 	sizeof(PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
@@ -182,20 +182,20 @@ PyTypeObject KX_ArmatureSensor::Type = {
 	py_base_new
 };
 
-PyMethodDef KX_ArmatureSensor::Methods[] = {
+PyMethodDef SCA_ArmatureSensor::Methods[] = {
 	{nullptr,nullptr} //Sentinel
 };
 
-PyAttributeDef KX_ArmatureSensor::Attributes[] = {
-	KX_PYATTRIBUTE_RO_FUNCTION("constraint", KX_ArmatureSensor, pyattr_get_constraint),
-	KX_PYATTRIBUTE_FLOAT_RW("value",-FLT_MAX,FLT_MAX,KX_ArmatureSensor,m_value),
-	KX_PYATTRIBUTE_INT_RW("type",0,SENS_ARM_MAXTYPE,false,KX_ArmatureSensor,m_type),
+PyAttributeDef SCA_ArmatureSensor::Attributes[] = {
+	KX_PYATTRIBUTE_RO_FUNCTION("constraint", SCA_ArmatureSensor, pyattr_get_constraint),
+	KX_PYATTRIBUTE_FLOAT_RW("value",-FLT_MAX,FLT_MAX,SCA_ArmatureSensor,m_value),
+	KX_PYATTRIBUTE_INT_RW("type",0,SENS_ARM_MAXTYPE,false,SCA_ArmatureSensor,m_type),
 	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
-PyObject *KX_ArmatureSensor::pyattr_get_constraint(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_ArmatureSensor::pyattr_get_constraint(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_ArmatureSensor* sensor = static_cast<KX_ArmatureSensor*>(self);
+	SCA_ArmatureSensor* sensor = static_cast<SCA_ArmatureSensor*>(self);
 	if (sensor->m_gameobj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
 		BL_ArmatureObject* armobj = (BL_ArmatureObject*)sensor->m_gameobj;
 		BL_ArmatureConstraint* constraint = armobj->GetConstraint(sensor->m_posechannel, sensor->m_constraintname);

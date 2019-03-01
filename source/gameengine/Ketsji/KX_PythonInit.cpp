@@ -76,7 +76,7 @@ extern "C" {
 #include "KX_KetsjiEngine.h"
 #include "KX_RadarSensor.h"
 #include "KX_RaySensor.h"
-#include "KX_ArmatureSensor.h"
+#include "SCA_ArmatureSensor.h"
 #include "KX_SceneActuator.h"
 #include "KX_GameActuator.h"
 #include "KX_ParentActuator.h"
@@ -1680,7 +1680,7 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
 	KX_MACRO_addTypesToDict(d, CONSTRAINT_IK_FLAG_ROT, CONSTRAINT_IK_ROT);
 	KX_MACRO_addTypesToDict(d, CONSTRAINT_IK_FLAG_STRETCH, CONSTRAINT_IK_STRETCH);
 	KX_MACRO_addTypesToDict(d, CONSTRAINT_IK_FLAG_POS, CONSTRAINT_IK_POS);
-	/* KX_ArmatureSensor type */
+	/* SCA_ArmatureSensor type */
 	KX_MACRO_addTypesToDict(d, KX_ARMSENSOR_STATE_CHANGED, SENS_ARM_STATE_CHANGED);
 	KX_MACRO_addTypesToDict(d, KX_ARMSENSOR_LIN_ERROR_BELOW, SENS_ARM_LIN_ERROR_BELOW);
 	KX_MACRO_addTypesToDict(d, KX_ARMSENSOR_LIN_ERROR_ABOVE, SENS_ARM_LIN_ERROR_ABOVE);
