@@ -3640,7 +3640,7 @@ class VIEW3D_MT_edit_curve_specials(Menu):
 
         layout.operator_context = 'INVOKE_DEFAULT'
 
-        #Add
+        # Add
         layout.operator("curve.subdivide")
         layout.operator("curve.extrude_move")
         layout.operator("curve.make_segment")
@@ -3648,7 +3648,7 @@ class VIEW3D_MT_edit_curve_specials(Menu):
 
         layout.separator()
 
-        #Transform
+        # Transform
         layout.operator("transform.tilt")
         layout.operator("curve.tilt_clear")
         layout.operator("curve.smooth")
@@ -3662,7 +3662,7 @@ class VIEW3D_MT_edit_curve_specials(Menu):
 
         layout.separator()
 
-        #Modify
+        # Modify
         layout.operator_menu_enum("curve.spline_type_set", "type")
         layout.operator_menu_enum("curve.handle_type_set", "type")
         layout.operator("curve.cyclic_toggle")
@@ -3676,7 +3676,7 @@ class VIEW3D_MT_edit_curve_specials(Menu):
 
         layout.separator()
 
-        #Remove
+        # Remove
         layout.operator("curve.split")
         layout.operator("curve.decimate")
         layout.operator("curve.dissolve_verts")
@@ -4058,7 +4058,7 @@ class VIEW3D_MT_edit_gpencil(Menu):
 
         layout.separator()
 
-        #Cut, Copy, Paste
+        # Cut, Copy, Paste
         layout.operator("gpencil.duplicate_move", text="Duplicate")
         layout.operator("gpencil.copy", text="Copy", icon='COPYDOWN')
         layout.operator("gpencil.paste", text="Paste", icon='PASTEDOWN').type = 'COPY'
@@ -4087,13 +4087,13 @@ class VIEW3D_MT_edit_gpencil(Menu):
 
         layout.separator()
 
-        #Convert
+        # Convert
         layout.operator("gpencil.stroke_cyclical_set", text="Toggle Cyclic").type = 'TOGGLE'
         layout.operator_menu_enum("gpencil.stroke_caps_set", text="Toggle Caps...", property="type")
 
         layout.separator()
 
-        #Remove
+        # Remove
         layout.menu("GPENCIL_MT_cleanup")
         layout.menu("VIEW3D_MT_edit_gpencil_delete")
 
@@ -4384,17 +4384,17 @@ class VIEW3D_PT_view3d_cursor(Panel):
     def draw(self, context):
         layout = self.layout
 
-        scene = context.scene
+        cursor = context.scene.cursor
 
-        layout.column().prop(scene, "cursor_location", text="Location")
-        rotation_mode = scene.cursor_rotation_mode
+        layout.column().prop(cursor, "location", text="Location")
+        rotation_mode = cursor.rotation_mode
         if rotation_mode == 'QUATERNION':
-            layout.column().prop(scene, "cursor_rotation_quaternion", text="Rotation")
+            layout.column().prop(cursor, "rotation_quaternion", text="Rotation")
         elif rotation_mode == 'AXIS_ANGLE':
-            layout.column().prop(scene, "cursor_rotation_axis_angle", text="Rotation")
+            layout.column().prop(cursor, "rotation_axis_angle", text="Rotation")
         else:
-            layout.column().prop(scene, "cursor_rotation_euler", text="Rotation")
-        layout.prop(scene, "cursor_rotation_mode", text="")
+            layout.column().prop(cursor, "rotation_euler", text="Rotation")
+        layout.prop(cursor, "rotation_mode", text="")
 
 
 class VIEW3D_PT_collections(Panel):
@@ -4438,7 +4438,7 @@ class VIEW3D_PT_collections(Panel):
             sub = row.split()
             subrow = sub.row(align=True)
             subrow.alignment = 'RIGHT'
-            subrow.active = collection.is_visible # Parent collection runtime visibility
+            subrow.active = collection.is_visible  # Parent collection runtime visibility
             subrow.prop(child, "hide_viewport", text="", emboss=False)
 
         for child in collection.children:
@@ -5697,19 +5697,19 @@ class VIEW3D_MT_gpencil_edit_specials(Menu):
 
         layout.operator_context = 'INVOKE_REGION_WIN'
 
-        #Add
+        # Add
         layout.operator("gpencil.stroke_subdivide", text="Subdivide")
 
         layout.separator()
 
-        #Transform
+        # Transform
         layout.operator("transform.transform", text="Shrink/Fatten").mode = 'GPENCIL_SHRINKFATTEN'
         layout.operator("gpencil.stroke_smooth", text="Smooth")
         layout.operator("gpencil.stroke_trim", text="Trim")
 
         layout.separator()
 
-        #Modify
+        # Modify
         layout.menu("VIEW3D_MT_assign_material")
         layout.operator_menu_enum("gpencil.stroke_arrange", "direction", text="Arrange Strokes")
         layout.operator("gpencil.stroke_flip", text="Flip Direction")
@@ -5734,7 +5734,7 @@ class VIEW3D_MT_gpencil_edit_specials(Menu):
 
         layout.separator()
 
-        #Remove
+        # Remove
         if is_3d_view:
             layout.menu("GPENCIL_MT_cleanup")
 
@@ -5752,12 +5752,12 @@ class VIEW3D_MT_gpencil_sculpt_specials(Menu):
 
         layout.operator_context = 'INVOKE_REGION_WIN'
 
-        #Add
+        # Add
         layout.operator("gpencil.stroke_subdivide", text="Subdivide")
 
         layout.separator()
 
-        #Modify
+        # Modify
         layout.menu("VIEW3D_MT_assign_material")
 
         layout.separator()
@@ -5771,7 +5771,7 @@ class VIEW3D_MT_gpencil_sculpt_specials(Menu):
 
         layout.separator()
 
-        #Remove
+        # Remove
         layout.operator("gpencil.stroke_simplify_fixed", text="Simplify")
         layout.operator("gpencil.stroke_simplify", text="Simplify Adaptive")
 
