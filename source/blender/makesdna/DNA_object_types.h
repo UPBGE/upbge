@@ -356,9 +356,6 @@ typedef struct Object {
 	short scavisflag;		/* more display settings for game logic */
 	short _pad53[2];
 
-	/* dupli-frame settings */
-	int dupon, dupoff, dupsta, dupend;
-
 	/* during realtime */
 
 	/* note that inertia is only called inertia for historical reasons

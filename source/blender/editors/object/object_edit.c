@@ -1028,11 +1028,6 @@ static void copy_attr(Main *bmain, Scene *scene, ViewLayer *view_layer, View3D *
 					base->object->sf = ob->sf;
 				}
 				else if (event == 6) {  /* dupli */
-					base->object->dupon = ob->dupon;
-					base->object->dupoff = ob->dupoff;
-					base->object->dupsta = ob->dupsta;
-					base->object->dupend = ob->dupend;
-
 					base->object->transflag &= ~OB_DUPLI;
 					base->object->transflag |= (ob->transflag & OB_DUPLI);
 
