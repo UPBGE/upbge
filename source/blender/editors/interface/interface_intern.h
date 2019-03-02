@@ -340,6 +340,9 @@ struct uiBut {
 	void *editcoba;
 	void *editcumap;
 
+	uiButPushedStateFunc pushed_state_func;
+	void *pushed_state_arg;
+
 	/* pointer back */
 	uiBlock *block;
 };
@@ -843,8 +846,6 @@ void icon_draw_rect_input(
 
 /* resources.c */
 void init_userdef_do_versions(struct Main *bmain);
-void ui_theme_init_default(void);
-void ui_style_init_default(void);
 void ui_resources_init(void);
 void ui_resources_free(void);
 

@@ -448,6 +448,7 @@ static int collection_duplicate_exec(bContext *C, wmOperator *op)
 	Main *bmain = CTX_data_main(C);
 	SpaceOutliner *soops = CTX_wm_space_outliner(C);
 	TreeElement *te = outliner_active_collection(C);
+	bool linked = strstr(op->idname, "linked") != NULL;
 
 	/* Can happen when calling from a key binding. */
 	if (te == NULL) {
@@ -467,7 +468,7 @@ static int collection_duplicate_exec(bContext *C, wmOperator *op)
 		case SO_SCENES:
 		case SO_VIEW_LAYER:
 		case SO_LIBRARIES:
-			BKE_collection_copy(bmain, parent, collection);
+			BKE_collection_duplicate(bmain, parent, collection, true, !linked);
 			break;
 	}
 
@@ -482,7 +483,22 @@ void OUTLINER_OT_collection_duplicate(wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "Duplicate Collection";
 	ot->idname = "OUTLINER_OT_collection_duplicate";
-	ot->description = "Duplicate selected collections";
+	ot->description = "Duplicate all objects and collections and make them single user";
+
+	/* api callbacks */
+	ot->exec = collection_duplicate_exec;
+	ot->poll = ED_outliner_collections_editor_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+void OUTLINER_OT_collection_duplicate_linked(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Duplicate Linked Collection";
+	ot->idname = "OUTLINER_OT_collection_duplicate_linked";
+	ot->description = "Duplicate all objects and collections with linked object data";
 
 	/* api callbacks */
 	ot->exec = collection_duplicate_exec;

@@ -440,6 +440,7 @@ typedef struct ARegion *(*uiButSearchCreateFunc)(struct bContext *C, struct AReg
 typedef void (*uiButSearchFunc)(const struct bContext *C, void *arg, const char *str, uiSearchItems *items);
 /* Must return allocated string. */
 typedef char *(*uiButToolTipFunc)(struct bContext *C, void *argN, const char *tip);
+typedef int (*uiButPushedStateFunc)(struct bContext *C, void *arg);
 
 typedef void (*uiBlockHandleFunc)(struct bContext *C, void *arg, int event);
 
@@ -891,6 +892,8 @@ bool UI_textbutton_activate_but(const struct bContext *C, uiBut *but);
 void UI_but_focus_on_enter_event(struct wmWindow *win, uiBut *but);
 
 void UI_but_func_hold_set(uiBut *but, uiButHandleHoldFunc func, void *argN);
+
+void UI_but_func_pushed_state_set(uiBut *but, uiButPushedStateFunc func, void *arg);
 
 /* Autocomplete
  *
@@ -1415,6 +1418,10 @@ int UI_calc_float_precision(int prec, double value);
 void UI_widgetbase_draw_cache_begin(void);
 void UI_widgetbase_draw_cache_flush(void);
 void UI_widgetbase_draw_cache_end(void);
+
+/* Use for resetting the theme. */
+void UI_theme_init_default(void);
+void UI_style_init_default(void);
 
 /* Special drawing for toolbar, mainly workarounds for inflexible icon sizing. */
 #define USE_UI_TOOLBAR_HACK

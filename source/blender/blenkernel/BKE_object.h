@@ -135,6 +135,8 @@ void BKE_object_make_local_ex(struct Main *bmain, struct Object *ob, const bool 
 bool BKE_object_is_libdata(const struct Object *ob);
 bool BKE_object_obdata_is_libdata(const struct Object *ob);
 
+struct Object *BKE_object_duplicate(struct Main *bmain, const struct Object *ob, const int dupflag);
+
 void BKE_object_obdata_size_init(struct Object *ob, const float scale);
 
 void BKE_object_scale_to_mat3(struct Object *ob, float mat[3][3]);
@@ -218,6 +220,9 @@ void BKE_object_tfm_protected_restore(
         const ObjectTfmProtectedChannels *obtfm,
         const short protectflag);
 
+void BKE_object_tfm_copy(
+        struct Object *object_dst,
+        const struct Object *object_src);
 
 void BKE_object_eval_reset(
         struct Object *ob_eval);
