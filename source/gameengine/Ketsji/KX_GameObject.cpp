@@ -411,6 +411,7 @@ void KX_GameObject::RemoveParent()
 	m_node->SetLocalScale(m_node->GetWorldScaling());
 	m_node->SetLocalOrientation(m_node->GetWorldOrientation());
 	m_node->SetLocalPosition(m_node->GetWorldPosition());
+	KX_GameObject * parent = static_cast<KX_GameObject *>(m_node->GetParent()->GetObject());
 
 	m_node->DisconnectFromParent();
 	NodeUpdate();
@@ -419,7 +420,7 @@ void KX_GameObject::RemoveParent()
 		// get the root object to remove us from compound object if needed
 		SG_Node *rootNode = m_node->GetRootSGParent();
 		KX_GameObject *rootobj = static_cast<KX_GameObject *>(rootNode->GetObject());
-		PHY_IPhysicsController *rootCtrl = rootobj->GetPhysicsController();
+		PHY_IPhysicsController *rootCtrl = parent->GetPhysicsController();
 		// in case this controller was added as a child shape to the parent
 		if (rootCtrl && rootCtrl->IsCompound()) {
 			rootCtrl->RemoveCompoundChild(m_physicsController.get());
