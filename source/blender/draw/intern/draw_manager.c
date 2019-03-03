@@ -271,7 +271,7 @@ void DRW_transform_to_display(GPUTexture *tex, bool use_view_transform, bool use
 	bool use_ocio = false;
 
 	/* View transform is already applied for offscreen, don't apply again, see: T52046 */
-	if (!(DST.options.is_image_render && !DST.options.is_scene_render) && !DST.options.is_game_engine) {
+	if (!(DST.options.is_image_render && !DST.options.is_scene_render) && !(DST.draw_ctx.scene->flag & SCE_INTERACTIVE)) {
 		Scene *scene = DST.draw_ctx.scene;
 		ColorManagedDisplaySettings *display_settings = &scene->display_settings;
 		ColorManagedViewSettings view_settings;
@@ -2791,11 +2791,6 @@ static void eevee_game_view_layer_data_free()
 	DRW_UBO_FREE_SAFE(sldata->clip_ubo);
 }
 
-bool DRW_state_is_game_engine()
-{
-	return DST.options.is_game_engine;
-}
-
 EEVEE_Data *EEVEE_engine_data_get(void)
 {
 	EEVEE_Data *data = (EEVEE_Data *)drw_viewport_engine_data_ensure(&draw_engine_eevee_type);
@@ -2930,8 +2925,6 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam, int
 	DST.draw_ctx.obact = OBACT(view_layer);
 
 	DST.draw_ctx.depsgraph = depsgraph;
-
-	DST.options.is_game_engine = true;
 
 	drw_context_state_init();
 	drw_viewport_var_init();

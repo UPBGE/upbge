@@ -110,7 +110,7 @@ int EEVEE_motion_blur_init(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data *veda
 
 	if (scene_eval->eevee.flag & SCE_EEVEE_MOTION_BLUR_ENABLED) {
 		/* Update Motion Blur Matrices */
-		if (camera && !DRW_state_is_game_engine()) {
+		if (camera && !(scene->flag & SCE_INTERACTIVE)) {
 			float persmat[4][4];
 			float ctime = DEG_get_ctime(draw_ctx->depsgraph);
 			float delta = scene_eval->eevee.motion_blur_shutter;
@@ -160,7 +160,7 @@ int EEVEE_motion_blur_init(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data *veda
 			}
 		}
 		/* Game engine transition hack */
-		else if (DRW_state_is_game_engine()) {
+		else if (scene_eval->flag & SCE_INTERACTIVE) {
 			float persmat[4][4];
 
 			/* Viewport Matrix */

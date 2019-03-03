@@ -158,8 +158,11 @@ static void drw_deferred_shader_compilation_free(void *custom_data)
 
 static void drw_deferred_shader_add(GPUMaterial *mat, bool deferred)
 {
+	/* Use original scene ID since this is what the jobs template tests for. */
+	Scene *scene = (Scene *)DEG_get_original_id(&DST.draw_ctx.scene->id);
+
 	/* Do not deferre the compilation if we are rendering for image. */
-	if (DRW_state_is_image_render() || !USE_DEFERRED_COMPILATION || !deferred || DRW_state_is_game_engine()) {
+	if (DRW_state_is_image_render() || !USE_DEFERRED_COMPILATION || !deferred || (scene->flag & SCE_INTERACTIVE)) {
 		/* Double checking that this GPUMaterial is not going to be
 		 * compiled by another thread. */
 		DRW_deferred_shader_remove(mat);
@@ -174,9 +177,6 @@ static void drw_deferred_shader_add(GPUMaterial *mat, bool deferred)
 	BLI_assert(DST.draw_ctx.evil_C);
 	wmWindowManager *wm = CTX_wm_manager(DST.draw_ctx.evil_C);
 	wmWindow *win = CTX_wm_window(DST.draw_ctx.evil_C);
-
-	/* Use original scene ID since this is what the jobs template tests for. */
-	Scene *scene = (Scene *)DEG_get_original_id(&DST.draw_ctx.scene->id);
 
 	/* Get the running job or a new one if none is running. Can only have one job per type & owner.  */
 	wmJob *wm_job = WM_jobs_get(wm, win, scene, "Shaders Compilation",

@@ -379,6 +379,9 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
 	ViewLayer *view_layer = BKE_view_layer_default_view(scene);
 	Object *maincam = cam ? cam->GetBlenderObject() : BKE_view_layer_camera_find(view_layer);
 
+	/* We want to indicate that we are in bge runtime. The flag can be used in draw code but in depsgraph code too later */
+	scene->flag |= SCE_INTERACTIVE;
+
 	const RAS_Rect *viewport = &canvas->GetViewportArea();
 	int v[4] = { viewport->GetLeft(), viewport->GetBottom(), viewport->GetWidth() + 1, viewport->GetHeight() + 1 };
 
@@ -429,6 +432,9 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
 	GPU_framebuffer_texture_detach(output->GetFrameBuffer(), m_2dfiltersDepthTex);
 
 	DRW_game_render_loop_finish();
+
+
+	scene->flag &= ~SCE_INTERACTIVE;
 }
 
 void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam, GPUTexture *finaltex, int *v)

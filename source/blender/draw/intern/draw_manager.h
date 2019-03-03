@@ -349,7 +349,6 @@ typedef struct DRWManager {
 		uint is_scene_render : 1;
 		uint draw_background : 1;
 		uint draw_text : 1;
-		uint is_game_engine : 1;
 	} options;
 
 	/* Current rendering context */

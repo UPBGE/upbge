@@ -304,7 +304,9 @@ static void eevee_draw_background(void *vedata)
 		}
 	}
 
-	if (!DRW_state_is_game_engine()) {
+	const DRWContextState *draw_ctx = DRW_context_state_get();
+	Scene *scene = draw_ctx->scene;
+	if (!(scene->flag & SCE_INTERACTIVE)) {
 		/* LookDev */
 		EEVEE_lookdev_draw_background(vedata);
 		/* END */
@@ -316,7 +318,7 @@ static void eevee_draw_background(void *vedata)
 
 	GPU_framebuffer_bind(dfbl->default_fb);
 
-	if (!DRW_state_is_game_engine()) {
+	if (!(scene->flag & SCE_INTERACTIVE)) {
 		DRW_transform_to_display(stl->effects->final_tx, true, use_render_settings);
 	}
 

@@ -605,7 +605,6 @@ struct GPUTexture *DRW_game_render_loop(struct Main *bmain, struct Scene *scene,
 	struct DRWMatrixState state, int v[4], bool called_from_constructor, bool reset_taa_samples);
 void DRW_game_render_loop_finish(void);
 void DRW_game_render_loop_end(void);
-bool DRW_state_is_game_engine(void);
 /**************************END OF GAME ENGINE*******************************/
 
 #endif /* __DRW_RENDER_H__ */
