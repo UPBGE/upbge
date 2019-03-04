@@ -668,6 +668,8 @@ set_property(GLOBAL PROPERTY ICON_GEOM_NAMES
 	ops.curve.draw
 	ops.curve.extrude_cursor
 	ops.curve.extrude_move
+	ops.curve.shrink_fatten
+	ops.curve.vertex_random
 	ops.generic.cursor
 	ops.generic.select
 	ops.generic.select_box

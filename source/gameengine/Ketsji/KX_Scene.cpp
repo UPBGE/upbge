@@ -227,6 +227,9 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	scene->eevee.taa_samples = 0;
 	DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
 
+	/* We want to indicate that we are in bge runtime. The flag can be used in draw code but in depsgraph code too later */
+	scene->flag |= SCE_INTERACTIVE;
+
 	RenderAfterCameraSetup(true);
 	/******************************************************************************************************************************/
 
@@ -271,6 +274,8 @@ KX_Scene::~KX_Scene()
 	if (m_2dfiltersDepthTex) {
 		GPU_texture_free(m_2dfiltersDepthTex);
 	}
+
+	scene->flag &= ~SCE_INTERACTIVE;
 
 	/* End of EEVEE INTEGRATION */
 
@@ -379,9 +384,6 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
 	ViewLayer *view_layer = BKE_view_layer_default_view(scene);
 	Object *maincam = cam ? cam->GetBlenderObject() : BKE_view_layer_camera_find(view_layer);
 
-	/* We want to indicate that we are in bge runtime. The flag can be used in draw code but in depsgraph code too later */
-	scene->flag |= SCE_INTERACTIVE;
-
 	const RAS_Rect *viewport = &canvas->GetViewportArea();
 	int v[4] = { viewport->GetLeft(), viewport->GetBottom(), viewport->GetWidth() + 1, viewport->GetHeight() + 1 };
 
@@ -432,9 +434,6 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
 	GPU_framebuffer_texture_detach(output->GetFrameBuffer(), m_2dfiltersDepthTex);
 
 	DRW_game_render_loop_finish();
-
-
-	scene->flag &= ~SCE_INTERACTIVE;
 }
 
 void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam, GPUTexture *finaltex, int *v)

@@ -885,7 +885,7 @@ static BHeadN *get_bhead(FileData *fd)
 	 * of blocks.
 	 */
 	if (new_bhead) {
-		BLI_addtail(&fd->listbase, new_bhead);
+		BLI_addtail(&fd->bhead_list, new_bhead);
 	}
 
 	return new_bhead;
@@ -899,7 +899,7 @@ BHead *blo_bhead_first(FileData *fd)
 	/* Rewind the file
 	 * Read in a new block if necessary
 	 */
-	new_bhead = fd->listbase.first;
+	new_bhead = fd->bhead_list.first;
 	if (new_bhead == NULL) {
 		new_bhead = get_bhead(fd);
 	}
@@ -1498,10 +1498,10 @@ void blo_filedata_free(FileData *fd)
 
 		/* Free all BHeadN data blocks */
 #ifndef NDEBUG
-		BLI_freelistN(&fd->listbase);
+		BLI_freelistN(&fd->bhead_list);
 #else
 		/* Sanity check we're not keeping memory we don't need. */
-		LISTBASE_FOREACH_MUTABLE (BHeadN *, new_bhead, &fd->listbase) {
+		LISTBASE_FOREACH_MUTABLE (BHeadN *, new_bhead, &fd->bhead_list) {
 			if (fd->seek != NULL && BHEAD_USE_READ_ON_DEMAND(&new_bhead->bhead)) {
 				BLI_assert(new_bhead->has_data == 0);
 			}
@@ -2123,7 +2123,7 @@ static void switch_endian_structs(const struct SDNA *filesdna, BHead *bhead)
 	char *data;
 
 	data = (char *)(bhead + 1);
-	blocksize = filesdna->typelens[filesdna->structs[bhead->SDNAnr][0]];
+	blocksize = filesdna->types_size[filesdna->structs[bhead->SDNAnr][0]];
 
 	nblocks = bhead->nr;
 	while (nblocks--) {
@@ -2269,9 +2269,9 @@ static void test_pointer_array(FileData *fd, void **mat)
 	 * the new dna format.
 	 */
 	if (*mat) {
-		len = MEM_allocN_len(*mat) / fd->filesdna->pointerlen;
+		len = MEM_allocN_len(*mat) / fd->filesdna->pointer_size;
 
-		if (fd->filesdna->pointerlen == 8 && fd->memsdna->pointerlen == 4) {
+		if (fd->filesdna->pointer_size == 8 && fd->memsdna->pointer_size == 4) {
 			ipoin = imat = MEM_malloc_arrayN(len, 4, "newmatar");
 			lpoin = *mat;
 
@@ -2286,7 +2286,7 @@ static void test_pointer_array(FileData *fd, void **mat)
 			*mat = imat;
 		}
 
-		if (fd->filesdna->pointerlen == 4 && fd->memsdna->pointerlen == 8) {
+		if (fd->filesdna->pointer_size == 4 && fd->memsdna->pointer_size == 8) {
 			lpoin = lmat = MEM_malloc_arrayN(len, 8, "newmatar");
 			ipoin = *mat;
 

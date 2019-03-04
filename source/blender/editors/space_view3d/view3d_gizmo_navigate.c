@@ -148,15 +148,28 @@ static void WIDGETGROUP_navigate_setup(const bContext *UNUSED(C), wmGizmoGroup *
 
 		if (i == GZ_INDEX_ROTATE) {
 			gz->color[3] = 0.0f;
-			gz->color_hi[3] = 0.1f;
+			copy_v3_fl(gz->color_hi, 0.5f);
+			gz->color_hi[3] = 0.5f;
 		}
 		else {
-			UI_GetThemeColorShade3fv(TH_HEADER, -40, gz->color);
-			UI_GetThemeColorShade3fv(TH_HEADER, 160, gz->color_hi);
-			gz->color[3] = 0.4f;
-			gz->color_hi[3] = 0.2f;
+			uchar icon_color[3];
+			UI_GetThemeColor3ubv(TH_TEXT, icon_color);
+			int color_tint, color_tint_hi;
+			if (icon_color[0] > 128) {
+				color_tint = -40;
+				color_tint_hi = 60;
+				gz->color[3] = 0.5f;
+				gz->color_hi[3] = 0.5f;
+			}
+			else {
+				color_tint = 60;
+				color_tint_hi = 60;
+				gz->color[3] = 0.5f;
+				gz->color_hi[3] = 0.75f;
+			}
+			UI_GetThemeColorShade3fv(TH_HEADER, color_tint, gz->color);
+			UI_GetThemeColorShade3fv(TH_HEADER, color_tint_hi, gz->color_hi);
 		}
-
 
 		/* may be overwritten later */
 		gz->scale_basis = (GIZMO_SIZE * GIZMO_MINI_FAC) / 2;

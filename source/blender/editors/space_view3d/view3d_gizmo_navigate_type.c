@@ -261,10 +261,17 @@ static void axis_geom_draw(
 	}
 #endif
 
+	/* When the cursor is over any of the gizmos (show circle backdrop). */
+	const bool is_active = (color[3] != 0.0f);
+
+	/* Circle defining active area. */
+	if (is_active) {
+		immUniformColor4fv(color);
+		imm_draw_circle_fill_3d(pos_id, 0, 0, 1.0f, DIAL_RESOLUTION);
+	}
+
 	GPU_matrix_push();
 	GPU_matrix_mul(gz->matrix_offset);
-
-	bool draw_center_done = false;
 
 	for (int axis_index = 0; axis_index < ARRAY_SIZE(axis_order); axis_index++) {
 		const int index = axis_order[axis_index].index;
@@ -272,19 +279,6 @@ static void axis_geom_draw(
 		const bool is_pos = axis_order[axis_index].is_pos;
 		const bool is_highlight = index + 1 == gz->highlight_part;
 
-		/* Draw slightly before, so axis aligned arrows draw ontop. */
-		if ((draw_center_done == false) && (axis_order[axis_index].depth > -axis_depth_bias)) {
-
-			/* Circle defining active area (revert back to 2D space). */
-			if (color[3] != 0.0f) {
-				GPU_matrix_pop();
-				immUniformColor4fv(color);
-				imm_draw_circle_fill_3d(pos_id, 0, 0, 1.0f, DIAL_RESOLUTION);
-				GPU_matrix_push();
-				GPU_matrix_mul(gz->matrix_offset);
-			}
-			draw_center_done = true;
-		}
 		UI_GetThemeColor3fv(TH_AXIS_X + axis, axis_color[axis]);
 		axis_color[axis][3] = 1.0f;
 
@@ -361,6 +355,18 @@ static void axis_geom_draw(
 
 				GPUBatch *sphere = GPU_batch_preset_sphere(0);
 				GPU_batch_program_set_builtin(sphere, GPU_SHADER_3D_UNIFORM_COLOR);
+
+				/* Black outlines for negative axis balls, otherwise they can be hard to see since
+				 * they use a faded color which can be similar to the circle backdrop in tone. */
+				if (is_active && !is_highlight && !is_pos && !select && !(axis_align == axis)) {
+					static const float axis_black_faded[4] = {0, 0, 0, 0.2f};
+					const float scale = 1.15f;
+					GPU_matrix_scale_1f(scale);
+					GPU_batch_uniform_4fv(sphere, "color", axis_black_faded);
+					GPU_batch_draw(sphere);
+					GPU_matrix_scale_1f(1.0 / scale);
+				}
+
 				GPU_batch_uniform_4fv(sphere, "color", is_pos_color ? color_current : color_current_fade);
 				GPU_batch_draw(sphere);
 				GPU_matrix_pop();
