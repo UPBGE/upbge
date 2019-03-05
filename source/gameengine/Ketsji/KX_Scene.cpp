@@ -265,6 +265,9 @@ KX_Scene::~KX_Scene()
 	scene->eevee.taa_samples = m_taaSamplesBackup;
 	DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
 
+	//Put that before we flush depsgraph updates at scene exit
+	scene->flag &= ~SCE_INTERACTIVE;
+
 	// Flush depsgraph updates a last time at ge exit
 	ViewLayer *view_layer = BKE_view_layer_default_view(scene);
 	Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer, false);
@@ -274,8 +277,6 @@ KX_Scene::~KX_Scene()
 	if (m_2dfiltersDepthTex) {
 		GPU_texture_free(m_2dfiltersDepthTex);
 	}
-
-	scene->flag &= ~SCE_INTERACTIVE;
 
 	/* End of EEVEE INTEGRATION */
 
