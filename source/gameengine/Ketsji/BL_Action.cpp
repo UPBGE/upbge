@@ -68,8 +68,6 @@ extern "C" {
 #include "BKE_library.h"
 #include "BKE_global.h"
 
-static ThreadMutex object_update_lock = BLI_MUTEX_INITIALIZER;
-
 BL_Action::BL_Action(class KX_GameObject* gameobj)
 :
 	m_action(nullptr),
@@ -111,30 +109,14 @@ BL_Action::~BL_Action()
 	}
 	m_obj->GetScene()->GetBlenderScene()->r.cfra = int(m_backupFrame); //eevee
 	Object *ob = m_obj->GetBlenderObject();
-	if (ob->type == OB_ARMATURE) {
-		Object *ob = m_obj->GetBlenderObject(); //eevee
-		DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
 
-		Scene *sc = m_obj->GetScene()->GetBlenderScene();
-		ViewLayer *view_layer = BKE_view_layer_default_view(sc);
-		Depsgraph *depsgraph = BKE_scene_get_depsgraph(sc, view_layer, false);
+	DEG_id_tag_update(&ob->id, ID_RECALC_ALL);
 
-		BLI_mutex_lock(&object_update_lock);
-		BKE_object_modifier_update_subframe(depsgraph, sc, DEG_get_evaluated_object(depsgraph, ob), true, 5, m_backupFrame, 8);
-		BLI_mutex_unlock(&object_update_lock);
-	}
-	else {
-		Object *ob = m_obj->GetBlenderObject(); //eevee
-		DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+	Scene *sc = m_obj->GetScene()->GetBlenderScene();
+	ViewLayer *view_layer = BKE_view_layer_default_view(sc);
+	Depsgraph *depsgraph = BKE_scene_get_depsgraph(sc, view_layer, false);
 
-		Scene *sc = m_obj->GetScene()->GetBlenderScene();
-		ViewLayer *view_layer = BKE_view_layer_default_view(sc);
-		Depsgraph *depsgraph = BKE_scene_get_depsgraph(sc, view_layer, false);
-
-		BLI_mutex_lock(&object_update_lock);
-		BKE_object_modifier_update_subframe(depsgraph, sc, DEG_get_evaluated_object(depsgraph, ob), true, 5, m_backupFrame, 41);
-		BLI_mutex_unlock(&object_update_lock);
-	}
+	BKE_object_where_is_calc_time(depsgraph, sc, ob, m_backupFrame);
 }
 
 void BL_Action::ClearControllerList()
@@ -443,9 +425,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
 		ViewLayer *view_layer = BKE_view_layer_default_view(sc);
 		Depsgraph *depsgraph = BKE_scene_get_depsgraph(sc, view_layer, false);
 
-		BLI_mutex_lock(&object_update_lock);
-		BKE_object_modifier_update_subframe(depsgraph, sc, DEG_get_evaluated_object(depsgraph, ob), true, 5, m_localframe, 8);
-		BLI_mutex_unlock(&object_update_lock);
+		BKE_object_where_is_calc_time(depsgraph, sc, ob, m_localframe);
 
 		scene->ResetTaaSamples();
 
@@ -497,9 +477,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
 					ViewLayer *view_layer = BKE_view_layer_default_view(sc);
 					Depsgraph *depsgraph = BKE_scene_get_depsgraph(sc, view_layer, false);
 
-					BLI_mutex_lock(&object_update_lock);
-					BKE_object_modifier_update_subframe(depsgraph, sc, DEG_get_evaluated_object(depsgraph, ob), true, 5, m_localframe, 41);
-					BLI_mutex_unlock(&object_update_lock);
+					BKE_object_where_is_calc_time(depsgraph, sc, ob, m_localframe);
 
 					scene->ResetTaaSamples();
 					break;
