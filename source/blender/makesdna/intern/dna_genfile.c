@@ -1114,7 +1114,9 @@ static void reconstruct_struct(
 
 		elen = elementsize(newsdna, spc[0], spc[1]);
 
-		/* Skip pad bytes. */
+		/* Skip pad bytes which must start with '_pad', see makesdna.c 'is_name_legal'.
+		 * for exact rules. Note that if we fail to skip a pad byte it's harmless,
+		 * this just avoids unnecessary reconstruction. */
 		if (name[0] == '_' || (name[0] == '*' && name[1] == '_')) {
 			cpc += elen;
 		}
@@ -1413,10 +1415,15 @@ static bool DNA_sdna_patch_struct_member_nr(
 
 			if (sdna->nr_names == sdna->nr_names_alloc) {
 				sdna->nr_names_alloc += 64;
-				sdna->names = MEM_recallocN(sdna->names, sizeof(*sdna->names) * sdna->nr_names_alloc);
+				sdna->names = MEM_recallocN(
+				        sdna->names, sizeof(*sdna->names) * sdna->nr_names_alloc);
+				sdna->names_array_len = MEM_recallocN(
+				        (void *)sdna->names_array_len, sizeof(*sdna->names_array_len) * sdna->nr_names_alloc);
 			}
+			const short name_nr_prev = sp[1];
 			sp[1] = sdna->nr_names++;
 			sdna->names[sp[1]] = elem_new_full;
+			sdna->names_array_len[sp[1]] = sdna->names_array_len[name_nr_prev];
 
 			return true;
 		}

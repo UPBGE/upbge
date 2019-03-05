@@ -86,51 +86,23 @@ static void edbm_flag_disable_all_multi(ViewLayer *view_layer, View3D *v3d, cons
 /* When accessed as a tool, get the active edge from the preselection gizmo. */
 static bool edbm_preselect_or_active(
         bContext *C,
+        const View3D *v3d,
         Base **r_base,
         BMElem **r_ele)
 {
-	ViewLayer *view_layer = CTX_data_view_layer(C);
 	ARegion *ar = CTX_wm_region(C);
-	wmGizmoMap *gzmap = ar->gizmo_map;
+	const bool show_gizmo = !(
+	        (v3d->flag2 & V3D_RENDER_OVERRIDE) ||
+	        (v3d->gizmo_flag & (V3D_GIZMO_HIDE | V3D_GIZMO_HIDE_TOOL)));
+
+	wmGizmoMap *gzmap = show_gizmo ? ar->gizmo_map : NULL;
 	wmGizmoGroup *gzgroup = gzmap ? WM_gizmomap_group_find(gzmap, "VIEW3D_GGT_mesh_preselect_elem") : NULL;
 	if (gzgroup != NULL) {
 		wmGizmo *gz = gzgroup->gizmos.first;
-		const int object_index = RNA_int_get(gz->ptr, "object_index");
-
-		/* weak, allocate an array just to access the index. */
-		Base *base = NULL;
-		Object *obedit = NULL;
-		{
-			uint bases_len;
-			Base **bases = BKE_view_layer_array_from_bases_in_edit_mode(view_layer, CTX_wm_view3d(C), &bases_len);
-			if (object_index < bases_len) {
-				base = bases[object_index];
-				obedit = base->object;
-			}
-			MEM_freeN(bases);
-		}
-
-		*r_base = base;
-		*r_ele = NULL;
-
-		if (obedit) {
-			BMEditMesh *em = BKE_editmesh_from_object(obedit);
-			BMesh *bm = em->bm;
-			const int vert_index = RNA_int_get(gz->ptr, "vert_index");
-			const int edge_index = RNA_int_get(gz->ptr, "edge_index");
-			const int face_index = RNA_int_get(gz->ptr, "face_index");
-			if (vert_index != -1) {
-				*r_ele = (BMElem *)BM_vert_at_index_find(bm, vert_index);
-			}
-			else if (edge_index != -1) {
-				*r_ele = (BMElem *)BM_edge_at_index_find(bm, edge_index);
-			}
-			else if (face_index != -1) {
-				*r_ele = (BMElem *)BM_face_at_index_find(bm, face_index);
-			}
-		}
+		ED_view3d_gizmo_mesh_preselect_get_active(C, gz, r_base, r_ele);
 	}
 	else {
+		ViewLayer *view_layer = CTX_data_view_layer(C);
 		Base *base = view_layer->basact;
 		Object *obedit = base->object;
 		BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -148,7 +120,7 @@ static bool edbm_preselect_or_active_init_viewcontext(
         BMElem **r_ele)
 {
 	em_setup_viewcontext(C, vc);
-	bool ok = edbm_preselect_or_active(C, r_base, r_ele);
+	bool ok = edbm_preselect_or_active(C, vc->v3d, r_base, r_ele);
 	if (ok) {
 		ED_view3d_viewcontext_init_object(vc, (*r_base)->object);
 	}

@@ -246,14 +246,14 @@ typedef struct wmNotifier {
 #define	NC_GEOM				(16<<24)
 #define NC_NODE				(17<<24)
 #define NC_ID				(18<<24)
-#define NC_LOGIC			(19<<24)
-/* (19<<24) is free */
+#define NC_PAINTCURVE		(19<<24)
 #define NC_MOVIECLIP			(20<<24)
 #define NC_MASK				(21<<24)
 #define NC_GPENCIL			(22<<24)
 #define NC_LINESTYLE			(23<<24)
 #define NC_CAMERA			(24<<24)
 #define NC_LIGHTPROBE		(25<<24)
+#define NC_LOGIC			(26<<24)
 
 /* data type, 256 entries is enough, it can overlap */
 #define NOTE_DATA			0x00FF0000

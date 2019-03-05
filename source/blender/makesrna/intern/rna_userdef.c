@@ -4365,10 +4365,10 @@ static void rna_def_userdef_system(BlenderRNA *brna)
 
 	static const EnumPropertyItem multi_sample_levels[] = {
 		{USER_MULTISAMPLE_NONE, "NONE", 0, "No MultiSample", "Do not use OpenGL MultiSample"},
-		{USER_MULTISAMPLE_2, "2", 0, "MultiSample: 2", "Use 2x OpenGL MultiSample (requires restart)"},
-		{USER_MULTISAMPLE_4, "4", 0, "MultiSample: 4", "Use 4x OpenGL MultiSample (requires restart)"},
-		{USER_MULTISAMPLE_8, "8", 0, "MultiSample: 8", "Use 8x OpenGL MultiSample (requires restart)"},
-		{USER_MULTISAMPLE_16, "16", 0, "MultiSample: 16", "Use 16x OpenGL MultiSample (requires restart)"},
+		{USER_MULTISAMPLE_2, "2", 0, "MultiSample: 2", "Use 2x OpenGL MultiSample"},
+		{USER_MULTISAMPLE_4, "4", 0, "MultiSample: 4", "Use 4x OpenGL MultiSample"},
+		{USER_MULTISAMPLE_8, "8", 0, "MultiSample: 8", "Use 8x OpenGL MultiSample"},
+		{USER_MULTISAMPLE_16, "16", 0, "MultiSample: 16", "Use 16x OpenGL MultiSample"},
 		{0, NULL, 0, NULL, NULL},
 	};
 
@@ -4436,7 +4436,13 @@ static void rna_def_userdef_system(BlenderRNA *brna)
 	RNA_def_property_enum_bitflag_sdna(prop, NULL, "ogl_multisamples");
 	RNA_def_property_enum_items(prop, multi_sample_levels);
 	RNA_def_property_ui_text(prop, "MultiSample",
-	                         "Enable OpenGL multi-sampling, only for systems that support it, requires restart");
+	                         "Enable OpenGL multi-sampling, only for systems that support it");
+	RNA_def_property_update(prop, 0, "rna_userdef_dpi_update");
+
+	prop = RNA_def_property(srna, "use_edit_mode_smooth_wire", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "uiflag2", USER_EDIT_MODE_SMOOTH_WIRE);
+	RNA_def_property_ui_text(prop, "Edit-Mode Smooth Wires",
+	                         "Enable Edit-Mode edge smoothing, reducing aliasing, requires restart");
 	RNA_def_property_update(prop, 0, "rna_userdef_dpi_update");
 
 	/* grease pencil anti-aliasing */

@@ -803,10 +803,13 @@ class _defs_edit_curve:
         )
 
     @ToolDef.from_fn
-    def curve_shrink_fatten():
+    def curve_radius():
         return dict(
-            text="Shrink/Fatten",
-            icon="ops.curve.shrink_fatten",
+            text="Radius",
+            description=(
+                "Expand or contract the radius of the selected curve points"
+            ),
+            icon="ops.curve.radius",
             widget=None,
             keymap=(),
         )
@@ -1247,6 +1250,16 @@ class _defs_gpencil_edit:
             keymap=(),
         )
 
+    @ToolDef.from_fn
+    def extrude():
+        return dict(
+            text="Extrude",
+            icon="ops.gpencil.extrude_move",
+            widget="VIEW3D_GGT_xform_extrude",
+            keymap=(),
+            draw_settings=_template_widget.VIEW3D_GGT_xform_extrude.draw_settings,
+        )
+
 
 class _defs_gpencil_sculpt:
 
@@ -1615,7 +1628,7 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
         'EDIT_CURVE': [
             *_tools_default,
             None,
-            _defs_edit_curve.curve_shrink_fatten,
+            _defs_edit_curve.curve_radius,
             _defs_edit_curve.curve_vertex_randomize,
             _defs_edit_curve.tilt,
             _defs_edit_curve.draw,
@@ -1694,9 +1707,11 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
             None,
             *_tools_transform,
             None,
+            _defs_gpencil_edit.extrude,
             _defs_gpencil_edit.bend,
             _defs_gpencil_edit.shear,
             _defs_gpencil_edit.tosphere,
+
         ],
         'SCULPT_GPENCIL': [
             *_tools_gpencil_select,

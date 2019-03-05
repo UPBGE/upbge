@@ -475,7 +475,7 @@ static short gp_stroke_addpoint(
 		gpd->runtime.sbuffer_size++;
 		/* smooth while drawing previous points with a reduction factor for previous */
 		for (int s = 0; s < 3; s++) {
-			gp_smooth_buffer(p, 1.0f * ((3.0f - s) / 3.0f), gpd->runtime.sbuffer_size - s);
+			gp_smooth_buffer(p, 0.5f * ((3.0f - s) / 3.0f), gpd->runtime.sbuffer_size - s);
 		}
 
 		/* check if another operation can still occur */
@@ -1188,9 +1188,6 @@ static bool gp_session_initdata(bContext *C, tGPsdata *p)
 
 			/* mark datablock as being used for annotations */
 			gpd->flag |= GP_DATA_ANNOTATIONS;
-
-			/* annotations always in front of all objects */
-			gpd->xray_mode = GP_XRAY_FRONT;
 		}
 		p->gpd = *gpd_ptr;
 	}

@@ -39,7 +39,7 @@ typedef struct SDNA {
 	/** Struct member names. */
 	const char **names;
 	/** Result of #DNA_elem_array_size (aligned with #names). */
-	const short *names_array_len;
+	short *names_array_len;
 
 	/** Size of a pointer in bytes. */
 	int pointer_size;
