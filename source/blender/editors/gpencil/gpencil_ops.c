@@ -355,20 +355,26 @@ void ED_operatormacros_gpencil(void)
 	wmOperatorTypeMacro *otmacro;
 
 	/* Duplicate + Move = Interactively place newly duplicated strokes */
-	ot = WM_operatortype_append_macro("GPENCIL_OT_duplicate_move", "Duplicate Strokes",
-	                                  "Make copies of the selected Grease Pencil strokes and move them",
-	                                  OPTYPE_UNDO | OPTYPE_REGISTER);
+	ot = WM_operatortype_append_macro(
+	        "GPENCIL_OT_duplicate_move", "Duplicate Strokes",
+	        "Make copies of the selected Grease Pencil strokes and move them",
+	        OPTYPE_UNDO | OPTYPE_REGISTER);
 	WM_operatortype_macro_define(ot, "GPENCIL_OT_duplicate");
 	otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
 	RNA_boolean_set(otmacro->ptr, "gpencil_strokes", true);
+	RNA_enum_set(otmacro->ptr, "proportional", 0);
+	RNA_boolean_set(otmacro->ptr, "mirror", false);
 
 	/* Extrude + Move = Interactively add new points */
-	ot = WM_operatortype_append_macro("GPENCIL_OT_extrude_move", "Extrude Stroke Points",
-									  "Extrude selected points and move them",
-									  OPTYPE_UNDO | OPTYPE_REGISTER);
+	ot = WM_operatortype_append_macro(
+	        "GPENCIL_OT_extrude_move", "Extrude Stroke Points",
+	        "Extrude selected points and move them",
+	        OPTYPE_UNDO | OPTYPE_REGISTER);
 	WM_operatortype_macro_define(ot, "GPENCIL_OT_extrude");
 	otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
 	RNA_boolean_set(otmacro->ptr, "gpencil_strokes", true);
+	RNA_enum_set(otmacro->ptr, "proportional", 0);
+	RNA_boolean_set(otmacro->ptr, "mirror", false);
 }
 
 /* ****************************************** */

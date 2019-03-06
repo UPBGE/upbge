@@ -77,7 +77,7 @@ static void gpencil_calc_vertex(
 	const DRWContextState *draw_ctx = DRW_context_state_get();
 	const bool main_onion = draw_ctx->v3d != NULL ? (draw_ctx->v3d->gp_flag & V3D_GP_SHOW_ONION_SKIN) : true;
 	const bool playing = stl->storage->is_playing;
-	const bool overlay = draw_ctx->v3d != NULL ? (bool)((draw_ctx->v3d->flag2 & V3D_RENDER_OVERRIDE) == 0) : true;
+	const bool overlay = draw_ctx->v3d != NULL ? (bool)((draw_ctx->v3d->flag2 & V3D_HIDE_OVERLAYS) == 0) : true;
 	const bool do_onion = (bool)((gpd->flag & GP_DATA_STROKE_WEIGHTMODE) == 0) &&
 		overlay && main_onion && DRW_gpencil_onion_active(gpd) && !playing;
 
@@ -565,9 +565,7 @@ DRWShadingGroup *DRW_gpencil_shgroup_stroke_create(
 
 		/* viewport x-ray */
 		DRW_shgroup_uniform_int(grp, "viewport_xray", &stl->storage->is_xray, 1);
-
-		stl->shgroups[id].shading_type[0] = (int)OB_RENDER;
-		DRW_shgroup_uniform_int(grp, "shading_type", &stl->shgroups[id].shading_type[0], 2);
+		DRW_shgroup_uniform_int(grp, "shading_type", (const int *)&stl->storage->shade_render, 2);
 	}
 
 	if ((gpd) && (id > -1)) {
@@ -865,7 +863,7 @@ static void gpencil_add_editpoints_vertexdata(
 
 		if (cache->is_dirty) {
 			if ((obact == ob) &&
-			    ((v3d->flag2 & V3D_RENDER_OVERRIDE) == 0) &&
+			    ((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0) &&
 			    (v3d->gp_flag & V3D_GP_SHOW_EDIT_LINES))
 			{
 				/* line of the original stroke */
@@ -1340,14 +1338,13 @@ void DRW_gpencil_populate_buffer_strokes(GPENCIL_e_data *e_data, void *vedata, T
 	GPENCIL_StorageList *stl = ((GPENCIL_Data *)vedata)->stl;
 	const DRWContextState *draw_ctx = DRW_context_state_get();
 	View3D *v3d = draw_ctx->v3d;
-	const bool overlay = v3d != NULL ? (bool)((v3d->flag2 & V3D_RENDER_OVERRIDE) == 0) : true;
+	const bool overlay = v3d != NULL ? (bool)((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0) : true;
 	Brush *brush = BKE_paint_brush(&ts->gp_paint->paint);
 	bGPdata *gpd_eval = ob->data;
 	/* need the original to avoid cow overhead while drawing */
 	bGPdata *gpd = (bGPdata *)DEG_get_original_id(&gpd_eval->id);
 
 	MaterialGPencilStyle *gp_style = NULL;
-	const int shade_render[2] = { OB_RENDER, 0 };
 	float obscale = mat4_to_scale(ob->obmat);
 
 	/* use the brush material */
@@ -1375,12 +1372,14 @@ void DRW_gpencil_populate_buffer_strokes(GPENCIL_e_data *e_data, void *vedata, T
 				if ((gp_style) && (gp_style->mode == GP_STYLE_MODE_LINE)) {
 					stl->g_data->shgrps_drawing_stroke = DRW_gpencil_shgroup_stroke_create(
 						e_data, vedata, psl->drawing_pass, e_data->gpencil_stroke_sh, NULL,
-						gpd, NULL, NULL, gp_style, -1, false, 1.0f, shade_render);
+						gpd, NULL, NULL, gp_style, -1,
+						false, 1.0f, (const int *)stl->storage->shade_render);
 				}
 				else {
 					stl->g_data->shgrps_drawing_stroke = DRW_gpencil_shgroup_point_create(
 						e_data, vedata, psl->drawing_pass, e_data->gpencil_point_sh, NULL,
-						gpd, NULL, gp_style, -1, false, 1.0f, shade_render);
+						gpd, NULL, gp_style, -1,
+						false, 1.0f, (const int *)stl->storage->shade_render);
 				}
 
 				/* clean previous version of the batch */
@@ -1734,7 +1733,7 @@ void DRW_gpencil_populate_datablock(
 	const bool main_onion = v3d != NULL ? (v3d->gp_flag & V3D_GP_SHOW_ONION_SKIN) : true;
 	const bool do_onion = (bool)((gpd->flag & GP_DATA_STROKE_WEIGHTMODE) == 0) &&
 		main_onion && DRW_gpencil_onion_active(gpd);
-	const bool overlay = v3d != NULL ? (bool)((v3d->flag2 & V3D_RENDER_OVERRIDE) == 0) : true;
+	const bool overlay = v3d != NULL ? (bool)((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0) : true;
 	const bool time_remap = BKE_gpencil_has_time_modifiers(ob);
 
 	float opacity;

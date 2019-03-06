@@ -248,6 +248,8 @@ void GPENCIL_engine_init(void *vedata)
 
 		/* unit matrix */
 		unit_m4(stl->storage->unit_matrix);
+		stl->storage->shade_render[0] = OB_RENDER;
+		stl->storage->shade_render[1] = 0;
 	}
 
 	stl->storage->multisamples = U.gpencil_multisamples;
@@ -620,7 +622,7 @@ void GPENCIL_cache_populate(void *vedata, Object *ob)
 
 		/* grid */
 		if ((v3d) &&
-		    ((v3d->flag2 & V3D_RENDER_OVERRIDE) == 0) &&
+		    ((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0) &&
 		    (v3d->gp_flag & V3D_GP_SHOW_GRID) &&
 		    (ob->type == OB_GPENCIL) && (ob == draw_ctx->obact))
 		{
@@ -678,8 +680,10 @@ void GPENCIL_cache_finish(void *vedata)
 		stl->storage->framebuffer_flag |= GP_FRAMEBUFFER_DRAW;
 	}
 
-	/* create framebuffers */
-	GPENCIL_create_framebuffers(vedata);
+	/* create framebuffers (only for normal drawing) */
+	if (!DRW_state_is_select()) {
+		GPENCIL_create_framebuffers(vedata);
+	}
 }
 
 /* helper function to sort inverse gpencil objects using qsort */
@@ -828,7 +832,7 @@ void GPENCIL_draw_scene(void *ved)
 	const bool is_render = stl->storage->is_render;
 	bGPdata *gpd_act = (obact) && (obact->type == OB_GPENCIL) ? (bGPdata *)obact->data : NULL;
 	const bool is_edit = GPENCIL_ANY_EDIT_MODE(gpd_act);
-	const bool overlay = v3d != NULL ? (bool)((v3d->flag2 & V3D_RENDER_OVERRIDE) == 0) : true;
+	const bool overlay = v3d != NULL ? (bool)((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0) : true;
 
 	/* if the draw is for select, do a basic drawing and return */
 	if (DRW_state_is_select()) {
@@ -840,7 +844,7 @@ void GPENCIL_draw_scene(void *ved)
 
 	/* paper pass to display a comfortable area to draw over complex scenes with geometry */
 	if ((!is_render) && (obact) && (obact->type == OB_GPENCIL)) {
-		if (((v3d->flag2 & V3D_RENDER_OVERRIDE) == 0) &&
+		if (((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0) &&
 		    (v3d->gp_flag & V3D_GP_SHOW_PAPER))
 		{
 			DRW_draw_pass(psl->paper_pass);
@@ -863,7 +867,7 @@ void GPENCIL_draw_scene(void *ved)
 
 		/* grid pass */
 		if ((!is_render) && (obact) && (obact->type == OB_GPENCIL)) {
-			if (((v3d->flag2 & V3D_RENDER_OVERRIDE) == 0) &&
+			if (((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0) &&
 			    (v3d->gp_flag & V3D_GP_SHOW_GRID))
 			{
 				DRW_draw_pass(psl->grid_pass);
@@ -1017,7 +1021,7 @@ void GPENCIL_draw_scene(void *ved)
 		}
 		/* grid pass */
 		if ((!is_render) && (obact) && (obact->type == OB_GPENCIL)) {
-			if (((v3d->flag2 & V3D_RENDER_OVERRIDE) == 0) &&
+			if (((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0) &&
 			    (v3d->gp_flag & V3D_GP_SHOW_GRID))
 			{
 				DRW_draw_pass(psl->grid_pass);

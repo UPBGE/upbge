@@ -1073,6 +1073,7 @@ class _defs_image_uv_select:
     def circle():
         def draw_settings(context, layout, tool):
             props = tool.operator_properties("uv.select_circle")
+            layout.prop(props, "mode", expand=True)
             layout.prop(props, "radius")
         return dict(
             text="Select Circle",
@@ -1223,6 +1224,9 @@ class _defs_gpencil_edit:
     @ToolDef.from_fn
     def circle_select():
         def draw_settings(context, layout, tool):
+            props = tool.operator_properties("gpencil.select_circle")
+            layout.prop(props, "mode", expand=True)
+            layout.prop(props, "radius")
             layout.prop(context.tool_settings.gpencil_sculpt, "intersection_threshold")
         return dict(
             text="Select Circle",
@@ -1324,6 +1328,20 @@ class _defs_node_select:
             icon="ops.generic.select_lasso",
             widget=None,
             keymap="Node Tool: Select Lasso",
+            draw_settings=draw_settings,
+        )
+
+    @ToolDef.from_fn
+    def circle():
+        def draw_settings(context, layout, tool):
+            props = tool.operator_properties("node.select_circle")
+            layout.prop(props, "mode", expand=True)
+            layout.prop(props, "radius")
+        return dict(
+            text="Select Circle",
+            icon="ops.generic.select_circle",
+            widget=None,
+            keymap="Node Tool: Select Circle",
             draw_settings=draw_settings,
         )
 
@@ -1451,6 +1469,7 @@ class NODE_PT_tools_active(ToolSelectPanelHelper, Panel):
             _defs_node_select.select,
             _defs_node_select.box,
             _defs_node_select.lasso,
+            _defs_node_select.circle,
         ),
     )
 
@@ -1652,7 +1671,9 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
             *_tools_annotate,
         ],
         'PARTICLE': [
+            *_tools_select,
             _defs_view3d_generic.cursor,
+            None,
             _defs_particle.generate_from_brushes,
         ],
         'SCULPT': [
