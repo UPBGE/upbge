@@ -414,9 +414,6 @@ Scene *BKE_scene_copy(Main *bmain, Scene *sce, int type)
 				BKE_id_copy_ex(bmain, (ID *)sce_copy->world, (ID **)&sce_copy->world, LIB_ID_COPY_ACTIONS);
 			}
 
-			/* Collections */
-			BKE_collection_copy_full(bmain, sce_copy->master_collection);
-
 			/* Full copy of GreasePencil. */
 			if (sce_copy->gpd) {
 				id_us_min(&sce_copy->gpd->id);
@@ -729,7 +726,7 @@ void BKE_scene_init(Scene *sce)
 	pset->emitterdist = 0.25f;
 	pset->totrekey = 5;
 	pset->totaddkey = 5;
-	pset->brushtype = PE_BRUSH_NONE;
+	pset->brushtype = PE_BRUSH_COMB;
 	pset->draw_step = 2;
 	pset->fade_frames = 2;
 	pset->selectmode = SCE_SELECT_PATH;

@@ -843,7 +843,7 @@ void BKE_libblock_management_main_add(Main *bmain, void *idv)
 	ListBase *lb = which_libbase(bmain, GS(id->name));
 	BKE_main_lock(bmain);
 	BLI_addtail(lb, id);
-	new_id(lb, id, NULL);
+	BKE_id_new_name_validate(lb, id, NULL);
 	/* alphabetic insertion: is in new_id */
 	id->tag &= ~(LIB_TAG_NO_MAIN | LIB_TAG_NO_USER_REFCOUNT);
 	bmain->is_memfile_undo_written = false;
@@ -993,7 +993,7 @@ void BKE_main_id_repair_duplicate_names_listbase(ListBase *lb)
 	}
 	for (i = 0; i < lb_len; i++) {
 		if (!BLI_gset_add(gset, id_array[i]->name + 2)) {
-			new_id(lb, id_array[i], NULL);
+			BKE_id_new_name_validate(lb, id_array[i], NULL);
 		}
 	}
 	BLI_gset_free(gset, NULL);
@@ -1125,7 +1125,7 @@ void *BKE_libblock_alloc(Main *bmain, short type, const char *name, const int fl
 
 			BKE_main_lock(bmain);
 			BLI_addtail(lb, id);
-			new_id(lb, id, name);
+			BKE_id_new_name_validate(lb, id, name);
 			bmain->is_memfile_undo_written = false;
 			/* alphabetic insertion: is in new_id */
 			BKE_main_unlock(bmain);
@@ -1571,14 +1571,14 @@ static bool check_for_dupid(ListBase *lb, ID *id, char *name)
 #undef MAX_IN_USE
 }
 
-/*
- * Only for local blocks: external en indirect blocks already have a
- * unique ID.
+/**
+ * Ensures given ID has a unique name in given listbase.
  *
- * return true: created a new name
+ * Only for local IDs (linked ones already have a unique ID in their library).
+ *
+ * \return true if a new name had to be created.
  */
-
-bool new_id(ListBase *lb, ID *id, const char *tname)
+bool BKE_id_new_name_validate(ListBase *lb, ID *id, const char *tname)
 {
 	bool result;
 	char name[MAX_ID_NAME - 2];
@@ -1595,8 +1595,8 @@ bool new_id(ListBase *lb, ID *id, const char *tname)
 	BLI_strncpy(name, tname, sizeof(name));
 
 	if (name[0] == '\0') {
-		/* disallow empty names */
-		BLI_strncpy(name, DATA_(ID_FALLBACK_NAME), sizeof(name));
+		/* Disallow empty names. */
+		BLI_strncpy(name, DATA_(BKE_idcode_to_name(GS(id->name))), sizeof(name));
 	}
 	else {
 		/* disallow non utf8 chars,
@@ -1637,7 +1637,7 @@ void id_clear_lib_data_ex(Main *bmain, ID *id, const bool id_in_mainlist)
 	id->lib = NULL;
 	id->tag &= ~(LIB_TAG_INDIRECT | LIB_TAG_EXTERN);
 	if (id_in_mainlist) {
-		if (new_id(which_libbase(bmain, GS(id->name)), id, NULL)) {
+		if (BKE_id_new_name_validate(which_libbase(bmain, GS(id->name)), id, NULL)) {
 			bmain->is_memfile_undo_written = false;
 		}
 	}
@@ -2015,9 +2015,8 @@ void BLI_libblock_ensure_unique_name(Main *bmain, const char *name)
 	/* search for id */
 	idtest = BLI_findstring(lb, name + 2, offsetof(ID, name) + 2);
 	if (idtest != NULL) {
-		if (!new_id(lb, idtest, idtest->name + 2)) {
-			id_sort_by_name(lb, idtest);
-		}
+		/* BKE_id_new_name_validate also takes care of sorting. */
+		BKE_id_new_name_validate(lb, idtest, NULL);
 		bmain->is_memfile_undo_written = false;
 	}
 }
@@ -2028,7 +2027,7 @@ void BLI_libblock_ensure_unique_name(Main *bmain, const char *name)
 void BKE_libblock_rename(Main *bmain, ID *id, const char *name)
 {
 	ListBase *lb = which_libbase(bmain, GS(id->name));
-	if (new_id(lb, id, name)) {
+	if (BKE_id_new_name_validate(lb, id, name)) {
 		bmain->is_memfile_undo_written = false;
 	}
 }

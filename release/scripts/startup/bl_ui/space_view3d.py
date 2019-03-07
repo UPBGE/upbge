@@ -197,34 +197,26 @@ class VIEW3D_HT_header(Header):
             )
 
         # Proportional editing
-        if obj:
-            gpd = context.gpencil_data
-            if object_mode in {'EDIT', 'PARTICLE_EDIT'}:
+        gpd = context.gpencil_data
+        if object_mode in {'EDIT', 'PARTICLE_EDIT'}:
+            row = layout.row(align=True)
+            row.prop(tool_settings, "proportional_edit", icon_only=True)
+            sub = row.row(align=True)
+            sub.active = tool_settings.proportional_edit != 'DISABLED'
+            sub.prop(tool_settings, "proportional_edit_falloff", icon_only=True)
+
+        elif object_mode == 'OBJECT':
+            row = layout.row(align=True)
+            row.prop(tool_settings, "use_proportional_edit_objects", icon_only=True)
+            sub = row.row(align=True)
+            sub.active = tool_settings.use_proportional_edit_objects
+            sub.prop(tool_settings, "proportional_edit_falloff", icon_only=True)
+
+        elif gpd is not None and obj.type == 'GPENCIL':
+            if gpd.use_stroke_edit_mode or gpd.is_stroke_sculpt_mode:
                 row = layout.row(align=True)
                 row.prop(tool_settings, "proportional_edit", icon_only=True)
-                sub = row.row(align=True)
-                sub.active = tool_settings.proportional_edit != 'DISABLED'
-                sub.prop(tool_settings, "proportional_edit_falloff", icon_only=True)
 
-            elif object_mode == 'OBJECT':
-                row = layout.row(align=True)
-                row.prop(tool_settings, "use_proportional_edit_objects", icon_only=True)
-                sub = row.row(align=True)
-                sub.active = tool_settings.use_proportional_edit_objects
-                sub.prop(tool_settings, "proportional_edit_falloff", icon_only=True)
-
-            elif gpd is not None and obj.type == 'GPENCIL':
-                if gpd.use_stroke_edit_mode or gpd.is_stroke_sculpt_mode:
-                    row = layout.row(align=True)
-                    row.prop(tool_settings, "proportional_edit", icon_only=True)
-
-                    sub = row.row(align=True)
-                    sub.active = tool_settings.proportional_edit != 'DISABLED'
-                    sub.prop(tool_settings, "proportional_edit_falloff", icon_only=True)
-        else:
-            if context.gpencil_data and context.gpencil_data.use_stroke_edit_mode:
-                row = layout.row(align=True)
-                row.prop(tool_settings, "proportional_edit", icon_only=True)
                 sub = row.row(align=True)
                 sub.active = tool_settings.proportional_edit != 'DISABLED'
                 sub.prop(tool_settings, "proportional_edit_falloff", icon_only=True)
@@ -638,7 +630,7 @@ class VIEW3D_MT_view(Menu):
         layout.separator()
 
         layout.operator_context = 'INVOKE_REGION_WIN'
-        layout.menu("VIEW3D_MT_view_borders", text="View Borders")
+        layout.menu("VIEW3D_MT_view_regions", text="View Regions")
 
         layout.separator()
 
@@ -792,13 +784,13 @@ class VIEW3D_MT_view_align_selected(Menu):
         props.type = 'LEFT'
 
 
-class VIEW3D_MT_view_borders(Menu):
-    bl_label = "View Borders"
+class VIEW3D_MT_view_regions(Menu):
+    bl_label = "View Regions"
 
     def draw(self, context):
         layout = self.layout
-        layout.operator("view3d.clip_border", text="Clipping Border...")
-        layout.operator("view3d.render_border", text="Render Border...")
+        layout.operator("view3d.clip_border", text="Clipping Region...")
+        layout.operator("view3d.render_border", text="Render Region...")
 
         layout.separator()
 
@@ -4283,11 +4275,11 @@ class VIEW3D_PT_view3d_properties(Panel):
         subcol.active = view.region_3d.view_perspective != 'CAMERA'
 
 
-class VIEW3D_PT_view3d_camera_lock(Panel):
+class VIEW3D_PT_view3d_lock(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "View"
-    bl_label = "Camera Lock"
+    bl_label = "View Lock"
     bl_parent_id = "VIEW3D_PT_view3d_properties"
 
     def draw(self, context):
@@ -5568,6 +5560,7 @@ class VIEW3D_PT_view3d_stereo(Panel):
         split = row.split()
         split.prop(view, "show_stereo_3d_volume")
         split = row.split()
+        split.active = view.show_stereo_3d_volume
         split.prop(view, "stereo_3d_volume_alpha", text="Alpha")
 
 
@@ -5817,7 +5810,7 @@ classes = (
     VIEW3D_MT_view_align,
     VIEW3D_MT_view_align_selected,
     VIEW3D_MT_view_viewpoint,
-    VIEW3D_MT_view_borders,
+    VIEW3D_MT_view_regions,
     VIEW3D_MT_select_object,
     VIEW3D_MT_select_object_more_less,
     VIEW3D_MT_select_pose,
@@ -5950,7 +5943,7 @@ classes = (
     VIEW3D_MT_orientations_pie,
     VIEW3D_MT_proportional_editing_falloff_pie,
     VIEW3D_PT_view3d_properties,
-    VIEW3D_PT_view3d_camera_lock,
+    VIEW3D_PT_view3d_lock,
     VIEW3D_PT_view3d_cursor,
     VIEW3D_PT_collections,
     VIEW3D_PT_object_type_visibility,

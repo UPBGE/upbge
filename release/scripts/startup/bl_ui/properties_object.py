@@ -313,7 +313,7 @@ class OBJECT_PT_instancing(ObjectButtonsPanel, Panel):
         flow = layout.grid_flow(row_major=True, columns=0, even_columns=True, even_rows=False, align=False)
 
         if ob.instance_type == 'VERTS':
-            layout.prop(ob, "use_instance_vertices_rotation", text="Rotation")
+            layout.prop(ob, "use_instance_vertices_rotation", text="Align to Vertex Normal")
 
         elif ob.instance_type == 'COLLECTION':
             col = flow.column()
@@ -332,7 +332,7 @@ from .properties_animviz import (
 
 
 class OBJECT_PT_instancing_size(ObjectButtonsPanel, Panel):
-    bl_label = "Size"
+    bl_label = "Scale by Face Size"
     bl_parent_id = "OBJECT_PT_instancing"
 
     @classmethod
@@ -351,7 +351,7 @@ class OBJECT_PT_instancing_size(ObjectButtonsPanel, Panel):
         layout.use_property_split = True
 
         layout.active = ob.use_instance_faces_scale
-        layout.prop(ob, "instance_faces_scale", text="Inherit Scale")
+        layout.prop(ob, "instance_faces_scale", text="Factor")
 
 
 class OBJECT_PT_motion_paths(MotionPathButtonsPanel, Panel):

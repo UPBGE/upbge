@@ -443,8 +443,8 @@ static void versions_gpencil_add_main(ListBase *lb, ID *id, const char *name)
 	id->flag = LIB_FAKEUSER;
 	*( (short *)id->name) = ID_GD;
 
-	new_id(lb, id, name);
-	/* alphabetic insertion: is in new_id */
+	BKE_id_new_name_validate(lb, id, name);
+	/* alphabetic insertion: is in BKE_id_new_name_validate */
 
 	if (G.debug & G_DEBUG)
 		printf("Converted GPencil to ID: %s\n", id->name + 2);
@@ -1620,6 +1620,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
 			if (ob->parent) {
 				Object *parent = (Object *)blo_do_versions_newlibadr(fd, lib, ob->parent);
 				if (parent) { /* parent may not be in group */
+					enum { PARCURVE = 1 };
 					if (parent->type == OB_ARMATURE && ob->partype == PARSKEL) {
 						ArmatureModifierData *amd;
 						bArmature *arm = (bArmature *)blo_do_versions_newlibadr(fd, lib, parent->data);

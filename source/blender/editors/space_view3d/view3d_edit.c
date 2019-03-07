@@ -2596,6 +2596,28 @@ void VIEW3D_OT_dolly(wmOperatorType *ot)
  * Move & Zoom the view to fit all of it's contents.
  * \{ */
 
+static bool view3d_object_skip_minmax(
+        const View3D *v3d, const RegionView3D *rv3d, const Object *ob, const bool skip_camera,
+        bool *r_only_center)
+{
+	BLI_assert(ob->id.orig_id == NULL);
+	*r_only_center = false;
+
+	if (skip_camera && (ob == v3d->camera)) {
+		return true;
+	}
+
+	if ((ob->type == OB_EMPTY) &&
+	    (ob->empty_drawtype == OB_EMPTY_IMAGE) &&
+	    !BKE_object_empty_image_frame_is_visible_in_view3d(ob, rv3d))
+	{
+		*r_only_center = true;
+		return false;
+	}
+
+	return false;
+}
+
 static void view3d_from_minmax(
         bContext *C, View3D *v3d, ARegion *ar,
         const float min[3], const float max[3],
@@ -2692,6 +2714,7 @@ static int view3d_all_exec(bContext *C, wmOperator *op)
 {
 	ARegion *ar = CTX_wm_region(C);
 	View3D *v3d = CTX_wm_view3d(C);
+	RegionView3D *rv3d = CTX_wm_region_view3d(C);
 	Scene *scene = CTX_data_scene(C);
 	const Depsgraph *depsgraph = CTX_data_depsgraph(C);
 	ViewLayer *view_layer_eval = DEG_get_evaluated_view_layer(depsgraph);
@@ -2712,10 +2735,9 @@ static int view3d_all_exec(bContext *C, wmOperator *op)
 		zero_v3(min);
 		zero_v3(max);
 		zero_v3(cursor->location);
-		unit_qt(cursor->rotation_quaternion);
-		zero_v3(cursor->rotation_euler);
-		ARRAY_SET_ITEMS(cursor->rotation_axis, 0.0f, 1.0f, 0.0f);
-		cursor->rotation_angle = 0.0f;
+		float mat3[3][3];
+		unit_m3(mat3);
+		BKE_scene_cursor_mat3_to_rot(cursor, mat3, false);
 	}
 	else {
 		INIT_MINMAX(min, max);
@@ -2723,14 +2745,19 @@ static int view3d_all_exec(bContext *C, wmOperator *op)
 
 	for (base_eval = view_layer_eval->object_bases.first; base_eval; base_eval = base_eval->next) {
 		if (BASE_VISIBLE(v3d, base_eval)) {
-			changed = true;
-
+			bool only_center = false;
 			Object *ob = DEG_get_original_object(base_eval->object);
-			if (skip_camera && ob == v3d->camera) {
+			if (view3d_object_skip_minmax(v3d, rv3d, ob, skip_camera, &only_center)) {
 				continue;
 			}
 
-			BKE_object_minmax(base_eval->object, min, max, false);
+			if (only_center) {
+				minmax_v3v3_v3(min, max, base_eval->object->obmat[3]);
+			}
+			else {
+				BKE_object_minmax(base_eval->object, min, max, false);
+			}
+			changed = true;
 		}
 	}
 
@@ -2793,6 +2820,7 @@ static int viewselected_exec(bContext *C, wmOperator *op)
 {
 	ARegion *ar = CTX_wm_region(C);
 	View3D *v3d = CTX_wm_view3d(C);
+	RegionView3D *rv3d = CTX_wm_region_view3d(C);
 	Scene *scene = CTX_data_scene(C);
 	Depsgraph *depsgraph = CTX_data_depsgraph(C);
 	ViewLayer *view_layer_eval = DEG_get_evaluated_view_layer(depsgraph);
@@ -2889,15 +2917,21 @@ static int viewselected_exec(bContext *C, wmOperator *op)
 		Base *base_eval;
 		for (base_eval = FIRSTBASE(view_layer_eval); base_eval; base_eval = base_eval->next) {
 			if (BASE_SELECTED(v3d, base_eval)) {
-
-				if (skip_camera && base_eval->object == v3d->camera) {
+				bool only_center = false;
+				Object *ob = DEG_get_original_object(base_eval->object);
+				if (view3d_object_skip_minmax(v3d, rv3d, ob, skip_camera, &only_center)) {
 					continue;
 				}
 
 				/* account for duplis */
 				if (BKE_object_minmax_dupli(depsgraph, scene, base_eval->object, min, max, false) == 0) {
 					/* use if duplis not found */
-					BKE_object_minmax(base_eval->object, min, max, false);
+					if (only_center) {
+						minmax_v3v3_v3(min, max, base_eval->object->obmat[3]);
+					}
+					else {
+						BKE_object_minmax(base_eval->object, min, max, false);
+					}
 				}
 
 				ok = 1;
@@ -3293,7 +3327,7 @@ static int render_border_exec(bContext *C, wmOperator *op)
 void VIEW3D_OT_render_border(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name = "Set Render Border";
+	ot->name = "Set Render Region";
 	ot->description = "Set the boundaries of the border render and enable border render";
 	ot->idname = "VIEW3D_OT_render_border";
 
@@ -3353,7 +3387,7 @@ static int clear_render_border_exec(bContext *C, wmOperator *UNUSED(op))
 void VIEW3D_OT_clear_render_border(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name = "Clear Render Border";
+	ot->name = "Clear Render Region";
 	ot->description = "Clear the boundaries of the border render and disable border render";
 	ot->idname = "VIEW3D_OT_clear_render_border";
 
@@ -4599,8 +4633,8 @@ void VIEW3D_OT_clip_border(wmOperatorType *ot)
 {
 
 	/* identifiers */
-	ot->name = "Clipping Border";
-	ot->description = "Set the view clipping border";
+	ot->name = "Clipping Region";
+	ot->description = "Set the view clipping region";
 	ot->idname = "VIEW3D_OT_clip_border";
 
 	/* api callbacks */

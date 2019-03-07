@@ -53,6 +53,7 @@
 #include "DNA_key_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_armature_types.h"
+#include "DNA_text_types.h"
 
 #include "BKE_action.h"
 #include "BKE_cloth.h"
@@ -2824,10 +2825,6 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 			}
 		}
 	}
-	
-	{
-		/* Versioning code until next subversion bump goes here. */
-	}
 
 	/* Game engine hack to force defaults in files saved in normal blender2.8 */
 	if (!DNA_struct_elem_find(fd->filesdna, "Scene", "GameData", "gm")) {
@@ -2908,4 +2905,8 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 		}
 	}
 	/* Game engine hack to force defaults in files saved in normal blender2.8 END */
+	
+	{
+		/* Versioning code until next subversion bump goes here. */
+	}
 }
