@@ -164,11 +164,13 @@ static void sculpt_update_pbvh_normals(Object *object)
 	if (pbvh == NULL || subdiv_ccg == NULL) {
 		return;
 	}
+	BKE_sculpt_bvh_update_from_ccg(pbvh, subdiv_ccg);
 	struct CCGFace **faces;
 	int num_faces;
 	BKE_pbvh_get_grid_updates(pbvh, 1, (void ***)&faces, &num_faces);
 	if (num_faces > 0) {
 		BKE_subdiv_ccg_update_normals(subdiv_ccg, faces, num_faces);
+		MEM_freeN(faces);
 	}
 }
 

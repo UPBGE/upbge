@@ -285,7 +285,7 @@ float RE_engine_get_camera_shift_x(RenderEngine *engine, struct Object *camera, 
 bool RE_engine_get_spherical_stereo(struct RenderEngine *engine, struct Object *camera) RET_ZERO
 void RE_SetActiveRenderView(struct Render *re, const char *viewname) RET_NONE
 void RE_engine_update_render_passes(struct RenderEngine *engine, struct Scene *scene, struct ViewLayer *view_layer,
-	update_render_passes_cb_t callback) RET_NONE
+	update_render_passes_cb_t callback, void *callback_data) RET_NONE
 
 struct RenderPass *RE_pass_find_by_name(volatile struct RenderLayer *rl, const char *name, const char *viewname) RET_NULL
 struct RenderPass *RE_pass_find_by_type(volatile struct RenderLayer *rl, int passtype, const char *viewname) RET_NULL
@@ -426,6 +426,8 @@ void WM_gizmo_group_type_add_ptr_ex(struct wmGizmoGroupType *gzgt, struct wmGizm
 void WM_gizmomap_draw(struct wmGizmoMap *gzmap, const struct bContext *C, const eWM_GizmoFlagMapDrawStep drawstep) RET_NONE
 bool WM_gizmo_group_type_ensure_ptr(struct wmGizmoGroupType *gzgt) RET_ZERO
 void WM_gizmo_group_type_unlink_delayed_ptr(struct wmGizmoGroupType *gzgt) RET_NONE
+
+void WM_reinit_gizmomap_all(struct Main *bmain) RET_NONE
 
 struct bToolRef *WM_toolsystem_ref_find(struct WorkSpace *workspace, const bToolKey *tkey) RET_NULL
 bool WM_toolsystem_ref_ensure(
@@ -769,8 +771,8 @@ void ED_mesh_polys_add(struct Mesh *mesh, struct ReportList *reports, int count)
 void ED_mesh_vertices_remove(struct Mesh *mesh, struct ReportList *reports, int count) RET_NONE
 void ED_mesh_edges_remove(struct Mesh *mesh, struct ReportList *reports, int count) RET_NONE
 void ED_mesh_faces_remove(struct Mesh *mesh, struct ReportList *reports, int count) RET_NONE
-int ED_mesh_color_add(struct Mesh *me, const char *name, const bool active_set) RET_MINUSONE
-int ED_mesh_uv_texture_add(struct Mesh *me, const char *name, const bool active_set) RET_MINUSONE
+int  ED_mesh_color_add(struct Mesh *me, const char *name, const bool active_set, const bool do_init) RET_MINUSONE
+int  ED_mesh_uv_texture_add(struct Mesh *me, const char *name, const bool active_set, const bool do_init) RET_MINUSONE
 bool ED_mesh_color_remove_named(struct Mesh *me, const char *name) RET_ZERO
 bool ED_mesh_uv_texture_remove_named(struct Mesh *me, const char *name) RET_ZERO
 void ED_object_constraint_dependency_update(struct Main *bmain, struct Object *ob) RET_NONE

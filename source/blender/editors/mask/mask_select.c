@@ -402,8 +402,13 @@ static int box_select_exec(bContext *C, wmOperator *op)
 	rcti rect;
 	rctf rectf;
 	bool changed = false;
-	const bool select = !RNA_boolean_get(op->ptr, "deselect");
-	const bool extend = RNA_boolean_get(op->ptr, "extend");
+
+	const eSelectOp sel_op = RNA_enum_get(op->ptr, "mode");
+	const bool select = (sel_op != SEL_OP_SUB);
+	if (SEL_OP_USE_PRE_DESELECT(sel_op)) {
+		ED_mask_select_toggle_all(mask, SEL_DESELECT);
+		changed = true;
+	}
 
 	/* get rectangle from operator */
 	WM_operator_properties_border_to_rcti(op, &rect);
@@ -428,17 +433,11 @@ static int box_select_exec(bContext *C, wmOperator *op)
 
 				/* TODO: handles? */
 				/* TODO: uw? */
-
 				if (BLI_rctf_isect_pt_v(&rectf, point_deform->bezt.vec[1])) {
 					BKE_mask_point_select_set(point, select);
 					BKE_mask_point_select_set_handle(point, MASK_WHICH_HANDLE_BOTH, select);
+					changed = true;
 				}
-				else if (!extend) {
-					BKE_mask_point_select_set(point, false);
-					BKE_mask_point_select_set_handle(point, MASK_WHICH_HANDLE_BOTH, false);
-				}
-
-				changed = true;
 			}
 		}
 	}
@@ -471,10 +470,11 @@ void MASK_OT_select_box(wmOperatorType *ot)
 	ot->flag = OPTYPE_UNDO;
 
 	/* properties */
-	WM_operator_properties_gesture_box_select(ot);
+	WM_operator_properties_gesture_box(ot);
+	WM_operator_properties_select_operation_simple(ot);
 }
 
-static bool do_lasso_select_mask(bContext *C, const int mcords[][2], short moves, bool select, bool extend)
+static bool do_lasso_select_mask(bContext *C, const int mcords[][2], short moves, const eSelectOp sel_op)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	ARegion *ar = CTX_wm_region(C);
@@ -485,6 +485,12 @@ static bool do_lasso_select_mask(bContext *C, const int mcords[][2], short moves
 
 	rcti rect;
 	bool changed = false;
+
+	const bool select = (sel_op != SEL_OP_SUB);
+	if (SEL_OP_USE_PRE_DESELECT(sel_op)) {
+		ED_mask_select_toggle_all(mask, SEL_DESELECT);
+		changed = true;
+	}
 
 	/* get rectangle from operator */
 	BLI_lasso_boundbox(&rect, mcords, moves);
@@ -507,7 +513,7 @@ static bool do_lasso_select_mask(bContext *C, const int mcords[][2], short moves
 				/* TODO: handles? */
 				/* TODO: uw? */
 
-				if (MASKPOINT_ISSEL_ANY(point) && select && extend) {
+				if (MASKPOINT_ISSEL_ANY(point) && select) {
 					continue;
 				}
 
@@ -523,11 +529,6 @@ static bool do_lasso_select_mask(bContext *C, const int mcords[][2], short moves
 				{
 					BKE_mask_point_select_set(point, select);
 					BKE_mask_point_select_set_handle(point, MASK_WHICH_HANDLE_BOTH, select);
-					changed = true;
-				}
-				else if (select && !extend) {
-					BKE_mask_point_select_set(point, false);
-					BKE_mask_point_select_set_handle(point, MASK_WHICH_HANDLE_BOTH, false);
 					changed = true;
 				}
 			}
@@ -549,9 +550,8 @@ static int clip_lasso_select_exec(bContext *C, wmOperator *op)
 	const int (*mcords)[2] = WM_gesture_lasso_path_to_array(C, op, &mcords_tot);
 
 	if (mcords) {
-		const bool select = !RNA_boolean_get(op->ptr, "deselect");
-		const bool extend = RNA_boolean_get(op->ptr, "extend");
-		do_lasso_select_mask(C, mcords, mcords_tot, select, extend);
+		const eSelectOp sel_op = RNA_enum_get(op->ptr, "mode");
+		do_lasso_select_mask(C, mcords, mcords_tot, sel_op);
 
 		MEM_freeN((void *)mcords);
 
@@ -578,7 +578,8 @@ void MASK_OT_select_lasso(wmOperatorType *ot)
 	ot->flag = OPTYPE_UNDO;
 
 	/* properties */
-	WM_operator_properties_gesture_lasso_select(ot);
+	WM_operator_properties_gesture_lasso(ot);
+	WM_operator_properties_select_operation_simple(ot);
 }
 
 /********************** circle select operator *********************/
@@ -627,7 +628,6 @@ static int circle_select_exec(bContext *C, wmOperator *op)
 	const bool select = (sel_op != SEL_OP_SUB);
 	if (SEL_OP_USE_PRE_DESELECT(sel_op)) {
 		ED_mask_select_toggle_all(mask, SEL_DESELECT);
-		ED_mask_select_flush_all(mask);
 		changed = true;
 	}
 

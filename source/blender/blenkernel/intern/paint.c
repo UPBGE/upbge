@@ -1100,7 +1100,7 @@ void BKE_sculpt_update_mesh_elements(
 
 	ss->kb = (mmd == NULL) ? BKE_keyblock_from_object(ob) : NULL;
 
-	Mesh *me_eval = mesh_get_eval_final(depsgraph, scene, ob_eval, CD_MASK_BAREMESH);
+	Mesh *me_eval = mesh_get_eval_final(depsgraph, scene, ob_eval, &CD_MASK_BAREMESH);
 
 	/* VWPaint require mesh info for loop lookup, so require sculpt mode here */
 	if (mmd && ob->mode & OB_MODE_SCULPT) {
@@ -1381,7 +1381,16 @@ PBVH *BKE_sculpt_object_pbvh_ensure(Depsgraph *depsgraph, Object *ob)
 	}
 	PBVH *pbvh = ob->sculpt->pbvh;
 	if (pbvh != NULL) {
-		/* Nothing to do, PBVH is already up to date. */
+		/* NOTE: It is possible that grids were re-allocated due to modifier
+		 * stack. Need to update those pointers. */
+		if (BKE_pbvh_type(pbvh) == PBVH_GRIDS) {
+			Object *object_eval = DEG_get_evaluated_object(depsgraph, ob);
+			Mesh *mesh_eval = object_eval->data;
+			SubdivCCG *subdiv_ccg = mesh_eval->runtime.subdiv_ccg;
+			if (subdiv_ccg != NULL) {
+				BKE_sculpt_bvh_update_from_ccg(pbvh, subdiv_ccg);
+			}
+		}
 		return pbvh;
 	}
 
@@ -1397,11 +1406,17 @@ PBVH *BKE_sculpt_object_pbvh_ensure(Depsgraph *depsgraph, Object *ob)
 		}
 		else if (ob->type == OB_MESH) {
 			Mesh *me_eval_deform = mesh_get_eval_deform(
-			        depsgraph, DEG_get_evaluated_scene(depsgraph), object_eval, CD_MASK_BAREMESH);
+			        depsgraph, DEG_get_evaluated_scene(depsgraph), object_eval, &CD_MASK_BAREMESH);
 			pbvh = build_pbvh_from_regular_mesh(ob, me_eval_deform);
 		}
 	}
 
 	ob->sculpt->pbvh = pbvh;
 	return pbvh;
+}
+
+void BKE_sculpt_bvh_update_from_ccg(PBVH *pbvh, SubdivCCG *subdiv_ccg)
+{
+	BKE_pbvh_grids_update(pbvh, subdiv_ccg->grids, (void **)subdiv_ccg->grid_faces,
+	                      subdiv_ccg->grid_flag_mats, subdiv_ccg->grid_hidden);
 }

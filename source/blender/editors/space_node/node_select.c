@@ -540,15 +540,18 @@ static int node_box_select_exec(bContext *C, wmOperator *op)
 {
 	SpaceNode *snode = CTX_wm_space_node(C);
 	ARegion *ar = CTX_wm_region(C);
-	bNode *node;
 	rctf rectf;
-	const bool select = !RNA_boolean_get(op->ptr, "deselect");
-	const bool extend = RNA_boolean_get(op->ptr, "extend");
 
 	WM_operator_properties_border_to_rctf(op, &rectf);
 	UI_view2d_region_to_view_rctf(&ar->v2d, &rectf, &rectf);
 
-	for (node = snode->edittree->nodes.first; node; node = node->next) {
+	const eSelectOp sel_op = RNA_enum_get(op->ptr, "mode");
+	const bool select = (sel_op != SEL_OP_SUB);
+	if (SEL_OP_USE_PRE_DESELECT(sel_op)) {
+		ED_node_select_all(&snode->edittree->nodes, SEL_DESELECT);
+	}
+
+	for (bNode *node = snode->edittree->nodes.first; node; node = node->next) {
 		bool is_inside;
 		if (node->type == NODE_FRAME) {
 			is_inside = BLI_rctf_inside_rctf(&rectf, &node->totr);
@@ -559,9 +562,6 @@ static int node_box_select_exec(bContext *C, wmOperator *op)
 
 		if (is_inside) {
 			nodeSetSelected(node, select);
-		}
-		else if (!extend) {
-			nodeSetSelected(node, false);
 		}
 	}
 
@@ -601,9 +601,11 @@ void NODE_OT_select_box(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-	/* rna */
-	WM_operator_properties_gesture_box_select(ot);
+	/* properties */
 	RNA_def_boolean(ot->srna, "tweak", 0, "Tweak", "Only activate when mouse is not over a node - useful for tweak gesture");
+
+	WM_operator_properties_gesture_box(ot);
+	WM_operator_properties_select_operation_simple(ot);
 }
 
 /* ****** Circle Select ****** */
@@ -679,7 +681,7 @@ static int node_lasso_select_invoke(bContext *C, wmOperator *op, const wmEvent *
 	return WM_gesture_lasso_invoke(C, op, event);
 }
 
-static bool do_lasso_select_node(bContext *C, const int mcords[][2], short moves, bool select, bool extend)
+static bool do_lasso_select_node(bContext *C, const int mcords[][2], short moves, eSelectOp sel_op)
 {
 	SpaceNode *snode = CTX_wm_space_node(C);
 	bNode *node;
@@ -689,13 +691,19 @@ static bool do_lasso_select_node(bContext *C, const int mcords[][2], short moves
 	rcti rect;
 	bool changed = false;
 
+	const bool select = (sel_op != SEL_OP_SUB);
+	if (SEL_OP_USE_PRE_DESELECT(sel_op)) {
+		ED_node_select_all(&snode->edittree->nodes, SEL_DESELECT);
+		changed = true;
+	}
+
 	/* get rectangle from operator */
 	BLI_lasso_boundbox(&rect, mcords, moves);
 
 	/* do actual selection */
 	for (node = snode->edittree->nodes.first; node; node = node->next) {
 
-		if (node->flag & NODE_SELECT && select && extend) {
+		if (select && (node->flag & NODE_SELECT)) {
 			continue;
 		}
 
@@ -709,10 +717,6 @@ static bool do_lasso_select_node(bContext *C, const int mcords[][2], short moves
 		    BLI_lasso_is_point_inside(mcords, moves, screen_co[0], screen_co[1], INT_MAX))
 		{
 			nodeSetSelected(node, select);
-			changed = true;
-		}
-		else if (select && !extend) {
-			nodeSetSelected(node, false);
 			changed = true;
 		}
 	}
@@ -730,9 +734,9 @@ static int node_lasso_select_exec(bContext *C, wmOperator *op)
 	const int (*mcords)[2] = WM_gesture_lasso_path_to_array(C, op, &mcords_tot);
 
 	if (mcords) {
-		const bool select = !RNA_boolean_get(op->ptr, "deselect");
-		const bool extend = RNA_boolean_get(op->ptr, "extend");
-		do_lasso_select_node(C, mcords, mcords_tot, select, extend);
+		const eSelectOp sel_op = RNA_enum_get(op->ptr, "mode");
+
+		do_lasso_select_node(C, mcords, mcords_tot, sel_op);
 
 		MEM_freeN((void *)mcords);
 
@@ -759,8 +763,10 @@ void NODE_OT_select_lasso(wmOperatorType *ot)
 	ot->flag = OPTYPE_UNDO;
 
 	/* properties */
-	WM_operator_properties_gesture_lasso_select(ot);
 	RNA_def_boolean(ot->srna, "tweak", 0, "Tweak", "Only activate when mouse is not over a node - useful for tweak gesture");
+
+	WM_operator_properties_gesture_lasso(ot);
+	WM_operator_properties_select_operation_simple(ot);
 }
 
 /* ****** Select/Deselect All ****** */

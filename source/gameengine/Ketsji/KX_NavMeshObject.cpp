@@ -123,7 +123,7 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices, int& nverts,
 	ViewLayer *view_layer = BKE_view_layer_default_view(scene);
 	Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer, false);
     DerivedMesh* dm = mesh_create_derived_no_virtual(depsgraph, GetScene()->GetBlenderScene(), GetBlenderObject(),
-													nullptr, CD_MASK_MESH);
+													nullptr, &CD_MASK_MESH);
 	CustomData *pdata = dm->getPolyDataLayout(dm);
 	int* recastData = (int*) CustomData_get_layer(pdata, CD_RECAST);
 	if (recastData)
