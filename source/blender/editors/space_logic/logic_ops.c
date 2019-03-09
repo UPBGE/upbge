@@ -121,7 +121,7 @@ static Object *edit_object_property_get(bContext *C, wmOperator *op)
 	/* if ob_name is valid try to find the object with this name
 	 * otherwise gets the active object */
 	if (*ob_name)
-		ob = BLI_findstring(&(CTX_data_main(C)->object), ob_name, offsetof(ID, name) + 2);
+		ob = BLI_findstring(&(CTX_data_main(C)->objects), ob_name, offsetof(ID, name) + 2);
 	else
 		ob = ED_object_active_context(C);
 

@@ -1185,7 +1185,7 @@ static VertSeam *find_adjacent_seam(const ProjPaintState *ps, uint loop_index, u
 {
 	ListBase *vert_seams = &ps->vertSeams[vert_index];
 	VertSeam *seam = vert_seams->first;
-	VertSeam *adjacent;
+	VertSeam *adjacent = NULL;
 
 	while (seam->loop != loop_index) {
 		seam = seam->next;
@@ -5704,7 +5704,7 @@ void paint_proj_stroke_done(void *ps_handle_p)
 /* use project paint to re-apply an image */
 static int texture_paint_camera_project_exec(bContext *C, wmOperator *op)
 {
-	Image *image = BLI_findlink(&CTX_data_main(C)->image, RNA_enum_get(op->ptr, "image"));
+	Image *image = BLI_findlink(&CTX_data_main(C)->images, RNA_enum_get(op->ptr, "image"));
 	Scene *scene = CTX_data_scene(C);
 	ViewLayer *view_layer = CTX_data_view_layer(C);
 	ProjPaintState ps = {NULL};
@@ -5991,7 +5991,7 @@ bool BKE_paint_proj_mesh_data_check(Scene *scene, Object *ob, bool *uvs, bool *m
 					hasmat = true;
 					if (!ma->texpaintslot) {
 						/* refresh here just in case */
-						BKE_texpaint_slot_refresh_cache(ma);
+						BKE_texpaint_slot_refresh_cache(scene, ma);
 
 						/* if still no slots, we have to add */
 						if (ma->texpaintslot) {
@@ -6251,13 +6251,13 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
 		nodePositionPropagate(out_node);
 
 		if (ima) {
-			BKE_texpaint_slot_refresh_cache(ma);
+			BKE_texpaint_slot_refresh_cache(scene, ma);
 			BKE_image_signal(bmain, ima, NULL, IMA_SIGNAL_USER_NEW_IMAGE);
 			WM_event_add_notifier(C, NC_IMAGE | NA_ADDED, ima);
 		}
 
 		DEG_id_tag_update(&ntree->id, 0);
-		DEG_id_tag_update(&ma->id, ID_RECALC_SHADING | ID_RECALC_COPY_ON_WRITE);
+		DEG_id_tag_update(&ma->id, ID_RECALC_SHADING);
 		ED_area_tag_redraw(CTX_wm_area(C));
 
 		BKE_paint_proj_mesh_data_check(scene, ob, NULL, NULL, NULL, NULL);

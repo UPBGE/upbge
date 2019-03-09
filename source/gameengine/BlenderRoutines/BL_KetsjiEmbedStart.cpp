@@ -161,7 +161,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 			}
 		}
 
-		Scene *scene = bfd ? bfd->curscene : (Scene *)BLI_findstring(&blenderdata->scene, startscenename, offsetof(ID, name) + 2);
+		Scene *scene = bfd ? bfd->curscene : (Scene *)BLI_findstring(&blenderdata->scenes, startscenename, offsetof(ID, name) + 2);
 
 		RAS_Rasterizer::StereoMode stereoMode = RAS_Rasterizer::RAS_STEREO_NOSTEREO;
 		if (scene) {

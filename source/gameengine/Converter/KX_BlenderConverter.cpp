@@ -152,12 +152,12 @@ Scene *KX_BlenderConverter::GetBlenderSceneForName(const std::string &name)
 	Scene *sce;
 
 	// Find the specified scene by name, or nullptr if nothing matches.
-	if ((sce = (Scene *)BLI_findstring(&m_maggie->scene, name.c_str(), offsetof(ID, name) + 2))) {
+	if ((sce = (Scene *)BLI_findstring(&m_maggie->scenes, name.c_str(), offsetof(ID, name) + 2))) {
 		return sce;
 	}
 
 	for (Main *main : m_DynamicMaggie) {
-		if ((sce = (Scene *)BLI_findstring(&main->scene, name.c_str(), offsetof(ID, name) + 2))) {
+		if ((sce = (Scene *)BLI_findstring(&main->scenes, name.c_str(), offsetof(ID, name) + 2))) {
 			return sce;
 		}
 	}
@@ -169,7 +169,7 @@ CListValue<CStringValue> *KX_BlenderConverter::GetInactiveSceneNames()
 {
 	CListValue<CStringValue> *list = new CListValue<CStringValue>();
 
-	for (Scene *sce = (Scene *)m_maggie->scene.first; sce; sce = (Scene *)sce->id.next) {
+	for (Scene *sce = (Scene *)m_maggie->scenes.first; sce; sce = (Scene *)sce->id.next) {
 		const char *name = sce->id.name + 2;
 		if (m_ketsjiEngine->CurrentScenes()->FindValue(name)) {
 			continue;
@@ -469,7 +469,7 @@ KX_LibLoadStatus *KX_BlenderConverter::LinkBlendFile(BlendHandle *bpy_openlib, c
 		ID *mesh;
 
 		KX_BlenderSceneConverter sceneConverter;
-		for (mesh = (ID *)main_newlib->mesh.first; mesh; mesh = (ID *)mesh->next) {
+		for (mesh = (ID *)main_newlib->meshes.first; mesh; mesh = (ID *)mesh->next) {
 			if (options & LIB_LOAD_VERBOSE) {
 				CM_Debug("mesh name: " << mesh->name + 2);
 			}
@@ -482,7 +482,7 @@ KX_LibLoadStatus *KX_BlenderConverter::LinkBlendFile(BlendHandle *bpy_openlib, c
 		// Convert all actions
 		ID *action;
 
-		for (action = (ID *)main_newlib->action.first; action; action = (ID *)action->next) {
+		for (action = (ID *)main_newlib->actions.first; action; action = (ID *)action->next) {
 			if (options & LIB_LOAD_VERBOSE) {
 				CM_Debug("action name: " << action->name + 2);
 			}
@@ -495,7 +495,7 @@ KX_LibLoadStatus *KX_BlenderConverter::LinkBlendFile(BlendHandle *bpy_openlib, c
 		// scenes gets deleted by the thread when it's done using it (look in async_convert())
 		std::vector<Scene *> *scenes = (options & LIB_LOAD_ASYNC) ? new std::vector<Scene *>() : nullptr;
 
-		for (scene = (ID *)main_newlib->scene.first; scene; scene = (ID *)scene->next) {
+		for (scene = (ID *)main_newlib->scenes.first; scene; scene = (ID *)scene->next) {
 			if (options & LIB_LOAD_VERBOSE) {
 				CM_Debug("scene name: " << scene->name + 2);
 			}
@@ -529,7 +529,7 @@ KX_LibLoadStatus *KX_BlenderConverter::LinkBlendFile(BlendHandle *bpy_openlib, c
 		if (options & LIB_LOAD_LOAD_ACTIONS) {
 			ID *action;
 
-			for (action = (ID *)main_newlib->action.first; action; action = (ID *)action->next) {
+			for (action = (ID *)main_newlib->actions.first; action; action = (ID *)action->next) {
 				if (options & LIB_LOAD_VERBOSE) {
 					CM_Debug("action name: " << action->name + 2);
 				}
@@ -750,13 +750,13 @@ void KX_BlenderConverter::MergeScene(KX_Scene *to, KX_Scene *from)
 RAS_MeshObject *KX_BlenderConverter::ConvertMeshSpecial(KX_Scene *kx_scene, Main *maggie, const std::string& name)
 {
 	// Find a mesh in the current main */
-	ID *me = static_cast<ID *>(BLI_findstring(&m_maggie->mesh, name.c_str(), offsetof(ID, name) + 2));
+	ID *me = static_cast<ID *>(BLI_findstring(&m_maggie->meshes, name.c_str(), offsetof(ID, name) + 2));
 	Main *from_maggie = m_maggie;
 
 	if (me == nullptr) {
 		// The mesh wasn't in the current main, try any dynamic (i.e., LibLoaded) ones
 		for (Main *main : m_DynamicMaggie) {
-			me = static_cast<ID *>(BLI_findstring(&main->mesh, name.c_str(), offsetof(ID, name) + 2));
+			me = static_cast<ID *>(BLI_findstring(&main->meshes, name.c_str(), offsetof(ID, name) + 2));
 			from_maggie = main;
 
 			if (me) {
@@ -778,8 +778,8 @@ RAS_MeshObject *KX_BlenderConverter::ConvertMeshSpecial(KX_Scene *kx_scene, Main
 		me = (ID *)BKE_mesh_copy(from_maggie, (Mesh *)me);
 		id_us_min(me);
 	}
-	BLI_remlink(&from_maggie->mesh, me); // even if we made the copy it needs to be removed
-	BLI_addtail(&maggie->mesh, me);
+	BLI_remlink(&from_maggie->meshes, me); // even if we made the copy it needs to be removed
+	BLI_addtail(&maggie->meshes, me);
 
 	// Must copy the materials this uses else we cant free them
 	{
@@ -803,8 +803,8 @@ RAS_MeshObject *KX_BlenderConverter::ConvertMeshSpecial(KX_Scene *kx_scene, Main
 				mat_new->id.tag |= LIB_TAG_DOIT;
 				id_us_min(&mat_old->id);
 
-				BLI_remlink(&from_maggie->mat, mat_new); // BKE_material_copy uses G.main, and there is no BKE_material_copy_ex
-				BLI_addtail(&maggie->mat, mat_new);
+				BLI_remlink(&from_maggie->materials, mat_new); // BKE_material_copy uses G.main, and there is no BKE_material_copy_ex
+				BLI_addtail(&maggie->materials, mat_new);
 
 				mesh->mat[i] = mat_new;
 

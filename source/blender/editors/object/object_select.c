@@ -21,7 +21,6 @@
  * \ingroup edobj
  */
 
-
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -85,7 +84,9 @@
 
 #include "object_intern.h"
 
-/************************ Exported **************************/
+/* -------------------------------------------------------------------- */
+/** \name Public Object Selection API
+ * \{ */
 
 /* simple API for object selection, rather than just using the flag
  * this takes into account the 'restrict selection in 3d view' flag.
@@ -194,7 +195,11 @@ bool ED_object_base_deselect_all(ViewLayer *view_layer, View3D *v3d, int action)
 	return ED_object_base_deselect_all_ex(view_layer, v3d, action, NULL);
 }
 
-/********************** Jump To Object Utilities **********************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Jump To Object Utilities
+ * \{ */
 
 static int get_base_select_priority(Base *base)
 {
@@ -369,7 +374,11 @@ bool ED_object_jump_to_bone(
 	return false;
 }
 
-/********************** Selection Operators **********************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Select Operator Utils
+ * \{ */
 
 static bool objects_selectable_poll(bContext *C)
 {
@@ -385,7 +394,11 @@ static bool objects_selectable_poll(bContext *C)
 	return 1;
 }
 
-/************************ Select by Type *************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Select by Type
+ * \{ */
 
 static int object_select_by_type_exec(bContext *C, wmOperator *op)
 {
@@ -436,7 +449,11 @@ void OBJECT_OT_select_by_type(wmOperatorType *ot)
 	RNA_def_property_translation_context(ot->prop, BLT_I18NCONTEXT_ID_ID);
 }
 
-/*********************** Selection by Links *********************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Selection by Links
+ * \{ */
 
 enum {
 	OBJECT_SELECT_LINKED_IPO = 1,
@@ -705,7 +722,11 @@ void OBJECT_OT_select_linked(wmOperatorType *ot)
 	ot->prop = RNA_def_enum(ot->srna, "type", prop_select_linked_types, 0, "Type", "");
 }
 
-/*********************** Selected Grouped ********************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Selected Grouped
+ * \{ */
 
 enum {
 	OBJECT_GRPSEL_CHILDREN_RECURSIVE =  0,
@@ -792,7 +813,7 @@ static bool select_grouped_collection(bContext *C, Object *ob)
 	uiPopupMenu *pup;
 	uiLayout *layout;
 
-	for (collection = CTX_data_main(C)->collection.first; collection && collection_count < COLLECTION_MENU_MAX; collection = collection->id.next) {
+	for (collection = CTX_data_main(C)->collections.first; collection && collection_count < COLLECTION_MENU_MAX; collection = collection->id.next) {
 		if (BKE_collection_has_object(collection, ob)) {
 			ob_collections[collection_count] = collection;
 			collection_count++;
@@ -1107,7 +1128,11 @@ void OBJECT_OT_select_grouped(wmOperatorType *ot)
 	ot->prop = RNA_def_enum(ot->srna, "type", prop_select_grouped_types, 0, "Type", "");
 }
 
-/**************************** (De)select All ****************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name (De)select All
+ * \{ */
 
 static int object_select_all_exec(bContext *C, wmOperator *op)
 {
@@ -1153,7 +1178,11 @@ void OBJECT_OT_select_all(wmOperatorType *ot)
 	WM_operator_properties_select_all(ot);
 }
 
-/**************************** Select In The Same Collection ****************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Select In The Same Collection
+ * \{ */
 
 static int object_select_same_collection_exec(bContext *C, wmOperator *op)
 {
@@ -1207,7 +1236,12 @@ void OBJECT_OT_select_same_collection(wmOperatorType *ot)
 	RNA_def_string(ot->srna, "collection", NULL, MAX_ID_NAME, "Collection", "Name of the collection to select");
 }
 
-/**************************** Select Mirror ****************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Select Mirror
+ * \{ */
+
 static int object_select_mirror_exec(bContext *C, wmOperator *op)
 {
 	Main *bmain = CTX_data_main(C);
@@ -1264,7 +1298,9 @@ void OBJECT_OT_select_mirror(wmOperatorType *ot)
 	RNA_def_boolean(ot->srna, "extend", 0, "Extend", "Extend selection instead of deselecting everything first");
 }
 
+/** \} */
 
+/* -------------------------------------------------------------------- */
 /** \name Select More/Less
  * \{ */
 
@@ -1292,7 +1328,6 @@ static bool object_select_more_less(bContext *C, const bool select)
 		ob->flag |= OB_DONE;
 	}
 	CTX_DATA_END;
-
 
 
 	for (ctx_base = ctx_base_list.first; ctx_base; ctx_base = ctx_base->next) {
@@ -1385,8 +1420,9 @@ void OBJECT_OT_select_less(wmOperatorType *ot)
 
 /** \} */
 
-
-/**************************** Select Random ****************************/
+/* -------------------------------------------------------------------- */
+/** \name Select Random
+ * \{ */
 
 static int object_select_random_exec(bContext *C, wmOperator *op)
 {
@@ -1431,3 +1467,5 @@ void OBJECT_OT_select_random(wmOperatorType *ot)
 	/* properties */
 	WM_operator_properties_select_random(ot);
 }
+
+/** \} */

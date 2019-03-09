@@ -1095,7 +1095,7 @@ static int texture_paint_toggle_exec(bContext *C, wmOperator *op)
 
 		/* This has to stay here to regenerate the texture paint
 		 * cache in case we are loading a file */
-		BKE_texpaint_slots_refresh_object(ob);
+		BKE_texpaint_slots_refresh_object(scene, ob);
 
 		BKE_paint_proj_mesh_data_check(scene, ob, NULL, NULL, NULL, NULL);
 
@@ -1112,7 +1112,7 @@ static int texture_paint_toggle_exec(bContext *C, wmOperator *op)
 		}
 
 		if (ima) {
-			for (sc = bmain->screen.first; sc; sc = sc->id.next) {
+			for (sc = bmain->screens.first; sc; sc = sc->id.next) {
 				ScrArea *sa;
 				for (sa = sc->areabase.first; sa; sa = sa->next) {
 					SpaceLink *sl;
@@ -1122,7 +1122,7 @@ static int texture_paint_toggle_exec(bContext *C, wmOperator *op)
 
 							if (!sima->pin) {
 								Object *obedit = CTX_data_edit_object(C);
-								ED_space_image_set(bmain, sima, scene, obedit, ima);
+								ED_space_image_set(bmain, sima, obedit, ima);
 							}
 						}
 					}

@@ -1969,7 +1969,7 @@ void ED_gpencil_update_color_uv(Main *bmain, Material *mat)
 {
 	Material *gps_ma = NULL;
 	/* read all strokes  */
-	for (Object *ob = bmain->object.first; ob; ob = ob->id.next) {
+	for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
 		if (ob->type == OB_GPENCIL) {
 			bGPdata *gpd = ob->data;
 			if (gpd == NULL) {
@@ -1994,6 +1994,7 @@ void ED_gpencil_update_color_uv(Main *bmain, Material *mat)
 					}
 				}
 			}
+			DEG_id_tag_update(&gpd->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
 		}
 	}
 }

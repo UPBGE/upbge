@@ -582,7 +582,7 @@ void VIEW3D_OT_camera_to_view_selected(wmOperatorType *ot)
 static void sync_viewport_camera_smoothview(bContext *C, View3D *v3d, Object *ob, const int smooth_viewtx)
 {
 	Main *bmain = CTX_data_main(C);
-	for (bScreen *screen = bmain->screen.first; screen != NULL; screen = screen->id.next) {
+	for (bScreen *screen = bmain->screens.first; screen != NULL; screen = screen->id.next) {
 		for (ScrArea *area = screen->areabase.first; area != NULL; area = area->next) {
 			for (SpaceLink *space_link = area->spacedata.first; space_link != NULL; space_link = space_link->next) {
 				if (space_link->spacetype == SPACE_VIEW3D) {
@@ -648,8 +648,10 @@ static int view3d_setobjectascamera_exec(bContext *C, wmOperator *op)
 		Object *camera_old = (rv3d->persp == RV3D_CAMOB) ? V3D_CAMERA_SCENE(scene, v3d) : NULL;
 		rv3d->persp = RV3D_CAMOB;
 		v3d->camera = ob;
-		if (v3d->scenelock)
+		if (v3d->scenelock && scene->camera != ob) {
 			scene->camera = ob;
+			DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
+		}
 
 		/* unlikely but looks like a glitch when set to the same */
 		if (camera_old != ob) {
@@ -1130,7 +1132,7 @@ static uint free_localbit(Main *bmain)
 
 	/* sometimes we loose a localview: when an area is closed */
 	/* check all areas: which localviews are in use? */
-	for (sc = bmain->screen.first; sc; sc = sc->id.next) {
+	for (sc = bmain->screens.first; sc; sc = sc->id.next) {
 		for (sa = sc->areabase.first; sa; sa = sa->next) {
 			SpaceLink *sl = sa->spacedata.first;
 			for (; sl; sl = sl->next) {

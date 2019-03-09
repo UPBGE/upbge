@@ -194,7 +194,7 @@ void unlink_controller(bController *cont)
 	Object *ob;
 	
 	/* check for controller pointers in sensors */
-	ob= G.main->object.first;
+	ob= G.main->objects.first;
 	while (ob) {
 		sens= ob->sensors.first;
 		while (sens) {
@@ -305,7 +305,7 @@ void unlink_actuator(bActuator *act)
 	Object *ob;
 	
 	/* check for actuator pointers in controllers */
-	ob= G.main->object.first;
+	ob= G.main->objects.first;
 	while (ob) {
 		cont= ob->controllers.first;
 		while (cont) {
@@ -562,7 +562,7 @@ void clear_sca_new_poins(void)
 {
 	Object *ob;
 	
-	ob= G.main->object.first;
+	ob= G.main->objects.first;
 	while (ob) {
 		clear_sca_new_poins_ob(ob);
 		ob= ob->id.next;
@@ -650,7 +650,7 @@ void set_sca_new_poins(void)
 {
 	Object *ob;
 	
-	ob= G.main->object.first;
+	ob= G.main->objects.first;
 	while (ob) {
 		set_sca_new_poins_ob(ob);
 		ob= ob->id.next;
@@ -725,7 +725,7 @@ void BKE_sca_logic_links_remap(Main *bmain, Object *ob_old, Object *ob_new)
 		}
 	}
 
-	for (Object *ob = bmain->object.first; ob; ob = ob->id.next) {
+	for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
 		if (controllers_map != NULL) {
 			for (bSensor *sens = ob->sensors.first; sens; sens = sens->next) {
 				for (int a = 0; a < sens->totlinks; a++) {

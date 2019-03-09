@@ -204,8 +204,8 @@ void outliner_cleanup_tree(SpaceOutliner *soops)
 /**
  * Free \a element and its sub-tree and remove its link in \a parent_subtree.
  *
- * \note Does not remove the TreeStoreElem of \a element!
- * \param parent_subtree: Subtree of the parent element, so the list containing \a element.
+ * \note Does not remove the #TreeStoreElem of \a element!
+ * \param parent_subtree: Sub-tree of the parent element, so the list containing \a element.
  */
 void outliner_free_tree_element(TreeElement *element, ListBase *parent_subtree)
 {
@@ -1619,7 +1619,7 @@ static TreeElement *outliner_find_first_desired_element_at_y_recursive(
  * Find the first element that passes a test starting from a reference vertical coordinate
  *
  * If the element that is in the position is not what we are looking for, keep looking for its
- * children, siblings, and eventually, aunts, cousins, disntant families, ...
+ * children, siblings, and eventually, aunts, cousins, distant families, ... etc.
  *
  * Basically we keep going up and down the outliner tree from that point forward, until we find
  * what we are looking for. If we are past the visible range and we can't find a valid element
@@ -1964,7 +1964,7 @@ void outliner_build_tree(Main *mainvar, Scene *scene, ViewLayer *view_layer, Spa
 				tselem->flag &= ~TSE_CLOSED;
 		}
 
-		for (lib = mainvar->library.first; lib; lib = lib->id.next) {
+		for (lib = mainvar->libraries.first; lib; lib = lib->id.next) {
 			ten = outliner_add_library_contents(mainvar, soops, &soops->tree, lib);
 			if (ten) {
 				lib->id.newid = (ID *)ten;
@@ -1999,13 +1999,13 @@ void outliner_build_tree(Main *mainvar, Scene *scene, ViewLayer *view_layer, Spa
 			}
 		}
 		/* restore newid pointers */
-		for (lib = mainvar->library.first; lib; lib = lib->id.next)
+		for (lib = mainvar->libraries.first; lib; lib = lib->id.next)
 			lib->id.newid = NULL;
 
 	}
 	else if (soops->outlinevis == SO_SCENES) {
 		Scene *sce;
-		for (sce = mainvar->scene.first; sce; sce = sce->id.next) {
+		for (sce = mainvar->scenes.first; sce; sce = sce->id.next) {
 			te = outliner_add_element(soops, &soops->tree, sce, NULL, 0, 0);
 			tselem = TREESTORE(te);
 

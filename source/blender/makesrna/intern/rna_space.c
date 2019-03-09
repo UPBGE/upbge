@@ -508,7 +508,7 @@ static void rna_Space_view2d_sync_update(Main *UNUSED(bmain), Scene *UNUSED(scen
 static void rna_GPencil_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *UNUSED(ptr))
 {
 	/* need set all caches as dirty to recalculate onion skinning */
-	for (Object *ob = bmain->object.first; ob; ob = ob->id.next) {
+	for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
 		if (ob->type == OB_GPENCIL) {
 			DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
 		}
@@ -653,7 +653,7 @@ static void rna_3DViewShading_type_update(Main *bmain, Scene *UNUSED(scene), Poi
 		return;
 	}
 
-	for (Material *ma = bmain->mat.first; ma; ma = ma->id.next) {
+	for (Material *ma = bmain->materials.first; ma; ma = ma->id.next) {
 		/* XXX Dependency graph does not support CD mask tracking,
 		 * so we trigger  materials shading for until it's properly supported.
 		 * This is to ensure material batches are all recreated when switching
@@ -1034,13 +1034,12 @@ static void rna_SpaceImageEditor_image_set(PointerRNA *ptr, PointerRNA value)
 {
 	SpaceImage *sima = (SpaceImage *)(ptr->data);
 	bScreen *sc = (bScreen *)ptr->id.data;
-	wmWindow *win;
-	Scene *scene = ED_screen_scene_find_with_window(sc, G_MAIN->wm.first, &win);
+	wmWindow *win = ED_screen_window_find(sc, G_MAIN->wm.first);
 	ViewLayer *view_layer = WM_window_get_active_view_layer(win);
 	Object *obedit = OBEDIT_FROM_VIEW_LAYER(view_layer);
 
 	BLI_assert(BKE_id_is_in_global_main(value.data));
-	ED_space_image_set(G_MAIN, sima, scene, obedit, (Image *)value.data);
+	ED_space_image_set(G_MAIN, sima, obedit, (Image *)value.data);
 }
 
 static void rna_SpaceImageEditor_mask_set(PointerRNA *ptr, PointerRNA value)

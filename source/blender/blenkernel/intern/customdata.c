@@ -1407,9 +1407,8 @@ const CustomData_MeshMasks CD_MASK_BAREMESH_ORIGINDEX = {
     .pmask = CD_MASK_MPOLY | CD_MASK_FACEMAP | CD_MASK_ORIGINDEX,
 };
 const CustomData_MeshMasks CD_MASK_MESH = {
-    .vmask = (CD_MASK_MVERT | CD_MASK_MDEFORMVERT | CD_MASK_BWEIGHT | CD_MASK_MVERT_SKIN | CD_MASK_PAINT_MASK |
-              CD_MASK_GENERIC_DATA),
-    .emask = (CD_MASK_MEDGE | CD_MASK_BWEIGHT | CD_MASK_FREESTYLE_EDGE | CD_MASK_GENERIC_DATA),
+    .vmask = (CD_MASK_MVERT | CD_MASK_MDEFORMVERT | CD_MASK_MVERT_SKIN | CD_MASK_PAINT_MASK | CD_MASK_GENERIC_DATA),
+    .emask = (CD_MASK_MEDGE | CD_MASK_FREESTYLE_EDGE | CD_MASK_GENERIC_DATA),
     .fmask = 0,
     .lmask = (CD_MASK_MLOOP | CD_MASK_MDISPS | CD_MASK_MLOOPUV | CD_MASK_MLOOPCOL | CD_MASK_CUSTOMLOOPNORMAL |
               CD_MASK_GRID_PAINT_MASK | CD_MASK_GENERIC_DATA),
@@ -1420,9 +1419,9 @@ const CustomData_MeshMasks CD_MASK_EDITMESH = {
               CD_MASK_SHAPE_KEYINDEX | CD_MASK_GENERIC_DATA),
     .emask = (CD_MASK_GENERIC_DATA),
     .fmask = 0,
-    .lmask = (CD_MASK_MLOOPUV | CD_MASK_MLOOPCOL | CD_MASK_CUSTOMLOOPNORMAL | CD_MASK_GRID_PAINT_MASK |
-              CD_MASK_GENERIC_DATA),
-    .pmask = (CD_MASK_MDISPS | CD_MASK_RECAST | CD_MASK_FACEMAP | CD_MASK_GENERIC_DATA),
+    .lmask = (CD_MASK_MDISPS | CD_MASK_MLOOPUV | CD_MASK_MLOOPCOL | CD_MASK_CUSTOMLOOPNORMAL |
+              CD_MASK_GRID_PAINT_MASK | CD_MASK_GENERIC_DATA),
+    .pmask = (CD_MASK_RECAST | CD_MASK_FACEMAP | CD_MASK_GENERIC_DATA),
 };
 const CustomData_MeshMasks CD_MASK_DERIVEDMESH = {
     .vmask = (CD_MASK_ORIGINDEX | CD_MASK_MDEFORMVERT | CD_MASK_SHAPEKEY | CD_MASK_MVERT_SKIN |
@@ -1430,7 +1429,7 @@ const CustomData_MeshMasks CD_MASK_DERIVEDMESH = {
     .emask = (CD_MASK_ORIGINDEX | CD_MASK_FREESTYLE_EDGE | CD_MASK_GENERIC_DATA),
     .fmask = (CD_MASK_ORIGINDEX | CD_MASK_ORIGSPACE | CD_MASK_PREVIEW_MCOL | CD_MASK_TANGENT),
     .lmask = (CD_MASK_MLOOPUV | CD_MASK_MLOOPCOL | CD_MASK_CUSTOMLOOPNORMAL | CD_MASK_PREVIEW_MLOOPCOL |
-              CD_MASK_ORIGSPACE_MLOOP | CD_MASK_TANGENT | CD_MASK_GENERIC_DATA),
+              CD_MASK_ORIGSPACE_MLOOP | CD_MASK_GENERIC_DATA),  /* XXX MISSING CD_MASK_MLOOPTANGENT ? */
     .pmask = (CD_MASK_ORIGINDEX | CD_MASK_RECAST | CD_MASK_FREESTYLE_FACE | CD_MASK_FACEMAP | CD_MASK_GENERIC_DATA),
 };
 const CustomData_MeshMasks CD_MASK_BMESH = {
@@ -3641,6 +3640,19 @@ bool CustomData_verify_versions(struct CustomData *data, int index)
 		    data->layers[index - 1].type == layer->type)
 		{
 			keeplayer = false; /* multiple layers of which we only support one */
+		}
+		/* This is a pre-emptive fix for cases that should not happen (layers that should not be written
+		 * in .blend files), but can happen due to bugs (see e.g. T62318).
+		 * Also for forward compatibility, in future, we may put into .blend file some currently un-written data types,
+		 * this should cover that case as well.
+		 * Better to be safe here, and fix issue on the fly rather than crash... */
+		/* 0 structnum is used in writing code to tag layer types that should not be written. */
+		else if (typeInfo->structnum == 0 &&
+		         /* XXX Not sure why those two are exception, maybe that should be fixed? */
+		         !ELEM(layer->type, CD_PAINT_MASK, CD_FACEMAP))
+		{
+			keeplayer = false;
+			CLOG_WARN(&LOG, ".blend file read: removing a data layer that should not have been written");
 		}
 	}
 

@@ -51,7 +51,7 @@ std::string KX_GetPythonMain(Scene *scene)
 
 std::string KX_GetPythonCode(Main *bmain, const std::string& python_main)
 {
-	Text *text = (Text *)BLI_findstring(&bmain->text, python_main.c_str(), offsetof(ID, name) + 2);
+	Text *text = (Text *)BLI_findstring(&bmain->texts, python_main.c_str(), offsetof(ID, name) + 2);
 	if (text) {
 		return txt_to_buf(text);
 	}

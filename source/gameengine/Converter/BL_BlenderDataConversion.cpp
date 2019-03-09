@@ -1312,7 +1312,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 
 	// Convert actions to actionmap
 	bAction *curAct;
-	for (curAct = (bAction*)maggie->action.first; curAct; curAct=(bAction*)curAct->id.next)
+	for (curAct = (bAction*)maggie->actions.first; curAct; curAct=(bAction*)curAct->id.next)
 	{
 		logicmgr->RegisterActionName(curAct->id.name + 2, curAct);
 	}

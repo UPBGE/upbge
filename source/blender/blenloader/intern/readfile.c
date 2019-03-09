@@ -552,15 +552,15 @@ void blo_split_main(ListBase *mainlist, Main *main)
 	mainlist->first = mainlist->last = main;
 	main->next = NULL;
 
-	if (BLI_listbase_is_empty(&main->library))
+	if (BLI_listbase_is_empty(&main->libraries))
 		return;
 
 	/* (Library.temp_index -> Main), lookup table */
-	const uint lib_main_array_len = BLI_listbase_count(&main->library);
+	const uint lib_main_array_len = BLI_listbase_count(&main->libraries);
 	Main     **lib_main_array     = MEM_malloc_arrayN(lib_main_array_len, sizeof(*lib_main_array), __func__);
 
 	int i = 0;
-	for (Library *lib = main->library.first; lib; lib = lib->id.next, i++) {
+	for (Library *lib = main->libraries.first; lib; lib = lib->id.next, i++) {
 		Main *libmain = BKE_main_new();
 		libmain->curlib = lib;
 		libmain->versionfile = lib->versionfile;
@@ -1797,7 +1797,7 @@ static void change_link_placeholder_to_real_ID_pointer(ListBase *mainlist, FileD
  */
 void blo_clear_proxy_pointers_from_lib(Main *oldmain)
 {
-	Object *ob = oldmain->object.first;
+	Object *ob = oldmain->objects.first;
 
 	for (; ob; ob = ob->id.next) {
 		if (ob->id.lib != NULL && ob->proxy_from != NULL && ob->proxy_from->id.lib == NULL) {
@@ -1808,7 +1808,7 @@ void blo_clear_proxy_pointers_from_lib(Main *oldmain)
 
 void blo_make_scene_pointer_map(FileData *fd, Main *oldmain)
 {
-	Scene *sce = oldmain->scene.first;
+	Scene *sce = oldmain->scenes.first;
 
 	fd->scenemap = oldnewmap_new();
 
@@ -1823,7 +1823,7 @@ void blo_make_scene_pointer_map(FileData *fd, Main *oldmain)
 void blo_end_scene_pointer_map(FileData *fd, Main *oldmain)
 {
 	OldNew *entry = fd->scenemap->entries;
-	Scene *sce = oldmain->scene.first;
+	Scene *sce = oldmain->scenes.first;
 	int i;
 
 	/* used entries were restored, so we put them to zero */
@@ -1839,8 +1839,8 @@ void blo_end_scene_pointer_map(FileData *fd, Main *oldmain)
 
 void blo_make_image_pointer_map(FileData *fd, Main *oldmain)
 {
-	Image *ima = oldmain->image.first;
-	Scene *sce = oldmain->scene.first;
+	Image *ima = oldmain->images.first;
+	Scene *sce = oldmain->scenes.first;
 	int a;
 
 	fd->imamap = oldnewmap_new();
@@ -1879,8 +1879,8 @@ void blo_make_image_pointer_map(FileData *fd, Main *oldmain)
 void blo_end_image_pointer_map(FileData *fd, Main *oldmain)
 {
 	OldNew *entry = fd->imamap->entries;
-	Image *ima = oldmain->image.first;
-	Scene *sce = oldmain->scene.first;
+	Image *ima = oldmain->images.first;
+	Scene *sce = oldmain->scenes.first;
 	int i;
 
 	/* used entries were restored, so we put them to zero */
@@ -1930,8 +1930,8 @@ void blo_end_image_pointer_map(FileData *fd, Main *oldmain)
 
 void blo_make_movieclip_pointer_map(FileData *fd, Main *oldmain)
 {
-	MovieClip *clip = oldmain->movieclip.first;
-	Scene *sce = oldmain->scene.first;
+	MovieClip *clip = oldmain->movieclips.first;
+	Scene *sce = oldmain->scenes.first;
 
 	fd->movieclipmap = oldnewmap_new();
 
@@ -1958,8 +1958,8 @@ void blo_make_movieclip_pointer_map(FileData *fd, Main *oldmain)
 void blo_end_movieclip_pointer_map(FileData *fd, Main *oldmain)
 {
 	OldNew *entry = fd->movieclipmap->entries;
-	MovieClip *clip = oldmain->movieclip.first;
-	Scene *sce = oldmain->scene.first;
+	MovieClip *clip = oldmain->movieclips.first;
+	Scene *sce = oldmain->scenes.first;
 	int i;
 
 	/* used entries were restored, so we put them to zero */
@@ -1985,7 +1985,7 @@ void blo_end_movieclip_pointer_map(FileData *fd, Main *oldmain)
 
 void blo_make_sound_pointer_map(FileData *fd, Main *oldmain)
 {
-	bSound *sound = oldmain->sound.first;
+	bSound *sound = oldmain->sounds.first;
 
 	fd->soundmap = oldnewmap_new();
 
@@ -2000,7 +2000,7 @@ void blo_make_sound_pointer_map(FileData *fd, Main *oldmain)
 void blo_end_sound_pointer_map(FileData *fd, Main *oldmain)
 {
 	OldNew *entry = fd->soundmap->entries;
-	bSound *sound = oldmain->sound.first;
+	bSound *sound = oldmain->sounds.first;
 	int i;
 
 	/* used entries were restored, so we put them to zero */
@@ -2031,7 +2031,7 @@ void blo_make_packed_pointer_map(FileData *fd, Main *oldmain)
 
 	fd->packedmap = oldnewmap_new();
 
-	for (ima = oldmain->image.first; ima; ima = ima->id.next) {
+	for (ima = oldmain->images.first; ima; ima = ima->id.next) {
 		ImagePackedFile *imapf;
 
 		if (ima->packedfile)
@@ -2042,15 +2042,15 @@ void blo_make_packed_pointer_map(FileData *fd, Main *oldmain)
 				insert_packedmap(fd, imapf->packedfile);
 	}
 
-	for (vfont = oldmain->vfont.first; vfont; vfont = vfont->id.next)
+	for (vfont = oldmain->fonts.first; vfont; vfont = vfont->id.next)
 		if (vfont->packedfile)
 			insert_packedmap(fd, vfont->packedfile);
 
-	for (sound = oldmain->sound.first; sound; sound = sound->id.next)
+	for (sound = oldmain->sounds.first; sound; sound = sound->id.next)
 		if (sound->packedfile)
 			insert_packedmap(fd, sound->packedfile);
 
-	for (lib = oldmain->library.first; lib; lib = lib->id.next)
+	for (lib = oldmain->libraries.first; lib; lib = lib->id.next)
 		if (lib->packedfile)
 			insert_packedmap(fd, lib->packedfile);
 
@@ -2073,7 +2073,7 @@ void blo_end_packed_pointer_map(FileData *fd, Main *oldmain)
 			entry->newp = NULL;
 	}
 
-	for (ima = oldmain->image.first; ima; ima = ima->id.next) {
+	for (ima = oldmain->images.first; ima; ima = ima->id.next) {
 		ImagePackedFile *imapf;
 
 		ima->packedfile = newpackedadr(fd, ima->packedfile);
@@ -2082,13 +2082,13 @@ void blo_end_packed_pointer_map(FileData *fd, Main *oldmain)
 			imapf->packedfile = newpackedadr(fd, imapf->packedfile);
 	}
 
-	for (vfont = oldmain->vfont.first; vfont; vfont = vfont->id.next)
+	for (vfont = oldmain->fonts.first; vfont; vfont = vfont->id.next)
 		vfont->packedfile = newpackedadr(fd, vfont->packedfile);
 
-	for (sound = oldmain->sound.first; sound; sound = sound->id.next)
+	for (sound = oldmain->sounds.first; sound; sound = sound->id.next)
 		sound->packedfile = newpackedadr(fd, sound->packedfile);
 
-	for (lib = oldmain->library.first; lib; lib = lib->id.next)
+	for (lib = oldmain->libraries.first; lib; lib = lib->id.next)
 		lib->packedfile = newpackedadr(fd, lib->packedfile);
 }
 
@@ -2610,7 +2610,7 @@ static void direct_link_curvemapping(FileData *fd, CurveMapping *cumap)
 static void lib_link_brush(FileData *fd, Main *main)
 {
 	/* only link ID pointers */
-	for (Brush *brush = main->brush.first; brush; brush = brush->id.next) {
+	for (Brush *brush = main->brushes.first; brush; brush = brush->id.next) {
 		if (brush->id.tag & LIB_TAG_NEED_LINK) {
 			IDP_LibLinkProperty(brush->id.properties, fd);
 
@@ -2675,7 +2675,7 @@ static void direct_link_brush(FileData *fd, Brush *brush)
 static void lib_link_palette(FileData *fd, Main *main)
 {
 	/* only link ID pointers */
-	for (Palette *palette = main->palette.first; palette; palette = palette->id.next) {
+	for (Palette *palette = main->palettes.first; palette; palette = palette->id.next) {
 		if (palette->id.tag & LIB_TAG_NEED_LINK) {
 			IDP_LibLinkProperty(palette->id.properties, fd);
 
@@ -2694,7 +2694,7 @@ static void direct_link_palette(FileData *fd, Palette *palette)
 static void lib_link_paint_curve(FileData *fd, Main *main)
 {
 	/* only link ID pointers */
-	for (PaintCurve *pc = main->paintcurve.first; pc; pc = pc->id.next) {
+	for (PaintCurve *pc = main->paintcurves.first; pc; pc = pc->id.next) {
 		if (pc->id.tag & LIB_TAG_NEED_LINK) {
 			IDP_LibLinkProperty(pc->id.properties, fd);
 
@@ -2961,7 +2961,7 @@ static void direct_link_fcurves(FileData *fd, ListBase *list)
 
 static void lib_link_action(FileData *fd, Main *main)
 {
-	for (bAction *act = main->action.first; act; act = act->id.next) {
+	for (bAction *act = main->actions.first; act; act = act->id.next) {
 		if (act->id.tag & LIB_TAG_NEED_LINK) {
 			IDP_LibLinkProperty(act->id.properties, fd);
 
@@ -3173,7 +3173,7 @@ static void direct_link_animdata(FileData *fd, AnimData *adt)
 static void lib_link_cachefiles(FileData *fd, Main *bmain)
 {
 	/* only link ID pointers */
-	for (CacheFile *cache_file = bmain->cachefile.first; cache_file; cache_file = cache_file->id.next) {
+	for (CacheFile *cache_file = bmain->cachefiles.first; cache_file; cache_file = cache_file->id.next) {
 		if (cache_file->id.tag & LIB_TAG_NEED_LINK) {
 			IDP_LibLinkProperty(cache_file->id.properties, fd);
 			lib_link_animdata(fd, &cache_file->id, cache_file->adt);
@@ -3202,7 +3202,7 @@ static void direct_link_cachefile(FileData *fd, CacheFile *cache_file)
 
 static void lib_link_workspaces(FileData *fd, Main *bmain)
 {
-	for (WorkSpace *workspace = bmain->workspace.first; workspace; workspace = workspace->id.next) {
+	for (WorkSpace *workspace = bmain->workspaces.first; workspace; workspace = workspace->id.next) {
 		ListBase *layouts = BKE_workspace_layouts_get(workspace);
 		ID *id = (ID *)workspace;
 
@@ -3316,7 +3316,7 @@ static void lib_link_ntree(FileData *fd, ID *id, bNodeTree *ntree)
 static void lib_link_nodetree(FileData *fd, Main *main)
 {
 	/* only link ID pointers */
-	for (bNodeTree *ntree = main->nodetree.first; ntree; ntree = ntree->id.next) {
+	for (bNodeTree *ntree = main->nodetrees.first; ntree; ntree = ntree->id.next) {
 		if (ntree->id.tag & LIB_TAG_NEED_LINK) {
 			lib_link_ntree(fd, &ntree->id, ntree);
 
@@ -3393,7 +3393,7 @@ static void lib_verify_nodetree(Main *main, int UNUSED(open))
 		 * we have set the NTREE_DO_VERSIONS_GROUP_EXPOSE_2_56_2 flag, so at this point we can do the
 		 * actual group node updates.
 		 */
-		for (bNodeTree *ntree = main->nodetree.first; ntree; ntree = ntree->id.next) {
+		for (bNodeTree *ntree = main->nodetrees.first; ntree; ntree = ntree->id.next) {
 			if (ntree->flag & NTREE_DO_VERSIONS_GROUP_EXPOSE_2_56_2) {
 				has_old_groups = 1;
 			}
@@ -3413,7 +3413,7 @@ static void lib_verify_nodetree(Main *main, int UNUSED(open))
 			} FOREACH_NODETREE_END;
 		}
 
-		for (bNodeTree *ntree = main->nodetree.first; ntree; ntree = ntree->id.next) {
+		for (bNodeTree *ntree = main->nodetrees.first; ntree; ntree = ntree->id.next) {
 			ntree->flag &= ~NTREE_DO_VERSIONS_GROUP_EXPOSE_2_56_2;
 		}
 	}
@@ -3521,7 +3521,7 @@ static void lib_verify_nodetree(Main *main, int UNUSED(open))
 	}
 
 	/* verify all group user nodes */
-	for (bNodeTree *ntree = main->nodetree.first; ntree; ntree = ntree->id.next) {
+	for (bNodeTree *ntree = main->nodetrees.first; ntree; ntree = ntree->id.next) {
 		ntreeVerifyNodes(main, &ntree->id);
 	}
 
@@ -3621,9 +3621,11 @@ static void direct_link_nodetree(FileData *fd, bNodeTree *ntree)
 			else if (ntree->type == NTREE_COMPOSIT) {
 				if (ELEM(node->type, CMP_NODE_TIME, CMP_NODE_CURVE_VEC, CMP_NODE_CURVE_RGB, CMP_NODE_HUECORRECT))
 					direct_link_curvemapping(fd, node->storage);
-				else if (ELEM(node->type, CMP_NODE_IMAGE, CMP_NODE_R_LAYERS, CMP_NODE_VIEWER, CMP_NODE_SPLITVIEWER))
-					((ImageUser *)node->storage)->ok = 1;
-				else if (node->type == CMP_NODE_CRYPTOMATTE) {
+				else if (ELEM(node->type, CMP_NODE_IMAGE, CMP_NODE_R_LAYERS, CMP_NODE_VIEWER, CMP_NODE_SPLITVIEWER)) {
+					ImageUser *iuser = node->storage;
+					iuser->ok = 1;
+					iuser->scene = NULL;
+				} else if (node->type == CMP_NODE_CRYPTOMATTE) {
 					NodeCryptomatte *nc = (NodeCryptomatte *)node->storage;
 					nc->matte_id = newdataadr(fd, nc->matte_id);
 				}
@@ -3881,7 +3883,7 @@ static void lib_link_bones(FileData *fd, Bone *bone)
 
 static void lib_link_armature(FileData *fd, Main *main)
 {
-	for (bArmature *arm = main->armature.first; arm; arm = arm->id.next) {
+	for (bArmature *arm = main->armatures.first; arm; arm = arm->id.next) {
 		if (arm->id.tag & LIB_TAG_NEED_LINK) {
 			IDP_LibLinkProperty(arm->id.properties, fd);
 			lib_link_animdata(fd, &arm->id, arm->adt);
@@ -3940,7 +3942,7 @@ static void direct_link_armature(FileData *fd, bArmature *arm)
 
 static void lib_link_camera(FileData *fd, Main *main)
 {
-	for (Camera *ca = main->camera.first; ca; ca = ca->id.next) {
+	for (Camera *ca = main->cameras.first; ca; ca = ca->id.next) {
 		if (ca->id.tag & LIB_TAG_NEED_LINK) {
 			IDP_LibLinkProperty(ca->id.properties, fd);
 			lib_link_animdata(fd, &ca->id, ca->adt);
@@ -3980,7 +3982,7 @@ static void direct_link_camera(FileData *fd, Camera *ca)
 
 static void lib_link_light(FileData *fd, Main *main)
 {
-	for (Light *la = main->light.first; la; la = la->id.next) {
+	for (Light *la = main->lights.first; la; la = la->id.next) {
 		if (la->id.tag & LIB_TAG_NEED_LINK) {
 			IDP_LibLinkProperty(la->id.properties, fd);
 			lib_link_animdata(fd, &la->id, la->adt);
@@ -4033,7 +4035,7 @@ void blo_do_versions_key_uidgen(Key *key)
 
 static void lib_link_key(FileData *fd, Main *main)
 {
-	for (Key *key = main->key.first; key; key = key->id.next) {
+	for (Key *key = main->shapekeys.first; key; key = key->id.next) {
 		BLI_assert((key->id.tag & LIB_TAG_EXTERN) == 0);
 
 		if (key->id.tag & LIB_TAG_NEED_LINK) {
@@ -4104,7 +4106,7 @@ static void direct_link_key(FileData *fd, Key *key)
 
 static void lib_link_mball(FileData *fd, Main *main)
 {
-	for (MetaBall *mb = main->mball.first; mb; mb = mb->id.next) {
+	for (MetaBall *mb = main->metaballs.first; mb; mb = mb->id.next) {
 		if (mb->id.tag & LIB_TAG_NEED_LINK) {
 			IDP_LibLinkProperty(mb->id.properties, fd);
 			lib_link_animdata(fd, &mb->id, mb->adt);
@@ -4145,7 +4147,7 @@ static void direct_link_mball(FileData *fd, MetaBall *mb)
 
 static void lib_link_world(FileData *fd, Main *main)
 {
-	for (World *wrld = main->world.first; wrld; wrld = wrld->id.next) {
+	for (World *wrld = main->worlds.first; wrld; wrld = wrld->id.next) {
 		if (wrld->id.tag & LIB_TAG_NEED_LINK) {
 			IDP_LibLinkProperty(wrld->id.properties, fd);
 			lib_link_animdata(fd, &wrld->id, wrld->adt);
@@ -4188,7 +4190,7 @@ static void direct_link_world(FileData *fd, World *wrld)
 
 static void lib_link_vfont(FileData *fd, Main *main)
 {
-	for (VFont *vf = main->vfont.first; vf; vf = vf->id.next) {
+	for (VFont *vf = main->fonts.first; vf; vf = vf->id.next) {
 		if (vf->id.tag & LIB_TAG_NEED_LINK) {
 			IDP_LibLinkProperty(vf->id.properties, fd);
 
@@ -4212,7 +4214,7 @@ static void direct_link_vfont(FileData *fd, VFont *vf)
 
 static void lib_link_text(FileData *fd, Main *main)
 {
-	for (Text *text = main->text.first; text; text = text->id.next) {
+	for (Text *text = main->texts.first; text; text = text->id.next) {
 		if (text->id.tag & LIB_TAG_NEED_LINK) {
 			IDP_LibLinkProperty(text->id.properties, fd);
 
@@ -4264,7 +4266,7 @@ static void direct_link_text(FileData *fd, Text *text)
 
 static void lib_link_image(FileData *fd, Main *main)
 {
-	for (Image *ima = main->image.first; ima; ima = ima->id.next) {
+	for (Image *ima = main->images.first; ima; ima = ima->id.next) {
 		if (ima->id.tag & LIB_TAG_NEED_LINK) {
 			IDP_LibLinkProperty(ima->id.properties, fd);
 
@@ -4341,7 +4343,7 @@ static void direct_link_image(FileData *fd, Image *ima)
 
 static void lib_link_curve(FileData *fd, Main *main)
 {
-	for (Curve *cu = main->curve.first; cu; cu = cu->id.next) {
+	for (Curve *cu = main->curves.first; cu; cu = cu->id.next) {
 		if (cu->id.tag & LIB_TAG_NEED_LINK) {
 			IDP_LibLinkProperty(cu->id.properties, fd);
 			lib_link_animdata(fd, &cu->id, cu->adt);
@@ -4441,7 +4443,7 @@ static void direct_link_curve(FileData *fd, Curve *cu)
 
 static void lib_link_texture(FileData *fd, Main *main)
 {
-	for (Tex *tex = main->tex.first; tex; tex = tex->id.next) {
+	for (Tex *tex = main->textures.first; tex; tex = tex->id.next) {
 		if (tex->id.tag & LIB_TAG_NEED_LINK) {
 			IDP_LibLinkProperty(tex->id.properties, fd);
 			lib_link_animdata(fd, &tex->id, tex->adt);
@@ -4486,7 +4488,7 @@ static void direct_link_texture(FileData *fd, Tex *tex)
 
 static void lib_link_material(FileData *fd, Main *main)
 {
-	for (Material *ma = main->mat.first; ma; ma = ma->id.next) {
+	for (Material *ma = main->materials.first; ma; ma = ma->id.next) {
 		if (ma->id.tag & LIB_TAG_NEED_LINK) {
 			IDP_LibLinkProperty(ma->id.properties, fd);
 			lib_link_animdata(fd, &ma->id, ma->adt);
@@ -4520,7 +4522,6 @@ static void direct_link_material(FileData *fd, Material *ma)
 	direct_link_animdata(fd, ma->adt);
 
 	ma->texpaintslot = NULL;
-	ma->tot_slots = 0;
 
 	ma->nodetree = newdataadr(fd, ma->nodetree);
 	if (ma->nodetree) {
@@ -4628,7 +4629,7 @@ static void lib_link_partdeflect(FileData *fd, ID *id, PartDeflect *pd)
 
 static void lib_link_particlesettings(FileData *fd, Main *main)
 {
-	for (ParticleSettings *part = main->particle.first; part; part = part->id.next) {
+	for (ParticleSettings *part = main->particles.first; part; part = part->id.next) {
 		if (part->id.tag & LIB_TAG_NEED_LINK) {
 			IDP_LibLinkProperty(part->id.properties, fd);
 			lib_link_animdata(fd, &part->id, part->adt);
@@ -4883,7 +4884,7 @@ static void lib_link_mesh(FileData *fd, Main *main)
 {
 	Mesh *me;
 
-	for (me = main->mesh.first; me; me = me->id.next) {
+	for (me = main->meshes.first; me; me = me->id.next) {
 		if (me->id.tag & LIB_TAG_NEED_LINK) {
 			int i;
 
@@ -4908,7 +4909,7 @@ static void lib_link_mesh(FileData *fd, Main *main)
 		}
 	}
 
-	for (me = main->mesh.first; me; me = me->id.next) {
+	for (me = main->meshes.first; me; me = me->id.next) {
 		if (me->id.tag & LIB_TAG_NEED_LINK) {
 			/*check if we need to convert mfaces to mpolys*/
 			if (me->totface && !me->totpoly) {
@@ -5150,7 +5151,7 @@ static void direct_link_mesh(FileData *fd, Mesh *mesh)
 
 static void lib_link_latt(FileData *fd, Main *main)
 {
-	for (Lattice *lt = main->lattice.first; lt; lt = lt->id.next) {
+	for (Lattice *lt = main->lattices.first; lt; lt = lt->id.next) {
 		if (lt->id.tag & LIB_TAG_NEED_LINK) {
 			IDP_LibLinkProperty(lt->id.properties, fd);
 			lib_link_animdata(fd, &lt->id, lt->adt);
@@ -5235,7 +5236,7 @@ static void lib_link_object(FileData *fd, Main *main)
 {
 	bool warn = false;
 
-	for (Object *ob = main->object.first; ob; ob = ob->id.next) {
+	for (Object *ob = main->objects.first; ob; ob = ob->id.next) {
 		if (ob->id.tag & LIB_TAG_NEED_LINK) {
 			int a;
 
@@ -6409,7 +6410,7 @@ static void lib_link_collection_data(FileData *fd, Library *lib, Collection *col
 
 static void lib_link_collection(FileData *fd, Main *main)
 {
-	for (Collection *collection = main->collection.first; collection; collection = collection->id.next) {
+	for (Collection *collection = main->collections.first; collection; collection = collection->id.next) {
 		if (collection->id.tag & LIB_TAG_NEED_LINK) {
 			collection->id.tag &= ~LIB_TAG_NEED_LINK;
 			IDP_LibLinkProperty(collection->id.properties, fd);
@@ -6544,7 +6545,7 @@ static void lib_link_scene(FileData *fd, Main *main)
 	int totscene = 0;
 #endif
 
-	for (Scene *sce = main->scene.first; sce; sce = sce->id.next) {
+	for (Scene *sce = main->scenes.first; sce; sce = sce->id.next) {
 		if (sce->id.tag & LIB_TAG_NEED_LINK) {
 			/* Link ID Properties -- and copy this comment EXACTLY for easy finding
 			 * of library blocks that implement this.*/
@@ -6725,7 +6726,7 @@ static void lib_link_scene(FileData *fd, Main *main)
 
 #ifdef USE_SETSCENE_CHECK
 	if (need_check_set) {
-		for (Scene *sce = main->scene.first; sce; sce = sce->id.next) {
+		for (Scene *sce = main->scenes.first; sce; sce = sce->id.next) {
 			if (sce->id.tag & LIB_TAG_NEED_LINK) {
 				sce->id.tag &= ~LIB_TAG_NEED_LINK;
 				if (!scene_validate_setscene__liblink(sce, totscene)) {
@@ -7110,7 +7111,7 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 static void lib_link_gpencil(FileData *fd, Main *main)
 {
 	/* Relink all datablock linked by GP datablock */
-	for (bGPdata *gpd = main->gpencil.first; gpd; gpd = gpd->id.next) {
+	for (bGPdata *gpd = main->gpencils.first; gpd; gpd = gpd->id.next) {
 		if (gpd->id.tag & LIB_TAG_NEED_LINK) {
 			/* Layers */
 			for (bGPDlayer *gpl = gpd->layers.first; gpl; gpl = gpl->next) {
@@ -7867,7 +7868,7 @@ static void lib_link_windowmanager(FileData *fd, Main *main)
  * check lib pointers in call below */
 static void lib_link_screen(FileData *fd, Main *main)
 {
-	for (bScreen *sc = main->screen.first; sc; sc = sc->id.next) {
+	for (bScreen *sc = main->screens.first; sc; sc = sc->id.next) {
 		if (sc->id.tag & LIB_TAG_NEED_LINK) {
 			IDP_LibLinkProperty(sc->id.properties, fd);
 
@@ -8152,7 +8153,7 @@ static void lib_link_workspace_layout_restore(struct IDNameLib_Map *id_map, Main
 					SpaceText *st = (SpaceText *)sl;
 
 					st->text = restore_pointer_by_name(id_map, (ID *)st->text, USER_REAL);
-					if (st->text == NULL) st->text = newmain->text.first;
+					if (st->text == NULL) st->text = newmain->texts.first;
 				}
 				else if (sl->spacetype == SPACE_SCRIPT) {
 					SpaceScript *scpt = (SpaceScript *)sl;
@@ -8256,7 +8257,7 @@ void blo_lib_link_restore(Main *oldmain, Main *newmain, wmWindowManager *curwm, 
 {
 	struct IDNameLib_Map *id_map = BKE_main_idmap_create(newmain, true, oldmain);
 
-	for (WorkSpace *workspace = newmain->workspace.first; workspace; workspace = workspace->id.next) {
+	for (WorkSpace *workspace = newmain->workspaces.first; workspace; workspace = workspace->id.next) {
 		ListBase *layouts = BKE_workspace_layouts_get(workspace);
 
 		for (WorkSpaceLayout *layout = layouts->first; layout; layout = layout->next) {
@@ -8358,7 +8359,7 @@ static void direct_link_library(FileData *fd, Library *lib, Main *main)
 				change_link_placeholder_to_real_ID_pointer(fd->mainlist, fd, lib, newmain->curlib);
 /*				change_link_placeholder_to_real_ID_pointer_fd(fd, lib, newmain->curlib); */
 
-				BLI_remlink(&main->library, lib);
+				BLI_remlink(&main->libraries, lib);
 				MEM_freeN(lib);
 
 				/* Now, since Blender always expect **latest** Main pointer from fd->mainlist to be the active library
@@ -8394,7 +8395,7 @@ static void direct_link_library(FileData *fd, Library *lib, Main *main)
 static void lib_link_library(FileData *UNUSED(fd), Main *main)
 {
 	Library *lib;
-	for (lib = main->library.first; lib; lib = lib->id.next) {
+	for (lib = main->libraries.first; lib; lib = lib->id.next) {
 		id_us_ensure_real(&lib->id);
 	}
 }
@@ -8405,7 +8406,7 @@ static void fix_relpaths_library(const char *basepath, Main *main)
 	Library *lib;
 	/* BLO_read_from_memory uses a blank filename */
 	if (basepath == NULL || basepath[0] == '\0') {
-		for (lib = main->library.first; lib; lib = lib->id.next) {
+		for (lib = main->libraries.first; lib; lib = lib->id.next) {
 			/* when loading a linked lib into a file which has not been saved,
 			 * there is nothing we can be relative to, so instead we need to make
 			 * it absolute. This can happen when appending an object with a relative
@@ -8417,7 +8418,7 @@ static void fix_relpaths_library(const char *basepath, Main *main)
 		}
 	}
 	else {
-		for (lib = main->library.first; lib; lib = lib->id.next) {
+		for (lib = main->libraries.first; lib; lib = lib->id.next) {
 			/* Libraries store both relative and abs paths, recreate relative paths,
 			 * relative to the blend file since indirectly linked libs will be relative to their direct linked library */
 			if (BLI_path_is_rel(lib->name)) {  /* if this is relative to begin with? */
@@ -8436,7 +8437,7 @@ static void fix_relpaths_library(const char *basepath, Main *main)
 
 static void lib_link_lightprobe(FileData *fd, Main *main)
 {
-	for (LightProbe *prb = main->lightprobe.first; prb; prb = prb->id.next) {
+	for (LightProbe *prb = main->lightprobes.first; prb; prb = prb->id.next) {
 		if (prb->id.tag & LIB_TAG_NEED_LINK) {
 			IDP_LibLinkProperty(prb->id.properties, fd);
 			lib_link_animdata(fd, &prb->id, prb->adt);
@@ -8462,7 +8463,7 @@ static void direct_link_lightprobe(FileData *fd, LightProbe *prb)
 
 static void lib_link_speaker(FileData *fd, Main *main)
 {
-	for (Speaker *spk = main->speaker.first; spk; spk = spk->id.next) {
+	for (Speaker *spk = main->speakers.first; spk; spk = spk->id.next) {
 		if (spk->id.tag & LIB_TAG_NEED_LINK) {
 			IDP_LibLinkProperty(spk->id.properties, fd);
 			lib_link_animdata(fd, &spk->id, spk->adt);
@@ -8524,7 +8525,7 @@ static void direct_link_sound(FileData *fd, bSound *sound)
 
 static void lib_link_sound(FileData *fd, Main *main)
 {
-	for (bSound *sound = main->sound.first; sound; sound = sound->id.next) {
+	for (bSound *sound = main->sounds.first; sound; sound = sound->id.next) {
 		if (sound->id.tag & LIB_TAG_NEED_LINK) {
 			IDP_LibLinkProperty(sound->id.properties, fd);
 
@@ -8641,7 +8642,7 @@ static void lib_link_moviePlaneTracks(FileData *fd, MovieClip *clip, ListBase *t
 
 static void lib_link_movieclip(FileData *fd, Main *main)
 {
-	for (MovieClip *clip = main->movieclip.first; clip; clip = clip->id.next) {
+	for (MovieClip *clip = main->movieclips.first; clip; clip = clip->id.next) {
 		if (clip->id.tag & LIB_TAG_NEED_LINK) {
 			MovieTracking *tracking = &clip->tracking;
 
@@ -8735,7 +8736,7 @@ static void lib_link_mask_parent(FileData *fd, Mask *mask, MaskParent *parent)
 
 static void lib_link_mask(FileData *fd, Main *main)
 {
-	for (Mask *mask = main->mask.first; mask; mask = mask->id.next) {
+	for (Mask *mask = main->masks.first; mask; mask = mask->id.next) {
 		if (mask->id.tag & LIB_TAG_NEED_LINK) {
 			IDP_LibLinkProperty(mask->id.properties, fd);
 			lib_link_animdata(fd, &mask->id, mask->adt);
@@ -8774,7 +8775,7 @@ static void lib_link_mask(FileData *fd, Main *main)
 
 static void lib_link_linestyle(FileData *fd, Main *main)
 {
-	for (FreestyleLineStyle *linestyle = main->linestyle.first; linestyle; linestyle = linestyle->id.next) {
+	for (FreestyleLineStyle *linestyle = main->linestyles.first; linestyle; linestyle = linestyle->id.next) {
 		if (linestyle->id.tag & LIB_TAG_NEED_LINK) {
 			LineStyleModifier *m;
 
@@ -9143,9 +9144,9 @@ static BHead *read_libblock(FileData *fd, Main *main, BHead *bhead, const int ta
 					 * a missing ID_LINK_PLACEHOLDER, we need to get the correct lib it is linked to!
 					 * Order is crucial, we cannot bulk-add it in BLO_read_from_memfile() like it used to be... */
 					BLI_remlink(fd->old_mainlist, libmain);
-					BLI_remlink_safe(&oldmain->library, libmain->curlib);
+					BLI_remlink_safe(&oldmain->libraries, libmain->curlib);
 					BLI_addtail(fd->mainlist, libmain);
-					BLI_addtail(&main->library, libmain->curlib);
+					BLI_addtail(&main->libraries, libmain->curlib);
 
 					if (r_id) {
 						*r_id = NULL;  /* Just in case... */
@@ -11055,7 +11056,7 @@ static bool object_in_any_scene(Main *bmain, Object *ob)
 {
 	Scene *sce;
 
-	for (sce = bmain->scene.first; sce; sce = sce->id.next) {
+	for (sce = bmain->scenes.first; sce; sce = sce->id.next) {
 		if (BKE_scene_object_find(sce, ob)) {
 			return true;
 		}
@@ -11074,7 +11075,7 @@ static void add_loose_objects_to_scene(
 	BLI_assert(scene);
 
 	/* Give all objects which are LIB_TAG_INDIRECT a base, or for a collection when *lib has been set. */
-	for (Object *ob = mainvar->object.first; ob; ob = ob->id.next) {
+	for (Object *ob = mainvar->objects.first; ob; ob = ob->id.next) {
 		bool do_it = (ob->id.tag & LIB_TAG_DOIT) != 0;
 		if (do_it || ((ob->id.tag & LIB_TAG_INDIRECT) && (ob->id.tag & LIB_TAG_PRE_EXISTING) == 0)) {
 			if (!is_link) {
@@ -11138,7 +11139,7 @@ static void add_collections_to_scene(
 	}
 
 	/* Give all objects which are tagged a base. */
-	for (Collection *collection = mainvar->collection.first; collection; collection = collection->id.next) {
+	for (Collection *collection = mainvar->collections.first; collection; collection = collection->id.next) {
 		if ((flag & FILE_GROUP_INSTANCE) && (collection->id.tag & LIB_TAG_DOIT)) {
 			/* Any indirect collection should not have been tagged. */
 			BLI_assert((collection->id.tag & LIB_TAG_INDIRECT) == 0);
@@ -11368,7 +11369,7 @@ static Main *library_link_begin(Main *mainvar, FileData **fd, const char *filepa
 	(*fd)->mainlist = MEM_callocN(sizeof(ListBase), "FileData.mainlist");
 
 	/* clear for collection instantiating tag */
-	BKE_main_id_tag_listbase(&(mainvar->collection), LIB_TAG_DOIT, false);
+	BKE_main_id_tag_listbase(&(mainvar->collections), LIB_TAG_DOIT, false);
 
 	/* make mains */
 	blo_split_main((*fd)->mainlist, mainvar);
@@ -11495,8 +11496,8 @@ static void library_link_end(
 	}
 
 	/* Clear objects and collections instantiating tag. */
-	BKE_main_id_tag_listbase(&(mainvar->object), LIB_TAG_DOIT, false);
-	BKE_main_id_tag_listbase(&(mainvar->collection), LIB_TAG_DOIT, false);
+	BKE_main_id_tag_listbase(&(mainvar->objects), LIB_TAG_DOIT, false);
+	BKE_main_id_tag_listbase(&(mainvar->collections), LIB_TAG_DOIT, false);
 
 	/* patch to prevent switch_endian happens twice */
 	if ((*fd)->flags & FD_FLAGS_SWITCH_ENDIAN) {

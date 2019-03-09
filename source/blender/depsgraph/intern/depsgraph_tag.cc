@@ -572,7 +572,7 @@ NodeType geometry_tag_to_component(const ID *id)
 void id_tag_update(Main *bmain, ID *id, int flag, eUpdateSource update_source)
 {
 	graph_id_tag_update(bmain, NULL, id, flag, update_source);
-	LISTBASE_FOREACH (Scene *, scene, &bmain->scene) {
+	LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
 		LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
 			Depsgraph *depsgraph =
 			        (Depsgraph *)BKE_scene_get_depsgraph(scene,
@@ -622,8 +622,12 @@ void graph_id_tag_update(Main *bmain,
 	/* Special case for nested node tree datablocks. */
 	id_tag_update_ntree_special(bmain, graph, id, flag, update_source);
 	/* Direct update tags means that something outside of simulated/cached
-	 * physics did change and that cache is to be invalidated. */
-	if (update_source == DEG_UPDATE_SOURCE_USER_EDIT) {
+	 * physics did change and that cache is to be invalidated.
+	 * This is only needed if data changes. If it's just a drawing, we keep the
+	 * point cache. */
+	if (update_source == DEG_UPDATE_SOURCE_USER_EDIT &&
+	    flag != ID_RECALC_SHADING)
+	{
 		graph_id_tag_update_single_flag(
 		        bmain, graph, id, id_node, ID_RECALC_POINT_CACHE, update_source);
 	}
@@ -701,7 +705,7 @@ void DEG_graph_id_type_tag(Depsgraph *depsgraph, short id_type)
 
 void DEG_id_type_tag(Main *bmain, short id_type)
 {
-	LISTBASE_FOREACH (Scene *, scene, &bmain->scene) {
+	LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
 		LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
 			Depsgraph *depsgraph =
 			        (Depsgraph *)BKE_scene_get_depsgraph(scene,
@@ -731,7 +735,7 @@ void DEG_graph_on_visible_update(Main *bmain, Depsgraph *depsgraph)
 
 void DEG_on_visible_update(Main *bmain, const bool UNUSED(do_time))
 {
-	LISTBASE_FOREACH (Scene *, scene, &bmain->scene) {
+	LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
 		LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
 			Depsgraph *depsgraph =
 			        (Depsgraph *)BKE_scene_get_depsgraph(scene,

@@ -1281,8 +1281,6 @@ static void drw_engines_enable_from_mode(int mode)
 			BLI_assert(!"Draw mode invalid");
 			break;
 	}
-	/* grease pencil */
-	use_drw_engine(&draw_engine_gpencil_type);
 }
 
 static void drw_engines_enable_from_overlays(int UNUSED(overlay_flag))
@@ -1306,6 +1304,8 @@ static void drw_engines_enable(ViewLayer *view_layer, RenderEngineType *engine_t
 	const bool use_xray = XRAY_ENABLED(v3d);
 
 	drw_engines_enable_from_engine(engine_type, drawtype, use_xray);
+	/* grease pencil */
+	use_drw_engine(&draw_engine_gpencil_type);
 
 	if (DRW_state_draw_support()) {
 		/* Draw paint modes first so that they are drawn below the wireframes. */
@@ -1319,7 +1319,7 @@ static void drw_engines_enable(ViewLayer *view_layer, RenderEngineType *engine_t
 		if (v3d->shading.type == OB_WIRE) {
 			drw_engines_enable_from_overlays(v3d->overlay.flag);
 		}
-		/* if gpencil must draw the strokes, but not the object */
+
 		drw_engines_enable_from_mode(mode);
 	}
 }
@@ -1439,7 +1439,10 @@ void DRW_draw_render_loop_ex(
 	Scene *scene = DEG_get_evaluated_scene(depsgraph);
 	ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
 	RegionView3D *rv3d = ar->regiondata;
-	bool do_annotations = (((v3d->flag2 & V3D_SHOW_ANNOTATION) != 0) && ((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0));
+	const bool do_annotations = (
+	        ((v3d->flag2 & V3D_SHOW_ANNOTATION) != 0) &&
+	        ((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0));
+	const bool do_camera_frame = !DST.options.is_image_render;
 
 	DST.draw_ctx.evil_C = evil_C;
 	DST.viewport = viewport;
@@ -1535,7 +1538,7 @@ void DRW_draw_render_loop_ex(
 	GPU_framebuffer_bind(DST.default_framebuffer);
 
 	if (do_bg_image) {
-		ED_view3d_draw_bgpic_test(scene, depsgraph, ar, v3d, false, true);
+		ED_view3d_draw_bgpic_test(scene, depsgraph, ar, v3d, false, do_camera_frame);
 	}
 
 	DRW_draw_callbacks_pre_scene();
@@ -1610,7 +1613,7 @@ void DRW_draw_render_loop_ex(
 	DRW_stats_reset();
 
 	if (do_bg_image) {
-		ED_view3d_draw_bgpic_test(scene, depsgraph, ar, v3d, true, true);
+		ED_view3d_draw_bgpic_test(scene, depsgraph, ar, v3d, true, do_camera_frame);
 	}
 
 	if (G.debug_value > 20 && G.debug_value < 30) {
@@ -2584,6 +2587,13 @@ void DRW_engines_register(void)
 
 void DRW_engines_free(void)
 {
+	if (DST.gl_context == NULL) {
+		/* Nothing has been setup. Nothing to clear.
+		 * Otherwise, DRW_opengl_context_enable can
+		 * create a context in background mode. (see T62355) */
+		return;
+	}
+
 	DRW_opengl_context_enable();
 
 	DRW_TEXTURE_FREE_SAFE(g_select_buffer.texture_depth);

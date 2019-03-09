@@ -1820,7 +1820,7 @@ static void initPySysObjects(Main *maggie)
 		PyList_SetSlice(sys_meta_path, 0, INT_MAX, gp_sys_backup.meta_path);
 	}
 	
-	Library *lib= (Library *)maggie->library.first;
+	Library *lib= (Library *)maggie->libraries.first;
 	
 	while (lib) {
 		/* lib->name wont work in some cases (on win32),

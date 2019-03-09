@@ -1300,7 +1300,7 @@ static int image_open_exec(bContext *C, wmOperator *op)
 	}
 	else if (sa && sa->spacetype == SPACE_IMAGE) {
 		SpaceImage *sima = sa->spacedata.first;
-		ED_space_image_set(bmain, sima, scene, obedit, ima);
+		ED_space_image_set(bmain, sima, obedit, ima);
 		iuser = &sima->iuser;
 	}
 	else {
@@ -2405,7 +2405,6 @@ static void image_new_free(wmOperator *op)
 static int image_new_exec(bContext *C, wmOperator *op)
 {
 	SpaceImage *sima;
-	Scene *scene;
 	Object *obedit;
 	Image *ima;
 	Main *bmain;
@@ -2418,7 +2417,6 @@ static int image_new_exec(bContext *C, wmOperator *op)
 
 	/* retrieve state */
 	sima = CTX_wm_space_image(C);
-	scene = CTX_data_scene(C);
 	obedit = CTX_data_edit_object(C);
 	bmain = CTX_data_main(C);
 
@@ -2463,7 +2461,7 @@ static int image_new_exec(bContext *C, wmOperator *op)
 		RNA_property_update(C, &data->pprop.ptr, data->pprop.prop);
 	}
 	else if (sima) {
-		ED_space_image_set(bmain, sima, scene, obedit, ima);
+		ED_space_image_set(bmain, sima, obedit, ima);
 	}
 
 	BKE_image_signal(bmain, ima, (sima) ? &sima->iuser : NULL, IMA_SIGNAL_USER_NEW_IMAGE);
@@ -2798,7 +2796,7 @@ static int image_unpack_exec(bContext *C, wmOperator *op)
 	if (RNA_struct_property_is_set(op->ptr, "id")) {
 		char imaname[MAX_ID_NAME - 2];
 		RNA_string_get(op->ptr, "id", imaname);
-		ima = BLI_findstring(&CTX_data_main(C)->image, imaname, offsetof(ID, name) + 2);
+		ima = BLI_findstring(&CTX_data_main(C)->images, imaname, offsetof(ID, name) + 2);
 		if (!ima) ima = CTX_data_edit_image(C);
 	}
 
@@ -3011,7 +3009,7 @@ static void image_sample_rect_color_ubyte(
         const ImBuf *ibuf, const rcti *rect,
         uchar r_col[4], float r_col_linear[4])
 {
-	uint col_accum_ub[4];
+	uint col_accum_ub[4] = {0, 0, 0, 0};
 	zero_v4(r_col_linear);
 	int col_tot = 0;
 	int coord[2];
@@ -3802,7 +3800,7 @@ static int image_read_viewlayers_exec(bContext *C, wmOperator *UNUSED(op))
 
 	ima = BKE_image_verify_viewer(bmain, IMA_TYPE_R_RESULT, "Render Result");
 	if (sima->image == NULL) {
-		ED_space_image_set(bmain, sima, scene, NULL, ima);
+		ED_space_image_set(bmain, sima, NULL, ima);
 	}
 
 	RE_ReadRenderResult(scene, scene);

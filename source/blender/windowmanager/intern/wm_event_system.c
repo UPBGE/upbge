@@ -274,7 +274,7 @@ void WM_main_remap_editor_id_reference(ID *old_id, ID *new_id)
 	Main *bmain = G_MAIN;
 	bScreen *sc;
 
-	for (sc = bmain->screen.first; sc; sc = sc->id.next) {
+	for (sc = bmain->screens.first; sc; sc = sc->id.next) {
 		ScrArea *sa;
 
 		for (sa = sc->areabase.first; sa; sa = sa->next) {
@@ -1929,6 +1929,20 @@ static bool wm_eventmatch(const wmEvent *winevent, const wmKeyMapItem *kmi)
 	return true;
 }
 
+static wmKeyMapItem *wm_eventmatch_modal_keymap_items(const wmKeyMap *keymap, wmOperator *op, const wmEvent *event)
+{
+	for (wmKeyMapItem *kmi = keymap->items.first; kmi; kmi = kmi->next) {
+		if (wm_eventmatch(event, kmi)) {
+			if ((keymap->poll_modal_item == NULL) ||
+			    (keymap->poll_modal_item(op, kmi->propvalue)))
+			{
+				return kmi;
+			}
+		}
+	}
+	return NULL;
+}
+
 
 /* operator exists */
 static void wm_event_modalkeymap(const bContext *C, wmOperator *op, wmEvent *event, bool *dbl_click_disabled)
@@ -1939,20 +1953,27 @@ static void wm_event_modalkeymap(const bContext *C, wmOperator *op, wmEvent *eve
 
 	if (op->type->modalkeymap) {
 		wmKeyMap *keymap = WM_keymap_active(CTX_wm_manager(C), op->type->modalkeymap);
-		wmKeyMapItem *kmi;
+		wmKeyMapItem *kmi = NULL;
 
-		for (kmi = keymap->items.first; kmi; kmi = kmi->next) {
-			if (wm_eventmatch(event, kmi)) {
-				if ((keymap->poll_modal_item == NULL) ||
-				    (keymap->poll_modal_item(op, kmi->propvalue)))
-				{
-					event->prevtype = event->type;
-					event->prevval = event->val;
-					event->type = EVT_MODAL_MAP;
-					event->val = kmi->propvalue;
-					break;
-				}
+		const wmEvent *event_match = NULL;
+		wmEvent event_no_dbl_click;
+
+		if ((kmi = wm_eventmatch_modal_keymap_items(keymap, op, event))) {
+			event_match = event;
+		}
+		else if (event->val == KM_DBL_CLICK) {
+			event_no_dbl_click = *event;
+			event_no_dbl_click.val = KM_PRESS;
+			if ((kmi = wm_eventmatch_modal_keymap_items(keymap, op, &event_no_dbl_click))) {
+				event_match = &event_no_dbl_click;
 			}
+		}
+
+		if (event_match != NULL) {
+			event->prevtype = event_match->type;
+			event->prevval = event_match->val;
+			event->type = EVT_MODAL_MAP;
+			event->val = kmi->propvalue;
 		}
 	}
 	else {

@@ -136,7 +136,7 @@ static void rna_Material_texpaint_begin(CollectionPropertyIterator *iter, Pointe
 }
 
 
-static void rna_Material_active_paint_texture_index_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+static void rna_Material_active_paint_texture_index_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	bScreen *sc;
 	Material *ma = ptr->id.data;
@@ -157,7 +157,7 @@ static void rna_Material_active_paint_texture_index_update(Main *bmain, Scene *s
 
 	if (ma->texpaintslot) {
 		Image *image = ma->texpaintslot[ma->paint_active_slot].ima;
-		for (sc = bmain->screen.first; sc; sc = sc->id.next) {
+		for (sc = bmain->screens.first; sc; sc = sc->id.next) {
 			wmWindow *win = ED_screen_window_find(sc, bmain->wm.first);
 			if (win == NULL) {
 				continue;
@@ -176,7 +176,7 @@ static void rna_Material_active_paint_texture_index_update(Main *bmain, Scene *s
 					if (sl->spacetype == SPACE_IMAGE) {
 						SpaceImage *sima = (SpaceImage *)sl;
 						if (!sima->pin) {
-							ED_space_image_set(bmain, sima, scene, obedit, image);
+							ED_space_image_set(bmain, sima, obedit, image);
 						}
 					}
 				}
