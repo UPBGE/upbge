@@ -1482,7 +1482,8 @@ void BKE_imformat_defaults(ImageFormatData *im_format)
 	im_format->compress = 15;
 
 	BKE_color_managed_display_settings_init(&im_format->display_settings);
-	BKE_color_managed_view_settings_init(&im_format->view_settings);
+	BKE_color_managed_view_settings_init(&im_format->view_settings,
+	                                     &im_format->display_settings);
 }
 
 void BKE_imbuf_to_image_format(struct ImageFormatData *im_format, const ImBuf *imbuf)
@@ -2194,7 +2195,23 @@ void BKE_render_result_stamp_data(RenderResult *rr, const char *key, const char 
 	BLI_addtail(&stamp_data->custom_fields, field);
 }
 
-void BKE_stamp_data_free(struct StampData *stamp_data)
+StampData *BKE_stamp_data_copy(const StampData *stamp_data)
+{
+	if (stamp_data == NULL) {
+		return NULL;
+	}
+
+	StampData *stamp_datan = MEM_dupallocN(stamp_data);
+	BLI_duplicatelist(&stamp_datan->custom_fields, &stamp_data->custom_fields);
+
+	LISTBASE_FOREACH(StampDataCustomField *, custom_fieldn, &stamp_datan->custom_fields) {
+		custom_fieldn->value = MEM_dupallocN(custom_fieldn->value);
+	}
+
+	return stamp_datan;
+}
+
+void BKE_stamp_data_free(StampData *stamp_data)
 {
 	if (stamp_data == NULL) {
 		return;
