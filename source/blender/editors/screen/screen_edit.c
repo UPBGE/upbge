@@ -1083,7 +1083,8 @@ void ED_screen_restore_temp_type(bContext *C, ScrArea *sa)
 
 	if (sa->flag & AREA_FLAG_TEMP_TYPE) {
 		ED_area_prevspace(C, sa);
-		sa->flag &= ~AREA_FLAG_TEMP_TYPE;
+		/* Flag should be cleared now. */
+		BLI_assert((sa->flag & AREA_FLAG_TEMP_TYPE) == 0);
 	}
 
 	if (sa->full) {
@@ -1153,6 +1154,9 @@ ScrArea *ED_screen_state_toggle(bContext *C, wmWindow *win, ScrArea *sa, const s
 		/* restoring back to SCREENNORMAL */
 		sc = sa->full;       /* the old screen to restore */
 		oldscreen = WM_window_get_active_screen(win); /* the one disappearing */
+
+		BLI_assert(BKE_workspace_layout_screen_get(layout_old) != sc);
+		BLI_assert(BKE_workspace_layout_screen_get(layout_old)->state != SCREENNORMAL);
 
 		sc->state = SCREENNORMAL;
 		sc->flag = oldscreen->flag;
