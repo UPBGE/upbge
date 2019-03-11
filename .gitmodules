@@ -1,20 +1,20 @@
 [submodule "release/scripts/addons"]
 	path = release/scripts/addons
-	url = https://github.com/UPBGE/blender-addons.git
-	ignore = all
+	url = ../blender-addons.git
 	branch = master
+	ignore = all
 [submodule "release/scripts/addons_contrib"]
 	path = release/scripts/addons_contrib
-	url = git://git.blender.org/blender-addons-contrib.git
+	url = ../blender-addons-contrib.git
+	branch = master
 	ignore = all
-	branch = blender2.7
 [submodule "release/datafiles/locale"]
 	path = release/datafiles/locale
-	url = git://git.blender.org/blender-translations.git
-	ignore = all
+	url = ../blender-translations.git
 	branch = master
+	ignore = all
 [submodule "source/tools"]
 	path = source/tools
-	url = git://git.blender.org/blender-dev-tools.git
-	ignore = all
+	url = ../blender-dev-tools.git
 	branch = master
+	ignore = all
