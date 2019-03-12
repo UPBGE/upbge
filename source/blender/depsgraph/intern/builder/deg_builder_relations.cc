@@ -2437,6 +2437,8 @@ void DepsgraphRelationBuilder::build_nodetree(bNodeTree *ntree)
 		ComponentKey animation_key(&ntree->id, NodeType::ANIMATION);
 		add_relation(animation_key, shading_parameters_key, "NTree Shading Parameters");
 	}
+	ComponentKey parameters_key(&ntree->id, NodeType::PARAMETERS);
+	add_relation(parameters_key, shading_parameters_key, "NTree Shading Parameters");
 }
 
 /* Recursively build graph for material */
@@ -2619,10 +2621,6 @@ void DepsgraphRelationBuilder::build_copy_on_write_relations(IDNode *id_node)
 		}
 		int rel_flag = (RELATION_FLAG_NO_FLUSH | RELATION_FLAG_GODMODE);
 		if (id_type == ID_ME && comp_node->type == NodeType::GEOMETRY) {
-			rel_flag &= ~RELATION_FLAG_NO_FLUSH;
-		}
-		/* materials need update grease pencil objects */
-		if (id_type == ID_MA) {
 			rel_flag &= ~RELATION_FLAG_NO_FLUSH;
 		}
 		/* Notes on exceptions:

@@ -496,6 +496,12 @@ void DepsgraphNodeBuilder::build_collection(
 			 * objects are poked with the new visibility flag, since they
 			 * might become visible too. */
 		}
+		else if (from_layer_collection == NULL &&
+		         !id_node->is_collection_fully_expanded) {
+			/* Initially collection was built from layer now, and was requested
+			 * to not recurs into object. But nw it's asked to recurs into all
+			 * objects. */
+		}
 		else {
 			return;
 		}
@@ -1047,8 +1053,8 @@ void DepsgraphNodeBuilder::build_rigidbody(Scene *scene)
 
 	/* Init/rebuild operation. */
 	add_operation_node(&scene->id, NodeType::TRANSFORM,
-	                  OperationCode::RIGIDBODY_REBUILD,
-	                  function_bind(BKE_rigidbody_rebuild_sim, _1, scene_cow));
+	                   OperationCode::RIGIDBODY_REBUILD,
+	                   function_bind(BKE_rigidbody_rebuild_sim, _1, scene_cow));
 	/* Do-sim operation. */
 	OperationNode *sim_node = add_operation_node(
 	        &scene->id, NodeType::TRANSFORM,
@@ -1446,6 +1452,11 @@ void DepsgraphNodeBuilder::build_nodetree(bNodeTree *ntree)
 	/* nodetree itself */
 	add_id_node(&ntree->id);
 	bNodeTree *ntree_cow = get_cow_datablock(ntree);
+	/* General parameters. */
+	OperationNode *op_node;
+	op_node = add_operation_node(
+	        &ntree->id, NodeType::PARAMETERS, OperationCode::PARAMETERS_EVAL);
+	op_node->set_as_exit();
 	/* Animation, */
 	build_animdata(&ntree->id);
 	/* Shading update. */

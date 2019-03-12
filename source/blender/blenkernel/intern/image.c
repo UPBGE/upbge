@@ -293,7 +293,7 @@ void BKE_image_free(Image *ima)
 /* only image block itself */
 static void image_init(Image *ima, short source, short type)
 {
-	BLI_assert(MEMCMP_STRUCT_OFS_IS_ZERO(ima, id));
+	BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(ima, id));
 
 	ima->ok = IMA_OK;
 
@@ -1262,6 +1262,8 @@ char BKE_imtype_from_arg(const char *imtype_arg)
 	else if (STREQ(imtype_arg, "TIFF")) return R_IMF_IMTYPE_TIFF;
 #endif
 #ifdef WITH_OPENEXR
+	else if (STREQ(imtype_arg, "OPEN_EXR")) return R_IMF_IMTYPE_OPENEXR;
+	else if (STREQ(imtype_arg, "OPEN_EXR_MULTILAYER")) return R_IMF_IMTYPE_MULTILAYER;
 	else if (STREQ(imtype_arg, "EXR")) return R_IMF_IMTYPE_OPENEXR;
 	else if (STREQ(imtype_arg, "MULTILAYER")) return R_IMF_IMTYPE_MULTILAYER;
 #endif
@@ -3320,7 +3322,7 @@ static ImBuf *load_sequence_single(Image *ima, ImageUser *iuser, int frame, cons
 	iuser_t.view = view_id;
 	BKE_image_user_file_path(&iuser_t, ima, name);
 
-	flag = IB_rect | IB_multilayer;
+	flag = IB_rect | IB_multilayer | IB_metadata;
 	flag |= imbuf_alpha_flags_for_image(ima);
 
 	/* read ibuf */

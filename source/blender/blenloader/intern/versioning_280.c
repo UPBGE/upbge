@@ -2874,6 +2874,29 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 		}
 	}
 
+	if (!MAIN_VERSION_ATLEAST(bmain, 280, 48)) {
+		for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
+			/* Those are not currently used, but are accessible through RNA API and were not
+			 * properly initialized previously. This is mere copy of BKE_init_scene() code. */
+			if (scene->r.im_format.view_settings.look[0] == '\0') {
+				BKE_color_managed_display_settings_init(&scene->r.im_format.display_settings);
+				BKE_color_managed_view_settings_init_render(&scene->r.im_format.view_settings,
+				                                            &scene->r.im_format.display_settings,
+				                                            "Filmic");
+			}
+
+			if (scene->r.bake.im_format.view_settings.look[0] == '\0') {
+				BKE_color_managed_display_settings_init(&scene->r.bake.im_format.display_settings);
+				BKE_color_managed_view_settings_init_render(&scene->r.bake.im_format.view_settings,
+				                                            &scene->r.bake.im_format.display_settings,
+				                                            "Filmic");
+			}
+		}
+	}
+
+	{
+		/* Versioning code until next subversion bump goes here. */
+	}
 	/* Game engine hack to force defaults in files saved in normal blender2.8 */
 	if (!DNA_struct_elem_find(fd->filesdna, "Scene", "GameData", "gm")) {
 		for (Scene *sce = bmain->scenes.first; sce; sce = sce->id.next) {

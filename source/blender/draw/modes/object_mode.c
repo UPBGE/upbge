@@ -28,6 +28,7 @@
 #include "DNA_constraint_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_curve_types.h"
+#include "DNA_gpencil_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meta_types.h"
 #include "DNA_modifier_types.h"
@@ -2732,7 +2733,7 @@ static void DRW_shgroup_bounds(OBJECT_ShadingGroupList *sgl, Object *ob, int the
 	BoundBox *bb = BKE_object_boundbox_get(ob);
 
 	if (!ELEM(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT,
-	                    OB_MBALL, OB_ARMATURE, OB_LATTICE))
+	                    OB_MBALL, OB_ARMATURE, OB_LATTICE, OB_GPENCIL))
 	{
 		const float min[3] = {-1.0f, -1.0f, -1.0f}, max[3] = {1.0f, 1.0f, 1.0f};
 		bb = &bb_local;
@@ -2867,6 +2868,60 @@ static void OBJECT_cache_populate_particles(
 				if (draw_as != PART_DRAW_DOT) {
 					DRW_shgroup_uniform_float(shgrp, "draw_size", &part->draw_size, 1);
 					DRW_shgroup_instance_batch(shgrp, geom);
+				}
+			}
+		}
+	}
+}
+
+static void OBJECT_gpencil_color_names(Object *ob, struct DRWTextStore *dt, uchar color[4])
+{
+	if (ob->mode != OB_MODE_EDIT_GPENCIL) {
+		return;
+	}
+
+	bGPdata *gpd = (bGPdata *)ob->data;
+	if (gpd == NULL) {
+		return;
+	}
+
+	for (bGPDlayer *gpl = gpd->layers.first; gpl; gpl = gpl->next) {
+		if (gpl->flag & GP_LAYER_HIDE) {
+			continue;
+		}
+		bGPDframe *gpf = gpl->actframe;
+		if (gpf == NULL) {
+			continue;
+		}
+		for (bGPDstroke *gps = gpf->strokes.first; gps; gps = gps->next) {
+			Material *ma = give_current_material(ob, gps->mat_nr + 1);
+			if (ma == NULL) {
+				continue;
+			}
+
+			MaterialGPencilStyle *gp_style = ma->gp_style;
+			/* skip stroke if it doesn't have any valid data */
+			if ((gps->points == NULL) || (gps->totpoints < 1) || (gp_style == NULL)) {
+				continue;
+			}
+			/* check if the color is visible */
+			if (gp_style->flag & GP_STYLE_COLOR_HIDE) {
+				continue;
+			}
+
+			/* only if selected */
+			if (gps->flag & GP_STROKE_SELECT) {
+				float fpt[3];
+				for (int i = 0; i < gps->totpoints; i++) {
+					bGPDspoint *pt = &gps->points[i];
+					if (pt->flag & GP_SPOINT_SELECT) {
+						mul_v3_m4v3(fpt, ob->obmat, &pt->x);
+						DRW_text_cache_add(
+							dt, fpt,
+							ma->id.name + 2, strlen(ma->id.name + 2),
+							10, 0, DRW_TEXT_CACHE_GLOBALSPACE | DRW_TEXT_CACHE_STRING_PTR, color);
+						break;
+					}
 				}
 			}
 		}
@@ -3143,6 +3198,11 @@ static void OBJECT_cache_populate(void *vedata, Object *ob)
 			        dt, ob->obmat[3],
 			        ob->id.name + 2, strlen(ob->id.name + 2),
 			        10, 0, DRW_TEXT_CACHE_GLOBALSPACE | DRW_TEXT_CACHE_STRING_PTR, color);
+
+			/* draw grease pencil stroke names */
+			if (ob->type == OB_GPENCIL) {
+				OBJECT_gpencil_color_names(ob, dt, color);
+			}
 		}
 
 		if ((ob->dtx & OB_TEXSPACE) && ELEM(ob->type, OB_MESH, OB_CURVE, OB_MBALL)) {

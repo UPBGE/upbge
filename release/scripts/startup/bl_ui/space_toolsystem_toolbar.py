@@ -981,10 +981,8 @@ class _defs_weight_paint:
             brush = context.tool_settings.weight_paint.brush
             if brush is not None:
                 from .properties_paint_common import UnifiedPaintPanel
-                UnifiedPaintPanel.prop_unified_weight(
-                    layout, context, brush, "weight", slider=True, text="Weight")
-                UnifiedPaintPanel.prop_unified_strength(
-                    layout, context, brush, "strength", slider=True, text="Strength")
+                UnifiedPaintPanel.prop_unified_weight(layout, context, brush, "weight", slider=True)
+                UnifiedPaintPanel.prop_unified_strength(layout, context, brush, "strength", slider=True)
             props = tool.operator_properties("paint.weight_gradient")
             layout.prop(props, "type")
 
@@ -1387,7 +1385,7 @@ class _defs_node_edit:
     def links_cut():
         return dict(
             text="Links Cut",
-            icon="ops.mesh.knife_tool",
+            icon="ops.node.links_cut",
             widget=None,
             keymap="Node Tool: Links Cut",
         )
@@ -1748,8 +1746,11 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
             _defs_weight_paint.sample_weight_group,
             ),
             None,
-            # TODO, check for mixed pose mode
-            _defs_view3d_generic.cursor,
+            lambda context: (
+                (_defs_view3d_generic.cursor,)
+                if context.pose_object
+                else ()
+            ),
             None,
             lambda context: (
                 VIEW3D_PT_tools_active._tools_select
