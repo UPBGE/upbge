@@ -260,14 +260,8 @@ void DepsgraphRelationBuilder::build_splineik_pose(Object *object,
 	             RELATION_FLAG_GODMODE);
 	/* Attach path dependency to solver. */
 	if (data->tar != NULL) {
-		/* TODO(sergey): For until we'll store partial matricies in the
-		 * depsgraph, we create dependency between target object and pose eval
-		 * component. See IK pose for a bit more information. */
-		/* TODO: the bigggest point here is that we need the curve PATH and not
-		 * just the general geometry. */
 		ComponentKey target_key(&data->tar->id, NodeType::GEOMETRY);
-		ComponentKey pose_key(&object->id, NodeType::EVAL_POSE);
-		add_relation(target_key, pose_key, "Curve.Path -> Spline IK");
+		add_relation(target_key, init_ik_key, "Curve.Path -> Spline IK");
 	}
 	pchan->flag |= POSE_DONE;
 	OperationKey final_transforms_key(
@@ -456,7 +450,8 @@ void DepsgraphRelationBuilder::build_rig(Object *object)
 			                             NodeType::BONE,
 			                             pchan->name,
 			                             OperationCode::BONE_CONSTRAINTS);
-			add_relation(bone_pose_key, constraints_key, "Constraints Stack");
+			add_relation(bone_pose_key, constraints_key, "Pose -> Constraints Stack");
+			add_relation(bone_local_key, constraints_key, "Local -> Constraints Stack");
 			/* Constraints -> ready/ */
 			/* TODO(sergey): When constraint stack is exploded, this step should
 			 * occur before the first IK solver.  */
@@ -518,9 +513,15 @@ void DepsgraphRelationBuilder::build_rig(Object *object)
 			add_relation(bone_done_key,
 			             pose_done_key,
 			             "PoseEval Result-Bone Link");
+
+			/* Bones must be traversed before cleanup. */
 			add_relation(bone_done_key,
 			             pose_cleanup_key,
-			             "Cleanup dependency");
+			             "Done -> Cleanup");
+
+			add_relation(bone_ready_key,
+			             pose_cleanup_key,
+			             "Ready -> Cleanup");
 		}
 		/* Custom shape. */
 		if (pchan->custom != NULL) {
