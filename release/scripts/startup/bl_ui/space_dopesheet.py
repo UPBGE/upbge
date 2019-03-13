@@ -236,7 +236,6 @@ class DOPESHEET_HT_editor_buttons(Header):
     def draw(self, context):
         pass
 
-    @staticmethod
     def draw_header(context, layout):
         st = context.space_data
         tool_settings = context.tool_settings
@@ -411,7 +410,7 @@ class DOPESHEET_MT_marker(Menu):
         layout = self.layout
 
         from .space_time import marker_menu_generic
-        marker_menu_generic(layout)
+        marker_menu_generic(layout, context)
 
         st = context.space_data
 

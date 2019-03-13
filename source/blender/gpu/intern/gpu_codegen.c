@@ -1394,6 +1394,8 @@ static void gpu_node_input_link(GPUNode *node, GPUNodeLink *link, const eGPUType
 static const char *gpu_uniform_set_function_from_type(eNodeSocketDatatype type)
 {
 	switch (type) {
+		/* For now INT is supported as float. */
+		case SOCK_INT:
 		case SOCK_FLOAT:
 			return "set_value";
 		case SOCK_VECTOR:
@@ -1979,8 +1981,8 @@ void GPU_pass_compile(GPUPass *pass, const char *shname)
 			pass->shader = NULL;
 		}
 		else if (!BLI_thread_is_main()) {
-			/* For some drivers, you must use the program at least once in the
-			 * rendering context that it is created. */
+			/* For some Intel drivers, you must use the program at least once
+			 * in the rendering context that it is linked. */
 			glUseProgram(GPU_shader_get_program(pass->shader));
 			glUseProgram(0);
 		}

@@ -48,6 +48,7 @@
 
 #include "BLI_rect.h"
 #include "BLI_utildefines.h"
+#include "BLI_math_vector.h"
 
 #include "BKE_context.h"
 #include "BKE_screen.h"
@@ -161,12 +162,12 @@ static uiBlock *ui_block_func_POPOVER(bContext *C, uiPopupBlockHandle *handle, v
 			ui_block_to_window_fl(handle->ctx_region, pup->but->block, &center[0], &center[1]);
 			/* These variables aren't used for popovers,
 			 * we could add new variables if there is a conflict. */
-			handle->prev_mx = block->mx = (int)center[0];
-			handle->prev_my = block->my = (int)center[1];
+			block->bounds_offset[0] = (int)center[0];
+			block->bounds_offset[1] = (int)center[1];
+			copy_v2_v2_int(handle->prev_bounds_offset, block->bounds_offset);
 		}
 		else {
-			block->mx = handle->prev_mx;
-			block->my = handle->prev_my;
+			copy_v2_v2_int(block->bounds_offset, handle->prev_bounds_offset);
 		}
 
 		if (!slideout) {
@@ -192,14 +193,13 @@ static uiBlock *ui_block_func_POPOVER(bContext *C, uiPopupBlockHandle *handle, v
 	}
 	else {
 		/* Not attached to a button. */
-		int offset[2] = {0, 0};
+		int bounds_offset[2] = {0, 0};
 		UI_block_flag_enable(block, UI_BLOCK_LOOP);
 		UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
 		UI_block_direction_set(block, block->direction);
 		block->minbounds = UI_MENU_WIDTH_MIN;
-		bool use_place_under_active = !handle->refresh;
 
-		if (use_place_under_active) {
+		if (!handle->refresh) {
 			uiBut *but = NULL;
 			for (but = block->buttons.first; but; but = but->next) {
 				if (but->flag & (UI_SELECT | UI_SELECT_DRAW)) {
@@ -208,12 +208,16 @@ static uiBlock *ui_block_func_POPOVER(bContext *C, uiPopupBlockHandle *handle, v
 			}
 
 			if (but) {
-				offset[0] = -(but->rect.xmin + 0.8f * BLI_rctf_size_x(&but->rect));
-				offset[1] = -(but->rect.ymin + 0.5f * BLI_rctf_size_y(&but->rect));
+				bounds_offset[0] = -(but->rect.xmin + 0.8f * BLI_rctf_size_x(&but->rect));
+				bounds_offset[1] = -(but->rect.ymin + 0.5f * BLI_rctf_size_y(&but->rect));
 			}
+			copy_v2_v2_int(handle->prev_bounds_offset, bounds_offset);
+		}
+		else {
+			copy_v2_v2_int(bounds_offset, handle->prev_bounds_offset);
 		}
 
-		UI_block_bounds_set_popup(block, block_margin, offset[0], offset[1]);
+		UI_block_bounds_set_popup(block, block_margin, bounds_offset);
 	}
 
 	return block;

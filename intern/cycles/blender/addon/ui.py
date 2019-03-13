@@ -18,12 +18,12 @@
 
 import bpy
 from bpy_extras.node_utils import find_node_input
-from bl_operators.presets import PresetMenu
+from bl_ui.utils import PresetPanel
 
 from bpy.types import Panel
 
 
-class CYCLES_PT_sampling_presets(PresetMenu):
+class CYCLES_PT_sampling_presets(PresetPanel, Panel):
     bl_label = "Sampling Presets"
     preset_subdir = "cycles/sampling"
     preset_operator = "script.execute_preset"
@@ -31,7 +31,7 @@ class CYCLES_PT_sampling_presets(PresetMenu):
     COMPAT_ENGINES = {'CYCLES'}
 
 
-class CYCLES_PT_integrator_presets(PresetMenu):
+class CYCLES_PT_integrator_presets(PresetPanel, Panel):
     bl_label = "Integrator Presets"
     preset_subdir = "cycles/integrator"
     preset_operator = "script.execute_preset"
@@ -1115,7 +1115,7 @@ class CYCLES_PT_context_material(CyclesButtonsPanel, Panel):
             col.operator("object.material_slot_add", icon='ADD', text="")
             col.operator("object.material_slot_remove", icon='REMOVE', text="")
 
-            col.menu("MATERIAL_MT_specials", icon='DOWNARROW_HLT', text="")
+            col.menu("MATERIAL_MT_context_menu", icon='DOWNARROW_HLT', text="")
 
             if is_sortable:
                 col.separator()

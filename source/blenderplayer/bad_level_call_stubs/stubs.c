@@ -646,6 +646,7 @@ void ED_view3d_draw_bgpic_test(
 	const bool do_foreground, const bool do_camera_frame) RET_NONE
 struct wmWindow *ED_screen_window_find(const struct bScreen *screen, const struct wmWindowManager *wm) RET_NULL
 struct Scene *ED_screen_scene_find_with_window(const struct bScreen *screen, const struct wmWindowManager *wm, struct wmWindow **r_window) RET_NULL
+struct ScrArea *ED_screen_area_find_with_spacedata(const struct bScreen *screen, const struct SpaceLink *sl, bool only_visible) RET_NULL
 
 float ED_view3d_pixel_size(const struct RegionView3D *rv3d, const float co[3]) RET_ZERO
 

@@ -37,7 +37,7 @@ def act_strip(context):
 
 def selected_sequences_len(context):
     selected_sequences = getattr(context, "selected_sequences", None)
-    if not selected_sequences:
+    if selected_sequences is None:
         return 0
     return len(selected_sequences)
 
@@ -277,7 +277,7 @@ class SEQUENCER_MT_marker(Menu):
         is_sequencer_view = st.view_type in {'SEQUENCER', 'SEQUENCER_PREVIEW'}
 
         from .space_time import marker_menu_generic
-        marker_menu_generic(layout)
+        marker_menu_generic(layout, context)
 
         if is_sequencer_view:
             layout.prop(st, "use_marker_sync")

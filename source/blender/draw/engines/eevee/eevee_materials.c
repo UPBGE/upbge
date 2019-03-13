@@ -968,7 +968,7 @@ void EEVEE_materials_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
 		
 		if (!(scene->flag & SCE_INTERACTIVE)) {
 			/* LookDev */
-			EEVEE_lookdev_cache_init(vedata, &grp, psl->background_pass, wo, NULL);
+			EEVEE_lookdev_cache_init(vedata, &grp, psl->background_pass, stl->g_data->background_alpha, wo, NULL);
 			/* END */
 		}
 
