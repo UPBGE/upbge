@@ -750,6 +750,10 @@ static void area_azone_initialize(wmWindow *win, const bScreen *screen, ScrArea 
 		return;
 	}
 
+	if (screen->temp) {
+		return;
+	}
+
 	float coords[4][4] = {
 	    /* Bottom-left. */
 	    {sa->totrct.xmin - U.pixelsize,
@@ -1145,7 +1149,7 @@ static void region_rect_recursive(ScrArea *sa, ARegion *ar, rcti *remainder, rct
 	ar->overlap = ED_region_is_overlap(sa->spacetype, ar->regiontype);
 
 	/* clear state flags first */
-	ar->flag &= ~RGN_FLAG_TOO_SMALL;
+	ar->flag &= ~(RGN_FLAG_TOO_SMALL | RGN_FLAG_SIZE_CLAMP_X | RGN_FLAG_SIZE_CLAMP_Y);
 	/* user errors */
 	if ((ar->next == NULL) && !ELEM(alignment, RGN_ALIGN_QSPLIT, RGN_ALIGN_FLOAT)) {
 		alignment = RGN_ALIGN_NONE;
@@ -1195,6 +1199,13 @@ static void region_rect_recursive(ScrArea *sa, ARegion *ar, rcti *remainder, rct
 		ar->winrct.ymax = ar->winrct.ymin + prefsizey - 1;
 
 		BLI_rcti_isect(&ar->winrct, &overlap_remainder_margin, &ar->winrct);
+
+		if (BLI_rcti_size_x(&ar->winrct) != prefsizex - 1) {
+			ar->flag |= RGN_FLAG_SIZE_CLAMP_X;
+		}
+		if (BLI_rcti_size_y(&ar->winrct) != prefsizey - 1) {
+			ar->flag |= RGN_FLAG_SIZE_CLAMP_Y;
+		}
 
 		/* We need to use a test that wont have been previously clamped. */
 		rcti winrct_test = {
