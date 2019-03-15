@@ -2127,6 +2127,12 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 		}
 	}
 
+	if (!MAIN_VERSION_ATLEAST(bmain, 280, 28)) {
+		for (Mesh *mesh = bmain->meshes.first; mesh; mesh = mesh->id.next) {
+			BKE_mesh_calc_edges_loose(mesh);
+		}
+	}
+
 	if (!MAIN_VERSION_ATLEAST(bmain, 280, 29)) {
 		for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
 			for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
@@ -2869,8 +2875,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 		}
 
 		LISTBASE_FOREACH (Text *, text, &bmain->texts) {
-			enum { TXT_READONLY = 1 << 8, TXT_FOLLOW = 1 << 9};
-			text->flags &= ~(TXT_READONLY | TXT_FOLLOW);
+			text->flags &= ~(TXT_FLAG_DEPRECATED_8 | TXT_FLAG_DEPRECATED_9);
 		}
 	}
 
@@ -2890,6 +2895,15 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 				BKE_color_managed_view_settings_init_render(&scene->r.bake.im_format.view_settings,
 				                                            &scene->r.bake.im_format.display_settings,
 				                                            "Filmic");
+			}
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(bmain, 280, 49)) {
+		/* All tool names changed, reset to defaults. */
+		for (WorkSpace *workspace = bmain->workspaces.first; workspace; workspace = workspace->id.next) {
+			while (!BLI_listbase_is_empty(&workspace->tools)) {
+				BKE_workspace_tool_remove(workspace, workspace->tools.first);
 			}
 		}
 	}
