@@ -629,14 +629,16 @@ bool ED_object_parent_set(ReportList *reports, const bContext *C, Scene *scene, 
 			return 0;
 		else {
 			Curve *cu = par->data;
-
+			Curve *cu_eval = parent_eval->data;
 			if ((cu->flag & CU_PATH) == 0) {
 				cu->flag |= CU_PATH | CU_FOLLOW;
+				cu_eval->flag |= CU_PATH | CU_FOLLOW;
 				/* force creation of path data */
 				BKE_displist_make_curveTypes(depsgraph, scene, par, false, false, NULL);
 			}
 			else {
 				cu->flag |= CU_FOLLOW;
+				cu_eval->flag |= CU_FOLLOW;
 			}
 
 			/* if follow, add F-Curve for ctime (i.e. "eval_time") so that path-follow works */
@@ -1393,7 +1395,7 @@ static int make_links_data_exec(bContext *C, wmOperator *op)
 
 	/* avoid searching all collections in source object each time */
 	if (type == MAKE_LINKS_GROUP) {
-		ob_collections = BKE_object_groups(bmain, ob_src);
+		ob_collections = BKE_object_groups(bmain, scene, ob_src);
 	}
 
 	CTX_DATA_BEGIN (C, Base *, base_dst, selected_editable_bases)
@@ -1442,7 +1444,7 @@ static int make_links_data_exec(bContext *C, wmOperator *op)
 						LinkNode *collection_node;
 
 						/* first clear collections */
-						BKE_object_groups_clear(bmain, ob_dst);
+						BKE_object_groups_clear(bmain, scene, ob_dst);
 
 						/* now add in the collections from the link nodes */
 						for (collection_node = ob_collections; collection_node; collection_node = collection_node->next) {

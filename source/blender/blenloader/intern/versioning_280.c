@@ -2910,6 +2910,16 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 
 	{
 		/* Versioning code until next subversion bump goes here. */
+
+		LISTBASE_FOREACH (ParticleSettings *, part, &bmain->particles) {
+			/* Replace deprecated PART_DRAW_BB by PART_DRAW_NOT */
+			if (part->ren_as == PART_DRAW_BB) {
+				part->ren_as = PART_DRAW_NOT;
+			}
+			if (part->draw_as == PART_DRAW_BB) {
+				part->draw_as = PART_DRAW_NOT;
+			}
+		}
 	}
 	/* Game engine hack to force defaults in files saved in normal blender2.8 */
 	if (!DNA_struct_elem_find(fd->filesdna, "Scene", "GameData", "gm")) {

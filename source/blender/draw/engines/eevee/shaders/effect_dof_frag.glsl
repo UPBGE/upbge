@@ -4,11 +4,10 @@ uniform mat4 ProjectionMatrix;
 uniform sampler2D colorBuffer;
 uniform sampler2D depthBuffer;
 
-uniform vec3 dofParams;
+uniform vec2 dofParams;
 
-#define dof_aperturesize    dofParams.x
-#define dof_distance        dofParams.y
-#define dof_invsensorsize   dofParams.z
+#define dof_mul    dofParams.x /* distance * aperturesize * invsensorsize */
+#define dof_bias   dofParams.y /* aperturesize * invsensorsize */
 
 uniform vec4 bokehParams[2];
 
@@ -25,11 +24,11 @@ uniform vec2 nearFar; /* Near & far view depths values */
 /* -------------- Utils ------------- */
 
 /* divide by sensor size to get the normalized size */
-#define calculate_coc(zdepth) (dof_aperturesize * (dof_distance / zdepth - 1.0) * dof_invsensorsize)
+#define calculate_coc(zdepth) (dof_mul / zdepth - dof_bias)
 
 #define linear_depth(z) ((ProjectionMatrix[3][3] == 0.0) \
 		? (nearFar.x  * nearFar.y) / (z * (nearFar.x - nearFar.y) + nearFar.y) \
-		: (z * 2.0 - 1.0) * nearFar.y)
+		: z * (nearFar.y - nearFar.x) + nearFar.x) /* Only true for camera view! */
 
 #define weighted_sum(a, b, c, d, e) (a * e.x + b * e.y + c * e.z + d * e.w) / max(1e-6, dot(e, vec4(1.0)));
 

@@ -664,6 +664,7 @@ void ED_view3d_clipping_enable(void) RET_NONE
 float ED_view3d_pixel_size_no_ui_scale(const struct RegionView3D *rv3d, const float co[3]) RET_ZERO
 
 float ED_view3d_calc_zfac(const struct RegionView3D *rv3d, const float co[3], bool *r_flip) RET_ZERO
+void ED_view3d_clipping_set(struct RegionView3D *rv3d) RET_NONE
 
 
 
