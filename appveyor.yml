@@ -1,0 +1,75 @@
+branches:
+  only:
+    - master
+
+image:
+  - Ubuntu1604
+  - Visual Studio 2017
+
+platform: x64
+
+configuration: Release
+
+clone_depth: 5
+
+for:
+  - matrix:
+      only:
+        - image: Visual Studio 2017
+
+    clone_folder: c:\projects\upbge\sources
+
+    install:
+      - cd c:\projects\upbge
+      - svn checkout -q https://svn.blender.org/svnroot/bf-blender/trunk/lib/win64_vc14 lib/win64_vc14
+      - cd c:\projects\upbge\sources
+      - git submodule update --init --recursive
+      - git submodule foreach git checkout master
+      - git submodule foreach git pull --rebase origin master
+
+    build_script:
+      - cd c:\projects\upbge\sources
+      - make release x64 builddir sources\build\upbge-release
+      - cd c:\projects\upbge\sources\build\upbge-release\bin
+      - 7z a upbge.zip Release
+      - 7z rn upbge.zip Release upbge
+
+    artifacts:
+      - path: build\upbge-release\bin\upbge.zip
+
+  - matrix:
+      only:
+        - image: Ubuntu1604
+
+    clone_folder: /projects/upbge
+
+    install:
+      - cd /projects/upbge/build_files/build_environment
+      - bash ./install_deps.sh --skip-osl 1> /dev/null
+      - cd /projects/upbge
+      - git submodule sync
+      - git submodule update --init --recursive
+      - git submodule foreach git checkout master
+      - git submodule foreach git pull --rebase origin master
+
+    build_script:
+      - mkdir -p /projects/upbge/build/upbge-release
+      - cd /projects/upbge/build/upbge-release
+      - cmake
+          -DMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=11
+          /projects/upbge
+      - make -j3 1> /dev/null
+      - make install
+      - cd /projects/upbge/build
+      - tar -cf upbge.tar.gz --directory upbge-release --transform s/^bin/upbge/ bin
+
+    artifacts:
+      - path: build/upbge.tar.gz
+
+deploy:
+  - provider: GitHub
+    description: Automated release on tag.
+    auth_token:
+      secure: HKZO9LWqeX3vV8nf+BStkngGZ6JRbjLBkCJZd9Utch2hysQm1rE4NS4UBAQwsrwu
+    on:
+      APPVEYOR_REPO_TAG: true

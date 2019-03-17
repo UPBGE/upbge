@@ -46,3 +46,6 @@ Desktop.ini
 
 # in-source lib downloads
 /build_files/build_environment/downloads
+
+# in-source builds (appveyor artefacts)
+/build
