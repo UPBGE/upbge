@@ -26,8 +26,7 @@
  * material) to be handled in same way as "real" datablocks, even tho some
  * internal BKE routines doesn't treat them like that.
  *
- * TODO(sergey): Re-evaluate that after new ID handling is in place.
- */
+ * TODO(sergey): Re-evaluate that after new ID handling is in place. */
 #define NESTED_ID_NASTY_WORKAROUND
 
 /* Silence warnings from copying deprecated fields. */
@@ -84,6 +83,7 @@ extern "C" {
 #include "BKE_armature.h"
 #include "BKE_editmesh.h"
 #include "BKE_library_query.h"
+#include "BKE_modifier.h"
 #include "BKE_object.h"
 }
 
@@ -162,8 +162,7 @@ void nested_id_hack_discard_pointers(ID *id_cow)
 
 /* Set ID pointer of nested owned IDs (nodetree, key) to NULL.
  *
- * Return pointer to a new ID to be used.
- */
+ * Return pointer to a new ID to be used. */
 const ID *nested_id_hack_get_discarded_pointers(NestedIDHackTempStorage *storage,
                                                 const ID *id)
 {
@@ -278,8 +277,7 @@ struct ValidateData {
 };
 
 /* Similar to generic BKE_id_copy() but does not require main and assumes pointer
- * is already allocated,
- */
+ * is already allocated. */
 bool id_copy_inplace_no_main(const ID *id, ID *newid)
 {
 	const ID *id_for_copy = id;
@@ -305,8 +303,7 @@ bool id_copy_inplace_no_main(const ID *id, ID *newid)
 }
 
 /* Similar to BKE_scene_copy() but does not require main and assumes pointer
- * is already allocated.
- */
+ * is already allocated. */
 bool scene_copy_inplace_no_main(const Scene *scene, Scene *new_scene)
 {
 	const ID *id_for_copy = &scene->id;
@@ -461,8 +458,7 @@ BLI_INLINE bool check_datablock_expanded(const ID *id_cow)
  * does not need any remapping or anything.
  *
  * TODO(sergey): How to make it more robust for the future, so we don't have
- * to maintain exception lists all over the code?
- */
+ * to maintain exception lists all over the code? */
 bool check_datablocks_copy_on_writable(const ID *id_orig)
 {
 	const ID_Type id_type = GS(id_orig->name);
@@ -476,8 +472,7 @@ bool check_datablocks_copy_on_writable(const ID *id_orig)
 }
 
 /* Callback for BKE_library_foreach_ID_link which remaps original ID pointer
- * with the one created by CoW system.
- */
+ * with the one created by CoW system. */
 
 struct RemapCallbackUserData {
 	/* Dependency graph for which remapping is happening. */
@@ -592,8 +587,7 @@ void update_mesh_edit_mode_pointers(const Depsgraph *depsgraph,
 }
 
 /* Edit data is stored and owned by original datablocks, copied ones
- * are simply referencing to them.
- */
+ * are simply referencing to them. */
 void update_edit_mode_pointers(const Depsgraph *depsgraph,
                                const ID *id_orig, ID *id_cow)
 {
@@ -619,18 +613,26 @@ void update_edit_mode_pointers(const Depsgraph *depsgraph,
 	}
 }
 
+template <typename T>
+void update_list_orig_pointers(const ListBase* listbase_orig,
+                               ListBase* listbase,
+                               T *T::*orig_field)
+{
+	T *element_orig = reinterpret_cast<T*>(listbase_orig->first);
+	T *element_cow = reinterpret_cast<T*>(listbase->first);
+	while (element_orig != NULL) {
+		element_cow->*orig_field = element_orig;
+		element_cow = element_cow->next;
+		element_orig = element_orig->next;
+	}
+}
+
 void update_particle_system_orig_pointers(const Object *object_orig,
                                           Object *object_cow)
 {
-	ParticleSystem *psys_cow =
-	        (ParticleSystem *) object_cow->particlesystem.first;
-	ParticleSystem *psys_orig =
-	        (ParticleSystem *) object_orig->particlesystem.first;
-	while (psys_orig != NULL) {
-		psys_cow->orig_psys = psys_orig;
-		psys_cow = psys_cow->next;
-		psys_orig = psys_orig->next;
-	}
+	update_list_orig_pointers(&object_orig->particlesystem,
+	                          &object_cow->particlesystem,
+	                          &ParticleSystem::orig_psys);
 }
 
 void set_particle_system_modifiers_loaded(Object *object_cow)
@@ -645,22 +647,31 @@ void set_particle_system_modifiers_loaded(Object *object_cow)
 	}
 }
 
+void update_particles_after_copy(const Object *object_orig, Object *object_cow)
+{
+	update_particle_system_orig_pointers(object_orig, object_cow);
+	set_particle_system_modifiers_loaded(object_cow);
+}
+
 void update_pose_orig_pointers(const bPose *pose_orig, bPose *pose_cow)
 {
-	bPoseChannel *pchan_cow = (bPoseChannel *) pose_cow->chanbase.first;
-	bPoseChannel *pchan_orig = (bPoseChannel *) pose_orig->chanbase.first;
-	while (pchan_orig != NULL) {
-		pchan_cow->orig_pchan = pchan_orig;
-		pchan_cow = pchan_cow->next;
-		pchan_orig = pchan_orig->next;
-	}
+	update_list_orig_pointers(&pose_orig->chanbase,
+	                          &pose_cow->chanbase,
+	                          &bPoseChannel::orig_pchan);
+}
+
+void update_modifiers_orig_pointers(const Object *object_orig,
+                                    Object *object_cow)
+{
+	update_list_orig_pointers(&object_orig->modifiers,
+	                          &object_cow->modifiers,
+	                          &ModifierData::orig_modifier_data);
 }
 
 /* Do some special treatment of data transfer from original ID to it's
  * CoW complementary part.
  *
- * Only use for the newly created CoW datablocks.
- */
+ * Only use for the newly created CoW datablocks. */
 void update_id_after_copy(const Depsgraph *depsgraph,
                           const IDNode *id_node,
                           const ID *id_orig, ID *id_cow)
@@ -687,8 +698,8 @@ void update_id_after_copy(const Depsgraph *depsgraph,
 					                          object_cow->pose);
 				}
 			}
-			update_particle_system_orig_pointers(object_orig, object_cow);
-			set_particle_system_modifiers_loaded(object_cow);
+			update_particles_after_copy(object_orig, object_cow);
+			update_modifiers_orig_pointers(object_orig, object_cow);
 			break;
 		}
 		case ID_SCE:
@@ -709,8 +720,7 @@ void update_id_after_copy(const Depsgraph *depsgraph,
 }
 
 /* This callback is used to validate that all nested ID datablocks are
- * properly expanded.
- */
+ * properly expanded. */
 int foreach_libblock_validate_callback(void *user_data,
                                        ID * /*id_self*/,
                                        ID **id_p,
@@ -731,8 +741,7 @@ int foreach_libblock_validate_callback(void *user_data,
 /* Actual implementation of logic which "expands" all the data which was not
  * yet copied-on-write.
  *
- * NOTE: Expects that CoW datablock is empty.
- */
+ * NOTE: Expects that CoW datablock is empty. */
 ID *deg_expand_copy_on_write_datablock(const Depsgraph *depsgraph,
                                        const IDNode *id_node,
                                        DepsgraphNodeBuilder *node_builder,
@@ -838,44 +847,119 @@ ID *deg_expand_copy_on_write_datablock(const Depsgraph *depsgraph,
 	                                          create_placeholders);
 }
 
-typedef struct ObjectRuntimeBackup {
+namespace {
+
+/* Identifier used to match modifiers to backup/restore their runtime data.
+ * Identification is happening using original modifier data pointer and the
+ * modifier type.
+ * It is not enough to only pointer, since it's possible to have a situation
+ * when modifier is removed and a new one added, and due to memory allocation
+ * policy they might have same pointer.
+ * By adding type into matching we are at least ensuring that modifier will not
+ * try to interpret runtime data created by another modifier type. */
+class ModifierDataBackupID {
+public:
+	ModifierDataBackupID() : ModifierDataBackupID(NULL, eModifierType_None)
+	{
+	}
+
+	ModifierDataBackupID(ModifierData *modifier_data, ModifierType type)
+	        : modifier_data(modifier_data),
+	          type(type)
+	{
+	}
+
+	bool operator <(const ModifierDataBackupID& other) const {
+		if (modifier_data < other.modifier_data) {
+			return true;
+		}
+		if (modifier_data == other.modifier_data) {
+			return static_cast<int>(type) < static_cast<int>(other.type);
+		}
+		return false;
+	}
+
+	ModifierData *modifier_data;
+	ModifierType type;
+};
+
+/* Storage for backed up runtime modifier data. */
+typedef map<ModifierDataBackupID, void*> ModifierRuntimeDataBackup;
+
+struct ObjectRuntimeBackup {
+	ObjectRuntimeBackup()
+	        : base_flag(0),
+	          base_local_view_bits(0)
+	{
+		/* TODO(sergey): Use something like BKE_object_runtime_reset(). */
+		memset(&runtime, 0, sizeof(runtime));
+	}
+
+	/* Make a backup of object's evaluation runtime data, additionally
+	 * make object to be safe for free without invalidating backed up
+	 * pointers. */
+	void init_from_object(Object *object);
+	void backup_modifier_runtime_data(Object *object);
+
+	/* Restore all fields to the given object. */
+	void restore_to_object(Object *object);
+	/* NOTE: Will free all runtime data which has not been restored. */
+	void restore_modifier_runtime_data(Object *object);
+
 	Object_Runtime runtime;
 	short base_flag;
 	unsigned short base_local_view_bits;
-} ObjectRuntimeBackup;
+	ModifierRuntimeDataBackup modifier_runtime_data;
+};
 
-/* Make a backup of object's evaluation runtime data, additionally
- * make object to be safe for free without invalidating backed up
- * pointers.
- */
-static void deg_backup_object_runtime(
-        Object *object,
-        ObjectRuntimeBackup *object_runtime_backup)
+void ObjectRuntimeBackup::init_from_object(Object *object)
 {
 	/* Store evaluated mesh and curve_cache, and make sure we don't free it. */
 	Mesh *mesh_eval = object->runtime.mesh_eval;
-	object_runtime_backup->runtime = object->runtime;
+	runtime = object->runtime;
 	BKE_object_runtime_reset(object);
-	/* Keep bbox (for now at least...). */
-	object->runtime.bb = object_runtime_backup->runtime.bb;
+	/* Keep bbox (for now at least). */
+	object->runtime.bb = runtime.bb;
 	/* Object update will override actual object->data to an evaluated version.
 	 * Need to make sure we don't have data set to evaluated one before free
 	 * anything. */
 	if (mesh_eval != NULL && object->data == mesh_eval) {
-		object->data = object_runtime_backup->runtime.mesh_orig;
+		object->data = runtime.mesh_orig;
 	}
 	/* Make a backup of base flags. */
-	object_runtime_backup->base_flag = object->base_flag;
-	object_runtime_backup->base_local_view_bits = object->base_local_view_bits;
+	base_flag = object->base_flag;
+	base_local_view_bits = object->base_local_view_bits;
+	/* Backup tuntime data of all modifiers. */
+	backup_modifier_runtime_data(object);
 }
 
-static void deg_restore_object_runtime(
-        Object *object,
-        const ObjectRuntimeBackup *object_runtime_backup)
+inline ModifierDataBackupID create_modifier_data_id(
+        const ModifierData* modifier_data)
+{
+	return ModifierDataBackupID(modifier_data->orig_modifier_data,
+	                            static_cast<ModifierType>(modifier_data->type));
+}
+
+void ObjectRuntimeBackup::backup_modifier_runtime_data(Object *object)
+{
+	LISTBASE_FOREACH(ModifierData *, modifier_data, &object->modifiers) {
+		if (modifier_data->runtime == NULL) {
+			continue;
+		}
+		BLI_assert(modifier_data->orig_modifier_data != NULL);
+		ModifierDataBackupID modifier_data_id =
+		        create_modifier_data_id(modifier_data);
+		modifier_runtime_data.insert(
+		        make_pair(modifier_data_id, modifier_data->runtime));
+		modifier_data->runtime = NULL;
+	}
+}
+
+void ObjectRuntimeBackup::restore_to_object(Object *object)
 {
 	Mesh *mesh_orig = object->runtime.mesh_orig;
 	BoundBox *bb = object->runtime.bb;
-	object->runtime = object_runtime_backup->runtime;
+	object->runtime = runtime;
 	object->runtime.mesh_orig = mesh_orig;
 	object->runtime.bb = bb;
 	if (object->type == OB_MESH && object->runtime.mesh_eval != NULL) {
@@ -902,60 +986,108 @@ static void deg_restore_object_runtime(
 			mesh_eval->edit_mesh = mesh_orig->edit_mesh;
 		}
 	}
-	object->base_flag = object_runtime_backup->base_flag;
-	object->base_local_view_bits = object_runtime_backup->base_local_view_bits;
+	object->base_flag = base_flag;
+	object->base_local_view_bits = base_local_view_bits;
+	/* Restore modifier's runtime data.
+	 * NOTE: Data of unused modifiers will be freed there. */
+	restore_modifier_runtime_data(object);
 }
+
+void ObjectRuntimeBackup::restore_modifier_runtime_data(Object *object) {
+	LISTBASE_FOREACH(ModifierData *, modifier_data, &object->modifiers) {
+		BLI_assert(modifier_data->orig_modifier_data != NULL);
+		ModifierDataBackupID modifier_data_id =
+		        create_modifier_data_id(modifier_data);
+		ModifierRuntimeDataBackup::iterator runtime_data_iterator =
+		        modifier_runtime_data.find(modifier_data_id);
+		if (runtime_data_iterator != modifier_runtime_data.end()) {
+			modifier_data->runtime = runtime_data_iterator->second;
+			runtime_data_iterator->second = NULL;
+		}
+	}
+	for (ModifierRuntimeDataBackup::value_type value : modifier_runtime_data) {
+		const ModifierDataBackupID modifier_data_id = value.first;
+		void *runtime = value.second;
+		if (value.second == NULL) {
+			continue;
+		}
+		const ModifierTypeInfo *modifier_type_info =
+		        modifierType_getInfo(modifier_data_id.type);
+		BLI_assert(modifier_type_info != NULL);
+		modifier_type_info->freeRuntimeData(runtime);
+	}
+}
+
+class RuntimeBackup {
+public:
+	RuntimeBackup() : drawdata_ptr(NULL) {
+		drawdata_backup.first = drawdata_backup.last = NULL;
+	}
+
+	/* NOTE: Will reset all runbtime fields which has been backed up to NULL. */
+	void init_from_id(ID *id);
+
+	/* Restore fields to the given ID. */
+	void restore_to_id(ID *id);
+
+	ObjectRuntimeBackup object_backup;
+	DrawDataList drawdata_backup;
+	DrawDataList *drawdata_ptr;
+};
+
+void RuntimeBackup::init_from_id(ID *id)
+{
+	if (!check_datablock_expanded(id)) {
+		return;
+	}
+	const ID_Type id_type = GS(id->name);
+	switch (id_type) {
+		case ID_OB:
+			object_backup.init_from_object(reinterpret_cast<Object*>(id));
+			break;
+		default:
+			break;
+	}
+	/* Note that we never free GPU draw data from here since that's not
+	 * safe for threading and draw data is likely to be re-used. */
+	drawdata_ptr = DRW_drawdatalist_from_id(id);
+	if (drawdata_ptr != NULL) {
+		drawdata_backup = *drawdata_ptr;
+		drawdata_ptr->first = drawdata_ptr->last = NULL;
+	}
+}
+
+void RuntimeBackup::restore_to_id(ID *id)
+{
+	const ID_Type id_type = GS(id->name);
+	switch (id_type) {
+		case ID_OB:
+			object_backup.restore_to_object(reinterpret_cast<Object*>(id));
+			break;
+		default:
+			break;
+	}
+	if (drawdata_ptr != NULL) {
+		*drawdata_ptr = drawdata_backup;
+	}
+}
+
+}  // namespace
 
 ID *deg_update_copy_on_write_datablock(const Depsgraph *depsgraph,
                                        const IDNode *id_node)
 {
 	const ID *id_orig = id_node->id_orig;
-	const ID_Type id_type = GS(id_orig->name);
 	ID *id_cow = id_node->id_cow;
 	/* Similar to expansion, no need to do anything here. */
 	if (!deg_copy_on_write_is_needed(id_orig)) {
 		return id_cow;
 	}
-	/* For the rest if datablock types we use simple logic:
-	 * - Free previously expanded data, if any.
-	 * - Perform full datablock copy.
-	 *
-	 * Note that we never free GPU draw data from here since that's not
-	 * safe for threading and draw data is likely to be re-used. */
-	/* TODO(sergey): Either move this to an utility function or redesign
-	 * Copy-on-Write components in a way that only needed parts are being
-	 * copied over. */
-	/* TODO(sergey): Wrap GPU draw data backup and object runtime backup to a
-	 * generic backup structure. */
-	DrawDataList drawdata_backup;
-	DrawDataList *drawdata_ptr = NULL;
-	ObjectRuntimeBackup object_runtime_backup = {{{0}}};
-	if (check_datablock_expanded(id_cow)) {
-		switch (id_type) {
-			case ID_OB:
-			{
-				Object *ob = (Object *)id_cow;
-				deg_backup_object_runtime(ob, &object_runtime_backup);
-				break;
-			}
-			default:
-				break;
-		}
-		drawdata_ptr = DRW_drawdatalist_from_id(id_cow);
-		if (drawdata_ptr != NULL) {
-			drawdata_backup = *drawdata_ptr;
-			drawdata_ptr->first = drawdata_ptr->last = NULL;
-		}
-	}
+	RuntimeBackup backup;
+	backup.init_from_id(id_cow);
 	deg_free_copy_on_write_datablock(id_cow);
 	deg_expand_copy_on_write_datablock(depsgraph, id_node);
-	/* Restore DrawData. */
-	if (drawdata_ptr != NULL) {
-		*drawdata_ptr = drawdata_backup;
-	}
-	if (id_type == ID_OB) {
-		deg_restore_object_runtime((Object *)id_cow, &object_runtime_backup);
-	}
+	backup.restore_to_id(id_cow);
 	return id_cow;
 }
 
@@ -1014,8 +1146,7 @@ void discard_scene_pointers(ID *id_cow)
 }
 
 /* NULL-ify all edit mode pointers which points to data from
- * original object.
- */
+ * original object. */
 void discard_edit_mode_pointers(ID *id_cow)
 {
 	const ID_Type type = GS(id_cow->name);
@@ -1050,8 +1181,7 @@ void discard_edit_mode_pointers(ID *id_cow)
 /* Free content of the CoW datablock
  * Notes:
  * - Does not recurs into nested ID datablocks.
- * - Does not free datablock itself.
- */
+ * - Does not free datablock itself. */
 void deg_free_copy_on_write_datablock(ID *id_cow)
 {
 	if (!check_datablock_expanded(id_cow)) {

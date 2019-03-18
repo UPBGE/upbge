@@ -82,6 +82,8 @@
 #define SEQ_HANDLE_SIZE_MIN  7.0f
 #define SEQ_HANDLE_SIZE_MAX 40.0f
 
+#define SEQ_SCROLLER_TEXT_OFFSET 8
+
 
 /* Note, Don't use SEQ_BEGIN/SEQ_END while drawing!
  * it messes up transform, - Campbell */
@@ -189,7 +191,7 @@ void color3ubv_from_seq(Scene *curscene, Sequence *seq, unsigned char col[3])
 }
 
 static void drawseqwave(View2D *v2d, const bContext *C, SpaceSeq *sseq, Scene *scene, Sequence *seq,
-                        float x1, float y1, float x2, float y2, float stepsize, unsigned int pos)
+                        float x1, float y1, float x2, float y2, float stepsize)
 {
 	/*
 	 * x1 is the starting x value to draw the wave,
@@ -255,10 +257,11 @@ static void drawseqwave(View2D *v2d, const bContext *C, SpaceSeq *sseq, Scene *s
 			return;
 		}
 
-		immUniformColor4f(1.0f, 1.0f, 1.0f, 0.5f);
-
 		GPU_blend(true);
-
+		GPUVertFormat *format = immVertexFormat();
+		uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+		uint col = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+		immBindBuiltinProgram(GPU_SHADER_2D_FLAT_COLOR);
 		immBegin(GPU_PRIM_TRI_STRIP, length * 2);
 
 		for (i = 0; i < length; i++) {
@@ -284,12 +287,25 @@ static void drawseqwave(View2D *v2d, const bContext *C, SpaceSeq *sseq, Scene *s
 				value2 = (1.0f - f) * value2 + f * waveform->data[p * 3 + 4];
 			}
 
+			value1 *= seq->volume;
+			value2 *= seq->volume;
+
+			if (value2 > 1 || value1 < -1) {
+				immAttr4f(col, 1.0f, 0.0f, 0.0f, 0.5f);
+
+				CLAMP_MAX(value2, 1.0f);
+				CLAMP_MIN(value1, -1.0f);
+			}
+			else {
+				immAttr4f(col, 1.0f, 1.0f, 1.0f, 0.5f);
+			}
+
 			immVertex2f(pos, x1_offset + i * stepsize, ymid + value1 * yscale);
 			immVertex2f(pos, x1_offset + i * stepsize, ymid + value2 * yscale);
 		}
 
 		immEnd();
-
+		immUnbindProgram();
 		GPU_blend(false);
 	}
 }
@@ -769,14 +785,14 @@ static void draw_seq_strip(
 	x1 = seq->startdisp;
 	x2 = seq->enddisp;
 
+	immUnbindProgram();
+
 	/* draw sound wave */
 	if (seq->type == SEQ_TYPE_SOUND_RAM) {
 		if (!(sseq->flag & SEQ_NO_WAVEFORMS)) {
-			drawseqwave(v2d, C, sseq, scene, seq, x1, y1, x2, y2, BLI_rctf_size_x(&ar->v2d.cur) / ar->winx, pos);
+			drawseqwave(v2d, C, sseq, scene, seq, x1, y1, x2, y2, BLI_rctf_size_x(&ar->v2d.cur) / ar->winx);
 		}
 	}
-
-	immUnbindProgram();
 
 	/* draw lock */
 	if (seq->flag & SEQ_LOCK) {
@@ -860,8 +876,10 @@ static void draw_seq_strip(
 	x1 = seq->startdisp + handsize_clamped;
 	x2 = seq->enddisp   - handsize_clamped;
 
+	float scroller_vert_xoffs = (V2D_SCROLL_WIDTH_TEXT + SEQ_SCROLLER_TEXT_OFFSET) * pixelx;
+
 	/* info text on the strip */
-	if (x1 < v2d->cur.xmin) x1 = v2d->cur.xmin;
+	if (x1 < v2d->cur.xmin + scroller_vert_xoffs) x1 = v2d->cur.xmin + scroller_vert_xoffs;
 	else if (x1 > v2d->cur.xmax) x1 = v2d->cur.xmax;
 	if (x2 < v2d->cur.xmin) x2 = v2d->cur.xmin;
 	else if (x2 > v2d->cur.xmax) x2 = v2d->cur.xmax;

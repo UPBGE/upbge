@@ -113,6 +113,10 @@ typedef struct ModifierData {
 	char name[64];
 
 	char *error;
+
+	/* Pointer to a ModifierData in the original domain. */
+	struct ModifierData *orig_modifier_data;
+	void *runtime;
 } ModifierData;
 
 typedef enum {
@@ -166,8 +170,6 @@ typedef struct SubsurfModifierData {
 
 	/* TODO(sergey): Get rid of those with the old CCG subdivision code. */
 	void *emCache, *mCache;
-	/* Cached subdivision surface descriptor, with topology and settings. */
-	struct Subdiv *subdiv;
 } SubsurfModifierData;
 
 typedef struct LatticeModifierData {
