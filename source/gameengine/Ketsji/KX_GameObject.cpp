@@ -257,7 +257,7 @@ void KX_GameObject::TagForUpdate()
 		copy_m4_m4(ob->obmat, obmat);
 		invert_m4_m4(ob->imat, obmat);
 		/* NORMAL CASE */
-		if (!m_staticObject && ob->type != OB_MBALL) {
+		if (ob->type != OB_MBALL) {
 			//DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
 			DEG_id_tag_update(&ob->id, NC_OBJECT | ND_TRANSFORM);
 			DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);
