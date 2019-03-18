@@ -83,23 +83,25 @@ typedef struct BrushGpencilSettings {
 	float fill_threshold;
 	/** Number of pixel to consider the leak is too small (x 2). */
 	short fill_leak;
-	char _pad1[6];
+	/** Fill zoom factor */
+	short fill_factor;
+	char _pad_1[4];
 
 	/** Number of simplify steps. */
-	int   fill_simplylvl;
+	int fill_simplylvl;
 	/** Type of control lines drawing mode. */
-	int   fill_draw_mode;
+	int fill_draw_mode;
 	/** Icon identifier. */
-	int   icon_id;
+	int icon_id;
 
 	/** Maximum distance before generate new point for very fast mouse movements. */
-	int   input_samples;
+	int input_samples;
 	/** Random factor for UV rotation. */
 	float uv_random;
 	/** Moved to 'Brush.gpencil_tool'. */
-	int   brush_type DNA_DEPRECATED;
+	int brush_type DNA_DEPRECATED;
 	/** Soft, hard or stroke. */
-	int   eraser_mode;
+	int eraser_mode;
 	/** Smooth while drawing factor. */
 	float active_smooth;
 	/** Factor to apply to strength for soft eraser. */
@@ -356,13 +358,13 @@ typedef enum eBrushGradientSourceFill {
 /* Brush.flag */
 typedef enum eBrushFlags {
 	BRUSH_AIRBRUSH = (1 << 0),
-	BRUSH_FLAG_DEPRECATED_1 = (1 << 1),  /* cleared */
+	BRUSH_FLAG_UNUSED_1 = (1 << 1),  /* cleared */
 	BRUSH_ALPHA_PRESSURE = (1 << 2),
 	BRUSH_SIZE_PRESSURE = (1 << 3),
 	BRUSH_JITTER_PRESSURE = (1 << 4),
 	BRUSH_SPACING_PRESSURE = (1 << 5),
-	BRUSH_FLAG_DEPRECATED_6 = (1 << 6),  /* cleared */
-	BRUSH_FLAG_DEPRECATED_7 = (1 << 7),  /* cleared */
+	BRUSH_FLAG_UNUSED_6 = (1 << 6),  /* cleared */
+	BRUSH_FLAG_UNUSED_7 = (1 << 7),  /* cleared */
 	BRUSH_ANCHORED = (1 << 8),
 	BRUSH_DIR_IN = (1 << 9),
 	BRUSH_SPACE = (1 << 10),
@@ -372,7 +374,7 @@ typedef enum eBrushFlags {
 	BRUSH_LOCK_ALPHA = (1 << 14),
 	BRUSH_ORIGINAL_NORMAL = (1 << 15),
 	BRUSH_OFFSET_PRESSURE = (1 << 16),
-	BRUSH_FLAG_DEPRECATED_17 = (1 << 17),  /* cleared */
+	BRUSH_FLAG_UNUSED_17 = (1 << 17),  /* cleared */
 	BRUSH_SPACE_ATTEN = (1 << 18),
 	BRUSH_ADAPTIVE_SPACE = (1 << 19),
 	BRUSH_LOCK_SIZE = (1 << 20),

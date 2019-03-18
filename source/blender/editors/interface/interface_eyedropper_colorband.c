@@ -27,8 +27,8 @@
  * - Clicking on points, adding each color to the end of the color-band.
  *
  * Defines:
- * - #UI_OT_eyedropper_colorband
- * - #UI_OT_eyedropper_colorband_point
+ * - #UI_OT_eyedropper_colorramp
+ * - #UI_OT_eyedropper_colorramp_point
  */
 
 #include "MEM_guardedalloc.h"
@@ -94,6 +94,13 @@ static bool eyedropper_colorband_init(bContext *C, wmOperator *op)
 	else {
 		/* When invoked from a button it's in custom_data field. */
 		band = (ColorBand *)but->custom_data;
+	}
+
+	if (!band) {
+		PointerRNA ptr = CTX_data_pointer_get_type(C, "color_ramp", &RNA_ColorRamp);
+		if (ptr.data != NULL) {
+			band = ptr.data;
+		}
 	}
 
 	if (!band) {
@@ -300,15 +307,22 @@ static int eyedropper_colorband_exec(bContext *C, wmOperator *op)
 static bool eyedropper_colorband_poll(bContext *C)
 {
 	uiBut *but = UI_context_active_but_get(C);
-	return (but && but->type == UI_BTYPE_COLORBAND);
+	if (but && but->type == UI_BTYPE_COLORBAND) {
+		return true;
+	}
+	PointerRNA ptr = CTX_data_pointer_get_type(C, "color_ramp", &RNA_ColorRamp);
+	if (ptr.data != NULL) {
+		return true;
+	}
+	return false;
 }
 
 
-void UI_OT_eyedropper_colorband(wmOperatorType *ot)
+void UI_OT_eyedropper_colorramp(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name = "Eyedropper colorband";
-	ot->idname = "UI_OT_eyedropper_colorband";
+	ot->idname = "UI_OT_eyedropper_colorramp";
 	ot->description = "Sample a color band";
 
 	/* api callbacks */
@@ -324,11 +338,11 @@ void UI_OT_eyedropper_colorband(wmOperatorType *ot)
 	/* properties */
 }
 
-void UI_OT_eyedropper_colorband_point(wmOperatorType *ot)
+void UI_OT_eyedropper_colorramp_point(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name = "Eyedropper colorband (points)";
-	ot->idname = "UI_OT_eyedropper_colorband_point";
+	ot->idname = "UI_OT_eyedropper_colorramp_point";
 	ot->description = "Point-sample a color band";
 
 	/* api callbacks */

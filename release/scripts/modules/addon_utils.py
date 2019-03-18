@@ -365,11 +365,9 @@ def enable(module_name, *, default_set=False, persistent=False, handle_error=Non
         # 1.1) fail when add-on is too old
         # This is a temporary 2.8x migration check, so we can manage addons that are supported.
 
-        try:
-            if mod.bl_info.get("blender", (0, 0, 0)) < (2, 80, 0):
-                raise Exception(f"Add-on '{module_name:s}' has not been upgraded to 2.8, ignoring")
-        except Exception as ex:
-            handle_error(ex)
+        if mod.bl_info.get("blender", (0, 0, 0)) < (2, 80, 0):
+            if _bpy.app.debug:
+                print(f"Warning: Add-on '{module_name:s}' has not been upgraded to 2.8, ignoring")
             return None
 
         # 2) try register collected modules
@@ -470,7 +468,7 @@ def reset_all(*, reload_scripts=False):
 
     for path in paths_list:
         _bpy.utils._sys_path_ensure(path)
-        for mod_name, mod_path in _bpy.path.module_names(path):
+        for mod_name, _mod_path in _bpy.path.module_names(path):
             is_enabled, is_loaded = check(mod_name)
 
             # first check if reload is needed before changing state.

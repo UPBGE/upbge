@@ -504,15 +504,10 @@ int BlenderSync::get_denoising_pass(BL::RenderPass& b_pass)
 }
 
 vector<Pass> BlenderSync::sync_render_passes(BL::RenderLayer& b_rlay,
-                                             BL::ViewLayer& b_view_layer,
-                                             const SessionParams &session_params)
+                                             BL::ViewLayer& b_view_layer)
 {
 	vector<Pass> passes;
 	Pass::add(PASS_COMBINED, passes);
-
-	if(!session_params.device.advanced_shading) {
-		return passes;
-	}
 
 	/* loop over passes */
 	BL::RenderLayer::passes_iterator b_pass_iter;

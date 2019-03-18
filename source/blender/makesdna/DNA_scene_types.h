@@ -255,18 +255,18 @@ typedef struct SceneRenderLayer {
 typedef enum eScenePassType {
 	SCE_PASS_COMBINED                 = (1 << 0),
 	SCE_PASS_Z                        = (1 << 1),
-	SCE_PASS_DEPRECATED_1             = (1 << 2), /* RGBA */
-	SCE_PASS_DEPRECATED_2             = (1 << 3), /* DIFFUSE */
-	SCE_PASS_DEPRECATED_3             = (1 << 4), /* SPEC */
+	SCE_PASS_UNUSED_1                 = (1 << 2), /* RGBA */
+	SCE_PASS_UNUSED_2                 = (1 << 3), /* DIFFUSE */
+	SCE_PASS_UNUSED_3                 = (1 << 4), /* SPEC */
 	SCE_PASS_SHADOW                   = (1 << 5),
 	SCE_PASS_AO                       = (1 << 6),
-	SCE_PASS_DEPRECATED_4             = (1 << 7), /* REFLECT */
+	SCE_PASS_UNUSED_4                 = (1 << 7), /* REFLECT */
 	SCE_PASS_NORMAL                   = (1 << 8),
 	SCE_PASS_VECTOR                   = (1 << 9),
-	SCE_PASS_DEPRECATED_5             = (1 << 10), /* REFRACT */
+	SCE_PASS_UNUSED_5                 = (1 << 10), /* REFRACT */
 	SCE_PASS_INDEXOB                  = (1 << 11),
 	SCE_PASS_UV                       = (1 << 12),
-	SCE_PASS_DEPRECATED_6             = (1 << 13), /* INDIRECT */
+	SCE_PASS_UNUSED_6                 = (1 << 13), /* INDIRECT */
 	SCE_PASS_MIST                     = (1 << 14),
 	SCE_PASS_RAYHITS                  = (1 << 15),
 	SCE_PASS_EMIT                     = (1 << 16),
@@ -334,7 +334,7 @@ typedef struct SceneRenderView {
 } SceneRenderView;
 
 /* SceneRenderView.viewflag */
-#define SCE_VIEW_DISABLE		(1<<0)
+#define SCE_VIEW_DISABLE		(1 << 0)
 
 /* RenderData.views_format */
 enum {
@@ -483,17 +483,17 @@ typedef struct ImageFormatData {
 #define R_IMF_IMTYPE_INVALID        255
 
 /* ImageFormatData.flag */
-#define R_IMF_FLAG_ZBUF         (1<<0)   /* was R_OPENEXR_ZBUF */
-#define R_IMF_FLAG_PREVIEW_JPG  (1<<1)   /* was R_PREVIEW_JPG */
+#define R_IMF_FLAG_ZBUF         (1 << 0)   /* was R_OPENEXR_ZBUF */
+#define R_IMF_FLAG_PREVIEW_JPG  (1 << 1)   /* was R_PREVIEW_JPG */
 
 /* return values from BKE_imtype_valid_depths, note this is depts per channel */
-#define R_IMF_CHAN_DEPTH_1  (1<<0) /* 1bits  (unused) */
-#define R_IMF_CHAN_DEPTH_8  (1<<1) /* 8bits  (default) */
-#define R_IMF_CHAN_DEPTH_10 (1<<2) /* 10bits (uncommon, Cineon/DPX support) */
-#define R_IMF_CHAN_DEPTH_12 (1<<3) /* 12bits (uncommon, jp2/DPX support) */
-#define R_IMF_CHAN_DEPTH_16 (1<<4) /* 16bits (tiff, halff float exr) */
-#define R_IMF_CHAN_DEPTH_24 (1<<5) /* 24bits (unused) */
-#define R_IMF_CHAN_DEPTH_32 (1<<6) /* 32bits (full float exr) */
+#define R_IMF_CHAN_DEPTH_1  (1 << 0) /* 1bits  (unused) */
+#define R_IMF_CHAN_DEPTH_8  (1 << 1) /* 8bits  (default) */
+#define R_IMF_CHAN_DEPTH_10 (1 << 2) /* 10bits (uncommon, Cineon/DPX support) */
+#define R_IMF_CHAN_DEPTH_12 (1 << 3) /* 12bits (uncommon, jp2/DPX support) */
+#define R_IMF_CHAN_DEPTH_16 (1 << 4) /* 16bits (tiff, halff float exr) */
+#define R_IMF_CHAN_DEPTH_24 (1 << 5) /* 24bits (unused) */
+#define R_IMF_CHAN_DEPTH_32 (1 << 6) /* 32bits (full float exr) */
 
 /* ImageFormatData.planes */
 #define R_IMF_PLANES_RGB   24
@@ -514,16 +514,16 @@ typedef struct ImageFormatData {
 #define R_IMF_EXR_CODEC_MAX  10
 
 /* ImageFormatData.jp2_flag */
-#define R_IMF_JP2_FLAG_YCC          (1<<0)  /* when disabled use RGB */ /* was R_JPEG2K_YCC */
-#define R_IMF_JP2_FLAG_CINE_PRESET  (1<<1)  /* was R_JPEG2K_CINE_PRESET */
-#define R_IMF_JP2_FLAG_CINE_48      (1<<2)  /* was R_JPEG2K_CINE_48FPS */
+#define R_IMF_JP2_FLAG_YCC          (1 << 0)  /* when disabled use RGB */ /* was R_JPEG2K_YCC */
+#define R_IMF_JP2_FLAG_CINE_PRESET  (1 << 1)  /* was R_JPEG2K_CINE_PRESET */
+#define R_IMF_JP2_FLAG_CINE_48      (1 << 2)  /* was R_JPEG2K_CINE_48FPS */
 
 /* ImageFormatData.jp2_codec */
 #define R_IMF_JP2_CODEC_JP2  0
 #define R_IMF_JP2_CODEC_J2K  1
 
 /* ImageFormatData.cineon_flag */
-#define R_IMF_CINEON_FLAG_LOG (1<<0)  /* was R_CINEON_LOG */
+#define R_IMF_CINEON_FLAG_LOG (1 << 0)  /* was R_CINEON_LOG */
 
 /* ImageFormatData.tiff_codec */
 enum {
@@ -1200,6 +1200,7 @@ typedef enum eGP_Lockaxis_Types {
 	GP_LOCKAXIS_X = 1,
 	GP_LOCKAXIS_Y = 2,
 	GP_LOCKAXIS_Z = 3,
+	GP_LOCKAXIS_CURSOR = 4
 } eGP_Lockaxis_Types;
 
 /* Settings for a GPencil Stroke Sculpting Brush */
@@ -1930,49 +1931,49 @@ typedef struct Scene {
 
 /* RenderData.flag */
 	/* use preview range */
-#define SCER_PRV_RANGE	(1<<0)
-#define SCER_LOCK_FRAME_SELECTION	(1<<1)
+#define SCER_PRV_RANGE	(1 << 0)
+#define SCER_LOCK_FRAME_SELECTION	(1 << 1)
 	/* show/use subframes (for checking motion blur) */
-#define SCER_SHOW_SUBFRAME	(1<<3)
+#define SCER_SHOW_SUBFRAME	(1 << 3)
 
 /* RenderData.mode */
 #define R_OSA                   (1 << 0)
-#define R_MODE_DEPRECATED_1     (1 << 1)  /* cleared */
-#define R_MODE_DEPRECATED_2     (1 << 2)  /* cleared */
-#define R_MODE_DEPRECATED_3     (1 << 3)  /* cleared */
-#define R_MODE_DEPRECATED_4     (1 << 4)  /* cleared */
-#define R_MODE_DEPRECATED_5     (1 << 5)  /* cleared */
-#define R_MODE_DEPRECATED_6     (1 << 6)  /* cleared */
-#define R_MODE_DEPRECATED_7     (1 << 7)  /* cleared */
-#define R_MODE_DEPRECATED_8     (1 << 8)  /* cleared */
+#define R_MODE_UNUSED_1         (1 << 1)  /* cleared */
+#define R_MODE_UNUSED_2         (1 << 2)  /* cleared */
+#define R_MODE_UNUSED_3         (1 << 3)  /* cleared */
+#define R_MODE_UNUSED_4         (1 << 4)  /* cleared */
+#define R_MODE_UNUSED_5         (1 << 5)  /* cleared */
+#define R_MODE_UNUSED_6         (1 << 6)  /* cleared */
+#define R_MODE_UNUSED_7         (1 << 7)  /* cleared */
+#define R_MODE_UNUSED_8         (1 << 8)  /* cleared */
 #define R_BORDER                (1 << 9)
-#define R_MODE_DEPRECATED_10    (1 << 10)  /* cleared */
+#define R_MODE_UNUSED_10        (1 << 10)  /* cleared */
 #define R_CROP                  (1 << 11)
 /* Disable camera switching: runtime (DURIAN_CAMERA_SWITCH) */
 #define R_NO_CAMERA_SWITCH      (1 << 12)
-#define R_MODE_DEPRECATED_13    (1 << 13)  /* cleared */
+#define R_MODE_UNUSED_13        (1 << 13)  /* cleared */
 #define R_MBLUR                 (1 << 14)
 		/* unified was here */
-#define R_MODE_DEPRECATED_16    (1 << 16)  /* cleared */
-#define R_MODE_DEPRECATED_17    (1 << 17)  /* cleared */
-#define R_MODE_DEPRECATED_18    (1 << 18)  /* cleared */
-#define R_MODE_DEPRECATED_19    (1 << 19)  /* cleared */
+#define R_MODE_UNUSED_16        (1 << 16)  /* cleared */
+#define R_MODE_UNUSED_17        (1 << 17)  /* cleared */
+#define R_MODE_UNUSED_18        (1 << 18)  /* cleared */
+#define R_MODE_UNUSED_19        (1 << 19)  /* cleared */
 #define R_FIXED_THREADS         (1 << 19)
 
-#define R_MODE_DEPRECATED_20    (1 << 20)  /* cleared */
-#define R_MODE_DEPRECATED_21    (1 << 21)  /* cleared */
+#define R_MODE_UNUSED_20        (1 << 20)  /* cleared */
+#define R_MODE_UNUSED_21        (1 << 21)  /* cleared */
 #define R_NO_OVERWRITE          (1 << 22)  /* skip existing files */
 #define R_TOUCH                 (1 << 23)  /* touch files before rendering */
 #define R_SIMPLIFY              (1 << 24)
 #define R_EDGE_FRS              (1 << 25) /* R_EDGE reserved for Freestyle */
 #define R_PERSISTENT_DATA       (1 << 26) /* keep data around for re-render */
-#define R_MODE_DEPRECATED_27    (1 << 27)  /* cleared */
+#define R_MODE_UNUSED_27        (1 << 27)  /* cleared */
 
 /* RenderData.seq_flag */
 enum {
-	R_SEQ_DEPRECATED_0 = (1 << 0),  /* cleared */
-	R_SEQ_DEPRECATED_1 = (1 << 1),  /* cleared */
-	R_SEQ_DEPRECATED_2 = (1 << 2),  /* cleared */
+	R_SEQ_UNUSED_0   = (1 << 0),  /* cleared */
+	R_SEQ_UNUSED_1   = (1 << 1),  /* cleared */
+	R_SEQ_UNUSED_2   = (1 << 2),  /* cleared */
 	R_SEQ_SOLID_TEX  = (1 << 3),
 	R_SEQ_CAMERA_DOF = (1 << 4),
 };
@@ -2004,18 +2005,18 @@ enum {
 #define R_MATNODE_PREVIEW       (1 << 5)
 #define R_DOCOMP                (1 << 6)
 #define R_COMP_CROP             (1 << 7)
-#define R_SCEMODE_DEPRECATED_8  (1 << 8)  /* cleared */
+#define R_SCEMODE_UNUSED_8      (1 << 8)  /* cleared */
 #define R_SINGLE_LAYER          (1 << 9)
 #define R_EXR_TILE_FILE         (1 << 10)
-#define R_SCEMODE_DEPRECATED_11 (1 << 11)  /* cleared */
+#define R_SCEMODE_UNUSED_11     (1 << 11)  /* cleared */
 #define R_NO_IMAGE_LOAD         (1 << 12)
-#define R_SCEMODE_DEPRECATED_13 (1 << 13)  /* cleared */
+#define R_SCEMODE_UNUSED_13     (1 << 13)  /* cleared */
 #define R_NO_FRAME_UPDATE       (1 << 14)
 #define R_FULL_SAMPLE           (1 << 15)
-#define R_SCEMODE_DEPRECATED_16 (1 << 16)  /* cleared */
-#define R_SCEMODE_DEPRECATED_17 (1 << 17)  /* cleared */
+#define R_SCEMODE_UNUSED_16     (1 << 16)  /* cleared */
+#define R_SCEMODE_UNUSED_17     (1 << 17)  /* cleared */
 #define R_TEXNODE_PREVIEW       (1 << 18)
-#define R_SCEMODE_DEPRECATED_19 (1 << 19)  /* cleared */
+#define R_SCEMODE_UNUSED_19     (1 << 19)  /* cleared */
 #define R_EXR_CACHE_FILE        (1 << 20)
 #define R_MULTIVIEW             (1 << 21)
 
@@ -2050,7 +2051,7 @@ enum {
 enum {
 	/** deprecated, should only be used in versioning code only */
 	R_COLOR_MANAGEMENT              = (1 << 0),
-	R_COLOR_MANAGEMENT_DEPRECATED_1 = (1 << 1),
+	R_COLOR_MANAGEMENT_UNUSED_1 = (1 << 1),
 };
 
 #ifdef DNA_DEPRECATED
@@ -2273,12 +2274,12 @@ typedef enum eVGroupSelect {
 
 
 /* Scene.flag */
-#define SCE_DS_SELECTED			(1<<0)
-#define SCE_DS_COLLAPSED		(1<<1)
-#define SCE_NLA_EDIT_ON			(1<<2)
-#define SCE_FRAME_DROP			(1<<3)
-#define SCE_KEYS_NO_SELONLY	    (1<<4)
-#define SCE_INTERACTIVE         (1<<5)
+#define SCE_DS_SELECTED			(1 << 0)
+#define SCE_DS_COLLAPSED		(1 << 1)
+#define SCE_NLA_EDIT_ON			(1 << 2)
+#define SCE_FRAME_DROP			(1 << 3)
+#define SCE_KEYS_NO_SELONLY	    (1 << 4)
+#define SCE_INTERACTIVE         (1 << 5)
 
 	/* return flag BKE_scene_base_iter_next functions */
 /* #define F_ERROR			-1 */  /* UNUSED */
@@ -2287,10 +2288,10 @@ typedef enum eVGroupSelect {
 #define F_DUPLI			3
 
 /* AudioData.flag */
-#define AUDIO_MUTE                (1<<0)
-#define AUDIO_SYNC                (1<<1)
-#define AUDIO_SCRUB		          (1<<2)
-#define AUDIO_VOLUME_ANIMATED     (1<<3)
+#define AUDIO_MUTE                (1 << 0)
+#define AUDIO_SYNC                (1 << 1)
+#define AUDIO_SCRUB		          (1 << 2)
+#define AUDIO_VOLUME_ANIMATED     (1 << 3)
 
 /* FFMpegCodecData.flags */
 enum {
@@ -2327,15 +2328,15 @@ typedef enum ePaintSymmetryFlags {
 /* Sculpt.flags */
 /* These can eventually be moved to paint flags? */
 typedef enum eSculptFlags {
-	SCULPT_FLAG_DEPRECATED_0 = (1 << 0),  /* cleared */
-	SCULPT_FLAG_DEPRECATED_1 = (1 << 1),  /* cleared */
-	SCULPT_FLAG_DEPRECATED_2 = (1 << 2),  /* cleared */
+	SCULPT_FLAG_UNUSED_0 = (1 << 0),  /* cleared */
+	SCULPT_FLAG_UNUSED_1 = (1 << 1),  /* cleared */
+	SCULPT_FLAG_UNUSED_2 = (1 << 2),  /* cleared */
 
 	SCULPT_LOCK_X = (1 << 3),
 	SCULPT_LOCK_Y = (1 << 4),
 	SCULPT_LOCK_Z = (1 << 5),
 
-	SCULPT_FLAG_DEPRECATED_6 = (1 << 6),  /* cleared */
+	SCULPT_FLAG_UNUSED_6 = (1 << 6),  /* cleared */
 
 	SCULPT_USE_OPENMP = (1 << 7),
 	SCULPT_ONLY_DEFORM = (1 << 8),
@@ -2501,7 +2502,7 @@ typedef enum eGPencil_Guide_Reference {
 #define PE_DEFLECT_EMITTER      (1 << 2)
 #define PE_INTERPOLATE_ADDED    (1 << 3)
 #define PE_DRAW_PART            (1 << 4)
-#define PE_DEPRECATED_6         (1 << 6)  /* cleared */
+#define PE_UNUSED_6             (1 << 6)  /* cleared */
 #define PE_FADE_TIME            (1 << 7)
 #define PE_AUTO_VELOCITY        (1 << 8)
 
