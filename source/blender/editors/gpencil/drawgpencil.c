@@ -736,7 +736,7 @@ static void gp_draw_stroke_3d(tGPDdraw *tgpw, short thickness, const float ink[4
 		/* first point for adjacency (not drawn) */
 		if (i == 0) {
 			gp_set_point_varying_color(points, ink, attr_id.color);
-			
+
 			if ((cyclic) && (totpoints > 2)) {
 				immAttr1f(attr_id.thickness, max_ff((points + totpoints - 1)->pressure * thickness, 1.0f));
 				mul_v3_m4v3(fpt, tgpw->diff_mat, &(points + totpoints - 1)->x);
@@ -1690,73 +1690,4 @@ void ED_gpencil_draw_view3d(
 
 	/* draw it! */
 	gp_draw_data_all(view_layer, rv3d, scene, gpd, offsx, offsy, winx, winy, CFRA, dflag, v3d->spacetype);
-}
-
-/* draw grease-pencil sketches to specified 3d-view for gp object
- * assuming that matrices are already set correctly
- */
-void ED_gpencil_draw_view3d_object(wmWindowManager *wm, Scene *scene, Depsgraph *depsgraph, Object *ob, View3D *v3d, ARegion *ar, bool only3d)
-{
-	int dflag = 0;
-	RegionView3D *rv3d = ar->regiondata;
-	int offsx, offsy, winx, winy;
-
-	/* check that we have grease-pencil stuff to draw */
-	bGPdata *gpd = ob->data;
-	if (gpd == NULL) return;
-
-	/* when rendering to the offscreen buffer we don't want to
-	 * deal with the camera border, otherwise map the coords to the camera border. */
-	if ((rv3d->persp == RV3D_CAMOB) && !(G.f & G_FLAG_RENDER_VIEWPORT)) {
-		rctf rectf;
-		ED_view3d_calc_camera_border(scene, depsgraph, ar, v3d, rv3d, &rectf, true); /* no shift */
-
-		offsx = round_fl_to_int(rectf.xmin);
-		offsy = round_fl_to_int(rectf.ymin);
-		winx = round_fl_to_int(rectf.xmax - rectf.xmin);
-		winy = round_fl_to_int(rectf.ymax - rectf.ymin);
-	}
-	else {
-		offsx = 0;
-		offsy = 0;
-		winx = ar->winx;
-		winy = ar->winy;
-	}
-
-	/* set flags */
-	if (only3d) {
-		/* 3D strokes/3D space:
-		 * - only 3D space points
-		 * - don't status text either (as it's the wrong space)
-		 */
-		dflag |= (GP_DRAWDATA_ONLY3D | GP_DRAWDATA_NOSTATUS);
-	}
-
-	if (v3d->flag2 & V3D_HIDE_OVERLAYS) {
-		/* don't draw status text when "only render" flag is set */
-		dflag |= GP_DRAWDATA_NOSTATUS;
-	}
-
-	if ((wm == NULL) || ED_screen_animation_playing(wm)) {
-		/* don't show onion-skins during animation playback/scrub (i.e. it obscures the poses)
-		 * OpenGL Renders (i.e. final output), or depth buffer (i.e. not real strokes)
-		 */
-		dflag |= GP_DRAWDATA_NO_ONIONS;
-	}
-
-	/* draw it! */
-	ToolSettings *ts = scene->toolsettings;
-	Brush *brush = BKE_paint_brush(&ts->gp_paint->paint);
-	if (brush != NULL) {
-		gp_draw_data(rv3d, brush, 1.0f, ob, gpd, offsx, offsy, winx, winy, CFRA, dflag);
-	}
-}
-
-void ED_gpencil_draw_ex(
-	ViewLayer *view_layer, RegionView3D *rv3d, Scene *scene,
-	bGPdata *gpd, int winx, int winy, const int cfra, const char spacetype)
-{
-	int dflag = GP_DRAWDATA_NOSTATUS | GP_DRAWDATA_ONLYV2D;
-
-	gp_draw_data_all(view_layer, rv3d, scene, gpd, 0, 0, winx, winy, cfra, dflag, spacetype);
 }

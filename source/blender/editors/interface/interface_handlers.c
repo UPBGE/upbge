@@ -8403,9 +8403,7 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
 						/* Drag on a hold button (used in the toolbar) now opens it immediately. */
 						if (data->hold_action_timer) {
 							if (but->flag & UI_SELECT) {
-								if ((abs(event->x - event->prevx)) > 2 ||
-									(abs(event->y - event->prevy)) > 2)
-								{
+								if (len_manhattan_v2v2_int(&event->x, &event->prevx) >= WM_EVENT_CURSOR_MOTION_THRESHOLD) {
 									WM_event_remove_timer(data->wm, data->window, data->hold_action_timer);
 									data->hold_action_timer = WM_event_add_timer(data->wm, data->window, TIMER, 0.0f);
 								}
@@ -8425,7 +8423,6 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
 							ED_region_tag_redraw(data->region);
 						}
 					}
-					break;
 				}
 				break;
 			}

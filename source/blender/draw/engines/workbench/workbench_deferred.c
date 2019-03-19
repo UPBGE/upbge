@@ -763,7 +763,7 @@ void workbench_deferred_cache_init(WORKBENCH_Data *vedata)
 	 * Similar to workbench forward. Duplicated code to avoid
 	 * spaghetti with workbench forward. It would be great if we unify
 	 * this in a clean way.
-	 **/
+	 */
 	if (OIT_ENABLED(wpd)) {
 		const bool do_cull = CULL_BACKFACE_ENABLED(wpd);
 		const int cull_state = (do_cull) ? DRW_STATE_CULL_BACK : 0;
@@ -824,7 +824,7 @@ static WORKBENCH_MaterialData *get_or_create_material_data(
 		DRW_shgroup_stencil_mask(material->shgrp, (ob->dtx & OB_DRAWXRAY) ? 0x00 : 0xFF);
 		DRW_shgroup_uniform_int(material->shgrp, "object_id", &material->object_id, 1);
 		workbench_material_shgroup_uniform(wpd, material->shgrp, material, ob, true, true, interp);
-		if (wpd->world_clip_planes) {
+		if (WORLD_CLIPPING_ENABLED(wpd)) {
 			const DRWContextState *draw_ctx = DRW_context_state_get();
 			RegionView3D *rv3d = draw_ctx->rv3d;
 			DRW_shgroup_world_clip_planes_from_rv3d(material->shgrp, rv3d);

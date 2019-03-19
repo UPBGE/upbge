@@ -981,7 +981,7 @@ static void gp_draw_data_all(
  * ............................ */
 
 /* draw grease-pencil sketches to specified 2d-view that uses ibuf corrections */
-void ED_gpencil_draw_2dimage(const bContext *C)
+void ED_annotation_draw_2dimage(const bContext *C)
 {
 	wmWindowManager *wm = CTX_wm_manager(C);
 	ScrArea *sa = CTX_wm_area(C);
@@ -1049,7 +1049,7 @@ void ED_gpencil_draw_2dimage(const bContext *C)
 /* draw grease-pencil sketches to specified 2d-view assuming that matrices are already set correctly
  * Note: this gets called twice - first time with onlyv2d=true to draw 'canvas' strokes,
  * second time with onlyv2d=false for screen-aligned strokes */
-void ED_gpencil_draw_view2d(const bContext *C, bool onlyv2d)
+void ED_annotation_draw_view2d(const bContext *C, bool onlyv2d)
 {
 	wmWindowManager *wm = CTX_wm_manager(C);
 	ScrArea *sa = CTX_wm_area(C);
@@ -1083,7 +1083,7 @@ void ED_gpencil_draw_view2d(const bContext *C, bool onlyv2d)
 /* draw annotations sketches to specified 3d-view assuming that matrices are already set correctly
  * Note: this gets called twice - first time with only3d=true to draw 3d-strokes,
  * second time with only3d=false for screen-aligned strokes */
-void ED_gpencil_draw_view3d_annotations(
+void ED_annotation_draw_view3d(
         Scene *scene, struct Depsgraph *depsgraph,
         View3D *v3d, ARegion *ar,
         bool only3d)
@@ -1131,6 +1131,15 @@ void ED_gpencil_draw_view3d_annotations(
 
 	/* draw it! */
 	gp_draw_data_all(scene, gpd, offsx, offsy, winx, winy, CFRA, dflag, v3d->spacetype);
+}
+
+void ED_annotation_draw_ex(
+	Scene *scene, bGPdata *gpd,
+	int winx, int winy, const int cfra, const char spacetype)
+{
+	int dflag = GP_DRAWDATA_NOSTATUS | GP_DRAWDATA_ONLYV2D;
+
+	gp_draw_data_all(scene, gpd, 0, 0, winx, winy, cfra, dflag, spacetype);
 }
 
 /* ************************************************** */

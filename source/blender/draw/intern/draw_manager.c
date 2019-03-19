@@ -375,9 +375,11 @@ void DRW_transform_none(GPUTexture *tex)
 /** \name Multisample Resolve
  * \{ */
 
-/* Use manual multisample resolve pass.
+/**
+ * Use manual multisample resolve pass.
  * Much quicker than blitting back and forth.
- * Assume destination fb is bound*/
+ * Assume destination fb is bound.
+ */
 void DRW_multisamples_resolve(GPUTexture *src_depth, GPUTexture *src_color, bool use_depth)
 {
 	DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_PREMUL;
@@ -1307,7 +1309,8 @@ static void drw_engines_enable_basic(void)
 static void drw_engines_enable(ViewLayer *view_layer, RenderEngineType *engine_type)
 {
 	Object *obact = OBACT(view_layer);
-	const int mode = CTX_data_mode_enum_ex(DST.draw_ctx.object_edit, obact, DST.draw_ctx.object_mode);
+	const enum eContextObjectMode mode = CTX_data_mode_enum_ex(
+	        DST.draw_ctx.object_edit, obact, DST.draw_ctx.object_mode);
 	View3D *v3d = DST.draw_ctx.v3d;
 	const int drawtype = v3d->shading.type;
 	const bool use_xray = XRAY_ENABLED(v3d);
@@ -1567,7 +1570,7 @@ void DRW_draw_render_loop_ex(
 	if (do_annotations) {
 		GPU_depth_test(false);
 		/* XXX: as scene->gpd is not copied for COW yet */
-		ED_gpencil_draw_view3d_annotations(DEG_get_input_scene(depsgraph), depsgraph, v3d, ar, true);
+		ED_annotation_draw_view3d(DEG_get_input_scene(depsgraph), depsgraph, v3d, ar, true);
 		GPU_depth_test(true);
 	}
 
@@ -1606,7 +1609,7 @@ void DRW_draw_render_loop_ex(
 		{
 			GPU_depth_test(false);
 			/* XXX: as scene->gpd is not copied for COW yet */
-			ED_gpencil_draw_view3d_annotations(DEG_get_input_scene(depsgraph), depsgraph, v3d, ar, false);
+			ED_annotation_draw_view3d(DEG_get_input_scene(depsgraph), depsgraph, v3d, ar, false);
 			GPU_depth_test(true);
 		}
 
@@ -1826,7 +1829,6 @@ void DRW_render_to_image(RenderEngine *engine, struct Depsgraph *depsgraph)
 	ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
 	RenderEngineType *engine_type = engine->type;
 	DrawEngineType *draw_engine_type = engine_type->draw_engine;
-	RenderData *r = &scene->r;
 	Render *render = engine->re;
 
 	if (G.background && DST.gl_context == NULL) {

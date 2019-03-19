@@ -503,6 +503,7 @@ int ED_gpencil_session_active(void) RET_ZERO
 void ED_gpencil_calc_stroke_uv(struct Object *ob, struct bGPDstroke *gps) RET_NONE
 
 void ED_gp_project_point_to_plane(
+	const struct Scene *scene,
 	const struct Object *ob, const struct RegionView3D *rv3d,
 	const float origin[3], const int axis, struct bGPDspoint *pt) RET_NONE
 void ED_gp_get_drawing_reference(
@@ -646,7 +647,7 @@ void ED_view3d_draw_bgpic_test(
 	const bool do_foreground, const bool do_camera_frame) RET_NONE
 struct wmWindow *ED_screen_window_find(const struct bScreen *screen, const struct wmWindowManager *wm) RET_NULL
 struct Scene *ED_screen_scene_find_with_window(const struct bScreen *screen, const struct wmWindowManager *wm, struct wmWindow **r_window) RET_NULL
-struct ScrArea *ED_screen_area_find_with_spacedata(const struct bScreen *screen, const struct SpaceLink *sl, bool only_visible) RET_NULL
+struct ScrArea *ED_screen_area_find_with_spacedata(const bScreen *screen, const struct SpaceLink *sl, const bool only_visible) RET_NULL
 
 float ED_view3d_pixel_size(const struct RegionView3D *rv3d, const float co[3]) RET_ZERO
 
@@ -665,6 +666,8 @@ float ED_view3d_pixel_size_no_ui_scale(const struct RegionView3D *rv3d, const fl
 
 float ED_view3d_calc_zfac(const struct RegionView3D *rv3d, const float co[3], bool *r_flip) RET_ZERO
 void ED_view3d_clipping_set(struct RegionView3D *rv3d) RET_NONE
+
+void ED_annotation_draw_view3d(struct Scene *scene, struct Depsgraph *depsgraph, struct View3D *v3d, struct ARegion *ar, bool only3d) RET_NONE
 
 
 

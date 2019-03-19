@@ -15,10 +15,9 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
-
- * The Original Code is: some of this file.
  *
- * */
+ * The Original Code is: some of this file.
+ */
 
 /** \file
  * \ingroup bli
@@ -200,6 +199,29 @@ void pow_qt_fl_normalized(float q[4], const float fac)
 	const float si = sinf(angle);
 	q[0] = co;
 	normalize_v3_length(q + 1, si);
+}
+
+/**
+ * Apply the rotation of \a a to \a q keeping the values compatible with \a old.
+ * Avoid axis flipping for animated f-curves for eg.
+ */
+void quat_to_compatible_quat(float q[4], const float a[4], const float old[4])
+{
+	const float eps = 1e-4f;
+	BLI_ASSERT_UNIT_QUAT(a);
+	float old_unit[4];
+	/* Skips `!finite_v4(old)` case too. */
+	if (normalize_qt_qt(old_unit, old) > eps) {
+		float delta[4];
+		rotation_between_quats_to_quat(delta, old_unit, a);
+		mul_qt_qtqt(q, old, delta);
+		if ((q[0] < 0.0f) != (old[0] < 0.0f)) {
+			negate_v4(q);
+		}
+	}
+	else {
+		copy_qt_qt(q, a);
+	}
 }
 
 /* skip error check, currently only needed by mat3_to_quat_is_ok */
