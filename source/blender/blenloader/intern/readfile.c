@@ -5724,7 +5724,6 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 			if (pmd->canvas) {
 				pmd->canvas = newdataadr(fd, pmd->canvas);
 				pmd->canvas->pmd = pmd;
-				pmd->canvas->mesh = NULL;
 				pmd->canvas->flags &= ~MOD_DPAINT_BAKING; /* just in case */
 
 				if (pmd->canvas->surfaces.first) {
@@ -5747,7 +5746,6 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 				pmd->brush->psys = newdataadr(fd, pmd->brush->psys);
 				pmd->brush->paint_ramp = newdataadr(fd, pmd->brush->paint_ramp);
 				pmd->brush->vel_ramp = newdataadr(fd, pmd->brush->vel_ramp);
-				pmd->brush->mesh = NULL;
 			}
 		}
 		else if (md->type == eModifierType_Collision) {
@@ -11111,15 +11109,12 @@ static void add_loose_objects_to_scene(
 					base->local_view_bits |= v3d->local_view_uuid;
 				}
 
-				BKE_scene_object_base_flag_sync_from_base(base);
-
 				if (flag & FILE_AUTOSELECT) {
-					if (base->flag & BASE_SELECTABLE) {
-						base->flag |= BASE_SELECTED;
-						BKE_scene_object_base_flag_sync_from_base(base);
-					}
+					base->flag |= BASE_SELECTED;
 					/* Do NOT make base active here! screws up GUI stuff, if you want it do it on src/ level. */
 				}
+
+				BKE_scene_object_base_flag_sync_from_base(base);
 
 				ob->id.tag &= ~LIB_TAG_INDIRECT;
 				ob->id.tag |= LIB_TAG_EXTERN;
@@ -11199,6 +11194,17 @@ static void add_collections_to_scene(
 			if (do_add_collection) {
 				/* Add collection as child of active collection. */
 				BKE_collection_child_add(bmain, active_collection, collection);
+
+				if (flag & FILE_AUTOSELECT) {
+					for (CollectionObject *coll_ob = collection->gobject.first; coll_ob != NULL; coll_ob = coll_ob->next) {
+						Object *ob = coll_ob->ob;
+						Base *base = BKE_view_layer_base_find(view_layer, ob);
+						if (base) {
+							base->flag |= BASE_SELECTED;
+							BKE_scene_object_base_flag_sync_from_base(base);
+						}
+					}
+				}
 
 				collection->id.tag &= ~LIB_TAG_INDIRECT;
 				collection->id.tag |= LIB_TAG_EXTERN;
@@ -11373,7 +11379,8 @@ static Main *library_link_begin(Main *mainvar, FileData **fd, const char *filepa
 
 	(*fd)->mainlist = MEM_callocN(sizeof(ListBase), "FileData.mainlist");
 
-	/* clear for collection instantiating tag */
+	/* clear for objects and collections instantiating tag */
+	BKE_main_id_tag_listbase(&(mainvar->objects), LIB_TAG_DOIT, false);
 	BKE_main_id_tag_listbase(&(mainvar->collections), LIB_TAG_DOIT, false);
 
 	/* make mains */

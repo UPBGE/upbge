@@ -284,29 +284,11 @@ void DepsgraphRelationBuilder::add_modifier_to_transform_relation(
         const DepsNodeHandle *handle,
         const char *description)
 {
-	/* Geometry operation, this is where relation will be wired to. */
-	OperationNode *geometry_operation_node =
-	        handle->node->get_entry_operation();
-	ComponentNode *geometry_component = geometry_operation_node->owner;
-	BLI_assert(geometry_component->type == NodeType::GEOMETRY);
-	IDNode *id_node = geometry_component->owner;
-	/* Transform operation, the source of the relation. */
-	ComponentNode *transform_component =
-	        id_node->find_component(NodeType::TRANSFORM);
-	ID *id = geometry_operation_node->owner->owner->id_orig;
-	BLI_assert(GS(id->name) == ID_OB);
-	Object *object = reinterpret_cast<Object *>(id);
-	OperationNode *transform_operation_node = NULL;
-	if (object->rigidbody_object == NULL) {
-		transform_operation_node = transform_component->get_exit_operation();
-	}
-	else {
-		transform_operation_node = transform_component->get_operation(
-		        OperationCode::TRANSFORM_EVAL);
-	}
+	IDNode *id_node = handle->node->owner->owner;
+	ID *id = id_node->id_orig;
+	ComponentKey geometry_key(id, NodeType::GEOMETRY);
 	/* Wire up the actual relation. */
-	add_operation_relation(
-	        transform_operation_node, geometry_operation_node, description);
+	add_depends_on_transform_relation(id, geometry_key, description);
 }
 
 void DepsgraphRelationBuilder::add_customdata_mask(
@@ -654,6 +636,10 @@ void DepsgraphRelationBuilder::build_object(Base *base, Object *object)
 		BKE_constraints_id_loop(&object->constraints, constraint_walk, &data);
 	}
 	/* Object constraints. */
+	OperationKey object_transform_simulation_init_key(
+	        &object->id,
+	        NodeType::TRANSFORM,
+	        OperationCode::TRANSFORM_SIMULATION_INIT);
 	if (object->constraints.first != NULL) {
 		OperationKey constraint_key(&object->id,
 		                            NodeType::TRANSFORM,
@@ -667,12 +653,22 @@ void DepsgraphRelationBuilder::build_object(Base *base, Object *object)
 		/* operation order */
 		add_relation(base_op_key, constraint_key, "ObBase-> Constraint Stack");
 		add_relation(constraint_key, final_transform_key, "ObConstraints -> Done");
-		add_relation(constraint_key, ob_eval_key, "Eval");
-		add_relation(ob_eval_key, final_transform_key, "Eval");
+		add_relation(constraint_key, ob_eval_key, "Constraint -> Transform Eval");
+		add_relation(ob_eval_key,
+		             object_transform_simulation_init_key,
+		             "Transform Eval -> Simulation Init");
+		add_relation(object_transform_simulation_init_key,
+		             final_transform_key,
+		             "Simulation -> Final Transform");
 	}
 	else {
 		add_relation(base_op_key, ob_eval_key, "Eval");
-		add_relation(ob_eval_key, final_transform_key, "Eval");
+		add_relation(ob_eval_key,
+		             object_transform_simulation_init_key,
+		             "Transform Eval -> Simulation Init");
+		add_relation(object_transform_simulation_init_key,
+		             final_transform_key,
+		             "Simulation -> Final Transform");
 	}
 	/* Animation data */
 	build_animdata(&object->id);
@@ -952,9 +948,10 @@ void DepsgraphRelationBuilder::build_object_pointcache(Object *object)
 		int flag = -1;
 		if (ptcache_id->type == PTCACHE_TYPE_RIGIDBODY) {
 			flag = FLAG_TRANSFORM;
-			OperationKey transform_key(&object->id,
-			                           NodeType::TRANSFORM,
-			                           OperationCode::TRANSFORM_LOCAL);
+			OperationKey transform_key(
+			        &object->id,
+			        NodeType::TRANSFORM,
+			        OperationCode::TRANSFORM_SIMULATION_INIT);
 			add_relation(point_cache_key,
 			             transform_key,
 			             "Point Cache -> Rigid Body");
@@ -976,15 +973,16 @@ void DepsgraphRelationBuilder::build_object_pointcache(Object *object)
 	}
 	/* Manual edits to any dependency (or self) should reset the point cache. */
 	if (!BLI_listbase_is_empty(&ptcache_id_list)) {
-		OperationKey transform_init_key(&object->id,
-		                                NodeType::TRANSFORM,
-		                                OperationCode::TRANSFORM_INIT);
+		OperationKey transform_simulation_init_key(
+		        &object->id,
+		        NodeType::TRANSFORM,
+		        OperationCode::TRANSFORM_SIMULATION_INIT);
 		OperationKey geometry_init_key(&object->id,
 		                               NodeType::GEOMETRY,
 		                               OperationCode::GEOMETRY_EVAL_INIT);
-		add_relation(transform_init_key,
+		add_relation(transform_simulation_init_key,
 		             point_cache_key,
-		             "Transform Local -> Point Cache",
+		             "Transform Simulation -> Point Cache",
 		             RELATION_FLAG_FLUSH_USER_EDIT_ONLY);
 		add_relation(geometry_init_key,
 		             point_cache_key,
@@ -1749,11 +1747,15 @@ void DepsgraphRelationBuilder::build_rigidbody(Scene *scene)
 			             "Rigidbody Sim Eval -> RBO Sync");
 			/* Simulation uses object transformation after parenting and solving
 			 * contraints. */
+			OperationKey object_transform_simulation_init_key(
+			        &object->id,
+			        NodeType::TRANSFORM,
+			        OperationCode::TRANSFORM_SIMULATION_INIT);
 			OperationKey object_transform_eval_key(
 			        &object->id,
 			        NodeType::TRANSFORM,
 			        OperationCode::TRANSFORM_EVAL);
-			add_relation(object_transform_eval_key,
+			add_relation(object_transform_simulation_init_key,
 			             rb_simulate_key,
 			             "Object Transform -> Rigidbody Sim Eval");
 			/* Geometry must be known to create the rigid body. RBO_MESH_BASE
@@ -1945,12 +1947,9 @@ void DepsgraphRelationBuilder::build_particle_systems(Object *object)
 		}
 	}
 	/* Particle depends on the object transform, so that channel is to be ready
-	 * first.
-	 *
-	 * TODO(sergey): This relation should be altered once real granular update
-	 * is implemented. */
-	ComponentKey transform_key(&object->id, NodeType::TRANSFORM);
-	add_relation(transform_key, obdata_ubereval_key, "Particle Eval");
+	 * first. */
+	add_depends_on_transform_relation(
+	        &object->id, obdata_ubereval_key, "Particle Eval");
 }
 
 void DepsgraphRelationBuilder::build_particle_settings(ParticleSettings *part)
@@ -2513,6 +2512,12 @@ void DepsgraphRelationBuilder::build_cachefile(CacheFile *cache_file)
 	}
 	/* Animation. */
 	build_animdata(&cache_file->id);
+	if (check_id_has_anim_component(&cache_file->id)) {
+		ComponentKey animation_key(&cache_file->id, NodeType::ANIMATION);
+		ComponentKey datablock_key(&cache_file->id,
+		                           NodeType::CACHE);
+		add_relation(animation_key, datablock_key, "Datablock Animation");
+	}
 }
 
 void DepsgraphRelationBuilder::build_mask(Mask *mask)

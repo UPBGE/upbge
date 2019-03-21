@@ -201,7 +201,11 @@ static uiBlock *ui_block_func_POPOVER(bContext *C, uiPopupBlockHandle *handle, v
 
 		if (!handle->refresh) {
 			uiBut *but = NULL;
+			uiBut *but_first = NULL;
 			for (but = block->buttons.first; but; but = but->next) {
+				if ((but_first == NULL) && ui_but_is_editable(but)) {
+					but_first = but;
+				}
 				if (but->flag & (UI_SELECT | UI_SELECT_DRAW)) {
 					break;
 				}
@@ -209,7 +213,11 @@ static uiBlock *ui_block_func_POPOVER(bContext *C, uiPopupBlockHandle *handle, v
 
 			if (but) {
 				bounds_offset[0] = -(but->rect.xmin + 0.8f * BLI_rctf_size_x(&but->rect));
-				bounds_offset[1] = -(but->rect.ymin + 0.5f * BLI_rctf_size_y(&but->rect));
+				bounds_offset[1] = -BLI_rctf_cent_y(&but->rect);
+			}
+			else {
+				bounds_offset[0] = -(pup->ui_size_x / 2);
+				bounds_offset[1] = but_first ? -BLI_rctf_cent_y(&but_first->rect) : (UI_UNIT_Y / 2);
 			}
 			copy_v2_v2_int(handle->prev_bounds_offset, bounds_offset);
 		}
@@ -294,16 +302,24 @@ int UI_popover_panel_invoke(
 		return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
 	}
 
+	uiBlock *block = NULL;
 	if (keep_open) {
-		ui_popover_panel_create(C, NULL, NULL, ui_item_paneltype_func, pt);
+		uiPopupBlockHandle *handle = ui_popover_panel_create(C, NULL, NULL, ui_item_paneltype_func, pt);
+		uiPopover *pup = handle->popup_create_vars.arg;
+		block = pup->block;
+
 	}
 	else {
 		uiPopover *pup = UI_popover_begin(C, U.widget_unit * pt->ui_units_x);
 		layout = UI_popover_layout(pup);
 		UI_paneltype_draw(C, pt, layout);
 		UI_popover_end(C, pup, NULL);
+		block = pup->block;
 	}
 
+	if (block) {
+		UI_block_active_only_flagged_buttons(C, CTX_wm_region(C), block);
+	}
 	return OPERATOR_INTERFACE;
 }
 

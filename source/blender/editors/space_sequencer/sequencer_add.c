@@ -697,7 +697,7 @@ static void sequencer_add_draw(bContext *UNUSED(C), wmOperator *op)
 
 	/* main draw call */
 	RNA_pointer_create(NULL, op->type->srna, op->properties, &ptr);
-	uiDefAutoButsRNA(layout, &ptr, sequencer_add_draw_check_prop, NULL, UI_BUT_LABEL_ALIGN_NONE, false);
+	uiDefAutoButsRNA(layout, &ptr, sequencer_add_draw_check_prop, NULL, NULL, UI_BUT_LABEL_ALIGN_NONE, false);
 
 	/* image template */
 	RNA_pointer_create(NULL, &RNA_ImageFormatSettings, imf, &imf_ptr);
@@ -835,7 +835,7 @@ void sequencer_image_seq_reserve_frames(wmOperator *op, StripElem *se, int len, 
 		char ext[PATH_MAX];
 		char filename_stripped[PATH_MAX];
 		/* strip the frame from filename and substitute with # */
-		BLI_path_frame_strip(filename, true, ext);
+		BLI_path_frame_strip(filename, ext);
 
 		for (i = 0; i < len; i++, se++) {
 			BLI_strncpy(filename_stripped, filename, sizeof(filename_stripped));

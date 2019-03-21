@@ -80,6 +80,12 @@
 
 #include "view3d_intern.h"  /* own include */
 
+
+enum {
+	HAS_TRANSLATE = (1 << 0),
+	HAS_ROTATE = (1 << 0),
+};
+
 /* -------------------------------------------------------------------- */
 /** \name Generic View Operator Properties
  * \{ */
@@ -1286,11 +1292,7 @@ void view3d_ndof_fly(
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name NDOF Operators
- *
- * - "orbit" navigation (trackball/turntable)
- * - zooming
- * - panning in rotationally-locked views
+/** \name NDOF Orbit/Translate Operator
  * \{ */
 
 static int ndof_orbit_invoke(bContext *C, wmOperator *op, const wmEvent *event)
@@ -1298,53 +1300,58 @@ static int ndof_orbit_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 	if (event->type != NDOF_MOTION) {
 		return OPERATOR_CANCELLED;
 	}
-	else {
-		const Depsgraph *depsgraph = CTX_data_depsgraph(C);
-		ViewOpsData *vod;
-		View3D *v3d;
-		RegionView3D *rv3d;
 
-		const wmNDOFMotionData *ndof = event->customdata;
+	const Depsgraph *depsgraph = CTX_data_depsgraph(C);
+	ViewOpsData *vod;
+	View3D *v3d;
+	RegionView3D *rv3d;
+	char xform_flag = 0;
 
-		viewops_data_alloc(C, op);
-		viewops_data_create(
-		        C, op, event,
-		        viewops_flag_from_args((U.uiflag & USER_ORBIT_SELECTION) != 0, false));
-		vod = op->customdata;
+	const wmNDOFMotionData *ndof = event->customdata;
 
-		ED_view3d_smooth_view_force_finish(C, vod->v3d, vod->ar);
+	viewops_data_alloc(C, op);
+	viewops_data_create(
+	        C, op, event,
+	        viewops_flag_from_args((U.uiflag & USER_ORBIT_SELECTION) != 0, false));
+	vod = op->customdata;
 
-		v3d = vod->v3d;
-		rv3d = vod->rv3d;
+	ED_view3d_smooth_view_force_finish(C, vod->v3d, vod->ar);
 
-		/* off by default, until changed later this function */
-		rv3d->rot_angle = 0.0f;
+	v3d = vod->v3d;
+	rv3d = vod->rv3d;
 
-		ED_view3d_camera_lock_init_ex(depsgraph, v3d, rv3d, false);
+	/* off by default, until changed later this function */
+	rv3d->rot_angle = 0.0f;
 
-		if (ndof->progress != P_FINISHING) {
-			const bool has_rotation = NDOF_HAS_ROTATE;
-			/* if we can't rotate, fallback to translate (locked axis views) */
-			const bool has_translate = NDOF_HAS_TRANSLATE && (rv3d->viewlock & RV3D_LOCKED);
-			const bool has_zoom = (ndof->tvec[2] != 0.0f) && !rv3d->is_persp;
+	ED_view3d_camera_lock_init_ex(depsgraph, v3d, rv3d, false);
 
-			if (has_translate || has_zoom) {
-				view3d_ndof_pan_zoom(ndof, vod->sa, vod->ar, has_translate, has_zoom);
-			}
+	if (ndof->progress != P_FINISHING) {
+		const bool has_rotation = NDOF_HAS_ROTATE;
+		/* if we can't rotate, fallback to translate (locked axis views) */
+		const bool has_translate = NDOF_HAS_TRANSLATE && (rv3d->viewlock & RV3D_LOCKED);
+		const bool has_zoom = (ndof->tvec[2] != 0.0f) && !rv3d->is_persp;
 
-			if (has_rotation) {
-				view3d_ndof_orbit(ndof, vod->sa, vod->ar, vod, true);
-			}
+		if (has_translate || has_zoom) {
+			view3d_ndof_pan_zoom(ndof, vod->sa, vod->ar, has_translate, has_zoom);
+			xform_flag |= HAS_TRANSLATE;
 		}
 
-		ED_view3d_camera_lock_sync(depsgraph, v3d, rv3d);
-
-		ED_region_tag_redraw(vod->ar);
-
-		viewops_data_free(C, op);
-
-		return OPERATOR_FINISHED;
+		if (has_rotation) {
+			view3d_ndof_orbit(ndof, vod->sa, vod->ar, vod, true);
+			xform_flag |= HAS_ROTATE;
+		}
 	}
+
+	ED_view3d_camera_lock_sync(depsgraph, v3d, rv3d);
+	if (xform_flag) {
+		ED_view3d_camera_lock_autokey(v3d, rv3d, C, xform_flag & HAS_ROTATE, xform_flag & HAS_TRANSLATE);
+	}
+
+	ED_region_tag_redraw(vod->ar);
+
+	viewops_data_free(C, op);
+
+	return OPERATOR_FINISHED;
 }
 
 void VIEW3D_OT_ndof_orbit(struct wmOperatorType *ot)
@@ -1362,91 +1369,105 @@ void VIEW3D_OT_ndof_orbit(struct wmOperatorType *ot)
 	ot->flag = 0;
 }
 
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name NDOF Orbit/Zoom Operator
+ * \{ */
+
 static int ndof_orbit_zoom_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	if (event->type != NDOF_MOTION) {
 		return OPERATOR_CANCELLED;
 	}
-	else {
-		const Depsgraph *depsgraph = CTX_data_depsgraph(C);
-		ViewOpsData *vod;
-		View3D *v3d;
-		RegionView3D *rv3d;
 
-		const wmNDOFMotionData *ndof = event->customdata;
+	const Depsgraph *depsgraph = CTX_data_depsgraph(C);
+	ViewOpsData *vod;
+	View3D *v3d;
+	RegionView3D *rv3d;
+	char xform_flag = 0;
 
-		viewops_data_alloc(C, op);
-		viewops_data_create(
-		        C, op, event,
-		        viewops_flag_from_args((U.uiflag & USER_ORBIT_SELECTION) != 0, false));
+	const wmNDOFMotionData *ndof = event->customdata;
 
-		vod = op->customdata;
+	viewops_data_alloc(C, op);
+	viewops_data_create(
+	        C, op, event,
+	        viewops_flag_from_args((U.uiflag & USER_ORBIT_SELECTION) != 0, false));
 
-		ED_view3d_smooth_view_force_finish(C, vod->v3d, vod->ar);
+	vod = op->customdata;
 
-		v3d = vod->v3d;
-		rv3d = vod->rv3d;
+	ED_view3d_smooth_view_force_finish(C, vod->v3d, vod->ar);
 
-		/* off by default, until changed later this function */
-		rv3d->rot_angle = 0.0f;
+	v3d = vod->v3d;
+	rv3d = vod->rv3d;
 
-		ED_view3d_camera_lock_init_ex(depsgraph, v3d, rv3d, false);
+	/* off by default, until changed later this function */
+	rv3d->rot_angle = 0.0f;
 
-		if (ndof->progress == P_FINISHING) {
-			/* pass */
-		}
-		else if ((rv3d->persp == RV3D_ORTHO) && RV3D_VIEW_IS_AXIS(rv3d->view)) {
-			/* if we can't rotate, fallback to translate (locked axis views) */
-			const bool has_translate = NDOF_HAS_TRANSLATE;
-			const bool has_zoom = (ndof->tvec[2] != 0.0f) && ED_view3d_offset_lock_check(v3d, rv3d);
+	ED_view3d_camera_lock_init_ex(depsgraph, v3d, rv3d, false);
 
-			if (has_translate || has_zoom) {
-				view3d_ndof_pan_zoom(ndof, vod->sa, vod->ar, has_translate, true);
-			}
-		}
-		else if ((U.ndof_flag & NDOF_MODE_ORBIT) ||
-		         ED_view3d_offset_lock_check(v3d, rv3d))
-		{
-			const bool has_rotation = NDOF_HAS_ROTATE;
-			const bool has_zoom = (ndof->tvec[2] != 0.0f);
-
-			if (has_zoom) {
-				view3d_ndof_pan_zoom(ndof, vod->sa, vod->ar, false, has_zoom);
-			}
-
-			if (has_rotation) {
-				view3d_ndof_orbit(ndof, vod->sa, vod->ar, vod, true);
-			}
-		}
-		else {  /* free/explore (like fly mode) */
-			const bool has_rotation = NDOF_HAS_ROTATE;
-			const bool has_translate = NDOF_HAS_TRANSLATE;
-			const bool has_zoom = (ndof->tvec[2] != 0.0f) && !rv3d->is_persp;
-
-			float dist_backup;
-
-			if (has_translate || has_zoom) {
-				view3d_ndof_pan_zoom(ndof, vod->sa, vod->ar, has_translate, has_zoom);
-			}
-
-			dist_backup = rv3d->dist;
-			ED_view3d_distance_set(rv3d, 0.0f);
-
-			if (has_rotation) {
-				view3d_ndof_orbit(ndof, vod->sa, vod->ar, vod, false);
-			}
-
-			ED_view3d_distance_set(rv3d, dist_backup);
-		}
-
-		ED_view3d_camera_lock_sync(depsgraph, v3d, rv3d);
-
-		ED_region_tag_redraw(vod->ar);
-
-		viewops_data_free(C, op);
-
-		return OPERATOR_FINISHED;
+	if (ndof->progress == P_FINISHING) {
+		/* pass */
 	}
+	else if ((rv3d->persp == RV3D_ORTHO) && RV3D_VIEW_IS_AXIS(rv3d->view)) {
+		/* if we can't rotate, fallback to translate (locked axis views) */
+		const bool has_translate = NDOF_HAS_TRANSLATE;
+		const bool has_zoom = (ndof->tvec[2] != 0.0f) && ED_view3d_offset_lock_check(v3d, rv3d);
+
+		if (has_translate || has_zoom) {
+			view3d_ndof_pan_zoom(ndof, vod->sa, vod->ar, has_translate, true);
+			xform_flag |= HAS_TRANSLATE;
+		}
+	}
+	else if ((U.ndof_flag & NDOF_MODE_ORBIT) ||
+	         ED_view3d_offset_lock_check(v3d, rv3d))
+	{
+		const bool has_rotation = NDOF_HAS_ROTATE;
+		const bool has_zoom = (ndof->tvec[2] != 0.0f);
+
+		if (has_zoom) {
+			view3d_ndof_pan_zoom(ndof, vod->sa, vod->ar, false, has_zoom);
+			xform_flag |= HAS_TRANSLATE;
+		}
+
+		if (has_rotation) {
+			view3d_ndof_orbit(ndof, vod->sa, vod->ar, vod, true);
+			xform_flag |= HAS_ROTATE;
+		}
+	}
+	else {  /* free/explore (like fly mode) */
+		const bool has_rotation = NDOF_HAS_ROTATE;
+		const bool has_translate = NDOF_HAS_TRANSLATE;
+		const bool has_zoom = (ndof->tvec[2] != 0.0f) && !rv3d->is_persp;
+
+		float dist_backup;
+
+		if (has_translate || has_zoom) {
+			view3d_ndof_pan_zoom(ndof, vod->sa, vod->ar, has_translate, has_zoom);
+			xform_flag |= HAS_TRANSLATE;
+		}
+
+		dist_backup = rv3d->dist;
+		ED_view3d_distance_set(rv3d, 0.0f);
+
+		if (has_rotation) {
+			view3d_ndof_orbit(ndof, vod->sa, vod->ar, vod, false);
+			xform_flag |= HAS_ROTATE;
+		}
+
+		ED_view3d_distance_set(rv3d, dist_backup);
+	}
+
+	ED_view3d_camera_lock_sync(depsgraph, v3d, rv3d);
+	if (xform_flag) {
+		ED_view3d_camera_lock_autokey(v3d, rv3d, C, xform_flag & HAS_ROTATE, xform_flag & HAS_TRANSLATE);
+	}
+
+	ED_region_tag_redraw(vod->ar);
+
+	viewops_data_free(C, op);
+
+	return OPERATOR_FINISHED;
 }
 
 void VIEW3D_OT_ndof_orbit_zoom(struct wmOperatorType *ot)
@@ -1464,46 +1485,53 @@ void VIEW3D_OT_ndof_orbit_zoom(struct wmOperatorType *ot)
 	ot->flag = 0;
 }
 
-/* -- "pan" navigation
- * -- zoom or dolly?
- */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name NDOF Pan/Zoom Operator
+ * \{ */
+
 static int ndof_pan_invoke(bContext *C, wmOperator *UNUSED(op), const wmEvent *event)
 {
 	if (event->type != NDOF_MOTION) {
 		return OPERATOR_CANCELLED;
 	}
-	else {
-		const Depsgraph *depsgraph = CTX_data_depsgraph(C);
-		View3D *v3d = CTX_wm_view3d(C);
-		RegionView3D *rv3d = CTX_wm_region_view3d(C);
-		const wmNDOFMotionData *ndof = event->customdata;
 
-		const bool has_translate = NDOF_HAS_TRANSLATE;
-		const bool has_zoom = (ndof->tvec[2] != 0.0f) && !rv3d->is_persp;
+	const Depsgraph *depsgraph = CTX_data_depsgraph(C);
+	View3D *v3d = CTX_wm_view3d(C);
+	RegionView3D *rv3d = CTX_wm_region_view3d(C);
+	const wmNDOFMotionData *ndof = event->customdata;
+	char xform_flag = 0;
 
-		/* we're panning here! so erase any leftover rotation from other operators */
-		rv3d->rot_angle = 0.0f;
+	const bool has_translate = NDOF_HAS_TRANSLATE;
+	const bool has_zoom = (ndof->tvec[2] != 0.0f) && !rv3d->is_persp;
 
-		if (!(has_translate || has_zoom))
-			return OPERATOR_CANCELLED;
+	/* we're panning here! so erase any leftover rotation from other operators */
+	rv3d->rot_angle = 0.0f;
 
-		ED_view3d_camera_lock_init_ex(depsgraph, v3d, rv3d, false);
+	if (!(has_translate || has_zoom))
+		return OPERATOR_CANCELLED;
 
-		if (ndof->progress != P_FINISHING) {
-			ScrArea *sa = CTX_wm_area(C);
-			ARegion *ar = CTX_wm_region(C);
+	ED_view3d_camera_lock_init_ex(depsgraph, v3d, rv3d, false);
 
-			if (has_translate || has_zoom) {
-				view3d_ndof_pan_zoom(ndof, sa, ar, has_translate, has_zoom);
-			}
+	if (ndof->progress != P_FINISHING) {
+		ScrArea *sa = CTX_wm_area(C);
+		ARegion *ar = CTX_wm_region(C);
+
+		if (has_translate || has_zoom) {
+			view3d_ndof_pan_zoom(ndof, sa, ar, has_translate, has_zoom);
+			xform_flag |= HAS_TRANSLATE;
 		}
-
-		ED_view3d_camera_lock_sync(depsgraph, v3d, rv3d);
-
-		ED_region_tag_redraw(CTX_wm_region(C));
-
-		return OPERATOR_FINISHED;
 	}
+
+	ED_view3d_camera_lock_sync(depsgraph, v3d, rv3d);
+	if (xform_flag) {
+		ED_view3d_camera_lock_autokey(v3d, rv3d, C, false, xform_flag & HAS_TRANSLATE);
+	}
+
+	ED_region_tag_redraw(CTX_wm_region(C));
+
+	return OPERATOR_FINISHED;
 }
 
 void VIEW3D_OT_ndof_pan(struct wmOperatorType *ot)
@@ -1521,6 +1549,11 @@ void VIEW3D_OT_ndof_pan(struct wmOperatorType *ot)
 	ot->flag = 0;
 }
 
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name NDOF Transform All Operator
+ * \{ */
 
 /**
  * wraps #ndof_orbit_zoom but never restrict to orbit.
@@ -1543,7 +1576,7 @@ static int ndof_all_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 void VIEW3D_OT_ndof_all(struct wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name = "NDOF Pan View";
+	ot->name = "NDOF Transform View";
 	ot->description = "Pan and rotate the view with the 3D mouse";
 	ot->idname = "VIEW3D_OT_ndof_all";
 

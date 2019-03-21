@@ -1507,10 +1507,6 @@ class IMAGE_PT_uv_cursor(Panel):
         layout = self.layout
 
         sima = context.space_data
-        ima = sima.image
-
-
-        uvedit = sima.uv_editor
 
         col = layout.column()
 

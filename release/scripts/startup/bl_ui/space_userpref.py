@@ -286,6 +286,7 @@ class USERPREF_PT_edit_objects(Panel):
     def draw(self, context):
         pass
 
+
 class USERPREF_PT_edit_objects_new(PreferencePanel, Panel):
     bl_label = "New Objects"
     bl_parent_id = "USERPREF_PT_edit_objects"
@@ -382,6 +383,7 @@ class USERPREF_PT_edit_annotations(PreferencePanel, Panel):
         flow.prop(edit, "grease_pencil_default_color", text="Default Color")
         flow.prop(edit, "grease_pencil_eraser_radius", text="Eraser Radius")
         flow.prop(edit, "use_grease_pencil_simplify_stroke", text="Simplify Stroke")
+
 
 class USERPREF_PT_edit_weight_paint(PreferencePanel, Panel):
     bl_label = "Weight Paint"
@@ -1382,6 +1384,7 @@ class USERPREF_PT_input_mouse(PreferencePanel, Panel):
         flow.prop(inputs, "use_mouse_continuous")
         flow.prop(inputs, "use_drag_immediately")
         flow.prop(inputs, "drag_threshold")
+        flow.prop(inputs, "move_threshold")
         flow.prop(inputs, "mouse_double_click_time", text="Double Click Speed")
 
 

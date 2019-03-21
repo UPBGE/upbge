@@ -160,6 +160,7 @@ struct uiLayout {
 	short space;
 	bool align;
 	bool active;
+	bool activate_init;
 	bool enabled;
 	bool redalert;
 	bool keepaspect;
@@ -1818,6 +1819,9 @@ void uiItemFullR(uiLayout *layout, PointerRNA *ptr, PropertyRNA *prop, int index
 
 		if (layout->redalert)
 			UI_but_flag_enable(but, UI_BUT_REDALERT);
+
+		if (layout->activate_init)
+			UI_but_flag_enable(but, UI_BUT_ACTIVATE_ON_INIT);
 	}
 	/* single button */
 	else {
@@ -1831,6 +1835,9 @@ void uiItemFullR(uiLayout *layout, PointerRNA *ptr, PropertyRNA *prop, int index
 
 		if (layout->redalert)
 			UI_but_flag_enable(but, UI_BUT_REDALERT);
+
+		if (layout->activate_init)
+			UI_but_flag_enable(but, UI_BUT_ACTIVATE_ON_INIT);
 	}
 
 	/* Mark non-embossed textfields inside a listbox. */
@@ -2108,8 +2115,7 @@ void ui_but_add_search(uiBut *but, PointerRNA *ptr, PropertyRNA *prop, PointerRN
 
 		UI_but_func_search_set(
 		        but, ui_searchbox_create_generic, ui_rna_collection_search_cb,
-		        coll_search, NULL, NULL);
-		but->free_search_arg = true;
+		        coll_search, true, NULL, NULL);
 	}
 	else if (but->type == UI_BTYPE_SEARCH_MENU) {
 		/* In case we fail to find proper searchprop,
@@ -3949,6 +3955,11 @@ void uiLayoutSetActive(uiLayout *layout, bool active)
 	layout->active = active;
 }
 
+void uiLayoutSetActivateInit(uiLayout *layout, bool activate_init)
+{
+	layout->activate_init = activate_init;
+}
+
 void uiLayoutSetEnabled(uiLayout *layout, bool enabled)
 {
 	layout->enabled = enabled;
@@ -4017,6 +4028,11 @@ void uiLayoutSetPropDecorate(uiLayout *layout, bool is_sep)
 bool uiLayoutGetActive(uiLayout *layout)
 {
 	return layout->active;
+}
+
+bool uiLayoutGetActivateInit(uiLayout *layout)
+{
+	return layout->activate_init;
 }
 
 bool uiLayoutGetEnabled(uiLayout *layout)

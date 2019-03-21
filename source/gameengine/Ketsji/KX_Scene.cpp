@@ -405,7 +405,7 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
 
 	if (!m_2dfiltersDepthTex) {
 		// I create an extra depth tex to attach to output filter framebuffer to write depth and use bgl_DepthTexture
-		m_2dfiltersDepthTex = GPU_texture_create_2D(viewportsize[0], viewportsize[1], GPU_DEPTH24_STENCIL8, nullptr, nullptr);
+		m_2dfiltersDepthTex = GPU_texture_create_2d(viewportsize[0], viewportsize[1], GPU_DEPTH24_STENCIL8, nullptr, nullptr);
 	}
 
 	GPU_framebuffer_texture_attach(input->GetFrameBuffer(), finaltex, 0, 0);

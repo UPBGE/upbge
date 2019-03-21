@@ -61,7 +61,7 @@ static void eevee_engine_init(void *ved)
 	stl->g_data->valid_taa_history = (txl->taa_history != NULL);
 
 	/* Main Buffer */
-	DRW_texture_ensure_fullscreen_2D(&txl->color, GPU_RGBA16F, DRW_TEX_FILTER | DRW_TEX_MIPMAP);
+	DRW_texture_ensure_fullscreen_2d(&txl->color, GPU_RGBA16F, DRW_TEX_FILTER | DRW_TEX_MIPMAP);
 
 	GPU_framebuffer_ensure_config(&fbl->main_fb, {
 		GPU_ATTACHMENT_TEXTURE(dtxl->depth),
@@ -203,7 +203,7 @@ static void eevee_draw_background(void *vedata)
 			int samp = taa_use_reprojection
 			            ? stl->effects->taa_reproject_sample + 1
 			            : stl->effects->taa_current_sample;
-			BLI_halton_3D(primes, offset, samp, r);
+			BLI_halton_3d(primes, offset, samp, r);
 			EEVEE_update_noise(psl, fbl, r);
 			EEVEE_volumes_set_jitter(sldata, samp - 1);
 			EEVEE_materials_init(sldata, stl, fbl);
@@ -269,6 +269,7 @@ static void eevee_draw_background(void *vedata)
 		}
 		EEVEE_draw_default_passes(psl);
 		DRW_draw_pass(psl->material_pass);
+		DRW_draw_pass(psl->material_pass_cull);
 		EEVEE_subsurface_data_render(sldata, vedata);
 		DRW_stats_group_end();
 
@@ -395,7 +396,7 @@ static void eevee_id_world_update(void *vedata, World *wo)
 	EEVEE_WorldEngineData *wedata = EEVEE_world_data_ensure(wo);
 
 	if (wedata != NULL && wedata->dd.recalc != 0) {
-		if ((lcache->flag & (LIGHTCACHE_BAKED | LIGHTCACHE_BAKING)) == 0) {
+		if ((lcache->flag & LIGHTCACHE_BAKING) == 0) {
 			lcache->flag |= LIGHTCACHE_UPDATE_WORLD;
 		}
 		wedata->dd.recalc = 0;

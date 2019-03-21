@@ -201,7 +201,9 @@ enum {
 	UI_BUT_LIST_ITEM       = 1 << 24,
 	/** edit this button as well as the active button (not just dragging) */
 	UI_BUT_DRAG_MULTI      = 1 << 25,
-	UI_BUT_SCA_LINK_GREY   = 1 << 26,  /* used to flag if sca links shoud be gray out */
+	/** Use for popups to start editing the button on initialization. */
+	UI_BUT_ACTIVATE_ON_INIT = 1 << 26,
+
 	/** #uiBut.str contains #UI_SEP_CHAR, used for key shortcuts */
 	UI_BUT_HAS_SEP_CHAR    = 1 << 27,
 	/** Don't run updates while dragging (needed in rare cases). */
@@ -210,6 +212,7 @@ enum {
 	UI_BUT_TEXTEDIT_UPDATE = 1 << 29,
 	/** Show 'x' icon to clear/unlink value of text or search button. */
 	UI_BUT_VALUE_CLEAR     = 1 << 30,
+	UI_BUT_SCA_LINK_GREY   = 1 << 31,  /* used to flag if sca links shoud be gray out */
 
 	/** RNA property of the button is overridden from linked reference data. */
 	UI_BUT_OVERRIDEN       = 1u << 31u,
@@ -633,6 +636,7 @@ void    UI_but_type_set_menu_from_pulldown(uiBut *but);
 
 /* special button case, only draw it when used actively, for outliner etc */
 bool    UI_but_active_only(const struct bContext *C, struct ARegion *ar, uiBlock *block, uiBut *but);
+bool    UI_block_active_only_flagged_buttons(const struct bContext *C, struct ARegion *ar, struct uiBlock *block);
 
 void    UI_but_execute(const struct bContext *C, uiBut *but);
 
@@ -838,6 +842,7 @@ uiBut *uiDefAutoButR(uiBlock *block, struct PointerRNA *ptr, struct PropertyRNA 
 eAutoPropButsReturn uiDefAutoButsRNA(
         uiLayout *layout, struct PointerRNA *ptr,
         bool (*check_prop)(struct PointerRNA *ptr, struct PropertyRNA *prop, void *user_data), void *user_data,
+        struct PropertyRNA *prop_activate_init,
         eButLabelAlign label_align, const bool compact);
 
 /* Links
@@ -855,7 +860,7 @@ bool    UI_search_item_add(uiSearchItems *items, const char *name, void *poin, i
 /* bfunc gets search item *poin as arg2, or if NULL the old string */
 void    UI_but_func_search_set(
         uiBut *but, uiButSearchCreateFunc cfunc, uiButSearchFunc sfunc,
-        void *arg1, uiButHandleFunc bfunc, void *active);
+        void *arg, bool free_arg, uiButHandleFunc bfunc, void *active);
 /* height in pixels, it's using hardcoded values still */
 int     UI_searchbox_size_y(void);
 int     UI_searchbox_size_x(void);
@@ -1065,6 +1070,7 @@ void uiLayoutSetContextFromBut(uiLayout *layout, uiBut *but);
 
 void uiLayoutSetOperatorContext(uiLayout *layout, int opcontext);
 void uiLayoutSetActive(uiLayout *layout, bool active);
+void uiLayoutSetActivateInit(uiLayout *layout, bool active);
 void uiLayoutSetEnabled(uiLayout *layout, bool enabled);
 void uiLayoutSetRedAlert(uiLayout *layout, bool redalert);
 void uiLayoutSetAlignment(uiLayout *layout, char alignment);
@@ -1080,6 +1086,7 @@ int uiLayoutGetLocalDir(const uiLayout *layout);
 
 int uiLayoutGetOperatorContext(uiLayout *layout);
 bool uiLayoutGetActive(uiLayout *layout);
+bool uiLayoutGetActivateInit(uiLayout *layout);
 bool uiLayoutGetEnabled(uiLayout *layout);
 bool uiLayoutGetRedAlert(uiLayout *layout);
 int uiLayoutGetAlignment(uiLayout *layout);

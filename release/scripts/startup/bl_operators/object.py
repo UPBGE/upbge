@@ -1062,7 +1062,6 @@ class LoadImageAsEmpty:
 
     def execute(self, context):
         scene = context.scene
-        space = context.space_data
         cursor = scene.cursor.location
 
         try:

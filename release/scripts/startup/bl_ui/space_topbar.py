@@ -819,6 +819,13 @@ class TOPBAR_MT_edit(Menu):
 
         layout.separator()
 
+        # Mainly to expose shortcut since this depends on the context.
+        props = layout.operator("wm.call_panel", text="Rename Active Item...", icon='OUTLINER_DATA_FONT')
+        props.name = "TOPBAR_PT_name"
+        props.keep_open = False
+
+        layout.separator()
+
         # Should move elsewhere (impacts outliner & 3D view).
         tool_settings = context.tool_settings
         layout.prop(tool_settings, "lock_object_mode")
@@ -955,31 +962,6 @@ class TOPBAR_MT_file_context_menu(Menu):
         layout.menu("TOPBAR_MT_file_import", icon='IMPORT')
         layout.menu("TOPBAR_MT_file_export", icon='EXPORT')
 
-
-class TOPBAR_MT_window_context_menu(Menu):
-    bl_label = "Window Context Menu"
-
-    def draw(self, context):
-        layout = self.layout
-
-        layout.operator_context = 'EXEC_AREA'
-
-        layout.operator("wm.window_new")
-        layout.operator("wm.window_new_main")
-
-        layout.operator_context = 'INVOKE_AREA'
-
-        layout.operator("screen.area_dupli", icon='DUPLICATE')
-
-        layout.separator()
-
-        layout.operator("screen.area_split", text="Horizontal Split").direction = 'HORIZONTAL'
-        layout.operator("screen.area_split", text="Vertical Split").direction = 'VERTICAL'
-
-        layout.separator()
-
-        layout.operator("wm.window_fullscreen_toggle", icon='FULLSCREEN_ENTER')
-
         layout.separator()
 
         layout.operator("screen.userpref_show", text="Preferences...", icon='PREFERENCES')
@@ -1043,6 +1025,7 @@ class TOPBAR_PT_gpencil_primitive(Panel):
         # Curve
         layout.template_curve_mapping(settings, "thickness_primitive_curve", brush=True)
 
+
 # Grease Pencil Fill
 class TOPBAR_PT_gpencil_fill(Panel):
     bl_space_type = 'VIEW_3D'
@@ -1066,11 +1049,78 @@ class TOPBAR_PT_gpencil_fill(Panel):
             row.prop(gp_settings, "fill_threshold", text="Threshold")
 
 
+# Only a popover
+class TOPBAR_PT_name(Panel):
+    bl_space_type = 'TOPBAR'  # dummy
+    bl_region_type = 'WINDOW'
+    bl_label = "Rename Active Item"
+    bl_ui_units_x = 14
+
+    @classmethod
+    def poll(cls, context):
+        return True
+
+    def draw(self, context):
+        layout = self.layout
+
+        # Edit first editable button in popup
+        def row_with_icon(layout, icon):
+            row = layout.row()
+            row.activate_init = True
+            row.label(icon=icon)
+            return row
+
+        mode = context.mode
+        scene = context.scene
+        space = context.space_data
+        space_type = None if (space is None) else space.type
+        found = False
+        if space_type == 'SEQUENCE_EDITOR':
+            layout.label(text="Sequence Strip Name")
+            item = getattr(scene.sequence_editor, "active_strip")
+            if item:
+                row = row_with_icon(layout, 'SEQUENCE')
+                row.prop(item, "name", text="")
+                found = True
+        elif space_type == 'NODE_EDITOR':
+            layout.label(text="Node Name")
+            item = context.active_node
+            if item:
+                row = row_with_icon(layout, 'NODE')
+                row.prop(item, "name", text="")
+                found = True
+        else:
+            if mode == 'POSE' or (mode == 'WEIGHT_PAINT' and context.pose_object):
+                layout.label(text="Bone Name")
+                item = context.active_pose_bone
+                if item:
+                    row = row_with_icon(layout, 'BONE_DATA')
+                    row.prop(item, "name", text="")
+                    found = True
+            elif mode == 'EDIT_ARMATURE':
+                layout.label(text="Bone Name")
+                item = context.active_bone
+                if item:
+                    row = row_with_icon(layout, 'BONE_DATA')
+                    row.prop(item, "name", text="")
+                    found = True
+            else:
+                layout.label(text="Object Name")
+                item = context.object
+                if item:
+                    row = row_with_icon(layout, 'OBJECT_DATA')
+                    row.prop(item, "name", text="")
+                    found = True
+
+        if not found:
+            row = row_with_icon(layout, 'ERROR')
+            row.label(text="No active item")
+
+
 classes = (
     TOPBAR_HT_upper_bar,
     TOPBAR_HT_lower_bar,
     TOPBAR_MT_file_context_menu,
-    TOPBAR_MT_window_context_menu,
     TOPBAR_MT_workspace_menu,
     TOPBAR_MT_editor_menus,
     TOPBAR_MT_file,
@@ -1088,6 +1138,7 @@ classes = (
     TOPBAR_PT_gpencil_layers,
     TOPBAR_PT_gpencil_primitive,
     TOPBAR_PT_gpencil_fill,
+    TOPBAR_PT_name,
 )
 
 if __name__ == "__main__":  # only for live edit.

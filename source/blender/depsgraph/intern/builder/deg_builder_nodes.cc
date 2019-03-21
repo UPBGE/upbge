@@ -778,6 +778,11 @@ void DepsgraphNodeBuilder::build_object_transform(Object *object)
 	                   function_bind(BKE_object_eval_uber_transform,
 	                                 _1,
 	                                 ob_cow));
+	/* Operation to take of rigid body simulation. soft bodies and other firends
+	 * in the context of point cache invalidation. */
+	add_operation_node(&object->id,
+	                   NodeType::TRANSFORM,
+	                   OperationCode::TRANSFORM_SIMULATION_INIT);
 	/* Object transform is done. */
 	op_node = add_operation_node(&object->id, NodeType::TRANSFORM,
 	                             OperationCode::TRANSFORM_FINAL,
@@ -1072,8 +1077,8 @@ void DepsgraphNodeBuilder::build_rigidbody(Scene *scene)
 			if (object->type != OB_MESH) {
 				continue;
 			}
-			/* 2) create operation for flushing results */
-			/* object's transform component - where the rigidbody operation
+			/* Create operation for flushing results. */
+			/* Object's transform component - where the rigidbody operation
 			 * lives. */
 			add_operation_node(&object->id,
 			                   NodeType::TRANSFORM,

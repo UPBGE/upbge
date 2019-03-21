@@ -91,7 +91,7 @@ def is_not_gpencil_edit_mode(context):
 class VIEW3D_PT_tools_meshedit_options(View3DPanel, Panel):
     bl_category = "Options"
     bl_context = ".mesh_edit"  # dot on purpose (access from topbar)
-    bl_label = "Mesh Options"
+    bl_label = "Options"
     bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
@@ -213,6 +213,7 @@ class View3DPaintPanel(UnifiedPaintPanel):
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
 
+
 class VIEW3D_PT_tools_particlemode(Panel, View3DPaintPanel):
     bl_context = ".paint_common"  # dot on purpose (access from topbar)
     bl_label = "Particle tools"
@@ -226,7 +227,6 @@ class VIEW3D_PT_tools_particlemode(Panel, View3DPaintPanel):
     def draw(self, context):
         layout = self.layout
 
-        tool_settings = context.tool_settings
         settings = self.paint_settings(context)
         brush = settings.brush
         tool = settings.tool
@@ -234,7 +234,7 @@ class VIEW3D_PT_tools_particlemode(Panel, View3DPaintPanel):
         layout.use_property_split = True
         layout.use_property_decorate = False  # No animation.
 
-        if tool != None:
+        if tool is not None:
             col = layout.column()
             col.prop(brush, "size", slider=True)
             if tool == 'ADD':
@@ -280,7 +280,6 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
         layout.use_property_split = True
         layout.use_property_decorate = False  # No animation.
 
-        tool_settings = context.tool_settings
         settings = self.paint_settings(context)
         brush = settings.brush
 
@@ -302,8 +301,9 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
                 brush_basic_sculpt_settings(col, context, brush)
 
             # topology_rake_factor
-            if (capabilities.has_topology_rake and
-                context.sculpt_object.use_dynamic_topology_sculpting
+            if (
+                    capabilities.has_topology_rake and
+                    context.sculpt_object.use_dynamic_topology_sculpting
             ):
                 row = col.row()
                 row.prop(brush, "topology_rake_factor", slider=True)
@@ -527,7 +527,7 @@ class VIEW3D_PT_tools_brush_options(Panel, View3DPaintPanel):
 
         elif context.sculpt_object and brush:
             if capabilities.has_accumulate:
-                col.prop(brush, "use_accumulate", text="Airbrush")
+                col.prop(brush, "use_accumulate")
 
             UnifiedPaintPanel.prop_unified_size(col, context, brush, "use_locked_size")
 
@@ -1167,7 +1167,7 @@ class VIEW3D_PT_sculpt_options_gravity(Panel, View3DPaintPanel):
 # TODO, move to space_view3d.py
 class VIEW3D_PT_sculpt_symmetry(Panel, View3DPaintPanel):
     bl_context = ".sculpt_mode"  # dot on purpose (access from topbar)
-    bl_label = "Symmetry/Lock"
+    bl_label = "Symmetry"
     bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
@@ -1309,6 +1309,9 @@ class VIEW3D_PT_tools_weightpaint_options(Panel, View3DPaintPanel):
     def draw(self, context):
         layout = self.layout
 
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
         tool_settings = context.tool_settings
         wpaint = tool_settings.weight_paint
 
@@ -1323,24 +1326,38 @@ class VIEW3D_PT_tools_weightpaint_options(Panel, View3DPaintPanel):
             row.active = mesh.use_mirror_x
             row.prop(mesh, "use_mirror_topology")
 
-        self.unified_paint_settings(col, context)
+
+class VIEW3D_PT_tools_weightpaint_options_unified(Panel, View3DPaintPanel):
+    bl_context = ".weightpaint"
+    bl_label = "Unified Brush"
+    bl_parent_id = "VIEW3D_PT_tools_weightpaint_options"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        self.unified_paint_settings(layout, context)
 
 # ********** default tools for vertex-paint ****************
 
 
 # TODO, move to space_view3d.py
-class VIEW3D_PT_tools_vertexpaint(Panel, View3DPaintPanel):
+class VIEW3D_PT_tools_vertexpaint_options(Panel, View3DPaintPanel):
     bl_context = ".vertexpaint"  # dot on purpose (access from topbar)
     bl_label = "Options"
     bl_options = {'DEFAULT_CLOSED'}
 
     def draw(self, context):
         layout = self.layout
-        settings = self.paint_settings(context)
 
-        col = layout.column()
+        layout.label(text="Unified Brush")
 
-        self.unified_paint_settings(col, context)
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        self.unified_paint_settings(layout, context)
 
 
 # TODO, move to space_view3d.py
@@ -1360,9 +1377,10 @@ class VIEW3D_PT_tools_vertexpaint_symmetry(Panel, View3DPaintPanel):
 
 
 # TODO, move to space_view3d.py
-class VIEW3D_PT_tools_imagepaint_external(Panel, View3DPaintPanel):
+class VIEW3D_PT_tools_imagepaint_options_external(Panel, View3DPaintPanel):
     bl_context = ".imagepaint"  # dot on purpose (access from topbar)
     bl_label = "External"
+    bl_parent_id = "VIEW3D_PT_tools_imagepaint_options"
     bl_options = {'DEFAULT_CLOSED'}
 
     def draw(self, context):
@@ -1413,9 +1431,9 @@ class VIEW3D_PT_tools_imagepaint_symmetry(Panel, View3DPaintPanel):
 
 
 # TODO, move to space_view3d.py
-class VIEW3D_PT_tools_projectpaint(View3DPaintPanel, Panel):
+class VIEW3D_PT_tools_imagepaint_options(View3DPaintPanel, Panel):
     bl_context = ".imagepaint"  # dot on purpose (access from topbar)
-    bl_label = "Projection Paint"
+    bl_label = "Options"
     bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
@@ -1444,9 +1462,9 @@ class VIEW3D_PT_tools_projectpaint(View3DPaintPanel, Panel):
         col.prop(ipaint, "use_backface_culling", text="Backface Culling")
 
 
-class VIEW3D_PT_tools_projectpaint_unified(Panel, View3DPaintPanel):
+class VIEW3D_PT_tools_imagepaint_options_unified(Panel, View3DPaintPanel):
     bl_context = ".imagepaint"  # dot on purpose (access from topbar)
-    bl_parent_id = "VIEW3D_PT_tools_projectpaint"
+    bl_parent_id = "VIEW3D_PT_tools_imagepaint_options"
     bl_label = "Unified Brush"
 
     def draw(self, context):
@@ -1457,10 +1475,10 @@ class VIEW3D_PT_tools_projectpaint_unified(Panel, View3DPaintPanel):
         self.unified_paint_settings(layout, context)
 
 
-class VIEW3D_PT_tools_projectpaint_cavity(View3DPaintPanel, Panel):
+class VIEW3D_PT_tools_imagepaint_options_cavity(View3DPaintPanel, Panel):
     bl_context = ".imagepaint"  # dot on purpose (access from topbar)
     bl_label = "Cavity Mask"
-    bl_parent_id = "VIEW3D_PT_tools_projectpaint"
+    bl_parent_id = "VIEW3D_PT_tools_imagepaint_options"
     bl_options = {'DEFAULT_CLOSED'}
 
     def draw_header(self, context):
@@ -1555,6 +1573,7 @@ class VIEW3D_PT_tools_particlemode_options(View3DPanel, Panel):
         if not pe.is_hair:
             col.prop(pe, "use_auto_velocity", text="Auto-Velocity")
 
+
 class VIEW3D_PT_tools_particlemode_options_shapecut(View3DPanel, Panel):
     """Default tools for particle mode"""
     bl_parent_id = "VIEW3D_PT_tools_particlemode_options"
@@ -1568,10 +1587,10 @@ class VIEW3D_PT_tools_particlemode_options_shapecut(View3DPanel, Panel):
         layout.use_property_decorate = False  # No animation.
 
         pe = context.tool_settings.particle_edit
-        ob = pe.object
 
         layout.prop(pe, "shape_object")
         layout.operator("particle.shape_cut", text="Cut")
+
 
 class VIEW3D_PT_tools_particlemode_options_display(View3DPanel, Panel):
     """Default tools for particle mode"""
@@ -1585,7 +1604,6 @@ class VIEW3D_PT_tools_particlemode_options_display(View3DPanel, Panel):
         layout.use_property_decorate = False  # No animation.
 
         pe = context.tool_settings.particle_edit
-        ob = pe.object
 
         col = layout.column()
         col.active = pe.is_editable
@@ -1601,7 +1619,7 @@ class VIEW3D_PT_tools_particlemode_options_display(View3DPanel, Panel):
             sub.prop(pe, "fade_frames", slider=True)
 
 
-class VIEW3D_PT_tools_normal(View3DPanel, Panel):
+class VIEW3D_PT_tools_meshedit_normal(View3DPanel, Panel):
     bl_category = ""
     bl_context = ".mesh_edit"
     bl_label = "Normals"
@@ -1982,6 +2000,7 @@ class VIEW3D_PT_gpencil_brush_presets(PresetPanel, Panel):
 
 
 classes = (
+    VIEW3D_PT_tools_meshedit_normal,
     VIEW3D_PT_tools_meshedit_options,
     VIEW3D_PT_tools_curveedit_options_stroke,
     VIEW3D_PT_tools_armatureedit_options,
@@ -2008,20 +2027,21 @@ classes = (
     VIEW3D_PT_tools_brush_display_custom_icon,
     VIEW3D_PT_sculpt_dyntopo,
     VIEW3D_PT_sculpt_dyntopo_remesh,
+    VIEW3D_PT_sculpt_symmetry,
     VIEW3D_PT_sculpt_options,
     VIEW3D_PT_sculpt_options_unified,
     VIEW3D_PT_sculpt_options_gravity,
-    VIEW3D_PT_sculpt_symmetry,
     VIEW3D_PT_tools_weightpaint_symmetry,
     VIEW3D_PT_tools_weightpaint_options,
-    VIEW3D_PT_tools_vertexpaint,
+    VIEW3D_PT_tools_weightpaint_options_unified,
     VIEW3D_PT_tools_vertexpaint_symmetry,
-    VIEW3D_PT_tools_imagepaint_external,
+    VIEW3D_PT_tools_vertexpaint_options,
     VIEW3D_PT_tools_imagepaint_symmetry,
-    VIEW3D_PT_tools_projectpaint,
-    VIEW3D_PT_tools_projectpaint_cavity,
+    VIEW3D_PT_tools_imagepaint_options,
+    VIEW3D_PT_tools_imagepaint_options_cavity,
+    VIEW3D_PT_tools_imagepaint_options_unified,
+    VIEW3D_PT_tools_imagepaint_options_external,
     VIEW3D_MT_tools_projectpaint_stencil,
-    VIEW3D_PT_tools_projectpaint_unified,
     VIEW3D_PT_tools_particlemode,
     VIEW3D_PT_tools_particlemode_options,
     VIEW3D_PT_tools_particlemode_options_shapecut,
@@ -2044,7 +2064,6 @@ classes = (
     VIEW3D_PT_tools_grease_pencil_sculpt_appearance,
     VIEW3D_PT_tools_grease_pencil_weight_appearance,
     VIEW3D_PT_tools_grease_pencil_interpolate,
-    VIEW3D_PT_tools_normal,
 )
 
 if __name__ == "__main__":  # only for live edit.

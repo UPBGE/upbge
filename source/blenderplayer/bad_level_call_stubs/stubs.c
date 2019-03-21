@@ -736,6 +736,8 @@ float uiLayoutGetUnitsY(uiLayout *layout) RET_ZERO
 
 int uiLayoutGetLocalDir(const uiLayout *layout) RET_ZERO
 void uiItemMContents(uiLayout *layout, const char *menuname) RET_NONE
+bool uiLayoutGetActivateInit(uiLayout *layout) RET_ZERO
+void uiLayoutSetActivateInit(uiLayout *layout, bool active) RET_NONE
 
 void ED_area_status_text(ScrArea *sa, const char *str) RET_NONE
 

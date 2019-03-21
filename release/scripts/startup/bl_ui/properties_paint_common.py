@@ -52,18 +52,18 @@ class UnifiedPaintPanel:
         flow = parent.grid_flow(row_major=True, columns=0, even_columns=True, even_rows=False, align=False)
 
         col = flow.column()
-        col.prop(ups, "use_unified_size", text="Unified Size")
+        col.prop(ups, "use_unified_size", text="Size")
         col = flow.column()
-        col.prop(ups, "use_unified_strength", text="Unified Strength")
+        col.prop(ups, "use_unified_strength", text="Strength")
         if context.weight_paint_object:
             col = flow.column()
-            col.prop(ups, "use_unified_weight", text="Unified Weight")
+            col.prop(ups, "use_unified_weight", text="Weight")
         elif context.vertex_paint_object or context.image_paint_object:
             col = flow.column()
-            col.prop(ups, "use_unified_color", text="Unified Color")
+            col.prop(ups, "use_unified_color", text="Color")
         else:
             col = flow.column()
-            col.prop(ups, "use_unified_color", text="Unified Color")
+            col.prop(ups, "use_unified_color", text="Color")
 
     @staticmethod
     def prop_unified_size(parent, context, brush, prop_name, *, icon='NONE', text=None, slider=False):
@@ -137,8 +137,6 @@ def brush_texpaint_common(panel, context, layout, brush, settings, projpaint=Fal
 
 
 def brush_texpaint_common_clone(panel, context, layout, brush, settings, projpaint=False):
-    capabilities = brush.image_paint_capabilities
-
     ob = context.active_object
     col = layout.column()
 
@@ -179,8 +177,6 @@ def brush_texpaint_common_color(panel, context, layout, brush, settings, projpai
 
 
 def brush_texpaint_common_gradient(panel, context, layout, brush, settings, projpaint=False):
-    capabilities = brush.image_paint_capabilities
-
     layout.template_color_ramp(brush, "gradient", expand=True)
 
     layout.use_property_split = True
@@ -294,6 +290,7 @@ def brush_mask_texture_settings(layout, brush):
 #
 # Share between topbar and brush panel.
 
+
 def brush_basic_wpaint_settings(layout, context, brush, *, compact=False):
     capabilities = brush.weight_paint_capabilities
 
@@ -323,7 +320,6 @@ def brush_basic_vpaint_settings(layout, context, brush, *, compact=False):
     UnifiedPaintPanel.prop_unified_strength(row, context, brush, "strength")
     UnifiedPaintPanel.prop_unified_strength(row, context, brush, "use_pressure_strength", text="")
 
-
     if capabilities.has_color:
         layout.prop(brush, "blend", text="" if compact else "Blend")
 
@@ -349,7 +345,6 @@ def brush_basic_sculpt_settings(layout, context, brush, *, compact=False):
     tool_settings = context.tool_settings
     capabilities = brush.sculpt_capabilities
     settings = tool_settings.gpencil_sculpt
-    tool = settings.sculpt_tool
 
     row = layout.row(align=True)
 

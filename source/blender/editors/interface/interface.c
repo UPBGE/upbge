@@ -940,6 +940,24 @@ bool UI_but_active_only(const bContext *C, ARegion *ar, uiBlock *block, uiBut *b
 	return true;
 }
 
+bool UI_block_active_only_flagged_buttons(const bContext *C, ARegion *ar, uiBlock *block)
+{
+	bool done = false;
+	for (uiBut *but = block->buttons.first; but; but = but->next) {
+		if (!done && ui_but_is_editable(but)) {
+			if (but->flag & UI_BUT_ACTIVATE_ON_INIT) {
+				if (UI_but_active_only(C, ar, block, but)) {
+					done = true;
+				}
+			}
+		}
+		but->flag &= ~UI_BUT_ACTIVATE_ON_INIT;
+	}
+	return done;
+}
+
+
+
 /* simulate button click */
 void UI_but_execute(const bContext *C, uiBut *but)
 {
@@ -3173,7 +3191,7 @@ static void ui_but_free(const bContext *C, uiBut *but)
 		MEM_freeN(but->hold_argN);
 	}
 
-	if (!but->editstr && but->free_search_arg) {
+	if (but->free_search_arg) {
 		MEM_SAFE_FREE(but->search_arg);
 	}
 
@@ -4955,7 +4973,7 @@ uiBut *uiDefSearchBut(uiBlock *block, void *arg, int retval, int icon, int maxle
 void UI_but_func_search_set(
         uiBut *but,
         uiButSearchCreateFunc search_create_func,
-        uiButSearchFunc search_func, void *arg,
+        uiButSearchFunc search_func, void *arg, bool free_arg,
         uiButHandleFunc bfunc, void *active)
 {
 	/* needed since callers don't have access to internal functions
@@ -4964,9 +4982,14 @@ void UI_but_func_search_set(
 		search_create_func = ui_searchbox_create_generic;
 	}
 
+	if (but->free_search_arg) {
+		MEM_SAFE_FREE(but->search_arg);
+	}
+
 	but->search_create_func = search_create_func;
 	but->search_func = search_func;
 	but->search_arg = arg;
+	but->free_search_arg = free_arg;
 
 	if (bfunc) {
 #ifdef DEBUG
@@ -5055,7 +5078,7 @@ uiBut *uiDefSearchButO_ptr(
 	but = uiDefSearchBut(block, arg, retval, icon, maxlen, x, y, width, height, a1, a2, tip);
 	UI_but_func_search_set(
 	        but, ui_searchbox_create_generic, operator_enum_search_cb,
-	        but, operator_enum_call_cb, NULL);
+	        but, false, operator_enum_call_cb, NULL);
 
 	but->optype = ot;
 	but->opcontext = WM_OP_EXEC_DEFAULT;

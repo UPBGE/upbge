@@ -347,9 +347,9 @@ def km_window(params):
         # New shortcuts
         items.extend([
             ("wm.doc_view_manual_ui_context", {"type": 'F1', "value": 'PRESS'}, None),
-            op_menu("TOPBAR_MT_file_context_menu", {"type": 'F2', "value": 'PRESS'}),
+            op_panel("TOPBAR_PT_name", {"type": 'F2', "value": 'PRESS'}, [("keep_open", False)]),
             ("wm.search_menu", {"type": 'F3', "value": 'PRESS'}, None),
-            op_menu("TOPBAR_MT_window_context_menu", {"type": 'F4', "value": 'PRESS'}),
+            op_menu("TOPBAR_MT_file_context_menu", {"type": 'F4', "value": 'PRESS'}),
         ])
 
         if params.spacebar_action == 'TOOL':
@@ -4028,6 +4028,7 @@ def km_metaball(params):
         *_template_items_select_actions(params, "mball.select_all"),
         ("mball.select_similar", {"type": 'G', "value": 'PRESS', "shift": True}, None),
         *_template_items_proportional_editing(connected=True),
+        op_menu("VIEW3D_MT_edit_metaball_context_menu", params.context_menu_event),
     ])
 
     return keymap
@@ -4049,6 +4050,7 @@ def km_lattice(params):
         ("object.vertex_parent_set", {"type": 'P', "value": 'PRESS', "ctrl": True}, None),
         ("lattice.flip", {"type": 'F', "value": 'PRESS', "alt": True}, None),
         op_menu("VIEW3D_MT_hook", {"type": 'H', "value": 'PRESS', "ctrl": True}),
+        op_menu("VIEW3D_MT_edit_lattice_context_menu", params.context_menu_event),
         *_template_items_proportional_editing(connected=False),
     ])
 
@@ -4177,6 +4179,7 @@ def km_font(params):
         ("font.text_insert", {"type": 'TEXTINPUT', "value": 'ANY', "any": True}, None),
         ("font.text_insert", {"type": 'BACK_SPACE', "value": 'PRESS', "alt": True},
          {"properties": [("accent", True)]}),
+        op_menu("VIEW3D_MT_edit_text_context_menu", params.context_menu_event),
     ])
 
     if params.apple:

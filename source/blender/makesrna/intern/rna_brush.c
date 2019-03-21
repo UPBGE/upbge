@@ -350,10 +350,10 @@ static bool rna_BrushCapabilitiesSculpt_has_direction_get(PointerRNA *ptr)
 {
 	Brush *br = (Brush *)ptr->data;
 	return !ELEM(br->sculpt_tool, SCULPT_TOOL_DRAW, SCULPT_TOOL_CLAY,
-				SCULPT_TOOL_CLAY_STRIPS, SCULPT_TOOL_LAYER, SCULPT_TOOL_INFLATE,
-				SCULPT_TOOL_BLOB, SCULPT_TOOL_CREASE, SCULPT_TOOL_FLATTEN,
-				SCULPT_TOOL_FILL, SCULPT_TOOL_SCRAPE, SCULPT_TOOL_CLAY,
-				SCULPT_TOOL_PINCH, SCULPT_TOOL_MASK);
+	             SCULPT_TOOL_CLAY_STRIPS, SCULPT_TOOL_LAYER, SCULPT_TOOL_INFLATE,
+	             SCULPT_TOOL_BLOB, SCULPT_TOOL_CREASE, SCULPT_TOOL_FLATTEN,
+	             SCULPT_TOOL_FILL, SCULPT_TOOL_SCRAPE, SCULPT_TOOL_CLAY,
+	             SCULPT_TOOL_PINCH, SCULPT_TOOL_MASK);
 }
 
 static bool rna_BrushCapabilitiesSculpt_has_gravity_get(PointerRNA *ptr)
@@ -1845,7 +1845,7 @@ static void rna_def_brush(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "use_accumulate", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_ACCUMULATE);
-	RNA_def_property_ui_text(prop, "Airbrush", "Accumulate stroke daubs on top of each other");
+	RNA_def_property_ui_text(prop, "Accumulate", "Accumulate stroke daubs on top of each other");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
 	prop = RNA_def_property(srna, "use_space_attenuation", PROP_BOOLEAN, PROP_NONE);
