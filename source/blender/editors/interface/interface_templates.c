@@ -3348,19 +3348,16 @@ void uiTemplateColorPicker(
 
 	but->custom_data = cpicker;
 
-	if (lock) {
-		but->flag |= UI_BUT_COLOR_LOCK;
-	}
+	cpicker->use_color_lock = lock;
+	cpicker->use_color_cubic = cubic;
+	cpicker->use_luminosity_lock = lock_luminosity;
 
 	if (lock_luminosity) {
 		float color[4]; /* in case of alpha */
-		but->flag |= UI_BUT_VEC_SIZE_LOCK;
 		RNA_property_float_get_array(ptr, prop, color);
 		but->a2 = len_v3(color);
+		cpicker->luminosity_lock_value = len_v3(color);
 	}
-
-	if (cubic)
-		but->flag |= UI_BUT_COLOR_CUBIC;
 
 
 	if (value_slider) {
@@ -3368,25 +3365,25 @@ void uiTemplateColorPicker(
 			case USER_CP_CIRCLE_HSL:
 				uiItemS(row);
 				but = uiDefButR_prop(
-				        block, UI_BTYPE_HSVCUBE, 0, "", WHEEL_SIZE + 6, 0, 14, WHEEL_SIZE, ptr, prop,
+				        block, UI_BTYPE_HSVCUBE, 0, "", WHEEL_SIZE + 6, 0, 14 * UI_DPI_FAC, WHEEL_SIZE, ptr, prop,
 				        -1, softmin, softmax, UI_GRAD_L_ALT, 0, "");
 				break;
 			case USER_CP_SQUARE_SV:
 				uiItemS(col);
 				but = uiDefButR_prop(
-				        block, UI_BTYPE_HSVCUBE, 0, "", 0, 4, WHEEL_SIZE, 18, ptr, prop,
+				        block, UI_BTYPE_HSVCUBE, 0, "", 0, 4, WHEEL_SIZE, 18 * UI_DPI_FAC, ptr, prop,
 				        -1, softmin, softmax, UI_GRAD_SV + 3, 0, "");
 				break;
 			case USER_CP_SQUARE_HS:
 				uiItemS(col);
 				but = uiDefButR_prop(
-				        block, UI_BTYPE_HSVCUBE, 0, "", 0, 4, WHEEL_SIZE, 18, ptr, prop,
+				        block, UI_BTYPE_HSVCUBE, 0, "", 0, 4, WHEEL_SIZE, 18 * UI_DPI_FAC, ptr, prop,
 				        -1, softmin, softmax, UI_GRAD_HS + 3, 0, "");
 				break;
 			case USER_CP_SQUARE_HV:
 				uiItemS(col);
 				but = uiDefButR_prop(
-				        block, UI_BTYPE_HSVCUBE, 0, "", 0, 4, WHEEL_SIZE, 18, ptr, prop,
+				        block, UI_BTYPE_HSVCUBE, 0, "", 0, 4, WHEEL_SIZE, 18 * UI_DPI_FAC, ptr, prop,
 				        -1, softmin, softmax, UI_GRAD_HV + 3, 0, "");
 				break;
 
@@ -3395,7 +3392,7 @@ void uiTemplateColorPicker(
 			default:
 				uiItemS(row);
 				but = uiDefButR_prop(
-				        block, UI_BTYPE_HSVCUBE, 0, "", WHEEL_SIZE + 6, 0, 14, WHEEL_SIZE, ptr, prop,
+				        block, UI_BTYPE_HSVCUBE, 0, "", WHEEL_SIZE + 6, 0, 14 * UI_DPI_FAC, WHEEL_SIZE, ptr, prop,
 				        -1, softmin, softmax, UI_GRAD_V_ALT, 0, "");
 				break;
 		}

@@ -2360,6 +2360,14 @@ void DRW_draw_depth_loop(
 	DST.viewport = viewport;
 	DST.options.is_depth = true;
 
+	/* Instead of 'DRW_context_state_init(C, &DST.draw_ctx)', assign from args */
+	DST.draw_ctx = (DRWContextState){
+		.ar = ar, .rv3d = rv3d, .v3d = v3d,
+		.scene = scene, .view_layer = view_layer, .obact = OBACT(view_layer),
+		.engine_type = engine_type,
+		.depsgraph = depsgraph,
+	};
+
 	/* Get list of enabled engines */
 	{
 		drw_engines_enable_basic();
@@ -2369,14 +2377,6 @@ void DRW_draw_depth_loop(
 	}
 
 	/* Setup viewport */
-
-	/* Instead of 'DRW_context_state_init(C, &DST.draw_ctx)', assign from args */
-	DST.draw_ctx = (DRWContextState){
-		.ar = ar, .rv3d = rv3d, .v3d = v3d,
-		.scene = scene, .view_layer = view_layer, .obact = OBACT(view_layer),
-		.engine_type = engine_type,
-		.depsgraph = depsgraph,
-	};
 	drw_context_state_init();
 	drw_viewport_var_init();
 
@@ -2509,16 +2509,16 @@ void DRW_framebuffer_select_id_release(ARegion *ar)
 /* Read a block of pixels from the select frame buffer. */
 void DRW_framebuffer_select_id_read(const rcti *rect, uint *r_buf)
 {
-	DRW_opengl_context_enable();
-	GPU_framebuffer_bind(g_select_buffer.framebuffer_select_id);
-	glReadBuffer(GL_COLOR_ATTACHMENT0);
+	GPU_texture_read_rect(
+	        g_select_buffer.texture_u32, GPU_DATA_UNSIGNED_INT, rect, r_buf);
+}
 
-	glReadPixels(rect->xmin, rect->ymin,
-	             BLI_rcti_size_x(rect), BLI_rcti_size_y(rect),
-	             GL_RED_INTEGER, GL_UNSIGNED_INT, r_buf);
 
-	GPU_framebuffer_restore();
-	DRW_opengl_context_disable();
+/* Read a block of pixels from the depth frame buffer. */
+void DRW_framebuffer_depth_read(const rcti *rect, float *r_buf)
+{
+	GPU_texture_read_rect(
+	        g_select_buffer.texture_depth, GPU_DATA_FLOAT, rect, r_buf);
 }
 
 /** \} */

@@ -236,7 +236,6 @@ Object *bc_add_object(Main *bmain, Scene *scene, ViewLayer *view_layer, int type
 	Object *ob = BKE_object_add_only_object(bmain, type, name);
 
 	ob->data = BKE_object_obdata_add_from_type(bmain, type, name);
-	ob->lay = scene->lay;
 	DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
 
 	LayerCollection *layer_collection = BKE_layer_collection_get_active(view_layer);
@@ -547,7 +546,7 @@ void bc_triangulate_mesh(Mesh *me)
 	BMeshFromMeshParams bm_from_me_params = {0};
 	bm_from_me_params.calc_face_normal = true;
 	BM_mesh_bm_from_me(bm, me, &bm_from_me_params);
-	BM_mesh_triangulate(bm, quad_method, use_beauty, tag_only, NULL, NULL, NULL);
+	BM_mesh_triangulate(bm, quad_method, use_beauty, 4, tag_only, NULL, NULL, NULL);
 
 	BMeshToMeshParams bm_to_me_params = {0};
 	bm_to_me_params.calc_object_remap = false;

@@ -50,53 +50,6 @@ struct wmTimer;
 #define RNA_NO_INDEX    -1
 #define RNA_ENUM_VALUE  -2
 
-/* visual types for drawing */
-/* for time being separated from functional types */
-typedef enum {
-	/* default */
-	UI_WTYPE_REGULAR,
-
-	/* standard set */
-	UI_WTYPE_LABEL,
-	UI_WTYPE_TOGGLE,
-	UI_WTYPE_CHECKBOX,
-	UI_WTYPE_RADIO,
-	UI_WTYPE_NUMBER,
-	UI_WTYPE_SLIDER,
-	UI_WTYPE_EXEC,
-	UI_WTYPE_TOOLBAR_ITEM,
-	UI_WTYPE_TAB,
-	UI_WTYPE_TOOLTIP,
-
-	/* strings */
-	UI_WTYPE_NAME,
-	UI_WTYPE_NAME_LINK,
-	UI_WTYPE_POINTER_LINK,
-	UI_WTYPE_FILENAME,
-
-	/* menus */
-	UI_WTYPE_MENU_RADIO,
-	UI_WTYPE_MENU_ICON_RADIO,
-	UI_WTYPE_MENU_POINTER_LINK,
-	UI_WTYPE_MENU_NODE_LINK,
-
-	UI_WTYPE_PULLDOWN,
-	UI_WTYPE_MENU_ITEM,
-	UI_WTYPE_MENU_ITEM_RADIAL,
-	UI_WTYPE_MENU_BACK,
-
-	/* specials */
-	UI_WTYPE_ICON,
-	UI_WTYPE_ICON_LABEL,
-	UI_WTYPE_SWATCH,
-	UI_WTYPE_RGB_PICKER,
-	UI_WTYPE_UNITVEC,
-	UI_WTYPE_BOX,
-	UI_WTYPE_SCROLL,
-	UI_WTYPE_LISTITEM,
-	UI_WTYPE_PROGRESSBAR,
-} uiWidgetTypeEnum;
-
 #define UI_MENU_PADDING (int)(0.2f * UI_UNIT_Y)
 
 #define UI_MENU_WIDTH_MIN       (UI_UNIT_Y * 9)
@@ -361,6 +314,11 @@ typedef struct ColorPicker {
 	/** Initial color data (detect changes). */
 	float color_data_init[3];
 	bool is_init;
+	/** Cubic saturation for the color wheel. */
+	bool use_color_cubic;
+	bool use_color_lock;
+	bool use_luminosity_lock;
+	float luminosity_lock_value;
 } ColorPicker;
 
 typedef struct ColorPickerData {
@@ -528,8 +486,8 @@ extern void ui_but_v3_set(uiBut *but, const float vec[3]);
 extern void ui_hsvcircle_vals_from_pos(
         float *val_rad, float *val_dist, const rcti *rect,
         const float mx, const float my);
-extern void ui_hsvcircle_pos_from_vals(struct uiBut *but, const rcti *rect, float *hsv, float *xpos, float *ypos);
-extern void ui_hsvcube_pos_from_vals(struct uiBut *but, const rcti *rect, float *hsv, float *xp, float *yp);
+extern void ui_hsvcircle_pos_from_vals(const ColorPicker *cpicker, const rcti *rect, const float *hsv, float *xpos, float *ypos);
+extern void ui_hsvcube_pos_from_vals(const struct uiBut *but, const rcti *rect, const float *hsv, float *xp, float *yp);
 
 extern void ui_but_string_get_ex(
         uiBut *but, char *str, const size_t maxlen,
@@ -554,7 +512,6 @@ extern bool ui_but_is_bool(const uiBut *but) ATTR_WARN_UNUSED_RESULT;
 extern bool ui_but_is_unit(const uiBut *but) ATTR_WARN_UNUSED_RESULT;
 extern bool ui_but_is_compatible(const uiBut *but_a, const uiBut *but_b) ATTR_WARN_UNUSED_RESULT;
 extern bool ui_but_is_rna_valid(uiBut *but) ATTR_WARN_UNUSED_RESULT;
-extern bool ui_but_is_utf8(const uiBut *but) ATTR_WARN_UNUSED_RESULT;
 extern bool ui_but_supports_cycling(const uiBut *but) ATTR_WARN_UNUSED_RESULT;
 
 extern int  ui_but_is_pushed_ex(uiBut *but, double *value) ATTR_WARN_UNUSED_RESULT;
@@ -750,14 +707,10 @@ extern void ui_but_activate_over(struct bContext *C, struct ARegion *ar, uiBut *
 extern void ui_but_execute_begin(struct bContext *C, struct ARegion *ar, uiBut *but, void **active_back);
 extern void ui_but_execute_end(struct bContext *C, struct ARegion *ar, uiBut *but, void *active_back);
 extern void ui_but_active_free(const struct bContext *C, uiBut *but);
-extern bool ui_but_is_active(struct ARegion *ar) ATTR_WARN_UNUSED_RESULT;
-extern bool ui_but_is_editing(uiBut *but);
 extern int ui_but_menu_direction(uiBut *but);
 extern void ui_but_text_password_hide(char password_str[UI_MAX_DRAW_STR], uiBut *but, const bool restore);
 extern uiBut *ui_but_find_select_in_enum(uiBut *but, int direction);
-extern uiBut *ui_but_find_active_in_region(struct ARegion *ar);
-extern uiBut *ui_but_find_mouse_over(struct ARegion *ar, const struct wmEvent *event);
-void ui_but_pie_dir(RadialDirection dir, float vec[2]);
+bool ui_but_is_editing(const uiBut *but);
 float ui_block_calc_pie_segment(struct uiBlock *block, const float event_xy[2]);
 
 void ui_but_add_shortcut(uiBut *but, const char *key_str, const bool do_strip);
@@ -812,11 +765,8 @@ void ui_draw_popover_back(ARegion *ar, struct uiStyle *style, uiBlock *block, rc
 void ui_draw_pie_center(uiBlock *block);
 const struct uiWidgetColors *ui_tooltip_get_theme(void);
 
-void ui_draw_widget_back_color(
-        uiWidgetTypeEnum type, bool use_shadow, const rcti *rect,
-        const float color[4]);
-void ui_draw_widget_back(
-        uiWidgetTypeEnum type, bool use_shadow, const rcti *rect);
+void ui_draw_widget_menu_back_color(const rcti *rect, bool use_shadow, const float color[4]);
+void ui_draw_widget_menu_back(const rcti *rect, bool use_shadow);
 void ui_draw_tooltip_background(struct uiStyle *UNUSED(style), uiBlock *block, rcti *rect);
 void ui_draw_search_back(struct uiStyle *style, uiBlock *block, rcti *rect);
 bool ui_link_bezier_points(const rcti *rect, float coord_array[][2], int resol);
@@ -877,15 +827,46 @@ void ui_but_anim_decorate_cb(struct bContext *C, void *arg_but, void *arg_dummy)
 void ui_but_anim_decorate_update_from_flag(uiBut *but);
 
 /* interface_query.c */
-bool ui_but_is_editable(const uiBut *but);
-bool ui_but_is_editable_as_text(const uiBut *but);
-bool ui_but_is_toggle(const uiBut *but);
-bool ui_but_is_popover_once_compat(const uiBut *but);
+bool ui_but_is_editable(const uiBut *but) ATTR_WARN_UNUSED_RESULT;
+bool ui_but_is_editable_as_text(const uiBut *but) ATTR_WARN_UNUSED_RESULT;
+bool ui_but_is_toggle(const uiBut *but) ATTR_WARN_UNUSED_RESULT;
+bool ui_but_is_interactive(const uiBut *but, const bool labeledit) ATTR_WARN_UNUSED_RESULT;
+bool ui_but_is_utf8(const uiBut *but) ATTR_WARN_UNUSED_RESULT;
+bool ui_but_is_popover_once_compat(const uiBut *but) ATTR_WARN_UNUSED_RESULT;
+bool ui_but_has_array_value(const uiBut *but) ATTR_WARN_UNUSED_RESULT;
+void ui_but_pie_dir(RadialDirection dir, float vec[2]);
 
-extern bool ui_block_is_menu(const uiBlock *block) ATTR_WARN_UNUSED_RESULT;
-extern bool ui_block_is_popover(const uiBlock *block) ATTR_WARN_UNUSED_RESULT;
-extern bool ui_block_is_pie_menu(const uiBlock *block) ATTR_WARN_UNUSED_RESULT;
-extern bool ui_block_is_popup_any(const uiBlock *block) ATTR_WARN_UNUSED_RESULT;
+bool ui_but_is_cursor_warp(const uiBut *but) ATTR_WARN_UNUSED_RESULT;
+
+bool ui_but_contains_pt(
+        const uiBut *but, float mx, float my) ATTR_WARN_UNUSED_RESULT;
+bool ui_but_contains_point_px_icon(
+        const uiBut *but, struct  ARegion *ar, const struct wmEvent *event) ATTR_WARN_UNUSED_RESULT;
+bool ui_but_contains_point_px(
+        const uiBut *but, const struct ARegion *ar, int x, int y) ATTR_WARN_UNUSED_RESULT;
+
+uiBut *ui_list_find_mouse_over(struct ARegion *ar, const struct wmEvent *event) ATTR_WARN_UNUSED_RESULT;
+
+uiBut *ui_but_find_mouse_over_ex(struct ARegion *ar, const int x, const int y, const bool labeledit) ATTR_WARN_UNUSED_RESULT;
+uiBut *ui_but_find_mouse_over(struct ARegion *ar, const struct wmEvent *event) ATTR_WARN_UNUSED_RESULT;
+
+uiBut *ui_list_find_mouse_over_ex(struct ARegion *ar, int x, int y) ATTR_WARN_UNUSED_RESULT;
+
+bool ui_but_contains_password(const uiBut *but) ATTR_WARN_UNUSED_RESULT;
+
+uiBut *ui_but_prev(uiBut *but) ATTR_WARN_UNUSED_RESULT;
+uiBut *ui_but_next(uiBut *but) ATTR_WARN_UNUSED_RESULT;
+uiBut *ui_but_first(uiBlock *block) ATTR_WARN_UNUSED_RESULT;
+uiBut *ui_but_last(uiBlock *block) ATTR_WARN_UNUSED_RESULT;
+
+bool ui_block_is_menu(const uiBlock *block) ATTR_WARN_UNUSED_RESULT;
+bool ui_block_is_popover(const uiBlock *block) ATTR_WARN_UNUSED_RESULT;
+bool ui_block_is_pie_menu(const uiBlock *block) ATTR_WARN_UNUSED_RESULT;
+bool ui_block_is_popup_any(const uiBlock *block) ATTR_WARN_UNUSED_RESULT;
+
+uiBut *ui_region_find_active_but(struct ARegion *ar) ATTR_WARN_UNUSED_RESULT;
+bool ui_region_contains_point_px(
+        const struct ARegion *ar, int x, int y) ATTR_WARN_UNUSED_RESULT;
 
 /* interface_context_menu.c */
 bool ui_popup_context_menu_for_button(struct bContext *C, uiBut *but);

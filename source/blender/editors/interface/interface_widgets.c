@@ -62,6 +62,54 @@
 /* icons are 80% of height of button (16 pixels inside 20 height) */
 #define ICON_SIZE_FROM_BUTRECT(rect) (0.8f * BLI_rcti_size_y(rect))
 
+/* visual types for drawing */
+/* for time being separated from functional types */
+typedef enum {
+	/* default */
+	UI_WTYPE_REGULAR,
+
+	/* standard set */
+	UI_WTYPE_LABEL,
+	UI_WTYPE_TOGGLE,
+	UI_WTYPE_CHECKBOX,
+	UI_WTYPE_RADIO,
+	UI_WTYPE_NUMBER,
+	UI_WTYPE_SLIDER,
+	UI_WTYPE_EXEC,
+	UI_WTYPE_TOOLBAR_ITEM,
+	UI_WTYPE_TAB,
+	UI_WTYPE_TOOLTIP,
+
+	/* strings */
+	UI_WTYPE_NAME,
+	UI_WTYPE_NAME_LINK,
+	UI_WTYPE_POINTER_LINK,
+	UI_WTYPE_FILENAME,
+
+	/* menus */
+	UI_WTYPE_MENU_RADIO,
+	UI_WTYPE_MENU_ICON_RADIO,
+	UI_WTYPE_MENU_POINTER_LINK,
+	UI_WTYPE_MENU_NODE_LINK,
+
+	UI_WTYPE_PULLDOWN,
+	UI_WTYPE_MENU_ITEM,
+	UI_WTYPE_MENU_ITEM_RADIAL,
+	UI_WTYPE_MENU_BACK,
+
+	/* specials */
+	UI_WTYPE_ICON,
+	UI_WTYPE_ICON_LABEL,
+	UI_WTYPE_SWATCH,
+	UI_WTYPE_RGB_PICKER,
+	UI_WTYPE_UNITVEC,
+	UI_WTYPE_BOX,
+	UI_WTYPE_SCROLL,
+	UI_WTYPE_LISTITEM,
+	UI_WTYPE_PROGRESSBAR,
+} uiWidgetTypeEnum;
+
+
 /* Button state argument shares bits with 'uiBut.flag'.
  * reuse flags that aren't needed for drawing to avoid collision. */
 enum {
@@ -70,11 +118,14 @@ enum {
 	UI_STATE_TEXT_INPUT  = UI_BUT_UNDO,
 	UI_STATE_ACTIVE_LEFT  = UI_BUT_VALUE_CLEAR,
 	UI_STATE_ACTIVE_RIGHT = UI_BUT_TEXTEDIT_UPDATE,
+	UI_STATE_TEXT_BEFORE_WIDGET = UI_BUT_IMMEDIATE,
 
-	UI_STATE_FLAGS_ALL = (UI_STATE_HOLD_ACTION |
-	                      UI_STATE_TEXT_INPUT |
-	                      UI_STATE_ACTIVE_LEFT |
-	                      UI_STATE_ACTIVE_RIGHT),
+	UI_STATE_FLAGS_ALL = (
+	        UI_STATE_HOLD_ACTION |
+	        UI_STATE_TEXT_INPUT |
+	        UI_STATE_ACTIVE_LEFT |
+	        UI_STATE_ACTIVE_RIGHT |
+	        UI_STATE_TEXT_BEFORE_WIDGET),
 };
 /* Prevent accidental use. */
 #define UI_BUT_UPDATE_DELAY ((void)0)
@@ -2576,7 +2627,9 @@ void ui_hsvcircle_vals_from_pos(
 }
 
 /* cursor in hsv circle, in float units -1 to 1, to map on radius */
-void ui_hsvcircle_pos_from_vals(uiBut *but, const rcti *rect, float *hsv, float *xpos, float *ypos)
+void ui_hsvcircle_pos_from_vals(
+        const ColorPicker *cpicker, const rcti *rect, const float *hsv,
+        float *r_xpos, float *r_ypos)
 {
 	/* duplication of code... well, simple is better now */
 	const float centx = BLI_rcti_cent_x_fl(rect);
@@ -2586,14 +2639,14 @@ void ui_hsvcircle_pos_from_vals(uiBut *but, const rcti *rect, float *hsv, float 
 
 	ang = 2.0f * (float)M_PI * hsv[0] + (float)M_PI_2;
 
-	if ((but->flag & UI_BUT_COLOR_CUBIC) && (U.color_picker_type == USER_CP_CIRCLE_HSV))
+	if (cpicker->use_color_cubic && (U.color_picker_type == USER_CP_CIRCLE_HSV))
 		radius_t = (1.0f - pow3f(1.0f - hsv[1]));
 	else
 		radius_t = hsv[1];
 
 	radius = clamp_f(radius_t, 0.0f, 1.0f) * radius;
-	*xpos = centx + cosf(-ang) * radius;
-	*ypos = centy + sinf(-ang) * radius;
+	*r_xpos = centx + cosf(-ang) * radius;
+	*r_ypos = centy + sinf(-ang) * radius;
 }
 
 static void ui_draw_but_HSVCIRCLE(uiBut *but, const uiWidgetColors *wcol, const rcti *rect)
@@ -2623,11 +2676,13 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, const uiWidgetColors *wcol, const 
 	/* exception: if 'lock' is set
 	 * lock the value of the color wheel to 1.
 	 * Useful for color correction tools where you're only interested in hue. */
-	if (but->flag & UI_BUT_COLOR_LOCK) {
-		if (U.color_picker_type == USER_CP_CIRCLE_HSV)
+	if (cpicker->use_color_lock) {
+		if (U.color_picker_type == USER_CP_CIRCLE_HSV) {
 			hsv[2] = 1.0f;
-		else
+		}
+		else {
 			hsv[2] = 0.5f;
+		}
 	}
 
 	const float hsv_center[3] = {0.0f, 0.0f, hsv[2]};
@@ -2695,7 +2750,7 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, const uiWidgetColors *wcol, const 
 	ui_rgb_to_color_picker_compat_v(rgb, hsv);
 
 	float xpos, ypos;
-	ui_hsvcircle_pos_from_vals(but, rect, hsv, &xpos, &ypos);
+	ui_hsvcircle_pos_from_vals(cpicker, rect, hsv, &xpos, &ypos);
 	ui_hsv_cursor(xpos, ypos);
 }
 
@@ -2852,7 +2907,9 @@ void ui_draw_gradient(const rcti *rect, const float hsv[3], const int type, cons
 	immUnbindProgram();
 }
 
-void ui_hsvcube_pos_from_vals(uiBut *but, const rcti *rect, float *hsv, float *xp, float *yp)
+void ui_hsvcube_pos_from_vals(
+        const uiBut *but, const rcti *rect, const float *hsv,
+        float *r_xp, float *r_yp)
 {
 	float x = 0.0f, y = 0.0f;
 
@@ -2882,8 +2939,8 @@ void ui_hsvcube_pos_from_vals(uiBut *but, const rcti *rect, float *hsv, float *x
 	}
 
 	/* cursor */
-	*xp = rect->xmin + x * BLI_rcti_size_x(rect);
-	*yp = rect->ymin + y * BLI_rcti_size_y(rect);
+	*r_xp = rect->xmin + x * BLI_rcti_size_x(rect);
+	*r_yp = rect->ymin + y * BLI_rcti_size_y(rect);
 }
 
 static void ui_draw_but_HSVCUBE(uiBut *but, const rcti *rect)
@@ -3704,6 +3761,7 @@ static void widget_list_itembut(uiWidgetColors *wcol, rcti *rect, int UNUSED(sta
 
 static void widget_optionbut(uiWidgetColors *wcol, rcti *rect, int state, int UNUSED(roundboxalign))
 {
+	bool text_before_widget = (state & UI_STATE_TEXT_BEFORE_WIDGET);
 	uiWidgetBase wtb;
 	rcti recttemp = *rect;
 	float rad;
@@ -3712,7 +3770,12 @@ static void widget_optionbut(uiWidgetColors *wcol, rcti *rect, int state, int UN
 	widget_init(&wtb);
 
 	/* square */
-	recttemp.xmax = recttemp.xmin + BLI_rcti_size_y(&recttemp);
+	if (text_before_widget) {
+		recttemp.xmin = recttemp.xmax - BLI_rcti_size_y(&recttemp);
+	}
+	else {
+		recttemp.xmax = recttemp.xmin + BLI_rcti_size_y(&recttemp);
+	}
 
 	/* smaller */
 	delta = 1 + BLI_rcti_size_y(&recttemp) / 8;
@@ -3732,7 +3795,13 @@ static void widget_optionbut(uiWidgetColors *wcol, rcti *rect, int state, int UN
 	widgetbase_draw(&wtb, wcol);
 
 	/* text space */
-	rect->xmin += BLI_rcti_size_y(rect) * 0.7 + delta;
+	const float offset = BLI_rcti_size_y(rect) * 0.7 + delta;
+	if (text_before_widget) {
+		rect->xmax -= offset;
+	}
+	else {
+		rect->xmin += offset;
+	}
 }
 
 /* labels use Editor theme colors for text */
@@ -4282,10 +4351,13 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 			case UI_BTYPE_CHECKBOX_N:
 				if (!(but->flag & UI_HAS_ICON)) {
 					wt = widget_type(UI_WTYPE_CHECKBOX);
-					but->drawflag |= UI_BUT_TEXT_LEFT;
+					if ((but->drawflag & (UI_BUT_TEXT_LEFT | UI_BUT_TEXT_RIGHT)) == 0) {
+						but->drawflag |= UI_BUT_TEXT_LEFT;
+					}
 				}
-				else
+				else {
 					wt = widget_type(UI_WTYPE_TOGGLE);
+				}
 
 				/* option buttons have strings outside, on menus use different colors */
 				if (but->block->theme_style == UI_BLOCK_THEME_STYLE_POPUP) {
@@ -4452,6 +4524,10 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 		if (state & (UI_BUT_DISABLED | UI_BUT_INACTIVE))
 			if (but->dt != UI_EMBOSS_PULLDOWN)
 				disabled = true;
+
+		if (drawflag & UI_BUT_TEXT_RIGHT) {
+			state |= UI_STATE_TEXT_BEFORE_WIDGET;
+		}
 
 		if (disabled)
 			ui_widget_color_disabled(wt);
@@ -4731,7 +4807,7 @@ const uiWidgetColors *ui_tooltip_get_theme(void)
 /**
  * Generic drawing for background.
  */
-void ui_draw_widget_back_color(
+static void ui_draw_widget_back_color(
         uiWidgetTypeEnum type, bool use_shadow, const rcti *rect,
         const float color[4])
 {
@@ -4751,9 +4827,14 @@ void ui_draw_widget_back_color(
 	}
 	wt->draw(&wt->wcol, &rect_copy, 0, UI_CNR_ALL);
 }
-void ui_draw_widget_back(uiWidgetTypeEnum type, bool use_shadow, const rcti *rect)
+void ui_draw_widget_menu_back_color(const rcti *rect, bool use_shadow, const float color[4])
 {
-	ui_draw_widget_back_color(type, use_shadow, rect, NULL);
+	ui_draw_widget_back_color(UI_WTYPE_MENU_BACK, use_shadow, rect, color);
+}
+
+void ui_draw_widget_menu_back(const rcti *rect, bool use_shadow)
+{
+	ui_draw_widget_back_color(UI_WTYPE_MENU_BACK, use_shadow, rect, NULL);
 }
 
 void ui_draw_tooltip_background(uiStyle *UNUSED(style), uiBlock *UNUSED(block), rcti *rect)
