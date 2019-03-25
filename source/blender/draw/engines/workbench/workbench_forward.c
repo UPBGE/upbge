@@ -67,7 +67,6 @@ static struct {
 } e_data = {{{{NULL}}}};
 
 /* Shaders */
-extern char datatoc_gpu_shader_cfg_world_clip_lib_glsl[];
 extern char datatoc_common_hair_lib_glsl[];
 
 extern char datatoc_workbench_forward_composite_frag_glsl[];
@@ -98,8 +97,6 @@ static char *workbench_build_forward_vert(bool is_hair)
 
 static char *workbench_build_forward_transparent_accum_frag(void)
 {
-	char *str = NULL;
-
 	DynStr *ds = BLI_dynstr_new();
 
 	BLI_dynstr_append(ds, datatoc_workbench_data_lib_glsl);
@@ -107,15 +104,13 @@ static char *workbench_build_forward_transparent_accum_frag(void)
 	BLI_dynstr_append(ds, datatoc_workbench_world_light_lib_glsl);
 	BLI_dynstr_append(ds, datatoc_workbench_forward_transparent_accum_frag_glsl);
 
-	str = BLI_dynstr_get_cstring(ds);
+	char *str = BLI_dynstr_get_cstring(ds);
 	BLI_dynstr_free(ds);
 	return str;
 }
 
 static char *workbench_build_forward_composite_frag(void)
 {
-	char *str = NULL;
-
 	DynStr *ds = BLI_dynstr_new();
 
 	BLI_dynstr_append(ds, datatoc_workbench_data_lib_glsl);
@@ -125,7 +120,7 @@ static char *workbench_build_forward_composite_frag(void)
 	BLI_dynstr_append(ds, datatoc_workbench_curvature_lib_glsl);
 	BLI_dynstr_append(ds, datatoc_workbench_forward_composite_frag_glsl);
 
-	str = BLI_dynstr_get_cstring(ds);
+	char *str = BLI_dynstr_get_cstring(ds);
 	BLI_dynstr_free(ds);
 	return str;
 }
@@ -325,6 +320,7 @@ void workbench_forward_engine_init(WORKBENCH_Data *vedata)
 
 	const float *viewport_size = DRW_viewport_size_get();
 	const int size[2] = {(int)viewport_size[0], (int)viewport_size[1]};
+	const eGPUTextureFormat comp_tex_format = DRW_state_is_image_render() ? GPU_RGBA16F : GPU_R11F_G11F_B10F;
 
 	e_data.object_id_tx = DRW_texture_pool_query_2d(
 	        size[0], size[1], GPU_R32UI, &draw_engine_workbench_transparent);
@@ -333,7 +329,7 @@ void workbench_forward_engine_init(WORKBENCH_Data *vedata)
 	e_data.transparent_revealage_tx = DRW_texture_pool_query_2d(
 	        size[0], size[1], GPU_R16F, &draw_engine_workbench_transparent);
 	e_data.composite_buffer_tx = DRW_texture_pool_query_2d(
-	        size[0], size[1], GPU_R11F_G11F_B10F, &draw_engine_workbench_transparent);
+	        size[0], size[1], comp_tex_format, &draw_engine_workbench_transparent);
 
 	GPU_framebuffer_ensure_config(&fbl->object_outline_fb, {
 		GPU_ATTACHMENT_TEXTURE(dtxl->depth),
