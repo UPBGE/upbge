@@ -1990,6 +1990,57 @@ void uiItemR(uiLayout *layout, PointerRNA *ptr, const char *propname, int flag, 
 	uiItemFullR(layout, ptr, prop, RNA_NO_INDEX, 0, flag, name, icon);
 }
 
+/**
+ * Use a wrapper function since re-implementing all the logic in this function would be messy.
+ */
+void uiItemFullR_with_popover(
+        uiLayout *layout, PointerRNA *ptr, PropertyRNA *prop, int index, int value, int flag, const char *name, int icon,
+        const char *panel_type)
+{
+	uiBlock *block = layout->root->block;
+	uiBut *but = block->buttons.last;
+	uiItemFullR(layout, ptr, prop, index, value, flag, name, icon);
+	but = but->next;
+	while (but) {
+		if (but->rnaprop == prop && but->type == UI_BTYPE_MENU) {
+			ui_but_rna_menu_convert_to_panel_type(but, panel_type);
+			break;
+		}
+		but = but->next;
+	}
+	if (but == NULL) {
+		const char *propname = RNA_property_identifier(prop);
+		ui_item_disabled(layout, panel_type);
+		RNA_warning(
+		        "property could not use a popover: %s.%s (%s)",
+		        RNA_struct_identifier(ptr->type), propname, panel_type);
+	}
+}
+
+void uiItemFullR_with_menu(
+        uiLayout *layout, PointerRNA *ptr, PropertyRNA *prop, int index, int value, int flag, const char *name, int icon,
+        const char *menu_type)
+{
+	uiBlock *block = layout->root->block;
+	uiBut *but = block->buttons.last;
+	uiItemFullR(layout, ptr, prop, index, value, flag, name, icon);
+	but = but->next;
+	while (but) {
+		if (but->rnaprop == prop && but->type == UI_BTYPE_MENU) {
+			ui_but_rna_menu_convert_to_menu_type(but, menu_type);
+			break;
+		}
+		but = but->next;
+	}
+	if (but == NULL) {
+		const char *propname = RNA_property_identifier(prop);
+		ui_item_disabled(layout, menu_type);
+		RNA_warning(
+		        "property could not use a menu: %s.%s (%s)",
+		        RNA_struct_identifier(ptr->type), propname, menu_type);
+	}
+}
+
 void uiItemEnumR_prop(uiLayout *layout, const char *name, int icon, struct PointerRNA *ptr, PropertyRNA *prop, int value)
 {
 	if (RNA_property_type(prop) != PROP_ENUM) {
@@ -2291,7 +2342,7 @@ void uiItemPointerR(
 }
 
 /* menu item */
-static void ui_item_menutype_func(bContext *C, uiLayout *layout, void *arg_mt)
+void ui_item_menutype_func(bContext *C, uiLayout *layout, void *arg_mt)
 {
 	MenuType *mt = (MenuType *)arg_mt;
 

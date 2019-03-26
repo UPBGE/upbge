@@ -115,9 +115,11 @@ extern const short ui_radial_dir_to_angle[8];
 
 /* bit button defines */
 /* Bit operations */
-#define UI_BITBUT_TEST(a, b)    ( ( (a) & 1 << (b) ) != 0)
-#define UI_BITBUT_SET(a, b)     ( (a) | 1 << (b) )
-#define UI_BITBUT_CLR(a, b)     ( (a) & ~(1 << (b)) )
+#define UI_BITBUT_TEST(a, b)           (((a) &  (1 << (b))) != 0)
+#define UI_BITBUT_VALUE_TOGGLED(a, b)   ((a) ^  (1 << (b)))
+#define UI_BITBUT_VALUE_ENABLED(a, b)   ((a) |  (1 << (b)))
+#define UI_BITBUT_VALUE_DISABLED(a, b)  ((a) & ~(1 << (b)))
+
 /* bit-row */
 #define UI_BITBUT_ROW(min, max)  (((max) >= 31 ? 0xFFFFFFFF : (1 << ((max) + 1)) - 1) - ((min) ? ((1 << (min)) - 1) : 0) )
 
@@ -505,6 +507,10 @@ extern uiButExtraIconType ui_but_icon_extra_get(uiBut *but);
 
 extern void ui_but_default_set(struct bContext *C, const bool all, const bool use_afterfunc);
 
+extern void ui_but_rna_menu_convert_to_panel_type(struct uiBut *but, const char *panel_type);
+extern void ui_but_rna_menu_convert_to_menu_type(struct uiBut *but, const char *menu_type);
+extern bool ui_but_menu_draw_as_popover(const uiBut *but);
+
 extern void ui_but_update(uiBut *but);
 extern void ui_but_update_edited(uiBut *but);
 extern bool ui_but_is_float(const uiBut *but) ATTR_WARN_UNUSED_RESULT;
@@ -807,6 +813,7 @@ void ui_layout_add_but(uiLayout *layout, uiBut *but);
 void ui_but_add_search(uiBut *but, PointerRNA *ptr, PropertyRNA *prop, PointerRNA *searchptr, PropertyRNA *searchprop);
 void ui_layout_list_set_labels_active(uiLayout *layout);
 /* menu callback */
+void ui_item_menutype_func(struct bContext *C, struct uiLayout *layout, void *arg_mt);
 void ui_item_paneltype_func(struct bContext *C, struct uiLayout *layout, void *arg_pt);
 
 /* interface_align.c */

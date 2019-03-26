@@ -1377,7 +1377,7 @@ void drawDial3d(const TransInfo *t)
 		GPU_line_smooth(true);
 
 		ED_gizmotypes_dial_3d_draw_util(
-		        mat_basis, mat_final, line_with, color,
+		        mat_basis, mat_final, line_with, color, false,
 		        &(struct Dial3dParams){
 		            .draw_options = ED_GIZMO_DIAL_DRAW_FLAG_ANGLE_VALUE,
 		            .angle_delta = t->values[0],
@@ -1423,7 +1423,7 @@ static GizmoGroup *gizmogroup_init(wmGizmoGroup *gzgroup)
 	/* add/init widgets - order matters! */
 	GIZMO_NEW_DIAL(MAN_AXIS_ROT_T, ED_GIZMO_DIAL_DRAW_FLAG_FILL);
 
-	GIZMO_NEW_DIAL(MAN_AXIS_SCALE_C, ED_GIZMO_DIAL_DRAW_FLAG_NOP);
+	GIZMO_NEW_DIAL(MAN_AXIS_SCALE_C, ED_GIZMO_DIAL_DRAW_FLAG_FILL_SELECT);
 
 	GIZMO_NEW_ARROW(MAN_AXIS_SCALE_X, ED_GIZMO_ARROW_STYLE_BOX);
 	GIZMO_NEW_ARROW(MAN_AXIS_SCALE_Y, ED_GIZMO_ARROW_STYLE_BOX);
@@ -1440,7 +1440,7 @@ static GizmoGroup *gizmogroup_init(wmGizmoGroup *gzgroup)
 	/* init screen aligned widget last here, looks better, behaves better */
 	GIZMO_NEW_DIAL(MAN_AXIS_ROT_C, ED_GIZMO_DIAL_DRAW_FLAG_NOP);
 
-	GIZMO_NEW_DIAL(MAN_AXIS_TRANS_C, ED_GIZMO_DIAL_DRAW_FLAG_NOP);
+	GIZMO_NEW_DIAL(MAN_AXIS_TRANS_C, ED_GIZMO_DIAL_DRAW_FLAG_FILL_SELECT);
 
 	GIZMO_NEW_ARROW(MAN_AXIS_TRANS_X, ED_GIZMO_ARROW_STYLE_NORMAL);
 	GIZMO_NEW_ARROW(MAN_AXIS_TRANS_Y, ED_GIZMO_ARROW_STYLE_NORMAL);

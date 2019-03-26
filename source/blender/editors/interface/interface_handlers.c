@@ -864,42 +864,21 @@ static void ui_apply_but_BLOCK(bContext *C, uiBut *but, uiHandleButtonData *data
 
 static void ui_apply_but_TOG(bContext *C, uiBut *but, uiHandleButtonData *data)
 {
-	double value;
-	int w, lvalue, push;
-
-	value = ui_but_value_get(but);
-	lvalue = (int)value;
-
+	const double value = ui_but_value_get(but);
+	int value_toggle;
 	if (but->bit) {
-		w = UI_BITBUT_TEST(lvalue, but->bitnr);
-		if (w) {
-			lvalue = UI_BITBUT_CLR(lvalue, but->bitnr);
-		}
-		else {
-			lvalue = UI_BITBUT_SET(lvalue, but->bitnr);
-		}
-
-		ui_but_value_set(but, (double)lvalue);
-		if (but->type == UI_BTYPE_ICON_TOGGLE || but->type == UI_BTYPE_ICON_TOGGLE_N) {
-			ui_but_update_edited(but);
-		}
+		value_toggle = UI_BITBUT_VALUE_TOGGLED((int)value, but->bitnr);
 	}
 	else {
-
-		if (value == 0.0) {
-			push = 1;
-		}
-		else {
-			push = 0;
-		}
-
+		value_toggle = (value == 0.0);
 		if (ELEM(but->type, UI_BTYPE_TOGGLE_N, UI_BTYPE_ICON_TOGGLE_N, UI_BTYPE_CHECKBOX_N)) {
-			push = !push;
+			value_toggle = !value_toggle;
 		}
-		ui_but_value_set(but, (double)push);
-		if (but->type == UI_BTYPE_ICON_TOGGLE || but->type == UI_BTYPE_ICON_TOGGLE_N) {
-			ui_but_update_edited(but);
-		}
+	}
+
+	ui_but_value_set(but, (double)value_toggle);
+	if (but->type == UI_BTYPE_ICON_TOGGLE || but->type == UI_BTYPE_ICON_TOGGLE_N) {
+		ui_but_update_edited(but);
 	}
 
 	ui_apply_but_func(C, but);
@@ -3976,13 +3955,14 @@ static void ui_block_open_begin(bContext *C, uiBut *but, uiHandleButtonData *dat
 			}
 			break;
 		case UI_BTYPE_MENU:
-			BLI_assert(but->menu_create_func);
-			menufunc = but->menu_create_func;
-			arg = but->poin;
-			break;
 		case UI_BTYPE_POPOVER:
 			BLI_assert(but->menu_create_func);
-			popoverfunc = but->menu_create_func;
+			if ((but->type == UI_BTYPE_POPOVER) || ui_but_menu_draw_as_popover(but)) {
+				popoverfunc = but->menu_create_func;
+			}
+			else {
+				menufunc = but->menu_create_func;
+			}
 			arg = but->poin;
 			break;
 		case UI_BTYPE_COLOR:

@@ -117,6 +117,57 @@ static void rna_uiItemR(
 	uiItemFullR(layout, ptr, prop, index, 0, flag, name, icon);
 }
 
+static void rna_uiItemR_with_popover(
+        uiLayout *layout, struct PointerRNA *ptr, const char *propname, const char *name,
+        const char *text_ctxt, bool translate, int icon,
+        bool icon_only,
+        const char *panel_type)
+{
+	PropertyRNA *prop = RNA_struct_find_property(ptr, propname);
+
+	if (!prop) {
+		RNA_warning("property not found: %s.%s", RNA_struct_identifier(ptr->type), propname);
+		return;
+	}
+	if (RNA_property_type(prop) != PROP_ENUM) {
+		RNA_warning("property is not an enum: %s.%s", RNA_struct_identifier(ptr->type), propname);
+		return;
+	}
+	int flag = 0;
+
+	flag |= (icon_only) ? UI_ITEM_R_ICON_ONLY : 0;
+
+	/* Get translated name (label). */
+	name = rna_translate_ui_text(name, text_ctxt, NULL, prop, translate);
+	uiItemFullR_with_popover(layout, ptr, prop, -1, 0, flag, name, icon, panel_type);
+}
+
+static void rna_uiItemR_with_menu(
+        uiLayout *layout, struct PointerRNA *ptr, const char *propname, const char *name,
+        const char *text_ctxt, bool translate, int icon,
+        bool icon_only,
+        const char *menu_type)
+{
+	PropertyRNA *prop = RNA_struct_find_property(ptr, propname);
+
+	if (!prop) {
+		RNA_warning("property not found: %s.%s", RNA_struct_identifier(ptr->type), propname);
+		return;
+	}
+	if (RNA_property_type(prop) != PROP_ENUM) {
+		RNA_warning("property is not an enum: %s.%s", RNA_struct_identifier(ptr->type), propname);
+		return;
+	}
+	int flag = 0;
+
+	flag |= (icon_only) ? UI_ITEM_R_ICON_ONLY : 0;
+
+	/* Get translated name (label). */
+	name = rna_translate_ui_text(name, text_ctxt, NULL, prop, translate);
+	uiItemFullR_with_menu(layout, ptr, prop, -1, 0, flag, name, icon, menu_type);
+}
+
+
 static void rna_uiItemMenuEnumR(
         uiLayout *layout, struct PointerRNA *ptr, const char *propname, const char *name,
         const char *text_ctxt, bool translate, int icon)
@@ -638,6 +689,20 @@ void RNA_api_ui_layout(StructRNA *srna)
 	func = RNA_def_function(srna, "prop_menu_enum", "rna_uiItemMenuEnumR");
 	api_ui_item_rna_common(func);
 	api_ui_item_common(func);
+
+	func = RNA_def_function(srna, "prop_with_popover", "rna_uiItemR_with_popover");
+	api_ui_item_rna_common(func);
+	api_ui_item_common(func);
+	RNA_def_boolean(func, "icon_only", false, "", "Draw only icons in tabs, no text");
+	parm = RNA_def_string(func, "panel", NULL, 0, "", "Identifier of the panel");
+	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
+
+	func = RNA_def_function(srna, "prop_with_menu", "rna_uiItemR_with_menu");
+	api_ui_item_rna_common(func);
+	api_ui_item_common(func);
+	RNA_def_boolean(func, "icon_only", false, "", "Draw only icons in tabs, no text");
+	parm = RNA_def_string(func, "menu", NULL, 0, "", "Identifier of the menu");
+	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
 
 	func = RNA_def_function(srna, "prop_tabs_enum", "rna_uiItemTabsEnumR");
 	RNA_def_function_flag(func, FUNC_USE_CONTEXT);

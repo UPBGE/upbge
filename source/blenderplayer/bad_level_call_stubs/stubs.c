@@ -859,6 +859,15 @@ void uiItemPointerR_prop(uiLayout *layout, struct PointerRNA *ptr, PropertyRNA *
 
 void uiItemTabsEnumR_prop(uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, PropertyRNA *prop, bool icon_only) RET_NONE
 
+void uiItemFullR_with_popover(
+	uiLayout *layout, struct PointerRNA *ptr, struct PropertyRNA *prop, int index, int value, int flag,
+	const char *name, int icon,
+	const char *panel_type) RET_NONE
+void uiItemFullR_with_menu(
+	uiLayout *layout, struct PointerRNA *ptr, struct PropertyRNA *prop, int index, int value, int flag,
+	const char *name, int icon,
+	const char *menu_type) RET_NONE
+
 void uiLayoutSetPropSep(uiLayout *layout, bool is_sep) RET_NONE
 bool uiLayoutGetPropSep(uiLayout *layout) RET_ZERO
 
