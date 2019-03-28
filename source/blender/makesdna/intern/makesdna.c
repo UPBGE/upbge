@@ -404,7 +404,9 @@ static int add_name(const char *str)
 
 	additional_slen_offset = 0;
 
-	if (str[0] == 0 /*  || (str[1] == 0) */) return -1;
+	if (str[0] == 0 /*  || (str[1] == 0) */) {
+		return -1;
+	}
 
 	if (str[0] == '(' && str[1] == '*') {
 		/* we handle function pointer and special array cases here, e.g.
@@ -441,8 +443,9 @@ static int add_name(const char *str)
 			if (str[j] == 0) {
 				DEBUG_PRINTF(3, "offsetting for multidim array pointer\n");
 			}
-			else
+			else {
 				printf("Error during tokening multidim array pointer\n");
+			}
 		}
 		else if (str[j] == 0) {
 			DEBUG_PRINTF(3, "offsetting for space\n");
@@ -717,9 +720,14 @@ static int convert_include(const char *filename)
 				skip_struct = false;
 			}
 			else {
-				if (md[-1] == ' ') md[-1] = 0;
+				if (md[-1] == ' ') {
+					md[-1] = 0;
+				}
 				md1 = md - 2;
-				while (*md1 != 32) md1--;       /* to beginning of word */
+				while (*md1 != 32) {
+					/* to beginning of word */
+					md1--;
+				}
 				md1++;
 
 				/* we've got a struct name when... */
@@ -739,22 +747,28 @@ static int convert_include(const char *filename)
 					/* first lets make it all nice strings */
 					md1 = md + 1;
 					while (*md1 != '}') {
-						if (md1 > mainend) break;
+						if (md1 > mainend) {
+							break;
+						}
 
-						if (*md1 == ',' || *md1 == ' ') *md1 = 0;
+						if (*md1 == ',' || *md1 == ' ') {
+							*md1 = 0;
+						}
 						md1++;
 					}
 
 					/* read types and names until first character that is not '}' */
 					md1 = md + 1;
 					while (*md1 != '}') {
-						if (md1 > mainend) break;
+						if (md1 > mainend) {
+							break;
+						}
 
 						/* skip when it says 'struct' or 'unsigned' or 'const' */
 						if (*md1) {
-							if (strncmp(md1, "struct", 6) == 0) md1 += 7;
-							if (strncmp(md1, "unsigned", 8) == 0) md1 += 9;
-							if (strncmp(md1, "const", 5) == 0) md1 += 6;
+							if (strncmp(md1, "struct", 6) == 0) { md1 += 7; }
+							if (strncmp(md1, "unsigned", 8) == 0) { md1 += 9; }
+							if (strncmp(md1, "const", 5) == 0) { md1 += 6; }
 
 							/* we've got a type! */
 							type = add_type(md1, 0);
@@ -770,7 +784,9 @@ static int convert_include(const char *filename)
 
 							/* read until ';' */
 							while (*md1 != ';') {
-								if (md1 > mainend) break;
+								if (md1 > mainend) {
+									break;
+								}
 
 								if (*md1) {
 									/* We've got a name. slen needs
@@ -1008,7 +1024,9 @@ static int calculate_struct_sizes(int firststruct)
 			}
 		}
 
-		if (unknown == lastunknown) break;
+		if (unknown == lastunknown) {
+			break;
+		}
 	}
 
 	if (unknown) {
@@ -1253,7 +1271,9 @@ static int make_structDNA(const char *baseDirectory, FILE *file, FILE *file_offs
 		dna_write(file, "TLEN", 4);
 
 		len = 2 * nr_types;
-		if (nr_types & 1) len += 2;
+		if (nr_types & 1) {
+			len += 2;
+		}
 		dna_write(file, types_size_native, len);
 
 		/* WRITE STRUCTS */

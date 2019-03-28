@@ -2785,8 +2785,9 @@ static int ui_text_position_from_hidden(uiBut *but, int pos)
 
 	butstr = (but->editstr) ? but->editstr : but->drawstr;
 
-	for (i = 0, strpos = butstr; i < pos; i++)
+	for (i = 0, strpos = butstr; i < pos; i++) {
 		strpos = BLI_str_find_next_char_utf8(strpos, NULL);
+	}
 
 	return (strpos - butstr);
 }
@@ -8164,6 +8165,32 @@ static void ui_handle_button_activate(bContext *C, ARegion *ar, uiBut *but, uiBu
 	button_activate_init(C, ar, but, type);
 }
 
+/**
+ * Use for key accelerator or default key to activate the button even if its not active.
+ */
+static bool ui_handle_button_activate_by_type(bContext *C, ARegion *ar, uiBut *but)
+{
+	if (but->type == UI_BTYPE_BUT_MENU) {
+		/* mainly for operator buttons */
+		ui_handle_button_activate(C, ar, but, BUTTON_ACTIVATE_APPLY);
+	}
+	else if (ELEM(but->type, UI_BTYPE_BLOCK, UI_BTYPE_PULLDOWN)) {
+		/* open sub-menus (like right arrow key) */
+		ui_handle_button_activate(C, ar, but, BUTTON_ACTIVATE_OPEN);
+	}
+	else if (but->type == UI_BTYPE_MENU) {
+		/* activate menu items */
+		ui_handle_button_activate(C, ar, but, BUTTON_ACTIVATE);
+	}
+	else {
+#ifdef DEBUG
+		printf("%s: error, unhandled type: %u\n", __func__, but->type);
+#endif
+		return false;
+	}
+	return true;
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -8231,7 +8258,11 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
 								data->cancel = false;
 								button_activate_state(C, but, BUTTON_STATE_EXIT);
 								retval = WM_UI_HANDLER_BREAK;
-								block->handle->menuretval = UI_RETURN_OK;
+								/* Cancel because this `but` handles all events and we don't want
+								 * the parent button's update function to do anything.
+								 *
+								 * Causes issues with buttons defined by #uiItemFullR_with_popover. */
+								block->handle->menuretval = UI_RETURN_CANCEL;
 							}
 							else if (ui_but_is_editable_as_text(but)) {
 								ui_handle_button_activate(C, ar, but, BUTTON_ACTIVATE_TEXT_EDITING);
@@ -9419,22 +9450,12 @@ static int ui_handle_menu_event(
 
 						for (but = block->buttons.first; but; but = but->next) {
 							if (!(but->flag & UI_BUT_DISABLED) && but->menu_key == event->type) {
-								if (ELEM(but->type, UI_BTYPE_BUT, UI_BTYPE_BUT_MENU)) {
-									/* mainly for operator buttons */
-									ui_handle_button_activate(C, ar, but, BUTTON_ACTIVATE_APPLY);
-								}
-								else if (ELEM(but->type, UI_BTYPE_BLOCK, UI_BTYPE_PULLDOWN)) {
-									/* open sub-menus (like right arrow key) */
-									ui_handle_button_activate(C, ar, but, BUTTON_ACTIVATE_OPEN);
-								}
-								else if (but->type == UI_BTYPE_MENU) {
-									/* activate menu items */
-									ui_handle_button_activate(C, ar, but, BUTTON_ACTIVATE);
+								if (but->type == UI_BTYPE_BUT) {
+									UI_but_execute(C, but);
 								}
 								else {
-									printf("%s: error, but->menu_key type: %u\n", __func__, but->type);
+									ui_handle_button_activate_by_type(C, ar, but);
 								}
-
 								break;
 							}
 						}
@@ -9506,10 +9527,23 @@ static int ui_handle_menu_event(
 				menu->menuretval = UI_RETURN_CANCEL;
 			}
 			else if (ELEM(event->type, RETKEY, PADENTER) && event->val == KM_PRESS) {
-				/* enter will always close this block, we let the event
-				 * get handled by the button if it is activated, otherwise we cancel */
-				if (!ui_region_find_active_but(ar)) {
-					menu->menuretval = UI_RETURN_CANCEL | UI_RETURN_POPUP_OK;
+				uiBut *but_default = ui_region_find_first_but_test_flag(ar, UI_BUT_ACTIVE_DEFAULT, UI_HIDDEN);
+				if ((but_default != NULL) && (but_default->active == NULL)) {
+					if (but->type == UI_BTYPE_BUT) {
+						UI_but_execute(C, but_default);
+					}
+					else {
+						ui_handle_button_activate_by_type(C, ar, but_default);
+					}
+				}
+				else {
+					uiBut *but_active = ui_region_find_active_but(ar);
+
+					/* enter will always close this block, we let the event
+					 * get handled by the button if it is activated, otherwise we cancel */
+					if (but_active == NULL) {
+						menu->menuretval = UI_RETURN_CANCEL | UI_RETURN_POPUP_OK;
+					}
 				}
 			}
 #ifdef USE_DRAG_POPUP

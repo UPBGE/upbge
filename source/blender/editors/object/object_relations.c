@@ -1362,9 +1362,13 @@ static bool allow_make_links_data(const int type, Object *ob_src, Object *ob_dst
 				return true;
 			}
 			break;
+		case MAKE_LINKS_DUPLICOLLECTION:
+			if (ob_dst->type == OB_EMPTY) {
+				return true;
+			}
+			break;
 		case MAKE_LINKS_ANIMDATA:
 		case MAKE_LINKS_GROUP:
-		case MAKE_LINKS_DUPLICOLLECTION:
 			return true;
 		case MAKE_LINKS_MODIFIERS:
 			if (!ELEM(OB_EMPTY, ob_src->type, ob_dst->type)) {
@@ -1673,10 +1677,15 @@ static void single_object_users(Main *bmain, Scene *scene, View3D *v3d, const in
 
 	/* active camera */
 	ID_NEW_REMAP(scene->camera);
-	if (v3d) ID_NEW_REMAP(v3d->camera);
+	if (v3d) {
+		ID_NEW_REMAP(v3d->camera);
+	}
 
-	BKE_scene_collection_sync(scene);
-
+	/* Making single user may affect other scenes if they share with current one some collections in their ViewLayer. */
+	for (Scene *sce = bmain->scenes.first; sce != NULL; sce = sce->id.next) {
+		BKE_scene_collection_sync(sce);
+	}
+	
 	set_sca_new_poins();
 }
 

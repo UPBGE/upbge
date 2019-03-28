@@ -853,6 +853,8 @@ void uiItemM(uiLayout *layout, const char *menuname, const char *name, int icon)
 void uiItemS(struct uiLayout *layout) RET_NONE
 void uiItemFullR(uiLayout *layout, struct PointerRNA *ptr, struct PropertyRNA *prop, int index, int value, int flag, const char *name, int icon) RET_NONE
 void uiLayoutSetContextPointer(uiLayout *layout, const char *name, struct PointerRNA *ptr) RET_NONE
+bool uiLayoutGetActiveDefault(uiLayout *layout) RET_ZERO
+void uiLayoutSetActiveDefault(uiLayout *layout, bool active_default) RET_NONE
 
 void uiItemEnumR_string_prop(uiLayout *layout, struct PointerRNA *ptr, struct PropertyRNA *prop, const char *value, const char *name, int icon) RET_NONE
 void uiItemPointerR_prop(uiLayout *layout, struct PointerRNA *ptr, PropertyRNA *prop, struct PointerRNA *searchptr, struct PropertyRNA *searchprop, const char *name, int icon) RET_NONE

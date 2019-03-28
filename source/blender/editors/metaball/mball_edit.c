@@ -79,7 +79,9 @@ void ED_mball_editmball_make(Object *obedit)
 	ml = mb->elems.first;
 
 	while (ml) {
-		if (ml->flag & SELECT) mb->lastelem = ml;
+		if (ml->flag & SELECT) {
+			mb->lastelem = ml;
+		}
 		ml = ml->next;
 	}
 
@@ -125,35 +127,35 @@ static int mball_select_all_exec(bContext *C, wmOperator *op)
 	int action = RNA_enum_get(op->ptr, "action");
 
 	ViewLayer *view_layer = CTX_data_view_layer(C);
-	uint objects_len = 0;
-	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, CTX_wm_view3d(C), &objects_len);
+	uint bases_len = 0;
+	Base **bases = BKE_view_layer_array_from_bases_in_edit_mode_unique_data(view_layer, CTX_wm_view3d(C), &bases_len);
 
 	if (action == SEL_TOGGLE) {
-		action = BKE_mball_is_any_selected_multi(objects, objects_len) ?
+		action = BKE_mball_is_any_selected_multi(bases, bases_len) ?
 		        SEL_DESELECT :
 		        SEL_SELECT;
 	}
 
 	switch (action) {
 		case SEL_SELECT:
-			BKE_mball_select_all_multi(objects, objects_len);
+			BKE_mball_select_all_multi_ex(bases, bases_len);
 			break;
 		case SEL_DESELECT:
-			BKE_mball_deselect_all_multi(objects, objects_len);
+			BKE_mball_deselect_all_multi_ex(bases, bases_len);
 			break;
 		case SEL_INVERT:
-			BKE_mball_select_swap_multi(objects, objects_len);
+			BKE_mball_select_swap_multi_ex(bases, bases_len);
 			break;
 	}
 
-	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
-		Object *obedit = objects[ob_index];
+	for (uint base_index = 0; base_index < bases_len; base_index++) {
+		Object *obedit = bases[base_index]->object;
 		MetaBall *mb = (MetaBall *)obedit->data;
 		DEG_id_tag_update(&mb->id, ID_RECALC_SELECT);
 		WM_event_add_notifier(C, NC_GEOM | ND_SELECT, mb);
 	}
 
-	MEM_freeN(objects);
+	MEM_freeN(bases);
 
 	return OPERATOR_FINISHED;
 }
@@ -315,10 +317,10 @@ static int mball_select_similar_exec(bContext *C, wmOperator *op)
 	int tot_mball_selected_all = 0;
 
 	ViewLayer *view_layer = CTX_data_view_layer(C);
-	uint objects_len = 0;
-	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, CTX_wm_view3d(C), &objects_len);
+	uint bases_len = 0;
+	Base **bases = BKE_view_layer_array_from_bases_in_edit_mode_unique_data(view_layer, CTX_wm_view3d(C), &bases_len);
 
-	tot_mball_selected_all = BKE_mball_select_count_multi(objects, objects_len);
+	tot_mball_selected_all = BKE_mball_select_count_multi(bases, bases_len);
 
 	short type_ref = 0;
 	KDTree_1d *tree_1d = NULL;
@@ -335,8 +337,8 @@ static int mball_select_similar_exec(bContext *C, wmOperator *op)
 	}
 
 	/* Get type of selected MetaBall */
-	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
-		Object *obedit = objects[ob_index];
+	for (uint base_index = 0; base_index < bases_len; base_index++) {
+		Object *obedit = bases[base_index]->object;
 		MetaBall *mb = (MetaBall *)obedit->data;
 
 		switch (type) {
@@ -371,8 +373,8 @@ static int mball_select_similar_exec(bContext *C, wmOperator *op)
 		BLI_kdtree_3d_balance(tree_3d);
 	}
 	/* Select MetaBalls with desired type. */
-	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
-		Object *obedit = objects[ob_index];
+	for (uint base_index = 0; base_index < bases_len; base_index++) {
+		Object *obedit = bases[base_index]->object;
 		MetaBall *mb = (MetaBall *)obedit->data;
 		bool changed = false;
 
@@ -405,7 +407,7 @@ static int mball_select_similar_exec(bContext *C, wmOperator *op)
 		}
 	}
 
-	MEM_freeN(objects);
+	MEM_freeN(bases);
 	if (tree_1d != NULL) {
 		BLI_kdtree_1d_free(tree_1d);
 	}
@@ -575,7 +577,9 @@ static int delete_metaelems_exec(bContext *C, wmOperator *UNUSED(op))
 			while (ml) {
 				next = ml->next;
 				if (ml->flag & SELECT) {
-					if (mb->lastelem == ml) mb->lastelem = NULL;
+					if (mb->lastelem == ml) {
+						mb->lastelem = NULL;
+					}
 					BLI_remlink(mb->editelems, ml);
 					MEM_freeN(ml);
 				}
@@ -619,8 +623,9 @@ static int hide_metaelems_exec(bContext *C, wmOperator *op)
 
 	if (ml) {
 		while (ml) {
-			if ((ml->flag & SELECT) != invert)
+			if ((ml->flag & SELECT) != invert) {
 				ml->flag |= MB_HIDE;
+			}
 			ml = ml->next;
 		}
 		WM_event_add_notifier(C, NC_GEOM | ND_DATA, mb);
@@ -717,11 +722,15 @@ bool ED_mball_select_pick(bContext *C, const int mval[2], bool extend, bool dese
 		/* does startelem exist? */
 		ml = mb->editelems->first;
 		while (ml) {
-			if (ml == startelem) break;
+			if (ml == startelem) {
+				break;
+			}
 			ml = ml->next;
 		}
 
-		if (ml == NULL) startelem = mb->editelems->first;
+		if (ml == NULL) {
+			startelem = mb->editelems->first;
+		}
 
 		if (hits > 0) {
 			int metaelem_id = 0;
@@ -758,10 +767,16 @@ bool ED_mball_select_pick(bContext *C, const int mval[2], bool extend, bool dese
 					}
 				}
 
-				if (ml_act) break;
+				if (ml_act) {
+					break;
+				}
 				ml = ml->next;
-				if (ml == NULL) ml = mb->editelems->first;
-				if (ml == startelem) break;
+				if (ml == NULL) {
+					ml = mb->editelems->first;
+				}
+				if (ml == startelem) {
+					break;
+				}
 
 				metaelem_id += 0x10000;
 			}
@@ -792,10 +807,12 @@ bool ED_mball_select_pick(bContext *C, const int mval[2], bool extend, bool dese
 					ml_act->flag &= ~SELECT;
 				}
 				else if (toggle) {
-					if (ml_act->flag & SELECT)
+					if (ml_act->flag & SELECT) {
 						ml_act->flag &= ~SELECT;
-					else
+					}
+					else {
 						ml_act->flag |= SELECT;
+					}
 				}
 				else {
 					/* Deselect all existing metaelems */
@@ -820,4 +837,15 @@ bool ED_mball_select_pick(bContext *C, const int mval[2], bool extend, bool dese
 	} FOREACH_BASE_IN_EDIT_MODE_END;
 
 	return false;
+}
+
+bool ED_mball_deselect_all_multi(bContext *C)
+{
+	ViewContext vc;
+	ED_view3d_viewcontext_init(C, &vc);
+	uint bases_len = 0;
+	Base **bases = BKE_view_layer_array_from_bases_in_edit_mode_unique_data(vc.view_layer, vc.v3d, &bases_len);
+	bool changed_multi = BKE_mball_deselect_all_multi_ex(bases, bases_len);
+	MEM_freeN(bases);
+	return changed_multi;
 }

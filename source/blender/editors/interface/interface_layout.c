@@ -160,6 +160,7 @@ struct uiLayout {
 	short space;
 	bool align;
 	bool active;
+	bool active_default;
 	bool activate_init;
 	bool enabled;
 	bool redalert;
@@ -1058,6 +1059,10 @@ static uiBut *uiItemFullO_ptr_ex(
 
 	if (layout->redalert) {
 		UI_but_flag_enable(but, UI_BUT_REDALERT);
+	}
+
+	if (layout->active_default) {
+		UI_but_flag_enable(but, UI_BUT_ACTIVE_DEFAULT);
 	}
 
 	/* assign properties */
@@ -3279,8 +3284,9 @@ static void ui_litem_estimate_column_flow(uiLayout *litem)
 		flow->totcol = max_ii(litem->root->emw / maxw, 1);
 		flow->totcol = min_ii(flow->totcol, totitem);
 	}
-	else
+	else {
 		flow->totcol = flow->number;
+	}
 
 	/* compute sizes */
 	x = 0;
@@ -3614,7 +3620,10 @@ static void ui_litem_estimate_grid_flow(uiLayout *litem)
 				for (gflow->tot_rows = (int)ceilf((float)gflow->tot_items / gflow->tot_columns);
 				     (gflow->tot_columns - step) > 0 &&
 				     (int)ceilf((float)gflow->tot_items / (gflow->tot_columns - step)) <= gflow->tot_rows;
-				     gflow->tot_columns -= step);
+				     gflow->tot_columns -= step)
+				{
+					/* pass */
+				}
 			}
 			else {
 				/* Adjust number of rows to be multiple of given modulo. */
@@ -3625,7 +3634,10 @@ static void ui_litem_estimate_grid_flow(uiLayout *litem)
 				for (gflow->tot_columns = (int)ceilf((float)gflow->tot_items / gflow->tot_rows);
 				     (gflow->tot_rows - step) > 0 &&
 				     (int)ceilf((float)gflow->tot_items / (gflow->tot_rows - step)) <= gflow->tot_columns;
-				     gflow->tot_rows -= step);
+				     gflow->tot_rows -= step)
+				{
+					/* pass */
+				}
 			}
 		}
 
@@ -4143,6 +4155,11 @@ void uiLayoutSetActive(uiLayout *layout, bool active)
 	layout->active = active;
 }
 
+void uiLayoutSetActiveDefault(uiLayout *layout, bool active_default)
+{
+	layout->active_default = active_default;
+}
+
 void uiLayoutSetActivateInit(uiLayout *layout, bool activate_init)
 {
 	layout->activate_init = activate_init;
@@ -4216,6 +4233,11 @@ void uiLayoutSetPropDecorate(uiLayout *layout, bool is_sep)
 bool uiLayoutGetActive(uiLayout *layout)
 {
 	return layout->active;
+}
+
+bool uiLayoutGetActiveDefault(uiLayout *layout)
+{
+	return layout->active_default;
 }
 
 bool uiLayoutGetActivateInit(uiLayout *layout)
@@ -4417,8 +4439,9 @@ static void ui_item_flag(uiLayout *litem, int flag)
 			bitem = (uiButtonItem *)item;
 			bitem->but->flag |= flag;
 		}
-		else
+		else {
 			ui_item_flag((uiLayout *)item, flag);
+		}
 	}
 }
 

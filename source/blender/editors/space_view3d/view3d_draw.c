@@ -93,7 +93,9 @@
 
 #include "view3d_intern.h"  /* own include */
 
-/* ******************** general functions ***************** */
+/* -------------------------------------------------------------------- */
+/** \name General Functions
+ * \{ */
 
 /**
  * \note keep this synced with #ED_view3d_mats_rv3d_backup/#ED_view3d_mats_rv3d_restore
@@ -105,10 +107,12 @@ void ED_view3d_update_viewmat(
 	RegionView3D *rv3d = ar->regiondata;
 
 	/* setup window matrices */
-	if (winmat)
+	if (winmat) {
 		copy_m4_m4(rv3d->winmat, winmat);
-	else
+	}
+	else {
 		view3d_winmatrix_set(depsgraph, ar, v3d, rect);
+	}
 
 	/* setup view matrix */
 	if (viewmat) {
@@ -231,8 +235,9 @@ static void view3d_stereo3d_setup(
 	const char *viewname;
 
 	/* show only left or right camera */
-	if (v3d->stereo3d_camera != STEREO_3D_ID)
+	if (v3d->stereo3d_camera != STEREO_3D_ID) {
 		v3d->multiview_eye = v3d->stereo3d_camera;
+	}
 
 	is_left = v3d->multiview_eye == STEREO_LEFT_ID;
 	viewname = names[is_left ? STEREO_LEFT_ID : STEREO_RIGHT_ID];
@@ -291,7 +296,11 @@ void ED_view3d_draw_setup_view(
 	}
 }
 
-/* ******************** view border ***************** */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Draw View Border
+ * \{ */
 
 static void view3d_camera_border(
         const Scene *scene, struct Depsgraph *depsgraph,
@@ -305,8 +314,9 @@ static void view3d_camera_border(
 	/* get viewport viewplane */
 	BKE_camera_params_init(&params);
 	BKE_camera_params_from_view3d(&params, depsgraph, v3d, rv3d);
-	if (no_zoom)
+	if (no_zoom) {
 		params.zoom = 1.0f;
+	}
 	BKE_camera_params_compute_viewplane(&params, ar->winx, ar->winy, 1.0f, 1.0f);
 	rect_view = params.viewplane;
 
@@ -393,7 +403,9 @@ static void drawviewborder_triangle(
 		else {
 			ofs = h * (h / w);
 		}
-		if (dir == 'B') SWAP(float, y1, y2);
+		if (dir == 'B') {
+			SWAP(float, y1, y2);
+		}
 
 		immVertex2f(shdr_pos, x1, y1);
 		immVertex2f(shdr_pos, x2, y2);
@@ -411,7 +423,9 @@ static void drawviewborder_triangle(
 		else {
 			ofs = w * (w / h);
 		}
-		if (dir == 'B') SWAP(float, x1, x2);
+		if (dir == 'B') {
+			SWAP(float, x1, x2);
+		}
 
 		immVertex2f(shdr_pos, x1, y1);
 		immVertex2f(shdr_pos, x2, y2);
@@ -435,10 +449,12 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *ar, View
 	Camera *ca = NULL;
 	RegionView3D *rv3d = ar->regiondata;
 
-	if (v3d->camera == NULL)
+	if (v3d->camera == NULL) {
 		return;
-	if (v3d->camera->type == OB_CAMERA)
+	}
+	if (v3d->camera->type == OB_CAMERA) {
 		ca = v3d->camera->data;
+	}
 
 	ED_view3d_calc_camera_border(scene, depsgraph, ar, v3d, rv3d, &viewborder, false);
 	/* the offsets */
@@ -482,14 +498,18 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *ar, View
 
 			immUniformColor4f(0.0f, 0.0f, 0.0f, alpha);
 
-			if (x1i > 0.0f)
+			if (x1i > 0.0f) {
 				immRectf(shdr_pos, 0.0f, winy, x1i, 0.0f);
-			if (x2i < winx)
+			}
+			if (x2i < winx) {
 				immRectf(shdr_pos, x2i, winy, winx, 0.0f);
-			if (y2i < winy)
+			}
+			if (y2i < winy) {
 				immRectf(shdr_pos, x1i, winy, x2i, y2i);
-			if (y2i > 0.0f)
+			}
+			if (y2i > 0.0f) {
 				immRectf(shdr_pos, x1i, y1i, x2i, 0.0f);
+			}
 
 			GPU_blend(false);
 		}
@@ -731,7 +751,8 @@ void ED_view3d_draw_depth(
 
 	GPU_depth_test(true);
 
-	DRW_draw_depth_loop(depsgraph, ar, v3d);
+	GPUViewport *viewport = WM_draw_region_get_viewport(ar, 0);
+	DRW_draw_depth_loop(depsgraph, ar, v3d, viewport);
 
 	if (rv3d->rflag & RV3D_CLIPPING) {
 		ED_view3d_clipping_disable();
@@ -762,8 +783,9 @@ float ED_scene_grid_scale(Scene *scene, const char **grid_unit)
 
 		if (usys) {
 			int i = bUnit_GetBaseUnit(usys);
-			if (grid_unit)
+			if (grid_unit) {
 				*grid_unit = bUnit_GetNameDisplay(usys, i);
+			}
 			return (float)bUnit_GetScaler(usys, i) / scene->unit.scale_length;
 		}
 	}
@@ -963,8 +985,9 @@ static void draw_rotation_guide(const RegionView3D *rv3d)
 
 		color[3] = 255;  /* solid dot */
 	}
-	else
+	else {
 		color[3] = 127;  /* see-through dot */
+	}
 
 	immUnbindProgram();
 
@@ -989,8 +1012,6 @@ static void draw_rotation_guide(const RegionView3D *rv3d)
 }
 #endif /* WITH_INPUT_NDOF */
 
-/* ******************** info ***************** */
-
 /**
  * Render and camera border
  */
@@ -1009,8 +1030,14 @@ static void view3d_draw_border(const bContext *C, ARegion *ar)
 	}
 }
 
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Draw Text & Info
+ * \{ */
+
 /**
- * Grease Pencil
+ * Draw Info
  */
 static void view3d_draw_grease_pencil(const bContext *UNUSED(C))
 {
@@ -1026,28 +1053,52 @@ static const char *view3d_get_name(View3D *v3d, RegionView3D *rv3d)
 
 	switch (rv3d->view) {
 		case RV3D_VIEW_FRONT:
-			if (rv3d->persp == RV3D_ORTHO) name = IFACE_("Front Orthographic");
-			else name = IFACE_("Front Perspective");
+			if (rv3d->persp == RV3D_ORTHO) {
+				name = IFACE_("Front Orthographic");
+			}
+			else {
+				name = IFACE_("Front Perspective");
+			}
 			break;
 		case RV3D_VIEW_BACK:
-			if (rv3d->persp == RV3D_ORTHO) name = IFACE_("Back Orthographic");
-			else name = IFACE_("Back Perspective");
+			if (rv3d->persp == RV3D_ORTHO) {
+				name = IFACE_("Back Orthographic");
+			}
+			else {
+				name = IFACE_("Back Perspective");
+			}
 			break;
 		case RV3D_VIEW_TOP:
-			if (rv3d->persp == RV3D_ORTHO) name = IFACE_("Top Orthographic");
-			else name = IFACE_("Top Perspective");
+			if (rv3d->persp == RV3D_ORTHO) {
+				name = IFACE_("Top Orthographic");
+			}
+			else {
+				name = IFACE_("Top Perspective");
+			}
 			break;
 		case RV3D_VIEW_BOTTOM:
-			if (rv3d->persp == RV3D_ORTHO) name = IFACE_("Bottom Orthographic");
-			else name = IFACE_("Bottom Perspective");
+			if (rv3d->persp == RV3D_ORTHO) {
+				name = IFACE_("Bottom Orthographic");
+			}
+			else {
+				name = IFACE_("Bottom Perspective");
+			}
 			break;
 		case RV3D_VIEW_RIGHT:
-			if (rv3d->persp == RV3D_ORTHO) name = IFACE_("Right Orthographic");
-			else name = IFACE_("Right Perspective");
+			if (rv3d->persp == RV3D_ORTHO) {
+				name = IFACE_("Right Orthographic");
+			}
+			else {
+				name = IFACE_("Right Perspective");
+			}
 			break;
 		case RV3D_VIEW_LEFT:
-			if (rv3d->persp == RV3D_ORTHO) name = IFACE_("Left Orthographic");
-			else name = IFACE_("Left Perspective");
+			if (rv3d->persp == RV3D_ORTHO) {
+				name = IFACE_("Left Orthographic");
+			}
+			else {
+				name = IFACE_("Left Perspective");
+			}
 			break;
 
 		default:
@@ -1217,10 +1268,12 @@ static void draw_selected_name(Scene *scene, ViewLayer *view_layer, Object *ob, 
 	}
 	else {
 		/* no object */
-		if (ED_gpencil_has_keyframe_v3d(scene, NULL, cfra))
+		if (ED_gpencil_has_keyframe_v3d(scene, NULL, cfra)) {
 			UI_FontThemeColor(font_id, TH_TIME_GP_KEYFRAME);
-		else
+		}
+		else {
 			UI_FontThemeColor(font_id, TH_TEXT_HI);
+		}
 	}
 
 	if (markern) {
@@ -1236,8 +1289,6 @@ static void draw_selected_name(Scene *scene, ViewLayer *view_layer, Object *ob, 
 
 	BLF_disable(font_id, BLF_SHADOW);
 }
-
-/* ******************** view loop ***************** */
 
 /**
  * Information drawn on top of the solid plates and composed data
@@ -1324,6 +1375,12 @@ void view3d_draw_region_info(const bContext *C, ARegion *ar)
 	BLF_batch_draw_end();
 }
 
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Draw Viewport Contents
+ * \{ */
+
 static void view3d_draw_view(const bContext *C, ARegion *ar)
 {
 	ED_view3d_draw_setup_view(CTX_wm_window(C), CTX_data_depsgraph(C), CTX_data_scene(C), ar, CTX_wm_view3d(C), NULL, NULL, NULL);
@@ -1364,6 +1421,8 @@ void view3d_main_region_draw(const bContext *C, ARegion *ar)
 
 	v3d->flag |= V3D_INVALID_BACKBUF;
 }
+
+/** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Offscreen Drawing
@@ -1432,10 +1491,12 @@ void ED_view3d_draw_offscreen(
 	GPU_matrix_push();
 	GPU_matrix_identity_set();
 
-	if ((viewname != NULL && viewname[0] != '\0') && (viewmat == NULL) && rv3d->persp == RV3D_CAMOB && v3d->camera)
+	if ((viewname != NULL && viewname[0] != '\0') && (viewmat == NULL) && rv3d->persp == RV3D_CAMOB && v3d->camera) {
 		view3d_stereo3d_setup_offscreen(depsgraph, scene, v3d, ar, winmat, viewname);
-	else
+	}
+	else {
 		view3d_main_region_setup_view(depsgraph, scene, v3d, ar, viewmat, winmat, NULL);
+	}
 
 	/* main drawing call */
 	DRW_draw_render_loop_offscreen(
@@ -1638,8 +1699,9 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(
 		GPU_framebuffer_bind(old_fb);
 	}
 
-	if (ibuf->rect_float && ibuf->rect)
+	if (ibuf->rect_float && ibuf->rect) {
 		IMB_rect_from_float(ibuf);
+	}
 
 	return ibuf;
 }
@@ -1727,11 +1789,15 @@ ImBuf *ED_view3d_draw_offscreen_imbuf_simple(
 
 static bool view3d_clipping_test(const float co[3], const float clip[6][4])
 {
-	if (plane_point_side_v3(clip[0], co) > 0.0f)
-		if (plane_point_side_v3(clip[1], co) > 0.0f)
-			if (plane_point_side_v3(clip[2], co) > 0.0f)
-				if (plane_point_side_v3(clip[3], co) > 0.0f)
+	if (plane_point_side_v3(clip[0], co) > 0.0f) {
+		if (plane_point_side_v3(clip[1], co) > 0.0f) {
+			if (plane_point_side_v3(clip[2], co) > 0.0f) {
+				if (plane_point_side_v3(clip[3], co) > 0.0f) {
 					return false;
+				}
+			}
+		}
+	}
 
 	return true;
 }
@@ -1742,6 +1808,5 @@ bool ED_view3d_clipping_test(const RegionView3D *rv3d, const float co[3], const 
 {
 	return view3d_clipping_test(co, is_local ? rv3d->clip_local : rv3d->clip);
 }
-
 
 /** \} */

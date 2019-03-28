@@ -193,6 +193,11 @@ enum {
 	UI_BUT_IMMEDIATE       = 1 << 20,
 	UI_BUT_NO_UTF8         = 1 << 21,
 
+	/** For popups, pressing return activates this button, overriding the highlighted button.
+	 * For non-popups this is just used as a display hint for the user to let them
+	 * know the action which is activated when pressing return (file selector for eg). */
+	UI_BUT_ACTIVE_DEFAULT = 1 << 23,
+
 	/** This but is "inside" a list item (currently used to change theme colors). */
 	UI_BUT_LIST_ITEM       = 1 << 24,
 	/** edit this button as well as the active button (not just dragging) */
@@ -1066,6 +1071,7 @@ void uiLayoutSetContextFromBut(uiLayout *layout, uiBut *but);
 
 void uiLayoutSetOperatorContext(uiLayout *layout, int opcontext);
 void uiLayoutSetActive(uiLayout *layout, bool active);
+void uiLayoutSetActiveDefault(uiLayout *layout, bool active_default);
 void uiLayoutSetActivateInit(uiLayout *layout, bool active);
 void uiLayoutSetEnabled(uiLayout *layout, bool enabled);
 void uiLayoutSetRedAlert(uiLayout *layout, bool redalert);
@@ -1082,6 +1088,7 @@ int uiLayoutGetLocalDir(const uiLayout *layout);
 
 int uiLayoutGetOperatorContext(uiLayout *layout);
 bool uiLayoutGetActive(uiLayout *layout);
+bool uiLayoutGetActiveDefault(uiLayout *layout);
 bool uiLayoutGetActivateInit(uiLayout *layout);
 bool uiLayoutGetEnabled(uiLayout *layout);
 bool uiLayoutGetRedAlert(uiLayout *layout);

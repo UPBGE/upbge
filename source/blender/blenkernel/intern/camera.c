@@ -206,9 +206,6 @@ void BKE_camera_params_from_object(CameraParams *params, const Object *ob)
 		params->lens = 16.0f / tanf(la->spotsize * 0.5f);
 		if (params->lens == 0.0f)
 			params->lens = 35.0f;
-
-		params->clip_start = la->clipsta;
-		params->clip_end = la->clipend;
 	}
 	else {
 		params->lens = 35.0f;
@@ -415,7 +412,7 @@ void BKE_camera_view_frame(const Scene *scene, const Camera *camera, float r_vec
 	float dummy_drawsize;
 	const float dummy_scale[3] = {1.0f, 1.0f, 1.0f};
 
-	BKE_camera_view_frame_ex(scene, camera, 0.0, false, dummy_scale,
+	BKE_camera_view_frame_ex(scene, camera, 1.0, false, dummy_scale,
 	                         dummy_asp, dummy_shift, &dummy_drawsize, r_vec);
 }
 

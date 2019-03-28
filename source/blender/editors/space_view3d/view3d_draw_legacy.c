@@ -95,6 +95,7 @@
 #include "GPU_select.h"
 #include "GPU_matrix.h"
 #include "GPU_state.h"
+#include "GPU_viewport.h"
 
 #include "RE_engine.h"
 
@@ -187,8 +188,9 @@ static void validate_object_select_id(
 		return;
 	}
 
-	if (!(v3d->flag & V3D_INVALID_BACKBUF))
+	if (!(v3d->flag & V3D_INVALID_BACKBUF)) {
 		return;
+	}
 
 #if 0
 	if (test) {
@@ -200,7 +202,9 @@ static void validate_object_select_id(
 #endif
 
 #if 0 /* v3d->zbuf deprecated */
-	if (v3d->shading.type > OB_WIRE) v3d->zbuf = true;
+	if (v3d->shading.type > OB_WIRE) {
+		v3d->zbuf = true;
+	}
 #endif
 
 	G.f |= G_FLAG_BACKBUFSEL;
@@ -221,6 +225,27 @@ static void validate_object_select_id(
 void view3d_opengl_read_pixels(ARegion *ar, int x, int y, int w, int h, int format, int type, void *data)
 {
 	glReadPixels(ar->winrct.xmin + x, ar->winrct.ymin + y, w, h, format, type, data);
+}
+
+/* TODO: Creating, attaching texture, and destroying a framebuffer is quite slow.
+ *       Calling this function should be avoided during interactive drawing. */
+static void view3d_opengl_read_Z_pixels(GPUViewport *viewport, rcti *rect, void *data)
+{
+	DefaultTextureList *dtxl = (DefaultTextureList *)GPU_viewport_texture_list_get(viewport);
+
+	GPUFrameBuffer *tmp_fb = GPU_framebuffer_create();
+	GPU_framebuffer_texture_attach(tmp_fb, dtxl->depth, 0, 0);
+	GPU_framebuffer_bind(tmp_fb);
+	glDisable(GL_SCISSOR_TEST);
+
+	glReadPixels(rect->xmin, rect->ymin,
+	             BLI_rcti_size_x(rect), BLI_rcti_size_y(rect),
+	             GL_DEPTH_COMPONENT, GL_FLOAT, data);
+
+	glEnable(GL_SCISSOR_TEST);
+	GPU_framebuffer_restore();
+
+	GPU_framebuffer_free(tmp_fb);
 }
 
 void ED_view3d_select_id_validate_with_select_mode(ViewContext *vc, short select_mode)
@@ -278,7 +303,7 @@ uint *ED_view3d_select_id_read_rect(ViewContext *vc, const rcti *clip, uint *r_b
 	uint width = BLI_rcti_size_x(clip);
 	uint height = BLI_rcti_size_y(clip);
 	uint buf_len = width * height;
-	uint *buf = MEM_mallocN(buf_len * sizeof(*buf), __func__);
+	uint *buf = MEM_callocN(buf_len * sizeof(*buf), __func__);
 
 	DRW_framebuffer_select_id_read(clip, buf);
 
@@ -450,8 +475,9 @@ static void view3d_draw_bgpic(Scene *scene, Depsgraph *depsgraph,
 	Camera *cam = v3d->camera->data;
 
 	for (CameraBGImage *bgpic = cam->bg_images.first; bgpic; bgpic = bgpic->next) {
-		if ((bgpic->flag & CAM_BGIMG_FLAG_FOREGROUND) != fg_flag)
+		if ((bgpic->flag & CAM_BGIMG_FLAG_FOREGROUND) != fg_flag) {
 			continue;
+		}
 
 		{
 			float image_aspect[2];
@@ -462,16 +488,18 @@ static void view3d_draw_bgpic(Scene *scene, Depsgraph *depsgraph,
 			Image *ima = NULL;
 
 			/* disable individual images */
-			if ((bgpic->flag & CAM_BGIMG_FLAG_DISABLED))
+			if ((bgpic->flag & CAM_BGIMG_FLAG_DISABLED)) {
 				continue;
+			}
 
 			ImBuf *ibuf = NULL;
 			ImBuf *freeibuf = NULL;
 			ImBuf *releaseibuf = NULL;
 			if (bgpic->source == CAM_BGIMG_SOURCE_IMAGE) {
 				ima = bgpic->ima;
-				if (ima == NULL)
+				if (ima == NULL) {
 					continue;
+				}
 
 				ImageUser iuser = bgpic->iuser;
 				iuser.scene = scene;  /* Needed for render results. */
@@ -493,15 +521,17 @@ static void view3d_draw_bgpic(Scene *scene, Depsgraph *depsgraph,
 				MovieClip *clip = NULL;
 
 				if (bgpic->flag & CAM_BGIMG_FLAG_CAMERACLIP) {
-					if (scene->camera)
+					if (scene->camera) {
 						clip = BKE_object_movieclip_get(scene, scene->camera, true);
+					}
 				}
 				else {
 					clip = bgpic->clip;
 				}
 
-				if (clip == NULL)
+				if (clip == NULL) {
 					continue;
+				}
 
 				BKE_movieclip_user_set_frame(&bgpic->cuser, (int)DEG_get_ctime(depsgraph));
 				ibuf = BKE_movieclip_get_ibuf(clip, &bgpic->cuser);
@@ -520,21 +550,25 @@ static void view3d_draw_bgpic(Scene *scene, Depsgraph *depsgraph,
 				copy_v2_fl(image_aspect, 1.0f);
 			}
 
-			if (ibuf == NULL)
+			if (ibuf == NULL) {
 				continue;
+			}
 
 			if ((ibuf->rect == NULL && ibuf->rect_float == NULL) || ibuf->channels != 4) {
 				/* invalid image format */
-				if (freeibuf)
+				if (freeibuf) {
 					IMB_freeImBuf(freeibuf);
-				if (releaseibuf)
+				}
+				if (releaseibuf) {
 					BKE_image_release_ibuf(ima, releaseibuf, lock);
+				}
 
 				continue;
 			}
 
-			if (ibuf->rect == NULL)
+			if (ibuf->rect == NULL) {
 				IMB_rect_from_float(ibuf);
+			}
 
 			BLI_assert(rv3d->persp == RV3D_CAMOB);
 			{
@@ -607,10 +641,12 @@ static void view3d_draw_bgpic(Scene *scene, Depsgraph *depsgraph,
 			}
 
 			if (clip_rect.xmax < 0 || clip_rect.ymax < 0 || clip_rect.xmin > ar->winx || clip_rect.ymin > ar->winy) {
-				if (freeibuf)
+				if (freeibuf) {
 					IMB_freeImBuf(freeibuf);
-				if (releaseibuf)
+				}
+				if (releaseibuf) {
 					BKE_image_release_ibuf(ima, releaseibuf, lock);
+				}
 
 				continue;
 			}
@@ -627,8 +663,9 @@ static void view3d_draw_bgpic(Scene *scene, Depsgraph *depsgraph,
 					IMB_remakemipmap(ibuf, 0);
 					ibuf->userflags &= ~IB_MIPMAP_INVALID;
 				}
-				else if (ibuf->mipmap[0] == NULL)
+				else if (ibuf->mipmap[0] == NULL) {
 					IMB_makemipmap(ibuf, 0);
+				}
 
 				while (tzoom < 1.0f && mip < 8 && ibuf->mipmap[mip]) {
 					tzoom *= 2.0f;
@@ -636,8 +673,9 @@ static void view3d_draw_bgpic(Scene *scene, Depsgraph *depsgraph,
 					zoomy *= 2.0f;
 					mip++;
 				}
-				if (mip > 0)
+				if (mip > 0) {
 					ibuf = ibuf->mipmap[mip - 1];
+				}
 			}
 
 			GPU_depth_test(!do_foreground);
@@ -676,10 +714,12 @@ static void view3d_draw_bgpic(Scene *scene, Depsgraph *depsgraph,
 			glDepthMask(GL_TRUE);
 			GPU_depth_test(true);
 
-			if (freeibuf)
+			if (freeibuf) {
 				IMB_freeImBuf(freeibuf);
-			if (releaseibuf)
+			}
+			if (releaseibuf) {
 				BKE_image_release_ibuf(ima, releaseibuf, lock);
+			}
 		}
 	}
 }
@@ -704,8 +744,9 @@ void ED_view3d_draw_bgpic_test(
 	/* disabled - mango request, since footage /w only render is quite useful
 	 * and this option is easy to disable all background images at once */
 #if 0
-	if (v3d->flag2 & V3D_HIDE_OVERLAYS)
+	if (v3d->flag2 & V3D_HIDE_OVERLAYS) {
 		return;
+	}
 #endif
 
 	if ((rv3d->view == RV3D_VIEW_USER) || (rv3d->persp != RV3D_ORTHO)) {
@@ -741,8 +782,9 @@ void view3d_update_depths_rect(ARegion *ar, ViewDepths *d, rcti *rect)
 	int h = BLI_rcti_size_y(rect);
 
 	if (w <= 0 || h <= 0) {
-		if (d->depths)
+		if (d->depths) {
 			MEM_freeN(d->depths);
+		}
 		d->depths = NULL;
 
 		d->damaged = false;
@@ -759,8 +801,9 @@ void view3d_update_depths_rect(ARegion *ar, ViewDepths *d, rcti *rect)
 		d->w = w;
 		d->h = h;
 
-		if (d->depths)
+		if (d->depths) {
 			MEM_freeN(d->depths);
+		}
 
 		d->depths = MEM_mallocN(sizeof(float) * d->w * d->h, "View depths Subset");
 
@@ -768,20 +811,22 @@ void view3d_update_depths_rect(ARegion *ar, ViewDepths *d, rcti *rect)
 	}
 
 	if (d->damaged) {
-		DRW_framebuffer_depth_read(rect, d->depths);
+		GPUViewport *viewport = WM_draw_region_get_viewport(ar, 0);
+		view3d_opengl_read_Z_pixels(viewport, rect, d->depths);
 		glGetDoublev(GL_DEPTH_RANGE, d->depth_range);
 		d->damaged = false;
 	}
 }
 
-/* note, with nouveau drivers the glReadPixels() is very slow. [#24339]
- * XXX warning, not using gpu offscreen here */
+/* note, with nouveau drivers the glReadPixels() is very slow. [#24339] */
 void ED_view3d_depth_update(ARegion *ar)
 {
 	RegionView3D *rv3d = ar->regiondata;
 
 	/* Create storage for, and, if necessary, copy depth buffer */
-	if (!rv3d->depths) rv3d->depths = MEM_callocN(sizeof(ViewDepths), "ViewDepths");
+	if (!rv3d->depths) {
+		rv3d->depths = MEM_callocN(sizeof(ViewDepths), "ViewDepths");
+	}
 	if (rv3d->depths) {
 		ViewDepths *d = rv3d->depths;
 		if (d->w != ar->winx ||
@@ -790,8 +835,9 @@ void ED_view3d_depth_update(ARegion *ar)
 		{
 			d->w = ar->winx;
 			d->h = ar->winy;
-			if (d->depths)
+			if (d->depths) {
 				MEM_freeN(d->depths);
+			}
 			d->depths = MEM_mallocN(sizeof(float) * d->w * d->h, "View depths");
 			d->damaged = true;
 		}
@@ -832,8 +878,6 @@ float view3d_depth_near(ViewDepths *d)
 void ED_view3d_draw_depth_gpencil(
         Depsgraph *depsgraph, Scene *scene, ARegion *ar, View3D *v3d)
 {
-	ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
-
 	/* Setup view matrix. */
 	ED_view3d_draw_setup_view(NULL, depsgraph, scene, ar, v3d, NULL, NULL, NULL);
 
@@ -841,7 +885,8 @@ void ED_view3d_draw_depth_gpencil(
 
 	GPU_depth_test(true);
 
-	ED_gpencil_draw_view3d(NULL, scene, view_layer, depsgraph, v3d, ar, true);
+	GPUViewport *viewport = WM_draw_region_get_viewport(ar, 0);
+	DRW_draw_depth_loop_gpencil(depsgraph, ar, v3d, viewport);
 
 	GPU_depth_test(false);
 }
@@ -856,8 +901,9 @@ void ED_view3d_datamask(
 	if (ELEM(drawtype, OB_TEXTURE, OB_MATERIAL)) {
 		r_cddata_masks->lmask |= CD_MASK_MLOOPUV | CD_MASK_MLOOPCOL;
 
-		if (drawtype == OB_MATERIAL)
+		if (drawtype == OB_MATERIAL) {
 			r_cddata_masks->vmask |= CD_MASK_ORCO;
+		}
 	}
 
 	if ((CTX_data_mode_enum(C) == CTX_MODE_EDIT_MESH) &&
@@ -931,8 +977,9 @@ void ED_scene_draw_fps(Scene *scene, int xoffset, int *yoffset)
 	ScreenFrameRateInfo *fpsi = scene->fps_info;
 	char printable[16];
 
-	if (!fpsi || !fpsi->lredrawtime || !fpsi->redrawtime)
+	if (!fpsi || !fpsi->lredrawtime || !fpsi->redrawtime) {
 		return;
+	}
 
 	printable[0] = '\0';
 
@@ -954,8 +1001,9 @@ void ED_scene_draw_fps(Scene *scene, int xoffset, int *yoffset)
 		fpsi->redrawtime_index = (fpsi->redrawtime_index + 1) % REDRAW_FRAME_AVERAGE;
 
 		//fpsi->redrawtime_index++;
-		//if (fpsi->redrawtime >= REDRAW_FRAME_AVERAGE)
+		//if (fpsi->redrawtime >= REDRAW_FRAME_AVERAGE) {
 		//	fpsi->redrawtime = 0;
+		//}
 
 		fps = fps / tot;
 	}
@@ -1000,17 +1048,21 @@ bool ED_view3d_calc_render_border(const Scene *scene, Depsgraph *depsgraph, View
 	bool use_border;
 
 	/* test if there is a 3d view rendering */
-	if (v3d->shading.type != OB_RENDER || !view3d_main_region_do_render_draw(scene))
+	if (v3d->shading.type != OB_RENDER || !view3d_main_region_do_render_draw(scene)) {
 		return false;
+	}
 
 	/* test if there is a border render */
-	if (rv3d->persp == RV3D_CAMOB)
+	if (rv3d->persp == RV3D_CAMOB) {
 		use_border = (scene->r.mode & R_BORDER) != 0;
-	else
+	}
+	else {
 		use_border = (v3d->flag2 & V3D_RENDER_BORDER) != 0;
+	}
 
-	if (!use_border)
+	if (!use_border) {
 		return false;
+	}
 
 	/* compute border */
 	if (rv3d->persp == RV3D_CAMOB) {
