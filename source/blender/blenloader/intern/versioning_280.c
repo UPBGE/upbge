@@ -2908,9 +2908,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 		}
 	}
 
-	{
-		/* Versioning code until next subversion bump goes here. */
-
+	if (!MAIN_VERSION_ATLEAST(bmain, 280, 52)) {
 		LISTBASE_FOREACH (ParticleSettings *, part, &bmain->particles) {
 			/* Replace deprecated PART_DRAW_BB by PART_DRAW_NOT */
 			if (part->ren_as == PART_DRAW_BB) {
@@ -2946,6 +2944,20 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 			}
 		} FOREACH_NODETREE_END;
 	}
+
+	if (!MAIN_VERSION_ATLEAST(bmain, 280, 53)) {
+		for (Material *mat = bmain->materials.first; mat; mat = mat->id.next) {
+			/* Eevee: Keep material appearance consistent with previous behavior. */
+			if (!mat->use_nodes || !mat->nodetree || mat->blend_method == MA_BM_SOLID) {
+				mat->blend_shadow = MA_BS_SOLID;
+			}
+		}
+	}
+
+	{
+		/* Versioning code until next subversion bump goes here. */
+	}
+	
 	/* Game engine hack to force defaults in files saved in normal blender2.8 */
 	if (!DNA_struct_elem_find(fd->filesdna, "Scene", "GameData", "gm")) {
 		for (Scene *sce = bmain->scenes.first; sce; sce = sce->id.next) {

@@ -467,6 +467,8 @@ const char *GPU_builtin_name(eGPUBuiltin builtin)
 		return "unfinvviewmat";
 	else if (builtin == GPU_INVERSE_OBJECT_MATRIX)
 		return "unfinvobmat";
+	else if (builtin == GPU_INVERSE_NORMAL_MATRIX)
+		return "unfinvnormat";
 	else if (builtin == GPU_LOC_TO_VIEW_MATRIX)
 		return "unflocaltoviewmat";
 	else if (builtin == GPU_INVERSE_LOC_TO_VIEW_MATRIX)
@@ -719,6 +721,8 @@ static void codegen_call_functions(DynStr *ds, ListBase *nodes, GPUOutput *final
 					BLI_dynstr_append(ds, "objmat");
 				else if (input->builtin == GPU_INVERSE_OBJECT_MATRIX)
 					BLI_dynstr_append(ds, "objinv");
+				else if (input->builtin == GPU_INVERSE_NORMAL_MATRIX)
+					BLI_dynstr_append(ds, "norinv");
 				else if (input->builtin == GPU_VIEW_POSITION)
 					BLI_dynstr_append(ds, "viewposition");
 				else if (input->builtin == GPU_VIEW_NORMAL)
@@ -795,6 +799,8 @@ static char *code_generate_fragment(GPUMaterial *material, ListBase *nodes, GPUO
 		BLI_dynstr_append(ds, "\t#define objmat ModelMatrix\n");
 	if (builtins & GPU_INVERSE_OBJECT_MATRIX)
 		BLI_dynstr_append(ds, "\t#define objinv ModelMatrixInverse\n");
+	if (builtins & GPU_INVERSE_NORMAL_MATRIX)
+		BLI_dynstr_append(ds, "\t#define norinv NormalMatrixInverse\n");
 	if (builtins & GPU_INVERSE_VIEW_MATRIX)
 		BLI_dynstr_append(ds, "\t#define viewinv ViewMatrixInverse\n");
 	if (builtins & GPU_LOC_TO_VIEW_MATRIX)
@@ -872,8 +878,9 @@ static char *code_generate_vertex(ListBase *nodes, const char *vert_code, bool u
 				/* XXX FIXME : see notes in mesh_render_data_create() */
 				/* NOTE : Replicate changes to mesh_render_data_create() in draw_cache_impl_mesh.c */
 				if (input->attr_type == CD_ORCO) {
-					/* orco is computed from local positions, see below */
+					/* OPTI : orco is computed from local positions, but only if no modifier is present. */
 					BLI_dynstr_append(ds, "uniform vec3 OrcoTexCoFactors[2];\n");
+					BLI_dynstr_append(ds, "DEFINE_ATTR(vec4, orco);\n");
 				}
 				else if (input->attr_name[0] == '\0') {
 					BLI_dynstr_appendf(ds, "DEFINE_ATTR(%s, %s);\n", GPU_DATATYPE_STR[input->type], attr_prefix_get(input->attr_type));
@@ -976,6 +983,7 @@ static char *code_generate_vertex(ListBase *nodes, const char *vert_code, bool u
 					BLI_dynstr_appendf(
 					        ds, "\tvar%d%s = OrcoTexCoFactors[0] + (ModelMatrixInverse * vec4(hair_get_strand_pos(), 1.0)).xyz * OrcoTexCoFactors[1];\n",
 					        input->attr_id, use_geom ? "g" : "");
+					/* TODO: fix ORCO with modifiers. */
 				}
 				else {
 					BLI_dynstr_appendf(
@@ -1017,6 +1025,10 @@ static char *code_generate_vertex(ListBase *nodes, const char *vert_code, bool u
 				else if (input->attr_type == CD_ORCO) {
 					BLI_dynstr_appendf(
 					        ds, "\tvar%d%s = OrcoTexCoFactors[0] + position * OrcoTexCoFactors[1];\n",
+					        input->attr_id, use_geom ? "g" : "");
+					/* See mesh_create_loop_orco() for explanation. */
+					BLI_dynstr_appendf(
+					        ds, "\tif (orco.w == 0.0) { var%d%s = orco.xyz * 0.5 + 0.5; }\n",
 					        input->attr_id, use_geom ? "g" : "");
 				}
 				else if (input->attr_type == CD_MCOL) {

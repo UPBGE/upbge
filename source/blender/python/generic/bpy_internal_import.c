@@ -190,8 +190,9 @@ PyObject *bpy_text_import_name(const char *name, int *found)
 	}
 
 	/* we know this cant be importable, the name is too long for blender! */
-	if (namelen >= (MAX_ID_NAME - 2) - 3)
+	if (namelen >= (MAX_ID_NAME - 2) - 3) {
 		return NULL;
+	}
 
 	memcpy(txtname, name, namelen);
 	memcpy(&txtname[namelen], ".py", 4);
@@ -210,10 +211,12 @@ PyObject *bpy_text_import_name(const char *name, int *found)
 		maggie = maggie->next;
 	}
 
-	if (!text)
+	if (!text) {
 		return NULL;
-	else
+	}
+	else {
 		*found = 1;
+	}
 
 	return bpy_text_import(text);
 }
@@ -239,8 +242,9 @@ PyObject *bpy_text_reimport(PyObject *module, int *found)
 	*found = 0;
 
 	/* get name, filename from the module itself */
-	if ((name = PyModule_GetName(module)) == NULL)
+	if ((name = PyModule_GetName(module)) == NULL) {
 		return NULL;
+	}
 
 	{
 		PyObject *module_file = PyModule_GetFilenameObject(module);
@@ -258,10 +262,12 @@ PyObject *bpy_text_reimport(PyObject *module, int *found)
 	text = BLI_findstring(&maggie->texts, BLI_path_basename(filepath), offsetof(ID, name) + 2);
 
 	/* uh-oh.... didn't find it */
-	if (!text)
+	if (!text) {
 		return NULL;
-	else
+	}
+	else {
 		*found = 1;
+	}
 
 	if (bpy_text_compile(text) == false) {
 		return NULL;
@@ -293,8 +299,9 @@ static PyObject *blender_import(PyObject *UNUSED(self), PyObject *args, PyObject
 	/* import existing builtin modules or modules that have been imported already */
 	newmodule = PyImport_ImportModuleLevel(name, globals, locals, fromlist, level);
 
-	if (newmodule)
+	if (newmodule) {
 		return newmodule;
+	}
 
 	PyErr_Fetch(&exception, &err, &tb); /* get the python error in case we cant import as blender text either */
 
@@ -340,8 +347,9 @@ static PyObject *blender_reload(PyObject *UNUSED(self), PyObject *module)
 
 	newmodule = PyObject_CallFunctionObjArgs(imp_reload_orig, module, NULL);
 
-	if (newmodule)
+	if (newmodule) {
 		return newmodule;
+	}
 
 	/* no file, try importing from memory */
 	PyErr_Fetch(&exception, &err, &tb); /*restore for probable later use */

@@ -59,6 +59,7 @@
 #include "GPU_uniformbuffer.h"
 #include "GPU_viewport.h"
 #include "GPU_matrix.h"
+#include "GPU_select.h"
 
 #include "IMB_colormanagement.h"
 
@@ -1672,7 +1673,9 @@ void DRW_draw_render_loop(
 void DRW_draw_render_loop_offscreen(
         struct Depsgraph *depsgraph, RenderEngineType *engine_type,
         ARegion *ar, View3D *v3d,
-        const bool draw_background, GPUOffScreen *ofs,
+        const bool draw_background,
+        const bool do_color_management,
+        GPUOffScreen *ofs,
         GPUViewport *viewport)
 {
 	/* Create temporary viewport if needed. */
@@ -1685,7 +1688,9 @@ void DRW_draw_render_loop_offscreen(
 
 	/* Reset before using it. */
 	drw_state_prepare_clean_for_draw(&DST);
-	DST.options.is_image_render = true;
+	/* WATCH: Force color management to output CManaged byte buffer by
+	 * forcing is_image_render to false. */
+	DST.options.is_image_render = !do_color_management;
 	DST.options.draw_background = draw_background;
 	DRW_draw_render_loop_ex(depsgraph, engine_type, ar, v3d, render_viewport, NULL);
 
@@ -2547,8 +2552,23 @@ void DRW_framebuffer_select_id_release(ARegion *ar)
 /* Read a block of pixels from the select frame buffer. */
 void DRW_framebuffer_select_id_read(const rcti *rect, uint *r_buf)
 {
+	/* clamp rect by texture */
+	rcti r = {
+		.xmin = 0,
+		.xmax = GPU_texture_width(g_select_buffer.texture_u32),
+		.ymin = 0,
+		.ymax = GPU_texture_height(g_select_buffer.texture_u32),
+	};
+
+	rcti rect_clamp = *rect;
+	BLI_rcti_isect(&r, rect, &rect_clamp);
+
 	GPU_texture_read_rect(
-	        g_select_buffer.texture_u32, GPU_DATA_UNSIGNED_INT, rect, r_buf);
+	        g_select_buffer.texture_u32, GPU_DATA_UNSIGNED_INT, &rect_clamp, r_buf);
+
+	if (!BLI_rcti_compare(rect, &rect_clamp)) {
+		GPU_select_buffer_stride_realign(rect, &rect_clamp, r_buf);
+	}
 }
 
 /** \} */

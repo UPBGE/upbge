@@ -1516,6 +1516,14 @@ Object *BKE_object_copy(Main *bmain, const Object *ob)
 	return ob_copy;
 }
 
+/** Perform deep-copy of object and its 'children' data-blocks (obdata, materials, actions, etc.).
+ *
+ * \param dupflag Controls which sub-data are also duplicated (see \a eDupli_ID_Flags in \a DNA_userdef_types.h).
+ *
+ * \note This function does not do any remapping to new IDs, caller must do it (\a BKE_libblock_relink_to_newid()).
+ * \note Caller MUST free \a newid pointers itself (\a BKE_main_id_clear_newpoins()) and call updates of DEG too
+ *       (\a DAG_relations_tag_update()).
+ */
 Object *BKE_object_duplicate(Main *bmain, const Object *ob, const int dupflag)
 {
 	Material ***matarar;
@@ -1636,17 +1644,19 @@ Object *BKE_object_duplicate(Main *bmain, const Object *ob, const int dupflag)
 			}
 			break;
 		case OB_ARMATURE:
-			DEG_id_tag_update(&obn->id, ID_RECALC_GEOMETRY);
-			if (obn->pose)
-				BKE_pose_tag_recalc(bmain, obn->pose);
-			if (dupflag & USER_DUP_ARM) {
-				ID_NEW_REMAP_US2(obn->data)
-				else {
-					obn->data = ID_NEW_SET(obn->data, BKE_armature_copy(bmain, obn->data));
-					BKE_pose_rebuild(bmain, obn, obn->data, true);
-					didit = 1;
+			if (dupflag != 0) {
+				DEG_id_tag_update(&obn->id, ID_RECALC_GEOMETRY);
+				if (obn->pose)
+					BKE_pose_tag_recalc(bmain, obn->pose);
+				if (dupflag & USER_DUP_ARM) {
+					ID_NEW_REMAP_US2(obn->data)
+					else {
+						obn->data = ID_NEW_SET(obn->data, BKE_armature_copy(bmain, obn->data));
+						BKE_pose_rebuild(bmain, obn, obn->data, true);
+						didit = 1;
+					}
+					id_us_min(id);
 				}
-				id_us_min(id);
 			}
 			break;
 		case OB_LATTICE:
@@ -1737,15 +1747,9 @@ Object *BKE_object_duplicate(Main *bmain, const Object *ob, const int dupflag)
 #undef ID_NEW_REMAP_US
 #undef ID_NEW_REMAP_US2
 
-	BKE_libblock_relink_to_newid(&obn->id);
-
-	/* DAG_relations_tag_update(bmain); */ /* caller must do */
-
 	if (ob->data != NULL) {
 		DEG_id_tag_update_ex(bmain, (ID *)obn->data, ID_RECALC_EDITORS);
 	}
-
-	/* BKE_main_id_clear_newpoins(bmain); */ /* Called must do. */
 
 	return obn;
 }

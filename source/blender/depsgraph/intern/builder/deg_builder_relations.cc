@@ -931,6 +931,11 @@ void DepsgraphRelationBuilder::build_object_parent(Object *object)
 		 * so we onl;y hook up to transform channel here. */
 		add_relation(parent_geometry_key, ob_key, "Parent");
 	}
+
+	/* Dupliverts uses original vertex index. */
+	if (parent->transflag & OB_DUPLIVERTS) {
+		add_customdata_mask(parent, DEGCustomDataMeshMasks::MaskVert(CD_MASK_ORIGINDEX));
+	}
 }
 
 void DepsgraphRelationBuilder::build_object_pointcache(Object *object)
@@ -976,14 +981,14 @@ void DepsgraphRelationBuilder::build_object_pointcache(Object *object)
 	}
 	/* Manual edits to any dependency (or self) should reset the point cache. */
 	if (!BLI_listbase_is_empty(&ptcache_id_list)) {
-		OperationKey transform_simulation_init_key(
+		OperationKey transform_eval_key(
 		        &object->id,
 		        NodeType::TRANSFORM,
-		        OperationCode::TRANSFORM_SIMULATION_INIT);
+		        OperationCode::TRANSFORM_EVAL);
 		OperationKey geometry_init_key(&object->id,
 		                               NodeType::GEOMETRY,
 		                               OperationCode::GEOMETRY_EVAL_INIT);
-		add_relation(transform_simulation_init_key,
+		add_relation(transform_eval_key,
 		             point_cache_key,
 		             "Transform Simulation -> Point Cache",
 		             RELATION_FLAG_FLUSH_USER_EDIT_ONLY);
@@ -1727,11 +1732,21 @@ void DepsgraphRelationBuilder::build_rigidbody(Scene *scene)
 	 * initialized.
 	 * TODO(sergey): Verify that it indeed goes to initialization and not to a
 	 * simulation. */
-	ListBase *relations = build_effector_relations(graph_, rbw->effector_weights->group);
-	LISTBASE_FOREACH (EffectorRelation *, relation, relations) {
+	ListBase *effector_relations =
+	        build_effector_relations(graph_, rbw->effector_weights->group);
+	LISTBASE_FOREACH (EffectorRelation *, effector_relation, effector_relations) {
 		ComponentKey effector_transform_key(
-		        &relation->ob->id, NodeType::TRANSFORM);
+		        &effector_relation->ob->id, NodeType::TRANSFORM);
 		add_relation(effector_transform_key, rb_init_key, "RigidBody Field");
+		if (effector_relation->pd != NULL) {
+			const short shape = effector_relation->pd->shape;
+			if (ELEM(shape, PFIELD_SHAPE_SURFACE, PFIELD_SHAPE_POINTS)) {
+				ComponentKey effector_geometry_key(
+				        &effector_relation->ob->id, NodeType::GEOMETRY);
+				add_relation(
+				        effector_geometry_key, rb_init_key, "RigidBody Field");
+			}
+		}
 	}
 	/* Objects. */
 	if (rbw->group != NULL) {
