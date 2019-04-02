@@ -172,6 +172,7 @@ static short **structs, *structdata;
 static struct {
 	GHash *struct_map_alias_from_static;
 	GHash *struct_map_static_from_alias;
+	GHash *elem_map_alias_from_static;
 	GHash *elem_map_static_from_alias;
 } g_version_data = {NULL};
 
@@ -239,7 +240,7 @@ static int convert_include(const char *filename);
 /**
  * Determine how many bytes are needed for each struct.
  */
-static int calculate_struct_sizes(int);
+static int calculate_struct_sizes(int firststruct, FILE *file_verify, const char *base_directory);
 
 /**
  * Construct the DNA.c file
@@ -621,17 +622,6 @@ static int preprocess_include(char *maindata, const int maindata_len)
 			a -= 13;
 			cp += 13;
 		}
-		else if (strncmp("DNA_PRIVATE_WORKSPACE", cp, 21) == 0) {
-			/* Check for DNA_PRIVATE_WORKSPACE_READ_WRITE */
-			if (strncmp("_READ_WRITE", cp + 21, 11) == 0) {
-				a -= 31;
-				cp += 31;
-			}
-			else {
-				a -= 20;
-				cp += 20;
-			}
-		}
 		else {
 			md[0] = cp[0];
 			md++;
@@ -876,11 +866,21 @@ static bool check_field_alignment(int firststruct, int structtype, int type, int
 	return result;
 }
 
-static int calculate_struct_sizes(int firststruct)
+static int calculate_struct_sizes(int firststruct, FILE *file_verify, const char *base_directory)
 {
 	int unknown = nr_structs, lastunknown;
 	bool dna_error = false;
 
+	/* Write test to verify sizes are accurate. */
+	fprintf(file_verify, "/* Verify struct sizes and member offsets are as expected by DNA. */\n");
+	fprintf(file_verify, "#include \"BLI_assert.h\"\n\n");
+	fprintf(file_verify, "#define DNA_DEPRECATED\n");
+	for (int i = 0; *(includefiles[i]) != '\0'; i++) {
+		fprintf(file_verify, "#include \"%s%s\"\n", base_directory, includefiles[i]);
+	}
+	fprintf(file_verify, "\n");
+
+	/* Multiple iterations to handle nested structs. */
 	while (unknown) {
 		lastunknown = unknown;
 		unknown = 0;
@@ -889,6 +889,7 @@ static int calculate_struct_sizes(int firststruct)
 		for (int a = 0; a < nr_structs; a++) {
 			const short *structpoin = structs[a];
 			const int    structtype = structpoin[0];
+			const char  *structname = version_struct_alias_from_static(types[structtype]);
 
 			/* when length is not known... */
 			if (types_size_native[structtype] == 0) {
@@ -903,8 +904,18 @@ static int calculate_struct_sizes(int firststruct)
 				for (int b = 0; b < structpoin[1]; b++, sp += 2) {
 					int type = sp[0];
 					const char *cp = names[sp[1]];
-
 					int namelen = (int)strlen(cp);
+
+					/* Write size verification to file. */
+					{
+						char *name_static = alloca(namelen + 1);
+						DNA_elem_id_strip_copy(name_static, cp);
+						const char *str_pair[2] = {types[structtype], name_static};
+						const char *name_alias = BLI_ghash_lookup(g_version_data.elem_map_alias_from_static, str_pair);
+						fprintf(file_verify, "BLI_STATIC_ASSERT(offsetof(struct %s, %s) == %d, \"DNA member offset verify\");\n",
+							structname, name_alias ? name_alias : name_static, size_native);
+					}
+
 					/* is it a pointer or function pointer? */
 					if (cp[0] == '*' || cp[1] == '*') {
 						has_pointer = 1;
@@ -1020,6 +1031,8 @@ static int calculate_struct_sizes(int firststruct)
 						dna_error = 1;
 					}
 
+					/* Write size verification to file. */
+					fprintf(file_verify, "BLI_STATIC_ASSERT(sizeof(struct %s) == %d, \"DNA struct size verify\");\n\n", structname, size_native);
 				}
 			}
 		}
@@ -1109,7 +1122,7 @@ void print_struct_sizes(void)
 }
 
 
-static int make_structDNA(const char *baseDirectory, FILE *file, FILE *file_offsets)
+static int make_structDNA(const char *base_directory, FILE *file, FILE *file_offsets, FILE *file_verify)
 {
 	int i;
 	const short *sp;
@@ -1140,7 +1153,7 @@ static int make_structDNA(const char *baseDirectory, FILE *file, FILE *file_offs
 	DNA_alias_maps(
 	        DNA_RENAME_ALIAS_FROM_STATIC,
 	        &g_version_data.struct_map_alias_from_static,
-	        NULL);
+	        &g_version_data.elem_map_alias_from_static);
 	DNA_alias_maps(
 	        DNA_RENAME_STATIC_FROM_ALIAS,
 	        &g_version_data.struct_map_static_from_alias,
@@ -1179,7 +1192,7 @@ static int make_structDNA(const char *baseDirectory, FILE *file, FILE *file_offs
 	/* Mind the breaking condition here!                                     */
 	DEBUG_PRINTF(0, "\tStart of header scan:\n");
 	for (i = 0; *(includefiles[i]) != '\0'; i++) {
-		sprintf(str, "%s%s", baseDirectory, includefiles[i]);
+		sprintf(str, "%s%s", base_directory, includefiles[i]);
 		DEBUG_PRINTF(0, "\t|-- Converting %s\n", str);
 		if (convert_include(str)) {
 			return 1;
@@ -1187,7 +1200,7 @@ static int make_structDNA(const char *baseDirectory, FILE *file, FILE *file_offs
 	}
 	DEBUG_PRINTF(0, "\tFinished scanning %d headers.\n", i);
 
-	if (calculate_struct_sizes(firststruct)) {
+	if (calculate_struct_sizes(firststruct, file_verify, base_directory)) {
 		/* error */
 		return 1;
 	}
@@ -1289,37 +1302,6 @@ static int make_structDNA(const char *baseDirectory, FILE *file, FILE *file_offs
 
 		dna_write(file, structs[0], len);
 
-		/* a simple dna padding test */
-		if (0) {
-			FILE *fp;
-			int a;
-
-			fp = fopen("padding.c", "w");
-			if (fp == NULL) {
-				/* pass */
-			}
-			else {
-
-				/* add all include files defined in the global array */
-				for (i = 0; *(includefiles[i]) != '\0'; i++) {
-					fprintf(fp, "#include \"%s%s\"\n", baseDirectory, includefiles[i]);
-				}
-
-				fprintf(fp, "main() {\n");
-				sp = types_size_native;
-				sp += firststruct;
-				for (a = firststruct; a < nr_types; a++, sp++) {
-					if (*sp) {
-						fprintf(fp, "\tif (sizeof(struct %s) - %d) printf(\"ALIGN ERROR:", types[a], *sp);
-						fprintf(fp, "%%d %s %d ", types[a], *sp);
-						fprintf(fp, "\\n\",  sizeof(struct %s) - %d);\n", types[a], *sp);
-					}
-				}
-				fprintf(fp, "}\n");
-				fclose(fp);
-			}
-		}
-		/*	end end padding test */
 	}
 
 	/* write a simple enum with all structs offsets,
@@ -1333,7 +1315,7 @@ static int make_structDNA(const char *baseDirectory, FILE *file, FILE *file_offs
 			fprintf(file_offsets, "\t_SDNA_TYPE_%s = %d,\n", version_struct_alias_from_static(types[structtype]), i);
 		}
 		fprintf(file_offsets, "\tSDNA_TYPE_MAX = %d,\n", nr_structs);
-		fprintf(file_offsets, "};\n");
+		fprintf(file_offsets, "};\n\n");
 	}
 
 	/* Check versioning errors which could cause duplicate names,
@@ -1373,6 +1355,7 @@ static int make_structDNA(const char *baseDirectory, FILE *file, FILE *file_offs
 	BLI_ghash_free(g_version_data.struct_map_alias_from_static, NULL, NULL);
 	BLI_ghash_free(g_version_data.struct_map_static_from_alias, NULL, NULL);
 	BLI_ghash_free(g_version_data.elem_map_static_from_alias, MEM_freeN, NULL);
+	BLI_ghash_free(g_version_data.elem_map_alias_from_static, MEM_freeN, NULL);
 
 	DEBUG_PRINTF(0, "done.\n");
 
@@ -1404,13 +1387,14 @@ int main(int argc, char **argv)
 {
 	int return_status = 0;
 
-	if (argc != 3 && argc != 4) {
+	if (argc != 4 && argc != 5) {
 		printf("Usage: %s dna.c dna_struct_offsets.h [base directory]\n", argv[0]);
 		return_status = 1;
 	}
 	else {
 		FILE *file_dna         = fopen(argv[1], "w");
 		FILE *file_dna_offsets = fopen(argv[2], "w");
+		FILE *file_dna_verify  = fopen(argv[3], "w");
 		if (!file_dna) {
 			printf("Unable to open file: %s\n", argv[1]);
 			return_status = 1;
@@ -1419,19 +1403,23 @@ int main(int argc, char **argv)
 			printf("Unable to open file: %s\n", argv[2]);
 			return_status = 1;
 		}
+		else if (!file_dna_verify) {
+			printf("Unable to open file: %s\n", argv[3]);
+			return_status = 1;
+		}
 		else {
-			const char *baseDirectory;
+			const char *base_directory;
 
-			if (argc == 4) {
-				baseDirectory = argv[3];
+			if (argc == 5) {
+				base_directory = argv[4];
 			}
 			else {
-				baseDirectory = BASE_HEADER;
+				base_directory = BASE_HEADER;
 			}
 
 			fprintf(file_dna, "extern const unsigned char DNAstr[];\n");
 			fprintf(file_dna, "const unsigned char DNAstr[] = {\n");
-			if (make_structDNA(baseDirectory, file_dna, file_dna_offsets)) {
+			if (make_structDNA(base_directory, file_dna, file_dna_offsets, file_dna_verify)) {
 				/* error */
 				fclose(file_dna);
 				file_dna = NULL;
@@ -1450,6 +1438,9 @@ int main(int argc, char **argv)
 		}
 		if (file_dna_offsets) {
 			fclose(file_dna_offsets);
+		}
+		if (file_dna_verify) {
+			fclose(file_dna_verify);
 		}
 	}
 

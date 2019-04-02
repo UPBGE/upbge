@@ -1603,7 +1603,7 @@ static void libblock_relink_collection(Collection *collection)
 	}
 }
 
-static void single_object_users_collection(
+static Collection *single_object_users_collection(
         Main *bmain, Scene *scene, Collection *collection,
         const int flag, const bool copy_collections, const bool is_master_collection)
 {
@@ -1624,9 +1624,26 @@ static void single_object_users_collection(
 		}
 	}
 
-	for (CollectionChild *child = collection->children.first; child; child = child->next) {
-		single_object_users_collection(bmain, scene, child->collection, flag, copy_collections, false);
+	/* Since master collection has already be duplicated as part of scene copy, we do not duplictae it here.
+	 * However, this means its children need to be re-added manually here, otherwise their parent lists are empty
+	 * (which will lead to crashes, see T63101). */
+	CollectionChild *child_next, *child = collection->children.first;
+	CollectionChild *orig_child_last = collection->children.last;
+	for (; child != NULL; child = child_next) {
+		child_next = child->next;
+		Collection *collection_child_new = single_object_users_collection(
+		                                       bmain, scene, child->collection, flag, copy_collections, false);
+		if (is_master_collection && copy_collections && child->collection != collection_child_new) {
+			BKE_collection_child_add(bmain, collection, collection_child_new);
+			BLI_remlink(&collection->children, child);
+			MEM_freeN(child);
+			if (child == orig_child_last) {
+				break;
+			}
+		}
 	}
+
+	return collection;
 }
 
 /* Warning, sets ID->newid pointers of objects and collections, but does not clear them. */
@@ -1682,10 +1699,8 @@ static void single_object_users(Main *bmain, Scene *scene, View3D *v3d, const in
 	}
 
 	/* Making single user may affect other scenes if they share with current one some collections in their ViewLayer. */
-	for (Scene *sce = bmain->scenes.first; sce != NULL; sce = sce->id.next) {
-		BKE_scene_collection_sync(sce);
-	}
-	
+	BKE_main_collection_sync(bmain);
+
 	set_sca_new_poins();
 }
 

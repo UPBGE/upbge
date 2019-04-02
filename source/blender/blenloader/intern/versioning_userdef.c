@@ -52,7 +52,7 @@ static void do_versions_theme(UserDef *userdef, bTheme *btheme)
 	}
 
 #define FROM_DEFAULT_V4_UCHAR(member) \
-	copy_v4_v4_char(btheme->member, U_theme_default.member);
+	copy_v4_v4_char(btheme->member, U_theme_default.member)
 
 	if (!USER_VERSION_ATLEAST(280, 25)) {
 		copy_v4_v4_char(btheme->space_action.anim_preview_range, btheme->space_action.anim_active);
@@ -452,7 +452,7 @@ void BLO_version_defaults_userpref_blend(Main *bmain, UserDef *userdef)
 		userdef->light_param[3].flag = 1;
 		userdef->light_param[3].smooth = 0.7;
 
-		copy_v4_fl4(userdef->light_ambient, 0.025000, 0.025000, 0.025000, 1.000000);
+		copy_v3_fl3(userdef->light_ambient, 0.025000, 0.025000, 0.025000);
 
 		userdef->flag &= ~(
 		        USER_FLAG_UNUSED_4);

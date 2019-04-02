@@ -509,11 +509,11 @@ static void gp_brush_jitter(
 static void gp_brush_angle(bGPdata *gpd, Brush *brush, tGPspoint *pt, const float mval[2])
 {
 	float mvec[2];
-	float sen = brush->gpencil_settings->draw_angle_factor; /* sensitivity */;
+	float sen = brush->gpencil_settings->draw_angle_factor; /* sensitivity */
 	float fac;
 	float mpressure;
 
-	/* default angle of brush in radians */;
+	/* default angle of brush in radians */
 	float angle = brush->gpencil_settings->draw_angle;
 	/* angle vector of the brush with full thickness */
 	float v0[2] = { cos(angle), sin(angle) };
@@ -1363,11 +1363,10 @@ static void gp_free_stroke(bGPdata *gpd, bGPDframe *gpf, bGPDstroke *gps)
  * to avoid that segments gets the end points rounded.
  * The round caps breaks the artistic effect.
  */
-static void gp_stroke_soft_refine(bGPDstroke *gps, const float cull_thresh)
+static void gp_stroke_soft_refine(bGPDstroke *gps)
 {
 	bGPDspoint *pt = NULL;
-	bGPDspoint *pt_before = NULL;
-	bGPDspoint *pt_after = NULL;
+	bGPDspoint *pt2 = NULL;
 	int i;
 
 	/* check if enough points*/
@@ -1375,54 +1374,27 @@ static void gp_stroke_soft_refine(bGPDstroke *gps, const float cull_thresh)
 		return;
 	}
 
-	/* loop all points from second to last minus one
-	 * to untag any point that is not surrounded by tagged points
-	 */
+	/* loop all points to untag any point that next is not tagged */
 	pt = gps->points;
 	for (i = 1; i < gps->totpoints - 1; i++, pt++) {
 		if (pt->flag & GP_SPOINT_TAG) {
-			pt_before = &gps->points[i - 1];
-			pt_after = &gps->points[i + 1];
-
-			/* if any of the side points are not tagged, mark to keep */
-			if (((pt_before->flag & GP_SPOINT_TAG) == 0) ||
-			    ((pt_after->flag & GP_SPOINT_TAG) == 0))
+			pt2 = &gps->points[i + 1];
+			if (((pt2->flag & GP_SPOINT_TAG) == 0))
 			{
-				if (pt->pressure > cull_thresh) {
-					pt->flag |= GP_SPOINT_TEMP_TAG;
-				}
-			}
-			else {
-				/* reduce opacity of extreme points */
-				if ((pt_before->flag & GP_SPOINT_TAG) == 0) {
-					pt_before->strength *= 0.5f;
-				}
-				if ((pt_after->flag & GP_SPOINT_TAG) == 0) {
-					pt_after->strength *= 0.5f;
-				}
+				pt->flag &= ~GP_SPOINT_TAG;
 			}
 		}
 	}
 
-	/* last point special case to get smoother transition */
+	/* loop reverse all points to untag any point that previous is not tagged */
 	pt = &gps->points[gps->totpoints - 1];
-	pt_before = &gps->points[gps->totpoints - 2];
-	if (pt->flag & GP_SPOINT_TAG) {
-		pt->flag &= ~GP_SPOINT_TAG;
-		pt->flag &= ~GP_SPOINT_TEMP_TAG;
-		pt->strength = 0.0f;
-
-		pt_before->flag &= ~GP_SPOINT_TAG;
-		pt_before->flag &= ~GP_SPOINT_TEMP_TAG;
-		pt_before->strength *= 0.5f;
-	}
-
-	/* now untag temp tagged */
-	pt = gps->points;
-	for (i = 1; i < gps->totpoints - 1; i++, pt++) {
-		if (pt->flag & GP_SPOINT_TEMP_TAG) {
-			pt->flag &= ~GP_SPOINT_TAG;
-			pt->flag &= ~GP_SPOINT_TEMP_TAG;
+	for (i = gps->totpoints - 1; i > 0; i--, pt--) {
+		if (pt->flag & GP_SPOINT_TAG) {
+			pt2 = &gps->points[i - 1];
+			if (((pt2->flag & GP_SPOINT_TAG) == 0))
+			{
+				pt->flag &= ~GP_SPOINT_TAG;
+			}
 		}
 	}
 }
@@ -1632,7 +1604,7 @@ static void gp_stroke_eraser_dostroke(tGPsdata *p,
 			/* if soft eraser, must analyze points to be sure the stroke ends
 			 * don't get rounded */
 			if (eraser->gpencil_settings->eraser_mode == GP_BRUSH_ERASER_SOFT) {
-				gp_stroke_soft_refine(gps, cull_thresh);
+				gp_stroke_soft_refine(gps);
 			}
 
 			gp_stroke_delete_tagged_points(gpf, gps, gps->next, GP_SPOINT_TAG, false, 0);
