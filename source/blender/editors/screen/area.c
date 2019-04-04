@@ -535,12 +535,23 @@ void ED_region_do_draw(bContext *C, ARegion *ar)
 	if (sa) {
 		const bScreen *screen = WM_window_get_active_screen(win);
 
-		/* Only draw region emboss for top-bar and quad-view. */
+		/* Only region emboss for top-bar */
 		if ((screen->state != SCREENFULL) && ED_area_is_global(sa)) {
 			region_draw_emboss(ar, &ar->winrct, (REGION_EMBOSS_LEFT | REGION_EMBOSS_RIGHT));
 		}
 		else if ((ar->regiontype == RGN_TYPE_WINDOW) && (ar->alignment == RGN_ALIGN_QSPLIT)) {
-			region_draw_emboss(ar, &ar->winrct, REGION_EMBOSS_ALL);
+
+			/* draw separating lines between the quad views */
+
+			float color[4] = { 0.0f, 0.0f, 0.0f, 0.8f };
+			UI_GetThemeColor3fv(TH_EDITOR_OUTLINE, color);
+			GPUVertFormat *format = immVertexFormat();
+			uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+			immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+			immUniformColor4fv(color);
+			GPU_line_width(1.0f);
+			imm_draw_box_wire_2d(pos, 0, 0, ar->winrct.xmax - ar->winrct.xmin + 1, ar->winrct.ymax - ar->winrct.ymin + 1);
+			immUnbindProgram();
 		}
 	}
 
@@ -985,17 +996,7 @@ static void region_azones_add(const bScreen *screen, ScrArea *sa, ARegion *ar, c
 	const bool is_fullscreen = screen->state == SCREENFULL;
 
 	/* edge code (t b l r) is along which area edge azone will be drawn */
-
-	if (ar->regiontype == RGN_TYPE_HEADER && ar->winy + 6 > sa->winy) {
-		/* The logic for this is: when the header takes up the full area,
-		 * disallow hiding it to view the main window.
-		 *
-		 * Without this, you can drag down the file selectors header and hide it
-		 * by accident very easily (highly annoying!), the value 6 is arbitrary
-		 * but accounts for small common rounding problems when scaling the UI,
-		 * must be minimum '4' */
-	}
-	else if (alignment == RGN_ALIGN_TOP)
+	if (alignment == RGN_ALIGN_TOP)
 		region_azone_edge_initialize(sa, ar, AE_BOTTOM_TO_TOPLEFT, is_fullscreen);
 	else if (alignment == RGN_ALIGN_BOTTOM)
 		region_azone_edge_initialize(sa, ar, AE_TOP_TO_BOTTOMRIGHT, is_fullscreen);

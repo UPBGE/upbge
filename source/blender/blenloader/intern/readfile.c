@@ -5920,10 +5920,6 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 				}
 			}
 		}
-		else if (md->type == eModifierType_Multires) {
-			MultiresModifierData *mmd = (MultiresModifierData *)md;
-			mmd->subdiv = NULL;
-		}
 	}
 }
 

@@ -4629,15 +4629,19 @@ void DRW_mesh_batch_cache_create_requested(
 		for (int type = 0; type < CD_NUMTYPES; ++type) {
 			if ((cache->cd_vused[type] & cache->cd_vneeded[type]) != cache->cd_vneeded[type]) {
 				switch (type) {
+					case CD_ORCO:
+						GPU_VERTBUF_DISCARD_SAFE(cache->ordered.loop_orco);
+						break;
+				}
+			}
+			if ((cache->cd_lused[type] & cache->cd_lneeded[type]) != cache->cd_lneeded[type]) {
+				switch (type) {
 					case CD_MLOOPUV:
 					case CD_TANGENT:
 						GPU_VERTBUF_DISCARD_SAFE(cache->ordered.loop_uv_tan);
 						break;
 					case CD_MLOOPCOL:
 						GPU_VERTBUF_DISCARD_SAFE(cache->ordered.loop_vcol);
-						break;
-					case CD_ORCO:
-						GPU_VERTBUF_DISCARD_SAFE(cache->ordered.loop_orco);
 						break;
 				}
 			}
@@ -4848,7 +4852,7 @@ void DRW_mesh_batch_cache_create_requested(
 	DRW_ADD_FLAG_FROM_VBO_REQUEST(mr_flag, cache->ordered.pos_nor, MR_DATATYPE_VERT);
 	DRW_ADD_FLAG_FROM_VBO_REQUEST(mr_flag, cache->ordered.weights, MR_DATATYPE_VERT | MR_DATATYPE_DVERT);
 	DRW_ADD_FLAG_FROM_VBO_REQUEST(mr_flag, cache->ordered.loop_pos_nor, MR_DATATYPE_VERT | MR_DATATYPE_POLY | MR_DATATYPE_LOOP);
-	DRW_ADD_FLAG_FROM_VBO_REQUEST(mr_flag, cache->ordered.loop_uv_tan, MR_DATATYPE_VERT | MR_DATATYPE_POLY | MR_DATATYPE_LOOP | MR_DATATYPE_SHADING);
+	DRW_ADD_FLAG_FROM_VBO_REQUEST(mr_flag, cache->ordered.loop_uv_tan, MR_DATATYPE_VERT | MR_DATATYPE_POLY | MR_DATATYPE_LOOP | MR_DATATYPE_SHADING | MR_DATATYPE_LOOPTRI);
 	DRW_ADD_FLAG_FROM_VBO_REQUEST(mr_flag, cache->ordered.loop_orco, MR_DATATYPE_VERT | MR_DATATYPE_POLY | MR_DATATYPE_LOOP | MR_DATATYPE_SHADING);
 	DRW_ADD_FLAG_FROM_VBO_REQUEST(mr_flag, cache->ordered.loop_vcol, MR_DATATYPE_VERT | MR_DATATYPE_POLY | MR_DATATYPE_LOOP | MR_DATATYPE_SHADING);
 	DRW_ADD_FLAG_FROM_VBO_REQUEST(mr_flag, cache->ordered.loop_edge_fac, MR_DATATYPE_VERT | MR_DATATYPE_POLY | MR_DATATYPE_EDGE | MR_DATATYPE_LOOP);

@@ -39,6 +39,7 @@
 #include <Dwmapi.h>
 #endif
 
+#include <windowsx.h>
 #include <math.h>
 #include <string.h>
 #include <assert.h>
@@ -82,9 +83,10 @@ GHOST_WindowWin32::GHOST_WindowWin32(GHOST_SystemWin32 *system,
       m_customCursor(0),
       m_wantAlphaBackground(alphaBackground),
       m_normal_state(GHOST_kWindowStateNormal),
-	  m_user32(NULL),
+      m_user32(NULL),
       m_fpGetPointerInfo(NULL),
       m_fpGetPointerPenInfo(NULL),
+      m_fpGetPointerTouchInfo(NULL),
       m_parentWindowHwnd(parentwindowhwnd),
       m_debug_context(is_debug)
 {
@@ -106,7 +108,7 @@ GHOST_WindowWin32::GHOST_WindowWin32(GHOST_SystemWin32 *system,
 		// MSVC 2012+ returns bogus values from GetSystemMetrics, bug in Windows
 		// http://connect.microsoft.com/VisualStudio/feedback/details/753224/regression-getsystemmetrics-delivers-different-values
 		RECT cxrect = {0, 0, 0, 0};
-		AdjustWindowRectEx(&cxrect, WS_POPUP | WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_THICKFRAME | WS_DLGFRAME, FALSE, 0);
+		AdjustWindowRectEx(&cxrect, WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_THICKFRAME | WS_DLGFRAME, FALSE, 0);
 
 		int cxsizeframe = abs(cxrect.bottom);
 		int cysizeframe = abs(cxrect.left);
@@ -177,7 +179,7 @@ GHOST_WindowWin32::GHOST_WindowWin32(GHOST_SystemWin32 *system,
 		m_hWnd = ::CreateWindowW(
 		    s_windowClassName,          // pointer to registered class name
 		    title_16,                   // pointer to window name
-		    WS_POPUP | WS_MAXIMIZE,     // window style
+		    WS_MAXIMIZE,                // window style
 		    left,                       // horizontal position of window
 		    top,                        // vertical position of window
 		    width,                      // window width
@@ -284,6 +286,7 @@ GHOST_WindowWin32::GHOST_WindowWin32(GHOST_SystemWin32 *system,
 	if (m_user32) {
 		m_fpGetPointerInfo = (GHOST_WIN32_GetPointerInfo) ::GetProcAddress(m_user32, "GetPointerInfo");
 		m_fpGetPointerPenInfo = (GHOST_WIN32_GetPointerPenInfo) ::GetProcAddress(m_user32, "GetPointerPenInfo");
+		m_fpGetPointerTouchInfo = (GHOST_WIN32_GetPointerTouchInfo) ::GetProcAddress(m_user32, "GetPointerTouchInfo");
 	}
 
 	// Initialize Wintab
@@ -372,6 +375,7 @@ GHOST_WindowWin32::~GHOST_WindowWin32()
 		m_user32 = NULL;
 		m_fpGetPointerInfo = NULL;
 		m_fpGetPointerPenInfo = NULL;
+		m_fpGetPointerTouchInfo = NULL;
 	}
 
 	if (m_customCursor) {
@@ -395,11 +399,6 @@ GHOST_WindowWin32::~GHOST_WindowWin32()
 		::SetWindowLongPtr(m_hWnd, GWLP_USERDATA, NULL);
 		::DestroyWindow(m_hWnd);
 		m_hWnd = 0;
-	}
-
-	if (m_user32) {
-		FreeLibrary(m_user32);
-		m_user32 = NULL;
 	}
 }
 
@@ -546,7 +545,7 @@ GHOST_TWindowState GHOST_WindowWin32::getState() const
 	}
 	else if (::IsZoomed(m_hWnd)) {
 		LONG_PTR result = ::GetWindowLongPtr(m_hWnd, GWL_STYLE);
-		if ((result & (WS_POPUP | WS_MAXIMIZE)) != (WS_POPUP | WS_MAXIMIZE))
+		if ((result & (WS_DLGFRAME | WS_MAXIMIZE)) == (WS_DLGFRAME | WS_MAXIMIZE))
 			state = GHOST_kWindowStateMaximized;
 		else
 			state = GHOST_kWindowStateFullScreen;
@@ -604,7 +603,7 @@ GHOST_TSuccess GHOST_WindowWin32::setState(GHOST_TWindowState state)
 			wp.showCmd = SW_SHOWMAXIMIZED;
 			wp.ptMaxPosition.x = 0;
 			wp.ptMaxPosition.y = 0;
-			::SetWindowLongPtr(m_hWnd, GWL_STYLE, WS_POPUP | WS_MAXIMIZE);
+			::SetWindowLongPtr(m_hWnd, GWL_STYLE, WS_MAXIMIZE);
 			break;
 		case GHOST_kWindowStateEmbedded:
 			::SetWindowLongPtr(m_hWnd, GWL_STYLE, WS_CHILD);
@@ -878,59 +877,98 @@ GHOST_TSuccess GHOST_WindowWin32::setWindowCursorShape(GHOST_TStandardCursor cur
 	return GHOST_kSuccess;
 }
 
-void GHOST_WindowWin32::processWin32PointerEvent(WPARAM wParam)
+GHOST_TSuccess GHOST_WindowWin32::getPointerInfo(GHOST_PointerInfoWin32 *pointerInfo, WPARAM wParam, LPARAM lParam)
 {
-	if (!m_system->useTabletAPI(GHOST_kTabletNative)) {
-		return; // Other tablet API specified by user
+	ZeroMemory(pointerInfo, sizeof(GHOST_PointerInfoWin32));
+
+	// Obtain the basic information from the event
+	pointerInfo->pointerId = GET_POINTERID_WPARAM(wParam);
+	pointerInfo->isInContact = IS_POINTER_INCONTACT_WPARAM(wParam);
+	pointerInfo->isPrimary = IS_POINTER_PRIMARY_WPARAM(wParam);
+
+	// Obtain more accurate and predicted information from the Pointer API
+	POINTER_INFO pointerApiInfo;
+	if (!(m_fpGetPointerInfo && m_fpGetPointerInfo(pointerInfo->pointerId, &pointerApiInfo))) {
+		return GHOST_kFailure;
 	}
 
-	if (!m_fpGetPointerInfo || !m_fpGetPointerPenInfo) {
-		return; // OS version does not support pointer API
+	pointerInfo->hasButtonMask = GHOST_kSuccess;
+	switch (pointerApiInfo.ButtonChangeType) {
+	case POINTER_CHANGE_FIRSTBUTTON_DOWN:
+	case POINTER_CHANGE_FIRSTBUTTON_UP:
+		pointerInfo->buttonMask = GHOST_kButtonMaskLeft;
+		break;
+	case POINTER_CHANGE_SECONDBUTTON_DOWN:
+	case POINTER_CHANGE_SECONDBUTTON_UP:
+		pointerInfo->buttonMask = GHOST_kButtonMaskRight;
+		break;
+	case POINTER_CHANGE_THIRDBUTTON_DOWN:
+	case POINTER_CHANGE_THIRDBUTTON_UP:
+		pointerInfo->buttonMask = GHOST_kButtonMaskMiddle;
+		break;
+	case POINTER_CHANGE_FOURTHBUTTON_DOWN:
+	case POINTER_CHANGE_FOURTHBUTTON_UP:
+		pointerInfo->buttonMask = GHOST_kButtonMaskButton4;
+		break;
+	case POINTER_CHANGE_FIFTHBUTTON_DOWN:
+	case POINTER_CHANGE_FIFTHBUTTON_UP:
+		pointerInfo->buttonMask = GHOST_kButtonMaskButton5;
+		break;
+	default:
+		pointerInfo->hasButtonMask = GHOST_kFailure;
+		break;
 	}
 
-	UINT32 pointerId = GET_POINTERID_WPARAM(wParam);
-	POINTER_INFO pointerInfo;
-	if (!m_fpGetPointerInfo(pointerId, &pointerInfo)) {
-		return; // Invalid pointer info
+	pointerInfo->pixelLocation = pointerApiInfo.ptPixelLocation;
+	pointerInfo->tabletData.Active = GHOST_kTabletModeNone;
+	pointerInfo->tabletData.Pressure = 1.0f;
+	pointerInfo->tabletData.Xtilt = 0.0f;
+	pointerInfo->tabletData.Ytilt = 0.0f;
+
+	if (pointerApiInfo.pointerType != PT_PEN) {
+		return GHOST_kFailure;
 	}
 
-	m_tabletData.Active = GHOST_kTabletModeNone;
-	m_tabletData.Pressure = 1.0f;
-	m_tabletData.Xtilt = 0.0f;
-	m_tabletData.Ytilt = 0.0f;
+	POINTER_PEN_INFO pointerPenInfo;
+	if (m_fpGetPointerPenInfo && m_fpGetPointerPenInfo(pointerInfo->pointerId, &pointerPenInfo)) {
+		pointerInfo->tabletData.Active = GHOST_kTabletModeStylus;
 
-	if (pointerInfo.pointerType & PT_POINTER) {
-		POINTER_PEN_INFO pointerPenInfo;
-		if (!m_fpGetPointerPenInfo(pointerId, &pointerPenInfo)) {
-			return;
-		}
-
-		// With the Microsoft Surface Pen if you hover the within 1cm of the screen the WM_POINTERUPDATE
-		// event will fire with PEN_MASK_PRESSURE mask set and zero pressure. In this case we disable
-		// tablet mode until the pen is physically touching. This enables the user to switch to the
-		// mouse and draw at full pressure.
-		if (pointerPenInfo.penMask & PEN_MASK_PRESSURE && pointerPenInfo.pressure > 0) {
-			m_tabletData.Active = GHOST_kTabletModeStylus;
-			m_tabletData.Pressure = pointerPenInfo.pressure / 1024.0f;
+		if (pointerPenInfo.penMask & PEN_MASK_PRESSURE) {
+			pointerInfo->tabletData.Pressure = pointerPenInfo.pressure / 1024.0f;
 		}
 
 		if (pointerPenInfo.penFlags & PEN_FLAG_ERASER) {
-			m_tabletData.Active = GHOST_kTabletModeEraser;
+			pointerInfo->tabletData.Active = GHOST_kTabletModeEraser;
 		}
 
 		if (pointerPenInfo.penFlags & PEN_MASK_TILT_X) {
-			m_tabletData.Xtilt = fmin(fabs(pointerPenInfo.tiltX / 90), 1.0f);
+			pointerInfo->tabletData.Xtilt = fmin(fabs(pointerPenInfo.tiltX / 90), 1.0f);
 		}
 
 		if (pointerPenInfo.penFlags & PEN_MASK_TILT_Y) {
-			m_tabletData.Ytilt = fmin(fabs(pointerPenInfo.tiltY / 90), 1.0f);
+			pointerInfo->tabletData.Ytilt = fmin(fabs(pointerPenInfo.tiltY / 90), 1.0f);
 		}
+	}
+
+	return GHOST_kSuccess;
+}
+
+void GHOST_WindowWin32::setTabletData(GHOST_TabletData * pTabletData)
+{
+	if (pTabletData) {
+		m_tabletData = *pTabletData;
+	}
+	else {
+		m_tabletData.Active = GHOST_kTabletModeNone;
+		m_tabletData.Pressure = 1.0f;
+		m_tabletData.Xtilt = 0.0f;
+		m_tabletData.Ytilt = 0.0f;
 	}
 }
 
 void GHOST_WindowWin32::processWin32TabletActivateEvent(WORD state)
 {
-	if (!m_system->useTabletAPI(GHOST_kTabletWintab)) {
+	if (!useTabletAPI(GHOST_kTabletWintab)) {
 		return;
 	}
 
@@ -943,9 +981,25 @@ void GHOST_WindowWin32::processWin32TabletActivateEvent(WORD state)
 	}
 }
 
+bool GHOST_WindowWin32::useTabletAPI(GHOST_TTabletAPI api) const
+{
+	if (m_system->getTabletAPI() == api) {
+		return true;
+	}
+	else if (m_system->getTabletAPI() == GHOST_kTabletAutomatic) {
+		if (m_wintab.tablet)
+			return api == GHOST_kTabletWintab;
+		else
+			return api == GHOST_kTabletNative;
+	}
+	else {
+		return false;
+	}
+}
+
 void GHOST_WindowWin32::processWin32TabletInitEvent()
 {
-	if (!m_system->useTabletAPI(GHOST_kTabletWintab)) {
+	if (!useTabletAPI(GHOST_kTabletWintab)) {
 		return;
 	}
 
@@ -979,7 +1033,7 @@ void GHOST_WindowWin32::processWin32TabletInitEvent()
 
 void GHOST_WindowWin32::processWin32TabletEvent(WPARAM wParam, LPARAM lParam)
 {
-	if (!m_system->useTabletAPI(GHOST_kTabletWintab)) {
+	if (!useTabletAPI(GHOST_kTabletWintab)) {
 		return;
 	}
 
@@ -1048,7 +1102,7 @@ void GHOST_WindowWin32::processWin32TabletEvent(WPARAM wParam, LPARAM lParam)
 
 void GHOST_WindowWin32::bringTabletContextToFront()
 {
-	if (!m_system->useTabletAPI(GHOST_kTabletWintab)) {
+	if (!useTabletAPI(GHOST_kTabletWintab)) {
 		return;
 	}
 

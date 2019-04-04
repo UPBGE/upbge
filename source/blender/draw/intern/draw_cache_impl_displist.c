@@ -311,8 +311,8 @@ void DRW_displist_indexbuf_create_lines_in_order(ListBase *lb, GPUIndexBuf *ibo)
 	int ofs = 0;
 	for (const DispList *dl = lb->first; dl; dl = dl->next) {
 		displist_indexbufbuilder_set(
-		        (SetTriIndicesFn *)set_overlay_wires_tri_indices,
-		        (SetTriIndicesFn *)set_overlay_wires_quad_tri_indices,
+		        set_overlay_wires_tri_indices,
+		        set_overlay_wires_quad_tri_indices,
 		        &elb, dl, ofs);
 		ofs += dl_vert_len(dl);
 	}
@@ -597,9 +597,9 @@ static void set_edge_adjacency_lines_indices(EdgeHash *eh, GPUIndexBufBuilder *e
 
 static void set_edges_adjacency_lines_indices(void *thunk, uint v1, uint v2, uint v3)
 {
-	void **packed = (void**)thunk;
+	void **packed = (void **)thunk;
 	GPUIndexBufBuilder *elb = (GPUIndexBufBuilder*)packed[0];
-	EdgeHash *eh = (EdgeHash*)packed[1];
+	EdgeHash *eh = (EdgeHash *)packed[1];
 	bool *r_is_manifold = (bool*)packed[2];
 
 	set_edge_adjacency_lines_indices(eh, elb, r_is_manifold, v1, v2, v3);
