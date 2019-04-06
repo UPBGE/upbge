@@ -58,6 +58,7 @@ typedef struct SubdivSettings {
 	bool is_simple;
 	bool is_adaptive;
 	int level;
+	bool use_creases;
 	eSubdivVtxBoundaryInterpolation vtx_boundary_interpolation;
 	eSubdivFVarLinearInterpolation fvar_linear_interpolation;
 } SubdivSettings;
@@ -240,7 +241,7 @@ BLI_INLINE void BKE_subdiv_ptex_face_uv_to_grid_uv(
         const float ptex_u, const float ptex_v,
         float *r_grid_u, float *r_grid_v);
 
-/* Onverse of above. */
+/* Inverse of above. */
 BLI_INLINE void BKE_subdiv_grid_uv_to_ptex_face_uv(
         const float grid_u, const float grid_v,
         float *r_ptex_u, float *r_ptex_v);

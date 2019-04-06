@@ -1699,8 +1699,8 @@ static void mesh_calc_modifiers_dm(
 	Mesh *deform_mesh = NULL, *final_mesh = NULL;
 
 	mesh_calc_modifiers(
-	        depsgraph, scene, ob, inputVertexCos, useDeform,
-	        need_mapping, dataMask, index, useCache, build_shapekey_layers,
+	        depsgraph, scene, ob, useDeform,
+	        need_mapping, dataMask, index, useCache,
 	        (r_deformdm ? &deform_mesh : NULL), &final_mesh);
 
 	if (deform_mesh) {
