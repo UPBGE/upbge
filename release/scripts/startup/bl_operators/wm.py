@@ -1530,7 +1530,6 @@ class WM_OT_owner_disable(Operator):
         return {'FINISHED'}
 
 
-
 class WM_OT_tool_set_by_id(Operator):
     """Set the tool by name (for keymaps)"""
     bl_idname = "wm.tool_set_by_id"
@@ -1712,7 +1711,7 @@ class WM_MT_splash(Menu):
         # Draw setup screen if no preferences have been saved yet.
         import os
 
-        userconfig_path = bpy.utils.user_resource('CONFIG');
+        userconfig_path = bpy.utils.user_resource('CONFIG')
         userdef_path = os.path.join(userconfig_path, "userpref.blend")
 
         if not os.path.isfile(userdef_path):

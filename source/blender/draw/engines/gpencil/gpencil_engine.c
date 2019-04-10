@@ -316,7 +316,7 @@ void GPENCIL_cache_init(void *vedata)
 	if (obact && (obact->type == OB_GPENCIL) && (obact->data)) {
 		obact_gpd = (bGPdata *)obact->data;
 		/* use the brush material */
-		Material *ma = BKE_gpencil_get_material_for_brush(obact, brush);
+		Material *ma = BKE_gpencil_object_material_get_from_brush(obact, brush);
 		if (ma != NULL) {
 			gp_style = ma->gp_style;
 		}
@@ -405,7 +405,7 @@ void GPENCIL_cache_init(void *vedata)
 
 		/* xray mode */
 		if (v3d) {
-			stl->storage->is_xray = (v3d->shading.flag & V3D_XRAY_FLAG(v3d)) ? 1 : 0;
+			stl->storage->is_xray = XRAY_ACTIVE(v3d);
 		}
 		else {
 			stl->storage->is_xray = 0;
@@ -642,7 +642,7 @@ void GPENCIL_cache_populate(void *vedata, Object *ob)
 
 		bGPdata *gpd_orig = (bGPdata *)DEG_get_original_id(&gpd->id);
 		if ((draw_ctx->obact == ob) &&
-			((gpd_orig->runtime.ar == NULL) || (gpd_orig->runtime.ar == draw_ctx->ar)))
+		    ((gpd_orig->runtime.ar == NULL) || (gpd_orig->runtime.ar == draw_ctx->ar)))
 		{
 			DRW_gpencil_populate_buffer_strokes(&e_data, vedata, ts, ob);
 		}
