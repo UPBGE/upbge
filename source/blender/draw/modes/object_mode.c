@@ -1840,8 +1840,7 @@ static void camera_view3d_reconstruction(
 
 	BLI_assert(BLI_listbase_is_empty(&sgl->camera_path));
 	const bool is_solid_bundle = (v3d->bundle_drawtype == OB_EMPTY_SPHERE) &&
-	                             ((v3d->shading.type != OB_SOLID) ||
-	                              ((v3d->shading.flag & XRAY_FLAG(v3d)) == 0));
+	                             ((v3d->shading.type != OB_SOLID) || !XRAY_FLAG_ENABLED(v3d));
 
 	MovieTracking *tracking = &clip->tracking;
 	/* Index must start in 1, to mimic BKE_tracking_track_get_indexed. */
@@ -2987,7 +2986,11 @@ static void OBJECT_cache_populate(void *vedata, Object *ob)
 	        (draw_ctx->v3d->flag & V3D_SELECT_OUTLINE) && ((ob->base_flag & BASE_SELECTED) != 0) &&
 	        ((DRW_object_is_renderable(ob) && (ob->dt > OB_WIRE)) || (ob->dt == OB_WIRE)));
 	const bool show_relations = ((draw_ctx->v3d->flag & V3D_HIDE_HELPLINES) == 0);
-	const bool hide_object_extra = (v3d->overlay.flag & V3D_OVERLAY_HIDE_OBJECT_XTRAS) != 0;
+	const bool hide_object_extra = (
+	        (v3d->overlay.flag & V3D_OVERLAY_HIDE_OBJECT_XTRAS) != 0 &&
+	        /* Show if this is the camera we're looking through
+	         * since it's useful for moving the camera. */
+	        (((rv3d->persp == RV3D_CAMOB) && ((ID *)v3d->camera == ob->id.orig_id)) == 0));
 
 	if (do_outlines) {
 		if (!BKE_object_is_in_editmode(ob) &&
@@ -3151,8 +3154,7 @@ static void OBJECT_cache_populate(void *vedata, Object *ob)
 			bArmature *arm = ob->data;
 			if (arm->edbo == NULL) {
 				if (DRW_state_is_select() || !DRW_pose_mode_armature(ob, draw_ctx->obact)) {
-					bool is_wire = (v3d->shading.type == OB_WIRE) || (ob->dt <= OB_WIRE) ||
-					               (v3d->shading.flag & XRAY_FLAG(v3d)) != 0;
+					bool is_wire = (v3d->shading.type == OB_WIRE) || (ob->dt <= OB_WIRE) || XRAY_FLAG_ENABLED(v3d);
 					DRWArmaturePasses passes = {
 					    .bone_solid = (is_wire) ? NULL : sgl->bone_solid,
 					    .bone_outline = sgl->bone_outline,

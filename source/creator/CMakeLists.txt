@@ -639,6 +639,13 @@ if(UNIX AND NOT APPLE)
 
 		endif()
 	endif()
+
+	if(WITH_DRACO)
+		install(
+			PROGRAMS $<TARGET_FILE:extern_draco>
+			DESTINATION ${TARGETDIR_VER}/python/lib/python${PYTHON_VERSION}/site-packages
+		)
+	endif()
 elseif(WIN32)
 
 	set(BLENDER_TEXT_FILES_DESTINATION ".")
@@ -838,6 +845,12 @@ elseif(WIN32)
 		DESTINATION "."
 	)
 
+	if(WITH_DRACO)
+		install(
+			PROGRAMS $<TARGET_FILE:extern_draco>
+			DESTINATION ${TARGETDIR_VER}/python/lib/site-packages
+		)
+	endif()
 elseif(APPLE)
 
 	# handy install macro to exclude files, we use \$ escape for the "to"
@@ -989,6 +1002,12 @@ elseif(APPLE)
 
 	endif()
 
+	if(WITH_DRACO)
+		install(
+			PROGRAMS $<TARGET_FILE:extern_draco>
+			DESTINATION ${TARGETDIR_VER}/python/lib/python${PYTHON_VERSION}/site-packages
+		)
+	endif()
 endif()
 
 # -----------------------------------------------------------------------------
