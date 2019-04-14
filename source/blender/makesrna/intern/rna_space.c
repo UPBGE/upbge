@@ -516,6 +516,14 @@ static void rna_GPencil_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *UN
 	WM_main_add_notifier(NC_GPENCIL | NA_EDITED, NULL);
 }
 
+static void rna_SpaceView3D_gizmo_flag_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
+{
+	View3D *v3d = ptr->data;
+	if ((v3d->gizmo_type_mask & (V3D_GIZMO_TYPE_MASK_TRANSLATE | V3D_GIZMO_TYPE_MASK_ROTATE | V3D_GIZMO_TYPE_MASK_SCALE)) == 0) {
+		v3d->gizmo_type_mask |= V3D_GIZMO_TYPE_MASK_TRANSLATE;
+	}
+}
+
 /* Space 3D View */
 static void rna_SpaceView3D_camera_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
@@ -1334,16 +1342,24 @@ static const EnumPropertyItem *rna_SpaceProperties_context_itemf(
 		RNA_enum_items_add_value(&item, &totitem, buttons_context_items, BCONTEXT_OBJECT);
 	}
 
-	if (sbuts->pathflag & (1 << BCONTEXT_CONSTRAINT)) {
-		RNA_enum_items_add_value(&item, &totitem, buttons_context_items, BCONTEXT_CONSTRAINT);
-	}
-
 	if (sbuts->pathflag & (1 << BCONTEXT_MODIFIER)) {
 		RNA_enum_items_add_value(&item, &totitem, buttons_context_items, BCONTEXT_MODIFIER);
 	}
 
 	if (sbuts->pathflag & (1 << BCONTEXT_SHADERFX)) {
 		RNA_enum_items_add_value(&item, &totitem, buttons_context_items, BCONTEXT_SHADERFX);
+	}
+
+	if (sbuts->pathflag & (1 << BCONTEXT_PARTICLE)) {
+		RNA_enum_items_add_value(&item, &totitem, buttons_context_items, BCONTEXT_PARTICLE);
+	}
+
+	if (sbuts->pathflag & (1 << BCONTEXT_PHYSICS)) {
+		RNA_enum_items_add_value(&item, &totitem, buttons_context_items, BCONTEXT_PHYSICS);
+	}
+
+	if (sbuts->pathflag & (1 << BCONTEXT_CONSTRAINT)) {
+		RNA_enum_items_add_value(&item, &totitem, buttons_context_items, BCONTEXT_CONSTRAINT);
 	}
 
 	if (sbuts->pathflag & (1 << BCONTEXT_DATA)) {
@@ -1363,16 +1379,12 @@ static const EnumPropertyItem *rna_SpaceProperties_context_itemf(
 		RNA_enum_items_add_value(&item, &totitem, buttons_context_items, BCONTEXT_MATERIAL);
 	}
 
+		if (totitem) {
+		RNA_enum_item_add_separator(&item, &totitem);
+	}
+
 	if (sbuts->pathflag & (1 << BCONTEXT_TEXTURE)) {
 		RNA_enum_items_add_value(&item, &totitem, buttons_context_items, BCONTEXT_TEXTURE);
-	}
-
-	if (sbuts->pathflag & (1 << BCONTEXT_PARTICLE)) {
-		RNA_enum_items_add_value(&item, &totitem, buttons_context_items, BCONTEXT_PARTICLE);
-	}
-
-	if (sbuts->pathflag & (1 << BCONTEXT_PHYSICS)) {
-		RNA_enum_items_add_value(&item, &totitem, buttons_context_items, BCONTEXT_PHYSICS);
 	}
 
 	RNA_enum_item_end(&item, &totitem);
@@ -3092,6 +3104,13 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL},
 	};
 
+	static const EnumPropertyItem rna_enum_gizmo_items[] = {
+		{V3D_GIZMO_TYPE_MASK_TRANSLATE, "TRANSLATE", 0, "Move", ""},
+		{V3D_GIZMO_TYPE_MASK_ROTATE, "ROTATE", 0, "Rotate", ""},
+		{V3D_GIZMO_TYPE_MASK_SCALE, "SCALE", 0, "Scale", ""},
+		{0, NULL, 0, NULL, NULL},
+	};
+
 	srna = RNA_def_struct(brna, "SpaceView3D", "Space");
 	RNA_def_struct_sdna(srna, "View3D");
 	RNA_def_struct_ui_text(srna, "3D View Space", "3D View space data");
@@ -3200,6 +3219,13 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "gizmo_flag", V3D_GIZMO_HIDE_TOOL);
 	RNA_def_property_ui_text(prop, "Tool Gizmo", "Active tool gizmo");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
+
+	prop = RNA_def_property(srna, "show_gizmo_transform", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "gizmo_type_mask");
+	RNA_def_property_enum_items(prop, rna_enum_gizmo_items);
+	RNA_def_property_flag(prop, PROP_ENUM_FLAG);
+	RNA_def_property_ui_text(prop, "Gizmo Mode",  "");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_SpaceView3D_gizmo_flag_update");
 
 	prop = RNA_def_property(srna, "use_local_camera", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "scenelock", 1);

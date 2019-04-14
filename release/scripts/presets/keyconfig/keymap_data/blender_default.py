@@ -3025,6 +3025,8 @@ def km_grease_pencil_stroke_edit_mode(params):
         ("transform.shear", {"type": 'S', "value": 'PRESS', "shift": True, "ctrl": True, "alt": True}, None),
         ("transform.transform", {"type": 'S', "value": 'PRESS', "alt": True},
          {"properties": [("mode", 'GPENCIL_SHRINKFATTEN')]}),
+        ("transform.transform", {"type": 'F', "value": 'PRESS', "shift": True},
+         {"properties": [("mode", 'GPENCIL_OPACITY')]}),
         # Proportonal editing
         *_template_items_proportional_editing(connected=True),
         # Add menu
@@ -4382,6 +4384,15 @@ def km_transform_modal_map(_params):
         ("INSERTOFS_TOGGLE_DIR", {"type": 'T', "value": 'PRESS'}, None),
     ])
 
+    return keymap
+
+
+def km_transform_gizmo(_params):
+    keymap = (
+        "Transform Gizmo Context",
+        {"space_type": 'VIEW_3D', "region_type": 'WINDOW'},
+        {"items": _template_items_gizmo_tweak_value()},
+    )
     return keymap
 
 
@@ -6145,6 +6156,7 @@ def generate_keymaps(params=None):
 
         # Gizmos.
         km_gizmos(params),
+        km_transform_gizmo(params),
         km_backdrop_transform_widget_tweak_modal_map(params),
         km_backdrop_crop_widget(params),
         km_backdrop_crop_widget_tweak_modal_map(params),

@@ -223,6 +223,11 @@ typedef struct View3DOverlay {
 
 } View3DOverlay;
 
+typedef struct View3D_Runtime {
+	/** Nkey panel stores stuff here. */
+	void *properties_storage;
+} View3D_Runtime;
+
 /* 3D ViewPort Struct */
 typedef struct View3D {
 	struct SpaceLink *next, *prev;
@@ -240,7 +245,11 @@ typedef struct View3D {
 	float bundle_size;
 	/** Display style for bundle. */
 	char bundle_drawtype;
-	char _pad3[2];
+
+	/** #V3D_GIZMO_SHOW_* */
+	char gizmo_flag;
+
+	char _pad3[1];
 
 	/** Multiview current eye - for internal use. */
 	char multiview_eye;
@@ -275,10 +284,7 @@ typedef struct View3D {
 	float clip_start, clip_end;
 	float ofs[3] DNA_DEPRECATED;
 
-	char _pad[4];
-
-	/** Icon id. */
-	short matcap_icon;
+	char _pad[6];
 
 	short gridlines;
 	/** Number of subdivisions in the grid between each highlighted grid line. */
@@ -286,7 +292,7 @@ typedef struct View3D {
 	char gridflag;
 
 	/** Transform gizmo info. */
-	char gizmo_flag;
+	char gizmo_type_mask;
 
 	/* actually only used to define the opacity of the grease pencil vertex in edit mode */
 	float vertex_opacity;
@@ -294,9 +300,6 @@ typedef struct View3D {
 	/* note, 'fx_settings.dof' is currently _not_ allocated,
 	 * instead set (temporarily) from camera */
 	struct GPUFXSettings fx_settings;
-
-	/** Nkey panel stores stuff here (runtime only!). */
-	void *properties_storage;
 
 	/* XXX deprecated? */
 	/** Grease-Pencil Data (annotation layers). */
@@ -316,6 +319,9 @@ typedef struct View3D {
 
 	View3DShading shading;
 	View3DOverlay overlay;
+
+	/** Runtime evaluation data (keep last). */
+	View3D_Runtime runtime;
 } View3D;
 
 
@@ -543,13 +549,20 @@ enum {
 	V3D_ORIENT_CUSTOM_MATRIX =   (V3D_ORIENT_CUSTOM - 1),
 };
 
-/* View3d.mpr_flag (also) */
+/** #View3d.gizmo_flag */
 enum {
 	/** All gizmos. */
 	V3D_GIZMO_HIDE                = (1 << 0),
 	V3D_GIZMO_HIDE_NAVIGATE       = (1 << 1),
 	V3D_GIZMO_HIDE_CONTEXT        = (1 << 2),
 	V3D_GIZMO_HIDE_TOOL           = (1 << 3),
+};
+
+/** #View3d.gizmo_type_mask */
+enum {
+	V3D_GIZMO_TYPE_MASK_TRANSLATE = (1 << 0),
+	V3D_GIZMO_TYPE_MASK_ROTATE    = (1 << 1),
+	V3D_GIZMO_TYPE_MASK_SCALE     = (1 << 2),
 };
 
 #define RV3D_CAMZOOM_MIN -30
