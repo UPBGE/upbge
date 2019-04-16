@@ -67,4 +67,4 @@ set(SRC
 
 add_definitions(${GL_DEFINITIONS})
 
-blender_add_lib(ge_oglrasterizer "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(ge_oglrasterizer "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

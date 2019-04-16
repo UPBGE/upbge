@@ -110,4 +110,4 @@ if(WITH_GAMEENGINE_BPPLAYER)
 	add_definitions(-DWITH_GAMEENGINE_BPPLAYER)
 endif()
 
-blender_add_lib_nolist(ge_player "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib_nolist(ge_player "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

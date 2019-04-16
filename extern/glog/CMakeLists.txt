@@ -53,6 +53,10 @@ set(SRC
 	src/stacktrace_x86-inl.h
 )
 
+set(LIB
+	extern_gflags
+)
+
 if(WIN32)
 	list(APPEND SRC
 		src/windows/port.cc
@@ -90,4 +94,4 @@ endif()
 add_definitions(${GFLAGS_DEFINES})
 add_definitions(${GLOG_DEFINES})
 
-blender_add_lib(extern_glog "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(extern_glog "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

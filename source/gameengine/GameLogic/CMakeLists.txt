@@ -203,4 +203,4 @@ if(WITH_SDL)
 	endif()
 endif()
 
-blender_add_lib(ge_logic "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(ge_logic "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

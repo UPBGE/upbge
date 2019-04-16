@@ -49,4 +49,4 @@ set(SRC
 	CM_Thread.h
 )
 
-blender_add_lib(ge_common "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(ge_common "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

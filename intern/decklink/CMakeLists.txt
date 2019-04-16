@@ -55,4 +55,4 @@ if(UNIX AND NOT APPLE)
 	)
 endif()
 
-blender_add_lib(bf_intern_decklink "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(bf_intern_decklink "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

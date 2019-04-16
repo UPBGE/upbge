@@ -84,4 +84,4 @@ if(WITH_PYTHON)
 	)
 endif()
 
-blender_add_lib(ge_logic_expressions "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(ge_logic_expressions "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

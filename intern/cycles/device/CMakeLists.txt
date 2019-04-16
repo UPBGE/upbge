@@ -58,6 +58,20 @@ set(SRC_HEADERS
 	device_task.h
 )
 
+set(LIB
+
+)
+
+if(WITH_CUDA_DYNLOAD)
+	list(APPEND LIB
+		extern_cuew
+	)
+else()
+	list(APPEND LIB
+		${CUDA_CUDA_LIBRARY}
+	)
+endif()
+
 add_definitions(${GL_DEFINITIONS})
 if(WITH_CYCLES_NETWORK)
 	add_definitions(-DWITH_NETWORK)
@@ -75,4 +89,4 @@ endif()
 include_directories(${INC})
 include_directories(SYSTEM ${INC_SYS})
 
-cycles_add_library(cycles_device ${SRC} ${SRC_OPENCL} ${SRC_HEADERS})
+cycles_add_library(cycles_device "${LIB}" ${SRC} ${SRC_OPENCL} ${SRC_HEADERS})

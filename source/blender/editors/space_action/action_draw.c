@@ -164,7 +164,7 @@ void draw_channel_strips(bAnimContext *ac, SpaceAction *saction, ARegion *ar)
 	bDopeSheet *ads = &saction->ads;
 	AnimData *adt = NULL;
 
-	float act_start, act_end, y;
+	float y;
 
 	unsigned char col1[4], col2[4];
 	unsigned char col1a[4], col2a[4];
@@ -182,16 +182,6 @@ void draw_channel_strips(bAnimContext *ac, SpaceAction *saction, ARegion *ar)
 
 	UI_GetThemeColor4ubv(TH_DOPESHEET_CHANNELOB, col1b);
 	UI_GetThemeColor4ubv(TH_DOPESHEET_CHANNELSUBOB, col2b);
-
-	/* set view-mapping rect (only used for x-axis), for NLA-scaling mapping with less calculation */
-
-	/* if in NLA there's a strip active, map the view */
-	if (ac->datatype == ANIMCONT_ACTION) {
-		/* adt = ANIM_nla_mapping_get(ac, NULL); */ /* UNUSED */
-
-		/* start and end of action itself */
-		calc_action_range(ac->data, &act_start, &act_end, 0);
-	}
 
 	/* build list of channels to draw */
 	int filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_LIST_CHANNELS);
@@ -286,9 +276,6 @@ void draw_channel_strips(bAnimContext *ac, SpaceAction *saction, ARegion *ar)
 
 					/* draw region twice: firstly backdrop, then the current range */
 					immRectf(pos, v2d->cur.xmin,  (float)y - ACHANNEL_HEIGHT_HALF(ac),  v2d->cur.xmax + EXTRA_SCROLL_PAD,  (float)y + ACHANNEL_HEIGHT_HALF(ac));
-
-					if (ac->datatype == ANIMCONT_ACTION)
-						immRectf(pos, act_start,  (float)y - ACHANNEL_HEIGHT_HALF(ac),  act_end,  (float)y + ACHANNEL_HEIGHT_HALF(ac));
 				}
 				else if (ac->datatype == ANIMCONT_GPENCIL) {
 					unsigned char *color;
@@ -348,6 +335,12 @@ void draw_channel_strips(bAnimContext *ac, SpaceAction *saction, ARegion *ar)
 	 */
 	y = (float)(-ACHANNEL_HEIGHT(ac));
 
+	int action_flag = saction->flag;
+
+	if (saction->mode == SACTCONT_TIMELINE) {
+		action_flag &= ~(SACTION_SHOW_INTERPOLATION | SACTION_SHOW_EXTREMES);
+	}
+
 	for (ale = anim_data.first; ale; ale = ale->next) {
 		const float yminc = (float)(y - ACHANNEL_HEIGHT_HALF(ac));
 		const float ymaxc = (float)(y + ACHANNEL_HEIGHT_HALF(ac));
@@ -363,28 +356,28 @@ void draw_channel_strips(bAnimContext *ac, SpaceAction *saction, ARegion *ar)
 				/* draw 'keyframes' for each specific datatype */
 				switch (ale->datatype) {
 					case ALE_ALL:
-						draw_summary_channel(v2d, ale->data, y, ac->yscale_fac, saction->flag);
+						draw_summary_channel(v2d, ale->data, y, ac->yscale_fac, action_flag);
 						break;
 					case ALE_SCE:
-						draw_scene_channel(v2d, ads, ale->key_data, y, ac->yscale_fac, saction->flag);
+						draw_scene_channel(v2d, ads, ale->key_data, y, ac->yscale_fac, action_flag);
 						break;
 					case ALE_OB:
-						draw_object_channel(v2d, ads, ale->key_data, y, ac->yscale_fac, saction->flag);
+						draw_object_channel(v2d, ads, ale->key_data, y, ac->yscale_fac, action_flag);
 						break;
 					case ALE_ACT:
-						draw_action_channel(v2d, adt, ale->key_data, y, ac->yscale_fac, saction->flag);
+						draw_action_channel(v2d, adt, ale->key_data, y, ac->yscale_fac, action_flag);
 						break;
 					case ALE_GROUP:
-						draw_agroup_channel(v2d, adt, ale->data, y, ac->yscale_fac, saction->flag);
+						draw_agroup_channel(v2d, adt, ale->data, y, ac->yscale_fac, action_flag);
 						break;
 					case ALE_FCURVE:
-						draw_fcurve_channel(v2d, adt, ale->key_data, y, ac->yscale_fac, saction->flag);
+						draw_fcurve_channel(v2d, adt, ale->key_data, y, ac->yscale_fac, action_flag);
 						break;
 					case ALE_GPFRAME:
-						draw_gpl_channel(v2d, ads, ale->data, y, ac->yscale_fac, saction->flag);
+						draw_gpl_channel(v2d, ads, ale->data, y, ac->yscale_fac, action_flag);
 						break;
 					case ALE_MASKLAY:
-						draw_masklay_channel(v2d, ads, ale->data, y, ac->yscale_fac, saction->flag);
+						draw_masklay_channel(v2d, ads, ale->data, y, ac->yscale_fac, action_flag);
 						break;
 				}
 			}

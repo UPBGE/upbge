@@ -81,4 +81,4 @@ if(WITH_AUDASPACE)
 	)
 endif()
 
-blender_add_lib(ge_launcher "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(ge_launcher "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

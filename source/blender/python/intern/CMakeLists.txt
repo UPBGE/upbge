@@ -117,6 +117,13 @@ set(SRC
 	../BPY_extern_clog.h
 )
 
+set(LIB
+	bf_editor_animation
+	bf_editor_interface
+	bf_editor_space_api
+	bf_python_gpu
+)
+
 # only to check if buildinfo is available
 if(WITH_BUILDINFO)
 	add_definitions(-DBUILD_DATE)
@@ -306,4 +313,4 @@ endif()
 
 add_definitions(${GL_DEFINITIONS})
 
-blender_add_lib(bf_python "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(bf_python "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

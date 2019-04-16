@@ -132,17 +132,6 @@ class VIEW3D_HT_header(Header):
         # Mode & Transform Settings
         scene = context.scene
 
-        # Gizmo popover.
-        row = layout.row(align=True)
-        # FIXME: place-holder icon.
-        row.prop(view, "show_gizmo", text="", toggle=True, icon='EMPTY_DATA')
-        sub = row.row(align=True)
-        sub.active = view.show_gizmo
-        sub.popover(
-            panel="VIEW3D_PT_gizmo_display",
-            text="",
-        )
-
         # Orientation
         if object_mode in {'OBJECT', 'EDIT', 'EDIT_GPENCIL'} or has_pose_mode:
             orient_slot = scene.transform_orientation_slots[0]
@@ -282,6 +271,18 @@ class VIEW3D_HT_header(Header):
             text="",
         )
 
+        # Gizmo toggle & popover.
+        row = layout.row(align=True)
+        # FIXME: place-holder icon.
+        row.prop(view, "show_gizmo", text="", toggle=True, icon='EMPTY_DATA')
+        sub = row.row(align=True)
+        sub.active = view.show_gizmo
+        sub.popover(
+            panel="VIEW3D_PT_gizmo_display",
+            text="",
+        )
+
+        # Overlay toggle & popover.
         row = layout.row(align=True)
         row.prop(overlay, "show_overlays", icon='OVERLAY', text="")
         sub = row.row(align=True)
@@ -4813,11 +4814,24 @@ class VIEW3D_PT_gizmo_display(Panel):
         colsub.prop(view, "show_gizmo_tool", text="Active Tools")
         colsub.prop(view, "show_gizmo_context", text="Active Object")
 
-        col.label(text="Transform Gizmos")
-        rowsub = col.row()
-        rowsub.active = view.show_gizmo_context
-        rowsub.prop(view, "show_gizmo_transform")
-        col.prop(scene.transform_orientation_slots[1], "type", text="")
+        colsub = col.column()
+        colsub.active = view.show_gizmo_context
+        colsub.label(text="Object Gizmos")
+        colsub.prop(scene.transform_orientation_slots[1], "type", text="")
+        colsub.prop(view, "show_gizmo_object_translate", text="Move")
+        colsub.prop(view, "show_gizmo_object_rotate", text="Rotate")
+        colsub.prop(view, "show_gizmo_object_scale", text="Scale")
+
+        # Match order of object type visibility
+        colsub.label(text="Empty")
+        colsub.prop(view, "show_gizmo_empty_image", text="Image")
+        colsub.prop(view, "show_gizmo_empty_force_field", text="Force Field")
+        colsub.label(text="Light")
+        colsub.prop(view, "show_gizmo_light_size", text="Size")
+        colsub.prop(view, "show_gizmo_light_look_at", text="Look At")
+        colsub.label(text="Camera")
+        colsub.prop(view, "show_gizmo_camera_lens", text="Lens")
+        colsub.prop(view, "show_gizmo_camera_dof_distance", text="Focus Distance")
 
 
 class VIEW3D_PT_overlay(Panel):

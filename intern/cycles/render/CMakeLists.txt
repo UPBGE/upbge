@@ -73,6 +73,16 @@ set(SRC_HEADERS
 	tile.h
 )
 
+set(LIB
+	cycles_bvh
+)
+
+if(WITH_CYCLES_OSL)
+	list(APPEND LIB
+		cycles_kernel_osl
+	)
+endif()
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${RTTI_DISABLE_FLAGS}")
 
 include_directories(${INC})
@@ -80,4 +90,4 @@ include_directories(SYSTEM ${INC_SYS})
 
 add_definitions(${GL_DEFINITIONS})
 
-cycles_add_library(cycles_render ${SRC} ${SRC_HEADERS})
+cycles_add_library(cycles_render "${LIB}" ${SRC} ${SRC_HEADERS})

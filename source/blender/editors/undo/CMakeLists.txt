@@ -36,8 +36,18 @@ set(SRC
 	undo_intern.h
 )
 
+set(LIB
+	bf_blenkernel
+	bf_blenlib
+	bf_editor_curve
+	bf_editor_lattice
+	bf_editor_mesh
+	bf_editor_metaball
+	bf_editor_physics
+)
+
 if(WITH_INTERNATIONAL)
 	add_definitions(-DWITH_INTERNATIONAL)
 endif()
 
-blender_add_lib(bf_editor_undo "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(bf_editor_undo "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

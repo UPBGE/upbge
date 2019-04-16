@@ -84,6 +84,12 @@ set(SRC
 	intern/GHOST_WindowManager.h
 )
 
+set(LIB
+	bf_intern_glew_mx
+	bf_intern_string
+	${GLEW_LIBRARY}
+)
+
 if(WITH_GHOST_DEBUG)
 	list(APPEND SRC
 		intern/GHOST_EventPrinter.cpp
@@ -191,6 +197,10 @@ elseif(WITH_X11)
 
 	if(WITH_GHOST_XDND)
 		add_definitions(-DWITH_XDND)
+
+		list(APPEND LIB
+			extern_xdnd
+		)
 
 		list(APPEND INC
 			../../extern/xdnd
@@ -337,4 +347,4 @@ endif()
 
 add_definitions(${GL_DEFINITIONS})
 
-blender_add_lib(bf_intern_ghost "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(bf_intern_ghost "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

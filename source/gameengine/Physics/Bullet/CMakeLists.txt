@@ -72,4 +72,4 @@ endif()
 
 add_definitions(${GL_DEFINITIONS})
 
-blender_add_lib(ge_phys_bullet "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(ge_phys_bullet "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

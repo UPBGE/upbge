@@ -28,6 +28,9 @@ set(SRC
 
 )
 
+set(LIB
+)
+
 # Order matches "UI_icons.h", final name will be formatted: "icons{size}_{name}.dat"
 set(ICON_NAMES
 	question
@@ -764,7 +767,7 @@ if(WITH_BLENDER)
 		# blender UI only
 
 		# blends
-		data_to_c_simple(../../../../release/datafiles/preview_cycles.blend SRC)
+		data_to_c_simple(../../../../release/datafiles/preview.blend SRC)
 		data_to_c_simple(../../../../release/datafiles/preview_grease_pencil.blend SRC)
 
 		# images
@@ -845,4 +848,4 @@ endif()
 
 unset(ICON_NAMES)
 
-blender_add_lib(bf_editor_datafiles "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(bf_editor_datafiles "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

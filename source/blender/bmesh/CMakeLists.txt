@@ -163,15 +163,24 @@ set(SRC
 	bmesh_tools.h
 )
 
+set(LIB
+	bf_blenkernel
+	bf_blenlib
+	extern_rangetree
+)
+
 if(MSVC AND NOT MSVC_CLANG)
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /WX /wd4101")
 endif()
 
 if(WITH_BULLET)
-	add_definitions(-DWITH_BULLET)
 	list(APPEND INC_SYS
 		${BULLET_INCLUDE_DIRS}
 	)
+	list(APPEND LIB
+		extern_bullet
+	)
+	add_definitions(-DWITH_BULLET)
 endif()
 
 if(WITH_INTERNATIONAL)
@@ -182,4 +191,4 @@ if(WITH_FREESTYLE)
 	add_definitions(-DWITH_FREESTYLE)
 endif()
 
-blender_add_lib(bf_bmesh "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(bf_bmesh "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

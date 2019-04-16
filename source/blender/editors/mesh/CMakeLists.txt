@@ -72,6 +72,11 @@ set(SRC
 	mesh_intern.h
 )
 
+set(LIB
+	bf_blenkernel
+	bf_blenlib
+)
+
 if(WITH_GAMEENGINE)
 	add_definitions(-DWITH_GAMEENGINE)
 
@@ -98,4 +103,4 @@ endif()
 
 add_definitions(${GL_DEFINITIONS})
 
-blender_add_lib(bf_editor_mesh "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(bf_editor_mesh "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

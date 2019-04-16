@@ -52,4 +52,4 @@ set(SRC
 	SG_QList.h
 )
 
-blender_add_lib(ge_scenegraph "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(ge_scenegraph "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

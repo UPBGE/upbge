@@ -69,4 +69,4 @@ set(SRC
 	include/MT_Vector4.inl
 )
 
-blender_add_lib(bf_intern_moto "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(bf_intern_moto "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

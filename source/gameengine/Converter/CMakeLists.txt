@@ -116,4 +116,4 @@ if(WITH_AUDASPACE)
 	)
 endif()
 
-blender_add_lib(ge_converter "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(ge_converter "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

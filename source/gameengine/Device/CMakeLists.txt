@@ -63,4 +63,4 @@ if(WITH_INPUT_NDOF)
 	add_definitions(-DWITH_INPUT_NDOF)
 endif()
 
-blender_add_lib(ge_device "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(ge_device "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

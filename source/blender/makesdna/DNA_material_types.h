@@ -129,6 +129,8 @@ typedef enum eMaterialGPencilStyle_Flag {
 	GP_STYLE_STROKE_SHOW = (1 << 8),
 	/* Fill  show main switch */
 	GP_STYLE_FILL_SHOW = (1 << 9),
+	/* Don't rotate dots/boxes */
+	GP_STYLE_COLOR_LOCK_DOTS = (1 << 10),
 } eMaterialGPencilStyle_Flag;
 
 typedef enum eMaterialGPencilStyle_Mode {
@@ -155,11 +157,14 @@ typedef struct Material {
 	float gloss_mir  DNA_DEPRECATED;
 	float roughness;
 	float metallic;
-	char _pad0[2];
 
-	/** For buttons and render. */
-	char pr_type, use_nodes;
+	/** Nodes */
+	char use_nodes;
+
+	/** Preview render. */
+	char pr_type;
 	short pr_texture;
+	short pr_flag;
 
 	/** Index for render passes. */
 	short index;
@@ -320,13 +325,18 @@ typedef struct Material {
 #define MA_FLAT			0
 #define MA_SPHERE		1
 #define MA_CUBE			2
-#define MA_MONKEY		3
-#define MA_SPHERE_A		4
+#define MA_SHADERBALL   3
+#define MA_SPHERE_A		4  /* Used for icon renders only. */
 #define MA_TEXTURE		5
 #define MA_LAMP			6
 #define MA_SKY			7
 #define MA_HAIR			10
 #define MA_ATMOS		11
+#define MA_CLOTH		12
+#define MA_FLUID		13
+
+/* pr_flag */
+#define MA_PREVIEW_WORLD (1 << 0)
 
 /* blend_method */
 enum {

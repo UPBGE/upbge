@@ -38,4 +38,4 @@ set(SRC
 	dvpapi.h
 )
 
-blender_add_lib(bf_intern_gpudirect "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(bf_intern_gpudirect "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

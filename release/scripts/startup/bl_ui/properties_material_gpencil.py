@@ -142,11 +142,16 @@ class MATERIAL_PT_gpencil_strokecolor(GPMaterialButtonsPanel, Panel):
                 row.enabled = not gpcolor.lock
                 col = row.column(align=True)
                 col.template_ID(gpcolor, "stroke_image", open="image.open")
-                col.prop(gpcolor, "pixel_size", text="UV Factor")
+                if gpcolor.mode == 'LINE':
+                    col.prop(gpcolor, "pixel_size", text="UV Factor")
+
                 col.prop(gpcolor, "use_stroke_pattern", text="Use As Pattern")
 
             if gpcolor.stroke_style == 'SOLID' or gpcolor.use_stroke_pattern is True:
                 col.prop(gpcolor, "color", text="Color")
+
+            if gpcolor.mode in {'DOTS', 'BOX'}:
+                col.prop(gpcolor, "use_follow_path", text="Follow Drawing Path")
 
 
 class MATERIAL_PT_gpencil_fillcolor(GPMaterialButtonsPanel, Panel):

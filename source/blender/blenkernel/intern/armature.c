@@ -862,6 +862,7 @@ int BKE_pchan_bbone_spline_compute(BBoneSplineParameters *param, const bool for_
 			make_bbone_spline_matrix(param, scalemats, cur, axis, roll, scalefac, result_array[a].mat);
 		}
 
+		negate_v3(bezt_deriv2[1]);
 		ease_handle_axis(bezt_deriv1[2], bezt_deriv2[1], axis);
 		make_bbone_spline_matrix(param, scalemats, bezt_controls[3], axis, roll2, param->scaleOut, result_array[param->segments].mat);
 	}
@@ -1714,7 +1715,9 @@ void BKE_armature_mat_pose_to_bone_ex(struct Depsgraph *depsgraph, Object *ob, b
 	BKE_armature_mat_pose_to_bone(&work_pchan, inmat, outmat);
 }
 
-/* same as BKE_object_mat3_to_rot() */
+/**
+ * Same as #BKE_object_mat3_to_rot().
+ */
 void BKE_pchan_mat3_to_rot(bPoseChannel *pchan, float mat[3][3], bool use_compat)
 {
 	BLI_ASSERT_UNIT_M3(mat);
@@ -1735,8 +1738,10 @@ void BKE_pchan_mat3_to_rot(bPoseChannel *pchan, float mat[3][3], bool use_compat
 	}
 }
 
-/* Apply a 4x4 matrix to the pose bone,
- * similar to BKE_object_apply_mat4() */
+/**
+ * Apply a 4x4 matrix to the pose bone,
+ * similar to #BKE_object_apply_mat4().
+ */
 void BKE_pchan_apply_mat4(bPoseChannel *pchan, float mat[4][4], bool use_compat)
 {
 	float rot[3][3];
@@ -1744,9 +1749,11 @@ void BKE_pchan_apply_mat4(bPoseChannel *pchan, float mat[4][4], bool use_compat)
 	BKE_pchan_mat3_to_rot(pchan, rot, use_compat);
 }
 
-/* Remove rest-position effects from pose-transform for obtaining
+/**
+ * Remove rest-position effects from pose-transform for obtaining
  * 'visual' transformation of pose-channel.
- * (used by the Visual-Keyframing stuff) */
+ * (used by the Visual-Keyframing stuff).
+ */
 void BKE_armature_mat_pose_to_delta(float delta_mat[4][4], float pose_mat[4][4], float arm_mat[4][4])
 {
 	float imat[4][4];

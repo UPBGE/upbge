@@ -127,4 +127,4 @@ if(MSVC14)
 	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /bigobj /Zi /Od /Ob0")
 endif()
 
-blender_add_lib(ge_rasterizer "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(ge_rasterizer "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

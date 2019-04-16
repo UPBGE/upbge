@@ -25,6 +25,7 @@ set(INC
 	../../makesdna
 	../../makesrna
 	../../windowmanager
+	../../../../intern/clog
 	../../../../intern/guardedalloc
 	../../../../intern/glew-mx
 )
@@ -41,6 +42,7 @@ set(SRC
 	anim_filter.c
 	anim_ipo_utils.c
 	anim_markers.c
+	anim_motion_paths.c
 	anim_ops.c
 	drivers.c
 	fmodifier_ui.c
@@ -53,6 +55,11 @@ set(SRC
 	anim_intern.h
 )
 
+set(LIB
+	bf_blenkernel
+	bf_blenlib
+)
+
 if(WITH_INTERNATIONAL)
 	add_definitions(-DWITH_INTERNATIONAL)
 endif()
@@ -63,4 +70,4 @@ endif()
 
 add_definitions(${GL_DEFINITIONS})
 
-blender_add_lib(bf_editor_animation "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(bf_editor_animation "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

@@ -46,11 +46,22 @@ set(SRC
 	io_ops.h
 )
 
+set(LIB
+	bf_blenkernel
+	bf_blenlib
+)
+
 if(WITH_OPENCOLLADA)
+	list(APPEND LIB
+		bf_collada
+	)
 	add_definitions(-DWITH_COLLADA)
 endif()
 
 if(WITH_ALEMBIC)
+	list(APPEND LIB
+		bf_alembic
+	)
 	add_definitions(-DWITH_ALEMBIC)
 
 	if(WITH_ALEMBIC_HDF5)
@@ -62,4 +73,4 @@ if(WITH_INTERNATIONAL)
 	add_definitions(-DWITH_INTERNATIONAL)
 endif()
 
-blender_add_lib(bf_editor_io "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(bf_editor_io "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

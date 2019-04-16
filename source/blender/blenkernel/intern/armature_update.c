@@ -56,10 +56,10 @@ typedef struct tSplineIK_Tree {
 
 	int type;                    /* type of IK that this serves (CONSTRAINT_TYPE_KINEMATIC or ..._SPLINEIK) */
 
-	bool free_points;            /* free the point positions array */
 	short chainlen;              /* number of bones in the chain */
+	float totlength;             /* total length of bones in the chain */
 
-	float *points;               /* parametric positions for the joints along the curve */
+	const float *points;         /* parametric positions for the joints along the curve */
 	bPoseChannel **chain;        /* chain of bones to affect using Spline IK (ordered from the tip) */
 
 	bPoseChannel *root;          /* bone that is the root node of the chain */
@@ -77,9 +77,8 @@ static void splineik_init_tree_from_pchan(Scene *UNUSED(scene), Object *UNUSED(o
 	bPoseChannel *pchanChain[255];
 	bConstraint *con = NULL;
 	bSplineIKConstraint *ikData = NULL;
-	float boneLengths[255], *jointPoints;
+	float boneLengths[255];
 	float totLength = 0.0f;
-	bool free_joints = 0;
 	int segcount = 0;
 
 	/* find the SplineIK constraint */
@@ -100,17 +99,6 @@ static void splineik_init_tree_from_pchan(Scene *UNUSED(scene), Object *UNUSED(o
 	}
 	if (con == NULL)
 		return;
-
-	/* make sure that the constraint targets are ok
-	 *     - this is a workaround for a depsgraph bug or dependency cycle...
-	 */
-	if (ikData->tar) {
-		CurveCache *cache = ikData->tar->runtime.curve_cache;
-
-		if (ELEM(NULL, cache, cache->path, cache->path->data)) {
-			return;
-		}
-	}
 
 	/* find the root bone and the chain of bones from the root to the tip
 	 * NOTE: this assumes that the bones are connected, but that may not be true... */
@@ -168,41 +156,6 @@ static void splineik_init_tree_from_pchan(Scene *UNUSED(scene), Object *UNUSED(o
 	/* disallow negative values (happens with float precision) */
 	CLAMP_MIN(ikData->points[segcount], 0.0f);
 
-	/* apply corrections for sensitivity to scaling on a copy of the bind points,
-	 * since it's easier to determine the positions of all the joints beforehand this way
-	 */
-	if ((ikData->flag & CONSTRAINT_SPLINEIK_SCALE_LIMITED) && (totLength != 0.0f)) {
-		float splineLen, maxScale;
-		int i;
-
-		/* make a copy of the points array, that we'll store in the tree
-		 *     - although we could just multiply the points on the fly, this approach means that
-		 *       we can introduce per-segment stretchiness later if it is necessary
-		 */
-		jointPoints = MEM_dupallocN(ikData->points);
-		free_joints = 1;
-
-		/* get the current length of the curve */
-		/* NOTE: this is assumed to be correct even after the curve was resized */
-		splineLen = ikData->tar->runtime.curve_cache->path->totdist;
-
-		/* calculate the scale factor to multiply all the path values by so that the
-		 * bone chain retains its current length, such that
-		 *     maxScale * splineLen = totLength
-		 */
-		maxScale = totLength / splineLen;
-
-		/* apply scaling correction to all of the temporary points */
-		/* TODO: this is really not adequate enough on really short chains */
-		for (i = 0; i < segcount; i++)
-			jointPoints[i] *= maxScale;
-	}
-	else {
-		/* just use the existing points array */
-		jointPoints = ikData->points;
-		free_joints = 0;
-	}
-
 	/* make a new Spline-IK chain, and store it in the IK chains */
 	/* TODO: we should check if there is already an IK chain on this, since that would take precedence... */
 	{
@@ -211,14 +164,14 @@ static void splineik_init_tree_from_pchan(Scene *UNUSED(scene), Object *UNUSED(o
 		tree->type = CONSTRAINT_TYPE_SPLINEIK;
 
 		tree->chainlen = segcount;
+		tree->totlength = totLength;
 
 		/* copy over the array of links to bones in the chain (from tip to root) */
 		tree->chain = MEM_mallocN(sizeof(bPoseChannel *) * segcount, "SplineIK Chain");
 		memcpy(tree->chain, pchanChain, sizeof(bPoseChannel *) * segcount);
 
 		/* store reference to joint position array */
-		tree->points = jointPoints;
-		tree->free_points = free_joints;
+		tree->points = ikData->points;
 
 		/* store references to different parts of the chain */
 		tree->root = pchanRoot;
@@ -247,39 +200,87 @@ static void splineik_init_tree(Scene *scene, Object *ob, float UNUSED(ctime))
 
 /* ----------- */
 
-/* Evaluate spline IK for a given bone */
-static void splineik_evaluate_bone(
-        struct Depsgraph *depsgraph, tSplineIK_Tree *tree, Scene *scene, Object *ob, bPoseChannel *pchan,
-        int index, float ctime)
+typedef struct tSplineIk_EvalState {
+	float curve_position;        /* Current position along the curve. */
+	float curve_scale;           /* Global scale to apply to curve positions. */
+	float locrot_offset[4][4];   /* Bone rotation and location offset inherited from parent. */
+} tSplineIk_EvalState;
+
+/* Prepare data to evaluate spline IK. */
+static bool splineik_evaluate_init(tSplineIK_Tree *tree, tSplineIk_EvalState *state)
 {
 	bSplineIKConstraint *ikData = tree->ikData;
-	float poseHead[3], poseTail[3], poseMat[4][4];
+
+	/* Make sure that the constraint targets are ok, to avoid crashes
+	 * in case of a depsgraph bug or dependency cycle.
+	 */
+	if (ikData->tar == NULL) {
+		return false;
+	}
+
+	CurveCache *cache = ikData->tar->runtime.curve_cache;
+
+	if (ELEM(NULL, cache, cache->path, cache->path->data)) {
+		return false;
+	}
+
+	/* Initialize the evaluation state. */
+	state->curve_position = 0.0f;
+	state->curve_scale = 1.0f;
+	unit_m4(state->locrot_offset);
+
+	/* Apply corrections for sensitivity to scaling. */
+	if ((ikData->flag & CONSTRAINT_SPLINEIK_SCALE_LIMITED) && (tree->totlength != 0.0f)) {
+		/* get the current length of the curve */
+		/* NOTE: this is assumed to be correct even after the curve was resized */
+		float splineLen = cache->path->totdist;
+
+		/* calculate the scale factor to multiply all the path values by so that the
+		 * bone chain retains its current length, such that
+		 *     maxScale * splineLen = totLength
+		 */
+		state->curve_scale = tree->totlength / splineLen;
+	}
+
+	return true;
+}
+
+/* Evaluate spline IK for a given bone. */
+static void splineik_evaluate_bone(tSplineIK_Tree *tree, Object *ob, bPoseChannel *pchan, int index, tSplineIk_EvalState *state)
+{
+	bSplineIKConstraint *ikData = tree->ikData;
+	float origHead[3], origTail[3], poseHead[3], poseTail[3], basePoseMat[3][3], poseMat[3][3];
 	float splineVec[3], scaleFac, radius = 1.0f;
+	float tailBlendFac = 0.0f;
 
-	/* firstly, calculate the bone matrix the standard way, since this is needed for roll control */
-	BKE_pose_where_is_bone(depsgraph, scene, ob, pchan, ctime, 1);
+	mul_v3_m4v3(poseHead, state->locrot_offset, pchan->pose_head);
+	mul_v3_m4v3(poseTail, state->locrot_offset, pchan->pose_tail);
 
-	copy_v3_v3(poseHead, pchan->pose_head);
-	copy_v3_v3(poseTail, pchan->pose_tail);
+	copy_v3_v3(origHead, poseHead);
+
+	/* first, adjust the point positions on the curve */
+	float curveLen = tree->points[index] - tree->points[index + 1];
+	float pointStart = state->curve_position;
+	float baseScale = 1.0f;
+	float pointEnd = pointStart + curveLen * baseScale * state->curve_scale;
+
+	state->curve_position = pointEnd;
 
 	/* step 1: determine the positions for the endpoints of the bone */
-	{
+	if (pointStart < 1.0f) {
 		float vec[4], dir[3], rad;
-		float tailBlendFac = 1.0f;
 
 		/* determine if the bone should still be affected by SplineIK */
-		if (tree->points[index + 1] >= 1.0f) {
-			/* spline doesn't affect the bone anymore, so done... */
-			pchan->flag |= POSE_DONE;
-			return;
-		}
-		else if ((tree->points[index] >= 1.0f) && (tree->points[index + 1] < 1.0f)) {
+		if (pointEnd >= 1.0f) {
 			/* blending factor depends on the amount of the bone still left on the chain */
-			tailBlendFac = (1.0f - tree->points[index + 1]) / (tree->points[index] - tree->points[index + 1]);
+			tailBlendFac = (1.0f - pointStart) / (pointEnd - pointStart);
+		}
+		else {
+			tailBlendFac = 1.0f;
 		}
 
 		/* tail endpoint */
-		if (where_on_path(ikData->tar, tree->points[index], vec, dir, NULL, &rad, NULL)) {
+		if (where_on_path(ikData->tar, pointEnd, vec, dir, NULL, &rad, NULL)) {
 			/* apply curve's object-mode transforms to the position
 			 * unless the option to allow curve to be positioned elsewhere is activated (i.e. no root)
 			 */
@@ -288,14 +289,14 @@ static void splineik_evaluate_bone(
 
 			/* convert the position to pose-space, then store it */
 			mul_m4_v3(ob->imat, vec);
-			interp_v3_v3v3(poseTail, pchan->pose_tail, vec, tailBlendFac);
+			copy_v3_v3(poseTail, vec);
 
 			/* set the new radius */
 			radius = rad;
 		}
 
 		/* head endpoint */
-		if (where_on_path(ikData->tar, tree->points[index + 1], vec, dir, NULL, &rad, NULL)) {
+		if (where_on_path(ikData->tar, pointStart, vec, dir, NULL, &rad, NULL)) {
 			/* apply curve's object-mode transforms to the position
 			 * unless the option to allow curve to be positioned elsewhere is activated (i.e. no root)
 			 */
@@ -318,20 +319,21 @@ static void splineik_evaluate_bone(
 	sub_v3_v3v3(splineVec, poseTail, poseHead);
 	scaleFac = len_v3(splineVec) / pchan->bone->length;
 
+	/* Adjust the scale factor towards the neutral state when rolling off the curve end. */
+	scaleFac = interpf(scaleFac, baseScale, tailBlendFac);
+
 	/* step 3: compute the shortest rotation needed to map from the bone rotation to the current axis
 	 *      - this uses the same method as is used for the Damped Track Constraint (see the code there for details)
 	 */
 	{
-		float dmat[3][3], rmat[3][3], tmat[3][3];
+		float dmat[3][3], rmat[3][3];
 		float raxis[3], rangle;
 
 		/* compute the raw rotation matrix from the bone's current matrix by extracting only the
 		 * orientation-relevant axes, and normalizing them
 		 */
-		copy_v3_v3(rmat[0], pchan->pose_mat[0]);
-		copy_v3_v3(rmat[1], pchan->pose_mat[1]);
-		copy_v3_v3(rmat[2], pchan->pose_mat[2]);
-		normalize_m3(rmat);
+		mul_m3_m4m4(basePoseMat, state->locrot_offset, pchan->pose_mat);
+		normalize_m3_m3(rmat, basePoseMat);
 
 		/* also, normalize the orientation imposed by the bone, now that we've extracted the scale factor */
 		normalize_v3(splineVec);
@@ -348,7 +350,7 @@ static void splineik_evaluate_bone(
 		/* multiply the magnitude of the angle by the influence of the constraint to
 		 * control the influence of the SplineIK effect
 		 */
-		rangle *= tree->con->enforce;
+		rangle *= tree->con->enforce * tailBlendFac;
 
 		/* construct rotation matrix from the axis-angle rotation found above
 		 * - this call takes care to make sure that the axis provided is a unit vector first
@@ -358,9 +360,13 @@ static void splineik_evaluate_bone(
 		/* combine these rotations so that the y-axis of the bone is now aligned as the spline dictates,
 		 * while still maintaining roll control from the existing bone animation
 		 */
-		mul_m3_m3m3(tmat, dmat, rmat); /* m1, m3, m2 */
-		normalize_m3(tmat); /* attempt to reduce shearing, though I doubt this'll really help too much now... */
-		copy_m4_m3(poseMat, tmat);
+		mul_m3_m3m3(poseMat, dmat, rmat);
+		normalize_m3(poseMat); /* attempt to reduce shearing, though I doubt this'll really help too much now... */
+
+		mul_m3_m3m3(basePoseMat, dmat, basePoseMat);
+
+		/* apply rotation to the accumulated parent transform */
+		mul_m4_m3m4(state->locrot_offset, dmat, state->locrot_offset);
 	}
 
 	/* step 4: set the scaling factors for the axes */
@@ -465,34 +471,42 @@ static void splineik_evaluate_bone(
 		}
 	}
 
+	/* Blend the scaling of the matrix according to the influence. */
+	sub_m3_m3m3(poseMat, poseMat, basePoseMat);
+	madd_m3_m3m3fl(poseMat, basePoseMat, poseMat, tree->con->enforce * tailBlendFac);
+
 	/* step 5: set the location of the bone in the matrix */
 	if (ikData->flag & CONSTRAINT_SPLINEIK_NO_ROOT) {
 		/* when the 'no-root' option is affected, the chain can retain
 		 * the shape but be moved elsewhere
 		 */
-		copy_v3_v3(poseHead, pchan->pose_head);
+		copy_v3_v3(poseHead, origHead);
 	}
 	else if (tree->con->enforce < 1.0f) {
 		/* when the influence is too low
 		 * - blend the positions for the 'root' bone
 		 * - stick to the parent for any other
 		 */
-		if (pchan->parent) {
-			copy_v3_v3(poseHead, pchan->pose_head);
+		if (index < tree->chainlen - 1) {
+			copy_v3_v3(poseHead, origHead);
 		}
 		else {
-			/* FIXME: this introduces popping artifacts when we reach 0.0 */
-			interp_v3_v3v3(poseHead, pchan->pose_head, poseHead, tree->con->enforce);
+			interp_v3_v3v3(poseHead, origHead, poseHead, tree->con->enforce);
 		}
 	}
-	copy_v3_v3(poseMat[3], poseHead);
 
 	/* finally, store the new transform */
-	copy_m4_m4(pchan->pose_mat, poseMat);
+	copy_m4_m3(pchan->pose_mat, poseMat);
+	copy_v3_v3(pchan->pose_mat[3], poseHead);
 	copy_v3_v3(pchan->pose_head, poseHead);
+
+	mul_v3_mat3_m4v3(origTail, state->locrot_offset, pchan->pose_tail);
 
 	/* recalculate tail, as it's now outdated after the head gets adjusted above! */
 	BKE_pose_where_is_bone_tail(pchan);
+
+	/* update the offset in the accumulated parent transform */
+	sub_v3_v3v3(state->locrot_offset[3], pchan->pose_tail, origTail);
 
 	/* done! */
 	pchan->flag |= POSE_DONE;
@@ -507,20 +521,28 @@ static void splineik_execute_tree(struct Depsgraph *depsgraph, Scene *scene, Obj
 	while ((tree = pchan_root->siktree.first) != NULL) {
 		int i;
 
-		/* walk over each bone in the chain, calculating the effects of spline IK
-		 *     - the chain is traversed in the opposite order to storage order (i.e. parent to children)
-		 *       so that dependencies are correct
-		 */
+		/* Firstly, calculate the bone matrix the standard way, since this is needed for roll control. */
 		for (i = tree->chainlen - 1; i >= 0; i--) {
-			bPoseChannel *pchan = tree->chain[i];
-			splineik_evaluate_bone(depsgraph, tree, scene, ob, pchan, i, ctime);
+			BKE_pose_where_is_bone(depsgraph, scene, ob, tree->chain[i], ctime, 1);
+		}
+
+		/* After that, evaluate the actual Spline IK, unless there are missing dependencies. */
+		tSplineIk_EvalState state;
+
+		if (splineik_evaluate_init(tree, &state)) {
+			/* Walk over each bone in the chain, calculating the effects of spline IK
+			 *     - the chain is traversed in the opposite order to storage order (i.e. parent to children)
+			 *       so that dependencies are correct
+			 */
+			for (i = tree->chainlen - 1; i >= 0; i--) {
+				bPoseChannel *pchan = tree->chain[i];
+				splineik_evaluate_bone(tree, ob, pchan, i, &state);
+			}
 		}
 
 		/* free the tree info specific to SplineIK trees now */
 		if (tree->chain)
 			MEM_freeN(tree->chain);
-		if (tree->free_points)
-			MEM_freeN(tree->points);
 
 		/* free this tree */
 		BLI_freelinkN(&pchan_root->siktree, tree);
@@ -541,8 +563,9 @@ void BKE_splineik_execute_tree(
 
 /* *************** Depsgraph evaluation callbacks ************ */
 
-static void pose_pchan_index_create(bPose *pose)
+void BKE_pose_pchan_index_rebuild(bPose *pose)
 {
+	MEM_SAFE_FREE(pose->chan_array);
 	const int num_channels = BLI_listbase_count(&pose->chanbase);
 	pose->chan_array = MEM_malloc_arrayN(
 	        num_channels, sizeof(bPoseChannel *), "pose->chan_array");
@@ -590,7 +613,8 @@ void BKE_pose_eval_init(struct Depsgraph *depsgraph,
 		}
 	}
 
-	pose_pchan_index_create(pose);
+	BLI_assert(pose->chan_array != NULL || BLI_listbase_is_empty(&pose->chanbase));
+
 	BKE_armature_cached_bbone_deformation_free_data(object);
 }
 
@@ -791,7 +815,6 @@ static void pose_eval_cleanup_common(Object *object)
 	bPose *pose = object->pose;
 	BLI_assert(pose != NULL);
 	BLI_assert(pose->chan_array != NULL || BLI_listbase_is_empty(&pose->chanbase));
-	MEM_SAFE_FREE(pose->chan_array);
 }
 
 void BKE_pose_eval_done(struct Depsgraph *depsgraph, Object *object)
@@ -824,7 +847,8 @@ void BKE_pose_eval_proxy_init(struct Depsgraph *depsgraph, Object *object)
 	BLI_assert(ID_IS_LINKED(object) && object->proxy_from != NULL);
 	DEG_debug_print_eval(depsgraph, __func__, object->id.name, object);
 
-	pose_pchan_index_create(object->pose);
+	BLI_assert(object->pose->chan_array != NULL || BLI_listbase_is_empty(&object->pose->chanbase));
+
 	BKE_armature_cached_bbone_deformation_free_data(object);
 }
 

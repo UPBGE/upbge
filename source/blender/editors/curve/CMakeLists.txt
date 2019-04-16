@@ -48,10 +48,16 @@ set(SRC
 	curve_intern.h
 )
 
+set(LIB
+	bf_blenkernel
+	bf_blenlib
+	extern_curve_fit_nd
+)
+
 if(WITH_INTERNATIONAL)
 	add_definitions(-DWITH_INTERNATIONAL)
 endif()
 
 add_definitions(${GL_DEFINITIONS})
 
-blender_add_lib(bf_editor_curve "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(bf_editor_curve "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

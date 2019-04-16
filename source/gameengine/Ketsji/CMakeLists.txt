@@ -203,4 +203,4 @@ if(WITH_BULLET)
 	add_definitions(-DWITH_BULLET)
 endif()
 
-blender_add_lib(ge_logic_ketsji "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(ge_logic_ketsji "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

@@ -54,10 +54,19 @@ set(SRC
 	transform.h
 )
 
+set(LIB
+	bf_blenfont
+	bf_blenkernel
+	bf_blenlib
+	bf_bmesh
+	bf_editor_mask
+	bf_gpu
+)
+
 if(WITH_INTERNATIONAL)
 	add_definitions(-DWITH_INTERNATIONAL)
 endif()
 
 add_definitions(${GL_DEFINITIONS})
 
-blender_add_lib(bf_editor_transform "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(bf_editor_transform "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

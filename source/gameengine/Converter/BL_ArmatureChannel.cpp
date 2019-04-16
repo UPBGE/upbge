@@ -215,7 +215,7 @@ PyObject *BL_ArmatureChannel::py_attr_get_joint_rotation(PyObjectPlus *self_v, c
 	normalize_m3(pose_mat);
 	if (pchan->parent) {
 		// bone has a parent, compute the rest pose of the bone taking actual pose of parent
-		mul_m3_m3m4(rest_mat, pchan->parent->pose_mat, pchan->bone->bone_mat);
+		mul_m3_m4m3(rest_mat, pchan->parent->pose_mat, pchan->bone->bone_mat);
 		normalize_m3(rest_mat);
 	} else {
 		// otherwise, the bone matrix in armature space is the rest pose

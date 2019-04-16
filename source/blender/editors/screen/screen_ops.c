@@ -794,36 +794,32 @@ static AZone *area_actionzone_refresh_xy(ScrArea *sa, const int xy[2], const boo
 					}
 
 					if (redraw) {
-						ED_area_tag_redraw_no_rebuild(sa);
+						ED_region_tag_redraw_no_rebuild(ar);
 					}
 					/* Don't return! */
 				}
 			}
 		}
 		else if (!test_only && !IS_EQF(az->alpha, 0.0f)) {
-			bool changed = false;
-
 			if (az->type == AZONE_FULLSCREEN) {
 				az->alpha = 0.0f;
-				changed = true;
+				sa->flag &= ~AREA_FLAG_ACTIONZONES_UPDATE;
+				ED_area_tag_redraw_no_rebuild(sa);
 			}
 			else if (az->type == AZONE_REGION_SCROLL) {
 				if (az->direction == AZ_SCROLL_VERT) {
 					az->alpha = az->ar->v2d.alpha_vert = 0;
-					changed = true;
+					sa->flag &= ~AREA_FLAG_ACTIONZONES_UPDATE;
+					ED_region_tag_redraw_no_rebuild(az->ar);
 				}
 				else if (az->direction == AZ_SCROLL_HOR) {
 					az->alpha = az->ar->v2d.alpha_hor = 0;
-					changed = true;
+					sa->flag &= ~AREA_FLAG_ACTIONZONES_UPDATE;
+					ED_region_tag_redraw_no_rebuild(az->ar);
 				}
 				else {
 					BLI_assert(0);
 				}
-			}
-
-			if (changed) {
-				sa->flag &= ~AREA_FLAG_ACTIONZONES_UPDATE;
-				ED_area_tag_redraw_no_rebuild(sa);
 			}
 		}
 	}
@@ -2285,7 +2281,6 @@ typedef struct RegionMoveData {
 
 static int area_max_regionsize(ScrArea *sa, ARegion *scalear, AZEdge edge)
 {
-	ARegion *ar;
 	int dist;
 
 	/* regions in regions. */
@@ -2293,11 +2288,11 @@ static int area_max_regionsize(ScrArea *sa, ARegion *scalear, AZEdge edge)
 		const int align = scalear->alignment & RGN_ALIGN_ENUM_MASK;
 
 		if (ELEM(align, RGN_ALIGN_TOP, RGN_ALIGN_BOTTOM)) {
-			ar = scalear->prev;
+			ARegion *ar = scalear->prev;
 			dist = ar->winy + scalear->winy - U.pixelsize;
 		}
-		else if (ELEM(align, RGN_ALIGN_LEFT, RGN_ALIGN_RIGHT)) {
-			ar = scalear->prev;
+		else /* if (ELEM(align, RGN_ALIGN_LEFT, RGN_ALIGN_RIGHT)) */ {
+			ARegion *ar = scalear->prev;
 			dist = ar->winx + scalear->winx - U.pixelsize;
 		}
 	}
@@ -2311,7 +2306,7 @@ static int area_max_regionsize(ScrArea *sa, ARegion *scalear, AZEdge edge)
 
 		/* subtractwidth of regions on opposite side
 		 * prevents dragging regions into other opposite regions */
-		for (ar = sa->regionbase.first; ar; ar = ar->next) {
+		for (ARegion *ar = sa->regionbase.first; ar; ar = ar->next) {
 			if (ar == scalear)
 				continue;
 

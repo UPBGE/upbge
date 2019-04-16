@@ -67,4 +67,4 @@ if(WITH_BULLET)
 endif()
 
 
-blender_add_lib(ge_blen_routines "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(ge_blen_routines "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

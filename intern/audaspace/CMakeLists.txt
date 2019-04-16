@@ -38,6 +38,15 @@ endif()
 		intern/AUD_Set.h
 	)
 
+set(LIB
+)
+
+if(NOT WITH_SYSTEM_AUDASPACE)
+	list(APPEND LIB
+		audaspace
+	)
+endif()
+
 if(WITH_PYTHON)
 	list(APPEND INC_SYS
 		${PYTHON_INCLUDE_DIRS}
@@ -46,7 +55,13 @@ if(WITH_PYTHON)
 		intern/AUD_PyInit.cpp
 		intern/AUD_PyInit.h
 	)
+	if(NOT WITH_SYSTEM_AUDASPACE)
+		list(APPEND LIB
+			audaspace-py
+		)
+	endif()
+
 	add_definitions(-DWITH_PYTHON)
 endif()
 
-blender_add_lib(bf_intern_audaspace "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(bf_intern_audaspace "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

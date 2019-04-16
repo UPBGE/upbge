@@ -539,6 +539,12 @@ set(SRC
 	operations/COM_MaskOperation.h
 )
 
+set(LIB
+	bf_blenkernel
+	bf_blenlib
+	extern_clew
+)
+
 list(APPEND INC
 	${CMAKE_CURRENT_BINARY_DIR}/operations
 )
@@ -552,4 +558,4 @@ if(WITH_INTERNATIONAL)
 	add_definitions(-DWITH_INTERNATIONAL)
 endif()
 
-blender_add_lib(bf_compositor "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(bf_compositor "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

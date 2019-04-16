@@ -3080,6 +3080,69 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 		}
 	}
 	
+	if (!MAIN_VERSION_ATLEAST(bmain, 280, 56)) {
+		for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
+			for (ScrArea *area = screen->areabase.first; area; area = area->next) {
+				for (SpaceLink *sl = area->spacedata.first; sl; sl = sl->next) {
+					if (sl->spacetype == SPACE_VIEW3D) {
+						View3D *v3d = (View3D *)sl;
+						v3d->gizmo_show_armature = V3D_GIZMO_SHOW_ARMATURE_BBONE | V3D_GIZMO_SHOW_ARMATURE_ROLL;
+						v3d->gizmo_show_empty = V3D_GIZMO_SHOW_EMPTY_IMAGE | V3D_GIZMO_SHOW_EMPTY_FORCE_FIELD;
+						v3d->gizmo_show_light = V3D_GIZMO_SHOW_LIGHT_SIZE | V3D_GIZMO_SHOW_LIGHT_LOOK_AT;
+						v3d->gizmo_show_camera = V3D_GIZMO_SHOW_CAMERA_LENS | V3D_GIZMO_SHOW_CAMERA_DOF_DIST;
+					}
+				}
+			}
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(bmain, 280, 57)) {
+		/* Enable Show Interpolation in dopesheet by default. */
+		for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
+			for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
+				for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
+					if (sl->spacetype == SPACE_ACTION) {
+						SpaceAction *saction = (SpaceAction *)sl;
+						if ((saction->flag & SACTION_SHOW_EXTREMES) == 0) {
+							saction->flag |= SACTION_SHOW_INTERPOLATION;
+						}
+					}
+				}
+			}
+		}
+
+		/* init grease pencil brush gradients */
+		if (!DNA_struct_elem_find(fd->filesdna, "BrushGpencilSettings", "float", "gradient_f")) {
+			for (Brush *brush = bmain->brushes.first; brush; brush = brush->id.next) {
+				if (brush->gpencil_settings != NULL) {
+					BrushGpencilSettings *gp = brush->gpencil_settings;
+					gp->gradient_f = 1.0f;
+					gp->gradient_s[0] = 1.0f;
+					gp->gradient_s[1] = 1.0f;
+				}
+			}
+		}
+
+		/* init grease pencil stroke gradients */
+		if (!DNA_struct_elem_find(fd->filesdna, "bGPDstroke", "float", "gradient_f")) {
+			for (bGPdata *gpd = bmain->gpencils.first; gpd; gpd = gpd->id.next) {
+				for (bGPDlayer *gpl = gpd->layers.first; gpl; gpl = gpl->next) {
+					for (bGPDframe *gpf = gpl->frames.first; gpf; gpf = gpf->next) {
+						for (bGPDstroke *gps = gpf->strokes.first; gps; gps = gps->next) {
+							gps->gradient_f = 1.0f;
+							gps->gradient_s[0] = 1.0f;
+							gps->gradient_s[1] = 1.0f;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	{
+		/* Versioning code until next subversion bump goes here. */
+	}
+	
 	/* Game engine hack to force defaults in files saved in normal blender2.8 */
 	if (!DNA_struct_elem_find(fd->filesdna, "Scene", "GameData", "gm")) {
 		for (Scene *sce = bmain->scenes.first; sce; sce = sce->id.next) {

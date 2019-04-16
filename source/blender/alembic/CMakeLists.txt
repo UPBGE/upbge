@@ -72,8 +72,13 @@ set(SRC
 	intern/abc_util.h
 )
 
+set(LIB
+	bf_blenkernel
+	bf_blenlib
+)
+
 if(WITH_ALEMBIC_HDF5)
 	add_definitions(-DWITH_ALEMBIC_HDF5)
 endif()
 
-blender_add_lib(bf_alembic "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(bf_alembic "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

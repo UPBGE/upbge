@@ -547,6 +547,10 @@ set(SRC
 	intern/winged_edge/WingedEdgeBuilder.h
 )
 
+set(LIB
+	bf_python_mathutils
+)
+
 set(INC
 	.
 	../blenkernel
@@ -581,4 +585,4 @@ if(WIN32)
 	)
 endif()
 
-blender_add_lib(bf_freestyle "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(bf_freestyle "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

@@ -69,4 +69,4 @@ set(SRC
 	Recast/Include/RecastAssert.h
 )
 
-blender_add_lib(extern_recastnavigation "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(extern_recastnavigation "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

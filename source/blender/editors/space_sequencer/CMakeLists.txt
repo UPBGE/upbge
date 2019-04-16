@@ -50,6 +50,11 @@ set(SRC
 	sequencer_intern.h
 )
 
+set(LIB
+	bf_editor_interface
+	bf_editor_util
+)
+
 if(WITH_AUDASPACE)
 	add_definitions(-DWITH_AUDASPACE)
 
@@ -64,4 +69,4 @@ endif()
 
 add_definitions(${GL_DEFINITIONS})
 
-blender_add_lib(bf_editor_space_sequencer "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(bf_editor_space_sequencer "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

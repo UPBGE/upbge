@@ -79,6 +79,12 @@ set(SRC
 	interface_regions_intern.h
 )
 
+set(LIB
+	bf_blenkernel
+	bf_blenlib
+	bf_editor_datafiles
+)
+
 if(WITH_INTERNATIONAL)
 	add_definitions(-DWITH_INTERNATIONAL)
 endif()
@@ -103,4 +109,4 @@ endif()
 
 add_definitions(${GL_DEFINITIONS})
 
-blender_add_lib(bf_editor_interface "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(bf_editor_interface "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

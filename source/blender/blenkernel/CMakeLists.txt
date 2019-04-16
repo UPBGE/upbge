@@ -44,7 +44,6 @@ set(INC
 	../../../intern/iksolver/extern
 	../../../intern/memutil
 	../../../intern/mikktspace
-	../../../intern/smoke/extern
 	../../../intern/atomic
 	../../../intern/clog
 	../../../intern/libmv
@@ -361,9 +360,39 @@ set(SRC
 	intern/subdiv_inline.h
 )
 
+set(LIB
+	bf_blenfont
+	bf_blenlib
+	bf_blenloader
+	bf_blentranslation
+	bf_bmesh
+	bf_depsgraph
+	bf_draw
+	bf_gpencil_modifiers
+	bf_gpu
+	bf_ikplugin
+	bf_imbuf
+	bf_intern_clog
+	bf_intern_ghost
+	bf_intern_guardedalloc
+	bf_intern_libmv  # Uses stub when disabled.
+	bf_intern_mikktspace
+	bf_intern_opensubdiv  # Uses stub when disabled.
+	bf_modifiers
+	bf_nodes
+	bf_physics
+	bf_python
+	bf_python_bmesh
+	bf_rna
+	bf_shader_fx
+)
+
 if(WITH_BINRELOC)
 	list(APPEND INC_SYS
 		${BINRELOC_INCLUDE_DIRS}
+	)
+	list(APPEND LIB
+		extern_binreloc
 	)
 	add_definitions(-DWITH_BINRELOC)
 endif()
@@ -390,6 +419,10 @@ if(WITH_BULLET)
 	)
 	list(APPEND INC
 		../../../intern/rigidbody
+	)
+	list(APPEND LIB
+		bf_intern_rigidbody
+		extern_bullet
 	)
 	add_definitions(-DWITH_BULLET)
 endif()
@@ -485,10 +518,19 @@ if(WITH_MOD_FLUID)
 	list(APPEND INC
 		../../../intern/elbeem/extern
 	)
+	list(APPEND LIB
+		bf_intern_elbeem
+	)
 	add_definitions(-DWITH_MOD_FLUID)
 endif()
 
 if(WITH_MOD_SMOKE)
+	list(APPEND INC
+		../../../intern/smoke/extern
+	)
+	list(APPEND LIB
+		bf_intern_smoke
+	)
 	add_definitions(-DWITH_SMOKE)
 endif()
 
@@ -510,6 +552,9 @@ if(WITH_LZO)
 		list(APPEND INC_SYS
 			../../../extern/lzo/minilzo
 		)
+		list(APPEND LIB
+			extern_minilzo
+		)
 	endif()
 	add_definitions(-DWITH_LZO)
 endif()
@@ -517,6 +562,9 @@ endif()
 if(WITH_LZMA)
 	list(APPEND INC_SYS
 		../../../extern/lzma
+	)
+	list(APPEND LIB
+		extern_lzma
 	)
 	add_definitions(-DWITH_LZMA)
 endif()
@@ -560,17 +608,20 @@ if(WITH_ALEMBIC)
 endif()
 
 if(WITH_OPENSUBDIV)
-	add_definitions(-DWITH_OPENSUBDIV)
 	list(APPEND INC_SYS
 		${OPENSUBDIV_INCLUDE_DIRS}
 	)
+	add_definitions(-DWITH_OPENSUBDIV)
 endif()
 
 if(WITH_OPENVDB)
-	add_definitions(-DWITH_OPENVDB)
 	list(APPEND INC
 		 ../../../intern/openvdb
 	)
+	list(APPEND LIB
+		 bf_intern_openvdb
+	)
+	add_definitions(-DWITH_OPENVDB)
 
 	if(WITH_OPENVDB_BLOSC)
 		add_definitions(
@@ -584,4 +635,4 @@ endif()
 #	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /WX")
 #endif()
 
-blender_add_lib(bf_blenkernel "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(bf_blenkernel "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
