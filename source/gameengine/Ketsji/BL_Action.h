@@ -126,6 +126,8 @@ public:
 	void SetFrame(float frame);
 	void SetPlayMode(short play_mode);
 
+	void SetLayerWeight(float new_weight);
+
 	enum
 	{
 		ACT_MODE_PLAY = 0,

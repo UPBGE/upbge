@@ -280,6 +280,11 @@ public:
 	void SetActionFrame(short layer, float frame);
 
 	/**
+	* Sets the layer weight of an action
+	*/
+	void SetLayerWeight(short layer, float new_weight);
+
+	/**
 	 * Gets the currently running action on the given layer
 	 */
 	std::string GetCurrentActionName(short layer);
@@ -843,6 +848,7 @@ public:
 	EXP_PYMETHOD_DOC(KX_GameObject, getActionFrame);
 	EXP_PYMETHOD_DOC(KX_GameObject, getActionName);
 	EXP_PYMETHOD_DOC(KX_GameObject, setActionFrame);
+	EXP_PYMETHOD_DOC(KX_GameObject, setLayerWeight);
 	EXP_PYMETHOD_DOC(KX_GameObject, isPlayingAction);
 	
 	/* Dict access */

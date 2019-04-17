@@ -78,6 +78,11 @@ public:
 	 * Sets the current frame of an action
 	 */
 	void SetActionFrame(short layer, float frame);
+
+	/**
+	* Sets the layer weight of an action
+	*/
+	void SetLayerWeight(short layer, float SetLayerWeight);
 	
 	/**
 	 * Gets the currently running action on the given layer

@@ -68,6 +68,15 @@ void BL_ActionManager::SetActionFrame(short layer, float frame)
 	}
 }
 
+void BL_ActionManager::SetLayerWeight(short layer, float SetLayerWeight)
+{
+	BL_Action *action = GetAction(layer);
+
+	if (action) {
+		action->SetLayerWeight(SetLayerWeight);
+	}
+}
+
 std::string BL_ActionManager::GetCurrentActionName(short layer) const
 {
 	BL_Action *action = GetAction(layer);

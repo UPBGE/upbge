@@ -498,6 +498,11 @@ void KX_GameObject::SetActionFrame(short layer, float frame)
 	GetActionManager()->SetActionFrame(layer, frame);
 }
 
+void KX_GameObject::SetLayerWeight(short layer, float new_weight)
+{
+	GetActionManager()->SetLayerWeight(layer, new_weight);
+}
+
 std::string KX_GameObject::GetCurrentActionName(short layer)
 {
 	return GetActionManager()->GetCurrentActionName(layer);
@@ -1944,6 +1949,7 @@ PyMethodDef KX_GameObject::Methods[] = {
 	EXP_PYMETHODTABLE(KX_GameObject, getActionFrame),
 	EXP_PYMETHODTABLE(KX_GameObject, getActionName),
 	EXP_PYMETHODTABLE(KX_GameObject, setActionFrame),
+	EXP_PYMETHODTABLE(KX_GameObject, setLayerWeight),
 	EXP_PYMETHODTABLE(KX_GameObject, isPlayingAction),
 
 	// dict style access for props
@@ -4302,6 +4308,25 @@ EXP_PYMETHODDEF_DOC(KX_GameObject, setActionFrame,
 	layer_check(layer, "setActionFrame");
 
 	SetActionFrame(layer, frame);
+
+	Py_RETURN_NONE;
+}
+
+//setLayerWeight
+EXP_PYMETHODDEF_DOC(KX_GameObject, setLayerWeight,
+	"setLayerWeight(new_weight, layer=1)\n"
+	"Set the layer weight of the action playing in the supplied layer\n")
+{
+	short layer = 1;
+	float new_weight;
+
+	if (!PyArg_ParseTuple(args, "f|h:setLayerWeight", &new_weight, &layer)) {
+		return nullptr;
+	}
+
+	layer_check(layer, "setLayerWeight");
+
+	SetLayerWeight(layer, new_weight);
 
 	Py_RETURN_NONE;
 }
