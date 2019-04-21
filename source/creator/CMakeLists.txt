@@ -54,6 +54,7 @@ set(LIB
   bf_render
   bf_rna
   bf_windowmanager
+  ge_launcher
 )
 
 add_definitions(${GL_DEFINITIONS})

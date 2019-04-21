@@ -79,7 +79,9 @@ set(LIB
 
 if(WITH_GAMEENGINE)
 	add_definitions(-DWITH_GAMEENGINE)
-
+  list(APPEND LIB
+    extern_recastnavigation
+  )
 	list(APPEND INC
 		../../../../extern/recastnavigation
 	)

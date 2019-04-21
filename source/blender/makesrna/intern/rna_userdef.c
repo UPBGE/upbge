@@ -4609,7 +4609,6 @@ static void rna_def_userdef_system(BlenderRNA *brna)
 	static const EnumPropertyItem image_draw_methods[] = {
 		{IMAGE_DRAW_METHOD_2DTEXTURE, "2DTEXTURE", 0, "2D Texture", "Use CPU for display transform and draw image with 2D texture"},
 		{IMAGE_DRAW_METHOD_GLSL, "GLSL", 0, "GLSL", "Use GLSL shaders for display transform and draw image with 2D texture"},
-		{IMAGE_DRAW_METHOD_DRAWPIXELS, "DRAWPIXELS", 0, "DrawPixels", "Use CPU for display transform and draw image using DrawPixels"},
 		{0, NULL, 0, NULL, NULL},
 	};
 
@@ -4765,6 +4764,23 @@ static void rna_def_userdef_system(BlenderRNA *brna)
 	RNA_def_property_range(prop, 1, 3600);
 	RNA_def_property_ui_text(prop, "Texture Collection Rate",
 	                         "Number of seconds between each run of the GL texture garbage collector");
+
+  prop = RNA_def_property(srna, "vbo_time_out", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "vbotimeout");
+  RNA_def_property_range(prop, 0, 3600);
+  RNA_def_property_ui_text(
+      prop,
+      "VBO Time Out",
+      "Time since last access of a GL Vertex buffer object in seconds after which it is freed "
+      "(set to 0 to keep vbo allocated)");
+
+  prop = RNA_def_property(srna, "vbo_collection_rate", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "vbocollectrate");
+  RNA_def_property_range(prop, 1, 3600);
+  RNA_def_property_ui_text(
+      prop,
+      "VBO Collection Rate",
+      "Number of seconds between each run of the GL Vertex buffer object garbage collector");
 
 	/* Select */
 

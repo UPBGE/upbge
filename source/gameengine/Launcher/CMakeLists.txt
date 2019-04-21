@@ -69,6 +69,9 @@ set(SRC
 	LA_System.h
 )
 
+set(LIB
+)
+
 if(WITH_GAMEENGINE_SECURITY)
 	add_definitions(-DWITH_GAMEENGINE_SECURITY)
 endif()

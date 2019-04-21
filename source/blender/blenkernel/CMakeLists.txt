@@ -572,6 +572,9 @@ if(WITH_LZMA)
 endif()
 
 if(WITH_GAMEENGINE)
+  list(APPEND LIB
+    extern_recastnavigation
+  )
 	list(APPEND INC_SYS
 		../../../extern/recastnavigation
 	)

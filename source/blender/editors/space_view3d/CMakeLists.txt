@@ -82,6 +82,9 @@ if(WITH_PYTHON)
 endif()
 
 if(WITH_GAMEENGINE)
+  list(APPEND LIB
+    ge_launcher
+  )
 	list(APPEND INC
 		../../../gameengine/Launcher
 	)
