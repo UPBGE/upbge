@@ -82,13 +82,14 @@
 
 //#define DEBUG_TIME
 
-#include "smoke_API.h"
-
 #ifdef DEBUG_TIME
 #  include "PIL_time.h"
 #endif
 
 #ifdef WITH_SMOKE
+
+#  include "smoke_API.h"
+
 #  include "BLI_task.h"
 #  include "BLI_kdtree.h"
 #  include "BLI_voxel.h"

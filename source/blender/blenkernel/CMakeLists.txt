@@ -49,7 +49,6 @@ set(INC
   ../../../intern/libmv
   ../../../intern/opensubdiv
   ../../../extern/curve_fit_nd
-  ../../../intern/smoke/extern
 )
 
 set(INC_SYS
@@ -528,6 +527,9 @@ if(WITH_MOD_FLUID)
 endif()
 
 if(WITH_MOD_SMOKE)
+  list(APPEND INC
+    ../../../intern/smoke/extern
+  )
   list(APPEND LIB
     bf_intern_smoke
   )
