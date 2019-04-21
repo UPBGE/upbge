@@ -38,6 +38,7 @@ class PhysicButtonsPanel:
     bl_region_type = 'WINDOW'
     bl_context = "physics"
 
+    @staticmethod
     def poll_fluid(context):
         ob = context.object
         if not ((ob and ob.type == 'MESH') and (context.fluid)):
@@ -45,6 +46,7 @@ class PhysicButtonsPanel:
 
         return (bpy.app.build_options.mod_fluid)
 
+    @staticmethod
     def poll_fluid_settings(context):
         if not (PhysicButtonsPanel.poll_fluid(context)):
             return False
@@ -52,6 +54,7 @@ class PhysicButtonsPanel:
         md = context.fluid
         return md and md.settings and (md.settings.type != 'NONE')
 
+    @staticmethod
     def poll_fluid_domain(context):
         if not PhysicButtonsPanel.poll_fluid(context):
             return False
@@ -367,7 +370,7 @@ class PHYSICS_PT_domain_viscosity(PhysicButtonsPanel, Panel):
 
         return (context.engine in cls.COMPAT_ENGINES)
 
-    def draw_header_preset(self, context):
+    def draw_header_preset(self, _context):
         FLUID_PT_presets.draw_panel_header(self.layout)
 
     def draw(self, context):

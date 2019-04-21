@@ -57,87 +57,86 @@
  */
 void BLO_update_defaults_userpref_blend(void)
 {
-	/* default so DPI is detected automatically */
-	U.dpi = 0;
-	U.ui_scale = 1.0f;
+  /* default so DPI is detected automatically */
+  U.dpi = 0;
+  U.ui_scale = 1.0f;
 
 #ifdef WITH_PYTHON_SECURITY
-	/* use alternative setting for security nuts
-	 * otherwise we'd need to patch the binary blob - startup.blend.c */
-	U.flag |= USER_SCRIPT_AUTOEXEC_DISABLE;
+  /* use alternative setting for security nuts
+   * otherwise we'd need to patch the binary blob - startup.blend.c */
+  U.flag |= USER_SCRIPT_AUTOEXEC_DISABLE;
 #else
-	U.flag &= ~USER_SCRIPT_AUTOEXEC_DISABLE;
+  U.flag &= ~USER_SCRIPT_AUTOEXEC_DISABLE;
 #endif
 
-	/* Clear addon preferences. */
-	for (bAddon *addon = U.addons.first, *addon_next;
-	     addon != NULL;
-	     addon = addon_next)
-	{
-		addon_next = addon->next;
+  /* Clear addon preferences. */
+  for (bAddon *addon = U.addons.first, *addon_next; addon != NULL; addon = addon_next) {
+    addon_next = addon->next;
 
-		if (addon->prop) {
-			IDP_FreeProperty(addon->prop);
-			MEM_freeN(addon->prop);
-			addon->prop = NULL;
-		}
-	}
+    if (addon->prop) {
+      IDP_FreeProperty(addon->prop);
+      MEM_freeN(addon->prop);
+      addon->prop = NULL;
+    }
+  }
 
-	/* Transform tweak with single click and drag. */
-	U.flag |= USER_RELEASECONFIRM;
+  /* Transform tweak with single click and drag. */
+  U.flag |= USER_RELEASECONFIRM;
 
-	/* Ignore the theme saved in the blend file,
-	 * instead use the theme from 'userdef_default_theme.c' */
-	{
-		bTheme *theme = U.themes.first;
-		memcpy(theme, &U_theme_default, sizeof(bTheme));
-	}
+  /* Ignore the theme saved in the blend file,
+   * instead use the theme from 'userdef_default_theme.c' */
+  {
+    bTheme *theme = U.themes.first;
+    memcpy(theme, &U_theme_default, sizeof(bTheme));
+  }
 
-	/* Leave temp directory empty, will then get appropriate value per OS. */
-	U.tempdir[0] = '\0';
+  /* Leave temp directory empty, will then get appropriate value per OS. */
+  U.tempdir[0] = '\0';
 
-	/* Only enable tooltips translation by default, without actually enabling translation itself, for now. */
-	U.transopts = USER_TR_TOOLTIPS;
-	U.memcachelimit = 4096;
+  /* Only enable tooltips translation by default, without actually enabling translation itself, for now. */
+  U.transopts = USER_TR_TOOLTIPS;
+  U.memcachelimit = 4096;
 
-	/* Auto perspective. */
-	U.uiflag |= USER_AUTOPERSP;
+  /* Auto perspective. */
+  U.uiflag |= USER_AUTOPERSP;
 
-	/* Init weight paint range. */
-	BKE_colorband_init(&U.coba_weight, true);
+  /* Init weight paint range. */
+  BKE_colorband_init(&U.coba_weight, true);
 
-	/* Default visible section. */
-	U.userpref = USER_SECTION_INTERFACE;
+  /* Default visible section. */
+  U.userpref = USER_SECTION_INTERFACE;
 
-	/* Default to left click select. */
-	BKE_keyconfig_pref_set_select_mouse(&U, 0, true);
+  /* Default to left click select. */
+  BKE_keyconfig_pref_set_select_mouse(&U, 0, true);
 }
-
 
 /**
  * Rename if the ID doesn't exist.
  */
-static ID *rename_id_for_versioning(Main *bmain, const short id_type, const char *name_src, const char *name_dst)
+static ID *rename_id_for_versioning(Main *bmain,
+                                    const short id_type,
+                                    const char *name_src,
+                                    const char *name_dst)
 {
-	/* We can ignore libraries */
-	ListBase *lb = which_libbase(bmain, id_type);
-	ID *id = NULL;
-	for (ID *idtest = lb->first; idtest; idtest = idtest->next) {
-		if (idtest->lib == NULL) {
-			if (STREQ(idtest->name + 2, name_src)) {
-				id = idtest;
-			}
-			if (STREQ(idtest->name + 2, name_dst)) {
-				return NULL;
-			}
-		}
-	}
-	if (id != NULL) {
-		BLI_strncpy(id->name + 2, name_dst, sizeof(id->name) - 2);
-		/* We know it's unique, this just sorts. */
-		BLI_libblock_ensure_unique_name(bmain, id->name);
-	}
-	return id;
+  /* We can ignore libraries */
+  ListBase *lb = which_libbase(bmain, id_type);
+  ID *id = NULL;
+  for (ID *idtest = lb->first; idtest; idtest = idtest->next) {
+    if (idtest->lib == NULL) {
+      if (STREQ(idtest->name + 2, name_src)) {
+        id = idtest;
+      }
+      if (STREQ(idtest->name + 2, name_dst)) {
+        return NULL;
+      }
+    }
+  }
+  if (id != NULL) {
+    BLI_strncpy(id->name + 2, name_dst, sizeof(id->name) - 2);
+    /* We know it's unique, this just sorts. */
+    BLI_libblock_ensure_unique_name(bmain, id->name);
+  }
+  return id;
 }
 
 /**

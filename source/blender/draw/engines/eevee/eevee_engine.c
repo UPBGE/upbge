@@ -31,7 +31,7 @@
 
 #include "eevee_private.h"
 
-#include "eevee_engine.h"  /* own include */
+#include "eevee_engine.h" /* own include */
 
 #define EEVEE_ENGINE "BLENDER_EEVEE"
 
@@ -39,125 +39,124 @@
 
 static void eevee_engine_init(void *ved)
 {
-	EEVEE_Data *vedata = (EEVEE_Data *)ved;
-	EEVEE_TextureList *txl = vedata->txl;
-	EEVEE_FramebufferList *fbl = vedata->fbl;
-	EEVEE_StorageList *stl = ((EEVEE_Data *)vedata)->stl;
-	EEVEE_ViewLayerData *sldata = EEVEE_view_layer_data_ensure();
-	DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
+  EEVEE_Data *vedata = (EEVEE_Data *)ved;
+  EEVEE_TextureList *txl = vedata->txl;
+  EEVEE_FramebufferList *fbl = vedata->fbl;
+  EEVEE_StorageList *stl = ((EEVEE_Data *)vedata)->stl;
+  EEVEE_ViewLayerData *sldata = EEVEE_view_layer_data_ensure();
+  DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
 
-	const DRWContextState *draw_ctx = DRW_context_state_get();
-	View3D *v3d = draw_ctx->v3d;
-	RegionView3D *rv3d = draw_ctx->rv3d;
-	Object *camera = (rv3d->persp == RV3D_CAMOB) ? v3d->camera : NULL;
+  const DRWContextState *draw_ctx = DRW_context_state_get();
+  View3D *v3d = draw_ctx->v3d;
+  RegionView3D *rv3d = draw_ctx->rv3d;
+  Object *camera = (rv3d->persp == RV3D_CAMOB) ? v3d->camera : NULL;
 
-	if (!stl->g_data) {
-		/* Alloc transient pointers */
-		stl->g_data = MEM_callocN(sizeof(*stl->g_data), __func__);
-	}
-	stl->g_data->use_color_render_settings = USE_SCENE_LIGHT(v3d) || !LOOK_DEV_STUDIO_LIGHT_ENABLED(v3d);
-	stl->g_data->background_alpha = DRW_state_draw_background() ? 1.0f : 0.0f;
-	stl->g_data->valid_double_buffer = (txl->color_double_buffer != NULL);
-	stl->g_data->valid_taa_history = (txl->taa_history != NULL);
+  if (!stl->g_data) {
+    /* Alloc transient pointers */
+    stl->g_data = MEM_callocN(sizeof(*stl->g_data), __func__);
+  }
+  stl->g_data->use_color_render_settings = USE_SCENE_LIGHT(v3d) ||
+                                           !LOOK_DEV_STUDIO_LIGHT_ENABLED(v3d);
+  stl->g_data->background_alpha = DRW_state_draw_background() ? 1.0f : 0.0f;
+  stl->g_data->valid_double_buffer = (txl->color_double_buffer != NULL);
+  stl->g_data->valid_taa_history = (txl->taa_history != NULL);
 
-	/* Main Buffer */
-	DRW_texture_ensure_fullscreen_2d(&txl->color, GPU_RGBA16F, DRW_TEX_FILTER | DRW_TEX_MIPMAP);
+  /* Main Buffer */
+  DRW_texture_ensure_fullscreen_2d(&txl->color, GPU_RGBA16F, DRW_TEX_FILTER | DRW_TEX_MIPMAP);
 
-	GPU_framebuffer_ensure_config(&fbl->main_fb, {
-		GPU_ATTACHMENT_TEXTURE(dtxl->depth),
-		GPU_ATTACHMENT_TEXTURE(txl->color),
-		GPU_ATTACHMENT_LEAVE,
-		GPU_ATTACHMENT_LEAVE,
-		GPU_ATTACHMENT_LEAVE,
-		GPU_ATTACHMENT_LEAVE
-	});
+  GPU_framebuffer_ensure_config(&fbl->main_fb,
+                                {GPU_ATTACHMENT_TEXTURE(dtxl->depth),
+                                 GPU_ATTACHMENT_TEXTURE(txl->color),
+                                 GPU_ATTACHMENT_LEAVE,
+                                 GPU_ATTACHMENT_LEAVE,
+                                 GPU_ATTACHMENT_LEAVE,
+                                 GPU_ATTACHMENT_LEAVE});
 
-	GPU_framebuffer_ensure_config(&fbl->main_color_fb, {
-		GPU_ATTACHMENT_NONE,
-		GPU_ATTACHMENT_TEXTURE(txl->color)
-	});
+  GPU_framebuffer_ensure_config(&fbl->main_color_fb,
+                                {GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(txl->color)});
 
-	if (sldata->common_ubo == NULL) {
-		sldata->common_ubo = DRW_uniformbuffer_create(sizeof(sldata->common_data), &sldata->common_data);
-	}
-	if (sldata->clip_ubo == NULL) {
-		sldata->clip_ubo = DRW_uniformbuffer_create(sizeof(sldata->clip_data), &sldata->clip_data);
-	}
+  if (sldata->common_ubo == NULL) {
+    sldata->common_ubo = DRW_uniformbuffer_create(sizeof(sldata->common_data),
+                                                  &sldata->common_data);
+  }
+  if (sldata->clip_ubo == NULL) {
+    sldata->clip_ubo = DRW_uniformbuffer_create(sizeof(sldata->clip_data), &sldata->clip_data);
+  }
 
-	/* EEVEE_effects_init needs to go first for TAA */
-	EEVEE_effects_init(sldata, vedata, camera, false);
-	EEVEE_materials_init(sldata, stl, fbl);
-	EEVEE_lights_init(sldata);
-	EEVEE_lightprobes_init(sldata, vedata);
+  /* EEVEE_effects_init needs to go first for TAA */
+  EEVEE_effects_init(sldata, vedata, camera, false);
+  EEVEE_materials_init(sldata, stl, fbl);
+  EEVEE_lights_init(sldata);
+  EEVEE_lightprobes_init(sldata, vedata);
 
-	if ((stl->effects->taa_current_sample > 1) && !DRW_state_is_image_render()) {
-		/* XXX otherwise it would break the other engines. */
-		DRW_viewport_matrix_override_unset_all();
-	}
+  if ((stl->effects->taa_current_sample > 1) && !DRW_state_is_image_render()) {
+    /* XXX otherwise it would break the other engines. */
+    DRW_viewport_matrix_override_unset_all();
+  }
 }
 
 static void eevee_cache_init(void *vedata)
 {
-	EEVEE_ViewLayerData *sldata = EEVEE_view_layer_data_ensure();
+  EEVEE_ViewLayerData *sldata = EEVEE_view_layer_data_ensure();
 
-	EEVEE_bloom_cache_init(sldata, vedata);
-	EEVEE_depth_of_field_cache_init(sldata, vedata);
-	EEVEE_effects_cache_init(sldata, vedata);
-	EEVEE_lightprobes_cache_init(sldata, vedata);
-	EEVEE_lights_cache_init(sldata, vedata);
-	EEVEE_materials_cache_init(sldata, vedata);
-	EEVEE_motion_blur_cache_init(sldata, vedata);
-	EEVEE_occlusion_cache_init(sldata, vedata);
-	EEVEE_screen_raytrace_cache_init(sldata, vedata);
-	EEVEE_subsurface_cache_init(sldata, vedata);
-	EEVEE_temporal_sampling_cache_init(sldata, vedata);
-	EEVEE_volumes_cache_init(sldata, vedata);
+  EEVEE_bloom_cache_init(sldata, vedata);
+  EEVEE_depth_of_field_cache_init(sldata, vedata);
+  EEVEE_effects_cache_init(sldata, vedata);
+  EEVEE_lightprobes_cache_init(sldata, vedata);
+  EEVEE_lights_cache_init(sldata, vedata);
+  EEVEE_materials_cache_init(sldata, vedata);
+  EEVEE_motion_blur_cache_init(sldata, vedata);
+  EEVEE_occlusion_cache_init(sldata, vedata);
+  EEVEE_screen_raytrace_cache_init(sldata, vedata);
+  EEVEE_subsurface_cache_init(sldata, vedata);
+  EEVEE_temporal_sampling_cache_init(sldata, vedata);
+  EEVEE_volumes_cache_init(sldata, vedata);
 }
 
 void EEVEE_cache_populate(void *vedata, Object *ob)
 {
-	EEVEE_ViewLayerData *sldata = EEVEE_view_layer_data_ensure();
+  EEVEE_ViewLayerData *sldata = EEVEE_view_layer_data_ensure();
 
-	const DRWContextState *draw_ctx = DRW_context_state_get();
-	const int ob_visibility = DRW_object_visibility_in_active_context(ob);
-	bool cast_shadow = false;
+  const DRWContextState *draw_ctx = DRW_context_state_get();
+  const int ob_visibility = DRW_object_visibility_in_active_context(ob);
+  bool cast_shadow = false;
 
-	if (ob_visibility & OB_VISIBLE_PARTICLES) {
-		EEVEE_hair_cache_populate(vedata, sldata, ob, &cast_shadow);
-	}
+  if (ob_visibility & OB_VISIBLE_PARTICLES) {
+    EEVEE_hair_cache_populate(vedata, sldata, ob, &cast_shadow);
+  }
 
-	if (DRW_object_is_renderable(ob) && (ob_visibility & OB_VISIBLE_SELF)) {
-		if (ELEM(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL)) {
-			EEVEE_materials_cache_populate(vedata, sldata, ob, &cast_shadow);
-		}
-		else if (!USE_SCENE_LIGHT(draw_ctx->v3d)) {
-			/* do not add any scene light sources to the cache */
-		}
-		else if (ob->type == OB_LIGHTPROBE) {
-			if ((ob->base_flag & BASE_FROM_DUPLI) != 0) {
-				/* TODO: Special case for dupli objects because we cannot save the object pointer. */
-			}
-			else {
-				EEVEE_lightprobes_cache_add(sldata, vedata, ob);
-			}
-		}
-		else if (ob->type == OB_LAMP) {
-			EEVEE_lights_cache_add(sldata, ob);
-		}
-	}
+  if (DRW_object_is_renderable(ob) && (ob_visibility & OB_VISIBLE_SELF)) {
+    if (ELEM(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL)) {
+      EEVEE_materials_cache_populate(vedata, sldata, ob, &cast_shadow);
+    }
+    else if (!USE_SCENE_LIGHT(draw_ctx->v3d)) {
+      /* do not add any scene light sources to the cache */
+    }
+    else if (ob->type == OB_LIGHTPROBE) {
+      if ((ob->base_flag & BASE_FROM_DUPLI) != 0) {
+        /* TODO: Special case for dupli objects because we cannot save the object pointer. */
+      }
+      else {
+        EEVEE_lightprobes_cache_add(sldata, vedata, ob);
+      }
+    }
+    else if (ob->type == OB_LAMP) {
+      EEVEE_lights_cache_add(sldata, ob);
+    }
+  }
 
-	if (cast_shadow) {
-		EEVEE_lights_cache_shcaster_object_add(sldata, ob);
-	}
+  if (cast_shadow) {
+    EEVEE_lights_cache_shcaster_object_add(sldata, ob);
+  }
 }
 
 static void eevee_cache_finish(void *vedata)
 {
-	EEVEE_ViewLayerData *sldata = EEVEE_view_layer_data_ensure();
+  EEVEE_ViewLayerData *sldata = EEVEE_view_layer_data_ensure();
 
-	EEVEE_materials_cache_finish(vedata);
-	EEVEE_lights_cache_finish(sldata, vedata);
-	EEVEE_lightprobes_cache_finish(sldata, vedata);
+  EEVEE_materials_cache_finish(vedata);
+  EEVEE_lights_cache_finish(sldata, vedata);
+  EEVEE_lightprobes_cache_finish(sldata, vedata);
 }
 
 /* As renders in an HDR offscreen buffer, we need draw everything once
@@ -381,118 +380,129 @@ static void eevee_draw_background(void *vedata)
 
 static void eevee_view_update(void *vedata)
 {
-	EEVEE_StorageList *stl = ((EEVEE_Data *)vedata)->stl;
-	if (stl->g_data) {
-		stl->g_data->view_updated = true;
-	}
+  EEVEE_StorageList *stl = ((EEVEE_Data *)vedata)->stl;
+  if (stl->g_data) {
+    stl->g_data->view_updated = true;
+  }
 }
 
 static void eevee_id_object_update(void *UNUSED(vedata), Object *object)
 {
-	EEVEE_LightProbeEngineData *ped = EEVEE_lightprobe_data_get(object);
-	if (ped != NULL && ped->dd.recalc != 0) {
-		ped->need_update = (ped->dd.recalc & (ID_RECALC_TRANSFORM | ID_RECALC_COPY_ON_WRITE)) != 0;
-		ped->dd.recalc = 0;
-	}
-	EEVEE_LightEngineData *led = EEVEE_light_data_get(object);
-	if (led != NULL && led->dd.recalc != 0) {
-		led->need_update = true;
-		led->dd.recalc = 0;
-	}
-	EEVEE_ObjectEngineData *oedata = EEVEE_object_data_get(object);
-	if (oedata != NULL && oedata->dd.recalc != 0) {
-		oedata->need_update = true;
-		oedata->dd.recalc = 0;
-	}
+  EEVEE_LightProbeEngineData *ped = EEVEE_lightprobe_data_get(object);
+  if (ped != NULL && ped->dd.recalc != 0) {
+    ped->need_update = (ped->dd.recalc & (ID_RECALC_TRANSFORM | ID_RECALC_COPY_ON_WRITE)) != 0;
+    ped->dd.recalc = 0;
+  }
+  EEVEE_LightEngineData *led = EEVEE_light_data_get(object);
+  if (led != NULL && led->dd.recalc != 0) {
+    led->need_update = true;
+    led->dd.recalc = 0;
+  }
+  EEVEE_ObjectEngineData *oedata = EEVEE_object_data_get(object);
+  if (oedata != NULL && oedata->dd.recalc != 0) {
+    oedata->need_update = true;
+    oedata->dd.recalc = 0;
+  }
 }
 
 static void eevee_id_world_update(void *vedata, World *wo)
 {
-	EEVEE_StorageList *stl = ((EEVEE_Data *)vedata)->stl;
-	LightCache *lcache = stl->g_data->light_cache;
+  EEVEE_StorageList *stl = ((EEVEE_Data *)vedata)->stl;
+  LightCache *lcache = stl->g_data->light_cache;
 
-	EEVEE_WorldEngineData *wedata = EEVEE_world_data_ensure(wo);
+  EEVEE_WorldEngineData *wedata = EEVEE_world_data_ensure(wo);
 
-	if (wedata != NULL && wedata->dd.recalc != 0) {
-		if ((lcache->flag & LIGHTCACHE_BAKING) == 0) {
-			lcache->flag |= LIGHTCACHE_UPDATE_WORLD;
-		}
-		wedata->dd.recalc = 0;
-	}
+  if (wedata != NULL && wedata->dd.recalc != 0) {
+    if ((lcache->flag & LIGHTCACHE_BAKING) == 0) {
+      lcache->flag |= LIGHTCACHE_UPDATE_WORLD;
+    }
+    wedata->dd.recalc = 0;
+  }
 }
 
 static void eevee_id_update(void *vedata, ID *id)
 {
-	/* Handle updates based on ID type. */
-	switch (GS(id->name)) {
-		case ID_WO:
-			eevee_id_world_update(vedata, (World *)id);
-			break;
-		case ID_OB:
-			eevee_id_object_update(vedata, (Object *)id);
-			break;
-		default:
-			/* pass */
-			break;
-	}
+  /* Handle updates based on ID type. */
+  switch (GS(id->name)) {
+    case ID_WO:
+      eevee_id_world_update(vedata, (World *)id);
+      break;
+    case ID_OB:
+      eevee_id_object_update(vedata, (Object *)id);
+      break;
+    default:
+      /* pass */
+      break;
+  }
 }
 
-static void eevee_render_to_image(void *vedata, RenderEngine *engine, struct RenderLayer *render_layer, const rcti *rect)
+static void eevee_render_to_image(void *vedata,
+                                  RenderEngine *engine,
+                                  struct RenderLayer *render_layer,
+                                  const rcti *rect)
 {
-	const DRWContextState *draw_ctx = DRW_context_state_get();
-	EEVEE_render_init(vedata, engine, draw_ctx->depsgraph);
+  const DRWContextState *draw_ctx = DRW_context_state_get();
+  EEVEE_render_init(vedata, engine, draw_ctx->depsgraph);
 
-	DRW_render_object_iter(vedata, engine, draw_ctx->depsgraph, EEVEE_render_cache);
+  DRW_render_object_iter(vedata, engine, draw_ctx->depsgraph, EEVEE_render_cache);
 
-	/* Actually do the rendering. */
-	EEVEE_render_draw(vedata, engine, render_layer, rect);
+  /* Actually do the rendering. */
+  EEVEE_render_draw(vedata, engine, render_layer, rect);
 
-	EEVEE_volumes_free_smoke_textures();
+  EEVEE_volumes_free_smoke_textures();
 }
 
 static void eevee_engine_free(void)
 {
-	EEVEE_shaders_free();
-	EEVEE_bloom_free();
-	EEVEE_depth_of_field_free();
-	EEVEE_effects_free();
-	EEVEE_lightprobes_free();
-	EEVEE_lights_free();
-	EEVEE_materials_free();
-	EEVEE_mist_free();
-	EEVEE_motion_blur_free();
-	EEVEE_occlusion_free();
-	EEVEE_screen_raytrace_free();
-	EEVEE_subsurface_free();
-	EEVEE_volumes_free();
+  EEVEE_shaders_free();
+  EEVEE_bloom_free();
+  EEVEE_depth_of_field_free();
+  EEVEE_effects_free();
+  EEVEE_lightprobes_free();
+  EEVEE_lights_free();
+  EEVEE_materials_free();
+  EEVEE_mist_free();
+  EEVEE_motion_blur_free();
+  EEVEE_occlusion_free();
+  EEVEE_screen_raytrace_free();
+  EEVEE_subsurface_free();
+  EEVEE_volumes_free();
 }
 
 static const DrawEngineDataSize eevee_data_size = DRW_VIEWPORT_DATA_SIZE(EEVEE_Data);
 
 DrawEngineType draw_engine_eevee_type = {
-	NULL, NULL,
-	N_("Eevee"),
-	&eevee_data_size,
-	&eevee_engine_init,
-	&eevee_engine_free,
-	&eevee_cache_init,
-	&EEVEE_cache_populate,
-	&eevee_cache_finish,
-	&eevee_draw_background,
-	NULL, /* Everything is drawn in the background pass (see comment on function) */
-	&eevee_view_update,
-	&eevee_id_update,
-	&eevee_render_to_image,
+    NULL,
+    NULL,
+    N_("Eevee"),
+    &eevee_data_size,
+    &eevee_engine_init,
+    &eevee_engine_free,
+    &eevee_cache_init,
+    &EEVEE_cache_populate,
+    &eevee_cache_finish,
+    &eevee_draw_background,
+    NULL, /* Everything is drawn in the background pass (see comment on function) */
+    &eevee_view_update,
+    &eevee_id_update,
+    &eevee_render_to_image,
 };
 
 RenderEngineType DRW_engine_viewport_eevee_type = {
-	NULL, NULL,
-	EEVEE_ENGINE, N_("Eevee"), RE_INTERNAL | RE_USE_SHADING_NODES | RE_USE_PREVIEW,
-	NULL, &DRW_render_to_image, NULL, NULL, NULL, NULL,
-	&EEVEE_render_update_passes,
-	&draw_engine_eevee_type,
-	{NULL, NULL, NULL},
+    NULL,
+    NULL,
+    EEVEE_ENGINE,
+    N_("Eevee"),
+    RE_INTERNAL | RE_USE_SHADING_NODES | RE_USE_PREVIEW,
+    NULL,
+    &DRW_render_to_image,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    &EEVEE_render_update_passes,
+    &draw_engine_eevee_type,
+    {NULL, NULL, NULL},
 };
-
 
 #undef EEVEE_ENGINE

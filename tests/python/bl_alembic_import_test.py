@@ -165,9 +165,6 @@ class SimpleImportTest(AbstractAlembicTest):
         bpy.data.cache_files[fname].filepath = relpath.replace('1.abc', '2.abc')
         bpy.context.scene.update()
 
-        if args.with_legacy_depsgraph:
-            bpy.context.scene.frame_set(10)
-
         cube = bpy.context.depsgraph.id_eval_get(cube)
         x, y, z = cube.matrix_world.to_euler('XYZ')
         self.assertAlmostEqual(x, math.pi / 2, places=5)
@@ -186,7 +183,7 @@ class SimpleImportTest(AbstractAlembicTest):
         # Check that the file loaded ok.
         bpy.context.scene.frame_set(6)
         scene = bpy.context.scene
-        mesh = plane.to_mesh(bpy.context.depsgraph, True, True, False)
+        mesh = plane.to_mesh(bpy.context.depsgraph, apply_modifiers=True, calc_undeformed=False)
         self.assertAlmostEqual(-1, mesh.vertices[0].co.x)
         self.assertAlmostEqual(-1, mesh.vertices[0].co.y)
         self.assertAlmostEqual(0.5905638933181763, mesh.vertices[0].co.z)
@@ -196,7 +193,7 @@ class SimpleImportTest(AbstractAlembicTest):
         bpy.data.cache_files[fname].filepath = relpath
         scene.frame_set(6)
 
-        mesh = plane.to_mesh(bpy.context.depsgraph, True, True, False)
+        mesh = plane.to_mesh(bpy.context.depsgraph, apply_modifiers=True, calc_undeformed=False)
         self.assertAlmostEqual(1, mesh.vertices[3].co.x)
         self.assertAlmostEqual(1, mesh.vertices[3].co.y)
         self.assertAlmostEqual(0.5905638933181763, mesh.vertices[3].co.z)
@@ -254,8 +251,6 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--testdir', required=True, type=pathlib.Path)
-    parser.add_argument('--with-legacy-depsgraph', default=False,
-                        type=lambda v: v in {'ON', 'YES', 'TRUE'})
     args, remaining = parser.parse_known_args(argv)
 
     unittest.main(argv=remaining)

@@ -28,7 +28,7 @@
 #include "zlib.h"
 #include "DNA_sdna_types.h"
 #include "DNA_space_types.h"
-#include "DNA_windowmanager_types.h"  /* for ReportType */
+#include "DNA_windowmanager_types.h" /* for ReportType */
 
 struct Key;
 struct MemFile;
@@ -39,13 +39,13 @@ struct ReportList;
 struct View3D;
 
 enum eFileDataFlag {
-	FD_FLAGS_SWITCH_ENDIAN         = 1 << 0,
-	FD_FLAGS_FILE_POINTSIZE_IS_4   = 1 << 1,
-	FD_FLAGS_POINTSIZE_DIFFERS     = 1 << 2,
-	FD_FLAGS_FILE_OK               = 1 << 3,
-	FD_FLAGS_NOT_MY_BUFFER         = 1 << 4,
-	/* XXX Unused in practice (checked once but never set). */
-	FD_FLAGS_NOT_MY_LIBMAP         = 1 << 5,
+  FD_FLAGS_SWITCH_ENDIAN = 1 << 0,
+  FD_FLAGS_FILE_POINTSIZE_IS_4 = 1 << 1,
+  FD_FLAGS_POINTSIZE_DIFFERS = 1 << 2,
+  FD_FLAGS_FILE_OK = 1 << 3,
+  FD_FLAGS_NOT_MY_BUFFER = 1 << 4,
+  /* XXX Unused in practice (checked once but never set). */
+  FD_FLAGS_NOT_MY_LIBMAP = 1 << 5,
 };
 
 /* Disallow since it's 32bit on ms-windows. */
@@ -57,8 +57,8 @@ enum eFileDataFlag {
 typedef int64_t off64_t;
 #endif
 
-typedef int (FileDataReadFn)(struct FileData *filedata, void *buffer, unsigned int size);
-typedef off64_t (FileDataSeekFn)(struct FileData *filedata, off64_t offset, int whence);
+typedef int(FileDataReadFn)(struct FileData *filedata, void *buffer, unsigned int size);
+typedef off64_t(FileDataSeekFn)(struct FileData *filedata, off64_t offset, int whence);
 
 typedef struct FileData {
 	/** Linked list of BHeadN's. */
@@ -159,11 +159,15 @@ const char *blo_bhead_id_name(const FileData *fd, const BHead *bhead);
 
 /* do versions stuff */
 
-void blo_reportf_wrap(struct ReportList *reports, ReportType type, const char *format, ...) ATTR_PRINTF_FORMAT(3, 4);
+void blo_reportf_wrap(struct ReportList *reports, ReportType type, const char *format, ...)
+    ATTR_PRINTF_FORMAT(3, 4);
 
 void blo_do_versions_dna(struct SDNA *sdna, const int versionfile, const int subversionfile);
 
-void blo_do_versions_oldnewmap_insert(struct OldNewMap *onm, const void *oldaddr, void *newaddr, int nr);
+void blo_do_versions_oldnewmap_insert(struct OldNewMap *onm,
+                                      const void *oldaddr,
+                                      void *newaddr,
+                                      int nr);
 void *blo_do_versions_newlibadr(struct FileData *fd, const void *lib, const void *adr);
 void *blo_do_versions_newlibadr_us(struct FileData *fd, const void *lib, const void *adr);
 

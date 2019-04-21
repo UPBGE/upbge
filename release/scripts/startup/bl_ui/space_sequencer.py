@@ -83,8 +83,7 @@ class SEQUENCER_HT_header(Header):
         st = context.space_data
         scene = context.scene
 
-        row = layout.row(align=True)
-        row.template_header()
+        layout.template_header()
 
         layout.prop(st, "view_type", text="")
 
@@ -152,7 +151,7 @@ class SEQUENCER_MT_editor_menus(Menu):
 class SEQUENCER_MT_view_toggle(Menu):
     bl_label = "View Type"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
         layout.operator("sequencer.view_toggle").type = 'SEQUENCER'
@@ -175,7 +174,7 @@ class SEQUENCER_MT_view(Menu):
             # mode, else the lookup for the shortcut will fail in
             # wm_keymap_item_find_props() (see #32595).
             layout.operator_context = 'INVOKE_REGION_PREVIEW'
-        layout.operator("sequencer.properties", icon='MENU_PANEL')
+        layout.prop(st, "show_region_ui")
         layout.operator_context = 'INVOKE_DEFAULT'
 
         layout.separator()
@@ -238,7 +237,7 @@ class SEQUENCER_MT_view(Menu):
 class SEQUENCER_MT_select(Menu):
     bl_label = "Select"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
         layout.operator("sequencer.select_all", text="All").action = 'SELECT'
@@ -310,7 +309,7 @@ class SEQUENCER_MT_change(Menu):
 class SEQUENCER_MT_frame(Menu):
     bl_label = "Frame"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
         layout.operator("anim.previewrange_clear")
@@ -400,7 +399,7 @@ class SEQUENCER_MT_add(Menu):
 class SEQUENCER_MT_add_empty(Menu):
     bl_label = "Empty"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
         layout.label(text="No Items Available")
@@ -461,7 +460,7 @@ class SEQUENCER_MT_add_effect(Menu):
 class SEQUENCER_MT_strip_transform(Menu):
     bl_label = "Transform"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
         layout.operator("transform.transform", text="Move").mode = 'TRANSLATION'
@@ -502,7 +501,7 @@ class SEQUENCER_MT_strip_input(Menu):
 class SEQUENCER_MT_strip_lock_mute(Menu):
     bl_label = "Lock/Mute"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
         layout.operator("sequencer.lock", icon='LOCKED')
@@ -658,7 +657,7 @@ class SEQUENCER_PT_edit(SequencerButtonsPanel, Panel):
         row.label(text=iface_("Final Length: %s") % bpy.utils.smpte_from_frame(strip.frame_final_duration),
                   translate=False)
         row = col.row(align=True)
-        row.active = (frame_current >= strip.frame_start and frame_current <= strip.frame_start + strip.frame_duration)
+        row.active = strip.frame_start <= frame_current <= strip.frame_start + strip.frame_duration
         row.label(text=iface_("Playhead: %d") % (frame_current - strip.frame_start), translate=False)
 
         col.label(text=iface_("Frame Offset %d:%d") % (strip.frame_offset_start, strip.frame_offset_end),

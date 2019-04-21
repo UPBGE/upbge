@@ -3,6 +3,9 @@
 #ifndef __BLENDER_TESTING_BLI_RESSOURCE_STRING_H__
 #define __BLENDER_TESTING_BLI_RESSOURCE_STRING_H__
 
+/* Data file, don't format. */
+/* clang-format off */
+
 const char words10k[] =
 "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam auctor ultrices purus tincidunt mollis. Vestibulum "
 "tincidunt imperdiet molestie. Vivamus posuere, risus ut mollis rutrum, lacus nulla mollis velit, consectetur auctor "
@@ -602,4 +605,6 @@ const char words10k[] =
 #endif
 ;
 
-#endif  /* __BLENDER_TESTING_BLI_RESSOURCE_STRING_H__ */
+/* clang-format on */
+
+#endif /* __BLENDER_TESTING_BLI_RESSOURCE_STRING_H__ */

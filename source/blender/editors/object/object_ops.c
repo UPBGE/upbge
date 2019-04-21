@@ -21,7 +21,6 @@
  * \ingroup edobj
  */
 
-
 #include <stdlib.h>
 #include <math.h>
 
@@ -46,9 +45,7 @@
 
 #include "object_intern.h"
 
-
 /* ************************** registration **********************************/
-
 
 void ED_operatortypes_object(void)
 {
@@ -272,44 +269,47 @@ void ED_operatortypes_object(void)
 
 void ED_operatormacros_object(void)
 {
-	wmOperatorType *ot;
-	wmOperatorTypeMacro *otmacro;
+  wmOperatorType *ot;
+  wmOperatorTypeMacro *otmacro;
 
-	ot = WM_operatortype_append_macro("OBJECT_OT_duplicate_move", "Duplicate Objects",
-	                                  "Duplicate selected objects and move them", OPTYPE_UNDO | OPTYPE_REGISTER);
-	if (ot) {
-		WM_operatortype_macro_define(ot, "OBJECT_OT_duplicate");
-		otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
-		RNA_enum_set(otmacro->ptr, "proportional", PROP_EDIT_OFF);
-	}
+  ot = WM_operatortype_append_macro("OBJECT_OT_duplicate_move",
+                                    "Duplicate Objects",
+                                    "Duplicate selected objects and move them",
+                                    OPTYPE_UNDO | OPTYPE_REGISTER);
+  if (ot) {
+    WM_operatortype_macro_define(ot, "OBJECT_OT_duplicate");
+    otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
+    RNA_enum_set(otmacro->ptr, "proportional", PROP_EDIT_OFF);
+  }
 
-	/* grr, should be able to pass options on... */
-	ot = WM_operatortype_append_macro("OBJECT_OT_duplicate_move_linked", "Duplicate Linked",
-	                                  "Duplicate selected objects and move them", OPTYPE_UNDO | OPTYPE_REGISTER);
-	if (ot) {
-		otmacro = WM_operatortype_macro_define(ot, "OBJECT_OT_duplicate");
-		RNA_boolean_set(otmacro->ptr, "linked", true);
-		otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
-		RNA_enum_set(otmacro->ptr, "proportional", PROP_EDIT_OFF);
-	}
-
+  /* grr, should be able to pass options on... */
+  ot = WM_operatortype_append_macro("OBJECT_OT_duplicate_move_linked",
+                                    "Duplicate Linked",
+                                    "Duplicate selected objects and move them",
+                                    OPTYPE_UNDO | OPTYPE_REGISTER);
+  if (ot) {
+    otmacro = WM_operatortype_macro_define(ot, "OBJECT_OT_duplicate");
+    RNA_boolean_set(otmacro->ptr, "linked", true);
+    otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
+    RNA_enum_set(otmacro->ptr, "proportional", PROP_EDIT_OFF);
+  }
 }
 
 static bool object_mode_poll(bContext *C)
 {
-	Object *ob = CTX_data_active_object(C);
-	return (!ob || ob->mode == OB_MODE_OBJECT);
+  Object *ob = CTX_data_active_object(C);
+  return (!ob || ob->mode == OB_MODE_OBJECT);
 }
 
 void ED_keymap_object(wmKeyConfig *keyconf)
 {
-	wmKeyMap *keymap;
+  wmKeyMap *keymap;
 
-	/* Objects, Regardless of Mode -------------------------------------------------- */
-	keymap = WM_keymap_ensure(keyconf, "Object Non-modal", 0, 0);
+  /* Objects, Regardless of Mode -------------------------------------------------- */
+  keymap = WM_keymap_ensure(keyconf, "Object Non-modal", 0, 0);
 
-	/* Object Mode ---------------------------------------------------------------- */
-	/* Note: this keymap gets disabled in non-objectmode,  */
-	keymap = WM_keymap_ensure(keyconf, "Object Mode", 0, 0);
-	keymap->poll = object_mode_poll;
+  /* Object Mode ---------------------------------------------------------------- */
+  /* Note: this keymap gets disabled in non-objectmode,  */
+  keymap = WM_keymap_ensure(keyconf, "Object Mode", 0, 0);
+  keymap->poll = object_mode_poll;
 }

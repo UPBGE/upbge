@@ -19,41 +19,42 @@
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC
-	.
-	../blenfont
-	../blenlib
-	../blenloader
-	../blentranslation
-	../depsgraph
-	../draw
-	../gpu
-	../ikplugin
-	../imbuf
-	../makesdna
-	../makesrna
-	../bmesh
-	../modifiers
-	../gpencil_modifiers
-	../shader_fx
-	../nodes
-	../physics
-	../render/extern/include
-	../../../intern/ghost
-	../../../intern/guardedalloc
-	../../../intern/glew-mx
-	../../../intern/iksolver/extern
-	../../../intern/memutil
-	../../../intern/mikktspace
-	../../../intern/atomic
-	../../../intern/clog
-	../../../intern/libmv
-	../../../intern/opensubdiv
-	../../../extern/curve_fit_nd
+  .
+  ../blenfont
+  ../blenlib
+  ../blenloader
+  ../blentranslation
+  ../depsgraph
+  ../draw
+  ../gpu
+  ../ikplugin
+  ../imbuf
+  ../makesdna
+  ../makesrna
+  ../bmesh
+  ../modifiers
+  ../gpencil_modifiers
+  ../shader_fx
+  ../nodes
+  ../physics
+  ../render/extern/include
+  ../../../intern/ghost
+  ../../../intern/guardedalloc
+  ../../../intern/glew-mx
+  ../../../intern/iksolver/extern
+  ../../../intern/memutil
+  ../../../intern/mikktspace
+  ../../../intern/atomic
+  ../../../intern/clog
+  ../../../intern/libmv
+  ../../../intern/opensubdiv
+  ../../../extern/curve_fit_nd
+  ../../../intern/smoke/extern
 )
 
 set(INC_SYS
-	${GLEW_INCLUDE_PATH}
-	${ZLIB_INCLUDE_DIRS}
+  ${GLEW_INCLUDE_PATH}
+  ${ZLIB_INCLUDE_DIRS}
 )
 
 set(SRC
@@ -121,6 +122,7 @@ set(SRC
 	intern/idprop_utils.c
 	intern/image.c
 	intern/image_gen.c
+ 	intern/image_save.c
 	intern/ipo.c
 	intern/key.c
 	intern/keyconfig.c
@@ -278,6 +280,7 @@ set(SRC
 	BKE_idcode.h
 	BKE_idprop.h
 	BKE_image.h
+	BKE_image_save.h
 	BKE_ipo.h
 	BKE_key.h
 	BKE_keyconfig.h
@@ -361,212 +364,209 @@ set(SRC
 )
 
 set(LIB
-	bf_blenfont
-	bf_blenlib
-	bf_blenloader
-	bf_blentranslation
-	bf_bmesh
-	bf_depsgraph
-	bf_draw
-	bf_gpencil_modifiers
-	bf_gpu
-	bf_ikplugin
-	bf_imbuf
-	bf_intern_clog
-	bf_intern_ghost
-	bf_intern_guardedalloc
-	bf_intern_libmv  # Uses stub when disabled.
-	bf_intern_mikktspace
-	bf_intern_opensubdiv  # Uses stub when disabled.
-	bf_modifiers
-	bf_nodes
-	bf_physics
-	bf_python
-	bf_python_bmesh
-	bf_rna
-	bf_shader_fx
+  bf_blenfont
+  bf_blenlib
+  bf_blenloader
+  bf_blentranslation
+  bf_bmesh
+  bf_depsgraph
+  bf_draw
+  bf_gpencil_modifiers
+  bf_gpu
+  bf_ikplugin
+  bf_imbuf
+  bf_intern_clog
+  bf_intern_ghost
+  bf_intern_guardedalloc
+  bf_intern_libmv  # Uses stub when disabled.
+  bf_intern_mikktspace
+  bf_intern_opensubdiv  # Uses stub when disabled.
+  bf_modifiers
+  bf_nodes
+  bf_physics
+  bf_python
+  bf_python_bmesh
+  bf_rna
+  bf_shader_fx
 )
 
 if(WITH_BINRELOC)
-	list(APPEND INC_SYS
-		${BINRELOC_INCLUDE_DIRS}
-	)
-	list(APPEND LIB
-		extern_binreloc
-	)
-	add_definitions(-DWITH_BINRELOC)
+  list(APPEND INC_SYS
+    ${BINRELOC_INCLUDE_DIRS}
+  )
+  list(APPEND LIB
+    extern_binreloc
+  )
+  add_definitions(-DWITH_BINRELOC)
 endif()
 
 add_definitions(${GL_DEFINITIONS})
 
 if(WIN32)
-	list(APPEND INC
-		../../../intern/utfconv
-	)
+  list(APPEND INC
+    ../../../intern/utfconv
+  )
 endif()
 
 if(WITH_AUDASPACE)
-	add_definitions(-DWITH_AUDASPACE)
+  add_definitions(-DWITH_AUDASPACE)
 
-	list(APPEND INC_SYS
-		${AUDASPACE_C_INCLUDE_DIRS}
-	)
+  list(APPEND INC_SYS
+    ${AUDASPACE_C_INCLUDE_DIRS}
+  )
 endif()
 
 if(WITH_BULLET)
-	list(APPEND INC_SYS
-		${BULLET_INCLUDE_DIRS}
-	)
-	list(APPEND INC
-		../../../intern/rigidbody
-	)
-	list(APPEND LIB
-		bf_intern_rigidbody
-		extern_bullet
-	)
-	add_definitions(-DWITH_BULLET)
+  list(APPEND INC_SYS
+    ${BULLET_INCLUDE_DIRS}
+  )
+  list(APPEND INC
+    ../../../intern/rigidbody
+  )
+  list(APPEND LIB
+    bf_intern_rigidbody
+    extern_bullet
+  )
+  add_definitions(-DWITH_BULLET)
 endif()
 
 #if(WITH_MOD_CLOTH_ELTOPO)
-#	list(APPEND INC
-#		../../../extern/eltopo
-#		../../../extern/eltopo/eltopo3d
-#	)
-#	add_definitions(-DWITH_ELTOPO)
+#   list(APPEND INC
+#       ../../../extern/eltopo
+#       ../../../extern/eltopo/eltopo3d
+#   )
+#   add_definitions(-DWITH_ELTOPO)
 #endif()
 
 if(WITH_IMAGE_OPENEXR)
-	add_definitions(-DWITH_OPENEXR)
+  add_definitions(-DWITH_OPENEXR)
 endif()
 
 if(WITH_IMAGE_TIFF)
-	add_definitions(-DWITH_TIFF)
+  add_definitions(-DWITH_TIFF)
 endif()
 
 if(WITH_OPENIMAGEIO)
-	add_definitions(-DWITH_OPENIMAGEIO)
+  add_definitions(-DWITH_OPENIMAGEIO)
 endif()
 
 if(WITH_IMAGE_OPENJPEG)
-	add_definitions(-DWITH_OPENJPEG)
+  add_definitions(-DWITH_OPENJPEG)
 endif()
 
 if(WITH_IMAGE_DDS)
-	add_definitions(-DWITH_DDS)
+  add_definitions(-DWITH_DDS)
 endif()
 
 if(WITH_IMAGE_CINEON)
-	add_definitions(-DWITH_CINEON)
+  add_definitions(-DWITH_CINEON)
 endif()
 
 if(WITH_IMAGE_FRAMESERVER)
-	add_definitions(-DWITH_FRAMESERVER)
+  add_definitions(-DWITH_FRAMESERVER)
 endif()
 
 if(WITH_IMAGE_HDR)
-	add_definitions(-DWITH_HDR)
+  add_definitions(-DWITH_HDR)
 endif()
 
 if(WITH_CODEC_AVI)
-	list(APPEND INC
-		../avi
-	)
-	add_definitions(-DWITH_AVI)
+  list(APPEND INC
+    ../avi
+  )
+  add_definitions(-DWITH_AVI)
 endif()
 
 if(WITH_CODEC_FFMPEG)
-	list(APPEND SRC
-		intern/writeffmpeg.c
-		BKE_writeffmpeg.h
-	)
-	list(APPEND INC
-		../../../intern/ffmpeg
-	)
-	list(APPEND INC_SYS
-		${FFMPEG_INCLUDE_DIRS}
-	)
-	add_definitions(-DWITH_FFMPEG)
+  list(APPEND SRC
+    intern/writeffmpeg.c
+    BKE_writeffmpeg.h
+  )
+  list(APPEND INC
+    ../../../intern/ffmpeg
+  )
+  list(APPEND INC_SYS
+    ${FFMPEG_INCLUDE_DIRS}
+  )
+  add_definitions(-DWITH_FFMPEG)
 
-	remove_strict_c_flags_file(
-		intern/writeffmpeg.c
-	)
+  remove_strict_c_flags_file(
+    intern/writeffmpeg.c
+  )
 endif()
 
 if(WITH_PYTHON)
-	list(APPEND INC
-		../python
-	)
-	add_definitions(-DWITH_PYTHON)
+  list(APPEND INC
+    ../python
+  )
+  add_definitions(-DWITH_PYTHON)
 
-	if(WITH_PYTHON_SAFETY)
-		add_definitions(-DWITH_PYTHON_SAFETY)
-	endif()
+  if(WITH_PYTHON_SAFETY)
+    add_definitions(-DWITH_PYTHON_SAFETY)
+  endif()
 
-	if(WITH_PYTHON_SECURITY)
-		add_definitions(-DWITH_PYTHON_SECURITY)
-	endif()
+  if(WITH_PYTHON_SECURITY)
+    add_definitions(-DWITH_PYTHON_SECURITY)
+  endif()
 
 
-	if(PYTHON_EXECUTABLE)
-		get_filename_component(_python_exe_name ${PYTHON_EXECUTABLE} NAME)
-		add_definitions(-DPYTHON_EXECUTABLE_NAME=${_python_exe_name})
-		unset(_python_exe_name)
-	endif()
+  if(PYTHON_EXECUTABLE)
+    get_filename_component(_python_exe_name ${PYTHON_EXECUTABLE} NAME)
+    add_definitions(-DPYTHON_EXECUTABLE_NAME=${_python_exe_name})
+    unset(_python_exe_name)
+  endif()
 endif()
 
 if(WITH_MOD_FLUID)
-	list(APPEND INC
-		../../../intern/elbeem/extern
-	)
-	list(APPEND LIB
-		bf_intern_elbeem
-	)
-	add_definitions(-DWITH_MOD_FLUID)
+  list(APPEND INC
+    ../../../intern/elbeem/extern
+  )
+  list(APPEND LIB
+    bf_intern_elbeem
+  )
+  add_definitions(-DWITH_MOD_FLUID)
 endif()
 
 if(WITH_MOD_SMOKE)
-	list(APPEND INC
-		../../../intern/smoke/extern
-	)
-	list(APPEND LIB
-		bf_intern_smoke
-	)
-	add_definitions(-DWITH_SMOKE)
+  list(APPEND LIB
+    bf_intern_smoke
+  )
+  add_definitions(-DWITH_SMOKE)
 endif()
 
 if(WITH_MOD_OCEANSIM)
-	add_definitions(-DWITH_OCEANSIM)
+  add_definitions(-DWITH_OCEANSIM)
 endif()
 
 if(WITH_JACK)
-	add_definitions(-DWITH_JACK)
+  add_definitions(-DWITH_JACK)
 endif()
 
 if(WITH_LZO)
-	if(WITH_SYSTEM_LZO)
-		list(APPEND INC_SYS
-			${LZO_INCLUDE_DIR}
-		)
-		add_definitions(-DWITH_SYSTEM_LZO)
-	else()
-		list(APPEND INC_SYS
-			../../../extern/lzo/minilzo
-		)
-		list(APPEND LIB
-			extern_minilzo
-		)
-	endif()
-	add_definitions(-DWITH_LZO)
+  if(WITH_SYSTEM_LZO)
+    list(APPEND INC_SYS
+      ${LZO_INCLUDE_DIR}
+    )
+    add_definitions(-DWITH_SYSTEM_LZO)
+  else()
+    list(APPEND INC_SYS
+      ../../../extern/lzo/minilzo
+    )
+    list(APPEND LIB
+      extern_minilzo
+    )
+  endif()
+  add_definitions(-DWITH_LZO)
 endif()
 
 if(WITH_LZMA)
-	list(APPEND INC_SYS
-		../../../extern/lzma
-	)
-	list(APPEND LIB
-		extern_lzma
-	)
-	add_definitions(-DWITH_LZMA)
+  list(APPEND INC_SYS
+    ../../../extern/lzma
+  )
+  list(APPEND LIB
+    extern_lzma
+  )
+  add_definitions(-DWITH_LZMA)
 endif()
 
 if(WITH_GAMEENGINE)
@@ -582,57 +582,57 @@ if(WITH_GAMEENGINE)
 endif()
 
 if(WITH_LIBMV)
-	add_definitions(-DWITH_LIBMV)
+  add_definitions(-DWITH_LIBMV)
 endif()
 
 if(WITH_FFTW3)
-	list(APPEND INC_SYS
-		${FFTW3_INCLUDE_DIRS}
-	)
-	add_definitions(-DFFTW3=1)
+  list(APPEND INC_SYS
+    ${FFTW3_INCLUDE_DIRS}
+  )
+  add_definitions(-DFFTW3=1)
 endif()
 
 if(WITH_INTERNATIONAL)
-	add_definitions(-DWITH_INTERNATIONAL)
+  add_definitions(-DWITH_INTERNATIONAL)
 endif()
 
 if(WITH_FREESTYLE)
-	add_definitions(-DWITH_FREESTYLE)
+  add_definitions(-DWITH_FREESTYLE)
 endif()
 
 if(WITH_ALEMBIC)
-	list(APPEND INC
-		../alembic
-	)
-	add_definitions(-DWITH_ALEMBIC)
+  list(APPEND INC
+    ../alembic
+  )
+  add_definitions(-DWITH_ALEMBIC)
 endif()
 
 if(WITH_OPENSUBDIV)
-	list(APPEND INC_SYS
-		${OPENSUBDIV_INCLUDE_DIRS}
-	)
-	add_definitions(-DWITH_OPENSUBDIV)
+  list(APPEND INC_SYS
+    ${OPENSUBDIV_INCLUDE_DIRS}
+  )
+  add_definitions(-DWITH_OPENSUBDIV)
 endif()
 
 if(WITH_OPENVDB)
-	list(APPEND INC
-		 ../../../intern/openvdb
-	)
-	list(APPEND LIB
-		 bf_intern_openvdb
-	)
-	add_definitions(-DWITH_OPENVDB)
+  list(APPEND INC
+     ../../../intern/openvdb
+  )
+  list(APPEND LIB
+     bf_intern_openvdb
+  )
+  add_definitions(-DWITH_OPENVDB)
 
-	if(WITH_OPENVDB_BLOSC)
-		add_definitions(
-			-DWITH_OPENVDB_BLOSC
-		)
-	endif()
+  if(WITH_OPENVDB_BLOSC)
+    add_definitions(
+      -DWITH_OPENVDB_BLOSC
+    )
+  endif()
 endif()
 
 ## Warnings as errors, this is too strict!
 #if(MSVC)
-#	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /WX")
+#   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /WX")
 #endif()
 
 blender_add_lib(bf_blenkernel "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

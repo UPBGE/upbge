@@ -21,7 +21,6 @@
  * \ingroup wm
  */
 
-
 #ifndef __WM_WINDOW_H__
 #define __WM_WINDOW_H__
 
@@ -66,8 +65,8 @@ void		wm_cursor_position_from_ghost	(wmWindow *win, int *x, int *y);
 void		wm_cursor_position_to_ghost		(wmWindow *win, int *x, int *y);
 
 #ifdef WITH_INPUT_IME
-void		wm_window_IME_begin	(wmWindow *win, int x, int y, int w, int h, bool complete);
-void		wm_window_IME_end	(wmWindow *win);
+void wm_window_IME_begin(wmWindow *win, int x, int y, int w, int h, bool complete);
+void wm_window_IME_end(wmWindow *win);
 #endif
 
 /* *************** window operators ************** */

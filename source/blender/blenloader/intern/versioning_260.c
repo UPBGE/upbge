@@ -55,8 +55,8 @@
 
 #include "BKE_anim.h"
 #include "BKE_image.h"
-#include "BKE_main.h" // for Main
-#include "BKE_mesh.h" // for ME_ defines (patching)
+#include "BKE_main.h"  // for Main
+#include "BKE_mesh.h"  // for ME_ defines (patching)
 #include "BKE_modifier.h"
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
@@ -64,7 +64,7 @@
 #include "BKE_scene.h"
 #include "BKE_screen.h"
 #include "BKE_sequencer.h"
-#include "BKE_text.h" // for txt_extended_ascii_as_utf8
+#include "BKE_text.h"  // for txt_extended_ascii_as_utf8
 #include "BKE_texture.h"
 #include "BKE_tracking.h"
 #include "BKE_writeffmpeg.h"
@@ -79,350 +79,350 @@
 
 static void do_versions_nodetree_image_default_alpha_output(bNodeTree *ntree)
 {
-	bNode *node;
-	bNodeSocket *sock;
+  bNode *node;
+  bNodeSocket *sock;
 
-	for (node = ntree->nodes.first; node; node = node->next) {
-		if (ELEM(node->type, CMP_NODE_IMAGE, CMP_NODE_R_LAYERS)) {
-			/* default Image output value should have 0 alpha */
-			sock = node->outputs.first;
-			((bNodeSocketValueRGBA *)(sock->default_value))->value[3] = 0.0f;
-		}
-	}
+  for (node = ntree->nodes.first; node; node = node->next) {
+    if (ELEM(node->type, CMP_NODE_IMAGE, CMP_NODE_R_LAYERS)) {
+      /* default Image output value should have 0 alpha */
+      sock = node->outputs.first;
+      ((bNodeSocketValueRGBA *)(sock->default_value))->value[3] = 0.0f;
+    }
+  }
 }
 
 static void do_versions_nodetree_convert_angle(bNodeTree *ntree)
 {
-	bNode *node;
-	for (node = ntree->nodes.first; node; node = node->next) {
-		if (node->type == CMP_NODE_ROTATE) {
-			/* Convert degrees to radians. */
-			bNodeSocket *sock = ((bNodeSocket *)node->inputs.first)->next;
-			((bNodeSocketValueFloat *)sock->default_value)->value =
-				DEG2RADF(((bNodeSocketValueFloat *)sock->default_value)->value);
-		}
-		else if (node->type == CMP_NODE_DBLUR) {
-			/* Convert degrees to radians. */
-			NodeDBlurData *ndbd = node->storage;
-			ndbd->angle = DEG2RADF(ndbd->angle);
-			ndbd->spin = DEG2RADF(ndbd->spin);
-		}
-		else if (node->type == CMP_NODE_DEFOCUS) {
-			/* Convert degrees to radians. */
-			NodeDefocus *nqd = node->storage;
-			/* XXX DNA char to float conversion seems to map the char value into the [0.0f, 1.0f] range... */
-			nqd->rotation = DEG2RADF(nqd->rotation * 255.0f);
-		}
-		else if (node->type == CMP_NODE_CHROMA_MATTE) {
-			/* Convert degrees to radians. */
-			NodeChroma *ndc = node->storage;
-			ndc->t1 = DEG2RADF(ndc->t1);
-			ndc->t2 = DEG2RADF(ndc->t2);
-		}
-		else if (node->type == CMP_NODE_GLARE) {
-			/* Convert degrees to radians. */
-			NodeGlare *ndg = node->storage;
-			/* XXX DNA char to float conversion seems to map the char value into the [0.0f, 1.0f] range... */
-			ndg->angle_ofs = DEG2RADF(ndg->angle_ofs * 255.0f);
-		}
-		/* XXX TexMapping struct is used by other nodes too (at least node_composite_mapValue),
-		 *     but not the rot part...
-		 */
-		else if (node->type == SH_NODE_MAPPING) {
-			/* Convert degrees to radians. */
-			TexMapping *tmap = node->storage;
-			tmap->rot[0] = DEG2RADF(tmap->rot[0]);
-			tmap->rot[1] = DEG2RADF(tmap->rot[1]);
-			tmap->rot[2] = DEG2RADF(tmap->rot[2]);
-		}
-	}
+  bNode *node;
+  for (node = ntree->nodes.first; node; node = node->next) {
+    if (node->type == CMP_NODE_ROTATE) {
+      /* Convert degrees to radians. */
+      bNodeSocket *sock = ((bNodeSocket *)node->inputs.first)->next;
+      ((bNodeSocketValueFloat *)sock->default_value)->value = DEG2RADF(
+          ((bNodeSocketValueFloat *)sock->default_value)->value);
+    }
+    else if (node->type == CMP_NODE_DBLUR) {
+      /* Convert degrees to radians. */
+      NodeDBlurData *ndbd = node->storage;
+      ndbd->angle = DEG2RADF(ndbd->angle);
+      ndbd->spin = DEG2RADF(ndbd->spin);
+    }
+    else if (node->type == CMP_NODE_DEFOCUS) {
+      /* Convert degrees to radians. */
+      NodeDefocus *nqd = node->storage;
+      /* XXX DNA char to float conversion seems to map the char value into the [0.0f, 1.0f] range... */
+      nqd->rotation = DEG2RADF(nqd->rotation * 255.0f);
+    }
+    else if (node->type == CMP_NODE_CHROMA_MATTE) {
+      /* Convert degrees to radians. */
+      NodeChroma *ndc = node->storage;
+      ndc->t1 = DEG2RADF(ndc->t1);
+      ndc->t2 = DEG2RADF(ndc->t2);
+    }
+    else if (node->type == CMP_NODE_GLARE) {
+      /* Convert degrees to radians. */
+      NodeGlare *ndg = node->storage;
+      /* XXX DNA char to float conversion seems to map the char value into the [0.0f, 1.0f] range... */
+      ndg->angle_ofs = DEG2RADF(ndg->angle_ofs * 255.0f);
+    }
+    /* XXX TexMapping struct is used by other nodes too (at least node_composite_mapValue),
+     *     but not the rot part...
+     */
+    else if (node->type == SH_NODE_MAPPING) {
+      /* Convert degrees to radians. */
+      TexMapping *tmap = node->storage;
+      tmap->rot[0] = DEG2RADF(tmap->rot[0]);
+      tmap->rot[1] = DEG2RADF(tmap->rot[1]);
+      tmap->rot[2] = DEG2RADF(tmap->rot[2]);
+    }
+  }
 }
 
 static void do_versions_image_settings_2_60(Scene *sce)
 {
-	/* note: rd->subimtype is moved into individual settings now and no longer
-	 * exists */
-	RenderData *rd = &sce->r;
-	ImageFormatData *imf = &sce->r.im_format;
+  /* note: rd->subimtype is moved into individual settings now and no longer
+   * exists */
+  RenderData *rd = &sce->r;
+  ImageFormatData *imf = &sce->r.im_format;
 
-	/* we know no data loss happens here, the old values were in char range */
-	imf->imtype =   (char)rd->imtype;
-	imf->planes =   (char)rd->planes;
-	imf->compress = (char)rd->quality;
-	imf->quality =  (char)rd->quality;
+  /* we know no data loss happens here, the old values were in char range */
+  imf->imtype = (char)rd->imtype;
+  imf->planes = (char)rd->planes;
+  imf->compress = (char)rd->quality;
+  imf->quality = (char)rd->quality;
 
-	/* default, was stored in multiple places, may override later */
-	imf->depth = R_IMF_CHAN_DEPTH_8;
+  /* default, was stored in multiple places, may override later */
+  imf->depth = R_IMF_CHAN_DEPTH_8;
 
-	/* openexr */
-	imf->exr_codec = rd->quality & 7; /* strange but true! 0-4 are valid values, OPENEXR_COMPRESS */
+  /* openexr */
+  imf->exr_codec = rd->quality & 7; /* strange but true! 0-4 are valid values, OPENEXR_COMPRESS */
 
-	switch (imf->imtype) {
-		case R_IMF_IMTYPE_OPENEXR:
-			imf->depth =  (rd->subimtype & R_OPENEXR_HALF) ? R_IMF_CHAN_DEPTH_16 : R_IMF_CHAN_DEPTH_32;
-			if (rd->subimtype & R_PREVIEW_JPG) {
-				imf->flag |= R_IMF_FLAG_PREVIEW_JPG;
-			}
-			if (rd->subimtype & R_OPENEXR_ZBUF) {
-				imf->flag |= R_IMF_FLAG_ZBUF;
-			}
-			break;
-		case R_IMF_IMTYPE_TIFF:
-			if (rd->subimtype & R_TIFF_16BIT) {
-				imf->depth = R_IMF_CHAN_DEPTH_16;
-			}
-			break;
-		case R_IMF_IMTYPE_JP2:
-			if (rd->subimtype & R_JPEG2K_16BIT) {
-				imf->depth = R_IMF_CHAN_DEPTH_16;
-			}
-			else if (rd->subimtype & R_JPEG2K_12BIT) {
-				imf->depth = R_IMF_CHAN_DEPTH_12;
-			}
+  switch (imf->imtype) {
+    case R_IMF_IMTYPE_OPENEXR:
+      imf->depth = (rd->subimtype & R_OPENEXR_HALF) ? R_IMF_CHAN_DEPTH_16 : R_IMF_CHAN_DEPTH_32;
+      if (rd->subimtype & R_PREVIEW_JPG) {
+        imf->flag |= R_IMF_FLAG_PREVIEW_JPG;
+      }
+      if (rd->subimtype & R_OPENEXR_ZBUF) {
+        imf->flag |= R_IMF_FLAG_ZBUF;
+      }
+      break;
+    case R_IMF_IMTYPE_TIFF:
+      if (rd->subimtype & R_TIFF_16BIT) {
+        imf->depth = R_IMF_CHAN_DEPTH_16;
+      }
+      break;
+    case R_IMF_IMTYPE_JP2:
+      if (rd->subimtype & R_JPEG2K_16BIT) {
+        imf->depth = R_IMF_CHAN_DEPTH_16;
+      }
+      else if (rd->subimtype & R_JPEG2K_12BIT) {
+        imf->depth = R_IMF_CHAN_DEPTH_12;
+      }
 
-			if (rd->subimtype & R_JPEG2K_YCC) {
-				imf->jp2_flag |= R_IMF_JP2_FLAG_YCC;
-			}
-			if (rd->subimtype & R_JPEG2K_CINE_PRESET) {
-				imf->jp2_flag |= R_IMF_JP2_FLAG_CINE_PRESET;
-			}
-			if (rd->subimtype & R_JPEG2K_CINE_48FPS) {
-				imf->jp2_flag |= R_IMF_JP2_FLAG_CINE_48;
-			}
-			break;
-		case R_IMF_IMTYPE_CINEON:
-		case R_IMF_IMTYPE_DPX:
-			if (rd->subimtype & R_CINEON_LOG) {
-				imf->cineon_flag |= R_IMF_CINEON_FLAG_LOG;
-			}
-			break;
-	}
+      if (rd->subimtype & R_JPEG2K_YCC) {
+        imf->jp2_flag |= R_IMF_JP2_FLAG_YCC;
+      }
+      if (rd->subimtype & R_JPEG2K_CINE_PRESET) {
+        imf->jp2_flag |= R_IMF_JP2_FLAG_CINE_PRESET;
+      }
+      if (rd->subimtype & R_JPEG2K_CINE_48FPS) {
+        imf->jp2_flag |= R_IMF_JP2_FLAG_CINE_48;
+      }
+      break;
+    case R_IMF_IMTYPE_CINEON:
+    case R_IMF_IMTYPE_DPX:
+      if (rd->subimtype & R_CINEON_LOG) {
+        imf->cineon_flag |= R_IMF_CINEON_FLAG_LOG;
+      }
+      break;
+  }
 }
 
 /* socket use flags were only temporary before */
 static void do_versions_nodetree_socket_use_flags_2_62(bNodeTree *ntree)
 {
-	bNode *node;
-	bNodeSocket *sock;
-	bNodeLink *link;
+  bNode *node;
+  bNodeSocket *sock;
+  bNodeLink *link;
 
-	for (node = ntree->nodes.first; node; node = node->next) {
-		for (sock = node->inputs.first; sock; sock = sock->next)
-			sock->flag &= ~SOCK_IN_USE;
-		for (sock = node->outputs.first; sock; sock = sock->next)
-			sock->flag &= ~SOCK_IN_USE;
-	}
-	for (sock = ntree->inputs.first; sock; sock = sock->next)
-		sock->flag &= ~SOCK_IN_USE;
-	for (sock = ntree->outputs.first; sock; sock = sock->next)
-		sock->flag &= ~SOCK_IN_USE;
+  for (node = ntree->nodes.first; node; node = node->next) {
+    for (sock = node->inputs.first; sock; sock = sock->next)
+      sock->flag &= ~SOCK_IN_USE;
+    for (sock = node->outputs.first; sock; sock = sock->next)
+      sock->flag &= ~SOCK_IN_USE;
+  }
+  for (sock = ntree->inputs.first; sock; sock = sock->next)
+    sock->flag &= ~SOCK_IN_USE;
+  for (sock = ntree->outputs.first; sock; sock = sock->next)
+    sock->flag &= ~SOCK_IN_USE;
 
-	for (link = ntree->links.first; link; link = link->next) {
-		link->fromsock->flag |= SOCK_IN_USE;
-		link->tosock->flag |= SOCK_IN_USE;
-	}
+  for (link = ntree->links.first; link; link = link->next) {
+    link->fromsock->flag |= SOCK_IN_USE;
+    link->tosock->flag |= SOCK_IN_USE;
+  }
 }
 
 static void do_versions_nodetree_multi_file_output_format_2_62_1(Scene *sce, bNodeTree *ntree)
 {
-	bNode *node;
+  bNode *node;
 
-	for (node = ntree->nodes.first; node; node = node->next) {
-		if (node->type == CMP_NODE_OUTPUT_FILE) {
-			/* previous CMP_NODE_OUTPUT_FILE nodes get converted to multi-file outputs */
-			NodeImageFile *old_data = node->storage;
-			NodeImageMultiFile *nimf = MEM_callocN(sizeof(NodeImageMultiFile), "node image multi file");
-			bNodeSocket *old_image = BLI_findlink(&node->inputs, 0);
-			bNodeSocket *old_z = BLI_findlink(&node->inputs, 1);
-			bNodeSocket *sock;
-			char filename[FILE_MAXFILE];
+  for (node = ntree->nodes.first; node; node = node->next) {
+    if (node->type == CMP_NODE_OUTPUT_FILE) {
+      /* previous CMP_NODE_OUTPUT_FILE nodes get converted to multi-file outputs */
+      NodeImageFile *old_data = node->storage;
+      NodeImageMultiFile *nimf = MEM_callocN(sizeof(NodeImageMultiFile), "node image multi file");
+      bNodeSocket *old_image = BLI_findlink(&node->inputs, 0);
+      bNodeSocket *old_z = BLI_findlink(&node->inputs, 1);
+      bNodeSocket *sock;
+      char filename[FILE_MAXFILE];
 
-			/* ugly, need to remove the old inputs list to avoid bad pointer checks when adding new sockets.
-			 * sock->storage is expected to contain path info in ntreeCompositOutputFileAddSocket.
-			 */
-			BLI_listbase_clear(&node->inputs);
+      /* ugly, need to remove the old inputs list to avoid bad pointer checks when adding new sockets.
+       * sock->storage is expected to contain path info in ntreeCompositOutputFileAddSocket.
+       */
+      BLI_listbase_clear(&node->inputs);
 
-			node->storage = nimf;
+      node->storage = nimf;
 
-			/* looks like storage data can be messed up somehow, stupid check here */
-			if (old_data) {
-				char basepath[FILE_MAXDIR];
+      /* looks like storage data can be messed up somehow, stupid check here */
+      if (old_data) {
+        char basepath[FILE_MAXDIR];
 
-				/* split off filename from the old path, to be used as socket sub-path */
-				BLI_split_dirfile(old_data->name, basepath, filename, sizeof(basepath), sizeof(filename));
+        /* split off filename from the old path, to be used as socket sub-path */
+        BLI_split_dirfile(old_data->name, basepath, filename, sizeof(basepath), sizeof(filename));
 
-				BLI_strncpy(nimf->base_path, basepath, sizeof(nimf->base_path));
-				nimf->format = old_data->im_format;
-			}
-			else {
-				BLI_strncpy(filename, old_image->name, sizeof(filename));
-			}
+        BLI_strncpy(nimf->base_path, basepath, sizeof(nimf->base_path));
+        nimf->format = old_data->im_format;
+      }
+      else {
+        BLI_strncpy(filename, old_image->name, sizeof(filename));
+      }
 
-			/* if z buffer is saved, change the image type to multilayer exr.
-			 * XXX this is slightly messy, Z buffer was ignored before for anything but EXR and IRIS ...
-			 * i'm just assuming here that IRIZ means IRIS with z buffer ...
-			 */
-			if (old_data && ELEM(old_data->im_format.imtype, R_IMF_IMTYPE_IRIZ, R_IMF_IMTYPE_OPENEXR)) {
-				char sockpath[FILE_MAX];
+      /* if z buffer is saved, change the image type to multilayer exr.
+       * XXX this is slightly messy, Z buffer was ignored before for anything but EXR and IRIS ...
+       * i'm just assuming here that IRIZ means IRIS with z buffer ...
+       */
+      if (old_data && ELEM(old_data->im_format.imtype, R_IMF_IMTYPE_IRIZ, R_IMF_IMTYPE_OPENEXR)) {
+        char sockpath[FILE_MAX];
 
-				nimf->format.imtype = R_IMF_IMTYPE_MULTILAYER;
+        nimf->format.imtype = R_IMF_IMTYPE_MULTILAYER;
 
-				BLI_snprintf(sockpath, sizeof(sockpath), "%s_Image", filename);
-				sock = ntreeCompositOutputFileAddSocket(ntree, node, sockpath, &nimf->format);
-				/* XXX later do_versions copies path from socket name, need to set this explicitly */
-				BLI_strncpy(sock->name, sockpath, sizeof(sock->name));
-				if (old_image->link) {
-					old_image->link->tosock = sock;
-					sock->link = old_image->link;
-				}
+        BLI_snprintf(sockpath, sizeof(sockpath), "%s_Image", filename);
+        sock = ntreeCompositOutputFileAddSocket(ntree, node, sockpath, &nimf->format);
+        /* XXX later do_versions copies path from socket name, need to set this explicitly */
+        BLI_strncpy(sock->name, sockpath, sizeof(sock->name));
+        if (old_image->link) {
+          old_image->link->tosock = sock;
+          sock->link = old_image->link;
+        }
 
-				BLI_snprintf(sockpath, sizeof(sockpath), "%s_Z", filename);
-				sock = ntreeCompositOutputFileAddSocket(ntree, node, sockpath, &nimf->format);
-				/* XXX later do_versions copies path from socket name, need to set this explicitly */
-				BLI_strncpy(sock->name, sockpath, sizeof(sock->name));
-				if (old_z->link) {
-					old_z->link->tosock = sock;
-					sock->link = old_z->link;
-				}
-			}
-			else {
-				sock = ntreeCompositOutputFileAddSocket(ntree, node, filename, &nimf->format);
-				/* XXX later do_versions copies path from socket name, need to set this explicitly */
-				BLI_strncpy(sock->name, filename, sizeof(sock->name));
-				if (old_image->link) {
-					old_image->link->tosock = sock;
-					sock->link = old_image->link;
-				}
-			}
+        BLI_snprintf(sockpath, sizeof(sockpath), "%s_Z", filename);
+        sock = ntreeCompositOutputFileAddSocket(ntree, node, sockpath, &nimf->format);
+        /* XXX later do_versions copies path from socket name, need to set this explicitly */
+        BLI_strncpy(sock->name, sockpath, sizeof(sock->name));
+        if (old_z->link) {
+          old_z->link->tosock = sock;
+          sock->link = old_z->link;
+        }
+      }
+      else {
+        sock = ntreeCompositOutputFileAddSocket(ntree, node, filename, &nimf->format);
+        /* XXX later do_versions copies path from socket name, need to set this explicitly */
+        BLI_strncpy(sock->name, filename, sizeof(sock->name));
+        if (old_image->link) {
+          old_image->link->tosock = sock;
+          sock->link = old_image->link;
+        }
+      }
 
-			nodeRemoveSocket(ntree, node, old_image);
-			nodeRemoveSocket(ntree, node, old_z);
-			if (old_data)
-				MEM_freeN(old_data);
-		}
-		else if (node->type == CMP_NODE_OUTPUT_MULTI_FILE__DEPRECATED) {
-			NodeImageMultiFile *nimf = node->storage;
-			bNodeSocket *sock;
+      nodeRemoveSocket(ntree, node, old_image);
+      nodeRemoveSocket(ntree, node, old_z);
+      if (old_data)
+        MEM_freeN(old_data);
+    }
+    else if (node->type == CMP_NODE_OUTPUT_MULTI_FILE__DEPRECATED) {
+      NodeImageMultiFile *nimf = node->storage;
+      bNodeSocket *sock;
 
-			/* CMP_NODE_OUTPUT_MULTI_FILE has been redeclared as CMP_NODE_OUTPUT_FILE */
-			node->type = CMP_NODE_OUTPUT_FILE;
+      /* CMP_NODE_OUTPUT_MULTI_FILE has been redeclared as CMP_NODE_OUTPUT_FILE */
+      node->type = CMP_NODE_OUTPUT_FILE;
 
-			/* initialize the node-wide image format from render data, if available */
-			if (sce)
-				nimf->format = sce->r.im_format;
+      /* initialize the node-wide image format from render data, if available */
+      if (sce)
+        nimf->format = sce->r.im_format;
 
-			/* transfer render format toggle to node format toggle */
-			for (sock = node->inputs.first; sock; sock = sock->next) {
-				NodeImageMultiFileSocket *simf = sock->storage;
-				simf->use_node_format = simf->use_render_format;
-			}
+      /* transfer render format toggle to node format toggle */
+      for (sock = node->inputs.first; sock; sock = sock->next) {
+        NodeImageMultiFileSocket *simf = sock->storage;
+        simf->use_node_format = simf->use_render_format;
+      }
 
-			/* we do have preview now */
-			node->flag |= NODE_PREVIEW;
-		}
-	}
+      /* we do have preview now */
+      node->flag |= NODE_PREVIEW;
+    }
+  }
 }
 
 /* blue and red are swapped pre 2.62.1, be sane (red == red) now! */
 static void do_versions_mesh_mloopcol_swap_2_62_1(Mesh *me)
 {
-	CustomDataLayer *layer;
-	MLoopCol *mloopcol;
-	int a;
-	int i;
+  CustomDataLayer *layer;
+  MLoopCol *mloopcol;
+  int a;
+  int i;
 
-	for (a = 0; a < me->ldata.totlayer; a++) {
-		layer = &me->ldata.layers[a];
+  for (a = 0; a < me->ldata.totlayer; a++) {
+    layer = &me->ldata.layers[a];
 
-		if (layer->type == CD_MLOOPCOL) {
-			mloopcol = (MLoopCol *)layer->data;
-			for (i = 0; i < me->totloop; i++, mloopcol++) {
-				SWAP(uchar, mloopcol->r, mloopcol->b);
-			}
-		}
-	}
+    if (layer->type == CD_MLOOPCOL) {
+      mloopcol = (MLoopCol *)layer->data;
+      for (i = 0; i < me->totloop; i++, mloopcol++) {
+        SWAP(uchar, mloopcol->r, mloopcol->b);
+      }
+    }
+  }
 }
 
 static void do_versions_nodetree_multi_file_output_path_2_63_1(bNodeTree *ntree)
 {
-	bNode *node;
+  bNode *node;
 
-	for (node = ntree->nodes.first; node; node = node->next) {
-		if (node->type == CMP_NODE_OUTPUT_FILE) {
-			bNodeSocket *sock;
-			for (sock = node->inputs.first; sock; sock = sock->next) {
-				NodeImageMultiFileSocket *input = sock->storage;
-				/* input file path is stored in dedicated struct now instead socket name */
-				BLI_strncpy(input->path, sock->name, sizeof(input->path));
-			}
-		}
-	}
+  for (node = ntree->nodes.first; node; node = node->next) {
+    if (node->type == CMP_NODE_OUTPUT_FILE) {
+      bNodeSocket *sock;
+      for (sock = node->inputs.first; sock; sock = sock->next) {
+        NodeImageMultiFileSocket *input = sock->storage;
+        /* input file path is stored in dedicated struct now instead socket name */
+        BLI_strncpy(input->path, sock->name, sizeof(input->path));
+      }
+    }
+  }
 }
 
 static void do_versions_nodetree_file_output_layers_2_64_5(bNodeTree *ntree)
 {
-	bNode *node;
+  bNode *node;
 
-	for (node = ntree->nodes.first; node; node = node->next) {
-		if (node->type == CMP_NODE_OUTPUT_FILE) {
-			bNodeSocket *sock;
-			for (sock = node->inputs.first; sock; sock = sock->next) {
-				NodeImageMultiFileSocket *input = sock->storage;
+  for (node = ntree->nodes.first; node; node = node->next) {
+    if (node->type == CMP_NODE_OUTPUT_FILE) {
+      bNodeSocket *sock;
+      for (sock = node->inputs.first; sock; sock = sock->next) {
+        NodeImageMultiFileSocket *input = sock->storage;
 
-				/* multilayer names are stored as separate strings now,
-				 * used the path string before, so copy it over.
-				 */
-				BLI_strncpy(input->layer, input->path, sizeof(input->layer));
+        /* multilayer names are stored as separate strings now,
+         * used the path string before, so copy it over.
+         */
+        BLI_strncpy(input->layer, input->path, sizeof(input->layer));
 
-				/* paths/layer names also have to be unique now, initial check */
-				ntreeCompositOutputFileUniquePath(&node->inputs, sock, input->path, '_');
-				ntreeCompositOutputFileUniqueLayer(&node->inputs, sock, input->layer, '_');
-			}
-		}
-	}
+        /* paths/layer names also have to be unique now, initial check */
+        ntreeCompositOutputFileUniquePath(&node->inputs, sock, input->path, '_');
+        ntreeCompositOutputFileUniqueLayer(&node->inputs, sock, input->layer, '_');
+      }
+    }
+  }
 }
 
 static void do_versions_nodetree_image_layer_2_64_5(bNodeTree *ntree)
 {
-	bNode *node;
+  bNode *node;
 
-	for (node = ntree->nodes.first; node; node = node->next) {
-		if (node->type == CMP_NODE_IMAGE) {
-			bNodeSocket *sock;
-			for (sock = node->outputs.first; sock; sock = sock->next) {
-				NodeImageLayer *output = MEM_callocN(sizeof(NodeImageLayer), "node image layer");
+  for (node = ntree->nodes.first; node; node = node->next) {
+    if (node->type == CMP_NODE_IMAGE) {
+      bNodeSocket *sock;
+      for (sock = node->outputs.first; sock; sock = sock->next) {
+        NodeImageLayer *output = MEM_callocN(sizeof(NodeImageLayer), "node image layer");
 
-				/* take pass index both from current storage ptr (actually an int) */
-				output->pass_index = POINTER_AS_INT(sock->storage);
+        /* take pass index both from current storage ptr (actually an int) */
+        output->pass_index = POINTER_AS_INT(sock->storage);
 
-				/* replace socket data pointer */
-				sock->storage = output;
-			}
-		}
-	}
+        /* replace socket data pointer */
+        sock->storage = output;
+      }
+    }
+  }
 }
 
 static void do_versions_nodetree_frame_2_64_6(bNodeTree *ntree)
 {
-	bNode *node;
+  bNode *node;
 
-	for (node = ntree->nodes.first; node; node = node->next) {
-		if (node->type == NODE_FRAME) {
-			/* initialize frame node storage data */
-			if (node->storage == NULL) {
-				NodeFrame *data = (NodeFrame *)MEM_callocN(sizeof(NodeFrame), "frame node storage");
-				node->storage = data;
+  for (node = ntree->nodes.first; node; node = node->next) {
+    if (node->type == NODE_FRAME) {
+      /* initialize frame node storage data */
+      if (node->storage == NULL) {
+        NodeFrame *data = (NodeFrame *)MEM_callocN(sizeof(NodeFrame), "frame node storage");
+        node->storage = data;
 
-				/* copy current flags */
-				data->flag = node->custom1;
+        /* copy current flags */
+        data->flag = node->custom1;
 
-				data->label_size = 20;
-			}
-		}
+        data->label_size = 20;
+      }
+    }
 
-		/* initialize custom node color */
-		node->color[0] = node->color[1] = node->color[2] = 0.608f;  /* default theme color */
-	}
+    /* initialize custom node color */
+    node->color[0] = node->color[1] = node->color[2] = 0.608f; /* default theme color */
+  }
 }
 
 static void do_version_logic_264(ListBase *regionbase)
@@ -446,182 +446,195 @@ static void do_version_logic_264(ListBase *regionbase)
 
 static void do_versions_affine_tracker_track(MovieTrackingTrack *track)
 {
-	int i;
+  int i;
 
-	for (i = 0; i < track->markersnr; i++) {
-		MovieTrackingMarker *marker = &track->markers[i];
+  for (i = 0; i < track->markersnr; i++) {
+    MovieTrackingMarker *marker = &track->markers[i];
 
-		if (is_zero_v2(marker->pattern_corners[0]) && is_zero_v2(marker->pattern_corners[1]) &&
-		    is_zero_v2(marker->pattern_corners[2]) && is_zero_v2(marker->pattern_corners[3]))
-		{
-			marker->pattern_corners[0][0] = track->pat_min[0];
-			marker->pattern_corners[0][1] = track->pat_min[1];
+    if (is_zero_v2(marker->pattern_corners[0]) && is_zero_v2(marker->pattern_corners[1]) &&
+        is_zero_v2(marker->pattern_corners[2]) && is_zero_v2(marker->pattern_corners[3])) {
+      marker->pattern_corners[0][0] = track->pat_min[0];
+      marker->pattern_corners[0][1] = track->pat_min[1];
 
-			marker->pattern_corners[1][0] = track->pat_max[0];
-			marker->pattern_corners[1][1] = track->pat_min[1];
+      marker->pattern_corners[1][0] = track->pat_max[0];
+      marker->pattern_corners[1][1] = track->pat_min[1];
 
-			marker->pattern_corners[2][0] = track->pat_max[0];
-			marker->pattern_corners[2][1] = track->pat_max[1];
+      marker->pattern_corners[2][0] = track->pat_max[0];
+      marker->pattern_corners[2][1] = track->pat_max[1];
 
-			marker->pattern_corners[3][0] = track->pat_min[0];
-			marker->pattern_corners[3][1] = track->pat_max[1];
-		}
+      marker->pattern_corners[3][0] = track->pat_min[0];
+      marker->pattern_corners[3][1] = track->pat_max[1];
+    }
 
-		if (is_zero_v2(marker->search_min) && is_zero_v2(marker->search_max)) {
-			copy_v2_v2(marker->search_min, track->search_min);
-			copy_v2_v2(marker->search_max, track->search_max);
-		}
-	}
+    if (is_zero_v2(marker->search_min) && is_zero_v2(marker->search_max)) {
+      copy_v2_v2(marker->search_min, track->search_min);
+      copy_v2_v2(marker->search_max, track->search_max);
+    }
+  }
 }
 
 static const char *node_get_static_idname(int type, int treetype)
 {
-	/* use static type info header to map static int type to identifier string */
+  /* use static type info header to map static int type to identifier string */
 #define DefNode(Category, ID, DefFunc, EnumName, StructName, UIName, UIDesc) \
-		case ID: return #Category #StructName;
+  case ID: \
+    return #Category #StructName;
 
-	/* XXX hack, group types share a single static integer identifier, but are registered as separate types */
-	if (type == NODE_GROUP) {
-		switch (treetype) {
-			case NTREE_COMPOSIT: return "CompositorNodeGroup";
-			case NTREE_SHADER: return "ShaderNodeGroup";
-			case NTREE_TEXTURE: return "TextureNodeGroup";
-		}
-	}
-	else {
-		switch (type) {
+  /* XXX hack, group types share a single static integer identifier, but are registered as separate types */
+  if (type == NODE_GROUP) {
+    switch (treetype) {
+      case NTREE_COMPOSIT:
+        return "CompositorNodeGroup";
+      case NTREE_SHADER:
+        return "ShaderNodeGroup";
+      case NTREE_TEXTURE:
+        return "TextureNodeGroup";
+    }
+  }
+  else {
+    switch (type) {
 #include "NOD_static_types.h"
-		}
-	}
-	return "";
+    }
+  }
+  return "";
 }
 
 static const char *node_socket_get_static_idname(bNodeSocket *sock)
 {
-	switch (sock->type) {
-		case SOCK_FLOAT:
-		{
-			bNodeSocketValueFloat *dval = sock->default_value;
-			return nodeStaticSocketType(SOCK_FLOAT, dval->subtype);
-		}
-		case SOCK_INT:
-		{
-			bNodeSocketValueInt *dval = sock->default_value;
-			return nodeStaticSocketType(SOCK_INT, dval->subtype);
-		}
-		case SOCK_BOOLEAN:
-		{
-			return nodeStaticSocketType(SOCK_BOOLEAN, PROP_NONE);
-		}
-		case SOCK_VECTOR:
-		{
-			bNodeSocketValueVector *dval = sock->default_value;
-			return nodeStaticSocketType(SOCK_VECTOR, dval->subtype);
-		}
-		case SOCK_RGBA:
-		{
-			return nodeStaticSocketType(SOCK_RGBA, PROP_NONE);
-		}
-		case SOCK_STRING:
-		{
-			bNodeSocketValueString *dval = sock->default_value;
-			return nodeStaticSocketType(SOCK_STRING, dval->subtype);
-		}
-		case SOCK_SHADER:
-		{
-			return nodeStaticSocketType(SOCK_SHADER, PROP_NONE);
-		}
-	}
-	return "";
+  switch (sock->type) {
+    case SOCK_FLOAT: {
+      bNodeSocketValueFloat *dval = sock->default_value;
+      return nodeStaticSocketType(SOCK_FLOAT, dval->subtype);
+    }
+    case SOCK_INT: {
+      bNodeSocketValueInt *dval = sock->default_value;
+      return nodeStaticSocketType(SOCK_INT, dval->subtype);
+    }
+    case SOCK_BOOLEAN: {
+      return nodeStaticSocketType(SOCK_BOOLEAN, PROP_NONE);
+    }
+    case SOCK_VECTOR: {
+      bNodeSocketValueVector *dval = sock->default_value;
+      return nodeStaticSocketType(SOCK_VECTOR, dval->subtype);
+    }
+    case SOCK_RGBA: {
+      return nodeStaticSocketType(SOCK_RGBA, PROP_NONE);
+    }
+    case SOCK_STRING: {
+      bNodeSocketValueString *dval = sock->default_value;
+      return nodeStaticSocketType(SOCK_STRING, dval->subtype);
+    }
+    case SOCK_SHADER: {
+      return nodeStaticSocketType(SOCK_SHADER, PROP_NONE);
+    }
+  }
+  return "";
 }
 
 static void do_versions_nodetree_customnodes(bNodeTree *ntree, int UNUSED(is_group))
 {
-	/* initialize node tree type idname */
-	{
-		bNode *node;
-		bNodeSocket *sock;
+  /* initialize node tree type idname */
+  {
+    bNode *node;
+    bNodeSocket *sock;
 
-		ntree->typeinfo = NULL;
+    ntree->typeinfo = NULL;
 
-		/* tree type idname */
-		switch (ntree->type) {
-			case NTREE_COMPOSIT:
-				strcpy(ntree->idname, "CompositorNodeTree");
-				break;
-			case NTREE_SHADER:
-				strcpy(ntree->idname, "ShaderNodeTree");
-				break;
-			case NTREE_TEXTURE:
-				strcpy(ntree->idname, "TextureNodeTree");
-				break;
-		}
+    /* tree type idname */
+    switch (ntree->type) {
+      case NTREE_COMPOSIT:
+        strcpy(ntree->idname, "CompositorNodeTree");
+        break;
+      case NTREE_SHADER:
+        strcpy(ntree->idname, "ShaderNodeTree");
+        break;
+      case NTREE_TEXTURE:
+        strcpy(ntree->idname, "TextureNodeTree");
+        break;
+    }
 
-		/* node type idname */
-		for (node = ntree->nodes.first; node; node = node->next) {
-			BLI_strncpy(node->idname, node_get_static_idname(node->type, ntree->type), sizeof(node->idname));
+    /* node type idname */
+    for (node = ntree->nodes.first; node; node = node->next) {
+      BLI_strncpy(
+          node->idname, node_get_static_idname(node->type, ntree->type), sizeof(node->idname));
 
-			/* existing old nodes have been initialized already */
-			node->flag |= NODE_INIT;
+      /* existing old nodes have been initialized already */
+      node->flag |= NODE_INIT;
 
-			/* sockets idname */
-			for (sock = node->inputs.first; sock; sock = sock->next)
-				BLI_strncpy(sock->idname, node_socket_get_static_idname(sock), sizeof(sock->idname));
-			for (sock = node->outputs.first; sock; sock = sock->next)
-				BLI_strncpy(sock->idname, node_socket_get_static_idname(sock), sizeof(sock->idname));
-		}
-		/* tree sockets idname */
-		for (sock = ntree->inputs.first; sock; sock = sock->next)
-			BLI_strncpy(sock->idname, node_socket_get_static_idname(sock), sizeof(sock->idname));
-		for (sock = ntree->outputs.first; sock; sock = sock->next)
-			BLI_strncpy(sock->idname, node_socket_get_static_idname(sock), sizeof(sock->idname));
-	}
+      /* sockets idname */
+      for (sock = node->inputs.first; sock; sock = sock->next)
+        BLI_strncpy(sock->idname, node_socket_get_static_idname(sock), sizeof(sock->idname));
+      for (sock = node->outputs.first; sock; sock = sock->next)
+        BLI_strncpy(sock->idname, node_socket_get_static_idname(sock), sizeof(sock->idname));
+    }
+    /* tree sockets idname */
+    for (sock = ntree->inputs.first; sock; sock = sock->next)
+      BLI_strncpy(sock->idname, node_socket_get_static_idname(sock), sizeof(sock->idname));
+    for (sock = ntree->outputs.first; sock; sock = sock->next)
+      BLI_strncpy(sock->idname, node_socket_get_static_idname(sock), sizeof(sock->idname));
+  }
 
-	/* initialize socket in_out values */
-	{
-		bNode *node;
-		bNodeSocket *sock;
+  /* initialize socket in_out values */
+  {
+    bNode *node;
+    bNodeSocket *sock;
 
-		for (node = ntree->nodes.first; node; node = node->next) {
-			for (sock = node->inputs.first; sock; sock = sock->next)
-				sock->in_out = SOCK_IN;
-			for (sock = node->outputs.first; sock; sock = sock->next)
-				sock->in_out = SOCK_OUT;
-		}
-		for (sock = ntree->inputs.first; sock; sock = sock->next)
-			sock->in_out = SOCK_IN;
-		for (sock = ntree->outputs.first; sock; sock = sock->next)
-			sock->in_out = SOCK_OUT;
-	}
+    for (node = ntree->nodes.first; node; node = node->next) {
+      for (sock = node->inputs.first; sock; sock = sock->next)
+        sock->in_out = SOCK_IN;
+      for (sock = node->outputs.first; sock; sock = sock->next)
+        sock->in_out = SOCK_OUT;
+    }
+    for (sock = ntree->inputs.first; sock; sock = sock->next)
+      sock->in_out = SOCK_IN;
+    for (sock = ntree->outputs.first; sock; sock = sock->next)
+      sock->in_out = SOCK_OUT;
+  }
 
-	/* initialize socket identifier strings */
-	{
-		bNode *node;
-		bNodeSocket *sock;
+  /* initialize socket identifier strings */
+  {
+    bNode *node;
+    bNodeSocket *sock;
 
-		for (node = ntree->nodes.first; node; node = node->next) {
-			for (sock = node->inputs.first; sock; sock = sock->next) {
-				BLI_strncpy(sock->identifier, sock->name, sizeof(sock->identifier));
-				BLI_uniquename(&node->inputs, sock, "socket", '.',
-				               offsetof(bNodeSocket, identifier), sizeof(sock->identifier));
-			}
-			for (sock = node->outputs.first; sock; sock = sock->next) {
-				BLI_strncpy(sock->identifier, sock->name, sizeof(sock->identifier));
-				BLI_uniquename(&node->outputs, sock, "socket", '.',
-				               offsetof(bNodeSocket, identifier), sizeof(sock->identifier));
-			}
-		}
-		for (sock = ntree->inputs.first; sock; sock = sock->next) {
-			BLI_strncpy(sock->identifier, sock->name, sizeof(sock->identifier));
-			BLI_uniquename(&ntree->inputs, sock, "socket", '.',
-			               offsetof(bNodeSocket, identifier), sizeof(sock->identifier));
-		}
-		for (sock = ntree->outputs.first; sock; sock = sock->next) {
-			BLI_strncpy(sock->identifier, sock->name, sizeof(sock->identifier));
-			BLI_uniquename(&ntree->outputs, sock, "socket", '.',
-			               offsetof(bNodeSocket, identifier), sizeof(sock->identifier));
-		}
-	}
+    for (node = ntree->nodes.first; node; node = node->next) {
+      for (sock = node->inputs.first; sock; sock = sock->next) {
+        BLI_strncpy(sock->identifier, sock->name, sizeof(sock->identifier));
+        BLI_uniquename(&node->inputs,
+                       sock,
+                       "socket",
+                       '.',
+                       offsetof(bNodeSocket, identifier),
+                       sizeof(sock->identifier));
+      }
+      for (sock = node->outputs.first; sock; sock = sock->next) {
+        BLI_strncpy(sock->identifier, sock->name, sizeof(sock->identifier));
+        BLI_uniquename(&node->outputs,
+                       sock,
+                       "socket",
+                       '.',
+                       offsetof(bNodeSocket, identifier),
+                       sizeof(sock->identifier));
+      }
+    }
+    for (sock = ntree->inputs.first; sock; sock = sock->next) {
+      BLI_strncpy(sock->identifier, sock->name, sizeof(sock->identifier));
+      BLI_uniquename(&ntree->inputs,
+                     sock,
+                     "socket",
+                     '.',
+                     offsetof(bNodeSocket, identifier),
+                     sizeof(sock->identifier));
+    }
+    for (sock = ntree->outputs.first; sock; sock = sock->next) {
+      BLI_strncpy(sock->identifier, sock->name, sizeof(sock->identifier));
+      BLI_uniquename(&ntree->outputs,
+                     sock,
+                     "socket",
+                     '.',
+                     offsetof(bNodeSocket, identifier),
+                     sizeof(sock->identifier));
+    }
+  }
 }
 
 void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *bmain)
@@ -2108,98 +2121,98 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *bmain)
 		}
 		for (linestyle = bmain->linestyles.first; linestyle; linestyle = linestyle->id.next) {
 #if 1
-			/* disable the Misc panel for now */
-			if (linestyle->panel == LS_PANEL_MISC) {
-				linestyle->panel = LS_PANEL_STROKES;
-			}
+      /* disable the Misc panel for now */
+      if (linestyle->panel == LS_PANEL_MISC) {
+        linestyle->panel = LS_PANEL_STROKES;
+      }
 #endif
-			if (linestyle->thickness_position == 0) {
-				linestyle->thickness_position = LS_THICKNESS_CENTER;
-				linestyle->thickness_ratio = 0.5f;
-			}
-			if (linestyle->chaining == 0)
-				linestyle->chaining = LS_CHAINING_PLAIN;
-			if (linestyle->rounds == 0)
-				linestyle->rounds = 3;
-		}
-	}
+      if (linestyle->thickness_position == 0) {
+        linestyle->thickness_position = LS_THICKNESS_CENTER;
+        linestyle->thickness_ratio = 0.5f;
+      }
+      if (linestyle->chaining == 0)
+        linestyle->chaining = LS_CHAINING_PLAIN;
+      if (linestyle->rounds == 0)
+        linestyle->rounds = 3;
+    }
+  }
 
-	if (bmain->versionfile < 267) {
-		/* Initialize the active_viewer_key for compositing */
-		bScreen *screen;
-		Scene *scene;
-		bNodeInstanceKey active_viewer_key = {0};
-		/* simply pick the first node space and use that for the active viewer key */
-		for (screen = bmain->screens.first; screen; screen = screen->id.next) {
-			ScrArea *sa;
-			for (sa = screen->areabase.first; sa; sa = sa->next) {
-				SpaceLink *sl;
-				for (sl = sa->spacedata.first; sl; sl = sl->next) {
-					if (sl->spacetype == SPACE_NODE) {
-						SpaceNode *snode = (SpaceNode *)sl;
-						bNodeTreePath *path = snode->treepath.last;
-						if (!path)
-							continue;
+  if (bmain->versionfile < 267) {
+    /* Initialize the active_viewer_key for compositing */
+    bScreen *screen;
+    Scene *scene;
+    bNodeInstanceKey active_viewer_key = {0};
+    /* simply pick the first node space and use that for the active viewer key */
+    for (screen = bmain->screens.first; screen; screen = screen->id.next) {
+      ScrArea *sa;
+      for (sa = screen->areabase.first; sa; sa = sa->next) {
+        SpaceLink *sl;
+        for (sl = sa->spacedata.first; sl; sl = sl->next) {
+          if (sl->spacetype == SPACE_NODE) {
+            SpaceNode *snode = (SpaceNode *)sl;
+            bNodeTreePath *path = snode->treepath.last;
+            if (!path)
+              continue;
 
-						active_viewer_key = path->parent_key;
-						break;
-					}
-				}
-				if (active_viewer_key.value != 0)
-					break;
-			}
-			if (active_viewer_key.value != 0)
-				break;
-		}
+            active_viewer_key = path->parent_key;
+            break;
+          }
+        }
+        if (active_viewer_key.value != 0)
+          break;
+      }
+      if (active_viewer_key.value != 0)
+        break;
+    }
 
-		for (scene = bmain->scenes.first; scene; scene = scene->id.next) {
-			/* NB: scene->nodetree is a local ID block, has been direct_link'ed */
-			if (scene->nodetree)
-				scene->nodetree->active_viewer_key = active_viewer_key;
-		}
-	}
+    for (scene = bmain->scenes.first; scene; scene = scene->id.next) {
+      /* NB: scene->nodetree is a local ID block, has been direct_link'ed */
+      if (scene->nodetree)
+        scene->nodetree->active_viewer_key = active_viewer_key;
+    }
+  }
 
-	if (MAIN_VERSION_OLDER(bmain, 267, 1)) {
-		Object *ob;
+  if (MAIN_VERSION_OLDER(bmain, 267, 1)) {
+    Object *ob;
 
-		for (ob = bmain->objects.first; ob; ob = ob->id.next) {
-			ModifierData *md;
-			for (md = ob->modifiers.first; md; md = md->next) {
-				if (md->type == eModifierType_Smoke) {
-					SmokeModifierData *smd = (SmokeModifierData *)md;
-					if ((smd->type & MOD_SMOKE_TYPE_DOMAIN) && smd->domain) {
-						if (smd->domain->flags & MOD_SMOKE_HIGH_SMOOTH) {
-							smd->domain->highres_sampling = SM_HRES_LINEAR;
-						}
-						else {
-							smd->domain->highres_sampling = SM_HRES_NEAREST;
-						}
-					}
-				}
-			}
-		}
-	}
+    for (ob = bmain->objects.first; ob; ob = ob->id.next) {
+      ModifierData *md;
+      for (md = ob->modifiers.first; md; md = md->next) {
+        if (md->type == eModifierType_Smoke) {
+          SmokeModifierData *smd = (SmokeModifierData *)md;
+          if ((smd->type & MOD_SMOKE_TYPE_DOMAIN) && smd->domain) {
+            if (smd->domain->flags & MOD_SMOKE_HIGH_SMOOTH) {
+              smd->domain->highres_sampling = SM_HRES_LINEAR;
+            }
+            else {
+              smd->domain->highres_sampling = SM_HRES_NEAREST;
+            }
+          }
+        }
+      }
+    }
+  }
 
-	if (!MAIN_VERSION_ATLEAST(bmain, 268, 1)) {
-		Brush *brush;
-		for (brush = bmain->brushes.first; brush; brush = brush->id.next) {
-			brush->spacing = MAX2(1, brush->spacing);
-		}
-	}
+  if (!MAIN_VERSION_ATLEAST(bmain, 268, 1)) {
+    Brush *brush;
+    for (brush = bmain->brushes.first; brush; brush = brush->id.next) {
+      brush->spacing = MAX2(1, brush->spacing);
+    }
+  }
 
-	if (!MAIN_VERSION_ATLEAST(bmain, 268, 2)) {
-		Brush *brush;
+  if (!MAIN_VERSION_ATLEAST(bmain, 268, 2)) {
+    Brush *brush;
 #define BRUSH_FIXED (1 << 6)
-		for (brush = bmain->brushes.first; brush; brush = brush->id.next) {
-			brush->flag &= ~BRUSH_FIXED;
+    for (brush = bmain->brushes.first; brush; brush = brush->id.next) {
+      brush->flag &= ~BRUSH_FIXED;
 
-			if (brush->cursor_overlay_alpha < 2)
-				brush->cursor_overlay_alpha = 33;
-			if (brush->texture_overlay_alpha < 2)
-				brush->texture_overlay_alpha = 33;
-			if (brush->mask_overlay_alpha < 2)
-				brush->mask_overlay_alpha = 33;
-		}
+      if (brush->cursor_overlay_alpha < 2)
+        brush->cursor_overlay_alpha = 33;
+      if (brush->texture_overlay_alpha < 2)
+        brush->texture_overlay_alpha = 33;
+      if (brush->mask_overlay_alpha < 2)
+        brush->mask_overlay_alpha = 33;
+    }
 #undef BRUSH_FIXED
 	}
 

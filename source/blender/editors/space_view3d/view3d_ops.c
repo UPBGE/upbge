@@ -21,10 +21,8 @@
  * \ingroup spview3d
  */
 
-
 #include <stdlib.h>
 #include <math.h>
-
 
 #include "DNA_collection_types.h"
 #include "DNA_object_types.h"
@@ -63,103 +61,105 @@
 
 static int view3d_copybuffer_exec(bContext *C, wmOperator *op)
 {
-	Main *bmain = CTX_data_main(C);
-	char str[FILE_MAX];
-	int num_copied = 0;
+  Main *bmain = CTX_data_main(C);
+  char str[FILE_MAX];
+  int num_copied = 0;
 
-	BKE_copybuffer_begin(bmain);
+  BKE_copybuffer_begin(bmain);
 
-	/* context, selection, could be generalized */
-	CTX_DATA_BEGIN (C, Object *, ob, selected_objects)
-	{
-		if ((ob->id.tag & LIB_TAG_DOIT) == 0) {
-			BKE_copybuffer_tag_ID(&ob->id);
-			num_copied++;
-		}
-	}
-	CTX_DATA_END;
+  /* context, selection, could be generalized */
+  CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
+    if ((ob->id.tag & LIB_TAG_DOIT) == 0) {
+      BKE_copybuffer_tag_ID(&ob->id);
+      num_copied++;
+    }
+  }
+  CTX_DATA_END;
 
-	BLI_make_file_string("/", str, BKE_tempdir_base(), "copybuffer.blend");
-	BKE_copybuffer_save(bmain, str, op->reports);
+  BLI_make_file_string("/", str, BKE_tempdir_base(), "copybuffer.blend");
+  BKE_copybuffer_save(bmain, str, op->reports);
 
-	BKE_reportf(op->reports, RPT_INFO, "Copied %d selected objects", num_copied);
+  BKE_reportf(op->reports, RPT_INFO, "Copied %d selected objects", num_copied);
 
-	return OPERATOR_FINISHED;
+  return OPERATOR_FINISHED;
 }
 
 static void VIEW3D_OT_copybuffer(wmOperatorType *ot)
 {
-	/* identifiers */
-	ot->name = "Copy Objects";
-	ot->idname = "VIEW3D_OT_copybuffer";
-	ot->description = "Selected objects are copied to the clipboard";
+  /* identifiers */
+  ot->name = "Copy Objects";
+  ot->idname = "VIEW3D_OT_copybuffer";
+  ot->description = "Selected objects are copied to the clipboard";
 
-	/* api callbacks */
-	ot->exec = view3d_copybuffer_exec;
-	ot->poll = ED_operator_scene;
+  /* api callbacks */
+  ot->exec = view3d_copybuffer_exec;
+  ot->poll = ED_operator_scene;
 }
 
 static int view3d_pastebuffer_exec(bContext *C, wmOperator *op)
 {
-	char str[FILE_MAX];
-	short flag = 0;
+  char str[FILE_MAX];
+  short flag = 0;
 
-	if (RNA_boolean_get(op->ptr, "autoselect")) {
-		flag |= FILE_AUTOSELECT;
-	}
-	if (RNA_boolean_get(op->ptr, "active_collection")) {
-		flag |= FILE_ACTIVE_COLLECTION;
-	}
+  if (RNA_boolean_get(op->ptr, "autoselect")) {
+    flag |= FILE_AUTOSELECT;
+  }
+  if (RNA_boolean_get(op->ptr, "active_collection")) {
+    flag |= FILE_ACTIVE_COLLECTION;
+  }
 
-	BLI_make_file_string("/", str, BKE_tempdir_base(), "copybuffer.blend");
+  BLI_make_file_string("/", str, BKE_tempdir_base(), "copybuffer.blend");
 
-	const int num_pasted = BKE_copybuffer_paste(C, str, flag, op->reports, FILTER_ID_OB);
-	if (num_pasted == 0) {
-		BKE_report(op->reports, RPT_INFO, "No objects to paste");
-		return OPERATOR_CANCELLED;
-	}
+  const int num_pasted = BKE_copybuffer_paste(C, str, flag, op->reports, FILTER_ID_OB);
+  if (num_pasted == 0) {
+    BKE_report(op->reports, RPT_INFO, "No objects to paste");
+    return OPERATOR_CANCELLED;
+  }
 
-	WM_event_add_notifier(C, NC_WINDOW, NULL);
+  WM_event_add_notifier(C, NC_WINDOW, NULL);
 
-	BKE_reportf(op->reports, RPT_INFO, "%d objects pasted", num_pasted);
+  BKE_reportf(op->reports, RPT_INFO, "%d objects pasted", num_pasted);
 
-	return OPERATOR_FINISHED;
+  return OPERATOR_FINISHED;
 }
 
 static void VIEW3D_OT_pastebuffer(wmOperatorType *ot)
 {
 
-	/* identifiers */
-	ot->name = "Paste Objects";
-	ot->idname = "VIEW3D_OT_pastebuffer";
-	ot->description = "Objects from the clipboard are pasted";
+  /* identifiers */
+  ot->name = "Paste Objects";
+  ot->idname = "VIEW3D_OT_pastebuffer";
+  ot->description = "Objects from the clipboard are pasted";
 
-	/* api callbacks */
-	ot->exec = view3d_pastebuffer_exec;
-	ot->poll = ED_operator_scene_editable;
+  /* api callbacks */
+  ot->exec = view3d_pastebuffer_exec;
+  ot->poll = ED_operator_scene_editable;
 
-	/* flags */
-	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-	RNA_def_boolean(ot->srna, "autoselect", true, "Select", "Select pasted objects");
-	RNA_def_boolean(ot->srna, "active_collection", true,
-	                "Active Collection", "Put pasted objects in the active collection");
+  RNA_def_boolean(ot->srna, "autoselect", true, "Select", "Select pasted objects");
+  RNA_def_boolean(ot->srna,
+                  "active_collection",
+                  true,
+                  "Active Collection",
+                  "Put pasted objects in the active collection");
 }
 
 /* ************************** registration **********************************/
 
 void view3d_operatortypes(void)
 {
-	WM_operatortype_append(VIEW3D_OT_rotate);
-	WM_operatortype_append(VIEW3D_OT_move);
-	WM_operatortype_append(VIEW3D_OT_zoom);
-	WM_operatortype_append(VIEW3D_OT_zoom_camera_1_to_1);
-	WM_operatortype_append(VIEW3D_OT_dolly);
+  WM_operatortype_append(VIEW3D_OT_rotate);
+  WM_operatortype_append(VIEW3D_OT_move);
+  WM_operatortype_append(VIEW3D_OT_zoom);
+  WM_operatortype_append(VIEW3D_OT_zoom_camera_1_to_1);
+  WM_operatortype_append(VIEW3D_OT_dolly);
 #ifdef WITH_INPUT_NDOF
-	WM_operatortype_append(VIEW3D_OT_ndof_orbit_zoom);
-	WM_operatortype_append(VIEW3D_OT_ndof_orbit);
-	WM_operatortype_append(VIEW3D_OT_ndof_pan);
-	WM_operatortype_append(VIEW3D_OT_ndof_all);
+  WM_operatortype_append(VIEW3D_OT_ndof_orbit_zoom);
+  WM_operatortype_append(VIEW3D_OT_ndof_orbit);
+  WM_operatortype_append(VIEW3D_OT_ndof_pan);
+  WM_operatortype_append(VIEW3D_OT_ndof_all);
 #endif /* WITH_INPUT_NDOF */
 	WM_operatortype_append(VIEW3D_OT_view_all);
 	WM_operatortype_append(VIEW3D_OT_view_axis);
@@ -224,15 +224,15 @@ void view3d_operatortypes(void)
 
 void view3d_keymap(wmKeyConfig *keyconf)
 {
-	WM_keymap_ensure(keyconf, "3D View Generic", SPACE_VIEW3D, 0);
+  WM_keymap_ensure(keyconf, "3D View Generic", SPACE_VIEW3D, 0);
 
-	/* only for region 3D window */
-	WM_keymap_ensure(keyconf, "3D View", SPACE_VIEW3D, 0);
+  /* only for region 3D window */
+  WM_keymap_ensure(keyconf, "3D View", SPACE_VIEW3D, 0);
 
-	fly_modal_keymap(keyconf);
-	walk_modal_keymap(keyconf);
-	viewrotate_modal_keymap(keyconf);
-	viewmove_modal_keymap(keyconf);
-	viewzoom_modal_keymap(keyconf);
-	viewdolly_modal_keymap(keyconf);
+  fly_modal_keymap(keyconf);
+  walk_modal_keymap(keyconf);
+  viewrotate_modal_keymap(keyconf);
+  viewmove_modal_keymap(keyconf);
+  viewzoom_modal_keymap(keyconf);
+  viewdolly_modal_keymap(keyconf);
 }

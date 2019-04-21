@@ -210,8 +210,7 @@ class DOPESHEET_HT_header(Header):
 
         st = context.space_data
 
-        row = layout.row(align=True)
-        row.template_header()
+        layout.template_header()
 
         if st.mode == 'TIMELINE':
             from .space_time import (
@@ -236,6 +235,7 @@ class DOPESHEET_HT_editor_buttons(Header):
     def draw(self, context):
         pass
 
+    @staticmethod
     def draw_header(context, layout):
         st = context.space_data
         tool_settings = context.tool_settings
@@ -323,7 +323,8 @@ class DOPESHEET_MT_view(Menu):
 
         st = context.space_data
 
-        layout.operator("action.properties", icon='MENU_PANEL')
+        layout.prop(st, "show_region_ui")
+
         layout.separator()
 
         layout.prop(st.dopesheet, "use_multi_word_filter", text="Multi-word Match Search")
@@ -430,7 +431,7 @@ class DOPESHEET_MT_marker(Menu):
 class DOPESHEET_MT_channel(Menu):
     bl_label = "Channel"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
         layout.operator_context = 'INVOKE_REGION_CHANNELS'
@@ -464,7 +465,7 @@ class DOPESHEET_MT_channel(Menu):
 class DOPESHEET_MT_key(Menu):
     bl_label = "Key"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
         layout.menu("DOPESHEET_MT_key_transform", text="Transform")
@@ -499,7 +500,7 @@ class DOPESHEET_MT_key(Menu):
 class DOPESHEET_MT_key_transform(Menu):
     bl_label = "Transform"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
         layout.operator("transform.transform", text="Move").mode = 'TIME_TRANSLATE'
@@ -514,7 +515,7 @@ class DOPESHEET_MT_key_transform(Menu):
 class DOPESHEET_MT_gpencil_channel(Menu):
     bl_label = "Channel"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
         layout.operator_context = 'INVOKE_REGION_CHANNELS'
@@ -541,7 +542,7 @@ class DOPESHEET_MT_gpencil_channel(Menu):
 class DOPESHEET_MT_gpencil_frame(Menu):
     bl_label = "Frame"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
         layout.menu("DOPESHEET_MT_key_transform", text="Transform")
@@ -563,7 +564,7 @@ class DOPESHEET_MT_gpencil_frame(Menu):
 class DOPESHEET_MT_delete(Menu):
     bl_label = "Delete"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
         layout.operator("action.delete")
@@ -577,7 +578,7 @@ class DOPESHEET_MT_delete(Menu):
 class DOPESHEET_MT_context_menu(Menu):
     bl_label = "Dope Sheet Context Menu"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
         layout.operator("action.copy", text="Copy")
@@ -605,7 +606,7 @@ class DOPESHEET_MT_context_menu(Menu):
 class DOPESHEET_MT_channel_context_menu(Menu):
     bl_label = "Dope Sheet Channel Context Menu"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
         layout.operator("anim.channels_setting_enable", text="Mute Channels").type = 'MUTE'
@@ -637,7 +638,7 @@ class DOPESHEET_MT_channel_context_menu(Menu):
 class DOPESHEET_MT_snap_pie(Menu):
     bl_label = "Snap"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
         pie = layout.menu_pie()
 

@@ -119,41 +119,41 @@ add_subdirectory(makesdna)
 add_subdirectory(makesrna)
 
 if(WITH_COMPOSITOR)
-	add_subdirectory(compositor)
+  add_subdirectory(compositor)
 endif()
 
 if(WITH_IMAGE_OPENEXR)
-	add_subdirectory(imbuf/intern/openexr)
+  add_subdirectory(imbuf/intern/openexr)
 endif()
 
 if(WITH_OPENIMAGEIO)
-	add_subdirectory(imbuf/intern/oiio)
+  add_subdirectory(imbuf/intern/oiio)
 endif()
 
 if(WITH_IMAGE_DDS)
-	add_subdirectory(imbuf/intern/dds)
+  add_subdirectory(imbuf/intern/dds)
 endif()
 
 if(WITH_IMAGE_CINEON)
-	add_subdirectory(imbuf/intern/cineon)
+  add_subdirectory(imbuf/intern/cineon)
 endif()
 
 if(WITH_CODEC_AVI)
-	add_subdirectory(avi)
+  add_subdirectory(avi)
 endif()
 
 if(WITH_PYTHON)
-	add_subdirectory(python)
+  add_subdirectory(python)
 endif()
 
 if(WITH_OPENCOLLADA)
-	add_subdirectory(collada)
+  add_subdirectory(collada)
 endif()
 
 if(WITH_FREESTYLE)
-	add_subdirectory(freestyle)
+  add_subdirectory(freestyle)
 endif()
 
 if(WITH_ALEMBIC)
-	add_subdirectory(alembic)
+  add_subdirectory(alembic)
 endif()

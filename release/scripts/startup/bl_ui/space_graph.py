@@ -34,8 +34,7 @@ class GRAPH_HT_header(Header):
 
         st = context.space_data
 
-        row = layout.row(align=True)
-        row.template_header()
+        layout.template_header()
 
         # Now a exposed as a sub-space type
         # layout.prop(st, "mode", text="")
@@ -94,7 +93,7 @@ class GRAPH_MT_editor_menus(Menu):
     bl_idname = "GRAPH_MT_editor_menus"
     bl_label = ""
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
         layout.menu("GRAPH_MT_view")
         layout.menu("GRAPH_MT_select")
@@ -111,7 +110,7 @@ class GRAPH_MT_view(Menu):
 
         st = context.space_data
 
-        layout.operator("graph.properties", icon='MENU_PANEL')
+        layout.prop(st, "show_region_ui")
         layout.separator()
 
         layout.prop(st, "use_realtime_update")
@@ -158,7 +157,7 @@ class GRAPH_MT_view(Menu):
 class GRAPH_MT_select(Menu):
     bl_label = "Select"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
         layout.operator("graph.select_all", text="All").action = 'SELECT'
@@ -258,7 +257,7 @@ class GRAPH_MT_channel(Menu):
 class GRAPH_MT_key(Menu):
     bl_label = "Key"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
         layout.menu("GRAPH_MT_key_transform", text="Transform")
@@ -300,7 +299,7 @@ class GRAPH_MT_key(Menu):
 class GRAPH_MT_key_transform(Menu):
     bl_label = "Transform"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
         layout.operator("transform.translate", text="Move")
@@ -312,7 +311,7 @@ class GRAPH_MT_key_transform(Menu):
 class GRAPH_MT_delete(Menu):
     bl_label = "Delete"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
         layout.operator("graph.delete")
@@ -326,7 +325,7 @@ class GRAPH_MT_delete(Menu):
 class GRAPH_MT_context_menu(Menu):
     bl_label = "F-Curve Context Menu"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
         layout.operator("graph.copy", text="Copy")
@@ -366,7 +365,7 @@ class GRAPH_MT_pivot_pie(Menu):
 class GRAPH_MT_snap_pie(Menu):
     bl_label = "Snap"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
         pie = layout.menu_pie()
 

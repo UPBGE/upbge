@@ -54,11 +54,15 @@ CCL_NAMESPACE_BEGIN
 #define SOBOL_MAX_NUMBER 32
 
 typedef struct SobolDirectionNumbers {
-	uint d, s, a;
-	uint m[SOBOL_MAX_NUMBER];
+  uint d, s, a;
+  uint m[SOBOL_MAX_NUMBER];
 } SobolDirectionNumbers;
 
-static SobolDirectionNumbers SOBOL_NUMBERS[SOBOL_MAX_DIMENSIONS-1] = {
+/* Note: this file is skipped by clang-format. */
+
+/* Keep simple alignment. */
+/* clang-format off */
+static SobolDirectionNumbers SOBOL_NUMBERS[SOBOL_MAX_DIMENSIONS - 1] = {
 {2, 1, 0, {1}},
 {3, 2, 1, {1, 3}},
 {4, 3, 1, {1, 3, 1}},
@@ -21260,43 +21264,44 @@ static SobolDirectionNumbers SOBOL_NUMBERS[SOBOL_MAX_DIMENSIONS-1] = {
 {21200, 18, 131020, {1, 1, 5, 1, 19, 1, 83, 3, 425, 873, 1943, 3935, 4257, 14587, 11829, 55217, 21963, 39683}},
 {21201, 18, 131059, {1, 1, 7, 11, 15, 7, 37, 239, 337, 245, 1557, 3681, 7357, 9639, 27367, 26869, 114603, 86317}}
 };
+/* clang-format on */
 
 void sobol_generate_direction_vectors(uint vectors[][SOBOL_BITS], int dimensions)
 {
-	assert(dimensions <= SOBOL_MAX_DIMENSIONS);
+  assert(dimensions <= SOBOL_MAX_DIMENSIONS);
 
-	const uint L = SOBOL_BITS;
+  const uint L = SOBOL_BITS;
 
-	/* first dimension is exception */
-	uint *v = vectors[0];
+  /* first dimension is exception */
+  uint *v = vectors[0];
 
-	for(uint i = 0; i < L; i++)
-		v[i] = 1 << (31-i); // all m's = 1
+  for (uint i = 0; i < L; i++)
+    v[i] = 1 << (31 - i);  // all m's = 1
 
-	for(int dim = 1; dim < dimensions; dim++) {
-		SobolDirectionNumbers *numbers = &SOBOL_NUMBERS[dim-1];
-		uint s = numbers->s;
-		uint a = numbers->a;
-		uint *m = numbers->m;
+  for (int dim = 1; dim < dimensions; dim++) {
+    SobolDirectionNumbers *numbers = &SOBOL_NUMBERS[dim - 1];
+    uint s = numbers->s;
+    uint a = numbers->a;
+    uint *m = numbers->m;
 
-		v = vectors[dim];
+    v = vectors[dim];
 
-		if(L <= s) {
-			for(uint i = 0; i < L; i++)
-				v[i] = m[i] << (31-i);
-		}
-		else {
-			for(uint i = 0; i < s; i++)
-				v[i] = m[i] << (31-i);
+    if (L <= s) {
+      for (uint i = 0; i < L; i++)
+        v[i] = m[i] << (31 - i);
+    }
+    else {
+      for (uint i = 0; i < s; i++)
+        v[i] = m[i] << (31 - i);
 
-			for(uint i = s; i < L; i++) {
-				v[i] = v[i-s] ^ (v[i-s] >> s);
+      for (uint i = s; i < L; i++) {
+        v[i] = v[i - s] ^ (v[i - s] >> s);
 
-				for(uint k = 1; k < s; k++)
-					v[i] ^= (((a >> (s-1-k)) & 1) * v[i-k]);
-			}
-		}
-	}
+        for (uint k = 1; k < s; k++)
+          v[i] ^= (((a >> (s - 1 - k)) & 1) * v[i - k]);
+      }
+    }
+  }
 }
 
 CCL_NAMESPACE_END

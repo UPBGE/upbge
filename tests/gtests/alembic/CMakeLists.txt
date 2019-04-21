@@ -19,17 +19,24 @@
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC
-	.
-	..
-	../../../source/blender/blenlib
-	../../../source/blender/blenkernel
-	../../../source/blender/alembic
-	../../../source/blender/makesdna
-	../../../source/blender/depsgraph
-	${ALEMBIC_INCLUDE_DIRS}
-	${BOOST_INCLUDE_DIR}
-	${HDF5_INCLUDE_DIRS}
-	${OPENEXR_INCLUDE_DIRS}
+  .
+  ..
+  ../../../source/blender/blenlib
+  ../../../source/blender/blenkernel
+  ../../../source/blender/alembic
+  ../../../source/blender/makesdna
+  ../../../source/blender/depsgraph
+  ${ALEMBIC_INCLUDE_DIRS}
+  ${BOOST_INCLUDE_DIR}
+  ${HDF5_INCLUDE_DIRS}
+  ${OPENEXR_INCLUDE_DIRS}
+)
+
+set(LIB
+  bf_blenloader  # Should not be needed but gives linking error without it.
+  bf_intern_opencolorio # Should not be needed but gives windows linker errors if the ocio libs are linked before this
+  bf_gpu # Should not be needed but gives windows linker errors if the ocio libs are linked before this
+  bf_alembic
 )
 
 include_directories(${INC})
@@ -38,13 +45,13 @@ setup_libdirs()
 get_property(BLENDER_SORTED_LIBS GLOBAL PROPERTY BLENDER_SORTED_LIBS_PROP)
 
 if(WITH_BUILDINFO)
-	set(_buildinfo_src "$<TARGET_OBJECTS:buildinfoobj>")
+  set(_buildinfo_src "$<TARGET_OBJECTS:buildinfoobj>")
 else()
-	set(_buildinfo_src "")
+  set(_buildinfo_src "")
 endif()
 
 # For motivation on doubling BLENDER_SORTED_LIBS, see ../bmesh/CMakeLists.txt
-BLENDER_SRC_GTEST(alembic "abc_matrix_test.cc;abc_export_test.cc;${_buildinfo_src}" "${BLENDER_SORTED_LIBS};${BLENDER_SORTED_LIBS}")
+BLENDER_SRC_GTEST(alembic "abc_matrix_test.cc;abc_export_test.cc;${_buildinfo_src}" "${LIB}")
 
 unset(_buildinfo_src)
 

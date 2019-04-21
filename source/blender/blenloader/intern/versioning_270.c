@@ -89,56 +89,64 @@
 /* add a new gp-palette */
 static bGPDpalette *BKE_gpencil_palette_addnew(bGPdata *gpd, const char *name)
 {
-	bGPDpalette *palette;
+  bGPDpalette *palette;
 
-	/* check that list is ok */
-	if (gpd == NULL) {
-		return NULL;
-	}
+  /* check that list is ok */
+  if (gpd == NULL) {
+    return NULL;
+  }
 
-	/* allocate memory and add to end of list */
-	palette = MEM_callocN(sizeof(bGPDpalette), "bGPDpalette");
+  /* allocate memory and add to end of list */
+  palette = MEM_callocN(sizeof(bGPDpalette), "bGPDpalette");
 
-	/* add to datablock */
-	BLI_addtail(&gpd->palettes, palette);
+  /* add to datablock */
+  BLI_addtail(&gpd->palettes, palette);
 
-	/* set basic settings */
-	/* auto-name */
-	BLI_strncpy(palette->info, name, sizeof(palette->info));
-	BLI_uniquename(&gpd->palettes, palette, DATA_("GP_Palette"), '.', offsetof(bGPDpalette, info),
-	               sizeof(palette->info));
+  /* set basic settings */
+  /* auto-name */
+  BLI_strncpy(palette->info, name, sizeof(palette->info));
+  BLI_uniquename(&gpd->palettes,
+                 palette,
+                 DATA_("GP_Palette"),
+                 '.',
+                 offsetof(bGPDpalette, info),
+                 sizeof(palette->info));
 
-	/* return palette */
-	return palette;
+  /* return palette */
+  return palette;
 }
 
 /* add a new gp-palettecolor */
 static bGPDpalettecolor *BKE_gpencil_palettecolor_addnew(bGPDpalette *palette, const char *name)
 {
-	bGPDpalettecolor *palcolor;
+  bGPDpalettecolor *palcolor;
 
-	/* check that list is ok */
-	if (palette == NULL) {
-		return NULL;
-	}
+  /* check that list is ok */
+  if (palette == NULL) {
+    return NULL;
+  }
 
-	/* allocate memory and add to end of list */
-	palcolor = MEM_callocN(sizeof(bGPDpalettecolor), "bGPDpalettecolor");
+  /* allocate memory and add to end of list */
+  palcolor = MEM_callocN(sizeof(bGPDpalettecolor), "bGPDpalettecolor");
 
-	/* add to datablock */
-	BLI_addtail(&palette->colors, palcolor);
+  /* add to datablock */
+  BLI_addtail(&palette->colors, palcolor);
 
-	/* set basic settings */
-	copy_v4_v4(palcolor->color, U.gpencil_new_layer_col);
-	ARRAY_SET_ITEMS(palcolor->fill, 1.0f, 1.0f, 1.0f);
+  /* set basic settings */
+  copy_v4_v4(palcolor->color, U.gpencil_new_layer_col);
+  ARRAY_SET_ITEMS(palcolor->fill, 1.0f, 1.0f, 1.0f);
 
-	/* auto-name */
-	BLI_strncpy(palcolor->info, name, sizeof(palcolor->info));
-	BLI_uniquename(&palette->colors, palcolor, DATA_("Color"), '.', offsetof(bGPDpalettecolor, info),
-	               sizeof(palcolor->info));
+  /* auto-name */
+  BLI_strncpy(palcolor->info, name, sizeof(palcolor->info));
+  BLI_uniquename(&palette->colors,
+                 palcolor,
+                 DATA_("Color"),
+                 '.',
+                 offsetof(bGPDpalettecolor, info),
+                 sizeof(palcolor->info));
 
-	/* return palette color */
-	return palcolor;
+  /* return palette color */
+  return palcolor;
 }
 
 /**
@@ -149,111 +157,111 @@ static bGPDpalettecolor *BKE_gpencil_palettecolor_addnew(bGPDpalette *palette, c
  */
 static void migrate_single_rot_stabilization_track_settings(MovieTrackingStabilization *stab)
 {
-	if (stab->rot_track) {
-		if (!(stab->rot_track->flag & TRACK_USE_2D_STAB_ROT)) {
-			stab->tot_rot_track++;
-			stab->rot_track->flag |= TRACK_USE_2D_STAB_ROT;
-		}
-	}
-	stab->rot_track = NULL; /* this field is now ignored */
+  if (stab->rot_track) {
+    if (!(stab->rot_track->flag & TRACK_USE_2D_STAB_ROT)) {
+      stab->tot_rot_track++;
+      stab->rot_track->flag |= TRACK_USE_2D_STAB_ROT;
+    }
+  }
+  stab->rot_track = NULL; /* this field is now ignored */
 }
 
 static void do_version_constraints_radians_degrees_270_1(ListBase *lb)
 {
-	bConstraint *con;
+  bConstraint *con;
 
-	for (con = lb->first; con; con = con->next) {
-		if (con->type == CONSTRAINT_TYPE_TRANSFORM) {
-			bTransformConstraint *data = (bTransformConstraint *)con->data;
-			const float deg_to_rad_f = DEG2RADF(1.0f);
+  for (con = lb->first; con; con = con->next) {
+    if (con->type == CONSTRAINT_TYPE_TRANSFORM) {
+      bTransformConstraint *data = (bTransformConstraint *)con->data;
+      const float deg_to_rad_f = DEG2RADF(1.0f);
 
-			if (data->from == TRANS_ROTATION) {
-				mul_v3_fl(data->from_min, deg_to_rad_f);
-				mul_v3_fl(data->from_max, deg_to_rad_f);
-			}
+      if (data->from == TRANS_ROTATION) {
+        mul_v3_fl(data->from_min, deg_to_rad_f);
+        mul_v3_fl(data->from_max, deg_to_rad_f);
+      }
 
-			if (data->to == TRANS_ROTATION) {
-				mul_v3_fl(data->to_min, deg_to_rad_f);
-				mul_v3_fl(data->to_max, deg_to_rad_f);
-			}
-		}
-	}
+      if (data->to == TRANS_ROTATION) {
+        mul_v3_fl(data->to_min, deg_to_rad_f);
+        mul_v3_fl(data->to_max, deg_to_rad_f);
+      }
+    }
+  }
 }
 
 static void do_version_constraints_radians_degrees_270_5(ListBase *lb)
 {
-	bConstraint *con;
+  bConstraint *con;
 
-	for (con = lb->first; con; con = con->next) {
-		if (con->type == CONSTRAINT_TYPE_TRANSFORM) {
-			bTransformConstraint *data = (bTransformConstraint *)con->data;
+  for (con = lb->first; con; con = con->next) {
+    if (con->type == CONSTRAINT_TYPE_TRANSFORM) {
+      bTransformConstraint *data = (bTransformConstraint *)con->data;
 
-			if (data->from == TRANS_ROTATION) {
-				copy_v3_v3(data->from_min_rot, data->from_min);
-				copy_v3_v3(data->from_max_rot, data->from_max);
-			}
-			else if (data->from == TRANS_SCALE) {
-				copy_v3_v3(data->from_min_scale, data->from_min);
-				copy_v3_v3(data->from_max_scale, data->from_max);
-			}
+      if (data->from == TRANS_ROTATION) {
+        copy_v3_v3(data->from_min_rot, data->from_min);
+        copy_v3_v3(data->from_max_rot, data->from_max);
+      }
+      else if (data->from == TRANS_SCALE) {
+        copy_v3_v3(data->from_min_scale, data->from_min);
+        copy_v3_v3(data->from_max_scale, data->from_max);
+      }
 
-			if (data->to == TRANS_ROTATION) {
-				copy_v3_v3(data->to_min_rot, data->to_min);
-				copy_v3_v3(data->to_max_rot, data->to_max);
-			}
-			else if (data->to == TRANS_SCALE) {
-				copy_v3_v3(data->to_min_scale, data->to_min);
-				copy_v3_v3(data->to_max_scale, data->to_max);
-			}
-		}
-	}
+      if (data->to == TRANS_ROTATION) {
+        copy_v3_v3(data->to_min_rot, data->to_min);
+        copy_v3_v3(data->to_max_rot, data->to_max);
+      }
+      else if (data->to == TRANS_SCALE) {
+        copy_v3_v3(data->to_min_scale, data->to_min);
+        copy_v3_v3(data->to_max_scale, data->to_max);
+      }
+    }
+  }
 }
 
 static void do_version_constraints_stretch_to_limits(ListBase *lb)
 {
-	bConstraint *con;
+  bConstraint *con;
 
-	for (con = lb->first; con; con = con->next) {
-		if (con->type == CONSTRAINT_TYPE_STRETCHTO) {
-			bStretchToConstraint *data = (bStretchToConstraint *)con->data;
-			data->bulge_min = 1.0f;
-			data->bulge_max = 1.0f;
-		}
-	}
+  for (con = lb->first; con; con = con->next) {
+    if (con->type == CONSTRAINT_TYPE_STRETCHTO) {
+      bStretchToConstraint *data = (bStretchToConstraint *)con->data;
+      data->bulge_min = 1.0f;
+      data->bulge_max = 1.0f;
+    }
+  }
 }
 
 static void do_version_action_editor_properties_region(ListBase *regionbase)
 {
-	ARegion *ar;
+  ARegion *ar;
 
-	for (ar = regionbase->first; ar; ar = ar->next) {
-		if (ar->regiontype == RGN_TYPE_UI) {
-			/* already exists */
-			return;
-		}
-		else if (ar->regiontype == RGN_TYPE_WINDOW) {
-			/* add new region here */
-			ARegion *arnew = MEM_callocN(sizeof(ARegion), "buttons for action");
+  for (ar = regionbase->first; ar; ar = ar->next) {
+    if (ar->regiontype == RGN_TYPE_UI) {
+      /* already exists */
+      return;
+    }
+    else if (ar->regiontype == RGN_TYPE_WINDOW) {
+      /* add new region here */
+      ARegion *arnew = MEM_callocN(sizeof(ARegion), "buttons for action");
 
-			BLI_insertlinkbefore(regionbase, ar, arnew);
+      BLI_insertlinkbefore(regionbase, ar, arnew);
 
-			arnew->regiontype = RGN_TYPE_UI;
-			arnew->alignment = RGN_ALIGN_RIGHT;
-			arnew->flag = RGN_FLAG_HIDDEN;
+      arnew->regiontype = RGN_TYPE_UI;
+      arnew->alignment = RGN_ALIGN_RIGHT;
+      arnew->flag = RGN_FLAG_HIDDEN;
 
-			return;
-		}
-	}
+      return;
+    }
+  }
 }
 
 static void do_version_bones_super_bbone(ListBase *lb)
 {
-	for (Bone *bone = lb->first; bone; bone = bone->next) {
-		bone->scaleIn = 1.0f;
-		bone->scaleOut = 1.0f;
+  for (Bone *bone = lb->first; bone; bone = bone->next) {
+    bone->scaleIn = 1.0f;
+    bone->scaleOut = 1.0f;
 
-		do_version_bones_super_bbone(&bone->childbase);
-	}
+    do_version_bones_super_bbone(&bone->childbase);
+  }
 }
 
 /* TODO(sergey): Consider making it somewhat more generic function in BLI_anim.h. */
@@ -262,143 +270,148 @@ static void anim_change_prop_name(FCurve *fcu,
                                   const char *old_prop_name,
                                   const char *new_prop_name)
 {
-	const char *old_path = BLI_sprintfN("%s.%s", prefix, old_prop_name);
-	if (STREQ(fcu->rna_path, old_path)) {
-		MEM_freeN(fcu->rna_path);
-		fcu->rna_path = BLI_sprintfN("%s.%s", prefix, new_prop_name);
-	}
-	MEM_freeN((char *)old_path);
+  const char *old_path = BLI_sprintfN("%s.%s", prefix, old_prop_name);
+  if (STREQ(fcu->rna_path, old_path)) {
+    MEM_freeN(fcu->rna_path);
+    fcu->rna_path = BLI_sprintfN("%s.%s", prefix, new_prop_name);
+  }
+  MEM_freeN((char *)old_path);
 }
 
 static void do_version_hue_sat_node(bNodeTree *ntree, bNode *node)
 {
-	if (node->storage == NULL) {
-		return;
-	}
+  if (node->storage == NULL) {
+    return;
+  }
 
-	/* Make sure new sockets are properly created. */
-	node_verify_socket_templates(ntree, node);
-	/* Convert value from old storage to new sockets. */
-	NodeHueSat *nhs = node->storage;
-	bNodeSocket *hue = nodeFindSocket(node, SOCK_IN, "Hue"),
-	            *saturation = nodeFindSocket(node, SOCK_IN, "Saturation"),
-	            *value = nodeFindSocket(node, SOCK_IN, "Value");
-	((bNodeSocketValueFloat *)hue->default_value)->value = nhs->hue;
-	((bNodeSocketValueFloat *)saturation->default_value)->value = nhs->sat;
-	((bNodeSocketValueFloat *)value->default_value)->value = nhs->val;
-	/* Take care of possible animation. */
-	AnimData *adt = BKE_animdata_from_id(&ntree->id);
-	if (adt != NULL && adt->action != NULL) {
-		const char *prefix = BLI_sprintfN("nodes[\"%s\"]", node->name);
-		for (FCurve *fcu = adt->action->curves.first; fcu != NULL; fcu = fcu->next) {
-			if (STRPREFIX(fcu->rna_path, prefix)) {
-				anim_change_prop_name(fcu, prefix, "color_hue", "inputs[1].default_value");
-				anim_change_prop_name(fcu, prefix, "color_saturation", "inputs[2].default_value");
-				anim_change_prop_name(fcu, prefix, "color_value", "inputs[3].default_value");
-			}
-		}
-		MEM_freeN((char *)prefix);
-	}
-	/* Free storage, it is no longer used. */
-	MEM_freeN(node->storage);
-	node->storage = NULL;
+  /* Make sure new sockets are properly created. */
+  node_verify_socket_templates(ntree, node);
+  /* Convert value from old storage to new sockets. */
+  NodeHueSat *nhs = node->storage;
+  bNodeSocket *hue = nodeFindSocket(node, SOCK_IN, "Hue"),
+              *saturation = nodeFindSocket(node, SOCK_IN, "Saturation"),
+              *value = nodeFindSocket(node, SOCK_IN, "Value");
+  ((bNodeSocketValueFloat *)hue->default_value)->value = nhs->hue;
+  ((bNodeSocketValueFloat *)saturation->default_value)->value = nhs->sat;
+  ((bNodeSocketValueFloat *)value->default_value)->value = nhs->val;
+  /* Take care of possible animation. */
+  AnimData *adt = BKE_animdata_from_id(&ntree->id);
+  if (adt != NULL && adt->action != NULL) {
+    const char *prefix = BLI_sprintfN("nodes[\"%s\"]", node->name);
+    for (FCurve *fcu = adt->action->curves.first; fcu != NULL; fcu = fcu->next) {
+      if (STRPREFIX(fcu->rna_path, prefix)) {
+        anim_change_prop_name(fcu, prefix, "color_hue", "inputs[1].default_value");
+        anim_change_prop_name(fcu, prefix, "color_saturation", "inputs[2].default_value");
+        anim_change_prop_name(fcu, prefix, "color_value", "inputs[3].default_value");
+      }
+    }
+    MEM_freeN((char *)prefix);
+  }
+  /* Free storage, it is no longer used. */
+  MEM_freeN(node->storage);
+  node->storage = NULL;
 }
 
 static void do_versions_compositor_render_passes_storage(bNode *node)
 {
-	int pass_index = 0;
-	const char *sockname;
-	for (bNodeSocket *sock = node->outputs.first; sock && pass_index < 31; sock = sock->next, pass_index++) {
-		if (sock->storage == NULL) {
-			NodeImageLayer *sockdata = MEM_callocN(sizeof(NodeImageLayer), "node image layer");
-			sock->storage = sockdata;
-			BLI_strncpy(sockdata->pass_name, node_cmp_rlayers_sock_to_pass(pass_index), sizeof(sockdata->pass_name));
+  int pass_index = 0;
+  const char *sockname;
+  for (bNodeSocket *sock = node->outputs.first; sock && pass_index < 31;
+       sock = sock->next, pass_index++) {
+    if (sock->storage == NULL) {
+      NodeImageLayer *sockdata = MEM_callocN(sizeof(NodeImageLayer), "node image layer");
+      sock->storage = sockdata;
+      BLI_strncpy(sockdata->pass_name,
+                  node_cmp_rlayers_sock_to_pass(pass_index),
+                  sizeof(sockdata->pass_name));
 
-			if (pass_index == 0) sockname = "Image";
-			else if (pass_index == 1) sockname = "Alpha";
-			else sockname = node_cmp_rlayers_sock_to_pass(pass_index);
-			BLI_strncpy(sock->name, sockname, sizeof(sock->name));
-		}
-	}
+      if (pass_index == 0)
+        sockname = "Image";
+      else if (pass_index == 1)
+        sockname = "Alpha";
+      else
+        sockname = node_cmp_rlayers_sock_to_pass(pass_index);
+      BLI_strncpy(sock->name, sockname, sizeof(sock->name));
+    }
+  }
 }
 
 static void do_versions_compositor_render_passes(bNodeTree *ntree)
 {
-	for (bNode *node = ntree->nodes.first; node; node = node->next) {
-		if (node->type == CMP_NODE_R_LAYERS) {
-			/* First we make sure existing sockets have proper names.
-			 * This is important because otherwise verification will
-			 * drop links from sockets which were renamed.
-			 */
-			do_versions_compositor_render_passes_storage(node);
-			/* Make sure new sockets are properly created. */
-			node_verify_socket_templates(ntree, node);
-			/* Make sure all possibly created sockets have proper storage. */
-			do_versions_compositor_render_passes_storage(node);
-		}
-	}
+  for (bNode *node = ntree->nodes.first; node; node = node->next) {
+    if (node->type == CMP_NODE_R_LAYERS) {
+      /* First we make sure existing sockets have proper names.
+       * This is important because otherwise verification will
+       * drop links from sockets which were renamed.
+       */
+      do_versions_compositor_render_passes_storage(node);
+      /* Make sure new sockets are properly created. */
+      node_verify_socket_templates(ntree, node);
+      /* Make sure all possibly created sockets have proper storage. */
+      do_versions_compositor_render_passes_storage(node);
+    }
+  }
 }
-
 
 static char *replace_bbone_easing_rnapath(char *old_path)
 {
-	char *new_path = NULL;
+  char *new_path = NULL;
 
-	/* NOTE: This will break paths for any bones/custom-properties
-	 * which happen be named after the bbone property id's
-	 */
-	if (strstr(old_path, "bbone_in"))
-		new_path = BLI_str_replaceN(old_path, "bbone_in", "bbone_easein");
-	else if (strstr(old_path, "bbone_out"))
-		new_path = BLI_str_replaceN(old_path, "bbone_out", "bbone_easeout");
+  /* NOTE: This will break paths for any bones/custom-properties
+   * which happen be named after the bbone property id's
+   */
+  if (strstr(old_path, "bbone_in"))
+    new_path = BLI_str_replaceN(old_path, "bbone_in", "bbone_easein");
+  else if (strstr(old_path, "bbone_out"))
+    new_path = BLI_str_replaceN(old_path, "bbone_out", "bbone_easeout");
 
-	if (new_path) {
-		MEM_freeN(old_path);
-		return new_path;
-	}
-	else {
-		return old_path;
-	}
+  if (new_path) {
+    MEM_freeN(old_path);
+    return new_path;
+  }
+  else {
+    return old_path;
+  }
 }
 
-static void do_version_bbone_easing_fcurve_fix(ID *UNUSED(id), FCurve *fcu, void *UNUSED(user_data))
+static void do_version_bbone_easing_fcurve_fix(ID *UNUSED(id),
+                                               FCurve *fcu,
+                                               void *UNUSED(user_data))
 {
-	/* F-Curve's path (for bbone_in/out) */
-	if (fcu->rna_path) {
-		fcu->rna_path = replace_bbone_easing_rnapath(fcu->rna_path);
-	}
+  /* F-Curve's path (for bbone_in/out) */
+  if (fcu->rna_path) {
+    fcu->rna_path = replace_bbone_easing_rnapath(fcu->rna_path);
+  }
 
-	/* Driver -> Driver Vars (for bbone_in/out) */
-	if (fcu->driver) {
-		for (DriverVar *dvar = fcu->driver->variables.first; dvar; dvar = dvar->next) {
-			DRIVER_TARGETS_LOOPER_BEGIN(dvar)
-			{
-				if (dtar->rna_path) {
-					dtar->rna_path = replace_bbone_easing_rnapath(dtar->rna_path);
-				}
-			}
-			DRIVER_TARGETS_LOOPER_END;
-		}
-	}
+  /* Driver -> Driver Vars (for bbone_in/out) */
+  if (fcu->driver) {
+    for (DriverVar *dvar = fcu->driver->variables.first; dvar; dvar = dvar->next) {
+      DRIVER_TARGETS_LOOPER_BEGIN (dvar) {
+        if (dtar->rna_path) {
+          dtar->rna_path = replace_bbone_easing_rnapath(dtar->rna_path);
+        }
+      }
+      DRIVER_TARGETS_LOOPER_END;
+    }
+  }
 
-	/* FModifiers -> Stepped (for frame_start/end) */
-	if (fcu->modifiers.first) {
-		for (FModifier *fcm = fcu->modifiers.first; fcm; fcm = fcm->next) {
-			if (fcm->type == FMODIFIER_TYPE_STEPPED) {
-				FMod_Stepped *data = fcm->data;
+  /* FModifiers -> Stepped (for frame_start/end) */
+  if (fcu->modifiers.first) {
+    for (FModifier *fcm = fcu->modifiers.first; fcm; fcm = fcm->next) {
+      if (fcm->type == FMODIFIER_TYPE_STEPPED) {
+        FMod_Stepped *data = fcm->data;
 
-				/* Modifier doesn't work if the modifier's copy of start/end frame are both 0
-				 * as those were only getting written to the fcm->data copy (T52009)
-				 */
-				if ((fcm->sfra == fcm->efra) && (fcm->sfra == 0)) {
-					fcm->sfra = data->start_frame;
-					fcm->efra = data->end_frame;
-				}
-			}
-		}
-	}
+        /* Modifier doesn't work if the modifier's copy of start/end frame are both 0
+         * as those were only getting written to the fcm->data copy (T52009)
+         */
+        if ((fcm->sfra == fcm->efra) && (fcm->sfra == 0)) {
+          fcm->sfra = data->start_frame;
+          fcm->efra = data->end_frame;
+        }
+      }
+    }
+  }
 }
-
 
 void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *bmain)
 {
@@ -913,175 +926,173 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *bmain)
 
 #define SEQ_USE_PROXY_CUSTOM_DIR (1 << 19)
 #define SEQ_USE_PROXY_CUSTOM_FILE (1 << 21)
-				if (seq->strip && seq->strip->proxy && !seq->strip->proxy->storage) {
-					if (seq->flag & SEQ_USE_PROXY_CUSTOM_DIR)
-						seq->strip->proxy->storage = SEQ_STORAGE_PROXY_CUSTOM_DIR;
-					if (seq->flag & SEQ_USE_PROXY_CUSTOM_FILE)
-						seq->strip->proxy->storage = SEQ_STORAGE_PROXY_CUSTOM_FILE;
-				}
+        if (seq->strip && seq->strip->proxy && !seq->strip->proxy->storage) {
+          if (seq->flag & SEQ_USE_PROXY_CUSTOM_DIR)
+            seq->strip->proxy->storage = SEQ_STORAGE_PROXY_CUSTOM_DIR;
+          if (seq->flag & SEQ_USE_PROXY_CUSTOM_FILE)
+            seq->strip->proxy->storage = SEQ_STORAGE_PROXY_CUSTOM_FILE;
+        }
 #undef SEQ_USE_PROXY_CUSTOM_DIR
 #undef SEQ_USE_PROXY_CUSTOM_FILE
+      }
+      SEQ_END;
+    }
 
-			} SEQ_END;
-		}
+    for (screen = bmain->screens.first; screen; screen = screen->id.next) {
+      ScrArea *sa;
+      for (sa = screen->areabase.first; sa; sa = sa->next) {
+        SpaceLink *sl;
 
-		for (screen = bmain->screens.first; screen; screen = screen->id.next) {
-			ScrArea *sa;
-			for (sa = screen->areabase.first; sa; sa = sa->next) {
-				SpaceLink *sl;
+        for (sl = sa->spacedata.first; sl; sl = sl->next) {
+          switch (sl->spacetype) {
+            case SPACE_VIEW3D: {
+              View3D *v3d = (View3D *)sl;
+              v3d->stereo3d_camera = STEREO_3D_ID;
+              v3d->stereo3d_flag |= V3D_S3D_DISPPLANE;
+              v3d->stereo3d_convergence_alpha = 0.15f;
+              v3d->stereo3d_volume_alpha = 0.05f;
+              break;
+            }
+            case SPACE_IMAGE: {
+              SpaceImage *sima = (SpaceImage *)sl;
+              sima->iuser.flag |= IMA_SHOW_STEREO;
+              break;
+            }
+          }
+        }
+      }
+    }
 
-				for (sl = sa->spacedata.first; sl; sl = sl->next) {
-					switch (sl->spacetype) {
-						case SPACE_VIEW3D:
-						{
-							View3D *v3d = (View3D *)sl;
-							v3d->stereo3d_camera = STEREO_3D_ID;
-							v3d->stereo3d_flag |= V3D_S3D_DISPPLANE;
-							v3d->stereo3d_convergence_alpha = 0.15f;
-							v3d->stereo3d_volume_alpha = 0.05f;
-							break;
-						}
-						case SPACE_IMAGE:
-						{
-							SpaceImage *sima = (SpaceImage *)sl;
-							sima->iuser.flag |= IMA_SHOW_STEREO;
-							break;
-						}
-					}
-				}
-			}
-		}
+    for (cam = bmain->cameras.first; cam; cam = cam->id.next) {
+      cam->stereo.interocular_distance = 0.065f;
+      cam->stereo.convergence_distance = 30.0f * 0.065f;
+    }
 
-		for (cam = bmain->cameras.first; cam; cam = cam->id.next) {
-			cam->stereo.interocular_distance = 0.065f;
-			cam->stereo.convergence_distance = 30.0f * 0.065f;
-		}
+    for (ima = bmain->images.first; ima; ima = ima->id.next) {
+      ima->stereo3d_format = MEM_callocN(sizeof(Stereo3dFormat), "Image Stereo 3d Format");
 
-		for (ima = bmain->images.first; ima; ima = ima->id.next) {
-			ima->stereo3d_format = MEM_callocN(sizeof(Stereo3dFormat), "Image Stereo 3d Format");
+      if (ima->packedfile) {
+        ImagePackedFile *imapf = MEM_mallocN(sizeof(ImagePackedFile), "Image Packed File");
+        BLI_addtail(&ima->packedfiles, imapf);
 
-			if (ima->packedfile) {
-				ImagePackedFile *imapf = MEM_mallocN(sizeof(ImagePackedFile), "Image Packed File");
-				BLI_addtail(&ima->packedfiles, imapf);
+        imapf->packedfile = ima->packedfile;
+        BLI_strncpy(imapf->filepath, ima->name, FILE_MAX);
+        ima->packedfile = NULL;
+      }
+    }
 
-				imapf->packedfile = ima->packedfile;
-				BLI_strncpy(imapf->filepath, ima->name, FILE_MAX);
-				ima->packedfile = NULL;
-			}
-		}
+    for (wm = bmain->wm.first; wm; wm = wm->id.next) {
+      for (win = wm->windows.first; win; win = win->next) {
+        win->stereo3d_format = MEM_callocN(sizeof(Stereo3dFormat), "Stereo Display 3d Format");
+      }
+    }
+  }
 
-		for (wm = bmain->wm.first; wm; wm = wm->id.next) {
-			for (win = wm->windows.first; win; win = win->next) {
-				win->stereo3d_format = MEM_callocN(sizeof(Stereo3dFormat), "Stereo Display 3d Format");
-			}
-		}
-	}
+  if (!MAIN_VERSION_ATLEAST(bmain, 274, 6)) {
+    bScreen *screen;
 
-	if (!MAIN_VERSION_ATLEAST(bmain, 274, 6)) {
-		bScreen *screen;
+    if (!DNA_struct_elem_find(fd->filesdna, "FileSelectParams", "int", "thumbnail_size")) {
+      for (screen = bmain->screens.first; screen; screen = screen->id.next) {
+        ScrArea *sa;
 
-		if (!DNA_struct_elem_find(fd->filesdna, "FileSelectParams", "int", "thumbnail_size")) {
-			for (screen = bmain->screens.first; screen; screen = screen->id.next) {
-				ScrArea *sa;
+        for (sa = screen->areabase.first; sa; sa = sa->next) {
+          SpaceLink *sl;
 
-				for (sa = screen->areabase.first; sa; sa = sa->next) {
-					SpaceLink *sl;
+          for (sl = sa->spacedata.first; sl; sl = sl->next) {
+            if (sl->spacetype == SPACE_FILE) {
+              SpaceFile *sfile = (SpaceFile *)sl;
 
-					for (sl = sa->spacedata.first; sl; sl = sl->next) {
-						if (sl->spacetype == SPACE_FILE) {
-							SpaceFile *sfile = (SpaceFile *)sl;
+              if (sfile->params) {
+                sfile->params->thumbnail_size = 128;
+              }
+            }
+          }
+        }
+      }
+    }
 
-							if (sfile->params) {
-								sfile->params->thumbnail_size = 128;
-							}
-						}
-					}
-				}
-			}
-		}
+    if (!DNA_struct_elem_find(fd->filesdna, "RenderData", "short", "simplify_subsurf_render")) {
+      Scene *scene;
+      for (scene = bmain->scenes.first; scene != NULL; scene = scene->id.next) {
+        scene->r.simplify_subsurf_render = scene->r.simplify_subsurf;
+        scene->r.simplify_particles_render = scene->r.simplify_particles;
+      }
+    }
 
-		if (!DNA_struct_elem_find(fd->filesdna, "RenderData", "short", "simplify_subsurf_render")) {
-			Scene *scene;
-			for (scene = bmain->scenes.first; scene != NULL; scene = scene->id.next) {
-				scene->r.simplify_subsurf_render = scene->r.simplify_subsurf;
-				scene->r.simplify_particles_render = scene->r.simplify_particles;
-			}
-		}
+    if (!DNA_struct_elem_find(fd->filesdna, "DecimateModifierData", "float", "defgrp_factor")) {
+      Object *ob;
 
-		if (!DNA_struct_elem_find(fd->filesdna, "DecimateModifierData", "float", "defgrp_factor")) {
-			Object *ob;
+      for (ob = bmain->objects.first; ob; ob = ob->id.next) {
+        ModifierData *md;
+        for (md = ob->modifiers.first; md; md = md->next) {
+          if (md->type == eModifierType_Decimate) {
+            DecimateModifierData *dmd = (DecimateModifierData *)md;
+            dmd->defgrp_factor = 1.0f;
+          }
+        }
+      }
+    }
+  }
 
-			for (ob = bmain->objects.first; ob; ob = ob->id.next) {
-				ModifierData *md;
-				for (md = ob->modifiers.first; md; md = md->next) {
-					if (md->type == eModifierType_Decimate) {
-						DecimateModifierData *dmd = (DecimateModifierData *)md;
-						dmd->defgrp_factor = 1.0f;
-					}
-				}
-			}
-		}
-	}
-
-	if (!MAIN_VERSION_ATLEAST(bmain, 275, 3)) {
-		Brush *br;
+  if (!MAIN_VERSION_ATLEAST(bmain, 275, 3)) {
+    Brush *br;
 #define BRUSH_TORUS (1 << 1)
-		for (br = bmain->brushes.first; br; br = br->id.next) {
-			br->flag &= ~BRUSH_TORUS;
-		}
+    for (br = bmain->brushes.first; br; br = br->id.next) {
+      br->flag &= ~BRUSH_TORUS;
+    }
 #undef BRUSH_TORUS
-	}
+  }
 
-	if (!MAIN_VERSION_ATLEAST(bmain, 276, 2)) {
-		if (!DNA_struct_elem_find(fd->filesdna, "bPoseChannel", "float", "custom_scale")) {
-			Object *ob;
+  if (!MAIN_VERSION_ATLEAST(bmain, 276, 2)) {
+    if (!DNA_struct_elem_find(fd->filesdna, "bPoseChannel", "float", "custom_scale")) {
+      Object *ob;
 
-			for (ob = bmain->objects.first; ob; ob = ob->id.next) {
-				if (ob->pose) {
-					bPoseChannel *pchan;
-					for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
-						pchan->custom_scale = 1.0f;
-					}
-				}
-			}
-		}
+      for (ob = bmain->objects.first; ob; ob = ob->id.next) {
+        if (ob->pose) {
+          bPoseChannel *pchan;
+          for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
+            pchan->custom_scale = 1.0f;
+          }
+        }
+      }
+    }
 
-		{
-			bScreen *screen;
-#define RV3D_VIEW_PERSPORTHO     7
-			for (screen = bmain->screens.first; screen; screen = screen->id.next) {
-				ScrArea *sa;
-				for (sa = screen->areabase.first; sa; sa = sa->next) {
-					SpaceLink *sl;
-					for (sl = sa->spacedata.first; sl; sl = sl->next) {
-						if (sl->spacetype == SPACE_VIEW3D) {
-							ARegion *ar;
-							ListBase *lb = (sl == sa->spacedata.first) ? &sa->regionbase : &sl->regionbase;
-							for (ar = lb->first; ar; ar = ar->next) {
-								if (ar->regiontype == RGN_TYPE_WINDOW) {
-									if (ar->regiondata) {
-										RegionView3D *rv3d = ar->regiondata;
-										if (rv3d->view == RV3D_VIEW_PERSPORTHO) {
-											rv3d->view = RV3D_VIEW_USER;
-										}
-									}
-								}
-							}
-							break;
-						}
-					}
-				}
-			}
+    {
+      bScreen *screen;
+#define RV3D_VIEW_PERSPORTHO 7
+      for (screen = bmain->screens.first; screen; screen = screen->id.next) {
+        ScrArea *sa;
+        for (sa = screen->areabase.first; sa; sa = sa->next) {
+          SpaceLink *sl;
+          for (sl = sa->spacedata.first; sl; sl = sl->next) {
+            if (sl->spacetype == SPACE_VIEW3D) {
+              ARegion *ar;
+              ListBase *lb = (sl == sa->spacedata.first) ? &sa->regionbase : &sl->regionbase;
+              for (ar = lb->first; ar; ar = ar->next) {
+                if (ar->regiontype == RGN_TYPE_WINDOW) {
+                  if (ar->regiondata) {
+                    RegionView3D *rv3d = ar->regiondata;
+                    if (rv3d->view == RV3D_VIEW_PERSPORTHO) {
+                      rv3d->view = RV3D_VIEW_USER;
+                    }
+                  }
+                }
+              }
+              break;
+            }
+          }
+        }
+      }
 #undef RV3D_VIEW_PERSPORTHO
-		}
+    }
 
-		{
-#define LA_YF_PHOTON    5
-			for (Light *la = bmain->lights.first; la; la = la->id.next) {
-				if (la->type == LA_YF_PHOTON) {
-					la->type = LA_LOCAL;
-				}
-			}
+    {
+#define LA_YF_PHOTON 5
+      for (Light *la = bmain->lights.first; la; la = la->id.next) {
+        if (la->type == LA_YF_PHOTON) {
+          la->type = LA_LOCAL;
+        }
+      }
 #undef LA_YF_PHOTON
 		}
 
@@ -1161,23 +1172,26 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *bmain)
 
 			if (!DNA_struct_elem_find(fd->filesdna, "ToolSettings", "char", "gpencil_v3d_align")) {
 #if 0 /* XXX: Cannot do this, as we get random crashes... */
-				if (scene->gpd) {
-					bGPdata *gpd = scene->gpd;
+        if (scene->gpd) {
+          bGPdata *gpd = scene->gpd;
 
-					/* Copy over the settings stored in the GP datablock linked to the scene, for minimal disruption */
-					ts->gpencil_v3d_align = 0;
+          /* Copy over the settings stored in the GP datablock linked to the scene, for minimal disruption */
+          ts->gpencil_v3d_align = 0;
 
-					if (gpd->flag & GP_DATA_VIEWALIGN)    ts->gpencil_v3d_align |= GP_PROJECT_VIEWSPACE;
-					if (gpd->flag & GP_DATA_DEPTH_VIEW)   ts->gpencil_v3d_align |= GP_PROJECT_DEPTH_VIEW;
-					if (gpd->flag & GP_DATA_DEPTH_STROKE) ts->gpencil_v3d_align |= GP_PROJECT_DEPTH_STROKE;
+          if (gpd->flag & GP_DATA_VIEWALIGN)
+            ts->gpencil_v3d_align |= GP_PROJECT_VIEWSPACE;
+          if (gpd->flag & GP_DATA_DEPTH_VIEW)
+            ts->gpencil_v3d_align |= GP_PROJECT_DEPTH_VIEW;
+          if (gpd->flag & GP_DATA_DEPTH_STROKE)
+            ts->gpencil_v3d_align |= GP_PROJECT_DEPTH_STROKE;
 
-					if (gpd->flag & GP_DATA_DEPTH_STROKE_ENDPOINTS)
-						ts->gpencil_v3d_align |= GP_PROJECT_DEPTH_STROKE_ENDPOINTS;
-				}
-				else {
-					/* Default to cursor for all standard 3D views */
-					ts->gpencil_v3d_align = GP_PROJECT_VIEWSPACE;
-				}
+          if (gpd->flag & GP_DATA_DEPTH_STROKE_ENDPOINTS)
+            ts->gpencil_v3d_align |= GP_PROJECT_DEPTH_STROKE_ENDPOINTS;
+        }
+        else {
+          /* Default to cursor for all standard 3D views */
+          ts->gpencil_v3d_align = GP_PROJECT_VIEWSPACE;
+        }
 #endif
 
 				ts->gpencil_v3d_align = GP_PROJECT_VIEWSPACE;
@@ -1801,23 +1815,24 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *bmain)
 
 void do_versions_after_linking_270(Main *bmain)
 {
-	/* To be added to next subversion bump! */
-	if (!MAIN_VERSION_ATLEAST(bmain, 279, 0)) {
-		FOREACH_NODETREE_BEGIN(bmain, ntree, id) {
-			if (ntree->type == NTREE_COMPOSIT) {
-				ntreeSetTypes(NULL, ntree);
-				for (bNode *node = ntree->nodes.first; node; node = node->next) {
-					if (node->type == CMP_NODE_HUE_SAT) {
-						do_version_hue_sat_node(ntree, node);
-					}
-				}
-			}
-		} FOREACH_NODETREE_END;
-	}
+  /* To be added to next subversion bump! */
+  if (!MAIN_VERSION_ATLEAST(bmain, 279, 0)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type == NTREE_COMPOSIT) {
+        ntreeSetTypes(NULL, ntree);
+        for (bNode *node = ntree->nodes.first; node; node = node->next) {
+          if (node->type == CMP_NODE_HUE_SAT) {
+            do_version_hue_sat_node(ntree, node);
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
 
-	if (!MAIN_VERSION_ATLEAST(bmain, 279, 2)) {
-		/* B-Bones (bbone_in/out -> bbone_easein/out) + Stepped FMod Frame Start/End fix */
-		/* if (!DNA_struct_elem_find(fd->filesdna, "Bone", "float", "bbone_easein")) */
-		BKE_fcurves_main_cb(bmain, do_version_bbone_easing_fcurve_fix, NULL);
-	}
+  if (!MAIN_VERSION_ATLEAST(bmain, 279, 2)) {
+    /* B-Bones (bbone_in/out -> bbone_easein/out) + Stepped FMod Frame Start/End fix */
+    /* if (!DNA_struct_elem_find(fd->filesdna, "Bone", "float", "bbone_easein")) */
+    BKE_fcurves_main_cb(bmain, do_version_bbone_easing_fcurve_fix, NULL);
+  }
 }

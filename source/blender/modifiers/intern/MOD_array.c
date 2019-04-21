@@ -50,87 +50,96 @@
 
 static void initData(ModifierData *md)
 {
-	ArrayModifierData *amd = (ArrayModifierData *) md;
+  ArrayModifierData *amd = (ArrayModifierData *)md;
 
-	/* default to 2 duplicates distributed along the x-axis by an
-	 * offset of 1 object-width
-	 */
-	amd->start_cap = amd->end_cap = amd->curve_ob = amd->offset_ob = NULL;
-	amd->count = 2;
-	zero_v3(amd->offset);
-	amd->scale[0] = 1;
-	amd->scale[1] = amd->scale[2] = 0;
-	amd->length = 0;
-	amd->merge_dist = 0.01;
-	amd->fit_type = MOD_ARR_FIXEDCOUNT;
-	amd->offset_type = MOD_ARR_OFF_RELATIVE;
-	amd->flags = 0;
+  /* default to 2 duplicates distributed along the x-axis by an
+   * offset of 1 object-width
+   */
+  amd->start_cap = amd->end_cap = amd->curve_ob = amd->offset_ob = NULL;
+  amd->count = 2;
+  zero_v3(amd->offset);
+  amd->scale[0] = 1;
+  amd->scale[1] = amd->scale[2] = 0;
+  amd->length = 0;
+  amd->merge_dist = 0.01;
+  amd->fit_type = MOD_ARR_FIXEDCOUNT;
+  amd->offset_type = MOD_ARR_OFF_RELATIVE;
+  amd->flags = 0;
 }
 
-static void foreachObjectLink(
-        ModifierData *md, Object *ob,
-        ObjectWalkFunc walk, void *userData)
+static void foreachObjectLink(ModifierData *md, Object *ob, ObjectWalkFunc walk, void *userData)
 {
-	ArrayModifierData *amd = (ArrayModifierData *) md;
+  ArrayModifierData *amd = (ArrayModifierData *)md;
 
-	walk(userData, ob, &amd->start_cap, IDWALK_CB_NOP);
-	walk(userData, ob, &amd->end_cap, IDWALK_CB_NOP);
-	walk(userData, ob, &amd->curve_ob, IDWALK_CB_NOP);
-	walk(userData, ob, &amd->offset_ob, IDWALK_CB_NOP);
+  walk(userData, ob, &amd->start_cap, IDWALK_CB_NOP);
+  walk(userData, ob, &amd->end_cap, IDWALK_CB_NOP);
+  walk(userData, ob, &amd->curve_ob, IDWALK_CB_NOP);
+  walk(userData, ob, &amd->offset_ob, IDWALK_CB_NOP);
 }
 
 static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
-	ArrayModifierData *amd = (ArrayModifierData *)md;
-	if (amd->start_cap != NULL) {
-		DEG_add_object_relation(ctx->node, amd->start_cap, DEG_OB_COMP_TRANSFORM, "Array Modifier Start Cap");
-		DEG_add_object_relation(ctx->node, amd->start_cap, DEG_OB_COMP_GEOMETRY, "Array Modifier Start Cap");
-	}
-	if (amd->end_cap != NULL) {
-		DEG_add_object_relation(ctx->node, amd->end_cap, DEG_OB_COMP_TRANSFORM, "Array Modifier End Cap");
-		DEG_add_object_relation(ctx->node, amd->end_cap, DEG_OB_COMP_GEOMETRY, "Array Modifier End Cap");
-	}
-	if (amd->curve_ob) {
-		DEG_add_object_relation(ctx->node, amd->curve_ob, DEG_OB_COMP_GEOMETRY, "Array Modifier Curve");
-		DEG_add_special_eval_flag(ctx->node, &amd->curve_ob->id, DAG_EVAL_NEED_CURVE_PATH);
-	}
-	if (amd->offset_ob != NULL) {
-		DEG_add_object_relation(ctx->node, amd->offset_ob, DEG_OB_COMP_TRANSFORM, "Array Modifier Offset");
-	}
-	DEG_add_modifier_to_transform_relation(ctx->node, "Array Modifier");
+  ArrayModifierData *amd = (ArrayModifierData *)md;
+  if (amd->start_cap != NULL) {
+    DEG_add_object_relation(
+        ctx->node, amd->start_cap, DEG_OB_COMP_TRANSFORM, "Array Modifier Start Cap");
+    DEG_add_object_relation(
+        ctx->node, amd->start_cap, DEG_OB_COMP_GEOMETRY, "Array Modifier Start Cap");
+  }
+  if (amd->end_cap != NULL) {
+    DEG_add_object_relation(
+        ctx->node, amd->end_cap, DEG_OB_COMP_TRANSFORM, "Array Modifier End Cap");
+    DEG_add_object_relation(
+        ctx->node, amd->end_cap, DEG_OB_COMP_GEOMETRY, "Array Modifier End Cap");
+  }
+  if (amd->curve_ob) {
+    DEG_add_object_relation(
+        ctx->node, amd->curve_ob, DEG_OB_COMP_GEOMETRY, "Array Modifier Curve");
+    DEG_add_special_eval_flag(ctx->node, &amd->curve_ob->id, DAG_EVAL_NEED_CURVE_PATH);
+  }
+  if (amd->offset_ob != NULL) {
+    DEG_add_object_relation(
+        ctx->node, amd->offset_ob, DEG_OB_COMP_TRANSFORM, "Array Modifier Offset");
+  }
+  DEG_add_modifier_to_transform_relation(ctx->node, "Array Modifier");
 }
 
 BLI_INLINE float sum_v3(const float v[3])
 {
-	return v[0] + v[1] + v[2];
+  return v[0] + v[1] + v[2];
 }
 
 /* Structure used for sorting vertices, when processing doubles */
 typedef struct SortVertsElem {
-	int vertex_num;     /* The original index of the vertex, prior to sorting */
-	float co[3];        /* Its coordinates */
-	float sum_co;       /* sum_v3(co), just so we don't do the sum many times.  */
+  int vertex_num; /* The original index of the vertex, prior to sorting */
+  float co[3];    /* Its coordinates */
+  float sum_co;   /* sum_v3(co), just so we don't do the sum many times.  */
 } SortVertsElem;
-
 
 static int svert_sum_cmp(const void *e1, const void *e2)
 {
-	const SortVertsElem *sv1 = e1;
-	const SortVertsElem *sv2 = e2;
+  const SortVertsElem *sv1 = e1;
+  const SortVertsElem *sv2 = e2;
 
-	if      (sv1->sum_co > sv2->sum_co) return  1;
-	else if (sv1->sum_co < sv2->sum_co) return -1;
-	else                                return  0;
+  if (sv1->sum_co > sv2->sum_co)
+    return 1;
+  else if (sv1->sum_co < sv2->sum_co)
+    return -1;
+  else
+    return 0;
 }
 
-static void svert_from_mvert(SortVertsElem *sv, const MVert *mv, const int i_begin, const int i_end)
+static void svert_from_mvert(SortVertsElem *sv,
+                             const MVert *mv,
+                             const int i_begin,
+                             const int i_end)
 {
-	int i;
-	for (i = i_begin; i < i_end; i++, sv++, mv++) {
-		sv->vertex_num = i;
-		copy_v3_v3(sv->co, mv->co);
-		sv->sum_co = sum_v3(mv->co);
-	}
+  int i;
+  for (i = i_begin; i < i_end; i++, sv++, mv++) {
+    sv->vertex_num = i;
+    copy_v3_v3(sv->co, mv->co);
+    sv->sum_co = sum_v3(mv->co);
+  }
 }
 
 /**
@@ -139,198 +148,202 @@ static void svert_from_mvert(SortVertsElem *sv, const MVert *mv, const int i_beg
  * It builds a mapping for all vertices within source, to vertices within target, or -1 if no double found
  * The int doubles_map[num_verts_source] array must have been allocated by caller.
  */
-static void dm_mvert_map_doubles(
-        int *doubles_map,
-        const MVert *mverts,
-        const int target_start,
-        const int target_num_verts,
-        const int source_start,
-        const int source_num_verts,
-        const float dist)
+static void dm_mvert_map_doubles(int *doubles_map,
+                                 const MVert *mverts,
+                                 const int target_start,
+                                 const int target_num_verts,
+                                 const int source_start,
+                                 const int source_num_verts,
+                                 const float dist)
 {
-	const float dist3 = ((float)M_SQRT3 + 0.00005f) * dist;   /* Just above sqrt(3) */
-	int i_source, i_target, i_target_low_bound, target_end, source_end;
-	SortVertsElem *sorted_verts_target, *sorted_verts_source;
-	SortVertsElem *sve_source, *sve_target, *sve_target_low_bound;
-	bool target_scan_completed;
+  const float dist3 = ((float)M_SQRT3 + 0.00005f) * dist; /* Just above sqrt(3) */
+  int i_source, i_target, i_target_low_bound, target_end, source_end;
+  SortVertsElem *sorted_verts_target, *sorted_verts_source;
+  SortVertsElem *sve_source, *sve_target, *sve_target_low_bound;
+  bool target_scan_completed;
 
-	target_end = target_start + target_num_verts;
-	source_end = source_start + source_num_verts;
+  target_end = target_start + target_num_verts;
+  source_end = source_start + source_num_verts;
 
-	/* build array of MVerts to be tested for merging */
-	sorted_verts_target = MEM_malloc_arrayN(target_num_verts, sizeof(SortVertsElem), __func__);
-	sorted_verts_source = MEM_malloc_arrayN(source_num_verts, sizeof(SortVertsElem), __func__);
+  /* build array of MVerts to be tested for merging */
+  sorted_verts_target = MEM_malloc_arrayN(target_num_verts, sizeof(SortVertsElem), __func__);
+  sorted_verts_source = MEM_malloc_arrayN(source_num_verts, sizeof(SortVertsElem), __func__);
 
-	/* Copy target vertices index and cos into SortVertsElem array */
-	svert_from_mvert(sorted_verts_target, mverts + target_start, target_start, target_end);
+  /* Copy target vertices index and cos into SortVertsElem array */
+  svert_from_mvert(sorted_verts_target, mverts + target_start, target_start, target_end);
 
-	/* Copy source vertices index and cos into SortVertsElem array */
-	svert_from_mvert(sorted_verts_source, mverts + source_start, source_start, source_end);
+  /* Copy source vertices index and cos into SortVertsElem array */
+  svert_from_mvert(sorted_verts_source, mverts + source_start, source_start, source_end);
 
-	/* sort arrays according to sum of vertex coordinates (sumco) */
-	qsort(sorted_verts_target, target_num_verts, sizeof(SortVertsElem), svert_sum_cmp);
-	qsort(sorted_verts_source, source_num_verts, sizeof(SortVertsElem), svert_sum_cmp);
+  /* sort arrays according to sum of vertex coordinates (sumco) */
+  qsort(sorted_verts_target, target_num_verts, sizeof(SortVertsElem), svert_sum_cmp);
+  qsort(sorted_verts_source, source_num_verts, sizeof(SortVertsElem), svert_sum_cmp);
 
-	sve_target_low_bound = sorted_verts_target;
-	i_target_low_bound = 0;
-	target_scan_completed = false;
+  sve_target_low_bound = sorted_verts_target;
+  i_target_low_bound = 0;
+  target_scan_completed = false;
 
-	/* Scan source vertices, in SortVertsElem sorted array, */
-	/* all the while maintaining the lower bound of possible doubles in target vertices */
-	for (i_source = 0, sve_source = sorted_verts_source;
-	     i_source < source_num_verts;
-	     i_source++, sve_source++)
-	{
-		int best_target_vertex = -1;
-		float best_dist_sq = dist * dist;
-		float sve_source_sumco;
+  /* Scan source vertices, in SortVertsElem sorted array, */
+  /* all the while maintaining the lower bound of possible doubles in target vertices */
+  for (i_source = 0, sve_source = sorted_verts_source; i_source < source_num_verts;
+       i_source++, sve_source++) {
+    int best_target_vertex = -1;
+    float best_dist_sq = dist * dist;
+    float sve_source_sumco;
 
-		/* If source has already been assigned to a target (in an earlier call, with other chunks) */
-		if (doubles_map[sve_source->vertex_num] != -1) {
-			continue;
-		}
+    /* If source has already been assigned to a target (in an earlier call, with other chunks) */
+    if (doubles_map[sve_source->vertex_num] != -1) {
+      continue;
+    }
 
-		/* If target fully scanned already, then all remaining source vertices cannot have a double */
-		if (target_scan_completed) {
-			doubles_map[sve_source->vertex_num] = -1;
-			continue;
-		}
+    /* If target fully scanned already, then all remaining source vertices cannot have a double */
+    if (target_scan_completed) {
+      doubles_map[sve_source->vertex_num] = -1;
+      continue;
+    }
 
-		sve_source_sumco = sum_v3(sve_source->co);
+    sve_source_sumco = sum_v3(sve_source->co);
 
-		/* Skip all target vertices that are more than dist3 lower in terms of sumco */
-		/* and advance the overall lower bound, applicable to all remaining vertices as well. */
-		while ((i_target_low_bound < target_num_verts) &&
-		       (sve_target_low_bound->sum_co < sve_source_sumco - dist3))
-		{
-			i_target_low_bound++;
-			sve_target_low_bound++;
-		}
-		/* If end of target list reached, then no more possible doubles */
-		if (i_target_low_bound >= target_num_verts) {
-			doubles_map[sve_source->vertex_num] = -1;
-			target_scan_completed = true;
-			continue;
-		}
-		/* Test target candidates starting at the low bound of possible doubles, ordered in terms of sumco */
-		i_target = i_target_low_bound;
-		sve_target = sve_target_low_bound;
+    /* Skip all target vertices that are more than dist3 lower in terms of sumco */
+    /* and advance the overall lower bound, applicable to all remaining vertices as well. */
+    while ((i_target_low_bound < target_num_verts) &&
+           (sve_target_low_bound->sum_co < sve_source_sumco - dist3)) {
+      i_target_low_bound++;
+      sve_target_low_bound++;
+    }
+    /* If end of target list reached, then no more possible doubles */
+    if (i_target_low_bound >= target_num_verts) {
+      doubles_map[sve_source->vertex_num] = -1;
+      target_scan_completed = true;
+      continue;
+    }
+    /* Test target candidates starting at the low bound of possible doubles, ordered in terms of sumco */
+    i_target = i_target_low_bound;
+    sve_target = sve_target_low_bound;
 
-		/* i_target will scan vertices in the [v_source_sumco - dist3;  v_source_sumco + dist3] range */
+    /* i_target will scan vertices in the [v_source_sumco - dist3;  v_source_sumco + dist3] range */
 
-		while ((i_target < target_num_verts) &&
-		       (sve_target->sum_co <= sve_source_sumco + dist3))
-		{
-			/* Testing distance for candidate double in target */
-			/* v_target is within dist3 of v_source in terms of sumco;  check real distance */
-			float dist_sq;
-			if ((dist_sq = len_squared_v3v3(sve_source->co, sve_target->co)) <= best_dist_sq) {
-				/* Potential double found */
-				best_dist_sq = dist_sq;
-				best_target_vertex = sve_target->vertex_num;
+    while ((i_target < target_num_verts) && (sve_target->sum_co <= sve_source_sumco + dist3)) {
+      /* Testing distance for candidate double in target */
+      /* v_target is within dist3 of v_source in terms of sumco;  check real distance */
+      float dist_sq;
+      if ((dist_sq = len_squared_v3v3(sve_source->co, sve_target->co)) <= best_dist_sq) {
+        /* Potential double found */
+        best_dist_sq = dist_sq;
+        best_target_vertex = sve_target->vertex_num;
 
-				/* If target is already mapped, we only follow that mapping if final target remains
-				 * close enough from current vert (otherwise no mapping at all).
-				 * Note that if we later find another target closer than this one, then we check it. But if other
-				 * potential targets are farther, then there will be no mapping at all for this source. */
-				while (best_target_vertex != -1 && !ELEM(doubles_map[best_target_vertex], -1, best_target_vertex)) {
-					if (compare_len_v3v3(mverts[sve_source->vertex_num].co,
-					                     mverts[doubles_map[best_target_vertex]].co,
-					                     dist))
-					{
-						best_target_vertex = doubles_map[best_target_vertex];
-					}
-					else {
-						best_target_vertex = -1;
-					}
-				}
-			}
-			i_target++;
-			sve_target++;
-		}
-		/* End of candidate scan: if none found then no doubles */
-		doubles_map[sve_source->vertex_num] = best_target_vertex;
-	}
+        /* If target is already mapped, we only follow that mapping if final target remains
+         * close enough from current vert (otherwise no mapping at all).
+         * Note that if we later find another target closer than this one, then we check it. But if other
+         * potential targets are farther, then there will be no mapping at all for this source. */
+        while (best_target_vertex != -1 &&
+               !ELEM(doubles_map[best_target_vertex], -1, best_target_vertex)) {
+          if (compare_len_v3v3(mverts[sve_source->vertex_num].co,
+                               mverts[doubles_map[best_target_vertex]].co,
+                               dist)) {
+            best_target_vertex = doubles_map[best_target_vertex];
+          }
+          else {
+            best_target_vertex = -1;
+          }
+        }
+      }
+      i_target++;
+      sve_target++;
+    }
+    /* End of candidate scan: if none found then no doubles */
+    doubles_map[sve_source->vertex_num] = best_target_vertex;
+  }
 
-	MEM_freeN(sorted_verts_source);
-	MEM_freeN(sorted_verts_target);
+  MEM_freeN(sorted_verts_source);
+  MEM_freeN(sorted_verts_target);
 }
 
-
-static void mesh_merge_transform(
-        Mesh *result, Mesh *cap_mesh, float cap_offset[4][4],
-        unsigned int cap_verts_index, unsigned int cap_edges_index, int cap_loops_index, int cap_polys_index,
-        int cap_nverts, int cap_nedges, int cap_nloops, int cap_npolys, int *remap, int remap_len)
+static void mesh_merge_transform(Mesh *result,
+                                 Mesh *cap_mesh,
+                                 float cap_offset[4][4],
+                                 unsigned int cap_verts_index,
+                                 unsigned int cap_edges_index,
+                                 int cap_loops_index,
+                                 int cap_polys_index,
+                                 int cap_nverts,
+                                 int cap_nedges,
+                                 int cap_nloops,
+                                 int cap_npolys,
+                                 int *remap,
+                                 int remap_len)
 {
-	int *index_orig;
-	int i;
-	MVert *mv;
-	MEdge *me;
-	MLoop *ml;
-	MPoly *mp;
+  int *index_orig;
+  int i;
+  MVert *mv;
+  MEdge *me;
+  MLoop *ml;
+  MPoly *mp;
 
-	CustomData_copy_data(&cap_mesh->vdata, &result->vdata, 0, cap_verts_index, cap_nverts);
-	CustomData_copy_data(&cap_mesh->edata, &result->edata, 0, cap_edges_index, cap_nedges);
-	CustomData_copy_data(&cap_mesh->ldata, &result->ldata, 0, cap_loops_index, cap_nloops);
-	CustomData_copy_data(&cap_mesh->pdata, &result->pdata, 0, cap_polys_index, cap_npolys);
+  CustomData_copy_data(&cap_mesh->vdata, &result->vdata, 0, cap_verts_index, cap_nverts);
+  CustomData_copy_data(&cap_mesh->edata, &result->edata, 0, cap_edges_index, cap_nedges);
+  CustomData_copy_data(&cap_mesh->ldata, &result->ldata, 0, cap_loops_index, cap_nloops);
+  CustomData_copy_data(&cap_mesh->pdata, &result->pdata, 0, cap_polys_index, cap_npolys);
 
-	mv = result->mvert + cap_verts_index;
+  mv = result->mvert + cap_verts_index;
 
-	for (i = 0; i < cap_nverts; i++, mv++) {
-		mul_m4_v3(cap_offset, mv->co);
-		/* Reset MVert flags for caps */
-		mv->flag = mv->bweight = 0;
-	}
+  for (i = 0; i < cap_nverts; i++, mv++) {
+    mul_m4_v3(cap_offset, mv->co);
+    /* Reset MVert flags for caps */
+    mv->flag = mv->bweight = 0;
+  }
 
-	/* remap the vertex groups if necessary */
-	if (result->dvert != NULL) {
-		BKE_object_defgroup_index_map_apply(&result->dvert[cap_verts_index], cap_nverts, remap, remap_len);
-	}
+  /* remap the vertex groups if necessary */
+  if (result->dvert != NULL) {
+    BKE_object_defgroup_index_map_apply(
+        &result->dvert[cap_verts_index], cap_nverts, remap, remap_len);
+  }
 
-	/* adjust cap edge vertex indices */
-	me = result->medge + cap_edges_index;
-	for (i = 0; i < cap_nedges; i++, me++) {
-		me->v1 += cap_verts_index;
-		me->v2 += cap_verts_index;
-	}
+  /* adjust cap edge vertex indices */
+  me = result->medge + cap_edges_index;
+  for (i = 0; i < cap_nedges; i++, me++) {
+    me->v1 += cap_verts_index;
+    me->v2 += cap_verts_index;
+  }
 
-	/* adjust cap poly loopstart indices */
-	mp = result->mpoly + cap_polys_index;
-	for (i = 0; i < cap_npolys; i++, mp++) {
-		mp->loopstart += cap_loops_index;
-	}
+  /* adjust cap poly loopstart indices */
+  mp = result->mpoly + cap_polys_index;
+  for (i = 0; i < cap_npolys; i++, mp++) {
+    mp->loopstart += cap_loops_index;
+  }
 
-	/* adjust cap loop vertex and edge indices */
-	ml = result->mloop + cap_loops_index;
-	for (i = 0; i < cap_nloops; i++, ml++) {
-		ml->v += cap_verts_index;
-		ml->e += cap_edges_index;
-	}
+  /* adjust cap loop vertex and edge indices */
+  ml = result->mloop + cap_loops_index;
+  for (i = 0; i < cap_nloops; i++, ml++) {
+    ml->v += cap_verts_index;
+    ml->e += cap_edges_index;
+  }
 
-	/* set origindex */
-	index_orig = CustomData_get_layer(&result->vdata, CD_ORIGINDEX);
-	if (index_orig) {
-		copy_vn_i(index_orig + cap_verts_index, cap_nverts, ORIGINDEX_NONE);
-	}
+  /* set origindex */
+  index_orig = CustomData_get_layer(&result->vdata, CD_ORIGINDEX);
+  if (index_orig) {
+    copy_vn_i(index_orig + cap_verts_index, cap_nverts, ORIGINDEX_NONE);
+  }
 
-	index_orig = CustomData_get_layer(&result->edata, CD_ORIGINDEX);
-	if (index_orig) {
-		copy_vn_i(index_orig + cap_edges_index, cap_nedges, ORIGINDEX_NONE);
-	}
+  index_orig = CustomData_get_layer(&result->edata, CD_ORIGINDEX);
+  if (index_orig) {
+    copy_vn_i(index_orig + cap_edges_index, cap_nedges, ORIGINDEX_NONE);
+  }
 
-	index_orig = CustomData_get_layer(&result->pdata, CD_ORIGINDEX);
-	if (index_orig) {
-		copy_vn_i(index_orig + cap_polys_index, cap_npolys, ORIGINDEX_NONE);
-	}
+  index_orig = CustomData_get_layer(&result->pdata, CD_ORIGINDEX);
+  if (index_orig) {
+    copy_vn_i(index_orig + cap_polys_index, cap_npolys, ORIGINDEX_NONE);
+  }
 
-	index_orig = CustomData_get_layer(&result->ldata, CD_ORIGINDEX);
-	if (index_orig) {
-		copy_vn_i(index_orig + cap_loops_index, cap_nloops, ORIGINDEX_NONE);
-	}
+  index_orig = CustomData_get_layer(&result->ldata, CD_ORIGINDEX);
+  if (index_orig) {
+    copy_vn_i(index_orig + cap_loops_index, cap_nloops, ORIGINDEX_NONE);
+  }
 }
 
-static Mesh *arrayModifier_doArray(
-        ArrayModifierData *amd, const ModifierEvalContext *ctx, Mesh *mesh)
+static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
+                                   const ModifierEvalContext *ctx,
+                                   Mesh *mesh)
 {
 	const float eps = 1e-6f;
 	const MVert *src_mvert;
@@ -737,39 +750,36 @@ static Mesh *applyModifier(
         ModifierData *md, const ModifierEvalContext *ctx,
         Mesh *mesh)
 {
-	ArrayModifierData *amd = (ArrayModifierData *) md;
-	return arrayModifier_doArray(amd, ctx, mesh);
+  ArrayModifierData *amd = (ArrayModifierData *)md;
+  return arrayModifier_doArray(amd, ctx, mesh);
 }
 
-
 ModifierTypeInfo modifierType_Array = {
-	/* name */              "Array",
-	/* structName */        "ArrayModifierData",
-	/* structSize */        sizeof(ArrayModifierData),
-	/* type */              eModifierTypeType_Constructive,
-	/* flags */             eModifierTypeFlag_AcceptsMesh |
-	                        eModifierTypeFlag_SupportsMapping |
-	                        eModifierTypeFlag_SupportsEditmode |
-	                        eModifierTypeFlag_EnableInEditmode |
-	                        eModifierTypeFlag_AcceptsCVs,
+    /* name */ "Array",
+    /* structName */ "ArrayModifierData",
+    /* structSize */ sizeof(ArrayModifierData),
+    /* type */ eModifierTypeType_Constructive,
+    /* flags */ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsMapping |
+        eModifierTypeFlag_SupportsEditmode | eModifierTypeFlag_EnableInEditmode |
+        eModifierTypeFlag_AcceptsCVs,
 
-	/* copyData */          modifier_copyData_generic,
+    /* copyData */ modifier_copyData_generic,
 
-	/* deformVerts */       NULL,
-	/* deformMatrices */    NULL,
-	/* deformVertsEM */     NULL,
-	/* deformMatricesEM */  NULL,
-	/* applyModifier */     applyModifier,
+    /* deformVerts */ NULL,
+    /* deformMatrices */ NULL,
+    /* deformVertsEM */ NULL,
+    /* deformMatricesEM */ NULL,
+    /* applyModifier */ applyModifier,
 
-	/* initData */          initData,
-	/* requiredDataMask */  NULL,
-	/* freeData */          NULL,
-	/* isDisabled */        NULL,
-	/* updateDepsgraph */   updateDepsgraph,
-	/* dependsOnTime */     NULL,
-	/* dependsOnNormals */	NULL,
-	/* foreachObjectLink */ foreachObjectLink,
-	/* foreachIDLink */     NULL,
-	/* foreachTexLink */    NULL,
-	/* freeRuntimeData */   NULL,
+    /* initData */ initData,
+    /* requiredDataMask */ NULL,
+    /* freeData */ NULL,
+    /* isDisabled */ NULL,
+    /* updateDepsgraph */ updateDepsgraph,
+    /* dependsOnTime */ NULL,
+    /* dependsOnNormals */ NULL,
+    /* foreachObjectLink */ foreachObjectLink,
+    /* foreachIDLink */ NULL,
+    /* foreachTexLink */ NULL,
+    /* freeRuntimeData */ NULL,
 };

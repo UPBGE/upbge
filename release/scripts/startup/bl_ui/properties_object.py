@@ -179,7 +179,7 @@ class OBJECT_PT_relations(ObjectButtonsPanel, Panel):
 class COLLECTION_MT_context_menu(Menu):
     bl_label = "Collection Specials"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
         layout.operator("object.collection_unlink", icon='X')
@@ -323,7 +323,7 @@ class OBJECT_PT_instancing(ObjectButtonsPanel, Panel):
             col = layout.column()
             col.prop(ob, "instance_collection", text="Collection")
 
-        if ob.instance_type != 'NONE' or len(ob.particle_systems):
+        if ob.instance_type != 'NONE' or ob.particle_systems:
             col = flow.column(align=True)
             col.prop(ob, "show_instancer_for_viewport")
             col.prop(ob, "show_instancer_for_render")

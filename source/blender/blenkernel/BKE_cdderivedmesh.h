@@ -38,8 +38,7 @@ struct Mesh;
 struct Object;
 
 /* creates a new CDDerivedMesh */
-struct DerivedMesh *CDDM_new(int numVerts, int numEdges, int numFaces,
-                             int numLoops, int numPolys);
+struct DerivedMesh *CDDM_new(int numVerts, int numEdges, int numFaces, int numLoops, int numPolys);
 
 /* creates a CDDerivedMesh from the given Mesh, this will reference the
  * original data in Mesh, but it is safe to apply vertex coordinates or
@@ -48,13 +47,16 @@ struct DerivedMesh *CDDM_new(int numVerts, int numEdges, int numFaces,
 struct DerivedMesh *CDDM_from_mesh(struct Mesh *mesh);
 
 /* creates a CDDerivedMesh from the given Mesh with custom allocation type. */
-struct DerivedMesh *CDDM_from_mesh_ex(struct Mesh *mesh, eCDAllocType alloctype, const struct CustomData_MeshMasks *mask);
-
+struct DerivedMesh *CDDM_from_mesh_ex(struct Mesh *mesh,
+                                      eCDAllocType alloctype,
+                                      const struct CustomData_MeshMasks *mask);
 
 struct DerivedMesh *CDDM_from_bmesh(struct BMesh *bm, const bool use_mdisps);
 
 /* creates a CDDerivedMesh from the given BMEditMesh */
-DerivedMesh *CDDM_from_editbmesh(struct BMEditMesh *em, const bool use_mdisps, const bool use_tessface);
+DerivedMesh *CDDM_from_editbmesh(struct BMEditMesh *em,
+                                 const bool use_mdisps,
+                                 const bool use_tessface);
 
 /* merge verts  */
 /* Enum for merge_mode of CDDM_merge_verts.
@@ -84,13 +86,18 @@ struct DerivedMesh *CDDM_copy_with_tessface(struct DerivedMesh *dm);
  * elements are initialized to all zeros
  */
 struct DerivedMesh *CDDM_from_template_ex(struct DerivedMesh *source,
-        int numVerts, int numEdges, int numFaces,
-        int numLoops, int numPolys,
-        const struct CustomData_MeshMasks *mask);
-struct DerivedMesh *CDDM_from_template(
-        struct DerivedMesh *source,
-        int numVerts, int numEdges, int numFaces,
-        int numLoops, int numPolys);
+                                          int numVerts,
+                                          int numEdges,
+                                          int numFaces,
+                                          int numLoops,
+                                          int numPolys,
+                                          const struct CustomData_MeshMasks *mask);
+struct DerivedMesh *CDDM_from_template(struct DerivedMesh *source,
+                                       int numVerts,
+                                       int numEdges,
+                                       int numFaces,
+                                       int numLoops,
+                                       int numPolys);
 
 /* converts mfaces to mpolys.  note things may break if there are not valid
  * medges surrounding each mface.
@@ -111,8 +118,12 @@ void CDDM_calc_normals_mapping(struct DerivedMesh *dm);
 void CDDM_calc_normals(struct DerivedMesh *dm);
 void CDDM_calc_normals_tessface(struct DerivedMesh *dm);
 
-void CDDM_calc_loop_normals(struct DerivedMesh *dm, const bool use_split_normals, const float split_angle);
-void CDDM_calc_loop_normals_spacearr(struct DerivedMesh *dm, const bool use_split_normals, const float split_angle,
+void CDDM_calc_loop_normals(struct DerivedMesh *dm,
+                            const bool use_split_normals,
+                            const float split_angle);
+void CDDM_calc_loop_normals_spacearr(struct DerivedMesh *dm,
+                                     const bool use_split_normals,
+                                     const float split_angle,
                                      struct MLoopNorSpaceArray *r_lnors_spacearr);
 
 /* calculates edges for a CDDerivedMesh (from face data)

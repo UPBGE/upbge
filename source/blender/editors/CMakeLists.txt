@@ -16,9 +16,9 @@
 # ***** END GPL LICENSE BLOCK *****
 
 if(WITH_BLENDER)
-	if(WITH_INPUT_NDOF)
-		add_definitions(-DWITH_INPUT_NDOF)
-	endif()
+  if(WITH_INPUT_NDOF)
+    add_definitions(-DWITH_INPUT_NDOF)
+  endif()
 
 	add_subdirectory(animation)
 	add_subdirectory(armature)

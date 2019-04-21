@@ -30,6 +30,7 @@ class TIME_HT_editor_buttons(Header):
     def draw(self, context):
         pass
 
+    @staticmethod
     def draw_header(context, layout):
         scene = context.scene
         tool_settings = context.tool_settings
@@ -85,7 +86,7 @@ class TIME_MT_editor_menus(Menu):
     bl_idname = "TIME_MT_editor_menus"
     bl_label = ""
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
         horizontal = (layout.direction == 'VERTICAL')
         if horizontal:

@@ -69,8 +69,9 @@ class IMAGE_MT_view(Menu):
         show_uvedit = sima.show_uvedit
         show_render = sima.show_render
 
-        layout.operator("image.properties", icon='MENU_PANEL')
-        layout.operator("image.toolshelf", icon='MENU_PANEL')
+        layout.prop(sima, "show_region_toolbar")
+        layout.prop(sima, "show_region_ui")
+        layout.prop(sima, "show_region_hud")
 
         layout.separator()
 
@@ -119,7 +120,7 @@ class IMAGE_MT_view(Menu):
 class IMAGE_MT_view_zoom(Menu):
     bl_label = "Fractional Zoom"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
         ratios = ((1, 8), (1, 4), (1, 2), (1, 1), (2, 1), (4, 1), (8, 1))
@@ -138,7 +139,7 @@ class IMAGE_MT_view_zoom(Menu):
 class IMAGE_MT_select(Menu):
     bl_label = "Select"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
         layout.operator("uv.select_all", text="All").action = 'SELECT'
@@ -227,23 +228,17 @@ class IMAGE_MT_image(Menu):
             layout.menu("IMAGE_MT_image_invert")
 
             if not show_render:
-                if not ima.packed_file:
-                    layout.separator()
+                layout.separator()
+                if ima.packed_file:
+                    layout.operator("image.pack", text="Repack")
+                else:
                     layout.operator("image.pack", text="Pack")
-
-                # Only for dirty && specific image types, perhaps
-                # this could be done in operator poll too.
-                if ima.is_dirty:
-                    if ima.source in {'FILE', 'GENERATED'} and ima.type != 'OPEN_EXR_MULTILAYER':
-                        if ima.packed_file:
-                            layout.separator()
-                        layout.operator("image.pack", text="Pack As PNG").as_png = True
 
 
 class IMAGE_MT_image_invert(Menu):
     bl_label = "Invert"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
         props = layout.operator("image.invert", text="Invert Image Colors", icon='IMAGE_RGB')
@@ -262,7 +257,7 @@ class IMAGE_MT_image_invert(Menu):
 class IMAGE_MT_uvs_showhide(Menu):
     bl_label = "Show/Hide Faces"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
         layout.operator("uv.reveal")
@@ -287,7 +282,7 @@ class IMAGE_MT_uvs_proportional(Menu):
 class IMAGE_MT_uvs_transform(Menu):
     bl_label = "Transform"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
         layout.operator("transform.translate")
@@ -302,7 +297,7 @@ class IMAGE_MT_uvs_transform(Menu):
 class IMAGE_MT_uvs_snap(Menu):
     bl_label = "Snap"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
         layout.operator_context = 'EXEC_REGION_WIN'
@@ -321,7 +316,7 @@ class IMAGE_MT_uvs_snap(Menu):
 class IMAGE_MT_uvs_mirror(Menu):
     bl_label = "Mirror"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
         layout.operator("mesh.faces_mirror_uv")
@@ -337,7 +332,7 @@ class IMAGE_MT_uvs_mirror(Menu):
 class IMAGE_MT_uvs_weldalign(Menu):
     bl_label = "Weld/Align"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
         layout.operator("uv.weld")  # W, 1.
@@ -497,7 +492,7 @@ class IMAGE_MT_pivot_pie(Menu):
 class IMAGE_MT_uvs_snap_pie(Menu):
     bl_label = "Snap"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
         pie = layout.menu_pie()
 
@@ -509,6 +504,128 @@ class IMAGE_MT_uvs_snap_pie(Menu):
         pie.operator("uv.snap_selected", text="Selected to Cursor", icon='RESTRICT_SELECT_OFF').target = 'CURSOR'
         pie.operator("uv.snap_selected", text="Selected to Cursor (Offset)", icon='RESTRICT_SELECT_OFF').target = 'CURSOR_OFFSET'
         pie.operator("uv.snap_selected", text="Selected to Adjacent Unselected", icon='RESTRICT_SELECT_OFF').target = 'ADJACENT_UNSELECTED'
+
+
+class IMAGE_HT_tool_header(Header):
+    bl_space_type = 'IMAGE_EDITOR'
+    bl_region_type = "TOOL_HEADER"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.template_header()
+
+        self.draw_tool_settings(context)
+
+        sima = context.space_data
+        show_uvedit = sima.show_uvedit
+        show_maskedit = sima.show_maskedit
+
+        layout.separator_spacer()
+
+        if show_uvedit or show_maskedit:
+            layout.prop(sima, "pivot_point", icon_only=True)
+
+        if show_uvedit:
+            tool_settings = context.tool_settings
+
+            # Snap.
+            row = layout.row(align=True)
+            row.prop(tool_settings, "use_snap", text="")
+            row.prop(tool_settings, "snap_uv_element", icon_only=True)
+            if tool_settings.snap_uv_element != 'INCREMENT':
+                row.prop(tool_settings, "snap_target", text="")
+
+            # Proportional Editing
+            row = layout.row(align=True)
+            row.prop(tool_settings, "proportional_edit", icon_only=True)
+            # if tool_settings.proportional_edit != 'DISABLED':
+            sub = row.row(align=True)
+            sub.active = tool_settings.proportional_edit != 'DISABLED'
+            sub.prop(tool_settings, "proportional_edit_falloff", icon_only=True)
+
+        layout.separator_spacer()
+
+        self.draw_mode_settings(context)
+
+    def draw_tool_settings(self, context):
+        layout = self.layout
+
+        # Active Tool
+        # -----------
+        from .space_toolsystem_common import ToolSelectPanelHelper
+        tool = ToolSelectPanelHelper.draw_active_tool_header(context, layout)
+        tool_mode = context.mode if tool is None else tool.mode
+
+        # Object Mode Options
+        # -------------------
+
+        # Example of how tool_settings can be accessed as pop-overs.
+
+        # TODO(campbell): editing options should be after active tool options
+        # (obviously separated for from the users POV)
+        draw_fn = getattr(_draw_tool_settings_context_mode, tool_mode, None)
+        if draw_fn is not None:
+            draw_fn(context, layout, tool)
+
+        if tool_mode == 'PAINT':
+            if (tool is not None) and tool.has_datablock:
+                layout.popover_group(space_type='PROPERTIES', region_type='WINDOW', context=".paint_common_2d", category="")
+        elif context.uv_sculpt_object is not None:
+            layout.popover_group(space_type='PROPERTIES', region_type='WINDOW', context=".uv_sculpt", category="")
+
+    def draw_mode_settings(self, context):
+        layout = self.layout
+
+        # Active Tool
+        # -----------
+        from .space_toolsystem_common import ToolSelectPanelHelper
+        tool = ToolSelectPanelHelper.tool_active_from_context(context)
+        tool_mode = context.mode if tool is None else tool.mode
+
+        if tool_mode == 'PAINT':
+            layout.popover_group(space_type='PROPERTIES', region_type='WINDOW', context=".imagepaint_2d", category="")
+
+
+class _draw_tool_settings_context_mode:
+    @staticmethod
+    def VIEW(context, layout, _tool):
+        tool_settings = context.tool_settings
+        if tool_settings.use_uv_sculpt:
+            if context.mode == 'EDIT_MESH':
+                uv_sculpt = tool_settings.uv_sculpt
+                brush = uv_sculpt.brush
+                if brush:
+                    from .properties_paint_common import UnifiedPaintPanel
+
+                    row = layout.row(align=True)
+                    UnifiedPaintPanel.prop_unified_size(row, context, brush, "size", slider=True)
+                    UnifiedPaintPanel.prop_unified_size(row, context, brush, "use_pressure_size", text="")
+
+                    row = layout.row(align=True)
+                    UnifiedPaintPanel.prop_unified_strength(row, context, brush, "strength", slider=True)
+                    UnifiedPaintPanel.prop_unified_strength(row, context, brush, "use_pressure_strength", text="")
+
+    @staticmethod
+    def PAINT(context, layout, tool):
+        if (tool is None) or (not tool.has_datablock):
+            return
+
+        paint = context.tool_settings.image_paint
+        layout.template_ID_preview(paint, "brush", rows=3, cols=8, hide_buttons=True)
+
+        brush = paint.brush
+        if brush is None:
+            return
+
+        from .properties_paint_common import (
+            UnifiedPaintPanel,
+            brush_basic_texpaint_settings,
+        )
+        capabilities = brush.image_paint_capabilities
+        if capabilities.has_color:
+            UnifiedPaintPanel.prop_unified_color(layout, context, brush, "color", text="")
+        brush_basic_texpaint_settings(layout, context, brush, compact=True)
 
 
 class IMAGE_HT_header(Header):
@@ -526,8 +643,8 @@ class IMAGE_HT_header(Header):
         show_uvedit = sima.show_uvedit
         show_maskedit = sima.show_maskedit
 
-        row = layout.row(align=True)
-        row.template_header()
+        if not sima.show_region_tool_header:
+            layout.template_header()
 
         if sima.mode != 'UV':
             layout.prop(sima, "ui_mode", text="")
@@ -564,25 +681,6 @@ class IMAGE_HT_header(Header):
 
             mesh = context.edit_object.data
             layout.prop_search(mesh.uv_layers, "active", mesh, "uv_layers", text="")
-
-        if show_uvedit or show_maskedit:
-            layout.prop(sima, "pivot_point", icon_only=True)
-
-        if show_uvedit:
-            # Snap.
-            row = layout.row(align=True)
-            row.prop(tool_settings, "use_snap", text="")
-            row.prop(tool_settings, "snap_uv_element", icon_only=True)
-            if tool_settings.snap_uv_element != 'INCREMENT':
-                row.prop(tool_settings, "snap_target", text="")
-
-            # Proportional Editing
-            row = layout.row(align=True)
-            row.prop(tool_settings, "proportional_edit", icon_only=True)
-            # if tool_settings.proportional_edit != 'DISABLED':
-            sub = row.row(align=True)
-            sub.active = tool_settings.proportional_edit != 'DISABLED'
-            sub.prop(tool_settings, "proportional_edit_falloff", icon_only=True)
 
         row = layout.row()
         row.popover(
@@ -843,7 +941,7 @@ class IMAGE_PT_view_display_uv_edit_overlays_advanced(Panel):
 
 
 class IMAGE_UL_render_slots(UIList):
-    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+    def draw_item(self, _context, layout, _data, item, _icon, _active_data, _active_propname, _index):
         slot = item
         layout.prop(slot, "name", text="", emboss=False)
 
@@ -909,7 +1007,7 @@ class IMAGE_PT_paint_color(Panel, ImagePaintPanel):
     bl_label = "Color Picker"
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         settings = context.tool_settings.image_paint
         brush = settings.brush
         capabilities = brush.image_paint_capabilities
@@ -921,7 +1019,7 @@ class IMAGE_PT_paint_color(Panel, ImagePaintPanel):
         settings = context.tool_settings.image_paint
         brush = settings.brush
 
-        layout.active = brush.use_gradient == False
+        layout.active = not brush.use_gradient
 
         brush_texpaint_common_color(self, context, layout, brush, settings, True)
 
@@ -933,7 +1031,7 @@ class IMAGE_PT_paint_swatches(Panel, ImagePaintPanel):
     bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         settings = context.tool_settings.image_paint
         brush = settings.brush
         capabilities = brush.image_paint_capabilities
@@ -956,7 +1054,7 @@ class IMAGE_PT_paint_gradient(Panel, ImagePaintPanel):
     bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         settings = context.tool_settings.image_paint
         brush = settings.brush
         capabilities = brush.image_paint_capabilities
@@ -987,7 +1085,7 @@ class IMAGE_PT_paint_clone(Panel, ImagePaintPanel):
     bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         settings = context.tool_settings.image_paint
         brush = settings.brush
 
@@ -1014,7 +1112,7 @@ class IMAGE_PT_paint_options(Panel, ImagePaintPanel):
     bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         settings = context.tool_settings.image_paint
         brush = settings.brush
         capabilities = brush.image_paint_capabilities
@@ -1543,6 +1641,7 @@ classes = (
     IMAGE_MT_uvs_context_menu,
     IMAGE_MT_pivot_pie,
     IMAGE_MT_uvs_snap_pie,
+    IMAGE_HT_tool_header,
     IMAGE_HT_header,
     MASK_MT_editor_menus,
     IMAGE_PT_mask,

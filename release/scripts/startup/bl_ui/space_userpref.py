@@ -685,6 +685,13 @@ class USERPREF_PT_system_memory(PreferencePanel, Panel):
         flow.prop(system, "texture_time_out", text="Texture Time Out")
         flow.prop(system, "texture_collection_rate", text="Garbage Collection Rate")
 
+        layout.separator()
+
+        flow = layout.grid_flow(row_major=False, columns=0, even_columns=True, even_rows=False, align=False)
+
+        flow.prop(system, "vbo_time_out", text="Vbo Time Out")
+        flow.prop(system, "vbo_collection_rate", text="Garbage Collection Rate")
+
 
 class USERPREF_MT_interface_theme_presets(Menu):
     bl_label = "Presets"
@@ -697,6 +704,7 @@ class USERPREF_MT_interface_theme_presets(Menu):
     )
     draw = Menu.draw_preset
 
+    @staticmethod
     def reset_cb(context):
         bpy.ops.preferences.reset_default_theme()
 
@@ -1157,7 +1165,7 @@ class FilePathsPanel:
 class USERPREF_PT_file_paths_data(FilePathsPanel, Panel):
     bl_label = "Data"
 
-    def draw_props(self, context, layout):
+    def draw_props(self, context, _layout):
         paths = context.preferences.filepaths
 
         col = self.layout.column()
@@ -1171,7 +1179,7 @@ class USERPREF_PT_file_paths_data(FilePathsPanel, Panel):
 class USERPREF_PT_file_paths_render(FilePathsPanel, Panel):
     bl_label = "Render"
 
-    def draw_props(self, context, layout):
+    def draw_props(self, context, _layout):
         paths = context.preferences.filepaths
 
         col = self.layout.column()
@@ -1924,7 +1932,7 @@ class USERPREF_PT_studiolight_matcaps(Panel, StudioLightPanelMixin):
     bl_label = "MatCaps"
     sl_type = 'MATCAP'
 
-    def draw_header_preset(self, context):
+    def draw_header_preset(self, _context):
         layout = self.layout
         layout.operator("preferences.studiolight_install", icon='IMPORT', text="Install...").type = 'MATCAP'
         layout.separator()
@@ -1934,7 +1942,7 @@ class USERPREF_PT_studiolight_world(Panel, StudioLightPanelMixin):
     bl_label = "LookDev HDRIs"
     sl_type = 'WORLD'
 
-    def draw_header_preset(self, context):
+    def draw_header_preset(self, _context):
         layout = self.layout
         layout.operator("preferences.studiolight_install", icon='IMPORT', text="Install...").type = 'WORLD'
         layout.separator()
@@ -1944,7 +1952,7 @@ class USERPREF_PT_studiolight_lights(Panel, StudioLightPanelMixin):
     bl_label = "Studio Lights"
     sl_type = 'STUDIO'
 
-    def draw_header_preset(self, context):
+    def draw_header_preset(self, _context):
         layout = self.layout
         op = layout.operator("preferences.studiolight_install", icon='IMPORT', text="Install...")
         op.type = 'STUDIO'

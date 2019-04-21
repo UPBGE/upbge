@@ -120,7 +120,7 @@ class DATA_PT_gpencil_layers(DataButtonsPanel, Panel):
         else:
             self.draw_layers(context, layout, gpd)
 
-    def draw_layers(self, context, layout, gpd):
+    def draw_layers(self, _context, layout, gpd):
 
         row = layout.row()
 
@@ -338,12 +338,12 @@ class GPENCIL_MT_gpencil_vertex_group(Menu):
 
 
 class GPENCIL_UL_vgroups(UIList):
-    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+    def draw_item(self, _context, layout, _data, item, icon, _active_data, _active_propname, _index):
         vgroup = item
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
             layout.prop(vgroup, "name", text="", emboss=False, icon_value=icon)
-            # icon = 'LOCKED' if vgroup.lock_weight else 'UNLOCKED'
-            # layout.prop(vgroup, "lock_weight", text="", icon=icon, emboss=False)
+            icon = 'LOCKED' if vgroup.lock_weight else 'UNLOCKED'
+            layout.prop(vgroup, "lock_weight", text="", icon=icon, emboss=False)
         elif self.layout_type == 'GRID':
             layout.alignment = 'CENTER'
             layout.label(text="", icon_value=icon)

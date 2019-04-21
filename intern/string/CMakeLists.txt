@@ -19,7 +19,7 @@
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC
-	.
+  .
 )
 
 set(INC_SYS
@@ -27,7 +27,7 @@ set(INC_SYS
 )
 
 set(SRC
-	intern/STR_String.cpp
+  intern/STR_String.cpp
 
 	STR_HashedString.h
 	STR_String.h

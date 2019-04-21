@@ -108,7 +108,7 @@ class VIEW3D_MT_tools_projectpaint_clone(Menu):
             props.value = i
 
 
-def brush_texpaint_common(panel, context, layout, brush, settings, projpaint=False):
+def brush_texpaint_common(panel, context, layout, brush, _settings, projpaint=False):
     capabilities = brush.image_paint_capabilities
 
     col = layout.column()
@@ -136,7 +136,7 @@ def brush_texpaint_common(panel, context, layout, brush, settings, projpaint=Fal
         brush_basic_texpaint_settings(col, context, brush)
 
 
-def brush_texpaint_common_clone(panel, context, layout, brush, settings, projpaint=False):
+def brush_texpaint_common_clone(_panel, context, layout, _brush, settings, projpaint=False):
     ob = context.active_object
     col = layout.column()
 
@@ -164,9 +164,7 @@ def brush_texpaint_common_clone(panel, context, layout, brush, settings, projpai
         col.menu("VIEW3D_MT_tools_projectpaint_clone", text=clone_text, translate=False)
 
 
-def brush_texpaint_common_color(panel, context, layout, brush, settings, projpaint=False):
-    capabilities = brush.image_paint_capabilities
-
+def brush_texpaint_common_color(_panel, context, layout, brush, _settings, projpaint=False):
     UnifiedPaintPanel.prop_unified_color_picker(layout, context, brush, "color", value_slider=True)
 
     row = layout.row(align=True)
@@ -176,7 +174,7 @@ def brush_texpaint_common_color(panel, context, layout, brush, settings, projpai
     row.operator("paint.brush_colors_flip", icon='FILE_REFRESH', text="", emboss=False)
 
 
-def brush_texpaint_common_gradient(panel, context, layout, brush, settings, projpaint=False):
+def brush_texpaint_common_gradient(_panel, context, layout, brush, _settings, projpaint=False):
     layout.template_color_ramp(brush, "gradient", expand=True)
 
     layout.use_property_split = True
@@ -192,7 +190,7 @@ def brush_texpaint_common_gradient(panel, context, layout, brush, settings, proj
         col.prop(brush, "gradient_fill_mode")
 
 
-def brush_texpaint_common_options(panel, context, layout, brush, settings, projpaint=False):
+def brush_texpaint_common_options(_panel, _context, layout, brush, _settings, projpaint=False):
     capabilities = brush.image_paint_capabilities
 
     col = layout.column()
@@ -344,7 +342,6 @@ def brush_basic_texpaint_settings(layout, context, brush, *, compact=False):
 def brush_basic_sculpt_settings(layout, context, brush, *, compact=False):
     tool_settings = context.tool_settings
     capabilities = brush.sculpt_capabilities
-    settings = tool_settings.gpencil_sculpt
 
     row = layout.row(align=True)
 
@@ -368,11 +365,11 @@ def brush_basic_sculpt_settings(layout, context, brush, *, compact=False):
         UnifiedPaintPanel.prop_unified_strength(row, context, brush, "use_pressure_strength", text="")
 
     # direction
-    if capabilities.has_direction == False:
+    if not capabilities.has_direction:
         layout.row().prop(brush, "direction", expand=True, **({"text": ""} if compact else {}))
 
 
-def brush_basic_gpencil_paint_settings(layout, context, brush, *, compact=True):
+def brush_basic_gpencil_paint_settings(layout, _context, brush, *, compact=True):
     gp_settings = brush.gpencil_settings
 
     # Brush details
@@ -446,7 +443,7 @@ def brush_basic_gpencil_sculpt_settings(layout, context, brush, *, compact=False
         layout.use_property_split = use_property_split_prev
 
 
-def brush_basic_gpencil_weight_settings(layout, context, brush, *, compact=False):
+def brush_basic_gpencil_weight_settings(layout, _context, brush, *, compact=False):
     layout.prop(brush, "size", slider=True)
 
     row = layout.row(align=True)

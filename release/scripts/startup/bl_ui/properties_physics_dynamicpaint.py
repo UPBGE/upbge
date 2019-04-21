@@ -29,7 +29,7 @@ from .properties_physics_common import (
 
 
 class PHYSICS_UL_dynapaint_surfaces(UIList):
-    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+    def draw_item(self, _context, layout, _data, item, icon, _active_data, _active_propname, _index):
         # assert(isinstance(item, bpy.types.DynamicPaintSurface)
         surf = item
         sticon = layout.enum_item_icon(surf, "surface_type", surf.surface_type)
@@ -62,10 +62,12 @@ class PhysicButtonsPanel:
     bl_region_type = 'WINDOW'
     bl_context = "physics"
 
+    @staticmethod
     def poll_dyn_paint(context):
         ob = context.object
         return (ob and ob.type == 'MESH') and context.dynamic_paint
 
+    @staticmethod
     def poll_dyn_canvas(context):
         if not PhysicButtonsPanel.poll_dyn_paint(context):
             return False
@@ -73,6 +75,7 @@ class PhysicButtonsPanel:
         md = context.dynamic_paint
         return (md and md.ui_type == 'CANVAS' and md.canvas_settings and md.canvas_settings.canvas_surfaces.active)
 
+    @staticmethod
     def poll_dyn_canvas_paint(context):
         if not PhysicButtonsPanel.poll_dyn_canvas(context):
             return False
@@ -80,6 +83,7 @@ class PhysicButtonsPanel:
         surface = context.dynamic_paint.canvas_settings.canvas_surfaces.active
         return (surface.surface_type == 'PAINT')
 
+    @staticmethod
     def poll_dyn_canvas_brush(context):
         if not PhysicButtonsPanel.poll_dyn_paint(context):
             return False
@@ -87,6 +91,7 @@ class PhysicButtonsPanel:
         md = context.dynamic_paint
         return (md and md.ui_type == 'BRUSH' and md.brush_settings)
 
+    @staticmethod
     def poll_dyn_output(context):
         if not PhysicButtonsPanel.poll_dyn_canvas(context):
             return False
@@ -94,6 +99,7 @@ class PhysicButtonsPanel:
         surface = context.dynamic_paint.canvas_settings.canvas_surfaces.active
         return (not (surface.surface_format == 'VERTEX' and (surface.surface_type in {'DISPLACE', 'WAVE'})))
 
+    @staticmethod
     def poll_dyn_output_maps(context):
         if not PhysicButtonsPanel.poll_dyn_output(context):
             return False
@@ -557,7 +563,7 @@ class PHYSICS_PT_dp_effects(PhysicButtonsPanel, Panel):
 
         return (context.engine in cls.COMPAT_ENGINES)
 
-    def draw(self, context):
+    def draw(self, _context):
         return  # do nothing.
 
 
@@ -653,7 +659,7 @@ class PHYSICS_PT_dp_effects_drip_weights(PhysicButtonsPanel, Panel):
 
         layout.active = surface.use_drip
 
-        effector_weights_ui(self, context, surface.effector_weights, 'DYNAMIC_PAINT')
+        effector_weights_ui(self, surface.effector_weights, 'DYNAMIC_PAINT')
 
 
 class PHYSICS_PT_dp_effects_shrink(PhysicButtonsPanel, Panel):
@@ -704,7 +710,7 @@ class PHYSICS_PT_dp_cache(PhysicButtonsPanel, Panel):
         surface = context.dynamic_paint.canvas_settings.canvas_surfaces.active
         cache = surface.point_cache
 
-        point_cache_ui(self, context, cache, (cache.is_baked is False), 'DYNAMIC_PAINT')
+        point_cache_ui(self, cache, (cache.is_baked is False), 'DYNAMIC_PAINT')
 
 
 class PHYSICS_PT_dp_brush_source(PhysicButtonsPanel, Panel):

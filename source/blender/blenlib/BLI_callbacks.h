@@ -58,14 +58,12 @@ typedef enum {
 	BLI_CB_EVT_TOT
 } eCbEvent;
 
-
 typedef struct bCallbackFuncStore {
-	struct bCallbackFuncStore *next, *prev;
-	void (*func)(struct Main *, struct ID *, void *arg);
-	void *arg;
-	short alloc;
+  struct bCallbackFuncStore *next, *prev;
+  void (*func)(struct Main *, struct ID *, void *arg);
+  void *arg;
+  short alloc;
 } bCallbackFuncStore;
-
 
 void BLI_callback_exec(struct Main *bmain, struct ID *self, eCbEvent evt);
 void BLI_callback_add(bCallbackFuncStore *funcstore, eCbEvent evt);
