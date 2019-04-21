@@ -32,11 +32,6 @@ set(INC
 	${OPENEXR_INCLUDE_DIRS}
 )
 
-set(LIB
-	bf_blenloader  # Should not be needed but gives linking error without it.
-	bf_alembic
-)
-
 include_directories(${INC})
 
 setup_libdirs()
@@ -49,7 +44,7 @@ else()
 endif()
 
 # For motivation on doubling BLENDER_SORTED_LIBS, see ../bmesh/CMakeLists.txt
-BLENDER_SRC_GTEST(alembic "abc_matrix_test.cc;abc_export_test.cc;${_buildinfo_src}" "${LIB}")
+BLENDER_SRC_GTEST(alembic "abc_matrix_test.cc;abc_export_test.cc;${_buildinfo_src}" "${BLENDER_SORTED_LIBS};${BLENDER_SORTED_LIBS}")
 
 unset(_buildinfo_src)
 
