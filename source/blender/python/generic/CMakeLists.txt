@@ -34,12 +34,14 @@ set(SRC
   bgl.c
   blf_py_api.c
   bpy_threads.c
+  bpy_internal_import.c
   idprop_py_api.c
   imbuf_py_api.c
   py_capi_utils.c
 
   bgl.h
   blf_py_api.h
+  bpy_internal_import.h
   idprop_py_api.h
   imbuf_py_api.h
   py_capi_utils.h

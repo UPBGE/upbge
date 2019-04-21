@@ -1105,11 +1105,16 @@ install(
 # Setup link libs
 
 add_dependencies(blender makesdna)
-target_link_libraries(blender ${LIB})
-unset(LIB)
+
+# Use for testing 'BLENDER_SORTED_LIBS' removal.
+
+setup_blender_sorted_libs()
+target_link_libraries(blender ${BLENDER_SORTED_LIBS})
+
 
 setup_liblinks(blender)
 
+unset(LIB)
 
 # -----------------------------------------------------------------------------
 # Setup launcher

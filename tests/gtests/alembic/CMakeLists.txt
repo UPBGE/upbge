@@ -51,7 +51,7 @@ else()
 endif()
 
 # For motivation on doubling BLENDER_SORTED_LIBS, see ../bmesh/CMakeLists.txt
-BLENDER_SRC_GTEST(alembic "abc_matrix_test.cc;abc_export_test.cc;${_buildinfo_src}" "${LIB}")
+BLENDER_SRC_GTEST(alembic "abc_matrix_test.cc;abc_export_test.cc;${_buildinfo_src}" "${BLENDER_SORTED_LIBS};${BLENDER_SORTED_LIBS}")
 
 unset(_buildinfo_src)
 

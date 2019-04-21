@@ -585,10 +585,6 @@ void BKE_object_free(Object *ob)
 	BKE_rigidbody_free_object(ob, NULL);
 	BKE_rigidbody_free_constraint(ob);
 
-  BKE_partdeflect_free(ob->pd);
-  BKE_rigidbody_free_object(ob, NULL);
-  BKE_rigidbody_free_constraint(ob);
-
   sbFree(ob);
 
   BKE_sculptsession_free(ob);

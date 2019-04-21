@@ -486,6 +486,10 @@ void ED_region_draw_cb_draw(const struct bContext *C, ARegion *ar, int type) RET
 void ED_region_draw_cb_exit(struct ARegionType *art, void *handle) RET_NONE
 void ED_region_visible_rect(ARegion *ar, rcti *rect) RET_NONE
 void ED_region_pixelspace(struct ARegion *ar) RET_NONE
+
+void ED_region_toggle_hidden(struct bContext *C, struct ARegion *ar) RET_NONE
+
+
 void ED_gpencil_parent_location(
 	const struct Depsgraph *depsgraph, struct Object *obact, struct bGPdata *gpd,
 	struct bGPDlayer *gpl, float diff_mat[4][4]) RET_NONE
@@ -910,6 +914,16 @@ void uiItemPopoverPanel(
 	const char *panelname,
 	const char *name, int icon) RET_NONE
 void ED_region_visibility_change_update(struct bContext *C, struct ARegion *ar) RET_NONE
+
+void ED_region_visibility_change_update_animated(struct bContext *C,
+                                                     struct ScrArea *sa,
+                                                     struct ARegion *ar) RET_NONE
+
+void ED_area_type_hud_ensure(struct bContext *C, struct ScrArea *sa) RET_NONE
+void ED_view3d_clipping_local(struct RegionView3D *rv3d, float mat[4][4]) RET_NONE
+
+
+
 void WM_init_opengl(struct Main *bmain) RET_NONE
 struct GPUViewport *WM_draw_region_get_viewport(struct ARegion *ar, int view) RET_NULL
 struct GPUViewport *WM_draw_region_get_bound_viewport(struct ARegion *ar) RET_NULL

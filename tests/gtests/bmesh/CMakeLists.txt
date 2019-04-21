@@ -37,13 +37,18 @@ set(LIB
 include_directories(${INC})
 
 setup_libdirs()
+get_property(BLENDER_SORTED_LIBS GLOBAL PROPERTY BLENDER_SORTED_LIBS_PROP)
+
+# Current BLENDER_SORTED_LIBS works with starting list of symbols in creator, but not
+# for this test. Doubling the list does let all the symbols be resolved, but link time is a bit painful.
+set(BLENDER_SORTED_LIBS ${BLENDER_SORTED_LIBS} ${BLENDER_SORTED_LIBS})
 
 if(WITH_BUILDINFO)
   set(_buildinfo_src "$<TARGET_OBJECTS:buildinfoobj>")
 else()
   set(_buildinfo_src "")
 endif()
-BLENDER_SRC_GTEST(bmesh_core "bmesh_core_test.cc;${_buildinfo_src}" "${LIB}")
+BLENDER_SRC_GTEST(bmesh_core "bmesh_core_test.cc;${_buildinfo_src}" "${BLENDER_SORTED_LIBS}")
 unset(_buildinfo_src)
 
 setup_liblinks(bmesh_core_test)
