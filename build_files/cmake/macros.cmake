@@ -234,11 +234,8 @@ function(blender_add_lib__impl
 
 	add_library(${name} ${sources})
 
-	# Use for testing 'BLENDER_SORTED_LIBS' removal.
-	if(DEFINED WITHOUT_SORTED_LIBS AND WITHOUT_SORTED_LIBS)
-		if (NOT "${library_deps}" STREQUAL "")
-			target_link_libraries(${name} "${library_deps}")
-		endif()
+	if (NOT "${library_deps}" STREQUAL "")
+		target_link_libraries(${name} "${library_deps}")
 	endif()
 
 	# works fine without having the includes
