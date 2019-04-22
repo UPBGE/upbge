@@ -211,8 +211,9 @@ void BKE_text_init(Text *ta)
 
   ta->nlines = 1;
   ta->flags = TXT_ISDIRTY | TXT_ISMEM;
-  if ((U.flag & USER_TXT_TABSTOSPACES_DISABLE) == 0)
+  if ((U.flag & USER_TXT_TABSTOSPACES_DISABLE) == 0) {
     ta->flags |= TXT_TABSTOSPACES;
+  }
 
   BLI_listbase_clear(&ta->lines);
 
@@ -254,8 +255,9 @@ int txt_extended_ascii_as_utf8(char **str)
   int added = 0;
 
   while ((*str)[i]) {
-    if ((bad_char = BLI_utf8_invalid_byte(*str + i, length - i)) == -1)
+    if ((bad_char = BLI_utf8_invalid_byte(*str + i, length - i)) == -1) {
       break;
+    }
 
     added++;
     i += bad_char + 1;
@@ -323,8 +325,9 @@ static void text_from_buf(Text *text, const unsigned char *buffer, const int len
       tmp->line = (char *)MEM_mallocN(llen + 1, "textline_string");
       tmp->format = NULL;
 
-      if (llen)
+      if (llen) {
         memcpy(tmp->line, &buffer[i - llen], llen);
+      }
       tmp->line[llen] = 0;
       tmp->len = llen;
 
@@ -352,8 +355,9 @@ static void text_from_buf(Text *text, const unsigned char *buffer, const int len
     tmp->line = (char *)MEM_mallocN(llen + 1, "textline_string");
     tmp->format = NULL;
 
-    if (llen)
+    if (llen) {
       memcpy(tmp->line, &buffer[i - llen], llen);
+    }
 
     tmp->line[llen] = 0;
     tmp->len = llen;
@@ -414,8 +418,9 @@ Text *BKE_text_load_ex(Main *bmain, const char *file, const char *relpath, const
   BLI_stat_t st;
 
   BLI_strncpy(filepath_abs, file, FILE_MAX);
-  if (relpath) /* can be NULL (bg mode) */
+  if (relpath) { /* can be NULL (bg mode) */
     BLI_path_abs(filepath_abs, relpath);
+  }
 
   buffer = BLI_file_read_text_as_mem(filepath_abs, 0, &buffer_len);
   if (buffer == NULL) {
@@ -428,8 +433,9 @@ Text *BKE_text_load_ex(Main *bmain, const char *file, const char *relpath, const
   BLI_listbase_clear(&ta->lines);
   ta->curl = ta->sell = NULL;
 
-  if ((U.flag & USER_TXT_TABSTOSPACES_DISABLE) == 0)
+  if ((U.flag & USER_TXT_TABSTOSPACES_DISABLE) == 0) {
     ta->flags = TXT_TABSTOSPACES;
+  }
 
   if (is_internal == false) {
     ta->name = MEM_mallocN(strlen(file) + 1, "text_name");
@@ -547,25 +553,30 @@ int BKE_text_file_modified_check(Text *text)
   int result;
   char file[FILE_MAX];
 
-  if (!text->name)
+  if (!text->name) {
     return 0;
+  }
 
   BLI_strncpy(file, text->name, FILE_MAX);
   BLI_path_abs(file, BKE_main_blendfile_path_from_global());
 
-  if (!BLI_exists(file))
+  if (!BLI_exists(file)) {
     return 2;
+  }
 
   result = BLI_stat(file, &st);
 
-  if (result == -1)
+  if (result == -1) {
     return -1;
+  }
 
-  if ((st.st_mode & S_IFMT) != S_IFREG)
+  if ((st.st_mode & S_IFMT) != S_IFREG) {
     return -1;
+  }
 
-  if (st.st_mtime > text->mtime)
+  if (st.st_mtime > text->mtime) {
     return 1;
+  }
 
   return 0;
 }
@@ -576,19 +587,22 @@ void BKE_text_file_modified_ignore(Text *text)
   int result;
   char file[FILE_MAX];
 
-  if (!text->name)
+  if (!text->name) {
     return;
+  }
 
   BLI_strncpy(file, text->name, FILE_MAX);
   BLI_path_abs(file, BKE_main_blendfile_path_from_global());
 
-  if (!BLI_exists(file))
+  if (!BLI_exists(file)) {
     return;
+  }
 
   result = BLI_stat(file, &st);
 
-  if (result == -1 || (st.st_mode & S_IFMT) != S_IFREG)
+  if (result == -1 || (st.st_mode & S_IFMT) != S_IFREG) {
     return;
+  }
 
   text->mtime = st.st_mtime;
 }
@@ -599,10 +613,12 @@ void BKE_text_file_modified_ignore(Text *text)
 
 static void make_new_line(TextLine *line, char *newline)
 {
-  if (line->line)
+  if (line->line) {
     MEM_freeN(line->line);
-  if (line->format)
+  }
+  if (line->format) {
     MEM_freeN(line->format);
+  }
 
   line->line = newline;
   line->len = strlen(newline);
@@ -613,8 +629,9 @@ static TextLine *txt_new_line(const char *str)
 {
   TextLine *tmp;
 
-  if (!str)
+  if (!str) {
     str = "";
+  }
 
   tmp = (TextLine *)MEM_mallocN(sizeof(TextLine), "textline");
   tmp->line = MEM_mallocN(strlen(str) + 1, "textline_string");
@@ -649,28 +666,35 @@ void txt_clean_text(Text *text)
   TextLine **top, **bot;
 
   if (!text->lines.first) {
-    if (text->lines.last)
+    if (text->lines.last) {
       text->lines.first = text->lines.last;
-    else
+    }
+    else {
       text->lines.first = text->lines.last = txt_new_line(NULL);
+    }
   }
 
-  if (!text->lines.last)
+  if (!text->lines.last) {
     text->lines.last = text->lines.first;
+  }
 
   top = (TextLine **)&text->lines.first;
   bot = (TextLine **)&text->lines.last;
 
-  while ((*top)->prev)
+  while ((*top)->prev) {
     *top = (*top)->prev;
-  while ((*bot)->next)
+  }
+  while ((*bot)->next) {
     *bot = (*bot)->next;
+  }
 
   if (!text->curl) {
-    if (text->sell)
+    if (text->sell) {
       text->curl = text->sell;
-    else
+    }
+    else {
       text->curl = text->lines.first;
+    }
     text->curc = 0;
   }
 
@@ -685,15 +709,18 @@ int txt_get_span(TextLine *from, TextLine *to)
   int ret = 0;
   TextLine *tmp = from;
 
-  if (!to || !from)
+  if (!to || !from) {
     return 0;
-  if (from == to)
+  }
+  if (from == to) {
     return 0;
+  }
 
   /* Look forwards */
   while (tmp) {
-    if (tmp == to)
+    if (tmp == to) {
       return ret;
+    }
     ret++;
     tmp = tmp->next;
   }
@@ -703,13 +730,15 @@ int txt_get_span(TextLine *from, TextLine *to)
     tmp = from;
     ret = 0;
     while (tmp) {
-      if (tmp == to)
+      if (tmp == to) {
         break;
+      }
       ret--;
       tmp = tmp->prev;
     }
-    if (!tmp)
+    if (!tmp) {
       ret = 0;
+    }
   }
 
   return ret;
@@ -719,8 +748,9 @@ static void txt_make_dirty(Text *text)
 {
   text->flags |= TXT_ISDIRTY;
 #ifdef WITH_PYTHON
-  if (text->compiled)
+  if (text->compiled) {
     BPY_text_free_code(text);
+  }
 #endif
 }
 
@@ -789,8 +819,9 @@ int txt_utf8_column_to_offset(const char *str, int column)
   int offset = 0, pos = 0, col;
   while (*(str + offset) && pos < column) {
     col = BLI_str_utf8_char_width_safe(str + offset);
-    if (pos + col > column)
+    if (pos + col > column) {
       break;
+    }
     offset += BLI_str_utf8_size_safe(str + offset);
     pos += col;
   }
@@ -802,14 +833,16 @@ void txt_move_up(Text *text, const bool sel)
   TextLine **linep;
   int *charp;
 
-  if (sel)
+  if (sel) {
     txt_curs_sel(text, &linep, &charp);
+  }
   else {
     txt_pop_first(text);
     txt_curs_cur(text, &linep, &charp);
   }
-  if (!*linep)
+  if (!*linep) {
     return;
+  }
 
   if ((*linep)->prev) {
     int column = txt_utf8_offset_to_column((*linep)->line, *charp);
@@ -820,8 +853,9 @@ void txt_move_up(Text *text, const bool sel)
     txt_move_bol(text, sel);
   }
 
-  if (!sel)
+  if (!sel) {
     txt_pop_sel(text);
+  }
 }
 
 void txt_move_down(Text *text, const bool sel)
@@ -829,14 +863,16 @@ void txt_move_down(Text *text, const bool sel)
   TextLine **linep;
   int *charp;
 
-  if (sel)
+  if (sel) {
     txt_curs_sel(text, &linep, &charp);
+  }
   else {
     txt_pop_last(text);
     txt_curs_cur(text, &linep, &charp);
   }
-  if (!*linep)
+  if (!*linep) {
     return;
+  }
 
   if ((*linep)->next) {
     int column = txt_utf8_offset_to_column((*linep)->line, *charp);
@@ -847,8 +883,9 @@ void txt_move_down(Text *text, const bool sel)
     txt_move_eol(text, sel);
   }
 
-  if (!sel)
+  if (!sel) {
     txt_pop_sel(text);
+  }
 }
 
 int txt_calc_tab_left(TextLine *tl, int ch)
@@ -857,15 +894,17 @@ int txt_calc_tab_left(TextLine *tl, int ch)
 
   int tabsize = (ch < TXT_TABSIZE) ? ch : TXT_TABSIZE;
 
-  for (int i = 0; i < ch; i++)
+  for (int i = 0; i < ch; i++) {
     if (tl->line[i] != ' ') {
       tabsize = 0;
       break;
     }
+  }
 
   /* if in the middle of the space-tab */
-  if (tabsize && ch % TXT_TABSIZE != 0)
+  if (tabsize && ch % TXT_TABSIZE != 0) {
     tabsize = (ch % TXT_TABSIZE);
+  }
   return tabsize;
 }
 
@@ -897,14 +936,16 @@ void txt_move_left(Text *text, const bool sel)
   int *charp;
   int tabsize = 0;
 
-  if (sel)
+  if (sel) {
     txt_curs_sel(text, &linep, &charp);
+  }
   else {
     txt_pop_first(text);
     txt_curs_cur(text, &linep, &charp);
   }
-  if (!*linep)
+  if (!*linep) {
     return;
+  }
 
   if (*charp == 0) {
     if ((*linep)->prev) {
@@ -928,8 +969,9 @@ void txt_move_left(Text *text, const bool sel)
     }
   }
 
-  if (!sel)
+  if (!sel) {
     txt_pop_sel(text);
+  }
 }
 
 void txt_move_right(Text *text, const bool sel)
@@ -937,14 +979,16 @@ void txt_move_right(Text *text, const bool sel)
   TextLine **linep;
   int *charp;
 
-  if (sel)
+  if (sel) {
     txt_curs_sel(text, &linep, &charp);
+  }
   else {
     txt_pop_last(text);
     txt_curs_cur(text, &linep, &charp);
   }
-  if (!*linep)
+  if (!*linep) {
     return;
+  }
 
   if (*charp == (*linep)->len) {
     if ((*linep)->next) {
@@ -969,8 +1013,9 @@ void txt_move_right(Text *text, const bool sel)
     }
   }
 
-  if (!sel)
+  if (!sel) {
     txt_pop_sel(text);
+  }
 }
 
 void txt_jump_left(Text *text, const bool sel, const bool use_init_step)
@@ -978,20 +1023,23 @@ void txt_jump_left(Text *text, const bool sel, const bool use_init_step)
   TextLine **linep;
   int *charp;
 
-  if (sel)
+  if (sel) {
     txt_curs_sel(text, &linep, &charp);
+  }
   else {
     txt_pop_first(text);
     txt_curs_cur(text, &linep, &charp);
   }
-  if (!*linep)
+  if (!*linep) {
     return;
+  }
 
   BLI_str_cursor_step_utf8(
       (*linep)->line, (*linep)->len, charp, STRCUR_DIR_PREV, STRCUR_JUMP_DELIM, use_init_step);
 
-  if (!sel)
+  if (!sel) {
     txt_pop_sel(text);
+  }
 }
 
 void txt_jump_right(Text *text, const bool sel, const bool use_init_step)
@@ -999,20 +1047,23 @@ void txt_jump_right(Text *text, const bool sel, const bool use_init_step)
   TextLine **linep;
   int *charp;
 
-  if (sel)
+  if (sel) {
     txt_curs_sel(text, &linep, &charp);
+  }
   else {
     txt_pop_last(text);
     txt_curs_cur(text, &linep, &charp);
   }
-  if (!*linep)
+  if (!*linep) {
     return;
+  }
 
   BLI_str_cursor_step_utf8(
       (*linep)->line, (*linep)->len, charp, STRCUR_DIR_NEXT, STRCUR_JUMP_DELIM, use_init_step);
 
-  if (!sel)
+  if (!sel) {
     txt_pop_sel(text);
+  }
 }
 
 void txt_move_bol(Text *text, const bool sel)
@@ -1020,17 +1071,21 @@ void txt_move_bol(Text *text, const bool sel)
   TextLine **linep;
   int *charp;
 
-  if (sel)
+  if (sel) {
     txt_curs_sel(text, &linep, &charp);
-  else
+  }
+  else {
     txt_curs_cur(text, &linep, &charp);
-  if (!*linep)
+  }
+  if (!*linep) {
     return;
+  }
 
   *charp = 0;
 
-  if (!sel)
+  if (!sel) {
     txt_pop_sel(text);
+  }
 }
 
 void txt_move_eol(Text *text, const bool sel)
@@ -1038,17 +1093,21 @@ void txt_move_eol(Text *text, const bool sel)
   TextLine **linep;
   int *charp;
 
-  if (sel)
+  if (sel) {
     txt_curs_sel(text, &linep, &charp);
-  else
+  }
+  else {
     txt_curs_cur(text, &linep, &charp);
-  if (!*linep)
+  }
+  if (!*linep) {
     return;
+  }
 
   *charp = (*linep)->len;
 
-  if (!sel)
+  if (!sel) {
     txt_pop_sel(text);
+  }
 }
 
 void txt_move_bof(Text *text, const bool sel)
@@ -1056,18 +1115,22 @@ void txt_move_bof(Text *text, const bool sel)
   TextLine **linep;
   int *charp;
 
-  if (sel)
+  if (sel) {
     txt_curs_sel(text, &linep, &charp);
-  else
+  }
+  else {
     txt_curs_cur(text, &linep, &charp);
-  if (!*linep)
+  }
+  if (!*linep) {
     return;
+  }
 
   *linep = text->lines.first;
   *charp = 0;
 
-  if (!sel)
+  if (!sel) {
     txt_pop_sel(text);
+  }
 }
 
 void txt_move_eof(Text *text, const bool sel)
@@ -1075,18 +1138,22 @@ void txt_move_eof(Text *text, const bool sel)
   TextLine **linep;
   int *charp;
 
-  if (sel)
+  if (sel) {
     txt_curs_sel(text, &linep, &charp);
-  else
+  }
+  else {
     txt_curs_cur(text, &linep, &charp);
-  if (!*linep)
+  }
+  if (!*linep) {
     return;
+  }
 
   *linep = text->lines.last;
   *charp = (*linep)->len;
 
-  if (!sel)
+  if (!sel) {
     txt_pop_sel(text);
+  }
 }
 
 void txt_move_toline(Text *text, unsigned int line, const bool sel)
@@ -1101,26 +1168,33 @@ void txt_move_to(Text *text, unsigned int line, unsigned int ch, const bool sel)
   int *charp;
   unsigned int i;
 
-  if (sel)
+  if (sel) {
     txt_curs_sel(text, &linep, &charp);
-  else
+  }
+  else {
     txt_curs_cur(text, &linep, &charp);
-  if (!*linep)
+  }
+  if (!*linep) {
     return;
+  }
 
   *linep = text->lines.first;
   for (i = 0; i < line; i++) {
-    if ((*linep)->next)
+    if ((*linep)->next) {
       *linep = (*linep)->next;
-    else
+    }
+    else {
       break;
+    }
   }
-  if (ch > (unsigned int)((*linep)->len))
+  if (ch > (unsigned int)((*linep)->len)) {
     ch = (unsigned int)((*linep)->len);
+  }
   *charp = ch;
 
-  if (!sel)
+  if (!sel) {
     txt_pop_sel(text);
+  }
 }
 
 /****************************/
@@ -1169,10 +1243,12 @@ void txt_pop_sel(Text *text)
 
 void txt_order_cursors(Text *text, const bool reverse)
 {
-  if (!text->curl)
+  if (!text->curl) {
     return;
-  if (!text->sell)
+  }
+  if (!text->sell) {
     return;
+  }
 
   /* Flip so text->curl is before/after text->sell */
   if (reverse == false) {
@@ -1199,13 +1275,16 @@ static void txt_delete_sel(Text *text, TextUndoBuf *utxt)
   TextLine *tmpl;
   char *buf;
 
-  if (!text->curl)
+  if (!text->curl) {
     return;
-  if (!text->sell)
+  }
+  if (!text->sell) {
     return;
+  }
 
-  if (!txt_has_sel(text))
+  if (!txt_has_sel(text)) {
     return;
+  }
 
   txt_order_cursors(text, false);
 
@@ -1226,8 +1305,9 @@ static void txt_delete_sel(Text *text, TextUndoBuf *utxt)
   tmpl = text->sell;
   while (tmpl != text->curl) {
     tmpl = tmpl->prev;
-    if (!tmpl)
+    if (!tmpl) {
       break;
+    }
 
     txt_delete_line(text, tmpl->next);
   }
@@ -1260,8 +1340,9 @@ void txt_sel_clear(Text *text)
 
 void txt_sel_line(Text *text)
 {
-  if (!text->curl)
+  if (!text->curl) {
     return;
+  }
 
   text->curc = 0;
   text->sell = text->curl;
@@ -1279,12 +1360,15 @@ char *txt_to_buf(Text *text)
   int charf, charl;
   char *buf;
 
-  if (!text->curl)
+  if (!text->curl) {
     return NULL;
-  if (!text->sell)
+  }
+  if (!text->sell) {
     return NULL;
-  if (!text->lines.first)
+  }
+  if (!text->lines.first) {
     return NULL;
+  }
 
   linef = text->lines.first;
   charf = 0;
@@ -1343,32 +1427,40 @@ int txt_find_string(Text *text, const char *findstr, int wrap, int match_case)
   TextLine *tl, *startl;
   const char *s = NULL;
 
-  if (!text->curl || !text->sell)
+  if (!text->curl || !text->sell) {
     return 0;
+  }
 
   txt_order_cursors(text, false);
 
   tl = startl = text->sell;
 
-  if (match_case)
+  if (match_case) {
     s = strstr(&tl->line[text->selc], findstr);
-  else
+  }
+  else {
     s = BLI_strcasestr(&tl->line[text->selc], findstr);
+  }
   while (!s) {
     tl = tl->next;
     if (!tl) {
-      if (wrap)
+      if (wrap) {
         tl = text->lines.first;
-      else
+      }
+      else {
         break;
+      }
     }
 
-    if (match_case)
+    if (match_case) {
       s = strstr(tl->line, findstr);
-    else
+    }
+    else {
       s = BLI_strcasestr(tl->line, findstr);
-    if (tl == startl)
+    }
+    if (tl == startl) {
       break;
+    }
   }
 
   if (s) {
@@ -1378,8 +1470,9 @@ int txt_find_string(Text *text, const char *findstr, int wrap, int match_case)
     txt_move_to(text, newl, newc + strlen(findstr), 1);
     return 1;
   }
-  else
+  else {
     return 0;
+  }
 }
 
 char *txt_sel_to_buf(Text *text)
@@ -1389,10 +1482,12 @@ char *txt_sel_to_buf(Text *text)
   TextLine *tmp, *linef, *linel;
   int charf, charl;
 
-  if (!text->curl)
+  if (!text->curl) {
     return NULL;
-  if (!text->sell)
+  }
+  if (!text->sell) {
     return NULL;
+  }
 
   if (text->curl == text->sell) {
     linef = linel = text->curl;
@@ -1472,8 +1567,9 @@ void txt_insert_buf(Text *text, TextUndoBuf *utxt, const char *in_buffer)
   TextLine *add;
   char *buffer;
 
-  if (!in_buffer)
+  if (!in_buffer) {
     return;
+  }
 
   txt_delete_sel(text, utxt);
 
@@ -2269,8 +2365,9 @@ void txt_do_undo(Text *text, TextUndoBuf *utxt)
         prev_flags = text->flags;
         text->flags &= ~TXT_TABSTOSPACES;
 
-        for (i = 0; i < linep; i++)
+        for (i = 0; i < linep; i++) {
           txt_move_right(text, 1);
+        }
 
         text->flags = prev_flags;
       }
@@ -2561,27 +2658,31 @@ void txt_split_curline(Text *text, TextUndoBuf *utxt)
   TextLine *ins;
   char *left, *right;
 
-  if (!text->curl)
+  if (!text->curl) {
     return;
+  }
 
   txt_delete_sel(text, utxt);
 
-  if (!undoing)
+  if (!undoing) {
     txt_undo_add_charop(text, utxt, UNDO_INSERT_1, '\n');
+  }
 
   /* Make the two half strings */
 
   left = MEM_mallocN(text->curc + 1, "textline_string");
-  if (text->curc)
+  if (text->curc) {
     memcpy(left, text->curl->line, text->curc);
+  }
   left[text->curc] = 0;
 
   right = MEM_mallocN(text->curl->len - text->curc + 1, "textline_string");
   memcpy(right, text->curl->line + text->curc, text->curl->len - text->curc + 1);
 
   MEM_freeN(text->curl->line);
-  if (text->curl->format)
+  if (text->curl->format) {
     MEM_freeN(text->curl->format);
+  }
 
   /* Make the new TextLine */
 
@@ -2606,15 +2707,18 @@ void txt_split_curline(Text *text, TextUndoBuf *utxt)
 
 static void txt_delete_line(Text *text, TextLine *line)
 {
-  if (!text->curl)
+  if (!text->curl) {
     return;
+  }
 
   BLI_remlink(&text->lines, line);
 
-  if (line->line)
+  if (line->line) {
     MEM_freeN(line->line);
-  if (line->format)
+  }
+  if (line->format) {
     MEM_freeN(line->format);
+  }
 
   MEM_freeN(line);
 
@@ -2626,8 +2730,9 @@ static void txt_combine_lines(Text *text, TextLine *linea, TextLine *lineb)
 {
   char *tmp, *s;
 
-  if (!linea || !lineb)
+  if (!linea || !lineb) {
     return;
+  }
 
   tmp = MEM_mallocN(linea->len + lineb->len + 1, "textline_string");
 
@@ -2648,8 +2753,9 @@ void txt_duplicate_line(Text *text, TextUndoBuf *utxt)
 {
   TextLine *textline;
 
-  if (!text->curl)
+  if (!text->curl) {
     return;
+  }
 
   if (text->curl == text->sell) {
     textline = txt_new_line(text->curl->line);
@@ -2658,8 +2764,9 @@ void txt_duplicate_line(Text *text, TextUndoBuf *utxt)
     txt_make_dirty(text);
     txt_clean_text(text);
 
-    if (!undoing)
+    if (!undoing) {
       txt_undo_add_op(text, utxt, UNDO_DUPLICATE);
+    }
   }
 }
 
@@ -2667,8 +2774,9 @@ void txt_delete_char(Text *text, TextUndoBuf *utxt)
 {
   unsigned int c = '\n';
 
-  if (!text->curl)
+  if (!text->curl) {
     return;
+  }
 
   if (txt_has_sel(text)) { /* deleting a selection */
     txt_delete_sel(text, utxt);
@@ -2680,8 +2788,9 @@ void txt_delete_char(Text *text, TextUndoBuf *utxt)
       txt_combine_lines(text, text->curl, text->curl->next);
       txt_pop_sel(text);
     }
-    else
+    else {
       return;
+    }
   }
   else { /* Just deleting a char */
     size_t c_len = 0;
@@ -2699,8 +2808,9 @@ void txt_delete_char(Text *text, TextUndoBuf *utxt)
   txt_make_dirty(text);
   txt_clean_text(text);
 
-  if (!undoing)
+  if (!undoing) {
     txt_undo_add_charop(text, utxt, UNDO_DEL_1, c);
+  }
 }
 
 void txt_delete_word(Text *text, TextUndoBuf *utxt)
@@ -2714,8 +2824,9 @@ void txt_backspace_char(Text *text, TextUndoBuf *utxt)
 {
   unsigned int c = '\n';
 
-  if (!text->curl)
+  if (!text->curl) {
     return;
+  }
 
   if (txt_has_sel(text)) { /* deleting a selection */
     txt_delete_sel(text, utxt);
@@ -2723,8 +2834,9 @@ void txt_backspace_char(Text *text, TextUndoBuf *utxt)
     return;
   }
   else if (text->curc == 0) { /* Appending two lines */
-    if (!text->curl->prev)
+    if (!text->curl->prev) {
       return;
+    }
 
     text->curl = text->curl->prev;
     text->curc = text->curl->len;
@@ -2751,8 +2863,9 @@ void txt_backspace_char(Text *text, TextUndoBuf *utxt)
   txt_make_dirty(text);
   txt_clean_text(text);
 
-  if (!undoing)
+  if (!undoing) {
     txt_undo_add_charop(text, utxt, UNDO_BS_1, c);
+  }
 }
 
 void txt_backspace_word(Text *text, TextUndoBuf *utxt)
@@ -2782,8 +2895,9 @@ static bool txt_add_char_intern(Text *text, TextUndoBuf *utxt, unsigned int add,
   char *tmp, ch[BLI_UTF8_MAX];
   size_t add_len;
 
-  if (!text->curl)
+  if (!text->curl) {
     return 0;
+  }
 
   if (add == '\n') {
     txt_split_curline(text, utxt);
@@ -2798,8 +2912,9 @@ static bool txt_add_char_intern(Text *text, TextUndoBuf *utxt, unsigned int add,
 
   txt_delete_sel(text, utxt);
 
-  if (!undoing)
+  if (!undoing) {
     txt_undo_add_charop(text, utxt, UNDO_INSERT_1, add);
+  }
 
   add_len = BLI_str_utf8_from_unicode(add, ch);
 
@@ -2844,8 +2959,9 @@ bool txt_replace_char(Text *text, TextUndoBuf *utxt, unsigned int add)
   size_t del_size = 0, add_size;
   char ch[BLI_UTF8_MAX];
 
-  if (!text->curl)
+  if (!text->curl) {
     return false;
+  }
 
   /* If text is selected or we're at the end of the line just use txt_add_char */
   if (text->curc == text->curl->len || txt_has_sel(text) || add == '\n') {
@@ -2915,13 +3031,15 @@ static void txt_select_prefix(Text *text, const char *add)
       tmp = MEM_mallocN(text->curl->len + indentlen + 1, "textline_string");
 
       text->curc = 0;
-      if (text->curc)
+      if (text->curc) {
         memcpy(tmp, text->curl->line, text->curc); /* XXX never true, check prev line */
+      }
       memcpy(tmp + text->curc, add, indentlen);
 
       len = text->curl->len - text->curc;
-      if (len > 0)
+      if (len > 0) {
         memcpy(tmp + text->curc + indentlen, text->curl->line + text->curc, len);
+      }
       tmp[text->curl->len + indentlen] = 0;
 
       make_new_line(text->curl, tmp);
@@ -2941,10 +3059,12 @@ static void txt_select_prefix(Text *text, const char *add)
       num++;
     }
   }
-  if (!curc_old)
+  if (!curc_old) {
     text->curc = 0;
-  else
+  }
+  else {
     text->curc = curc_old + indentlen;
+  }
 
   while (num > 0) {
     text->curl = text->curl->prev;
@@ -2985,8 +3105,9 @@ static void txt_select_unprefix(Text *text,
   while (true) {
     bool changed = false;
     if (STREQLEN(text->curl->line, remove, indentlen)) {
-      if (num == 0)
+      if (num == 0) {
         unindented_first = true;
+      }
       text->curl->len -= indentlen;
       memmove(text->curl->line, text->curl->line + indentlen, text->curl->len + 1);
       changed = true;
@@ -3006,8 +3127,9 @@ static void txt_select_unprefix(Text *text,
     txt_clean_text(text);
 
     if (text->curl == text->sell) {
-      if (changed)
+      if (changed) {
         text->selc = MAX2(text->selc - indentlen, 0);
+      }
       break;
     }
     else {
@@ -3016,8 +3138,9 @@ static void txt_select_unprefix(Text *text,
     }
   }
 
-  if (unindented_first)
+  if (unindented_first) {
     text->curc = MAX2(text->curc - indentlen, 0);
+  }
 
   while (num > 0) {
     text->curl = text->curl->prev;
@@ -3101,15 +3224,17 @@ void txt_move_lines(struct Text *text, TextUndoBuf *utxt, const int direction)
 
   BLI_assert(ELEM(direction, TXT_MOVE_LINE_UP, TXT_MOVE_LINE_DOWN));
 
-  if (!text->curl || !text->sell)
+  if (!text->curl || !text->sell) {
     return;
+  }
 
   txt_order_cursors(text, false);
 
   line_other = (direction == TXT_MOVE_LINE_DOWN) ? text->sell->next : text->curl->prev;
 
-  if (!line_other)
+  if (!line_other) {
     return;
+  }
 
   BLI_remlink(&text->lines, line_other);
 
@@ -3138,8 +3263,9 @@ int txt_setcurr_tab_spaces(Text *text, int space)
   const char indent = (text->flags & TXT_TABSTOSPACES) ? ' ' : '\t';
   static const char *back_words[] = {"return", "break", "continue", "pass", "yield", NULL};
 
-  if (!text->curl)
+  if (!text->curl) {
     return 0;
+  }
 
   while (text->curl->line[i] == indent) {
     //we only count those tabs/spaces that are before any text or before the curs;
@@ -3197,10 +3323,12 @@ int text_check_bracket(const char ch)
   char close[] = ")]}";
 
   for (a = 0; a < (sizeof(opens) - 1); a++) {
-    if (ch == opens[a])
+    if (ch == opens[a]) {
       return a + 1;
-    else if (ch == close[a])
+    }
+    else if (ch == close[a]) {
       return -(a + 1);
+    }
   }
   return 0;
 }
@@ -3212,50 +3340,64 @@ bool text_check_delim(const char ch)
   char delims[] = "():\"\' ~!%^&*-+=[]{};/<>|.#\t,@";
 
   for (a = 0; a < (sizeof(delims) - 1); a++) {
-    if (ch == delims[a])
+    if (ch == delims[a]) {
       return true;
+    }
   }
   return false;
 }
 
 bool text_check_digit(const char ch)
 {
-  if (ch < '0')
+  if (ch < '0') {
     return false;
-  if (ch <= '9')
+  }
+  if (ch <= '9') {
     return true;
+  }
   return false;
 }
 
 bool text_check_identifier(const char ch)
 {
-  if (ch < '0')
+  if (ch < '0') {
     return false;
-  if (ch <= '9')
+  }
+  if (ch <= '9') {
     return true;
-  if (ch < 'A')
+  }
+  if (ch < 'A') {
     return false;
-  if (ch <= 'Z' || ch == '_')
+  }
+  if (ch <= 'Z' || ch == '_') {
     return true;
-  if (ch < 'a')
+  }
+  if (ch < 'a') {
     return false;
-  if (ch <= 'z')
+  }
+  if (ch <= 'z') {
     return true;
+  }
   return false;
 }
 
 bool text_check_identifier_nodigit(const char ch)
 {
-  if (ch <= '9')
+  if (ch <= '9') {
     return false;
-  if (ch < 'A')
+  }
+  if (ch < 'A') {
     return false;
-  if (ch <= 'Z' || ch == '_')
+  }
+  if (ch <= 'Z' || ch == '_') {
     return true;
-  if (ch < 'a')
+  }
+  if (ch < 'a') {
     return false;
-  if (ch <= 'z')
+  }
+  if (ch <= 'z') {
     return true;
+  }
   return false;
 }
 
@@ -3273,8 +3415,9 @@ int text_check_identifier_nodigit_unicode(const unsigned int ch)
 
 bool text_check_whitespace(const char ch)
 {
-  if (ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n')
+  if (ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n') {
     return true;
+  }
   return false;
 }
 

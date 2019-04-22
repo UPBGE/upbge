@@ -121,12 +121,15 @@ static int svert_sum_cmp(const void *e1, const void *e2)
   const SortVertsElem *sv1 = e1;
   const SortVertsElem *sv2 = e2;
 
-  if (sv1->sum_co > sv2->sum_co)
+  if (sv1->sum_co > sv2->sum_co) {
     return 1;
-  else if (sv1->sum_co < sv2->sum_co)
+  }
+  else if (sv1->sum_co < sv2->sum_co) {
     return -1;
-  else
+  }
+  else {
     return 0;
+  }
 }
 
 static void svert_from_mvert(SortVertsElem *sv,
@@ -345,410 +348,417 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
                                    const ModifierEvalContext *ctx,
                                    Mesh *mesh)
 {
-	const float eps = 1e-6f;
-	const MVert *src_mvert;
-	MVert *mv, *mv_prev, *result_dm_verts;
+  const float eps = 1e-6f;
+  const MVert *src_mvert;
+  MVert *mv, *mv_prev, *result_dm_verts;
 
-	MEdge *me;
-	MLoop *ml;
-	MPoly *mp;
-	int i, j, c, count;
-	float length = amd->length;
-	/* offset matrix */
-	float offset[4][4];
-	float scale[3];
-	bool offset_has_scale;
-	float current_offset[4][4];
-	float final_offset[4][4];
-	int *full_doubles_map = NULL;
-	int tot_doubles;
+  MEdge *me;
+  MLoop *ml;
+  MPoly *mp;
+  int i, j, c, count;
+  float length = amd->length;
+  /* offset matrix */
+  float offset[4][4];
+  float scale[3];
+  bool offset_has_scale;
+  float current_offset[4][4];
+  float final_offset[4][4];
+  int *full_doubles_map = NULL;
+  int tot_doubles;
 
-	const bool use_merge = (amd->flags & MOD_ARR_MERGE) != 0;
-	const bool use_recalc_normals = (mesh->runtime.cd_dirty_vert & CD_MASK_NORMAL) || use_merge;
-	const bool use_offset_ob = ((amd->offset_type & MOD_ARR_OFF_OBJ) && amd->offset_ob != NULL);
+  const bool use_merge = (amd->flags & MOD_ARR_MERGE) != 0;
+  const bool use_recalc_normals = (mesh->runtime.cd_dirty_vert & CD_MASK_NORMAL) || use_merge;
+  const bool use_offset_ob = ((amd->offset_type & MOD_ARR_OFF_OBJ) && amd->offset_ob != NULL);
 
-	int start_cap_nverts = 0, start_cap_nedges = 0, start_cap_npolys = 0, start_cap_nloops = 0;
-	int end_cap_nverts = 0, end_cap_nedges = 0, end_cap_npolys = 0, end_cap_nloops = 0;
-	int result_nverts = 0, result_nedges = 0, result_npolys = 0, result_nloops = 0;
-	int chunk_nverts, chunk_nedges, chunk_nloops, chunk_npolys;
-	int first_chunk_start, first_chunk_nverts, last_chunk_start, last_chunk_nverts;
+  int start_cap_nverts = 0, start_cap_nedges = 0, start_cap_npolys = 0, start_cap_nloops = 0;
+  int end_cap_nverts = 0, end_cap_nedges = 0, end_cap_npolys = 0, end_cap_nloops = 0;
+  int result_nverts = 0, result_nedges = 0, result_npolys = 0, result_nloops = 0;
+  int chunk_nverts, chunk_nedges, chunk_nloops, chunk_npolys;
+  int first_chunk_start, first_chunk_nverts, last_chunk_start, last_chunk_nverts;
 
-	Mesh *result, *start_cap_mesh = NULL, *end_cap_mesh = NULL;
+  Mesh *result, *start_cap_mesh = NULL, *end_cap_mesh = NULL;
 
-	int *vgroup_start_cap_remap = NULL;
-	int vgroup_start_cap_remap_len = 0;
-	int *vgroup_end_cap_remap = NULL;
-	int vgroup_end_cap_remap_len = 0;
+  int *vgroup_start_cap_remap = NULL;
+  int vgroup_start_cap_remap_len = 0;
+  int *vgroup_end_cap_remap = NULL;
+  int vgroup_end_cap_remap_len = 0;
 
-	chunk_nverts = mesh->totvert;
-	chunk_nedges = mesh->totedge;
-	chunk_nloops = mesh->totloop;
-	chunk_npolys = mesh->totpoly;
+  chunk_nverts = mesh->totvert;
+  chunk_nedges = mesh->totedge;
+  chunk_nloops = mesh->totloop;
+  chunk_npolys = mesh->totpoly;
 
-	count = amd->count;
+  count = amd->count;
 
-	Object *start_cap_ob = amd->start_cap;
-	if (start_cap_ob && start_cap_ob != ctx->object && start_cap_ob->type == OB_MESH) {
-		vgroup_start_cap_remap = BKE_object_defgroup_index_map_create(
-		                             start_cap_ob, ctx->object, &vgroup_start_cap_remap_len);
+  Object *start_cap_ob = amd->start_cap;
+  if (start_cap_ob && start_cap_ob != ctx->object && start_cap_ob->type == OB_MESH) {
+    vgroup_start_cap_remap = BKE_object_defgroup_index_map_create(
+        start_cap_ob, ctx->object, &vgroup_start_cap_remap_len);
 
-		start_cap_mesh = BKE_modifier_get_evaluated_mesh_from_evaluated_object(start_cap_ob, false);
-		if (start_cap_mesh) {
-			start_cap_nverts = start_cap_mesh->totvert;
-			start_cap_nedges = start_cap_mesh->totedge;
-			start_cap_nloops = start_cap_mesh->totloop;
-			start_cap_npolys = start_cap_mesh->totpoly;
-		}
-	}
-	Object *end_cap_ob = amd->end_cap;
-	if (end_cap_ob && end_cap_ob != ctx->object && end_cap_ob->type == OB_MESH) {
-		vgroup_end_cap_remap = BKE_object_defgroup_index_map_create(
-		                           end_cap_ob, ctx->object, &vgroup_end_cap_remap_len);
+    start_cap_mesh = BKE_modifier_get_evaluated_mesh_from_evaluated_object(start_cap_ob, false);
+    if (start_cap_mesh) {
+      start_cap_nverts = start_cap_mesh->totvert;
+      start_cap_nedges = start_cap_mesh->totedge;
+      start_cap_nloops = start_cap_mesh->totloop;
+      start_cap_npolys = start_cap_mesh->totpoly;
+    }
+  }
+  Object *end_cap_ob = amd->end_cap;
+  if (end_cap_ob && end_cap_ob != ctx->object && end_cap_ob->type == OB_MESH) {
+    vgroup_end_cap_remap = BKE_object_defgroup_index_map_create(
+        end_cap_ob, ctx->object, &vgroup_end_cap_remap_len);
 
-		end_cap_mesh = BKE_modifier_get_evaluated_mesh_from_evaluated_object(end_cap_ob, false);
-		if (end_cap_mesh) {
-			end_cap_nverts = end_cap_mesh->totvert;
-			end_cap_nedges = end_cap_mesh->totedge;
-			end_cap_nloops = end_cap_mesh->totloop;
-			end_cap_npolys = end_cap_mesh->totpoly;
-		}
-	}
+    end_cap_mesh = BKE_modifier_get_evaluated_mesh_from_evaluated_object(end_cap_ob, false);
+    if (end_cap_mesh) {
+      end_cap_nverts = end_cap_mesh->totvert;
+      end_cap_nedges = end_cap_mesh->totedge;
+      end_cap_nloops = end_cap_mesh->totloop;
+      end_cap_npolys = end_cap_mesh->totpoly;
+    }
+  }
 
-	/* Build up offset array, cumulating all settings options */
+  /* Build up offset array, cumulating all settings options */
 
-	unit_m4(offset);
-	src_mvert = mesh->mvert;
+  unit_m4(offset);
+  src_mvert = mesh->mvert;
 
-	if (amd->offset_type & MOD_ARR_OFF_CONST) {
-		add_v3_v3(offset[3], amd->offset);
-	}
+  if (amd->offset_type & MOD_ARR_OFF_CONST) {
+    add_v3_v3(offset[3], amd->offset);
+  }
 
-	if (amd->offset_type & MOD_ARR_OFF_RELATIVE) {
-		float min[3], max[3];
-		const MVert *src_mv;
+  if (amd->offset_type & MOD_ARR_OFF_RELATIVE) {
+    float min[3], max[3];
+    const MVert *src_mv;
 
-		INIT_MINMAX(min, max);
-		for (src_mv = src_mvert, j = chunk_nverts; j--; src_mv++) {
-			minmax_v3v3_v3(min, max, src_mv->co);
-		}
+    INIT_MINMAX(min, max);
+    for (src_mv = src_mvert, j = chunk_nverts; j--; src_mv++) {
+      minmax_v3v3_v3(min, max, src_mv->co);
+    }
 
-		for (j = 3; j--; ) {
-			offset[3][j] += amd->scale[j] * (max[j] - min[j]);
-		}
-	}
+    for (j = 3; j--;) {
+      offset[3][j] += amd->scale[j] * (max[j] - min[j]);
+    }
+  }
 
-	if (use_offset_ob) {
-		float obinv[4][4];
-		float result_mat[4][4];
+  if (use_offset_ob) {
+    float obinv[4][4];
+    float result_mat[4][4];
 
-		if (ctx->object)
-			invert_m4_m4(obinv, ctx->object->obmat);
-		else
-			unit_m4(obinv);
+    if (ctx->object) {
+      invert_m4_m4(obinv, ctx->object->obmat);
+    }
+    else {
+      unit_m4(obinv);
+    }
 
-		mul_m4_series(result_mat, offset, obinv, amd->offset_ob->obmat);
-		copy_m4_m4(offset, result_mat);
-	}
+    mul_m4_series(result_mat, offset, obinv, amd->offset_ob->obmat);
+    copy_m4_m4(offset, result_mat);
+  }
 
-	/* Check if there is some scaling.  If scaling, then we will not translate mapping */
-	mat4_to_size(scale, offset);
-	offset_has_scale = !is_one_v3(scale);
+  /* Check if there is some scaling.  If scaling, then we will not translate mapping */
+  mat4_to_size(scale, offset);
+  offset_has_scale = !is_one_v3(scale);
 
-	if (amd->fit_type == MOD_ARR_FITCURVE && amd->curve_ob != NULL) {
-		Object *curve_ob = amd->curve_ob;
-		Curve *cu = curve_ob->data;
-		if (cu) {
-			CurveCache *curve_cache = curve_ob->runtime.curve_cache;
-			if (curve_cache != NULL && curve_cache->path != NULL) {
-				float scale_fac = mat4_to_scale(curve_ob->obmat);
-				length = scale_fac * curve_cache->path->totdist;
-			}
-		}
-	}
+  if (amd->fit_type == MOD_ARR_FITCURVE && amd->curve_ob != NULL) {
+    Object *curve_ob = amd->curve_ob;
+    Curve *cu = curve_ob->data;
+    if (cu) {
+      CurveCache *curve_cache = curve_ob->runtime.curve_cache;
+      if (curve_cache != NULL && curve_cache->path != NULL) {
+        float scale_fac = mat4_to_scale(curve_ob->obmat);
+        length = scale_fac * curve_cache->path->totdist;
+      }
+    }
+  }
 
-	/* calculate the maximum number of copies which will fit within the
-	 * prescribed length */
-	if (amd->fit_type == MOD_ARR_FITLENGTH || amd->fit_type == MOD_ARR_FITCURVE) {
-		float dist = len_v3(offset[3]);
+  /* calculate the maximum number of copies which will fit within the
+   * prescribed length */
+  if (amd->fit_type == MOD_ARR_FITLENGTH || amd->fit_type == MOD_ARR_FITCURVE) {
+    float dist = len_v3(offset[3]);
 
-		if (dist > eps) {
-			/* this gives length = first copy start to last copy end
-			 * add a tiny offset for floating point rounding errors */
-			count = (length + eps) / dist + 1;
-		}
-		else {
-			/* if the offset has no translation, just make one copy */
-			count = 1;
-		}
-	}
+    if (dist > eps) {
+      /* this gives length = first copy start to last copy end
+       * add a tiny offset for floating point rounding errors */
+      count = (length + eps) / dist + 1;
+    }
+    else {
+      /* if the offset has no translation, just make one copy */
+      count = 1;
+    }
+  }
 
-	if (count < 1)
-		count = 1;
+  if (count < 1) {
+    count = 1;
+  }
 
-	/* The number of verts, edges, loops, polys, before eventually merging doubles */
-	result_nverts = chunk_nverts * count + start_cap_nverts + end_cap_nverts;
-	result_nedges = chunk_nedges * count + start_cap_nedges + end_cap_nedges;
-	result_nloops = chunk_nloops * count + start_cap_nloops + end_cap_nloops;
-	result_npolys = chunk_npolys * count + start_cap_npolys + end_cap_npolys;
+  /* The number of verts, edges, loops, polys, before eventually merging doubles */
+  result_nverts = chunk_nverts * count + start_cap_nverts + end_cap_nverts;
+  result_nedges = chunk_nedges * count + start_cap_nedges + end_cap_nedges;
+  result_nloops = chunk_nloops * count + start_cap_nloops + end_cap_nloops;
+  result_npolys = chunk_npolys * count + start_cap_npolys + end_cap_npolys;
 
-	/* Initialize a result dm */
-	result = BKE_mesh_new_nomain_from_template(mesh, result_nverts, result_nedges, 0, result_nloops, result_npolys);
-	result_dm_verts = result->mvert;
+  /* Initialize a result dm */
+  result = BKE_mesh_new_nomain_from_template(
+      mesh, result_nverts, result_nedges, 0, result_nloops, result_npolys);
+  result_dm_verts = result->mvert;
 
-	if (use_merge) {
-		/* Will need full_doubles_map for handling merge */
-		full_doubles_map = MEM_malloc_arrayN(result_nverts, sizeof(int), "mod array doubles map");
-		copy_vn_i(full_doubles_map, result_nverts, -1);
-	}
+  if (use_merge) {
+    /* Will need full_doubles_map for handling merge */
+    full_doubles_map = MEM_malloc_arrayN(result_nverts, sizeof(int), "mod array doubles map");
+    copy_vn_i(full_doubles_map, result_nverts, -1);
+  }
 
-	/* copy customdata to original geometry */
-	CustomData_copy_data(&mesh->vdata, &result->vdata, 0, 0, chunk_nverts);
-	CustomData_copy_data(&mesh->edata, &result->edata, 0, 0, chunk_nedges);
-	CustomData_copy_data(&mesh->ldata, &result->ldata, 0, 0, chunk_nloops);
-	CustomData_copy_data(&mesh->pdata, &result->pdata, 0, 0, chunk_npolys);
+  /* copy customdata to original geometry */
+  CustomData_copy_data(&mesh->vdata, &result->vdata, 0, 0, chunk_nverts);
+  CustomData_copy_data(&mesh->edata, &result->edata, 0, 0, chunk_nedges);
+  CustomData_copy_data(&mesh->ldata, &result->ldata, 0, 0, chunk_nloops);
+  CustomData_copy_data(&mesh->pdata, &result->pdata, 0, 0, chunk_npolys);
 
-	/* Subsurf for eg won't have mesh data in the custom data arrays.
-	 * now add mvert/medge/mpoly layers. */
-	if (!CustomData_has_layer(&mesh->vdata, CD_MVERT)) {
-		memcpy(result->mvert, mesh->mvert, sizeof(*result->mvert) * mesh->totvert);
-	}
-	if (!CustomData_has_layer(&mesh->edata, CD_MEDGE)) {
-		memcpy(result->medge, mesh->medge, sizeof(*result->medge) * mesh->totedge);
-	}
-	if (!CustomData_has_layer(&mesh->pdata, CD_MPOLY)) {
-		memcpy(result->mloop, mesh->mloop, sizeof(*result->mloop) * mesh->totloop);
-		memcpy(result->mpoly, mesh->mpoly, sizeof(*result->mpoly) * mesh->totpoly);
-	}
+  /* Subsurf for eg won't have mesh data in the custom data arrays.
+   * now add mvert/medge/mpoly layers. */
+  if (!CustomData_has_layer(&mesh->vdata, CD_MVERT)) {
+    memcpy(result->mvert, mesh->mvert, sizeof(*result->mvert) * mesh->totvert);
+  }
+  if (!CustomData_has_layer(&mesh->edata, CD_MEDGE)) {
+    memcpy(result->medge, mesh->medge, sizeof(*result->medge) * mesh->totedge);
+  }
+  if (!CustomData_has_layer(&mesh->pdata, CD_MPOLY)) {
+    memcpy(result->mloop, mesh->mloop, sizeof(*result->mloop) * mesh->totloop);
+    memcpy(result->mpoly, mesh->mpoly, sizeof(*result->mpoly) * mesh->totpoly);
+  }
 
-	/* Remember first chunk, in case of cap merge */
-	first_chunk_start = 0;
-	first_chunk_nverts = chunk_nverts;
+  /* Remember first chunk, in case of cap merge */
+  first_chunk_start = 0;
+  first_chunk_nverts = chunk_nverts;
 
-	unit_m4(current_offset);
-	for (c = 1; c < count; c++) {
-		/* copy customdata to new geometry */
-		CustomData_copy_data(&mesh->vdata, &result->vdata, 0, c * chunk_nverts, chunk_nverts);
-		CustomData_copy_data(&mesh->edata, &result->edata, 0, c * chunk_nedges, chunk_nedges);
-		CustomData_copy_data(&mesh->ldata, &result->ldata, 0, c * chunk_nloops, chunk_nloops);
-		CustomData_copy_data(&mesh->pdata, &result->pdata, 0, c * chunk_npolys, chunk_npolys);
+  unit_m4(current_offset);
+  for (c = 1; c < count; c++) {
+    /* copy customdata to new geometry */
+    CustomData_copy_data(&mesh->vdata, &result->vdata, 0, c * chunk_nverts, chunk_nverts);
+    CustomData_copy_data(&mesh->edata, &result->edata, 0, c * chunk_nedges, chunk_nedges);
+    CustomData_copy_data(&mesh->ldata, &result->ldata, 0, c * chunk_nloops, chunk_nloops);
+    CustomData_copy_data(&mesh->pdata, &result->pdata, 0, c * chunk_npolys, chunk_npolys);
 
-		mv_prev = result_dm_verts;
-		mv = mv_prev + c * chunk_nverts;
+    mv_prev = result_dm_verts;
+    mv = mv_prev + c * chunk_nverts;
 
-		/* recalculate cumulative offset here */
-		mul_m4_m4m4(current_offset, current_offset, offset);
+    /* recalculate cumulative offset here */
+    mul_m4_m4m4(current_offset, current_offset, offset);
 
-		/* apply offset to all new verts */
-		for (i = 0; i < chunk_nverts; i++, mv++, mv_prev++) {
-			mul_m4_v3(current_offset, mv->co);
+    /* apply offset to all new verts */
+    for (i = 0; i < chunk_nverts; i++, mv++, mv_prev++) {
+      mul_m4_v3(current_offset, mv->co);
 
-			/* We have to correct normals too, if we do not tag them as dirty! */
-			if (!use_recalc_normals) {
-				float no[3];
-				normal_short_to_float_v3(no, mv->no);
-				mul_mat3_m4_v3(current_offset, no);
-				normalize_v3(no);
-				normal_float_to_short_v3(mv->no, no);
-			}
-		}
+      /* We have to correct normals too, if we do not tag them as dirty! */
+      if (!use_recalc_normals) {
+        float no[3];
+        normal_short_to_float_v3(no, mv->no);
+        mul_mat3_m4_v3(current_offset, no);
+        normalize_v3(no);
+        normal_float_to_short_v3(mv->no, no);
+      }
+    }
 
-		/* adjust edge vertex indices */
-		me = result->medge + c * chunk_nedges;
-		for (i = 0; i < chunk_nedges; i++, me++) {
-			me->v1 += c * chunk_nverts;
-			me->v2 += c * chunk_nverts;
-		}
+    /* adjust edge vertex indices */
+    me = result->medge + c * chunk_nedges;
+    for (i = 0; i < chunk_nedges; i++, me++) {
+      me->v1 += c * chunk_nverts;
+      me->v2 += c * chunk_nverts;
+    }
 
-		mp = result->mpoly + c * chunk_npolys;
-		for (i = 0; i < chunk_npolys; i++, mp++) {
-			mp->loopstart += c * chunk_nloops;
-		}
+    mp = result->mpoly + c * chunk_npolys;
+    for (i = 0; i < chunk_npolys; i++, mp++) {
+      mp->loopstart += c * chunk_nloops;
+    }
 
-		/* adjust loop vertex and edge indices */
-		ml = result->mloop + c * chunk_nloops;
-		for (i = 0; i < chunk_nloops; i++, ml++) {
-			ml->v += c * chunk_nverts;
-			ml->e += c * chunk_nedges;
-		}
+    /* adjust loop vertex and edge indices */
+    ml = result->mloop + c * chunk_nloops;
+    for (i = 0; i < chunk_nloops; i++, ml++) {
+      ml->v += c * chunk_nverts;
+      ml->e += c * chunk_nedges;
+    }
 
-		/* Handle merge between chunk n and n-1 */
-		if (use_merge && (c >= 1)) {
-			if (!offset_has_scale && (c >= 2)) {
-				/* Mapping chunk 3 to chunk 2 is a translation of mapping 2 to 1
-				 * ... that is except if scaling makes the distance grow */
-				int k;
-				int this_chunk_index = c * chunk_nverts;
-				int prev_chunk_index = (c - 1) * chunk_nverts;
-				for (k = 0; k < chunk_nverts; k++, this_chunk_index++, prev_chunk_index++) {
-					int target = full_doubles_map[prev_chunk_index];
-					if (target != -1) {
-						target += chunk_nverts; /* translate mapping */
-						while (target != -1 && !ELEM(full_doubles_map[target], -1, target)) {
-							/* If target is already mapped, we only follow that mapping if final target remains
-							 * close enough from current vert (otherwise no mapping at all). */
-							if (compare_len_v3v3(result_dm_verts[this_chunk_index].co,
-							                     result_dm_verts[full_doubles_map[target]].co,
-							                     amd->merge_dist))
-							{
-								target = full_doubles_map[target];
-							}
-							else {
-								target = -1;
-							}
-						}
-					}
-					full_doubles_map[this_chunk_index] = target;
-				}
-			}
-			else {
-				dm_mvert_map_doubles(
-				        full_doubles_map,
-				        result_dm_verts,
-				        (c - 1) * chunk_nverts,
-				        chunk_nverts,
-				        c * chunk_nverts,
-				        chunk_nverts,
-				        amd->merge_dist);
-			}
-		}
-	}
+    /* Handle merge between chunk n and n-1 */
+    if (use_merge && (c >= 1)) {
+      if (!offset_has_scale && (c >= 2)) {
+        /* Mapping chunk 3 to chunk 2 is a translation of mapping 2 to 1
+         * ... that is except if scaling makes the distance grow */
+        int k;
+        int this_chunk_index = c * chunk_nverts;
+        int prev_chunk_index = (c - 1) * chunk_nverts;
+        for (k = 0; k < chunk_nverts; k++, this_chunk_index++, prev_chunk_index++) {
+          int target = full_doubles_map[prev_chunk_index];
+          if (target != -1) {
+            target += chunk_nverts; /* translate mapping */
+            while (target != -1 && !ELEM(full_doubles_map[target], -1, target)) {
+              /* If target is already mapped, we only follow that mapping if final target remains
+               * close enough from current vert (otherwise no mapping at all). */
+              if (compare_len_v3v3(result_dm_verts[this_chunk_index].co,
+                                   result_dm_verts[full_doubles_map[target]].co,
+                                   amd->merge_dist)) {
+                target = full_doubles_map[target];
+              }
+              else {
+                target = -1;
+              }
+            }
+          }
+          full_doubles_map[this_chunk_index] = target;
+        }
+      }
+      else {
+        dm_mvert_map_doubles(full_doubles_map,
+                             result_dm_verts,
+                             (c - 1) * chunk_nverts,
+                             chunk_nverts,
+                             c * chunk_nverts,
+                             chunk_nverts,
+                             amd->merge_dist);
+      }
+    }
+  }
 
-	/* handle UVs */
-	if (chunk_nloops > 0 && is_zero_v2(amd->uv_offset) == false) {
-		const int totuv = CustomData_number_of_layers(&result->ldata, CD_MLOOPUV);
-		for (i = 0; i < totuv; i++) {
-			MLoopUV *dmloopuv = CustomData_get_layer_n(&result->ldata, CD_MLOOPUV, i);
-			dmloopuv += chunk_nloops;
-			for (c = 1; c < count; c++) {
-				const float uv_offset[2] = {
-					amd->uv_offset[0] * (float)c,
-					amd->uv_offset[1] * (float)c,
-				};
-				int l_index = chunk_nloops;
-				for (; l_index-- != 0; dmloopuv++) {
-					dmloopuv->uv[0] += uv_offset[0];
-					dmloopuv->uv[1] += uv_offset[1];
-				}
-			}
-		}
-	}
+  /* handle UVs */
+  if (chunk_nloops > 0 && is_zero_v2(amd->uv_offset) == false) {
+    const int totuv = CustomData_number_of_layers(&result->ldata, CD_MLOOPUV);
+    for (i = 0; i < totuv; i++) {
+      MLoopUV *dmloopuv = CustomData_get_layer_n(&result->ldata, CD_MLOOPUV, i);
+      dmloopuv += chunk_nloops;
+      for (c = 1; c < count; c++) {
+        const float uv_offset[2] = {
+            amd->uv_offset[0] * (float)c,
+            amd->uv_offset[1] * (float)c,
+        };
+        int l_index = chunk_nloops;
+        for (; l_index-- != 0; dmloopuv++) {
+          dmloopuv->uv[0] += uv_offset[0];
+          dmloopuv->uv[1] += uv_offset[1];
+        }
+      }
+    }
+  }
 
-	last_chunk_start = (count - 1) * chunk_nverts;
-	last_chunk_nverts = chunk_nverts;
+  last_chunk_start = (count - 1) * chunk_nverts;
+  last_chunk_nverts = chunk_nverts;
 
-	copy_m4_m4(final_offset, current_offset);
+  copy_m4_m4(final_offset, current_offset);
 
-	if (use_merge && (amd->flags & MOD_ARR_MERGEFINAL) && (count > 1)) {
-		/* Merge first and last copies */
-		dm_mvert_map_doubles(
-		        full_doubles_map,
-		        result_dm_verts,
-		        last_chunk_start,
-		        last_chunk_nverts,
-		        first_chunk_start,
-		        first_chunk_nverts,
-		        amd->merge_dist);
-	}
+  if (use_merge && (amd->flags & MOD_ARR_MERGEFINAL) && (count > 1)) {
+    /* Merge first and last copies */
+    dm_mvert_map_doubles(full_doubles_map,
+                         result_dm_verts,
+                         last_chunk_start,
+                         last_chunk_nverts,
+                         first_chunk_start,
+                         first_chunk_nverts,
+                         amd->merge_dist);
+  }
 
-	/* start capping */
-	if (start_cap_mesh) {
-		float start_offset[4][4];
-		int start_cap_start = result_nverts - start_cap_nverts - end_cap_nverts;
-		invert_m4_m4(start_offset, offset);
-		mesh_merge_transform(
-		        result, start_cap_mesh, start_offset,
-		        result_nverts - start_cap_nverts - end_cap_nverts,
-		        result_nedges - start_cap_nedges - end_cap_nedges,
-		        result_nloops - start_cap_nloops - end_cap_nloops,
-		        result_npolys - start_cap_npolys - end_cap_npolys,
-		        start_cap_nverts, start_cap_nedges, start_cap_nloops, start_cap_npolys,
-		        vgroup_start_cap_remap, vgroup_start_cap_remap_len);
-		/* Identify doubles with first chunk */
-		if (use_merge) {
-			dm_mvert_map_doubles(
-			        full_doubles_map,
-			        result_dm_verts,
-			        first_chunk_start,
-			        first_chunk_nverts,
-			        start_cap_start,
-			        start_cap_nverts,
-			        amd->merge_dist);
-		}
-	}
+  /* start capping */
+  if (start_cap_mesh) {
+    float start_offset[4][4];
+    int start_cap_start = result_nverts - start_cap_nverts - end_cap_nverts;
+    invert_m4_m4(start_offset, offset);
+    mesh_merge_transform(result,
+                         start_cap_mesh,
+                         start_offset,
+                         result_nverts - start_cap_nverts - end_cap_nverts,
+                         result_nedges - start_cap_nedges - end_cap_nedges,
+                         result_nloops - start_cap_nloops - end_cap_nloops,
+                         result_npolys - start_cap_npolys - end_cap_npolys,
+                         start_cap_nverts,
+                         start_cap_nedges,
+                         start_cap_nloops,
+                         start_cap_npolys,
+                         vgroup_start_cap_remap,
+                         vgroup_start_cap_remap_len);
+    /* Identify doubles with first chunk */
+    if (use_merge) {
+      dm_mvert_map_doubles(full_doubles_map,
+                           result_dm_verts,
+                           first_chunk_start,
+                           first_chunk_nverts,
+                           start_cap_start,
+                           start_cap_nverts,
+                           amd->merge_dist);
+    }
+  }
 
-	if (end_cap_mesh) {
-		float end_offset[4][4];
-		int end_cap_start = result_nverts - end_cap_nverts;
-		mul_m4_m4m4(end_offset, current_offset, offset);
-		mesh_merge_transform(
-		        result, end_cap_mesh, end_offset,
-		        result_nverts - end_cap_nverts,
-		        result_nedges - end_cap_nedges,
-		        result_nloops - end_cap_nloops,
-		        result_npolys - end_cap_npolys,
-		        end_cap_nverts, end_cap_nedges, end_cap_nloops, end_cap_npolys,
-		        vgroup_end_cap_remap, vgroup_end_cap_remap_len);
-		/* Identify doubles with last chunk */
-		if (use_merge) {
-			dm_mvert_map_doubles(
-			        full_doubles_map,
-			        result_dm_verts,
-			        last_chunk_start,
-			        last_chunk_nverts,
-			        end_cap_start,
-			        end_cap_nverts,
-			        amd->merge_dist);
-		}
-	}
-	/* done capping */
+  if (end_cap_mesh) {
+    float end_offset[4][4];
+    int end_cap_start = result_nverts - end_cap_nverts;
+    mul_m4_m4m4(end_offset, current_offset, offset);
+    mesh_merge_transform(result,
+                         end_cap_mesh,
+                         end_offset,
+                         result_nverts - end_cap_nverts,
+                         result_nedges - end_cap_nedges,
+                         result_nloops - end_cap_nloops,
+                         result_npolys - end_cap_npolys,
+                         end_cap_nverts,
+                         end_cap_nedges,
+                         end_cap_nloops,
+                         end_cap_npolys,
+                         vgroup_end_cap_remap,
+                         vgroup_end_cap_remap_len);
+    /* Identify doubles with last chunk */
+    if (use_merge) {
+      dm_mvert_map_doubles(full_doubles_map,
+                           result_dm_verts,
+                           last_chunk_start,
+                           last_chunk_nverts,
+                           end_cap_start,
+                           end_cap_nverts,
+                           amd->merge_dist);
+    }
+  }
+  /* done capping */
 
-	/* Handle merging */
-	tot_doubles = 0;
-	if (use_merge) {
-		for (i = 0; i < result_nverts; i++) {
-			int new_i = full_doubles_map[i];
-			if (new_i != -1) {
-				/* We have to follow chains of doubles (merge start/end especially is likely to create some),
-				 * those are not supported at all by CDDM_merge_verts! */
-				while (!ELEM(full_doubles_map[new_i], -1, new_i)) {
-					new_i = full_doubles_map[new_i];
-				}
-				if (i == new_i) {
-					full_doubles_map[i] = -1;
-				}
-				else {
-					full_doubles_map[i] = new_i;
-					tot_doubles++;
-				}
-			}
-		}
-		if (tot_doubles > 0) {
-			result = BKE_mesh_merge_verts(result, full_doubles_map, tot_doubles, MESH_MERGE_VERTS_DUMP_IF_EQUAL);
-		}
-		MEM_freeN(full_doubles_map);
-	}
+  /* Handle merging */
+  tot_doubles = 0;
+  if (use_merge) {
+    for (i = 0; i < result_nverts; i++) {
+      int new_i = full_doubles_map[i];
+      if (new_i != -1) {
+        /* We have to follow chains of doubles (merge start/end especially is likely to create some),
+         * those are not supported at all by BKE_mesh_merge_verts! */
+        while (!ELEM(full_doubles_map[new_i], -1, new_i)) {
+          new_i = full_doubles_map[new_i];
+        }
+        if (i == new_i) {
+          full_doubles_map[i] = -1;
+        }
+        else {
+          full_doubles_map[i] = new_i;
+          tot_doubles++;
+        }
+      }
+    }
+    if (tot_doubles > 0) {
+      result = BKE_mesh_merge_verts(
+          result, full_doubles_map, tot_doubles, MESH_MERGE_VERTS_DUMP_IF_EQUAL);
+    }
+    MEM_freeN(full_doubles_map);
+  }
 
-	/* In case org dm has dirty normals, or we made some merging, mark normals as dirty in new mesh!
-	 * TODO: we may need to set other dirty flags as well?
-	 */
-	if (use_recalc_normals) {
-		result->runtime.cd_dirty_vert |= CD_MASK_NORMAL;
-	}
+  /* In case org dm has dirty normals, or we made some merging, mark normals as dirty in new mesh!
+   * TODO: we may need to set other dirty flags as well?
+   */
+  if (use_recalc_normals) {
+    result->runtime.cd_dirty_vert |= CD_MASK_NORMAL;
+  }
 
-	if (vgroup_start_cap_remap) {
-		MEM_freeN(vgroup_start_cap_remap);
-	}
-	if (vgroup_end_cap_remap) {
-		MEM_freeN(vgroup_end_cap_remap);
-	}
+  if (vgroup_start_cap_remap) {
+    MEM_freeN(vgroup_start_cap_remap);
+  }
+  if (vgroup_end_cap_remap) {
+    MEM_freeN(vgroup_end_cap_remap);
+  }
 
-	return result;
+  return result;
 }
 
-
-static Mesh *applyModifier(
-        ModifierData *md, const ModifierEvalContext *ctx,
-        Mesh *mesh)
+static Mesh *applyModifier(ModifierData *md, const ModifierEvalContext *ctx, Mesh *mesh)
 {
   ArrayModifierData *amd = (ArrayModifierData *)md;
   return arrayModifier_doArray(amd, ctx, mesh);

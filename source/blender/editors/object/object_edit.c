@@ -144,8 +144,9 @@ Object *ED_object_active_context(bContext *C)
   Object *ob = NULL;
   if (C) {
     ob = ED_object_context(C);
-    if (!ob)
+    if (!ob) {
       ob = CTX_data_active_object(C);
+    }
   }
   return ob;
 }
@@ -723,8 +724,9 @@ static bool editmode_toggle_poll(bContext *C)
   Object *ob = CTX_data_active_object(C);
 
   /* covers proxies too */
-  if (ELEM(NULL, ob, ob->data) || ID_IS_LINKED(ob->data))
+  if (ELEM(NULL, ob, ob->data) || ID_IS_LINKED(ob->data)) {
     return 0;
+  }
 
   /* if hidden but in edit mode, we still display */
   if ((ob->restrictflag & OB_RESTRICT_VIEW) && !(ob->mode & OB_MODE_EDIT)) {
@@ -1309,12 +1311,15 @@ static int forcefield_toggle_exec(bContext *C, wmOperator *UNUSED(op))
 {
   Object *ob = CTX_data_active_object(C);
 
-  if (ob->pd == NULL)
+  if (ob->pd == NULL) {
     ob->pd = BKE_partdeflect_new(PFIELD_FORCE);
-  else if (ob->pd->forcefield == 0)
+  }
+  else if (ob->pd->forcefield == 0) {
     ob->pd->forcefield = PFIELD_FORCE;
-  else
+  }
+  else {
     ob->pd->forcefield = 0;
+  }
 
   ED_object_check_force_modifiers(CTX_data_main(C), CTX_data_scene(C), ob);
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
@@ -1387,8 +1392,9 @@ static int object_calculate_paths_invoke(bContext *C, wmOperator *op, const wmEv
 {
   Object *ob = CTX_data_active_object(C);
 
-  if (ob == NULL)
+  if (ob == NULL) {
     return OPERATOR_CANCELLED;
+  }
 
   /* set default settings from existing/stored settings */
   {
@@ -1484,8 +1490,9 @@ static int object_update_paths_exec(bContext *C, wmOperator *UNUSED(op))
 {
   Scene *scene = CTX_data_scene(C);
 
-  if (scene == NULL)
+  if (scene == NULL) {
     return OPERATOR_CANCELLED;
+  }
 
   /* calculate the paths for objects that have them (and are tagged to get refreshed) */
   ED_objects_recalculate_paths(C, scene, false);
@@ -1656,10 +1663,12 @@ static int shade_smooth_exec(bContext *C, wmOperator *op)
       cu = ob->data;
 
       for (nu = cu->nurb.first; nu; nu = nu->next) {
-        if (!clear)
+        if (!clear) {
           nu->flag |= ME_SMOOTH;
-        else
+        }
+        else {
           nu->flag &= ~ME_SMOOTH;
+        }
       }
 
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
@@ -1670,8 +1679,9 @@ static int shade_smooth_exec(bContext *C, wmOperator *op)
   }
   CTX_DATA_END;
 
-  if (linked_data)
+  if (linked_data) {
     BKE_report(op->reports, RPT_WARNING, "Can't edit linked mesh or curve data");
+  }
 
   return (done) ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
@@ -1723,8 +1733,9 @@ static const EnumPropertyItem *object_mode_set_itemsf(bContext *C,
   Object *ob;
   int totitem = 0;
 
-  if (!C) /* needed for docs */
+  if (!C) { /* needed for docs */
     return rna_enum_object_mode_items;
+  }
 
   ob = CTX_data_active_object(C);
   if (ob) {
@@ -1772,10 +1783,12 @@ static bool object_mode_set_poll(bContext *C)
    * to still work in that case when there's no active object
    * so that users can exit editmode this way as per normal.
    */
-  if (ED_operator_object_active_editable(C))
+  if (ED_operator_object_active_editable(C)) {
     return true;
-  else
+  }
+  else {
     return (CTX_data_gpencil_data(C) != NULL);
+  }
 }
 
 static int object_mode_set_exec(bContext *C, wmOperator *op)
@@ -1806,8 +1819,9 @@ static int object_mode_set_exec(bContext *C, wmOperator *op)
     mode = OB_MODE_EDIT_GPENCIL;
   }
 
-  if (!ob || !ED_object_mode_compat_test(ob, mode))
+  if (!ob || !ED_object_mode_compat_test(ob, mode)) {
     return OPERATOR_PASS_THROUGH;
+  }
 
   if (ob->mode != mode) {
     /* we should be able to remove this call, each operator calls  */

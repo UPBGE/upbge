@@ -93,8 +93,9 @@ bool paint_convert_bb_to_rect(rcti *rect,
   BLI_rcti_init_minmax(rect);
 
   /* return zero if the bounding box has non-positive volume */
-  if (bb_min[0] > bb_max[0] || bb_min[1] > bb_max[1] || bb_min[2] > bb_max[2])
+  if (bb_min[0] > bb_max[0] || bb_min[1] > bb_max[1] || bb_min[2] > bb_max[2]) {
     return 0;
+  }
 
   ED_view3d_ob_project_mat_get(rv3d, ob, projection_mat);
 
@@ -195,8 +196,9 @@ void paint_get_tex_pixel_col(const MTex *mtex,
     rgba[3] = 1.0f;
   }
 
-  if (convert_to_linear)
+  if (convert_to_linear) {
     IMB_colormanagement_colorspace_to_scene_linear_v3(rgba, colorspace);
+  }
 
   linearrgb_to_srgb_v3_v3(rgba, rgba);
 
@@ -382,8 +384,9 @@ static int imapaint_pick_face(ViewContext *vc,
                               unsigned int *r_index,
                               unsigned int totpoly)
 {
-  if (totpoly == 0)
+  if (totpoly == 0) {
     return 0;
+  }
 
   /* sample only on the exact position */
   *r_index = ED_view3d_select_id_sample(vc, mval[0], mval[1]);
@@ -410,18 +413,24 @@ static Image *imapaint_face_image(Object *ob, Mesh *me, int face_index)
 /* Uses symm to selectively flip any axis of a coordinate. */
 void flip_v3_v3(float out[3], const float in[3], const char symm)
 {
-  if (symm & PAINT_SYMM_X)
+  if (symm & PAINT_SYMM_X) {
     out[0] = -in[0];
-  else
+  }
+  else {
     out[0] = in[0];
-  if (symm & PAINT_SYMM_Y)
+  }
+  if (symm & PAINT_SYMM_Y) {
     out[1] = -in[1];
-  else
+  }
+  else {
     out[1] = in[1];
-  if (symm & PAINT_SYMM_Z)
+  }
+  if (symm & PAINT_SYMM_Z) {
     out[2] = -in[2];
-  else
+  }
+  else {
     out[2] = in[2];
+  }
 }
 
 void flip_qt_qt(float out[4], const float in[4], const char symm)
@@ -451,140 +460,141 @@ void flip_qt_qt(float out[4], const float in[4], const char symm)
 void paint_sample_color(
     bContext *C, ARegion *ar, int x, int y, bool texpaint_proj, bool use_palette)
 {
-	Scene *scene = CTX_data_scene(C);
-	Depsgraph *depsgraph = CTX_data_depsgraph(C);
-	Paint *paint = BKE_paint_get_active_from_context(C);
-	Palette *palette = BKE_paint_palette(paint);
-	PaletteColor *color = NULL;
-	Brush *br = BKE_paint_brush(BKE_paint_get_active_from_context(C));
-	unsigned int col;
-	const unsigned char *cp;
+  Scene *scene = CTX_data_scene(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph(C);
+  Paint *paint = BKE_paint_get_active_from_context(C);
+  Palette *palette = BKE_paint_palette(paint);
+  PaletteColor *color = NULL;
+  Brush *br = BKE_paint_brush(BKE_paint_get_active_from_context(C));
+  unsigned int col;
+  const unsigned char *cp;
 
-	CLAMP(x, 0, ar->winx);
-	CLAMP(y, 0, ar->winy);
+  CLAMP(x, 0, ar->winx);
+  CLAMP(y, 0, ar->winy);
 
-	if (use_palette) {
-		if (!palette) {
-			palette = BKE_palette_add(CTX_data_main(C), "Palette");
-			BKE_paint_palette_set(paint, palette);
-		}
+  if (use_palette) {
+    if (!palette) {
+      palette = BKE_palette_add(CTX_data_main(C), "Palette");
+      BKE_paint_palette_set(paint, palette);
+    }
 
-		color = BKE_palette_color_add(palette);
-		palette->active_color = BLI_listbase_count(&palette->colors) - 1;
-	}
+    color = BKE_palette_color_add(palette);
+    palette->active_color = BLI_listbase_count(&palette->colors) - 1;
+  }
 
+  if (CTX_wm_view3d(C) && texpaint_proj) {
+    /* first try getting a colour directly from the mesh faces if possible */
+    ViewLayer *view_layer = CTX_data_view_layer(C);
+    Object *ob = OBACT(view_layer);
+    Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+    bool sample_success = false;
+    ImagePaintSettings *imapaint = &scene->toolsettings->imapaint;
+    bool use_material = (imapaint->mode == IMAGEPAINT_MODE_MATERIAL);
 
-	if (CTX_wm_view3d(C) && texpaint_proj) {
-		/* first try getting a colour directly from the mesh faces if possible */
-		ViewLayer *view_layer = CTX_data_view_layer(C);
-		Object *ob = OBACT(view_layer);
-		Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
-		bool sample_success = false;
-		ImagePaintSettings *imapaint = &scene->toolsettings->imapaint;
-		bool use_material = (imapaint->mode == IMAGEPAINT_MODE_MATERIAL);
+    if (ob) {
+      CustomData_MeshMasks cddata_masks = CD_MASK_BAREMESH;
+      cddata_masks.pmask |= CD_MASK_ORIGINDEX;
+      Mesh *me = (Mesh *)ob->data;
+      Mesh *me_eval = mesh_get_eval_final(depsgraph, scene, ob_eval, &cddata_masks);
 
-		if (ob) {
-			CustomData_MeshMasks cddata_masks = CD_MASK_BAREMESH;
-			cddata_masks.pmask |= CD_MASK_ORIGINDEX;
-			Mesh *me = (Mesh *)ob->data;
-			Mesh *me_eval = mesh_get_eval_final(depsgraph, scene, ob_eval, &cddata_masks);
+      ViewContext vc;
+      const int mval[2] = {x, y};
+      unsigned int faceindex;
+      unsigned int totpoly = me->totpoly;
 
-			ViewContext vc;
-			const int mval[2] = {x, y};
-			unsigned int faceindex;
-			unsigned int totpoly = me->totpoly;
+      if (CustomData_has_layer(&me_eval->ldata, CD_MLOOPUV)) {
+        ED_view3d_viewcontext_init(C, &vc);
 
-			if (CustomData_has_layer(&me_eval->ldata, CD_MLOOPUV)) {
-				ED_view3d_viewcontext_init(C, &vc);
+        view3d_operator_needs_opengl(C);
 
-				view3d_operator_needs_opengl(C);
+        if (imapaint_pick_face(&vc, mval, &faceindex, totpoly)) {
+          Image *image;
 
-				if (imapaint_pick_face(&vc, mval, &faceindex, totpoly)) {
-					Image *image;
+          if (use_material) {
+            image = imapaint_face_image(ob_eval, me_eval, faceindex);
+          }
+          else {
+            image = imapaint->canvas;
+          }
 
-					if (use_material)
-						image = imapaint_face_image(ob_eval, me_eval, faceindex);
-					else
-						image = imapaint->canvas;
+          if (image) {
+            ImBuf *ibuf = BKE_image_acquire_ibuf(image, NULL, NULL);
+            if (ibuf && ibuf->rect) {
+              float uv[2];
+              float u, v;
+              imapaint_pick_uv(me_eval, scene, ob_eval, faceindex, mval, uv);
+              sample_success = true;
 
-					if (image) {
-						ImBuf *ibuf = BKE_image_acquire_ibuf(image, NULL, NULL);
-						if (ibuf && ibuf->rect) {
-							float uv[2];
-							float u, v;
-							imapaint_pick_uv(me_eval, scene, ob_eval, faceindex, mval, uv);
-							sample_success = true;
+              u = fmodf(uv[0], 1.0f);
+              v = fmodf(uv[1], 1.0f);
 
-							u = fmodf(uv[0], 1.0f);
-							v = fmodf(uv[1], 1.0f);
+              if (u < 0.0f) {
+                u += 1.0f;
+              }
+              if (v < 0.0f) {
+                v += 1.0f;
+              }
 
-							if (u < 0.0f) u += 1.0f;
-							if (v < 0.0f) v += 1.0f;
+              u = u * ibuf->x;
+              v = v * ibuf->y;
 
-							u = u * ibuf->x;
-							v = v * ibuf->y;
+              if (ibuf->rect_float) {
+                float rgba_f[4];
+                bilinear_interpolation_color_wrap(ibuf, NULL, rgba_f, u, v);
+                straight_to_premul_v4(rgba_f);
+                if (use_palette) {
+                  linearrgb_to_srgb_v3_v3(color->rgb, rgba_f);
+                }
+                else {
+                  linearrgb_to_srgb_v3_v3(rgba_f, rgba_f);
+                  BKE_brush_color_set(scene, br, rgba_f);
+                }
+              }
+              else {
+                unsigned char rgba[4];
+                bilinear_interpolation_color_wrap(ibuf, rgba, NULL, u, v);
+                if (use_palette) {
+                  rgb_uchar_to_float(color->rgb, rgba);
+                }
+                else {
+                  float rgba_f[3];
+                  rgb_uchar_to_float(rgba_f, rgba);
+                  BKE_brush_color_set(scene, br, rgba_f);
+                }
+              }
+            }
 
-							if (ibuf->rect_float) {
-								float rgba_f[4];
-								if (U.gameflags & USER_DISABLE_MIPMAP)
-									nearest_interpolation_color_wrap(ibuf, NULL, rgba_f, u, v);
-								else
-									bilinear_interpolation_color_wrap(ibuf, NULL, rgba_f, u, v);
-								straight_to_premul_v4(rgba_f);
-								if (use_palette) {
-									linearrgb_to_srgb_v3_v3(color->rgb, rgba_f);
-								}
-								else {
-									linearrgb_to_srgb_v3_v3(rgba_f, rgba_f);
-									BKE_brush_color_set(scene, br, rgba_f);
-								}
-							}
-							else {
-								unsigned char rgba[4];
-								if (U.gameflags & USER_DISABLE_MIPMAP)
-									nearest_interpolation_color_wrap(ibuf, rgba, NULL, u, v);
-								else
-									bilinear_interpolation_color_wrap(ibuf, rgba, NULL, u, v);
-								if (use_palette) {
-									rgb_uchar_to_float(color->rgb, rgba);
-								}
-								else {
-									float rgba_f[3];
-									rgb_uchar_to_float(rgba_f, rgba);
-									BKE_brush_color_set(scene, br, rgba_f);
-								}
-							}
-						}
+            BKE_image_release_ibuf(image, ibuf, NULL);
+          }
+        }
+      }
+    }
 
-						BKE_image_release_ibuf(image, ibuf, NULL);
-					}
-				}
-			}
-		}
+    if (!sample_success) {
+      glReadBuffer(GL_FRONT);
+      glReadPixels(
+          x + ar->winrct.xmin, y + ar->winrct.ymin, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, &col);
+      glReadBuffer(GL_BACK);
+    }
+    else {
+      return;
+    }
+  }
+  else {
+    glReadBuffer(GL_FRONT);
+    glReadPixels(x + ar->winrct.xmin, y + ar->winrct.ymin, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, &col);
+    glReadBuffer(GL_BACK);
+  }
+  cp = (unsigned char *)&col;
 
-		if (!sample_success) {
-			glReadBuffer(GL_FRONT);
-			glReadPixels(x + ar->winrct.xmin, y + ar->winrct.ymin, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, &col);
-			glReadBuffer(GL_BACK);
-		}
-		else
-			return;
-	}
-	else {
-		glReadBuffer(GL_FRONT);
-		glReadPixels(x + ar->winrct.xmin, y + ar->winrct.ymin, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, &col);
-		glReadBuffer(GL_BACK);
-	}
-	cp = (unsigned char *)&col;
-
-	if (use_palette) {
-		rgb_uchar_to_float(color->rgb, cp);
-	}
-	else {
-		float rgba_f[3];
-		rgb_uchar_to_float(rgba_f, cp);
-		BKE_brush_color_set(scene, br, rgba_f);
-	}
+  if (use_palette) {
+    rgb_uchar_to_float(color->rgb, cp);
+  }
+  else {
+    float rgba_f[3];
+    rgb_uchar_to_float(rgba_f, cp);
+    BKE_brush_color_set(scene, br, rgba_f);
+  }
 }
 
 static int brush_curve_preset_exec(bContext *C, wmOperator *op)
