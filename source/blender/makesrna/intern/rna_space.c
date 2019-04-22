@@ -59,46 +59,99 @@
 #include "RNA_enum_types.h"
 
 const EnumPropertyItem rna_enum_space_type_items[] = {
-	/* empty must be here for python, is skipped for UI */
-	{SPACE_EMPTY, "EMPTY", ICON_NONE, "Empty", ""},
+    /* empty must be here for python, is skipped for UI */
+    {SPACE_EMPTY, "EMPTY", ICON_NONE, "Empty", ""},
 
-	/* General */
-	{0, "", ICON_NONE, "General", ""},
-	{SPACE_VIEW3D, "VIEW_3D", ICON_VIEW3D, "3D Viewport", "Manipulate objects in a 3D environment"},
-	{SPACE_IMAGE, "IMAGE_EDITOR", ICON_IMAGE, "UV/Image Editor", "View and edit images and UV Maps"},
-	{SPACE_NODE, "NODE_EDITOR", ICON_NODETREE, "Node Editor", "Editor for node-based shading and compositing tools"},
-	{SPACE_SEQ, "SEQUENCE_EDITOR", ICON_SEQUENCE, "Video Sequencer", "Video editing tools"},
-	{SPACE_CLIP, "CLIP_EDITOR", ICON_TRACKER, "Movie Clip Editor", "Motion tracking tools"},
+    /* General */
+    {0, "", ICON_NONE, "General", ""},
+    {SPACE_VIEW3D,
+     "VIEW_3D",
+     ICON_VIEW3D,
+     "3D Viewport",
+     "Manipulate objects in a 3D environment"},
+    {SPACE_IMAGE,
+     "IMAGE_EDITOR",
+     ICON_IMAGE,
+     "UV/Image Editor",
+     "View and edit images and UV Maps"},
+    {SPACE_NODE,
+     "NODE_EDITOR",
+     ICON_NODETREE,
+     "Node Editor",
+     "Editor for node-based shading and compositing tools"},
+    {SPACE_SEQ, "SEQUENCE_EDITOR", ICON_SEQUENCE, "Video Sequencer", "Video editing tools"},
+    {SPACE_CLIP, "CLIP_EDITOR", ICON_TRACKER, "Movie Clip Editor", "Motion tracking tools"},
+    {SPACE_LOGIC, "LOGIC_EDITOR", ICON_ACTION, "Logic Editor", "Logic Editor tools"},
 
-	/* Animation */
-	{0, "", ICON_NONE, "Animation", ""},
-	//{SPACE_ACTION, "TIMELINE", ICON_TIME, "Timeline", "Timeline and playback controls (NOTE: Switch to 'Timeline' mode)"}, /* XXX */
-	{SPACE_ACTION, "DOPESHEET_EDITOR", ICON_ACTION, "Dope Sheet", "Adjust timing of keyframes"},
-	{SPACE_GRAPH, "GRAPH_EDITOR", ICON_GRAPH, "Graph Editor", "Edit drivers and keyframe interpolation"},
-	{SPACE_NLA, "NLA_EDITOR", ICON_NLA, "Nonlinear Animation", "Combine and layer Actions"},
+    /* Animation */
+    {0, "", ICON_NONE, "Animation", ""},
+#if 0
+    {SPACE_ACTION,
+     "TIMELINE",
+     ICON_TIME,
+     "Timeline",
+     "Timeline and playback controls (NOTE: Switch to 'Timeline' mode)"}, /* XXX */
+#endif
+    {SPACE_ACTION, "DOPESHEET_EDITOR", ICON_ACTION, "Dope Sheet", "Adjust timing of keyframes"},
+    {SPACE_GRAPH,
+     "GRAPH_EDITOR",
+     ICON_GRAPH,
+     "Graph Editor",
+     "Edit drivers and keyframe interpolation"},
+    {SPACE_NLA, "NLA_EDITOR", ICON_NLA, "Nonlinear Animation", "Combine and layer Actions"},
 
-	/* Scripting */
-	{0, "", ICON_NONE, "Scripting", ""},
-	{SPACE_TEXT, "TEXT_EDITOR", ICON_TEXT, "Text Editor", "Edit scripts and in-file documentation"},
-	{SPACE_LOGIC, "LOGIC_EDITOR", ICON_ACTION, "Logic Editor", "Game logic editing"}, // CHOOSE BETTER ICON
-	{SPACE_CONSOLE, "CONSOLE", ICON_CONSOLE, "Python Console", "Interactive programmatic console for "
-	                "advanced editing and script development"},
-	{SPACE_INFO, "INFO", ICON_INFO, "Info", "Main menu bar and list of error messages "
-	             "(drag down to expand and display)"},
-	/* Special case: Top-bar and Status-bar aren't supposed to be a regular editor for the user. */
-	{SPACE_TOPBAR, "TOPBAR", ICON_NONE, "Top Bar", "Global bar at the top of the screen for "
-	               "global per-window settings"},
-	{SPACE_STATUSBAR, "STATUSBAR", ICON_NONE, "Status Bar", "Global bar at the bottom of the "
-	                  "screen for general status information"},
+    /* Scripting */
+    {0, "", ICON_NONE, "Scripting", ""},
+    {SPACE_TEXT,
+     "TEXT_EDITOR",
+     ICON_TEXT,
+     "Text Editor",
+     "Edit scripts and in-file documentation"},
+    {SPACE_CONSOLE,
+     "CONSOLE",
+     ICON_CONSOLE,
+     "Python Console",
+     "Interactive programmatic console for "
+     "advanced editing and script development"},
+    {SPACE_INFO,
+     "INFO",
+     ICON_INFO,
+     "Info",
+     "Main menu bar and list of error messages "
+     "(drag down to expand and display)"},
+    /* Special case: Top-bar and Status-bar aren't supposed to be a regular editor for the user. */
+    {SPACE_TOPBAR,
+     "TOPBAR",
+     ICON_NONE,
+     "Top Bar",
+     "Global bar at the top of the screen for "
+     "global per-window settings"},
+    {SPACE_STATUSBAR,
+     "STATUSBAR",
+     ICON_NONE,
+     "Status Bar",
+     "Global bar at the bottom of the "
+     "screen for general status information"},
 
-	/* Data */
-	{0, "", ICON_NONE, "Data", ""},
-	{SPACE_OUTLINER, "OUTLINER", ICON_OUTLINER, "Outliner", "Overview of scene graph and all available data-blocks"},
-	{SPACE_PROPERTIES, "PROPERTIES", ICON_PROPERTIES, "Properties", "Edit properties of active object and related data-blocks"},
-	{SPACE_FILE, "FILE_BROWSER", ICON_FILEBROWSER, "File Browser", "Browse for files and assets"},
-	{SPACE_USERPREF, "PREFERENCES", ICON_PREFERENCES, "Preferences",
-	                 "Edit persistent configuration settings"},
-	{0, NULL, 0, NULL, NULL},
+    /* Data */
+    {0, "", ICON_NONE, "Data", ""},
+    {SPACE_OUTLINER,
+     "OUTLINER",
+     ICON_OUTLINER,
+     "Outliner",
+     "Overview of scene graph and all available data-blocks"},
+    {SPACE_PROPERTIES,
+     "PROPERTIES",
+     ICON_PROPERTIES,
+     "Properties",
+     "Edit properties of active object and related data-blocks"},
+    {SPACE_FILE, "FILE_BROWSER", ICON_FILEBROWSER, "File Browser", "Browse for files and assets"},
+    {SPACE_USERPREF,
+     "PREFERENCES",
+     ICON_PREFERENCES,
+     "Preferences",
+     "Edit persistent configuration settings"},
+    {0, NULL, 0, NULL, NULL},
 };
 
 const EnumPropertyItem rna_enum_space_graph_mode_items[] = {
@@ -431,44 +484,44 @@ const EnumPropertyItem rna_enum_file_sort_items[] = {
 
 static StructRNA *rna_Space_refine(struct PointerRNA *ptr)
 {
-	SpaceLink *space = (SpaceLink *)ptr->data;
+  SpaceLink *space = (SpaceLink *)ptr->data;
 
-	switch (space->spacetype) {
-		case SPACE_VIEW3D:
-			return &RNA_SpaceView3D;
-		case SPACE_GRAPH:
-			return &RNA_SpaceGraphEditor;
-		case SPACE_OUTLINER:
-			return &RNA_SpaceOutliner;
-		case SPACE_PROPERTIES:
-			return &RNA_SpaceProperties;
-		case SPACE_FILE:
-			return &RNA_SpaceFileBrowser;
-		case SPACE_IMAGE:
-			return &RNA_SpaceImageEditor;
-		case SPACE_INFO:
-			return &RNA_SpaceInfo;
-		case SPACE_SEQ:
-			return &RNA_SpaceSequenceEditor;
-		case SPACE_TEXT:
-			return &RNA_SpaceTextEditor;
-		case SPACE_ACTION:
-			return &RNA_SpaceDopeSheetEditor;
-		case SPACE_NLA:
-			return &RNA_SpaceNLA;
-		case SPACE_NODE:
-			return &RNA_SpaceNodeEditor;
-		case SPACE_LOGIC:
-			return &RNA_SpaceLogicEditor;
-		case SPACE_CONSOLE:
-			return &RNA_SpaceConsole;
-		case SPACE_USERPREF:
-			return &RNA_SpacePreferences;
-		case SPACE_CLIP:
-			return &RNA_SpaceClipEditor;
-		default:
-			return &RNA_Space;
-	}
+  switch (space->spacetype) {
+    case SPACE_VIEW3D:
+      return &RNA_SpaceView3D;
+    case SPACE_GRAPH:
+      return &RNA_SpaceGraphEditor;
+    case SPACE_OUTLINER:
+      return &RNA_SpaceOutliner;
+    case SPACE_PROPERTIES:
+      return &RNA_SpaceProperties;
+    case SPACE_FILE:
+      return &RNA_SpaceFileBrowser;
+    case SPACE_IMAGE:
+      return &RNA_SpaceImageEditor;
+    case SPACE_INFO:
+      return &RNA_SpaceInfo;
+    case SPACE_SEQ:
+      return &RNA_SpaceSequenceEditor;
+    case SPACE_TEXT:
+      return &RNA_SpaceTextEditor;
+    case SPACE_ACTION:
+      return &RNA_SpaceDopeSheetEditor;
+    case SPACE_NLA:
+      return &RNA_SpaceNLA;
+    case SPACE_NODE:
+      return &RNA_SpaceNodeEditor;
+    case SPACE_CONSOLE:
+      return &RNA_SpaceConsole;
+    case SPACE_USERPREF:
+      return &RNA_SpacePreferences;
+    case SPACE_CLIP:
+      return &RNA_SpaceClipEditor;
+    case SPACE_LOGIC:
+      return &RNA_SpaceLogicEditor;
+    default:
+      return &RNA_Space;
+  }
 }
 
 static ScrArea *rna_area_from_space(PointerRNA *ptr)
@@ -5798,75 +5851,6 @@ static void rna_def_space_node(BlenderRNA *brna)
   RNA_api_space_node(srna);
 }
 
-static void rna_def_space_logic(BlenderRNA *brna)
-{
-	StructRNA *srna;
-	PropertyRNA *prop;
-
-	srna = RNA_def_struct(brna, "SpaceLogicEditor", "Space");
-	RNA_def_struct_sdna(srna, "SpaceLogic");
-	RNA_def_struct_ui_text(srna, "Space Logic Editor", "Logic editor space data");
-
-	/* sensors */
-	prop = RNA_def_property(srna, "show_sensors_selected_objects", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "scaflag", BUTS_SENS_SEL);
-	RNA_def_property_ui_text(prop, "Show Selected Object", "Show sensors of all selected objects");
-	RNA_def_property_update(prop, NC_LOGIC, NULL);
-
-	prop = RNA_def_property(srna, "show_sensors_active_object", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "scaflag", BUTS_SENS_ACT);
-	RNA_def_property_ui_text(prop, "Show Active Object", "Show sensors of active object");
-	RNA_def_property_update(prop, NC_LOGIC, NULL);
-
-	prop = RNA_def_property(srna, "show_sensors_linked_controller", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "scaflag", BUTS_SENS_LINK);
-	RNA_def_property_ui_text(prop, "Show Linked to Controller", "Show linked objects to the controller");
-	RNA_def_property_update(prop, NC_LOGIC, NULL);
-
-	prop = RNA_def_property(srna, "show_sensors_active_states", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "scaflag", BUTS_SENS_STATE);
-	RNA_def_property_ui_text(prop, "Show Active States", "Show only sensors connected to active states");
-	RNA_def_property_update(prop, NC_LOGIC, NULL);
-
-	/* controllers */
-	prop = RNA_def_property(srna, "show_controllers_selected_objects", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "scaflag", BUTS_CONT_SEL);
-	RNA_def_property_ui_text(prop, "Show Selected Object", "Show controllers of all selected objects");
-	RNA_def_property_update(prop, NC_LOGIC, NULL);
-
-	prop = RNA_def_property(srna, "show_controllers_active_object", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "scaflag", BUTS_CONT_ACT);
-	RNA_def_property_ui_text(prop, "Show Active Object", "Show controllers of active object");
-	RNA_def_property_update(prop, NC_LOGIC, NULL);
-
-	prop = RNA_def_property(srna, "show_controllers_linked_controller", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "scaflag", BUTS_CONT_LINK);
-	RNA_def_property_ui_text(prop, "Show Linked to Controller", "Show linked objects to sensor/actuator");
-	RNA_def_property_update(prop, NC_LOGIC, NULL);
-
-	/* actuators */
-	prop = RNA_def_property(srna, "show_actuators_selected_objects", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "scaflag", BUTS_ACT_SEL);
-	RNA_def_property_ui_text(prop, "Show Selected Object", "Show actuators of all selected objects");
-	RNA_def_property_update(prop, NC_LOGIC, NULL);
-
-	prop = RNA_def_property(srna, "show_actuators_active_object", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "scaflag", BUTS_ACT_ACT);
-	RNA_def_property_ui_text(prop, "Show Active Object", "Show actuators of active object");
-	RNA_def_property_update(prop, NC_LOGIC, NULL);
-
-	prop = RNA_def_property(srna, "show_actuators_linked_controller", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "scaflag", BUTS_ACT_LINK);
-	RNA_def_property_ui_text(prop, "Show Linked to Actuator", "Show linked objects to the actuator");
-	RNA_def_property_update(prop, NC_LOGIC, NULL);
-
-	prop = RNA_def_property(srna, "show_actuators_active_states", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "scaflag", BUTS_ACT_STATE);
-	RNA_def_property_ui_text(prop, "Show Active States", "Show only actuators connected to active states");
-	RNA_def_property_update(prop, NC_LOGIC, NULL);
-
-}
-
 static void rna_def_space_clip(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -6159,29 +6143,90 @@ static void rna_def_space_clip(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_CLIP, NULL);
 }
 
+static void rna_def_space_logic(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+  srna = RNA_def_struct(brna, "SpaceLogicEditor", "Space");
+  RNA_def_struct_sdna(srna, "SpaceLogic");
+  RNA_def_struct_ui_text(srna, "Space Logic Editor", "Logic editor space data");
+  /* sensors */
+  prop = RNA_def_property(srna, "show_sensors_selected_objects", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "scaflag", BUTS_SENS_SEL);
+  RNA_def_property_ui_text(prop, "Show Selected Object", "Show sensors of all selected objects");
+  RNA_def_property_update(prop, NC_LOGIC, NULL);
+  prop = RNA_def_property(srna, "show_sensors_active_object", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "scaflag", BUTS_SENS_ACT);
+  RNA_def_property_ui_text(prop, "Show Active Object", "Show sensors of active object");
+  RNA_def_property_update(prop, NC_LOGIC, NULL);
+  prop = RNA_def_property(srna, "show_sensors_linked_controller", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "scaflag", BUTS_SENS_LINK);
+  RNA_def_property_ui_text(
+      prop, "Show Linked to Controller", "Show linked objects to the controller");
+  RNA_def_property_update(prop, NC_LOGIC, NULL);
+  prop = RNA_def_property(srna, "show_sensors_active_states", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "scaflag", BUTS_SENS_STATE);
+  RNA_def_property_ui_text(
+      prop, "Show Active States", "Show only sensors connected to active states");
+  RNA_def_property_update(prop, NC_LOGIC, NULL);
+  /* controllers */
+  prop = RNA_def_property(srna, "show_controllers_selected_objects", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "scaflag", BUTS_CONT_SEL);
+  RNA_def_property_ui_text(
+      prop, "Show Selected Object", "Show controllers of all selected objects");
+  RNA_def_property_update(prop, NC_LOGIC, NULL);
+  prop = RNA_def_property(srna, "show_controllers_active_object", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "scaflag", BUTS_CONT_ACT);
+  RNA_def_property_ui_text(prop, "Show Active Object", "Show controllers of active object");
+  RNA_def_property_update(prop, NC_LOGIC, NULL);
+  prop = RNA_def_property(srna, "show_controllers_linked_controller", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "scaflag", BUTS_CONT_LINK);
+  RNA_def_property_ui_text(
+      prop, "Show Linked to Controller", "Show linked objects to sensor/actuator");
+  RNA_def_property_update(prop, NC_LOGIC, NULL);
+  /* actuators */
+  prop = RNA_def_property(srna, "show_actuators_selected_objects", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "scaflag", BUTS_ACT_SEL);
+  RNA_def_property_ui_text(prop, "Show Selected Object", "Show actuators of all selected objects");
+  RNA_def_property_update(prop, NC_LOGIC, NULL);
+  prop = RNA_def_property(srna, "show_actuators_active_object", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "scaflag", BUTS_ACT_ACT);
+  RNA_def_property_ui_text(prop, "Show Active Object", "Show actuators of active object");
+  RNA_def_property_update(prop, NC_LOGIC, NULL);
+  prop = RNA_def_property(srna, "show_actuators_linked_controller", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "scaflag", BUTS_ACT_LINK);
+  RNA_def_property_ui_text(prop, "Show Linked to Actuator", "Show linked objects to the actuator");
+  RNA_def_property_update(prop, NC_LOGIC, NULL);
+  prop = RNA_def_property(srna, "show_actuators_active_states", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "scaflag", BUTS_ACT_STATE);
+  RNA_def_property_ui_text(
+      prop, "Show Active States", "Show only actuators connected to active states");
+  RNA_def_property_update(prop, NC_LOGIC, NULL);
+}
+
 void RNA_def_space(BlenderRNA *brna)
 {
-	rna_def_space(brna);
-	rna_def_space_image(brna);
-	rna_def_space_sequencer(brna);
-	rna_def_space_text(brna);
-	rna_def_fileselect_params(brna);
-	rna_def_filemenu_entry(brna);
-	rna_def_space_filebrowser(brna);
-	rna_def_space_outliner(brna);
-	rna_def_space_view3d(brna);
-	rna_def_space_buttons(brna);
-	rna_def_space_dopesheet(brna);
-	rna_def_space_graph(brna);
-	rna_def_space_nla(brna);
-	rna_def_space_console(brna);
-	rna_def_console_line(brna);
-	rna_def_space_info(brna);
-	rna_def_space_userpref(brna);
-	rna_def_node_tree_path(brna);
-	rna_def_space_node(brna);
-	rna_def_space_logic(brna);
-	rna_def_space_clip(brna);
+  rna_def_space(brna);
+  rna_def_space_image(brna);
+  rna_def_space_sequencer(brna);
+  rna_def_space_text(brna);
+  rna_def_fileselect_params(brna);
+  rna_def_filemenu_entry(brna);
+  rna_def_space_filebrowser(brna);
+  rna_def_space_outliner(brna);
+  rna_def_space_view3d(brna);
+  rna_def_space_buttons(brna);
+  rna_def_space_dopesheet(brna);
+  rna_def_space_graph(brna);
+  rna_def_space_nla(brna);
+  rna_def_space_console(brna);
+  rna_def_console_line(brna);
+  rna_def_space_info(brna);
+  rna_def_space_userpref(brna);
+  rna_def_node_tree_path(brna);
+  rna_def_space_node(brna);
+  rna_def_space_logic(brna);
+  rna_def_space_clip(brna);
 }
 
 #endif
