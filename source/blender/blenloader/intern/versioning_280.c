@@ -1006,7 +1006,7 @@ static void do_versions_seq_unique_name_all_strips(Scene *sce, ListBase *seqbase
   }
 }
 
-void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
+void blo_do_versions_280(FileData *fd, Library *UNUSED(lib), Main *bmain)
 {
   bool use_collection_compat_28 = true;
 
@@ -2505,823 +2505,784 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 #undef PAINT_BLEND_HUE
 #undef PAINT_BLEND_ALPHA_SUB
 #undef PAINT_BLEND_ALPHA_ADD
-		}
-	}
-
-	if (!MAIN_VERSION_ATLEAST(bmain, 280, 34)) {
-		for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
-			for (ScrArea *area = screen->areabase.first; area; area = area->next) {
-				for (SpaceLink *slink = area->spacedata.first; slink; slink = slink->next) {
-					if (slink->spacetype == SPACE_USERPREF) {
-						ARegion *navigation_region = BKE_spacedata_find_region_type(slink, area, RGN_TYPE_NAV_BAR);
-
-						if (!navigation_region) {
-							ARegion *main_region = BKE_spacedata_find_region_type(slink, area, RGN_TYPE_WINDOW);
-							ListBase *regionbase = (slink == area->spacedata.first) ?
-							                       &area->regionbase : &slink->regionbase;
-
-							navigation_region = MEM_callocN(sizeof(ARegion), "userpref navigation-region do_versions");
-
-							BLI_insertlinkbefore(regionbase, main_region, navigation_region); /* order matters, addhead not addtail! */
-							navigation_region->regiontype = RGN_TYPE_NAV_BAR;
-							navigation_region->alignment = RGN_ALIGN_LEFT;
-						}
-					}
-				}
-			}
-		}
-	}
-
-	if (!MAIN_VERSION_ATLEAST(bmain, 280, 36)) {
-		if (!DNA_struct_elem_find(fd->filesdna, "View3DShading", "float", "curvature_ridge_factor")) {
-			for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
-				for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
-					for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
-						if (sl->spacetype == SPACE_VIEW3D) {
-							View3D *v3d = (View3D *)sl;
-							v3d->shading.curvature_ridge_factor = 1.0f;
-							v3d->shading.curvature_valley_factor = 1.0f;
-						}
-					}
-				}
-			}
-		}
-
-		/* Rename OpenGL to Workbench. */
-		for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
-			if (STREQ(scene->r.engine, "BLENDER_OPENGL")) {
-				STRNCPY(scene->r.engine, RE_engine_id_BLENDER_WORKBENCH);
-			}
-		}
-
-		/* init Annotations onion skin */
-		if (!DNA_struct_elem_find(fd->filesdna, "bGPDlayer", "int", "gstep")) {
-			for (bGPdata *gpd = bmain->gpencils.first; gpd; gpd = gpd->id.next) {
-				for (bGPDlayer *gpl = gpd->layers.first; gpl; gpl = gpl->next) {
-					ARRAY_SET_ITEMS(gpl->gcolor_prev, 0.302f, 0.851f, 0.302f);
-					ARRAY_SET_ITEMS(gpl->gcolor_next, 0.250f, 0.1f, 1.0f);
-				}
-			}
-		}
-
-		/* Move studio_light selection to lookdev_light. */
-		if (!DNA_struct_elem_find(fd->filesdna, "View3DShading", "char", "lookdev_light[256]")) {
-			for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
-				for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
-					for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
-						if (sl->spacetype == SPACE_VIEW3D) {
-							View3D *v3d = (View3D *)sl;
-							memcpy(v3d->shading.lookdev_light, v3d->shading.studio_light, sizeof(char) * 256);
-						}
-					}
-				}
-			}
-		}
-
-		/* Change Solid mode shadow orientation. */
-		if (!DNA_struct_elem_find(fd->filesdna, "SceneDisplay", "float", "shadow_focus")) {
-			for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
-				float *dir = scene->display.light_direction;
-				SWAP(float, dir[2], dir[1]);
-				dir[2] = -dir[2];
-				dir[0] = -dir[0];
-			}
-		}
-	}
-
-	if (!MAIN_VERSION_ATLEAST(bmain, 280, 37)) {
-		for (Camera *ca = bmain->cameras.first; ca; ca = ca->id.next) {
-			ca->drawsize *= 2.0f;
-		}
-		for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
-			if (ob->type != OB_EMPTY) {
-				if (UNLIKELY(ob->transflag & OB_DUPLICOLLECTION)) {
-					BKE_object_type_set_empty_for_versioning(ob);
-				}
-			}
-		}
-
-		/* Grease pencil primitive curve */
-		if (!DNA_struct_elem_find(fd->filesdna, "GP_Sculpt_Settings", "CurveMapping", "cur_primitive")) {
-			for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
-				GP_Sculpt_Settings *gset = &scene->toolsettings->gp_sculpt;
-				if ((gset) && (gset->cur_primitive == NULL)) {
-					gset->cur_primitive = curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
-					curvemapping_initialize(gset->cur_primitive);
-					curvemap_reset(
-					        gset->cur_primitive->cm,
-					        &gset->cur_primitive->clipr,
-					        CURVE_PRESET_BELL,
-					        CURVEMAP_SLOPE_POSITIVE);
-				}
-			}
-		}
-	}
-
-
-	if (!MAIN_VERSION_ATLEAST(bmain, 280, 38)) {
-		if (DNA_struct_elem_find(fd->filesdna, "Object", "char", "empty_image_visibility_flag")) {
-			for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
-				ob->empty_image_visibility_flag ^= (
-				        OB_EMPTY_IMAGE_HIDE_PERSPECTIVE |
-				        OB_EMPTY_IMAGE_HIDE_ORTHOGRAPHIC |
-				        OB_EMPTY_IMAGE_HIDE_BACK);
-			}
-		}
-
-		for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
-			for (ScrArea *area = screen->areabase.first; area; area = area->next) {
-				for (SpaceLink *sl = area->spacedata.first; sl; sl = sl->next) {
-					switch (sl->spacetype) {
-						case SPACE_IMAGE:
-						{
-							SpaceImage *sima = (SpaceImage *)sl;
-							sima->flag &= ~(
-							        SI_FLAG_UNUSED_0 |
-							        SI_FLAG_UNUSED_1 |
-							        SI_FLAG_UNUSED_3 |
-							        SI_FLAG_UNUSED_6 |
-							        SI_FLAG_UNUSED_7 |
-							        SI_FLAG_UNUSED_8 |
-							        SI_FLAG_UNUSED_17 |
-							        SI_FLAG_UNUSED_18 |
-							        SI_FLAG_UNUSED_23 |
-							        SI_FLAG_UNUSED_24);
-							break;
-						}
-						case SPACE_VIEW3D:
-						{
-							View3D *v3d = (View3D *)sl;
-							v3d->flag &= ~(
-							        V3D_FLAG_UNUSED_0 |
-							        V3D_FLAG_UNUSED_1 |
-							        V3D_FLAG_UNUSED_10 |
-							        V3D_FLAG_UNUSED_12);
-							v3d->flag2 &= ~(
-							        V3D_FLAG2_UNUSED_3 |
-							        V3D_FLAG2_UNUSED_6 |
-							        V3D_FLAG2_UNUSED_12 |
-							        V3D_FLAG2_UNUSED_13 |
-							        V3D_FLAG2_UNUSED_14 |
-							        V3D_FLAG2_UNUSED_15);
-							break;
-						}
-						case SPACE_OUTLINER:
-						{
-							SpaceOutliner *so = (SpaceOutliner *)sl;
-							so->filter &= ~(
-							        SO_FILTER_UNUSED_1 |
-							        SO_FILTER_UNUSED_5 |
-							        SO_FILTER_UNUSED_12);
-							so->storeflag &= ~(
-							        SO_TREESTORE_UNUSED_1);
-							break;
-						}
-						case SPACE_FILE:
-						{
-							SpaceFile *sfile = (SpaceFile *)sl;
-							if (sfile->params) {
-								sfile->params->flag &= ~(
-								        FILE_PARAMS_FLAG_UNUSED_1 |
-								        FILE_PARAMS_FLAG_UNUSED_6 |
-								        FILE_PARAMS_FLAG_UNUSED_9);
-							}
-							break;
-						}
-						case SPACE_NODE:
-						{
-							SpaceNode *snode = (SpaceNode *)sl;
-							snode->flag &= ~(
-							        SNODE_FLAG_UNUSED_6 |
-							        SNODE_FLAG_UNUSED_10 |
-							        SNODE_FLAG_UNUSED_11);
-							break;
-						}
-						case SPACE_PROPERTIES:
-						{
-							SpaceProperties *sbuts = (SpaceProperties *)sl;
-							sbuts->flag &= ~(
-							        SB_FLAG_UNUSED_2 |
-							        SB_FLAG_UNUSED_3);
-							break;
-						}
-						case SPACE_NLA:
-						{
-							SpaceNla *snla = (SpaceNla *)sl;
-							snla->flag &= ~(
-							        SNLA_FLAG_UNUSED_0 |
-							        SNLA_FLAG_UNUSED_1 |
-							        SNLA_FLAG_UNUSED_3);
-							break;
-						}
-					}
-				}
-			}
-		}
-
-		for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
-			scene->r.mode &= ~(
-			        R_MODE_UNUSED_1 |
-			        R_MODE_UNUSED_2 |
-			        R_MODE_UNUSED_3 |
-			        R_MODE_UNUSED_4 |
-			        R_MODE_UNUSED_5 |
-			        R_MODE_UNUSED_6 |
-			        R_MODE_UNUSED_7 |
-			        R_MODE_UNUSED_8 |
-			        R_MODE_UNUSED_10 |
-			        R_MODE_UNUSED_13 |
-			        R_MODE_UNUSED_16 |
-			        R_MODE_UNUSED_17 |
-			        R_MODE_UNUSED_18 |
-			        R_MODE_UNUSED_19 |
-			        R_MODE_UNUSED_20 |
-			        R_MODE_UNUSED_21 |
-			        R_MODE_UNUSED_27);
-
-			scene->r.scemode &= ~(
-			        R_SCEMODE_UNUSED_8 |
-			        R_SCEMODE_UNUSED_11 |
-			        R_SCEMODE_UNUSED_13 |
-			        R_SCEMODE_UNUSED_16 |
-			        R_SCEMODE_UNUSED_17 |
-			        R_SCEMODE_UNUSED_19);
-
-			if (scene->toolsettings->sculpt) {
-				scene->toolsettings->sculpt->flags &= ~(
-				        SCULPT_FLAG_UNUSED_0 |
-				        SCULPT_FLAG_UNUSED_1 |
-				        SCULPT_FLAG_UNUSED_2);
-			}
-
-			if (scene->ed) {
-				Sequence *seq;
-				SEQ_BEGIN (scene->ed, seq)
-				{
-					seq->flag &= ~(
-					        SEQ_FLAG_UNUSED_6 |
-					        SEQ_FLAG_UNUSED_18 |
-					        SEQ_FLAG_UNUSED_19 |
-					        SEQ_FLAG_UNUSED_21);
-					if (seq->type == SEQ_TYPE_SPEED) {
-						SpeedControlVars *s = (SpeedControlVars *)seq->effectdata;
-						s->flags &= ~(
-						        SEQ_SPEED_UNUSED_1);
-					}
-				} SEQ_END;
-			}
-		}
-
-		for (World *world = bmain->worlds.first; world; world = world->id.next) {
-			world->flag &= ~(
-			        WO_MODE_UNUSED_1 |
-			        WO_MODE_UNUSED_2 |
-			        WO_MODE_UNUSED_3 |
-			        WO_MODE_UNUSED_4 |
-			        WO_MODE_UNUSED_5 |
-			        WO_MODE_UNUSED_7);
-		}
-
-		for (Image *image = bmain->images.first; image; image = image->id.next) {
-			image->flag &= ~(
-			        IMA_FLAG_UNUSED_0 |
-			        IMA_FLAG_UNUSED_1 |
-			        IMA_FLAG_UNUSED_4 |
-			        IMA_FLAG_UNUSED_6 |
-			        IMA_FLAG_UNUSED_8 |
-			        IMA_FLAG_UNUSED_15 |
-			        IMA_FLAG_UNUSED_16);
-		}
-
-		for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
-			ob->flag &= ~(
-			        OB_FLAG_UNUSED_11 |
-			        OB_FLAG_UNUSED_12);
-			ob->transflag &= ~(
-			        OB_TRANSFLAG_UNUSED_0 |
-			        OB_TRANSFLAG_UNUSED_1);
-			ob->shapeflag &= ~OB_SHAPE_FLAG_UNUSED_1;
-		}
-
-		for (Mesh *me = bmain->meshes.first; me; me = me->id.next) {
-			me->flag &= ~(
-			        ME_FLAG_UNUSED_0 |
-			        ME_FLAG_UNUSED_1 |
-			        ME_FLAG_UNUSED_3 |
-			        ME_FLAG_UNUSED_4 |
-			        ME_FLAG_UNUSED_6 |
-			        ME_FLAG_UNUSED_7 |
-			        ME_FLAG_UNUSED_8);
-		}
-
-		for (Material *mat = bmain->materials.first; mat; mat = mat->id.next) {
-			mat->blend_flag &= ~(
-			        MA_BL_FLAG_UNUSED_2);
-		}
-	}
-
-	if (!MAIN_VERSION_ATLEAST(bmain, 280, 40)) {
-		if (!DNA_struct_elem_find(fd->filesdna, "ToolSettings", "char", "snap_transform_mode_flag")) {
-			for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
-				scene->toolsettings->snap_transform_mode_flag =
-					SCE_SNAP_TRANSFORM_MODE_TRANSLATE;
-			}
-		}
-
-		for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
-			for (ScrArea *area = screen->areabase.first; area; area = area->next) {
-				for (SpaceLink *sl = area->spacedata.first; sl; sl = sl->next) {
-					switch (sl->spacetype) {
-						case SPACE_VIEW3D:
-						{
-							enum { V3D_BACKFACE_CULLING = (1 << 10) };
-							View3D *v3d = (View3D *)sl;
-							if (v3d->flag2 & V3D_BACKFACE_CULLING) {
-								v3d->flag2 &= ~V3D_BACKFACE_CULLING;
-								v3d->shading.flag |= V3D_SHADING_BACKFACE_CULLING;
-							}
-							break;
-						}
-					}
-				}
-			}
-		}
-
-		if (!DNA_struct_find(fd->filesdna, "TransformOrientationSlot")) {
-			for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
-				for (int i = 0; i < ARRAY_SIZE(scene->orientation_slots); i++) {
-					scene->orientation_slots[i].index_custom = -1;
-				}
-			}
-		}
-
-		/* Grease pencil target weight  */
-		if (!DNA_struct_elem_find(fd->filesdna, "GP_Sculpt_Settings", "float", "weight")) {
-			for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
-				/* sculpt brushes */
-				GP_Sculpt_Settings *gset = &scene->toolsettings->gp_sculpt;
-				if (gset) {
-					for (int i = 0; i < GP_SCULPT_TYPE_MAX; i++) {
-						GP_Sculpt_Data *gp_brush = &gset->brush[i];
-						gp_brush->weight = 1.0f;
-					}
-				}
-			}
-		}
-
-		/* Grease pencil cutter/select segment intersection threshold  */
-		if (!DNA_struct_elem_find(fd->filesdna, "GP_Sculpt_Settings", "float", "isect_threshold")) {
-			for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
-				GP_Sculpt_Settings *gset = &scene->toolsettings->gp_sculpt;
-				if (gset) {
-					gset->isect_threshold = 0.1f;
-				}
-			}
-		}
-
-		/* Fix anamorphic bokeh eevee rna limits.*/
-		for (Camera *ca = bmain->cameras.first; ca; ca = ca->id.next) {
-			if (ca->gpu_dof.ratio < 0.01f) {
-				ca->gpu_dof.ratio = 0.01f;
-			}
-		}
-
-		for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
-			for (ScrArea *area = screen->areabase.first; area; area = area->next) {
-				for (SpaceLink *sl = area->spacedata.first; sl; sl = sl->next) {
-					if (sl->spacetype == SPACE_USERPREF) {
-						ARegion *execute_region = BKE_spacedata_find_region_type(sl, area, RGN_TYPE_EXECUTE);
-
-						if (!execute_region) {
-							ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase : &sl->regionbase;
-							ARegion *ar_navbar = BKE_spacedata_find_region_type(sl, area, RGN_TYPE_NAV_BAR);
-
-							execute_region = MEM_callocN(sizeof(ARegion), "execute region for properties");
-
-							BLI_assert(ar_navbar);
-
-							BLI_insertlinkafter(regionbase, ar_navbar, execute_region);
-
-							execute_region->regiontype = RGN_TYPE_EXECUTE;
-							execute_region->alignment = RGN_ALIGN_BOTTOM | RGN_SPLIT_PREV;
-							execute_region->flag |= RGN_FLAG_DYNAMIC_SIZE;
-						}
-					}
-				}
-			}
-		}
-	}
-
-	if (!MAIN_VERSION_ATLEAST(bmain, 280, 43)) {
-		ListBase *lb = which_libbase(bmain, ID_BR);
-		BKE_main_id_repair_duplicate_names_listbase(lb);
-	}
-
-	if (!MAIN_VERSION_ATLEAST(bmain, 280, 44)) {
-		if (!DNA_struct_elem_find(fd->filesdna, "Material", "float", "a")) {
-			for (Material *mat = bmain->materials.first; mat; mat = mat->id.next) {
-				mat->a = 1.0f;
-			}
-		}
-
-		for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
-			enum {
-				R_ALPHAKEY = 2,
-			};
-			scene->r.seq_flag &= ~(
-			        R_SEQ_UNUSED_0 |
-			        R_SEQ_UNUSED_1 |
-			        R_SEQ_UNUSED_2);
-			scene->r.color_mgt_flag &= ~R_COLOR_MANAGEMENT_UNUSED_1;
-			if (scene->r.alphamode == R_ALPHAKEY) {
-				scene->r.alphamode = R_ADDSKY;
-			}
-			ToolSettings *ts = scene->toolsettings;
-			ts->particle.flag &= ~PE_UNUSED_6;
-			if (ts->sculpt != NULL) {
-				ts->sculpt->flags &= ~SCULPT_FLAG_UNUSED_6;
-			}
-		}
-	}
-
-	if (!MAIN_VERSION_ATLEAST(bmain, 280, 45)) {
-		for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
-			for (ScrArea *area = screen->areabase.first; area; area = area->next) {
-				for (SpaceLink *sl = area->spacedata.first; sl; sl = sl->next) {
-					if (sl->spacetype == SPACE_SEQ) {
-						SpaceSeq *sseq = (SpaceSeq *)sl;
-						sseq->flag |= SEQ_SHOW_MARKER_LINES;
-					}
-				}
-			}
-		}
-	}
-
-	if (!MAIN_VERSION_ATLEAST(bmain, 280, 46)) {
-		/* Add wireframe color. */
-		if (!DNA_struct_elem_find(fd->filesdna, "View3DShading", "char", "wire_color_type")) {
-			for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
-				for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
-					for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
-						if (sl->spacetype == SPACE_VIEW3D) {
-							View3D *v3d = (View3D *)sl;
-							v3d->shading.wire_color_type = V3D_SHADING_SINGLE_COLOR;
-						}
-					}
-				}
-			}
-		}
-
-		if (!DNA_struct_elem_find(fd->filesdna, "View3DCursor", "short", "rotation_mode")) {
-			for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
-				if (is_zero_v3(scene->cursor.rotation_axis)) {
-					scene->cursor.rotation_mode = ROT_MODE_XYZ;
-					scene->cursor.rotation_quaternion[0] = 1.0f;
-					scene->cursor.rotation_axis[1] = 1.0f;
-				}
-			}
-		}
-	}
-
-	if (!MAIN_VERSION_ATLEAST(bmain, 280, 47)) {
-		LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-			ParticleEditSettings *pset = &scene->toolsettings->particle;
-			if (pset->brushtype < 0) {
-				pset->brushtype = PE_BRUSH_COMB;
-			}
-		}
-
-		LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
-			{
-				enum { PARCURVE = 1, PARKEY = 2, PAR_DEPRECATED = 16};
-				if (ELEM(ob->partype, PARCURVE, PARKEY, PAR_DEPRECATED)) {
-					ob->partype = PAROBJECT;
-				}
-			}
-
-			{
-				enum { OB_WAVE = 21, OB_LIFE = 23, OB_SECTOR = 24};
-				if (ELEM(ob->type, OB_WAVE, OB_LIFE, OB_SECTOR)) {
-					ob->type = OB_EMPTY;
-				}
-			}
-
-			ob->transflag &= ~(
-			        OB_TRANSFLAG_UNUSED_0 |
-			        OB_TRANSFLAG_UNUSED_1 |
-			        OB_TRANSFLAG_UNUSED_3 |
-			        OB_TRANSFLAG_UNUSED_6 |
-			        OB_TRANSFLAG_UNUSED_12);
-
-			ob->nlaflag &= ~(OB_ADS_UNUSED_1 | OB_ADS_UNUSED_2);
-		}
-
-		LISTBASE_FOREACH (bArmature *, arm, &bmain->armatures) {
-			arm->flag &= ~(
-			        ARM_FLAG_UNUSED_1 |
-			        ARM_FLAG_UNUSED_5 |
-			        ARM_FLAG_UNUSED_7 |
-			        ARM_FLAG_UNUSED_12);
-		}
-
-		LISTBASE_FOREACH (Text *, text, &bmain->texts) {
-			text->flags &= ~(TXT_FLAG_UNUSED_8 | TXT_FLAG_UNUSED_9);
-		}
-	}
-
-	if (!MAIN_VERSION_ATLEAST(bmain, 280, 48)) {
-		for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
-			/* Those are not currently used, but are accessible through RNA API and were not
-			 * properly initialized previously. This is mere copy of BKE_init_scene() code. */
-			if (scene->r.im_format.view_settings.look[0] == '\0') {
-				BKE_color_managed_display_settings_init(&scene->r.im_format.display_settings);
-				BKE_color_managed_view_settings_init_render(&scene->r.im_format.view_settings,
-				                                            &scene->r.im_format.display_settings,
-				                                            "Filmic");
-			}
-
-			if (scene->r.bake.im_format.view_settings.look[0] == '\0') {
-				BKE_color_managed_display_settings_init(&scene->r.bake.im_format.display_settings);
-				BKE_color_managed_view_settings_init_render(&scene->r.bake.im_format.view_settings,
-				                                            &scene->r.bake.im_format.display_settings,
-				                                            "Filmic");
-			}
-		}
-	}
-
-	if (!MAIN_VERSION_ATLEAST(bmain, 280, 49)) {
-		/* All tool names changed, reset to defaults. */
-		for (WorkSpace *workspace = bmain->workspaces.first; workspace; workspace = workspace->id.next) {
-			while (!BLI_listbase_is_empty(&workspace->tools)) {
-				BKE_workspace_tool_remove(workspace, workspace->tools.first);
-			}
-		}
-	}
-
-	if (!MAIN_VERSION_ATLEAST(bmain, 280, 52)) {
-		LISTBASE_FOREACH (ParticleSettings *, part, &bmain->particles) {
-			/* Replace deprecated PART_DRAW_BB by PART_DRAW_NOT */
-			if (part->ren_as == PART_DRAW_BB) {
-				part->ren_as = PART_DRAW_NOT;
-			}
-			if (part->draw_as == PART_DRAW_BB) {
-				part->draw_as = PART_DRAW_NOT;
-			}
-		}
-
-		if (!DNA_struct_elem_find(fd->filesdna, "TriangulateModifierData", "int", "min_vertices")) {
-			for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
-				for (ModifierData *md = ob->modifiers.first; md; md = md->next) {
-					if (md->type == eModifierType_Triangulate) {
-						TriangulateModifierData *smd = (TriangulateModifierData *)md;
-						smd->min_vertices = 4;
-					}
-				}
-			}
-		}
-
-		FOREACH_NODETREE_BEGIN(bmain, ntree, id) {
-			if (ntree->type == NTREE_SHADER) {
-				for (bNode *node = ntree->nodes.first; node; node = node->next) {
-					/* Fix missing version patching from earlier changes. */
-					if (STREQ(node->idname, "ShaderNodeOutputLamp")) {
-						STRNCPY(node->idname, "ShaderNodeOutputLight");
-					}
-					if (node->type == SH_NODE_BSDF_PRINCIPLED && node->custom2 == 0) {
-						node->custom2 = SHD_SUBSURFACE_BURLEY;
-					}
-				}
-			}
-		} FOREACH_NODETREE_END;
-	}
-
-	if (!MAIN_VERSION_ATLEAST(bmain, 280, 53)) {
-		for (Material *mat = bmain->materials.first; mat; mat = mat->id.next) {
-			/* Eevee: Keep material appearance consistent with previous behavior. */
-			if (!mat->use_nodes || !mat->nodetree || mat->blend_method == MA_BM_SOLID) {
-				mat->blend_shadow = MA_BS_SOLID;
-			}
-		}
-
-		/* grease pencil default animation channel color */
-		{
-			for (bGPdata *gpd = bmain->gpencils.first; gpd; gpd = gpd->id.next) {
-				if (gpd->flag & GP_DATA_ANNOTATIONS) {
-					continue;
-				}
-				for (bGPDlayer *gpl = gpd->layers.first; gpl; gpl = gpl->next) {
-					/* default channel color */
-					ARRAY_SET_ITEMS(gpl->color, 0.2f, 0.2f, 0.2f);
-				}
-			}
-		}
-	}
-
-	if (!MAIN_VERSION_ATLEAST(bmain, 280, 54)) {
-		for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
-			bool is_first_subdiv = true;
-			for (ModifierData *md = ob->modifiers.first; md; md = md->next) {
-				if (md->type == eModifierType_Subsurf) {
-					SubsurfModifierData *smd = (SubsurfModifierData *)md;
-					if (is_first_subdiv) {
-						smd->flags |= eSubsurfModifierFlag_UseCrease;
-					}
-					else {
-						smd->flags &= ~eSubsurfModifierFlag_UseCrease;
-					}
-					is_first_subdiv = false;
-				}
-				else if (md->type == eModifierType_Multires) {
-					MultiresModifierData *mmd = (MultiresModifierData *)md;
-					if (is_first_subdiv) {
-						mmd->flags |= eMultiresModifierFlag_UseCrease;
-					}
-					else {
-						mmd->flags &= ~eMultiresModifierFlag_UseCrease;
-					}
-					is_first_subdiv = false;
-				}
-			}
-		}
-	}
-
-	if (!MAIN_VERSION_ATLEAST(bmain, 280, 55)) {
-		for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
-			for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
-				for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
-					if (sl->spacetype == SPACE_TEXT) {
-						ListBase *regionbase = (sl == sa->spacedata.first) ? &sa->regionbase : &sl->regionbase;
-						ARegion *ar = MEM_callocN(sizeof(ARegion), "footer for text");
-
-						/* Remove multiple footers that were added by mistake. */
-						ARegion *ar_footer, *ar_next;
-						for (ar_footer = regionbase->first; ar_footer; ar_footer = ar_next) {
-							ar_next = ar_footer->next;
-							if (ar_footer->regiontype == RGN_TYPE_FOOTER) {
-								BLI_freelinkN(regionbase, ar_footer);
-							}
-						}
-
-						/* Add footer. */
-						ARegion *ar_header = NULL;
-
-						for (ar_header = regionbase->first; ar_header; ar_header = ar_header->next) {
-							if (ar_header->regiontype == RGN_TYPE_HEADER) {
-								break;
-							}
-						}
-						BLI_assert(ar_header);
-
-						BLI_insertlinkafter(regionbase, ar_header, ar);
-
-						ar->regiontype = RGN_TYPE_FOOTER;
-						ar->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_TOP : RGN_ALIGN_BOTTOM;
-					}
-				}
-			}
-		}
-	}
-	
-	if (!MAIN_VERSION_ATLEAST(bmain, 280, 56)) {
-		for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
-			for (ScrArea *area = screen->areabase.first; area; area = area->next) {
-				for (SpaceLink *sl = area->spacedata.first; sl; sl = sl->next) {
-					if (sl->spacetype == SPACE_VIEW3D) {
-						View3D *v3d = (View3D *)sl;
-						v3d->gizmo_show_armature = V3D_GIZMO_SHOW_ARMATURE_BBONE | V3D_GIZMO_SHOW_ARMATURE_ROLL;
-						v3d->gizmo_show_empty = V3D_GIZMO_SHOW_EMPTY_IMAGE | V3D_GIZMO_SHOW_EMPTY_FORCE_FIELD;
-						v3d->gizmo_show_light = V3D_GIZMO_SHOW_LIGHT_SIZE | V3D_GIZMO_SHOW_LIGHT_LOOK_AT;
-						v3d->gizmo_show_camera = V3D_GIZMO_SHOW_CAMERA_LENS | V3D_GIZMO_SHOW_CAMERA_DOF_DIST;
-					}
-				}
-			}
-		}
-	}
-
-	if (!MAIN_VERSION_ATLEAST(bmain, 280, 57)) {
-		/* Enable Show Interpolation in dopesheet by default. */
-		for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
-			for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
-				for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
-					if (sl->spacetype == SPACE_ACTION) {
-						SpaceAction *saction = (SpaceAction *)sl;
-						if ((saction->flag & SACTION_SHOW_EXTREMES) == 0) {
-							saction->flag |= SACTION_SHOW_INTERPOLATION;
-						}
-					}
-				}
-			}
-		}
-
-		/* init grease pencil brush gradients */
-		if (!DNA_struct_elem_find(fd->filesdna, "BrushGpencilSettings", "float", "gradient_f")) {
-			for (Brush *brush = bmain->brushes.first; brush; brush = brush->id.next) {
-				if (brush->gpencil_settings != NULL) {
-					BrushGpencilSettings *gp = brush->gpencil_settings;
-					gp->gradient_f = 1.0f;
-					gp->gradient_s[0] = 1.0f;
-					gp->gradient_s[1] = 1.0f;
-				}
-			}
-		}
-
-		/* init grease pencil stroke gradients */
-		if (!DNA_struct_elem_find(fd->filesdna, "bGPDstroke", "float", "gradient_f")) {
-			for (bGPdata *gpd = bmain->gpencils.first; gpd; gpd = gpd->id.next) {
-				for (bGPDlayer *gpl = gpd->layers.first; gpl; gpl = gpl->next) {
-					for (bGPDframe *gpf = gpl->frames.first; gpf; gpf = gpf->next) {
-						for (bGPDstroke *gps = gpf->strokes.first; gps; gps = gps->next) {
-							gps->gradient_f = 1.0f;
-							gps->gradient_s[0] = 1.0f;
-							gps->gradient_s[1] = 1.0f;
-						}
-					}
-				}
-			}
-		}
-	}
-
-	{
-		/* Versioning code until next subversion bump goes here. */
-	}
-	
-	/* Game engine hack to force defaults in files saved in normal blender2.8 */
-	if (!DNA_struct_elem_find(fd->filesdna, "Scene", "GameData", "gm")) {
-		for (Scene *sce = bmain->scenes.first; sce; sce = sce->id.next) {
-			/* game data */
-			sce->gm.stereoflag = STEREO_NOSTEREO;
-			sce->gm.stereomode = STEREO_ANAGLYPH;
-			sce->gm.eyeseparation = 0.10;
-
-			sce->gm.xplay = 640;
-			sce->gm.yplay = 480;
-			sce->gm.freqplay = 60;
-			sce->gm.depth = 32;
-
-			sce->gm.gravity = 9.8f;
-			sce->gm.physicsEngine = WOPHY_BULLET;
-			//sce->gm.mode = WO_ACTIVITY_CULLING | WO_DBVT_CULLING;
-			sce->gm.occlusionRes = 128;
-			sce->gm.ticrate = 60;
-			sce->gm.maxlogicstep = 5;
-			sce->gm.physubstep = 1;
-			sce->gm.maxphystep = 5;
-			//sce->gm.timeScale = 1.0f;
-			sce->gm.lineardeactthreshold = 0.8f;
-			sce->gm.angulardeactthreshold = 1.0f;
-			sce->gm.deactivationtime = 0.0f;
-
-			sce->gm.obstacleSimulation = OBSTSIMULATION_NONE;
-			sce->gm.levelHeight = 2.f;
-
-			sce->gm.recastData.cellsize = 0.3f;
-			sce->gm.recastData.cellheight = 0.2f;
-			sce->gm.recastData.agentmaxslope = M_PI_4;
-			sce->gm.recastData.agentmaxclimb = 0.9f;
-			sce->gm.recastData.agentheight = 2.0f;
-			sce->gm.recastData.agentradius = 0.6f;
-			sce->gm.recastData.edgemaxlen = 12.0f;
-			sce->gm.recastData.edgemaxerror = 1.3f;
-			sce->gm.recastData.regionminsize = 8.f;
-			sce->gm.recastData.regionmergesize = 20.f;
-			sce->gm.recastData.vertsperpoly = 6;
-			sce->gm.recastData.detailsampledist = 6.0f;
-			sce->gm.recastData.detailsamplemaxerror = 1.0f;
-
-			sce->gm.exitkey = 218; // Blender key code for ESC
-
-			//sce->gm.pythonkeys[0] = LEFTCTRLKEY;
-			//sce->gm.pythonkeys[1] = LEFTSHIFTKEY;
-			//sce->gm.pythonkeys[2] = LEFTALTKEY;
-			//sce->gm.pythonkeys[3] = TKEY;
-		}
-
-		for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
-			/* Game engine defaults*/
-			ob->mass = ob->inertia = 1.0f;
-			ob->formfactor = 0.4f;
-			ob->damping = 0.04f;
-			ob->rdamping = 0.1f;
-			ob->anisotropicFriction[0] = 1.0f;
-			ob->anisotropicFriction[1] = 1.0f;
-			ob->anisotropicFriction[2] = 1.0f;
-			ob->gameflag = OB_PROP | OB_COLLISION;
-			ob->gameflag2 = 0;
-			ob->margin = 0.04f;
-			ob->friction = 0.5;
-			ob->init_state = 1;
-			ob->state = 1;
-			ob->obstacleRad = 1.0f;
-			ob->step_height = 0.15f;
-			ob->jump_speed = 10.0f;
-			ob->fall_speed = 55.0f;
-			ob->max_jumps = 1;
-			//ob->max_slope = M_PI_2;
-			ob->col_group = 0x01;
-			ob->col_mask = 0xffff;
-			ob->preview = NULL;
-			ob->duplicator_visibility_flag = OB_DUPLI_FLAG_VIEWPORT | OB_DUPLI_FLAG_RENDER;
-		}
-	}
-	/* Game engine hack to force defaults in files saved in normal blender2.8 END */
+    }
+  }
+
+  if (!MAIN_VERSION_ATLEAST(bmain, 280, 34)) {
+    for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
+      for (ScrArea *area = screen->areabase.first; area; area = area->next) {
+        for (SpaceLink *slink = area->spacedata.first; slink; slink = slink->next) {
+          if (slink->spacetype == SPACE_USERPREF) {
+            ARegion *navigation_region = BKE_spacedata_find_region_type(
+                slink, area, RGN_TYPE_NAV_BAR);
+
+            if (!navigation_region) {
+              ARegion *main_region = BKE_spacedata_find_region_type(slink, area, RGN_TYPE_WINDOW);
+              ListBase *regionbase = (slink == area->spacedata.first) ? &area->regionbase :
+                                                                        &slink->regionbase;
+
+              navigation_region = MEM_callocN(sizeof(ARegion),
+                                              "userpref navigation-region do_versions");
+
+              BLI_insertlinkbefore(regionbase,
+                                   main_region,
+                                   navigation_region); /* order matters, addhead not addtail! */
+              navigation_region->regiontype = RGN_TYPE_NAV_BAR;
+              navigation_region->alignment = RGN_ALIGN_LEFT;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_ATLEAST(bmain, 280, 36)) {
+    if (!DNA_struct_elem_find(fd->filesdna, "View3DShading", "float", "curvature_ridge_factor")) {
+      for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
+        for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
+          for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
+            if (sl->spacetype == SPACE_VIEW3D) {
+              View3D *v3d = (View3D *)sl;
+              v3d->shading.curvature_ridge_factor = 1.0f;
+              v3d->shading.curvature_valley_factor = 1.0f;
+            }
+          }
+        }
+      }
+    }
+
+    /* Rename OpenGL to Workbench. */
+    for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
+      if (STREQ(scene->r.engine, "BLENDER_OPENGL")) {
+        STRNCPY(scene->r.engine, RE_engine_id_BLENDER_WORKBENCH);
+      }
+    }
+
+    /* init Annotations onion skin */
+    if (!DNA_struct_elem_find(fd->filesdna, "bGPDlayer", "int", "gstep")) {
+      for (bGPdata *gpd = bmain->gpencils.first; gpd; gpd = gpd->id.next) {
+        for (bGPDlayer *gpl = gpd->layers.first; gpl; gpl = gpl->next) {
+          ARRAY_SET_ITEMS(gpl->gcolor_prev, 0.302f, 0.851f, 0.302f);
+          ARRAY_SET_ITEMS(gpl->gcolor_next, 0.250f, 0.1f, 1.0f);
+        }
+      }
+    }
+
+    /* Move studio_light selection to lookdev_light. */
+    if (!DNA_struct_elem_find(fd->filesdna, "View3DShading", "char", "lookdev_light[256]")) {
+      for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
+        for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
+          for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
+            if (sl->spacetype == SPACE_VIEW3D) {
+              View3D *v3d = (View3D *)sl;
+              memcpy(v3d->shading.lookdev_light, v3d->shading.studio_light, sizeof(char) * 256);
+            }
+          }
+        }
+      }
+    }
+
+    /* Change Solid mode shadow orientation. */
+    if (!DNA_struct_elem_find(fd->filesdna, "SceneDisplay", "float", "shadow_focus")) {
+      for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
+        float *dir = scene->display.light_direction;
+        SWAP(float, dir[2], dir[1]);
+        dir[2] = -dir[2];
+        dir[0] = -dir[0];
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_ATLEAST(bmain, 280, 37)) {
+    for (Camera *ca = bmain->cameras.first; ca; ca = ca->id.next) {
+      ca->drawsize *= 2.0f;
+    }
+    for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
+      if (ob->type != OB_EMPTY) {
+        if (UNLIKELY(ob->transflag & OB_DUPLICOLLECTION)) {
+          BKE_object_type_set_empty_for_versioning(ob);
+        }
+      }
+    }
+
+    /* Grease pencil primitive curve */
+    if (!DNA_struct_elem_find(
+            fd->filesdna, "GP_Sculpt_Settings", "CurveMapping", "cur_primitive")) {
+      for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
+        GP_Sculpt_Settings *gset = &scene->toolsettings->gp_sculpt;
+        if ((gset) && (gset->cur_primitive == NULL)) {
+          gset->cur_primitive = curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
+          curvemapping_initialize(gset->cur_primitive);
+          curvemap_reset(gset->cur_primitive->cm,
+                         &gset->cur_primitive->clipr,
+                         CURVE_PRESET_BELL,
+                         CURVEMAP_SLOPE_POSITIVE);
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_ATLEAST(bmain, 280, 38)) {
+    if (DNA_struct_elem_find(fd->filesdna, "Object", "char", "empty_image_visibility_flag")) {
+      for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
+        ob->empty_image_visibility_flag ^= (OB_EMPTY_IMAGE_HIDE_PERSPECTIVE |
+                                            OB_EMPTY_IMAGE_HIDE_ORTHOGRAPHIC |
+                                            OB_EMPTY_IMAGE_HIDE_BACK);
+      }
+    }
+
+    for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
+      for (ScrArea *area = screen->areabase.first; area; area = area->next) {
+        for (SpaceLink *sl = area->spacedata.first; sl; sl = sl->next) {
+          switch (sl->spacetype) {
+            case SPACE_IMAGE: {
+              SpaceImage *sima = (SpaceImage *)sl;
+              sima->flag &= ~(SI_FLAG_UNUSED_0 | SI_FLAG_UNUSED_1 | SI_FLAG_UNUSED_3 |
+                              SI_FLAG_UNUSED_6 | SI_FLAG_UNUSED_7 | SI_FLAG_UNUSED_8 |
+                              SI_FLAG_UNUSED_17 | SI_FLAG_UNUSED_18 | SI_FLAG_UNUSED_23 |
+                              SI_FLAG_UNUSED_24);
+              break;
+            }
+            case SPACE_VIEW3D: {
+              View3D *v3d = (View3D *)sl;
+              v3d->flag &= ~(V3D_FLAG_UNUSED_0 | V3D_FLAG_UNUSED_1 | V3D_FLAG_UNUSED_10 |
+                             V3D_FLAG_UNUSED_12);
+              v3d->flag2 &= ~(V3D_FLAG2_UNUSED_3 | V3D_FLAG2_UNUSED_6 | V3D_FLAG2_UNUSED_12 |
+                              V3D_FLAG2_UNUSED_13 | V3D_FLAG2_UNUSED_14 | V3D_FLAG2_UNUSED_15);
+              break;
+            }
+            case SPACE_OUTLINER: {
+              SpaceOutliner *so = (SpaceOutliner *)sl;
+              so->filter &= ~(SO_FILTER_UNUSED_1 | SO_FILTER_UNUSED_5 | SO_FILTER_UNUSED_12);
+              so->storeflag &= ~(SO_TREESTORE_UNUSED_1);
+              break;
+            }
+            case SPACE_FILE: {
+              SpaceFile *sfile = (SpaceFile *)sl;
+              if (sfile->params) {
+                sfile->params->flag &= ~(FILE_PARAMS_FLAG_UNUSED_1 | FILE_PARAMS_FLAG_UNUSED_6 |
+                                         FILE_PARAMS_FLAG_UNUSED_9);
+              }
+              break;
+            }
+            case SPACE_NODE: {
+              SpaceNode *snode = (SpaceNode *)sl;
+              snode->flag &= ~(SNODE_FLAG_UNUSED_6 | SNODE_FLAG_UNUSED_10 | SNODE_FLAG_UNUSED_11);
+              break;
+            }
+            case SPACE_PROPERTIES: {
+              SpaceProperties *sbuts = (SpaceProperties *)sl;
+              sbuts->flag &= ~(SB_FLAG_UNUSED_2 | SB_FLAG_UNUSED_3);
+              break;
+            }
+            case SPACE_NLA: {
+              SpaceNla *snla = (SpaceNla *)sl;
+              snla->flag &= ~(SNLA_FLAG_UNUSED_0 | SNLA_FLAG_UNUSED_1 | SNLA_FLAG_UNUSED_3);
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
+      scene->r.mode &= ~(R_MODE_UNUSED_1 | R_MODE_UNUSED_2 | R_MODE_UNUSED_3 | R_MODE_UNUSED_4 |
+                         R_MODE_UNUSED_5 | R_MODE_UNUSED_6 | R_MODE_UNUSED_7 | R_MODE_UNUSED_8 |
+                         R_MODE_UNUSED_10 | R_MODE_UNUSED_13 | R_MODE_UNUSED_16 |
+                         R_MODE_UNUSED_17 | R_MODE_UNUSED_18 | R_MODE_UNUSED_19 |
+                         R_MODE_UNUSED_20 | R_MODE_UNUSED_21 | R_MODE_UNUSED_27);
+
+      scene->r.scemode &= ~(R_SCEMODE_UNUSED_8 | R_SCEMODE_UNUSED_11 | R_SCEMODE_UNUSED_13 |
+                            R_SCEMODE_UNUSED_16 | R_SCEMODE_UNUSED_17 | R_SCEMODE_UNUSED_19);
+
+      if (scene->toolsettings->sculpt) {
+        scene->toolsettings->sculpt->flags &= ~(SCULPT_FLAG_UNUSED_0 | SCULPT_FLAG_UNUSED_1 |
+                                                SCULPT_FLAG_UNUSED_2);
+      }
+
+      if (scene->ed) {
+        Sequence *seq;
+        SEQ_BEGIN (scene->ed, seq) {
+          seq->flag &= ~(SEQ_FLAG_UNUSED_6 | SEQ_FLAG_UNUSED_18 | SEQ_FLAG_UNUSED_19 |
+                         SEQ_FLAG_UNUSED_21);
+          if (seq->type == SEQ_TYPE_SPEED) {
+            SpeedControlVars *s = (SpeedControlVars *)seq->effectdata;
+            s->flags &= ~(SEQ_SPEED_UNUSED_1);
+          }
+        }
+        SEQ_END;
+      }
+    }
+
+    for (World *world = bmain->worlds.first; world; world = world->id.next) {
+      world->flag &= ~(WO_MODE_UNUSED_1 | WO_MODE_UNUSED_2 | WO_MODE_UNUSED_3 | WO_MODE_UNUSED_4 |
+                       WO_MODE_UNUSED_5 | WO_MODE_UNUSED_7);
+    }
+
+    for (Image *image = bmain->images.first; image; image = image->id.next) {
+      image->flag &= ~(IMA_FLAG_UNUSED_0 | IMA_FLAG_UNUSED_1 | IMA_FLAG_UNUSED_4 |
+                       IMA_FLAG_UNUSED_6 | IMA_FLAG_UNUSED_8 | IMA_FLAG_UNUSED_15 |
+                       IMA_FLAG_UNUSED_16);
+    }
+
+    for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
+      ob->flag &= ~(OB_FLAG_UNUSED_11 | OB_FLAG_UNUSED_12);
+      ob->transflag &= ~(OB_TRANSFLAG_UNUSED_0 | OB_TRANSFLAG_UNUSED_1);
+      ob->shapeflag &= ~OB_SHAPE_FLAG_UNUSED_1;
+    }
+
+    for (Mesh *me = bmain->meshes.first; me; me = me->id.next) {
+      me->flag &= ~(ME_FLAG_UNUSED_0 | ME_FLAG_UNUSED_1 | ME_FLAG_UNUSED_3 | ME_FLAG_UNUSED_4 |
+                    ME_FLAG_UNUSED_6 | ME_FLAG_UNUSED_7 | ME_FLAG_UNUSED_8);
+    }
+
+    for (Material *mat = bmain->materials.first; mat; mat = mat->id.next) {
+      mat->blend_flag &= ~(MA_BL_FLAG_UNUSED_2);
+    }
+  }
+
+  if (!MAIN_VERSION_ATLEAST(bmain, 280, 40)) {
+    if (!DNA_struct_elem_find(fd->filesdna, "ToolSettings", "char", "snap_transform_mode_flag")) {
+      for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
+        scene->toolsettings->snap_transform_mode_flag = SCE_SNAP_TRANSFORM_MODE_TRANSLATE;
+      }
+    }
+
+    for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
+      for (ScrArea *area = screen->areabase.first; area; area = area->next) {
+        for (SpaceLink *sl = area->spacedata.first; sl; sl = sl->next) {
+          switch (sl->spacetype) {
+            case SPACE_VIEW3D: {
+              enum { V3D_BACKFACE_CULLING = (1 << 10) };
+              View3D *v3d = (View3D *)sl;
+              if (v3d->flag2 & V3D_BACKFACE_CULLING) {
+                v3d->flag2 &= ~V3D_BACKFACE_CULLING;
+                v3d->shading.flag |= V3D_SHADING_BACKFACE_CULLING;
+              }
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    if (!DNA_struct_find(fd->filesdna, "TransformOrientationSlot")) {
+      for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
+        for (int i = 0; i < ARRAY_SIZE(scene->orientation_slots); i++) {
+          scene->orientation_slots[i].index_custom = -1;
+        }
+      }
+    }
+
+    /* Grease pencil target weight  */
+    if (!DNA_struct_elem_find(fd->filesdna, "GP_Sculpt_Settings", "float", "weight")) {
+      for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
+        /* sculpt brushes */
+        GP_Sculpt_Settings *gset = &scene->toolsettings->gp_sculpt;
+        if (gset) {
+          for (int i = 0; i < GP_SCULPT_TYPE_MAX; i++) {
+            GP_Sculpt_Data *gp_brush = &gset->brush[i];
+            gp_brush->weight = 1.0f;
+          }
+        }
+      }
+    }
+
+    /* Grease pencil cutter/select segment intersection threshold  */
+    if (!DNA_struct_elem_find(fd->filesdna, "GP_Sculpt_Settings", "float", "isect_threshold")) {
+      for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
+        GP_Sculpt_Settings *gset = &scene->toolsettings->gp_sculpt;
+        if (gset) {
+          gset->isect_threshold = 0.1f;
+        }
+      }
+    }
+
+    /* Fix anamorphic bokeh eevee rna limits.*/
+    for (Camera *ca = bmain->cameras.first; ca; ca = ca->id.next) {
+      if (ca->gpu_dof.ratio < 0.01f) {
+        ca->gpu_dof.ratio = 0.01f;
+      }
+    }
+
+    for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
+      for (ScrArea *area = screen->areabase.first; area; area = area->next) {
+        for (SpaceLink *sl = area->spacedata.first; sl; sl = sl->next) {
+          if (sl->spacetype == SPACE_USERPREF) {
+            ARegion *execute_region = BKE_spacedata_find_region_type(sl, area, RGN_TYPE_EXECUTE);
+
+            if (!execute_region) {
+              ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase :
+                                                                     &sl->regionbase;
+              ARegion *ar_navbar = BKE_spacedata_find_region_type(sl, area, RGN_TYPE_NAV_BAR);
+
+              execute_region = MEM_callocN(sizeof(ARegion), "execute region for properties");
+
+              BLI_assert(ar_navbar);
+
+              BLI_insertlinkafter(regionbase, ar_navbar, execute_region);
+
+              execute_region->regiontype = RGN_TYPE_EXECUTE;
+              execute_region->alignment = RGN_ALIGN_BOTTOM | RGN_SPLIT_PREV;
+              execute_region->flag |= RGN_FLAG_DYNAMIC_SIZE;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_ATLEAST(bmain, 280, 43)) {
+    ListBase *lb = which_libbase(bmain, ID_BR);
+    BKE_main_id_repair_duplicate_names_listbase(lb);
+  }
+
+  if (!MAIN_VERSION_ATLEAST(bmain, 280, 44)) {
+    if (!DNA_struct_elem_find(fd->filesdna, "Material", "float", "a")) {
+      for (Material *mat = bmain->materials.first; mat; mat = mat->id.next) {
+        mat->a = 1.0f;
+      }
+    }
+
+    for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
+      enum {
+        R_ALPHAKEY = 2,
+      };
+      scene->r.seq_flag &= ~(R_SEQ_UNUSED_0 | R_SEQ_UNUSED_1 | R_SEQ_UNUSED_2);
+      scene->r.color_mgt_flag &= ~R_COLOR_MANAGEMENT_UNUSED_1;
+      if (scene->r.alphamode == R_ALPHAKEY) {
+        scene->r.alphamode = R_ADDSKY;
+      }
+      ToolSettings *ts = scene->toolsettings;
+      ts->particle.flag &= ~PE_UNUSED_6;
+      if (ts->sculpt != NULL) {
+        ts->sculpt->flags &= ~SCULPT_FLAG_UNUSED_6;
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_ATLEAST(bmain, 280, 45)) {
+    for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
+      for (ScrArea *area = screen->areabase.first; area; area = area->next) {
+        for (SpaceLink *sl = area->spacedata.first; sl; sl = sl->next) {
+          if (sl->spacetype == SPACE_SEQ) {
+            SpaceSeq *sseq = (SpaceSeq *)sl;
+            sseq->flag |= SEQ_SHOW_MARKER_LINES;
+          }
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_ATLEAST(bmain, 280, 46)) {
+    /* Add wireframe color. */
+    if (!DNA_struct_elem_find(fd->filesdna, "View3DShading", "char", "wire_color_type")) {
+      for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
+        for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
+          for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
+            if (sl->spacetype == SPACE_VIEW3D) {
+              View3D *v3d = (View3D *)sl;
+              v3d->shading.wire_color_type = V3D_SHADING_SINGLE_COLOR;
+            }
+          }
+        }
+      }
+    }
+
+    if (!DNA_struct_elem_find(fd->filesdna, "View3DCursor", "short", "rotation_mode")) {
+      for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
+        if (is_zero_v3(scene->cursor.rotation_axis)) {
+          scene->cursor.rotation_mode = ROT_MODE_XYZ;
+          scene->cursor.rotation_quaternion[0] = 1.0f;
+          scene->cursor.rotation_axis[1] = 1.0f;
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_ATLEAST(bmain, 280, 47)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      ParticleEditSettings *pset = &scene->toolsettings->particle;
+      if (pset->brushtype < 0) {
+        pset->brushtype = PE_BRUSH_COMB;
+      }
+    }
+
+    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
+      {
+        enum { PARCURVE = 1, PARKEY = 2, PAR_DEPRECATED = 16 };
+        if (ELEM(ob->partype, PARCURVE, PARKEY, PAR_DEPRECATED)) {
+          ob->partype = PAROBJECT;
+        }
+      }
+
+      {
+        enum { OB_WAVE = 21, OB_LIFE = 23, OB_SECTOR = 24 };
+        if (ELEM(ob->type, OB_WAVE, OB_LIFE, OB_SECTOR)) {
+          ob->type = OB_EMPTY;
+        }
+      }
+
+      ob->transflag &= ~(OB_TRANSFLAG_UNUSED_0 | OB_TRANSFLAG_UNUSED_1 | OB_TRANSFLAG_UNUSED_3 |
+                         OB_TRANSFLAG_UNUSED_6 | OB_TRANSFLAG_UNUSED_12);
+
+      ob->nlaflag &= ~(OB_ADS_UNUSED_1 | OB_ADS_UNUSED_2);
+    }
+
+    LISTBASE_FOREACH (bArmature *, arm, &bmain->armatures) {
+      arm->flag &= ~(ARM_FLAG_UNUSED_1 | ARM_FLAG_UNUSED_5 | ARM_FLAG_UNUSED_7 |
+                     ARM_FLAG_UNUSED_12);
+    }
+
+    LISTBASE_FOREACH (Text *, text, &bmain->texts) {
+      text->flags &= ~(TXT_FLAG_UNUSED_8 | TXT_FLAG_UNUSED_9);
+    }
+  }
+
+  if (!MAIN_VERSION_ATLEAST(bmain, 280, 48)) {
+    for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
+      /* Those are not currently used, but are accessible through RNA API and were not
+       * properly initialized previously. This is mere copy of BKE_init_scene() code. */
+      if (scene->r.im_format.view_settings.look[0] == '\0') {
+        BKE_color_managed_display_settings_init(&scene->r.im_format.display_settings);
+        BKE_color_managed_view_settings_init_render(
+            &scene->r.im_format.view_settings, &scene->r.im_format.display_settings, "Filmic");
+      }
+
+      if (scene->r.bake.im_format.view_settings.look[0] == '\0') {
+        BKE_color_managed_display_settings_init(&scene->r.bake.im_format.display_settings);
+        BKE_color_managed_view_settings_init_render(&scene->r.bake.im_format.view_settings,
+                                                    &scene->r.bake.im_format.display_settings,
+                                                    "Filmic");
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_ATLEAST(bmain, 280, 49)) {
+    /* All tool names changed, reset to defaults. */
+    for (WorkSpace *workspace = bmain->workspaces.first; workspace;
+         workspace = workspace->id.next) {
+      while (!BLI_listbase_is_empty(&workspace->tools)) {
+        BKE_workspace_tool_remove(workspace, workspace->tools.first);
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_ATLEAST(bmain, 280, 52)) {
+    LISTBASE_FOREACH (ParticleSettings *, part, &bmain->particles) {
+      /* Replace deprecated PART_DRAW_BB by PART_DRAW_NOT */
+      if (part->ren_as == PART_DRAW_BB) {
+        part->ren_as = PART_DRAW_NOT;
+      }
+      if (part->draw_as == PART_DRAW_BB) {
+        part->draw_as = PART_DRAW_NOT;
+      }
+    }
+
+    if (!DNA_struct_elem_find(fd->filesdna, "TriangulateModifierData", "int", "min_vertices")) {
+      for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
+        for (ModifierData *md = ob->modifiers.first; md; md = md->next) {
+          if (md->type == eModifierType_Triangulate) {
+            TriangulateModifierData *smd = (TriangulateModifierData *)md;
+            smd->min_vertices = 4;
+          }
+        }
+      }
+    }
+
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type == NTREE_SHADER) {
+        for (bNode *node = ntree->nodes.first; node; node = node->next) {
+          /* Fix missing version patching from earlier changes. */
+          if (STREQ(node->idname, "ShaderNodeOutputLamp")) {
+            STRNCPY(node->idname, "ShaderNodeOutputLight");
+          }
+          if (node->type == SH_NODE_BSDF_PRINCIPLED && node->custom2 == 0) {
+            node->custom2 = SHD_SUBSURFACE_BURLEY;
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_ATLEAST(bmain, 280, 53)) {
+    for (Material *mat = bmain->materials.first; mat; mat = mat->id.next) {
+      /* Eevee: Keep material appearance consistent with previous behavior. */
+      if (!mat->use_nodes || !mat->nodetree || mat->blend_method == MA_BM_SOLID) {
+        mat->blend_shadow = MA_BS_SOLID;
+      }
+    }
+
+    /* grease pencil default animation channel color */
+    {
+      for (bGPdata *gpd = bmain->gpencils.first; gpd; gpd = gpd->id.next) {
+        if (gpd->flag & GP_DATA_ANNOTATIONS) {
+          continue;
+        }
+        for (bGPDlayer *gpl = gpd->layers.first; gpl; gpl = gpl->next) {
+          /* default channel color */
+          ARRAY_SET_ITEMS(gpl->color, 0.2f, 0.2f, 0.2f);
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_ATLEAST(bmain, 280, 54)) {
+    for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
+      bool is_first_subdiv = true;
+      for (ModifierData *md = ob->modifiers.first; md; md = md->next) {
+        if (md->type == eModifierType_Subsurf) {
+          SubsurfModifierData *smd = (SubsurfModifierData *)md;
+          if (is_first_subdiv) {
+            smd->flags |= eSubsurfModifierFlag_UseCrease;
+          }
+          else {
+            smd->flags &= ~eSubsurfModifierFlag_UseCrease;
+          }
+          is_first_subdiv = false;
+        }
+        else if (md->type == eModifierType_Multires) {
+          MultiresModifierData *mmd = (MultiresModifierData *)md;
+          if (is_first_subdiv) {
+            mmd->flags |= eMultiresModifierFlag_UseCrease;
+          }
+          else {
+            mmd->flags &= ~eMultiresModifierFlag_UseCrease;
+          }
+          is_first_subdiv = false;
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_ATLEAST(bmain, 280, 55)) {
+    for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
+      for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
+        for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
+          if (sl->spacetype == SPACE_TEXT) {
+            ListBase *regionbase = (sl == sa->spacedata.first) ? &sa->regionbase : &sl->regionbase;
+
+            /* Remove multiple footers that were added by mistake. */
+            do_versions_remove_region(regionbase, RGN_TYPE_FOOTER);
+
+            /* Add footer. */
+            ARegion *ar = do_versions_add_region(RGN_TYPE_FOOTER, "footer for text");
+            ar->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_TOP : RGN_ALIGN_BOTTOM;
+
+            ARegion *ar_header = do_versions_find_region(regionbase, RGN_TYPE_HEADER);
+            BLI_insertlinkafter(regionbase, ar_header, ar);
+          }
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_ATLEAST(bmain, 280, 56)) {
+    for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
+      for (ScrArea *area = screen->areabase.first; area; area = area->next) {
+        for (SpaceLink *sl = area->spacedata.first; sl; sl = sl->next) {
+          if (sl->spacetype == SPACE_VIEW3D) {
+            View3D *v3d = (View3D *)sl;
+            v3d->gizmo_show_armature = V3D_GIZMO_SHOW_ARMATURE_BBONE |
+                                       V3D_GIZMO_SHOW_ARMATURE_ROLL;
+            v3d->gizmo_show_empty = V3D_GIZMO_SHOW_EMPTY_IMAGE | V3D_GIZMO_SHOW_EMPTY_FORCE_FIELD;
+            v3d->gizmo_show_light = V3D_GIZMO_SHOW_LIGHT_SIZE | V3D_GIZMO_SHOW_LIGHT_LOOK_AT;
+            v3d->gizmo_show_camera = V3D_GIZMO_SHOW_CAMERA_LENS | V3D_GIZMO_SHOW_CAMERA_DOF_DIST;
+          }
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_ATLEAST(bmain, 280, 57)) {
+    /* Enable Show Interpolation in dopesheet by default. */
+    for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
+      for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
+        for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
+          if (sl->spacetype == SPACE_ACTION) {
+            SpaceAction *saction = (SpaceAction *)sl;
+            if ((saction->flag & SACTION_SHOW_EXTREMES) == 0) {
+              saction->flag |= SACTION_SHOW_INTERPOLATION;
+            }
+          }
+        }
+      }
+    }
+
+    /* init grease pencil brush gradients */
+    if (!DNA_struct_elem_find(fd->filesdna, "BrushGpencilSettings", "float", "gradient_f")) {
+      for (Brush *brush = bmain->brushes.first; brush; brush = brush->id.next) {
+        if (brush->gpencil_settings != NULL) {
+          BrushGpencilSettings *gp = brush->gpencil_settings;
+          gp->gradient_f = 1.0f;
+          gp->gradient_s[0] = 1.0f;
+          gp->gradient_s[1] = 1.0f;
+        }
+      }
+    }
+
+    /* init grease pencil stroke gradients */
+    if (!DNA_struct_elem_find(fd->filesdna, "bGPDstroke", "float", "gradient_f")) {
+      for (bGPdata *gpd = bmain->gpencils.first; gpd; gpd = gpd->id.next) {
+        for (bGPDlayer *gpl = gpd->layers.first; gpl; gpl = gpl->next) {
+          for (bGPDframe *gpf = gpl->frames.first; gpf; gpf = gpf->next) {
+            for (bGPDstroke *gps = gpf->strokes.first; gps; gps = gps->next) {
+              gps->gradient_f = 1.0f;
+              gps->gradient_s[0] = 1.0f;
+              gps->gradient_s[1] = 1.0f;
+            }
+          }
+        }
+      }
+    }
+
+    /* enable the axis aligned ortho grid by default */
+    for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
+      for (ScrArea *area = screen->areabase.first; area; area = area->next) {
+        for (SpaceLink *sl = area->spacedata.first; sl; sl = sl->next) {
+          if (sl->spacetype == SPACE_VIEW3D) {
+            View3D *v3d = (View3D *)sl;
+            v3d->gridflag |= V3D_SHOW_ORTHO_GRID;
+          }
+        }
+      }
+    }
+  }
+
+  /* Keep un-versioned until we're finished adding space types. */
+  {
+    for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
+      for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
+        for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
+          ListBase *regionbase = (sl == sa->spacedata.first) ? &sa->regionbase : &sl->regionbase;
+          /* All spaces that use tools must be eventually added. */
+          if (ELEM(sl->spacetype, SPACE_VIEW3D, SPACE_IMAGE) &&
+              (do_versions_find_region_or_null(regionbase, RGN_TYPE_TOOL_HEADER) == NULL)) {
+            /* Add tool header. */
+            ARegion *ar = do_versions_add_region(RGN_TYPE_TOOL_HEADER, "tool header");
+            ar->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_BOTTOM : RGN_ALIGN_TOP;
+
+            ARegion *ar_header = do_versions_find_region(regionbase, RGN_TYPE_HEADER);
+            BLI_insertlinkbefore(regionbase, ar_header, ar);
+          }
+        }
+      }
+    }
+  }
+
+  {
+    if (!DNA_struct_elem_find(fd->filesdna, "bSplineIKConstraint", "short", "yScaleMode")) {
+      for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
+        if (ob->pose) {
+          for (bPoseChannel *pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
+            for (bConstraint *con = pchan->constraints.first; con; con = con->next) {
+              if (con->type == CONSTRAINT_TYPE_SPLINEIK) {
+                bSplineIKConstraint *data = (bSplineIKConstraint *)con->data;
+                if ((data->flag & CONSTRAINT_SPLINEIK_SCALE_LIMITED) == 0) {
+                  data->yScaleMode = CONSTRAINT_SPLINEIK_YS_FIT_CURVE;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    if (!DNA_struct_elem_find(
+            fd->filesdna, "View3DOverlay", "float", "sculpt_mode_mask_opacity")) {
+      for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
+        for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
+          for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
+            if (sl->spacetype == SPACE_VIEW3D) {
+              View3D *v3d = (View3D *)sl;
+              v3d->overlay.sculpt_mode_mask_opacity = 0.75f;
+            }
+          }
+        }
+      }
+    }
+
+    /* Game engine hack to force defaults in files saved in normal blender2.8 */
+    if (!DNA_struct_elem_find(fd->filesdna, "Scene", "GameData", "gm")) {
+      for (Scene *sce = bmain->scenes.first; sce; sce = sce->id.next) {
+        /* game data */
+        sce->gm.stereoflag = STEREO_NOSTEREO;
+        sce->gm.stereomode = STEREO_ANAGLYPH;
+        sce->gm.eyeseparation = 0.10;
+
+        sce->gm.xplay = 640;
+        sce->gm.yplay = 480;
+        sce->gm.freqplay = 60;
+        sce->gm.depth = 32;
+
+        sce->gm.gravity = 9.8f;
+        sce->gm.physicsEngine = WOPHY_BULLET;
+        //sce->gm.mode = WO_ACTIVITY_CULLING | WO_DBVT_CULLING;
+        sce->gm.occlusionRes = 128;
+        sce->gm.ticrate = 60;
+        sce->gm.maxlogicstep = 5;
+        sce->gm.physubstep = 1;
+        sce->gm.maxphystep = 5;
+        //sce->gm.timeScale = 1.0f;
+        sce->gm.lineardeactthreshold = 0.8f;
+        sce->gm.angulardeactthreshold = 1.0f;
+        sce->gm.deactivationtime = 0.0f;
+
+        sce->gm.obstacleSimulation = OBSTSIMULATION_NONE;
+        sce->gm.levelHeight = 2.f;
+
+        sce->gm.recastData.cellsize = 0.3f;
+        sce->gm.recastData.cellheight = 0.2f;
+        sce->gm.recastData.agentmaxslope = M_PI_4;
+        sce->gm.recastData.agentmaxclimb = 0.9f;
+        sce->gm.recastData.agentheight = 2.0f;
+        sce->gm.recastData.agentradius = 0.6f;
+        sce->gm.recastData.edgemaxlen = 12.0f;
+        sce->gm.recastData.edgemaxerror = 1.3f;
+        sce->gm.recastData.regionminsize = 8.f;
+        sce->gm.recastData.regionmergesize = 20.f;
+        sce->gm.recastData.vertsperpoly = 6;
+        sce->gm.recastData.detailsampledist = 6.0f;
+        sce->gm.recastData.detailsamplemaxerror = 1.0f;
+
+        sce->gm.exitkey = 218;  // Blender key code for ESC
+
+        //sce->gm.pythonkeys[0] = LEFTCTRLKEY;
+        //sce->gm.pythonkeys[1] = LEFTSHIFTKEY;
+        //sce->gm.pythonkeys[2] = LEFTALTKEY;
+        //sce->gm.pythonkeys[3] = TKEY;
+      }
+
+      for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
+        /* Game engine defaults*/
+        ob->mass = ob->inertia = 1.0f;
+        ob->formfactor = 0.4f;
+        ob->damping = 0.04f;
+        ob->rdamping = 0.1f;
+        ob->anisotropicFriction[0] = 1.0f;
+        ob->anisotropicFriction[1] = 1.0f;
+        ob->anisotropicFriction[2] = 1.0f;
+        ob->gameflag = OB_PROP | OB_COLLISION;
+        ob->gameflag2 = 0;
+        ob->margin = 0.04f;
+        ob->friction = 0.5;
+        ob->init_state = 1;
+        ob->state = 1;
+        ob->obstacleRad = 1.0f;
+        ob->step_height = 0.15f;
+        ob->jump_speed = 10.0f;
+        ob->fall_speed = 55.0f;
+        ob->max_jumps = 1;
+        //ob->max_slope = M_PI_2;
+        ob->col_group = 0x01;
+        ob->col_mask = 0xffff;
+        ob->preview = NULL;
+        ob->duplicator_visibility_flag = OB_DUPLI_FLAG_VIEWPORT | OB_DUPLI_FLAG_RENDER;
+      }
+    }
+    /* Game engine hack to force defaults in files saved in normal blender2.8 END */
+
+    /* Versioning code until next subversion bump goes here. */
+  }
 }
