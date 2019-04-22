@@ -740,15 +740,18 @@ bool ED_object_parent_set(ReportList *reports,
         /* don't do anything here, since this is not technically "parenting" */
       }
       else if (ELEM(partype, PAR_CURVE, PAR_LATTICE) || (pararm)) {
-        /* partype is now set to PAROBJECT so that invisible 'virtual' modifiers don't need to be created
-         * NOTE: the old (2.4x) method was to set ob->partype = PARSKEL, creating the virtual modifiers
+        /* partype is now set to PAROBJECT so that invisible 'virtual'
+         * modifiers don't need to be created.
+         * NOTE: the old (2.4x) method was to set ob->partype = PARSKEL,
+         * creating the virtual modifiers.
          */
         ob->partype = PAROBJECT;     /* note, dna define, not operator property */
         /* ob->partype = PARSKEL; */ /* note, dna define, not operator property */
 
-        /* BUT, to keep the deforms, we need a modifier, and then we need to set the object that it uses
-         * - We need to ensure that the modifier we're adding doesn't already exist, so we check this by
-         *   assuming that the parent is selected too...
+        /* BUT, to keep the deforms, we need a modifier,
+         * and then we need to set the object that it uses
+         * - We need to ensure that the modifier we're adding doesn't already exist,
+         *   so we check this by assuming that the parent is selected too.
          */
         /* XXX currently this should only happen for meshes, curves, surfaces,
          * and lattices - this stuff isn't available for metas yet */
@@ -1683,9 +1686,10 @@ static Collection *single_object_users_collection(Main *bmain,
     }
   }
 
-  /* Since master collection has already be duplicated as part of scene copy, we do not duplictae it here.
-   * However, this means its children need to be re-added manually here, otherwise their parent lists are empty
-   * (which will lead to crashes, see T63101). */
+  /* Since master collection has already be duplicated as part of scene copy,
+   * we do not duplictae it here.
+   * However, this means its children need to be re-added manually here,
+   * otherwise their parent lists are empty (which will lead to crashes, see T63101). */
   CollectionChild *child_next, *child = collection->children.first;
   CollectionChild *orig_child_last = collection->children.last;
   for (; child != NULL; child = child_next) {
@@ -2153,7 +2157,8 @@ static void make_local_material_tag(Material *ma)
     ma->id.tag &= ~LIB_TAG_PRE_EXISTING;
     make_local_animdata_tag(BKE_animdata_from_id(&ma->id));
 
-    /* About nodetrees: root one is made local together with material, others we keep linked for now... */
+    /* About nodetrees: root one is made local together with material,
+     * others we keep linked for now... */
   }
 }
 
@@ -2372,7 +2377,8 @@ static int make_override_static_exec(bContext *C, wmOperator *op)
     }
     FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
 
-    /* Then, we remove (untag) bone shape objects, you shall never want to override those (hopefully)... */
+    /* Then, we remove (untag) bone shape objects, you shall never want to override those
+     * (hopefully)... */
     FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (collection, ob) {
       if (ob->type == OB_ARMATURE && ob->pose != NULL) {
         for (bPoseChannel *pchan = ob->pose->chanbase.first; pchan != NULL; pchan = pchan->next) {

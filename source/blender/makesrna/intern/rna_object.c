@@ -278,14 +278,14 @@ const EnumPropertyItem rna_enum_object_axis_items[] = {
 
 #ifdef RNA_RUNTIME
 
-#include "BLI_math.h"
+#  include "BLI_math.h"
 
-#include "DNA_key_types.h"
-#include "DNA_constraint_types.h"
-#include "DNA_gpencil_types.h"
-#include "DNA_ID.h"
-#include "DNA_lattice_types.h"
-#include "DNA_node_types.h"
+#  include "DNA_key_types.h"
+#  include "DNA_constraint_types.h"
+#  include "DNA_gpencil_types.h"
+#  include "DNA_ID.h"
+#  include "DNA_lattice_types.h"
+#  include "DNA_node_types.h"
 
 #include "BKE_armature.h"
 #include "BKE_brush.h"
@@ -304,13 +304,13 @@ const EnumPropertyItem rna_enum_object_axis_items[] = {
 #include "BKE_scene.h"
 #include "BKE_deform.h"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_build.h"
+#  include "DEG_depsgraph.h"
+#  include "DEG_depsgraph_build.h"
 
-#include "ED_object.h"
-#include "ED_particle.h"
-#include "ED_curve.h"
-#include "ED_lattice.h"
+#  include "ED_object.h"
+#  include "ED_particle.h"
+#  include "ED_curve.h"
+#  include "ED_lattice.h"
 
 static void rna_Object_internal_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
@@ -361,8 +361,9 @@ static void rna_Object_matrix_local_set(PointerRNA *ptr, const float values[16])
   Object *ob = ptr->id.data;
   float local_mat[4][4];
 
-  /* localspace matrix is truly relative to the parent, but parameters stored in object are
-   * relative to parentinv matrix. Undo the parent inverse part before applying it as local matrix. */
+  /* Localspace matrix is truly relative to the parent,
+   * but parameters stored in object are relative to parentinv matrix.
+   * Undo the parent inverse part before applying it as local matrix. */
   if (ob->parent) {
     float invmat[4][4];
     invert_m4_m4(invmat, ob->parentinv);
@@ -372,7 +373,8 @@ static void rna_Object_matrix_local_set(PointerRNA *ptr, const float values[16])
     copy_m4_m4(local_mat, (float(*)[4])values);
   }
 
-  /* don't use compat so we get predictable rotation, and do not use parenting either, because it's a local matrix! */
+  /* Don't use compat so we get predictable rotation, and do not use parenting either,
+   * because it's a local matrix! */
   BKE_object_apply_mat4(ob, local_mat, false, false);
 }
 
@@ -1643,8 +1645,8 @@ bool rna_Object_constraints_override_apply(Main *UNUSED(bmain),
   /* This handles NULL anchor as expected by adding at head of list. */
   BLI_insertlinkafter(&ob_dst->constraints, con_anchor, con_dst);
 
-  /* This should actually *not* be needed in typical cases. However, if overridden source was edited,
-   * we *may* have some new conflicting names. */
+  /* This should actually *not* be needed in typical cases.
+   * However, if overridden source was edited, we *may* have some new conflicting names. */
   BKE_constraint_unique_name(con_dst, &ob_dst->constraints);
 
   //  printf("%s: We inserted a constraint...\n", __func__);
@@ -1732,7 +1734,8 @@ bool rna_Object_modifiers_override_apply(Main *UNUSED(bmain),
   /* This handles NULL anchor as expected by adding at head of list. */
   BLI_insertlinkafter(&ob_dst->modifiers, mod_anchor, mod_dst);
 
-  /* This should actually *not* be needed in typical cases. However, if overridden source was edited,
+  /* This should actually *not* be needed in typical cases.
+   * However, if overridden source was edited,
    * we *may* have some new conflicting names. */
   modifier_unique_name(&ob_dst->modifiers, mod_dst);
 
@@ -2133,7 +2136,8 @@ static void rna_def_material_slot(BlenderRNA *brna)
   RNA_def_struct_ui_icon(srna, ICON_MATERIAL_DATA);
 
   /* WARNING! Order is crucial for override to work properly here... :/
-   * 'link' must come before material pointer, since it defines where (in object or obdata) that one is set! */
+   * 'link' must come before material pointer,
+   * since it defines where (in object or obdata) that one is set! */
   prop = RNA_def_property(srna, "link", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, link_items);
   RNA_def_property_enum_funcs(

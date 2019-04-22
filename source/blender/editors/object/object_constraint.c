@@ -586,7 +586,7 @@ static void object_test_constraint(Main *bmain, Object *owner, bConstraint *con)
   }
 }
 
-/************************ generic functions for operators using constraint names and data context *********************/
+/*** generic functions for operators using constraint names and data context *********************/
 
 #define EDIT_CONSTRAINT_OWNER_OBJECT 0
 #define EDIT_CONSTRAINT_OWNER_BONE 1
@@ -690,20 +690,30 @@ static bConstraint *edit_constraint_property_get(wmOperator *op, Object *ob, int
     if (pchan)
       list = &pchan->constraints;
     else {
-      //if (G.debug & G_DEBUG)
-      //printf("edit_constraint_property_get: No active bone for object '%s'\n", (ob) ? ob->id.name + 2 : "<None>");
+#if 0
+      if (G.debug & G_DEBUG) {
+        printf("edit_constraint_property_get: No active bone for object '%s'\n",
+               (ob) ? ob->id.name + 2 : "<None>");
+      }
+#endif
       return NULL;
     }
   }
   else {
-    //if (G.debug & G_DEBUG)
-    //printf("edit_constraint_property_get: defaulting to getting list in the standard way\n");
+#if 0
+    if (G.debug & G_DEBUG) {
+      printf("edit_constraint_property_get: defaulting to getting list in the standard way\n");
+    }
+#endif
     list = get_active_constraints(ob);
   }
 
   con = BKE_constraints_find_name(list, constraint_name);
-  //if (G.debug & G_DEBUG)
-  //printf("constraint found = %p, %s\n", (void *)con, (con) ? con->name : "<Not found>");
+#if 0
+  if (G.debug & G_DEBUG) {
+    printf("constraint found = %p, %s\n", (void *)con, (con) ? con->name : "<Not found>");
+  }
+#endif
 
   if (con && (type != 0) && (con->type != type))
     con = NULL;
@@ -1275,10 +1285,11 @@ static void object_pose_tag_update(Main *bmain, Object *ob)
 {
   BKE_pose_tag_recalc(bmain, ob->pose); /* Checks & sort pose channels. */
   if (ob->proxy && ob->adt) {
-    /* We need to make use of ugly POSE_ANIMATION_WORKAROUND here too, else anim data are not reloaded
-     * after calling `BKE_pose_rebuild()`, which causes T43872.
-     * Note that this is a bit wide here, since we cannot be sure whether there are some locked proxy bones
-     * or not...
+    /* We need to make use of ugly #POSE_ANIMATION_WORKAROUND here too,
+     * else anim data are not reloaded after calling `BKE_pose_rebuild()`,
+     * which causes T43872.
+     * Note that this is a bit wide here, since we cannot be sure whether there are some locked
+     * proxy bones or not.
      * XXX Temp hack until new depsgraph hopefully solves this. */
     DEG_id_tag_update(&ob->id, ID_RECALC_ANIMATION);
   }
@@ -1641,44 +1652,45 @@ void OBJECT_OT_constraints_copy(wmOperatorType *ot)
 /************************ add constraint operators *********************/
 
 /* get the Object and/or PoseChannel to use as target */
-static bool get_new_constraint_target(bContext *C, int con_type, Object **tar_ob, bPoseChannel **tar_pchan, bool add)
+static bool get_new_constraint_target(
+    bContext *C, int con_type, Object **tar_ob, bPoseChannel **tar_pchan, bool add)
 {
-	Object *obact = ED_object_active_context(C);
-	bPoseChannel *pchanact = BKE_pose_channel_active(obact);
-	bool only_curve = false, only_mesh = false, only_ob = false;
-	bool found = false;
+  Object *obact = ED_object_active_context(C);
+  bPoseChannel *pchanact = BKE_pose_channel_active(obact);
+  bool only_curve = false, only_mesh = false, only_ob = false;
+  bool found = false;
 
-	/* clear tar_ob and tar_pchan fields before use
-	 * - assume for now that both always exist...
-	 */
-	*tar_ob = NULL;
-	*tar_pchan = NULL;
+  /* clear tar_ob and tar_pchan fields before use
+   * - assume for now that both always exist...
+   */
+  *tar_ob = NULL;
+  *tar_pchan = NULL;
 
-	/* check if constraint type doesn't requires a target
-	 * - if so, no need to get any targets
-	 */
-	switch (con_type) {
-		/* no-target constraints --------------------------- */
-		/* null constraint - shouldn't even be added! */
-		case CONSTRAINT_TYPE_NULL:
-		/* limit constraints - no targets needed */
-		case CONSTRAINT_TYPE_LOCLIMIT:
-		case CONSTRAINT_TYPE_ROTLIMIT:
-		case CONSTRAINT_TYPE_SIZELIMIT:
-		case CONSTRAINT_TYPE_SAMEVOL:
-			return false;
+  /* check if constraint type doesn't requires a target
+   * - if so, no need to get any targets
+   */
+  switch (con_type) {
+    /* no-target constraints --------------------------- */
+    /* null constraint - shouldn't even be added! */
+    case CONSTRAINT_TYPE_NULL:
+    /* limit constraints - no targets needed */
+    case CONSTRAINT_TYPE_LOCLIMIT:
+    case CONSTRAINT_TYPE_ROTLIMIT:
+    case CONSTRAINT_TYPE_SIZELIMIT:
+    case CONSTRAINT_TYPE_SAMEVOL:
+      return false;
 
-		/* restricted target-type constraints -------------- */
-		/* NOTE: for these, we cannot try to add a target object if no valid ones are found,
-		 * since that doesn't work */
-		/* curve-based constraints - set the only_curve and only_ob flags */
-		case CONSTRAINT_TYPE_CLAMPTO:
-		case CONSTRAINT_TYPE_FOLLOWPATH:
-		case CONSTRAINT_TYPE_SPLINEIK:
-			only_curve = true;
-			only_ob = true;
-			add = false;
-			break;
+    /* restricted target-type constraints -------------- */
+    /* NOTE: for these, we cannot try to add a target object if no valid ones are found,
+     * since that doesn't work */
+    /* curve-based constraints - set the only_curve and only_ob flags */
+    case CONSTRAINT_TYPE_CLAMPTO:
+    case CONSTRAINT_TYPE_FOLLOWPATH:
+    case CONSTRAINT_TYPE_SPLINEIK:
+      only_curve = true;
+      only_ob = true;
+      add = false;
+      break;
 
 		/* mesh only? */
 		case CONSTRAINT_TYPE_SHRINKWRAP:
@@ -1693,102 +1705,98 @@ static bool get_new_constraint_target(bContext *C, int con_type, Object **tar_ob
 			break;
 	}
 
-	/* if the active Object is Armature, and we can search for bones, do so... */
-	if ((obact->type == OB_ARMATURE) && (only_ob == false)) {
-		/* search in list of selected Pose-Channels for target */
-		CTX_DATA_BEGIN (C, bPoseChannel *, pchan, selected_pose_bones_from_active_object)
-		{
-			/* just use the first one that we encounter, as long as it is not the active one */
-			if (pchan != pchanact) {
-				*tar_ob = obact;
-				*tar_pchan = pchan;
-				found = true;
+  /* if the active Object is Armature, and we can search for bones, do so... */
+  if ((obact->type == OB_ARMATURE) && (only_ob == false)) {
+    /* search in list of selected Pose-Channels for target */
+    CTX_DATA_BEGIN (C, bPoseChannel *, pchan, selected_pose_bones_from_active_object) {
+      /* just use the first one that we encounter, as long as it is not the active one */
+      if (pchan != pchanact) {
+        *tar_ob = obact;
+        *tar_pchan = pchan;
+        found = true;
 
-				break;
-			}
-		}
-		CTX_DATA_END;
-	}
+        break;
+      }
+    }
+    CTX_DATA_END;
+  }
 
-	/* if not yet found, try selected Objects... */
-	if (found == false) {
-		/* search in selected objects context */
-		CTX_DATA_BEGIN (C, Object *, ob, selected_objects)
-		{
-			/* just use the first object we encounter (that isn't the active object)
-			 * and which fulfills the criteria for the object-target that we've got
-			 */
-			if (ob != obact) {
-				/* for armatures in pose mode, look inside the armature for the active bone
-				 * so that we set up cross-armature constraints with less effort
-				 */
-				if ((ob->type == OB_ARMATURE) && (ob->mode & OB_MODE_POSE) &&
-				    (!only_curve && !only_mesh))
-				{
-					/* just use the active bone, and assume that it is visible + usable */
-					*tar_ob = ob;
-					*tar_pchan = BKE_pose_channel_active(ob);
-					found = true;
+  /* if not yet found, try selected Objects... */
+  if (found == false) {
+    /* search in selected objects context */
+    CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
+      /* just use the first object we encounter (that isn't the active object)
+       * and which fulfills the criteria for the object-target that we've got
+       */
+      if (ob != obact) {
+        /* for armatures in pose mode, look inside the armature for the active bone
+         * so that we set up cross-armature constraints with less effort
+         */
+        if ((ob->type == OB_ARMATURE) && (ob->mode & OB_MODE_POSE) &&
+            (!only_curve && !only_mesh)) {
+          /* just use the active bone, and assume that it is visible + usable */
+          *tar_ob = ob;
+          *tar_pchan = BKE_pose_channel_active(ob);
+          found = true;
 
-					break;
-				}
-				else if (((!only_curve) || (ob->type == OB_CURVE)) &&
-				         ((!only_mesh) || (ob->type == OB_MESH)))
-				{
-					/* set target */
-					*tar_ob = ob;
-					found = true;
+          break;
+        }
+        else if (((!only_curve) || (ob->type == OB_CURVE)) &&
+                 ((!only_mesh) || (ob->type == OB_MESH))) {
+          /* set target */
+          *tar_ob = ob;
+          found = true;
 
-					/* perform some special operations on the target */
-					if (only_curve) {
-						/* Curve-Path option must be enabled for follow-path constraints to be able to work */
-						Curve *cu = (Curve *)ob->data;
-						cu->flag |= CU_PATH;
-					}
+          /* perform some special operations on the target */
+          if (only_curve) {
+            /* Curve-Path option must be enabled for follow-path constraints to be able to work */
+            Curve *cu = (Curve *)ob->data;
+            cu->flag |= CU_PATH;
+          }
 
-					break;
-				}
-			}
-		}
-		CTX_DATA_END;
-	}
+          break;
+        }
+      }
+    }
+    CTX_DATA_END;
+  }
 
-	/* if still not found, add a new empty to act as a target (if allowed) */
-	if ((found == false) && (add)) {
-		Main *bmain = CTX_data_main(C);
-		Scene *scene = CTX_data_scene(C);
-		ViewLayer *view_layer = CTX_data_view_layer(C);
-		Base *base = BASACT(view_layer);
-		Object *obt;
+  /* if still not found, add a new empty to act as a target (if allowed) */
+  if ((found == false) && (add)) {
+    Main *bmain = CTX_data_main(C);
+    Scene *scene = CTX_data_scene(C);
+    ViewLayer *view_layer = CTX_data_view_layer(C);
+    Base *base = BASACT(view_layer);
+    Object *obt;
 
-		/* add new target object */
-		obt = BKE_object_add(bmain, scene, view_layer, OB_EMPTY, NULL);
+    /* add new target object */
+    obt = BKE_object_add(bmain, scene, view_layer, OB_EMPTY, NULL);
 
-		/* transform cent to global coords for loc */
-		if (pchanact) {
-			/* since by default, IK targets the tip of the last bone, use the tip of the active PoseChannel
-			 * if adding a target for an IK Constraint
-			 */
-			if (con_type == CONSTRAINT_TYPE_KINEMATIC)
-				mul_v3_m4v3(obt->loc, obact->obmat, pchanact->pose_tail);
-			else
-				mul_v3_m4v3(obt->loc, obact->obmat, pchanact->pose_head);
-		}
-		else {
-			copy_v3_v3(obt->loc, obact->obmat[3]);
-		}
+    /* transform cent to global coords for loc */
+    if (pchanact) {
+      /* since by default, IK targets the tip of the last bone, use the tip of the active PoseChannel
+       * if adding a target for an IK Constraint
+       */
+      if (con_type == CONSTRAINT_TYPE_KINEMATIC)
+        mul_v3_m4v3(obt->loc, obact->obmat, pchanact->pose_tail);
+      else
+        mul_v3_m4v3(obt->loc, obact->obmat, pchanact->pose_head);
+    }
+    else {
+      copy_v3_v3(obt->loc, obact->obmat[3]);
+    }
 
-		/* restore, BKE_object_add sets active */
-		BASACT(view_layer) = base;
-		base->flag |= BASE_SELECTED;
+    /* restore, BKE_object_add sets active */
+    BASACT(view_layer) = base;
+    base->flag |= BASE_SELECTED;
 
-		/* make our new target the new object */
-		*tar_ob = obt;
-		found = true;
-	}
+    /* make our new target the new object */
+    *tar_ob = obt;
+    found = true;
+  }
 
-	/* return whether there's any target */
-	return found;
+  /* return whether there's any target */
+  return found;
 }
 
 /* used by add constraint operators to add the constraint required */
@@ -1892,8 +1900,8 @@ static int constraint_add_exec(bContext *C, wmOperator *op, Object *ob, ListBase
   if ((ob->type == OB_ARMATURE) && (pchan)) {
     BKE_pose_tag_recalc(bmain, ob->pose); /* sort pose channels */
     if (BKE_constraints_proxylocked_owner(ob, pchan) && ob->adt) {
-      /* We need to make use of ugly POSE_ANIMATION_WORKAROUND here too, else anim data are not reloaded
-       * after calling `BKE_pose_rebuild()`, which causes T43872.
+      /* We need to make use of ugly POSE_ANIMATION_WORKAROUND here too,
+       * else anim data are not reloaded after calling `BKE_pose_rebuild()`, which causes T43872.
        * XXX Temp hack until new depsgraph hopefully solves this. */
       DEG_id_tag_update(&ob->id, ID_RECALC_ANIMATION);
     }
@@ -2102,7 +2110,8 @@ static int pose_ik_add_exec(bContext *C, wmOperator *op)
   Object *ob = CTX_data_active_object(C);
   const bool with_targets = RNA_boolean_get(op->ptr, "with_targets");
 
-  /* add the constraint - all necessary checks should have been done by the invoke() callback already... */
+  /* add the constraint - all necessary checks should have
+   * been done by the invoke() callback already... */
   return constraint_add_exec(
       C, op, ob, get_active_constraints(ob), CONSTRAINT_TYPE_KINEMATIC, with_targets);
 }
