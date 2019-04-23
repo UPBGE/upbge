@@ -2626,27 +2626,54 @@ void UI_view2d_offset(struct View2D *v2d, float xfac, float yfac)
 char UI_view2d_mouse_in_scrollers_ex(
     const ARegion *ar, const View2D *v2d, int x, int y, int *r_scroll)
 {
-  int co[2];
-  int scroll = view2d_scroll_mapped(v2d->scroll);
+  const int scroll = view2d_scroll_mapped(v2d->scroll);
   *r_scroll = scroll;
 
-  /* clamp x,y to region-coordinates first */
-  co[0] = x - ar->winrct.xmin;
-  co[1] = y - ar->winrct.ymin;
-
-  /* check if within scrollbars */
-  if (scroll & V2D_SCROLL_HORIZONTAL) {
-    if (IN_2D_HORIZ_SCROLL(v2d, co)) {
-      return 'h';
+  if (scroll) {
+    /* Move to region-coordinates. */
+    const int co[2] = {
+        x - ar->winrct.xmin,
+        y - ar->winrct.ymin,
+    };
+    if (scroll & V2D_SCROLL_HORIZONTAL) {
+      if (IN_2D_HORIZ_SCROLL(v2d, co)) {
+        return 'h';
+      }
+    }
+    if (scroll & V2D_SCROLL_VERTICAL) {
+      if (IN_2D_VERT_SCROLL(v2d, co)) {
+        return 'v';
+      }
     }
   }
-  if (scroll & V2D_SCROLL_VERTICAL) {
-    if (IN_2D_VERT_SCROLL(v2d, co)) {
-      return 'v';
+
+  return 0;
+}
+
+char UI_view2d_rect_in_scrollers_ex(const ARegion *ar,
+                                    const View2D *v2d,
+                                    const rcti *rect,
+                                    int *r_scroll)
+{
+  const int scroll = view2d_scroll_mapped(v2d->scroll);
+  *r_scroll = scroll;
+
+  if (scroll) {
+    /* Move to region-coordinates. */
+    rcti rect_region = *rect;
+    BLI_rcti_translate(&rect_region, -ar->winrct.xmin, ar->winrct.ymin);
+    if (scroll & V2D_SCROLL_HORIZONTAL) {
+      if (IN_2D_HORIZ_SCROLL_RECT(v2d, &rect_region)) {
+        return 'h';
+      }
+    }
+    if (scroll & V2D_SCROLL_VERTICAL) {
+      if (IN_2D_VERT_SCROLL_RECT(v2d, &rect_region)) {
+        return 'v';
+      }
     }
   }
 
-  /* not found */
   return 0;
 }
 
@@ -2654,6 +2681,12 @@ char UI_view2d_mouse_in_scrollers(const ARegion *ar, const View2D *v2d, int x, i
 {
   int scroll_dummy = 0;
   return UI_view2d_mouse_in_scrollers_ex(ar, v2d, x, y, &scroll_dummy);
+}
+
+char UI_view2d_rect_in_scrollers(const ARegion *ar, const View2D *v2d, const rcti *rect)
+{
+  int scroll_dummy = 0;
+  return UI_view2d_rect_in_scrollers_ex(ar, v2d, rect, &scroll_dummy);
 }
 
 /* ******************* view2d text drawing cache ******************** */

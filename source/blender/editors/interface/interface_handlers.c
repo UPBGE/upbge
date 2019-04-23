@@ -7957,6 +7957,11 @@ uiBut *UI_region_active_but_get(ARegion *ar)
   return ui_context_button_active(ar, NULL);
 }
 
+uiBut *UI_region_but_find_rect_over(const ARegion *ar, const rcti *rect_px)
+{
+  return ui_but_find_rect_over(ar, rect_px);
+}
+
 /**
  * Version of #UI_context_active_but_get that also returns RNA property info.
  * Helper function for insert keyframe, reset to default, etc operators.
@@ -9023,6 +9028,13 @@ static bool ui_menu_scroll_step(ARegion *ar, uiBlock *block, const int scroll_di
 /** \name Menu Event Handling
  * \{ */
 
+static void ui_region_auto_open_clear(ARegion *ar)
+{
+  for (uiBlock *block = ar->uiblocks.first; block; block = block->next) {
+    block->auto_open = false;
+  }
+}
+
 /**
  * Special function to handle nested menus.
  * let the parent menu get the event.
@@ -9065,6 +9077,7 @@ static int ui_handle_menu_button(bContext *C, const wmEvent *event, uiPopupBlock
     }
     else if (!ui_region_contains_point_px(but->active->region, event->x, event->y)) {
       /* pass, needed to click-exit outside of non-flaoting menus */
+      ui_region_auto_open_clear(but->active->region);
     }
     else if ((!ELEM(event->type, MOUSEMOVE, WHEELUPMOUSE, WHEELDOWNMOUSE, MOUSEPAN)) &&
              ISMOUSE(event->type)) {

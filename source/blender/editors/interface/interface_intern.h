@@ -478,7 +478,12 @@ extern void ui_block_to_window_rctf(const struct ARegion *ar,
 extern float ui_block_to_window_scale(const struct ARegion *ar, uiBlock *block);
 extern void ui_window_to_block_fl(const struct ARegion *ar, uiBlock *block, float *x, float *y);
 extern void ui_window_to_block(const struct ARegion *ar, uiBlock *block, int *x, int *y);
+extern void ui_window_to_block_rctf(const struct ARegion *ar,
+                                    uiBlock *block,
+                                    rctf *rct_dst,
+                                    const rctf *rct_src);
 extern void ui_window_to_region(const ARegion *ar, int *x, int *y);
+extern void ui_window_to_region_rcti(const ARegion *ar, rcti *rect_dst, const rcti *rct_src);
 extern void ui_region_to_window(const struct ARegion *ar, int *x, int *y);
 extern void ui_region_winrct_get_no_margin(const struct ARegion *ar, struct rcti *r_rect);
 
@@ -919,6 +924,7 @@ void ui_but_pie_dir(RadialDirection dir, float vec[2]);
 bool ui_but_is_cursor_warp(const uiBut *but) ATTR_WARN_UNUSED_RESULT;
 
 bool ui_but_contains_pt(const uiBut *but, float mx, float my) ATTR_WARN_UNUSED_RESULT;
+bool ui_but_contains_rect(const uiBut *but, const rctf *rect);
 bool ui_but_contains_point_px_icon(const uiBut *but,
                                    struct ARegion *ar,
                                    const struct wmEvent *event) ATTR_WARN_UNUSED_RESULT;
@@ -934,6 +940,8 @@ uiBut *ui_but_find_mouse_over_ex(struct ARegion *ar,
                                  const bool labeledit) ATTR_WARN_UNUSED_RESULT;
 uiBut *ui_but_find_mouse_over(struct ARegion *ar,
                               const struct wmEvent *event) ATTR_WARN_UNUSED_RESULT;
+uiBut *ui_but_find_rect_over(const struct ARegion *ar,
+                             const rcti *rect_px) ATTR_WARN_UNUSED_RESULT;
 
 uiBut *ui_list_find_mouse_over_ex(struct ARegion *ar, int x, int y) ATTR_WARN_UNUSED_RESULT;
 
@@ -952,6 +960,7 @@ bool ui_block_is_popup_any(const uiBlock *block) ATTR_WARN_UNUSED_RESULT;
 uiBut *ui_region_find_first_but_test_flag(struct ARegion *ar, int flag_include, int flag_exclude);
 uiBut *ui_region_find_active_but(struct ARegion *ar) ATTR_WARN_UNUSED_RESULT;
 bool ui_region_contains_point_px(const struct ARegion *ar, int x, int y) ATTR_WARN_UNUSED_RESULT;
+bool ui_region_contains_rect_px(const struct ARegion *ar, const rcti *rect_px);
 
 /* interface_context_menu.c */
 bool ui_popup_context_menu_for_button(struct bContext *C, uiBut *but);
