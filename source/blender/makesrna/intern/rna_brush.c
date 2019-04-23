@@ -1246,7 +1246,7 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
   RNA_def_property_float_default(prop, 1.0f);
   RNA_def_property_ui_text(prop,
                            "Border Opacity Factor",
-                           "Amount of gradient for Dot strokes (set to 1 for full solid)");
+                           "Amount of gradient for Dot and Box strokes (set to 1 for full solid)");
   RNA_def_parameter_clear_flags(prop, PROP_ANIMATABLE, 0);
 
   /* gradient shape ratio */
@@ -1840,6 +1840,7 @@ static void rna_def_brush(BlenderRNA *brna)
   prop = RNA_def_property(srna, "blur_kernel_radius", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, NULL, "blur_kernel_radius");
   RNA_def_property_range(prop, 1, 10000);
+  RNA_def_property_int_default(prop, 2);
   RNA_def_property_ui_range(prop, 1, 50, 1, -1);
   RNA_def_property_ui_text(
       prop, "Kernel Radius", "Radius of kernel used for soften and sharpen in pixels");

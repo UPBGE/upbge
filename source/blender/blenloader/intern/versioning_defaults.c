@@ -355,6 +355,10 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     copy_v2_fl2(scene->safe_areas.action, 0.035f, 0.035f);
   }
 
+  for (Brush *brush = bmain->brushes.first; brush; brush = brush->id.next) {
+    brush->blur_kernel_radius = 2;
+  }
+
   /*********************Game engine transition*********************/
   // WARNING: ALWAYS KEEP THIS IN BLO_update_defaults_startup_blend
   for (Scene *sce = bmain->scenes.first; sce; sce = sce->id.next) {

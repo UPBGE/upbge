@@ -79,14 +79,16 @@ EditBone *ED_armature_ebone_add(bArmature *arm, const char *name)
   /* Bendy-Bone parameters */
   bone->roll1 = 0.0f;
   bone->roll2 = 0.0f;
-  bone->curveInX = 0.0f;
-  bone->curveInY = 0.0f;
-  bone->curveOutX = 0.0f;
-  bone->curveOutY = 0.0f;
+  bone->curve_in_x = 0.0f;
+  bone->curve_in_y = 0.0f;
+  bone->curve_out_x = 0.0f;
+  bone->curve_out_y = 0.0f;
   bone->ease1 = 1.0f;
   bone->ease2 = 1.0f;
-  bone->scaleIn = 1.0f;
-  bone->scaleOut = 1.0f;
+  bone->scale_in_x = 1.0f;
+  bone->scale_in_y = 1.0f;
+  bone->scale_out_x = 1.0f;
+  bone->scale_out_y = 1.0f;
 
   return bone;
 }
@@ -990,14 +992,16 @@ static int armature_extrude_exec(bContext *C, wmOperator *op)
             /* Bendy-Bone parameters */
             newbone->roll1 = ebone->roll1;
             newbone->roll2 = ebone->roll2;
-            newbone->curveInX = ebone->curveInX;
-            newbone->curveInY = ebone->curveInY;
-            newbone->curveOutX = ebone->curveOutX;
-            newbone->curveOutY = ebone->curveOutY;
+            newbone->curve_in_x = ebone->curve_in_x;
+            newbone->curve_in_y = ebone->curve_in_y;
+            newbone->curve_out_x = ebone->curve_out_x;
+            newbone->curve_out_y = ebone->curve_out_y;
             newbone->ease1 = ebone->ease1;
             newbone->ease2 = ebone->ease2;
-            newbone->scaleIn = ebone->scaleIn;
-            newbone->scaleOut = ebone->scaleOut;
+            newbone->scale_in_x = ebone->scale_in_x;
+            newbone->scale_in_y = ebone->scale_in_y;
+            newbone->scale_out_x = ebone->scale_out_x;
+            newbone->scale_out_y = ebone->scale_out_y;
 
             BLI_strncpy(newbone->name, ebone->name, sizeof(newbone->name));
 

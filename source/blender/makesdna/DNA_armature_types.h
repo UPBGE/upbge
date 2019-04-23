@@ -77,11 +77,12 @@ typedef struct Bone {
 
   /** Curved bones settings - these define the "restpose" for a curved bone. */
   float roll1, roll2;
-  float curveInX, curveInY;
-  float curveOutX, curveOutY;
+  float curve_in_x, curve_in_y;
+  float curve_out_x, curve_out_y;
   /** Length of bezier handles. */
   float ease1, ease2;
-  float scaleIn, scaleOut;
+  float scale_in_x, scale_in_y;
+  float scale_out_x, scale_out_y;
 
   /**  patch for upward compat, UNUSED!. */
   float size[3];

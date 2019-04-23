@@ -390,7 +390,7 @@ void ED_armature_edit_transform_mirror_update(Object *obedit)
           eboflip->tail[2] = ebo->tail[2];
           eboflip->rad_tail = ebo->rad_tail;
           eboflip->roll = -ebo->roll;
-          eboflip->curveOutX = -ebo->curveOutX;
+          eboflip->curve_out_x = -ebo->curve_out_x;
           eboflip->roll2 = -ebo->roll2;
 
           /* Also move connected children, in case children's name aren't mirrored properly */
@@ -407,7 +407,7 @@ void ED_armature_edit_transform_mirror_update(Object *obedit)
           eboflip->head[2] = ebo->head[2];
           eboflip->rad_head = ebo->rad_head;
           eboflip->roll = -ebo->roll;
-          eboflip->curveInX = -ebo->curveInX;
+          eboflip->curve_in_x = -ebo->curve_in_x;
           eboflip->roll1 = -ebo->roll1;
 
           /* Also move connected parent, in case parent's name isn't mirrored properly */
@@ -423,8 +423,8 @@ void ED_armature_edit_transform_mirror_update(Object *obedit)
           eboflip->xwidth = ebo->xwidth;
           eboflip->zwidth = ebo->zwidth;
 
-          eboflip->curveInX = -ebo->curveInX;
-          eboflip->curveOutX = -ebo->curveOutX;
+          eboflip->curve_in_x = -ebo->curve_in_x;
+          eboflip->curve_out_x = -ebo->curve_out_x;
           eboflip->roll1 = -ebo->roll1;
           eboflip->roll2 = -ebo->roll2;
         }
@@ -496,14 +496,16 @@ static EditBone *make_boneList_rec(ListBase *edbo,
     /* Bendy-Bone parameters */
     eBone->roll1 = curBone->roll1;
     eBone->roll2 = curBone->roll2;
-    eBone->curveInX = curBone->curveInX;
-    eBone->curveInY = curBone->curveInY;
-    eBone->curveOutX = curBone->curveOutX;
-    eBone->curveOutY = curBone->curveOutY;
+    eBone->curve_in_x = curBone->curve_in_x;
+    eBone->curve_in_y = curBone->curve_in_y;
+    eBone->curve_out_x = curBone->curve_out_x;
+    eBone->curve_out_y = curBone->curve_out_y;
     eBone->ease1 = curBone->ease1;
     eBone->ease2 = curBone->ease2;
-    eBone->scaleIn = curBone->scaleIn;
-    eBone->scaleOut = curBone->scaleOut;
+    eBone->scale_in_x = curBone->scale_in_x;
+    eBone->scale_in_y = curBone->scale_in_y;
+    eBone->scale_out_x = curBone->scale_out_x;
+    eBone->scale_out_y = curBone->scale_out_y;
 
     eBone->bbone_prev_type = curBone->bbone_prev_type;
     eBone->bbone_next_type = curBone->bbone_next_type;
@@ -706,14 +708,16 @@ void ED_armature_from_edit(Main *bmain, bArmature *arm)
     /* Bendy-Bone parameters */
     newBone->roll1 = eBone->roll1;
     newBone->roll2 = eBone->roll2;
-    newBone->curveInX = eBone->curveInX;
-    newBone->curveInY = eBone->curveInY;
-    newBone->curveOutX = eBone->curveOutX;
-    newBone->curveOutY = eBone->curveOutY;
+    newBone->curve_in_x = eBone->curve_in_x;
+    newBone->curve_in_y = eBone->curve_in_y;
+    newBone->curve_out_x = eBone->curve_out_x;
+    newBone->curve_out_y = eBone->curve_out_y;
     newBone->ease1 = eBone->ease1;
     newBone->ease2 = eBone->ease2;
-    newBone->scaleIn = eBone->scaleIn;
-    newBone->scaleOut = eBone->scaleOut;
+    newBone->scale_in_x = eBone->scale_in_x;
+    newBone->scale_in_y = eBone->scale_in_y;
+    newBone->scale_out_x = eBone->scale_out_x;
+    newBone->scale_out_y = eBone->scale_out_y;
 
     newBone->bbone_prev_type = eBone->bbone_prev_type;
     newBone->bbone_next_type = eBone->bbone_next_type;
