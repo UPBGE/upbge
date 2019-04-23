@@ -5522,189 +5522,181 @@ static void lib_link_object(FileData *fd, Main *main)
       lib_link_nlastrips(fd, &ob->id, &ob->nlastrips);
       // >>> XXX deprecated - old animation system
 
-			for (PartEff *paf = ob->effect.first; paf; paf = paf->next) {
-				if (paf->type == EFF_PARTICLE) {
-					paf->group = newlibadr_us(fd, ob->id.lib, paf->group);
-				}
-			}
-			
-			for (bSensor *sens = ob->sensors.first; sens; sens = sens->next) {
-				for (a = 0; a < sens->totlinks; a++)
-					sens->links[a] = newglobadr(fd, sens->links[a]);
+      for (bSensor *sens = ob->sensors.first; sens; sens = sens->next) {
+        for (a = 0; a < sens->totlinks; a++)
+          sens->links[a] = newglobadr(fd, sens->links[a]);
 
-				if (sens->type == SENS_MESSAGE) {
-					bMessageSensor *ms = sens->data;
-					ms->fromObject =
-						newlibadr(fd, ob->id.lib, ms->fromObject);
-				}
-			}
-			
-			for (bController *cont = ob->controllers.first; cont; cont = cont->next) {
-				for (a=0; a < cont->totlinks; a++)
-					cont->links[a] = newglobadr(fd, cont->links[a]);
-				
-				if (cont->type == CONT_PYTHON) {
-					bPythonCont *pc = cont->data;
-					pc->text = newlibadr(fd, ob->id.lib, pc->text);
-				}
-				cont->slinks = NULL;
-				cont->totslinks = 0;
-			}
-			
-			for (bActuator *act = ob->actuators.first; act; act = act->next) {
-				switch (act->type) {
-					case ACT_SOUND:
-					{
-						bSoundActuator *sa = act->data;
-						sa->sound = newlibadr_us(fd, ob->id.lib, sa->sound);
-						break;
-					}
-					case ACT_GAME:
-						/* bGameActuator *ga= act->data; */
-						break;
-					case ACT_CAMERA:
-					{
-						bCameraActuator *ca = act->data;
-						ca->ob = newlibadr(fd, ob->id.lib, ca->ob);
-						break;
-					}
-					/* leave this one, it's obsolete but necessary to read for conversion */
-					case ACT_ADD_OBJECT:
-					{
-						bAddObjectActuator *eoa = act->data;
-						if (eoa)
-							eoa->ob = newlibadr(fd, ob->id.lib, eoa->ob);
-						break;
-					}
-					case ACT_OBJECT:
-					{
-						bObjectActuator *oa = act->data;
-						if (oa == NULL) {
-							init_actuator(act);
-						}
-						else {
-							oa->reference = newlibadr(fd, ob->id.lib, oa->reference);
-						}
-						break;
-					}
-					case ACT_EDIT_OBJECT:
-					{
-						bEditObjectActuator *eoa = act->data;
-						if (eoa == NULL) {
-							init_actuator(act);
-						}
-						else {
-							eoa->ob = newlibadr(fd, ob->id.lib, eoa->ob);
-							eoa->me = newlibadr(fd, ob->id.lib, eoa->me);
-						}
-						break;
-					}
-					case ACT_SCENE:
-					{
-						bSceneActuator *sa = act->data;
-						sa->camera = newlibadr(fd, ob->id.lib, sa->camera);
-						sa->scene = newlibadr(fd, ob->id.lib, sa->scene);
-						break;
-					}
-					case ACT_ACTION:
-					{
-						bActionActuator *aa = act->data;
-						aa->act = newlibadr_us(fd, ob->id.lib, aa->act);
-						break;
-					}
-					case ACT_SHAPEACTION:
-					{
-						bActionActuator *aa = act->data;
-						aa->act = newlibadr_us(fd, ob->id.lib, aa->act);
-						break;
-					}
-					case ACT_PROPERTY:
-					{
-						bPropertyActuator *pa = act->data;
-						pa->ob = newlibadr(fd, ob->id.lib, pa->ob);
-						break;
-					}
-					case ACT_MESSAGE:
-					{
-						bMessageActuator *ma = act->data;
-						ma->toObject = newlibadr(fd, ob->id.lib, ma->toObject);
-						break;
-					}
-					case ACT_2DFILTER:
-					{
-						bTwoDFilterActuator *_2dfa = act->data;
-						_2dfa->text = newlibadr(fd, ob->id.lib, _2dfa->text);
-						break;
-					}
-					case ACT_PARENT:
-					{
-						bParentActuator *parenta = act->data;
-						parenta->ob = newlibadr(fd, ob->id.lib, parenta->ob);
-						break;
-					}
-					case ACT_STATE:
-						/* bStateActuator *statea = act->data; */
-						break;
-					case ACT_ARMATURE:
-					{
-						bArmatureActuator *arma= act->data;
-						arma->target = newlibadr(fd, ob->id.lib, arma->target);
-						arma->subtarget = newlibadr(fd, ob->id.lib, arma->subtarget);
-						break;
-					}
-					case ACT_STEERING:
-					{
-						bSteeringActuator *steeringa = act->data;
-						steeringa->target = newlibadr(fd, ob->id.lib, steeringa->target);
-						steeringa->navmesh = newlibadr(fd, ob->id.lib, steeringa->navmesh);
-						break;
-					}
-					case ACT_MOUSE:
-						/* bMouseActuator *moa = act->data; */
-						break;
-				}
-			}
-			
-			{
-				FluidsimModifierData *fluidmd = (FluidsimModifierData *)modifiers_findByType(ob, eModifierType_Fluidsim);
+        if (sens->type == SENS_MESSAGE) {
+          bMessageSensor *ms = sens->data;
+          ms->fromObject = newlibadr(fd, ob->id.lib, ms->fromObject);
+        }
+      }
 
-				if (fluidmd && fluidmd->fss)
-					fluidmd->fss->ipo = newlibadr_us(fd, ob->id.lib, fluidmd->fss->ipo);  // XXX deprecated - old animation system
-			}
+      for (bController *cont = ob->controllers.first; cont; cont = cont->next) {
+        for (a = 0; a < cont->totlinks; a++)
+          cont->links[a] = newglobadr(fd, cont->links[a]);
 
-			{
-				SmokeModifierData *smd = (SmokeModifierData *)modifiers_findByType(ob, eModifierType_Smoke);
+        if (cont->type == CONT_PYTHON) {
+          bPythonCont *pc = cont->data;
+          pc->text = newlibadr(fd, ob->id.lib, pc->text);
+        }
+        cont->slinks = NULL;
+        cont->totslinks = 0;
+      }
 
-				if (smd && (smd->type == MOD_SMOKE_TYPE_DOMAIN) && smd->domain) {
-					smd->domain->flags |= MOD_SMOKE_FILE_LOAD; /* flag for refreshing the simulation after loading */
-				}
-			}
+      for (bActuator *act = ob->actuators.first; act; act = act->next) {
+        switch (act->type) {
+          case ACT_SOUND: {
+            bSoundActuator *sa = act->data;
+            sa->sound = newlibadr_us(fd, ob->id.lib, sa->sound);
+            break;
+          }
+          case ACT_GAME:
+            /* bGameActuator *ga= act->data; */
+            break;
+          case ACT_CAMERA: {
+            bCameraActuator *ca = act->data;
+            ca->ob = newlibadr(fd, ob->id.lib, ca->ob);
+            break;
+          }
+          /* leave this one, it's obsolete but necessary to read for conversion */
+          case ACT_ADD_OBJECT: {
+            bAddObjectActuator *eoa = act->data;
+            if (eoa)
+              eoa->ob = newlibadr(fd, ob->id.lib, eoa->ob);
+            break;
+          }
+          case ACT_OBJECT: {
+            bObjectActuator *oa = act->data;
+            if (oa == NULL) {
+              init_actuator(act);
+            }
+            else {
+              oa->reference = newlibadr(fd, ob->id.lib, oa->reference);
+            }
+            break;
+          }
+          case ACT_EDIT_OBJECT: {
+            bEditObjectActuator *eoa = act->data;
+            if (eoa == NULL) {
+              init_actuator(act);
+            }
+            else {
+              eoa->ob = newlibadr(fd, ob->id.lib, eoa->ob);
+              eoa->me = newlibadr(fd, ob->id.lib, eoa->me);
+            }
+            break;
+          }
+          case ACT_SCENE: {
+            bSceneActuator *sa = act->data;
+            sa->camera = newlibadr(fd, ob->id.lib, sa->camera);
+            sa->scene = newlibadr(fd, ob->id.lib, sa->scene);
+            break;
+          }
+          case ACT_ACTION: {
+            bActionActuator *aa = act->data;
+            aa->act = newlibadr_us(fd, ob->id.lib, aa->act);
+            break;
+          }
+          case ACT_SHAPEACTION: {
+            bActionActuator *aa = act->data;
+            aa->act = newlibadr_us(fd, ob->id.lib, aa->act);
+            break;
+          }
+          case ACT_PROPERTY: {
+            bPropertyActuator *pa = act->data;
+            pa->ob = newlibadr(fd, ob->id.lib, pa->ob);
+            break;
+          }
+          case ACT_MESSAGE: {
+            bMessageActuator *ma = act->data;
+            ma->toObject = newlibadr(fd, ob->id.lib, ma->toObject);
+            break;
+          }
+          case ACT_2DFILTER: {
+            bTwoDFilterActuator *_2dfa = act->data;
+            _2dfa->text = newlibadr(fd, ob->id.lib, _2dfa->text);
+            break;
+          }
+          case ACT_PARENT: {
+            bParentActuator *parenta = act->data;
+            parenta->ob = newlibadr(fd, ob->id.lib, parenta->ob);
+            break;
+          }
+          case ACT_STATE:
+            /* bStateActuator *statea = act->data; */
+            break;
+          case ACT_ARMATURE: {
+            bArmatureActuator *arma = act->data;
+            arma->target = newlibadr(fd, ob->id.lib, arma->target);
+            arma->subtarget = newlibadr(fd, ob->id.lib, arma->subtarget);
+            break;
+          }
+          case ACT_STEERING: {
+            bSteeringActuator *steeringa = act->data;
+            steeringa->target = newlibadr(fd, ob->id.lib, steeringa->target);
+            steeringa->navmesh = newlibadr(fd, ob->id.lib, steeringa->navmesh);
+            break;
+          }
+          case ACT_MOUSE:
+            /* bMouseActuator *moa = act->data; */
+            break;
+        }
+      }
 
-			/* texture field */
-			if (ob->pd)
-				lib_link_partdeflect(fd, &ob->id, ob->pd);
+      for (PartEff *paf = ob->effect.first; paf; paf = paf->next) {
+        if (paf->type == EFF_PARTICLE) {
+          paf->group = newlibadr_us(fd, ob->id.lib, paf->group);
+        }
+      }
 
-			if (ob->soft) {
-				ob->soft->collision_group = newlibadr(fd, ob->id.lib, ob->soft->collision_group);
+      {
+        FluidsimModifierData *fluidmd = (FluidsimModifierData *)modifiers_findByType(
+            ob, eModifierType_Fluidsim);
 
-				ob->soft->effector_weights->group = newlibadr(fd, ob->id.lib, ob->soft->effector_weights->group);
-			}
+        if (fluidmd && fluidmd->fss) {
+          fluidmd->fss->ipo = newlibadr_us(
+              fd, ob->id.lib, fluidmd->fss->ipo);  // XXX deprecated - old animation system
+        }
+      }
 
-			lib_link_particlesystems(fd, ob, &ob->id, &ob->particlesystem);
-			lib_link_modifiers(fd, ob);
-			lib_link_gpencil_modifiers(fd, ob);
-			lib_link_shaderfxs(fd, ob);
+      {
+        SmokeModifierData *smd = (SmokeModifierData *)modifiers_findByType(ob,
+                                                                           eModifierType_Smoke);
 
-			if (ob->rigidbody_constraint) {
-				ob->rigidbody_constraint->ob1 = newlibadr(fd, ob->id.lib, ob->rigidbody_constraint->ob1);
-				ob->rigidbody_constraint->ob2 = newlibadr(fd, ob->id.lib, ob->rigidbody_constraint->ob2);
-			}
-		}
-	}
+        if (smd && (smd->type == MOD_SMOKE_TYPE_DOMAIN) && smd->domain) {
+          smd->domain->flags |=
+              MOD_SMOKE_FILE_LOAD; /* flag for refreshing the simulation after loading */
+        }
+      }
 
-	if (warn) {
-		BKE_report(fd->reports, RPT_WARNING, "Warning in console");
-	}
+      /* texture field */
+      if (ob->pd) {
+        lib_link_partdeflect(fd, &ob->id, ob->pd);
+      }
+
+      if (ob->soft) {
+        ob->soft->collision_group = newlibadr(fd, ob->id.lib, ob->soft->collision_group);
+
+        ob->soft->effector_weights->group = newlibadr(
+            fd, ob->id.lib, ob->soft->effector_weights->group);
+      }
+
+      lib_link_particlesystems(fd, ob, &ob->id, &ob->particlesystem);
+      lib_link_modifiers(fd, ob);
+      lib_link_gpencil_modifiers(fd, ob);
+      lib_link_shaderfxs(fd, ob);
+
+      if (ob->rigidbody_constraint) {
+        ob->rigidbody_constraint->ob1 = newlibadr(fd, ob->id.lib, ob->rigidbody_constraint->ob1);
+        ob->rigidbody_constraint->ob2 = newlibadr(fd, ob->id.lib, ob->rigidbody_constraint->ob2);
+      }
+    }
+  }
+
+  if (warn) {
+    BKE_report(fd->reports, RPT_WARNING, "Warning in console");
+  }
 }
 
 /* direct data for cache */
@@ -7690,24 +7682,26 @@ static void direct_link_area(FileData *fd, ScrArea *area)
       snode->iofsd = NULL;
       BLI_listbase_clear(&snode->linkdrag);
     }
+
+    else if (sl->spacetype == SPACE_LOGIC) {
+      SpaceLogic *slogic = (SpaceLogic *)sl;
+
+      /* XXX: this is new stuff, which shouldn't be directly linking to gpd... */
+      if (slogic->gpd) {
+        slogic->gpd = newdataadr(fd, slogic->gpd);
+        direct_link_gpencil(fd, slogic->gpd);
+      }
+    }
+
     else if (sl->spacetype == SPACE_TEXT) {
       SpaceText *st = (SpaceText *)sl;
 
-			st->drawcache = NULL;
-			st->scroll_accum[0] = 0.0f;
-			st->scroll_accum[1] = 0.0f;
-		}
-		else if (sl->spacetype == SPACE_LOGIC) {
-			SpaceLogic *slogic = (SpaceLogic *)sl;
-			
-			/* XXX: this is new stuff, which shouldn't be directly linking to gpd... */
-			if (slogic->gpd) {
-				slogic->gpd = newdataadr(fd, slogic->gpd);
-				direct_link_gpencil(fd, slogic->gpd);
-			}
-		}
-		else if (sl->spacetype == SPACE_SEQ) {
-			SpaceSeq *sseq = (SpaceSeq *)sl;
+      st->drawcache = NULL;
+      st->scroll_accum[0] = 0.0f;
+      st->scroll_accum[1] = 0.0f;
+    }
+    else if (sl->spacetype == SPACE_SEQ) {
+      SpaceSeq *sseq = (SpaceSeq *)sl;
 
       /* grease pencil data is not a direct data and can't be linked from direct_link*
        * functions, it should be linked from lib_link* functions instead
@@ -8493,6 +8487,11 @@ static void lib_link_workspace_layout_restore(struct IDNameLib_Map *id_map,
             snode->edittree = NULL;
           }
         }
+        else if (sl->spacetype == SPACE_LOGIC) {
+          SpaceLogic *slogic = (SpaceLogic *)sl;
+
+          slogic->gpd = restore_pointer_by_name(id_map, (ID *)slogic->gpd, USER_REAL);
+        }
         else if (sl->spacetype == SPACE_CLIP) {
           SpaceClip *sclip = (SpaceClip *)sl;
 
@@ -8500,16 +8499,11 @@ static void lib_link_workspace_layout_restore(struct IDNameLib_Map *id_map,
           sclip->mask_info.mask = restore_pointer_by_name(
               id_map, (ID *)sclip->mask_info.mask, USER_REAL);
 
-					sclip->scopes.ok = 0;
-				}
-				else if (sl->spacetype == SPACE_LOGIC) {
-					SpaceLogic *slogic = (SpaceLogic *)sl;
-					
-					slogic->gpd = restore_pointer_by_name(id_map, (ID *)slogic->gpd, USER_REAL);
-				}
-			}
-		}
-	}
+          sclip->scopes.ok = 0;
+        }
+      }
+    }
+  }
 }
 
 /**
@@ -10879,13 +10873,13 @@ static void expand_object_expandModifiers(void *userData,
 
 static void expand_object(FileData *fd, Main *mainvar, Object *ob)
 {
-	ParticleSystem *psys;
-	bSensor *sens;
-	bController *cont;
-	bActuator *act;
-	bActionStrip *strip;
-	PartEff *paf;
-	int a;
+  ParticleSystem *psys;
+  bSensor *sens;
+  bController *cont;
+  bActuator *act;
+  bActionStrip *strip;
+  PartEff *paf;
+  int a;
 
   expand_doit(fd, mainvar, ob->data);
 
@@ -12293,37 +12287,40 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 
 static int fd_read_from_file(FileData *filedata, void *buffer, unsigned int size)
 {
-	int readsize = read(filedata->filedes, buffer, size);
+  int readsize = read(filedata->filedes, buffer, size);
 
-	if (readsize < 0) {
-		readsize = EOF;
-	}
-	else {
-		filedata->file_offset += readsize;
-	}
+  if (readsize < 0) {
+    readsize = EOF;
+  }
+  else {
+    filedata->file_offset += readsize;
+  }
 
-	return readsize;
+  return readsize;
 }
 
-BlendFileData *blo_read_blendafterruntime(int file, const char *name, int actualsize, ReportList *reports)
+BlendFileData *blo_read_blendafterruntime(int file,
+                                          const char *name,
+                                          int actualsize,
+                                          ReportList *reports)
 {
-	BlendFileData *bfd = NULL;
-	FileData *fd = filedata_new();
-	fd->filedes = file;
-	fd->buffersize = actualsize;
-	fd->read = fd_read_from_file;
+  BlendFileData *bfd = NULL;
+  FileData *fd = filedata_new();
+  fd->filedes = file;
+  fd->buffersize = actualsize;
+  fd->read = fd_read_from_file;
 
-	/* needed for library_append and read_libraries */
-	BLI_strncpy(fd->relabase, name, sizeof(fd->relabase));
+  /* needed for library_append and read_libraries */
+  BLI_strncpy(fd->relabase, name, sizeof(fd->relabase));
 
-	fd = blo_decode_and_check(fd, reports);
-	if (!fd)
-		return NULL;
+  fd = blo_decode_and_check(fd, reports);
+  if (!fd)
+    return NULL;
 
-	fd->reports = reports;
-	bfd = blo_read_file_internal(fd, "");
-	blo_filedata_free(fd);
+  fd->reports = reports;
+  bfd = blo_read_file_internal(fd, "");
+  blo_filedata_free(fd);
 
-	return bfd;
+  return bfd;
 }
 /** \} */
