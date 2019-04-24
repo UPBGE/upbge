@@ -44,29 +44,30 @@ set(INC_SYS
 )
 
 set(SRC
-	${CMAKE_SOURCE_DIR}/release/datafiles/userdef/userdef_default_theme.c
-	intern/blend_validate.c
-	intern/readblenentry.c
-	intern/readfile.c
-	intern/runtime.c
-	intern/undofile.c
-	intern/versioning_250.c
-	intern/versioning_260.c
-	intern/versioning_270.c
-	intern/versioning_280.c
-	intern/versioning_defaults.c
-	intern/versioning_dna.c
-	intern/versioning_legacy.c
-	intern/versioning_userdef.c
-	intern/writefile.c
+  ${CMAKE_SOURCE_DIR}/release/datafiles/userdef/userdef_default_theme.c
+  intern/blend_validate.c
+  intern/readblenentry.c
+  intern/readfile.c
+  intern/runtime.c
+  intern/undofile.c
+  intern/versioning_250.c
+  intern/versioning_260.c
+  intern/versioning_270.c
+  intern/versioning_280.c
+  intern/versioning_cycles.c
+  intern/versioning_defaults.c
+  intern/versioning_dna.c
+  intern/versioning_legacy.c
+  intern/versioning_userdef.c
+  intern/writefile.c
 
-	BLO_blend_defs.h
-	BLO_blend_validate.h
-	BLO_readfile.h
-	BLO_runtime.h
-	BLO_undofile.h
-	BLO_writefile.h
-	intern/readfile.h
+  BLO_blend_defs.h
+  BLO_blend_validate.h
+  BLO_readfile.h
+  BLO_runtime.h
+  BLO_undofile.h
+  BLO_writefile.h
+  intern/readfile.h
 )
 
 set(LIB

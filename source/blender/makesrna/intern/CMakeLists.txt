@@ -332,13 +332,13 @@ blender_include_dirs(
   ../../blenfont
   ../../blenkernel
   ../../blenlib
-  ../../bmesh
   ../../blentranslation
+  ../../bmesh
   ../../depsgraph
   ../../draw
   ../../gpu
-  ../../imbuf
   ../../ikplugin
+  ../../imbuf
   ../../makesdna
   ../../nodes/
   ../../physics
@@ -346,9 +346,9 @@ blender_include_dirs(
   ../../editors/include
   ../../render/extern/include
   ../../../../intern/cycles/blender
-  ../../../../intern/guardedalloc
-  ../../../../intern/glew-mx
   ../../../../intern/atomic
+  ../../../../intern/glew-mx
+  ../../../../intern/guardedalloc
   ../../../../intern/memutil
   ../../../../intern/smoke/extern
 )

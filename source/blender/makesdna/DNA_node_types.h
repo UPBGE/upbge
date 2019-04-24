@@ -42,12 +42,6 @@ struct bNodeTreeExec;
 struct bNodeType;
 struct uiBlock;
 
-/* In writefile.c: write deprecated DNA data,
- * to ensure forward compatibility in 2.6x versions.
- * Will be removed eventually.
- */
-#define USE_NODE_COMPAT_CUSTOMNODES
-
 #define NODE_MAXSTR 64
 
 typedef struct bNodeStack {
@@ -509,17 +503,6 @@ typedef struct bNodeTree {
 
 /* tree is localized copy, free when deleting node groups */
 /* #define NTREE_IS_LOCALIZED           (1 << 5) */
-
-/* XXX not nice, but needed as a temporary flags
- * for group updates after library linking.
- */
-
-/* changes from r35033 */
-#define NTREE_DO_VERSIONS_GROUP_EXPOSE_2_56_2 (1 << 10)
-/* custom_nodes branch: remove links to node tree sockets */
-#define NTREE_DO_VERSIONS_CUSTOMNODES_GROUP (1 << 11)
-/* custom_nodes branch: create group input/output nodes */
-#define NTREE_DO_VERSIONS_CUSTOMNODES_GROUP_CREATE_INTERFACE (1 << 12)
 
 /* ntree->update */
 typedef enum eNodeTreeUpdate {

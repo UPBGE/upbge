@@ -19,30 +19,30 @@
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC
-	.
-	gizmo
-	gizmo/intern
-	../blenfont
-	../blenkernel
-	../blenlib
-	../blenloader
-	../blentranslation
-	../compositor
-	../depsgraph
-	../editors/include
-	../draw
-	../gpu
-	../imbuf
-	../makesdna
-	../makesrna
-	../nodes
-	../render/extern/include
-	../../gameengine/Launcher
-	../../../intern/clog
-	../../../intern/ghost
-	../../../intern/guardedalloc
-	../../../intern/glew-mx
-	../../../intern/memutil
+  .
+  gizmo
+  gizmo/intern
+  ../blenfont
+  ../blenkernel
+  ../blenlib
+  ../blenloader
+  ../blentranslation
+  ../compositor
+  ../depsgraph
+  ../editors/include
+  ../draw
+  ../gpu
+  ../imbuf
+  ../makesdna
+  ../makesrna
+  ../nodes
+  ../render/extern/include
+  ../../gameengine/Launcher
+  ../../../intern/clog
+  ../../../intern/ghost
+  ../../../intern/glew-mx
+  ../../../intern/guardedalloc
+  ../../../intern/memutil
 )
 
 set(INC_SYS

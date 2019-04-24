@@ -53,7 +53,7 @@ enum eFileDataFlag {
 #  pragma GCC poison off_t
 #endif
 
-#if defined(_MSC_VER) || defined(__APPLE__)
+#if defined(_MSC_VER) || defined(__APPLE__) || defined(__HAIKU__)
 typedef int64_t off64_t;
 #endif
 
@@ -181,8 +181,12 @@ void blo_do_versions_250(struct FileData *fd, struct Library *lib, struct Main *
 void blo_do_versions_260(struct FileData *fd, struct Library *lib, struct Main *bmain);
 void blo_do_versions_270(struct FileData *fd, struct Library *lib, struct Main *bmain);
 void blo_do_versions_280(struct FileData *fd, struct Library *lib, struct Main *bmain);
+void blo_do_versions_cycles(struct FileData *fd, struct Library *lib, struct Main *bmain);
 
+void do_versions_after_linking_250(struct Main *bmain);
+void do_versions_after_linking_260(struct Main *bmain);
 void do_versions_after_linking_270(struct Main *bmain);
 void do_versions_after_linking_280(struct Main *bmain);
+void do_versions_after_linking_cycles(struct Main *bmain);
 
 #endif

@@ -326,7 +326,7 @@ def km_window(params):
     if params.apple:
         # Apple standard shortcuts. Cmd+F for search since F-keys are not easy to use.
         items.extend([
-            ("wm.read_homefile", {"type": 'N', "value": 'PRESS', "oskey": True}, None),
+            op_menu("TOPBAR_MT_file_new", {"type": 'N', "value": 'PRESS', "oskey": True}),
             op_menu("TOPBAR_MT_file_open_recent", {"type": 'O', "value": 'PRESS', "shift": True, "oskey": True}),
             ("wm.open_mainfile", {"type": 'O', "value": 'PRESS', "oskey": True}, None),
             ("wm.save_mainfile", {"type": 'S', "value": 'PRESS', "oskey": True}, None),
@@ -356,7 +356,7 @@ def km_window(params):
 
     items.extend([
         # File operations
-        ("wm.read_homefile", {"type": 'N', "value": 'PRESS', "ctrl": True}, None),
+        op_menu("TOPBAR_MT_file_new", {"type": 'N', "value": 'PRESS', "ctrl": True}),
         op_menu("TOPBAR_MT_file_open_recent", {"type": 'O', "value": 'PRESS', "shift": True, "ctrl": True}),
         ("wm.open_mainfile", {"type": 'O', "value": 'PRESS', "ctrl": True}, None),
         ("wm.save_mainfile", {"type": 'S', "value": 'PRESS', "ctrl": True}, None),
@@ -5366,16 +5366,6 @@ def km_3d_view_tool_select_lasso(params):
     )
 
 
-def km_3d_view_tool_transform(params):
-    return (
-        "3D View Tool: Transform",
-        {"space_type": 'VIEW_3D', "region_type": 'WINDOW'},
-        {"items": [
-            ("transform.from_gizmo", {"type": params.tool_tweak, "value": 'ANY'}, None),
-        ]},
-    )
-
-
 def km_3d_view_tool_move(params):
     return (
         "3D View Tool: Move",
@@ -6255,7 +6245,6 @@ def generate_keymaps(params=None):
         km_3d_view_tool_select_box(params),
         km_3d_view_tool_select_circle(params),
         km_3d_view_tool_select_lasso(params),
-        km_3d_view_tool_transform(params),
         km_3d_view_tool_move(params),
         km_3d_view_tool_rotate(params),
         km_3d_view_tool_scale(params),
