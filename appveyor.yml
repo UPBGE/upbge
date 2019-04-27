@@ -31,11 +31,11 @@ for:
       - cd c:\projects\upbge\sources
       - make release x64 builddir sources\build\upbge-release
       - cd c:\projects\upbge\sources\build\upbge-release\bin
-      - 7z a upbge.zip Release
-      - 7z rn upbge.zip Release upbge
+      - 7z a windows-x64-upbge.zip Release
+      - 7z rn windows-x64-upbge.zip Release upbge
 
     artifacts:
-      - path: build\upbge-release\bin\upbge.zip
+      - path: build\upbge-release\bin\windows-x64-upbge.zip
 
   - matrix:
       only:
@@ -61,10 +61,10 @@ for:
       - make -j3 1> /dev/null
       - make install
       - cd /projects/upbge/build
-      - tar -cf upbge.tar.gz --directory upbge-release --transform s/^bin/upbge/ bin
+      - tar -cf ubuntu-16-04-upbge.tar.gz --directory upbge-release --transform s/^bin/upbge/ bin
 
     artifacts:
-      - path: build/upbge.tar.gz
+      - path: build/ubuntu-16-04-upbge.tar.gz
 
 deploy:
   - provider: GitHub
