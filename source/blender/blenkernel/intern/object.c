@@ -235,7 +235,8 @@ void BKE_object_modifier_hook_reset(Object *ob, HookModifierData *hmd)
     if (hmd->subtarget[0] && pchan) {
       float imat[4][4], mat[4][4];
 
-      /* calculate the world-space matrix for the pose-channel target first, then carry on as usual */
+      /* Calculate the world-space matrix for the pose-channel target first,
+       * then carry on as usual. */
       mul_m4_m4m4(mat, hmd->object->obmat, pchan->pose_mat);
 
       invert_m4_m4(imat, mat);
@@ -259,7 +260,8 @@ void BKE_object_modifier_gpencil_hook_reset(Object *ob, HookGpencilModifierData 
   if (hmd->subtarget[0] && pchan) {
     float imat[4][4], mat[4][4];
 
-    /* calculate the world-space matrix for the pose-channel target first, then carry on as usual */
+    /* Calculate the world-space matrix for the pose-channel target first,
+     * then carry on as usual. */
     mul_m4_m4m4(mat, hmd->object->obmat, pchan->pose_mat);
 
     invert_m4_m4(imat, mat);
@@ -564,23 +566,24 @@ void BKE_object_free(Object *ob)
   MEM_SAFE_FREE(ob->iuser);
   MEM_SAFE_FREE(ob->runtime.bb);
 
-	BLI_freelistN(&ob->defbase);
-	BLI_freelistN(&ob->fmaps);
-	if (ob->pose) {
-		BKE_pose_free_ex(ob->pose, false);
-		ob->pose = NULL;
-	}
-	if (ob->mpath) {
-		animviz_free_motionpath(ob->mpath);
-		ob->mpath = NULL;
-	}
-	BKE_bproperty_free_list(&ob->prop);
+  BLI_freelistN(&ob->defbase);
+  BLI_freelistN(&ob->fmaps);
+  if (ob->pose) {
+    BKE_pose_free_ex(ob->pose, false);
+    ob->pose = NULL;
+  }
+  if (ob->mpath) {
+    animviz_free_motionpath(ob->mpath);
+    ob->mpath = NULL;
+  }
 
-	free_sensors(&ob->sensors);
-	free_controllers(&ob->controllers);
-	free_actuators(&ob->actuators);
-	
-	BKE_constraints_free_ex(&ob->constraints, false);
+  BKE_bproperty_free_list(&ob->prop);
+
+  free_sensors(&ob->sensors);
+  free_controllers(&ob->controllers);
+  free_actuators(&ob->actuators);
+
+  BKE_constraints_free_ex(&ob->constraints, false);
 
   BKE_partdeflect_free(ob->pd);
   BKE_rigidbody_free_object(ob, NULL);
@@ -590,16 +593,19 @@ void BKE_object_free(Object *ob)
 
   BKE_sculptsession_free(ob);
 
-	/* Free runtime curves data. */
-	if (ob->runtime.curve_cache) {
-		BKE_curve_bevelList_free(&ob->runtime.curve_cache->bev);
-		if (ob->runtime.curve_cache->path)
-			free_path(ob->runtime.curve_cache->path);
-		MEM_freeN(ob->runtime.curve_cache);
-		ob->runtime.curve_cache = NULL;
-	}
+  BLI_freelistN(&ob->pc_ids);
 
-	BKE_previewimg_free(&ob->preview);
+  /* Free runtime curves data. */
+  if (ob->runtime.curve_cache) {
+    BKE_curve_bevelList_free(&ob->runtime.curve_cache->bev);
+    if (ob->runtime.curve_cache->path) {
+      free_path(ob->runtime.curve_cache->path);
+    }
+    MEM_freeN(ob->runtime.curve_cache);
+    ob->runtime.curve_cache = NULL;
+  }
+
+  BKE_previewimg_free(&ob->preview);
 }
 
 /* actual check for internal data, not context or flags */
@@ -874,30 +880,30 @@ void BKE_object_init(Object *ob)
 
   ob->instance_faces_scale = 1.0;
 
-	/* Game engine defaults*/
-	ob->mass = ob->inertia = 1.0f;
-	ob->formfactor = 0.4f;
-	ob->damping = 0.04f;
-	ob->rdamping = 0.1f;
-	ob->anisotropicFriction[0] = 1.0f;
-	ob->anisotropicFriction[1] = 1.0f;
-	ob->anisotropicFriction[2] = 1.0f;
-	ob->gameflag = OB_PROP | OB_COLLISION;
-	ob->gameflag2 = 0;
-	ob->margin = 0.04f;
-	ob->friction = 0.5;
-	ob->init_state = 1;
-	ob->state = 1;
-	ob->obstacleRad = 1.0f;
-	ob->step_height = 0.15f;
-	ob->jump_speed = 10.0f;
-	ob->fall_speed = 55.0f;
-	ob->max_jumps = 1;
-	//ob->max_slope = M_PI_2;
-	ob->col_group = 0x01;
-	ob->col_mask = 0xffff;
-	ob->preview = NULL;
-	ob->duplicator_visibility_flag = OB_DUPLI_FLAG_VIEWPORT | OB_DUPLI_FLAG_RENDER;
+  /* Game engine defaults*/
+  ob->mass = ob->inertia = 1.0f;
+  ob->formfactor = 0.4f;
+  ob->damping = 0.04f;
+  ob->rdamping = 0.1f;
+  ob->anisotropicFriction[0] = 1.0f;
+  ob->anisotropicFriction[1] = 1.0f;
+  ob->anisotropicFriction[2] = 1.0f;
+  ob->gameflag = OB_PROP | OB_COLLISION;
+  ob->gameflag2 = 0;
+  ob->margin = 0.04f;
+  ob->friction = 0.5;
+  ob->init_state = 1;
+  ob->state = 1;
+  ob->obstacleRad = 1.0f;
+  ob->step_height = 0.15f;
+  ob->jump_speed = 10.0f;
+  ob->fall_speed = 55.0f;
+  ob->max_jumps = 1;
+  //ob->max_slope = M_PI_2;
+  ob->col_group = 0x01;
+  ob->col_mask = 0xffff;
+  ob->preview = NULL;
+  ob->duplicator_visibility_flag = OB_DUPLI_FLAG_VIEWPORT | OB_DUPLI_FLAG_RENDER;
 
   /* NT fluid sim defaults */
   ob->fluidsimSettings = NULL;
@@ -1248,7 +1254,8 @@ static void copy_object_pose(Object *obn, const Object *ob, const int flag)
 
     chan->flag &= ~(POSE_LOC | POSE_ROT | POSE_SIZE);
 
-    /* XXX Remapping object pointing onto itself should be handled by generic BKE_library_remap stuff, but...
+    /* XXX Remapping object pointing onto itself should be handled by generic
+     *     BKE_library_remap stuff, but...
      *     the flush_constraint_targets callback am not sure about, so will delay that for now. */
     for (con = chan->constraints.first; con; con = con->next) {
       const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
@@ -1416,8 +1423,10 @@ void BKE_object_transform_copy(Object *ob_tar, const Object *ob_src)
 }
 
 /**
- * Only copy internal data of Object ID from source to already allocated/initialized destination.
- * You probably never want to use that directly, use BKE_id_copy or BKE_id_copy_ex for typical needs.
+ * Only copy internal data of Object ID from source
+ * to already allocated/initialized destination.
+ * You probably never want to use that directly,
+ * use #BKE_id_copy or #BKE_id_copy_ex for typical needs.
  *
  * WARNING! This function will not handle ID user count!
  *
@@ -1482,55 +1491,57 @@ void BKE_object_copy_data(Main *bmain, Object *ob_dst, const Object *ob_src, con
     BLI_addtail(&ob_dst->shader_fx, nfx);
   }
 
-	BLI_listbase_clear(&ob_dst->prop);
-	BKE_bproperty_copy_list(&ob_dst->prop, &ob_src->prop);
+  BLI_listbase_clear(&ob_dst->prop);
+  BKE_bproperty_copy_list(&ob_dst->prop, &ob_src->prop);
 
-	BKE_sca_logic_copy(ob_dst, ob_src, flag_subdata);
+  BKE_sca_logic_copy(ob_dst, ob_src, flag_subdata);
 
-	if (ob_src->pose) {
-		copy_object_pose(ob_dst, ob_src, flag_subdata);
-		/* backwards compat... non-armatures can get poses in older files? */
-		if (ob_src->type == OB_ARMATURE) {
-			const bool do_pose_id_user = (flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0;
-			BKE_pose_rebuild(bmain, ob_dst, ob_dst->data, do_pose_id_user);
-		}
-	}
-	defgroup_copy_list(&ob_dst->defbase, &ob_src->defbase);
-	BKE_object_facemap_copy_list(&ob_dst->fmaps, &ob_src->fmaps);
-	BKE_constraints_copy_ex(&ob_dst->constraints, &ob_src->constraints, flag_subdata, true);
+  if (ob_src->pose) {
+    copy_object_pose(ob_dst, ob_src, flag_subdata);
+    /* backwards compat... non-armatures can get poses in older files? */
+    if (ob_src->type == OB_ARMATURE) {
+      const bool do_pose_id_user = (flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0;
+      BKE_pose_rebuild(bmain, ob_dst, ob_dst->data, do_pose_id_user);
+    }
+  }
+  defgroup_copy_list(&ob_dst->defbase, &ob_src->defbase);
+  BKE_object_facemap_copy_list(&ob_dst->fmaps, &ob_src->fmaps);
+  BKE_constraints_copy_ex(&ob_dst->constraints, &ob_src->constraints, flag_subdata, true);
 
-	ob_dst->mode = ob_dst->type != OB_GPENCIL ? OB_MODE_OBJECT : ob_dst->mode;
-	ob_dst->sculpt = NULL;
+  ob_dst->mode = ob_dst->type != OB_GPENCIL ? OB_MODE_OBJECT : ob_dst->mode;
+  ob_dst->sculpt = NULL;
 
-	if (ob_src->pd) {
-		ob_dst->pd = MEM_dupallocN(ob_src->pd);
-		if (ob_dst->pd->rng) {
-			ob_dst->pd->rng = MEM_dupallocN(ob_src->pd->rng);
-		}
-	}
-	ob_dst->soft = copy_softbody(ob_src->soft, flag_subdata);
-	ob_dst->bsoft = copy_bulletsoftbody(ob_src->bsoft, flag_subdata);
-	ob_dst->rigidbody_object = BKE_rigidbody_copy_object(ob_src, flag_subdata);
-	ob_dst->rigidbody_constraint = BKE_rigidbody_copy_constraint(ob_src, flag_subdata);
+  if (ob_src->pd) {
+    ob_dst->pd = MEM_dupallocN(ob_src->pd);
+    if (ob_dst->pd->rng) {
+      ob_dst->pd->rng = MEM_dupallocN(ob_src->pd->rng);
+    }
+  }
+  BKE_object_copy_softbody(ob_dst, ob_src, flag_subdata);
+  ob_dst->bsoft = copy_bulletsoftbody(ob_src->bsoft, flag_subdata);
+  ob_dst->rigidbody_object = BKE_rigidbody_copy_object(ob_src, flag_subdata);
+  ob_dst->rigidbody_constraint = BKE_rigidbody_copy_constraint(ob_src, flag_subdata);
 
-	BKE_object_copy_particlesystems(ob_dst, ob_src, flag_subdata);
+  BKE_object_copy_particlesystems(ob_dst, ob_src, flag_subdata);
 
-	ob_dst->derivedDeform = NULL;
-	ob_dst->derivedFinal = NULL;
+  ob_dst->derivedDeform = NULL;
+  ob_dst->derivedFinal = NULL;
 
-	BLI_listbase_clear((ListBase *)&ob_dst->drawdata);
-	BLI_listbase_clear(&ob_dst->pc_ids);
+  BLI_listbase_clear((ListBase *)&ob_dst->drawdata);
+  BLI_listbase_clear(&ob_dst->pc_ids);
 
-	ob_dst->avs = ob_src->avs;
-	ob_dst->mpath = animviz_copy_motionpath(ob_src->mpath);
+  ob_dst->avs = ob_src->avs;
+  ob_dst->mpath = animviz_copy_motionpath(ob_src->mpath);
 
-	/* Do not copy object's preview (mostly due to the fact renderers create temp copy of objects). */
-	if ((flag & LIB_ID_COPY_NO_PREVIEW) == 0 && false) {  /* XXX TODO temp hack */
-		BKE_previewimg_id_copy(&ob_dst->id, &ob_src->id);
-	}
-	else {
-		ob_dst->preview = NULL;
-	}
+
+  /* Do not copy object's preview
+   * (mostly due to the fact renderers create temp copy of objects). */
+  if ((flag & LIB_ID_COPY_NO_PREVIEW) == 0 && false) { /* XXX TODO temp hack */
+    BKE_previewimg_id_copy(&ob_dst->id, &ob_src->id);
+  }
+  else {
+    ob_dst->preview = NULL;
+  }
 }
 
 /* copy objects, will re-initialize cached simulation data */
@@ -1547,11 +1558,13 @@ Object *BKE_object_copy(Main *bmain, const Object *ob)
 
 /** Perform deep-copy of object and its 'children' data-blocks (obdata, materials, actions, etc.).
  *
- * \param dupflag Controls which sub-data are also duplicated (see #eDupli_ID_Flags in DNA_userdef_types.h).
+ * \param dupflag Controls which sub-data are also duplicated
+ * (see #eDupli_ID_Flags in DNA_userdef_types.h).
  *
- * \note This function does not do any remapping to new IDs, caller must do it (\a #BKE_libblock_relink_to_newid()).
- * \note Caller MUST free \a newid pointers itself (#BKE_main_id_clear_newpoins()) and call updates of DEG too
- *       (#DAG_relations_tag_update()).
+ * \note This function does not do any remapping to new IDs, caller must do it
+ * (\a #BKE_libblock_relink_to_newid()).
+ * \note Caller MUST free \a newid pointers itself (#BKE_main_id_clear_newpoins()) and call updates
+ * of DEG too (#DAG_relations_tag_update()).
  */
 Object *BKE_object_duplicate(Main *bmain, const Object *ob, const int dupflag)
 {
@@ -1817,7 +1830,8 @@ void BKE_object_make_local_ex(Main *bmain,
   /* - only lib users: do nothing (unless force_local is set)
    * - only local users: set flag
    * - mixed: make copy
-   * In case we make a whole lib's content local, we always want to localize, and we skip remapping (done later).
+   * In case we make a whole lib's content local,
+   * we always want to localize, and we skip remapping (done later).
    */
 
   if (!ID_IS_LINKED(ob)) {
@@ -1930,10 +1944,12 @@ void BKE_object_copy_proxy_drivers(Object *ob, Object *target)
   }
 }
 
-/* proxy rule: lib_object->proxy_from == the one we borrow from, set temporally while object_update */
-/*             local_object->proxy == pointer to library object, saved in files and read */
-/*             local_object->proxy_group == pointer to collection dupli-object, saved in files and read */
-
+/**
+ * Proxy rule:
+ * - lib_object->proxy_from == the one we borrow from, set temporally while object_update.
+ * - local_object->proxy == pointer to library object, saved in files and read.
+ * - local_object->proxy_group == pointer to collection dupli-object, saved in files and read.
+ */
 void BKE_object_make_proxy(Main *bmain, Object *ob, Object *target, Object *cob)
 {
   /* paranoia checks */
@@ -2101,7 +2117,8 @@ void BKE_object_rot_to_mat3(Object *ob, float mat[3][3], bool use_drot)
 
   /* rotations may either be quats, eulers (with various rotation orders), or axis-angle */
   if (ob->rotmode > 0) {
-    /* euler rotations (will cause gimble lock, but this can be alleviated a bit with rotation orders) */
+    /* Euler rotations
+     * (will cause gimble lock, but this can be alleviated a bit with rotation orders). */
     eulO_to_mat3(rmat, ob->rot, ob->rotmode);
     eulO_to_mat3(dmat, ob->drot, ob->rotmode);
   }
@@ -2328,11 +2345,11 @@ static bool ob_parcurve(Object *ob, Object *par, float mat[4][4])
     return false;
   }
 
-  /* ctime is now a proper var setting of Curve which gets set by Animato like any other var that's animated,
-   * but this will only work if it actually is animated...
+  /* ctime is now a proper var setting of Curve which gets set by Animato like any other var
+   * that's animated, but this will only work if it actually is animated.
    *
-   * we divide the curvetime calculated in the previous step by the length of the path, to get a time
-   * factor, which then gets clamped to lie within 0.0 - 1.0 range
+   * We divide the curvetime calculated in the previous step by the length of the path,
+   * to get a time factor, which then gets clamped to lie within 0.0 - 1.0 range.
    */
   if (cu->pathlen) {
     ctime = cu->ctime / cu->pathlen;
@@ -2577,7 +2594,8 @@ void BKE_object_get_parent_matrix(Object *ob, Object *par, float parentmat[4][4]
 }
 
 /**
- * \param r_originmat: Optional matrix that stores the space the object is in (without its own matrix applied)
+ * \param r_originmat: Optional matrix that stores the space the object is in
+ * (without its own matrix applied)
  */
 static void solve_parenting(
     Object *ob, Object *par, float obmat[4][4], float r_originmat[3][3], const bool set_origin)
@@ -2700,7 +2718,8 @@ void BKE_object_workob_calc_parent(Depsgraph *depsgraph, Scene *scene, Object *o
   unit_m4(workob->parentinv);
   unit_m4(workob->constinv);
 
-  /* Since this is used while calculating parenting, at this moment ob_eval->parent is still NULL. */
+  /* Since this is used while calculating parenting,
+   * at this moment ob_eval->parent is still NULL. */
   workob->parent = DEG_get_evaluated_object(depsgraph, ob->parent);
 
   workob->trackflag = ob->trackflag;
@@ -2722,8 +2741,10 @@ void BKE_object_workob_calc_parent(Depsgraph *depsgraph, Scene *scene, Object *o
  * Applies the global transformation \a mat to the \a ob using a relative parent space if supplied.
  *
  * \param mat: the global transformation mat that the object should be set object to.
- * \param parent: the parent space in which this object will be set relative to (should probably always be parent_eval).
- * \param use_compat: true to ensure that rotations are set using the min difference between the old and new orientation.
+ * \param parent: the parent space in which this object will be set relative to
+ * (should probably always be parent_eval).
+ * \param use_compat: true to ensure that rotations are set using the
+ * min difference between the old and new orientation.
  */
 void BKE_object_apply_mat4_ex(
     Object *ob, float mat[4][4], Object *parent, float parentinv[4][4], const bool use_compat)
@@ -3263,14 +3284,19 @@ static void object_handle_update_proxy(Depsgraph *depsgraph,
   }
 }
 
-/* proxy rule: lib_object->proxy_from == the one we borrow from, only set temporal and cleared here */
-/*           local_object->proxy      == pointer to library object, saved in files and read */
-
-/* function below is polluted with proxy exceptions, cleanup will follow! */
-
-/* the main object update call, for object matrix, constraints, keys and displist (modifiers) */
-/* requires flags to be set! */
-/* Ideally we shouldn't have to pass the rigid body world, but need bigger restructuring to avoid id */
+/**
+ * Proxy rule:
+ * - lib_object->proxy_from == the one we borrow from, only set temporal and cleared here.
+ * - local_object->proxy    == pointer to library object, saved in files and read.
+ *
+ * Function below is polluted with proxy exceptions, cleanup will follow!
+ *
+ * The main object update call, for object matrix, constraints, keys and displist (modifiers)
+ * requires flags to be set!
+ *
+ * Ideally we shouldn't have to pass the rigid body world,
+ * but need bigger restructuring to avoid id.
+ */
 void BKE_object_handle_update_ex(Depsgraph *depsgraph,
                                  Scene *scene,
                                  Object *ob,
