@@ -180,7 +180,7 @@ static void logic_operatortypes(void)
 
 static void logic_keymap(struct wmKeyConfig *keyconf)
 {
-	wmKeyMap *keymap = WM_keymap_ensure(keyconf, "Logic Editor", SPACE_LOGIC, 0);
+	/*wmKeyMap *keymap = WM_keymap_ensure(keyconf, "Logic Editor", SPACE_LOGIC, 0);
 	
 	WM_keymap_add_item(keymap, "LOGIC_OT_properties", NKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "LOGIC_OT_links_cut", LEFTMOUSE, KM_PRESS, KM_CTRL, 0);
@@ -189,7 +189,7 @@ static void logic_keymap(struct wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "LOGIC_OT_view_all", HOMEKEY, KM_PRESS, 0, 0);
 #ifdef WITH_INPUT_NDOF
 	WM_keymap_add_item(keymap, "LOGIC_OT_view_all", NDOF_BUTTON_FIT, KM_PRESS, 0, 0);
-#endif
+#endif*/
 }
 
 static void logic_refresh(const bContext *UNUSED(C), ScrArea *UNUSED(sa))
@@ -238,13 +238,13 @@ static int logic_context(const bContext *UNUSED(C), const char *UNUSED(member), 
 /* add handlers, stuff you only do once or on area/region changes */
 static void logic_main_region_init(wmWindowManager *wm, ARegion *ar)
 {
-	wmKeyMap *keymap;
+	//wmKeyMap *keymap;
 	
 	UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_CUSTOM, ar->winx, ar->winy);
 	
-	/* own keymaps */
-	keymap = WM_keymap_ensure(wm->defaultconf, "Logic Editor", SPACE_LOGIC, 0);
-	WM_event_add_keymap_handler(&ar->handlers, keymap);
+	///* own keymaps */
+	//keymap = WM_keymap_ensure(wm->defaultconf, "Logic Editor", SPACE_LOGIC, 0);
+	//WM_event_add_keymap_handler(&ar->handlers, keymap);
 }
 
 static void logic_main_region_draw(const bContext *C, ARegion *ar)
@@ -278,12 +278,12 @@ static void logic_main_region_draw(const bContext *C, ARegion *ar)
 /* add handlers, stuff you only do once or on area/region changes */
 static void logic_buttons_region_init(wmWindowManager *wm, ARegion *ar)
 {
-	wmKeyMap *keymap;
+	//wmKeyMap *keymap;
 
 	ED_region_panels_init(wm, ar);
 	
-	keymap = WM_keymap_ensure(wm->defaultconf, "Logic Editor", SPACE_LOGIC, 0);
-	WM_event_add_keymap_handler(&ar->handlers, keymap);
+	/*keymap = WM_keymap_ensure(wm->defaultconf, "Logic Editor", SPACE_LOGIC, 0);
+	WM_event_add_keymap_handler(&ar->handlers, keymap);*/
 }
 
 static void logic_buttons_region_draw(const bContext *C, ARegion *ar)
