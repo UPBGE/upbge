@@ -894,7 +894,7 @@ def km_graph_editor(params):
         ("graph.view_all", {"type": 'NDOF_BUTTON_FIT', "value": 'PRESS'}, None),
         ("graph.view_selected", {"type": 'F', "value": 'PRESS'}, None),
         ("graph.view_frame", {"type": 'A', "value": 'PRESS', "shift": True}, None),
-        ("anim.channels_editable_toggle", {"type": 'TAB', "value": 'PRESS'}, None),
+        ("anim.channels_editable_toggle", {"type": 'LEFTMOUSE', "value": 'DOUBLE_CLICK'}, None),
         ("transform.translate", {"type": 'W', "value": 'PRESS'}, None),
         ("transform.translate", {"type": 'EVT_TWEAK_L', "value": 'ANY'}, None),
         ("transform.transform", {"type": 'Y', "value": 'PRESS'},
@@ -1065,7 +1065,6 @@ def km_node_editor(params):
          {"properties": [("replace", False)]}),
         ("node.link_make", {"type": 'F', "value": 'PRESS', "shift": True},
          {"properties": [("replace", True)]}),
-        op_menu("NODE_MT_add", {"type": 'A', "value": 'PRESS', "shift": True}),
         ("node.duplicate_move", {"type": 'D', "value": 'PRESS', "ctrl": True}, None),
         ("node.parent_set", {"type": 'P', "value": 'PRESS'}, None),
         ("node.join", {"type": 'J', "value": 'PRESS', "ctrl": True}, None),
@@ -1283,10 +1282,8 @@ def km_dopesheet_generic(params):
     )
 
     items.extend([
-        ("wm.context_toggle", {"type": 'N', "value": 'PRESS'},
+        ("wm.context_toggle", {"type": 'RIGHT_BRACKET', "value": 'PRESS', "ctrl": True},
          {"properties": [("data_path", 'space_data.show_region_ui')]}),
-        ("wm.context_set_enum", {"type": 'TAB', "value": 'PRESS', "ctrl": True},
-         {"properties": [("data_path", 'area.type'), ("value", 'GRAPH_EDITOR')]})
     ])
 
     return keymap
@@ -1355,19 +1352,18 @@ def km_dopesheet(params):
         ("action.view_all", {"type": 'NDOF_BUTTON_FIT', "value": 'PRESS'}, None),
         ("action.view_selected", {"type": 'F', "value": 'PRESS'}, None),
         ("action.view_frame", {"type": 'NUMPAD_0', "value": 'PRESS'}, None),
-        ("anim.channels_editable_toggle", {"type": 'TAB', "value": 'PRESS'}, None),
+        ("anim.channels_editable_toggle", {"type": 'LEFTMOUSE', "value": 'DOUBLE_CLICK'}, None),
         ("anim.channels_find", {"type": 'F', "value": 'PRESS', "ctrl": True}, None),
-        ("transform.transform", {"type": 'G', "value": 'PRESS'},
+        ("transform.transform", {"type": 'W', "value": 'PRESS'},
          {"properties": [("mode", 'TIME_TRANSLATE')]}),
         ("transform.transform", {"type": 'EVT_TWEAK_L', "value": 'ANY'},
          {"properties": [("mode", 'TIME_TRANSLATE')]}),
         ("transform.transform", {"type": 'E', "value": 'PRESS'},
          {"properties": [("mode", 'TIME_EXTEND')]}),
-        ("transform.transform", {"type": 'S', "value": 'PRESS'},
+        ("transform.transform", {"type": 'R', "value": 'PRESS'},
          {"properties": [("mode", 'TIME_SCALE')]}),
         ("transform.transform", {"type": 'T', "value": 'PRESS', "shift": True},
          {"properties": [("mode", 'TIME_SLIDE')]}),
-        op_menu_pie("VIEW3D_MT_proportional_editing_falloff_pie", {"type": 'O', "value": 'PRESS', "shift": True}),
         ("marker.add", {"type": 'M', "value": 'PRESS'}, None),
         ("marker.rename", {"type": 'RET', "value": 'PRESS'}, None),
         ("anim.start_frame_set", {"type": 'LEFT_ARROW', "value": 'PRESS', "ctrl": True}, None),
@@ -1646,11 +1642,8 @@ def km_sequencercommon(_params):
     )
 
     items.extend([
-        ("wm.context_toggle", {"type": 'N', "value": 'PRESS'},
+        ("wm.context_toggle", {"type": 'RIGHT_BRACKET', "value": 'PRESS', "ctrl": True},
          {"properties": [("data_path", 'space_data.show_region_ui')]}),
-        ("wm.context_toggle", {"type": 'O', "value": 'PRESS', "shift": True},
-         {"properties": [("data_path", 'scene.sequence_editor.show_overlay')]}),
-        #("sequencer.view_toggle", {"type": 'TAB', "value": 'PRESS', "ctrl": True}, None),
     ])
 
     return keymap
@@ -1693,7 +1686,7 @@ def km_sequencer(params):
         ("sequencer.copy", {"type": 'C', "value": 'PRESS', "ctrl": True}, None),
         ("sequencer.paste", {"type": 'V', "value": 'PRESS', "ctrl": True}, None),
         ("sequencer.images_separate", {"type": 'Y', "value": 'PRESS'}, None),
-        ("sequencer.meta_toggle", {"type": 'TAB', "value": 'PRESS'}, None),
+        ("sequencer.meta_toggle", {"type": 'LEFTMOUSE', "value": 'DOUBLE_CLICK'}, None),
         ("sequencer.meta_make", {"type": 'G', "value": 'PRESS', "ctrl": True}, None),
         ("sequencer.meta_separate", {"type": 'G', "value": 'PRESS', "ctrl": True, "alt": True}, None),
         ("sequencer.view_all", {"type": 'A', "value": 'PRESS'}, None),
@@ -1750,7 +1743,7 @@ def km_sequencer(params):
         ("sequencer.slip", {"type": 'S', "value": 'PRESS'}, None),
         ("wm.context_set_int", {"type": 'O', "value": 'PRESS'},
          {"properties": [("data_path", 'scene.sequence_editor.overlay_frame'), ("value", 0)]}),
-        ("transform.seq_slide", {"type": 'G', "value": 'PRESS'}, None),
+        ("transform.seq_slide", {"type": 'W', "value": 'PRESS'}, None),
         ("transform.seq_slide", {"type": 'EVT_TWEAK_L', "value": 'ANY'}, None),
         ("transform.transform", {"type": 'E', "value": 'PRESS'},
          {"properties": [("mode", 'TIME_EXTEND')]}),

@@ -58,6 +58,7 @@
 #include "BKE_lattice.h"
 
 #include "DEG_depsgraph.h"
+#include "DEG_depsgraph_build.h"
 
 #include "DNA_armature_types.h"
 #include "RNA_access.h"
@@ -893,7 +894,8 @@ void ED_vgroup_vert_remove(Object *ob, bDeformGroup *dg, int vertnum)
    * deform group.
    */
 
-  /* TODO, this is slow in a loop, better pass def_nr directly, but leave for later... - campbell */
+  /* TODO(campbell): This is slow in a loop, better pass def_nr directly,
+   * but leave for later. */
   const int def_nr = BLI_findindex(&ob->defbase, dg);
 
   if (def_nr != -1) {
@@ -2701,6 +2703,7 @@ static int vertex_group_add_exec(bContext *C, wmOperator *UNUSED(op))
   Object *ob = ED_object_context(C);
 
   BKE_object_defgroup_add(ob);
+  DEG_relations_tag_update(CTX_data_main(C));
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GEOM | ND_VERTEX_GROUP, ob->data);
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
@@ -2738,6 +2741,7 @@ static int vertex_group_remove_exec(bContext *C, wmOperator *op)
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  DEG_relations_tag_update(CTX_data_main(C));
   WM_event_add_notifier(C, NC_GEOM | ND_VERTEX_GROUP, ob->data);
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 
@@ -2941,6 +2945,7 @@ static int vertex_group_copy_exec(bContext *C, wmOperator *UNUSED(op))
 
   vgroup_duplicate(ob);
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  DEG_relations_tag_update(CTX_data_main(C));
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
   WM_event_add_notifier(C, NC_GEOM | ND_VERTEX_GROUP, ob->data);
 
@@ -3471,6 +3476,7 @@ static int vertex_group_mirror_exec(bContext *C, wmOperator *op)
   ED_mesh_report_mirror(op, totmirr, totfail);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  DEG_relations_tag_update(CTX_data_main(C));
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
 
@@ -3559,6 +3565,7 @@ static int vertex_group_copy_to_selected_exec(bContext *C, wmOperator *op)
     if (obact != ob) {
       if (ED_vgroup_array_copy(ob, obact)) {
         DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+        DEG_relations_tag_update(CTX_data_main(C));
         WM_event_add_notifier(C, NC_GEOM | ND_VERTEX_GROUP, ob);
         changed_tot++;
       }

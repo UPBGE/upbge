@@ -88,6 +88,7 @@ typedef struct tGP_BrushEditData {
   /* Current editor/region/etc. */
   /* NOTE: This stuff is mainly needed to handle 3D view projection stuff... */
   Depsgraph *depsgraph;
+  struct Main *bmain;
   Scene *scene;
   Object *object;
 
@@ -907,6 +908,7 @@ static bool gp_brush_weight_apply(
   if (gso->vrgroup == -1) {
     if (gso->object) {
       BKE_object_defgroup_add(gso->object);
+      DEG_relations_tag_update(gso->bmain);
       gso->vrgroup = 0;
     }
   }
@@ -1167,7 +1169,8 @@ static bool gpsculpt_brush_apply_clone(bContext *C, tGP_BrushEditData *gso)
     }
     else {
       /* Continuous - Just keep pasting everytime we move */
-      /* TODO: The spacing of repeat should be controlled using a "stepsize" or similar property? */
+      /* TODO: The spacing of repeat should be controlled using a
+       * "stepsize" or similar property? */
       gp_brush_clone_add(C, gso);
     }
   }
@@ -1219,6 +1222,7 @@ static bool gpsculpt_brush_init(bContext *C, wmOperator *op)
   op->customdata = gso;
 
   gso->depsgraph = CTX_data_depsgraph(C);
+  gso->bmain = CTX_data_main(C);
   /* store state */
   gso->settings = gpsculpt_get_settings(scene);
   gso->gp_brush = gpsculpt_get_brush(scene, is_weight_mode);
@@ -1406,9 +1410,10 @@ static void gpsculpt_brush_init_stroke(tGP_BrushEditData *gso)
     if (gpencil_layer_is_editable(gpl) && (gpl->actframe != NULL)) {
       bGPDframe *gpf = gpl->actframe;
 
-      /* Make a new frame to work on if the layer's frame and the current scene frame don't match up
+      /* Make a new frame to work on if the layer's frame
+       * and the current scene frame don't match up:
        * - This is useful when animating as it saves that "uh-oh" moment when you realize you've
-       *   spent too much time editing the wrong frame...
+       *   spent too much time editing the wrong frame.
        */
       // XXX: should this be allowed when framelock is enabled?
       if (gpf->framenum != cfra_eval) {
