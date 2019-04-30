@@ -1742,7 +1742,7 @@ Object *BKE_object_duplicate(Main *bmain, const Object *ob, const int dupflag)
       }
       break;
     case OB_LIGHTPROBE:
-      if (dupflag != 0) {
+      if (dupflag & USER_DUP_LIGHTPROBE) {
         ID_NEW_REMAP_US2(obn->data)
         else
         {
@@ -1764,7 +1764,7 @@ Object *BKE_object_duplicate(Main *bmain, const Object *ob, const int dupflag)
       }
       break;
     case OB_GPENCIL:
-      if (dupflag != 0) {
+      if (dupflag & USER_DUP_GPENCIL) {
         ID_NEW_REMAP_US2(obn->data)
         else
         {

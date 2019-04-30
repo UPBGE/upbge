@@ -1396,7 +1396,8 @@ static tNearestVertInfo *find_nearest_fcurve_vert(bAnimContext *ac, const int mv
 static void mouse_graph_keys(bAnimContext *ac,
                              const int mval[2],
                              short select_mode,
-                             short curves_only)
+                             const bool deselect_all,
+                             const bool curves_only)
 {
   SpaceGraph *sipo = (SpaceGraph *)ac->sl;
   tNearestVertInfo *nvi;
@@ -1405,13 +1406,10 @@ static void mouse_graph_keys(bAnimContext *ac,
   /* find the beztriple that we're selecting, and the handle that was clicked on */
   nvi = find_nearest_fcurve_vert(ac, mval);
 
-  /* check if anything to select */
-  if (nvi == NULL) {
-    return;
-  }
-
-  /* deselect all other curves? */
-  if (select_mode == SELECT_REPLACE) {
+  /* For replacing selection, if we have something to select, we have to clear existing selection.
+   * The same goes if we found nothing to select, and deselect_all is true
+   * (deselect on nothing behavior). */
+  if ((nvi != NULL && select_mode == SELECT_REPLACE) || (nvi == NULL && deselect_all)) {
     /* reset selection mode */
     select_mode = SELECT_ADD;
 
@@ -1427,9 +1425,13 @@ static void mouse_graph_keys(bAnimContext *ac,
     }
   }
 
+  if (nvi == NULL) {
+    return;
+  }
+
   /* if points can be selected on this F-Curve */
   // TODO: what about those with no keyframes?
-  if ((curves_only == 0) && ((nvi->fcu->flag & FCURVE_PROTECTED) == 0)) {
+  if (!curves_only && ((nvi->fcu->flag & FCURVE_PROTECTED) == 0)) {
     /* only if there's keyframe */
     if (nvi->bezt) {
       bezt = nvi->bezt; /* used to check bezt seletion is set */
@@ -1604,7 +1606,6 @@ static void graphkeys_mselect_column(bAnimContext *ac, const int mval[2], short 
 static int graphkeys_clickselect_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   bAnimContext ac;
-  short selectmode;
 
   /* get editor data */
   if (ANIM_animdata_get_context(C, &ac) == 0) {
@@ -1612,12 +1613,8 @@ static int graphkeys_clickselect_invoke(bContext *C, wmOperator *op, const wmEve
   }
 
   /* select mode is either replace (deselect all, then add) or add/extend */
-  if (RNA_boolean_get(op->ptr, "extend")) {
-    selectmode = SELECT_INVERT;
-  }
-  else {
-    selectmode = SELECT_REPLACE;
-  }
+  const short selectmode = RNA_boolean_get(op->ptr, "extend") ? SELECT_INVERT : SELECT_REPLACE;
+  const bool deselect_all = RNA_boolean_get(op->ptr, "deselect_all");
 
   /* figure out action to take */
   if (RNA_boolean_get(op->ptr, "column")) {
@@ -1626,11 +1623,11 @@ static int graphkeys_clickselect_invoke(bContext *C, wmOperator *op, const wmEve
   }
   else if (RNA_boolean_get(op->ptr, "curves")) {
     /* select all keyframes in the same F-Curve as the one under the mouse */
-    mouse_graph_keys(&ac, event->mval, selectmode, 1);
+    mouse_graph_keys(&ac, event->mval, selectmode, deselect_all, true);
   }
   else {
     /* select keyframe under mouse */
-    mouse_graph_keys(&ac, event->mval, selectmode, 0);
+    mouse_graph_keys(&ac, event->mval, selectmode, deselect_all, false);
   }
 
   /* set notifier that keyframe selection (and also channel selection in some cases) has changed */
@@ -1664,6 +1661,13 @@ void GRAPH_OT_clickselect(wmOperatorType *ot)
       0,
       "Extend Select",
       "Toggle keyframe selection instead of leaving newly selected keyframes only");  // SHIFTKEY
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+
+  prop = RNA_def_boolean(ot->srna,
+                         "deselect_all",
+                         false,
+                         "Deselect On Nothing",
+                         "Deselect all when nothing under the cursor");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
   prop = RNA_def_boolean(

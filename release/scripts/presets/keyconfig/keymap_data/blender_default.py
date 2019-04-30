@@ -1383,7 +1383,8 @@ def km_graph_editor(params):
          {"properties": [("data_path", 'space_data.show_handles')]}),
         ("graph.cursor_set", {"type": params.action_mouse, "value": 'PRESS'}, None),
         ("graph.clickselect", {"type": params.select_mouse, "value": 'PRESS'},
-         {"properties": [("extend", False), ("column", False), ("curves", False)]}),
+         {"properties": [("extend", False), ("deselect_all", not params.legacy),
+                         ("column", False), ("curves", False)]}),
         ("graph.clickselect", {"type": params.select_mouse, "value": 'PRESS', "alt": True},
          {"properties": [("extend", False), ("column", True), ("curves", False)]}),
         ("graph.clickselect", {"type": params.select_mouse, "value": 'PRESS', "shift": True},
@@ -1922,7 +1923,8 @@ def km_dopesheet(params):
 
     items.extend([
         ("action.clickselect", {"type": params.select_mouse, "value": 'PRESS'},
-         {"properties": [("extend", False), ("column", False), ("channel", False)]}),
+         {"properties": [("extend", False), ("deselect_all", not params.legacy),
+                         ("column", False), ("channel", False)]}),
         ("action.clickselect", {"type": params.select_mouse, "value": 'PRESS', "alt": True},
          {"properties": [("extend", False), ("column", True), ("channel", False)]}),
         ("action.clickselect", {"type": params.select_mouse, "value": 'PRESS', "shift": True},
@@ -2074,7 +2076,7 @@ def km_nla_editor(params):
 
     items.extend([
         ("nla.click_select", {"type": params.select_mouse, "value": 'PRESS'},
-         {"properties": [("extend", False)]}),
+         {"properties": [("extend", False), ("deselect_all", not params.legacy)]}),
         ("nla.click_select", {"type": params.select_mouse, "value": 'PRESS', "shift": True},
          {"properties": [("extend", True)]}),
         ("nla.select_leftright", {"type": params.select_mouse, "value": 'PRESS', "ctrl": True},
