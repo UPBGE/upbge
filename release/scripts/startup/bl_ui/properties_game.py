@@ -34,7 +34,8 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
     @classmethod
     def poll(cls, context):
         ob = context.active_object
-        return ob and ob.game and (context.scene.render.engine in cls.COMPAT_ENGINES)
+        rd = context.scene.render
+        return ob and ob.game and (rd.engine in cls.COMPAT_ENGINES)
 
     def draw(self, context):
         layout = self.layout
@@ -51,10 +52,18 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
         if physics_type == 'CHARACTER':
             layout.prop(game, "use_actor")
             layout.prop(ob, "hide_render", text="Invisible")  # out of place but useful
-            layout.prop(game, "step_height", slider=True)
-            layout.prop(game, "jump_speed")
-            layout.prop(game, "fall_speed")
-            layout.prop(game, "jump_max")
+
+            layout.separator()
+
+            split = layout.split()
+
+            col = split.column()
+            col.prop(game, "step_height", slider=True)
+            col.prop(game, "fall_speed")
+            col.prop(game, "max_slope")
+            col = split.column()
+            col.prop(game, "jump_speed")
+            col.prop(game, "jump_max")
 
         elif physics_type in {'DYNAMIC', 'RIGID_BODY'}:
             split = layout.split()
@@ -65,7 +74,7 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             col.prop(ob, "hide_render", text="Invisible")  # out of place but useful
 
             col = split.column()
-            col.prop(game, "use_material_physics_fh")
+            col.prop(game, "use_physics_fh")
             col.prop(game, "use_rotate_from_normal")
             col.prop(game, "use_sleep")
 
@@ -78,8 +87,19 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             col.prop(game, "mass")
             col.prop(game, "radius")
             col.prop(game, "form_factor")
+            col.prop(game, "elasticity", slider=True)
+
+            col.label(text="Linear Velocity:")
+            sub = col.column(align=True)
+            sub.prop(game, "velocity_min", text="Minimum")
+            sub.prop(game, "velocity_max", text="Maximum")
 
             col = split.column()
+            col.label(text="Friction:")
+            col.prop(game, "friction")
+            col.prop(game, "rolling_friction")
+            col.separator()
+
             sub = col.column()
             sub.prop(game, "use_anisotropic_friction")
             subsub = sub.column()
@@ -87,13 +107,8 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             subsub.prop(game, "friction_coefficients", text="", slider=True)
 
             split = layout.split()
-
             col = split.column()
-            col.label(text="Linear Velocity:")
-            sub = col.column(align=True)
-            sub.prop(game, "velocity_min", text="Minimum")
-            sub.prop(game, "velocity_max", text="Maximum")
-            col.label(text="Angular Velocity:")
+            col.label(text="Angular velocity:")
             sub = col.column(align=True)
             sub.prop(game, "angular_velocity_min", text="Minimum")
             sub.prop(game, "angular_velocity_max", text="Maximum")
@@ -106,20 +121,22 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
 
             layout.separator()
 
-            split = layout.split()
+            col = layout.column()
 
-            col = split.column()
             col.label(text="Lock Translation:")
-            col.prop(game, "lock_location_x", text="X")
-            col.prop(game, "lock_location_y", text="Y")
-            col.prop(game, "lock_location_z", text="Z")
+            row = col.row()
+            row.prop(game, "lock_location_x", text="X")
+            row.prop(game, "lock_location_y", text="Y")
+            row.prop(game, "lock_location_z", text="Z")
 
         if physics_type == 'RIGID_BODY':
-            col = split.column()
+            col = layout.column()
+
             col.label(text="Lock Rotation:")
-            col.prop(game, "lock_rotation_x", text="X")
-            col.prop(game, "lock_rotation_y", text="Y")
-            col.prop(game, "lock_rotation_z", text="Z")
+            row = col.row()
+            row.prop(game, "lock_rotation_x", text="X")
+            row.prop(game, "lock_rotation_y", text="Y")
+            row.prop(game, "lock_rotation_z", text="Z")
 
         elif physics_type == 'SOFT_BODY':
             col = layout.column()
@@ -132,23 +149,39 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             split = layout.split()
 
             col = split.column()
-            col.label(text="Attributes:")
+            col.label(text="General Attributes:")
             col.prop(game, "mass")
             # disabled in the code
             # col.prop(soft, "weld_threshold")
-            col.prop(soft, "location_iterations")
             col.prop(soft, "linear_stiffness", slider=True)
             col.prop(soft, "dynamic_friction", slider=True)
+            col.prop(soft, "kdp", text="Damping", slider=True)
             col.prop(soft, "collision_margin", slider=True)
+            col.prop(soft, "kvcf", text="Velocity Correction", slider=True)
             col.prop(soft, "use_bending_constraints", text="Bending Constraints")
 
-            col = split.column()
+            sub = col.column()
+            sub.active = soft.use_bending_constraints
+            sub.prop(soft, "bending_distance")
+
             col.prop(soft, "use_shape_match")
+
             sub = col.column()
             sub.active = soft.use_shape_match
             sub.prop(soft, "shape_threshold", slider=True)
 
-            col.separator()
+            col.label(text="Solver Iterations:")
+            col.prop(soft, "position_solver_iterations", text="Position Solver")
+            col.prop(soft, "velocity_solver_iterations", text="Velocity Solver")
+            col.prop(soft, "cluster_solver_iterations", text="Cluster Solver")
+            col.prop(soft, "drift_solver_iterations", text="Drift Solver")
+
+            col = split.column()
+            col.label(text="Hardness:")
+            col.prop(soft, "kchr", text="Rigid Contacts", slider=True)
+            col.prop(soft, "kkhr", text="Kinetic Contacts", slider=True)
+            col.prop(soft, "kshr", text="Soft Contacts", slider=True)
+            col.prop(soft, "kahr", text="Anchors", slider=True)
 
             col.label(text="Cluster Collision:")
             col.prop(soft, "use_cluster_rigid_to_softbody")
@@ -156,12 +189,29 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             sub = col.column()
             sub.active = (soft.use_cluster_rigid_to_softbody or soft.use_cluster_soft_to_softbody)
             sub.prop(soft, "cluster_iterations", text="Iterations")
+            sub.prop(soft, "ksrhr_cl", text="Rigid Hardness", slider=True)
+            sub.prop(soft, "kskhr_cl", text="Kinetic Hardness", slider=True)
+            sub.prop(soft, "ksshr_cl", text="Soft Hardness", slider=True)
+            sub.prop(soft, "ksr_split_cl", text="Rigid Impulse Split", slider=True)
+            sub.prop(soft, "ksk_split_cl", text="Kinetic Impulse Split", slider=True)
+            sub.prop(soft, "kss_split_cl", text="Soft Impulse Split", slider=True)
+
+            split = layout.split()
+
+            col = split.column()
+            col.label(text="Volume:")
+            col.prop(soft, "kpr", text="Pressure Coefficient")
+            col.prop(soft, "kvc", text="Volume Conservation")
+
+            col = split.column()
+            col.label(text="Aerodynamics:")
+            col.prop(soft, "kdg", text="Drag Coefficient")
+            col.prop(soft, "klf", text="Lift Coefficient")
 
         elif physics_type == 'STATIC':
             col = layout.column()
             col.prop(game, "use_actor")
             col.prop(game, "use_ghost")
-            col.prop(game, "use_record_animation")
             col.prop(ob, "hide_render", text="Invisible")
 
             layout.separator()
@@ -171,6 +221,10 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             col = split.column()
             col.label(text="Attributes:")
             col.prop(game, "radius")
+            col.prop(game, "elasticity", slider=True)
+            col.label(text="Friction:")
+            col.prop(game, "friction")
+            col.prop(game, "rolling_friction")
 
             col = split.column()
             sub = col.column()
@@ -195,6 +249,18 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
 
             layout.operator("mesh.navmesh_reset")
             layout.operator("mesh.navmesh_clear")
+
+        if physics_type in {"STATIC", "DYNAMIC", "RIGID_BODY"}:
+            row = layout.row()
+            row.label(text="Force Field:")
+
+            row = layout.row()
+            row.prop(game, "fh_force")
+            row.prop(game, "fh_damping", slider=True)
+
+            row = layout.row()
+            row.prop(game, "fh_distance")
+            row.prop(game, "use_fh_normal")
 
 
 class PHYSICS_PT_game_collision_bounds(PhysicsButtonsPanel, Panel):

@@ -1085,7 +1085,7 @@ static void do_versions_seq_set_cache_defaults(Editing *ed)
   ed->recycle_max_cost = 10.0f;
 }
 
-void blo_do_versions_280(FileData *fd, Library *UNUSED(lib), Main *bmain)
+void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 {
   bool use_collection_compat_28 = true;
 
@@ -3401,6 +3401,26 @@ void blo_do_versions_280(FileData *fd, Library *UNUSED(lib), Main *bmain)
       ob->col_mask = 0xffff;
       ob->preview = NULL;
       ob->duplicator_visibility_flag = OB_DUPLI_FLAG_VIEWPORT | OB_DUPLI_FLAG_RENDER;
+    }
+  }
+  if (DNA_struct_elem_find(fd->filesdna, "Scene", "GameData", "gm") &&
+      !DNA_struct_elem_find(fd->filesdna, "Object", "float", "friction")) {
+    for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
+      if (ob->type == OB_MESH) {
+        Mesh *me = blo_do_versions_newlibadr(fd, lib, ob->data);
+        for (int i = 0; i < me->totcol; ++i) {
+          Material *ma = blo_do_versions_newlibadr(fd, lib, me->mat[i]);
+          if (ma) {
+            ob->friction = ma->friction;
+            ob->rolling_friction = 0.0f;
+            ob->fh = ma->fh;
+            ob->reflect = ma->reflect;
+            ob->fhdist = ma->fhdist;
+            ob->xyfrict = ma->xyfrict;
+            break;
+          }
+        }
+      }
     }
   }
   /* Game engine hack to force defaults in files saved in normal blender2.8 END */
