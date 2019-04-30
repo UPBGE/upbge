@@ -129,8 +129,10 @@ void free_copy_on_write_datablock(void *id_info_v)
 
 /* **** General purpose functions **** */
 
-DepsgraphNodeBuilder::DepsgraphNodeBuilder(Main *bmain, Depsgraph *graph)
-    : DepsgraphBuilder(bmain, graph),
+DepsgraphNodeBuilder::DepsgraphNodeBuilder(Main *bmain,
+                                           Depsgraph *graph,
+                                           DepsgraphBuilderCache *cache)
+    : DepsgraphBuilder(bmain, graph, cache),
       scene_(NULL),
       view_layer_(NULL),
       view_layer_index_(-1),
@@ -526,6 +528,7 @@ void DepsgraphNodeBuilder::build_object(int base_index,
     if (id_node->linked_state == DEG_ID_LINKED_DIRECTLY) {
       id_node->is_directly_visible |= is_visible;
     }
+    id_node->has_base |= (base_index != -1);
     return;
   }
   /* Create ID node for object and begin init. */
@@ -538,6 +541,7 @@ void DepsgraphNodeBuilder::build_object(int base_index,
   else {
     id_node->is_directly_visible = is_visible;
   }
+  id_node->has_base |= (base_index != -1);
   /* Various flags, flushing from bases/collections. */
   build_object_flags(base_index, object, linked_state);
   /* Transform. */

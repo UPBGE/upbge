@@ -26,6 +26,7 @@
 #include <cstring>
 
 #include "DNA_anim_types.h"
+#include "DNA_armature_types.h"
 #include "DNA_layer_types.h"
 #include "DNA_ID.h"
 #include "DNA_object_types.h"
@@ -34,6 +35,8 @@
 #include "BLI_ghash.h"
 #include "BLI_stack.h"
 
+#include "BKE_action.h"
+
 extern "C" {
 #include "BKE_animsys.h"
 }
@@ -41,6 +44,7 @@ extern "C" {
 #include "intern/depsgraph.h"
 #include "intern/depsgraph_tag.h"
 #include "intern/depsgraph_type.h"
+#include "intern/builder/deg_builder_cache.h"
 #include "intern/eval/deg_eval_copy_on_write.h"
 #include "intern/node/deg_node.h"
 #include "intern/node/deg_node_id.h"
@@ -51,70 +55,81 @@ extern "C" {
 
 namespace DEG {
 
+bool deg_check_base_in_depsgraph(const Depsgraph *graph, Base *base)
+{
+  Object *object_orig = base->base_orig->object;
+  IDNode *id_node = graph->find_id_node(&object_orig->id);
+  if (id_node == NULL) {
+    return false;
+  }
+  return id_node->has_base;
+}
+
 /*******************************************************************************
  * Base class for builders.
  */
 
-namespace {
-
-struct VisibilityCheckData {
-  eEvaluationMode eval_mode;
-  bool is_visibility_animated;
-};
-
-void visibility_animated_check_cb(ID * /*id*/, FCurve *fcu, void *user_data)
-{
-  VisibilityCheckData *data = reinterpret_cast<VisibilityCheckData *>(user_data);
-  if (data->is_visibility_animated) {
-    return;
-  }
-  if (data->eval_mode == DAG_EVAL_VIEWPORT) {
-    if (STREQ(fcu->rna_path, "hide_viewport")) {
-      data->is_visibility_animated = true;
-    }
-  }
-  else if (data->eval_mode == DAG_EVAL_RENDER) {
-    if (STREQ(fcu->rna_path, "hide_render")) {
-      data->is_visibility_animated = true;
-    }
-  }
-}
-
-bool is_object_visibility_animated(const Depsgraph *graph, Object *object)
-{
-  AnimData *anim_data = BKE_animdata_from_id(&object->id);
-  if (anim_data == NULL) {
-    return false;
-  }
-  VisibilityCheckData data;
-  data.eval_mode = graph->mode;
-  data.is_visibility_animated = false;
-  BKE_fcurves_id_cb(&object->id, visibility_animated_check_cb, &data);
-  return data.is_visibility_animated;
-}
-
-}  // namespace
-
-bool deg_check_base_available_for_build(const Depsgraph *graph, Base *base)
-{
-  const int base_flag = (graph->mode == DAG_EVAL_VIEWPORT) ? BASE_ENABLED_VIEWPORT :
-                                                             BASE_ENABLED_RENDER;
-  if (base->flag & base_flag) {
-    return true;
-  }
-  if (is_object_visibility_animated(graph, base->object)) {
-    return true;
-  }
-  return false;
-}
-
-DepsgraphBuilder::DepsgraphBuilder(Main *bmain, Depsgraph *graph) : bmain_(bmain), graph_(graph)
+DepsgraphBuilder::DepsgraphBuilder(Main *bmain, Depsgraph *graph, DepsgraphBuilderCache *cache)
+    : bmain_(bmain), graph_(graph), cache_(cache)
 {
 }
 
 bool DepsgraphBuilder::need_pull_base_into_graph(Base *base)
 {
-  return deg_check_base_available_for_build(graph_, base);
+  /* Simple check: enabled bases are always part of dependency graph. */
+  const int base_flag = (graph_->mode == DAG_EVAL_VIEWPORT) ? BASE_ENABLED_VIEWPORT :
+                                                              BASE_ENABLED_RENDER;
+  if (base->flag & base_flag) {
+    return true;
+  }
+  /* More involved check: since we don't support dynamic changes in dependency graph topology and
+   * all visible objects are to be part of dependency graph, we pull all objects which has animated
+   * visibility. */
+  Object *object = base->object;
+  AnimatedPropertyID property_id;
+  if (graph_->mode == DAG_EVAL_VIEWPORT) {
+    property_id = AnimatedPropertyID(&object->id, &RNA_Object, "hide_viewport");
+  }
+  else if (graph_->mode == DAG_EVAL_RENDER) {
+    property_id = AnimatedPropertyID(&object->id, &RNA_Object, "hide_render");
+  }
+  else {
+    BLI_assert(!"Unknown evaluation mode.");
+    return false;
+  }
+  return cache_->isPropertyAnimated(&object->id, property_id);
+}
+
+bool DepsgraphBuilder::check_pchan_has_bbone(Object *object, const bPoseChannel *pchan)
+{
+  BLI_assert(object->type == OB_ARMATURE);
+  if (pchan->bone == NULL) {
+    return false;
+  }
+  /* We don't really care whether segments are higher than 1 due to static user input (as in,
+   * rigger entered value like 3 manually), or due to animation. In either way we need to create
+   * special evaluation. */
+  if (pchan->bone->segments > 1) {
+    return true;
+  }
+  bArmature *armature = static_cast<bArmature *>(object->data);
+  AnimatedPropertyID property_id(&armature->id, &RNA_Bone, pchan->bone, "bbone_segments");
+  return cache_->isPropertyAnimated(&armature->id, property_id);
+}
+
+bool DepsgraphBuilder::check_pchan_has_bbone_segments(Object *object, const bPoseChannel *pchan)
+{
+  /* Proxies don't have BONE_SEGMENTS */
+  if (ID_IS_LINKED(object) && object->proxy_from != NULL) {
+    return false;
+  }
+  return check_pchan_has_bbone(object, pchan);
+}
+
+bool DepsgraphBuilder::check_pchan_has_bbone_segments(Object *object, const char *bone_name)
+{
+  const bPoseChannel *pchan = BKE_pose_channel_find_name(object->pose, bone_name);
+  return check_pchan_has_bbone_segments(object, pchan);
 }
 
 /*******************************************************************************
