@@ -161,61 +161,68 @@ static void drw_deferred_shader_compilation_free(void *custom_data)
 
 static void drw_deferred_shader_add(GPUMaterial *mat, bool deferred)
 {
-	/* Use original scene ID since this is what the jobs template tests for. */
-	Scene *scene = (Scene *)DEG_get_original_id(&DST.draw_ctx.scene->id);
+  /* Use original scene ID since this is what the jobs template tests for. */
+  Scene *scene = (Scene *)DEG_get_original_id(&DST.draw_ctx.scene->id);
 
-	/* Do not deferre the compilation if we are rendering for image. */
-	if (DRW_state_is_image_render() || !USE_DEFERRED_COMPILATION || !deferred || (scene->flag & SCE_INTERACTIVE)) {
-		/* Double checking that this GPUMaterial is not going to be
-		 * compiled by another thread. */
-		DRW_deferred_shader_remove(mat);
-		GPU_material_compile(mat);
-		return;
-	}
+  /* Do not deferre the compilation if we are rendering for image. 
+   * deferred rendering is only possible when `evil_C` is available */
+  if (DST.draw_ctx.evil_C == NULL || DRW_state_is_image_render() || !USE_DEFERRED_COMPILATION ||
+      !deferred  || (scene->flag & SCE_INTERACTIVE)) {
+    /* Double checking that this GPUMaterial is not going to be
+     * compiled by another thread. */
+    DRW_deferred_shader_remove(mat);
+    GPU_material_compile(mat);
+    return;
+  }
 
-	DRWDeferredShader *dsh = MEM_callocN(sizeof(DRWDeferredShader), "Deferred Shader");
+  DRWDeferredShader *dsh = MEM_callocN(sizeof(DRWDeferredShader), "Deferred Shader");
 
-	dsh->mat = mat;
+  dsh->mat = mat;
 
-	BLI_assert(DST.draw_ctx.evil_C);
-	wmWindowManager *wm = CTX_wm_manager(DST.draw_ctx.evil_C);
-	wmWindow *win = CTX_wm_window(DST.draw_ctx.evil_C);
+  BLI_assert(DST.draw_ctx.evil_C);
+  wmWindowManager *wm = CTX_wm_manager(DST.draw_ctx.evil_C);
+  wmWindow *win = CTX_wm_window(DST.draw_ctx.evil_C);
 
-	/* Get the running job or a new one if none is running. Can only have one job per type & owner.  */
-	wmJob *wm_job = WM_jobs_get(wm, win, scene, "Shaders Compilation",
-	                            WM_JOB_PROGRESS | WM_JOB_SUSPEND, WM_JOB_TYPE_SHADER_COMPILATION);
 
-	DRWShaderCompiler *old_comp = (DRWShaderCompiler *)WM_jobs_customdata_get(wm_job);
+  /* Get the running job or a new one if none is running. Can only have one job per type & owner.  */
+  wmJob *wm_job = WM_jobs_get(wm,
+                              win,
+                              scene,
+                              "Shaders Compilation",
+                              WM_JOB_PROGRESS | WM_JOB_SUSPEND,
+                              WM_JOB_TYPE_SHADER_COMPILATION);
 
-	DRWShaderCompiler *comp = MEM_callocN(sizeof(DRWShaderCompiler), "DRWShaderCompiler");
-	BLI_spin_init(&comp->list_lock);
-	BLI_mutex_init(&comp->compilation_lock);
+  DRWShaderCompiler *old_comp = (DRWShaderCompiler *)WM_jobs_customdata_get(wm_job);
 
-	if (old_comp) {
-		BLI_spin_lock(&old_comp->list_lock);
-		BLI_movelisttolist(&comp->queue, &old_comp->queue);
-		BLI_spin_unlock(&old_comp->list_lock);
-		/* Do not recreate context, just pass ownership. */
-		if (old_comp->gl_context) {
-			comp->gl_context = old_comp->gl_context;
-			old_comp->own_context = false;
-			comp->own_context = true;
-		}
-	}
+  DRWShaderCompiler *comp = MEM_callocN(sizeof(DRWShaderCompiler), "DRWShaderCompiler");
+  BLI_spin_init(&comp->list_lock);
+  BLI_mutex_init(&comp->compilation_lock);
 
-	BLI_addtail(&comp->queue, dsh);
+  if (old_comp) {
+    BLI_spin_lock(&old_comp->list_lock);
+    BLI_movelisttolist(&comp->queue, &old_comp->queue);
+    BLI_spin_unlock(&old_comp->list_lock);
+    /* Do not recreate context, just pass ownership. */
+    if (old_comp->gl_context) {
+      comp->gl_context = old_comp->gl_context;
+      old_comp->own_context = false;
+      comp->own_context = true;
+    }
+  }
 
-	/* Create only one context. */
-	if (comp->gl_context == NULL) {
-		comp->gl_context = WM_opengl_context_create();
-		WM_opengl_context_activate(DST.gl_context);
-		comp->own_context = true;
-	}
+  BLI_addtail(&comp->queue, dsh);
 
-	WM_jobs_customdata_set(wm_job, comp, drw_deferred_shader_compilation_free);
-	WM_jobs_timer(wm_job, 0.1, NC_MATERIAL | ND_SHADING_DRAW, 0);
-	WM_jobs_callbacks(wm_job, drw_deferred_shader_compilation_exec, NULL, NULL, NULL);
-	WM_jobs_start(wm, wm_job);
+  /* Create only one context. */
+  if (comp->gl_context == NULL) {
+    comp->gl_context = WM_opengl_context_create();
+    WM_opengl_context_activate(DST.gl_context);
+    comp->own_context = true;
+  }
+
+  WM_jobs_customdata_set(wm_job, comp, drw_deferred_shader_compilation_free);
+  WM_jobs_timer(wm_job, 0.1, NC_MATERIAL | ND_SHADING_DRAW, 0);
+  WM_jobs_callbacks(wm_job, drw_deferred_shader_compilation_exec, NULL, NULL, NULL);
+  WM_jobs_start(wm, wm_job);
 }
 
 void DRW_deferred_shader_remove(GPUMaterial *mat)
