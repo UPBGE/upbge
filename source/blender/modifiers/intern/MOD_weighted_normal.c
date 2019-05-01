@@ -51,7 +51,8 @@ static int modepair_cmp_by_val_inverse(const void *p1, const void *p2)
   return (r1->val < r2->val) ? 1 : ((r1->val > r2->val) ? -1 : 0);
 }
 
-/* There will be one of those per vertex (simple case, computing one normal per vertex), or per smooth fan. */
+/* There will be one of those per vertex
+ * (simple case, computing one normal per vertex), or per smooth fan. */
 typedef struct WeightedNormalDataAggregateItem {
   float normal[3];
 
@@ -97,8 +98,10 @@ typedef struct WeightedNormalData {
   int *loop_to_poly;
 } WeightedNormalData;
 
-/* Check strength of given poly compared to those found so far for that given item (vertex or smooth fan),
- * and reset matching item_data in case we get a stronger new strength. */
+/**
+ * Check strength of given poly compared to those found so far for that given item
+ * (vertex or smooth fan), and reset matching item_data in case we get a stronger new strength.
+ */
 static bool check_item_poly_strength(WeightedNormalData *wn_data,
                                      WeightedNormalDataAggregateItem *item_data,
                                      const int mp_index)
@@ -158,7 +161,8 @@ static void aggregate_item_normal(WeightedNormalModifierData *wnmd,
     item_data->curr_val = curr_val;
   }
 
-  /* Exponentially divided weight for each normal (since a few values will be used by most cases, we cache those). */
+  /* Exponentially divided weight for each normal
+   * (since a few values will be used by most cases, we cache those). */
   const int num_loops = item_data->num_loops;
   if (num_loops < NUM_CACHED_INVERSE_POWERS_OF_WEIGHT &&
       cached_inverse_powers_of_weight[num_loops] == 0.0f) {
@@ -211,7 +215,8 @@ static void apply_weights_vertex_normal(WeightedNormalModifierData *wnmd,
   if (keep_sharp) {
     BLI_bitmap *done_loops = BLI_BITMAP_NEW(numLoops, __func__);
 
-    /* This will give us loop normal spaces, we do not actually care about computed loop_normals for now... */
+    /* This will give us loop normal spaces,
+     * we do not actually care about computed loop_normals for now... */
     loop_normals = MEM_calloc_arrayN((size_t)numLoops, sizeof(*loop_normals), __func__);
     BKE_mesh_normals_loop_split(mvert,
                                 numVerts,
@@ -329,8 +334,9 @@ static void apply_weights_vertex_normal(WeightedNormalModifierData *wnmd,
 
   if (keep_sharp) {
     /* Set loop normals for normal computed for each lnor space (smooth fan).
-     * Note that loop_normals is already populated with clnors (before this modifier is applied, at start of
-     * this function), so no need to recompute them here. */
+     * Note that loop_normals is already populated with clnors
+     * (before this modifier is applied, at start of this function),
+     * so no need to recompute them here. */
     for (int ml_index = 0; ml_index < numLoops; ml_index++) {
       WeightedNormalDataAggregateItem *item_data = lnors_spacearr.lspacearr[ml_index]->user_data;
       if (!is_zero_v3(item_data->normal)) {
@@ -351,12 +357,14 @@ static void apply_weights_vertex_normal(WeightedNormalModifierData *wnmd,
                                      clnors);
   }
   else {
-    /* TODO: Ideally, we could add an option to BKE_mesh_normals_loop_custom_[from_vertices_]set() to keep current
-     * clnors instead of resetting them to default autocomputed ones, when given new custom normal is zero-vec.
+    /* TODO: Ideally, we could add an option to BKE_mesh_normals_loop_custom_[from_vertices_]set()
+     * to keep current clnors instead of resetting them to default autocomputed ones,
+     * when given new custom normal is zero-vec.
      * But this is not exactly trivial change, better to keep this optimization for later...
      */
     if (!has_vgroup) {
-      /* Note: in theory, we could avoid this extra allocation & copying... But think we can live with it for now,
+      /* Note: in theory, we could avoid this extra allocation & copying...
+       * But think we can live with it for now,
        * and it makes code simpler & cleaner. */
       float(*vert_normals)[3] = MEM_calloc_arrayN(
           (size_t)numVerts, sizeof(*loop_normals), __func__);
@@ -540,118 +548,122 @@ static Mesh *applyModifier(ModifierData *md, const ModifierEvalContext *ctx, Mes
   WeightedNormalModifierData *wnmd = (WeightedNormalModifierData *)md;
   Object *ob = ctx->object;
 
-  /* XXX TODO ARG GRRR XYQWNMPRXTYY
-   * Once we fully switch to Mesh evaluation of modifiers, we can expect to get that flag from the COW copy.
-   * But for now, it is lost in the DM intermediate step, so we need to directly check orig object's data. */
+  /* XXX TODO(Rohan Rathi):
+   * Once we fully switch to Mesh evaluation of modifiers,
+   * we can expect to get that flag from the COW copy.
+   * But for now, it is lost in the DM intermediate step,
+   * so we need to directly check orig object's data. */
 #if 0
-  if (!(mesh->flag & ME_AUTOSMOOTH)) {
+  if (!(mesh->flag & ME_AUTOSMOOTH))
 #else
-  if (!(((Mesh *)ob->data)->flag & ME_AUTOSMOOTH)) {
+  if (!(((Mesh *)ob->data)->flag & ME_AUTOSMOOTH))
 #endif
-  modifier_setError((ModifierData *)wnmd, "Enable 'Auto Smooth' option in mesh settings");
-  return mesh;
-}
+  {
+    modifier_setError((ModifierData *)wnmd, "Enable 'Auto Smooth' option in mesh settings");
+    return mesh;
+  }
 
-Mesh *result;
-BKE_id_copy_ex(NULL, &mesh->id, (ID **)&result, LIB_ID_COPY_LOCALIZE);
+  Mesh *result;
+  BKE_id_copy_ex(NULL, &mesh->id, (ID **)&result, LIB_ID_COPY_LOCALIZE);
 
-const int numVerts = result->totvert;
-const int numEdges = result->totedge;
-const int numLoops = result->totloop;
-const int numPolys = result->totpoly;
+  const int numVerts = result->totvert;
+  const int numEdges = result->totedge;
+  const int numLoops = result->totloop;
+  const int numPolys = result->totpoly;
 
-MEdge *medge = result->medge;
-MPoly *mpoly = result->mpoly;
-MVert *mvert = result->mvert;
-MLoop *mloop = result->mloop;
+  MEdge *medge = result->medge;
+  MPoly *mpoly = result->mpoly;
+  MVert *mvert = result->mvert;
+  MLoop *mloop = result->mloop;
 
-/* Right now:
- * If weight = 50 then all faces are given equal weight.
- * If weight > 50 then more weight given to faces with larger vals (face area / corner angle).
- * If weight < 50 then more weight given to faces with lesser vals. However current calculation
- * does not converge to min/max.
- */
-float weight = ((float)wnmd->weight) / 50.0f;
-if (wnmd->weight == 100) {
-  weight = (float)SHRT_MAX;
-}
-else if (wnmd->weight == 1) {
-  weight = 1 / (float)SHRT_MAX;
-}
-else if ((weight - 1) * 25 > 1) {
-  weight = (weight - 1) * 25;
-}
+  /* Right now:
+   * If weight = 50 then all faces are given equal weight.
+   * If weight > 50 then more weight given to faces with larger vals (face area / corner angle).
+   * If weight < 50 then more weight given to faces with lesser vals. However current calculation
+   * does not converge to min/max.
+   */
+  float weight = ((float)wnmd->weight) / 50.0f;
+  if (wnmd->weight == 100) {
+    weight = (float)SHRT_MAX;
+  }
+  else if (wnmd->weight == 1) {
+    weight = 1 / (float)SHRT_MAX;
+  }
+  else if ((weight - 1) * 25 > 1) {
+    weight = (weight - 1) * 25;
+  }
 
-CustomData *pdata = &result->pdata;
-float (*polynors)[3] = CustomData_get_layer(pdata, CD_NORMAL);
-if (!polynors) {
-  polynors = CustomData_add_layer(pdata, CD_NORMAL, CD_CALLOC, NULL, numPolys);
-  CustomData_set_layer_flag(pdata, CD_NORMAL, CD_FLAG_TEMPORARY);
-}
-BKE_mesh_calc_normals_poly(
-    mvert, NULL, numVerts, mloop, mpoly, numLoops, numPolys, polynors, false);
+  CustomData *pdata = &result->pdata;
+  float(*polynors)[3] = CustomData_get_layer(pdata, CD_NORMAL);
+  if (!polynors) {
+    polynors = CustomData_add_layer(pdata, CD_NORMAL, CD_CALLOC, NULL, numPolys);
+    CustomData_set_layer_flag(pdata, CD_NORMAL, CD_FLAG_TEMPORARY);
+  }
+  BKE_mesh_calc_normals_poly(
+      mvert, NULL, numVerts, mloop, mpoly, numLoops, numPolys, polynors, false);
 
-const float split_angle = mesh->smoothresh;
-short (*clnors)[2];
-CustomData *ldata = &result->ldata;
-clnors = CustomData_get_layer(ldata, CD_CUSTOMLOOPNORMAL);
+  const float split_angle = mesh->smoothresh;
+  short(*clnors)[2];
+  CustomData *ldata = &result->ldata;
+  clnors = CustomData_get_layer(ldata, CD_CUSTOMLOOPNORMAL);
 
-/* Keep info  whether we had clnors, it helps when generating clnor spaces and default normals. */
-const bool has_clnors = clnors != NULL;
-if (!clnors) {
-  clnors = CustomData_add_layer(ldata, CD_CUSTOMLOOPNORMAL, CD_CALLOC, NULL, numLoops);
-}
+  /* Keep info  whether we had clnors,
+   * it helps when generating clnor spaces and default normals. */
+  const bool has_clnors = clnors != NULL;
+  if (!clnors) {
+    clnors = CustomData_add_layer(ldata, CD_CUSTOMLOOPNORMAL, CD_CALLOC, NULL, numLoops);
+  }
 
-MDeformVert *dvert;
-int defgrp_index;
-MOD_get_vgroup(ctx->object, mesh, wnmd->defgrp_name, &dvert, &defgrp_index);
+  MDeformVert *dvert;
+  int defgrp_index;
+  MOD_get_vgroup(ctx->object, mesh, wnmd->defgrp_name, &dvert, &defgrp_index);
 
-WeightedNormalData wn_data = {
-    .numVerts = numVerts,
-    .numEdges = numEdges,
-    .numLoops = numLoops,
-    .numPolys = numPolys,
+  WeightedNormalData wn_data = {
+      .numVerts = numVerts,
+      .numEdges = numEdges,
+      .numLoops = numLoops,
+      .numPolys = numPolys,
 
-    .mvert = mvert,
-    .medge = medge,
+      .mvert = mvert,
+      .medge = medge,
 
-    .mloop = mloop,
-    .clnors = clnors,
-    .has_clnors = has_clnors,
-    .split_angle = split_angle,
+      .mloop = mloop,
+      .clnors = clnors,
+      .has_clnors = has_clnors,
+      .split_angle = split_angle,
 
-    .mpoly = mpoly,
-    .polynors = polynors,
-    .poly_strength = CustomData_get_layer_named(
-        &result->pdata, CD_PROP_INT, MOD_WEIGHTEDNORMALS_FACEWEIGHT_CDLAYER_ID),
+      .mpoly = mpoly,
+      .polynors = polynors,
+      .poly_strength = CustomData_get_layer_named(
+          &result->pdata, CD_PROP_INT, MOD_WEIGHTEDNORMALS_FACEWEIGHT_CDLAYER_ID),
 
-    .dvert = dvert,
-    .defgrp_index = defgrp_index,
-    .use_invert_vgroup = (wnmd->flag & MOD_WEIGHTEDNORMAL_INVERT_VGROUP) != 0,
+      .dvert = dvert,
+      .defgrp_index = defgrp_index,
+      .use_invert_vgroup = (wnmd->flag & MOD_WEIGHTEDNORMAL_INVERT_VGROUP) != 0,
 
-    .weight = weight,
-    .mode = wnmd->mode,
-};
+      .weight = weight,
+      .mode = wnmd->mode,
+  };
 
-switch (wnmd->mode) {
-  case MOD_WEIGHTEDNORMAL_MODE_FACE:
-    wn_face_area(wnmd, &wn_data);
-    break;
-  case MOD_WEIGHTEDNORMAL_MODE_ANGLE:
-    wn_corner_angle(wnmd, &wn_data);
-    break;
-  case MOD_WEIGHTEDNORMAL_MODE_FACE_ANGLE:
-    wn_face_with_angle(wnmd, &wn_data);
-    break;
-}
+  switch (wnmd->mode) {
+    case MOD_WEIGHTEDNORMAL_MODE_FACE:
+      wn_face_area(wnmd, &wn_data);
+      break;
+    case MOD_WEIGHTEDNORMAL_MODE_ANGLE:
+      wn_corner_angle(wnmd, &wn_data);
+      break;
+    case MOD_WEIGHTEDNORMAL_MODE_FACE_ANGLE:
+      wn_face_with_angle(wnmd, &wn_data);
+      break;
+  }
 
-MEM_SAFE_FREE(wn_data.loop_to_poly);
-MEM_SAFE_FREE(wn_data.mode_pair);
-MEM_SAFE_FREE(wn_data.items_data);
+  MEM_SAFE_FREE(wn_data.loop_to_poly);
+  MEM_SAFE_FREE(wn_data.mode_pair);
+  MEM_SAFE_FREE(wn_data.items_data);
 
-/* Currently Modifier stack assumes there is no poly normal data passed around... */
-CustomData_free_layers(pdata, CD_NORMAL, numPolys);
-return result;
+  /* Currently Modifier stack assumes there is no poly normal data passed around... */
+  CustomData_free_layers(pdata, CD_NORMAL, numPolys);
+  return result;
 }
 
 static void initData(ModifierData *md)
