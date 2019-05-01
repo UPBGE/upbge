@@ -337,9 +337,11 @@ void EEVEE_lightprobes_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedat
 
     const float *col = G_draw.block.colorBackground;
 
-    /* LookDev */
-    EEVEE_lookdev_cache_init(vedata, &grp, psl->probe_background, 1.0f, wo, pinfo);
-    /* END */
+    if (!(scene->flag & SCE_INTERACTIVE)) {
+      /* LookDev */
+      EEVEE_lookdev_cache_init(vedata, &grp, psl->probe_background, 1.0f, wo, pinfo);
+      /* END */
+    }
     if (!grp && wo) {
       col = &wo->horr;
 

@@ -82,683 +82,847 @@ void ui_resources_free(void)
 
 const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
 {
-	ThemeSpace *ts = NULL;
-	static char error[4] = {240, 0, 240, 255};
-	static char alert[4] = {240, 60, 60, 255};
-	static char headerdesel[4] = {0, 0, 0, 255};
-	static char back[4] = {0, 0, 0, 255};
-	static char setting = 0;
-	const char *cp = error;
+  ThemeSpace *ts = NULL;
+  static char error[4] = {240, 0, 240, 255};
+  static char alert[4] = {240, 60, 60, 255};
+  static char headerdesel[4] = {0, 0, 0, 255};
+  static char back[4] = {0, 0, 0, 255};
+  static char setting = 0;
+  const char *cp = error;
 
-	/* ensure we're not getting a color after running BKE_blender_userdef_free */
-	BLI_assert(BLI_findindex(&U.themes, theme_active) != -1);
-	BLI_assert(colorid != TH_UNDEFINED);
+  /* ensure we're not getting a color after running BKE_blender_userdef_free */
+  BLI_assert(BLI_findindex(&U.themes, theme_active) != -1);
+  BLI_assert(colorid != TH_UNDEFINED);
 
-	if (btheme) {
+  if (btheme) {
 
-		/* first check for ui buttons theme */
-		if (colorid < TH_THEMEUI) {
+    /* first check for ui buttons theme */
+    if (colorid < TH_THEMEUI) {
 
-			switch (colorid) {
+      switch (colorid) {
 
-				case TH_REDALERT:
-					cp = alert; break;
-			}
-		}
-		else {
+        case TH_REDALERT:
+          cp = alert;
+          break;
+      }
+    }
+    else {
 
-			switch (spacetype) {
-				case SPACE_PROPERTIES:
-					ts = &btheme->space_properties;
-					break;
-				case SPACE_VIEW3D:
-					ts = &btheme->space_view3d;
-					break;
-				case SPACE_GRAPH:
-					ts = &btheme->space_graph;
-					break;
-				case SPACE_FILE:
-					ts = &btheme->space_file;
-					break;
-				case SPACE_NLA:
-					ts = &btheme->space_nla;
-					break;
-				case SPACE_ACTION:
-					ts = &btheme->space_action;
-					break;
-				case SPACE_SEQ:
-					ts = &btheme->space_sequencer;
-					break;
-				case SPACE_IMAGE:
-					ts = &btheme->space_image;
-					break;
-				case SPACE_TEXT:
-					ts = &btheme->space_text;
-					break;
-				case SPACE_OUTLINER:
-					ts = &btheme->space_outliner;
-					break;
-				case SPACE_INFO:
-					ts = &btheme->space_info;
-					break;
-				case SPACE_USERPREF:
-					ts = &btheme->space_preferences;
-					break;
-				case SPACE_CONSOLE:
-					ts = &btheme->space_console;
-					break;
-				case SPACE_NODE:
-					ts = &btheme->space_node;
-					break;
-				case SPACE_LOGIC:
-					btheme->tlogic = btheme->space_node;
-					ts = &btheme->tlogic;
-					rgba_char_args_set(btheme->tlogic.back, 40, 40, 40, 255);
-					break;
-				case SPACE_CLIP:
-					ts = &btheme->space_clip;
-					break;
-				case SPACE_TOPBAR:
-					ts = &btheme->space_topbar;
-					break;
-				case SPACE_STATUSBAR:
-					ts = &btheme->space_statusbar;
-					break;
-				default:
-					ts = &btheme->space_view3d;
-					break;
-			}
+      switch (spacetype) {
+        case SPACE_PROPERTIES:
+          ts = &btheme->space_properties;
+          break;
+        case SPACE_VIEW3D:
+          ts = &btheme->space_view3d;
+          break;
+        case SPACE_GRAPH:
+          ts = &btheme->space_graph;
+          break;
+        case SPACE_FILE:
+          ts = &btheme->space_file;
+          break;
+        case SPACE_NLA:
+          ts = &btheme->space_nla;
+          break;
+        case SPACE_ACTION:
+          ts = &btheme->space_action;
+          break;
+        case SPACE_SEQ:
+          ts = &btheme->space_sequencer;
+          break;
+        case SPACE_IMAGE:
+          ts = &btheme->space_image;
+          break;
+        case SPACE_TEXT:
+          ts = &btheme->space_text;
+          break;
+        case SPACE_OUTLINER:
+          ts = &btheme->space_outliner;
+          break;
+        case SPACE_INFO:
+          ts = &btheme->space_info;
+          break;
+        case SPACE_USERPREF:
+          ts = &btheme->space_preferences;
+          break;
+        case SPACE_CONSOLE:
+          ts = &btheme->space_console;
+          break;
+        case SPACE_NODE:
+          ts = &btheme->space_node;
+          break;
+        case SPACE_LOGIC:
+          btheme->tlogic = btheme->space_node;
+          ts = &btheme->tlogic;
+          rgba_char_args_set(btheme->tlogic.back, 40, 40, 40, 255);
+          break;
+        case SPACE_CLIP:
+          ts = &btheme->space_clip;
+          break;
+        case SPACE_TOPBAR:
+          ts = &btheme->space_topbar;
+          break;
+        case SPACE_STATUSBAR:
+          ts = &btheme->space_statusbar;
+          break;
+        default:
+          ts = &btheme->space_view3d;
+          break;
+      }
 
-			switch (colorid) {
-				case TH_BACK:
-					if (ELEM(theme_regionid, RGN_TYPE_WINDOW, RGN_TYPE_PREVIEW)) {
-						cp = ts->back;
-					}
-					else if (theme_regionid == RGN_TYPE_CHANNELS) {
-						cp = ts->list;
-					}
-					else if (ELEM(theme_regionid, RGN_TYPE_HEADER, RGN_TYPE_FOOTER)) {
-						cp = ts->header;
-					}
-					else if (theme_regionid == RGN_TYPE_NAV_BAR) {
-						cp = ts->navigation_bar;
-					}
-					else if (theme_regionid == RGN_TYPE_EXECUTE) {
-						cp = ts->execution_buts;
-					}
-					else {
-						cp = ts->button;
-					}
+      switch (colorid) {
+        case TH_BACK:
+          if (ELEM(theme_regionid, RGN_TYPE_WINDOW, RGN_TYPE_PREVIEW)) {
+            cp = ts->back;
+          }
+          else if (theme_regionid == RGN_TYPE_CHANNELS) {
+            cp = ts->list;
+          }
+          else if (ELEM(theme_regionid, RGN_TYPE_HEADER, RGN_TYPE_FOOTER)) {
+            cp = ts->header;
+          }
+          else if (theme_regionid == RGN_TYPE_NAV_BAR) {
+            cp = ts->navigation_bar;
+          }
+          else if (theme_regionid == RGN_TYPE_EXECUTE) {
+            cp = ts->execution_buts;
+          }
+          else {
+            cp = ts->button;
+          }
 
-					copy_v4_v4_char(back, cp);
-					if (!ED_region_is_overlap(spacetype, theme_regionid)) {
-						back[3] = 255;
-					}
-					cp = back;
-					break;
-				case TH_BACK_GRAD:
-					cp = ts->back_grad;
-					break;
+          copy_v4_v4_char(back, cp);
+          if (!ED_region_is_overlap(spacetype, theme_regionid)) {
+            back[3] = 255;
+          }
+          cp = back;
+          break;
+        case TH_BACK_GRAD:
+          cp = ts->back_grad;
+          break;
 
-				case TH_SHOW_BACK_GRAD:
-					cp = &setting;
-					setting = ts->show_back_grad;
-					break;
-				case TH_TEXT:
-					if (theme_regionid == RGN_TYPE_WINDOW) {
-						cp = ts->text;
-					}
-					else if (theme_regionid == RGN_TYPE_CHANNELS) {
-						cp = ts->list_text;
-					}
-					else if (ELEM(theme_regionid, RGN_TYPE_HEADER, RGN_TYPE_FOOTER)) {
-						cp = ts->header_text;
-					}
-					else {
-						cp = ts->button_text;
-					}
-					break;
-				case TH_TEXT_HI:
-					if (theme_regionid == RGN_TYPE_WINDOW) {
-						cp = ts->text_hi;
-					}
-					else if (theme_regionid == RGN_TYPE_CHANNELS) {
-						cp = ts->list_text_hi;
-					}
-					else if (ELEM(theme_regionid, RGN_TYPE_HEADER, RGN_TYPE_FOOTER)) {
-						cp = ts->header_text_hi;
-					}
-					else {
-						cp = ts->button_text_hi;
-					}
-					break;
-				case TH_TITLE:
-					if (theme_regionid == RGN_TYPE_WINDOW) {
-						cp = ts->title;
-					}
-					else if (theme_regionid == RGN_TYPE_CHANNELS) {
-						cp = ts->list_title;
-					}
-					else if (ELEM(theme_regionid, RGN_TYPE_HEADER, RGN_TYPE_FOOTER)) {
-						cp = ts->header_title;
-					}
-					else {
-						cp = ts->button_title;
-					}
-					break;
+        case TH_SHOW_BACK_GRAD:
+          cp = &setting;
+          setting = ts->show_back_grad;
+          break;
+        case TH_TEXT:
+          if (theme_regionid == RGN_TYPE_WINDOW) {
+            cp = ts->text;
+          }
+          else if (theme_regionid == RGN_TYPE_CHANNELS) {
+            cp = ts->list_text;
+          }
+          else if (ELEM(theme_regionid, RGN_TYPE_HEADER, RGN_TYPE_FOOTER)) {
+            cp = ts->header_text;
+          }
+          else {
+            cp = ts->button_text;
+          }
+          break;
+        case TH_TEXT_HI:
+          if (theme_regionid == RGN_TYPE_WINDOW) {
+            cp = ts->text_hi;
+          }
+          else if (theme_regionid == RGN_TYPE_CHANNELS) {
+            cp = ts->list_text_hi;
+          }
+          else if (ELEM(theme_regionid, RGN_TYPE_HEADER, RGN_TYPE_FOOTER)) {
+            cp = ts->header_text_hi;
+          }
+          else {
+            cp = ts->button_text_hi;
+          }
+          break;
+        case TH_TITLE:
+          if (theme_regionid == RGN_TYPE_WINDOW) {
+            cp = ts->title;
+          }
+          else if (theme_regionid == RGN_TYPE_CHANNELS) {
+            cp = ts->list_title;
+          }
+          else if (ELEM(theme_regionid, RGN_TYPE_HEADER, RGN_TYPE_FOOTER)) {
+            cp = ts->header_title;
+          }
+          else {
+            cp = ts->button_title;
+          }
+          break;
 
-				case TH_HEADER:
-					cp = ts->header; break;
-				case TH_HEADERDESEL:
-					/* we calculate a dynamic builtin header deselect color,
-					 * also for pulldowns... */
-					cp = ts->header;
-					headerdesel[0] = cp[0] > 10 ? cp[0] - 10 : 0;
-					headerdesel[1] = cp[1] > 10 ? cp[1] - 10 : 0;
-					headerdesel[2] = cp[2] > 10 ? cp[2] - 10 : 0;
-					headerdesel[3] = cp[3];
-					cp = headerdesel;
-					break;
-				case TH_HEADER_TEXT:
-					cp = ts->header_text; break;
-				case TH_HEADER_TEXT_HI:
-					cp = ts->header_text_hi; break;
+        case TH_HEADER:
+          cp = ts->header;
+          break;
+        case TH_HEADERDESEL:
+          /* we calculate a dynamic builtin header deselect color,
+           * also for pulldowns... */
+          cp = ts->header;
+          headerdesel[0] = cp[0] > 10 ? cp[0] - 10 : 0;
+          headerdesel[1] = cp[1] > 10 ? cp[1] - 10 : 0;
+          headerdesel[2] = cp[2] > 10 ? cp[2] - 10 : 0;
+          headerdesel[3] = cp[3];
+          cp = headerdesel;
+          break;
+        case TH_HEADER_TEXT:
+          cp = ts->header_text;
+          break;
+        case TH_HEADER_TEXT_HI:
+          cp = ts->header_text_hi;
+          break;
 
-				case TH_PANEL_HEADER:
-					cp = ts->panelcolors.header; break;
-				case TH_PANEL_BACK:
-					cp = ts->panelcolors.back; break;
-				case TH_PANEL_SUB_BACK:
-					cp = ts->panelcolors.sub_back; break;
+        case TH_PANEL_HEADER:
+          cp = ts->panelcolors.header;
+          break;
+        case TH_PANEL_BACK:
+          cp = ts->panelcolors.back;
+          break;
+        case TH_PANEL_SUB_BACK:
+          cp = ts->panelcolors.sub_back;
+          break;
 
-				case TH_BUTBACK:
-					cp = ts->button; break;
-				case TH_BUTBACK_TEXT:
-					cp = ts->button_text; break;
-				case TH_BUTBACK_TEXT_HI:
-					cp = ts->button_text_hi; break;
+        case TH_BUTBACK:
+          cp = ts->button;
+          break;
+        case TH_BUTBACK_TEXT:
+          cp = ts->button_text;
+          break;
+        case TH_BUTBACK_TEXT_HI:
+          cp = ts->button_text_hi;
+          break;
 
-				case TH_TAB_ACTIVE:
-					cp = ts->tab_active; break;
-				case TH_TAB_INACTIVE:
-					cp = ts->tab_inactive; break;
-				case TH_TAB_BACK:
-					cp = ts->tab_back; break;
-				case TH_TAB_OUTLINE:
-					cp = ts->tab_outline; break;
+        case TH_TAB_ACTIVE:
+          cp = ts->tab_active;
+          break;
+        case TH_TAB_INACTIVE:
+          cp = ts->tab_inactive;
+          break;
+        case TH_TAB_BACK:
+          cp = ts->tab_back;
+          break;
+        case TH_TAB_OUTLINE:
+          cp = ts->tab_outline;
+          break;
 
-				case TH_SHADE1:
-					cp = ts->shade1; break;
-				case TH_SHADE2:
-					cp = ts->shade2; break;
-				case TH_HILITE:
-					cp = ts->hilite; break;
+        case TH_SHADE1:
+          cp = ts->shade1;
+          break;
+        case TH_SHADE2:
+          cp = ts->shade2;
+          break;
+        case TH_HILITE:
+          cp = ts->hilite;
+          break;
 
-				case TH_GRID:
-					cp = ts->grid; break;
-				case TH_VIEW_OVERLAY:
-					cp = ts->view_overlay; break;
-				case TH_WIRE:
-					cp = ts->wire; break;
-				case TH_WIRE_INNER:
-					cp = ts->syntaxr; break;
-				case TH_WIRE_EDIT:
-					cp = ts->wire_edit; break;
-				case TH_LIGHT:
-					cp = ts->lamp; break;
-				case TH_SPEAKER:
-					cp = ts->speaker; break;
-				case TH_CAMERA:
-					cp = ts->camera; break;
-				case TH_EMPTY:
-					cp = ts->empty; break;
-				case TH_SELECT:
-					cp = ts->select; break;
-				case TH_ACTIVE:
-					cp = ts->active; break;
-				case TH_GROUP:
-					cp = ts->group; break;
-				case TH_GROUP_ACTIVE:
-					cp = ts->group_active; break;
-				case TH_TRANSFORM:
-					cp = ts->transform; break;
-				case TH_VERTEX:
-					cp = ts->vertex; break;
-				case TH_VERTEX_SELECT:
-					cp = ts->vertex_select; break;
-				case TH_VERTEX_BEVEL:
-					cp = ts->vertex_bevel; break;
-				case TH_VERTEX_UNREFERENCED:
-					cp = ts->vertex_unreferenced; break;
-				case TH_VERTEX_SIZE:
-					cp = &ts->vertex_size; break;
-				case TH_OUTLINE_WIDTH:
-					cp = &ts->outline_width; break;
-				case TH_EDGE:
-					cp = ts->edge; break;
-				case TH_EDGE_SELECT:
-					cp = ts->edge_select; break;
-				case TH_EDGE_SEAM:
-					cp = ts->edge_seam; break;
-				case TH_EDGE_SHARP:
-					cp = ts->edge_sharp; break;
-				case TH_EDGE_CREASE:
-					cp = ts->edge_crease; break;
-				case TH_EDGE_BEVEL:
-					cp = ts->edge_bevel; break;
-				case TH_EDITMESH_ACTIVE:
-					cp = ts->editmesh_active; break;
-				case TH_EDGE_FACESEL:
-					cp = ts->edge_facesel; break;
-				case TH_FACE:
-					cp = ts->face; break;
-				case TH_FACE_SELECT:
-					cp = ts->face_select; break;
-				case TH_FACE_DOT:
-					cp = ts->face_dot; break;
-				case TH_FACEDOT_SIZE:
-					cp = &ts->facedot_size; break;
-				case TH_DRAWEXTRA_EDGELEN:
-					cp = ts->extra_edge_len; break;
-				case TH_DRAWEXTRA_EDGEANG:
-					cp = ts->extra_edge_angle; break;
-				case TH_DRAWEXTRA_FACEAREA:
-					cp = ts->extra_face_area; break;
-				case TH_DRAWEXTRA_FACEANG:
-					cp = ts->extra_face_angle; break;
-				case TH_NORMAL:
-					cp = ts->normal; break;
-				case TH_VNORMAL:
-					cp = ts->vertex_normal; break;
-				case TH_LNORMAL:
-					cp = ts->loop_normal; break;
-				case TH_BONE_SOLID:
-					cp = ts->bone_solid; break;
-				case TH_BONE_POSE:
-					cp = ts->bone_pose; break;
-				case TH_BONE_POSE_ACTIVE:
-					cp = ts->bone_pose_active; break;
-				case TH_STRIP:
-					cp = ts->strip; break;
-				case TH_STRIP_SELECT:
-					cp = ts->strip_select; break;
-				case TH_KEYTYPE_KEYFRAME:
-					cp = ts->keytype_keyframe; break;
-				case TH_KEYTYPE_KEYFRAME_SELECT:
-					cp = ts->keytype_keyframe_select; break;
-				case TH_KEYTYPE_EXTREME:
-					cp = ts->keytype_extreme; break;
-				case TH_KEYTYPE_EXTREME_SELECT:
-					cp = ts->keytype_extreme_select; break;
-				case TH_KEYTYPE_BREAKDOWN:
-					cp = ts->keytype_breakdown; break;
-				case TH_KEYTYPE_BREAKDOWN_SELECT:
-					cp = ts->keytype_breakdown_select; break;
-				case TH_KEYTYPE_JITTER:
-					cp = ts->keytype_jitter; break;
-				case TH_KEYTYPE_JITTER_SELECT:
-					cp = ts->keytype_jitter_select; break;
-				case TH_KEYTYPE_MOVEHOLD:
-					cp = ts->keytype_movehold; break;
-				case TH_KEYTYPE_MOVEHOLD_SELECT:
-					cp = ts->keytype_movehold_select; break;
-				case TH_KEYBORDER:
-					cp = ts->keyborder; break;
-				case TH_KEYBORDER_SELECT:
-					cp = ts->keyborder_select; break;
-				case TH_CFRAME:
-					cp = ts->cframe; break;
-				case TH_TIME_KEYFRAME:
-					cp = ts->time_keyframe; break;
-				case TH_TIME_GP_KEYFRAME:
-					cp = ts->time_gp_keyframe; break;
-				case TH_NURB_ULINE:
-					cp = ts->nurb_uline; break;
-				case TH_NURB_VLINE:
-					cp = ts->nurb_vline; break;
-				case TH_NURB_SEL_ULINE:
-					cp = ts->nurb_sel_uline; break;
-				case TH_NURB_SEL_VLINE:
-					cp = ts->nurb_sel_vline; break;
-				case TH_ACTIVE_SPLINE:
-					cp = ts->act_spline; break;
-				case TH_ACTIVE_VERT:
-					cp = ts->lastsel_point; break;
-				case TH_HANDLE_FREE:
-					cp = ts->handle_free; break;
-				case TH_HANDLE_AUTO:
-					cp = ts->handle_auto; break;
-				case TH_HANDLE_AUTOCLAMP:
-					cp = ts->handle_auto_clamped; break;
-				case TH_HANDLE_VECT:
-					cp = ts->handle_vect; break;
-				case TH_HANDLE_ALIGN:
-					cp = ts->handle_align; break;
-				case TH_HANDLE_SEL_FREE:
-					cp = ts->handle_sel_free; break;
-				case TH_HANDLE_SEL_AUTO:
-					cp = ts->handle_sel_auto; break;
-				case TH_HANDLE_SEL_AUTOCLAMP:
-					cp = ts->handle_sel_auto_clamped; break;
-				case TH_HANDLE_SEL_VECT:
-					cp = ts->handle_sel_vect; break;
-				case TH_HANDLE_SEL_ALIGN:
-					cp = ts->handle_sel_align; break;
-				case TH_FREESTYLE_EDGE_MARK:
-					cp = ts->freestyle_edge_mark; break;
-				case TH_FREESTYLE_FACE_MARK:
-					cp = ts->freestyle_face_mark; break;
+        case TH_GRID:
+          cp = ts->grid;
+          break;
+        case TH_VIEW_OVERLAY:
+          cp = ts->view_overlay;
+          break;
+        case TH_WIRE:
+          cp = ts->wire;
+          break;
+        case TH_WIRE_INNER:
+          cp = ts->syntaxr;
+          break;
+        case TH_WIRE_EDIT:
+          cp = ts->wire_edit;
+          break;
+        case TH_LIGHT:
+          cp = ts->lamp;
+          break;
+        case TH_SPEAKER:
+          cp = ts->speaker;
+          break;
+        case TH_CAMERA:
+          cp = ts->camera;
+          break;
+        case TH_EMPTY:
+          cp = ts->empty;
+          break;
+        case TH_SELECT:
+          cp = ts->select;
+          break;
+        case TH_ACTIVE:
+          cp = ts->active;
+          break;
+        case TH_GROUP:
+          cp = ts->group;
+          break;
+        case TH_GROUP_ACTIVE:
+          cp = ts->group_active;
+          break;
+        case TH_TRANSFORM:
+          cp = ts->transform;
+          break;
+        case TH_VERTEX:
+          cp = ts->vertex;
+          break;
+        case TH_VERTEX_SELECT:
+          cp = ts->vertex_select;
+          break;
+        case TH_VERTEX_BEVEL:
+          cp = ts->vertex_bevel;
+          break;
+        case TH_VERTEX_UNREFERENCED:
+          cp = ts->vertex_unreferenced;
+          break;
+        case TH_VERTEX_SIZE:
+          cp = &ts->vertex_size;
+          break;
+        case TH_OUTLINE_WIDTH:
+          cp = &ts->outline_width;
+          break;
+        case TH_OBCENTER_DIA:
+          cp = &ts->obcenter_dia; break;
+          break;
+        case TH_EDGE:
+          cp = ts->edge;
+          break;
+        case TH_EDGE_SELECT:
+          cp = ts->edge_select;
+          break;
+        case TH_EDGE_SEAM:
+          cp = ts->edge_seam;
+          break;
+        case TH_EDGE_SHARP:
+          cp = ts->edge_sharp;
+          break;
+        case TH_EDGE_CREASE:
+          cp = ts->edge_crease;
+          break;
+        case TH_EDGE_BEVEL:
+          cp = ts->edge_bevel;
+          break;
+        case TH_EDITMESH_ACTIVE:
+          cp = ts->editmesh_active;
+          break;
+        case TH_EDGE_FACESEL:
+          cp = ts->edge_facesel;
+          break;
+        case TH_FACE:
+          cp = ts->face;
+          break;
+        case TH_FACE_SELECT:
+          cp = ts->face_select;
+          break;
+        case TH_FACE_DOT:
+          cp = ts->face_dot;
+          break;
+        case TH_FACEDOT_SIZE:
+          cp = &ts->facedot_size;
+          break;
+        case TH_DRAWEXTRA_EDGELEN:
+          cp = ts->extra_edge_len;
+          break;
+        case TH_DRAWEXTRA_EDGEANG:
+          cp = ts->extra_edge_angle;
+          break;
+        case TH_DRAWEXTRA_FACEAREA:
+          cp = ts->extra_face_area;
+          break;
+        case TH_DRAWEXTRA_FACEANG:
+          cp = ts->extra_face_angle;
+          break;
+        case TH_NORMAL:
+          cp = ts->normal;
+          break;
+        case TH_VNORMAL:
+          cp = ts->vertex_normal;
+          break;
+        case TH_LNORMAL:
+          cp = ts->loop_normal;
+          break;
+        case TH_BONE_SOLID:
+          cp = ts->bone_solid;
+          break;
+        case TH_BONE_POSE:
+          cp = ts->bone_pose;
+          break;
+        case TH_BONE_POSE_ACTIVE:
+          cp = ts->bone_pose_active;
+          break;
+        case TH_STRIP:
+          cp = ts->strip;
+          break;
+        case TH_STRIP_SELECT:
+          cp = ts->strip_select;
+          break;
+        case TH_KEYTYPE_KEYFRAME:
+          cp = ts->keytype_keyframe;
+          break;
+        case TH_KEYTYPE_KEYFRAME_SELECT:
+          cp = ts->keytype_keyframe_select;
+          break;
+        case TH_KEYTYPE_EXTREME:
+          cp = ts->keytype_extreme;
+          break;
+        case TH_KEYTYPE_EXTREME_SELECT:
+          cp = ts->keytype_extreme_select;
+          break;
+        case TH_KEYTYPE_BREAKDOWN:
+          cp = ts->keytype_breakdown;
+          break;
+        case TH_KEYTYPE_BREAKDOWN_SELECT:
+          cp = ts->keytype_breakdown_select;
+          break;
+        case TH_KEYTYPE_JITTER:
+          cp = ts->keytype_jitter;
+          break;
+        case TH_KEYTYPE_JITTER_SELECT:
+          cp = ts->keytype_jitter_select;
+          break;
+        case TH_KEYTYPE_MOVEHOLD:
+          cp = ts->keytype_movehold;
+          break;
+        case TH_KEYTYPE_MOVEHOLD_SELECT:
+          cp = ts->keytype_movehold_select;
+          break;
+        case TH_KEYBORDER:
+          cp = ts->keyborder;
+          break;
+        case TH_KEYBORDER_SELECT:
+          cp = ts->keyborder_select;
+          break;
+        case TH_CFRAME:
+          cp = ts->cframe;
+          break;
+        case TH_TIME_KEYFRAME:
+          cp = ts->time_keyframe;
+          break;
+        case TH_TIME_GP_KEYFRAME:
+          cp = ts->time_gp_keyframe;
+          break;
+        case TH_NURB_ULINE:
+          cp = ts->nurb_uline;
+          break;
+        case TH_NURB_VLINE:
+          cp = ts->nurb_vline;
+          break;
+        case TH_NURB_SEL_ULINE:
+          cp = ts->nurb_sel_uline;
+          break;
+        case TH_NURB_SEL_VLINE:
+          cp = ts->nurb_sel_vline;
+          break;
+        case TH_ACTIVE_SPLINE:
+          cp = ts->act_spline;
+          break;
+        case TH_ACTIVE_VERT:
+          cp = ts->lastsel_point;
+          break;
+        case TH_HANDLE_FREE:
+          cp = ts->handle_free;
+          break;
+        case TH_HANDLE_AUTO:
+          cp = ts->handle_auto;
+          break;
+        case TH_HANDLE_AUTOCLAMP:
+          cp = ts->handle_auto_clamped;
+          break;
+        case TH_HANDLE_VECT:
+          cp = ts->handle_vect;
+          break;
+        case TH_HANDLE_ALIGN:
+          cp = ts->handle_align;
+          break;
+        case TH_HANDLE_SEL_FREE:
+          cp = ts->handle_sel_free;
+          break;
+        case TH_HANDLE_SEL_AUTO:
+          cp = ts->handle_sel_auto;
+          break;
+        case TH_HANDLE_SEL_AUTOCLAMP:
+          cp = ts->handle_sel_auto_clamped;
+          break;
+        case TH_HANDLE_SEL_VECT:
+          cp = ts->handle_sel_vect;
+          break;
+        case TH_HANDLE_SEL_ALIGN:
+          cp = ts->handle_sel_align;
+          break;
+        case TH_FREESTYLE_EDGE_MARK:
+          cp = ts->freestyle_edge_mark;
+          break;
+        case TH_FREESTYLE_FACE_MARK:
+          cp = ts->freestyle_face_mark;
+          break;
 
-				case TH_SYNTAX_B:
-					cp = ts->syntaxb; break;
-				case TH_SYNTAX_V:
-					cp = ts->syntaxv; break;
-				case TH_SYNTAX_C:
-					cp = ts->syntaxc; break;
-				case TH_SYNTAX_L:
-					cp = ts->syntaxl; break;
-				case TH_SYNTAX_D:
-					cp = ts->syntaxd; break;
-				case TH_SYNTAX_R:
-					cp = ts->syntaxr; break;
-				case TH_SYNTAX_N:
-					cp = ts->syntaxn; break;
-				case TH_SYNTAX_S:
-					cp = ts->syntaxs; break;
+        case TH_SYNTAX_B:
+          cp = ts->syntaxb;
+          break;
+        case TH_SYNTAX_V:
+          cp = ts->syntaxv;
+          break;
+        case TH_SYNTAX_C:
+          cp = ts->syntaxc;
+          break;
+        case TH_SYNTAX_L:
+          cp = ts->syntaxl;
+          break;
+        case TH_SYNTAX_D:
+          cp = ts->syntaxd;
+          break;
+        case TH_SYNTAX_R:
+          cp = ts->syntaxr;
+          break;
+        case TH_SYNTAX_N:
+          cp = ts->syntaxn;
+          break;
+        case TH_SYNTAX_S:
+          cp = ts->syntaxs;
+          break;
 
-				case TH_NODE:
-					cp = ts->syntaxl; break;
-				case TH_NODE_INPUT:
-					cp = ts->syntaxn; break;
-				case TH_NODE_OUTPUT:
-					cp = ts->nodeclass_output; break;
-				case TH_NODE_COLOR:
-					cp = ts->syntaxb; break;
-				case TH_NODE_FILTER:
-					cp = ts->nodeclass_filter; break;
-				case TH_NODE_VECTOR:
-					cp = ts->nodeclass_vector; break;
-				case TH_NODE_TEXTURE:
-					cp = ts->nodeclass_texture; break;
-				case TH_NODE_PATTERN:
-					cp = ts->nodeclass_pattern; break;
-				case TH_NODE_SCRIPT:
-					cp = ts->nodeclass_script; break;
-				case TH_NODE_LAYOUT:
-					cp = ts->nodeclass_layout; break;
-				case TH_NODE_SHADER:
-					cp = ts->nodeclass_shader; break;
-				case TH_NODE_CONVERTOR:
-					cp = ts->syntaxv; break;
-				case TH_NODE_GROUP:
-					cp = ts->syntaxc; break;
-				case TH_NODE_INTERFACE:
-					cp = ts->console_output; break;
-				case TH_NODE_FRAME:
-					cp = ts->movie; break;
-				case TH_NODE_MATTE:
-					cp = ts->syntaxs; break;
-				case TH_NODE_DISTORT:
-					cp = ts->syntaxd; break;
-				case TH_NODE_CURVING:
-					cp = &ts->noodle_curving; break;
+        case TH_NODE:
+          cp = ts->syntaxl;
+          break;
+        case TH_NODE_INPUT:
+          cp = ts->syntaxn;
+          break;
+        case TH_NODE_OUTPUT:
+          cp = ts->nodeclass_output;
+          break;
+        case TH_NODE_COLOR:
+          cp = ts->syntaxb;
+          break;
+        case TH_NODE_FILTER:
+          cp = ts->nodeclass_filter;
+          break;
+        case TH_NODE_VECTOR:
+          cp = ts->nodeclass_vector;
+          break;
+        case TH_NODE_TEXTURE:
+          cp = ts->nodeclass_texture;
+          break;
+        case TH_NODE_PATTERN:
+          cp = ts->nodeclass_pattern;
+          break;
+        case TH_NODE_SCRIPT:
+          cp = ts->nodeclass_script;
+          break;
+        case TH_NODE_LAYOUT:
+          cp = ts->nodeclass_layout;
+          break;
+        case TH_NODE_SHADER:
+          cp = ts->nodeclass_shader;
+          break;
+        case TH_NODE_CONVERTOR:
+          cp = ts->syntaxv;
+          break;
+        case TH_NODE_GROUP:
+          cp = ts->syntaxc;
+          break;
+        case TH_NODE_INTERFACE:
+          cp = ts->console_output;
+          break;
+        case TH_NODE_FRAME:
+          cp = ts->movie;
+          break;
+        case TH_NODE_MATTE:
+          cp = ts->syntaxs;
+          break;
+        case TH_NODE_DISTORT:
+          cp = ts->syntaxd;
+          break;
+        case TH_NODE_CURVING:
+          cp = &ts->noodle_curving;
+          break;
 
-				case TH_SEQ_MOVIE:
-					cp = ts->movie; break;
-				case TH_SEQ_MOVIECLIP:
-					cp = ts->movieclip; break;
-				case TH_SEQ_MASK:
-					cp = ts->mask; break;
-				case TH_SEQ_IMAGE:
-					cp = ts->image; break;
-				case TH_SEQ_SCENE:
-					cp = ts->scene; break;
-				case TH_SEQ_AUDIO:
-					cp = ts->audio; break;
-				case TH_SEQ_EFFECT:
-					cp = ts->effect; break;
-				case TH_SEQ_TRANSITION:
-					cp = ts->transition; break;
-				case TH_SEQ_META:
-					cp = ts->meta; break;
-				case TH_SEQ_TEXT:
-					cp = ts->text_strip; break;
-				case TH_SEQ_PREVIEW:
-					cp = ts->preview_back; break;
+        case TH_SEQ_MOVIE:
+          cp = ts->movie;
+          break;
+        case TH_SEQ_MOVIECLIP:
+          cp = ts->movieclip;
+          break;
+        case TH_SEQ_MASK:
+          cp = ts->mask;
+          break;
+        case TH_SEQ_IMAGE:
+          cp = ts->image;
+          break;
+        case TH_SEQ_SCENE:
+          cp = ts->scene;
+          break;
+        case TH_SEQ_AUDIO:
+          cp = ts->audio;
+          break;
+        case TH_SEQ_EFFECT:
+          cp = ts->effect;
+          break;
+        case TH_SEQ_TRANSITION:
+          cp = ts->transition;
+          break;
+        case TH_SEQ_META:
+          cp = ts->meta;
+          break;
+        case TH_SEQ_TEXT:
+          cp = ts->text_strip;
+          break;
+        case TH_SEQ_PREVIEW:
+          cp = ts->preview_back;
+          break;
 
-				case TH_CONSOLE_OUTPUT:
-					cp = ts->console_output; break;
-				case TH_CONSOLE_INPUT:
-					cp = ts->console_input; break;
-				case TH_CONSOLE_INFO:
-					cp = ts->console_info; break;
-				case TH_CONSOLE_ERROR:
-					cp = ts->console_error; break;
-				case TH_CONSOLE_CURSOR:
-					cp = ts->console_cursor; break;
-				case TH_CONSOLE_SELECT:
-					cp = ts->console_select; break;
+        case TH_CONSOLE_OUTPUT:
+          cp = ts->console_output;
+          break;
+        case TH_CONSOLE_INPUT:
+          cp = ts->console_input;
+          break;
+        case TH_CONSOLE_INFO:
+          cp = ts->console_info;
+          break;
+        case TH_CONSOLE_ERROR:
+          cp = ts->console_error;
+          break;
+        case TH_CONSOLE_CURSOR:
+          cp = ts->console_cursor;
+          break;
+        case TH_CONSOLE_SELECT:
+          cp = ts->console_select;
+          break;
 
-				case TH_HANDLE_VERTEX:
-					cp = ts->handle_vertex;
-					break;
-				case TH_HANDLE_VERTEX_SELECT:
-					cp = ts->handle_vertex_select;
-					break;
-				case TH_HANDLE_VERTEX_SIZE:
-					cp = &ts->handle_vertex_size;
-					break;
+        case TH_HANDLE_VERTEX:
+          cp = ts->handle_vertex;
+          break;
+        case TH_HANDLE_VERTEX_SELECT:
+          cp = ts->handle_vertex_select;
+          break;
+        case TH_HANDLE_VERTEX_SIZE:
+          cp = &ts->handle_vertex_size;
+          break;
 
-				case TH_GP_VERTEX:
-					cp = ts->gp_vertex;
-					break;
-				case TH_GP_VERTEX_SELECT:
-					cp = ts->gp_vertex_select;
-					break;
-				case TH_GP_VERTEX_SIZE:
-					cp = &ts->gp_vertex_size;
-					break;
+        case TH_GP_VERTEX:
+          cp = ts->gp_vertex;
+          break;
+        case TH_GP_VERTEX_SELECT:
+          cp = ts->gp_vertex_select;
+          break;
+        case TH_GP_VERTEX_SIZE:
+          cp = &ts->gp_vertex_size;
+          break;
 
-				case TH_DOPESHEET_CHANNELOB:
-					cp = ts->ds_channel;
-					break;
-				case TH_DOPESHEET_CHANNELSUBOB:
-					cp = ts->ds_subchannel;
-					break;
-				case TH_DOPESHEET_IPOLINE:
-					cp = ts->ds_ipoline;
-					break;
+        case TH_DOPESHEET_CHANNELOB:
+          cp = ts->ds_channel;
+          break;
+        case TH_DOPESHEET_CHANNELSUBOB:
+          cp = ts->ds_subchannel;
+          break;
+        case TH_DOPESHEET_IPOLINE:
+          cp = ts->ds_ipoline;
+          break;
 
-				case TH_PREVIEW_BACK:
-					cp = ts->preview_back;
-					break;
+        case TH_PREVIEW_BACK:
+          cp = ts->preview_back;
+          break;
 
-				case TH_STITCH_PREVIEW_FACE:
-					cp = ts->preview_stitch_face;
-					break;
+        case TH_STITCH_PREVIEW_FACE:
+          cp = ts->preview_stitch_face;
+          break;
 
-				case TH_STITCH_PREVIEW_EDGE:
-					cp = ts->preview_stitch_edge;
-					break;
+        case TH_STITCH_PREVIEW_EDGE:
+          cp = ts->preview_stitch_edge;
+          break;
 
-				case TH_STITCH_PREVIEW_VERT:
-					cp = ts->preview_stitch_vert;
-					break;
+        case TH_STITCH_PREVIEW_VERT:
+          cp = ts->preview_stitch_vert;
+          break;
 
-				case TH_STITCH_PREVIEW_STITCHABLE:
-					cp = ts->preview_stitch_stitchable;
-					break;
+        case TH_STITCH_PREVIEW_STITCHABLE:
+          cp = ts->preview_stitch_stitchable;
+          break;
 
-				case TH_STITCH_PREVIEW_UNSTITCHABLE:
-					cp = ts->preview_stitch_unstitchable;
-					break;
-				case TH_STITCH_PREVIEW_ACTIVE:
-					cp = ts->preview_stitch_active;
-					break;
+        case TH_STITCH_PREVIEW_UNSTITCHABLE:
+          cp = ts->preview_stitch_unstitchable;
+          break;
+        case TH_STITCH_PREVIEW_ACTIVE:
+          cp = ts->preview_stitch_active;
+          break;
 
-				case TH_PAINT_CURVE_HANDLE:
-					cp = ts->paint_curve_handle;
-					break;
-				case TH_PAINT_CURVE_PIVOT:
-					cp = ts->paint_curve_pivot;
-					break;
+        case TH_PAINT_CURVE_HANDLE:
+          cp = ts->paint_curve_handle;
+          break;
+        case TH_PAINT_CURVE_PIVOT:
+          cp = ts->paint_curve_pivot;
+          break;
 
-				case TH_METADATA_BG:
-					cp = ts->metadatabg;
-					break;
-				case TH_METADATA_TEXT:
-					cp = ts->metadatatext;
-					break;
+        case TH_METADATA_BG:
+          cp = ts->metadatabg;
+          break;
+        case TH_METADATA_TEXT:
+          cp = ts->metadatatext;
+          break;
 
-				case TH_UV_OTHERS:
-					cp = ts->uv_others;
-					break;
-				case TH_UV_SHADOW:
-					cp = ts->uv_shadow;
-					break;
+        case TH_UV_OTHERS:
+          cp = ts->uv_others;
+          break;
+        case TH_UV_SHADOW:
+          cp = ts->uv_shadow;
+          break;
 
-				case TH_MARKER_OUTLINE:
-					cp = ts->marker_outline; break;
-				case TH_MARKER:
-					cp = ts->marker; break;
-				case TH_ACT_MARKER:
-					cp = ts->act_marker; break;
-				case TH_SEL_MARKER:
-					cp = ts->sel_marker; break;
-				case TH_BUNDLE_SOLID:
-					cp = ts->bundle_solid; break;
-				case TH_DIS_MARKER:
-					cp = ts->dis_marker; break;
-				case TH_PATH_BEFORE:
-					cp = ts->path_before; break;
-				case TH_PATH_AFTER:
-					cp = ts->path_after; break;
-				case TH_CAMERA_PATH:
-					cp = ts->camera_path; break;
-				case TH_LOCK_MARKER:
-					cp = ts->lock_marker; break;
+        case TH_MARKER_OUTLINE:
+          cp = ts->marker_outline;
+          break;
+        case TH_MARKER:
+          cp = ts->marker;
+          break;
+        case TH_ACT_MARKER:
+          cp = ts->act_marker;
+          break;
+        case TH_SEL_MARKER:
+          cp = ts->sel_marker;
+          break;
+        case TH_BUNDLE_SOLID:
+          cp = ts->bundle_solid;
+          break;
+        case TH_DIS_MARKER:
+          cp = ts->dis_marker;
+          break;
+        case TH_PATH_BEFORE:
+          cp = ts->path_before;
+          break;
+        case TH_PATH_AFTER:
+          cp = ts->path_after;
+          break;
+        case TH_CAMERA_PATH:
+          cp = ts->camera_path;
+          break;
+        case TH_LOCK_MARKER:
+          cp = ts->lock_marker;
+          break;
 
-				case TH_MATCH:
-					cp = ts->match;
-					break;
+        case TH_MATCH:
+          cp = ts->match;
+          break;
 
-				case TH_SELECT_HIGHLIGHT:
-					cp = ts->selected_highlight;
-					break;
+        case TH_SELECT_HIGHLIGHT:
+          cp = ts->selected_highlight;
+          break;
 
-				case TH_SKIN_ROOT:
-					cp = ts->skin_root;
-					break;
+        case TH_SKIN_ROOT:
+          cp = ts->skin_root;
+          break;
 
-				case TH_ANIM_ACTIVE:
-					cp = ts->anim_active;
-					break;
-				case TH_ANIM_INACTIVE:
-					cp = ts->anim_non_active;
-					break;
-				case TH_ANIM_PREVIEW_RANGE:
-					cp = ts->anim_preview_range;
-					break;
+        case TH_ANIM_ACTIVE:
+          cp = ts->anim_active;
+          break;
+        case TH_ANIM_INACTIVE:
+          cp = ts->anim_non_active;
+          break;
+        case TH_ANIM_PREVIEW_RANGE:
+          cp = ts->anim_preview_range;
+          break;
 
-				case TH_NLA_TWEAK:
-					cp = ts->nla_tweaking;
-					break;
-				case TH_NLA_TWEAK_DUPLI:
-					cp = ts->nla_tweakdupli;
-					break;
+        case TH_NLA_TWEAK:
+          cp = ts->nla_tweaking;
+          break;
+        case TH_NLA_TWEAK_DUPLI:
+          cp = ts->nla_tweakdupli;
+          break;
 
-				case TH_NLA_TRANSITION:
-					cp = ts->nla_transition;
-					break;
-				case TH_NLA_TRANSITION_SEL:
-					cp = ts->nla_transition_sel;
-					break;
-				case TH_NLA_META:
-					cp = ts->nla_meta;
-					break;
-				case TH_NLA_META_SEL:
-					cp = ts->nla_meta_sel;
-					break;
-				case TH_NLA_SOUND:
-					cp = ts->nla_sound;
-					break;
-				case TH_NLA_SOUND_SEL:
-					cp = ts->nla_sound_sel;
-					break;
+        case TH_NLA_TRANSITION:
+          cp = ts->nla_transition;
+          break;
+        case TH_NLA_TRANSITION_SEL:
+          cp = ts->nla_transition_sel;
+          break;
+        case TH_NLA_META:
+          cp = ts->nla_meta;
+          break;
+        case TH_NLA_META_SEL:
+          cp = ts->nla_meta_sel;
+          break;
+        case TH_NLA_SOUND:
+          cp = ts->nla_sound;
+          break;
+        case TH_NLA_SOUND_SEL:
+          cp = ts->nla_sound_sel;
+          break;
 
-				case TH_WIDGET_EMBOSS:
-					cp = btheme->tui.widget_emboss; break;
+        case TH_WIDGET_EMBOSS:
+          cp = btheme->tui.widget_emboss;
+          break;
 
-				case TH_EDITOR_OUTLINE:
-					cp = btheme->tui.editor_outline;
-					break;
-				case TH_AXIS_X:
-					cp = btheme->tui.xaxis; break;
-				case TH_AXIS_Y:
-					cp = btheme->tui.yaxis; break;
-				case TH_AXIS_Z:
-					cp = btheme->tui.zaxis; break;
+        case TH_EDITOR_OUTLINE:
+          cp = btheme->tui.editor_outline;
+          break;
+        case TH_AXIS_X:
+          cp = btheme->tui.xaxis;
+          break;
+        case TH_AXIS_Y:
+          cp = btheme->tui.yaxis;
+          break;
+        case TH_AXIS_Z:
+          cp = btheme->tui.zaxis;
+          break;
 
-				case TH_GIZMO_HI:
-					cp = btheme->tui.gizmo_hi; break;
-				case TH_GIZMO_PRIMARY:
-					cp = btheme->tui.gizmo_primary; break;
-				case TH_GIZMO_SECONDARY:
-					cp = btheme->tui.gizmo_secondary; break;
-				case TH_GIZMO_A:
-					cp = btheme->tui.gizmo_a; break;
-				case TH_GIZMO_B:
-					cp = btheme->tui.gizmo_b; break;
+        case TH_GIZMO_HI:
+          cp = btheme->tui.gizmo_hi;
+          break;
+        case TH_GIZMO_PRIMARY:
+          cp = btheme->tui.gizmo_primary;
+          break;
+        case TH_GIZMO_SECONDARY:
+          cp = btheme->tui.gizmo_secondary;
+          break;
+        case TH_GIZMO_A:
+          cp = btheme->tui.gizmo_a;
+          break;
+        case TH_GIZMO_B:
+          cp = btheme->tui.gizmo_b;
+          break;
 
-				case TH_ICON_COLLECTION:
-					cp = btheme->tui.icon_collection; break;
-				case TH_ICON_OBJECT:
-					cp = btheme->tui.icon_object; break;
-				case TH_ICON_OBJECT_DATA:
-					cp = btheme->tui.icon_object_data; break;
-				case TH_ICON_MODIFIER:
-					cp = btheme->tui.icon_modifier; break;
-				case TH_ICON_SHADING:
-					cp = btheme->tui.icon_shading; break;
+        case TH_ICON_COLLECTION:
+          cp = btheme->tui.icon_collection;
+          break;
+        case TH_ICON_OBJECT:
+          cp = btheme->tui.icon_object;
+          break;
+        case TH_ICON_OBJECT_DATA:
+          cp = btheme->tui.icon_object_data;
+          break;
+        case TH_ICON_MODIFIER:
+          cp = btheme->tui.icon_modifier;
+          break;
+        case TH_ICON_SHADING:
+          cp = btheme->tui.icon_shading;
+          break;
 
-				case TH_INFO_SELECTED:
-					cp = ts->info_selected;
-					break;
-				case TH_INFO_SELECTED_TEXT:
-					cp = ts->info_selected_text;
-					break;
-				case TH_INFO_ERROR:
-					cp = ts->info_error;
-					break;
-				case TH_INFO_ERROR_TEXT:
-					cp = ts->info_error_text;
-					break;
-				case TH_INFO_WARNING:
-					cp = ts->info_warning;
-					break;
-				case TH_INFO_WARNING_TEXT:
-					cp = ts->info_warning_text;
-					break;
-				case TH_INFO_INFO:
-					cp = ts->info_info;
-					break;
-				case TH_INFO_INFO_TEXT:
-					cp = ts->info_info_text;
-					break;
-				case TH_INFO_DEBUG:
-					cp = ts->info_debug;
-					break;
-				case TH_INFO_DEBUG_TEXT:
-					cp = ts->info_debug_text;
-					break;
-				case TH_V3D_CLIPPING_BORDER:
-					cp = ts->clipping_border_3d;
-					break;
-			}
-		}
-	}
+        case TH_INFO_SELECTED:
+          cp = ts->info_selected;
+          break;
+        case TH_INFO_SELECTED_TEXT:
+          cp = ts->info_selected_text;
+          break;
+        case TH_INFO_ERROR:
+          cp = ts->info_error;
+          break;
+        case TH_INFO_ERROR_TEXT:
+          cp = ts->info_error_text;
+          break;
+        case TH_INFO_WARNING:
+          cp = ts->info_warning;
+          break;
+        case TH_INFO_WARNING_TEXT:
+          cp = ts->info_warning_text;
+          break;
+        case TH_INFO_INFO:
+          cp = ts->info_info;
+          break;
+        case TH_INFO_INFO_TEXT:
+          cp = ts->info_info_text;
+          break;
+        case TH_INFO_DEBUG:
+          cp = ts->info_debug;
+          break;
+        case TH_INFO_DEBUG_TEXT:
+          cp = ts->info_debug_text;
+          break;
+        case TH_V3D_CLIPPING_BORDER:
+          cp = ts->clipping_border_3d;
+          break;
+      }
+    }
+  }
 
-	return (const uchar *)cp;
+  return (const uchar *)cp;
 }
 
 /**

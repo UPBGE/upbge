@@ -166,216 +166,209 @@ static void eevee_cache_finish(void *vedata)
  * to reduce the fillrate */
 static void eevee_draw_background(void *vedata)
 {
-	EEVEE_PassList *psl = ((EEVEE_Data *)vedata)->psl;
-	EEVEE_TextureList *txl = ((EEVEE_Data *)vedata)->txl;
-	EEVEE_StorageList *stl = ((EEVEE_Data *)vedata)->stl;
-	EEVEE_FramebufferList *fbl = ((EEVEE_Data *)vedata)->fbl;
-	EEVEE_EffectsInfo *effects = stl->effects;
-	EEVEE_ViewLayerData *sldata = EEVEE_view_layer_data_ensure();
+  EEVEE_PassList *psl = ((EEVEE_Data *)vedata)->psl;
+  EEVEE_TextureList *txl = ((EEVEE_Data *)vedata)->txl;
+  EEVEE_StorageList *stl = ((EEVEE_Data *)vedata)->stl;
+  EEVEE_FramebufferList *fbl = ((EEVEE_Data *)vedata)->fbl;
+  EEVEE_EffectsInfo *effects = stl->effects;
+  EEVEE_ViewLayerData *sldata = EEVEE_view_layer_data_ensure();
 
-	/* Default framebuffer and texture */
-	DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
-	DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
+  /* Default framebuffer and texture */
+  DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
+  DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
 
-	/* Sort transparents before the loop. */
-	DRW_pass_sort_shgroup_z(psl->transparent_pass);
+  /* Sort transparents before the loop. */
+  DRW_pass_sort_shgroup_z(psl->transparent_pass);
 
-	/* Number of iteration: needed for all temporal effect (SSR, volumetrics)
-	 * when using opengl render. */
-	int loop_len = (DRW_state_is_image_render() &&
-	               (stl->effects->enabled_effects & (EFFECT_VOLUMETRIC | EFFECT_SSR)) != 0) ? 4 : 1;
+  /* Number of iteration: needed for all temporal effect (SSR, volumetrics)
+   * when using opengl render. */
+  int loop_len = (DRW_state_is_image_render() &&
+                  (stl->effects->enabled_effects & (EFFECT_VOLUMETRIC | EFFECT_SSR)) != 0) ?
+                     4 :
+                     1;
 
-	while (loop_len--) {
-		float clear_col[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-		float clear_depth = 1.0f;
-		uint clear_stencil = 0x0;
-		uint primes[3] = {2, 3, 7};
-		double offset[3] = {0.0, 0.0, 0.0};
-		double r[3];
+  while (loop_len--) {
+    float clear_col[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    float clear_depth = 1.0f;
+    uint clear_stencil = 0x0;
+    uint primes[3] = {2, 3, 7};
+    double offset[3] = {0.0, 0.0, 0.0};
+    double r[3];
 
-		bool taa_use_reprojection = (stl->effects->enabled_effects & EFFECT_TAA_REPROJECT) != 0;
+    bool taa_use_reprojection = (stl->effects->enabled_effects & EFFECT_TAA_REPROJECT) != 0;
 
-		if (DRW_state_is_image_render() ||
-		    taa_use_reprojection ||
-		    ((stl->effects->enabled_effects & EFFECT_TAA) != 0))
-		{
-			int samp = taa_use_reprojection
-			            ? stl->effects->taa_reproject_sample + 1
-			            : stl->effects->taa_current_sample;
-			BLI_halton_3d(primes, offset, samp, r);
-			EEVEE_update_noise(psl, fbl, r);
-			EEVEE_volumes_set_jitter(sldata, samp - 1);
-			EEVEE_materials_init(sldata, stl, fbl);
-		}
-		/* Copy previous persmat to UBO data */
-		copy_m4_m4(sldata->common_data.prev_persmat, stl->effects->prev_persmat);
+    if (DRW_state_is_image_render() || taa_use_reprojection ||
+        ((stl->effects->enabled_effects & EFFECT_TAA) != 0)) {
+      int samp = taa_use_reprojection ? stl->effects->taa_reproject_sample + 1 :
+                                        stl->effects->taa_current_sample;
+      BLI_halton_3d(primes, offset, samp, r);
+      EEVEE_update_noise(psl, fbl, r);
+      EEVEE_volumes_set_jitter(sldata, samp - 1);
+      EEVEE_materials_init(sldata, stl, fbl);
+    }
+    /* Copy previous persmat to UBO data */
+    copy_m4_m4(sldata->common_data.prev_persmat, stl->effects->prev_persmat);
 
-		if (((stl->effects->enabled_effects & EFFECT_TAA) != 0) &&
-		    (stl->effects->taa_current_sample > 1) &&
-		    !DRW_state_is_image_render() &&
-		    !taa_use_reprojection)
-		{
-			DRW_viewport_matrix_override_set(stl->effects->overide_persmat, DRW_MAT_PERS);
-			DRW_viewport_matrix_override_set(stl->effects->overide_persinv, DRW_MAT_PERSINV);
-			DRW_viewport_matrix_override_set(stl->effects->overide_winmat, DRW_MAT_WIN);
-			DRW_viewport_matrix_override_set(stl->effects->overide_wininv, DRW_MAT_WININV);
-		}
+    if (((stl->effects->enabled_effects & EFFECT_TAA) != 0) &&
+        (stl->effects->taa_current_sample > 1) && !DRW_state_is_image_render() &&
+        !taa_use_reprojection) {
+      DRW_viewport_matrix_override_set(stl->effects->overide_persmat, DRW_MAT_PERS);
+      DRW_viewport_matrix_override_set(stl->effects->overide_persinv, DRW_MAT_PERSINV);
+      DRW_viewport_matrix_override_set(stl->effects->overide_winmat, DRW_MAT_WIN);
+      DRW_viewport_matrix_override_set(stl->effects->overide_wininv, DRW_MAT_WININV);
+    }
 
-		/* Refresh Probes */
-		DRW_stats_group_start("Probes Refresh");
-		EEVEE_lightprobes_refresh(sldata, vedata);
-		/* Probes refresh can have reset the current sample. */
-		if (stl->effects->taa_current_sample == 1) {
-			DRW_viewport_matrix_override_unset_all();
-		}
-		EEVEE_lightprobes_refresh_planar(sldata, vedata);
-		DRW_stats_group_end();
+    /* Refresh Probes */
+    DRW_stats_group_start("Probes Refresh");
+    EEVEE_lightprobes_refresh(sldata, vedata);
+    /* Probes refresh can have reset the current sample. */
+    if (stl->effects->taa_current_sample == 1) {
+      DRW_viewport_matrix_override_unset_all();
+    }
+    EEVEE_lightprobes_refresh_planar(sldata, vedata);
+    DRW_stats_group_end();
 
-		/* Refresh shadows */
-		DRW_stats_group_start("Shadows");
-		EEVEE_draw_shadows(sldata, vedata);
-		DRW_stats_group_end();
+    /* Refresh shadows */
+    DRW_stats_group_start("Shadows");
+    EEVEE_draw_shadows(sldata, vedata);
+    DRW_stats_group_end();
 
-		/* Set ray type. */
-		sldata->common_data.ray_type = EEVEE_RAY_CAMERA;
-		sldata->common_data.ray_depth = 0.0f;
-		DRW_uniformbuffer_update(sldata->common_ubo, &sldata->common_data);
+    /* Set ray type. */
+    sldata->common_data.ray_type = EEVEE_RAY_CAMERA;
+    sldata->common_data.ray_depth = 0.0f;
+    DRW_uniformbuffer_update(sldata->common_ubo, &sldata->common_data);
 
-		GPU_framebuffer_bind(fbl->main_fb);
-		eGPUFrameBufferBits clear_bits = GPU_DEPTH_BIT;
-		clear_bits |= (DRW_state_draw_background()) ? 0 : GPU_COLOR_BIT;
-		clear_bits |= ((stl->effects->enabled_effects & EFFECT_SSS) != 0) ? GPU_STENCIL_BIT : 0;
-		GPU_framebuffer_clear(fbl->main_fb, clear_bits, clear_col, clear_depth, clear_stencil);
+    GPU_framebuffer_bind(fbl->main_fb);
+    eGPUFrameBufferBits clear_bits = GPU_DEPTH_BIT;
+    clear_bits |= (DRW_state_draw_background()) ? 0 : GPU_COLOR_BIT;
+    clear_bits |= ((stl->effects->enabled_effects & EFFECT_SSS) != 0) ? GPU_STENCIL_BIT : 0;
+    GPU_framebuffer_clear(fbl->main_fb, clear_bits, clear_col, clear_depth, clear_stencil);
 
-		/* Depth prepass */
-		DRW_stats_group_start("Prepass");
-		DRW_draw_pass(psl->depth_pass);
-		DRW_draw_pass(psl->depth_pass_cull);
-		DRW_stats_group_end();
+    /* Depth prepass */
+    DRW_stats_group_start("Prepass");
+    DRW_draw_pass(psl->depth_pass);
+    DRW_draw_pass(psl->depth_pass_cull);
+    DRW_stats_group_end();
 
-		/* Create minmax texture */
-		DRW_stats_group_start("Main MinMax buffer");
-		EEVEE_create_minmax_buffer(vedata, dtxl->depth, -1);
-		DRW_stats_group_end();
+    /* Create minmax texture */
+    DRW_stats_group_start("Main MinMax buffer");
+    EEVEE_create_minmax_buffer(vedata, dtxl->depth, -1);
+    DRW_stats_group_end();
 
-		EEVEE_occlusion_compute(sldata, vedata, dtxl->depth, -1);
-		EEVEE_volumes_compute(sldata, vedata);
+    EEVEE_occlusion_compute(sldata, vedata, dtxl->depth, -1);
+    EEVEE_volumes_compute(sldata, vedata);
 
-		/* Shading pass */
-		DRW_stats_group_start("Shading");
-		if (DRW_state_draw_background()) {
-			DRW_draw_pass(psl->background_pass);
-		}
-		EEVEE_draw_default_passes(psl);
-		DRW_draw_pass(psl->material_pass);
-		DRW_draw_pass(psl->material_pass_cull);
-		EEVEE_subsurface_data_render(sldata, vedata);
-		DRW_stats_group_end();
+    /* Shading pass */
+    DRW_stats_group_start("Shading");
+    if (DRW_state_draw_background()) {
+      DRW_draw_pass(psl->background_pass);
+    }
+    EEVEE_draw_default_passes(psl);
+    DRW_draw_pass(psl->material_pass);
+    DRW_draw_pass(psl->material_pass_cull);
+    EEVEE_subsurface_data_render(sldata, vedata);
+    DRW_stats_group_end();
 
-		/* Effects pre-transparency */
-		EEVEE_subsurface_compute(sldata, vedata);
-		EEVEE_reflection_compute(sldata, vedata);
-		EEVEE_occlusion_draw_debug(sldata, vedata);
-		if (psl->probe_display) {
-			DRW_draw_pass(psl->probe_display);
-		}
-		EEVEE_refraction_compute(sldata, vedata);
+    /* Effects pre-transparency */
+    EEVEE_subsurface_compute(sldata, vedata);
+    EEVEE_reflection_compute(sldata, vedata);
+    EEVEE_occlusion_draw_debug(sldata, vedata);
+    if (psl->probe_display) {
+      DRW_draw_pass(psl->probe_display);
+    }
+    EEVEE_refraction_compute(sldata, vedata);
 
-		/* Opaque refraction */
-		DRW_stats_group_start("Opaque Refraction");
-		DRW_draw_pass(psl->refract_depth_pass);
-		DRW_draw_pass(psl->refract_depth_pass_cull);
-		DRW_draw_pass(psl->refract_pass);
-		DRW_stats_group_end();
+    /* Opaque refraction */
+    DRW_stats_group_start("Opaque Refraction");
+    DRW_draw_pass(psl->refract_depth_pass);
+    DRW_draw_pass(psl->refract_depth_pass_cull);
+    DRW_draw_pass(psl->refract_pass);
+    DRW_stats_group_end();
 
-		/* Volumetrics Resolve Opaque */
-		EEVEE_volumes_resolve(sldata, vedata);
+    /* Volumetrics Resolve Opaque */
+    EEVEE_volumes_resolve(sldata, vedata);
 
-		/* Transparent */
-		DRW_draw_pass(psl->transparent_pass);
+    /* Transparent */
+    DRW_draw_pass(psl->transparent_pass);
 
-		/* Post Process */
-		DRW_stats_group_start("Post FX");
-		EEVEE_draw_effects(sldata, vedata);
-		DRW_stats_group_end();
+    /* Post Process */
+    DRW_stats_group_start("Post FX");
+    EEVEE_draw_effects(sldata, vedata);
+    DRW_stats_group_end();
 
-		if ((stl->effects->taa_current_sample > 1) && !DRW_state_is_image_render()) {
-			DRW_viewport_matrix_override_unset_all();
-		}
-	}
+    if ((stl->effects->taa_current_sample > 1) && !DRW_state_is_image_render()) {
+      DRW_viewport_matrix_override_unset_all();
+    }
+  }
 
-	const DRWContextState *draw_ctx = DRW_context_state_get();
-	Scene *scene = draw_ctx->scene;
-	if (!(scene->flag & SCE_INTERACTIVE)) {
-		/* LookDev */
-		EEVEE_lookdev_draw_background(vedata);
-		/* END */
-	}
+  /* Tonemapping and transfer result to default framebuffer. */
+  bool use_render_settings = stl->g_data->use_color_render_settings;
 
+  GPU_framebuffer_bind(dfbl->default_fb);
 
-	/* Tonemapping and transfer result to default framebuffer. */
-	bool use_render_settings = stl->g_data->use_color_render_settings;
+  const DRWContextState *draw_ctx = DRW_context_state_get();
+  Scene *scene = draw_ctx->scene;
+  if (!(scene->flag & SCE_INTERACTIVE)) {
+    DRW_transform_to_display(stl->effects->final_tx, true, use_render_settings);
+  }
 
-	GPU_framebuffer_bind(dfbl->default_fb);
+  /* Draw checkerboard with alpha under. */
+  EEVEE_draw_alpha_checker(vedata);
 
-	if (!(scene->flag & SCE_INTERACTIVE)) {
-		DRW_transform_to_display(stl->effects->final_tx, true, use_render_settings);
-	}
+  /* Debug : Output buffer to view. */
+  switch (G.debug_value) {
+    case 1:
+      if (txl->maxzbuffer) {
+        DRW_transform_to_display(txl->maxzbuffer, false, false);
+      }
+      break;
+    case 2:
+      if (effects->ssr_pdf_output) {
+        DRW_transform_to_display(effects->ssr_pdf_output, false, false);
+      }
+      break;
+    case 3:
+      if (effects->ssr_normal_input) {
+        DRW_transform_to_display(effects->ssr_normal_input, false, false);
+      }
+      break;
+    case 4:
+      if (effects->ssr_specrough_input) {
+        DRW_transform_to_display(effects->ssr_specrough_input, false, false);
+      }
+      break;
+    case 5:
+      if (txl->color_double_buffer) {
+        DRW_transform_to_display(txl->color_double_buffer, false, false);
+      }
+      break;
+    case 6:
+      if (effects->gtao_horizons_debug) {
+        DRW_transform_to_display(effects->gtao_horizons_debug, false, false);
+      }
+      break;
+    case 7:
+      if (effects->gtao_horizons) {
+        DRW_transform_to_display(effects->gtao_horizons, false, false);
+      }
+      break;
+    case 8:
+      if (effects->sss_data) {
+        DRW_transform_to_display(effects->sss_data, false, false);
+      }
+      break;
+    case 9:
+      if (effects->velocity_tx) {
+        DRW_transform_to_display(effects->velocity_tx, false, false);
+      }
+      break;
+    default:
+      break;
+  }
 
-	/* Debug : Output buffer to view. */
-	switch (G.debug_value) {
-		case 1:
-			if (txl->maxzbuffer) {
-				DRW_transform_to_display(txl->maxzbuffer, false, false);
-			}
-			break;
-		case 2:
-			if (effects->ssr_pdf_output) {
-				DRW_transform_to_display(effects->ssr_pdf_output, false, false);
-			}
-			break;
-		case 3:
-			if (effects->ssr_normal_input) {
-				DRW_transform_to_display(effects->ssr_normal_input, false, false);
-			}
-			break;
-		case 4:
-			if (effects->ssr_specrough_input) {
-				DRW_transform_to_display(effects->ssr_specrough_input, false, false);
-			}
-			break;
-		case 5:
-			if (txl->color_double_buffer) {
-				DRW_transform_to_display(txl->color_double_buffer, false, false);
-			}
-			break;
-		case 6:
-			if (effects->gtao_horizons_debug) {
-				DRW_transform_to_display(effects->gtao_horizons_debug, false, false);
-			}
-			break;
-		case 7:
-			if (effects->gtao_horizons) {
-				DRW_transform_to_display(effects->gtao_horizons, false, false);
-			}
-			break;
-		case 8:
-			if (effects->sss_data) {
-				DRW_transform_to_display(effects->sss_data, false, false);
-			}
-			break;
-		case 9:
-			if (effects->velocity_tx) {
-				DRW_transform_to_display(effects->velocity_tx, false, false);
-			}
-			break;
-		default:
-			break;
-	}
+  EEVEE_volumes_free_smoke_textures();
 
-	EEVEE_volumes_free_smoke_textures();
-
-	stl->g_data->view_updated = false;
+  stl->g_data->view_updated = false;
 }
 
 static void eevee_view_update(void *vedata)

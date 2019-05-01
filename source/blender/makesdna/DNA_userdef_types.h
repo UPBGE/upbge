@@ -300,12 +300,12 @@ typedef struct ThemeSpace {
   char keytype_keyframe_select[4], keytype_extreme_select[4], keytype_breakdown_select[4],
       keytype_jitter_select[4], keytype_movehold_select[4];
   char keyborder[4], keyborder_select[4];
-  char _pad4[4];
+  char _pad4[3];
 
   char console_output[4], console_input[4], console_info[4], console_error[4];
   char console_cursor[4], console_select[4];
 
-  char vertex_size, outline_width, facedot_size;
+  char vertex_size, outline_width, obcenter_dia, facedot_size;
   char noodle_curving;
 
   /* syntax for textwindow and nodes */
@@ -419,38 +419,38 @@ typedef enum eWireColor_Flags {
 
 /* A theme */
 typedef struct bTheme {
-	struct bTheme *next, *prev;
-	char name[32];
+  struct bTheme *next, *prev;
+  char name[32];
 
-	ThemeUI tui;
+  ThemeUI tui;
 
-	/* Individual Spacetypes */
-	/* note: ensure UI_THEMESPACE_END is updated when adding */
-	ThemeSpace space_properties;
-	ThemeSpace space_view3d;
-	ThemeSpace space_file;
-	ThemeSpace space_graph;
-	ThemeSpace space_info;
-	ThemeSpace space_action;
-	ThemeSpace space_nla;
-	ThemeSpace space_sequencer;
-	ThemeSpace space_image;
-	ThemeSpace space_text;
-	ThemeSpace space_outliner;
-	ThemeSpace space_node;
-	ThemeSpace tlogic;
-	ThemeSpace space_preferences;
-	ThemeSpace space_console;
-	ThemeSpace space_clip;
-	ThemeSpace space_topbar;
-	ThemeSpace space_statusbar;
+  /* Individual Spacetypes */
+  /* note: ensure UI_THEMESPACE_END is updated when adding */
+  ThemeSpace space_properties;
+  ThemeSpace space_view3d;
+  ThemeSpace space_file;
+  ThemeSpace space_graph;
+  ThemeSpace space_info;
+  ThemeSpace space_action;
+  ThemeSpace space_nla;
+  ThemeSpace space_sequencer;
+  ThemeSpace space_image;
+  ThemeSpace space_text;
+  ThemeSpace space_outliner;
+  ThemeSpace space_node;
+  ThemeSpace tlogic;
+  ThemeSpace space_preferences;
+  ThemeSpace space_console;
+  ThemeSpace space_clip;
+  ThemeSpace space_topbar;
+  ThemeSpace space_statusbar;
 
-	/* 20 sets of bone colors for this theme */
-	ThemeWireColor tarm[20];
-	/*ThemeWireColor tobj[20];*/
+  /* 20 sets of bone colors for this theme */
+  ThemeWireColor tarm[20];
+  /*ThemeWireColor tobj[20];*/
 
-	int active_theme_area;
-	char _pad0[4];
+  int active_theme_area;
+  char _pad0[4];
 } bTheme;
 
 #define UI_THEMESPACE_START(btheme) (CHECK_TYPE_INLINE(btheme, bTheme *), &((btheme)->tbuts))
@@ -537,234 +537,232 @@ typedef struct WalkNavigation {
 } WalkNavigation;
 
 typedef struct UserDef {
-	/* UserDef has separate do-version handling, and can be read from other files */
-	int versionfile, subversionfile;
+  /* UserDef has separate do-version handling, and can be read from other files */
+  int versionfile, subversionfile;
 
-	/** #eUserPref_Flag. */
-	int flag;
-	/** #eDupli_ID_Flags. */
-	int dupflag;
-	int savetime;
-	/** FILE_MAXDIR length. */
-	char tempdir[768];
-	char fontdir[768];
-	/** FILE_MAX length. */
-	char renderdir[1024];
-	/* EXR cache path */
-	/** 768 = FILE_MAXDIR. */
-	char render_cachedir[768];
-	char textudir[768];
-	char pythondir[768];
-	char sounddir[768];
-	char i18ndir[768];
-	/** 1024 = FILE_MAX. */
-	char image_editor[1024];
-	/** 1024 = FILE_MAX. */
-	char anim_player[1024];
-	int anim_player_preset;
+  /** #eUserPref_Flag. */
+  int flag;
+  /** #eDupli_ID_Flags. */
+  int dupflag;
+  int savetime;
+  /** FILE_MAXDIR length. */
+  char tempdir[768];
+  char fontdir[768];
+  /** FILE_MAX length. */
+  char renderdir[1024];
+  /* EXR cache path */
+  /** 768 = FILE_MAXDIR. */
+  char render_cachedir[768];
+  char textudir[768];
+  char pythondir[768];
+  char sounddir[768];
+  char i18ndir[768];
+  /** 1024 = FILE_MAX. */
+  char image_editor[1024];
+  /** 1024 = FILE_MAX. */
+  char anim_player[1024];
+  int anim_player_preset;
 
-	/** Minimum spacing between gridlines in View2D grids. */
-	short v2d_min_gridsize;
-	/** #eTimecodeStyles, style of timecode display. */
-	short timecode_style;
+  /** Minimum spacing between gridlines in View2D grids. */
+  short v2d_min_gridsize;
+  /** #eTimecodeStyles, style of timecode display. */
+  short timecode_style;
 
-	short versions;
-	short dbl_click_time;
-	
-	short gameflags;
-	short wheellinescroll;
-	/** #eUserpref_UI_Flag. */
-	int uiflag;
-	/** #eUserpref_UI_Flag2. */
-	char uiflag2;
-	char gpu_flag;
-	char _pad8[2];
-	/* Experimental flag for app-templates to make changes to behavior
-	 * which are outside the scope of typical preferences. */
-	short app_flag;
-	short language;
-	short userpref;
-	char  userpref_flag;
-	char viewzoom;
+  short versions;
+  short dbl_click_time;
 
-	int mixbufsize;
-	int audiodevice;
-	int audiorate;
-	int audioformat;
-	int audiochannels;
+  short gameflags;
+  short wheellinescroll;
+  /** #eUserpref_UI_Flag. */
+  int uiflag;
+  /** #eUserpref_UI_Flag2. */
+  char uiflag2;
+  char gpu_flag;
+  char _pad8[2];
+  /* Experimental flag for app-templates to make changes to behavior
+   * which are outside the scope of typical preferences. */
+  short app_flag;
+  short language;
+  short userpref;
+  char userpref_flag;
+  char viewzoom;
 
-	/** Setting for UI scale. */
-	float ui_scale;
-	/** Setting for UI line width. */
-	int ui_line_width;
-	/** Runtime, full DPI divided by pixelsize. */
-	int dpi;
-	/** Runtime, multiplier to scale UI elements based on DPI. */
-	float dpi_fac;
-	/** Runtime, line width and point size based on DPI. */
-	float pixelsize;
-	/** Deprecated, for forward compatibility. */
-	int virtual_pixel;
+  int mixbufsize;
+  int audiodevice;
+  int audiorate;
+  int audioformat;
+  int audiochannels;
 
-	/** Console scrollback limit. */
-	int scrollback;
-	/** Node insert offset (aka auto-offset) margin, but might be useful for later stuff as well. */
-	char node_margin;
-	char _pad2[5];
-	/** #eUserpref_Translation_Flags. */
-	short transopts;
-	short menuthreshold1, menuthreshold2;
+  /** Setting for UI scale. */
+  float ui_scale;
+  /** Setting for UI line width. */
+  int ui_line_width;
+  /** Runtime, full DPI divided by pixelsize. */
+  int dpi;
+  /** Runtime, multiplier to scale UI elements based on DPI. */
+  float dpi_fac;
+  /** Runtime, line width and point size based on DPI. */
+  float pixelsize;
+  /** Deprecated, for forward compatibility. */
+  int virtual_pixel;
 
-	/* startup template */
-	char app_template[64];
+  /** Console scrollback limit. */
+  int scrollback;
+  /** Node insert offset (aka auto-offset) margin, but might be useful for later stuff as well. */
+  char node_margin;
+  char _pad2[5];
+  /** #eUserpref_Translation_Flags. */
+  short transopts;
+  short menuthreshold1, menuthreshold2;
 
-	struct ListBase themes;
-	struct ListBase uifonts;
-	struct ListBase uistyles;
-	struct ListBase user_keymaps;
-	/** #wmKeyConfigPref. */
-	struct ListBase user_keyconfig_prefs;
-	struct ListBase addons;
-	struct ListBase autoexec_paths;
-	/** #bUserMenu. */
-	struct ListBase user_menus;
+  /* startup template */
+  char app_template[64];
 
-	char keyconfigstr[64];
+  struct ListBase themes;
+  struct ListBase uifonts;
+  struct ListBase uistyles;
+  struct ListBase user_keymaps;
+  /** #wmKeyConfigPref. */
+  struct ListBase user_keyconfig_prefs;
+  struct ListBase addons;
+  struct ListBase autoexec_paths;
+  /** #bUserMenu. */
+  struct ListBase user_menus;
 
-	short undosteps;
-	char _pad1[2];
-	int undomemory;
-	float gpu_viewport_quality;
-	short gp_manhattendist, gp_euclideandist, gp_eraser;
-	/** #eGP_UserdefSettings. */
-	short gp_settings;
-	char _pad13[4];
-	struct SolidLight light_param[4];
-	float light_ambient[3];
-	char _pad3[4];
-	short gizmo_flag, gizmo_size;
-	short edit_studio_light;
-	//char _pad6[2];
+  char keyconfigstr[64];
+
+  short undosteps;
+  char _pad1[2];
+  int undomemory;
+  float gpu_viewport_quality;
+  short gp_manhattendist, gp_euclideandist, gp_eraser;
+  /** #eGP_UserdefSettings. */
+  short gp_settings;
+  char _pad13[4];
+  struct SolidLight light_param[4];
+  float light_ambient[3];
+  char _pad3[4];
+  short gizmo_flag, gizmo_size;
+  short edit_studio_light;
+  char _pad6[2];
   short vbotimeout, vbocollectrate;
-	short textimeout, texcollectrate;
-	char _pad14[2];
-	int memcachelimit;
-	int prefetchframes;
-	/** Control the rotation step of the view when PAD2, PAD4, PAD6&PAD8 is use. */
-	float pad_rot_angle;
-	char _pad12[2];
-	short obcenter_dia;
-	/** Rotating view icon size. */
-	short rvisize;
-	/** Rotating view icon brightness. */
-	short rvibright;
-	/** Maximum number of recently used files to remember . */
-	short recent_files;
-	/** Milliseconds to spend spinning the view. */
-	short smooth_viewtx;
-	short glreslimit;
-	short curssize;
-	/** #eColorPicker_Types. */
-	short color_picker_type;
-	/** Interpolation mode for newly added F-Curves. */
-	char  ipo_new;
-	/** Handle types for newly added keyframes. */
-	char  keyhandles_new;
-	char  _pad11[3];
-	/** #eZoomFrame_Mode. */
-	char  view_frame_type;
+  short textimeout, texcollectrate;
+  int memcachelimit;
+  int prefetchframes;
+  /** Control the rotation step of the view when PAD2, PAD4, PAD6&PAD8 is use. */
+  float pad_rot_angle;
+  char _pad12[4];
+  /** Rotating view icon size. */
+  short rvisize;
+  /** Rotating view icon brightness. */
+  short rvibright;
+  /** Maximum number of recently used files to remember . */
+  short recent_files;
+  /** Milliseconds to spend spinning the view. */
+  short smooth_viewtx;
+  short glreslimit;
+  short curssize;
+  /** #eColorPicker_Types. */
+  short color_picker_type;
+  /** Interpolation mode for newly added F-Curves. */
+  char ipo_new;
+  /** Handle types for newly added keyframes. */
+  char keyhandles_new;
+  char _pad11[3];
+  /** #eZoomFrame_Mode. */
+  char view_frame_type;
 
-	/** Number of keyframes to zoom around current frame. */
-	int view_frame_keyframes;
-	/** Seconds to zoom around current frame. */
-	float view_frame_seconds;
+  /** Number of keyframes to zoom around current frame. */
+  int view_frame_keyframes;
+  /** Seconds to zoom around current frame. */
+  float view_frame_seconds;
 
-	char _pad7[6];
+  char _pad7[6];
 
-	/** Private, defaults to 20 for 72 DPI setting. */
-	short widget_unit;
-	short anisotropic_filter;
+  /** Private, defaults to 20 for 72 DPI setting. */
+  short widget_unit;
+  short anisotropic_filter;
 
-	/** Tablet API to use (Windows only). */
-	short tablet_api;
+  /** Tablet API to use (Windows only). */
+  short tablet_api;
 
-	/** Raw tablet pressure that maps to 100%. */
-	float pressure_threshold_max;
-	/** Curve non-linearity parameter. */
-	float pressure_softness;
+  /** Raw tablet pressure that maps to 100%. */
+  float pressure_threshold_max;
+  /** Curve non-linearity parameter. */
+  float pressure_softness;
 
-	/** Overall sensitivity of 3D mouse. */
-	float ndof_sensitivity;
-	float ndof_orbit_sensitivity;
-	/** Deadzone of 3D mouse. */
-	float ndof_deadzone;
-	/** #eNdof_Flag, flags for 3D mouse. */
-	int ndof_flag;
+  /** Overall sensitivity of 3D mouse. */
+  float ndof_sensitivity;
+  float ndof_orbit_sensitivity;
+  /** Deadzone of 3D mouse. */
+  float ndof_deadzone;
+  /** #eNdof_Flag, flags for 3D mouse. */
+  int ndof_flag;
 
-	/** #eMultiSample_Type, amount of samples for OpenGL FSA, if zero no FSA. */
-	short ogl_multisamples;
+  /** #eMultiSample_Type, amount of samples for OpenGL FSA, if zero no FSA. */
+  short ogl_multisamples;
 
-	/** eImageDrawMethod, Method to be used to draw the images
-	 * (AUTO, GLSL, Textures or DrawPixels) */
-	short image_draw_method;
+  /** eImageDrawMethod, Method to be used to draw the images
+   * (AUTO, GLSL, Textures or DrawPixels) */
+  short image_draw_method;
 
-	float glalphaclip;
+  float glalphaclip;
 
-	/** #eAutokey_Mode, autokeying mode. */
-	short autokey_mode;
-	/** Flags for autokeying. */
-	short autokey_flag;
+  /** #eAutokey_Mode, autokeying mode. */
+  short autokey_mode;
+  /** Flags for autokeying. */
+  short autokey_flag;
 
-	/** Options for text rendering. */
-	short text_render;
-	char _pad9[2];
+  /** Options for text rendering. */
+  short text_render;
+  char _pad9[2];
 
-	/** From texture.h. */
-	struct ColorBand coba_weight;
+  /** From texture.h. */
+  struct ColorBand coba_weight;
 
-	float sculpt_paint_overlay_col[3];
-	/** Default color for newly created Grease Pencil layers. */
-	float gpencil_new_layer_col[4];
+  float sculpt_paint_overlay_col[3];
+  /** Default color for newly created Grease Pencil layers. */
+  float gpencil_new_layer_col[4];
 
-	short tweak_threshold;
-	char move_threshold;
-	char navigation_mode;
+  short tweak_threshold;
+  char move_threshold;
+  char navigation_mode;
 
-	char font_path_ui[1024];
-	char font_path_ui_mono[1024];
+  char font_path_ui[1024];
+  char font_path_ui_mono[1024];
 
-	int compute_device_type;
-	int compute_device_id;
+  int compute_device_type;
+  int compute_device_id;
 
-	/** Opacity of inactive F-Curves in F-Curve Editor. */
-	float fcu_inactive_alpha;
+  /** Opacity of inactive F-Curves in F-Curve Editor. */
+  float fcu_inactive_alpha;
 
-	/**
-	 * If keeping a pie menu spawn button pressed after this time,
-	 * it turns into a drag/release pie menu.
-	 */
-	short pie_tap_timeout;
-	/**
-	 * Direction in the pie menu will always be calculated from the
-	 * initial position within this time limit.
-	 */
-	short pie_initial_timeout;
-	short pie_animation_timeout;
-	short pie_menu_confirm;
-	/** Pie menu radius. */
-	short pie_menu_radius;
-	/** Pie menu distance from center before a direction is set. */
-	short pie_menu_threshold;
+  /**
+   * If keeping a pie menu spawn button pressed after this time,
+   * it turns into a drag/release pie menu.
+   */
+  short pie_tap_timeout;
+  /**
+   * Direction in the pie menu will always be calculated from the
+   * initial position within this time limit.
+   */
+  short pie_initial_timeout;
+  short pie_animation_timeout;
+  short pie_menu_confirm;
+  /** Pie menu radius. */
+  short pie_menu_radius;
+  /** Pie menu distance from center before a direction is set. */
+  short pie_menu_threshold;
 
-	struct WalkNavigation walk_navigation;
+  struct WalkNavigation walk_navigation;
 
-	short opensubdiv_compute_type;
-	/** #eMultiSample_Type, amount of samples for Grease Pencil. */
-	short gpencil_multisamples;
+  short opensubdiv_compute_type;
+  /** #eMultiSample_Type, amount of samples for Grease Pencil. */
+  short gpencil_multisamples;
 
-	char factor_display_type;
+  char factor_display_type;
 
-	char _pad5[3];
+  char _pad5[3];
 } UserDef;
 
 /* from blenkernel blender.c */

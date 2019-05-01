@@ -168,6 +168,11 @@ void EEVEE_effects_init(EEVEE_ViewLayerData *sldata,
     effects->enabled_effects |= EFFECT_NORMAL_BUFFER;
   }
 
+  /* Alpha checker if background is not drawn in viewport. */
+  if (!DRW_state_is_image_render() && !DRW_state_draw_background()) {
+    effects->enabled_effects |= EFFECT_ALPHA_CHECKER;
+  }
+
   /**
    * Ping Pong buffer
    */
@@ -361,6 +366,23 @@ void EEVEE_effects_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
     DRW_shgroup_uniform_mat4(grp, "pastPersmat", effects->velocity_past_persmat);
     DRW_shgroup_call_add(grp, quad, NULL);
   }
+
+  if ((effects->enabled_effects & EFFECT_ALPHA_CHECKER) != 0) {
+    psl->alpha_checker = DRW_pass_create("Alpha Checker",
+                                         DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_PREMUL_UNDER);
+
+    GPUShader *checker_sh = GPU_shader_get_builtin_shader(GPU_SHADER_2D_CHECKER);
+
+    DRWShadingGroup *grp = DRW_shgroup_create(checker_sh, psl->alpha_checker);
+
+    copy_v4_fl4(effects->color_checker_dark, 0.15f, 0.15f, 0.15f, 1.0f);
+    copy_v4_fl4(effects->color_checker_light, 0.2f, 0.2f, 0.2f, 1.0f);
+
+    DRW_shgroup_uniform_vec4(grp, "color1", effects->color_checker_dark, 1);
+    DRW_shgroup_uniform_vec4(grp, "color2", effects->color_checker_light, 1);
+    DRW_shgroup_uniform_int_copy(grp, "size", 8);
+    DRW_shgroup_call_add(grp, quad, NULL);
+  }
 }
 
 #if 0 /* Not required for now */
@@ -491,22 +513,50 @@ void EEVEE_downsample_cube_buffer(EEVEE_Data *vedata, GPUTexture *texture_src, i
   DRW_stats_group_end();
 }
 
-void EEVEE_draw_effects(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data *vedata)
+void EEVEE_draw_alpha_checker(EEVEE_Data *vedata)
 {
   EEVEE_PassList *psl = vedata->psl;
-  EEVEE_TextureList *txl = vedata->txl;
+  EEVEE_StorageList *stl = vedata->stl;
+  EEVEE_EffectsInfo *effects = stl->effects;
+
+  if ((effects->enabled_effects & EFFECT_ALPHA_CHECKER) != 0) {
+    float mat[4][4];
+    unit_m4(mat);
+
+    /* Fragile, rely on the fact that GPU_SHADER_2D_CHECKER
+     * only use the persmat. */
+    DRW_viewport_matrix_override_set(mat, DRW_MAT_PERS);
+
+    DRW_draw_pass(psl->alpha_checker);
+
+    DRW_viewport_matrix_override_unset(DRW_MAT_PERS);
+  }
+}
+
+static void EEVEE_velocity_resolve(EEVEE_Data *vedata)
+{
+  EEVEE_PassList *psl = vedata->psl;
   EEVEE_FramebufferList *fbl = vedata->fbl;
   EEVEE_StorageList *stl = vedata->stl;
   EEVEE_EffectsInfo *effects = stl->effects;
 
-  /* First resolve the velocity. */
   if ((effects->enabled_effects & EFFECT_VELOCITY_BUFFER) != 0) {
+    DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
+    e_data.depth_src = dtxl->depth;
     DRW_viewport_matrix_get(effects->velocity_curr_persinv, DRW_MAT_PERSINV);
 
     GPU_framebuffer_bind(fbl->velocity_resolve_fb);
     DRW_draw_pass(psl->velocity_resolve);
   }
   DRW_viewport_matrix_get(effects->velocity_past_persmat, DRW_MAT_PERS);
+}
+
+void EEVEE_draw_effects(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data *vedata)
+{
+  EEVEE_TextureList *txl = vedata->txl;
+  EEVEE_FramebufferList *fbl = vedata->fbl;
+  EEVEE_StorageList *stl = vedata->stl;
+  EEVEE_EffectsInfo *effects = stl->effects;
 
   /* only once per frame after the first post process */
   effects->swap_double_buffer = ((effects->enabled_effects & EFFECT_DOUBLE_BUFFER) != 0);
@@ -518,6 +568,14 @@ void EEVEE_draw_effects(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data *vedata)
   /* Post process stack (order matters) */
   EEVEE_motion_blur_draw(vedata);
   EEVEE_depth_of_field_draw(vedata);
+
+  /* NOTE: Lookdev drawing happens before TAA but after
+   * motion blur and dof to avoid distortions.
+   * Velocity resolve use a hack to exclude lookdev
+   * balls from creating shimering reprojection vectors. */
+  EEVEE_lookdev_draw(vedata);
+  EEVEE_velocity_resolve(vedata);
+
   EEVEE_temporal_sampling_draw(vedata);
   EEVEE_bloom_draw(vedata);
 

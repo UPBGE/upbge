@@ -250,6 +250,7 @@ typedef struct EEVEE_PassList {
   struct DRWPass *color_downsample_cube_ps;
   struct DRWPass *velocity_resolve;
   struct DRWPass *taa_resolve;
+  struct DRWPass *alpha_checker;
 
   /* HiZ */
   struct DRWPass *minz_downlevel_ps;
@@ -279,7 +280,8 @@ typedef struct EEVEE_PassList {
   struct DRWPass *transparent_pass;
   struct DRWPass *background_pass;
   struct DRWPass *update_noise_pass;
-  struct DRWPass *lookdev_pass;
+  struct DRWPass *lookdev_glossy_pass;
+  struct DRWPass *lookdev_diffuse_pass;
 } EEVEE_PassList;
 
 typedef struct EEVEE_FramebufferList {
@@ -380,9 +382,9 @@ typedef struct EEVEE_Light {
 #define LAMPTYPE_AREA_ELLIPSE 100.0f
 
 typedef struct EEVEE_Shadow {
-	float nearf, farf, bias, exp;
-	float shadow_start, data_start, multi_shadow_count, shadow_blur;
-	float contact_dist, contact_bias, contact_spread, contact_thickness;
+  float nearf, farf, bias, exp;
+  float shadow_start, data_start, multi_shadow_count, shadow_blur;
+  float contact_dist, contact_bias, contact_spread, contact_thickness;
 } EEVEE_Shadow;
 
 typedef struct EEVEE_ShadowCube {
@@ -541,6 +543,7 @@ typedef enum EEVEE_EffectsFlag {
   EFFECT_VELOCITY_BUFFER = (1 << 12),     /* Not really an effect but a feature */
   EFFECT_TAA_REPROJECT = (1 << 13),       /* should be mutually exclusive with EFFECT_TAA */
   EFFECT_DEPTH_DOUBLE_BUFFER = (1 << 14), /* Not really an effect but a feature */
+  EFFECT_ALPHA_CHECKER = (1 << 15),       /* Not really an effect but a feature */
 } EEVEE_EffectsFlag;
 
 typedef struct EEVEE_EffectsInfo {
@@ -602,8 +605,14 @@ typedef struct EEVEE_EffectsInfo {
   struct GPUTexture *dof_coc;
   struct GPUTexture *dof_blur;
   struct GPUTexture *dof_blur_alpha;
+  /* Alpha Checker */
+  float color_checker_dark[4];
+  float color_checker_light[4];
   /* Other */
   float prev_persmat[4][4];
+  /* Lookdev */
+  int ball_size;
+  int anchor[2];
   /* Bloom */
   int bloom_iteration_len;
   float source_texel_size[2];
@@ -1048,6 +1057,9 @@ void EEVEE_mist_free(void);
 /* eevee_temporal_sampling.c */
 void EEVEE_temporal_sampling_reset(EEVEE_Data *vedata);
 int EEVEE_temporal_sampling_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
+void EEVEE_temporal_sampling_offset_calc(const double ht_point[2],
+                                         const float filter_size,
+                                         float r_offset[2]);
 void EEVEE_temporal_sampling_matrices_calc(EEVEE_EffectsInfo *effects,
                                            float viewmat[4][4],
                                            float persmat[4][4],
@@ -1077,6 +1089,7 @@ void EEVEE_effects_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_create_minmax_buffer(EEVEE_Data *vedata, struct GPUTexture *depth_src, int layer);
 void EEVEE_downsample_buffer(EEVEE_Data *vedata, struct GPUTexture *texture_src, int level);
 void EEVEE_downsample_cube_buffer(EEVEE_Data *vedata, struct GPUTexture *texture_src, int level);
+void EEVEE_draw_alpha_checker(EEVEE_Data *vedata);
 void EEVEE_draw_effects(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_effects_free(void);
 
@@ -1097,10 +1110,13 @@ void EEVEE_render_update_passes(struct RenderEngine *engine,
                                 struct ViewLayer *view_layer);
 
 /** eevee_lookdev.c */
-void EEVEE_lookdev_cache_init(
-        EEVEE_Data *vedata, struct DRWShadingGroup **grp, struct DRWPass *pass, float background_alpha,
-        struct World *world, EEVEE_LightProbesInfo *pinfo);
-void EEVEE_lookdev_draw_background(EEVEE_Data *vedata);
+void EEVEE_lookdev_cache_init(EEVEE_Data *vedata,
+                              struct DRWShadingGroup **grp,
+                              struct DRWPass *pass,
+                              float background_alpha,
+                              struct World *world,
+                              EEVEE_LightProbesInfo *pinfo);
+void EEVEE_lookdev_draw(EEVEE_Data *vedata);
 
 /** eevee_engine.c */
 void EEVEE_cache_populate(void *vedata, Object *ob);
