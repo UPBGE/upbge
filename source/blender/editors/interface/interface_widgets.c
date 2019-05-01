@@ -2788,8 +2788,8 @@ static void widget_menu_back(uiWidgetColors *wcol, rcti *rect, int flag, int dir
 
   /* menu is 2nd level or deeper */
   if (flag & UI_BLOCK_POPUP) {
-    //rect->ymin -= 4.0;
-    //rect->ymax += 4.0;
+    // rect->ymin -= 4.0;
+    // rect->ymax += 4.0;
   }
   else if (direction == UI_DIR_DOWN) {
     roundboxalign = (UI_CNR_BOTTOM_RIGHT | UI_CNR_BOTTOM_LEFT);
@@ -4586,246 +4586,243 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 #else
         wt = widget_type(UI_WTYPE_EXEC);
 #endif
-				break;
+        break;
 
-			case UI_BTYPE_NUM:
-				wt = widget_type(UI_WTYPE_NUMBER);
-				break;
+      case UI_BTYPE_NUM:
+        wt = widget_type(UI_WTYPE_NUMBER);
+        break;
 
-			case UI_BTYPE_NUM_SLIDER:
-				wt = widget_type(UI_WTYPE_SLIDER);
-				break;
+      case UI_BTYPE_NUM_SLIDER:
+        wt = widget_type(UI_WTYPE_SLIDER);
+        break;
 
-			case UI_BTYPE_ROW:
-				wt = widget_type(UI_WTYPE_RADIO);
-				break;
+      case UI_BTYPE_ROW:
+        wt = widget_type(UI_WTYPE_RADIO);
+        break;
 
-			case UI_BTYPE_LISTROW:
-				wt = widget_type(UI_WTYPE_LISTITEM);
-				break;
+      case UI_BTYPE_LISTROW:
+        wt = widget_type(UI_WTYPE_LISTITEM);
+        break;
 
-			case UI_BTYPE_TEXT:
-				wt = widget_type(UI_WTYPE_NAME);
-				break;
+      case UI_BTYPE_TEXT:
+        wt = widget_type(UI_WTYPE_NAME);
+        break;
 
-			case UI_BTYPE_SEARCH_MENU:
-				wt = widget_type(UI_WTYPE_NAME);
-				if (but->block->theme_style == UI_BLOCK_THEME_STYLE_POPUP) {
-					wt->wcol_theme = &btheme->tui.wcol_menu_back;
-				}
-				break;
+      case UI_BTYPE_SEARCH_MENU:
+        wt = widget_type(UI_WTYPE_NAME);
+        if (but->block->theme_style == UI_BLOCK_THEME_STYLE_POPUP) {
+          wt->wcol_theme = &btheme->tui.wcol_menu_back;
+        }
+        break;
 
-			case UI_BTYPE_TAB:
-				wt = widget_type(UI_WTYPE_TAB);
-				break;
+      case UI_BTYPE_TAB:
+        wt = widget_type(UI_WTYPE_TAB);
+        break;
 
-			case UI_BTYPE_BUT_TOGGLE:
-			case UI_BTYPE_TOGGLE:
-			case UI_BTYPE_TOGGLE_N:
-				wt = widget_type(UI_WTYPE_TOGGLE);
-				break;
+      case UI_BTYPE_BUT_TOGGLE:
+      case UI_BTYPE_TOGGLE:
+      case UI_BTYPE_TOGGLE_N:
+        wt = widget_type(UI_WTYPE_TOGGLE);
+        break;
 
-			case UI_BTYPE_CHECKBOX:
-			case UI_BTYPE_CHECKBOX_N:
-				if (!(but->flag & UI_HAS_ICON)) {
-					wt = widget_type(UI_WTYPE_CHECKBOX);
-					if ((but->drawflag & (UI_BUT_TEXT_LEFT | UI_BUT_TEXT_RIGHT)) == 0) {
-						but->drawflag |= UI_BUT_TEXT_LEFT;
-					}
-				}
-				else {
-					wt = widget_type(UI_WTYPE_TOGGLE);
-				}
+      case UI_BTYPE_CHECKBOX:
+      case UI_BTYPE_CHECKBOX_N:
+        if (!(but->flag & UI_HAS_ICON)) {
+          wt = widget_type(UI_WTYPE_CHECKBOX);
+          if ((but->drawflag & (UI_BUT_TEXT_LEFT | UI_BUT_TEXT_RIGHT)) == 0) {
+            but->drawflag |= UI_BUT_TEXT_LEFT;
+          }
+        }
+        else {
+          wt = widget_type(UI_WTYPE_TOGGLE);
+        }
 
-				/* option buttons have strings outside, on menus use different colors */
-				if (but->block->theme_style == UI_BLOCK_THEME_STYLE_POPUP) {
-					wt->state = widget_state_option_menu;
-				}
-				break;
+        /* option buttons have strings outside, on menus use different colors */
+        if (but->block->theme_style == UI_BLOCK_THEME_STYLE_POPUP) {
+          wt->state = widget_state_option_menu;
+        }
+        break;
 
-			case UI_BTYPE_MENU:
-			case UI_BTYPE_BLOCK:
-			case UI_BTYPE_POPOVER:
-				if (but->flag & UI_BUT_NODE_LINK) {
-					/* new node-link button, not active yet XXX */
-					wt = widget_type(UI_WTYPE_MENU_NODE_LINK);
-				}
-				else {
-					/* with menu arrows */
+      case UI_BTYPE_MENU:
+      case UI_BTYPE_BLOCK:
+      case UI_BTYPE_POPOVER:
+        if (but->flag & UI_BUT_NODE_LINK) {
+          /* new node-link button, not active yet XXX */
+          wt = widget_type(UI_WTYPE_MENU_NODE_LINK);
+        }
+        else {
+          /* with menu arrows */
 
-					/* we could use a flag for this, but for now just check size,
-					 * add updown arrows if there is room. */
-					if ((!but->str[0] && but->icon && (BLI_rcti_size_x(rect) < BLI_rcti_size_y(rect) + 2)) ||
-					    /* disable for brushes also */
-					    (but->flag & UI_BUT_ICON_PREVIEW))
-					{
-						/* no arrows */
-						wt = widget_type(UI_WTYPE_MENU_ICON_RADIO);
-					}
-					else {
-						wt = widget_type(UI_WTYPE_MENU_RADIO);
-					}
-				}
-				break;
+          /* we could use a flag for this, but for now just check size,
+           * add updown arrows if there is room. */
+          if ((!but->str[0] && but->icon && (BLI_rcti_size_x(rect) < BLI_rcti_size_y(rect) + 2)) ||
+              /* disable for brushes also */
+              (but->flag & UI_BUT_ICON_PREVIEW)) {
+            /* no arrows */
+            wt = widget_type(UI_WTYPE_MENU_ICON_RADIO);
+          }
+          else {
+            wt = widget_type(UI_WTYPE_MENU_RADIO);
+          }
+        }
+        break;
 
-			case UI_BTYPE_PULLDOWN:
-				wt = widget_type(UI_WTYPE_PULLDOWN);
-				break;
+      case UI_BTYPE_PULLDOWN:
+        wt = widget_type(UI_WTYPE_PULLDOWN);
+        break;
 
-			case UI_BTYPE_BUT_MENU:
-				wt = widget_type(UI_WTYPE_MENU_ITEM);
-				break;
+      case UI_BTYPE_BUT_MENU:
+        wt = widget_type(UI_WTYPE_MENU_ITEM);
+        break;
 
-			case UI_BTYPE_COLOR:
-				wt = widget_type(UI_WTYPE_SWATCH);
-				break;
+      case UI_BTYPE_COLOR:
+        wt = widget_type(UI_WTYPE_SWATCH);
+        break;
 
-			case UI_BTYPE_ROUNDBOX:
-			case UI_BTYPE_LISTBOX:
-				wt = widget_type(UI_WTYPE_BOX);
-				break;
-				
-			case UI_BTYPE_LINK:
-			case UI_BTYPE_INLINK:
-				wt = widget_type(UI_WTYPE_ICON);
-				wt->custom = widget_link;
-				
-				break;
-			
-			case UI_BTYPE_EXTRA:
-				widget_draw_extra_mask(C, but, widget_type(UI_WTYPE_BOX), rect);
-				break;
+      case UI_BTYPE_ROUNDBOX:
+      case UI_BTYPE_LISTBOX:
+        wt = widget_type(UI_WTYPE_BOX);
+        break;
 
-			case UI_BTYPE_HSVCUBE:
-				if (ELEM(but->a1, UI_GRAD_V_ALT, UI_GRAD_L_ALT)) {
-					/* vertical V slider, uses new widget draw now */
-					ui_draw_but_HSV_v(but, rect);
-				}
-				else {  /* other HSV pickers... */
-					ui_draw_but_HSVCUBE(but, rect);
-				}
-				break;
+      case UI_BTYPE_LINK:
+      case UI_BTYPE_INLINK:
+        wt = widget_type(UI_WTYPE_ICON);
+        wt->custom = widget_link;
+        break;
 
-			case UI_BTYPE_HSVCIRCLE:
-				ui_draw_but_HSVCIRCLE(but, &tui->wcol_regular, rect);
-				break;
+      case UI_BTYPE_EXTRA:
+        widget_draw_extra_mask(C, but, widget_type(UI_WTYPE_BOX), rect);
+        break;
 
-			case UI_BTYPE_COLORBAND:
-				ui_draw_but_COLORBAND(but, &tui->wcol_regular, rect);
-				break;
+      case UI_BTYPE_HSVCUBE:
+        if (ELEM(but->a1, UI_GRAD_V_ALT, UI_GRAD_L_ALT)) {
+          /* vertical V slider, uses new widget draw now */
+          ui_draw_but_HSV_v(but, rect);
+        }
+        else { /* other HSV pickers... */
+          ui_draw_but_HSVCUBE(but, rect);
+        }
+        break;
 
-			case UI_BTYPE_UNITVEC:
-				wt = widget_type(UI_WTYPE_UNITVEC);
-				break;
+      case UI_BTYPE_HSVCIRCLE:
+        ui_draw_but_HSVCIRCLE(but, &tui->wcol_regular, rect);
+        break;
 
-			case UI_BTYPE_IMAGE:
-				ui_draw_but_IMAGE(ar, but, &tui->wcol_regular, rect);
-				break;
+      case UI_BTYPE_COLORBAND:
+        ui_draw_but_COLORBAND(but, &tui->wcol_regular, rect);
+        break;
 
-			case UI_BTYPE_HISTOGRAM:
-				ui_draw_but_HISTOGRAM(ar, but, &tui->wcol_regular, rect);
-				break;
+      case UI_BTYPE_UNITVEC:
+        wt = widget_type(UI_WTYPE_UNITVEC);
+        break;
 
-			case UI_BTYPE_WAVEFORM:
-				ui_draw_but_WAVEFORM(ar, but, &tui->wcol_regular, rect);
-				break;
+      case UI_BTYPE_IMAGE:
+        ui_draw_but_IMAGE(ar, but, &tui->wcol_regular, rect);
+        break;
 
-			case UI_BTYPE_VECTORSCOPE:
-				ui_draw_but_VECTORSCOPE(ar, but, &tui->wcol_regular, rect);
-				break;
+      case UI_BTYPE_HISTOGRAM:
+        ui_draw_but_HISTOGRAM(ar, but, &tui->wcol_regular, rect);
+        break;
 
-			case UI_BTYPE_CURVE:
-				ui_draw_but_CURVE(ar, but, &tui->wcol_regular, rect);
-				break;
+      case UI_BTYPE_WAVEFORM:
+        ui_draw_but_WAVEFORM(ar, but, &tui->wcol_regular, rect);
+        break;
 
-			case UI_BTYPE_PROGRESS_BAR:
-				wt = widget_type(UI_WTYPE_PROGRESSBAR);
-				fstyle = &style->widgetlabel;
-				break;
+      case UI_BTYPE_VECTORSCOPE:
+        ui_draw_but_VECTORSCOPE(ar, but, &tui->wcol_regular, rect);
+        break;
 
-			case UI_BTYPE_SCROLL:
-				wt = widget_type(UI_WTYPE_SCROLL);
-				break;
+      case UI_BTYPE_CURVE:
+        ui_draw_but_CURVE(ar, but, &tui->wcol_regular, rect);
+        break;
 
-			case UI_BTYPE_GRIP:
-				wt = widget_type(UI_WTYPE_ICON);
-				break;
+      case UI_BTYPE_PROGRESS_BAR:
+        wt = widget_type(UI_WTYPE_PROGRESSBAR);
+        fstyle = &style->widgetlabel;
+        break;
 
-			case UI_BTYPE_TRACK_PREVIEW:
-				ui_draw_but_TRACKPREVIEW(ar, but, &tui->wcol_regular, rect);
-				break;
+      case UI_BTYPE_SCROLL:
+        wt = widget_type(UI_WTYPE_SCROLL);
+        break;
 
-			case UI_BTYPE_NODE_SOCKET:
-				ui_draw_but_NODESOCKET(ar, but, &tui->wcol_regular, rect);
-				break;
+      case UI_BTYPE_GRIP:
+        wt = widget_type(UI_WTYPE_ICON);
+        break;
 
-			default:
-				wt = widget_type(UI_WTYPE_REGULAR);
-				break;
-		}
-	}
+      case UI_BTYPE_TRACK_PREVIEW:
+        ui_draw_but_TRACKPREVIEW(ar, but, &tui->wcol_regular, rect);
+        break;
 
-	if (wt) {
-		//rcti disablerect = *rect; /* rect gets clipped smaller for text */
-		int roundboxalign, state, drawflag;
-		bool disabled = false;
+      case UI_BTYPE_NODE_SOCKET:
+        ui_draw_but_NODESOCKET(ar, but, &tui->wcol_regular, rect);
+        break;
 
-		roundboxalign = widget_roundbox_set(but, rect);
+      default:
+        wt = widget_type(UI_WTYPE_REGULAR);
+        break;
+    }
+  }
 
-		/* Mask out flags re-used for local state. */
-		state = but->flag & ~UI_STATE_FLAGS_ALL;
-		drawflag = but->drawflag;
+  if (wt) {
+    // rcti disablerect = *rect; /* rect gets clipped smaller for text */
+    int roundboxalign, state, drawflag;
+    bool disabled = false;
 
-		if (state & UI_SELECT_DRAW) {
-			state |= UI_SELECT;
-		}
+    roundboxalign = widget_roundbox_set(but, rect);
 
-		if ((but->editstr) ||
-		    (UNLIKELY(but->flag & UI_BUT_DRAG_MULTI) && ui_but_drag_multi_edit_get(but)))
-		{
-			state |= UI_STATE_TEXT_INPUT;
-		}
+    /* Mask out flags re-used for local state. */
+    state = but->flag & ~UI_STATE_FLAGS_ALL;
+    drawflag = but->drawflag;
 
-		if (but->hold_func) {
-			state |= UI_STATE_HOLD_ACTION;
-		}
+    if (state & UI_SELECT_DRAW) {
+      state |= UI_SELECT;
+    }
 
-		if (state & UI_ACTIVE) {
-			if (but->drawflag & UI_BUT_ACTIVE_LEFT) {
-				state |= UI_STATE_ACTIVE_LEFT;
-			}
-			else if (but->drawflag & UI_BUT_ACTIVE_RIGHT) {
-				state |= UI_STATE_ACTIVE_RIGHT;
-			}
-		}
+    if ((but->editstr) ||
+        (UNLIKELY(but->flag & UI_BUT_DRAG_MULTI) && ui_but_drag_multi_edit_get(but))) {
+      state |= UI_STATE_TEXT_INPUT;
+    }
 
-		if (state & (UI_BUT_DISABLED | UI_BUT_INACTIVE)) {
-			if (but->dt != UI_EMBOSS_PULLDOWN) {
-				disabled = true;
-			}
-		}
+    if (but->hold_func) {
+      state |= UI_STATE_HOLD_ACTION;
+    }
 
-		if (drawflag & UI_BUT_TEXT_RIGHT) {
-			state |= UI_STATE_TEXT_BEFORE_WIDGET;
-		}
+    if (state & UI_ACTIVE) {
+      if (but->drawflag & UI_BUT_ACTIVE_LEFT) {
+        state |= UI_STATE_ACTIVE_LEFT;
+      }
+      else if (but->drawflag & UI_BUT_ACTIVE_RIGHT) {
+        state |= UI_STATE_ACTIVE_RIGHT;
+      }
+    }
 
-		if (disabled) {
-			ui_widget_color_disabled(wt);
-		}
+    if (state & (UI_BUT_DISABLED | UI_BUT_INACTIVE)) {
+      if (but->dt != UI_EMBOSS_PULLDOWN) {
+        disabled = true;
+      }
+    }
 
-		wt->state(wt, state, drawflag);
-		if (wt->custom) {
-			wt->custom(but, &wt->wcol, rect, state, roundboxalign);
-		}
-		else if (wt->draw) {
-			wt->draw(&wt->wcol, rect, state, roundboxalign);
-		}
+    if (drawflag & UI_BUT_TEXT_RIGHT) {
+      state |= UI_STATE_TEXT_BEFORE_WIDGET;
+    }
 
-		if (disabled) {
-			GPU_blend(true);
-		}
+    if (disabled) {
+      ui_widget_color_disabled(wt);
+    }
 
-		bool show_semi_highlight = false;
+    wt->state(wt, state, drawflag);
+    if (wt->custom) {
+      wt->custom(but, &wt->wcol, rect, state, roundboxalign);
+    }
+    else if (wt->draw) {
+      wt->draw(&wt->wcol, rect, state, roundboxalign);
+    }
+
+    if (disabled) {
+      GPU_blend(true);
+    }
+
+    bool show_semi_highlight = false;
 
 #ifdef USE_UI_POPOVER_ONCE
     if (but->block->flag & UI_BLOCK_POPOVER_ONCE) {

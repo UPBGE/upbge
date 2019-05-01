@@ -2450,7 +2450,7 @@ void txt_do_undo(Text *text, TextUndoBuf *utxt)
       break;
     }
     default:
-      //XXX error("Undo buffer error - resetting");
+      // XXX error("Undo buffer error - resetting");
       utxt->pos = -1;
 
       break;
@@ -2642,7 +2642,7 @@ void txt_do_redo(Text *text, TextUndoBuf *utxt)
       break;
     }
     default:
-      //XXX error("Undo buffer error - resetting");
+      // XXX error("Undo buffer error - resetting");
       utxt->pos = -1;
 
       break;
@@ -3270,7 +3270,7 @@ int txt_setcurr_tab_spaces(Text *text, int space)
   }
 
   while (text->curl->line[i] == indent) {
-    //we only count those tabs/spaces that are before any text or before the curs;
+    // we only count those tabs/spaces that are before any text or before the curs;
     if (i == text->curc) {
       return i;
     }
