@@ -331,28 +331,22 @@ static World *preview_get_localized_world(ShaderPreview *sp, World *world)
   return sp->worldcopy;
 }
 
-static ID *duplicate_ids(ID *id, Depsgraph *depsgraph)
+static ID *duplicate_ids(ID *id)
 {
   if (id == NULL) {
     /* Non-ID preview render. */
     return NULL;
   }
 
-  ID *id_eval = id;
-
-  if (depsgraph) {
-    id_eval = DEG_get_evaluated_id(depsgraph, id);
-  }
-
   switch (GS(id->name)) {
     case ID_MA:
-      return (ID *)BKE_material_localize((Material *)id_eval);
+      return (ID *)BKE_material_localize((Material *)id);
     case ID_TE:
-      return (ID *)BKE_texture_localize((Tex *)id_eval);
+      return (ID *)BKE_texture_localize((Tex *)id);
     case ID_LA:
-      return (ID *)BKE_light_localize((Light *)id_eval);
+      return (ID *)BKE_light_localize((Light *)id);
     case ID_WO:
-      return (ID *)BKE_world_localize((World *)id_eval);
+      return (ID *)BKE_world_localize((World *)id);
     case ID_IM:
     case ID_BR:
     case ID_SCR:
@@ -455,7 +449,7 @@ static Scene *preview_prepare_scene(
         }
       }
       else {
-        sce->r.mode &= ~(R_OSA);
+        sce->display.render_aa = SCE_DISPLAY_AA_OFF;
       }
 
       for (Base *base = view_layer->object_bases.first; base; base = base->next) {
@@ -820,11 +814,6 @@ static void shader_preview_render(ShaderPreview *sp, ID *id, int split, int firs
   char name[32];
   int sizex;
   Main *pr_main = sp->pr_main;
-  ID *id_eval = id;
-
-  if (sp->depsgraph) {
-    id_eval = DEG_get_evaluated_id(sp->depsgraph, id);
-  }
 
   /* in case of split preview, use border render */
   if (split) {
@@ -848,7 +837,7 @@ static void shader_preview_render(ShaderPreview *sp, ID *id, int split, int firs
   }
 
   /* get the stuff from the builtin preview dbase */
-  sce = preview_prepare_scene(sp->bmain, sp->scene, id_eval, idtype, sp);
+  sce = preview_prepare_scene(sp->bmain, sp->scene, id, idtype, sp);
   if (sce == NULL) {
     return;
   }
@@ -872,7 +861,7 @@ static void shader_preview_render(ShaderPreview *sp, ID *id, int split, int firs
 
   if (sp->pr_method == PR_ICON_RENDER) {
     sce->r.scemode |= R_NO_IMAGE_LOAD;
-    sce->r.mode |= R_OSA;
+    sce->display.render_aa = SCE_DISPLAY_AA_SAMPLES_8;
   }
   else if (sp->pr_method == PR_NODE_RENDER) {
     if (idtype == ID_MA) {
@@ -881,10 +870,10 @@ static void shader_preview_render(ShaderPreview *sp, ID *id, int split, int firs
     else if (idtype == ID_TE) {
       sce->r.scemode |= R_TEXNODE_PREVIEW;
     }
-    sce->r.mode &= ~R_OSA;
+    sce->display.render_aa = SCE_DISPLAY_AA_OFF;
   }
   else { /* PR_BUTS_RENDER */
-    sce->r.mode |= R_OSA;
+    sce->display.render_aa = SCE_DISPLAY_AA_SAMPLES_8;
   }
 
   /* callbacs are cleared on GetRender() */
@@ -1327,7 +1316,7 @@ void ED_preview_icon_render(
   ip.scene = scene;
   ip.owner = BKE_previewimg_id_ensure(id);
   ip.id = id;
-  ip.id_copy = duplicate_ids(id, NULL);
+  ip.id_copy = duplicate_ids(id);
 
   icon_preview_add_size(&ip, rect, sizex, sizey);
 
@@ -1368,7 +1357,7 @@ void ED_preview_icon_job(
   ip->depsgraph = CTX_data_depsgraph(C);
   ip->owner = owner;
   ip->id = id;
-  ip->id_copy = duplicate_ids(id, ip->depsgraph);
+  ip->id_copy = duplicate_ids(id);
 
   icon_preview_add_size(ip, rect, sizex, sizey);
 
@@ -1434,7 +1423,7 @@ void ED_preview_shader_job(const bContext *C,
   sp->sizey = sizey;
   sp->pr_method = method;
   sp->id = id;
-  sp->id_copy = duplicate_ids(id, sp->depsgraph);
+  sp->id_copy = duplicate_ids(id);
   sp->own_id_copy = true;
   sp->parent = parent;
   sp->slot = slot;

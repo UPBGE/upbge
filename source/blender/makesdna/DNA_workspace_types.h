@@ -25,9 +25,6 @@
 
 #include "DNA_scene_types.h"
 
-/* Currently testing, allow to disable. */
-#define USE_WORKSPACE_TOOL
-
 #
 #
 typedef struct bToolRef_Runtime {
@@ -114,28 +111,20 @@ typedef struct WorkSpace {
   /** #wmOwnerID. */
   ListBase owner_ids;
 
-  /* should be: '#ifdef USE_WORKSPACE_TOOL'. */
-
   /** List of #bToolRef */
   ListBase tools;
 
-  /**
-   * BAD DESIGN WARNING:
-   * This is a workaround for the topbar not knowing which tools spec. */
-  char tools_space_type;
-  /** Type is different for each space-type. */
-  char tools_mode;
-  char _pad[2];
+  char _pad[4];
 
   int object_mode;
 
   /** Enum eWorkSpaceFlags. */
   int flags;
 
-  /* Number for workspace tab reordering in the UI. */
+  /** Number for workspace tab reordering in the UI. */
   int order;
 
-  /* Info text from modal operators (runtime). */
+  /** Info text from modal operators (runtime). */
   char *status_text;
 } WorkSpace;
 
@@ -165,10 +154,10 @@ typedef struct WorkSpace {
 typedef struct WorkSpaceDataRelation {
   struct WorkSpaceDataRelation *next, *prev;
 
-  /* the data used to identify the relation
-   * (e.g. to find screen-layout (= value) from/for a hook) */
+  /** The data used to identify the relation
+   * (e.g. to find screen-layout (= value) from/for a hook). */
   void *parent;
-  /* The value for this parent-data/workspace relation */
+  /** The value for this parent-data/workspace relation. */
   void *value;
 } WorkSpaceDataRelation;
 
@@ -180,7 +169,7 @@ typedef struct WorkSpaceInstanceHook {
   WorkSpace *active;
   struct WorkSpaceLayout *act_layout;
 
-  /* Needed because we can't change workspaces/layouts in running handler loop,
+  /** Needed because we can't change workspaces/layouts in running handler loop,
    * it would break context. */
   WorkSpace *temp_workspace_store;
   struct WorkSpaceLayout *temp_layout_store;

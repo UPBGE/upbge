@@ -1619,7 +1619,7 @@ void EEVEE_materials_cache_populate(EEVEE_Data *vedata,
 
   const bool do_cull = (draw_ctx->v3d &&
                         (draw_ctx->v3d->shading.flag & V3D_SHADING_BACKFACE_CULLING));
-  const bool is_sculpt_mode = (ob->sculpt != NULL);
+  const bool is_sculpt_mode = DRW_object_use_pbvh_drawing(ob);
   /* For now just force fully shaded with eevee when supported. */
   const bool is_sculpt_mode_draw = ob->sculpt && ob->sculpt->pbvh &&
                                    BKE_pbvh_type(ob->sculpt->pbvh) != PBVH_FACES;
@@ -1882,6 +1882,13 @@ void EEVEE_hair_cache_populate(EEVEE_Data *vedata,
               bool use_refract = GPU_material_flag_get(gpumat, GPU_MATFLAG_REFRACT);
 
               shgrp = DRW_shgroup_material_hair_create(ob, psys, md, psl->material_pass, gpumat);
+
+              if (!use_diffuse && !use_glossy && !use_refract) {
+                /* FIXME: Small hack to avoid issue when utilTex is needed for
+                 * world_normals_get and none of the bsdfs that need it are present.
+                 * This can try to bind utilTex even if not needed. */
+                DRW_shgroup_uniform_texture(shgrp, "utilTex", e_data.util_tex);
+              }
 
               add_standard_uniforms(shgrp,
                                     sldata,

@@ -565,7 +565,7 @@ void workbench_forward_cache_populate(WORKBENCH_Data *vedata, Object *ob)
 
   WORKBENCH_MaterialData *material;
   if (ELEM(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL)) {
-    const bool is_sculpt_mode = (ob->sculpt != NULL);
+    const bool is_sculpt_mode = DRW_object_use_pbvh_drawing(ob);
     bool is_drawn = false;
 
     if (!is_sculpt_mode && TEXTURE_DRAWING_ENABLED(wpd) && ELEM(ob->type, OB_MESH)) {
@@ -682,7 +682,7 @@ void workbench_forward_draw_scene(WORKBENCH_Data *vedata)
   WORKBENCH_PrivateData *wpd = stl->g_data;
   DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
 
-  if (TAA_ENABLED(wpd)) {
+  if (workbench_is_taa_enabled(wpd)) {
     workbench_taa_draw_scene_start(vedata);
   }
 

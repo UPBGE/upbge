@@ -935,7 +935,7 @@ void workbench_deferred_solid_cache_populate(WORKBENCH_Data *vedata, Object *ob)
   WORKBENCH_MaterialData *material;
   if (ELEM(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL)) {
     const bool is_active = (ob == draw_ctx->obact);
-    const bool is_sculpt_mode = (ob->sculpt != NULL);
+    const bool is_sculpt_mode = DRW_object_use_pbvh_drawing(ob);
     const bool use_hide = is_active && DRW_object_use_hide_faces(ob);
     const int materials_len = MAX2(1, (is_sculpt_mode ? 1 : ob->totcol));
     const Mesh *me = (ob->type == OB_MESH) ? ob->data : NULL;
@@ -1156,7 +1156,7 @@ void workbench_deferred_draw_scene(WORKBENCH_Data *vedata)
   WORKBENCH_PrivateData *wpd = stl->g_data;
   DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
 
-  if (TAA_ENABLED(wpd)) {
+  if (workbench_is_taa_enabled(wpd)) {
     workbench_taa_draw_scene_start(vedata);
   }
 
