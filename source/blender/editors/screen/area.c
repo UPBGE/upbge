@@ -457,19 +457,6 @@ void ED_area_do_msg_notify_tag_refresh(
   ED_area_tag_refresh(sa);
 }
 
-static void region_do_msg_notify_tag_redraw(
-    /* Follow wmMsgNotifyFn spec */
-    bContext *UNUSED(C),
-    wmMsgSubscribeKey *UNUSED(msg_key),
-    wmMsgSubscribeValue *msg_val)
-{
-  ARegion *ar = msg_val->owner;
-  ED_region_tag_redraw(ar);
-
-  /* FIXME(campbell): shouldn't be needed. */
-  WM_main_add_notifier(NC_SPACE | ND_SPACE_VIEW3D, NULL);
-}
-
 void ED_area_do_mgs_subscribe_for_tool_header(
     /* Follow ARegionType.message_subscribe */
     const struct bContext *UNUSED(C),
@@ -480,16 +467,37 @@ void ED_area_do_mgs_subscribe_for_tool_header(
     struct ARegion *ar,
     struct wmMsgBus *mbus)
 {
+  BLI_assert(ar->regiontype == RGN_TYPE_TOOL_HEADER);
   wmMsgSubscribeValue msg_sub_value_region_tag_redraw = {
       .owner = ar,
       .user_data = ar,
-      /* TODO(campbell): investigate why
-       * ED_region_do_msg_notify_tag_redraw doesn't work here. */
-      // .notify = ED_region_do_msg_notify_tag_redraw,
-      .notify = region_do_msg_notify_tag_redraw,
+      .notify = ED_region_do_msg_notify_tag_redraw,
   };
   WM_msg_subscribe_rna_prop(
       mbus, &workspace->id, workspace, WorkSpace, tools, &msg_sub_value_region_tag_redraw);
+}
+
+void ED_area_do_mgs_subscribe_for_tool_ui(
+    /* Follow ARegionType.message_subscribe */
+    const struct bContext *UNUSED(C),
+    struct WorkSpace *workspace,
+    struct Scene *UNUSED(scene),
+    struct bScreen *UNUSED(screen),
+    struct ScrArea *UNUSED(sa),
+    struct ARegion *ar,
+    struct wmMsgBus *mbus)
+{
+  BLI_assert(ar->regiontype == RGN_TYPE_UI);
+  const char *category = UI_panel_category_active_get(ar, false);
+  if (category && STREQ(category, "Tool")) {
+    wmMsgSubscribeValue msg_sub_value_region_tag_redraw = {
+        .owner = ar,
+        .user_data = ar,
+        .notify = ED_region_do_msg_notify_tag_redraw,
+    };
+    WM_msg_subscribe_rna_prop(
+        mbus, &workspace->id, workspace, WorkSpace, tools, &msg_sub_value_region_tag_redraw);
+  }
 }
 
 /**
@@ -1110,7 +1118,7 @@ static int rct_fits(const rcti *rect, char dir, int size)
 static void region_overlap_fix(ScrArea *sa, ARegion *ar)
 {
   ARegion *ar1;
-  const int align = ar->alignment & ~RGN_SPLIT_PREV;
+  const int align = RGN_ALIGN_ENUM_FROM_MASK(ar->alignment);
   int align1 = 0;
 
   /* find overlapping previous region on same place */
@@ -1227,7 +1235,7 @@ static void region_rect_recursive(
     }
   }
 
-  int alignment = ar->alignment & ~RGN_SPLIT_PREV;
+  int alignment = RGN_ALIGN_ENUM_FROM_MASK(ar->alignment);
 
   /* set here, assuming userpref switching forces to call this again */
   ar->overlap = ED_region_is_overlap(sa->spacetype, ar->regiontype);
@@ -1690,7 +1698,7 @@ void ED_area_update_region_sizes(wmWindowManager *wm, wmWindow *win, ScrArea *ar
     }
 
     /* Some AZones use View2D data which is only updated in region init, so call that first! */
-    region_azones_add(screen, area, ar, ar->alignment & ~RGN_SPLIT_PREV);
+    region_azones_add(screen, area, ar, RGN_ALIGN_ENUM_FROM_MASK(ar->alignment));
   }
   ED_area_azones_update(area, &win->eventstate->x);
 
@@ -1761,7 +1769,7 @@ void ED_area_initialize(wmWindowManager *wm, wmWindow *win, ScrArea *sa)
     }
 
     /* Some AZones use View2D data which is only updated in region init, so call that first! */
-    region_azones_add(screen, sa, ar, ar->alignment & ~RGN_SPLIT_PREV);
+    region_azones_add(screen, sa, ar, RGN_ALIGN_ENUM_FROM_MASK(ar->alignment));
   }
 
   /* Avoid re-initializing tools while resizing the window. */
