@@ -183,9 +183,6 @@ def km_window(params):
     )
 
     items.extend([
-
-        op_panel("TOPBAR_PT_name", {"type": 'RET', "value": 'PRESS'}, [("keep_open", False)]),
-
         # File operations
         ("wm.read_homefile", {"type": 'N', "value": 'PRESS', "ctrl": True}, None),
         op_menu("TOPBAR_MT_file_open_recent", {"type": 'O', "value": 'PRESS', "shift": True, "ctrl": True}),
@@ -444,6 +441,7 @@ def km_outliner(params):
     )
 
     items.extend([
+        op_panel("TOPBAR_PT_name", {"type": 'RET', "value": 'PRESS'}, [("keep_open", False)]),
         ("wm.search_menu", {"type": 'TAB', "value": 'PRESS'}, None),
         ("outliner.highlight_update", {"type": 'MOUSEMOVE', "value": 'ANY', "any": True}, None),
         ("outliner.item_rename", {"type": 'LEFTMOUSE', "value": 'DOUBLE_CLICK'}, None),
@@ -510,6 +508,7 @@ def km_uv_editor(params):
     )
 
     items.extend([
+        op_panel("TOPBAR_PT_name", {"type": 'RET', "value": 'PRESS'}, [("keep_open", False)]),
         ("wm.search_menu", {"type": 'TAB', "value": 'PRESS'}, None),
         # Selection modes.
         ("uv.select", {"type": 'LEFTMOUSE', "value": 'PRESS'},
@@ -576,6 +575,7 @@ def km_view3d(params):
     )
 
     items.extend([
+        op_panel("TOPBAR_PT_name", {"type": 'RET', "value": 'PRESS'}, [("keep_open", False)]),
         ("wm.search_menu", {"type": 'TAB', "value": 'PRESS'}, None),
         # Visibility.
         ("view3d.localview", {"type": 'I', "value": 'PRESS', "shift": True}, None),
@@ -797,6 +797,7 @@ def km_graph_editor_generic(params):
     )
 
     items.extend([
+        op_panel("TOPBAR_PT_name", {"type": 'RET', "value": 'PRESS'}, [("keep_open", False)]),
         ("anim.channels_find", {"type": 'F', "value": 'PRESS', "ctrl": True}, None),
         ("graph.hide", {"type": 'H', "value": 'PRESS', "ctrl": True},
          {"properties": [("unselected", False)]}),
@@ -850,11 +851,11 @@ def km_graph_editor(params):
         ("graph.select_box", {"type": 'Q', "value": 'PRESS', "ctrl": True, "alt": True},
          {"properties": [("axis_range", True), ("include_handles", True)]}),
         ("graph.select_box", {"type": 'EVT_TWEAK_L', "value": 'ANY'},
-         {"properties":[("axis_range", False), ("include_handles", True), ("wait_for_input", False), ("mode", 'SET')]}),
+         {"properties":[("axis_range", False), ("include_handles", False), ("wait_for_input", False), ("mode", 'SET')]}),
         ("graph.select_box", {"type": 'EVT_TWEAK_L', "value": 'ANY', "shift": True},
-         {"properties":[("axis_range", False), ("include_handles", True), ("wait_for_input", False), ("mode", 'ADD')]}),
+         {"properties":[("axis_range", False), ("include_handles", False), ("wait_for_input", False), ("mode", 'ADD')]}),
         ("graph.select_box", {"type": 'EVT_TWEAK_L', "value": 'ANY', "ctrl": True},
-         {"properties":[("axis_range", False),("include_handles", True), ("wait_for_input", False), ("mode", 'SUB')]}),
+         {"properties":[("axis_range", False),("include_handles", False), ("wait_for_input", False), ("mode", 'SUB')]}),
         ("graph.select_more", {"type": 'UP_ARROW', "value": 'PRESS'}, None),
         ("graph.select_less", {"type": 'DOWN_ARROW', "value": 'PRESS'}, None),
         ("graph.select_linked", {"type": 'RIGHT_BRACKET', "value": 'PRESS'}, None),
@@ -896,6 +897,7 @@ def km_image_generic(params):
     )
 
     items.extend([
+        op_panel("TOPBAR_PT_name", {"type": 'RET', "value": 'PRESS'}, [("keep_open", False)]),
         ("wm.search_menu", {"type": 'TAB', "value": 'PRESS'}, None),
         ("image.new", {"type": 'N', "value": 'PRESS', "alt": True}, None),
         ("image.open", {"type": 'O', "value": 'PRESS', "alt": True}, None),
@@ -985,6 +987,7 @@ def km_node_generic(_params):
     )
 
     items.extend([
+        op_panel("TOPBAR_PT_name", {"type": 'RET', "value": 'PRESS'}, [("keep_open", False)]),
         ("node.add_search", {"type": 'TAB', "value": 'PRESS'}, None),
     ])
 
@@ -1109,6 +1112,7 @@ def km_info(params):
     )
 
     items.extend([
+        op_panel("TOPBAR_PT_name", {"type": 'RET', "value": 'PRESS'}, [("keep_open", False)]),
         ("wm.search_menu", {"type": 'TAB', "value": 'PRESS'}, None),
         ("info.select_pick", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
         ("info.select_pick", {"type": 'LEFTMOUSE', "value": 'PRESS', "shift": True},
@@ -1264,6 +1268,7 @@ def km_dopesheet_generic(params):
     )
 
     items.extend([
+        op_panel("TOPBAR_PT_name", {"type": 'RET', "value": 'PRESS'}, [("keep_open", False)]),
         ("wm.search_menu", {"type": 'TAB', "value": 'PRESS'}, None),
         ("wm.context_toggle", {"type": 'RIGHT_BRACKET', "value": 'PRESS', "ctrl": True},
          {"properties": [("data_path", 'space_data.show_region_ui')]}),
@@ -1371,6 +1376,7 @@ def km_nla_generic(params):
     )
 
     items.extend([
+        op_panel("TOPBAR_PT_name", {"type": 'RET', "value": 'PRESS'}, [("keep_open", False)]),
         ("wm.search_menu", {"type": 'TAB', "value": 'PRESS'}, None),
         *_template_items_animation(),
         ("nla.tweakmode_enter", {"type": 'LEFTMOUSE', "value": 'DOUBLE_CLICK'}, None),
@@ -1637,6 +1643,7 @@ def km_sequencercommon(_params):
     )
 
     items.extend([
+        op_panel("TOPBAR_PT_name", {"type": 'RET', "value": 'PRESS'}, [("keep_open", False)]),
         ("wm.context_toggle", {"type": 'RIGHT_BRACKET', "value": 'PRESS', "ctrl": True},
          {"properties": [("data_path", 'space_data.show_region_ui')]}),
     ])
@@ -1852,6 +1859,7 @@ def km_clip(params):
     )
 
     items.extend([
+        op_panel("TOPBAR_PT_name", {"type": 'RET', "value": 'PRESS'}, [("keep_open", False)]),
         ("wm.search_menu", {"type": 'TAB', "value": 'PRESS'}, None),
         ("clip.open", {"type": 'O', "value": 'PRESS', "alt": True}, None),
         ("clip.track_markers", {"type": 'LEFT_ARROW', "value": 'PRESS', "alt": True},
@@ -1990,6 +1998,7 @@ def km_clip_graph_editor(params):
     )
 
     items.extend([
+        op_panel("TOPBAR_PT_name", {"type": 'RET', "value": 'PRESS'}, [("keep_open", False)]),
         ("wm.search_menu", {"type": 'TAB', "value": 'PRESS'}, None),
         ("clip.graph_select", {"type": 'LEFTMOUSE', "value": 'PRESS'},
          {"properties": [("extend", False)]}),

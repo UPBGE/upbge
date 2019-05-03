@@ -100,6 +100,8 @@ const char *operationCodeAsString(OperationCode opcode)
       return "LIGHT_PROBE_EVAL";
     case OperationCode::SPEAKER_EVAL:
       return "SPEAKER_EVAL";
+    case OperationCode::SOUND_EVAL:
+      return "SOUND_EVAL";
     case OperationCode::ARMATURE_EVAL:
       return "ARMATURE_EVAL";
     /* Pose. */
@@ -183,6 +185,9 @@ const char *operationCodeAsString(OperationCode opcode)
     /* Generic datablock. */
     case OperationCode::GENERIC_DATABLOCK_UPDATE:
       return "GENERIC_DATABLOCK_UPDATE";
+    /* Sequencer. */
+    case OperationCode::SEQUENCES_EVAL:
+      return "SEQUENCES_EVAL";
     /* instancing/duplication. */
     case OperationCode::DUPLI:
       return "DUPLI";

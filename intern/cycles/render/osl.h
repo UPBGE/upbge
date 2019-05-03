@@ -129,9 +129,10 @@ class OSLCompiler {
  public:
   OSLCompiler(void *manager,
               void *shadingsys,
+              OSLGlobals *osl_globals,
               ImageManager *image_manager,
               LightManager *light_manager);
-  void compile(Scene *scene, OSLGlobals *og, Shader *shader);
+  void compile(Scene *scene, Shader *shader);
 
   void add(ShaderNode *node, const char *name, bool isfilepath = false);
 
@@ -151,6 +152,10 @@ class OSLCompiler {
   void parameter_color_array(const char *name, const array<float3> &f);
 
   void parameter_attribute(const char *name, ustring s);
+
+  void parameter_texture(const char *name, ustring filename, ustring colorspace);
+  void parameter_texture(const char *name, int svm_slot);
+  void parameter_texture_ies(const char *name, int svm_slot);
 
   ShaderType output_type()
   {
@@ -175,6 +180,7 @@ class OSLCompiler {
 
   void *shadingsys;
   void *manager;
+  OSLGlobals *osl_globals;
   ShaderType current_type;
   Shader *current_shader;
 };

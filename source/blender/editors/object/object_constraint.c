@@ -1751,18 +1751,13 @@ static bool get_new_constraint_target(
       add = false;
       break;
 
-		/* mesh only? */
-		case CONSTRAINT_TYPE_SHRINKWRAP:
-			only_mesh = true;
-			only_ob = true;
-			add = false;
-			break;
-			
-		/* object only - add here is ok? */
-		case CONSTRAINT_TYPE_RIGIDBODYJOINT:
-			only_ob = true;
-			break;
-	}
+    /* mesh only? */
+    case CONSTRAINT_TYPE_SHRINKWRAP:
+      only_mesh = true;
+      only_ob = true;
+      add = false;
+      break;
+  }
 
   /* if the active Object is Armature, and we can search for bones, do so... */
   if ((obact->type == OB_ARMATURE) && (only_ob == false)) {
@@ -1860,7 +1855,8 @@ static bool get_new_constraint_target(
 }
 
 /* used by add constraint operators to add the constraint required */
-static int constraint_add_exec(bContext *C, wmOperator *op, Object *ob, ListBase *list, int type, const bool setTarget)
+static int constraint_add_exec(
+    bContext *C, wmOperator *op, Object *ob, ListBase *list, int type, const bool setTarget)
 {
   Main *bmain = CTX_data_main(C);
   bPoseChannel *pchan;
@@ -1872,28 +1868,16 @@ static int constraint_add_exec(bContext *C, wmOperator *op, Object *ob, ListBase
   else {
     pchan = BKE_pose_channel_active(ob);
 
-		/* ensure not to confuse object/pose adding */
-		if (pchan == NULL) {
-			BKE_report(op->reports, RPT_ERROR, "No active pose bone to add a constraint to");
-			return OPERATOR_CANCELLED;
-		}
-	}
-	/* check if constraint to be added is valid for the given constraints stack */
-	if (type == CONSTRAINT_TYPE_NULL) {
-		return OPERATOR_CANCELLED;
-	}
-	if ((type == CONSTRAINT_TYPE_RIGIDBODYJOINT) && (list != &ob->constraints)) {
-		BKE_report(op->reports, RPT_ERROR, "Rigid Body Joint constraint can only be added to objects");
-		return OPERATOR_CANCELLED;
-	}
-	if ((type == CONSTRAINT_TYPE_KINEMATIC) && ((!pchan) || (list != &pchan->constraints))) {
-		BKE_report(op->reports, RPT_ERROR, "IK constraint can only be added to bones");
-		return OPERATOR_CANCELLED;
-	}
-	if ((type == CONSTRAINT_TYPE_SPLINEIK) && ((!pchan) || (list != &pchan->constraints))) {
-		BKE_report(op->reports, RPT_ERROR, "Spline IK constraint can only be added to bones");
-		return OPERATOR_CANCELLED;
-	}
+    /* ensure not to confuse object/pose adding */
+    if (pchan == NULL) {
+      BKE_report(op->reports, RPT_ERROR, "No active pose bone to add a constraint to");
+      return OPERATOR_CANCELLED;
+    }
+  }
+  /* check if constraint to be added is valid for the given constraints stack */
+  if (type == CONSTRAINT_TYPE_NULL) {
+    return OPERATOR_CANCELLED;
+  }
 
   /* Create a new constraint of the type required,
    * and add it to the active/given constraints list. */
@@ -2031,8 +2015,33 @@ static int pose_constraint_add_exec(bContext *C, wmOperator *op)
 
 /* ------------------ */
 
+/* Filters constraints that are only compatible with bones */
+static const EnumPropertyItem *object_constraint_add_itemf(bContext *UNUSED(C),
+                                                           PointerRNA *UNUSED(ptr),
+                                                           PropertyRNA *UNUSED(prop),
+                                                           bool *r_free)
+{
+  const EnumPropertyItem *item = rna_enum_constraint_type_items;
+  EnumPropertyItem *object_constraint_items = NULL;
+  int totitem = 0;
+
+  while(item->identifier) {
+    if((item->value != CONSTRAINT_TYPE_KINEMATIC) && (item->value != CONSTRAINT_TYPE_SPLINEIK)) {
+      RNA_enum_item_add(&object_constraint_items, &totitem, item);
+    }
+    item++;
+  }
+
+  RNA_enum_item_end(&object_constraint_items, &totitem);
+  *r_free = true;
+
+  return object_constraint_items;
+}
+
 void OBJECT_OT_constraint_add(wmOperatorType *ot)
 {
+  PropertyRNA *prop;
+
   /* identifiers */
   ot->name = "Add Constraint";
   ot->description = "Add a constraint to the active object";
@@ -2047,11 +2056,15 @@ void OBJECT_OT_constraint_add(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* properties */
-  ot->prop = RNA_def_enum(ot->srna, "type", rna_enum_constraint_type_items, 0, "Type", "");
+  prop = RNA_def_enum(ot->srna, "type", DummyRNA_NULL_items, 0, "Type", "");
+  RNA_def_enum_funcs(prop, object_constraint_add_itemf);
+  ot->prop = prop;
 }
 
 void OBJECT_OT_constraint_add_with_targets(wmOperatorType *ot)
 {
+  PropertyRNA *prop;
+
   /* identifiers */
   ot->name = "Add Constraint (with Targets)";
   ot->description =
@@ -2068,7 +2081,9 @@ void OBJECT_OT_constraint_add_with_targets(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* properties */
-  ot->prop = RNA_def_enum(ot->srna, "type", rna_enum_constraint_type_items, 0, "Type", "");
+  prop = RNA_def_enum(ot->srna, "type", DummyRNA_NULL_items, 0, "Type", "");
+  RNA_def_enum_funcs(prop, object_constraint_add_itemf);
+  ot->prop = prop;
 }
 
 void POSE_OT_constraint_add(wmOperatorType *ot)

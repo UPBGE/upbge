@@ -6642,7 +6642,7 @@ static void lib_link_scene(FileData *fd, Main *main)
           }
           if (seq->sound) {
             id_us_plus_no_lib((ID *)seq->sound);
-            seq->scene_sound = BKE_sound_add_scene_sound_defaults(sce, seq);
+            seq->scene_sound = NULL;
           }
         }
         if (seq->type == SEQ_TYPE_TEXT) {
@@ -6660,9 +6660,6 @@ static void lib_link_scene(FileData *fd, Main *main)
           marker->camera = newlibadr(fd, sce->id.lib, marker->camera);
         }
       }
-
-      BKE_sequencer_update_muting(sce->ed);
-      BKE_sequencer_update_sound_bounds_all(sce);
 
       /* rigidbody world relies on it's linked collections */
       if (sce->rigidbody_world) {
@@ -6835,7 +6832,7 @@ static void direct_link_scene(FileData *fd, Scene *sce)
   memset(&sce->customdata_mask, 0, sizeof(sce->customdata_mask));
   memset(&sce->customdata_mask_modal, 0, sizeof(sce->customdata_mask_modal));
 
-  BKE_sound_create_scene(sce);
+  BKE_sound_reset_scene_runtime(sce);
 
   /* set users to one by default, not in lib-link, this will increase it for compo nodes */
   id_us_ensure_real(&sce->id);
@@ -8596,7 +8593,7 @@ static void lib_link_sound(FileData *fd, Main *main)
       sound->ipo = newlibadr_us(
           fd, sound->id.lib, sound->ipo);  // XXX deprecated - old animation system
 
-      BKE_sound_load(main, sound);
+      BKE_sound_reset_runtime(sound);
 
       sound->id.tag &= ~LIB_TAG_NEED_LINK;
     }

@@ -30,6 +30,21 @@ void *util_aligned_malloc(size_t size, int alignment);
 /* Free memory allocated by util_aligned_malloc. */
 void util_aligned_free(void *ptr);
 
+/* Aligned new operator. */
+template<typename T> T *util_aligned_new()
+{
+  void *mem = util_aligned_malloc(sizeof(T), alignof(T));
+  return new (mem) T();
+}
+
+template<typename T> void util_aligned_delete(T *t)
+{
+  if (t) {
+    t->~T();
+    util_aligned_free(t);
+  }
+}
+
 CCL_NAMESPACE_END
 
 #endif /* __UTIL_ALIGNED_MALLOC_H__ */

@@ -58,6 +58,8 @@ extern "C" {
 #include "DNA_object_types.h"
 #include "DNA_rigidbody_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_sequence_types.h"
+#include "DNA_sound_types.h"
 #include "DNA_speaker_types.h"
 #include "DNA_texture_types.h"
 #include "DNA_world_types.h"
@@ -83,6 +85,7 @@ extern "C" {
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
 #include "BKE_rigidbody.h"
+#include "BKE_sequencer.h"
 #include "BKE_shader_fx.h"
 #include "BKE_shrinkwrap.h"
 #include "BKE_sound.h"
@@ -487,6 +490,9 @@ void DepsgraphRelationBuilder::build_id(ID *id)
     case ID_SPK:
       build_speaker((Speaker *)id);
       break;
+    case ID_SO:
+      build_sound((bSound *)id);
+      break;
     case ID_TXT:
       /* Not a part of dependency graph. */
       break;
@@ -766,9 +772,9 @@ void DepsgraphRelationBuilder::build_object_data_speaker(Object *object)
 {
   Speaker *speaker = (Speaker *)object->data;
   build_speaker(speaker);
-  OperationKey probe_key(&speaker->id, NodeType::PARAMETERS, OperationCode::SPEAKER_EVAL);
-  OperationKey object_key(&object->id, NodeType::PARAMETERS, OperationCode::SPEAKER_EVAL);
-  add_relation(probe_key, object_key, "Speaker Update");
+  ComponentKey speaker_key(&speaker->id, NodeType::AUDIO);
+  ComponentKey object_key(&object->id, NodeType::AUDIO);
+  add_relation(speaker_key, object_key, "Speaker Update");
 }
 
 void DepsgraphRelationBuilder::build_object_parent(Object *object)
@@ -2276,6 +2282,50 @@ void DepsgraphRelationBuilder::build_speaker(Speaker *speaker)
   }
   build_animdata(&speaker->id);
   build_parameters(&speaker->id);
+  if (speaker->sound != NULL) {
+    build_sound(speaker->sound);
+    ComponentKey speaker_key(&speaker->id, NodeType::AUDIO);
+    ComponentKey sound_key(&speaker->sound->id, NodeType::AUDIO);
+    add_relation(sound_key, speaker_key, "Sound -> Speaker");
+  }
+}
+
+void DepsgraphRelationBuilder::build_sound(bSound *sound)
+{
+  if (built_map_.checkIsBuiltAndTag(sound)) {
+    return;
+  }
+  build_animdata(&sound->id);
+  build_parameters(&sound->id);
+}
+
+void DepsgraphRelationBuilder::build_sequencer(Scene *scene)
+{
+  if (scene->ed == NULL) {
+    return;
+  }
+  /* Make sure dependencies from sequences data goes to the sequencer evaluation. */
+  ComponentKey sequencer_key(&scene->id, NodeType::SEQUENCER);
+  Sequence *seq;
+  bool has_audio_strips = false;
+  SEQ_BEGIN (scene->ed, seq) {
+    if (seq->sound != NULL) {
+      build_sound(seq->sound);
+      ComponentKey sound_key(&seq->sound->id, NodeType::AUDIO);
+      add_relation(sound_key, sequencer_key, "Sound -> Sequencer");
+      has_audio_strips = true;
+    }
+    /* TODO(sergey): Movie clip, scene, camera, mask. */
+  }
+  SEQ_END;
+  if (has_audio_strips) {
+    ComponentKey scene_audio_key(&scene->id, NodeType::AUDIO);
+    add_relation(sequencer_key, scene_audio_key, "Sequencer -> Audio");
+  }
+}
+
+void DepsgraphRelationBuilder::build_scene_audio(Scene * /*scene*/)
+{
 }
 
 void DepsgraphRelationBuilder::build_copy_on_write_relations()
@@ -2339,6 +2389,10 @@ void DepsgraphRelationBuilder::build_copy_on_write_relations(IDNode *id_node)
     int rel_flag = (RELATION_FLAG_NO_FLUSH | RELATION_FLAG_GODMODE);
     if ((id_type == ID_ME && comp_node->type == NodeType::GEOMETRY) ||
         (id_type == ID_CF && comp_node->type == NodeType::CACHE)) {
+      rel_flag &= ~RELATION_FLAG_NO_FLUSH;
+    }
+    /* TODO(sergey): Needs better solution for this. */
+    if (id_type == ID_SO) {
       rel_flag &= ~RELATION_FLAG_NO_FLUSH;
     }
     /* Notes on exceptions:
