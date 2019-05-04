@@ -3384,6 +3384,8 @@ class VIEW3D_MT_edit_mesh_context_menu(Menu):
             # Removal Operators
             if selected_verts_len > 1:
                 col.menu("VIEW3D_MT_edit_mesh_merge", text="Merge Vertices")
+            col.operator("mesh.split")
+            col.operator_menu_enum("mesh.separate", "type")
             col.operator("mesh.dissolve_verts")
             col.operator("mesh.delete", text="Delete Vertices").type = 'VERT'
 
@@ -3449,6 +3451,8 @@ class VIEW3D_MT_edit_mesh_context_menu(Menu):
 
             # Removal Operators
             col.operator("mesh.unsubdivide")
+            col.operator("mesh.split")
+            col.operator_menu_enum("mesh.separate", "type")
             col.operator("mesh.dissolve_edges")
             col.operator("mesh.delete", text="Delete Edges").type = 'EDGE'
 
@@ -3493,6 +3497,8 @@ class VIEW3D_MT_edit_mesh_context_menu(Menu):
 
             # Removal Operators
             col.operator("mesh.unsubdivide")
+            col.operator("mesh.split")
+            col.operator_menu_enum("mesh.separate", "type")
             col.operator("mesh.dissolve_faces")
             col.operator("mesh.delete", text="Delete Faces").type = 'FACE'
 
@@ -6260,8 +6266,15 @@ class VIEW3D_PT_paint_vertex_context_menu(Panel):
 
     def draw(self, context):
         layout = self.layout
-
         brush = context.tool_settings.vertex_paint.brush
+        capabilities = brush.vertex_paint_capabilities
+
+        if capabilities.has_color:
+            split = layout.split(factor=0.1)
+            UnifiedPaintPanel.prop_unified_color(split, context, brush, "color", text="")
+            UnifiedPaintPanel.prop_unified_color_picker(split, context, brush, "color", value_slider=True)
+            layout.prop(brush, "blend", text="")
+
         UnifiedPaintPanel.prop_unified_size(layout, context, brush, "size", slider=True)
         UnifiedPaintPanel.prop_unified_strength(layout, context, brush, "strength")
 
@@ -6276,6 +6289,12 @@ class VIEW3D_PT_paint_texture_context_menu(Panel):
         layout = self.layout
         brush = context.tool_settings.image_paint.brush
         capabilities = brush.image_paint_capabilities
+
+        if capabilities.has_color:
+            split = layout.split(factor=0.1)
+            UnifiedPaintPanel.prop_unified_color(split, context, brush, "color", text="")
+            UnifiedPaintPanel.prop_unified_color_picker(split, context, brush, "color", value_slider=True)
+            layout.prop(brush, "blend", text="")
 
         if capabilities.has_radius:
             UnifiedPaintPanel.prop_unified_size(layout, context, brush, "size", slider=True)

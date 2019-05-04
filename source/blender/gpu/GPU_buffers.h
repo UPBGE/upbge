@@ -88,10 +88,9 @@ void GPU_pbvh_grid_buffers_update(GPU_PBVH_Buffers *buffers,
 /* draw */
 struct GPUBatch *GPU_pbvh_buffers_batch_get(GPU_PBVH_Buffers *buffers, bool fast, bool wires);
 
-bool GPU_pbvh_buffers_has_mask(GPU_PBVH_Buffers *buffers);
+short GPU_pbvh_buffers_material_index_get(GPU_PBVH_Buffers *buffers);
 
-/* debug PBVH draw */
-void GPU_pbvh_BB_draw(float min[3], float max[3], bool leaf, unsigned int pos);
+bool GPU_pbvh_buffers_has_mask(GPU_PBVH_Buffers *buffers);
 
 void GPU_pbvh_buffers_free(GPU_PBVH_Buffers *buffers);
 
