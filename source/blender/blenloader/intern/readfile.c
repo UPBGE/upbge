@@ -6619,9 +6619,7 @@ static void lib_link_scene(FileData *fd, Main *main)
         seq->scene_sound = NULL;
         if (seq->scene) {
           seq->scene = newlibadr(fd, sce->id.lib, seq->scene);
-          if (seq->scene) {
-            seq->scene_sound = BKE_sound_scene_add_scene_sound_defaults(sce, seq);
-          }
+          seq->scene_sound = NULL;
         }
         if (seq->clip) {
           seq->clip = newlibadr_us(fd, sce->id.lib, seq->clip);
@@ -8573,10 +8571,9 @@ static void direct_link_sound(FileData *fd, bSound *sound)
     sound->waveform = NULL;
   }
 
-  if (sound->spinlock) {
-    sound->spinlock = MEM_mallocN(sizeof(SpinLock), "sound_spinlock");
-    BLI_spin_init(sound->spinlock);
-  }
+  sound->spinlock = MEM_mallocN(sizeof(SpinLock), "sound_spinlock");
+  BLI_spin_init(sound->spinlock);
+
   /* clear waveform loading flag */
   sound->tags &= ~SOUND_TAGS_WAVEFORM_LOADING;
 
