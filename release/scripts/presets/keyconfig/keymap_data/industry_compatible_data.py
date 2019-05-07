@@ -765,12 +765,9 @@ def km_markers(params):
 
     items.extend([
         ("wm.search_menu", {"type": 'TAB', "value": 'PRESS'}, None),
-        ("anim.change_frame", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
-        ("graph.cursor_set", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
         ("marker.add", {"type": 'M', "value": 'PRESS'}, None),
         ("marker.move", {"type": 'EVT_TWEAK_L', "value": 'ANY'}, None),
         ("marker.duplicate", {"type": 'D', "value": 'PRESS', "ctrl": True}, None),
-
         ("marker.select", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
         ("marker.select", {"type": 'LEFTMOUSE', "value": 'PRESS', "shift": True},
          {"properties": [("extend", True)]}),
@@ -3409,8 +3406,8 @@ def km_knife_tool_modal_map(_params):
         ("PANNING", {"type": 'LEFTMOUSE', "value": 'PRESS', "alt": True}, None),
         ("CONFIRM", {"type": 'RET', "value": 'PRESS', "any": True}, None),
         ("CONFIRM", {"type": 'NUMPAD_ENTER', "value": 'PRESS', "any": True}, None),
-        ("CONFIRM", {"type": 'LEFTMOUSE', "value": 'DOUBLE_CLICK', "any": False}, None),
-        ("ADD_CUT", {"type": 'LEFTMOUSE', "value": 'ANY', "any": False}, None),
+        ("CONFIRM", {"type": 'LEFTMOUSE', "value": 'DOUBLE_CLICK'}, None),
+        ("ADD_CUT", {"type": 'LEFTMOUSE', "value": 'ANY'}, None),
         ("NEW_CUT", {"type": 'E', "value": 'PRESS'}, None),
         ("SNAP_MIDPOINTS_ON", {"type": 'LEFT_CTRL', "value": 'PRESS', "any": True}, None),
         ("SNAP_MIDPOINTS_OFF", {"type": 'LEFT_CTRL', "value": 'RELEASE', "any": True}, None),
@@ -3422,6 +3419,9 @@ def km_knife_tool_modal_map(_params):
         ("IGNORE_SNAP_OFF", {"type": 'RIGHT_SHIFT', "value": 'RELEASE', "any": True}, None),
         ("ANGLE_SNAP_TOGGLE", {"type": 'C', "value": 'PRESS'}, None),
         ("CUT_THROUGH_TOGGLE", {"type": 'X', "value": 'PRESS'}, None),
+        ("PANNING", {"type": 'MIDDLEMOUSE', "value": 'PRESS', "alt": True}, None),
+        ("PANNING", {"type": 'RIGHTMOUSE', "value": 'PRESS', "alt": True}, None),
+        ("CONFIRM", {"type": 'RIGHTMOUSE', "value": 'PRESS'}, None),
     ])
 
     return keymap

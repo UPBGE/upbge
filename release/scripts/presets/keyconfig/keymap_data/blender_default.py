@@ -1309,6 +1309,22 @@ def km_markers(params):
     return keymap
 
 
+def km_scrubbing(params):
+    items = []
+    keymap = (
+        "Scrubbing",
+        {"space_type": 'EMPTY', "region_type": 'WINDOW'},
+        {"items": items},
+    )
+
+    items.extend([
+        ("anim.change_frame", {"type": "LEFTMOUSE", "value": 'PRESS'}, None),
+        ("graph.cursor_set", {"type": "LEFTMOUSE", "value": 'PRESS'}, None),
+    ])
+
+    return keymap
+
+
 def km_graph_editor_generic(_params):
     items = []
     keymap = (
@@ -1346,7 +1362,6 @@ def km_graph_editor(params):
     items.extend([
         ("wm.context_toggle", {"type": 'H', "value": 'PRESS', "ctrl": True},
          {"properties": [("data_path", 'space_data.show_handles')]}),
-        ("graph.cursor_set", {"type": params.action_mouse, "value": 'PRESS'}, None),
         ("graph.clickselect", {"type": params.select_mouse, "value": 'PRESS'},
          {"properties": [("extend", False), ("deselect_all", not params.legacy),
                          ("column", False), ("curves", False)]}),
@@ -1438,6 +1453,15 @@ def km_graph_editor(params):
         ("anim.start_frame_set", {"type": 'HOME', "value": 'PRESS', "ctrl": True}, None),
         ("anim.end_frame_set", {"type": 'END', "value": 'PRESS', "ctrl": True}, None),
     ])
+
+    if params.select_mouse == 'LEFTMOUSE' and not params.legacy:
+        items.extend([
+            ("graph.cursor_set", {"type": 'RIGHTMOUSE', "value": 'PRESS', "shift": True}, None),
+        ])
+    else:
+        items.extend([
+            ("graph.cursor_set", {"type": params.action_mouse, "value": 'PRESS'}, None),
+        ])
 
     if params.apple:
         items.extend([
@@ -2823,13 +2847,21 @@ def km_animation(params):
 
     items.extend([
         # Frame management.
-        ("anim.change_frame", {"type": params.action_mouse, "value": 'PRESS'}, None),
         ("wm.context_toggle", {"type": 'T', "value": 'PRESS', "ctrl": True},
          {"properties": [("data_path", 'space_data.show_seconds')]}),
         # Preview range.
         ("anim.previewrange_set", {"type": 'P', "value": 'PRESS'}, None),
         ("anim.previewrange_clear", {"type": 'P', "value": 'PRESS', "alt": True}, None),
     ])
+
+    if params.select_mouse == 'LEFTMOUSE' and not params.legacy:
+        items.extend([
+            ("anim.change_frame", {"type": 'RIGHTMOUSE', "value": 'PRESS', "shift": True}, None),
+        ])
+    else:
+        items.extend([
+            ("anim.change_frame", {"type": params.action_mouse, "value": 'PRESS'}, None),
+        ])
 
     return keymap
 
@@ -6107,6 +6139,7 @@ def generate_keymaps(params=None):
         km_view3d(params),
         km_mask_editing(params),
         km_markers(params),
+        km_scrubbing(params),
         km_graph_editor_generic(params),
         km_graph_editor(params),
         km_image_generic(params),
