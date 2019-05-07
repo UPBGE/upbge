@@ -2031,7 +2031,7 @@ def km_nla_generic(_params):
     return keymap
 
 
-def km_nla_channels(_params):
+def km_nla_channels(params):
     items = []
     keymap = (
         "NLA Channels",
@@ -2050,6 +2050,7 @@ def km_nla_channels(_params):
          {"properties": [("above_selected", True)]}),
         ("nla.tracks_delete", {"type": 'X', "value": 'PRESS'}, None),
         ("nla.tracks_delete", {"type": 'DEL', "value": 'PRESS'}, None),
+        op_menu("NLA_MT_channel_context_menu", params.context_menu_event),
     ])
 
     return keymap
@@ -2106,6 +2107,7 @@ def km_nla_editor(params):
         ("nla.apply_scale", {"type": 'A', "value": 'PRESS', "ctrl": True}, None),
         ("nla.clear_scale", {"type": 'S', "value": 'PRESS', "alt": True}, None),
         op_menu_pie("NLA_MT_snap_pie", {"type": 'S', "value": 'PRESS', "shift": True}),
+        op_menu("NLA_MT_context_menu", params.context_menu_event),
         ("nla.fmodifier_add", {"type": 'M', "value": 'PRESS', "shift": True, "ctrl": True}, None),
         ("transform.transform", {"type": 'G', "value": 'PRESS'},
          {"properties": [("mode", 'TRANSLATION')]}),
@@ -2435,6 +2437,7 @@ def km_sequencer(params):
         ("sequencer.select_grouped", {"type": 'G', "value": 'PRESS', "shift": True}, None),
         op_menu("SEQUENCER_MT_add", {"type": 'A', "value": 'PRESS', "shift": True}),
         op_menu("SEQUENCER_MT_change", {"type": 'C', "value": 'PRESS'}),
+        op_menu("SEQUENCER_MT_context_menu", params.context_menu_event),
         ("sequencer.slip", {"type": 'S', "value": 'PRESS'}, None),
         ("wm.context_set_int", {"type": 'O', "value": 'PRESS'},
          {"properties": [("data_path", 'scene.sequence_editor.overlay_frame'), ("value", 0)]}),
