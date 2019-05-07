@@ -2093,7 +2093,7 @@ void setupGamePython(KX_KetsjiEngine* ketsjiengine, Main *blenderdata,
 	if (argv) /* player only */
 		initGamePlayerPythonScripting(blenderdata, argc, argv);
 	else
-		initGamePythonScripting(blenderdata);
+		initGamePlayerPythonScripting(blenderdata, 0, nullptr); //initGamePythonScripting(blenderdata); eevee temp fix for modules
 
 	modules = PyImport_GetModuleDict();
 
