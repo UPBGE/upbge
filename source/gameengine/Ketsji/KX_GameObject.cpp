@@ -173,6 +173,7 @@ KX_GameObject::~KX_GameObject()
 
 	if (ob) {
 		copy_m4_m4(ob->obmat, m_savedObmat);
+		invert_m4_m4(ob->imat, m_savedObmat);
 		DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);
 	}
 
