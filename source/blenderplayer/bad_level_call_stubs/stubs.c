@@ -277,6 +277,13 @@ float RE_filter_value(int type, float x) RET_ZERO
 struct RenderLayer *RE_GetRenderLayer(struct RenderResult *rr, const char *name) RET_NULL
 void RE_texture_rng_init() RET_NONE
 void RE_texture_rng_exit() RET_NONE
+void RE_RenderFrame(struct Render *re,
+                    struct Main *bmain,
+                    struct Scene *scene,
+                    struct ViewLayer *single_layer,
+                    struct Object *camera_override,
+                    int frame,
+                    const bool write_still) RET_NONE
 
 bool RE_layers_have_name(struct RenderResult *result) RET_ZERO
 const char *RE_engine_active_view_get(struct RenderEngine *engine) RET_NULL

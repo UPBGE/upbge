@@ -1988,7 +1988,7 @@ const char *RE_GetActiveRenderView(Render *re)
 
 /* evaluating scene options for general Blender render */
 static int render_initialize_from_main(Render *re,
-                                       RenderData *rd,
+                                       const RenderData *rd,
                                        Main *bmain,
                                        Scene *scene,
                                        ViewLayer *single_layer,
@@ -2072,13 +2072,13 @@ void RE_SetReports(Render *re, ReportList *reports)
 }
 
 /* general Blender frame render call */
-void RE_BlenderFrame(Render *re,
-                     Main *bmain,
-                     Scene *scene,
-                     ViewLayer *single_layer,
-                     Object *camera_override,
-                     int frame,
-                     const bool write_still)
+void RE_RenderFrame(Render *re,
+                    Main *bmain,
+                    Scene *scene,
+                    ViewLayer *single_layer,
+                    Object *camera_override,
+                    int frame,
+                    const bool write_still)
 {
   BLI_callback_exec(re->main, (ID *)scene, BLI_CB_EVT_RENDER_INIT);
 
@@ -2090,6 +2090,7 @@ void RE_BlenderFrame(Render *re,
 
   if (render_initialize_from_main(
           re, &scene->r, bmain, scene, single_layer, camera_override, 0, 0)) {
+    const RenderData rd = scene->r;
     MEM_reset_peak_memory();
 
     BLI_callback_exec(re->main, (ID *)scene, BLI_CB_EVT_RENDER_PRE);
@@ -2097,18 +2098,18 @@ void RE_BlenderFrame(Render *re,
     do_render_all_options(re);
 
     if (write_still && !G.is_break) {
-      if (BKE_imtype_is_movie(scene->r.im_format.imtype)) {
+      if (BKE_imtype_is_movie(rd.im_format.imtype)) {
         /* operator checks this but in case its called from elsewhere */
         printf("Error: cant write single images with a movie format!\n");
       }
       else {
         char name[FILE_MAX];
         BKE_image_path_from_imformat(name,
-                                     scene->r.pic,
+                                     rd.pic,
                                      BKE_main_blendfile_path(bmain),
                                      scene->r.cfra,
-                                     &scene->r.im_format,
-                                     (scene->r.scemode & R_EXTENSION) != 0,
+                                     &rd.im_format,
+                                     (rd.scemode & R_EXTENSION) != 0,
                                      false,
                                      NULL);
 
@@ -2117,7 +2118,8 @@ void RE_BlenderFrame(Render *re,
       }
     }
 
-    BLI_callback_exec(re->main, (ID *)scene, BLI_CB_EVT_RENDER_POST); /* keep after file save */
+    /* keep after file save */
+    BLI_callback_exec(re->main, (ID *)scene, BLI_CB_EVT_RENDER_POST);
     if (write_still) {
       BLI_callback_exec(re->main, (ID *)scene, BLI_CB_EVT_RENDER_WRITE);
     }
@@ -2126,8 +2128,7 @@ void RE_BlenderFrame(Render *re,
   BLI_callback_exec(
       re->main, (ID *)scene, G.is_break ? BLI_CB_EVT_RENDER_CANCEL : BLI_CB_EVT_RENDER_COMPLETE);
 
-  /* Destroy the opengl context in the correct thread. */
-  RE_gl_context_destroy(re);
+  RE_CleanAfterRender(re);
 
   /* UGLY WARNING */
   G.is_rendering = false;
@@ -2427,7 +2428,10 @@ static int do_write_image_or_movie(Render *re,
   return ok;
 }
 
-static void get_videos_dimensions(Render *re, RenderData *rd, size_t *r_width, size_t *r_height)
+static void get_videos_dimensions(const Render *re,
+                                  const RenderData *rd,
+                                  size_t *r_width,
+                                  size_t *r_height)
 {
   size_t width, height;
   if (re->r.mode & R_BORDER) {
@@ -2461,23 +2465,23 @@ static void re_movie_free_all(Render *re, bMovieHandle *mh, int totvideos)
 }
 
 /* saves images to disk */
-void RE_BlenderAnim(Render *re,
-                    Main *bmain,
-                    Scene *scene,
-                    ViewLayer *single_layer,
-                    Object *camera_override,
-                    int sfra,
-                    int efra,
-                    int tfra)
+void RE_RenderAnim(Render *re,
+                   Main *bmain,
+                   Scene *scene,
+                   ViewLayer *single_layer,
+                   Object *camera_override,
+                   int sfra,
+                   int efra,
+                   int tfra)
 {
-  RenderData rd = scene->r;
+  const RenderData rd = scene->r;
   bMovieHandle *mh = NULL;
-  int cfrao = scene->r.cfra;
+  const int cfrao = rd.cfra;
   int nfra, totrendered = 0, totskipped = 0;
   const int totvideos = BKE_scene_multiview_num_videos_get(&rd);
-  const bool is_movie = BKE_imtype_is_movie(scene->r.im_format.imtype);
-  const bool is_multiview_name = ((scene->r.scemode & R_MULTIVIEW) != 0 &&
-                                  (scene->r.im_format.views_format == R_IMF_VIEWS_INDIVIDUAL));
+  const bool is_movie = BKE_imtype_is_movie(rd.im_format.imtype);
+  const bool is_multiview_name = ((rd.scemode & R_MULTIVIEW) != 0 &&
+                                  (rd.im_format.views_format == R_IMF_VIEWS_INDIVIDUAL));
 
   BLI_callback_exec(re->main, (ID *)scene, BLI_CB_EVT_RENDER_INIT);
 
@@ -2493,7 +2497,7 @@ void RE_BlenderAnim(Render *re,
 
     get_videos_dimensions(re, &rd, &width, &height);
 
-    mh = BKE_movie_handle_get(scene->r.im_format.imtype);
+    mh = BKE_movie_handle_get(rd.im_format.imtype);
     if (mh == NULL) {
       BKE_report(re->reports, RPT_ERROR, "Movie format unsupported");
       return;
@@ -2530,23 +2534,6 @@ void RE_BlenderAnim(Render *re,
     for (nfra = sfra, scene->r.cfra = sfra; scene->r.cfra <= efra; scene->r.cfra++) {
       char name[FILE_MAX];
 
-      /* Special case for 'mh->get_next_frame'
-       * this overrides regular frame stepping logic */
-      if (mh && mh->get_next_frame) {
-        while (G.is_break == false) {
-          int nfra_test = mh->get_next_frame(re->movie_ctx_arr[0], &re->r, re->reports);
-          if (nfra_test >= 0 && nfra_test >= sfra && nfra_test <= efra) {
-            nfra = nfra_test;
-            break;
-          }
-          else {
-            if (re->test_break(re->tbh)) {
-              G.is_break = true;
-            }
-          }
-        }
-      }
-
       /* Here is a feedback loop exists -- render initialization requires updated
        * render layers settings which could be animated, but scene evaluation for
        * the frame happens later because it depends on what layers are visible to
@@ -2582,18 +2569,18 @@ void RE_BlenderAnim(Render *re,
 
       /* Touch/NoOverwrite options are only valid for image's */
       if (is_movie == false) {
-        if (scene->r.mode & (R_NO_OVERWRITE | R_TOUCH)) {
+        if (rd.mode & (R_NO_OVERWRITE | R_TOUCH)) {
           BKE_image_path_from_imformat(name,
-                                       scene->r.pic,
+                                       rd.pic,
                                        BKE_main_blendfile_path(bmain),
                                        scene->r.cfra,
-                                       &scene->r.im_format,
-                                       (scene->r.scemode & R_EXTENSION) != 0,
+                                       &rd.im_format,
+                                       (rd.scemode & R_EXTENSION) != 0,
                                        true,
                                        NULL);
         }
 
-        if (scene->r.mode & R_NO_OVERWRITE) {
+        if (rd.mode & R_NO_OVERWRITE) {
           if (!is_multiview_name) {
             if (BLI_exists(name)) {
               printf("skipping existing frame \"%s\"\n", name);
@@ -2626,7 +2613,7 @@ void RE_BlenderAnim(Render *re,
           }
         }
 
-        if (scene->r.mode & R_TOUCH) {
+        if (rd.mode & R_TOUCH) {
           if (!is_multiview_name) {
             if (!BLI_exists(name)) {
               BLI_make_existing_file(name); /* makes the dir if its not there */
@@ -2675,7 +2662,7 @@ void RE_BlenderAnim(Render *re,
       if (G.is_break == true) {
         /* remove touched file */
         if (is_movie == false) {
-          if ((scene->r.mode & R_TOUCH)) {
+          if ((rd.mode & R_TOUCH)) {
             if (!is_multiview_name) {
               if ((BLI_file_size(name) == 0)) {
                 /* BLI_exists(name) is implicit */
@@ -2706,8 +2693,8 @@ void RE_BlenderAnim(Render *re,
       }
 
       if (G.is_break == false) {
-        BLI_callback_exec(
-            re->main, (ID *)scene, BLI_CB_EVT_RENDER_POST); /* keep after file save */
+        /* keep after file save */
+        BLI_callback_exec(re->main, (ID *)scene, BLI_CB_EVT_RENDER_POST);
         BLI_callback_exec(re->main, (ID *)scene, BLI_CB_EVT_RENDER_WRITE);
       }
     }
@@ -2730,8 +2717,7 @@ void RE_BlenderAnim(Render *re,
       re->main, (ID *)scene, G.is_break ? BLI_CB_EVT_RENDER_CANCEL : BLI_CB_EVT_RENDER_COMPLETE);
   BKE_sound_reset_scene_specs(scene);
 
-  /* Destroy the opengl context in the correct thread. */
-  RE_gl_context_destroy(re);
+  RE_CleanAfterRender(re);
 
   /* UGLY WARNING */
   G.is_rendering = false;
@@ -2754,6 +2740,12 @@ void RE_PreviewRender(Render *re, Main *bmain, Scene *sce)
   RE_SetCamera(re, camera);
 
   do_render_3d(re);
+}
+
+void RE_CleanAfterRender(Render *re)
+{
+  /* Destroy the opengl context in the correct thread. */
+  RE_gl_context_destroy(re);
 }
 
 /* note; repeated win/disprect calc... solve that nicer, also in compo */

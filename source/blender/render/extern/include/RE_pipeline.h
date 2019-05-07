@@ -284,21 +284,21 @@ bool RE_WriteRenderViewsMovie(struct ReportList *reports,
                               bool preview);
 
 /* only RE_NewRender() needed, main Blender render calls */
-void RE_BlenderFrame(struct Render *re,
-                     struct Main *bmain,
-                     struct Scene *scene,
-                     struct ViewLayer *single_layer,
-                     struct Object *camera_override,
-                     int frame,
-                     const bool write_still);
-void RE_BlenderAnim(struct Render *re,
+void RE_RenderFrame(struct Render *re,
                     struct Main *bmain,
                     struct Scene *scene,
                     struct ViewLayer *single_layer,
                     struct Object *camera_override,
-                    int sfra,
-                    int efra,
-                    int tfra);
+                    int frame,
+                    const bool write_still);
+void RE_RenderAnim(struct Render *re,
+                   struct Main *bmain,
+                   struct Scene *scene,
+                   struct ViewLayer *single_layer,
+                   struct Object *camera_override,
+                   int sfra,
+                   int efra,
+                   int tfra);
 #ifdef WITH_FREESTYLE
 void RE_RenderFreestyleStrokes(struct Render *re,
                                struct Main *bmain,
@@ -306,6 +306,9 @@ void RE_RenderFreestyleStrokes(struct Render *re,
                                int render);
 void RE_RenderFreestyleExternal(struct Render *re);
 #endif
+
+/* Free memory and clear runtime data which is only needed during rendering. */
+void RE_CleanAfterRender(struct Render *re);
 
 void RE_SetActiveRenderView(struct Render *re, const char *viewname);
 const char *RE_GetActiveRenderView(struct Render *re);
