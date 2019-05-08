@@ -71,7 +71,7 @@ static SpaceLink *action_new(const ScrArea *sa, const Scene *scene)
   saction->autosnap = SACTSNAP_FRAME;
   saction->mode = SACTCONT_DOPESHEET;
   saction->mode_prev = SACTCONT_DOPESHEET;
-  saction->flag = SACTION_SHOW_INTERPOLATION;
+  saction->flag = SACTION_SHOW_INTERPOLATION | SACTION_SHOW_MARKER_LINES;
 
   saction->ads.filterflag |= ADS_FILTER_SUMMARY;
 
@@ -127,7 +127,7 @@ static SpaceLink *action_new(const ScrArea *sa, const Scene *scene)
 
   ar->v2d.minzoom = 0.01f;
   ar->v2d.maxzoom = 50;
-  ar->v2d.scroll = (V2D_SCROLL_BOTTOM | V2D_SCROLL_SCALE_HORIZONTAL);
+  ar->v2d.scroll = (V2D_SCROLL_BOTTOM | V2D_SCROLL_HORIZONTAL_HANDLES);
   ar->v2d.scroll |= (V2D_SCROLL_RIGHT);
   ar->v2d.keepzoom = V2D_LOCKZOOM_Y;
   ar->v2d.keepofs = V2D_KEEPOFS_Y;

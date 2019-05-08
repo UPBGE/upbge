@@ -42,6 +42,8 @@
 
 #include "DRW_render.h"
 
+#include "draw_cache_inline.h"
+
 #include "draw_cache_impl.h" /* own include */
 
 #define SELECT 1
@@ -472,12 +474,16 @@ static void curve_batch_cache_init(Curve *cu)
   cache->is_dirty = false;
 }
 
-static CurveBatchCache *curve_batch_cache_get(Curve *cu)
+void DRW_curve_batch_cache_validate(Curve *cu)
 {
   if (!curve_batch_cache_valid(cu)) {
     curve_batch_cache_clear(cu);
     curve_batch_cache_init(cu);
   }
+}
+
+static CurveBatchCache *curve_batch_cache_get(Curve *cu)
+{
   return cu->batch_cache;
 }
 

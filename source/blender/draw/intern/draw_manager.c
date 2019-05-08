@@ -22,14 +22,16 @@
 
 #include <stdio.h>
 
+#include "BLI_alloca.h"
 #include "BLI_listbase.h"
-#include "BLI_mempool.h"
+#include "BLI_memblock.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_threads.h"
 
 #include "BLF_api.h"
 
+#include "BKE_anim.h"
 #include "BKE_colortools.h"
 #include "BKE_curve.h"
 #include "BKE_global.h"
@@ -526,19 +528,19 @@ static void drw_viewport_cache_resize(void)
 
   if (DST.vmempool != NULL) {
     /* Release Image textures. */
-    BLI_mempool_iter iter;
+    BLI_memblock_iter iter;
     GPUTexture **tex;
-    BLI_mempool_iternew(DST.vmempool->images, &iter);
-    while ((tex = BLI_mempool_iterstep(&iter))) {
+    BLI_memblock_iternew(DST.vmempool->images, &iter);
+    while ((tex = BLI_memblock_iterstep(&iter))) {
       GPU_texture_free(*tex);
     }
 
-    BLI_mempool_clear_ex(DST.vmempool->calls, BLI_mempool_len(DST.vmempool->calls));
-    BLI_mempool_clear_ex(DST.vmempool->states, BLI_mempool_len(DST.vmempool->states));
-    BLI_mempool_clear_ex(DST.vmempool->shgroups, BLI_mempool_len(DST.vmempool->shgroups));
-    BLI_mempool_clear_ex(DST.vmempool->uniforms, BLI_mempool_len(DST.vmempool->uniforms));
-    BLI_mempool_clear_ex(DST.vmempool->passes, BLI_mempool_len(DST.vmempool->passes));
-    BLI_mempool_clear_ex(DST.vmempool->images, BLI_mempool_len(DST.vmempool->images));
+    BLI_memblock_clear(DST.vmempool->calls);
+    BLI_memblock_clear(DST.vmempool->states);
+    BLI_memblock_clear(DST.vmempool->shgroups);
+    BLI_memblock_clear(DST.vmempool->uniforms);
+    BLI_memblock_clear(DST.vmempool->passes);
+    BLI_memblock_clear(DST.vmempool->images);
   }
 
   DRW_instance_data_list_free_unused(DST.idatalist);
@@ -603,24 +605,22 @@ static void drw_viewport_var_init(void)
     DST.vmempool = GPU_viewport_mempool_get(DST.viewport);
 
     if (DST.vmempool->calls == NULL) {
-      DST.vmempool->calls = BLI_mempool_create(sizeof(DRWCall), 0, 512, 0);
+      DST.vmempool->calls = BLI_memblock_create(sizeof(DRWCall));
     }
     if (DST.vmempool->states == NULL) {
-      DST.vmempool->states = BLI_mempool_create(
-          sizeof(DRWCallState), 0, 512, BLI_MEMPOOL_ALLOW_ITER);
+      DST.vmempool->states = BLI_memblock_create(sizeof(DRWCallState));
     }
     if (DST.vmempool->shgroups == NULL) {
-      DST.vmempool->shgroups = BLI_mempool_create(sizeof(DRWShadingGroup), 0, 256, 0);
+      DST.vmempool->shgroups = BLI_memblock_create(sizeof(DRWShadingGroup));
     }
     if (DST.vmempool->uniforms == NULL) {
-      DST.vmempool->uniforms = BLI_mempool_create(sizeof(DRWUniform), 0, 512, 0);
+      DST.vmempool->uniforms = BLI_memblock_create(sizeof(DRWUniform));
     }
     if (DST.vmempool->passes == NULL) {
-      DST.vmempool->passes = BLI_mempool_create(sizeof(DRWPass), 0, 64, 0);
+      DST.vmempool->passes = BLI_memblock_create(sizeof(DRWPass));
     }
     if (DST.vmempool->images == NULL) {
-      DST.vmempool->images = BLI_mempool_create(
-          sizeof(GPUTexture *), 0, 512, BLI_MEMPOOL_ALLOW_ITER);
+      DST.vmempool->images = BLI_memblock_create(sizeof(GPUTexture *));
     }
 
     DST.idatalist = GPU_viewport_instance_data_list_get(DST.viewport);
@@ -785,6 +785,75 @@ DefaultTextureList *DRW_viewport_texture_list_get(void)
 void DRW_viewport_request_redraw(void)
 {
   GPU_viewport_tag_update(DST.viewport);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Duplis
+ * \{ */
+
+static void drw_duplidata_load(DupliObject *dupli)
+{
+  if (dupli == NULL) {
+    return;
+  }
+
+  if (DST.dupli_origin != dupli->ob) {
+    DST.dupli_origin = dupli->ob;
+  }
+  else {
+    /* Same data as previous iter. No need to poll ghash for this. */
+    return;
+  }
+
+  if (DST.dupli_ghash == NULL) {
+    DST.dupli_ghash = BLI_ghash_ptr_new(__func__);
+  }
+
+  void **value;
+  if (!BLI_ghash_ensure_p(DST.dupli_ghash, DST.dupli_origin, &value)) {
+    *value = MEM_callocN(sizeof(void *) * DST.enabled_engine_count, __func__);
+
+    /* TODO: Meh a bit out of place but this is nice as it is
+     * only done once per "original" object. */
+    drw_batch_cache_validate(DST.dupli_origin);
+  }
+  DST.dupli_datas = *(void ***)value;
+}
+
+static void duplidata_value_free(void *val)
+{
+  void **dupli_datas = val;
+  for (int i = 0; i < DST.enabled_engine_count; i++) {
+    MEM_SAFE_FREE(dupli_datas[i]);
+  }
+  MEM_freeN(val);
+}
+
+static void drw_duplidata_free(void)
+{
+  if (DST.dupli_ghash != NULL) {
+    BLI_ghash_free(DST.dupli_ghash,
+                   (void (*)(void *key))drw_batch_cache_generate_requested,
+                   duplidata_value_free);
+    DST.dupli_ghash = NULL;
+  }
+}
+
+/* Return NULL if not a dupli or a pointer of pointer to the engine data */
+void **DRW_duplidata_get(void *vedata)
+{
+  if (DST.dupli_source == NULL) {
+    return NULL;
+  }
+  /* XXX Search engine index by using vedata array */
+  for (int i = 0; i < DST.enabled_engine_count; i++) {
+    if (DST.vedata_array[i] == vedata) {
+      return &DST.dupli_datas[i];
+    }
+  }
+  return NULL;
 }
 
 /** \} */
@@ -1045,9 +1114,14 @@ static void drw_engines_init(void)
 
 static void drw_engines_cache_init(void)
 {
-  for (LinkData *link = DST.enabled_engines.first; link; link = link->next) {
+  DST.enabled_engine_count = BLI_listbase_count(&DST.enabled_engines);
+  DST.vedata_array = MEM_mallocN(sizeof(void *) * DST.enabled_engine_count, __func__);
+
+  int i = 0;
+  for (LinkData *link = DST.enabled_engines.first; link; link = link->next, i++) {
     DrawEngineType *engine = link->data;
     ViewportEngineData *data = drw_viewport_engine_data_ensure(engine);
+    DST.vedata_array[i] = data;
 
     if (data->text_draw_cache) {
       DRW_text_cache_destroy(data->text_draw_cache);
@@ -1089,9 +1163,15 @@ static void drw_engines_cache_populate(Object *ob)
    * ourselves here. */
   drw_drawdata_unlink_dupli((ID *)ob);
 
-  for (LinkData *link = DST.enabled_engines.first; link; link = link->next) {
+  /* Validation for dupli objects happen elsewhere. */
+  if (!DST.dupli_source) {
+    drw_batch_cache_validate(ob);
+  }
+
+  int i = 0;
+  for (LinkData *link = DST.enabled_engines.first; link; link = link->next, i++) {
     DrawEngineType *engine = link->data;
-    ViewportEngineData *data = drw_viewport_engine_data_ensure(engine);
+    ViewportEngineData *data = DST.vedata_array[i];
 
     if (engine->id_update) {
       engine->id_update(data, &ob->id);
@@ -1104,7 +1184,9 @@ static void drw_engines_cache_populate(Object *ob)
 
   /* TODO: in the future it would be nice to generate once for all viewports.
    * But we need threaded DRW manager first. */
-  drw_batch_cache_generate_requested(ob);
+  if (!DST.dupli_source) {
+    drw_batch_cache_generate_requested(ob);
+  }
 
   /* ... and clearing it here too because theses draw data are
    * from a mempool and must not be free individually by depsgraph. */
@@ -1113,14 +1195,16 @@ static void drw_engines_cache_populate(Object *ob)
 
 static void drw_engines_cache_finish(void)
 {
-  for (LinkData *link = DST.enabled_engines.first; link; link = link->next) {
+  int i = 0;
+  for (LinkData *link = DST.enabled_engines.first; link; link = link->next, i++) {
     DrawEngineType *engine = link->data;
-    ViewportEngineData *data = drw_viewport_engine_data_ensure(engine);
+    ViewportEngineData *data = DST.vedata_array[i];
 
     if (engine->cache_finish) {
       engine->cache_finish(data);
     }
   }
+  MEM_freeN(DST.vedata_array);
 }
 
 static void drw_engines_draw_background(void)
@@ -1396,17 +1480,19 @@ static void drw_engines_disable(void)
   BLI_freelistN(&DST.enabled_engines);
 }
 
-static uint DRW_engines_get_hash(void)
+static void drw_engines_data_validate(void)
 {
-  uint hash = 0;
-  /* The cache depends on enabled engines */
-  /* FIXME : if collision occurs ... segfault */
+  int enabled_engines = BLI_listbase_count(&DST.enabled_engines);
+  void **engine_handle_array = BLI_array_alloca(engine_handle_array, enabled_engines + 1);
+  int i = 0;
+
   for (LinkData *link = DST.enabled_engines.first; link; link = link->next) {
     DrawEngineType *engine = link->data;
-    hash += BLI_ghashutil_strhash_p(engine->idname);
+    engine_handle_array[i++] = engine;
   }
+  engine_handle_array[i] = NULL;
 
-  return hash;
+  GPU_viewport_engines_data_validate(DST.viewport, engine_handle_array);
 }
 
 /* -------------------------------------------------------------------- */
@@ -1519,8 +1605,6 @@ void DRW_draw_render_loop_ex(struct Depsgraph *depsgraph,
   DST.viewport = viewport;
 
   /* Setup viewport */
-  GPU_viewport_engines_data_validate(DST.viewport, DRW_engines_get_hash());
-
   DST.draw_ctx = (DRWContextState){
       .ar = ar,
       .rv3d = rv3d,
@@ -1539,6 +1623,8 @@ void DRW_draw_render_loop_ex(struct Depsgraph *depsgraph,
 
   /* Get list of enabled engines */
   drw_engines_enable(view_layer, engine_type);
+
+  drw_engines_data_validate();
 
   /* Update ubos */
   DRW_globals_update();
@@ -1559,7 +1645,10 @@ void DRW_draw_render_loop_ex(struct Depsgraph *depsgraph,
     drw_engines_world_update(scene);
 
     /* Only iterate over objects for internal engines or when overlays are enabled */
-    if ((engine_type->flag & RE_INTERNAL) != 0 || (v3d->flag2 & V3D_HIDE_OVERLAYS) == 0) {
+    const bool internal_engine = (engine_type->flag & RE_INTERNAL) != 0;
+    const bool draw_type_render = v3d->shading.type == OB_RENDER;
+    const bool overlays_on = (v3d->flag2 & V3D_HIDE_OVERLAYS) == 0;
+    if (internal_engine || overlays_on || !draw_type_render) {
       const int object_type_exclude_viewport = v3d->object_type_exclude_viewport;
       const int iter_flag = DEG_ITER_OBJECT_FLAG_LINKED_DIRECTLY |
                             DEG_ITER_OBJECT_FLAG_LINKED_VIA_SET | DEG_ITER_OBJECT_FLAG_VISIBLE |
@@ -1573,11 +1662,13 @@ void DRW_draw_render_loop_ex(struct Depsgraph *depsgraph,
         }
         DST.dupli_parent = data_.dupli_parent;
         DST.dupli_source = data_.dupli_object_current;
+        drw_duplidata_load(DST.dupli_source);
         drw_engines_cache_populate(ob);
       }
       DEG_OBJECT_ITER_END;
     }
 
+    drw_duplidata_free();
     drw_engines_cache_finish();
 
     DRW_render_instance_buffer_finish();
@@ -2018,12 +2109,20 @@ void DRW_render_object_iter(
       DST.dupli_parent = data_.dupli_parent;
       DST.dupli_source = data_.dupli_object_current;
       DST.ob_state = NULL;
-      callback(vedata, ob, engine, depsgraph);
+      drw_duplidata_load(DST.dupli_source);
 
-      drw_batch_cache_generate_requested(ob);
+      if (!DST.dupli_source) {
+        drw_batch_cache_validate(ob);
+      }
+      callback(vedata, ob, engine, depsgraph);
+      if (!DST.dupli_source) {
+        drw_batch_cache_generate_requested(ob);
+      }
     }
   }
   DEG_OBJECT_ITER_END;
+
+  drw_duplidata_free();
 }
 
 /* Assume a valid gl context is bound (and that the gl_context_mutex has been acquired).
@@ -2253,14 +2352,10 @@ void DRW_draw_select_loop(struct Depsgraph *depsgraph,
     drw_engines_world_update(scene);
 
     if (use_obedit) {
-#  if 0
-      drw_engines_cache_populate(obact);
-#  else
       FOREACH_OBJECT_IN_MODE_BEGIN (view_layer, v3d, obact->type, obact->mode, ob_iter) {
         drw_engines_cache_populate(ob_iter);
       }
       FOREACH_OBJECT_IN_MODE_END;
-#  endif
     }
     else {
       const int iter_flag = DEG_ITER_OBJECT_FLAG_LINKED_DIRECTLY |
@@ -2295,12 +2390,14 @@ void DRW_draw_select_loop(struct Depsgraph *depsgraph,
           }
           DST.dupli_parent = data_.dupli_parent;
           DST.dupli_source = data_.dupli_object_current;
+          drw_duplidata_load(DST.dupli_source);
           drw_engines_cache_populate(ob);
         }
       }
       DEG_OBJECT_ITER_END;
     }
 
+    drw_duplidata_free();
     drw_engines_cache_finish();
 
     DRW_render_instance_buffer_finish();
@@ -2395,10 +2492,12 @@ static void drw_draw_depth_loop_imp(void)
 
       DST.dupli_parent = data_.dupli_parent;
       DST.dupli_source = data_.dupli_object_current;
+      drw_duplidata_load(DST.dupli_source);
       drw_engines_cache_populate(ob);
     }
     DEG_OBJECT_ITER_END;
 
+    drw_duplidata_free();
     drw_engines_cache_finish();
 
     DRW_render_instance_buffer_finish();

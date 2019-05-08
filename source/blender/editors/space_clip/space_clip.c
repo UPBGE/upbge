@@ -95,7 +95,7 @@ static void init_preview_region(const Scene *scene,
 
     ar->v2d.minzoom = 0.01f;
     ar->v2d.maxzoom = 50;
-    ar->v2d.scroll = (V2D_SCROLL_BOTTOM | V2D_SCROLL_SCALE_HORIZONTAL);
+    ar->v2d.scroll = (V2D_SCROLL_BOTTOM | V2D_SCROLL_HORIZONTAL_HANDLES);
     ar->v2d.scroll |= (V2D_SCROLL_RIGHT);
     ar->v2d.keepzoom = V2D_LOCKZOOM_Y;
     ar->v2d.keepofs = V2D_KEEPOFS_Y;
@@ -116,8 +116,8 @@ static void init_preview_region(const Scene *scene,
     ar->v2d.max[0] = MAXFRAMEF;
     ar->v2d.max[1] = FLT_MAX;
 
-    ar->v2d.scroll = (V2D_SCROLL_BOTTOM | V2D_SCROLL_SCALE_HORIZONTAL);
-    ar->v2d.scroll |= (V2D_SCROLL_LEFT | V2D_SCROLL_SCALE_VERTICAL);
+    ar->v2d.scroll = (V2D_SCROLL_BOTTOM | V2D_SCROLL_HORIZONTAL_HANDLES);
+    ar->v2d.scroll |= (V2D_SCROLL_RIGHT | V2D_SCROLL_VERTICAL_HANDLES);
 
     ar->v2d.minzoom = 0.0f;
     ar->v2d.maxzoom = 0.0f;
@@ -250,7 +250,7 @@ static SpaceLink *clip_new(const ScrArea *sa, const Scene *scene)
   sc->zoom = 1.0f;
   sc->path_length = 20;
   sc->scopes.track_preview_height = 120;
-  sc->around = V3D_AROUND_LOCAL_ORIGINS;
+  sc->around = V3D_AROUND_CENTER_MEDIAN;
 
   /* header */
   ar = MEM_callocN(sizeof(ARegion), "header for clip");
@@ -1002,8 +1002,12 @@ static void clip_preview_region_init(wmWindowManager *wm, ARegion *ar)
   UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_CUSTOM, ar->winx, ar->winy);
 
   /* own keymap */
+
   keymap = WM_keymap_ensure(wm->defaultconf, "Clip", SPACE_CLIP, 0);
   WM_event_add_keymap_handler_v2d_mask(&ar->handlers, keymap);
+
+  keymap = WM_keymap_ensure(wm->defaultconf, "Clip Scrubbing", SPACE_CLIP, RGN_TYPE_PREVIEW);
+  WM_event_add_keymap_handler_poll(&ar->handlers, keymap, ED_event_in_scrubbing_region);
 
   keymap = WM_keymap_ensure(wm->defaultconf, "Clip Graph Editor", SPACE_CLIP, 0);
   WM_event_add_keymap_handler_v2d_mask(&ar->handlers, keymap);
@@ -1051,7 +1055,15 @@ static void graph_region_draw(const bContext *C, ARegion *ar)
   UI_view2d_scrollers_free(scrollers);
 
   /* scale indicators */
-  UI_view2d_draw_scale_y__values(ar, v2d, &v2d->vert, TH_TEXT);
+  {
+    rcti rect;
+    BLI_rcti_init(&rect,
+                  0,
+                  15 * UI_DPI_FAC,
+                  15 * UI_DPI_FAC,
+                  UI_DPI_FAC * ar->sizey - UI_SCRUBBING_MARGIN_Y);
+    UI_view2d_draw_scale_y__values(ar, v2d, &rect, TH_TEXT);
+  }
 }
 
 static void dopesheet_region_draw(const bContext *C, ARegion *ar)

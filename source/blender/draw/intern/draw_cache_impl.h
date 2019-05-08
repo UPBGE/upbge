@@ -44,15 +44,19 @@ struct bGPdata;
 
 /* Expose via BKE callbacks */
 void DRW_mball_batch_cache_dirty_tag(struct MetaBall *mb, int mode);
+void DRW_mball_batch_cache_validate(struct MetaBall *mb);
 void DRW_mball_batch_cache_free(struct MetaBall *mb);
 
 void DRW_curve_batch_cache_dirty_tag(struct Curve *cu, int mode);
+void DRW_curve_batch_cache_validate(struct Curve *cu);
 void DRW_curve_batch_cache_free(struct Curve *cu);
 
 void DRW_mesh_batch_cache_dirty_tag(struct Mesh *me, int mode);
+void DRW_mesh_batch_cache_validate(struct Mesh *me);
 void DRW_mesh_batch_cache_free(struct Mesh *me);
 
 void DRW_lattice_batch_cache_dirty_tag(struct Lattice *lt, int mode);
+void DRW_lattice_batch_cache_validate(struct Lattice *lt);
 void DRW_lattice_batch_cache_free(struct Lattice *lt);
 
 void DRW_particle_batch_cache_dirty_tag(struct ParticleSystem *psys, int mode);
@@ -201,31 +205,5 @@ struct GPUBatch *DRW_particles_batch_cache_get_edit_inner_points(struct Object *
 struct GPUBatch *DRW_particles_batch_cache_get_edit_tip_points(struct Object *object,
                                                                struct ParticleSystem *psys,
                                                                struct PTCacheEdit *edit);
-
-/* Common */
-// #define DRW_DEBUG_MESH_CACHE_REQUEST
-
-#ifdef DRW_DEBUG_MESH_CACHE_REQUEST
-#  define DRW_ADD_FLAG_FROM_VBO_REQUEST(flag, vbo, value) \
-    (flag |= DRW_vbo_requested(vbo) ? (printf("  VBO requested " #vbo "\n") ? value : value) : 0)
-#  define DRW_ADD_FLAG_FROM_IBO_REQUEST(flag, ibo, value) \
-    (flag |= DRW_ibo_requested(ibo) ? (printf("  IBO requested " #ibo "\n") ? value : value) : 0)
-#else
-#  define DRW_ADD_FLAG_FROM_VBO_REQUEST(flag, vbo, value) \
-    (flag |= DRW_vbo_requested(vbo) ? (value) : 0)
-#  define DRW_ADD_FLAG_FROM_IBO_REQUEST(flag, ibo, value) \
-    (flag |= DRW_ibo_requested(ibo) ? (value) : 0)
-#endif
-
-/* Test and assign NULL if test fails */
-#define DRW_TEST_ASSIGN_VBO(v) (v = (DRW_vbo_requested(v) ? (v) : NULL))
-#define DRW_TEST_ASSIGN_IBO(v) (v = (DRW_ibo_requested(v) ? (v) : NULL))
-
-struct GPUBatch *DRW_batch_request(struct GPUBatch **batch);
-bool DRW_batch_requested(struct GPUBatch *batch, int prim_type);
-void DRW_ibo_request(struct GPUBatch *batch, struct GPUIndexBuf **ibo);
-bool DRW_ibo_requested(struct GPUIndexBuf *ibo);
-void DRW_vbo_request(struct GPUBatch *batch, struct GPUVertBuf **vbo);
-bool DRW_vbo_requested(struct GPUVertBuf *vbo);
 
 #endif /* __DRAW_CACHE_IMPL_H__ */

@@ -419,56 +419,58 @@ bool ED_object_add_generic_get_opts(bContext *C,
 
 /* For object add primitive operators.
  * Do not call undo push in this function (users of this function have to). */
-Object *ED_object_add_type(
-        bContext *C,
-        int type, const char *name,
-        const float loc[3], const float rot[3],
-        bool enter_editmode, ushort local_view_bits)
+Object *ED_object_add_type(bContext *C,
+                           int type,
+                           const char *name,
+                           const float loc[3],
+                           const float rot[3],
+                           bool enter_editmode,
+                           ushort local_view_bits)
 {
-	Main *bmain = CTX_data_main(C);
-	Scene *scene = CTX_data_scene(C);
-	ViewLayer *view_layer = CTX_data_view_layer(C);
-	Object *ob;
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Object *ob;
 
-	/* for as long scene has editmode... */
-	if (CTX_data_edit_object(C)) {
-		ED_object_editmode_exit(C, EM_FREEDATA);
-	}
+  /* for as long scene has editmode... */
+  if (CTX_data_edit_object(C)) {
+    ED_object_editmode_exit(C, EM_FREEDATA);
+  }
 
-	/* deselects all, sets active object */
-	ob = BKE_object_add(bmain, scene, view_layer, type, name);
-	BASACT(view_layer)->local_view_bits = local_view_bits;
-	/* editor level activate, notifiers */
-	ED_object_base_activate(C, view_layer->basact);
+  /* deselects all, sets active object */
+  ob = BKE_object_add(bmain, scene, view_layer, type, name);
+  BASACT(view_layer)->local_view_bits = local_view_bits;
+  /* editor level activate, notifiers */
+  ED_object_base_activate(C, view_layer->basact);
 
-	/* more editor stuff */
-	ED_object_base_init_transform(C, view_layer->basact, loc, rot);
+  /* more editor stuff */
+  ED_object_base_init_transform(C, view_layer->basact, loc, rot);
 
-	/* Ignore collisions by default for non-mesh objects */
-	if (type != OB_MESH) {
-		ob->body_type = OB_BODY_TYPE_NO_COLLISION;
-		ob->gameflag &= ~(OB_SENSOR | OB_RIGID_BODY | OB_SOFT_BODY | OB_COLLISION | OB_CHARACTER | OB_OCCLUDER | OB_DYNAMIC | OB_NAVMESH); /* copied from rna_object.c */
-	}
+  /* Ignore collisions by default for non-mesh objects */
+  if (type != OB_MESH) {
+    ob->body_type = OB_BODY_TYPE_NO_COLLISION;
+    ob->gameflag &= ~(OB_SENSOR | OB_RIGID_BODY | OB_SOFT_BODY | OB_COLLISION | OB_CHARACTER | OB_OCCLUDER | OB_DYNAMIC | OB_NAVMESH); /* copied from rna_object.c */
+  }
 
-	/* TODO(sergey): This is weird to manually tag objects for update, better to
-	 * use DEG_id_tag_update here perhaps.
-	 */
-	DEG_id_type_tag(bmain, ID_OB);
-	DEG_relations_tag_update(bmain);
-	if (ob->data != NULL) {
-		DEG_id_tag_update_ex(bmain, (ID *)ob->data, ID_RECALC_EDITORS);
-	}
+  /* TODO(sergey): This is weird to manually tag objects for update, better to
+   * use DEG_id_tag_update here perhaps.
+   */
+  DEG_id_type_tag(bmain, ID_OB);
+  DEG_relations_tag_update(bmain);
+  if (ob->data != NULL) {
+    DEG_id_tag_update_ex(bmain, (ID *)ob->data, ID_RECALC_EDITORS);
+  }
 
-	if (enter_editmode) {
-		ED_object_editmode_enter_ex(bmain, scene, ob, 0);
-	}
+  if (enter_editmode) {
+    ED_object_editmode_enter_ex(bmain, scene, ob, 0);
+  }
 
-	WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, scene);
 
-	/* TODO(sergey): Use proper flag for tagging here. */
-	DEG_id_tag_update(&scene->id, 0);
+  /* TODO(sergey): Use proper flag for tagging here. */
+  DEG_id_tag_update(&scene->id, 0);
 
-	return ob;
+  return ob;
 }
 
 /* for object add operator */
@@ -1555,9 +1557,9 @@ static void copy_object_set_idnew(bContext *C)
   }
   CTX_DATA_END;
 
-	set_sca_new_poins();
+  set_sca_new_poins();
 
-	BKE_main_id_clear_newpoins(bmain);
+  BKE_main_id_clear_newpoins(bmain);
 }
 
 /********************* Make Duplicates Real ************************/
@@ -1620,183 +1622,182 @@ static bool dupliobject_group_cmp(const void *a_, const void *b_)
 /* Compare function that matches dupliobject_hash */
 static bool dupliobject_cmp(const void *a_, const void *b_)
 {
-	const DupliObject *a = a_;
-	const DupliObject *b = b_;
+  const DupliObject *a = a_;
+  const DupliObject *b = b_;
 
-	if (a->ob != b->ob) {
-		return true;
-	}
+  if (a->ob != b->ob) {
+    return true;
+  }
 
-	if (a->persistent_id[0] != b->persistent_id[0]) {
-		return true;
-	}
+  if (a->persistent_id[0] != b->persistent_id[0]) {
+    return true;
+  }
 
-	/* matching */
-	return false;
+  /* matching */
+  return false;
 }
 
-static void make_object_duplilist_real(bContext *C, Scene *scene, Base *base,
-                                       const bool use_base_parent,
-                                       const bool use_hierarchy)
+static void make_object_duplilist_real(
+    bContext *C, Scene *scene, Base *base, const bool use_base_parent, const bool use_hierarchy)
 {
-	Main *bmain = CTX_data_main(C);
-	ViewLayer *view_layer = CTX_data_view_layer(C);
-	Depsgraph *depsgraph = CTX_data_depsgraph(C);
-	ListBase *lb_duplis;
-	DupliObject *dob;
-	GHash *dupli_gh, *parent_gh = NULL;
+  Main *bmain = CTX_data_main(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph(C);
+  ListBase *lb_duplis;
+  DupliObject *dob;
+  GHash *dupli_gh, *parent_gh = NULL;
 
-	if (!(base->object->transflag & OB_DUPLI)) {
-		return;
-	}
+  if (!(base->object->transflag & OB_DUPLI)) {
+    return;
+  }
 
-	Object *object_eval = DEG_get_evaluated_object(depsgraph, base->object);
-	lb_duplis = object_duplilist(depsgraph, scene, object_eval);
+  Object *object_eval = DEG_get_evaluated_object(depsgraph, base->object);
+  lb_duplis = object_duplilist(depsgraph, scene, object_eval);
 
-	dupli_gh = BLI_ghash_ptr_new(__func__);
-	if (use_hierarchy) {
-		if (base->object->transflag & OB_DUPLICOLLECTION) {
-			parent_gh = BLI_ghash_new(dupliobject_group_hash, dupliobject_group_cmp, __func__);
-		}
-		else {
-			parent_gh = BLI_ghash_new(dupliobject_hash, dupliobject_cmp, __func__);
-		}
-	}
+  dupli_gh = BLI_ghash_ptr_new(__func__);
+  if (use_hierarchy) {
+    if (base->object->transflag & OB_DUPLICOLLECTION) {
+      parent_gh = BLI_ghash_new(dupliobject_group_hash, dupliobject_group_cmp, __func__);
+    }
+    else {
+      parent_gh = BLI_ghash_new(dupliobject_hash, dupliobject_cmp, __func__);
+    }
+  }
 
-	for (dob = lb_duplis->first; dob; dob = dob->next) {
-		Object *ob_src = DEG_get_original_object(dob->ob);
-		Object *ob_dst = ID_NEW_SET(dob->ob, BKE_object_copy(bmain, ob_src));
-		Base *base_dst;
+  for (dob = lb_duplis->first; dob; dob = dob->next) {
+    Object *ob_src = DEG_get_original_object(dob->ob);
+    Object *ob_dst = ID_NEW_SET(ob_src, BKE_object_copy(bmain, ob_src));
+    Base *base_dst;
 
-		/* font duplis can have a totcol without material, we get them from parent
-		 * should be implemented better...
-		 */
-		if (ob_dst->mat == NULL) {
-			ob_dst->totcol = 0;
-		}
+    /* font duplis can have a totcol without material, we get them from parent
+     * should be implemented better...
+     */
+    if (ob_dst->mat == NULL) {
+      ob_dst->totcol = 0;
+    }
 
-		BKE_collection_object_add_from(bmain, scene, base->object, ob_dst);
-		base_dst = BKE_view_layer_base_find(view_layer, ob_dst);
-		BLI_assert(base_dst != NULL);
+    BKE_collection_object_add_from(bmain, scene, base->object, ob_dst);
+    base_dst = BKE_view_layer_base_find(view_layer, ob_dst);
+    BLI_assert(base_dst != NULL);
 
-		BKE_scene_object_base_flag_sync_from_base(base_dst);
+    BKE_scene_object_base_flag_sync_from_base(base_dst);
 
-		/* make sure apply works */
-		BKE_animdata_free(&ob_dst->id, true);
-		ob_dst->adt = NULL;
+    /* make sure apply works */
+    BKE_animdata_free(&ob_dst->id, true);
+    ob_dst->adt = NULL;
 
-		/* Proxies are not to be copied. */
-		ob_dst->proxy_from = NULL;
-		ob_dst->proxy_group = NULL;
-		ob_dst->proxy = NULL;
+    /* Proxies are not to be copied. */
+    ob_dst->proxy_from = NULL;
+    ob_dst->proxy_group = NULL;
+    ob_dst->proxy = NULL;
 
-		ob_dst->parent = NULL;
-		BKE_constraints_free(&ob_dst->constraints);
-		ob_dst->runtime.curve_cache = NULL;
-		ob_dst->transflag &= ~OB_DUPLI;
+    ob_dst->parent = NULL;
+    BKE_constraints_free(&ob_dst->constraints);
+    ob_dst->runtime.curve_cache = NULL;
+    ob_dst->transflag &= ~OB_DUPLI;
 
-		copy_m4_m4(ob_dst->obmat, dob->mat);
-		BKE_object_apply_mat4(ob_dst, ob_dst->obmat, false, false);
+    copy_m4_m4(ob_dst->obmat, dob->mat);
+    BKE_object_apply_mat4(ob_dst, ob_dst->obmat, false, false);
 
-		BLI_ghash_insert(dupli_gh, dob, ob_dst);
-		if (parent_gh) {
-			void **val;
-			/* Due to nature of hash/comparison of this ghash, a lot of duplis may be considered as
-			 * 'the same', this avoids trying to insert same key several time and
-			 * raise asserts in debug builds... */
-			if (!BLI_ghash_ensure_p(parent_gh, dob, &val)) {
-				*val = ob_dst;
-			}
-		}
-	}
+    BLI_ghash_insert(dupli_gh, dob, ob_dst);
+    if (parent_gh) {
+      void **val;
+      /* Due to nature of hash/comparison of this ghash, a lot of duplis may be considered as
+       * 'the same', this avoids trying to insert same key several time and
+       * raise asserts in debug builds... */
+      if (!BLI_ghash_ensure_p(parent_gh, dob, &val)) {
+        *val = ob_dst;
+      }
+    }
+  }
 
-	for (dob = lb_duplis->first; dob; dob = dob->next) {
-		Object *ob_src = dob->ob;
-		Object *ob_dst = BLI_ghash_lookup(dupli_gh, dob);
+  for (dob = lb_duplis->first; dob; dob = dob->next) {
+    Object *ob_src = dob->ob;
+    Object *ob_dst = BLI_ghash_lookup(dupli_gh, dob);
 
-		/* Remap new object to itself, and clear again newid pointer of orig object. */
-		BKE_libblock_relink_to_newid(&ob_dst->id);
-		set_sca_new_poins_ob(ob_dst);
+    /* Remap new object to itself, and clear again newid pointer of orig object. */
+    BKE_libblock_relink_to_newid(&ob_dst->id);
+    set_sca_new_poins_ob(ob_dst);
 
-		DEG_id_tag_update(&ob_dst->id, ID_RECALC_GEOMETRY);
+    DEG_id_tag_update(&ob_dst->id, ID_RECALC_GEOMETRY);
 
-		if (use_hierarchy) {
-			/* original parents */
-			Object *ob_src_par = ob_src->parent;
-			Object *ob_dst_par = NULL;
+    if (use_hierarchy) {
+      /* original parents */
+      Object *ob_src_par = ob_src->parent;
+      Object *ob_dst_par = NULL;
 
-			/* find parent that was also made real */
-			if (ob_src_par) {
-				/* OK to keep most of the members uninitialized,
-				 * they won't be read, this is simply for a hash lookup. */
-				DupliObject dob_key;
-				dob_key.ob = ob_src_par;
-				if (base->object->transflag & OB_DUPLICOLLECTION) {
-					memcpy(&dob_key.persistent_id[1],
-					       &dob->persistent_id[1],
-					       sizeof(dob->persistent_id[1]) * (MAX_DUPLI_RECUR - 1));
-				}
-				else {
-					dob_key.persistent_id[0] = dob->persistent_id[0];
-				}
-				ob_dst_par = BLI_ghash_lookup(parent_gh, &dob_key);
-			}
+      /* find parent that was also made real */
+      if (ob_src_par) {
+        /* OK to keep most of the members uninitialized,
+         * they won't be read, this is simply for a hash lookup. */
+        DupliObject dob_key;
+        dob_key.ob = ob_src_par;
+        if (base->object->transflag & OB_DUPLICOLLECTION) {
+          memcpy(&dob_key.persistent_id[1],
+                 &dob->persistent_id[1],
+                 sizeof(dob->persistent_id[1]) * (MAX_DUPLI_RECUR - 1));
+        }
+        else {
+          dob_key.persistent_id[0] = dob->persistent_id[0];
+        }
+        ob_dst_par = BLI_ghash_lookup(parent_gh, &dob_key);
+      }
 
-			if (ob_dst_par) {
-				/* allow for all possible parent types */
-				ob_dst->partype = ob_src->partype;
-				BLI_strncpy(ob_dst->parsubstr, ob_src->parsubstr, sizeof(ob_dst->parsubstr));
-				ob_dst->par1 = ob_src->par1;
-				ob_dst->par2 = ob_src->par2;
-				ob_dst->par3 = ob_src->par3;
+      if (ob_dst_par) {
+        /* allow for all possible parent types */
+        ob_dst->partype = ob_src->partype;
+        BLI_strncpy(ob_dst->parsubstr, ob_src->parsubstr, sizeof(ob_dst->parsubstr));
+        ob_dst->par1 = ob_src->par1;
+        ob_dst->par2 = ob_src->par2;
+        ob_dst->par3 = ob_src->par3;
 
-				copy_m4_m4(ob_dst->parentinv, ob_src->parentinv);
+        copy_m4_m4(ob_dst->parentinv, ob_src->parentinv);
 
-				ob_dst->parent = ob_dst_par;
-			}
-			else if (use_base_parent) {
-				ob_dst->parent = base->object;
-				ob_dst->partype = PAROBJECT;
-			}
-		}
-		else if (use_base_parent) {
-			/* since we are ignoring the internal hierarchy - parent all to the
-			 * base object */
-			ob_dst->parent = base->object;
-			ob_dst->partype = PAROBJECT;
-		}
+        ob_dst->parent = ob_dst_par;
+      }
+      else if (use_base_parent) {
+        ob_dst->parent = base->object;
+        ob_dst->partype = PAROBJECT;
+      }
+    }
+    else if (use_base_parent) {
+      /* since we are ignoring the internal hierarchy - parent all to the
+       * base object */
+      ob_dst->parent = base->object;
+      ob_dst->partype = PAROBJECT;
+    }
 
-		if (ob_dst->parent) {
-			/* note, this may be the parent of other objects, but it should
-			 * still work out ok */
-			BKE_object_apply_mat4(ob_dst, dob->mat, false, true);
+    if (ob_dst->parent) {
+      /* note, this may be the parent of other objects, but it should
+       * still work out ok */
+      BKE_object_apply_mat4(ob_dst, dob->mat, false, true);
 
-			/* to set ob_dst->orig and in case there's any other discrepancies */
-			DEG_id_tag_update(&ob_dst->id, ID_RECALC_TRANSFORM);
-		}
-	}
+      /* to set ob_dst->orig and in case there's any other discrepancies */
+      DEG_id_tag_update(&ob_dst->id, ID_RECALC_TRANSFORM);
+    }
+  }
 
-	if (base->object->transflag & OB_DUPLICOLLECTION && base->object->instance_collection) {
-		for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
-			if (ob->proxy_group == base->object) {
-				ob->proxy = NULL;
-				ob->proxy_from = NULL;
-				DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
-			}
-		}
-	}
+  if (base->object->transflag & OB_DUPLICOLLECTION && base->object->instance_collection) {
+    for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
+      if (ob->proxy_group == base->object) {
+        ob->proxy = NULL;
+        ob->proxy_from = NULL;
+        DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
+      }
+    }
+  }
 
-	BLI_ghash_free(dupli_gh, NULL, NULL);
-	if (parent_gh) {
-		BLI_ghash_free(parent_gh, NULL, NULL);
-	}
+  BLI_ghash_free(dupli_gh, NULL, NULL);
+  if (parent_gh) {
+    BLI_ghash_free(parent_gh, NULL, NULL);
+  }
 
-	free_object_duplilist(lb_duplis);
+  free_object_duplilist(lb_duplis);
 
-	BKE_main_id_clear_newpoins(bmain);
+  BKE_main_id_clear_newpoins(bmain);
 
-	base->object->transflag &= ~OB_DUPLI;
-	DEG_id_tag_update(&base->object->id, ID_RECALC_COPY_ON_WRITE);
+  base->object->transflag &= ~OB_DUPLI;
+  DEG_id_tag_update(&base->object->id, ID_RECALC_COPY_ON_WRITE);
 }
 
 static int object_duplicates_make_real_exec(bContext *C, wmOperator *op)
@@ -1880,13 +1881,13 @@ static void curvetomesh(Main *bmain, Depsgraph *depsgraph, Scene *scene, Object 
   convert_ensure_curve_cache(depsgraph, scene, ob);
   BKE_mesh_from_nurbs(bmain, ob); /* also does users */
 
-	if (ob->type == OB_MESH) {
-		BKE_object_free_modifiers(ob, 0);
+  if (ob->type == OB_MESH) {
+    BKE_object_free_modifiers(ob, 0);
 
-		/* Game engine defaults for mesh objects */
-		ob->body_type = OB_BODY_TYPE_STATIC;
-		ob->gameflag = OB_PROP | OB_COLLISION;
-	}
+    /* Game engine defaults for mesh objects */
+    ob->body_type = OB_BODY_TYPE_STATIC;
+    ob->gameflag = OB_PROP | OB_COLLISION;
+  }
 }
 
 static bool convert_poll(bContext *C)
@@ -2373,18 +2374,19 @@ Base *ED_object_add_duplicate(
   Base *basen;
   Object *ob;
 
-	clear_sca_new_poins();  /* BGE logic */
+  clear_sca_new_poins();  /* BGE logic */
 
-	basen = object_add_duplicate_internal(bmain, scene, view_layer, base->object, dupflag);
-	if (basen == NULL) {
-		return NULL;
-	}
+  basen = object_add_duplicate_internal(bmain, scene, view_layer, base->object, dupflag);
+  if (basen == NULL) {
+    return NULL;
+  }
 
   ob = basen->object;
 
-	/* link own references to the newly duplicated data [#26816] */
-	BKE_libblock_relink_to_newid(&ob->id);
-	set_sca_new_poins_ob(ob);
+  /* link own references to the newly duplicated data [#26816] */
+  BKE_libblock_relink_to_newid(&ob->id);
+
+  set_sca_new_poins_ob(ob);
 
   /* DAG_relations_tag_update(bmain); */ /* caller must do */
 
@@ -2406,11 +2408,10 @@ static int duplicate_exec(bContext *C, wmOperator *op)
   const bool linked = RNA_boolean_get(op->ptr, "linked");
   int dupflag = (linked) ? 0 : U.dupflag;
 
-	clear_sca_new_poins();  /* BGE logic */
+  clear_sca_new_poins();  /* BGE logic */
 
-	CTX_DATA_BEGIN (C, Base *, base, selected_bases)
-	{
-		Base *basen = object_add_duplicate_internal(bmain, scene, view_layer, base->object, dupflag);
+  CTX_DATA_BEGIN (C, Base *, base, selected_bases) {
+    Base *basen = object_add_duplicate_internal(bmain, scene, view_layer, base->object, dupflag);
 
     /* note that this is safe to do with this context iterator,
      * the list is made in advance */
@@ -2493,10 +2494,11 @@ static int add_named_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-	/* prepare dupli */
-	clear_sca_new_poins();  /* BGE logic */
+  /* prepare dupli */
 
-	basen = object_add_duplicate_internal(bmain, scene, view_layer, ob, dupflag);
+  clear_sca_new_poins();  /* BGE logic */
+
+  basen = object_add_duplicate_internal(bmain, scene, view_layer, ob, dupflag);
 
   if (basen == NULL) {
     BKE_report(op->reports, RPT_ERROR, "Object could not be duplicated");

@@ -70,6 +70,7 @@ static SpaceLink *nla_new(const ScrArea *sa, const Scene *scene)
 
   /* set auto-snapping settings */
   snla->autosnap = SACTSNAP_FRAME;
+  snla->flag = SNLA_SHOW_MARKER_LINES;
 
   /* header */
   ar = MEM_callocN(sizeof(ARegion), "header for nla");
@@ -117,7 +118,7 @@ static SpaceLink *nla_new(const ScrArea *sa, const Scene *scene)
 
   ar->v2d.minzoom = 0.01f;
   ar->v2d.maxzoom = 50;
-  ar->v2d.scroll = (V2D_SCROLL_BOTTOM | V2D_SCROLL_SCALE_HORIZONTAL);
+  ar->v2d.scroll = (V2D_SCROLL_BOTTOM | V2D_SCROLL_HORIZONTAL_HANDLES);
   ar->v2d.scroll |= (V2D_SCROLL_RIGHT);
   ar->v2d.keepzoom = V2D_LOCKZOOM_Y;
   ar->v2d.keepofs = V2D_KEEPOFS_Y;

@@ -107,8 +107,7 @@ enum {
   DRW_CALL_NORMALVIEWINVERSE = (1 << 5),
   DRW_CALL_NORMALWORLD = (1 << 6),
   DRW_CALL_ORCOTEXFAC = (1 << 7),
-  DRW_CALL_EYEVEC = (1 << 8),
-  DRW_CALL_OBJECTINFO = (1 << 9),
+  DRW_CALL_OBJECTINFO = (1 << 8),
 };
 
 typedef struct DRWCallState {
@@ -132,7 +131,6 @@ typedef struct DRWCallState {
   float normalworld[3][3]; /* Not view dependent */
   float orcotexfac[2][3];  /* Not view dependent */
   float objectinfo[2];
-  float eyevec[3];
 } DRWCallState;
 
 typedef enum {
@@ -265,7 +263,6 @@ struct DRWShadingGroup {
   int normalviewinverse;
   int normalworld;
   int orcotexfac;
-  int eye;
   int callid;
   int objectinfo;
   uint16_t matflag; /* Matrices needed, same as DRWCall.flag */
@@ -329,6 +326,9 @@ typedef struct DRWManager {
   uchar state_cache_id; /* Could be larger but 254 view changes is already a lot! */
   struct DupliObject *dupli_source;
   struct Object *dupli_parent;
+  struct Object *dupli_origin;
+  struct GHash *dupli_ghash;
+  void **dupli_datas; /* Array of dupli_data (one for each enabled engine) to handle duplis. */
 
   /* Rendering state */
   GPUShader *shader;
@@ -364,6 +364,8 @@ typedef struct DRWManager {
   struct DRWTextStore **text_store_p;
 
   ListBase enabled_engines; /* RenderEngineType */
+  void **vedata_array;      /* ViewportEngineData */
+  int enabled_engine_count; /* Length of enabled_engines list. */
 
   bool buffer_finish_called; /* Avoid bad usage of DRW_render_instance_buffer_finish */
 
@@ -437,6 +439,7 @@ void drw_state_set(DRWState state);
 void drw_debug_draw(void);
 void drw_debug_init(void);
 
+void drw_batch_cache_validate(Object *ob);
 void drw_batch_cache_generate_requested(struct Object *ob);
 
 extern struct GPUVertFormat *g_pos_format;
