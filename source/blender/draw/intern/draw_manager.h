@@ -103,7 +103,6 @@ enum {
   DRW_CALL_MODELVIEW = (1 << 1),
   DRW_CALL_MODELVIEWINVERSE = (1 << 2),
   DRW_CALL_MODELVIEWPROJECTION = (1 << 3),
-  DRW_CALL_NORMALVIEW = (1 << 4),
   DRW_CALL_ORCOTEXFAC = (1 << 7),
   DRW_CALL_OBJECTINFO = (1 << 8),
 };
@@ -124,7 +123,6 @@ typedef struct DRWCallState {
   float modelview[4][4];
   float modelviewinverse[4][4];
   float modelviewprojection[4][4];
-  float normalview[3][3];
   float orcotexfac[2][3]; /* Not view dependent */
   float objectinfo[2];
 } DRWCallState;
@@ -222,10 +220,10 @@ struct DRWShadingGroup {
   /* Watch this! Can be nasty for debugging. */
   union {
     struct {                 /* DRW_SHG_NORMAL */
-      DRWCall *first, *last; /* Linked list of DRWCall or DRWCallDynamic depending of type */
+      DRWCall *first, *last; /* Linked list of DRWCall */
     } calls;
-    struct {                 /* DRW_SHG_FEEDBACK_TRANSFORM */
-      DRWCall *first, *last; /* Linked list of DRWCall or DRWCallDynamic depending of type */
+    struct {                               /* DRW_SHG_FEEDBACK_TRANSFORM */
+      DRWCall *first, *last;               /* Linked list of DRWCall. */
       struct GPUVertBuf *tfeedback_target; /* Transform Feedback target. */
     };
     struct {                       /* DRW_SHG_***_BATCH */
@@ -255,7 +253,6 @@ struct DRWShadingGroup {
   int modelview;
   int modelviewinverse;
   int modelviewprojection;
-  int normalview;
   int orcotexfac;
   int callid;
   int objectinfo;
@@ -283,6 +280,18 @@ typedef struct DRWPass {
 	DRWState state;
 	char name[MAX_PASS_NAME];
 } DRWPass;
+
+/* TODO(fclem): Future awaits */
+#if 0
+typedef struct DRWView {
+  /* Culling function, culling result etc...*/
+} DRWView;
+
+typedef struct ModelUboStorage {
+  float model[4][4];
+  float modelinverse[4][4];
+} ModelUboStorage;
+#endif
 
 typedef struct ViewUboStorage {
   DRWMatrixState matstate;

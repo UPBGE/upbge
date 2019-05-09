@@ -837,10 +837,12 @@ static void drw_shgroup_init(DRWShadingGroup *shgroup, GPUShader *shader)
   shgroup->modelview = GPU_shader_get_builtin_uniform(shader, GPU_UNIFORM_MODELVIEW);
   shgroup->modelviewinverse = GPU_shader_get_builtin_uniform(shader, GPU_UNIFORM_MODELVIEW_INV);
   shgroup->modelviewprojection = GPU_shader_get_builtin_uniform(shader, GPU_UNIFORM_MVP);
-  shgroup->normalview = GPU_shader_get_builtin_uniform(shader, GPU_UNIFORM_NORMAL);
   shgroup->orcotexfac = GPU_shader_get_builtin_uniform(shader, GPU_UNIFORM_ORCO);
   shgroup->objectinfo = GPU_shader_get_builtin_uniform(shader, GPU_UNIFORM_OBJECT_INFO);
   shgroup->callid = GPU_shader_get_builtin_uniform(shader, GPU_UNIFORM_CALLID);
+
+  /* We do not support normal matrix anymore. */
+  BLI_assert(GPU_shader_get_builtin_uniform(shader, GPU_UNIFORM_NORMAL) == -1);
 
   shgroup->matflag = 0;
   if (shgroup->modelinverse > -1) {
@@ -854,9 +856,6 @@ static void drw_shgroup_init(DRWShadingGroup *shgroup, GPUShader *shader)
   }
   if (shgroup->modelviewprojection > -1) {
     shgroup->matflag |= DRW_CALL_MODELVIEWPROJECTION;
-  }
-  if (shgroup->normalview > -1) {
-    shgroup->matflag |= DRW_CALL_NORMALVIEW;
   }
   if (shgroup->orcotexfac > -1) {
     shgroup->matflag |= DRW_CALL_ORCOTEXFAC;
@@ -1315,12 +1314,6 @@ void DRW_pass_state_add(DRWPass *pass, DRWState state)
 void DRW_pass_state_remove(DRWPass *pass, DRWState state)
 {
   pass->state &= ~state;
-}
-
-void DRW_pass_free(DRWPass *pass)
-{
-  pass->shgroups.first = NULL;
-  pass->shgroups.last = NULL;
 }
 
 void DRW_pass_foreach_shgroup(DRWPass *pass,
