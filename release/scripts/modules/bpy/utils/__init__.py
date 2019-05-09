@@ -162,7 +162,6 @@ def load_scripts(reload_scripts=False, refresh_scripts=False):
     """
     use_time = use_class_register_check = _bpy.app.debug_python
     use_user = not _is_factory_startup
-    is_background = _bpy.app.background
 
     if use_time:
         import time
@@ -354,10 +353,11 @@ def script_paths(subdir=None, user_pref=True, check_all=False, use_user=True):
             *base_paths,
         )
 
-    if use_user:
-        test_paths = (*base_paths, script_path_user(), script_path_pref())
-    else:
-        test_paths = (*base_paths, script_path_pref())
+    test_paths = (
+        *base_paths,
+        *((script_path_user(),) if use_user else ()),
+        *((script_path_pref(),) if user_pref else ()),
+    )
 
     for path in test_paths:
         if path:

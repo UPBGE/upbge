@@ -323,18 +323,6 @@ def km_window(params):
         {"items": items},
     )
 
-    if params.apple:
-        # Apple standard shortcuts. Cmd+F for search since F-keys are not easy to use.
-        items.extend([
-            op_menu("TOPBAR_MT_file_new", {"type": 'N', "value": 'PRESS', "oskey": True}),
-            op_menu("TOPBAR_MT_file_open_recent", {"type": 'O', "value": 'PRESS', "shift": True, "oskey": True}),
-            ("wm.open_mainfile", {"type": 'O', "value": 'PRESS', "oskey": True}, None),
-            ("wm.save_mainfile", {"type": 'S', "value": 'PRESS', "oskey": True}, None),
-            ("wm.save_as_mainfile", {"type": 'S', "value": 'PRESS', "shift": True, "oskey": True}, None),
-            ("wm.quit_blender", {"type": 'Q', "value": 'PRESS', "oskey": True}, None),
-            ("wm.search_menu", {"type": 'F', "value": 'PRESS', "oskey": True}, None),
-        ])
-
     if params.legacy:
         # Old shorctus
         items.extend([
@@ -495,9 +483,6 @@ def km_screen(params):
     if params.apple:
         # Apple undo and user prefs
         items.extend([
-            ("ed.undo", {"type": 'Z', "value": 'PRESS', "oskey": True}, None),
-            ("ed.redo", {"type": 'Z', "value": 'PRESS', "shift": True, "oskey": True}, None),
-            ("ed.undo_history", {"type": 'Z', "value": 'PRESS', "alt": True, "oskey": True}, None),
             ("screen.userpref_show", {"type": 'COMMA', "value": 'PRESS', "oskey": True}, None),
         ])
 
@@ -540,31 +525,16 @@ def km_screen_editing(params):
     return keymap
 
 
-def km_header(_params):
+def km_screen_region_context_menu(_params):
     items = []
     keymap = (
-        "Header",
+        "Region Context Menu",
         {"space_type": 'EMPTY', "region_type": 'WINDOW'},
         {"items": items},
     )
 
     items.extend([
-        ("screen.header_context_menu", {"type": 'RIGHTMOUSE', "value": 'PRESS'}, None),
-    ])
-
-    return keymap
-
-
-def km_footer(_params):
-    items = []
-    keymap = (
-        "Footer",
-        {"space_type": 'EMPTY', "region_type": 'WINDOW'},
-        {"items": items},
-    )
-
-    items.extend([
-        ("screen.footer_context_menu", {"type": 'RIGHTMOUSE', "value": 'PRESS'}, None),
+        ("screen.region_context_menu", {"type": 'RIGHTMOUSE', "value": 'PRESS'}, None),
     ])
 
     return keymap
@@ -759,12 +729,6 @@ def km_outliner(params):
         # Copy/paste.
         ("outliner.id_copy", {"type": 'C', "value": 'PRESS', "ctrl": True}, None),
         ("outliner.id_paste", {"type": 'V', "value": 'PRESS', "ctrl": True}, None),
-    ])
-
-    if params.apple:
-        items.extend([
-            ("outliner.id_copy", {"type": 'C', "value": 'PRESS', "oskey": True}, None),
-            ("outliner.id_paste", {"type": 'V', "value": 'PRESS', "oskey": True}, None),
     ])
 
     return keymap
@@ -1103,12 +1067,6 @@ def km_view3d(params):
 		# Game start
         ("view3d.game_start", {"type": 'P', "value": 'PRESS'}, None),
     ])
-
-    if params.apple:
-        items.extend([
-            ("view3d.copybuffer", {"type": 'C', "value": 'PRESS', "oskey": True}, None),
-            ("view3d.pastebuffer", {"type": 'V', "value": 'PRESS', "oskey": True}, None),
-        ])
 
     if not params.legacy:
         # New pie menus.
@@ -1483,14 +1441,6 @@ def km_graph_editor(params):
             ("graph.cursor_set", {"type": params.action_mouse, "value": 'PRESS'}, None),
         ])
 
-    if params.apple:
-        items.extend([
-            ("graph.copy", {"type": 'C', "value": 'PRESS', "oskey": True}, None),
-            ("graph.paste", {"type": 'V', "value": 'PRESS', "oskey": True}, None),
-            ("graph.paste", {"type": 'V', "value": 'PRESS', "shift": True, "oskey": True},
-             {"properties": [("flipped", True)]}),
-        ])
-
     return keymap
 
 
@@ -1735,12 +1685,6 @@ def km_node_editor(params):
          {"properties": [("data_path", 'tool_settings.snap_node_element')]}),
     ])
 
-    if params.apple:
-        items.extend([
-            ("node.clipboard_copy", {"type": 'C', "value": 'PRESS', "oskey": True}, None),
-            ("node.clipboard_paste", {"type": 'V', "value": 'PRESS', "oskey": True}, None),
-        ])
-
     return keymap
 
 
@@ -1765,11 +1709,6 @@ def km_info(params):
         ("info.report_delete", {"type": 'DEL', "value": 'PRESS'}, None),
         ("info.report_copy", {"type": 'C', "value": 'PRESS', "ctrl": True}, None),
     ])
-
-    if params.apple:
-        items.extend([
-            ("info.report_copy", {"type": 'C', "value": 'PRESS', "oskey": True}, None),
-        ])
 
     return keymap
 
@@ -2021,14 +1960,6 @@ def km_dopesheet(params):
         ("anim.end_frame_set", {"type": 'END', "value": 'PRESS', "ctrl": True}, None),
     ])
 
-    if params.apple:
-        items.extend([
-            ("action.copy", {"type": 'C', "value": 'PRESS', "oskey": True}, None),
-            ("action.paste", {"type": 'V', "value": 'PRESS', "oskey": True}, None),
-            ("action.paste", {"type": 'V', "value": 'PRESS', "shift": True, "oskey": True},
-             {"properties": [("flipped", True)]}),
-        ])
-
     return keymap
 
 
@@ -2173,11 +2104,6 @@ def km_text_generic(params):
         ("text.replace", {"type": 'H', "value": 'PRESS', "ctrl": True}, None),
     ])
 
-    if params.apple:
-        items.extend([
-            ("text.start_find", {"type": 'F', "value": 'PRESS', "oskey": True}, None),
-        ])
-
     return keymap
 
 
@@ -2188,40 +2114,6 @@ def km_text(params):
         {"space_type": 'TEXT_EDITOR', "region_type": 'WINDOW'},
         {"items": items},
     )
-
-    if params.apple:
-        items.extend([
-            ("text.move", {"type": 'LEFT_ARROW', "value": 'PRESS', "oskey": True},
-             {"properties": [("type", 'LINE_BEGIN')]}),
-            ("text.move", {"type": 'RIGHT_ARROW', "value": 'PRESS', "oskey": True},
-             {"properties": [("type", 'LINE_END')]}),
-            ("text.move", {"type": 'UP_ARROW', "value": 'PRESS', "oskey": True},
-             {"properties": [("type", 'FILE_TOP')]}),
-            ("text.move", {"type": 'DOWN_ARROW', "value": 'PRESS', "oskey": True},
-             {"properties": [("type", 'FILE_BOTTOM')]}),
-            ("text.move_select", {"type": 'LEFT_ARROW', "value": 'PRESS', "shift": True, "oskey": True},
-             {"properties": [("type", 'LINE_BEGIN')]}),
-            ("text.move_select", {"type": 'RIGHT_ARROW', "value": 'PRESS', "shift": True, "oskey": True},
-             {"properties": [("type", 'LINE_END')]}),
-            ("text.move_select", {"type": 'LEFT_ARROW', "value": 'PRESS', "shift": True, "alt": True},
-             {"properties": [("type", 'PREVIOUS_WORD')]}),
-            ("text.move_select", {"type": 'RIGHT_ARROW', "value": 'PRESS', "shift": True, "alt": True},
-             {"properties": [("type", 'NEXT_WORD')]}),
-            ("text.move_select", {"type": 'UP_ARROW', "value": 'PRESS', "shift": True, "oskey": True},
-             {"properties": [("type", 'FILE_TOP')]}),
-            ("text.move_select", {"type": 'DOWN_ARROW', "value": 'PRESS', "shift": True, "oskey": True},
-             {"properties": [("type", 'FILE_BOTTOM')]}),
-            ("text.delete", {"type": 'BACK_SPACE', "value": 'PRESS', "alt": True},
-             {"properties": [("type", 'PREVIOUS_WORD')]}),
-            ("text.save", {"type": 'S', "value": 'PRESS', "alt": True, "oskey": True}, None),
-            ("text.save_as", {"type": 'S', "value": 'PRESS', "shift": True, "alt": True, "oskey": True}, None),
-            ("text.cut", {"type": 'X', "value": 'PRESS', "oskey": True}, None),
-            ("text.copy", {"type": 'C', "value": 'PRESS', "oskey": True}, None),
-            ("text.paste", {"type": 'V', "value": 'PRESS', "oskey": True}, None),
-            ("text.find_set_selected", {"type": 'E', "value": 'PRESS', "oskey": True}, None),
-            ("text.select_all", {"type": 'A', "value": 'PRESS', "oskey": True}, None),
-            ("text.select_line", {"type": 'A', "value": 'PRESS', "shift": True, "oskey": True}, None),
-        ])
 
     items.extend([
         ("text.move", {"type": 'LEFT_ARROW', "value": 'PRESS', "alt": True},
@@ -2486,12 +2378,6 @@ def km_sequencer(params):
         ("marker.rename", {"type": 'M', "value": 'PRESS', "ctrl": True}, None),
     ])
 
-    if params.apple:
-        items.extend([
-            ("sequencer.copy", {"type": 'C', "value": 'PRESS', "oskey": True}, None),
-            ("sequencer.paste", {"type": 'V', "value": 'PRESS', "oskey": True}, None),
-        ])
-
     return keymap
 
 
@@ -2522,16 +2408,6 @@ def km_console(params):
         {"space_type": 'CONSOLE', "region_type": 'WINDOW'},
         {"items": items},
     )
-
-    if params.apple:
-        items.extend([
-            ("console.move", {"type": 'LEFT_ARROW', "value": 'PRESS', "oskey": True},
-             {"properties": [("type", 'LINE_BEGIN')]}),
-            ("console.move", {"type": 'RIGHT_ARROW', "value": 'PRESS', "oskey": True},
-             {"properties": [("type", 'LINE_END')]}),
-            ("console.copy", {"type": 'C', "value": 'PRESS', "oskey": True}, None),
-            ("console.paste", {"type": 'V', "value": 'PRESS', "oskey": True}, None),
-        ])
 
     items.extend([
         ("console.move", {"type": 'LEFT_ARROW', "value": 'PRESS', "ctrl": True},
@@ -3147,13 +3023,6 @@ def km_grease_pencil_stroke_edit_mode(params):
          {"properties": [("mode", 2)]}),
     ])
 
-    if params.apple:
-        # Apple copy + paste
-        items.extend([
-            ("gpencil.copy", {"type": 'C', "value": 'PRESS', "oskey": True}, None),
-            ("gpencil.paste", {"type": 'V', "value": 'PRESS', "oskey": True}, None),
-        ])
-
     if params.legacy:
         items.extend([
             # Convert to geometry
@@ -3475,15 +3344,6 @@ def km_pose(params):
              )
         ),
     ])
-
-    if params.apple:
-        items.extend([
-            ("pose.copy", {"type": 'C', "value": 'PRESS', "oskey": True}, None),
-            ("pose.paste", {"type": 'V', "value": 'PRESS', "oskey": True},
-             {"properties": [("flipped", False)]}),
-            ("pose.paste", {"type": 'V', "value": 'PRESS', "shift": True, "oskey": True},
-             {"properties": [("flipped", True)]}),
-        ])
 
     return keymap
 
@@ -4335,14 +4195,6 @@ def km_font(params):
          {"properties": [("accent", True)]}),
         op_menu("VIEW3D_MT_edit_text_context_menu", params.context_menu_event),
     ])
-
-    if params.apple:
-        items.extend([
-            ("font.select_all", {"type": 'A', "value": 'PRESS', "oskey": True}, None),
-            ("font.text_copy", {"type": 'C', "value": 'PRESS', "oskey": True}, None),
-            ("font.text_cut", {"type": 'X', "value": 'PRESS', "oskey": True}, None),
-            ("font.text_paste", {"type": 'V', "value": 'PRESS', "oskey": True}, None),
-        ])
 
     return keymap
 
@@ -6173,8 +6025,7 @@ def generate_keymaps(params=None):
         km_window(params),
         km_screen(params),
         km_screen_editing(params),
-        km_header(params),
-        km_footer(params),
+        km_screen_region_context_menu(params),
         km_view2d(params),
         km_view2d_buttons_list(params),
         km_user_interface(params),

@@ -97,7 +97,7 @@ static void game_copy_pose(bPose **dst, bPose *src, int copy_constraint)
 	out->agroups.first = out->agroups.last = nullptr;
 	out->ikdata = nullptr;
 	out->ikparam = MEM_dupallocN(src->ikparam);
-	out->flag |= POSE_GAME_ENGINE;
+	//out->flag |= POSE_GAME_ENGINE;
 	BLI_duplicatelist(&out->chanbase, &src->chanbase);
 
 	/* remap pointers */
@@ -230,7 +230,7 @@ BL_ArmatureObject::BL_ArmatureObject(void *sgReplicationInfo,
 	id_us_min(&((bArmature *)m_origObjArma->data)->id);
 	m_pose = m_objArma->pose;
 	// need this to get iTaSC working ok in the BGE
-	m_pose->flag |= POSE_GAME_ENGINE;
+	//m_pose->flag |= POSE_GAME_ENGINE;
 	memcpy(m_obmat, m_objArma->obmat, sizeof(m_obmat));
 }
 

@@ -497,22 +497,27 @@ typedef struct bPose {
 
 /* Pose->flag */
 typedef enum ePose_Flags {
-	/* results in BKE_pose_rebuild being called */
-	POSE_RECALC = (1 << 0),
-	/* prevents any channel from getting overridden by anim from IPO */
-	POSE_LOCKED = (1 << 1),
-	/* clears the POSE_LOCKED flag for the next time the pose is evaluated */
-	POSE_DO_UNLOCK  = (1 << 2),
-	/* pose has constraints which depend on time (used when depsgraph updates for a new frame) */
-	POSE_CONSTRAINTS_TIMEDEPEND = (1 << 3),
-	/* recalculate bone paths */
-	POSE_RECALCPATHS = (1 << 4),
-	/* set by BKE_pose_rebuild to give a chance to the IK solver to rebuild IK tree */
-	POSE_WAS_REBUILT = (1 << 5),
-	/* set by game_copy_pose to indicate that this pose is used in the game engine */
-	POSE_GAME_ENGINE = (1 << 6),
-	/* pose constraint flags needs to be updated */
-	POSE_CONSTRAINTS_NEED_UPDATE_FLAGS = (1 << 7),
+  /* results in BKE_pose_rebuild being called */
+  POSE_RECALC = (1 << 0),
+  /* prevents any channel from getting overridden by anim from IPO */
+  POSE_LOCKED = (1 << 1),
+  /* clears the POSE_LOCKED flag for the next time the pose is evaluated */
+  POSE_DO_UNLOCK = (1 << 2),
+  /* pose has constraints which depend on time (used when depsgraph updates for a new frame) */
+  POSE_CONSTRAINTS_TIMEDEPEND = (1 << 3),
+  /* recalculate bone paths */
+  POSE_RECALCPATHS = (1 << 4),
+  /* set by BKE_pose_rebuild to give a chance to the IK solver to rebuild IK tree */
+  POSE_WAS_REBUILT = (1 << 5),
+  POSE_FLAG_DEPRECATED = (1 << 6), /* deprecated. */
+  /* pose constraint flags needs to be updated */
+  POSE_CONSTRAINTS_NEED_UPDATE_FLAGS = (1 << 7),
+  /* Use auto IK in pose mode */
+  POSE_AUTO_IK = (1 << 8),
+  /* Use x-axis mirror in pose mode */
+  POSE_MIRROR_EDIT = (1 << 9),
+  /* Use relative mirroring in mirror mode */
+  POSE_MIRROR_RELATIVE = (1 << 10),
 } ePose_Flags;
 
 /* IK Solvers ------------------------------------ */

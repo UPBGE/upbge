@@ -104,7 +104,7 @@ class SelectPattern(Operator):
         wm = context.window_manager
         return wm.invoke_props_popup(self, event)
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
         layout.prop(self, "pattern")
@@ -611,7 +611,6 @@ class MakeDupliFace(Operator):
             rot = matrix.to_3x3()  # also contains scale
 
             return [(rot @ b) + trans for b in base_tri]
-        scene = context.scene
         linked = defaultdict(list)
         for obj in context.selected_objects:
             if obj.type == 'MESH':
@@ -1052,7 +1051,7 @@ class LoadImageAsEmpty:
     def poll(cls, context):
         return context.mode == 'OBJECT'
 
-    def invoke(self, context, event):
+    def invoke(self, context, _event):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
