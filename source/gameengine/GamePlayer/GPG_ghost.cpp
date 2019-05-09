@@ -500,7 +500,6 @@ static void usage(const std::string& program, bool isBlenderPlayer)
 	CM_Message("       Name                       Default      Description");
 	CM_Message("       ------------------------------------------------------------------------");
 	CM_Message("       fixedtime                      0         \"Enable all frames\"");
-	CM_Message("       nomipmap                       0         Disable mipmaps");
 	CM_Message("       wireframe                      0         Wireframe render");
 	CM_Message("       show_framerate                 0         Show the frame rate");
 	CM_Message("       show_properties                0         Show debug properties");
@@ -1385,10 +1384,6 @@ int main(
 							G.background = false;
 							GPU_init();
 							GPU_immActivate();
-
-							if (SYS_GetCommandLineInt(syshandle, "nomipmap", 0)) {
-								GPU_set_mipmap(maggie, 0);
-							}
 
 							GPU_set_anisotropic(maggie, U.anisotropic_filter);
 							//GPU_set_gpu_mipmapping(maggie, U.use_gpu_mipmap);

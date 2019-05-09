@@ -99,6 +99,45 @@ static const EnumPropertyItem rna_enum_studio_light_type_items[] = {
     {0, NULL, 0, NULL, NULL},
 };
 
+static const EnumPropertyItem rna_enum_userdef_viewport_aa_items[] = {
+    {SCE_DISPLAY_AA_OFF,
+     "OFF",
+     0,
+     "No Anti-Aliasing",
+     "Scene will be rendering without any anti-aliasing"},
+    {SCE_DISPLAY_AA_FXAA,
+     "FXAA",
+     0,
+     "Single Pass Anti-Aliasing",
+     "Scene will be rendered using a single pass anti-aliasing method (FXAA)"},
+    {SCE_DISPLAY_AA_SAMPLES_5,
+     "5",
+     0,
+     "5 Samples",
+     "Scene will be rendered using 5 anti-aliasing samples"},
+    {SCE_DISPLAY_AA_SAMPLES_8,
+     "8",
+     0,
+     "8 Samples",
+     "Scene will be rendered using 8 anti-aliasing samples"},
+    {SCE_DISPLAY_AA_SAMPLES_11,
+     "11",
+     0,
+     "11 Samples",
+     "Scene will be rendered using 11 anti-aliasing samples"},
+    {SCE_DISPLAY_AA_SAMPLES_16,
+     "16",
+     0,
+     "16 Samples",
+     "Scene will be rendered using 16 anti-aliasing samples"},
+    {SCE_DISPLAY_AA_SAMPLES_32,
+     "32",
+     0,
+     "32 Samples",
+     "Scene will be rendered using 32 anti-aliasing samples"},
+    {0, NULL, 0, NULL, NULL},
+};
+
 #ifdef RNA_RUNTIME
 
 #  include "BLI_math_vector.h"
@@ -213,12 +252,6 @@ static void rna_userdef_load_ui_update(Main *UNUSED(bmain), Scene *UNUSED(scene)
     G.fileflags |= G_FILE_NO_UI;
   else
     G.fileflags &= ~G_FILE_NO_UI;
-}
-
-static void rna_userdef_mipmap_update(Main *bmain, Scene *scene, PointerRNA *ptr)
-{
-	GPU_set_mipmap(bmain, !(U.gameflags & USER_DISABLE_MIPMAP));
-	rna_userdef_update(bmain, scene, ptr);
 }
 
 static void rna_userdef_anisotropic_update(Main *bmain, Scene *scene, PointerRNA *ptr)
@@ -2563,18 +2596,17 @@ static void rna_def_userdef_theme_space_node(BlenderRNA *brna)
 
 static void rna_def_userdef_theme_space_logic(BlenderRNA *brna)
 {
-	StructRNA *srna;
-//	PropertyRNA *prop;
-	
-	/* space_logic */
-	
-	srna = RNA_def_struct(brna, "ThemeLogicEditor", NULL);
-	RNA_def_struct_sdna(srna, "ThemeSpace");
-	RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
-	RNA_def_struct_ui_text(srna, "Theme Logic Editor", "Theme settings for the Logic Editor");
-	
-	rna_def_userdef_theme_spaces_main(srna);
-	
+  StructRNA *srna;
+  //	PropertyRNA *prop;
+
+  /* space_logic */
+
+  srna = RNA_def_struct(brna, "ThemeLogicEditor", NULL);
+  RNA_def_struct_sdna(srna, "ThemeSpace");
+  RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
+  RNA_def_struct_ui_text(srna, "Theme Logic Editor", "Theme settings for the Logic Editor");
+
+  rna_def_userdef_theme_spaces_main(srna);
 }
 
 
@@ -3320,33 +3352,33 @@ static void rna_def_userdef_theme_space_statusbar(BlenderRNA *brna)
 
 static void rna_def_userdef_themes(BlenderRNA *brna)
 {
-	StructRNA *srna;
-	PropertyRNA *prop;
+  StructRNA *srna;
+  PropertyRNA *prop;
 
-	static const EnumPropertyItem active_theme_area[] = {
-		{0, "USER_INTERFACE", ICON_WORKSPACE, "User Interface", ""},
-		{19, "STYLE", ICON_FONTPREVIEW, "Text Style", ""},
-		{18, "BONE_COLOR_SETS", ICON_COLOR, "Bone Color Sets", ""},
-		{1, "VIEW_3D", ICON_VIEW3D, "3D View", ""},
-		{3, "GRAPH_EDITOR", ICON_GRAPH, "Graph Editor", ""},
-		{4, "DOPESHEET_EDITOR", ICON_ACTION, "Dope Sheet", ""},
-		{5, "NLA_EDITOR", ICON_NLA, "Nonlinear Animation", ""},
-		{6, "IMAGE_EDITOR", ICON_IMAGE, "UV/Image Editor", ""},
-		{7, "SEQUENCE_EDITOR", ICON_SEQUENCE, "Video Sequence Editor", ""},
-		{8, "TEXT_EDITOR", ICON_TEXT, "Text Editor", ""},
-		{9, "NODE_EDITOR", ICON_NODETREE, "Node Editor", ""},
-		{10, "LOGIC_EDITOR", ICON_ACTION, "Logic Editor", ""}, // CHOOSE BETTER ICON
-		{11, "PROPERTIES", ICON_PROPERTIES, "Properties", ""},
-		{12, "OUTLINER", ICON_OUTLINER, "Outliner", ""},
-		{14, "PREFERENCES", ICON_PREFERENCES, "Preferences", ""},
-		{15, "INFO", ICON_INFO, "Info", ""},
-		{16, "FILE_BROWSER", ICON_FILEBROWSER, "File Browser", ""},
-		{17, "CONSOLE", ICON_CONSOLE, "Python Console", ""},
-		{20, "CLIP_EDITOR", ICON_TRACKER, "Movie Clip Editor", ""},
-		{21, "TOPBAR", ICON_NONE, "Top Bar", ""},
-		{22, "STATUSBAR", ICON_NONE, "Status Bar", ""},
-		{0, NULL, 0, NULL, NULL},
-	};
+  static const EnumPropertyItem active_theme_area[] = {
+      {0, "USER_INTERFACE", ICON_WORKSPACE, "User Interface", ""},
+      {19, "STYLE", ICON_FONTPREVIEW, "Text Style", ""},
+      {18, "BONE_COLOR_SETS", ICON_COLOR, "Bone Color Sets", ""},
+      {1, "VIEW_3D", ICON_VIEW3D, "3D View", ""},
+      {3, "GRAPH_EDITOR", ICON_GRAPH, "Graph Editor", ""},
+      {4, "DOPESHEET_EDITOR", ICON_ACTION, "Dope Sheet", ""},
+      {5, "NLA_EDITOR", ICON_NLA, "Nonlinear Animation", ""},
+      {6, "IMAGE_EDITOR", ICON_IMAGE, "UV/Image Editor", ""},
+      {7, "SEQUENCE_EDITOR", ICON_SEQUENCE, "Video Sequence Editor", ""},
+      {8, "TEXT_EDITOR", ICON_TEXT, "Text Editor", ""},
+      {9, "NODE_EDITOR", ICON_NODETREE, "Node Editor", ""},
+      {10, "LOGIC_EDITOR", ICON_ACTION, "Logic Editor", ""}, // CHOOSE BETTER ICON
+      {11, "PROPERTIES", ICON_PROPERTIES, "Properties", ""},
+      {12, "OUTLINER", ICON_OUTLINER, "Outliner", ""},
+      {14, "PREFERENCES", ICON_PREFERENCES, "Preferences", ""},
+      {15, "INFO", ICON_INFO, "Info", ""},
+      {16, "FILE_BROWSER", ICON_FILEBROWSER, "File Browser", ""},
+      {17, "CONSOLE", ICON_CONSOLE, "Python Console", ""},
+      {20, "CLIP_EDITOR", ICON_TRACKER, "Movie Clip Editor", ""},
+      {21, "TOPBAR", ICON_NONE, "Top Bar", ""},
+      {22, "STATUSBAR", ICON_NONE, "Status Bar", ""},
+      {0, NULL, 0, NULL, NULL},
+  };
 
   srna = RNA_def_struct(brna, "Theme", NULL);
   RNA_def_struct_sdna(srna, "bTheme");
@@ -3433,17 +3465,17 @@ static void rna_def_userdef_themes(BlenderRNA *brna)
   RNA_def_property_struct_type(prop, "ThemeNodeEditor");
   RNA_def_property_ui_text(prop, "Node Editor", "");
 
-	prop = RNA_def_property(srna, "logic_editor", PROP_POINTER, PROP_NONE);
-	RNA_def_property_flag(prop, PROP_NEVER_NULL);
-	RNA_def_property_pointer_sdna(prop, NULL, "tlogic");
-	RNA_def_property_struct_type(prop, "ThemeLogicEditor");
-	RNA_def_property_ui_text(prop, "Logic Editor", "");
-	
-	prop = RNA_def_property(srna, "outliner", PROP_POINTER, PROP_NONE);
-	RNA_def_property_flag(prop, PROP_NEVER_NULL);
-	RNA_def_property_pointer_sdna(prop, NULL, "space_outliner");
-	RNA_def_property_struct_type(prop, "ThemeOutliner");
-	RNA_def_property_ui_text(prop, "Outliner", "");
+  prop = RNA_def_property(srna, "logic_editor", PROP_POINTER, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_NEVER_NULL);
+  RNA_def_property_pointer_sdna(prop, NULL, "tlogic");
+  RNA_def_property_struct_type(prop, "ThemeLogicEditor");
+  RNA_def_property_ui_text(prop, "Logic Editor", "");
+
+  prop = RNA_def_property(srna, "outliner", PROP_POINTER, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_NEVER_NULL);
+  RNA_def_property_pointer_sdna(prop, NULL, "space_outliner");
+  RNA_def_property_struct_type(prop, "ThemeOutliner");
+  RNA_def_property_ui_text(prop, "Outliner", "");
 
   prop = RNA_def_property(srna, "info", PROP_POINTER, PROP_NONE);
   RNA_def_property_flag(prop, PROP_NEVER_NULL);
@@ -3696,26 +3728,26 @@ static void rna_def_userdef_dothemes(BlenderRNA *brna)
   rna_def_userdef_theme_space_gradient(brna);
   rna_def_userdef_theme_space_list_generic(brna);
 
-	rna_def_userdef_theme_space_view3d(brna);
-	rna_def_userdef_theme_space_graph(brna);
-	rna_def_userdef_theme_space_file(brna);
-	rna_def_userdef_theme_space_nla(brna);
-	rna_def_userdef_theme_space_action(brna);
-	rna_def_userdef_theme_space_image(brna);
-	rna_def_userdef_theme_space_seq(brna);
-	rna_def_userdef_theme_space_buts(brna);
-	rna_def_userdef_theme_space_text(brna);
-	rna_def_userdef_theme_space_node(brna);
-	rna_def_userdef_theme_space_outliner(brna);
-	rna_def_userdef_theme_space_info(brna);
-	rna_def_userdef_theme_space_userpref(brna);
-	rna_def_userdef_theme_space_console(brna);
-	rna_def_userdef_theme_space_logic(brna);
-	rna_def_userdef_theme_space_clip(brna);
-	rna_def_userdef_theme_space_topbar(brna);
-	rna_def_userdef_theme_space_statusbar(brna);
-	rna_def_userdef_theme_colorset(brna);
-	rna_def_userdef_themes(brna);
+  rna_def_userdef_theme_space_view3d(brna);
+  rna_def_userdef_theme_space_graph(brna);
+  rna_def_userdef_theme_space_file(brna);
+  rna_def_userdef_theme_space_nla(brna);
+  rna_def_userdef_theme_space_action(brna);
+  rna_def_userdef_theme_space_image(brna);
+  rna_def_userdef_theme_space_seq(brna);
+  rna_def_userdef_theme_space_buts(brna);
+  rna_def_userdef_theme_space_text(brna);
+  rna_def_userdef_theme_space_node(brna);
+  rna_def_userdef_theme_space_logic(brna);
+  rna_def_userdef_theme_space_outliner(brna);
+  rna_def_userdef_theme_space_info(brna);
+  rna_def_userdef_theme_space_userpref(brna);
+  rna_def_userdef_theme_space_console(brna);
+  rna_def_userdef_theme_space_clip(brna);
+  rna_def_userdef_theme_space_topbar(brna);
+  rna_def_userdef_theme_space_statusbar(brna);
+  rna_def_userdef_theme_colorset(brna);
+  rna_def_userdef_themes(brna);
 }
 
 static void rna_def_userdef_solidlight(BlenderRNA *brna)
@@ -4165,12 +4197,12 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 
   /* Lookdev */
-  prop = RNA_def_property(srna, "lookdev_ball_size", PROP_INT, PROP_PIXEL);
-  RNA_def_property_int_sdna(prop, NULL, "lookdev_ball_size");
+  prop = RNA_def_property(srna, "lookdev_sphere_size", PROP_INT, PROP_PIXEL);
+  RNA_def_property_int_sdna(prop, NULL, "lookdev_sphere_size");
   RNA_def_property_range(prop, 50, 400);
   RNA_def_property_int_default(prop, 150);
   RNA_def_property_ui_text(
-      prop, "LookDev Balls Size", "Maximum diameter of the LookDev balls size");
+      prop, "Look Dev Spheres Size", "Maximum diameter of the look development sphere size");
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 
   /* View2D Grid Displays */
@@ -4571,242 +4603,273 @@ static void rna_def_userdef_edit(BlenderRNA *brna)
 
 static void rna_def_userdef_system(BlenderRNA *brna)
 {
-	PropertyRNA *prop;
-	StructRNA *srna;
+  PropertyRNA *prop;
+  StructRNA *srna;
 
-	static const EnumPropertyItem gl_texture_clamp_items[] = {
-		{0, "CLAMP_OFF", 0, "Off", ""},
-		{8192, "CLAMP_8192", 0, "8192", ""},
-		{4096, "CLAMP_4096", 0, "4096", ""},
-		{2048, "CLAMP_2048", 0, "2048", ""},
-		{1024, "CLAMP_1024", 0, "1024", ""},
-		{512, "CLAMP_512", 0, "512", ""},
-		{256, "CLAMP_256", 0, "256", ""},
-		{128, "CLAMP_128", 0, "128", ""},
-		{0, NULL, 0, NULL, NULL},
-	};
+  static const EnumPropertyItem gl_texture_clamp_items[] = {
+      {0, "CLAMP_OFF", 0, "Off", ""},
+      {8192, "CLAMP_8192", 0, "8192", ""},
+      {4096, "CLAMP_4096", 0, "4096", ""},
+      {2048, "CLAMP_2048", 0, "2048", ""},
+      {1024, "CLAMP_1024", 0, "1024", ""},
+      {512, "CLAMP_512", 0, "512", ""},
+      {256, "CLAMP_256", 0, "256", ""},
+      {128, "CLAMP_128", 0, "128", ""},
+      {0, NULL, 0, NULL, NULL},
+  };
 
-	static const EnumPropertyItem anisotropic_items[] = {
-		{1, "FILTER_0", 0, "Off", ""},
-		{2, "FILTER_2", 0, "2x", ""},
-		{4, "FILTER_4", 0, "4x", ""},
-		{8, "FILTER_8", 0, "8x", ""},
-		{16, "FILTER_16", 0, "16x", ""},
-		{0, NULL, 0, NULL, NULL},
-	};
+  static const EnumPropertyItem anisotropic_items[] = {
+      {1, "FILTER_0", 0, "Off", ""},
+      {2, "FILTER_2", 0, "2x", ""},
+      {4, "FILTER_4", 0, "4x", ""},
+      {8, "FILTER_8", 0, "8x", ""},
+      {16, "FILTER_16", 0, "16x", ""},
+      {0, NULL, 0, NULL, NULL},
+  };
 
-	static const EnumPropertyItem audio_mixing_samples_items[] = {
-		{256, "SAMPLES_256", 0, "256", "Set audio mixing buffer size to 256 samples"},
-		{512, "SAMPLES_512", 0, "512", "Set audio mixing buffer size to 512 samples"},
-		{1024, "SAMPLES_1024", 0, "1024", "Set audio mixing buffer size to 1024 samples"},
-		{2048, "SAMPLES_2048", 0, "2048", "Set audio mixing buffer size to 2048 samples"},
-		{4096, "SAMPLES_4096", 0, "4096", "Set audio mixing buffer size to 4096 samples"},
-		{8192, "SAMPLES_8192", 0, "8192", "Set audio mixing buffer size to 8192 samples"},
-		{16384, "SAMPLES_16384", 0, "16384", "Set audio mixing buffer size to 16384 samples"},
-		{32768, "SAMPLES_32768", 0, "32768", "Set audio mixing buffer size to 32768 samples"},
-		{0, NULL, 0, NULL, NULL},
-	};
+  static const EnumPropertyItem audio_mixing_samples_items[] = {
+      {256, "SAMPLES_256", 0, "256", "Set audio mixing buffer size to 256 samples"},
+      {512, "SAMPLES_512", 0, "512", "Set audio mixing buffer size to 512 samples"},
+      {1024, "SAMPLES_1024", 0, "1024", "Set audio mixing buffer size to 1024 samples"},
+      {2048, "SAMPLES_2048", 0, "2048", "Set audio mixing buffer size to 2048 samples"},
+      {4096, "SAMPLES_4096", 0, "4096", "Set audio mixing buffer size to 4096 samples"},
+      {8192, "SAMPLES_8192", 0, "8192", "Set audio mixing buffer size to 8192 samples"},
+      {16384, "SAMPLES_16384", 0, "16384", "Set audio mixing buffer size to 16384 samples"},
+      {32768, "SAMPLES_32768", 0, "32768", "Set audio mixing buffer size to 32768 samples"},
+      {0, NULL, 0, NULL, NULL},
+  };
 
-	static const EnumPropertyItem audio_rate_items[] = {
-/*		{8000, "RATE_8000", 0, "8 kHz", "Set audio sampling rate to 8000 samples per second"}, */
-/*		{11025, "RATE_11025", 0, "11.025 kHz", "Set audio sampling rate to 11025 samples per second"}, */
-/*		{16000, "RATE_16000", 0, "16 kHz", "Set audio sampling rate to 16000 samples per second"}, */
-/*		{22050, "RATE_22050", 0, "22.05 kHz", "Set audio sampling rate to 22050 samples per second"}, */
-/*		{32000, "RATE_32000", 0, "32 kHz", "Set audio sampling rate to 32000 samples per second"}, */
-		{44100, "RATE_44100", 0, "44.1 kHz", "Set audio sampling rate to 44100 samples per second"},
-		{48000, "RATE_48000", 0, "48 kHz", "Set audio sampling rate to 48000 samples per second"},
-/*		{88200, "RATE_88200", 0, "88.2 kHz", "Set audio sampling rate to 88200 samples per second"}, */
-		{96000, "RATE_96000", 0, "96 kHz", "Set audio sampling rate to 96000 samples per second"},
-		{192000, "RATE_192000", 0, "192 kHz", "Set audio sampling rate to 192000 samples per second"},
-		{0, NULL, 0, NULL, NULL},
-	};
+  static const EnumPropertyItem audio_rate_items[] = {
+#  if 0
+    {8000, "RATE_8000", 0, "8 kHz", "Set audio sampling rate to 8000 samples per second"},
+    {11025, "RATE_11025", 0, "11.025 kHz", "Set audio sampling rate to 11025 samples per second"},
+    {16000, "RATE_16000", 0, "16 kHz", "Set audio sampling rate to 16000 samples per second"},
+    {22050, "RATE_22050", 0, "22.05 kHz", "Set audio sampling rate to 22050 samples per second"},
+    {32000, "RATE_32000", 0, "32 kHz", "Set audio sampling rate to 32000 samples per second"},
+#  endif
+    {44100, "RATE_44100", 0, "44.1 kHz", "Set audio sampling rate to 44100 samples per second"},
+    {48000, "RATE_48000", 0, "48 kHz", "Set audio sampling rate to 48000 samples per second"},
+#  if 0
+    {88200, "RATE_88200", 0, "88.2 kHz", "Set audio sampling rate to 88200 samples per second"},
+#  endif
+    {96000, "RATE_96000", 0, "96 kHz", "Set audio sampling rate to 96000 samples per second"},
+    {192000, "RATE_192000", 0, "192 kHz", "Set audio sampling rate to 192000 samples per second"},
+    {0, NULL, 0, NULL, NULL},
+  };
 
-	static const EnumPropertyItem audio_format_items[] = {
-		{0x01, "U8", 0, "8-bit Unsigned", "Set audio sample format to 8 bit unsigned integer"},
-		{0x12, "S16", 0, "16-bit Signed", "Set audio sample format to 16 bit signed integer"},
-		{0x13, "S24", 0, "24-bit Signed", "Set audio sample format to 24 bit signed integer"},
-		{0x14, "S32", 0, "32-bit Signed", "Set audio sample format to 32 bit signed integer"},
-		{0x24, "FLOAT", 0, "32-bit Float", "Set audio sample format to 32 bit float"},
-		{0x28, "DOUBLE", 0, "64-bit Float", "Set audio sample format to 64 bit float"},
-		{0, NULL, 0, NULL, NULL},
-	};
+  static const EnumPropertyItem audio_format_items[] = {
+      {0x01, "U8", 0, "8-bit Unsigned", "Set audio sample format to 8 bit unsigned integer"},
+      {0x12, "S16", 0, "16-bit Signed", "Set audio sample format to 16 bit signed integer"},
+      {0x13, "S24", 0, "24-bit Signed", "Set audio sample format to 24 bit signed integer"},
+      {0x14, "S32", 0, "32-bit Signed", "Set audio sample format to 32 bit signed integer"},
+      {0x24, "FLOAT", 0, "32-bit Float", "Set audio sample format to 32 bit float"},
+      {0x28, "DOUBLE", 0, "64-bit Float", "Set audio sample format to 64 bit float"},
+      {0, NULL, 0, NULL, NULL},
+  };
 
-	static const EnumPropertyItem audio_channel_items[] = {
-		{1, "MONO", 0, "Mono", "Set audio channels to mono"},
-		{2, "STEREO", 0, "Stereo", "Set audio channels to stereo"},
-		{4, "SURROUND4", 0, "4 Channels", "Set audio channels to 4 channels"},
-		{6, "SURROUND51", 0, "5.1 Surround", "Set audio channels to 5.1 surround sound"},
-		{8, "SURROUND71", 0, "7.1 Surround", "Set audio channels to 7.1 surround sound"},
-		{0, NULL, 0, NULL, NULL},
-	};
+  static const EnumPropertyItem audio_channel_items[] = {
+      {1, "MONO", 0, "Mono", "Set audio channels to mono"},
+      {2, "STEREO", 0, "Stereo", "Set audio channels to stereo"},
+      {4, "SURROUND4", 0, "4 Channels", "Set audio channels to 4 channels"},
+      {6, "SURROUND51", 0, "5.1 Surround", "Set audio channels to 5.1 surround sound"},
+      {8, "SURROUND71", 0, "7.1 Surround", "Set audio channels to 7.1 surround sound"},
+      {0, NULL, 0, NULL, NULL},
+  };
 
-	static const EnumPropertyItem multi_sample_levels[] = {
-		{USER_MULTISAMPLE_NONE, "NONE", 0, "No MultiSample", "Do not use OpenGL MultiSample"},
-		{USER_MULTISAMPLE_2, "2", 0, "MultiSample: 2", "Use 2x OpenGL MultiSample"},
-		{USER_MULTISAMPLE_4, "4", 0, "MultiSample: 4", "Use 4x OpenGL MultiSample"},
-		{USER_MULTISAMPLE_8, "8", 0, "MultiSample: 8", "Use 8x OpenGL MultiSample"},
-		{USER_MULTISAMPLE_16, "16", 0, "MultiSample: 16", "Use 16x OpenGL MultiSample"},
-		{0, NULL, 0, NULL, NULL},
-	};
+  static const EnumPropertyItem multi_sample_levels[] = {
+      {USER_MULTISAMPLE_NONE, "NONE", 0, "No MultiSample", "Do not use OpenGL MultiSample"},
+      {USER_MULTISAMPLE_2, "2", 0, "MultiSample: 2", "Use 2x OpenGL MultiSample"},
+      {USER_MULTISAMPLE_4, "4", 0, "MultiSample: 4", "Use 4x OpenGL MultiSample"},
+      {USER_MULTISAMPLE_8, "8", 0, "MultiSample: 8", "Use 8x OpenGL MultiSample"},
+      {USER_MULTISAMPLE_16, "16", 0, "MultiSample: 16", "Use 16x OpenGL MultiSample"},
+      {0, NULL, 0, NULL, NULL},
+  };
 
-	static const EnumPropertyItem image_draw_methods[] = {
-		{IMAGE_DRAW_METHOD_2DTEXTURE, "2DTEXTURE", 0, "2D Texture", "Use CPU for display transform and draw image with 2D texture"},
-		{IMAGE_DRAW_METHOD_GLSL, "GLSL", 0, "GLSL", "Use GLSL shaders for display transform and draw image with 2D texture"},
-		{0, NULL, 0, NULL, NULL},
-	};
+  static const EnumPropertyItem image_draw_methods[] = {
+      {IMAGE_DRAW_METHOD_AUTO,
+       "AUTO",
+       0,
+       "Automatic",
+       "Automatically choose method based on GPU and image"},
+      {IMAGE_DRAW_METHOD_2DTEXTURE,
+       "2DTEXTURE",
+       0,
+       "2D Texture",
+       "Use CPU for display transform and draw image with 2D texture"},
+      {IMAGE_DRAW_METHOD_GLSL,
+       "GLSL",
+       0,
+       "GLSL",
+       "Use GLSL shaders for display transform and draw image with 2D texture"},
+      {0, NULL, 0, NULL, NULL},
+  };
 
-	srna = RNA_def_struct(brna, "PreferencesSystem", NULL);
-	RNA_def_struct_sdna(srna, "UserDef");
-	RNA_def_struct_nested(brna, srna, "Preferences");
-	RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
-	RNA_def_struct_ui_text(srna, "System & OpenGL", "Graphics driver and operating system settings");
+  srna = RNA_def_struct(brna, "PreferencesSystem", NULL);
+  RNA_def_struct_sdna(srna, "UserDef");
+  RNA_def_struct_nested(brna, srna, "Preferences");
+  RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
+  RNA_def_struct_ui_text(srna, "System & OpenGL", "Graphics driver and operating system settings");
 
-	/* UI settings. */
+  /* UI settings. */
 
-	prop = RNA_def_property(srna, "ui_scale", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_float_sdna(prop, NULL, "dpi_fac");
-	RNA_def_property_ui_text(prop, "UI Scale",
-	                         "Size multiplier to use when drawing custom user interface elements, so that "
-	                         "they are scaled correctly on screens with different DPI. This value is based "
-	                         "on operating system DPI settings and Blender display scale");
+  prop = RNA_def_property(srna, "ui_scale", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_float_sdna(prop, NULL, "dpi_fac");
+  RNA_def_property_ui_text(
+      prop,
+      "UI Scale",
+      "Size multiplier to use when drawing custom user interface elements, so that "
+      "they are scaled correctly on screens with different DPI. This value is based "
+      "on operating system DPI settings and Blender display scale");
 
-	prop = RNA_def_property(srna, "ui_line_width", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_float_sdna(prop, NULL, "pixelsize");
-	RNA_def_property_ui_text(prop, "UI Line Width",
-	                         "Suggested line thickness and point size in pixels, for add-ons drawing custom "
-	                         "user interface elements, based on operating system settings and Blender UI scale");
+  prop = RNA_def_property(srna, "ui_line_width", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_float_sdna(prop, NULL, "pixelsize");
+  RNA_def_property_ui_text(
+      prop,
+      "UI Line Width",
+      "Suggested line thickness and point size in pixels, for add-ons drawing custom "
+      "user interface elements, based on operating system settings and Blender UI scale");
 
-	prop = RNA_def_property(srna, "dpi", PROP_INT, PROP_NONE);
-	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  prop = RNA_def_property(srna, "dpi", PROP_INT, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
-	prop = RNA_def_property(srna, "pixel_size", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_float_sdna(prop, NULL, "pixelsize");
+  prop = RNA_def_property(srna, "pixel_size", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_float_sdna(prop, NULL, "pixelsize");
 
+  /* Memory */
 
-	/* Memory */
+  prop = RNA_def_property(srna, "prefetch_frames", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "prefetchframes");
+  RNA_def_property_range(prop, 0, INT_MAX);
+  RNA_def_property_ui_range(prop, 0, 500, 1, -1);
+  RNA_def_property_ui_text(prop,
+                           "Prefetch Frames",
+                           "Number of frames to render ahead during playback (sequencer only)");
 
-	prop = RNA_def_property(srna, "prefetch_frames", PROP_INT, PROP_NONE);
-	RNA_def_property_int_sdna(prop, NULL, "prefetchframes");
-	RNA_def_property_range(prop, 0, INT_MAX);
-	RNA_def_property_ui_range(prop, 0, 500, 1, -1);
-	RNA_def_property_ui_text(prop, "Prefetch Frames", "Number of frames to render ahead during playback (sequencer only)");
+  prop = RNA_def_property(srna, "memory_cache_limit", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "memcachelimit");
+  RNA_def_property_range(prop, 0, max_memory_in_megabytes_int());
+  RNA_def_property_ui_text(prop, "Memory Cache Limit", "Memory cache limit (in megabytes)");
+  RNA_def_property_update(prop, 0, "rna_Userdef_memcache_update");
 
-	prop = RNA_def_property(srna, "memory_cache_limit", PROP_INT, PROP_NONE);
-	RNA_def_property_int_sdna(prop, NULL, "memcachelimit");
-	RNA_def_property_range(prop, 0, max_memory_in_megabytes_int());
-	RNA_def_property_ui_text(prop, "Memory Cache Limit", "Memory cache limit (in megabytes)");
-	RNA_def_property_update(prop, 0, "rna_Userdef_memcache_update");
+  prop = RNA_def_property(srna, "scrollback", PROP_INT, PROP_UNSIGNED);
+  RNA_def_property_int_sdna(prop, NULL, "scrollback");
+  RNA_def_property_range(prop, 32, 32768);
+  RNA_def_property_ui_text(
+      prop, "Scrollback", "Maximum number of lines to store for the console buffer");
 
-	prop = RNA_def_property(srna, "scrollback", PROP_INT, PROP_UNSIGNED);
-	RNA_def_property_int_sdna(prop, NULL, "scrollback");
-	RNA_def_property_range(prop, 32, 32768);
-	RNA_def_property_ui_text(prop, "Scrollback", "Maximum number of lines to store for the console buffer");
+  /* OpenGL */
 
-	/* OpenGL */
+  /* Full scene anti-aliasing */
+  prop = RNA_def_property(srna, "multi_sample", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_bitflag_sdna(prop, NULL, "ogl_multisamples");
+  RNA_def_property_enum_items(prop, multi_sample_levels);
+  RNA_def_property_ui_text(
+      prop, "MultiSample", "Enable OpenGL multi-sampling, only for systems that support it");
+  RNA_def_property_update(prop, 0, "rna_userdef_dpi_update");
 
-	/* Full scene anti-aliasing */
-	prop = RNA_def_property(srna, "multi_sample", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_bitflag_sdna(prop, NULL, "ogl_multisamples");
-	RNA_def_property_enum_items(prop, multi_sample_levels);
-	RNA_def_property_ui_text(prop, "MultiSample",
-	                         "Enable OpenGL multi-sampling, only for systems that support it");
-	RNA_def_property_update(prop, 0, "rna_userdef_dpi_update");
+  prop = RNA_def_property(srna, "use_edit_mode_smooth_wire", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(
+      prop, NULL, "gpu_flag", USER_GPU_FLAG_NO_EDIT_MODE_SMOOTH_WIRE);
+  RNA_def_property_ui_text(prop,
+                           "Edit-Mode Smooth Wires",
+                           "Enable Edit-Mode edge smoothing, reducing aliasing, requires restart");
+  RNA_def_property_update(prop, 0, "rna_userdef_dpi_update");
 
-	prop = RNA_def_property(srna, "use_edit_mode_smooth_wire", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_negative_sdna(prop, NULL, "gpu_flag", USER_GPU_FLAG_NO_EDIT_MODE_SMOOTH_WIRE);
-	RNA_def_property_ui_text(prop, "Edit-Mode Smooth Wires",
-	                         "Enable Edit-Mode edge smoothing, reducing aliasing, requires restart");
-	RNA_def_property_update(prop, 0, "rna_userdef_dpi_update");
+  /* grease pencil anti-aliasing */
+  prop = RNA_def_property(srna, "gpencil_multi_sample", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_bitflag_sdna(prop, NULL, "gpencil_multisamples");
+  RNA_def_property_enum_items(prop, multi_sample_levels);
+  RNA_def_property_ui_text(
+      prop,
+      "Gpencil MultiSample",
+      "Enable Grease Pencil OpenGL multi-sampling, only for systems that support it");
+  RNA_def_property_update(prop, 0, "rna_userdef_dpi_update");
 
-	/* grease pencil anti-aliasing */
-	prop = RNA_def_property(srna, "gpencil_multi_sample", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_bitflag_sdna(prop, NULL, "gpencil_multisamples");
-	RNA_def_property_enum_items(prop, multi_sample_levels);
-	RNA_def_property_ui_text(prop, "Gpencil MultiSample",
-	                         "Enable Grease Pencil OpenGL multi-sampling, only for systems that support it");
-	RNA_def_property_update(prop, 0, "rna_userdef_dpi_update");
+  prop = RNA_def_property(srna, "use_region_overlap", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "uiflag2", USER_REGION_OVERLAP);
+  RNA_def_property_ui_text(
+      prop, "Region Overlap", "Draw tool/property regions over the main region");
+  RNA_def_property_update(prop, 0, "rna_userdef_dpi_update");
 
-	prop = RNA_def_property(srna, "use_region_overlap", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "uiflag2", USER_REGION_OVERLAP);
-	RNA_def_property_ui_text(prop, "Region Overlap",
-	                         "Draw tool/property regions over the main region");
-	RNA_def_property_update(prop, 0, "rna_userdef_dpi_update");
+  prop = RNA_def_property(srna, "viewport_aa", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_userdef_viewport_aa_items);
+  RNA_def_property_ui_text(
+      prop, "Viewport Anti-Aliasing", "Method of anti-aliasing in 3d viewport");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, 0, "rna_userdef_update");
 
-	prop = RNA_def_property(srna, "gpu_viewport_quality", PROP_FLOAT, PROP_FACTOR);
-	RNA_def_property_float_sdna(prop, NULL, "gpu_viewport_quality");
-	RNA_def_property_float_default(prop, 0.6f);
-	RNA_def_property_range(prop, 0.0f, 1.0f);
-	RNA_def_property_ui_text(prop, "Viewport Quality", "Quality setting for Solid mode rendering in the 3d viewport");
-	RNA_def_property_update(prop, 0, "rna_userdef_update");
+  prop = RNA_def_property(srna, "solid_lights", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_collection_sdna(prop, NULL, "light_param", "");
+  RNA_def_property_struct_type(prop, "UserSolidLight");
+  RNA_def_property_ui_text(
+      prop, "Solid Lights", "Lights user to display objects in solid draw mode");
 
-	prop = RNA_def_property(srna, "solid_lights", PROP_COLLECTION, PROP_NONE);
-	RNA_def_property_collection_sdna(prop, NULL, "light_param", "");
-	RNA_def_property_struct_type(prop, "UserSolidLight");
-	RNA_def_property_ui_text(prop, "Solid Lights", "Lights user to display objects in solid draw mode");
+  prop = RNA_def_property(srna, "light_ambient", PROP_FLOAT, PROP_COLOR);
+  RNA_def_property_float_sdna(prop, NULL, "light_ambient");
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_ui_text(
+      prop, "Ambient Color", "Color of the ambient light that uniformly lit the scene");
+  RNA_def_property_update(prop, 0, "rna_UserDef_viewport_lights_update");
 
-	prop = RNA_def_property(srna, "light_ambient", PROP_FLOAT, PROP_COLOR);
-	RNA_def_property_float_sdna(prop, NULL, "light_ambient");
-	RNA_def_property_array(prop, 3);
-	RNA_def_property_ui_text(prop, "Ambient Color", "Color of the ambient light that uniformly lit the scene");
-	RNA_def_property_update(prop, 0, "rna_UserDef_viewport_lights_update");
+  prop = RNA_def_property(srna, "use_studio_light_edit", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "edit_studio_light", 1);
+  RNA_def_property_ui_text(
+      prop, "Edit Studio Light", "View the result of the studio light editor in the viewport");
+  RNA_def_property_update(prop, 0, "rna_UserDef_viewport_lights_update");
 
-	prop = RNA_def_property(srna, "use_studio_light_edit", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "edit_studio_light", 1);
-	RNA_def_property_ui_text(prop, "Edit Studio Light",
-	                               "View the result of the studio light editor in the viewport");
-	RNA_def_property_update(prop, 0, "rna_UserDef_viewport_lights_update");
+  prop = RNA_def_property(srna, "gl_clip_alpha", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_float_sdna(prop, NULL, "glalphaclip");
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_ui_text(
+      prop, "Clip Alpha", "Clip alpha below this threshold in the 3D textured view");
+  RNA_def_property_update(prop, 0, "rna_userdef_update");
 
-	prop = RNA_def_property(srna, "gl_clip_alpha", PROP_FLOAT, PROP_FACTOR);
-	RNA_def_property_float_sdna(prop, NULL, "glalphaclip");
-	RNA_def_property_range(prop, 0.0f, 1.0f);
-	RNA_def_property_ui_text(prop, "Clip Alpha", "Clip alpha below this threshold in the 3D textured view");
-	RNA_def_property_update(prop, 0, "rna_userdef_update");
-	
-	prop = RNA_def_property(srna, "use_mipmaps", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_negative_sdna(prop, NULL, "gameflags", USER_DISABLE_MIPMAP);
-	RNA_def_property_ui_text(prop, "Mipmaps",
-	                         "Scale textures for the 3D View (looks nicer but uses more memory and slows image "
-	                         "reloading)");
-	RNA_def_property_update(prop, 0, "rna_userdef_mipmap_update");
+  /* Textures */
 
-	/* Textures */
+  prop = RNA_def_property(srna, "image_draw_method", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, image_draw_methods);
+  RNA_def_property_enum_sdna(prop, NULL, "image_draw_method");
+  RNA_def_property_ui_text(
+      prop, "Image Display Method", "Method used for displaying images on the screen");
+  RNA_def_property_update(prop, 0, "rna_userdef_update");
 
-	prop = RNA_def_property(srna, "image_draw_method", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_items(prop, image_draw_methods);
-	RNA_def_property_enum_sdna(prop, NULL, "image_draw_method");
-	RNA_def_property_ui_text(prop, "Image Display Method", "Method used for displaying images on the screen");
-	RNA_def_property_update(prop, 0, "rna_userdef_update");
+  prop = RNA_def_property(srna, "anisotropic_filter", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "anisotropic_filter");
+  RNA_def_property_enum_items(prop, anisotropic_items);
+  RNA_def_property_enum_default(prop, 1);
+  RNA_def_property_ui_text(
+      prop,
+      "Anisotropic Filter",
+      "Quality of the anisotropic filtering (values greater than 1.0 enable anisotropic "
+      "filtering)");
+  RNA_def_property_update(prop, 0, "rna_userdef_anisotropic_update");
 
-	prop = RNA_def_property(srna, "anisotropic_filter", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "anisotropic_filter");
-	RNA_def_property_enum_items(prop, anisotropic_items);
-	RNA_def_property_enum_default(prop, 1);
-	RNA_def_property_ui_text(prop, "Anisotropic Filter",
-	                         "Quality of the anisotropic filtering (values greater than 1.0 enable anisotropic "
-	                         "filtering)");
-	RNA_def_property_update(prop, 0, "rna_userdef_anisotropic_update");
+  prop = RNA_def_property(srna, "gl_texture_limit", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "glreslimit");
+  RNA_def_property_enum_items(prop, gl_texture_clamp_items);
+  RNA_def_property_ui_text(
+      prop, "GL Texture Limit", "Limit the texture size to save graphics memory");
+  RNA_def_property_update(prop, 0, "rna_userdef_gl_texture_limit_update");
 
-	prop = RNA_def_property(srna, "gl_texture_limit", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "glreslimit");
-	RNA_def_property_enum_items(prop, gl_texture_clamp_items);
-	RNA_def_property_ui_text(prop, "GL Texture Limit", "Limit the texture size to save graphics memory");
-	RNA_def_property_update(prop, 0, "rna_userdef_gl_texture_limit_update");
+  prop = RNA_def_property(srna, "texture_time_out", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "textimeout");
+  RNA_def_property_range(prop, 0, 3600);
+  RNA_def_property_ui_text(
+      prop,
+      "Texture Time Out",
+      "Time since last access of a GL texture in seconds after which it is freed "
+      "(set to 0 to keep textures allocated)");
 
-	prop = RNA_def_property(srna, "texture_time_out", PROP_INT, PROP_NONE);
-	RNA_def_property_int_sdna(prop, NULL, "textimeout");
-	RNA_def_property_range(prop, 0, 3600);
-	RNA_def_property_ui_text(prop, "Texture Time Out",
-	                         "Time since last access of a GL texture in seconds after which it is freed "
-	                         "(set to 0 to keep textures allocated)");
-
-	prop = RNA_def_property(srna, "texture_collection_rate", PROP_INT, PROP_NONE);
-	RNA_def_property_int_sdna(prop, NULL, "texcollectrate");
-	RNA_def_property_range(prop, 1, 3600);
-	RNA_def_property_ui_text(prop, "Texture Collection Rate",
-	                         "Number of seconds between each run of the GL texture garbage collector");
+  prop = RNA_def_property(srna, "texture_collection_rate", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "texcollectrate");
+  RNA_def_property_range(prop, 1, 3600);
+  RNA_def_property_ui_text(
+      prop,
+      "Texture Collection Rate",
+      "Number of seconds between each run of the GL texture garbage collector");
 
   prop = RNA_def_property(srna, "vbo_time_out", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, NULL, "vbotimeout");

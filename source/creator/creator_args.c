@@ -1522,7 +1522,6 @@ static const char arg_handle_ge_parameters_set_doc[] =
 "\t\tRun on 50 hertz without dropping frames.\n"
 "\t'vertexarrays'\n"
 "\t\tUse Vertex Arrays for rendering (usually faster).\n"
-"\t'nomipmap'\n"
 "\t\tNo Texture Mipmapping.\n"
 "\t'linearmipmap'\n"
 "\t\tLinear Texture Mipmapping instead of Nearest (default)."

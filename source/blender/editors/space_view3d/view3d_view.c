@@ -1579,10 +1579,7 @@ static void game_set_commmandline_options(GameData *gm)
 	Main *bmain = G.main;
 
 	if ((syshandle = SYS_GetSystem())) {
-		/* User defined settings */
-		test = (U.gameflags & USER_DISABLE_MIPMAP);
-		GPU_set_mipmap(bmain, !test);
-		SYS_WriteCommandLineInt(syshandle, "nomipmap", test);
+		GPU_set_mipmap(bmain, true);
 
 		/* File specific settings: */
 		/* Only test the first one. These two are switched
@@ -1618,7 +1615,7 @@ static void game_set_commmandline_options(GameData *gm)
 static bool game_engine_poll(bContext *C)
 {
 	const wmWindow *win = CTX_wm_window(C);
-	const Scene *scene = WM_window_get_active_scene(win);
+	//const Scene *scene = WM_window_get_active_scene(win);
 
 	/* we need a context and area to launch BGE
 	 * it's a temporary solution to avoid crash at load time

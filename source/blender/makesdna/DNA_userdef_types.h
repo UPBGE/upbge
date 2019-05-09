@@ -38,11 +38,6 @@ struct ColorBand;
 
 #define MAX_STYLE_NAME 64
 
-#define GPU_VIEWPORT_QUALITY_FXAA 0.10f
-#define GPU_VIEWPORT_QUALITY_TAA8 0.25f
-#define GPU_VIEWPORT_QUALITY_TAA16 0.6f
-#define GPU_VIEWPORT_QUALITY_TAA32 0.8f
-
 /** default offered by Blender.
  * #uiFont.uifont_id */
 typedef enum eUIFont_ID {
@@ -573,7 +568,7 @@ typedef struct UserDef {
   short versions;
   short dbl_click_time;
 
-  short gameflags;
+  char _pad0[2];
   short wheellinescroll;
   /** #eUserpref_UI_Flag. */
   int uiflag;
@@ -636,7 +631,7 @@ typedef struct UserDef {
   short undosteps;
   char _pad1[2];
   int undomemory;
-  float gpu_viewport_quality;
+  float gpu_viewport_quality DNA_DEPRECATED;
   short gp_manhattendist, gp_euclideandist, gp_eraser;
   /** #eGP_UserdefSettings. */
   short gp_settings;
@@ -646,7 +641,7 @@ typedef struct UserDef {
   char _pad3[4];
   short gizmo_flag, gizmo_size;
   short edit_studio_light;
-  short lookdev_ball_size;
+  short lookdev_sphere_size;
   short vbotimeout, vbocollectrate;
   short textimeout, texcollectrate;
   int memcachelimit;
@@ -764,7 +759,9 @@ typedef struct UserDef {
 
   char factor_display_type;
 
-  char _pad5[3];
+  char viewport_aa;
+
+  char _pad5[2];
 } UserDef;
 
 /* from blenkernel blender.c */
@@ -998,22 +995,6 @@ typedef enum eDupli_ID_Flags {
   USER_DUP_LIGHTPROBE = (1 << 12),
   USER_DUP_GPENCIL = (1 << 13),
 } eDupli_ID_Flags;
-
-/* UserDef.gameflags */
-typedef enum eOpenGL_RenderingOptions {
-	USER_GL_RENDER_DEPRECATED_0			= (1 << 0),
-	USER_GL_RENDER_DEPRECATED_1			= (1 << 1),
-	USER_DISABLE_MIPMAP					= (1 << 2),
-	USER_GL_RENDER_DEPRECATED_3			= (1 << 3),
-	USER_GL_RENDER_DEPRECATED_4			= (1 << 4),
-} eOpenGL_RenderingOptions;
-
-/* selection method for opengl gpu_select_method */
-typedef enum eOpenGL_SelectOptions {
-	USER_SELECT_AUTO = 0,
-	USER_SELECT_USE_OCCLUSION_QUERY = 1,
-	USER_SELECT_USE_SELECT_RENDERMODE = 2,
-} eOpenGL_SelectOptions;
 
 /** Max anti alias draw method
  * #UserDef.gpu_viewport_antialias */

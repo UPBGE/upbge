@@ -109,10 +109,6 @@ enum {
   BOUNDBOX_DIRTY = (1 << 1),
 };
 
-/* Forward declaration for cache bbone deformation information.
- *
- * TODO(sergey): Consider moving it to more appropriate place. */
-struct ObjectBBoneDeform;
 
 struct CustomData_MeshMasks;
 
@@ -131,6 +127,10 @@ typedef struct Object_Runtime {
 
   /** Only used for drawing the parent/child help-line. */
   float parent_display_origin[3];
+
+  /** Selection id of this object; only available in the original object */
+  int select_id;
+  char _pad1[4];
 
   /** Axis aligned boundbox (in localspace). */
   struct BoundBox *bb;
@@ -160,283 +160,285 @@ typedef struct Object_Runtime {
 } Object_Runtime;
 
 typedef struct Object {
-	ID id;
-	/** Animation data (must be immediately after id for utilities to use it). */
-	struct AnimData *adt;
-	/** Runtime (must be immediately after id for utilities to use it). */
-	struct DrawDataList drawdata;
+  ID id;
+  /** Animation data (must be immediately after id for utilities to use it). */
+  struct AnimData *adt;
+  /** Runtime (must be immediately after id for utilities to use it). */
+  struct DrawDataList drawdata;
 
-	struct SculptSession *sculpt;
+  struct SculptSession *sculpt;
 
-	short type, partype;
-	/** Can be vertexnrs. */
-	int par1, par2, par3;
-	/** String describing subobject info, MAX_ID_NAME-2. */
-	char parsubstr[64];
-	struct Object *parent, *track;
-	/* if ob->proxy (or proxy_group), this object is proxy for object ob->proxy */
-	/* proxy_from is set in target back to the proxy. */
-	struct Object *proxy, *proxy_group, *proxy_from;
-	/** Old animation system, deprecated for 2.5. */
-	struct Ipo *ipo  DNA_DEPRECATED;
-	/* struct Path *path; */
-	struct bAction *action  DNA_DEPRECATED;	 // XXX deprecated... old animation system
-	struct bAction *poselib;
-	/** Pose data, armature objects only. */
-	struct bPose *pose;
-	/** Pointer to objects data - an 'ID' or NULL. */
-	void *data;
+  short type, partype;
+  /** Can be vertexnrs. */
+  int par1, par2, par3;
+  /** String describing subobject info, MAX_ID_NAME-2. */
+  char parsubstr[64];
+  struct Object *parent, *track;
+  /* if ob->proxy (or proxy_group), this object is proxy for object ob->proxy */
+  /* proxy_from is set in target back to the proxy. */
+  struct Object *proxy, *proxy_group, *proxy_from;
+  /** Old animation system, deprecated for 2.5. */
+  struct Ipo *ipo DNA_DEPRECATED;
+  /* struct Path *path; */
+  struct bAction *action DNA_DEPRECATED;  // XXX deprecated... old animation system
+  struct bAction *poselib;
+  /** Pose data, armature objects only. */
+  struct bPose *pose;
+  /** Pointer to objects data - an 'ID' or NULL. */
+  void *data;
 
-	/** Grease Pencil data. */
-	struct bGPdata *gpd  DNA_DEPRECATED; // XXX deprecated... replaced by gpencil object, keep for readfile
+  /** Grease Pencil data. */
+  struct bGPdata *gpd
+      DNA_DEPRECATED;  // XXX deprecated... replaced by gpencil object, keep for readfile
 
-	/** Settings for visualization of object-transform animation. */
-	bAnimVizSettings avs;
-	/** Motion path cache for this object. */
-	bMotionPath *mpath;
-	void *_pad0;
+  /** Settings for visualization of object-transform animation. */
+  bAnimVizSettings avs;
+  /** Motion path cache for this object. */
+  bMotionPath *mpath;
+  void *_pad0;
 
-	ListBase constraintChannels  DNA_DEPRECATED; // XXX deprecated... old animation system
-	ListBase effect  DNA_DEPRECATED;             // XXX deprecated... keep for readfile
-	/** List of bDeformGroup (vertex groups) names and flag only. */
-	ListBase defbase;
-	/** List of ModifierData structures. */
-	ListBase modifiers;
-	/** List of GpencilModifierData structures. */
-	ListBase greasepencil_modifiers;
-	/** List of facemaps. */
-	ListBase fmaps;
-	/** List of viewport effects. Actually only used by grease pencil. */
-	ListBase shader_fx;
+  ListBase constraintChannels DNA_DEPRECATED;  // XXX deprecated... old animation system
+  ListBase effect DNA_DEPRECATED;              // XXX deprecated... keep for readfile
+  /** List of bDeformGroup (vertex groups) names and flag only. */
+  ListBase defbase;
+  /** List of ModifierData structures. */
+  ListBase modifiers;
+  /** List of GpencilModifierData structures. */
+  ListBase greasepencil_modifiers;
+  /** List of facemaps. */
+  ListBase fmaps;
+  /** List of viewport effects. Actually only used by grease pencil. */
+  ListBase shader_fx;
 
-	/** Local object mode. */
-	int mode;
-	int restore_mode;
+  /** Local object mode. */
+  int mode;
+  int restore_mode;
 
-	/* materials */
-	/** Material slots. */
-	struct Material **mat;
-	/** A boolean field, with each byte 1 if corresponding material is linked to object. */
-	char *matbits;
-	/** Copy of mesh, curve & meta struct member of same name (keep in sync). */
-	int totcol;
-	/** Currently selected material in the UI. */
-	int actcol;
+  /* materials */
+  /** Material slots. */
+  struct Material **mat;
+  /** A boolean field, with each byte 1 if corresponding material is linked to object. */
+  char *matbits;
+  /** Copy of mesh, curve & meta struct member of same name (keep in sync). */
+  int totcol;
+  /** Currently selected material in the UI. */
+  int actcol;
 
-	/* rot en drot have to be together! (transform('r' en 's')) */
-	float loc[3], dloc[3];
-	/** Scale (can be negative). */
-	float scale[3];
-	/** DEPRECATED, 2.60 and older only. */
-	float dsize[3] DNA_DEPRECATED ;
-	/** Ack!, changing. */
-	float dscale[3];
-	/** Euler rotation. */
-	float rot[3], drot[3];
-	/** Quaternion rotation. */
-	float quat[4], dquat[4];
-	/** Axis angle rotation - axis part. */
-	float rotAxis[3], drotAxis[3];
-	/** Axis angle rotation - angle part. */
-	float rotAngle, drotAngle;
-	/** Final worldspace matrix with constraints & animsys applied. */
-	float obmat[4][4];
-	/** Inverse result of parent, so that object doesn't 'stick' to parent. */
-	float parentinv[4][4];
-	/** Inverse result of constraints.
-	 * doesn't include effect of parent or object local transform. */
-	float constinv[4][4];
-	/**
-	 * Inverse matrix of 'obmat' for any other use than rendering!
-	 *
-	 * \note this isn't assured to be valid as with 'obmat',
-	 * before using this value you should do...
-	 * invert_m4_m4(ob->imat, ob->obmat);
-	 */
-	float imat[4][4];
+  /* rot en drot have to be together! (transform('r' en 's')) */
+  float loc[3], dloc[3];
+  /** Scale (can be negative). */
+  float scale[3];
+  /** DEPRECATED, 2.60 and older only. */
+  float dsize[3] DNA_DEPRECATED;
+  /** Ack!, changing. */
+  float dscale[3];
+  /** Euler rotation. */
+  float rot[3], drot[3];
+  /** Quaternion rotation. */
+  float quat[4], dquat[4];
+  /** Axis angle rotation - axis part. */
+  float rotAxis[3], drotAxis[3];
+  /** Axis angle rotation - angle part. */
+  float rotAngle, drotAngle;
+  /** Final worldspace matrix with constraints & animsys applied. */
+  float obmat[4][4];
+  /** Inverse result of parent, so that object doesn't 'stick' to parent. */
+  float parentinv[4][4];
+  /** Inverse result of constraints.
+   * doesn't include effect of parent or object local transform. */
+  float constinv[4][4];
+  /**
+   * Inverse matrix of 'obmat' for any other use than rendering!
+   *
+   * \note this isn't assured to be valid as with 'obmat',
+   * before using this value you should do...
+   * invert_m4_m4(ob->imat, ob->obmat);
+   */
+  float imat[4][4];
 
-	/* Previously 'imat' was used at render time, but as other places use it too
-	 * the interactive ui of 2.5 creates problems. So now only 'imat_ren' should
-	 * be used when ever the inverse of ob->obmat * re->viewmat is needed! - jahka
-	 */
-	float imat_ren[4][4];
+  /* Previously 'imat' was used at render time, but as other places use it too
+   * the interactive ui of 2.5 creates problems. So now only 'imat_ren' should
+   * be used when ever the inverse of ob->obmat * re->viewmat is needed! - jahka
+   */
+  float imat_ren[4][4];
 
-	/** Copy of Base's layer in the scene. */
-	unsigned int lay DNA_DEPRECATED;
+  /** Copy of Base's layer in the scene. */
+  unsigned int lay DNA_DEPRECATED;
 
-	/** Copy of Base. */
-	short flag;
-	/** Deprecated, use 'matbits'. */
-	short colbits DNA_DEPRECATED;
+  /** Copy of Base. */
+  short flag;
+  /** Deprecated, use 'matbits'. */
+  short colbits DNA_DEPRECATED;
 
-	/** Transformation settings and transform locks . */
-	short transflag, protectflag;
-	short trackflag, upflag;
-	/** Used for DopeSheet filtering settings (expanded/collapsed). */
-	short nlaflag;
+  /** Transformation settings and transform locks . */
+  short transflag, protectflag;
+  short trackflag, upflag;
+  /** Used for DopeSheet filtering settings (expanded/collapsed). */
+  short nlaflag;
 
-	char _pad1;
-	char duplicator_visibility_flag;
+  char _pad1;
+  char duplicator_visibility_flag;
 
-	/* Depsgraph */
-	/** Used by depsgraph, flushed from base. */
-	short base_flag;
-	/** Used by viewport, synced from base. */
-	unsigned short base_local_view_bits;
+  /* Depsgraph */
+  /** Used by depsgraph, flushed from base. */
+  short base_flag;
+  /** Used by viewport, synced from base. */
+  unsigned short base_local_view_bits;
 
-	/** Collision mask settings */
-	unsigned short col_group, col_mask;
+  /** Collision mask settings */
+  unsigned short col_group, col_mask;
 
-	/** Rotation mode - uses defines set out in DNA_action_types.h for PoseChannel rotations.... */
-	short rotmode;
+  /** Rotation mode - uses defines set out in DNA_action_types.h for PoseChannel rotations.... */
+  short rotmode;
 
-	/** Bounding box use for drawing. */
-	char boundtype;
-	/** Bounding box type used for collision. */
-	char collision_boundtype;
+  /** Bounding box use for drawing. */
+  char boundtype;
+  /** Bounding box type used for collision. */
+  char collision_boundtype;
 
-	/** Viewport draw extra settings. */
-	short dtx;
-	/** Viewport draw type. */
-	char dt;
-	char empty_drawtype;
-	float empty_drawsize;
-	/** Dupliface scale. */
-	float instance_faces_scale;
+  /** Viewport draw extra settings. */
+  short dtx;
+  /** Viewport draw type. */
+  char dt;
+  char empty_drawtype;
+  float empty_drawsize;
+  /** Dupliface scale. */
+  float instance_faces_scale;
 
-	/** Custom index, for renderpasses. */
-	short index;
-	/** Current deformation group, note: index starts at 1. */
-	unsigned short actdef;
-	/** Current face map, note: index starts at 1. */
-	unsigned short actfmap;
-	char _pad2[2];
-	/** Object color (in most cases the material color is used for drawing). */
-	float color[4];
+  /** Custom index, for renderpasses. */
+  short index;
+  /** Current deformation group, note: index starts at 1. */
+  unsigned short actdef;
+  /** Current face map, note: index starts at 1. */
+  unsigned short actfmap;
+  char _pad2[2];
+  /** Object color (in most cases the material color is used for drawing). */
+  float color[4];
 
-	/** Softbody settings. */
-	short softflag;
+  /** Softbody settings. */
+  short softflag;
 
-	/** For restricting view, select, render etc. accessible in outliner. */
-	char restrictflag;
+  /** For restricting view, select, render etc. accessible in outliner. */
+  char restrictflag;
 
-	/** Flag for pinning. */
-	char  shapeflag;
-	/** Current shape key for menu or pinned. */
-	short shapenr;
+  /** Flag for pinning. */
+  char shapeflag;
+  /** Current shape key for menu or pinned. */
+  short shapenr;
 
-	char _pad3[2];
+  char _pad3[2];
 
-	/** Object constraints. */
-	ListBase constraints;
-	ListBase nlastrips  DNA_DEPRECATED;			// XXX deprecated... old animation system
-	ListBase hooks  DNA_DEPRECATED;				// XXX deprecated... old animation system
-	/** Particle systems. */
-	ListBase particlesystem;
+  /** Object constraints. */
+  ListBase constraints;
+  ListBase nlastrips DNA_DEPRECATED;  // XXX deprecated... old animation system
+  ListBase hooks DNA_DEPRECATED;      // XXX deprecated... old animation system
+  /** Particle systems. */
+  ListBase particlesystem;
 
-	/** Particle deflector/attractor/collision data. */
-	struct PartDeflect *pd;
-	/** If exists, saved in file. */
-	struct SoftBody *soft;
-	/** Object duplicator for group. */
-	struct Collection *instance_collection;
+  /** Particle deflector/attractor/collision data. */
+  struct PartDeflect *pd;
+  /** If exists, saved in file. */
+  struct SoftBody *soft;
+  /** Object duplicator for group. */
+  struct Collection *instance_collection;
 
-	/** If fluidsim enabled, store additional settings. */
-	struct FluidsimSettings *fluidsimSettings;
+  /** If fluidsim enabled, store additional settings. */
+  struct FluidsimSettings *fluidsimSettings;
 
-	struct DerivedMesh *derivedDeform, *derivedFinal;
+  struct DerivedMesh *derivedDeform, *derivedFinal;
 
-	/************Game engine**************/
+  ListBase pc_ids;
 
-	/* settings for game engine bullet soft body */
-	struct BulletSoftBody *bsoft;
+  /** Settings for Bullet rigid body. */
+  struct RigidBodyOb *rigidbody_object;
+  /** Settings for Bullet constraint. */
+  struct RigidBodyCon *rigidbody_constraint;
 
-	short scaflag;			/* ui state for game logic */
-	short scavisflag;		/* more display settings for game logic */
-	short _pad53[2];
+  /** Offset for image empties. */
+  float ima_ofs[2];
+  /** Must be non-null when object is an empty image. */
+  ImageUser *iuser;
+  char empty_image_visibility_flag;
+  char empty_image_depth;
+  char empty_image_flag;
+  char _pad8[5];
 
-	/* during realtime */
 
-	/* note that inertia is only called inertia for historical reasons
-	 * and is not changed to avoid DNA surgery. It actually reflects the 
-	 * Size value in the GameButtons (= radius) */
+  struct PreviewImage *preview;
 
-	float mass, damping, inertia;
-	/* The form factor k is introduced to give the user more control
-	 * and to fix incompatibility problems.
-	 * For rotational symmetric objects, the inertia value can be
-	 * expressed as: Theta = k * m * r^2
-	 * where m = Mass, r = Radius
-	 * For a Sphere, the form factor is by default = 0.4
-	 */
+  /** Runtime evaluation data (keep last). */
+  Object_Runtime runtime;
 
-	float formfactor;
-	float rdamping;
-	float margin;
-	float max_vel; /* clamp the maximum velocity 0.0 is disabled */
-	float min_vel; /* clamp the minimum velocity 0.0 is disabled */
-	float max_angvel; /* clamp the maximum angular velocity, 0.0 is disabled */
-	float min_angvel; /* clamp the minimum angular velocity, 0.0 is disabled */
-	float obstacleRad;
-	
-	/* "Character" physics properties */
-	float step_height;
-	float jump_speed;
-	float fall_speed;
-	short max_jumps;
+  /************Game engine**************/
 
-	/* for now used to temporarily holds the type of collision object */
-	short  body_type, _pad52[2];
-	
-	/** the custom data layer mask that was last used to calculate derivedDeform and derivedFinal */
-	uint64_t lastDataMask;
-	/** (extra) custom data layer mask to use for creating derivedmesh, set by depsgraph */
-	uint64_t customdata_mask;
-	/** bit masks of game controllers that are active */
-	unsigned int state;
-	/** bit masks of initial state as recorded by the users */
-	unsigned int init_state;
+  /* settings for game engine bullet soft body */
+  struct BulletSoftBody *bsoft;
 
-	ListBase prop;			/* game logic property list (not to be confused with IDProperties) */
-	ListBase sensors;		/* game logic sensors */
-	ListBase controllers;	/* game logic controllers */
-	ListBase actuators;		/* game logic actuators */
+  short scaflag;			/* ui state for game logic */
+  short scavisflag;		/* more display settings for game logic */
+  short _pad53[2];
 
-	float sf; /* sf is time-offset */
+  /* during realtime */
 
-	int gameflag;
-	int gameflag2;
+  /* note that inertia is only called inertia for historical reasons
+   * and is not changed to avoid DNA surgery. It actually reflects the 
+   * Size value in the GameButtons (= radius) */
 
-	float anisotropicFriction[3];
+  float mass, damping, inertia;
+  /* The form factor k is introduced to give the user more control
+   * and to fix incompatibility problems.
+   * For rotational symmetric objects, the inertia value can be
+   * expressed as: Theta = k * m * r^2
+   * where m = Mass, r = Radius
+   * For a Sphere, the form factor is by default = 0.4
+   */
 
-	/* dynamic properties */
-	float friction, rolling_friction, fh, reflect;
-	float fhdist, xyfrict;
-	short dynamode, _pad51[3];
-	/********End of Game engine***********/
+  float formfactor;
+  float rdamping;
+  float margin;
+  float max_vel; /* clamp the maximum velocity 0.0 is disabled */
+  float min_vel; /* clamp the minimum velocity 0.0 is disabled */
+  float max_angvel; /* clamp the maximum angular velocity, 0.0 is disabled */
+  float min_angvel; /* clamp the minimum angular velocity, 0.0 is disabled */
+  float obstacleRad;
 
-	ListBase pc_ids;
+  /* "Character" physics properties */
+  float step_height;
+  float jump_speed;
+  float fall_speed;
+  short max_jumps;
 
-	/** Settings for Bullet rigid body. */
-	struct RigidBodyOb *rigidbody_object;
-	/** Settings for Bullet constraint. */
-	struct RigidBodyCon *rigidbody_constraint;
+  /* for now used to temporarily holds the type of collision object */
+  short  body_type, _pad52[2];
 
-	/** Offset for image empties. */
-	float ima_ofs[2];
-	/** Must be non-null when object is an empty image. */
-	ImageUser *iuser;
-	char empty_image_visibility_flag;
-	char empty_image_depth;
-	char empty_image_flag;
-	char _pad8[1];
+  /** the custom data layer mask that was last used to calculate derivedDeform and derivedFinal */
+  uint64_t lastDataMask;
+  /** (extra) custom data layer mask to use for creating derivedmesh, set by depsgraph */
+  uint64_t customdata_mask;
+  /** bit masks of game controllers that are active */
+  unsigned int state;
+  /** bit masks of initial state as recorded by the users */
+  unsigned int init_state;
 
-	int select_id;
+  ListBase prop;			/* game logic property list (not to be confused with IDProperties) */
+  ListBase sensors;		/* game logic sensors */
+  ListBase controllers;	/* game logic controllers */
+  ListBase actuators;		/* game logic actuators */
 
-	struct PreviewImage *preview;
+  float sf; /* sf is time-offset */
 
-	/** Runtime evaluation data (keep last). */
-	Object_Runtime runtime;
+  int gameflag;
+  int gameflag2;
+
+  float anisotropicFriction[3];
+
+  /* dynamic properties */
+  float friction, rolling_friction, fh, reflect;
+  float fhdist, xyfrict;
+  short dynamode, _pad51[3];
+
+  /********End of Game engine***********/
+
 } Object;
 
 /* Warning, this is not used anymore because hooks are now modifiers */
@@ -528,15 +530,16 @@ case ID_AR
 
 /* partype: first 4 bits: type */
 enum {
-	PARTYPE       = (1 << 4) - 1,
-	PAROBJECT     = 0,
-	PARSKEL       = 4,
-	PARVERT1      = 5,
-	PARVERT3      = 6,
-	PARBONE       = 7,
-	
-	/** Slow parenting - is not threadsafe and/or may give errors after jumping. */
-	PARSLOW = 16,
+  PARTYPE = (1 << 4) - 1,
+  PAROBJECT = 0,
+  PARSKEL = 4,
+  PARVERT1 = 5,
+  PARVERT3 = 6,
+  PARBONE = 7,
+
+  /** Slow parenting - is not threadsafe and/or may give errors after jumping. */
+  PARSLOW = 16,
+
 };
 
 /* (short) transflag */
@@ -572,8 +575,6 @@ enum {
   OB_NEGY = 4,
   OB_NEGZ = 5,
 };
-
-/* gameflag in game.h */
 
 /* dt: no flags */
 enum {
@@ -675,80 +676,80 @@ enum {
 
 /* ob->gameflag */
 enum {
-	OB_DYNAMIC               = 1 << 0,
-	OB_CHILD                 = 1 << 1,
-	OB_ACTOR                 = 1 << 2,
-	OB_INERTIA_LOCK_X        = 1 << 3,
-	OB_INERTIA_LOCK_Y        = 1 << 4,
-	OB_INERTIA_LOCK_Z        = 1 << 5,
-	OB_DO_FH                 = 1 << 6,
-	OB_ROT_FH                = 1 << 7,
-	OB_ANISOTROPIC_FRICTION  = 1 << 8,
-	OB_GHOST                 = 1 << 9,
-	OB_RIGID_BODY            = 1 << 10,
-	OB_BOUNDS                = 1 << 11,
+  OB_DYNAMIC               = 1 << 0,
+  OB_CHILD                 = 1 << 1,
+  OB_ACTOR                 = 1 << 2,
+  OB_INERTIA_LOCK_X        = 1 << 3,
+  OB_INERTIA_LOCK_Y        = 1 << 4,
+  OB_INERTIA_LOCK_Z        = 1 << 5,
+  OB_DO_FH                 = 1 << 6,
+  OB_ROT_FH                = 1 << 7,
+  OB_ANISOTROPIC_FRICTION  = 1 << 8,
+  OB_GHOST                 = 1 << 9,
+  OB_RIGID_BODY            = 1 << 10,
+  OB_BOUNDS                = 1 << 11,
 
-	OB_COLLISION_RESPONSE    = 1 << 12,
-	OB_SECTOR                = 1 << 13,
-	OB_PROP                  = 1 << 14,
-	OB_MAINACTOR             = 1 << 15,
+  OB_COLLISION_RESPONSE    = 1 << 12,
+  OB_SECTOR                = 1 << 13,
+  OB_PROP                  = 1 << 14,
+  OB_MAINACTOR             = 1 << 15,
 
-	OB_COLLISION             = 1 << 16,
-	OB_SOFT_BODY             = 1 << 17,
-	OB_OCCLUDER              = 1 << 18,
-	OB_SENSOR                = 1 << 19,
-	OB_NAVMESH               = 1 << 20,
-	OB_HASOBSTACLE           = 1 << 21,
-	OB_CHARACTER             = 1 << 22,
+  OB_COLLISION             = 1 << 16,
+  OB_SOFT_BODY             = 1 << 17,
+  OB_OCCLUDER              = 1 << 18,
+  OB_SENSOR                = 1 << 19,
+  OB_NAVMESH               = 1 << 20,
+  OB_HASOBSTACLE           = 1 << 21,
+  OB_CHARACTER             = 1 << 22,
 
-	OB_RECORD_ANIMATION      = 1 << 23,
+  OB_RECORD_ANIMATION      = 1 << 23,
 };
 
 /* ob->gameflag2 */
 enum {
-	OB_NEVER_DO_ACTIVITY_CULLING    = 1 << 0,
-	OB_LOCK_RIGID_BODY_X_AXIS       = 1 << 2,
-	OB_LOCK_RIGID_BODY_Y_AXIS       = 1 << 3,
-	OB_LOCK_RIGID_BODY_Z_AXIS       = 1 << 4,
-	OB_LOCK_RIGID_BODY_X_ROT_AXIS   = 1 << 5,
-	OB_LOCK_RIGID_BODY_Y_ROT_AXIS   = 1 << 6,
-	OB_LOCK_RIGID_BODY_Z_ROT_AXIS   = 1 << 7,
+  OB_NEVER_DO_ACTIVITY_CULLING    = 1 << 0,
+  OB_LOCK_RIGID_BODY_X_AXIS       = 1 << 2,
+  OB_LOCK_RIGID_BODY_Y_AXIS       = 1 << 3,
+  OB_LOCK_RIGID_BODY_Z_AXIS       = 1 << 4,
+  OB_LOCK_RIGID_BODY_X_ROT_AXIS   = 1 << 5,
+  OB_LOCK_RIGID_BODY_Y_ROT_AXIS   = 1 << 6,
+  OB_LOCK_RIGID_BODY_Z_ROT_AXIS   = 1 << 7,
 
 /*	OB_LIFE     = OB_PROP | OB_DYNAMIC | OB_ACTOR | OB_MAINACTOR | OB_CHILD, */
 };
 
 /* ob->body_type */
 enum {
-	OB_BODY_TYPE_NO_COLLISION   = 0,
-	OB_BODY_TYPE_STATIC         = 1,
-	OB_BODY_TYPE_DYNAMIC        = 2,
-	OB_BODY_TYPE_RIGID          = 3,
-	OB_BODY_TYPE_SOFT           = 4,
-	OB_BODY_TYPE_OCCLUDER       = 5,
-	OB_BODY_TYPE_SENSOR         = 6,
-	OB_BODY_TYPE_NAVMESH        = 7,
-	OB_BODY_TYPE_CHARACTER      = 8,
+  OB_BODY_TYPE_NO_COLLISION   = 0,
+  OB_BODY_TYPE_STATIC         = 1,
+  OB_BODY_TYPE_DYNAMIC        = 2,
+  OB_BODY_TYPE_RIGID          = 3,
+  OB_BODY_TYPE_SOFT           = 4,
+  OB_BODY_TYPE_OCCLUDER       = 5,
+  OB_BODY_TYPE_SENSOR         = 6,
+  OB_BODY_TYPE_NAVMESH        = 7,
+  OB_BODY_TYPE_CHARACTER      = 8,
 };
 
 /* ob->scavisflag */
 enum {
-	OB_VIS_SENS     = 1 << 0,
-	OB_VIS_CONT     = 1 << 1,
-	OB_VIS_ACT      = 1 << 2,
+  OB_VIS_SENS     = 1 << 0,
+  OB_VIS_CONT     = 1 << 1,
+  OB_VIS_ACT      = 1 << 2,
 };
 
 /* ob->scaflag */
 enum {
-	OB_SHOWSENS     = 1 << 6,
-	OB_SHOWACT      = 1 << 7,
-	OB_ADDSENS      = 1 << 8,
-	OB_ADDCONT      = 1 << 9,
-	OB_ADDACT       = 1 << 10,
-	OB_SHOWCONT     = 1 << 11,
-	OB_ALLSTATE     = 1 << 12,
-	OB_INITSTBIT    = 1 << 13,
-	OB_DEBUGSTATE   = 1 << 14,
-	OB_SHOWSTATE    = 1 << 15,
+  OB_SHOWSENS     = 1 << 6,
+  OB_SHOWACT      = 1 << 7,
+  OB_ADDSENS      = 1 << 8,
+  OB_ADDCONT      = 1 << 9,
+  OB_ADDACT       = 1 << 10,
+  OB_SHOWCONT     = 1 << 11,
+  OB_ALLSTATE     = 1 << 12,
+  OB_INITSTBIT    = 1 << 13,
+  OB_DEBUGSTATE   = 1 << 14,
+  OB_SHOWSTATE    = 1 << 15,
 };
 
 /* ob->restrictflag */

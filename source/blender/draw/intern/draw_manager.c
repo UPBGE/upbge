@@ -1883,9 +1883,9 @@ static void DRW_render_gpencil_to_image(RenderEngine *engine,
 
 void DRW_render_gpencil(struct RenderEngine *engine, struct Depsgraph *depsgraph)
 {
-  /* This function is only valid for Cycles
-   * Eevee done all work in the Eevee render directly.
-   * Maybe it can be done equal for both engines?
+  /* This function is only valid for Cycles & Workbench
+   * Eevee does all work in the Eevee render directly.
+   * Maybe it can be done equal for all engines?
    */
   if (STREQ(engine->type->name, "Eevee")) {
     return;
@@ -1952,7 +1952,7 @@ void DRW_render_gpencil(struct RenderEngine *engine, struct Depsgraph *depsgraph
   }
 
   RenderResult *render_result = RE_engine_get_result(engine);
-  RenderLayer *render_layer = render_result->layers.first;
+  RenderLayer *render_layer = RE_GetRenderLayer(render_result, view_layer->name);
 
   DRW_render_gpencil_to_image(engine, render_layer, &render_rect);
 
@@ -2386,7 +2386,7 @@ void DRW_draw_select_loop(struct Depsgraph *depsgraph,
           /* This relies on dupli instances being after their instancing object. */
           if ((ob->base_flag & BASE_FROM_DUPLI) == 0) {
             Object *ob_orig = DEG_get_original_object(ob);
-            DRW_select_load_id(ob_orig->select_id);
+            DRW_select_load_id(ob_orig->runtime.select_id);
           }
           DST.dupli_parent = data_.dupli_parent;
           DST.dupli_source = data_.dupli_object_current;
