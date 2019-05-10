@@ -335,9 +335,7 @@ double elbeemEstimateMemreq(int res, float sx, float sy, float sz, int refine, c
 struct Render *RE_NewRender(const char *name) RET_NULL
 struct Render *RE_NewSceneRender(const struct Scene *scene) RET_NULL
 void RE_SwapResult(struct Render *re, struct RenderResult **rr) RET_NONE
-void RE_BlenderFrame(struct Render *re, struct Main *bmain, struct Scene *scene,
-	struct ViewLayer *single_layer, struct Object *camera_override,
-	int frame, const bool write_still) RET_NONE
+
 
 /* rna */
 void WM_menutype_free(void) RET_NONE
@@ -506,10 +504,6 @@ void UI_view2d_view_to_region(struct View2D *v2d, float x, float y, int *regionx
 void UI_view2d_sync(struct bScreen *screen, struct ScrArea *sa, struct View2D *v2dcur, int flag) RET_NONE
 
 void ED_gpencil_update_color_uv(struct Main *bmain, struct Material *mat) RET_NONE
-void ED_gpencil_draw_view3d_annotations(
-	struct Scene *scene, struct Depsgraph *depsgraph,
-	struct View3D *v3d, struct ARegion *ar,
-	bool only3d) RET_NONE
 int ED_gpencil_session_active(void) RET_ZERO
 void ED_gpencil_calc_stroke_uv(struct Object *ob, struct bGPDstroke *gps) RET_NONE
 
@@ -530,7 +524,6 @@ bool ED_space_image_show_render(struct SpaceImage *sima) RET_ZERO
 bool ED_space_image_show_paint(struct SpaceImage *sima) RET_ZERO
 void ED_space_image_paint_update(struct Main *bmain, struct wmWindowManager *wm, struct Scene *scene) RET_NONE
 void ED_space_image_set(struct Main *bmain, struct SpaceImage *sima, struct Object *obedit, struct Image *ima, bool automatic) RET_NONE
-void ED_space_image_uv_sculpt_update(struct Main *bmain, struct wmWindowManager *wm, struct Scene *scene) RET_NONE
 void ED_space_image_scopes_update(const struct bContext *C, struct SpaceImage *sima, struct ImBuf *ibuf, bool use_view_settings) RET_NONE
 
 void ED_uvedit_get_aspect(struct Scene *scene, struct Object *ob, struct BMesh *em, float *aspx, float *aspy) RET_NONE
@@ -576,11 +569,8 @@ bool WM_keymap_remove(struct wmKeyConfig *keyconfig, struct wmKeyMap *keymap) RE
 void WM_keyconfig_set_active(struct wmWindowManager *wm, const char *idname) RET_NONE
 bool WM_keymap_remove_item(struct wmKeyMap *keymap, struct wmKeyMapItem *kmi) RET_ZERO
 void WM_keymap_restore_to_default(struct wmKeyMap *keymap, struct bContext *C) RET_NONE
-void WM_keymap_restore_item_to_default(struct bContext *C, struct wmKeyMap *keymap, struct wmKeyMapItem *kmi) RET_NONE
-void WM_keymap_properties_reset(struct wmKeyMapItem *kmi, struct IDProperty *properties) RET_NONE
 void WM_keyconfig_update_tag(struct wmKeyMap *keymap, struct wmKeyMapItem *kmi) RET_NONE
 bool WM_keymap_item_compare(struct wmKeyMapItem *k1, struct wmKeyMapItem *k2) RET_ZERO
-int	WM_keymap_map_type_get(struct wmKeyMapItem *kmi) RET_ZERO
 void WM_keyconfig_update(struct wmWindowManager *wm) RET_NONE
 void WM_keymap_item_properties_reset(struct wmKeyMapItem *kmi, struct IDProperty *properties) RET_NONE
 void WM_keymap_item_restore_to_default(struct bContext *C,
@@ -651,7 +641,6 @@ void ED_node_tree_path_get_fixedbuf(struct SpaceNode *snode, char *value, int ma
 void ED_node_tree_start(struct SpaceNode *snode, struct bNodeTree *ntree, struct ID *id, struct ID *from) RET_NONE
 void ED_node_tree_push(struct SpaceNode *snode, struct bNodeTree *ntree, struct bNode *gnode) RET_NONE
 void ED_node_tree_pop(struct SpaceNode *snode) RET_NONE
-int ED_view3d_view_layer_set(int lay, const bool *values, int *active) RET_ZERO
 void ED_view3d_quadview_update(struct ScrArea *sa, struct ARegion *ar, bool do_clip) RET_NONE
 void ED_view3d_from_m4(const float mat[4][4], float ofs[3], float quat[4], float *dist) RET_NONE
 eV3DProjStatus ED_view3d_project_short_ex(const struct ARegion *ar, float perspmat[4][4], const bool is_local,
@@ -953,7 +942,6 @@ struct EditBone *ED_armature_ebone_get_mirrored(const struct ListBase *edbo, str
 void ED_armature_ebone_remove(struct bArmature *arm, struct EditBone *exBone) RET_NONE
 struct EditBone *ED_armature_ebone_add(struct bArmature *arm, const char *name) RET_NULL
 
-void setlinestyle(int nr) RET_NONE
 void set_inverted_drawing(int enable) RET_NONE
 /* rna template */
 void uiTemplateAnyID(uiLayout *layout, struct PointerRNA *ptr, const char *propname, const char *proptypename, const char *text) RET_NONE
