@@ -134,10 +134,6 @@ void BKE_curve_editNurb_keyIndex_free(struct GHash **keyindex);
 void BKE_curve_editNurb_free(struct Curve *cu);
 struct ListBase *BKE_curve_editNurbs_get(struct Curve *cu);
 
-float *BKE_curve_make_orco(struct Depsgraph *depsgraph,
-                           struct Scene *scene,
-                           struct Object *ob,
-                           int *r_numVerts);
 float *BKE_curve_surf_make_orco(struct Object *ob);
 
 void BKE_curve_bevelList_free(struct ListBase *bev);
@@ -212,9 +208,9 @@ void BKE_nurb_knot_calc_u(struct Nurb *nu);
 void BKE_nurb_knot_calc_v(struct Nurb *nu);
 
 /* nurb checks if they can be drawn, also clamp order func */
-bool BKE_nurb_check_valid_u(struct Nurb *nu);
-bool BKE_nurb_check_valid_v(struct Nurb *nu);
-bool BKE_nurb_check_valid_uv(struct Nurb *nu);
+bool BKE_nurb_check_valid_u(const struct Nurb *nu);
+bool BKE_nurb_check_valid_v(const struct Nurb *nu);
+bool BKE_nurb_check_valid_uv(const struct Nurb *nu);
 
 bool BKE_nurb_order_clamp_u(struct Nurb *nu);
 bool BKE_nurb_order_clamp_v(struct Nurb *nu);
