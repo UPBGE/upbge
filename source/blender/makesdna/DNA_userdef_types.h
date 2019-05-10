@@ -538,6 +538,11 @@ typedef struct WalkNavigation {
   char _pad0[6];
 } WalkNavigation;
 
+typedef struct UserDef_Runtime {
+  char is_dirty;
+  char _pad0[7];
+} UserDef_Runtime;
+
 typedef struct UserDef {
   /* UserDef has separate do-version handling, and can be read from other files */
   int versionfile, subversionfile;
@@ -768,6 +773,9 @@ typedef struct UserDef {
   char viewport_aa;
 
   char _pad5[2];
+
+  /** Runtime data (keep last). */
+  UserDef_Runtime runtime;
 } UserDef;
 
 /* from blenkernel blender.c */

@@ -98,6 +98,25 @@ static bool wm_scene_is_visible(wmWindowManager *wm, Scene *scene)
   return false;
 }
 
+static void setup_app_userdef(BlendFileData *bfd)
+{
+  if (bfd->user) {
+    /* only here free userdef themes... */
+    BKE_blender_userdef_data_set_and_free(bfd->user);
+    bfd->user = NULL;
+
+    /* Security issue: any blend file could include a USER block.
+     *
+     * Currently we load prefs from BLENDER_STARTUP_FILE and later on load BLENDER_USERPREF_FILE,
+     * to load the preferences defined in the users home dir.
+     *
+     * This means we will never accidentally (or maliciously)
+     * enable scripts auto-execution by loading a '.blend' file.
+     */
+    U.flag |= USER_SCRIPT_AUTOEXEC_DISABLE;
+  }
+}
+
 /**
  * Context matching, handle no-ui case
  *
@@ -235,25 +254,9 @@ static void setup_app_data(bContext *C,
   RNA_property_update_cache_free();
 
   bmain = G_MAIN = bfd->main;
+  bfd->main = NULL;
 
   CTX_data_main_set(C, bmain);
-
-  if (bfd->user) {
-
-    /* only here free userdef themes... */
-    BKE_blender_userdef_data_set_and_free(bfd->user);
-    bfd->user = NULL;
-
-    /* Security issue: any blend file could include a USER block.
-     *
-     * Currently we load prefs from BLENDER_STARTUP_FILE and later on load BLENDER_USERPREF_FILE,
-     * to load the preferences defined in the users home dir.
-     *
-     * This means we will never accidentally (or maliciously)
-     * enable scripts auto-execution by loading a '.blend' file.
-     */
-    U.flag |= USER_SCRIPT_AUTOEXEC_DISABLE;
-  }
 
   /* case G_FILE_NO_UI or no screens in file */
   if (mode != LOAD_UI) {
@@ -356,8 +359,20 @@ static void setup_app_data(bContext *C,
     /* TODO(sergey): Can this be also move above? */
     RE_FreeAllPersistentData();
   }
+}
 
-  MEM_freeN(bfd);
+static void setup_app_blend_file_data(bContext *C,
+                                      BlendFileData *bfd,
+                                      const char *filepath,
+                                      const struct BlendFileReadParams *params,
+                                      ReportList *reports)
+{
+  if ((params->skip_flags & BLO_READ_SKIP_USERDEF) == 0) {
+    setup_app_userdef(bfd);
+  }
+  if ((params->skip_flags & BLO_READ_SKIP_DATA) == 0) {
+    setup_app_data(C, bfd, filepath, params->is_startup, reports);
+  }
 }
 
 static int handle_subversion_warning(Main *main, ReportList *reports)
@@ -400,7 +415,8 @@ int BKE_blendfile_read(bContext *C,
       retval = BKE_BLENDFILE_READ_FAIL;
     }
     else {
-      setup_app_data(C, bfd, filepath, params->is_startup, reports);
+      setup_app_blend_file_data(C, bfd, filepath, params, reports);
+      BLO_blendfiledata_free(bfd);
     }
   }
   else {
@@ -424,7 +440,9 @@ bool BKE_blendfile_read_from_memory(bContext *C,
     if (update_defaults) {
       BLO_update_defaults_startup_blend(bfd->main, NULL);
     }
-    setup_app_data(C, bfd, "<memory2>", params->is_startup, reports);
+
+    setup_app_blend_file_data(C, bfd, "<memory2>", params, reports);
+    BLO_blendfiledata_free(bfd);
   }
   else {
     BKE_reports_prepend(reports, "Loading failed: ");
@@ -453,7 +471,8 @@ bool BKE_blendfile_read_from_memfile(bContext *C,
       BKE_id_free(bfd->main, bfd->main->screens.first);
     }
 
-    setup_app_data(C, bfd, "<memory1>", params->is_startup, reports);
+    setup_app_blend_file_data(C, bfd, "<memory1>", params, reports);
+    BLO_blendfiledata_free(bfd);
   }
   else {
     BKE_reports_prepend(reports, "Loading failed: ");
@@ -563,6 +582,63 @@ bool BKE_blendfile_userdef_write_app_template(const char *filepath, ReportList *
   BKE_blender_userdef_app_template_data_swap(&U, userdef_default);
   BKE_blender_userdef_data_free(userdef_default, false);
   MEM_freeN(userdef_default);
+  return ok;
+}
+
+bool BKE_blendfile_userdef_write_all(ReportList *reports)
+{
+  char filepath[FILE_MAX];
+  const char *cfgdir;
+  bool ok = true;
+  const bool use_template_userpref = BKE_appdir_app_template_has_userpref(U.app_template);
+
+  if ((cfgdir = BKE_appdir_folder_id_create(BLENDER_USER_CONFIG, NULL))) {
+    bool ok_write;
+    BLI_path_join(filepath, sizeof(filepath), cfgdir, BLENDER_USERPREF_FILE, NULL);
+
+    printf("Writing userprefs: '%s' ", filepath);
+    if (use_template_userpref) {
+      ok_write = BKE_blendfile_userdef_write_app_template(filepath, reports);
+    }
+    else {
+      ok_write = BKE_blendfile_userdef_write(filepath, reports);
+    }
+
+    if (ok_write) {
+      printf("ok\n");
+    }
+    else {
+      printf("fail\n");
+      ok = false;
+    }
+  }
+  else {
+    BKE_report(reports, RPT_ERROR, "Unable to create userpref path");
+  }
+
+  if (use_template_userpref) {
+    if ((cfgdir = BKE_appdir_folder_id_create(BLENDER_USER_CONFIG, U.app_template))) {
+      /* Also save app-template prefs */
+      BLI_path_join(filepath, sizeof(filepath), cfgdir, BLENDER_USERPREF_FILE, NULL);
+
+      printf("Writing userprefs app-template: '%s' ", filepath);
+      if (BKE_blendfile_userdef_write(filepath, reports) != 0) {
+        printf("ok\n");
+      }
+      else {
+        printf("fail\n");
+        ok = false;
+      }
+    }
+    else {
+      BKE_report(reports, RPT_ERROR, "Unable to create app-template userpref path");
+      ok = false;
+    }
+  }
+
+  if (ok) {
+    U.runtime.is_dirty = false;
+  }
   return ok;
 }
 
