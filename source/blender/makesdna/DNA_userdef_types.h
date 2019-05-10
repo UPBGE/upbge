@@ -184,6 +184,8 @@ typedef struct ThemeUI {
   char gizmo_b[4];
 
   /* Icon Colors. */
+  /** Scene items. */
+  char icon_scene[4];
   /** Collection items. */
   char icon_collection[4];
   /** Object items. */
@@ -194,6 +196,9 @@ typedef struct ThemeUI {
   char icon_modifier[4];
   /** Shading related items. */
   char icon_shading[4];
+  /** Intensity of the border icons. >0 will render an border around themed
+   * icons. */
+  float icon_border_intensity;
 } ThemeUI;
 
 /* try to put them all in one, if needed a special struct can be created as well
@@ -598,6 +603,7 @@ typedef struct UserDef {
   int dpi;
   /** Runtime, multiplier to scale UI elements based on DPI. */
   float dpi_fac;
+  float inv_dpi_fac;
   /** Runtime, line width and point size based on DPI. */
   float pixelsize;
   /** Deprecated, for forward compatibility. */
@@ -607,7 +613,7 @@ typedef struct UserDef {
   int scrollback;
   /** Node insert offset (aka auto-offset) margin, but might be useful for later stuff as well. */
   char node_margin;
-  char _pad2[5];
+  char _pad2[1];
   /** #eUserpref_Translation_Flags. */
   short transopts;
   short menuthreshold1, menuthreshold2;

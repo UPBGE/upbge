@@ -916,6 +916,8 @@ void    UI_GetThemeColorBlend4f(int colorid1, int colorid2, float fac, float r_c
 
 void UI_widgetbase_draw_cache_flush(void) RET_NONE
 
+void UI_icons_reload_internal_textures(void) RET_NONE
+
 struct uiPopover *UI_popover_begin(struct bContext *C, int menu_width) RET_NULL
 void UI_popover_end(struct bContext *C, struct uiPopover *head, struct wmKeyMap *keymap) RET_NONE
 struct uiLayout *UI_popover_layout(struct uiPopover *head) RET_NULL
