@@ -734,282 +734,321 @@ const char *WM_init_state_app_template_get(void)
  * Template to use instead of the template defined in user-preferences.
  * When not-null, this is written into the user preferences.
  */
-void wm_homefile_read(
-        bContext *C, ReportList *reports,
-        bool use_factory_settings, bool use_empty_data, bool use_userdef,
-        const char *filepath_startup_override, const char *app_template_override,
-        bool *r_is_factory_startup)
+void wm_homefile_read(bContext *C,
+                      ReportList *reports,
+                      bool use_factory_settings,
+                      bool use_empty_data,
+                      bool use_data,
+                      bool use_userdef,
+                      const char *filepath_startup_override,
+                      const char *app_template_override,
+                      bool *r_is_factory_startup)
 {
-	Main *bmain = G_MAIN;  /* Context does not always have valid main pointer here... */
-	ListBase wmbase;
-	bool success = false;
+  Main *bmain = G_MAIN; /* Context does not always have valid main pointer here... */
+  ListBase wmbase;
+  bool success = false;
 
-	bool filepath_startup_is_factory = true;
-	char filepath_startup[FILE_MAX];
-	char filepath_userdef[FILE_MAX];
+  bool filepath_startup_is_factory = true;
+  char filepath_startup[FILE_MAX];
+  char filepath_userdef[FILE_MAX];
 
-	/* When 'app_template' is set: '{BLENDER_USER_CONFIG}/{app_template}' */
-	char app_template_system[FILE_MAX];
-	/* When 'app_template' is set: '{BLENDER_SYSTEM_SCRIPTS}/startup/bl_app_templates_system/{app_template}' */
-	char app_template_config[FILE_MAX];
+  /* When 'app_template' is set:
+   * '{BLENDER_USER_CONFIG}/{app_template}' */
+  char app_template_system[FILE_MAX];
+  /* When 'app_template' is set:
+   * '{BLENDER_SYSTEM_SCRIPTS}/startup/bl_app_templates_system/{app_template}' */
+  char app_template_config[FILE_MAX];
 
-	/* Indicates whether user preferences were really load from memory.
-	 *
-	 * This is used for versioning code, and for this we can not rely on use_factory_settings
-	 * passed via argument. This is because there might be configuration folder
-	 * exists but it might not have userpref.blend and in this case we fallback to
-	 * reading home file from memory.
-	 *
-	 * And in this case versioning code is to be run.
-	 */
-	bool read_userdef_from_memory = false;
-	eBLOReadSkip skip_flags = use_userdef ? 0 : BLO_READ_SKIP_USERDEF;
+  /* Indicates whether user preferences were really load from memory.
+   *
+   * This is used for versioning code, and for this we can not rely on use_factory_settings
+   * passed via argument. This is because there might be configuration folder
+   * exists but it might not have userpref.blend and in this case we fallback to
+   * reading home file from memory.
+   *
+   * And in this case versioning code is to be run.
+   */
+  bool read_userdef_from_memory = false;
+  eBLOReadSkip skip_flags = 0;
 
-	/* True if we load startup.blend from memory or use app-template startup.blend which the user hasn't saved. */
-	bool is_factory_startup = true;
+  if (use_data == false) {
+    skip_flags |= BLO_READ_SKIP_DATA;
+  }
+  if (use_userdef == false) {
+    skip_flags |= BLO_READ_SKIP_USERDEF;
+  }
 
-	/* options exclude eachother */
-	BLI_assert((use_factory_settings && filepath_startup_override) == 0);
+  /* True if we load startup.blend from memory
+   * or use app-template startup.blend which the user hasn't saved. */
+  bool is_factory_startup = true;
 
-	if ((G.f & G_FLAG_SCRIPT_OVERRIDE_PREF) == 0) {
-		SET_FLAG_FROM_TEST(G.f, (U.flag & USER_SCRIPT_AUTOEXEC_DISABLE) == 0, G_FLAG_SCRIPT_AUTOEXEC);
-	}
+  /* options exclude eachother */
+  BLI_assert((use_factory_settings && filepath_startup_override) == 0);
 
-	BLI_callback_exec(CTX_data_main(C), NULL, BLI_CB_EVT_LOAD_PRE);
+  if ((G.f & G_FLAG_SCRIPT_OVERRIDE_PREF) == 0) {
+    SET_FLAG_FROM_TEST(G.f, (U.flag & USER_SCRIPT_AUTOEXEC_DISABLE) == 0, G_FLAG_SCRIPT_AUTOEXEC);
+  }
 
-	UI_view2d_zoom_cache_reset();
+  if (use_data) {
+    BLI_callback_exec(CTX_data_main(C), NULL, BLI_CB_EVT_LOAD_PRE);
 
-	G.relbase_valid = 0;
+    G.relbase_valid = 0;
 
-	/* put aside screens to match with persistent windows later */
-	wm_window_match_init(C, &wmbase);
+    /* put aside screens to match with persistent windows later */
+    wm_window_match_init(C, &wmbase);
+  }
 
-	filepath_startup[0] = '\0';
-	filepath_userdef[0] = '\0';
-	app_template_system[0] = '\0';
-	app_template_config[0] = '\0';
+  UI_view2d_zoom_cache_reset();
 
-	const char * const cfgdir = BKE_appdir_folder_id(BLENDER_USER_CONFIG, NULL);
-	if (!use_factory_settings) {
-		if (cfgdir) {
-			BLI_path_join(filepath_startup, sizeof(filepath_startup), cfgdir, BLENDER_STARTUP_FILE, NULL);
-			filepath_startup_is_factory = false;
-			if (use_userdef) {
-				BLI_path_join(filepath_userdef, sizeof(filepath_startup), cfgdir, BLENDER_USERPREF_FILE, NULL);
-			}
-		}
-		else {
-			use_factory_settings = true;
-		}
+  filepath_startup[0] = '\0';
+  filepath_userdef[0] = '\0';
+  app_template_system[0] = '\0';
+  app_template_config[0] = '\0';
 
-		if (filepath_startup_override) {
-			BLI_strncpy(filepath_startup, filepath_startup_override, FILE_MAX);
-			filepath_startup_is_factory = false;
-		}
-	}
+  const char *const cfgdir = BKE_appdir_folder_id(BLENDER_USER_CONFIG, NULL);
+  if (!use_factory_settings) {
+    if (cfgdir) {
+      BLI_path_join(
+          filepath_startup, sizeof(filepath_startup), cfgdir, BLENDER_STARTUP_FILE, NULL);
+      filepath_startup_is_factory = false;
+      if (use_userdef) {
+        BLI_path_join(
+            filepath_userdef, sizeof(filepath_startup), cfgdir, BLENDER_USERPREF_FILE, NULL);
+      }
+    }
+    else {
+      use_factory_settings = true;
+    }
 
-	/* load preferences before startup.blend */
-	if (use_userdef) {
-		if (!use_factory_settings && BLI_exists(filepath_userdef)) {
-			UserDef *userdef = BKE_blendfile_userdef_read(filepath_userdef, NULL);
-			if (userdef != NULL) {
-				BKE_blender_userdef_data_set_and_free(userdef);
-				userdef = NULL;
+    if (filepath_startup_override) {
+      BLI_strncpy(filepath_startup, filepath_startup_override, FILE_MAX);
+      filepath_startup_is_factory = false;
+    }
+  }
 
-				skip_flags |= BLO_READ_SKIP_USERDEF;
-				printf("Read prefs: %s\n", filepath_userdef);
-			}
-		}
-	}
+  /* load preferences before startup.blend */
+  if (use_userdef) {
+    if (!use_factory_settings && BLI_exists(filepath_userdef)) {
+      UserDef *userdef = BKE_blendfile_userdef_read(filepath_userdef, NULL);
+      if (userdef != NULL) {
+        BKE_blender_userdef_data_set_and_free(userdef);
+        userdef = NULL;
 
-	const char *app_template = NULL;
-	bool update_defaults = false;
-	bool reset_app_template = false;
+        skip_flags |= BLO_READ_SKIP_USERDEF;
+        printf("Read prefs: %s\n", filepath_userdef);
+      }
+    }
+  }
 
-	if (filepath_startup_override != NULL) {
-		/* pass */
-	}
-	else if (app_template_override) {
-		/* This may be clearing the current template by setting to an empty string. */
-		app_template = app_template_override;
-	}
-	else if (!use_factory_settings && U.app_template[0]) {
-		app_template = U.app_template;
-	}
+  const char *app_template = NULL;
+  bool update_defaults = false;
+  bool reset_app_template = false;
 
-	if ((!app_template && U.app_template[0]) ||
-	    (app_template && !STREQ(app_template, U.app_template)))
-	{
-		/* Always load UI when switching to another template. */
-		G.fileflags &= ~G_FILE_NO_UI;
-		reset_app_template = true;
-	}
+  if (filepath_startup_override != NULL) {
+    /* pass */
+  }
+  else if (app_template_override) {
+    /* This may be clearing the current template by setting to an empty string. */
+    app_template = app_template_override;
+  }
+  else if (!use_factory_settings && U.app_template[0]) {
+    app_template = U.app_template;
+  }
 
-	if ((app_template != NULL) && (app_template[0] != '\0')) {
-		if (!BKE_appdir_app_template_id_search(
-		            app_template, app_template_system, sizeof(app_template_system)))
-		{
-			/* Can safely continue with code below, just warn it's not found. */
-			BKE_reportf(reports, RPT_WARNING, "Application Template '%s' not found", app_template);
-		}
+  if ((!app_template && U.app_template[0]) ||
+      (app_template && !STREQ(app_template, U.app_template))) {
+    /* Always load UI when switching to another template. */
+    G.fileflags &= ~G_FILE_NO_UI;
+    reset_app_template = true;
+  }
 
-		/* Insert template name into startup file. */
+  if ((app_template != NULL) && (app_template[0] != '\0')) {
+    if (!BKE_appdir_app_template_id_search(
+            app_template, app_template_system, sizeof(app_template_system))) {
+      /* Can safely continue with code below, just warn it's not found. */
+      BKE_reportf(reports, RPT_WARNING, "Application Template '%s' not found", app_template);
+    }
 
-		/* note that the path is being set even when 'use_factory_settings == true'
-		 * this is done so we can load a templates factory-settings */
-		if (!use_factory_settings) {
-			BLI_path_join(app_template_config, sizeof(app_template_config), cfgdir, app_template, NULL);
-			BLI_path_join(filepath_startup, sizeof(filepath_startup), app_template_config, BLENDER_STARTUP_FILE, NULL);
-			filepath_startup_is_factory = false;
-			if (BLI_access(filepath_startup, R_OK) != 0) {
-				filepath_startup[0] = '\0';
-			}
-		}
-		else {
-			filepath_startup[0] = '\0';
-		}
+    /* Insert template name into startup file. */
 
-		if (filepath_startup[0] == '\0') {
-			BLI_path_join(filepath_startup, sizeof(filepath_startup), app_template_system, BLENDER_STARTUP_FILE, NULL);
-			filepath_startup_is_factory = true;
+    /* note that the path is being set even when 'use_factory_settings == true'
+     * this is done so we can load a templates factory-settings */
+    if (!use_factory_settings) {
+      BLI_path_join(app_template_config, sizeof(app_template_config), cfgdir, app_template, NULL);
+      BLI_path_join(filepath_startup,
+                    sizeof(filepath_startup),
+                    app_template_config,
+                    BLENDER_STARTUP_FILE,
+                    NULL);
+      filepath_startup_is_factory = false;
+      if (BLI_access(filepath_startup, R_OK) != 0) {
+        filepath_startup[0] = '\0';
+      }
+    }
+    else {
+      filepath_startup[0] = '\0';
+    }
 
-			/* Update defaults only for system templates. */
-			update_defaults = true;
-		}
-	}
+    if (filepath_startup[0] == '\0') {
+      BLI_path_join(filepath_startup,
+                    sizeof(filepath_startup),
+                    app_template_system,
+                    BLENDER_STARTUP_FILE,
+                    NULL);
+      filepath_startup_is_factory = true;
 
-	if (!use_factory_settings || (filepath_startup[0] != '\0')) {
-		if (BLI_access(filepath_startup, R_OK) == 0) {
-			success = BKE_blendfile_read(
-			        C, filepath_startup,
-			        &(const struct BlendFileReadParams){
-			            .is_startup = true,
-			            .skip_flags = skip_flags,
-			        },
-			        NULL) != BKE_BLENDFILE_READ_FAIL;
-		}
-		if (BLI_listbase_is_empty(&U.themes)) {
-			if (G.debug & G_DEBUG) {
-				printf("\nNote: No (valid) '%s' found, fall back to built-in default.\n\n", filepath_startup);
-			}
-			success = false;
-		}
-		if (success) {
-			if (update_defaults) {
-				BLO_update_defaults_startup_blend(CTX_data_main(C), app_template);
-			}
-			is_factory_startup = filepath_startup_is_factory;
-		}
-	}
+      /* Update defaults only for system templates. */
+      update_defaults = true;
+    }
+  }
 
-	if (success == false && filepath_startup_override && reports) {
-		/* We can not return from here because wm is already reset */
-		BKE_reportf(reports, RPT_ERROR, "Could not read '%s'", filepath_startup_override);
-	}
+  if (!use_factory_settings || (filepath_startup[0] != '\0')) {
+    if (BLI_access(filepath_startup, R_OK) == 0) {
+      success = BKE_blendfile_read(C,
+                                   filepath_startup,
+                                   &(const struct BlendFileReadParams){
+                                       .is_startup = true,
+                                       .skip_flags = skip_flags,
+                                   },
+                                   NULL) != BKE_BLENDFILE_READ_FAIL;
+    }
+    if (BLI_listbase_is_empty(&U.themes)) {
+      if (G.debug & G_DEBUG) {
+        printf("\nNote: No (valid) '%s' found, fall back to built-in default.\n\n",
+               filepath_startup);
+      }
+      success = false;
+    }
+    if (success) {
+      if (update_defaults) {
+        if (use_data) {
+          BLO_update_defaults_startup_blend(CTX_data_main(C), app_template);
+        }
+      }
+      is_factory_startup = filepath_startup_is_factory;
+    }
+  }
 
-	if (success == false) {
-		success = BKE_blendfile_read_from_memory(
-		        C, datatoc_startup_blend, datatoc_startup_blend_size, true,
-		        &(const struct BlendFileReadParams){
-		            .is_startup = true,
-		            .skip_flags = skip_flags,
-		        },
-		        NULL);
-		if (success) {
-			if (use_userdef) {
-				if ((skip_flags & BLO_READ_SKIP_USERDEF) == 0) {
-					read_userdef_from_memory = true;
-				}
-			}
-		}
-		if (BLI_listbase_is_empty(&wmbase)) {
-			wm_clear_default_size(C);
-		}
-	}
+  if (success == false && filepath_startup_override && reports) {
+    /* We can not return from here because wm is already reset */
+    BKE_reportf(reports, RPT_ERROR, "Could not read '%s'", filepath_startup_override);
+  }
 
-	if (use_empty_data) {
-		BKE_blendfile_read_make_empty(C);
-	}
+  if (success == false) {
+    success = BKE_blendfile_read_from_memory(C,
+                                             datatoc_startup_blend,
+                                             datatoc_startup_blend_size,
+                                             true,
+                                             &(const struct BlendFileReadParams){
+                                                 .is_startup = true,
+                                                 .skip_flags = skip_flags,
+                                             },
+                                             NULL);
+    if (success) {
+      if (use_userdef) {
+        if ((skip_flags & BLO_READ_SKIP_USERDEF) == 0) {
+          read_userdef_from_memory = true;
+        }
+      }
+    }
+    if (BLI_listbase_is_empty(&wmbase)) {
+      wm_clear_default_size(C);
+    }
+  }
 
-	/* Load template preferences,
-	 * unlike regular preferences we only use some of the settings,
-	 * see: BKE_blender_userdef_set_app_template */
-	if (app_template_system[0] != '\0') {
-		char temp_path[FILE_MAX];
-		temp_path[0] = '\0';
-		if (!use_factory_settings) {
-			BLI_path_join(temp_path, sizeof(temp_path), app_template_config, BLENDER_USERPREF_FILE, NULL);
-			if (BLI_access(temp_path, R_OK) != 0) {
-				temp_path[0] = '\0';
-			}
-		}
+  if (use_empty_data) {
+    BKE_blendfile_read_make_empty(C);
+  }
 
-		if (temp_path[0] == '\0') {
-			BLI_path_join(temp_path, sizeof(temp_path), app_template_system, BLENDER_USERPREF_FILE, NULL);
-		}
+  /* Load template preferences,
+   * unlike regular preferences we only use some of the settings,
+   * see: BKE_blender_userdef_set_app_template */
+  if (app_template_system[0] != '\0') {
+    char temp_path[FILE_MAX];
+    temp_path[0] = '\0';
+    if (!use_factory_settings) {
+      BLI_path_join(
+          temp_path, sizeof(temp_path), app_template_config, BLENDER_USERPREF_FILE, NULL);
+      if (BLI_access(temp_path, R_OK) != 0) {
+        temp_path[0] = '\0';
+      }
+    }
 
-		if (use_userdef) {
-			UserDef *userdef_template = NULL;
-			/* just avoids missing file warning */
-			if (BLI_exists(temp_path)) {
-				userdef_template = BKE_blendfile_userdef_read(temp_path, NULL);
-			}
-			if (userdef_template == NULL) {
-				/* we need to have preferences load to overwrite preferences from previous template */
-				userdef_template = BKE_blendfile_userdef_read_from_memory(
-				        datatoc_startup_blend, datatoc_startup_blend_size, NULL);
-				read_userdef_from_memory = true;
-			}
-			if (userdef_template) {
-				BKE_blender_userdef_app_template_data_set_and_free(userdef_template);
-				userdef_template = NULL;
-			}
-		}
-	}
+    if (temp_path[0] == '\0') {
+      BLI_path_join(
+          temp_path, sizeof(temp_path), app_template_system, BLENDER_USERPREF_FILE, NULL);
+    }
 
-	if (app_template_override) {
-		BLI_strncpy(U.app_template, app_template_override, sizeof(U.app_template));
-	}
+    if (use_userdef) {
+      UserDef *userdef_template = NULL;
+      /* just avoids missing file warning */
+      if (BLI_exists(temp_path)) {
+        userdef_template = BKE_blendfile_userdef_read(temp_path, NULL);
+      }
+      if (userdef_template == NULL) {
+        /* we need to have preferences load to overwrite preferences from previous template */
+        userdef_template = BKE_blendfile_userdef_read_from_memory(
+            datatoc_startup_blend, datatoc_startup_blend_size, NULL);
+        read_userdef_from_memory = true;
+      }
+      if (userdef_template) {
+        BKE_blender_userdef_app_template_data_set_and_free(userdef_template);
+        userdef_template = NULL;
+      }
+    }
+  }
 
-	/* prevent buggy files that had G_FILE_RELATIVE_REMAP written out by mistake. Screws up autosaves otherwise
-	 * can remove this eventually, only in a 2.53 and older, now its not written */
-	G.fileflags &= ~G_FILE_RELATIVE_REMAP;
+  if (app_template_override) {
+    BLI_strncpy(U.app_template, app_template_override, sizeof(U.app_template));
+  }
 
-	bmain = CTX_data_main(C);
+  if (use_data) {
+    /* Prevent buggy files that had G_FILE_RELATIVE_REMAP written out by mistake.
+     * Screws up autosaves otherwise can remove this eventually,
+     * only in a 2.53 and older, now its not written. */
+    G.fileflags &= ~G_FILE_RELATIVE_REMAP;
+  }
 
-	if (use_userdef) {
-		/* check userdef before open window, keymaps etc */
-		wm_init_userdef(bmain, read_userdef_from_memory);
-		reset_app_template = true;
-	}
+  bmain = CTX_data_main(C);
 
-	/* match the read WM with current WM */
-	wm_window_match_do(C, &wmbase, &bmain->wm, &bmain->wm);
+  if (use_userdef) {
+    /* check userdef before open window, keymaps etc */
+    wm_init_userdef(bmain, read_userdef_from_memory);
+    reset_app_template = true;
+  }
 
-	if (use_factory_settings) {
-		/*  Clear keymaps because the current default keymap may have been initialized from user preferences,
-		 *  which have been reset. */
-		for (wmWindowManager *wm = bmain->wm.first; wm; wm = wm->id.next) {
-			if (wm->defaultconf) {
-				wm->defaultconf->flag &= ~KEYCONF_INIT_DEFAULT;
-			}
-		}
-	}
+  if (use_data) {
+    /* match the read WM with current WM */
+    wm_window_match_do(C, &wmbase, &bmain->wm, &bmain->wm);
+  }
 
-	WM_check(C); /* opens window(s), checks keymaps */
+  if (use_factory_settings) {
+    /*  Clear keymaps because the current default keymap may have been initialized
+     *  from user preferences, which have been reset. */
+    for (wmWindowManager *wm = bmain->wm.first; wm; wm = wm->id.next) {
+      if (wm->defaultconf) {
+        wm->defaultconf->flag &= ~KEYCONF_INIT_DEFAULT;
+      }
+    }
+  }
 
-	bmain->name[0] = '\0';
+  if (use_data) {
+    WM_check(C); /* opens window(s), checks keymaps */
 
-	/* start with save preference untitled.blend */
-	G.save_over = 0;
-	/* disable auto-play in startup.blend... */
-	G.fileflags &= ~G_FILE_AUTOPLAY;
+    bmain->name[0] = '\0';
 
-	wm_file_read_post(C, true, is_factory_startup, reset_app_template);
+    /* start with save preference untitled.blend */
+    G.save_over = 0;
 
-	if (r_is_factory_startup) {
-		*r_is_factory_startup = is_factory_startup;
-	}
+    /* disable auto-play in startup.blend... */
+    G.fileflags &= ~G_FILE_AUTOPLAY;
+
+    wm_file_read_post(C, true, is_factory_startup, reset_app_template);
+  }
+
+  if (r_is_factory_startup) {
+    *r_is_factory_startup = is_factory_startup;
+  }
 }
 
 /** \name WM History File API
@@ -1343,8 +1382,8 @@ static bool wm_file_write(bContext *C, const char *filepath, int fileflags, Repo
       G.save_over = 1; /* disable untitled.blend convention */
     }
 
-		SET_FLAG_FROM_TEST(G.fileflags, fileflags & G_FILE_COMPRESS, G_FILE_COMPRESS);
-		SET_FLAG_FROM_TEST(G.fileflags, fileflags & G_FILE_AUTOPLAY, G_FILE_AUTOPLAY);
+    SET_FLAG_FROM_TEST(G.fileflags, fileflags & G_FILE_COMPRESS, G_FILE_COMPRESS);
+    SET_FLAG_FROM_TEST(G.fileflags, fileflags & G_FILE_AUTOPLAY, G_FILE_AUTOPLAY);
 
     /* prevent background mode scripts from clobbering history */
     if (do_history) {
@@ -1424,47 +1463,47 @@ void WM_autosave_init(wmWindowManager *wm)
 
 void wm_autosave_timer(const bContext *C, wmWindowManager *wm, wmTimer *UNUSED(wt))
 {
-	char filepath[FILE_MAX];
+  char filepath[FILE_MAX];
 
-	WM_event_remove_timer(wm, NULL, wm->autosavetimer);
+  WM_event_remove_timer(wm, NULL, wm->autosavetimer);
 
-	/* if a modal operator is running, don't autosave, but try again in 10 seconds */
-	for (wmWindow *win = wm->windows.first; win; win = win->next) {
-		LISTBASE_FOREACH (wmEventHandler *, handler_base, &win->modalhandlers) {
-			if (handler_base->type == WM_HANDLER_TYPE_OP) {
-				wmEventHandler_Op *handler = (wmEventHandler_Op *)handler_base;
-				if (handler->op) {
-					wm->autosavetimer = WM_event_add_timer(wm, NULL, TIMERAUTOSAVE, 10.0);
-					if (G.debug) {
-						printf("Skipping auto-save, modal operator running, retrying in ten seconds...\n");
-					}
-					return;
-				}
-			}
-		}
-	}
+  /* if a modal operator is running, don't autosave, but try again in 10 seconds */
+  for (wmWindow *win = wm->windows.first; win; win = win->next) {
+    LISTBASE_FOREACH (wmEventHandler *, handler_base, &win->modalhandlers) {
+      if (handler_base->type == WM_HANDLER_TYPE_OP) {
+        wmEventHandler_Op *handler = (wmEventHandler_Op *)handler_base;
+        if (handler->op) {
+          wm->autosavetimer = WM_event_add_timer(wm, NULL, TIMERAUTOSAVE, 10.0);
+          if (G.debug) {
+            printf("Skipping auto-save, modal operator running, retrying in ten seconds...\n");
+          }
+          return;
+        }
+      }
+    }
+  }
 
-	wm_autosave_location(filepath);
+  wm_autosave_location(filepath);
 
-	if (U.uiflag & USER_GLOBALUNDO) {
-		/* fast save of last undobuffer, now with UI */
-		struct MemFile *memfile = ED_undosys_stack_memfile_get_active(wm->undo_stack);
-		if (memfile) {
-			BLO_memfile_write_file(memfile, filepath);
-		}
-	}
-	else {
-		/*  save as regular blend file */
-		Main *bmain = CTX_data_main(C);
-		int fileflags = G.fileflags & ~(G_FILE_COMPRESS | G_FILE_AUTOPLAY | G_FILE_HISTORY);
+  if (U.uiflag & USER_GLOBALUNDO) {
+    /* fast save of last undobuffer, now with UI */
+    struct MemFile *memfile = ED_undosys_stack_memfile_get_active(wm->undo_stack);
+    if (memfile) {
+      BLO_memfile_write_file(memfile, filepath);
+    }
+  }
+  else {
+    /*  save as regular blend file */
+    Main *bmain = CTX_data_main(C);
+    int fileflags = G.fileflags & ~(G_FILE_COMPRESS | G_FILE_HISTORY | G_FILE_AUTOPLAY);
 
-		ED_editors_flush_edits(bmain, false);
+    ED_editors_flush_edits(bmain, false);
 
-		/* Error reporting into console */
-		BLO_write_file(bmain, filepath, fileflags, NULL, NULL);
-	}
-	/* do timer after file write, just in case file write takes a long time */
-	wm->autosavetimer = WM_event_add_timer(wm, NULL, TIMERAUTOSAVE, U.savetime * 60.0);
+    /* Error reporting into console */
+    BLO_write_file(bmain, filepath, fileflags, NULL, NULL);
+  }
+  /* do timer after file write, just in case file write takes a long time */
+  wm->autosavetimer = WM_event_add_timer(wm, NULL, TIMERAUTOSAVE, U.savetime * 60.0);
 }
 
 void wm_autosave_timer_ended(wmWindowManager *wm)
@@ -1585,8 +1624,8 @@ static int wm_homefile_write_exec(bContext *C, wmOperator *op)
 
   ED_editors_flush_edits(bmain, false);
 
-	/*  force save as regular blend file */
-	fileflags = G.fileflags & ~(G_FILE_COMPRESS | G_FILE_AUTOPLAY | G_FILE_HISTORY);
+  /*  force save as regular blend file */
+  fileflags = G.fileflags & ~(G_FILE_COMPRESS | G_FILE_HISTORY | G_FILE_AUTOPLAY);
 
   if (BLO_write_file(bmain, filepath, fileflags | G_FILE_USERPREFS, op->reports, NULL) == 0) {
     printf("fail\n");
@@ -1676,6 +1715,118 @@ void WM_OT_save_userpref(wmOperatorType *ot)
   ot->exec = wm_userpref_write_exec;
 }
 
+static void rna_struct_update_when_changed(bContext *C,
+                                           Main *bmain,
+                                           PointerRNA *ptr_a,
+                                           PointerRNA *ptr_b)
+{
+  CollectionPropertyIterator iter;
+  PropertyRNA *iterprop = RNA_struct_iterator_property(ptr_a->type);
+  BLI_assert(ptr_a->type == ptr_b->type);
+  RNA_property_collection_begin(ptr_a, iterprop, &iter);
+  for (; iter.valid; RNA_property_collection_next(&iter)) {
+    PropertyRNA *prop = iter.ptr.data;
+    if (STREQ(RNA_property_identifier(prop), "rna_type")) {
+      continue;
+    }
+    switch (RNA_property_type(prop)) {
+      case PROP_POINTER: {
+        PointerRNA ptr_sub_a = RNA_property_pointer_get(ptr_a, prop);
+        PointerRNA ptr_sub_b = RNA_property_pointer_get(ptr_b, prop);
+        rna_struct_update_when_changed(C, bmain, &ptr_sub_a, &ptr_sub_b);
+        break;
+      }
+      case PROP_COLLECTION:
+        /* Don't handle collections. */
+        break;
+      default: {
+        if (!RNA_property_equals(bmain, ptr_a, ptr_b, prop, RNA_EQ_STRICT)) {
+          RNA_property_update(C, ptr_b, prop);
+        }
+      }
+    }
+  }
+  RNA_property_collection_end(&iter);
+}
+
+static void wm_userpref_update_when_changed(bContext *C,
+                                            Main *bmain,
+                                            UserDef *userdef_prev,
+                                            UserDef *userdef_curr)
+{
+  PointerRNA ptr_a, ptr_b;
+  RNA_pointer_create(NULL, &RNA_Preferences, userdef_prev, &ptr_a);
+  RNA_pointer_create(NULL, &RNA_Preferences, userdef_curr, &ptr_b);
+
+  rna_struct_update_when_changed(C, bmain, &ptr_a, &ptr_b);
+
+#ifdef WITH_PYTHON
+  BPY_execute_string(C, (const char *[]){"addon_utils", NULL}, "addon_utils.reset_all()");
+#endif
+
+  WM_keyconfig_reload(C);
+}
+
+static int wm_userpref_read_exec(bContext *C, wmOperator *op)
+{
+  const bool use_data = false;
+  const bool use_userdef = true;
+  const bool use_factory_settings = STREQ(op->type->idname, "WM_OT_read_factory_userpref");
+
+  UserDef U_backup = U;
+
+  wm_homefile_read(C,
+                   op->reports,
+                   use_factory_settings,
+                   false,
+                   use_data,
+                   use_userdef,
+                   NULL,
+                   WM_init_state_app_template_get(),
+                   NULL);
+
+#define USERDEF_RESTORE(member) \
+  { \
+    U.member = U_backup.member; \
+  } \
+  ((void)0)
+
+  USERDEF_RESTORE(userpref);
+
+#undef USERDEF_RESTORE
+
+  Main *bmain = CTX_data_main(C);
+
+  wm_userpref_update_when_changed(C, bmain, &U_backup, &U);
+
+  if (use_factory_settings) {
+    U.runtime.is_dirty = true;
+  }
+
+  WM_event_add_notifier(C, NC_WINDOW, NULL);
+
+  return OPERATOR_FINISHED;
+}
+
+void WM_OT_read_userpref(wmOperatorType *ot)
+{
+  ot->name = "Load Preferences";
+  ot->idname = "WM_OT_read_userpref";
+  ot->description = "Load last saved preferences";
+
+  ot->invoke = WM_operator_confirm;
+  ot->exec = wm_userpref_read_exec;
+}
+
+void WM_OT_read_factory_userpref(wmOperatorType *ot)
+{
+  ot->name = "Load Factory Preferences";
+  ot->idname = "WM_OT_read_factory_userpref";
+
+  ot->invoke = WM_operator_confirm;
+  ot->exec = wm_userpref_read_exec;
+}
+
 static int wm_history_file_read_exec(bContext *UNUSED(C), wmOperator *UNUSED(op))
 {
   ED_file_read_bookmarks();
@@ -1750,10 +1901,12 @@ static int wm_homefile_read_exec(bContext *C, wmOperator *op)
     app_template = WM_init_state_app_template_get();
   }
 
+  bool use_data = true;
   wm_homefile_read(C,
                    op->reports,
                    use_factory_settings,
                    use_empty_data,
+                   use_data,
                    use_userdef,
                    filepath,
                    app_template,
