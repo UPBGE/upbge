@@ -651,6 +651,9 @@ static ShaderNode *add_node(Scene *scene,
         image->builtin_data = NULL;
       }
 
+      PointerRNA colorspace_ptr = b_image.colorspace_settings().ptr;
+      image->colorspace = get_enum_identifier(colorspace_ptr, "name");
+
       image->animated = b_image_node.image_user().use_auto_refresh();
       image->use_alpha = b_image.use_alpha();
 
@@ -662,17 +665,10 @@ static ShaderNode *add_node(Scene *scene,
                                                image->builtin_data,
                                                get_image_interpolation(b_image_node),
                                                get_image_extension(b_image_node),
-                                               image->use_alpha);
+                                               image->use_alpha,
+                                               image->colorspace);
       }
 #endif
-    }
-    switch (b_image_node.color_space()) {
-      case BL::ShaderNodeTexImage::color_space_NONE:
-        image->colorspace = u_colorspace_raw;
-        break;
-      case BL::ShaderNodeTexImage::color_space_COLOR:
-        image->colorspace = u_colorspace_auto;
-        break;
     }
     image->projection = (NodeImageProjection)b_image_node.projection();
     image->interpolation = get_image_interpolation(b_image_node);
@@ -703,6 +699,9 @@ static ShaderNode *add_node(Scene *scene,
         env->builtin_data = NULL;
       }
 
+      PointerRNA colorspace_ptr = b_image.colorspace_settings().ptr;
+      env->colorspace = get_enum_identifier(colorspace_ptr, "name");
+
       env->animated = b_env_node.image_user().use_auto_refresh();
       env->use_alpha = b_image.use_alpha();
 
@@ -714,17 +713,10 @@ static ShaderNode *add_node(Scene *scene,
                                                env->builtin_data,
                                                get_image_interpolation(b_env_node),
                                                EXTENSION_REPEAT,
-                                               env->use_alpha);
+                                               env->use_alpha,
+                                               env->colorspace);
       }
 #endif
-    }
-    switch (b_env_node.color_space()) {
-      case BL::ShaderNodeTexEnvironment::color_space_NONE:
-        env->colorspace = u_colorspace_raw;
-        break;
-      case BL::ShaderNodeTexEnvironment::color_space_COLOR:
-        env->colorspace = u_colorspace_auto;
-        break;
     }
     env->interpolation = get_image_interpolation(b_env_node);
     env->projection = (NodeEnvironmentProjection)b_env_node.projection();
@@ -1417,16 +1409,9 @@ void BlenderSync::sync_lights(BL::Depsgraph &b_depsgraph, bool update_all)
         add_nodes(scene, b_engine, b_data, b_depsgraph, b_scene, graph, b_ntree);
       }
       else {
-        float strength = 1.0f;
-
-        if (b_light.type() == BL::Light::type_POINT || b_light.type() == BL::Light::type_SPOT ||
-            b_light.type() == BL::Light::type_AREA) {
-          strength = 100.0f;
-        }
-
         EmissionNode *emission = new EmissionNode();
-        emission->color = get_float3(b_light.color());
-        emission->strength = strength;
+        emission->color = make_float3(1.0f, 1.0f, 1.0f);
+        emission->strength = 1.0f;
         graph->add(emission);
 
         ShaderNode *out = graph->output();
