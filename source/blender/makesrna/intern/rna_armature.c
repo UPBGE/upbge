@@ -575,6 +575,20 @@ static void rna_Armature_bones_next(CollectionPropertyIterator *iter)
   iter->valid = (internal->link != NULL);
 }
 
+/* not essential, but much faster then the default lookup function */
+static int rna_Armature_bones_lookup_string(PointerRNA *ptr, const char *key, PointerRNA *r_ptr)
+{
+  bArmature *arm = (bArmature *)ptr->data;
+  Bone *bone = BKE_armature_find_bone_name(arm, key);
+  if (bone) {
+    RNA_pointer_create(ptr->id.data, &RNA_Bone, bone, r_ptr);
+    return true;
+  }
+  else {
+    return false;
+  }
+}
+
 static bool rna_Armature_is_editmode_get(PointerRNA *ptr)
 {
   bArmature *arm = (bArmature *)ptr->id.data;
@@ -621,9 +635,10 @@ void rna_def_bone_curved_common(StructRNA *srna, bool is_posebone)
   if (is_posebone == false) {
     prop = RNA_def_property(srna, "use_endroll_as_inroll", PROP_BOOLEAN, PROP_NONE);
     RNA_def_property_ui_text(
-        prop, "Inherit End Roll", "Use Roll Out of parent bone as Roll In of its children");
+        prop, "Inherit End Roll", "Add Roll Out of the Start Handle bone to the Roll In value");
     RNA_def_property_boolean_sdna(prop, NULL, "flag", BONE_ADD_PARENT_END_ROLL);
-    RNA_def_property_update(prop, 0, "rna_Armature_update_data");
+    RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+    RNA_def_property_update(prop, 0, "rna_Armature_dependency_update");
   }
 
   /* Curve X/Y Offsets */
@@ -1285,8 +1300,15 @@ static void rna_def_armature(BlenderRNA *brna)
   /* Collections */
   prop = RNA_def_property(srna, "bones", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_collection_sdna(prop, NULL, "bonebase", NULL);
-  RNA_def_property_collection_funcs(
-      prop, NULL, "rna_Armature_bones_next", NULL, NULL, NULL, NULL, NULL, NULL);
+  RNA_def_property_collection_funcs(prop,
+                                    NULL,
+                                    "rna_Armature_bones_next",
+                                    NULL,
+                                    NULL,
+                                    NULL,
+                                    NULL,
+                                    "rna_Armature_bones_lookup_string",
+                                    NULL);
   RNA_def_property_struct_type(prop, "Bone");
   RNA_def_property_ui_text(prop, "Bones", "");
   rna_def_armature_bones(brna, prop);
