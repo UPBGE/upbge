@@ -44,6 +44,7 @@
 #include "DNA_world_types.h"
 
 #include "GPU_framebuffer.h"
+#include "GPU_primitive.h"
 #include "GPU_texture.h"
 #include "GPU_shader.h"
 
@@ -82,6 +83,9 @@ typedef struct DRWInterface DRWInterface;
 typedef struct DRWPass DRWPass;
 typedef struct DRWShadingGroup DRWShadingGroup;
 typedef struct DRWUniform DRWUniform;
+
+/* Opaque type to avoid usage as a DRWCall but it is exactly the same thing. */
+typedef struct DRWCallBuffer DRWCallBuffer;
 
 /* TODO Put it somewhere else? */
 typedef struct BoundSphere {
@@ -319,8 +323,8 @@ typedef enum {
   DRW_STATE_DEPTH_GREATER_EQUAL = (1 << 7),
   DRW_STATE_CULL_BACK = (1 << 8),
   DRW_STATE_CULL_FRONT = (1 << 9),
-  DRW_STATE_WIRE = (1 << 10),
-  DRW_STATE_POINT = (1 << 11),
+  DRW_STATE_WIRE = (1 << 10),  /* TODO remove */
+  DRW_STATE_POINT = (1 << 11), /* TODO remove */
   /** Polygon offset. Does not work with lines and points. */
   DRW_STATE_OFFSET_POSITIVE = (1 << 12),
   /** Polygon offset. Does not work with lines and points. */
@@ -377,26 +381,6 @@ struct GPUVertFormat *DRW_shgroup_instance_format_array(const DRWInstanceAttrFor
 DRWShadingGroup *DRW_shgroup_create(struct GPUShader *shader, DRWPass *pass);
 DRWShadingGroup *DRW_shgroup_create_sub(DRWShadingGroup *shgroup);
 DRWShadingGroup *DRW_shgroup_material_create(struct GPUMaterial *material, DRWPass *pass);
-DRWShadingGroup *DRW_shgroup_material_instance_create(struct GPUMaterial *material,
-                                                      DRWPass *pass,
-                                                      struct GPUBatch *geom,
-                                                      struct Object *ob,
-                                                      struct GPUVertFormat *format);
-DRWShadingGroup *DRW_shgroup_material_empty_tri_batch_create(struct GPUMaterial *material,
-                                                             DRWPass *pass,
-                                                             int size);
-DRWShadingGroup *DRW_shgroup_instance_create(struct GPUShader *shader,
-                                             DRWPass *pass,
-                                             struct GPUBatch *geom,
-                                             struct GPUVertFormat *format);
-DRWShadingGroup *DRW_shgroup_point_batch_create(struct GPUShader *shader, DRWPass *pass);
-DRWShadingGroup *DRW_shgroup_line_batch_create_with_format(struct GPUShader *shader,
-                                                           DRWPass *pass,
-                                                           struct GPUVertFormat *format);
-DRWShadingGroup *DRW_shgroup_line_batch_create(struct GPUShader *shader, DRWPass *pass);
-DRWShadingGroup *DRW_shgroup_empty_tri_batch_create(struct GPUShader *shader,
-                                                    DRWPass *pass,
-                                                    int size);
 DRWShadingGroup *DRW_shgroup_transform_feedback_create(struct GPUShader *shader,
                                                        DRWPass *pass,
                                                        struct GPUVertBuf *tf_target);
@@ -404,65 +388,56 @@ DRWShadingGroup *DRW_shgroup_transform_feedback_create(struct GPUShader *shader,
 /* return final visibility */
 typedef bool(DRWCallVisibilityFn)(bool vis_in, void *user_data);
 
-void DRW_shgroup_instance_batch(DRWShadingGroup *shgroup, struct GPUBatch *batch);
+/* TODO(fclem): Remove the _add suffix. */
+void DRW_shgroup_call(DRWShadingGroup *sh, struct GPUBatch *geom, float (*obmat)[4]);
+void DRW_shgroup_call_range(
+    DRWShadingGroup *sh, struct GPUBatch *geom, float (*obmat)[4], uint v_sta, uint v_ct);
 
-void DRW_shgroup_call_add(DRWShadingGroup *shgroup, struct GPUBatch *geom, float (*obmat)[4]);
-void DRW_shgroup_call_range_add(
-    DRWShadingGroup *shgroup, struct GPUBatch *geom, float (*obmat)[4], uint v_sta, uint v_count);
-void DRW_shgroup_call_procedural_points_add(DRWShadingGroup *shgroup,
-                                            uint point_len,
-                                            float (*obmat)[4]);
-void DRW_shgroup_call_procedural_lines_add(DRWShadingGroup *shgroup,
-                                           uint line_count,
-                                           float (*obmat)[4]);
-void DRW_shgroup_call_procedural_triangles_add(DRWShadingGroup *shgroup,
-                                               uint tria_count,
-                                               float (*obmat)[4]);
-void DRW_shgroup_call_object_add_ex(DRWShadingGroup *shgroup,
-                                    struct GPUBatch *geom,
-                                    struct Object *ob,
-                                    struct Material *ma,
-                                    bool bypass_culling);
-#define DRW_shgroup_call_object_add(shgroup, geom, ob) \
-  DRW_shgroup_call_object_add_ex(shgroup, geom, ob, NULL, false)
-#define DRW_shgroup_call_object_add_no_cull(shgroup, geom, ob) \
-  DRW_shgroup_call_object_add_ex(shgroup, geom, ob, NULL, true)
-void DRW_shgroup_call_object_add_with_callback(DRWShadingGroup *shgroup,
-                                               struct GPUBatch *geom,
-                                               struct Object *ob,
-                                               struct Material *ma,
-                                               DRWCallVisibilityFn *callback,
-                                               void *user_data);
+void DRW_shgroup_call_procedural_points(DRWShadingGroup *sh, uint point_ct, float (*obmat)[4]);
+void DRW_shgroup_call_procedural_lines(DRWShadingGroup *sh, uint line_ct, float (*obmat)[4]);
+void DRW_shgroup_call_procedural_triangles(DRWShadingGroup *sh, uint tri_ct, float (*obmat)[4]);
 
-void DRW_shgroup_call_sculpt_add(DRWShadingGroup *shading_group,
-                                 Object *object,
-                                 bool use_wire,
-                                 bool use_mask,
-                                 bool use_vert_color);
-void DRW_shgroup_call_sculpt_with_materials_add(DRWShadingGroup **shgroups,
-                                                Material **materials,
-                                                Object *ob,
-                                                bool use_vcol);
+void DRW_shgroup_call_object_ex(DRWShadingGroup *shgroup,
+                                struct GPUBatch *geom,
+                                struct Object *ob,
+                                bool bypass_culling);
+#define DRW_shgroup_call_object(shgroup, geom, ob) \
+  DRW_shgroup_call_object_ex(shgroup, geom, ob, false)
+#define DRW_shgroup_call_object_no_cull(shgroup, geom, ob) \
+  DRW_shgroup_call_object_ex(shgroup, geom, ob, true)
 
-/* Used for drawing a batch with instancing without instance attributes. */
-void DRW_shgroup_call_instances_add(DRWShadingGroup *shgroup,
-                                    struct GPUBatch *geom,
-                                    float (*obmat)[4],
-                                    uint *count);
-void DRW_shgroup_call_object_instances_add(DRWShadingGroup *shgroup,
+void DRW_shgroup_call_object_with_callback(DRWShadingGroup *shgroup,
                                            struct GPUBatch *geom,
                                            struct Object *ob,
-                                           uint *count);
-void DRW_shgroup_call_dynamic_add_array(DRWShadingGroup *shgroup,
-                                        const void *attr[],
-                                        uint attr_len);
-#define DRW_shgroup_call_dynamic_add(shgroup, ...) \
+                                           DRWCallVisibilityFn *callback,
+                                           void *user_data);
+
+void DRW_shgroup_call_instances(DRWShadingGroup *shgroup,
+                                struct GPUBatch *geom,
+                                float (*obmat)[4],
+                                uint count);
+void DRW_shgroup_call_instances_with_attribs(DRWShadingGroup *shgroup,
+                                             struct GPUBatch *geom,
+                                             float (*obmat)[4],
+                                             struct GPUBatch *inst_attributes);
+
+void DRW_shgroup_call_sculpt(DRWShadingGroup *sh, Object *ob, bool wire, bool mask, bool vcol);
+void DRW_shgroup_call_sculpt_with_materials(DRWShadingGroup **sh, Object *ob, bool vcol);
+
+DRWCallBuffer *DRW_shgroup_call_buffer(DRWShadingGroup *shading_group,
+                                       struct GPUVertFormat *format,
+                                       GPUPrimType prim_type);
+DRWCallBuffer *DRW_shgroup_call_buffer_instance(DRWShadingGroup *shading_group,
+                                                struct GPUVertFormat *format,
+                                                struct GPUBatch *geom);
+
+void DRW_buffer_add_entry_array(DRWCallBuffer *buffer, const void *attr[], uint attr_len);
+
+#define DRW_buffer_add_entry(buffer, ...) \
   do { \
     const void *array[] = {__VA_ARGS__}; \
-    DRW_shgroup_call_dynamic_add_array(shgroup, array, (sizeof(array) / sizeof(*array))); \
+    DRW_buffer_add_entry_array(buffer, array, (sizeof(array) / sizeof(*array))); \
   } while (0)
-
-uint DRW_shgroup_get_instance_count(const DRWShadingGroup *shgroup);
 
 void DRW_shgroup_state_enable(DRWShadingGroup *shgroup, DRWState state);
 void DRW_shgroup_state_disable(DRWShadingGroup *shgroup, DRWState state);
@@ -534,6 +509,7 @@ void DRW_shgroup_uniform_mat4(DRWShadingGroup *shgroup, const char *name, const 
 void DRW_shgroup_uniform_int_copy(DRWShadingGroup *shgroup, const char *name, const int value);
 void DRW_shgroup_uniform_bool_copy(DRWShadingGroup *shgroup, const char *name, const bool value);
 void DRW_shgroup_uniform_float_copy(DRWShadingGroup *shgroup, const char *name, const float value);
+void DRW_shgroup_uniform_vec2_copy(DRWShadingGroup *shgroup, const char *name, const float *value);
 
 bool DRW_shgroup_is_empty(DRWShadingGroup *shgroup);
 

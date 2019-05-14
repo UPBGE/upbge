@@ -1142,11 +1142,12 @@ static MeshRenderData *mesh_render_data_create_ex(Mesh *me,
                  rdata->cd.layers.tangent_len);
 
       int i_dst = 0;
+      int act_tan = rdata->cd.layers.tangent_active;
       for (int i_src = 0; i_src < cd_layers_src.uv_len; i_src++, i_dst++) {
         if ((cd_used->tan & (1 << i_src)) == 0) {
           i_dst--;
           if (rdata->cd.layers.tangent_active >= i_src) {
-            rdata->cd.layers.tangent_active--;
+            act_tan--;
           }
         }
         else {
@@ -1170,6 +1171,11 @@ static MeshRenderData *mesh_render_data_create_ex(Mesh *me,
           }
         }
       }
+      if (rdata->cd.layers.tangent_active != -1) {
+        /* Actual active UV slot inside uv layers used for shading. */
+        rdata->cd.layers.tangent_active = act_tan;
+      }
+
       if (cd_used->tan_orco != 0) {
         const char *name = CustomData_get_layer_name(&rdata->cd.output.ldata, CD_TANGENT, i_dst);
         uint hash = BLI_ghashutil_strhash_p(name);
@@ -4729,14 +4735,18 @@ static void uvedit_fill_buffer_data(MeshRenderData *rdata,
           GPU_indexbuf_add_generic_vert(elb_face, vidx);
           GPU_indexbuf_add_primitive_restart(elb_face);
         }
-        if (elb_edge && e_origindex[l[i].e] != ORIGINDEX_NONE) {
+        if (elb_edge) {
           for (i = 0; i < mpoly->totloop; ++i) {
-            GPU_indexbuf_add_line_verts(elb_edge, vidx + i, vidx + (i + 1) % mpoly->totloop);
+            if (e_origindex[l[i].e] != ORIGINDEX_NONE) {
+              GPU_indexbuf_add_line_verts(elb_edge, vidx + i, vidx + (i + 1) % mpoly->totloop);
+            }
           }
         }
-        if (elb_vert && v_origindex[l[i].v] != ORIGINDEX_NONE) {
+        if (elb_vert) {
           for (i = 0; i < mpoly->totloop; ++i) {
-            GPU_indexbuf_add_generic_vert(elb_vert, vidx + i);
+            if (v_origindex[l[i].v] != ORIGINDEX_NONE) {
+              GPU_indexbuf_add_generic_vert(elb_vert, vidx + i);
+            }
           }
         }
       }

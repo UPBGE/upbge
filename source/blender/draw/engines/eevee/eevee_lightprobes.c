@@ -249,7 +249,7 @@ void EEVEE_lightbake_cache_init(EEVEE_ViewLayerData *sldata,
     DRW_shgroup_uniform_block(grp, "common_block", sldata->common_ubo);
 
     struct GPUBatch *geom = DRW_cache_fullscreen_quad_get();
-    DRW_shgroup_call_add(grp, geom, NULL);
+    DRW_shgroup_call(grp, geom, NULL);
   }
 
   {
@@ -272,7 +272,7 @@ void EEVEE_lightbake_cache_init(EEVEE_ViewLayerData *sldata,
     DRW_shgroup_uniform_block(grp, "common_block", sldata->common_ubo);
 
     struct GPUBatch *geom = DRW_cache_fullscreen_quad_get();
-    DRW_shgroup_call_add(grp, geom, NULL);
+    DRW_shgroup_call(grp, geom, NULL);
   }
 
   {
@@ -294,7 +294,7 @@ void EEVEE_lightbake_cache_init(EEVEE_ViewLayerData *sldata,
     DRW_shgroup_uniform_block(grp, "common_block", sldata->common_ubo);
 
     struct GPUBatch *geom = DRW_cache_fullscreen_quad_get();
-    DRW_shgroup_call_add(grp, geom, NULL);
+    DRW_shgroup_call(grp, geom, NULL);
   }
 
   {
@@ -306,7 +306,7 @@ void EEVEE_lightbake_cache_init(EEVEE_ViewLayerData *sldata,
     DRW_shgroup_uniform_texture_ref(grp, "irradianceGrid", &light_cache->grid_tx.tex);
 
     struct GPUBatch *geom = DRW_cache_fullscreen_quad_get();
-    DRW_shgroup_call_add(grp, geom, NULL);
+    DRW_shgroup_call(grp, geom, NULL);
   }
 }
 
@@ -362,7 +362,7 @@ void EEVEE_lightprobes_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedat
             DRW_shgroup_uniform_block(grp, "planar_block", sldata->planar_ubo);
             DRW_shgroup_uniform_block(grp, "light_block", sldata->light_ubo);
             DRW_shgroup_uniform_block(grp, "shadow_block", sldata->shadow_ubo);
-            DRW_shgroup_call_add(grp, geom, NULL);
+            DRW_shgroup_call(grp, geom, NULL);
             break;
           default:
             col = error_col;
@@ -376,7 +376,7 @@ void EEVEE_lightprobes_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedat
       grp = DRW_shgroup_create(EEVEE_shaders_probe_default_sh_get(), psl->probe_background);
       DRW_shgroup_uniform_vec3(grp, "color", col, 1);
       DRW_shgroup_uniform_float_copy(grp, "backgroundAlpha", 1.0f);
-      DRW_shgroup_call_add(grp, geom, NULL);
+      DRW_shgroup_call(grp, geom, NULL);
     }
   }
 
@@ -388,8 +388,8 @@ void EEVEE_lightprobes_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedat
     /* Cube Display */
     if (scene_eval->eevee.flag & SCE_EEVEE_SHOW_CUBEMAPS && lcache->cube_len > 1) {
       int cube_len = lcache->cube_len - 1; /* don't count the world. */
-      DRWShadingGroup *grp = DRW_shgroup_empty_tri_batch_create(
-          EEVEE_shaders_probe_cube_display_sh_get(), psl->probe_display, cube_len * 2);
+      DRWShadingGroup *grp = DRW_shgroup_create(EEVEE_shaders_probe_cube_display_sh_get(),
+                                                psl->probe_display);
 
       DRW_shgroup_uniform_texture_ref(grp, "probeCubes", &lcache->cube_tx.tex);
       DRW_shgroup_uniform_block(grp, "probe_block", sldata->probe_ubo);
@@ -400,6 +400,8 @@ void EEVEE_lightprobes_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedat
       /* TODO (fclem) get rid of those UBO. */
       DRW_shgroup_uniform_block(grp, "planar_block", sldata->planar_ubo);
       DRW_shgroup_uniform_block(grp, "grid_block", sldata->grid_ubo);
+
+      DRW_shgroup_call_procedural_triangles(grp, cube_len * 2, NULL);
     }
 
     /* Grid Display */
@@ -425,7 +427,7 @@ void EEVEE_lightprobes_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedat
         DRW_shgroup_uniform_block(shgrp, "grid_block", sldata->grid_ubo);
         DRW_shgroup_uniform_block(shgrp, "common_block", sldata->common_ubo);
         int tri_count = egrid->resolution[0] * egrid->resolution[1] * egrid->resolution[2] * 2;
-        DRW_shgroup_call_procedural_triangles_add(shgrp, tri_count, NULL);
+        DRW_shgroup_call_procedural_triangles(shgrp, tri_count, NULL);
       }
     }
 
@@ -436,28 +438,15 @@ void EEVEE_lightprobes_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedat
                                     {"probe_mat", DRW_ATTR_FLOAT, 16},
                                 });
 
-    DRWShadingGroup *grp = DRW_shgroup_instance_create(EEVEE_shaders_probe_planar_display_sh_get(),
-                                                       psl->probe_display,
-                                                       DRW_cache_quad_get(),
-                                                       e_data.format_probe_display_planar);
-    stl->g_data->planar_display_shgrp = grp;
+    DRWShadingGroup *grp = DRW_shgroup_create(EEVEE_shaders_probe_planar_display_sh_get(),
+                                              psl->probe_display);
     DRW_shgroup_uniform_texture_ref(grp, "probePlanars", &txl->planar_pool);
+
+    stl->g_data->planar_display_shgrp = DRW_shgroup_call_buffer_instance(
+        grp, e_data.format_probe_display_planar, DRW_cache_quad_get());
   }
   else {
     stl->g_data->planar_display_shgrp = NULL;
-  }
-
-  {
-    psl->probe_planar_downsample_ps = DRW_pass_create("LightProbe Planar Downsample",
-                                                      DRW_STATE_WRITE_COLOR);
-
-    DRWShadingGroup *grp = DRW_shgroup_create(EEVEE_shaders_probe_planar_downsample_sh_get(),
-                                              psl->probe_planar_downsample_ps);
-
-    DRW_shgroup_uniform_texture_ref(grp, "source", &txl->planar_pool);
-    DRW_shgroup_uniform_float(grp, "fireflyFactor", &sldata->common_data.ssr_firefly_fac, 1);
-    DRW_shgroup_call_instances_add(
-        grp, DRW_cache_fullscreen_quad_get(), NULL, (uint *)&pinfo->num_planar);
   }
 }
 
@@ -512,9 +501,9 @@ void EEVEE_lightprobes_cache_add(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata
     EEVEE_lightprobes_planar_data_from_object(
         ob, &pinfo->planar_data[pinfo->num_planar], &pinfo->planar_vis_tests[pinfo->num_planar]);
     /* Debug Display */
-    DRWShadingGroup *grp = vedata->stl->g_data->planar_display_shgrp;
+    DRWCallBuffer *grp = vedata->stl->g_data->planar_display_shgrp;
     if (grp && (probe->flag & LIGHTPROBE_FLAG_SHOW_DATA)) {
-      DRW_shgroup_call_dynamic_add(grp, &pinfo->num_planar, ob->obmat);
+      DRW_buffer_add_entry(grp, &pinfo->num_planar, ob->obmat);
     }
 
     pinfo->num_planar++;
@@ -725,56 +714,69 @@ static void eevee_lightprobes_extract_from_cache(EEVEE_LightProbesInfo *pinfo, L
 
 void EEVEE_lightprobes_cache_finish(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
 {
-	EEVEE_StorageList *stl = vedata->stl;
-	LightCache *light_cache = stl->g_data->light_cache;
-	EEVEE_LightProbesInfo *pinfo = sldata->probes;
-	const DRWContextState *draw_ctx = DRW_context_state_get();
-	const Scene *scene_eval = DEG_get_evaluated_scene(draw_ctx->depsgraph);
+  EEVEE_StorageList *stl = vedata->stl;
+  LightCache *light_cache = stl->g_data->light_cache;
+  EEVEE_LightProbesInfo *pinfo = sldata->probes;
+  const DRWContextState *draw_ctx = DRW_context_state_get();
+  const Scene *scene_eval = DEG_get_evaluated_scene(draw_ctx->depsgraph);
 
-	eevee_lightprobes_extract_from_cache(sldata->probes, light_cache);
+  eevee_lightprobes_extract_from_cache(sldata->probes, light_cache);
 
-	DRW_uniformbuffer_update(sldata->probe_ubo, &sldata->probes->probe_data);
-	DRW_uniformbuffer_update(sldata->grid_ubo, &sldata->probes->grid_data);
+  DRW_uniformbuffer_update(sldata->probe_ubo, &sldata->probes->probe_data);
+  DRW_uniformbuffer_update(sldata->grid_ubo, &sldata->probes->grid_data);
 
-	/* For shading, save max level of the octahedron map */
-	sldata->common_data.prb_lod_cube_max = (float)light_cache->mips_len - 1.0f;
-	sldata->common_data.prb_lod_planar_max = (float)MAX_PLANAR_LOD_LEVEL;
-	sldata->common_data.prb_irradiance_vis_size = light_cache->vis_res;
-	sldata->common_data.prb_irradiance_smooth = SQUARE(scene_eval->eevee.gi_irradiance_smoothing);
-	sldata->common_data.prb_num_render_cube = max_ii(1, light_cache->cube_len);
-	sldata->common_data.prb_num_render_grid = max_ii(1, light_cache->grid_len);
-	sldata->common_data.prb_num_planar = pinfo->num_planar;
+  /* For shading, save max level of the octahedron map */
+  sldata->common_data.prb_lod_cube_max = (float)light_cache->mips_len - 1.0f;
+  sldata->common_data.prb_lod_planar_max = (float)MAX_PLANAR_LOD_LEVEL;
+  sldata->common_data.prb_irradiance_vis_size = light_cache->vis_res;
+  sldata->common_data.prb_irradiance_smooth = SQUARE(scene_eval->eevee.gi_irradiance_smoothing);
+  sldata->common_data.prb_num_render_cube = max_ii(1, light_cache->cube_len);
+  sldata->common_data.prb_num_render_grid = max_ii(1, light_cache->grid_len);
+  sldata->common_data.prb_num_planar = pinfo->num_planar;
 
-	if (pinfo->num_planar != pinfo->cache_num_planar) {
-		DRW_TEXTURE_FREE_SAFE(vedata->txl->planar_pool);
-		DRW_TEXTURE_FREE_SAFE(vedata->txl->planar_depth);
-		pinfo->cache_num_planar = pinfo->num_planar;
-	}
-	planar_pool_ensure_alloc(vedata, pinfo->num_planar);
+  if (pinfo->num_planar != pinfo->cache_num_planar) {
+    DRW_TEXTURE_FREE_SAFE(vedata->txl->planar_pool);
+    DRW_TEXTURE_FREE_SAFE(vedata->txl->planar_depth);
+    pinfo->cache_num_planar = pinfo->num_planar;
+  }
+  planar_pool_ensure_alloc(vedata, pinfo->num_planar);
 
-	/* If lightcache auto-update is enable we tag the relevant part
-	 * of the cache to update and fire up a baking job. */
-	if (!DRW_state_is_image_render() && !DRW_state_is_opengl_render() &&
-	    (pinfo->do_grid_update || pinfo->do_cube_update) && !(scene_eval->flag & SCE_INTERACTIVE))
-	{
-		BLI_assert(draw_ctx->evil_C);
+  /* If lightcache auto-update is enable we tag the relevant part
+   * of the cache to update and fire up a baking job. */
+  if (!DRW_state_is_image_render() && !DRW_state_is_opengl_render() &&
+      (pinfo->do_grid_update || pinfo->do_cube_update) && !(scene_eval->flag & SCE_INTERACTIVE)) {
+    BLI_assert(draw_ctx->evil_C);
 
-		if (draw_ctx->scene->eevee.flag & SCE_EEVEE_GI_AUTOBAKE) {
-			Scene *scene_orig = DEG_get_input_scene(draw_ctx->depsgraph);
-			if (scene_orig->eevee.light_cache != NULL) {
-				if (pinfo->do_grid_update) {
-					scene_orig->eevee.light_cache->flag |= LIGHTCACHE_UPDATE_GRID;
-				}
-				/* If we update grid we need to update the cubemaps too.
-				 * So always refresh cubemaps. */
-				scene_orig->eevee.light_cache->flag |= LIGHTCACHE_UPDATE_CUBE;
-				/* Tag the lightcache to auto update. */
-				scene_orig->eevee.light_cache->flag |= LIGHTCACHE_UPDATE_AUTO;
-				/* Use a notifier to trigger the operator after drawing. */
-				WM_event_add_notifier(draw_ctx->evil_C, NC_LIGHTPROBE, scene_orig);
-			}
-		}
-	}
+    if (draw_ctx->scene->eevee.flag & SCE_EEVEE_GI_AUTOBAKE) {
+      Scene *scene_orig = DEG_get_input_scene(draw_ctx->depsgraph);
+      if (scene_orig->eevee.light_cache != NULL) {
+        if (pinfo->do_grid_update) {
+          scene_orig->eevee.light_cache->flag |= LIGHTCACHE_UPDATE_GRID;
+        }
+        /* If we update grid we need to update the cubemaps too.
+         * So always refresh cubemaps. */
+        scene_orig->eevee.light_cache->flag |= LIGHTCACHE_UPDATE_CUBE;
+        /* Tag the lightcache to auto update. */
+        scene_orig->eevee.light_cache->flag |= LIGHTCACHE_UPDATE_AUTO;
+        /* Use a notifier to trigger the operator after drawing. */
+        WM_event_add_notifier(draw_ctx->evil_C, NC_LIGHTPROBE, scene_orig);
+      }
+    }
+  }
+
+  if (pinfo->num_planar) {
+    EEVEE_PassList *psl = vedata->psl;
+    EEVEE_TextureList *txl = vedata->txl;
+    psl->probe_planar_downsample_ps = DRW_pass_create("LightProbe Planar Downsample",
+                                                      DRW_STATE_WRITE_COLOR);
+
+    DRWShadingGroup *grp = DRW_shgroup_create(EEVEE_shaders_probe_planar_downsample_sh_get(),
+                                              psl->probe_planar_downsample_ps);
+
+    DRW_shgroup_uniform_texture_ref(grp, "source", &txl->planar_pool);
+    DRW_shgroup_uniform_float(grp, "fireflyFactor", &sldata->common_data.ssr_firefly_fac, 1);
+    DRW_shgroup_call_procedural_triangles(grp, pinfo->num_planar, NULL);
+  }
 }
 
 /* -------------------------------------------------------------------- */

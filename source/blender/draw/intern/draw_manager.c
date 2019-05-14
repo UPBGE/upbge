@@ -535,12 +535,12 @@ static void drw_viewport_cache_resize(void)
       GPU_texture_free(*tex);
     }
 
-    BLI_memblock_clear(DST.vmempool->calls);
-    BLI_memblock_clear(DST.vmempool->states);
-    BLI_memblock_clear(DST.vmempool->shgroups);
-    BLI_memblock_clear(DST.vmempool->uniforms);
-    BLI_memblock_clear(DST.vmempool->passes);
-    BLI_memblock_clear(DST.vmempool->images);
+    BLI_memblock_clear(DST.vmempool->calls, NULL);
+    BLI_memblock_clear(DST.vmempool->states, NULL);
+    BLI_memblock_clear(DST.vmempool->shgroups, NULL);
+    BLI_memblock_clear(DST.vmempool->uniforms, NULL);
+    BLI_memblock_clear(DST.vmempool->passes, NULL);
+    BLI_memblock_clear(DST.vmempool->images, NULL);
   }
 
   DRW_instance_data_list_free_unused(DST.idatalist);
@@ -605,22 +605,22 @@ static void drw_viewport_var_init(void)
     DST.vmempool = GPU_viewport_mempool_get(DST.viewport);
 
     if (DST.vmempool->calls == NULL) {
-      DST.vmempool->calls = BLI_memblock_create(sizeof(DRWCall));
+      DST.vmempool->calls = BLI_memblock_create(sizeof(DRWCall), false);
     }
     if (DST.vmempool->states == NULL) {
-      DST.vmempool->states = BLI_memblock_create(sizeof(DRWCallState));
+      DST.vmempool->states = BLI_memblock_create(sizeof(DRWCallState), false);
     }
     if (DST.vmempool->shgroups == NULL) {
-      DST.vmempool->shgroups = BLI_memblock_create(sizeof(DRWShadingGroup));
+      DST.vmempool->shgroups = BLI_memblock_create(sizeof(DRWShadingGroup), false);
     }
     if (DST.vmempool->uniforms == NULL) {
-      DST.vmempool->uniforms = BLI_memblock_create(sizeof(DRWUniform));
+      DST.vmempool->uniforms = BLI_memblock_create(sizeof(DRWUniform), false);
     }
     if (DST.vmempool->passes == NULL) {
-      DST.vmempool->passes = BLI_memblock_create(sizeof(DRWPass));
+      DST.vmempool->passes = BLI_memblock_create(sizeof(DRWPass), false);
     }
     if (DST.vmempool->images == NULL) {
-      DST.vmempool->images = BLI_memblock_create(sizeof(GPUTexture *));
+      DST.vmempool->images = BLI_memblock_create(sizeof(GPUTexture *), false);
     }
 
     DST.idatalist = GPU_viewport_instance_data_list_get(DST.viewport);
@@ -2453,8 +2453,6 @@ void DRW_draw_select_loop(struct Depsgraph *depsgraph,
  */
 static void drw_draw_depth_loop_imp(void)
 {
-  DRW_opengl_context_enable();
-
   /* Setup framebuffer */
   DefaultFramebufferList *fbl = (DefaultFramebufferList *)GPU_viewport_framebuffer_list_get(
       DST.viewport);
@@ -2517,9 +2515,6 @@ static void drw_draw_depth_loop_imp(void)
   /* TODO: Reading depth for operators should be done here. */
 
   GPU_framebuffer_restore();
-
-  /* Changin context */
-  DRW_opengl_context_disable();
 }
 
 /**
@@ -2534,6 +2529,8 @@ void DRW_draw_depth_loop(struct Depsgraph *depsgraph,
   RenderEngineType *engine_type = ED_view3d_engine_type(scene, v3d->shading.type);
   ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
   RegionView3D *rv3d = ar->regiondata;
+
+  DRW_opengl_context_enable();
 
   /* Reset before using it. */
   drw_state_prepare_clean_for_draw(&DST);
@@ -2569,6 +2566,9 @@ void DRW_draw_depth_loop(struct Depsgraph *depsgraph,
   /* Avoid accidental reuse. */
   drw_state_ensure_not_reused(&DST);
 #endif
+
+  /* Changin context */
+  DRW_opengl_context_disable();
 }
 
 /**
@@ -2582,6 +2582,8 @@ void DRW_draw_depth_loop_gpencil(struct Depsgraph *depsgraph,
   Scene *scene = DEG_get_evaluated_scene(depsgraph);
   ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
   RegionView3D *rv3d = ar->regiondata;
+
+  DRW_opengl_context_enable();
 
   /* Reset before using it. */
   drw_state_prepare_clean_for_draw(&DST);
@@ -2608,6 +2610,9 @@ void DRW_draw_depth_loop_gpencil(struct Depsgraph *depsgraph,
   /* Avoid accidental reuse. */
   drw_state_ensure_not_reused(&DST);
 #endif
+
+  /* Changin context */
+  DRW_opengl_context_disable();
 }
 
 /**
@@ -2948,7 +2953,6 @@ void DRW_engines_free(void)
   DRW_UBO_FREE_SAFE(G_draw.view_ubo);
   DRW_TEXTURE_FREE_SAFE(G_draw.ramp);
   DRW_TEXTURE_FREE_SAFE(G_draw.weight_ramp);
-  MEM_SAFE_FREE(g_pos_format);
 
   MEM_SAFE_FREE(DST.uniform_names.buffer);
 

@@ -30,6 +30,7 @@
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
 #include "intern/gpu_shader_private.h"
+#include "intern/gpu_primitive_private.h"
 
 #ifdef USE_GPU_SELECT
 #  include "GPU_select.h"
@@ -791,13 +792,7 @@ static void draw_matrices_model_prepare(DRWCallState *st)
   if ((st->flag & DRW_CALL_CULLED) != 0 && (st->flag & DRW_CALL_BYPASS_CULLING) == 0) {
     return;
   }
-  /* Order matters */
-  if (st->matflag & (DRW_CALL_MODELVIEW | DRW_CALL_MODELVIEWINVERSE)) {
-    mul_m4_m4m4(st->modelview, DST.view_data.matstate.mat[DRW_MAT_VIEW], st->model);
-  }
-  if (st->matflag & DRW_CALL_MODELVIEWINVERSE) {
-    invert_m4_m4(st->modelviewinverse, st->modelview);
-  }
+
   if (st->matflag & DRW_CALL_MODELVIEWPROJECTION) {
     mul_m4_m4m4(st->modelviewprojection, DST.view_data.matstate.mat[DRW_MAT_PERS], st->model);
   }
@@ -816,14 +811,6 @@ static void draw_geometry_prepare(DRWShadingGroup *shgroup, DRWCall *call)
       GPU_shader_uniform_vector(
           shgroup->shader, shgroup->modelinverse, 16, 1, (float *)state->modelinverse);
     }
-    if (shgroup->modelview != -1) {
-      GPU_shader_uniform_vector(
-          shgroup->shader, shgroup->modelview, 16, 1, (float *)state->modelview);
-    }
-    if (shgroup->modelviewinverse != -1) {
-      GPU_shader_uniform_vector(
-          shgroup->shader, shgroup->modelviewinverse, 16, 1, (float *)state->modelviewinverse);
-    }
     if (shgroup->modelviewprojection != -1) {
       GPU_shader_uniform_vector(shgroup->shader,
                                 shgroup->modelviewprojection,
@@ -832,12 +819,12 @@ static void draw_geometry_prepare(DRWShadingGroup *shgroup, DRWCall *call)
                                 (float *)state->modelviewprojection);
     }
     if (shgroup->objectinfo != -1) {
-      float objectinfo[4];
-      objectinfo[0] = state->objectinfo[0];
-      objectinfo[1] = call->single.ma_index; /* WATCH this is only valid for single drawcalls. */
-      objectinfo[2] = state->objectinfo[1];
-      objectinfo[3] = (state->flag & DRW_CALL_NEGSCALE) ? -1.0f : 1.0f;
-      GPU_shader_uniform_vector(shgroup->shader, shgroup->objectinfo, 4, 1, (float *)objectinfo);
+      float infos[4];
+      infos[0] = state->ob_index;
+      // infos[1]; /* UNUSED. */
+      infos[2] = state->ob_random;
+      infos[3] = (state->flag & DRW_CALL_NEGSCALE) ? -1.0f : 1.0f;
+      GPU_shader_uniform_vector(shgroup->shader, shgroup->objectinfo, 4, 1, (float *)infos);
     }
     if (shgroup->orcotexfac != -1) {
       GPU_shader_uniform_vector(
@@ -855,20 +842,6 @@ static void draw_geometry_prepare(DRWShadingGroup *shgroup, DRWCall *call)
     if (shgroup->modelinverse != -1) {
       GPU_shader_uniform_vector(shgroup->shader, shgroup->modelinverse, 16, 1, (float *)unitmat);
     }
-    if (shgroup->modelview != -1) {
-      GPU_shader_uniform_vector(shgroup->shader,
-                                shgroup->modelview,
-                                16,
-                                1,
-                                (float *)DST.view_data.matstate.mat[DRW_MAT_VIEW]);
-    }
-    if (shgroup->modelviewinverse != -1) {
-      GPU_shader_uniform_vector(shgroup->shader,
-                                shgroup->modelviewinverse,
-                                16,
-                                1,
-                                (float *)DST.view_data.matstate.mat[DRW_MAT_VIEWINV]);
-    }
     if (shgroup->modelviewprojection != -1) {
       GPU_shader_uniform_vector(shgroup->shader,
                                 shgroup->modelviewprojection,
@@ -880,24 +853,15 @@ static void draw_geometry_prepare(DRWShadingGroup *shgroup, DRWCall *call)
       GPU_shader_uniform_vector(shgroup->shader, shgroup->objectinfo, 4, 1, (float *)unitmat);
     }
     if (shgroup->orcotexfac != -1) {
-      GPU_shader_uniform_vector(
-          shgroup->shader, shgroup->orcotexfac, 3, 2, (float *)shgroup->instance_orcofac);
+      float orcofacs[2][3] = {{0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}};
+      GPU_shader_uniform_vector(shgroup->shader, shgroup->orcotexfac, 3, 2, (float *)orcofacs);
     }
   }
 }
 
-static void draw_geometry_execute_ex(
+static void draw_geometry_execute(
     DRWShadingGroup *shgroup, GPUBatch *geom, uint start, uint count, bool draw_instance)
 {
-  /* Special case: empty drawcall, placement is done via shader, don't bind anything. */
-  /* TODO use DRW_CALL_PROCEDURAL instead */
-  if (geom == NULL) {
-    BLI_assert(shgroup->type == DRW_SHG_TRIANGLE_BATCH); /* Add other type if needed. */
-    /* Shader is already bound. */
-    GPU_draw_primitive(GPU_PRIM_TRIS, count);
-    return;
-  }
-
   /* step 2 : bind vertex array & draw */
   GPU_batch_program_set_no_use(
       geom, GPU_shader_get_program(shgroup->shader), GPU_shader_get_interface(shgroup->shader));
@@ -907,11 +871,6 @@ static void draw_geometry_execute_ex(
   GPU_batch_draw_range_ex(geom, start, count, draw_instance);
 
   geom->program_in_use = false; /* XXX hacking gawain */
-}
-
-static void draw_geometry_execute(DRWShadingGroup *shgroup, GPUBatch *geom)
-{
-  draw_geometry_execute_ex(shgroup, geom, 0, 0, false);
 }
 
 enum {
@@ -1082,14 +1041,55 @@ static void release_ubo_slots(bool with_persist)
   }
 }
 
+BLI_INLINE bool draw_select_do_call(DRWShadingGroup *shgroup, DRWCall *call)
+{
+#ifdef USE_GPU_SELECT
+  if ((G.f & G_FLAG_PICKSEL) == 0) {
+    return false;
+  }
+  if (call->inst_selectid != NULL) {
+    const bool is_instancing = (call->inst_count != 0);
+    uint start = 0;
+    uint count = 1;
+    uint tot = is_instancing ? call->inst_count : call->vert_count;
+    /* Hack : get vbo data without actually drawing. */
+    GPUVertBufRaw raw;
+    GPU_vertbuf_attr_get_raw_data(call->inst_selectid, 0, &raw);
+    int *select_id = GPU_vertbuf_raw_step(&raw);
+
+    /* Batching */
+    if (!is_instancing) {
+      /* FIXME: Meh a bit nasty. */
+      if (call->batch->gl_prim_type == convert_prim_type_to_gl(GPU_PRIM_TRIS)) {
+        count = 3;
+      }
+      else if (call->batch->gl_prim_type == convert_prim_type_to_gl(GPU_PRIM_LINES)) {
+        count = 2;
+      }
+    }
+
+    while (start < tot) {
+      GPU_select_load_id(select_id[start]);
+      draw_geometry_execute(shgroup, call->batch, start, count, is_instancing);
+      start += count;
+    }
+    return true;
+  }
+  else {
+    GPU_select_load_id(call->select_id);
+    return false;
+  }
+#else
+  return false;
+#endif
+}
+
 static void draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state)
 {
   BLI_assert(shgroup->shader);
 
   GPUTexture *tex;
   GPUUniformBuffer *ubo;
-  int val;
-  float fval;
   const bool shader_changed = (DST.shader != shgroup->shader);
   bool use_tfeedback = false;
 
@@ -1101,8 +1101,7 @@ static void draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state)
     DST.shader = shgroup->shader;
   }
 
-  if ((pass_state & DRW_STATE_TRANS_FEEDBACK) != 0 &&
-      (shgroup->type == DRW_SHG_FEEDBACK_TRANSFORM)) {
+  if ((pass_state & DRW_STATE_TRANS_FEEDBACK) != 0 && (shgroup->tfeedback_target != NULL)) {
     use_tfeedback = GPU_shader_transform_feedback_enable(shgroup->shader,
                                                          shgroup->tfeedback_target->vbo_id);
   }
@@ -1122,34 +1121,20 @@ static void draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state)
         continue;
       }
     }
+    const void *data = uni->pvalue;
+    if (ELEM(uni->type, DRW_UNIFORM_INT_COPY, DRW_UNIFORM_FLOAT_COPY)) {
+      data = uni->fvalue;
+    }
     switch (uni->type) {
-      case DRW_UNIFORM_SHORT_TO_INT:
-        val = (int)*((short *)uni->pvalue);
-        GPU_shader_uniform_vector_int(
-            shgroup->shader, uni->location, uni->length, uni->arraysize, &val);
-        break;
-      case DRW_UNIFORM_SHORT_TO_FLOAT:
-        fval = (float)*((short *)uni->pvalue);
-        GPU_shader_uniform_vector(
-            shgroup->shader, uni->location, uni->length, uni->arraysize, (float *)&fval);
-        break;
-      case DRW_UNIFORM_BOOL_COPY:
       case DRW_UNIFORM_INT_COPY:
-        GPU_shader_uniform_vector_int(
-            shgroup->shader, uni->location, uni->length, uni->arraysize, &uni->ivalue);
-        break;
-      case DRW_UNIFORM_BOOL:
       case DRW_UNIFORM_INT:
         GPU_shader_uniform_vector_int(
-            shgroup->shader, uni->location, uni->length, uni->arraysize, (int *)uni->pvalue);
+            shgroup->shader, uni->location, uni->length, uni->arraysize, data);
         break;
       case DRW_UNIFORM_FLOAT_COPY:
-        GPU_shader_uniform_vector(
-            shgroup->shader, uni->location, uni->length, uni->arraysize, &uni->fvalue);
-        break;
       case DRW_UNIFORM_FLOAT:
         GPU_shader_uniform_vector(
-            shgroup->shader, uni->location, uni->length, uni->arraysize, (float *)uni->pvalue);
+            shgroup->shader, uni->location, uni->length, uni->arraysize, data);
         break;
       case DRW_UNIFORM_TEXTURE:
         tex = (GPUTexture *)uni->pvalue;
@@ -1182,102 +1167,10 @@ static void draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state)
     }
   }
 
-#ifdef USE_GPU_SELECT
-#  define GPU_SELECT_LOAD_IF_PICKSEL(_select_id) \
-    if (G.f & G_FLAG_PICKSEL) { \
-      GPU_select_load_id(_select_id); \
-    } \
-    ((void)0)
-
-#  define GPU_SELECT_LOAD_IF_PICKSEL_CALL(_call) \
-    if ((G.f & G_FLAG_PICKSEL) && (_call)) { \
-      GPU_select_load_id((_call)->select_id); \
-    } \
-    ((void)0)
-
-#  define GPU_SELECT_LOAD_IF_PICKSEL_LIST(_shgroup, _start, _count) \
-    _start = 0; \
-    _count = _shgroup->instance_count; \
-    int *select_id = NULL; \
-    if (G.f & G_FLAG_PICKSEL) { \
-      if (_shgroup->override_selectid == -1) { \
-        /* Hack : get vbo data without actually drawing. */ \
-        GPUVertBufRaw raw; \
-        GPU_vertbuf_attr_get_raw_data(_shgroup->inst_selectid, 0, &raw); \
-        select_id = GPU_vertbuf_raw_step(&raw); \
-        switch (_shgroup->type) { \
-          case DRW_SHG_TRIANGLE_BATCH: \
-            _count = 3; \
-            break; \
-          case DRW_SHG_LINE_BATCH: \
-            _count = 2; \
-            break; \
-          default: \
-            _count = 1; \
-            break; \
-        } \
-      } \
-      else { \
-        GPU_select_load_id(_shgroup->override_selectid); \
-      } \
-    } \
-    while (_start < _shgroup->instance_count) { \
-      if (select_id) { \
-        GPU_select_load_id(select_id[_start]); \
-      }
-
-#  define GPU_SELECT_LOAD_IF_PICKSEL_LIST_END(_start, _count) \
-    _start += _count; \
-    } \
-    ((void)0)
-
-#else
-#  define GPU_SELECT_LOAD_IF_PICKSEL(select_id)
-#  define GPU_SELECT_LOAD_IF_PICKSEL_CALL(call)
-#  define GPU_SELECT_LOAD_IF_PICKSEL_LIST_END(start, count) ((void)0)
-#  define GPU_SELECT_LOAD_IF_PICKSEL_LIST(_shgroup, _start, _count) \
-    _start = 0; \
-    _count = _shgroup->instance_count;
-
-#endif
-
   BLI_assert(ubo_bindings_validate(shgroup));
 
   /* Rendering Calls */
-  if (!ELEM(shgroup->type, DRW_SHG_NORMAL, DRW_SHG_FEEDBACK_TRANSFORM)) {
-    /* Replacing multiple calls with only one */
-    if (ELEM(shgroup->type, DRW_SHG_INSTANCE, DRW_SHG_INSTANCE_EXTERNAL)) {
-      if (shgroup->type == DRW_SHG_INSTANCE_EXTERNAL) {
-        if (shgroup->instance_geom != NULL) {
-          GPU_SELECT_LOAD_IF_PICKSEL(shgroup->override_selectid);
-          draw_geometry_prepare(shgroup, NULL);
-          draw_geometry_execute_ex(shgroup, shgroup->instance_geom, 0, 0, true);
-        }
-      }
-      else {
-        if (shgroup->instance_count > 0) {
-          uint count, start;
-          draw_geometry_prepare(shgroup, NULL);
-          GPU_SELECT_LOAD_IF_PICKSEL_LIST (shgroup, start, count) {
-            draw_geometry_execute_ex(shgroup, shgroup->instance_geom, start, count, true);
-          }
-          GPU_SELECT_LOAD_IF_PICKSEL_LIST_END(start, count);
-        }
-      }
-    }
-    else { /* DRW_SHG_***_BATCH */
-      /* Some dynamic batch can have no geom (no call to aggregate) */
-      if (shgroup->instance_count > 0) {
-        uint count, start;
-        draw_geometry_prepare(shgroup, NULL);
-        GPU_SELECT_LOAD_IF_PICKSEL_LIST (shgroup, start, count) {
-          draw_geometry_execute_ex(shgroup, shgroup->batch_geom, start, count, false);
-        }
-        GPU_SELECT_LOAD_IF_PICKSEL_LIST_END(start, count);
-      }
-    }
-  }
-  else {
+  {
     bool prev_neg_scale = false;
     int callid = 0;
     for (DRWCall *call = shgroup->calls.first; call; call = call->next) {
@@ -1304,26 +1197,18 @@ static void draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state)
         prev_neg_scale = neg_scale;
       }
 
-      GPU_SELECT_LOAD_IF_PICKSEL_CALL(call);
       draw_geometry_prepare(shgroup, call);
 
-      switch (call->type) {
-        case DRW_CALL_SINGLE:
-          draw_geometry_execute(shgroup, call->single.geometry);
-          break;
-        case DRW_CALL_RANGE:
-          draw_geometry_execute_ex(
-              shgroup, call->range.geometry, call->range.start, call->range.count, false);
-          break;
-        case DRW_CALL_INSTANCES:
-          draw_geometry_execute_ex(
-              shgroup, call->instances.geometry, 0, *call->instances.count, true);
-          break;
-        case DRW_CALL_PROCEDURAL:
-          GPU_draw_primitive(call->procedural.prim_type, call->procedural.vert_count);
-          break;
-        default:
-          BLI_assert(0);
+      if (draw_select_do_call(shgroup, call)) {
+        continue;
+      }
+
+      /* TODO revisit when DRW_SHG_INSTANCE and the like is gone. */
+      if (call->inst_count == 0) {
+        draw_geometry_execute(shgroup, call->batch, call->vert_first, call->vert_count, false);
+      }
+      else {
+        draw_geometry_execute(shgroup, call->batch, 0, call->inst_count, true);
       }
     }
     /* Reset state */
