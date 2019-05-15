@@ -3376,12 +3376,12 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 
     for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
       for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
-        if (ELEM(sa->spacetype, SPACE_CLIP, SPACE_GRAPH, SPACE_SEQ)) {
-          for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
+        for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
+          if (ELEM(sl->spacetype, SPACE_CLIP, SPACE_GRAPH, SPACE_SEQ)) {
             ListBase *regionbase = (sl == sa->spacedata.first) ? &sa->regionbase : &sl->regionbase;
 
             ARegion *ar = NULL;
-            if (sa->spacetype == SPACE_CLIP) {
+            if (sl->spacetype == SPACE_CLIP) {
               if (((SpaceClip *)sl)->view == SC_VIEW_GRAPH) {
                 ar = do_versions_find_region(regionbase, RGN_TYPE_PREVIEW);
               }
@@ -3417,6 +3417,13 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
     /* Versioning code until next subversion bump goes here. */
     LISTBASE_FOREACH (bArmature *, arm, &bmain->armatures) {
       arm->flag &= ~(ARM_FLAG_UNUSED_7 | ARM_FLAG_UNUSED_9);
+    }
+
+    /* Initializes sun lights with the new angular diameter property */
+    if (!DNA_struct_elem_find(fd->filesdna, "Light", "float", "sun_angle")) {
+      LISTBASE_FOREACH (Light *, light, &bmain->lights) {
+        light->sun_angle = 2.0f * atanf(light->area_size);
+      }
     }
   }
 
