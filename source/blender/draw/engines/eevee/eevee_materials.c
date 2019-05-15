@@ -1210,7 +1210,6 @@ static void material_opaque(Material *ma,
                             GHash *material_hash,
                             EEVEE_ViewLayerData *sldata,
                             EEVEE_Data *vedata,
-                            bool do_cull,
                             struct GPUMaterial **gpumat,
                             struct GPUMaterial **gpumat_depth,
                             struct DRWShadingGroup **shgrp,
@@ -1230,6 +1229,7 @@ static void material_opaque(Material *ma,
   float *spec_p = &ma->spec;
   float *rough_p = &ma->roughness;
 
+  const bool do_cull = (ma->blend_flag & MA_BL_CULL_BACKFACE) != 0;
   const bool use_gpumat = (ma->use_nodes && ma->nodetree);
   const bool use_ssrefract = ((ma->blend_flag & MA_BL_SS_REFRACTION) != 0) &&
                              ((effects->enabled_effects & EFFECT_REFRACT) != 0);
@@ -1462,7 +1462,6 @@ static void material_opaque(Material *ma,
 static void material_transparent(Material *ma,
                                  EEVEE_ViewLayerData *sldata,
                                  EEVEE_Data *vedata,
-                                 bool do_cull,
                                  struct GPUMaterial **gpumat,
                                  struct DRWShadingGroup **shgrp,
                                  struct DRWShadingGroup **shgrp_depth)
@@ -1473,6 +1472,7 @@ static void material_transparent(Material *ma,
   EEVEE_PassList *psl = ((EEVEE_Data *)vedata)->psl;
   EEVEE_LightsInfo *linfo = sldata->lights;
 
+  const bool do_cull = (ma->blend_flag & MA_BL_CULL_BACKFACE) != 0;
   const bool use_ssrefract = (((ma->blend_flag & MA_BL_SS_REFRACTION) != 0) &&
                               ((stl->effects->enabled_effects & EFFECT_REFRACT) != 0));
   float *color_p = &ma->r;
@@ -1606,8 +1606,6 @@ void EEVEE_materials_cache_populate(EEVEE_Data *vedata,
   Scene *scene = draw_ctx->scene;
   GHash *material_hash = stl->g_data->material_hash;
 
-  const bool do_cull = (draw_ctx->v3d &&
-                        (draw_ctx->v3d->shading.flag & V3D_SHADING_BACKFACE_CULLING));
   bool is_sculpt_mode = DRW_object_use_pbvh_drawing(ob);
   /* For now just force fully shaded with eevee when supported. */
   is_sculpt_mode = is_sculpt_mode &&
@@ -1643,7 +1641,6 @@ void EEVEE_materials_cache_populate(EEVEE_Data *vedata,
                           material_hash,
                           sldata,
                           vedata,
-                          do_cull,
                           &gpumat_array[i],
                           &gpumat_depth_array[i],
                           &shgrp_array[i],
@@ -1656,7 +1653,6 @@ void EEVEE_materials_cache_populate(EEVEE_Data *vedata,
           material_transparent(ma_array[i],
                                sldata,
                                vedata,
-                               do_cull,
                                &gpumat_array[i],
                                &shgrp_array[i],
                                &shgrp_depth_array[i]);
