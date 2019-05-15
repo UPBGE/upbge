@@ -270,72 +270,78 @@ static void restrictbutton_id_user_toggle(bContext *UNUSED(C), void *poin, void 
   }
 }
 
-#if 0
-static void hidebutton_base_flag_cb(bContext *C, void *poin, void *poin2)
+static void outliner_object_set_flag_recursive_cb(bContext *C,
+                                                  Base *base,
+                                                  Object *ob,
+                                                  const char *propname)
 {
-  wmWindow *win = CTX_wm_window(C);
   Main *bmain = CTX_data_main(C);
+  wmWindow *win = CTX_wm_window(C);
   Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = poin;
-  Base *base = poin2;
-  Object *ob = base->object;
-  bool do_disable = (CTX_wm_window(C)->eventstate->alt != 0);
-  bool do_isolate = (win->eventstate->ctrl != 0) && !do_disable;
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  PointerRNA ptr;
+
   bool extend = (win->eventstate->shift != 0);
-  bool depsgraph_changed = false;
-  const bool is_linked = ID_IS_LINKED(ob);
 
-  if (do_disable) {
-    if (!is_linked) {
-      ob->restrictflag |= OB_RESTRICT_INSTANCE;
-      depsgraph_changed = true;
-    }
+  if (!extend) {
+    return;
   }
-  else if (do_isolate) {
-    depsgraph_changed = (!is_linked) && ((ob->restrictflag & OB_RESTRICT_INSTANCE) != 0);
 
-    if (!extend) {
-      /* Make only one base visible. */
-      for (Base *other = view_layer->object_bases.first; other; other = other->next) {
-        other->flag |= BASE_HIDDEN;
+  /* Create PointerRNA and PropertyRNA for either Object or Base. */
+  ID *id = ob ? &ob->id : &scene->id;
+  StructRNA *struct_rna = ob ? &RNA_Object : &RNA_ObjectBase;
+  void *data = ob ? (void *)ob : (void *)base;
+
+  RNA_pointer_create(id, struct_rna, data, &ptr);
+  PropertyRNA *base_or_object_prop = RNA_struct_type_find_property(struct_rna, propname);
+  const bool value = RNA_property_boolean_get(&ptr, base_or_object_prop);
+
+  Object *ob_parent = ob ? ob : base->object;
+
+  for (Object *ob_iter = bmain->objects.first; ob_iter; ob_iter = ob_iter->id.next) {
+    if (BKE_object_is_child_recursive(ob_parent, ob_iter)) {
+      if (ob) {
+        RNA_id_pointer_create(&ob_iter->id, &ptr);
+        DEG_id_tag_update(&ob_iter->id, ID_RECALC_COPY_ON_WRITE);
       }
-
-      base->flag &= ~BASE_HIDDEN;
-    }
-    else {
-      /* Toggle visibility of one base. */
-      base->flag ^= BASE_HIDDEN;
-    }
-
-    if (!is_linked) {
-      ob->restrictflag &= ~OB_RESTRICT_INSTANCE;
+      else {
+        Base *base_iter = BKE_view_layer_base_find(view_layer, ob_iter);
+        RNA_pointer_create(&scene->id, &RNA_ObjectBase, base_iter, &ptr);
+      }
+      RNA_property_boolean_set(&ptr, base_or_object_prop, value);
     }
   }
-  else if (ob->restrictflag & OB_RESTRICT_INSTANCE) {
-    if (!is_linked) {
-      ob->restrictflag &= ~OB_RESTRICT_INSTANCE;
-      base->flag &= ~BASE_HIDDEN;
-    }
-    depsgraph_changed = true;
+
+  /* We don't call RNA_property_update() due to performance, so we batch update them. */
+  if (ob) {
+    BKE_main_collection_sync_remap(bmain);
+    DEG_relations_tag_update(bmain);
   }
   else {
-    base->flag ^= BASE_HIDDEN;
-  }
-
-  if (depsgraph_changed) {
-    BKE_main_collection_sync_remap(bmain);
-    DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);
-    DEG_relations_tag_update(bmain);
-    WM_main_add_notifier(NC_OBJECT | ND_DRAW, &ob->id);
-  }
-
-  if (!do_disable) {
     BKE_layer_collection_sync(scene, view_layer);
     DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
-    WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
   }
 }
-#endif
+
+/**
+ * Object properties.
+ * */
+static void outliner__object_set_flag_recursive_cb(bContext *C, void *poin, void *poin2)
+{
+  Object *ob = poin;
+  char *propname = poin2;
+  outliner_object_set_flag_recursive_cb(C, NULL, ob, propname);
+}
+
+/**
+ * Base properties.
+ * */
+static void outliner__base_set_flag_recursive_cb(bContext *C, void *poin, void *poin2)
+{
+  Base *base = poin;
+  char *propname = poin2;
+  outliner_object_set_flag_recursive_cb(C, base, NULL, propname);
+}
 
 /** Create either a RNA_LayerCollection or a RNA_Collection pointer. */
 static void outliner_layer_or_collection_pointer_create(Scene *scene,
@@ -601,6 +607,7 @@ static void outliner_collection_set_flag_recursive_cb(bContext *C,
   void *data = collection ? (void *)collection : (void *)layer_collection;
 
   RNA_pointer_create(id, struct_rna, data, &ptr);
+  outliner_layer_or_collection_pointer_create(scene, layer_collection, collection, &ptr);
   PropertyRNA *layer_or_collection_prop = RNA_struct_type_find_property(struct_rna, propname);
   const bool value = RNA_property_boolean_get(&ptr, layer_or_collection_prop);
 
@@ -889,8 +896,8 @@ static void outliner_draw_restrictbuts(uiBlock *block,
 
   struct {
     int select;
+    int hide;
     int viewport;
-    int instance;
     int render;
     int indirect_only;
     int holdout;
@@ -909,13 +916,13 @@ static void outliner_draw_restrictbuts(uiBlock *block,
   if (soops->show_restrict_flags & SO_RESTRICT_RENDER) {
     restrict_offsets.render = (++restrict_column_offset) * UI_UNIT_X + V2D_SCROLL_WIDTH;
   }
-  if (soops->show_restrict_flags & SO_RESTRICT_INSTANCE) {
-    restrict_offsets.instance = (++restrict_column_offset) * UI_UNIT_X + V2D_SCROLL_WIDTH;
-  }
   if (soops->show_restrict_flags & SO_RESTRICT_VIEWPORT) {
     restrict_offsets.viewport = (++restrict_column_offset) * UI_UNIT_X + V2D_SCROLL_WIDTH;
   }
-  if (soops->show_restrict_flags & SO_RESTRICT_SELECTABLE) {
+  if (soops->show_restrict_flags & SO_RESTRICT_HIDE) {
+    restrict_offsets.hide = (++restrict_column_offset) * UI_UNIT_X + V2D_SCROLL_WIDTH;
+  }
+  if (soops->show_restrict_flags & SO_RESTRICT_SELECT) {
     restrict_offsets.select = (++restrict_column_offset) * UI_UNIT_X + V2D_SCROLL_WIDTH;
   }
   BLI_assert((restrict_column_offset * UI_UNIT_X + V2D_SCROLL_WIDTH) ==
@@ -961,7 +968,7 @@ static void outliner_draw_restrictbuts(uiBlock *block,
         Object *ob = (Object *)tselem->id;
         RNA_id_pointer_create(&ob->id, &ptr);
 
-        if (soops->show_restrict_flags & SO_RESTRICT_VIEWPORT) {
+        if (soops->show_restrict_flags & SO_RESTRICT_HIDE) {
           Base *base = (te->directdata) ? (Base *)te->directdata :
                                           BKE_view_layer_base_find(view_layer, ob);
           if (base) {
@@ -971,7 +978,7 @@ static void outliner_draw_restrictbuts(uiBlock *block,
                                     UI_BTYPE_ICON_TOGGLE,
                                     0,
                                     0,
-                                    (int)(ar->v2d.cur.xmax - restrict_offsets.viewport),
+                                    (int)(ar->v2d.cur.xmax - restrict_offsets.hide),
                                     te->ys,
                                     UI_UNIT_X,
                                     UI_UNIT_Y,
@@ -982,31 +989,15 @@ static void outliner_draw_restrictbuts(uiBlock *block,
                                     0,
                                     0,
                                     0,
-                                    NULL);
-            UI_but_flag_enable(bt, UI_BUT_DRAG_LOCK);
-          }
-          else {
-            bt = uiDefIconButR_prop(block,
-                                    UI_BTYPE_ICON_TOGGLE,
-                                    0,
-                                    0,
-                                    (int)(ar->v2d.cur.xmax - restrict_offsets.viewport),
-                                    te->ys,
-                                    UI_UNIT_X,
-                                    UI_UNIT_Y,
-                                    &ptr,
-                                    props.object_hide_viewport,
-                                    -1,
-                                    0,
-                                    0,
-                                    0,
-                                    0,
-                                    NULL);
+                                    TIP_("Temporarly hide in viewport\n"
+                                         "* Shift to set children"));
+            UI_but_func_set(
+                bt, outliner__base_set_flag_recursive_cb, base, (void *)"hide_viewport");
             UI_but_flag_enable(bt, UI_BUT_DRAG_LOCK);
           }
         }
 
-        if (soops->show_restrict_flags & SO_RESTRICT_SELECTABLE) {
+        if (soops->show_restrict_flags & SO_RESTRICT_SELECT) {
           bt = uiDefIconButR_prop(block,
                                   UI_BTYPE_ICON_TOGGLE,
                                   0,
@@ -1022,16 +1013,18 @@ static void outliner_draw_restrictbuts(uiBlock *block,
                                   0,
                                   -1,
                                   -1,
-                                  NULL);
+                                  TIP_("Disable selection in viewport\n"
+                                       "* Shift to set children"));
+          UI_but_func_set(bt, outliner__object_set_flag_recursive_cb, ob, (char *)"hide_select");
           UI_but_flag_enable(bt, UI_BUT_DRAG_LOCK);
         }
 
-        if (soops->show_restrict_flags & SO_RESTRICT_INSTANCE) {
+        if (soops->show_restrict_flags & SO_RESTRICT_VIEWPORT) {
           bt = uiDefIconButR_prop(block,
                                   UI_BTYPE_ICON_TOGGLE,
                                   0,
                                   0,
-                                  (int)(ar->v2d.cur.xmax - restrict_offsets.instance),
+                                  (int)(ar->v2d.cur.xmax - restrict_offsets.viewport),
                                   te->ys,
                                   UI_UNIT_X,
                                   UI_UNIT_Y,
@@ -1042,7 +1035,9 @@ static void outliner_draw_restrictbuts(uiBlock *block,
                                   0,
                                   -1,
                                   -1,
-                                  NULL);
+                                  TIP_("Globally disable in viewports\n"
+                                       "* Shift to set children"));
+          UI_but_func_set(bt, outliner__object_set_flag_recursive_cb, ob, (void *)"hide_viewport");
           UI_but_flag_enable(bt, UI_BUT_DRAG_LOCK);
         }
 
@@ -1062,7 +1057,9 @@ static void outliner_draw_restrictbuts(uiBlock *block,
                                   0,
                                   -1,
                                   -1,
-                                  NULL);
+                                  TIP_("Globally disable in renders\n"
+                                       "* Shift to set children"));
+          UI_but_func_set(bt, outliner__object_set_flag_recursive_cb, ob, (char *)"hide_render");
           UI_but_flag_enable(bt, UI_BUT_DRAG_LOCK);
         }
       }
@@ -1132,13 +1129,13 @@ static void outliner_draw_restrictbuts(uiBlock *block,
                                 0,
                                 0,
                                 0,
-                                TIP_("Restrict/Allow visibility in the 3D View"));
+                                TIP_("Restrict visibility in the 3D View"));
           UI_but_func_set(bt, restrictbutton_bone_visibility_cb, ob->data, bone);
           UI_but_flag_enable(bt, UI_BUT_DRAG_LOCK);
           UI_but_drawflag_enable(bt, UI_BUT_ICON_REVERSE);
         }
 
-        if (soops->show_restrict_flags & SO_RESTRICT_SELECTABLE) {
+        if (soops->show_restrict_flags & SO_RESTRICT_SELECT) {
           bt = uiDefIconButBitI(block,
                                 UI_BTYPE_ICON_TOGGLE,
                                 BONE_UNSELECTABLE,
@@ -1153,7 +1150,7 @@ static void outliner_draw_restrictbuts(uiBlock *block,
                                 0,
                                 0,
                                 0,
-                                TIP_("Restrict/Allow selection in the 3D View"));
+                                TIP_("Restrict selection in the 3D View"));
           UI_but_func_set(bt, restrictbutton_bone_select_cb, ob->data, bone);
           UI_but_flag_enable(bt, UI_BUT_DRAG_LOCK);
           UI_but_drawflag_enable(bt, UI_BUT_ICON_REVERSE);
@@ -1177,13 +1174,13 @@ static void outliner_draw_restrictbuts(uiBlock *block,
                                 0,
                                 0,
                                 0,
-                                TIP_("Restrict/Allow visibility in the 3D View"));
+                                TIP_("Restrict visibility in the 3D View"));
           UI_but_func_set(bt, restrictbutton_ebone_visibility_cb, NULL, ebone);
           UI_but_flag_enable(bt, UI_BUT_DRAG_LOCK);
           UI_but_drawflag_enable(bt, UI_BUT_ICON_REVERSE);
         }
 
-        if (soops->show_restrict_flags & SO_RESTRICT_SELECTABLE) {
+        if (soops->show_restrict_flags & SO_RESTRICT_SELECT) {
           bt = uiDefIconButBitI(block,
                                 UI_BTYPE_ICON_TOGGLE,
                                 BONE_UNSELECTABLE,
@@ -1198,7 +1195,7 @@ static void outliner_draw_restrictbuts(uiBlock *block,
                                 0,
                                 0,
                                 0,
-                                TIP_("Restrict/Allow selection in the 3D View"));
+                                TIP_("Restrict selection in the 3D View"));
           UI_but_func_set(bt, restrictbutton_ebone_select_cb, NULL, ebone);
           UI_but_flag_enable(bt, UI_BUT_DRAG_LOCK);
           UI_but_drawflag_enable(bt, UI_BUT_ICON_REVERSE);
@@ -1223,29 +1220,28 @@ static void outliner_draw_restrictbuts(uiBlock *block,
                                 0,
                                 0,
                                 0,
-                                TIP_("Restrict/Allow visibility in the 3D View"));
+                                TIP_("Restrict visibility in the 3D View"));
           UI_but_func_set(bt, restrictbutton_gp_layer_flag_cb, id, gpl);
           UI_but_flag_enable(bt, UI_BUT_DRAG_LOCK);
           UI_but_drawflag_enable(bt, UI_BUT_ICON_REVERSE);
         }
 
-        if (soops->show_restrict_flags & SO_RESTRICT_SELECTABLE) {
-          bt = uiDefIconButBitS(
-              block,
-              UI_BTYPE_ICON_TOGGLE,
-              GP_LAYER_LOCKED,
-              0,
-              ICON_UNLOCKED,
-              (int)(ar->v2d.cur.xmax - restrict_offsets.select),
-              te->ys,
-              UI_UNIT_X,
-              UI_UNIT_Y,
-              &gpl->flag,
-              0,
-              0,
-              0,
-              0,
-              TIP_("Restrict/Allow editing of strokes and keyframes in this layer"));
+        if (soops->show_restrict_flags & SO_RESTRICT_SELECT) {
+          bt = uiDefIconButBitS(block,
+                                UI_BTYPE_ICON_TOGGLE,
+                                GP_LAYER_LOCKED,
+                                0,
+                                ICON_UNLOCKED,
+                                (int)(ar->v2d.cur.xmax - restrict_offsets.select),
+                                te->ys,
+                                UI_UNIT_X,
+                                UI_UNIT_Y,
+                                &gpl->flag,
+                                0,
+                                0,
+                                0,
+                                0,
+                                TIP_("Restrict editing of strokes and keyframes in this layer"));
           UI_but_func_set(bt, restrictbutton_gp_layer_flag_cb, id, gpl);
           UI_but_flag_enable(bt, UI_BUT_DRAG_LOCK);
         }
@@ -1266,12 +1262,12 @@ static void outliner_draw_restrictbuts(uiBlock *block,
             RNA_pointer_create(
                 &scene->id, &RNA_LayerCollection, layer_collection, &layer_collection_ptr);
 
-            if (soops->show_restrict_flags & SO_RESTRICT_VIEWPORT) {
+            if (soops->show_restrict_flags & SO_RESTRICT_HIDE) {
               bt = uiDefIconButR_prop(block,
                                       UI_BTYPE_ICON_TOGGLE,
                                       0,
                                       0,
-                                      (int)(ar->v2d.cur.xmax - restrict_offsets.viewport),
+                                      (int)(ar->v2d.cur.xmax - restrict_offsets.hide),
                                       te->ys,
                                       UI_UNIT_X,
                                       UI_UNIT_Y,
@@ -1282,9 +1278,9 @@ static void outliner_draw_restrictbuts(uiBlock *block,
                                       0,
                                       0,
                                       0,
-                                      TIP_("Hide/Show collection in viewport\n"
+                                      TIP_("Temporarily hide in viewport\n"
                                            "* Ctrl to isolate collection\n"
-                                           "* Shift to set/unset inside collections and objects"));
+                                           "* Shift to set inside collections and objects"));
               UI_but_func_set(bt,
                               view_layer__layer_collection_set_flag_recursive_cb,
                               layer_collection,
@@ -1308,9 +1304,9 @@ static void outliner_draw_restrictbuts(uiBlock *block,
                                       0,
                                       0,
                                       0,
-                                      TIP_("Mask out/in objects in collection from view layer\n"
+                                      TIP_("Mask out objects in collection from view layer\n"
                                            "* Ctrl to isolate collection\n"
-                                           "* Shift to set/unset inside collections"));
+                                           "* Shift to set inside collections"));
               UI_but_func_set(bt,
                               view_layer__layer_collection_set_flag_recursive_cb,
                               layer_collection,
@@ -1338,7 +1334,7 @@ static void outliner_draw_restrictbuts(uiBlock *block,
                   TIP_("Objects in collection only contribute indirectly (through shadows and "
                        "reflections) in the view layer\n"
                        "* Ctrl to isolate collection\n"
-                       "* Shift to set/unset inside collections"));
+                       "* Shift to set inside collections"));
               UI_but_func_set(bt,
                               view_layer__layer_collection_set_flag_recursive_cb,
                               layer_collection,
@@ -1347,12 +1343,12 @@ static void outliner_draw_restrictbuts(uiBlock *block,
             }
           }
 
-          if (soops->show_restrict_flags & SO_RESTRICT_INSTANCE) {
+          if (soops->show_restrict_flags & SO_RESTRICT_VIEWPORT) {
             bt = uiDefIconButR_prop(block,
                                     UI_BTYPE_ICON_TOGGLE,
                                     0,
                                     0,
-                                    (int)(ar->v2d.cur.xmax - restrict_offsets.instance),
+                                    (int)(ar->v2d.cur.xmax - restrict_offsets.viewport),
                                     te->ys,
                                     UI_UNIT_X,
                                     UI_UNIT_Y,
@@ -1363,9 +1359,9 @@ static void outliner_draw_restrictbuts(uiBlock *block,
                                     0,
                                     0,
                                     0,
-                                    TIP_("Disable/Enable collection in viewport\n"
+                                    TIP_("Globally disable in viewports\n"
                                          "* Ctrl to isolate collection\n"
-                                         "* Shift to set/unset inside collections and objects"));
+                                         "* Shift to set inside collections and objects"));
             if (layer_collection != NULL) {
               UI_but_func_set(bt,
                               view_layer__collection_set_flag_recursive_cb,
@@ -1397,9 +1393,9 @@ static void outliner_draw_restrictbuts(uiBlock *block,
                                     0,
                                     0,
                                     0,
-                                    TIP_("Disable/Enable collection in renders\n"
+                                    TIP_("Globally disable in renders\n"
                                          "* Ctrl to isolate collection\n"
-                                         "* Shift to set/unset inside collections and objects"));
+                                         "* Shift to set inside collections and objects"));
             if (layer_collection != NULL) {
               UI_but_func_set(bt,
                               view_layer__collection_set_flag_recursive_cb,
@@ -1413,7 +1409,7 @@ static void outliner_draw_restrictbuts(uiBlock *block,
             UI_but_flag_enable(bt, UI_BUT_DRAG_LOCK);
           }
 
-          if (soops->show_restrict_flags & SO_RESTRICT_SELECTABLE) {
+          if (soops->show_restrict_flags & SO_RESTRICT_SELECT) {
             bt = uiDefIconButR_prop(block,
                                     UI_BTYPE_ICON_TOGGLE,
                                     0,
@@ -1429,9 +1425,9 @@ static void outliner_draw_restrictbuts(uiBlock *block,
                                     0,
                                     0,
                                     0,
-                                    TIP_("Disable/Enable collection for viewport selection\n"
+                                    TIP_("Disable selection in viewport\n"
                                          "* Ctrl to isolate collection\n"
-                                         "* Shift to set/unset inside collections and objects"));
+                                         "* Shift to set inside collections and objects"));
             if (layer_collection != NULL) {
               UI_but_func_set(bt,
                               view_layer__collection_set_flag_recursive_cb,
@@ -1646,8 +1642,13 @@ static void outliner_draw_rnabuts(
   }
 }
 
-static void outliner_buttons(const bContext *C, uiBlock *block, ARegion *ar, TreeElement *te)
+static void outliner_buttons(const bContext *C,
+                             uiBlock *block,
+                             ARegion *ar,
+                             const float restrict_column_width,
+                             TreeElement *te)
 {
+  SpaceOutliner *soops = CTX_wm_space_outliner(C);
   uiBut *bt;
   TreeStoreElem *tselem;
   int spx, dx, len;
@@ -1673,7 +1674,11 @@ static void outliner_buttons(const bContext *C, uiBlock *block, ARegion *ar, Tre
   }
 
   spx = te->xs + 1.8f * UI_UNIT_X;
-  dx = ar->v2d.cur.xmax - (spx + 3.2f * UI_UNIT_X);
+  if ((tselem->type == TSE_LAYER_COLLECTION) &&
+      (soops->show_restrict_flags & SO_RESTRICT_ENABLE)) {
+    spx += UI_UNIT_X;
+  }
+  dx = ar->v2d.cur.xmax - (spx + restrict_column_width + 0.2f * UI_UNIT_X);
 
   bt = uiDefBut(block,
                 UI_BTYPE_TEXT,
@@ -3307,9 +3312,9 @@ void draw_outliner(const bContext *C)
 
   UI_block_emboss_set(block, UI_EMBOSS);
 
-  /* draw edit buttons if nessecery */
+  /* Draw edit buttons if necessary. */
   if (te_edit) {
-    outliner_buttons(C, block, ar, te_edit);
+    outliner_buttons(C, block, ar, restrict_column_width, te_edit);
   }
 
   UI_block_end(C, block);

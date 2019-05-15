@@ -2499,7 +2499,7 @@ static int add_named_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  basen->object->restrictflag &= ~OB_RESTRICT_INSTANCE;
+  basen->object->restrictflag &= ~OB_RESTRICT_VIEWPORT;
 
   if (event) {
     ARegion *ar = CTX_wm_region(C);

@@ -1824,6 +1824,7 @@ void WM_OT_read_factory_userpref(wmOperatorType *ot)
 {
   ot->name = "Load Factory Preferences";
   ot->idname = "WM_OT_read_factory_userpref";
+  ot->description = "Load default preferences";
 
   ot->invoke = WM_operator_confirm;
   ot->exec = wm_userpref_read_exec;
