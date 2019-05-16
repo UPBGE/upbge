@@ -643,79 +643,79 @@ static int ui_but_calc_float_precision(uiBut *but, double value)
 
 static void ui_draw_linkline(uiLinkLine *line, int highlightActiveLines, int dashInactiveLines)
 {
-	rcti rect;
-	float color[4] = {1.0f};
+  rcti rect;
+  float color[4] = {1.0f};
 
-	if (line->from == NULL || line->to == NULL) return;
-	
-	rect.xmin = BLI_rctf_cent_x(&line->from->rect);
-	rect.ymin = BLI_rctf_cent_y(&line->from->rect);
-	rect.xmax = BLI_rctf_cent_x(&line->to->rect);
-	rect.ymax = BLI_rctf_cent_y(&line->to->rect);
-	
-	if (dashInactiveLines)
-		UI_GetThemeColor4fv(TH_GRID, color);
-	else if (line->flag & UI_SELECT)
-		rgba_float_args_set_ch(color, 120, 120, 120, 255);
-	else if (highlightActiveLines && ((line->from->flag & UI_ACTIVE) || (line->to->flag & UI_ACTIVE)))
-		UI_GetThemeColor4fv(TH_TEXT_HI, color);
-	else
-		rgba_float_args_set_ch(color, 100, 100, 100, 255);
+  if (line->from == NULL || line->to == NULL) return;
 
-	ui_draw_link_bezier(&rect, color);
+    rect.xmin = BLI_rctf_cent_x(&line->from->rect);
+    rect.ymin = BLI_rctf_cent_y(&line->from->rect);
+    rect.xmax = BLI_rctf_cent_x(&line->to->rect);
+    rect.ymax = BLI_rctf_cent_y(&line->to->rect);
+
+    if (dashInactiveLines)
+      UI_GetThemeColor4fv(TH_GRID, color);
+    else if (line->flag & UI_SELECT)
+      rgba_float_args_set_ch(color, 120, 120, 120, 255);
+    else if (highlightActiveLines && ((line->from->flag & UI_ACTIVE) || (line->to->flag & UI_ACTIVE)))
+      UI_GetThemeColor4fv(TH_TEXT_HI, color);
+    else
+      rgba_float_args_set_ch(color, 100, 100, 100, 255);
+
+  ui_draw_link_bezier(&rect, color);
 }
 
 static void ui_draw_links(uiBlock *block)
 {
-	uiBut *but;
-	uiLinkLine *line;
+  uiBut *but;
+  uiLinkLine *line;
 
-	/* Draw the gray out lines. Do this first so they appear at the
-	 * bottom of inactive or active lines.
-	 * As we go, remember if we see any active or selected lines. */
-	bool found_selectline = false;
-	bool found_activeline = false;
+  /* Draw the gray out lines. Do this first so they appear at the
+   * bottom of inactive or active lines.
+   * As we go, remember if we see any active or selected lines. */
+  bool found_selectline = false;
+  bool found_activeline = false;
 
-	for (but = block->buttons.first; but; but = but->next) {
-		if (but->type == UI_BTYPE_LINK && but->link) {
-			for (line = but->link->lines.first; line; line = line->next) {
-				if (!(line->from->flag & UI_ACTIVE) && !(line->to->flag & UI_ACTIVE)) {
-					if (line->deactive)
-						ui_draw_linkline(line, 0, true);
-				}
-				else
-					found_activeline = true;
+  for (but = block->buttons.first; but; but = but->next) {
+    if (but->type == UI_BTYPE_LINK && but->link) {
+      for (line = but->link->lines.first; line; line = line->next) {
+        if (!(line->from->flag & UI_ACTIVE) && !(line->to->flag & UI_ACTIVE)) {
+          if (line->deactive)
+            ui_draw_linkline(line, 0, true);
+        }
+        else
+          found_activeline = true;
 
-				if ((line->from->flag & UI_SELECT) || (line->to->flag & UI_SELECT))
-					found_selectline = true;
-			}
-		}
-	}
+        if ((line->from->flag & UI_SELECT) || (line->to->flag & UI_SELECT))
+          found_selectline = true;
+      }
+    }
+  }
 
-	/* Draw the inactive lines (lines with neither button being hovered over) */
-	for (but = block->buttons.first; but; but = but->next) {
-		if (but->type == UI_BTYPE_LINK && but->link) {
-			for (line = but->link->lines.first; line; line = line->next) {
-				if (!(line->from->flag & UI_ACTIVE) && !(line->to->flag & UI_ACTIVE)) {
-					if (!line->deactive)
-						ui_draw_linkline(line, 0, false);
-				}
-			}
-		}
-	}
+  /* Draw the inactive lines (lines with neither button being hovered over) */
+  for (but = block->buttons.first; but; but = but->next) {
+    if (but->type == UI_BTYPE_LINK && but->link) {
+      for (line = but->link->lines.first; line; line = line->next) {
+        if (!(line->from->flag & UI_ACTIVE) && !(line->to->flag & UI_ACTIVE)) {
+          if (!line->deactive)
+            ui_draw_linkline(line, 0, false);
+        }
+      }
+    }
+  }
 
-	/* Draw any active lines (lines with either button being hovered over).
-	 * Do this last so they appear on top of inactive and gray out lines. */
-	if (found_activeline) {
-		for (but = block->buttons.first; but; but = but->next) {
-			if (but->type == UI_BTYPE_LINK && but->link) {
-				for (line = but->link->lines.first; line; line = line->next) {
-					if ((line->from->flag & UI_ACTIVE) || (line->to->flag & UI_ACTIVE))
-						ui_draw_linkline(line, !found_selectline, false);
-				}
-			}
-		}
-	}
+  /* Draw any active lines (lines with either button being hovered over).
+   * Do this last so they appear on top of inactive and gray out lines. */
+  if (found_activeline) {
+    for (but = block->buttons.first; but; but = but->next) {
+      if (but->type == UI_BTYPE_LINK && but->link) {
+        for (line = but->link->lines.first; line; line = line->next) {
+          if ((line->from->flag & UI_ACTIVE) || (line->to->flag & UI_ACTIVE))
+            ui_draw_linkline(line, !found_selectline, false);
+        }
+      }
+    }
+  }
 }
 
 /* ************** BLOCK ENDING FUNCTION ************* */
@@ -781,33 +781,33 @@ uiBut *ui_but_find_new(uiBlock *block_new, const uiBut *but_old)
 /* oldbut is being inserted in new block, so we use the lines from new button, and replace button pointers */
 static void ui_but_update_linklines(uiBlock *block, uiBut *oldbut, uiBut *newbut)
 {
-	uiLinkLine *line;
-	uiBut *but;
+  uiLinkLine *line;
+  uiBut *but;
+
+  /* if active button is UI_BTYPE_LINK */
+  if (newbut->type == UI_BTYPE_LINK && newbut->link) {
 	
-	/* if active button is UI_BTYPE_LINK */
-	if (newbut->type == UI_BTYPE_LINK && newbut->link) {
-		
-		SWAP(uiLink *, oldbut->link, newbut->link);
-		
-		for (line = oldbut->link->lines.first; line; line = line->next) {
-			if (line->to == newbut)
-				line->to = oldbut;
-			if (line->from == newbut)
-				line->from = oldbut;
-		}
-	}
+    SWAP(uiLink *, oldbut->link, newbut->link);
 	
-	/* check all other button links */
-	for (but = block->buttons.first; but; but = but->next) {
-		if (but != newbut && but->type == UI_BTYPE_LINK && but->link) {
-			for (line = but->link->lines.first; line; line = line->next) {
-				if (line->to == newbut)
-					line->to = oldbut;
-				if (line->from == newbut)
-					line->from = oldbut;
-			}
-		}
-	}
+    for (line = oldbut->link->lines.first; line; line = line->next) {
+      if (line->to == newbut)
+        line->to = oldbut;
+      if (line->from == newbut)
+        line->from = oldbut;
+    }
+  }
+	
+  /* check all other button links */
+  for (but = block->buttons.first; but; but = but->next) {
+    if (but != newbut && but->type == UI_BTYPE_LINK && but->link) {
+      for (line = but->link->lines.first; line; line = line->next) {
+        if (line->to == newbut)
+          line->to = oldbut;
+        if (line->from == newbut)
+          line->from = oldbut;
+      }
+    }
+  }
 }
 
 /**
@@ -854,111 +854,111 @@ static bool ui_but_update_from_old_block(const bContext *C,
     found_active = true;
 
 #if 0
-		but->flag = oldbut->flag;
-		but->active = oldbut->active;
-		but->pos = oldbut->pos;
-		but->ofs = oldbut->ofs;
-		but->editstr = oldbut->editstr;
-		but->editval = oldbut->editval;
-		but->editvec = oldbut->editvec;
-		but->editcoba = oldbut->editcoba;
-		but->editcumap = oldbut->editcumap;
-		but->selsta = oldbut->selsta;
-		but->selend = oldbut->selend;
-		but->softmin = oldbut->softmin;
-		but->softmax = oldbut->softmax;
-		but->linkto[0] = oldbut->linkto[0];
-		but->linkto[1] = oldbut->linkto[1];
-		oldbut->active = NULL;
+    but->flag = oldbut->flag;
+    but->active = oldbut->active;
+    but->pos = oldbut->pos;
+    but->ofs = oldbut->ofs;
+    but->editstr = oldbut->editstr;
+    but->editval = oldbut->editval;
+    but->editvec = oldbut->editvec;
+    but->editcoba = oldbut->editcoba;
+    but->editcumap = oldbut->editcumap;
+    but->selsta = oldbut->selsta;
+    but->selend = oldbut->selend;
+    but->softmin = oldbut->softmin;
+    but->softmax = oldbut->softmax;
+    but->linkto[0] = oldbut->linkto[0];
+    but->linkto[1] = oldbut->linkto[1];
+    oldbut->active = NULL;
 #endif
 
-		/* move button over from oldblock to new block */
-		BLI_remlink(&oldblock->buttons, oldbut);
-		BLI_insertlinkafter(&block->buttons, but, oldbut);
-		oldbut->block = block;
-		*but_p = oldbut;
+    /* move button over from oldblock to new block */
+    BLI_remlink(&oldblock->buttons, oldbut);
+    BLI_insertlinkafter(&block->buttons, but, oldbut);
+    oldbut->block = block;
+    *but_p = oldbut;
 
-		/* still stuff needs to be copied */
-		oldbut->rect = but->rect;
-		oldbut->context = but->context; /* set by Layout */
+    /* still stuff needs to be copied */
+    oldbut->rect = but->rect;
+    oldbut->context = but->context; /* set by Layout */
 
-		/* drawing */
-		oldbut->icon = but->icon;
-		oldbut->iconadd = but->iconadd;
-		oldbut->alignnr = but->alignnr;
+    /* drawing */
+    oldbut->icon = but->icon;
+    oldbut->iconadd = but->iconadd;
+    oldbut->alignnr = but->alignnr;
 
-		/* typically the same pointers, but not on undo/redo */
-		/* XXX some menu buttons store button itself in but->poin. Ugly */
-		if (oldbut->poin != (char *)oldbut) {
-			SWAP(char *, oldbut->poin, but->poin);
-			SWAP(void *, oldbut->func_argN, but->func_argN);
-		}
+    /* typically the same pointers, but not on undo/redo */
+    /* XXX some menu buttons store button itself in but->poin. Ugly */
+    if (oldbut->poin != (char *)oldbut) {
+      SWAP(char *, oldbut->poin, but->poin);
+      SWAP(void *, oldbut->func_argN, but->func_argN);
+    }
 
-		/* Move tooltip from new to old. */
-		SWAP(uiButToolTipFunc, oldbut->tip_func, but->tip_func);
-		SWAP(void *, oldbut->tip_argN, but->tip_argN);
+    /* Move tooltip from new to old. */
+    SWAP(uiButToolTipFunc, oldbut->tip_func, but->tip_func);
+    SWAP(void *, oldbut->tip_argN, but->tip_argN);
 
-		oldbut->flag = (oldbut->flag & ~flag_copy) | (but->flag & flag_copy);
-		oldbut->drawflag = (oldbut->drawflag & ~drawflag_copy) | (but->drawflag & drawflag_copy);
+    oldbut->flag = (oldbut->flag & ~flag_copy) | (but->flag & flag_copy);
+    oldbut->drawflag = (oldbut->drawflag & ~drawflag_copy) | (but->drawflag & drawflag_copy);
 
-		/* copy hardmin for list rows to prevent 'sticking' highlight to mouse position
-		 * when scrolling without moving mouse (see [#28432]) */
-		if (ELEM(oldbut->type, UI_BTYPE_ROW, UI_BTYPE_LISTROW)) {
-			oldbut->hardmax = but->hardmax;
-		}
+    /* copy hardmin for list rows to prevent 'sticking' highlight to mouse position
+     * when scrolling without moving mouse (see [#28432]) */
+    if (ELEM(oldbut->type, UI_BTYPE_ROW, UI_BTYPE_LISTROW)) {
+      oldbut->hardmax = but->hardmax;
+    }
 
-		/* Selectively copy a1, a2 since their use differs across all button types
-		 * (and we'll probably split these out later) */
-		if (ELEM(oldbut->type, UI_BTYPE_PROGRESS_BAR)) {
-			oldbut->a1 = but->a1;
-		}
+    /* Selectively copy a1, a2 since their use differs across all button types
+     * (and we'll probably split these out later) */
+    if (ELEM(oldbut->type, UI_BTYPE_PROGRESS_BAR)) {
+      oldbut->a1 = but->a1;
+    }
 
-		ui_but_update_linklines(block, oldbut, but);
+    ui_but_update_linklines(block, oldbut, but);
 
-		if (!BLI_listbase_is_empty(&block->butstore)) {
-			UI_butstore_register_update(block, oldbut, but);
-		}
+    if (!BLI_listbase_is_empty(&block->butstore)) {
+      UI_butstore_register_update(block, oldbut, but);
+    }
 
-		/* move/copy string from the new button to the old */
-		/* needed for alt+mouse wheel over enums */
-		if (but->str != but->strdata) {
-			if (oldbut->str != oldbut->strdata) {
-				SWAP(char *, but->str, oldbut->str);
-			}
-			else {
-				oldbut->str = but->str;
-				but->str = but->strdata;
-			}
-		}
-		else {
-			if (oldbut->str != oldbut->strdata) {
-				MEM_freeN(oldbut->str);
-				oldbut->str = oldbut->strdata;
-			}
-			BLI_strncpy(oldbut->strdata, but->strdata, sizeof(oldbut->strdata));
-		}
+    /* move/copy string from the new button to the old */
+    /* needed for alt+mouse wheel over enums */
+    if (but->str != but->strdata) {
+      if (oldbut->str != oldbut->strdata) {
+        SWAP(char *, but->str, oldbut->str);
+      }
+      else {
+        oldbut->str = but->str;
+        but->str = but->strdata;
+      }
+    }
+    else {
+      if (oldbut->str != oldbut->strdata) {
+        MEM_freeN(oldbut->str);
+        oldbut->str = oldbut->strdata;
+      }
+      BLI_strncpy(oldbut->strdata, but->strdata, sizeof(oldbut->strdata));
+    }
 
-		if (but->dragpoin && (but->dragflag & UI_BUT_DRAGPOIN_FREE)) {
-			SWAP(void *, but->dragpoin, oldbut->dragpoin);
-		}
+    if (but->dragpoin && (but->dragflag & UI_BUT_DRAGPOIN_FREE)) {
+      SWAP(void *, but->dragpoin, oldbut->dragpoin);
+    }
 
-		BLI_remlink(&block->buttons, but);
-		ui_but_free(C, but);
+    BLI_remlink(&block->buttons, but);
+    ui_but_free(C, but);
 
-		/* note: if layout hasn't been applied yet, it uses old button pointers... */
-	}
-	else {
-		const int flag_copy = UI_BUT_DRAG_MULTI;
+    /* note: if layout hasn't been applied yet, it uses old button pointers... */
+  }
+  else {
+    const int flag_copy = UI_BUT_DRAG_MULTI;
 
-		but->flag = (but->flag & ~flag_copy) | (oldbut->flag & flag_copy);
+    but->flag = (but->flag & ~flag_copy) | (oldbut->flag & flag_copy);
 
-		/* ensures one button can get activated, and in case the buttons
-		 * draw are the same this gives O(1) lookup for each button */
-		BLI_remlink(&oldblock->buttons, oldbut);
-		ui_but_free(C, oldbut);
-	}
+    /* ensures one button can get activated, and in case the buttons
+     * draw are the same this gives O(1) lookup for each button */
+    BLI_remlink(&oldblock->buttons, oldbut);
+    ui_but_free(C, oldbut);
+  }
 
-	return found_active;
+  return found_active;
 }
 
 /* needed for temporarily rename buttons, such as in outliner or file-select,
@@ -1203,7 +1203,6 @@ static bool ui_but_event_operator_string_from_menu(const bContext *C,
   }
 
   IDP_FreeProperty(prop_menu);
-  MEM_freeN(prop_menu);
   return found;
 }
 
@@ -1252,7 +1251,6 @@ static bool ui_but_event_operator_string_from_panel(const bContext *C,
   }
 
   IDP_FreeProperty(prop_panel);
-  MEM_freeN(prop_panel);
   return found;
 }
 
@@ -1473,7 +1471,6 @@ static bool ui_but_event_property_operator_string(const bContext *C,
 
       /* cleanup */
       IDP_FreeProperty(prop_path);
-      MEM_freeN(prop_path);
       if (data_path) {
         MEM_freeN(data_path);
       }
@@ -1757,83 +1754,94 @@ static void ui_but_to_pixelrect(rcti *rect, const ARegion *ar, uiBlock *block, u
 /* uses local copy of style, to scale things down, and allow widgets to change stuff */
 void UI_block_draw(const bContext *C, uiBlock *block)
 {
-	uiStyle style = *UI_style_get_dpi();  /* XXX pass on as arg */
-	ARegion *ar;
-	uiBut *but;
-	rcti rect;
+  uiStyle style = *UI_style_get_dpi(); /* XXX pass on as arg */
+  ARegion *ar;
+  uiBut *but;
+  rcti rect;
 
-	/* get menu region or area region */
-	ar = CTX_wm_menu(C);
-	if (!ar) {
-		ar = CTX_wm_region(C);
-	}
+  /* get menu region or area region */
+  ar = CTX_wm_menu(C);
+  if (!ar) {
+    ar = CTX_wm_region(C);
+  }
 
-	if (!block->endblock) {
-		UI_block_end(C, block);
-	}
+  if (!block->endblock) {
+    UI_block_end(C, block);
+  }
 
-	/* we set this only once */
-	GPU_blend_set_func_separate(GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
+  /* we set this only once */
+  GPU_blend_set_func_separate(
+      GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
 
-	/* scale fonts */
-	ui_fontscale(&style.paneltitle.points, block->aspect);
-	ui_fontscale(&style.grouplabel.points, block->aspect);
-	ui_fontscale(&style.widgetlabel.points, block->aspect);
-	ui_fontscale(&style.widget.points, block->aspect);
+  /* scale fonts */
+  ui_fontscale(&style.paneltitle.points, block->aspect);
+  ui_fontscale(&style.grouplabel.points, block->aspect);
+  ui_fontscale(&style.widgetlabel.points, block->aspect);
+  ui_fontscale(&style.widget.points, block->aspect);
 
-	/* scale block min/max to rect */
-	ui_but_to_pixelrect(&rect, ar, block, NULL);
+  /* scale block min/max to rect */
+  ui_but_to_pixelrect(&rect, ar, block, NULL);
 
-	/* pixel space for AA widgets */
-	GPU_matrix_push_projection();
-	GPU_matrix_push();
-	GPU_matrix_identity_set();
+  /* pixel space for AA widgets */
+  GPU_matrix_push_projection();
+  GPU_matrix_push();
+  GPU_matrix_identity_set();
 
-	wmOrtho2_region_pixelspace(ar);
+  wmOrtho2_region_pixelspace(ar);
 
-	/* back */
-	if (block->flag & UI_BLOCK_RADIAL) {
-		ui_draw_pie_center(block);
-	}
-	else if (block->flag & UI_BLOCK_POPOVER) {
-		ui_draw_popover_back(ar, &style, block, &rect);
-	}
-	else if (block->flag & UI_BLOCK_LOOP) {
-		ui_draw_menu_back(&style, block, &rect);
-	}
-	else if (block->panel) {
-		bool show_background = ar->alignment != RGN_ALIGN_FLOAT;
-		ui_draw_aligned_panel(
-		        &style, block, &rect,
-		        UI_panel_category_is_visible(ar), show_background);
-	}
+  /* back */
+  if (block->flag & UI_BLOCK_RADIAL) {
+    ui_draw_pie_center(block);
+  }
+  else if (block->flag & UI_BLOCK_POPOVER) {
+    ui_draw_popover_back(ar, &style, block, &rect);
+  }
+  else if (block->flag & UI_BLOCK_LOOP) {
+    ui_draw_menu_back(&style, block, &rect);
+  }
+  else if (block->panel) {
+    bool show_background = ar->alignment != RGN_ALIGN_FLOAT;
+    if (show_background) {
+      if (block->panel->type && (block->panel->type->flag & PNL_NO_HEADER)) {
+        if (ar->regiontype == RGN_TYPE_TOOLS) {
+          /* We never want a background around active tools. */
+          show_background = false;
+        }
+        else {
+          /* Without a header there is no background except for region overlap. */
+          show_background = ar->overlap != 0;
+        }
+      }
+    }
+    ui_draw_aligned_panel(&style, block, &rect, UI_panel_category_is_visible(ar), show_background);
+  }
 
-	BLF_batch_draw_begin();
-	UI_icon_draw_cache_begin();
-	UI_widgetbase_draw_cache_begin();
+  BLF_batch_draw_begin();
+  UI_icon_draw_cache_begin();
+  UI_widgetbase_draw_cache_begin();
 
-	/* widgets */
-	for (but = block->buttons.first; but; but = but->next) {
-		if (!(but->flag & (UI_HIDDEN | UI_SCROLLED))) {
-			ui_but_to_pixelrect(&rect, ar, block, but);
+  /* widgets */
+  for (but = block->buttons.first; but; but = but->next) {
+    if (!(but->flag & (UI_HIDDEN | UI_SCROLLED))) {
+      ui_but_to_pixelrect(&rect, ar, block, but);
 
-			/* XXX: figure out why invalid coordinates happen when closing render window */
-			/* and material preview is redrawn in main window (temp fix for bug #23848) */
-			if (rect.xmin < rect.xmax && rect.ymin < rect.ymax) {
-				ui_draw_but(C, ar, &style, but, &rect);
-			}
-		}
-	}
+      /* XXX: figure out why invalid coordinates happen when closing render window */
+      /* and material preview is redrawn in main window (temp fix for bug #23848) */
+      if (rect.xmin < rect.xmax && rect.ymin < rect.ymax) {
+        ui_draw_but(C, ar, &style, but, &rect);
+      }
+    }
+  }
 
-	UI_widgetbase_draw_cache_end();
-	UI_icon_draw_cache_end();
-	BLF_batch_draw_end();
+  UI_widgetbase_draw_cache_end();
+  UI_icon_draw_cache_end();
+  BLF_batch_draw_end();
 
-	/* restore matrix */
-	GPU_matrix_pop_projection();
-	GPU_matrix_pop();
+  /* restore matrix */
+  GPU_matrix_pop_projection();
+  GPU_matrix_pop();
 
-	ui_draw_links(block);
+  ui_draw_links(block);
 }
 
 static void ui_block_message_subscribe(ARegion *ar, struct wmMsgBus *mbus, uiBlock *block)
@@ -1879,83 +1887,84 @@ void UI_region_message_subscribe(ARegion *ar, struct wmMsgBus *mbus)
  */
 int ui_but_is_pushed_ex(uiBut *but, double *value)
 {
-	int is_push = 0;
+  int is_push = 0;
 
-	if (but->bit) {
-		const bool state = !ELEM(but->type, UI_BTYPE_TOGGLE_N, UI_BTYPE_ICON_TOGGLE_N, UI_BTYPE_CHECKBOX_N);
-		int lvalue;
-		UI_GET_BUT_VALUE_INIT(but, *value);
-		lvalue = (int)*value;
-		if (UI_BITBUT_TEST(lvalue, (but->bitnr))) {
-			is_push = state;
-		}
-		else {
-			is_push = !state;
-		}
-	}
-	else {
-		switch (but->type) {
-			case UI_BTYPE_BUT:
-			case UI_BTYPE_HOTKEY_EVENT:
-			case UI_BTYPE_KEY_EVENT:
-			case UI_BTYPE_COLOR:
-				is_push = -1;
-				break;
-			case UI_BTYPE_BUT_TOGGLE:
-			case UI_BTYPE_TOGGLE:
-			case UI_BTYPE_ICON_TOGGLE:
-			case UI_BTYPE_CHECKBOX:
-				UI_GET_BUT_VALUE_INIT(but, *value);
-				if (*value != (double)but->hardmin) {
-					is_push = true;
-				}
-				break;
-			case UI_BTYPE_ICON_TOGGLE_N:
-			case UI_BTYPE_TOGGLE_N:
-			case UI_BTYPE_CHECKBOX_N:
-				UI_GET_BUT_VALUE_INIT(but, *value);
-				if (*value == 0.0) {
-					is_push = true;
-				}
-				break;
-			case UI_BTYPE_ROW:
-			case UI_BTYPE_LISTROW:
-			case UI_BTYPE_TAB:
-				if ((but->type == UI_BTYPE_TAB) && but->rnaprop && but->custom_data) {
-					/* uiBut.custom_data points to data this tab represents (e.g. workspace).
-					 * uiBut.rnapoin/prop store an active value (e.g. active workspace). */
-					if (RNA_property_type(but->rnaprop) == PROP_POINTER) {
-						PointerRNA active_ptr = RNA_property_pointer_get(&but->rnapoin, but->rnaprop);
-						if (active_ptr.data == but->custom_data) {
-							is_push = true;
-						}
-					}
-					break;
-				}
-				else if (but->optype) {
-					break;
-				}
+  if (but->bit) {
+    const bool state = !ELEM(
+        but->type, UI_BTYPE_TOGGLE_N, UI_BTYPE_ICON_TOGGLE_N, UI_BTYPE_CHECKBOX_N);
+    int lvalue;
+    UI_GET_BUT_VALUE_INIT(but, *value);
+    lvalue = (int)*value;
+    if (UI_BITBUT_TEST(lvalue, (but->bitnr))) {
+      is_push = state;
+    }
+    else {
+      is_push = !state;
+    }
+  }
+  else {
+    switch (but->type) {
+      case UI_BTYPE_BUT:
+      case UI_BTYPE_HOTKEY_EVENT:
+      case UI_BTYPE_KEY_EVENT:
+      case UI_BTYPE_COLOR:
+        is_push = -1;
+        break;
+      case UI_BTYPE_BUT_TOGGLE:
+      case UI_BTYPE_TOGGLE:
+      case UI_BTYPE_ICON_TOGGLE:
+      case UI_BTYPE_CHECKBOX:
+        UI_GET_BUT_VALUE_INIT(but, *value);
+        if (*value != (double)but->hardmin) {
+          is_push = true;
+        }
+        break;
+      case UI_BTYPE_ICON_TOGGLE_N:
+      case UI_BTYPE_TOGGLE_N:
+      case UI_BTYPE_CHECKBOX_N:
+        UI_GET_BUT_VALUE_INIT(but, *value);
+        if (*value == 0.0) {
+          is_push = true;
+        }
+        break;
+      case UI_BTYPE_ROW:
+      case UI_BTYPE_LISTROW:
+      case UI_BTYPE_TAB:
+        if ((but->type == UI_BTYPE_TAB) && but->rnaprop && but->custom_data) {
+          /* uiBut.custom_data points to data this tab represents (e.g. workspace).
+           * uiBut.rnapoin/prop store an active value (e.g. active workspace). */
+          if (RNA_property_type(but->rnaprop) == PROP_POINTER) {
+            PointerRNA active_ptr = RNA_property_pointer_get(&but->rnapoin, but->rnaprop);
+            if (active_ptr.data == but->custom_data) {
+              is_push = true;
+            }
+          }
+          break;
+        }
+        else if (but->optype) {
+          break;
+        }
 
-				UI_GET_BUT_VALUE_INIT(but, *value);
-				/* support for rna enum buts */
-				if (but->rnaprop && (RNA_property_flag(but->rnaprop) & PROP_ENUM_FLAG)) {
-					if ((int)*value & (int)but->hardmax) {
-						is_push = true;
-					}
-				}
-				else {
-					if (*value == (double)but->hardmax) {
-						is_push = true;
-					}
-				}
-				break;
-			default:
-				is_push = -1;
-				break;
-		}
-	}
+        UI_GET_BUT_VALUE_INIT(but, *value);
+        /* support for rna enum buts */
+        if (but->rnaprop && (RNA_property_flag(but->rnaprop) & PROP_ENUM_FLAG)) {
+          if ((int)*value & (int)but->hardmax) {
+            is_push = true;
+          }
+        }
+        else {
+          if (*value == (double)but->hardmax) {
+            is_push = true;
+          }
+        }
+        break;
+      default:
+        is_push = -1;
+        break;
+    }
+  }
 
-	return is_push;
+  return is_push;
 }
 int ui_but_is_pushed(uiBut *but)
 {
@@ -1977,78 +1986,78 @@ static void ui_but_update_select_flag(uiBut *but, double *value)
 
 static uiBut *ui_linkline_find_inlink(uiBlock *block, void *poin)
 {
-	uiBut *but;
-	
-	but = block->buttons.first;
-	while (but) {
-		if (but->type == UI_BTYPE_INLINK) {
-			if (but->poin == poin) return but;
-		}
-		but = but->next;
-	}
-	return NULL;
+  uiBut *but;
+
+  but = block->buttons.first;
+  while (but) {
+    if (but->type == UI_BTYPE_INLINK) {
+      if (but->poin == poin) return but;
+    }
+    but = but->next;
+  }
+  return NULL;
 }
 
 static void ui_linkline_add(ListBase *listb, uiBut *but, uiBut *bt, short deactive)
 {
-	uiLinkLine *line;
-	
-	line = MEM_callocN(sizeof(uiLinkLine), "linkline");
-	BLI_addtail(listb, line);
-	line->from = but;
-	line->to = bt;
-	line->deactive = deactive;
+  uiLinkLine *line;
+
+  line = MEM_callocN(sizeof(uiLinkLine), "linkline");
+  BLI_addtail(listb, line);
+  line->from = but;
+  line->to = bt;
+  line->deactive = deactive;
 }
 
 uiBut *UI_block_links_find_inlink(uiBlock *block, void *poin)
 {
-	return ui_linkline_find_inlink(block, poin);
+  return ui_linkline_find_inlink(block, poin);
 }
 
 void UI_block_links_compose(uiBlock *block)
 {
-	uiBut *but, *bt;
-	uiLink *link;
-	void ***ppoin;
-	int a;
-	
-	but = block->buttons.first;
-	while (but) {
-		if (but->type == UI_BTYPE_LINK) {
-			link = but->link;
-			
-			/* for all pointers in the array */
-			if (link) {
-				if (link->ppoin) {
-					ppoin = link->ppoin;
-					for (a = 0; a < *(link->totlink); a++) {
-						bt = ui_linkline_find_inlink(block, (*ppoin)[a]);
-						if (bt) {
-							if ((but->flag & UI_BUT_SCA_LINK_GREY) || (bt->flag & UI_BUT_SCA_LINK_GREY)) {
-								ui_linkline_add(&link->lines, but, bt, true);
-							}
-							else {
-								ui_linkline_add(&link->lines, but, bt, false);
-							}
+  uiBut *but, *bt;
+  uiLink *link;
+  void ***ppoin;
+  int a;
 
-						}
-					}
-				}
-				else if (link->poin) {
-					bt = ui_linkline_find_inlink(block, *link->poin);
-					if (bt) {
-						if ((but->flag & UI_BUT_SCA_LINK_GREY) || (bt->flag & UI_BUT_SCA_LINK_GREY)) {
-							ui_linkline_add(&link->lines, but, bt, true);
-						}
-						else {
-							ui_linkline_add(&link->lines, but, bt, false);
-						}
-					}
-				}
-			}
-		}
-		but = but->next;
-	}
+  but = block->buttons.first;
+  while (but) {
+    if (but->type == UI_BTYPE_LINK) {
+      link = but->link;
+	
+      /* for all pointers in the array */
+      if (link) {
+        if (link->ppoin) {
+          ppoin = link->ppoin;
+          for (a = 0; a < *(link->totlink); a++) {
+            bt = ui_linkline_find_inlink(block, (*ppoin)[a]);
+            if (bt) {
+              if ((but->flag & UI_BUT_SCA_LINK_GREY) || (bt->flag & UI_BUT_SCA_LINK_GREY)) {
+                ui_linkline_add(&link->lines, but, bt, true);
+              }
+              else {
+                ui_linkline_add(&link->lines, but, bt, false);
+              }
+
+            }
+          }
+        }
+        else if (link->poin) {
+          bt = ui_linkline_find_inlink(block, *link->poin);
+          if (bt) {
+            if ((but->flag & UI_BUT_SCA_LINK_GREY) || (bt->flag & UI_BUT_SCA_LINK_GREY)) {
+              ui_linkline_add(&link->lines, but, bt, true);
+            }
+            else {
+              ui_linkline_add(&link->lines, but, bt, false);
+            }
+          }
+        }
+      }
+    }
+    but = but->next;
+  }
 }
 
 
@@ -2072,38 +2081,38 @@ void UI_block_lock_clear(uiBlock *block)
 
 void ui_linkline_remove(uiLinkLine *line, uiBut *but)
 {
-	uiLink *link;
-	int a, b;
+  uiLink *link;
+  int a, b;
+
+  BLI_remlink(&but->link->lines, line);
+
+  link = line->from->link;
+
+  /* are there more pointers allowed? */
+  if (link->ppoin) {
 	
-	BLI_remlink(&but->link->lines, line);
+    if (*(link->totlink) == 1) {
+      *(link->totlink) = 0;
+      MEM_freeN(*(link->ppoin));
+      *(link->ppoin) = NULL;
+    }
+    else {
+      b = 0;
+      for (a = 0; a < (*(link->totlink)); a++) {
+        if ((*(link->ppoin))[a] != line->to->poin) {
+          (*(link->ppoin))[b] = (*(link->ppoin))[a];
+          b++;
+        }
+      }
+      (*(link->totlink))--;
+    }
+  }
+  else {
+    *(link->poin) = NULL;
+  }
 
-	link = line->from->link;
-
-	/* are there more pointers allowed? */
-	if (link->ppoin) {
-		
-		if (*(link->totlink) == 1) {
-			*(link->totlink) = 0;
-			MEM_freeN(*(link->ppoin));
-			*(link->ppoin) = NULL;
-		}
-		else {
-			b = 0;
-			for (a = 0; a < (*(link->totlink)); a++) {
-				if ((*(link->ppoin))[a] != line->to->poin) {
-					(*(link->ppoin))[b] = (*(link->ppoin))[a];
-					b++;
-				}
-			}
-			(*(link->totlink))--;
-		}
-	}
-	else {
-		*(link->poin) = NULL;
-	}
-
-	MEM_freeN(line);
-	//REDRAW
+  MEM_freeN(line);
+  //REDRAW
 }
 
 /* *********************** data get/set ***********************
@@ -3278,56 +3287,57 @@ static void ui_free_link(uiLink *link)
 /* can be called with C==NULL */
 static void ui_but_free(const bContext *C, uiBut *but)
 {
-	if (but->opptr) {
-		WM_operator_properties_free(but->opptr);
-		MEM_freeN(but->opptr);
-	}
+  if (but->opptr) {
+    WM_operator_properties_free(but->opptr);
+    MEM_freeN(but->opptr);
+  }
 
-	if (but->func_argN) {
-		MEM_freeN(but->func_argN);
-	}
+  if (but->func_argN) {
+    MEM_freeN(but->func_argN);
+  }
 
-	if (but->tip_argN) {
-		MEM_freeN(but->tip_argN);
-	}
+  if (but->tip_argN) {
+    MEM_freeN(but->tip_argN);
+  }
 
-	if (but->hold_argN) {
-		MEM_freeN(but->hold_argN);
-	}
+  if (but->hold_argN) {
+    MEM_freeN(but->hold_argN);
+  }
 
-	if (but->free_search_arg) {
-		MEM_SAFE_FREE(but->search_arg);
-	}
+  if (but->free_search_arg) {
+    MEM_SAFE_FREE(but->search_arg);
+  }
 
-	if (but->active) {
-		/* XXX solve later, buttons should be free-able without context ideally,
-		 * however they may have open tooltips or popup windows, which need to
-		 * be closed using a context pointer */
-		if (C) {
-			ui_but_active_free(C, but);
-		}
-		else {
-			if (but->active) {
-				MEM_freeN(but->active);
-			}
-		}
-	}
-	if (but->str && but->str != but->strdata) {
-		MEM_freeN(but->str);
-	}
-	ui_free_link(but->link);
+  if (but->active) {
+    /* XXX solve later, buttons should be free-able without context ideally,
+     * however they may have open tooltips or popup windows, which need to
+     * be closed using a context pointer */
+    if (C) {
+      ui_but_active_free(C, but);
+    }
+    else {
+      if (but->active) {
+        MEM_freeN(but->active);
+      }
+    }
+  }
+  if (but->str && but->str != but->strdata) {
+    MEM_freeN(but->str);
+  }
 
-	if ((but->type == UI_BTYPE_IMAGE) && but->poin) {
-		IMB_freeImBuf((struct ImBuf *)but->poin);
-	}
+  ui_free_link(but->link);
 
-	if (but->dragpoin && (but->dragflag & UI_BUT_DRAGPOIN_FREE)) {
-		MEM_freeN(but->dragpoin);
-	}
+  if ((but->type == UI_BTYPE_IMAGE) && but->poin) {
+    IMB_freeImBuf((struct ImBuf *)but->poin);
+  }
 
-	BLI_assert(UI_butstore_is_registered(but->block, but) == false);
+  if (but->dragpoin && (but->dragflag & UI_BUT_DRAGPOIN_FREE)) {
+    MEM_freeN(but->dragpoin);
+  }
 
-	MEM_freeN(but);
+  BLI_assert(UI_butstore_is_registered(but->block, but) == false);
+
+  MEM_freeN(but);
 }
 
 /* can be called with C==NULL */
@@ -5805,15 +5815,15 @@ uiBut *uiDefIconTextButO(uiBlock *block,
 
 void UI_but_link_set(uiBut *but, void **poin, void ***ppoin, short *tot, int from, int to)
 {
-	uiLink *link;
-	
-	link = but->link = MEM_callocN(sizeof(uiLink), "new uilink");
-	
-	link->poin = poin;
-	link->ppoin = ppoin;
-	link->totlink = tot;
-	link->fromcode = from;
-	link->tocode = to;
+  uiLink *link;
+
+  link = but->link = MEM_callocN(sizeof(uiLink), "new uilink");
+
+  link->poin = poin;
+  link->ppoin = ppoin;
+  link->totlink = tot;
+  link->fromcode = from;
+  link->tocode = to;
 }
 
 /* cruft to make uiBlock and uiBut private */

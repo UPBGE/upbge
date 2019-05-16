@@ -787,7 +787,7 @@ static void node_socket_free(bNodeTree *UNUSED(ntree),
                              const bool do_id_user)
 {
   if (sock->prop) {
-    IDP_FreeProperty_ex(sock->prop, do_id_user);
+    IDP_FreePropertyContent_ex(sock->prop, do_id_user);
     MEM_freeN(sock->prop);
   }
 
@@ -1850,7 +1850,7 @@ static void node_free_node(bNodeTree *ntree, bNode *node)
 
   if (node->prop) {
     /* Remember, no ID user refcount management here! */
-    IDP_FreeProperty_ex(node->prop, false);
+    IDP_FreePropertyContent_ex(node->prop, false);
     MEM_freeN(node->prop);
   }
 
@@ -1910,7 +1910,6 @@ static void node_socket_interface_free(bNodeTree *UNUSED(ntree), bNodeSocket *so
 {
   if (sock->prop) {
     IDP_FreeProperty(sock->prop);
-    MEM_freeN(sock->prop);
   }
 
   if (sock->default_value) {

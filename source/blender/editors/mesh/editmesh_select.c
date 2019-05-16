@@ -217,18 +217,20 @@ static void edbm_select_pick_cache_free(void)
   MEM_SAFE_FREE(base_array_index_offsets);
 }
 
-static bool check_ob_drawface_dot(short select_mode, View3D *vd, char dt)
+static bool check_ob_drawface_dot(short select_mode, const View3D *v3d, char dt)
 {
-  if ((select_mode & SCE_SELECT_FACE) == 0) {
-    return false;
+  if (select_mode & SCE_SELECT_FACE) {
+    if (dt < OB_SOLID) {
+      return true;
+    }
+    if (v3d->overlay.edit_flag & V3D_OVERLAY_EDIT_FACE_DOT) {
+      return true;
+    }
+    if (XRAY_FLAG_ENABLED(v3d)) {
+      return true;
+    }
   }
-
-  /* if its drawing textures with zbuf sel, then don't draw dots */
-  if (dt == OB_TEXTURE && vd->shading.type == OB_TEXTURE) {
-    return false;
-  }
-
-  return true;
+  return false;
 }
 
 static void edbm_select_pick_draw_bases(ViewContext *vc,
@@ -1168,9 +1170,8 @@ static bool unified_findnearest(ViewContext *vc,
   } hit = {{NULL}};
 
   /* no afterqueue (yet), so we check it now, otherwise the em_xxxofs indices are bad */
-  short selectmode = vc->scene->toolsettings->selectmode;
 
-  if ((dist > 0.0f) && (selectmode & SCE_SELECT_FACE)) {
+  if ((dist > 0.0f) && (em->selectmode & SCE_SELECT_FACE)) {
     float dist_center = 0.0f;
     float *dist_center_p = (em->selectmode & (SCE_SELECT_EDGE | SCE_SELECT_VERTEX)) ?
                                &dist_center :
@@ -1194,7 +1195,7 @@ static bool unified_findnearest(ViewContext *vc,
     }
   }
 
-  if ((dist > 0.0f) && (selectmode & SCE_SELECT_EDGE)) {
+  if ((dist > 0.0f) && (em->selectmode & SCE_SELECT_EDGE)) {
     float dist_center = 0.0f;
     float *dist_center_p = (em->selectmode & SCE_SELECT_VERTEX) ? &dist_center : NULL;
 
@@ -1216,7 +1217,7 @@ static bool unified_findnearest(ViewContext *vc,
     }
   }
 
-  if ((dist > 0.0f) && (selectmode & SCE_SELECT_VERTEX)) {
+  if ((dist > 0.0f) && (em->selectmode & SCE_SELECT_VERTEX)) {
     uint base_index = 0;
     BMVert *eve_test = EDBM_vert_find_nearest_ex(
         vc, &dist, true, use_cycle, bases, bases_len, &base_index);
