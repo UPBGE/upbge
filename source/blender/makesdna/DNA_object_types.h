@@ -43,6 +43,7 @@ struct DerivedMesh;
 struct FluidsimSettings;
 struct GpencilBatchCache;
 struct Ipo;
+struct Mesh;
 struct Material;
 struct Object;
 struct PartDeflect;
@@ -151,6 +152,10 @@ typedef struct Object_Runtime {
    * It has deforemation only modifiers applied on it.
    */
   struct Mesh *mesh_deform_eval;
+
+  /* This is a mesh representation of corresponding object.
+   * It created when Python calls `object.to_mesh()`. */
+  struct Mesh *object_as_temp_mesh;
 
   /** Runtime evaluated curve-specific data, not stored in the file. */
   struct CurveCache *curve_cache;
@@ -411,10 +416,6 @@ typedef struct Object {
   /* for now used to temporarily holds the type of collision object */
   short  body_type, _pad52[2];
 
-  /** the custom data layer mask that was last used to calculate derivedDeform and derivedFinal */
-  uint64_t lastDataMask;
-  /** (extra) custom data layer mask to use for creating derivedmesh, set by depsgraph */
-  uint64_t customdata_mask;
   /** bit masks of game controllers that are active */
   unsigned int state;
   /** bit masks of initial state as recorded by the users */
