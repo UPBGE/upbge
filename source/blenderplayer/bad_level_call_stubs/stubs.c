@@ -672,6 +672,8 @@ float ED_view3d_pixel_size_no_ui_scale(const struct RegionView3D *rv3d, const fl
 float ED_view3d_calc_zfac(const struct RegionView3D *rv3d, const float co[3], bool *r_flip) RET_ZERO
 void ED_view3d_clipping_set(struct RegionView3D *rv3d) RET_NONE
 
+void ED_view3d_polygon_offset(const struct RegionView3D *rv3d, const float dist) RET_NONE
+
 void ED_annotation_draw_view3d(struct Scene *scene, struct Depsgraph *depsgraph, struct View3D *v3d, struct ARegion *ar, bool only3d) RET_NONE
 
 
