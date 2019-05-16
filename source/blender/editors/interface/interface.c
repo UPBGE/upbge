@@ -648,19 +648,19 @@ static void ui_draw_linkline(uiLinkLine *line, int highlightActiveLines, int das
 
   if (line->from == NULL || line->to == NULL) return;
 
-    rect.xmin = BLI_rctf_cent_x(&line->from->rect);
-    rect.ymin = BLI_rctf_cent_y(&line->from->rect);
-    rect.xmax = BLI_rctf_cent_x(&line->to->rect);
-    rect.ymax = BLI_rctf_cent_y(&line->to->rect);
+  rect.xmin = BLI_rctf_cent_x(&line->from->rect);
+  rect.ymin = BLI_rctf_cent_y(&line->from->rect);
+  rect.xmax = BLI_rctf_cent_x(&line->to->rect);
+  rect.ymax = BLI_rctf_cent_y(&line->to->rect);
 
-    if (dashInactiveLines)
-      UI_GetThemeColor4fv(TH_GRID, color);
-    else if (line->flag & UI_SELECT)
-      rgba_float_args_set_ch(color, 120, 120, 120, 255);
-    else if (highlightActiveLines && ((line->from->flag & UI_ACTIVE) || (line->to->flag & UI_ACTIVE)))
-      UI_GetThemeColor4fv(TH_TEXT_HI, color);
-    else
-      rgba_float_args_set_ch(color, 100, 100, 100, 255);
+  if (dashInactiveLines)
+    UI_GetThemeColor4fv(TH_GRID, color);
+  else if (line->flag & UI_SELECT)
+    rgba_float_args_set_ch(color, 120, 120, 120, 255);
+  else if (highlightActiveLines && ((line->from->flag & UI_ACTIVE) || (line->to->flag & UI_ACTIVE)))
+    UI_GetThemeColor4fv(TH_TEXT_HI, color);
+  else
+    rgba_float_args_set_ch(color, 100, 100, 100, 255);
 
   ui_draw_link_bezier(&rect, color);
 }
