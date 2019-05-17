@@ -772,7 +772,9 @@ static PointerRNA rna_Scene_objects_get(CollectionPropertyIterator *iter)
 
 /* End of read-only Iterator of all the scene objects. */
 
-static void rna_Scene_set_set(PointerRNA *ptr, PointerRNA value)
+static void rna_Scene_set_set(struct ReportList *UNUSED(reports),
+                              PointerRNA *ptr,
+                              PointerRNA value)
 {
   Scene *scene = (Scene *)ptr->data;
   Scene *set = (Scene *)value.data;
@@ -969,7 +971,9 @@ static PointerRNA rna_Scene_active_keying_set_get(PointerRNA *ptr)
   return rna_pointer_inherit_refine(ptr, &RNA_KeyingSet, ANIM_scene_get_active_keyingset(scene));
 }
 
-static void rna_Scene_active_keying_set_set(PointerRNA *ptr, PointerRNA value)
+static void rna_Scene_active_keying_set_set(struct ReportList *UNUSED(reports),
+                                            PointerRNA *ptr,
+                                            PointerRNA value)
 {
   Scene *scene = (Scene *)ptr->data;
   KeyingSet *ks = (KeyingSet *)value.data;
@@ -1435,7 +1439,9 @@ static PointerRNA rna_RenderSettings_active_view_get(PointerRNA *ptr)
   return rna_pointer_inherit_refine(ptr, &RNA_SceneRenderView, srv);
 }
 
-static void rna_RenderSettings_active_view_set(PointerRNA *ptr, PointerRNA value)
+static void rna_RenderSettings_active_view_set(struct ReportList *UNUSED(reports),
+                                               PointerRNA *ptr,
+                                               PointerRNA value)
 {
   RenderData *rd = (RenderData *)ptr->data;
   SceneRenderView *srv = (SceneRenderView *)value.data;
@@ -2061,7 +2067,9 @@ PointerRNA rna_FreestyleLineSet_linestyle_get(PointerRNA *ptr)
   return rna_pointer_inherit_refine(ptr, &RNA_FreestyleLineStyle, lineset->linestyle);
 }
 
-void rna_FreestyleLineSet_linestyle_set(PointerRNA *ptr, PointerRNA value)
+void rna_FreestyleLineSet_linestyle_set(struct ReportList *UNUSED(reports),
+                                        PointerRNA *ptr,
+                                        PointerRNA value)
 {
   FreestyleLineSet *lineset = (FreestyleLineSet *)ptr->data;
 
@@ -7334,14 +7342,6 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
   /* Screen Space Subsurface Scattering */
-  prop = RNA_def_property(srna, "use_sss", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "flag", SCE_EEVEE_SSS_ENABLED);
-  RNA_def_property_boolean_default(prop, 0);
-  RNA_def_property_ui_text(
-      prop, "Subsurface Scattering", "Enable screen space subsurface scattering");
-  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_STATIC);
-  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
-
   prop = RNA_def_property(srna, "sss_samples", PROP_INT, PROP_NONE);
   RNA_def_property_int_default(prop, 7);
   RNA_def_property_ui_text(prop, "Samples", "Number of samples to compute the scattering effect");
@@ -7427,14 +7427,6 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
   /* Volumetrics */
-  prop = RNA_def_property(srna, "use_volumetric", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "flag", SCE_EEVEE_VOLUMETRIC_ENABLED);
-  RNA_def_property_boolean_default(prop, 0);
-  RNA_def_property_ui_text(
-      prop, "Volumetrics", "Enable scattering and absorbance of volumetric material");
-  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_STATIC);
-  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
-
   prop = RNA_def_property(srna, "volumetric_start", PROP_FLOAT, PROP_DISTANCE);
   RNA_def_property_float_default(prop, 0.1f);
   RNA_def_property_ui_text(prop, "Start", "Start distance of the volumetric effect");

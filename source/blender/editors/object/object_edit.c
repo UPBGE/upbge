@@ -2689,4 +2689,5 @@ void OBJECT_OT_link_to_collection(wmOperatorType *ot)
                         "Name",
                         "Name of the newly added collection");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+  ot->prop = prop;
 }

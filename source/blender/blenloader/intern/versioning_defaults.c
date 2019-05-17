@@ -24,6 +24,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math.h"
 #include "BLI_string.h"
+#include "BLI_system.h"
 
 #include "DNA_mesh_types.h"
 #include "DNA_gpencil_types.h"
@@ -97,7 +98,7 @@ void BLO_update_defaults_userpref_blend(void)
   /* Only enable tooltips translation by default,
    * without actually enabling translation itself, for now. */
   U.transopts = USER_TR_TOOLTIPS;
-  U.memcachelimit = 4096;
+  U.memcachelimit = min_ii(BLI_system_memory_max_in_megabytes_int() / 2, 4096);
 
   /* Auto perspective. */
   U.uiflag |= USER_AUTOPERSP;

@@ -113,18 +113,6 @@ class SEQUENCER_HT_header(Header):
 
         if st.view_type != 'SEQUENCER':
             layout.prop(st, "preview_channels", text="", icon_only=True)
-            layout.prop(st, "display_channel", text="Channel")
-
-            ed = scene.sequence_editor
-            if ed:
-                row = layout.row(align=True)
-                row.prop(ed, "show_overlay", text="", icon='GHOST_ENABLED')
-                if ed.show_overlay:
-                    row.prop(ed, "overlay_frame", text="")
-                    row.prop(ed, "use_overlay_lock", text="", icon='LOCKED')
-
-                    row = layout.row()
-                    row.prop(st, "overlay_type", text="")
 
         if st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'}:
             gpd = context.gpencil_data
@@ -1449,10 +1437,29 @@ class SEQUENCER_PT_adjust_color(SequencerButtonsPanel, Panel):
         col.prop(strip, "use_float", text="Convert to Float")
 
 
-class SEQUENCER_PT_proxy(SequencerButtonsPanel, Panel):
-    bl_label = "Proxy/Timecode"
-    bl_category = "Strip"
-    bl_options = {'DEFAULT_CLOSED'}
+class SEQUENCER_PT_cache_settings(SequencerButtonsPanel, Panel):
+    bl_label = "Cache Settings"
+    bl_category = "Proxy & Cache"
+
+    @classmethod
+    def poll(cls, context):
+        return cls.has_sequencer(context)
+
+    def draw(self, context):
+        layout = self.layout
+        ed = context.scene.sequence_editor
+
+        layout.prop(ed, "use_cache_raw")
+        layout.prop(ed, "use_cache_preprocessed")
+        layout.prop(ed, "use_cache_composite")
+        layout.prop(ed, "use_cache_final")
+        layout.separator()
+        layout.prop(ed, "recycle_max_cost")
+
+
+class SEQUENCER_PT_proxy_settings(SequencerButtonsPanel, Panel):
+    bl_label = "Proxy & Timecode"
+    bl_category = "Proxy & Cache"
 
     @classmethod
     def poll(cls, context):
@@ -1522,11 +1529,38 @@ class SEQUENCER_PT_proxy(SequencerButtonsPanel, Panel):
         col.operator("sequencer.rebuild_proxy")
 
 
+class SEQUENCER_PT_strip_cache(SequencerButtonsPanel, Panel):
+    bl_label = "Strip Cache"
+    bl_category = "Proxy & Cache"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        if not cls.has_sequencer(context):
+            return False
+        if act_strip(context) is not None:
+            return True
+
+    def draw_header(self, context):
+        strip = act_strip(context)
+        self.layout.prop(strip, "override_cache_settings", text="")
+
+    def draw(self, context):
+        layout = self.layout
+        strip = act_strip(context)
+        layout.active = strip.override_cache_settings
+
+        layout.prop(strip, "use_cache_raw")
+        layout.prop(strip, "use_cache_preprocessed")
+        layout.prop(strip, "use_cache_composite")
+
+
 class SEQUENCER_PT_preview(SequencerButtonsPanel_Output, Panel):
     bl_label = "Scene Preview/Render"
     bl_space_type = 'SEQUENCE_EDITOR'
-    bl_category = "View"
     bl_region_type = 'UI'
+    bl_options = {'DEFAULT_CLOSED'}
+    bl_category = "View"
 
     def draw(self, context):
         layout = self.layout
@@ -1535,7 +1569,7 @@ class SEQUENCER_PT_preview(SequencerButtonsPanel_Output, Panel):
         render = context.scene.render
 
         col = layout.column()
-        col.prop(render, "sequencer_gl_preview", text="")
+        col.prop(render, "sequencer_gl_preview", text="Preview Shading")
 
         if render.sequencer_gl_preview in ['SOLID', 'WIREFRAME']:
             col.prop(render, "use_sequencer_override_scene_strip")
@@ -1553,22 +1587,50 @@ class SEQUENCER_PT_view(SequencerButtonsPanel_Output, Panel):
         st = context.space_data
 
         col = layout.column()
+        col.prop(st, "display_channel", text="Channel")
+
         if st.display_mode == 'IMAGE':
             col.prop(st, "show_overexposed")
-            col.separator()
 
         elif st.display_mode == 'WAVEFORM':
             col.prop(st, "show_separate_color")
 
-        col = layout.column()
-        col.separator()
         col.prop(st, "proxy_render_size")
+
+
+class SEQUENCER_PT_frame_overlay(SequencerButtonsPanel_Output, Panel):
+    bl_label = "Frame Overlay"
+    bl_category = "View"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw_header(self, context):
+        scene = context.scene
+        ed = scene.sequence_editor
+
+        self.layout.prop(ed, "show_overlay", text="")
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        
+        st = context.space_data
+        scene = context.scene
+        ed = scene.sequence_editor
+
+        layout.active = ed.show_overlay
+
+        col = layout.column()
+        col.prop(ed, "overlay_frame", text="Frame Offset")
+        col.prop(st, "overlay_type")
+        col.prop(ed, "use_overlay_lock")
 
 
 class SEQUENCER_PT_view_safe_areas(SequencerButtonsPanel_Output, Panel):
     bl_label = "Safe Areas"
-    bl_category = "View"
     bl_options = {'DEFAULT_CLOSED'}
+    bl_category = "View"
 
     @classmethod
     def poll(cls, context):
@@ -1600,6 +1662,7 @@ class SEQUENCER_PT_view_safe_areas_center_cut(SequencerButtonsPanel_Output, Pane
     bl_label = "Center-Cut Safe Areas"
     bl_parent_id = "SEQUENCER_PT_view_safe_areas"
     bl_options = {'DEFAULT_CLOSED'}
+    bl_category = "View"
 
     def draw_header(self, context):
         st = context.space_data
@@ -1752,24 +1815,30 @@ classes = (
     SEQUENCER_PT_adjust_color,
     SEQUENCER_PT_adjust_sound,
 
-    SEQUENCER_PT_effect,
-    SEQUENCER_PT_scene,
-    SEQUENCER_PT_mask,
-
-    SEQUENCER_PT_proxy,
-    SEQUENCER_PT_preview,
-    SEQUENCER_PT_view,
-    SEQUENCER_PT_view_safe_areas,
-    SEQUENCER_PT_view_safe_areas_center_cut,
-    SEQUENCER_PT_modifiers,
-
     SEQUENCER_PT_info,
     SEQUENCER_PT_info_input,
     SEQUENCER_PT_info_data,
 
+    SEQUENCER_PT_effect,
+    SEQUENCER_PT_scene,
+    SEQUENCER_PT_mask,
+
+    SEQUENCER_PT_cache_settings,
+    SEQUENCER_PT_proxy_settings,
+    SEQUENCER_PT_strip_cache,
+
+    SEQUENCER_PT_custom_props,
+
+    SEQUENCER_PT_modifiers,
+
+    SEQUENCER_PT_preview,
+    SEQUENCER_PT_view,
+    SEQUENCER_PT_frame_overlay,
+    SEQUENCER_PT_view_safe_areas,
+    SEQUENCER_PT_view_safe_areas_center_cut,
+
     SEQUENCER_PT_grease_pencil,
     SEQUENCER_PT_grease_pencil_tools,
-    SEQUENCER_PT_custom_props,
 )
 
 if __name__ == "__main__":  # only for live edit.

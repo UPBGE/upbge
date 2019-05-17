@@ -69,7 +69,7 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 		bool use_sss = ((effects->enabled_effects & EFFECT_SSS) != 0);
 		const bool use_translucency = use_sss && ((m_material->blend_flag & MA_BL_TRANSLUCENCY) != 0);
 		m_gpuMat = EEVEE_material_mesh_get(scene->GetBlenderScene(), m_material, vedata,
-			false, (m_material->blend_method == MA_BM_MULTIPLY), use_ssrefract, use_sss, use_translucency, linfo->shadow_method);
+			false, (m_material->blend_method == MA_BM_MULTIPLY), use_ssrefract, use_translucency, linfo->shadow_method);
 	}
 	else {
 		m_gpuMat = nullptr;

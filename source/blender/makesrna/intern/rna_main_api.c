@@ -125,6 +125,14 @@ static void rna_Main_ID_remove(Main *bmain,
                                bool do_ui_user)
 {
   ID *id = id_ptr->data;
+  if (id->tag & LIB_TAG_NO_MAIN) {
+    BKE_reportf(reports,
+                RPT_ERROR,
+                "%s '%s' is outside of main database and can not be removed from it",
+                BKE_idcode_to_name(GS(id->name)),
+                id->name + 2);
+    return;
+  }
   if (do_unlink) {
     BKE_id_delete(bmain, id);
     RNA_POINTER_INVALIDATE(id_ptr);
@@ -200,6 +208,13 @@ static void rna_Main_scenes_remove(
 
 static Object *rna_Main_objects_new(Main *bmain, ReportList *reports, const char *name, ID *data)
 {
+  if (data != NULL && (data->tag & LIB_TAG_NO_MAIN)) {
+    BKE_report(reports,
+               RPT_ERROR,
+               "Can not create object in main database with an evaluated data data-block");
+    return NULL;
+  }
+
   char safe_name[MAX_ID_NAME - 2];
   rna_idname_validate(name, safe_name);
 

@@ -1673,7 +1673,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 
         IDProperty *props = IDP_GetPropertyFromGroup(scene->layer_properties,
                                                      RE_engine_id_BLENDER_EEVEE);
-        EEVEE_GET_BOOL(props, volumetric_enable, SCE_EEVEE_VOLUMETRIC_ENABLED);
+        // EEVEE_GET_BOOL(props, volumetric_enable, SCE_EEVEE_VOLUMETRIC_ENABLED);
         EEVEE_GET_BOOL(props, volumetric_lights, SCE_EEVEE_VOLUMETRIC_LIGHTS);
         EEVEE_GET_BOOL(props, volumetric_shadows, SCE_EEVEE_VOLUMETRIC_SHADOWS);
         EEVEE_GET_BOOL(props, gtao_enable, SCE_EEVEE_GTAO_ENABLED);
@@ -1684,7 +1684,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
         EEVEE_GET_BOOL(props, motion_blur_enable, SCE_EEVEE_MOTION_BLUR_ENABLED);
         EEVEE_GET_BOOL(props, shadow_high_bitdepth, SCE_EEVEE_SHADOW_HIGH_BITDEPTH);
         EEVEE_GET_BOOL(props, taa_reprojection, SCE_EEVEE_TAA_REPROJECTION);
-        EEVEE_GET_BOOL(props, sss_enable, SCE_EEVEE_SSS_ENABLED);
+        // EEVEE_GET_BOOL(props, sss_enable, SCE_EEVEE_SSS_ENABLED);
         EEVEE_GET_BOOL(props, sss_separate_albedo, SCE_EEVEE_SSS_SEPARATE_ALBEDO);
         EEVEE_GET_BOOL(props, ssr_enable, SCE_EEVEE_SSR_ENABLED);
         EEVEE_GET_BOOL(props, ssr_refraction, SCE_EEVEE_SSR_REFRACTION);
@@ -3405,7 +3405,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
           }
           SpaceOutliner *so = (SpaceOutliner *)sl;
           so->filter &= ~SO_FLAG_UNUSED_1;
-          so->show_restrict_flags = SO_RESTRICT_ENABLE | SO_RESTRICT_SELECT | SO_RESTRICT_HIDE;
+          so->show_restrict_flags = SO_RESTRICT_ENABLE | SO_RESTRICT_HIDE;
         }
       }
     }

@@ -2,6 +2,9 @@
 Dependency graph: Object.to_mesh()
 +++++++++++++++++++++++++++++++++++
 
+Function to get a mesh from any object with geometry. It is typically used by exporters, render
+engines and tools that need to access the evaluated mesh as displayed in the viewport.
+
 Object.to_mesh() is closely interacting with dependency graph: its behavior depends on whether it
 is used on original or evaluated object.
 
@@ -15,6 +18,10 @@ animation or modifiers into account:
 When is used on evaluated object all modifiers are taken into account.
 
 .. note:: The result mesh is owned by the object. It can be freed by calling `object.to_mesh_clear()`.
+.. note::
+   The result mesh must be treated as temporary, and can not be referenced from objects in the main
+   database. If the mesh intended to be used in a persistent manner use bpy.data.meshes.new_from_object()
+   instead.
 .. note:: If object does not have geometry (i.e. camera) the functions returns None.
 """
 import bpy
