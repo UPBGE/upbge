@@ -199,8 +199,19 @@ void EDBM_automerge(Scene *scene, Object *obedit, bool update, const char hflag)
  * \{ */
 
 struct EDBMBaseOffset {
-  uint face;
-  uint edge;
+  /* For convenience only. */
+  union {
+    uint offset;
+    uint face_start;
+  };
+  union {
+    uint face;
+    uint edge_start;
+  };
+  union {
+    uint edge;
+    uint vert_start;
+  };
   uint vert;
 };
 
@@ -209,6 +220,8 @@ struct EDBMSelectID_Context {
   /** Borrow from caller (not freed). */
   struct Base **bases;
   uint bases_len;
+  /** Total number of items `base_array_index_offsets[bases_len - 1].vert`. */
+  uint base_array_index_len;
 };
 
 static bool check_ob_drawface_dot(short select_mode, const View3D *v3d, char dt)
@@ -234,7 +247,7 @@ static void edbm_select_pick_draw_bases(struct EDBMSelectID_Context *sel_id_ctx,
   Scene *scene_eval = (Scene *)DEG_get_evaluated_id(vc->depsgraph, &vc->scene->id);
   DRW_framebuffer_select_id_setup(vc->ar, true);
 
-  uint offset = 0;
+  uint offset = 1;
   for (uint base_index = 0; base_index < sel_id_ctx->bases_len; base_index++) {
     Object *ob_eval = DEG_get_evaluated_object(vc->depsgraph,
                                                sel_id_ctx->bases[base_index]->object);
@@ -252,8 +265,11 @@ static void edbm_select_pick_draw_bases(struct EDBMSelectID_Context *sel_id_ctx,
                               &base_ofs->edge,
                               &base_ofs->face);
 
+    base_ofs->offset = offset;
     offset = base_ofs->vert;
   }
+
+  sel_id_ctx->base_array_index_len = offset;
 
   DRW_framebuffer_select_id_release(vc->ar);
 }
@@ -306,6 +322,29 @@ BMElem *EDBM_select_id_bm_elem_get(struct EDBMSelectID_Context *sel_id_ctx,
   }
 }
 
+uint EDBM_select_id_context_offset_for_object_elem(const struct EDBMSelectID_Context *sel_id_ctx,
+                                                   int base_index,
+                                                   char htype)
+{
+  struct EDBMBaseOffset *base_ofs = &sel_id_ctx->base_array_index_offsets[base_index];
+  if (htype == BM_VERT) {
+    return base_ofs->vert_start - 1;
+  }
+  if (htype == BM_EDGE) {
+    return base_ofs->edge_start - 1;
+  }
+  if (htype == BM_FACE) {
+    return base_ofs->face_start - 1;
+  }
+  BLI_assert(0);
+  return 0;
+}
+
+uint EDBM_select_id_context_elem_len(const struct EDBMSelectID_Context *sel_id_ctx)
+{
+  return sel_id_ctx->base_array_index_len;
+}
+
 struct EDBMSelectID_Context *EDBM_select_id_context_create(ViewContext *vc,
                                                            Base **bases,
                                                            uint bases_len,
@@ -350,7 +389,7 @@ bool EDBM_backbuf_border_init(ViewContext *vc, short xmin, short ymin, short xma
   }
 
   ED_view3d_select_id_validate(vc);
-  buf = ED_view3d_select_id_read(vc, xmin, ymin, xmax, ymax, &buf_len);
+  buf = ED_view3d_select_id_read(xmin, ymin, xmax, ymax, &buf_len);
   if ((buf == NULL) || (bm_vertoffs == 0)) {
     return false;
   }
@@ -437,7 +476,7 @@ bool EDBM_backbuf_border_mask_init(ViewContext *vc,
   }
 
   ED_view3d_select_id_validate(vc);
-  buf = ED_view3d_select_id_read(vc, xmin, ymin, xmax, ymax, &buf_len);
+  buf = ED_view3d_select_id_read(xmin, ymin, xmax, ymax, &buf_len);
   if ((buf == NULL) || (bm_vertoffs == 0)) {
     return false;
   }
@@ -490,7 +529,7 @@ bool EDBM_backbuf_circle_init(ViewContext *vc, short xs, short ys, short rads)
   ymax = ys + rads;
 
   ED_view3d_select_id_validate(vc);
-  buf = ED_view3d_select_id_read(vc, xmin, ymin, xmax, ymax, NULL);
+  buf = ED_view3d_select_id_read(xmin, ymin, xmax, ymax, NULL);
   if ((buf == NULL) || (bm_vertoffs == 0)) {
     return false;
   }

@@ -2771,7 +2771,6 @@ void DRW_draw_select_id_object(Scene *scene,
   }
 
   GPU_matrix_mul(ob->obmat);
-  GPU_depth_test(true);
 
   const float(*world_clip_planes)[4] = NULL;
   if (rv3d->rflag & RV3D_CLIPPING) {
@@ -2779,7 +2778,7 @@ void DRW_draw_select_id_object(Scene *scene,
     world_clip_planes = rv3d->clip_local;
   }
 
-  initial_offset += 1;
+  BLI_assert(initial_offset > 0);
 
   switch (ob->type) {
     case OB_MESH:
@@ -2897,7 +2896,7 @@ void DRW_framebuffer_select_id_setup(ARegion *ar, const bool clear)
   glDisable(GL_DITHER);
 
   GPU_depth_test(true);
-  glDisable(GL_SCISSOR_TEST);
+  GPU_enable_program_point_size();
 
   if (clear) {
     GPU_framebuffer_clear_color_depth(
