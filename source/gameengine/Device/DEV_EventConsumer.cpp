@@ -129,7 +129,7 @@ bool DEV_EventConsumer::processEvent(GHOST_IEvent *event)
 		}
 		case GHOST_kEventWindowSize:
 		case GHOST_kEventWindowClose:
-		case GHOST_kEventQuit:
+		case GHOST_kEventQuitRequest:
 		{
 			HandleWindowEvent(event->getType());
 			break;

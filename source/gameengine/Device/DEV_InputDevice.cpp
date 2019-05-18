@@ -160,7 +160,7 @@ DEV_InputDevice::DEV_InputDevice()
 
 	// Window events.
 	m_reverseWindowTranslateTable[GHOST_kEventWindowSize] = WINRESIZE;
-	m_reverseWindowTranslateTable[GHOST_kEventQuit] = WINQUIT;
+	m_reverseWindowTranslateTable[GHOST_kEventQuitRequest] = WINQUIT;
 	m_reverseWindowTranslateTable[GHOST_kEventWindowClose] = WINCLOSE;
 }
 
