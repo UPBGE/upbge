@@ -209,6 +209,7 @@ class EEVEE_MATERIAL_PT_settings(MaterialButtonsPanel, Panel):
     def draw(self, context):
         layout = self.layout
         layout.use_property_split = True
+        layout.use_property_decorate = False
 
         mat = context.material
 
@@ -233,6 +234,7 @@ class MATERIAL_PT_viewport(MaterialButtonsPanel, Panel):
     bl_label = "Viewport Display"
     bl_context = "material"
     bl_options = {'DEFAULT_CLOSED'}
+    bl_order = 10
 
     @classmethod
     def poll(cls, context):

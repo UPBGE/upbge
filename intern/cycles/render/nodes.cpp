@@ -210,7 +210,13 @@ NODE_DEFINE(ImageTextureNode)
   SOCKET_STRING(filename, "Filename", ustring());
   SOCKET_STRING(colorspace, "Colorspace", u_colorspace_auto);
 
-  SOCKET_BOOLEAN(use_alpha, "Use Alpha", true);
+  static NodeEnum alpha_type_enum;
+  alpha_type_enum.insert("auto", IMAGE_ALPHA_AUTO);
+  alpha_type_enum.insert("unassociated", IMAGE_ALPHA_UNASSOCIATED);
+  alpha_type_enum.insert("associated", IMAGE_ALPHA_ASSOCIATED);
+  alpha_type_enum.insert("channel_packed", IMAGE_ALPHA_CHANNEL_PACKED);
+  alpha_type_enum.insert("ignore", IMAGE_ALPHA_IGNORE);
+  SOCKET_ENUM(alpha_type, "Alpha Type", alpha_type_enum, IMAGE_ALPHA_AUTO);
 
   static NodeEnum interpolation_enum;
   interpolation_enum.insert("closest", INTERPOLATION_CLOSEST);
@@ -257,7 +263,7 @@ ImageTextureNode::~ImageTextureNode()
 {
   if (image_manager) {
     image_manager->remove_image(
-        filename.string(), builtin_data, interpolation, extension, use_alpha, colorspace);
+        filename.string(), builtin_data, interpolation, extension, alpha_type, colorspace);
   }
 }
 
@@ -300,16 +306,30 @@ void ImageTextureNode::compile(SVMCompiler &compiler)
                                     0,
                                     interpolation,
                                     extension,
-                                    use_alpha,
+                                    alpha_type,
                                     colorspace,
                                     metadata);
     is_float = metadata.is_float;
     compress_as_srgb = metadata.compress_as_srgb;
-    colorspace = metadata.colorspace;
+    known_colorspace = metadata.colorspace;
   }
 
   if (slot != -1) {
     int vector_offset = tex_mapping.compile_begin(compiler, vector_in);
+    uint flags = 0;
+
+    if (compress_as_srgb) {
+      flags |= NODE_IMAGE_COMPRESS_AS_SRGB;
+    }
+    if (!alpha_out->links.empty()) {
+      const bool unassociate_alpha = !(ColorSpaceManager::colorspace_is_data(colorspace) ||
+                                       alpha_type == IMAGE_ALPHA_CHANNEL_PACKED ||
+                                       alpha_type == IMAGE_ALPHA_IGNORE);
+
+      if (unassociate_alpha) {
+        flags |= NODE_IMAGE_ALPHA_UNASSOCIATE;
+      }
+    }
 
     if (projection != NODE_IMAGE_PROJ_BOX) {
       compiler.add_node(NODE_TEX_IMAGE,
@@ -317,7 +337,7 @@ void ImageTextureNode::compile(SVMCompiler &compiler)
                         compiler.encode_uchar4(vector_offset,
                                                compiler.stack_assign_if_linked(color_out),
                                                compiler.stack_assign_if_linked(alpha_out),
-                                               compress_as_srgb),
+                                               flags),
                         projection);
     }
     else {
@@ -326,7 +346,7 @@ void ImageTextureNode::compile(SVMCompiler &compiler)
                         compiler.encode_uchar4(vector_offset,
                                                compiler.stack_assign_if_linked(color_out),
                                                compiler.stack_assign_if_linked(alpha_out),
-                                               compress_as_srgb),
+                                               flags),
                         __float_as_int(projection_blend));
     }
 
@@ -365,27 +385,32 @@ void ImageTextureNode::compile(OSLCompiler &compiler)
                                       0,
                                       interpolation,
                                       extension,
-                                      use_alpha,
+                                      alpha_type,
                                       colorspace,
                                       metadata);
     }
     is_float = metadata.is_float;
     compress_as_srgb = metadata.compress_as_srgb;
-    colorspace = metadata.colorspace;
+    known_colorspace = metadata.colorspace;
   }
 
   if (slot == -1) {
-    compiler.parameter_texture("filename", filename, colorspace);
+    compiler.parameter_texture("filename", filename, known_colorspace);
   }
   else {
     compiler.parameter_texture("filename", slot);
   }
 
-  compiler.parameter("color_space", (compress_as_srgb) ? "sRGB" : "linear");
+  const bool unassociate_alpha = !(ColorSpaceManager::colorspace_is_data(colorspace) ||
+                                   alpha_type == IMAGE_ALPHA_CHANNEL_PACKED ||
+                                   alpha_type == IMAGE_ALPHA_IGNORE);
+
   compiler.parameter(this, "projection");
   compiler.parameter(this, "projection_blend");
+  compiler.parameter("compress_as_srgb", compress_as_srgb);
+  compiler.parameter("ignore_alpha", alpha_type == IMAGE_ALPHA_IGNORE);
+  compiler.parameter("unassociate_alpha", !alpha_out->links.empty() && unassociate_alpha);
   compiler.parameter("is_float", is_float);
-  compiler.parameter("use_alpha", !alpha_out->links.empty());
   compiler.parameter(this, "interpolation");
   compiler.parameter(this, "extension");
 
@@ -403,7 +428,13 @@ NODE_DEFINE(EnvironmentTextureNode)
   SOCKET_STRING(filename, "Filename", ustring());
   SOCKET_STRING(colorspace, "Colorspace", u_colorspace_auto);
 
-  SOCKET_BOOLEAN(use_alpha, "Use Alpha", true);
+  static NodeEnum alpha_type_enum;
+  alpha_type_enum.insert("auto", IMAGE_ALPHA_AUTO);
+  alpha_type_enum.insert("unassociated", IMAGE_ALPHA_UNASSOCIATED);
+  alpha_type_enum.insert("associated", IMAGE_ALPHA_ASSOCIATED);
+  alpha_type_enum.insert("channel_packed", IMAGE_ALPHA_CHANNEL_PACKED);
+  alpha_type_enum.insert("ignore", IMAGE_ALPHA_IGNORE);
+  SOCKET_ENUM(alpha_type, "Alpha Type", alpha_type_enum, IMAGE_ALPHA_AUTO);
 
   static NodeEnum interpolation_enum;
   interpolation_enum.insert("closest", INTERPOLATION_CLOSEST);
@@ -440,7 +471,7 @@ EnvironmentTextureNode::~EnvironmentTextureNode()
 {
   if (image_manager) {
     image_manager->remove_image(
-        filename.string(), builtin_data, interpolation, EXTENSION_REPEAT, use_alpha, colorspace);
+        filename.string(), builtin_data, interpolation, EXTENSION_REPEAT, alpha_type, colorspace);
   }
 }
 
@@ -481,23 +512,28 @@ void EnvironmentTextureNode::compile(SVMCompiler &compiler)
                                     0,
                                     interpolation,
                                     EXTENSION_REPEAT,
-                                    use_alpha,
+                                    alpha_type,
                                     colorspace,
                                     metadata);
     is_float = metadata.is_float;
     compress_as_srgb = metadata.compress_as_srgb;
-    colorspace = metadata.colorspace;
+    known_colorspace = metadata.colorspace;
   }
 
   if (slot != -1) {
     int vector_offset = tex_mapping.compile_begin(compiler, vector_in);
+    uint flags = 0;
+
+    if (compress_as_srgb) {
+      flags |= NODE_IMAGE_COMPRESS_AS_SRGB;
+    }
 
     compiler.add_node(NODE_TEX_ENVIRONMENT,
                       slot,
                       compiler.encode_uchar4(vector_offset,
                                              compiler.stack_assign_if_linked(color_out),
                                              compiler.stack_assign_if_linked(alpha_out),
-                                             compress_as_srgb),
+                                             flags),
                       projection);
 
     tex_mapping.compile_end(compiler, vector_in, vector_offset);
@@ -518,8 +554,6 @@ void EnvironmentTextureNode::compile(SVMCompiler &compiler)
 
 void EnvironmentTextureNode::compile(OSLCompiler &compiler)
 {
-  ShaderOutput *alpha_out = output("Alpha");
-
   tex_mapping.compile(compiler);
 
   /* See comments in ImageTextureNode::compile about support
@@ -538,27 +572,27 @@ void EnvironmentTextureNode::compile(OSLCompiler &compiler)
                                       0,
                                       interpolation,
                                       EXTENSION_REPEAT,
-                                      use_alpha,
+                                      alpha_type,
                                       colorspace,
                                       metadata);
     }
     is_float = metadata.is_float;
     compress_as_srgb = metadata.compress_as_srgb;
-    colorspace = metadata.colorspace;
+    known_colorspace = metadata.colorspace;
   }
 
   if (slot == -1) {
-    compiler.parameter_texture("filename", filename, colorspace);
+    compiler.parameter_texture("filename", filename, known_colorspace);
   }
   else {
     compiler.parameter_texture("filename", slot);
   }
 
   compiler.parameter(this, "projection");
-  compiler.parameter("color_space", (compress_as_srgb) ? "sRGB" : "linear");
   compiler.parameter(this, "interpolation");
+  compiler.parameter("compress_as_srgb", compress_as_srgb);
+  compiler.parameter("ignore_alpha", alpha_type == IMAGE_ALPHA_IGNORE);
   compiler.parameter("is_float", is_float);
-  compiler.parameter("use_alpha", !alpha_out->links.empty());
   compiler.add(this, "node_environment_texture");
 }
 
@@ -1470,8 +1504,12 @@ PointDensityTextureNode::PointDensityTextureNode() : ShaderNode(node_type)
 PointDensityTextureNode::~PointDensityTextureNode()
 {
   if (image_manager) {
-    image_manager->remove_image(
-        filename.string(), builtin_data, interpolation, EXTENSION_CLIP, true, ustring());
+    image_manager->remove_image(filename.string(),
+                                builtin_data,
+                                interpolation,
+                                EXTENSION_CLIP,
+                                IMAGE_ALPHA_AUTO,
+                                ustring());
   }
 }
 
@@ -1504,7 +1542,7 @@ void PointDensityTextureNode::add_image()
                                     0,
                                     interpolation,
                                     EXTENSION_CLIP,
-                                    true,
+                                    IMAGE_ALPHA_AUTO,
                                     u_colorspace_raw,
                                     metadata);
   }

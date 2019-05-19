@@ -3450,6 +3450,21 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
     }
   }
 
+  if (!MAIN_VERSION_ATLEAST(bmain, 280, 70)) {
+    /* New image alpha modes. */
+    LISTBASE_FOREACH (Image *, image, &bmain->images) {
+      const int IMA_IGNORE_ALPHA = (1 << 12);
+      if (image->flag & IMA_IGNORE_ALPHA) {
+        image->alpha_mode = IMA_ALPHA_IGNORE;
+        image->flag &= ~IMA_IGNORE_ALPHA;
+      }
+    }
+  }
+
+  {
+    /* Versioning code until next subversion bump goes here. */
+  }
+
   /* Game engine hack to force defaults in files saved in normal blender2.8 */
   if (!DNA_struct_elem_find(fd->filesdna, "Scene", "GameData", "gm")) {
     for (Scene *sce = bmain->scenes.first; sce; sce = sce->id.next) {

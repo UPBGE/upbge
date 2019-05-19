@@ -49,8 +49,6 @@ static void imb_handle_alpha(ImBuf *ibuf,
                              char colorspace[IM_MAX_SPACE],
                              char effective_colorspace[IM_MAX_SPACE])
 {
-  int alpha_flags;
-
   if (colorspace) {
     if (ibuf->rect != NULL && ibuf->rect_float == NULL) {
       /* byte buffer is never internally converted to some standard space,
@@ -62,15 +60,17 @@ static void imb_handle_alpha(ImBuf *ibuf,
     BLI_strncpy(colorspace, effective_colorspace, IM_MAX_SPACE);
   }
 
-  if (flags & IB_alphamode_detect) {
-    alpha_flags = ibuf->flags & IB_alphamode_premul;
-  }
-  else {
-    alpha_flags = flags & IB_alphamode_premul;
-  }
+  bool is_data = (colorspace && IMB_colormanagement_space_name_is_data(colorspace));
+  int alpha_flags = (flags & IB_alphamode_detect) ? ibuf->flags : flags;
 
-  if (flags & IB_ignore_alpha) {
+  if (is_data || (flags & IB_alphamode_channel_packed)) {
+    /* Don't touch alpha. */
+    ibuf->flags |= IB_alphamode_channel_packed;
+  }
+  else if (flags & IB_alphamode_ignore) {
+    /* Make opaque. */
     IMB_rectfill_alpha(ibuf, 1.0f);
+    ibuf->flags |= IB_alphamode_ignore;
   }
   else {
     if (alpha_flags & IB_alphamode_premul) {
