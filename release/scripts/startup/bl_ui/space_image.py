@@ -1537,7 +1537,6 @@ class IMAGE_PT_view_waveform(ImageScopesPanel, Panel):
     bl_region_type = 'UI'
     bl_category = "Scopes"
     bl_label = "Waveform"
-    bl_options = {'DEFAULT_CLOSED'}
 
     def draw(self, context):
         layout = self.layout
@@ -1555,7 +1554,6 @@ class IMAGE_PT_view_vectorscope(ImageScopesPanel, Panel):
     bl_region_type = 'UI'
     bl_category = "Scopes"
     bl_label = "Vectorscope"
-    bl_options = {'DEFAULT_CLOSED'}
 
     def draw(self, context):
         layout = self.layout
@@ -1570,7 +1568,6 @@ class IMAGE_PT_sample_line(ImageScopesPanel, Panel):
     bl_region_type = 'UI'
     bl_category = "Scopes"
     bl_label = "Sample Line"
-    bl_options = {'DEFAULT_CLOSED'}
 
     def draw(self, context):
         layout = self.layout
