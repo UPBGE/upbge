@@ -26,7 +26,7 @@
 #include "BLI_string.h"
 #include "BLI_system.h"
 
-#include "DNA_mesh_types.h"
+#include "DNA_camera_types.h"
 #include "DNA_gpencil_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
@@ -372,8 +372,8 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
       scene->r.displaymode = R_OUTPUT_WINDOW;
 
       if (app_template && STREQ(app_template, "Video_Editing")) {
-        /* Filmic is too slow, use default until it is optimized. */
-        STRNCPY(scene->view_settings.view_transform, "Default");
+        /* Filmic is too slow, use standard until it is optimized. */
+        STRNCPY(scene->view_settings.view_transform, "Standard");
         STRNCPY(scene->view_settings.look, "None");
       }
       else {
@@ -406,6 +406,12 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     for (Mesh *mesh = bmain->meshes.first; mesh; mesh = mesh->id.next) {
       /* Match default for new meshes. */
       mesh->smoothresh = DEG2RADF(30);
+    }
+
+    for (Camera *camera = bmain->cameras.first; camera; camera = camera->id.next) {
+      /* Initialize to a useful value. */
+      camera->dof.focus_distance = 10.0f;
+      camera->dof.aperture_fstop = 2.8f;
     }
   }
 
