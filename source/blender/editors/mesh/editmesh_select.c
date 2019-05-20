@@ -53,6 +53,7 @@
 #include "ED_mesh.h"
 #include "ED_screen.h"
 #include "ED_transform.h"
+#include "ED_select_buffer_utils.h"
 #include "ED_select_utils.h"
 #include "ED_view3d.h"
 
@@ -280,26 +281,24 @@ BMElem *EDBM_select_id_bm_elem_get(struct EDBMSelectID_Context *sel_id_ctx,
 {
   char elem_type;
   uint elem_id;
-  uint prev_offs = 0;
   uint base_index = 0;
   for (; base_index < sel_id_ctx->bases_len; base_index++) {
     struct EDBMBaseOffset *base_ofs = &sel_id_ctx->base_array_index_offsets[base_index];
     if (base_ofs->face > sel_id) {
-      elem_id = sel_id - (prev_offs + 1);
+      elem_id = sel_id - base_ofs->face_start;
       elem_type = BM_FACE;
       break;
     }
     if (base_ofs->edge > sel_id) {
-      elem_id = sel_id - base_ofs->face;
+      elem_id = sel_id - base_ofs->edge_start;
       elem_type = BM_EDGE;
       break;
     }
     if (base_ofs->vert > sel_id) {
-      elem_id = sel_id - base_ofs->edge;
+      elem_id = sel_id - base_ofs->vert_start;
       elem_type = BM_VERT;
       break;
     }
-    prev_offs = base_ofs->vert;
   }
 
   if (r_base_index) {
@@ -365,192 +364,6 @@ void EDBM_select_id_context_destroy(struct EDBMSelectID_Context *sel_id_ctx)
 {
   MEM_freeN(sel_id_ctx->base_array_index_offsets);
   MEM_freeN(sel_id_ctx);
-}
-
-/* set in view3d_draw_legacy.c ... for colorindices */
-unsigned int bm_solidoffs = 0, bm_wireoffs = 0, bm_vertoffs = 0;
-
-/* facilities for box select and circle select */
-static BLI_bitmap *selbuf = NULL;
-
-static BLI_bitmap *edbm_backbuf_alloc(const int size)
-{
-  return BLI_BITMAP_NEW(size, "selbuf");
-}
-
-/* reads rect, and builds selection array for quick lookup */
-/* returns if all is OK */
-bool EDBM_backbuf_border_init(ViewContext *vc, short xmin, short ymin, short xmax, short ymax)
-{
-  uint *buf, *dr, buf_len;
-
-  if (vc->obedit == NULL || XRAY_FLAG_ENABLED(vc->v3d)) {
-    return false;
-  }
-
-  ED_view3d_select_id_validate(vc);
-  buf = ED_view3d_select_id_read(xmin, ymin, xmax, ymax, &buf_len);
-  if ((buf == NULL) || (bm_vertoffs == 0)) {
-    return false;
-  }
-
-  dr = buf;
-
-  /* build selection lookup */
-  selbuf = edbm_backbuf_alloc(bm_vertoffs + 1);
-
-  while (buf_len--) {
-    if (*dr > 0 && *dr <= bm_vertoffs) {
-      BLI_BITMAP_ENABLE(selbuf, *dr);
-    }
-    dr++;
-  }
-  MEM_freeN(buf);
-  return true;
-}
-
-bool EDBM_backbuf_check(unsigned int index)
-{
-  /* odd logic, if selbuf is NULL we assume no zbuf-selection is enabled
-   * and just ignore the depth buffer, this is error prone since its possible
-   * code doesn't set the depth buffer by accident, but leave for now. - Campbell */
-  if (selbuf == NULL) {
-    return true;
-  }
-
-  if (index > 0 && index <= bm_vertoffs) {
-    return BLI_BITMAP_TEST_BOOL(selbuf, index);
-  }
-
-  return false;
-}
-
-void EDBM_backbuf_free(void)
-{
-  if (selbuf) {
-    MEM_freeN(selbuf);
-  }
-  selbuf = NULL;
-}
-
-struct LassoMaskData {
-  unsigned int *px;
-  int width;
-};
-
-static void edbm_mask_lasso_px_cb(int x, int x_end, int y, void *user_data)
-{
-  struct LassoMaskData *data = user_data;
-  unsigned int *px = &data->px[(y * data->width) + x];
-  do {
-    *px = true;
-    px++;
-  } while (++x != x_end);
-}
-
-/* mcords is a polygon mask
- * - grab backbuffer,
- * - draw with black in backbuffer,
- * - grab again and compare
- * returns 'OK'
- */
-bool EDBM_backbuf_border_mask_init(ViewContext *vc,
-                                   const int mcords[][2],
-                                   short tot,
-                                   short xmin,
-                                   short ymin,
-                                   short xmax,
-                                   short ymax)
-{
-  uint *buf, *dr, *dr_mask, *dr_mask_arr, buf_len;
-  struct LassoMaskData lasso_mask_data;
-
-  /* method in use for face selecting too */
-  if (vc->obedit == NULL) {
-    if (!BKE_paint_select_elem_test(vc->obact)) {
-      return false;
-    }
-  }
-  else if (XRAY_FLAG_ENABLED(vc->v3d)) {
-    return false;
-  }
-
-  ED_view3d_select_id_validate(vc);
-  buf = ED_view3d_select_id_read(xmin, ymin, xmax, ymax, &buf_len);
-  if ((buf == NULL) || (bm_vertoffs == 0)) {
-    return false;
-  }
-
-  dr = buf;
-
-  dr_mask = dr_mask_arr = MEM_callocN(sizeof(*dr_mask) * buf_len, __func__);
-  lasso_mask_data.px = dr_mask;
-  lasso_mask_data.width = (xmax - xmin) + 1;
-
-  BLI_bitmap_draw_2d_poly_v2i_n(
-      xmin, ymin, xmax + 1, ymax + 1, mcords, tot, edbm_mask_lasso_px_cb, &lasso_mask_data);
-
-  /* build selection lookup */
-  selbuf = edbm_backbuf_alloc(bm_vertoffs + 1);
-
-  while (buf_len--) {
-    if (*dr > 0 && *dr <= bm_vertoffs && *dr_mask == true) {
-      BLI_BITMAP_ENABLE(selbuf, *dr);
-    }
-    dr++;
-    dr_mask++;
-  }
-  MEM_freeN(buf);
-  MEM_freeN(dr_mask_arr);
-
-  return true;
-}
-
-/* circle shaped sample area */
-bool EDBM_backbuf_circle_init(ViewContext *vc, short xs, short ys, short rads)
-{
-  uint *buf, *dr;
-  short xmin, ymin, xmax, ymax, xc, yc;
-  int radsq;
-
-  /* method in use for face selecting too */
-  if (vc->obedit == NULL) {
-    if (!BKE_paint_select_elem_test(vc->obact)) {
-      return false;
-    }
-  }
-  else if (XRAY_FLAG_ENABLED(vc->v3d)) {
-    return false;
-  }
-
-  xmin = xs - rads;
-  xmax = xs + rads;
-  ymin = ys - rads;
-  ymax = ys + rads;
-
-  ED_view3d_select_id_validate(vc);
-  buf = ED_view3d_select_id_read(xmin, ymin, xmax, ymax, NULL);
-  if ((buf == NULL) || (bm_vertoffs == 0)) {
-    return false;
-  }
-
-  dr = buf;
-
-  /* build selection lookup */
-  selbuf = edbm_backbuf_alloc(bm_vertoffs + 1);
-  radsq = rads * rads;
-  for (yc = -rads; yc <= rads; yc++) {
-    for (xc = -rads; xc <= rads; xc++, dr++) {
-      if (xc * xc + yc * yc < radsq) {
-        if (*dr > 0 && *dr <= bm_vertoffs) {
-          BLI_BITMAP_ENABLE(selbuf, *dr);
-        }
-      }
-    }
-  }
-
-  MEM_freeN(buf);
-  return true;
 }
 
 /** \} */
@@ -664,7 +477,7 @@ BMVert *EDBM_vert_find_nearest_ex(ViewContext *vc,
       struct EDBMSelectID_Context *sel_id_ctx = EDBM_select_id_context_create(
           vc, bases, bases_len, select_mode);
 
-      index = ED_view3d_select_id_read_nearest(vc, vc->mval, 1, UINT_MAX, &dist_px);
+      index = ED_select_buffer_find_nearest_to_point(vc->mval, 1, UINT_MAX, &dist_px);
 
       if (index) {
         eve = (BMVert *)EDBM_select_id_bm_elem_get(sel_id_ctx, index, &base_index);
@@ -889,7 +702,7 @@ BMEdge *EDBM_edge_find_nearest_ex(ViewContext *vc,
       struct EDBMSelectID_Context *sel_id_ctx = EDBM_select_id_context_create(
           vc, bases, bases_len, select_mode);
 
-      index = ED_view3d_select_id_read_nearest(vc, vc->mval, 1, UINT_MAX, &dist_px);
+      index = ED_select_buffer_find_nearest_to_point(vc->mval, 1, UINT_MAX, &dist_px);
 
       if (index) {
         eed = (BMEdge *)EDBM_select_id_bm_elem_get(sel_id_ctx, index, &base_index);
@@ -1098,7 +911,7 @@ BMFace *EDBM_face_find_nearest_ex(ViewContext *vc,
       struct EDBMSelectID_Context *sel_id_ctx = EDBM_select_id_context_create(
           vc, bases, bases_len, select_mode);
 
-      index = ED_view3d_select_id_sample(vc, vc->mval[0], vc->mval[1]);
+      index = ED_select_buffer_sample_point(vc->mval);
 
       if (index) {
         efa = (BMFace *)EDBM_select_id_bm_elem_get(sel_id_ctx, index, &base_index);
