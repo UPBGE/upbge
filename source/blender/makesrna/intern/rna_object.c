@@ -442,7 +442,7 @@ static void rna_Object_dependency_update(Main *bmain, Scene *UNUSED(scene), Poin
   WM_main_add_notifier(NC_OBJECT | ND_PARENT, ptr->id.data);
 }
 
-static void rna_Object_data_set(struct ReportList *reports, PointerRNA *ptr, PointerRNA value)
+static void rna_Object_data_set(PointerRNA *ptr, PointerRNA value, struct ReportList *reports)
 {
   Object *ob = (Object *)ptr->data;
   ID *id = value.data;
@@ -549,9 +549,9 @@ static bool rna_Object_data_poll(PointerRNA *ptr, const PointerRNA value)
   return true;
 }
 
-static void rna_Object_parent_set(struct ReportList *UNUSED(reports),
-                                  PointerRNA *ptr,
-                                  PointerRNA value)
+static void rna_Object_parent_set(PointerRNA *ptr,
+                                  PointerRNA value,
+                                  struct ReportList *UNUSED(reports))
 {
   Object *ob = (Object *)ptr->data;
   Object *par = (Object *)value.data;
@@ -662,9 +662,9 @@ static const EnumPropertyItem *rna_Object_instance_type_itemf(bContext *UNUSED(C
   return item;
 }
 
-static void rna_Object_dup_collection_set(struct ReportList *UNUSED(reports),
-                                          PointerRNA *ptr,
-                                          PointerRNA value)
+static void rna_Object_dup_collection_set(PointerRNA *ptr,
+                                          PointerRNA value,
+                                          struct ReportList *UNUSED(reports))
 {
   Object *ob = (Object *)ptr->data;
   Collection *grp = (Collection *)value.data;
@@ -940,9 +940,9 @@ static PointerRNA rna_Object_active_material_get(PointerRNA *ptr)
   return rna_pointer_inherit_refine(ptr, &RNA_Material, ma);
 }
 
-static void rna_Object_active_material_set(struct ReportList *UNUSED(reports),
-                                           PointerRNA *ptr,
-                                           PointerRNA value)
+static void rna_Object_active_material_set(PointerRNA *ptr,
+                                           PointerRNA value,
+                                           struct ReportList *UNUSED(reports))
 {
   Object *ob = (Object *)ptr->id.data;
 
@@ -1141,9 +1141,9 @@ static PointerRNA rna_MaterialSlot_material_get(PointerRNA *ptr)
   return rna_pointer_inherit_refine(ptr, &RNA_Material, ma);
 }
 
-static void rna_MaterialSlot_material_set(struct ReportList *UNUSED(reports),
-                                          PointerRNA *ptr,
-                                          PointerRNA value)
+static void rna_MaterialSlot_material_set(PointerRNA *ptr,
+                                          PointerRNA value,
+                                          struct ReportList *UNUSED(reports))
 {
   Object *ob = (Object *)ptr->id.data;
   int index = (Material **)ptr->data - ob->mat;
@@ -1564,9 +1564,9 @@ static PointerRNA rna_Object_active_constraint_get(PointerRNA *ptr)
   return rna_pointer_inherit_refine(ptr, &RNA_Constraint, con);
 }
 
-static void rna_Object_active_constraint_set(struct ReportList *UNUSED(reports),
-                                             PointerRNA *ptr,
-                                             PointerRNA value)
+static void rna_Object_active_constraint_set(PointerRNA *ptr,
+                                             PointerRNA value,
+                                             struct ReportList *UNUSED(reports))
 {
   Object *ob = (Object *)ptr->id.data;
   BKE_constraints_active_set(&ob->constraints, (bConstraint *)value.data);
@@ -3448,7 +3448,6 @@ static void rna_def_object(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, NULL, "restrictflag", OB_RESTRICT_VIEWPORT);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_STATIC);
   RNA_def_property_ui_text(prop, "Disable in Viewports", "Globally disable in viewports");
-  RNA_def_property_ui_icon(prop, ICON_RESTRICT_VIEW_OFF, -1);
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_hide_update");
 
   prop = RNA_def_property(srna, "hide_select", PROP_BOOLEAN, PROP_NONE);
@@ -3456,14 +3455,12 @@ static void rna_def_object(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_STATIC);
   RNA_def_property_ui_text(prop, "Disable Selection", "Disable selection in viewport");
-  RNA_def_property_ui_icon(prop, ICON_RESTRICT_SELECT_OFF, -1);
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_hide_update");
 
   prop = RNA_def_property(srna, "hide_render", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "restrictflag", OB_RESTRICT_RENDER);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_STATIC);
   RNA_def_property_ui_text(prop, "Disable in Renders", "Globally disable in renders");
-  RNA_def_property_ui_icon(prop, ICON_RESTRICT_RENDER_OFF, -1);
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_hide_update");
 
   prop = RNA_def_property(srna, "show_instancer_for_render", PROP_BOOLEAN, PROP_NONE);

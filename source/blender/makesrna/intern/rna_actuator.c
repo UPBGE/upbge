@@ -511,7 +511,7 @@ static void rna_Actuator_Armature_update(Main *UNUSED(bmain), Scene *UNUSED(scen
 	constraint[0] = 0;
 }
 
-static void rna_SteeringActuator_navmesh_set(struct ReportList *UNUSED(reports), PointerRNA *ptr, PointerRNA value)
+static void rna_SteeringActuator_navmesh_set(PointerRNA *ptr, PointerRNA value, struct ReportList *UNUSED(reports))
 {
 	bActuator *act = (bActuator *)ptr->data;
 	bSteeringActuator *sa = (bSteeringActuator *) act->data;
@@ -524,7 +524,7 @@ static void rna_SteeringActuator_navmesh_set(struct ReportList *UNUSED(reports),
 }
 
 /* note: the following set functions exists only to avoid id refcounting */
-static void rna_Actuator_editobject_mesh_set(struct ReportList *UNUSED(reports), PointerRNA *ptr, PointerRNA value)
+static void rna_Actuator_editobject_mesh_set(PointerRNA *ptr, PointerRNA value, struct ReportList *UNUSED(reports))
 {
 	bActuator *act = (bActuator *)ptr->data;
 	bEditObjectActuator *eoa = (bEditObjectActuator *) act->data;

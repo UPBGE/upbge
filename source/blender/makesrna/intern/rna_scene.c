@@ -772,9 +772,9 @@ static PointerRNA rna_Scene_objects_get(CollectionPropertyIterator *iter)
 
 /* End of read-only Iterator of all the scene objects. */
 
-static void rna_Scene_set_set(struct ReportList *UNUSED(reports),
-                              PointerRNA *ptr,
-                              PointerRNA value)
+static void rna_Scene_set_set(PointerRNA *ptr,
+                              PointerRNA value,
+                              struct ReportList *UNUSED(reports))
 {
   Scene *scene = (Scene *)ptr->data;
   Scene *set = (Scene *)value.data;
@@ -971,9 +971,9 @@ static PointerRNA rna_Scene_active_keying_set_get(PointerRNA *ptr)
   return rna_pointer_inherit_refine(ptr, &RNA_KeyingSet, ANIM_scene_get_active_keyingset(scene));
 }
 
-static void rna_Scene_active_keying_set_set(struct ReportList *UNUSED(reports),
-                                            PointerRNA *ptr,
-                                            PointerRNA value)
+static void rna_Scene_active_keying_set_set(PointerRNA *ptr,
+                                            PointerRNA value,
+                                            struct ReportList *UNUSED(reports))
 {
   Scene *scene = (Scene *)ptr->data;
   KeyingSet *ks = (KeyingSet *)value.data;
@@ -1439,9 +1439,9 @@ static PointerRNA rna_RenderSettings_active_view_get(PointerRNA *ptr)
   return rna_pointer_inherit_refine(ptr, &RNA_SceneRenderView, srv);
 }
 
-static void rna_RenderSettings_active_view_set(struct ReportList *UNUSED(reports),
-                                               PointerRNA *ptr,
-                                               PointerRNA value)
+static void rna_RenderSettings_active_view_set(PointerRNA *ptr,
+                                               PointerRNA value,
+                                               struct ReportList *UNUSED(reports))
 {
   RenderData *rd = (RenderData *)ptr->data;
   SceneRenderView *srv = (SceneRenderView *)value.data;
@@ -2067,9 +2067,9 @@ PointerRNA rna_FreestyleLineSet_linestyle_get(PointerRNA *ptr)
   return rna_pointer_inherit_refine(ptr, &RNA_FreestyleLineStyle, lineset->linestyle);
 }
 
-void rna_FreestyleLineSet_linestyle_set(struct ReportList *UNUSED(reports),
-                                        PointerRNA *ptr,
-                                        PointerRNA value)
+void rna_FreestyleLineSet_linestyle_set(PointerRNA *ptr,
+                                        PointerRNA value,
+                                        struct ReportList *UNUSED(reports))
 {
   FreestyleLineSet *lineset = (FreestyleLineSet *)ptr->data;
 
@@ -2622,13 +2622,6 @@ static void rna_def_tool_settings(BlenderRNA *brna)
       {EDGE_MODE_TAG_CREASE, "CREASE", 0, "Tag Crease", ""},
       {EDGE_MODE_TAG_BEVEL, "BEVEL", 0, "Tag Bevel", ""},
       {EDGE_MODE_TAG_FREESTYLE, "FREESTYLE", 0, "Tag Freestyle Edge Mark", ""},
-      {0, NULL, 0, NULL, NULL},
-  };
-
-  static EnumPropertyItem mod_weighted_strength[] = {
-      {FACE_STRENGTH_WEAK, "Weak", 0, "Weak", ""},
-      {FACE_STRENGTH_MEDIUM, "Medium", 0, "Medium", ""},
-      {FACE_STRENGTH_STRONG, "Strong", 0, "Strong", ""},
       {0, NULL, 0, NULL, NULL},
   };
 
@@ -3187,10 +3180,6 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   prop = RNA_def_property(srna, "normal_vector", PROP_FLOAT, PROP_XYZ);
   RNA_def_property_ui_text(prop, "Normal Vector", "Normal Vector used to copy, add or multiply");
   RNA_def_property_ui_range(prop, -10000.0, 10000.0, 1, 3);
-
-  prop = RNA_def_property(srna, "face_strength", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, mod_weighted_strength);
-  RNA_def_property_ui_text(prop, "Face Strength", "Set strength of face to specified value");
 
   /* Unified Paint Settings */
   prop = RNA_def_property(srna, "unified_paint_settings", PROP_POINTER, PROP_NONE);

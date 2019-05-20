@@ -499,37 +499,6 @@ class VIEW3D_HT_header(Header):
                 panel="VIEW3D_PT_proportional_edit",
             )
 
-        # grease pencil
-        if object_mode == 'PAINT_GPENCIL':
-            layout.prop_with_popover(
-                tool_settings,
-                "gpencil_stroke_placement_view3d",
-                text="",
-                panel="VIEW3D_PT_gpencil_origin",
-            )
-
-        if object_mode in {'PAINT_GPENCIL', 'SCULPT_GPENCIL'}:
-            layout.prop_with_popover(
-                tool_settings.gpencil_sculpt,
-                "lock_axis",
-                text="",
-                panel="VIEW3D_PT_gpencil_lock",
-            )
-
-        if object_mode == 'PAINT_GPENCIL':
-            # FIXME: this is bad practice!
-            # Tool options are to be displayed in the topbar.
-            if context.workspace.tools.from_space_view3d_mode(object_mode).idname == "builtin_brush.Draw":
-                settings = tool_settings.gpencil_sculpt.guide
-                row = layout.row(align=True)
-                row.prop(settings, "use_guide", text="", icon='GRID')
-                sub = row.row(align=True)
-                sub.active = settings.use_guide
-                sub.popover(
-                    panel="VIEW3D_PT_gpencil_guide",
-                    text="Guides",
-                )
-
     def draw(self, context):
         layout = self.layout
 
@@ -621,7 +590,41 @@ class VIEW3D_HT_header(Header):
 
         layout.separator_spacer()
 
-        if not show_region_tool_header:
+        if object_mode in {'PAINT_GPENCIL', 'SCULPT_GPENCIL'}:
+            # Grease pencil
+            if object_mode == 'PAINT_GPENCIL':
+                layout.prop_with_popover(
+                    tool_settings,
+                    "gpencil_stroke_placement_view3d",
+                    text="",
+                    panel="VIEW3D_PT_gpencil_origin",
+                )
+
+            if object_mode in {'PAINT_GPENCIL', 'SCULPT_GPENCIL'}:
+                layout.prop_with_popover(
+                    tool_settings.gpencil_sculpt,
+                    "lock_axis",
+                    text="",
+                    panel="VIEW3D_PT_gpencil_lock",
+                )
+
+            if object_mode == 'PAINT_GPENCIL':
+                # FIXME: this is bad practice!
+                # Tool options are to be displayed in the topbar.
+                if context.workspace.tools.from_space_view3d_mode(object_mode).idname == "builtin_brush.Draw":
+                    settings = tool_settings.gpencil_sculpt.guide
+                    row = layout.row(align=True)
+                    row.prop(settings, "use_guide", text="", icon='GRID')
+                    sub = row.row(align=True)
+                    sub.active = settings.use_guide
+                    sub.popover(
+                        panel="VIEW3D_PT_gpencil_guide",
+                        text="Guides",
+                    )
+
+            layout.separator_spacer()
+        elif not show_region_tool_header:
+            # Transform settings depending on tool header visibility
             VIEW3D_HT_header.draw_xform_template(layout, context)
 
             layout.separator_spacer()
@@ -951,6 +954,7 @@ class VIEW3D_MT_view(Menu):
 
         layout.prop(view, "show_region_toolbar")
         layout.prop(view, "show_region_ui")
+        layout.prop(view, "show_region_tool_header")
         layout.prop(view, "show_region_hud")
 
         layout.separator()
@@ -3844,8 +3848,6 @@ class VIEW3D_MT_edit_mesh_normals(Menu):
 
         layout.operator("mesh.normals_tools", text="Copy Vectors").mode = 'COPY'
         layout.operator("mesh.normals_tools", text="Paste Vectors").mode = 'PASTE'
-        layout.operator("mesh.normals_tools", text="Add Vectors").mode = 'ADD'
-        layout.operator("mesh.normals_tools", text="Multiply Vectors").mode = 'MULTIPLY'
 
         layout.operator("mesh.smoothen_normals", text="Smoothen Vectors")
         layout.operator("mesh.normals_tools", text="Reset Vectors").mode = 'RESET'

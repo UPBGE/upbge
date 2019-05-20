@@ -1964,6 +1964,9 @@ int ui_but_is_pushed_ex(uiBut *but, double *value)
     }
   }
 
+  if ((but->drawflag & UI_BUT_CHECKBOX_INVERT) && (is_push != -1)) {
+    is_push = !((bool)is_push);
+  }
   return is_push;
 }
 int ui_but_is_pushed(uiBut *but)
@@ -3006,7 +3009,7 @@ bool ui_but_string_set(bContext *C, uiBut *but, const char *str)
       }
       else if (type == PROP_POINTER) {
         if (str[0] == '\0') {
-          RNA_property_pointer_set(NULL, &but->rnapoin, but->rnaprop, PointerRNA_NULL);
+          RNA_property_pointer_set(&but->rnapoin, but->rnaprop, PointerRNA_NULL, NULL);
           return true;
         }
         else {
@@ -3022,14 +3025,14 @@ bool ui_but_string_set(bContext *C, uiBut *but, const char *str)
            * Fact remains, using editstr as main 'reference' over whole search button thingy
            * is utterly weak and should be redesigned imho, but that's not a simple task. */
           if (prop && RNA_property_collection_lookup_string(&ptr, prop, str, &rptr)) {
-            RNA_property_pointer_set(NULL, &but->rnapoin, but->rnaprop, rptr);
+            RNA_property_pointer_set(&but->rnapoin, but->rnaprop, rptr, NULL);
           }
           else if (but->func_arg2 != NULL) {
             RNA_pointer_create(NULL,
                                RNA_property_pointer_type(&but->rnapoin, but->rnaprop),
                                but->func_arg2,
                                &rptr);
-            RNA_property_pointer_set(NULL, &but->rnapoin, but->rnaprop, rptr);
+            RNA_property_pointer_set(&but->rnapoin, but->rnaprop, rptr, NULL);
           }
 
           return true;
