@@ -1248,7 +1248,6 @@ static ImBuf *blend_file_thumb(const bContext *C,
                                           BLEN_THUMB_SIZE * 2,
                                           BLEN_THUMB_SIZE * 2,
                                           IB_rect,
-                                          V3D_OFSDRAW_NONE,
                                           R_ALPHAPREMUL,
                                           0,
                                           NULL,
@@ -1657,6 +1656,7 @@ static int wm_userpref_autoexec_add_exec(bContext *UNUSED(C), wmOperator *UNUSED
 {
   bPathCompare *path_cmp = MEM_callocN(sizeof(bPathCompare), "bPathCompare");
   BLI_addtail(&U.autoexec_paths, path_cmp);
+  U.runtime.is_dirty = true;
   return OPERATOR_FINISHED;
 }
 
@@ -1677,6 +1677,7 @@ static int wm_userpref_autoexec_remove_exec(bContext *UNUSED(C), wmOperator *op)
   bPathCompare *path_cmp = BLI_findlink(&U.autoexec_paths, index);
   if (path_cmp) {
     BLI_freelinkN(&U.autoexec_paths, path_cmp);
+    U.runtime.is_dirty = true;
   }
   return OPERATOR_FINISHED;
 }

@@ -584,7 +584,6 @@ struct ImBuf *ED_view3d_draw_offscreen_imbuf(struct Depsgraph *depsgraph,
                                              int sizex,
                                              int sizey,
                                              unsigned int flag,
-                                             unsigned int draw_flags,
                                              int alpha_mode,
                                              int samples,
                                              const char *viewname,
@@ -615,7 +614,8 @@ void ED_view3d_update_viewmat(struct Depsgraph *depsgraph,
                               struct ARegion *ar,
                               float viewmat[4][4],
                               float winmat[4][4],
-                              const struct rcti *rect);
+                              const struct rcti *rect,
+                              bool offscreen);
 bool ED_view3d_quat_from_axis_view(const char view, float quat[4]);
 char ED_view3d_quat_to_axis_view(const float quat[4], const float epsilon);
 char ED_view3d_lock_view_from_index(int index);

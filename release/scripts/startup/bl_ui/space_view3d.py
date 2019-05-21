@@ -39,7 +39,7 @@ from bpy.app.translations import contexts as i18n_contexts
 
 class VIEW3D_HT_tool_header(Header):
     bl_space_type = 'VIEW_3D'
-    bl_region_type = "TOOL_HEADER"
+    bl_region_type = 'TOOL_HEADER'
 
     def draw(self, context):
         layout = self.layout
@@ -2373,7 +2373,6 @@ class VIEW3D_MT_object_context_menu(Menu):
                 props.data_path_item = "data.angle"
                 props.header_text = "Light Angle: %.3f"
 
-
             if light.type == 'SPOT':
                 layout.separator()
 
@@ -3819,6 +3818,7 @@ class VIEW3D_MT_edit_mesh_faces(Menu):
 
         layout.menu("VIEW3D_MT_edit_mesh_faces_data")
 
+
 class VIEW3D_MT_edit_mesh_normals_select_strength(Menu):
     bl_label = "Select by Face Strength"
 
@@ -3836,6 +3836,7 @@ class VIEW3D_MT_edit_mesh_normals_select_strength(Menu):
         op = layout.operator("mesh.mod_weighted_strength", text="Strong")
         op.set = False
         op.face_strength = 'STRONG'
+
 
 class VIEW3D_MT_edit_mesh_normals_set_strength(Menu):
     bl_label = "Select by Face Strength"
@@ -3855,6 +3856,7 @@ class VIEW3D_MT_edit_mesh_normals_set_strength(Menu):
         op.set = True
         op.face_strength = 'STRONG'
 
+
 class VIEW3D_MT_edit_mesh_normals_average(Menu):
     bl_label = "Average"
 
@@ -3864,6 +3866,7 @@ class VIEW3D_MT_edit_mesh_normals_average(Menu):
         layout.operator("mesh.average_normals", text="Custom Normal").average_type = 'CUSTOM_NORMAL'
         layout.operator("mesh.average_normals", text="Face Area").average_type = 'FACE_AREA'
         layout.operator("mesh.average_normals", text="Corner Angle").average_type = 'CORNER_ANGLE'
+
 
 class VIEW3D_MT_edit_mesh_normals(Menu):
     bl_label = "Normals"
@@ -4768,8 +4771,16 @@ class VIEW3D_MT_snap_pie(Menu):
         pie.operator("view3d.snap_cursor_to_grid", text="Cursor to Grid", icon='CURSOR')
         pie.operator("view3d.snap_selected_to_grid", text="Selection to Grid", icon='RESTRICT_SELECT_OFF')
         pie.operator("view3d.snap_cursor_to_selected", text="Cursor to Selected", icon='CURSOR')
-        pie.operator("view3d.snap_selected_to_cursor", text="Selection to Cursor", icon='RESTRICT_SELECT_OFF').use_offset = False
-        pie.operator("view3d.snap_selected_to_cursor", text="Selection to Cursor (Keep Offset)", icon='RESTRICT_SELECT_OFF').use_offset = True
+        pie.operator(
+            "view3d.snap_selected_to_cursor",
+            text="Selection to Cursor",
+            icon='RESTRICT_SELECT_OFF',
+        ).use_offset = False
+        pie.operator(
+            "view3d.snap_selected_to_cursor",
+            text="Selection to Cursor (Keep Offset)",
+            icon='RESTRICT_SELECT_OFF',
+        ).use_offset = True
         pie.operator("view3d.snap_selected_to_active", text="Selection to Active", icon='RESTRICT_SELECT_OFF')
         pie.operator("view3d.snap_cursor_to_center", text="Cursor to World Origin", icon='CURSOR')
         pie.operator("view3d.snap_cursor_to_active", text="Cursor to Active", icon='CURSOR')
@@ -5085,7 +5096,13 @@ class VIEW3D_PT_shading_lighting(Panel):
                     sub.scale_y = 0.6  # smaller studiolight preview
                     sub.template_icon_view(shading, "studio_light", scale_popup=3.0)
                 else:
-                    sub.prop(system, "use_studio_light_edit", text="Disable Studio Light Edit", icon='NONE', toggle=True)
+                    sub.prop(
+                        system,
+                        "use_studio_light_edit",
+                        text="Disable Studio Light Edit",
+                        icon='NONE',
+                        toggle=True,
+                    )
 
                 col = split.column()
                 col.operator("preferences.studiolight_show", emboss=False, text="", icon='PREFERENCES')
@@ -5204,7 +5221,7 @@ class VIEW3D_PT_shading_options(Panel):
             sub = row.row()
             sub.active = shading.show_xray
             sub.prop(shading, "xray_alpha", text="X-Ray")
-            #X-ray mode is off when alpha is 1.0
+            # X-ray mode is off when alpha is 1.0
             xray_active = shading.show_xray and shading.xray_alpha != 1
 
             row = col.row(align=True)
@@ -5372,13 +5389,19 @@ class VIEW3D_PT_overlay_guides(Panel):
         row = sub.row()
         row_el = row.column()
         row_el.prop(overlay, "show_ortho_grid", text="Grid")
-        grid_active = view.region_quadviews or (view.region_3d.is_orthographic_side_view and not view.region_3d.is_perspective)
+        grid_active = (
+            view.region_quadviews or
+            (view.region_3d.is_orthographic_side_view and not view.region_3d.is_perspective)
+        )
         row_el.active = grid_active
         row.prop(overlay, "show_floor", text="Floor")
 
         if overlay.show_floor or overlay.show_ortho_grid:
             sub = col.row(align=True)
-            sub.active = (overlay.show_floor and not view.region_3d.is_orthographic_side_view) or (overlay.show_ortho_grid and grid_active)
+            sub.active = (
+                (overlay.show_floor and not view.region_3d.is_orthographic_side_view) or
+                (overlay.show_ortho_grid and grid_active)
+            )
             sub.prop(overlay, "grid_scale", text="Scale")
             sub.prop(overlay, "grid_subdivisions", text="Subdivisions")
 
