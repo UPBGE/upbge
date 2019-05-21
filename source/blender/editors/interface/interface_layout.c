@@ -484,7 +484,7 @@ static void ui_item_array(uiLayout *layout,
                           int UNUSED(h),
                           bool expand,
                           bool slider,
-                          bool toggle,
+                          int toggle,
                           bool icon_only,
                           bool compact,
                           bool show_text)
@@ -691,7 +691,7 @@ static void ui_item_array(uiLayout *layout,
         if (slider && but->type == UI_BTYPE_NUM) {
           but->type = UI_BTYPE_NUM_SLIDER;
         }
-        if (toggle && but->type == UI_BTYPE_CHECKBOX) {
+        if ((toggle == 1) && but->type == UI_BTYPE_CHECKBOX) {
           but->type = UI_BTYPE_TOGGLE;
         }
         if ((a == 0) && (subtype == PROP_AXISANGLE)) {
@@ -1858,12 +1858,7 @@ void uiItemFullR(uiLayout *layout,
                  int icon)
 {
   uiBlock *block = layout->root->block;
-  uiBut *but = NULL;
-  PropertyType type;
   char namestr[UI_MAX_NAME_STR];
-  int len, w, h;
-  bool slider, toggle, expand, icon_only, no_bg, compact;
-  bool is_array;
   const bool use_prop_sep = ((layout->item.flag & UI_ITEM_PROP_SEP) != 0);
 
   /* By default 'use_prop_sep' uses a separate column for labels.
@@ -1888,11 +1883,15 @@ void uiItemFullR(uiLayout *layout,
   UI_block_layout_set_current(block, layout);
 
   /* retrieve info */
-  type = RNA_property_type(prop);
-  is_array = RNA_property_array_check(prop);
-  len = (is_array) ? RNA_property_array_length(ptr, prop) : 0;
+  const PropertyType type = RNA_property_type(prop);
+  const bool is_array = RNA_property_array_check(prop);
+  const int len = (is_array) ? RNA_property_array_length(ptr, prop) : 0;
 
-  icon_only = (flag & UI_ITEM_R_ICON_ONLY) != 0;
+  const bool icon_only = (flag & UI_ITEM_R_ICON_ONLY) != 0;
+
+  /* Boolean with -1 to signify that the value depends on the presence of an icon. */
+  const int toggle = ((flag & UI_ITEM_R_TOGGLE) ? 1 : ((flag & UI_ITEM_R_ICON_NEVER) ? 0 : -1));
+  const bool no_icon = (toggle == 0);
 
   /* set name and icon */
   if (!name) {
@@ -1906,10 +1905,6 @@ void uiItemFullR(uiLayout *layout,
 
   if (type != PROP_BOOLEAN) {
     flag &= ~UI_ITEM_R_CHECKBOX_INVERT;
-  }
-
-  if (icon == ICON_NONE) {
-    icon = RNA_property_ui_icon(prop);
   }
 
   if (flag & UI_ITEM_R_ICON_ONLY) {
@@ -1936,6 +1931,47 @@ void uiItemFullR(uiLayout *layout,
     }
   }
 
+  if (no_icon == false) {
+    if (icon == ICON_NONE) {
+      icon = RNA_property_ui_icon(prop);
+    }
+
+    /* Menus and pie-menus don't show checkbox without this. */
+    if ((layout->root->type == UI_LAYOUT_MENU) ||
+        /* Use checkboxes only as a fallback in pie-menu's, when no icon is defined. */
+        ((layout->root->type == UI_LAYOUT_PIEMENU) && (icon == ICON_NONE))) {
+      int prop_flag = RNA_property_flag(prop);
+      if (type == PROP_BOOLEAN) {
+        if ((is_array == false) || (index != RNA_NO_INDEX)) {
+          if (prop_flag & PROP_ICONS_CONSECUTIVE) {
+            icon = ICON_CHECKBOX_DEHLT; /* but->iconadd will set to correct icon */
+          }
+          else if (is_array) {
+            icon = (RNA_property_boolean_get_index(ptr, prop, index)) ? ICON_CHECKBOX_HLT :
+                                                                        ICON_CHECKBOX_DEHLT;
+          }
+          else {
+            icon = (RNA_property_boolean_get(ptr, prop)) ? ICON_CHECKBOX_HLT : ICON_CHECKBOX_DEHLT;
+          }
+        }
+      }
+      else if (type == PROP_ENUM) {
+        if (index == RNA_ENUM_VALUE) {
+          int enum_value = RNA_property_enum_get(ptr, prop);
+          if (prop_flag & PROP_ICONS_CONSECUTIVE) {
+            icon = ICON_CHECKBOX_DEHLT; /* but->iconadd will set to correct icon */
+          }
+          else if (prop_flag & PROP_ENUM_FLAG) {
+            icon = (enum_value & value) ? ICON_CHECKBOX_HLT : ICON_CHECKBOX_DEHLT;
+          }
+          else {
+            icon = (enum_value == value) ? ICON_CHECKBOX_HLT : ICON_CHECKBOX_DEHLT;
+          }
+        }
+      }
+    }
+  }
+
 #ifdef UI_PROP_SEP_ICON_WIDTH_EXCEPTION
   if (use_prop_sep) {
     if (type == PROP_BOOLEAN && (icon == ICON_NONE) && !icon_only) {
@@ -1944,54 +1980,25 @@ void uiItemFullR(uiLayout *layout,
   }
 #endif
 
-  /* menus and pie-menus don't show checkbox without this */
-  if ((layout->root->type == UI_LAYOUT_MENU) ||
-      /* use checkboxes only as a fallback in pie-menu's, when no icon is defined */
-      ((layout->root->type == UI_LAYOUT_PIEMENU) && (icon == ICON_NONE))) {
-    int prop_flag = RNA_property_flag(prop);
-    if (type == PROP_BOOLEAN && ((is_array == false) || (index != RNA_NO_INDEX))) {
-      if (prop_flag & PROP_ICONS_CONSECUTIVE) {
-        icon = ICON_CHECKBOX_DEHLT; /* but->iconadd will set to correct icon */
-      }
-      else if (is_array) {
-        icon = (RNA_property_boolean_get_index(ptr, prop, index)) ? ICON_CHECKBOX_HLT :
-                                                                    ICON_CHECKBOX_DEHLT;
-      }
-      else {
-        icon = (RNA_property_boolean_get(ptr, prop)) ? ICON_CHECKBOX_HLT : ICON_CHECKBOX_DEHLT;
-      }
-    }
-    else if (type == PROP_ENUM && index == RNA_ENUM_VALUE) {
-      int enum_value = RNA_property_enum_get(ptr, prop);
-      if (prop_flag & PROP_ICONS_CONSECUTIVE) {
-        icon = ICON_CHECKBOX_DEHLT; /* but->iconadd will set to correct icon */
-      }
-      else if (prop_flag & PROP_ENUM_FLAG) {
-        icon = (enum_value & value) ? ICON_CHECKBOX_HLT : ICON_CHECKBOX_DEHLT;
-      }
-      else {
-        icon = (enum_value == value) ? ICON_CHECKBOX_HLT : ICON_CHECKBOX_DEHLT;
-      }
-    }
-  }
-
   if ((type == PROP_ENUM) && (RNA_property_flag(prop) & PROP_ENUM_FLAG)) {
     flag |= UI_ITEM_R_EXPAND;
   }
 
-  slider = (flag & UI_ITEM_R_SLIDER) != 0;
-  toggle = (flag & UI_ITEM_R_TOGGLE) != 0;
-  expand = (flag & UI_ITEM_R_EXPAND) != 0;
-  no_bg = (flag & UI_ITEM_R_NO_BG) != 0;
-  compact = (flag & UI_ITEM_R_COMPACT) != 0;
+  const bool slider = (flag & UI_ITEM_R_SLIDER) != 0;
+  const bool expand = (flag & UI_ITEM_R_EXPAND) != 0;
+  const bool no_bg = (flag & UI_ITEM_R_NO_BG) != 0;
+  const bool compact = (flag & UI_ITEM_R_COMPACT) != 0;
 
   /* get size */
+  int w, h;
   ui_item_rna_size(layout, name, icon, ptr, prop, index, icon_only, compact, &w, &h);
 
   int prev_emboss = layout->emboss;
   if (no_bg) {
     layout->emboss = UI_EMBOSS_NONE;
   }
+
+  uiBut *but = NULL;
 
   /* Split the label / property. */
   uiLayout *layout_parent = layout;
@@ -2166,7 +2173,7 @@ void uiItemFullR(uiLayout *layout,
       }
     }
 
-    if (toggle && but->type == UI_BTYPE_CHECKBOX) {
+    if ((toggle == 1) && but->type == UI_BTYPE_CHECKBOX) {
       but->type = UI_BTYPE_TOGGLE;
     }
 
@@ -2182,6 +2189,18 @@ void uiItemFullR(uiLayout *layout,
       /* When the button uses it's own text right align it. */
       but->drawflag |= UI_BUT_TEXT_RIGHT;
       but->drawflag &= ~UI_BUT_TEXT_LEFT;
+    }
+  }
+
+  /* The resulting button may have the icon set since boolean button drawing
+   * is being 'helpful' and adding an icon for us.
+   * In this case we want the ability not to have an icon.
+   *
+   * We could pass an argument not to set the icon to begin with however this is the one case
+   * the functionality is needed.  */
+  if (but && no_icon) {
+    if ((icon == ICON_NONE) && (but->icon != ICON_NONE)) {
+      ui_def_but_icon_clear(but);
     }
   }
 

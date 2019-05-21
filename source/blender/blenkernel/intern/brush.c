@@ -520,7 +520,7 @@ void BKE_brush_gpencil_presets(bContext *C)
   brush->gpencil_settings->draw_angle = 0.0f;
   brush->gpencil_settings->draw_angle_factor = 0.0f;
 
-  brush->gpencil_settings->input_samples = 9;
+  brush->gpencil_settings->input_samples = 10;
   brush->gpencil_settings->active_smooth = 0.98f;
   brush->gpencil_settings->draw_smoothfac = 0.1f;
   brush->gpencil_settings->draw_smoothlvl = 1;
@@ -540,7 +540,7 @@ void BKE_brush_gpencil_presets(bContext *C)
 
   /* Fill brush */
   brush = BKE_brush_add_gpencil(bmain, ts, "Fill Area");
-  brush->size = 1.0f;
+  brush->size = 20.0f;
   brush->gpencil_settings->flag |= GP_BRUSH_ENABLE_CURSOR;
   brush->gpencil_settings->draw_sensitivity = 1.0f;
   brush->gpencil_settings->fill_leak = 3;
