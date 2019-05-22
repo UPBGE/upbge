@@ -59,6 +59,16 @@ struct GPUTexture;
 struct GPUViewport;
 struct DRWShadingGroup;
 
+typedef struct ViewPortMatrices
+{
+  MT_Matrix4x4 view;
+  MT_Matrix4x4 viewinv;
+  MT_Matrix4x4 proj;
+  MT_Matrix4x4 projinv;
+  MT_Matrix4x4 pers;
+  MT_Matrix4x4 persinv;
+} ViewPortMatrices;
+
 /**
  * 3D rendering device context interface. 
  */
@@ -254,15 +264,7 @@ private:
 		DRWShadingGroup *vinterlace;
 	} m_screenShaders;
 
-	struct Matrices
-	{
-		MT_Matrix4x4 view;
-		MT_Matrix4x4 viewinv;
-		MT_Matrix4x4 proj;
-		MT_Matrix4x4 projinv;
-		MT_Matrix4x4 pers;
-		MT_Matrix4x4 persinv;
-	} m_matrices;
+	ViewPortMatrices m_matrices;
 
 	// We store each debug shape by scene.
 	std::map<SCA_IScene *, RAS_DebugDraw> m_debugDraws;
@@ -461,6 +463,7 @@ public:
 	 * Sets the modelview matrix.
 	 */
 	void SetMatrix(const MT_Matrix4x4 &viewmat, const MT_Matrix4x4& projmat, const MT_Vector3 &pos, const MT_Vector3 &scale);
+  ViewPortMatrices GetAllMatrices();
 
 	/**
 	 * Get/Set viewport area

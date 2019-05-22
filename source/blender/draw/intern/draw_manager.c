@@ -365,7 +365,8 @@ void DRW_transform_none(GPUTexture *tex)
   GPU_batch_uniform_mat4(geom, "ModelViewProjectionMatrix", mat);
 
   GPU_batch_program_use_begin(geom);
-  GPU_batch_draw_range_ex(geom, 0, 0, false);
+  GPU_batch_bind(geom);
+  GPU_batch_draw_advanced(geom, 0, 0, 0, 0);
   GPU_batch_program_use_end(geom);
 
   GPU_texture_unbind(tex);
@@ -456,7 +457,8 @@ void DRW_multisamples_resolve(GPUTexture *src_depth, GPUTexture *src_color, bool
 
   /* avoid gpuMatrix calls */
   GPU_batch_program_use_begin(geom);
-  GPU_batch_draw_range_ex(geom, 0, 0, false);
+  GPU_batch_bind(geom);
+  GPU_batch_draw_advanced(geom, 0, 0, 0, 0);
   GPU_batch_program_use_end(geom);
 }
 
@@ -538,9 +540,11 @@ static void drw_viewport_cache_resize(void)
 
     BLI_memblock_clear(DST.vmempool->calls, NULL);
     BLI_memblock_clear(DST.vmempool->states, NULL);
+    BLI_memblock_clear(DST.vmempool->cullstates, NULL);
     BLI_memblock_clear(DST.vmempool->shgroups, NULL);
     BLI_memblock_clear(DST.vmempool->uniforms, NULL);
     BLI_memblock_clear(DST.vmempool->passes, NULL);
+    BLI_memblock_clear(DST.vmempool->views, NULL);
     BLI_memblock_clear(DST.vmempool->images, NULL);
   }
 
@@ -606,22 +610,28 @@ static void drw_viewport_var_init(void)
     DST.vmempool = GPU_viewport_mempool_get(DST.viewport);
 
     if (DST.vmempool->calls == NULL) {
-      DST.vmempool->calls = BLI_memblock_create(sizeof(DRWCall), false);
+      DST.vmempool->calls = BLI_memblock_create(sizeof(DRWCall));
     }
     if (DST.vmempool->states == NULL) {
-      DST.vmempool->states = BLI_memblock_create(sizeof(DRWCallState), false);
+      DST.vmempool->states = BLI_memblock_create(sizeof(DRWCallState));
+    }
+    if (DST.vmempool->cullstates == NULL) {
+      DST.vmempool->cullstates = BLI_memblock_create(sizeof(DRWCullingState));
     }
     if (DST.vmempool->shgroups == NULL) {
-      DST.vmempool->shgroups = BLI_memblock_create(sizeof(DRWShadingGroup), false);
+      DST.vmempool->shgroups = BLI_memblock_create(sizeof(DRWShadingGroup));
     }
     if (DST.vmempool->uniforms == NULL) {
-      DST.vmempool->uniforms = BLI_memblock_create(sizeof(DRWUniform), false);
+      DST.vmempool->uniforms = BLI_memblock_create(sizeof(DRWUniform));
+    }
+    if (DST.vmempool->views == NULL) {
+      DST.vmempool->views = BLI_memblock_create(sizeof(DRWView));
     }
     if (DST.vmempool->passes == NULL) {
-      DST.vmempool->passes = BLI_memblock_create(sizeof(DRWPass), false);
+      DST.vmempool->passes = BLI_memblock_create(sizeof(DRWPass));
     }
     if (DST.vmempool->images == NULL) {
-      DST.vmempool->images = BLI_memblock_create(sizeof(GPUTexture *), false);
+      DST.vmempool->images = BLI_memblock_create(sizeof(GPUTexture *));
     }
 
     DST.idatalist = GPU_viewport_instance_data_list_get(DST.viewport);
@@ -638,36 +648,35 @@ static void drw_viewport_var_init(void)
     DST.vmempool = NULL;
   }
 
+  DST.primary_view_ct = 0;
+
   if (rv3d != NULL) {
-    /* Refresh DST.screenvecs */
-    copy_v3_v3(DST.screenvecs[0], rv3d->viewinv[0]);
-    copy_v3_v3(DST.screenvecs[1], rv3d->viewinv[1]);
-    normalize_v3(DST.screenvecs[0]);
-    normalize_v3(DST.screenvecs[1]);
+    normalize_v3_v3(DST.screenvecs[0], rv3d->viewinv[0]);
+    normalize_v3_v3(DST.screenvecs[1], rv3d->viewinv[1]);
 
-    /* Refresh DST.pixelsize */
     DST.pixsize = rv3d->pixsize;
+    DST.view_default = DRW_view_create(rv3d->viewmat, rv3d->winmat, NULL, NULL, NULL);
+    copy_v4_v4(DST.view_default->storage.viewcamtexcofac, rv3d->viewcamtexcofac);
 
-    copy_m4_m4(DST.original_mat.mat[DRW_MAT_PERS], rv3d->persmat);
-    copy_m4_m4(DST.original_mat.mat[DRW_MAT_PERSINV], rv3d->persinv);
-    copy_m4_m4(DST.original_mat.mat[DRW_MAT_VIEW], rv3d->viewmat);
-    copy_m4_m4(DST.original_mat.mat[DRW_MAT_VIEWINV], rv3d->viewinv);
-    copy_m4_m4(DST.original_mat.mat[DRW_MAT_WIN], rv3d->winmat);
-    invert_m4_m4(DST.original_mat.mat[DRW_MAT_WININV], rv3d->winmat);
+    if (DST.draw_ctx.sh_cfg == GPU_SHADER_CFG_CLIPPED) {
+      int plane_len = (rv3d->viewlock & RV3D_BOXCLIP) ? 4 : 6;
+      DRW_view_clip_planes_set(DST.view_default, rv3d->clip, plane_len);
+    }
 
-    memcpy(DST.view_data.matstate.mat, DST.original_mat.mat, sizeof(DST.original_mat.mat));
-
-    copy_v4_v4(DST.view_data.viewcamtexcofac, rv3d->viewcamtexcofac);
+    DST.view_active = DST.view_default;
+    DST.view_previous = NULL;
   }
   else {
-    copy_v4_fl4(DST.view_data.viewcamtexcofac, 1.0f, 1.0f, 0.0f, 0.0f);
+    zero_v3(DST.screenvecs[0]);
+    zero_v3(DST.screenvecs[1]);
+
+    DST.pixsize = 1.0f;
+    DST.view_default = NULL;
+    DST.view_active = NULL;
+    DST.view_previous = NULL;
   }
 
-  /* Reset facing */
-  DST.frontface = GL_CCW;
-  DST.backface = GL_CW;
-  glFrontFace(DST.frontface);
-
+  /* fclem: Is this still needed ? */
   if (DST.draw_ctx.object_edit) {
     ED_view3d_init_mats_rv3d(DST.draw_ctx.object_edit, rv3d);
   }
@@ -676,101 +685,10 @@ static void drw_viewport_var_init(void)
   memset(&DST.RST, 0x0, sizeof(DST.RST));
 
   if (G_draw.view_ubo == NULL) {
-    G_draw.view_ubo = DRW_uniformbuffer_create(sizeof(ViewUboStorage), NULL);
+    G_draw.view_ubo = DRW_uniformbuffer_create(sizeof(DRWViewUboStorage), NULL);
   }
-
-  DST.override_mat = 0;
-  DST.dirty_mat = true;
-  DST.state_cache_id = 1;
-
-  DST.clipping.updated = false;
 
   memset(DST.object_instance_data, 0x0, sizeof(DST.object_instance_data));
-}
-
-void DRW_viewport_matrix_get(float mat[4][4], DRWViewportMatrixType type)
-{
-  BLI_assert(type >= 0 && type < DRW_MAT_COUNT);
-  /* Can't use this in render mode. */
-  BLI_assert(((DST.override_mat & (1 << type)) != 0) || DST.draw_ctx.rv3d != NULL);
-
-  copy_m4_m4(mat, DST.view_data.matstate.mat[type]);
-}
-
-void DRW_viewport_matrix_get_all(DRWMatrixState *state)
-{
-  memcpy(state, DST.view_data.matstate.mat, sizeof(DRWMatrixState));
-}
-
-void DRW_viewport_matrix_override_set(const float mat[4][4], DRWViewportMatrixType type)
-{
-  BLI_assert(type < DRW_MAT_COUNT);
-  copy_m4_m4(DST.view_data.matstate.mat[type], mat);
-  DST.override_mat |= (1 << type);
-  DST.dirty_mat = true;
-  DST.clipping.updated = false;
-}
-
-void DRW_viewport_matrix_override_unset(DRWViewportMatrixType type)
-{
-  BLI_assert(type < DRW_MAT_COUNT);
-  copy_m4_m4(DST.view_data.matstate.mat[type], DST.original_mat.mat[type]);
-  DST.override_mat &= ~(1 << type);
-  DST.dirty_mat = true;
-  DST.clipping.updated = false;
-}
-
-void DRW_viewport_matrix_override_set_all(DRWMatrixState *state)
-{
-  memcpy(DST.view_data.matstate.mat, state, sizeof(DRWMatrixState));
-  DST.override_mat = 0xFFFFFF;
-  DST.dirty_mat = true;
-  DST.clipping.updated = false;
-}
-
-void DRW_viewport_matrix_override_unset_all(void)
-{
-  memcpy(DST.view_data.matstate.mat, DST.original_mat.mat, sizeof(DRWMatrixState));
-  DST.override_mat = 0;
-  DST.dirty_mat = true;
-  DST.clipping.updated = false;
-}
-
-bool DRW_viewport_is_persp_get(void)
-{
-  RegionView3D *rv3d = DST.draw_ctx.rv3d;
-  if (rv3d) {
-    return rv3d->is_persp;
-  }
-  else {
-    return DST.view_data.matstate.mat[DRW_MAT_WIN][3][3] == 0.0f;
-  }
-}
-
-float DRW_viewport_near_distance_get(void)
-{
-  float projmat[4][4];
-  DRW_viewport_matrix_get(projmat, DRW_MAT_WIN);
-
-  if (DRW_viewport_is_persp_get()) {
-    return -projmat[3][2] / (projmat[2][2] - 1.0f);
-  }
-  else {
-    return -(projmat[3][2] + 1.0f) / projmat[2][2];
-  }
-}
-
-float DRW_viewport_far_distance_get(void)
-{
-  float projmat[4][4];
-  DRW_viewport_matrix_get(projmat, DRW_MAT_WIN);
-
-  if (DRW_viewport_is_persp_get()) {
-    return -projmat[3][2] / (projmat[2][2] + 1.0f);
-  }
-  else {
-    return -(projmat[3][2] - 1.0f) / projmat[2][2];
-  }
 }
 
 DefaultFramebufferList *DRW_viewport_framebuffer_list_get(void)
@@ -3310,37 +3228,36 @@ static void eevee_game_view_layer_data_free()
 	EEVEE_ViewLayerData *sldata = EEVEE_view_layer_data_ensure();
 
 	/* Lights */
-	MEM_SAFE_FREE(sldata->lights);
-	DRW_UBO_FREE_SAFE(sldata->light_ubo);
-	DRW_UBO_FREE_SAFE(sldata->shadow_ubo);
-	DRW_UBO_FREE_SAFE(sldata->shadow_render_ubo);
-	GPU_FRAMEBUFFER_FREE_SAFE(sldata->shadow_cube_target_fb);
-	GPU_FRAMEBUFFER_FREE_SAFE(sldata->shadow_cube_store_fb);
-	GPU_FRAMEBUFFER_FREE_SAFE(sldata->shadow_cascade_target_fb);
-	GPU_FRAMEBUFFER_FREE_SAFE(sldata->shadow_cascade_store_fb);
-	DRW_TEXTURE_FREE_SAFE(sldata->shadow_cube_target);
-	DRW_TEXTURE_FREE_SAFE(sldata->shadow_cube_blur);
-	DRW_TEXTURE_FREE_SAFE(sldata->shadow_cube_pool);
-	DRW_TEXTURE_FREE_SAFE(sldata->shadow_cascade_target);
-	DRW_TEXTURE_FREE_SAFE(sldata->shadow_cascade_blur);
-	DRW_TEXTURE_FREE_SAFE(sldata->shadow_cascade_pool);
-	MEM_SAFE_FREE(sldata->shcasters_buffers[0].shadow_casters);
-	MEM_SAFE_FREE(sldata->shcasters_buffers[0].flags);
-	MEM_SAFE_FREE(sldata->shcasters_buffers[1].shadow_casters);
-	MEM_SAFE_FREE(sldata->shcasters_buffers[1].flags);
+  MEM_SAFE_FREE(sldata->lights);
+  DRW_UBO_FREE_SAFE(sldata->light_ubo);
+  DRW_UBO_FREE_SAFE(sldata->shadow_ubo);
+  DRW_UBO_FREE_SAFE(sldata->shadow_render_ubo);
+  GPU_FRAMEBUFFER_FREE_SAFE(sldata->shadow_cube_target_fb);
+  GPU_FRAMEBUFFER_FREE_SAFE(sldata->shadow_cube_store_fb);
+  GPU_FRAMEBUFFER_FREE_SAFE(sldata->shadow_cascade_target_fb);
+  GPU_FRAMEBUFFER_FREE_SAFE(sldata->shadow_cascade_store_fb);
+  DRW_TEXTURE_FREE_SAFE(sldata->shadow_cube_target);
+  DRW_TEXTURE_FREE_SAFE(sldata->shadow_cube_blur);
+  DRW_TEXTURE_FREE_SAFE(sldata->shadow_cube_pool);
+  DRW_TEXTURE_FREE_SAFE(sldata->shadow_cascade_target);
+  DRW_TEXTURE_FREE_SAFE(sldata->shadow_cascade_blur);
+  DRW_TEXTURE_FREE_SAFE(sldata->shadow_cascade_pool);
+  MEM_SAFE_FREE(sldata->shcasters_buffers[0].shadow_casters);
+  MEM_SAFE_FREE(sldata->shcasters_buffers[0].flags);
+  MEM_SAFE_FREE(sldata->shcasters_buffers[1].shadow_casters);
+  MEM_SAFE_FREE(sldata->shcasters_buffers[1].flags);
 
-	if (sldata->fallback_lightcache) {
-		EEVEE_lightcache_free(sldata->fallback_lightcache);
-		sldata->fallback_lightcache = NULL;
-	}
+  if (sldata->fallback_lightcache) {
+    EEVEE_lightcache_free(sldata->fallback_lightcache);
+    sldata->fallback_lightcache = NULL;
+  }
 
-	/* Probes */
-	MEM_SAFE_FREE(sldata->probes);
-	DRW_UBO_FREE_SAFE(sldata->probe_ubo);
-	DRW_UBO_FREE_SAFE(sldata->grid_ubo);
-	DRW_UBO_FREE_SAFE(sldata->planar_ubo);
-	DRW_UBO_FREE_SAFE(sldata->common_ubo);
-	DRW_UBO_FREE_SAFE(sldata->clip_ubo);
+  /* Probes */
+  MEM_SAFE_FREE(sldata->probes);
+  DRW_UBO_FREE_SAFE(sldata->probe_ubo);
+  DRW_UBO_FREE_SAFE(sldata->grid_ubo);
+  DRW_UBO_FREE_SAFE(sldata->planar_ubo);
+  DRW_UBO_FREE_SAFE(sldata->common_ubo);
 }
 
 EEVEE_Data *EEVEE_engine_data_get(void)
@@ -3392,8 +3309,9 @@ static GameViewPort game_viewport;
 static RegionView3D game_rv3d;
 static Camera *game_default_camera = NULL;
 
-GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam, int viewportsize[2],
-	DRWMatrixState state, int v[4], bool called_from_constructor, bool reset_taa_samples)
+GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam,
+	float view[4][4], float viewinv[4][4], float proj[4][4], float projinv[4][4], float pers[4][4], float persinv[4][4],
+  int v[4], bool called_from_constructor, bool reset_taa_samples)
 {
 	/* Reset before using it. */
 	drw_state_prepare_clean_for_draw(&DST);
@@ -3407,7 +3325,7 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam, int
 	use_drw_engine(&draw_engine_eevee_type);
 
 	if (called_from_constructor) {
-		GPUOffScreen *ofs = GPU_offscreen_create(viewportsize[0], viewportsize[1], 0, true, false, NULL);
+		GPUOffScreen *ofs = GPU_offscreen_create(v[2], v[3], 0, true, false, NULL);
 		game_viewport.viewport = GPU_viewport_create_from_offscreen(ofs);
 		GPU_viewport_engine_data_create(game_viewport.viewport, &draw_engine_eevee_type);
 	}
@@ -3415,8 +3333,8 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam, int
 	DST.viewport = game_viewport.viewport;
 
 	ARegion ar;
-	ar.winx = viewportsize[0];
-	ar.winy = viewportsize[1];
+	ar.winx = v[2];
+	ar.winy = v[3];
 
 	ar.winrct.xmin = v[0];
 	ar.winrct.ymin = v[1];
@@ -3453,13 +3371,13 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam, int
 	game_rv3d.viewcamtexcofac[0] = (float)ar.winx / BLI_rctf_size_x(&cameraborder);
 
 
-	DRW_viewport_matrix_override_unset_all();
+	DRW_view_set_active(NULL);
 
-	copy_m4_m4(game_rv3d.persmat, state.mat[DRW_MAT_PERS]);
-	copy_m4_m4(game_rv3d.persinv, state.mat[DRW_MAT_PERSINV]);
-	copy_m4_m4(game_rv3d.viewmat, state.mat[DRW_MAT_VIEW]);
-	copy_m4_m4(game_rv3d.viewinv, state.mat[DRW_MAT_VIEWINV]);
-	copy_m4_m4(game_rv3d.winmat, state.mat[DRW_MAT_WIN]);
+	copy_m4_m4(game_rv3d.persmat, pers);
+	copy_m4_m4(game_rv3d.persinv, persinv);
+	copy_m4_m4(game_rv3d.viewmat, view);
+	copy_m4_m4(game_rv3d.viewinv, viewinv);
+	copy_m4_m4(game_rv3d.winmat, proj);
 
 	DST.draw_ctx.ar = &ar;
 	DST.draw_ctx.v3d = &v3d;

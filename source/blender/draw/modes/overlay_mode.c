@@ -111,10 +111,6 @@ static void overlay_engine_init(void *vedata)
   const DRWContextState *draw_ctx = DRW_context_state_get();
   OVERLAY_Shaders *sh_data = &e_data.sh_data[draw_ctx->sh_cfg];
 
-  if (draw_ctx->sh_cfg == GPU_SHADER_CFG_CLIPPED) {
-    DRW_state_clip_planes_set_from_rv3d(draw_ctx->rv3d);
-  }
-
   if (!stl->g_data) {
     /* Alloc transient pointers */
     stl->g_data = MEM_callocN(sizeof(*stl->g_data), __func__);
@@ -223,7 +219,7 @@ static void overlay_cache_init(void *vedata)
 
     float winmat[4][4];
     float viewdist = rv3d->dist;
-    DRW_viewport_matrix_get(winmat, DRW_MAT_WIN);
+    DRW_view_winmat_get(NULL, winmat, false);
     /* special exception for ortho camera (viewdist isnt used for perspective cameras) */
     if (rv3d->persp == RV3D_CAMOB && rv3d->is_persp == false) {
       viewdist = 1.0f / max_ff(fabsf(rv3d->winmat[0][0]), fabsf(rv3d->winmat[1][1]));

@@ -127,7 +127,6 @@ void workbench_private_data_init(WORKBENCH_PrivateData *wpd)
     RegionView3D *rv3d = draw_ctx->rv3d;
     if (rv3d->rflag & RV3D_CLIPPING) {
       wpd->world_clip_planes = rv3d->clip;
-      DRW_state_clip_planes_set_from_rv3d(rv3d);
       UI_GetThemeColor4fv(TH_V3D_CLIPPING_BORDER, wpd->world_clip_planes_color);
       if (wpd->use_color_management) {
         srgb_to_linearrgb_v3_v3(wpd->world_clip_planes_color, wpd->world_clip_planes_color);
@@ -148,7 +147,7 @@ void workbench_private_data_init(WORKBENCH_PrivateData *wpd)
     const int ssao_samples = scene->display.matcap_ssao_samples;
 
     float invproj[4][4];
-    const bool is_persp = DRW_viewport_is_persp_get();
+    const bool is_persp = DRW_view_is_persp_get(NULL);
     /* view vectors for the corners of the view frustum.
      * Can be used to recreate the world space position easily */
     float viewvecs[3][4] = {
@@ -171,9 +170,8 @@ void workbench_private_data_init(WORKBENCH_PrivateData *wpd)
                 wpd->shading.cavity_ridge_factor,
                 scene->display.matcap_ssao_attenuation);
 
-    /* invert the view matrix */
-    DRW_viewport_matrix_get(wpd->winmat, DRW_MAT_WIN);
-    invert_m4_m4(invproj, wpd->winmat);
+    DRW_view_winmat_get(NULL, wpd->winmat, false);
+    DRW_view_winmat_get(NULL, invproj, true);
 
     /* convert the view vectors to view space */
     for (i = 0; i < 3; i++) {
@@ -213,7 +211,7 @@ void workbench_private_data_get_light_direction(WORKBENCH_PrivateData *wpd,
   Scene *scene = draw_ctx->scene;
   WORKBENCH_UBO_World *wd = &wpd->world_data;
   float view_matrix[4][4];
-  DRW_viewport_matrix_get(view_matrix, DRW_MAT_VIEW);
+  DRW_view_viewmat_get(NULL, view_matrix, false);
 
   copy_v3_v3(r_light_direction, scene->display.light_direction);
   SWAP(float, r_light_direction[2], r_light_direction[1]);

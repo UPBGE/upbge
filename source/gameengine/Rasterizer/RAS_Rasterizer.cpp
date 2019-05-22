@@ -308,14 +308,7 @@ void RAS_Rasterizer::Exit()
 
 	Clear(RAS_COLOR_BUFFER_BIT | RAS_DEPTH_BUFFER_BIT);
 
-	DRW_viewport_matrix_override_unset(DRW_MAT_VIEW);
-	DRW_viewport_matrix_override_unset(DRW_MAT_VIEWINV);
-	DRW_viewport_matrix_override_unset(DRW_MAT_WIN);
-	DRW_viewport_matrix_override_unset(DRW_MAT_WININV);
-	DRW_viewport_matrix_override_unset(DRW_MAT_PERS);
-	DRW_viewport_matrix_override_unset(DRW_MAT_PERSINV);
-
-	//DRW_game_render_loop_end();
+	DRW_view_set_active(NULL);
 }
 
 void RAS_Rasterizer::BeginFrame(double time)
@@ -793,28 +786,12 @@ void RAS_Rasterizer::SetMatrix(const MT_Matrix4x4& viewmat, const MT_Matrix4x4& 
 
 	m_campos = pos;
 
-	float mat[4][4];
-	float matinv[4][4];
+	m_camortho = (m_matrices.pers[3][3] != 0.0f);
+}
 
-	m_matrices.view.getValue(&mat[0][0]);
-	m_matrices.viewinv.getValue(&matinv[0][0]);
-
-	DRW_viewport_matrix_override_set(mat, DRW_MAT_VIEW);
-	DRW_viewport_matrix_override_set(matinv, DRW_MAT_VIEWINV);
-
-	m_matrices.proj.getValue(&mat[0][0]);
-	m_matrices.projinv.getValue(&matinv[0][0]);
-
-	DRW_viewport_matrix_override_set(mat, DRW_MAT_WIN);
-	DRW_viewport_matrix_override_set(matinv, DRW_MAT_WININV);
-
-	m_matrices.pers.getValue(&mat[0][0]);
-	m_matrices.persinv.getValue(&matinv[0][0]);
-
-	DRW_viewport_matrix_override_set(mat, DRW_MAT_PERS);
-	DRW_viewport_matrix_override_set(matinv, DRW_MAT_PERSINV);
-
-	m_camortho = (mat[3][3] != 0.0f);
+ViewPortMatrices RAS_Rasterizer::GetAllMatrices()
+{
+  return m_matrices;
 }
 
 void RAS_Rasterizer::SetViewport(int x, int y, int width, int height)

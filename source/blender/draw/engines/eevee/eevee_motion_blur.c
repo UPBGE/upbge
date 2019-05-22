@@ -106,79 +106,66 @@ void EEVEE_create_shader_motion_blur()
 
 int EEVEE_motion_blur_init(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data *vedata, Object *camera)
 {
-	EEVEE_StorageList *stl = vedata->stl;
-	EEVEE_EffectsInfo *effects = stl->effects;
+  EEVEE_StorageList *stl = vedata->stl;
+  EEVEE_EffectsInfo *effects = stl->effects;
 
-	const DRWContextState *draw_ctx = DRW_context_state_get();
-	const Scene *scene_eval = DEG_get_evaluated_scene(draw_ctx->depsgraph);
-	Scene *scene = draw_ctx->scene;
+  const DRWContextState *draw_ctx = DRW_context_state_get();
+  const Scene *scene_eval = DEG_get_evaluated_scene(draw_ctx->depsgraph);
+  Scene *scene = draw_ctx->scene;
 
-	View3D *v3d = draw_ctx->v3d;
-	RegionView3D *rv3d = draw_ctx->rv3d;
-	ARegion *ar = draw_ctx->ar;
+  View3D *v3d = draw_ctx->v3d;
+  RegionView3D *rv3d = draw_ctx->rv3d;
+  ARegion *ar = draw_ctx->ar;
 
-	if (scene_eval->eevee.flag & SCE_EEVEE_MOTION_BLUR_ENABLED) {
-		/* Update Motion Blur Matrices */
-		if (camera && !(scene->flag & SCE_INTERACTIVE)) {
-			float persmat[4][4];
-			float ctime = DEG_get_ctime(draw_ctx->depsgraph);
-			float delta = scene_eval->eevee.motion_blur_shutter;
-			Object *ob_camera_eval = DEG_get_evaluated_object(draw_ctx->depsgraph, camera);
+  if (scene_eval->eevee.flag & SCE_EEVEE_MOTION_BLUR_ENABLED) {
+    /* Update Motion Blur Matrices */
+    if (camera && !(scene->flag & SCE_INTERACTIVE)) {
+      float persmat[4][4];
+      float ctime = DEG_get_ctime(draw_ctx->depsgraph);
+      float delta = scene_eval->eevee.motion_blur_shutter;
+      Object *ob_camera_eval = DEG_get_evaluated_object(draw_ctx->depsgraph, camera);
 
-			/* Viewport Matrix */
-			/* Note: This does not have TAA jitter applied. */
-			DRW_viewport_matrix_get(persmat, DRW_MAT_PERS);
+      /* Viewport Matrix */
+      /* Note: This does not have TAA jitter applied. */
+      DRW_view_persmat_get(NULL, persmat, false);
 
-			bool view_is_valid = (stl->g_data->view_updated == false);
+      bool view_is_valid = (stl->g_data->view_updated == false);
 
-			if (draw_ctx->evil_C != NULL) {
-				struct wmWindowManager *wm = CTX_wm_manager(draw_ctx->evil_C);
-				view_is_valid = view_is_valid && (ED_screen_animation_no_scrub(wm) == NULL);
-			}
+      if (draw_ctx->evil_C != NULL) {
+        struct wmWindowManager *wm = CTX_wm_manager(draw_ctx->evil_C);
+        view_is_valid = view_is_valid && (ED_screen_animation_no_scrub(wm) == NULL);
+      }
 
-			/* The view is jittered by the oglrenderer. So avoid testing in this case. */
-			if (!DRW_state_is_image_render()) {
-				view_is_valid = view_is_valid && compare_m4m4(persmat, effects->prev_drw_persmat, FLT_MIN);
-				/* WATCH: assume TAA init code runs last. */
-				if (scene_eval->eevee.taa_samples == 1) {
-					/* Only if TAA is disabled. If not, TAA will update prev_drw_persmat itself. */
-					copy_m4_m4(effects->prev_drw_persmat, persmat);
-				}
-			}
+      /* The view is jittered by the oglrenderer. So avoid testing in this case. */
+      if (!DRW_state_is_image_render()) {
+        view_is_valid = view_is_valid && compare_m4m4(persmat, effects->prev_drw_persmat, FLT_MIN);
+        /* WATCH: assume TAA init code runs last. */
+        if (scene_eval->eevee.taa_samples == 1) {
+          /* Only if TAA is disabled. If not, TAA will update prev_drw_persmat itself. */
+          copy_m4_m4(effects->prev_drw_persmat, persmat);
+        }
+      }
 
-			effects->motion_blur_mat_cached = view_is_valid && !DRW_state_is_image_render();
+      effects->motion_blur_mat_cached = view_is_valid && !DRW_state_is_image_render();
 
-			/* Current matrix */
-			if (effects->motion_blur_mat_cached == false) {
-				eevee_motion_blur_camera_get_matrix_at_time(
-				        scene,
-				        ar, rv3d, v3d,
-				        ob_camera_eval,
-				        ctime,
-				        effects->current_world_to_ndc);
-			}
+      /* Current matrix */
+      if (effects->motion_blur_mat_cached == false) {
+        eevee_motion_blur_camera_get_matrix_at_time(
+            scene, ar, rv3d, v3d, ob_camera_eval, ctime, effects->current_world_to_ndc);
+      }
 
-			/* Only continue if camera is not being keyed */
-			if (DRW_state_is_image_render() ||
-			    compare_m4m4(persmat, effects->current_world_to_ndc, 0.0001f))
-			{
-				/* Past matrix */
-				if (effects->motion_blur_mat_cached == false) {
-					eevee_motion_blur_camera_get_matrix_at_time(
-					        scene,
-					        ar, rv3d, v3d,
-					        ob_camera_eval,
-					        ctime - delta,
-					        effects->past_world_to_ndc);
+      /* Only continue if camera is not being keyed */
+      if (DRW_state_is_image_render() ||
+          compare_m4m4(persmat, effects->current_world_to_ndc, 0.0001f)) {
+        /* Past matrix */
+        if (effects->motion_blur_mat_cached == false) {
+          eevee_motion_blur_camera_get_matrix_at_time(
+              scene, ar, rv3d, v3d, ob_camera_eval, ctime - delta, effects->past_world_to_ndc);
 
-#if 0       /* for future high quality blur */
-					/* Future matrix */
-					eevee_motion_blur_camera_get_matrix_at_time(
-					        scene,
-					        ar, rv3d, v3d,
-					        ob_camera_eval,
-					        ctime + delta,
-					        effects->future_world_to_ndc);
+#if 0 /* for future high quality blur */
+          /* Future matrix */
+          eevee_motion_blur_camera_get_matrix_at_time(
+              scene, ar, rv3d, v3d, ob_camera_eval, ctime + delta, effects->future_world_to_ndc);
 #endif
           invert_m4_m4(effects->current_ndc_to_world, effects->current_world_to_ndc);
         }
@@ -186,36 +173,36 @@ int EEVEE_motion_blur_init(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data *veda
         effects->motion_blur_mat_cached = true;
         effects->motion_blur_samples = scene_eval->eevee.motion_blur_samples;
 
-				if (!e_data.motion_blur_sh) {
-					EEVEE_create_shader_motion_blur();
-				}
+        if (!e_data.motion_blur_sh) {
+          EEVEE_create_shader_motion_blur();
+        }
 
-				return EFFECT_MOTION_BLUR | EFFECT_POST_BUFFER;
-			}
-		}
-		/* Game engine transition hack */
-		else if (scene_eval->flag & SCE_INTERACTIVE) {
-			float persmat[4][4];
+        return EFFECT_MOTION_BLUR | EFFECT_POST_BUFFER;
+      }
+    }
+    /* Game engine transition hack */
+    else if (scene_eval->flag & SCE_INTERACTIVE) {
+      float persmat[4][4];
 
-			/* Viewport Matrix */
-			DRW_viewport_matrix_get(persmat, DRW_MAT_PERS);
+      /* Viewport Matrix */
+      DRW_view_persmat_get(NULL, persmat, false);
 
-			/* Only continue if camera is not being keyed */
-			if (!compare_m4m4(persmat, effects->prev_persmat, 0.01f)) {
-				copy_m4_m4(effects->past_world_to_ndc, effects->prev_persmat);
-				invert_m4_m4(effects->current_ndc_to_world, persmat);
-				effects->motion_blur_samples = scene_eval->eevee.motion_blur_samples;
+      /* Only continue if camera is not being keyed */
+      if (!compare_m4m4(persmat, effects->prev_persmat, 0.01f)) {
+        copy_m4_m4(effects->past_world_to_ndc, effects->prev_persmat);
+        invert_m4_m4(effects->current_ndc_to_world, persmat);
+        effects->motion_blur_samples = scene_eval->eevee.motion_blur_samples;
 
-				if (!e_data.motion_blur_sh) {
-					EEVEE_create_shader_motion_blur();
-				}
-				return EFFECT_MOTION_BLUR | EFFECT_POST_BUFFER;
-			}
-		}
-		/* Game engine transition hack END */
-	}
+        if (!e_data.motion_blur_sh) {
+          EEVEE_create_shader_motion_blur();
+        }
+        return EFFECT_MOTION_BLUR | EFFECT_POST_BUFFER;
+      }
+    }
+    /* Game engine transition hack END */
+  }
 
-	return 0;
+  return 0;
 }
 
 void EEVEE_motion_blur_cache_init(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data *vedata)

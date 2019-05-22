@@ -273,12 +273,10 @@ typedef struct WORKBENCH_PrivateData {
 } WORKBENCH_PrivateData; /* Transient data */
 
 typedef struct WORKBENCH_EffectInfo {
-  float override_persmat[4][4];
-  float override_persinv[4][4];
-  float override_winmat[4][4];
-  float override_wininv[4][4];
+  /** View */
+  struct DRWView *view;
+  /** Last projection matrix to see if view is still valid. */
   float last_mat[4][4];
-  float curr_mat[4][4];
   int jitter_index;
   float taa_mix_factor;
   bool view_updated;
@@ -328,7 +326,8 @@ BLI_INLINE bool workbench_is_taa_enabled(WORKBENCH_PrivateData *wpd)
     }
   }
   else {
-    return wpd->preferences->viewport_aa > SCE_DISPLAY_AA_FXAA && !wpd->is_playback;
+    return !(IS_NAVIGATING(wpd) || wpd->is_playback) &&
+           wpd->preferences->viewport_aa > SCE_DISPLAY_AA_FXAA;
   }
 }
 
@@ -348,8 +347,9 @@ BLI_INLINE bool workbench_is_fxaa_enabled(WORKBENCH_PrivateData *wpd)
       return true;
     }
 
-    /* when navigating or animation playback use FXAA. */
-    return (IS_NAVIGATING(wpd) || wpd->is_playback) && workbench_is_taa_enabled(wpd);
+    /* when navigating or animation playback use FXAA if scene uses TAA. */
+    return (IS_NAVIGATING(wpd) || wpd->is_playback) &&
+           wpd->preferences->viewport_aa > SCE_DISPLAY_AA_FXAA;
   }
 }
 

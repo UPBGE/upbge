@@ -32,7 +32,7 @@ void studiolight_update_world(WORKBENCH_PrivateData *wpd,
                               WORKBENCH_UBO_World *wd)
 {
   float view_matrix[4][4], rot_matrix[4][4];
-  DRW_viewport_matrix_get(view_matrix, DRW_MAT_VIEW);
+  DRW_view_viewmat_get(NULL, view_matrix, false);
 
   if (USE_WORLD_ORIENTATION(wpd)) {
     axis_angle_to_mat4_single(rot_matrix, 'Z', -wpd->shading.studiolight_rot_z);
@@ -165,12 +165,12 @@ void studiolight_update_light(WORKBENCH_PrivateData *wpd, const float light_dire
   }
 
   float planes[6][4];
-  DRW_culling_frustum_planes_get(planes);
+  DRW_culling_frustum_planes_get(NULL, planes);
   /* we only need the far plane. */
   copy_v4_v4(wpd->shadow_far_plane, planes[2]);
 
   BoundBox frustum_corners;
-  DRW_culling_frustum_corners_get(&frustum_corners);
+  DRW_culling_frustum_corners_get(NULL, &frustum_corners);
 
   mul_v3_mat3_m4v3(wpd->shadow_near_corners[0], wpd->shadow_inv, frustum_corners.vec[0]);
   mul_v3_mat3_m4v3(wpd->shadow_near_corners[1], wpd->shadow_inv, frustum_corners.vec[3]);
@@ -230,7 +230,8 @@ bool studiolight_object_cast_visible_shadow(WORKBENCH_PrivateData *wpd,
                                             WORKBENCH_ObjectData *oed)
 {
   BoundBox *shadow_bbox = studiolight_object_shadow_bbox_get(wpd, ob, oed);
-  return DRW_culling_box_test(shadow_bbox);
+  const DRWView *default_view = DRW_view_default_get();
+  return DRW_culling_box_test(default_view, shadow_bbox);
 }
 
 float studiolight_object_shadow_distance(WORKBENCH_PrivateData *wpd,

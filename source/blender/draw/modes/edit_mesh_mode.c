@@ -188,10 +188,6 @@ static void EDIT_MESH_engine_init(void *vedata)
                                 {GPU_ATTACHMENT_TEXTURE(e_data.occlude_wire_depth_tx),
                                  GPU_ATTACHMENT_TEXTURE(e_data.occlude_wire_color_tx)});
 
-  if (draw_ctx->sh_cfg == GPU_SHADER_CFG_CLIPPED) {
-    DRW_state_clip_planes_set_from_rv3d(draw_ctx->rv3d);
-  }
-
   const GPUShaderConfigData *sh_cfg_data = &GPU_shader_cfg_data[draw_ctx->sh_cfg];
 
   if (!sh_data->weight_face) {
@@ -330,7 +326,8 @@ static DRWPass *edit_mesh_create_overlay_pass(float *face_alpha,
 
   float winmat[4][4];
   float viewdist = rv3d->dist;
-  DRW_viewport_matrix_get(winmat, DRW_MAT_WIN);
+  DRW_view_winmat_get(NULL, winmat, false);
+
   /* special exception for ortho camera (viewdist isnt used for perspective cameras) */
   if (rv3d->persp == RV3D_CAMOB && rv3d->is_persp == false) {
     viewdist = 1.0f / max_ff(fabsf(rv3d->winmat[0][0]), fabsf(rv3d->winmat[1][1]));
@@ -824,8 +821,6 @@ static void EDIT_MESH_draw_scene(void *vedata)
     DRW_draw_pass(psl->depth_hidden_wire_in_front);
     DRW_draw_pass(psl->edit_face_overlay_in_front);
   }
-
-  DRW_state_clip_planes_reset();
 }
 
 static void EDIT_MESH_engine_free(void)
