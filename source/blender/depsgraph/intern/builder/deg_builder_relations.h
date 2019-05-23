@@ -194,6 +194,11 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
   void add_special_eval_flag(ID *object, uint32_t flag);
 
   void build_id(ID *id);
+
+  void build_scene_render(Scene *scene);
+  void build_scene_parameters(Scene *scene);
+  void build_scene_compositor(Scene *scene);
+
   void build_layer_collections(ListBase *lb);
   void build_view_layer(Scene *scene, ViewLayer *view_layer);
   void build_collection(LayerCollection *from_layer_collection,
@@ -258,7 +263,6 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
   void build_material(Material *ma);
   void build_texture(Tex *tex);
   void build_image(Image *image);
-  void build_compositor(Scene *scene);
   void build_gpencil(bGPdata *gpd);
   void build_cachefile(CacheFile *cache_file);
   void build_mask(Mask *mask);

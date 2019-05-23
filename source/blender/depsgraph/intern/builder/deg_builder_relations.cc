@@ -497,6 +497,9 @@ void DepsgraphRelationBuilder::build_id(ID *id)
     case ID_CF:
       build_cachefile((CacheFile *)id);
       break;
+    case ID_SCE:
+      build_scene_parameters((Scene *)id);
+      break;
     default:
       fprintf(stderr, "Unhandled ID %s\n", id->name);
       BLI_assert(!"Should never happen");
@@ -563,6 +566,7 @@ void DepsgraphRelationBuilder::build_object(Base *base, Object *object)
       &object->id, NodeType::TRANSFORM, OperationCode::TRANSFORM_LOCAL);
   OperationKey parent_transform_key(
       &object->id, NodeType::TRANSFORM, OperationCode::TRANSFORM_PARENT);
+  OperationKey transform_eval_key(&object->id, NodeType::TRANSFORM, OperationCode::TRANSFORM_EVAL);
   OperationKey final_transform_key(
       &object->id, NodeType::TRANSFORM, OperationCode::TRANSFORM_FINAL);
   OperationKey ob_eval_key(&object->id, NodeType::TRANSFORM, OperationCode::TRANSFORM_EVAL);
@@ -638,16 +642,18 @@ void DepsgraphRelationBuilder::build_object(Base *base, Object *object)
   }
   /* Proxy object to copy from. */
   if (object->proxy_from != NULL) {
+    /* Object is linked here (comes from the library). */
     build_object(NULL, object->proxy_from);
     ComponentKey ob_transform_key(&object->proxy_from->id, NodeType::TRANSFORM);
     ComponentKey proxy_transform_key(&object->id, NodeType::TRANSFORM);
     add_relation(ob_transform_key, proxy_transform_key, "Proxy Transform");
   }
-  if (object->proxy_group != NULL) {
+  if (object->proxy_group != NULL && object->proxy_group != object->proxy) {
+    /* Object is local here (local in .blend file, users interacts with it). */
     build_object(NULL, object->proxy_group);
     OperationKey proxy_group_eval_key(
         &object->proxy_group->id, NodeType::TRANSFORM, OperationCode::TRANSFORM_EVAL);
-    add_relation(proxy_group_eval_key, final_transform_key, "Proxy Group Transform");
+    add_relation(proxy_group_eval_key, transform_eval_key, "Proxy Group Transform");
   }
   /* Object dupligroup. */
   if (object->instance_collection != NULL) {
@@ -2070,6 +2076,7 @@ void DepsgraphRelationBuilder::build_camera(Camera *camera)
   build_animdata(&camera->id);
   build_parameters(&camera->id);
   if (camera->dof.focus_object != NULL) {
+    build_object(NULL, camera->dof.focus_object);
     ComponentKey camera_parameters_key(&camera->id, NodeType::PARAMETERS);
     ComponentKey dof_ob_key(&camera->dof.focus_object->id, NodeType::TRANSFORM);
     add_relation(dof_ob_key, camera_parameters_key, "Camera DOF");
@@ -2125,8 +2132,15 @@ void DepsgraphRelationBuilder::build_nodetree(bNodeTree *ntree)
       build_object(NULL, (Object *)id);
     }
     else if (id_type == ID_SCE) {
-      /* Scenes are used by compositor trees, and handled by render
-       * pipeline. No need to build dependencies for them here. */
+      Scene *node_scene = (Scene *)id;
+      build_scene_parameters(node_scene);
+      /* Camera is used by defocus node.
+       *
+       * On the one hand it's annoying to always pull it in, but on another hand it's also annoying
+       * to have hardcoded node-type exception here. */
+      if (node_scene->camera != NULL) {
+        build_object(NULL, node_scene->camera);
+      }
     }
     else if (id_type == ID_TXT) {
       /* Ignore script nodes. */
@@ -2212,12 +2226,6 @@ void DepsgraphRelationBuilder::build_image(Image *image)
     return;
   }
   build_parameters(&image->id);
-}
-
-void DepsgraphRelationBuilder::build_compositor(Scene *scene)
-{
-  /* For now, just a plain wrapper? */
-  build_nodetree(scene->nodetree);
 }
 
 void DepsgraphRelationBuilder::build_gpencil(bGPdata *gpd)

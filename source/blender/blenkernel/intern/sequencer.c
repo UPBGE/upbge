@@ -279,7 +279,7 @@ static void BKE_sequence_free_ex(Scene *scene,
    */
   if (do_cache) {
     if (scene) {
-      BKE_sequence_invalidate_cache(scene, seq);
+      BKE_sequence_invalidate_cache_raw(scene, seq);
     }
   }
 
@@ -4307,7 +4307,8 @@ static void sequence_do_invalidate_dependent(Scene *scene, Sequence *seq, ListBa
     }
 
     if (BKE_sequence_check_depend(seq, cur)) {
-      BKE_sequencer_cache_cleanup_sequence(scene, cur);
+      BKE_sequencer_cache_cleanup_sequence(
+          scene, cur, seq, SEQ_CACHE_STORE_COMPOSITE | SEQ_CACHE_STORE_FINAL_OUT);
     }
 
     if (cur->seqbase.first) {
@@ -4319,46 +4320,46 @@ static void sequence_do_invalidate_dependent(Scene *scene, Sequence *seq, ListBa
 static void sequence_invalidate_cache(Scene *scene,
                                       Sequence *seq,
                                       bool invalidate_self,
-                                      bool UNUSED(invalidate_preprocess))
+                                      int invalidate_types)
 {
   Editing *ed = scene->ed;
 
-  /* invalidate cache for current sequence */
   if (invalidate_self) {
-    /* Animation structure holds some buffers inside,
-     * so for proper cache invalidation we need to
-     * re-open the animation.
-     */
     BKE_sequence_free_anim(seq);
-    BKE_sequencer_cache_cleanup_sequence(scene, seq);
+    BKE_sequencer_cache_cleanup_sequence(scene, seq, seq, invalidate_types);
   }
 
-  /* if invalidation is invoked from sequence free routine, effectdata would be NULL here */
   if (seq->effectdata && seq->type == SEQ_TYPE_SPEED) {
     BKE_sequence_effect_speed_rebuild_map(scene, seq, true);
   }
 
-  /* invalidate cache for all dependent sequences */
-
-  /* NOTE: can not use SEQ_BEGIN/SEQ_END here because that macro will change sequence's depth,
-   *       which makes transformation routines work incorrect
-   */
   sequence_do_invalidate_dependent(scene, seq, &ed->seqbase);
 }
 
-void BKE_sequence_invalidate_cache(Scene *scene, Sequence *seq)
+void BKE_sequence_invalidate_cache_raw(Scene *scene, Sequence *seq)
 {
-  sequence_invalidate_cache(scene, seq, true, true);
+  sequence_invalidate_cache(scene, seq, true, SEQ_CACHE_ALL_TYPES);
+}
+
+void BKE_sequence_invalidate_cache_preprocessed(Scene *scene, Sequence *seq)
+{
+  sequence_invalidate_cache(scene,
+                            seq,
+                            true,
+                            SEQ_CACHE_STORE_PREPROCESSED | SEQ_CACHE_STORE_COMPOSITE |
+                                SEQ_CACHE_STORE_FINAL_OUT);
+}
+
+void BKE_sequence_invalidate_cache_composite(Scene *scene, Sequence *seq)
+{
+  sequence_invalidate_cache(
+      scene, seq, true, SEQ_CACHE_STORE_COMPOSITE | SEQ_CACHE_STORE_FINAL_OUT);
 }
 
 void BKE_sequence_invalidate_dependent(Scene *scene, Sequence *seq)
 {
-  sequence_invalidate_cache(scene, seq, false, true);
-}
-
-void BKE_sequence_invalidate_cache_for_modifier(Scene *scene, Sequence *seq)
-{
-  sequence_invalidate_cache(scene, seq, true, false);
+  sequence_invalidate_cache(
+      scene, seq, false, SEQ_CACHE_STORE_COMPOSITE | SEQ_CACHE_STORE_FINAL_OUT);
 }
 
 void BKE_sequencer_free_imbuf(Scene *scene, ListBase *seqbase, bool for_render)
@@ -5352,6 +5353,15 @@ static void seq_load_apply(Main *bmain, Scene *scene, Sequence *seq, SeqLoadInfo
   }
 }
 
+static Strip *seq_strip_alloc()
+{
+  Strip *strip = MEM_callocN(sizeof(Strip), "strip");
+  strip->transform = MEM_callocN(sizeof(struct StripTransform), "StripTransform");
+  strip->crop = MEM_callocN(sizeof(struct StripCrop), "StripCrop");
+
+  return strip;
+}
+
 Sequence *BKE_sequence_alloc(ListBase *lb, int cfra, int machine)
 {
   Sequence *seq;
@@ -5460,7 +5470,7 @@ Sequence *BKE_sequencer_add_image_strip(bContext *C, ListBase *seqbasep, SeqLoad
   seq->blend_mode = SEQ_TYPE_ALPHAOVER;
 
   /* basic defaults */
-  seq->strip = strip = MEM_callocN(sizeof(Strip), "strip");
+  seq->strip = strip = seq_strip_alloc();
 
   seq->len = seq_load->len ? seq_load->len : 1;
   strip->us = 1;
@@ -5515,7 +5525,7 @@ Sequence *BKE_sequencer_add_sound_strip(bContext *C, ListBase *seqbasep, SeqLoad
   BKE_sequence_base_unique_name_recursive(&scene->ed->seqbase, seq);
 
   /* basic defaults */
-  seq->strip = strip = MEM_callocN(sizeof(Strip), "strip");
+  seq->strip = strip = seq_strip_alloc();
   /* We add a very small negative offset here, because
    * ceil(132.0) == 133.0, not nice with videos, see T47135. */
   seq->len = (int)ceil((double)info.length * FPS - 1e-4);
@@ -5647,7 +5657,7 @@ Sequence *BKE_sequencer_add_movie_strip(bContext *C, ListBase *seqbasep, SeqLoad
   }
 
   /* basic defaults */
-  seq->strip = strip = MEM_callocN(sizeof(Strip), "strip");
+  seq->strip = strip = seq_strip_alloc();
   seq->len = IMB_anim_get_duration(anim_arr[0], IMB_TC_RECORD_RUN);
   strip->us = 1;
 

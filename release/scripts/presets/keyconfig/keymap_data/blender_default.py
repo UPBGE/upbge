@@ -1607,11 +1607,11 @@ def km_node_editor(params):
         ("node.select_lasso", {"type": 'EVT_TWEAK_L', "value": 'ANY', "shift": True, "ctrl": True, "alt": True},
          {"properties": [("mode", 'SUB')]}),
         ("node.select_circle", {"type": 'C', "value": 'PRESS'}, None),
-        ("node.link", {"type": 'LEFTMOUSE', "value": 'PRESS'},
+        ("node.link", {"type": 'EVT_TWEAK_L', "value": 'ANY'},
          {"properties": [("detach", False)]}),
-        ("node.link", {"type": 'LEFTMOUSE', "value": 'PRESS', "ctrl": True},
+        ("node.link", {"type": 'EVT_TWEAK_L', "value": 'ANY', "ctrl": True},
          {"properties": [("detach", True)]}),
-        ("node.resize", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
+        ("node.resize", {"type": 'EVT_TWEAK_L', "value": 'ANY'}, None),
         ("node.add_reroute", {"type": params.action_tweak, "value": 'ANY', "shift": True}, None),
         ("node.links_cut", {"type": params.action_tweak, "value": 'ANY', "ctrl": True}, None),
         ("node.select_link_viewer", {"type": 'LEFTMOUSE', "value": 'PRESS', "shift": True, "ctrl": True}, None),
@@ -5062,6 +5062,7 @@ def km_popup_toolbar(_params):
         {"items": [
             op_tool("builtin.select", {"type": 'W', "value": 'PRESS'}),
             op_tool("builtin.select_lasso", {"type": 'L', "value": 'PRESS'}),
+            op_tool("builtin.transform", {"type": 'T', "value": 'PRESS'}),
             op_tool("builtin.measure", {"type": 'M', "value": 'PRESS'}),
         ]},
     )
@@ -5297,6 +5298,16 @@ def km_3d_view_tool_select_lasso(params):
         "3D View Tool: Select Lasso",
         {"space_type": 'VIEW_3D', "region_type": 'WINDOW'},
         {"items": _template_items_tool_select_actions("view3d.select_lasso", type=params.tool_tweak, value='ANY')},
+    )
+
+
+def km_3d_view_tool_transform(params):
+    return (
+        "3D View Tool: Transform",
+        {"space_type": 'VIEW_3D', "region_type": 'WINDOW'},
+        {"items": [
+            ("transform.from_gizmo", {"type": params.tool_tweak, "value": 'ANY'}, None),
+        ]},
     )
 
 
@@ -6180,6 +6191,7 @@ def generate_keymaps(params=None):
         km_3d_view_tool_select_box(params),
         km_3d_view_tool_select_circle(params),
         km_3d_view_tool_select_lasso(params),
+        km_3d_view_tool_transform(params),
         km_3d_view_tool_move(params),
         km_3d_view_tool_rotate(params),
         km_3d_view_tool_scale(params),
