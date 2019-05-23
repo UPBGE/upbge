@@ -4123,8 +4123,6 @@ static void direct_link_world(FileData *fd, World *wrld)
   BLI_listbase_clear(&wrld->gpumaterial);
 }
 
-/* ************ READ VFONT ***************** */
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -8831,8 +8829,6 @@ static void lib_link_mask(FileData *fd, Main *main)
   }
 }
 
-/* ************ READ LINE STYLE ***************** */
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -9090,8 +9086,6 @@ static void direct_link_linestyle(FileData *fd, FreestyleLineStyle *linestyle)
     direct_link_nodetree(fd, linestyle->nodetree);
   }
 }
-
-/* ************** GENERAL & MAIN ******************** */
 
 /** \} */
 
