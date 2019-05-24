@@ -3534,39 +3534,59 @@ def km_transform_modal_map(_params):
 # ------------------------------------------------------------------------------
 # Gizmo System Keymaps
 
-def km_gizmos(_params):
-    items = []
+# Fallback for gizmos that don't have custom a custom key-map.
+def km_generic_gizmos(_params):
     keymap = (
-        "Gizmos",
+        "Generic Gizmos",
         {"space_type": 'EMPTY', "region_type": 'WINDOW'},
-        {"items": items},
-    )
-
-    return keymap
-
-
-def km_transform_gizmo(_params):
-    keymap = (
-        "Transform Gizmo",
-        {"space_type": 'VIEW_3D', "region_type": 'WINDOW'},
         {"items": _template_items_gizmo_tweak_value()},
     )
 
     return keymap
 
 
-def km_transform_gizmo_context(_params):
+def km_generic_gizmos_tweak_modal_map(_params):
     keymap = (
-        "Transform Gizmo Context",
-        {"space_type": 'VIEW_3D', "region_type": 'WINDOW'},
+        "Generic Gizmos Tweak Modal Map",
+        {"space_type": 'EMPTY', "region_type": 'WINDOW', "modal": True},
+        {"items": _template_items_gizmo_tweak_modal()},
+    )
+    return keymap
+
+
+def km_generic_gizmos_select(_params):
+    keymap = (
+        "Generic Gizmos Select",
+        {"space_type": 'EMPTY', "region_type": 'WINDOW'},
+        # TODO, currently in C code.
         {"items": _template_items_gizmo_tweak_value()},
     )
 
+    return keymap
+
+
+def km_generic_gizmos_select_tweak_modal_map(_params):
+    keymap = (
+        "Generic Gizmos Select Tweak Modal Map",
+        {"space_type": 'EMPTY', "region_type": 'WINDOW', "modal": True},
+        {"items": _template_items_gizmo_tweak_modal()},
+    )
     return keymap
 
 
 # ------------------------------------------------------------------------------
 # Tool System Keymaps
+
+
+def km_3d_view_tool_transform(params):
+    return (
+        "3D View Tool: Transform",
+        {"space_type": 'VIEW_3D', "region_type": 'WINDOW'},
+        {"items": [
+            ("transform.from_gizmo", {"type": 'MIDDLEMOUSE', "value": 'ANY'}, None),
+            *_template_items_tool_select_actions("view3d.select_box", type=params.tool_tweak, value='ANY'),
+        ]},
+    )
 
 
 def km_3d_view_tool_move(params):
@@ -3753,11 +3773,13 @@ def generate_keymaps(params=None):
         km_transform_modal_map(params),
 
         # Gizmos.
-        km_gizmos(params),
-        km_transform_gizmo(params),
-        km_transform_gizmo_context(params),
+        km_generic_gizmos(params),
+        km_generic_gizmos_tweak_modal_map(params),
+        km_generic_gizmos_select(params),
+        km_generic_gizmos_select_tweak_modal_map(params),
 
         # Tool System.
+        km_3d_view_tool_transform(params),
         km_3d_view_tool_move(params),
         km_3d_view_tool_rotate(params),
         km_3d_view_tool_scale(params),
