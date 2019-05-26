@@ -47,7 +47,6 @@ set(SRC
 	intern/ErrorValue.cpp
 	intern/Expression.cpp
 	intern/FloatValue.cpp
-	intern/HashedPtr.cpp
 	intern/IdentifierExpr.cpp
 	intern/IfExpr.cpp
 	intern/InputParser.cpp

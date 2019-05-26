@@ -53,8 +53,9 @@ set(INC_SYS
 
 set(SRC
 	CcdConstraint.cpp
-	CcdPhysicsController.cpp
 	CcdPhysicsEnvironment.cpp
+	CcdPhysicsController.cpp
+	CcdGraphicController.cpp
 
 	CcdConstraint.h
 	CcdMathUtils.h

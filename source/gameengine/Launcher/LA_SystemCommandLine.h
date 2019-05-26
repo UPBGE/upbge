@@ -1,4 +1,6 @@
 /*
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -48,8 +50,8 @@ extern void SYS_WriteCommandLineString(SYS_SystemHandle sys, const char *paramna
 
 /* Start game engine */
 
-struct ARegion;
 struct bContext;
+struct ARegion;
 struct rcti;
 
 extern void StartKetsjiShell(struct bContext *C, struct ARegion *ar,

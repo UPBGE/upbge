@@ -9,6 +9,7 @@
  * in supporting documentation.  Erwin Coumans makes no
  * representations about the suitability of this software for any
  * purpose.  It is provided "as is" without express or implied warranty.
+ *
  */
 
 /** \file EXP_Value.h
@@ -90,6 +91,7 @@ enum VALUE_DATA_TYPE {
  *
  * - Some small editor-specific things added
  * - A helperclass CompressorArchive handles the serialization
+ *
  */
 class EXP_Value : public EXP_PyObjectPlus, public CM_RefCount<EXP_Value>
 {

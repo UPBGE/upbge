@@ -678,6 +678,7 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		bf_intern_libmv
 		bf_intern_glew_mx
 		bf_intern_clog
+		bf_intern_numaapi
 
 		extern_lzma
 		extern_curve_fit_nd
@@ -687,6 +688,7 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		extern_wcwidth
 		extern_sdlew
 
+		cycles_device
 		cycles_render
 		cycles_graph
 		cycles_bvh

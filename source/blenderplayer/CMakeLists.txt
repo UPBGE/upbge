@@ -171,6 +171,7 @@ endif()
 		bf_intern_eigen
 		bf_intern_libmv
 		bf_intern_audaspace
+		bf_intern_numaapi
 
 		extern_bullet
 		extern_openjpeg
@@ -180,7 +181,6 @@ endif()
 		extern_rangetree
 		extern_wcwidth
 		extern_sdlew
-		bf_intern_numaapi
 	)
 
 	if(NOT WITH_SYSTEM_GLOG)

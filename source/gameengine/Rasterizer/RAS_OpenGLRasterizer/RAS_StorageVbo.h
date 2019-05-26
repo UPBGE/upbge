@@ -1,4 +1,6 @@
 /*
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -15,78 +17,54 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
+ *
+ * The Original Code is: all of this file.
+ *
+ * Contributor(s): none yet.
+ *
+ * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __KX_VERTEXBUFFEROBJECTSTORAGE
-#define __KX_VERTEXBUFFEROBJECTSTORAGE
+#ifndef __RAS_STORAGE_VBO_H__
+#define __RAS_STORAGE_VBO_H__
 
-#include <map>
 #include "GPU_glew.h"
 
-#include "RAS_IStorage.h"
-#include "RAS_IRasterizer.h"
+#include <vector>
 
-#include "RAS_OpenGLRasterizer.h"
+struct RAS_DisplayArrayLayout;
+class RAS_DisplayArray;
 
-class VBO
+class RAS_StorageVbo
 {
-public:
-	VBO(RAS_DisplayArray *data, unsigned int indices);
-	~VBO();
-
-	void	Draw(int texco_num, RAS_IRasterizer::TexCoGen* texco, int attrib_num, RAS_IRasterizer::TexCoGen* attrib, int *attrib_layer);
-
-	void	UpdateData();
-	void	UpdateIndices();
 private:
-	RAS_DisplayArray*	data;
-	GLuint			size;
-	GLuint			stride;
-	GLuint			indices;
-	GLenum			mode;
-	GLuint			ibo;
-	GLuint			vbo_id;
+	RAS_DisplayArray *m_array;
+	unsigned int m_indices;
+	GLenum m_mode;
+	GLuint m_ibo;
+	GLuint m_vbo;
 
-	void*			vertex_offset;
-	void*			normal_offset;
-	void*			color_offset;
-	void*			tangent_offset;
-	void*			uv_offset;
-};
-
-typedef std::map<RAS_DisplayArray*, VBO*> VBOMap;
-
-class RAS_StorageVBO : public RAS_IStorage
-{
+	void CopyVertexData(const RAS_DisplayArrayLayout& layout, unsigned int modifiedFlag);
 
 public:
-	RAS_StorageVBO(int *texco_num, RAS_IRasterizer::TexCoGen *texco, int *attrib_num, RAS_IRasterizer::TexCoGen *attrib, int *attrib_layer);
-	virtual ~RAS_StorageVBO();
+	RAS_StorageVbo(RAS_DisplayArray *array);
+	~RAS_StorageVbo();
 
-	virtual bool	Init();
-	virtual void	Exit();
+	void BindVertexBuffer();
+	void UnbindVertexBuffer();
 
-	virtual void	IndexPrimitives(RAS_MeshSlot& ms);
+	void BindIndexBuffer();
+	void UnbindIndexBuffer();
 
-	virtual void	SetDrawingMode(int drawingmode) {m_drawingmode = drawingmode;};
+	void UpdateVertexData(unsigned int modifiedFlag);
+	void UpdateSize();
+	unsigned int *GetIndexMap();
+	void FlushIndexMap();
 
-protected:
-	int				m_drawingmode;
-
-	int*			m_texco_num;
-	int*			m_attrib_num;
-
-	RAS_IRasterizer::TexCoGen*		m_texco;
-	RAS_IRasterizer::TexCoGen*		m_attrib;
-	int*			                m_attrib_layer;
-
-	VBOMap			m_vbo_lookup;
-
-#ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:RAS_StorageVA"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
-#endif
+	void IndexPrimitives();
+	void IndexPrimitivesInstancing(unsigned int numinstance);
+	void IndexPrimitivesBatching(const std::vector<intptr_t>& indices, const std::vector<int>& counts);
 };
 
-#endif //__KX_VERTEXBUFFEROBJECTSTORAGE
+
+#endif  // __RAS_STORAGE_VBO_H__

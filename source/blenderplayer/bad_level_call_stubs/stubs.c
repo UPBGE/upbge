@@ -1,4 +1,6 @@
 /*
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -15,6 +17,12 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
+ *
+ * The Original Code is: all of this file.
+ *
+ * Contributor(s): none yet.
+ *
+ * ***** END GPL LICENSE BLOCK *****
  * BKE_bad_level_calls function stubs
  */
 
@@ -37,8 +45,11 @@ struct ARegion;
 struct ARegionType;
 struct BMEditMesh;
 struct Base;
+struct bContext;
 struct BoundBox;
 struct Brush;
+struct CSG_FaceIteratorDescriptor;
+struct CSG_VertexIteratorDescriptor;
 struct ChannelDriver;
 struct ColorBand;
 struct Context;
@@ -50,14 +61,12 @@ struct EnvMap;
 struct FCurve;
 struct Heap;
 struct HeapNode;
-struct HookModifierData;
 struct ID;
 struct ImBuf;
 struct Image;
 struct ImageUser;
 struct KeyingSet;
 struct KeyingSetInfo;
-struct Lattice;
 struct MCol;
 struct MTex;
 struct Main;
@@ -66,9 +75,11 @@ struct Material;
 struct MenuType;
 struct Mesh;
 struct MetaBall;
+struct Lattice;
 struct ModifierData;
 struct MovieClip;
 struct MultiresModifierData;
+struct HookModifierData;
 struct NodeBlurData;
 struct Nurb;
 struct Object;
@@ -100,15 +111,14 @@ struct bArmature;
 struct bConstraint;
 struct bConstraintOb;
 struct bConstraintTarget;
-struct bContext;
 struct bContextDataResult;
 struct bGPDlayer;
 struct bNode;
+struct bNodeType;
 struct bNodeSocket;
 struct bNodeSocketType;
 struct bNodeTree;
 struct bNodeTreeType;
-struct bNodeType;
 struct bPoseChannel;
 struct bPythonConstraint;
 struct bTheme;
@@ -231,9 +241,9 @@ void RE_engine_active_view_set(struct RenderEngine *engine, const char *viewname
 void RE_engine_get_camera_model_matrix(struct RenderEngine *engine, struct Object *camera, bool use_spherical_stereo, float *r_modelmat) RET_NONE
 float RE_engine_get_camera_shift_x(struct RenderEngine *engine, struct Object *camera, bool use_spherical_stereo) RET_ZERO
 bool RE_engine_get_spherical_stereo(struct RenderEngine *engine, struct Object *camera) RET_ZERO
+void RE_SetActiveRenderView(struct Render *re, const char *viewname) RET_NONE
 void RE_engine_update_render_passes(struct RenderEngine *engine, struct Scene *scene, struct SceneRenderLayer *srl,
                                     update_render_passes_cb_t callback, void *callback_data) RET_NONE
-void RE_SetActiveRenderView(struct Render *re, const char *viewname) RET_NONE
 
 struct RenderPass *RE_pass_find_by_name(volatile struct RenderLayer *rl, const char *name, const char *viewname) RET_NULL
 struct RenderPass *RE_pass_find_by_type(volatile struct RenderLayer *rl, int passtype, const char *viewname) RET_NULL

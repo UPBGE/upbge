@@ -62,7 +62,6 @@ set(INC_SYS
 add_definitions(${GL_DEFINITIONS})
 
 set(SRC
-	DeckLink.cpp
 	Exception.cpp
 	FilterBase.cpp
 	FilterBlueScreen.cpp
@@ -76,13 +75,13 @@ set(SRC
 	ImageViewport.cpp
 	PyTypeList.cpp
 	Texture.cpp
+	DeckLink.cpp
 	VideoBase.cpp
-	VideoDeckLink.cpp
 	VideoFFmpeg.cpp
+	VideoDeckLink.cpp
 	blendVideoTex.cpp
 
 	Common.h
-	DeckLink.h
 	Exception.h
 	FilterBase.h
 	FilterBlueScreen.h
@@ -96,9 +95,10 @@ set(SRC
 	ImageViewport.h
 	PyTypeList.h
 	Texture.h
+	DeckLink.h
 	VideoBase.h
-	VideoDeckLink.h
 	VideoFFmpeg.h
+	VideoDeckLink.h
 )
 
 if(WITH_CODEC_FFMPEG)

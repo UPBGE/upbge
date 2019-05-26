@@ -1,5 +1,6 @@
 /*
- * Manager for ray events
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,8 +15,9 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
+ * Contributor(s): Tristan Porteries.
+ *
+ * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file CM_List.h
